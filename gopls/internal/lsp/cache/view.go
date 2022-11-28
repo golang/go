@@ -36,8 +36,10 @@ import (
 )
 
 type View struct {
-	session *Session
-	id      string
+	id string
+
+	cache       *Cache            // shared cache
+	gocmdRunner *gocommand.Runner // limits go command concurrency
 
 	optionsMu sync.Mutex
 	options   *source.Options
@@ -343,7 +345,11 @@ func minorOptionsChange(a, b *source.Options) bool {
 	return reflect.DeepEqual(aBuildFlags, bBuildFlags)
 }
 
-func (v *View) SetOptions(ctx context.Context, options *source.Options) (source.View, error) {
+// SetViewOptions sets the options of the given view to new values. Calling
+// this may cause the view to be invalidated and a replacement view added to
+// the session. If so the new view will be returned, otherwise the original one
+// will be returned.
+func (s *Session) SetViewOptions(ctx context.Context, v *View, options *source.Options) (*View, error) {
 	// no need to rebuild the view if the options were not materially changed
 	v.optionsMu.Lock()
 	if minorOptionsChange(v.options, options) {
@@ -352,7 +358,7 @@ func (v *View) SetOptions(ctx context.Context, options *source.Options) (source.
 		return v, nil
 	}
 	v.optionsMu.Unlock()
-	newView, err := v.session.updateView(ctx, v, options)
+	newView, err := s.updateView(ctx, v, options)
 	return newView, err
 }
 
@@ -375,7 +381,7 @@ func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 			fullEnv[s[0]] = s[1]
 		}
 	}
-	goVersion, err := s.view.session.gocmdRunner.Run(ctx, gocommand.Invocation{
+	goVersion, err := s.view.gocmdRunner.Run(ctx, gocommand.Invocation{
 		Verb:       "version",
 		Env:        env,
 		WorkingDir: s.view.rootURI.Filename(),
@@ -584,16 +590,9 @@ func (v *View) findFile(uri span.URI) (*fileBase, error) {
 	return nil, nil
 }
 
-func (v *View) Shutdown(ctx context.Context) {
-	v.session.removeView(ctx, v)
-}
-
 // shutdown releases resources associated with the view, and waits for ongoing
 // work to complete.
-//
-// TODO(rFindley): probably some of this should also be one in View.Shutdown
-// above?
-func (v *View) shutdown(ctx context.Context) {
+func (v *View) shutdown() {
 	// Cancel the initial workspace load if it is still running.
 	v.initCancelFirstAttempt()
 
@@ -608,10 +607,6 @@ func (v *View) shutdown(ctx context.Context) {
 
 	v.importsState.destroy()
 	v.snapshotWG.Wait()
-}
-
-func (v *View) Session() *Session {
-	return v.session
 }
 
 func (s *snapshot) IgnoredFile(uri span.URI) bool {

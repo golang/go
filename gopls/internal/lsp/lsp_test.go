@@ -70,12 +70,12 @@ func testLSP(t *testing.T, datum *tests.Data) {
 		t.Fatal(err)
 	}
 
-	defer view.Shutdown(ctx)
+	defer session.RemoveView(view)
 
 	// Enable type error analyses for tests.
 	// TODO(golang/go#38212): Delete this once they are enabled by default.
 	tests.EnableAllAnalyzers(view, options)
-	view.SetOptions(ctx, options)
+	session.SetViewOptions(ctx, view, options)
 
 	// Enable all inlay hints for tests.
 	tests.EnableAllInlayHints(view, options)
@@ -233,10 +233,11 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 	}
 	original := view.Options()
 	modified := original
+	defer r.server.session.SetViewOptions(r.ctx, view, original)
 
 	// Test all folding ranges.
 	modified.LineFoldingOnly = false
-	view, err = view.SetOptions(r.ctx, modified)
+	view, err = r.server.session.SetViewOptions(r.ctx, view, modified)
 	if err != nil {
 		t.Error(err)
 		return
@@ -254,7 +255,7 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 
 	// Test folding ranges with lineFoldingOnly = true.
 	modified.LineFoldingOnly = true
-	view, err = view.SetOptions(r.ctx, modified)
+	view, err = r.server.session.SetViewOptions(r.ctx, view, modified)
 	if err != nil {
 		t.Error(err)
 		return
@@ -269,7 +270,6 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 		return
 	}
 	r.foldingRanges(t, "foldingRange-lineFolding", uri, ranges)
-	view.SetOptions(r.ctx, original)
 }
 
 func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, ranges []protocol.FoldingRange) {
@@ -1328,7 +1328,7 @@ func TestBytesOffset(t *testing.T) {
 	}
 }
 
-func (r *runner) collectDiagnostics(view source.View) {
+func (r *runner) collectDiagnostics(view *cache.View) {
 	if r.diagnostics != nil {
 		return
 	}

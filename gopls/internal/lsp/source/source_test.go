@@ -38,8 +38,9 @@ func TestSource(t *testing.T) {
 }
 
 type runner struct {
+	session     *cache.Session
+	view        *cache.View
 	snapshot    source.Snapshot
-	view        source.View
 	data        *tests.Data
 	ctx         context.Context
 	normalizers []tests.Normalizer
@@ -58,12 +59,15 @@ func testSource(t *testing.T, datum *tests.Data) {
 		t.Fatal(err)
 	}
 	release()
-	defer view.Shutdown(ctx)
+	defer session.RemoveView(view)
 
 	// Enable type error analyses for tests.
 	// TODO(golang/go#38212): Delete this once they are enabled by default.
 	tests.EnableAllAnalyzers(view, options)
-	view.SetOptions(ctx, options)
+	view, err = session.SetViewOptions(ctx, view, options)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var modifications []source.FileModification
 	for filename, content := range datum.Config.Overlay {
@@ -84,6 +88,7 @@ func testSource(t *testing.T, datum *tests.Data) {
 	snapshot, release := view.Snapshot(ctx)
 	defer release()
 	r := &runner{
+		session:     session,
 		view:        view,
 		snapshot:    snapshot,
 		data:        datum,
@@ -283,14 +288,14 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 	original := r.view.Options()
 	modified := original.Clone()
 	options(modified)
-	newView, err := r.view.SetOptions(r.ctx, modified)
-	if newView != r.view {
+	view, err := r.session.SetViewOptions(r.ctx, r.view, modified)
+	if view != r.view {
 		t.Fatalf("options change unexpectedly created new view")
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer r.view.SetOptions(r.ctx, original)
+	defer r.session.SetViewOptions(r.ctx, view, original)
 
 	list, surrounding, err := completion.Completion(r.ctx, r.snapshot, fh, protocol.Position{
 		Line:      uint32(src.Start().Line() - 1),

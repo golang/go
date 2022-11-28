@@ -106,7 +106,7 @@ func modTidyImpl(ctx context.Context, snapshot *snapshot, filename string, pm *s
 	// Keep the temporary go.mod file around long enough to parse it.
 	defer cleanup()
 
-	if _, err := snapshot.view.session.gocmdRunner.Run(ctx, *inv); err != nil {
+	if _, err := snapshot.view.gocmdRunner.Run(ctx, *inv); err != nil {
 		return nil, err
 	}
 

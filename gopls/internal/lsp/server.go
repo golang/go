@@ -23,8 +23,6 @@ const concurrentAnalyses = 1
 // NewServer creates an LSP server and binds it to handle incoming client
 // messages on on the supplied stream.
 func NewServer(session *cache.Session, client protocol.ClientCloser) *Server {
-	tracker := progress.NewTracker(client)
-	session.SetProgressTracker(tracker)
 	return &Server{
 		diagnostics:           map[span.URI]*fileReports{},
 		gcOptimizationDetails: make(map[source.PackageID]struct{}),
@@ -33,7 +31,7 @@ func NewServer(session *cache.Session, client protocol.ClientCloser) *Server {
 		session:               session,
 		client:                client,
 		diagnosticsSema:       make(chan struct{}, concurrentAnalyses),
-		progress:              tracker,
+		progress:              progress.NewTracker(client),
 		diagDebouncer:         newDebouncer(),
 		watchedFileDebouncer:  newDebouncer(),
 	}

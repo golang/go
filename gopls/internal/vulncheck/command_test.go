@@ -319,7 +319,7 @@ func runTest(t *testing.T, workspaceData, proxyData string, test func(context.Co
 		// The snapshot must be released before calling view.Shutdown, to avoid a
 		// deadlock.
 		release()
-		view.Shutdown(ctx)
+		session.RemoveView(view)
 	}()
 
 	test(ctx, snapshot)

@@ -283,17 +283,8 @@ type View interface {
 	// Folder returns the folder with which this view was created.
 	Folder() span.URI
 
-	// Shutdown closes this view, and detaches it from its session.
-	Shutdown(ctx context.Context)
-
 	// Options returns a copy of the Options for this view.
 	Options() *Options
-
-	// SetOptions sets the options of this view to new values.
-	// Calling this may cause the view to be invalidated and a replacement view
-	// added to the session. If so the new view will be returned, otherwise the
-	// original one will be.
-	SetOptions(context.Context, *Options) (View, error)
 
 	// Snapshot returns the current snapshot for the view, and a
 	// release function that must be called when the Snapshot is

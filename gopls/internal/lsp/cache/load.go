@@ -105,11 +105,6 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	}
 	sort.Strings(query) // for determinism
 
-	if s.view.Options().VerboseWorkDoneProgress {
-		work := s.view.session.progress.Start(ctx, "Load", fmt.Sprintf("Loading query=%s", query), nil, nil)
-		defer work.End(ctx, "Done.")
-	}
-
 	ctx, done := event.Start(ctx, "cache.view.load", tag.Query.Of(query))
 	defer done()
 

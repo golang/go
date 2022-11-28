@@ -130,11 +130,7 @@ func (st *State) Session(id string) *cache.Session {
 func (st *State) Views() []*cache.View {
 	var views []*cache.View
 	for _, s := range st.Sessions() {
-		for _, v := range s.Views() {
-			if cv, ok := v.(*cache.View); ok {
-				views = append(views, cv)
-			}
-		}
+		views = append(views, s.Views()...)
 	}
 	return views
 }
@@ -897,7 +893,6 @@ var ViewTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "body"}}
 Name: <b>{{.Name}}</b><br>
 Folder: <b>{{.Folder}}</b><br>
-From: <b>{{template "sessionlink" .Session.ID}}</b><br>
 <h2>Environment</h2>
 <ul>{{range .Options.Env}}<li>{{.}}</li>{{end}}</ul>
 {{end}}

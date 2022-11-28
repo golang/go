@@ -173,11 +173,11 @@ func (c *Cache) NewSession(ctx context.Context) *Session {
 		c.options(options)
 	}
 	s := &Session{
-		cache:       c,
 		id:          strconv.FormatInt(index, 10),
+		cache:       c,
+		gocmdRunner: &gocommand.Runner{},
 		options:     options,
 		overlays:    make(map[span.URI]*overlay),
-		gocmdRunner: &gocommand.Runner{},
 	}
 	event.Log(ctx, "New session", KeyCreateSession.Of(s))
 	return s

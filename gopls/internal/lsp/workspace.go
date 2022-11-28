@@ -18,7 +18,7 @@ func (s *Server) didChangeWorkspaceFolders(ctx context.Context, params *protocol
 	for _, folder := range event.Removed {
 		view := s.session.View(folder.Name)
 		if view != nil {
-			view.Shutdown(ctx)
+			s.session.RemoveView(view)
 		} else {
 			return fmt.Errorf("view %s for %v not found", folder.Name, folder.URI)
 		}
@@ -58,7 +58,7 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 		if err := s.fetchConfig(ctx, view.Name(), view.Folder(), options); err != nil {
 			return err
 		}
-		view, err := view.SetOptions(ctx, options)
+		view, err := s.session.SetViewOptions(ctx, view, options)
 		if err != nil {
 			return err
 		}

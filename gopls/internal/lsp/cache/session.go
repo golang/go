@@ -14,9 +14,9 @@ import (
 	"sync/atomic"
 
 	"golang.org/x/tools/gopls/internal/govulncheck"
-	"golang.org/x/tools/gopls/internal/lsp/progress"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
@@ -25,8 +25,12 @@ import (
 )
 
 type Session struct {
-	cache *Cache
-	id    string
+	// Unique identifier for this session.
+	id string
+
+	// Immutable attributes shared across views.
+	cache       *Cache            // shared cache
+	gocmdRunner *gocommand.Runner // limits go command concurrency
 
 	optionsMu sync.Mutex
 	options   *source.Options
@@ -37,11 +41,6 @@ type Session struct {
 
 	overlayMu sync.Mutex
 	overlays  map[span.URI]*overlay
-
-	// gocmdRunner guards go command calls from concurrency errors.
-	gocmdRunner *gocommand.Runner
-
-	progress *progress.Tracker
 }
 
 type overlay struct {
@@ -139,12 +138,6 @@ func (s *Session) SetOptions(options *source.Options) {
 	s.options = options
 }
 
-// SetProgressTracker sets the progress tracker for the session.
-func (s *Session) SetProgressTracker(tracker *progress.Tracker) {
-	// The progress tracker should be set before any view is initialized.
-	s.progress = tracker
-}
-
 // Shutdown the session and all views it has created.
 func (s *Session) Shutdown(ctx context.Context) {
 	var views []*View
@@ -154,7 +147,7 @@ func (s *Session) Shutdown(ctx context.Context) {
 	s.viewMap = nil
 	s.viewMu.Unlock()
 	for _, view := range views {
-		view.shutdown(ctx)
+		view.shutdown()
 	}
 	event.Log(ctx, "Shutdown session", KeyShutdownSession.Of(s))
 }
@@ -169,7 +162,7 @@ func (s *Session) Cache() *Cache {
 // of its gopls workspace module in that directory, so that client tooling
 // can execute in the same main module.  On success it also returns a release
 // function that must be called when the Snapshot is no longer needed.
-func (s *Session) NewView(ctx context.Context, name string, folder span.URI, options *source.Options) (source.View, source.Snapshot, func(), error) {
+func (s *Session) NewView(ctx context.Context, name string, folder span.URI, options *source.Options) (*View, source.Snapshot, func(), error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	for _, view := range s.views {
@@ -230,10 +223,11 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	backgroundCtx, cancel := context.WithCancel(baseCtx)
 
 	v := &View{
-		session:              s,
+		id:                   strconv.FormatInt(index, 10),
+		cache:                s.cache,
+		gocmdRunner:          s.gocmdRunner,
 		initialWorkspaceLoad: make(chan struct{}),
 		initializationSema:   make(chan struct{}, 1),
-		id:                   strconv.FormatInt(index, 10),
 		options:              options,
 		baseCtx:              baseCtx,
 		name:                 name,
@@ -308,7 +302,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 }
 
 // View returns a view with a matching name, if the session has one.
-func (s *Session) View(name string) source.View {
+func (s *Session) View(name string) *View {
 	s.viewMu.RLock()
 	defer s.viewMu.RUnlock()
 	for _, view := range s.views {
@@ -321,11 +315,7 @@ func (s *Session) View(name string) source.View {
 
 // ViewOf returns a view corresponding to the given URI.
 // If the file is not already associated with a view, pick one using some heuristics.
-func (s *Session) ViewOf(uri span.URI) (source.View, error) {
-	return s.viewOf(uri)
-}
-
-func (s *Session) viewOf(uri span.URI) (*View, error) {
+func (s *Session) ViewOf(uri span.URI) (*View, error) {
 	s.viewMu.RLock()
 	defer s.viewMu.RUnlock()
 	// Check if we already know this file.
@@ -340,13 +330,11 @@ func (s *Session) viewOf(uri span.URI) (*View, error) {
 	return s.viewMap[uri], nil
 }
 
-func (s *Session) Views() []source.View {
+func (s *Session) Views() []*View {
 	s.viewMu.RLock()
 	defer s.viewMu.RUnlock()
-	result := make([]source.View, len(s.views))
-	for i, v := range s.views {
-		result[i] = v
-	}
+	result := make([]*View, len(s.views))
+	copy(result, s.views)
 	return result
 }
 
@@ -378,19 +366,19 @@ func bestViewForURI(uri span.URI, views []*View) *View {
 	return views[0]
 }
 
-func (s *Session) removeView(ctx context.Context, view *View) error {
+// RemoveView removes the view v from the session
+func (s *Session) RemoveView(view *View) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	i, err := s.dropView(ctx, view)
-	if err != nil {
-		return err
+	i := s.dropView(view)
+	if i == -1 { // error reported elsewhere
+		return
 	}
 	// delete this view... we don't care about order but we do want to make
 	// sure we can garbage collect the view
 	s.views[i] = s.views[len(s.views)-1]
 	s.views[len(s.views)-1] = nil
 	s.views = s.views[:len(s.views)-1]
-	return nil
 }
 
 func (s *Session) updateView(ctx context.Context, view *View, options *source.Options) (*View, error) {
@@ -406,9 +394,9 @@ func (s *Session) updateView(ctx context.Context, view *View, options *source.Op
 	seqID := view.snapshot.sequenceID // Preserve sequence IDs when updating a view in place.
 	view.snapshotMu.Unlock()
 
-	i, err := s.dropView(ctx, view)
-	if err != nil {
-		return nil, err
+	i := s.dropView(view)
+	if i == -1 {
+		return nil, fmt.Errorf("view %q not found", view.id)
 	}
 
 	v, _, release, err := s.createView(ctx, view.name, view.folder, options, seqID)
@@ -428,18 +416,24 @@ func (s *Session) updateView(ctx context.Context, view *View, options *source.Op
 	return v, nil
 }
 
-func (s *Session) dropView(ctx context.Context, v *View) (int, error) {
+// dropView removes v from the set of views for the receiver s and calls
+// v.shutdown, returning the index of v in s.views (if found), or -1 if v was
+// not found. s.viewMu must be held while calling this function.
+func (s *Session) dropView(v *View) int {
 	// we always need to drop the view map
 	s.viewMap = make(map[span.URI]*View)
 	for i := range s.views {
 		if v == s.views[i] {
 			// we found the view, drop it and return the index it was found at
 			s.views[i] = nil
-			v.shutdown(ctx)
-			return i, nil
+			v.shutdown()
+			return i
 		}
 	}
-	return -1, fmt.Errorf("view %s for %v not found", v.Name(), v.Folder())
+	// TODO(rfindley): it looks wrong that we don't shutdown v in this codepath.
+	// We should never get here.
+	bug.Reportf("tried to drop nonexistent view %q", v.id)
+	return -1
 }
 
 func (s *Session) ModifyFiles(ctx context.Context, changes []source.FileModification) error {
@@ -498,7 +492,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			if c.OnDisk {
 				continue
 			}
-			bestView, err := s.viewOf(c.URI)
+			bestView, err := s.ViewOf(c.URI)
 			if err != nil {
 				return nil, nil, err
 			}

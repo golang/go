@@ -258,7 +258,7 @@ func (s *snapshot) BackgroundContext() context.Context {
 }
 
 func (s *snapshot) FileSet() *token.FileSet {
-	return s.view.session.cache.fset
+	return s.view.cache.fset
 }
 
 func (s *snapshot) ModFiles() []span.URI {
@@ -376,7 +376,7 @@ func (s *snapshot) config(ctx context.Context, inv *gocommand.Invocation) *packa
 	if typesinternal.SetUsesCgo(&types.Config{}) {
 		cfg.Mode |= packages.LoadMode(packagesinternal.TypecheckCgo)
 	}
-	packagesinternal.SetGoCmdRunner(cfg, s.view.session.gocmdRunner)
+	packagesinternal.SetGoCmdRunner(cfg, s.view.gocmdRunner)
 	return cfg
 }
 
@@ -387,7 +387,7 @@ func (s *snapshot) RunGoCommandDirect(ctx context.Context, mode source.Invocatio
 	}
 	defer cleanup()
 
-	return s.view.session.gocmdRunner.Run(ctx, *inv)
+	return s.view.gocmdRunner.Run(ctx, *inv)
 }
 
 func (s *snapshot) RunGoCommandPiped(ctx context.Context, mode source.InvocationFlags, inv *gocommand.Invocation, stdout, stderr io.Writer) error {
@@ -396,7 +396,7 @@ func (s *snapshot) RunGoCommandPiped(ctx context.Context, mode source.Invocation
 		return err
 	}
 	defer cleanup()
-	return s.view.session.gocmdRunner.RunPiped(ctx, *inv, stdout, stderr)
+	return s.view.gocmdRunner.RunPiped(ctx, *inv, stdout, stderr)
 }
 
 func (s *snapshot) RunGoCommands(ctx context.Context, allowNetwork bool, wd string, run func(invoke func(...string) (*bytes.Buffer, error)) error) (bool, []byte, []byte, error) {
@@ -417,7 +417,7 @@ func (s *snapshot) RunGoCommands(ctx context.Context, allowNetwork bool, wd stri
 	invoke := func(args ...string) (*bytes.Buffer, error) {
 		inv.Verb = args[0]
 		inv.Args = args[1:]
-		return s.view.session.gocmdRunner.Run(ctx, *inv)
+		return s.view.gocmdRunner.Run(ctx, *inv)
 	}
 	if err := run(invoke); err != nil {
 		return false, nil, nil, err
@@ -1319,7 +1319,7 @@ func (s *snapshot) getFileLocked(ctx context.Context, f *fileBase) (source.Versi
 		return fh, nil
 	}
 
-	fh, err := s.view.session.cache.getFile(ctx, f.URI()) // read the file
+	fh, err := s.view.cache.getFile(ctx, f.URI()) // read the file
 	if err != nil {
 		return nil, err
 	}
