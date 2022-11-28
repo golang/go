@@ -193,12 +193,12 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p>
-  The packages in the standard library that use cgo are <a href="/pkg/net/">net</a>,
-  <a href="/pkg/os/user/">os/user</a>, and
-  <a href="/pkg/plugin/">plugin</a>.
-  On macOS, the net and os/user packages have been rewritten not to use cgo:
+  The packages in the standard library that use cgo are <a href="/pkg/net/"><code>net</code></a>,
+  <a href="/pkg/os/user/"><code>os/user</code></a>, and
+  <a href="/pkg/plugin/"><code>plugin</code></a>.
+  On macOS, the <code>net</code> and <code>os/user</code> packages have been rewritten not to use cgo:
   the same code is now used for cgo and non-cgo builds as well as cross-compiled builds.
-  On Windows, the net and os/user packages have never used cgo.
+  On Windows, the <code>net</code> and <code>os/user</code> packages have never used cgo.
   On other systems, builds with cgo disabled will use a pure Go version of these packages.
 </p>
 
@@ -297,13 +297,16 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="bootstrap">Bootstrap</h2>
 
 <p><!-- https://go.dev/issue/44505 -->
-  When building a Go release from source and GOROOT_BOOTSTRAP is not set,
-  previous versions of Go looked for a Go 1.4 or later bootstrap toolchain in the directory $HOME/go1.4 (%HOMEDRIVE%%HOMEPATH%\go1.4 on Windows).
-  Go 1.18 and Go 1.19 looked first for $HOME/go1.17 or $HOME/sdk/go1.17 before falling back to $HOME/go1.4,
+  When building a Go release from source and <code>GOROOT_BOOTSTRAP</code> is not set,
+  previous versions of Go looked for a Go 1.4 or later bootstrap toolchain in the directory
+  <code>$HOME/go1.4</code> (<code>%HOMEDRIVE%%HOMEPATH%\go1.4</code> on Windows).
+  Go 1.18 and Go 1.19 looked first for <code>$HOME/go1.17</code> or <code>$HOME/sdk/go1.17</code>
+  before falling back to <code>$HOME/go1.4</code>,
   in ancitipation of requiring Go 1.17 for use when bootstrapping Go 1.20.
   Go 1.20 does require a Go 1.17 release for bootstrapping, but we realized that we should
   adopt the latest point release of the bootstrap toolchain, so it requires Go 1.17.13.
-  Go 1.20 looks for $HOME/go1.17.13 or $HOME/sdk/go1.17.13 before falling back to $HOME/go1.4
+  Go 1.20 looks for <code>$HOME/go1.17.13</code> or <code>$HOME/sdk/go1.17.13</code>
+  before falling back to <code>$HOME/go1.4</code>
   (to support systems that hard-coded the path $HOME/go1.4 but have installed
   a newer Go toolchain there).
   In the future, we plan to move the bootstrap toolchain forward approximately once a year,
