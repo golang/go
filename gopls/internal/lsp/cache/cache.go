@@ -31,11 +31,10 @@ import (
 // New Creates a new cache for gopls operation results, using the given file
 // set, shared store, and session options.
 //
-// All of the fset, store and options may be nil, but if store is non-nil so
-// must be fset (and they must always be used together), otherwise it may be
-// possible to get cached data referencing token.Pos values not mapped by the
-// FileSet.
-func New(fset *token.FileSet, store *memoize.Store, options func(*source.Options)) *Cache {
+// Both the fset and store may be nil, but if store is non-nil so must be fset
+// (and they must always be used together), otherwise it may be possible to get
+// cached data referencing token.Pos values not mapped by the FileSet.
+func New(fset *token.FileSet, store *memoize.Store) *Cache {
 	index := atomic.AddInt64(&cacheIndex, 1)
 
 	if store != nil && fset == nil {
@@ -51,7 +50,6 @@ func New(fset *token.FileSet, store *memoize.Store, options func(*source.Options
 	c := &Cache{
 		id:          strconv.FormatInt(index, 10),
 		fset:        fset,
-		options:     options,
 		store:       store,
 		fileContent: map[span.URI]*fileHandle{},
 	}
@@ -61,11 +59,6 @@ func New(fset *token.FileSet, store *memoize.Store, options func(*source.Options
 type Cache struct {
 	id   string
 	fset *token.FileSet
-
-	// TODO(rfindley): it doesn't make sense that cache accepts LSP options, just
-	// so that it can create a session: the cache does not (and should not)
-	// depend on options. Invert this relationship to remove options from Cache.
-	options func(*source.Options)
 
 	store *memoize.Store
 
@@ -166,11 +159,14 @@ func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*fileHandle, e
 	}, nil
 }
 
-func (c *Cache) NewSession(ctx context.Context) *Session {
+// NewSession creates a new gopls session with the given cache and options overrides.
+//
+// The provided optionsOverrides may be nil.
+func NewSession(ctx context.Context, c *Cache, optionsOverrides func(*source.Options)) *Session {
 	index := atomic.AddInt64(&sessionIndex, 1)
 	options := source.DefaultOptions().Clone()
-	if c.options != nil {
-		c.options(options)
+	if optionsOverrides != nil {
+		optionsOverrides(options)
 	}
 	s := &Session{
 		id:          strconv.FormatInt(index, 10),
@@ -181,10 +177,6 @@ func (c *Cache) NewSession(ctx context.Context) *Session {
 	}
 	event.Log(ctx, "New session", KeyCreateSession.Of(s))
 	return s
-}
-
-func (c *Cache) FileSet() *token.FileSet {
-	return c.fset
 }
 
 func (h *fileHandle) URI() span.URI {

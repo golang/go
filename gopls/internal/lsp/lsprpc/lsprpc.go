@@ -19,14 +19,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
+	"golang.org/x/tools/internal/jsonrpc2"
 )
 
 // Unique identifiers for client/server.
@@ -39,6 +40,9 @@ type StreamServer struct {
 	// daemon controls whether or not to log new connections.
 	daemon bool
 
+	// optionsOverrides is passed to newly created sessions.
+	optionsOverrides func(*source.Options)
+
 	// serverForTest may be set to a test fake for testing.
 	serverForTest protocol.Server
 }
@@ -46,13 +50,13 @@ type StreamServer struct {
 // NewStreamServer creates a StreamServer using the shared cache. If
 // withTelemetry is true, each session is instrumented with telemetry that
 // records RPC statistics.
-func NewStreamServer(cache *cache.Cache, daemon bool) *StreamServer {
-	return &StreamServer{cache: cache, daemon: daemon}
+func NewStreamServer(cache *cache.Cache, daemon bool, optionsFunc func(*source.Options)) *StreamServer {
+	return &StreamServer{cache: cache, daemon: daemon, optionsOverrides: optionsFunc}
 }
 
 func (s *StreamServer) Binder() *ServerBinder {
 	newServer := func(ctx context.Context, client protocol.ClientCloser) protocol.Server {
-		session := s.cache.NewSession(ctx)
+		session := cache.NewSession(ctx, s.cache, s.optionsOverrides)
 		server := s.serverForTest
 		if server == nil {
 			server = lsp.NewServer(session, client)
@@ -69,7 +73,7 @@ func (s *StreamServer) Binder() *ServerBinder {
 // incoming streams using a new lsp server.
 func (s *StreamServer) ServeStream(ctx context.Context, conn jsonrpc2.Conn) error {
 	client := protocol.ClientDispatcher(conn)
-	session := s.cache.NewSession(ctx)
+	session := cache.NewSession(ctx, s.cache, s.optionsOverrides)
 	server := s.serverForTest
 	if server == nil {
 		server = lsp.NewServer(session, client)

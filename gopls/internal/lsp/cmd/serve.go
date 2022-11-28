@@ -14,12 +14,12 @@ import (
 	"os"
 	"time"
 
-	"golang.org/x/tools/internal/fakenet"
-	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
 	"golang.org/x/tools/gopls/internal/lsp/lsprpc"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/fakenet"
+	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/tool"
 )
 
@@ -101,7 +101,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 			return fmt.Errorf("creating forwarder: %w", err)
 		}
 	} else {
-		ss = lsprpc.NewStreamServer(cache.New(nil, nil, s.app.options), isDaemon)
+		ss = lsprpc.NewStreamServer(cache.New(nil, nil), isDaemon, s.app.options)
 	}
 
 	var network, addr string

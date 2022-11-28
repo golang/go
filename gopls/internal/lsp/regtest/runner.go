@@ -336,7 +336,7 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 
 // defaultServer handles the Default execution mode.
 func (r *Runner) defaultServer(optsHook func(*source.Options)) jsonrpc2.StreamServer {
-	return lsprpc.NewStreamServer(cache.New(r.fset, r.store, optsHook), false)
+	return lsprpc.NewStreamServer(cache.New(r.fset, r.store), false, optsHook)
 }
 
 // experimentalServer handles the Experimental execution mode.
@@ -348,7 +348,7 @@ func (r *Runner) experimentalServer(optsHook func(*source.Options)) jsonrpc2.Str
 		// source.Options.EnableAllExperiments, but we want to test it.
 		o.ExperimentalWorkspaceModule = true
 	}
-	return lsprpc.NewStreamServer(cache.New(nil, nil, options), false)
+	return lsprpc.NewStreamServer(cache.New(nil, nil), false, options)
 }
 
 // forwardedServer handles the Forwarded execution mode.
@@ -356,7 +356,7 @@ func (r *Runner) forwardedServer(optsHook func(*source.Options)) jsonrpc2.Stream
 	r.tsOnce.Do(func() {
 		ctx := context.Background()
 		ctx = debug.WithInstance(ctx, "", "off")
-		ss := lsprpc.NewStreamServer(cache.New(nil, nil, optsHook), false)
+		ss := lsprpc.NewStreamServer(cache.New(nil, nil), false, optsHook)
 		r.ts = servertest.NewTCPServer(ctx, ss, nil)
 	})
 	return newForwarder("tcp", r.ts.Addr)

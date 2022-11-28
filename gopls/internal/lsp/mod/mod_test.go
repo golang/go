@@ -26,8 +26,7 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 	testenv.NeedsGo1Point(t, 14)
 
 	ctx := tests.Context(t)
-	cache := cache.New(nil, nil, nil)
-	session := cache.NewSession(ctx)
+	session := cache.NewSession(ctx, cache.New(nil, nil), nil)
 	options := source.DefaultOptions().Clone()
 	tests.DefaultOptions(options)
 	options.TempModfile = true

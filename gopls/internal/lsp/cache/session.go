@@ -29,8 +29,9 @@ type Session struct {
 	id string
 
 	// Immutable attributes shared across views.
-	cache       *Cache            // shared cache
-	gocmdRunner *gocommand.Runner // limits go command concurrency
+	cache            *Cache                // shared cache
+	gocmdRunner      *gocommand.Runner     // limits go command concurrency
+	optionsOverrides func(*source.Options) // transformation to apply on top of all options
 
 	optionsMu sync.Mutex
 	options   *source.Options
@@ -183,8 +184,8 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, seqID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 
-	if s.cache.options != nil {
-		s.cache.options(options)
+	if s.optionsOverrides != nil {
+		s.optionsOverrides(options)
 	}
 
 	// Get immutable workspace configuration.

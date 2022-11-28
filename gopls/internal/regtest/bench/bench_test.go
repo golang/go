@@ -212,7 +212,7 @@ func getServer() servertest.Connector {
 		path := getInstalledGopls()
 		return &SidecarServer{path}
 	}
-	server := lsprpc.NewStreamServer(cache.New(nil, nil, hooks.Options), false)
+	server := lsprpc.NewStreamServer(cache.New(nil, nil), false, hooks.Options)
 	return servertest.NewPipeServer(server, jsonrpc2.NewRawStream)
 }
 

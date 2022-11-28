@@ -59,8 +59,7 @@ type runner struct {
 func testLSP(t *testing.T, datum *tests.Data) {
 	ctx := tests.Context(t)
 
-	cache := cache.New(nil, nil, nil)
-	session := cache.NewSession(ctx)
+	session := cache.NewSession(ctx, cache.New(nil, nil), nil)
 	options := source.DefaultOptions().Clone()
 	tests.DefaultOptions(options)
 	session.SetOptions(options)
