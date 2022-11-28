@@ -5,6 +5,7 @@
 package context
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"runtime"
@@ -932,5 +933,24 @@ func XTestCause(t testingT) {
 		if got, want := Cause(test.ctx), test.cause; want != got {
 			t.Errorf("%s: Cause(ctx) = %v want %v", test.name, got, want)
 		}
+	}
+}
+
+func XTestCauseRace(t testingT) {
+	cause := errors.New("TestCauseRace")
+	ctx, cancel := WithCancelCause(Background())
+	go func() {
+		cancel(cause)
+	}()
+	for {
+		// Poll Cause, rather than waiting for Done, to test that
+		// access to the underlying cause is synchronized properly.
+		if err := Cause(ctx); err != nil {
+			if err != cause {
+				t.Errorf("Cause returned %v, want %v", err, cause)
+			}
+			break
+		}
+		runtime.Gosched()
 	}
 }

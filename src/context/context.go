@@ -285,6 +285,8 @@ func withCancel(parent Context) *cancelCtx {
 // Cause returns nil if c has not been canceled yet.
 func Cause(c Context) error {
 	if cc, ok := c.Value(&cancelCtxKey).(*cancelCtx); ok {
+		cc.mu.Lock()
+		defer cc.mu.Unlock()
 		return cc.cause
 	}
 	return nil
