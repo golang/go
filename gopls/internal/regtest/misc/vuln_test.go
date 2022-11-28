@@ -234,7 +234,6 @@ func main() {
 			"GOVULNDB": db.URI(),
 			// When fetchinging stdlib package vulnerability info,
 			// behave as if our go version is go1.18 for this testing.
-			// The default behavior is to run `go env GOVERSION` (which isn't mutable env var).
 			vulncheck.GoVersionForVulnTest:    "go1.18",
 			"_GOPLS_TEST_BINARY_RUN_AS_GOPLS": "true", // needed to run `gopls vulncheck`.
 		},
@@ -261,6 +260,7 @@ func main() {
 						severity: protocol.SeverityInformation,
 					},
 				},
+				hover: []string{"GOSTDLIB", "No fix is available", "GOSTDLIB"},
 			},
 		}
 
@@ -522,12 +522,12 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 			},
 		}
 
-		for mod, want := range wantVulncheckDiagnostics {
-			modPathDiagnostics := testVulnDiagnostics(t, env, mod, want, gotDiagnostics)
+		for pattern, want := range wantVulncheckDiagnostics {
+			modPathDiagnostics := testVulnDiagnostics(t, env, pattern, want, gotDiagnostics)
 
 			gotActions := env.CodeAction("go.mod", modPathDiagnostics)
 			if diff := diffCodeActions(gotActions, want.codeActions); diff != "" {
-				t.Errorf("code actions for %q do not match, got %v, want %v\n%v\n", mod, gotActions, want.codeActions, diff)
+				t.Errorf("code actions for %q do not match, got %v, want %v\n%v\n", pattern, gotActions, want.codeActions, diff)
 				continue
 			}
 		}
@@ -827,11 +827,11 @@ func TestRunVulncheckInfo(t *testing.T) {
 	})
 }
 
-// testVulnDiagnostics finds the require statement line for the requireMod in go.mod file
+// testVulnDiagnostics finds the require or module statement line for the requireMod in go.mod file
 // and runs checks if diagnostics and code actions associated with the line match expectation.
-func testVulnDiagnostics(t *testing.T, env *Env, requireMod string, want vulnDiagExpectation, got *protocol.PublishDiagnosticsParams) []protocol.Diagnostic {
+func testVulnDiagnostics(t *testing.T, env *Env, pattern string, want vulnDiagExpectation, got *protocol.PublishDiagnosticsParams) []protocol.Diagnostic {
 	t.Helper()
-	pos := env.RegexpSearch("go.mod", requireMod)
+	pos := env.RegexpSearch("go.mod", pattern)
 	var modPathDiagnostics []protocol.Diagnostic
 	for _, w := range want.diagnostics {
 		// Find the diagnostics at pos.
@@ -845,7 +845,7 @@ func testVulnDiagnostics(t *testing.T, env *Env, requireMod string, want vulnDia
 			}
 		}
 		if diag == nil {
-			t.Errorf("no diagnostic at %q matching %q found\n", requireMod, w.msg)
+			t.Errorf("no diagnostic at %q matching %q found\n", pattern, w.msg)
 			continue
 		}
 		if diag.Severity != w.severity {
@@ -867,7 +867,7 @@ func testVulnDiagnostics(t *testing.T, env *Env, requireMod string, want vulnDia
 		hover, _ := env.Hover("go.mod", pos)
 		for _, part := range want.hover {
 			if !strings.Contains(hover.Value, part) {
-				t.Errorf("hover contents for %q do not match, want %v, got %v\n", requireMod, strings.Join(want.hover, ","), hover.Value)
+				t.Errorf("hover contents for %q do not match, want %v, got %v\n", pattern, strings.Join(want.hover, ","), hover.Value)
 				break
 			}
 		}

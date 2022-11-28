@@ -46,6 +46,14 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 		return nil, fmt.Errorf("computing cursor position: %w", err)
 	}
 
+	// If the cursor position is on a module statement
+	if hover, ok := hoverOnModuleStatement(ctx, pm, offset, snapshot, fh); ok {
+		return hover, nil
+	}
+	return hoverOnRequireStatement(ctx, pm, offset, snapshot, fh)
+}
+
+func hoverOnRequireStatement(ctx context.Context, pm *source.ParsedModule, offset int, snapshot source.Snapshot, fh source.FileHandle) (*protocol.Hover, error) {
 	// Confirm that the cursor is at the position of a require statement.
 	var req *modfile.Require
 	var startPos, endPos int
@@ -75,6 +83,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	fromGovulncheck := true
 	vs := snapshot.View().Vulnerabilities(fh.URI())[fh.URI()]
 	if vs == nil && snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
+		var err error
 		vs, err = snapshot.ModVuln(ctx, fh.URI())
 		if err != nil {
 			return nil, err
@@ -113,6 +122,40 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 		},
 		Range: rng,
 	}, nil
+}
+
+func hoverOnModuleStatement(ctx context.Context, pm *source.ParsedModule, offset int, snapshot source.Snapshot, fh source.FileHandle) (*protocol.Hover, bool) {
+	if offset < pm.File.Module.Syntax.Start.Byte || offset > pm.File.Module.Syntax.End.Byte {
+		return nil, false
+	}
+
+	rng, err := pm.Mapper.OffsetRange(pm.File.Module.Syntax.Start.Byte, pm.File.Module.Syntax.End.Byte)
+	if err != nil {
+		return nil, false
+	}
+	fromGovulncheck := true
+	vs := snapshot.View().Vulnerabilities(fh.URI())[fh.URI()]
+
+	if vs == nil && snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
+		vs, err = snapshot.ModVuln(ctx, fh.URI())
+		if err != nil {
+			return nil, false
+		}
+		fromGovulncheck = false
+	}
+	modpath := "stdlib"
+	goVersion := snapshot.View().GoVersionString()
+	affecting, nonaffecting := lookupVulns(vs, modpath, goVersion)
+	options := snapshot.View().Options()
+	vulns := formatVulnerabilities(modpath, affecting, nonaffecting, options, fromGovulncheck)
+
+	return &protocol.Hover{
+		Contents: protocol.MarkupContent{
+			Kind:  options.PreferredContentFormat,
+			Value: vulns,
+		},
+		Range: rng,
+	}, true
 }
 
 func formatHeader(modpath string, options *source.Options) string {
@@ -188,11 +231,12 @@ func formatVulnerabilities(modPath string, affecting, nonaffecting []*govulnchec
 	}
 	for _, v := range affecting {
 		fix := fixedVersionInfo(v, modPath)
+		pkgs := vulnerablePkgsInfo(v, modPath, useMarkdown)
 
 		if useMarkdown {
-			fmt.Fprintf(&b, "- [**%v**](%v) %v %v\n", v.OSV.ID, href(v.OSV), formatMessage(v), fix)
+			fmt.Fprintf(&b, "- [**%v**](%v) %v%v%v\n", v.OSV.ID, href(v.OSV), formatMessage(v), pkgs, fix)
 		} else {
-			fmt.Fprintf(&b, "  - [%v] %v (%v) %v\n", v.OSV.ID, formatMessage(v), href(v.OSV), fix)
+			fmt.Fprintf(&b, "  - [%v] %v (%v) %v%v\n", v.OSV.ID, formatMessage(v), href(v.OSV), pkgs, fix)
 		}
 	}
 	if len(nonaffecting) > 0 {
@@ -204,16 +248,45 @@ func formatVulnerabilities(modPath string, affecting, nonaffecting []*govulnchec
 	}
 	for _, v := range nonaffecting {
 		fix := fixedVersionInfo(v, modPath)
+		pkgs := vulnerablePkgsInfo(v, modPath, useMarkdown)
 		if useMarkdown {
-			fmt.Fprintf(&b, "- [%v](%v) %v %v\n", v.OSV.ID, href(v.OSV), formatMessage(v), fix)
+			fmt.Fprintf(&b, "- [%v](%v) %v%v%v\n", v.OSV.ID, href(v.OSV), formatMessage(v), pkgs, fix)
 		} else {
-			fmt.Fprintf(&b, "  - [%v] %v %v (%v)\n", v.OSV.ID, formatMessage(v), fix, href(v.OSV))
+			fmt.Fprintf(&b, "  - [%v] %v (%v) %v%v\n", v.OSV.ID, formatMessage(v), href(v.OSV), pkgs, fix)
 		}
 	}
 	b.WriteString("\n")
 	return b.String()
 }
 
+func vulnerablePkgsInfo(v *govulncheck.Vuln, modPath string, useMarkdown bool) string {
+	var b bytes.Buffer
+	for _, m := range v.Modules {
+		if m.Path != modPath {
+			continue
+		}
+		if c := len(m.Packages); c == 1 {
+			b.WriteString("\n  Vulnerable package is:")
+		} else if c > 1 {
+			b.WriteString("\n  Vulnerable packages are:")
+		}
+		for _, pkg := range m.Packages {
+			if useMarkdown {
+				b.WriteString("\n  * `")
+			} else {
+				b.WriteString("\n    ")
+			}
+			b.WriteString(pkg.Path)
+			if useMarkdown {
+				b.WriteString("`")
+			}
+		}
+	}
+	if b.Len() == 0 {
+		return ""
+	}
+	return b.String()
+}
 func fixedVersionInfo(v *govulncheck.Vuln, modPath string) string {
 	fix := "\n\n  **No fix is available.**"
 	for _, m := range v.Modules {
