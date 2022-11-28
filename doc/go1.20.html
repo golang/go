@@ -276,8 +276,22 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="linker">Linker</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- https://go.dev/issue/54197, CL 420774 -->
+  On Linux, the linker now selects the dynamic interpreter for <code>glibc</code>
+  or <code>musl</code> at link time. The <code>GO_LDSO</code> environment
+  variable is no longer used.
+</p>
+
+<p><!-- https://go.dev/issue/35006 -->
+  On Windows, the Go linker now supports modern LLVM-based C toolchains.
+</p>
+
+<p><!-- https://go.dev/issue/37762, CL 317917 -->
+  Go 1.20 uses <code>go:</code> and <code>type:</code> prefixes for compiler-generated
+  symbols rather than <code>go.</code> and <code>type.</code>.
+  This avoids confusion for user packages whose name starts with <code>go.</code>.
+  The <a href="/pkg/debug/gosym"><code>debug/gosym</code></a> package understands
+  this new naming convention for binaries built with Go 1.20 and newer.
 </p>
 
 <h2 id="bootstrap">Bootstrap</h2>
@@ -618,6 +632,16 @@ proxyHandler := &httputil.ReverseProxy{
     </p>
   </dd>
 </dl><!-- debug/elf -->
+
+<dl id="debug/gosym"><dt><a href="/pkg/debug/gosym/">debug/gosym</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/37762, CL 317917 -->
+      Due to a change of <a href="#linker">Go's symbol naming conventions</a>, tools that
+      process Go binaries should use Go 1.20's <code>debug/gosym</code> package to
+      transparently handle both old and new binaries.
+    </p>
+  </dd>
+</dl><!-- debug/gosym -->
 
 <dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
   <dd>
