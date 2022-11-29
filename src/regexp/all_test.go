@@ -99,7 +99,7 @@ func TestMatch(t *testing.T) {
 	}
 }
 
-func matchFunctionTest(t *testing.T, test *FindTest) {
+func matchStringTest(t *testing.T, test *FindTest) {
 	m, err := MatchString(test.pat, test.text)
 	if err == nil {
 		return
@@ -109,9 +109,9 @@ func matchFunctionTest(t *testing.T, test *FindTest) {
 	}
 }
 
-func TestMatchFunction(t *testing.T) {
+func TestMatchString(t *testing.T) {
 	for _, test := range findTests {
-		matchFunctionTest(t, &test)
+		matchStringTest(t, &test)
 	}
 }
 
