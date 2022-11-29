@@ -463,11 +463,16 @@ func setup() {
 		xmkdir(p)
 	}
 
-	p := pathf("%s/pkg/%s_%s", goroot, gohostos, gohostarch)
+	goosGoarch := pathf("%s/pkg/%s_%s", goroot, gohostos, gohostarch)
 	if rebuildall {
-		xremoveall(p)
+		xremoveall(goosGoarch)
 	}
-	xmkdirall(p)
+	xmkdirall(goosGoarch)
+	xatexit(func() {
+		if files := xreaddir(goosGoarch); len(files) == 0 {
+			xremove(goosGoarch)
+		}
+	})
 
 	if goos != gohostos || goarch != gohostarch {
 		p := pathf("%s/pkg/%s_%s", goroot, goos, goarch)
@@ -480,7 +485,15 @@ func setup() {
 	// Create object directory.
 	// We used to use it for C objects.
 	// Now we use it for the build cache, to separate dist's cache
-	// from any other cache the user might have.
+	// from any other cache the user might have, and for the location
+	// to build the bootstrap versions of the standard library.
+	obj := pathf("%s/pkg/obj", goroot)
+	if !isdir(obj) {
+		xmkdir(obj)
+	}
+	xatexit(func() { xremove(obj) })
+
+	// Create build cache directory.
 	objGobuild := pathf("%s/pkg/obj/go-build", goroot)
 	if rebuildall {
 		xremoveall(objGobuild)
@@ -488,9 +501,7 @@ func setup() {
 	xmkdirall(objGobuild)
 	xatexit(func() { xremoveall(objGobuild) })
 
-	// Create alternate driectory for intermediate
-	// standard library .a's to be placed rather than
-	// the final build's install locations.
+	// Create directory for bootstrap versions of standard library .a files.
 	objGoBootstrap := pathf("%s/pkg/obj/go-bootstrap", goroot)
 	if rebuildall {
 		xremoveall(objGoBootstrap)

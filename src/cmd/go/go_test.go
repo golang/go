@@ -914,7 +914,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		"src/internal/coverage/rtcov",
 		"src/math/bits",
 		"src/unsafe",
-		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
 		filepath.Join("pkg/tool", goHostOS+"_"+goHostArch),
 		"pkg/include",
 	} {

@@ -309,27 +309,6 @@ func xreaddir(dir string) []string {
 	return names
 }
 
-// xreaddirfiles replaces dst with a list of the names of the files in dir.
-// The names are relative to dir; they are not full paths.
-func xreaddirfiles(dir string) []string {
-	f, err := os.Open(dir)
-	if err != nil {
-		fatalf("%v", err)
-	}
-	defer f.Close()
-	infos, err := f.Readdir(-1)
-	if err != nil {
-		fatalf("reading %s: %v", dir, err)
-	}
-	var names []string
-	for _, fi := range infos {
-		if !fi.IsDir() {
-			names = append(names, fi.Name())
-		}
-	}
-	return names
-}
-
 // xworkdir creates a new temporary directory to hold object files
 // and returns the name of that directory.
 func xworkdir() string {
