@@ -11,6 +11,8 @@
 // for the most up-to-date documentation.
 package main // import "golang.org/x/tools/gopls"
 
+//go:generate go run doc/generate.go
+
 import (
 	"context"
 	"golang.org/x/tools/internal/analysisinternal"
