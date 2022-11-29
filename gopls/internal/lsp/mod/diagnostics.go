@@ -361,15 +361,21 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		})
 	}
 	if len(info) > 0 {
+		var fixes []source.SuggestedFix
+		if !fromGovulncheck {
+			fixes = append(fixes, suggestVulncheck)
+		}
 		vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
-			URI:      fh.URI(),
-			Range:    rng,
-			Severity: protocol.SeverityInformation,
-			Source:   source.Vulncheck,
-			Message:  getVulnMessage(stdlib, info, false, fromGovulncheck),
-			Related:  relatedInfo,
+			URI:            fh.URI(),
+			Range:          rng,
+			Severity:       protocol.SeverityInformation,
+			Source:         source.Vulncheck,
+			Message:        getVulnMessage(stdlib, info, false, fromGovulncheck),
+			SuggestedFixes: fixes,
+			Related:        relatedInfo,
 		})
 	}
+
 	return vulnDiagnostics, nil
 }
 
