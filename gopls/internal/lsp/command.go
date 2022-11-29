@@ -886,13 +886,13 @@ func (c *commandHandler) RunGovulncheck(ctx context.Context, args command.Vulnch
 		view := deps.snapshot.View()
 		opts := view.Options()
 		// quickly test if gopls is compiled to support govulncheck
-		// by checking vulncheck.Govulncheck. Alternatively, we can continue and
+		// by checking vulncheck.Main. Alternatively, we can continue and
 		// let the `gopls vulncheck` command fail. This is lighter-weight.
-		if vulncheck.Govulncheck == nil {
+		if vulncheck.Main == nil {
 			return errors.New("vulncheck feature is not available")
 		}
 
-		cmd := exec.CommandContext(ctx, os.Args[0], "vulncheck", "-summary", "-config", args.Pattern)
+		cmd := exec.CommandContext(ctx, os.Args[0], "vulncheck", "-config", args.Pattern)
 		cmd.Dir = filepath.Dir(args.URI.SpanURI().Filename())
 
 		var viewEnv []string

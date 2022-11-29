@@ -26,18 +26,3 @@ func TestCanonicalize(t *testing.T) {
 		}
 	}
 }
-
-func TestGoTagToSemver(t *testing.T) {
-	for _, test := range []struct {
-		v    string
-		want string
-	}{
-		{"go1.19", "v1.19.0"},
-		{"go1.20-pre4", "v1.20.0-pre.4"},
-	} {
-		got := GoTagToSemver(test.v)
-		if got != test.want {
-			t.Errorf("want %s; got %s", test.want, got)
-		}
-	}
-}

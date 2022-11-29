@@ -49,36 +49,3 @@ var (
 	// 5  the prerelease number
 	tagRegexp = regexp.MustCompile(`^go(\d+\.\d+)(\.\d+|)((beta|rc|-pre)(\d+))?$`)
 )
-
-// This is a modified copy of pkgsite/internal/stdlib:VersionForTag.
-func GoTagToSemver(tag string) string {
-	if tag == "" {
-		return ""
-	}
-
-	tag = strings.Fields(tag)[0]
-	// Special cases for go1.
-	if tag == "go1" {
-		return "v1.0.0"
-	}
-	if tag == "go1.0" {
-		return ""
-	}
-	m := tagRegexp.FindStringSubmatch(tag)
-	if m == nil {
-		return ""
-	}
-	version := "v" + m[1]
-	if m[2] != "" {
-		version += m[2]
-	} else {
-		version += ".0"
-	}
-	if m[3] != "" {
-		if !strings.HasPrefix(m[4], "-") {
-			version += "-"
-		}
-		version += m[4] + "." + m[5]
-	}
-	return version
-}

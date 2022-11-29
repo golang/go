@@ -55,7 +55,7 @@ func (v *vulncheck) DetailedHelp(f *flag.FlagSet) {
 }
 
 func (v *vulncheck) Run(ctx context.Context, args ...string) error {
-	if vulnchecklib.Govulncheck == nil {
+	if vulnchecklib.Main == nil {
 		return fmt.Errorf("vulncheck command is available only in gopls compiled with go1.18 or newer")
 	}
 
@@ -63,11 +63,6 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 	if len(args) > 1 {
 		return tool.CommandLineErrorf("vulncheck accepts at most one package pattern")
 	}
-	pattern := "."
-	if len(args) == 1 {
-		pattern = args[0]
-	}
-
 	var cfg pkgLoadConfig
 	if v.Config {
 		if err := json.NewDecoder(os.Stdin).Decode(&cfg); err != nil {
@@ -81,22 +76,9 @@ func (v *vulncheck) Run(ctx context.Context, args ...string) error {
 		// inherit the current process's cwd and env.
 	}
 
-	if v.AsSummary {
-		if err := vulnchecklib.Main(loadCfg, args...); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		os.Exit(0)
+	if err := vulnchecklib.Main(loadCfg, args...); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	// TODO(hyangah): delete.
-	res, err := vulnchecklib.Govulncheck(ctx, &loadCfg, pattern)
-	if err != nil {
-		return fmt.Errorf("vulncheck failed: %v", err)
-	}
-	data, err := json.MarshalIndent(res, " ", " ")
-	if err != nil {
-		return fmt.Errorf("vulncheck failed to encode result: %v", err)
-	}
-	fmt.Printf("%s", data)
 	return nil
 }
