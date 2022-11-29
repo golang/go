@@ -25,7 +25,7 @@ stdout 'this input caused a crash!'
 
 ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x -fuzzminimizetime=1000x
 stdout 'testdata[/\\]fuzz[/\\]FuzzWithNilPanic[/\\]'
-stdout 'panic called with nil argument'
+stdout 'panic called with nil argument|test executed panic.nil. or runtime.Goexit'
 go run check_testdata.go FuzzWithNilPanic
 
 ! go test -run=FuzzWithGoexit -fuzz=FuzzWithGoexit -fuzztime=100x -fuzzminimizetime=1000x

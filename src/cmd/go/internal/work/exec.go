@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/token"
 	"internal/coverage"
 	"internal/lazyregexp"
 	"io"
@@ -527,6 +528,10 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		return errors.New("binary-only packages are no longer supported")
 	}
 
+	if err := b.checkDirectives(a); err != nil {
+		return err
+	}
+
 	if err := b.Mkdir(a.Objdir); err != nil {
 		return err
 	}
@@ -953,6 +958,37 @@ OverlayLoop:
 	}
 
 	a.built = objpkg
+	return nil
+}
+
+func (b *Builder) checkDirectives(a *Action) error {
+	var msg *bytes.Buffer
+	p := a.Package
+	var seen map[string]token.Position
+	for _, d := range p.Internal.Build.Directives {
+		if strings.HasPrefix(d.Text, "//go:debug") {
+			key, _, err := load.ParseGoDebug(d.Text)
+			if err != nil && err != load.ErrNotGoDebug {
+				if msg == nil {
+					msg = new(bytes.Buffer)
+				}
+				fmt.Fprintf(msg, "%s: invalid //go:debug: %v\n", d.Pos, err)
+				continue
+			}
+			if pos, ok := seen[key]; ok {
+				fmt.Fprintf(msg, "%s: repeated //go:debug for %v\n\t%s: previous //go:debug\n", d.Pos, key, pos)
+				continue
+			}
+			if seen == nil {
+				seen = make(map[string]token.Position)
+			}
+			seen[key] = d.Pos
+		}
+	}
+	if msg != nil {
+		return formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(msg.Bytes()))
+
+	}
 	return nil
 }
 

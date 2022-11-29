@@ -648,6 +648,11 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 		}
 	}
 
+	// Store default GODEBUG in binaries.
+	if root.Package.DefaultGODEBUG != "" {
+		ldflags = append(ldflags, "-X=runtime.godebugDefault="+root.Package.DefaultGODEBUG)
+	}
+
 	// If the user has not specified the -extld option, then specify the
 	// appropriate linker. In case of C++ code, use the compiler named
 	// by the CXX environment variable or defaultCXX if CXX is not set.

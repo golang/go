@@ -58,7 +58,7 @@ type Package struct {
 type PackagePublic struct {
 	// Note: These fields are part of the go command's public API.
 	// See list.go. It is okay to add fields, but not to change or
-	// remove existing ones. Keep in sync with list.go
+	// remove existing ones. Keep in sync with ../list/list.go
 	Dir           string                `json:",omitempty"` // directory containing package sources
 	ImportPath    string                `json:",omitempty"` // import path of package in dir
 	ImportComment string                `json:",omitempty"` // path in import comment on package statement
@@ -78,6 +78,8 @@ type PackagePublic struct {
 	DepOnly       bool                  `json:",omitempty"` // package is only as a dependency, not explicitly listed
 	BinaryOnly    bool                  `json:",omitempty"` // package cannot be recompiled
 	Incomplete    bool                  `json:",omitempty"` // was there an error loading this package or dependencies?
+
+	DefaultGODEBUG string `json:",omitempty"` // default GODEBUG setting (only for Name=="main")
 
 	// Stale and StaleReason remain here *only* for the list command.
 	// They are only initialized in preparation for list execution.
@@ -230,9 +232,6 @@ type PackageInternal struct {
 	TestmainGo        *[]byte              // content for _testmain.go
 	Embed             map[string][]string  // //go:embed comment mapping
 	OrigImportPath    string               // original import path before adding '_test' suffix
-	Directives        []build.Directive
-	TestDirectives    []build.Directive
-	XTestDirectives   []build.Directive
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
@@ -438,9 +437,6 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
 	p.TestEmbedPatterns = pp.TestEmbedPatterns
 	p.XTestEmbedPatterns = pp.XTestEmbedPatterns
 	p.Internal.OrigImportPath = pp.ImportPath
-	p.Internal.Directives = pp.Directives
-	p.Internal.TestDirectives = pp.TestDirectives
-	p.Internal.XTestDirectives = pp.XTestDirectives
 }
 
 // A PackageError describes an error loading information about a package.
@@ -1924,6 +1920,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	if cfg.ModulesEnabled {
 		p.Module = modload.PackageModuleInfo(ctx, pkgPath)
 	}
+	p.DefaultGODEBUG = defaultGODEBUG(p, nil, nil, nil)
 
 	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
 	if err != nil {
@@ -2404,6 +2401,9 @@ func (p *Package) setBuildInfo(autoVCS bool) {
 	}
 	if cfg.BuildTrimpath {
 		appendSetting("-trimpath", "true")
+	}
+	if p.DefaultGODEBUG != "" {
+		appendSetting("DefaultGODEBUG", p.DefaultGODEBUG)
 	}
 	cgo := "0"
 	if cfg.BuildContext.CgoEnabled {
