@@ -31,15 +31,25 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 	if err != nil || pm.File == nil {
 		return nil, err
 	}
+	uri := protocol.URIFromSpanURI(fh.URI())
+	reset, err := command.NewResetGoModDiagnosticsCommand("Reset go.mod diagnostics", command.URIArg{URI: uri})
+	if err != nil {
+		return nil, err
+	}
+	// Put the `Reset go.mod diagnostics` codelens on the module statement.
+	modrng, err := moduleStmtRange(fh, pm)
+	if err != nil {
+		return nil, err
+	}
+	lenses := []protocol.CodeLens{{Range: modrng, Command: reset}}
 	if len(pm.File.Require) == 0 {
 		// Nothing to upgrade.
-		return nil, nil
+		return lenses, nil
 	}
 	var requires []string
 	for _, req := range pm.File.Require {
 		requires = append(requires, req.Mod.Path)
 	}
-	uri := protocol.URIFromSpanURI(fh.URI())
 	checkUpgrade, err := command.NewCheckUpgradesCommand("Check for upgrades", command.CheckUpgradesArgs{
 		URI:     uri,
 		Modules: requires,
@@ -63,22 +73,18 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 	if err != nil {
 		return nil, err
 	}
-	reset, err := command.NewResetGoModDiagnosticsCommand("Reset go.mod diagnostics", command.URIArg{URI: uri})
-	if err != nil {
-		return nil, err
-	}
+
 	// Put the upgrade code lenses above the first require block or statement.
 	rng, err := firstRequireRange(fh, pm)
 	if err != nil {
 		return nil, err
 	}
 
-	return []protocol.CodeLens{
+	return append(lenses, []protocol.CodeLens{
 		{Range: rng, Command: checkUpgrade},
 		{Range: rng, Command: upgradeTransitive},
 		{Range: rng, Command: upgradeDirect},
-		{Range: rng, Command: reset},
-	}, nil
+	}...), nil
 }
 
 func tidyLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.CodeLens, error) {
