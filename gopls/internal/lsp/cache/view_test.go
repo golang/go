@@ -111,18 +111,11 @@ func TestInVendor(t *testing.T) {
 		path     string
 		inVendor bool
 	}{
-		{
-			path:     "foo/vendor/x.go",
-			inVendor: false,
-		},
-		{
-			path:     "foo/vendor/x/x.go",
-			inVendor: true,
-		},
-		{
-			path:     "foo/x.go",
-			inVendor: false,
-		},
+		{"foo/vendor/x.go", false},
+		{"foo/vendor/x/x.go", true},
+		{"foo/x.go", false},
+		{"foo/vendor/foo.txt", false},
+		{"foo/vendor/modules.txt", false},
 	} {
 		if got := inVendor(span.URIFromPath(tt.path)); got != tt.inVendor {
 			t.Errorf("expected %s inVendor %v, got %v", tt.path, tt.inVendor, got)

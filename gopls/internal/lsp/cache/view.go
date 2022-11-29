@@ -1128,28 +1128,34 @@ var modFlagRegexp = regexp.MustCompile(`-mod[ =](\w+)`)
 // FileHandle from the cache for temporary files is problematic, since we
 // cannot delete it.
 func (s *snapshot) vendorEnabled(ctx context.Context, modURI span.URI, modContent []byte) (bool, error) {
+	// Legacy GOPATH workspace?
 	if s.workspaceMode()&moduleMode == 0 {
 		return false, nil
 	}
+
+	// Explicit -mod flag?
 	matches := modFlagRegexp.FindStringSubmatch(s.view.goEnv["GOFLAGS"])
-	var modFlag string
 	if len(matches) != 0 {
-		modFlag = matches[1]
-	}
-	if modFlag != "" {
-		// Don't override an explicit '-mod=vendor' argument.
-		// We do want to override '-mod=readonly': it would break various module code lenses,
-		// and on 1.16 we know -modfile is available, so we won't mess with go.mod anyway.
-		return modFlag == "vendor", nil
+		modFlag := matches[1]
+		if modFlag != "" {
+			// Don't override an explicit '-mod=vendor' argument.
+			// We do want to override '-mod=readonly': it would break various module code lenses,
+			// and on 1.16 we know -modfile is available, so we won't mess with go.mod anyway.
+			return modFlag == "vendor", nil
+		}
 	}
 
 	modFile, err := modfile.Parse(modURI.Filename(), modContent, nil)
 	if err != nil {
 		return false, err
 	}
+
+	// No vendor directory?
 	if fi, err := os.Stat(filepath.Join(s.view.rootURI.Filename(), "vendor")); err != nil || !fi.IsDir() {
 		return false, nil
 	}
+
+	// Vendoring enabled by default by go declaration in go.mod?
 	vendorEnabled := modFile.Go != nil && modFile.Go.Version != "" && semver.Compare("v"+modFile.Go.Version, "v1.14") >= 0
 	return vendorEnabled, nil
 }

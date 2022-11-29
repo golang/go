@@ -581,7 +581,6 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 // the directory.
 func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes []source.FileModification) []source.FileModification {
 	var snapshots []*snapshot
-
 	s.viewMu.Lock()
 	for _, v := range s.views {
 		snapshot, release := v.getSnapshot()

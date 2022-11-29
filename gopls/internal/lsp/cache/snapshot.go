@@ -917,7 +917,7 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 		dirName := dir.Filename()
 
 		// If the directory is within the view's folder, we're already watching
-		// it with the pattern above.
+		// it with the first pattern above.
 		if source.InDir(s.view.folder.Filename(), dirName) {
 			continue
 		}
@@ -1654,16 +1654,18 @@ func (s *snapshot) orphanedFiles() []source.VersionedFileHandle {
 // Most likely, each call site of inVendor needs to be reconsidered to
 // understand and correctly implement the desired behavior.
 func inVendor(uri span.URI) bool {
-	if !strings.Contains(string(uri), "/vendor/") {
-		return false
-	}
-	// Only packages in _subdirectories_ of /vendor/ are considered vendored
+	_, after, found := cut(string(uri), "/vendor/")
+	// Only subdirectories of /vendor/ are considered vendored
 	// (/vendor/a/foo.go is vendored, /vendor/foo.go is not).
-	split := strings.Split(string(uri), "/vendor/")
-	if len(split) < 2 {
-		return false
+	return found && strings.Contains(after, "/")
+}
+
+// TODO(adonovan): replace with strings.Cut when we can assume go1.18.
+func cut(s, sep string) (before, after string, found bool) {
+	if i := strings.Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
 	}
-	return strings.Contains(split[1], "/")
+	return s, "", false
 }
 
 // unappliedChanges is a file source that handles an uncloned snapshot.
@@ -1691,14 +1693,16 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// If there is an initialization error and a vendor directory changed, try to
-	// reinit.
-	if s.initializedErr != nil {
-		for uri := range changes {
-			if inVendor(uri) {
-				reinit = true
-				break
-			}
+	// Changes to vendor tree may require reinitialization,
+	// either because of an initialization error
+	// (e.g. "inconsistent vendoring detected"), or because
+	// one or more modules may have moved into or out of the
+	// vendor tree after 'go mod vendor' or 'rm -fr vendor/'.
+	for uri := range changes {
+		if inVendor(uri) && s.initializedErr != nil ||
+			strings.HasSuffix(string(uri), "/vendor/modules.txt") {
+			reinit = true
+			break
 		}
 	}
 
@@ -1782,7 +1786,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 
 	// directIDs keeps track of package IDs that have directly changed.
-	// It maps id->invalidateMetadata.
+	// Note: this is not a set, it's a map from id to invalidateMetadata.
 	directIDs := map[PackageID]bool{}
 
 	// Invalidate all package metadata if the workspace module has changed.
@@ -1821,7 +1825,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// Mark all of the package IDs containing the given file.
 		filePackageIDs := invalidatedPackageIDs(uri, s.meta.ids, pkgFileChanged)
 		for id := range filePackageIDs {
-			directIDs[id] = directIDs[id] || invalidateMetadata
+			directIDs[id] = directIDs[id] || invalidateMetadata // may insert 'false'
 		}
 
 		// Invalidate the previous modTidyHandle if any of the files have been

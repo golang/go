@@ -8,7 +8,9 @@
 package persistent
 
 import (
+	"fmt"
 	"math/rand"
+	"strings"
 	"sync/atomic"
 )
 
@@ -39,6 +41,18 @@ import (
 type Map struct {
 	less func(a, b interface{}) bool
 	root *mapNode
+}
+
+func (m *Map) String() string {
+	var buf strings.Builder
+	buf.WriteByte('{')
+	var sep string
+	m.Range(func(k, v interface{}) {
+		fmt.Fprintf(&buf, "%s%v: %v", sep, k, v)
+		sep = ", "
+	})
+	buf.WriteByte('}')
+	return buf.String()
 }
 
 type mapNode struct {

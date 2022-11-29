@@ -5,7 +5,9 @@
 package misc
 
 import (
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -284,5 +286,89 @@ func TestGoToCrashingDefinition_Issue49223(t *testing.T) {
 		params.Position.Character = 18
 		params.Position.Line = 0
 		env.Editor.Server.Definition(env.Ctx, params)
+	})
+}
+
+// TestVendoringInvalidatesMetadata ensures that gopls uses the
+// correct metadata even after an external 'go mod vendor' command
+// causes packages to move; see issue #55995.
+func TestVendoringInvalidatesMetadata(t *testing.T) {
+	const proxy = `
+-- other.com/b@v1.0.0/go.mod --
+module other.com/b
+go 1.14
+
+-- other.com/b@v1.0.0/b.go --
+package b
+const K = 0
+`
+	const src = `
+-- go.mod --
+module example.com/a
+go 1.14
+require other.com/b v1.0.0
+
+-- go.sum --
+other.com/b v1.0.0 h1:1wb3PMGdet5ojzrKl+0iNksRLnOM9Jw+7amBNqmYwqk=
+other.com/b v1.0.0/go.mod h1:TgHQFucl04oGT+vrUm/liAzukYHNxCwKNkQZEyn3m9g=
+
+-- a.go --
+package a
+import "other.com/b"
+const _ = b.K
+
+`
+	WithOptions(
+		ProxyFiles(proxy),
+		Modes(Default), // fails in 'experimental' mode
+	).Run(t, src, func(t *testing.T, env *Env) {
+		// Enable to debug go.sum mismatch, which may appear as
+		// "module lookup disabled by GOPROXY=off", confusingly.
+		if false {
+			env.DumpGoSum(".")
+		}
+
+		env.OpenFile("a.go")
+		refPos := env.RegexpSearch("a.go", "K") // find "b.K" reference
+
+		// Initially, b.K is defined in the module cache.
+		gotFile, _ := env.GoToDefinition("a.go", refPos)
+		wantCache := filepath.ToSlash(env.Sandbox.GOPATH()) + "/pkg/mod/other.com/b@v1.0.0/b.go"
+		if gotFile != wantCache {
+			t.Errorf("GoToDefinition, before: got file %q, want %q", gotFile, wantCache)
+		}
+
+		// Run 'go mod vendor' outside the editor.
+		if err := env.Sandbox.RunGoCommand(env.Ctx, ".", "mod", []string{"vendor"}, true); err != nil {
+			t.Fatalf("go mod vendor: %v", err)
+		}
+
+		// Synchronize changes to watched files.
+		env.Await(env.DoneWithChangeWatchedFiles())
+
+		// Now, b.K is defined in the vendor tree.
+		gotFile, _ = env.GoToDefinition("a.go", refPos)
+		wantVendor := "vendor/other.com/b/b.go"
+		if gotFile != wantVendor {
+			t.Errorf("GoToDefinition, after go mod vendor: got file %q, want %q", gotFile, wantVendor)
+		}
+
+		// Delete the vendor tree.
+		if err := os.RemoveAll(env.Sandbox.Workdir.AbsPath("vendor")); err != nil {
+			t.Fatal(err)
+		}
+		// Notify the server of the deletion.
+		if err := env.Sandbox.Workdir.CheckForFileChanges(env.Ctx); err != nil {
+			t.Fatal(err)
+		}
+
+		// Synchronize again.
+		env.Await(env.DoneWithChangeWatchedFiles())
+
+		// b.K is once again defined in the module cache.
+		gotFile, _ = env.GoToDefinition("a.go", refPos)
+		if gotFile != wantCache {
+			t.Errorf("GoToDefinition, after rm -rf vendor: got file %q, want %q", gotFile, wantCache)
+		}
 	})
 }
