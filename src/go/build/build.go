@@ -455,6 +455,11 @@ type Package struct {
 	TestGoFiles  []string // _test.go files in package
 	XTestGoFiles []string // _test.go files outside package
 
+	// Go directive comments (//go:zzz...) found in source files.
+	Directives      []Directive
+	TestDirectives  []Directive
+	XTestDirectives []Directive
+
 	// Dependency information
 	Imports        []string                    // import paths from GoFiles, CgoFiles
 	ImportPos      map[string][]token.Position // line information for Imports
@@ -474,6 +479,12 @@ type Package struct {
 	TestEmbedPatternPos  map[string][]token.Position // line information for TestEmbedPatterns
 	XTestEmbedPatterns   []string                    // patterns from XTestGoFiles
 	XTestEmbedPatternPos map[string][]token.Position // line information for XTestEmbedPatternPos
+}
+
+// A Directive is a Go directive comment (//go:zzz...) found in a source file.
+type Directive struct {
+	Text string         // full line comment including leading slashes
+	Pos  token.Position // position of comment
 }
 
 // IsCommand reports whether the package is considered a
@@ -969,6 +980,7 @@ Found:
 
 		var fileList *[]string
 		var importMap, embedMap map[string][]token.Position
+		var directives *[]Directive
 		switch {
 		case isCgo:
 			allTags["cgo"] = true
@@ -976,6 +988,7 @@ Found:
 				fileList = &p.CgoFiles
 				importMap = importPos
 				embedMap = embedPos
+				directives = &p.Directives
 			} else {
 				// Ignore imports and embeds from cgo files if cgo is disabled.
 				fileList = &p.IgnoredGoFiles
@@ -984,14 +997,17 @@ Found:
 			fileList = &p.XTestGoFiles
 			importMap = xTestImportPos
 			embedMap = xTestEmbedPos
+			directives = &p.XTestDirectives
 		case isTest:
 			fileList = &p.TestGoFiles
 			importMap = testImportPos
 			embedMap = testEmbedPos
+			directives = &p.TestDirectives
 		default:
 			fileList = &p.GoFiles
 			importMap = importPos
 			embedMap = embedPos
+			directives = &p.Directives
 		}
 		*fileList = append(*fileList, name)
 		if importMap != nil {
@@ -1003,6 +1019,9 @@ Found:
 			for _, emb := range info.embeds {
 				embedMap[emb.pattern] = append(embedMap[emb.pattern], emb.pos)
 			}
+		}
+		if directives != nil {
+			*directives = append(*directives, info.directives...)
 		}
 	}
 
@@ -1383,13 +1402,14 @@ var dummyPkg Package
 
 // fileInfo records information learned about a file included in a build.
 type fileInfo struct {
-	name     string // full name including dir
-	header   []byte
-	fset     *token.FileSet
-	parsed   *ast.File
-	parseErr error
-	imports  []fileImport
-	embeds   []fileEmbed
+	name       string // full name including dir
+	header     []byte
+	fset       *token.FileSet
+	parsed     *ast.File
+	parseErr   error
+	imports    []fileImport
+	embeds     []fileEmbed
+	directives []Directive
 }
 
 type fileImport struct {
