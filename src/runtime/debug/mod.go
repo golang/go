@@ -47,7 +47,7 @@ type BuildInfo struct {
 	// (for example, "golang.org/x/tools/cmd/stringer").
 	Path string
 
-	// Main describes the module that contains the main package for the binary
+	// Main describes the module that contains the main package for the binary.
 	Main Module
 
 	// Deps describes all the dependency modules, both direct and indirect,
