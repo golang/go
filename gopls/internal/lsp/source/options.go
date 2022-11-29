@@ -858,6 +858,9 @@ func (o *Options) enableAllExperimentMaps() {
 	if _, ok := o.Codelenses[string(command.GCDetails)]; !ok {
 		o.Codelenses[string(command.GCDetails)] = true
 	}
+	if _, ok := o.Codelenses[string(command.RunGovulncheck)]; !ok {
+		o.Codelenses[string(command.RunGovulncheck)] = true
+	}
 	if _, ok := o.Analyses[unusedparams.Analyzer.Name]; !ok {
 		o.Analyses[unusedparams.Analyzer.Name] = true
 	}
