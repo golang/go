@@ -246,8 +246,27 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="runtime">Runtime</h2>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><!-- CL 423359, https://go.dev/issue/51317 -->
+  The runtime now has experimental support for memory-safe arena allocation
+  that makes it possible to eagerly free memory in bulk.
+  When used appopriately, it has the potential to improve CPU performance by
+  up to 15% in memory-allocation-heavy applications.
+  To try it out, build your Go program with <code>GOEXPERIMENT=arenas</code>,
+  which will make the <code>arena</code> package visible to your program.
+  Source files that import the <code>arena</code> package must require the
+  <code>goexperiment.arenas</code> build tag.
+</p>
+
+<p><!-- CL 422634 -->
+  Some of the garbage collector's internal data structures were reorganized to
+  be both more space and CPU efficient.
+  This change reduces memory overheads and improves overall CPU performance by
+  up to 2%.
+</p>
+
+<p><!-- CL 417558, https://go.dev/issue/53892 -->
+  The garbage collector behaves less erratically with respect to goroutine
+  assists in some circumstances.
 </p>
 
 <h2 id="compiler">Compiler</h2>
@@ -983,14 +1002,42 @@ proxyHandler := &httputil.ReverseProxy{
 
 <dl id="runtime/metrics"><dt><a href="/pkg/runtime/metrics/">runtime/metrics</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/47216 -->
+    <p><!-- https://go.dev/issue/47216, https://go.dev/issue/49881 -->
       Go 1.20 adds new <a href="/pkg/runtime/metrics/#hdr-Supported_metrics">supported metrics</a>,
       including the current <code>GOMAXPROCS</code> setting (<code>/sched/gomaxprocs:threads</code>),
       the number of cgo calls executed (<code>/cgo/go-to-c-calls:calls</code>),
-      and various measures of time spent in garbage collection.
+      total mutex block time (<code>/sync/mutex/wait/total</code>), and various measures of time
+      spent in garbage collection.
+    </p>
+
+    <p><!-- CL 427615 -->
+      Time-based histogram metrics are now less precise, but take up much less memory.
     </p>
   </dd>
 </dl><!-- runtime/metrics -->
+
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 443056 -->
+      Mutex profile samples are now pre-scaled, fixing an issue where old mutex profile
+      samples would be scaled incorrectly if the sampling rate changed during execution.
+    </p>
+
+    <p><!-- CL 416975 -->
+      Profiles collected on Windows now include memory mapping information that fixes
+      symbolization issues for position-independent binaries.
+    </p>
+  </dd>
+</dl><!-- runtime/pprof -->
+
+<dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
+  <dd>
+    <p><!-- CL 447135, https://go.dev/issue/55022 -->
+      The garbage collector's background sweeper now yields less frequently,
+      resulting in many fewer extraneous events in execution traces.
+    </p>
+  </dd>
+</dl><!-- runtime/trace -->
 
 <dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
   <dd>
