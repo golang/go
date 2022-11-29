@@ -57,7 +57,7 @@ type ImportMissingError struct {
 func (e *ImportMissingError) Error() string {
 	if e.Module.Path == "" {
 		if e.isStd {
-			msg := fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+			msg := fmt.Sprintf("package %s is not in std (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
 			if e.importerGoVersion != "" {
 				msg += fmt.Sprintf("\nnote: imported by a module that requires go %s", e.importerGoVersion)
 			}
