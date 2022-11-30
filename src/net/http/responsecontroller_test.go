@@ -244,6 +244,7 @@ func (w wrapWriter) Unwrap() ResponseWriter {
 func TestWrappedResponseController(t *testing.T) { run(t, testWrappedResponseController) }
 func testWrappedResponseController(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w = wrapWriter{w}
 		ctl := NewResponseController(w)
 		if err := ctl.Flush(); err != nil {
 			t.Errorf("ctl.Flush() = %v, want nil", err)
@@ -259,5 +260,6 @@ func testWrappedResponseController(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatalf("unexpected connection error: %v", err)
 	}
+	io.Copy(io.Discard, res.Body)
 	defer res.Body.Close()
 }
