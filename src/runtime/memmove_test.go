@@ -874,3 +874,202 @@ func BenchmarkIssue18740(b *testing.B) {
 		})
 	}
 }
+
+var memclrSink []int8
+
+func BenchmarkMemclrKnownSize1(b *testing.B) {
+	var x [1]int8
+
+	b.SetBytes(1)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize2(b *testing.B) {
+	var x [2]int8
+
+	b.SetBytes(2)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize4(b *testing.B) {
+	var x [4]int8
+
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize8(b *testing.B) {
+	var x [8]int8
+
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize16(b *testing.B) {
+	var x [16]int8
+
+	b.SetBytes(16)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize32(b *testing.B) {
+	var x [32]int8
+
+	b.SetBytes(32)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize64(b *testing.B) {
+	var x [64]int8
+
+	b.SetBytes(64)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize112(b *testing.B) {
+	var x [112]int8
+
+	b.SetBytes(112)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+
+func BenchmarkMemclrKnownSize128(b *testing.B) {
+	var x [128]int8
+
+	b.SetBytes(128)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+
+func BenchmarkMemclrKnownSize192(b *testing.B) {
+	var x [192]int8
+
+	b.SetBytes(192)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+
+func BenchmarkMemclrKnownSize248(b *testing.B) {
+	var x [248]int8
+
+	b.SetBytes(248)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+
+func BenchmarkMemclrKnownSize256(b *testing.B) {
+	var x [256]int8
+
+	b.SetBytes(256)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize512(b *testing.B) {
+	var x [512]int8
+
+	b.SetBytes(512)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize1024(b *testing.B) {
+	var x [1024]int8
+
+	b.SetBytes(1024)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize4096(b *testing.B) {
+	var x [4096]int8
+
+	b.SetBytes(4096)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}
+func BenchmarkMemclrKnownSize512KiB(b *testing.B) {
+	var x [524288]int8
+
+	b.SetBytes(524288)
+	for i := 0; i < b.N; i++ {
+		for a := range x {
+			x[a] = 0
+		}
+	}
+
+	memclrSink = x[:]
+}

@@ -26411,6 +26411,62 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		v.copyOf(z)
 		return true
 	}
+	// match: (SelectN [0] call:(StaticCall {sym} sptr (Const64 [c]) mem))
+	// cond: isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
+	// result: (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticCall || len(call.Args) != 3 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		mem := call.Args[2]
+		sptr := call.Args[0]
+		call_1 := call.Args[1]
+		if call_1.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(call_1.AuxInt)
+		if !(isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
+			break
+		}
+		v.reset(OpZero)
+		v.AuxInt = int64ToAuxInt(int64(c))
+		v.Aux = typeToAux(types.Types[types.TUINT8])
+		v.AddArg2(sptr, mem)
+		return true
+	}
+	// match: (SelectN [0] call:(StaticCall {sym} sptr (Const32 [c]) mem))
+	// cond: isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)
+	// result: (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticCall || len(call.Args) != 3 {
+			break
+		}
+		sym := auxToCall(call.Aux)
+		mem := call.Args[2]
+		sptr := call.Args[0]
+		call_1 := call.Args[1]
+		if call_1.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(call_1.AuxInt)
+		if !(isInlinableMemclr(config) && isSameCall(sym, "runtime.memclrNoHeapPointers") && call.Uses == 1 && clobber(call)) {
+			break
+		}
+		v.reset(OpZero)
+		v.AuxInt = int64ToAuxInt(int64(c))
+		v.Aux = typeToAux(types.Types[types.TUINT8])
+		v.AddArg2(sptr, mem)
+		return true
+	}
 	// match: (SelectN [0] call:(StaticLECall _ (Const64 [0]) (Const64 [0]) _))
 	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
 	// result: (Addr {ir.Syms.Zerobase} (SB))

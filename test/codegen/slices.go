@@ -16,6 +16,7 @@ import "unsafe"
 // ------------------ //
 
 // Issue #5373 optimize memset idiom
+// Some of the clears get inlined, see #56997
 
 func SliceClear(s []int) []int {
 	// amd64:`.*memclrNoHeapPointers`
@@ -42,9 +43,10 @@ func SliceClearPointers(s []*int) []*int {
 // Issue #21266 - avoid makeslice in append(x, make([]T, y)...)
 
 func SliceExtensionConst(s []int) []int {
-	// amd64:`.*runtime\.memclrNoHeapPointers`
+	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
+	// amd64:"MOVUPS\tX15"
 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
 	// ppc64x:-`.*runtime\.panicmakeslicelen`
@@ -52,9 +54,10 @@ func SliceExtensionConst(s []int) []int {
 }
 
 func SliceExtensionConstInt64(s []int) []int {
-	// amd64:`.*runtime\.memclrNoHeapPointers`
+	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
+	// amd64:"MOVUPS\tX15"
 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
 	// ppc64x:-`.*runtime\.panicmakeslicelen`
@@ -62,9 +65,10 @@ func SliceExtensionConstInt64(s []int) []int {
 }
 
 func SliceExtensionConstUint64(s []int) []int {
-	// amd64:`.*runtime\.memclrNoHeapPointers`
+	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
+	// amd64:"MOVUPS\tX15"
 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
 	// ppc64x:-`.*runtime\.panicmakeslicelen`
@@ -72,9 +76,10 @@ func SliceExtensionConstUint64(s []int) []int {
 }
 
 func SliceExtensionConstUint(s []int) []int {
-	// amd64:`.*runtime\.memclrNoHeapPointers`
+	// amd64:-`.*runtime\.memclrNoHeapPointers`
 	// amd64:-`.*runtime\.makeslice`
 	// amd64:-`.*runtime\.panicmakeslicelen`
+	// amd64:"MOVUPS\tX15"
 	// ppc64x:`.*runtime\.memclrNoHeapPointers`
 	// ppc64x:-`.*runtime\.makeslice`
 	// ppc64x:-`.*runtime\.panicmakeslicelen`

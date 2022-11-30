@@ -1365,6 +1365,12 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 	return false
 }
 
+func isInlinableMemclr(c *Config) bool {
+	// TODO: expand this check to allow other architectures
+	// see CL 454255 and issue 56997
+	return c.arch == "amd64" || c.arch == "arm64"
+}
+
 // isInlinableMemmove reports whether the given arch performs a Move of the given size
 // faster than memmove. It will only return true if replacing the memmove with a Move is
 // safe, either because Move will do all of its loads before any of its stores, or
