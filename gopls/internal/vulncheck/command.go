@@ -250,7 +250,13 @@ func init() {
 		if err != nil {
 			return err
 		}
-		logf("Found %d vulnerabilities", len(res.Vulns))
+		affecting := 0
+		for _, v := range res.Vulns {
+			if v.IsCalled() {
+				affecting++
+			}
+		}
+		logf("Found %d affecting vulns and %d unaffecting vulns in imported packages", affecting, len(res.Vulns)-affecting)
 		if err := json.NewEncoder(os.Stdout).Encode(res); err != nil {
 			return err
 		}
