@@ -345,3 +345,48 @@ func WriteImportcfg(t testing.TB, dstPath string, additionalPackageFiles map[str
 		t.Fatalf("writing the importcfg failed: %s", err)
 	}
 }
+
+var (
+	gorootOnce sync.Once
+	gorootPath string
+	gorootErr  error
+)
+
+func findGOROOT() (string, error) {
+	gorootOnce.Do(func() {
+		gorootPath = runtime.GOROOT()
+		if gorootPath != "" {
+			// If runtime.GOROOT() is non-empty, assume that it is valid. (It might
+			// not be: for example, the user may have explicitly set GOROOT
+			// to the wrong directory.)
+			return
+		}
+
+		cmd := exec.Command("go", "env", "GOROOT")
+		out, err := cmd.Output()
+		if err != nil {
+			gorootErr = fmt.Errorf("%v: %v", cmd, err)
+		}
+		gorootPath = strings.TrimSpace(string(out))
+	})
+
+	return gorootPath, gorootErr
+}
+
+// GOROOT reports the path to the directory containing the root of the Go
+// project source tree. This is normally equivalent to runtime.GOROOT, but
+// works even if the test binary was built with -trimpath.
+//
+// If GOROOT cannot be found, GOROOT skips t if t is non-nil,
+// or panics otherwise.
+func GOROOT(t testing.TB) string {
+	path, err := findGOROOT()
+	if err != nil {
+		if t == nil {
+			panic(err)
+		}
+		t.Helper()
+		t.Skip(err)
+	}
+	return path
+}
