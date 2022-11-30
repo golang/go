@@ -10,6 +10,7 @@ import (
 	"internal/goexperiment"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -68,38 +69,7 @@ func testPath(t *testing.T, path, srcDir string) *types.Package {
 	return pkg
 }
 
-const maxTime = 30 * time.Second
-
 var pkgExts = [...]string{".a", ".o"} // keep in sync with gcimporter.go
-
-func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
-	dirname := filepath.Join(testenv.GOROOT(t), "pkg", runtime.GOOS+"_"+runtime.GOARCH, dir)
-	list, err := os.ReadDir(dirname)
-	if err != nil {
-		t.Fatalf("testDir(%s): %s", dirname, err)
-	}
-	for _, f := range list {
-		if time.Now().After(endTime) {
-			t.Log("testing time used up")
-			return
-		}
-		switch {
-		case !f.IsDir():
-			// try extensions
-			for _, ext := range pkgExts {
-				if strings.HasSuffix(f.Name(), ext) {
-					name := f.Name()[0 : len(f.Name())-len(ext)] // remove extension
-					if testPath(t, filepath.Join(dir, name), dir) != nil {
-						nimports++
-					}
-				}
-			}
-		case f.IsDir():
-			nimports += testDir(t, filepath.Join(dir, f.Name()), endTime)
-		}
-	}
-	return
-}
 
 func mktmpdir(t *testing.T) string {
 	tmpdir, err := os.MkdirTemp("", "gcimporter_test")
@@ -370,6 +340,9 @@ func TestVersionHandling(t *testing.T) {
 }
 
 func TestImportStdLib(t *testing.T) {
+	if testing.Short() {
+		t.Skip("the imports can be expensive, and this test is especially slow when the build cache is empty")
+	}
 	testenv.MustHaveGoBuild(t)
 
 	// This package only handles gc export data.
@@ -377,11 +350,29 @@ func TestImportStdLib(t *testing.T) {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
 
-	dt := maxTime
-	if testing.Short() && testenv.Builder() == "" {
-		dt = 10 * time.Millisecond
+	// Get list of packages in stdlib. Filter out test-only packages with {{if .GoFiles}} check.
+	var stderr bytes.Buffer
+	cmd := exec.Command("go", "list", "-f", "{{if .GoFiles}}{{.ImportPath}}{{end}}", "std")
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("failed to run go list to determine stdlib packages: %v\nstderr:\n%v", err, stderr.String())
 	}
-	nimports := testDir(t, "", time.Now().Add(dt)) // installed packages
+	pkgs := strings.Fields(string(out))
+
+	var nimports int
+	for _, pkg := range pkgs {
+		t.Run(pkg, func(t *testing.T) {
+			if testPath(t, pkg, filepath.Join(testenv.GOROOT(t), "src", path.Dir(pkg))) != nil {
+				nimports++
+			}
+		})
+	}
+	const minPkgs = 225 // 'GOOS=plan9 go1.18 list std | wc -l' reports 228; most other platforms have more.
+	if len(pkgs) < minPkgs {
+		t.Fatalf("too few packages (%d) were imported", nimports)
+	}
+
 	t.Logf("tested %d imports", nimports)
 }
 
