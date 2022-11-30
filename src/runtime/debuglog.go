@@ -618,10 +618,6 @@ func (r *debugLogReader) printVal() bool {
 	r.begin++
 
 	switch typ {
-	default:
-		print("<unknown field type ", hex(typ), " pos ", r.begin-1, " end ", r.end, ">\n")
-		return false
-
 	case debugLogUnknown:
 		print("<unknown kind>")
 
@@ -685,6 +681,10 @@ func (r *debugLogReader) printVal() bool {
 			// TODO(austin): Expand inlined frames.
 			printDebugLogPC(uintptr(r.uvarint()), true)
 		}
+	default:
+		print("<unknown field type ", hex(typ), " pos ", r.begin-1, " end ", r.end, ">\n")
+		return false
+
 	}
 
 	return true
