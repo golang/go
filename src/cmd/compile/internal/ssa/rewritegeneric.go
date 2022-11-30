@@ -4,6 +4,7 @@ package ssa
 
 import "math"
 import "cmd/compile/internal/types"
+import "cmd/compile/internal/ir"
 
 func rewriteValuegeneric(v *Value) bool {
 	switch v.Op {
@@ -26379,6 +26380,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
+	typ := &b.Func.Config.Types
 	// match: (SelectN [0] (MakeResult x ___))
 	// result: x
 	for {
@@ -26407,6 +26409,104 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		}
 		z := v_0.Args[2]
 		v.copyOf(z)
+		return true
+	}
+	// match: (SelectN [0] call:(StaticLECall _ (Const64 [0]) (Const64 [0]) _))
+	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
+	// result: (Addr {ir.Syms.Zerobase} (SB))
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticLECall || len(call.Args) != 4 {
+			break
+		}
+		_ = call.Args[2]
+		call_1 := call.Args[1]
+		if call_1.Op != OpConst64 || auxIntToInt64(call_1.AuxInt) != 0 {
+			break
+		}
+		call_2 := call.Args[2]
+		if call_2.Op != OpConst64 || auxIntToInt64(call_2.AuxInt) != 0 || !(isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)) {
+			break
+		}
+		v.reset(OpAddr)
+		v.Aux = symToAux(ir.Syms.Zerobase)
+		v0 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SelectN [0] call:(StaticLECall _ (Const32 [0]) (Const32 [0]) _))
+	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
+	// result: (Addr {ir.Syms.Zerobase} (SB))
+	for {
+		if auxIntToInt64(v.AuxInt) != 0 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticLECall || len(call.Args) != 4 {
+			break
+		}
+		_ = call.Args[2]
+		call_1 := call.Args[1]
+		if call_1.Op != OpConst32 || auxIntToInt32(call_1.AuxInt) != 0 {
+			break
+		}
+		call_2 := call.Args[2]
+		if call_2.Op != OpConst32 || auxIntToInt32(call_2.AuxInt) != 0 || !(isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)) {
+			break
+		}
+		v.reset(OpAddr)
+		v.Aux = symToAux(ir.Syms.Zerobase)
+		v0 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (SelectN [1] call:(StaticLECall _ (Const64 [0]) (Const64 [0]) mem))
+	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
+	// result: mem
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticLECall || len(call.Args) != 4 {
+			break
+		}
+		mem := call.Args[3]
+		call_1 := call.Args[1]
+		if call_1.Op != OpConst64 || auxIntToInt64(call_1.AuxInt) != 0 {
+			break
+		}
+		call_2 := call.Args[2]
+		if call_2.Op != OpConst64 || auxIntToInt64(call_2.AuxInt) != 0 || !(isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)) {
+			break
+		}
+		v.copyOf(mem)
+		return true
+	}
+	// match: (SelectN [1] call:(StaticLECall _ (Const32 [0]) (Const32 [0]) mem))
+	// cond: isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)
+	// result: mem
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 {
+			break
+		}
+		call := v_0
+		if call.Op != OpStaticLECall || len(call.Args) != 4 {
+			break
+		}
+		mem := call.Args[3]
+		call_1 := call.Args[1]
+		if call_1.Op != OpConst32 || auxIntToInt32(call_1.AuxInt) != 0 {
+			break
+		}
+		call_2 := call.Args[2]
+		if call_2.Op != OpConst32 || auxIntToInt32(call_2.AuxInt) != 0 || !(isSameCall(call.Aux, "runtime.makeslice") && clobberIfDead(call)) {
+			break
+		}
+		v.copyOf(mem)
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
