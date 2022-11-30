@@ -256,11 +256,13 @@ func main() {
 			"module mod.com": {
 				diagnostics: []vulnDiag{
 					{
-						msg:      "go1.18 has a vulnerability GOSTDLIB.",
-						severity: protocol.SeverityInformation,
+						msg:         "go1.18 has a vulnerability GOSTDLIB.",
+						severity:    protocol.SeverityInformation,
+						codeActions: []string{"Run govulncheck"},
 					},
 				},
-				hover: []string{"GOSTDLIB", "No fix is available", "GOSTDLIB"},
+				hover:       []string{"GOSTDLIB", "No fix is available", "GOSTDLIB"},
+				codeActions: []string{"Run govulncheck"},
 			},
 		}
 
