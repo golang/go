@@ -309,9 +309,7 @@ func (w *workspace) dirs(ctx context.Context, fs source.FileSource) []span.URI {
 	for d := range w.wsDirs {
 		dirs = append(dirs, d)
 	}
-	sort.Slice(dirs, func(i, j int) bool {
-		return source.CompareURI(dirs[i], dirs[j]) < 0
-	})
+	sort.Slice(dirs, func(i, j int) bool { return dirs[i] < dirs[j] })
 	return dirs
 }
 
@@ -349,6 +347,13 @@ func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange,
 		result.activeModFiles[k] = v
 	}
 
+	equalURI := func(a, b span.URI) (r bool) {
+		// This query is a strange mix of syntax and file system state:
+		// deletion of a file causes a false result if the name doesn't change.
+		// Our tests exercise only the first clause.
+		return a == b || span.SameExistingFile(a, b)
+	}
+
 	// First handle changes to the go.work or gopls.mod file. This must be
 	// considered before any changes to go.mod or go.sum files, as these files
 	// determine which modules we care about. If go.work/gopls.mod has changed
@@ -362,7 +367,7 @@ func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange,
 			continue
 		}
 		changed = true
-		active := result.moduleSource != legacyWorkspace || source.CompareURI(modURI(w.root), uri) == 0
+		active := result.moduleSource != legacyWorkspace || equalURI(modURI(w.root), uri)
 		needReinit = needReinit || (active && change.fileHandle.Saved())
 		// Don't mess with the list of mod files if using go.work or gopls.mod.
 		if result.moduleSource == goplsModWorkspace || result.moduleSource == goWorkWorkspace {

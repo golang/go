@@ -1274,7 +1274,7 @@ func (e *Editor) renameBuffers(ctx context.Context, oldPath, newPath string) (cl
 
 	for path := range e.buffers {
 		abs := e.sandbox.Workdir.AbsPath(path)
-		if oldAbs == abs || source.InDirLex(oldAbs, abs) {
+		if oldAbs == abs || source.InDir(oldAbs, abs) {
 			rel, err := filepath.Rel(oldAbs, abs)
 			if err != nil {
 				return nil, nil, fmt.Errorf("filepath.Rel(%q, %q): %v", oldAbs, abs, err)

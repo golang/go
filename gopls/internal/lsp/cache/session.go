@@ -167,7 +167,7 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	for _, view := range s.views {
-		if span.CompareURI(view.folder, folder) == 0 {
+		if span.SameExistingFile(view.folder, folder) {
 			return nil, nil, nil, source.ErrViewExists
 		}
 	}

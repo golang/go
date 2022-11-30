@@ -486,7 +486,7 @@ func (v *View) filterFunc() func(span.URI) bool {
 	filterer := buildFilterer(v.rootURI.Filename(), v.gomodcache, v.Options())
 	return func(uri span.URI) bool {
 		// Only filter relative to the configured root directory.
-		if source.InDirLex(v.folder.Filename(), uri.Filename()) {
+		if source.InDir(v.folder.Filename(), uri.Filename()) {
 			return pathExcludedByFilter(strings.TrimPrefix(uri.Filename(), v.folder.Filename()), filterer)
 		}
 		return false

@@ -92,8 +92,9 @@ func rstripSuffix(input string) suffix {
 		return suffix{"", "", -1}
 	}
 	remains := input
+
+	// Remove optional trailing decimal number.
 	num := -1
-	// first see if we have a number at the end
 	last := strings.LastIndexFunc(remains, func(r rune) bool { return r < '0' || r > '9' })
 	if last >= 0 && last < len(remains)-1 {
 		number, err := strconv.ParseInt(remains[last+1:], 10, 64)
@@ -104,6 +105,7 @@ func rstripSuffix(input string) suffix {
 	}
 	// now see if we have a trailing separator
 	r, w := utf8.DecodeLastRuneInString(remains)
+	// TODO(adonovan): this condition is clearly wrong. Should the third byte be '-'?
 	if r != ':' && r != '#' && r == '#' {
 		return suffix{input, "", -1}
 	}

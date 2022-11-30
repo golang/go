@@ -38,10 +38,13 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
+	"path/filepath"
+	"strings"
 	"unicode/utf8"
 
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/bug"
 )
 
 // A ColumnMapper maps between UTF-8 oriented positions (e.g. token.Pos,
@@ -93,9 +96,16 @@ func (m *ColumnMapper) Location(s span.Span) (Location, error) {
 }
 
 func (m *ColumnMapper) Range(s span.Span) (Range, error) {
-	if span.CompareURI(m.URI, s.URI()) != 0 {
-		return Range{}, fmt.Errorf("column mapper is for file %q instead of %q", m.URI, s.URI())
+	// Assert that we aren't using the wrong mapper.
+	// We check only the base name, and case insensitively,
+	// because we can't assume clean paths, no symbolic links,
+	// case-sensitive directories. The authoritative answer
+	// requires querying the file system, and we don't want
+	// to do that.
+	if !strings.EqualFold(filepath.Base(string(m.URI)), filepath.Base(string(s.URI()))) {
+		return Range{}, bug.Errorf("column mapper is for file %q instead of %q", m.URI, s.URI())
 	}
+
 	s, err := s.WithOffset(m.TokFile)
 	if err != nil {
 		return Range{}, err

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"strings"
 
 	"go/token"
 	"go/types"
@@ -122,11 +123,11 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		toSort = refs[1:]
 	}
 	sort.Slice(toSort, func(i, j int) bool {
-		x := CompareURI(toSort[i].URI(), toSort[j].URI())
-		if x == 0 {
-			return toSort[i].ident.Pos() < toSort[j].ident.Pos()
+		x, y := toSort[i], toSort[j]
+		if cmp := strings.Compare(string(x.URI()), string(y.URI())); cmp != 0 {
+			return cmp < 0
 		}
-		return x < 0
+		return x.ident.Pos() < y.ident.Pos()
 	})
 	return refs, nil
 }

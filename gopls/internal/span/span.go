@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"go/token"
 	"path"
+	"sort"
+	"strings"
 )
 
 // Span represents a source code range in standardized form.
@@ -54,12 +56,23 @@ func NewPoint(line, col, offset int) Point {
 	return p
 }
 
-func Compare(a, b Span) int {
-	if r := CompareURI(a.URI(), b.URI()); r != 0 {
-		return r
+// SortSpans sorts spans into a stable but unspecified order.
+func SortSpans(spans []Span) {
+	sort.SliceStable(spans, func(i, j int) bool {
+		return compare(spans[i], spans[j]) < 0
+	})
+}
+
+// compare implements a three-valued ordered comparison of Spans.
+func compare(a, b Span) int {
+	// This is a textual comparison. It does not peform path
+	// cleaning, case folding, resolution of symbolic links,
+	// testing for existence, or any I/O.
+	if cmp := strings.Compare(string(a.URI()), string(b.URI())); cmp != 0 {
+		return cmp
 	}
-	if r := comparePoint(a.v.Start, b.v.Start); r != 0 {
-		return r
+	if cmp := comparePoint(a.v.Start, b.v.Start); cmp != 0 {
+		return cmp
 	}
 	return comparePoint(a.v.End, b.v.End)
 }

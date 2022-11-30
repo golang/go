@@ -614,13 +614,8 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, impls []span.Span) 
 		}
 		results = append(results, imp)
 	}
-	// Sort results and expected to make tests deterministic.
-	sort.SliceStable(results, func(i, j int) bool {
-		return span.Compare(results[i], results[j]) == -1
-	})
-	sort.SliceStable(impls, func(i, j int) bool {
-		return span.Compare(impls[i], impls[j]) == -1
-	})
+	span.SortSpans(results) // to make tests
+	span.SortSpans(impls)   // deterministic
 	for i := range results {
 		if results[i] != impls[i] {
 			t.Errorf("for %dth implementation of %v got %v want %v", i, spn, results[i], impls[i])
@@ -655,9 +650,7 @@ func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
 		results = append(results, h)
 	}
 	// Sort results to make tests deterministic since DocumentHighlight uses a map.
-	sort.SliceStable(results, func(i, j int) bool {
-		return span.Compare(results[i], results[j]) == -1
-	})
+	span.SortSpans(results)
 	// Check to make sure all the expected highlights are found.
 	for i := range results {
 		if results[i] != locations[i] {

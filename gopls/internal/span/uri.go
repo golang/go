@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -101,28 +100,9 @@ func URIFromURI(s string) URI {
 	return URI(u.String())
 }
 
-// CompareURI performs a three-valued comparison of two URIs.
-// Lexically unequal URIs may compare equal if they are "file:" URIs
-// that share the same base name (ignoring case) and denote the same
-// file device/inode, according to stat(2).
-func CompareURI(a, b URI) int {
-	if equalURI(a, b) {
-		return 0
-	}
-	if a < b {
-		return -1
-	}
-	return 1
-}
-
-func equalURI(a, b URI) bool {
-	if a == b {
-		return true
-	}
-	// If we have the same URI basename, we may still have the same file URIs.
-	if !strings.EqualFold(path.Base(string(a)), path.Base(string(b))) {
-		return false
-	}
+// SameExistingFile reports whether two spans denote the
+// same existing file by querying the file system.
+func SameExistingFile(a, b URI) bool {
 	fa, err := filename(a)
 	if err != nil {
 		return false
@@ -131,7 +111,6 @@ func equalURI(a, b URI) bool {
 	if err != nil {
 		return false
 	}
-	// Stat the files to check if they are equal.
 	infoa, err := os.Stat(filepath.FromSlash(fa))
 	if err != nil {
 		return false
