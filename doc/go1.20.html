@@ -175,6 +175,14 @@ Do not send CLs removing the interior tags from such phrases.
   Specifying <code>-pgo=off</code> turns off profile-guided optimization.
 </p>
 
+<p><!-- https://go.dev/issue/51430 -->
+  The <code>go</code> <code>build</code>, <code>go</code> <code>install</code>,
+  and other build-related commands now support a <code>-cover</code>
+  flag that builds the specified target with code coverage instrumentation.
+  This is described in more detail in the
+  <a href="#cover">Cover</a> section below.
+</p>
+
 <h4 id="go-version"><code>go</code> <code>version</code></h4>
 
 <p><!-- https://go.dev/issue/48187 -->
@@ -228,7 +236,19 @@ Do not send CLs removing the interior tags from such phrases.
 <h3 id="cover">Cover</h3>
 
 <p><!-- CL 436236, CL 401236, CL 438503 -->
-  TODO coverage
+  Go 1.20 supports collecting code coverage profiles for programs
+  (applications and integration tests), as opposed to just unit tests.
+</p>
+
+<p>
+  To collect coverage data for a program, build it with <code>go</code>
+  <code>build</code>'s <code>-cover</code> flag, then run the resulting
+  binary with the environment variable <code>GOCOVERDIR</code> set
+  to an output directory for coverage profiles.
+  See the
+  <a href="https://go.dev/testing/coverage">'coverage for integration tests' landing page</a> for more on how to get started.
+  For details on the design and implementation, see the
+  <a href="https://golang.org/issue/51430">proposal</a>.
 </p>
 
 <h3 id="vet">Vet</h3>
@@ -283,6 +303,13 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- CL 417558, https://go.dev/issue/53892 -->
   The garbage collector behaves less erratically with respect to goroutine
   assists in some circumstances.
+</p>
+
+<p><!-- https://go.dev/issue/51430 -->
+  Go 1.20 adds a new <code>runtime/coverage</code> package
+  containing APIs for writing coverage profile data at
+  runtime from a long-running and/or server programs that
+  do not terminate via <code>os.Exit()</code>.
 </p>
 
 <h2 id="compiler">Compiler</h2>
