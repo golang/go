@@ -317,6 +317,22 @@ func cgoSockaddr(ip IP, zone string) (*_C_struct_sockaddr, _C_socklen_t) {
 }
 
 func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
+	if ctx.Done() == nil {
+		_, cname, err = cgoLookupIPCNAME("ip", name)
+		return cname, err, true
+	}
+
+	result := make(chan ipLookupResult, 1)
+	go cgoIPLookup(result, "ip", name)
+	select {
+	case r := <-result:
+		if r.cname != "" || r.err == nil {
+			return r.cname, r.err, true
+		}
+	case <-ctx.Done():
+		return "", mapErr(ctx.Err()), false
+	}
+
 	resources, err := resSearch(ctx, name, int(dnsmessage.TypeCNAME), int(dnsmessage.ClassINET))
 	if err != nil {
 		return
