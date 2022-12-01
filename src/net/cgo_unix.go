@@ -14,7 +14,6 @@ package net
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"syscall"
 	"unsafe"
@@ -356,11 +355,8 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 	defer _C_FreeCString(s)
 
 	for {
-		size, err := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
+		size, _ := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
 		if size <= 0 {
-			if err != nil {
-				return nil, fmt.Errorf("res_nsearch failure: %v", err)
-			}
 			return nil, errors.New("res_nsearch failure")
 		}
 		if size <= bufSize {
