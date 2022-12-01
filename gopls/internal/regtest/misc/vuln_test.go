@@ -56,6 +56,40 @@ package foo
 	})
 }
 
+func TestRunGovulncheckError2(t *testing.T) {
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- foo.go --
+package foo
+
+func F() { // build error incomplete
+`
+	WithOptions(
+		EnvVars{
+			"_GOPLS_TEST_BINARY_RUN_AS_GOPLS": "true", // needed to run `gopls vulncheck`.
+		},
+		Settings{
+			"codelenses": map[string]bool{
+				"run_govulncheck": true,
+			},
+		},
+	).Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		var result command.RunVulncheckResult
+		env.ExecuteCodeLensCommand("go.mod", command.RunGovulncheck, &result)
+		env.Await(
+			OnceMet(
+				CompletedProgress(result.Token),
+				// TODO(hyangah): find a way to inspect $/progress 'report' message.
+				LogMatching(protocol.Info, "failed to load packages due to errors", 1, false),
+			),
+		)
+	})
+}
+
 const vulnsData = `
 -- GO-2022-01.yaml --
 modules:
