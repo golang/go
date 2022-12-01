@@ -498,6 +498,9 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 			// If there is a core term (i.e., a core type with tilde information)
 			// unify the type parameter with the core type.
 			if core, single := coreTerm(tpar); core != nil {
+				if traceInference {
+					u.tracef("core(%s) = %s (single = %v)", tpar, core, single)
+				}
 				// A type parameter can be unified with its core type in two cases.
 				tx := u.x.at(i)
 				switch {
@@ -516,18 +519,17 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 					if core.tilde && !isTypeParam(tx) {
 						tx = under(tx)
 					}
-					if !u.unify(tx, core.typ) {
-						// TODO(gri) improve error message by providing the type arguments
-						//           which we know already
-						// Don't use term.String() as it always qualifies types, even if they
-						// are in the current package.
-						tilde := ""
-						if core.tilde {
-							tilde = "~"
-						}
-						check.errorf(pos, InvalidTypeArg, "%s does not match %s%s", tx, tilde, core.typ)
-						return nil, 0
-					}
+					// Unification may fail because it operates with limited information (core type),
+					// even if a given type argument satisfies the corresponding type constraint.
+					// For instance, given [P T1|T2, ...] where the type argument for P is (named
+					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
+					// type, the core type will be the named type T0, which doesn't match T1.
+					// Yet the instantiation of P with T1 is clearly valid (see #53650).
+					// Reporting an error if unification fails would be incorrect in this case.
+					// On the other hand, it is safe to ignore failing unification during constraint
+					// type inference because if the failure is true, an error will be reported when
+					// checking instantiation.
+					u.unify(tx, core.typ)
 
 				case single && !core.tilde:
 					// The corresponding type argument tx is unknown and there's a single
@@ -544,6 +546,10 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 				nn = u.x.unknowns()
 				if nn == 0 {
 					break // all type arguments are known
+				}
+			} else {
+				if traceInference {
+					u.tracef("core(%s) = nil", tpar)
 				}
 			}
 		}
