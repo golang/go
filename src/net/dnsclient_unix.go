@@ -627,14 +627,14 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, network, name strin
 
 	lane := make(chan result, 1)
 	qtypes := []dnsmessage.Type{dnsmessage.TypeA, dnsmessage.TypeAAAA}
-	if network == "CNAME" {
-		qtypes = append(qtypes, dnsmessage.TypeCNAME)
-	}
 	switch ipVersion(network) {
 	case '4':
 		qtypes = []dnsmessage.Type{dnsmessage.TypeA}
 	case '6':
 		qtypes = []dnsmessage.Type{dnsmessage.TypeAAAA}
+	}
+	if network == "CNAME" {
+		qtypes = append(qtypes, dnsmessage.TypeCNAME)
 	}
 	var queryFn func(fqdn string, qtype dnsmessage.Type)
 	var responseFn func(fqdn string, qtype dnsmessage.Type) result

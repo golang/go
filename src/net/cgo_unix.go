@@ -316,21 +316,33 @@ func cgoSockaddr(ip IP, zone string) (*_C_struct_sockaddr, _C_socklen_t) {
 	return nil, 0
 }
 
+func isErrorNoSuchHost(err error) bool {
+	e := &DNSError{}
+	if errors.As(err, &e) {
+		if e.IsNotFound {
+			return true
+		}
+	}
+	return false
+}
+
 func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
 	if ctx.Done() == nil {
 		_, cname, err = cgoLookupIPCNAME("ip", name)
-		return cname, err, true
-	}
-
-	result := make(chan ipLookupResult, 1)
-	go cgoIPLookup(result, "ip", name)
-	select {
-	case r := <-result:
-		if r.err == nil {
-			return r.cname, r.err, true
+		if !isErrorNoSuchHost(err) {
+			return cname, err, true
 		}
-	case <-ctx.Done():
-		return "", mapErr(ctx.Err()), false
+	} else {
+		result := make(chan ipLookupResult, 1)
+		go cgoIPLookup(result, "ip", name)
+		select {
+		case r := <-result:
+			if !isErrorNoSuchHost(err) {
+				return r.cname, r.err, true
+			}
+		case <-ctx.Done():
+			return "", mapErr(ctx.Err()), false
+		}
 	}
 
 	resources, err := resSearch(ctx, name, int(dnsmessage.TypeCNAME), int(dnsmessage.ClassINET))
