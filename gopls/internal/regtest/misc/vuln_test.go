@@ -57,6 +57,7 @@ package foo
 }
 
 func TestRunGovulncheckError2(t *testing.T) {
+	t.Skip("skipping due to go.dev/issues/57032")
 	const files = `
 -- go.mod --
 module mod.com
