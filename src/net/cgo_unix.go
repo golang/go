@@ -356,19 +356,18 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 
 	for {
 		size, _ := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
-		if size <= 0 {
+		if size <= 0 || size > math.MaxUint16 {
 			return nil, errors.New("res_nsearch failure")
 		}
 		if size <= bufSize {
 			break
 		}
-		if size < math.MaxUint16 {
-			_C_free(unsafe.Pointer(buf))
-			bufSize = size
-			buf = (*_C_uchar)(_C_malloc(uintptr(bufSize)))
-			continue
-		}
-		return nil, errors.New("res_nsearch failure")
+
+		// Allocate a bigger buffer to fit the entire msg.
+		_C_free(unsafe.Pointer(buf))
+		bufSize = size
+		buf = (*_C_uchar)(_C_malloc(uintptr(bufSize)))
+		continue
 	}
 
 	var p dnsmessage.Parser
