@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/race"
 	"math"
 	"math/rand"
 	. "runtime"
@@ -125,6 +126,9 @@ func TestSmhasherAppendedZeros(t *testing.T) {
 
 // All 0-3 byte strings have distinct hashes.
 func TestSmhasherSmallKeys(t *testing.T) {
+	if race.Enabled {
+		t.Skip("Too long for race mode")
+	}
 	h := newHashSet()
 	var b [3]byte
 	for i := 0; i < 256; i++ {
@@ -165,6 +169,9 @@ func TestSmhasherTwoNonzero(t *testing.T) {
 	}
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
+	}
+	if race.Enabled {
+		t.Skip("Too long for race mode")
 	}
 	h := newHashSet()
 	for n := 2; n <= 16; n++ {
@@ -207,6 +214,9 @@ func twoNonZero(h *HashSet, n int) {
 func TestSmhasherCyclic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
+	}
+	if race.Enabled {
+		t.Skip("Too long for race mode")
 	}
 	r := rand.New(rand.NewSource(1234))
 	const REPEAT = 8
@@ -274,6 +284,9 @@ func TestSmhasherPermutation(t *testing.T) {
 	}
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
+	}
+	if race.Enabled {
+		t.Skip("Too long for race mode")
 	}
 	permutation(t, []uint32{0, 1, 2, 3, 4, 5, 6, 7}, 8)
 	permutation(t, []uint32{0, 1 << 29, 2 << 29, 3 << 29, 4 << 29, 5 << 29, 6 << 29, 7 << 29}, 8)
@@ -447,6 +460,9 @@ func TestSmhasherAvalanche(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping in short mode")
 	}
+	if race.Enabled {
+		t.Skip("Too long for race mode")
+	}
 	avalancheTest1(t, &BytesKey{make([]byte, 2)})
 	avalancheTest1(t, &BytesKey{make([]byte, 4)})
 	avalancheTest1(t, &BytesKey{make([]byte, 8)})
@@ -514,6 +530,9 @@ func avalancheTest1(t *testing.T, k Key) {
 
 // All bit rotations of a set of distinct keys
 func TestSmhasherWindowed(t *testing.T) {
+	if race.Enabled {
+		t.Skip("Too long for race mode")
+	}
 	t.Logf("32 bit keys")
 	windowed(t, &Int32Key{})
 	t.Logf("64 bit keys")
