@@ -317,7 +317,7 @@ func cgoSockaddr(ip IP, zone string) (*_C_struct_sockaddr, _C_socklen_t) {
 }
 
 func isErrorNoSuchHost(err error) bool {
-	e := &DNSError{}
+	var e *DNSError
 	if errors.As(err, &e) {
 		if e.IsNotFound {
 			return true
