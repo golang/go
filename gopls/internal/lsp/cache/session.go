@@ -235,8 +235,8 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		folder:               folder,
 		moduleUpgrades:       map[span.URI]map[string]string{},
 		vulns:                map[span.URI]*govulncheck.Result{},
-		filesByURI:           map[span.URI]*fileBase{},
-		filesByBase:          map[string][]*fileBase{},
+		filesByURI:           make(map[span.URI]span.URI),
+		filesByBase:          make(map[string][]canonicalURI),
 		rootURI:              root,
 		explicitGowork:       goworkURI,
 		workspaceInformation: *wsInfo,
@@ -510,8 +510,8 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 
 		// Apply the changes to all affected views.
 		for _, view := range changedViews {
-			// Make sure that the file is added to the view.
-			_ = view.getFile(c.URI)
+			// Make sure that the file is added to the view's knownFiles set.
+			view.canonicalURI(c.URI, true) // ignore result
 			if _, ok := views[view]; !ok {
 				views[view] = make(map[span.URI]*fileChange)
 			}

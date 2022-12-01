@@ -1287,12 +1287,12 @@ func (s *snapshot) isWorkspacePackage(id PackageID) bool {
 }
 
 func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
-	f := s.view.getFile(uri)
+	uri, _ = s.view.canonicalURI(uri, true)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	result, _ := s.files.Get(f.URI())
+	result, _ := s.files.Get(uri)
 	return result
 }
 
@@ -1302,30 +1302,27 @@ func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
 // GetVersionedFile succeeds even if the file does not exist. A non-nil error return
 // indicates some type of internal error, for example if ctx is cancelled.
 func (s *snapshot) GetVersionedFile(ctx context.Context, uri span.URI) (source.VersionedFileHandle, error) {
-	f := s.view.getFile(uri)
+	uri, _ = s.view.canonicalURI(uri, true)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.getFileLocked(ctx, f)
+
+	if fh, ok := s.files.Get(uri); ok {
+		return fh, nil
+	}
+
+	fh, err := s.view.cache.getFile(ctx, uri) // read the file
+	if err != nil {
+		return nil, err
+	}
+	closed := &closedFile{fh}
+	s.files.Set(uri, closed)
+	return closed, nil
 }
 
 // GetFile implements the fileSource interface by wrapping GetVersionedFile.
 func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	return s.GetVersionedFile(ctx, uri)
-}
-
-func (s *snapshot) getFileLocked(ctx context.Context, f *fileBase) (source.VersionedFileHandle, error) {
-	if fh, ok := s.files.Get(f.URI()); ok {
-		return fh, nil
-	}
-
-	fh, err := s.view.cache.getFile(ctx, f.URI()) // read the file
-	if err != nil {
-		return nil, err
-	}
-	closed := &closedFile{fh}
-	s.files.Set(f.URI(), closed)
-	return closed, nil
 }
 
 func (s *snapshot) IsOpen(uri span.URI) bool {

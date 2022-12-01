@@ -65,10 +65,12 @@ type View struct {
 
 	vulns map[span.URI]*govulncheck.Result
 
-	// keep track of files by uri and by basename, a single file may be mapped
-	// to multiple uris, and the same basename may map to multiple files
-	filesByURI  map[span.URI]*fileBase
-	filesByBase map[string][]*fileBase
+	// filesByURI maps URIs to the canonical URI for the file it denotes.
+	// We also keep a set of candidates for a given basename
+	// to reduce the set of pairs that need to be tested for sameness.
+	filesByMu   sync.Mutex
+	filesByURI  map[span.URI]span.URI     // key is noncanonical URI (alias)
+	filesByBase map[string][]canonicalURI // key is basename
 
 	// initCancelFirstAttempt can be used to terminate the view's first
 	// attempt at initialization.
@@ -204,28 +206,6 @@ const (
 	// tempModfile indicates whether or not the -modfile flag should be used.
 	tempModfile
 )
-
-// fileBase holds the common functionality for all files.
-// It is intended to be embedded in the file implementations
-type fileBase struct {
-	uris  []span.URI
-	fname string
-
-	view *View
-}
-
-func (f *fileBase) URI() span.URI {
-	return f.uris[0]
-}
-
-func (f *fileBase) filename() string {
-	return f.fname
-}
-
-func (f *fileBase) addURI(uri span.URI) int {
-	f.uris = append(f.uris, uri)
-	return len(f.uris)
-}
 
 func (v *View) ID() string { return v.id }
 
@@ -493,18 +473,6 @@ func (v *View) filterFunc() func(span.URI) bool {
 	}
 }
 
-func (v *View) mapFile(uri span.URI, f *fileBase) {
-	v.filesByURI[uri] = f
-	if f.addURI(uri) == 1 {
-		basename := basename(f.filename())
-		v.filesByBase[basename] = append(v.filesByBase[basename], f)
-	}
-}
-
-func basename(filename string) string {
-	return strings.ToLower(filepath.Base(filename))
-}
-
 func (v *View) relevantChange(c source.FileModification) bool {
 	// If the file is known to the view, the change is relevant.
 	if v.knownFile(c.URI) {
@@ -530,64 +498,73 @@ func (v *View) relevantChange(c source.FileModification) bool {
 	return v.contains(c.URI)
 }
 
+// knownFile reports whether the specified valid URI (or an alias) is known to the view.
 func (v *View) knownFile(uri span.URI) bool {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	f, err := v.findFile(uri)
-	return f != nil && err == nil
+	_, known := v.canonicalURI(uri, false)
+	return known
 }
 
-// getFile returns a file for the given URI.
-func (v *View) getFile(uri span.URI) *fileBase {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	f, _ := v.findFile(uri)
-	if f != nil {
-		return f
-	}
-	f = &fileBase{
-		view:  v,
-		fname: uri.Filename(),
-	}
-	v.mapFile(uri, f)
-	return f
+// TODO(adonovan): opt: eliminate 'filename' optimization. I doubt the
+// cost of allocation is significant relative to the
+// stat/open/fstat/close operations that follow on Windows.
+type canonicalURI struct {
+	uri      span.URI
+	filename string // = uri.Filename(), an optimization (on Windows)
 }
 
-// findFile checks the cache for any file matching the given uri.
+// canonicalURI returns the canonical URI that denotes the same file
+// as uri, which may differ due to case insensitivity, unclean paths,
+// soft or hard links, and so on.  If no previous alias was found, or
+// the file is missing, insert determines whether to make uri the
+// canonical representative of the file or to return false.
 //
-// An error is only returned for an irreparable failure, for example, if the
-// filename in question does not exist.
-func (v *View) findFile(uri span.URI) (*fileBase, error) {
-	if f := v.filesByURI[uri]; f != nil {
-		// a perfect match
-		return f, nil
+// The cache grows indefinitely without invalidation: file system
+// operations may cause two URIs that used to denote the same file to
+// no longer to do so. Also, the basename cache grows without bound.
+// TODO(adonovan): fix both bugs.
+func (v *View) canonicalURI(uri span.URI, insert bool) (span.URI, bool) {
+	v.filesByMu.Lock()
+	defer v.filesByMu.Unlock()
+
+	// Have we seen this exact URI before?
+	if canonical, ok := v.filesByURI[uri]; ok {
+		return canonical, true
 	}
-	// no exact match stored, time to do some real work
-	// check for any files with the same basename
-	fname := uri.Filename()
-	basename := basename(fname)
+
+	// Inspect all candidates with the same lowercase basename.
+	// This heuristic is easily defeated by symbolic links to files.
+	// Files with some basenames (e.g. doc.go) are very numerous.
+	//
+	// The set of candidates grows without bound, and incurs a
+	// linear sequence of SameFile queries to the file system.
+	//
+	// It is tempting to fetch the device/inode pair that
+	// uniquely identifies a file once, and then compare those
+	// pairs, but that would cause us to cache stale file system
+	// state (in addition to the filesByURI staleness).
+	filename := uri.Filename()
+	basename := strings.ToLower(filepath.Base(filename))
 	if candidates := v.filesByBase[basename]; candidates != nil {
-		pathStat, err := os.Stat(fname)
-		if os.IsNotExist(err) {
-			return nil, err
-		}
-		if err != nil {
-			return nil, nil // the file may exist, return without an error
-		}
-		for _, c := range candidates {
-			if cStat, err := os.Stat(c.filename()); err == nil {
-				if os.SameFile(pathStat, cStat) {
-					// same file, map it
-					v.mapFile(uri, c)
-					return c, nil
+		if pathStat, _ := os.Stat(filename); pathStat != nil {
+			for _, c := range candidates {
+				if cStat, _ := os.Stat(c.filename); cStat != nil {
+					// On Windows, SameFile is more expensive as it must
+					// open the file and use the equivalent of fstat(2).
+					if os.SameFile(pathStat, cStat) {
+						v.filesByURI[uri] = c.uri
+						return c.uri, true
+					}
 				}
 			}
 		}
 	}
-	// no file with a matching name was found, it wasn't in our cache
-	return nil, nil
+
+	// No candidates, stat failed, or no candidate matched.
+	if insert {
+		v.filesByURI[uri] = uri
+		v.filesByBase[basename] = append(v.filesByBase[basename], canonicalURI{uri, filename})
+	}
+	return uri, insert
 }
 
 // shutdown releases resources associated with the view, and waits for ongoing
