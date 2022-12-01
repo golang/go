@@ -306,7 +306,18 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p>
-  TODO: complete this section
+  The Go 1.20 compiler upgraded its front-end to use a new way of handling the
+  compiler's internal data, which fixes several generic-types bugs and enables
+  local types in generic functions and methods.
+</p>
+
+<p><!-- https://go.dev/issue/56103, CL 445598 -->
+  The compiler now <a href="https://go.dev/issue/56103">disallows anonymous interface cycles</a>.
+</p>
+
+<p><!-- https://go.dev/issue/49569 -->
+  Relative to Go 1.19, generated code performance is generally slightly improved,
+  build wall times are slightly increased, build user times are slightly decreased.
 </p>
 
 <h2 id="linker">Linker</h2>
