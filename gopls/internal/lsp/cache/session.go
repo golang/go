@@ -36,7 +36,7 @@ type Session struct {
 	optionsMu sync.Mutex
 	options   *source.Options
 
-	viewMu  sync.RWMutex
+	viewMu  sync.Mutex
 	views   []*View
 	viewMap map[span.URI]*View // map of URI->best view
 
@@ -304,8 +304,8 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 
 // View returns a view with a matching name, if the session has one.
 func (s *Session) View(name string) *View {
-	s.viewMu.RLock()
-	defer s.viewMu.RUnlock()
+	s.viewMu.Lock()
+	defer s.viewMu.Unlock()
 	for _, view := range s.views {
 		if view.Name() == name {
 			return view
@@ -317,8 +317,13 @@ func (s *Session) View(name string) *View {
 // ViewOf returns a view corresponding to the given URI.
 // If the file is not already associated with a view, pick one using some heuristics.
 func (s *Session) ViewOf(uri span.URI) (*View, error) {
-	s.viewMu.RLock()
-	defer s.viewMu.RUnlock()
+	s.viewMu.Lock()
+	defer s.viewMu.Unlock()
+	return s.viewOfLocked(uri)
+}
+
+// Precondition: caller holds s.viewMu lock.
+func (s *Session) viewOfLocked(uri span.URI) (*View, error) {
 	// Check if we already know this file.
 	if v, found := s.viewMap[uri]; found {
 		return v, nil
@@ -332,8 +337,8 @@ func (s *Session) ViewOf(uri span.URI) (*View, error) {
 }
 
 func (s *Session) Views() []*View {
-	s.viewMu.RLock()
-	defer s.viewMu.RUnlock()
+	s.viewMu.Lock()
+	defer s.viewMu.Unlock()
 	result := make([]*View, len(s.views))
 	copy(result, s.views)
 	return result
@@ -462,8 +467,8 @@ type fileChange struct {
 // On success, it returns a release function that
 // must be called when the snapshots are no longer needed.
 func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[source.Snapshot][]span.URI, func(), error) {
-	s.viewMu.RLock()
-	defer s.viewMu.RUnlock()
+	s.viewMu.Lock()
+	defer s.viewMu.Unlock()
 	views := make(map[*View]map[span.URI]*fileChange)
 	affectedViews := map[span.URI][]*View{}
 
@@ -493,7 +498,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			if c.OnDisk {
 				continue
 			}
-			bestView, err := s.ViewOf(c.URI)
+			bestView, err := s.viewOfLocked(c.URI)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -575,15 +580,15 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 // directory changes removed and expanded to include all of the files in
 // the directory.
 func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes []source.FileModification) []source.FileModification {
-	s.viewMu.RLock()
-	defer s.viewMu.RUnlock()
 	var snapshots []*snapshot
+
+	s.viewMu.Lock()
 	for _, v := range s.views {
 		snapshot, release := v.getSnapshot()
 		defer release()
 		snapshots = append(snapshots, snapshot)
 	}
-	// TODO(adonovan): opt: release lock here.
+	s.viewMu.Unlock()
 
 	knownDirs := knownDirectories(ctx, snapshots)
 	defer knownDirs.Destroy()
@@ -640,6 +645,7 @@ func knownFilesInDir(ctx context.Context, snapshots []*snapshot, dir span.URI) m
 	return files
 }
 
+// Precondition: caller holds s.viewMu lock.
 func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModification) (map[span.URI]*overlay, error) {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
@@ -726,7 +732,7 @@ func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModif
 
 		// When opening files, ensure that we actually have a well-defined view and file kind.
 		if c.Action == source.Open {
-			view, err := s.ViewOf(o.uri)
+			view, err := s.viewOfLocked(o.uri)
 			if err != nil {
 				return nil, fmt.Errorf("updateOverlays: finding view for %s: %v", o.uri, err)
 			}
@@ -784,8 +790,8 @@ func (s *Session) Overlays() []source.Overlay {
 // known by the view. For views within a module, this is the module root,
 // any directory in the module root, and any replace targets.
 func (s *Session) FileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {
-	s.viewMu.RLock()
-	defer s.viewMu.RUnlock()
+	s.viewMu.Lock()
+	defer s.viewMu.Unlock()
 	patterns := map[string]struct{}{}
 	for _, view := range s.views {
 		snapshot, release := view.getSnapshot()
