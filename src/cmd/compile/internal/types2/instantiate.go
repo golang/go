@@ -245,18 +245,39 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 
 	// Only check comparability if we don't have a more specific error.
 	checkComparability := func() bool {
+		if !Ti.IsComparable() {
+			return true
+		}
 		// If T is comparable, V must be comparable.
-		// For constraint satisfaction, use dynamic comparability for the
-		// alternative comparable semantics such that ordinary, non-type
-		// parameter interfaces implement comparable.
-		dynamic := constraint && check != nil && check.conf.AltComparableSemantics
-		if Ti.IsComparable() && !comparable(V, dynamic, nil, nil) {
+		// If V is strictly comparable, we're done.
+		if comparable(V, false /* strict comparability */, nil, nil) {
+			return true
+		}
+		// If check.conf.OldComparableSemantics is set (by the compiler or
+		// a test), we only consider strict comparability and we're done.
+		// TODO(gri) remove this check for Go 1.21
+		if check != nil && check.conf.OldComparableSemantics {
 			if cause != nil {
 				*cause = check.sprintf("%s does not implement comparable", V)
 			}
 			return false
 		}
-		return true
+		// For constraint satisfaction, use dynamic (spec) comparability
+		// so that ordinary, non-type parameter interfaces implement comparable.
+		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
+			// V is comparable if we are at Go 1.20 or higher.
+			if check == nil || check.allowVersion(check.pkg, 1, 20) {
+				return true
+			}
+			if cause != nil {
+				*cause = check.sprintf("%s to implement comparable requires go1.20 or later", V)
+			}
+			return false
+		}
+		if cause != nil {
+			*cause = check.sprintf("%s does not implement comparable", V)
+		}
+		return false
 	}
 
 	// V must also be in the set of types of T, if any.
