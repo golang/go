@@ -24,9 +24,7 @@ func Importcfg() (string, error) {
 	}
 	fmt.Fprintf(&icfg, "# import config")
 	for importPath, export := range m {
-		if importPath != "unsafe" && export != "" { // unsafe
-			fmt.Fprintf(&icfg, "\npackagefile %s=%s", importPath, export)
-		}
+		fmt.Fprintf(&icfg, "\npackagefile %s=%s", importPath, export)
 	}
 	s := icfg.String()
 	return s, nil
@@ -58,7 +56,9 @@ func PkgfileMap() (map[string]string, error) {
 				return
 			}
 			importPath, export := sp[0], sp[1]
-			m[importPath] = export
+			if export != "" {
+				m[importPath] = export
+			}
 		}
 		stdlibPkgfileMap = m
 	})
