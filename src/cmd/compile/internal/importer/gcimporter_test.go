@@ -33,17 +33,30 @@ func compile(t *testing.T, dirname, filename, outdirname string, packagefiles ma
 	// filename must end with ".go"
 	basename, ok := strings.CutSuffix(filepath.Base(filename), ".go")
 	if !ok {
+		t.Helper()
 		t.Fatalf("filename doesn't end in .go: %s", filename)
 	}
 	objname := basename + ".o"
 	outname := filepath.Join(outdirname, objname)
-	importcfgfile := filepath.Join(outdirname, basename) + ".importcfg"
-	testenv.WriteImportcfg(t, importcfgfile, packagefiles)
 	pkgpath := path.Join("testdata", basename)
+
+	importcfgfile := os.DevNull
+	if len(packagefiles) > 0 {
+		importcfgfile = filepath.Join(outdirname, basename) + ".importcfg"
+		importcfg := new(bytes.Buffer)
+		for k, v := range packagefiles {
+			fmt.Fprintf(importcfg, "packagefile %s=%s\n", k, v)
+		}
+		if err := os.WriteFile(importcfgfile, importcfg.Bytes(), 0655); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p", pkgpath, "-D", "testdata", "-importcfg", importcfgfile, "-o", outname, filename)
 	cmd.Dir = dirname
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		t.Helper()
 		t.Logf("%s", out)
 		t.Fatalf("go tool compile %s failed: %s", filename, err)
 	}
@@ -96,7 +109,16 @@ func TestImportTestdata(t *testing.T) {
 		tmpdir := mktmpdir(t)
 		defer os.RemoveAll(tmpdir)
 
-		compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"), nil)
+		importMap := map[string]string{}
+		for _, pkg := range wantImports {
+			export, _ := FindPkg(pkg, "testdata")
+			if export == "" {
+				t.Fatalf("no export data found for %s", pkg)
+			}
+			importMap[pkg] = export
+		}
+
+		compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"), importMap)
 		path := "./testdata/" + strings.TrimSuffix(testfile, ".go")
 
 		if pkg := testPath(t, path, tmpdir); pkg != nil {
@@ -424,7 +446,13 @@ func TestIssue13566(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compile(t, "testdata", "a.go", testoutdir, nil)
+
+	jsonExport, _ := FindPkg("encoding/json", "testdata")
+	if jsonExport == "" {
+		t.Fatalf("no export data found for encoding/json")
+	}
+
+	compile(t, "testdata", "a.go", testoutdir, map[string]string{"encoding/json": jsonExport})
 	compile(t, testoutdir, bpath, testoutdir, map[string]string{"testdata/a": filepath.Join(testoutdir, "a.o")})
 
 	// import must succeed (test for issue at hand)
@@ -598,12 +626,14 @@ func TestIssue25596(t *testing.T) {
 func importPkg(t *testing.T, path, srcDir string) *types2.Package {
 	pkg, err := Import(make(map[string]*types2.Package), path, srcDir, nil)
 	if err != nil {
+		t.Helper()
 		t.Fatal(err)
 	}
 	return pkg
 }
 
 func compileAndImportPkg(t *testing.T, name string) *types2.Package {
+	t.Helper()
 	tmpdir := mktmpdir(t)
 	defer os.RemoveAll(tmpdir)
 	compile(t, "testdata", name+".go", filepath.Join(tmpdir, "testdata"), nil)
@@ -614,6 +644,7 @@ func lookupObj(t *testing.T, scope *types2.Scope, name string) types2.Object {
 	if obj := scope.Lookup(name); obj != nil {
 		return obj
 	}
+	t.Helper()
 	t.Fatalf("%s not found", name)
 	return nil
 }
