@@ -337,7 +337,7 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 		go cgoIPLookup(result, "ip", name)
 		select {
 		case r := <-result:
-			if !isErrorNoSuchHost(err) {
+			if !isErrorNoSuchHost(r.err) {
 				return r.cname, r.err, true
 			}
 		case <-ctx.Done():
