@@ -292,6 +292,7 @@ func TestGoToCrashingDefinition_Issue49223(t *testing.T) {
 // TestVendoringInvalidatesMetadata ensures that gopls uses the
 // correct metadata even after an external 'go mod vendor' command
 // causes packages to move; see issue #55995.
+// See also TestImplementationsInVendor, which tests the same fix.
 func TestVendoringInvalidatesMetadata(t *testing.T) {
 	testenv.NeedsGo1Point(t, 14)
 	const proxy = `
