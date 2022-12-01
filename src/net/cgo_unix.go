@@ -346,17 +346,30 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 	// giving us no way to find out how big the packet is.
 	// For now, we are willing to take res_search's word that there's nothing
 	// useful in the response, even though there *is* a response.
-	const bufSize = 1500
-	buf := (*_C_uchar)(_C_malloc(bufSize))
+	bufSize := maxDNSPacketSize
+	buf := (*_C_uchar)(_C_malloc(uintptr(bufSize)))
 	defer _C_free(unsafe.Pointer(buf))
+
 	s := _C_CString(hostname)
 	defer _C_FreeCString(s)
-	size, err := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
-	if size <= 0 || size > bufSize {
-		return nil, errors.New("res_nsearch failure")
+
+	for {
+		size, _ := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
+		if size <= 0 || size > 0xffff {
+			return nil, errors.New("res_nsearch failure")
+		}
+		if size <= bufSize {
+			break
+		}
+
+		// Allocate a bigger buffer to fit the entire msg.
+		_C_free(unsafe.Pointer(buf))
+		bufSize = size
+		buf = (*_C_uchar)(_C_malloc(uintptr(bufSize)))
 	}
+
 	var p dnsmessage.Parser
-	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), size)); err != nil {
+	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), bufSize)); err != nil {
 		return nil, err
 	}
 	p.SkipAllQuestions()
