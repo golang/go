@@ -367,7 +367,6 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 		_C_free(unsafe.Pointer(buf))
 		bufSize = size
 		buf = (*_C_uchar)(_C_malloc(uintptr(bufSize)))
-		continue
 	}
 
 	var p dnsmessage.Parser
