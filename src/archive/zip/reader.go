@@ -228,7 +228,16 @@ func (f *File) Open() (io.ReadCloser, error) {
 		return nil, err
 	}
 	if strings.HasSuffix(f.Name, "/") {
-		if f.CompressedSize64 != 0 || f.hasDataDescriptor() {
+		// The ZIP specification (APPNOTE.TXT) specifies that directories, which
+		// are technically zero-byte files, must not have any associated file
+		// data. We previously tried failing here if f.CompressedSize64 != 0,
+		// but it turns out that a number of implementations (namely, the Java
+		// jar tool) don't properly set the storage method on directories
+		// resulting in a file with compressed size > 0 but uncompressed size ==
+		// 0. We still want to fail when a directory has associated uncompressed
+		// data, but we are tolerant of cases where the uncompressed size is
+		// zero but compressed size is not.
+		if f.UncompressedSize64 != 0 || f.hasDataDescriptor() {
 			return &dirReader{ErrFormat}, nil
 		} else {
 			return &dirReader{io.EOF}, nil
