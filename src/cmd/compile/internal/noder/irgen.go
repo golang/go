@@ -57,7 +57,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 		},
 		Importer:               &importer,
 		Sizes:                  &gcSizes{},
-		OldComparableSemantics: base.Flag.OldComparable, // default is new comparable semantics
+		AltComparableSemantics: base.Flag.AltComparable, // experiment - remove eventually
 	}
 	info := &types2.Info{
 		StoreTypesInSyntax: true,

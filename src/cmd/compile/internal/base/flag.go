@@ -122,8 +122,8 @@ type CmdFlags struct {
 	SymABIs            string       "help:\"read symbol ABIs from `file`\""
 	TraceProfile       string       "help:\"write an execution trace to `file`\""
 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
-	WB                 bool         "help:\"enable write barrier\""            // TODO: remove
-	OldComparable      bool         "help:\"enable old comparable semantics\"" // TODO: remove for Go 1.21
+	WB                 bool         "help:\"enable write barrier\""                    // TODO: remove
+	AltComparable      bool         "help:\"enable alternative comparable semantics\"" // experiment - remove eventually
 	PgoProfile         string       "help:\"read profile from `file`\""
 
 	// Configuration derived from flags; not a flag itself.
