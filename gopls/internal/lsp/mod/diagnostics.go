@@ -465,20 +465,11 @@ func formatMessage(v *govulncheck.Vuln) string {
 	return strings.TrimSpace(strings.Replace(string(details), "\n\n", "\n\n  ", -1))
 }
 
-// href returns a URL embedded in the entry if any.
-// If no suitable URL is found, it returns a default entry in
-// pkg.go.dev/vuln.
+// href returns the url for the vulnerability information.
+// Eventually we should retrieve the url embedded in the osv.Entry.
+// While vuln.go.dev is under development, this always returns
+// the page in pkg.go.dev.
 func href(vuln *osv.Entry) string {
-	for _, affected := range vuln.Affected {
-		if url := affected.DatabaseSpecific.URL; url != "" {
-			return url
-		}
-	}
-	for _, r := range vuln.References {
-		if r.Type == "WEB" {
-			return r.URL
-		}
-	}
 	return fmt.Sprintf("https://pkg.go.dev/vuln/%s", vuln.ID)
 }
 
