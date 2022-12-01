@@ -26,7 +26,7 @@ Do not send CLs removing the interior tags from such phrases.
 <h2 id="language">Changes to the language</h2>
 
 <p>
-  Go 1.20 includes three changes to the language.
+  Go 1.20 includes four changes to the language.
 </p>
 
 <p><!-- https://go.dev/issue/46505 -->
@@ -54,6 +54,15 @@ Do not send CLs removing the interior tags from such phrases.
   In both cases, the difference affects whether certain comparisons must panic.
   Existing programs are unchanged: the new spec wording describes
   what the implementations have always done.
+</p>
+
+<p><!-- https://go.dev/issue/56548 -->
+  <a href="/ref/spec#Comparison_operators">Comparable types</a> (such as ordinary interfaces)
+  may now satisfy <code>comparable</code> constraints, even if the type arguments
+  are not strictly comparable (comparison may panic at runtime).
+  This makes it possible to instantiate a type parameter constrained by <code>comparable</code>
+  (e.g., a type parameter for a user-defined generic map key) with a non-strictly comparable type argument
+  such as an interface type, or a composite type containing an interface type.
 </p>
 
 <h2 id="ports">Ports</h2>
