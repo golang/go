@@ -14,7 +14,6 @@ package net
 import (
 	"context"
 	"errors"
-	"math"
 	"syscall"
 	"unsafe"
 
@@ -356,7 +355,7 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 
 	for {
 		size, _ := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
-		if size <= 0 || size > math.MaxUint16 {
+		if size <= 0 || size > 0xffff {
 			return nil, errors.New("res_nsearch failure")
 		}
 		if size <= bufSize {
