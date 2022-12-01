@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/tools/internal/goroot"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -65,8 +66,20 @@ func compilePkg(t *testing.T, dirname, filename, outdirname string, packagefiles
 	}
 	objname := basename + ".o"
 	outname := filepath.Join(outdirname, objname)
-	importcfgfile := filepath.Join(outdirname, basename) + ".importcfg"
-	testenv.WriteImportcfg(t, importcfgfile, packagefiles)
+
+	importcfgfile := os.DevNull
+	if len(packagefiles) > 0 {
+		importcfgfile = filepath.Join(outdirname, basename) + ".importcfg"
+		importcfg := new(bytes.Buffer)
+		fmt.Fprintf(importcfg, "# import config")
+		for k, v := range packagefiles {
+			fmt.Fprintf(importcfg, "\npackagefile %s=%s\n", k, v)
+		}
+		if err := os.WriteFile(importcfgfile, importcfg.Bytes(), 0655); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	importreldir := strings.ReplaceAll(outdirname, string(os.PathSeparator), "/")
 	cmd := exec.Command("go", "tool", "compile", "-p", pkg, "-D", importreldir, "-importcfg", importcfgfile, "-o", outname, filename)
 	cmd.Dir = dirname
@@ -109,7 +122,16 @@ func TestImportTestdata(t *testing.T) {
 	tmpdir := mktmpdir(t)
 	defer os.RemoveAll(tmpdir)
 
-	compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"), nil)
+	packageFiles := map[string]string{}
+	for _, pkg := range []string{"go/ast", "go/token"} {
+		export, _ := FindPkg(pkg, "testdata")
+		if export == "" {
+			t.Fatalf("no export data found for %s", pkg)
+		}
+		packageFiles[pkg] = export
+	}
+
+	compile(t, "testdata", testfile, filepath.Join(tmpdir, "testdata"), packageFiles)
 
 	// filename should end with ".go"
 	filename := testfile[:len(testfile)-3]
@@ -137,6 +159,10 @@ func TestImportTestdata(t *testing.T) {
 }
 
 func TestImportTypeparamTests(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("in short mode, skipping test that requires export data for all of std")
+	}
+
 	testenv.NeedsGo1Point(t, 18) // requires generics
 
 	// This package only handles gc export data.
@@ -191,7 +217,11 @@ func TestImportTypeparamTests(t *testing.T) {
 
 			// Compile and import, and compare the resulting package with the package
 			// that was type-checked directly.
-			compile(t, rootDir, entry.Name(), filepath.Join(tmpdir, "testdata"), nil)
+			pkgFiles, err := goroot.PkgfileMap()
+			if err != nil {
+				t.Fatal(err)
+			}
+			compile(t, rootDir, entry.Name(), filepath.Join(tmpdir, "testdata"), pkgFiles)
 			pkgName := strings.TrimSuffix(entry.Name(), ".go")
 			imported := importPkg(t, "./testdata/"+pkgName, tmpdir)
 			checked := checkFile(t, filename, src)
@@ -589,7 +619,13 @@ func TestIssue13566(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compilePkg(t, "testdata", "a.go", testoutdir, nil, apkg(testoutdir))
+
+	jsonExport, _ := FindPkg("encoding/json", "testdata")
+	if jsonExport == "" {
+		t.Fatalf("no export data found for encoding/json")
+	}
+
+	compilePkg(t, "testdata", "a.go", testoutdir, map[string]string{"encoding/json": jsonExport}, apkg(testoutdir))
 	compile(t, testoutdir, bpath, testoutdir, map[string]string{apkg(testoutdir): filepath.Join(testoutdir, "a.o")})
 
 	// import must succeed (test for issue at hand)

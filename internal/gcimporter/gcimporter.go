@@ -13,6 +13,7 @@ package gcimporter // import "golang.org/x/tools/internal/gcimporter"
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"go/build"
@@ -22,14 +23,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/scanner"
-
-	"golang.org/x/tools/internal/goroot"
 )
 
 const (
@@ -41,23 +41,45 @@ const (
 	trace = false
 )
 
-func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
-	pkgpath = filepath.ToSlash(pkgpath)
-	m, err := goroot.PkgfileMap()
-	if err != nil {
-		return "", false
+var exportMap sync.Map // package dir → func() (string, bool)
+
+// lookupGorootExport returns the location of the export data
+// (normally found in the build cache, but located in GOROOT/pkg
+// in prior Go releases) for the package located in pkgDir.
+//
+// (We use the package's directory instead of its import path
+// mainly to simplify handling of the packages in src/vendor
+// and cmd/vendor.)
+func lookupGorootExport(pkgDir string) (string, bool) {
+	f, ok := exportMap.Load(pkgDir)
+	if !ok {
+		var (
+			listOnce   sync.Once
+			exportPath string
+		)
+		f, _ = exportMap.LoadOrStore(pkgDir, func() (string, bool) {
+			listOnce.Do(func() {
+				cmd := exec.Command("go", "list", "-export", "-f", "{{.Export}}", pkgDir)
+				cmd.Dir = build.Default.GOROOT
+				var output []byte
+				output, err := cmd.Output()
+				if err != nil {
+					return
+				}
+
+				exports := strings.Split(string(bytes.TrimSpace(output)), "\n")
+				if len(exports) != 1 {
+					return
+				}
+
+				exportPath = exports[0]
+			})
+
+			return exportPath, exportPath != ""
+		})
 	}
-	if export, ok := m[pkgpath]; ok {
-		return export, true
-	}
-	vendorPrefix := "vendor"
-	if strings.HasPrefix(srcDir, filepath.Join(srcRoot, "cmd")) {
-		vendorPrefix = path.Join("cmd", vendorPrefix)
-	}
-	pkgpath = path.Join(vendorPrefix, pkgpath)
-	fmt.Fprintln(os.Stderr, "looking up ", pkgpath)
-	export, ok := m[pkgpath]
-	return export, ok
+
+	return f.(func() (string, bool))()
 }
 
 var pkgExts = [...]string{".a", ".o"}
@@ -83,8 +105,8 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
 		if bp.PkgObj == "" {
 			var ok bool
-			if bp.Goroot {
-				filename, ok = lookupGorootExport(path, bp.SrcRoot, srcDir)
+			if bp.Goroot && bp.Dir != "" {
+				filename, ok = lookupGorootExport(bp.Dir)
 			}
 			if !ok {
 				id = path // make sure we have an id to print in error message
