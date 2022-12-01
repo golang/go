@@ -194,7 +194,7 @@ func main() {
 			OnceMet(
 				CompletedProgress(result.Token),
 				ShownMessage("Found GOSTDLIB"),
-				env.DiagnosticAtRegexpWithMessage("go.mod", `module`, `go1.18 has a vulnerability used in the code: GOSTDLIB.`),
+				EmptyOrNoDiagnostics("go.mod"),
 			),
 		)
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
@@ -202,7 +202,7 @@ func main() {
 	})
 }
 
-func TestRunVulncheckDiagnosticsStd(t *testing.T) {
+func TestFetchVulncheckResultStd(t *testing.T) {
 	testenv.NeedsGo1Point(t, 18)
 	const files = `
 -- go.mod --
@@ -240,10 +240,9 @@ func main() {
 		Settings{"ui.diagnostic.vulncheck": "Imports"},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 		env.AfterChange(
-			env.DiagnosticAtRegexp("go.mod", `module mod.com`),
-			ReadDiagnostics("go.mod", gotDiagnostics),
+			EmptyOrNoDiagnostics("go.mod"),
+			// we don't publish diagnostics for standard library vulnerability yet.
 		)
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
 			"go.mod": {
@@ -251,29 +250,6 @@ func main() {
 				Mode: govulncheck.ModeImports,
 			},
 		})
-
-		wantVulncheckDiagnostics := map[string]vulnDiagExpectation{
-			"module mod.com": {
-				diagnostics: []vulnDiag{
-					{
-						msg:         "go1.18 has a vulnerability GOSTDLIB.",
-						severity:    protocol.SeverityInformation,
-						codeActions: []string{"Run govulncheck"},
-					},
-				},
-				hover:       []string{"GOSTDLIB", "No fix is available", "GOSTDLIB"},
-				codeActions: []string{"Run govulncheck"},
-			},
-		}
-
-		for pattern, want := range wantVulncheckDiagnostics {
-			modPathDiagnostics := testVulnDiagnostics(t, env, pattern, want, gotDiagnostics)
-			gotActions := env.CodeAction("go.mod", modPathDiagnostics)
-			if diff := diffCodeActions(gotActions, want.codeActions); diff != "" {
-				t.Errorf("code actions for %q do not match, got %v, want %v\n%v\n", pattern, gotActions, want.codeActions, diff)
-				continue
-			}
-		}
 	})
 }
 
