@@ -58,14 +58,19 @@ const (
 
 var outputLock sync.Mutex
 
-// run runs the command line cmd in dir.
+// run is like runEnv with no additional environment.
+func run(dir string, mode int, cmd ...string) string {
+	return runEnv(dir, mode, nil, cmd...)
+}
+
+// runEnv runs the command line cmd in dir with additional environment env.
 // If mode has ShowOutput set and Background unset, run passes cmd's output to
 // stdout/stderr directly. Otherwise, run returns cmd's output as a string.
 // If mode has CheckExit set and the command fails, run calls fatalf.
 // If mode has Background set, this command is being run as a
 // Background job. Only bgrun should use the Background mode,
 // not other callers.
-func run(dir string, mode int, cmd ...string) string {
+func runEnv(dir string, mode int, env []string, cmd ...string) string {
 	if vflag > 1 {
 		errprintf("run: %s\n", strings.Join(cmd, " "))
 	}
@@ -75,6 +80,9 @@ func run(dir string, mode int, cmd ...string) string {
 		bin = gorootBinGo
 	}
 	xcmd := exec.Command(bin, cmd[1:]...)
+	if env != nil {
+		xcmd.Env = append(os.Environ(), env...)
+	}
 	setDir(xcmd, dir)
 	var data []byte
 	var err error

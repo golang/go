@@ -66,7 +66,26 @@ func defaultCCFunc(name string, defaultcc map[string]string) string {
 		fmt.Fprintf(&buf, "\tcase %q:\n\t\treturn %q\n", k, defaultcc[k])
 	}
 	fmt.Fprintf(&buf, "\t}\n")
-	fmt.Fprintf(&buf, "\treturn %q\n", defaultcc[""])
+	if cc := defaultcc[""]; cc != "" {
+		fmt.Fprintf(&buf, "\treturn %q\n", cc)
+	} else {
+		clang, gcc := "clang", "gcc"
+		if strings.HasSuffix(name, "CXX") {
+			clang, gcc = "clang++", "g++"
+		}
+		fmt.Fprintf(&buf, "\tswitch goos {\n")
+		fmt.Fprintf(&buf, "\tcase ")
+		for i, os := range clangos {
+			if i > 0 {
+				fmt.Fprintf(&buf, ", ")
+			}
+			fmt.Fprintf(&buf, "%q", os)
+		}
+		fmt.Fprintf(&buf, ":\n")
+		fmt.Fprintf(&buf, "\t\treturn %q\n", clang)
+		fmt.Fprintf(&buf, "\t}\n")
+		fmt.Fprintf(&buf, "\treturn %q\n", gcc)
+	}
 	fmt.Fprintf(&buf, "}\n")
 
 	return buf.String()
