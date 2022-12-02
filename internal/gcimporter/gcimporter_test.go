@@ -118,6 +118,7 @@ const testfile = "exports.go"
 
 func TestImportTestdata(t *testing.T) {
 	needsCompiler(t, "gc")
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
 
 	tmpdir := mktmpdir(t)
 	defer os.RemoveAll(tmpdir)
@@ -164,6 +165,7 @@ func TestImportTypeparamTests(t *testing.T) {
 	}
 
 	testenv.NeedsGo1Point(t, 18) // requires generics
+	testenv.NeedsGoBuild(t)      // to find stdlib export data in the build cache
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {
@@ -601,6 +603,7 @@ func TestCorrectMethodPackage(t *testing.T) {
 func TestIssue13566(t *testing.T) {
 	// This package only handles gc export data.
 	needsCompiler(t, "gc")
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
 
 	// On windows, we have to set the -D option for the compiler to avoid having a drive
 	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
