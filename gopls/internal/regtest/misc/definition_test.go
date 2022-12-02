@@ -293,6 +293,7 @@ func TestGoToCrashingDefinition_Issue49223(t *testing.T) {
 // correct metadata even after an external 'go mod vendor' command
 // causes packages to move; see issue #55995.
 func TestVendoringInvalidatesMetadata(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14)
 	const proxy = `
 -- other.com/b@v1.0.0/go.mod --
 module other.com/b
