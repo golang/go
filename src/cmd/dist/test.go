@@ -102,12 +102,6 @@ func (t *tester) run() {
 
 	os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
 
-	// Default to running tests in "short" mode, unless the environment variable
-	// GO_TEST_SHORT is set to a non-empty, false-ish string.
-	//
-	// This environment variable is meant to be an internal detail between the
-	// Go build system and cmd/dist for the purpose of longtest builders, and is
-	// not intended for use by users. See golang.org/issue/12508.
 	t.short = true
 	if v := os.Getenv("GO_TEST_SHORT"); v != "" {
 		short, err := strconv.ParseBool(v)
