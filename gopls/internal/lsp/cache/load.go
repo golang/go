@@ -552,6 +552,30 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 		// (Beware that, for historical reasons, go list uses
 		// the JSON field "ImportPath" for the package's
 		// path--effectively the linker symbol prefix.)
+		//
+		// The example above is slightly special to go list
+		// because it's in the std module.  Otherwise,
+		// vendored modules are simply modules whose directory
+		// is vendor/ instead of GOMODCACHE, and the
+		// import path equals the package path.
+		//
+		// But in GOPATH (non-module) mode, it's possible for
+		// package vendoring to cause a non-identity ImportMap,
+		// as in this example:
+		//
+		// $ cd $HOME/src
+		// $ find . -type f
+		// ./b/b.go
+		// ./vendor/example.com/a/a.go
+		// $ cat ./b/b.go
+		// package b
+		// import _ "example.com/a"
+		// $ cat ./vendor/example.com/a/a.go
+		// package a
+		// $ GOPATH=$HOME GO111MODULE=off go list -json ./b | grep -A2 ImportMap
+		//     "ImportMap": {
+		//         "example.com/a": "vendor/example.com/a"
+		//     },
 
 		// Don't remember any imports with significant errors.
 		//
