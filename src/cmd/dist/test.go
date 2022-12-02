@@ -36,7 +36,7 @@ func cmdtest() {
 	flag.BoolVar(&t.race, "race", false, "run in race builder mode (different set of tests)")
 	flag.BoolVar(&t.compileOnly, "compile-only", false, "compile tests, but don't run them. This is for some builders. Not all dist tests respect this flag, but most do.")
 	flag.StringVar(&t.banner, "banner", "##### ", "banner prefix; blank means no section banners")
-	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
+	flag.StringVar(&t.runRxStr, "run", "",
 		"run only those tests matching the regular expression; empty means to run all. "+
 			"Special exception: if the string begins with '!', the match is inverted.")
 	flag.BoolVar(&t.msan, "msan", false, "run in memory sanitizer builder mode")
