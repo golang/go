@@ -1096,10 +1096,6 @@ func CalleeEffects(init *ir.Nodes, callee ir.Node) {
 // the inlining tree position index, for use with src.NewInliningBase
 // when rewriting positions.
 func oldInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
-	if base.Debug.TypecheckInl == 0 {
-		typecheck.ImportedBody(fn)
-	}
-
 	SSADumpInline(fn)
 
 	ninit := call.Init()
