@@ -7947,7 +7947,7 @@ func deferstruct() *types.Type {
 	}
 
 	// build struct holding the above fields
-	s := types.NewStruct(types.NoPkg, fields)
+	s := types.NewStruct(fields)
 	s.SetNoalg(true)
 	types.CalcStructSize(s)
 	return s

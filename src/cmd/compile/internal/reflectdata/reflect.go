@@ -140,7 +140,7 @@ func MapBucketType(t *types.Type) *types.Type {
 	field = append(field, overflow)
 
 	// link up fields
-	bucket := types.NewStruct(types.NoPkg, field[:])
+	bucket := types.NewStruct(field[:])
 	bucket.SetNoalg(true)
 	types.CalcSize(bucket)
 
@@ -234,7 +234,7 @@ func MapType(t *types.Type) *types.Type {
 		makefield("extra", types.Types[types.TUNSAFEPTR]),
 	}
 
-	hmap := types.NewStruct(types.NoPkg, fields)
+	hmap := types.NewStruct(fields)
 	hmap.SetNoalg(true)
 	types.CalcSize(hmap)
 
@@ -297,7 +297,7 @@ func MapIterType(t *types.Type) *types.Type {
 	}
 
 	// build iterator struct holding the above fields
-	hiter := types.NewStruct(types.NoPkg, fields)
+	hiter := types.NewStruct(fields)
 	hiter.SetNoalg(true)
 	types.CalcSize(hiter)
 	if hiter.Size() != int64(12*types.PtrSize) {
@@ -1402,7 +1402,7 @@ func writtenByWriteBasicTypes(typ *types.Type) bool {
 	if typ.Sym() == nil && typ.Kind() == types.TFUNC {
 		f := typ.FuncType()
 		// func(error) string
-		if f.Receiver.NumFields() == 0 && f.TParams.NumFields() == 0 &&
+		if f.Receiver.NumFields() == 0 &&
 			f.Params.NumFields() == 1 && f.Results.NumFields() == 1 &&
 			f.Params.FieldType(0) == types.ErrorType &&
 			f.Results.FieldType(0) == types.Types[types.TSTRING] {
@@ -1451,7 +1451,7 @@ func WriteBasicTypes() {
 
 		// emit type for func(error) string,
 		// which is the type of an auto-generated wrapper.
-		writeType(types.NewPtr(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+		writeType(types.NewPtr(types.NewSignature(nil, []*types.Field{
 			types.NewField(base.Pos, nil, types.ErrorType),
 		}, []*types.Field{
 			types.NewField(base.Pos, nil, types.Types[types.TSTRING]),

@@ -268,7 +268,7 @@ func hashfor(t *types.Type) ir.Node {
 	// TODO(austin): This creates an ir.Name with a nil Func.
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
-	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+	n.SetType(types.NewSignature(nil, []*types.Field{
 		types.NewField(base.Pos, nil, types.NewPtr(t)),
 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
 	}, []*types.Field{
@@ -583,7 +583,7 @@ func hashmem(t *types.Type) ir.Node {
 	// TODO(austin): This creates an ir.Name with a nil Func.
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
-	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+	n.SetType(types.NewSignature(nil, []*types.Field{
 		types.NewField(base.Pos, nil, types.NewPtr(t)),
 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),

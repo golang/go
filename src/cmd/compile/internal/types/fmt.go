@@ -488,9 +488,6 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			}
 			b.WriteString("func")
 		}
-		if t.NumTParams() > 0 {
-			tconv2(b, t.TParams(), 0, mode, visited)
-		}
 		tconv2(b, t.Params(), 0, mode, visited)
 
 		switch t.NumResults() {

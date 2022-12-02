@@ -116,7 +116,7 @@ func Task() *ir.Name {
 			// runtime.asanregisterglobals(unsafe.Pointer(&globals[0]), ni)
 			asanf := typecheck.NewName(ir.Pkgs.Runtime.Lookup("asanregisterglobals"))
 			ir.MarkFunc(asanf)
-			asanf.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+			asanf.SetType(types.NewSignature(nil, []*types.Field{
 				types.NewField(base.Pos, nil, types.Types[types.TUNSAFEPTR]),
 				types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
 			}, nil))

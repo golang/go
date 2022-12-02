@@ -29,7 +29,7 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
 		recv1 = declareParam(ir.PPARAM, -1, recv)
 	}
 
-	typ := types.NewSignature(types.LocalPkg, recv1, nil, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
+	typ := types.NewSignature(recv1, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
 	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
 	fn.Nname.SetType(typ)
 	fn.Nname.SetTypecheck(1)
@@ -328,5 +328,5 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
 		results[i] = types.NewField(base.Pos, nil, t.Type)
 	}
 
-	return types.NewSignature(types.LocalPkg, nil, nil, params, results)
+	return types.NewSignature(nil, params, results)
 }

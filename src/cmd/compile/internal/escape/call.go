@@ -244,7 +244,7 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 	// Create a new no-argument function that we'll hand off to defer.
 	fn := ir.NewClosureFunc(n.Pos(), true)
 	fn.SetWrapper(true)
-	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
+	fn.Nname.SetType(types.NewSignature(nil, nil, nil))
 	fn.Body = []ir.Node{call}
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
 		// If the callee is a named function, link to the original callee.

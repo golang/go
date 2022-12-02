@@ -120,7 +120,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 		}
 		fields = append(fields, types.NewField(base.Pos, v.Sym(), typ))
 	}
-	typ := types.NewStruct(types.NoPkg, fields)
+	typ := types.NewStruct(fields)
 	typ.SetNoalg(true)
 	return typ
 }
@@ -129,7 +129,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 // needed in the closure for a OMETHVALUE node. The address of a variable of
 // the returned type can be cast to a func.
 func MethodValueType(n *ir.SelectorExpr) *types.Type {
-	t := types.NewStruct(types.NoPkg, []*types.Field{
+	t := types.NewStruct([]*types.Field{
 		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
 		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
 	})

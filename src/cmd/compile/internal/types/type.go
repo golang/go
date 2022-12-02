@@ -189,11 +189,6 @@ type Type struct {
 	// instantiated from a generic type, and is otherwise set to nil.
 	// TODO(danscales): choose a better name.
 	rparams *[]*Type
-
-	// For an instantiated generic type, the base generic type.
-	// This backpointer is useful, because the base type is the type that has
-	// the method bodies.
-	origType *Type
 }
 
 func (*Type) CanBeAnSSAAux() {}
@@ -233,11 +228,6 @@ func (t *Type) Sym() *Sym {
 	}
 	return nil
 }
-
-// OrigType returns the original generic type that t is an
-// instantiation of, if any.
-func (t *Type) OrigType() *Type        { return t.origType }
-func (t *Type) SetOrigType(orig *Type) { t.origType = orig }
 
 // Underlying returns the underlying type of type t.
 func (t *Type) Underlying() *Type { return t.underlying }
@@ -279,34 +269,6 @@ func (t *Type) IsFullyInstantiated() bool {
 	return len(t.RParams()) > 0
 }
 
-// NoPkg is a nil *Pkg value for clarity.
-// It's intended for use when constructing types that aren't exported
-// and thus don't need to be associated with any package.
-var NoPkg *Pkg = nil
-
-// Pkg returns the package that t appeared in.
-//
-// Pkg is only defined for function, struct, and interface types
-// (i.e., types with named elements). This information isn't used by
-// cmd/compile itself, but we need to track it because it's exposed by
-// the go/types API.
-//
-// Deprecated: Pkg exists only for iexport, which will go away after
-// Go 1.20. It should not be used by other code.
-func (t *Type) Pkg() *Pkg {
-	switch t.kind {
-	case TFUNC:
-		return t.extra.(*Func).pkg
-	case TSTRUCT:
-		return t.extra.(*Struct).pkg
-	case TINTER:
-		return t.extra.(*Interface).pkg
-	default:
-		base.Fatalf("Pkg: unexpected kind: %v", t)
-		return nil
-	}
-}
-
 // Map contains Type fields specific to maps.
 type Map struct {
 	Key  *Type // Key type
@@ -340,9 +302,6 @@ type Func struct {
 	Receiver *Type // function receiver
 	Results  *Type // function results
 	Params   *Type // function params
-	TParams  *Type // type params of receiver (if method) or function
-
-	pkg *Pkg
 
 	// Argwid is the total width of the function receiver, params, and results.
 	// It gets calculated via a temporary TFUNCARGS type.
@@ -359,7 +318,6 @@ func (t *Type) FuncType() *Func {
 // StructType contains Type fields specific to struct types.
 type Struct struct {
 	fields Fields
-	pkg    *Pkg
 
 	// Maps have three associated internal structs (see struct MapType).
 	// Map links such structs back to their map type.
@@ -387,8 +345,6 @@ func (t *Type) StructType() *Struct {
 
 // Interface contains Type fields specific to interface types.
 type Interface struct {
-	pkg      *Pkg
-	implicit bool
 }
 
 // Ptr contains Type fields specific to pointer types.
@@ -859,12 +815,10 @@ func (t *Type) wantEtype(et Kind) {
 }
 
 func (t *Type) Recvs() *Type   { return t.FuncType().Receiver }
-func (t *Type) TParams() *Type { return t.FuncType().TParams }
 func (t *Type) Params() *Type  { return t.FuncType().Params }
 func (t *Type) Results() *Type { return t.FuncType().Results }
 
 func (t *Type) NumRecvs() int   { return t.FuncType().Receiver.NumFields() }
-func (t *Type) NumTParams() int { return t.FuncType().TParams.NumFields() }
 func (t *Type) NumParams() int  { return t.FuncType().Params.NumFields() }
 func (t *Type) NumResults() int { return t.FuncType().Results.NumFields() }
 
@@ -1732,7 +1686,7 @@ func newBasic(kind Kind, obj Object) *Type {
 
 // NewInterface returns a new interface for the given methods and
 // embedded types. Embedded types are specified as fields with no Sym.
-func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
+func NewInterface(methods []*Field) *Type {
 	t := newType(TINTER)
 	t.SetInterface(methods)
 	for _, f := range methods {
@@ -1742,22 +1696,7 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
 			break
 		}
 	}
-	t.extra.(*Interface).pkg = pkg
-	t.extra.(*Interface).implicit = implicit
 	return t
-}
-
-// IsImplicit reports whether an interface is implicit (i.e. elided from a type
-// parameter constraint).
-func (t *Type) IsImplicit() bool {
-	t.wantEtype(TINTER)
-	return t.extra.(*Interface).implicit
-}
-
-// MarkImplicit marks the interface as implicit.
-func (t *Type) MarkImplicit() {
-	t.wantEtype(TINTER)
-	t.extra.(*Interface).implicit = true
 }
 
 const BOGUS_FUNARG_OFFSET = -1000000000
@@ -1769,8 +1708,8 @@ func unzeroFieldOffsets(f []*Field) {
 }
 
 // NewSignature returns a new function type for the given receiver,
-// parameters, results, and type parameters, any of which may be nil.
-func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
+// parameters, and results, any of which may be nil.
+func NewSignature(recv *Field, params, results []*Field) *Type {
 	var recvs []*Field
 	if recv != nil {
 		recvs = []*Field{recv}
@@ -1780,7 +1719,7 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 	ft := t.FuncType()
 
 	funargs := func(fields []*Field, funarg Funarg) *Type {
-		s := NewStruct(NoPkg, fields)
+		s := NewStruct(fields)
 		s.StructType().Funarg = funarg
 		return s
 	}
@@ -1791,11 +1730,8 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 	unzeroFieldOffsets(params)
 	unzeroFieldOffsets(results)
 	ft.Receiver = funargs(recvs, FunargRcvr)
-	// TODO(danscales): just use nil here (save memory) if no tparams
-	ft.TParams = funargs(tparams, FunargTparams)
 	ft.Params = funargs(params, FunargParams)
 	ft.Results = funargs(results, FunargResults)
-	ft.pkg = pkg
 	if fieldsHasShape(recvs) || fieldsHasShape(params) || fieldsHasShape(results) {
 		t.SetHasShape(true)
 	}
@@ -1804,10 +1740,9 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 }
 
 // NewStruct returns a new struct with the given fields.
-func NewStruct(pkg *Pkg, fields []*Field) *Type {
+func NewStruct(fields []*Field) *Type {
 	t := newType(TSTRUCT)
 	t.SetFields(fields)
-	t.extra.(*Struct).pkg = pkg
 	if fieldsHasShape(fields) {
 		t.SetHasShape(true)
 	}

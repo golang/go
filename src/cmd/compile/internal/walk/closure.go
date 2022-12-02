@@ -68,7 +68,7 @@ func directClosureCall(n *ir.CallExpr) {
 
 	// Create new function type with parameters prepended, and
 	// then update type and declarations.
-	typ = types.NewSignature(typ.Pkg(), nil, nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
+	typ = types.NewSignature(nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
 	f.SetType(typ)
 	clofn.Dcl = append(decls, clofn.Dcl...)
 
