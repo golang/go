@@ -47,16 +47,6 @@ func Callee(n ir.Node) ir.Node {
 
 var importlist []*ir.Func
 
-// AllImportedBodies reads in the bodies of all imported functions and typechecks
-// them, if needed.
-func AllImportedBodies() {
-	for _, n := range importlist {
-		if n.Inl != nil {
-			ImportedBody(n)
-		}
-	}
-}
-
 var traceIndent []byte
 
 func tracePrint(title string, n ir.Node) func(np *ir.Node) {

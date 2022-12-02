@@ -137,54 +137,6 @@ func MethodValueType(n *ir.SelectorExpr) *types.Type {
 	return t
 }
 
-// ImportedBody returns immediately if the inlining information for fn is
-// populated. Otherwise, fn must be an imported function. If so, ImportedBody
-// loads in the dcls and body for fn, and typechecks as needed.
-func ImportedBody(fn *ir.Func) {
-	if fn.Inl.Body != nil {
-		return
-	}
-	lno := ir.SetPos(fn.Nname)
-
-	// When we load an inlined body, we need to allow OADDR
-	// operations on untyped expressions. We will fix the
-	// addrtaken flags on all the arguments of the OADDR with the
-	// computeAddrtaken call below (after we typecheck the body).
-	// TODO: export/import types and addrtaken marks along with inlined bodies,
-	// so this will be unnecessary.
-	IncrementalAddrtaken = false
-	defer func() {
-		if DirtyAddrtaken {
-			// We do ComputeAddrTaken on function instantiations, but not
-			// generic functions (since we may not yet know if x in &x[i]
-			// is an array or a slice).
-			if !fn.Type().HasTParam() {
-				ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
-			}
-			DirtyAddrtaken = false
-		}
-		IncrementalAddrtaken = true
-	}()
-
-	ImportBody(fn)
-
-	// Stmts(fn.Inl.Body) below is only for imported functions;
-	// their bodies may refer to unsafe as long as the package
-	// was marked safe during import (which was checked then).
-	// the ->inl of a local function has been typechecked before CanInline copied it.
-	pkg := fnpkg(fn.Nname)
-
-	if pkg == types.LocalPkg || pkg == nil {
-		return // ImportedBody on local function
-	}
-
-	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
-		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.Nodes(fn.Inl.Body))
-	}
-
-	base.Pos = lno
-}
-
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
 func fnpkg(fn *ir.Name) *types.Pkg {
