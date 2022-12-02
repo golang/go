@@ -45,7 +45,7 @@ func walkConvInterface(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	toType := n.Type()
 	if !fromType.IsInterface() && !ir.IsBlank(ir.CurFunc.Nname) {
 		// skip unnamed functions (func _())
-		if base.Debug.Unified != 0 && fromType.HasShape() {
+		if fromType.HasShape() {
 			// Unified IR uses OCONVIFACE for converting all derived types
 			// to interface type. Avoid assertion failure in
 			// MarkTypeUsedInInterface, because we've marked used types

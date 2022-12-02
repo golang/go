@@ -3688,11 +3688,6 @@ func (r *reader) importedDef() bool {
 }
 
 func MakeWrappers(target *ir.Package) {
-	// Only unified IR emits its own wrappers.
-	if base.Debug.Unified == 0 {
-		return
-	}
-
 	// always generate a wrapper for error.Error (#29304)
 	needWrapperTypes = append(needWrapperTypes, types.ErrorType)
 

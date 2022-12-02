@@ -76,15 +76,6 @@ var env = func() (res envVars) {
 	return
 }()
 
-var unifiedEnabled = func() bool {
-	for _, tag := range build.Default.ToolTags {
-		if tag == "goexperiment.unified" {
-			return true
-		}
-	}
-	return false
-}()
-
 // defaultAllCodeGen returns the default value of the -all_codegen
 // flag. By default, we prefer to be fast (returning false), except on
 // the linux-amd64 builder that's already very fast, so we get more
@@ -372,10 +363,6 @@ func (t *test) initExpectFail() {
 	switch goarch {
 	case "386", "arm", "mips", "mipsle":
 		failureSets = append(failureSets, types2Failures32Bit)
-	}
-
-	if !unifiedEnabled {
-		failureSets = append(failureSets, go118Failures)
 	}
 
 	filename := strings.Replace(t.goFileName(), "\\", "/", -1) // goFileName() uses \ on Windows
@@ -2035,21 +2022,6 @@ var types2Failures32Bit = setOf(
 	"printbig.go",             // large untyped int passed to print (32-bit)
 	"fixedbugs/bug114.go",     // large untyped int passed to println (32-bit)
 	"fixedbugs/issue23305.go", // large untyped int passed to println (32-bit)
-)
-
-var go118Failures = setOf(
-	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
-	"fixedbugs/issue56280.go",  // 1.18 compiler doesn't support inlining generic functions
-	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
-	"typeparam/issue47631.go",  // 1.18 can not handle local type declarations
-	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
-	"typeparam/issue54456.go",  // 1.18 compiler fails to distinguish local generic types
-	"typeparam/issue54497.go",  // 1.18 compiler is more conservative about inlining due to repeated issues
-	"typeparam/issue55101.go",  // 1.18 compiler ICEs writing export data
-	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
-	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
-	"typeparam/mdempsky/18.go", // 1.18 compiler mishandles implicit conversions in select statements
-	"typeparam/mdempsky/20.go", // 1.18 compiler crashes on method expressions promoted to derived types
 )
 
 // In all of these cases, the 1.17 compiler reports reasonable errors, but either the

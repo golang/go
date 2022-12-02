@@ -382,7 +382,7 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
 			// don't have the methods for them.
 			return ir.OCONVIFACE, ""
 		}
-		if base.Debug.Unified != 0 && src.HasShape() {
+		if src.HasShape() {
 			// Unified IR uses OCONVIFACE for converting all derived types
 			// to interface type, not just type arguments themselves.
 			return ir.OCONVIFACE, ""

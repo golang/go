@@ -7,7 +7,6 @@ package gcimporter_test
 import (
 	"bytes"
 	"fmt"
-	"internal/goexperiment"
 	"internal/goroot"
 	"internal/testenv"
 	"os"
@@ -108,7 +107,7 @@ func TestImportTestdata(t *testing.T) {
 		"exports.go":  {"go/ast", "go/token"},
 		"generics.go": nil,
 	}
-	if goexperiment.Unified {
+	if true /* was goexperiment.Unified */ {
 		// TODO(mdempsky): Fix test below to flatten the transitive
 		// Package.Imports graph. Unified IR is more precise about
 		// recreating the package import graph.
@@ -168,17 +167,6 @@ func TestImportTypeparamTests(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var skip map[string]string
-	if !goexperiment.Unified {
-		// The Go 1.18 frontend still fails several cases.
-		skip = map[string]string{
-			"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
-			"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
-			"issue47631.go": "can not handle local type declarations",
-			"issue55101.go": "fails to compile",
-		}
-	}
-
 	for _, entry := range list {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
 			// For now, only consider standalone go files.
@@ -186,10 +174,6 @@ func TestImportTypeparamTests(t *testing.T) {
 		}
 
 		t.Run(entry.Name(), func(t *testing.T) {
-			if reason, ok := skip[entry.Name()]; ok {
-				t.Skip(reason)
-			}
-
 			filename := filepath.Join(rootDir, entry.Name())
 			src, err := os.ReadFile(filename)
 			if err != nil {

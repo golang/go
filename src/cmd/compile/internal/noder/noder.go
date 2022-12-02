@@ -73,13 +73,7 @@ func LoadPackage(filenames []string) {
 	}
 	base.Timer.AddEvent(int64(lines), "lines")
 
-	if base.Debug.Unified != 0 {
-		unified(noders)
-		return
-	}
-
-	// Use types2 to type-check and generate IR.
-	check2(noders)
+	unified(noders)
 }
 
 func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {

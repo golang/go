@@ -336,27 +336,6 @@ func (p *crawler) markInlBody(n *ir.Name) {
 			} else {
 				p.checkForFullyInst(t)
 			}
-			if base.Debug.Unified == 0 {
-				// If a method of un-exported type is promoted and accessible by
-				// embedding in an exported type, it makes that type reachable.
-				//
-				// Example:
-				//
-				//     type t struct {}
-				//     func (t) M() {}
-				//
-				//     func F() interface{} { return struct{ t }{} }
-				//
-				// We generate the wrapper for "struct{ t }".M, and inline call
-				// to "struct{ t }".M, which makes "t.M" reachable.
-				if t.IsStruct() {
-					for _, f := range t.FieldSlice() {
-						if f.Embedded != 0 {
-							p.markEmbed(f.Type)
-						}
-					}
-				}
-			}
 		}
 
 		switch n.Op() {

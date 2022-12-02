@@ -333,7 +333,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			return val.Op() == ir.ONIL
 		}
 
-		if base.Debug.Unified != 0 && val.Type().HasShape() {
+		if val.Type().HasShape() {
 			// See comment in cmd/compile/internal/walk/convert.go:walkConvInterface
 			return false
 		}

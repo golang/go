@@ -6,7 +6,6 @@ package test
 
 import (
 	"bufio"
-	"internal/buildcfg"
 	"internal/goexperiment"
 	"internal/testenv"
 	"io"
@@ -235,7 +234,7 @@ func TestIntendedInlining(t *testing.T) {
 		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
 		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
 	}
-	if buildcfg.Experiment.Unified {
+	if true /* was buildcfg.Experiment.Unified */ {
 		// Non-unified IR does not report "inlining call ..." for atomic.Pointer[T]'s methods.
 		// TODO(cuonglm): remove once non-unified IR frontend gone.
 		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).CompareAndSwap")

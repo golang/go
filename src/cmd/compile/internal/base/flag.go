@@ -167,9 +167,6 @@ func ParseFlags() {
 	Debug.ConcurrentOk = true
 	Debug.InlFuncsWithClosures = 1
 	Debug.InlStaticInit = 1
-	if buildcfg.Experiment.Unified {
-		Debug.Unified = 1
-	}
 	Debug.SyncFrames = -1 // disable sync markers by default
 
 	Debug.Checkptr = -1 // so we can tell whether it is set explicitly
