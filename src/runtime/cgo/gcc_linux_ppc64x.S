@@ -7,23 +7,14 @@
 .file "gcc_linux_ppc64x.S"
 
 /*
- * Apple still insists on underscore prefixes for C function names.
- */
-#if defined(__APPLE__)
-#define EXT(s) _##s
-#else
-#define EXT(s) s
-#endif
-
-/*
  * void crosscall_ppc64(void (*fn)(void), void *g)
  *
  * Calling into the gc tool chain, where all registers are caller save.
  * Called from standard ppc64 C ABI, where r2, r14-r31, f14-f31 are
  * callee-save, so they must be saved explicitly.
  */
-.globl EXT(crosscall_ppc64)
-EXT(crosscall_ppc64):
+.globl crosscall_ppc64
+crosscall_ppc64:
 	// Start with standard C stack frame layout and linkage
 	mflr	%r0
 	std	%r0, 16(%r1)	// Save LR in caller's frame
