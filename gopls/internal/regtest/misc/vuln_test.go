@@ -57,7 +57,6 @@ package foo
 }
 
 func TestRunGovulncheckError2(t *testing.T) {
-	t.Skip("skipping due to go.dev/issues/57032")
 	const files = `
 -- go.mod --
 module mod.com
@@ -81,13 +80,14 @@ func F() { // build error incomplete
 		env.OpenFile("go.mod")
 		var result command.RunVulncheckResult
 		env.ExecuteCodeLensCommand("go.mod", command.RunGovulncheck, &result)
+		var ws WorkStatus
 		env.Await(
-			OnceMet(
-				CompletedProgress(result.Token),
-				// TODO(hyangah): find a way to inspect $/progress 'report' message.
-				LogMatching(protocol.Info, "failed to load packages due to errors", 1, false),
-			),
+			CompletedProgress(result.Token, &ws),
 		)
+		wantEndMsg, wantMsgPart := "failed", "failed to load packages due to errors"
+		if ws.EndMsg != "failed" || !strings.Contains(ws.Msg, wantMsgPart) {
+			t.Errorf("work status = %+v, want {EndMessage: %q, Message: %q}", ws, wantEndMsg, wantMsgPart)
+		}
 	})
 }
 
@@ -227,7 +227,7 @@ func main() {
 
 		env.Await(
 			OnceMet(
-				CompletedProgress(result.Token),
+				CompletedProgress(result.Token, nil),
 				ShownMessage("Found GOSTDLIB"),
 				EmptyOrNoDiagnostics("go.mod"),
 			),
@@ -588,7 +588,7 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 					gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 					env.Await(
 						OnceMet(
-							CompletedProgress(result.Token),
+							CompletedProgress(result.Token, nil),
 							ShownMessage("Found"),
 						),
 					)
@@ -638,7 +638,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 		env.Await(
 			OnceMet(
-				CompletedProgress(result.Token),
+				CompletedProgress(result.Token, nil),
 				ShownMessage("Found"),
 			),
 		)
@@ -799,7 +799,7 @@ func TestGovulncheckInfo(t *testing.T) {
 		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 		env.Await(
 			OnceMet(
-				CompletedProgress(result.Token),
+				CompletedProgress(result.Token, nil),
 				ShownMessage("No vulnerabilities found"), // only count affecting vulnerabilities.
 			),
 		)

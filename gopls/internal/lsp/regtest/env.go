@@ -125,9 +125,9 @@ func (s State) startedWork() map[string]uint64 {
 }
 
 type workProgress struct {
-	title, msg string
-	percent    float64
-	complete   bool
+	title, msg, endMsg string
+	percent            float64
+	complete           bool // seen 'end'.
 }
 
 // This method, provided for debugging, accesses mutable fields without a lock,
@@ -247,6 +247,9 @@ func (a *Awaiter) onProgress(_ context.Context, m *protocol.ProgressParams) erro
 		}
 	case "end":
 		work.complete = true
+		if msg, ok := v["message"]; ok {
+			work.endMsg = msg.(string)
+		}
 	}
 	a.checkConditionsLocked()
 	return nil

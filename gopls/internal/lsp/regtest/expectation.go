@@ -380,18 +380,30 @@ func CompletedWork(title string, count uint64, atLeast bool) SimpleExpectation {
 	}
 }
 
+type WorkStatus struct {
+	// Last seen message from either `begin` or `report` progress.
+	Msg string
+	// Message sent with `end` progress message.
+	EndMsg string
+}
+
 // CompletedProgress expects that workDone progress is complete for the given
-// progress token.
+// progress token. When non-nil WorkStatus is provided, it will be filled
+// when the expectation is met.
 //
 // If the token is not a progress token that the client has seen, this
 // expectation is Unmeetable.
-func CompletedProgress(token protocol.ProgressToken) SimpleExpectation {
+func CompletedProgress(token protocol.ProgressToken, into *WorkStatus) SimpleExpectation {
 	check := func(s State) Verdict {
 		work, ok := s.work[token]
 		if !ok {
 			return Unmeetable // TODO(rfindley): refactor to allow the verdict to explain this result
 		}
 		if work.complete {
+			if into != nil {
+				into.Msg = work.msg
+				into.EndMsg = work.endMsg
+			}
 			return Met
 		}
 		return Unmet
