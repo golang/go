@@ -224,10 +224,6 @@ func genhash(t *types.Type) *obj.LSym {
 	typecheck.Stmts(fn.Body)
 	ir.CurFunc = nil
 
-	if base.Debug.DclStack != 0 {
-		types.CheckDclstack()
-	}
-
 	fn.SetNilCheckDisabled(true)
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
@@ -551,10 +547,6 @@ func geneq(t *types.Type) *obj.LSym {
 	ir.CurFunc = fn
 	typecheck.Stmts(fn.Body)
 	ir.CurFunc = nil
-
-	if base.Debug.DclStack != 0 {
-		types.CheckDclstack()
-	}
 
 	// Disable checknils while compiling this code.
 	// We are comparing a struct or an array,

@@ -59,6 +59,7 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
 		}
 		Target.Externs = append(Target.Externs, n)
+		s.Def = n
 	} else {
 		if ir.CurFunc == nil && ctxt == ir.PAUTO {
 			base.Pos = n.Pos()
@@ -67,7 +68,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
 			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
 		}
-		types.Pushdcl(s)
 		n.Curfn = ir.CurFunc
 	}
 
@@ -75,7 +75,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		n.SetFrameOffset(0)
 	}
 
-	s.Def = n
 	n.Class = ctxt
 	if ctxt == ir.PFUNC {
 		n.Sym().SetFunc(true)
@@ -107,8 +106,6 @@ func StartFuncBody(fn *ir.Func) {
 	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
 	ir.CurFunc = fn
 	DeclContext = ir.PAUTO
-
-	types.Markdcl()
 }
 
 // finish the body.
@@ -116,7 +113,6 @@ func StartFuncBody(fn *ir.Func) {
 // returns in extern-declaration context.
 func FinishFuncBody() {
 	// change the declaration context from auto to previous context
-	types.Popdcl()
 	var e funcStackEnt
 	funcStack, e = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
 	ir.CurFunc, DeclContext = e.curfn, e.dclcontext
