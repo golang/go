@@ -319,6 +319,9 @@ var NoPkg *Pkg = nil
 // (i.e., types with named elements). This information isn't used by
 // cmd/compile itself, but we need to track it because it's exposed by
 // the go/types API.
+//
+// Deprecated: Pkg exists only for iexport, which will go away after
+// Go 1.20. It should not be used by other code.
 func (t *Type) Pkg() *Pkg {
 	switch t.kind {
 	case TFUNC:
