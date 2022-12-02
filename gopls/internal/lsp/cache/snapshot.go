@@ -1390,6 +1390,10 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 		// ID "command-line-arguments" are usually a symptom of a bad workspace
 		// configuration.
 		//
+		// This heuristic is path-dependent: we only get command-line-arguments
+		// packages when we've loaded using file scopes, which only occurs
+		// on-demand or via orphaned file reloading.
+		//
 		// TODO(rfindley): re-evaluate this heuristic.
 		if containsCommandLineArguments(wsPkgs) {
 			return s.workspaceLayoutError(ctx)
@@ -1492,7 +1496,7 @@ func (s *snapshot) awaitLoadedAllErrors(ctx context.Context) *source.CriticalErr
 		}
 	}
 
-	if err := s.reloadOrphanedFiles(ctx); err != nil {
+	if err := s.reloadOrphanedOpenFiles(ctx); err != nil {
 		diags := s.extractGoCommandErrors(ctx, err)
 		return &source.CriticalError{
 			MainError:   err,
@@ -1560,12 +1564,12 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	return err
 }
 
-func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
+func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	// When we load ./... or a package path directly, we may not get packages
 	// that exist only in overlays. As a workaround, we search all of the files
 	// available in the snapshot and reload their metadata individually using a
 	// file= query if the metadata is unavailable.
-	files := s.orphanedFiles()
+	files := s.orphanedOpenFiles()
 
 	// Files without a valid package declaration can't be loaded. Don't try.
 	var scopes []loadScope
@@ -1612,12 +1616,16 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 	return nil
 }
 
-func (s *snapshot) orphanedFiles() []source.VersionedFileHandle {
+func (s *snapshot) orphanedOpenFiles() []source.VersionedFileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	var files []source.VersionedFileHandle
 	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
+		// Only consider open files, which will be represented as overlays.
+		if _, isOverlay := fh.(*overlay); !isOverlay {
+			return
+		}
 		// Don't try to reload metadata for go.mod files.
 		if s.view.FileKind(fh) != source.Go {
 			return
@@ -1625,11 +1633,6 @@ func (s *snapshot) orphanedFiles() []source.VersionedFileHandle {
 		// If the URI doesn't belong to this view, then it's not in a workspace
 		// package and should not be reloaded directly.
 		if !source.InDir(s.view.folder.Filename(), uri.Filename()) {
-			return
-		}
-		// If the file is not open and is in a vendor directory, don't treat it
-		// like a workspace package.
-		if _, ok := fh.(*overlay); !ok && inVendor(uri) {
 			return
 		}
 		// Don't reload metadata for files we've already deemed unloadable.
