@@ -63,6 +63,9 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 				Diagnostics: criticalErr.Diagnostics,
 			}, nil
 		}
+		if ctx.Err() != nil { // must check ctx after GetCriticalError
+			return nil, ctx.Err()
+		}
 
 		if err := s.awaitLoaded(ctx); err != nil {
 			return nil, err

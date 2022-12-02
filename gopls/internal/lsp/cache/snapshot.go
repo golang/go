@@ -1212,6 +1212,8 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[PackagePath]sourc
 	return results, nil
 }
 
+// TODO(rfindley): clarify that this is only active modules. Or update to just
+// use findRootPattern.
 func (s *snapshot) GoModForFile(uri span.URI) span.URI {
 	return moduleForURI(s.workspace.activeModFiles, uri)
 }
@@ -1396,13 +1398,31 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 		//
 		// TODO(rfindley): re-evaluate this heuristic.
 		if containsCommandLineArguments(wsPkgs) {
-			return s.workspaceLayoutError(ctx)
+			err, diags := s.workspaceLayoutError(ctx)
+			if err != nil {
+				if ctx.Err() != nil {
+					return nil // see the API documentation for source.Snapshot
+				}
+				return &source.CriticalError{
+					MainError:   err,
+					Diagnostics: diags,
+				}
+			}
 		}
 		return nil
 	}
 
 	if errMsg := loadErr.MainError.Error(); strings.Contains(errMsg, "cannot find main module") || strings.Contains(errMsg, "go.mod file not found") {
-		return s.workspaceLayoutError(ctx)
+		err, diags := s.workspaceLayoutError(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil // see the API documentation for source.Snapshot
+			}
+			return &source.CriticalError{
+				MainError:   err,
+				Diagnostics: diags,
+			}
+		}
 	}
 	return loadErr
 }

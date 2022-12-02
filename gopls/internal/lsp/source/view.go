@@ -214,6 +214,8 @@ type Snapshot interface {
 	MetadataForFile(ctx context.Context, uri span.URI) ([]*Metadata, error)
 
 	// GetCriticalError returns any critical errors in the workspace.
+	//
+	// A nil result may mean success, or context cancellation.
 	GetCriticalError(ctx context.Context) *CriticalError
 
 	// BuildGoplsMod generates a go.mod file for all modules in the workspace.

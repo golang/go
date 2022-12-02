@@ -859,33 +859,38 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 // Otherwise, it returns folder.
 // TODO (rFindley): move this to workspace.go
 // TODO (rFindley): simplify this once workspace modules are enabled by default.
-func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSource, excludePath func(string) bool, experimental bool) (span.URI, error) {
+func findWorkspaceRoot(ctx context.Context, folderURI span.URI, fs source.FileSource, excludePath func(string) bool, experimental bool) (span.URI, error) {
 	patterns := []string{"go.work", "go.mod"}
 	if experimental {
 		patterns = []string{"go.work", "gopls.mod", "go.mod"}
 	}
+	folder := folderURI.Filename()
 	for _, basename := range patterns {
-		dir, err := findRootPattern(ctx, folder, basename, fs)
+		match, err := findRootPattern(ctx, folder, basename, fs)
 		if err != nil {
-			return "", fmt.Errorf("finding %s: %w", basename, err)
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", ctxErr
+			}
+			return "", err
 		}
-		if dir != "" {
+		if match != "" {
+			dir := span.URIFromPath(filepath.Dir(match))
 			return dir, nil
 		}
 	}
 
 	// The experimental workspace can handle nested modules at this point...
 	if experimental {
-		return folder, nil
+		return folderURI, nil
 	}
 
 	// ...else we should check if there's exactly one nested module.
-	all, err := findModules(folder, excludePath, 2)
+	all, err := findModules(folderURI, excludePath, 2)
 	if err == errExhausted {
 		// Fall-back behavior: if we don't find any modules after searching 10000
 		// files, assume there are none.
 		event.Log(ctx, fmt.Sprintf("stopped searching for modules after %d files", fileLimit))
-		return folder, nil
+		return folderURI, nil
 	}
 	if err != nil {
 		return "", err
@@ -896,19 +901,24 @@ func findWorkspaceRoot(ctx context.Context, folder span.URI, fs source.FileSourc
 			return dirURI(uri), nil
 		}
 	}
-	return folder, nil
+	return folderURI, nil
 }
 
-func findRootPattern(ctx context.Context, folder span.URI, basename string, fs source.FileSource) (span.URI, error) {
-	dir := folder.Filename()
+// findRootPattern looks for files with the given basename in dir or any parent
+// directory of dir, using the provided FileSource. It returns the first match,
+// starting from dir and search parents.
+//
+// The resulting string is either the file path of a matching file with the
+// given basename, or "" if none was found.
+func findRootPattern(ctx context.Context, dir, basename string, fs source.FileSource) (string, error) {
 	for dir != "" {
 		target := filepath.Join(dir, basename)
 		exists, err := fileExists(ctx, span.URIFromPath(target), fs)
 		if err != nil {
-			return "", err
+			return "", err // not readable or context cancelled
 		}
 		if exists {
-			return span.URIFromPath(dir), nil
+			return target, nil
 		}
 		// Trailing separators must be trimmed, otherwise filepath.Split is a noop.
 		next, _ := filepath.Split(strings.TrimRight(dir, string(filepath.Separator)))

@@ -275,26 +275,34 @@ func (m *moduleErrorMap) Error() string {
 	return buf.String()
 }
 
-// workspaceLayoutErrors returns a diagnostic for every open file, as well as
-// an error message if there are no open files.
-func (s *snapshot) workspaceLayoutError(ctx context.Context) *source.CriticalError {
+// workspaceLayoutErrors returns an error decribing a misconfiguration of the
+// workspace, along with related diagnostic.
+//
+// The unusual argument ordering of results is intentional: if the resulting
+// error is nil, so must be the resulting diagnostics.
+//
+// If ctx is cancelled, it may return ctx.Err(), nil.
+//
+// TODO(rfindley): separate workspace diagnostics from critical workspace
+// errors.
+func (s *snapshot) workspaceLayoutError(ctx context.Context) (error, []*source.Diagnostic) {
 	// TODO(rfindley): do we really not want to show a critical error if the user
 	// has no go.mod files?
 	if len(s.workspace.getKnownModFiles()) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// TODO(rfindley): both of the checks below should be delegated to the workspace.
 	if s.view.effectiveGO111MODULE() == off {
-		return nil
+		return nil, nil
 	}
 	if s.workspace.moduleSource != legacyWorkspace {
-		return nil
+		return nil, nil
 	}
 
 	// If the user has one module per view, there is nothing to warn about.
 	if s.ValidBuildConfiguration() && len(s.workspace.getKnownModFiles()) == 1 {
-		return nil
+		return nil, nil
 	}
 
 	// Apply diagnostics about the workspace configuration to relevant open
@@ -320,10 +328,7 @@ go workspaces (go.work files).
 See the documentation for more information on setting up your workspace:
 https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 		}
-		return &source.CriticalError{
-			MainError:   fmt.Errorf(msg),
-			Diagnostics: s.applyCriticalErrorToFiles(ctx, msg, openFiles),
-		}
+		return fmt.Errorf(msg), s.applyCriticalErrorToFiles(ctx, msg, openFiles)
 	}
 
 	// If the user has one active go.mod file, they may still be editing files
@@ -331,40 +336,49 @@ https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 	// that the nested module must be opened as a workspace folder.
 	if len(s.workspace.ActiveModFiles()) == 1 {
 		// Get the active root go.mod file to compare against.
-		var rootModURI span.URI
+		var rootMod string
 		for uri := range s.workspace.ActiveModFiles() {
-			rootModURI = uri
+			rootMod = uri.Filename()
 		}
-		nestedModules := map[string][]source.VersionedFileHandle{}
+		rootDir := filepath.Dir(rootMod)
+		nestedModules := make(map[string][]source.VersionedFileHandle)
 		for _, fh := range openFiles {
-			modURI := moduleForURI(s.workspace.knownModFiles, fh.URI())
-			if modURI != rootModURI {
-				modDir := filepath.Dir(modURI.Filename())
+			mod, err := findRootPattern(ctx, filepath.Dir(fh.URI().Filename()), "go.mod", s)
+			if err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err(), nil
+				}
+				continue
+			}
+			if mod == "" {
+				continue
+			}
+			if mod != rootMod && source.InDir(rootDir, mod) {
+				modDir := filepath.Dir(mod)
 				nestedModules[modDir] = append(nestedModules[modDir], fh)
 			}
+		}
+		var multiModuleMsg string
+		if s.view.goversion >= 18 {
+			multiModuleMsg = `To work on multiple modules at once, please use a go.work file.
+See https://github.com/golang/tools/blob/master/gopls/doc/workspace.md for more information on using workspaces.`
+		} else {
+			multiModuleMsg = `To work on multiple modules at once, please upgrade to Go 1.18 and use a go.work file.
+See https://github.com/golang/tools/blob/master/gopls/doc/workspace.md for more information on using workspaces.`
 		}
 		// Add a diagnostic to each file in a nested module to mark it as
 		// "orphaned". Don't show a general diagnostic in the progress bar,
 		// because the user may still want to edit a file in a nested module.
 		var srcDiags []*source.Diagnostic
 		for modDir, uris := range nestedModules {
-			msg := fmt.Sprintf(`This file is in %s, which is a nested module in the %s module.
-gopls currently requires one module per workspace folder.
-Please open %s as a separate workspace folder.
-You can learn more here: https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.
-`, modDir, filepath.Dir(rootModURI.Filename()), modDir)
+			msg := fmt.Sprintf("This file is in %s, which is a nested module in the %s module.\n%s", modDir, rootMod, multiModuleMsg)
 			srcDiags = append(srcDiags, s.applyCriticalErrorToFiles(ctx, msg, uris)...)
 		}
 		if len(srcDiags) != 0 {
-			return &source.CriticalError{
-				MainError: fmt.Errorf(`You are working in a nested module.
-Please open it as a separate workspace folder. Learn more:
-https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`),
-				Diagnostics: srcDiags,
-			}
+			return fmt.Errorf("You have opened a nested module.\n%s", multiModuleMsg), srcDiags
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, files []source.VersionedFileHandle) []*source.Diagnostic {

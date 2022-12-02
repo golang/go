@@ -295,6 +295,9 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		return
 	}
 	criticalErr := snapshot.GetCriticalError(ctx)
+	if ctx.Err() != nil { // must check ctx after GetCriticalError
+		return
+	}
 
 	// Show the error as a progress error report so that it appears in the
 	// status bar. If a client doesn't support progress reports, the error
