@@ -904,7 +904,10 @@ var SSADumpInline = func(*ir.Func) {}
 
 // InlineCall allows the inliner implementation to be overridden.
 // If it returns nil, the function will not be inlined.
-var InlineCall = oldInlineCall
+var InlineCall = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+	base.Fatalf("inline.InlineCall not overridden")
+	panic("unreachable")
+}
 
 // If n is a OCALLFUNC node, and fn is an ONAME node for a
 // function with an inlinable body, return an OINLCALL node that can replace n.

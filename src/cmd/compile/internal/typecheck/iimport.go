@@ -87,16 +87,8 @@ func ImportBody(fn *ir.Func) {
 // It's a function literal so that it can be overridden for
 // GOEXPERIMENT=unified.
 var HaveInlineBody = func(fn *ir.Func) bool {
-	if fn.Inl == nil {
-		return false
-	}
-
-	if fn.Inl.Body != nil {
-		return true
-	}
-
-	_, ok := inlineImporter[fn.Nname.Sym()]
-	return ok
+	base.Fatalf("HaveInlineBody not overridden")
+	panic("unreachable")
 }
 
 func importReaderFor(sym *types.Sym, importers map[*types.Sym]iimporterAndOffset) *importReader {

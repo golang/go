@@ -126,21 +126,8 @@ func Resolve(n ir.Node) (res ir.Node) {
 		return n
 	}
 
-	// only trace if there's work to do
-	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("resolve", n)(&res)
-	}
-
-	if sym := n.Sym(); sym.Pkg != types.LocalPkg {
-		return expandDecl(n)
-	}
-
-	r := ir.AsNode(n.Sym().Def)
-	if r == nil {
-		return n
-	}
-
-	return r
+	base.Fatalf("unexpected NONAME node: %+v", n)
+	panic("unreachable")
 }
 
 func typecheckslice(l []ir.Node, top int) {
