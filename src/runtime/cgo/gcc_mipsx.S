@@ -4,6 +4,8 @@
 
 // +build mips mipsle
 
+.file "gcc_mipsx.S"
+
 /*
  * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
  *
