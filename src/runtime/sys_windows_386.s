@@ -7,6 +7,9 @@
 #include "textflag.h"
 #include "time_windows.h"
 
+// Offsets into Thread Environment Block (pointer in FS)
+#define TEB_TlsSlots 0xE10
+
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 	MOVL	fn+0(FP), BX
@@ -222,7 +225,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	RET
 
 // void tstart(M *newm);
-TEXT tstart<>(SB),NOSPLIT,$0
+TEXT tstart<>(SB),NOSPLIT,$8-4
 	MOVL	newm+0(FP), CX		// m
 	MOVL	m_g0(CX), DX		// g
 
@@ -236,10 +239,11 @@ TEXT tstart<>(SB),NOSPLIT,$0
 	MOVL	AX, g_stackguard1(DX)
 
 	// Set up tls.
-	LEAL	m_tls(CX), SI
-	MOVL	SI, 0x14(FS)
+	LEAL	m_tls(CX), DI
 	MOVL	CX, g_m(DX)
-	MOVL	DX, g(SI)
+	MOVL	DX, g(DI)
+	MOVL	DI, 4(SP)
+	CALL	runtime·setldt(SB) // clobbers CX and DX
 
 	// Someday the convention will be D is always cleared.
 	CLD
@@ -266,10 +270,11 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 
 	RET
 
-// setldt(int entry, int address, int limit)
-TEXT runtime·setldt(SB),NOSPLIT,$0
-	MOVL	base+4(FP), CX
-	MOVL	CX, 0x14(FS)
+// setldt(int slot, int base, int size)
+TEXT runtime·setldt(SB),NOSPLIT,$0-12
+	MOVL	base+4(FP), DX
+	MOVL	runtime·tls_g(SB), CX
+	MOVL	DX, 0(CX)(FS)
 	RET
 
 // Runs on OS stack.
@@ -355,4 +360,29 @@ loop:
 	RET
 useQPC:
 	JMP	runtime·nanotimeQPC(SB)
+	RET
+
+// This is called from rt0_go, which runs on the system stack
+// using the initial stack allocated by the OS.
+TEXT runtime·wintls(SB),NOSPLIT|NOFRAME,$0
+	// Allocate a TLS slot to hold g across calls to external code
+	MOVL	SP, BP
+	MOVL	runtime·_TlsAlloc(SB), AX
+	CALL	AX
+	MOVL	BP, SP
+
+	MOVL	AX, CX	// TLS index
+
+	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
+	CMPL	CX, $64
+	JB	ok
+	CALL	runtime·abort(SB)
+ok:
+	// Convert the TLS index at CX into
+	// an offset from TEB_TlsSlots.
+	SHLL	$2, CX
+
+	// Save offset from TLS into tls_g.
+	ADDL	$TEB_TlsSlots, CX
+	MOVL	CX, runtime·tls_g(SB)
 	RET

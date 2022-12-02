@@ -2551,22 +2551,6 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 		}
 	}
 
-	if ctxt.Arch.Family == sys.I386 {
-		if a.Index == REG_TLS && ctxt.Flag_shared {
-			// When building for inclusion into a shared library, an instruction of the form
-			//     MOVL off(CX)(TLS*1), AX
-			// becomes
-			//     mov %gs:off(%ecx), %eax
-			// which assumes that the correct TLS offset has been loaded into %ecx (today
-			// there is only one TLS variable -- g -- so this is OK). When not building for
-			// a shared library the instruction it becomes
-			//     mov 0x0(%ecx), %eax
-			// and a R_TLS_LE relocation, and so does not require a prefix.
-			return 0x65 // GS
-		}
-		return 0
-	}
-
 	switch a.Index {
 	case REG_CS:
 		return 0x2e
@@ -2582,11 +2566,18 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 			// When building for inclusion into a shared library, an instruction of the form
 			//     MOV off(CX)(TLS*1), AX
 			// becomes
-			//     mov %fs:off(%rcx), %rax
-			// which assumes that the correct TLS offset has been loaded into %rcx (today
+			//     mov %gs:off(%ecx), %eax // on i386
+			//     mov %fs:off(%rcx), %rax // on amd64
+			// which assumes that the correct TLS offset has been loaded into CX (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
-			// a shared library the instruction does not require a prefix.
-			return 0x64
+			// a shared library the instruction it becomes
+			//     mov 0x0(%ecx), %eax // on i386
+			//     mov 0x0(%rcx), %rax // on amd64
+			// and a R_TLS_LE relocation, and so does not require a prefix.
+			if ctxt.Arch.Family == sys.I386 {
+				return 0x65 // GS
+			}
+			return 0x64 // FS
 		}
 
 	case REG_FS:
@@ -3725,7 +3716,7 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 
 	if REG_AX <= base && base <= REG_R15 {
 		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid &&
-			!(ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64) {
+			ctxt.Headtype != objabi.Hwindows {
 			rel = obj.Reloc{}
 			rel.Type = objabi.R_TLS_LE
 			rel.Siz = 4
@@ -5136,19 +5127,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							pp.From.Offset = 0
 							pp.From.Index = REG_NONE
 							ab.Put1(0x8B)
-							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
-
-						case objabi.Hwindows:
-							// Windows TLS base is always 0x14(FS).
-							pp.From = p.From
-
-							pp.From.Type = obj.TYPE_MEM
-							pp.From.Reg = REG_FS
-							pp.From.Offset = 0x14
-							pp.From.Index = REG_NONE
-							pp.From.Scale = 0
-							ab.Put2(0x64, // FS
-								0x8B)
 							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
 						}
 						break
