@@ -222,7 +222,7 @@ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err
 	case r := <-result:
 		return r.addrs, r.err, true
 	case <-ctx.Done():
-		return nil, mapErr(ctx.Err()), false
+		return nil, mapErr(ctx.Err()), true
 	}
 }
 
