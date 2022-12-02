@@ -60,8 +60,6 @@ const (
 	TANY
 	TSTRING
 	TUNSAFEPTR
-	TTYPEPARAM
-	TUNION
 
 	// pseudo-types for literals
 	TIDEAL // untyped numeric constants
@@ -154,8 +152,6 @@ type Type struct {
 	// TARRAY: *Array
 	// TSLICE: Slice
 	// TSSA: string
-	// TTYPEPARAM:  *Typeparam
-	// TUNION: *Union
 	extra interface{}
 
 	// width is the width of this Type in bytes.
@@ -207,16 +203,14 @@ const (
 	typeNoalg                  // suppress hash and eq algorithm generation
 	typeDeferwidth             // width computation has been deferred and type is on deferredTypeStack
 	typeRecur
-	typeHasTParam // there is a typeparam somewhere in the type (generic function or type)
-	typeIsShape   // represents a set of closely related types, for generics
-	typeHasShape  // there is a shape somewhere in the type
+	typeIsShape  // represents a set of closely related types, for generics
+	typeHasShape // there is a shape somewhere in the type
 )
 
 func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
 func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
 func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
 func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
-func (t *Type) HasTParam() bool  { return t.flags&typeHasTParam != 0 }
 func (t *Type) IsShape() bool    { return t.flags&typeIsShape != 0 }
 func (t *Type) HasShape() bool   { return t.flags&typeHasShape != 0 }
 
@@ -224,9 +218,6 @@ func (t *Type) SetNotInHeap(b bool)  { t.flags.set(typeNotInHeap, b) }
 func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
-
-// Generic types should never have alg functions.
-func (t *Type) SetHasTParam(b bool) { t.flags.set(typeHasTParam, b); t.flags.set(typeNoalg, b) }
 
 // Should always do SetHasShape(true) when doing SetIsShape(true).
 func (t *Type) SetIsShape(b bool)  { t.flags.set(typeIsShape, b) }
@@ -272,14 +263,8 @@ func (t *Type) SetRParams(rparams []*Type) {
 		base.Fatalf("Setting nil or zero-length rparams")
 	}
 	t.rparams = &rparams
-	// HasTParam should be set if any rparam is or has a type param. This is
-	// to handle the case of a generic type which doesn't reference any of its
-	// type params (e.g. most commonly, an empty struct).
+	// HasShape should be set if any type argument is or has a shape type.
 	for _, rparam := range rparams {
-		if rparam.HasTParam() {
-			t.SetHasTParam(true)
-			break
-		}
 		if rparam.HasShape() {
 			t.SetHasShape(true)
 			break
@@ -291,7 +276,7 @@ func (t *Type) SetRParams(rparams []*Type) {
 // instantiated generic type where all type arguments are non-generic or fully
 // instantiated generic types.
 func (t *Type) IsFullyInstantiated() bool {
-	return len(t.RParams()) > 0 && !t.HasTParam()
+	return len(t.RParams()) > 0
 }
 
 // NoPkg is a nil *Pkg value for clarity.
@@ -404,18 +389,6 @@ func (t *Type) StructType() *Struct {
 type Interface struct {
 	pkg      *Pkg
 	implicit bool
-}
-
-// Typeparam contains Type fields specific to typeparam types.
-type Typeparam struct {
-	index int // type parameter index in source order, starting at 0
-	bound *Type
-}
-
-// Union contains Type fields specific to union types.
-type Union struct {
-	terms  []*Type
-	tildes []bool // whether terms[i] is of form ~T
 }
 
 // Ptr contains Type fields specific to pointer types.
@@ -599,10 +572,6 @@ func newType(et Kind) *Type {
 		t.extra = new(Tuple)
 	case TRESULTS:
 		t.extra = new(Results)
-	case TTYPEPARAM:
-		t.extra = new(Typeparam)
-	case TUNION:
-		t.extra = new(Union)
 	}
 	return t
 }
@@ -614,9 +583,6 @@ func NewArray(elem *Type, bound int64) *Type {
 	}
 	t := newType(TARRAY)
 	t.extra = &Array{Elem: elem, Bound: bound}
-	if elem.HasTParam() {
-		t.SetHasTParam(true)
-	}
 	if elem.HasShape() {
 		t.SetHasShape(true)
 	}
@@ -629,8 +595,8 @@ func NewSlice(elem *Type) *Type {
 		if t.Elem() != elem {
 			base.Fatalf("elem mismatch")
 		}
-		if elem.HasTParam() != t.HasTParam() || elem.HasShape() != t.HasShape() {
-			base.Fatalf("Incorrect HasTParam/HasShape flag for cached slice type")
+		if elem.HasShape() != t.HasShape() {
+			base.Fatalf("Incorrect HasShape flag for cached slice type")
 		}
 		return t
 	}
@@ -638,9 +604,6 @@ func NewSlice(elem *Type) *Type {
 	t := newType(TSLICE)
 	t.extra = Slice{Elem: elem}
 	elem.cache.slice = t
-	if elem.HasTParam() {
-		t.SetHasTParam(true)
-	}
 	if elem.HasShape() {
 		t.SetHasShape(true)
 	}
@@ -653,9 +616,6 @@ func NewChan(elem *Type, dir ChanDir) *Type {
 	ct := t.ChanType()
 	ct.Elem = elem
 	ct.Dir = dir
-	if elem.HasTParam() {
-		t.SetHasTParam(true)
-	}
 	if elem.HasShape() {
 		t.SetHasShape(true)
 	}
@@ -666,9 +626,6 @@ func NewTuple(t1, t2 *Type) *Type {
 	t := newType(TTUPLE)
 	t.extra.(*Tuple).first = t1
 	t.extra.(*Tuple).second = t2
-	if t1.HasTParam() || t2.HasTParam() {
-		t.SetHasTParam(true)
-	}
 	if t1.HasShape() || t2.HasShape() {
 		t.SetHasShape(true)
 	}
@@ -700,9 +657,6 @@ func NewMap(k, v *Type) *Type {
 	mt := t.MapType()
 	mt.Key = k
 	mt.Elem = v
-	if k.HasTParam() || v.HasTParam() {
-		t.SetHasTParam(true)
-	}
 	if k.HasShape() || v.HasShape() {
 		t.SetHasShape(true)
 	}
@@ -724,8 +678,8 @@ func NewPtr(elem *Type) *Type {
 		if t.Elem() != elem {
 			base.Fatalf("NewPtr: elem mismatch")
 		}
-		if elem.HasTParam() != t.HasTParam() || elem.HasShape() != t.HasShape() {
-			base.Fatalf("Incorrect HasTParam/HasShape flag for cached pointer type")
+		if elem.HasShape() != t.HasShape() {
+			base.Fatalf("Incorrect HasShape flag for cached pointer type")
 		}
 		return t
 	}
@@ -736,9 +690,6 @@ func NewPtr(elem *Type) *Type {
 	t.align = uint8(PtrSize)
 	if NewPtrCacheEnabled {
 		elem.cache.ptr = t
-	}
-	if elem.HasTParam() {
-		t.SetHasTParam(true)
 	}
 	if elem.HasShape() {
 		t.SetHasShape(true)
@@ -886,8 +837,6 @@ func (t *Type) copy() *Type {
 	case TARRAY:
 		x := *t.extra.(*Array)
 		nt.extra = &x
-	case TTYPEPARAM:
-		base.Fatalf("typeparam types cannot be copied")
 	case TTUPLE, TSSA, TRESULTS:
 		base.Fatalf("ssa types cannot be copied")
 	}
@@ -1493,14 +1442,6 @@ func (t *Type) IsInterface() bool {
 	return t.kind == TINTER
 }
 
-func (t *Type) IsUnion() bool {
-	return t.kind == TUNION
-}
-
-func (t *Type) IsTypeParam() bool {
-	return t.kind == TTYPEPARAM
-}
-
 // IsEmptyInterface reports whether t is an empty interface type.
 func (t *Type) IsEmptyInterface() bool {
 	return t.IsInterface() && t.AllMethods().Len() == 0
@@ -1748,9 +1689,6 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.NotInHeap() {
 		t.SetNotInHeap(true)
 	}
-	if underlying.HasTParam() {
-		t.SetHasTParam(true)
-	}
 	if underlying.HasShape() {
 		t.SetHasShape(true)
 	}
@@ -1776,15 +1714,6 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	}
 }
 
-func fieldsHasTParam(fields []*Field) bool {
-	for _, f := range fields {
-		if f.Type != nil && f.Type.HasTParam() {
-			return true
-		}
-	}
-	return false
-}
-
 func fieldsHasShape(fields []*Field) bool {
 	for _, f := range fields {
 		if f.Type != nil && f.Type.HasShape() {
@@ -1808,10 +1737,6 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
 	t.SetInterface(methods)
 	for _, f := range methods {
 		// f.Type could be nil for a broken interface declaration
-		if f.Type != nil && f.Type.HasTParam() {
-			t.SetHasTParam(true)
-			break
-		}
 		if f.Type != nil && f.Type.HasShape() {
 			t.SetHasShape(true)
 			break
@@ -1820,40 +1745,6 @@ func NewInterface(pkg *Pkg, methods []*Field, implicit bool) *Type {
 	t.extra.(*Interface).pkg = pkg
 	t.extra.(*Interface).implicit = implicit
 	return t
-}
-
-// NewTypeParam returns a new type param with the specified sym (package and name)
-// and specified index within the typeparam list.
-func NewTypeParam(obj Object, index int) *Type {
-	t := newType(TTYPEPARAM)
-	t.obj = obj
-	t.extra.(*Typeparam).index = index
-	t.SetHasTParam(true)
-	return t
-}
-
-// Index returns the index of the type param within its param list.
-func (t *Type) Index() int {
-	t.wantEtype(TTYPEPARAM)
-	return t.extra.(*Typeparam).index
-}
-
-// SetIndex sets the index of the type param within its param list.
-func (t *Type) SetIndex(i int) {
-	t.wantEtype(TTYPEPARAM)
-	t.extra.(*Typeparam).index = i
-}
-
-// SetBound sets the bound of a typeparam.
-func (t *Type) SetBound(bound *Type) {
-	t.wantEtype(TTYPEPARAM)
-	t.extra.(*Typeparam).bound = bound
-}
-
-// Bound returns the bound of a typeparam.
-func (t *Type) Bound() *Type {
-	t.wantEtype(TTYPEPARAM)
-	return t.extra.(*Typeparam).bound
 }
 
 // IsImplicit reports whether an interface is implicit (i.e. elided from a type
@@ -1867,41 +1758,6 @@ func (t *Type) IsImplicit() bool {
 func (t *Type) MarkImplicit() {
 	t.wantEtype(TINTER)
 	t.extra.(*Interface).implicit = true
-}
-
-// NewUnion returns a new union with the specified set of terms (types). If
-// tildes[i] is true, then terms[i] represents ~T, rather than just T.
-func NewUnion(terms []*Type, tildes []bool) *Type {
-	t := newType(TUNION)
-	if len(terms) != len(tildes) {
-		base.Fatalf("Mismatched terms and tildes for NewUnion")
-	}
-	t.extra.(*Union).terms = terms
-	t.extra.(*Union).tildes = tildes
-	nt := len(terms)
-	for i := 0; i < nt; i++ {
-		if terms[i].HasTParam() {
-			t.SetHasTParam(true)
-		}
-		if terms[i].HasShape() {
-			t.SetHasShape(true)
-		}
-	}
-	return t
-}
-
-// NumTerms returns the number of terms in a union type.
-func (t *Type) NumTerms() int {
-	t.wantEtype(TUNION)
-	return len(t.extra.(*Union).terms)
-}
-
-// Term returns ith term of a union type as (term, tilde). If tilde is true, term
-// represents ~T, rather than just T.
-func (t *Type) Term(i int) (*Type, bool) {
-	t.wantEtype(TUNION)
-	u := t.extra.(*Union)
-	return u.terms[i], u.tildes[i]
 }
 
 const BOGUS_FUNARG_OFFSET = -1000000000
@@ -1940,10 +1796,6 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
 	ft.Params = funargs(params, FunargParams)
 	ft.Results = funargs(results, FunargResults)
 	ft.pkg = pkg
-	if len(tparams) > 0 || fieldsHasTParam(recvs) || fieldsHasTParam(params) ||
-		fieldsHasTParam(results) {
-		t.SetHasTParam(true)
-	}
 	if fieldsHasShape(recvs) || fieldsHasShape(params) || fieldsHasShape(results) {
 		t.SetHasShape(true)
 	}
@@ -1956,9 +1808,6 @@ func NewStruct(pkg *Pkg, fields []*Field) *Type {
 	t := newType(TSTRUCT)
 	t.SetFields(fields)
 	t.extra.(*Struct).pkg = pkg
-	if fieldsHasTParam(fields) {
-		t.SetHasTParam(true)
-	}
 	if fieldsHasShape(fields) {
 		t.SetHasShape(true)
 	}

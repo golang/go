@@ -959,7 +959,7 @@ func formalType(t *types.Type) *types.Type {
 
 func writeType(t *types.Type) *obj.LSym {
 	t = formalType(t)
-	if t.IsUntyped() || t.HasTParam() {
+	if t.IsUntyped() {
 		base.Fatalf("writeType %v", t)
 	}
 
@@ -1260,11 +1260,6 @@ func InterfaceMethodOffset(ityp *types.Type, i int64) int64 {
 
 // NeedRuntimeType ensures that a runtime type descriptor is emitted for t.
 func NeedRuntimeType(t *types.Type) {
-	if t.HasTParam() {
-		// Generic types don't really exist at run-time and have no runtime
-		// type descriptor.  But we do write out shape types.
-		return
-	}
 	if _, ok := signatset[t]; !ok {
 		signatset[t] = struct{}{}
 		signatslice = append(signatslice, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
@@ -1780,9 +1775,6 @@ func CollectPTabs() {
 		}
 		if s.Pkg.Name != "main" {
 			continue
-		}
-		if n.Type().HasTParam() {
-			continue // skip generic functions (#52937)
 		}
 		ptabs = append(ptabs, n)
 	}
