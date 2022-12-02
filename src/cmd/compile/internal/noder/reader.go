@@ -519,13 +519,33 @@ func (r *reader) doTyp() *types.Type {
 }
 
 func (r *reader) unionType() *types.Type {
-	terms := make([]*types.Type, r.Len())
-	tildes := make([]bool, len(terms))
-	for i := range terms {
-		tildes[i] = r.Bool()
-		terms[i] = r.typ()
+	// In the types1 universe, we only need to handle value types.
+	// Impure interfaces (i.e., interfaces with non-trivial type sets
+	// like "int | string") can only appear as type parameter bounds,
+	// and this is enforced by the types2 type checker.
+	//
+	// However, type unions can still appear in pure interfaces if the
+	// type union is equivalent to "any". E.g., typeparam/issue52124.go
+	// declares variables with the type "interface { any | int }".
+	//
+	// To avoid needing to represent type unions in types1 (since we
+	// don't have any uses for that today anyway), we simply fold them
+	// to "any". As a consistency check, we still read the union terms
+	// to make sure this substitution is safe.
+
+	pure := false
+	for i, n := 0, r.Len(); i < n; i++ {
+		_ = r.Bool() // tilde
+		term := r.typ()
+		if term.IsEmptyInterface() {
+			pure = true
+		}
 	}
-	return types.NewUnion(terms, tildes)
+	if !pure {
+		base.Fatalf("impure type set used in value type")
+	}
+
+	return types.Types[types.TINTER]
 }
 
 func (r *reader) interfaceType() *types.Type {
