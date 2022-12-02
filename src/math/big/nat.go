@@ -664,15 +664,18 @@ func (x nat) bitLen() int {
 	// This function is used in cryptographic operations. It must not leak
 	// anything but the Int's sign and bit size through side-channels. Any
 	// changes must be reviewed by a security expert.
-	//
-	// In particular, bits.Len and bits.LeadingZeros use a lookup table for the
-	// low-order bits on some architectures.
 	if i := len(x) - 1; i >= 0 {
-		l := i * _W
-		for top := x[i]; top != 0; top >>= 1 {
-			l++
-		}
-		return l
+		// bits.Len uses a lookup table for the low-order bits on some
+		// architectures. Neutralize any input-dependent behavior by setting all
+		// bits after the first one bit.
+		top := uint(x[i])
+		top |= top >> 1
+		top |= top >> 2
+		top |= top >> 4
+		top |= top >> 8
+		top |= top >> 16
+		top |= top >> 16 >> 16 // ">> 32" doesn't compile on 32-bit architectures
+		return i*_W + bits.Len(top)
 	}
 	return 0
 }
