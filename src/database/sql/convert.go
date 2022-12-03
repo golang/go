@@ -212,6 +212,10 @@ func convertAssign(dest, src any) error {
 	return convertAssignRows(dest, src, nil)
 }
 
+// coalesceNullValuesToZero determines whether to interpret null values from SQL as the
+// equivalent zero value in go
+var coalesceNullValuesToZero = false
+
 // convertAssignRows copies to dest the value in src, converting it if possible.
 // An error is returned if the copy would result in loss of information.
 // dest should be a pointer type. If rows is passed in, the rows will
@@ -314,6 +318,17 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			}
 			*d = nil
 			return nil
+		default:
+			if coalesceNullValuesToZero {
+				dpv := reflect.ValueOf(d)
+				if dpv.Kind() == reflect.Pointer {
+					dv := reflect.Indirect(dpv)
+					dv.Set(reflect.Zero(dv.Type()))
+					return nil
+				} else {
+					return errors.New("destination not a pointer")
+				}
+			}
 		}
 	// The driver is returning a cursor the client may iterate over.
 	case driver.Rows:
