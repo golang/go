@@ -331,6 +331,33 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 // resSearch will make a call to the 'res_nsearch' routine in the C library
 // and parse the output as a slice of DNS resources.
 func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
+	if ctx.Done() == nil {
+		return cgoResSearch(hostname, rtype, class)
+	}
+
+	type result struct {
+		res []dnsmessage.Resource
+		err error
+	}
+
+	res := make(chan result, 1)
+	go func() {
+		r, err := cgoResSearch(hostname, rtype, class)
+		res <- result{
+			res: r,
+			err: err,
+		}
+	}()
+
+	select {
+	case res := <-res:
+		return res.res, res.err
+	case <-ctx.Done():
+		return nil, mapErr(ctx.Err())
+	}
+}
+
+func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
 	acquireThread()
 	defer releaseThread()
 
