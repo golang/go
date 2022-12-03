@@ -336,16 +336,16 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 	}
 
 	type result struct {
-		err error
 		res []dnsmessage.Resource
+		err error
 	}
 
 	res := make(chan result, 1)
 	go func() {
 		r, err := cgoResSearch(hostname, rtype, class)
 		res <- result{
-			err: err,
 			res: r,
+			err: err,
 		}
 	}()
 
