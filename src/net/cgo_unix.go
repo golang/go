@@ -222,7 +222,7 @@ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err
 	case r := <-result:
 		return r.addrs, r.err, true
 	case <-ctx.Done():
-		return nil, mapErr(ctx.Err()), false
+		return nil, mapErr(ctx.Err()), true
 	}
 }
 
@@ -262,7 +262,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, 
 	case r := <-result:
 		return r.names, r.err, true
 	case <-ctx.Done():
-		return nil, mapErr(ctx.Err()), false
+		return nil, mapErr(ctx.Err()), true
 	}
 }
 
