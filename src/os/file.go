@@ -230,7 +230,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
 		return 0, err
 	}
 	r, e := f.seek(offset, whence)
-	if e == nil && f.dirinfo != nil && r != 0 {
+	if e == nil && f.dirInfo != nil && r != 0 {
 		e = syscall.EISDIR
 	}
 	if e != nil {

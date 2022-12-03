@@ -344,10 +344,10 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 		return 0, err
 	}
 	defer f.decref()
-	if f.dirinfo != nil {
-		// Free cached dirinfo, so we allocate a new one if we
+	if f.dirInfo != nil {
+		// Free cached dirInfo, so we allocate a new one if we
 		// access this file as a directory again. See #35767 and #37161.
-		f.dirinfo = nil
+		f.dirInfo = nil
 	}
 	return syscall.Seek(f.fd, offset, whence)
 }

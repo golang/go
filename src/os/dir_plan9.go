@@ -10,11 +10,11 @@ import (
 )
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	// If this file has no dirinfo, create one.
-	if file.dirinfo == nil {
-		file.dirinfo = new(dirInfo)
+	// If this file has no dirInfo, create one.
+	if file.dirInfo == nil {
+		file.dirInfo = new(dirInfo)
 	}
-	d := file.dirinfo
+	d := file.dirInfo
 	size := n
 	if size <= 0 {
 		size = 100

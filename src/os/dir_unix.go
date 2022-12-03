@@ -42,12 +42,12 @@ func (d *dirInfo) close() {
 }
 
 func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	// If this file has no dirinfo, create one.
-	if f.dirinfo == nil {
-		f.dirinfo = new(dirInfo)
-		f.dirinfo.buf = dirBufPool.Get().(*[]byte)
+	// If this file has no dirInfo, create one.
+	if f.dirInfo == nil {
+		f.dirInfo = new(dirInfo)
+		f.dirInfo.buf = dirBufPool.Get().(*[]byte)
 	}
-	d := f.dirinfo
+	d := f.dirInfo
 
 	// Change the meaning of n for the implementation below.
 	//

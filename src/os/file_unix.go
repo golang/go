@@ -54,7 +54,7 @@ func rename(oldname, newname string) error {
 type file struct {
 	pfd         poll.FD
 	name        string
-	dirinfo     *dirInfo // nil unless directory being read
+	dirInfo     *dirInfo // nil unless directory being read
 	nonblock    bool     // whether we set nonblocking mode
 	stdoutOrErr bool     // whether this is stdout or stderr
 	appendMode  bool     // whether file is opened for appending
@@ -254,9 +254,9 @@ func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
 	}
-	if file.dirinfo != nil {
-		file.dirinfo.close()
-		file.dirinfo = nil
+	if file.dirInfo != nil {
+		file.dirInfo.close()
+		file.dirInfo = nil
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
@@ -276,11 +276,11 @@ func (file *file) close() error {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
-	if f.dirinfo != nil {
-		// Free cached dirinfo, so we allocate a new one if we
+	if f.dirInfo != nil {
+		// Free cached dirInfo, so we allocate a new one if we
 		// access this file as a directory again. See #35767 and #37161.
-		f.dirinfo.close()
-		f.dirinfo = nil
+		f.dirInfo.close()
+		f.dirInfo = nil
 	}
 	ret, err = f.pfd.Seek(offset, whence)
 	runtime.KeepAlive(f)

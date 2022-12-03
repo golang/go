@@ -11,11 +11,11 @@ import (
 )
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	// If this file has no dirinfo, create one.
+	// If this file has no dirInfo, create one.
 	needdata := true
-	if file.dirinfo == nil {
+	if file.dirInfo == nil {
 		needdata = false
-		file.dirinfo, err = openDir(file.name)
+		file.dirInfo, err = openDir(file.name)
 		if err != nil {
 			err = &PathError{Op: "readdir", Path: file.name, Err: err}
 			return
@@ -25,10 +25,10 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 	if wantAll {
 		n = -1
 	}
-	d := &file.dirinfo.data
-	for n != 0 && !file.dirinfo.isempty {
+	d := &file.dirInfo.data
+	for n != 0 && !file.dirInfo.isempty {
 		if needdata {
-			e := syscall.FindNextFile(file.dirinfo.h, d)
+			e := syscall.FindNextFile(file.dirInfo.h, d)
 			runtime.KeepAlive(file)
 			if e != nil {
 				if e == syscall.ERROR_NO_MORE_FILES {
@@ -49,7 +49,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 		} else {
 			f := newFileStatFromWin32finddata(d)
 			f.name = name
-			f.path = file.dirinfo.path
+			f.path = file.dirInfo.path
 			f.appendNameToPath = true
 			if mode == readdirDirEntry {
 				dirents = append(dirents, dirEntry{f})
