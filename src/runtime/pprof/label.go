@@ -51,7 +51,12 @@ func (l *labelMap) String() string {
 
 	sort.Strings(keyVals)
 
-	return "{" + strings.Join(keyVals, ", ") + "}"
+	var buf strings.Builder
+	buf.WriteString("{")
+	buf.WriteString(strings.Join(keyVals, ", "))
+	buf.WriteString("}")
+
+	return buf.String()
 }
 
 // WithLabels returns a new context.Context with the given labels added.
