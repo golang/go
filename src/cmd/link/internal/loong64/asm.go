@@ -46,100 +46,28 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		}
 	case objabi.R_ADDRLOONG64TLS:
 		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_TLS_TPREL) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_LARCH_TLS_LE_LO12) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
-		out.Write64(uint64(0xfff))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_AND))
-		out.Write64(uint64(0x0))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_U_10_12))
-		out.Write64(uint64(0x0))
 
 	case objabi.R_ADDRLOONG64TLSU:
 		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_TLS_TPREL) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_LARCH_TLS_LE_HI20) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
-		out.Write64(uint64(0xc))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_SR))
-		out.Write64(uint64(0x0))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_S_5_20) | uint64(0)<<32)
-		out.Write64(uint64(0x0))
 
 	case objabi.R_CALLLOONG64:
 		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_PLT_PCREL) | uint64(elfsym)<<32)
+		out.Write64(uint64(elf.R_LARCH_B26) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
 
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2))
-		out.Write64(uint64(0x0))
-	// The pcaddu12i + addi.d instructions is used to obtain address of a symbol on Loong64.
-	// The low 12-bit of the symbol address need to be added. The addi.d instruction have
-	// signed 12-bit immediate operand. The 0x800 (addr+U12 <=> addr+0x800+S12) is introduced
-	// to do sign extending from 12 bits. The 0x804 is 0x800 + 4, 4 is instruction bit
-	// width on Loong64 and is used to correct the PC of the addi.d instruction.
 	case objabi.R_ADDRLOONG64:
 		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_PCREL) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd + 0x4))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_PCREL) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd + 0x804))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
-		out.Write64(uint64(0xc))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_SR))
-		out.Write64(uint64(0x0))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
-		out.Write64(uint64(0xc))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_SL))
-		out.Write64(uint64(0x0))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_SUB))
-		out.Write64(uint64(0x0))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_S_10_12))
-		out.Write64(uint64(0x0))
+		out.Write64(uint64(elf.R_LARCH_PCALA_LO12) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
 
 	case objabi.R_ADDRLOONG64U:
 		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_PCREL) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd + 0x800))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_PUSH_ABSOLUTE))
-		out.Write64(uint64(0xc))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_SR))
-		out.Write64(uint64(0x0))
-
-		out.Write64(uint64(sectoff))
-		out.Write64(uint64(elf.R_LARCH_SOP_POP_32_S_5_20) | uint64(0)<<32)
-		out.Write64(uint64(0x0))
+		out.Write64(uint64(elf.R_LARCH_PCALA_HI20) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
 	}
 
 	return true
@@ -156,7 +84,6 @@ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtRe
 func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loader.Reloc, s loader.Sym, val int64) (o int64, nExtReloc int, ok bool) {
 	rs := r.Sym()
 	if target.IsExternal() {
-		nExtReloc := 0
 		switch r.Type() {
 		default:
 			return val, 0, false
@@ -168,20 +95,12 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && ldr.SymSect(rs) == nil {
 				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
 			}
-			nExtReloc = 8 // need 8 ELF relocations. see elfreloc1
-			if r.Type() == objabi.R_ADDRLOONG64U {
-				nExtReloc = 4
-			}
-			return val, nExtReloc, true
+			return val, 1, true
 		case objabi.R_ADDRLOONG64TLS,
 			objabi.R_ADDRLOONG64TLSU,
 			objabi.R_CALLLOONG64,
 			objabi.R_JMPLOONG64:
-			nExtReloc = 4
-			if r.Type() == objabi.R_CALLLOONG64 || r.Type() == objabi.R_JMPLOONG64 {
-				nExtReloc = 2
-			}
-			return val, nExtReloc, true
+			return val, 1, true
 		}
 	}
 
@@ -196,11 +115,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	case objabi.R_ADDRLOONG64,
 		objabi.R_ADDRLOONG64U:
 		pc := ldr.SymValue(s) + int64(r.Off())
-		t := ldr.SymAddr(rs) + r.Add() - pc
+		t := calculatePCAlignedReloc(r.Type(), ldr.SymAddr(rs)+r.Add(), pc)
 		if r.Type() == objabi.R_ADDRLOONG64 {
-			return int64(val&0xffc003ff | (((t + 4 - ((t + 4 + 1<<11) >> 12 << 12)) << 10) & 0x3ffc00)), noExtReloc, isOk
+			return int64(val&0xffc003ff | (t << 10)), noExtReloc, isOk
 		}
-		return int64(val&0xfe00001f | (((t + 1<<11) >> 12 << 5) & 0x1ffffe0)), noExtReloc, isOk
+		return int64(val&0xfe00001f | (t << 5)), noExtReloc, isOk
 	case objabi.R_ADDRLOONG64TLS,
 		objabi.R_ADDRLOONG64TLSU:
 		t := ldr.SymAddr(rs) + r.Add()
@@ -237,4 +156,34 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 		return ld.ExtrelocSimple(ldr, r), true
 	}
 	return loader.ExtReloc{}, false
+}
+
+func isRequestingLowPageBits(t objabi.RelocType) bool {
+	switch t {
+	case objabi.R_ADDRLOONG64:
+		return true
+	}
+	return false
+}
+
+// Calculates the value to put into the immediate slot, according to the
+// desired relocation type, target and PC.
+// The value to use varies based on the reloc type. Namely, the absolute low
+// bits of the target are to be used for the low part, while the page-aligned
+// offset is to be used for the higher part. A "page" here is not related to
+// the system's actual page size, but rather a fixed 12-bit range (designed to
+// cooperate with ADDI/LD/ST's 12-bit immediates).
+func calculatePCAlignedReloc(t objabi.RelocType, tgt int64, pc int64) int64 {
+	if isRequestingLowPageBits(t) {
+		// corresponding immediate field is 12 bits wide
+		return tgt & 0xfff
+	}
+
+	pageDelta := (tgt >> 12) - (pc >> 12)
+	if tgt&0xfff >= 0x800 {
+		// adjust for sign-extended addition of the low bits
+		pageDelta += 1
+	}
+	// corresponding immediate field is 20 bits wide
+	return pageDelta & 0xfffff
 }

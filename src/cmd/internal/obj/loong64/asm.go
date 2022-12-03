@@ -1540,8 +1540,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(ABREAK)
 
 	// relocation operations
-	case 50: // mov r,addr ==> pcaddu12i + sw
-		o1 = OP_IR(c.opir(APCADDU12I), uint32(0), uint32(REGTMP))
+	case 50: // mov r,addr ==> pcalau12i + sw
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
@@ -1557,8 +1557,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel2.Add = p.To.Offset
 		rel2.Type = objabi.R_ADDRLOONG64
 
-	case 51: // mov addr,r ==> pcaddu12i + lw
-		o1 = OP_IR(c.opir(APCADDU12I), uint32(0), uint32(REGTMP))
+	case 51: // mov addr,r ==> pcalau12i + lw
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
@@ -1576,7 +1576,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 52: // mov $lext, r
 		// NOTE: this case does not use REGTMP. If it ever does,
 		// remove the NOTUSETMP flag in optab.
-		o1 = OP_IR(c.opir(APCADDU12I), uint32(0), uint32(p.To.Reg))
+		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(p.To.Reg))
 		rel := obj.Addrel(c.cursym)
 		rel.Off = int32(c.pc)
 		rel.Siz = 4
