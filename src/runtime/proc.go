@@ -4719,37 +4719,33 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		if n > 0 {
 			n += cgoOff
 		}
+	} else if usesLibcall() && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+		// Libcall, i.e. runtime syscall on windows.
+		// Collect Go stack that leads to the call.
+		n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[n], len(stk[n:]), nil, nil, 0)
+	} else if mp != nil && mp.vdsoSP != 0 {
+		// VDSO call, e.g. nanotime1 on Linux.
+		// Collect Go stack that leads to the call.
+		n = gentraceback(mp.vdsoPC, mp.vdsoSP, 0, gp, 0, &stk[n], len(stk[n:]), nil, nil, _TraceJumpStack)
 	} else {
 		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
 	}
 
 	if n <= 0 {
 		// Normal traceback is impossible or has failed.
-		// See if it falls into several common cases.
-		n = 0
-		if usesLibcall() && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
-			// Libcall, i.e. runtime syscall on windows.
-			// Collect Go stack that leads to the call.
-			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
+		// Account it against abstract "System" or "GC".
+		n = 2
+		if inVDSOPage(pc) {
+			pc = abi.FuncPCABIInternal(_VDSO) + sys.PCQuantum
+		} else if pc > firstmoduledata.etext {
+			// "ExternalCode" is better than "etext".
+			pc = abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum
 		}
-		if n == 0 && mp != nil && mp.vdsoSP != 0 {
-			n = gentraceback(mp.vdsoPC, mp.vdsoSP, 0, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
-		}
-		if n == 0 {
-			// If all of the above has failed, account it against abstract "System" or "GC".
-			n = 2
-			if inVDSOPage(pc) {
-				pc = abi.FuncPCABIInternal(_VDSO) + sys.PCQuantum
-			} else if pc > firstmoduledata.etext {
-				// "ExternalCode" is better than "etext".
-				pc = abi.FuncPCABIInternal(_ExternalCode) + sys.PCQuantum
-			}
-			stk[0] = pc
-			if mp.preemptoff != "" {
-				stk[1] = abi.FuncPCABIInternal(_GC) + sys.PCQuantum
-			} else {
-				stk[1] = abi.FuncPCABIInternal(_System) + sys.PCQuantum
-			}
+		stk[0] = pc
+		if mp.preemptoff != "" {
+			stk[1] = abi.FuncPCABIInternal(_GC) + sys.PCQuantum
+		} else {
+			stk[1] = abi.FuncPCABIInternal(_System) + sys.PCQuantum
 		}
 	}
 
