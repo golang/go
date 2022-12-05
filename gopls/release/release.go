@@ -15,7 +15,6 @@ import (
 	"flag"
 	"fmt"
 	"go/types"
-	exec "golang.org/x/sys/execabs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -23,6 +22,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	exec "golang.org/x/sys/execabs"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
@@ -71,7 +72,7 @@ func main() {
 		log.Fatal(err)
 	}
 	// Confirm that they have updated the hardcoded version.
-	if err := validateHardcodedVersion(wd, *versionFlag); err != nil {
+	if err := validateHardcodedVersion(*versionFlag); err != nil {
 		log.Fatal(err)
 	}
 	// Confirm that the versions in the go.mod file are correct.
@@ -129,13 +130,13 @@ func validateBranchName(version string) error {
 // validateHardcodedVersion reports whether the version hardcoded in the gopls
 // binary is equivalent to the version being published. It reports an error if
 // not.
-func validateHardcodedVersion(wd string, version string) error {
+func validateHardcodedVersion(version string) error {
+	const debugPkg = "golang.org/x/tools/gopls/internal/lsp/debug"
 	pkgs, err := packages.Load(&packages.Config{
-		Dir: filepath.Dir(wd),
 		Mode: packages.NeedName | packages.NeedFiles |
 			packages.NeedCompiledGoFiles | packages.NeedImports |
 			packages.NeedTypes | packages.NeedTypesSizes,
-	}, "golang.org/x/tools/gopls/internal/lsp/debug")
+	}, debugPkg)
 	if err != nil {
 		return err
 	}
@@ -143,6 +144,9 @@ func validateHardcodedVersion(wd string, version string) error {
 		return fmt.Errorf("expected 1 package, got %v", len(pkgs))
 	}
 	pkg := pkgs[0]
+	if len(pkg.Errors) > 0 {
+		return fmt.Errorf("failed to load %q: first error: %w", debugPkg, pkg.Errors[0])
+	}
 	obj := pkg.Types.Scope().Lookup("Version")
 	c, ok := obj.(*types.Const)
 	if !ok {
@@ -164,8 +168,8 @@ func validateHardcodedVersion(wd string, version string) error {
 	return nil
 }
 
-func validateGoModFile(wd string) error {
-	filename := filepath.Join(wd, "go.mod")
+func validateGoModFile(goplsDir string) error {
+	filename := filepath.Join(goplsDir, "go.mod")
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
