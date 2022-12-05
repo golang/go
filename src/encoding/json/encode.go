@@ -156,7 +156,7 @@ import (
 // an error.
 func Marshal(v any) ([]byte, error) {
 	e := newEncodeState()
-	defer encodeStatePool.Put(e)
+	defer cacheEncodeState(e)
 
 	err := e.marshal(v, encOpts{escapeHTML: true})
 	if err != nil {
@@ -310,6 +310,14 @@ func newEncodeState() *encodeState {
 		return e
 	}
 	return &encodeState{ptrSeen: make(map[any]struct{})}
+}
+
+func cacheEncodeState(e *encodeState) {
+	// caching large objects is not memory efficient.
+	if e.Buffer.Cap() > 32768 {
+		return
+	}
+	encodeStatePool.Put(e)
 }
 
 // jsonError is an error wrapper type for internal use only.
@@ -640,7 +648,7 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		// the first time.
 		e2.string(v.String(), opts.escapeHTML)
 		e.stringBytes(e2.Bytes(), false)
-		encodeStatePool.Put(e2)
+		cacheEncodeState(e2)
 	} else {
 		e.string(v.String(), opts.escapeHTML)
 	}
