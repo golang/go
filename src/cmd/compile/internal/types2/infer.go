@@ -537,7 +537,7 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 						if core.tilde {
 							tilde = "~"
 						}
-						check.errorf(pos, InvalidTypeArg, "%s does not match %s%s", tpar, tilde, core.typ)
+						check.errorf(pos, InvalidTypeArg, "%s does not match %s%s", tx, tilde, core.typ)
 						return nil, 0
 					}
 
