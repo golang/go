@@ -297,7 +297,7 @@ func (p *Parser) asmGlobl(operands [][]lex.Token) {
 	}
 
 	// log.Printf("GLOBL %s %d, $%d", name, flag, size)
-	p.ctxt.Globl(nameAddr.Sym, addr.Offset, int(flag))
+	p.ctxt.GloblPos(nameAddr.Sym, addr.Offset, int(flag), p.pos())
 }
 
 // asmPCData assembles a PCDATA pseudo-op.
