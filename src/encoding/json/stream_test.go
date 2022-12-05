@@ -84,6 +84,7 @@ func TestEncoderErrorAndReuseEncodeState(t *testing.T) {
 		I int
 	}
 	data := Data{A: "a", I: 1}
+	buf.Reset()
 	if err := enc.Encode(data); err != nil {
 		t.Errorf("Marshal(%v) = %v", data, err)
 	}

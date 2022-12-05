@@ -15,6 +15,7 @@ import (
 	"encoding"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"math"
 	"reflect"
 	"sort"
@@ -155,14 +156,14 @@ import (
 // handle them. Passing cyclic structures to Marshal will result in
 // an error.
 func Marshal(v any) ([]byte, error) {
-	e := newEncodeState()
-	defer encodeStatePool.Put(e)
+	e := newEncodeState(nil)
+	defer cacheEncodeState(e)
 
 	err := e.marshal(v, encOpts{escapeHTML: true})
 	if err != nil {
 		return nil, err
 	}
-	buf := append([]byte(nil), e.Bytes()...)
+	buf := append([]byte(nil), e.b.Bytes()...)
 
 	return buf, nil
 }
@@ -283,8 +284,9 @@ var hex = "0123456789abcdef"
 
 // An encodeState encodes JSON into a bytes.Buffer.
 type encodeState struct {
-	bytes.Buffer // accumulated output
-	scratch      [64]byte
+	w       io.Writer
+	b       bytes.Buffer
+	scratch [64]byte
 
 	// Keep track of what pointers we've seen in the current recursive call
 	// path, to avoid cycles that could lead to a stack overflow. Only do
@@ -299,17 +301,22 @@ const startDetectingCyclesAfter = 1000
 
 var encodeStatePool sync.Pool
 
-func newEncodeState() *encodeState {
+func newEncodeState(w io.Writer) *encodeState {
 	if v := encodeStatePool.Get(); v != nil {
 		e := v.(*encodeState)
-		e.Reset()
+		e.b.Reset()
 		if len(e.ptrSeen) > 0 {
 			panic("ptrEncoder.encode should have emptied ptrSeen via defers")
 		}
 		e.ptrLevel = 0
+		e.w = w
 		return e
 	}
-	return &encodeState{ptrSeen: make(map[any]struct{})}
+	return &encodeState{w: w, ptrSeen: make(map[any]struct{})}
+}
+
+func cacheEncodeState(e *encodeState) {
+	encodeStatePool.Put(e)
 }
 
 // jsonError is an error wrapper type for internal use only.
@@ -477,7 +484,9 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	b, err := m.MarshalJSON()
 	if err == nil {
 		// copy JSON into buffer, checking validity.
-		err = compact(&e.Buffer, b, opts.escapeHTML)
+		var buf bytes.Buffer
+		err = compact(&buf, b, opts.escapeHTML)
+		e.Write(buf.Bytes())
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalJSON"})
@@ -494,7 +503,9 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	b, err := m.MarshalJSON()
 	if err == nil {
 		// copy JSON into buffer, checking validity.
-		err = compact(&e.Buffer, b, opts.escapeHTML)
+		var buf bytes.Buffer
+		err = compact(&buf, b, opts.escapeHTML)
+		e.Write(buf.Bytes())
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalJSON"})
@@ -635,12 +646,13 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		return
 	}
 	if opts.quoted {
-		e2 := newEncodeState()
+		var b bytes.Buffer
+		e2 := newEncodeState(&b)
 		// Since we encode the string twice, we only need to escape HTML
 		// the first time.
 		e2.string(v.String(), opts.escapeHTML)
-		e.stringBytes(e2.Bytes(), false)
-		encodeStatePool.Put(e2)
+		e.stringBytes(b.Bytes(), false)
+		cacheEncodeState(e2)
 	} else {
 		e.string(v.String(), opts.escapeHTML)
 	}
@@ -1414,4 +1426,33 @@ func cachedTypeFields(t reflect.Type) structFields {
 	}
 	f, _ := fieldCache.LoadOrStore(t, typeFields(t))
 	return f.(structFields)
+}
+
+func (e *encodeState) WriteString(s string) (n int, err error) {
+	if e.w == nil {
+		return e.b.WriteString(s)
+	}
+	return io.WriteString(e.w, s)
+}
+
+func (e *encodeState) Write(p []byte) (n int, err error) {
+	if e.w == nil {
+		return e.b.Write(p)
+	}
+	return e.w.Write(p)
+}
+
+func (e *encodeState) WriteByte(c byte) error {
+	if e.w == nil {
+		return e.b.WriteByte(c)
+	}
+	_, err := e.w.Write([]byte{c})
+	return err
+}
+
+func (e *encodeState) Bytes() []byte {
+	if e.w == nil {
+		return e.b.Bytes()
+	}
+	return []byte{}
 }

@@ -180,6 +180,7 @@ func nonSpace(b []byte) bool {
 // An Encoder writes JSON values to an output stream.
 type Encoder struct {
 	w          io.Writer
+	b          bytes.Buffer
 	err        error
 	escapeHTML bool
 
@@ -203,8 +204,11 @@ func (enc *Encoder) Encode(v any) error {
 		return enc.err
 	}
 
-	e := newEncodeState()
-	defer encodeStatePool.Put(e)
+	e := newEncodeState(enc.w)
+	defer cacheEncodeState(e)
+	if enc.indentPrefix != "" || enc.indentValue != "" {
+		e.w = nil
+	}
 
 	err := e.marshal(v, encOpts{escapeHTML: enc.escapeHTML})
 	if err != nil {
@@ -219,8 +223,8 @@ func (enc *Encoder) Encode(v any) error {
 	// digits coming.
 	e.WriteByte('\n')
 
-	b := e.Bytes()
 	if enc.indentPrefix != "" || enc.indentValue != "" {
+		b := e.Bytes()
 		if enc.indentBuf == nil {
 			enc.indentBuf = new(bytes.Buffer)
 		}
@@ -230,9 +234,9 @@ func (enc *Encoder) Encode(v any) error {
 			return err
 		}
 		b = enc.indentBuf.Bytes()
-	}
-	if _, err = enc.w.Write(b); err != nil {
-		enc.err = err
+		if _, err = enc.w.Write(b); err != nil {
+			enc.err = err
+		}
 	}
 	return err
 }

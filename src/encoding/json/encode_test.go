@@ -714,14 +714,15 @@ func TestStringBytes(t *testing.T) {
 	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
 
 	for _, escapeHTML := range []bool{true, false} {
-		es := &encodeState{}
+		var esBuf, esBytesBuf bytes.Buffer
+		es := &encodeState{w: &esBuf}
 		es.string(s, escapeHTML)
 
-		esBytes := &encodeState{}
+		esBytes := &encodeState{w: &esBytesBuf}
 		esBytes.stringBytes([]byte(s), escapeHTML)
 
-		enc := es.Buffer.String()
-		encBytes := esBytes.Buffer.String()
+		enc := esBuf.String()
+		encBytes := esBytesBuf.String()
 		if enc != encBytes {
 			i := 0
 			for i < len(enc) && i < len(encBytes) && enc[i] == encBytes[i] {
