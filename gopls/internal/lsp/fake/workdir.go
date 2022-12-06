@@ -330,12 +330,87 @@ func (w *Workdir) fileEvent(path string, changeType protocol.FileChangeType) Fil
 
 // RenameFile performs an on disk-renaming of the workdir-relative oldPath to
 // workdir-relative newPath.
+//
+// oldPath must either be a regular file or in the same directory as newPath.
 func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error {
 	oldAbs := w.AbsPath(oldPath)
 	newAbs := w.AbsPath(newPath)
 
-	if err := robustio.Rename(oldAbs, newAbs); err != nil {
-		return err
+	w.fileMu.Lock()
+	defer w.fileMu.Unlock()
+
+	// For os.Rename, “OS-specific restrictions may apply when oldpath and newpath
+	// are in different directories.” If that applies here, we may fall back to
+	// ReadFile, WriteFile, and RemoveFile to perform the rename non-atomically.
+	//
+	// However, the fallback path only works for regular files: renaming a
+	// directory would be much more complex and isn't needed for our tests.
+	fallbackOk := false
+	if filepath.Dir(oldAbs) != filepath.Dir(newAbs) {
+		fi, err := os.Stat(oldAbs)
+		if err == nil && !fi.Mode().IsRegular() {
+			return &os.PathError{
+				Op:   "RenameFile",
+				Path: oldPath,
+				Err:  fmt.Errorf("%w: file is not regular and not in the same directory as %s", os.ErrInvalid, newPath),
+			}
+		}
+		fallbackOk = true
+	}
+
+	var renameErr error
+	const debugFallback = false
+	if fallbackOk && debugFallback {
+		renameErr = fmt.Errorf("%w: debugging fallback path", os.ErrInvalid)
+	} else {
+		renameErr = robustio.Rename(oldAbs, newAbs)
+	}
+	if renameErr != nil {
+		if !fallbackOk {
+			return renameErr // The OS-specific Rename restrictions do not apply.
+		}
+
+		content, err := w.ReadFile(oldPath)
+		if err != nil {
+			// If we can't even read the file, the error from Rename may be accurate.
+			return renameErr
+		}
+		fi, err := os.Stat(newAbs)
+		if err == nil {
+			if fi.IsDir() {
+				// “If newpath already exists and is not a directory, Rename replaces it.”
+				// But if it is a directory, maybe not?
+				return renameErr
+			}
+			// On most platforms, Rename replaces the named file with a new file,
+			// rather than overwriting the existing file it in place. Mimic that
+			// behavior here.
+			if err := robustio.RemoveAll(newAbs); err != nil {
+				// Maybe we don't have permission to replace newPath?
+				return renameErr
+			}
+		} else if !os.IsNotExist(err) {
+			// If the destination path already exists or there is some problem with it,
+			// the error from Rename may be accurate.
+			return renameErr
+		}
+		if writeErr := WriteFileData(newPath, []byte(content), w.RelativeTo); writeErr != nil {
+			// At this point we have tried to actually write the file.
+			// If it still doesn't exist, assume that the error from Rename was accurate:
+			// for example, maybe we don't have permission to create the new path.
+			// Otherwise, return the error from the write, which may indicate some
+			// other problem (such as a full disk).
+			if _, statErr := os.Stat(newAbs); !os.IsNotExist(statErr) {
+				return writeErr
+			}
+			return renameErr
+		}
+		if err := robustio.RemoveAll(oldAbs); err != nil {
+			// If we failed to remove the old file, that may explain the Rename error too.
+			// Make a best effort to back out the write to the new path.
+			robustio.RemoveAll(newAbs)
+			return renameErr
+		}
 	}
 
 	// Send synthetic file events for the renaming. Renamed files are handled as
@@ -346,7 +421,7 @@ func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error
 		w.fileEvent(newPath, protocol.Created),
 	}
 	w.sendEvents(ctx, events)
-
+	delete(w.files, oldPath)
 	return nil
 }
 
