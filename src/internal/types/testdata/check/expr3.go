@@ -157,10 +157,10 @@ func (*T) m() {}
 func method_expressions() {
 	_ = T.a /* ERROR "no field or method" */
 	_ = T.x /* ERROR "has no method" */
-	_ = T.m /* ERROR "cannot call pointer method m on T" */
+	_ = T.m /* ERROR "invalid method expression T\.m \(needs pointer receiver \(\*T\)\.m\)" */
 	_ = (*T).m
 
-	var f func(*T) = T.m /* ERROR "cannot call pointer method m on T" */
+	var f func(*T) = T.m /* ERROR "invalid method expression T\.m \(needs pointer receiver \(\*T\)\.m\)" */
 	var g func(*T) = (*T).m
 	_, _ = f, g
 

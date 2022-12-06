@@ -573,7 +573,11 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 		}
 
 		if indirect {
-			check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
+			if x.mode == typexpr {
+				check.errorf(e.Sel, InvalidMethodExpr, "invalid method expression %s.%s (needs pointer receiver (*%s).%s)", x.typ, sel, x.typ, sel)
+			} else {
+				check.errorf(e.Sel, InvalidMethodExpr, "cannot call pointer method %s on %s", sel, x.typ)
+			}
 			goto Error
 		}
 
