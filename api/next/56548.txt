@@ -1,1 +1,0 @@
-pkg go/types, func Satisfies(Type, *Interface) bool #56548

@@ -1,0 +1,428 @@
+pkg archive/tar, var ErrInsecurePath error #55356
+pkg archive/zip, var ErrInsecurePath error #55356
+pkg bytes, func Clone([]uint8) []uint8 #45038
+pkg bytes, func CutPrefix([]uint8, []uint8) ([]uint8, bool) #42537
+pkg bytes, func CutSuffix([]uint8, []uint8) ([]uint8, bool) #42537
+pkg context, func Cause(Context) error #51365
+pkg context, func WithCancelCause(Context) (Context, CancelCauseFunc) #51365
+pkg context, type CancelCauseFunc func(error) #51365
+pkg crypto/ecdh, func P256() Curve #52221
+pkg crypto/ecdh, func P384() Curve #52221
+pkg crypto/ecdh, func P521() Curve #52221
+pkg crypto/ecdh, func X25519() Curve #52221
+pkg crypto/ecdh, method (*PrivateKey) Bytes() []uint8 #52221
+pkg crypto/ecdh, method (*PrivateKey) Curve() Curve #52221
+pkg crypto/ecdh, method (*PrivateKey) ECDH(*PublicKey) ([]uint8, error) #52221
+pkg crypto/ecdh, method (*PrivateKey) Equal(crypto.PrivateKey) bool #52221
+pkg crypto/ecdh, method (*PrivateKey) Public() crypto.PublicKey #52221
+pkg crypto/ecdh, method (*PrivateKey) PublicKey() *PublicKey #52221
+pkg crypto/ecdh, method (*PublicKey) Bytes() []uint8 #52221
+pkg crypto/ecdh, method (*PublicKey) Curve() Curve #52221
+pkg crypto/ecdh, method (*PublicKey) Equal(crypto.PublicKey) bool #52221
+pkg crypto/ecdh, type Curve interface, GenerateKey(io.Reader) (*PrivateKey, error) #52221
+pkg crypto/ecdh, type Curve interface, NewPrivateKey([]uint8) (*PrivateKey, error) #52221
+pkg crypto/ecdh, type Curve interface, NewPublicKey([]uint8) (*PublicKey, error) #52221
+pkg crypto/ecdh, type Curve interface, unexported methods #52221
+pkg crypto/ecdh, type PrivateKey struct #52221
+pkg crypto/ecdh, type PublicKey struct #52221
+pkg crypto/ecdsa, method (*PrivateKey) ECDH() (*ecdh.PrivateKey, error) #56088
+pkg crypto/ecdsa, method (*PublicKey) ECDH() (*ecdh.PublicKey, error) #56088
+pkg crypto/ed25519, func VerifyWithOptions(PublicKey, []uint8, []uint8, *Options) error #31804
+pkg crypto/ed25519, method (*Options) HashFunc() crypto.Hash #31804
+pkg crypto/ed25519, type Options struct #31804
+pkg crypto/ed25519, type Options struct, Context string #31804
+pkg crypto/ed25519, type Options struct, Hash crypto.Hash #31804
+pkg crypto/rsa, type OAEPOptions struct, MGFHash crypto.Hash #19974
+pkg crypto/subtle, func XORBytes([]uint8, []uint8, []uint8) int #53021
+pkg crypto/tls, method (*CertificateVerificationError) Error() string #48152
+pkg crypto/tls, method (*CertificateVerificationError) Unwrap() error #48152
+pkg crypto/tls, type CertificateVerificationError struct #48152
+pkg crypto/tls, type CertificateVerificationError struct, Err error #48152
+pkg crypto/tls, type CertificateVerificationError struct, UnverifiedCertificates []*x509.Certificate #48152
+pkg crypto/x509, func SetFallbackRoots(*CertPool) #43958
+pkg debug/elf, const R_LARCH_32_PCREL = 99 #54222
+pkg debug/elf, const R_LARCH_32_PCREL R_LARCH #54222
+pkg debug/elf, const R_LARCH_ABS64_HI12 = 70 #54222
+pkg debug/elf, const R_LARCH_ABS64_HI12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_ABS64_LO20 = 69 #54222
+pkg debug/elf, const R_LARCH_ABS64_LO20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_ABS_HI20 = 67 #54222
+pkg debug/elf, const R_LARCH_ABS_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_ABS_LO12 = 68 #54222
+pkg debug/elf, const R_LARCH_ABS_LO12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_B16 = 64 #54222
+pkg debug/elf, const R_LARCH_B16 R_LARCH #54222
+pkg debug/elf, const R_LARCH_B21 = 65 #54222
+pkg debug/elf, const R_LARCH_B21 R_LARCH #54222
+pkg debug/elf, const R_LARCH_B26 = 66 #54222
+pkg debug/elf, const R_LARCH_B26 R_LARCH #54222
+pkg debug/elf, const R_LARCH_GNU_VTENTRY = 58 #54222
+pkg debug/elf, const R_LARCH_GNU_VTENTRY R_LARCH #54222
+pkg debug/elf, const R_LARCH_GNU_VTINHERIT = 57 #54222
+pkg debug/elf, const R_LARCH_GNU_VTINHERIT R_LARCH #54222
+pkg debug/elf, const R_LARCH_GOT64_HI12 = 82 #54222
+pkg debug/elf, const R_LARCH_GOT64_HI12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_GOT64_LO20 = 81 #54222
+pkg debug/elf, const R_LARCH_GOT64_LO20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_GOT64_PC_HI12 = 78 #54222
+pkg debug/elf, const R_LARCH_GOT64_PC_HI12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_GOT64_PC_LO20 = 77 #54222
+pkg debug/elf, const R_LARCH_GOT64_PC_LO20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_GOT_HI20 = 79 #54222
+pkg debug/elf, const R_LARCH_GOT_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_GOT_LO12 = 80 #54222
+pkg debug/elf, const R_LARCH_GOT_LO12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_GOT_PC_HI20 = 75 #54222
+pkg debug/elf, const R_LARCH_GOT_PC_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_GOT_PC_LO12 = 76 #54222
+pkg debug/elf, const R_LARCH_GOT_PC_LO12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_PCALA64_HI12 = 74 #54222
+pkg debug/elf, const R_LARCH_PCALA64_HI12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_PCALA64_LO20 = 73 #54222
+pkg debug/elf, const R_LARCH_PCALA64_LO20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_PCALA_HI20 = 71 #54222
+pkg debug/elf, const R_LARCH_PCALA_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_PCALA_LO12 = 72 #54222
+pkg debug/elf, const R_LARCH_PCALA_LO12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_RELAX = 100 #54222
+pkg debug/elf, const R_LARCH_RELAX R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_GD_HI20 = 98 #54222
+pkg debug/elf, const R_LARCH_TLS_GD_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_GD_PC_HI20 = 97 #54222
+pkg debug/elf, const R_LARCH_TLS_GD_PC_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_IE64_HI12 = 94 #54222
+pkg debug/elf, const R_LARCH_TLS_IE64_HI12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_IE64_LO20 = 93 #54222
+pkg debug/elf, const R_LARCH_TLS_IE64_LO20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_IE64_PC_HI12 = 90 #54222
+pkg debug/elf, const R_LARCH_TLS_IE64_PC_HI12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_IE64_PC_LO20 = 89 #54222
+pkg debug/elf, const R_LARCH_TLS_IE64_PC_LO20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_IE_HI20 = 91 #54222
+pkg debug/elf, const R_LARCH_TLS_IE_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_IE_LO12 = 92 #54222
+pkg debug/elf, const R_LARCH_TLS_IE_LO12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_IE_PC_HI20 = 87 #54222
+pkg debug/elf, const R_LARCH_TLS_IE_PC_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_IE_PC_LO12 = 88 #54222
+pkg debug/elf, const R_LARCH_TLS_IE_PC_LO12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_LD_HI20 = 96 #54222
+pkg debug/elf, const R_LARCH_TLS_LD_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_LD_PC_HI20 = 95 #54222
+pkg debug/elf, const R_LARCH_TLS_LD_PC_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_LE64_HI12 = 86 #54222
+pkg debug/elf, const R_LARCH_TLS_LE64_HI12 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_LE64_LO20 = 85 #54222
+pkg debug/elf, const R_LARCH_TLS_LE64_LO20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_LE_HI20 = 83 #54222
+pkg debug/elf, const R_LARCH_TLS_LE_HI20 R_LARCH #54222
+pkg debug/elf, const R_LARCH_TLS_LE_LO12 = 84 #54222
+pkg debug/elf, const R_LARCH_TLS_LE_LO12 R_LARCH #54222
+pkg debug/elf, const R_PPC64_ADDR16_HIGHER34 = 136 #54345
+pkg debug/elf, const R_PPC64_ADDR16_HIGHER34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_ADDR16_HIGHERA34 = 137 #54345
+pkg debug/elf, const R_PPC64_ADDR16_HIGHERA34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_ADDR16_HIGHEST34 = 138 #54345
+pkg debug/elf, const R_PPC64_ADDR16_HIGHEST34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_ADDR16_HIGHESTA34 = 139 #54345
+pkg debug/elf, const R_PPC64_ADDR16_HIGHESTA34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_COPY = 19 #54345
+pkg debug/elf, const R_PPC64_COPY R_PPC64 #54345
+pkg debug/elf, const R_PPC64_D28 = 144 #54345
+pkg debug/elf, const R_PPC64_D28 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_D34 = 128 #54345
+pkg debug/elf, const R_PPC64_D34_HA30 = 131 #54345
+pkg debug/elf, const R_PPC64_D34_HA30 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_D34_HI30 = 130 #54345
+pkg debug/elf, const R_PPC64_D34_HI30 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_D34_LO = 129 #54345
+pkg debug/elf, const R_PPC64_D34_LO R_PPC64 #54345
+pkg debug/elf, const R_PPC64_D34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_DTPREL34 = 147 #54345
+pkg debug/elf, const R_PPC64_DTPREL34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_GLOB_DAT = 20 #54345
+pkg debug/elf, const R_PPC64_GLOB_DAT R_PPC64 #54345
+pkg debug/elf, const R_PPC64_GNU_VTENTRY = 254 #54345
+pkg debug/elf, const R_PPC64_GNU_VTENTRY R_PPC64 #54345
+pkg debug/elf, const R_PPC64_GNU_VTINHERIT = 253 #54345
+pkg debug/elf, const R_PPC64_GNU_VTINHERIT R_PPC64 #54345
+pkg debug/elf, const R_PPC64_GOT_DTPREL_PCREL34 = 151 #54345
+pkg debug/elf, const R_PPC64_GOT_DTPREL_PCREL34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_GOT_PCREL34 = 133 #54345
+pkg debug/elf, const R_PPC64_GOT_PCREL34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_GOT_TLSGD_PCREL34 = 148 #54345
+pkg debug/elf, const R_PPC64_GOT_TLSGD_PCREL34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_GOT_TLSLD_PCREL34 = 149 #54345
+pkg debug/elf, const R_PPC64_GOT_TLSLD_PCREL34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_GOT_TPREL_PCREL34 = 150 #54345
+pkg debug/elf, const R_PPC64_GOT_TPREL_PCREL34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PCREL28 = 145 #54345
+pkg debug/elf, const R_PPC64_PCREL28 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PCREL34 = 132 #54345
+pkg debug/elf, const R_PPC64_PCREL34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PCREL_OPT = 123 #54345
+pkg debug/elf, const R_PPC64_PCREL_OPT R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLT16_HA = 31 #54345
+pkg debug/elf, const R_PPC64_PLT16_HA R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLT16_HI = 30 #54345
+pkg debug/elf, const R_PPC64_PLT16_HI R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLT16_LO = 29 #54345
+pkg debug/elf, const R_PPC64_PLT16_LO R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLT32 = 27 #54345
+pkg debug/elf, const R_PPC64_PLT32 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLT64 = 45 #54345
+pkg debug/elf, const R_PPC64_PLT64 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLTCALL = 120 #54345
+pkg debug/elf, const R_PPC64_PLTCALL_NOTOC = 122 #54345
+pkg debug/elf, const R_PPC64_PLTCALL_NOTOC R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLTCALL R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLT_PCREL34 = 134 #54345
+pkg debug/elf, const R_PPC64_PLT_PCREL34_NOTOC = 135 #54345
+pkg debug/elf, const R_PPC64_PLT_PCREL34_NOTOC R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLT_PCREL34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLTREL32 = 28 #54345
+pkg debug/elf, const R_PPC64_PLTREL32 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLTREL64 = 46 #54345
+pkg debug/elf, const R_PPC64_PLTREL64 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLTSEQ = 119 #54345
+pkg debug/elf, const R_PPC64_PLTSEQ_NOTOC = 121 #54345
+pkg debug/elf, const R_PPC64_PLTSEQ_NOTOC R_PPC64 #54345
+pkg debug/elf, const R_PPC64_PLTSEQ R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGH = 240 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHA = 241 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHA R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHER = 242 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHER34 = 140 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHER34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHERA = 243 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHERA34 = 141 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHERA34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHERA R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHER R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHEST = 244 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHEST34 = 142 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHEST34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHESTA = 245 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHESTA34 = 143 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHESTA34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHESTA R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGHEST R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL16_HIGH R_PPC64 #54345
+pkg debug/elf, const R_PPC64_REL30 = 37 #54345
+pkg debug/elf, const R_PPC64_REL30 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_SECTOFF = 33 #54345
+pkg debug/elf, const R_PPC64_SECTOFF_HA = 36 #54345
+pkg debug/elf, const R_PPC64_SECTOFF_HA R_PPC64 #54345
+pkg debug/elf, const R_PPC64_SECTOFF_HI = 35 #54345
+pkg debug/elf, const R_PPC64_SECTOFF_HI R_PPC64 #54345
+pkg debug/elf, const R_PPC64_SECTOFF_LO = 34 #54345
+pkg debug/elf, const R_PPC64_SECTOFF_LO_DS = 62 #53356
+pkg debug/elf, const R_PPC64_SECTOFF_LO R_PPC64 #54345
+pkg debug/elf, const R_PPC64_SECTOFF R_PPC64 #54345
+pkg debug/elf, const R_PPC64_TPREL34 = 146 #54345
+pkg debug/elf, const R_PPC64_TPREL34 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_UADDR16 = 25 #54345
+pkg debug/elf, const R_PPC64_UADDR16 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_UADDR32 = 24 #54345
+pkg debug/elf, const R_PPC64_UADDR32 R_PPC64 #54345
+pkg debug/elf, const R_PPC64_UADDR64 = 43 #54345
+pkg debug/elf, const R_PPC64_UADDR64 R_PPC64 #54345
+pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV128 = 20776 #54251
+pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV128 ideal-int #54251
+pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV32 = 20530 #54251
+pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV32 ideal-int #54251
+pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV64 = 20580 #54251
+pkg debug/pe, const IMAGE_FILE_MACHINE_RISCV64 ideal-int #54251
+pkg encoding/xml, method (*Encoder) Close() error #53346
+pkg errors, func Join(...error) error #53435
+pkg fmt, func FormatString(State, int32) string #51668
+pkg go/ast, type File struct, FileEnd token.Pos #53202
+pkg go/ast, type File struct, FileStart token.Pos #53202
+pkg go/ast, type RangeStmt struct, Range token.Pos #50429
+pkg go/token, method (*FileSet) RemoveFile(*File) #53200
+pkg go/types, func Satisfies(Type, *Interface) bool #56548
+pkg io/fs, var SkipAll error #47209
+pkg io, func NewOffsetWriter(WriterAt, int64) *OffsetWriter #45899
+pkg io, method (*OffsetWriter) Seek(int64, int) (int64, error) #45899
+pkg io, method (*OffsetWriter) WriteAt([]uint8, int64) (int, error) #45899
+pkg io, method (*OffsetWriter) Write([]uint8) (int, error) #45899
+pkg io, type OffsetWriter struct #45899
+pkg math/rand, func Read //deprecated #20661
+pkg math/rand, func Seed //deprecated #56319
+pkg net, const FlagRunning = 32 #53482
+pkg net, const FlagRunning Flags #53482
+pkg net/http, func NewResponseController(ResponseWriter) *ResponseController #54136
+pkg net/http/httputil, method (*ProxyRequest) SetURL(*url.URL) #53002
+pkg net/http/httputil, method (*ProxyRequest) SetXForwarded() #53002
+pkg net/http/httputil, type ProxyRequest struct #53002
+pkg net/http/httputil, type ProxyRequest struct, In *http.Request #53002
+pkg net/http/httputil, type ProxyRequest struct, Out *http.Request #53002
+pkg net/http/httputil, type ReverseProxy struct, Rewrite func(*ProxyRequest) #53002
+pkg net/http, method (*ResponseController) Flush() error #54136
+pkg net/http, method (*ResponseController) Hijack() (net.Conn, *bufio.ReadWriter, error) #54136
+pkg net/http, method (*ResponseController) SetReadDeadline(time.Time) error #54136
+pkg net/http, method (*ResponseController) SetWriteDeadline(time.Time) error #54136
+pkg net/http, type ResponseController struct #54136
+pkg net/http, type Server struct, DisableGeneralOptionsHandler bool #41773
+pkg net/http, type Transport struct, OnProxyConnectResponse func(context.Context, *url.URL, *Request, *Response) error #54299
+pkg net/netip, func IPv6LinkLocalAllRouters() Addr #51766
+pkg net/netip, func IPv6Loopback() Addr #51777
+pkg net, type Dialer struct, ControlContext func(context.Context, string, string, syscall.RawConn) error #55301
+pkg os/exec, type Cmd struct, Cancel func() error #50436
+pkg os/exec, type Cmd struct, WaitDelay time.Duration #50436
+pkg os/exec, var ErrWaitDelay error #50436
+pkg path/filepath, func IsLocal(string) bool #56219
+pkg path/filepath, var SkipAll error #47209
+pkg reflect, method (Value) Comparable() bool #46746
+pkg reflect, method (Value) Equal(Value) bool #46746
+pkg reflect, method (Value) Grow(int) #48000
+pkg reflect, method (Value) SetZero() #52376
+pkg regexp/syntax, const ErrLarge ErrorCode #56041
+pkg regexp/syntax, const ErrLarge = "expression too large" #56041
+pkg runtime/cgo (darwin-amd64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (darwin-arm64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (freebsd-386-cgo), type Incomplete struct #46731
+pkg runtime/cgo (freebsd-amd64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (freebsd-arm-cgo), type Incomplete struct #46731
+pkg runtime/cgo (linux-386-cgo), type Incomplete struct #46731
+pkg runtime/cgo (linux-amd64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (linux-arm-cgo), type Incomplete struct #46731
+pkg runtime/cgo (netbsd-386-cgo), type Incomplete struct #46731
+pkg runtime/cgo (netbsd-amd64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (netbsd-arm64-cgo), type Incomplete struct #46731
+pkg runtime/cgo (netbsd-arm-cgo), type Incomplete struct #46731
+pkg runtime/cgo (openbsd-386-cgo), type Incomplete struct #46731
+pkg runtime/cgo (openbsd-amd64-cgo), type Incomplete struct #46731
+pkg runtime/coverage, func ClearCounters() error #51430
+pkg runtime/coverage, func WriteCountersDir(string) error #51430
+pkg runtime/coverage, func WriteCounters(io.Writer) error #51430
+pkg runtime/coverage, func WriteMetaDir(string) error #51430
+pkg runtime/coverage, func WriteMeta(io.Writer) error #51430
+pkg strings, func CutPrefix(string, string) (string, bool) #42537
+pkg strings, func CutSuffix(string, string) (string, bool) #42537
+pkg sync, method (*Map) CompareAndDelete(interface{}, interface{}) bool #51972
+pkg sync, method (*Map) CompareAndSwap(interface{}, interface{}, interface{}) bool #51972
+pkg sync, method (*Map) Swap(interface{}, interface{}) (interface{}, bool) #51972
+pkg syscall (freebsd-386-cgo), const SYS_FSTAT = 551 #53280
+pkg syscall (freebsd-386-cgo), const SYS_FSTATAT = 552 #53280
+pkg syscall (freebsd-386-cgo), const SYS_FSTATFS = 556 #53280
+pkg syscall (freebsd-386-cgo), const SYS_GETDIRENTRIES = 554 #53280
+pkg syscall (freebsd-386-cgo), const SYS_GETFSSTAT = 557 #53280
+pkg syscall (freebsd-386-cgo), const SYS_MKNODAT = 559 #53280
+pkg syscall (freebsd-386-cgo), const SYS_STATFS = 555 #53280
+pkg syscall (freebsd-386), const SYS_FSTAT = 551 #53280
+pkg syscall (freebsd-386), const SYS_FSTATAT = 552 #53280
+pkg syscall (freebsd-386), const SYS_FSTATFS = 556 #53280
+pkg syscall (freebsd-386), const SYS_GETDIRENTRIES = 554 #53280
+pkg syscall (freebsd-386), const SYS_GETFSSTAT = 557 #53280
+pkg syscall (freebsd-386), const SYS_MKNODAT = 559 #53280
+pkg syscall (freebsd-386), const SYS_STATFS = 555 #53280
+pkg syscall (freebsd-amd64-cgo), const SYS_FSTAT = 551 #53280
+pkg syscall (freebsd-amd64-cgo), const SYS_FSTATAT = 552 #53280
+pkg syscall (freebsd-amd64-cgo), const SYS_FSTATFS = 556 #53280
+pkg syscall (freebsd-amd64-cgo), const SYS_GETDIRENTRIES = 554 #53280
+pkg syscall (freebsd-amd64-cgo), const SYS_GETFSSTAT = 557 #53280
+pkg syscall (freebsd-amd64-cgo), const SYS_MKNODAT = 559 #53280
+pkg syscall (freebsd-amd64-cgo), const SYS_STATFS = 555 #53280
+pkg syscall (freebsd-amd64), const SYS_FSTAT = 551 #53280
+pkg syscall (freebsd-amd64), const SYS_FSTATAT = 552 #53280
+pkg syscall (freebsd-amd64), const SYS_FSTATFS = 556 #53280
+pkg syscall (freebsd-amd64), const SYS_GETDIRENTRIES = 554 #53280
+pkg syscall (freebsd-amd64), const SYS_GETFSSTAT = 557 #53280
+pkg syscall (freebsd-amd64), const SYS_MKNODAT = 559 #53280
+pkg syscall (freebsd-amd64), const SYS_STATFS = 555 #53280
+pkg syscall (freebsd-arm-cgo), const SYS_FSTAT = 551 #53280
+pkg syscall (freebsd-arm-cgo), const SYS_FSTATAT = 552 #53280
+pkg syscall (freebsd-arm-cgo), const SYS_FSTATFS = 556 #53280
+pkg syscall (freebsd-arm-cgo), const SYS_GETDIRENTRIES = 554 #53280
+pkg syscall (freebsd-arm-cgo), const SYS_GETFSSTAT = 557 #53280
+pkg syscall (freebsd-arm-cgo), const SYS_MKNODAT = 559 #53280
+pkg syscall (freebsd-arm-cgo), const SYS_STATFS = 555 #53280
+pkg syscall (freebsd-arm), const SYS_FSTAT = 551 #53280
+pkg syscall (freebsd-arm), const SYS_FSTATAT = 552 #53280
+pkg syscall (freebsd-arm), const SYS_FSTATFS = 556 #53280
+pkg syscall (freebsd-arm), const SYS_GETDIRENTRIES = 554 #53280
+pkg syscall (freebsd-arm), const SYS_GETFSSTAT = 557 #53280
+pkg syscall (freebsd-arm), const SYS_MKNODAT = 559 #53280
+pkg syscall (freebsd-arm), const SYS_STATFS = 555 #53280
+pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
+pkg syscall (linux-386-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
+pkg syscall (linux-386-cgo), const CLONE_INTO_CGROUP ideal-int #51246
+pkg syscall (linux-386-cgo), const CLONE_NEWCGROUP = 33554432 #51246
+pkg syscall (linux-386-cgo), const CLONE_NEWCGROUP ideal-int #51246
+pkg syscall (linux-386-cgo), const CLONE_NEWTIME = 128 #51246
+pkg syscall (linux-386-cgo), const CLONE_NEWTIME ideal-int #51246
+pkg syscall (linux-386-cgo), const CLONE_PIDFD = 4096 #51246
+pkg syscall (linux-386-cgo), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-386-cgo), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-386-cgo), type SysProcAttr struct, UseCgroupFD bool #51246
+pkg syscall (linux-386), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+pkg syscall (linux-386), const CLONE_CLEAR_SIGHAND ideal-int #51246
+pkg syscall (linux-386), const CLONE_INTO_CGROUP = 8589934592 #51246
+pkg syscall (linux-386), const CLONE_INTO_CGROUP ideal-int #51246
+pkg syscall (linux-386), const CLONE_NEWCGROUP = 33554432 #51246
+pkg syscall (linux-386), const CLONE_NEWCGROUP ideal-int #51246
+pkg syscall (linux-386), const CLONE_NEWTIME = 128 #51246
+pkg syscall (linux-386), const CLONE_NEWTIME ideal-int #51246
+pkg syscall (linux-386), const CLONE_PIDFD = 4096 #51246
+pkg syscall (linux-386), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-386), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-386), type SysProcAttr struct, UseCgroupFD bool #51246
+pkg syscall (linux-amd64-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+pkg syscall (linux-amd64-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
+pkg syscall (linux-amd64-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
+pkg syscall (linux-amd64-cgo), const CLONE_INTO_CGROUP ideal-int #51246
+pkg syscall (linux-amd64-cgo), const CLONE_NEWCGROUP = 33554432 #51246
+pkg syscall (linux-amd64-cgo), const CLONE_NEWCGROUP ideal-int #51246
+pkg syscall (linux-amd64-cgo), const CLONE_NEWTIME = 128 #51246
+pkg syscall (linux-amd64-cgo), const CLONE_NEWTIME ideal-int #51246
+pkg syscall (linux-amd64-cgo), const CLONE_PIDFD = 4096 #51246
+pkg syscall (linux-amd64-cgo), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-amd64-cgo), type SysProcAttr struct, UseCgroupFD bool #51246
+pkg syscall (linux-amd64), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+pkg syscall (linux-amd64), const CLONE_CLEAR_SIGHAND ideal-int #51246
+pkg syscall (linux-amd64), const CLONE_INTO_CGROUP = 8589934592 #51246
+pkg syscall (linux-amd64), const CLONE_INTO_CGROUP ideal-int #51246
+pkg syscall (linux-amd64), const CLONE_NEWCGROUP = 33554432 #51246
+pkg syscall (linux-amd64), const CLONE_NEWCGROUP ideal-int #51246
+pkg syscall (linux-amd64), const CLONE_NEWTIME = 128 #51246
+pkg syscall (linux-amd64), const CLONE_NEWTIME ideal-int #51246
+pkg syscall (linux-amd64), const CLONE_PIDFD = 4096 #51246
+pkg syscall (linux-amd64), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-amd64), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-amd64), type SysProcAttr struct, UseCgroupFD bool #51246
+pkg syscall (linux-arm-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+pkg syscall (linux-arm-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
+pkg syscall (linux-arm-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
+pkg syscall (linux-arm-cgo), const CLONE_INTO_CGROUP ideal-int #51246
+pkg syscall (linux-arm-cgo), const CLONE_NEWCGROUP = 33554432 #51246
+pkg syscall (linux-arm-cgo), const CLONE_NEWCGROUP ideal-int #51246
+pkg syscall (linux-arm-cgo), const CLONE_NEWTIME = 128 #51246
+pkg syscall (linux-arm-cgo), const CLONE_NEWTIME ideal-int #51246
+pkg syscall (linux-arm-cgo), const CLONE_PIDFD = 4096 #51246
+pkg syscall (linux-arm-cgo), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-arm-cgo), type SysProcAttr struct, UseCgroupFD bool #51246
+pkg syscall (linux-arm), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
+pkg syscall (linux-arm), const CLONE_CLEAR_SIGHAND ideal-int #51246
+pkg syscall (linux-arm), const CLONE_INTO_CGROUP = 8589934592 #51246
+pkg syscall (linux-arm), const CLONE_INTO_CGROUP ideal-int #51246
+pkg syscall (linux-arm), const CLONE_NEWCGROUP = 33554432 #51246
+pkg syscall (linux-arm), const CLONE_NEWCGROUP ideal-int #51246
+pkg syscall (linux-arm), const CLONE_NEWTIME = 128 #51246
+pkg syscall (linux-arm), const CLONE_NEWTIME ideal-int #51246
+pkg syscall (linux-arm), const CLONE_PIDFD = 4096 #51246
+pkg syscall (linux-arm), const CLONE_PIDFD ideal-int #51246
+pkg syscall (linux-arm), type SysProcAttr struct, CgroupFD int #51246
+pkg syscall (linux-arm), type SysProcAttr struct, UseCgroupFD bool #51246
+pkg testing, method (*B) Elapsed() time.Duration #43620
+pkg time, const DateOnly = "2006-01-02" #52746
+pkg time, const DateOnly ideal-string #52746
+pkg time, const DateTime = "2006-01-02 15:04:05" #52746
+pkg time, const DateTime ideal-string #52746
+pkg time, const TimeOnly = "15:04:05" #52746
+pkg time, const TimeOnly ideal-string #52746
+pkg time, method (Time) Compare(Time) int #50770
+pkg unicode/utf16, func AppendRune([]uint16, int32) []uint16 #51896

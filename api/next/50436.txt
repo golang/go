@@ -1,3 +1,0 @@
-pkg os/exec, type Cmd struct, Cancel func() error #50436
-pkg os/exec, type Cmd struct, WaitDelay time.Duration #50436
-pkg os/exec, var ErrWaitDelay error #50436

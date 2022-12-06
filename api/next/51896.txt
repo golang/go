@@ -1,1 +1,0 @@
-pkg unicode/utf16, func AppendRune([]uint16, int32) []uint16 #51896
