@@ -3756,7 +3756,7 @@ func save(pc, sp uintptr) {
 // because tracing can be enabled in the middle of syscall. We don't want the wait to hang.
 //
 //go:nosplit
-func reentersyscall(pc, sp uintptr) {
+func reentersyscall(pc, sp uintptr, handoff bool) {
 	gp := getg()
 
 	// Disable preemption because during this function g is in Gsyscall status,
@@ -3807,8 +3807,20 @@ func reentersyscall(pc, sp uintptr) {
 	pp.m = 0
 	gp.m.oldp.set(pp)
 	gp.m.p = 0
-	atomic.Store(&pp.status, _Psyscall)
-	if sched.gcwaiting.Load() {
+
+	if handoff {
+		atomic.Store(&pp.status, _Pidle)
+		systemstack(func() {
+			if trace.enabled {
+				traceGoSysBlock(pp)
+				traceProcStop(pp)
+			}
+			pp.syscalltick++
+			handoffp(pp)
+		})
+		save(pc, sp)
+	} else {
+		atomic.Store(&pp.status, _Psyscall)
 		systemstack(entersyscall_gcwait)
 		save(pc, sp)
 	}
@@ -3823,7 +3835,7 @@ func reentersyscall(pc, sp uintptr) {
 //go:nosplit
 //go:linkname entersyscall
 func entersyscall() {
-	reentersyscall(getcallerpc(), getcallersp())
+	reentersyscall(getcallerpc(), getcallersp(), false)
 }
 
 func entersyscall_sysmon() {
