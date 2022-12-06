@@ -1619,6 +1619,17 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, unusedArguments)
 	}
 
+	if ctxt.IsWindows() {
+		// Suppress generation of the PE file header timestamp,
+		// so as to avoid spurious build ID differences between
+		// linked binaries that are otherwise identical other than
+		// the date/time they were linked.
+		const noTimeStamp = "-Wl,--no-insert-timestamp"
+		if linkerFlagSupported(ctxt.Arch, argv[0], altLinker, noTimeStamp) {
+			argv = append(argv, noTimeStamp)
+		}
+	}
+
 	const compressDWARF = "-Wl,--compress-debug-sections=zlib"
 	if ctxt.compressDWARF && linkerFlagSupported(ctxt.Arch, argv[0], altLinker, compressDWARF) {
 		argv = append(argv, compressDWARF)
