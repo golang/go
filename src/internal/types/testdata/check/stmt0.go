@@ -90,7 +90,7 @@ func assignments1() {
 
 	// assignments to _
 	_ = nil /* ERROR "use of untyped nil" */
-	_ = 1  << /* ERROR constant shift overflow */ 1000
+	_ = 1  << /* ERROR "constant shift overflow" */ 1000
 	(_) = 0
 }
 
@@ -108,23 +108,23 @@ func assignments2() {
 	s, b = m["foo"]
 	_, d = m["bar"]
 	m["foo"] = nil
-	m["foo"] = nil /* ERROR assignment mismatch: 1 variable but 2 values */ , false
+	m["foo"] = nil /* ERROR "assignment mismatch: 1 variable but 2 values" */ , false
 	_ = append(m["foo"])
 	_ = append(m["foo"], true)
 
 	var c chan int
 	_, b = <-c
 	_, d = <-c
-	<- /* ERROR cannot assign */ c = 0
-	<-c = 0 /* ERROR assignment mismatch: 1 variable but 2 values */ , false
+	<- /* ERROR "cannot assign" */ c = 0
+	<-c = 0 /* ERROR "assignment mismatch: 1 variable but 2 values" */ , false
 
 	var x interface{}
 	_, b = x.(int)
-	x /* ERROR cannot assign */ .(int) = 0
-	x.(int) = 0 /* ERROR assignment mismatch: 1 variable but 2 values */ , false
+	x /* ERROR "cannot assign" */ .(int) = 0
+	x.(int) = 0 /* ERROR "assignment mismatch: 1 variable but 2 values" */ , false
 
-	assignments2 /* ERROR used as value */ () = nil
-	int /* ERROR not an expression */ = 0
+	assignments2 /* ERROR "used as value" */ () = nil
+	int /* ERROR "not an expression" */ = 0
 }
 
 func issue6487() {
@@ -143,13 +143,13 @@ func issue6487() {
 }
 
 func issue6766a() {
-	a, a /* ERROR a repeated on left side of := */ := 1, 2
+	a, a /* ERROR "a repeated on left side of :=" */ := 1, 2
 	_ = a
-	a, b, b /* ERROR b repeated on left side of := */ := 1, 2, 3
+	a, b, b /* ERROR "b repeated on left side of :=" */ := 1, 2, 3
 	_ = b
-	c, c /* ERROR c repeated on left side of := */, b := 1, 2, 3
+	c, c /* ERROR "c repeated on left side of :=" */, b := 1, 2, 3
 	_ = c
-	a, b := /* ERROR no new variables */ 1, 2
+	a, b := /* ERROR "no new variables" */ 1, 2
 }
 
 func shortVarDecls1() {
@@ -212,8 +212,8 @@ func selects() {
 	select {
 	case a, b := <-ch:
 		_, b = a, b
-	case x /* ERROR send or receive */ :
-	case a /* ERROR send or receive */ := ch:
+	case x /* ERROR "send or receive" */ :
+	case a /* ERROR "send or receive" */ := ch:
 	}
 
 	// test for issue 9570: ch2 in second case falsely resolved to
@@ -222,7 +222,7 @@ func selects() {
 	ch2 := make(chan int)
 	select {
 	case <-ch1:
-		var ch2 /* ERROR ch2 declared and not used */ chan bool
+		var ch2 /* ERROR "ch2 declared and not used" */ chan bool
 	case i := <-ch2:
 		print(i + 1)
 	}
@@ -231,7 +231,7 @@ func selects() {
 func gos() {
 	go 1; /* ERROR "must be function call" */
 	go int /* ERROR "go requires function call, not conversion" */ (0)
-	go ( /* ERROR expression in go must not be parenthesized */ gos())
+	go ( /* ERROR "expression in go must not be parenthesized" */ gos())
 	go gos()
 	var c chan int
 	go close(c)
@@ -241,7 +241,7 @@ func gos() {
 func defers() {
 	defer 1; /* ERROR "must be function call" */
 	defer int /* ERROR "defer requires function call, not conversion" */ (0)
-	defer ( /* ERROR expression in defer must not be parenthesized */ defers())
+	defer ( /* ERROR "expression in defer must not be parenthesized" */ defers())
 	defer defers()
 	var c chan int
 	defer close(c)
@@ -377,24 +377,24 @@ func continues() {
 
 func returns0() {
 	return
-	return 0 /* ERROR too many return values */
+	return 0 /* ERROR "too many return values" */
 }
 
 func returns1(x float64) (int, *float64) {
 	return 0, &x
-	return /* ERROR not enough return values */
+	return /* ERROR "not enough return values" */
 	return "foo" /* ERROR "cannot .* in return statement" */, x /* ERROR "cannot use .* in return statement" */
-	return 0, &x, 1 /* ERROR too many return values */
+	return 0, &x, 1 /* ERROR "too many return values" */
 }
 
 func returns2() (a, b int) {
 	return
-	return 1, "foo" /* ERROR cannot use .* in return statement */
-	return 1, 2, 3 /* ERROR too many return values */
+	return 1, "foo" /* ERROR "cannot use .* in return statement" */
+	return 1, 2, 3 /* ERROR "too many return values" */
 	{
 		type a int
 		return 1, 2
-		return /* ERROR a not in scope at return */
+		return /* ERROR "a not in scope at return" */
 	}
 }
 
@@ -448,36 +448,36 @@ func switches0() {
 
 	switch uint64(x) {
 	case 1<<64 - 1:
-	case 1 /* ERROR duplicate case */ <<64 - 1:
+	case 1 /* ERROR "duplicate case" */ <<64 - 1:
 	case 2, 3, 4:
-	case 5, 1 /* ERROR duplicate case */ <<64 - 1:
+	case 5, 1 /* ERROR "duplicate case" */ <<64 - 1:
 	}
 
 	var y32 float32
 	switch y32 {
 	case 1.1:
 	case 11/10: // integer division!
-	case 11. /* ERROR duplicate case */ /10:
+	case 11. /* ERROR "duplicate case" */ /10:
 	case 2, 3.0, 4.1:
-	case 5.2, 1.10 /* ERROR duplicate case */ :
+	case 5.2, 1.10 /* ERROR "duplicate case" */ :
 	}
 
 	var y64 float64
 	switch y64 {
 	case 1.1:
 	case 11/10: // integer division!
-	case 11. /* ERROR duplicate case */ /10:
+	case 11. /* ERROR "duplicate case" */ /10:
 	case 2, 3.0, 4.1:
-	case 5.2, 1.10 /* ERROR duplicate case */ :
+	case 5.2, 1.10 /* ERROR "duplicate case" */ :
 	}
 
 	var s string
 	switch s {
 	case "foo":
-	case "foo" /* ERROR duplicate case */ :
-	case "f" /* ERROR duplicate case */ + "oo":
+	case "foo" /* ERROR "duplicate case" */ :
+	case "f" /* ERROR "duplicate case" */ + "oo":
 	case "abc", "def", "ghi":
-	case "jkl", "foo" /* ERROR duplicate case */ :
+	case "jkl", "foo" /* ERROR "duplicate case" */ :
 	}
 
 	type T int
@@ -492,14 +492,14 @@ func switches0() {
 	case (*int)(nil): // do duplicate detection
 	case 1:
 	case byte(1):
-	case int /* ERROR duplicate case */ (1):
+	case int /* ERROR "duplicate case" */ (1):
 	case T(1):
 	case 1.0:
 	case F(1.0):
-	case F /* ERROR duplicate case */ (1.0):
+	case F /* ERROR "duplicate case" */ (1.0):
 	case "hello":
 	case S("hello"):
-	case S /* ERROR duplicate case */ ("hello"):
+	case S /* ERROR "duplicate case" */ ("hello"):
 	case 1==1, B(false):
 	case false, B(2==2):
 	}
@@ -777,20 +777,20 @@ func typeswitch3(x interface{}) {
 	switch x.(type) {
 	case int:
 	case float64:
-	case int /* ERROR duplicate case */ :
+	case int /* ERROR "duplicate case" */ :
 	}
 
 	switch x.(type) {
 	case nil:
 	case int:
-	case nil /* ERROR duplicate case */ , nil /* ERROR duplicate case */ :
+	case nil /* ERROR "duplicate case" */ , nil /* ERROR "duplicate case" */ :
 	}
 
 	type F func(int)
 	switch x.(type) {
 	case nil:
 	case int, func(int):
-	case float32, func /* ERROR duplicate case */ (x int):
+	case float32, func /* ERROR "duplicate case" */ (x int):
 	case F:
 	}
 }
@@ -800,7 +800,7 @@ func fors1() {
 	var i string
 	_ = i
 	for i := 0; i < 10; i++ {}
-	for i := 0; i < 10; j /* ERROR cannot declare */ := 0 {}
+	for i := 0; i < 10; j /* ERROR "cannot declare" */ := 0 {}
 }
 
 func rangeloops1() {
@@ -925,39 +925,39 @@ func rangeloops2() {
 	var a [10]int
 	var i I
 	_ = i
-	for i /* ERROR cannot use .* in assignment */ = range a {}
-	for i /* ERROR cannot use .* in assignment */ = range &a {}
-	for i /* ERROR cannot use .* in assignment */ = range a[:] {}
+	for i /* ERROR "cannot use .* in assignment" */ = range a {}
+	for i /* ERROR "cannot use .* in assignment" */ = range &a {}
+	for i /* ERROR "cannot use .* in assignment" */ = range a[:] {}
 
 	var s string
 	var r R
 	_ = r
-	for i /* ERROR cannot use .* in assignment */ = range s {}
-	for i /* ERROR cannot use .* in assignment */ = range "foo" {}
-	for _, r /* ERROR cannot use .* in assignment */ = range s {}
-	for _, r /* ERROR cannot use .* in assignment */ = range "foo" {}
+	for i /* ERROR "cannot use .* in assignment" */ = range s {}
+	for i /* ERROR "cannot use .* in assignment" */ = range "foo" {}
+	for _, r /* ERROR "cannot use .* in assignment" */ = range s {}
+	for _, r /* ERROR "cannot use .* in assignment" */ = range "foo" {}
 }
 
 func issue6766b() {
-	for _ := /* ERROR no new variables */ range "" {}
-	for a, a /* ERROR redeclared */ := range "" { _ = a }
+	for _ := /* ERROR "no new variables" */ range "" {}
+	for a, a /* ERROR "redeclared" */ := range "" { _ = a }
 	var a int
 	_ = a
-	for a, a /* ERROR redeclared */ := range []int{1, 2, 3} { _ = a }
+	for a, a /* ERROR "redeclared" */ := range []int{1, 2, 3} { _ = a }
 }
 
 // Test that despite errors in the range clause,
 // the loop body is still type-checked (and thus
 // errors reported).
 func issue10148() {
-	for y /* ERROR declared and not used */ := range "" {
-		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
+	for y /* ERROR "declared and not used" */ := range "" {
+		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for range 1 /* ERROR cannot range over 1 */ {
-		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
+	for range 1 /* ERROR "cannot range over 1" */ {
+		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
-	for y := range 1 /* ERROR cannot range over 1 */ {
-		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
+	for y := range 1 /* ERROR "cannot range over 1" */ {
+		_ = "" /* ERROR "mismatched types untyped string and untyped int" */ + 1
 	}
 }
 

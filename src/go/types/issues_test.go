@@ -574,7 +574,7 @@ import (
 func _() {
 	// Packages should be fully qualified when there is ambiguity within the
 	// error string itself.
-	a.F(template /* ERROR cannot use.*html/template.* as .*text/template */ .Template{})
+	a.F(template /* ERROR "cannot use.*html/template.* as .*text/template" */ .Template{})
 }
 `
 		csrc = `
@@ -587,12 +587,12 @@ import (
 )
 
 // Issue #46905: make sure template is not the first package qualified.
-var _ fmt.Stringer = 1 // ERROR cannot use 1.*as fmt\.Stringer
+var _ fmt.Stringer = 1 // ERROR "cannot use 1.*as fmt\.Stringer"
 
 // Packages should be fully qualified when there is ambiguity in reachable
 // packages. In this case both a (and for that matter html/template) import
 // text/template.
-func _() { a.G(template /* ERROR cannot use .*html/template.*Template */ .Template{}) }
+func _() { a.G(template /* ERROR "cannot use .*html/template.*Template" */ .Template{}) }
 `
 
 		tsrc = `
@@ -603,7 +603,7 @@ import "text/template"
 type T int
 
 // Verify that the current package name also causes disambiguation.
-var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
+var _ T = template /* ERROR "cannot use.*text/template.* as T value" */.Template{}
 `
 	)
 

@@ -151,7 +151,7 @@ func (r T) _(a, b, c int) (u, v, w int) {
 // Unused variables in function literals must lead to only one error (issue #22524).
 func _() {
 	_ = func() {
-		var x /* ERROR declared and not used */ int
+		var x /* ERROR "declared and not used" */ int
 	}
 }
 
@@ -178,29 +178,29 @@ func _() {
 
 func _() {
 	var x int
-	return x /* ERROR too many return values */
-	return math /* ERROR too many return values */ .Sin(0)
+	return x /* ERROR "too many return values" */
+	return math /* ERROR "too many return values" */ .Sin(0)
 }
 
 func _() int {
 	var x, y int
-	return x, y /* ERROR too many return values */
+	return x, y /* ERROR "too many return values" */
 }
 
 // Short variable declarations must declare at least one new non-blank variable.
 func _() {
-	_ := /* ERROR no new variables */ 0
+	_ := /* ERROR "no new variables" */ 0
 	_, a := 0, 1
-	_, a := /* ERROR no new variables */ 0, 1
+	_, a := /* ERROR "no new variables" */ 0, 1
 	_, a, b := 0, 1, 2
-	_, _, _ := /* ERROR no new variables */ 0, 1, 2
+	_, _, _ := /* ERROR "no new variables" */ 0, 1, 2
 
 	_ = a
 	_ = b
 }
 
 // Test case for variables depending on function literals (see also #22992).
-var A /* ERROR initialization cycle */ = func() int { return A }()
+var A /* ERROR "initialization cycle" */ = func() int { return A }()
 
 func _() {
 	// The function literal below must not see a.

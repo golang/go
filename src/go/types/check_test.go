@@ -208,8 +208,14 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 		indices = indices[:0]
 		for i, want := range errList {
 			pattern := strings.TrimSpace(want.text[len(" ERROR "):])
+			// We expect all patterns to be quoted in double quotes
+			// and then we remove the quotes.
+			// TODO(gri) use correct strconv.Unquote eventually
 			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
 				pattern = pattern[1 : n-1]
+			} else {
+				t.Errorf("%s:%d:%d: unquoted pattern: %s", filename, line, want.col, pattern)
+				continue
 			}
 			rx, err := regexp.Compile(pattern)
 			if err != nil {
@@ -320,7 +326,7 @@ func TestManual(t *testing.T) {
 }
 
 func TestLongConstants(t *testing.T) {
-	format := "package longconst\n\nconst _ = %s /* ERROR constant overflow */ \nconst _ = %s // ERROR excessively long constant"
+	format := `package longconst; const _ = %s /* ERROR "constant overflow" */; const _ = %s // ERROR "excessively long constant"`
 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
 	testFiles(t, nil, []string{"longconst.go"}, [][]byte{[]byte(src)}, false, nil)
 }
@@ -329,14 +335,14 @@ func TestLongConstants(t *testing.T) {
 // be representable as int even if they already have a type that can
 // represent larger values.
 func TestIndexRepresentability(t *testing.T) {
-	const src = "package index\n\nvar s []byte\nvar _ = s[int64 /* ERROR \"int64\\(1\\) << 40 \\(.*\\) overflows int\" */ (1) << 40]"
+	const src = `package index; var s []byte; var _ = s[int64 /* ERROR "int64\(1\) << 40 \(.*\) overflows int" */ (1) << 40]`
 	testFiles(t, &StdSizes{4, 4}, []string{"index.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 
 func TestIssue47243_TypedRHS(t *testing.T) {
 	// The RHS of the shift expression below overflows uint on 32bit platforms,
 	// but this is OK as it is explicitly typed.
-	const src = "package issue47243\n\nvar a uint64; var _ = a << uint64(4294967296)" // uint64(1<<32)
+	const src = `package issue47243; var a uint64; var _ = a << uint64(4294967296)` // uint64(1<<32)
 	testFiles(t, &StdSizes{4, 4}, []string{"p.go"}, [][]byte{[]byte(src)}, false, nil)
 }
 

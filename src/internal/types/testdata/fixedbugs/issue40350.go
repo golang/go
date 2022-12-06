@@ -12,5 +12,5 @@ type number interface {
 func f[T number]() {}
 
 func _() {
-	_ = f[int /* ERROR int does not satisfy number \(number mentions int, but int is not in the type set of number\)*/]
+	_ = f[int /* ERROR "int does not satisfy number \(number mentions int, but int is not in the type set of number\)" */]
 }

@@ -175,13 +175,13 @@ var (
 func g() (a, b int) { return }
 
 func _() {
-	_ = -g /* ERROR multiple-value g */ ()
-	_ = <-g /* ERROR multiple-value g */ ()
+	_ = -g /* ERROR "multiple-value g" */ ()
+	_ = <-g /* ERROR "multiple-value g" */ ()
 }
 
 // ~ is accepted as unary operator only permitted in interface type elements
 var (
-	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ 0
-	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ "foo"
-	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ i0
+	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ 0
+	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ "foo"
+	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ i0
 )

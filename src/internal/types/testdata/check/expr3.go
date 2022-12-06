@@ -209,9 +209,9 @@ func struct_literals() {
 	_ = time.Time{}
 	_ = time.Time{sec /* ERROR "unknown field" */ : 0}
 	_ = time.Time{
-		0 /* ERROR implicit assignment to unexported field wall in struct literal */,
-		0 /* ERROR implicit assignment */ ,
-		nil /* ERROR implicit assignment */ ,
+		0 /* ERROR "implicit assignment to unexported field wall in struct literal" */,
+		0 /* ERROR "implicit assignment" */ ,
+		nil /* ERROR "implicit assignment" */ ,
 	}
 }
 

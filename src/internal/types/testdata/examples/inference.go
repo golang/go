@@ -24,13 +24,13 @@ func _() {
 	_ = min(x, 1)
 	_ = min(x, 1.0)
 	_ = min(1, 2)
-	_ = min(1, 2.3 /* ERROR default type float64 .* does not match */)
+	_ = min(1, 2.3 /* ERROR "default type float64 .* does not match" */)
 
 	var y float64
 	_ = min(1, y)
 	_ = min(1.2, y)
 	_ = min(1.2, 3.4)
-	_ = min(1.2, 3 /* ERROR default type int .* does not match */)
+	_ = min(1.2, 3 /* ERROR "default type int .* does not match" */)
 
 	var s string
 	_ = min(s, "foo")
@@ -51,7 +51,7 @@ func _() {
 
 	// Provided type arguments always take precedence over
 	// inferred types.
-	mixed[int, string](1.1 /* ERROR cannot use 1.1 */, "", false)
+	mixed[int, string](1.1 /* ERROR "cannot use 1.1" */, "", false)
 }
 
 func related1[Slice interface{ ~[]Elem }, Elem any](s Slice, e Elem) {}
@@ -69,13 +69,13 @@ func _() {
 
 	// A type argument inferred from another explicitly provided
 	// type argument overrides whatever value argument type is given.
-	related1[[]string](ss, 0 /* ERROR cannot use 0 */)
+	related1[[]string](ss, 0 /* ERROR "cannot use 0" */)
 
 	// A type argument may be inferred from a value argument
 	// and then help infer another type argument via constraint
 	// type inference.
 	related1(si, 0)
-	related1(si, "foo" /* ERROR cannot use "foo" */)
+	related1(si, "foo" /* ERROR "cannot use "foo"" */)
 }
 
 func related2[Elem any, Slice interface{ []Elem }](e Elem, s Slice) {}
@@ -97,7 +97,7 @@ func _() {
 	// last.
 	related2(1.2, []float64{})
 	related2(1.0, []int{})
-	related2 /* ERROR does not satisfy */ (float64(1.0), []int{}) // TODO(gri) fix error position
+	related2 /* ERROR "does not satisfy" */ (float64(1.0), []int{}) // TODO(gri) fix error position
 }
 
 type List[P any] []P
@@ -112,5 +112,5 @@ func _() {
 	// The 2nd type argument cannot be inferred from the first
 	// one because there's two possible choices: []Elem and
 	// List[Elem].
-	related3 /* ERROR cannot infer Slice */ [int]()
+	related3 /* ERROR "cannot infer Slice" */ [int]()
 }

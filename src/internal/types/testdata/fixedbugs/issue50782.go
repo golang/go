@@ -21,10 +21,10 @@ type numericAbs[T Numeric] interface {
 
 // AbsDifference computes the absolute value of the difference of
 // a and b, where the absolute value is determined by the Abs method.
-func absDifference[T numericAbs[T /* ERROR T does not satisfy Numeric */]](a, b T) T {
+func absDifference[T numericAbs[T /* ERROR "T does not satisfy Numeric" */]](a, b T) T {
 	// Field accesses are not permitted for now. Keep an error so
 	// we can find and fix this code once the situation changes.
-	return a.Value // ERROR a\.Value undefined
+	return a.Value // ERROR "a\.Value undefined"
 	// TODO: The error below should probably be positioned on the '-'.
 	// d := a /* ERROR "invalid operation: operator - not defined" */ .Value - b.Value
 	// return d.Abs()

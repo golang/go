@@ -8,8 +8,8 @@ func f[P int](P) {}
 
 func _() {
         _ = f[int]
-        _ = f[[ /* ERROR \[\]int does not satisfy int */ ]int]
+        _ = f[[ /* ERROR "\[\]int does not satisfy int" */ ]int]
 
         f(0)
-        f/* ERROR \[\]int does not satisfy int */ ([]int{})
+        f/* ERROR "\[\]int does not satisfy int" */ ([]int{})
 }

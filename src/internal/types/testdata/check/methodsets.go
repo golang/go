@@ -29,7 +29,7 @@ type T3 struct {
 func _() {
 	var (
 		_ func(T0) = T0.v0
-		_ = T0.p0 /* ERROR invalid method expression T0\.p0 \(needs pointer receiver \(\*T0\)\.p0\) */
+		_ = T0.p0 /* ERROR "invalid method expression T0\.p0 \(needs pointer receiver \(\*T0\)\.p0\)" */
 
 		_ func (*T0) = (*T0).v0
 		_ func (*T0) = (*T0).p0
@@ -40,7 +40,7 @@ func _() {
 		_ func(T2) = T2.p2
 
 		_ func(T3) = T3.v0
-		_ func(T3) = T3.p0 /* ERROR invalid method expression T3\.p0 \(needs pointer receiver \(\*T3\)\.p0\) */
+		_ func(T3) = T3.p0 /* ERROR "invalid method expression T3\.p0 \(needs pointer receiver \(\*T3\)\.p0\)" */
 		_ func(T3) = T3.v1
 		_ func(T3) = T3.p1
 		_ func(T3) = T3.v2

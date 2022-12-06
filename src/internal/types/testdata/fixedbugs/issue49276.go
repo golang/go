@@ -6,7 +6,7 @@ package p
 
 import "unsafe"
 
-type S /* ERROR invalid recursive type S */ struct {
+type S /* ERROR "invalid recursive type S" */ struct {
 	_ [unsafe.Sizeof(s)]byte
 }
 
@@ -15,7 +15,7 @@ var s S
 // Since f is a pointer, this case could be valid.
 // But it's pathological and not worth the expense.
 type T struct {
-	f *[unsafe.Sizeof(T /* ERROR invalid recursive type */ {})]int
+	f *[unsafe.Sizeof(T /* ERROR "invalid recursive type" */ {})]int
 }
 
 // a mutually recursive case using unsafe.Sizeof
@@ -25,7 +25,7 @@ type (
 	}
 
 	B1 struct {
-		_ [unsafe.Sizeof(A1 /* ERROR invalid recursive type */ {})]int
+		_ [unsafe.Sizeof(A1 /* ERROR "invalid recursive type" */ {})]int
 	}
 )
 
@@ -36,11 +36,11 @@ type (
 	}
 
 	B2 struct {
-		f [len(A2 /* ERROR invalid recursive type */ {}.f)]int
+		f [len(A2 /* ERROR "invalid recursive type" */ {}.f)]int
 	}
 )
 
 // test case from issue
 type a struct {
-	_ [42 - unsafe.Sizeof(a /* ERROR invalid recursive type */ {})]byte
+	_ [42 - unsafe.Sizeof(a /* ERROR "invalid recursive type" */ {})]byte
 }

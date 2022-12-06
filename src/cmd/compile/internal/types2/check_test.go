@@ -196,8 +196,14 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		indices = indices[:0]
 		for i, want := range errList {
 			pattern := strings.TrimSpace(want.Msg[len(" ERROR "):])
+			// We expect all patterns to be quoted in double quotes
+			// and then we remove the quotes.
+			// TODO(gri) use correct strconv.Unquote eventually
 			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
 				pattern = pattern[1 : n-1]
+			} else {
+				t.Errorf("%s:%d:%d: unquoted pattern: %s", filename, line, want.Pos.Col(), pattern)
+				continue
 			}
 			rx, err := regexp.Compile(pattern)
 			if err != nil {
@@ -303,7 +309,7 @@ func TestCheck(t *testing.T) {
 }
 func TestSpec(t *testing.T) { testDirFiles(t, "../../../../internal/types/testdata/spec", 0, false) }
 func TestExamples(t *testing.T) {
-	testDirFiles(t, "../../../../internal/types/testdata/examples", 45, false)
+	testDirFiles(t, "../../../../internal/types/testdata/examples", 50, false)
 } // TODO(gri) narrow column tolerance
 func TestFixedbugs(t *testing.T) {
 	testDirFiles(t, "../../../../internal/types/testdata/fixedbugs", 100, false)

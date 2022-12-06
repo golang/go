@@ -12,16 +12,16 @@ type RC[RG any] interface {
 
 type Fn[RCT RC[RG], RG any] func(RCT)
 
-type FFn[RCT RC[RG], RG any] func() Fn /* ERROR got 1 arguments */ [RCT]
+type FFn[RCT RC[RG], RG any] func() Fn /* ERROR "got 1 arguments" */ [RCT]
 
 type F[RCT RC[RG], RG any] interface {
-	Fn() Fn /* ERROR got 1 arguments */ [RCT]
+	Fn() Fn /* ERROR "got 1 arguments" */ [RCT]
 }
 
 type concreteF[RCT RC[RG], RG any] struct {
-	makeFn FFn /* ERROR got 1 arguments */ [RCT]
+	makeFn FFn /* ERROR "got 1 arguments" */ [RCT]
 }
 
-func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR got 1 arguments */ [RCT] {
+func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "got 1 arguments" */ [RCT] {
 	return c.makeFn()
 }

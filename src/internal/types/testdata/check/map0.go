@@ -6,7 +6,7 @@
 package orderedmap
 
 // TODO(gri) fix imports for tests
-import "chans" // ERROR could not import
+import "chans" // ERROR "could not import"
 
 // Map is an ordered map.
 type Map[K, V any] struct {

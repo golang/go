@@ -8,7 +8,7 @@ type Fooer interface {
 	Foo()
 }
 
-type Fooable[F /* ERROR instantiation cycle */ Fooer] struct {
+type Fooable[F /* ERROR "instantiation cycle" */ Fooer] struct {
 	ptr F
 }
 

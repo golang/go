@@ -13,16 +13,16 @@ type T interface{ m() }
 
 func _[P comparable, Q ~int, R any]() {
 	_ = f1[int]
-	_ = f1[T /* ERROR T does not satisfy comparable */ ]
-	_ = f1[any /* ERROR any does not satisfy comparable */ ]
+	_ = f1[T /* ERROR "T does not satisfy comparable" */ ]
+	_ = f1[any /* ERROR "any does not satisfy comparable" */ ]
 	_ = f1[P]
 	_ = f1[Q]
-	_ = f1[R /* ERROR R does not satisfy comparable */]
+	_ = f1[R /* ERROR "R does not satisfy comparable" */]
 
 	_ = f2[int]
-	_ = f2[T /* ERROR T does not satisfy comparable */ ]
-	_ = f2[any /* ERROR any does not satisfy comparable */ ]
+	_ = f2[T /* ERROR "T does not satisfy comparable" */ ]
+	_ = f2[any /* ERROR "any does not satisfy comparable" */ ]
 	_ = f2[P]
 	_ = f2[Q]
-	_ = f2[R /* ERROR R does not satisfy comparable */]
+	_ = f2[R /* ERROR "R does not satisfy comparable" */]
 }
