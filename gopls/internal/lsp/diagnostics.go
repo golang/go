@@ -541,6 +541,7 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 	if snapshot.IsBuiltin(ctx, fh.URI()) {
 		return nil
 	}
+	// TODO(rfindley): opt: request metadata, not type-checking.
 	pkgs, _ := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckWorkspace, false)
 	if len(pkgs) > 0 {
 		return nil

@@ -275,11 +275,15 @@ func (v *View) Options() *source.Options {
 }
 
 func (v *View) FileKind(fh source.FileHandle) source.FileKind {
+	// The kind of an unsaved buffer comes from the
+	// TextDocumentItem.LanguageID field in the didChange event,
+	// not from the file name. They may differ.
 	if o, ok := fh.(source.Overlay); ok {
 		if o.Kind() != source.UnknownKind {
 			return o.Kind()
 		}
 	}
+
 	fext := filepath.Ext(fh.URI().Filename())
 	switch fext {
 	case ".go":

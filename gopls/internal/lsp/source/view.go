@@ -210,7 +210,10 @@ type Snapshot interface {
 	// Symbols returns all symbols in the snapshot.
 	Symbols(ctx context.Context) map[span.URI][]Symbol
 
-	// Metadata returns metadata for each package associated with the given file URI.
+	// Metadata returns a new slice containing metadata for each
+	// package containing the Go file identified by uri, ordered by the
+	// number of CompiledGoFiles (i.e. "narrowest" to "widest" package).
+	// It returns an error if the context was cancelled.
 	MetadataForFile(ctx context.Context, uri span.URI) ([]*Metadata, error)
 
 	// GetCriticalError returns any critical errors in the workspace.
@@ -317,7 +320,13 @@ type View interface {
 	// required by modfile.
 	SetVulnerabilities(modfile span.URI, vulncheckResult *govulncheck.Result)
 
-	// FileKind returns the type of a file
+	// FileKind returns the type of a file.
+	//
+	// We can't reliably deduce the kind from the file name alone,
+	// as some editors can be told to interpret a buffer as
+	// language different from the file name heuristic, e.g. that
+	// an .html file actually contains Go "html/template" syntax,
+	// or even that a .go file contains Python.
 	FileKind(FileHandle) FileKind
 
 	// GoVersion returns the configured Go version for this view.
