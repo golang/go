@@ -172,47 +172,44 @@ func (deadlineExceededError) Error() string   { return "context deadline exceede
 func (deadlineExceededError) Timeout() bool   { return true }
 func (deadlineExceededError) Temporary() bool { return true }
 
-// An emptyCtx is never canceled, has no values, and has no deadline. It is not
-// struct{}, since vars of this type must have distinct addresses.
-type emptyCtx int
+// An emptyCtx is never canceled, has no values, and has no deadline.
+// It is the common base of backgroundCtx and todoCtx.
+type emptyCtx struct{}
 
-func (*emptyCtx) Deadline() (deadline time.Time, ok bool) {
+func (emptyCtx) Deadline() (deadline time.Time, ok bool) {
 	return
 }
 
-func (*emptyCtx) Done() <-chan struct{} {
+func (emptyCtx) Done() <-chan struct{} {
 	return nil
 }
 
-func (*emptyCtx) Err() error {
+func (emptyCtx) Err() error {
 	return nil
 }
 
-func (*emptyCtx) Value(key any) any {
+func (emptyCtx) Value(key any) any {
 	return nil
 }
 
-func (e *emptyCtx) String() string {
-	switch e {
-	case background:
-		return "context.Background"
-	case todo:
-		return "context.TODO"
-	}
-	return "unknown empty Context"
+type backgroundCtx struct{ emptyCtx }
+
+func (backgroundCtx) String() string {
+	return "context.Background"
 }
 
-var (
-	background = new(emptyCtx)
-	todo       = new(emptyCtx)
-)
+type todoCtx struct{ emptyCtx }
+
+func (todoCtx) String() string {
+	return "context.TODO"
+}
 
 // Background returns a non-nil, empty Context. It is never canceled, has no
 // values, and has no deadline. It is typically used by the main function,
 // initialization, and tests, and as the top-level Context for incoming
 // requests.
 func Background() Context {
-	return background
+	return backgroundCtx{}
 }
 
 // TODO returns a non-nil, empty Context. Code should use context.TODO when
@@ -220,7 +217,7 @@ func Background() Context {
 // surrounding function has not yet been extended to accept a Context
 // parameter).
 func TODO() Context {
-	return todo
+	return todoCtx{}
 }
 
 // A CancelFunc tells an operation to abandon its work.
@@ -653,7 +650,7 @@ func value(c Context, key any) any {
 				return &ctx.cancelCtx
 			}
 			c = ctx.Context
-		case *emptyCtx:
+		case backgroundCtx, todoCtx:
 			return nil
 		default:
 			return c.Value(key)
