@@ -2262,11 +2262,6 @@ func TestTimeVDSO(t *testing.T) {
 	// Test that time functions have the right stack trace. In particular,
 	// it shouldn't be recursive.
 
-	if runtime.GOOS == "android" {
-		// Flaky on Android, issue 48655. VDSO may not be enabled.
-		testenv.SkipFlaky(t, 48655)
-	}
-
 	matches := matchAndAvoidStacks(stackContains, []string{"time.now"}, avoidFunctions())
 	p := testCPUProfile(t, matches, func(dur time.Duration) {
 		t0 := time.Now()
