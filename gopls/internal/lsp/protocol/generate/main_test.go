@@ -15,33 +15,30 @@ import (
 	"testing"
 )
 
-// this is not a test, but an easy way to invoke the debugger
-func TestAll(t *testing.T) {
-	t.Skip("run by hand")
-	log.SetFlags(log.Lshortfile)
-	main()
-}
+// These tests require the result of
+//"git clone https://github.com/microsoft/vscode-languageserver-node" in the HOME directory
 
-// this is not a test, but an easy way to invoke the debugger
-func TestCompare(t *testing.T) {
-	t.Skip("run by hand")
+// this is not a test, but a way to get code coverage,
+// (in vscode, just run the test with  "go.coverOnSingleTest": true)
+func TestAll(t *testing.T) {
+	t.Skip("needs vscode-languageserver-node repository")
 	log.SetFlags(log.Lshortfile)
-	*cmpolder = "../lsp/gen" // instead use a directory containing the older generated files
 	main()
 }
 
 // check that the parsed file includes all the information
 // from the json file. This test will fail if the spec
 // introduces new fields. (one can test this test by
-// commenting out some special handling in parse.go.)
+// commenting out the version field in Model.)
 func TestParseContents(t *testing.T) {
-	t.Skip("run by hand")
+	t.Skip("needs vscode-languageserver-node repository")
 	log.SetFlags(log.Lshortfile)
 
 	// compute our parse of the specification
 	dir := os.Getenv("HOME") + "/vscode-languageserver-node"
-	v := parse(dir)
-	out, err := json.Marshal(v.model)
+	fname := dir + "/protocol/metaModel.json"
+	v := parse(fname)
+	out, err := json.Marshal(v)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +48,6 @@ func TestParseContents(t *testing.T) {
 	}
 
 	// process the json file
-	fname := dir + "/protocol/metaModel.json"
 	buf, err := os.ReadFile(fname)
 	if err != nil {
 		t.Fatalf("could not read metaModel.json: %v", err)

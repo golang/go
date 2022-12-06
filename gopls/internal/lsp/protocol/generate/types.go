@@ -7,17 +7,20 @@
 
 package main
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // Model contains the parsed version of the spec
 type Model struct {
-	Version       Metadata       `json:"metaData"`
-	Requests      []Request      `json:"requests"`
-	Notifications []Notification `json:"notifications"`
-	Structures    []Structure    `json:"structures"`
-	Enumerations  []Enumeration  `json:"enumerations"`
-	TypeAliases   []TypeAlias    `json:"typeAliases"`
-	Line          int            `json:"line"`
+	Version       Metadata        `json:"metaData"`
+	Requests      []*Request      `json:"requests"`
+	Notifications []*Notification `json:"notifications"`
+	Structures    []*Structure    `json:"structures"`
+	Enumerations  []*Enumeration  `json:"enumerations"`
+	TypeAliases   []*TypeAlias    `json:"typeAliases"`
+	Line          int             `json:"line"`
 }
 
 // Metadata is information about the version of the spec
@@ -99,33 +102,6 @@ type NameValue struct {
 	Line          int    `json:"line"`
 }
 
-// common to Request and Notification
-type Message interface {
-	direction() string
-}
-
-func (r Request) direction() string {
-	return r.Direction
-}
-
-func (n Notification) direction() string {
-	return n.Direction
-}
-
-// A Defined is one of Structure, Enumeration, TypeAlias, for type checking
-type Defined interface {
-	tag()
-}
-
-func (s Structure) tag() {
-}
-
-func (e Enumeration) tag() {
-}
-
-func (ta TypeAlias) tag() {
-}
-
 // A Type is the parsed version of an LSP type from the spec,
 // or a Type the code constructs
 type Type struct {
@@ -135,11 +111,7 @@ type Type struct {
 	Name    string  `json:"name"`    // "base", "reference"
 	Key     *Type   `json:"key"`     // "map"
 	Value   any     `json:"value"`   // "map", "stringLiteral", "literal"
-	// used to tie generated code to the specification
-	Line int `json:"line"`
-
-	name     string // these are generated names, like Uint32
-	typeName string // these are actual type names, like uint32
+	Line    int     `json:"line"`    // JSON source line
 }
 
 // ParsedLiteral is Type.Value when Type.Kind is "literal"
@@ -158,8 +130,32 @@ type NameType struct {
 	Line          int    `json:"line"`
 }
 
-// Properties are the collection of structure elements
+// Properties are the collection of structure fields
 type Properties []NameType
+
+// addLineNumbers adds a "line" field to each object in the JSON.
+func addLineNumbers(buf []byte) []byte {
+	var ans []byte
+	// In the specification .json file, the delimiter '{' is
+	// always followed by a newline. There are other {s embedded in strings.
+	// json.Token does not return \n, or :, or , so using it would
+	// require parsing the json to reconstruct the missing information.
+	// TODO(pjw): should linecnt start at 1 (editor) or 0 (compatibility)?
+	for linecnt, i := 0, 0; i < len(buf); i++ {
+		ans = append(ans, buf[i])
+		switch buf[i] {
+		case '{':
+			if buf[i+1] == '\n' {
+				ans = append(ans, fmt.Sprintf(`"line": %d, `, linecnt)...)
+				// warning: this would fail if the spec file had
+				// `"value": {\n}`, but it does not, as comma is a separator.
+			}
+		case '\n':
+			linecnt++
+		}
+	}
+	return ans
+}
 
 type sortedMap[T any] map[string]T
 
