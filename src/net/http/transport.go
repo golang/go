@@ -757,7 +757,7 @@ func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 	if _, exists := oldMap[scheme]; exists {
 		panic("protocol " + scheme + " already registered")
 	}
-	newMap := make(map[string]RoundTripper)
+	newMap := make(map[string]RoundTripper, len(oldMap))
 	for k, v := range oldMap {
 		newMap[k] = v
 	}

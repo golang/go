@@ -746,7 +746,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 		icookies map[string][]*Cookie
 	)
 	if c.Jar != nil && ireq.Header.Get("Cookie") != "" {
-		icookies = make(map[string][]*Cookie)
+		icookies = make(map[string][]*Cookie, len(ireq.Cookies()))
 		for _, c := range ireq.Cookies() {
 			icookies[c.Name] = append(icookies[c.Name], c)
 		}
