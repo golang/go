@@ -290,7 +290,7 @@ func (s *exprSwitch) tryJumpTable(cc []exprClause, out *ir.Nodes) bool {
 	const minCases = 8   // have at least minCases cases in the switch
 	const minDensity = 4 // use at least 1 out of every minDensity entries
 
-	if !go119UseJumpTables || base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable {
+	if !go119UseJumpTables || base.Flag.N != 0 || !ssagen.Arch.LinkArch.CanJumpTable || base.Ctxt.Retpoline {
 		return false
 	}
 	if len(cc) < minCases {
