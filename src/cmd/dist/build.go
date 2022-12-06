@@ -558,6 +558,9 @@ var deptab = []struct {
 	{"go/build", []string{
 		"zcgo.go",
 	}},
+	{"time/tzdata", []string{
+		"zzipdata.go",
+	}},
 }
 
 // depsuffix records the allowed suffixes for source files.
@@ -575,6 +578,7 @@ var gentab = []struct {
 	{"zosarch.go", mkzosarch},
 	{"zversion.go", mkzversion},
 	{"zcgo.go", mkzcgo},
+	{"zzipdata.go", mktzdata},
 
 	// not generated anymore, but delete the file if we see it
 	{"enam.c", nil},
@@ -1346,7 +1350,8 @@ func cmdbootstrap() {
 
 	timelog("build", "go_bootstrap")
 	xprintf("Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.\n")
-	install("runtime") // dependency not visible in sources; also sets up textflag.h
+	install("runtime")     // dependency not visible in sources; also sets up textflag.h
+	install("time/tzdata") // no dependency in sources; creates generated file
 	install("cmd/go")
 	if vflag > 0 {
 		xprintf("\n")
