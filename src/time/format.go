@@ -883,16 +883,19 @@ func quote(s string) string {
 }
 
 // Error returns the string representation of a ParseError.
-func (e *ParseError) Error() string {
+func (e *ParseError) Error() (err string) {
+	err = "parsing time " +
+		quote(e.Value) + e.Message
+
 	if e.Message == "" {
-		return "parsing time " +
+		err = "parsing time " +
 			quote(e.Value) + " as " +
 			quote(e.Layout) + ": cannot parse " +
 			quote(e.ValueElem) + " as " +
 			quote(e.LayoutElem)
 	}
-	return "parsing time " +
-		quote(e.Value) + e.Message
+
+	return err
 }
 
 // isDigit reports whether s[i] is in range and is a decimal digit.
