@@ -1702,8 +1702,11 @@ func TestCompressedDirectory(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	for _, f := range r.File {
-		_, err = f.Open()
+		r, err := f.Open()
 		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := io.Copy(io.Discard, r); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	}

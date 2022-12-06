@@ -237,7 +237,7 @@ func (f *File) Open() (io.ReadCloser, error) {
 		// 0. We still want to fail when a directory has associated uncompressed
 		// data, but we are tolerant of cases where the uncompressed size is
 		// zero but compressed size is not.
-		if f.UncompressedSize64 != 0 || f.hasDataDescriptor() {
+		if f.UncompressedSize64 != 0 {
 			return &dirReader{ErrFormat}, nil
 		} else {
 			return &dirReader{io.EOF}, nil
