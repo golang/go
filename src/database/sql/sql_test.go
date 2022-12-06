@@ -1496,7 +1496,6 @@ func TestCursorFake(t *testing.T) {
 }
 
 func TestInvalidNilValues(t *testing.T) {
-	coalesceNullValuesToZero = false
 
 	var date1 time.Time
 	var date2 int
@@ -1549,7 +1548,8 @@ func TestInvalidNilValues(t *testing.T) {
 }
 
 func TestValidNilValues(t *testing.T) {
-	coalesceNullValuesToZero = true
+	ignoreNullValues = true
+	defer func() { ignoreNullValues = false }()
 
 	var date1 time.Time
 	var int1 int
@@ -1616,12 +1616,12 @@ func TestValidNilValues(t *testing.T) {
 			conn.dc.ci.(*fakeConn).skipDirtySession = true
 			defer conn.Close()
 
-			zeroVal := reflect.Zero(reflect.Indirect(reflect.ValueOf(tt.input)).Type())
+			originalValue := tt.input
 			err = conn.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 1).Scan(tt.input)
 			if err != nil {
 				t.Fatalf("expected no error when querying nil column, but get %s", err.Error())
-			} else if !reflect.Indirect(reflect.ValueOf(tt.input)).Equal(zeroVal) {
-				t.Fatalf("expected scan to coalesce to zero value %v, but got %v", zeroVal, reflect.Indirect(reflect.ValueOf(tt.input)))
+			} else if tt.input != originalValue {
+				t.Fatalf("expected null scan to preserve original value %v, but got %v", originalValue, tt.input)
 			}
 
 			err = conn.PingContext(ctx)
