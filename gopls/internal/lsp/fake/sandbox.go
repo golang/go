@@ -152,7 +152,7 @@ func Tempdir(files map[string][]byte) (string, error) {
 		return "", err
 	}
 	for name, data := range files {
-		if err := WriteFileData(name, data, RelativeTo(dir)); err != nil {
+		if err := writeFileData(name, data, RelativeTo(dir)); err != nil {
 			return "", fmt.Errorf("writing to tempdir: %w", err)
 		}
 	}

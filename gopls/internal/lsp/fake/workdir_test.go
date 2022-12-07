@@ -9,20 +9,28 @@ import (
 	"io/ioutil"
 	"os"
 	"sort"
+	"sync"
 	"testing"
-	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
-const data = `
+const sharedData = `
 -- go.mod --
 go 1.12
 -- nested/README.md --
 Hello World!
 `
 
-func newWorkdir(t *testing.T) (*Workdir, <-chan []protocol.FileEvent, func()) {
+// newWorkdir sets up a temporary Workdir with the given txtar-encoded content.
+// It also configures an eventBuffer to receive file event notifications. These
+// notifications are sent synchronously for each operation, such that once a
+// workdir file operation has returned the caller can expect that any relevant
+// file notifications are present in the buffer.
+//
+// It is the caller's responsibility to call the returned cleanup function.
+func newWorkdir(t *testing.T, txt string) (*Workdir, *eventBuffer, func()) {
 	t.Helper()
 
 	tmpdir, err := ioutil.TempDir("", "goplstest-workdir-")
@@ -30,7 +38,7 @@ func newWorkdir(t *testing.T) (*Workdir, <-chan []protocol.FileEvent, func()) {
 		t.Fatal(err)
 	}
 	wd := NewWorkdir(tmpdir)
-	if err := wd.writeInitialFiles(UnpackTxt(data)); err != nil {
+	if err := wd.writeInitialFiles(UnpackTxt(txt)); err != nil {
 		t.Fatal(err)
 	}
 	cleanup := func() {
@@ -39,18 +47,37 @@ func newWorkdir(t *testing.T) (*Workdir, <-chan []protocol.FileEvent, func()) {
 		}
 	}
 
-	fileEvents := make(chan []protocol.FileEvent)
-	watch := func(_ context.Context, events []protocol.FileEvent) {
-		go func() {
-			fileEvents <- events
-		}()
-	}
-	wd.AddWatcher(watch)
-	return wd, fileEvents, cleanup
+	buf := new(eventBuffer)
+	wd.AddWatcher(buf.onEvents)
+	return wd, buf, cleanup
+}
+
+// eventBuffer collects events from a file watcher.
+type eventBuffer struct {
+	mu     sync.Mutex
+	events []protocol.FileEvent
+}
+
+// onEvents collects adds events to the buffer; to be used with Workdir.AddWatcher.
+func (c *eventBuffer) onEvents(_ context.Context, events []protocol.FileEvent) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.events = append(c.events, events...)
+}
+
+// take empties the buffer, returning its previous contents.
+func (c *eventBuffer) take() []protocol.FileEvent {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	evts := c.events
+	c.events = nil
+	return evts
 }
 
 func TestWorkdir_ReadFile(t *testing.T) {
-	wd, _, cleanup := newWorkdir(t)
+	wd, _, cleanup := newWorkdir(t, sharedData)
 	defer cleanup()
 
 	got, err := wd.ReadFile("nested/README.md")
@@ -64,7 +91,7 @@ func TestWorkdir_ReadFile(t *testing.T) {
 }
 
 func TestWorkdir_WriteFile(t *testing.T) {
-	wd, events, cleanup := newWorkdir(t)
+	wd, events, cleanup := newWorkdir(t, sharedData)
 	defer cleanup()
 	ctx := context.Background()
 
@@ -80,7 +107,7 @@ func TestWorkdir_WriteFile(t *testing.T) {
 		if err := wd.WriteFile(ctx, test.path, "42"); err != nil {
 			t.Fatal(err)
 		}
-		es := <-events
+		es := events.take()
 		if got := len(es); got != 1 {
 			t.Fatalf("len(events) = %d, want 1", got)
 		}
@@ -102,8 +129,41 @@ func TestWorkdir_WriteFile(t *testing.T) {
 	}
 }
 
+// Test for file notifications following file operations.
+func TestWorkdir_FileWatching(t *testing.T) {
+	wd, events, cleanup := newWorkdir(t, "")
+	defer cleanup()
+	ctx := context.Background()
+
+	must := func(err error) {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	type changeMap map[string]protocol.FileChangeType
+	checkEvent := func(wantChanges changeMap) {
+		gotChanges := make(changeMap)
+		for _, e := range events.take() {
+			gotChanges[wd.URIToPath(e.URI)] = e.Type
+		}
+		if diff := cmp.Diff(wantChanges, gotChanges); diff != "" {
+			t.Errorf("mismatching file events (-want +got):\n%s", diff)
+		}
+	}
+
+	must(wd.WriteFile(ctx, "foo.go", "package foo"))
+	checkEvent(changeMap{"foo.go": protocol.Created})
+
+	must(wd.RenameFile(ctx, "foo.go", "bar.go"))
+	checkEvent(changeMap{"foo.go": protocol.Deleted, "bar.go": protocol.Created})
+
+	must(wd.RemoveFile(ctx, "bar.go"))
+	checkEvent(changeMap{"bar.go": protocol.Deleted})
+}
+
 func TestWorkdir_ListFiles(t *testing.T) {
-	wd, _, cleanup := newWorkdir(t)
+	wd, _, cleanup := newWorkdir(t, sharedData)
 	defer cleanup()
 
 	checkFiles := func(dir string, want []string) {
@@ -133,22 +193,19 @@ func TestWorkdir_ListFiles(t *testing.T) {
 
 func TestWorkdir_CheckForFileChanges(t *testing.T) {
 	t.Skip("broken on darwin-amd64-10_12")
-	wd, events, cleanup := newWorkdir(t)
+	wd, events, cleanup := newWorkdir(t, sharedData)
 	defer cleanup()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	checkChange := func(wantPath string, wantType protocol.FileChangeType) {
 		if err := wd.CheckForFileChanges(ctx); err != nil {
 			t.Fatal(err)
 		}
-		var gotEvt protocol.FileEvent
-		select {
-		case <-ctx.Done():
-			t.Fatal(ctx.Err())
-		case ev := <-events:
-			gotEvt = ev[0]
+		ev := events.take()
+		if len(ev) == 0 {
+			t.Fatal("no file events received")
 		}
+		gotEvt := ev[0]
 		gotPath := wd.URIToPath(gotEvt.URI)
 		// Only check relative path and Type
 		if gotPath != wantPath || gotEvt.Type != wantType {
@@ -156,12 +213,11 @@ func TestWorkdir_CheckForFileChanges(t *testing.T) {
 		}
 	}
 	// Sleep some positive amount of time to ensure a distinct mtime.
-	time.Sleep(100 * time.Millisecond)
-	if err := WriteFileData("go.mod", []byte("module foo.test\n"), wd.RelativeTo); err != nil {
+	if err := writeFileData("go.mod", []byte("module foo.test\n"), wd.RelativeTo); err != nil {
 		t.Fatal(err)
 	}
 	checkChange("go.mod", protocol.Changed)
-	if err := WriteFileData("newFile", []byte("something"), wd.RelativeTo); err != nil {
+	if err := writeFileData("newFile", []byte("something"), wd.RelativeTo); err != nil {
 		t.Fatal(err)
 	}
 	checkChange("newFile", protocol.Created)

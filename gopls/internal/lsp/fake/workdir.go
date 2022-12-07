@@ -45,9 +45,10 @@ func (r RelativeTo) RelPath(fp string) string {
 	return filepath.ToSlash(fp)
 }
 
-// WriteFileData writes content to the relative path, replacing the special
-// token $SANDBOX_WORKDIR with the relative root given by rel.
-func WriteFileData(path string, content []byte, rel RelativeTo) error {
+// writeFileData writes content to the relative path, replacing the special
+// token $SANDBOX_WORKDIR with the relative root given by rel. It does not
+// trigger any file events.
+func writeFileData(path string, content []byte, rel RelativeTo) error {
 	content = bytes.ReplaceAll(content, []byte("$SANDBOX_WORKDIR"), []byte(rel))
 	fp := rel.AbsPath(path)
 	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
@@ -122,7 +123,7 @@ func hashFile(data []byte) string {
 func (w *Workdir) writeInitialFiles(files map[string][]byte) error {
 	w.files = map[string]fileID{}
 	for name, data := range files {
-		if err := WriteFileData(name, data, w.RelativeTo); err != nil {
+		if err := writeFileData(name, data, w.RelativeTo); err != nil {
 			return fmt.Errorf("writing to workdir: %w", err)
 		}
 		fp := w.AbsPath(name)
@@ -214,78 +215,37 @@ func (w *Workdir) RegexpSearch(path string, re string) (Pos, error) {
 	return start, err
 }
 
-// RemoveFile removes a workdir-relative file path.
+// RemoveFile removes a workdir-relative file path and notifies watchers of the
+// change.
 func (w *Workdir) RemoveFile(ctx context.Context, path string) error {
 	fp := w.AbsPath(path)
 	if err := os.RemoveAll(fp); err != nil {
 		return fmt.Errorf("removing %q: %w", path, err)
 	}
-	w.fileMu.Lock()
-	defer w.fileMu.Unlock()
 
-	evts := []protocol.FileEvent{{
-		URI:  w.URI(path),
-		Type: protocol.Deleted,
-	}}
-	w.sendEvents(ctx, evts)
-	delete(w.files, path)
-	return nil
+	return w.CheckForFileChanges(ctx)
 }
 
-func (w *Workdir) sendEvents(ctx context.Context, evts []protocol.FileEvent) {
-	if len(evts) == 0 {
-		return
-	}
-	w.watcherMu.Lock()
-	watchers := make([]func(context.Context, []protocol.FileEvent), len(w.watchers))
-	copy(watchers, w.watchers)
-	w.watcherMu.Unlock()
-	for _, w := range watchers {
-		w(ctx, evts)
-	}
-}
-
-// WriteFiles writes the text file content to workdir-relative paths.
-// It batches notifications rather than sending them consecutively.
+// WriteFiles writes the text file content to workdir-relative paths and
+// notifies watchers of the changes.
 func (w *Workdir) WriteFiles(ctx context.Context, files map[string]string) error {
-	var evts []protocol.FileEvent
-	for filename, content := range files {
-		evt, err := w.writeFile(ctx, filename, content)
-		if err != nil {
+	for path, content := range files {
+		fp := w.AbsPath(path)
+		_, err := os.Stat(fp)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("checking if %q exists: %w", path, err)
+		}
+		if err := writeFileData(path, []byte(content), w.RelativeTo); err != nil {
 			return err
 		}
-		evts = append(evts, evt)
 	}
-	w.sendEvents(ctx, evts)
-	return nil
+	return w.CheckForFileChanges(ctx)
 }
 
-// WriteFile writes text file content to a workdir-relative path.
+// WriteFile writes text file content to a workdir-relative path and notifies
+// watchers of the change.
 func (w *Workdir) WriteFile(ctx context.Context, path, content string) error {
-	evt, err := w.writeFile(ctx, path, content)
-	if err != nil {
-		return err
-	}
-	w.sendEvents(ctx, []protocol.FileEvent{evt})
-	return nil
-}
-
-func (w *Workdir) writeFile(ctx context.Context, path, content string) (protocol.FileEvent, error) {
-	fp := w.AbsPath(path)
-	_, err := os.Stat(fp)
-	if err != nil && !os.IsNotExist(err) {
-		return protocol.FileEvent{}, fmt.Errorf("checking if %q exists: %w", path, err)
-	}
-	var changeType protocol.FileChangeType
-	if os.IsNotExist(err) {
-		changeType = protocol.Created
-	} else {
-		changeType = protocol.Changed
-	}
-	if err := WriteFileData(path, []byte(content), w.RelativeTo); err != nil {
-		return protocol.FileEvent{}, err
-	}
-	return w.fileEvent(path, changeType), nil
+	return w.WriteFiles(ctx, map[string]string{path: content})
 }
 
 func (w *Workdir) fileEvent(path string, changeType protocol.FileChangeType) protocol.FileEvent {
@@ -296,15 +256,12 @@ func (w *Workdir) fileEvent(path string, changeType protocol.FileChangeType) pro
 }
 
 // RenameFile performs an on disk-renaming of the workdir-relative oldPath to
-// workdir-relative newPath.
+// workdir-relative newPath, and notifies watchers of the changes.
 //
 // oldPath must either be a regular file or in the same directory as newPath.
 func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error {
 	oldAbs := w.AbsPath(oldPath)
 	newAbs := w.AbsPath(newPath)
-
-	w.fileMu.Lock()
-	defer w.fileMu.Unlock()
 
 	// For os.Rename, “OS-specific restrictions may apply when oldpath and newpath
 	// are in different directories.” If that applies here, we may fall back to
@@ -361,7 +318,7 @@ func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error
 			// the error from Rename may be accurate.
 			return renameErr
 		}
-		if writeErr := WriteFileData(newPath, []byte(content), w.RelativeTo); writeErr != nil {
+		if writeErr := writeFileData(newPath, []byte(content), w.RelativeTo); writeErr != nil {
 			// At this point we have tried to actually write the file.
 			// If it still doesn't exist, assume that the error from Rename was accurate:
 			// for example, maybe we don't have permission to create the new path.
@@ -380,16 +337,7 @@ func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error
 		}
 	}
 
-	// Send synthetic file events for the renaming. Renamed files are handled as
-	// Delete+Create events:
-	// https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#fileChangeType
-	events := []protocol.FileEvent{
-		w.fileEvent(oldPath, protocol.Deleted),
-		w.fileEvent(newPath, protocol.Created),
-	}
-	w.sendEvents(ctx, events)
-	delete(w.files, oldPath)
-	return nil
+	return w.CheckForFileChanges(ctx)
 }
 
 // ListFiles returns a new sorted list of the relative paths of files in dir,
@@ -447,7 +395,16 @@ func (w *Workdir) CheckForFileChanges(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	w.sendEvents(ctx, evts)
+	if len(evts) == 0 {
+		return nil
+	}
+	w.watcherMu.Lock()
+	watchers := make([]func(context.Context, []protocol.FileEvent), len(w.watchers))
+	copy(watchers, w.watchers)
+	w.watcherMu.Unlock()
+	for _, w := range watchers {
+		w(ctx, evts)
+	}
 	return nil
 }
 
