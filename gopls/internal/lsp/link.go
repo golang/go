@@ -81,6 +81,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	}
 
 	// Get all the links that are contained in the comments of the file.
+	urlRegexp := snapshot.View().Options().URLRegexp
 	for _, expr := range pm.File.Syntax.Stmt {
 		comments := expr.Comment()
 		if comments == nil {
@@ -89,7 +90,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		for _, section := range [][]modfile.Comment{comments.Before, comments.Suffix, comments.After} {
 			for _, comment := range section {
 				start := tokFile.Pos(comment.Start.Byte)
-				l, err := findLinksInString(ctx, snapshot, comment.Token, start, tokFile, pm.Mapper)
+				l, err := findLinksInString(urlRegexp, comment.Token, start, tokFile, pm.Mapper)
 				if err != nil {
 					return nil, err
 				}
@@ -100,54 +101,54 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	return links, nil
 }
 
+// goLinks returns the set of hyperlink annotations for the specified Go file.
 func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentLink, error) {
 	view := snapshot.View()
-	// We don't actually need type information, so any typecheck mode is fine.
-	// TODO(adonovan): opt: avoid loading type-checked package; only Metadata is needed.
-	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), source.TypecheckWorkspace, source.WidestPackage)
-	if err != nil {
-		return nil, err
-	}
+
 	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseFull)
 	if err != nil {
 		return nil, err
 	}
-	var imports []*ast.ImportSpec
-	var str []*ast.BasicLit
-	ast.Inspect(pgf.File, func(node ast.Node) bool {
-		switch n := node.(type) {
-		case *ast.ImportSpec:
-			imports = append(imports, n)
-			return false
-		case *ast.BasicLit:
-			// Look for links in string literals.
-			if n.Kind == token.STRING {
-				str = append(str, n)
-			}
-			return false
-		}
-		return true
-	})
+
 	var links []protocol.DocumentLink
-	// For import specs, provide a link to a documentation website, like
-	// https://pkg.go.dev.
+
+	// Create links for import specs.
 	if view.Options().ImportShortcut.ShowLinks() {
-		for _, imp := range imports {
-			target := source.UnquoteImportPath(imp)
-			if target == "" {
-				continue
+
+		// If links are to pkg.go.dev, append module version suffixes.
+		// This requires the import map from the package metadata. Ignore errors.
+		var depsByImpPath map[source.ImportPath]source.PackageID
+		if strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
+			if metas, _ := snapshot.MetadataForFile(ctx, fh.URI()); len(metas) > 0 {
+				depsByImpPath = metas[0].DepsByImpPath // 0 => narrowest package
+			}
+		}
+
+		for _, imp := range pgf.File.Imports {
+			importPath := source.UnquoteImportPath(imp)
+			if importPath == "" {
+				continue // bad import
 			}
 			// See golang/go#36998: don't link to modules matching GOPRIVATE.
-			if view.IsGoPrivatePath(string(target)) {
+			if view.IsGoPrivatePath(string(importPath)) {
 				continue
 			}
-			if mod, version, ok := moduleAtVersion(target, pkg); ok && strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
-				target = source.ImportPath(strings.Replace(string(target), mod, mod+"@"+version, 1))
+
+			urlPath := string(importPath)
+
+			// For pkg.go.dev, append module version suffix to package import path.
+			if m := snapshot.Metadata(depsByImpPath[importPath]); m != nil &&
+				m.Module != nil &&
+				m.Module.Path != "" &&
+				m.Module.Version != "" &&
+				!source.IsWorkspaceModuleVersion(m.Module.Version) {
+				urlPath = strings.Replace(urlPath, m.Module.Path, m.Module.Path+"@"+m.Module.Version, 1)
 			}
+
 			// Account for the quotation marks in the positions.
 			start := imp.Path.Pos() + 1
 			end := imp.Path.End() - 1
-			targetURL := source.BuildLink(view.Options().LinkTarget, string(target), "")
+			targetURL := source.BuildLink(view.Options().LinkTarget, urlPath, "")
 			l, err := toProtocolLink(pgf.Tok, pgf.Mapper, targetURL, start, end)
 			if err != nil {
 				return nil, err
@@ -155,39 +156,42 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 			links = append(links, l)
 		}
 	}
+
+	urlRegexp := snapshot.View().Options().URLRegexp
+
+	// Gather links found in string literals.
+	var str []*ast.BasicLit
+	ast.Inspect(pgf.File, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.ImportSpec:
+			return false // don't process import strings again
+		case *ast.BasicLit:
+			if n.Kind == token.STRING {
+				str = append(str, n)
+			}
+		}
+		return true
+	})
 	for _, s := range str {
-		l, err := findLinksInString(ctx, snapshot, s.Value, s.Pos(), pgf.Tok, pgf.Mapper)
+		l, err := findLinksInString(urlRegexp, s.Value, s.Pos(), pgf.Tok, pgf.Mapper)
 		if err != nil {
 			return nil, err
 		}
 		links = append(links, l...)
 	}
+
+	// Gather links found in comments.
 	for _, commentGroup := range pgf.File.Comments {
 		for _, comment := range commentGroup.List {
-			l, err := findLinksInString(ctx, snapshot, comment.Text, comment.Pos(), pgf.Tok, pgf.Mapper)
+			l, err := findLinksInString(urlRegexp, comment.Text, comment.Pos(), pgf.Tok, pgf.Mapper)
 			if err != nil {
 				return nil, err
 			}
 			links = append(links, l...)
 		}
 	}
-	return links, nil
-}
 
-func moduleAtVersion(targetImportPath source.ImportPath, pkg source.Package) (string, string, bool) {
-	// TODO(adonovan): opt: avoid need for package; use Metadata.DepsByImportPath only.
-	impPkg, err := pkg.ResolveImportPath(targetImportPath)
-	if err != nil {
-		return "", "", false
-	}
-	if impPkg.Version() == nil {
-		return "", "", false
-	}
-	version, modpath := impPkg.Version().Version, impPkg.Version().Path
-	if modpath == "" || version == "" {
-		return "", "", false
-	}
-	return modpath, version, true
+	return links, nil
 }
 
 // acceptedSchemes controls the schemes that URLs must have to be shown to the
@@ -198,10 +202,11 @@ var acceptedSchemes = map[string]bool{
 	"https": true,
 }
 
+// urlRegexp is the user-supplied regular expression to match URL.
 // tokFile may be a throwaway File for non-Go files.
-func findLinksInString(ctx context.Context, snapshot source.Snapshot, src string, pos token.Pos, tokFile *token.File, m *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
+func findLinksInString(urlRegexp *regexp.Regexp, src string, pos token.Pos, tokFile *token.File, m *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
 	var links []protocol.DocumentLink
-	for _, index := range snapshot.View().Options().URLRegexp.FindAllIndex([]byte(src), -1) {
+	for _, index := range urlRegexp.FindAllIndex([]byte(src), -1) {
 		start, end := index[0], index[1]
 		startPos := token.Pos(int(pos) + start)
 		endPos := token.Pos(int(pos) + end)

@@ -854,7 +854,7 @@ func formatLink(h *HoverJSON, options *Options) string {
 	}
 }
 
-// BuildLink constructs a link with the given target, path, and anchor.
+// BuildLink constructs a URL with the given target, path, and anchor.
 func BuildLink(target, path, anchor string) string {
 	link := fmt.Sprintf("https://%s/%s", target, path)
 	if anchor == "" {

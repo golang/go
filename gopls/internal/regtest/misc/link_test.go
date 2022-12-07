@@ -67,11 +67,11 @@ const Hello = "Hello"
 		}
 		links := env.DocumentLink("main.go")
 		if len(links) != 1 || links[0].Target != pkgLink {
-			t.Errorf("documentLink: got %v for main.go, want link to %q", links, pkgLink)
+			t.Errorf("documentLink: got links %+v for main.go, want one link with target %q", links, pkgLink)
 		}
 		links = env.DocumentLink("go.mod")
 		if len(links) != 1 || links[0].Target != modLink {
-			t.Errorf("documentLink: got %v for go.mod, want link to %q", links, modLink)
+			t.Errorf("documentLink: got links %+v for go.mod, want one link with target %q", links, modLink)
 		}
 
 		// Then change the environment to make these links private.

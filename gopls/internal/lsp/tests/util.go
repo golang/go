@@ -34,6 +34,8 @@ func DiffLinks(mapper *protocol.ColumnMapper, wantLinks []Link, gotLinks []proto
 		links[link.Src] = link.Target
 		notePositions = append(notePositions, link.NotePosition)
 	}
+
+	var msg strings.Builder
 	for _, link := range gotLinks {
 		spn, err := mapper.RangeSpan(link.Range)
 		if err != nil {
@@ -51,19 +53,20 @@ func DiffLinks(mapper *protocol.ColumnMapper, wantLinks []Link, gotLinks []proto
 		if linkInNote {
 			continue
 		}
+
 		if target, ok := links[spn]; ok {
 			delete(links, spn)
 			if target != link.Target {
-				return fmt.Sprintf("for %v want %v, got %v\n", spn, target, link.Target)
+				fmt.Fprintf(&msg, "%s: want link with target %q, got %q\n", spn, target, link.Target)
 			}
 		} else {
-			return fmt.Sprintf("unexpected link %v:%v\n", spn, link.Target)
+			fmt.Fprintf(&msg, "%s: got unexpected link with target %q\n", spn, link.Target)
 		}
 	}
 	for spn, target := range links {
-		return fmt.Sprintf("missing link %v:%v\n", spn, target)
+		fmt.Fprintf(&msg, "%s: expected link with target %q is missing\n", spn, target)
 	}
-	return ""
+	return msg.String()
 }
 
 // CompareDiagnostics reports testing errors to t when the diagnostic set got
