@@ -108,6 +108,23 @@ func NewServer(handler http.Handler) *Server {
 	return ts
 }
 
+// NewServer starts and returns a new Server based on unix domain socket.
+// The caller should call Close when finished, to shut it down and
+// delete the socket file.
+func NewUnixDomainSocketServer(handler http.Handler) *Server {
+	sockPath := ".-_-."
+	l, err := net.Listen("unix", sockPath)
+	if err != nil {
+		panic(fmt.Sprintf("httptest: failed to listen on unix domain socket %v: %v", sockPath, err))
+	}
+	ts := &Server{
+		Listener: l,
+		Config:   &http.Server{Handler: handler},
+	}
+	ts.Start()
+	return ts
+}
+
 // NewUnstartedServer returns a new Server but doesn't start it.
 //
 // After changing its configuration, the caller should call Start or
