@@ -221,26 +221,6 @@ func (w *Workdir) RegexpSearch(path string, re string) (Pos, error) {
 	return start, err
 }
 
-// ChangeFilesOnDisk executes the given on-disk file changes in a batch,
-// simulating the action of changing branches outside of an editor.
-func (w *Workdir) ChangeFilesOnDisk(ctx context.Context, events []FileEvent) error {
-	for _, e := range events {
-		switch e.ProtocolEvent.Type {
-		case protocol.Deleted:
-			fp := w.AbsPath(e.Path)
-			if err := os.Remove(fp); err != nil {
-				return fmt.Errorf("removing %q: %w", e.Path, err)
-			}
-		case protocol.Changed, protocol.Created:
-			if _, err := w.writeFile(ctx, e.Path, e.Content); err != nil {
-				return err
-			}
-		}
-	}
-	w.sendEvents(ctx, events)
-	return nil
-}
-
 // RemoveFile removes a workdir-relative file path.
 func (w *Workdir) RemoveFile(ctx context.Context, path string) error {
 	fp := w.AbsPath(path)

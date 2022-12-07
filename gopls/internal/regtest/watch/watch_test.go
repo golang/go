@@ -487,39 +487,11 @@ package a
 func _() {}
 `
 	Run(t, pkg, func(t *testing.T, env *Env) {
-		env.ChangeFilesOnDisk([]fake.FileEvent{
-			{
-				Path: "a/a3.go",
-				Content: `package a
-
-var Hello int
-`,
-				ProtocolEvent: protocol.FileEvent{
-					URI:  env.Sandbox.Workdir.URI("a/a3.go"),
-					Type: protocol.Created,
-				},
-			},
-			{
-				Path: "a/a1.go",
-				ProtocolEvent: protocol.FileEvent{
-					URI:  env.Sandbox.Workdir.URI("a/a1.go"),
-					Type: protocol.Deleted,
-				},
-			},
-			{
-				Path:    "a/a2.go",
-				Content: `package a; func _() {};`,
-				ProtocolEvent: protocol.FileEvent{
-					URI:  env.Sandbox.Workdir.URI("a/a2.go"),
-					Type: protocol.Changed,
-				},
-			},
-		})
-		env.Await(
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				NoDiagnostics("main.go"),
-			),
+		env.WriteWorkspaceFile("a/a3.go", "package a\n\nvar Hello int\n")
+		env.RemoveWorkspaceFile("a/a1.go")
+		env.WriteWorkspaceFile("a/a2.go", "package a; func _() {};")
+		env.AfterChange(
+			NoDiagnostics("main.go"),
 		)
 	})
 }

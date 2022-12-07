@@ -13,13 +13,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
-func (e *Env) ChangeFilesOnDisk(events []fake.FileEvent) {
-	e.T.Helper()
-	if err := e.Sandbox.Workdir.ChangeFilesOnDisk(e.Ctx, events); err != nil {
-		e.T.Fatal(err)
-	}
-}
-
 // RemoveWorkspaceFile deletes a file on disk but does nothing in the
 // editor. It calls t.Fatal on any error.
 func (e *Env) RemoveWorkspaceFile(name string) {
