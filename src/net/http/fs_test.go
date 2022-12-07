@@ -648,6 +648,34 @@ func TestFileServerZeroByte(t *testing.T) {
 	}
 }
 
+func TestFileServerNamesEscape(t *testing.T) {
+	t.Run("h1", func(t *testing.T) {
+		testFileServerNamesEscape(t, h1Mode)
+	})
+	t.Run("h2", func(t *testing.T) {
+		testFileServerNamesEscape(t, h2Mode)
+	})
+}
+func testFileServerNamesEscape(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	ts := newClientServerTest(t, h2, FileServer(Dir("testdata"))).ts
+	defer ts.Close()
+	for _, path := range []string{
+		"/../testdata/file",
+		"/NUL", // don't read from device files on Windows
+	} {
+		res, err := ts.Client().Get(ts.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode < 400 || res.StatusCode > 599 {
+			t.Errorf("Get(%q): got status %v, want 4xx or 5xx", path, res.StatusCode)
+		}
+
+	}
+}
+
 type fakeFileInfo struct {
 	dir      bool
 	basename string
