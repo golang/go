@@ -1276,7 +1276,12 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		}
 	}
 
-	cmd := exec.Command(args[0], args[1:]...)
+	// Normally, the test will terminate itself when the timeout expires,
+	// but add a last-ditch deadline to detect and stop wedged binaries.
+	ctx, cancel := context.WithTimeout(ctx, testKillTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = a.Package.Dir
 
 	env := cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)]
@@ -1309,42 +1314,33 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		cmd.Env = env
 	}
 
+	var (
+		cancelKilled   = false
+		cancelSignaled = false
+	)
+	cmd.Cancel = func() error {
+		if base.SignalTrace == nil {
+			err := cmd.Process.Kill()
+			if err == nil {
+				cancelKilled = true
+			}
+			return err
+		}
+
+		// Send a quit signal in the hope that the program will print
+		// a stack trace and exit.
+		err := cmd.Process.Signal(base.SignalTrace)
+		if err == nil {
+			cancelSignaled = true
+		}
+		return err
+	}
+	// Give the test five seconds to exit after the signal before resorting to Kill.
+	cmd.WaitDelay = 5 * time.Second
+
 	base.StartSigHandlers()
 	t0 := time.Now()
-	err = cmd.Start()
-
-	// This is a last-ditch deadline to detect and
-	// stop wedged test binaries, to keep the builders
-	// running.
-	if err == nil {
-		tick := time.NewTimer(testKillTimeout)
-		done := make(chan error)
-		go func() {
-			done <- cmd.Wait()
-		}()
-	Outer:
-		select {
-		case err = <-done:
-			// ok
-		case <-tick.C:
-			if base.SignalTrace != nil {
-				// Send a quit signal in the hope that the program will print
-				// a stack trace and exit. Give it five seconds before resorting
-				// to Kill.
-				cmd.Process.Signal(base.SignalTrace)
-				select {
-				case err = <-done:
-					fmt.Fprintf(cmd.Stdout, "*** Test killed with %v: ran too long (%v).\n", base.SignalTrace, testKillTimeout)
-					break Outer
-				case <-time.After(5 * time.Second):
-				}
-			}
-			cmd.Process.Kill()
-			err = <-done
-			fmt.Fprintf(cmd.Stdout, "*** Test killed: ran too long (%v).\n", testKillTimeout)
-		}
-		tick.Stop()
-	}
+	err = cmd.Run()
 	out := buf.Bytes()
 	a.TestOutput = &buf
 	t := fmt.Sprintf("%.3fs", time.Since(t0).Seconds())
@@ -1374,7 +1370,13 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		r.c.saveOutput(a)
 	} else {
 		base.SetExitStatus(1)
-		if len(out) == 0 {
+		if cancelSignaled {
+			fmt.Fprintf(cmd.Stdout, "*** Test killed with %v: ran too long (%v).\n", base.SignalTrace, testKillTimeout)
+		} else if cancelKilled {
+			fmt.Fprintf(cmd.Stdout, "*** Test killed: ran too long (%v).\n", testKillTimeout)
+		}
+		var ee *exec.ExitError
+		if len(out) == 0 || !errors.As(err, &ee) || !ee.Exited() {
 			// If there was no test output, print the exit status so that the reason
 			// for failure is clear.
 			fmt.Fprintf(cmd.Stdout, "%s\n", err)
