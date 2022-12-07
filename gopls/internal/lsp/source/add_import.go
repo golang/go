@@ -13,8 +13,7 @@ import (
 
 // AddImport adds a single import statement to the given file
 func AddImport(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, importPath string) ([]protocol.TextEdit, error) {
-	// TODO(adonovan): opt: avoid loading type checked package; only parsing is needed.
-	_, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
+	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return nil, err
 	}

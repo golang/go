@@ -91,13 +91,14 @@ func (s MappedRange) URI() span.URI {
 	return s.m.URI
 }
 
-// GetParsedFile is a convenience function that extracts the Package and
-// ParsedGoFile for a file in a Snapshot. pkgPolicy is one of NarrowestPackage/
-// WidestPackage.
+// GetTypedFile is a convenience function that reads, parses, and
+// type-checks the package containing a file in the given
+// Snapshot. pkgPolicy is one of NarrowestPackage or WidestPackage.
 //
-// Type-checking is expensive. Call cheaper methods of Snapshot if all
-// you need is Metadata or parse trees.
-func GetParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, pkgPolicy PackageFilter) (Package, *ParsedGoFile, error) {
+// Type-checking is expensive. Call snapshot.ParseGo if all you need
+// is a parse tree, or snapshot.MetadataForFile if all you only need
+// metadata.
+func GetTypedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, pkgPolicy PackageFilter) (Package, *ParsedGoFile, error) {
 	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), TypecheckWorkspace, pkgPolicy)
 	if err != nil {
 		return nil, nil, err

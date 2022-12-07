@@ -25,9 +25,9 @@ import (
 )
 
 func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, rng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
-	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
+	pkg, pgf, err := GetTypedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
-		return nil, nil, fmt.Errorf("GetParsedFile: %w", err)
+		return nil, nil, fmt.Errorf("GetTypedFile: %w", err)
 	}
 	nodes, pos, err := getStubNodes(pgf, rng)
 	if err != nil {
@@ -114,7 +114,7 @@ func stubMethods(ctx context.Context, concreteFile *ast.File, si *stubmethods.St
 		for _, m := range mi.missing {
 			// TODO(marwan-at-work): this should share the same logic with source.FormatVarType
 			// as it also accounts for type aliases.
-			sig := types.TypeString(m.Type(), stubmethods.RelativeToFiles(si.Concrete.Obj().Pkg(), concreteFile, mi.file, func(name, path string) {
+			sig := types.TypeString(m.Type(), stubmethods.RelativeToFiles(si.Concrete.Obj().Pkg(), concreteFile, mi.imports, func(name, path string) {
 				for _, imp := range stubImports {
 					if imp.Name == name && imp.Path == path {
 						return
@@ -245,12 +245,12 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 	if err != nil {
 		return nil, fmt.Errorf("error getting iface file: %w", err)
 	}
-	mi := &missingInterface{
-		iface: iface,
-		file:  parsedFile.File,
-	}
-	if mi.file == nil {
+	if parsedFile.File == nil {
 		return nil, fmt.Errorf("could not find ast.File for %v", ifaceObj.Name())
+	}
+	mi := &missingInterface{
+		iface:   iface,
+		imports: parsedFile.File.Imports,
 	}
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		method := iface.ExplicitMethod(i)
@@ -276,16 +276,13 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 }
 
 // Token position information for obj.Pos and the ParsedGoFile result is in Snapshot.FileSet.
+// The returned file does not have type information.
 func getStubFile(ctx context.Context, obj types.Object, snapshot Snapshot) (*ParsedGoFile, VersionedFileHandle, error) {
 	objPos := snapshot.FileSet().Position(obj.Pos())
 	objFile := span.URIFromPath(objPos.Filename)
 	objectFH := snapshot.FindFile(objFile)
-	// TODO(adonovan): opt: avoid loading type-checked package; only parsing is needed.
-	_, goFile, err := GetParsedFile(ctx, snapshot, objectFH, WidestPackage)
-	if err != nil {
-		return nil, nil, fmt.Errorf("GetParsedFile: %w", err)
-	}
-	return goFile, objectFH, nil
+	goFile, err := snapshot.ParseGo(ctx, objectFH, ParseFull)
+	return goFile, objectFH, err
 }
 
 // missingInterface represents an interface
@@ -293,7 +290,7 @@ func getStubFile(ctx context.Context, obj types.Object, snapshot Snapshot) (*Par
 // from the destination concrete type
 type missingInterface struct {
 	iface   *types.Interface
-	file    *ast.File
+	imports []*ast.ImportSpec // the interface's import environment
 	missing []*types.Func
 }
 

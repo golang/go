@@ -13,9 +13,9 @@ import (
 	"go/types"
 	"strings"
 
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/gopls/internal/lsp/lsppos"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -83,7 +83,7 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng proto
 	ctx, done := event.Start(ctx, "source.InlayHint")
 	defer done()
 
-	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
+	pkg, pgf, err := GetTypedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for InlayHint: %w", err)
 	}

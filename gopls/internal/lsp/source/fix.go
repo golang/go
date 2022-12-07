@@ -109,8 +109,7 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 			}
 			editsPerFile[fh.URI()] = te
 		}
-		// TODO(adonovan): opt: avoid loading type-checked package; only Metadata is needed.
-		_, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
+		pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 		if err != nil {
 			return nil, err
 		}
@@ -133,7 +132,7 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 // getAllSuggestedFixInputs is a helper function to collect all possible needed
 // inputs for an AppliesFunc or SuggestedFixFunc.
 func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, span.Range, []byte, *ast.File, *types.Package, *types.Info, error) {
-	pkg, pgf, err := GetParsedFile(ctx, snapshot, fh, NarrowestPackage)
+	pkg, pgf, err := GetTypedFile(ctx, snapshot, fh, NarrowestPackage)
 	if err != nil {
 		return nil, span.Range{}, nil, nil, nil, nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}

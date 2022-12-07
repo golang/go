@@ -21,7 +21,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 	ctx, done := event.Start(ctx, "source.Highlight")
 	defer done()
 
-	// Don't use GetParsedFile because it uses TypecheckWorkspace, and we
+	// Don't use GetTypedFile because it uses TypecheckWorkspace, and we
 	// always want fully parsed files for highlight, regardless of whether
 	// the file belongs to a workspace package.
 	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), TypecheckFull, WidestPackage)

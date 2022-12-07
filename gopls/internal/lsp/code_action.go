@@ -313,8 +313,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI
 	if err != nil {
 		return nil, err
 	}
-	// TODO(adonovan): opt: avoid package loading; only parsing is needed.
-	_, pgf, err := source.GetParsedFile(ctx, snapshot, fh, source.NarrowestPackage)
+	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseFull)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
