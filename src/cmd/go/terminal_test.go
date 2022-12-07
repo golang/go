@@ -71,31 +71,37 @@ func runTerminalPassthrough(t *testing.T, r, w *os.File) (stdout, stderr bool) {
 	cmd.Env = append(cmd.Environ(), "GO_TEST_TERMINAL_PASSTHROUGH=1")
 	cmd.Stdout = w
 	cmd.Stderr = w
+
+	// The behavior of reading from a PTY after the child closes it is very
+	// strange: on Linux, Read returns EIO, and on at least some versions of
+	// macOS, unread output may be discarded (see https://go.dev/issue/57141).
+	//
+	// To avoid that situation, we keep the child process running until the
+	// parent has finished reading from the PTY, at which point we unblock the
+	// child by closing its stdin pipe.
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	t.Logf("running %s", cmd)
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		t.Fatalf("starting subprocess: %s", err)
 	}
 	w.Close()
-	// Read the subprocess output. The behavior of reading from a PTY after the
-	// child closes it is very strange (e.g., on Linux, read returns EIO), so we
-	// ignore errors as long as we get everything we need. We still try to read
-	// all of the output so we can report it in case of failure.
-	buf, err := io.ReadAll(r)
-	if len(buf) != 2 || !(buf[0] == '1' || buf[0] == 'X') || !(buf[1] == '2' || buf[1] == 'X') {
-		t.Errorf("expected exactly 2 bytes matching [1X][2X]")
-		if err != nil {
-			// An EIO here might be expected depending on OS.
-			t.Errorf("error reading from subprocess: %s", err)
+	t.Cleanup(func() {
+		stdin.Close()
+		if err := cmd.Wait(); err != nil {
+			t.Errorf("suprocess failed with: %s", err)
 		}
-	}
-	err = cmd.Wait()
-	if err != nil {
-		t.Errorf("suprocess failed with: %s", err)
-	}
-	if t.Failed() {
-		t.Logf("subprocess output:\n%s", string(buf))
-		t.FailNow()
+	})
+
+	buf := make([]byte, 2)
+	n, err := io.ReadFull(r, buf)
+	if err != nil || !(buf[0] == '1' || buf[0] == 'X') || !(buf[1] == '2' || buf[1] == 'X') {
+		t.Logf("read error: %v", err)
+		t.Fatalf("expected 2 bytes matching `[1X][2X]`; got %q", buf[:n])
 	}
 	return buf[0] == '1', buf[1] == '2'
 }
@@ -106,14 +112,19 @@ func init() {
 	}
 
 	if term.IsTerminal(1) {
-		print("1")
+		os.Stdout.WriteString("1")
 	} else {
-		print("X")
+		os.Stdout.WriteString("X")
 	}
 	if term.IsTerminal(2) {
-		print("2")
+		os.Stdout.WriteString("2")
 	} else {
-		print("X")
+		os.Stdout.WriteString("X")
 	}
+
+	// Before exiting, wait for the parent process to read the PTY output,
+	// at which point it will close stdin.
+	io.Copy(io.Discard, os.Stdin)
+
 	os.Exit(0)
 }
