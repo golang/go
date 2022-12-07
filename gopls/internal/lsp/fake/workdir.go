@@ -23,13 +23,6 @@ import (
 	"golang.org/x/tools/gopls/internal/span"
 )
 
-// FileEvent wraps the protocol.FileEvent so that it can be associated with a
-// workdir-relative path.
-type FileEvent struct {
-	Path, Content string
-	ProtocolEvent protocol.FileEvent
-}
-
 // RelativeTo is a helper for operations relative to a given directory.
 type RelativeTo string
 
@@ -88,7 +81,7 @@ type Workdir struct {
 	RelativeTo
 
 	watcherMu sync.Mutex
-	watchers  []func(context.Context, []FileEvent)
+	watchers  []func(context.Context, []protocol.FileEvent)
 
 	fileMu sync.Mutex
 	// File identities we know about, for the purpose of detecting changes.
@@ -161,7 +154,7 @@ func (w *Workdir) RootURI() protocol.DocumentURI {
 }
 
 // AddWatcher registers the given func to be called on any file change.
-func (w *Workdir) AddWatcher(watcher func(context.Context, []FileEvent)) {
+func (w *Workdir) AddWatcher(watcher func(context.Context, []protocol.FileEvent)) {
 	w.watcherMu.Lock()
 	w.watchers = append(w.watchers, watcher)
 	w.watcherMu.Unlock()
@@ -230,24 +223,21 @@ func (w *Workdir) RemoveFile(ctx context.Context, path string) error {
 	w.fileMu.Lock()
 	defer w.fileMu.Unlock()
 
-	evts := []FileEvent{{
-		Path: path,
-		ProtocolEvent: protocol.FileEvent{
-			URI:  w.URI(path),
-			Type: protocol.Deleted,
-		},
+	evts := []protocol.FileEvent{{
+		URI:  w.URI(path),
+		Type: protocol.Deleted,
 	}}
 	w.sendEvents(ctx, evts)
 	delete(w.files, path)
 	return nil
 }
 
-func (w *Workdir) sendEvents(ctx context.Context, evts []FileEvent) {
+func (w *Workdir) sendEvents(ctx context.Context, evts []protocol.FileEvent) {
 	if len(evts) == 0 {
 		return
 	}
 	w.watcherMu.Lock()
-	watchers := make([]func(context.Context, []FileEvent), len(w.watchers))
+	watchers := make([]func(context.Context, []protocol.FileEvent), len(w.watchers))
 	copy(watchers, w.watchers)
 	w.watcherMu.Unlock()
 	for _, w := range watchers {
@@ -258,7 +248,7 @@ func (w *Workdir) sendEvents(ctx context.Context, evts []FileEvent) {
 // WriteFiles writes the text file content to workdir-relative paths.
 // It batches notifications rather than sending them consecutively.
 func (w *Workdir) WriteFiles(ctx context.Context, files map[string]string) error {
-	var evts []FileEvent
+	var evts []protocol.FileEvent
 	for filename, content := range files {
 		evt, err := w.writeFile(ctx, filename, content)
 		if err != nil {
@@ -276,15 +266,15 @@ func (w *Workdir) WriteFile(ctx context.Context, path, content string) error {
 	if err != nil {
 		return err
 	}
-	w.sendEvents(ctx, []FileEvent{evt})
+	w.sendEvents(ctx, []protocol.FileEvent{evt})
 	return nil
 }
 
-func (w *Workdir) writeFile(ctx context.Context, path, content string) (FileEvent, error) {
+func (w *Workdir) writeFile(ctx context.Context, path, content string) (protocol.FileEvent, error) {
 	fp := w.AbsPath(path)
 	_, err := os.Stat(fp)
 	if err != nil && !os.IsNotExist(err) {
-		return FileEvent{}, fmt.Errorf("checking if %q exists: %w", path, err)
+		return protocol.FileEvent{}, fmt.Errorf("checking if %q exists: %w", path, err)
 	}
 	var changeType protocol.FileChangeType
 	if os.IsNotExist(err) {
@@ -293,18 +283,15 @@ func (w *Workdir) writeFile(ctx context.Context, path, content string) (FileEven
 		changeType = protocol.Changed
 	}
 	if err := WriteFileData(path, []byte(content), w.RelativeTo); err != nil {
-		return FileEvent{}, err
+		return protocol.FileEvent{}, err
 	}
 	return w.fileEvent(path, changeType), nil
 }
 
-func (w *Workdir) fileEvent(path string, changeType protocol.FileChangeType) FileEvent {
-	return FileEvent{
-		Path: path,
-		ProtocolEvent: protocol.FileEvent{
-			URI:  w.URI(path),
-			Type: changeType,
-		},
+func (w *Workdir) fileEvent(path string, changeType protocol.FileChangeType) protocol.FileEvent {
+	return protocol.FileEvent{
+		URI:  w.URI(path),
+		Type: changeType,
 	}
 }
 
@@ -396,7 +383,7 @@ func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error
 	// Send synthetic file events for the renaming. Renamed files are handled as
 	// Delete+Create events:
 	// https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#fileChangeType
-	events := []FileEvent{
+	events := []protocol.FileEvent{
 		w.fileEvent(oldPath, protocol.Deleted),
 		w.fileEvent(newPath, protocol.Created),
 	}
@@ -466,7 +453,7 @@ func (w *Workdir) CheckForFileChanges(ctx context.Context) error {
 
 // pollFiles updates w.files and calculates FileEvents corresponding to file
 // state changes since the last poll. It does not call sendEvents.
-func (w *Workdir) pollFiles() ([]FileEvent, error) {
+func (w *Workdir) pollFiles() ([]protocol.FileEvent, error) {
 	w.fileMu.Lock()
 	defer w.fileMu.Unlock()
 
@@ -474,7 +461,7 @@ func (w *Workdir) pollFiles() ([]FileEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	var evts []FileEvent
+	var evts []protocol.FileEvent
 	// Check which files have been added or modified.
 	for path, id := range files {
 		oldID, ok := w.files[path]
@@ -488,22 +475,16 @@ func (w *Workdir) pollFiles() ([]FileEvent, error) {
 		default:
 			continue
 		}
-		evts = append(evts, FileEvent{
-			Path: path,
-			ProtocolEvent: protocol.FileEvent{
-				URI:  w.URI(path),
-				Type: typ,
-			},
+		evts = append(evts, protocol.FileEvent{
+			URI:  w.URI(path),
+			Type: typ,
 		})
 	}
 	// Any remaining files must have been deleted.
 	for path := range w.files {
-		evts = append(evts, FileEvent{
-			Path: path,
-			ProtocolEvent: protocol.FileEvent{
-				URI:  w.URI(path),
-				Type: protocol.Deleted,
-			},
+		evts = append(evts, protocol.FileEvent{
+			URI:  w.URI(path),
+			Type: protocol.Deleted,
 		})
 	}
 	w.files = files

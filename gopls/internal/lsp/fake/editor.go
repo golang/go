@@ -323,7 +323,7 @@ func (e *Editor) makeWorkspaceFoldersLocked() (folders []protocol.WorkspaceFolde
 
 // onFileChanges is registered to be called by the Workdir on any writes that
 // go through the Workdir API. It is called synchronously by the Workdir.
-func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
+func (e *Editor) onFileChanges(ctx context.Context, evts []protocol.FileEvent) {
 	if e.Server == nil {
 		return
 	}
@@ -339,19 +339,17 @@ func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
 	go func() {
 		e.mu.Lock()
 		defer e.mu.Unlock()
-		var lspevts []protocol.FileEvent
 		for _, evt := range evts {
 			// Always send an on-disk change, even for events that seem useless
 			// because they're shadowed by an open buffer.
-			lspevts = append(lspevts, evt.ProtocolEvent)
-
-			if buf, ok := e.buffers[evt.Path]; ok {
+			path := e.sandbox.Workdir.URIToPath(evt.URI)
+			if buf, ok := e.buffers[path]; ok {
 				// Following VS Code, don't honor deletions or changes to dirty buffers.
-				if buf.dirty || evt.ProtocolEvent.Type == protocol.Deleted {
+				if buf.dirty || evt.Type == protocol.Deleted {
 					continue
 				}
 
-				content, err := e.sandbox.Workdir.ReadFile(evt.Path)
+				content, err := e.sandbox.Workdir.ReadFile(path)
 				if err != nil {
 					continue // A race with some other operation.
 				}
@@ -360,11 +358,11 @@ func (e *Editor) onFileChanges(ctx context.Context, evts []FileEvent) {
 					continue
 				}
 				// During shutdown, this call will fail. Ignore the error.
-				_ = e.setBufferContentLocked(ctx, evt.Path, false, lines(content), nil)
+				_ = e.setBufferContentLocked(ctx, path, false, lines(content), nil)
 			}
 		}
 		e.Server.DidChangeWatchedFiles(ctx, &protocol.DidChangeWatchedFilesParams{
-			Changes: lspevts,
+			Changes: evts,
 		})
 	}()
 }

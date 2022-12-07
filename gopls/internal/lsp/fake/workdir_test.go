@@ -22,7 +22,7 @@ go 1.12
 Hello World!
 `
 
-func newWorkdir(t *testing.T) (*Workdir, <-chan []FileEvent, func()) {
+func newWorkdir(t *testing.T) (*Workdir, <-chan []protocol.FileEvent, func()) {
 	t.Helper()
 
 	tmpdir, err := ioutil.TempDir("", "goplstest-workdir-")
@@ -39,8 +39,8 @@ func newWorkdir(t *testing.T) (*Workdir, <-chan []FileEvent, func()) {
 		}
 	}
 
-	fileEvents := make(chan []FileEvent)
-	watch := func(_ context.Context, events []FileEvent) {
+	fileEvents := make(chan []protocol.FileEvent)
+	watch := func(_ context.Context, events []protocol.FileEvent) {
 		go func() {
 			fileEvents <- events
 		}()
@@ -84,11 +84,12 @@ func TestWorkdir_WriteFile(t *testing.T) {
 		if got := len(es); got != 1 {
 			t.Fatalf("len(events) = %d, want 1", got)
 		}
-		if es[0].Path != test.path {
-			t.Errorf("event.Path = %q, want %q", es[0].Path, test.path)
+		path := wd.URIToPath(es[0].URI)
+		if path != test.path {
+			t.Errorf("event path = %q, want %q", path, test.path)
 		}
-		if es[0].ProtocolEvent.Type != test.wantType {
-			t.Errorf("event type = %v, want %v", es[0].ProtocolEvent.Type, test.wantType)
+		if es[0].Type != test.wantType {
+			t.Errorf("event type = %v, want %v", es[0].Type, test.wantType)
 		}
 		got, err := wd.ReadFile(test.path)
 		if err != nil {
@@ -137,20 +138,21 @@ func TestWorkdir_CheckForFileChanges(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	checkChange := func(path string, typ protocol.FileChangeType) {
+	checkChange := func(wantPath string, wantType protocol.FileChangeType) {
 		if err := wd.CheckForFileChanges(ctx); err != nil {
 			t.Fatal(err)
 		}
-		var gotEvt FileEvent
+		var gotEvt protocol.FileEvent
 		select {
 		case <-ctx.Done():
 			t.Fatal(ctx.Err())
 		case ev := <-events:
 			gotEvt = ev[0]
 		}
+		gotPath := wd.URIToPath(gotEvt.URI)
 		// Only check relative path and Type
-		if gotEvt.Path != path || gotEvt.ProtocolEvent.Type != typ {
-			t.Errorf("file events: got %v, want {Path: %s, Type: %v}", gotEvt, path, typ)
+		if gotPath != wantPath || gotEvt.Type != wantType {
+			t.Errorf("file events: got %v, want {Path: %s, Type: %v}", gotEvt, wantPath, wantType)
 		}
 	}
 	// Sleep some positive amount of time to ensure a distinct mtime.
