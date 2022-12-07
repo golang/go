@@ -11,7 +11,7 @@ import "runtime"
 func fromFS(path string) (string, error) {
 	if runtime.GOOS == "plan9" {
 		if len(path) > 0 && path[0] == '#' {
-			return path, errInvalidPath
+			return "", errInvalidPath
 		}
 	}
 	for i := range path {
