@@ -141,7 +141,7 @@ func buildGroup(grp *_C_struct_group) *Group {
 
 type bufferKind _C_int
 
-const (
+var (
 	userBuffer  = bufferKind(_C__SC_GETPW_R_SIZE_MAX)
 	groupBuffer = bufferKind(_C__SC_GETGR_R_SIZE_MAX)
 )
