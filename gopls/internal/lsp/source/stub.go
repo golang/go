@@ -37,9 +37,16 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 	if si == nil {
 		return nil, nil, fmt.Errorf("nil interface request")
 	}
-	parsedConcreteFile, concreteFH, err := getStubFile(ctx, si.Concrete.Obj(), snapshot)
+
+	// Parse the file defining the concrete type.
+	concreteFilename := snapshot.FileSet().Position(si.Concrete.Obj().Pos()).Filename
+	concreteFH, err := snapshot.GetFile(ctx, span.URIFromPath(concreteFilename))
 	if err != nil {
-		return nil, nil, fmt.Errorf("getFile(concrete): %w", err)
+		return nil, nil, err
+	}
+	parsedConcreteFile, err := snapshot.ParseGo(ctx, concreteFH, ParseFull)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse file declaring implementation type: %w", err)
 	}
 	var (
 		methodsSrc  []byte
@@ -90,7 +97,7 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 			NewText: []byte(edit.New),
 		})
 	}
-	return snapshot.FileSet(), // from getStubFile
+	return snapshot.FileSet(), // to match snapshot.ParseGo above
 		&analysis.SuggestedFix{TextEdits: edits},
 		nil
 }
@@ -241,16 +248,20 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 		}
 		missing = append(missing, em...)
 	}
-	parsedFile, _, err := getStubFile(ctx, ifaceObj, snapshot)
+
+	// Parse the imports from the file that declares the interface.
+	ifaceFilename := snapshot.FileSet().Position(ifaceObj.Pos()).Filename
+	ifaceFH, err := snapshot.GetFile(ctx, span.URIFromPath(ifaceFilename))
 	if err != nil {
-		return nil, fmt.Errorf("error getting iface file: %w", err)
+		return nil, err
 	}
-	if parsedFile.File == nil {
-		return nil, fmt.Errorf("could not find ast.File for %v", ifaceObj.Name())
+	ifaceFile, err := snapshot.ParseGo(ctx, ifaceFH, ParseHeader)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing imports from interface file: %w", err)
 	}
 	mi := &missingInterface{
 		iface:   iface,
-		imports: parsedFile.File.Imports,
+		imports: ifaceFile.File.Imports,
 	}
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		method := iface.ExplicitMethod(i)
@@ -273,16 +284,6 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 		missing = append(missing, mi)
 	}
 	return missing, nil
-}
-
-// Token position information for obj.Pos and the ParsedGoFile result is in Snapshot.FileSet.
-// The returned file does not have type information.
-func getStubFile(ctx context.Context, obj types.Object, snapshot Snapshot) (*ParsedGoFile, VersionedFileHandle, error) {
-	objPos := snapshot.FileSet().Position(obj.Pos())
-	objFile := span.URIFromPath(objPos.Filename)
-	objectFH := snapshot.FindFile(objFile)
-	goFile, err := snapshot.ParseGo(ctx, objectFH, ParseFull)
-	return goFile, objectFH, err
 }
 
 // missingInterface represents an interface
