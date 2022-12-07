@@ -25,7 +25,8 @@ type profMapEntry struct {
 	count    int64
 }
 
-func (m *profMap) lookup(stk []uint64, tag unsafe.Pointer) *profMapEntry {
+//last Find entry if present.
+func (m *profMap) lookup(stk []uint64, tag unsafe.Pointer) (last *profMapEntry) {
 	// Compute hash of (stk, tag).
 	h := uintptr(0)
 	for _, x := range stk {
@@ -35,8 +36,6 @@ func (m *profMap) lookup(stk []uint64, tag unsafe.Pointer) *profMapEntry {
 	h = h<<8 | (h >> (8 * (unsafe.Sizeof(h) - 1)))
 	h += uintptr(tag) * 41
 
-	// Find entry if present.
-	var last *profMapEntry
 Search:
 	for e := m.hash[h]; e != nil; last, e = e, e.nextHash {
 		if len(e.stk) != len(stk) || e.tag != tag {
@@ -53,7 +52,7 @@ Search:
 			e.nextHash = m.hash[h]
 			m.hash[h] = e
 		}
-		return e
+		return
 	}
 
 	// Add new entry.
@@ -86,5 +85,5 @@ Search:
 		m.last.nextAll = e
 		m.last = e
 	}
-	return e
+	return
 }
