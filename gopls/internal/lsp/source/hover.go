@@ -139,8 +139,11 @@ var ErrNoRuneFound = errors.New("no rune found")
 
 // findRune returns rune information for a position in a file.
 func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (rune, MappedRange, error) {
-	// TODO(adonovan): opt: avoid loading type-checked package; only parsing is needed.
-	pkg, pgf, err := GetTypedFile(ctx, snapshot, fh, NarrowestPackage)
+	fh, err := snapshot.GetFile(ctx, fh.URI())
+	if err != nil {
+		return 0, MappedRange{}, err
+	}
+	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return 0, MappedRange{}, err
 	}
@@ -151,18 +154,18 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 
 	// Find the basic literal enclosing the given position, if there is one.
 	var lit *ast.BasicLit
-	var found bool
 	ast.Inspect(pgf.File, func(n ast.Node) bool {
-		if found {
+		if n == nil || // pop
+			lit != nil || // found: terminate the search
+			!(n.Pos() <= pos && pos < n.End()) { // subtree does not contain pos: skip
 			return false
 		}
-		if n, ok := n.(*ast.BasicLit); ok && pos >= n.Pos() && pos <= n.End() {
-			lit = n
-			found = true
+		if n, ok := n.(*ast.BasicLit); ok {
+			lit = n // found!
 		}
-		return !found
+		return lit == nil // descend unless target is found
 	})
-	if !found {
+	if lit == nil {
 		return 0, MappedRange{}, ErrNoRuneFound
 	}
 
@@ -237,12 +240,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 	default:
 		return 0, MappedRange{}, ErrNoRuneFound
 	}
-
-	mappedRange, err := posToMappedRange(pkg, start, end)
-	if err != nil {
-		return 0, MappedRange{}, err
-	}
-	return r, mappedRange, nil
+	return r, NewMappedRange(pgf.Tok, pgf.Mapper, start, end), nil
 }
 
 func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error) {
