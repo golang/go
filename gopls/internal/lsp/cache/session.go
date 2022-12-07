@@ -382,9 +382,7 @@ func (s *Session) RemoveView(view *View) {
 	}
 	// delete this view... we don't care about order but we do want to make
 	// sure we can garbage collect the view
-	s.views[i] = s.views[len(s.views)-1]
-	s.views[len(s.views)-1] = nil
-	s.views = s.views[:len(s.views)-1]
+	s.views = removeElement(s.views, i)
 }
 
 func (s *Session) updateView(ctx context.Context, view *View, options *source.Options) (*View, error) {
@@ -412,14 +410,21 @@ func (s *Session) updateView(ctx context.Context, view *View, options *source.Op
 		// we have dropped the old view, but could not create the new one
 		// this should not happen and is very bad, but we still need to clean
 		// up the view array if it happens
-		s.views[i] = s.views[len(s.views)-1]
-		s.views[len(s.views)-1] = nil
-		s.views = s.views[:len(s.views)-1]
+		s.views = removeElement(s.views, i)
 		return nil, err
 	}
 	// substitute the new view into the array where the old view was
 	s.views[i] = v
 	return v, nil
+}
+
+// removeElement removes the ith element from the slice replacing it with the last element.
+// TODO(adonovan): generics, someday.
+func removeElement(slice []*View, index int) []*View {
+	last := len(slice) - 1
+	slice[index] = slice[last]
+	slice[last] = nil // aid GC
+	return slice[:last]
 }
 
 // dropView removes v from the set of views for the receiver s and calls

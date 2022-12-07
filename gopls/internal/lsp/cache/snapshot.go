@@ -639,7 +639,7 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, includeTestVariants bool) ([]source.Package, error) {
 	ctx = event.Label(ctx, tag.URI.Of(uri))
 
-	metas, err := s.containingPackages(ctx, uri)
+	metas, err := s.MetadataForFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -660,7 +660,7 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode sourc
 
 func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, pkgPolicy source.PackageFilter) (source.Package, error) {
 	ctx = event.Label(ctx, tag.URI.Of(uri))
-	metas, err := s.containingPackages(ctx, uri)
+	metas, err := s.MetadataForFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -678,41 +678,6 @@ func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source
 		return nil, err
 	}
 	return pkgs[0], err
-}
-
-// containingPackages returns a new slice of metadata records for
-// packages that contain the Go file specified by uri. The results are
-// ordered "narrowest" to "widest".
-func (s *snapshot) containingPackages(ctx context.Context, uri span.URI) ([]*source.Metadata, error) {
-	// TODO(rfindley): why can't/shouldn't we awaitLoaded here? It seems that if
-	// the caller of this function is going to
-	// ask for package handles for a file, we should wait for pending loads.
-	// Else we will reload orphaned files before the initial load completes.
-
-	// Check if we should reload metadata for the file. We don't invalidate IDs
-	// (though we should), so the IDs will be a better source of truth than the
-	// metadata. If there are no IDs for the file, then we should also reload.
-	//
-	// TODO(adonovan): I can't relate the GetFile call to the
-	// previous comment, but tests rely on its effects.
-	// It does more than provide fh to the FileKind check. But what?
-	fh, err := s.GetFile(ctx, uri)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check that the file kind is Go (not, say, C or assembly).
-	// (This check is perhaps superfluous since the go/packages "file="
-	// metadata query in MetadataForFile requires .go files files.)
-	if kind := s.view.FileKind(fh); kind != source.Go {
-		return nil, fmt.Errorf("no packages for non-Go file %s (%v)", uri, kind)
-	}
-
-	metas, err := s.MetadataForFile(ctx, uri) // ordered narrowest to widest
-	if err != nil {
-		return nil, err
-	}
-	return metas, err
 }
 
 // TypeCheck type-checks the specified packages in the given mode.
@@ -811,7 +776,7 @@ func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source
 		s.unloadableFiles[uri] = struct{}{}
 	}
 
-	// Sort packages "narrowed" to "widest" (in practice: non-tests before tests).
+	// Sort packages "narrowest" to "widest" (in practice: non-tests before tests).
 	sort.Slice(metas, func(i, j int) bool {
 		return len(metas[i].CompiledGoFiles) < len(metas[j].CompiledGoFiles)
 	})

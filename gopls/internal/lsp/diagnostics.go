@@ -559,11 +559,17 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 	if snapshot.IsBuiltin(ctx, fh.URI()) {
 		return nil
 	}
-	// TODO(rfindley): opt: request metadata, not type-checking.
-	pkgs, _ := snapshot.PackagesForFile(ctx, fh.URI(), source.TypecheckWorkspace, false)
-	if len(pkgs) > 0 {
-		return nil
+
+	// This call has the effect of inserting fh into snapshot.files,
+	// where for better or worse (actually: just worse) it influences
+	// the sets of open, known, and orphaned files.
+	snapshot.GetFile(ctx, fh.URI())
+
+	metas, _ := snapshot.MetadataForFile(ctx, fh.URI())
+	if len(metas) > 0 || ctx.Err() != nil {
+		return nil // no package, or cancelled
 	}
+	// Inv: file does not belong to a package we know about.
 	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseHeader)
 	if err != nil {
 		return nil
