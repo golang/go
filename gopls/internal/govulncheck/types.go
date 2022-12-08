@@ -4,11 +4,13 @@
 
 package govulncheck
 
+import "time"
+
 // Result is the result of vulnerability scanning.
 type Result struct {
 	// Vulns contains all vulnerabilities that are called or imported by
 	// the analyzed module.
-	Vulns []*Vuln
+	Vulns []*Vuln `json:",omitempty"`
 
 	// Mode contains the source of the vulnerability info.
 	// Clients of the gopls.fetch_vulncheck_result command may need
@@ -19,7 +21,11 @@ type Result struct {
 	// without callstack traces just implies the package with the
 	// vulnerability is known to the workspace and we do not know
 	// whether the vulnerable symbols are actually used or not.
-	Mode AnalysisMode
+	Mode AnalysisMode `json:",omitempty"`
+
+	// AsOf describes when this Result was computed using govulncheck.
+	// It is valid only with the govulncheck analysis mode.
+	AsOf time.Time `json:",omitempty"`
 }
 
 type AnalysisMode string

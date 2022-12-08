@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
@@ -1038,19 +1039,27 @@ func (v *View) ClearModuleUpgrades(modfile span.URI) {
 	delete(v.moduleUpgrades, modfile)
 }
 
-func (v *View) Vulnerabilities(modfile ...span.URI) map[span.URI]*govulncheck.Result {
+const maxGovulncheckResultAge = 1 * time.Hour // Invalidate results older than this limit.
+var timeNow = time.Now                        // for testing
+
+func (v *View) Vulnerabilities(modfiles ...span.URI) map[span.URI]*govulncheck.Result {
 	m := make(map[span.URI]*govulncheck.Result)
+	now := timeNow()
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	if len(modfile) == 0 {
-		for k, v := range v.vulns {
-			m[k] = v
+	if len(modfiles) == 0 { // empty means all modfiles
+		for modfile := range v.vulns {
+			modfiles = append(modfiles, modfile)
 		}
-		return m
 	}
-	for _, f := range modfile {
-		m[f] = v.vulns[f]
+	for _, modfile := range modfiles {
+		vuln := v.vulns[modfile]
+		if vuln != nil && now.Sub(vuln.AsOf) > maxGovulncheckResultAge {
+			v.vulns[modfile] = nil // same as SetVulnerabilities(modfile, nil)
+			vuln = nil
+		}
+		m[modfile] = vuln
 	}
 	return m
 }

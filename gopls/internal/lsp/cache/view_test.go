@@ -5,11 +5,15 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
@@ -207,4 +211,68 @@ func TestSuffixes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestView_Vulnerabilities(t *testing.T) {
+	// TODO(hyangah): use t.Cleanup when we get rid of go1.13 legacy CI.
+	defer func() { timeNow = time.Now }()
+
+	now := time.Now()
+
+	view := &View{
+		vulns: make(map[span.URI]*govulncheck.Result),
+	}
+	file1, file2 := span.URIFromPath("f1/go.mod"), span.URIFromPath("f2/go.mod")
+
+	vuln1 := &govulncheck.Result{AsOf: now.Add(-(maxGovulncheckResultAge * 3) / 4)} // already ~3/4*maxGovulncheckResultAge old
+	view.SetVulnerabilities(file1, vuln1)
+
+	vuln2 := &govulncheck.Result{AsOf: now} // fresh.
+	view.SetVulnerabilities(file2, vuln2)
+
+	t.Run("fresh", func(t *testing.T) {
+		got := view.Vulnerabilities()
+		want := map[span.URI]*govulncheck.Result{
+			file1: vuln1,
+			file2: vuln2,
+		}
+
+		if diff := cmp.Diff(toJSON(want), toJSON(got)); diff != "" {
+			t.Errorf("view.Vulnerabilities() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	// maxGovulncheckResultAge/2 later
+	timeNow = func() time.Time { return now.Add(maxGovulncheckResultAge / 2) }
+	t.Run("after30min", func(t *testing.T) {
+		got := view.Vulnerabilities()
+		want := map[span.URI]*govulncheck.Result{
+			file1: nil, // expired.
+			file2: vuln2,
+		}
+
+		if diff := cmp.Diff(toJSON(want), toJSON(got)); diff != "" {
+			t.Errorf("view.Vulnerabilities() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	// maxGovulncheckResultAge later
+	timeNow = func() time.Time { return now.Add(maxGovulncheckResultAge + time.Minute) }
+
+	t.Run("after1hr", func(t *testing.T) {
+		got := view.Vulnerabilities()
+		want := map[span.URI]*govulncheck.Result{
+			file1: nil,
+			file2: nil,
+		}
+
+		if diff := cmp.Diff(toJSON(want), toJSON(got)); diff != "" {
+			t.Errorf("view.Vulnerabilities() mismatch (-want +got):\n%s", diff)
+		}
+	})
+}
+
+func toJSON(x interface{}) string {
+	b, _ := json.MarshalIndent(x, "", " ")
+	return string(b)
 }

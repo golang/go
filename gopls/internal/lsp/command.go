@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/astutil"
@@ -933,6 +934,7 @@ func (c *commandHandler) RunGovulncheck(ctx context.Context, args command.Vulnch
 			return fmt.Errorf("failed to parse govulncheck output: %v", err)
 		}
 		result.Mode = govulncheck.ModeGovulncheck
+		result.AsOf = time.Now()
 		deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), &result)
 
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
