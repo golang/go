@@ -57,27 +57,23 @@ func parseFiles(t *testing.T, filenames []string, mode syntax.Mode) ([]*syntax.F
 	return files, errlist
 }
 
-func unpackError(err error) syntax.Error {
+func unpackError(err error) (syntax.Pos, string) {
 	switch err := err.(type) {
 	case syntax.Error:
-		return err
+		return err.Pos, err.Msg
 	case Error:
-		return syntax.Error{Pos: err.Pos, Msg: err.Msg}
+		return err.Pos, err.Msg
 	default:
-		return syntax.Error{Msg: err.Error()}
+		return nopos, err.Error()
 	}
 }
 
 // delta returns the absolute difference between x and y.
 func delta(x, y uint) uint {
-	switch {
-	case x < y:
+	if x < y {
 		return y - x
-	case x > y:
-		return x - y
-	default:
-		return 0
 	}
+	return x - y
 }
 
 // Note: parseFlags is identical to the version in go/types which is
@@ -171,8 +167,8 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 
 	// sort errlist in source order
 	sort.Slice(errlist, func(i, j int) bool {
-		pi := unpackError(errlist[i]).Pos
-		pj := unpackError(errlist[j]).Pos
+		pi, _ := unpackError(errlist[i])
+		pj, _ := unpackError(errlist[j])
 		return pi.Cmp(pj) < 0
 	})
 
@@ -192,21 +188,20 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 
 	// match against found errors
 	for _, err := range errlist {
-		got := unpackError(err)
+		gotPos, gotMsg := unpackError(err)
 
 		// find list of errors for the respective error line
-		filename := got.Pos.Base().Filename()
+		filename := gotPos.Base().Filename()
 		filemap := errmap[filename]
-		line := got.Pos.Line()
-		var list []syntax.Error
+		line := gotPos.Line()
+		var errList []syntax.Error
 		if filemap != nil {
-			list = filemap[line]
+			errList = filemap[line]
 		}
-		// list may be nil
 
-		// one of errors in list should match the current error
-		index := -1 // list index of matching message, if any
-		for i, want := range list {
+		// one of errors in errList should match the current error
+		index := -1 // errList index of matching message, if any
+		for i, want := range errList {
 			pattern := strings.TrimSpace(want.Msg[len(" ERROR "):])
 			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
 				pattern = pattern[1 : n-1]
@@ -216,29 +211,29 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 				t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
 				continue
 			}
-			if rx.MatchString(got.Msg) {
+			if rx.MatchString(gotMsg) {
 				index = i
 				break
 			}
 		}
 		if index < 0 {
-			t.Errorf("%s: no error expected: %q", got.Pos, got.Msg)
+			t.Errorf("%s: no error expected: %q", gotPos, gotMsg)
 			continue
 		}
 
 		// column position must be within expected colDelta
-		want := list[index]
-		if delta(got.Pos.Col(), want.Pos.Col()) > colDelta {
-			t.Errorf("%s: got col = %d; want %d", got.Pos, got.Pos.Col(), want.Pos.Col())
+		want := errList[index]
+		if delta(gotPos.Col(), want.Pos.Col()) > colDelta {
+			t.Errorf("%s: got col = %d; want %d", gotPos, gotPos.Col(), want.Pos.Col())
 		}
 
-		// eliminate from list
-		if n := len(list) - 1; n > 0 {
+		// eliminate from errList
+		if n := len(errList) - 1; n > 0 {
 			// not the last entry - slide entries down (don't reorder)
-			copy(list[index:], list[index+1:])
-			filemap[line] = list[:n]
+			copy(errList[index:], errList[index+1:])
+			filemap[line] = errList[:n]
 		} else {
-			// last entry - remove list from filemap
+			// last entry - remove errList from filemap
 			delete(filemap, line)
 		}
 
@@ -252,8 +247,8 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	if len(errmap) > 0 {
 		t.Errorf("--- %s: unreported errors:", pkgName)
 		for filename, filemap := range errmap {
-			for line, list := range filemap {
-				for _, err := range list {
+			for line, errList := range filemap {
+				for _, err := range errList {
 					t.Errorf("%s:%d:%d: %s", filename, line, err.Pos.Col(), err.Msg)
 				}
 			}
