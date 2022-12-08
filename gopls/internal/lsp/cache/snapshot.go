@@ -1440,50 +1440,30 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 	return loadErr
 }
 
+// A portion of this text is expected by TestBrokenWorkspace_OutsideModule.
 const adHocPackagesWarning = `You are outside of a module and outside of $GOPATH/src.
 If you are using modules, please open your editor to a directory in your module.
 If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`
 
 func shouldShowAdHocPackagesWarning(snapshot source.Snapshot, pkgs []source.Package) string {
-	if snapshot.ValidBuildConfiguration() {
-		return ""
-	}
-	for _, pkg := range pkgs {
-		if hasMissingDependencies(pkg) {
-			return adHocPackagesWarning
-		}
-	}
-	return ""
-}
+	if !snapshot.ValidBuildConfiguration() {
+		for _, pkg := range pkgs {
+			// TODO(adonovan): strength-reduce the parameter to []Metadata.
+			m := snapshot.Metadata(pkg.ID())
+			if m == nil {
+				continue
+			}
 
-func hasMissingDependencies(pkg source.Package) bool {
-	// We don't invalidate metadata for import deletions,
-	// so check the package imports via the syntax tree
-	// (not via types.Package.Imports, since it contains packages
-	// synthesized under the vendoring-hostile assumption that
-	// ImportPath equals PackagePath).
-	//
-	// rfindley says: it looks like this is intending to implement
-	// a heuristic "if go list couldn't resolve import paths to
-	// packages, then probably you're not in GOPATH or a module".
-	// This is used to determine if we need to show a warning diagnostic.
-	// It looks like this logic is implementing the heuristic that
-	// "even if the metadata has a MissingDep, if the types.Package
-	// doesn't need that dep anymore we shouldn't show the warning".
-	// But either we're outside of GOPATH/Module, or we're not...
-	//
-	// If we invalidate the metadata for import deletions (which
-	// should be fast) then we can simply return the blank entries
-	// in DepsByImpPath.
-	for _, f := range pkg.GetSyntax() {
-		for _, imp := range f.Imports {
-			importPath := source.UnquoteImportPath(imp)
-			if _, err := pkg.ResolveImportPath(importPath); err != nil {
-				return true
+			// A blank entry in DepsByImpPath
+			// indicates a missing dependency.
+			for _, importID := range m.DepsByImpPath {
+				if importID == "" {
+					return adHocPackagesWarning
+				}
 			}
 		}
 	}
-	return false
+	return ""
 }
 
 func containsCommandLineArguments(pkgs []source.Package) bool {

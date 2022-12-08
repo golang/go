@@ -543,6 +543,10 @@ func _() {
 // Expect a module/GOPATH error if there is an error in the file at startup.
 // Tests golang/go#37279.
 func TestBrokenWorkspace_OutsideModule(t *testing.T) {
+	// Versions of the go command before go1.16 do not support
+	// native overlays and so do not observe the deletion.
+	testenv.NeedsGo1Point(t, 16)
+
 	const noModule = `
 -- a.go --
 package foo
@@ -556,8 +560,10 @@ func f() {
 	Run(t, noModule, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.Await(
+			// Expect the adHocPackagesWarning.
 			OutstandingWork(lsp.WorkspaceLoadFailure, "outside of a module"),
 		)
+		// Deleting the import dismisses the warning.
 		env.RegexpReplace("a.go", `import "mod.com/hello"`, "")
 		env.Await(
 			NoOutstandingWork(),
