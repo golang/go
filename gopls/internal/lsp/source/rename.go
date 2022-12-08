@@ -53,15 +53,12 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 	// Find position of the package name declaration.
 	ctx, done := event.Start(ctx, "source.PrepareRename")
 	defer done()
-	pgf, err := snapshot.ParseGo(ctx, f, ParseFull)
-	if err != nil {
-		return nil, err, err
-	}
-	inPackageName, err := isInPackageName(ctx, snapshot, f, pgf, pp)
-	if err != nil {
-		return nil, err, err
-	}
 
+	// Is the cursor within the package name declaration?
+	pgf, inPackageName, err := parsePackageNameDecl(ctx, snapshot, f, pp)
+	if err != nil {
+		return nil, err, err
+	}
 	if inPackageName {
 		fileRenameSupported := false
 		for _, op := range snapshot.View().Options().SupportedResourceOperations {
@@ -106,17 +103,16 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 			err := fmt.Errorf("can't rename package: package path %q is the same as module path %q", meta.PkgPath, meta.Module.Path)
 			return nil, err, err
 		}
-		// TODO(rfindley): we should not need the package here.
-		pkg, err := snapshot.WorkspacePackageByID(ctx, meta.ID)
+
+		// Return the location of the package declaration.
+		rng, err := pgf.Mapper.PosRange(pgf.File.Name.Pos(), pgf.File.Name.End())
 		if err != nil {
-			err = fmt.Errorf("error building package to rename: %v", err)
 			return nil, err, err
 		}
-		result, err := computePrepareRenameResp(snapshot, pkg, pgf.File.Name, string(pkg.Name()))
-		if err != nil {
-			return nil, nil, err
-		}
-		return result, nil, nil
+		return &PrepareItem{
+			Range: rng,
+			Text:  string(meta.Name),
+		}, nil, nil
 	}
 
 	qos, err := qualifiedObjsAtProtocolPos(ctx, snapshot, f.URI(), pp)
@@ -171,15 +167,11 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	ctx, done := event.Start(ctx, "source.Rename")
 	defer done()
 
-	pgf, err := s.ParseGo(ctx, f, ParseFull)
+	// Is the cursor within the package name declaration?
+	_, inPackageName, err := parsePackageNameDecl(ctx, s, f, pp)
 	if err != nil {
 		return nil, false, err
 	}
-	inPackageName, err := isInPackageName(ctx, s, f, pgf, pp)
-	if err != nil {
-		return nil, false, err
-	}
-
 	if inPackageName {
 		if !isValidIdentifier(newName) {
 			return nil, true, fmt.Errorf("%q is not a valid identifier", newName)
@@ -336,23 +328,24 @@ func (s seenPackageRename) add(uri span.URI, path PackagePath) bool {
 // package clause has already been updated, to prevent duplicate edits.
 //
 // Edits are written into the edits map.
-func renamePackageClause(ctx context.Context, m *Metadata, s Snapshot, newName PackageName, seen seenPackageRename, edits map[span.URI][]protocol.TextEdit) error {
-	pkg, err := s.WorkspacePackageByID(ctx, m.ID)
-	if err != nil {
-		return err
-	}
-
+func renamePackageClause(ctx context.Context, m *Metadata, snapshot Snapshot, newName PackageName, seen seenPackageRename, edits map[span.URI][]protocol.TextEdit) error {
 	// Rename internal references to the package in the renaming package.
-	for _, f := range pkg.CompiledGoFiles() {
-		if seen.add(f.URI, m.PkgPath) {
+	for _, uri := range m.CompiledGoFiles {
+		if seen.add(uri, m.PkgPath) {
 			continue
 		}
-
+		fh, err := snapshot.GetFile(ctx, uri)
+		if err != nil {
+			return err
+		}
+		f, err := snapshot.ParseGo(ctx, fh, ParseHeader)
+		if err != nil {
+			return err
+		}
 		if f.File.Name == nil {
-			continue
+			continue // no package declaration
 		}
-		pkgNameMappedRange := NewMappedRange(f.Tok, f.Mapper, f.File.Name.Pos(), f.File.Name.End())
-		rng, err := pkgNameMappedRange.Range()
+		rng, err := f.Mapper.PosRange(f.File.Name.Pos(), f.File.Name.End())
 		if err != nil {
 			return err
 		}

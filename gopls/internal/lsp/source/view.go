@@ -104,6 +104,7 @@ type Snapshot interface {
 
 	// ParseGo returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
+	// Position information is added to FileSet().
 	ParseGo(ctx context.Context, fh FileHandle, mode ParseMode) (*ParsedGoFile, error)
 
 	// DiagnosePackage returns basic diagnostics, including list, parse, and type errors
@@ -205,10 +206,6 @@ type Snapshot interface {
 
 	// AllValidMetadata returns all valid metadata loaded for the snapshot.
 	AllValidMetadata(ctx context.Context) ([]*Metadata, error)
-
-	// WorkspacePackageByID returns the workspace package with id, type checked
-	// in 'workspace' mode.
-	WorkspacePackageByID(ctx context.Context, id PackageID) (Package, error)
 
 	// Symbols returns all symbols in the snapshot.
 	Symbols(ctx context.Context) map[span.URI][]Symbol

@@ -691,17 +691,17 @@ func (c *commandHandler) ToggleGCDetails(ctx context.Context, args command.URIAr
 		progress:    "Toggling GC Details",
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		// TODO(adonovan): opt: avoid loading type-checked package; only Metadata is needed.
-		pkg, err := deps.snapshot.PackageForFile(ctx, deps.fh.URI(), source.TypecheckWorkspace, source.NarrowestPackage)
+		metas, err := deps.snapshot.MetadataForFile(ctx, deps.fh.URI())
 		if err != nil {
 			return err
 		}
+		id := metas[0].ID // 0 => narrowest package
 		c.s.gcOptimizationDetailsMu.Lock()
-		if _, ok := c.s.gcOptimizationDetails[pkg.ID()]; ok {
-			delete(c.s.gcOptimizationDetails, pkg.ID())
+		if _, ok := c.s.gcOptimizationDetails[id]; ok {
+			delete(c.s.gcOptimizationDetails, id)
 			c.s.clearDiagnosticSource(gcDetailsSource)
 		} else {
-			c.s.gcOptimizationDetails[pkg.ID()] = struct{}{}
+			c.s.gcOptimizationDetails[id] = struct{}{}
 		}
 		c.s.gcOptimizationDetailsMu.Unlock()
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
@@ -758,16 +758,15 @@ func (c *commandHandler) ListImports(ctx context.Context, args command.URIArg) (
 	err := c.run(ctx, commandConfig{
 		forURI: args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		// TODO(adonovan): opt: avoid loading type-checked package; only Metadata is needed.
-		pkg, err := deps.snapshot.PackageForFile(ctx, args.URI.SpanURI(), source.TypecheckWorkspace, source.NarrowestPackage)
+		fh, err := deps.snapshot.GetFile(ctx, args.URI.SpanURI())
 		if err != nil {
 			return err
 		}
-		pgf, err := pkg.File(args.URI.SpanURI())
+		pgf, err := deps.snapshot.ParseGo(ctx, fh, source.ParseHeader)
 		if err != nil {
 			return err
 		}
-		for _, group := range astutil.Imports(pkg.FileSet(), pgf.File) {
+		for _, group := range astutil.Imports(deps.snapshot.FileSet(), pgf.File) {
 			for _, imp := range group {
 				if imp.Path == nil {
 					continue
@@ -782,10 +781,16 @@ func (c *commandHandler) ListImports(ctx context.Context, args command.URIArg) (
 				})
 			}
 		}
-		for _, imp := range pkg.Imports() {
-			result.PackageImports = append(result.PackageImports, command.PackageImport{
-				Path: string(imp.PkgPath()), // This might be the vendored path under GOPATH vendoring, in which case it's a bug.
-			})
+		metas, err := deps.snapshot.MetadataForFile(ctx, args.URI.SpanURI())
+		if err != nil {
+			return err // e.g. cancelled
+		}
+		if len(metas) == 0 {
+			return fmt.Errorf("no package containing %v", args.URI.SpanURI())
+		}
+		for pkgPath := range metas[0].DepsByPkgPath { // 0 => narrowest package
+			result.PackageImports = append(result.PackageImports,
+				command.PackageImport{Path: string(pkgPath)})
 		}
 		sort.Slice(result.PackageImports, func(i, j int) bool {
 			return result.PackageImports[i].Path < result.PackageImports[j].Path

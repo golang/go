@@ -1197,10 +1197,6 @@ func (s *snapshot) AllValidMetadata(ctx context.Context) ([]*source.Metadata, er
 	return meta, nil
 }
 
-func (s *snapshot) WorkspacePackageByID(ctx context.Context, id PackageID) (source.Package, error) {
-	return s.checkedPackage(ctx, id, s.workspaceParseMode(id))
-}
-
 func (s *snapshot) CachedImportPaths(ctx context.Context) (map[PackagePath]source.Package, error) {
 	// Don't reload workspace package metadata.
 	// This function is meant to only return currently cached information.

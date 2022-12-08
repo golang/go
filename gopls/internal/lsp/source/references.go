@@ -9,12 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
-	"strings"
-
 	"go/token"
 	"go/types"
 	"sort"
-	"strconv"
+	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/span"
@@ -32,36 +30,17 @@ type ReferenceInfo struct {
 	isDeclaration bool
 }
 
-// isInPackageName reports whether the file's package name surrounds the
-// given position pp (e.g. "foo" surrounds the cursor in "package foo").
-func isInPackageName(ctx context.Context, s Snapshot, f FileHandle, pgf *ParsedGoFile, pp protocol.Position) (bool, error) {
-	// Find position of the package name declaration
-	cursorPos, err := pgf.Mapper.Pos(pp)
-	if err != nil {
-		return false, err
-	}
-
-	return pgf.File.Name.Pos() <= cursorPos && cursorPos <= pgf.File.Name.End(), nil
-}
-
 // References returns a list of references for a given identifier within the packages
 // containing i.File. Declarations appear first in the result.
 func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]*ReferenceInfo, error) {
 	ctx, done := event.Start(ctx, "source.References")
 	defer done()
 
-	// Find position of the package name declaration
-	pgf, err := s.ParseGo(ctx, f, ParseFull)
+	// Is the cursor within the package name declaration?
+	pgf, inPackageName, err := parsePackageNameDecl(ctx, s, f, pp)
 	if err != nil {
 		return nil, err
 	}
-
-	packageName := pgf.File.Name.Name // from package decl
-	inPackageName, err := isInPackageName(ctx, s, f, pgf, pp)
-	if err != nil {
-		return nil, err
-	}
-
 	if inPackageName {
 		// TODO(rfindley): this is inaccurate, excluding test variants, and
 		// redundant with package renaming. Refactor to share logic.
@@ -79,13 +58,12 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		for _, dep := range rdeps {
 			for _, f := range dep.CompiledGoFiles() {
 				for _, imp := range f.File.Imports {
-					// TODO(adonovan): using UnquoteImport() here would
-					// reveal that there's an ImportPath==PackagePath
+					// TODO(adonovan): there's an ImportPath==PackagePath
 					// comparison that doesn't account for vendoring.
 					// Use dep.Metadata().DepsByPkgPath instead.
-					if path, err := strconv.Unquote(imp.Path.Value); err == nil && path == string(renamingPkg.PkgPath()) {
+					if string(UnquoteImportPath(imp)) == string(renamingPkg.PkgPath()) {
 						refs = append(refs, &ReferenceInfo{
-							Name:        packageName,
+							Name:        pgf.File.Name.Name,
 							MappedRange: NewMappedRange(f.Tok, f.Mapper, imp.Pos(), imp.End()),
 						})
 					}
@@ -96,7 +74,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		// Find internal references to the package within the package itself
 		for _, f := range renamingPkg.CompiledGoFiles() {
 			refs = append(refs, &ReferenceInfo{
-				Name:        packageName,
+				Name:        pgf.File.Name.Name,
 				MappedRange: NewMappedRange(f.Tok, f.Mapper, f.File.Name.Pos(), f.File.Name.End()),
 			})
 		}
@@ -130,6 +108,20 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		return x.ident.Pos() < y.ident.Pos()
 	})
 	return refs, nil
+}
+
+// parsePackageNameDecl is a convenience function that parses and
+// returns the package name declaration of file fh, and reports
+// whether the position ppos lies within it.
+func parsePackageNameDecl(ctx context.Context, snapshot Snapshot, fh FileHandle, ppos protocol.Position) (*ParsedGoFile, bool, error) {
+	pgf, err := snapshot.ParseGo(ctx, fh, ParseHeader)
+	if err != nil {
+		return nil, false, err
+	}
+	// Careful: because we used ParseHeader,
+	// Mapper.Pos(ppos) may be beyond EOF => (0, err).
+	pos, _ := pgf.Mapper.Pos(ppos)
+	return pgf, pgf.File.Name.Pos() <= pos && pos <= pgf.File.Name.End(), nil
 }
 
 // references is a helper function to avoid recomputing qualifiedObjsAtProtocolPos.
