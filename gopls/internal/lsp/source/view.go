@@ -107,12 +107,43 @@ type Snapshot interface {
 	// Position information is added to FileSet().
 	ParseGo(ctx context.Context, fh FileHandle, mode ParseMode) (*ParsedGoFile, error)
 
-	// DiagnosePackage returns basic diagnostics, including list, parse, and type errors
-	// for pkg, grouped by file.
-	DiagnosePackage(ctx context.Context, pkg Package) (map[span.URI][]*Diagnostic, error)
+	// DiagnosePackage returns basic diagnostics, including list,
+	// parse, and type errors for pkg, grouped by file.
+	//
+	// It may include suggested fixes for type errors, created by
+	// running the analysis framework.
+	//
+	// TODO(adonovan): this operation does a mix of checks that
+	// range from cheap (list errors, parse errors) to expensive
+	// (type errors, type-error-analyzer results). In particular,
+	// type-error analyzers (as currently implemented) depend on
+	// the full analyzer machinery, and in the near future that
+	// will be completely separate from regular type checking.
+	// So, we must choose between:
+	//
+	// (1) rewriting them as ad-hoc functions that operate on
+	//     type-checked packages. That's a fair amount of work
+	//     since they are fairly deeply enmeshed in the framework,
+	//     (some have horizontal dependencies such as Inspector),
+	//     and quite reasonably so. So we reject this in favor of:
+	//
+	// (2) separating the generation of type errors (which happens
+	//     at the lowest latency) from full analysis, which is
+	//     slower, although hopefully eventually only on the order
+	//     of seconds.  In this case, type error analyzers are
+	//     basically not special; the only special part would be
+	//     the postprocessing step to merge the
+	//     type-error-analyzer fixes into the ordinary diagnostics
+	//     produced by type checking. (Not yet sure how to do that.)
+	//
+	// So then the role of this function is "report fast
+	// diagnostics, up to type-checking", and the role of
+	// Analyze() is "run the analysis framework, included
+	// suggested fixes for type errors"
+	DiagnosePackage(ctx context.Context, id PackageID) (map[span.URI][]*Diagnostic, error)
 
-	// Analyze runs the analyses for the given package at this snapshot.
-	Analyze(ctx context.Context, pkgID PackageID, analyzers []*Analyzer) ([]*Diagnostic, error)
+	// Analyze runs the specified analyzers on the given package at this snapshot.
+	Analyze(ctx context.Context, id PackageID, analyzers []*Analyzer) ([]*Diagnostic, error)
 
 	// RunGoCommandPiped runs the given `go` command, writing its output
 	// to stdout and stderr. Verb, Args, and WorkingDir must be specified.
@@ -198,11 +229,12 @@ type Snapshot interface {
 	// need ever to "load everything at once" using this function.
 	KnownPackages(ctx context.Context) ([]Package, error)
 
-	// ActivePackages returns the packages considered 'active' in the workspace.
+	// ActiveMetadata returns a new, unordered slice containing
+	// metadata for all packages considered 'active' in the workspace.
 	//
 	// In normal memory mode, this is all workspace packages. In degraded memory
 	// mode, this is just the reverse transitive closure of open packages.
-	ActivePackages(ctx context.Context) ([]Package, error)
+	ActiveMetadata(ctx context.Context) ([]*Metadata, error)
 
 	// AllValidMetadata returns all valid metadata loaded for the snapshot.
 	AllValidMetadata(ctx context.Context) ([]*Metadata, error)
@@ -217,8 +249,14 @@ type Snapshot interface {
 	// MetadataForFile returns a new slice containing metadata for each
 	// package containing the Go file identified by uri, ordered by the
 	// number of CompiledGoFiles (i.e. "narrowest" to "widest" package).
+	// The result may include tests and intermediate test variants of
+	// importable packages.
 	// It returns an error if the context was cancelled.
 	MetadataForFile(ctx context.Context, uri span.URI) ([]*Metadata, error)
+
+	// TypeCheck parses and type-checks the specified packages,
+	// and returns them in the same order as the ids.
+	TypeCheck(ctx context.Context, mode TypecheckMode, ids ...PackageID) ([]Package, error)
 
 	// GetCriticalError returns any critical errors in the workspace.
 	//

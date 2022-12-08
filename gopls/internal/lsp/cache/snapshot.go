@@ -299,6 +299,7 @@ func (s *snapshot) ValidBuildConfiguration() bool {
 	}
 	// The user may have a multiple directories in their GOPATH.
 	// Check if the workspace is within any of them.
+	// TODO(rfindley): this should probably be subject to "if GO111MODULES = off {...}".
 	for _, gp := range filepath.SplitList(s.view.gopath) {
 		if source.InDir(filepath.Join(gp, "src"), s.view.rootURI.Filename()) {
 			return true
@@ -653,7 +654,7 @@ func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode sourc
 		ids = append(ids, m.ID)
 	}
 
-	return s.loadPackages(ctx, mode, ids...)
+	return s.TypeCheck(ctx, mode, ids...)
 }
 
 func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, pkgPolicy source.PackageFilter) (source.Package, error) {
@@ -671,7 +672,7 @@ func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source
 	case source.WidestPackage:
 		metas = metas[len(metas)-1:]
 	}
-	pkgs, err := s.loadPackages(ctx, mode, metas[0].ID)
+	pkgs, err := s.TypeCheck(ctx, mode, metas[0].ID)
 	if err != nil {
 		return nil, err
 	}
@@ -713,8 +714,8 @@ func (s *snapshot) containingPackages(ctx context.Context, uri span.URI) ([]*sou
 	return metas, err
 }
 
-// loadPackages type-checks the specified packages in the given mode.
-func (s *snapshot) loadPackages(ctx context.Context, mode source.TypecheckMode, ids ...PackageID) ([]source.Package, error) {
+// TypeCheck type-checks the specified packages in the given mode.
+func (s *snapshot) TypeCheck(ctx context.Context, mode source.TypecheckMode, ids ...PackageID) ([]source.Package, error) {
 	// Build all the handles...
 	var phs []*packageHandle
 	for _, id := range ids {
@@ -854,30 +855,14 @@ func (s *snapshot) getImportedBy(id PackageID) []PackageID {
 	return s.meta.importedBy[id]
 }
 
-func (s *snapshot) workspacePackageIDs() (ids []PackageID) {
+func (s *snapshot) workspaceMetadata() (meta []*source.Metadata) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for id := range s.workspacePackages {
-		ids = append(ids, id)
+		meta = append(meta, s.meta.metadata[id])
 	}
-	return ids
-}
-
-func (s *snapshot) activePackageIDs() (ids []PackageID) {
-	if s.view.Options().MemoryMode == source.ModeNormal {
-		return s.workspacePackageIDs()
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for id := range s.workspacePackages {
-		if s.isActiveLocked(id) {
-			ids = append(ids, id)
-		}
-	}
-	return ids
+	return meta
 }
 
 func (s *snapshot) isActiveLocked(id PackageID) (active bool) {
@@ -1089,35 +1074,25 @@ func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI
 	return files
 }
 
-func (s *snapshot) ActivePackages(ctx context.Context) ([]source.Package, error) {
-	phs, err := s.activePackageHandles(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var pkgs []source.Package
-	for _, ph := range phs {
-		pkg, err := ph.await(ctx, s)
-		if err != nil {
-			return nil, err
-		}
-		pkgs = append(pkgs, pkg)
-	}
-	return pkgs, nil
-}
-
-func (s *snapshot) activePackageHandles(ctx context.Context) ([]*packageHandle, error) {
+func (s *snapshot) ActiveMetadata(ctx context.Context) ([]*source.Metadata, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-	var phs []*packageHandle
-	for _, pkgID := range s.activePackageIDs() {
-		ph, err := s.buildPackageHandle(ctx, pkgID, s.workspaceParseMode(pkgID))
-		if err != nil {
-			return nil, err
-		}
-		phs = append(phs, ph)
+
+	if s.view.Options().MemoryMode == source.ModeNormal {
+		return s.workspaceMetadata(), nil
 	}
-	return phs, nil
+
+	// ModeDegradeClosed
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var active []*source.Metadata
+	for id := range s.workspacePackages {
+		if s.isActiveLocked(id) {
+			active = append(active, s.Metadata(id))
+		}
+	}
+	return active, nil
 }
 
 // Symbols extracts and returns the symbols for each file in all the snapshot's views.
@@ -1394,8 +1369,8 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 	// Even if packages didn't fail to load, we still may want to show
 	// additional warnings.
 	if loadErr == nil {
-		wsPkgs, _ := s.ActivePackages(ctx)
-		if msg := shouldShowAdHocPackagesWarning(s, wsPkgs); msg != "" {
+		active, _ := s.ActiveMetadata(ctx)
+		if msg := shouldShowAdHocPackagesWarning(s, active); msg != "" {
 			return &source.CriticalError{
 				MainError: errors.New(msg),
 			}
@@ -1410,7 +1385,7 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 		// on-demand or via orphaned file reloading.
 		//
 		// TODO(rfindley): re-evaluate this heuristic.
-		if containsCommandLineArguments(wsPkgs) {
+		if containsCommandLineArguments(active) {
 			err, diags := s.workspaceLayoutError(ctx)
 			if err != nil {
 				if ctx.Err() != nil {
@@ -1445,15 +1420,9 @@ const adHocPackagesWarning = `You are outside of a module and outside of $GOPATH
 If you are using modules, please open your editor to a directory in your module.
 If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`
 
-func shouldShowAdHocPackagesWarning(snapshot source.Snapshot, pkgs []source.Package) string {
+func shouldShowAdHocPackagesWarning(snapshot source.Snapshot, active []*source.Metadata) string {
 	if !snapshot.ValidBuildConfiguration() {
-		for _, pkg := range pkgs {
-			// TODO(adonovan): strength-reduce the parameter to []Metadata.
-			m := snapshot.Metadata(pkg.ID())
-			if m == nil {
-				continue
-			}
-
+		for _, m := range active {
 			// A blank entry in DepsByImpPath
 			// indicates a missing dependency.
 			for _, importID := range m.DepsByImpPath {
@@ -1466,9 +1435,9 @@ func shouldShowAdHocPackagesWarning(snapshot source.Snapshot, pkgs []source.Pack
 	return ""
 }
 
-func containsCommandLineArguments(pkgs []source.Package) bool {
-	for _, pkg := range pkgs {
-		if source.IsCommandLineArguments(pkg.ID()) {
+func containsCommandLineArguments(metas []*source.Metadata) bool {
+	for _, m := range metas {
+		if source.IsCommandLineArguments(m.ID) {
 			return true
 		}
 	}

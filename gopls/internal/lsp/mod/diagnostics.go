@@ -11,9 +11,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -90,17 +92,31 @@ func ModDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.Fil
 	// TODO(rfindley): Try to avoid calling DiagnosePackage on all packages in the workspace here,
 	// for every go.mod file. If gc_details is enabled, it looks like this could lead to extra
 	// go command invocations (as gc details is not memoized).
-	wspkgs, err := snapshot.ActivePackages(ctx)
+	active, err := snapshot.ActiveMetadata(ctx)
 	if err != nil && !source.IsNonFatalGoModError(err) {
 		event.Error(ctx, fmt.Sprintf("workspace packages: diagnosing %s", pm.URI), err)
 	}
 	if err == nil {
-		for _, pkg := range wspkgs {
-			pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
-			if err != nil {
-				return nil, err
-			}
-			diagnostics = append(diagnostics, pkgDiagnostics[fh.URI()]...)
+		// Diagnose packages in parallel.
+		// (It's possible this is the first operation after the initial
+		// metadata load to demand type-checking of all the active packages.)
+		var group errgroup.Group
+		var mu sync.Mutex
+		for _, m := range active {
+			m := m
+			group.Go(func() error {
+				pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, m.ID)
+				if err != nil {
+					return err
+				}
+				mu.Lock()
+				diagnostics = append(diagnostics, pkgDiagnostics[fh.URI()]...)
+				mu.Unlock()
+				return nil
+			})
+		}
+		if err := group.Wait(); err != nil {
+			return nil, err
 		}
 	}
 

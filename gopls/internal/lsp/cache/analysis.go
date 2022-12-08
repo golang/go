@@ -462,8 +462,12 @@ func factType(fact analysis.Fact) reflect.Type {
 	return t
 }
 
-func (s *snapshot) DiagnosePackage(ctx context.Context, spkg source.Package) (map[span.URI][]*source.Diagnostic, error) {
-	pkg := spkg.(*pkg)
+func (s *snapshot) DiagnosePackage(ctx context.Context, id PackageID) (map[span.URI][]*source.Diagnostic, error) {
+	pkgs, err := s.TypeCheck(ctx, source.TypecheckFull, id)
+	if err != nil {
+		return nil, err
+	}
+	pkg := pkgs[0].(*pkg)
 	var errorAnalyzerDiag []*source.Diagnostic
 	if pkg.HasTypeErrors() {
 		// Apply type error analyzers.

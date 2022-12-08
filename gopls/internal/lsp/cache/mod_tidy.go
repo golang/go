@@ -192,12 +192,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 	// Add diagnostics for missing modules anywhere they are imported in the
 	// workspace.
 	// TODO(adonovan): opt: opportunities for parallelism abound.
-	for _, id := range snapshot.workspacePackageIDs() {
-		m := snapshot.Metadata(id)
-		if m == nil {
-			return nil, fmt.Errorf("no metadata for %s", id)
-		}
-
+	for _, m := range snapshot.workspaceMetadata() {
 		// Read both lists of files of this package, in parallel.
 		goFiles, compiledGoFiles, err := readGoFiles(ctx, snapshot, m)
 		if err != nil {

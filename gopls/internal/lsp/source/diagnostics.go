@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/span"
@@ -24,7 +25,7 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, includeConvenience bool) (map[span.URI][]*Diagnostic, error) {
+func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeConvenience bool) (map[span.URI][]*Diagnostic, error) {
 	// Exit early if the context has been canceled. This also protects us
 	// from a race on Options, see golang/go#36699.
 	if ctx.Err() != nil {
@@ -39,6 +40,7 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, includeConveni
 	if includeConvenience { // e.g. for codeAction
 		categories = append(categories, options.ConvenienceAnalyzers) // e.g. fillstruct
 	}
+
 	var analyzers []*Analyzer
 	for _, cat := range categories {
 		for _, a := range cat {
@@ -46,13 +48,13 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, includeConveni
 		}
 	}
 
-	analysisDiagnostics, err := snapshot.Analyze(ctx, pkg.ID(), analyzers)
+	analysisDiagnostics, err := snapshot.Analyze(ctx, pkgid, analyzers)
 	if err != nil {
 		return nil, err
 	}
 
-	reports := map[span.URI][]*Diagnostic{}
 	// Report diagnostics and errors from root analyzers.
+	reports := map[span.URI][]*Diagnostic{}
 	for _, diag := range analysisDiagnostics {
 		reports[diag.URI] = append(reports[diag.URI], diag)
 	}
@@ -64,15 +66,19 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	pkg, _, err := GetTypedFile(ctx, snapshot, fh, NarrowestPackage)
+	metas, err := snapshot.MetadataForFile(ctx, uri)
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	diagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
+	if len(metas) == 0 {
+		return VersionedFileIdentity{}, nil, fmt.Errorf("no package containing file %q", uri)
+	}
+	id := metas[0].ID // 0 => narrowest package
+	diagnostics, err := snapshot.DiagnosePackage(ctx, id)
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	analysisDiags, err := Analyze(ctx, snapshot, pkg, false)
+	analysisDiags, err := Analyze(ctx, snapshot, id, false)
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}

@@ -155,16 +155,19 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		pkg, err := snapshot.PackageForFile(ctx, fh.URI(), source.TypecheckFull, source.WidestPackage)
+		metas, err := snapshot.MetadataForFile(ctx, fh.URI())
 		if err != nil {
 			return nil, err
 		}
-
-		pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
+		if len(metas) == 0 {
+			return nil, fmt.Errorf("no package containing file %q", fh.URI())
+		}
+		id := metas[len(metas)-1].ID // last => widest package
+		pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, id)
 		if err != nil {
 			return nil, err
 		}
-		analysisDiags, err := source.Analyze(ctx, snapshot, pkg, true)
+		analysisDiags, err := source.Analyze(ctx, snapshot, id, true)
 		if err != nil {
 			return nil, err
 		}

@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/gopls/internal/lsp/debug/log"
 	"golang.org/x/tools/gopls/internal/lsp/mod"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -177,7 +178,8 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 	ctx, done := event.Start(ctx, "Server.diagnoseChangedFiles", source.SnapshotLabels(snapshot)...)
 	defer done()
 
-	packages := make(map[source.Package]struct{})
+	var group errgroup.Group
+	seen := make(map[*source.Metadata]bool)
 	for _, uri := range uris {
 		// If the change is only on-disk and the file is not open, don't
 		// directly request its package. It may not be a workspace package.
@@ -194,28 +196,30 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 		if snapshot.IsBuiltin(ctx, uri) {
 			continue
 		}
-		pkgs, err := snapshot.PackagesForFile(ctx, uri, source.TypecheckFull, false)
+
+		// Find all packages that include this file and diagnose them in parallel.
+		metas, err := snapshot.MetadataForFile(ctx, uri)
 		if err != nil {
 			// TODO (findleyr): we should probably do something with the error here,
 			// but as of now this can fail repeatedly if load fails, so can be too
 			// noisy to log (and we'll handle things later in the slow pass).
 			continue
 		}
-		for _, pkg := range pkgs {
-			packages[pkg] = struct{}{}
+		for _, m := range metas {
+			if m.IsIntermediateTestVariant() {
+				continue
+			}
+			if !seen[m] {
+				seen[m] = true
+				m := m
+				group.Go(func() error {
+					s.diagnosePkg(ctx, snapshot, m, false)
+					return nil // error result is ignored
+				})
+			}
 		}
 	}
-	var wg sync.WaitGroup
-	for pkg := range packages {
-		wg.Add(1)
-
-		go func(pkg source.Package) {
-			defer wg.Done()
-
-			s.diagnosePkg(ctx, snapshot, pkg, false)
-		}(pkg)
-	}
-	wg.Wait()
+	group.Wait() // ignore error
 }
 
 // diagnose is a helper function for running diagnostics with a given context.
@@ -268,14 +272,9 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	}
 	store(workSource, "diagnosing go.work file", workReports, workErr, true)
 
-	// All subsequent steps depend on the completion of
-	// type-checking of the all active packages in the workspace.
-	// This step may take many seconds initially.
-	// (mod.Diagnostics would implicitly wait for this too,
-	// but the control is clearer if it is explicit here.)
-	activePkgs, activeErr := snapshot.ActivePackages(ctx)
-
 	// Diagnose go.mod file.
+	// (This step demands type checking of all active packages:
+	// the bottleneck in the startup sequence for a big workspace.)
 	modReports, modErr := mod.Diagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
 		log.Trace.Log(ctx, "diagnose cancelled")
@@ -291,6 +290,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	}
 	store(modVulncheckSource, "diagnosing vulnerabilities", vulnReports, vulnErr, false)
 
+	activeMetas, activeErr := snapshot.ActiveMetadata(ctx)
 	if s.shouldIgnoreError(ctx, snapshot, activeErr) {
 		return
 	}
@@ -313,7 +313,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 
 	// If there are no workspace packages, there is nothing to diagnose and
 	// there are no orphaned files.
-	if len(activePkgs) == 0 {
+	if len(activeMetas) == 0 {
 		return
 	}
 
@@ -324,16 +324,16 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		wg   sync.WaitGroup
 		seen = map[span.URI]struct{}{}
 	)
-	for _, pkg := range activePkgs {
-		for _, pgf := range pkg.CompiledGoFiles() {
-			seen[pgf.URI] = struct{}{}
+	for _, m := range activeMetas {
+		for _, uri := range m.CompiledGoFiles {
+			seen[uri] = struct{}{}
 		}
 
 		wg.Add(1)
-		go func(pkg source.Package) {
+		go func(m *source.Metadata) {
 			defer wg.Done()
-			s.diagnosePkg(ctx, snapshot, pkg, forceAnalysis)
-		}(pkg)
+			s.diagnosePkg(ctx, snapshot, m, forceAnalysis)
+		}(m)
 	}
 	wg.Wait()
 
@@ -352,55 +352,55 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	}
 }
 
-func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg source.Package, alwaysAnalyze bool) {
-	ctx, done := event.Start(ctx, "Server.diagnosePkg", append(source.SnapshotLabels(snapshot), tag.Package.Of(string(pkg.ID())))...)
+func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, m *source.Metadata, alwaysAnalyze bool) {
+	ctx, done := event.Start(ctx, "Server.diagnosePkg", append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
 	defer done()
 	enableDiagnostics := false
 	includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
-	for _, pgf := range pkg.CompiledGoFiles() {
-		enableDiagnostics = enableDiagnostics || !snapshot.IgnoredFile(pgf.URI)
-		includeAnalysis = includeAnalysis || snapshot.IsOpen(pgf.URI)
+	for _, uri := range m.CompiledGoFiles {
+		enableDiagnostics = enableDiagnostics || !snapshot.IgnoredFile(uri)
+		includeAnalysis = includeAnalysis || snapshot.IsOpen(uri)
 	}
 	// Don't show any diagnostics on ignored files.
 	if !enableDiagnostics {
 		return
 	}
 
-	pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, pkg)
+	pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, m.ID)
 	if err != nil {
-		event.Error(ctx, "warning: diagnosing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(pkg.ID())))...)
+		event.Error(ctx, "warning: diagnosing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
 		return
 	}
-	for _, cgf := range pkg.CompiledGoFiles() {
+	for _, uri := range m.CompiledGoFiles {
 		// builtin.go exists only for documentation purposes, and is not valid Go code.
 		// Don't report distracting errors
-		if !snapshot.IsBuiltin(ctx, cgf.URI) {
-			s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, pkgDiagnostics[cgf.URI], true)
+		if !snapshot.IsBuiltin(ctx, uri) {
+			s.storeDiagnostics(snapshot, uri, typeCheckSource, pkgDiagnostics[uri], true)
 		}
 	}
 	if includeAnalysis {
-		reports, err := source.Analyze(ctx, snapshot, pkg, false)
+		reports, err := source.Analyze(ctx, snapshot, m.ID, false)
 		if err != nil {
-			event.Error(ctx, "warning: analyzing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(pkg.ID())))...)
+			event.Error(ctx, "warning: analyzing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
 			return
 		}
-		for _, cgf := range pkg.CompiledGoFiles() {
-			s.storeDiagnostics(snapshot, cgf.URI, analysisSource, reports[cgf.URI], true)
+		for _, uri := range m.CompiledGoFiles {
+			s.storeDiagnostics(snapshot, uri, analysisSource, reports[uri], true)
 		}
 	}
 
 	// If gc optimization details are requested, add them to the
 	// diagnostic reports.
 	s.gcOptimizationDetailsMu.Lock()
-	_, enableGCDetails := s.gcOptimizationDetails[pkg.ID()]
+	_, enableGCDetails := s.gcOptimizationDetails[m.ID]
 	s.gcOptimizationDetailsMu.Unlock()
 	if enableGCDetails {
-		gcReports, err := source.GCOptimizationDetails(ctx, snapshot, pkg)
+		gcReports, err := source.GCOptimizationDetails(ctx, snapshot, m)
 		if err != nil {
-			event.Error(ctx, "warning: gc details", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(pkg.ID())))...)
+			event.Error(ctx, "warning: gc details", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
 		}
 		s.gcOptimizationDetailsMu.Lock()
-		_, enableGCDetails := s.gcOptimizationDetails[pkg.ID()]
+		_, enableGCDetails := s.gcOptimizationDetails[m.ID]
 
 		// NOTE(golang/go#44826): hold the gcOptimizationDetails lock, and re-check
 		// whether gc optimization details are enabled, while storing gc_details

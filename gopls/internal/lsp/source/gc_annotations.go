@@ -35,11 +35,11 @@ const (
 	Bounds Annotation = "bounds"
 )
 
-func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, pkg Package) (map[VersionedFileIdentity][]*Diagnostic, error) {
-	if len(pkg.CompiledGoFiles()) == 0 {
+func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, m *Metadata) (map[VersionedFileIdentity][]*Diagnostic, error) {
+	if len(m.CompiledGoFiles) == 0 {
 		return nil, nil
 	}
-	pkgDir := filepath.Dir(pkg.CompiledGoFiles()[0].URI.Filename())
+	pkgDir := filepath.Dir(m.CompiledGoFiles[0].Filename())
 	outDir := filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.details", os.Getpid()))
 
 	if err := os.MkdirAll(outDir, 0700); err != nil {

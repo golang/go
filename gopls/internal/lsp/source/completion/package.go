@@ -215,7 +215,7 @@ func (c *completer) packageNameCompletions(ctx context.Context, fileURI span.URI
 // file. This also includes test packages for these packages (<pkg>_test) and
 // the directory name itself.
 func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI span.URI, prefix string) (packages []candidate, err error) {
-	workspacePackages, err := snapshot.ActivePackages(ctx)
+	active, err := snapshot.ActiveMetadata(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -245,18 +245,18 @@ func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI s
 
 	// The `go` command by default only allows one package per directory but we
 	// support multiple package suggestions since gopls is build system agnostic.
-	for _, pkg := range workspacePackages {
-		if pkg.Name() == "main" || pkg.Name() == "" {
+	for _, m := range active {
+		if m.Name == "main" || m.Name == "" {
 			continue
 		}
-		if _, ok := seenPkgs[pkg.Name()]; ok {
+		if _, ok := seenPkgs[m.Name]; ok {
 			continue
 		}
 
 		// Only add packages that are previously used in the current directory.
 		var relevantPkg bool
-		for _, pgf := range pkg.CompiledGoFiles() {
-			if filepath.Dir(pgf.URI.Filename()) == dirPath {
+		for _, uri := range m.CompiledGoFiles {
+			if filepath.Dir(uri.Filename()) == dirPath {
 				relevantPkg = true
 				break
 			}
@@ -268,13 +268,13 @@ func packageSuggestions(ctx context.Context, snapshot source.Snapshot, fileURI s
 		// Add a found package used in current directory as a high relevance
 		// suggestion and the test package for it as a medium relevance
 		// suggestion.
-		if score := float64(matcher.Score(string(pkg.Name()))); score > 0 {
-			packages = append(packages, toCandidate(string(pkg.Name()), score*highScore))
+		if score := float64(matcher.Score(string(m.Name))); score > 0 {
+			packages = append(packages, toCandidate(string(m.Name), score*highScore))
 		}
-		seenPkgs[pkg.Name()] = struct{}{}
+		seenPkgs[m.Name] = struct{}{}
 
-		testPkgName := pkg.Name() + "_test"
-		if _, ok := seenPkgs[testPkgName]; ok || strings.HasSuffix(string(pkg.Name()), "_test") {
+		testPkgName := m.Name + "_test"
+		if _, ok := seenPkgs[testPkgName]; ok || strings.HasSuffix(string(m.Name), "_test") {
 			continue
 		}
 		if score := float64(matcher.Score(string(testPkgName))); score > 0 {
