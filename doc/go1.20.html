@@ -30,7 +30,7 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- https://go.dev/issue/46505 -->
-  Go 1.17 added <a href="/ref/spec#Conversions_from_slice_to_array_pointer">conversions from slice to an array pointer</a>.
+  Go 1.17 added <a href="/ref/spec#Conversions_from_slice_to_array_or_array_pointer">conversions from slice to an array pointer</a>.
   Go 1.20 extends this to allow conversions from a slice to an array:
   given a slice <code>x</code>, <code>[4]byte(x)</code> can now be written
   instead of <code>*(*[4]byte)(x)</code>.
