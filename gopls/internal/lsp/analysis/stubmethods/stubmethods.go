@@ -84,7 +84,7 @@ type StubInfo struct {
 	// in the case where the concrete type file requires a new import that happens to be renamed
 	// in the interface file.
 	// TODO(marwan-at-work): implement interface literals.
-	Interface types.Object
+	Interface *types.TypeName
 	Concrete  *types.Named
 	Pointer   bool
 }
@@ -335,7 +335,7 @@ func RelativeToFiles(concPkg *types.Package, concFile *ast.File, ifaceImports []
 // ifaceType will try to extract the types.Object that defines
 // the interface given the ast.Expr where the "missing method"
 // or "conversion" errors happen.
-func ifaceType(n ast.Expr, ti *types.Info) types.Object {
+func ifaceType(n ast.Expr, ti *types.Info) *types.TypeName {
 	tv, ok := ti.Types[n]
 	if !ok {
 		return nil
@@ -343,7 +343,7 @@ func ifaceType(n ast.Expr, ti *types.Info) types.Object {
 	return ifaceObjFromType(tv.Type)
 }
 
-func ifaceObjFromType(t types.Type) types.Object {
+func ifaceObjFromType(t types.Type) *types.TypeName {
 	named, ok := t.(*types.Named)
 	if !ok {
 		return nil

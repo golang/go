@@ -13,6 +13,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"sort"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -38,6 +39,13 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 		return nil, nil, fmt.Errorf("nil interface request")
 	}
 
+	// A function-local type cannot be stubbed
+	// since there's nowhere to put the methods.
+	conc := si.Concrete.Obj()
+	if conc != conc.Pkg().Scope().Lookup(conc.Name()) {
+		return nil, nil, fmt.Errorf("local type %q cannot be stubbed", conc.Name())
+	}
+
 	// Parse the file defining the concrete type.
 	concreteFilename := snapshot.FileSet().Position(si.Concrete.Obj().Pos()).Filename
 	concreteFH, err := snapshot.GetFile(ctx, span.URIFromPath(concreteFilename))
@@ -56,24 +64,36 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 		methodsSrc = stubErr(ctx, parsedConcreteFile.File, si, snapshot)
 	} else {
 		methodsSrc, stubImports, err = stubMethods(ctx, parsedConcreteFile.File, si, snapshot)
+		if err != nil {
+			return nil, nil, fmt.Errorf("stubMethods: %w", err)
+		}
 	}
-	if err != nil {
-		return nil, nil, fmt.Errorf("stubMethods: %w", err)
+
+	// Splice the methods into the file.
+	// The insertion point is after the top-level declaration
+	// enclosing the (package-level) type object.
+	insertPos := parsedConcreteFile.File.End()
+	for _, decl := range parsedConcreteFile.File.Decls {
+		if decl.End() > conc.Pos() {
+			insertPos = decl.End()
+			break
+		}
 	}
-	nodes, _ = astutil.PathEnclosingInterval(parsedConcreteFile.File, si.Concrete.Obj().Pos(), si.Concrete.Obj().Pos())
 	concreteSrc, err := concreteFH.Read()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error reading concrete file source: %w", err)
 	}
-	insertPos, err := safetoken.Offset(parsedConcreteFile.Tok, nodes[1].End())
-	if err != nil || insertPos >= len(concreteSrc) {
+	insertOffset, err := safetoken.Offset(parsedConcreteFile.Tok, insertPos)
+	if err != nil || insertOffset >= len(concreteSrc) {
 		return nil, nil, fmt.Errorf("insertion position is past the end of the file")
 	}
 	var buf bytes.Buffer
-	buf.Write(concreteSrc[:insertPos])
+	buf.Write(concreteSrc[:insertOffset])
 	buf.WriteByte('\n')
 	buf.Write(methodsSrc)
-	buf.Write(concreteSrc[insertPos:])
+	buf.Write(concreteSrc[insertOffset:])
+
+	// Re-parse it, splice in imports, pretty-print it.
 	fset := token.NewFileSet()
 	newF, err := parser.ParseFile(fset, parsedConcreteFile.File.Name.Name, buf.Bytes(), parser.ParseComments)
 	if err != nil {
@@ -82,11 +102,12 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 	for _, imp := range stubImports {
 		astutil.AddNamedImport(fset, newF, imp.Name, imp.Path)
 	}
-	var source bytes.Buffer
-	err = format.Node(&source, fset, newF)
-	if err != nil {
+	var source strings.Builder
+	if err := format.Node(&source, fset, newF); err != nil {
 		return nil, nil, fmt.Errorf("format.Node: %w", err)
 	}
+
+	// Return the diff.
 	diffs := snapshot.View().Options().ComputeEdits(string(parsedConcreteFile.Src), source.String())
 	tf := parsedConcreteFile.Mapper.TokFile
 	var edits []analysis.TextEdit
@@ -234,21 +255,11 @@ returns
 		},
 	}
 */
-func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.MethodSet, concPkg *types.Package, ifaceObj types.Object, visited map[string]struct{}) ([]*missingInterface, error) {
+func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.MethodSet, concPkg *types.Package, ifaceObj *types.TypeName, visited map[string]struct{}) ([]*missingInterface, error) {
 	iface, ok := ifaceObj.Type().Underlying().(*types.Interface)
 	if !ok {
 		return nil, fmt.Errorf("expected %v to be an interface but got %T", iface, ifaceObj.Type().Underlying())
 	}
-	missing := []*missingInterface{}
-	for i := 0; i < iface.NumEmbeddeds(); i++ {
-		eiface := iface.Embedded(i).Obj()
-		em, err := missingMethods(ctx, snapshot, concMS, concPkg, eiface, visited)
-		if err != nil {
-			return nil, err
-		}
-		missing = append(missing, em...)
-	}
-
 	// Parse the imports from the file that declares the interface.
 	ifaceFilename := snapshot.FileSet().Position(ifaceObj.Pos()).Filename
 	ifaceFH, err := snapshot.GetFile(ctx, span.URIFromPath(ifaceFilename))
@@ -259,20 +270,23 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 	if err != nil {
 		return nil, fmt.Errorf("error parsing imports from interface file: %w", err)
 	}
+
 	mi := &missingInterface{
-		iface:   iface,
+		iface:   ifaceObj,
 		imports: ifaceFile.File.Imports,
 	}
+
+	// Add all the interface methods not defined by the concrete type to mi.missing.
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		method := iface.ExplicitMethod(i)
-		// if the concrete type does not have the interface method
-		if concMS.Lookup(concPkg, method.Name()) == nil {
+		if sel := concMS.Lookup(concPkg, method.Name()); sel == nil {
+			// Concrete type does not have the interface method.
 			if _, ok := visited[method.Name()]; !ok {
 				mi.missing = append(mi.missing, method)
 				visited[method.Name()] = struct{}{}
 			}
-		}
-		if sel := concMS.Lookup(concPkg, method.Name()); sel != nil {
+		} else {
+			// Concrete type does have the interface method.
 			implSig := sel.Type().(*types.Signature)
 			ifaceSig := method.Type().(*types.Signature)
 			if !types.Identical(ifaceSig, implSig) {
@@ -280,6 +294,31 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 			}
 		}
 	}
+
+	// Process embedded interfaces, recursively.
+	//
+	// TODO(adonovan): this whole computation could be expressed
+	// more simply without recursion, driven by the method
+	// sets of the interface and concrete types. Once the set
+	// difference (missing methods) is computed, the imports
+	// from the declaring file(s) could be loaded as needed.
+	var missing []*missingInterface
+	for i := 0; i < iface.NumEmbeddeds(); i++ {
+		eiface := iface.Embedded(i).Obj()
+		em, err := missingMethods(ctx, snapshot, concMS, concPkg, eiface, visited)
+		if err != nil {
+			return nil, err
+		}
+		missing = append(missing, em...)
+	}
+	// The type checker is deterministic, but its choice of
+	// ordering of embedded interfaces varies with Go version
+	// (e.g. go1.17 was sorted, go1.18 was lexical order).
+	// Sort to ensure test portability.
+	sort.Slice(missing, func(i, j int) bool {
+		return missing[i].iface.Id() < missing[j].iface.Id()
+	})
+
 	if len(mi.missing) > 0 {
 		missing = append(missing, mi)
 	}
@@ -290,7 +329,7 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 // that has all or some of its methods missing
 // from the destination concrete type
 type missingInterface struct {
-	iface   *types.Interface
+	iface   *types.TypeName
 	imports []*ast.ImportSpec // the interface's import environment
 	missing []*types.Func
 }
