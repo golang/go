@@ -31,9 +31,10 @@ func newFlateWriter(w io.Writer) io.WriteCloser {
 	fw, ok := flateWriterPool.Get().(*flate.Writer)
 	if ok {
 		fw.Reset(w)
-	} else {
-		fw, _ = flate.NewWriter(w, 5)
+		return fw
 	}
+
+	fw, _ = flate.NewWriter(w, 5)
 	return &pooledFlateWriter{fw: fw}
 }
 
