@@ -32,7 +32,7 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 		return nil, err
 	}
 	uri := protocol.URIFromSpanURI(fh.URI())
-	reset, err := command.NewResetGoModDiagnosticsCommand("Reset go.mod diagnostics", command.URIArg{URI: uri})
+	reset, err := command.NewResetGoModDiagnosticsCommand("Reset go.mod diagnostics", command.ResetGoModDiagnosticsArgs{URIArg: command.URIArg{URI: uri}})
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func vulncheckLenses(ctx context.Context, snapshot source.Snapshot, fh source.Fi
 		return nil, err
 	}
 
-	vulncheck, err := command.NewRunGovulncheckCommand("Run govulncheck", command.VulncheckArgs{
+	vulncheck, err := command.NewRunGovulncheckCommand("Run govulncheck to verify", command.VulncheckArgs{
 		URI:     uri,
 		Pattern: "./...",
 	})

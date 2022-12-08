@@ -276,8 +276,12 @@ Args:
 
 ```
 {
-	// The file URI.
-	"URI": string,
+	"URIArg": {
+		"URI": string,
+	},
+	// Optional: source of the diagnostics to reset.
+	// If not set, all resettable go.mod diagnostics will be cleared.
+	"DiagnosticSource": string,
 }
 ```
 

@@ -211,17 +211,22 @@ func (c *commandHandler) UpgradeDependency(ctx context.Context, args command.Dep
 	return c.GoGetModule(ctx, args)
 }
 
-func (c *commandHandler) ResetGoModDiagnostics(ctx context.Context, uri command.URIArg) error {
+func (c *commandHandler) ResetGoModDiagnostics(ctx context.Context, args command.ResetGoModDiagnosticsArgs) error {
 	return c.run(ctx, commandConfig{
-		forURI: uri.URI,
+		forURI: args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		deps.snapshot.View().ClearModuleUpgrades(uri.URI.SpanURI())
-		deps.snapshot.View().SetVulnerabilities(uri.URI.SpanURI(), nil)
 		// Clear all diagnostics coming from the upgrade check source and vulncheck.
 		// This will clear the diagnostics in all go.mod files, but they
 		// will be re-calculated when the snapshot is diagnosed again.
-		c.s.clearDiagnosticSource(modCheckUpgradesSource)
-		c.s.clearDiagnosticSource(modVulncheckSource)
+		if args.DiagnosticSource == "" || args.DiagnosticSource == string(source.UpgradeNotification) {
+			deps.snapshot.View().ClearModuleUpgrades(args.URI.SpanURI())
+			c.s.clearDiagnosticSource(modCheckUpgradesSource)
+		}
+
+		if args.DiagnosticSource == "" || args.DiagnosticSource == string(source.Vulncheck) {
+			deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), nil)
+			c.s.clearDiagnosticSource(modVulncheckSource)
+		}
 
 		// Re-diagnose the snapshot to remove the diagnostics.
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false)

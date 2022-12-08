@@ -507,14 +507,14 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 						codeActions: []string{
 							"Upgrade to latest",
 							"Upgrade to v1.0.6",
-							"Run govulncheck",
+							"Run govulncheck to verify",
 						},
 					},
 				},
 				codeActions: []string{
 					"Upgrade to latest",
 					"Upgrade to v1.0.6",
-					"Run govulncheck",
+					"Run govulncheck to verify",
 				},
 				hover: []string{"GO-2022-01", "Fixed in v1.0.4.", "GO-2022-03"},
 			},
@@ -524,12 +524,12 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 						msg:      "golang.org/bmod has a vulnerability GO-2022-02.",
 						severity: protocol.SeverityInformation,
 						codeActions: []string{
-							"Run govulncheck",
+							"Run govulncheck to verify",
 						},
 					},
 				},
 				codeActions: []string{
-					"Run govulncheck",
+					"Run govulncheck to verify",
 				},
 				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
 			},
@@ -667,6 +667,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 						codeActions: []string{
 							"Upgrade to latest",
 							"Upgrade to v1.0.4",
+							"Reset govulncheck result",
 						},
 						relatedInfo: []vulnRelatedInfo{
 							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln1
@@ -679,6 +680,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 						codeActions: []string{
 							"Upgrade to latest",
 							"Upgrade to v1.0.6",
+							"Reset govulncheck result",
 						},
 						relatedInfo: []vulnRelatedInfo{
 							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln1
@@ -689,6 +691,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 				codeActions: []string{
 					"Upgrade to latest",
 					"Upgrade to v1.0.6",
+					"Reset govulncheck result",
 				},
 				hover: []string{"GO-2022-01", "Fixed in v1.0.4.", "GO-2022-03"},
 			},
@@ -697,10 +700,16 @@ func TestRunVulncheckWarning(t *testing.T) {
 					{
 						msg:      "golang.org/bmod has a vulnerability used in the code: GO-2022-02.",
 						severity: protocol.SeverityWarning,
+						codeActions: []string{
+							"Reset govulncheck result", // no fix, but we should give an option to reset.
+						},
 						relatedInfo: []vulnRelatedInfo{
 							{"y.go", uint32(lineY.Line), "[GO-2022-02]"}, // bvuln.Vuln
 						},
 					},
+				},
+				codeActions: []string{
+					"Reset govulncheck result", // no fix, but we should give an option to reset.
 				},
 				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
 			},
@@ -822,21 +831,44 @@ func TestGovulncheckInfo(t *testing.T) {
 					{
 						msg:      "golang.org/bmod has a vulnerability GO-2022-02 that is not used in the code.",
 						severity: protocol.SeverityInformation,
+						codeActions: []string{
+							"Reset govulncheck result",
+						},
 					},
+				},
+				codeActions: []string{
+					"Reset govulncheck result",
 				},
 				hover: []string{"GO-2022-02", "This is a long description of this vulnerability.", "No fix is available."},
 			},
 		}
 
+		var allActions []protocol.CodeAction
 		for mod, want := range wantDiagnostics {
 			modPathDiagnostics := testVulnDiagnostics(t, env, mod, want, gotDiagnostics)
 			// Check that the actions we get when including all diagnostics at a location return the same result
 			gotActions := env.CodeAction("go.mod", modPathDiagnostics)
+			allActions = append(allActions, gotActions...)
 			if diff := diffCodeActions(gotActions, want.codeActions); diff != "" {
 				t.Errorf("code actions for %q do not match, expected %v, got %v\n%v\n", mod, want.codeActions, gotActions, diff)
 				continue
 			}
 		}
+
+		// Clear Diagnostics by using one of the reset code actions.
+		var reset protocol.CodeAction
+		for _, a := range allActions {
+			if a.Title == "Reset govulncheck result" {
+				reset = a
+				break
+			}
+		}
+		if reset.Title != "Reset govulncheck result" {
+			t.Errorf("failed to find a 'Reset govulncheck result' code action, got %v", allActions)
+		}
+		env.ApplyCodeAction(reset)
+
+		env.Await(EmptyOrNoDiagnostics("go.mod"))
 	})
 }
 

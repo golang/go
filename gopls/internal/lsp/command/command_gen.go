@@ -159,7 +159,7 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 		}
 		return nil, s.RemoveDependency(ctx, a0)
 	case "gopls.reset_go_mod_diagnostics":
-		var a0 URIArg
+		var a0 ResetGoModDiagnosticsArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
 			return nil, err
 		}
@@ -392,7 +392,7 @@ func NewRemoveDependencyCommand(title string, a0 RemoveDependencyArgs) (protocol
 	}, nil
 }
 
-func NewResetGoModDiagnosticsCommand(title string, a0 URIArg) (protocol.Command, error) {
+func NewResetGoModDiagnosticsCommand(title string, a0 ResetGoModDiagnosticsArgs) (protocol.Command, error) {
 	args, err := MarshalArgs(a0)
 	if err != nil {
 		return protocol.Command{}, err

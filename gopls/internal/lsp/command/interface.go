@@ -102,7 +102,7 @@ type Interface interface {
 	// ResetGoModDiagnostics: Reset go.mod diagnostics
 	//
 	// Reset diagnostics in the go.mod file of a module.
-	ResetGoModDiagnostics(context.Context, URIArg) error
+	ResetGoModDiagnostics(context.Context, ResetGoModDiagnosticsArgs) error
 
 	// GoGetPackage: go get a package
 	//
@@ -307,6 +307,14 @@ type DebuggingResult struct {
 	// error will be returned but the debug URL for that server in the URLs slice
 	// will be empty.
 	URLs []string
+}
+
+type ResetGoModDiagnosticsArgs struct {
+	URIArg
+
+	// Optional: source of the diagnostics to reset.
+	// If not set, all resettable go.mod diagnostics will be cleared.
+	DiagnosticSource string
 }
 
 type VulncheckArgs struct {

@@ -193,16 +193,11 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		return nil, nil
 	}
 
-	vulncheck, err := command.NewRunGovulncheckCommand("Run govulncheck", command.VulncheckArgs{
-		URI:     protocol.DocumentURI(fh.URI()),
-		Pattern: "./...",
-	})
+	suggestRunOrResetGovulncheck, err := suggestGovulncheckAction(fromGovulncheck, fh.URI())
 	if err != nil {
 		// must not happen
 		return nil, err // TODO: bug report
 	}
-	suggestVulncheck := source.SuggestedFixFromCommand(vulncheck, protocol.QuickFix)
-
 	type modVuln struct {
 		mod  *govulncheck.Module
 		vuln *govulncheck.Vuln
@@ -294,14 +289,12 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		if len(infoFixes) > 0 {
 			infoFixes = append(infoFixes, sf)
 		}
-		if !fromGovulncheck {
-			infoFixes = append(infoFixes, suggestVulncheck)
-		}
 
 		sort.Strings(warning)
 		sort.Strings(info)
 
 		if len(warning) > 0 {
+			warningFixes = append(warningFixes, suggestRunOrResetGovulncheck)
 			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
 				URI:            fh.URI(),
 				Range:          rng,
@@ -313,6 +306,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 			})
 		}
 		if len(info) > 0 {
+			infoFixes = append(infoFixes, suggestRunOrResetGovulncheck)
 			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
 				URI:            fh.URI(),
 				Range:          rng,
@@ -355,20 +349,19 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 			}
 		}
 		if len(warning) > 0 {
+			fixes := []source.SuggestedFix{suggestRunOrResetGovulncheck}
 			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
-				URI:      fh.URI(),
-				Range:    rng,
-				Severity: protocol.SeverityWarning,
-				Source:   source.Vulncheck,
-				Message:  getVulnMessage(stdlib, warning, true, fromGovulncheck),
-				Related:  relatedInfo,
+				URI:            fh.URI(),
+				Range:          rng,
+				Severity:       protocol.SeverityWarning,
+				Source:         source.Vulncheck,
+				Message:        getVulnMessage(stdlib, warning, true, fromGovulncheck),
+				SuggestedFixes: fixes,
+				Related:        relatedInfo,
 			})
 		}
 		if len(info) > 0 {
-			var fixes []source.SuggestedFix
-			if !fromGovulncheck {
-				fixes = append(fixes, suggestVulncheck)
-			}
+			fixes := []source.SuggestedFix{suggestRunOrResetGovulncheck}
 			vulnDiagnostics = append(vulnDiagnostics, &source.Diagnostic{
 				URI:            fh.URI(),
 				Range:          rng,
@@ -382,6 +375,31 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 	}
 
 	return vulnDiagnostics, nil
+}
+
+// suggestGovulncheckAction returns a code action that suggests either run govulncheck
+// for more accurate investigation (if the present vulncheck diagnostics are based on
+// analysis less accurate than govulncheck) or reset the existing govulncheck result
+// (if the present vulncheck diagnostics are already based on govulncheck run).
+func suggestGovulncheckAction(fromGovulncheck bool, uri span.URI) (source.SuggestedFix, error) {
+	if fromGovulncheck {
+		resetVulncheck, err := command.NewResetGoModDiagnosticsCommand("Reset govulncheck result", command.ResetGoModDiagnosticsArgs{
+			URIArg:           command.URIArg{URI: protocol.DocumentURI(uri)},
+			DiagnosticSource: string(source.Vulncheck),
+		})
+		if err != nil {
+			return source.SuggestedFix{}, err
+		}
+		return source.SuggestedFixFromCommand(resetVulncheck, protocol.QuickFix), nil
+	}
+	vulncheck, err := command.NewRunGovulncheckCommand("Run govulncheck to verify", command.VulncheckArgs{
+		URI:     protocol.DocumentURI(uri),
+		Pattern: "./...",
+	})
+	if err != nil {
+		return source.SuggestedFix{}, err
+	}
+	return source.SuggestedFixFromCommand(vulncheck, protocol.QuickFix), nil
 }
 
 func getVulnMessage(mod string, vulns []string, used, fromGovulncheck bool) string {
@@ -493,18 +511,21 @@ func upgradeTitle(fixedVersion string) string {
 // SelectUpgradeCodeActions takes a list of code actions for a required module
 // and returns a more selective list of upgrade code actions,
 // where the code actions have been deduped. Code actions unrelated to upgrade
-// remain untouched.
+// are deduplicated by the name.
 func SelectUpgradeCodeActions(actions []protocol.CodeAction) []protocol.CodeAction {
 	if len(actions) <= 1 {
 		return actions // return early if no sorting necessary
 	}
 	var others []protocol.CodeAction
 
+	seen := make(map[string]bool)
+
 	set := make(map[string]protocol.CodeAction)
 	for _, action := range actions {
 		if strings.HasPrefix(action.Title, upgradeCodeActionPrefix) {
 			set[action.Command.Title] = action
-		} else {
+		} else if !seen[action.Command.Title] {
+			seen[action.Command.Title] = true
 			others = append(others, action)
 		}
 	}

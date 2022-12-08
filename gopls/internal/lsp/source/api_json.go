@@ -768,7 +768,7 @@ var GeneratedAPIJSON = &APIJSON{
 			Command: "gopls.reset_go_mod_diagnostics",
 			Title:   "Reset go.mod diagnostics",
 			Doc:     "Reset diagnostics in the go.mod file of a module.",
-			ArgDoc:  "{\n\t// The file URI.\n\t\"URI\": string,\n}",
+			ArgDoc:  "{\n\t\"URIArg\": {\n\t\t\"URI\": string,\n\t},\n\t// Optional: source of the diagnostics to reset.\n\t// If not set, all resettable go.mod diagnostics will be cleared.\n\t\"DiagnosticSource\": string,\n}",
 		},
 		{
 			Command:   "gopls.run_govulncheck",
