@@ -31,7 +31,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"testing"
 
@@ -68,8 +67,8 @@ func unpackError(err error) (syntax.Pos, string) {
 	}
 }
 
-// delta returns the absolute difference between x and y.
-func delta(x, y uint) uint {
+// absDiff returns the absolute difference between x and y.
+func absDiff(x, y uint) uint {
 	if x < y {
 		return y - x
 	}
@@ -165,13 +164,6 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		return
 	}
 
-	// sort errlist in source order
-	sort.Slice(errlist, func(i, j int) bool {
-		pi, _ := unpackError(errlist[i])
-		pj, _ := unpackError(errlist[j])
-		return pi.Cmp(pj) < 0
-	})
-
 	// collect expected errors
 	errmap := make(map[string]map[uint][]syntax.Error)
 	for _, filename := range filenames {
@@ -187,6 +179,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	}
 
 	// match against found errors
+	var indices []int // list indices of matching errors, reused for each error
 	for _, err := range errlist {
 		gotPos, gotMsg := unpackError(err)
 
@@ -199,8 +192,8 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 			errList = filemap[line]
 		}
 
-		// one of errors in errList should match the current error
-		index := -1 // errList index of matching message, if any
+		// At least one of the errors in errList should match the current error.
+		indices = indices[:0]
 		for i, want := range errList {
 			pattern := strings.TrimSpace(want.Msg[len(" ERROR "):])
 			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
@@ -212,19 +205,27 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 				continue
 			}
 			if rx.MatchString(gotMsg) {
-				index = i
-				break
+				indices = append(indices, i)
 			}
 		}
-		if index < 0 {
+		if len(indices) == 0 {
 			t.Errorf("%s: no error expected: %q", gotPos, gotMsg)
 			continue
 		}
+		// len(indices) > 0
 
-		// column position must be within expected colDelta
-		want := errList[index]
-		if delta(gotPos.Col(), want.Pos.Col()) > colDelta {
-			t.Errorf("%s: got col = %d; want %d", gotPos, gotPos.Col(), want.Pos.Col())
+		// If there are multiple matching errors, select the one with the closest column position.
+		index := -1 // index of matching error
+		var delta uint
+		for _, i := range indices {
+			if d := absDiff(gotPos.Col(), errList[i].Pos.Col()); index < 0 || d < delta {
+				index, delta = i, d
+			}
+		}
+
+		// The closest column position must be within expected colDelta.
+		if delta > colDelta {
+			t.Errorf("%s: got col = %d; want %d", gotPos, gotPos.Col(), errList[index].Pos.Col())
 		}
 
 		// eliminate from errList

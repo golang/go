@@ -36,7 +36,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"sort"
 	"strings"
 	"testing"
 
@@ -82,8 +81,8 @@ func unpackError(fset *token.FileSet, err error) (token.Position, string) {
 	panic("unreachable")
 }
 
-// delta returns the absolute difference between x and y.
-func delta(x, y int) int {
+// absDiff returns the absolute difference between x and y.
+func absDiff(x, y int) int {
 	if x < y {
 		return y - x
 	}
@@ -183,20 +182,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 		return
 	}
 
-	// sort errlist in source order
-	sort.Slice(errlist, func(i, j int) bool {
-		// TODO(gri) This is not correct as scanner.Errors
-		// don't have a correctly set Offset. But we only
-		// care about sorting when multiple equal errors
-		// appear on the same line, which happens with some
-		// type checker errors.
-		// For now this works. Will remove need for sorting
-		// in a subsequent CL.
-		pi, _ := unpackError(fset, errlist[i])
-		pj, _ := unpackError(fset, errlist[j])
-		return pi.Offset < pj.Offset
-	})
-
 	// collect expected errors
 	errmap := make(map[string]map[int][]comment)
 	for i, filename := range filenames {
@@ -206,6 +191,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	}
 
 	// match against found errors
+	var indices []int // list indices of matching errors, reused for each error
 	for _, err := range errlist {
 		gotPos, gotMsg := unpackError(fset, err)
 
@@ -218,8 +204,8 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 			errList = filemap[line]
 		}
 
-		// one of errors in errList should match the current error
-		index := -1 // errList index of matching message, if any
+		// At least one of the errors in errList should match the current error.
+		indices = indices[:0]
 		for i, want := range errList {
 			pattern := strings.TrimSpace(want.text[len(" ERROR "):])
 			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
@@ -231,20 +217,28 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 				continue
 			}
 			if rx.MatchString(gotMsg) {
-				index = i
-				break
+				indices = append(indices, i)
 			}
 		}
-		if index < 0 {
+		if len(indices) == 0 {
 			t.Errorf("%s: no error expected: %q", gotPos, gotMsg)
 			continue
 		}
+		// len(indices) > 0
 
-		// column position must be within expected colDelta
-		const colDelta = 0
-		want := errList[index]
-		if delta(gotPos.Column, want.col) > colDelta {
-			t.Errorf("%s: got col = %d; want %d", gotPos, gotPos.Column, want.col)
+		// If there are multiple matching errors, select the one with the closest column position.
+		index := -1 // index of matching error
+		var delta int
+		for _, i := range indices {
+			if d := absDiff(gotPos.Column, errList[i].col); index < 0 || d < delta {
+				index, delta = i, d
+			}
+		}
+
+		// The closest column position must be within expected colDelta.
+		const colDelta = 0 // go/types errors are positioned correctly
+		if delta > colDelta {
+			t.Errorf("%s: got col = %d; want %d", gotPos, gotPos.Column, errList[index].col)
 		}
 
 		// eliminate from errList
