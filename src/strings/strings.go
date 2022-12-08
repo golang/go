@@ -13,6 +13,8 @@ import (
 	"unicode/utf8"
 )
 
+const maxInt = int(^uint(0) >> 1)
+
 // explode splits s into a slice of UTF-8 strings,
 // one string per Unicode character up to a maximum of n (n < 0 means no limit).
 // Invalid UTF-8 bytes are sliced individually.
@@ -436,9 +438,19 @@ func Join(elems []string, sep string) string {
 	case 1:
 		return elems[0]
 	}
-	n := len(sep) * (len(elems) - 1)
-	for i := 0; i < len(elems); i++ {
-		n += len(elems[i])
+
+	var n int
+	if len(sep) > 0 {
+		if len(sep) >= maxInt/(len(elems)-1) {
+			panic("strings: Join output length overflow")
+		}
+		n += len(sep) * (len(elems) - 1)
+	}
+	for _, elem := range elems {
+		if len(elem) > maxInt-n {
+			panic("strings: Join output length overflow")
+		}
+		n += len(elem)
 	}
 
 	var b Builder
@@ -536,20 +548,19 @@ func Repeat(s string, count int) string {
 	}
 
 	// Since we cannot return an error on overflow,
-	// we should panic if the repeat will generate
-	// an overflow.
+	// we should panic if the repeat will generate an overflow.
 	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("strings: negative Repeat count")
-	} else if len(s)*count/count != len(s) {
-		panic("strings: Repeat count causes overflow")
 	}
+	if len(s) >= maxInt/count {
+		panic("strings: Repeat output length overflow")
+	}
+	n := len(s) * count
 
 	if len(s) == 0 {
 		return ""
 	}
-
-	n := len(s) * count
 
 	// Past a certain chunk size it is counterproductive to use
 	// larger chunks as the source of the write, as when the source
