@@ -559,18 +559,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 
 			named.SetTypeParams(r.typeParamNames())
 
-			rhs := r.typ()
-			pk := r.p
-			pk.laterFor(named, func() {
-				// First be sure that the rhs is initialized, if it needs to be initialized.
-				delete(pk.laterFors, named) // prevent cycles
-				if i, ok := pk.laterFors[rhs]; ok {
-					f := pk.laterFns[i]
-					pk.laterFns[i] = func() {} // function is running now, so replace it with a no-op
-					f()                        // initialize RHS
-				}
-				underlying := rhs.Underlying()
-
+			setUnderlying := func(underlying types.Type) {
 				// If the underlying type is an interface, we need to
 				// duplicate its methods so we can replace the receiver
 				// parameter's type (#49906).
@@ -595,7 +584,31 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 				}
 
 				named.SetUnderlying(underlying)
-			})
+			}
+
+			// Since go.dev/cl/455279, we can assume rhs.Underlying() will
+			// always be non-nil. However, to temporarily support users of
+			// older snapshot releases, we continue to fallback to the old
+			// behavior for now.
+			//
+			// TODO(mdempsky): Remove fallback code and simplify after
+			// allowing time for snapshot users to upgrade.
+			rhs := r.typ()
+			if underlying := rhs.Underlying(); underlying != nil {
+				setUnderlying(underlying)
+			} else {
+				pk := r.p
+				pk.laterFor(named, func() {
+					// First be sure that the rhs is initialized, if it needs to be initialized.
+					delete(pk.laterFors, named) // prevent cycles
+					if i, ok := pk.laterFors[rhs]; ok {
+						f := pk.laterFns[i]
+						pk.laterFns[i] = func() {} // function is running now, so replace it with a no-op
+						f()                        // initialize RHS
+					}
+					setUnderlying(rhs.Underlying())
+				})
+			}
 
 			for i, n := 0, r.Len(); i < n; i++ {
 				named.AddMethod(r.method())

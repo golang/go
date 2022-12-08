@@ -796,6 +796,21 @@ func TestIssue51836(t *testing.T) {
 	_ = importPkg(t, "./testdata/aa", tmpdir)
 }
 
+func TestIssue57015(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // requires generics
+
+	// This package only handles gc export data.
+	needsCompiler(t, "gc")
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	compileAndImportPkg(t, "issue57015")
+}
+
 // apkg returns the package "a" prefixed by (as a package) testoutdir
 func apkg(testoutdir string) string {
 	apkg := testoutdir + "/a"
