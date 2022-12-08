@@ -378,7 +378,7 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, pkg 
 			s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, pkgDiagnostics[cgf.URI], true)
 		}
 	}
-	if includeAnalysis && !pkg.HasListOrParseErrors() {
+	if includeAnalysis {
 		reports, err := source.Analyze(ctx, snapshot, pkg, false)
 		if err != nil {
 			event.Error(ctx, "warning: analyzing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(pkg.ID())))...)

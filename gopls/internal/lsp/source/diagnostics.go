@@ -31,13 +31,13 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkg Package, includeConveni
 		return nil, ctx.Err()
 	}
 
-	categories := []map[string]*Analyzer{}
-	if includeConvenience {
-		categories = append(categories, snapshot.View().Options().ConvenienceAnalyzers)
+	options := snapshot.View().Options()
+	categories := []map[string]*Analyzer{
+		options.DefaultAnalyzers,
+		options.StaticcheckAnalyzers,
 	}
-	// If we had type errors, don't run any other analyzers.
-	if !pkg.HasTypeErrors() {
-		categories = append(categories, snapshot.View().Options().DefaultAnalyzers, snapshot.View().Options().StaticcheckAnalyzers)
+	if includeConvenience { // e.g. for codeAction
+		categories = append(categories, options.ConvenienceAnalyzers) // e.g. fillstruct
 	}
 	var analyzers []*Analyzer
 	for _, cat := range categories {
@@ -72,13 +72,10 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	fileDiags := diagnostics[fh.URI()]
-	if !pkg.HasListOrParseErrors() {
-		analysisDiags, err := Analyze(ctx, snapshot, pkg, false)
-		if err != nil {
-			return VersionedFileIdentity{}, nil, err
-		}
-		fileDiags = append(fileDiags, analysisDiags[fh.URI()]...)
+	analysisDiags, err := Analyze(ctx, snapshot, pkg, false)
+	if err != nil {
+		return VersionedFileIdentity{}, nil, err
 	}
+	fileDiags := append(diagnostics[fh.URI()], analysisDiags[fh.URI()]...)
 	return fh.VersionedFileIdentity(), fileDiags, nil
 }
