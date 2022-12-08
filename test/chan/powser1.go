@@ -22,12 +22,14 @@ type rat struct {
 }
 
 func (u rat) pr() {
+	defer print(" ")
+
 	if u.den == 1 {
 		print(u.num)
-	} else {
-		print(u.num, "/", u.den)
+		return
 	}
-	print(" ")
+
+	print(u.num, "/", u.den)
 }
 
 func (u rat) eq(c rat) bool {
