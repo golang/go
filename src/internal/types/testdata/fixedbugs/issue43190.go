@@ -11,7 +11,7 @@ import ; // ERROR missing import path
 import "" // ERROR invalid import path \(empty string\)
 import
 var /* ERROR missing import path */ _ int
-import .; //  ERROR missing import path
+import .; // ERROR missing import path
 import 'x' // ERROR import path must be a string
 var _ int
 import /* ERROR imports must appear before other declarations */ _ "math"

@@ -509,7 +509,7 @@ func switches0() {
 	switch a {
 	case [3]int{1, 2, 3}:
 	case [3]int{1, 2, 3}: // no duplicate detection
-	case [ /* ERROR "mismatched types */ 4]int{4, 5, 6}:
+	case [ /* ERROR "mismatched types" */ 4]int{4, 5, 6}:
 	}
 
 	// switch on channel

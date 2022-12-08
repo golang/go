@@ -184,7 +184,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 			t.Error(err)
 			continue
 		}
-		if m := syntax.ErrorMap(f); len(m) > 0 {
+		if m := syntax.CommentMap(f, regexp.MustCompile("^ ERROR ")); len(m) > 0 {
 			errmap[filename] = m
 		}
 		f.Close()
@@ -207,7 +207,11 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		// one of errors in list should match the current error
 		index := -1 // list index of matching message, if any
 		for i, want := range list {
-			rx, err := regexp.Compile(want.Msg)
+			pattern := strings.TrimSpace(want.Msg[len(" ERROR "):])
+			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
+				pattern = pattern[1 : n-1]
+			}
+			rx, err := regexp.Compile(pattern)
 			if err != nil {
 				t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
 				continue

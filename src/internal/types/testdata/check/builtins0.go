@@ -707,7 +707,7 @@ func Alignof1() {
 	_ = unsafe.Alignof(new(struct{}))
 	_ = unsafe.Alignof(1<<10)
 	_ = unsafe.Alignof(1 << /* ERROR constant shift overflow */ 1000)
-	_ = unsafe.Alignof(nil /* ERROR "untyped nil */ )
+	_ = unsafe.Alignof(nil /* ERROR untyped nil */ )
 	unsafe /* ERROR not used */ .Alignof(x)
 
 	var y S0
