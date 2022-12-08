@@ -21,10 +21,6 @@ type Tinter interface {
 }
 
 func TestFinalizerType(t *testing.T) {
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("Skipping on non-amd64 machine")
-	}
-
 	ch := make(chan bool, 10)
 	finalize := func(x *int) {
 		if *x != 97531 {
@@ -82,9 +78,6 @@ type bigValue struct {
 }
 
 func TestFinalizerInterfaceBig(t *testing.T) {
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("Skipping on non-amd64 machine")
-	}
 	ch := make(chan bool)
 	done := make(chan bool, 1)
 	go func() {
