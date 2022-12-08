@@ -219,7 +219,7 @@ func (w *Workdir) RegexpSearch(path string, re string) (Pos, error) {
 // change.
 func (w *Workdir) RemoveFile(ctx context.Context, path string) error {
 	fp := w.AbsPath(path)
-	if err := os.RemoveAll(fp); err != nil {
+	if err := robustio.RemoveAll(fp); err != nil {
 		return fmt.Errorf("removing %q: %w", path, err)
 	}
 
