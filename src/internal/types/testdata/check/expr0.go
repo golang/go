@@ -28,7 +28,7 @@ var (
 	// byte
 	_ = byte(0)
 	_ = byte(- /* ERROR "cannot convert" */ 1)
-	_ = - /* ERROR "-byte\(1\) \(constant -1 of type byte\) overflows byte" */ byte(1) // test for issue 11367
+	_ = - /* ERROR "-byte(1) (constant -1 of type byte) overflows byte" */ byte(1) // test for issue 11367
 	_ = byte /* ERROR "overflows byte" */ (0) - byte(1)
 
 	// int
@@ -144,7 +144,7 @@ var (
 	ch10, ok = <-ch
 	// ok is of type bool
 	ch11, myok = <-ch
-	_ mybool = myok /* ERROR "cannot use .* in variable declaration" */
+	_ mybool = myok /* ERRORx `cannot use .* in variable declaration` */
 )
 
 // address of composite literals

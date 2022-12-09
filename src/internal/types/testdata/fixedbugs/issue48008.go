@@ -21,7 +21,7 @@ func _(x interface{}) {
 	case map[T[int]] string:
 	case chan T[int]:
 
-	case T /* ERROR "cannot use generic type T\[P any\] without instantiation" */ :
+	case T /* ERROR "cannot use generic type T[P any] without instantiation" */ :
 	case []T /* ERROR "cannot use generic type" */ :
 	case [10]T /* ERROR "cannot use generic type" */ :
 	case struct{T /* ERROR "cannot use generic type" */ }:

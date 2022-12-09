@@ -24,13 +24,13 @@ func _() {
 	_ = min(x, 1)
 	_ = min(x, 1.0)
 	_ = min(1, 2)
-	_ = min(1, 2.3 /* ERROR "default type float64 .* does not match" */)
+	_ = min(1, 2.3 /* ERRORx `default type float64 .* does not match` */)
 
 	var y float64
 	_ = min(1, y)
 	_ = min(1.2, y)
 	_ = min(1.2, 3.4)
-	_ = min(1.2, 3 /* ERROR "default type int .* does not match" */)
+	_ = min(1.2, 3 /* ERRORx `default type int .* does not match` */)
 
 	var s string
 	_ = min(s, "foo")
@@ -75,7 +75,7 @@ func _() {
 	// and then help infer another type argument via constraint
 	// type inference.
 	related1(si, 0)
-	related1(si, "foo" /* ERROR "cannot use "foo"" */)
+	related1(si, "foo" /* ERROR `cannot use "foo"` */)
 }
 
 func related2[Elem any, Slice interface{ []Elem }](e Elem, s Slice) {}

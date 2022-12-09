@@ -31,9 +31,9 @@ var (
 func _() {
 	_ = nil == nil // ERROR "operator == not defined on untyped nil"
 	_ = b == b
-	_ = a /* ERROR "\[10\]func\(\) cannot be compared" */ == a
+	_ = a /* ERROR "[10]func() cannot be compared" */ == a
 	_ = l /* ERROR "slice can only be compared to nil" */ == l
-	_ = s /* ERROR "struct containing \[\]byte cannot be compared" */ == s
+	_ = s /* ERROR "struct containing []byte cannot be compared" */ == s
 	_ = p == p
 	_ = f /* ERROR "func can only be compared to nil" */ == f
 	_ = i == i

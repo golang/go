@@ -4,20 +4,27 @@
 
 // This file implements a typechecker test harness. The packages specified
 // in tests are typechecked. Error messages reported by the typechecker are
-// compared against the error messages expected in the test files.
+// compared against the errors expected in the test files.
 //
-// Expected errors are indicated in the test files by putting a comment
-// of the form /* ERROR "rx" */ immediately following an offending token.
-// The harness will verify that an error matching the regular expression
-// rx is reported at that source position. Consecutive comments may be
-// used to indicate multiple errors for the same token position.
+// Expected errors are indicated in the test files by putting comments
+// of the form /* ERROR pattern */ or /* ERRORx pattern */ (or a similar
+// //-style line comment) immediately following the tokens where errors
+// are reported. There must be exactly one blank before and after the
+// ERROR/ERRORx indicator, and the pattern must be a properly quoted Go
+// string.
 //
-// For instance, the following test file indicates that a "not declared"
+// The harness will verify that each ERROR pattern is a substring of the
+// error reported at that source position, and that each ERRORx pattern
+// is a regular expression matching the respective error.
+// Consecutive comments may be used to indicate multiple errors reported
+// at the same position.
+//
+// For instance, the following test source indicates that an "undeclared"
 // error should be reported for the undeclared variable x:
 //
 //	package p
 //	func f() {
-//		_ = x /* ERROR "not declared" */ + 1
+//		_ = x /* ERROR "undeclared" */ + 1
 //	}
 
 package types2_test
@@ -31,6 +38,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -172,7 +180,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 			t.Error(err)
 			continue
 		}
-		if m := syntax.CommentMap(f, regexp.MustCompile("^ ERROR ")); len(m) > 0 {
+		if m := syntax.CommentMap(f, regexp.MustCompile("^ ERRORx? ")); len(m) > 0 {
 			errmap[filename] = m
 		}
 		f.Close()
@@ -195,24 +203,34 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		// At least one of the errors in errList should match the current error.
 		indices = indices[:0]
 		for i, want := range errList {
-			pattern := strings.TrimSpace(want.Msg[len(" ERROR "):])
-			// We expect all patterns to be quoted in double quotes
-			// and then we remove the quotes.
-			// TODO(gri) use correct strconv.Unquote eventually
-			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
-				pattern = pattern[1 : n-1]
-			} else {
-				t.Errorf("%s:%d:%d: unquoted pattern: %s", filename, line, want.Pos.Col(), pattern)
-				continue
+			pattern, substr := strings.CutPrefix(want.Msg, " ERROR ")
+			if !substr {
+				var found bool
+				pattern, found = strings.CutPrefix(want.Msg, " ERRORx ")
+				if !found {
+					panic("unreachable")
+				}
 			}
-			rx, err := regexp.Compile(pattern)
+			pattern, err := strconv.Unquote(strings.TrimSpace(pattern))
 			if err != nil {
 				t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
 				continue
 			}
-			if rx.MatchString(gotMsg) {
-				indices = append(indices, i)
+			if substr {
+				if !strings.Contains(gotMsg, pattern) {
+					continue
+				}
+			} else {
+				rx, err := regexp.Compile(pattern)
+				if err != nil {
+					t.Errorf("%s:%d:%d: %v", filename, line, want.Pos.Col(), err)
+					continue
+				}
+				if !rx.MatchString(gotMsg) {
+					continue
+				}
 			}
+			indices = append(indices, i)
 		}
 		if len(indices) == 0 {
 			t.Errorf("%s: no error expected: %q", gotPos, gotMsg)

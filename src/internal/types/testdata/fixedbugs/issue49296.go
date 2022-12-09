@@ -10,8 +10,8 @@ func _[
         T2 ~float64 | ~complex128 | chan int,
 ]() {
         _ = T0(nil /* ERROR "cannot convert nil to type T0" */ )
-        _ = T1(1 /* ERROR "cannot convert 1 .* to type T1" */ )
-        _ = T2(2 /* ERROR "cannot convert 2 .* to type T2" */ )
+        _ = T1(1 /* ERRORx `cannot convert 1 .* to type T1` */ )
+        _ = T2(2 /* ERRORx `cannot convert 2 .* to type T2` */ )
 }
 
 // test case from issue

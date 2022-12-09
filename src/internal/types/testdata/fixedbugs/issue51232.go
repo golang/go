@@ -24,7 +24,7 @@ func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "got 1 arguments" */ [RCT] {
 
 func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR "got 1 arguments" */ [RCT] {
 	// TODO(rfindley): eliminate the duplicate error below.
-	return & /* ERROR "cannot use .* as F\[RCT\]" */ concreteF /* ERROR "got 1 arguments" */ [RCT]{
+	return & /* ERRORx `cannot use .* as F\[RCT\]` */ concreteF /* ERROR "got 1 arguments" */ [RCT]{
 		makeFn: nil,
 	}
 }

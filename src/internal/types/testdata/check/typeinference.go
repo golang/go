@@ -11,7 +11,7 @@ type Tb[P ~*Q, Q any] int
 func _() {
 	var x Tb /* ERROR "got 1 arguments" */ [*int]
 	var y Tb[*int, int]
-	x = y /* ERROR "cannot use y .* in assignment" */
+	x = y /* ERRORx `cannot use y .* in assignment` */
 	_ = x
 }
 
@@ -21,8 +21,8 @@ func _() {
 	var x Tr /* ERROR "got 1 arguments" */ [string]
 	var y Tr[string, ***string, **string, *string]
 	var z Tr[int, ***int, **int, *int]
-	x = y /* ERROR "cannot use y .* in assignment" */
-	x = z // ERROR "cannot use z .* as Tr"
+	x = y /* ERRORx `cannot use y .* in assignment` */
+	x = z // ERRORx `cannot use z .* as Tr`
 	_ = x
 }
 

@@ -29,7 +29,7 @@ type (
 
 	// For now we do not permit interfaces with methods in unions.
 	_ interface{~ /* ERROR "invalid use of ~" */ any}
-	_ interface{int|interface /* ERROR "cannot use .* in union" */ { m() }}
+	_ interface{int|interface /* ERRORx `cannot use .* in union` */ { m() }}
 )
 
 type (

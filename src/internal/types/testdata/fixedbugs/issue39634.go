@@ -44,7 +44,7 @@ var u /* ERROR "cycle" */ , i [func /* ERROR "used as value" */ /* ERROR "used a
 // crash 15
 func y15() { var a /* ERROR "declared and not used" */ interface{ p() } = G15[string]{} }
 type G15[X any] s /* ERROR "undefined" */
-func (G15 /* ERROR "generic type .* without instantiation" */ ) p()
+func (G15 /* ERRORx `generic type .* without instantiation` */ ) p()
 
 // crash 16
 type Foo16[T any] r16 /* ERROR "not a type" */

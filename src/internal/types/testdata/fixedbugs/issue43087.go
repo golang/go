@@ -24,7 +24,7 @@ func _() {
 
 func _() {
 	var a []int
-	a /* ERROR "non-name .* on left side of :=" */ [0], b := 1, 2
+	a /* ERRORx `non-name .* on left side of :=` */ [0], b := 1, 2
 	_ = a
 	_ = b
 }

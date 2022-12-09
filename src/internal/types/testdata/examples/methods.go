@@ -39,7 +39,7 @@ func (t T1[[ /* ERROR "must be an identifier" */ ]int]) m2() {}
 // and usually should be avoided. There are some notable exceptions; e.g.,
 // sometimes it makes sense to use the identifier "copy" which happens to
 // also be the name of a predeclared built-in function.
-func (t T1[int]) m3() { var _ int = 42 /* ERROR "cannot use 42 .* as int" */ }
+func (t T1[int]) m3() { var _ int = 42 /* ERRORx `cannot use 42 .* as int` */ }
 
 // The names of the type parameters used in a parameterized receiver
 // type don't have to match the type parameter names in the declaration
@@ -58,7 +58,7 @@ func (t T1[X]) m4() X { return t.a }
 // simply that such receiver type expressions perform two tasks simultaneously:
 // they declare the (local) type parameters and then use them to instantiate
 // the receiver type. Forgetting to provide a type parameter leads to an error.
-func (t T1 /* ERROR "generic type .* without instantiation" */ ) m5() {}
+func (t T1 /* ERRORx `generic type .* without instantiation` */ ) m5() {}
 
 // However, sometimes we don't need the type parameter, and thus it is
 // inconvenient to have to choose a name. Since the receiver type expression

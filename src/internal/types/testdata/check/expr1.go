@@ -90,8 +90,8 @@ func _(x, y float64, z myfloat64) {
 	x = x * y
 	x = x / y
 	x = x /* ERROR "not defined" */ % y
-	x = x /* ERROR "operand x .* must be integer" */ << y
-	x = x /* ERROR "operand x .* must be integer" */ >> y
+	x = x /* ERRORx `operand x .* must be integer` */ << y
+	x = x /* ERRORx `operand x .* must be integer` */ >> y
 
 	z = z + 1
 	z = z + -1
@@ -102,8 +102,8 @@ func _(x, y float64, z myfloat64) {
 	z = z /* ERROR "mismatched types" */ * y
 	z = z /* ERROR "mismatched types" */ / y
 	z = z /* ERROR "mismatched types" */ % y
-	z = z /* ERROR "operand z .* must be integer" */ << y
-	z = z /* ERROR "operand z .* must be integer" */ >> y
+	z = z /* ERRORx `operand z .* must be integer` */ << y
+	z = z /* ERRORx `operand z .* must be integer` */ >> y
 }
 
 type mystring string

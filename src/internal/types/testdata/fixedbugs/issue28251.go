@@ -60,6 +60,6 @@ type (
         T11 = T
 )
 
-func (T9 /* ERROR "invalid receiver type \*\*T" */ ) m9() {}
+func (T9 /* ERROR "invalid receiver type **T" */ ) m9() {}
 func _() { (T{}).m9 /* ERROR "has no field or method m9" */ () }
 func _() { (&T{}).m9 /* ERROR "has no field or method m9" */ () }

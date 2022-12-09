@@ -105,7 +105,7 @@ func ch5[P chan int | chan<- int]()      { return } // core(P) == chan<- int   (
 
 func _() {
 	// P can be inferred as there's a single specific type and no tilde.
-	var _ chan int = ch1 /* ERROR "cannot use ch1.*value of type chan<- int" */ ()
+	var _ chan int = ch1 /* ERRORx `cannot use ch1.*value of type chan<- int` */ ()
 	var _ chan<- int = ch1()
 
 	// P cannot be inferred as there's a tilde.

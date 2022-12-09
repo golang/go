@@ -230,10 +230,10 @@ type I012 interface {
 }
 
 func f012[T I012]() {}
-var _ = f012[int /* ERROR "cannot satisfy I012.*empty type set" */ ]
-var _ = f012[bool /* ERROR "cannot satisfy I012.*empty type set" */ ]
-var _ = f012[string /* ERROR "cannot satisfy I012.*empty type set" */ ]
-var _ = f012[float64 /* ERROR "cannot satisfy I012.*empty type set" */ ]
+var _ = f012[int /* ERRORx `cannot satisfy I012.*empty type set` */ ]
+var _ = f012[bool /* ERRORx `cannot satisfy I012.*empty type set` */ ]
+var _ = f012[string /* ERRORx `cannot satisfy I012.*empty type set` */ ]
+var _ = f012[float64 /* ERRORx `cannot satisfy I012.*empty type set` */ ]
 
 type I12 interface {
 	E1
@@ -273,7 +273,7 @@ func gg[T any]() {}
 func hh[T ~int]() {}
 
 func _[T none]() {
-	_ = ff[int /* ERROR "cannot satisfy none \(empty type set\)" */ ]
+	_ = ff[int /* ERROR "cannot satisfy none (empty type set)" */ ]
 	_ = ff[T]  // pathological but ok because T's type set is empty, too
 	_ = gg[int]
 	_ = gg[T]

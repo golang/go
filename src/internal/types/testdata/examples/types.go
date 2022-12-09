@@ -106,7 +106,7 @@ var _ = T /* ERROR "cannot use generic type T" */ (0)
 
 // In type context, generic (parameterized) types cannot be parenthesized before
 // being instantiated. See also NOTES entry from 12/4/2019.
-var _ (T /* ERROR "cannot use generic type T" */ )[ /* ERROR "unexpected \[|expected ';'" */ int]
+var _ (T /* ERROR "cannot use generic type T" */ )[ /* ERRORx `unexpected \[|expected ';'` */ int]
 
 // All types may be parameterized, including interfaces.
 type I1[T any] interface{
@@ -114,7 +114,7 @@ type I1[T any] interface{
 }
 
 // There is no such thing as a variadic generic type.
-type _[T ... /* ERROR "invalid use of ..." */ any] struct{}
+type _[T ... /* ERROR "invalid use of '...'" */ any] struct{}
 
 // Generic interfaces may be embedded as one would expect.
 type I2 interface {
@@ -220,11 +220,11 @@ type B2[_, _ any] any
 
 func _[T1 B0]() {}
 func _[T1 B1[T1]]() {}
-func _[T1 B2 /* ERROR "cannot use generic type .* without instantiation" */ ]() {}
+func _[T1 B2 /* ERRORx `cannot use generic type .* without instantiation` */ ]() {}
 
 func _[T1, T2 B0]() {}
 func _[T1 B1[T1], T2 B1[T2]]() {}
-func _[T1, T2 B2 /* ERROR "cannot use generic type .* without instantiation" */ ]() {}
+func _[T1, T2 B2 /* ERRORx `cannot use generic type .* without instantiation` */ ]() {}
 
 func _[T1 B0, T2 B1[T2]]() {} // here B1 applies to T2
 

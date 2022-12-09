@@ -31,15 +31,15 @@ type I3 interface {
 }
 
 type _ struct {
-	f I1 // ERROR "interface is .* comparable"
+	f I1 // ERRORx `interface is .* comparable`
 }
 
 type _ struct {
-	comparable // ERROR "interface is .* comparable"
+	comparable // ERRORx `interface is .* comparable`
 }
 
 type _ struct{
-	I1 // ERROR "interface is .* comparable"
+	I1 // ERRORx `interface is .* comparable`
 }
 
 type _ struct{
@@ -53,16 +53,16 @@ type _ struct{
 // General composite types.
 
 type (
-	_ [10]I1 // ERROR "interface is .* comparable"
+	_ [10]I1 // ERRORx `interface is .* comparable`
 	_ [10]I2 // ERROR "interface contains type constraints"
 
-	_ []I1 // ERROR "interface is .* comparable"
+	_ []I1 // ERRORx `interface is .* comparable`
 	_ []I2 // ERROR "interface contains type constraints"
 
 	_ *I3 // ERROR "interface contains type constraints"
-	_ map[I1 /* ERROR "interface is .* comparable" */ ]I2 // ERROR "interface contains type constraints"
+	_ map[I1 /* ERRORx `interface is .* comparable` */ ]I2 // ERROR "interface contains type constraints"
 	_ chan I3 // ERROR "interface contains type constraints"
-	_ func(I1 /* ERROR "interface is .* comparable" */ )
+	_ func(I1 /* ERRORx `interface is .* comparable` */ )
 	_ func() I2 // ERROR "interface contains type constraints"
 )
 

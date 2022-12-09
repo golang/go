@@ -55,7 +55,7 @@ func MMD[Rc RC /* ERROR "got 1 arguments" */ [RG], RG any, G any]() M /* ERROR "
 	case BC /* ERROR "undefined: BC" */ :
 
 	case RSC[G]:
-		nFn = NSG /* ERROR "cannot use NSG\[G\]" */ [G]
+		nFn = NSG /* ERROR "cannot use NSG[G]" */ [G]
 	}
 
 	return M /* ERROR "got 2 arguments" */ [Rc, RG]{

@@ -19,8 +19,8 @@ func _[P comparable,
         _ = f[R /* ERROR "R does not satisfy comparable" */ ]
 
         _ = g[int]
-        _ = g[P /* ERROR "P does not satisfy interface{interface{comparable; ~int \| ~string}" */ ]
+        _ = g[P /* ERROR "P does not satisfy interface{interface{comparable; ~int | ~string}" */ ]
         _ = g[Q]
-        _ = g[func /* ERROR "func\(\) does not satisfy interface{interface{comparable; ~int \| ~string}}" */ ()]
-        _ = g[R /* ERROR "R does not satisfy interface{interface{comparable; ~int \| ~string}" */ ]
+        _ = g[func /* ERROR "func() does not satisfy interface{interface{comparable; ~int | ~string}}" */ ()]
+        _ = g[R /* ERROR "R does not satisfy interface{interface{comparable; ~int | ~string}" */ ]
 }

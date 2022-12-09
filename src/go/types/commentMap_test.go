@@ -14,8 +14,8 @@ import (
 )
 
 type comment struct {
-	line, col int // comment position
-	text string   // comment text, excluding "//", "/*", or "*/"
+	line, col int    // comment position
+	text      string // comment text, excluding "//", "/*", or "*/"
 }
 
 // commentMap collects all comments in the given src with comment text

@@ -55,5 +55,5 @@ func _[T string](x T) T {
 }
 
 func _[T int | string](x T) T {
-	return x /* ERROR "constrained by int|string" */ * x
+	return x /* ERROR "constrained by int | string" */ * x
 }

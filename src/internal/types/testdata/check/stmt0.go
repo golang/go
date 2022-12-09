@@ -29,19 +29,19 @@ func assignments0() (int, int) {
 
 	a, b, c = <- /* ERROR "assignment mismatch: 3 variables but 1 value" */ ch
 
-	return /* ERROR "not enough return values\n\thave \(\)\n\twant \(int, int\)" */
-	return 1 /* ERROR "not enough return values\n\thave \(number\)\n\twant \(int, int\)" */
+	return /* ERROR "not enough return values\n\thave ()\n\twant (int, int)" */
+	return 1 /* ERROR "not enough return values\n\thave (number)\n\twant (int, int)" */
 	return 1, 2
-	return 1, 2, 3 /* ERROR "too many return values\n\thave \(number, number, number\)\n\twant \(int, int\)" */
+	return 1, 2, 3 /* ERROR "too many return values\n\thave (number, number, number)\n\twant (int, int)" */
 }
 
 func assignments1() {
 	b, i, f, c, s := false, 1, 1.0, 1i, "foo"
-	b = i /* ERROR "cannot use .* in assignment" */
-	i = f /* ERROR "cannot use .* in assignment" */
-	f = c /* ERROR "cannot use .* in assignment" */
-	c = s /* ERROR "cannot use .* in assignment" */
-	s = b /* ERROR "cannot use .* in assignment" */
+	b = i /* ERRORx `cannot use .* in assignment` */
+	i = f /* ERRORx `cannot use .* in assignment` */
+	f = c /* ERRORx `cannot use .* in assignment` */
+	c = s /* ERRORx `cannot use .* in assignment` */
+	s = b /* ERRORx `cannot use .* in assignment` */
 
 	v0, v1, v2 := 1 /* ERROR "assignment mismatch" */ , 2, 3, 4
 	_, _, _ = v0, v1, v2
@@ -70,7 +70,7 @@ func assignments1() {
 	// test cases for issue 5800
 	var (
 		_ int = nil /* ERROR "cannot use nil as int value in variable declaration" */
-		_ [10]int = nil /* ERROR "cannot use nil as \[10\]int value in variable declaration" */
+		_ [10]int = nil /* ERROR "cannot use nil as [10]int value in variable declaration" */
 		_ []byte = nil
 		_ struct{} = nil /* ERROR "cannot use nil as struct{} value in variable declaration" */
 		_ func() = nil
@@ -182,7 +182,7 @@ func sends() {
 	var x int
 	x <- /* ERROR "cannot send" */ x
 	rch <- /* ERROR "cannot send" */ x
-	ch <- "foo" /* ERROR "cannot use .* in send" */
+	ch <- "foo" /* ERRORx `cannot use .* in send` */
 	ch <- x
 }
 
@@ -383,13 +383,13 @@ func returns0() {
 func returns1(x float64) (int, *float64) {
 	return 0, &x
 	return /* ERROR "not enough return values" */
-	return "foo" /* ERROR "cannot .* in return statement" */, x /* ERROR "cannot use .* in return statement" */
+	return "foo" /* ERRORx `cannot .* in return statement` */, x /* ERRORx `cannot use .* in return statement` */
 	return 0, &x, 1 /* ERROR "too many return values" */
 }
 
 func returns2() (a, b int) {
 	return
-	return 1, "foo" /* ERROR "cannot use .* in return statement" */
+	return 1, "foo" /* ERRORx `cannot use .* in return statement` */
 	return 1, 2, 3 /* ERROR "too many return values" */
 	{
 		type a int
@@ -431,7 +431,7 @@ func switches0() {
 
 	switch int32(x) {
 	case 1, 2:
-	case x /* ERROR "invalid case x in switch on int32\(x\) \(mismatched types int and int32\)" */ :
+	case x /* ERROR "invalid case x in switch on int32(x) (mismatched types int and int32)" */ :
 	}
 
 	switch x {
@@ -611,7 +611,7 @@ func switches2() {
 	// untyped constants are converted to default types
 	switch 1<<63-1 {
 	}
-	switch 1 /* ERROR "cannot use .* as int value.*\(overflows\)" */ << 63 {
+	switch 1 /* ERRORx `cannot use .* as int value.*\(overflows\)` */ << 63 {
 	}
 	var x int
 	switch 1.0 {
@@ -633,9 +633,9 @@ func switches2() {
 }
 
 func issue11667() {
-	switch 9223372036854775808 /* ERROR "cannot use .* as int value.*\(overflows\)" */ {
+	switch 9223372036854775808 /* ERRORx `cannot use .* as int value.*\(overflows\)` */ {
 	}
-	switch 9223372036854775808 /* ERROR "cannot use .* as int value.*\(overflows\)" */ {
+	switch 9223372036854775808 /* ERRORx `cannot use .* as int value.*\(overflows\)` */ {
 	case 9223372036854775808:
 	}
 	var x int
@@ -701,16 +701,16 @@ func typeswitches() {
 
 	switch t := x.(type) {
 	case nil:
-		var v bool = t /* ERROR "cannot use .* in variable declaration" */
+		var v bool = t /* ERRORx `cannot use .* in variable declaration` */
 		_ = v
 	case int:
 		var v int = t
 		_ = v
 	case float32, complex64:
-		var v float32 = t /* ERROR "cannot use .* in variable declaration" */
+		var v float32 = t /* ERRORx `cannot use .* in variable declaration` */
 		_ = v
 	default:
-		var v float32 = t /* ERROR "cannot use .* in variable declaration" */
+		var v float32 = t /* ERRORx `cannot use .* in variable declaration` */
 		_ = v
 	}
 
@@ -726,7 +726,7 @@ func typeswitches() {
 	{
 		x := 1
 		v := 2
-		switch v /* ERROR "v [(]variable of type int[)] is not an interface" */ .(type) {
+		switch v /* ERROR "v (variable of type int) is not an interface" */ .(type) {
 		case int:
 			println(x)
 			println(x / 0 /* ERROR "invalid operation: division by zero" */)
@@ -832,7 +832,7 @@ func rangeloops1() {
 		ii = i
 		_ = ii
 		var xx float64
-		xx = x /* ERROR "cannot use .* in assignment" */
+		xx = x /* ERRORx `cannot use .* in assignment` */
 		_ = xx
 	}
 	var ii int
@@ -883,7 +883,7 @@ func rangeloops1() {
 	for range m {}
 	for k := range m {
 		var kk int32
-		kk = k /* ERROR "cannot use .* in assignment" */
+		kk = k /* ERRORx `cannot use .* in assignment` */
 		_ = kk
 	}
 	for k, v := range m {
@@ -925,17 +925,17 @@ func rangeloops2() {
 	var a [10]int
 	var i I
 	_ = i
-	for i /* ERROR "cannot use .* in assignment" */ = range a {}
-	for i /* ERROR "cannot use .* in assignment" */ = range &a {}
-	for i /* ERROR "cannot use .* in assignment" */ = range a[:] {}
+	for i /* ERRORx `cannot use .* in assignment` */ = range a {}
+	for i /* ERRORx `cannot use .* in assignment` */ = range &a {}
+	for i /* ERRORx `cannot use .* in assignment` */ = range a[:] {}
 
 	var s string
 	var r R
 	_ = r
-	for i /* ERROR "cannot use .* in assignment" */ = range s {}
-	for i /* ERROR "cannot use .* in assignment" */ = range "foo" {}
-	for _, r /* ERROR "cannot use .* in assignment" */ = range s {}
-	for _, r /* ERROR "cannot use .* in assignment" */ = range "foo" {}
+	for i /* ERRORx `cannot use .* in assignment` */ = range s {}
+	for i /* ERRORx `cannot use .* in assignment` */ = range "foo" {}
+	for _, r /* ERRORx `cannot use .* in assignment` */ = range s {}
+	for _, r /* ERRORx `cannot use .* in assignment` */ = range "foo" {}
 }
 
 func issue6766b() {

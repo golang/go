@@ -35,7 +35,7 @@ var _ = reverse /* ERROR "cannot use generic function reverse" */
 var _ = reverse[int, float32 /* ERROR "got 2 type arguments" */ ] ([]int{1, 2, 3})
 var _ = reverse[int]([ /* ERROR "cannot use" */ ]float32{1, 2, 3})
 var f = reverse[chan int]
-var _ = f(0 /* ERROR "cannot use 0 .* as \[\]chan int" */ )
+var _ = f(0 /* ERRORx `cannot use 0 .* as \[\]chan int` */ )
 
 func swap[A, B any](a A, b B) (B, A) { return b, a }
 
@@ -75,13 +75,13 @@ func new[T any]() *T {
 var _ = new /* ERROR "cannot use generic function new" */
 var _ *int = new[int]()
 
-func _[T any](map[T /* ERROR "invalid map key type T \(missing comparable constraint\)" */]int) {} // w/o constraint we don't know if T is comparable
+func _[T any](map[T /* ERROR "invalid map key type T (missing comparable constraint)" */]int) {} // w/o constraint we don't know if T is comparable
 
-func f1[T1 any](struct{T1 /* ERROR "cannot be a .* type parameter" */ }) int { panic(0) }
+func f1[T1 any](struct{T1 /* ERRORx `cannot be a .* type parameter` */ }) int { panic(0) }
 var _ = f1[int](struct{T1}{})
 type T1 = int
 
-func f2[t1 any](struct{t1 /* ERROR "cannot be a .* type parameter" */ ; x float32}) int { panic(0) }
+func f2[t1 any](struct{t1 /* ERRORx `cannot be a .* type parameter` */ ; x float32}) int { panic(0) }
 var _ = f2[t1](struct{t1; x float32}{})
 type t1 = int
 
@@ -230,7 +230,7 @@ func _[
         for _, _ = range s1 {}
 
         var s2 S2
-        for range s2 /* ERROR "cannot range over s2.*no core type" */ {}
+        for range s2 /* ERRORx `cannot range over s2.*no core type` */ {}
 
         var a0 []int
         for range a0 {}
@@ -243,7 +243,7 @@ func _[
         for _, _ = range a1 {}
 
         var a2 A2
-        for range a2 /* ERROR "cannot range over a2.*no core type" */ {}
+        for range a2 /* ERRORx `cannot range over a2.*no core type` */ {}
 
         var p0 *[10]int
         for range p0 {}
@@ -256,7 +256,7 @@ func _[
         for _, _ = range p1 {}
 
         var p2 P2
-        for range p2 /* ERROR "cannot range over p2.*no core type" */ {}
+        for range p2 /* ERRORx `cannot range over p2.*no core type` */ {}
 
         var m0 map[string]int
         for range m0 {}
@@ -269,7 +269,7 @@ func _[
         for _, _ = range m1 {}
 
         var m2 M2
-        for range m2 /* ERROR "cannot range over m2.*no core type" */ {}
+        for range m2 /* ERRORx `cannot range over m2.*no core type` */ {}
 }
 
 // type inference checks

@@ -124,7 +124,7 @@ func _[T M1](m T) {
 
 func _[T M2](m T) {
 	delete(m, "foo")
-	delete(m, 0 /* ERROR "cannot use .* as string" */)
+	delete(m, 0 /* ERRORx `cannot use .* as string` */)
 }
 
 func _[T M3](m T) {

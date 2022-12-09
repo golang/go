@@ -35,9 +35,9 @@ func append1() {
 	type S []byte
 	type T string
 	var t T
-	_ = append(s, "foo" /* ERROR "cannot use .* in argument to append" */ )
+	_ = append(s, "foo" /* ERRORx `cannot use .* in argument to append` */ )
 	_ = append(s, "foo"...)
-	_ = append(S(s), "foo" /* ERROR "cannot use .* in argument to append" */ )
+	_ = append(S(s), "foo" /* ERRORx `cannot use .* in argument to append` */ )
 	_ = append(S(s), "foo"...)
 	_ = append(s, t /* ERROR "cannot use t" */ )
 	_ = append(s, t...)
@@ -100,7 +100,7 @@ func cap1() {
 
 	var s [][]byte
 	_ = cap(s)
-	_ = cap(s... /* ERROR "invalid use of \.\.\." */ )
+	_ = cap(s... /* ERROR "invalid use of ..." */ )
 }
 
 func cap2() {
@@ -161,7 +161,7 @@ func close1() {
 	_ = close /* ERROR "used as value" */ (c)
 
 	var s []chan int
-	close(s... /* ERROR "invalid use of \.\.\." */ )
+	close(s... /* ERROR "invalid use of ..." */ )
 }
 
 func close2() {
@@ -204,9 +204,9 @@ func complex1() {
 	complex /* ERROR "not used" */ (1, 2)
 
 	var _ complex64 = complex(f32, f32)
-	var _ complex64 = complex /* ERROR "cannot use .* in variable declaration" */ (f64, f64)
+	var _ complex64 = complex /* ERRORx `cannot use .* in variable declaration` */ (f64, f64)
 
-	var _ complex128 = complex /* ERROR "cannot use .* in variable declaration" */ (f32, f32)
+	var _ complex128 = complex /* ERRORx `cannot use .* in variable declaration` */ (f32, f32)
 	var _ complex128 = complex(f64, f64)
 
 	// untyped constants
@@ -225,7 +225,7 @@ func complex1() {
 	var s uint
 	_ = complex(1 /* ERROR "integer" */ <<s, 0)
 	const _ = complex /* ERROR "not constant" */ (1 /* ERROR "integer" */ <<s, 0)
-	var _ int = complex /* ERROR "cannot use .* in variable declaration" */ (1 /* ERROR "integer" */ <<s, 0)
+	var _ int = complex /* ERRORx `cannot use .* in variable declaration` */ (1 /* ERROR "integer" */ <<s, 0)
 
 	// floating-point argument types must be identical
 	type F32 float32
@@ -241,7 +241,7 @@ func complex1() {
 	_ = complex(f64 /* ERROR "mismatched types" */ , x64)
 
 	var t []float32
-	_ = complex(t... /* ERROR "invalid use of \.\.\." */ )
+	_ = complex(t... /* ERROR "invalid use of ..." */ )
 }
 
 func complex2() {
@@ -275,7 +275,7 @@ func copy1() {
 	copy(t /* ERROR "copy expects slice arguments" */ , nil)
 	copy(nil /* ERROR "copy expects slice arguments" */ , t)
 	copy(nil /* ERROR "copy expects slice arguments" */ , nil)
-	copy(t... /* ERROR "invalid use of \.\.\." */ )
+	copy(t... /* ERROR "invalid use of ..." */ )
 }
 
 func copy2() {
@@ -299,7 +299,7 @@ func delete1() {
 	_ = delete /* ERROR "used as value" */ (m, s)
 
 	var t []map[string]string
-	delete(t... /* ERROR "invalid use of \.\.\." */ )
+	delete(t... /* ERROR "invalid use of ..." */ )
 }
 
 func delete2() {
@@ -331,8 +331,8 @@ func imag1() {
 	assert(_6 == 0)
 	f32 = imag(c64)
 	f64 = imag(c128)
-	f32 = imag /* ERROR "cannot use .* in assignment" */ (c128)
-	f64 = imag /* ERROR "cannot use .* in assignment" */ (c64)
+	f32 = imag /* ERRORx `cannot use .* in assignment` */ (c128)
+	f64 = imag /* ERRORx `cannot use .* in assignment` */ (c64)
 	imag /* ERROR "not used" */ (c64)
 	_, _ = f32, f64
 
@@ -345,7 +345,7 @@ func imag1() {
 	f64 = imag(x128)
 
 	var a []complex64
-	_ = imag(a... /* ERROR "invalid use of \.\.\." */ )
+	_ = imag(a... /* ERROR "invalid use of ..." */ )
 
 	// if argument is untyped, result is untyped
 	const _ byte = imag(1.2 + 3i)
@@ -395,7 +395,7 @@ func len1() {
 
 	var s [][]byte
 	_ = len(s)
-	_ = len(s... /* ERROR "invalid use of \.\.\." */ )
+	_ = len(s... /* ERROR "invalid use of ..." */ )
 }
 
 func len2() {
@@ -489,7 +489,7 @@ func make1() {
 
 	var t []int
 	_ = make([]int, t[0], t[1])
-	_ = make([]int, t... /* ERROR "invalid use of \.\.\." */ )
+	_ = make([]int, t... /* ERROR "invalid use of ..." */ )
 }
 
 func make2() {
@@ -509,7 +509,7 @@ func new1() {
 	new /* ERROR "not used" */ (int)
         _ = &new /* ERROR "cannot take address" */ (int)
 
-	_ = new(int... /* ERROR "invalid use of \.\.\." */ )
+	_ = new(int... /* ERROR "invalid use of ..." */ )
 }
 
 func new2() {
@@ -530,7 +530,7 @@ func panic1() {
 
 	var s []byte
 	panic(s)
-	panic(s... /* ERROR "invalid use of \.\.\." */ )
+	panic(s... /* ERROR "invalid use of ..." */ )
 }
 
 func panic2() {
@@ -553,7 +553,7 @@ func print1() {
 	println(nil /* ERROR "untyped nil" */ )
 
 	var s []int
-	print(s... /* ERROR "invalid use of \.\.\." */ )
+	print(s... /* ERROR "invalid use of ..." */ )
 	_ = print /* ERROR "used as value" */ ()
 }
 
@@ -579,7 +579,7 @@ func println1() {
 	println(nil /* ERROR "untyped nil" */ )
 
 	var s []int
-	println(s... /* ERROR "invalid use of \.\.\." */ )
+	println(s... /* ERROR "invalid use of ..." */ )
 	_ = println /* ERROR "used as value" */ ()
 }
 
@@ -611,8 +611,8 @@ func real1() {
 	assert(_6 == 0)
 	f32 = real(c64)
 	f64 = real(c128)
-	f32 = real /* ERROR "cannot use .* in assignment" */ (c128)
-	f64 = real /* ERROR "cannot use .* in assignment" */ (c64)
+	f32 = real /* ERRORx `cannot use .* in assignment` */ (c128)
+	f64 = real /* ERRORx `cannot use .* in assignment` */ (c64)
 	real /* ERROR "not used" */ (c64)
 
 	// complex type may not be predeclared
@@ -625,7 +625,7 @@ func real1() {
 	_, _ = f32, f64
 
 	var a []complex64
-	_ = real(a... /* ERROR "invalid use of \.\.\." */ )
+	_ = real(a... /* ERROR "invalid use of ..." */ )
 
 	// if argument is untyped, result is untyped
 	const _ byte = real(1 + 2.3i)
@@ -650,7 +650,7 @@ func recover1() {
 	recover()
 
 	var s []int
-	recover(s... /* ERROR "invalid use of \.\.\." */ )
+	recover(s... /* ERROR "invalid use of ..." */ )
 }
 
 func recover2() {
@@ -719,7 +719,7 @@ func Alignof1() {
 
 	var s []byte
 	_ = unsafe.Alignof(s)
-	_ = unsafe.Alignof(s... /* ERROR "invalid use of \.\.\." */ )
+	_ = unsafe.Alignof(s... /* ERROR "invalid use of ..." */ )
 }
 
 func Alignof2() {
@@ -775,7 +775,7 @@ func Offsetof1() {
 	_ = unsafe.Offsetof(y2 /* ERROR "method value" */ .m)
 
 	var s []byte
-	_ = unsafe.Offsetof(s... /* ERROR "invalid use of \.\.\." */ )
+	_ = unsafe.Offsetof(s... /* ERROR "invalid use of ..." */ )
 }
 
 func Offsetof2() {
@@ -849,7 +849,7 @@ func Sizeof1() {
 
 	var s []byte
 	_ = unsafe.Sizeof(s)
-	_ = unsafe.Sizeof(s... /* ERROR "invalid use of \.\.\." */ )
+	_ = unsafe.Sizeof(s... /* ERROR "invalid use of ..." */ )
 }
 
 func Sizeof2() {
@@ -866,11 +866,11 @@ func Slice1() {
 	unsafe.Slice(1, 2, 3) // ERROR "too many arguments"
 	unsafe.Slice(1 /* ERROR "is not a pointer" */ , 2)
 	unsafe.Slice(nil /* ERROR "nil is not a pointer" */ , 0)
-	unsafe.Slice(&x, "foo" /* ERROR "cannot convert .* to type int" */ )
+	unsafe.Slice(&x, "foo" /* ERRORx `cannot convert .* to type int` */ )
 	unsafe.Slice(&x, 1.2 /* ERROR "truncated to int" */ )
 	unsafe.Slice(&x, - /* ERROR "must not be negative" */ 1)
 	unsafe /* ERROR "not used" */ .Slice(&x, 0)
-	var _ []byte = unsafe /* ERROR "value of type \[\]int" */ .Slice(&x, 0)
+	var _ []byte = unsafe /* ERROR "value of type []int" */ .Slice(&x, 0)
 
 	var _ []int = unsafe.Slice(&x, 0)
 	_ = unsafe.Slice(&x, 1.0)
@@ -892,7 +892,7 @@ func String1() {
 	unsafe.String()        // ERROR "not enough arguments"
 	unsafe.String(1, 2, 3) // ERROR "too many arguments"
 	unsafe.String(1 /* ERROR "cannot use 1" */ , 2)
-	unsafe.String(&b, "foo" /* ERROR "cannot convert .* to type int" */ )
+	unsafe.String(&b, "foo" /* ERRORx `cannot convert .* to type int` */ )
 	unsafe.String(&b, 1.2 /* ERROR "truncated to int" */ )
 	unsafe.String(&b, - /* ERROR "must not be negative" */ 1)
 	unsafe /* ERROR "not used" */ .String(&b, 0)
@@ -926,7 +926,7 @@ func assert1() {
 	_ = assert(true)
 
 	var s []byte
-	assert(s... /* ERROR "invalid use of \.\.\." */ )
+	assert(s... /* ERROR "invalid use of ..." */ )
 }
 
 func assert2() {
@@ -945,7 +945,7 @@ func trace1() {
 	// _ = trace(true, 1.2, '\'', "foo", 42i, "foo" <= "bar")
 
 	var s []byte
-	trace(s... /* ERROR "invalid use of \.\.\." */ )
+	trace(s... /* ERROR "invalid use of ..." */ )
 }
 
 func trace2() {

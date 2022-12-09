@@ -8,7 +8,7 @@ import "math"
 import m "math"
 
 import . "testing" // declares T in file scope
-import . /* ERROR ".unsafe. imported and not used" */ "unsafe"
+import . /* ERRORx `.unsafe. imported and not used` */ "unsafe"
 import . "fmt"     // declares Println in file scope
 
 import (

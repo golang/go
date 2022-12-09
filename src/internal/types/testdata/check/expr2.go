@@ -9,7 +9,7 @@ package expr2
 func _bool() {
 	const t = true == true
 	const f = true == false
-	_ = t /* ERROR "operator .* not defined" */ < f
+	_ = t /* ERRORx `operator .* not defined` */ < f
 	_ = 0 == t /* ERROR "mismatched types untyped int and untyped bool" */
 	var b bool
 	var x, y float32
@@ -40,7 +40,7 @@ func arrays() {
 	_ = c == d /* ERROR "mismatched types" */
 
 	var e [10]func() int
-	_ = e /* ERROR "\[10\]func\(\) int cannot be compared" */ == e
+	_ = e /* ERROR "[10]func() int cannot be compared" */ == e
 }
 
 func structs() {

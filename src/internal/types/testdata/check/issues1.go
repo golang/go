@@ -33,12 +33,12 @@ type C[T any] interface {
 
 // using type bound C
 func _[T C[T]](x *T) {
-	x.m /* ERROR "x\.m undefined" */ ()
+	x.m /* ERROR "x.m undefined" */ ()
 }
 
 // using an interface literal as bound
 func _[T interface{ m() }](x *T) {
-	x.m /* ERROR "x\.m undefined" */ ()
+	x.m /* ERROR "x.m undefined" */ ()
 }
 
 func f2[_ interface{ m1(); m2() }]() {}
