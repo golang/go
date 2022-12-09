@@ -470,7 +470,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		// so it is safe to always use _LINUX_CAPABILITY_VERSION_3.
 		caps.hdr.version = _LINUX_CAPABILITY_VERSION_3
 
-		if _, _, err1 := RawSyscall(SYS_CAPGET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); err1 != 0 {
+		if _, _, err1 = RawSyscall(SYS_CAPGET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); err1 != 0 {
 			goto childerror
 		}
 
@@ -481,7 +481,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			caps.data[capToIndex(c)].inheritable |= capToMask(c)
 		}
 
-		if _, _, err1 := RawSyscall(SYS_CAPSET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); err1 != 0 {
+		if _, _, err1 = RawSyscall(SYS_CAPSET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); err1 != 0 {
 			goto childerror
 		}
 
@@ -514,7 +514,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		r1, _ = rawSyscallNoError(SYS_GETPPID, 0, 0, 0)
 		if r1 != ppid {
 			pid, _ := rawSyscallNoError(SYS_GETPID, 0, 0, 0)
-			_, _, err1 := RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
+			_, _, err1 = RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
 			if err1 != 0 {
 				goto childerror
 			}

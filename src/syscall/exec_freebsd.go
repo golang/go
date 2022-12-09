@@ -205,7 +205,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		r1, _, _ = RawSyscall(SYS_GETPPID, 0, 0, 0)
 		if r1 != ppid {
 			pid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
-			_, _, err1 := RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
+			_, _, err1 = RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
 			if err1 != 0 {
 				goto childerror
 			}
