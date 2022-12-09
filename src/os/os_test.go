@@ -274,9 +274,11 @@ func TestLstat(t *testing.T) {
 	if !equal(sfname, dir.Name()) {
 		t.Error("name should be ", sfname, "; is", dir.Name())
 	}
-	filesize := size(path, t)
-	if dir.Size() != filesize {
-		t.Error("size should be", filesize, "; is", dir.Size())
+	if dir.Mode()&ModeSymlink == 0 {
+		filesize := size(path, t)
+		if dir.Size() != filesize {
+			t.Error("size should be", filesize, "; is", dir.Size())
+		}
 	}
 }
 
