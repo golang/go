@@ -23561,7 +23561,7 @@ func rewriteValueARM64_OpCondSelect(v *Value) bool {
 	}
 	// match: (CondSelect x y boolval)
 	// cond: flagArg(boolval) == nil
-	// result: (CSEL [OpARM64NotEqual] x y (CMPWconst [0] boolval))
+	// result: (CSEL [OpARM64NotEqual] x y (TSTWconst [1] boolval))
 	for {
 		x := v_0
 		y := v_1
@@ -23571,8 +23571,8 @@ func rewriteValueARM64_OpCondSelect(v *Value) bool {
 		}
 		v.reset(OpARM64CSEL)
 		v.AuxInt = opToAuxInt(OpARM64NotEqual)
-		v0 := b.NewValue0(v.Pos, OpARM64CMPWconst, types.TypeFlags)
-		v0.AuxInt = int32ToAuxInt(0)
+		v0 := b.NewValue0(v.Pos, OpARM64TSTWconst, types.TypeFlags)
+		v0.AuxInt = int32ToAuxInt(1)
 		v0.AddArg(boolval)
 		v.AddArg3(x, y, v0)
 		return true
