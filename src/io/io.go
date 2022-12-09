@@ -400,6 +400,13 @@ func CopyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 	return copyBuffer(dst, src, buf)
 }
 
+var bufPool = sync.Pool{
+	New: func() any {
+		b := make([]byte, 32*1024)
+		return &b
+	},
+}
+
 // copyBuffer is the actual implementation of Copy and CopyBuffer.
 // if buf is nil, one is allocated.
 func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
@@ -413,15 +420,9 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 		return rt.ReadFrom(src)
 	}
 	if buf == nil {
-		size := 32 * 1024
-		if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
-			if l.N < 1 {
-				size = 1
-			} else {
-				size = int(l.N)
-			}
-		}
-		buf = make([]byte, size)
+		bufp := bufPool.Get().(*[]byte)
+		defer bufPool.Put(bufp)
+		buf = *bufp
 	}
 	for {
 		nr, er := src.Read(buf)
@@ -637,21 +638,14 @@ func (discard) WriteString(s string) (int, error) {
 	return len(s), nil
 }
 
-var blackHolePool = sync.Pool{
-	New: func() any {
-		b := make([]byte, 8192)
-		return &b
-	},
-}
-
 func (discard) ReadFrom(r Reader) (n int64, err error) {
-	bufp := blackHolePool.Get().(*[]byte)
+	bufp := bufPool.Get().(*[]byte)
 	readSize := 0
 	for {
 		readSize, err = r.Read(*bufp)
 		n += int64(readSize)
 		if err != nil {
-			blackHolePool.Put(bufp)
+			bufPool.Put(bufp)
 			if err == EOF {
 				return n, nil
 			}

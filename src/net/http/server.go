@@ -567,16 +567,12 @@ type writerOnly struct {
 // to a *net.TCPConn with sendfile, or from a supported src type such
 // as a *net.TCPConn on Linux with splice.
 func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
-	bufp := copyBufPool.Get().(*[]byte)
-	buf := *bufp
-	defer copyBufPool.Put(bufp)
-
 	// Our underlying w.conn.rwc is usually a *TCPConn (with its
 	// own ReadFrom method). If not, just fall back to the normal
 	// copy method.
 	rf, ok := w.conn.rwc.(io.ReaderFrom)
 	if !ok {
-		return io.CopyBuffer(writerOnly{w}, src, buf)
+		return io.Copy(writerOnly{w}, src)
 	}
 
 	// Copy the first sniffLen bytes before switching to ReadFrom.
@@ -584,7 +580,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 	// source is available (see golang.org/issue/5660) and provides
 	// enough bytes to perform Content-Type sniffing when required.
 	if !w.cw.wroteHeader {
-		n0, err := io.CopyBuffer(writerOnly{w}, io.LimitReader(src, sniffLen), buf)
+		n0, err := io.Copy(writerOnly{w}, io.LimitReader(src, sniffLen))
 		n += n0
 		if err != nil || n0 < sniffLen {
 			return n, err
@@ -602,7 +598,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 		return n, err
 	}
 
-	n0, err := io.CopyBuffer(writerOnly{w}, src, buf)
+	n0, err := io.Copy(writerOnly{w}, src)
 	n += n0
 	return n, err
 }
@@ -798,13 +794,6 @@ var (
 	bufioWriter2kPool sync.Pool
 	bufioWriter4kPool sync.Pool
 )
-
-var copyBufPool = sync.Pool{
-	New: func() any {
-		b := make([]byte, 32*1024)
-		return &b
-	},
-}
 
 func bufioWriterPool(size int) *sync.Pool {
 	switch size {
