@@ -32,6 +32,11 @@ func CommentToMarkdown(text string) string {
 	var p comment.Parser
 	doc := p.Parse(text)
 	var pr comment.Printer
+	// The default produces {#Hdr-...} tags for headings.
+	// vscode displays thems, which is undesirable.
+	// The godoc for comment.Printer says the tags
+	// avoid a security problem.
+	pr.HeadingID = func(*comment.Heading) string { return "" }
 	easy := pr.Markdown(doc)
 	return string(easy)
 }

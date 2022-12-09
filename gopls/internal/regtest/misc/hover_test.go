@@ -221,3 +221,42 @@ func main() {
 		}
 	})
 }
+
+// for x/tools/gopls: unhandled named anchor on the hover #57048
+func TestHoverTags(t *testing.T) {
+	testenv.NeedsGo1Point(t, 14) // until go1.13 is dropped from kokoro
+	const source = `
+-- go.mod --
+module mod.com
+
+go 1.19
+
+-- lib/a.go --
+
+// variety of execution modes.
+//
+// # Test package setup
+//
+// The regression test package uses a couple of uncommon patterns to reduce
+package lib
+
+-- a.go --
+	package main
+	import "mod.com/lib"
+
+	const A = 1
+
+}
+`
+	Run(t, source, func(t *testing.T, env *Env) {
+		t.Run("tags", func(t *testing.T) {
+			env.OpenFile("a.go")
+			z := env.RegexpSearch("a.go", "lib")
+			t.Logf("%#v", z)
+			got, _ := env.Hover("a.go", env.RegexpSearch("a.go", "lib"))
+			if strings.Contains(got.Value, "{#hdr-") {
+				t.Errorf("Hover: got {#hdr- tag:\n%q", got)
+			}
+		})
+	})
+}
