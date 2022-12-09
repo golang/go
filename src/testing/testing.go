@@ -749,14 +749,7 @@ func (c *common) decorate(s string, skip int) string {
 	frame := c.frameSkip(skip)
 	file := frame.File
 	line := frame.Line
-	if file != "" {
-		// Truncate file name at last file name separator.
-		if index := strings.LastIndex(file, "/"); index >= 0 {
-			file = file[index+1:]
-		} else if index = strings.LastIndex(file, "\\"); index >= 0 {
-			file = file[index+1:]
-		}
-	} else {
+	if file == "" {
 		file = "???"
 	}
 	if line == 0 {
