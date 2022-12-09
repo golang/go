@@ -178,6 +178,9 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 	ctx, done := event.Start(ctx, "Server.diagnoseChangedFiles", source.SnapshotLabels(snapshot)...)
 	defer done()
 
+	// TODO(adonovan): safety: refactor so that group.Go is called
+	// in a second loop, so that if we should later add an early
+	// return to the first loop, we don't leak goroutines.
 	var group errgroup.Group
 	seen := make(map[*source.Metadata]bool)
 	for _, uri := range uris {
@@ -366,27 +369,36 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, m *s
 		return
 	}
 
-	pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, m.ID)
+	pkgs, err := snapshot.TypeCheck(ctx, source.TypecheckFull, m.ID)
 	if err != nil {
-		event.Error(ctx, "warning: diagnosing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
+		event.Error(ctx, "warning: typecheck failed", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
 		return
 	}
-	for _, uri := range m.CompiledGoFiles {
-		// builtin.go exists only for documentation purposes, and is not valid Go code.
-		// Don't report distracting errors
-		if !snapshot.IsBuiltin(ctx, uri) {
-			s.storeDiagnostics(snapshot, uri, typeCheckSource, pkgDiagnostics[uri], true)
-		}
-	}
+	pkg := pkgs[0]
+
+	// Get diagnostics from analysis framework.
+	// This includes type-error analyzers, which suggest fixes to compiler errors.
+	var analysisDiags map[span.URI][]*source.Diagnostic
 	if includeAnalysis {
-		reports, err := source.Analyze(ctx, snapshot, m.ID, false)
+		diags, err := source.Analyze(ctx, snapshot, m.ID, false)
 		if err != nil {
 			event.Error(ctx, "warning: analyzing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
 			return
 		}
-		for _, uri := range m.CompiledGoFiles {
-			s.storeDiagnostics(snapshot, uri, analysisSource, reports[uri], true)
+		analysisDiags = diags
+	}
+
+	// For each file, update the server's diagnostics state.
+	for _, cgf := range pkg.CompiledGoFiles() {
+		// builtin.go exists only for documentation purposes and
+		// is not valid Go code. Don't report distracting errors.
+		if snapshot.IsBuiltin(ctx, cgf.URI) {
+			continue
 		}
+		var tdiags, adiags []*source.Diagnostic
+		source.CombineDiagnostics(pkg, cgf.URI, analysisDiags, &tdiags, &adiags)
+		s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, tdiags, true)
+		s.storeDiagnostics(snapshot, cgf.URI, analysisSource, adiags, true)
 	}
 
 	// If gc optimization details are requested, add them to the

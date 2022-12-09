@@ -605,6 +605,11 @@ func parseCompiledGoFiles(ctx context.Context, compiledGoFiles []source.FileHand
 
 	// Optionally remove parts that don't affect the exported API.
 	if mode == source.ParseExported {
+		// TODO(adonovan): opt: experiment with pre-parser
+		// trimming, either a scanner-based implementation
+		// such as https://go.dev/play/p/KUrObH1YkX8 (~31%
+		// speedup), or a byte-oriented implementation (2x
+		// speedup).
 		if astFilter != nil {
 			// aggressive pruning based on reachability
 			var files []*ast.File

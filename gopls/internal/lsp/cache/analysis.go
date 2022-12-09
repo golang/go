@@ -16,7 +16,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
@@ -464,46 +463,4 @@ func factType(fact analysis.Fact) reflect.Type {
 		panic(fmt.Sprintf("invalid Fact type: got %T, want pointer", fact))
 	}
 	return t
-}
-
-func (s *snapshot) DiagnosePackage(ctx context.Context, id PackageID) (map[span.URI][]*source.Diagnostic, error) {
-	pkgs, err := s.TypeCheck(ctx, source.TypecheckFull, id)
-	if err != nil {
-		return nil, err
-	}
-	pkg := pkgs[0].(*pkg)
-	var errorAnalyzerDiag []*source.Diagnostic
-	if pkg.HasTypeErrors() {
-		// Apply type error analyzers.
-		// They augment type error diagnostics with their own fixes.
-		var analyzers []*source.Analyzer
-		for _, a := range s.View().Options().TypeErrorAnalyzers {
-			analyzers = append(analyzers, a)
-		}
-		var err error
-		errorAnalyzerDiag, err = s.Analyze(ctx, pkg.ID(), analyzers)
-		if err != nil {
-			// Keep going: analysis failures should not block diagnostics.
-			event.Error(ctx, "type error analysis failed", err, tag.Package.Of(string(pkg.ID())))
-		}
-	}
-	diags := map[span.URI][]*source.Diagnostic{}
-	for _, diag := range pkg.diagnostics {
-		for _, eaDiag := range errorAnalyzerDiag {
-			if eaDiag.URI == diag.URI && eaDiag.Range == diag.Range && eaDiag.Message == diag.Message {
-				// Type error analyzers just add fixes and tags. Make a copy,
-				// since we don't own either, and overwrite.
-				// The analyzer itself can't do this merge because
-				// analysis.Diagnostic doesn't have all the fields, and Analyze
-				// can't because it doesn't have the type error, notably its code.
-				clone := *diag
-				clone.SuggestedFixes = eaDiag.SuggestedFixes
-				clone.Tags = eaDiag.Tags
-				clone.Analyzer = eaDiag.Analyzer
-				diag = &clone
-			}
-		}
-		diags[diag.URI] = append(diags[diag.URI], diag)
-	}
-	return diags, nil
 }

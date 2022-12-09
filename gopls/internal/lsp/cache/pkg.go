@@ -161,3 +161,13 @@ func (p *pkg) HasListOrParseErrors() bool {
 func (p *pkg) HasTypeErrors() bool {
 	return len(p.typeErrors) != 0
 }
+
+func (p *pkg) DiagnosticsForFile(uri span.URI) []*source.Diagnostic {
+	var res []*source.Diagnostic
+	for _, diag := range p.diagnostics {
+		if diag.URI == uri {
+			res = append(res, diag)
+		}
+	}
+	return res
+}

@@ -1,11 +1,24 @@
 package noparse
 
+// The type error was chosen carefully to exercise a type-error analyzer.
+// We use the 'nonewvars' analyzer because the other candidates are tricky:
+//
+// - The 'unusedvariable' analyzer is disabled by default, so it is not
+//   consistently enabled across Test{LSP,CommandLine} tests, which
+//   both process this file.
+// - The 'undeclaredname' analyzer depends on the text of the go/types
+//   "undeclared name" error, which changed in go1.20.
+// - The 'noresultvalues' analyzer produces a diagnostic containing newlines,
+//   which breaks the parser used by TestCommandLine.
+//
+// This comment is all that remains of my afternoon.
+
 func bye(x int) {
-	hi()
+	x := 123 //@diag(":=", "nonewvars", "no new variables", "warning")
 }
 
 func stuff() {
-	x := 5
+	
 }
 
 func .() {} //@diag(".", "syntax", "expected 'IDENT', found '.'", "error")

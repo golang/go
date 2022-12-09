@@ -107,41 +107,6 @@ type Snapshot interface {
 	// Position information is added to FileSet().
 	ParseGo(ctx context.Context, fh FileHandle, mode ParseMode) (*ParsedGoFile, error)
 
-	// DiagnosePackage returns basic diagnostics, including list,
-	// parse, and type errors for pkg, grouped by file.
-	//
-	// It may include suggested fixes for type errors, created by
-	// running the analysis framework.
-	//
-	// TODO(adonovan): this operation does a mix of checks that
-	// range from cheap (list errors, parse errors) to expensive
-	// (type errors, type-error-analyzer results). In particular,
-	// type-error analyzers (as currently implemented) depend on
-	// the full analyzer machinery, and in the near future that
-	// will be completely separate from regular type checking.
-	// So, we must choose between:
-	//
-	// (1) rewriting them as ad-hoc functions that operate on
-	//     type-checked packages. That's a fair amount of work
-	//     since they are fairly deeply enmeshed in the framework,
-	//     (some have horizontal dependencies such as Inspector),
-	//     and quite reasonably so. So we reject this in favor of:
-	//
-	// (2) separating the generation of type errors (which happens
-	//     at the lowest latency) from full analysis, which is
-	//     slower, although hopefully eventually only on the order
-	//     of seconds.  In this case, type error analyzers are
-	//     basically not special; the only special part would be
-	//     the postprocessing step to merge the
-	//     type-error-analyzer fixes into the ordinary diagnostics
-	//     produced by type checking. (Not yet sure how to do that.)
-	//
-	// So then the role of this function is "report fast
-	// diagnostics, up to type-checking", and the role of
-	// Analyze() is "run the analysis framework, included
-	// suggested fixes for type errors"
-	DiagnosePackage(ctx context.Context, id PackageID) (map[span.URI][]*Diagnostic, error)
-
 	// Analyze runs the specified analyzers on the given package at this snapshot.
 	Analyze(ctx context.Context, id PackageID, analyzers []*Analyzer) ([]*Diagnostic, error)
 
@@ -711,6 +676,8 @@ type Analyzer struct {
 	Severity protocol.DiagnosticSeverity
 }
 
+func (a *Analyzer) String() string { return a.Analyzer.String() }
+
 // Enabled reports whether this analyzer is enabled by the given options.
 func (a Analyzer) IsEnabled(options *Options) bool {
 	// Staticcheck analyzers can only be enabled when staticcheck is on.
@@ -762,6 +729,7 @@ type Package interface {
 	ResolveImportPath(path ImportPath) (Package, error)
 	Imports() []Package // new slice of all direct dependencies, unordered
 	HasTypeErrors() bool
+	DiagnosticsForFile(uri span.URI) []*Diagnostic // new array of list/parse/type errors
 }
 
 // A CriticalError is a workspace-wide error that generally prevents gopls from

@@ -155,23 +155,19 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		metas, err := snapshot.MetadataForFile(ctx, fh.URI())
+
+		// Type-check the package and also run analysis,
+		// then combine their diagnostics.
+		pkg, err := snapshot.PackageForFile(ctx, fh.URI(), source.TypecheckFull, source.WidestPackage)
 		if err != nil {
 			return nil, err
 		}
-		if len(metas) == 0 {
-			return nil, fmt.Errorf("no package containing file %q", fh.URI())
-		}
-		id := metas[len(metas)-1].ID // last => widest package
-		pkgDiagnostics, err := snapshot.DiagnosePackage(ctx, id)
+		analysisDiags, err := source.Analyze(ctx, snapshot, pkg.ID(), true)
 		if err != nil {
 			return nil, err
 		}
-		analysisDiags, err := source.Analyze(ctx, snapshot, id, true)
-		if err != nil {
-			return nil, err
-		}
-		fileDiags := append(pkgDiagnostics[uri], analysisDiags[uri]...)
+		var fileDiags []*source.Diagnostic
+		source.CombineDiagnostics(pkg, fh.URI(), analysisDiags, &fileDiags, &fileDiags)
 
 		// Split diagnostics into fixes, which must match incoming diagnostics,
 		// and non-fixes, which must match the requested range. Build actions

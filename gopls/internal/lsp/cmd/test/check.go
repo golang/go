@@ -15,8 +15,8 @@ import (
 	"golang.org/x/tools/gopls/internal/span"
 )
 
-// Diagnostics runs the gopls command on a single file, parses its
-// diagnostics, and compares against the expectations defined by
+// Diagnostics runs the "gopls check" command on a single file, parses
+// its diagnostics, and compares against the expectations defined by
 // markers in the source file.
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnostic) {
 	out, _ := r.runGoplsCmd(t, "check", uri.Filename())

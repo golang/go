@@ -6,7 +6,6 @@ package source
 
 import (
 	"context"
-	"fmt"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/span"
@@ -37,6 +36,7 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeCon
 	categories := []map[string]*Analyzer{
 		options.DefaultAnalyzers,
 		options.StaticcheckAnalyzers,
+		options.TypeErrorAnalyzers,
 	}
 	if includeConvenience { // e.g. for codeAction
 		categories = append(categories, options.ConvenienceAnalyzers) // e.g. fillstruct
@@ -55,14 +55,15 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeCon
 	}
 
 	// Report diagnostics and errors from root analyzers.
-	reports := map[span.URI][]*Diagnostic{}
+	reports := make(map[span.URI][]*Diagnostic)
 	for _, diag := range analysisDiagnostics {
 		reports[diag.URI] = append(reports[diag.URI], diag)
 	}
 	return reports, nil
 }
 
-// FileDiagnostics reports diagnostics in the specified file.
+// FileDiagnostics reports diagnostics in the specified file,
+// as used by the "gopls check" command.
 //
 // TODO(adonovan): factor in common with (*Server).codeAction, which
 // executes { PackageForFile; DiagnosePackage; Analyze } too?
@@ -76,22 +77,66 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	metas, err := snapshot.MetadataForFile(ctx, uri)
+	pkg, err := snapshot.PackageForFile(ctx, uri, TypecheckFull, NarrowestPackage)
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	if len(metas) == 0 {
-		return VersionedFileIdentity{}, nil, fmt.Errorf("no package containing file %q", uri)
-	}
-	id := metas[0].ID // 0 => narrowest package
-	diagnostics, err := snapshot.DiagnosePackage(ctx, id)
+	adiags, err := Analyze(ctx, snapshot, pkg.ID(), false)
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	analysisDiags, err := Analyze(ctx, snapshot, id, false)
-	if err != nil {
-		return VersionedFileIdentity{}, nil, err
-	}
-	fileDiags := append(diagnostics[fh.URI()], analysisDiags[fh.URI()]...)
+	var fileDiags []*Diagnostic // combine load/parse/type + analysis diagnostics
+	CombineDiagnostics(pkg, fh.URI(), adiags, &fileDiags, &fileDiags)
 	return fh.VersionedFileIdentity(), fileDiags, nil
+}
+
+// CombineDiagnostics combines and filters list/parse/type diagnostics
+// from pkg.DiagnosticsForFile(uri) with analysisDiagnostics[uri], and
+// appends the two lists to *outT and *outA, respectively.
+//
+// Type-error analyzers produce diagnostics that are redundant
+// with type checker diagnostics, but more detailed (e.g. fixes).
+// Rather than report two diagnostics for the same problem,
+// we combine them by augmenting the type-checker diagnostic
+// and discarding the analyzer diagnostic.
+//
+// If an analysis diagnostic has the same range and message as
+// a list/parse/type diagnostic, the suggested fix information
+// (et al) of the latter is merged into a copy of the former.
+// This handles the case where a type-error analyzer suggests
+// a fix to a type error, and avoids duplication.
+//
+// The use of out-slices, though irregular, allows the caller to
+// easily choose whether to keep the results separate or combined.
+//
+// The arguments are not modified.
+func CombineDiagnostics(pkg Package, uri span.URI, analysisDiagnostics map[span.URI][]*Diagnostic, outT, outA *[]*Diagnostic) {
+
+	// Build index of (list+parse+)type errors.
+	type key struct {
+		Range   protocol.Range
+		message string
+	}
+	index := make(map[key]int) // maps (Range,Message) to index in tdiags slice
+	tdiags := pkg.DiagnosticsForFile(uri)
+	for i, diag := range tdiags {
+		index[key{diag.Range, diag.Message}] = i
+	}
+
+	// Filter out analysis diagnostics that match type errors,
+	// retaining their suggested fix (etc) fields.
+	for _, diag := range analysisDiagnostics[uri] {
+		if i, ok := index[key{diag.Range, diag.Message}]; ok {
+			copy := *tdiags[i]
+			copy.SuggestedFixes = diag.SuggestedFixes
+			copy.Tags = diag.Tags
+			copy.Analyzer = diag.Analyzer
+			tdiags[i] = &copy
+			continue
+		}
+
+		*outA = append(*outA, diag)
+	}
+
+	*outT = append(*outT, tdiags...)
 }
