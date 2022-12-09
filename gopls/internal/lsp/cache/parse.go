@@ -59,7 +59,7 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 
 	// cache miss?
 	if !hit {
-		handle, release := s.store.Promise(key, func(ctx context.Context, arg interface{}) interface{} {
+		promise, release := s.store.Promise(key, func(ctx context.Context, arg interface{}) interface{} {
 			parsed, err := parseGoImpl(ctx, arg.(*snapshot).FileSet(), fh, mode)
 			return parseGoResult{parsed, err}
 		})
@@ -70,8 +70,30 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 			entry = prev
 			release()
 		} else {
-			entry = handle
+			entry = promise
 			s.parsedGoFiles.Set(key, entry, func(_, _ interface{}) { release() })
+
+			// In order to correctly invalidate the key above, we must keep track of
+			// the parse key just created.
+			//
+			// TODO(rfindley): use a two-level map URI->parseKey->promise.
+			keys, _ := s.parseKeysByURI.Get(fh.URI())
+
+			// Only record the new key if it doesn't exist. This is overly cautious:
+			// we should only be setting the key if it doesn't exist. However, this
+			// logic will be replaced soon, and erring on the side of caution seemed
+			// wise.
+			foundKey := false
+			for _, existing := range keys {
+				if existing == key {
+					foundKey = true
+					break
+				}
+			}
+			if !foundKey {
+				keys = append(keys, key)
+				s.parseKeysByURI.Set(fh.URI(), keys)
+			}
 		}
 		s.mu.Unlock()
 	}
