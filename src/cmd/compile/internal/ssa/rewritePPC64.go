@@ -1172,9 +1172,10 @@ func rewriteValuePPC64_OpCondSelect(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (CondSelect x y bool)
 	// cond: flagArg(bool) == nil
-	// result: (ISEL [6] x y (CMPWconst [0] bool))
+	// result: (ISEL [6] x y (Select1 <types.TypeFlags> (ANDCCconst [1] bool)))
 	for {
 		x := v_0
 		y := v_1
@@ -1184,9 +1185,11 @@ func rewriteValuePPC64_OpCondSelect(v *Value) bool {
 		}
 		v.reset(OpPPC64ISEL)
 		v.AuxInt = int32ToAuxInt(6)
-		v0 := b.NewValue0(v.Pos, OpPPC64CMPWconst, types.TypeFlags)
-		v0.AuxInt = int32ToAuxInt(0)
-		v0.AddArg(bool)
+		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpPPC64ANDCCconst, types.NewTuple(typ.Int, types.TypeFlags))
+		v1.AuxInt = int64ToAuxInt(1)
+		v1.AddArg(bool)
+		v0.AddArg(v1)
 		v.AddArg3(x, y, v0)
 		return true
 	}
@@ -5355,7 +5358,7 @@ func rewriteValuePPC64_OpPPC64ISEL(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (ISEL [6] x y (CMPWconst [0] (ISELB [c] one cmp)))
+	// match: (ISEL [6] x y (Select1 (ANDCCconst [1] (ISELB [c] one cmp))))
 	// result: (ISEL [c] x y cmp)
 	for {
 		if auxIntToInt32(v.AuxInt) != 6 {
@@ -5363,15 +5366,19 @@ func rewriteValuePPC64_OpPPC64ISEL(v *Value) bool {
 		}
 		x := v_0
 		y := v_1
-		if v_2.Op != OpPPC64CMPWconst || auxIntToInt32(v_2.AuxInt) != 0 {
+		if v_2.Op != OpSelect1 {
 			break
 		}
 		v_2_0 := v_2.Args[0]
-		if v_2_0.Op != OpPPC64ISELB {
+		if v_2_0.Op != OpPPC64ANDCCconst || auxIntToInt64(v_2_0.AuxInt) != 1 {
 			break
 		}
-		c := auxIntToInt32(v_2_0.AuxInt)
-		cmp := v_2_0.Args[1]
+		v_2_0_0 := v_2_0.Args[0]
+		if v_2_0_0.Op != OpPPC64ISELB {
+			break
+		}
+		c := auxIntToInt32(v_2_0_0.AuxInt)
+		cmp := v_2_0_0.Args[1]
 		v.reset(OpPPC64ISEL)
 		v.AuxInt = int32ToAuxInt(c)
 		v.AddArg3(x, y, cmp)

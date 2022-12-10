@@ -409,9 +409,9 @@
 ((EQ|NE|LT|LE|GT|GE) (CMPconst [0] z:(XOR x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (Select1 <types.TypeFlags> (XORCC x y)) yes no)
 
 // Only lower after bool is lowered. It should always lower. This helps ensure the folding below happens reliably.
-(CondSelect x y bool) && flagArg(bool) == nil => (ISEL [6] x y (CMPWconst [0] bool))
+(CondSelect x y bool) && flagArg(bool) == nil => (ISEL [6] x y (Select1 <types.TypeFlags> (ANDCCconst [1] bool)))
 // Fold any CR -> GPR -> CR transfers when applying the above rule.
-(ISEL [6] x y (CMPWconst [0] (ISELB [c] one cmp))) => (ISEL [c] x y cmp)
+(ISEL [6] x y (Select1 (ANDCCconst [1] (ISELB [c] one cmp)))) => (ISEL [c] x y cmp)
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
