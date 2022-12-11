@@ -2750,17 +2750,21 @@ var portMap = map[string]string{
 	"socks5": "1080",
 }
 
-// canonicalAddr returns url.Host but always with a ":port" suffix.
-func canonicalAddr(url *url.URL) string {
+func idnaASCIIFromURL(url *url.URL) string {
 	addr := url.Hostname()
 	if v, err := idnaASCII(addr); err == nil {
 		addr = v
 	}
+	return addr
+}
+
+// canonicalAddr returns url.Host but always with a ":port" suffix.
+func canonicalAddr(url *url.URL) string {
 	port := url.Port()
 	if port == "" {
 		port = portMap[url.Scheme]
 	}
-	return net.JoinHostPort(addr, port)
+	return net.JoinHostPort(idnaASCIIFromURL(url), port)
 }
 
 // bodyEOFSignal is used by the HTTP/1 transport when reading response
