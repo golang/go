@@ -32,36 +32,60 @@ type ReferenceInfo struct {
 
 // References returns a list of references for a given identifier within the packages
 // containing i.File. Declarations appear first in the result.
-func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]*ReferenceInfo, error) {
+func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]*ReferenceInfo, error) {
 	ctx, done := event.Start(ctx, "source.References")
 	defer done()
 
 	// Is the cursor within the package name declaration?
-	pgf, inPackageName, err := parsePackageNameDecl(ctx, s, f, pp)
+	pgf, inPackageName, err := parsePackageNameDecl(ctx, snapshot, f, pp)
 	if err != nil {
 		return nil, err
 	}
 	if inPackageName {
-		// TODO(rfindley): this is inaccurate, excluding test variants, and
-		// redundant with package renaming. Refactor to share logic.
-		renamingPkg, err := s.PackageForFile(ctx, f.URI(), TypecheckWorkspace, NarrowestPackage)
+		// TODO(rfindley): this is redundant with package renaming. Refactor to share logic.
+		metas, err := snapshot.MetadataForFile(ctx, f.URI())
+		if err != nil {
+			return nil, err
+		}
+		if len(metas) == 0 {
+			return nil, fmt.Errorf("found no package containing %s", f.URI())
+		}
+		targetPkg := metas[len(metas)-1] // widest package
+
+		// Find external references to the package.
+		rdeps, err := snapshot.ReverseDependencies(ctx, targetPkg.ID)
 		if err != nil {
 			return nil, err
 		}
 
-		// Find external references to the package.
-		rdeps, err := s.GetReverseDependencies(ctx, renamingPkg.ID())
-		if err != nil {
-			return nil, err
-		}
 		var refs []*ReferenceInfo
-		for _, dep := range rdeps {
-			for _, f := range dep.CompiledGoFiles() {
+		for _, rdep := range rdeps {
+			// Optimization: skip this loop (parsing) if rdep
+			// doesn't directly import the target package.
+			// (This logic also appears in rename; perhaps we need
+			// a ReverseDirectDependencies method?)
+			direct := false
+			for _, importedID := range rdep.DepsByImpPath {
+				if importedID == targetPkg.ID {
+					direct = true
+					break
+				}
+			}
+			if !direct {
+				continue
+			}
+
+			for _, uri := range rdep.CompiledGoFiles {
+				fh, err := snapshot.GetFile(ctx, uri)
+				if err != nil {
+					return nil, err
+				}
+				f, err := snapshot.ParseGo(ctx, fh, ParseHeader)
+				if err != nil {
+					return nil, err
+				}
 				for _, imp := range f.File.Imports {
-					// TODO(adonovan): there's an ImportPath==PackagePath
-					// comparison that doesn't account for vendoring.
-					// Use dep.Metadata().DepsByPkgPath instead.
-					if string(UnquoteImportPath(imp)) == string(renamingPkg.PkgPath()) {
+					if rdep.DepsByImpPath[UnquoteImportPath(imp)] == targetPkg.ID {
 						refs = append(refs, &ReferenceInfo{
 							Name:        pgf.File.Name.Name,
 							MappedRange: NewMappedRange(f.Tok, f.Mapper, imp.Pos(), imp.End()),
@@ -71,8 +95,16 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 			}
 		}
 
-		// Find internal references to the package within the package itself
-		for _, f := range renamingPkg.CompiledGoFiles() {
+		// Find the package declaration of each file in the target package itself.
+		for _, uri := range targetPkg.CompiledGoFiles {
+			fh, err := snapshot.GetFile(ctx, uri)
+			if err != nil {
+				return nil, err
+			}
+			f, err := snapshot.ParseGo(ctx, fh, ParseHeader)
+			if err != nil {
+				return nil, err
+			}
 			refs = append(refs, &ReferenceInfo{
 				Name:        pgf.File.Name.Name,
 				MappedRange: NewMappedRange(f.Tok, f.Mapper, f.File.Name.Pos(), f.File.Name.End()),
@@ -82,7 +114,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		return refs, nil
 	}
 
-	qualifiedObjs, err := qualifiedObjsAtProtocolPos(ctx, s, f.URI(), pp)
+	qualifiedObjs, err := qualifiedObjsAtProtocolPos(ctx, snapshot, f.URI(), pp)
 	// Don't return references for builtin types.
 	if errors.Is(err, errBuiltin) {
 		return nil, nil
@@ -91,7 +123,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		return nil, err
 	}
 
-	refs, err := references(ctx, s, qualifiedObjs, includeDeclaration, true, false)
+	refs, err := references(ctx, snapshot, qualifiedObjs, includeDeclaration, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +199,19 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 
 		// Only search dependents if the object is exported.
 		if qo.obj.Exported() {
-			reverseDeps, err := snapshot.GetReverseDependencies(ctx, qo.pkg.ID())
+			rdeps, err := snapshot.ReverseDependencies(ctx, qo.pkg.ID())
+			if err != nil {
+				return nil, err
+			}
+			// TODO(adonovan): opt: if obj is a package-level object, we need
+			// only search among direct reverse dependencies.
+			ids := make([]PackageID, 0, len(rdeps))
+			for _, rdep := range rdeps {
+				ids = append(ids, rdep.ID)
+			}
+			// TODO(adonovan): opt: build a search index
+			// that doesn't require type checking.
+			reverseDeps, err := snapshot.TypeCheck(ctx, TypecheckFull, ids...)
 			if err != nil {
 				return nil, err
 			}

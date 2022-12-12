@@ -103,26 +103,20 @@ func (g *metadataGraph) build() {
 	}
 }
 
-// reverseTransitiveClosure calculates the set of packages that transitively
-// import an id in ids. The result also includes given ids.
-//
-// If includeInvalid is false, the algorithm ignores packages with invalid
-// metadata (including those in the given list of ids).
-func (g *metadataGraph) reverseTransitiveClosure(ids ...PackageID) map[PackageID]bool {
-	seen := make(map[PackageID]bool)
+// reverseTransitiveClosure returns a new mapping containing the
+// metadata for the specified packages along with any package that
+// transitively imports one of them, keyed by ID.
+func (g *metadataGraph) reverseTransitiveClosure(ids ...PackageID) map[PackageID]*source.Metadata {
+	seen := make(map[PackageID]*source.Metadata)
 	var visitAll func([]PackageID)
 	visitAll = func(ids []PackageID) {
 		for _, id := range ids {
-			if seen[id] {
-				continue
+			if seen[id] == nil {
+				if m := g.metadata[id]; m != nil {
+					seen[id] = m
+					visitAll(g.importedBy[id])
+				}
 			}
-			m := g.metadata[id]
-			// Only use invalid metadata if we support it.
-			if m == nil {
-				continue
-			}
-			seen[id] = true
-			visitAll(g.importedBy[id])
 		}
 	}
 	visitAll(ids)

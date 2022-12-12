@@ -363,38 +363,58 @@ func renamePackageClause(ctx context.Context, m *Metadata, snapshot Snapshot, ne
 // newPath and name newName.
 //
 // Edits are written into the edits map.
-func renameImports(ctx context.Context, s Snapshot, m *Metadata, newPath ImportPath, newName PackageName, seen seenPackageRename, edits map[span.URI][]protocol.TextEdit) error {
-	// TODO(rfindley): we should get reverse dependencies as metadata first,
-	// rather then building the package immediately. We don't need reverse
-	// dependencies if they are intermediate test variants.
-	rdeps, err := s.GetReverseDependencies(ctx, m.ID)
+func renameImports(ctx context.Context, snapshot Snapshot, m *Metadata, newPath ImportPath, newName PackageName, seen seenPackageRename, edits map[span.URI][]protocol.TextEdit) error {
+	rdeps, err := snapshot.ReverseDependencies(ctx, m.ID)
 	if err != nil {
 		return err
 	}
 
-	for _, dep := range rdeps {
-		// Subtle: don't perform renaming in this package if it is not fully
-		// parsed. This can occur inside the workspace if dep is an intermediate
-		// test variant. ITVs are only ever parsed in export mode, and no file is
-		// found only in an ITV. Therefore the renaming will eventually occur in a
-		// full package.
-		//
-		// An alternative algorithm that may be more robust would be to first
-		// collect *files* that need to have their imports updated, and then
-		// perform the rename using s.PackageForFile(..., NarrowestPackage).
-		if dep.ParseMode() != ParseFull {
+	// Pass 1: rename import paths in import declarations.
+	needsTypeCheck := make(map[PackageID][]span.URI)
+	for _, rdep := range rdeps {
+		if rdep.IsIntermediateTestVariant() {
+			continue // for renaming, these variants are redundant
+		}
+
+		// Optimization: skip packages that don't directly import m.
+		// (This logic also appears in 'references'; perhaps we need
+		// Snapshot.ReverseDirectDependencies?)
+		direct := false
+		for _, importedID := range rdep.DepsByImpPath {
+			if importedID == m.ID {
+				direct = true
+				break
+			}
+		}
+		if !direct {
 			continue
 		}
 
-		for _, f := range dep.CompiledGoFiles() {
-			if seen.add(f.URI, m.PkgPath) {
+		for _, uri := range rdep.CompiledGoFiles {
+			if seen.add(uri, m.PkgPath) {
 				continue
 			}
-
+			fh, err := snapshot.GetFile(ctx, uri)
+			if err != nil {
+				return err
+			}
+			f, err := snapshot.ParseGo(ctx, fh, ParseHeader)
+			if err != nil {
+				return err
+			}
+			if f.File.Name == nil {
+				continue // no package declaration
+			}
 			for _, imp := range f.File.Imports {
-				// TODO(adonovan): what if RHS has "vendor/" prefix?
-				if UnquoteImportPath(imp) != ImportPath(m.PkgPath) {
+				if rdep.DepsByImpPath[UnquoteImportPath(imp)] != m.ID {
 					continue // not the import we're looking for
+				}
+
+				// If the import does not explicitly specify
+				// a local name, then we need to invoke the
+				// type checker to locate references to update.
+				if imp.Name == nil {
+					needsTypeCheck[rdep.ID] = append(needsTypeCheck[rdep.ID], uri)
 				}
 
 				// Create text edit for the import path (string literal).
@@ -403,26 +423,51 @@ func renameImports(ctx context.Context, s Snapshot, m *Metadata, newPath ImportP
 				if err != nil {
 					return err
 				}
-				edits[f.URI] = append(edits[f.URI], protocol.TextEdit{
+				edits[uri] = append(edits[uri], protocol.TextEdit{
 					Range:   rng,
 					NewText: strconv.Quote(string(newPath)),
 				})
+			}
+		}
+	}
 
-				// If the package name of an import has not changed or if its import
-				// path already has a local package name, then we don't need to update
-				// the local package name.
-				if newName == m.Name || imp.Name != nil {
-					continue
+	// If the imported package's name hasn't changed,
+	// we don't need to rename references within each file.
+	if newName == m.Name {
+		return nil
+	}
+
+	// Pass 2: rename local name (types.PkgName) of imported
+	// package throughout one or more files of the package.
+	ids := make([]PackageID, 0, len(needsTypeCheck))
+	for id := range needsTypeCheck {
+		ids = append(ids, id)
+	}
+	pkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, ids...)
+	if err != nil {
+		return err
+	}
+	for i, id := range ids {
+		pkg := pkgs[i]
+		for _, uri := range needsTypeCheck[id] {
+			f, err := pkg.File(uri)
+			if err != nil {
+				return err
+			}
+			for _, imp := range f.File.Imports {
+				if imp.Name != nil {
+					continue // has explicit local name
+				}
+				if rdeps[id].DepsByImpPath[UnquoteImportPath(imp)] != m.ID {
+					continue // not the import we're looking for
 				}
 
-				// Rename the types.PkgName locally within this file.
-				pkgname := dep.GetTypesInfo().Implicits[imp].(*types.PkgName)
-				qos := []qualifiedObject{{obj: pkgname, pkg: dep}}
+				pkgname := pkg.GetTypesInfo().Implicits[imp].(*types.PkgName)
+				qos := []qualifiedObject{{obj: pkgname, pkg: pkg}}
 
-				pkgScope := dep.GetTypes().Scope()
-				fileScope := dep.GetTypesInfo().Scopes[f.File]
+				pkgScope := pkg.GetTypes().Scope()
+				fileScope := pkg.GetTypesInfo().Scopes[f.File]
 
-				var changes map[span.URI][]protocol.TextEdit
 				localName := string(newName)
 				try := 0
 
@@ -431,20 +476,21 @@ func renameImports(ctx context.Context, s Snapshot, m *Metadata, newPath ImportP
 					try++
 					localName = fmt.Sprintf("%s%d", newName, try)
 				}
-				changes, err = renameObj(ctx, s, localName, qos)
+				changes, err := renameObj(ctx, snapshot, localName, qos)
 				if err != nil {
 					return err
 				}
 
-				// If the chosen local package name matches the package's new name, delete the
-				// change that would have inserted an explicit local name, which is always
-				// the lexically first change.
+				// If the chosen local package name matches the package's
+				// new name, delete the change that would have inserted
+				// an explicit local name, which is always the lexically
+				// first change.
 				if localName == string(newName) {
-					v := changes[f.URI]
+					v := changes[uri]
 					sort.Slice(v, func(i, j int) bool {
 						return protocol.CompareRange(v[i].Range, v[j].Range) < 0
 					})
-					changes[f.URI] = v[1:]
+					changes[uri] = v[1:]
 				}
 				for uri, changeEdits := range changes {
 					edits[uri] = append(edits[uri], changeEdits...)
@@ -452,7 +498,6 @@ func renameImports(ctx context.Context, s Snapshot, m *Metadata, newPath ImportP
 			}
 		}
 	}
-
 	return nil
 }
 

@@ -210,9 +210,10 @@ type Snapshot interface {
 	// checked in mode and filtered by the package policy.
 	PackageForFile(ctx context.Context, uri span.URI, mode TypecheckMode, selectPackage PackageFilter) (Package, error)
 
-	// GetActiveReverseDeps returns the active files belonging to the reverse
-	// dependencies of this file's package, checked in TypecheckWorkspace mode.
-	GetReverseDependencies(ctx context.Context, id PackageID) ([]Package, error)
+	// ReverseDependencies returns a new mapping whose entries are
+	// the ID and Metadata of each package in the workspace that
+	// transitively depends on the package denoted by id, excluding id itself.
+	ReverseDependencies(ctx context.Context, id PackageID) (map[PackageID]*Metadata, error)
 
 	// CachedImportPaths returns all the imported packages loaded in this
 	// snapshot, indexed by their package path (not import path, despite the name)
@@ -469,6 +470,17 @@ type Metadata struct {
 // possible.
 func (m *Metadata) IsIntermediateTestVariant() bool {
 	return m.ForTest != "" && m.ForTest != m.PkgPath && m.ForTest+"_test" != m.PkgPath
+}
+
+// RemoveIntermediateTestVariants removes intermediate test variants, modifying the array.
+func RemoveIntermediateTestVariants(metas []*Metadata) []*Metadata {
+	res := metas[:0]
+	for _, m := range metas {
+		if !m.IsIntermediateTestVariant() {
+			res = append(res, m)
+		}
+	}
+	return res
 }
 
 var ErrViewExists = errors.New("view already exists for session")
