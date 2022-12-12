@@ -13,6 +13,8 @@
 #include "libcgo.h"
 #include "libcgo_unix.h"
 
+void crosscall2(void (*fn)(void *), void *, int, size_t);
+
 static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
 static int runtime_init_done;
@@ -126,8 +128,6 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
 
 static void
 pthread_key_destructor(void *value) {
-    if (x_cgo_crosscall != NULL) {
-        // fn == NULL means dropm.
-        (*x_cgo_crosscall)(NULL, NULL, 0, 0);
-    }
+    // fn == NULL means dropm.
+    crosscall2(NULL, NULL, 0, 0);
 }
