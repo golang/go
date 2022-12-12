@@ -204,7 +204,7 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 			return nil, true, fmt.Errorf("cannot rename to _test package")
 		}
 
-		metadata, err := s.AllValidMetadata(ctx)
+		metadata, err := s.AllMetadata(ctx)
 		if err != nil {
 			return nil, true, err
 		}

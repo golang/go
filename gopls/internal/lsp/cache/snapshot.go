@@ -1136,27 +1136,7 @@ func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 	return result
 }
 
-func (s *snapshot) KnownPackages(ctx context.Context) ([]source.Package, error) {
-	if err := s.awaitLoaded(ctx); err != nil {
-		return nil, err
-	}
-
-	s.mu.Lock()
-	g := s.meta
-	s.mu.Unlock()
-
-	pkgs := make([]source.Package, 0, len(g.metadata))
-	for id := range g.metadata {
-		pkg, err := s.checkedPackage(ctx, id, s.workspaceParseMode(id))
-		if err != nil {
-			return nil, err
-		}
-		pkgs = append(pkgs, pkg)
-	}
-	return pkgs, nil
-}
-
-func (s *snapshot) AllValidMetadata(ctx context.Context) ([]*source.Metadata, error) {
+func (s *snapshot) AllMetadata(ctx context.Context) ([]*source.Metadata, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}

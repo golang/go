@@ -202,18 +202,18 @@ func finalDigitsIndex(s string) int {
 func vulnerablePackages(ctx context.Context, snapshot source.Snapshot, modfile source.FileHandle) (*govulncheck.Result, error) {
 	// We want to report the intersection of vulnerable packages in the vulndb
 	// and packages transitively imported by this module ('go list -deps all').
-	// We use snapshot.AllValidMetadata to retrieve the list of packages
+	// We use snapshot.AllMetadata to retrieve the list of packages
 	// as an approximation.
 	//
-	// TODO(hyangah): snapshot.AllValidMetadata is a superset of
+	// TODO(hyangah): snapshot.AllMetadata is a superset of
 	// `go list all` - e.g. when the workspace has multiple main modules
 	// (multiple go.mod files), that can include packages that are not
 	// used by this module. Vulncheck behavior with go.work is not well
 	// defined. Figure out the meaning, and if we decide to present
 	// the result as if each module is analyzed independently, make
 	// gopls track a separate build list for each module and use that
-	// information instead of snapshot.AllValidMetadata.
-	metadata, err := snapshot.AllValidMetadata(ctx)
+	// information instead of snapshot.AllMetadata.
+	metadata, err := snapshot.AllMetadata(ctx)
 	if err != nil {
 		return nil, err
 	}

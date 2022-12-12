@@ -68,11 +68,19 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 		allNamed []*types.Named
 		pkgs     = make(map[*types.Package]Package)
 	)
-	knownPkgs, err := s.KnownPackages(ctx)
+	metas, err := s.AllMetadata(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for _, pkg := range knownPkgs {
+	ids := make([]PackageID, len(metas))
+	for i, m := range metas {
+		ids[i] = m.ID
+	}
+	packages, err := s.TypeCheck(ctx, TypecheckFull, ids...)
+	if err != nil {
+		return nil, err
+	}
+	for _, pkg := range packages {
 		pkgs[pkg.GetTypes()] = pkg
 		for _, obj := range pkg.GetTypesInfo().Defs {
 			obj, ok := obj.(*types.TypeName)

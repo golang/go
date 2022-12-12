@@ -58,7 +58,7 @@ func KnownPackagePaths(ctx context.Context, snapshot Snapshot, fh VersionedFileH
 	}
 
 	// Now find candidates among known packages.
-	knownPkgs, err := snapshot.AllValidMetadata(ctx)
+	knownPkgs, err := snapshot.AllMetadata(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func KnownPackagePaths(ctx context.Context, snapshot Snapshot, fh VersionedFileH
 		if isDirectlyCyclical(current, knownPkg) {
 			continue
 		}
-		// AllValidMetadata may have multiple variants of a pkg.
+		// AllMetadata may have multiple variants of a pkg.
 		seen[knownPkg.PkgPath] = true
 	}
 

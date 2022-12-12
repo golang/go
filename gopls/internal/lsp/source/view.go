@@ -222,13 +222,6 @@ type Snapshot interface {
 	// It is intended for use only in completions.
 	CachedImportPaths(ctx context.Context) (map[PackagePath]Package, error)
 
-	// KnownPackages returns a new unordered list of all packages
-	// loaded in this snapshot, checked in TypecheckWorkspace mode.
-	//
-	// TODO(adonovan): opt: rewrite 'implementations' to avoid the
-	// need ever to "load everything at once" using this function.
-	KnownPackages(ctx context.Context) ([]Package, error)
-
 	// ActiveMetadata returns a new, unordered slice containing
 	// metadata for all packages considered 'active' in the workspace.
 	//
@@ -236,8 +229,8 @@ type Snapshot interface {
 	// mode, this is just the reverse transitive closure of open packages.
 	ActiveMetadata(ctx context.Context) ([]*Metadata, error)
 
-	// AllValidMetadata returns all valid metadata loaded for the snapshot.
-	AllValidMetadata(ctx context.Context) ([]*Metadata, error)
+	// AllMetadata returns a new unordered array of metadata for all packages in the workspace.
+	AllMetadata(ctx context.Context) ([]*Metadata, error)
 
 	// Symbols returns all symbols in the snapshot.
 	Symbols(ctx context.Context) map[span.URI][]Symbol
