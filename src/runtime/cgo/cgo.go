@@ -23,9 +23,7 @@ package cgo
 #cgo solaris LDFLAGS: -lxnet
 #cgo solaris LDFLAGS: -lsocket
 
-// We use -fno-stack-protector because internal linking won't find
-// the support functions. See issues #52919 and #54313.
-#cgo CFLAGS: -Wall -Werror -fno-stack-protector
+#cgo CFLAGS: -Wall -Werror
 
 #cgo solaris CPPFLAGS: -D_POSIX_PTHREAD_SEMANTICS
 

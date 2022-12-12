@@ -630,6 +630,25 @@ func (ctxt *Link) loadlib() {
 			}
 			if *flagLibGCC != "none" {
 				hostArchive(ctxt, *flagLibGCC)
+				// For glibc systems, the linker setup used by GCC
+				// looks like
+				//
+				//  GROUP ( /lib/x86_64-linux-gnu/libc.so.6
+				//      /usr/lib/x86_64-linux-gnu/libc_nonshared.a
+				//      AS_NEEDED ( /lib64/ld-linux-x86-64.so.2 ) )
+				//
+				// where libc_nonshared.a contains a small set of
+				// symbols including "__stack_chk_fail_local" and a
+				// few others. Thus if we are doing internal linking
+				// and "__stack_chk_fail_local" is unresolved (most
+				// likely due to the use of -fstack-protector), try
+				// loading libc_nonshared.a to resolve it.
+				isunresolved := symbolsAreUnresolved(ctxt, []string{"__stack_chk_fail_local"})
+				if isunresolved[0] {
+					if p := ctxt.findLibPath("libc_nonshared.a"); p != "none" {
+						hostArchive(ctxt, p)
+					}
+				}
 			}
 		}
 	}
