@@ -14,7 +14,47 @@ import (
 	"log"
 )
 
-func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
+func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
+		return
+	}
+
+	o := func(op uint32) {
+		initfunc.AddUint32(ctxt.Arch, op)
+	}
+
+	// Emit the following function:
+	//
+	//	local.dso_init:
+	//		la.pcrel $a0, local.moduledata
+	//		b runtime.addmoduledata
+
+	//	0000000000000000 <local.dso_init>:
+	//	0:	1a000004	pcalau12i	$a0, 0
+	//				0: R_LARCH_PCALA_HI20	local.moduledata
+	o(0x1a000004)
+	rel, _ := initfunc.AddRel(objabi.R_ADDRLOONG64U)
+	rel.SetOff(0)
+	rel.SetSiz(4)
+	rel.SetSym(ctxt.Moduledata)
+
+	//	4:	02c00084	addi.d	$a0, $a0, 0
+	//				4: R_LARCH_PCALA_LO12	local.moduledata
+	o(0x02c00084)
+	rel2, _ := initfunc.AddRel(objabi.R_ADDRLOONG64)
+	rel2.SetOff(4)
+	rel2.SetSiz(4)
+	rel2.SetSym(ctxt.Moduledata)
+
+	//	8:	50000000	b	0
+	//				8: R_LARCH_B26	runtime.addmoduledata
+	o(0x50000000)
+	rel3, _ := initfunc.AddRel(objabi.R_CALLLOONG64)
+	rel3.SetOff(8)
+	rel3.SetSiz(4)
+	rel3.SetSym(addmoduledata)
+}
 
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
 	log.Fatalf("adddynrel not implemented")

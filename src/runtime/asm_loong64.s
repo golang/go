@@ -642,6 +642,17 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	// traceback from goexit1 must hit code range of goexit
 	NOOP
 
+// This is called from .init_array and follows the platform, not Go, ABI.
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+	ADDV	$-0x10, R3
+	MOVV	R30, 8(R3) // The access to global variables below implicitly uses R30, which is callee-save
+	MOVV	runtime·lastmoduledatap(SB), R12
+	MOVV	R4, moduledata_next(R12)
+	MOVV	R4, runtime·lastmoduledatap(SB)
+	MOVV	8(R3), R30
+	ADDV	$0x10, R3
+	RET
+
 TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVW	$1, R19
 	MOVB	R19, ret+0(FP)
