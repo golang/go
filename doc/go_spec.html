@@ -2652,7 +2652,7 @@ using type parameters in a type parameter list.
 <h4 id="Type_constraints">Type constraints</h4>
 
 <p>
-A type constraint is an <a href="#Interface_types">interface</a> that defines the
+A <i>type constraint</i> is an <a href="#Interface_types">interface</a> that defines the
 set of permissible type arguments for the respective type parameter and controls the
 operations supported by values of that type parameter.
 </p>
@@ -2663,7 +2663,7 @@ TypeConstraint = TypeElem .
 
 <p>
 If the constraint is an interface literal of the form <code>interface{E}</code> where
-<code>E</code> is an embedded type element (not a method), in a type parameter list
+<code>E</code> is an embedded <a href="#Interface_types">type element</a> (not a method), in a type parameter list
 the enclosing <code>interface{ … }</code> may be omitted for convenience:
 </p>
 
@@ -2671,7 +2671,7 @@ the enclosing <code>interface{ … }</code> may be omitted for convenience:
 [T []P]                      // = [T interface{[]P}]
 [T ~int]                     // = [T interface{~int}]
 [T int|string]               // = [T interface{int|string}]
-type Constraint ~int         // illegal: ~int is not inside a type parameter list
+type Constraint ~int         // illegal: ~int is not in a type parameter list
 </pre>
 
 <!--
@@ -2684,25 +2684,13 @@ other interfaces based on their type sets. But this should get us going for now.
 The <a href="#Predeclared_identifiers">predeclared</a>
 <a href="#Interface_types">interface type</a> <code>comparable</code>
 denotes the set of all non-interface types that are
-<a href="#Comparison_operators">strictly comparable</a>. Specifically,
-a type <code>T</code> implements <code>comparable</code> if:
+<a href="#Comparison_operators">strictly comparable</a>.
 </p>
 
-<ul>
-<li>
-	<code>T</code> is not an interface type and <code>T</code> is strictly comparable; or
-</li>
-<li>
-	<code>T</code> is an interface type and each type in <code>T</code>'s
-	<a href="#Interface_types">type set</a> is strictly comparable.
-</li>
-</ul>
-
 <p>
-Even though interfaces that are not type parameters can be
-<a href="#Comparison_operators">compared</a>
-(possibly causing a run-time panic) they do not implement
-<code>comparable</code>.
+Even though interfaces that are not type parameters are <a href="#Comparison_operators">comparable</a>,
+they are not strictly comparable and therefore they do not implement <code>comparable</code>.
+However, they <a href="#Satisfying_a_type_constraint">satisfy</a> <code>comparable</code>.
 </p>
 
 <pre>
@@ -2719,6 +2707,51 @@ interface{ ~struct{ any } }  // type parameter only: does not implement comparab
 The <code>comparable</code> interface and interfaces that (directly or indirectly) embed
 <code>comparable</code> may only be used as type constraints. They cannot be the types of
 values or variables, or components of other, non-interface types.
+</p>
+
+<h4 id="Satisfying_a_type_constraint">Satisfying a type constraint</h4>
+
+<p>
+A type argument <code>T</code><i> satisfies</i> a type constraint <code>C</code>
+if <code>T</code> is an element of the type set defined by <code>C</code>; i.e.,
+if <code>T</code> <a href="#Implementing_an_interface">implements</a> <code>C</code>.
+As an exception, a <a href="#Comparison_operators">strictly comparable</a>
+type constraint may also be satisfied by a <a href="#Comparison_operators">comparable</a>
+(not necessarily strictly comparable) type argument.
+More precisely:
+</p>
+
+<p>
+A type T <i>satisfies</i> a constraint <code>C</code> if
+</p>
+
+<ul>
+<li>
+	<code>T</code> <a href="#Implementing_an_interface">implements</a> <code>C</code>; or
+</li>
+<li>
+	<code>C</code> can be written in the form <code>interface{ comparable; E }</code>,
+	where <code>E</code> is a <a href="#Basic_interfaces">basic interface</a> and
+	<code>T</code> is <a href="#Comparison_operators">comparable</a> and implements <code>E</code>.
+</li>
+</ul>
+
+<pre>
+type argument      type constraint                // constraint satisfaction
+
+int                interface{ ~int }              // satisfied: int implements interface{ ~int }
+string             comparable                     // satisfied: string implements comparable (string is stricty comparable)
+[]byte             comparable                     // not satisfied: slices are not comparable
+any                interface{ comparable; int }   // not satisfied: any does not implement interface{ int }
+any                comparable                     // satisfied: any is comparable and implements the basic interface any
+struct{f any}      comparable                     // satisfied: struct{f any} is comparable and implements the basic interface any
+any                interface{ comparable; m() }   // not satisfied: any does not implement the basic interface interface{ m() }
+interface{ m() }   interface{ comparable; m() }   // satisfied: interface{ m() } is comparable and implements the basic interface interface{ m() }
+</pre>
+
+<p>
+Because of the exception in the constraint satisfaction rule, comparing operands of type parameter type
+may panic at run-time (even though comparable type parameters are always strictly comparable).
 </p>
 
 <h3 id="Variable_declarations">Variable declarations</h3>
@@ -4221,7 +4254,7 @@ including the type parameter list itself and any types in that list.
 </li>
 
 <li>
-After substitution, each type argument must <a href="#Interface_types">implement</a>
+After substitution, each type argument must <a href="#Satisfying_a_type_constraint">satisfy</a>
 the <a href="#Type_parameter_declarations">constraint</a> (instantiated, if necessary)
 of the corresponding type parameter. Otherwise instantiation fails.
 </li>
@@ -4235,9 +4268,10 @@ instantiating a function produces a new non-generic function.
 <pre>
 type parameter list    type arguments    after substitution
 
-[P any]                int               int implements any
-[S ~[]E, E any]        []int, int        []int implements ~[]int, int implements any
-[P io.Writer]          string            illegal: string doesn't implement io.Writer
+[P any]                int               int satisfies any
+[S ~[]E, E any]        []int, int        []int satisfies ~[]int, int satisfies any
+[P io.Writer]          string            illegal: string doesn't satisfy io.Writer
+[P comparable]         any               any satisfies (but does not implement) comparable
 </pre>
 
 <p>
