@@ -65,19 +65,19 @@ func isString(t types.Type) bool {
 	return isBasic(t) && t.(*types.Basic).Info()&types.IsString != 0
 }
 
-// isByteSlice reports whether t is []byte.
+// isByteSlice reports whether t is of the form []~bytes.
 func isByteSlice(t types.Type) bool {
 	if b, ok := t.(*types.Slice); ok {
-		e, _ := b.Elem().(*types.Basic)
+		e, _ := b.Elem().Underlying().(*types.Basic)
 		return e != nil && e.Kind() == types.Byte
 	}
 	return false
 }
 
-// isRuneSlice reports whether t is []rune.
+// isRuneSlice reports whether t is of the form []~runes.
 func isRuneSlice(t types.Type) bool {
 	if b, ok := t.(*types.Slice); ok {
-		e, _ := b.Elem().(*types.Basic)
+		e, _ := b.Elem().Underlying().(*types.Basic)
 		return e != nil && e.Kind() == types.Rune
 	}
 	return false

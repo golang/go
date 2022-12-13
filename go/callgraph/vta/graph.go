@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // node interface for VTA nodes.
@@ -375,6 +376,8 @@ func (b *builder) instr(instr ssa.Instruction) {
 		// SliceToArrayPointer: t1 = slice to array pointer *[4]T <- []T (t0)
 		// No interesting flow as sliceArrayElem(t1) == sliceArrayElem(t0).
 		return
+	case *ssa.MultiConvert:
+		b.multiconvert(i)
 	default:
 		panic(fmt.Sprintf("unsupported instruction %v\n", instr))
 	}
@@ -652,6 +655,71 @@ func addReturnFlows(b *builder, r *ssa.Return, site ssa.Value) {
 	for i, r := range results {
 		local := indexedLocal{val: site, typ: tup.At(i).Type(), index: i}
 		b.addInFlowEdge(b.nodeFromVal(r), local)
+	}
+}
+
+func (b *builder) multiconvert(c *ssa.MultiConvert) {
+	// TODO(zpavlinovic): decide what to do on MultiConvert long term.
+	// TODO(zpavlinovic): add unit tests.
+	typeSetOf := func(typ types.Type) []*typeparams.Term {
+		// This is a adaptation of x/exp/typeparams.NormalTerms which x/tools cannot depend on.
+		var terms []*typeparams.Term
+		var err error
+		switch typ := typ.(type) {
+		case *typeparams.TypeParam:
+			terms, err = typeparams.StructuralTerms(typ)
+		case *typeparams.Union:
+			terms, err = typeparams.UnionTermSet(typ)
+		case *types.Interface:
+			terms, err = typeparams.InterfaceTermSet(typ)
+		default:
+			// Common case.
+			// Specializing the len=1 case to avoid a slice
+			// had no measurable space/time benefit.
+			terms = []*typeparams.Term{typeparams.NewTerm(false, typ)}
+		}
+
+		if err != nil {
+			return nil
+		}
+		return terms
+	}
+	// isValuePreserving returns true if a conversion from ut_src to
+	// ut_dst is value-preserving, i.e. just a change of type.
+	// Precondition: neither argument is a named type.
+	isValuePreserving := func(ut_src, ut_dst types.Type) bool {
+		// Identical underlying types?
+		if types.IdenticalIgnoreTags(ut_dst, ut_src) {
+			return true
+		}
+
+		switch ut_dst.(type) {
+		case *types.Chan:
+			// Conversion between channel types?
+			_, ok := ut_src.(*types.Chan)
+			return ok
+
+		case *types.Pointer:
+			// Conversion between pointers with identical base types?
+			_, ok := ut_src.(*types.Pointer)
+			return ok
+		}
+		return false
+	}
+	dst_terms := typeSetOf(c.Type())
+	src_terms := typeSetOf(c.X.Type())
+	for _, s := range src_terms {
+		us := s.Type().Underlying()
+		for _, d := range dst_terms {
+			ud := d.Type().Underlying()
+			if isValuePreserving(us, ud) {
+				// This is equivalent to a ChangeType.
+				b.addInFlowAliasEdges(b.nodeFromVal(c), b.nodeFromVal(c.X))
+				return
+			}
+			// This is equivalent to either: SliceToArrayPointer,,
+			// SliceToArrayPointer+Deref, Size 0 Array constant, or a Convert.
+		}
 	}
 }
 

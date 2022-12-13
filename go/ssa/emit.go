@@ -168,32 +168,6 @@ func isValuePreserving(ut_src, ut_dst types.Type) bool {
 	return false
 }
 
-// isSliceToArrayPointer reports whether ut_src is a slice type
-// that can be converted to a pointer to an array type ut_dst.
-// Precondition: neither argument is a named type.
-func isSliceToArrayPointer(ut_src, ut_dst types.Type) bool {
-	if slice, ok := ut_src.(*types.Slice); ok {
-		if ptr, ok := ut_dst.(*types.Pointer); ok {
-			if arr, ok := ptr.Elem().Underlying().(*types.Array); ok {
-				return types.Identical(slice.Elem(), arr.Elem())
-			}
-		}
-	}
-	return false
-}
-
-// isSliceToArray reports whether ut_src is a slice type
-// that can be converted to an array type ut_dst.
-// Precondition: neither argument is a named type.
-func isSliceToArray(ut_src, ut_dst types.Type) bool {
-	if slice, ok := ut_src.(*types.Slice); ok {
-		if arr, ok := ut_dst.(*types.Array); ok {
-			return types.Identical(slice.Elem(), arr.Elem())
-		}
-	}
-	return false
-}
-
 // emitConv emits to f code to convert Value val to exactly type typ,
 // and returns the converted value.  Implicit conversions are required
 // by language assignability rules in assignments, parameter passing,
@@ -208,23 +182,15 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 	ut_dst := typ.Underlying()
 	ut_src := t_src.Underlying()
 
-	dst_types := typeSetOf(ut_dst)
-	src_types := typeSetOf(ut_src)
-
-	// Just a change of type, but not value or representation?
-	preserving := underIs(src_types, func(s types.Type) bool {
-		return underIs(dst_types, func(d types.Type) bool {
-			return s != nil && d != nil && isValuePreserving(s, d) // all (s -> d) are value preserving.
-		})
-	})
-	if preserving {
-		c := &ChangeType{X: val}
-		c.setType(typ)
-		return f.emit(c)
-	}
-
 	// Conversion to, or construction of a value of, an interface type?
 	if isNonTypeParamInterface(typ) {
+		// Interface name change?
+		if isValuePreserving(ut_src, ut_dst) {
+			c := &ChangeType{X: val}
+			c.setType(typ)
+			return f.emit(c)
+		}
+
 		// Assignment from one interface type to another?
 		if isNonTypeParamInterface(t_src) {
 			c := &ChangeInterface{X: val}
@@ -247,9 +213,83 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 		return f.emit(mi)
 	}
 
+	// In the common case, the typesets of src and dst are singletons
+	// and we emit an appropriate conversion. But if either contains
+	// a type parameter, the conversion may represent a cross product,
+	// in which case which we emit a MultiConvert.
+	dst_terms := typeSetOf(ut_dst)
+	src_terms := typeSetOf(ut_src)
+
+	// conversionCase describes an instruction pattern that maybe emitted to
+	// model d <- s for d in dst_terms and s in src_terms.
+	// Multiple conversions can match the same pattern.
+	type conversionCase uint8
+	const (
+		changeType conversionCase = 1 << iota
+		sliceToArray
+		sliceToArrayPtr
+		sliceTo0Array
+		sliceTo0ArrayPtr
+		convert
+	)
+	classify := func(s, d types.Type) conversionCase {
+		// Just a change of type, but not value or representation?
+		if isValuePreserving(s, d) {
+			return changeType
+		}
+
+		// Conversion from slice to array or slice to array pointer?
+		if slice, ok := s.(*types.Slice); ok {
+			var arr *types.Array
+			var ptr bool
+			// Conversion from slice to array pointer?
+			switch d := d.(type) {
+			case *types.Array:
+				arr = d
+			case *types.Pointer:
+				arr, _ = d.Elem().Underlying().(*types.Array)
+				ptr = true
+			}
+			if arr != nil && types.Identical(slice.Elem(), arr.Elem()) {
+				if arr.Len() == 0 {
+					if ptr {
+						return sliceTo0ArrayPtr
+					} else {
+						return sliceTo0Array
+					}
+				}
+				if ptr {
+					return sliceToArrayPtr
+				} else {
+					return sliceToArray
+				}
+			}
+		}
+
+		// The only remaining case in well-typed code is a representation-
+		// changing conversion of basic types (possibly with []byte/[]rune).
+		if !isBasic(s) && !isBasic(d) {
+			panic(fmt.Sprintf("in %s: cannot convert term %s (%s [within %s]) to type %s [within %s]", f, val, val.Type(), s, typ, d))
+		}
+		return convert
+	}
+
+	var classifications conversionCase
+	for _, s := range src_terms {
+		us := s.Type().Underlying()
+		for _, d := range dst_terms {
+			ud := d.Type().Underlying()
+			classifications |= classify(us, ud)
+		}
+	}
+	if classifications == 0 {
+		panic(fmt.Sprintf("in %s: cannot convert %s (%s) to %s", f, val, val.Type(), typ))
+	}
+
 	// Conversion of a compile-time constant value?
 	if c, ok := val.(*Const); ok {
-		if isBasic(ut_dst) || c.Value == nil {
+		// Conversion to a basic type?
+		if isBasic(ut_dst) {
 			// Conversion of a compile-time constant to
 			// another constant type results in a new
 			// constant of the destination type and
@@ -257,42 +297,49 @@ func emitConv(f *Function, val Value, typ types.Type) Value {
 			// We don't truncate the value yet.
 			return NewConst(c.Value, typ)
 		}
+		// Can we always convert from zero value without panicking?
+		const mayPanic = sliceToArray | sliceToArrayPtr
+		if c.Value == nil && classifications&mayPanic == 0 {
+			return NewConst(nil, typ)
+		}
 
 		// We're converting from constant to non-constant type,
 		// e.g. string -> []byte/[]rune.
 	}
 
-	// Conversion from slice to array pointer?
-	slice2ptr := underIs(src_types, func(s types.Type) bool {
-		return underIs(dst_types, func(d types.Type) bool {
-			return s != nil && d != nil && isSliceToArrayPointer(s, d) // all (s->d) are slice to array pointer conversion.
-		})
-	})
-	if slice2ptr {
+	switch classifications {
+	case changeType: // representation-preserving change
+		c := &ChangeType{X: val}
+		c.setType(typ)
+		return f.emit(c)
+
+	case sliceToArrayPtr, sliceTo0ArrayPtr: // slice to array pointer
 		c := &SliceToArrayPointer{X: val}
 		c.setType(typ)
 		return f.emit(c)
-	}
 
-	// Conversion from slice to array?
-	slice2array := underIs(src_types, func(s types.Type) bool {
-		return underIs(dst_types, func(d types.Type) bool {
-			return s != nil && d != nil && isSliceToArray(s, d) // all (s->d) are slice to array conversion.
-		})
-	})
-	if slice2array {
-		return emitSliceToArray(f, val, typ)
-	}
+	case sliceToArray: // slice to arrays (not zero-length)
+		ptype := types.NewPointer(typ)
+		p := &SliceToArrayPointer{X: val}
+		p.setType(ptype)
+		x := f.emit(p)
+		unOp := &UnOp{Op: token.MUL, X: x}
+		unOp.setType(typ)
+		return f.emit(unOp)
 
-	// A representation-changing conversion?
-	// All of ut_src or ut_dst is basic, byte slice, or rune slice?
-	if isBasicConvTypes(src_types) || isBasicConvTypes(dst_types) {
+	case sliceTo0Array: // slice to zero-length arrays (constant)
+		return zeroConst(typ)
+
+	case convert: // representation-changing conversion
 		c := &Convert{X: val}
 		c.setType(typ)
 		return f.emit(c)
-	}
 
-	panic(fmt.Sprintf("in %s: cannot convert %s (%s) to %s", f, val, val.Type(), typ))
+	default: // multiple conversion
+		c := &MultiConvert{X: val, from: src_terms, to: dst_terms}
+		c.setType(typ)
+		return f.emit(c)
+	}
 }
 
 // emitTypeCoercion emits to f code to coerce the type of a
@@ -488,48 +535,6 @@ func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.
 	}
 	emitDebugRef(f, id, v, wantAddr)
 	return v
-}
-
-// emitSliceToArray emits to f code to convert a slice value to an array value.
-//
-// Precondition: all types in type set of typ are arrays and convertible to all
-// types in the type set of val.Type().
-func emitSliceToArray(f *Function, val Value, typ types.Type) Value {
-	// Emit the following:
-	// if val == nil && len(typ) == 0 {
-	//    ptr = &[0]T{}
-	// } else {
-	//	  ptr = SliceToArrayPointer(val)
-	// }
-	// v = *ptr
-
-	ptype := types.NewPointer(typ)
-	p := &SliceToArrayPointer{X: val}
-	p.setType(ptype)
-	ptr := f.emit(p)
-
-	nilb := f.newBasicBlock("slicetoarray.nil")
-	nonnilb := f.newBasicBlock("slicetoarray.nonnil")
-	done := f.newBasicBlock("slicetoarray.done")
-
-	cond := emitCompare(f, token.EQL, ptr, zeroConst(ptype), token.NoPos)
-	emitIf(f, cond, nilb, nonnilb)
-	f.currentBlock = nilb
-
-	zero := f.addLocal(typ, token.NoPos)
-	emitJump(f, done)
-	f.currentBlock = nonnilb
-
-	emitJump(f, done)
-	f.currentBlock = done
-
-	phi := &Phi{Edges: []Value{zero, ptr}, Comment: "slicetoarray"}
-	phi.pos = val.Pos()
-	phi.setType(ptype)
-	x := f.emit(phi)
-	unOp := &UnOp{Op: token.MUL, X: x}
-	unOp.setType(typ)
-	return f.emit(unOp)
 }
 
 // zeroValue emits to f code to produce a zero value of type t,

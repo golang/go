@@ -661,6 +661,30 @@ type Convert struct {
 	X Value
 }
 
+// The MultiConvert instruction yields the conversion of value X to type
+// Type(). Either X.Type() or Type() must be a type parameter. Each
+// type in the type set of X.Type() can be converted to each type in the
+// type set of Type().
+//
+// See the documentation for Convert, ChangeType, and SliceToArrayPointer
+// for the conversions that are permitted. Additionally conversions of
+// slices to arrays are permitted.
+//
+// This operation can fail dynamically (see SliceToArrayPointer).
+//
+// Pos() returns the ast.CallExpr.Lparen, if the instruction arose
+// from an explicit conversion in the source.
+//
+// Example printed form:
+//
+//	t1 = multiconvert D <- S (t0) [*[2]rune <- []rune | string <- []rune]
+type MultiConvert struct {
+	register
+	X    Value
+	from []*typeparams.Term
+	to   []*typeparams.Term
+}
+
 // ChangeInterface constructs a value of one interface type from a
 // value of another interface type known to be assignable to it.
 // This operation cannot fail.
@@ -688,6 +712,9 @@ type ChangeInterface struct {
 // the type set of X.Type() must be a slice types that can be converted to
 // all types in the type set of Type() which must all be pointer to array
 // types.
+//
+// This operation can fail dynamically if the length of the slice is less
+// than the length of the array.
 //
 // Example printed form:
 //
@@ -1023,6 +1050,9 @@ type Next struct {
 // result of the conversion; on failure it returns (z, false) where z
 // is AssertedType's zero value.  The components of the pair must be
 // accessed using the Extract instruction.
+//
+// If Underlying: tests whether interface value X has the underlying
+// type AssertedType.
 //
 // If AssertedType is a concrete type, TypeAssert checks whether the
 // dynamic type in interface X is equal to it, and if so, the result
@@ -1639,6 +1669,10 @@ func (v *ChangeType) Operands(rands []*Value) []*Value {
 }
 
 func (v *Convert) Operands(rands []*Value) []*Value {
+	return append(rands, &v.X)
+}
+
+func (v *MultiConvert) Operands(rands []*Value) []*Value {
 	return append(rands, &v.X)
 }
 

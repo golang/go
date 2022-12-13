@@ -140,7 +140,7 @@ func (s *sanity) checkInstr(idx int, instr Instruction) {
 				s.errorf("convert %s -> %s: at least one type must be basic (or all basic, []byte, or []rune)", from, to)
 			}
 		}
-
+	case *MultiConvert:
 	case *Defer:
 	case *Extract:
 	case *Field:

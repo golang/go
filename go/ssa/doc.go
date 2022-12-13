@@ -66,6 +66,7 @@
 //	*FieldAddr            ✔               ✔
 //	*FreeVar              ✔
 //	*Function             ✔                               ✔ (func)
+//	*GenericConvert       ✔               ✔
 //	*Global               ✔                               ✔ (var)
 //	*Go                                   ✔
 //	*If                                   ✔

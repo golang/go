@@ -932,6 +932,8 @@ func typeAssert(i *interpreter, instr *ssa.TypeAssert, itf iface) value {
 	} else {
 		err = fmt.Sprintf("interface conversion: interface is %s, not %s", itf.t, instr.AssertedType)
 	}
+	// Note: if instr.Underlying==true ever becomes reachable from interp check that
+	// types.Identical(itf.t.Underlying(), instr.AssertedType)
 
 	if err != "" {
 		if !instr.CommaOk {
