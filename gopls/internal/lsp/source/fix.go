@@ -109,11 +109,12 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 			}
 			editsPerFile[fh.URI()] = te
 		}
-		pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
+		content, err := fh.Read()
 		if err != nil {
 			return nil, err
 		}
-		rng, err := pgf.Mapper.PosRange(edit.Pos, end)
+		m := protocol.ColumnMapper{URI: fh.URI(), TokFile: tokFile, Content: content}
+		rng, err := m.PosRange(edit.Pos, end)
 		if err != nil {
 			return nil, err
 		}

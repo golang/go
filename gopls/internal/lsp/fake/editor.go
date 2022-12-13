@@ -858,10 +858,13 @@ func (e *Editor) OrganizeImports(ctx context.Context, path string) error {
 // RefactorRewrite requests and performs the source.refactorRewrite codeAction.
 func (e *Editor) RefactorRewrite(ctx context.Context, path string, rng *protocol.Range) error {
 	applied, err := e.applyCodeActions(ctx, path, rng, nil, protocol.RefactorRewrite)
+	if err != nil {
+		return err
+	}
 	if applied == 0 {
 		return fmt.Errorf("no refactorings were applied")
 	}
-	return err
+	return nil
 }
 
 // ApplyQuickFixes requests and performs the quickfix codeAction.
