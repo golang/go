@@ -276,7 +276,7 @@ dirloop:
 
 	// Pass 3: close fd[i] if it was moved in the previous pass.
 	for i = 0; i < len(fd); i++ {
-		if fd[i] >= 0 && fd[i] != int(i) {
+		if fd[i] >= len(fd) {
 			RawSyscall(SYS_CLOSE, uintptr(fd[i]), 0, 0)
 		}
 	}
