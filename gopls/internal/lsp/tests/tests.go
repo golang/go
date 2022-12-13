@@ -93,6 +93,7 @@ type Signatures = map[span.Span]*protocol.SignatureHelp
 type Links = map[span.URI][]Link
 type AddImport = map[span.URI]string
 type Hovers = map[span.Span]string
+type SelectionRanges = []span.Span
 
 type Data struct {
 	Config                   packages.Config
@@ -128,6 +129,7 @@ type Data struct {
 	Links                    Links
 	AddImport                AddImport
 	Hovers                   Hovers
+	SelectionRanges          SelectionRanges
 
 	fragments map[string]string
 	dir       string
@@ -177,6 +179,7 @@ type Tests interface {
 	Link(*testing.T, span.URI, []Link)
 	AddImport(*testing.T, span.URI, string)
 	Hover(*testing.T, span.Span, string)
+	SelectionRanges(*testing.T, span.Span)
 }
 
 type Definition struct {
@@ -499,6 +502,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"incomingcalls":   datum.collectIncomingCalls,
 		"outgoingcalls":   datum.collectOutgoingCalls,
 		"addimport":       datum.collectAddImports,
+		"selectionrange":  datum.collectSelectionRanges,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -947,6 +951,15 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
+	t.Run("SelectionRanges", func(t *testing.T) {
+		t.Helper()
+		for _, span := range data.SelectionRanges {
+			t.Run(SpanName(span), func(t *testing.T) {
+				tests.SelectionRanges(t, span)
+			})
+		}
+	})
+
 	if *UpdateGolden {
 		for _, golden := range data.golden {
 			if !golden.Modified {
@@ -1039,6 +1052,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
 	fmt.Fprintf(buf, "ImplementationsCount = %v\n", len(data.Implementations))
+	fmt.Fprintf(buf, "SelectionRangesCount = %v\n", len(data.SelectionRanges))
 
 	want := string(data.Golden(t, "summary", summaryFile, func() ([]byte, error) {
 		return buf.Bytes(), nil
@@ -1238,6 +1252,10 @@ func (data *Data) collectDefinitions(src, target span.Span) {
 		Src: src,
 		Def: target,
 	}
+}
+
+func (data *Data) collectSelectionRanges(spn span.Span) {
+	data.SelectionRanges = append(data.SelectionRanges, spn)
 }
 
 func (data *Data) collectImplementations(src span.Span, targets []span.Span) {

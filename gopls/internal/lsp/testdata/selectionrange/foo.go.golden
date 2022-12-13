@@ -1,0 +1,29 @@
+-- selectionrange_foo_12_11 --
+Ranges 0: 
+	11:8-11:13 "x + y"
+	11:1-11:13 "return x + y"
+	4:36-12:1 "{\\n\tzs := []int{...ionrange(\"+\")\\n}"
+	4:0-12:1 "func Bar(x, y i...ionrange(\"+\")\\n}"
+	0:0-12:1 "package foo\\n\\nim...ionrange(\"+\")\\n}"
+
+-- selectionrange_foo_6_14 --
+Ranges 0: 
+	5:13-5:14 "1"
+	5:7-5:21 "[]int{1, 2, 3}"
+	5:1-5:21 "zs := []int{1, 2, 3}"
+	4:36-12:1 "{\\n\tzs := []int{...ionrange(\"+\")\\n}"
+	4:0-12:1 "func Bar(x, y i...ionrange(\"+\")\\n}"
+	0:0-12:1 "package foo\\n\\nim...ionrange(\"+\")\\n}"
+
+-- selectionrange_foo_9_22 --
+Ranges 0: 
+	8:21-8:22 "1"
+	8:18-8:23 "zs[1]"
+	8:6-8:23 "x + z + y + zs[1]"
+	8:2-8:23 "x = x + z + y + zs[1]"
+	7:22-9:2 "{\\n\t\tx = x + z +...onrange(\"1\")\\n\t}"
+	7:1-9:2 "for _, z := ran...onrange(\"1\")\\n\t}"
+	4:36-12:1 "{\\n\tzs := []int{...ionrange(\"+\")\\n}"
+	4:0-12:1 "func Bar(x, y i...ionrange(\"+\")\\n}"
+	0:0-12:1 "package foo\\n\\nim...ionrange(\"+\")\\n}"
+

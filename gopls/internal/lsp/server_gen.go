@@ -244,8 +244,8 @@ func (s *Server) ResolveWorkspaceSymbol(context.Context, *protocol.WorkspaceSymb
 	return nil, notImplemented("ResolveWorkspaceSymbol")
 }
 
-func (s *Server) SelectionRange(context.Context, *protocol.SelectionRangeParams) ([]protocol.SelectionRange, error) {
-	return nil, notImplemented("SelectionRange")
+func (s *Server) SelectionRange(ctx context.Context, params *protocol.SelectionRangeParams) ([]protocol.SelectionRange, error) {
+	return s.selectionRange(ctx, params)
 }
 
 func (s *Server) SemanticTokensFull(ctx context.Context, p *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
