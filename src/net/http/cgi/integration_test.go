@@ -232,10 +232,10 @@ func TestBeChildCGIProcess(t *testing.T) {
 	case "/immediate-disconnect":
 		os.Exit(0)
 	case "/no-content-type":
-		fmt.Printf("Content-Length: 6\n\nHello\n")
+		fmt.Print("Content-Length: 6\n\nHello\n")
 		os.Exit(0)
 	case "/empty-headers":
-		fmt.Printf("\nHello")
+		fmt.Print("\nHello")
 		os.Exit(0)
 	}
 	Serve(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -258,7 +258,7 @@ func TestBeChildCGIProcess(t *testing.T) {
 				time.Sleep(5 * time.Second) // hang forever, until killed
 			}
 		}
-		fmt.Fprintf(rw, "test=Hello CGI-in-CGI\n")
+		fmt.Fprint(rw, "test=Hello CGI-in-CGI\n")
 		for k, vv := range req.Form {
 			for _, v := range vv {
 				fmt.Fprintf(rw, "param-%s=%s\n", k, v)

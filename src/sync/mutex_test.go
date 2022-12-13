@@ -177,11 +177,11 @@ func init() {
 					defer func() { recover() }()
 					test.f()
 				}()
-				fmt.Printf("test completed\n")
+				fmt.Print("test completed\n")
 				os.Exit(0)
 			}
 		}
-		fmt.Printf("unknown test\n")
+		fmt.Print("unknown test\n")
 		os.Exit(0)
 	}
 }

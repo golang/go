@@ -262,7 +262,7 @@ func printComment(w io.Writer, classes []class) {
 		prevSize = c.size
 		fmt.Fprintf(w, "// %5d  %9d  %10d  %7d  %10d  %8.2f%%  %9d\n", i, c.size, spanSize, objects, tailWaste, 100*maxWaste, 1<<alignBits)
 	}
-	fmt.Fprintf(w, "\n")
+	fmt.Fprint(w, "\n")
 
 	fmt.Fprintf(w, "// %-9s  %-4s  %-12s\n", "alignment", "bits", "min obj size")
 	for bits, size := range minAligns {
@@ -274,7 +274,7 @@ func printComment(w io.Writer, classes []class) {
 		}
 		fmt.Fprintf(w, "// %9d  %4d  %12d\n", 1<<bits, bits, size)
 	}
-	fmt.Fprintf(w, "\n")
+	fmt.Fprint(w, "\n")
 }
 
 func printClasses(w io.Writer, classes []class) {
@@ -302,7 +302,7 @@ func printClasses(w io.Writer, classes []class) {
 	fmt.Fprint(w, "var class_to_divmagic = [_NumSizeClasses]uint32 {")
 	for _, c := range classes {
 		if c.size == 0 {
-			fmt.Fprintf(w, "0,")
+			fmt.Fprint(w, "0,")
 			continue
 		}
 		fmt.Fprintf(w, "^uint32(0)/%d+1,", c.size)

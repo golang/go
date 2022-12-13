@@ -18,6 +18,6 @@ func ExampleDial() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Fprintf(sysLog, "This is a daemon warning with demotag.")
+	fmt.Fprint(sysLog, "This is a daemon warning with demotag.")
 	sysLog.Emerg("And this is a daemon emergency with demotag.")
 }

@@ -35,5 +35,5 @@ func Example() {
 }
 
 func RunMyProgram() {
-	fmt.Printf("this function will be traced")
+	fmt.Print("this function will be traced")
 }

@@ -89,7 +89,7 @@ func ExampleServeMux_Handle() {
 			http.NotFound(w, req)
 			return
 		}
-		fmt.Fprintf(w, "Welcome to the home page!")
+		fmt.Fprint(w, "Welcome to the home page!")
 	})
 }
 
@@ -146,7 +146,7 @@ func ExampleListenAndServeTLS() {
 	})
 
 	// One can use generate_cert.go in crypto/tls to generate cert.pem and key.pem.
-	log.Printf("About to listen on 8443. Go to https://127.0.0.1:8443/")
+	log.Print("About to listen on 8443. Go to https://127.0.0.1:8443/")
 	err := http.ListenAndServeTLS(":8443", "cert.pem", "key.pem", nil)
 	log.Fatal(err)
 }

@@ -54,7 +54,7 @@ func (s *Scope) String() string {
 			fmt.Fprintf(&buf, "\t%s %s\n", obj.Kind, obj.Name)
 		}
 	}
-	fmt.Fprintf(&buf, "}\n")
+	fmt.Fprint(&buf, "}\n")
 	return buf.String()
 }
 

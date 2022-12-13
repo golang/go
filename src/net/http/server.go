@@ -1933,7 +1933,7 @@ func (c *conn) serve(ctx context.Context) {
 				// while they're still writing their
 				// request. Undefined behavior.
 				const publicErr = "431 Request Header Fields Too Large"
-				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+				fmt.Fprint(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 				c.closeWriteAndWait()
 				return
 
@@ -1958,7 +1958,7 @@ func (c *conn) serve(ctx context.Context) {
 					return
 				}
 				publicErr := "400 Bad Request"
-				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+				fmt.Fprint(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
 				return
 			}
 		}

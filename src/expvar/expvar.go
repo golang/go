@@ -112,11 +112,11 @@ type KeyValue struct {
 
 func (v *Map) String() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "{")
+	fmt.Fprint(&b, "{")
 	first := true
 	v.Do(func(kv KeyValue) {
 		if !first {
-			fmt.Fprintf(&b, ", ")
+			fmt.Fprint(&b, ", ")
 		}
 		fmt.Fprintf(&b, "%q: ", kv.Key)
 		if kv.Value != nil {
@@ -126,7 +126,7 @@ func (v *Map) String() string {
 		}
 		first = false
 	})
-	fmt.Fprintf(&b, "}")
+	fmt.Fprint(&b, "}")
 	return b.String()
 }
 
@@ -337,16 +337,16 @@ func Do(f func(KeyValue)) {
 
 func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintf(w, "{\n")
+	fmt.Fprint(w, "{\n")
 	first := true
 	Do(func(kv KeyValue) {
 		if !first {
-			fmt.Fprintf(w, ",\n")
+			fmt.Fprint(w, ",\n")
 		}
 		first = false
 		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
 	})
-	fmt.Fprintf(w, "\n}\n")
+	fmt.Fprint(w, "\n}\n")
 }
 
 // Handler returns the expvar HTTP Handler.

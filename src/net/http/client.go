@@ -253,7 +253,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 	if err != nil {
 		stopTimer()
 		if resp != nil {
-			log.Printf("RoundTripper returned a response & error; ignoring response")
+			log.Print("RoundTripper returned a response & error; ignoring response")
 		}
 		if tlsErr, ok := err.(tls.RecordHeaderError); ok {
 			// If we get a bad TLS record header, check to see if the

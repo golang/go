@@ -191,7 +191,7 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 	// We don't know how many symbols we have, but we
 	// do have symbol information. Pprof only cares whether
 	// this number is 0 (no symbols available) or > 0.
-	fmt.Fprintf(&buf, "num_symbols: 1\n")
+	fmt.Fprint(&buf, "num_symbols: 1\n")
 
 	var b *bufio.Reader
 	if r.Method == "POST" {

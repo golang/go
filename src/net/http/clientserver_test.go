@@ -259,7 +259,7 @@ func testChunkedResponseHeaders(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Length", "intentional gibberish") // we check that this is deleted
 		w.(Flusher).Flush()
-		fmt.Fprintf(w, "I am a chunked response.")
+		fmt.Fprint(w, "I am a chunked response.")
 	}))
 
 	res, err := cst.c.Get(cst.ts.URL)

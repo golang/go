@@ -402,7 +402,7 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 	var buf strings.Builder
 	key := func(stk []uintptr, lbls *labelMap) string {
 		buf.Reset()
-		fmt.Fprintf(&buf, "@")
+		fmt.Fprint(&buf, "@")
 		for _, pc := range stk {
 			fmt.Fprintf(&buf, " %#x", pc)
 		}
@@ -510,7 +510,7 @@ func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
 		printStackRecord(w, stk, true)
 		return
 	}
-	fmt.Fprintf(w, "\n")
+	fmt.Fprint(w, "\n")
 }
 
 // Interface to system profiles.
@@ -617,7 +617,7 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 		for _, pc := range r.Stack() {
 			fmt.Fprintf(w, " %#x", pc)
 		}
-		fmt.Fprintf(w, "\n")
+		fmt.Fprint(w, "\n")
 		printStackRecord(w, r.Stack(), false)
 	}
 

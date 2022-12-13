@@ -151,7 +151,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
 	sort.Slice(dirs, func(i, j int) bool { return dirs.name(i) < dirs.name(j) })
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<pre>\n")
+	fmt.Fprint(w, "<pre>\n")
 	for i, n := 0, dirs.len(); i < n; i++ {
 		name := dirs.name(i)
 		if dirs.isDir(i) {
@@ -163,7 +163,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
 		url := url.URL{Path: name}
 		fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
 	}
-	fmt.Fprintf(w, "</pre>\n")
+	fmt.Fprint(w, "</pre>\n")
 }
 
 // ServeContent replies to the request using the content in the

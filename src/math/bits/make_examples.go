@@ -103,7 +103,7 @@ func main() {
 				fmt.Fprintf(w, "\t// Output:\n")
 				fmt.Fprintf(w, "\t// %s(%0*b) = %d\n", f, size, e.in, e.out[i])
 			}
-			fmt.Fprintf(w, "}\n")
+			fmt.Fprint(w, "}\n")
 		}
 	}
 

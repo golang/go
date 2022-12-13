@@ -123,7 +123,7 @@ func genCrc32ConstTable(w *bytes.Buffer, poly uint32, polyid string) {
 		fmt.Fprintf(w, "DATA ·%sConst+%d(SB)/8,$0x%016x\n", polyid, (j+1)*8, a)
 
 		j += 2
-		fmt.Fprintf(w, "\n")
+		fmt.Fprint(w, "\n")
 	}
 
 	for i := (1024 * 2) - 128; i >= 0; i -= 128 {
@@ -137,7 +137,7 @@ func genCrc32ConstTable(w *bytes.Buffer, poly uint32, polyid string) {
 		fmt.Fprintf(w, "DATA ·%sConst+%d(SB)/8,$0x%08x%08x\n", polyid, (j+1)*8, a, b)
 
 		j += 2
-		fmt.Fprintf(w, "\n")
+		fmt.Fprint(w, "\n")
 	}
 
 	fmt.Fprintf(w, "GLOBL ·%sConst(SB),RODATA,$4336\n", polyid)

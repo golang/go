@@ -336,7 +336,7 @@ func testRequestRedirect(t *testing.T, mode testMode) {
 			w.Header().Set("Location", "/foo/")
 			w.WriteHeader(StatusSeeOther)
 		case "/foo/":
-			fmt.Fprintf(w, "foo")
+			fmt.Fprint(w, "foo")
 		default:
 			w.WriteHeader(StatusBadRequest)
 		}

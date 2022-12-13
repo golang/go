@@ -131,13 +131,13 @@ func emitMetaData() {
 		}
 	}
 	if len(ml) == 0 {
-		fmt.Fprintf(os.Stderr, "program not built with -cover\n")
+		fmt.Fprint(os.Stderr, "program not built with -cover\n")
 		return
 	}
 
 	goCoverDir = os.Getenv("GOCOVERDIR")
 	if goCoverDir == "" {
-		fmt.Fprintf(os.Stderr, "warning: GOCOVERDIR not set, no coverage data emitted\n")
+		fmt.Fprint(os.Stderr, "warning: GOCOVERDIR not set, no coverage data emitted\n")
 		return
 	}
 
@@ -201,10 +201,10 @@ func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
 			if b.PkgID != -1 {
 				fmt.Fprintf(os.Stderr, " hcid: %d", b.PkgID)
 			}
-			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprint(os.Stderr, "\n")
 		}
 		pm := getCovPkgMap()
-		fmt.Fprintf(os.Stderr, "=+= remap table:\n")
+		fmt.Fprint(os.Stderr, "=+= remap table:\n")
 		for from, to := range pm {
 			fmt.Fprintf(os.Stderr, "=+= from %d to %d\n",
 				uint32(from), uint32(to))
@@ -573,13 +573,13 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 			// Go development (e.g. tip).
 			ipk := int32(pkgId)
 			if ipk == 0 {
-				fmt.Fprintf(os.Stderr, "\n")
+				fmt.Fprint(os.Stderr, "\n")
 				reportErrorInHardcodedList(int32(i), ipk, funcId, nCtrs)
 			} else if ipk < 0 {
 				if newId, ok := s.pkgmap[int(ipk)]; ok {
 					pkgId = uint32(newId)
 				} else {
-					fmt.Fprintf(os.Stderr, "\n")
+					fmt.Fprint(os.Stderr, "\n")
 					reportErrorInHardcodedList(int32(i), ipk, funcId, nCtrs)
 				}
 			} else {
@@ -600,7 +600,7 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 			i += coverage.FirstCtrOffset + int(nCtrs) - 1
 		}
 		if s.debug {
-			fmt.Fprintf(os.Stderr, "\n")
+			fmt.Fprint(os.Stderr, "\n")
 		}
 	}
 	return nil

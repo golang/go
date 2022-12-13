@@ -88,7 +88,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Printf("sleeping\n")
+		fmt.Print("sleeping\n")
 		time.Sleep(time.Minute) // process will be killed here
 		c.Close()
 	}

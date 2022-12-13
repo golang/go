@@ -3233,7 +3233,7 @@ func testCloseNotifier(t *testing.T, mode testMode) {
 	}
 	diec := make(chan bool)
 	go func() {
-		_, err = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
+		_, err = fmt.Fprint(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
 		if err != nil {
 			t.Error(err)
 			return
@@ -4040,7 +4040,7 @@ func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
 			stacks := make([]byte, 1<<20)
 			stacks = stacks[:runtime.Stack(stacks, true)]
 			fmt.Fprintf(os.Stderr, "%s", stacks)
-			log.Fatalf("Timeout.")
+			log.Fatal("Timeout.")
 		})
 	}()
 
@@ -4148,11 +4148,11 @@ func TestServerConnState(t *testing.T) { run(t, testServerConnState, []testMode{
 func testServerConnState(t *testing.T, mode testMode) {
 	handler := map[string]func(w ResponseWriter, r *Request){
 		"/": func(w ResponseWriter, r *Request) {
-			fmt.Fprintf(w, "Hello.")
+			fmt.Fprint(w, "Hello.")
 		},
 		"/close": func(w ResponseWriter, r *Request) {
 			w.Header().Set("Connection", "close")
-			fmt.Fprintf(w, "Hello.")
+			fmt.Fprint(w, "Hello.")
 		},
 		"/hijack": func(w ResponseWriter, r *Request) {
 			c, _, _ := w.(Hijacker).Hijack()
@@ -4654,7 +4654,7 @@ Host: foo
 func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
 	setParallel(t)
 	conn := &testConn{closec: make(chan bool)}
-	conn.readBuf.Write([]byte(fmt.Sprintf(
+	conn.readBuf.Write([]byte(fmt.Sprint(
 		"POST / HTTP/1.1\r\n" +
 			"Host: test\r\n" +
 			"Content-Length: 9999999999\r\n" +
@@ -4999,7 +4999,7 @@ func benchmarkClientServer(b *testing.B, mode testMode) {
 	b.ReportAllocs()
 	b.StopTimer()
 	ts := newClientServerTest(b, mode, HandlerFunc(func(rw ResponseWriter, r *Request) {
-		fmt.Fprintf(rw, "Hello world.\n")
+		fmt.Fprint(rw, "Hello world.\n")
 	})).ts
 	b.StartTimer()
 
@@ -5036,7 +5036,7 @@ func BenchmarkClientServerParallel(b *testing.B) {
 func benchmarkClientServerParallel(b *testing.B, parallelism int, mode testMode) {
 	b.ReportAllocs()
 	ts := newClientServerTest(b, mode, HandlerFunc(func(rw ResponseWriter, r *Request) {
-		fmt.Fprintf(rw, "Hello world.\n")
+		fmt.Fprint(rw, "Hello world.\n")
 	})).ts
 	b.ResetTimer()
 	b.SetParallelism(parallelism)
@@ -5444,7 +5444,7 @@ func benchmarkCloseNotifier(b *testing.B, mode testMode) {
 		if err != nil {
 			b.Fatalf("error dialing: %v", err)
 		}
-		_, err = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
+		_, err = fmt.Fprint(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -6126,10 +6126,10 @@ func TestStripPortFromHost(t *testing.T) {
 	mux := NewServeMux()
 
 	mux.HandleFunc("example.com/", func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "OK")
+		fmt.Fprint(w, "OK")
 	})
 	mux.HandleFunc("example.com:9000/", func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "uh-oh!")
+		fmt.Fprint(w, "uh-oh!")
 	})
 
 	req := httptest.NewRequest("GET", "http://example.com:9000/", nil)
@@ -6244,7 +6244,7 @@ func testUnsupportedTransferEncodingsReturn501(t *testing.T, mode testMode) {
 			continue
 		}
 
-		wantBody := fmt.Sprintf("" +
+		wantBody := fmt.Sprint("" +
 			"HTTP/1.1 501 Not Implemented\r\nContent-Type: text/plain; charset=utf-8\r\n" +
 			"Connection: close\r\n\r\nUnsupported transfer encoding")
 

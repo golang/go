@@ -66,7 +66,7 @@ func TestServerTLSHandshakeTimeout(t *testing.T) {
 
 func BenchmarkServerMatch(b *testing.B) {
 	fn := func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "OK")
+		fmt.Fprint(w, "OK")
 	}
 	mux := NewServeMux()
 	mux.HandleFunc("/", fn)

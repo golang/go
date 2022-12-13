@@ -71,8 +71,8 @@ func measureKaratsuba(th int) time.Duration {
 }
 
 func computeKaratsubaThresholds() {
-	fmt.Printf("Multiplication times for varying Karatsuba thresholds\n")
-	fmt.Printf("(run repeatedly for good results)\n")
+	fmt.Print("Multiplication times for varying Karatsuba thresholds\n")
+	fmt.Print("(run repeatedly for good results)\n")
 
 	// determine Tk, the work load execution time using basic multiplication
 	Tb := measureKaratsuba(1e9) // th == 1e9 => Karatsuba multiplication disabled
@@ -159,7 +159,7 @@ func computeSqrThreshold(from, to, step, nruns int, lower, upper string) int {
 		}
 		if threshold == 0 && pos != initPos {
 			threshold = i
-			fmt.Printf("  threshold  found")
+			fmt.Print("  threshold  found")
 		}
 		fmt.Println()
 

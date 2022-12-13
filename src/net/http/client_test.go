@@ -33,7 +33,7 @@ import (
 
 var robotsTxtHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
 	w.Header().Set("Last-Modified", "sometime")
-	fmt.Fprintf(w, "User-agent: go\nDisallow: /something/")
+	fmt.Fprint(w, "User-agent: go\nDisallow: /something/")
 })
 
 // pedanticReadAll works like io.ReadAll but additionally

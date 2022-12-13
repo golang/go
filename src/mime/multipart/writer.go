@@ -117,7 +117,7 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 			fmt.Fprintf(&b, "%s: %s\r\n", k, v)
 		}
 	}
-	fmt.Fprintf(&b, "\r\n")
+	fmt.Fprint(&b, "\r\n")
 	_, err := io.Copy(w.w, &b)
 	if err != nil {
 		return nil, err

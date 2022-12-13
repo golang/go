@@ -259,7 +259,7 @@ func ExampleTime_Format() {
 	}
 
 	// Print a header in our output.
-	fmt.Printf("\nFormats:\n\n")
+	fmt.Print("\nFormats:\n\n")
 
 	// Simple starter examples.
 	do("Basic full date", "Mon Jan 2 15:04:05 MST 2006", "Wed Feb 25 11:06:39 PST 2015")

@@ -50,7 +50,7 @@ func compile(t *testing.T, dirname, filename, outdirname string, packagefiles ma
 	if len(packagefiles) > 0 {
 		importcfgfile = filepath.Join(outdirname, basename) + ".importcfg"
 		importcfg := new(bytes.Buffer)
-		fmt.Fprintf(importcfg, "# import config")
+		fmt.Fprint(importcfg, "# import config")
 		for k, v := range packagefiles {
 			fmt.Fprintf(importcfg, "\npackagefile %s=%s\n", k, v)
 		}

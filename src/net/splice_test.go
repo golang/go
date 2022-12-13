@@ -355,12 +355,12 @@ func startSpliceClient(conn Conn, op string, chunkSize, totalSize int) (func(), 
 		select {
 		case <-donec:
 		case <-time.After(5 * time.Second):
-			log.Printf("killing splice client after 5 second shutdown timeout")
+			log.Print("killing splice client after 5 second shutdown timeout")
 			cmd.Process.Kill()
 			select {
 			case <-donec:
 			case <-time.After(5 * time.Second):
-				log.Printf("splice client didn't die after 10 seconds")
+				log.Print("splice client didn't die after 10 seconds")
 			}
 		}
 	}, nil

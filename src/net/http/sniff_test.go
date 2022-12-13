@@ -134,7 +134,7 @@ func TestServerIssue5953(t *testing.T) { run(t, testServerIssue5953) }
 func testServerIssue5953(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header()["Content-Type"] = []string{""}
-		fmt.Fprintf(w, "<html><head></head><body>hi</body></html>")
+		fmt.Fprint(w, "<html><head></head><body>hi</body></html>")
 	}))
 
 	resp, err := cst.c.Get(cst.ts.URL)

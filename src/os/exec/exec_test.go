@@ -99,7 +99,7 @@ func TestMain(m *testing.M) {
 
 	args := flag.Args()
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "No command\n")
+		fmt.Fprint(os.Stderr, "No command\n")
 		os.Exit(2)
 	}
 
@@ -267,7 +267,7 @@ func cmdExit(args ...string) {
 }
 
 func cmdDescribeFiles(args ...string) {
-	f := os.NewFile(3, fmt.Sprintf("fd3"))
+	f := os.NewFile(3, "fd3")
 	ln, err := net.FileListener(f)
 	if err == nil {
 		fmt.Printf("fd3: listener %s\n", ln.Addr())
@@ -276,7 +276,7 @@ func cmdDescribeFiles(args ...string) {
 }
 
 func cmdStderrFail(...string) {
-	fmt.Fprintf(os.Stderr, "some stderr text\n")
+	fmt.Fprint(os.Stderr, "some stderr text\n")
 	os.Exit(1)
 }
 

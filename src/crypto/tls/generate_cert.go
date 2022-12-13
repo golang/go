@@ -54,7 +54,7 @@ func main() {
 	flag.Parse()
 
 	if len(*host) == 0 {
-		log.Fatalf("Missing required --host parameter")
+		log.Fatal("Missing required --host parameter")
 	}
 
 	var priv any

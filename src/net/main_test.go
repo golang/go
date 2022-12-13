@@ -160,11 +160,11 @@ func printRunningGoroutines() {
 	if len(gss) == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Running goroutines:\n")
+	fmt.Fprint(os.Stderr, "Running goroutines:\n")
 	for _, gs := range gss {
 		fmt.Fprintf(os.Stderr, "%v\n", gs)
 	}
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprint(os.Stderr, "\n")
 }
 
 // runningGoroutines returns a list of remaining goroutines.
@@ -189,11 +189,11 @@ func printInflightSockets() {
 	if len(sos) == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Inflight sockets:\n")
+	fmt.Fprint(os.Stderr, "Inflight sockets:\n")
 	for s, so := range sos {
 		fmt.Fprintf(os.Stderr, "%v: %v\n", s, so)
 	}
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprint(os.Stderr, "\n")
 }
 
 func printSocketStats() {
@@ -201,9 +201,9 @@ func printSocketStats() {
 	if len(sts) == 0 {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Socket statistical information:\n")
+	fmt.Fprint(os.Stderr, "Socket statistical information:\n")
 	for _, st := range sts {
 		fmt.Fprintf(os.Stderr, "%v\n", st)
 	}
-	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprint(os.Stderr, "\n")
 }

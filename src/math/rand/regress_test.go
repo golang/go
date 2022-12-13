@@ -32,7 +32,7 @@ func TestRegress(t *testing.T) {
 	n := rv.NumMethod()
 	p := 0
 	if *printgolden {
-		fmt.Printf("var regressGolden = []interface{}{\n")
+		fmt.Print("var regressGolden = []interface{}{\n")
 	}
 	for i := 0; i < n; i++ {
 		m := rv.Type().Method(i)
@@ -60,7 +60,7 @@ func TestRegress(t *testing.T) {
 					if int64(int(big)) != big {
 						r.Int63n(big) // what would happen on 64-bit machine, to keep stream in sync
 						if *printgolden {
-							fmt.Printf("\tskipped, // must run printgolden on 64-bit machine\n")
+							fmt.Print("\tskipped, // must run printgolden on 64-bit machine\n")
 						}
 						p++
 						continue
@@ -116,7 +116,7 @@ func TestRegress(t *testing.T) {
 		}
 	}
 	if *printgolden {
-		fmt.Printf("}\n")
+		fmt.Print("}\n")
 	}
 }
 

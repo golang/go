@@ -722,36 +722,36 @@ func testDots(t *testing.T, mode string) {
 func mxString(mxs []*MX) string {
 	var buf strings.Builder
 	sep := ""
-	fmt.Fprintf(&buf, "[")
+	fmt.Fprint(&buf, "[")
 	for _, mx := range mxs {
 		fmt.Fprintf(&buf, "%s%s:%d", sep, mx.Host, mx.Pref)
 		sep = " "
 	}
-	fmt.Fprintf(&buf, "]")
+	fmt.Fprint(&buf, "]")
 	return buf.String()
 }
 
 func nsString(nss []*NS) string {
 	var buf strings.Builder
 	sep := ""
-	fmt.Fprintf(&buf, "[")
+	fmt.Fprint(&buf, "[")
 	for _, ns := range nss {
 		fmt.Fprintf(&buf, "%s%s", sep, ns.Host)
 		sep = " "
 	}
-	fmt.Fprintf(&buf, "]")
+	fmt.Fprint(&buf, "]")
 	return buf.String()
 }
 
 func srvString(srvs []*SRV) string {
 	var buf strings.Builder
 	sep := ""
-	fmt.Fprintf(&buf, "[")
+	fmt.Fprint(&buf, "[")
 	for _, srv := range srvs {
 		fmt.Fprintf(&buf, "%s%s:%d:%d:%d", sep, srv.Target, srv.Port, srv.Priority, srv.Weight)
 		sep = " "
 	}
-	fmt.Fprintf(&buf, "]")
+	fmt.Fprint(&buf, "]")
 	return buf.String()
 }
 

@@ -179,11 +179,11 @@ func check(bounds image.Rectangle, pix0, pix1 []byte, stride0, stride1 int) erro
 func pixString(pix []byte, stride, x, y int) string {
 	s := &strings.Builder{}
 	for j := 0; j < 8; j++ {
-		fmt.Fprintf(s, "\t")
+		fmt.Fprint(s, "\t")
 		for i := 0; i < 8; i++ {
 			fmt.Fprintf(s, "%02x ", pix[(y+j)*stride+(x+i)])
 		}
-		fmt.Fprintf(s, "\n")
+		fmt.Fprint(s, "\n")
 	}
 	return s.String()
 }

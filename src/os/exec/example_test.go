@@ -57,7 +57,7 @@ func ExampleCmd_Output() {
 
 func ExampleCmd_Run() {
 	cmd := exec.Command("sleep", "1")
-	log.Printf("Running command and waiting for it to finish...")
+	log.Print("Running command and waiting for it to finish...")
 	err := cmd.Run()
 	log.Printf("Command finished with error: %v", err)
 }
@@ -68,7 +68,7 @@ func ExampleCmd_Start() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Waiting for command to finish...")
+	log.Print("Waiting for command to finish...")
 	err = cmd.Wait()
 	log.Printf("Command finished with error: %v", err)
 }

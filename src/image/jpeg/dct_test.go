@@ -182,7 +182,7 @@ func slowIDCT(b *block) {
 
 func (b *block) String() string {
 	s := &strings.Builder{}
-	fmt.Fprintf(s, "{\n")
+	fmt.Fprint(s, "{\n")
 	for y := 0; y < 8; y++ {
 		fmt.Fprintf(s, "\t")
 		for x := 0; x < 8; x++ {
@@ -190,7 +190,7 @@ func (b *block) String() string {
 		}
 		fmt.Fprintln(s)
 	}
-	fmt.Fprintf(s, "}")
+	fmt.Fprint(s, "}")
 	return s.String()
 }
 

@@ -2402,7 +2402,7 @@ func testTransportCancelRequest(t *testing.T, mode testMode) {
 	}
 	unblockc := make(chan bool)
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "Hello")
+		fmt.Fprint(w, "Hello")
 		w.(Flusher).Flush() // send headers and some body
 		<-unblockc
 	})).ts
@@ -2557,7 +2557,7 @@ func testCancelRequestWithChannel(t *testing.T, mode testMode) {
 	}
 	unblockc := make(chan bool)
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		fmt.Fprintf(w, "Hello")
+		fmt.Fprint(w, "Hello")
 		w.(Flusher).Flush() // send headers and some body
 		<-unblockc
 	})).ts
@@ -3324,7 +3324,7 @@ func testTLSServerClosesConnection(t *testing.T, mode testMode) {
 			closedc <- true
 			return
 		}
-		fmt.Fprintf(w, "hello")
+		fmt.Fprint(w, "hello")
 	})).ts
 
 	c := ts.Client()

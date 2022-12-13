@@ -60,7 +60,7 @@ func TestChangingProcessParent(t *testing.T) {
 		// in child process
 		dumpPath := os.Getenv("GO_WANT_HELPER_PROCESS_FILE")
 		if dumpPath == "" {
-			fmt.Fprintf(os.Stderr, "Dump file path cannot be blank.")
+			fmt.Fprint(os.Stderr, "Dump file path cannot be blank.")
 			os.Exit(1)
 		}
 		err := os.WriteFile(dumpPath, []byte(fmt.Sprintf("%d", os.Getppid())), 0644)

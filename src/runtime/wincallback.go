@@ -37,7 +37,7 @@ TEXT runtime·callbackasm(SB),7,$0
 		buf.WriteString("\tCALL\truntime·callbackasm1(SB)\n")
 	}
 
-	filename := fmt.Sprintf("zcallback_windows.s")
+	filename := fmt.Sprint("zcallback_windows.s")
 	err := os.WriteFile(filename, buf.Bytes(), 0666)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wincallback: %s\n", err)

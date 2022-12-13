@@ -730,7 +730,7 @@ func testFileServerZeroByte(t *testing.T, mode testMode) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	_, err = fmt.Fprintf(c, "GET /..\x00 HTTP/1.0\r\n\r\n")
+	_, err = fmt.Fprint(c, "GET /..\x00 HTTP/1.0\r\n\r\n")
 	if err != nil {
 		t.Fatal(err)
 	}

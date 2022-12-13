@@ -2085,11 +2085,11 @@ func (m *M) before() {
 		runtime.SetMutexProfileFraction(*mutexProfileFraction)
 	}
 	if *coverProfile != "" && CoverMode() == "" {
-		fmt.Fprintf(os.Stderr, "testing: cannot use -test.coverprofile because test binary was not built with coverage enabled\n")
+		fmt.Fprint(os.Stderr, "testing: cannot use -test.coverprofile because test binary was not built with coverage enabled\n")
 		os.Exit(2)
 	}
 	if *gocoverdir != "" && CoverMode() == "" {
-		fmt.Fprintf(os.Stderr, "testing: cannot use -test.gocoverdir because test binary was not built with coverage enabled\n")
+		fmt.Fprint(os.Stderr, "testing: cannot use -test.gocoverdir because test binary was not built with coverage enabled\n")
 		os.Exit(2)
 	}
 	if *testlog != "" {

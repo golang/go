@@ -76,7 +76,7 @@ func goroutineLeaked() bool {
 		// Wait for goroutines to schedule and die off:
 		time.Sleep(100 * time.Millisecond)
 	}
-	fmt.Fprintf(os.Stderr, "Too many goroutines running after net/http test(s).\n")
+	fmt.Fprint(os.Stderr, "Too many goroutines running after net/http test(s).\n")
 	for stack, count := range stackCount {
 		fmt.Fprintf(os.Stderr, "%d instances of:\n%s\n", count, stack)
 	}
