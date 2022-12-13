@@ -15,6 +15,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -117,21 +118,9 @@ func Clean(path string) string {
 		case os.IsPathSeparator(path[r]):
 			// empty path element
 			r++
-		case path[r] == '.' && r+1 == n:
+		case path[r] == '.' && (r+1 == n || os.IsPathSeparator(path[r+1])):
 			// . element
 			r++
-		case path[r] == '.' && os.IsPathSeparator(path[r+1]):
-			// ./ element
-			r++
-
-			for r < len(path) && os.IsPathSeparator(path[r]) {
-				r++
-			}
-			if out.w == 0 && volumeNameLen(path[r:]) > 0 {
-				// When joining prefix "." and an absolute path on Windows,
-				// the prefix should not be removed.
-				out.append('.')
-			}
 		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || os.IsPathSeparator(path[r+2])):
 			// .. element: remove to last separator
 			r += 2
@@ -156,6 +145,18 @@ func Clean(path string) string {
 			// add slash if needed
 			if rooted && out.w != 1 || !rooted && out.w != 0 {
 				out.append(Separator)
+			}
+			// If a ':' appears in the path element at the start of a Windows path,
+			// insert a .\ at the beginning to avoid converting relative paths
+			// like a/../c: into c:.
+			if runtime.GOOS == "windows" && out.w == 0 && out.volLen == 0 && r != 0 {
+				for i := r; i < n && !os.IsPathSeparator(path[i]); i++ {
+					if path[i] == ':' {
+						out.append('.')
+						out.append(Separator)
+						break
+					}
+				}
 			}
 			// copy element
 			for ; r < n && !os.IsPathSeparator(path[r]); r++ {

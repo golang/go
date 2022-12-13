@@ -96,6 +96,13 @@ var wincleantests = []PathTest{
 	{`.\c:`, `.\c:`},
 	{`.\c:\foo`, `.\c:\foo`},
 	{`.\c:foo`, `.\c:foo`},
+
+	// Don't allow cleaning to move an element with a colon to the start of the path.
+	{`a/../c:`, `.\c:`},
+	{`a\..\c:`, `.\c:`},
+	{`a/../c:/a`, `.\c:\a`},
+	{`a/../../c:`, `..\c:`},
+	{`foo:bar`, `foo:bar`},
 }
 
 func TestClean(t *testing.T) {
