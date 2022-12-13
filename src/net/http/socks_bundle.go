@@ -445,7 +445,7 @@ func (up *socksUsernamePassword) Authenticate(ctx context.Context, rw io.ReadWri
 	case socksAuthMethodNotRequired:
 		return nil
 	case socksAuthMethodUsernamePassword:
-		if len(up.Username) == 0 || len(up.Username) > 255 || len(up.Password) == 0 || len(up.Password) > 255 {
+		if len(up.Username) == 0 || len(up.Username) > 255 || len(up.Password) > 255 {
 			return errors.New("invalid username/password")
 		}
 		b := []byte{socksauthUsernamePasswordVersion}
