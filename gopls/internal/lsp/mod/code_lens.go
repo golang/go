@@ -178,7 +178,7 @@ func vulncheckLenses(ctx context.Context, snapshot source.Snapshot, fh source.Fi
 		return nil, err
 	}
 
-	vulncheck, err := command.NewRunGovulncheckCommand("Run govulncheck to verify", command.VulncheckArgs{
+	vulncheck, err := command.NewRunGovulncheckCommand("Run govulncheck", command.VulncheckArgs{
 		URI:     uri,
 		Pattern: "./...",
 	})
