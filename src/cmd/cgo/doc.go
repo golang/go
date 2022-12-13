@@ -220,7 +220,7 @@ received from Go. For example:
 	//		return f();
 	// }
 	//
-	// int fortytwo()
+	// int fortytwo(void)
 	// {
 	//	    return 42;
 	// }
@@ -728,7 +728,7 @@ Instead, the build process generates an object file using dynamic
 linkage to the desired libraries. The main function is provided by
 _cgo_main.c:
 
-	int main() { return 0; }
+	int main(void) { return 0; }
 	void crosscall2(void(*fn)(void*), void *a, int c, uintptr_t ctxt) { }
 	uintptr_t _cgo_wait_runtime_init_done(void) { return 0; }
 	void _cgo_release_context(uintptr_t ctxt) { }
