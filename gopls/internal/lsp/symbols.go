@@ -7,11 +7,11 @@ package lsp
 import (
 	"context"
 
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/template"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
 )
 
 func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]interface{}, error) {
@@ -24,10 +24,13 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 		return []interface{}{}, err
 	}
 	var docSymbols []protocol.DocumentSymbol
-	if snapshot.View().FileKind(fh) == source.Tmpl {
+	switch snapshot.View().FileKind(fh) {
+	case source.Tmpl:
 		docSymbols, err = template.DocumentSymbols(snapshot, fh)
-	} else {
+	case source.Go:
 		docSymbols, err = source.DocumentSymbols(ctx, snapshot, fh)
+	default:
+		return []interface{}{}, nil
 	}
 	if err != nil {
 		event.Error(ctx, "DocumentSymbols failed", err, tag.URI.Of(fh.URI()))
