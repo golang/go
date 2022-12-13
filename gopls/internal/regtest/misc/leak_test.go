@@ -21,6 +21,9 @@ import (
 
 // Test for golang/go#57222.
 func TestCacheLeak(t *testing.T) {
+	// TODO(rfindley): either fix this test with additional instrumentation, or
+	// delete it.
+	t.Skip("This test races with cache eviction.")
 	const files = `-- a.go --
 package a
 

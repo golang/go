@@ -1740,13 +1740,25 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	}
 
 	// TODO(adonovan): merge loops over "changes".
-	for uri := range changes {
-		keys, ok := result.parseKeysByURI.Get(uri)
-		if ok {
-			for _, key := range keys {
-				result.parsedGoFiles.Delete(key)
+	for uri, change := range changes {
+		// Optimization: if the content did not change, we don't need to evict the
+		// parsed file. This is not the case for e.g. the files map, which may
+		// switch from on-disk state to overlay. Parsed files depend only on
+		// content and parse mode (which is captured in the parse key).
+		//
+		// NOTE: This also makes it less likely that we re-parse a file due to a
+		// cache-miss but get a cache-hit for the corresponding package. In the
+		// past, there was code that relied on ParseGo returning the type-checked
+		// syntax tree. That code was wrong, but avoiding invalidation here limits
+		// the blast radius of these types of bugs.
+		if !change.isUnchanged {
+			keys, ok := result.parseKeysByURI.Get(uri)
+			if ok {
+				for _, key := range keys {
+					result.parsedGoFiles.Delete(key)
+				}
+				result.parseKeysByURI.Delete(uri)
 			}
-			result.parseKeysByURI.Delete(uri)
 		}
 
 		// Invalidate go.mod-related handles.
