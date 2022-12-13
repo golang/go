@@ -106,6 +106,13 @@ var wincleantests = []PathTest{
 	{`//abc`, `\\abc`},
 	{`///abc`, `\\\abc`},
 	{`//abc//`, `\\abc\\`},
+
+	// Don't allow cleaning to move an element with a colon to the start of the path.
+	{`a/../c:`, `.\c:`},
+	{`a\..\c:`, `.\c:`},
+	{`a/../c:/a`, `.\c:\a`},
+	{`a/../../c:`, `..\c:`},
+	{`foo:bar`, `foo:bar`},
 }
 
 func TestClean(t *testing.T) {
@@ -174,6 +181,7 @@ var winislocaltests = []IsLocalTest{
 	{`C:`, false},
 	{`C:\a`, false},
 	{`..\a`, false},
+	{`a/../c:`, false},
 	{`CONIN$`, false},
 	{`conin$`, false},
 	{`CONOUT$`, false},
