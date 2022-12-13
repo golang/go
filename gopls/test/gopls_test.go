@@ -36,7 +36,7 @@ func TestCommandLine(t *testing.T) {
 
 func commandLineOptions(options *source.Options) {
 	options.Staticcheck = true
-	options.GoDiff = false
+	options.GoDiff = false // workaround for golang/go#57290   TODO(pjw): fix
 	tests.DefaultOptions(options)
 	hooks.Options(options)
 }

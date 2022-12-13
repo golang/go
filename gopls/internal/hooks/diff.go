@@ -96,8 +96,7 @@ func disaster(before, after string) string {
 		return ""
 	}
 
-	// TODO(adonovan): is there a better way to surface this?
-	log.Printf("Bug detected in diff algorithm! Please send file %s to the maintainers of gopls if you are comfortable sharing its contents.", filename)
+	bug.Reportf("Bug detected in diff algorithm! Please send file %s to the maintainers of gopls if you are comfortable sharing its contents.", filename)
 
 	return filename
 }
