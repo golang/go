@@ -184,6 +184,7 @@ func testSymlinkSameFile(t *testing.T, path, link string) {
 
 func TestDirAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Parallel()
 
 	tmpdir := t.TempDir()
 	dir := filepath.Join(tmpdir, "dir")
@@ -209,6 +210,7 @@ func TestDirAndSymlinkStats(t *testing.T) {
 
 func TestFileAndSymlinkStats(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Parallel()
 
 	tmpdir := t.TempDir()
 	file := filepath.Join(tmpdir, "file")
@@ -235,6 +237,7 @@ func TestFileAndSymlinkStats(t *testing.T) {
 // see issue 27225 for details
 func TestSymlinkWithTrailingSlash(t *testing.T) {
 	testenv.MustHaveSymlink(t)
+	t.Parallel()
 
 	tmpdir := t.TempDir()
 	dir := filepath.Join(tmpdir, "dir")

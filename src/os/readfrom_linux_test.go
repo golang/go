@@ -420,6 +420,8 @@ func (h *copyFileRangeHook) uninstall() {
 
 // On some kernels copy_file_range fails on files in /proc.
 func TestProcCopy(t *testing.T) {
+	t.Parallel()
+
 	const cmdlineFile = "/proc/self/cmdline"
 	cmdline, err := os.ReadFile(cmdlineFile)
 	if err != nil {

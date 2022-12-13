@@ -16,7 +16,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	osexec "os/exec"
+	"os/exec"
 	"os/signal"
 	"runtime"
 	"strconv"
@@ -28,6 +28,16 @@ import (
 )
 
 func TestEPIPE(t *testing.T) {
+	// This test cannot be run in parallel because of a race similar
+	// to the one reported in https://go.dev/issue/22315.
+	//
+	// Even though the pipe is opened with O_CLOEXEC, if another test forks in
+	// between the call to os.Pipe and the call to r.Close, that child process can
+	// retain an open copy of r's file descriptor until it execs. If one of our
+	// Write calls occurs during that interval it can spuriously succeed,
+	// buffering the write to the child's copy of the pipe (even though the child
+	// will not actually read the buffered bytes).
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -64,7 +74,35 @@ func TestStdPipe(t *testing.T) {
 	case "windows":
 		t.Skip("Windows doesn't support SIGPIPE")
 	}
+
+	if os.Getenv("GO_TEST_STD_PIPE_HELPER") != "" {
+		if os.Getenv("GO_TEST_STD_PIPE_HELPER_SIGNAL") != "" {
+			signal.Notify(make(chan os.Signal, 1), syscall.SIGPIPE)
+		}
+		switch os.Getenv("GO_TEST_STD_PIPE_HELPER") {
+		case "1":
+			os.Stdout.Write([]byte("stdout"))
+		case "2":
+			os.Stderr.Write([]byte("stderr"))
+		case "3":
+			if _, err := os.NewFile(3, "3").Write([]byte("3")); err == nil {
+				os.Exit(3)
+			}
+		default:
+			panic("unrecognized value for GO_TEST_STD_PIPE_HELPER")
+		}
+		// For stdout/stderr, we should have crashed with a broken pipe error.
+		// The caller will be looking for that exit status,
+		// so just exit normally here to cause a failure in the caller.
+		// For descriptor 3, a normal exit is expected.
+		os.Exit(0)
+	}
+
 	testenv.MustHaveExec(t)
+	// This test cannot be run in parallel due to the same race as for TestEPIPE.
+	// (We expect a write to a closed pipe can fail, but a concurrent fork of a
+	// child process can cause the pipe to unexpectedly remain open.)
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -80,7 +118,7 @@ func TestStdPipe(t *testing.T) {
 	// all writes should fail with EPIPE and then exit 0.
 	for _, sig := range []bool{false, true} {
 		for dest := 1; dest < 4; dest++ {
-			cmd := osexec.Command(os.Args[0], "-test.run", "TestStdPipeHelper")
+			cmd := testenv.Command(t, os.Args[0], "-test.run", "TestStdPipe")
 			cmd.Stdout = w
 			cmd.Stderr = w
 			cmd.ExtraFiles = []*os.File{w}
@@ -92,7 +130,7 @@ func TestStdPipe(t *testing.T) {
 				if !sig && dest < 3 {
 					t.Errorf("unexpected success of write to closed pipe %d sig %t in child", dest, sig)
 				}
-			} else if ee, ok := err.(*osexec.ExitError); !ok {
+			} else if ee, ok := err.(*exec.ExitError); !ok {
 				t.Errorf("unexpected exec error type %T: %v", err, err)
 			} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
 				t.Errorf("unexpected wait status type %T: %v", ee.Sys(), ee.Sys())
@@ -107,14 +145,14 @@ func TestStdPipe(t *testing.T) {
 	}
 
 	// Test redirecting stdout but not stderr.  Issue 40076.
-	cmd := osexec.Command(os.Args[0], "-test.run", "TestStdPipeHelper")
+	cmd := testenv.Command(t, os.Args[0], "-test.run", "TestStdPipe")
 	cmd.Stdout = w
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	cmd.Env = append(os.Environ(), "GO_TEST_STD_PIPE_HELPER=1")
+	cmd.Env = append(cmd.Environ(), "GO_TEST_STD_PIPE_HELPER=1")
 	if err := cmd.Run(); err == nil {
 		t.Errorf("unexpected success of write to closed stdout")
-	} else if ee, ok := err.(*osexec.ExitError); !ok {
+	} else if ee, ok := err.(*exec.ExitError); !ok {
 		t.Errorf("unexpected exec error type %T: %v", err, err)
 	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
 		t.Errorf("unexpected wait status type %T: %v", ee.Sys(), ee.Sys())
@@ -126,31 +164,11 @@ func TestStdPipe(t *testing.T) {
 	}
 }
 
-// This is a helper for TestStdPipe. It's not a test in itself.
-func TestStdPipeHelper(t *testing.T) {
-	if os.Getenv("GO_TEST_STD_PIPE_HELPER_SIGNAL") != "" {
-		signal.Notify(make(chan os.Signal, 1), syscall.SIGPIPE)
-	}
-	switch os.Getenv("GO_TEST_STD_PIPE_HELPER") {
-	case "1":
-		os.Stdout.Write([]byte("stdout"))
-	case "2":
-		os.Stderr.Write([]byte("stderr"))
-	case "3":
-		if _, err := os.NewFile(3, "3").Write([]byte("3")); err == nil {
-			os.Exit(3)
-		}
-	default:
-		t.Skip("skipping test helper")
-	}
-	// For stdout/stderr, we should have crashed with a broken pipe error.
-	// The caller will be looking for that exit status,
-	// so just exit normally here to cause a failure in the caller.
-	// For descriptor 3, a normal exit is expected.
-	os.Exit(0)
-}
-
 func testClosedPipeRace(t *testing.T, read bool) {
+	// This test cannot be run in parallel due to the same race as for TestEPIPE.
+	// (We expect a write to a closed pipe can fail, but a concurrent fork of a
+	// child process can cause the pipe to unexpectedly remain open.)
+
 	limit := 1
 	if !read {
 		// Get the amount we have to write to overload a pipe
@@ -237,14 +255,16 @@ func TestReadNonblockingFd(t *testing.T) {
 	}
 
 	testenv.MustHaveExec(t)
+	t.Parallel()
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer r.Close()
 	defer w.Close()
-	cmd := osexec.Command(os.Args[0], "-test.run="+t.Name())
-	cmd.Env = append(os.Environ(), "GO_WANT_READ_NONBLOCKING_FD=1")
+	cmd := testenv.Command(t, os.Args[0], "-test.run="+t.Name())
+	cmd.Env = append(cmd.Environ(), "GO_WANT_READ_NONBLOCKING_FD=1")
 	cmd.Stdin = r
 	output, err := cmd.CombinedOutput()
 	t.Logf("%s", output)
@@ -254,6 +274,8 @@ func TestReadNonblockingFd(t *testing.T) {
 }
 
 func TestCloseWithBlockingReadByNewFile(t *testing.T) {
+	t.Parallel()
+
 	var p [2]syscallDescriptor
 	err := syscall.Pipe(p[:])
 	if err != nil {
@@ -264,6 +286,8 @@ func TestCloseWithBlockingReadByNewFile(t *testing.T) {
 }
 
 func TestCloseWithBlockingReadByFd(t *testing.T) {
+	t.Parallel()
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -410,6 +434,11 @@ func testPipeEOF(t *testing.T, r io.ReadCloser, w io.WriteCloser) {
 
 // Issue 24481.
 func TestFdRace(t *testing.T) {
+	// This test starts 100 simultaneous goroutines, which could bury a more
+	// interesting stack if this or some other test happens to panic. It is also
+	// nearly instantaneous, so any latency benefit from running it in parallel
+	// would be minimal.
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)

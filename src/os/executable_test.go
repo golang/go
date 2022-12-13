@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"os"
-	osexec "os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -18,6 +17,8 @@ const executable_EnvVar = "OSTEST_OUTPUT_EXECPATH"
 
 func TestExecutable(t *testing.T) {
 	testenv.MustHaveExec(t)
+	t.Parallel()
+
 	ep, err := os.Executable()
 	if err != nil {
 		t.Fatalf("Executable failed: %v", err)
@@ -29,18 +30,18 @@ func TestExecutable(t *testing.T) {
 		t.Fatalf("filepath.Rel: %v", err)
 	}
 
-	cmd := &osexec.Cmd{}
+	cmd := testenv.Command(t, fn, "-test.run=XXXX")
 	// make child start with a relative program path
 	cmd.Dir = dir
 	cmd.Path = fn
-	// forge argv[0] for child, so that we can verify we could correctly
-	// get real path of the executable without influenced by argv[0].
-	cmd.Args = []string{"-", "-test.run=XXXX"}
 	if runtime.GOOS == "openbsd" || runtime.GOOS == "aix" {
 		// OpenBSD and AIX rely on argv[0]
-		cmd.Args[0] = fn
+	} else {
+		// forge argv[0] for child, so that we can verify we could correctly
+		// get real path of the executable without influenced by argv[0].
+		cmd.Args[0] = "-"
 	}
-	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=1", executable_EnvVar))
+	cmd.Env = append(cmd.Environ(), fmt.Sprintf("%s=1", executable_EnvVar))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("exec(self) failed: %v", err)
@@ -95,6 +96,7 @@ func TestExecutableDeleted(t *testing.T) {
 	case "openbsd", "freebsd", "aix":
 		t.Skipf("%v does not support reading deleted binary name", runtime.GOOS)
 	}
+	t.Parallel()
 
 	dir := t.TempDir()
 
