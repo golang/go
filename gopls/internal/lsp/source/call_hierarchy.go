@@ -157,7 +157,7 @@ outer:
 		nameStart, nameEnd = funcLit.Type.Func, funcLit.Type.Params.Pos()
 		kind = protocol.Function
 	}
-	rng, err := NewMappedRange(pgf.Tok, pgf.Mapper, nameStart, nameEnd).Range()
+	rng, err := NewMappedRange(pgf.Mapper, nameStart, nameEnd).Range()
 	if err != nil {
 		return protocol.CallHierarchyItem{}, err
 	}
@@ -201,15 +201,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	if len(identifier.Declaration.MappedRange) == 0 {
 		return nil, nil
 	}
-	declMappedRange := identifier.Declaration.MappedRange[0]
-	// TODO(adonovan): avoid Fileset.File call by somehow getting at
-	// declMappedRange.spanRange.TokFile, or making Identifier retain the
-	// token.File of the identifier and its declaration, since it looks up both anyway.
-	tokFile := identifier.pkg.FileSet().File(node.Pos())
-	if tokFile == nil {
-		return nil, fmt.Errorf("no file for position")
-	}
-	callExprs, err := collectCallExpressions(tokFile, declMappedRange.m, node)
+	callExprs, err := collectCallExpressions(identifier.Declaration.MappedRange[0].m, node)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +210,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 }
 
 // collectCallExpressions collects call expression ranges inside a function.
-func collectCallExpressions(tokFile *token.File, mapper *protocol.ColumnMapper, node ast.Node) ([]protocol.Range, error) {
+func collectCallExpressions(mapper *protocol.ColumnMapper, node ast.Node) ([]protocol.Range, error) {
 	type callPos struct {
 		start, end token.Pos
 	}
@@ -248,7 +240,7 @@ func collectCallExpressions(tokFile *token.File, mapper *protocol.ColumnMapper, 
 
 	callRanges := []protocol.Range{}
 	for _, call := range callPositions {
-		callRange, err := NewMappedRange(tokFile, mapper, call.start, call.end).Range()
+		callRange, err := NewMappedRange(mapper, call.start, call.end).Range()
 		if err != nil {
 			return nil, err
 		}

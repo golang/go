@@ -271,8 +271,8 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 
 	// Find the line on which the composite literal is declared.
 	split := bytes.Split(content, []byte("\n"))
-	lineNumber := fset.PositionFor(expr.Lbrace, false).Line
-	firstLine := split[lineNumber-1] // lines are 1-indexed
+	lineNumber := fset.PositionFor(expr.Lbrace, false).Line // ignore line directives
+	firstLine := split[lineNumber-1]                        // lines are 1-indexed
 
 	// Trim the whitespace from the left of the line, and use the index
 	// to get the amount of whitespace on the left.

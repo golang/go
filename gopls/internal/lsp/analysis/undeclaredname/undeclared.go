@@ -146,7 +146,7 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 		return nil, fmt.Errorf("could not locate insertion point")
 	}
 
-	insertBefore := fset.PositionFor(insertBeforeStmt.Pos(), false).Offset
+	insertBefore := fset.PositionFor(insertBeforeStmt.Pos(), false).Offset // ignore line directives
 
 	// Get the indent to add on the line after the new statement.
 	// Since this will have a parse error, we can not use format.Source().

@@ -8,10 +8,12 @@ import (
 	"testing"
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 )
 
-// This test passes (TestHoverOnError in definition_test.go) without
-// the //line directive
+// This is a slight variant of TestHoverOnError in definition_test.go
+// that includes a line directive, which makes no difference since
+// gopls ignores line directives.
 func TestHoverFailure(t *testing.T) {
 	t.Skip("line directives //line ")
 	const mod = `
@@ -33,19 +35,23 @@ func main() {
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		content, _ := env.Hover("main.go", env.RegexpSearch("main.go", "Error"))
-		// without the //line comment content would be non-nil
-		if content != nil {
-			t.Fatalf("expected nil hover content for Error")
+		if content == nil {
+			t.Fatalf("Hover('Error') returned nil")
+		}
+		want := "```go\nfunc (error).Error() string\n```"
+		if content.Value != want {
+			t.Fatalf("wrong Hover('Error') content:\n%s", compare.Text(want, content.Value))
 		}
 	})
 }
 
-// This test demonstrates a case where gopls is confused by line directives,
-// and fails to surface type checking errors.
+// This test demonstrates a case where gopls is not at all confused by
+// line directives, because it completely ignores them.
 func TestFailingDiagnosticClearingOnEdit(t *testing.T) {
 	t.Skip("line directives //line ")
 	// badPackageDup contains a duplicate definition of the 'a' const.
-	// this is from diagnostics_test.go,
+	// This is a minor variant of TestDiagnosticClearingOnEditfrom from
+	// diagnostics_test.go, with a line directive, which makes no difference.
 	const badPackageDup = `
 -- go.mod --
 module mod.com
@@ -63,19 +69,16 @@ const a = 2
 
 	Run(t, badPackageDup, func(t *testing.T, env *Env) {
 		env.OpenFile("b.go")
-
-		// no diagnostics for any files, but there should be
 		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				EmptyOrNoDiagnostics("a.go"),
-				EmptyOrNoDiagnostics("b.go"),
-			),
+			env.DiagnosticAtRegexpWithMessage("b.go", `a = 2`, "a redeclared"),
+			env.DiagnosticAtRegexpWithMessage("a.go", `a = 1`, "other declaration"),
 		)
 
 		// Fix the error by editing the const name in b.go to `b`.
 		env.RegexpReplace("b.go", "(a) = 2", "b")
-
-		// The diagnostics that weren't sent above should now be cleared.
+		env.Await(
+			EmptyOrNoDiagnostics("a.go"),
+			EmptyOrNoDiagnostics("b.go"),
+		)
 	})
 }

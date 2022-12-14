@@ -460,19 +460,17 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 	}
 	typeparams.InitInstanceInfo(pkg.typesInfo)
 
-	// In the presence of line directives, we may need to report errors in
-	// non-compiled Go files, so we need to register them on the package.
-	// However, we only need to really parse them in ParseFull mode, when
-	// the user might actually be looking at the file.
-	goMode := source.ParseFull
-	if mode != source.ParseFull {
-		goMode = source.ParseHeader
-	}
-
-	// Parse the GoFiles. (These aren't presented to the type
-	// checker but are part of the returned pkg.)
+	// Parse the non-compiled GoFiles. (These aren't presented to
+	// the type checker but are part of the returned pkg.)
 	// TODO(adonovan): opt: parallelize parsing.
 	for _, fh := range goFiles {
+		goMode := mode
+		if mode == source.ParseExported {
+			// This package is being loaded only for type information,
+			// to which non-compiled Go files are irrelevant,
+			// so parse only the header.
+			goMode = source.ParseHeader
+		}
 		pgf, err := snapshot.ParseGo(ctx, fh, goMode)
 		if err != nil {
 			return nil, err
@@ -685,7 +683,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 			}
 
 			for _, imp := range allImports[item] {
-				rng, err := source.NewMappedRange(imp.cgf.Tok, imp.cgf.Mapper, imp.imp.Pos(), imp.imp.End()).Range()
+				rng, err := source.NewMappedRange(imp.cgf.Mapper, imp.imp.Pos(), imp.imp.End()).Range()
 				if err != nil {
 					return nil, err
 				}

@@ -88,7 +88,7 @@ func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protoco
 					if rdep.DepsByImpPath[UnquoteImportPath(imp)] == targetPkg.ID {
 						refs = append(refs, &ReferenceInfo{
 							Name:        pgf.File.Name.Name,
-							MappedRange: NewMappedRange(f.Tok, f.Mapper, imp.Pos(), imp.End()),
+							MappedRange: NewMappedRange(f.Mapper, imp.Pos(), imp.End()),
 						})
 					}
 				}
@@ -107,7 +107,7 @@ func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protoco
 			}
 			refs = append(refs, &ReferenceInfo{
 				Name:        pgf.File.Name.Name,
-				MappedRange: NewMappedRange(f.Tok, f.Mapper, f.File.Name.Pos(), f.File.Name.End()),
+				MappedRange: NewMappedRange(f.Mapper, f.File.Name.Pos(), f.File.Name.End()),
 			})
 		}
 

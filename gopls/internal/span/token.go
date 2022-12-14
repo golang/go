@@ -71,37 +71,26 @@ func (r Range) IsPoint() bool {
 // It will fill in all the members of the Span, calculating the line and column
 // information.
 func (r Range) Span() (Span, error) {
-	return FileSpan(r.TokFile, r.TokFile, r.Start, r.End)
+	return FileSpan(r.TokFile, r.Start, r.End)
 }
 
-// FileSpan returns a span within the file referenced by start and end, using a
-// token.File to translate between offsets and positions.
-//
-// The start and end position must be contained within posFile, though due to
-// line directives they may reference positions in another file. If srcFile is
-// provided, it is used to map the line:column positions referenced by start
-// and end to offsets in the corresponding file.
-//
-// TODO(adonovan): clarify whether it is valid to pass posFile==srcFile when
-// //line directives are in use. If so, fix this function; if not, fix Range.Span.
-func FileSpan(posFile, srcFile *token.File, start, end token.Pos) (Span, error) {
+// FileSpan returns a span within the file referenced by start and
+// end, using a token.File to translate between offsets and positions.
+func FileSpan(file *token.File, start, end token.Pos) (Span, error) {
 	if !start.IsValid() {
 		return Span{}, fmt.Errorf("start pos is not valid")
-	}
-	if posFile == nil {
-		return Span{}, bug.Errorf("missing file association") // should never get here with a nil file
 	}
 	var s Span
 	var err error
 	var startFilename string
-	startFilename, s.v.Start.Line, s.v.Start.Column, err = position(posFile, start)
+	startFilename, s.v.Start.Line, s.v.Start.Column, err = position(file, start)
 	if err != nil {
 		return Span{}, err
 	}
 	s.v.URI = URIFromPath(startFilename)
 	if end.IsValid() {
 		var endFilename string
-		endFilename, s.v.End.Line, s.v.End.Column, err = position(posFile, end)
+		endFilename, s.v.End.Line, s.v.End.Column, err = position(file, end)
 		if err != nil {
 			return Span{}, err
 		}
@@ -114,23 +103,7 @@ func FileSpan(posFile, srcFile *token.File, start, end token.Pos) (Span, error) 
 	s.v.Start.clean()
 	s.v.End.clean()
 	s.v.clean()
-	tf := posFile
-	if srcFile != nil {
-		tf = srcFile
-	}
-	if startFilename != tf.Name() {
-		// 'start' identifies a position specified by a //line directive
-		// in a file other than the one containing the directive.
-		// (Debugging support for https://github.com/golang/go/issues/54655.)
-		//
-		// This used to be a bug.Errorf, but that was unsound because
-		// Range.Span passes this function the same TokFile argument twice,
-		// which is never going to pass this test for a file containing
-		// a //line directive.
-		// TODO(adonovan): decide where the bug.Errorf really belongs.
-		return Span{}, fmt.Errorf("must supply Converter for file %q (tf.Name() = %q)", startFilename, tf.Name())
-	}
-	return s.WithOffset(tf)
+	return s.WithOffset(file)
 }
 
 func position(tf *token.File, pos token.Pos) (string, int, int, error) {
@@ -146,7 +119,7 @@ func positionFromOffset(tf *token.File, offset int) (string, int, int, error) {
 		return "", 0, 0, fmt.Errorf("offset %d is beyond EOF (%d) in file %s", offset, tf.Size(), tf.Name())
 	}
 	pos := tf.Pos(offset)
-	p := tf.PositionFor(pos, false)
+	p := tf.PositionFor(pos, false) // ignore line directives
 	// TODO(golang/go#41029): Consider returning line, column instead of line+1, 1 if
 	// the file's last character is not a newline.
 	if offset == tf.Size() {

@@ -240,7 +240,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 	default:
 		return 0, MappedRange{}, ErrNoRuneFound
 	}
-	return r, NewMappedRange(pgf.Tok, pgf.Mapper, start, end), nil
+	return r, NewMappedRange(pgf.Mapper, start, end), nil
 }
 
 func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error) {

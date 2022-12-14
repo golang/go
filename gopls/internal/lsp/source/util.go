@@ -26,8 +26,7 @@ import (
 // MappedRange provides mapped protocol.Range for a span.Range, accounting for
 // UTF-16 code points.
 //
-// TOOD(adonovan): stop treating //line directives specially, and
-// eliminate this type. All callers need either m, or a protocol.Range.
+// TOOD(adonovan): eliminate this type. All callers need either m, or a protocol.Range.
 type MappedRange struct {
 	spanRange span.Range             // the range in the compiled source (package.CompiledGoFiles)
 	m         *protocol.ColumnMapper // a mapper of the edited source (package.GoFiles)
@@ -41,14 +40,9 @@ type MappedRange struct {
 // CompiledGoFiles contains generated files, whose positions (via
 // token.File.Position) point to locations in the edited file -- the file
 // containing `import "C"`.
-func NewMappedRange(file *token.File, m *protocol.ColumnMapper, start, end token.Pos) MappedRange {
-	mapped := m.TokFile.Name()
-	adjusted := file.PositionFor(start, true) // adjusted position
-	if adjusted.Filename != mapped {
-		bug.Reportf("mapped file %q does not match start position file %q", mapped, adjusted.Filename)
-	}
+func NewMappedRange(m *protocol.ColumnMapper, start, end token.Pos) MappedRange {
 	return MappedRange{
-		spanRange: span.NewRange(file, start, end),
+		spanRange: span.NewRange(m.TokFile, start, end),
 		m:         m,
 	}
 }
@@ -61,7 +55,7 @@ func (s MappedRange) Range() (protocol.Range, error) {
 	if s.m == nil {
 		return protocol.Range{}, bug.Errorf("invalid range")
 	}
-	spn, err := s.Span()
+	spn, err := span.FileSpan(s.spanRange.TokFile, s.spanRange.Start, s.spanRange.End)
 	if err != nil {
 		return protocol.Range{}, err
 	}
@@ -80,7 +74,7 @@ func (s MappedRange) Span() (span.Span, error) {
 	if s.m == nil {
 		return span.Span{}, bug.Errorf("invalid range")
 	}
-	return span.FileSpan(s.spanRange.TokFile, s.m.TokFile, s.spanRange.Start, s.spanRange.End)
+	return span.FileSpan(s.spanRange.TokFile, s.spanRange.Start, s.spanRange.End)
 }
 
 // URI returns the URI of the edited file.
@@ -159,28 +153,12 @@ func posToMappedRange(pkg Package, pos, end token.Pos) (MappedRange, error) {
 		return MappedRange{}, fmt.Errorf("invalid end position")
 	}
 
-	fset := pkg.FileSet()
-	tokFile := fset.File(pos)
-	// Subtle: it is not safe to simplify this to tokFile.Name
-	// because, due to //line directives, a Position within a
-	// token.File may have a different filename than the File itself.
-	// BUT, things have changed, and we're ignoring line directives
-	logicalFilename := tokFile.PositionFor(pos, false).Filename
+	logicalFilename := pkg.FileSet().File(pos).Name() // ignore line directives
 	pgf, _, err := findFileInDeps(pkg, span.URIFromPath(logicalFilename))
 	if err != nil {
 		return MappedRange{}, err
 	}
-	// It is problematic that pgf.Mapper (from the parsed Go file) is
-	// accompanied here not by pgf.Tok but by tokFile from the global
-	// FileSet, which is a distinct token.File that doesn't
-	// contain [pos,end).
-	//
-	// This is done because tokFile is the *token.File for the compiled go file
-	// containing pos, whereas Mapper is the UTF16 mapper for the go file pointed
-	// to by line directives.
-	//
-	// TODO(golang/go#55043): clean this up.
-	return NewMappedRange(tokFile, pgf.Mapper, pos, end), nil
+	return NewMappedRange(pgf.Mapper, pos, end), nil
 }
 
 // FindPackageFromPos returns the Package for the given position, which must be

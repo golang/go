@@ -52,6 +52,7 @@ func sortImports(localPrefix string, tokFile *token.File, f *ast.File) {
 		d.Specs = specs
 
 		// Deduping can leave a blank line before the rparen; clean that up.
+		// Ignore line directives.
 		if len(d.Specs) > 0 {
 			lastSpec := d.Specs[len(d.Specs)-1]
 			lastLine := tokFile.PositionFor(lastSpec.Pos(), false).Line

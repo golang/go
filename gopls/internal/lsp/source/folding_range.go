@@ -42,7 +42,7 @@ func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFol
 	}
 
 	// Get folding ranges for comments separately as they are not walked by ast.Inspect.
-	ranges = append(ranges, commentsFoldingRange(pgf.Tok, pgf.Mapper, pgf.File)...)
+	ranges = append(ranges, commentsFoldingRange(pgf.Mapper, pgf.File)...)
 
 	visit := func(n ast.Node) bool {
 		rng := foldingRangeFunc(pgf.Tok, pgf.Mapper, n, lineFoldingOnly)
@@ -127,7 +127,7 @@ func foldingRangeFunc(tokFile *token.File, m *protocol.ColumnMapper, n ast.Node,
 		return nil
 	}
 	return &FoldingRangeInfo{
-		MappedRange: NewMappedRange(tokFile, m, start, end),
+		MappedRange: NewMappedRange(m, start, end),
 		Kind:        kind,
 	}
 }
@@ -157,7 +157,8 @@ func validLineFoldingRange(tokFile *token.File, open, close, start, end token.Po
 // commentsFoldingRange returns the folding ranges for all comment blocks in file.
 // The folding range starts at the end of the first line of the comment block, and ends at the end of the
 // comment block and has kind protocol.Comment.
-func commentsFoldingRange(tokFile *token.File, m *protocol.ColumnMapper, file *ast.File) (comments []*FoldingRangeInfo) {
+func commentsFoldingRange(m *protocol.ColumnMapper, file *ast.File) (comments []*FoldingRangeInfo) {
+	tokFile := m.TokFile
 	for _, commentGrp := range file.Comments {
 		startGrpLine, endGrpLine := tokFile.Line(commentGrp.Pos()), tokFile.Line(commentGrp.End())
 		if startGrpLine == endGrpLine {
@@ -175,7 +176,7 @@ func commentsFoldingRange(tokFile *token.File, m *protocol.ColumnMapper, file *a
 		}
 		comments = append(comments, &FoldingRangeInfo{
 			// Fold from the end of the first line comment to the end of the comment block.
-			MappedRange: NewMappedRange(tokFile, m, endLinePos, commentGrp.End()),
+			MappedRange: NewMappedRange(m, endLinePos, commentGrp.End()),
 			Kind:        protocol.Comment,
 		})
 	}

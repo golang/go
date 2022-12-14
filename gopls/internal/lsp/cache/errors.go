@@ -11,7 +11,6 @@ package cache
 import (
 	"fmt"
 	"go/scanner"
-	"go/token"
 	"go/types"
 	"log"
 	"regexp"
@@ -316,7 +315,7 @@ func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Sp
 	if fset != terr.Fset {
 		return 0, span.Span{}, bug.Errorf("wrong FileSet for type error")
 	}
-	posn := fset.PositionFor(start, false)
+	posn := fset.PositionFor(start, false) // ignore line directives
 	if !posn.IsValid() {
 		return 0, span.Span{}, fmt.Errorf("position %d of type error %q (code %q) not found in FileSet", start, start, terr)
 	}
@@ -327,15 +326,11 @@ func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Sp
 	if !end.IsValid() || end == start {
 		end = analysisinternal.TypeErrorEndPos(fset, pgf.Src, start)
 	}
-	spn, err := parsedGoSpan(pgf, start, end)
+	spn, err := span.FileSpan(pgf.Mapper.TokFile, start, end)
 	if err != nil {
 		return 0, span.Span{}, err
 	}
 	return ecode, spn, nil
-}
-
-func parsedGoSpan(pgf *source.ParsedGoFile, start, end token.Pos) (span.Span, error) {
-	return span.FileSpan(pgf.Mapper.TokFile, pgf.Mapper.TokFile, start, end)
 }
 
 // spanToRange converts a span.Span to a protocol.Range,

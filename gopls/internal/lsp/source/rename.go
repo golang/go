@@ -418,7 +418,7 @@ func renameImports(ctx context.Context, snapshot Snapshot, m *Metadata, newPath 
 				}
 
 				// Create text edit for the import path (string literal).
-				impPathMappedRange := NewMappedRange(f.Tok, f.Mapper, imp.Path.Pos(), imp.Path.End())
+				impPathMappedRange := NewMappedRange(f.Mapper, imp.Path.Pos(), imp.Path.End())
 				rng, err := impPathMappedRange.Range()
 				if err != nil {
 					return err

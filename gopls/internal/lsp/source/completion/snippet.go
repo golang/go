@@ -42,7 +42,7 @@ func (c *completer) structFieldSnippet(cand candidate, detail string, snip *snip
 	fset := c.pkg.FileSet()
 
 	// If the cursor position is on a different line from the literal's opening brace,
-	// we are in a multiline literal.
+	// we are in a multiline literal. Ignore line directives.
 	if fset.PositionFor(c.pos, false).Line != fset.PositionFor(clInfo.cl.Lbrace, false).Line {
 		snip.WriteText(",")
 	}

@@ -178,7 +178,6 @@ const (
 )
 
 func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string) {
-
 	if !start.IsValid() {
 		// This is not worth reporting. TODO(pjw): does it still happen?
 		return
@@ -186,17 +185,11 @@ func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string)
 	if start >= e.end || start+token.Pos(leng) <= e.start {
 		return
 	}
-	// want a line and column from start (in LSP coordinates)
-	// [//line directives should be ignored]
-	rng := source.NewMappedRange(e.pgf.Tok, e.pgf.Mapper, start, start+token.Pos(leng))
+	// want a line and column from start (in LSP coordinates). Ignore line directives.
+	rng := source.NewMappedRange(e.pgf.Mapper, start, start+token.Pos(leng))
 	lspRange, err := rng.Range()
 	if err != nil {
-		// possibly a //line directive. TODO(pjw): fix this somehow
-		// "column mapper is for file...instead of..."
-		// "line is beyond end of file..."
-		// see line 116 of internal/span/token.go which uses Position not PositionFor
-		// (it is too verbose to print the error on every token. some other RPC will fail)
-		// event.Error(e.ctx, "failed to convert to range", err)
+		event.Error(e.ctx, "failed to convert to range", err)
 		return
 	}
 	if lspRange.End.Line != lspRange.Start.Line {
@@ -254,7 +247,7 @@ func (e *encoded) strStack() string {
 		if !safetoken.InRange(e.pgf.Tok, loc) {
 			msg = append(msg, fmt.Sprintf("invalid position %v for %s", loc, e.pgf.URI))
 		} else if safetoken.InRange(e.pgf.Tok, loc) {
-			add := e.pgf.Tok.PositionFor(loc, false)
+			add := e.pgf.Tok.PositionFor(loc, false) // ignore line directives
 			nm := filepath.Base(add.Filename)
 			msg = append(msg, fmt.Sprintf("(%s:%d,col:%d)", nm, add.Line, add.Column))
 		} else {

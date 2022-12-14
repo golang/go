@@ -1398,7 +1398,7 @@ func (data *Data) collectCompletionSnippets(spn span.Span, item token.Pos, plain
 }
 
 func (data *Data) collectLinks(spn span.Span, link string, note *expect.Note, fset *token.FileSet) {
-	position := fset.PositionFor(note.Pos, false)
+	position := fset.PositionFor(note.Pos, false) // ignore line directives
 	uri := spn.URI()
 	data.Links[uri] = append(data.Links[uri], Link{
 		Src:          spn,
