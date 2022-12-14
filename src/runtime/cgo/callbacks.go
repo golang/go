@@ -5,7 +5,6 @@
 package cgo
 
 import (
-	"internal/abi"
 	"unsafe"
 )
 
@@ -84,20 +83,6 @@ var _cgo_sys_thread_create = &x_cgo_sys_thread_create
 //go:linkname _cgo_pthread_key_created _cgo_pthread_key_created
 var x_cgo_pthread_key_created byte
 var _cgo_pthread_key_created = &x_cgo_pthread_key_created
-
-// Export crosscall2 to a c variable.
-// Used to dropm in pthread_key_destructor, while c thread is exiting.
-
-//go:cgo_import_static x_cgo_crosscall
-//go:linkname x_cgo_crosscall x_cgo_crosscall
-var x_cgo_crosscall = abi.FuncPCABI0(cgo_crosscall)
-
-// cgo_crosscall simply jmp to crosscall2.
-
-//go:cgo_export_static cgo_crosscall
-//go:cgo_export_dynamic cgo_crosscall
-//go:linkname cgo_crosscall cgo_crosscall
-func cgo_crosscall()
 
 // Notifies that the runtime has been initialized.
 //

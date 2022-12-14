@@ -13,7 +13,7 @@
 #include "libcgo.h"
 #include "libcgo_unix.h"
 
-void crosscall2(void (*fn)(void *), void *, int, size_t);
+extern void crosscall2(void (*fn)(void *), void *, int, size_t);
 
 static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -23,7 +23,6 @@ static pthread_key_t dump_key;
 static void *dump_value;
 static void pthread_key_destructor(void *value);
 uintptr_t x_cgo_pthread_key_created;
-void (*x_cgo_crosscall)(void (*fn)(void *), void *, int, size_t);
 
 // The context function, used when tracing back C calls into Go.
 static void (*cgo_context_function)(struct context_arg*);
