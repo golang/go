@@ -94,6 +94,7 @@ type FnState struct {
 	Absfn         Sym
 	StartPC       Sym
 	Size          int64
+	StartLine     int32
 	External      bool
 	Scopes        []Scope
 	InlCalls      InlCalls
@@ -458,6 +459,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 			{DW_AT_high_pc, DW_FORM_addr},
 			{DW_AT_frame_base, DW_FORM_block1},
 			{DW_AT_decl_file, DW_FORM_data4},
+			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_external, DW_FORM_flag},
 		},
 	},
@@ -482,6 +484,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
 		[]dwAttrForm{
 			{DW_AT_name, DW_FORM_string},
 			{DW_AT_inline, DW_FORM_data1},
+			{DW_AT_decl_line, DW_FORM_udata},
 			{DW_AT_external, DW_FORM_flag},
 		},
 	},
@@ -1254,6 +1257,8 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
 	// DW_AT_inlined value
 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_data1, DW_CLS_CONSTANT, int64(DW_INL_inlined), nil)
 
+	putattr(ctxt, s.Absfn, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartLine), nil)
+
 	var ev int64
 	if s.External {
 		ev = 1
@@ -1446,6 +1451,8 @@ func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
 		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, int64(1), 0)
 	} else {
 		ctxt.AddFileRef(s.Info, s.Filesym)
+		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartLine), nil)
+
 		var ev int64
 		if s.External {
 			ev = 1

@@ -23,7 +23,7 @@ import (
 	"cmd/internal/src"
 )
 
-func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
+func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) (scopes []dwarf.Scope, inlcalls dwarf.InlCalls, startPos src.XPos) {
 	fn := curfn.(*ir.Func)
 
 	if fn.Nname != nil {
@@ -124,12 +124,11 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 		varScopes = append(varScopes, findScope(fn.Marks, pos))
 	}
 
-	scopes := assembleScopes(fnsym, fn, dwarfVars, varScopes)
-	var inlcalls dwarf.InlCalls
+	scopes = assembleScopes(fnsym, fn, dwarfVars, varScopes)
 	if base.Flag.GenDwarfInl > 0 {
 		inlcalls = assembleInlines(fnsym, dwarfVars)
 	}
-	return scopes, inlcalls
+	return scopes, inlcalls, fn.Pos()
 }
 
 func declPos(decl *ir.Name) src.XPos {

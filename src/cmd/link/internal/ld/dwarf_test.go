@@ -334,10 +334,12 @@ func main() {
 	}
 }
 
-func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFile string, expectLine int, directive string) {
+// expectLine is the expected line for main.
+func varDeclCoordsAndSubprogramDeclFile(t *testing.T, testpoint string, expectFile string, expectLine int, directive string) {
 	t.Parallel()
 
 	prog := fmt.Sprintf("package main\n%s\nfunc main() {\n\nvar i int\ni = i\n}\n", directive)
+	const iLineOffset = 2
 
 	dir := t.TempDir()
 
@@ -385,9 +387,12 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
 	}
 
 	// Verify line/file attributes.
-	line := iEntry.Val(dwarf.AttrDeclLine)
-	if line == nil || line.(int64) != int64(expectLine) {
-		t.Errorf("DW_AT_decl_line for i is %v, want %d", line, expectLine)
+	line, lineOK := iEntry.Val(dwarf.AttrDeclLine).(int64)
+	if !lineOK {
+		t.Errorf("missing or invalid DW_AT_decl_line for i")
+	}
+	if line != int64(expectLine+iLineOffset) {
+		t.Errorf("DW_AT_decl_line for i is %v, want %d", line, expectLine+iLineOffset)
 	}
 
 	fileIdx, fileIdxOK := maindie.Val(dwarf.AttrDeclFile).(int64)
@@ -402,6 +407,14 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
 	if base != expectFile {
 		t.Errorf("DW_AT_decl_file for main is %v, want %v", base, expectFile)
 	}
+
+	line, lineOK = maindie.Val(dwarf.AttrDeclLine).(int64)
+	if !lineOK {
+		t.Errorf("missing or invalid DW_AT_decl_line for main")
+	}
+	if line != int64(expectLine) {
+		t.Errorf("DW_AT_decl_line for main is %v, want %d", line, expectLine)
+	}
 }
 
 func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
@@ -411,7 +424,7 @@ func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoords", "test.go", 5, "")
+	varDeclCoordsAndSubprogramDeclFile(t, "TestVarDeclCoords", "test.go", 3, "")
 }
 
 func TestVarDeclCoordsWithLineDirective(t *testing.T) {
@@ -421,8 +434,8 @@ func TestVarDeclCoordsWithLineDirective(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
-		"foobar.go", 202, "//line /foobar.go:200")
+	varDeclCoordsAndSubprogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
+		"foobar.go", 200, "//line /foobar.go:200")
 }
 
 func TestInlinedRoutineRecords(t *testing.T) {
