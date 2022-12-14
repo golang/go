@@ -6565,7 +6565,8 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	putidlec := make(chan chan struct{})
+	putidlec := make(chan chan struct{}, 1)
+	reqerrc := make(chan error, 1)
 	go func() {
 		defer wg.Done()
 		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
@@ -6574,16 +6575,15 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 				// and wait for the order to proceed.
 				ch := make(chan struct{})
 				putidlec <- ch
+				close(putidlec) // panic if PutIdleConn runs twice for some reason
 				<-ch
 			},
 		})
 		req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 		res, err := client.Do(req)
+		reqerrc <- err
 		if err == nil {
 			res.Body.Close()
-		}
-		if err != nil {
-			t.Errorf("request 1: got err %v, want nil", err)
 		}
 	}()
 
@@ -6591,7 +6591,15 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 	// connection to the idle pool.
 	r1c := <-reqc
 	close(r1c)
-	idlec := <-putidlec
+	var idlec chan struct{}
+	select {
+	case err := <-reqerrc:
+		if err != nil {
+			t.Fatalf("request 1: got err %v, want nil", err)
+		}
+		idlec = <-putidlec
+	case idlec = <-putidlec:
+	}
 
 	wg.Add(1)
 	cancelctx, cancel := context.WithCancel(context.Background())
