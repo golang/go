@@ -46,7 +46,7 @@ func (w *pooledFlateWriter) Write(p []byte) (n int, err error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.fw == nil {
-		return 0, errors.New("Write after Close")
+		return 0, errors.New("write after close")
 	}
 	return w.fw.Write(p)
 }
@@ -84,7 +84,7 @@ func (r *pooledFlateReader) Read(p []byte) (n int, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.fr == nil {
-		return 0, errors.New("Read after Close")
+		return 0, errors.New("read after close")
 	}
 	return r.fr.Read(p)
 }
