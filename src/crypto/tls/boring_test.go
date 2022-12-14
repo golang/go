@@ -269,7 +269,7 @@ func TestBoringClientHello(t *testing.T) {
 
 	go Client(c, clientConfig).Handshake()
 	srv := Server(s, testConfig)
-	msg, err := srv.readHandshake()
+	msg, err := srv.readHandshake(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
