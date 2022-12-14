@@ -32,6 +32,8 @@ func main() {
 		},
 		"runtime error: array length is greater than slice length",
 	)
+
+	f()
 }
 
 type arr [2]int

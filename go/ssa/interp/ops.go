@@ -1395,18 +1395,15 @@ func conv(t_dst, t_src types.Type, x value) value {
 // sliceToArrayPointer converts the value x of type slice to type t_dst
 // a pointer to array and returns the result.
 func sliceToArrayPointer(t_dst, t_src types.Type, x value) value {
-	utSrc := t_src.Underlying()
-	utDst := t_dst.Underlying()
-
-	if _, ok := utSrc.(*types.Slice); ok {
-		if utSrc, ok := utDst.(*types.Pointer); ok {
-			if arr, ok := utSrc.Elem().(*types.Array); ok {
+	if _, ok := t_src.Underlying().(*types.Slice); ok {
+		if ptr, ok := t_dst.Underlying().(*types.Pointer); ok {
+			if arr, ok := ptr.Elem().Underlying().(*types.Array); ok {
 				x := x.([]value)
 				if arr.Len() > int64(len(x)) {
 					panic("array length is greater than slice length")
 				}
 				if x == nil {
-					return zero(utSrc)
+					return zero(t_dst)
 				}
 				v := value(array(x[:arr.Len()]))
 				return &v
