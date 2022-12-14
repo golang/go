@@ -3204,6 +3204,9 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	cgoflags := []string{}
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
+		// Ignore the undefined reference error, since we invoke crosscall2 in gcc_libinit.c,
+		// but crosscall2 is in asm_ARCH.s, won't link with the object compiled from gcc_libinit.c,
+		// while compling runtime/cgo.
 		if runtime.GOOS == "darwin" {
 			cgoLDFLAGS = append(cgoLDFLAGS, "-Wl,-undefined,dynamic_lookup")
 		} else {
