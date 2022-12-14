@@ -152,4 +152,7 @@ func Call(call *ir.CallExpr) {
 	default:
 		call.SetType(ft.Results())
 	}
+
+	// Desugar OCALLMETH, if we created one (#57309).
+	typecheck.FixMethodCall(call)
 }
