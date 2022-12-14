@@ -944,6 +944,29 @@ multi-dimensional types.
 [2][2][2]float64  // same as [2]([2]([2]float64))
 </pre>
 
+<p>
+An array type <code>T</code> may not have an element of type <code>T</code>,
+or of a type containing <code>T</code> as a component, directly or indirectly,
+if those containing types are only array or struct types.
+</p>
+
+<pre>
+// valid array types
+type (
+	T1 [10]T1                 // element type of T1 is T1
+	T2 [10]struct{ f T2 }     // T2 contains T2 as component of a struct
+	T3 [10]T4                 // T3 contains T3 as component of a struct in T4
+	T4 struct{ f T3 }         // T4 contains T4 as component of array T3 in a struct
+)
+
+// valid array types
+type (
+	T5 [10]*T5                // T5 contains T5 as component of a pointer
+	T6 [10]func() T6          // T6 contains T6 as component of a function type
+	T7 [10]struct{ f []T7 }   // T7 contains T7 as component of a slice in a struct
+)
+</pre>
+
 <h3 id="Slice_types">Slice types</h3>
 
 <p>
@@ -1134,6 +1157,29 @@ struct {
 	microsec  uint64 `protobuf:"1"`
 	serverIP6 uint64 `protobuf:"2"`
 }
+</pre>
+
+<p>
+A struct type <code>T</code> may not contain a field of type <code>T</code>,
+or of a type containing <code>T</code> as a component, directly or indirectly,
+if those containing types are only array or struct types.
+</p>
+
+<pre>
+// invalid struct types
+type (
+	T1 struct{ T1 }            // T1 contains a field of T1
+	T2 struct{ f [10]T2 }      // T2 contains T2 as component of an array
+	T3 struct{ T4 }            // T3 contains T3 as component of an array in struct T4
+	T4 struct{ f [10]T3 }      // T4 contains T4 as component of struct T3 in an array
+)
+
+// valid struct types
+type (
+	T5 struct{ f *T5 }         // T5 contains T5 as component of a pointer
+	T6 struct{ f func() T6 }   // T6 contains T6 as component of a function type
+	T7 struct{ f [10][]T7 }    // T7 contains T7 as component of a slice in an array
+)
 </pre>
 
 <h3 id="Pointer_types">Pointer types</h3>
@@ -1511,17 +1557,17 @@ type Floatish struct {
 </pre>
 
 <p>
-An interface type <code>T</code> may not embed any type element
-that is, contains, or embeds <code>T</code>, recursively.
+An interface type <code>T</code> may not embed a type element
+that is, contains, or embeds <code>T</code>, directly or indirectly.
 </p>
 
 <pre>
-// illegal: Bad cannot embed itself
+// illegal: Bad may not embed itself
 type Bad interface {
 	Bad
 }
 
-// illegal: Bad1 cannot embed itself using Bad2
+// illegal: Bad1 may not embed itself using Bad2
 type Bad1 interface {
 	Bad2
 }
@@ -1529,9 +1575,14 @@ type Bad2 interface {
 	Bad1
 }
 
-// illegal: Bad3 cannot embed a union containing Bad3
+// illegal: Bad3 may not embed a union containing Bad3
 type Bad3 interface {
 	~int | ~string | Bad3
+}
+
+// illegal: Bad4 may not embed an array containing Bad4 as element type
+type Bad4 interface {
+	[10]Bad4
 }
 </pre>
 
