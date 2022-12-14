@@ -69,30 +69,55 @@ var analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
+var other = &analysis.Analyzer{ // like analyzer but with a different Name.
+	Name:     "other",
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
+	Run:      run,
+}
+
 func run(pass *analysis.Pass) (interface{}, error) {
 	const (
-		from = "bar"
-		to   = "baz"
+		from      = "bar"
+		to        = "baz"
+		conflict  = "conflict"  // add conflicting edits to package conflict.
+		duplicate = "duplicate" // add duplicate edits to package conflict.
+		other     = "other"     // add conflicting edits to package other from different analyzers.
 	)
+
+	if pass.Analyzer.Name == other {
+		if pass.Pkg.Name() != other {
+			return nil, nil // only apply Analyzer other to packages named other
+		}
+	}
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	nodeFilter := []ast.Node{(*ast.Ident)(nil)}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
 		ident := n.(*ast.Ident)
 		if ident.Name == from {
 			msg := fmt.Sprintf("renaming %q to %q", from, to)
+			edits := []analysis.TextEdit{
+				{Pos: ident.Pos(), End: ident.End(), NewText: []byte(to)},
+			}
+			switch pass.Pkg.Name() {
+			case conflict:
+				edits = append(edits, []analysis.TextEdit{
+					{Pos: ident.Pos() - 1, End: ident.End(), NewText: []byte(to)},
+					{Pos: ident.Pos(), End: ident.End() - 1, NewText: []byte(to)},
+					{Pos: ident.Pos(), End: ident.End(), NewText: []byte("lorem ipsum")},
+				}...)
+			case duplicate:
+				edits = append(edits, edits...)
+			case other:
+				if pass.Analyzer.Name == other {
+					edits[0].Pos = edits[0].Pos + 1 // shift by one to mismatch analyzer and other
+				}
+			}
 			pass.Report(analysis.Diagnostic{
-				Pos:     ident.Pos(),
-				End:     ident.End(),
-				Message: msg,
-				SuggestedFixes: []analysis.SuggestedFix{{
-					Message: msg,
-					TextEdits: []analysis.TextEdit{{
-						Pos:     ident.Pos(),
-						End:     ident.End(),
-						NewText: []byte(to),
-					}},
-				}},
-			})
+				Pos:            ident.Pos(),
+				End:            ident.End(),
+				Message:        msg,
+				SuggestedFixes: []analysis.SuggestedFix{{Message: msg, TextEdits: edits}}})
 		}
 	})
 

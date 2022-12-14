@@ -15,7 +15,6 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"io/ioutil"
@@ -33,6 +32,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/diff"
+	"golang.org/x/tools/internal/robustio"
 )
 
 var (
@@ -308,6 +309,9 @@ func analyze(pkgs []*packages.Package, analyzers []*analysis.Analyzer) []*action
 }
 
 func applyFixes(roots []*action) error {
+	// visit all of the actions and accumulate the suggested edits.
+	paths := make(map[robustio.FileID]string)
+	editsByAction := make(map[robustio.FileID]map[*action][]diff.Edit)
 	visited := make(map[*action]bool)
 	var apply func(*action) error
 	var visitAll func(actions []*action) error
@@ -326,75 +330,42 @@ func applyFixes(roots []*action) error {
 		return nil
 	}
 
-	// TODO(matloob): Is this tree business too complicated? (After all this is Go!)
-	// Just create a set (map) of edits, sort by pos and call it a day?
-	type offsetedit struct {
-		start, end int
-		newText    []byte
-	} // TextEdit using byteOffsets instead of pos
-	type node struct {
-		edit        offsetedit
-		left, right *node
-	}
-	// Edits x and y are equivalent.
-	equiv := func(x, y offsetedit) bool {
-		return x.start == y.start && x.end == y.end && bytes.Equal(x.newText, y.newText)
-	}
-
-	var insert func(tree **node, edit offsetedit) error
-	insert = func(treeptr **node, edit offsetedit) error {
-		if *treeptr == nil {
-			*treeptr = &node{edit, nil, nil}
-			return nil
-		}
-		tree := *treeptr
-		if edit.end <= tree.edit.start {
-			return insert(&tree.left, edit)
-		} else if edit.start >= tree.edit.end {
-			return insert(&tree.right, edit)
-		}
-		if equiv(edit, tree.edit) { // equivalent edits?
-			// We skip over equivalent edits without considering them
-			// an error. This handles identical edits coming from the
-			// multiple ways of loading a package into a
-			// *go/packages.Packages for testing, e.g. packages "p" and "p [p.test]".
-			return nil
-		}
-
-		// Overlapping text edit.
-		return fmt.Errorf("analyses applying overlapping text edits affecting pos range (%v, %v) and (%v, %v)",
-			edit.start, edit.end, tree.edit.start, tree.edit.end)
-
-	}
-
-	editsForFile := make(map[*token.File]*node)
-
 	apply = func(act *action) error {
+		editsForTokenFile := make(map[*token.File][]diff.Edit)
 		for _, diag := range act.diagnostics {
 			for _, sf := range diag.SuggestedFixes {
 				for _, edit := range sf.TextEdits {
 					// Validate the edit.
+					// Any error here indicates a bug in the analyzer.
+					file := act.pkg.Fset.File(edit.Pos)
+					if file == nil {
+						return fmt.Errorf("analysis %q suggests invalid fix: missing file info for pos (%v)",
+							act.a.Name, edit.Pos)
+					}
 					if edit.Pos > edit.End {
-						return fmt.Errorf(
-							"diagnostic for analysis %v contains Suggested Fix with malformed edit: pos (%v) > end (%v)",
+						return fmt.Errorf("analysis %q suggests invalid fix: pos (%v) > end (%v)",
 							act.a.Name, edit.Pos, edit.End)
 					}
-					file, endfile := act.pkg.Fset.File(edit.Pos), act.pkg.Fset.File(edit.End)
-					if file == nil || endfile == nil || file != endfile {
-						return (fmt.Errorf(
-							"diagnostic for analysis %v contains Suggested Fix with malformed spanning files %v and %v",
-							act.a.Name, file.Name(), endfile.Name()))
+					if eof := token.Pos(file.Base() + file.Size()); edit.End > eof {
+						return fmt.Errorf("analysis %q suggests invalid fix: end (%v) past end of file (%v)",
+							act.a.Name, edit.End, eof)
 					}
-					start, end := file.Offset(edit.Pos), file.Offset(edit.End)
-
-					// TODO(matloob): Validate that edits do not affect other packages.
-					root := editsForFile[file]
-					if err := insert(&root, offsetedit{start, end, edit.NewText}); err != nil {
-						return err
-					}
-					editsForFile[file] = root // In case the root changed
+					edit := diff.Edit{Start: file.Offset(edit.Pos), End: file.Offset(edit.End), New: string(edit.NewText)}
+					editsForTokenFile[file] = append(editsForTokenFile[file], edit)
 				}
 			}
+		}
+
+		for f, edits := range editsForTokenFile {
+			id, _, err := robustio.GetFileID(f.Name())
+			if err != nil {
+				return err
+			}
+			if _, hasId := paths[id]; !hasId {
+				paths[id] = f.Name()
+				editsByAction[id] = make(map[*action][]diff.Edit)
+			}
+			editsByAction[id][act] = edits
 		}
 		return nil
 	}
@@ -403,57 +374,124 @@ func applyFixes(roots []*action) error {
 		return err
 	}
 
-	fset := token.NewFileSet() // Shared by parse calls below
-	// Now we've got a set of valid edits for each file. Get the new file contents.
-	for f, tree := range editsForFile {
-		contents, err := ioutil.ReadFile(f.Name())
+	// Validate and group the edits to each actual file.
+	editsByPath := make(map[string][]diff.Edit)
+	for id, actToEdits := range editsByAction {
+		path := paths[id]
+		actions := make([]*action, 0, len(actToEdits))
+		for act := range actToEdits {
+			actions = append(actions, act)
+		}
+
+		// Does any action create conflicting edits?
+		for _, act := range actions {
+			edits := actToEdits[act]
+			if _, invalid := validateEdits(edits); invalid > 0 {
+				name, x, y := act.a.Name, edits[invalid-1], edits[invalid]
+				return diff3Conflict(path, name, name, []diff.Edit{x}, []diff.Edit{y})
+			}
+		}
+
+		// Does any pair of different actions create edits that conflict?
+		for j := range actions {
+			for k := range actions[:j] {
+				x, y := actions[j], actions[k]
+				if x.a.Name > y.a.Name {
+					x, y = y, x
+				}
+				xedits, yedits := actToEdits[x], actToEdits[y]
+				combined := append(xedits, yedits...)
+				if _, invalid := validateEdits(combined); invalid > 0 {
+					// TODO: consider applying each action's consistent list of edits entirely,
+					// and then using a three-way merge (such as GNU diff3) on the resulting
+					// files to report more precisely the parts that actually conflict.
+					return diff3Conflict(path, x.a.Name, y.a.Name, xedits, yedits)
+				}
+			}
+		}
+
+		var edits []diff.Edit
+		for act := range actToEdits {
+			edits = append(edits, actToEdits[act]...)
+		}
+		editsByPath[path], _ = validateEdits(edits) // remove duplicates. already validated.
+	}
+
+	// Now we've got a set of valid edits for each file. Apply them.
+	for path, edits := range editsByPath {
+		contents, err := ioutil.ReadFile(path)
 		if err != nil {
 			return err
 		}
 
-		cur := 0 // current position in the file
-
-		var out bytes.Buffer
-
-		var recurse func(*node)
-		recurse = func(node *node) {
-			if node.left != nil {
-				recurse(node.left)
-			}
-
-			edit := node.edit
-			if edit.start > cur {
-				out.Write(contents[cur:edit.start])
-				out.Write(edit.newText)
-			} else if cur == 0 && edit.start == 0 { // edit starts at first character?
-				out.Write(edit.newText)
-			}
-			cur = edit.end
-
-			if node.right != nil {
-				recurse(node.right)
-			}
+		applied, err := diff.Apply(string(contents), edits)
+		if err != nil {
+			return err
 		}
-		recurse(tree)
-		// Write out the rest of the file.
-		if cur < len(contents) {
-			out.Write(contents[cur:])
-		}
+		out := []byte(applied)
 
 		// Try to format the file.
-		ff, err := parser.ParseFile(fset, f.Name(), out.Bytes(), parser.ParseComments)
-		if err == nil {
-			var buf bytes.Buffer
-			if err = format.Node(&buf, fset, ff); err == nil {
-				out = buf
-			}
+		if formatted, err := format.Source(out); err == nil {
+			out = formatted
 		}
 
-		if err := ioutil.WriteFile(f.Name(), out.Bytes(), 0644); err != nil {
+		if err := ioutil.WriteFile(path, out, 0644); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// validateEdits returns a list of edits that is sorted and
+// contains no duplicate edits. Returns the index of some
+// overlapping adjacent edits if there is one and <0 if the
+// edits are valid.
+func validateEdits(edits []diff.Edit) ([]diff.Edit, int) {
+	if len(edits) == 0 {
+		return nil, -1
+	}
+	equivalent := func(x, y diff.Edit) bool {
+		return x.Start == y.Start && x.End == y.End && x.New == y.New
+	}
+	diff.SortEdits(edits)
+	unique := []diff.Edit{edits[0]}
+	invalid := -1
+	for i := 1; i < len(edits); i++ {
+		prev, cur := edits[i-1], edits[i]
+		// We skip over equivalent edits without considering them
+		// an error. This handles identical edits coming from the
+		// multiple ways of loading a package into a
+		// *go/packages.Packages for testing, e.g. packages "p" and "p [p.test]".
+		if !equivalent(prev, cur) {
+			unique = append(unique, cur)
+			if prev.End > cur.Start {
+				invalid = i
+			}
+		}
+	}
+	return unique, invalid
+}
+
+// diff3Conflict returns an error describing two conflicting sets of
+// edits on a file at path.
+func diff3Conflict(path string, xlabel, ylabel string, xedits, yedits []diff.Edit) error {
+	contents, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	oldlabel, old := "base", string(contents)
+
+	xdiff, err := diff.ToUnified(oldlabel, xlabel, old, xedits)
+	if err != nil {
+		return err
+	}
+	ydiff, err := diff.ToUnified(oldlabel, ylabel, old, yedits)
+	if err != nil {
+		return err
+	}
+
+	return fmt.Errorf("conflicting edits from %s and %s on %s\nfirst edits:\n%s\nsecond edits:\n%s",
+		xlabel, ylabel, path, xdiff, ydiff)
 }
 
 // printDiagnostics prints the diagnostics for the root packages in either
