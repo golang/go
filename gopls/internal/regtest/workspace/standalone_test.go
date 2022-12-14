@@ -11,12 +11,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
-	"golang.org/x/tools/internal/testenv"
 )
 
 func TestStandaloneFiles(t *testing.T) {
-	testenv.NeedsGo1Point(t, 16) // Standalone files are only supported at Go 1.16 and later.
-
 	const files = `
 -- go.mod --
 module mod.test
@@ -185,8 +182,6 @@ func main() {
 }
 
 func TestStandaloneFiles_Configuration(t *testing.T) {
-	testenv.NeedsGo1Point(t, 16) // Standalone files are only supported at Go 1.16 and later.
-
 	const files = `
 -- go.mod --
 module mod.test

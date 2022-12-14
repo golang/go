@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/internal/testenv"
 
 	. "golang.org/x/tools/gopls/internal/lsp/lsprpc"
 )
@@ -26,8 +25,6 @@ func (s *initServer) Initialize(ctx context.Context, params *protocol.ParamIniti
 }
 
 func TestGoEnvMiddleware(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
-
 	ctx := context.Background()
 
 	server := &initServer{}

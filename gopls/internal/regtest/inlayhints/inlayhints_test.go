@@ -10,7 +10,6 @@ import (
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
@@ -19,7 +18,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestEnablingInlayHints(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14) // Test fails on 1.13.
 	const workspace = `
 -- go.mod --
 module inlayHint.test

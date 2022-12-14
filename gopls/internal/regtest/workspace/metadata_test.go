@@ -15,9 +15,6 @@ import (
 // file.
 
 func TestFixImportDecl(t *testing.T) {
-	// It appears that older Go versions don't even see p.go from the initial
-	// workspace load.
-	testenv.NeedsGo1Point(t, 15)
 	const src = `
 -- go.mod --
 module mod.test

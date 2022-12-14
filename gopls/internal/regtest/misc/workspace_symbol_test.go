@@ -10,13 +10,9 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/internal/testenv"
 )
 
 func TestWorkspaceSymbolMissingMetadata(t *testing.T) {
-	// We get 2 symbols on 1.12, for some reason.
-	testenv.NeedsGo1Point(t, 13)
-
 	const files = `
 -- go.mod --
 module mod.com

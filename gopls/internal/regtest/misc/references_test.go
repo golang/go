@@ -14,7 +14,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
-	"golang.org/x/tools/internal/testenv"
 )
 
 func TestStdlibReferences(t *testing.T) {
@@ -295,7 +294,6 @@ func _() {
 // implementations in vendored modules were not found. The actual fix
 // was the same as for #55995; see TestVendoringInvalidatesMetadata.
 func TestImplementationsInVendor(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 	const proxy = `
 -- other.com/b@v1.0.0/go.mod --
 module other.com/b

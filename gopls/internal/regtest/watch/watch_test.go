@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
@@ -371,7 +370,6 @@ func _() {
 // Tests golang/go#38498. Delete a file and then force a reload.
 // Assert that we no longer try to load the file.
 func TestDeleteFiles(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13) // Poor overlay support causes problems on 1.12.
 	const pkg = `
 -- go.mod --
 module mod.com
@@ -572,8 +570,6 @@ func main() {
 
 // Reproduces golang/go#40340.
 func TestSwitchFromGOPATHToModules(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
-
 	const files = `
 -- foo/blah/blah.go --
 package blah
@@ -607,8 +603,6 @@ func main() {
 
 // Reproduces golang/go#40487.
 func TestSwitchFromModulesToGOPATH(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
-
 	const files = `
 -- foo/go.mod --
 module mod.com

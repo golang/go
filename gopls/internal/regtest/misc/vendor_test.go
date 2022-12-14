@@ -10,7 +10,6 @@ import (
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/internal/testenv"
 )
 
 const basicProxy = `
@@ -25,8 +24,6 @@ var Goodbye error
 `
 
 func TestInconsistentVendoring(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const pkgThatUsesVendoring = `
 -- go.mod --
 module mod.com

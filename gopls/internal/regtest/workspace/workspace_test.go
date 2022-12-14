@@ -276,8 +276,6 @@ func Hello() int {
 }
 
 func TestMultiModuleWithExclude(t *testing.T) {
-	testenv.NeedsGo1Point(t, 16)
-
 	const proxy = `
 -- c.com@v1.2.3/go.mod --
 module c.com
@@ -504,7 +502,6 @@ func Hello() int {
 func TestUseGoplsMod(t *testing.T) {
 	// This test validates certain functionality related to using a gopls.mod
 	// file to specify workspace modules.
-	testenv.NeedsGo1Point(t, 14)
 	const multiModule = `
 -- moda/a/go.mod --
 module a.com
@@ -647,7 +644,6 @@ module example.com/bar
 func TestUseGoWork(t *testing.T) {
 	// This test validates certain functionality related to using a go.work
 	// file to specify workspace modules.
-	testenv.NeedsGo1Point(t, 14)
 	const multiModule = `
 -- moda/a/go.mod --
 module a.com
@@ -924,8 +920,6 @@ use (
 }
 
 func TestNonWorkspaceFileCreation(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
-
 	const files = `
 -- go.mod --
 module mod.com
@@ -1006,8 +1000,6 @@ func main() {
 // Confirm that a fix for a tidy module will correct all modules in the
 // workspace.
 func TestMultiModule_OneBrokenModule(t *testing.T) {
-	testenv.NeedsGo1Point(t, 15)
-
 	const mod = `
 -- a/go.mod --
 module a.com
@@ -1138,10 +1130,6 @@ use (
 
 // Tests the fix for golang/go#52500.
 func TestChangeTestVariant_Issue52500(t *testing.T) {
-	// This test fails for unknown reasons at Go <= 15. Presumably the loading of
-	// test variants behaves differently, possibly due to lack of support for
-	// native overlays.
-	testenv.NeedsGo1Point(t, 16)
 	const src = `
 -- go.mod --
 module mod.test

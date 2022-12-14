@@ -298,10 +298,6 @@ func RunTests(t *testing.T, dataDir string, includeMultiModule bool, f func(*tes
 	}
 	for _, mode := range modes {
 		t.Run(mode, func(t *testing.T) {
-			if mode == "MultiModule" {
-				// Some bug in 1.12 breaks reading markers, and it's not worth figuring out.
-				testenv.NeedsGo1Point(t, 13)
-			}
 			datum := load(t, mode, dataDir)
 			t.Helper()
 			f(t, datum)
@@ -577,9 +573,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 					if strings.Contains(t.Name(), "cgo") {
 						testenv.NeedsTool(t, "cgo")
 					}
-					if strings.Contains(t.Name(), "declarecgo") {
-						testenv.NeedsGo1Point(t, 15)
-					}
 					test(t, src, e, data.CompletionItems)
 				})
 			}
@@ -763,9 +756,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 				t.Helper()
 				if strings.Contains(t.Name(), "cgo") {
 					testenv.NeedsTool(t, "cgo")
-				}
-				if strings.Contains(t.Name(), "declarecgo") {
-					testenv.NeedsGo1Point(t, 15)
 				}
 				tests.Definition(t, spn, d)
 			})

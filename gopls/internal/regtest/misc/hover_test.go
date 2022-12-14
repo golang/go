@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
-	"golang.org/x/tools/internal/testenv"
 )
 
 func TestHoverUnexported(t *testing.T) {
@@ -82,7 +81,6 @@ func main() {
 }
 
 func TestHoverIntLiteral(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
 	const source = `
 -- main.go --
 package main
@@ -114,7 +112,6 @@ func main() {
 
 // Tests that hovering does not trigger the panic in golang/go#48249.
 func TestPanicInHoverBrokenCode(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
 	const source = `
 -- main.go --
 package main
@@ -143,9 +140,6 @@ package main
 }
 
 func TestHoverImport(t *testing.T) {
-	// For Go.13 and earlier versions, Go will try to download imported but missing packages. This behavior breaks the
-	// workspace as Go fails to download non-existent package "mod.com/lib4"
-	testenv.NeedsGo1Point(t, 14)
 	const packageDoc1 = "Package lib1 hover documentation"
 	const packageDoc2 = "Package lib2 hover documentation"
 	tests := []struct {
@@ -224,7 +218,6 @@ func main() {
 
 // for x/tools/gopls: unhandled named anchor on the hover #57048
 func TestHoverTags(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14) // until go1.13 is dropped from kokoro
 	const source = `
 -- go.mod --
 module mod.com

@@ -146,8 +146,6 @@ import "example.com/x"
 
 var _, _ = x.X, y.Y
 `
-	testenv.NeedsGo1Point(t, 15)
-
 	modcache, err := ioutil.TempDir("", "TestGOMODCACHE-modcache")
 	if err != nil {
 		t.Fatal(err)

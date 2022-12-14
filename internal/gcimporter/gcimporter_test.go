@@ -443,7 +443,6 @@ func init() {
 }
 
 func TestImportedTypes(t *testing.T) {
-	testenv.NeedsGo1Point(t, 11)
 	// This package only handles gc export data.
 	needsCompiler(t, "gc")
 	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
@@ -471,7 +470,6 @@ func TestImportedTypes(t *testing.T) {
 }
 
 func TestImportedConsts(t *testing.T) {
-	testenv.NeedsGo1Point(t, 11)
 	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
 
 	tests := []struct {
@@ -752,7 +750,6 @@ func TestIssue20046(t *testing.T) {
 }
 
 func TestIssue25301(t *testing.T) {
-	testenv.NeedsGo1Point(t, 11)
 	// This package only handles gc export data.
 	needsCompiler(t, "gc")
 

@@ -67,8 +67,6 @@ const Name = "Hello"
 `
 
 func TestModFileModification(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const untidyModule = `
 -- a/go.mod --
 module mod.com
@@ -161,7 +159,6 @@ func main() {
 }
 
 func TestGoGetFix(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 	const mod = `
 -- a/go.mod --
 module mod.com
@@ -213,7 +210,6 @@ require example.com v1.2.3
 
 // Tests that multiple missing dependencies gives good single fixes.
 func TestMissingDependencyFixes(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 	const mod = `
 -- a/go.mod --
 module mod.com
@@ -318,8 +314,6 @@ require random.org v1.2.3
 }
 
 func TestIndirectDependencyFix(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const mod = `
 -- a/go.mod --
 module mod.com
@@ -365,7 +359,6 @@ require example.com v1.2.3
 }
 
 func TestUnusedDiag(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 
 	const proxy = `
 -- example.com@v1.0.0/x.go --
@@ -412,7 +405,6 @@ go 1.14
 // Test to reproduce golang/go#39041. It adds a new require to a go.mod file
 // that already has an unused require.
 func TestNewDepWithUnusedDep(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 
 	const proxy = `
 -- github.com/esimov/caire@v1.2.5/go.mod --
@@ -485,8 +477,6 @@ require (
 // the file watching GlobPattern in the capability registration. See
 // golang/go#39384.
 func TestModuleChangesOnDisk(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const mod = `
 -- a/go.mod --
 module mod.com
@@ -518,8 +508,6 @@ func main() {
 // Tests golang/go#39784: a missing indirect dependency, necessary
 // due to blah@v2.0.0's incomplete go.mod file.
 func TestBadlyVersionedModule(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const proxy = `
 -- example.com/blah/@v/v1.0.0.mod --
 module example.com
@@ -595,11 +583,6 @@ func TestUnknownRevision(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skipf("skipping test that fails for unknown reasons on plan9; see https://go.dev/issue/50477")
 	}
-
-	// This test fails at go1.14 and go1.15 due to differing Go command behavior.
-	// This was not significantly investigated.
-	testenv.NeedsGo1Point(t, 16)
-
 	const unknown = `
 -- a/go.mod --
 module mod.com
@@ -694,8 +677,6 @@ func main() {
 // Confirm that an error in an indirect dependency of a requirement is surfaced
 // as a diagnostic in the go.mod file.
 func TestErrorInIndirectDependency(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const badProxy = `
 -- example.com@v1.2.3/go.mod --
 module example.com
@@ -782,8 +763,6 @@ func main() {
 }
 
 func TestMultiModuleModDiagnostics(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const mod = `
 -- a/go.mod --
 module moda.com
@@ -826,8 +805,6 @@ func main() {
 }
 
 func TestModTidyWithBuildTags(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -875,8 +852,6 @@ func main() {}
 }
 
 func TestSumUpdateFixesDiagnostics(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -961,8 +936,6 @@ func hello() {}
 }
 
 func TestRemoveUnusedDependency(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const proxy = `
 -- hasdep.com@v1.2.3/go.mod --
 module hasdep.com
@@ -1084,7 +1057,6 @@ require random.com v1.2.3
 }
 
 func TestSumUpdateQuickFix(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 	const mod = `
 -- go.mod --
 module mod.com
@@ -1129,8 +1101,6 @@ example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 }
 
 func TestDownloadDeps(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const proxy = `
 -- example.com@v1.2.3/go.mod --
 module example.com
@@ -1194,7 +1164,6 @@ func main() {
 }
 
 func TestInvalidGoVersion(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14) // Times out on 1.13 for reasons unclear. Not worth worrying about.
 	const files = `
 -- go.mod --
 module mod.com

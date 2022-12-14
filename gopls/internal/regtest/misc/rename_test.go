@@ -84,7 +84,6 @@ func _() {
 }
 
 func TestPrepareRenameWithNoPackageDeclaration(t *testing.T) {
-	testenv.NeedsGo1Point(t, 15)
 	const files = `
 go 1.14
 -- lib/a.go --

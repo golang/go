@@ -543,10 +543,6 @@ func _() {
 // Expect a module/GOPATH error if there is an error in the file at startup.
 // Tests golang/go#37279.
 func TestBrokenWorkspace_OutsideModule(t *testing.T) {
-	// Versions of the go command before go1.16 do not support
-	// native overlays and so do not observe the deletion.
-	testenv.NeedsGo1Point(t, 16)
-
 	const noModule = `
 -- a.go --
 package foo
@@ -641,7 +637,6 @@ var ErrHelpWanted error
 
 // Test for golang/go#38211.
 func Test_Issue38211(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 	const ardanLabs = `
 -- go.mod --
 module mod.com
@@ -706,8 +701,6 @@ func main() {
 
 // Test for golang/go#38207.
 func TestNewModule_Issue38207(t *testing.T) {
-	// Fails at Go 1.14 following CL 417576. Not investigated.
-	testenv.NeedsGo1Point(t, 15)
 	const emptyFile = `
 -- go.mod --
 module mod.com
@@ -743,7 +736,6 @@ func main() {
 
 // Test for golang/go#36960.
 func TestNewFileBadImports_Issue36960(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 	const simplePackage = `
 -- go.mod --
 module mod.com
@@ -783,9 +775,6 @@ func _() {
 // This test tries to replicate the workflow of a user creating a new x test.
 // It also tests golang/go#39315.
 func TestManuallyCreatingXTest(t *testing.T) {
-	// Only for 1.15 because of golang/go#37971.
-	testenv.NeedsGo1Point(t, 15)
-
 	// Create a package that already has a test variant (in-package test).
 	const testVariant = `
 -- go.mod --
@@ -853,8 +842,6 @@ func TestHello(t *testing.T) {
 
 // Reproduce golang/go#40690.
 func TestCreateOnlyXTest(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -883,8 +870,6 @@ func TestX(t *testing.T) {
 }
 
 func TestChangePackageName(t *testing.T) {
-	testenv.NeedsGo1Point(t, 16) // needs native overlay support
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -972,8 +957,6 @@ const C = a.A
 // This is a copy of the scenario_default/quickfix_empty_files.txt test from
 // govim. Reproduces golang/go#39646.
 func TestQuickFixEmptyFiles(t *testing.T) {
-	testenv.NeedsGo1Point(t, 15)
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -1099,8 +1082,6 @@ func Foo() {
 }
 `
 	Run(t, basic, func(t *testing.T, env *Env) {
-		testenv.NeedsGo1Point(t, 16) // We can't recover cleanly from this case without good overlay support.
-
 		env.WriteWorkspaceFile("foo/foo_test.go", `package main
 
 func main() {
@@ -1187,8 +1168,6 @@ func main() {
 
 // Reproduces golang/go#39763.
 func TestInvalidPackageName(t *testing.T) {
-	testenv.NeedsGo1Point(t, 15)
-
 	const pkgDefault = `
 -- go.mod --
 module mod.com
@@ -1325,9 +1304,6 @@ func main() {}
 }
 
 func TestNotifyOrphanedFiles(t *testing.T) {
-	// Need GO111MODULE=on for this test to work with Go 1.12.
-	testenv.NeedsGo1Point(t, 13)
-
 	const files = `
 -- go.mod --
 module mod.com
@@ -1452,8 +1428,6 @@ func main() {
 // have no more complaints about it.
 // https://github.com/golang/go/issues/41061
 func TestRenamePackage(t *testing.T) {
-	testenv.NeedsGo1Point(t, 16)
-
 	const proxy = `
 -- example.com@v1.2.3/go.mod --
 module example.com
@@ -1517,8 +1491,6 @@ package foo_
 // TestProgressBarErrors confirms that critical workspace load errors are shown
 // and updated via progress reports.
 func TestProgressBarErrors(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const pkg = `
 -- go.mod --
 modul mod.com
@@ -1551,8 +1523,6 @@ go 1.hello
 }
 
 func TestDeleteDirectory(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const mod = `
 -- bob/bob.go --
 package bob
@@ -1673,8 +1643,6 @@ const B = a.B
 }
 
 func TestBadImport(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const mod = `
 -- go.mod --
 module mod.com

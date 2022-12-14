@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
-	"golang.org/x/tools/internal/testenv"
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 )
@@ -238,8 +237,6 @@ func main() {}
 
 // Test for golang/go#47825.
 func TestImportTestVariant(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -294,7 +291,6 @@ func TestGoToCrashingDefinition_Issue49223(t *testing.T) {
 // causes packages to move; see issue #55995.
 // See also TestImplementationsInVendor, which tests the same fix.
 func TestVendoringInvalidatesMetadata(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 	const proxy = `
 -- other.com/b@v1.0.0/go.mod --
 module other.com/b

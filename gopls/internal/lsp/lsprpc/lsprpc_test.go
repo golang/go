@@ -19,7 +19,6 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
-	"golang.org/x/tools/internal/testenv"
 )
 
 type FakeClient struct {
@@ -289,7 +288,6 @@ func (s *initServer) Initialize(ctx context.Context, params *protocol.ParamIniti
 }
 
 func TestEnvForwarding(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
 	ctx := context.Background()
 
 	server := &initServer{}

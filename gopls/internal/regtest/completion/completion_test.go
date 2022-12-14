@@ -15,7 +15,6 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
@@ -43,7 +42,6 @@ const Name = "Hello"
 `
 
 func TestPackageCompletion(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 	const files = `
 -- go.mod --
 module mod.com
@@ -266,8 +264,6 @@ func compareCompletionResults(want []string, gotItems []protocol.CompletionItem)
 }
 
 func TestUnimportedCompletion(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const mod = `
 -- go.mod --
 module mod.com
@@ -510,8 +506,6 @@ func doit() {
 }
 
 func TestUnimportedCompletion_VSCodeIssue1489(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
-
 	const src = `
 -- go.mod --
 module mod.com

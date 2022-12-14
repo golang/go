@@ -238,7 +238,6 @@ require golang.org/x/hello v1.2.3
 }
 
 func TestUnusedDependenciesCodelens(t *testing.T) {
-	testenv.NeedsGo1Point(t, 14)
 	const proxy = `
 -- golang.org/x/hello@v1.0.0/go.mod --
 module golang.org/x/hello
@@ -299,8 +298,6 @@ require golang.org/x/hello v1.0.0
 
 func TestRegenerateCgo(t *testing.T) {
 	testenv.NeedsTool(t, "cgo")
-	testenv.NeedsGo1Point(t, 15)
-
 	const workspace = `
 -- go.mod --
 module example.com

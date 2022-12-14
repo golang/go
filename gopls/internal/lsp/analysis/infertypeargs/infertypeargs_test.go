@@ -9,12 +9,10 @@ import (
 
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/infertypeargs"
-	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/typeparams"
 )
 
 func Test(t *testing.T) {
-	testenv.NeedsGo1Point(t, 13)
 	if !typeparams.Enabled {
 		t.Skip("type params are not enabled")
 	}

@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/testenv"
-
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -19,7 +17,6 @@ import (
 )
 
 func TestGCDetails_Toggle(t *testing.T) {
-	testenv.NeedsGo1Point(t, 15)
 	if runtime.GOOS == "android" {
 		t.Skipf("the gc details code lens doesn't work on Android")
 	}
@@ -89,9 +86,6 @@ func main() {
 // Test for the crasher in golang/go#54199
 func TestGCDetails_NewFile(t *testing.T) {
 	bug.PanicOnBugs = false
-	// It appears that older Go versions don't even see p.go from the initial
-	// workspace load.
-	testenv.NeedsGo1Point(t, 15)
 	const src = `
 -- go.mod --
 module mod.test
