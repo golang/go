@@ -8,6 +8,7 @@ import (
 	"crypto/ecdh"
 	"crypto/hmac"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 
@@ -40,8 +41,24 @@ func (c *cipherSuiteTLS13) expandLabel(secret []byte, label string, context []by
 	hkdfLabel.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
 		b.AddBytes(context)
 	})
+	hkdfLabelBytes, err := hkdfLabel.Bytes()
+	if err != nil {
+		// Rather than calling BytesOrPanic, we explicitly handle this error, in
+		// order to provide a reasonable error message. It should be basically
+		// impossible for this to panic, and routing errors back through the
+		// tree rooted in this function is quite painful. The labels are fixed
+		// size, and the context is either a fixed-length computed hash, or
+		// parsed from a field which has the same length limitation. As such, an
+		// error here is likely to only be caused during development.
+		//
+		// NOTE: another reasonable approach here might be to return a
+		// randomized slice if we encounter an error, which would break the
+		// connection, but avoid panicking. This would perhaps be safer but
+		// significantly more confusing to users.
+		panic(fmt.Errorf("failed to construct HKDF label: %s", err))
+	}
 	out := make([]byte, length)
-	n, err := hkdf.Expand(c.hash.New, secret, hkdfLabel.BytesOrPanic()).Read(out)
+	n, err := hkdf.Expand(c.hash.New, secret, hkdfLabelBytes).Read(out)
 	if err != nil || n != length {
 		panic("tls: HKDF-Expand-Label invocation failed unexpectedly")
 	}
