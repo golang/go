@@ -5,6 +5,7 @@
 package exec
 
 import (
+	"errors"
 	"internal/syscall/unix"
 	"os"
 	"path/filepath"
@@ -48,8 +49,20 @@ func TestFindExecutableVsNoexec(t *testing.T) {
 		t.Fatalf("findExecutable: got %v, want nil", err)
 	}
 
-	if err := Command(path).Run(); err != nil {
-		t.Fatalf("exec: got %v, want nil", err)
+	for {
+		err = Command(path).Run()
+		if err == nil {
+			break
+		}
+		if errors.Is(err, syscall.ETXTBSY) {
+			// A fork+exec in another process may be holding open the FD that we used
+			// to write the executable (see https://go.dev/issue/22315).
+			// Since the descriptor should have CLOEXEC set, the problem should resolve
+			// as soon as the forked child reaches its exec call.
+			// Keep retrying until that happens.
+		} else {
+			t.Fatalf("exec: got %v, want nil", err)
+		}
 	}
 
 	// Remount with noexec flag.
