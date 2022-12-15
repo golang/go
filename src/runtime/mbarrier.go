@@ -334,6 +334,15 @@ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintpt
 	memclrNoHeapPointers(ptr, size)
 }
 
+//go:linkname reflect_typedarrayclear reflect.typedarrayclear
+func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
+	size := typ.size * uintptr(len)
+	if writeBarrier.needed && typ.ptrdata != 0 {
+		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+	}
+	memclrNoHeapPointers(ptr, size)
+}
+
 // memclrHasPointers clears n bytes of typed memory starting at ptr.
 // The caller must ensure that the type of the object at ptr has
 // pointers, usually by checking typ.ptrdata. However, ptr

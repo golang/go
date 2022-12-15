@@ -2827,6 +2827,22 @@ func (v Value) extendSlice(n int) Value {
 	return v
 }
 
+// Clear clears the contents of a map or zeros the contents of a slice.
+//
+// It panics if v's Kind is not Map or Slice.
+func (v Value) Clear() {
+	switch v.Kind() {
+	case Slice:
+		sh := *(*unsafeheader.Slice)(v.ptr)
+		st := (*sliceType)(unsafe.Pointer(v.typ))
+		typedarrayclear(st.elem, sh.Data, sh.Len)
+	case Map:
+		mapclear(v.typ, v.pointer())
+	default:
+		panic(&ValueError{"reflect.Value.Clear", v.Kind()})
+	}
+}
+
 // Append appends the values x to a slice s and returns the resulting slice.
 // As in Go, each x's value must be assignable to the slice's element type.
 func Append(s Value, x ...Value) Value {
@@ -3774,6 +3790,8 @@ func mapiternext(it *hiter)
 //go:noescape
 func maplen(m unsafe.Pointer) int
 
+func mapclear(t *rtype, m unsafe.Pointer)
+
 // call calls fn with "stackArgsSize" bytes of stack arguments laid out
 // at stackArgs and register arguments laid out in regArgs. frameSize is
 // the total amount of stack space that will be reserved by call, so this
@@ -3836,6 +3854,12 @@ func typedmemclrpartial(t *rtype, ptr unsafe.Pointer, off, size uintptr)
 //
 //go:noescape
 func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
+
+// typedarrayclear zeroes the value at ptr of an array of elemType,
+// only clears len elem.
+//
+//go:noescape
+func typedarrayclear(elemType *rtype, ptr unsafe.Pointer, len int)
 
 //go:noescape
 func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr

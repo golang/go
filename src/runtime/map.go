@@ -1403,6 +1403,11 @@ func reflect_maplen(h *hmap) int {
 	return h.count
 }
 
+//go:linkname reflect_mapclear reflect.mapclear
+func reflect_mapclear(t *maptype, h *hmap) {
+	mapclear(t, h)
+}
+
 //go:linkname reflectlite_maplen internal/reflectlite.maplen
 func reflectlite_maplen(h *hmap) int {
 	if h == nil {
