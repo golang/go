@@ -135,6 +135,45 @@ func gobuildTestdata(t *testing.T, tdir string, pkgDir string, gcflags string) *
 	return &builtFile{f, dst}
 }
 
+// Helper to build a snippet of source for examination with dwtest.Examiner.
+func gobuildAndExamine(t *testing.T, source string, gcflags string) (*dwarf.Data, *dwtest.Examiner) {
+	dir := t.TempDir()
+
+	f := gobuild(t, dir, source, gcflags)
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF in program %q: %v", source, err)
+	}
+
+	rdr := d.Reader()
+	ex := &dwtest.Examiner{}
+	if err := ex.Populate(rdr); err != nil {
+		t.Fatalf("error populating DWARF examiner for program %q: %v", source, err)
+	}
+
+	return d, ex
+}
+
+func findSubprogramDIE(t *testing.T, ex *dwtest.Examiner, sym string) *dwarf.Entry {
+	dies := ex.Named(sym)
+	if len(dies) == 0 {
+		t.Fatalf("unable to locate DIE for %s", sym)
+	}
+	if len(dies) != 1 {
+		t.Fatalf("more than one %s DIE: %+v", sym, dies)
+	}
+	die := dies[0]
+
+	// Vet the DIE.
+	if die.Tag != dwarf.TagSubprogram {
+		t.Fatalf("unexpected tag %v on %s DIE", die.Tag, sym)
+	}
+
+	return die
+}
+
 func TestEmbeddedStructMarker(t *testing.T) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
@@ -341,21 +380,7 @@ func varDeclCoordsAndSubprogramDeclFile(t *testing.T, testpoint string, expectFi
 	prog := fmt.Sprintf("package main\n%s\nfunc main() {\n\nvar i int\ni = i\n}\n", directive)
 	const iLineOffset = 2
 
-	dir := t.TempDir()
-
-	f := gobuild(t, dir, prog, NoOpt)
-	defer f.Close()
-
-	d, err := f.DWARF()
-	if err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	rdr := d.Reader()
-	ex := dwtest.Examiner{}
-	if err := ex.Populate(rdr); err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
+	d, ex := gobuildAndExamine(t, prog, NoOpt)
 
 	// Locate the main.main DIE
 	mains := ex.Named("main.main")
@@ -466,44 +491,17 @@ func main() {
     G = x
 }
 `
-	dir := t.TempDir()
-
 	// Note: this is a build with "-l=4", as opposed to "-l -N". The
 	// test is intended to verify DWARF that is only generated when
 	// the inliner is active. We're only going to look at the DWARF for
 	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
 	// to "-gcflags=all=-l=4".
-	f := gobuild(t, dir, prog, OptInl4)
-	defer f.Close()
-
-	d, err := f.DWARF()
-	if err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
+	d, ex := gobuildAndExamine(t, prog, OptInl4)
 
 	// The inlined subroutines we expect to visit
 	expectedInl := []string{"main.cand"}
 
-	rdr := d.Reader()
-	ex := dwtest.Examiner{}
-	if err := ex.Populate(rdr); err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	// Locate the main.main DIE
-	mains := ex.Named("main.main")
-	if len(mains) == 0 {
-		t.Fatalf("unable to locate DIE for main.main")
-	}
-	if len(mains) != 1 {
-		t.Fatalf("more than one main.main DIE")
-	}
-	maindie := mains[0]
-
-	// Vet the main.main DIE
-	if maindie.Tag != dwarf.TagSubprogram {
-		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
-	}
+	maindie := findSubprogramDIE(t, ex, "main.main")
 
 	// Walk main's children and pick out the inlined subroutines
 	mainIdx := ex.IdxFromOffset(maindie.Offset)
@@ -1334,20 +1332,12 @@ func TestIssue39757(t *testing.T) {
 		t.Fatalf("error parsing DWARF: %v", err)
 	}
 	rdr := dw.Reader()
-	ex := dwtest.Examiner{}
+	ex := &dwtest.Examiner{}
 	if err := ex.Populate(rdr); err != nil {
 		t.Fatalf("error reading DWARF: %v", err)
 	}
 
-	// Locate the main.main DIE
-	mains := ex.Named("main.main")
-	if len(mains) == 0 {
-		t.Fatalf("unable to locate DIE for main.main")
-	}
-	if len(mains) != 1 {
-		t.Fatalf("more than one main.main DIE")
-	}
-	maindie := mains[0]
+	maindie := findSubprogramDIE(t, ex, "main.main")
 
 	// Collect the start/end PC for main.main
 	lowpc := maindie.Val(dwarf.AttrLowpc).(uint64)
@@ -1556,38 +1546,12 @@ func main() {
 	println(v1, v2, v3[0], v4, v5, v6)
 }
 `
-	dir := t.TempDir()
-	f := gobuild(t, dir, prog, NoOpt)
-	defer f.Close()
+	_, ex := gobuildAndExamine(t, prog, NoOpt)
 
-	d, err := f.DWARF()
-	if err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	rdr := d.Reader()
-	ex := dwtest.Examiner{}
-	if err := ex.Populate(rdr); err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	// Locate the main.ABC DIE
-	abcs := ex.Named("main.ABC")
-	if len(abcs) == 0 {
-		t.Fatalf("unable to locate DIE for main.ABC")
-	}
-	if len(abcs) != 1 {
-		t.Fatalf("more than one main.ABC DIE")
-	}
-	abcdie := abcs[0]
-
-	// Vet the DIE
-	if abcdie.Tag != dwarf.TagSubprogram {
-		t.Fatalf("unexpected tag %v on main.ABC DIE", abcdie.Tag)
-	}
+	abcdie := findSubprogramDIE(t, ex, "main.ABC")
 
 	// Call a helper to collect param info.
-	found := processParams(abcdie, &ex)
+	found := processParams(abcdie, ex)
 
 	// Make sure we see all of the expected params in the proper
 	// order, that they have the varparam attr, and the varparam is
@@ -1788,20 +1752,7 @@ func main() {
 
 }
 `
-	dir := t.TempDir()
-	f := gobuild(t, dir, prog, DefaultOpt)
-	defer f.Close()
-
-	d, err := f.DWARF()
-	if err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
-
-	rdr := d.Reader()
-	ex := dwtest.Examiner{}
-	if err := ex.Populate(rdr); err != nil {
-		t.Fatalf("error reading DWARF: %v", err)
-	}
+	_, ex := gobuildAndExamine(t, prog, DefaultOpt)
 
 	testcases := []struct {
 		tag      string
@@ -1828,22 +1779,10 @@ func main() {
 	for _, tc := range testcases {
 		// Locate the proper DIE
 		which := fmt.Sprintf("main.%s", tc.tag)
-		tcs := ex.Named(which)
-		if len(tcs) == 0 {
-			t.Fatalf("unable to locate DIE for " + which)
-		}
-		if len(tcs) != 1 {
-			t.Fatalf("more than one " + which + " DIE")
-		}
-		die := tcs[0]
-
-		// Vet the DIE
-		if die.Tag != dwarf.TagSubprogram {
-			t.Fatalf("unexpected tag %v on "+which+" DIE", die.Tag)
-		}
+		die := findSubprogramDIE(t, ex, which)
 
 		// Examine params for this subprogram.
-		foundParams := processParams(die, &ex)
+		foundParams := processParams(die, ex)
 		if foundParams != tc.expected {
 			t.Errorf("check failed for testcase %s -- wanted:\n%s\ngot:%s\n",
 				tc.tag, tc.expected, foundParams)
@@ -1956,29 +1895,18 @@ func main() {
 `
 
 	for _, opt := range []string{NoOpt, DefaultOpt} {
-		dir := t.TempDir()
-		f := gobuild(t, dir, prog, opt)
-		defer f.Close()
-		defer os.RemoveAll(dir)
+		opt := opt
+		t.Run(opt, func(t *testing.T) {
+			_, ex := gobuildAndExamine(t, prog, opt)
 
-		d, err := f.DWARF()
-		if err != nil {
-			t.Fatalf("error reading DWARF: %v", err)
-		}
-
-		rdr := d.Reader()
-		ex := dwtest.Examiner{}
-		if err := ex.Populate(rdr); err != nil {
-			t.Fatalf("error reading DWARF: %v", err)
-		}
-
-		// Locate the main.zeroSizedVariable DIE
-		abcs := ex.Named("zeroSizedVariable")
-		if len(abcs) == 0 {
-			t.Fatalf("unable to locate DIE for zeroSizedVariable")
-		}
-		if len(abcs) != 1 {
-			t.Fatalf("more than one zeroSizedVariable DIE")
-		}
+			// Locate the main.zeroSizedVariable DIE
+			abcs := ex.Named("zeroSizedVariable")
+			if len(abcs) == 0 {
+				t.Fatalf("unable to locate DIE for zeroSizedVariable")
+			}
+			if len(abcs) != 1 {
+				t.Fatalf("more than one zeroSizedVariable DIE")
+			}
+		})
 	}
 }
