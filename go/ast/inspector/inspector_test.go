@@ -244,9 +244,11 @@ func typeOf(n ast.Node) string {
 // but a break-even point (NewInspector/(ASTInspect-Inspect)) of about 5
 // traversals.
 //
-// BenchmarkNewInspector   4.5 ms
-// BenchmarkNewInspect	   0.33ms
-// BenchmarkASTInspect    1.2  ms
+// BenchmarkASTInspect     1.0 ms
+// BenchmarkNewInspector   2.2 ms
+// BenchmarkInspect        0.39ms
+// BenchmarkInspectFilter  0.01ms
+// BenchmarkInspectCalls   0.14ms
 
 func BenchmarkNewInspector(b *testing.B) {
 	// Measure one-time construction overhead.
@@ -270,6 +272,42 @@ func BenchmarkInspect(b *testing.B) {
 			case *ast.FuncLit:
 				nlits++
 			}
+		})
+	}
+}
+
+func BenchmarkInspectFilter(b *testing.B) {
+	b.StopTimer()
+	inspect := inspector.New(netFiles)
+	b.StartTimer()
+
+	// Measure marginal cost of traversal.
+	nodeFilter := []ast.Node{(*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)}
+	var ndecls, nlits int
+	for i := 0; i < b.N; i++ {
+		inspect.Preorder(nodeFilter, func(n ast.Node) {
+			switch n.(type) {
+			case *ast.FuncDecl:
+				ndecls++
+			case *ast.FuncLit:
+				nlits++
+			}
+		})
+	}
+}
+
+func BenchmarkInspectCalls(b *testing.B) {
+	b.StopTimer()
+	inspect := inspector.New(netFiles)
+	b.StartTimer()
+
+	// Measure marginal cost of traversal.
+	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
+	var ncalls int
+	for i := 0; i < b.N; i++ {
+		inspect.Preorder(nodeFilter, func(n ast.Node) {
+			_ = n.(*ast.CallExpr)
+			ncalls++
 		})
 	}
 }
