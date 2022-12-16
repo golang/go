@@ -51,3 +51,15 @@ func RemoveAll(path string) error {
 func IsEphemeralError(err error) bool {
 	return isEphemeralError(err)
 }
+
+// A FileID uniquely identifies a file in the file system.
+//
+// If GetFileID(name1) == GetFileID(name2), the two file names denote the same file.
+// A FileID is comparable, and thus suitable for use as a map key.
+type FileID struct {
+	device, inode uint64
+}
+
+// GetFileID returns the file system's identifier for the file.
+// Like os.Stat, it reads through symbolic links.
+func GetFileID(filename string) (FileID, error) { return getFileID(filename) }
