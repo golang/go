@@ -159,6 +159,7 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 			InlayHintProvider:         protocol.InlayHintOptions{},
 			ReferencesProvider:        true,
 			RenameProvider:            renameOpts,
+			SelectionRangeProvider:    protocol.SelectionRangeRegistrationOptions{},
 			SignatureHelpProvider: protocol.SignatureHelpOptions{
 				TriggerCharacters: []string{"(", ","},
 			},
