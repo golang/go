@@ -26,9 +26,6 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -143,12 +140,6 @@ type snapshot struct {
 	modWhyHandles  *persistent.Map // from span.URI to *memoize.Promise[modWhyResult]
 	modVulnHandles *persistent.Map // from span.URI to *memoize.Promise[modVulnResult]
 
-	workspace *workspace // (not guarded by mu)
-
-	// The cached result of makeWorkspaceDir, created on demand and deleted by Snapshot.Destroy.
-	workspaceDir    string
-	workspaceDirErr error
-
 	// knownSubdirs is the set of subdirectories in the workspace, used to
 	// create glob patterns for file watching.
 	knownSubdirs             knownDirsSet
@@ -157,6 +148,15 @@ type snapshot struct {
 	// subdirectories in the workspace. They are not reflected to knownSubdirs
 	// during the snapshot cloning step as it can slow down cloning.
 	unprocessedSubdirChanges []*fileChange
+
+	// workspaceModFiles holds the set of mod files active in this snapshot.
+	//
+	// This is either empty, a single entry for the workspace go.mod file, or the
+	// set of mod files used by the workspace go.work file.
+	//
+	// This set is immutable inside the snapshot, and therefore is not guarded by mu.
+	workspaceModFiles    map[span.URI]struct{}
+	workspaceModFilesErr error // error encountered computing workspaceModFiles
 }
 
 var globalSnapshotID uint64
@@ -234,12 +234,6 @@ func (s *snapshot) destroy(destroyedBy string) {
 	s.modTidyHandles.Destroy()
 	s.modVulnHandles.Destroy()
 	s.modWhyHandles.Destroy()
-
-	if s.workspaceDir != "" {
-		if err := os.RemoveAll(s.workspaceDir); err != nil {
-			event.Error(context.Background(), "cleaning workspace dir", err)
-		}
-	}
 }
 
 func (s *snapshot) SequenceID() uint64 {
@@ -264,14 +258,14 @@ func (s *snapshot) FileSet() *token.FileSet {
 
 func (s *snapshot) ModFiles() []span.URI {
 	var uris []span.URI
-	for modURI := range s.workspace.ActiveModFiles() {
+	for modURI := range s.workspaceModFiles {
 		uris = append(uris, modURI)
 	}
 	return uris
 }
 
 func (s *snapshot) WorkFile() span.URI {
-	return s.workspace.workFile
+	return s.view.effectiveGOWORK()
 }
 
 func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
@@ -295,7 +289,7 @@ func (s *snapshot) ValidBuildConfiguration() bool {
 	}
 	// Check if the user is working within a module or if we have found
 	// multiple modules in the workspace.
-	if len(s.workspace.ActiveModFiles()) > 0 {
+	if len(s.workspaceModFiles) > 0 {
 		return true
 	}
 	// The user may have a multiple directories in their GOPATH.
@@ -309,8 +303,37 @@ func (s *snapshot) ValidBuildConfiguration() bool {
 	return false
 }
 
+// moduleMode reports whether the current snapshot uses Go modules.
+//
+// From https://go.dev/ref/mod, module mode is active if either of the
+// following hold:
+//   - GO111MODULE=on
+//   - GO111MODULE=auto and we are inside a module or have a GOWORK value.
+//
+// Additionally, this method returns false if GOPACKAGESDRIVER is set.
+//
+// TODO(rfindley): use this more widely.
+func (s *snapshot) moduleMode() bool {
+	// Since we only really understand the `go` command, if the user has a
+	// different GOPACKAGESDRIVER, assume that their configuration is valid.
+	if s.view.hasGopackagesDriver {
+		return false
+	}
+
+	switch s.view.effectiveGO111MODULE() {
+	case on:
+		return true
+	case off:
+		return false
+	default:
+		return len(s.workspaceModFiles) > 0 || s.view.gowork != ""
+	}
+}
+
 // workspaceMode describes the way in which the snapshot's workspace should
 // be loaded.
+//
+// TODO(rfindley): remove this, in favor of specific methods.
 func (s *snapshot) workspaceMode() workspaceMode {
 	var mode workspaceMode
 
@@ -323,7 +346,7 @@ func (s *snapshot) workspaceMode() workspaceMode {
 	// If the view is not in a module and contains no modules, but still has a
 	// valid workspace configuration, do not create the workspace module.
 	// It could be using GOPATH or a different build system entirely.
-	if len(s.workspace.ActiveModFiles()) == 0 && validBuildConfiguration {
+	if len(s.workspaceModFiles) == 0 && validBuildConfiguration {
 		return mode
 	}
 	mode |= moduleMode
@@ -492,27 +515,8 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	// the main (workspace) module. Otherwise, we should use the module for
 	// the passed-in working dir.
 	if mode == source.LoadWorkspace {
-		switch s.workspace.moduleSource {
-		case legacyWorkspace:
-			for m := range s.workspace.ActiveModFiles() { // range to access the only element
-				modURI = m
-			}
-		case goWorkWorkspace:
-			if s.view.goversion >= 18 {
-				break
-			}
-			// Before go 1.18, the Go command did not natively support go.work files,
-			// so we 'fake' them with a workspace module.
-			fallthrough
-		case fileSystemWorkspace, goplsModWorkspace:
-			var tmpDir span.URI
-			var err error
-			tmpDir, err = s.getWorkspaceDir(ctx)
-			if err != nil {
-				return "", nil, cleanup, err
-			}
-			inv.WorkingDir = tmpDir.Filename()
-			modURI = span.URIFromPath(filepath.Join(tmpDir.Filename(), "go.mod"))
+		if s.view.effectiveGOWORK() == "" && s.view.gomod != "" {
+			modURI = s.view.gomod
 		}
 	} else {
 		modURI = s.GoModForFile(span.URIFromPath(inv.WorkingDir))
@@ -540,6 +544,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 
 	const mutableModFlag = "mod"
 	// If the mod flag isn't set, populate it based on the mode and workspace.
+	// TODO(rfindley): this doesn't make sense if we're not in module mode
 	if inv.ModFlag == "" {
 		switch mode {
 		case source.LoadWorkspace, source.Normal:
@@ -570,8 +575,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	//    example, if running go mod tidy in a go.work workspace)
 	//
 	// TODO(rfindley): this is very hard to follow. Refactor.
-	useWorkFile := !needTempMod && s.workspace.moduleSource == goWorkWorkspace && s.view.goversion >= 18
-	if useWorkFile {
+	if !needTempMod && s.view.gowork != "" {
 		// Since we're running in the workspace root, the go command will resolve GOWORK automatically.
 	} else if useTempMod {
 		if modURI == "" {
@@ -591,25 +595,6 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	}
 
 	return tmpURI, inv, cleanup, nil
-}
-
-// usesWorkspaceDir reports whether the snapshot should use a synthetic
-// workspace directory for running workspace go commands such as go list.
-//
-// TODO(rfindley): this logic is duplicated with goCommandInvocation. Clean up
-// the latter, and deduplicate.
-func (s *snapshot) usesWorkspaceDir() bool {
-	switch s.workspace.moduleSource {
-	case legacyWorkspace:
-		return false
-	case goWorkWorkspace:
-		if s.view.goversion >= 18 {
-			return false
-		}
-		// Before go 1.18, the Go command did not natively support go.work files,
-		// so we 'fake' them with a workspace module.
-	}
-	return true
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {
@@ -827,7 +812,7 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 	}
 
 	// Add a pattern for each Go module in the workspace that is not within the view.
-	dirs := s.workspace.dirs(ctx, s)
+	dirs := s.dirs(ctx)
 	for _, dir := range dirs {
 		dirName := dir.Filename()
 
@@ -886,7 +871,7 @@ func (s *snapshot) getKnownSubdirsPattern(wsDirs []span.URI) string {
 // snapshot's workspace directories. None of the workspace directories are
 // included.
 func (s *snapshot) collectAllKnownSubdirs(ctx context.Context) {
-	dirs := s.workspace.dirs(ctx, s)
+	dirs := s.dirs(ctx)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1096,7 +1081,7 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[PackagePath]sourc
 // TODO(rfindley): clarify that this is only active modules. Or update to just
 // use findRootPattern.
 func (s *snapshot) GoModForFile(uri span.URI) span.URI {
-	return moduleForURI(s.workspace.activeModFiles, uri)
+	return moduleForURI(s.workspaceModFiles, uri)
 }
 
 func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
@@ -1249,8 +1234,12 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 }
 
 func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
-	if wsErr := s.workspace.criticalError(ctx, s); wsErr != nil {
-		return wsErr
+	// If we couldn't compute workspace mod files, then the load below is
+	// invalid.
+	//
+	// TODO(rfindley): is this a clear error to present to the user?
+	if s.workspaceModFilesErr != nil {
+		return &source.CriticalError{MainError: s.workspaceModFilesErr}
 	}
 
 	loadErr := s.awaitLoadedAllErrors(ctx)
@@ -1559,10 +1548,45 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	ctx, done := event.Start(ctx, "snapshot.clone")
 	defer done()
 
-	newWorkspace, reinit := s.workspace.Clone(ctx, changes, &unappliedChanges{
-		originalSnapshot: s,
-		changes:          changes,
-	})
+	reinit := false
+	wsModFiles, wsModFilesErr := s.workspaceModFiles, s.workspaceModFilesErr
+
+	if workURI := s.view.effectiveGOWORK(); workURI != "" {
+		if change, ok := changes[workURI]; ok {
+			wsModFiles, wsModFilesErr = computeWorkspaceModFiles(ctx, s.view.gomod, workURI, s.view.effectiveGO111MODULE(), &unappliedChanges{
+				originalSnapshot: s,
+				changes:          changes,
+			})
+			// TODO(rfindley): don't rely on 'isUnchanged' here. Use a content hash instead.
+			reinit = change.fileHandle.Saved() && !change.isUnchanged
+		}
+	}
+
+	// Reinitialize if any workspace mod file has changed on disk.
+	for uri, change := range changes {
+		if _, ok := wsModFiles[uri]; ok && change.fileHandle.Saved() && !change.isUnchanged {
+			reinit = true
+		}
+	}
+
+	// Finally, process sumfile changes that may affect loading.
+	for uri, change := range changes {
+		if !change.fileHandle.Saved() {
+			continue // like with go.mod files, we only reinit when things are saved
+		}
+		if filepath.Base(uri.Filename()) == "go.work.sum" && s.view.gowork != "" {
+			if filepath.Dir(uri.Filename()) == filepath.Dir(s.view.gowork) {
+				reinit = true
+			}
+		}
+		if filepath.Base(uri.Filename()) == "go.sum" {
+			dir := filepath.Dir(uri.Filename())
+			modURI := span.URIFromPath(filepath.Join(dir, "go.mod"))
+			if _, active := wsModFiles[modURI]; active {
+				reinit = true
+			}
+		}
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1606,7 +1630,8 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		modWhyHandles:        s.modWhyHandles.Clone(),
 		modVulnHandles:       s.modVulnHandles.Clone(),
 		knownSubdirs:         s.knownSubdirs.Clone(),
-		workspace:            newWorkspace,
+		workspaceModFiles:    wsModFiles,
+		workspaceModFilesErr: wsModFilesErr,
 	}
 
 	// The snapshot should be initialized if either s was uninitialized, or we've
@@ -2175,191 +2200,4 @@ func (s *snapshot) setBuiltin(path string) {
 	defer s.mu.Unlock()
 
 	s.builtin = span.URIFromPath(path)
-}
-
-// BuildGoplsMod generates a go.mod file for all modules in the workspace. It
-// bypasses any existing gopls.mod.
-func (s *snapshot) BuildGoplsMod(ctx context.Context) (*modfile.File, error) {
-	allModules, err := findModules(s.view.folder, pathExcludedByFilterFunc(s.view.folder.Filename(), s.view.gomodcache, s.View().Options()), 0)
-	if err != nil {
-		return nil, err
-	}
-	return buildWorkspaceModFile(ctx, allModules, s)
-}
-
-// TODO(rfindley): move this to workspace.go
-func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, fs source.FileSource) (*modfile.File, error) {
-	file := &modfile.File{}
-	file.AddModuleStmt("gopls-workspace")
-	// Track the highest Go version, to be set on the workspace module.
-	// Fall back to 1.12 -- old versions insist on having some version.
-	goVersion := "1.12"
-
-	paths := map[string]span.URI{}
-	excludes := map[string][]string{}
-	var sortedModURIs []span.URI
-	for uri := range modFiles {
-		sortedModURIs = append(sortedModURIs, uri)
-	}
-	sort.Slice(sortedModURIs, func(i, j int) bool {
-		return sortedModURIs[i] < sortedModURIs[j]
-	})
-	for _, modURI := range sortedModURIs {
-		fh, err := fs.GetFile(ctx, modURI)
-		if err != nil {
-			return nil, err
-		}
-		content, err := fh.Read()
-		if err != nil {
-			return nil, err
-		}
-		parsed, err := modfile.Parse(fh.URI().Filename(), content, nil)
-		if err != nil {
-			return nil, err
-		}
-		if file == nil || parsed.Module == nil {
-			return nil, fmt.Errorf("no module declaration for %s", modURI)
-		}
-		// Prepend "v" to go versions to make them valid semver.
-		if parsed.Go != nil && semver.Compare("v"+goVersion, "v"+parsed.Go.Version) < 0 {
-			goVersion = parsed.Go.Version
-		}
-		path := parsed.Module.Mod.Path
-		if seen, ok := paths[path]; ok {
-			return nil, fmt.Errorf("found module %q multiple times in the workspace, at:\n\t%q\n\t%q", path, seen, modURI)
-		}
-		paths[path] = modURI
-		// If the module's path includes a major version, we expect it to have
-		// a matching major version.
-		_, majorVersion, _ := module.SplitPathVersion(path)
-		if majorVersion == "" {
-			majorVersion = "/v0"
-		}
-		majorVersion = strings.TrimLeft(majorVersion, "/.") // handle gopkg.in versions
-		file.AddNewRequire(path, source.WorkspaceModuleVersion(majorVersion), false)
-		if err := file.AddReplace(path, "", span.Dir(modURI).Filename(), ""); err != nil {
-			return nil, err
-		}
-		for _, exclude := range parsed.Exclude {
-			excludes[exclude.Mod.Path] = append(excludes[exclude.Mod.Path], exclude.Mod.Version)
-		}
-	}
-	if goVersion != "" {
-		file.AddGoStmt(goVersion)
-	}
-	// Go back through all of the modules to handle any of their replace
-	// statements.
-	for _, modURI := range sortedModURIs {
-		fh, err := fs.GetFile(ctx, modURI)
-		if err != nil {
-			return nil, err
-		}
-		content, err := fh.Read()
-		if err != nil {
-			return nil, err
-		}
-		parsed, err := modfile.Parse(fh.URI().Filename(), content, nil)
-		if err != nil {
-			return nil, err
-		}
-		// If any of the workspace modules have replace directives, they need
-		// to be reflected in the workspace module.
-		for _, rep := range parsed.Replace {
-			// Don't replace any modules that are in our workspace--we should
-			// always use the version in the workspace.
-			if _, ok := paths[rep.Old.Path]; ok {
-				continue
-			}
-			newPath := rep.New.Path
-			newVersion := rep.New.Version
-			// If a replace points to a module in the workspace, make sure we
-			// direct it to version of the module in the workspace.
-			if m, ok := paths[rep.New.Path]; ok {
-				newPath = span.Dir(m).Filename()
-				newVersion = ""
-			} else if rep.New.Version == "" && !filepath.IsAbs(rep.New.Path) {
-				// Make any relative paths absolute.
-				newPath = filepath.Join(span.Dir(modURI).Filename(), rep.New.Path)
-			}
-			if err := file.AddReplace(rep.Old.Path, rep.Old.Version, newPath, newVersion); err != nil {
-				return nil, err
-			}
-		}
-	}
-	for path, versions := range excludes {
-		for _, version := range versions {
-			file.AddExclude(path, version)
-		}
-	}
-	file.SortBlocks()
-	return file, nil
-}
-
-func buildWorkspaceSumFile(ctx context.Context, modFiles map[span.URI]struct{}, fs source.FileSource) ([]byte, error) {
-	allSums := map[module.Version][]string{}
-	for modURI := range modFiles {
-		// TODO(rfindley): factor out this pattern into a uripath package.
-		sumURI := span.URIFromPath(filepath.Join(filepath.Dir(modURI.Filename()), "go.sum"))
-		fh, err := fs.GetFile(ctx, sumURI)
-		if err != nil {
-			continue
-		}
-		data, err := fh.Read()
-		if os.IsNotExist(err) {
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("reading go sum: %w", err)
-		}
-		if err := readGoSum(allSums, sumURI.Filename(), data); err != nil {
-			return nil, err
-		}
-	}
-	// This logic to write go.sum is copied (with minor modifications) from
-	// https://cs.opensource.google/go/go/+/master:src/cmd/go/internal/modfetch/fetch.go;l=631;drc=762eda346a9f4062feaa8a9fc0d17d72b11586f0
-	var mods []module.Version
-	for m := range allSums {
-		mods = append(mods, m)
-	}
-	module.Sort(mods)
-
-	var buf bytes.Buffer
-	for _, m := range mods {
-		list := allSums[m]
-		sort.Strings(list)
-		// Note (rfindley): here we add all sum lines without verification, because
-		// the assumption is that if they come from a go.sum file, they are
-		// trusted.
-		for _, h := range list {
-			fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
-		}
-	}
-	return buf.Bytes(), nil
-}
-
-// readGoSum is copied (with minor modifications) from
-// https://cs.opensource.google/go/go/+/master:src/cmd/go/internal/modfetch/fetch.go;l=398;drc=762eda346a9f4062feaa8a9fc0d17d72b11586f0
-func readGoSum(dst map[module.Version][]string, file string, data []byte) error {
-	lineno := 0
-	for len(data) > 0 {
-		var line []byte
-		lineno++
-		i := bytes.IndexByte(data, '\n')
-		if i < 0 {
-			line, data = data, nil
-		} else {
-			line, data = data[:i], data[i+1:]
-		}
-		f := strings.Fields(string(line))
-		if len(f) == 0 {
-			// blank line; skip it
-			continue
-		}
-		if len(f) != 3 {
-			return fmt.Errorf("malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
-		}
-		mod := module.Version{Path: f[0], Version: f[1]}
-		dst[mod] = append(dst[mod], f[2])
-	}
-	return nil
 }

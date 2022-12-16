@@ -15,7 +15,6 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"strings"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -210,10 +209,6 @@ type Snapshot interface {
 	//
 	// A nil result may mean success, or context cancellation.
 	GetCriticalError(ctx context.Context) *CriticalError
-
-	// BuildGoplsMod generates a go.mod file for all modules in the workspace.
-	// It bypasses any existing gopls.mod.
-	BuildGoplsMod(ctx context.Context) (*modfile.File, error)
 }
 
 // SnapshotLabels returns a new slice of labels that should be used for events
@@ -779,7 +774,7 @@ type Package interface {
 	PkgPath() PackagePath
 	GetTypesSizes() types.Sizes
 	ForTest() string
-	Version() *module.Version // may differ from Metadata.Module.Version
+	Version() *module.Version
 
 	// Results of parsing:
 	FileSet() *token.FileSet
@@ -855,29 +850,4 @@ const (
 
 func AnalyzerErrorKind(name string) DiagnosticSource {
 	return DiagnosticSource(name)
-}
-
-// WorkspaceModuleVersion is the nonexistent pseudoversion suffix used in the
-// construction of the workspace module. It is exported so that we can make
-// sure not to show this version to end users in error messages, to avoid
-// confusion.
-// The major version is not included, as that depends on the module path.
-//
-// If workspace module A is dependent on workspace module B, we need our
-// nonexistent version to be greater than the version A mentions.
-// Otherwise, the go command will try to update to that version. Use a very
-// high minor version to make that more likely.
-const workspaceModuleVersion = ".9999999.0-goplsworkspace"
-
-func IsWorkspaceModuleVersion(version string) bool {
-	return strings.HasSuffix(version, workspaceModuleVersion)
-}
-
-func WorkspaceModuleVersion(majorVersion string) string {
-	// Use the highest compatible major version to avoid unwanted upgrades.
-	// See the comment on workspaceModuleVersion.
-	if majorVersion == "v0" {
-		majorVersion = "v1"
-	}
-	return majorVersion + workspaceModuleVersion
 }

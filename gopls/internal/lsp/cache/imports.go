@@ -7,7 +7,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -25,12 +24,18 @@ type importsState struct {
 
 	mu                     sync.Mutex
 	processEnv             *imports.ProcessEnv
-	cleanupProcessEnv      func()
 	cacheRefreshDuration   time.Duration
 	cacheRefreshTimer      *time.Timer
 	cachedModFileHash      source.Hash
 	cachedBuildFlags       []string
 	cachedDirectoryFilters []string
+
+	// runOnce records whether runProcessEnvFunc has been called at least once.
+	// This is necessary to avoid resetting state before the process env is
+	// populated.
+	//
+	// TODO(rfindley): this shouldn't be necessary.
+	runOnce bool
 }
 
 func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot, fn func(*imports.Options) error) error {
@@ -43,7 +48,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 	//
 	// TODO(rfindley): consider instead hashing on-disk modfiles here.
 	var modFileHash source.Hash
-	for m := range snapshot.workspace.ActiveModFiles() {
+	for m := range snapshot.workspaceModFiles {
 		fh, err := snapshot.GetFile(ctx, m)
 		if err != nil {
 			return err
@@ -70,22 +75,21 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 		// As a special case, skip cleanup the first time -- we haven't fully
 		// initialized the environment yet and calling GetResolver will do
 		// unnecessary work and potentially mess up the go.mod file.
-		if s.cleanupProcessEnv != nil {
+		if s.runOnce {
 			if resolver, err := s.processEnv.GetResolver(); err == nil {
 				if modResolver, ok := resolver.(*imports.ModuleResolver); ok {
 					modResolver.ClearForNewMod()
 				}
 			}
-			s.cleanupProcessEnv()
 		}
+
 		s.cachedModFileHash = modFileHash
 		s.cachedBuildFlags = currentBuildFlags
 		s.cachedDirectoryFilters = currentDirectoryFilters
-		var err error
-		s.cleanupProcessEnv, err = s.populateProcessEnv(ctx, snapshot)
-		if err != nil {
+		if err := s.populateProcessEnv(ctx, snapshot); err != nil {
 			return err
 		}
+		s.runOnce = true
 	}
 
 	// Run the user function.
@@ -120,7 +124,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 
 // populateProcessEnv sets the dynamically configurable fields for the view's
 // process environment. Assumes that the caller is holding the s.view.importsMu.
-func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapshot) (cleanup func(), err error) {
+func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapshot) error {
 	pe := s.processEnv
 
 	if snapshot.view.Options().VerboseOutput {
@@ -141,7 +145,7 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 		WorkingDir: snapshot.view.workingDir().Filename(),
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	pe.BuildFlags = inv.BuildFlags
@@ -156,29 +160,9 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 	}
 	// We don't actually use the invocation, so clean it up now.
 	cleanupInvocation()
-
-	// If the snapshot uses a synthetic workspace directory, create a copy for
-	// the lifecycle of the importsState.
-	//
-	// Notably, we cannot use the snapshot invocation working directory, as that
-	// is tied to the lifecycle of the snapshot.
-	//
-	// Otherwise return a no-op cleanup function.
-	cleanup = func() {}
-	if snapshot.usesWorkspaceDir() {
-		tmpDir, err := makeWorkspaceDir(ctx, snapshot.workspace, snapshot)
-		if err != nil {
-			return nil, err
-		}
-		pe.WorkingDir = tmpDir
-		cleanup = func() {
-			os.RemoveAll(tmpDir) // ignore error
-		}
-	} else {
-		pe.WorkingDir = snapshot.view.workingDir().Filename()
-	}
-
-	return cleanup, nil
+	// TODO(rfindley): should this simply be inv.WorkingDir?
+	pe.WorkingDir = snapshot.view.workingDir().Filename()
+	return nil
 }
 
 func (s *importsState) refreshProcessEnv() {
@@ -200,13 +184,5 @@ func (s *importsState) refreshProcessEnv() {
 	s.mu.Lock()
 	s.cacheRefreshDuration = time.Since(start)
 	s.cacheRefreshTimer = nil
-	s.mu.Unlock()
-}
-
-func (s *importsState) destroy() {
-	s.mu.Lock()
-	if s.cleanupProcessEnv != nil {
-		s.cleanupProcessEnv()
-	}
 	s.mu.Unlock()
 }

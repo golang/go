@@ -383,11 +383,6 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, pm *source.ParsedModu
 
 	for i := len(matches) - 1; i >= 0; i-- {
 		ver := module.Version{Path: matches[i][1], Version: matches[i][2]}
-		// Any module versions that come from the workspace module should not
-		// be shown to the user.
-		if source.IsWorkspaceModuleVersion(ver.Version) {
-			continue
-		}
 		if err := module.Check(ver.Path, ver.Version); err != nil {
 			continue
 		}
@@ -424,11 +419,6 @@ func (s *snapshot) goCommandDiagnostic(pm *source.ParsedModule, spn span.Span, g
 	var innermost *module.Version
 	for i := len(matches) - 1; i >= 0; i-- {
 		ver := module.Version{Path: matches[i][1], Version: matches[i][2]}
-		// Any module versions that come from the workspace module should not
-		// be shown to the user.
-		if source.IsWorkspaceModuleVersion(ver.Version) {
-			continue
-		}
 		if err := module.Check(ver.Path, ver.Version); err != nil {
 			continue
 		}

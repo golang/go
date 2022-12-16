@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/lsp/cmd"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/tool"
@@ -45,12 +46,12 @@ func TestHelpFiles(t *testing.T) {
 				}
 				return
 			}
-			expect, err := ioutil.ReadFile(helpFile)
-			switch {
-			case err != nil:
-				t.Errorf("Missing help file %q", helpFile)
-			case !bytes.Equal(expect, got):
-				t.Errorf("Help file %q did not match, got:\n%q\nwant:\n%q", helpFile, string(got), string(expect))
+			want, err := ioutil.ReadFile(helpFile)
+			if err != nil {
+				t.Fatalf("Missing help file %q", helpFile)
+			}
+			if diff := cmp.Diff(string(want), string(got)); diff != "" {
+				t.Errorf("Help file %q did not match, run with -update-help-files to fix (-want +got)\n%s", helpFile, diff)
 			}
 		})
 	}

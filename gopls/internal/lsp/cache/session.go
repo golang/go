@@ -184,33 +184,13 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, seqID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 
-	// Get immutable workspace configuration.
-	//
-	// TODO(rfindley): this info isn't actually immutable. For example, GOWORK
-	// could be changed, or a user's environment could be modified.
-	// We need a mechanism to invalidate it.
+	// Get immutable workspace information.
 	info, err := s.getWorkspaceInformation(ctx, folder, options)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
 
-	root := folder
-	// filterFunc is the path filter function for this workspace folder. Notably,
-	// it is relative to folder (which is specified by the user), not root.
-	filterFunc := pathExcludedByFilterFunc(folder.Filename(), info.gomodcache, options)
-	rootSrc, err := findWorkspaceModuleSource(ctx, root, s, filterFunc, options.ExperimentalWorkspaceModule)
-	if err != nil {
-		return nil, nil, func() {}, err
-	}
-	if options.ExpandWorkspaceToModule && rootSrc != "" {
-		root = span.Dir(rootSrc)
-	}
-
-	// Build the gopls workspace, collecting active modules in the view.
-	workspace, err := newWorkspace(ctx, root, info.effectiveGOWORK(), s, filterFunc, info.effectiveGO111MODULE() == off, options.ExperimentalWorkspaceModule)
-	if err != nil {
-		return nil, nil, func() {}, err
-	}
+	wsModFiles, wsModFilesErr := computeWorkspaceModFiles(ctx, info.gomod, info.effectiveGOWORK(), info.effectiveGO111MODULE(), s)
 
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
@@ -231,7 +211,6 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		vulns:                map[span.URI]*govulncheck.Result{},
 		filesByURI:           make(map[span.URI]span.URI),
 		filesByBase:          make(map[string][]canonicalURI),
-		rootSrc:              rootSrc,
 		workspaceInformation: info,
 	}
 	v.importsState = &importsState{
@@ -274,7 +253,8 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		modVulnHandles:       persistent.NewMap(uriLessInterface),
 		modWhyHandles:        persistent.NewMap(uriLessInterface),
 		knownSubdirs:         newKnownDirsSet(),
-		workspace:            workspace,
+		workspaceModFiles:    wsModFiles,
+		workspaceModFilesErr: wsModFilesErr,
 	}
 	// Save one reference in the view.
 	v.releaseSnapshot = v.snapshot.Acquire()
@@ -496,51 +476,52 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		return nil, nil, err
 	}
 
-	// Re-create views whose root may have changed.
+	// Re-create views whose definition may have changed.
 	//
-	// checkRoots controls whether to re-evaluate view definitions when
+	// checkViews controls whether to re-evaluate view definitions when
 	// collecting views below. Any addition or deletion of a go.mod or go.work
 	// file may have affected the definition of the view.
-	checkRoots := false
+	checkViews := false
+
 	for _, c := range changes {
 		if isGoMod(c.URI) || isGoWork(c.URI) {
-			// TODO(rfindley): only consider additions or deletions here.
-			checkRoots = true
-			break
+			// Change, InvalidateMetadata, and UnknownFileAction actions do not cause
+			// us to re-evaluate views.
+			redoViews := (c.Action != source.Change &&
+				c.Action != source.InvalidateMetadata &&
+				c.Action != source.UnknownFileAction)
+
+			if redoViews {
+				checkViews = true
+				break
+			}
 		}
 	}
 
-	if checkRoots {
+	if checkViews {
 		for _, view := range s.views {
-			// Check whether the view must be recreated. This logic looks hacky,
-			// as it uses the existing view gomodcache and options to re-evaluate
-			// the workspace source, then expects view creation to compute the same
-			// root source after first re-evaluating gomodcache and options.
-			//
-			// Well, it *is* a bit hacky, but in practice we will get the same
-			// gomodcache and options, as any environment change affecting these
-			// should have already invalidated the view (c.f. minorOptionsChange).
-			//
-			// TODO(rfindley): clean this up.
-			filterFunc := pathExcludedByFilterFunc(view.folder.Filename(), view.gomodcache, view.Options())
-			src, err := findWorkspaceModuleSource(ctx, view.folder, s, filterFunc, view.Options().ExperimentalWorkspaceModule)
+			// TODO(rfindley): can we avoid running the go command (go env)
+			// synchronously to change processing? Can we assume that the env did not
+			// change, and derive go.work using a combination of the configured
+			// GOWORK value and filesystem?
+			info, err := s.getWorkspaceInformation(ctx, view.folder, view.Options())
 			if err != nil {
-				return nil, nil, err
+				// Catastrophic failure, equivalent to a failure of session
+				// initialization and therefore should almost never happen. One
+				// scenario where this failure mode could occur is if some file
+				// permissions have changed preventing us from reading go.mod
+				// files.
+				//
+				// TODO(rfindley): consider surfacing this error more loudly. We
+				// could report a bug, but it's not really a bug.
+				event.Error(ctx, "fetching workspace information", err)
 			}
-			if src != view.rootSrc {
+
+			if info != view.workspaceInformation {
 				_, err := s.updateViewLocked(ctx, view, view.Options())
 				if err != nil {
-					// Catastrophic failure, equivalent to a failure of session
-					// initialization and therefore should almost never happen. One
-					// scenario where this failure mode could occur is if some file
-					// permissions have changed preventing us from reading go.mod
-					// files.
-					//
-					// The view may or may not still exist. The best we can do is log
-					// and move on.
-					//
-					// TODO(rfindley): consider surfacing this error more loudly. We
-					// could report a bug, but it's not really a bug.
+					// More catastrophic failure. The view may or may not still exist.
+					// The best we can do is log and move on.
 					event.Error(ctx, "recreating view", err)
 				}
 			}
@@ -695,7 +676,7 @@ func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes 
 func knownDirectories(ctx context.Context, snapshots []*snapshot) knownDirsSet {
 	result := newKnownDirsSet()
 	for _, snapshot := range snapshots {
-		dirs := snapshot.workspace.dirs(ctx, snapshot)
+		dirs := snapshot.dirs(ctx)
 		for _, dir := range dirs {
 			result.Insert(dir)
 		}

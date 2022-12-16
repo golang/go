@@ -286,7 +286,6 @@ func DefaultOptions(o *source.Options) {
 	o.InsertTextFormat = protocol.SnippetTextFormat
 	o.CompletionBudget = time.Minute
 	o.HierarchicalDocumentSymbolSupport = true
-	o.ExperimentalWorkspaceModule = true
 	o.SemanticTokens = true
 	o.InternalOptions.NewDiff = "both"
 }

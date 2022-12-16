@@ -54,7 +54,6 @@ type View struct {
 	// options define the build list. Any change to these fields results in a new
 	// View.
 	folder               span.URI // user-specified workspace folder
-	rootSrc              span.URI // file providing module information (go.mod or go.work); may be empty
 	workspaceInformation          // Go environment information
 
 	importsState *importsState
@@ -109,9 +108,15 @@ type View struct {
 	initializationSema chan struct{}
 }
 
+// workspaceInformation holds the defining features of the View workspace.
+//
+// This type is compared to see if the View needs to be reconstructed.
 type workspaceInformation struct {
 	// `go env` variables that need to be tracked by gopls.
 	goEnv
+
+	// gomod holds the relevant go.mod file for this workspace.
+	gomod span.URI
 
 	// The Go version in use: X in Go 1.X.
 	goversion int
@@ -528,16 +533,14 @@ func (v *View) relevantChange(c source.FileModification) bool {
 	if v.knownFile(c.URI) {
 		return true
 	}
-	// The go.work/gopls.mod may not be "known" because we first access it
-	// through the session. As a result, treat changes to the view's go.work or
-	// gopls.mod file as always relevant, even if they are only on-disk
-	// changes.
-	// TODO(rstambler): Make sure the go.work/gopls.mod files are always known
+	// The go.work file may not be "known" because we first access it through the
+	// session. As a result, treat changes to the view's go.work file as always
+	// relevant, even if they are only on-disk changes.
+	//
+	// TODO(rfindley): Make sure the go.work files are always known
 	// to the view.
-	for _, src := range []workspaceSource{goWorkWorkspace, goplsModWorkspace} {
-		if c.URI == uriForSource(v.workingDir(), v.effectiveGOWORK(), src) {
-			return true
-		}
+	if c.URI == v.effectiveGOWORK() {
+		return true
 	}
 
 	// Note: CL 219202 filtered out on-disk changes here that were not known to
@@ -633,20 +636,19 @@ func (v *View) shutdown() {
 	}
 	v.snapshotMu.Unlock()
 
-	v.importsState.destroy()
 	v.snapshotWG.Wait()
 }
 
 func (s *snapshot) IgnoredFile(uri span.URI) bool {
 	filename := uri.Filename()
 	var prefixes []string
-	if len(s.workspace.ActiveModFiles()) == 0 {
+	if len(s.workspaceModFiles) == 0 {
 		for _, entry := range filepath.SplitList(s.view.gopath) {
 			prefixes = append(prefixes, filepath.Join(entry, "src"))
 		}
 	} else {
 		prefixes = append(prefixes, s.view.gomodcache)
-		for m := range s.workspace.ActiveModFiles() {
+		for m := range s.workspaceModFiles {
 			prefixes = append(prefixes, span.Dir(m).Filename())
 		}
 	}
@@ -749,8 +751,8 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) (loadEr
 		})
 	}
 
-	if len(s.workspace.ActiveModFiles()) > 0 {
-		for modURI := range s.workspace.ActiveModFiles() {
+	if len(s.workspaceModFiles) > 0 {
+		for modURI := range s.workspaceModFiles {
 			// Be careful not to add context cancellation errors as critical module
 			// errors.
 			fh, err := s.GetFile(ctx, modURI)
@@ -887,39 +889,33 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	tool, _ := exec.LookPath("gopackagesdriver")
 	info.hasGopackagesDriver = gopackagesdriver != "off" && (gopackagesdriver != "" || tool != "")
 
+	// filterFunc is the path filter function for this workspace folder. Notably,
+	// it is relative to folder (which is specified by the user), not root.
+	filterFunc := pathExcludedByFilterFunc(folder.Filename(), info.gomodcache, options)
+	info.gomod, err = findWorkspaceModFile(ctx, folder, s, filterFunc)
+	if err != nil {
+		return info, err
+	}
+
 	return info, nil
 }
 
-// findWorkspaceModuleSource searches for a "module source" relative to the
-// given folder URI. A module source is the go.work or go.mod file that
-// provides module information.
-//
-// As a special case, this function returns a module source in a nested
-// directory if it finds no other module source, and exactly one nested module.
-//
-// If no module source is found, it returns "".
-func findWorkspaceModuleSource(ctx context.Context, folderURI span.URI, fs source.FileSource, excludePath func(string) bool, experimental bool) (span.URI, error) {
-	patterns := []string{"go.work", "go.mod"}
-	if experimental {
-		patterns = []string{"go.work", "gopls.mod", "go.mod"}
-	}
+// findWorkspaceModFile searches for a single go.mod file relative to the given
+// folder URI, using the following algorithm:
+//  1. if there is a go.mod file in a parent directory, return it
+//  2. else, if there is exactly one nested module, return it
+//  3. else, return ""
+func findWorkspaceModFile(ctx context.Context, folderURI span.URI, fs source.FileSource, excludePath func(string) bool) (span.URI, error) {
 	folder := folderURI.Filename()
-	for _, basename := range patterns {
-		match, err := findRootPattern(ctx, folder, basename, fs)
-		if err != nil {
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return "", ctxErr
-			}
-			return "", err
+	match, err := findRootPattern(ctx, folder, "go.mod", fs)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", ctxErr
 		}
-		if match != "" {
-			return span.URIFromPath(match), nil
-		}
+		return "", err
 	}
-
-	// The experimental workspace can handle nested modules at this point...
-	if experimental {
-		return "", nil
+	if match != "" {
+		return span.URIFromPath(match), nil
 	}
 
 	// ...else we should check if there's exactly one nested module.
@@ -948,9 +944,14 @@ func findWorkspaceModuleSource(ctx context.Context, folderURI span.URI, fs sourc
 // a singular nested module. In that case, the go command won't be able to find
 // the module unless we tell it the nested directory.
 func (v *View) workingDir() span.URI {
-	// TODO(golang/go#57514): eliminate the expandWorkspaceToModule setting.
-	if v.Options().ExpandWorkspaceToModule && v.rootSrc != "" {
-		return span.Dir(v.rootSrc)
+	// Note: if gowork is in use, this will default to the workspace folder. In
+	// the past, we would instead use the folder containing go.work. This should
+	// not make a difference, and in fact may improve go list error messages.
+	//
+	// TODO(golang/go#57514): eliminate the expandWorkspaceToModule setting
+	// entirely.
+	if v.Options().ExpandWorkspaceToModule && v.gomod != "" {
+		return span.Dir(v.gomod)
 	}
 	return v.folder
 }

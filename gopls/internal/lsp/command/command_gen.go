@@ -27,7 +27,6 @@ const (
 	FetchVulncheckResult  Command = "fetch_vulncheck_result"
 	GCDetails             Command = "gc_details"
 	Generate              Command = "generate"
-	GenerateGoplsMod      Command = "generate_gopls_mod"
 	GoGetPackage          Command = "go_get_package"
 	ListImports           Command = "list_imports"
 	ListKnownPackages     Command = "list_known_packages"
@@ -54,7 +53,6 @@ var Commands = []Command{
 	FetchVulncheckResult,
 	GCDetails,
 	Generate,
-	GenerateGoplsMod,
 	GoGetPackage,
 	ListImports,
 	ListKnownPackages,
@@ -122,12 +120,6 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.Generate(ctx, a0)
-	case "gopls.generate_gopls_mod":
-		var a0 URIArg
-		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
-			return nil, err
-		}
-		return nil, s.GenerateGoplsMod(ctx, a0)
 	case "gopls.go_get_package":
 		var a0 GoGetPackageArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -316,18 +308,6 @@ func NewGenerateCommand(title string, a0 GenerateArgs) (protocol.Command, error)
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.generate",
-		Arguments: args,
-	}, nil
-}
-
-func NewGenerateGoplsModCommand(title string, a0 URIArg) (protocol.Command, error) {
-	args, err := MarshalArgs(a0)
-	if err != nil {
-		return protocol.Command{}, err
-	}
-	return protocol.Command{
-		Title:     title,
-		Command:   "gopls.generate_gopls_mod",
 		Arguments: args,
 	}, nil
 }

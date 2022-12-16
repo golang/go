@@ -344,9 +344,6 @@ func (r *Runner) experimentalServer(optsHook func(*source.Options)) jsonrpc2.Str
 	options := func(o *source.Options) {
 		optsHook(o)
 		o.EnableAllExperiments()
-		// ExperimentalWorkspaceModule is not (as of writing) enabled by
-		// source.Options.EnableAllExperiments, but we want to test it.
-		o.ExperimentalWorkspaceModule = true
 	}
 	return lsprpc.NewStreamServer(cache.New(nil, nil), false, options)
 }

@@ -134,11 +134,7 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 			urlPath := string(importPath)
 
 			// For pkg.go.dev, append module version suffix to package import path.
-			if m := snapshot.Metadata(depsByImpPath[importPath]); m != nil &&
-				m.Module != nil &&
-				m.Module.Path != "" &&
-				m.Module.Version != "" &&
-				!source.IsWorkspaceModuleVersion(m.Module.Version) {
+			if m := snapshot.Metadata(depsByImpPath[importPath]); m != nil && m.Module != nil && m.Module.Path != "" && m.Module.Version != "" {
 				urlPath = strings.Replace(urlPath, m.Module.Path, m.Module.Path+"@"+m.Module.Version, 1)
 			}
 

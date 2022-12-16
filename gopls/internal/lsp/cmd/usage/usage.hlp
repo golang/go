@@ -37,7 +37,6 @@ Features
   signature         display selected identifier's signature
   fix               apply suggested fixes
   symbols           display selected file's symbols
-  workspace         manage the gopls workspace (experimental: under development)
   workspace_symbol  search symbols in workspace
   vulncheck         run experimental vulncheck analysis (experimental: under development)
 

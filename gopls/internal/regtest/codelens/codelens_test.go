@@ -78,6 +78,8 @@ const (
 // regression test for golang/go#39446. It also checks that these code lenses
 // only affect the diagnostics and contents of the containing go.mod file.
 func TestUpgradeCodelens(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // uses go.work
+
 	const proxyWithLatest = `
 -- golang.org/x/hello@v1.3.3/go.mod --
 module golang.org/x/hello
@@ -185,7 +187,7 @@ require golang.org/x/hello v1.2.3
 				}); err != nil {
 					t.Fatal(err)
 				}
-				env.Await(env.DoneWithChangeWatchedFiles())
+				env.AfterChange()
 				if got := env.BufferText("a/go.mod"); got != wantGoModA {
 					t.Fatalf("a/go.mod upgrade failed:\n%s", compare.Text(wantGoModA, got))
 				}
@@ -201,7 +203,7 @@ require golang.org/x/hello v1.2.3
 				if vendoring {
 					env.RunGoCommandInDir("a", "mod", "vendor")
 				}
-				env.Await(env.DoneWithChangeWatchedFiles())
+				env.AfterChange()
 				env.OpenFile("a/go.mod")
 				env.OpenFile("b/go.mod")
 				env.ExecuteCodeLensCommand("a/go.mod", command.CheckUpgrades, nil)

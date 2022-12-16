@@ -357,13 +357,9 @@ func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoF
 	// If this is a replaced module in the workspace, the version is
 	// meaningless, and we don't want clients to access it.
 	if m.Module != nil {
-		version := m.Module.Version
-		if source.IsWorkspaceModuleVersion(version) {
-			version = ""
-		}
 		pkg.version = &module.Version{
 			Path:    m.Module.Path,
-			Version: version,
+			Version: m.Module.Version,
 		}
 	}
 

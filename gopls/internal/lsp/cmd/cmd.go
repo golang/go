@@ -270,7 +270,6 @@ func (app *Application) featureCommands() []tool.Application {
 		&signature{app: app},
 		&suggestedFix{app: app},
 		&symbols{app: app},
-		newWorkspace(app),
 		&workspaceSymbol{app: app},
 		&vulncheck{app: app},
 	}

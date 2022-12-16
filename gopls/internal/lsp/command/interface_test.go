@@ -5,10 +5,10 @@
 package command_test
 
 import (
-	"bytes"
 	"io/ioutil"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/lsp/command/gen"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -25,7 +25,7 @@ func TestGenerated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(onDisk, generated) {
-		t.Error("command_gen.go is stale -- regenerate")
+	if diff := cmp.Diff(string(generated), string(onDisk)); diff != "" {
+		t.Errorf("command_gen.go is stale -- regenerate (-generated +on disk)\n%s", diff)
 	}
 }

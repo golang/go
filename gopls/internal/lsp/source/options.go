@@ -268,13 +268,6 @@ type BuildOptions struct {
 	// a go.mod file, narrowing the scope to that directory if it exists.
 	ExpandWorkspaceToModule bool `status:"experimental"`
 
-	// ExperimentalWorkspaceModule opts a user into the experimental support
-	// for multi-module workspaces.
-	//
-	// Deprecated: this feature is deprecated and will be removed in a future
-	// version of gopls (https://go.dev/issue/55331).
-	ExperimentalWorkspaceModule bool `status:"experimental"`
-
 	// ExperimentalPackageCacheKey controls whether to use a coarser cache key
 	// for package type information to increase cache hits. This setting removes
 	// the user's environment, build flags, and working directory from the cache
@@ -1100,12 +1093,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.setBool(&o.ExperimentalPostfixCompletions)
 
 	case "experimentalWorkspaceModule":
-		const msg = "experimentalWorkspaceModule has been replaced by go workspaces, " +
-			"and will be removed in a future version of gopls (https://go.dev/issue/55331) -- " +
-			"see https://github.com/golang/tools/blob/master/gopls/doc/workspace.md " +
-			"for information on setting up multi-module workspaces using go.work files"
-		result.softErrorf(msg)
-		result.setBool(&o.ExperimentalWorkspaceModule)
+		result.deprecated("")
 
 	case "experimentalTemplateSupport": // TODO(pjw): remove after June 2022
 		result.deprecated("")

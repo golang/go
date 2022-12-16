@@ -53,7 +53,7 @@ func TestCaseInsensitiveFilesystem(t *testing.T) {
 	}
 }
 
-func TestFindWorkspaceModuleSource(t *testing.T) {
+func TestFindWorkspaceModFile(t *testing.T) {
 	workspace := `
 -- a/go.mod --
 module a
@@ -71,10 +71,6 @@ module d-goplsworkspace
 module de
 -- f/g/go.mod --
 module fg
--- h/go.work --
-go 1.18
--- h/i/go.mod --
-module hi
 `
 	dir, err := fake.Tempdir(fake.UnpackTxt(workspace))
 	if err != nil {
@@ -84,21 +80,15 @@ module hi
 
 	tests := []struct {
 		folder, want string
-		experimental bool
 	}{
-		{"", "", false}, // no module at root, and more than one nested module
-		{"a", "a/go.mod", false},
-		{"a/x", "a/go.mod", false},
-		{"a/x/y", "a/go.mod", false},
-		{"b/c", "b/c/go.mod", false},
-		{"d", "d/e/go.mod", false},
-		{"d", "d/gopls.mod", true},
-		{"d/e", "d/e/go.mod", false},
-		{"d/e", "d/gopls.mod", true},
-		{"f", "f/g/go.mod", false},
-		{"f", "", true},
-		{"h", "h/go.work", false},
-		{"h/i", "h/go.work", false},
+		{"", ""}, // no module at root, and more than one nested module
+		{"a", "a/go.mod"},
+		{"a/x", "a/go.mod"},
+		{"a/x/y", "a/go.mod"},
+		{"b/c", "b/c/go.mod"},
+		{"d", "d/e/go.mod"},
+		{"d/e", "d/e/go.mod"},
+		{"f", "f/g/go.mod"},
 	}
 
 	for _, test := range tests {
@@ -106,7 +96,7 @@ module hi
 		rel := fake.RelativeTo(dir)
 		folderURI := span.URIFromPath(rel.AbsPath(test.folder))
 		excludeNothing := func(string) bool { return false }
-		got, err := findWorkspaceModuleSource(ctx, folderURI, &osFileSource{}, excludeNothing, test.experimental)
+		got, err := findWorkspaceModFile(ctx, folderURI, &osFileSource{}, excludeNothing)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,7 +105,7 @@ module hi
 			want = span.URIFromPath(rel.AbsPath(test.want))
 		}
 		if got != want {
-			t.Errorf("findWorkspaceModuleSource(%q, %t) = %q, want %q", test.folder, test.experimental, got, want)
+			t.Errorf("findWorkspaceModFile(%q) = %q, want %q", test.folder, got, want)
 		}
 	}
 }

@@ -147,20 +147,6 @@ Args:
 }
 ```
 
-### **Generate gopls.mod**
-Identifier: `gopls.generate_gopls_mod`
-
-(Re)generate the gopls.mod file for a workspace.
-
-Args:
-
-```
-{
-	// The file URI.
-	"URI": string,
-}
-```
-
 ### **go get a package**
 Identifier: `gopls.go_get_package`
 

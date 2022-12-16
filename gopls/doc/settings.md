@@ -116,18 +116,6 @@ a go.mod file, narrowing the scope to that directory if it exists.
 
 Default: `true`.
 
-#### **experimentalWorkspaceModule** *bool*
-
-**This setting is experimental and may be deleted.**
-
-experimentalWorkspaceModule opts a user into the experimental support
-for multi-module workspaces.
-
-Deprecated: this feature is deprecated and will be removed in a future
-version of gopls (https://go.dev/issue/55331).
-
-Default: `false`.
-
 #### **experimentalPackageCacheKey** *bool*
 
 **This setting is experimental and may be deleted.**

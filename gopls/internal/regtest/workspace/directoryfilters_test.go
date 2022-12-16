@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // This file contains regression tests for the directoryFilters setting.
@@ -198,6 +199,8 @@ func Goodbye() {}
 // Test for golang/go#52993: non-wildcard directoryFilters should still be
 // applied relative to the workspace folder, not the module root.
 func TestDirectoryFilters_MultiRootImportScanning(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // uses go.work
+
 	const files = `
 -- go.work --
 go 1.18

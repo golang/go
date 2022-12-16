@@ -9,8 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -287,22 +285,17 @@ func (m *moduleErrorMap) Error() string {
 // TODO(rfindley): separate workspace diagnostics from critical workspace
 // errors.
 func (s *snapshot) workspaceLayoutError(ctx context.Context) (error, []*source.Diagnostic) {
-	// TODO(rfindley): do we really not want to show a critical error if the user
-	// has no go.mod files?
-	if len(s.workspace.getKnownModFiles()) == 0 {
-		return nil, nil
-	}
-
 	// TODO(rfindley): both of the checks below should be delegated to the workspace.
+
 	if s.view.effectiveGO111MODULE() == off {
 		return nil, nil
 	}
-	if s.workspace.moduleSource != legacyWorkspace {
-		return nil, nil
-	}
 
-	// If the user has one module per view, there is nothing to warn about.
-	if s.ValidBuildConfiguration() && len(s.workspace.getKnownModFiles()) == 1 {
+	// If the user is using a go.work file, we assume that they know what they
+	// are doing.
+	//
+	// TODO(golang/go#53880): improve orphaned file diagnostics when using go.work.
+	if s.view.gowork != "" {
 		return nil, nil
 	}
 
@@ -335,10 +328,10 @@ https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 	// If the user has one active go.mod file, they may still be editing files
 	// in nested modules. Check the module of each open file and add warnings
 	// that the nested module must be opened as a workspace folder.
-	if len(s.workspace.ActiveModFiles()) == 1 {
+	if len(s.workspaceModFiles) == 1 {
 		// Get the active root go.mod file to compare against.
 		var rootMod string
-		for uri := range s.workspace.ActiveModFiles() {
+		for uri := range s.workspaceModFiles {
 			rootMod = uri.Filename()
 		}
 		rootDir := filepath.Dir(rootMod)
@@ -411,55 +404,6 @@ func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, fi
 		})
 	}
 	return srcDiags
-}
-
-// getWorkspaceDir returns the URI for the workspace directory
-// associated with this snapshot. The workspace directory is a
-// temporary directory containing the go.mod file computed from all
-// active modules.
-func (s *snapshot) getWorkspaceDir(ctx context.Context) (span.URI, error) {
-	s.mu.Lock()
-	dir, err := s.workspaceDir, s.workspaceDirErr
-	s.mu.Unlock()
-	if dir == "" && err == nil { // cache miss
-		dir, err = makeWorkspaceDir(ctx, s.workspace, s)
-		s.mu.Lock()
-		s.workspaceDir, s.workspaceDirErr = dir, err
-		s.mu.Unlock()
-	}
-	return span.URIFromPath(dir), err
-}
-
-// makeWorkspaceDir creates a temporary directory containing a go.mod
-// and go.sum file for each module in the workspace.
-// Note: snapshot's mutex must be unlocked for it to satisfy FileSource.
-func makeWorkspaceDir(ctx context.Context, workspace *workspace, fs source.FileSource) (string, error) {
-	file, err := workspace.modFile(ctx, fs)
-	if err != nil {
-		return "", err
-	}
-	modContent, err := file.Format()
-	if err != nil {
-		return "", err
-	}
-	sumContent, err := workspace.sumFile(ctx, fs)
-	if err != nil {
-		return "", err
-	}
-	tmpdir, err := ioutil.TempDir("", "gopls-workspace-mod")
-	if err != nil {
-		return "", err
-	}
-	for name, content := range map[string][]byte{
-		"go.mod": modContent,
-		"go.sum": sumContent,
-	} {
-		if err := ioutil.WriteFile(filepath.Join(tmpdir, name), content, 0644); err != nil {
-			os.RemoveAll(tmpdir) // ignore error
-			return "", err
-		}
-	}
-	return tmpdir, nil
 }
 
 // buildMetadata populates the updates map with metadata updates to
@@ -628,9 +572,13 @@ func containsPackageLocked(s *snapshot, m *source.Metadata) bool {
 	// Otherwise if the package has a module it must be an active module (as
 	// defined by the module root or go.work file) and at least one file must not
 	// be filtered out by directoryFilters.
-	if m.Module != nil && s.workspace.moduleSource != legacyWorkspace {
+	//
+	// TODO(rfindley): revisit this function. We should not need to predicate on
+	// gowork != "". It should suffice to consider workspace mod files (also, we
+	// will hopefully eliminate the concept of a workspace package soon).
+	if m.Module != nil && s.view.gowork != "" {
 		modURI := span.URIFromPath(m.Module.GoMod)
-		_, ok := s.workspace.activeModFiles[modURI]
+		_, ok := s.workspaceModFiles[modURI]
 		if !ok {
 			return false
 		}

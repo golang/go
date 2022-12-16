@@ -25,6 +25,9 @@ import (
 func TestBrokenWorkspace_DuplicateModules(t *testing.T) {
 	testenv.NeedsGo1Point(t, 18)
 
+	// TODO(golang/go#57650): fix this feature.
+	t.Skip("we no longer detect duplicate modules")
+
 	// This proxy module content is replaced by the workspace, but is still
 	// required for module resolution to function in the Go command.
 	const proxy = `

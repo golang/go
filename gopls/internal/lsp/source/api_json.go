@@ -57,14 +57,6 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "build",
 			},
 			{
-				Name:      "experimentalWorkspaceModule",
-				Type:      "bool",
-				Doc:       "experimentalWorkspaceModule opts a user into the experimental support\nfor multi-module workspaces.\n\nDeprecated: this feature is deprecated and will be removed in a future\nversion of gopls (https://go.dev/issue/55331).\n",
-				Default:   "false",
-				Status:    "experimental",
-				Hierarchy: "build",
-			},
-			{
 				Name:      "experimentalPackageCacheKey",
 				Type:      "bool",
 				Doc:       "experimentalPackageCacheKey controls whether to use a coarser cache key\nfor package type information to increase cache hits. This setting removes\nthe user's environment, build flags, and working directory from the cache\nkey, which should be a safe change as all relevant inputs into the type\nchecking pass are already hashed into the key. This is temporarily guarded\nby an experiment because caching behavior is subtle and difficult to\ncomprehensively test.\n",
@@ -725,12 +717,6 @@ var GeneratedAPIJSON = &APIJSON{
 			Title:   "Run go generate",
 			Doc:     "Runs `go generate` for a given directory.",
 			ArgDoc:  "{\n\t// URI for the directory to generate.\n\t\"Dir\": string,\n\t// Whether to generate recursively (go generate ./...)\n\t\"Recursive\": bool,\n}",
-		},
-		{
-			Command: "gopls.generate_gopls_mod",
-			Title:   "Generate gopls.mod",
-			Doc:     "(Re)generate the gopls.mod file for a workspace.",
-			ArgDoc:  "{\n\t// The file URI.\n\t\"URI\": string,\n}",
 		},
 		{
 			Command: "gopls.go_get_package",

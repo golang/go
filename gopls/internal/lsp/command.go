@@ -715,35 +715,6 @@ func (c *commandHandler) ToggleGCDetails(ctx context.Context, args command.URIAr
 	})
 }
 
-func (c *commandHandler) GenerateGoplsMod(ctx context.Context, args command.URIArg) error {
-	// TODO: go back to using URI
-	return c.run(ctx, commandConfig{
-		requireSave: true,
-		progress:    "Generating gopls.mod",
-	}, func(ctx context.Context, deps commandDeps) error {
-		views := c.s.session.Views()
-		if len(views) != 1 {
-			return fmt.Errorf("cannot resolve view: have %d views", len(views))
-		}
-		v := views[0]
-		snapshot, release := v.Snapshot(ctx)
-		defer release()
-		modFile, err := snapshot.BuildGoplsMod(ctx)
-		if err != nil {
-			return fmt.Errorf("getting workspace mod file: %w", err)
-		}
-		content, err := modFile.Format()
-		if err != nil {
-			return fmt.Errorf("formatting mod file: %w", err)
-		}
-		filename := filepath.Join(v.Folder().Filename(), "gopls.mod")
-		if err := ioutil.WriteFile(filename, content, 0644); err != nil {
-			return fmt.Errorf("writing mod file: %w", err)
-		}
-		return nil
-	})
-}
-
 func (c *commandHandler) ListKnownPackages(ctx context.Context, args command.URIArg) (command.ListKnownPackagesResult, error) {
 	var result command.ListKnownPackagesResult
 	err := c.run(ctx, commandConfig{

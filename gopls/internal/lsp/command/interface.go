@@ -121,11 +121,6 @@ type Interface interface {
 	// Toggle the calculation of gc annotations.
 	ToggleGCDetails(context.Context, URIArg) error
 
-	// GenerateGoplsMod: Generate gopls.mod
-	//
-	// (Re)generate the gopls.mod file for a workspace.
-	GenerateGoplsMod(context.Context, URIArg) error
-
 	// ListKnownPackages: List known packages
 	//
 	// Retrieve a list of packages that are importable from the given URI.
