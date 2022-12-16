@@ -107,121 +107,36 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	RET
 
 // Called by Windows as a Vectored Exception Handler (VEH).
-// First argument is pointer to struct containing
+// R0 is pointer to struct containing
 // exception record and context pointers.
-// Handler function is stored in R1
-// Return 0 for 'not handled', -1 for handled.
-// int32_t sigtramp(
-//     PEXCEPTION_POINTERS ExceptionInfo,
-//     func *GoExceptionHandler);
+// R1 is the kind of sigtramp function.
+// Return value of sigtrampgo is stored in R0.
 TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R0, R4-R11, R14], (R13)	// push {r0, r4-r11, lr} (SP-=40)
-	SUB	$(8+20), R13		// reserve space for g, sp, and
-					// parameters/retval to go call
+	MOVM.DB.W [R4-R11, R14], (R13)	// push {r4-r11, lr} (SP-=40)
+	SUB	$(16), R13		// reserve space for parameters/retval to go call
 
 	MOVW	R0, R6			// Save param0
 	MOVW	R1, R7			// Save param1
-
-	BL      runtime·load_g(SB)
-	CMP	$0,	g		// is there a current g?
-	BNE	g_ok
-	ADD	$(8+20), R13	// free locals
-	MOVM.IA.W (R13), [R3, R4-R11, R14]	// pop {r3, r4-r11, lr}
-	MOVW	$0, R0		// continue 
-	BEQ	return
-
-g_ok:
-
-	// save g and SP in case of stack switch
-	MOVW	R13, 24(R13)
-	MOVW	g, 20(R13)
-
-	// do we need to switch to the g0 stack?
-	MOVW	g, R5			// R5 = g
-	MOVW	g_m(R5), R2		// R2 = m
-	MOVW	m_g0(R2), R4		// R4 = g0
-	CMP	R5, R4			// if curg == g0
-	BEQ	g0
-
-	// switch to g0 stack
-	MOVW	R4, g				// g = g0
-	MOVW	(g_sched+gobuf_sp)(g), R3	// R3 = g->gobuf.sp
-	BL      runtime·save_g(SB)
-
-	// make room for sighandler arguments
-	// and re-save old SP for restoring later.
-	// (note that the 24(R3) here must match the 24(R13) above.)
-	SUB	$40, R3
-	MOVW	R13, 24(R3)		// save old stack pointer
-	MOVW	R3, R13			// switch stack
-
-g0:
-	MOVW	0(R6), R2	// R2 = ExceptionPointers->ExceptionRecord
-	MOVW	4(R6), R3	// R3 = ExceptionPointers->ContextRecord
+	BL	runtime·load_g(SB)	// Clobbers R0
 
 	MOVW	$0, R4
 	MOVW	R4, 0(R13)	// No saved link register.
-	MOVW	R2, 4(R13)	// Move arg0 (ExceptionRecord) into position
-	MOVW	R3, 8(R13)	// Move arg1 (ContextRecord) into position
-	MOVW	R5, 12(R13)	// Move arg2 (original g) into position
-	BL	(R7)		// Call the goroutine
-	MOVW	16(R13), R4	// Fetch return value from stack
+	MOVW	R6, 4(R13)	// Move arg0 into position
+	MOVW	R7, 8(R13)	// Move arg1 into position
+	BL	runtime·sigtrampgo(SB)
+	MOVW	12(R13), R0	// Fetch return value from stack
 
-	// Save system stack pointer for sigresume setup below.
-	// The exact value does not matter - nothing is read or written
-	// from this address. It just needs to be on the system stack.
-	MOVW	R13, R12
+	ADD	$(16), R13			// free locals
+	MOVM.IA.W (R13), [R4-R11, R14]	// pop {r4-r11, lr}
 
-	// switch back to original stack and g
-	MOVW	24(R13), R13
-	MOVW	20(R13), g
-	BL      runtime·save_g(SB)
-
-done:
-	MOVW	R4, R0				// move retval into position
-	ADD	$(8 + 20), R13			// free locals
-	MOVM.IA.W (R13), [R3, R4-R11, R14]	// pop {r3, r4-r11, lr}
-
-	// if return value is CONTINUE_SEARCH, do not set up control
-	// flow guard workaround
-	CMP	$0, R0
-	BEQ	return
-
-	// Check if we need to set up the control flow guard workaround.
-	// On Windows, the stack pointer in the context must lie within
-	// system stack limits when we resume from exception.
-	// Store the resume SP and PC on the g0 stack,
-	// and return to sigresume on the g0 stack. sigresume
-	// pops the saved PC and SP from the g0 stack, resuming execution
-	// at the desired location.
-	// If sigresume has already been set up by a previous exception
-	// handler, don't clobber the stored SP and PC on the stack.
-	MOVW	4(R3), R3			// PEXCEPTION_POINTERS->Context
-	MOVW	context_pc(R3), R2		// load PC from context record
-	MOVW	$sigresume<>(SB), R1
-	CMP	R1, R2
-	B.EQ	return				// do not clobber saved SP/PC
-
-	// Save resume SP and PC into R0, R1.
-	MOVW	context_spr(R3), R2
-	MOVW	R2, context_r0(R3)
-	MOVW	context_pc(R3), R2
-	MOVW	R2, context_r1(R3)
-
-	// Set up context record to return to sigresume on g0 stack
-	MOVW	R12, context_spr(R3)
-	MOVW	$sigresume<>(SB), R2
-	MOVW	R2, context_pc(R3)
-
-return:
 	B	(R14)				// return
 
 // Trampoline to resume execution from exception handler.
 // This is part of the control flow guard workaround.
 // It switches stacks and jumps to the continuation address.
-// R0 and R1 are set above at the end of sigtramp<>
-// in the context that starts executing at sigresume<>.
-TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+// R0 and R1 are set above at the end of sigtrampgo
+// in the context that starts executing at sigresume.
+TEXT runtime·sigresume(SB),NOSPLIT|NOFRAME,$0
 	// Important: do not smash LR,
 	// which is set to a live value when handling
 	// a signal by pushing a call to sigpanic onto the stack.
@@ -229,15 +144,15 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
 	B	(R1)
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$runtime·exceptionhandler(SB), R1
+	MOVW	$const_callbackVEH, R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$runtime·firstcontinuehandler(SB), R1
+	MOVW	$const_callbackFirstVCH, R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVW	$runtime·lastcontinuehandler(SB), R1
+	MOVW	$const_callbackLastVCH, R1
 	B	sigtramp<>(SB)
 
 GLOBL runtime·cbctxts(SB), NOPTR, $4

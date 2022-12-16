@@ -131,143 +131,38 @@ TEXT runtime·getlasterror(SB),NOSPLIT|NOFRAME,$0
 	RET
 
 // Called by Windows as a Vectored Exception Handler (VEH).
-// First argument is pointer to struct containing
+// R0 is pointer to struct containing
 // exception record and context pointers.
-// Handler function is stored in R1
-// Return 0 for 'not handled', -1 for handled.
-// int32_t sigtramp(
-//     PEXCEPTION_POINTERS ExceptionInfo,
-//     func *GoExceptionHandler);
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
-	// Save R0, R1 (args) as well as LR, R27, R28 (callee-save).
+// R1 is the kind of sigtramp function.
+// Return value of sigtrampgo is stored in R0.
+TEXT sigtramp<>(SB),NOSPLIT,$176
+	// Switch from the host ABI to the Go ABI, safe args and lr.
 	MOVD	R0, R5
 	MOVD	R1, R6
 	MOVD	LR, R7
-	MOVD	R27, R16		// saved R27 (callee-save)
-	MOVD	g, R17 			// saved R28 (callee-save from Windows, not really g)
+	SAVE_R19_TO_R28(8*4)
+	SAVE_F8_TO_F15(8*14)
 
-	BL      runtime·load_g(SB)	// smashes R0, R27, R28 (g)
-	CMP	$0,	g		// is there a current g?
-	BNE	g_ok
-	MOVD	R7, LR
-	MOVD	R16, R27	// restore R27
-	MOVD	R17, g		// restore R28
-	MOVD	$0, R0		// continue 
-	RET
+	BL	runtime·load_g(SB)	// Clobers R0, R27, R28 (g)
 
-g_ok:
-	// Do we need to switch to the g0 stack?
-	MOVD	g, R3			// R3 = oldg (for sigtramp_g0)
-	MOVD	g_m(g), R2		// R2 = m
-	MOVD	m_g0(R2), R2		// R2 = g0
-	CMP	g, R2			// if curg == g0
-	BNE	switch
-
-	// No: on g0 stack already, tail call to sigtramp_g0.
-	// Restore all the callee-saves so sigtramp_g0 can return to our caller.
-	// We also pass R2 = g0, R3 = oldg, both set above.
 	MOVD	R5, R0
 	MOVD	R6, R1
+	// Calling ABIInternal because TLS might be nil.
+	BL	runtime·sigtrampgo<ABIInternal>(SB)
+	// Return value is already stored in R0.
+
+	// Restore callee-save registers.
+	RESTORE_R19_TO_R28(8*4)
+	RESTORE_F8_TO_F15(8*14)
 	MOVD	R7, LR
-	MOVD	R16, R27		// restore R27
-	MOVD	R17, g 			// restore R28
-	B	sigtramp_g0<>(SB)
-
-switch:
-	// switch to g0 stack (but do not update g - that's sigtramp_g0's job)
-	MOVD	RSP, R8
-	MOVD	(g_sched+gobuf_sp)(R2), R4	// R4 = g->gobuf.sp
-	SUB	$(6*8), R4			// alloc space for saves - 2 words below SP for frame pointer, 3 for us to use, 1 for alignment
-	MOVD	R4, RSP				// switch to g0 stack
-
-	MOVD	$0, (0*8)(RSP)	// fake saved LR
-	MOVD	R7, (1*8)(RSP)	// saved LR
-	MOVD	R8, (2*8)(RSP)	// saved SP
-
-	MOVD	R5, R0		// original args
-	MOVD	R6, R1		// original args
-	MOVD	R16, R27
-	MOVD	R17, g 		// R28
-	BL	sigtramp_g0<>(SB)
-
-	// switch back to original stack; g already updated
-	MOVD	(1*8)(RSP), R7	// saved LR
-	MOVD	(2*8)(RSP), R8	// saved SP
-	MOVD	R7, LR
-	MOVD	R8, RSP
-	RET
-
-// sigtramp_g0 is running on the g0 stack, with R2 = g0, R3 = oldg.
-// But g itself is not set - that's R28, a callee-save register,
-// and it still holds the value from the Windows DLL caller.
-TEXT sigtramp_g0<>(SB),NOSPLIT,$128
-	NO_LOCAL_POINTERS
-
-	// Push C callee-save registers R19-R28. LR, FP already saved.
-	// These registers will occupy the upper 10 words of the frame.
-	SAVE_R19_TO_R28(8*7)
-
-	MOVD	0(R0), R5	// R5 = ExceptionPointers->ExceptionRecord
-	MOVD	8(R0), R6	// R6 = ExceptionPointers->ContextRecord
-	MOVD	R6, context-(11*8)(SP)
-
-	MOVD	R2, g 			// g0
-	BL      runtime·save_g(SB)	// smashes R0
-
-	MOVD	R5, (1*8)(RSP)	// arg0 (ExceptionRecord)
-	MOVD	R6, (2*8)(RSP)	// arg1 (ContextRecord)
-	MOVD	R3, (3*8)(RSP)	// arg2 (original g)
-	MOVD	R3, oldg-(12*8)(SP)
-	BL	(R1)
-	MOVD	oldg-(12*8)(SP), g
-	BL      runtime·save_g(SB)	// smashes R0
-	MOVW	(4*8)(RSP), R0	// return value (0 or -1)
-
-	// if return value is CONTINUE_SEARCH, do not set up control
-	// flow guard workaround
-	CMP	$0, R0
-	BEQ	return
-
-	// Check if we need to set up the control flow guard workaround.
-	// On Windows, the stack pointer in the context must lie within
-	// system stack limits when we resume from exception.
-	// Store the resume SP and PC in alternate registers
-	// and return to sigresume on the g0 stack.
-	// sigresume makes no use of the stack at all,
-	// loading SP from R0 and jumping to R1.
-	// Note that smashing R0 and R1 is only safe because we know sigpanic
-	// will not actually return to the original frame, so the registers
-	// are effectively dead. But this does mean we can't use the
-	// same mechanism for async preemption.
-	MOVD	context-(11*8)(SP), R6
-	MOVD	context_pc(R6), R2		// load PC from context record
-	MOVD	$sigresume<>(SB), R1
-
-	CMP	R1, R2
-	BEQ	return				// do not clobber saved SP/PC
-
-	// Save resume SP and PC into R0, R1.
-	MOVD	context_xsp(R6), R2
-	MOVD	R2, (context_x+0*8)(R6)
-	MOVD	context_pc(R6), R2
-	MOVD	R2, (context_x+1*8)(R6)
-
-	// Set up context record to return to sigresume on g0 stack
-	MOVD	RSP, R2
-	MOVD	R2, context_xsp(R6)
-	MOVD	$sigresume<>(SB), R2
-	MOVD	R2, context_pc(R6)
-
-return:
-	RESTORE_R19_TO_R28(8*7)		// smashes g
 	RET
 
 // Trampoline to resume execution from exception handler.
 // This is part of the control flow guard workaround.
 // It switches stacks and jumps to the continuation address.
-// R0 and R1 are set above at the end of sigtramp<>
-// in the context that starts executing at sigresume<>.
-TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
+// R0 and R1 are set above at the end of sigtrampgo
+// in the context that starts executing at sigresume.
+TEXT runtime·sigresume(SB),NOSPLIT|NOFRAME,$0
 	// Important: do not smash LR,
 	// which is set to a live value when handling
 	// a signal by pushing a call to sigpanic onto the stack.
@@ -275,15 +170,15 @@ TEXT sigresume<>(SB),NOSPLIT|NOFRAME,$0
 	B	(R1)
 
 TEXT runtime·exceptiontramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·exceptionhandler(SB), R1
+	MOVD	$const_callbackVEH, R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·firstcontinuehandler(SB), R1
+	MOVD	$const_callbackFirstVCH, R1
 	B	sigtramp<>(SB)
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
-	MOVD	$runtime·lastcontinuehandler(SB), R1
+	MOVD	$const_callbackLastVCH, R1
 	B	sigtramp<>(SB)
 
 GLOBL runtime·cbctxts(SB), NOPTR, $4

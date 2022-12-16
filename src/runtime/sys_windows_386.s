@@ -72,13 +72,20 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVL	AX, ret+0(FP)
 	RET
 
+TEXT runtime·sigFetchGSafe<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+	get_tls(AX)
+	CMPL	AX, $0
+	JE	2(PC)
+	MOVL	g(AX), AX
+	MOVL	AX, ret+0(FP)
+	RET
+
 // Called by Windows as a Vectored Exception Handler (VEH).
-// First argument is pointer to struct containing
+// AX is pointer to struct containing
 // exception record and context pointers.
-// Handler function is stored in AX.
-// Return 0 for 'not handled', -1 for handled.
+// CX is the kind of sigtramp function.
+// Return value of sigtrampgo is stored in AX.
 TEXT sigtramp<>(SB),NOSPLIT,$0-0
-	MOVL	ptrs+0(FP), CX
 	SUBL	$40, SP
 
 	// save callee-saved registers
@@ -87,58 +94,11 @@ TEXT sigtramp<>(SB),NOSPLIT,$0-0
 	MOVL	SI, 20(SP)
 	MOVL	DI, 24(SP)
 
-	MOVL	AX, SI	// save handler address
-
-	// find g
-	get_tls(DX)
-	CMPL	DX, $0
-	JNE	3(PC)
-	MOVL	$0, AX // continue
-	JMP	done
-	MOVL	g(DX), DX
-	CMPL	DX, $0
-	JNE	2(PC)
-	CALL	runtime·badsignal2(SB)
-
-	// save g in case of stack switch
-	MOVL	DX, 32(SP)	// g
-	MOVL	SP, 36(SP)
-
-	// do we need to switch to the g0 stack?
-	MOVL	g_m(DX), BX
-	MOVL	m_g0(BX), BX
-	CMPL	DX, BX
-	JEQ	g0
-
-	// switch to the g0 stack
-	get_tls(BP)
-	MOVL	BX, g(BP)
-	MOVL	(g_sched+gobuf_sp)(BX), DI
-	// make room for sighandler arguments
-	// and re-save old SP for restoring later.
-	// (note that the 36(DI) here must match the 36(SP) above.)
-	SUBL	$40, DI
-	MOVL	SP, 36(DI)
-	MOVL	DI, SP
-
-g0:
-	MOVL	0(CX), BX // ExceptionRecord*
-	MOVL	4(CX), CX // Context*
-	MOVL	BX, 0(SP)
+	MOVL	AX, 0(SP)
 	MOVL	CX, 4(SP)
-	MOVL	DX, 8(SP)
-	CALL	SI	// call handler
-	// AX is set to report result back to Windows
-	MOVL	12(SP), AX
+	CALL	runtime·sigtrampgo(SB)
+	MOVL	8(SP), AX
 
-	// switch back to original stack and g
-	// no-op if we never left.
-	MOVL	36(SP), SP
-	MOVL	32(SP), DX	// note: different SP
-	get_tls(BP)
-	MOVL	DX, g(BP)
-
-done:
 	// restore callee-saved registers
 	MOVL	24(SP), DI
 	MOVL	20(SP), SI
@@ -150,8 +110,18 @@ done:
 	BYTE $0xC2; WORD $4
 	RET // unreached; make assembler happy
 
+// Trampoline to resume execution from exception handler.
+// This is part of the control flow guard workaround.
+// It switches stacks and jumps to the continuation address.
+// DX and CX are set above at the end of sigtrampgo
+// in the context that starts executing at sigresume.
+TEXT runtime·sigresume(SB),NOSPLIT|NOFRAME,$0
+	MOVL	DX, SP
+	JMP	CX
+
 TEXT runtime·exceptiontramp(SB),NOSPLIT,$0
-	MOVL	$runtime·exceptionhandler(SB), AX
+	MOVL	argframe+0(FP), AX
+	MOVL	$const_callbackVEH, CX
 	JMP	sigtramp<>(SB)
 
 TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
@@ -159,7 +129,8 @@ TEXT runtime·firstcontinuetramp(SB),NOSPLIT,$0-0
 	INT	$3
 
 TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
-	MOVL	$runtime·lastcontinuehandler(SB), AX
+	MOVL	argframe+0(FP), AX
+	MOVL	$const_callbackLastVCH, CX
 	JMP	sigtramp<>(SB)
 
 GLOBL runtime·cbctxts(SB), NOPTR, $4
