@@ -2063,6 +2063,18 @@ func dropm() {
 	mp.curg.preemptStop = false
 	sched.ngsys.Add(1)
 
+	// Release mp.oldp to idle state.
+	oldp := mp.oldp.ptr()
+	mp.oldp = 0
+	if oldp != nil && oldp.status == _Psyscall && atomic.Cas(&oldp.status, _Psyscall, _Pidle) {
+		if trace.enabled {
+			traceGoSysBlock(oldp)
+			traceProcStop(oldp)
+		}
+		oldp.syscalltick++
+		handoffp(oldp)
+	}
+
 	// Block signals before unminit.
 	// Unminit unregisters the signal handling stack (but needs g on some systems).
 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
@@ -3756,7 +3768,7 @@ func save(pc, sp uintptr) {
 // because tracing can be enabled in the middle of syscall. We don't want the wait to hang.
 //
 //go:nosplit
-func reentersyscall(pc, sp uintptr, handoff bool) {
+func reentersyscall(pc, sp uintptr) {
 	gp := getg()
 
 	// Disable preemption because during this function g is in Gsyscall status,
@@ -3807,20 +3819,8 @@ func reentersyscall(pc, sp uintptr, handoff bool) {
 	pp.m = 0
 	gp.m.oldp.set(pp)
 	gp.m.p = 0
-
-	if handoff {
-		atomic.Store(&pp.status, _Pidle)
-		systemstack(func() {
-			if trace.enabled {
-				traceGoSysBlock(pp)
-				traceProcStop(pp)
-			}
-			pp.syscalltick++
-			handoffp(pp)
-		})
-		save(pc, sp)
-	} else {
-		atomic.Store(&pp.status, _Psyscall)
+	atomic.Store(&pp.status, _Psyscall)
+	if sched.gcwaiting.Load() {
 		systemstack(entersyscall_gcwait)
 		save(pc, sp)
 	}
@@ -3835,7 +3835,7 @@ func reentersyscall(pc, sp uintptr, handoff bool) {
 //go:nosplit
 //go:linkname entersyscall
 func entersyscall() {
-	reentersyscall(getcallerpc(), getcallersp(), false)
+	reentersyscall(getcallerpc(), getcallersp())
 }
 
 func entersyscall_sysmon() {

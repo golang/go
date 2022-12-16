@@ -246,7 +246,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	osPreemptExtEnter(gp.m)
 
 	// going back to cgo call
-	reentersyscall(savedpc, uintptr(savedsp), true)
+	reentersyscall(savedpc, uintptr(savedsp))
 
 	gp.m.syscall = syscall
 }
