@@ -433,15 +433,10 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
 	scopes, _, startPos := ctxt.DebugInfo(s, absfn, curfn)
 	_, startLine := ctxt.getFileSymbolAndLine(startPos)
 	dwctxt := dwCtxt{ctxt}
-	// TODO(prattmic): this returns nil for symbols outside of the current
-	// package because s.Func() is empty. This doesn't matter because
-	// PutAbstractFunc doesn't use Filesym. Use startPos or remove.
-	filesym := ctxt.fileSymbol(s)
 	fnstate := dwarf.FnState{
 		Name:          s.Name,
 		Importpath:    myimportpath,
 		Info:          absfn,
-		Filesym:       filesym,
 		Absfn:         absfn,
 		StartLine:     startLine,
 		External:      !s.Static(),
