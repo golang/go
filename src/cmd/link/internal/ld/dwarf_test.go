@@ -373,94 +373,136 @@ func main() {
 	}
 }
 
-// expectLine is the expected line for main.
-func varDeclCoordsAndSubprogramDeclFile(t *testing.T, testpoint string, expectFile string, expectLine int, directive string) {
+func TestSubprogramDeclFileLine(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	prog := fmt.Sprintf("package main\n%s\nfunc main() {\n\nvar i int\ni = i\n}\n", directive)
-	const iLineOffset = 2
-
-	d, ex := gobuildAndExamine(t, prog, NoOpt)
-
-	// Locate the main.main DIE
-	mains := ex.Named("main.main")
-	if len(mains) == 0 {
-		t.Fatalf("unable to locate DIE for main.main")
-	}
-	if len(mains) != 1 {
-		t.Fatalf("more than one main.main DIE")
-	}
-	maindie := mains[0]
-
-	// Vet the main.main DIE
-	if maindie.Tag != dwarf.TagSubprogram {
-		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	// Walk main's children and select variable "i".
-	mainIdx := ex.IdxFromOffset(maindie.Offset)
-	childDies := ex.Children(mainIdx)
-	var iEntry *dwarf.Entry
-	for _, child := range childDies {
-		if child.Tag == dwarf.TagVariable && child.Val(dwarf.AttrName).(string) == "i" {
-			iEntry = child
-			break
-		}
+	const prog = `package main
+%s
+func main() {}
+`
+	tests := []struct {
+		name string
+		prog string
+		file string
+		line int64
+	}{
+		{
+			name: "normal",
+			prog: fmt.Sprintf(prog, ""),
+			file: "test.go",
+			line: 3,
+		},
+		{
+			name: "line-directive",
+			prog: fmt.Sprintf(prog, "//line /foobar.go:200"),
+			file: "foobar.go",
+			line: 200,
+		},
 	}
-	if iEntry == nil {
-		t.Fatalf("didn't find DW_TAG_variable for i in main.main")
-	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	// Verify line/file attributes.
-	line, lineOK := iEntry.Val(dwarf.AttrDeclLine).(int64)
-	if !lineOK {
-		t.Errorf("missing or invalid DW_AT_decl_line for i")
-	}
-	if line != int64(expectLine+iLineOffset) {
-		t.Errorf("DW_AT_decl_line for i is %v, want %d", line, expectLine+iLineOffset)
-	}
+			d, ex := gobuildAndExamine(t, tc.prog, NoOpt)
 
-	fileIdx, fileIdxOK := maindie.Val(dwarf.AttrDeclFile).(int64)
-	if !fileIdxOK {
-		t.Errorf("missing or invalid DW_AT_decl_file for main")
-	}
-	file, err := ex.FileRef(d, mainIdx, fileIdx)
-	if err != nil {
-		t.Fatalf("FileRef: %v", err)
-	}
-	base := filepath.Base(file)
-	if base != expectFile {
-		t.Errorf("DW_AT_decl_file for main is %v, want %v", base, expectFile)
-	}
+			maindie := findSubprogramDIE(t, ex, "main.main")
 
-	line, lineOK = maindie.Val(dwarf.AttrDeclLine).(int64)
-	if !lineOK {
-		t.Errorf("missing or invalid DW_AT_decl_line for main")
-	}
-	if line != int64(expectLine) {
-		t.Errorf("DW_AT_decl_line for main is %v, want %d", line, expectLine)
+			mainIdx := ex.IdxFromOffset(maindie.Offset)
+
+			fileIdx, fileIdxOK := maindie.Val(dwarf.AttrDeclFile).(int64)
+			if !fileIdxOK {
+				t.Errorf("missing or invalid DW_AT_decl_file for main")
+			}
+			file, err := ex.FileRef(d, mainIdx, fileIdx)
+			if err != nil {
+				t.Fatalf("FileRef: %v", err)
+			}
+			base := filepath.Base(file)
+			if base != tc.file {
+				t.Errorf("DW_AT_decl_file for main is %v, want %v", base, tc.file)
+			}
+
+			line, lineOK := maindie.Val(dwarf.AttrDeclLine).(int64)
+			if !lineOK {
+				t.Errorf("missing or invalid DW_AT_decl_line for main")
+			}
+			if line != tc.line {
+				t.Errorf("DW_AT_decl_line for main is %v, want %d", line, tc.line)
+			}
+		})
 	}
 }
 
-func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
+func TestVarDeclLine(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	varDeclCoordsAndSubprogramDeclFile(t, "TestVarDeclCoords", "test.go", 3, "")
+	const prog = `package main
+%s
+func main() {
+
+	var i int
+	i = i
 }
-
-func TestVarDeclCoordsWithLineDirective(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+`
+	tests := []struct {
+		name string
+		prog string
+		line int64
+	}{
+		{
+			name: "normal",
+			prog: fmt.Sprintf(prog, ""),
+			line: 5,
+		},
+		{
+			name: "line-directive",
+			prog: fmt.Sprintf(prog, "//line /foobar.go:200"),
+			line: 202,
+		},
 	}
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	varDeclCoordsAndSubprogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
-		"foobar.go", 200, "//line /foobar.go:200")
+			_, ex := gobuildAndExamine(t, tc.prog, NoOpt)
+
+			maindie := findSubprogramDIE(t, ex, "main.main")
+
+			mainIdx := ex.IdxFromOffset(maindie.Offset)
+			childDies := ex.Children(mainIdx)
+			var iEntry *dwarf.Entry
+			for _, child := range childDies {
+				if child.Tag == dwarf.TagVariable && child.Val(dwarf.AttrName).(string) == "i" {
+					iEntry = child
+					break
+				}
+			}
+			if iEntry == nil {
+				t.Fatalf("didn't find DW_TAG_variable for i in main.main")
+			}
+
+			// Verify line/file attributes.
+			line, lineOK := iEntry.Val(dwarf.AttrDeclLine).(int64)
+			if !lineOK {
+				t.Errorf("missing or invalid DW_AT_decl_line for i")
+			}
+			if line != tc.line {
+				t.Errorf("DW_AT_decl_line for i is %v, want %d", line, tc.line)
+			}
+		})
+	}
 }
 
 func TestInlinedRoutineRecords(t *testing.T) {
