@@ -458,7 +458,7 @@ Do not send CLs removing the interior tags from such phrases.
 <pre>
 func RequestHandler(w ResponseWriter, r *Request) {
   rc := http.NewResponseController(w)
-  rc.SetWriteDeadline(0) // disable Server.WriteTimeout when sending a large response
+  rc.SetWriteDeadline(time.Time{}) // disable Server.WriteTimeout when sending a large response
   io.Copy(w, bigData)
 }
 </pre>
