@@ -3209,7 +3209,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		// while compling runtime/cgo.
 		if runtime.GOOS == "darwin" {
 			cgoLDFLAGS = append(cgoLDFLAGS, "-Wl,-undefined,dynamic_lookup")
-		} else {
+		} else if runtime.GOOS != "windows" {
 			cgoLDFLAGS = append(cgoLDFLAGS, "-Wl,--unresolved-symbols=ignore-in-object-files")
 		}
 	}
