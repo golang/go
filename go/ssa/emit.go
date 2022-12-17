@@ -29,7 +29,7 @@ func emitNew(f *Function, typ types.Type, pos token.Pos) *Alloc {
 // new temporary, and returns the value so defined.
 func emitLoad(f *Function, addr Value) *UnOp {
 	v := &UnOp{Op: token.MUL, X: addr}
-	v.setType(deref(addr.Type()))
+	v.setType(deref(typeparams.CoreType(addr.Type())))
 	f.emit(v)
 	return v
 }

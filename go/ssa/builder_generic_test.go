@@ -443,6 +443,21 @@ func TestGenericBodies(t *testing.T) {
 				return true
 			}`,
 		},
+		{
+			pkg: "j",
+			contents: `
+			package j
+
+			type E interface{}
+
+			func Foo[T E, PT interface{ *T }]() T {
+				pt := PT(new(T))
+				x := *pt
+				print(x)  /*@ types(T)*/
+				return x
+			}
+			`,
+		},
 	} {
 		test := test
 		t.Run(test.pkg, func(t *testing.T) {
