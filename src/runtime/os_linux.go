@@ -226,6 +226,8 @@ var addrspace_vec [1]byte
 
 func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
+var auxvreadbuf [128]uintptr
+
 func sysargs(argc int32, argv **byte) {
 	n := argc + 1
 
@@ -238,8 +240,10 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-	if sysauxv(auxv[:]) != 0 {
+	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+
+	if pairs := sysauxv(auxvp[:]); pairs != 0 {
+		auxv = auxvp[: pairs*2 : pairs*2]
 		return
 	}
 	// In some situations we don't get a loader-provided
@@ -269,23 +273,24 @@ func sysargs(argc int32, argv **byte) {
 		munmap(p, size)
 		return
 	}
-	var buf [128]uintptr
-	n = read(fd, noescape(unsafe.Pointer(&buf[0])), int32(unsafe.Sizeof(buf)))
+
+	n = read(fd, noescape(unsafe.Pointer(&auxvreadbuf[0])), int32(unsafe.Sizeof(auxvreadbuf)))
 	closefd(fd)
 	if n < 0 {
 		return
 	}
 	// Make sure buf is terminated, even if we didn't read
 	// the whole file.
-	buf[len(buf)-2] = _AT_NULL
-	sysauxv(buf[:])
+	auxvreadbuf[len(auxvreadbuf)-2] = _AT_NULL
+	pairs := sysauxv(auxvreadbuf[:])
+	auxv = auxvreadbuf[: pairs*2 : pairs*2]
 }
 
 // startupRandomData holds random bytes initialized at startup. These come from
 // the ELF AT_RANDOM auxiliary vector.
 var startupRandomData []byte
 
-func sysauxv(auxv []uintptr) int {
+func sysauxv(auxv []uintptr) (pairs int) {
 	var i int
 	for ; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
