@@ -61,8 +61,7 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpAtomicAnd8:
 		return rewriteValueRISCV64_OpAtomicAnd8(v)
 	case OpAtomicCompareAndSwap32:
-		v.Op = OpRISCV64LoweredAtomicCas32
-		return true
+		return rewriteValueRISCV64_OpAtomicCompareAndSwap32(v)
 	case OpAtomicCompareAndSwap64:
 		v.Op = OpRISCV64LoweredAtomicCas64
 		return true
@@ -773,6 +772,27 @@ func rewriteValueRISCV64_OpAtomicAnd8(v *Value) bool {
 		v2.AddArg2(v3, v5)
 		v1.AddArg(v2)
 		v.AddArg3(v0, v1, mem)
+		return true
+	}
+}
+func rewriteValueRISCV64_OpAtomicCompareAndSwap32(v *Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicCompareAndSwap32 ptr old new mem)
+	// result: (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
+	for {
+		ptr := v_0
+		old := v_1
+		new := v_2
+		mem := v_3
+		v.reset(OpRISCV64LoweredAtomicCas32)
+		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+		v0.AddArg(old)
+		v.AddArg4(ptr, v0, new, mem)
 		return true
 	}
 }
