@@ -389,6 +389,7 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 			return nil, errors.New("res_nsearch failure")
 		}
 		if size <= bufSize {
+			bufSize = size
 			break
 		}
 
