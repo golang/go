@@ -1314,15 +1314,23 @@ func cmdbootstrap() {
 
 	var noBanner, noClean bool
 	var debug bool
+	var force bool
 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
 	flag.BoolVar(&debug, "d", debug, "enable debugging of bootstrap process")
 	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
 	flag.BoolVar(&noClean, "no-clean", noClean, "print deprecation warning")
+	flag.BoolVar(&force, "force", force, "build even if the port is marked as broken")
 
 	xflagparse(0)
 
 	if noClean {
 		xprintf("warning: --no-clean is deprecated and has no effect; use 'go install std cmd' instead\n")
+	}
+
+	// Don't build broken ports by default.
+	if broken[goos+"/"+goarch] && !force {
+		fatalf("build stopped because the port %s/%s is marked as broken\n\n"+
+			"Use the -force flag to build anyway.\n", goos, goarch)
 	}
 
 	// Set GOPATH to an internal directory. We shouldn't actually
@@ -1674,12 +1682,18 @@ var cgoEnabled = map[string]bool{
 }
 
 // List of platforms which are supported but not complete yet. These get
-// filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
+// filtered out of cgoEnabled for 'dist list'. See go.dev/issue/28944.
 var incomplete = map[string]bool{
 	"linux/sparc64": true,
 }
 
-// List of platforms which are first class ports. See golang.org/issue/38874.
+// List of platforms that are marked as broken ports.
+// These require -force flag to build, and also
+// get filtered out of cgoEnabled for 'dist list'.
+// See go.dev/issue/56679.
+var broken = map[string]bool{}
+
+// List of platforms which are first class ports. See go.dev/issue/38874.
 var firstClass = map[string]bool{
 	"darwin/amd64":  true,
 	"darwin/arm64":  true,
@@ -1825,7 +1839,7 @@ func cmdlist() {
 
 	var plats []string
 	for p := range cgoEnabled {
-		if incomplete[p] {
+		if broken[p] || incomplete[p] {
 			continue
 		}
 		plats = append(plats, p)
