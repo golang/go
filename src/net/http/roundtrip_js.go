@@ -50,6 +50,38 @@ var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 // our wasm tests. See https://go.dev/issue/57613 for more information.
 var jsFetchDisabled = !js.Global().Get("process").IsUndefined()
 
+// Determine whether the JS runtime supports streaming request bodies.
+// Courtesy: https://developer.chrome.com/articles/fetch-streaming-requests/#feature-detection
+func supportsPostRequestStreams() bool {
+	requestOpt := js.Global().Get("Object").New()
+	requestBody := js.Global().Get("ReadableStream").New()
+
+	requestOpt.Set("method", "POST")
+	requestOpt.Set("body", requestBody)
+
+	// There is quite a dance required to define a getter if you do not have the { get property() { ... } }
+	// syntax available. However, it is possible:
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions/get#defining_a_getter_on_existing_objects_using_defineproperty
+	duplexCalled := false
+	duplexGetterObj := js.Global().Get("Object").New()
+	duplexGetterFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
+		duplexCalled = true
+		return "half"
+	})
+	defer duplexGetterFunc.Release()
+	duplexGetterObj.Set("get", duplexGetterFunc)
+	js.Global().Get("Object").Call("defineProperty", requestOpt, "duplex", duplexGetterObj)
+
+	// Slight difference here between the aforementioned example: Non-browser-based runtimes
+	// do not have a non-empty API Base URL (https://html.spec.whatwg.org/multipage/webappapis.html#api-base-url)
+	// so we have to supply a valid URL here.
+	requestObject := js.Global().Get("Request").New("https://www.example.org", requestOpt)
+
+	hasContentTypeHeader := requestObject.Get("headers").Call("has", "Content-Type").Bool()
+
+	return duplexCalled && !hasContentTypeHeader
+}
+
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	// The Transport has a documented contract that states that if the DialContext or
@@ -98,23 +130,60 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	}
 	opt.Set("headers", headers)
 
+	var readableStreamStart, readableStreamPull, readableStreamCancel js.Func
 	if req.Body != nil {
-		// TODO(johanbrandhorst): Stream request body when possible.
-		// See https://bugs.chromium.org/p/chromium/issues/detail?id=688906 for Blink issue.
-		// See https://bugzilla.mozilla.org/show_bug.cgi?id=1387483 for Firefox issue.
-		// See https://github.com/web-platform-tests/wpt/issues/7693 for WHATWG tests issue.
-		// See https://developer.mozilla.org/en-US/docs/Web/API/Streams_API for more details on the Streams API
-		// and browser support.
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			req.Body.Close() // RoundTrip must always close the body, including on errors.
-			return nil, err
-		}
-		req.Body.Close()
-		if len(body) != 0 {
-			buf := uint8Array.New(len(body))
-			js.CopyBytesToJS(buf, body)
-			opt.Set("body", buf)
+		if !supportsPostRequestStreams() {
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				req.Body.Close() // RoundTrip must always close the body, including on errors.
+				return nil, err
+			}
+			if len(body) != 0 {
+				buf := uint8Array.New(len(body))
+				js.CopyBytesToJS(buf, body)
+				opt.Set("body", buf)
+			}
+		} else {
+			readableStreamCtorArg := js.Global().Get("Object").New()
+			readableStreamCtorArg.Set("type", "bytes")
+			readableStreamCtorArg.Set("autoAllocateChunkSize", t.writeBufferSize())
+
+			readableStreamPull = js.FuncOf(func(this js.Value, args []js.Value) any {
+				controller := args[0]
+				byobRequest := controller.Get("byobRequest")
+				if byobRequest.IsNull() {
+					controller.Call("close")
+				}
+
+				byobRequestView := byobRequest.Get("view")
+
+				bodyBuf := make([]byte, byobRequestView.Get("byteLength").Int())
+				readBytes, readErr := io.ReadFull(req.Body, bodyBuf)
+				if readBytes > 0 {
+					buf := uint8Array.New(byobRequestView.Get("buffer"))
+					js.CopyBytesToJS(buf, bodyBuf)
+					byobRequest.Call("respond", readBytes)
+				}
+
+				if readErr == io.EOF || readErr == io.ErrUnexpectedEOF {
+					controller.Call("close")
+				} else if readErr != nil {
+					readErrCauseObject := js.Global().Get("Object").New()
+					readErrCauseObject.Set("cause", readErr.Error())
+					readErr := js.Global().Get("Error").New("io.ReadFull failed while streaming POST body", readErrCauseObject)
+					controller.Call("error", readErr)
+				}
+				// Note: This a return from the pull callback of the controller and *not* RoundTrip().
+				return nil
+			})
+			readableStreamCtorArg.Set("pull", readableStreamPull)
+
+			opt.Set("body", js.Global().Get("ReadableStream").New(readableStreamCtorArg))
+			// There is a requirement from the WHATWG fetch standard that the duplex property of
+			// the object given as the options argument to the fetch call be set to 'half'
+			// when the body property of the same options object is a ReadableStream:
+			// https://fetch.spec.whatwg.org/#dom-requestinit-duplex
+			opt.Set("duplex", "half")
 		}
 	}
 
@@ -127,6 +196,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	success = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
+		readableStreamCancel.Release()
+		readableStreamPull.Release()
+		readableStreamStart.Release()
+
+		req.Body.Close()
 
 		result := args[0]
 		header := Header{}
@@ -191,6 +265,12 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	failure = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
+		readableStreamCancel.Release()
+		readableStreamPull.Release()
+		readableStreamStart.Release()
+
+		req.Body.Close()
+
 		err := args[0]
 		// The error is a JS Error type
 		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
