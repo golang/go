@@ -1681,17 +1681,13 @@ var cgoEnabled = map[string]bool{
 	"windows/arm64":   true,
 }
 
-// List of platforms which are supported but not complete yet. These get
-// filtered out of cgoEnabled for 'dist list'. See go.dev/issue/28944.
-var incomplete = map[string]bool{
-	"linux/sparc64": true,
-}
-
 // List of platforms that are marked as broken ports.
 // These require -force flag to build, and also
 // get filtered out of cgoEnabled for 'dist list'.
 // See go.dev/issue/56679.
-var broken = map[string]bool{}
+var broken = map[string]bool{
+	"linux/sparc64": true, // An incomplete port. See CL 132155.
+}
 
 // List of platforms which are first class ports. See go.dev/issue/38874.
 var firstClass = map[string]bool{
@@ -1839,7 +1835,7 @@ func cmdlist() {
 
 	var plats []string
 	for p := range cgoEnabled {
-		if broken[p] || incomplete[p] {
+		if broken[p] {
 			continue
 		}
 		plats = append(plats, p)

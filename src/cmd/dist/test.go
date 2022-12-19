@@ -265,12 +265,6 @@ func (t *tester) run() {
 	if t.failed {
 		fmt.Println("\nFAILED")
 		xexit(1)
-	} else if incomplete[goos+"/"+goarch] {
-		// The test succeeded, but consider it as failed so we don't
-		// forget to remove the port from the incomplete map once the
-		// port is complete.
-		fmt.Println("\nFAILED (incomplete port)")
-		xexit(1)
 	} else if t.partial {
 		fmt.Println("\nALL TESTS PASSED (some were excluded)")
 	} else {
