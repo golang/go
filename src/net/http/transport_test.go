@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
-	"golang.org/x/net/http/httpguts"
 	"internal/nettrace"
 	"io"
 	"log"
@@ -45,6 +44,8 @@ import (
 	"testing"
 	"testing/iotest"
 	"time"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
