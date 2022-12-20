@@ -646,8 +646,6 @@ func (ctxt *Link) loadlib() {
 	// We've loaded all the code now.
 	ctxt.Loaded = true
 
-	importcycles()
-
 	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
 }
 
