@@ -21,7 +21,6 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/objabi"
-	"cmd/internal/src"
 )
 
 func LoadPackage(filenames []string) {
@@ -62,9 +61,10 @@ func LoadPackage(filenames []string) {
 	}()
 
 	var lines uint
+	var m posMap
 	for _, p := range noders {
 		for e := range p.err {
-			p.errorAt(e.Pos, "%s", e.Msg)
+			base.ErrorfAt(m.makeXPos(e.Pos), "%s", e.Msg)
 		}
 		if p.file == nil {
 			base.ErrorExit()
@@ -73,11 +73,7 @@ func LoadPackage(filenames []string) {
 	}
 	base.Timer.AddEvent(int64(lines), "lines")
 
-	unified(noders)
-}
-
-func (p *noder) errorAt(pos syntax.Pos, format string, args ...interface{}) {
-	base.ErrorfAt(p.makeXPos(pos), format, args...)
+	unified(m, noders)
 }
 
 // trimFilename returns the "trimmed" filename of b, which is the
@@ -101,14 +97,10 @@ func trimFilename(b *syntax.PosBase) string {
 
 // noder transforms package syntax's AST into a Node tree.
 type noder struct {
-	posMap
-
-	file           *syntax.File
-	linknames      []linkname
-	pragcgobuf     [][]string
-	err            chan syntax.Error
-	importedUnsafe bool
-	importedEmbed  bool
+	file       *syntax.File
+	linknames  []linkname
+	pragcgobuf [][]string
+	err        chan syntax.Error
 }
 
 // linkname records a //go:linkname directive.
@@ -116,28 +108,6 @@ type linkname struct {
 	pos    syntax.Pos
 	local  string
 	remote string
-}
-
-func (p *noder) processPragmas() {
-	for _, l := range p.linknames {
-		if !p.importedUnsafe {
-			p.errorAt(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
-			continue
-		}
-		n := ir.AsNode(typecheck.Lookup(l.local).Def)
-		if n == nil || n.Op() != ir.ONAME {
-			if types.AllowsGoVersion(1, 18) {
-				p.errorAt(l.pos, "//go:linkname must refer to declared function or variable")
-			}
-			continue
-		}
-		if n.Sym().Linkname != "" {
-			p.errorAt(l.pos, "duplicate //go:linkname for %s", l.local)
-			continue
-		}
-		n.Sym().Linkname = l.remote
-	}
-	typecheck.Target.CgoPragmas = append(typecheck.Target.CgoPragmas, p.pragcgobuf...)
 }
 
 var unOps = [...]ir.Op{
@@ -174,23 +144,6 @@ var binOps = [...]ir.Op{
 	syntax.AndNot: ir.OANDNOT,
 	syntax.Shl:    ir.OLSH,
 	syntax.Shr:    ir.ORSH,
-}
-
-func wrapname(pos src.XPos, x ir.Node) ir.Node {
-	// These nodes do not carry line numbers.
-	// Introduce a wrapper node to give them the correct line.
-	switch x.Op() {
-	case ir.OTYPE, ir.OLITERAL:
-		if x.Sym() == nil {
-			break
-		}
-		fallthrough
-	case ir.ONAME, ir.ONONAME:
-		p := ir.NewParenExpr(pos, x)
-		p.SetImplicit(true)
-		return p
-	}
-	return x
 }
 
 // error is called concurrently if files are parsed concurrently.
@@ -440,26 +393,6 @@ func Renameinit() *types.Sym {
 	s := typecheck.LookupNum("init.", renameinitgen)
 	renameinitgen++
 	return s
-}
-
-func varEmbed(makeXPos func(syntax.Pos) src.XPos, name *ir.Name, decl *syntax.VarDecl, pragma *pragmas, haveEmbed bool) {
-	pragmaEmbeds := pragma.Embeds
-	pragma.Embeds = nil
-	if len(pragmaEmbeds) == 0 {
-		return
-	}
-
-	if err := checkEmbed(decl, haveEmbed, typecheck.DeclContext != ir.PEXTERN); err != nil {
-		base.ErrorfAt(makeXPos(pragmaEmbeds[0].Pos), "%s", err)
-		return
-	}
-
-	var embeds []ir.Embed
-	for _, e := range pragmaEmbeds {
-		embeds = append(embeds, ir.Embed{Pos: makeXPos(e.Pos), Patterns: e.Patterns})
-	}
-	typecheck.Target.Embeds = append(typecheck.Target.Embeds, name)
-	name.Embed = &embeds
 }
 
 func checkEmbed(decl *syntax.VarDecl, haveEmbed, withinFunc bool) error {

@@ -19,16 +19,14 @@ var versionErrorRx = regexp.MustCompile(`requires go[0-9]+\.[0-9]+ or later`)
 
 // checkFiles configures and runs the types2 checker on the given
 // parsed source files and then returns the result.
-func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 	if base.SyntaxErrors() != 0 {
 		base.ErrorExit()
 	}
 
 	// setup and syntax error reporting
-	var m posMap
 	files := make([]*syntax.File, len(noders))
 	for i, p := range noders {
-		m.join(&p.posMap)
 		files[i] = p.file
 	}
 
@@ -117,7 +115,7 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)
 	}
 
-	return m, pkg, info
+	return pkg, info
 }
 
 // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
