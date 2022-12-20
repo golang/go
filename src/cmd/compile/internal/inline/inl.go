@@ -981,7 +981,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 		}
 	}
 
-	typecheck.FixVariadicCall(n)
+	typecheck.AssertFixedCall(n)
 
 	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
 

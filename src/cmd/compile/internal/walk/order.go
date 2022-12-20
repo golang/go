@@ -536,7 +536,7 @@ func (o *orderState) call(nn ir.Node) {
 	}
 
 	n := nn.(*ir.CallExpr)
-	typecheck.FixVariadicCall(n)
+	typecheck.AssertFixedCall(n)
 
 	if isFuncPCIntrinsic(n) && isIfaceOfFunc(n.Args[0]) {
 		// For internal/abi.FuncPCABIxxx(fn), if fn is a defined function,

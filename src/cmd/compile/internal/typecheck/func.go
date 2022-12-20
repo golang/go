@@ -76,6 +76,15 @@ func FixMethodCall(call *ir.CallExpr) {
 	call.Args = args
 }
 
+func AssertFixedCall(call *ir.CallExpr) {
+	if call.X.Type().IsVariadic() && !call.IsDDD {
+		base.FatalfAt(call.Pos(), "missed FixVariadicCall")
+	}
+	if call.Op() == ir.OCALLMETH {
+		base.FatalfAt(call.Pos(), "missed FixMethodCall")
+	}
+}
+
 // ClosureType returns the struct type used to hold all the information
 // needed in the closure for clo (clo must be a OCLOSURE node).
 // The address of a variable of the returned type can be cast to a func.
@@ -339,6 +348,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	}
 
 	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.X) })
+	FixVariadicCall(n)
 	FixMethodCall(n)
 	if t.NumResults() == 0 {
 		return n

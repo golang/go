@@ -45,8 +45,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 
 	case ir.OCALLFUNC, ir.OCALLMETH, ir.OCALLINTER:
 		call := call.(*ir.CallExpr)
-		typecheck.FixVariadicCall(call)
-		typecheck.FixMethodCall(call)
+		typecheck.AssertFixedCall(call)
 
 		// Pick out the function callee, if statically known.
 		//
