@@ -31,6 +31,12 @@ func (h Header) Add(key, value string) {
 	textproto.MIMEHeader(h).Add(key, value)
 }
 
+func (h Header) AddMap(m map [string]string) {
+	for k, v := range m {
+		textproto.MIMEHeader(h).Add(k, v)
+	}
+}
+
 // Set sets the header entries associated with key to the
 // single element value. It replaces any existing values
 // associated with key. The key is case insensitive; it is
