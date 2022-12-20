@@ -764,8 +764,6 @@ var MainTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 <ul>{{range .State.Caches}}<li>{{template "cachelink" .ID}}</li>{{end}}</ul>
 <h2>Sessions</h2>
 <ul>{{range .State.Sessions}}<li>{{template "sessionlink" .ID}} from {{template "cachelink" .Cache.ID}}</li>{{end}}</ul>
-<h2>Views</h2>
-<ul>{{range .State.Views}}<li>{{.Name}} is {{template "viewlink" .ID}} from {{template "sessionlink" .Session.ID}} in {{.Folder}}</li>{{end}}</ul>
 <h2>Clients</h2>
 <ul>{{range .State.Clients}}<li>{{template "clientlink" .Session.ID}}</li>{{end}}</ul>
 <h2>Servers</h2>
