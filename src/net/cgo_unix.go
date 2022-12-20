@@ -383,7 +383,7 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	s := _C_CString(hostname)
 	defer _C_FreeCString(s)
 
-	size := 0
+	var size int
 	for {
 		size, _ = _C_res_nsearch(state, s, class, rtype, buf, bufSize)
 		if size <= 0 || size > 0xffff {
