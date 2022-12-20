@@ -75,14 +75,14 @@ func Task() *ir.Name {
 
 	// Find imported packages with init tasks.
 	for _, pkg := range typecheck.Target.Imports {
-		n := typecheck.Resolve(ir.NewIdent(base.Pos, pkg.Lookup(".inittask")))
-		if n.Op() == ir.ONONAME {
+		n, ok := pkg.Lookup(".inittask").Def.(*ir.Name)
+		if !ok {
 			continue
 		}
-		if n.Op() != ir.ONAME || n.(*ir.Name).Class != ir.PEXTERN {
+		if n.Op() != ir.ONAME || n.Class != ir.PEXTERN {
 			base.Fatalf("bad inittask: %v", n)
 		}
-		deps = append(deps, n.(*ir.Name).Linksym())
+		deps = append(deps, n.Linksym())
 	}
 	if base.Flag.ASan {
 		// Make an initialization function to call runtime.asanregisterglobals to register an
