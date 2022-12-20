@@ -29,8 +29,7 @@
 // TODO(adonovan): simplify this picture. Eliminate the optionality of
 // span.{Span,Point}'s position and offset fields: work internally in
 // terms of offsets (like span.Range), and require a mapper to convert
-// them to protocol (UTF-16) line/col form. Stop honoring //line
-// directives.
+// them to protocol (UTF-16) line/col form.
 
 package protocol
 
@@ -162,7 +161,6 @@ func (m *ColumnMapper) Position(p span.Point) (Position, error) {
 // offset within m.Content.
 func (m *ColumnMapper) OffsetPosition(offset int) (Position, error) {
 	// We use span.ToPosition for its "line+1 at EOF" workaround.
-	// TODO(adonovan): ToPosition honors //line directives. It probably shouldn't.
 	line, _, err := span.ToPosition(m.TokFile, offset)
 	if err != nil {
 		return Position{}, fmt.Errorf("OffsetPosition: %v", err)

@@ -26,20 +26,16 @@ import (
 // MappedRange provides mapped protocol.Range for a span.Range, accounting for
 // UTF-16 code points.
 //
-// TOOD(adonovan): eliminate this type. All callers need either m, or a protocol.Range.
+// TOOD(adonovan): eliminate this type. Replace all uses by an
+// explicit pair (span.Range, protocol.ColumnMapper), and an operation
+// to map both to a protocol.Range.
 type MappedRange struct {
 	spanRange span.Range             // the range in the compiled source (package.CompiledGoFiles)
 	m         *protocol.ColumnMapper // a mapper of the edited source (package.GoFiles)
 }
 
-// NewMappedRange returns a MappedRange for the given file and valid start/end token.Pos.
-//
-// By convention, start and end are assumed to be positions in the compiled (==
-// type checked) source, whereas the column mapper m maps positions in the
-// user-edited source. Note that these may not be the same, as when using goyacc or CGo:
-// CompiledGoFiles contains generated files, whose positions (via
-// token.File.Position) point to locations in the edited file -- the file
-// containing `import "C"`.
+// NewMappedRange returns a MappedRange for the given file and
+// start/end positions, which must be valid within m.TokFile.
 func NewMappedRange(m *protocol.ColumnMapper, start, end token.Pos) MappedRange {
 	return MappedRange{
 		spanRange: span.NewRange(m.TokFile, start, end),
