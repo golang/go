@@ -719,6 +719,13 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 		// can "rewind" the body with GetBody.
 		return req.outgoingLength() == 0 || req.GetBody != nil
 	}
+	if len(pc.writech) != 0 {
+		// Request was sent successfully into writech, but isn't read from it
+		// because writeLoop exited.
+		// In this case, you can retry without considering idempotence.
+		// see https://github.com/golang/go/issues/49621
+		return true
+	}
 	if !req.isReplayable() {
 		// Don't retry non-idempotent requests.
 		return false

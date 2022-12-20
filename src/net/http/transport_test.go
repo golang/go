@@ -40,6 +40,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"testing/iotest"
 	"time"
@@ -6650,6 +6651,136 @@ func testHandlerAbortRacesBodyRead(t *testing.T, mode testMode) {
 					resp.Body.Close()
 				}
 			}
+		}()
+	}
+	wg.Wait()
+}
+
+type issue49621Listener struct {
+	net.Listener
+}
+type issue49621Conn struct {
+	net.Conn // base
+
+	mtx sync.Mutex
+	err error
+	n   int
+}
+
+func (l *issue49621Listener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err == nil {
+		c = &issue49621Conn{Conn: c}
+	}
+	return c, err
+}
+
+func (c *issue49621Conn) inject(n int) bool {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	c.n += n
+	return c.n > 1000
+}
+
+func (c *issue49621Conn) isFailed() error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	return c.err
+}
+
+func (c *issue49621Conn) markFailed(err error) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	c.err = err
+	return c.err
+}
+
+func (c *issue49621Conn) Read(b []byte) (n int, err error) {
+	if err = c.isFailed(); err != nil {
+		return 0, err
+	}
+
+	n, err = c.Conn.Read(b)
+	if err != nil {
+		c.markFailed(err)
+		return n, err
+	}
+
+	if c.inject(n) {
+		return 0, c.markFailed(syscall.ECONNRESET)
+	}
+
+	return n, nil
+}
+
+func (c *issue49621Conn) Write(b []byte) (n int, err error) {
+	if err = c.isFailed(); err != nil {
+		return 0, err
+	}
+
+	if c.inject(len(b)) {
+		return 0, c.markFailed(syscall.ECONNRESET)
+	}
+
+	n, err = c.Conn.Write(b)
+	if err != nil {
+		return n, c.markFailed(err)
+	}
+	return n, nil
+}
+
+// Issue 49621: request not retry or close body after writeLoop exited.
+func TestIssue49621(t *testing.T) {
+	ln := &issue49621Listener{newLocalListener(t)}
+	defer ln.Close()
+
+	addr := ln.Addr().String()
+	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
+		if r.Method != MethodPost {
+			w.WriteHeader(StatusMethodNotAllowed)
+			return
+		}
+
+		_, _ = io.Copy(io.Discard, r.Body)
+		_ = r.Body.Close()
+		w.WriteHeader(StatusOK)
+	})
+	s := &Server{
+		Addr:    addr,
+		Handler: handler,
+	}
+	go func() { s.Serve(ln) }()
+
+	for i := 0; i < 10; i++ {
+		testIssue49621Request(t, addr)
+	}
+	s.Close()
+}
+
+func testIssue49621Request(t *testing.T, addr string) {
+	var wg sync.WaitGroup
+
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			body := bytes.NewBuffer([]byte(`
+				hello world hello world hello world hello world
+				hello world hello world hello world hello world
+				hello world hello world hello world hello world
+				hello world hello world hello world hello world
+				hello world hello world hello world hello world
+			`))
+
+			resp, err := Post(addr, "plain", body)
+			if err == nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+				return
+			}
+
+			t.Errorf("resp = %v, err = %v\n", resp, err)
 		}()
 	}
 	wg.Wait()
