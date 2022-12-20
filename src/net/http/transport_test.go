@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"golang.org/x/net/http/httpguts"
 	"internal/nettrace"
 	"io"
 	"log"
@@ -44,8 +45,6 @@ import (
 	"testing"
 	"testing/iotest"
 	"time"
-
-	"golang.org/x/net/http/httpguts"
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
@@ -6752,7 +6751,7 @@ func TestIssue49621(t *testing.T) {
 	go func() { s.Serve(ln) }()
 
 	for i := 0; i < 10; i++ {
-		testIssue49621Request(t, addr)
+		testIssue49621Request(t, "http://"+addr)
 	}
 	s.Close()
 }
@@ -6779,8 +6778,9 @@ func testIssue49621Request(t *testing.T, addr string) {
 				_ = resp.Body.Close()
 				return
 			}
-
-			t.Errorf("resp = %v, err = %v\n", resp, err)
+			if err == ExportErrServerClosedIdle {
+				t.Errorf("resp = %v, err = %v\n", resp, err)
+			}
 		}()
 	}
 	wg.Wait()
