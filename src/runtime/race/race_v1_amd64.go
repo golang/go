@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (linux && !amd64.v3) || darwin || freebsd || netbsd || openbsd || windows
-// +build linux,!amd64.v3 darwin freebsd netbsd openbsd windows
 
 package race
 
