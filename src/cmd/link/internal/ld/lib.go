@@ -1222,13 +1222,16 @@ func hostlinksetup(ctxt *Link) {
 
 // hostobjCopy creates a copy of the object files in hostobj in a
 // temporary directory.
-func hostobjCopy() (paths []string) {
+func (ctxt *Link) hostobjCopy() (paths []string) {
 	var wg sync.WaitGroup
 	sema := make(chan struct{}, runtime.NumCPU()) // limit open file descriptors
 	for i, h := range hostobj {
 		h := h
 		dst := filepath.Join(*flagTmpdir, fmt.Sprintf("%06d.o", i))
 		paths = append(paths, dst)
+		if ctxt.Debugvlog != 0 {
+			ctxt.Logf("host obj copy: %s from pkg %s -> %s\n", h.pn, h.pkg, dst)
+		}
 
 		wg.Add(1)
 		go func() {
@@ -1311,7 +1314,7 @@ func (ctxt *Link) archive() {
 	}
 	argv = append(argv, *flagOutfile)
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
-	argv = append(argv, hostobjCopy()...)
+	argv = append(argv, ctxt.hostobjCopy()...)
 
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("archive: %s\n", strings.Join(argv, " "))
@@ -1650,7 +1653,7 @@ func (ctxt *Link) hostlink() {
 	}
 
 	argv = append(argv, filepath.Join(*flagTmpdir, "go.o"))
-	argv = append(argv, hostobjCopy()...)
+	argv = append(argv, ctxt.hostobjCopy()...)
 	if ctxt.HeadType == objabi.Haix {
 		// We want to have C files after Go files to remove
 		// trampolines csects made by ld.
