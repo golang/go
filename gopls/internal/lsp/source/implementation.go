@@ -328,6 +328,8 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, s
 			return nil, err
 		}
 		pos := pgf.Tok.Pos(key.offset)
+
+		// TODO(adonovan): replace this section with a call to objectsAt().
 		path := pathEnclosingObjNode(pgf.File, pos)
 		if path == nil {
 			continue
@@ -338,7 +340,7 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, s
 			// If leaf represents an implicit type switch object or the type
 			// switch "assign" variable, expand to all of the type switch's
 			// implicit objects.
-			if implicits, _ := typeSwitchImplicits(searchpkg, path); len(implicits) > 0 {
+			if implicits, _ := typeSwitchImplicits(searchpkg.GetTypesInfo(), path); len(implicits) > 0 {
 				objs = append(objs, implicits...)
 			} else {
 				obj := searchpkg.GetTypesInfo().ObjectOf(leaf)
@@ -355,6 +357,7 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, s
 			}
 			objs = append(objs, obj)
 		}
+
 		// Get all of the transitive dependencies of the search package.
 		pkgs := make(map[*types.Package]Package)
 		var addPkg func(pkg Package)

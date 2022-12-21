@@ -163,7 +163,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	if result.Declaration.obj == nil {
 		// If there was no types.Object for the declaration, there might be an
 		// implicit local variable declaration in a type switch.
-		if objs, typ := typeSwitchImplicits(pkg, path); len(objs) > 0 {
+		if objs, typ := typeSwitchImplicits(pkg.GetTypesInfo(), path); len(objs) > 0 {
 			// There is no types.Object for the declaration of an implicit local variable,
 			// but all of the types.Objects associated with the usages of this variable can be
 			// used to connect it back to the declaration.
@@ -493,7 +493,7 @@ func importSpec(snapshot Snapshot, pkg Package, pgf *ParsedGoFile, pos token.Pos
 // typeSwitchImplicits returns all the implicit type switch objects that
 // correspond to the leaf *ast.Ident. It also returns the original type
 // associated with the identifier (outside of a case clause).
-func typeSwitchImplicits(pkg Package, path []ast.Node) ([]types.Object, types.Type) {
+func typeSwitchImplicits(info *types.Info, path []ast.Node) ([]types.Object, types.Type) {
 	ident, _ := path[0].(*ast.Ident)
 	if ident == nil {
 		return nil, nil
@@ -503,7 +503,7 @@ func typeSwitchImplicits(pkg Package, path []ast.Node) ([]types.Object, types.Ty
 		ts     *ast.TypeSwitchStmt
 		assign *ast.AssignStmt
 		cc     *ast.CaseClause
-		obj    = pkg.GetTypesInfo().ObjectOf(ident)
+		obj    = info.ObjectOf(ident)
 	)
 
 	// Walk our ancestors to determine if our leaf ident refers to a
@@ -522,7 +522,7 @@ Outer:
 			// case clause implicitly maps "a" to a different types.Object,
 			// so check if ident's object is the case clause's implicit
 			// object.
-			if obj != nil && pkg.GetTypesInfo().Implicits[n] == obj {
+			if obj != nil && info.Implicits[n] == obj {
 				cc = n
 			}
 		case *ast.TypeSwitchStmt:
@@ -548,7 +548,7 @@ Outer:
 	// type switch's implicit case clause objects.
 	var objs []types.Object
 	for _, cc := range ts.Body.List {
-		if ccObj := pkg.GetTypesInfo().Implicits[cc]; ccObj != nil {
+		if ccObj := info.Implicits[cc]; ccObj != nil {
 			objs = append(objs, ccObj)
 		}
 	}
@@ -558,7 +558,7 @@ Outer:
 	var typ types.Type
 	if assign, ok := ts.Assign.(*ast.AssignStmt); ok && len(assign.Rhs) == 1 {
 		if rhs := assign.Rhs[0].(*ast.TypeAssertExpr); ok {
-			typ = pkg.GetTypesInfo().TypeOf(rhs.X)
+			typ = info.TypeOf(rhs.X)
 		}
 	}
 	return objs, typ

@@ -42,6 +42,9 @@ func (r *runner) References(t *testing.T, spn span.Span, itemList []span.Span) {
 			if stderr != "" {
 				t.Errorf("references failed for %s: %s", target, stderr)
 			} else if expect != got {
+				// TODO(adonovan): print the query, the expectations, and
+				// the actual results clearly. Factor in common with the
+				// other two implementations of runner.References.
 				t.Errorf("references failed for %s expected:\n%s\ngot:\n%s", target, expect, got)
 			}
 		})

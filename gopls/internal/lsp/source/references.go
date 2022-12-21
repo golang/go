@@ -31,9 +31,12 @@ type ReferenceInfo struct {
 	isDeclaration bool
 }
 
-// References returns a list of references for a given identifier within the packages
-// containing i.File. Declarations appear first in the result.
-func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]*ReferenceInfo, error) {
+// referencesV1 returns a list of references for a given identifier within the packages
+// containing pp. Declarations appear first in the result.
+//
+// Currently used by Server.{incomingCalls,rename}.
+// TODO(adonovan): switch each over to referencesV2 in turn.
+func referencesV1(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]*ReferenceInfo, error) {
 	ctx, done := event.Start(ctx, "source.References")
 	defer done()
 
@@ -155,6 +158,9 @@ func parsePackageNameDecl(ctx context.Context, snapshot Snapshot, fh FileHandle,
 // if isDeclaration, the first result is an extra item for it.
 // Only the definition-related fields of qualifiedObject are used.
 // (Arguably it should accept a smaller data type.)
+//
+// This implementation serves referencesV1 (the soon-to-be obsolete
+// portion of Server.references) and Server.rename.
 func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, includeDeclaration, includeInterfaceRefs, includeEmbeddedRefs bool) ([]*ReferenceInfo, error) {
 	var (
 		references []*ReferenceInfo

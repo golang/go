@@ -1,0 +1,212 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package xrefs defines the serializable index of cross-package
+// references that is computed during type checking.
+//
+// See ../references2.go for the 'references' query.
+package xrefs
+
+import (
+	"bytes"
+	"encoding/gob"
+	"go/ast"
+	"go/types"
+	"log"
+	"sort"
+
+	"golang.org/x/tools/go/types/objectpath"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/source"
+)
+
+// Index constructs a serializable index of outbound cross-references
+// for the specified type-checked package.
+func Index(pkg source.Package) []byte {
+	// pkgObjects maps each referenced package Q to a mapping:
+	// from each referenced symbol in Q to the ordered list
+	// of references to that symbol from this package.
+	// A nil types.Object indicates a reference
+	// to the package as a whole: an import.
+	pkgObjects := make(map[*types.Package]map[types.Object]*gobObject)
+
+	// getObjects returns the object-to-references mapping for a package.
+	getObjects := func(pkg *types.Package) map[types.Object]*gobObject {
+		objects, ok := pkgObjects[pkg]
+		if !ok {
+			objects = make(map[types.Object]*gobObject)
+			pkgObjects[pkg] = objects
+		}
+		return objects
+	}
+
+	for fileIndex, pgf := range pkg.CompiledGoFiles() {
+
+		nodeRange := func(n ast.Node) protocol.Range {
+			rng, err := pgf.PosRange(n.Pos(), n.End())
+			if err != nil {
+				panic(err) // can't fail
+			}
+			return rng
+		}
+
+		ast.Inspect(pgf.File, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.Ident:
+				// Report a reference for each identifier that
+				// uses a symbol exported from another package.
+				// (The built-in error.Error method has no package.)
+				if n.IsExported() {
+					if obj, ok := pkg.GetTypesInfo().Uses[n]; ok &&
+						obj.Pkg() != nil &&
+						obj.Pkg() != pkg.GetTypes() {
+
+						objects := getObjects(obj.Pkg())
+						gobObj, ok := objects[obj]
+						if !ok {
+							path, err := objectpath.For(obj)
+							if err != nil {
+								// Capitalized but not exported
+								// (e.g. local const/var/type).
+								return true
+							}
+							gobObj = &gobObject{Path: path}
+							objects[obj] = gobObj
+						}
+
+						gobObj.Refs = append(gobObj.Refs, gobRef{
+							FileIndex: fileIndex,
+							Range:     nodeRange(n),
+						})
+					}
+				}
+
+			case *ast.ImportSpec:
+				// Report a reference from each import path
+				// string to the imported package.
+				var obj types.Object
+				if n.Name != nil {
+					obj = pkg.GetTypesInfo().Defs[n.Name]
+				} else {
+					obj = pkg.GetTypesInfo().Implicits[n]
+				}
+				if obj == nil {
+					return true // missing import
+				}
+				objects := getObjects(obj.(*types.PkgName).Imported())
+				gobObj, ok := objects[nil]
+				if !ok {
+					gobObj = &gobObject{Path: ""}
+					objects[nil] = gobObj
+				}
+				gobObj.Refs = append(gobObj.Refs, gobRef{
+					FileIndex: fileIndex,
+					Range:     nodeRange(n.Path),
+				})
+			}
+			return true
+		})
+	}
+
+	// Flatten the maps into slices, and sort for determinism.
+	var packages []*gobPackage
+	for p := range pkgObjects {
+		objects := pkgObjects[p]
+		gp := &gobPackage{
+			PkgPath: source.PackagePath(p.Path()),
+			Objects: make([]*gobObject, 0, len(objects)),
+		}
+		for _, gobObj := range objects {
+			gp.Objects = append(gp.Objects, gobObj)
+		}
+		sort.Slice(gp.Objects, func(i, j int) bool {
+			return gp.Objects[i].Path < gp.Objects[j].Path
+		})
+		packages = append(packages, gp)
+	}
+	sort.Slice(packages, func(i, j int) bool {
+		return packages[i].PkgPath < packages[j].PkgPath
+	})
+
+	return mustEncode(packages)
+}
+
+// Lookup searches a serialized index produced by an indexPackage
+// operation on m, and returns the locations of all references from m
+// to the object denoted by (pkgPath, objectPath).
+func Lookup(m *source.Metadata, data []byte, pkgPath source.PackagePath, objPath objectpath.Path) []protocol.Location {
+
+	// TODO(adonovan): opt: evaluate whether it would be faster to decode
+	// in two passes, first with struct { PkgPath string; Objects BLOB }
+	// to find the relevant record without decoding the Objects slice,
+	// then decode just the desired BLOB into a slice. BLOB would be a
+	// type whose Unmarshal method just retains (a copy of) the bytes.
+	var packages []gobPackage
+	mustDecode(data, &packages)
+
+	for _, gp := range packages {
+		if gp.PkgPath == pkgPath {
+			var locs []protocol.Location
+			for _, gobObj := range gp.Objects {
+				if gobObj.Path == objPath {
+					for _, ref := range gobObj.Refs {
+						uri := m.CompiledGoFiles[ref.FileIndex]
+						locs = append(locs, protocol.Location{
+							URI:   protocol.URIFromSpanURI(uri),
+							Range: ref.Range,
+						})
+					}
+				}
+			}
+			return locs
+		}
+	}
+	return nil // this package does not reference that one
+}
+
+// -- serialized representation --
+
+// The cross-reference index records the location of all references
+// from one package to symbols defined in other packages
+// (dependencies). It does not record within-package references.
+// The index for package P consists of a list of gopPackage records,
+// each enumerating references to symbols defined a single dependency, Q.
+
+// TODO(adonovan): opt: choose a more compact encoding. Gzip reduces
+// the gob output to about one third its size, so clearly there's room
+// to improve. The gobRef.Range field is the obvious place to begin.
+
+// A gobPackage records the set of outgoing references from the index
+// package to symbols defined in a dependency package.
+type gobPackage struct {
+	PkgPath source.PackagePath // defining package (Q)
+	Objects []*gobObject       // set of Q objects referenced by P
+}
+
+// A gobObject records all references to a particular symbol.
+type gobObject struct {
+	Path objectpath.Path // symbol name within package; "" => import of package itself
+	Refs []gobRef        // locations of references within P, in lexical order
+}
+
+type gobRef struct {
+	FileIndex int            // index of enclosing file within P's CompiledGoFiles
+	Range     protocol.Range // source range of reference
+}
+
+// -- duplicated from ../../cache/analysis.go --
+
+func mustEncode(x interface{}) []byte {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(x); err != nil {
+		log.Fatalf("internal error encoding %T: %v", x, err)
+	}
+	return buf.Bytes()
+}
+
+func mustDecode(data []byte, ptr interface{}) {
+	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(ptr); err != nil {
+		log.Fatalf("internal error decoding %T: %v", ptr, err)
+	}
+}

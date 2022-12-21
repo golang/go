@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/source/xrefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
@@ -433,6 +434,9 @@ func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoF
 		return nil, err
 	}
 	pkg.diagnostics = append(pkg.diagnostics, depsErrors...)
+
+	// Build index of outbound cross-references.
+	pkg.xrefs = xrefs.Index(pkg)
 
 	return pkg, nil
 }

@@ -21,6 +21,7 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
@@ -790,7 +791,8 @@ type Package interface {
 	ResolveImportPath(path ImportPath) (Package, error)
 	Imports() []Package // new slice of all direct dependencies, unordered
 	HasTypeErrors() bool
-	DiagnosticsForFile(uri span.URI) []*Diagnostic // new array of list/parse/type errors
+	DiagnosticsForFile(uri span.URI) []*Diagnostic                 // new array of list/parse/type errors
+	ReferencesTo(PackagePath, objectpath.Path) []protocol.Location // new sorted array of xrefs
 }
 
 // A CriticalError is a workspace-wide error that generally prevents gopls from

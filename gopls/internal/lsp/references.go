@@ -21,20 +21,5 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	if snapshot.View().FileKind(fh) == source.Tmpl {
 		return template.References(ctx, snapshot, fh, params)
 	}
-	references, err := source.References(ctx, snapshot, fh, params.Position, params.Context.IncludeDeclaration)
-	if err != nil {
-		return nil, err
-	}
-	var locations []protocol.Location
-	for _, ref := range references {
-		refRange, err := ref.MappedRange.Range()
-		if err != nil {
-			return nil, err
-		}
-		locations = append(locations, protocol.Location{
-			URI:   protocol.URIFromSpanURI(ref.MappedRange.URI()),
-			Range: refRange,
-		})
-	}
-	return locations, nil
+	return source.References(ctx, snapshot, fh, params.Position, params.Context.IncludeDeclaration)
 }

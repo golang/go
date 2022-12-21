@@ -68,7 +68,13 @@ func IncomingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	ctx, done := event.Start(ctx, "source.IncomingCalls")
 	defer done()
 
-	refs, err := References(ctx, snapshot, fh, pos, false)
+	// TODO(adonovan): switch to referencesV2 here once it supports methods.
+	// This will require that we parse files containing
+	// references instead of accessing refs[i].pkg.
+	// (We could use pre-parser trimming, either a scanner-based
+	// implementation such as https://go.dev/play/p/KUrObH1YkX8
+	// (~31% speedup), or a byte-oriented implementation (2x speedup).
+	refs, err := referencesV1(ctx, snapshot, fh, pos, false)
 	if err != nil {
 		if errors.Is(err, ErrNoIdentFound) || errors.Is(err, errNoObjectFound) {
 			return nil, nil

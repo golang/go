@@ -25,6 +25,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -873,6 +874,9 @@ func (r *runner) Hover(t *testing.T, src span.Span, text string) {
 }
 
 func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
+	// This test is substantially the same as (*runner).References in source/source_test.go.
+	// TODO(adonovan): Factor (and remove fluff). Where should the common code live?
+
 	sm, err := r.data.Mapper(src.URI())
 	if err != nil {
 		t.Fatal(err)
@@ -912,13 +916,43 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 			if err != nil {
 				t.Fatalf("failed for %v: %v", src, err)
 			}
-			if len(got) != len(want) {
-				t.Errorf("references failed: different lengths got %v want %v", len(got), len(want))
+
+			sanitize := func(s string) string {
+				// In practice, CONFIGDIR means "gopls/internal/lsp/testdata".
+				return strings.ReplaceAll(s, r.data.Config.Dir, "CONFIGDIR")
 			}
-			for _, loc := range got {
-				if !want[loc] {
-					t.Errorf("references failed: incorrect references got %v want %v", loc, want)
+			formatLocation := func(loc protocol.Location) string {
+				return fmt.Sprintf("%s:%d.%d-%d.%d",
+					sanitize(string(loc.URI)),
+					loc.Range.Start.Line+1,
+					loc.Range.Start.Character+1,
+					loc.Range.End.Line+1,
+					loc.Range.End.Character+1)
+			}
+			toSlice := func(set map[protocol.Location]bool) []protocol.Location {
+				// TODO(adonovan): use generic maps.Keys(), someday.
+				list := make([]protocol.Location, 0, len(set))
+				for key := range set {
+					list = append(list, key)
 				}
+				return list
+			}
+			toString := func(locs []protocol.Location) string {
+				// TODO(adonovan): use generic JoinValues(locs, formatLocation).
+				strs := make([]string, len(locs))
+				for i, loc := range locs {
+					strs[i] = formatLocation(loc)
+				}
+				sort.Strings(strs)
+				return strings.Join(strs, "\n")
+			}
+			gotStr := toString(got)
+			wantStr := toString(toSlice(want))
+			if gotStr != wantStr {
+				t.Errorf("incorrect references (got %d, want %d) at %s:\n%s",
+					len(got), len(want),
+					formatLocation(loc),
+					diff.Unified("want", "got", wantStr, gotStr))
 			}
 		})
 	}

@@ -12,7 +12,10 @@ import (
 	"go/types"
 
 	"golang.org/x/mod/module"
+	"golang.org/x/tools/go/types/objectpath"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/source/xrefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/memoize"
 )
@@ -39,7 +42,8 @@ type pkg struct {
 	typeErrors      []types.Error
 	types           *types.Package
 	typesInfo       *types.Info
-	hasFixedFiles   bool // if true, AST was sufficiently mangled that we should hide type errors
+	hasFixedFiles   bool   // if true, AST was sufficiently mangled that we should hide type errors
+	xrefs           []byte // serializable index of outbound cross-references
 
 	analyses memoize.Store // maps analyzer.Name to Promise[actionResult]
 }
@@ -170,4 +174,13 @@ func (p *pkg) DiagnosticsForFile(uri span.URI) []*source.Diagnostic {
 		}
 	}
 	return res
+}
+
+func (p *pkg) ReferencesTo(pkgPath PackagePath, objPath objectpath.Path) []protocol.Location {
+	// TODO(adonovan): In future, p.xrefs will be retrieved from a
+	// section of the cache file produced by type checking.
+	// (Other sections will include the package's export data,
+	// "implements" relations, exported symbols, etc.)
+	// For now we just hang it off the pkg.
+	return xrefs.Lookup(p.m, p.xrefs, pkgPath, objPath)
 }

@@ -1,6 +1,8 @@
 // Package refs is a package used to test find references.
 package refs
 
+import "os" //@mark(osDecl, `"os"`),refs("os", osDecl, osUse)
+
 type i int //@mark(typeI, "i"),refs("i", typeI, argI, returnI, embeddedI)
 
 type X struct {
@@ -36,3 +38,16 @@ func _() {
 const (
 	foo = iota //@refs("iota")
 )
+
+func _(x interface{}) {
+	// We use the _ prefix because the markers inhabit a single
+	// namespace and yDecl is already used in ../highlights/highlights.go.
+	switch _y := x.(type) { //@mark(_yDecl, "_y"),refs("_y", _yDecl, _yInt, _yDefault)
+	case int:
+		println(_y) //@mark(_yInt, "_y"),refs("_y", _yDecl, _yInt, _yDefault)
+	default:
+		println(_y) //@mark(_yDefault, "_y")
+	}
+
+	os.Getwd() //@mark(osUse, "os")
+}
