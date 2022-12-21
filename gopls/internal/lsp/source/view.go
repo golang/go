@@ -177,8 +177,9 @@ type Snapshot interface {
 
 	// ReverseDependencies returns a new mapping whose entries are
 	// the ID and Metadata of each package in the workspace that
-	// transitively depends on the package denoted by id, excluding id itself.
-	ReverseDependencies(ctx context.Context, id PackageID) (map[PackageID]*Metadata, error)
+	// directly or transitively depend on the package denoted by id,
+	// excluding id itself.
+	ReverseDependencies(ctx context.Context, id PackageID, transitive bool) (map[PackageID]*Metadata, error)
 
 	// CachedImportPaths returns all the imported packages loaded in this
 	// snapshot, indexed by their package path (not import path, despite the name)

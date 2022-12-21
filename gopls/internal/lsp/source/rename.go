@@ -268,6 +268,7 @@ func renamePackage(ctx context.Context, s Snapshot, modulePath, oldPath PackageP
 		}
 
 		if m.Module == nil {
+			// This check will always fail under Bazel.
 			return nil, fmt.Errorf("cannot rename package: missing module information for package %q", m.PkgPath)
 		}
 
@@ -364,7 +365,7 @@ func renamePackageClause(ctx context.Context, m *Metadata, snapshot Snapshot, ne
 //
 // Edits are written into the edits map.
 func renameImports(ctx context.Context, snapshot Snapshot, m *Metadata, newPath ImportPath, newName PackageName, seen seenPackageRename, edits map[span.URI][]protocol.TextEdit) error {
-	rdeps, err := snapshot.ReverseDependencies(ctx, m.ID)
+	rdeps, err := snapshot.ReverseDependencies(ctx, m.ID, false) // find direct importers
 	if err != nil {
 		return err
 	}
@@ -374,20 +375,6 @@ func renameImports(ctx context.Context, snapshot Snapshot, m *Metadata, newPath 
 	for _, rdep := range rdeps {
 		if rdep.IsIntermediateTestVariant() {
 			continue // for renaming, these variants are redundant
-		}
-
-		// Optimization: skip packages that don't directly import m.
-		// (This logic also appears in 'references'; perhaps we need
-		// Snapshot.ReverseDirectDependencies?)
-		direct := false
-		for _, importedID := range rdep.DepsByImpPath {
-			if importedID == m.ID {
-				direct = true
-				break
-			}
-		}
-		if !direct {
-			continue
 		}
 
 		for _, uri := range rdep.CompiledGoFiles {

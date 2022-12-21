@@ -103,10 +103,10 @@ func (g *metadataGraph) build() {
 	}
 }
 
-// reverseTransitiveClosure returns a new mapping containing the
+// reverseReflexiveTransitiveClosure returns a new mapping containing the
 // metadata for the specified packages along with any package that
-// transitively imports one of them, keyed by ID.
-func (g *metadataGraph) reverseTransitiveClosure(ids ...PackageID) map[PackageID]*source.Metadata {
+// transitively imports one of them, keyed by ID, including all the initial packages.
+func (g *metadataGraph) reverseReflexiveTransitiveClosure(ids ...PackageID) map[PackageID]*source.Metadata {
 	seen := make(map[PackageID]*source.Metadata)
 	var visitAll func([]PackageID)
 	visitAll = func(ids []PackageID) {

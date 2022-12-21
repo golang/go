@@ -819,19 +819,32 @@ func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source
 	return metas, nil
 }
 
-func (s *snapshot) ReverseDependencies(ctx context.Context, id PackageID) (map[PackageID]*source.Metadata, error) {
+func (s *snapshot) ReverseDependencies(ctx context.Context, id PackageID, transitive bool) (map[PackageID]*source.Metadata, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
 	s.mu.Lock()
 	meta := s.meta
 	s.mu.Unlock()
-	rdeps := meta.reverseTransitiveClosure(id)
 
-	// Remove the original package ID from the map.
-	// TODO(adonovan): we should make ReverseDependencies and
-	// reverseTransitiveClosure consistent wrt reflexiveness.
-	delete(rdeps, id)
+	var rdeps map[PackageID]*source.Metadata
+	if transitive {
+		rdeps = meta.reverseReflexiveTransitiveClosure(id)
+
+		// Remove the original package ID from the map.
+		// (Callers all want irreflexivity but it's easier
+		// to compute reflexively then subtract.)
+		delete(rdeps, id)
+
+	} else {
+		// direct reverse dependencies
+		rdeps = make(map[PackageID]*source.Metadata)
+		for _, rdepID := range meta.importedBy[id] {
+			if rdep := meta.metadata[rdepID]; rdep != nil {
+				rdeps[rdepID] = rdep
+			}
+		}
+	}
 
 	return rdeps, nil
 }

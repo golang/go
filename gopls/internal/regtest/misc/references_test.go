@@ -40,6 +40,7 @@ func main() {
 			t.Fatal(err)
 		}
 		if len(refs) != 2 {
+			// TODO(adonovan): make this assertion less maintainer-hostile.
 			t.Fatalf("got %v reference(s), want 2", len(refs))
 		}
 		// The first reference is guaranteed to be the definition.
@@ -152,6 +153,7 @@ func main() {
 			pos := env.RegexpSearch(f, test.packageName)
 			refs := env.References(fmt.Sprintf("%s/a.go", test.packageName), pos)
 			if len(refs) != test.wantRefCount {
+				// TODO(adonovan): make this assertion less maintainer-hostile.
 				t.Fatalf("got %v reference(s), want %d", len(refs), test.wantRefCount)
 			}
 			var refURIs []string

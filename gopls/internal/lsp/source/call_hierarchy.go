@@ -96,19 +96,17 @@ func toProtocolIncomingCalls(ctx context.Context, snapshot Snapshot, refs []*Ref
 			event.Error(ctx, "error getting enclosing node", err, tag.Method.Of(ref.Name))
 			continue
 		}
+
 		loc := protocol.Location{
 			URI:   callItem.URI,
 			Range: callItem.Range,
 		}
-
-		if incomingCall, ok := incomingCalls[loc]; ok {
-			incomingCall.FromRanges = append(incomingCall.FromRanges, refRange)
-			continue
+		call, ok := incomingCalls[loc]
+		if !ok {
+			call = &protocol.CallHierarchyIncomingCall{From: callItem}
+			incomingCalls[loc] = call
 		}
-		incomingCalls[loc] = &protocol.CallHierarchyIncomingCall{
-			From:       callItem,
-			FromRanges: []protocol.Range{refRange},
-		}
+		call.FromRanges = append(call.FromRanges, refRange)
 	}
 
 	incomingCallItems := make([]protocol.CallHierarchyIncomingCall, 0, len(incomingCalls))

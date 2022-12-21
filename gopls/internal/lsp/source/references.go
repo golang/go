@@ -52,29 +52,14 @@ func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protoco
 		}
 		targetPkg := metas[len(metas)-1] // widest package
 
-		// Find external references to the package.
-		rdeps, err := snapshot.ReverseDependencies(ctx, targetPkg.ID)
+		// Find external direct references to the package (imports).
+		rdeps, err := snapshot.ReverseDependencies(ctx, targetPkg.ID, false)
 		if err != nil {
 			return nil, err
 		}
 
 		var refs []*ReferenceInfo
 		for _, rdep := range rdeps {
-			// Optimization: skip this loop (parsing) if rdep
-			// doesn't directly import the target package.
-			// (This logic also appears in rename; perhaps we need
-			// a ReverseDirectDependencies method?)
-			direct := false
-			for _, importedID := range rdep.DepsByImpPath {
-				if importedID == targetPkg.ID {
-					direct = true
-					break
-				}
-			}
-			if !direct {
-				continue
-			}
-
 			for _, uri := range rdep.CompiledGoFiles {
 				fh, err := snapshot.GetFile(ctx, uri)
 				if err != nil {
@@ -199,12 +184,16 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 
 		// Only search dependents if the object is exported.
 		if qo.obj.Exported() {
-			rdeps, err := snapshot.ReverseDependencies(ctx, qo.pkg.ID())
+			// If obj is a package-level object, we need only search
+			// among direct reverse dependencies.
+			// TODO(adonovan): opt: this will still spuriously search
+			// transitively for (e.g.) capitalized local variables.
+			// We could do better by checking for an objectpath.
+			transitive := qo.obj.Pkg().Scope().Lookup(qo.obj.Name()) != qo.obj
+			rdeps, err := snapshot.ReverseDependencies(ctx, qo.pkg.ID(), transitive)
 			if err != nil {
 				return nil, err
 			}
-			// TODO(adonovan): opt: if obj is a package-level object, we need
-			// only search among direct reverse dependencies.
 			ids := make([]PackageID, 0, len(rdeps))
 			for _, rdep := range rdeps {
 				ids = append(ids, rdep.ID)
