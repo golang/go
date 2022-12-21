@@ -579,15 +579,7 @@ func readTransfer(msg any, r *bufio.Reader) (err error) {
 
 	// Unify output
 	switch rr := msg.(type) {
-	case *Request:
-		rr.Body = t.Body
-		rr.ContentLength = t.ContentLength
-		if t.Chunked {
-			rr.TransferEncoding = []string{"chunked"}
-		}
-		rr.Close = t.Close
-		rr.Trailer = t.Trailer
-	case *Response:
+	case *Request, *Response:
 		rr.Body = t.Body
 		rr.ContentLength = t.ContentLength
 		if t.Chunked {
@@ -936,9 +928,7 @@ func (b *body) readTrailer() error {
 		return err
 	}
 	switch rr := b.hdr.(type) {
-	case *Request:
-		mergeSetHeader(&rr.Trailer, Header(hdr))
-	case *Response:
+	case *Request, *Response:
 		mergeSetHeader(&rr.Trailer, Header(hdr))
 	}
 	return nil

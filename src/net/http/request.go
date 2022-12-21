@@ -905,14 +905,7 @@ func NewRequestWithContext(ctx context.Context, method, url string, body io.Read
 				r := bytes.NewReader(buf)
 				return io.NopCloser(r), nil
 			}
-		case *bytes.Reader:
-			req.ContentLength = int64(v.Len())
-			snapshot := *v
-			req.GetBody = func() (io.ReadCloser, error) {
-				r := snapshot
-				return io.NopCloser(&r), nil
-			}
-		case *strings.Reader:
+		case *bytes.Reader, *strings.Reader:
 			req.ContentLength = int64(v.Len())
 			snapshot := *v
 			req.GetBody = func() (io.ReadCloser, error) {
