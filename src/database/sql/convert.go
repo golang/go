@@ -249,13 +249,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			}
 			*d = string(s)
 			return nil
-		case *any:
-			if d == nil {
-				return errNilPtr
-			}
-			*d = bytes.Clone(s)
-			return nil
-		case *[]byte:
+		case *any, *[]byte:
 			if d == nil {
 				return errNilPtr
 			}
@@ -296,19 +290,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 		}
 	case nil:
 		switch d := dest.(type) {
-		case *any:
-			if d == nil {
-				return errNilPtr
-			}
-			*d = nil
-			return nil
-		case *[]byte:
-			if d == nil {
-				return errNilPtr
-			}
-			*d = nil
-			return nil
-		case *RawBytes:
+		case *any, *[]byte, *RawBytes:
 			if d == nil {
 				return errNilPtr
 			}
