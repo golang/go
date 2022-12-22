@@ -5,13 +5,19 @@
 package diff_test
 
 import (
+	"bytes"
 	"math/rand"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"unicode/utf8"
 
 	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/diff/difftest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestApply(t *testing.T) {
@@ -99,31 +105,50 @@ func TestLineEdits(t *testing.T) {
 				t.Fatalf("LineEdits: %v", err)
 			}
 			if !reflect.DeepEqual(got, edits) {
-				t.Errorf("LineEdits got %q, want %q", got, edits)
+				t.Errorf("LineEdits got\n%q, want\n%q\n%#v", got, edits, tc)
 			}
 		})
 	}
 }
 
 func TestToUnified(t *testing.T) {
+	testenv.NeedsTool(t, "patch")
 	for _, tc := range difftest.TestCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			unified, err := diff.ToUnified(difftest.FileA, difftest.FileB, tc.In, tc.Edits)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if unified != tc.Unified {
-				t.Errorf("Unified(Edits): got diff:\n%v\nexpected:\n%v", unified, tc.Unified)
+			if unified == "" {
+				return
 			}
-			if tc.LineEdits != nil {
-				unified, err := diff.ToUnified(difftest.FileA, difftest.FileB, tc.In, tc.LineEdits)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if unified != tc.Unified {
-					t.Errorf("Unified(LineEdits): got diff:\n%v\nexpected:\n%v", unified, tc.Unified)
-				}
+			orig := filepath.Join(t.TempDir(), "original")
+			err = os.WriteFile(orig, []byte(tc.In), 0644)
+			if err != nil {
+				t.Fatal(err)
 			}
+			temp := filepath.Join(t.TempDir(), "patched")
+			err = os.WriteFile(temp, []byte(tc.In), 0644)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command("patch", "-p0", "-u", "-s", "-o", temp, orig)
+			cmd.Stdin = strings.NewReader(unified)
+			cmd.Stdout = new(bytes.Buffer)
+			cmd.Stderr = new(bytes.Buffer)
+			if err = cmd.Run(); err != nil {
+				t.Fatalf("%v: %q (%q) (%q)", err, cmd.String(),
+					cmd.Stderr, cmd.Stdout)
+			}
+			got, err := os.ReadFile(temp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != tc.Out {
+				t.Errorf("applying unified failed: got\n%q, wanted\n%q unified\n%q",
+					got, tc.Out, unified)
+			}
+
 		})
 	}
 }

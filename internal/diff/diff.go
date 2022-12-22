@@ -17,6 +17,10 @@ type Edit struct {
 	New        string // the replacement
 }
 
+func (e Edit) String() string {
+	return fmt.Sprintf("{Start:%d,End:%d,New:%s}", e.Start, e.End, e.New)
+}
+
 // Apply applies a sequence of edits to the src buffer and returns the
 // result. Edits are applied in order of start offset; edits with the
 // same start offset are applied in they order they were provided.
@@ -146,16 +150,13 @@ func expandEdit(edit Edit, src string) Edit {
 	}
 
 	// Expand end right to end of line.
-	// (endCol is the zero-based column number of end.)
 	end := edit.End
-	if endCol := end - 1 - strings.LastIndex(src[:end], "\n"); endCol > 0 {
-		if nl := strings.IndexByte(src[end:], '\n'); nl < 0 {
-			edit.End = len(src) // extend to EOF
-		} else {
-			edit.End = end + nl + 1 // extend beyond \n
-		}
-		edit.New += src[end:edit.End]
+	if nl := strings.IndexByte(src[end:], '\n'); nl < 0 {
+		edit.End = len(src) // extend to EOF
+	} else {
+		edit.End = end + nl + 1 // extend beyond \n
 	}
+	edit.New += src[end:edit.End]
 
 	return edit
 }

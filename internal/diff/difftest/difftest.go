@@ -7,6 +7,13 @@
 // "golang.org/x/tools/internal/diff"
 package difftest
 
+// There are two kinds of tests, semantic tests, and 'golden data' tests.
+// The semantic tests check that the computed diffs transform the input to
+// the output, and that 'patch' accepts the computed unified diffs.
+// The other tests just check that Edits and LineEdits haven't changed
+// unexpectedly. These fields may need to be changed when the diff algorithm
+// changes.
+
 import (
 	"testing"
 
@@ -201,6 +208,12 @@ var TestCases = []struct {
 			{Start: 10, End: 12, New: ""},
 			{Start: 14, End: 14, New: "C\n"},
 		},
+		LineEdits: []diff.Edit{
+			{Start: 0, End: 6, New: "C\n"},
+			{Start: 6, End: 8, New: "B\nA\n"},
+			{Start: 10, End: 14, New: "A\n"},
+			{Start: 14, End: 14, New: "C\n"},
+		},
 	}, {
 		Name: "replace_last_line",
 		In:   "A\nB\n",
@@ -239,6 +252,16 @@ var TestCases = []struct {
 		},
 		NoDiff: true, // diff algorithm produces different delete/insert pattern
 	},
+	{
+		Name:  "extra_newline",
+		In:    "\nA\n",
+		Out:   "A\n",
+		Edits: []diff.Edit{{Start: 0, End: 1, New: ""}},
+		Unified: UnifiedPrefix + `@@ -1,2 +1 @@
+-
+ A
+`,
+	},
 }
 
 func DiffTest(t *testing.T, compute func(before, after string) []diff.Edit) {
@@ -254,10 +277,12 @@ func DiffTest(t *testing.T, compute func(before, after string) []diff.Edit) {
 				t.Fatalf("ToUnified: %v", err)
 			}
 			if got != test.Out {
-				t.Errorf("Apply: got patched:\n%v\nfrom diff:\n%v\nexpected:\n%v", got, unified, test.Out)
+				t.Errorf("Apply: got patched:\n%v\nfrom diff:\n%v\nexpected:\n%v",
+					got, unified, test.Out)
 			}
 			if !test.NoDiff && unified != test.Unified {
-				t.Errorf("Unified: got diff:\n%v\nexpected:\n%v", unified, test.Unified)
+				t.Errorf("Unified: got diff:\n%q\nexpected:\n%q diffs:%v",
+					unified, test.Unified, edits)
 			}
 		})
 	}
