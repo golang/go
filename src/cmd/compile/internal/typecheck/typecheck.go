@@ -889,7 +889,7 @@ func RewriteNonNameCall(n *ir.CallExpr) {
 
 	tmp := Temp((*np).Type())
 	as := ir.NewAssignStmt(base.Pos, tmp, *np)
-	as.Def = true
+	as.PtrInit().Append(Stmt(ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
 	*np = tmp
 
 	if static {
