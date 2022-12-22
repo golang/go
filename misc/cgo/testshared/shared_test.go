@@ -1105,3 +1105,15 @@ func TestIssue47873(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
 	goCmd(t, "run", "-linkshared", "./issue47837/main")
 }
+
+// Test that we can build std in shared mode.
+func TestStd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skip in short mode")
+	}
+	t.Parallel()
+	// Use a temporary pkgdir to not interfere with other tests, and not write to GOROOT.
+	// Cannot use goCmd as it runs with cloned GOROOT which is incomplete.
+	runWithEnv(t, "building std", []string{"GOROOT=" + oldGOROOT},
+		filepath.Join(oldGOROOT, "bin", "go"), "install", "-buildmode=shared", "-pkgdir="+t.TempDir(), "std")
+}
