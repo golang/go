@@ -658,7 +658,6 @@ func main() {
 		// Check if the new package name exists.
 		env.RegexpSearch("nested/a.go", "package nested")
 		env.RegexpSearch("main.go", "mod.com/nested")
-
 		env.RegexpSearch("main.go", `_ "mod.com/nested"`)
 		env.RegexpSearch("main.go", `lib1 "mod.com/nested/nested"`)
 	})
