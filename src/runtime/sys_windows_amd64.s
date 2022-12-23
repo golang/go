@@ -142,7 +142,7 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
 
 GLOBL runtime·cbctxts(SB), NOPTR, $8
 
-TEXT runtime·callbackasm1(SB),NOSPLIT,$0
+TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
 	// Construct args vector for cgocallback().
 	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9
 	// args from the 5th on are on the stack.
@@ -194,7 +194,7 @@ TEXT runtime·callbackasm1(SB),NOSPLIT,$0
 	RET
 
 // uint32 tstart_stdcall(M *newm);
-TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
+TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 	// Switch from the host ABI to the Go ABI.
 	PUSH_REGS_HOST_TO_ABI0()
 
@@ -308,7 +308,7 @@ useQPC:
 
 // func osSetupTLS(mp *m)
 // Setup TLS. for use by needm on Windows.
-TEXT runtime·osSetupTLS(SB),NOSPLIT,$0-8
+TEXT runtime·osSetupTLS(SB),NOSPLIT|NOFRAME,$0-8
 	MOVQ	mp+0(FP), AX
 	LEAQ	m_tls(AX), DI
 	CALL	runtime·settls(SB)
