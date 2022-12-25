@@ -9,11 +9,13 @@ package user
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // lineFunc returns a value, an error, or (nil, nil) to skip the row.
@@ -198,6 +200,13 @@ func findUsername(name string, r io.Reader) (*User, error) {
 }
 
 func lookupGroup(groupname string) (*Group, error) {
+	if defaultUserdbClient.isUsable() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if g, ok, err := defaultUserdbClient.lookupGroup(ctx, groupname); ok {
+			return g, err
+		}
+	}
 	f, err := os.Open(groupFile)
 	if err != nil {
 		return nil, err
@@ -207,6 +216,13 @@ func lookupGroup(groupname string) (*Group, error) {
 }
 
 func lookupGroupId(id string) (*Group, error) {
+	if defaultUserdbClient.isUsable() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if g, ok, err := defaultUserdbClient.lookupGroupId(ctx, id); ok {
+			return g, err
+		}
+	}
 	f, err := os.Open(groupFile)
 	if err != nil {
 		return nil, err
@@ -216,6 +232,13 @@ func lookupGroupId(id string) (*Group, error) {
 }
 
 func lookupUser(username string) (*User, error) {
+	if defaultUserdbClient.isUsable() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if u, ok, err := defaultUserdbClient.lookupUser(ctx, username); ok {
+			return u, err
+		}
+	}
 	f, err := os.Open(userFile)
 	if err != nil {
 		return nil, err
@@ -225,6 +248,13 @@ func lookupUser(username string) (*User, error) {
 }
 
 func lookupUserId(uid string) (*User, error) {
+	if defaultUserdbClient.isUsable() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if u, ok, err := defaultUserdbClient.lookupUserId(ctx, uid); ok {
+			return u, err
+		}
+	}
 	f, err := os.Open(userFile)
 	if err != nil {
 		return nil, err
