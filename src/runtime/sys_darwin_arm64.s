@@ -458,12 +458,6 @@ TEXT runtime·pthread_setspecific_trampoline(SB),NOSPLIT,$0
 	BL	libc_pthread_setspecific(SB)
 	RET
 
-TEXT runtime·osinit_hack_trampoline(SB),NOSPLIT,$0
-	MOVD	$0, R0	// arg 1 val
-	BL	libc_notify_is_valid_token(SB)
-	BL	libc_xpc_atfork_child(SB)
-	RET
-
 // syscall calls a function in libc on behalf of the syscall package.
 // syscall takes a pointer to a struct like:
 // struct {

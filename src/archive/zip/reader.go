@@ -87,17 +87,6 @@ func OpenReader(name string) (*ReadCloser, error) {
 
 // NewReader returns a new Reader reading from r, which is assumed to
 // have the given size in bytes.
-//
-// ErrInsecurePath and a valid *Reader are returned if the names of any
-// files in the archive:
-//
-//   - are absolute;
-//   - are a relative path escaping the current directory, such as "../a";
-//   - contain a backslash (\) character; or
-//   - on Windows, are a reserved file name such as "NUL".
-//
-// The caller may ignore the ErrInsecurePath error,
-// but is then responsible for sanitizing paths as appropriate.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	if size < 0 {
 		return nil, errors.New("zip: size cannot be negative")

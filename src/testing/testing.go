@@ -13,8 +13,9 @@
 //
 // Within these functions, use the Error, Fail or related methods to signal failure.
 //
-// To write a new test suite, create a file whose name ends _test.go that
-// contains the TestXxx functions as described here.
+// To write a new test suite, create a file that
+// contains the TestXxx functions as described here,
+// and give that file a name ending in "_test.go".
 // The file will be excluded from regular
 // package builds but will be included when the "go test" command is run.
 //

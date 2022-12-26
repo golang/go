@@ -78,7 +78,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// About to call fork.
 	// No more allocation or calls of non-assembly functions.
 	runtime_BeforeFork()
-	r1, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fork_trampoline), 0, 0, 0)
+	r1, _, err1 = rawSyscall(forkTrampoline, 0, 0, 0)
 	if err1 != 0 {
 		runtime_AfterFork()
 		return 0, err1
@@ -276,6 +276,6 @@ childerror:
 	// send error code on pipe
 	rawSyscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
 	for {
-		rawSyscall(abi.FuncPCABI0(libc_exit_trampoline), 253, 0, 0)
+		rawSyscall(exitTrampoline, 253, 0, 0)
 	}
 }

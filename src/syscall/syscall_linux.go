@@ -13,6 +13,7 @@ package syscall
 
 import (
 	"internal/itoa"
+	"runtime"
 	"unsafe"
 )
 
@@ -145,8 +146,17 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 		return faccessat(dirfd, path, mode)
 	}
 
-	if err := faccessat2(dirfd, path, mode, flags); err != ENOSYS && err != EPERM {
-		return err
+	// Attempt to use the newer faccessat2, which supports flags directly,
+	// falling back if it doesn't exist.
+	//
+	// Don't attempt on Android, which does not allow faccessat2 through
+	// its seccomp policy [1] on any version of Android as of 2022-12-20.
+	//
+	// [1] https://cs.android.com/android/platform/superproject/+/master:bionic/libc/SECCOMP_BLOCKLIST_APP.TXT;l=4;drc=dbb8670dfdcc677f7e3b9262e93800fa14c4e417
+	if runtime.GOOS != "android" {
+		if err := faccessat2(dirfd, path, mode, flags); err != ENOSYS && err != EPERM {
+			return err
+		}
 	}
 
 	// The Linux kernel faccessat system call does not take any flags.

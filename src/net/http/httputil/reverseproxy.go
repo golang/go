@@ -131,17 +131,17 @@ type ReverseProxy struct {
 	// Director must not access the provided Request
 	// after returning.
 	//
-	// By default, the X-Forwarded-For, X-Forwarded-Host, and
-	// X-Forwarded-Proto headers of the ourgoing request are
-	// set as by the ProxyRequest.SetXForwarded function.
+	// By default, the X-Forwarded-For header is set to the
+	// value of the client IP address. If an X-Forwarded-For
+	// header already exists, the client IP is appended to the
+	// existing values. As a special case, if the header
+	// exists in the Request.Header map but has a nil value
+	// (such as when set by the Director func), the X-Forwarded-For
+	// header is not modified.
 	//
-	// If an X-Forwarded-For header already exists, the client IP is
-	// appended to the existing values. To prevent IP spoofing, be
-	// sure to delete any pre-existing X-Forwarded-For header
-	// coming from the client or an untrusted proxy.
-	//
-	// If a header exists in the Request.Header map but has a nil value
-	// (such as when set by the Director func), it is not modified.
+	// To prevent IP spoofing, be sure to delete any pre-existing
+	// X-Forwarded-For header coming from the client or
+	// an untrusted proxy.
 	//
 	// Hop-by-hop headers are removed from the request after
 	// Director returns, which can remove headers added by
@@ -444,16 +444,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			}
 			if !omit {
 				outreq.Header.Set("X-Forwarded-For", clientIP)
-			}
-		}
-		if prior, ok := outreq.Header["X-Forwarded-Host"]; !(ok && prior == nil) {
-			outreq.Header.Set("X-Forwarded-Host", req.Host)
-		}
-		if prior, ok := outreq.Header["X-Forwarded-Proto"]; !(ok && prior == nil) {
-			if req.TLS == nil {
-				outreq.Header.Set("X-Forwarded-Proto", "http")
-			} else {
-				outreq.Header.Set("X-Forwarded-Proto", "https")
 			}
 		}
 	}
