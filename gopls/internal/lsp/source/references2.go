@@ -39,8 +39,13 @@ import (
 // object as the subject of a References query.
 type ReferenceInfoV2 struct {
 	IsDeclaration bool
-	Name          string // TODO(adonovan): same for all elements; factor out of the slice?
 	Location      protocol.Location
+
+	// TODO(adonovan): these are the same for all elements; factor out of the slice.
+	// TODO(adonovan): Name is currently unused. If it's still unused when we
+	// eliminate 'references' (v1), delete it. Or replace both fields by a *Metadata.
+	PkgPath PackagePath
+	Name    string
 }
 
 // References returns a list of all references (sorted with
@@ -51,11 +56,9 @@ func References(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protoc
 	if err != nil {
 		return nil, err
 	}
-	// TODO(adonovan): eliminate references[i].Name field?
-	// But it may be needed when replacing referencesV1.
-	var locations []protocol.Location
-	for _, ref := range references {
-		locations = append(locations, ref.Location)
+	locations := make([]protocol.Location, len(references))
+	for i, ref := range references {
+		locations[i] = ref.Location
 	}
 	return locations, nil
 }
@@ -68,14 +71,14 @@ func referencesV2(ctx context.Context, snapshot Snapshot, f FileHandle, pp proto
 	defer done()
 
 	// Is the cursor within the package name declaration?
-	pgf, inPackageName, err := parsePackageNameDecl(ctx, snapshot, f, pp)
+	_, inPackageName, err := parsePackageNameDecl(ctx, snapshot, f, pp)
 	if err != nil {
 		return nil, err
 	}
 
 	var refs []*ReferenceInfoV2
 	if inPackageName {
-		refs, err = packageReferences(ctx, snapshot, f.URI(), pgf.File.Name.Name)
+		refs, err = packageReferences(ctx, snapshot, f.URI())
 	} else {
 		refs, err = ordinaryReferences(ctx, snapshot, f.URI(), pp)
 	}
@@ -110,7 +113,7 @@ func referencesV2(ctx context.Context, snapshot Snapshot, f FileHandle, pp proto
 // declaration of the specified name and uri by searching among the
 // import declarations of all packages that directly import the target
 // package.
-func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pkgname string) ([]*ReferenceInfoV2, error) {
+func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI) ([]*ReferenceInfoV2, error) {
 	metas, err := snapshot.MetadataForFile(ctx, uri)
 	if err != nil {
 		return nil, err
@@ -135,7 +138,7 @@ func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pkg
 	if narrowest.ForTest != "" && strings.HasSuffix(string(uri), "_test.go") {
 		for _, f := range narrowest.CompiledGoFiles {
 			if !strings.HasSuffix(string(f), "_test.go") {
-				return packageReferences(ctx, snapshot, f, pkgname)
+				return packageReferences(ctx, snapshot, f)
 			}
 		}
 		// This package has no non-test files.
@@ -160,8 +163,9 @@ func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pkg
 					if rdep.DepsByImpPath[UnquoteImportPath(imp)] == narrowest.ID {
 						refs = append(refs, &ReferenceInfoV2{
 							IsDeclaration: false,
-							Name:          pkgname,
 							Location:      mustLocation(f, imp),
+							PkgPath:       narrowest.PkgPath,
+							Name:          string(narrowest.Name),
 						})
 					}
 				}
@@ -187,8 +191,9 @@ func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pkg
 		}
 		refs = append(refs, &ReferenceInfoV2{
 			IsDeclaration: true, // (one of many)
-			Name:          pkgname,
 			Location:      mustLocation(f, f.File.Name),
+			PkgPath:       widest.PkgPath,
+			Name:          string(widest.Name),
 		})
 	}
 
@@ -310,8 +315,9 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	report := func(loc protocol.Location, isDecl bool) {
 		ref := &ReferenceInfoV2{
 			IsDeclaration: isDecl,
-			Name:          obj.Name(),
 			Location:      loc,
+			PkgPath:       pkg.PkgPath(),
+			Name:          obj.Name(),
 		}
 		refsMu.Lock()
 		refs = append(refs, ref)

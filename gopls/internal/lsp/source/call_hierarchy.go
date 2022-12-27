@@ -15,7 +15,6 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 )
@@ -65,13 +64,7 @@ func IncomingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	ctx, done := event.Start(ctx, "source.IncomingCalls")
 	defer done()
 
-	// TODO(adonovan): switch to referencesV2 here once it supports methods.
-	// This will require that we parse files containing
-	// references instead of accessing refs[i].pkg.
-	// (We could use pre-parser trimming, either a scanner-based
-	// implementation such as https://go.dev/play/p/KUrObH1YkX8
-	// (~31% speedup), or a byte-oriented implementation (2x speedup).
-	refs, err := referencesV1(ctx, snapshot, fh, pos, false)
+	refs, err := referencesV2(ctx, snapshot, fh, pos, false)
 	if err != nil {
 		if errors.Is(err, ErrNoIdentFound) || errors.Is(err, errNoObjectFound) {
 			return nil, nil
@@ -79,23 +72,14 @@ func IncomingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 		return nil, err
 	}
 
-	return toProtocolIncomingCalls(ctx, snapshot, refs)
-}
-
-// toProtocolIncomingCalls returns an array of protocol.CallHierarchyIncomingCall for ReferenceInfo's.
-// References inside same enclosure are assigned to the same enclosing function.
-func toProtocolIncomingCalls(ctx context.Context, snapshot Snapshot, refs []*ReferenceInfo) ([]protocol.CallHierarchyIncomingCall, error) {
-	// an enclosing node could have multiple calls to a reference, we only show the enclosure
-	// once in the result but highlight all calls using FromRanges (ranges at which the calls occur)
-	var incomingCalls = map[protocol.Location]*protocol.CallHierarchyIncomingCall{}
+	// Group references by their enclosing function declaration.
+	incomingCalls := make(map[protocol.Location]*protocol.CallHierarchyIncomingCall)
 	for _, ref := range refs {
-		refRange := ref.MappedRange.Range()
-		callItem, err := enclosingNodeCallItem(snapshot, ref.pkg, ref.MappedRange.URI(), ref.ident.NamePos)
+		callItem, err := enclosingNodeCallItem(ctx, snapshot, ref.PkgPath, ref.Location)
 		if err != nil {
 			event.Error(ctx, "error getting enclosing node", err, tag.Method.Of(ref.Name))
 			continue
 		}
-
 		loc := protocol.Location{
 			URI:   callItem.URI,
 			Range: callItem.Range,
@@ -105,9 +89,10 @@ func toProtocolIncomingCalls(ctx context.Context, snapshot Snapshot, refs []*Ref
 			call = &protocol.CallHierarchyIncomingCall{From: callItem}
 			incomingCalls[loc] = call
 		}
-		call.FromRanges = append(call.FromRanges, refRange)
+		call.FromRanges = append(call.FromRanges, ref.Location.Range)
 	}
 
+	// Flatten the map of pointers into a slice of values.
 	incomingCallItems := make([]protocol.CallHierarchyIncomingCall, 0, len(incomingCalls))
 	for _, callItem := range incomingCalls {
 		incomingCallItems = append(incomingCallItems, *callItem)
@@ -115,18 +100,31 @@ func toProtocolIncomingCalls(ctx context.Context, snapshot Snapshot, refs []*Ref
 	return incomingCallItems, nil
 }
 
-// enclosingNodeCallItem creates a CallHierarchyItem representing the function call at pos
-func enclosingNodeCallItem(snapshot Snapshot, pkg Package, uri span.URI, pos token.Pos) (protocol.CallHierarchyItem, error) {
-	pgf, err := pkg.File(uri)
+// enclosingNodeCallItem creates a CallHierarchyItem representing the function call at loc.
+func enclosingNodeCallItem(ctx context.Context, snapshot Snapshot, pkgPath PackagePath, loc protocol.Location) (protocol.CallHierarchyItem, error) {
+	// Parse the file containing the reference.
+	fh, err := snapshot.GetFile(ctx, loc.URI.SpanURI())
+	if err != nil {
+		return protocol.CallHierarchyItem{}, err
+	}
+	// TODO(adonovan): opt: before parsing, trim the bodies of functions
+	// that don't contain the reference, using either a scanner-based
+	// implementation such as https://go.dev/play/p/KUrObH1YkX8
+	// (~31% speedup), or a byte-oriented implementation (2x speedup).
+	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
+	if err != nil {
+		return protocol.CallHierarchyItem{}, err
+	}
+	srcRng, err := pgf.RangeToTokenRange(loc.Range)
 	if err != nil {
 		return protocol.CallHierarchyItem{}, err
 	}
 
+	// Find the enclosing function, if any, and the number of func literals in between.
 	var funcDecl *ast.FuncDecl
 	var funcLit *ast.FuncLit // innermost function literal
 	var litCount int
-	// Find the enclosing function, if any, and the number of func literals in between.
-	path, _ := astutil.PathEnclosingInterval(pgf.File, pos, pos)
+	path, _ := astutil.PathEnclosingInterval(pgf.File, srcRng.Start, srcRng.End)
 outer:
 	for _, node := range path {
 		switch n := node.(type) {
@@ -168,8 +166,8 @@ outer:
 		Name:           name,
 		Kind:           kind,
 		Tags:           []protocol.SymbolTag{},
-		Detail:         fmt.Sprintf("%s • %s", pkg.PkgPath(), filepath.Base(uri.Filename())),
-		URI:            protocol.DocumentURI(uri),
+		Detail:         fmt.Sprintf("%s • %s", pkgPath, filepath.Base(fh.URI().Filename())),
+		URI:            loc.URI,
 		Range:          rng,
 		SelectionRange: rng,
 	}, nil

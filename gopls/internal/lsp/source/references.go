@@ -11,14 +11,11 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"sort"
-	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/internal/event"
 )
 
 // ReferenceInfo holds information about reference to an identifier in Go source.
@@ -29,114 +26,6 @@ type ReferenceInfo struct {
 	obj           types.Object
 	pkg           Package
 	isDeclaration bool
-}
-
-// referencesV1 returns a list of references for a given identifier within the packages
-// containing pp. Declarations appear first in the result.
-//
-// Currently called only from Server.incomingCalls.
-// TODO(adonovan): switch over to referencesV2.
-func referencesV1(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]*ReferenceInfo, error) {
-	ctx, done := event.Start(ctx, "source.References")
-	defer done()
-
-	// Is the cursor within the package name declaration?
-	pgf, inPackageName, err := parsePackageNameDecl(ctx, snapshot, f, pp)
-	if err != nil {
-		return nil, err
-	}
-	if inPackageName {
-		// TODO(rfindley): this is redundant with package renaming. Refactor to share logic.
-		metas, err := snapshot.MetadataForFile(ctx, f.URI())
-		if err != nil {
-			return nil, err
-		}
-		if len(metas) == 0 {
-			return nil, fmt.Errorf("found no package containing %s", f.URI())
-		}
-		targetPkg := metas[len(metas)-1] // widest package
-
-		// Find external direct references to the package (imports).
-		rdeps, err := snapshot.ReverseDependencies(ctx, targetPkg.ID, false)
-		if err != nil {
-			return nil, err
-		}
-
-		var refs []*ReferenceInfo
-		for _, rdep := range rdeps {
-			for _, uri := range rdep.CompiledGoFiles {
-				fh, err := snapshot.GetFile(ctx, uri)
-				if err != nil {
-					return nil, err
-				}
-				f, err := snapshot.ParseGo(ctx, fh, ParseHeader)
-				if err != nil {
-					return nil, err
-				}
-				for _, imp := range f.File.Imports {
-					if rdep.DepsByImpPath[UnquoteImportPath(imp)] == targetPkg.ID {
-						rng, err := f.PosMappedRange(imp.Pos(), imp.End())
-						if err != nil {
-							return nil, err
-						}
-						refs = append(refs, &ReferenceInfo{
-							Name:        pgf.File.Name.Name,
-							MappedRange: rng,
-						})
-					}
-				}
-			}
-		}
-
-		// Find the package declaration of each file in the target package itself.
-		for _, uri := range targetPkg.CompiledGoFiles {
-			fh, err := snapshot.GetFile(ctx, uri)
-			if err != nil {
-				return nil, err
-			}
-			f, err := snapshot.ParseGo(ctx, fh, ParseHeader)
-			if err != nil {
-				return nil, err
-			}
-			rng, err := f.PosMappedRange(f.File.Name.Pos(), f.File.Name.End())
-			if err != nil {
-				return nil, err
-			}
-			refs = append(refs, &ReferenceInfo{
-				Name:        pgf.File.Name.Name,
-				MappedRange: rng,
-			})
-		}
-
-		return refs, nil
-	}
-
-	qualifiedObjs, err := qualifiedObjsAtProtocolPos(ctx, snapshot, f.URI(), pp)
-	// Don't return references for builtin types.
-	if errors.Is(err, errBuiltin) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	refs, err := references(ctx, snapshot, qualifiedObjs, includeDeclaration, true, false)
-	if err != nil {
-		return nil, err
-	}
-
-	toSort := refs
-	if includeDeclaration {
-		toSort = refs[1:]
-	}
-	sort.Slice(toSort, func(i, j int) bool {
-		x, y := toSort[i], toSort[j]
-		if cmp := strings.Compare(string(x.MappedRange.URI()), string(y.MappedRange.URI())); cmp != 0 {
-			return cmp < 0
-		}
-		return x.ident.Pos() < y.ident.Pos()
-	})
-	return refs, nil
 }
 
 // parsePackageNameDecl is a convenience function that parses and
@@ -159,8 +48,7 @@ func parsePackageNameDecl(ctx context.Context, snapshot Snapshot, fh FileHandle,
 // Only the definition-related fields of qualifiedObject are used.
 // (Arguably it should accept a smaller data type.)
 //
-// This implementation serves referencesV1 (the soon-to-be obsolete
-// portion of Server.references) and Server.rename.
+// This implementation serves Server.rename. TODO(adonovan): obviate it.
 func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, includeDeclaration, includeInterfaceRefs, includeEmbeddedRefs bool) ([]*ReferenceInfo, error) {
 	var (
 		references []*ReferenceInfo
