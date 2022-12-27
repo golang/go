@@ -12,11 +12,13 @@ import (
 	"go/token"
 	"go/types"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
@@ -212,6 +214,92 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 		renamingEdits, err := renamePackage(ctx, s, modulePath, oldPath, PackageName(newName), metadata)
 		if err != nil {
 			return nil, true, err
+		}
+
+		oldBase := filepath.Dir(span.URI.Filename(f.URI()))
+		newPkgDir := filepath.Join(filepath.Dir(oldBase), newName)
+
+		// TODO: should this operate on all go.mod files, irrespective of whether they are included in the workspace?
+		// Get all active mod files in the workspace
+		modFiles := s.ModFiles()
+		for _, m := range modFiles {
+			fh, err := s.GetFile(ctx, m)
+			if err != nil {
+				return nil, true, err
+			}
+			pm, err := s.ParseMod(ctx, fh)
+			if err != nil {
+				return nil, true, err
+			}
+
+			modFileDir := filepath.Dir(pm.URI.Filename())
+			affectedReplaces := []*modfile.Replace{}
+
+			// Check if any replace directives need to be fixed
+			for _, r := range pm.File.Replace {
+				if !strings.HasPrefix(r.New.Path, "/") && !strings.HasPrefix(r.New.Path, "./") && !strings.HasPrefix(r.New.Path, "../") {
+					continue
+				}
+
+				replacedPath := r.New.Path
+				if strings.HasPrefix(r.New.Path, "./") || strings.HasPrefix(r.New.Path, "../") {
+					replacedPath = filepath.Join(modFileDir, r.New.Path)
+				}
+
+				// TODO: Is there a risk of converting a '\' delimited replacement to a '/' delimited replacement?
+				if !strings.HasPrefix(filepath.ToSlash(replacedPath)+"/", filepath.ToSlash(oldBase)+"/") {
+					continue // not affected by the package renaming
+				}
+
+				affectedReplaces = append(affectedReplaces, r)
+			}
+
+			if len(affectedReplaces) == 0 {
+				continue
+			}
+			copied, err := modfile.Parse("", pm.Mapper.Content, nil)
+			if err != nil {
+				return nil, true, err
+			}
+
+			for _, r := range affectedReplaces {
+				replacedPath := r.New.Path
+				if strings.HasPrefix(r.New.Path, "./") || strings.HasPrefix(r.New.Path, "../") {
+					replacedPath = filepath.Join(modFileDir, r.New.Path)
+				}
+
+				suffix := strings.TrimPrefix(replacedPath, string(oldBase))
+
+				newReplacedPath, err := filepath.Rel(modFileDir, newPkgDir+suffix)
+				if err != nil {
+					return nil, true, err
+				}
+
+				newReplacedPath = filepath.ToSlash(newReplacedPath)
+
+				if !strings.HasPrefix(newReplacedPath, "/") && !strings.HasPrefix(newReplacedPath, "../") {
+					newReplacedPath = "./" + newReplacedPath
+				}
+
+				if err := copied.AddReplace(r.Old.Path, "", newReplacedPath, ""); err != nil {
+					return nil, true, err
+				}
+			}
+
+			copied.Cleanup()
+			newContent, err := copied.Format()
+			if err != nil {
+				return nil, true, err
+			}
+
+			// Calculate the edits to be made due to the change.
+			diff := s.View().Options().ComputeEdits(string(pm.Mapper.Content), string(newContent))
+			modFileEdits, err := ToProtocolEdits(pm.Mapper, diff)
+			if err != nil {
+				return nil, true, err
+			}
+
+			renamingEdits[pm.URI] = append(renamingEdits[pm.URI], modFileEdits...)
 		}
 
 		return renamingEdits, true, nil

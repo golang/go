@@ -519,8 +519,16 @@ func main() {
 }
 
 func TestRenamePackage_NestedModule(t *testing.T) {
-	testenv.NeedsGo1Point(t, 17)
+	testenv.NeedsGo1Point(t, 18)
 	const files = `
+-- go.work --
+go 1.18
+use (
+	.
+	./foo/bar
+	./foo/baz
+)
+
 -- go.mod --
 module mod.com
 
@@ -530,7 +538,10 @@ require (
     mod.com/foo/bar v0.0.0
 )
 
-replace mod.com/foo/bar => ./foo/bar
+replace (
+	mod.com/foo/bar => ./foo/bar
+	mod.com/foo/baz => ./foo/baz
+)
 -- foo/foo.go --
 package foo
 
@@ -546,7 +557,15 @@ module mod.com/foo/bar
 -- foo/bar/bar.go --
 package bar
 
-const Msg = "Hi"
+const Msg = "Hi from package bar"
+
+-- foo/baz/go.mod --
+module mod.com/foo/baz
+
+-- foo/baz/baz.go --
+package baz
+
+const Msg = "Hi from package baz"
 
 -- main.go --
 package main
@@ -554,12 +573,14 @@ package main
 import (
 	"fmt"
 	"mod.com/foo/bar"
+	"mod.com/foo/baz"
 	"mod.com/foo"
 )
 
 func main() {
 	foo.Bar()
 	fmt.Println(bar.Msg)
+	fmt.Println(baz.Msg)
 }
 `
 	Run(t, files, func(t *testing.T, env *Env) {
@@ -574,6 +595,9 @@ func main() {
 		env.RegexpSearch("main.go", "mod.com/foo/bar")
 		env.RegexpSearch("main.go", "mod.com/foox")
 		env.RegexpSearch("main.go", "foox.Bar()")
+
+		env.RegexpSearch("go.mod", "./foox/bar")
+		env.RegexpSearch("go.mod", "./foox/baz")
 	})
 }
 
