@@ -442,6 +442,26 @@ func (x *Int) IsUint64() bool {
 	return !x.neg && len(x.abs) <= 64/_W
 }
 
+// ToFloat64 returns the float64 value nearest x,
+// and an indication of any rounding that occurred.
+func (x *Int) ToFloat64() (float64, Accuracy) {
+	n := x.abs.bitLen() // NB: still uses slow crypto impl!
+	if n == 0 {
+		return 0.0, Exact
+	}
+
+	// Fast path: no more than 53 significant bits.
+	if n <= 53 || n < 64 && n-int(x.abs.trailingZeroBits()) <= 53 {
+		f := float64(low64(x.abs))
+		if x.neg {
+			f = -f
+		}
+		return f, Exact
+	}
+
+	return new(Float).SetInt(x).Float64()
+}
+
 // SetString sets z to the value of s, interpreted in the given base,
 // and returns z and a boolean indicating success. The entire string
 // (not just a prefix) must be valid for success. If SetString fails,
