@@ -60,6 +60,7 @@ func TestLibFuzzer(t *testing.T) {
 			mustRun(t, cmd)
 
 			cmd = hangProneCmd(outPath)
+			cmd.Dir = dir.Base()
 			outb, err := cmd.CombinedOutput()
 			out := string(outb)
 			if err == nil {
