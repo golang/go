@@ -11,26 +11,26 @@ import (
 	"go/token"
 )
 
-// Offset returns tok.Offset(pos), but first checks that the pos is in range
+// Offset returns f.Offset(pos), but first checks that the pos is in range
 // for the given file.
-func Offset(tf *token.File, pos token.Pos) (int, error) {
-	if !InRange(tf, pos) {
-		return -1, fmt.Errorf("pos %v is not in range for file [%v:%v)", pos, tf.Base(), tf.Base()+tf.Size())
+func Offset(f *token.File, pos token.Pos) (int, error) {
+	if !InRange(f, pos) {
+		return -1, fmt.Errorf("pos %d is not in range [%d:%d] of file %s",
+			pos, f.Base(), f.Base()+f.Size(), f.Name())
 	}
-	return tf.Offset(pos), nil
+	return int(pos) - f.Base(), nil
 }
 
-// Pos returns tok.Pos(offset), but first checks that the offset is valid for
+// Pos returns f.Pos(offset), but first checks that the offset is valid for
 // the given file.
-func Pos(tf *token.File, offset int) (token.Pos, error) {
-	if offset < 0 || offset > tf.Size() {
-		return token.NoPos, fmt.Errorf("offset %v is not in range for file of size %v", offset, tf.Size())
+func Pos(f *token.File, offset int) (token.Pos, error) {
+	if !(0 <= offset && offset <= f.Size()) {
+		return token.NoPos, fmt.Errorf("offset %d is not in range for file %s of size %d", offset, f.Name(), f.Size())
 	}
-	return tf.Pos(offset), nil
+	return token.Pos(f.Base() + offset), nil
 }
 
-// InRange reports whether the given position is in the given token.File.
-func InRange(tf *token.File, pos token.Pos) bool {
-	size := tf.Pos(tf.Size())
-	return int(pos) >= tf.Base() && pos <= size
+// InRange reports whether file f contains position pos.
+func InRange(f *token.File, pos token.Pos) bool {
+	return token.Pos(f.Base()) <= pos && pos <= token.Pos(f.Base()+f.Size())
 }
