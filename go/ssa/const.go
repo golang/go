@@ -153,23 +153,27 @@ func (c *Const) Pos() token.Pos {
 	return token.NoPos
 }
 
-// IsNil returns true if this constant represents a typed or untyped nil value
-// with an underlying reference type: pointer, slice, chan, map, function, or
-// *basic* interface.
-//
-// Note: a type parameter whose underlying type is a basic interface is
-// considered a reference type.
+// IsNil returns true if this constant is a nil value of
+// a nillable reference type (pointer, slice, channel, map, or function),
+// a basic interface type, or
+// a type parameter all of whose possible instantiations are themselves nillable.
 func (c *Const) IsNil() bool {
 	return c.Value == nil && nillable(c.typ)
 }
 
 // nillable reports whether *new(T) == nil is legal for type T.
 func nillable(t types.Type) bool {
-	switch t := t.Underlying().(type) {
+	if typeparams.IsTypeParam(t) {
+		return underIs(typeSetOf(t), func(u types.Type) bool {
+			// empty type set (u==nil) => any underlying types => not nillable
+			return u != nil && nillable(u)
+		})
+	}
+	switch t.Underlying().(type) {
 	case *types.Pointer, *types.Slice, *types.Chan, *types.Map, *types.Signature:
 		return true
 	case *types.Interface:
-		return typeSetOf(t).Len() == 0 // basic interface.
+		return true // basic interface.
 	default:
 		return false
 	}

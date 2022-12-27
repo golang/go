@@ -24,3 +24,11 @@ func TestInstantiated(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, nilness.Analyzer, "c")
 }
+
+func TestTypeSet(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("TestTypeSet requires type parameters")
+	}
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, nilness.Analyzer, "d")
+}
