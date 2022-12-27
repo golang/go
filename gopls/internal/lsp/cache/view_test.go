@@ -53,7 +53,7 @@ func TestCaseInsensitiveFilesystem(t *testing.T) {
 	}
 }
 
-func TestFindWorkspaceRoot(t *testing.T) {
+func TestFindWorkspaceModuleSource(t *testing.T) {
 	workspace := `
 -- a/go.mod --
 module a
@@ -71,6 +71,10 @@ module d-goplsworkspace
 module de
 -- f/g/go.mod --
 module fg
+-- h/go.work --
+go 1.18
+-- h/i/go.mod --
+module hi
 `
 	dir, err := fake.Tempdir(fake.UnpackTxt(workspace))
 	if err != nil {
@@ -83,16 +87,18 @@ module fg
 		experimental bool
 	}{
 		{"", "", false}, // no module at root, and more than one nested module
-		{"a", "a", false},
-		{"a/x", "a", false},
-		{"a/x/y", "a", false},
-		{"b/c", "b/c", false},
-		{"d", "d/e", false},
-		{"d", "d", true},
-		{"d/e", "d/e", false},
-		{"d/e", "d", true},
-		{"f", "f/g", false},
-		{"f", "f", true},
+		{"a", "a/go.mod", false},
+		{"a/x", "a/go.mod", false},
+		{"a/x/y", "a/go.mod", false},
+		{"b/c", "b/c/go.mod", false},
+		{"d", "d/e/go.mod", false},
+		{"d", "d/gopls.mod", true},
+		{"d/e", "d/e/go.mod", false},
+		{"d/e", "d/gopls.mod", true},
+		{"f", "f/g/go.mod", false},
+		{"f", "", true},
+		{"h", "h/go.work", false},
+		{"h/i", "h/go.work", false},
 	}
 
 	for _, test := range tests {
@@ -100,12 +106,16 @@ module fg
 		rel := fake.RelativeTo(dir)
 		folderURI := span.URIFromPath(rel.AbsPath(test.folder))
 		excludeNothing := func(string) bool { return false }
-		got, err := findWorkspaceRoot(ctx, folderURI, &osFileSource{}, excludeNothing, test.experimental)
+		got, err := findWorkspaceModuleSource(ctx, folderURI, &osFileSource{}, excludeNothing, test.experimental)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if gotf, wantf := filepath.Clean(got.Filename()), rel.AbsPath(test.want); gotf != wantf {
-			t.Errorf("findWorkspaceRoot(%q, %t) = %q, want %q", test.folder, test.experimental, gotf, wantf)
+		want := span.URI("")
+		if test.want != "" {
+			want = span.URIFromPath(rel.AbsPath(test.want))
+		}
+		if got != want {
+			t.Errorf("findWorkspaceModuleSource(%q, %t) = %q, want %q", test.folder, test.experimental, got, want)
 		}
 	}
 }

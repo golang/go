@@ -1089,13 +1089,17 @@ package main
 	})
 }
 
-func TestAddGoWork(t *testing.T) {
+func TestAddAndRemoveGoWork(t *testing.T) {
+	// Use a workspace with a module in the root directory to exercise the case
+	// where a go.work is added to the existing root directory. This verifies
+	// that we're detecting changes to the module source, not just the root
+	// directory.
 	const nomod = `
--- a/go.mod --
+-- go.mod --
 module a.com
 
 go 1.16
--- a/main.go --
+-- main.go --
 package main
 
 func main() {}
@@ -1111,20 +1115,34 @@ func main() {}
 	WithOptions(
 		Modes(Default),
 	).Run(t, nomod, func(t *testing.T, env *Env) {
-		env.OpenFile("a/main.go")
+		env.OpenFile("main.go")
 		env.OpenFile("b/main.go")
-		env.Await(
-			DiagnosticAt("a/main.go", 0, 0),
+		// Since b/main.go is not in the workspace, it should have a warning on its
+		// package declaration.
+		env.AfterChange(
+			EmptyDiagnostics("main.go"),
 			DiagnosticAt("b/main.go", 0, 0),
 		)
 		env.WriteWorkspaceFile("go.work", `go 1.16
 
 use (
-	a
+	.
 	b
 )
 `)
-		env.Await(NoOutstandingDiagnostics())
+		env.AfterChange(NoOutstandingDiagnostics())
+		// Removing the go.work file should put us back where we started.
+		env.RemoveWorkspaceFile("go.work")
+
+		// TODO(rfindley): fix this bug: reopening b/main.go is necessary here
+		// because we no longer "see" the file in any view.
+		env.CloseBuffer("b/main.go")
+		env.OpenFile("b/main.go")
+
+		env.AfterChange(
+			EmptyDiagnostics("main.go"),
+			DiagnosticAt("b/main.go", 0, 0),
+		)
 	})
 }
 

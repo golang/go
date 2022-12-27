@@ -144,38 +144,6 @@ module moda.com`,
 			},
 		},
 		{
-			desc: "removing module",
-			initial: `
--- a/go.mod --
-module moda.com
--- a/go.sum --
-golang.org/x/mod v0.3.0 h1:deadbeef
--- b/go.mod --
-module modb.com
--- b/go.sum --
-golang.org/x/mod v0.3.0 h1:beefdead`,
-			initialState: wsState{
-				modules: []string{"a/go.mod", "b/go.mod"},
-				source:  fileSystemWorkspace,
-				dirs:    []string{".", "a", "b"},
-				sum:     "golang.org/x/mod v0.3.0 h1:beefdead\ngolang.org/x/mod v0.3.0 h1:deadbeef\n",
-			},
-			updates: map[string]wsChange{
-				"gopls.mod": {`module gopls-workspace
-
-require moda.com v0.0.0-goplsworkspace
-replace moda.com => $SANDBOX_WORKDIR/a`, true},
-			},
-			wantChanged: true,
-			wantReload:  true,
-			finalState: wsState{
-				modules: []string{"a/go.mod"},
-				source:  goplsModWorkspace,
-				dirs:    []string{".", "a"},
-				sum:     "golang.org/x/mod v0.3.0 h1:deadbeef\n",
-			},
-		},
-		{
 			desc: "adding module",
 			initial: `
 -- gopls.mod --
@@ -204,34 +172,6 @@ replace modb.com => $SANDBOX_WORKDIR/b`, true},
 			finalState: wsState{
 				modules: []string{"a/go.mod", "b/go.mod"},
 				source:  goplsModWorkspace,
-				dirs:    []string{".", "a", "b"},
-			},
-		},
-		{
-			desc: "deleting gopls.mod",
-			initial: `
--- gopls.mod --
-module gopls-workspace
-
-require moda.com v0.0.0-goplsworkspace
-replace moda.com => $SANDBOX_WORKDIR/a
--- a/go.mod --
-module moda.com
--- b/go.mod --
-module modb.com`,
-			initialState: wsState{
-				modules: []string{"a/go.mod"},
-				source:  goplsModWorkspace,
-				dirs:    []string{".", "a"},
-			},
-			updates: map[string]wsChange{
-				"gopls.mod": {"", true},
-			},
-			wantChanged: true,
-			wantReload:  true,
-			finalState: wsState{
-				modules: []string{"a/go.mod", "b/go.mod"},
-				source:  fileSystemWorkspace,
 				dirs:    []string{".", "a", "b"},
 			},
 		},

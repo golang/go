@@ -411,76 +411,53 @@ func (w *workspace) Clone(ctx context.Context, changes map[span.URI]*fileChange,
 // handleWorkspaceFileChanges handles changes related to a go.work or gopls.mod
 // file, updating ws accordingly. ws.root must be set.
 func handleWorkspaceFileChanges(ctx context.Context, ws *workspace, changes map[span.URI]*fileChange, fs source.FileSource) (changed, reload bool) {
-	// If go.work/gopls.mod has changed we need to either re-read it if it
-	// exists or walk the filesystem if it has been deleted.
-	// go.work should override the gopls.mod if both exist.
-	for _, src := range []workspaceSource{goWorkWorkspace, goplsModWorkspace} {
-		uri := uriForSource(ws.root, ws.explicitGowork, src)
-		// File opens/closes are just no-ops.
-		change, ok := changes[uri]
-		if !ok {
-			continue
-		}
-		if change.isUnchanged {
-			break
-		}
-		if change.exists {
-			// Only invalidate if the file if it actually parses.
-			// Otherwise, stick with the current file.
-			var parsedFile *modfile.File
-			var parsedModules map[span.URI]struct{}
-			var err error
-			switch src {
-			case goWorkWorkspace:
-				parsedFile, parsedModules, err = parseGoWork(ctx, ws.root, uri, change.content, fs)
-			case goplsModWorkspace:
-				parsedFile, parsedModules, err = parseGoplsMod(ws.root, uri, change.content)
-			}
-			if err != nil {
-				// An unparseable file should not invalidate the workspace:
-				// nothing good could come from changing the workspace in
-				// this case.
-				//
-				// TODO(rfindley): well actually, it could potentially lead to a better
-				// critical error. Evaluate whether we can unify this case with the
-				// error returned by newWorkspace, without needlessly invalidating
-				// metadata.
-				event.Error(ctx, fmt.Sprintf("parsing %s", filepath.Base(uri.Filename())), err)
-			} else {
-				// only update the modfile if it parsed.
-				changed = true
-				reload = change.fileHandle.Saved()
-				ws.mod = parsedFile
-				ws.moduleSource = src
-				ws.knownModFiles = parsedModules
-				ws.activeModFiles = make(map[span.URI]struct{})
-				for k, v := range parsedModules {
-					ws.activeModFiles[k] = v
-				}
-			}
-			break // We've found an explicit workspace file, so can stop looking.
-		} else {
-			// go.work/gopls.mod is deleted. search for modules again.
-			changed = true
-			reload = true
-			ws.moduleSource = fileSystemWorkspace
-			// The parsed file is no longer valid.
-			ws.mod = nil
-			knownModFiles, err := findModules(ws.root, ws.excludePath, 0)
-			if err != nil {
-				ws.knownModFiles = nil
-				ws.activeModFiles = nil
-				event.Error(ctx, "finding file system modules", err)
-			} else {
-				ws.knownModFiles = knownModFiles
-				ws.activeModFiles = make(map[span.URI]struct{})
-				for k, v := range ws.knownModFiles {
-					ws.activeModFiles[k] = v
-				}
-			}
-		}
+	if ws.moduleSource != goWorkWorkspace && ws.moduleSource != goplsModWorkspace {
+		return false, false
 	}
-	return changed, reload
+
+	uri := uriForSource(ws.root, ws.explicitGowork, ws.moduleSource)
+	// File opens/closes are just no-ops.
+	change, ok := changes[uri]
+	if !ok || change.isUnchanged {
+		return false, false
+	}
+	if change.exists {
+		// Only invalidate if the file if it actually parses.
+		// Otherwise, stick with the current file.
+		var parsedFile *modfile.File
+		var parsedModules map[span.URI]struct{}
+		var err error
+		switch ws.moduleSource {
+		case goWorkWorkspace:
+			parsedFile, parsedModules, err = parseGoWork(ctx, ws.root, uri, change.content, fs)
+		case goplsModWorkspace:
+			parsedFile, parsedModules, err = parseGoplsMod(ws.root, uri, change.content)
+		}
+		if err != nil {
+			// An unparseable file should not invalidate the workspace:
+			// nothing good could come from changing the workspace in
+			// this case.
+			//
+			// TODO(rfindley): well actually, it could potentially lead to a better
+			// critical error. Evaluate whether we can unify this case with the
+			// error returned by newWorkspace, without needlessly invalidating
+			// metadata.
+			event.Error(ctx, fmt.Sprintf("parsing %s", filepath.Base(uri.Filename())), err)
+		} else {
+			// only update the modfile if it parsed.
+			changed = true
+			reload = change.fileHandle.Saved()
+			ws.mod = parsedFile
+			ws.knownModFiles = parsedModules
+			ws.activeModFiles = make(map[span.URI]struct{})
+			for k, v := range parsedModules {
+				ws.activeModFiles[k] = v
+			}
+		}
+		return changed, reload
+	}
+	// go.work/gopls.mod is deleted. We should never see this as the view should have been recreated.
+	panic(fmt.Sprintf("internal error: workspace file %q deleted without reinitialization", uri))
 }
 
 // goplsModURI returns the URI for the gopls.mod file contained in root.
@@ -510,6 +487,12 @@ func isGoMod(uri span.URI) bool {
 	return filepath.Base(uri.Filename()) == "go.mod"
 }
 
+// isGoWork reports if uri is a go.work file.
+func isGoWork(uri span.URI) bool {
+	return filepath.Base(uri.Filename()) == "go.work"
+}
+
+// isGoSum reports if uri is a go.sum or go.work.sum file.
 func isGoSum(uri span.URI) bool {
 	return filepath.Base(uri.Filename()) == "go.sum" || filepath.Base(uri.Filename()) == "go.work.sum"
 }
@@ -533,12 +516,6 @@ func fileHandleExists(fh source.FileHandle) (bool, error) {
 		return false, nil
 	}
 	return false, err
-}
-
-// TODO(rFindley): replace this (and similar) with a uripath package analogous
-// to filepath.
-func dirURI(uri span.URI) span.URI {
-	return span.URIFromPath(filepath.Dir(uri.Filename()))
 }
 
 // getLegacyModules returns a module set containing at most the root module.

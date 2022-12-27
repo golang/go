@@ -1105,7 +1105,7 @@ func (s *snapshot) GoModForFile(uri span.URI) span.URI {
 func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 	var match span.URI
 	for modURI := range modFiles {
-		if !source.InDir(dirURI(modURI).Filename(), uri.Filename()) {
+		if !source.InDir(span.Dir(modURI).Filename(), uri.Filename()) {
 			continue
 		}
 		if len(modURI) > len(match) {
@@ -2240,7 +2240,7 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 		}
 		majorVersion = strings.TrimLeft(majorVersion, "/.") // handle gopkg.in versions
 		file.AddNewRequire(path, source.WorkspaceModuleVersion(majorVersion), false)
-		if err := file.AddReplace(path, "", dirURI(modURI).Filename(), ""); err != nil {
+		if err := file.AddReplace(path, "", span.Dir(modURI).Filename(), ""); err != nil {
 			return nil, err
 		}
 		for _, exclude := range parsed.Exclude {
@@ -2278,11 +2278,11 @@ func buildWorkspaceModFile(ctx context.Context, modFiles map[span.URI]struct{}, 
 			// If a replace points to a module in the workspace, make sure we
 			// direct it to version of the module in the workspace.
 			if m, ok := paths[rep.New.Path]; ok {
-				newPath = dirURI(m).Filename()
+				newPath = span.Dir(m).Filename()
 				newVersion = ""
 			} else if rep.New.Version == "" && !filepath.IsAbs(rep.New.Path) {
 				// Make any relative paths absolute.
-				newPath = filepath.Join(dirURI(modURI).Filename(), rep.New.Path)
+				newPath = filepath.Join(span.Dir(modURI).Filename(), rep.New.Path)
 			}
 			if err := file.AddReplace(rep.Old.Path, rep.Old.Version, newPath, newVersion); err != nil {
 				return nil, err

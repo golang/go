@@ -362,11 +362,11 @@ func foldRanges(m *protocol.ColumnMapper, contents string, ranges []protocol.Fol
 	// TODO(adonovan): factor to use diff.ApplyEdits, which validates the input.
 	for i := len(ranges) - 1; i >= 0; i-- {
 		r := ranges[i]
-		start, err := m.Point(protocol.Position{r.StartLine, r.StartCharacter})
+		start, err := m.Point(protocol.Position{Line: r.StartLine, Character: r.StartCharacter})
 		if err != nil {
 			return "", err
 		}
-		end, err := m.Point(protocol.Position{r.EndLine, r.EndCharacter})
+		end, err := m.Point(protocol.Position{Line: r.EndLine, Character: r.EndCharacter})
 		if err != nil {
 			return "", err
 		}

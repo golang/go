@@ -533,6 +533,9 @@ module mod.com
 go 1.12
 
 require example.com v1.2.2
+-- go.sum --
+example.com v1.2.3 h1:OnPPkx+rW63kj9pgILsu12MORKhSlnFa3DVRJq1HZ7g=
+example.com v1.2.3/go.mod h1:Y2Rc5rVWjWur0h3pd9aEvK5Pof8YKDANh9gHA2Maujo=
 -- main.go --
 package main
 
@@ -561,9 +564,9 @@ func main() {
 }
 `,
 		})
-		env.Await(
+		env.AfterChange(
 			env.DoneWithChangeWatchedFiles(),
-			NoDiagnostics("main.go"),
+			EmptyOrNoDiagnostics("main.go"),
 		)
 	})
 }

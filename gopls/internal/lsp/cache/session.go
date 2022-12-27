@@ -29,9 +29,8 @@ type Session struct {
 	id string
 
 	// Immutable attributes shared across views.
-	cache            *Cache                // shared cache
-	gocmdRunner      *gocommand.Runner     // limits go command concurrency
-	optionsOverrides func(*source.Options) // transformation to apply on top of all options
+	cache       *Cache            // shared cache
+	gocmdRunner *gocommand.Runner // limits go command concurrency
 
 	optionsMu sync.Mutex
 	options   *source.Options
@@ -184,10 +183,6 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, seqID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 
-	if s.optionsOverrides != nil {
-		s.optionsOverrides(options)
-	}
-
 	// Get immutable workspace configuration.
 	//
 	// TODO(rfindley): this info isn't actually immutable. For example, GOWORK
@@ -199,11 +194,15 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	}
 
 	root := folder
-	if options.ExpandWorkspaceToModule {
-		root, err = findWorkspaceRoot(ctx, root, s, pathExcludedByFilterFunc(root.Filename(), wsInfo.gomodcache, options), options.ExperimentalWorkspaceModule)
-		if err != nil {
-			return nil, nil, func() {}, err
-		}
+	// filterFunc is the path filter function for this workspace folder. Notably,
+	// it is relative to folder (which is specified by the user), not root.
+	filterFunc := pathExcludedByFilterFunc(folder.Filename(), wsInfo.gomodcache, options)
+	rootSrc, err := findWorkspaceModuleSource(ctx, root, s, filterFunc, options.ExperimentalWorkspaceModule)
+	if err != nil {
+		return nil, nil, func() {}, err
+	}
+	if options.ExpandWorkspaceToModule && rootSrc != "" {
+		root = span.Dir(rootSrc)
 	}
 
 	explicitGowork := os.Getenv("GOWORK")
@@ -213,7 +212,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	goworkURI := span.URIFromPath(explicitGowork)
 
 	// Build the gopls workspace, collecting active modules in the view.
-	workspace, err := newWorkspace(ctx, root, goworkURI, s, pathExcludedByFilterFunc(root.Filename(), wsInfo.gomodcache, options), wsInfo.effectiveGO111MODULE() == off, options.ExperimentalWorkspaceModule)
+	workspace, err := newWorkspace(ctx, root, goworkURI, s, filterFunc, wsInfo.effectiveGO111MODULE() == off, options.ExperimentalWorkspaceModule)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
@@ -238,6 +237,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		filesByURI:           make(map[span.URI]span.URI),
 		filesByBase:          make(map[string][]canonicalURI),
 		rootURI:              root,
+		rootSrc:              rootSrc,
 		explicitGowork:       goworkURI,
 		workspaceInformation: *wsInfo,
 	}
@@ -385,10 +385,18 @@ func (s *Session) RemoveView(view *View) {
 	s.views = removeElement(s.views, i)
 }
 
+// updateView recreates the view with the given options.
+//
+// If the resulting error is non-nil, the view may or may not have already been
+// dropped from the session.
 func (s *Session) updateView(ctx context.Context, view *View, options *source.Options) (*View, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 
+	return s.updateViewLocked(ctx, view, options)
+}
+
+func (s *Session) updateViewLocked(ctx context.Context, view *View, options *source.Options) (*View, error) {
 	// Preserve the snapshot ID if we are recreating the view.
 	view.snapshotMu.Lock()
 	if view.snapshot == nil {
@@ -471,22 +479,87 @@ type fileChange struct {
 // the affected file URIs for those snapshots.
 // On success, it returns a release function that
 // must be called when the snapshots are no longer needed.
+//
+// TODO(rfindley): what happens if this function fails? It must leave us in a
+// broken state, which we should surface to the user, probably as a request to
+// restart gopls.
 func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) (map[source.Snapshot][]span.URI, func(), error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	views := make(map[*View]map[span.URI]*fileChange)
-	affectedViews := map[span.URI][]*View{}
 
+	// Update overlays.
+	//
+	// TODO(rfindley): I think we do this while holding viewMu to prevent views
+	// from seeing the updated file content before they have processed
+	// invalidations, which could lead to a partial view of the changes (i.e.
+	// spurious diagnostics). However, any such view would immediately be
+	// invalidated here, so it is possible that we could update overlays before
+	// acquiring viewMu.
 	overlays, err := s.updateOverlays(ctx, changes)
 	if err != nil {
 		return nil, nil, err
 	}
-	var forceReloadMetadata bool
+
+	// Re-create views whose root may have changed.
+	//
+	// checkRoots controls whether to re-evaluate view definitions when
+	// collecting views below. Any change to a go.mod or go.work file may have
+	// affected the definition of the view.
+	checkRoots := false
+	for _, c := range changes {
+		if isGoMod(c.URI) || isGoWork(c.URI) {
+			checkRoots = true
+			break
+		}
+	}
+
+	if checkRoots {
+		for _, view := range s.views {
+			// Check whether the view must be recreated. This logic looks hacky,
+			// as it uses the existing view gomodcache and options to re-evaluate
+			// the workspace source, then expects view creation to compute the same
+			// root source after first re-evaluating gomodcache and options.
+			//
+			// Well, it *is* a bit hacky, but in practice we will get the same
+			// gomodcache and options, as any environment change affecting these
+			// should have already invalidated the view (c.f. minorOptionsChange).
+			//
+			// TODO(rfindley): clean this up.
+			filterFunc := pathExcludedByFilterFunc(view.folder.Filename(), view.gomodcache, view.Options())
+			src, err := findWorkspaceModuleSource(ctx, view.folder, s, filterFunc, view.Options().ExperimentalWorkspaceModule)
+			if err != nil {
+				return nil, nil, err
+			}
+			if src != view.rootSrc {
+				_, err := s.updateViewLocked(ctx, view, view.Options())
+				if err != nil {
+					// Catastrophic failure, equivalent to a failure of session
+					// initialization and therefore should almost never happen. One
+					// scenario where this failure mode could occur is if some file
+					// permissions have changed preventing us from reading go.mod
+					// files.
+					//
+					// The view may or may not still exist. The best we can do is log
+					// and move on.
+					//
+					// TODO(rfindley): consider surfacing this error more loudly. We
+					// could report a bug, but it's not really a bug.
+					event.Error(ctx, "recreating view", err)
+				}
+			}
+		}
+	}
+
+	// Collect information about views affected by these changes.
+	views := make(map[*View]map[span.URI]*fileChange)
+	affectedViews := map[span.URI][]*View{}
+	// forceReloadMetadata records whether any change is the magic
+	// source.InvalidateMetadata action.
+	forceReloadMetadata := false
 	for _, c := range changes {
 		if c.Action == source.InvalidateMetadata {
 			forceReloadMetadata = true
 		}
-
 		// Build the list of affected views.
 		var changedViews []*View
 		for _, view := range s.views {
