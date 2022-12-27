@@ -38,6 +38,14 @@ func makeDumpOp(cmd string) covOperation {
 		cmd: cmd,
 		cm:  &cmerge.Merger{},
 	}
+	// For these modes (percent, pkglist, func, etc), use a relaxed
+	// policy when it comes to counter mode clashes. For a percent
+	// report, for example, we only care whether a given line is
+	// executed at least once, so it's ok to (effectively) merge
+	// together runs derived from different counter modes.
+	if d.cmd == percentMode || d.cmd == funcMode || d.cmd == pkglistMode {
+		d.cm.SetModeMergePolicy(cmerge.ModeMergeRelaxed)
+	}
 	if d.cmd == pkglistMode {
 		d.pkgpaths = make(map[string]struct{})
 	}
