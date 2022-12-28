@@ -1687,6 +1687,9 @@ var vfpowSC = [][2]float64{
 	{Nextafter(1, -2), float64(1 << 63)},
 	{Nextafter(-1, 2), float64(1 << 63)},
 	{Nextafter(-1, -2), float64(1 << 63)},
+
+	// Issue #57465, exponent is an even number that overflows int64
+	{Copysign(0, -1), 1e19},
 }
 var powSC = []float64{
 	0,               // pow(-Inf, -Pi)
@@ -1762,6 +1765,9 @@ var powSC = []float64{
 	0,       // pow(Nextafter(1, -2), float64(1 << 63))
 	0,       // pow(Nextafter(-1, 2), float64(1 << 63))
 	Inf(1),  // pow(Nextafter(-1, -2), float64(1 << 63))
+
+	// Issue #57465, exponent is an even number that overflows int64
+	0,
 }
 
 var vfpow10SC = []int{

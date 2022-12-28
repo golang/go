@@ -5,6 +5,10 @@
 package math
 
 func isOddInt(x float64) bool {
+	if Abs(x) >= (1 << 53) {
+		return false
+	}
+
 	xi, xf := Modf(x)
 	return xf == 0 && int64(xi)&1 == 1
 }
@@ -54,12 +58,12 @@ func pow(x, y float64) float64 {
 	case x == 0:
 		switch {
 		case y < 0:
-			if isOddInt(y) {
-				return Copysign(Inf(1), x)
+			if Signbit(x) && isOddInt(y) {
+				return Inf(-1)
 			}
 			return Inf(1)
 		case y > 0:
-			if isOddInt(y) {
+			if Signbit(x) && isOddInt(y) {
 				return x
 			}
 			return 0
