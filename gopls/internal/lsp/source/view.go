@@ -223,17 +223,20 @@ func SnapshotLabels(snapshot Snapshot) []label.Label {
 	return []label.Label{tag.Snapshot.Of(snapshot.SequenceID()), tag.Directory.Of(snapshot.View().Folder())}
 }
 
-// PackageForFile returns a single package that this file belongs to,
-// checked in mode and filtered by the package selector.
+// PackageForFile is a convenience function that selects a package to
+// which this file belongs (narrowest or widest), type-checks it in
+// the requested mode (full or workspace), and returns it, along with
+// the parse tree of that file.
 //
-// TODO(adonovan): merge with GetTypedFile.
-func PackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, mode TypecheckMode, pkgSel PackageSelector) (Package, error) {
+// Type-checking is expensive. Call snapshot.ParseGo if all you need
+// is a parse tree, or snapshot.MetadataForFile if you only need metadata.
+func PackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, mode TypecheckMode, pkgSel PackageSelector) (Package, *ParsedGoFile, error) {
 	metas, err := snapshot.MetadataForFile(ctx, uri)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(metas) == 0 {
-		return nil, fmt.Errorf("no package metadata for file %s", uri)
+		return nil, nil, fmt.Errorf("no package metadata for file %s", uri)
 	}
 	switch pkgSel {
 	case NarrowestPackage:
@@ -243,9 +246,14 @@ func PackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, mode T
 	}
 	pkgs, err := snapshot.TypeCheck(ctx, mode, metas[0].ID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return pkgs[0], err
+	pkg := pkgs[0]
+	pgf, err := pkg.File(uri)
+	if err != nil {
+		return nil, nil, err // "can't happen"
+	}
+	return pkg, pgf, err
 }
 
 // PackageSelector sets how a package is selected out from a set of packages

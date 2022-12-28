@@ -77,7 +77,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (Vers
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}
-	pkg, err := PackageForFile(ctx, snapshot, uri, TypecheckFull, NarrowestPackage)
+	pkg, _, err := PackageForFile(ctx, snapshot, uri, TypecheckFull, NarrowestPackage)
 	if err != nil {
 		return VersionedFileIdentity{}, nil, err
 	}

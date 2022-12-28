@@ -309,7 +309,7 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, s
 		}
 	}
 	if !hasFullPackage {
-		pkg, err := PackageForFile(ctx, s, key.uri, TypecheckFull, WidestPackage)
+		pkg, _, err := PackageForFile(ctx, s, key.uri, TypecheckFull, WidestPackage)
 		if err != nil {
 			return nil, err
 		}

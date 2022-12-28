@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -80,15 +79,8 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, position 
 	ctx, done := event.Start(ctx, "source.Identifier")
 	defer done()
 
-	pkg, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
 	if err != nil {
-		return nil, err
-	}
-	pgf, err := pkg.File(fh.URI())
-	if err != nil {
-		// We shouldn't get a package from PackageForFile that doesn't actually
-		// contain the file.
-		bug.Report("missing package file", bug.Data{"pkg": pkg.ID(), "file": fh.URI()})
 		return nil, err
 	}
 	pos, err := pgf.Mapper.Pos(position)

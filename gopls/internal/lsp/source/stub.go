@@ -26,7 +26,7 @@ import (
 )
 
 func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, rng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
-	pkg, pgf, err := GetTypedFile(ctx, snapshot, fh, NarrowestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckWorkspace, NarrowestPackage)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetTypedFile: %w", err)
 	}

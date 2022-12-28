@@ -81,24 +81,6 @@ func (s MappedRange) URI() span.URI {
 	return s.m.URI
 }
 
-// GetTypedFile is a convenience function that reads, parses, and
-// type-checks the package containing a file in the given
-// Snapshot. pkgPolicy is one of NarrowestPackage or WidestPackage.
-//
-// Type-checking is expensive. Call snapshot.ParseGo if all you need
-// is a parse tree, or snapshot.MetadataForFile if all you only need
-// metadata.
-//
-// TODO(adonovan): add a Mode parameter and merge with PackageForFile.
-func GetTypedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, pkgSel PackageSelector) (Package, *ParsedGoFile, error) {
-	pkg, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckWorkspace, pkgSel)
-	if err != nil {
-		return nil, nil, err
-	}
-	pgh, err := pkg.File(fh.URI())
-	return pkg, pgh, err
-}
-
 func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
