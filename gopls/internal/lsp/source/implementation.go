@@ -283,8 +283,15 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, s
 	// consider: the definition of the object referenced by the location. But we
 	// try to be comprehensive in case we ever support variations on build
 	// constraints.
-
-	pkgs, err := s.PackagesForFile(ctx, key.uri, TypecheckWorkspace, true)
+	metas, err := s.MetadataForFile(ctx, key.uri)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]PackageID, len(metas))
+	for i, m := range metas {
+		ids[i] = m.ID
+	}
+	pkgs, err := s.TypeCheck(ctx, TypecheckWorkspace, ids...)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +309,7 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, s
 		}
 	}
 	if !hasFullPackage {
-		pkg, err := s.PackageForFile(ctx, key.uri, TypecheckFull, WidestPackage)
+		pkg, err := PackageForFile(ctx, s, key.uri, TypecheckFull, WidestPackage)
 		if err != nil {
 			return nil, err
 		}

@@ -195,8 +195,8 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 		if snapshot.FindFile(uri) == nil {
 			continue
 		}
-		// Don't call PackagesForFile for builtin.go, as it results in a
-		// command-line-arguments load.
+
+		// Don't request type-checking for builtin.go: it's not a real package.
 		if snapshot.IsBuiltin(ctx, uri) {
 			continue
 		}
@@ -204,7 +204,7 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 		// Find all packages that include this file and diagnose them in parallel.
 		metas, err := snapshot.MetadataForFile(ctx, uri)
 		if err != nil {
-			// TODO (findleyr): we should probably do something with the error here,
+			// TODO(findleyr): we should probably do something with the error here,
 			// but as of now this can fail repeatedly if load fails, so can be too
 			// noisy to log (and we'll handle things later in the slow pass).
 			continue

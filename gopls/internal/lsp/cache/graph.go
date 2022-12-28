@@ -91,7 +91,7 @@ func (g *metadataGraph) build() {
 		//  - Else, choose the first valid command-line-argument package, if it exists.
 		//
 		// TODO(rfindley): it might be better to track all IDs here, and exclude
-		// them later in PackagesForFile, but this is the existing behavior.
+		// them later when type checking, but this is the existing behavior.
 		for i, id := range ids {
 			// If we've seen *anything* prior to command-line arguments package, take
 			// it. Note that ids[0] may itself be command-line-arguments.

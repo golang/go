@@ -164,17 +164,6 @@ type Snapshot interface {
 	// IsBuiltin reports whether uri is part of the builtin package.
 	IsBuiltin(ctx context.Context, uri span.URI) bool
 
-	// PackagesForFile returns an unordered list of packages that contain
-	// the file denoted by uri, type checked in the specified mode.
-	//
-	// If withIntermediateTestVariants is set, the resulting package set includes
-	// intermediate test variants.
-	PackagesForFile(ctx context.Context, uri span.URI, mode TypecheckMode, withIntermediateTestVariants bool) ([]Package, error)
-
-	// PackageForFile returns a single package that this file belongs to,
-	// checked in mode and filtered by the package policy.
-	PackageForFile(ctx context.Context, uri span.URI, mode TypecheckMode, selectPackage PackageFilter) (Package, error)
-
 	// ReverseDependencies returns a new mapping whose entries are
 	// the ID and Metadata of each package in the workspace that
 	// directly or transitively depend on the package denoted by id,
@@ -234,16 +223,41 @@ func SnapshotLabels(snapshot Snapshot) []label.Label {
 	return []label.Label{tag.Snapshot.Of(snapshot.SequenceID()), tag.Directory.Of(snapshot.View().Folder())}
 }
 
-// PackageFilter sets how a package is filtered out from a set of packages
+// PackageForFile returns a single package that this file belongs to,
+// checked in mode and filtered by the package selector.
+//
+// TODO(adonovan): merge with GetTypedFile.
+func PackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, mode TypecheckMode, pkgSel PackageSelector) (Package, error) {
+	metas, err := snapshot.MetadataForFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	if len(metas) == 0 {
+		return nil, fmt.Errorf("no package metadata for file %s", uri)
+	}
+	switch pkgSel {
+	case NarrowestPackage:
+		metas = metas[:1]
+	case WidestPackage:
+		metas = metas[len(metas)-1:]
+	}
+	pkgs, err := snapshot.TypeCheck(ctx, mode, metas[0].ID)
+	if err != nil {
+		return nil, err
+	}
+	return pkgs[0], err
+}
+
+// PackageSelector sets how a package is selected out from a set of packages
 // containing a given file.
-type PackageFilter int
+type PackageSelector int
 
 const (
 	// NarrowestPackage picks the "narrowest" package for a given file.
 	// By "narrowest" package, we mean the package with the fewest number of
 	// files that includes the given file. This solves the problem of test
 	// variants, as the test will have more files than the non-test package.
-	NarrowestPackage PackageFilter = iota
+	NarrowestPackage PackageSelector = iota
 
 	// WidestPackage returns the Package containing the most files.
 	// This is useful for something like diagnostics, where we'd prefer to

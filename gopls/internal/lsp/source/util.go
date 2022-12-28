@@ -88,8 +88,10 @@ func (s MappedRange) URI() span.URI {
 // Type-checking is expensive. Call snapshot.ParseGo if all you need
 // is a parse tree, or snapshot.MetadataForFile if all you only need
 // metadata.
-func GetTypedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, pkgPolicy PackageFilter) (Package, *ParsedGoFile, error) {
-	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), TypecheckWorkspace, pkgPolicy)
+//
+// TODO(adonovan): add a Mode parameter and merge with PackageForFile.
+func GetTypedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, pkgSel PackageSelector) (Package, *ParsedGoFile, error) {
+	pkg, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckWorkspace, pkgSel)
 	if err != nil {
 		return nil, nil, err
 	}

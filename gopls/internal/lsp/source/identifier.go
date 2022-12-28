@@ -80,13 +80,13 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, position 
 	ctx, done := event.Start(ctx, "source.Identifier")
 	defer done()
 
-	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), TypecheckFull, NarrowestPackage)
+	pkg, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
 	if err != nil {
 		return nil, err
 	}
 	pgf, err := pkg.File(fh.URI())
 	if err != nil {
-		// We shouldn't get a package from PackagesForFile that doesn't actually
+		// We shouldn't get a package from PackageForFile that doesn't actually
 		// contain the file.
 		bug.Report("missing package file", bug.Data{"pkg": pkg.ID(), "file": fh.URI()})
 		return nil, err

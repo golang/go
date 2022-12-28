@@ -24,7 +24,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 	// Don't use GetTypedFile because it uses TypecheckWorkspace, and we
 	// always want fully parsed files for highlight, regardless of whether
 	// the file belongs to a workspace package.
-	pkg, err := snapshot.PackageForFile(ctx, fh.URI(), TypecheckFull, WidestPackage)
+	pkg, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, WidestPackage)
 	if err != nil {
 		return nil, fmt.Errorf("getting package for Highlight: %w", err)
 	}

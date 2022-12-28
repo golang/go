@@ -636,50 +636,6 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-func (s *snapshot) PackagesForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, includeTestVariants bool) ([]source.Package, error) {
-	ctx = event.Label(ctx, tag.URI.Of(uri))
-
-	metas, err := s.MetadataForFile(ctx, uri)
-	if err != nil {
-		return nil, err
-	}
-
-	// Optionally filter out any intermediate test variants.
-	// We typically aren't interested in these
-	// packages for file= style queries.
-	if !includeTestVariants {
-		metas = source.RemoveIntermediateTestVariants(metas)
-	}
-
-	ids := make([]PackageID, len(metas))
-	for i, m := range metas {
-		ids[i] = m.ID
-	}
-	return s.TypeCheck(ctx, mode, ids...)
-}
-
-func (s *snapshot) PackageForFile(ctx context.Context, uri span.URI, mode source.TypecheckMode, pkgPolicy source.PackageFilter) (source.Package, error) {
-	ctx = event.Label(ctx, tag.URI.Of(uri))
-	metas, err := s.MetadataForFile(ctx, uri)
-	if err != nil {
-		return nil, err
-	}
-	if len(metas) == 0 {
-		return nil, fmt.Errorf("no package metadata for file %s", uri)
-	}
-	switch pkgPolicy {
-	case source.NarrowestPackage:
-		metas = metas[:1]
-	case source.WidestPackage:
-		metas = metas[len(metas)-1:]
-	}
-	pkgs, err := s.TypeCheck(ctx, mode, metas[0].ID)
-	if err != nil {
-		return nil, err
-	}
-	return pkgs[0], err
-}
-
 // TypeCheck type-checks the specified packages in the given mode.
 func (s *snapshot) TypeCheck(ctx context.Context, mode source.TypecheckMode, ids ...PackageID) ([]source.Package, error) {
 	// Build all the handles...
