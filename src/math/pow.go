@@ -6,6 +6,11 @@ package math
 
 func isOddInt(x float64) bool {
 	if Abs(x) >= (1 << 53) {
+		// 1 << 53 is the largest exact integer in the float64 format.
+		// Any number outside this range will be truncated before the decimal point and therefore will always be
+		// an even integer.
+		// Without this check and if x overflows int64 the int64(xi) conversion below may produce incorrect results
+		// on some architectures (and does so on arm64). See issue #57465.
 		return false
 	}
 
