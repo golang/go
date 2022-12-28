@@ -130,7 +130,7 @@ func (f *File) Close() error {
 func parseMagic(magic []byte) (uint32, error) {
 	m := binary.BigEndian.Uint32(magic)
 	switch m {
-	case Magic386, MagicAMD64, MagicARM:
+	case Magic386, MagicAMD64, MagicARM, MagicARM64:
 		return m, nil
 	}
 	return 0, &formatError{0, "bad magic number", magic}
