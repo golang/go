@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/typeparams"
@@ -94,7 +95,7 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 		for _, comment := range commentGroup.List {
 			if matched := generatedRx.MatchString(comment.Text); matched {
 				// Check if comment is at the beginning of the line in source.
-				if pgf.Tok.PositionFor(comment.Slash, false).Column == 1 {
+				if safetoken.Position(pgf.Tok, comment.Slash).Column == 1 {
 					return true
 				}
 			}

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
@@ -227,7 +228,7 @@ Suffixes:
 	if !c.opts.documentation {
 		return item, nil
 	}
-	pos := c.pkg.FileSet().PositionFor(obj.Pos(), false)
+	pos := safetoken.StartPosition(c.pkg.FileSet(), obj.Pos())
 
 	// We ignore errors here, because some types, like "unsafe" or "error",
 	// may not have valid positions that we can use to get documentation.

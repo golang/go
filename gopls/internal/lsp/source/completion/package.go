@@ -124,7 +124,7 @@ func packageCompletionSurrounding(fset *token.FileSet, pgf *source.ParsedGoFile,
 	if cursorLine <= 0 || cursorLine > len(lines) {
 		return nil, fmt.Errorf("invalid line number")
 	}
-	if fset.PositionFor(expr.Pos(), false).Line == cursorLine { // ignore line directives
+	if safetoken.StartPosition(fset, expr.Pos()).Line == cursorLine {
 		words := strings.Fields(lines[cursorLine-1])
 		if len(words) > 0 && words[0] == PACKAGE {
 			content := PACKAGE

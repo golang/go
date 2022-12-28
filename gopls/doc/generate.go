@@ -36,6 +36,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/command/commandmeta"
 	"golang.org/x/tools/gopls/internal/lsp/mod"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 )
 
@@ -555,7 +556,7 @@ func upperFirst(x string) string {
 func fileForPos(pkg *packages.Package, pos token.Pos) (*ast.File, error) {
 	fset := pkg.Fset
 	for _, f := range pkg.Syntax {
-		if fset.PositionFor(f.Pos(), false).Filename == fset.PositionFor(pos, false).Filename {
+		if safetoken.StartPosition(fset, f.Pos()).Filename == safetoken.StartPosition(fset, pos).Filename {
 			return f, nil
 		}
 	}

@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
@@ -158,7 +159,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 	}
 	// Inv: qos[0].pkg != nil, since Pos is valid.
 	// Inv: qos[*].pkg != nil, since all qos are logically the same declaration.
-	filename := qos[0].pkg.FileSet().PositionFor(pos, false).Filename
+	filename := safetoken.StartPosition(qos[0].pkg.FileSet(), pos).Filename
 	pgf, err := qos[0].pkg.File(span.URIFromPath(filename))
 	if err != nil {
 		return nil, err

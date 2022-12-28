@@ -7,6 +7,7 @@ package completion
 import (
 	"go/ast"
 
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 )
 
@@ -43,7 +44,7 @@ func (c *completer) structFieldSnippet(cand candidate, detail string, snip *snip
 
 	// If the cursor position is on a different line from the literal's opening brace,
 	// we are in a multiline literal. Ignore line directives.
-	if fset.PositionFor(c.pos, false).Line != fset.PositionFor(clInfo.cl.Lbrace, false).Line {
+	if safetoken.StartPosition(fset, c.pos).Line != safetoken.StartPosition(fset, clInfo.cl.Lbrace).Line {
 		snip.WriteText(",")
 	}
 }

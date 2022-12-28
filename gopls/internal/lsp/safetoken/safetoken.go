@@ -3,8 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // Package safetoken provides wrappers around methods in go/token,
-// that return errors rather than panicking. It also provides a
-// central place for workarounds in the underlying packages.
+// that return errors rather than panicking.
+//
+// It also provides a central place for workarounds in the underlying
+// packages. The use of this package's functions instead of methods of
+// token.File (such as Offset, Position, and PositionFor) is mandatory
+// throughout the gopls codebase and enforced by a static check.
 package safetoken
 
 import (
@@ -22,9 +26,6 @@ import (
 // token.File.Offset to panic. The workaround is that this function
 // accepts a Pos that is exactly 1 byte beyond EOF and maps it to the
 // EOF offset.
-//
-// The use of this function instead of (*token.File).Offset is
-// mandatory in the gopls codebase; this is enforced by static check.
 func Offset(f *token.File, pos token.Pos) (int, error) {
 	if !inRange(f, pos) {
 		// Accept a Pos that is 1 byte beyond EOF,
@@ -56,4 +57,53 @@ func Pos(f *token.File, offset int) (token.Pos, error) {
 // create w.r.t. the definition of "contains". Use Offset instead.
 func inRange(f *token.File, pos token.Pos) bool {
 	return token.Pos(f.Base()) <= pos && pos <= token.Pos(f.Base()+f.Size())
+}
+
+// Position returns the Position for the pos value in the given file.
+//
+// p must be NoPos, a valid Pos in the range of f, or exactly 1 byte
+// beyond the end of f. (See [Offset] for explanation.)
+// Any other value causes a panic.
+//
+// Line directives (//line comments) are ignored.
+func Position(f *token.File, pos token.Pos) token.Position {
+	// Work around issue #57490.
+	if int(pos) == f.Base()+f.Size()+1 {
+		pos--
+	}
+
+	// TODO(adonovan): centralize the workaround for
+	// golang/go#41029 (newline at EOF) here too.
+
+	return f.PositionFor(pos, false)
+}
+
+// StartPosition converts a start Pos in the FileSet into a Position.
+//
+// Call this function only if start represents the start of a token or
+// parse tree, such as the result of Node.Pos().  If start is the end of
+// an interval, such as Node.End(), call EndPosition instead, as it
+// may need the correction described at [Position].
+func StartPosition(fset *token.FileSet, start token.Pos) (_ token.Position) {
+	if f := fset.File(start); f != nil {
+		return Position(f, start)
+	}
+	return
+}
+
+// EndPosition converts an end Pos in the FileSet into a Position.
+//
+// Call this function only if pos represents the end of
+// a non-empty interval, such as the result of Node.End().
+func EndPosition(fset *token.FileSet, end token.Pos) (_ token.Position) {
+	if f := fset.File(end); f != nil && int(end) > f.Base() {
+		return Position(f, end)
+	}
+
+	// Work around issue #57490.
+	if f := fset.File(end - 1); f != nil {
+		return Position(f, end)
+	}
+
+	return
 }

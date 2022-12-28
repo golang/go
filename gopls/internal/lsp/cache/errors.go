@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/analysisinternal"
@@ -315,7 +316,7 @@ func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Sp
 	if fset != terr.Fset {
 		return 0, span.Span{}, bug.Errorf("wrong FileSet for type error")
 	}
-	posn := fset.PositionFor(start, false) // ignore line directives
+	posn := safetoken.StartPosition(fset, start)
 	if !posn.IsValid() {
 		return 0, span.Span{}, fmt.Errorf("position %d of type error %q (code %q) not found in FileSet", start, start, terr)
 	}

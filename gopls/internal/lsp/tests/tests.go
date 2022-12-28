@@ -29,6 +29,7 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
@@ -1368,7 +1369,7 @@ func (data *Data) collectWorkspaceSymbols(typ WorkspaceSymbolsTestType) func(*ex
 		if data.WorkspaceSymbols[typ] == nil {
 			data.WorkspaceSymbols[typ] = make(map[span.URI][]string)
 		}
-		pos := data.Exported.ExpectFileSet.PositionFor(note.Pos, false)
+		pos := safetoken.StartPosition(data.Exported.ExpectFileSet, note.Pos)
 		uri := span.URIFromPath(pos.Filename)
 		data.WorkspaceSymbols[typ][uri] = append(data.WorkspaceSymbols[typ][uri], query)
 	}
@@ -1398,7 +1399,7 @@ func (data *Data) collectCompletionSnippets(spn span.Span, item token.Pos, plain
 }
 
 func (data *Data) collectLinks(spn span.Span, link string, note *expect.Note, fset *token.FileSet) {
-	position := fset.PositionFor(note.Pos, false) // ignore line directives
+	position := safetoken.StartPosition(fset, note.Pos)
 	uri := spn.URI()
 	data.Links[uri] = append(data.Links[uri], Link{
 		Src:          spn,

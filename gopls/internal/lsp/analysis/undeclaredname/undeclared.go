@@ -18,6 +18,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/analysisinternal"
 )
@@ -112,8 +113,8 @@ func runForError(pass *analysis.Pass, err types.Error) {
 	if tok == nil {
 		return
 	}
-	offset := pass.Fset.PositionFor(err.Pos, false).Offset
-	end := tok.Pos(offset + len(name))
+	offset := safetoken.StartPosition(pass.Fset, err.Pos).Offset
+	end := tok.Pos(offset + len(name)) // TODO(adonovan): dubious! err.Pos + len(name)??
 	pass.Report(analysis.Diagnostic{
 		Pos:     err.Pos,
 		End:     end,
@@ -146,7 +147,7 @@ func SuggestedFix(fset *token.FileSet, rng span.Range, content []byte, file *ast
 		return nil, fmt.Errorf("could not locate insertion point")
 	}
 
-	insertBefore := fset.PositionFor(insertBeforeStmt.Pos(), false).Offset // ignore line directives
+	insertBefore := safetoken.StartPosition(fset, insertBeforeStmt.Pos()).Offset
 
 	// Get the indent to add on the line after the new statement.
 	// Since this will have a parse error, we can not use format.Source().

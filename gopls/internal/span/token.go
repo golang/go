@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/token"
 
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/bug"
 )
 
@@ -119,7 +120,7 @@ func positionFromOffset(tf *token.File, offset int) (string, int, int, error) {
 		return "", 0, 0, fmt.Errorf("offset %d is beyond EOF (%d) in file %s", offset, tf.Size(), tf.Name())
 	}
 	pos := tf.Pos(offset)
-	p := tf.PositionFor(pos, false) // ignore line directives
+	p := safetoken.Position(tf, pos)
 	// TODO(golang/go#41029): Consider returning line, column instead of line+1, 1 if
 	// the file's last character is not a newline.
 	if offset == tf.Size() {

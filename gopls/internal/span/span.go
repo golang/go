@@ -13,6 +13,8 @@ import (
 	"path"
 	"sort"
 	"strings"
+
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 )
 
 // Span represents a source code range in standardized form.
@@ -294,7 +296,7 @@ func (p *point) updateOffset(tf *token.File) error {
 // gopls' test suites to use Spans instead of Range in parameters.
 func (span *Span) SetRange(file *token.File, start, end token.Pos) {
 	point := func(pos token.Pos) Point {
-		posn := file.Position(pos)
+		posn := safetoken.Position(file, pos)
 		return NewPoint(posn.Line, posn.Column, posn.Offset)
 	}
 	*span = New(URIFromPath(file.Name()), point(start), point(end))
