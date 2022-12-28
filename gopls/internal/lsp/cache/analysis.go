@@ -1061,7 +1061,7 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 
 			diagnostic, err := toGobDiagnostic(posToLocation, d)
 			if err != nil {
-				bug.Reportf("internal error converting diagnostic from analyzer %s: %v", analyzer.Name, err)
+				bug.Reportf("internal error converting diagnostic from analyzer %q: %v", analyzer.Name, err)
 				return
 			}
 			diagnostics = append(diagnostics, diagnostic)

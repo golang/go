@@ -244,14 +244,12 @@ func (e *encoded) strStack() string {
 	}
 	if len(e.stack) > 0 {
 		loc := e.stack[len(e.stack)-1].Pos()
-		if !safetoken.InRange(e.pgf.Tok, loc) {
+		if _, err := safetoken.Offset(e.pgf.Tok, loc); err != nil {
 			msg = append(msg, fmt.Sprintf("invalid position %v for %s", loc, e.pgf.URI))
-		} else if safetoken.InRange(e.pgf.Tok, loc) {
+		} else {
 			add := e.pgf.Tok.PositionFor(loc, false) // ignore line directives
 			nm := filepath.Base(add.Filename)
 			msg = append(msg, fmt.Sprintf("(%s:%d,col:%d)", nm, add.Line, add.Column))
-		} else {
-			msg = append(msg, fmt.Sprintf("(loc %d out of range)", loc))
 		}
 	}
 	msg = append(msg, "]")

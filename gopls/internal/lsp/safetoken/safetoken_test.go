@@ -5,26 +5,54 @@
 package safetoken_test
 
 import (
+	"go/parser"
 	"go/token"
 	"go/types"
 	"testing"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/testenv"
 )
+
+func TestWorkaroundIssue57490(t *testing.T) {
+	// During error recovery the parser synthesizes various close
+	// tokens at EOF, causing the End position of incomplete
+	// syntax nodes, computed as Rbrace+len("}"), to be beyond EOF.
+	src := `package p; func f() { var x struct`
+	fset := token.NewFileSet()
+	file, _ := parser.ParseFile(fset, "", src, 0)
+	tf := fset.File(file.Pos())
+	if false {
+		tf.Offset(file.End()) // panic: invalid Pos value 36 (should be in [1, 35])
+	}
+
+	// The offset of the EOF position is the file size.
+	offset, err := safetoken.Offset(tf, file.End()-1)
+	if err != nil || offset != tf.Size() {
+		t.Errorf("Offset(EOF) = (%d, %v), want token.File.Size %d", offset, err, tf.Size())
+	}
+
+	// The offset of the file.End() position, 1 byte beyond EOF,
+	// is also the size of the file.
+	offset, err = safetoken.Offset(tf, file.End())
+	if err != nil || offset != tf.Size() {
+		t.Errorf("Offset(ast.File.End()) = (%d, %v), want token.File.Size %d", offset, err, tf.Size())
+	}
+}
 
 // This test reports any unexpected uses of (*go/token.File).Offset within
 // the gopls codebase to ensure that we don't check in more code that is prone
 // to panicking. All calls to (*go/token.File).Offset should be replaced with
 // calls to safetoken.Offset.
-func TestTokenOffset(t *testing.T) {
+func TestGoplsSourceDoesNotCallTokenFileOffset(t *testing.T) {
 	testenv.NeedsGoPackages(t)
 
 	fset := token.NewFileSet()
 	pkgs, err := packages.Load(&packages.Config{
 		Fset: fset,
 		Mode: packages.NeedName | packages.NeedModule | packages.NeedCompiledGoFiles | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedSyntax | packages.NeedImports | packages.NeedDeps,
-	}, "go/token", "golang.org/x/tools/gopls/internal/lsp/...", "golang.org/x/tools/gopls/...")
+	}, "go/token", "golang.org/x/tools/gopls/...")
 	if err != nil {
 		t.Fatal(err)
 	}
