@@ -33,4 +33,5 @@ const (
 	Magic386   = (4*11+0)*11 + 7
 	MagicAMD64 = (4*26+0)*26 + 7 + Magic64
 	MagicARM   = (4*20+0)*20 + 7
+	MagicARM64 = (4*28+0)*28 + 7 + Magic64
 )
