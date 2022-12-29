@@ -7,6 +7,8 @@
 package net
 
 /*
+#define _GNU_SOURCE
+
 #cgo CFLAGS: -fno-stack-protector
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -15,6 +17,10 @@ package net
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+
+#ifndef EAI_NODATA
+#define EAI_NODATA -5
+#endif
 
 // If nothing else defined EAI_OVERFLOW, make sure it has a value.
 #ifndef EAI_OVERFLOW
@@ -29,6 +35,7 @@ const (
 	_C_AF_INET6     = C.AF_INET6
 	_C_AF_UNSPEC    = C.AF_UNSPEC
 	_C_EAI_AGAIN    = C.EAI_AGAIN
+	_C_EAI_NODATA   = C.EAI_NODATA
 	_C_EAI_NONAME   = C.EAI_NONAME
 	_C_EAI_OVERFLOW = C.EAI_OVERFLOW
 	_C_EAI_SYSTEM   = C.EAI_SYSTEM
