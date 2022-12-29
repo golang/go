@@ -9,8 +9,9 @@ import "math/big"
 // CurveParams contains the parameters of an elliptic curve and also provides
 // a generic, non-constant time implementation of Curve.
 //
-// Note: Custom curves (those not returned by P224(), P256(), P384(), and P521())
-// are not guaranteed to provide any security property.
+// The generic Curve implementation is deprecated, and using custom curves
+// (those not returned by P224(), P256(), P384(), and P521()) is not guaranteed
+// to provide any security property.
 type CurveParams struct {
 	P       *big.Int // the order of the underlying field
 	N       *big.Int // the order of the base point
@@ -48,7 +49,7 @@ func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 
 // IsOnCurve implements Curve.IsOnCurve.
 //
-// Note: the CurveParams methods are not guaranteed to
+// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
 // provide any security property. For ECDH, use the crypto/ecdh package.
 // For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
 // from P224(), P256(), P384(), or P521().
@@ -102,7 +103,7 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
 
 // Add implements Curve.Add.
 //
-// Note: the CurveParams methods are not guaranteed to
+// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
 // provide any security property. For ECDH, use the crypto/ecdh package.
 // For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
 // from P224(), P256(), P384(), or P521().
@@ -200,7 +201,7 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
 
 // Double implements Curve.Double.
 //
-// Note: the CurveParams methods are not guaranteed to
+// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
 // provide any security property. For ECDH, use the crypto/ecdh package.
 // For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
 // from P224(), P256(), P384(), or P521().
@@ -279,7 +280,7 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 
 // ScalarMult implements Curve.ScalarMult.
 //
-// Note: the CurveParams methods are not guaranteed to
+// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
 // provide any security property. For ECDH, use the crypto/ecdh package.
 // For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
 // from P224(), P256(), P384(), or P521().
@@ -309,7 +310,7 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
 
 // ScalarBaseMult implements Curve.ScalarBaseMult.
 //
-// Note: the CurveParams methods are not guaranteed to
+// Deprecated: the CurveParams methods are deprecated and are not guaranteed to
 // provide any security property. For ECDH, use the crypto/ecdh package.
 // For ECDSA, use the crypto/ecdsa package with a Curve value returned directly
 // from P224(), P256(), P384(), or P521().
