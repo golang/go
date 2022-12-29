@@ -302,7 +302,7 @@ func (s *snapshot) ValidBuildConfiguration() bool {
 	// Check if the workspace is within any of them.
 	// TODO(rfindley): this should probably be subject to "if GO111MODULES = off {...}".
 	for _, gp := range filepath.SplitList(s.view.gopath) {
-		if source.InDir(filepath.Join(gp, "src"), s.view.rootURI.Filename()) {
+		if source.InDir(filepath.Join(gp, "src"), s.view.folder.Filename()) {
 			return true
 		}
 	}
@@ -820,8 +820,10 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 		fmt.Sprintf("**/*.{%s}", extensions): {},
 	}
 
-	if s.view.explicitGowork != "" {
-		patterns[s.view.explicitGowork.Filename()] = struct{}{}
+	// If GOWORK is outside the folder, ensure we are watching it.
+	gowork := s.view.effectiveGOWORK()
+	if gowork != "" && !source.InDir(s.view.folder.Filename(), gowork.Filename()) {
+		patterns[gowork.Filename()] = struct{}{}
 	}
 
 	// Add a pattern for each Go module in the workspace that is not within the view.
@@ -2178,7 +2180,7 @@ func (s *snapshot) setBuiltin(path string) {
 // BuildGoplsMod generates a go.mod file for all modules in the workspace. It
 // bypasses any existing gopls.mod.
 func (s *snapshot) BuildGoplsMod(ctx context.Context) (*modfile.File, error) {
-	allModules, err := findModules(s.view.folder, pathExcludedByFilterFunc(s.view.rootURI.Filename(), s.view.gomodcache, s.View().Options()), 0)
+	allModules, err := findModules(s.view.folder, pathExcludedByFilterFunc(s.view.folder.Filename(), s.view.gomodcache, s.View().Options()), 0)
 	if err != nil {
 		return nil, err
 	}

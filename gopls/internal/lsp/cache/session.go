@@ -7,7 +7,6 @@ package cache
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -180,6 +179,8 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 	return view, snapshot, release, nil
 }
 
+// TODO(rfindley): clarify that createView can never be cancelled (with the
+// possible exception of server shutdown).
 func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, seqID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 
@@ -188,7 +189,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	// TODO(rfindley): this info isn't actually immutable. For example, GOWORK
 	// could be changed, or a user's environment could be modified.
 	// We need a mechanism to invalidate it.
-	wsInfo, err := s.getWorkspaceInformation(ctx, folder, options)
+	info, err := s.getWorkspaceInformation(ctx, folder, options)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
@@ -196,7 +197,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	root := folder
 	// filterFunc is the path filter function for this workspace folder. Notably,
 	// it is relative to folder (which is specified by the user), not root.
-	filterFunc := pathExcludedByFilterFunc(folder.Filename(), wsInfo.gomodcache, options)
+	filterFunc := pathExcludedByFilterFunc(folder.Filename(), info.gomodcache, options)
 	rootSrc, err := findWorkspaceModuleSource(ctx, root, s, filterFunc, options.ExperimentalWorkspaceModule)
 	if err != nil {
 		return nil, nil, func() {}, err
@@ -205,14 +206,8 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		root = span.Dir(rootSrc)
 	}
 
-	explicitGowork := os.Getenv("GOWORK")
-	if v, ok := options.Env["GOWORK"]; ok {
-		explicitGowork = v
-	}
-	goworkURI := span.URIFromPath(explicitGowork)
-
 	// Build the gopls workspace, collecting active modules in the view.
-	workspace, err := newWorkspace(ctx, root, goworkURI, s, filterFunc, wsInfo.effectiveGO111MODULE() == off, options.ExperimentalWorkspaceModule)
+	workspace, err := newWorkspace(ctx, root, info.effectiveGOWORK(), s, filterFunc, info.effectiveGO111MODULE() == off, options.ExperimentalWorkspaceModule)
 	if err != nil {
 		return nil, nil, func() {}, err
 	}
@@ -236,10 +231,8 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		vulns:                map[span.URI]*govulncheck.Result{},
 		filesByURI:           make(map[span.URI]span.URI),
 		filesByBase:          make(map[string][]canonicalURI),
-		rootURI:              root,
 		rootSrc:              rootSrc,
-		explicitGowork:       goworkURI,
-		workspaceInformation: *wsInfo,
+		workspaceInformation: info,
 	}
 	v.importsState = &importsState{
 		ctx: backgroundCtx,
@@ -506,11 +499,12 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	// Re-create views whose root may have changed.
 	//
 	// checkRoots controls whether to re-evaluate view definitions when
-	// collecting views below. Any change to a go.mod or go.work file may have
-	// affected the definition of the view.
+	// collecting views below. Any addition or deletion of a go.mod or go.work
+	// file may have affected the definition of the view.
 	checkRoots := false
 	for _, c := range changes {
 		if isGoMod(c.URI) || isGoWork(c.URI) {
+			// TODO(rfindley): only consider additions or deletions here.
 			checkRoots = true
 			break
 		}

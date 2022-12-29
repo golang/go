@@ -113,7 +113,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 		flags |= source.AllowNetwork
 	}
 	_, inv, cleanup, err := s.goCommandInvocation(ctx, flags, &gocommand.Invocation{
-		WorkingDir: s.view.rootURI.Filename(),
+		WorkingDir: s.view.workingDir().Filename(),
 	})
 	if err != nil {
 		return err
@@ -152,7 +152,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	}
 
 	moduleErrs := make(map[string][]packages.Error) // module path -> errors
-	filterer := buildFilterer(s.view.rootURI.Filename(), s.view.gomodcache, s.view.Options())
+	filterFunc := s.view.filterFunc()
 	newMetadata := make(map[PackageID]*source.Metadata)
 	for _, pkg := range pkgs {
 		// The Go command returns synthetic list results for module queries that
@@ -199,7 +199,8 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 		//
 		// TODO(rfindley): why exclude metadata arbitrarily here? It should be safe
 		// to capture all metadata.
-		if s.view.allFilesExcluded(pkg, filterer) {
+		// TODO(rfindley): what about compiled go files?
+		if allFilesExcluded(pkg.GoFiles, filterFunc) {
 			continue
 		}
 		if err := buildMetadata(ctx, pkg, cfg, query, newMetadata, nil); err != nil {

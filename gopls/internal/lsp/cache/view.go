@@ -24,12 +24,10 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
 	exec "golang.org/x/sys/execabs"
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
@@ -55,14 +53,9 @@ type View struct {
 	// Workspace information. The fields below are immutable, and together with
 	// options define the build list. Any change to these fields results in a new
 	// View.
-	//
-	// TODO(rfindley): consolidate and/or eliminate redundancy in these fields,
-	// which have evolved from different sources over time.
 	folder               span.URI // user-specified workspace folder
-	rootURI              span.URI // either folder or dir(rootSrc) (TODO: deprecate, in favor of folder+rootSrc)
 	rootSrc              span.URI // file providing module information (go.mod or go.work); may be empty
-	explicitGowork       span.URI // explicitGowork: if non-empty, a user-specified go.work location (TODO: deprecate)
-	workspaceInformation          // grab-bag of Go environment information (TODO: cleanup)
+	workspaceInformation          // Go environment information
 
 	importsState *importsState
 
@@ -117,6 +110,9 @@ type View struct {
 }
 
 type workspaceInformation struct {
+	// `go env` variables that need to be tracked by gopls.
+	goEnv
+
 	// The Go version in use: X in Go 1.X.
 	goversion int
 
@@ -129,15 +125,6 @@ type workspaceInformation struct {
 	// GOPACKAGESDRIVER environment variable or a gopackagesdriver binary on
 	// their machine.
 	hasGopackagesDriver bool
-
-	// `go env` variables that need to be tracked by gopls.
-	//
-	// TODO(rfindley): eliminate this in favor of goEnv, or vice-versa.
-	environmentVariables
-
-	// goEnv is the `go env` output collected when a view is created.
-	// It includes the values of the environment variables above.
-	goEnv map[string]string
 }
 
 // effectiveGO111MODULE reports the value of GO111MODULE effective in the go
@@ -151,6 +138,15 @@ func (w workspaceInformation) effectiveGO111MODULE() go111module {
 	default:
 		return auto
 	}
+}
+
+// effectiveGOWORK returns the effective GOWORK value for this workspace, if
+// any, in URI form.
+func (w workspaceInformation) effectiveGOWORK() span.URI {
+	if w.gowork == "off" || w.gowork == "" {
+		return ""
+	}
+	return span.URIFromPath(w.gowork)
 }
 
 // GO111MODULE returns the value of GO111MODULE to use for running the go
@@ -178,15 +174,71 @@ const (
 	on
 )
 
-// environmentVariables holds important environment variables captured by a
-// call to `go env`.
-type environmentVariables struct {
-	gocache, gopath, goroot, goprivate, gomodcache string
+// goEnv holds important environment variables that gopls cares about.
+type goEnv struct {
+	gocache, gopath, goroot, goprivate, gomodcache, gowork, goflags string
 
-	// Don't use go111module directly, because we choose to use a different
+	// go111module holds the value of GO111MODULE as reported by go env.
+	//
+	// Don't use this value directly, because we choose to use a different
 	// default (auto) on Go 1.16 and later, to avoid spurious errors. Use
-	// the workspaceInformation.GO111MODULE method instead.
+	// the effectiveGO111MODULE method instead.
 	go111module string
+}
+
+// loadGoEnv loads `go env` values into the receiver, using the provided user
+// environment and go command runner.
+func (env *goEnv) load(ctx context.Context, folder string, configEnv []string, runner *gocommand.Runner) error {
+	vars := env.vars()
+
+	// We can save ~200 ms by requesting only the variables we care about.
+	args := []string{"-json"}
+	for k := range vars {
+		args = append(args, k)
+	}
+
+	inv := gocommand.Invocation{
+		Verb:       "env",
+		Args:       args,
+		Env:        configEnv,
+		WorkingDir: folder,
+	}
+	stdout, err := runner.Run(ctx, inv)
+	if err != nil {
+		return err
+	}
+	envMap := make(map[string]string)
+	if err := json.Unmarshal(stdout.Bytes(), &envMap); err != nil {
+		return fmt.Errorf("internal error unmarshaling JSON from 'go env': %w", err)
+	}
+	for key, ptr := range vars {
+		*ptr = envMap[key]
+	}
+
+	return nil
+}
+
+func (env goEnv) String() string {
+	var vars []string
+	for govar, ptr := range env.vars() {
+		vars = append(vars, fmt.Sprintf("%s=%s", govar, *ptr))
+	}
+	sort.Strings(vars)
+	return "[" + strings.Join(vars, ", ") + "]"
+}
+
+// vars returns a map from Go environment variable to field value containing it.
+func (env *goEnv) vars() map[string]*string {
+	return map[string]*string{
+		"GOCACHE":     &env.gocache,
+		"GOPATH":      &env.gopath,
+		"GOROOT":      &env.goroot,
+		"GOPRIVATE":   &env.goprivate,
+		"GOMODCACHE":  &env.gomodcache,
+		"GO111MODULE": &env.go111module,
+		"GOWORK":      &env.gowork,
+		"GOFLAGS":     &env.goflags,
+	}
 }
 
 // workspaceMode holds various flags defining how the gopls workspace should
@@ -312,6 +364,9 @@ func minorOptionsChange(a, b *source.Options) bool {
 	if !reflect.DeepEqual(a.StandaloneTags, b.StandaloneTags) {
 		return false
 	}
+	if a.ExpandWorkspaceToModule != b.ExpandWorkspaceToModule {
+		return false
+	}
 	if a.MemoryMode != b.MemoryMode {
 		return false
 	}
@@ -343,40 +398,33 @@ func (s *Session) SetViewOptions(ctx context.Context, v *View, options *source.O
 }
 
 // viewEnv returns a string describing the environment of a newly created view.
+//
+// It must not be called concurrently with any other view methods.
 func viewEnv(v *View) string {
-	v.optionsMu.Lock()
 	env := v.options.EnvSlice()
 	buildFlags := append([]string{}, v.options.BuildFlags...)
-	v.optionsMu.Unlock()
 
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, `go env for %v
-(root %s)
+	fmt.Fprintf(&buf, `go info for %v
+(go dir %s)
 (go version %s)
 (valid build configuration = %v)
 (build flags: %v)
+(selected go env: %v)
 `,
 		v.folder.Filename(),
-		v.rootURI.Filename(),
+		v.workingDir().Filename(),
 		strings.TrimRight(v.workspaceInformation.goversionOutput, "\n"),
 		v.snapshot.ValidBuildConfiguration(),
-		buildFlags)
+		buildFlags,
+		v.goEnv,
+	)
 
-	fullEnv := make(map[string]string)
-	for k, v := range v.goEnv {
-		fullEnv[k] = v
-	}
 	for _, v := range env {
 		s := strings.SplitN(v, "=", 2)
 		if len(s) != 2 {
 			continue
 		}
-		if _, ok := fullEnv[s[0]]; ok {
-			fullEnv[s[0]] = s[1]
-		}
-	}
-	for k, v := range fullEnv {
-		fmt.Fprintf(&buf, "%s=%s\n", k, v)
 	}
 
 	return buf.String()
@@ -400,41 +448,42 @@ func fileHasExtension(path string, suffixes []string) bool {
 	return false
 }
 
+// locateTemplateFiles ensures that the snapshot has mapped template files
+// within the workspace folder.
 func (s *snapshot) locateTemplateFiles(ctx context.Context) {
 	if len(s.view.Options().TemplateExtensions) == 0 {
 		return
 	}
 	suffixes := s.view.Options().TemplateExtensions
 
-	// The workspace root may have been expanded to a module, but we should apply
-	// directory filters based on the configured workspace folder.
-	//
-	// TODO(rfindley): we should be more principled about paths outside of the
-	// workspace folder: do we even consider them? Do we support absolute
-	// exclusions? Relative exclusions starting with ..?
-	dir := s.workspace.root.Filename()
-	relativeTo := s.view.folder.Filename()
-
 	searched := 0
-	filterer := buildFilterer(dir, s.view.gomodcache, s.view.Options())
-	// Change to WalkDir when we move up to 1.16
-	err := filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+	filterFunc := s.view.filterFunc()
+	err := filepath.WalkDir(s.view.folder.Filename(), func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		relpath := strings.TrimPrefix(path, relativeTo)
-		excluded := pathExcludedByFilter(relpath, filterer)
-		if fileHasExtension(path, suffixes) && !excluded && !fi.IsDir() {
-			k := span.URIFromPath(path)
-			_, err := s.GetVersionedFile(ctx, k)
-			if err != nil {
-				return nil
-			}
+		if entry.IsDir() {
+			return nil
 		}
-		searched++
 		if fileLimit > 0 && searched > fileLimit {
 			return errExhausted
 		}
+		searched++
+		if !fileHasExtension(path, suffixes) {
+			return nil
+		}
+		uri := span.URIFromPath(path)
+		if filterFunc(uri) {
+			return nil
+		}
+		// Get the file in order to include it in the snapshot.
+		// TODO(golang/go#57558): it is fundamentally broken to track files in this
+		// way; we may lose them if configuration or layout changes cause a view to
+		// be recreated.
+		//
+		// Furthermore, this operation must ignore errors, including context
+		// cancellation, or risk leaving the snapshot in an undefined state.
+		s.GetFile(ctx, uri)
 		return nil
 	})
 	if err != nil {
@@ -443,13 +492,18 @@ func (s *snapshot) locateTemplateFiles(ctx context.Context) {
 }
 
 func (v *View) contains(uri span.URI) bool {
+	// If we've expanded the go dir to a parent directory, consider if the
+	// expanded dir contains the uri.
 	// TODO(rfindley): should we ignore the root here? It is not provided by the
-	// user, and is undefined when go.work is outside the workspace. It would be
-	// better to explicitly consider the set of active modules wherever relevant.
-	inRoot := source.InDir(v.rootURI.Filename(), uri.Filename())
+	// user. It would be better to explicitly consider the set of active modules
+	// wherever relevant.
+	inGoDir := false
+	if source.InDir(v.workingDir().Filename(), v.folder.Filename()) {
+		inGoDir = source.InDir(v.workingDir().Filename(), uri.Filename())
+	}
 	inFolder := source.InDir(v.folder.Filename(), uri.Filename())
 
-	if !inRoot && !inFolder {
+	if !inGoDir && !inFolder {
 		return false
 	}
 
@@ -459,7 +513,7 @@ func (v *View) contains(uri span.URI) bool {
 // filterFunc returns a func that reports whether uri is filtered by the currently configured
 // directoryFilters.
 func (v *View) filterFunc() func(span.URI) bool {
-	filterer := buildFilterer(v.rootURI.Filename(), v.gomodcache, v.Options())
+	filterer := buildFilterer(v.folder.Filename(), v.gomodcache, v.Options())
 	return func(uri span.URI) bool {
 		// Only filter relative to the configured root directory.
 		if source.InDir(v.folder.Filename(), uri.Filename()) {
@@ -481,7 +535,7 @@ func (v *View) relevantChange(c source.FileModification) bool {
 	// TODO(rstambler): Make sure the go.work/gopls.mod files are always known
 	// to the view.
 	for _, src := range []workspaceSource{goWorkWorkspace, goplsModWorkspace} {
-		if c.URI == uriForSource(v.rootURI, v.explicitGowork, src) {
+		if c.URI == uriForSource(v.workingDir(), v.effectiveGOWORK(), src) {
 			return true
 		}
 	}
@@ -805,54 +859,35 @@ func (v *View) invalidateContent(ctx context.Context, changes map[span.URI]*file
 	return v.snapshot, v.snapshot.Acquire()
 }
 
-func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (*workspaceInformation, error) {
+func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, options *source.Options) (workspaceInformation, error) {
 	if err := checkPathCase(folder.Filename()); err != nil {
-		return nil, fmt.Errorf("invalid workspace folder path: %w; check that the casing of the configured workspace folder path agrees with the casing reported by the operating system", err)
+		return workspaceInformation{}, fmt.Errorf("invalid workspace folder path: %w; check that the casing of the configured workspace folder path agrees with the casing reported by the operating system", err)
 	}
 	var err error
+	var info workspaceInformation
 	inv := gocommand.Invocation{
 		WorkingDir: folder.Filename(),
 		Env:        options.EnvSlice(),
 	}
-	goversion, err := gocommand.GoVersion(ctx, inv, s.gocmdRunner)
+	info.goversion, err = gocommand.GoVersion(ctx, inv, s.gocmdRunner)
 	if err != nil {
-		return nil, err
+		return info, err
 	}
-	goversionOutput, err := gocommand.GoVersionOutput(ctx, inv, s.gocmdRunner)
+	info.goversionOutput, err = gocommand.GoVersionOutput(ctx, inv, s.gocmdRunner)
 	if err != nil {
-		return nil, err
+		return info, err
 	}
-
-	// Make sure to get the `go env` before continuing with initialization.
-	envVars, env, err := s.getGoEnv(ctx, folder.Filename(), goversion, options.EnvSlice())
-	if err != nil {
-		return nil, err
+	if err := info.goEnv.load(ctx, folder.Filename(), options.EnvSlice(), s.gocmdRunner); err != nil {
+		return info, err
 	}
 	// The value of GOPACKAGESDRIVER is not returned through the go command.
 	gopackagesdriver := os.Getenv("GOPACKAGESDRIVER")
-	// TODO(rfindley): this looks wrong, or at least overly defensive. If the
-	// value of GOPACKAGESDRIVER is not returned from the go command... why do we
-	// look it up here?
-	for _, s := range env {
-		split := strings.SplitN(s, "=", 2)
-		if split[0] == "GOPACKAGESDRIVER" {
-			bug.Reportf("found GOPACKAGESDRIVER from the go command") // see note above
-			gopackagesdriver = split[1]
-		}
-	}
-
 	// A user may also have a gopackagesdriver binary on their machine, which
 	// works the same way as setting GOPACKAGESDRIVER.
 	tool, _ := exec.LookPath("gopackagesdriver")
-	hasGopackagesDriver := gopackagesdriver != "off" && (gopackagesdriver != "" || tool != "")
+	info.hasGopackagesDriver = gopackagesdriver != "off" && (gopackagesdriver != "" || tool != "")
 
-	return &workspaceInformation{
-		hasGopackagesDriver:  hasGopackagesDriver,
-		goversion:            goversion,
-		goversionOutput:      goversionOutput,
-		environmentVariables: envVars,
-		goEnv:                env,
-	}, nil
+	return info, nil
 }
 
 // findWorkspaceModuleSource searches for a "module source" relative to the
@@ -907,6 +942,19 @@ func findWorkspaceModuleSource(ctx context.Context, folderURI span.URI, fs sourc
 	return "", nil
 }
 
+// workingDir returns the directory from which to run Go commands.
+//
+// The only case where this should matter is if we've narrowed the workspace to
+// a singular nested module. In that case, the go command won't be able to find
+// the module unless we tell it the nested directory.
+func (v *View) workingDir() span.URI {
+	// TODO(golang/go#57514): eliminate the expandWorkspaceToModule setting.
+	if v.Options().ExpandWorkspaceToModule && v.rootSrc != "" {
+		return span.Dir(v.rootSrc)
+	}
+	return v.folder
+}
+
 // findRootPattern looks for files with the given basename in dir or any parent
 // directory of dir, using the provided FileSource. It returns the first match,
 // starting from dir and search parents.
@@ -938,62 +986,6 @@ var checkPathCase = defaultCheckPathCase
 
 func defaultCheckPathCase(path string) error {
 	return nil
-}
-
-// getGoEnv gets the view's various GO* values.
-func (s *Session) getGoEnv(ctx context.Context, folder string, goversion int, configEnv []string) (environmentVariables, map[string]string, error) {
-	envVars := environmentVariables{}
-	vars := map[string]*string{
-		"GOCACHE":     &envVars.gocache,
-		"GOPATH":      &envVars.gopath,
-		"GOROOT":      &envVars.goroot,
-		"GOPRIVATE":   &envVars.goprivate,
-		"GOMODCACHE":  &envVars.gomodcache,
-		"GO111MODULE": &envVars.go111module,
-	}
-
-	// We can save ~200 ms by requesting only the variables we care about.
-	args := append([]string{"-json"}, imports.RequiredGoEnvVars...)
-	for k := range vars {
-		args = append(args, k)
-	}
-	// TODO(rfindley): GOWORK is not a property of the session. It may change
-	// when a workfile is added or removed.
-	//
-	// We need to distinguish between GOWORK values that are set by the GOWORK
-	// environment variable, and GOWORK values that are computed based on the
-	// location of a go.work file in the directory hierarchy.
-	args = append(args, "GOWORK")
-
-	inv := gocommand.Invocation{
-		Verb:       "env",
-		Args:       args,
-		Env:        configEnv,
-		WorkingDir: folder,
-	}
-	// Don't go through runGoCommand, as we don't need a temporary -modfile to
-	// run `go env`.
-	stdout, err := s.gocmdRunner.Run(ctx, inv)
-	if err != nil {
-		return environmentVariables{}, nil, err
-	}
-	env := make(map[string]string)
-	if err := json.Unmarshal(stdout.Bytes(), &env); err != nil {
-		return environmentVariables{}, nil, err
-	}
-
-	for key, ptr := range vars {
-		*ptr = env[key]
-	}
-
-	// Old versions of Go don't have GOMODCACHE, so emulate it.
-	//
-	// TODO(rfindley): consistent with the treatment of go111module, we should
-	// provide a wrapper method rather than mutating this value.
-	if envVars.gomodcache == "" && envVars.gopath != "" {
-		envVars.gomodcache = filepath.Join(filepath.SplitList(envVars.gopath)[0], "pkg/mod")
-	}
-	return envVars, env, err
 }
 
 func (v *View) IsGoPrivatePath(target string) bool {
@@ -1132,7 +1124,7 @@ func (s *snapshot) vendorEnabled(ctx context.Context, modURI span.URI, modConten
 	}
 
 	// Explicit -mod flag?
-	matches := modFlagRegexp.FindStringSubmatch(s.view.goEnv["GOFLAGS"])
+	matches := modFlagRegexp.FindStringSubmatch(s.view.goflags)
 	if len(matches) != 0 {
 		modFlag := matches[1]
 		if modFlag != "" {
@@ -1149,7 +1141,9 @@ func (s *snapshot) vendorEnabled(ctx context.Context, modURI span.URI, modConten
 	}
 
 	// No vendor directory?
-	if fi, err := os.Stat(filepath.Join(s.view.rootURI.Filename(), "vendor")); err != nil || !fi.IsDir() {
+	// TODO(golang/go#57514): this is wrong if the working dir is not the module
+	// root.
+	if fi, err := os.Stat(filepath.Join(s.view.workingDir().Filename(), "vendor")); err != nil || !fi.IsDir() {
 		return false, nil
 	}
 
@@ -1158,22 +1152,20 @@ func (s *snapshot) vendorEnabled(ctx context.Context, modURI span.URI, modConten
 	return vendorEnabled, nil
 }
 
-func (v *View) allFilesExcluded(pkg *packages.Package, filterer *source.Filterer) bool {
-	folder := filepath.ToSlash(v.folder.Filename())
-	for _, f := range pkg.GoFiles {
-		f = filepath.ToSlash(f)
-		if !strings.HasPrefix(f, folder) {
-			return false
-		}
-		if !pathExcludedByFilter(strings.TrimPrefix(f, folder), filterer) {
+// TODO(rfindley): clean up the redundancy of allFilesExcluded,
+// pathExcludedByFilterFunc, pathExcludedByFilter, view.filterFunc...
+func allFilesExcluded(files []string, filterFunc func(span.URI) bool) bool {
+	for _, f := range files {
+		uri := span.URIFromPath(f)
+		if !filterFunc(uri) {
 			return false
 		}
 	}
 	return true
 }
 
-func pathExcludedByFilterFunc(root, gomodcache string, opts *source.Options) func(string) bool {
-	filterer := buildFilterer(root, gomodcache, opts)
+func pathExcludedByFilterFunc(folder, gomodcache string, opts *source.Options) func(string) bool {
+	filterer := buildFilterer(folder, gomodcache, opts)
 	return func(path string) bool {
 		return pathExcludedByFilter(path, filterer)
 	}
@@ -1190,13 +1182,12 @@ func pathExcludedByFilter(path string, filterer *source.Filterer) bool {
 	return filterer.Disallow(path)
 }
 
-func buildFilterer(root, gomodcache string, opts *source.Options) *source.Filterer {
-	// TODO(rfindley): this looks wrong. If gomodcache isn't actually nested
-	// under root, this will do the wrong thing.
-	gomodcache = strings.TrimPrefix(filepath.ToSlash(strings.TrimPrefix(gomodcache, root)), "/")
+func buildFilterer(folder, gomodcache string, opts *source.Options) *source.Filterer {
 	filters := opts.DirectoryFilters
-	if gomodcache != "" {
-		filters = append(filters, "-"+gomodcache)
+
+	if pref := strings.TrimPrefix(gomodcache, folder); pref != gomodcache {
+		modcacheFilter := "-" + strings.TrimPrefix(filepath.ToSlash(pref), "/")
+		filters = append(filters, modcacheFilter)
 	}
 	return source.NewFilterer(filters)
 }

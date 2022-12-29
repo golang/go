@@ -8,10 +8,12 @@ import (
 	"testing"
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // Test that setting go.work via environment variables or settings works.
 func TestUseGoWorkOutsideTheWorkspace(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18)
 	const files = `
 -- work/a/go.mod --
 module a.com
@@ -39,6 +41,7 @@ use (
 `
 
 	WithOptions(
+		WorkspaceFolders("work"), // use a nested workspace dir, so that GOWORK is outside the workspace
 		EnvVars{"GOWORK": "$SANDBOX_WORKDIR/config/go.work"},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		// When we have an explicit GOWORK set, we should get a file watch request.

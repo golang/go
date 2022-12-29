@@ -138,7 +138,7 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 	// and has led to memory leaks in the past, when the snapshot was
 	// unintentionally held past its lifetime.
 	_, inv, cleanupInvocation, err := snapshot.goCommandInvocation(ctx, source.LoadWorkspace, &gocommand.Invocation{
-		WorkingDir: snapshot.view.rootURI.Filename(),
+		WorkingDir: snapshot.view.workingDir().Filename(),
 	})
 	if err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func (s *importsState) populateProcessEnv(ctx context.Context, snapshot *snapsho
 			os.RemoveAll(tmpDir) // ignore error
 		}
 	} else {
-		pe.WorkingDir = snapshot.view.rootURI.Filename()
+		pe.WorkingDir = snapshot.view.workingDir().Filename()
 	}
 
 	return cleanup, nil
