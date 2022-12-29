@@ -186,9 +186,9 @@ func Goodbye() {}
 		Modes(Default),
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		beforeSave := env.Editor.BufferText("main.go")
+		beforeSave := env.BufferText("main.go")
 		env.OrganizeImports("main.go")
-		got := env.Editor.BufferText("main.go")
+		got := env.BufferText("main.go")
 		if got != beforeSave {
 			t.Errorf("after organizeImports code action, got modified buffer:\n%s", got)
 		}
@@ -242,9 +242,9 @@ func Hi() {}
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
-		beforeSave := env.Editor.BufferText("a/main.go")
+		beforeSave := env.BufferText("a/main.go")
 		env.OrganizeImports("a/main.go")
-		got := env.Editor.BufferText("a/main.go")
+		got := env.BufferText("a/main.go")
 		if got == beforeSave {
 			t.Errorf("after organizeImports code action, got identical buffer:\n%s", got)
 		}

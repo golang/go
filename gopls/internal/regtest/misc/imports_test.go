@@ -47,7 +47,7 @@ func TestZ(t *testing.T) {
 	Run(t, needs, func(t *testing.T, env *Env) {
 		env.CreateBuffer("a_test.go", ntest)
 		env.SaveBuffer("a_test.go")
-		got := env.Editor.BufferText("a_test.go")
+		got := env.BufferText("a_test.go")
 		if want != got {
 			t.Errorf("got\n%q, wanted\n%q", got, want)
 		}
@@ -76,7 +76,7 @@ func main() {
 		env.OrganizeImports("main.go")
 		actions := env.CodeAction("main.go", nil)
 		if len(actions) > 0 {
-			got := env.Editor.BufferText("main.go")
+			got := env.BufferText("main.go")
 			t.Errorf("unexpected actions %#v", actions)
 			if got == vim1 {
 				t.Errorf("no changes")

@@ -78,6 +78,17 @@ func (e *Env) CreateBuffer(name string, content string) {
 	}
 }
 
+// BufferText returns the current buffer contents for the file with the given
+// relative path, calling t.Fatal if the file is not open in a buffer.
+func (e *Env) BufferText(name string) string {
+	e.T.Helper()
+	text, ok := e.Editor.BufferText(name)
+	if !ok {
+		e.T.Fatalf("buffer %q is not open", name)
+	}
+	return text
+}
+
 // CloseBuffer closes an editor buffer without saving, calling t.Fatal on any
 // error.
 func (e *Env) CloseBuffer(name string) {

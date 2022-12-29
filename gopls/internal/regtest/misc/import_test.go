@@ -49,7 +49,7 @@ func main() {
 			Command:   "gopls.add_import",
 			Arguments: cmd.Arguments,
 		}, nil)
-		got := env.Editor.BufferText("main.go")
+		got := env.BufferText("main.go")
 		if got != want {
 			t.Fatalf("gopls.add_import failed\n%s", compare.Text(want, got))
 		}

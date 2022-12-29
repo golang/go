@@ -455,7 +455,7 @@ func foo() string {
 
 				env.AcceptCompletion("foo.go", pos, completions.Items[0])
 
-				if buf := env.Editor.BufferText("foo.go"); buf != c.after {
+				if buf := env.BufferText("foo.go"); buf != c.after {
 					t.Errorf("\nGOT:\n%s\nEXPECTED:\n%s", buf, c.after)
 				}
 			})

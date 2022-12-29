@@ -103,7 +103,7 @@ func Add[T int](target T, l []T) []T {
 		if err != nil {
 			t.Fatal(err)
 		}
-		seen := interpret(v.Data, env.Editor.BufferText("main.go"))
+		seen := interpret(v.Data, env.BufferText("main.go"))
 		if x := cmp.Diff(want, seen); x != "" {
 			t.Errorf("Semantic tokens do not match (-want +got):\n%s", x)
 		}

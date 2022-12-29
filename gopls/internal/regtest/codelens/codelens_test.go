@@ -186,10 +186,10 @@ require golang.org/x/hello v1.2.3
 					t.Fatal(err)
 				}
 				env.Await(env.DoneWithChangeWatchedFiles())
-				if got := env.Editor.BufferText("a/go.mod"); got != wantGoModA {
+				if got := env.BufferText("a/go.mod"); got != wantGoModA {
 					t.Fatalf("a/go.mod upgrade failed:\n%s", compare.Text(wantGoModA, got))
 				}
-				if got := env.Editor.BufferText("b/go.mod"); got != wantGoModB {
+				if got := env.BufferText("b/go.mod"); got != wantGoModB {
 					t.Fatalf("b/go.mod changed unexpectedly:\n%s", compare.Text(wantGoModB, got))
 				}
 			})
@@ -226,10 +226,10 @@ require golang.org/x/hello v1.2.3
 				// Apply the diagnostics to a/go.mod.
 				env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
 				env.Await(env.DoneWithChangeWatchedFiles())
-				if got := env.Editor.BufferText("a/go.mod"); got != wantGoModA {
+				if got := env.BufferText("a/go.mod"); got != wantGoModA {
 					t.Fatalf("a/go.mod upgrade failed:\n%s", compare.Text(wantGoModA, got))
 				}
-				if got := env.Editor.BufferText("b/go.mod"); got != wantGoModB {
+				if got := env.BufferText("b/go.mod"); got != wantGoModB {
 					t.Fatalf("b/go.mod changed unexpectedly:\n%s", compare.Text(wantGoModB, got))
 				}
 			})
@@ -283,7 +283,7 @@ func main() {
 		env.OpenFile("go.mod")
 		env.ExecuteCodeLensCommand("go.mod", command.Tidy, nil)
 		env.Await(env.DoneWithChangeWatchedFiles())
-		got := env.Editor.BufferText("go.mod")
+		got := env.BufferText("go.mod")
 		const wantGoMod = `module mod.com
 
 go 1.14

@@ -182,7 +182,7 @@ package
 
 				// Check that the completion item suggestions are in the range
 				// of the file.
-				lineCount := len(strings.Split(env.Editor.BufferText(tc.filename), "\n"))
+				lineCount := len(strings.Split(env.BufferText(tc.filename), "\n"))
 				for _, item := range completions.Items {
 					if start := int(item.TextEdit.Range.Start.Line); start >= lineCount {
 						t.Fatalf("unexpected text edit range start line number: got %d, want less than %d", start, lineCount)
@@ -536,7 +536,7 @@ func main() {
 		}
 		env.AcceptCompletion("main.go", pos, completions.Items[0])
 		env.Await(env.DoneWithChange())
-		got := env.Editor.BufferText("main.go")
+		got := env.BufferText("main.go")
 		want := "package main\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"math\"\r\n)\r\n\r\nfunc main() {\r\n\tfmt.Println(\"a\")\r\n\tmath.Sqrt(${1:})\r\n}\r\n"
 		if got != want {
 			t.Errorf("unimported completion: got %q, want %q", got, want)
@@ -674,7 +674,7 @@ $0
 
 			env.AcceptCompletion("foo_test.go", pos, completions.Items[0])
 			env.Await(env.DoneWithChange())
-			if buf := env.Editor.BufferText("foo_test.go"); buf != tst.after {
+			if buf := env.BufferText("foo_test.go"); buf != tst.after {
 				t.Errorf("incorrect completion: got %q, want %q", buf, tst.after)
 			}
 		}

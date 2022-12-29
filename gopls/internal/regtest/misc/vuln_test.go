@@ -749,7 +749,7 @@ require (
 	golang.org/bmod v0.5.0 // indirect
 )
 `
-		if got := env.Editor.BufferText("go.mod"); got != wantGoMod {
+		if got := env.BufferText("go.mod"); got != wantGoMod {
 			t.Fatalf("go.mod vulncheck fix failed:\n%s", compare.Text(wantGoMod, got))
 		}
 	})

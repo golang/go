@@ -373,7 +373,7 @@ func main() {
 		env.OpenFile("main.go")
 		pos := env.RegexpSearch("main.go", `stringutil\.(Identity)`)
 		env.Rename("main.go", pos, "Identityx")
-		text := env.Editor.BufferText("stringutil/stringutil_test.go")
+		text := env.BufferText("stringutil/stringutil_test.go")
 		if !strings.Contains(text, "Identityx") {
 			t.Errorf("stringutil/stringutil_test.go: missing expected token `Identityx` after rename:\n%s", text)
 		}
@@ -442,7 +442,7 @@ package b
 		)
 
 		// As a sanity check, verify that x/x.go is open.
-		if text := env.Editor.BufferText("x/x.go"); text == "" {
+		if text := env.BufferText("x/x.go"); text == "" {
 			t.Fatal("got empty buffer for x/x.go")
 		}
 	})
@@ -933,7 +933,7 @@ func checkTestdata(t *testing.T, env *Env) {
 	}
 	for _, file := range files {
 		suffix := strings.TrimPrefix(file, "testdata/")
-		got := env.Editor.BufferText(suffix)
+		got := env.BufferText(suffix)
 		want := env.ReadWorkspaceFile(file)
 		if diff := compare.Text(want, got); diff != "" {
 			t.Errorf("Rename: unexpected buffer content for %s (-want +got):\n%s", suffix, diff)

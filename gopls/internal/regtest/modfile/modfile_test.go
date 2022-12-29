@@ -352,7 +352,7 @@ require example.com v1.2.3
 			),
 		)
 		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
-		if got := env.Editor.BufferText("a/go.mod"); got != want {
+		if got := env.BufferText("a/go.mod"); got != want {
 			t.Fatalf("unexpected go.mod content:\n%s", compare.Text(want, got))
 		}
 	})
@@ -396,7 +396,7 @@ go 1.14
 			),
 		)
 		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
-		if got := env.Editor.BufferText("a/go.mod"); got != want {
+		if got := env.BufferText("a/go.mod"); got != want {
 			t.Fatalf("unexpected go.mod content:\n%s", compare.Text(want, got))
 		}
 	})
@@ -572,7 +572,7 @@ require (
 `
 		env.SaveBuffer("a/go.mod")
 		env.Await(EmptyDiagnostics("a/main.go"))
-		if got := env.Editor.BufferText("a/go.mod"); got != want {
+		if got := env.BufferText("a/go.mod"); got != want {
 			t.Fatalf("suggested fixes failed:\n%s", compare.Text(want, got))
 		}
 	})
@@ -996,7 +996,7 @@ func main() {}
 go 1.12
 `
 			env.ApplyQuickFixes("go.mod", d.Diagnostics)
-			if got := env.Editor.BufferText("go.mod"); got != want {
+			if got := env.BufferText("go.mod"); got != want {
 				t.Fatalf("unexpected content in go.mod:\n%s", compare.Text(want, got))
 			}
 		})
@@ -1049,7 +1049,7 @@ require random.com v1.2.3
 				diagnostics = append(diagnostics, d)
 			}
 			env.ApplyQuickFixes("go.mod", diagnostics)
-			if got := env.Editor.BufferText("go.mod"); got != want {
+			if got := env.BufferText("go.mod"); got != want {
 				t.Fatalf("unexpected content in go.mod:\n%s", compare.Text(want, got))
 			}
 		})

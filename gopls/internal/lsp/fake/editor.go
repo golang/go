@@ -702,11 +702,17 @@ func (e *Editor) HasBuffer(name string) bool {
 	return ok
 }
 
-// BufferText returns the content of the buffer with the given name.
-func (e *Editor) BufferText(name string) string {
+// BufferText returns the content of the buffer with the given name, or "" if
+// the file at that path is not open. The second return value reports whether
+// the file is open.
+func (e *Editor) BufferText(name string) (string, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.buffers[name].text()
+	buf, ok := e.buffers[name]
+	if !ok {
+		return "", false
+	}
+	return buf.text(), true
 }
 
 // BufferVersion returns the current version of the buffer corresponding to

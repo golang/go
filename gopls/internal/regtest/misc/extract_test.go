@@ -62,7 +62,7 @@ func newFunction() int {
 	return a
 }
 `
-		if got := env.Editor.BufferText("main.go"); got != want {
+		if got := env.BufferText("main.go"); got != want {
 			t.Fatalf("TestFillStruct failed:\n%s", compare.Text(want, got))
 		}
 	})

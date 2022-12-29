@@ -85,7 +85,7 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 // endPosInBuffer returns the position for last character in the buffer for
 // the given file.
 func endPosInBuffer(env *Env, name string) fake.Pos {
-	buffer := env.Editor.BufferText(name)
+	buffer := env.BufferText(name)
 	lines := strings.Split(buffer, "\n")
 	numLines := len(lines)
 
@@ -101,7 +101,7 @@ func BenchmarkStructCompletion(b *testing.B) {
 
 	setup := func(env *Env) {
 		env.OpenFile(file)
-		originalBuffer := env.Editor.BufferText(file)
+		originalBuffer := env.BufferText(file)
 		env.EditBuffer(file, fake.Edit{
 			End:  endPosInBuffer(env, file),
 			Text: originalBuffer + "\nvar testVariable map[string]bool = Session{}.\n",
@@ -131,7 +131,7 @@ func BenchmarkSliceCompletion(b *testing.B) {
 
 	setup := func(env *Env) {
 		env.OpenFile(file)
-		originalBuffer := env.Editor.BufferText(file)
+		originalBuffer := env.BufferText(file)
 		env.EditBuffer(file, fake.Edit{
 			End:  endPosInBuffer(env, file),
 			Text: originalBuffer + "\nvar testVariable []byte = \n",
@@ -155,7 +155,7 @@ func (c *completer) _() {
 `
 	setup := func(env *Env) {
 		env.OpenFile(file)
-		originalBuffer := env.Editor.BufferText(file)
+		originalBuffer := env.BufferText(file)
 		env.EditBuffer(file, fake.Edit{
 			End:  endPosInBuffer(env, file),
 			Text: originalBuffer + fileContent,

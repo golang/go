@@ -34,7 +34,7 @@ func TestFormatting(t *testing.T) {
 	Run(t, unformattedProgram, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.FormatBuffer("main.go")
-		got := env.Editor.BufferText("main.go")
+		got := env.BufferText("main.go")
 		want := env.ReadWorkspaceFile("main.go.golden")
 		if got != want {
 			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
@@ -56,7 +56,7 @@ func f() {}
 	Run(t, onelineProgram, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.FormatBuffer("a.go")
-		got := env.Editor.BufferText("a.go")
+		got := env.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.formatted")
 		if got != want {
 			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
@@ -80,7 +80,7 @@ func f() { fmt.Println() }
 	Run(t, onelineProgramA, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.OrganizeImports("a.go")
-		got := env.Editor.BufferText("a.go")
+		got := env.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.imported")
 		if got != want {
 			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
@@ -101,7 +101,7 @@ func f() {}
 	Run(t, onelineProgramB, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.OrganizeImports("a.go")
-		got := env.Editor.BufferText("a.go")
+		got := env.BufferText("a.go")
 		want := env.ReadWorkspaceFile("a.go.imported")
 		if got != want {
 			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
@@ -147,7 +147,7 @@ func TestOrganizeImports(t *testing.T) {
 	Run(t, disorganizedProgram, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OrganizeImports("main.go")
-		got := env.Editor.BufferText("main.go")
+		got := env.BufferText("main.go")
 		want := env.ReadWorkspaceFile("main.go.organized")
 		if got != want {
 			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
@@ -159,7 +159,7 @@ func TestFormattingOnSave(t *testing.T) {
 	Run(t, disorganizedProgram, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.SaveBuffer("main.go")
-		got := env.Editor.BufferText("main.go")
+		got := env.BufferText("main.go")
 		want := env.ReadWorkspaceFile("main.go.formatted")
 		if got != want {
 			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
@@ -259,7 +259,7 @@ func main() {
 				env.CreateBuffer("main.go", crlf)
 				env.Await(env.DoneWithOpen())
 				env.OrganizeImports("main.go")
-				got := env.Editor.BufferText("main.go")
+				got := env.BufferText("main.go")
 				got = strings.ReplaceAll(got, "\r\n", "\n") // convert everything to LF for simplicity
 				if tt.want != got {
 					t.Errorf("unexpected content after save:\n%s", compare.Text(tt.want, got))
@@ -359,7 +359,7 @@ const Bar = 42
 	).Run(t, input, func(t *testing.T, env *Env) {
 		env.OpenFile("foo.go")
 		env.FormatBuffer("foo.go")
-		got := env.Editor.BufferText("foo.go")
+		got := env.BufferText("foo.go")
 		want := env.ReadWorkspaceFile("foo.go.formatted")
 		if got != want {
 			t.Errorf("unexpected formatting result:\n%s", compare.Text(want, got))
