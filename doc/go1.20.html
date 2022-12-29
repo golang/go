@@ -292,7 +292,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- CL 423359, https://go.dev/issue/51317 -->
   The runtime now has experimental support for memory-safe arena allocation
   that makes it possible to eagerly free memory in bulk.
-  When used appopriately, it has the potential to improve CPU performance by
+  When used appropriately, it has the potential to improve CPU performance by
   up to 15% in memory-allocation-heavy applications.
   To try it out, build your Go program with <code>GOEXPERIMENT=arenas</code>,
   which will make the <code>arena</code> package visible to your program.
@@ -381,7 +381,7 @@ Do not send CLs removing the interior tags from such phrases.
   <code>$HOME/go1.4</code> (<code>%HOMEDRIVE%%HOMEPATH%\go1.4</code> on Windows).
   Go 1.18 and Go 1.19 looked first for <code>$HOME/go1.17</code> or <code>$HOME/sdk/go1.17</code>
   before falling back to <code>$HOME/go1.4</code>,
-  in ancitipation of requiring Go 1.17 for use when bootstrapping Go 1.20.
+  in anticipation of requiring Go 1.17 for use when bootstrapping Go 1.20.
   Go 1.20 does require a Go 1.17 release for bootstrapping, but we realized that we should
   adopt the latest point release of the bootstrap toolchain, so it requires Go 1.17.13.
   Go 1.20 looks for <code>$HOME/go1.17.13</code> or <code>$HOME/sdk/go1.17.13</code>
