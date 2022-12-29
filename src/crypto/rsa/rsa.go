@@ -204,7 +204,7 @@ type PrecomputedValues struct {
 	// differently in PKCS #1 and interoperability is sufficiently
 	// important that we mirror this.
 	//
-	// Note: these values are still filled in by Precompute for
+	// Deprecated: These values are still filled in by Precompute for
 	// backwards compatibility but are not used. Multi-prime RSA is very rare,
 	// and is implemented by this package without CRT optimizations to limit
 	// complexity.
@@ -278,7 +278,7 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 // This package does not implement CRT optimizations for multi-prime RSA, so the
 // keys with more than two primes will have worse performance.
 //
-// Note: The use of this function with a number of primes different from
+// Deprecated: The use of this function with a number of primes different from
 // two is not recommended for the above security, compatibility, and performance
 // reasons. Use GenerateKey instead.
 //
