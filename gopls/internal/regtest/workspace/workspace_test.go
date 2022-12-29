@@ -1134,6 +1134,14 @@ use (
 		// Removing the go.work file should put us back where we started.
 		env.RemoveWorkspaceFile("go.work")
 
+		// TODO(golang/go#57508): because file watching is asynchronous, we must
+		// ensure that the go.work change is seen before other changes, in order
+		// for the snapshot to "know" about the orphaned b/main.go below.
+		//
+		// This is a bug, plain and simple, but we await here to avoid test flakes
+		// while the underlying cause is fixed.
+		env.Await(env.DoneWithChangeWatchedFiles())
+
 		// TODO(rfindley): fix this bug: reopening b/main.go is necessary here
 		// because we no longer "see" the file in any view.
 		env.CloseBuffer("b/main.go")
