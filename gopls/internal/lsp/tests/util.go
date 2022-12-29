@@ -547,3 +547,30 @@ func StripSubscripts(s string) string {
 	}
 	return string(runes)
 }
+
+// LocationsToSpans converts protocol location into span form for testing.
+func LocationsToSpans(data *Data, locs []protocol.Location) ([]span.Span, error) {
+	spans := make([]span.Span, len(locs))
+	for i, loc := range locs {
+		m, err := data.Mapper(loc.URI.SpanURI())
+		if err != nil {
+			return nil, err
+		}
+		spn, err := m.LocationSpan(loc)
+		if err != nil {
+			return nil, fmt.Errorf("failed for %v: %w", loc, err)
+		}
+		spans[i] = spn
+	}
+	return spans, nil
+}
+
+// SortAndFormatSpans sorts and formats a list of spans for use in an assertion.
+func SortAndFormatSpans(spans []span.Span) string {
+	span.SortSpans(spans)
+	var buf strings.Builder
+	for _, spn := range spans {
+		fmt.Fprintf(&buf, "%v\n", spn)
+	}
+	return buf.String()
+}

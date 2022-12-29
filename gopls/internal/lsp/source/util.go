@@ -165,6 +165,9 @@ func nodeAtPos(nodes []ast.Node, pos token.Pos) (ast.Node, int) {
 }
 
 // IsInterface returns if a types.Type is an interface
+//
+// This function accepts nil, unlike types.IsInterface.
+// TODO(adonovan): that's confusing! Eliminate this wrapper.
 func IsInterface(T types.Type) bool {
 	return T != nil && types.IsInterface(T)
 }

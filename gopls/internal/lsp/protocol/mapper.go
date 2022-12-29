@@ -141,7 +141,7 @@ func (m *Mapper) SpanLocation(s span.Span) (Location, error) {
 	if err != nil {
 		return Location{}, err
 	}
-	return Location{URI: URIFromSpanURI(s.URI()), Range: rng}, nil
+	return m.RangeLocation(rng), nil
 }
 
 // SpanRange converts a (UTF-8) span to a protocol (UTF-16) range.
@@ -195,6 +195,15 @@ func (m *Mapper) PointPosition(p span.Point) (Position, error) {
 }
 
 // -- conversions from byte offsets --
+
+// OffsetLocation converts a byte-offset interval to a protocol (UTF-16) location.
+func (m *Mapper) OffsetLocation(start, end int) (Location, error) {
+	rng, err := m.OffsetRange(start, end)
+	if err != nil {
+		return Location{}, err
+	}
+	return m.RangeLocation(rng), nil
+}
 
 // OffsetRange converts a byte-offset interval to a protocol (UTF-16) range.
 func (m *Mapper) OffsetRange(start, end int) (Range, error) {
@@ -411,7 +420,7 @@ func (m *Mapper) PosLocation(tf *token.File, start, end token.Pos) (Location, er
 	if err != nil {
 		return Location{}, err
 	}
-	return Location{URI: URIFromSpanURI(m.URI), Range: rng}, nil
+	return m.RangeLocation(rng), nil
 }
 
 // PosPosition converts a token range to a protocol (UTF-16) range.
@@ -426,6 +435,11 @@ func (m *Mapper) PosRange(tf *token.File, start, end token.Pos) (Range, error) {
 // PosPosition converts a syntax node range to a protocol (UTF-16) range.
 func (m *Mapper) NodeRange(tf *token.File, node ast.Node) (Range, error) {
 	return m.PosRange(tf, node.Pos(), node.End())
+}
+
+// RangeLocation pairs a protocol Range with its URI, in a Location.
+func (m *Mapper) RangeLocation(rng Range) Location {
+	return Location{URI: URIFromSpanURI(m.URI), Range: rng}
 }
 
 // -- MappedRange --
@@ -472,10 +486,7 @@ func (mr MappedRange) Range() Range {
 
 // Location returns the range in protocol location (UTF-16) form.
 func (mr MappedRange) Location() Location {
-	return Location{
-		URI:   URIFromSpanURI(mr.URI()),
-		Range: mr.Range(),
-	}
+	return mr.Mapper.RangeLocation(mr.Range())
 }
 
 // Span returns the range in span (UTF-8) form.

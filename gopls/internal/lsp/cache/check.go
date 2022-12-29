@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
 	"golang.org/x/tools/gopls/internal/lsp/source/xrefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
@@ -488,6 +489,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 		// Don't type check Unsafe: it's unnecessary, and doing so exposes a data
 		// race to Unsafe.completed.
 		pkg.types = types.Unsafe
+		pkg.methodsets = methodsets.NewIndex(pkg.fset, pkg.types)
 		return pkg, nil
 	}
 
@@ -568,6 +570,9 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 
 	// Type checking errors are handled via the config, so ignore them here.
 	_ = check.Files(files) // 50us-15ms, depending on size of package
+
+	// Build global index of method sets for 'implementations' queries.
+	pkg.methodsets = methodsets.NewIndex(pkg.fset, pkg.types)
 
 	// If the context was cancelled, we may have returned a ton of transient
 	// errors to the type checker. Swallow them.

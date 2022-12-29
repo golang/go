@@ -186,7 +186,7 @@ func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pkg
 		}
 	}
 
-	// Find interal "references" to the package from
+	// Find internal "references" to the package from
 	// of each package declaration in the target package itself.
 	//
 	// The widest package (possibly a test variant) has the
@@ -474,11 +474,13 @@ func globalReferences(ctx context.Context, snapshot Snapshot, m *Metadata, pkgPa
 }
 
 // mustLocation reports the location interval a syntax node,
-// which must belong to m.File! Safe for use only by references2.
+// which must belong to m.File.
+//
+// Safe for use only by references2 and implementations2.
 func mustLocation(pgf *ParsedGoFile, n ast.Node) protocol.Location {
 	loc, err := pgf.PosLocation(n.Pos(), n.End())
 	if err != nil {
-		panic(err) // can't happen in references2
+		panic(err) // can't happen in references2 or implementations2
 	}
 	return loc
 }

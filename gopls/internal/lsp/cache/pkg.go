@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
 	"golang.org/x/tools/gopls/internal/lsp/source/xrefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/memoize"
@@ -45,7 +46,8 @@ type pkg struct {
 	hasFixedFiles   bool   // if true, AST was sufficiently mangled that we should hide type errors
 	xrefs           []byte // serializable index of outbound cross-references
 
-	analyses memoize.Store // maps analyzer.Name to Promise[actionResult]
+	analyses   memoize.Store     // maps analyzer.Name to Promise[actionResult]
+	methodsets *methodsets.Index // index of method sets of package-level types
 }
 
 func (p *pkg) String() string { return string(p.ID()) }
@@ -183,4 +185,10 @@ func (p *pkg) ReferencesTo(pkgPath PackagePath, objPath objectpath.Path) []proto
 	// "implements" relations, exported symbols, etc.)
 	// For now we just hang it off the pkg.
 	return xrefs.Lookup(p.m, p.xrefs, pkgPath, objPath)
+}
+
+func (p *pkg) MethodSetsIndex() *methodsets.Index {
+	// TODO(adonovan): In future, p.methodsets will be retrieved from a
+	// section of the cache file produced by type checking.
+	return p.methodsets
 }

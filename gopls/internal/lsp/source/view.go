@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/event/tag"
@@ -793,6 +794,7 @@ type Package interface {
 	HasTypeErrors() bool
 	DiagnosticsForFile(uri span.URI) []*Diagnostic                 // new array of list/parse/type errors
 	ReferencesTo(PackagePath, objectpath.Path) []protocol.Location // new sorted array of xrefs
+	MethodSetsIndex() *methodsets.Index
 }
 
 // A CriticalError is a workspace-wide error that generally prevents gopls from

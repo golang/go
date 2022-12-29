@@ -571,45 +571,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 }
 
 func (r *runner) Implementation(t *testing.T, spn span.Span, impls []span.Span) {
-	sm, err := r.data.Mapper(spn.URI())
-	if err != nil {
-		t.Fatal(err)
-	}
-	loc, err := sm.SpanLocation(spn)
-	if err != nil {
-		t.Fatalf("failed for %v: %v", spn, err)
-	}
-	fh, err := r.snapshot.GetFile(r.ctx, spn.URI())
-	if err != nil {
-		t.Fatal(err)
-	}
-	locs, err := source.Implementation(r.ctx, r.snapshot, fh, loc.Range.Start)
-	if err != nil {
-		t.Fatalf("failed for %v: %v", spn, err)
-	}
-	if len(locs) != len(impls) {
-		t.Fatalf("got %d locations for implementation, expected %d", len(locs), len(impls))
-	}
-	var results []span.Span
-	for i := range locs {
-		locURI := locs[i].URI.SpanURI()
-		lm, err := r.data.Mapper(locURI)
-		if err != nil {
-			t.Fatal(err)
-		}
-		imp, err := lm.LocationSpan(locs[i])
-		if err != nil {
-			t.Fatalf("failed for %v: %v", locs[i], err)
-		}
-		results = append(results, imp)
-	}
-	span.SortSpans(results) // to make tests
-	span.SortSpans(impls)   // deterministic
-	for i := range results {
-		if results[i] != impls[i] {
-			t.Errorf("for %dth implementation of %v got %v want %v", i, spn, results[i], impls[i])
-		}
-	}
+	// Removed in favor of just using the lsp_test implementation. See ../lsp_test.go
 }
 
 func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {

@@ -216,7 +216,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 				return nil, err
 			}
 			// Look up "error" and then navigate to its only method.
-			// The Error method does not appear in the builtin package's scope.log.Pri
+			// The Error method does not appear in the builtin package's scope.
 			const errorName = "error"
 			builtinObj := builtin.File.Scope.Lookup(errorName)
 			if builtinObj == nil {

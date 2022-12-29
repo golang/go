@@ -194,7 +194,8 @@ import "foo.mod/bar"
 const Foo = 42
 
 type T int
-type Interface interface{ M() }
+type InterfaceM interface{ M() }
+type InterfaceF interface{ F() }
 
 func _() {
 	_ = bar.Blah
@@ -202,6 +203,9 @@ func _() {
 
 -- foo/foo_test.go --
 package foo
+
+type Fer struct{}
+func (Fer) F() {}
 
 -- bar/bar.go --
 package bar
@@ -277,17 +281,21 @@ func _() {
 			re        string
 			wantImpls []string
 		}{
-			// Interface is implemented both in foo.mod/bar [foo.mod/bar.test] (which
+			// InterfaceM is implemented both in foo.mod/bar [foo.mod/bar.test] (which
 			// doesn't import foo), and in foo.mod/bar_test [foo.mod/bar.test], which
 			// imports the test variant of foo.
-			{"Interface", []string{"bar/bar_test.go", "bar/bar_x_test.go"}},
+			{"InterfaceM", []string{"bar/bar_test.go", "bar/bar_x_test.go"}},
+
+			// A search within the ordinary package to should find implementations
+			// (Fer) within the augmented test package.
+			{"InterfaceF", []string{"foo/foo_test.go"}},
 		}
 
 		for _, test := range implTests {
 			pos := env.RegexpSearch("foo/foo.go", test.re)
-			refs := env.Implementations("foo/foo.go", pos)
+			impls := env.Implementations("foo/foo.go", pos)
 
-			got := fileLocations(refs)
+			got := fileLocations(impls)
 			if diff := cmp.Diff(test.wantImpls, got); diff != "" {
 				t.Errorf("Implementations(%q) returned unexpected diff (-want +got):\n%s", test.re, diff)
 			}

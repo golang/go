@@ -11,42 +11,13 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"sort"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 )
-
-func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position) ([]protocol.Location, error) {
-	ctx, done := event.Start(ctx, "source.Implementation")
-	defer done()
-
-	impls, err := implementations(ctx, snapshot, f, pp)
-	if err != nil {
-		return nil, err
-	}
-	var locations []protocol.Location
-	for _, impl := range impls {
-		if impl.pkg == nil || len(impl.pkg.CompiledGoFiles()) == 0 {
-			continue
-		}
-		rng, err := objToMappedRange(impl.pkg, impl.obj)
-		if err != nil {
-			return nil, err
-		}
-		locations = append(locations, rng.Location())
-	}
-	sort.Slice(locations, func(i, j int) bool {
-		li, lj := locations[i], locations[j]
-		if li.URI == lj.URI {
-			return protocol.CompareRange(li.Range, lj.Range) < 0
-		}
-		return li.URI < lj.URI
-	})
-	return locations, nil
-}
 
 var ErrNotAType = errors.New("not a type name or method")
 
@@ -54,6 +25,12 @@ var ErrNotAType = errors.New("not a type name or method")
 // interface, or the interfaces implemented by the specified concrete type.
 // It populates only the definition-related fields of qualifiedObject.
 // (Arguably it should return a smaller data type.)
+//
+// This is the legacy implementation using the type-check-the-world
+// strategy.  It is still needed by the 'references' command for now,
+// but we are moving one step at a time.  See implementation2.go for
+// the incremental algorithm used by the 'implementations' command.
+// TODO(adonovan): eliminate this implementation.
 func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
 	// Find all named types, even local types
 	// (which can have methods due to promotion).
@@ -106,10 +83,10 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 		case *types.Func:
 			queryMethod = obj
 			if recv := obj.Type().(*types.Signature).Recv(); recv != nil {
-				queryType = ensurePointer(recv.Type())
+				queryType = methodsets.EnsurePointer(recv.Type())
 			}
 		case *types.TypeName:
-			queryType = ensurePointer(obj.Type())
+			queryType = methodsets.EnsurePointer(obj.Type())
 		}
 
 		if queryType == nil {
@@ -124,7 +101,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 		for _, named := range allNamed {
 			var (
 				candObj  types.Object = named.Obj()
-				candType              = ensurePointer(named)
+				candType              = methodsets.EnsurePointer(named)
 			)
 
 			if !concreteImplementsIntf(candType, queryType) {
@@ -179,7 +156,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 // concreteImplementsIntf returns true if a is an interface type implemented by
 // concrete type b, or vice versa.
 func concreteImplementsIntf(a, b types.Type) bool {
-	aIsIntf, bIsIntf := IsInterface(a), IsInterface(b)
+	aIsIntf, bIsIntf := types.IsInterface(a), types.IsInterface(b)
 
 	// Make sure exactly one is an interface type.
 	if aIsIntf == bIsIntf {
@@ -191,18 +168,13 @@ func concreteImplementsIntf(a, b types.Type) bool {
 		a, b = b, a
 	}
 
+	// TODO(adonovan): this should really use GenericAssignableTo
+	// to report (e.g.) "ArrayList[T] implements List[T]", but
+	// GenericAssignableTo doesn't work correctly on pointers to
+	// generic named types. Thus the legacy implementation and the
+	// "local" part of implementation2 fail to report generics.
+	// The global algorithm based on subsets does the right thing.
 	return types.AssignableTo(a, b)
-}
-
-// ensurePointer wraps T in a *types.Pointer if T is a named, non-interface
-// type. This is useful to make sure you consider a named type's full method
-// set.
-func ensurePointer(T types.Type) types.Type {
-	if _, ok := T.(*types.Named); ok && !IsInterface(T) {
-		return types.NewPointer(T)
-	}
-
-	return T
 }
 
 // A qualifiedObject is the result of resolving a reference from an
