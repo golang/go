@@ -6,10 +6,10 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -123,8 +123,10 @@ type workspaceInformation struct {
 	// The Go version in use: X in Go 1.X.
 	goversion int
 
-	// The Go version reported by go version command. (e.g. go1.19.1, go1.20-rc.1, go1.21-abcdef01)
-	goversionString string
+	// The complete output of the go version command.
+	// (Call gocommand.ParseGoVersionOutput to extract a version
+	// substring such as go1.19.1 or go1.20-rc.1, go1.21-abcdef01.)
+	goversionOutput string
 
 	// hasGopackagesDriver is true if the user has a value set for the
 	// GOPACKAGESDRIVER environment variable or a gopackagesdriver binary on
@@ -346,14 +348,28 @@ func (s *Session) SetViewOptions(ctx context.Context, v *View, options *source.O
 	return newView, err
 }
 
-func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
-	s.view.optionsMu.Lock()
-	env := s.view.options.EnvSlice()
-	buildFlags := append([]string{}, s.view.options.BuildFlags...)
-	s.view.optionsMu.Unlock()
+// viewEnv returns a string describing the environment of a newly created view.
+func viewEnv(v *View) string {
+	v.optionsMu.Lock()
+	env := v.options.EnvSlice()
+	buildFlags := append([]string{}, v.options.BuildFlags...)
+	v.optionsMu.Unlock()
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, `go env for %v
+(root %s)
+(go version %s)
+(valid build configuration = %v)
+(build flags: %v)
+`,
+		v.folder.Filename(),
+		v.rootURI.Filename(),
+		strings.TrimRight(v.workspaceInformation.goversionOutput, "\n"),
+		v.snapshot.ValidBuildConfiguration(),
+		buildFlags)
 
 	fullEnv := make(map[string]string)
-	for k, v := range s.view.goEnv {
+	for k, v := range v.goEnv {
 		fullEnv[k] = v
 	}
 	for _, v := range env {
@@ -365,29 +381,11 @@ func (s *snapshot) WriteEnv(ctx context.Context, w io.Writer) error {
 			fullEnv[s[0]] = s[1]
 		}
 	}
-	goVersion, err := s.view.gocmdRunner.Run(ctx, gocommand.Invocation{
-		Verb:       "version",
-		Env:        env,
-		WorkingDir: s.view.rootURI.Filename(),
-	})
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(w, `go env for %v
-(root %s)
-(go version %s)
-(valid build configuration = %v)
-(build flags: %v)
-`,
-		s.view.folder.Filename(),
-		s.view.rootURI.Filename(),
-		strings.TrimRight(goVersion.String(), "\n"),
-		s.ValidBuildConfiguration(),
-		buildFlags)
 	for k, v := range fullEnv {
-		fmt.Fprintf(w, "%s=%s\n", k, v)
+		fmt.Fprintf(&buf, "%s=%s\n", k, v)
 	}
-	return nil
+
+	return buf.String()
 }
 
 func (s *snapshot) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
@@ -816,7 +814,7 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	if err != nil {
 		return nil, err
 	}
-	goversionString, err := gocommand.GoVersionString(ctx, inv, s.gocmdRunner)
+	goversionOutput, err := gocommand.GoVersionOutput(ctx, inv, s.gocmdRunner)
 	if err != nil {
 		return nil, err
 	}
@@ -847,7 +845,7 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	return &workspaceInformation{
 		hasGopackagesDriver:  hasGopackagesDriver,
 		goversion:            goversion,
-		goversionString:      goversionString,
+		goversionOutput:      goversionOutput,
 		environmentVariables: envVars,
 		goEnv:                env,
 	}, nil
@@ -1072,7 +1070,7 @@ func (v *View) GoVersion() int {
 }
 
 func (v *View) GoVersionString() string {
-	return v.workspaceInformation.goversionString
+	return gocommand.ParseGoVersionOutput(v.workspaceInformation.goversionOutput)
 }
 
 // Copied from

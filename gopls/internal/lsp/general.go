@@ -5,7 +5,6 @@
 package lsp
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -338,15 +337,6 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 			continue
 		}
 		// Inv: release() must be called once.
-
-		// Print each view's environment.
-		var buf bytes.Buffer
-		if err := snapshot.WriteEnv(ctx, &buf); err != nil {
-			viewErrors[uri] = err
-			release()
-			continue
-		}
-		event.Log(ctx, buf.String())
 
 		// Initialize snapshot asynchronously.
 		initialized := make(chan struct{})

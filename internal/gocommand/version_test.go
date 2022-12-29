@@ -23,7 +23,7 @@ func TestParseGoVersionOutput(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			if got := parseGoVersionOutput([]byte(tt.args)); got != tt.want {
+			if got := ParseGoVersionOutput(tt.args); got != tt.want {
 				t.Errorf("parseGoVersionOutput() = %v, want %v", got, tt.want)
 			}
 		})

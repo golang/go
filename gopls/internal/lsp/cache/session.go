@@ -286,6 +286,9 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	// Save one reference in the view.
 	v.releaseSnapshot = v.snapshot.Acquire()
 
+	// Record the environment of the newly created view in the log.
+	event.Log(ctx, viewEnv(v))
+
 	// Initialize the view without blocking.
 	initCtx, initCancel := context.WithCancel(xcontext.Detach(ctx))
 	v.initCancelFirstAttempt = initCancel

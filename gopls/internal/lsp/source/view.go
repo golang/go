@@ -74,9 +74,6 @@ type Snapshot interface {
 	// and their GOPATH.
 	ValidBuildConfiguration() bool
 
-	// WriteEnv writes the view-specific environment to the io.Writer.
-	WriteEnv(ctx context.Context, w io.Writer) error
-
 	// FindFile returns the FileHandle for the given URI, if it is already
 	// in the given snapshot.
 	FindFile(uri span.URI) VersionedFileHandle
