@@ -1577,7 +1577,7 @@ func (db *DB) Prepare(query string) (*Stmt, error) {
 	return db.PrepareContext(context.Background(), query)
 }
 
-func (db *DB) prepare(ctx context.Context, query string, strategy connReuseStrategy) (*Stmt, error) {
+func (db *DB) prepare(ctx context.Context, query string, strategy connReuseStrategy) (Stmt, error) {
 	// TODO: check if db.driver supports an optional
 	// driver.Preparer interface and call that instead, if so,
 	// otherwise we make a prepared statement that's bound
@@ -1594,7 +1594,7 @@ func (db *DB) prepare(ctx context.Context, query string, strategy connReuseStrat
 // prepareDC prepares a query on the driverConn and calls release before
 // returning. When cg == nil it implies that a connection pool is used, and
 // when cg != nil only a single driver connection is used.
-func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error), cg stmtConnGrabber, query string) (*Stmt, error) {
+func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error), cg stmtConnGrabber, query string) (Stmt, error) {
 	var ds *driverStmt
 	var err error
 	defer func() {
@@ -1606,7 +1606,7 @@ func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error)
 	if err != nil {
 		return nil, err
 	}
-	stmt := &Stmt{
+	stmt_ := stmt{
 		db:    db,
 		query: query,
 		cg:    cg,
@@ -1614,14 +1614,15 @@ func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error)
 	}
 
 	// When cg == nil this statement will need to keep track of various
-	// connections they are prepared on and record the stmt dependency on
+	// connections they are prepared on and record the stmt_ dependency on
 	// the DB.
 	if cg == nil {
-		stmt.css = []connStmt{{dc, ds}}
-		stmt.lastNumClosed = db.numClosed.Load()
-		db.addDep(stmt, stmt)
+		stmt_.css = []connStmt{{dc, ds}}
+		stmt_.lastNumClosed = atomic.LoadUint64(&db.numClosed)
+		db.addDep(stmt_, stmt_)
 	}
-	return stmt, nil
+
+	return &stmt_, nil
 }
 
 // ExecContext executes a query without returning any rows.
@@ -2018,7 +2019,7 @@ func (c *Conn) QueryRowContext(ctx context.Context, query string, args ...any) *
 //
 // The provided context is used for the preparation of the statement, not for the
 // execution of the statement.
-func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
+func (c *Conn) PrepareContext(ctx context.Context, query string) (Stmt, error) {
 	dc, release, err := c.grabConn(ctx)
 	if err != nil {
 		return nil, err
@@ -2562,7 +2563,7 @@ var (
 // If a Stmt is prepared on a DB, it will remain usable for the lifetime of the
 // DB. When the Stmt needs to execute on a new underlying connection, it will
 // prepare itself on the new connection automatically.
-type Stmt struct {
+type stmt struct {
 	// Immutable:
 	db        *DB    // where we came from
 	query     string // that created the Stmt
@@ -2600,9 +2601,19 @@ type Stmt struct {
 	lastNumClosed uint64
 }
 
+type Stmt interface {
+	Close() error
+	Exec(args ...any) (Result, error)
+	ExecContext(ctx context.Context, args ...any) (Result, error)
+	Query(args ...any) (*Rows, error)
+	QueryContext(ctx context.Context, args ...any) (*Rows, error)
+	QueryRow(args ...any) *Row
+	QueryRowContext(ctx context.Context, args ...any) *Row
+}
+
 // ExecContext executes a prepared statement with the given arguments and
 // returns a Result summarizing the effect of the statement.
-func (s *Stmt) ExecContext(ctx context.Context, args ...any) (Result, error) {
+func (s *stmt) ExecContext(ctx context.Context, args ...any) (Result, error) {
 	s.closemu.RLock()
 	defer s.closemu.RUnlock()
 
@@ -2626,7 +2637,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...any) (Result, error) {
 //
 // Exec uses context.Background internally; to specify the context, use
 // ExecContext.
-func (s *Stmt) Exec(args ...any) (Result, error) {
+func (s *stmt) Exec(args ...any) (Result, error) {
 	return s.ExecContext(context.Background(), args...)
 }
 
@@ -2650,7 +2661,7 @@ func resultFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, ar
 //
 // To avoid lock contention on DB.mu, we do it only when
 // s.db.numClosed - s.lastNum is large enough.
-func (s *Stmt) removeClosedStmtLocked() {
+func (s *stmt) removeClosedStmtLocked() {
 	t := len(s.css)/2 + 1
 	if t > 10 {
 		t = 10
@@ -2675,7 +2686,7 @@ func (s *Stmt) removeClosedStmtLocked() {
 // connStmt returns a free driver connection on which to execute the
 // statement, a function to call to release the connection, and a
 // statement bound to that connection.
-func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *driverConn, releaseConn func(error), ds *driverStmt, err error) {
+func (s *stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *driverConn, releaseConn func(error), ds *driverStmt, err error) {
 	if err = s.stickyErr; err != nil {
 		return
 	}
@@ -2728,7 +2739,7 @@ func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *dr
 
 // prepareOnConnLocked prepares the query in Stmt s on dc and adds it to the list of
 // open connStmt on the statement. It assumes the caller is holding the lock on dc.
-func (s *Stmt) prepareOnConnLocked(ctx context.Context, dc *driverConn) (*driverStmt, error) {
+func (s *stmt) prepareOnConnLocked(ctx context.Context, dc *driverConn) (*driverStmt, error) {
 	si, err := dc.prepareLocked(ctx, s.cg, s.query)
 	if err != nil {
 		return nil, err
@@ -2742,7 +2753,7 @@ func (s *Stmt) prepareOnConnLocked(ctx context.Context, dc *driverConn) (*driver
 
 // QueryContext executes a prepared query statement with the given arguments
 // and returns the query results as a *Rows.
-func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
+func (s *stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 	s.closemu.RLock()
 	defer s.closemu.RUnlock()
 
@@ -2794,7 +2805,7 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 //
 // Query uses context.Background internally; to specify the context, use
 // QueryContext.
-func (s *Stmt) Query(args ...any) (*Rows, error) {
+func (s *stmt) Query(args ...any) (*Rows, error) {
 	return s.QueryContext(context.Background(), args...)
 }
 
@@ -2814,7 +2825,7 @@ func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, arg
 // If the query selects no rows, the *Row's Scan will return ErrNoRows.
 // Otherwise, the *Row's Scan scans the first selected row and discards
 // the rest.
-func (s *Stmt) QueryRowContext(ctx context.Context, args ...any) *Row {
+func (s *stmt) QueryRowContext(ctx context.Context, args ...any) *Row {
 	rows, err := s.QueryContext(ctx, args...)
 	if err != nil {
 		return &Row{err: err}
@@ -2836,12 +2847,12 @@ func (s *Stmt) QueryRowContext(ctx context.Context, args ...any) *Row {
 //
 // QueryRow uses context.Background internally; to specify the context, use
 // QueryRowContext.
-func (s *Stmt) QueryRow(args ...any) *Row {
+func (s *stmt) QueryRow(args ...any) *Row {
 	return s.QueryRowContext(context.Background(), args...)
 }
 
 // Close closes the statement.
-func (s *Stmt) Close() error {
+func (s *stmt) Close() error {
 	s.closemu.Lock()
 	defer s.closemu.Unlock()
 
@@ -2871,7 +2882,7 @@ func (s *Stmt) Close() error {
 	return txds.Close()
 }
 
-func (s *Stmt) finalClose() error {
+func (s *stmt) finalClose() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.css != nil {
