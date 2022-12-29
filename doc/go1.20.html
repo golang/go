@@ -389,13 +389,13 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p><!-- https://go.dev/issue/52221, CL 398914, CL 450335, https://go.dev/issue/56052 -->
   Go 1.20 adds a new <a href="/pkg/crypto/ecdh/"><code>crypto/ecdh</code></a> package
-  to provide direct support for Elliptic Curve Diffie-Hellman key exchange
+  to provide explicit support for Elliptic Curve Diffie-Hellman key exchanges
   over NIST curves and Curve25519.
 </p>
 <p>
-  Programs should prefer to use <code>crypto/ecdh</code>
-  or <a href="/pkg/crypto/ecdsa/"><code>crypto/ecdsa</code></a>
-  instead of the lower-level functionality in <a href="/pkg/crypto/elliptic/"><code>crypto/elliptic</code></a>.
+  Programs should use <code>crypto/ecdh</code> instead of the lower-level functionality in
+  <a href="/pkg/crypto/elliptic/"><code>crypto/elliptic</code></a> for ECDH, and
+  third-party modules for more advanced use cases.
 </p>
 
 <h3 id="errors">Wrapping multiple errors</h3>
@@ -583,6 +583,11 @@ proxyHandler := &httputil.ReverseProxy{
 
 <dl id="crypto/ecdsa"><dt><a href="/pkg/crypto/ecdsa/">crypto/ecdsa</a></dt>
   <dd>
+    <p><!-- CL 353849 -->
+      When using supported curves, all operations are now implemented in constant time.
+      This led to an increase in CPU time between 5% and 30%, mostly affecting P-384 and P-521.
+    </p>
+
     <p><!-- https://go.dev/issue/56088, CL 450816 -->
       The new <a href="/pkg/crypto/ecdsa/#PrivateKey.ECDH"><code>PrivateKey.ECDH</code></a> method
       converts an <code>ecdsa.PrivateKey</code> to an <code>ecdh.PrivateKey</code>.
@@ -609,25 +614,21 @@ proxyHandler := &httputil.ReverseProxy{
   </dd>
 </dl><!-- crypto/ed25519 -->
 
-<dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
-  <dd>
-    <p><!-- https://go.dev/issue/34648 -->
-      Use of custom <a href="/pkg/crypto/elliptic/#Curve"><code>Curve</code></a> implementations
-      not provided by this package (that is, curves other than
-      <a href="/pkg/crypto/elliptic/#P224"><code>P224</code></a>,
-      <a href="/pkg/crypto/elliptic/#P256"><code>P256</code></a>,
-      <a href="/pkg/crypto/elliptic/#P384"><code>P384</code></a>, and
-      <a href="/pkg/crypto/elliptic/#P521"><code>P521</code></a>)
-      is deprecated.
-    </p>
-  </dd>
-</dl><!-- crypto/elliptic -->
-
 <dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
   <dd>
     <p><!-- CL 418874, https://go.dev/issue/19974 -->
       The new field <a href="/pkg/crypto/rsa/#OAEPOptions.MGFHash"><code>OAEPOptions.MGFHash</code></a>
-      allows configuring the MGF1 hash separately for OAEP encryption.
+      allows configuring the MGF1 hash separately for OAEP decryption.
+    </p>
+
+    <p><!-- https://go.dev/issue/20654 -->
+      crypto/rsa now uses a new, safer, constant-time backend. This causes a CPU
+      runtime increase for decryption operations between approximately 15%
+      (RSA-2048 on amd64) and 45% (RSA-4096 on arm64), and more on 32-bit architectures.
+      Encryption operations are approximately 20x slower than before (but still 5-10x faster than decryption).
+      Performance is expected to improve in future releases.
+      Programs must not modify or manually generate the fields of
+      <a href="/pkg/crypto/rsa/#PrecomputedValues"><code>PrecomputedValues</code></a>.
     </p>
   </dd>
 </dl><!-- crypto/rsa -->
@@ -643,9 +644,9 @@ proxyHandler := &httputil.ReverseProxy{
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
-    <p><!-- CL 426455 -->
-      The TLS client now shares parsed certificates across all clients actively using that certificate.
-      The savings can be significant in programs that make many concurrent connections to a
+    <p><!-- CL 426455, CL 427155, CL 426454, https://go.dev/issue/46035 -->
+      Parsed certificates are now shared across all clients actively using that certificate.
+      The memory savings can be significant in programs that make many concurrent connections to a
       server or collection of servers sharing any part of their certificate chains.
     </p>
 
@@ -660,22 +661,22 @@ proxyHandler := &httputil.ReverseProxy{
 
 <dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
   <dd>
-    <p><!-- CL 450816 -->
-      <a href="/pkg/crypto/x509/#CreateCertificateRequest"><code>CreateCertificateRequest</code></a>
+    <p><!-- CL 450816, CL 450815 -->
+      <a href="/pkg/crypto/x509/#ParsePKCS8PrivateKey"><code>ParsePKCS8PrivateKey</code></a>
       and
       <a href="/pkg/crypto/x509/#MarshalPKCS8PrivateKey"><code>MarshalPKCS8PrivateKey</code></a>
       now support keys of type <a href="/pkg/crypto/ecdh.PrivateKey"><code>*crypto/ecdh.PrivateKey</code></a>.
-      <a href="/pkg/crypto/x509/#CreateCertificate"><code>CreateCertificate</code></a>
+      <a href="/pkg/crypto/x509/#ParsePKIXPublicKey"><code>ParsePKIXPublicKey</code></a>
       and
       <a href="/pkg/crypto/x509/#MarshalPKIXPublicKey"><code>MarshalPKIXPublicKey</code></a>
       now support keys of type <a href="/pkg/crypto/ecdh.PublicKey"><code>*crypto/ecdh.PublicKey</code></a>.
-      X.509 unmarshaling continues to unmarshal elliptic curve keys into
+      Parsing NIST curve keys still returns values of type
       <code>*ecdsa.PublicKey</code> and <code>*ecdsa.PrivateKey</code>.
-      Use their new <code>ECDH</code> methods to convert to the <code>crypto/ecdh</code> form.
+      Use their new <code>ECDH</code> methods to convert to the <code>crypto/ecdh</code> types.
     </p>
     <p><!-- CL 449235 -->
       The new <a href="/pkg/crypto/x509/#SetFallbackRoots"><code>SetFallbackRoots</code></a>
-      function allows a program to define a set of fallback root certificates in case the
+      function allows a program to define a set of fallback root certificates in case an
       operating system verifier or standard platform root bundle is unavailable at runtime.
       It will most commonly be used with a new package, <a href="/pkg/golang.org/x/crypto/x509roots/fallback">golang.org/x/crypto/x509roots/fallback</a>,
       which will provide an up to date root bundle.
@@ -831,6 +832,20 @@ proxyHandler := &httputil.ReverseProxy{
     </p>
   </dd>
 </dl><!-- io -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/52182 -->
+      The <a href="/pkg/math/big/">math/big</a> package's wide scope and
+      input-dependent timing make it ill-suited for implementing cryptography.
+      The cryptography packages in the standard library no longer call non-trivial
+      <a href="/pkg/math/big#Int">Int</a> methods on attacker-controlled inputs.
+      In the future, the determination of whether a bug in math/big is
+      considered a security vulnerability will depend on its wider impact on the
+      standard library.
+    </p>
+  </dd>
+</dl><!-- math/big -->
 
 <dl id="math/rand"><dt><a href="/pkg/math/rand/">math/rand</a></dt>
   <dd>
