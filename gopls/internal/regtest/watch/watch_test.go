@@ -572,16 +572,16 @@ func main() {
 }
 
 // Reproduces golang/go#40340.
-func TestSwitchFromGOPATHToModules(t *testing.T) {
+func TestSwitchFromGOPATHToModuleMode(t *testing.T) {
 	const files = `
 -- foo/blah/blah.go --
 package blah
 
 const Name = ""
--- foo/main.go --
+-- main.go --
 package main
 
-import "blah"
+import "foo/blah"
 
 func main() {
 	_ = blah.Name
@@ -590,16 +590,17 @@ func main() {
 	WithOptions(
 		InGOPATH(),
 		EnvVars{"GO111MODULE": "auto"},
-		Modes(Experimental), // module is in a subdirectory
 	).Run(t, files, func(t *testing.T, env *Env) {
-		env.OpenFile("foo/main.go")
-		env.Await(env.DiagnosticAtRegexp("foo/main.go", `"blah"`))
+		env.OpenFile("main.go")
+		env.AfterChange(
+			EmptyDiagnostics("main.go"),
+		)
 		if err := env.Sandbox.RunGoCommand(env.Ctx, "foo", "mod", []string{"init", "mod.com"}, true); err != nil {
 			t.Fatal(err)
 		}
-		env.RegexpReplace("foo/main.go", `"blah"`, `"mod.com/blah"`)
-		env.Await(
-			EmptyDiagnostics("foo/main.go"),
+		env.RegexpReplace("main.go", `"foo/blah"`, `"mod.com/foo/blah"`)
+		env.AfterChange(
+			EmptyDiagnostics("main.go"),
 		)
 	})
 }

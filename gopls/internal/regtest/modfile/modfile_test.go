@@ -763,7 +763,15 @@ func main() {
 }
 
 func TestMultiModuleModDiagnostics(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // uses go.work
 	const mod = `
+-- go.work --
+go 1.18
+
+use (
+	a
+	b
+)
 -- a/go.mod --
 module moda.com
 
@@ -796,7 +804,6 @@ func main() {
 `
 	WithOptions(
 		ProxyFiles(workspaceProxy),
-		Modes(Experimental),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexpWithMessage("a/go.mod", "example.com v1.2.3", "is not used"),

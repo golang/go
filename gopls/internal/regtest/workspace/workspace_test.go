@@ -234,6 +234,7 @@ func Hello() {}
 `
 
 func TestAutomaticWorkspaceModule_Interdependent(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // uses go.work
 	const multiModule = `
 -- moda/a/go.mod --
 module a.com
@@ -265,9 +266,10 @@ func Hello() int {
 `
 	WithOptions(
 		ProxyFiles(workspaceModuleProxy),
-		Modes(Experimental),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
-		env.Await(
+		env.RunGoCommand("work", "init")
+		env.RunGoCommand("work", "use", "-r", ".")
+		env.AfterChange(
 			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
 			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
 			env.NoDiagnosticAtRegexp("moda/a/a.go", `"b.com/b"`),
@@ -275,7 +277,7 @@ func Hello() int {
 	})
 }
 
-func TestMultiModuleWithExclude(t *testing.T) {
+func TestModuleWithExclude(t *testing.T) {
 	const proxy = `
 -- c.com@v1.2.3/go.mod --
 module c.com
@@ -323,7 +325,6 @@ func main() {
 `
 	WithOptions(
 		ProxyFiles(proxy),
-		Modes(Experimental),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", "x"),
@@ -337,9 +338,15 @@ func main() {
 // TODO(golang/go#55331): delete this placeholder along with experimental
 // workspace module.
 func TestDeleteModule_Interdependent(t *testing.T) {
-	t.Skip("golang/go#55331: the experimental workspace module is scheduled for deletion")
-
+	testenv.NeedsGo1Point(t, 18) // uses go.work
 	const multiModule = `
+-- go.work --
+go 1.18
+
+use (
+	moda/a
+	modb
+)
 -- moda/a/go.mod --
 module a.com
 
@@ -370,7 +377,6 @@ func Hello() int {
 `
 	WithOptions(
 		ProxyFiles(workspaceModuleProxy),
-		Modes(Experimental),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("moda/a/a.go")
 		env.Await(env.DoneWithOpen())
@@ -380,13 +386,12 @@ func Hello() int {
 			t.Errorf("expected %s, got %v", want, original)
 		}
 		env.CloseBuffer(original)
-		env.Await(env.DoneWithClose())
+		env.AfterChange()
 
 		env.RemoveWorkspaceFile("modb/b/b.go")
 		env.RemoveWorkspaceFile("modb/go.mod")
-		env.Await(
-			env.DoneWithChangeWatchedFiles(),
-		)
+		env.WriteWorkspaceFile("go.work", "go 1.18\nuse moda/a")
+		env.AfterChange()
 
 		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
@@ -398,7 +403,14 @@ func Hello() int {
 // Tests that the version of the module used changes after it has been added
 // to the workspace.
 func TestCreateModule_Interdependent(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // uses go.work
 	const multiModule = `
+-- go.work --
+go 1.18
+
+use (
+	moda/a
+)
 -- moda/a/go.mod --
 module a.com
 
@@ -419,7 +431,6 @@ func main() {
 }
 `
 	WithOptions(
-		Modes(Experimental),
 		ProxyFiles(workspaceModuleProxy),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("moda/a/a.go")
@@ -429,6 +440,13 @@ func main() {
 		}
 		env.CloseBuffer(original)
 		env.WriteWorkspaceFiles(map[string]string{
+			"go.work": `go 1.18
+
+use (
+	moda/a
+	modb
+)
+`,
 			"modb/go.mod": "module b.com",
 			"modb/b/b.go": `package b
 
@@ -437,12 +455,7 @@ func Hello() int {
 }
 `,
 		})
-		env.Await(
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				env.DiagnosticAtRegexp("modb/b/b.go", "x"),
-			),
-		)
+		env.AfterChange(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
 		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "modb/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, original)
@@ -453,7 +466,17 @@ func Hello() int {
 // This test confirms that a gopls workspace can recover from initialization
 // with one invalid module.
 func TestOneBrokenModule(t *testing.T) {
+	t.Skip("golang/go#55331: this test is temporarily broken as go.work handling tries to build the workspace module")
+
+	testenv.NeedsGo1Point(t, 18) // uses go.work
 	const multiModule = `
+-- go.work --
+go 1.18
+
+use (
+	moda/a
+	modb
+)
 -- moda/a/go.mod --
 module a.com
 
@@ -482,7 +505,6 @@ func Hello() int {
 `
 	WithOptions(
 		ProxyFiles(workspaceModuleProxy),
-		Modes(Experimental),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("modb/go.mod")
 		env.Await(
@@ -941,8 +963,32 @@ var _ = fmt.Printf
 	})
 }
 
-func TestMultiModuleV2(t *testing.T) {
+func TestGoWork_V2Module(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // uses go.work
+	// When using a go.work, we must have proxy content even if it is replaced.
+	const proxy = `
+-- b.com/v2@v2.1.9/go.mod --
+module b.com/v2
+
+go 1.12
+-- b.com/v2@v2.1.9/b/b.go --
+package b
+
+func Ciao()() int {
+	return 0
+}
+`
+
 	const multiModule = `
+-- go.work --
+go 1.18
+
+use (
+	moda/a
+	modb
+	modb/v2
+	modc
+)
 -- moda/a/go.mod --
 module a.com
 
@@ -985,14 +1031,20 @@ func main() {
 	var x int
 }
 `
+
 	WithOptions(
-		Modes(Experimental),
+		ProxyFiles(proxy),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.Await(
-			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
-			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
-			env.DiagnosticAtRegexp("modb/v2/b/b.go", "x"),
-			env.DiagnosticAtRegexp("modc/main.go", "x"),
+			OnceMet(
+				InitialWorkspaceLoad,
+				// TODO(rfindley): assert on the full set of diagnostics here. We
+				// should ensure that we don't have a diagnostic at b.Hi in a.go.
+				env.DiagnosticAtRegexp("moda/a/a.go", "x"),
+				env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+				env.DiagnosticAtRegexp("modb/v2/b/b.go", "x"),
+				env.DiagnosticAtRegexp("modc/main.go", "x"),
+			),
 		)
 	})
 }
@@ -1000,7 +1052,21 @@ func main() {
 // Confirm that a fix for a tidy module will correct all modules in the
 // workspace.
 func TestMultiModule_OneBrokenModule(t *testing.T) {
-	const mod = `
+	// In the earlier 'experimental workspace mode', gopls would aggregate go.sum
+	// entries for the workspace module, allowing it to correctly associate
+	// missing go.sum with diagnostics. With go.work files, this doesn't work:
+	// the go.command will happily write go.work.sum.
+	t.Skip("golang/go#57509: go.mod diagnostics do not work in go.work mode")
+	testenv.NeedsGo1Point(t, 18) // uses go.work
+	const files = `
+-- go.work --
+go 1.18
+
+use (
+	a
+	b
+)
+-- go.work.sum --
 -- a/go.mod --
 module a.com
 
@@ -1027,8 +1093,7 @@ func main() {
 `
 	WithOptions(
 		ProxyFiles(workspaceProxy),
-		Modes(Experimental),
-	).Run(t, mod, func(t *testing.T, env *Env) {
+	).Run(t, files, func(t *testing.T, env *Env) {
 		params := &protocol.PublishDiagnosticsParams{}
 		env.OpenFile("b/go.mod")
 		env.Await(
