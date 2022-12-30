@@ -115,11 +115,6 @@ var nil Type // Type must be a pointer, channel, func, interface, map, or slice 
 // invocation.
 type Type int
 
-// Type1 is here for the purposes of documentation only. It is a stand-in
-// for any Go type, but represents the same type for any given function
-// invocation.
-type Type1 int
-
 // IntegerType is here for the purposes of documentation only. It is a stand-in
 // for any integer type: int, uint, int8 etc.
 type IntegerType int
