@@ -589,6 +589,7 @@ func main() {
 `
 	WithOptions(
 		InGOPATH(),
+		Modes(Default), // golang/go#57521: this test is temporarily failing in 'experimental' mode
 		EnvVars{"GO111MODULE": "auto"},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
