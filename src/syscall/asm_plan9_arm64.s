@@ -189,6 +189,8 @@ TEXT ·seek(SB),NOSPLIT,$168-56
 	MOVD	$·emptystring+0(SB), R2
 	B	syscallok
 syscallerr:
+	MOVD	R0, newoffset+32(FP)
+
 	MOVD	$errbuf-128(SP), R2
 	MOVD	$128, R3
 
