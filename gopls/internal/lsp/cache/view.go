@@ -64,19 +64,16 @@ type View struct {
 	explicitGowork       span.URI // explicitGowork: if non-empty, a user-specified go.work location (TODO: deprecate)
 	workspaceInformation          // grab-bag of Go environment information (TODO: cleanup)
 
-	// mu protects most mutable state of the view.
-	//
-	// TODO(rfindley): specify exactly which mutable state is guarded.
-	mu sync.Mutex
-
 	importsState *importsState
 
 	// moduleUpgrades tracks known upgrades for module paths in each modfile.
 	// Each modfile has a map of module name to upgrade version.
-	moduleUpgrades map[span.URI]map[string]string
+	moduleUpgradesMu sync.Mutex
+	moduleUpgrades   map[span.URI]map[string]string
 
 	// vulns maps each go.mod file's URI to its known vulnerabilities.
-	vulns map[span.URI]*govulncheck.Result
+	vulnsMu sync.Mutex
+	vulns   map[span.URI]*govulncheck.Result
 
 	// filesByURI maps URIs to the canonical URI for the file it denotes.
 	// We also keep a set of candidates for a given basename
@@ -997,8 +994,8 @@ func (v *View) IsGoPrivatePath(target string) bool {
 }
 
 func (v *View) ModuleUpgrades(modfile span.URI) map[string]string {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.moduleUpgradesMu.Lock()
+	defer v.moduleUpgradesMu.Unlock()
 
 	upgrades := map[string]string{}
 	for mod, ver := range v.moduleUpgrades[modfile] {
@@ -1013,8 +1010,8 @@ func (v *View) RegisterModuleUpgrades(modfile span.URI, upgrades map[string]stri
 		return
 	}
 
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.moduleUpgradesMu.Lock()
+	defer v.moduleUpgradesMu.Unlock()
 
 	m := v.moduleUpgrades[modfile]
 	if m == nil {
@@ -1027,8 +1024,8 @@ func (v *View) RegisterModuleUpgrades(modfile span.URI, upgrades map[string]stri
 }
 
 func (v *View) ClearModuleUpgrades(modfile span.URI) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.moduleUpgradesMu.Lock()
+	defer v.moduleUpgradesMu.Unlock()
 
 	delete(v.moduleUpgrades, modfile)
 }
@@ -1039,8 +1036,8 @@ var timeNow = time.Now                        // for testing
 func (v *View) Vulnerabilities(modfiles ...span.URI) map[span.URI]*govulncheck.Result {
 	m := make(map[span.URI]*govulncheck.Result)
 	now := timeNow()
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.vulnsMu.Lock()
+	defer v.vulnsMu.Unlock()
 
 	if len(modfiles) == 0 { // empty means all modfiles
 		for modfile := range v.vulns {
@@ -1059,8 +1056,8 @@ func (v *View) Vulnerabilities(modfiles ...span.URI) map[span.URI]*govulncheck.R
 }
 
 func (v *View) SetVulnerabilities(modfile span.URI, vulns *govulncheck.Result) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.vulnsMu.Lock()
+	defer v.vulnsMu.Unlock()
 
 	v.vulns[modfile] = vulns
 }
