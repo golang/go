@@ -1130,14 +1130,6 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 	}, nil
 }
 
-func factType(fact analysis.Fact) reflect.Type {
-	t := reflect.TypeOf(fact)
-	if t.Kind() != reflect.Ptr {
-		panic(fmt.Sprintf("invalid Fact type: got %T, want pointer", fact))
-	}
-	return t
-}
-
 // requiredAnalyzers returns the transitive closure of required analyzers in preorder.
 func requiredAnalyzers(analyzers []*analysis.Analyzer) []*analysis.Analyzer {
 	var result []*analysis.Analyzer

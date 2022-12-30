@@ -1394,31 +1394,6 @@ func (r *OptionResult) setStringSlice(s *[]string) {
 	}
 }
 
-// EnabledAnalyzers returns all of the analyzers enabled by the options.
-func EnabledAnalyzers(options *Options) (analyzers []*Analyzer) {
-	for _, a := range options.DefaultAnalyzers {
-		if a.IsEnabled(options) {
-			analyzers = append(analyzers, a)
-		}
-	}
-	for _, a := range options.TypeErrorAnalyzers {
-		if a.IsEnabled(options) {
-			analyzers = append(analyzers, a)
-		}
-	}
-	for _, a := range options.ConvenienceAnalyzers {
-		if a.IsEnabled(options) {
-			analyzers = append(analyzers, a)
-		}
-	}
-	for _, a := range options.StaticcheckAnalyzers {
-		if a.IsEnabled(options) {
-			analyzers = append(analyzers, a)
-		}
-	}
-	return analyzers
-}
-
 func typeErrorAnalyzers() map[string]*Analyzer {
 	return map[string]*Analyzer{
 		fillreturns.Analyzer.Name: {
