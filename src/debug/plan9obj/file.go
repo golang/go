@@ -145,7 +145,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if _, err := r.ReadAt(magic[:], 0); err != nil {
 		return nil, err
 	}
-	_, err := parseMagic(magic[:])
+	m, err := parseMagic(magic[:])
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,11 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			return nil, err
 		}
 		f.PtrSize = 8
-		f.LoadAddress = 0x200000
+		if m == MagicARM64 {
+			f.LoadAddress = 0x10000
+		} else {
+			f.LoadAddress = 0x200000
+		}
 		f.HdrSize += 8
 	}
 
