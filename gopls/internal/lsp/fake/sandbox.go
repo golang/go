@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/tools/gopls/internal/robustio"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/robustio"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
 )

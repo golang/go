@@ -31,7 +31,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/tools/gopls/internal/robustio"
+	"golang.org/x/tools/internal/robustio"
 )
 
 // Get retrieves from the cache and returns a newly allocated

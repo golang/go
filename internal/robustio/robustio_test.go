@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"golang.org/x/tools/gopls/internal/robustio"
+	"golang.org/x/tools/internal/robustio"
 )
 
 func TestFileID(t *testing.T) {
