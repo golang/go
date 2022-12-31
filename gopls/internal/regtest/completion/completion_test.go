@@ -207,7 +207,7 @@ package
 					}
 				}
 
-				diff := compareCompletionResults(tc.want, completions.Items)
+				diff := compareCompletionLabels(tc.want, completions.Items)
 				if diff != "" {
 					t.Error(diff)
 				}
@@ -234,14 +234,14 @@ package ma
 			Column: 10,
 		})
 
-		diff := compareCompletionResults(want, completions.Items)
+		diff := compareCompletionLabels(want, completions.Items)
 		if diff != "" {
 			t.Fatal(diff)
 		}
 	})
 }
 
-func compareCompletionResults(want []string, gotItems []protocol.CompletionItem) string {
+func compareCompletionLabels(want []string, gotItems []protocol.CompletionItem) string {
 	if len(gotItems) != len(want) {
 		return fmt.Sprintf("got %v completion(s), want %v", len(gotItems), len(want))
 	}
@@ -391,7 +391,7 @@ type S struct {
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo.go")
 		completions := env.Completion("foo.go", env.RegexpSearch("foo.go", `if s\.()`))
-		diff := compareCompletionResults([]string{"i"}, completions.Items)
+		diff := compareCompletionLabels([]string{"i"}, completions.Items)
 		if diff != "" {
 			t.Fatal(diff)
 		}
@@ -451,7 +451,7 @@ func _() {
 		}
 		for _, tt := range tests {
 			completions := env.Completion("main.go", env.RegexpSearch("main.go", tt.re))
-			diff := compareCompletionResults(tt.want, completions.Items)
+			diff := compareCompletionLabels(tt.want, completions.Items)
 			if diff != "" {
 				t.Errorf("%s: %s", tt.re, diff)
 			}
@@ -486,7 +486,7 @@ func doit() {
 		pos := env.RegexpSearch("prog.go", "if fooF")
 		pos.Column += len("if fooF")
 		completions := env.Completion("prog.go", pos)
-		diff := compareCompletionResults([]string{"fooFunc"}, completions.Items)
+		diff := compareCompletionLabels([]string{"fooFunc"}, completions.Items)
 		if diff != "" {
 			t.Error(diff)
 		}
@@ -496,7 +496,7 @@ func doit() {
 		pos = env.RegexpSearch("prog.go", "= badP")
 		pos.Column += len("= badP")
 		completions = env.Completion("prog.go", pos)
-		diff = compareCompletionResults([]string{"badPi"}, completions.Items)
+		diff = compareCompletionLabels([]string{"badPi"}, completions.Items)
 		if diff != "" {
 			t.Error(diff)
 		}
@@ -545,6 +545,7 @@ func main() {
 }
 
 func TestDefinition(t *testing.T) {
+	testenv.NeedsGo1Point(t, 17) // in go1.16, The FieldList in func x is not empty
 	stuff := `
 -- go.mod --
 module mod.com
@@ -552,43 +553,42 @@ module mod.com
 go 1.18
 -- a_test.go --
 package foo
-func T()
-func TestG()
-func TestM()
-func TestMi()
-func Ben()
-func Fuz()
-func Testx()
-func TestMe(t *testing.T)
-func BenchmarkFoo()
 `
-	// All those parentheses are needed for the completion code to see
-	// later lines as being definitions
 	tests := []struct {
-		pat  string
-		want []string
+		line string   // the sole line in the buffer after the package statement
+		pat  string   // the pattern to search for
+		want []string // expected competions
 	}{
-		{"T", []string{"TestXxx(t *testing.T)", "TestMain(m *testing.M)"}},
-		{"TestM", []string{"TestMain(m *testing.M)", "TestM(t *testing.T)"}},
-		{"TestMi", []string{"TestMi(t *testing.T)"}},
-		{"TestG", []string{"TestG(t *testing.T)"}},
-		{"B", []string{"BenchmarkXxx(b *testing.B)"}},
-		{"BenchmarkFoo", []string{"BenchmarkFoo(b *testing.B)"}},
-		{"F", []string{"FuzzXxx(f *testing.F)"}},
-		{"Testx", nil},
-		{"TestMe", []string{"TestMe"}},
+		{"func T", "T", []string{"TestXxx(t *testing.T)", "TestMain(m *testing.M)"}},
+		{"func T()", "T", []string{"TestMain", "Test"}},
+		{"func TestM", "TestM", []string{"TestMain(m *testing.M)", "TestM(t *testing.T)"}},
+		{"func TestM()", "TestM", []string{"TestMain"}},
+		{"func TestMi", "TestMi", []string{"TestMi(t *testing.T)"}},
+		{"func TestMi()", "TestMi", nil},
+		{"func TestG", "TestG", []string{"TestG(t *testing.T)"}},
+		{"func TestG(", "TestG", nil},
+		{"func Ben", "B", []string{"BenchmarkXxx(b *testing.B)"}},
+		{"func Ben(", "Ben", []string{"Benchmark"}},
+		{"func BenchmarkFoo", "BenchmarkFoo", []string{"BenchmarkFoo(b *testing.B)"}},
+		{"func BenchmarkFoo(", "BenchmarkFoo", nil},
+		{"func Fuz", "F", []string{"FuzzXxx(f *testing.F)"}},
+		{"func Fuz(", "Fuz", []string{"Fuzz"}},
+		{"func Testx", "Testx", nil},
+		{"func TestMe(t *testing.T)", "TestMe", nil},
+		{"func Te(t *testing.T)", "Te", []string{"TestMain", "Test"}},
 	}
 	fname := "a_test.go"
 	Run(t, stuff, func(t *testing.T, env *Env) {
 		env.OpenFile(fname)
 		env.Await(env.DoneWithOpen())
 		for _, tst := range tests {
+			env.SetBufferContent(fname, "package foo\n"+tst.line)
 			pos := env.RegexpSearch(fname, tst.pat)
 			pos.Column += len(tst.pat)
 			completions := env.Completion(fname, pos)
-			result := compareCompletionResults(tst.want, completions.Items)
+			result := compareCompletionLabels(tst.want, completions.Items)
 			if result != "" {
-				t.Errorf("%s failed: %s:%q", tst.pat, result, tst.want)
+				t.Errorf("\npat:%q line:%q failed: %s:%q", tst.pat, tst.line, result, tst.want)
 				for i, it := range completions.Items {
 					t.Errorf("%d got %q %q", i, it.Label, it.Detail)
 				}
@@ -651,7 +651,7 @@ func Bench
 package foo_test
 
 func Benchmark${1:Xxx}(b *testing.B) {
-$0
+	$0
 \}
 `,
 		},
@@ -675,7 +675,7 @@ $0
 			env.AcceptCompletion("foo_test.go", pos, completions.Items[0])
 			env.Await(env.DoneWithChange())
 			if buf := env.BufferText("foo_test.go"); buf != tst.after {
-				t.Errorf("incorrect completion: got %q, want %q", buf, tst.after)
+				t.Errorf("%s:incorrect completion: got %q, want %q", tst.name, buf, tst.after)
 			}
 		}
 	})
@@ -718,7 +718,7 @@ use ./dir/foobar/
 		}
 		for _, tt := range tests {
 			completions := env.Completion("go.work", env.RegexpSearch("go.work", tt.re))
-			diff := compareCompletionResults(tt.want, completions.Items)
+			diff := compareCompletionLabels(tt.want, completions.Items)
 			if diff != "" {
 				t.Errorf("%s: %s", tt.re, diff)
 			}

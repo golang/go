@@ -44,7 +44,7 @@ func (s SyncMap[XX,string]) g(v UU) {}
 			pos := env.RegexpSearch("main.go", tst.pat)
 			pos.Column += len(tst.pat)
 			completions := env.Completion("main.go", pos)
-			result := compareCompletionResults(tst.want, completions.Items)
+			result := compareCompletionLabels(tst.want, completions.Items)
 			if result != "" {
 				t.Errorf("%s: wanted %v", result, tst.want)
 				for i, g := range completions.Items {
@@ -111,7 +111,7 @@ func FuzzHex(f *testing.F) {
 			pos := env.RegexpSearch(test.file, test.pat)
 			pos.Column += test.offset // character user just typed? will type?
 			completions := env.Completion(test.file, pos)
-			result := compareCompletionResults(test.want, completions.Items)
+			result := compareCompletionLabels(test.want, completions.Items)
 			if result != "" {
 				t.Errorf("pat %q %q", test.pat, result)
 				for i, it := range completions.Items {

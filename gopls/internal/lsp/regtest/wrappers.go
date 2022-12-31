@@ -138,7 +138,7 @@ func (e *Env) RegexpSearch(name, re string) fake.Pos {
 		pos, err = e.Sandbox.Workdir.RegexpSearch(name, re)
 	}
 	if err != nil {
-		e.T.Fatalf("RegexpSearch: %v, %v", name, err)
+		e.T.Fatalf("RegexpSearch: %v, %v for %q", name, err, re)
 	}
 	return pos
 }

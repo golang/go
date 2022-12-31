@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/gopls/internal/span"
 )
 
-// some definitions can be completed
+// some function definitions in test files can be completed
 // So far, TestFoo(t *testing.T), TestMain(m *testing.M)
 // BenchmarkFoo(b *testing.B), FuzzFoo(f *testing.F)
 
@@ -28,7 +28,7 @@ func definition(path []ast.Node, obj types.Object, tokFile *token.File, fh sourc
 		return nil, nil // not a function at all
 	}
 	if !strings.HasSuffix(fh.URI().Filename(), "_test.go") {
-		return nil, nil
+		return nil, nil // not a test file
 	}
 
 	name := path[0].(*ast.Ident).Name
@@ -44,21 +44,49 @@ func definition(path []ast.Node, obj types.Object, tokFile *token.File, fh sourc
 		rng:     span.NewRange(tokFile, start, end),
 	}
 	var ans []CompletionItem
+	var hasParens bool
+	n, ok := path[1].(*ast.FuncDecl)
+	if !ok {
+		return nil, nil // can't happen
+	}
+	if n.Recv != nil {
+		return nil, nil // a method, not a function
+	}
+	t := n.Type.Params
+	if t.Closing != t.Opening {
+		hasParens = true
+	}
 
 	// Always suggest TestMain, if possible
 	if strings.HasPrefix("TestMain", name) {
-		ans = []CompletionItem{defItem("TestMain(m *testing.M)", obj)}
+		if hasParens {
+			ans = append(ans, defItem("TestMain", obj))
+		} else {
+			ans = append(ans, defItem("TestMain(m *testing.M)", obj))
+		}
 	}
 
 	// If a snippet is possible, suggest it
 	if strings.HasPrefix("Test", name) {
-		ans = append(ans, defSnippet("Test", "Xxx", "(t *testing.T)", obj))
+		if hasParens {
+			ans = append(ans, defItem("Test", obj))
+		} else {
+			ans = append(ans, defSnippet("Test", "(t *testing.T)", obj))
+		}
 		return ans, sel
 	} else if strings.HasPrefix("Benchmark", name) {
-		ans = append(ans, defSnippet("Benchmark", "Xxx", "(b *testing.B)", obj))
+		if hasParens {
+			ans = append(ans, defItem("Benchmark", obj))
+		} else {
+			ans = append(ans, defSnippet("Benchmark", "(b *testing.B)", obj))
+		}
 		return ans, sel
 	} else if strings.HasPrefix("Fuzz", name) {
-		ans = append(ans, defSnippet("Fuzz", "Xxx", "(f *testing.F)", obj))
+		if hasParens {
+			ans = append(ans, defItem("Fuzz", obj))
+		} else {
+			ans = append(ans, defSnippet("Fuzz", "(f *testing.F)", obj))
+		}
 		return ans, sel
 	}
 
@@ -73,9 +101,9 @@ func definition(path []ast.Node, obj types.Object, tokFile *token.File, fh sourc
 	return ans, sel
 }
 
+// defMatches returns text for defItem, never for defSnippet
 func defMatches(name, pat string, path []ast.Node, arg string) string {
-	idx := strings.Index(name, pat)
-	if idx < 0 {
+	if !strings.HasPrefix(name, pat) {
 		return ""
 	}
 	c, _ := utf8.DecodeRuneInString(name[len(pat):])
@@ -88,25 +116,27 @@ func defMatches(name, pat string, path []ast.Node, arg string) string {
 		return ""
 	}
 	fp := fd.Type.Params
-	if fp != nil && len(fp.List) > 0 {
-		// signature already there, minimal suggestion
-		return name
+	if len(fp.List) > 0 {
+		// signature already there, nothing to suggest
+		return ""
+	}
+	if fp.Opening != fp.Closing {
+		// nothing: completion works on words, not easy to insert arg
+		return ""
 	}
 	// suggesting signature too
 	return name + arg
 }
 
-func defSnippet(prefix, placeholder, suffix string, obj types.Object) CompletionItem {
+func defSnippet(prefix, suffix string, obj types.Object) CompletionItem {
 	var sn snippet.Builder
 	sn.WriteText(prefix)
-	if placeholder != "" {
-		sn.WritePlaceholder(func(b *snippet.Builder) { b.WriteText(placeholder) })
-	}
-	sn.WriteText(suffix + " {\n")
+	sn.WritePlaceholder(func(b *snippet.Builder) { b.WriteText("Xxx") })
+	sn.WriteText(suffix + " {\n\t")
 	sn.WriteFinalTabstop()
 	sn.WriteText("\n}")
 	return CompletionItem{
-		Label:         prefix + placeholder + suffix,
+		Label:         prefix + "Xxx" + suffix,
 		Detail:        "tab, type the rest of the name, then tab",
 		Kind:          protocol.FunctionCompletion,
 		Depth:         0,
@@ -123,7 +153,7 @@ func defItem(val string, obj types.Object) CompletionItem {
 		Kind:          protocol.FunctionCompletion,
 		Depth:         0,
 		Score:         9, // prefer the snippets when available
-		Documentation: "complete the parameter",
+		Documentation: "complete the function name",
 		obj:           obj,
 	}
 }
