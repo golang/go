@@ -1,15 +1,19 @@
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 #include "textflag.h"
 #include "funcdata.h"
 
 #define SYS_ERRSTR 41	/* from zsysnum_plan9.go */
-#define SYS_SEEK 39		/* from zsysnum_plan9.go */
+#define SYS_SEEK 39	/* from zsysnum_plan9.go */
 
 // System call support for plan9 on arm64
 
 //func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)
 TEXT	·Syscall(SB),NOSPLIT,$168-64
 	NO_LOCAL_POINTERS
-	BL		runtime·entersyscall(SB)
+	BL	runtime·entersyscall(SB)
 
 	MOVD	trap+0(FP), R0
 	MOVD	a1+8(FP), R2
@@ -21,7 +25,7 @@ TEXT	·Syscall(SB),NOSPLIT,$168-64
 	MOVD	R3, sysargs-184(FP)
 	MOVD	R4, sysargs-176(FP)
 
-	SVC		$0
+	SVC	$0
 
 	// put return values into r1, r2, err
 	MOVD	R0, r1+32(FP)
@@ -84,10 +88,10 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
 	MOVD	R0, r1+56(FP)
 	MOVD	R1, r2+64(FP)
 	MOVD	ZR, err+72(FP)
-	
+
 	// put error if needed
 	CMP	$-1, R0
-	BEQ syscall6err
+	BEQ	syscall6err
 	BL	runtime·exitsyscall(SB)
 	MOVD	$·emptystring+0(SB), R2
 	B	syscall6ok

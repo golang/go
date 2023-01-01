@@ -11,8 +11,6 @@
 // System call support for plan9 on arm
 
 //func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)
-// 144: frame size
-//  32: arg size (4 addrs and doubled?!)
 TEXT	·Syscall(SB),NOSPLIT,$144-32
 	NO_LOCAL_POINTERS
 	BL		runtime·entersyscall(SB)

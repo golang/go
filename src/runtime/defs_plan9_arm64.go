@@ -1,3 +1,7 @@
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package runtime
 
 const _PAGESHIFT = 16
@@ -72,28 +76,28 @@ func dumpregs(u *ureg) {
 	print("r10   ", hex(u.r10), "\n")
 	print("r11   ", hex(u.r11), "\n")
 	print("r12   ", hex(u.r12), "\n")
-	print("r13    ", hex(u.r13), "\n")
-	print("r14    ", hex(u.r14), "\n")
-	print("r15    ", hex(u.r15), "\n")
-	print("r16    ", hex(u.r16), "\n")
-	print("r17    ", hex(u.r17), "\n")
-	print("r18    ", hex(u.r18), "\n")
-	print("r19    ", hex(u.r19), "\n")
+	print("r13   ", hex(u.r13), "\n")
+	print("r14   ", hex(u.r14), "\n")
+	print("r15   ", hex(u.r15), "\n")
+	print("r16   ", hex(u.r16), "\n")
+	print("r17   ", hex(u.r17), "\n")
+	print("r18   ", hex(u.r18), "\n")
+	print("r19   ", hex(u.r19), "\n")
 	print("r20   ", hex(u.r20), "\n")
 	print("r21   ", hex(u.r21), "\n")
 	print("r22   ", hex(u.r22), "\n")
-	print("r23    ", hex(u.r23), "\n")
-	print("r24    ", hex(u.r24), "\n")
-	print("r25    ", hex(u.r25), "\n")
-	print("r26    ", hex(u.r26), "\n")
-	print("r27    ", hex(u.r27), "\n")
-	print("r28    ", hex(u.r28), "\n")
-	print("r29    ", hex(u.r29), "\n")
+	print("r23   ", hex(u.r23), "\n")
+	print("r24   ", hex(u.r24), "\n")
+	print("r25   ", hex(u.r25), "\n")
+	print("r26   ", hex(u.r26), "\n")
+	print("r27   ", hex(u.r27), "\n")
+	print("r28   ", hex(u.r28), "\n")
+	print("r29   ", hex(u.r29), "\n")
 	print("r30   ", hex(u.r30), "\n")
 	print("sp    ", hex(u.sp), "\n")
-	print("pc  ", hex(u.pc), "\n")
+	print("pc    ", hex(u.pc), "\n")
 	print("psr   ", hex(u.psr), "\n")
-	print("type    ", hex(u.typ), "\n")
+	print("type  ", hex(u.typ), "\n")
 }
 
 func sigpanictramp()
