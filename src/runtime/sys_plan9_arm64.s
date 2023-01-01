@@ -1,3 +1,7 @@
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
@@ -61,16 +65,14 @@ TEXT runtime·pread(SB),NOSPLIT,$0-36
 	MOVWU	R0, ret+32(FP)
 	RET
 
-//func pwrite(fd int64, buf unsafe.Pointer, nbytes int64, offset int64) int
+//func pwrite(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
 TEXT runtime·pwrite(SB),NOSPLIT,$0-36
 	MOVD    $SYS_PWRITE, R0
 	SVC	$0
 	MOVWU	R0, ret+32(FP)
 	RET
 
-//func seek(fd int64, offset int64, whence int32) int64
-// the actual syscall:
-// // int32 _seek(int64*, int32, int64, int32)
+//func seek(fd int32, offset int64, whence int32) int64
 TEXT runtime·seek(SB),NOSPLIT,$0-32
 	MOVD	$ret+24(FP), R0
 	MOVWU	fd+0(FP), R2
@@ -92,7 +94,7 @@ TEXT runtime·seek(SB),NOSPLIT,$0-32
 	MOVD	R0, ret+24(FP)
 	RET
 
-//func closefd(fd int64) int64
+//func closefd(fd int32) int32
 TEXT runtime·closefd(SB),NOSPLIT,$0-12
 	MOVD	$SYS_CLOSE, R0
 	SVC	$0
@@ -119,14 +121,14 @@ TEXT runtime·sleep(SB),NOSPLIT,$0-12
 	MOVD	R0, ret+8(FP)
 	RET
 
-//func plan9_semacquire(addr *uint64, block int64) int64
+//func plan9_semacquire(addr *uint32, block int32) int32
 TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0-20
 	MOVD	$SYS_SEMACQUIRE, R0
 	SVC	$0
 	MOVD	R0, ret+16(FP)
 	RET
 
-//func plan9_tsemacquire(addr *uint64, ms int32) int64
+//func plan9_tsemacquire(addr *uint32, ms int32) int32
 TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-20
 	MOVD	$SYS_TSEMACQUIRE, R0
 	SVC	$0
@@ -166,21 +168,21 @@ TEXT runtime·notify(SB),NOSPLIT,$0-12
 	MOVWU	R0, ret+8(FP)
 	RET
 
-//func noted(mode int64) int64
+//func noted(mode int32) int32
 TEXT runtime·noted(SB),NOSPLIT,$0-12
 	MOVD	$SYS_NOTED, R0
 	SVC	$0
 	MOVWU	R0, ret+8(FP)
 	RET
 
-//func plan9_semrelease(addr *uint64, count int64) int64
+//func plan9_semrelease(addr *uint32, count int32) int32
 TEXT runtime·plan9_semrelease(SB),NOSPLIT,$0-20
 	MOVD	$SYS_SEMRELEASE, R0
 	SVC	$0
 	MOVWU	R0, ret+16(FP)
 	RET
 
-//func rfork(flags int64) int64
+//func rfork(flags int32) int32
 TEXT runtime·rfork(SB),NOSPLIT,$0-12
 	MOVD	$SYS_RFORK, R0
 	SVC	$0
