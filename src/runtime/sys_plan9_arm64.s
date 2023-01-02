@@ -262,7 +262,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-16
 
 //func sigpanictramp()
 TEXT  runtime·sigpanictramp(SB),NOSPLIT,$0-0
-	MOVD.W	$0, -16(RSP)	// create a call frame on g0 (saved LR; keep 16-aligned)
+	MOVD.W	R0, -8(RSP)
 	B	runtime·sigpanic(SB)
 
 //func setfpmasks()
