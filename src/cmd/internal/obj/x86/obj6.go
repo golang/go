@@ -614,14 +614,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var bpsize int
 	if ctxt.Arch.Family == sys.AMD64 &&
 		!p.From.Sym.NoFrame() && // (1) below
-		!(autoffset == 0 && p.From.Sym.NoSplit() && ctxt.Headtype != objabi.Hwindows) && // (2) below
+		!(autoffset == 0 && p.From.Sym.NoSplit() && ctxt.Headtype != objabi.Hwindows && ctxt.Headtype != objabi.Hdarwin) && // (2) below
 		!(autoffset == 0 && !hasCall) { // (3) below
 		// Make room to save a base pointer.
 		// There are 2 cases we must avoid:
 		// 1) If noframe is set (which we do for functions which tail call).
 		// 2) Scary runtime internals which would be all messed up by frame pointers.
 		//    We detect these using a heuristic: frameless nosplit functions.
-		//    Windows does not use this heuristic anymore.
+		//    Windows and Darwin do not use this heuristic anymore.
 		//    TODO: Maybe someday we label them all with NOFRAME and get rid of this heuristic.
 		// For performance, we also want to avoid:
 		// 3) Frameless leaf functions
