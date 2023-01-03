@@ -1345,10 +1345,11 @@ func GCTestPointerClass(p unsafe.Pointer) string {
 const Raceenabled = raceenabled
 
 const (
-	GCBackgroundUtilization     = gcBackgroundUtilization
-	GCGoalUtilization           = gcGoalUtilization
-	DefaultHeapMinimum          = defaultHeapMinimum
-	MemoryLimitHeapGoalHeadroom = memoryLimitHeapGoalHeadroom
+	GCBackgroundUtilization            = gcBackgroundUtilization
+	GCGoalUtilization                  = gcGoalUtilization
+	DefaultHeapMinimum                 = defaultHeapMinimum
+	MemoryLimitHeapGoalHeadroomPercent = memoryLimitHeapGoalHeadroomPercent
+	MemoryLimitMinHeapGoalHeadroom     = memoryLimitMinHeapGoalHeadroom
 )
 
 type GCController struct {

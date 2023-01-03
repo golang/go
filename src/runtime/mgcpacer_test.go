@@ -417,7 +417,7 @@ func TestGcPacer(t *testing.T) {
 			length:        50,
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
-				if peak := c[n-1].heapPeak; peak >= (512<<20)-MemoryLimitHeapGoalHeadroom {
+				if peak := c[n-1].heapPeak; peak >= applyMemoryLimitHeapGoalHeadroom(512<<20) {
 					t.Errorf("peak heap size reaches heap limit: %d", peak)
 				}
 				if n >= 25 {
@@ -446,7 +446,7 @@ func TestGcPacer(t *testing.T) {
 			length:        50,
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
-				if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+				if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 					t.Errorf("heap goal is not the heap limit: %d", goal)
 				}
 				if n >= 25 {
@@ -510,7 +510,7 @@ func TestGcPacer(t *testing.T) {
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
 				if n < 10 {
-					if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+					if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 						t.Errorf("heap goal is not the heap limit: %d", goal)
 					}
 				}
@@ -550,7 +550,7 @@ func TestGcPacer(t *testing.T) {
 				n := len(c)
 				if n > 12 {
 					// We're trying to saturate the memory limit.
-					if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+					if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 						t.Errorf("heap goal is not the heap limit: %d", goal)
 					}
 				}
@@ -581,7 +581,7 @@ func TestGcPacer(t *testing.T) {
 			length:        50,
 			checker: func(t *testing.T, c []gcCycleResult) {
 				n := len(c)
-				if goal := c[n-1].heapGoal; goal != (512<<20)-MemoryLimitHeapGoalHeadroom {
+				if goal := c[n-1].heapGoal; goal != applyMemoryLimitHeapGoalHeadroom(512<<20) {
 					t.Errorf("heap goal is not the heap limit: %d", goal)
 				}
 				if n >= 25 {
@@ -1017,6 +1017,19 @@ func (f float64Stream) limit(min, max float64) float64Stream {
 		}
 		return v
 	}
+}
+
+func applyMemoryLimitHeapGoalHeadroom(goal uint64) uint64 {
+	headroom := goal / 100 * MemoryLimitHeapGoalHeadroomPercent
+	if headroom < MemoryLimitMinHeapGoalHeadroom {
+		headroom = MemoryLimitMinHeapGoalHeadroom
+	}
+	if goal < headroom || goal-headroom < headroom {
+		goal = headroom
+	} else {
+		goal -= headroom
+	}
+	return goal
 }
 
 func TestIdleMarkWorkerCount(t *testing.T) {

@@ -61,11 +61,16 @@ const (
 	// that can accumulate on a P before updating gcController.stackSize.
 	maxStackScanSlack = 8 << 10
 
-	// memoryLimitHeapGoalHeadroom is the amount of headroom the pacer gives to
-	// the heap goal when operating in the memory-limited regime. That is,
-	// it'll reduce the heap goal by this many extra bytes off of the base
-	// calculation.
-	memoryLimitHeapGoalHeadroom = 1 << 20
+	// memoryLimitMinHeapGoalHeadroom is the minimum amount of headroom the
+	// pacer gives to the heap goal when operating in the memory-limited regime.
+	// That is, it'll reduce the heap goal by this many extra bytes off of the
+	// base calculation, at minimum.
+	memoryLimitMinHeapGoalHeadroom = 1 << 20
+
+	// memoryLimitHeapGoalHeadroomPercent is how headroom the memory-limit-based
+	// heap goal should have as a percent of the maximum possible heap goal allowed
+	// to maintain the memory limit.
+	memoryLimitHeapGoalHeadroomPercent = 3
 )
 
 // gcController implements the GC pacing controller that determines
@@ -968,8 +973,10 @@ func (c *gcControllerState) memoryLimitHeapGoal() uint64 {
 	//
 	// In practice this computation looks like the following:
 	//
-	//    memoryLimit - ((mappedReady - heapFree - heapAlloc) + max(mappedReady - memoryLimit, 0)) - memoryLimitHeapGoalHeadroom
-	//                    ^1                                    ^2                                   ^3
+	//    goal := memoryLimit - ((mappedReady - heapFree - heapAlloc) + max(mappedReady - memoryLimit, 0))
+	//                    ^1                                    ^2
+	//    goal -= goal / 100 * memoryLimitHeapGoalHeadroomPercent
+	//    ^3
 	//
 	// Let's break this down.
 	//
@@ -1001,11 +1008,14 @@ func (c *gcControllerState) memoryLimitHeapGoal() uint64 {
 	// terms of heap objects, but it takes more than X bytes (e.g. due to fragmentation) to store
 	// X bytes worth of objects.
 	//
-	// The third term (marker 3) subtracts an additional memoryLimitHeapGoalHeadroom bytes from the
-	// heap goal. As the name implies, this is to provide additional headroom in the face of pacing
-	// inaccuracies. This is a fixed number of bytes because these inaccuracies disproportionately
-	// affect small heaps: as heaps get smaller, the pacer's inputs get fuzzier. Shorter GC cycles
-	// and less GC work means noisy external factors like the OS scheduler have a greater impact.
+	// The final adjustment (marker 3) reduces the maximum possible memory limit heap goal by
+	// memoryLimitHeapGoalPercent. As the name implies, this is to provide additional headroom in
+	// the face of pacing inaccuracies, and also to leave a buffer of unscavenged memory so the
+	// allocator isn't constantly scavenging. The reduction amount also has a fixed minimum
+	// (memoryLimitMinHeapGoalHeadroom, not pictured) because the aforementioned pacing inaccuracies
+	// disproportionately affect small heaps: as heaps get smaller, the pacer's inputs get fuzzier.
+	// Shorter GC cycles and less GC work means noisy external factors like the OS scheduler have a
+	// greater impact.
 
 	memoryLimit := uint64(c.memoryLimit.Load())
 
@@ -1029,12 +1039,19 @@ func (c *gcControllerState) memoryLimitHeapGoal() uint64 {
 	// Compute the goal.
 	goal := memoryLimit - (nonHeapMemory + overage)
 
-	// Apply some headroom to the goal to account for pacing inaccuracies.
-	// Be careful about small limits.
-	if goal < memoryLimitHeapGoalHeadroom || goal-memoryLimitHeapGoalHeadroom < memoryLimitHeapGoalHeadroom {
-		goal = memoryLimitHeapGoalHeadroom
+	// Apply some headroom to the goal to account for pacing inaccuracies and to reduce
+	// the impact of scavenging at allocation time in response to a high allocation rate
+	// when GOGC=off. See issue #57069. Also, be careful about small limits.
+	headroom := goal / 100 * memoryLimitHeapGoalHeadroomPercent
+	if headroom < memoryLimitMinHeapGoalHeadroom {
+		// Set a fixed minimum to deal with the particularly large effect pacing inaccuracies
+		// have for smaller heaps.
+		headroom = memoryLimitMinHeapGoalHeadroom
+	}
+	if goal < headroom || goal-headroom < headroom {
+		goal = headroom
 	} else {
-		goal = goal - memoryLimitHeapGoalHeadroom
+		goal = goal - headroom
 	}
 	// Don't let us go below the live heap. A heap goal below the live heap doesn't make sense.
 	if goal < c.heapMarked {
