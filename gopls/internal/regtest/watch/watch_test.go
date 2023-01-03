@@ -596,9 +596,16 @@ func main() {
 		env.AfterChange(
 			EmptyDiagnostics("main.go"),
 		)
-		if err := env.Sandbox.RunGoCommand(env.Ctx, "foo", "mod", []string{"init", "mod.com"}, true); err != nil {
+		if err := env.Sandbox.RunGoCommand(env.Ctx, "", "mod", []string{"init", "mod.com"}, true); err != nil {
 			t.Fatal(err)
 		}
+
+		// TODO(golang/go#57558, golang/go#57512): file watching is asynchronous,
+		// and we must wait for the view to be reconstructed before touching
+		// main.go, so that the new view "knows" about main.go. This is a bug, but
+		// awaiting the change here avoids it.
+		env.AfterChange()
+
 		env.RegexpReplace("main.go", `"foo/blah"`, `"mod.com/foo/blah"`)
 		env.AfterChange(
 			EmptyDiagnostics("main.go"),
