@@ -111,28 +111,28 @@ TEXT runtime·exits(SB),NOSPLIT,$0-8
 TEXT runtime·brk_(SB),NOSPLIT,$0-12
 	MOVD    $SYS_BRK_, R0
 	SVC	$0
-	MOVD	R0, ret+8(FP)
+	MOVWU	R0, ret+8(FP)
 	RET
 
 //func sleep(ms int32) int32
 TEXT runtime·sleep(SB),NOSPLIT,$0-12
 	MOVD    $SYS_SLEEP, R0
 	SVC	$0
-	MOVD	R0, ret+8(FP)
+	MOVWU	R0, ret+8(FP)
 	RET
 
 //func plan9_semacquire(addr *uint32, block int32) int32
 TEXT runtime·plan9_semacquire(SB),NOSPLIT,$0-20
 	MOVD	$SYS_SEMACQUIRE, R0
 	SVC	$0
-	MOVD	R0, ret+16(FP)
+	MOVWU	R0, ret+16(FP)
 	RET
 
 //func plan9_tsemacquire(addr *uint32, ms int32) int32
 TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-20
 	MOVD	$SYS_TSEMACQUIRE, R0
 	SVC	$0
-	MOVD	R0, ret+16(FP)
+	MOVWU	R0, ret+16(FP)
 	RET
 
 //func nsec(*int64) int64
@@ -158,7 +158,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$16-12
 	SUB	R2, R0
 
 	MOVD	R1,sec+0(FP)
-	MOVD	R0,nsec+8(FP)
+	MOVWU	R0,nsec+8(FP)
 	RET
 
 //func notify(fn unsafe.Pointer) int32
@@ -235,11 +235,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-16
 	MOVD	R4, RSP
 
 	// make room for args, retval and g
-	SUB	$128, RSP
+	SUB	$48, RSP
 
 	// save g
 	MOVD	g, R3
-	MOVD	R3, 32(RSP)
+	MOVD	R3, 40(RSP)
 
 	// g = m->gsignal
 	MOVD	m_gsignal(R0), g
@@ -262,7 +262,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$0-16
 
 //func sigpanictramp()
 TEXT  runtime·sigpanictramp(SB),NOSPLIT,$0-0
-	MOVD.W	R0, -8(RSP)
+	MOVD.W	R0, -16(RSP)
 	B	runtime·sigpanic(SB)
 
 //func setfpmasks()
