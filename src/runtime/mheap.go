@@ -144,6 +144,10 @@ type mheap struct {
 	// will never be nil.
 	arenas [1 << arenaL1Bits]*[1 << arenaL2Bits]*heapArena
 
+	// arenasHugePages indicates whether arenas' L2 entries are eligible
+	// to be backed by huge pages.
+	arenasHugePages bool
+
 	// heapArenaAlloc is pre-reserved space for allocating heapArena
 	// objects. This is only used on 32-bit, where we pre-reserve
 	// this space to avoid interleaving it with the heap itself.

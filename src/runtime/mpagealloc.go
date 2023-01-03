@@ -292,6 +292,10 @@ type pageAlloc struct {
 	// Protected by mheapLock.
 	summaryMappedReady uintptr
 
+	// chunkHugePages indicates whether page bitmap chunks should be backed
+	// by huge pages.
+	chunkHugePages bool
+
 	// Whether or not this struct is being used in tests.
 	test bool
 }
@@ -385,9 +389,20 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	for c := chunkIndex(base); c < chunkIndex(limit); c++ {
 		if p.chunks[c.l1()] == nil {
 			// Create the necessary l2 entry.
-			r := sysAlloc(unsafe.Sizeof(*p.chunks[0]), p.sysStat)
+			const l2Size = unsafe.Sizeof(*p.chunks[0])
+			r := sysAlloc(l2Size, p.sysStat)
 			if r == nil {
 				throw("pageAlloc: out of memory")
+			}
+			if !p.test {
+				// Make the chunk mapping eligible or ineligible
+				// for huge pages, depending on what our current
+				// state is.
+				if p.chunkHugePages {
+					sysHugePage(r, l2Size)
+				} else {
+					sysNoHugePage(r, l2Size)
+				}
 			}
 			// Store the new chunk block but avoid a write barrier.
 			// grow is used in call chains that disallow write barriers.
@@ -400,6 +415,48 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	// we need to ensure this newly-free memory is visible in the
 	// summaries.
 	p.update(base, size/pageSize, true, false)
+}
+
+// enableChunkHugePages enables huge pages for the chunk bitmap mappings (disabled by default).
+//
+// This function is idempotent.
+//
+// A note on latency: for sufficiently small heaps (<10s of GiB) this function will take constant
+// time, but may take time proportional to the size of the mapped heap beyond that.
+//
+// The heap lock must not be held over this operation, since it will briefly acquire
+// the heap lock.
+func (p *pageAlloc) enableChunkHugePages() {
+	// Grab the heap lock to turn on huge pages for new chunks and clone the current
+	// heap address space ranges.
+	//
+	// After the lock is released, we can be sure that bitmaps for any new chunks may
+	// be backed with huge pages, and we have the address space for the rest of the
+	// chunks. At the end of this function, all chunk metadata should be backed by huge
+	// pages.
+	lock(&mheap_.lock)
+	if p.chunkHugePages {
+		unlock(&mheap_.lock)
+		return
+	}
+	p.chunkHugePages = true
+	var inUse addrRanges
+	inUse.sysStat = p.sysStat
+	p.inUse.cloneInto(&inUse)
+	unlock(&mheap_.lock)
+
+	// This might seem like a lot of work, but all these loops are for generality.
+	//
+	// For a 1 GiB contiguous heap, a 48-bit address space, 13 L1 bits, a palloc chunk size
+	// of 4 MiB, and adherence to the default set of heap address hints, this will result in
+	// exactly 1 call to sysHugePage.
+	for _, r := range p.inUse.ranges {
+		for i := chunkIndex(r.base.addr()).l1(); i < chunkIndex(r.limit.addr()-1).l1(); i++ {
+			// N.B. We can assume that p.chunks[i] is non-nil and in a mapped part of p.chunks
+			// because it's derived from inUse, which never shrinks.
+			sysHugePage(unsafe.Pointer(p.chunks[i]), unsafe.Sizeof(*p.chunks[0]))
+		}
+	}
 }
 
 // update updates heap metadata. It must be called each time the bitmap

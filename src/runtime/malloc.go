@@ -323,6 +323,28 @@ const (
 	//
 	// This should agree with minZeroPage in the compiler.
 	minLegalPointer uintptr = 4096
+
+	// minHeapForMetadataHugePages sets a threshold on when certain kinds of
+	// heap metadata, currently the arenas map L2 entries and page alloc bitmap
+	// mappings, are allowed to be backed by huge pages. If the heap goal ever
+	// exceeds this threshold, then huge pages are enabled.
+	//
+	// These numbers are chosen with the assumption that huge pages are on the
+	// order of a few MiB in size.
+	//
+	// The kind of metadata this applies to has a very low overhead when compared
+	// to address space used, but their constant overheads for small heaps would
+	// be very high if they were to be backed by huge pages (e.g. a few MiB makes
+	// a huge difference for an 8 MiB heap, but barely any difference for a 1 GiB
+	// heap). The benefit of huge pages is also not worth it for small heaps,
+	// because only a very, very small part of the metadata is used for small heaps.
+	//
+	// N.B. If the heap goal exceeds the threshold then shrinks to a very small size
+	// again, then huge pages will still be enabled for this mapping. The reason is that
+	// there's no point unless we're also returning the physical memory for these
+	// metadata mappings back to the OS. That would be quite complex to do in general
+	// as the heap is likely fragmented after a reduction in heap size.
+	minHeapForMetadataHugePages = 1 << 30
 )
 
 // physPageSize is the size in bytes of the OS's physical pages.
@@ -718,6 +740,11 @@ mapped:
 			if l2 == nil {
 				throw("out of memory allocating heap arena map")
 			}
+			if h.arenasHugePages {
+				sysHugePage(unsafe.Pointer(l2), unsafe.Sizeof(*l2))
+			} else {
+				sysNoHugePage(unsafe.Pointer(l2), unsafe.Sizeof(*l2))
+			}
 			atomic.StorepNoWB(unsafe.Pointer(&h.arenas[ri.l1()]), unsafe.Pointer(l2))
 		}
 
@@ -814,6 +841,42 @@ retry:
 			sysFreeOS(unsafe.Pointer(end), endLen)
 		}
 		return unsafe.Pointer(pAligned), size
+	}
+}
+
+// enableMetadataHugePages enables huge pages for various sources of heap metadata.
+//
+// A note on latency: for sufficiently small heaps (<10s of GiB) this function will take constant
+// time, but may take time proportional to the size of the mapped heap beyond that.
+//
+// This function is idempotent.
+//
+// The heap lock must not be held over this operation, since it will briefly acquire
+// the heap lock.
+func (h *mheap) enableMetadataHugePages() {
+	// Enable huge pages for page structure.
+	h.pages.enableChunkHugePages()
+
+	// Grab the lock and set arenasHugePages if it's not.
+	//
+	// Once arenasHugePages is set, all new L2 entries will be eligible for
+	// huge pages. We'll set all the old entries after we release the lock.
+	lock(&h.lock)
+	if h.arenasHugePages {
+		unlock(&h.lock)
+		return
+	}
+	h.arenasHugePages = true
+	unlock(&h.lock)
+
+	// N.B. The arenas L1 map is quite small on all platforms, so it's fine to
+	// just iterate over the whole thing.
+	for i := range h.arenas {
+		l2 := (*[1 << arenaL2Bits]*heapArena)(atomic.Loadp(unsafe.Pointer(&h.arenas[i])))
+		if l2 == nil {
+			continue
+		}
+		sysHugePage(unsafe.Pointer(l2), unsafe.Sizeof(*l2))
 	}
 }
 
