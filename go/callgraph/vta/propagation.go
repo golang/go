@@ -20,53 +20,52 @@ import (
 // with ids X and Y s.t. X < Y, Y comes before X in the topological order.
 func scc(g vtaGraph) (map[node]int, int) {
 	// standard data structures used by Tarjan's algorithm.
-	var index uint64
+	type state struct {
+		index   int
+		lowLink int
+		onStack bool
+	}
+	states := make(map[node]*state, len(g))
 	var stack []node
-	indexMap := make(map[node]uint64)
-	lowLink := make(map[node]uint64)
-	onStack := make(map[node]bool)
 
-	nodeToSccID := make(map[node]int)
+	nodeToSccID := make(map[node]int, len(g))
 	sccID := 0
 
 	var doSCC func(node)
 	doSCC = func(n node) {
-		indexMap[n] = index
-		lowLink[n] = index
-		index = index + 1
-		onStack[n] = true
+		index := len(states)
+		ns := &state{index: index, lowLink: index, onStack: true}
+		states[n] = ns
 		stack = append(stack, n)
 
 		for s := range g[n] {
-			if _, ok := indexMap[s]; !ok {
+			if ss, visited := states[s]; !visited {
 				// Analyze successor s that has not been visited yet.
 				doSCC(s)
-				lowLink[n] = min(lowLink[n], lowLink[s])
-			} else if onStack[s] {
+				ss = states[s]
+				ns.lowLink = min(ns.lowLink, ss.lowLink)
+			} else if ss.onStack {
 				// The successor is on the stack, meaning it has to be
 				// in the current SCC.
-				lowLink[n] = min(lowLink[n], indexMap[s])
+				ns.lowLink = min(ns.lowLink, ss.index)
 			}
 		}
 
 		// if n is a root node, pop the stack and generate a new SCC.
-		if lowLink[n] == indexMap[n] {
-			for {
-				w := stack[len(stack)-1]
+		if ns.lowLink == index {
+			var w node
+			for w != n {
+				w = stack[len(stack)-1]
 				stack = stack[:len(stack)-1]
-				onStack[w] = false
+				states[w].onStack = false
 				nodeToSccID[w] = sccID
-				if w == n {
-					break
-				}
 			}
 			sccID++
 		}
 	}
 
-	index = 0
 	for n := range g {
-		if _, ok := indexMap[n]; !ok {
+		if _, visited := states[n]; !visited {
 			doSCC(n)
 		}
 	}
@@ -74,7 +73,7 @@ func scc(g vtaGraph) (map[node]int, int) {
 	return nodeToSccID, sccID
 }
 
-func min(x, y uint64) uint64 {
+func min(x, y int) int {
 	if x < y {
 		return x
 	}

@@ -27,16 +27,15 @@ import (
 // Current results were on an i7 macbook on go version devel go1.20-2730.
 // Number of nodes, edges, and reachable function are expected to vary between
 // go versions. Timing results are expected to vary between machines.
-//
 // BenchmarkStatic-12	 53 ms/op     6 MB/op	12113 nodes	 37355 edges	1522 reachable
 // BenchmarkCHA-12    	 86 ms/op	 16 MB/op	12113 nodes	131717 edges	7640 reachable
 // BenchmarkRTA-12		110 ms/op	 12 MB/op	 6566 nodes	 42291 edges	5099 reachable
 // BenchmarkPTA-12	   1427 ms/op	600 MB/op	 8714 nodes	 28244 edges	4184 reachable
-// BenchmarkVTA-12		603 ms/op	 87 MB/op	12112 nodes	 44857 edges	4918 reachable
-// BenchmarkVTA2-12		774 ms/op	115 MB/op	 4918 nodes	 20247 edges	3841 reachable
-// BenchmarkVTA3-12		928 ms/op	134 MB/op	 3841 nodes	 16502 edges	3542 reachable
-// BenchmarkVTAAlt-12	395 ms/op	 61 MB/op	 7640 nodes  29629 edges	4257 reachable
-// BenchmarkVTAAlt2-12	556 ms/op	 82 MB/op	 4257 nodes	 18057 edges	3586 reachable
+// BenchmarkVTA-12		562 ms/op	 78 MB/op	12112 nodes	 44857 edges	4918 reachable
+// BenchmarkVTA2-12		743 ms/op	103 MB/op	 4918 nodes	 20247 edges	3841 reachable
+// BenchmarkVTA3-12		837 ms/op	119 MB/op	 3841 nodes	 16502 edges	3542 reachable
+// BenchmarkVTAAlt-12	356 ms/op	 56 MB/op	 7640 nodes  29629 edges	4257 reachable
+// BenchmarkVTAAlt2-12	490 ms/op	 75 MB/op	 4257 nodes	 18057 edges	3586 reachable
 //
 // Note:
 // * Static is unsound and may miss real edges.
