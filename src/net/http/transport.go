@@ -1180,7 +1180,11 @@ var zeroDialer net.Dialer
 
 func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, error) {
 	if t.DialContext != nil {
-		return t.DialContext(ctx, network, addr)
+		c, err := t.DialContext(ctx, network, addr)
+		if c == nil && err == nil {
+			err = errors.New("net/http: Transport.DialContext hook returned (nil, nil)")
+		}
+		return c, err
 	}
 	if t.Dial != nil {
 		c, err := t.Dial(network, addr)
