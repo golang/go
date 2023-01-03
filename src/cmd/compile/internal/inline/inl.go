@@ -643,6 +643,8 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// minimize impact to the existing inlining heuristics (in
 		// particular, to avoid breaking the existing inlinability regress
 		// tests), we need to compensate for this here.
+		//
+		// See also identical logic in isBigFunc.
 		if init := n.Rhs[0].Init(); len(init) == 1 {
 			if _, ok := init[0].(*ir.AssignListStmt); ok {
 				// 4 for each value, because each temporary variable now
@@ -684,6 +686,16 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 func isBigFunc(fn *ir.Func) bool {
 	budget := inlineBigFunctionNodes
 	return ir.Any(fn, func(n ir.Node) bool {
+		// See logic in hairyVisitor.doNode, explaining unified IR's
+		// handling of "a, b = f()" assignments.
+		if n, ok := n.(*ir.AssignListStmt); ok && n.Op() == ir.OAS2 {
+			if init := n.Rhs[0].Init(); len(init) == 1 {
+				if _, ok := init[0].(*ir.AssignListStmt); ok {
+					budget += 4*len(n.Lhs) + 1
+				}
+			}
+		}
+
 		budget--
 		return budget <= 0
 	})
