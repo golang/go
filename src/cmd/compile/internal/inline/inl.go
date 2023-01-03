@@ -742,6 +742,9 @@ func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
 	ir.CurFunc = fn
 	maxCost := int32(inlineMaxBudget)
 	if isBigFunc(fn) {
+		if base.Flag.LowerM > 1 {
+			fmt.Printf("%v: function %v considered 'big'; revising maxCost from %d to %d\n", ir.Line(fn), fn, maxCost, inlineBigFunctionMaxCost)
+		}
 		maxCost = inlineBigFunctionMaxCost
 	}
 	var inlCalls []*ir.InlinedCallExpr
