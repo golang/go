@@ -136,13 +136,16 @@ func (ts *tstate) processPod(p pods.Pod) error {
 		return err
 	}
 
-	// Read counter data files.
+	// A map to store counter data, indexed by pkgid/fnid tuple.
 	pmm := make(map[pkfunc][]uint32)
-	for _, cdf := range p.CounterDataFiles {
+
+	// Helper to read a single counter data file.
+	readcdf := func(cdf string) error {
 		cf, err := os.Open(cdf)
 		if err != nil {
 			return fmt.Errorf("opening counter data file %s: %s", cdf, err)
 		}
+		defer cf.Close()
 		var cdr *decodecounter.CounterDataReader
 		cdr, err = decodecounter.NewCounterDataReader(cdf, cf)
 		if err != nil {
@@ -169,6 +172,14 @@ func (ts *tstate) processPod(p pods.Pod) error {
 			c := ts.AllocateCounters(len(data.Counters))
 			copy(c, data.Counters)
 			pmm[key] = c
+		}
+		return nil
+	}
+
+	// Read counter data files.
+	for _, cdf := range p.CounterDataFiles {
+		if err := readcdf(cdf); err != nil {
+			return err
 		}
 	}
 

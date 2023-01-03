@@ -392,7 +392,8 @@
 
 (AtomicAdd(32|64) ...) => (LoweredAtomicAdd(32|64) ...)
 
-(AtomicCompareAndSwap(32|64) ...) => (LoweredAtomicCas(32|64) ...)
+(AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
+(AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
 
 // checks
 (NilCheck ...) => (LoweredNilCheck ...)

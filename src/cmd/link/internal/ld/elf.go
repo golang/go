@@ -1371,7 +1371,7 @@ func (ctxt *Link) doelf() {
 	shstrtab.Addstring(".data")
 	shstrtab.Addstring(".bss")
 	shstrtab.Addstring(".noptrbss")
-	shstrtab.Addstring("__sancov_cntrs")
+	shstrtab.Addstring(".go.fuzzcntrs")
 	shstrtab.Addstring(".go.buildinfo")
 	if ctxt.IsMIPS() {
 		shstrtab.Addstring(".MIPS.abiflags")

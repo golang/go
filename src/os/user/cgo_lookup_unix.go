@@ -8,6 +8,7 @@ package user
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -170,6 +171,9 @@ func retryWithBuffer(startSize bufferKind, f func([]byte) syscall.Errno) error {
 		errno := f(buf)
 		if errno == 0 {
 			return nil
+		} else if runtime.GOOS == "aix" && errno+1 == 0 {
+			// On AIX getpwuid_r appears to return -1,
+			// not ERANGE, on buffer overflow.
 		} else if errno != syscall.ERANGE {
 			return errno
 		}

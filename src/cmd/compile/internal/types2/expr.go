@@ -1103,26 +1103,50 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 		return
 	}
 
-	// TODO(gri) make canMix more efficient - called for each binary operation
-	canMix := func(x, y *operand) bool {
+	// mayConvert reports whether the operands x and y may
+	// possibly have matching types after converting one
+	// untyped operand to the type of the other.
+	// If mayConvert returns true, we try to convert the
+	// operands to each other's types, and if that fails
+	// we report a conversion failure.
+	// If mayConvert returns false, we continue without an
+	// attempt at conversion, and if the operand types are
+	// not compatible, we report a type mismatch error.
+	mayConvert := func(x, y *operand) bool {
+		// If both operands are typed, there's no need for an implicit conversion.
+		if isTyped(x.typ) && isTyped(y.typ) {
+			return false
+		}
+		// An untyped operand may convert to its default type when paired with an empty interface
+		// TODO(gri) This should only matter for comparisons (the only binary operation that is
+		//           valid with interfaces), but in that case the assignability check should take
+		//           care of the conversion. Verify and possibly eliminate this extra test.
 		if isNonTypeParamInterface(x.typ) || isNonTypeParamInterface(y.typ) {
 			return true
 		}
+		// A boolean type can only convert to another boolean type.
 		if allBoolean(x.typ) != allBoolean(y.typ) {
 			return false
 		}
+		// A string type can only convert to another string type.
 		if allString(x.typ) != allString(y.typ) {
 			return false
 		}
-		if x.isNil() && !hasNil(y.typ) {
-			return false
+		// Untyped nil can only convert to a type that has a nil.
+		if x.isNil() {
+			return hasNil(y.typ)
 		}
-		if y.isNil() && !hasNil(x.typ) {
+		if y.isNil() {
+			return hasNil(x.typ)
+		}
+		// An untyped operand cannot convert to a pointer.
+		// TODO(gri) generalize to type parameters
+		if isPointer(x.typ) || isPointer(y.typ) {
 			return false
 		}
 		return true
 	}
-	if canMix(x, &y) {
+	if mayConvert(x, &y) {
 		check.convertUntyped(x, y.typ)
 		if x.mode == invalid {
 			return

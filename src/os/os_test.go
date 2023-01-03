@@ -274,9 +274,11 @@ func TestLstat(t *testing.T) {
 	if !equal(sfname, dir.Name()) {
 		t.Error("name should be ", sfname, "; is", dir.Name())
 	}
-	filesize := size(path, t)
-	if dir.Size() != filesize {
-		t.Error("size should be", filesize, "; is", dir.Size())
+	if dir.Mode()&ModeSymlink == 0 {
+		filesize := size(path, t)
+		if dir.Size() != filesize {
+			t.Error("size should be", filesize, "; is", dir.Size())
+		}
 	}
 }
 
@@ -2606,9 +2608,6 @@ func TestReaddirSmallSeek(t *testing.T) {
 	// See issue 37161. Read only one entry from a directory,
 	// seek to the beginning, and read again. We should not see
 	// duplicate entries.
-	if runtime.GOOS == "windows" {
-		testenv.SkipFlaky(t, 36019)
-	}
 	wd, err := Getwd()
 	if err != nil {
 		t.Fatal(err)

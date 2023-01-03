@@ -42,23 +42,23 @@ func TestPlatformVerifier(t *testing.T) {
 		{
 			name:        "expired leaf",
 			host:        "expired.badssl.com",
-			expectedErr: "x509: “*.badssl.com” certificate is expired",
+			expectedErr: "x509: certificate has expired or is not yet valid: “*.badssl.com” certificate is expired",
 		},
 		{
 			name:        "wrong host for leaf",
 			host:        "wrong.host.badssl.com",
 			verifyName:  "wrong.host.badssl.com",
-			expectedErr: "x509: “*.badssl.com” certificate name does not match input",
+			expectedErr: "x509: certificate is valid for *.badssl.com, badssl.com, not wrong.host.badssl.com",
 		},
 		{
 			name:        "self-signed leaf",
 			host:        "self-signed.badssl.com",
-			expectedErr: "x509: “*.badssl.com” certificate is not trusted",
+			expectedErr: "x509: certificate signed by unknown authority",
 		},
 		{
 			name:        "untrusted root",
 			host:        "untrusted-root.badssl.com",
-			expectedErr: "x509: “BadSSL Untrusted Root Certificate Authority” certificate is not trusted",
+			expectedErr: "x509: certificate signed by unknown authority",
 		},
 		{
 			name:        "revoked leaf",
@@ -74,7 +74,7 @@ func TestPlatformVerifier(t *testing.T) {
 			name:        "expired leaf (custom time)",
 			host:        "google.com",
 			verifyTime:  time.Time{}.Add(time.Hour),
-			expectedErr: "x509: “*.google.com” certificate is expired",
+			expectedErr: "x509: certificate has expired or is not yet valid: “*.google.com” certificate is expired",
 		},
 		{
 			name:       "valid chain (custom time)",

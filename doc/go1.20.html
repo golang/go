@@ -30,7 +30,7 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- https://go.dev/issue/46505 -->
-  Go 1.17 added <a href="/ref/spec#Conversions_from_slice_to_array_pointer">conversions from slice to an array pointer</a>.
+  Go 1.17 added <a href="/ref/spec#Conversions_from_slice_to_array_or_array_pointer">conversions from slice to an array pointer</a>.
   Go 1.20 extends this to allow conversions from a slice to an array:
   given a slice <code>x</code>, <code>[4]byte(x)</code> can now be written
   instead of <code>*(*[4]byte)(x)</code>.
@@ -67,9 +67,16 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
+<h3 id="windows">Windows</h3>
+
+<p><!-- https://go.dev/issue/57003, https://go.dev/issue/57004 -->
+  Go 1.20 is the last release that will run on any release of Windows 7, 8, Server 2008 and Server 2012.
+  Go 1.21 will require at least Windows 10 or Server 2016.
+</p>
+
 <h3 id="darwin">Darwin and iOS</h3>
 
-<p><!-- golang.org/issue/23011 -->
+<p><!-- https://go.dev/issue/23011 -->
   Go 1.20 is the last release that will run on macOS 10.13 High Sierra or 10.14 Mojave.
   Go 1.21 will require macOS 10.15 Catalina or later.
 </p>
@@ -102,9 +109,9 @@ Do not send CLs removing the interior tags from such phrases.
   Programs that run <code>go</code> <code>test</code> <code>-json</code>
   do not need any updates.
   Programs that invoke <code>go</code> <code>tool</code> <code>test2json</code>
-  directly should now run the test binary with <code>-v=json</code>
-  (for example, <code>go</code> <code>test</code> <code>-v=json</code>
-  or <code>./pkg.test</code> <code>-test.v=json</code>)
+  directly should now run the test binary with <code>-v=test2json</code>
+  (for example, <code>go</code> <code>test</code> <code>-v=test2json</code>
+  or <code>./pkg.test</code> <code>-test.v=test2json</code>)
   instead of plain <code>-v</code>.
 </p>
 
@@ -285,7 +292,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- CL 423359, https://go.dev/issue/51317 -->
   The runtime now has experimental support for memory-safe arena allocation
   that makes it possible to eagerly free memory in bulk.
-  When used appopriately, it has the potential to improve CPU performance by
+  When used appropriately, it has the potential to improve CPU performance by
   up to 15% in memory-allocation-heavy applications.
   To try it out, build your Go program with <code>GOEXPERIMENT=arenas</code>,
   which will make the <code>arena</code> package visible to your program.
@@ -308,7 +315,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p><!-- https://go.dev/issue/51430 -->
   Go 1.20 adds a new <code>runtime/coverage</code> package
   containing APIs for writing coverage profile data at
-  runtime from a long-running and/or server programs that
+  runtime from long-running and/or server programs that
   do not terminate via <code>os.Exit()</code>.
 </p>
 
@@ -374,7 +381,7 @@ Do not send CLs removing the interior tags from such phrases.
   <code>$HOME/go1.4</code> (<code>%HOMEDRIVE%%HOMEPATH%\go1.4</code> on Windows).
   Go 1.18 and Go 1.19 looked first for <code>$HOME/go1.17</code> or <code>$HOME/sdk/go1.17</code>
   before falling back to <code>$HOME/go1.4</code>,
-  in ancitipation of requiring Go 1.17 for use when bootstrapping Go 1.20.
+  in anticipation of requiring Go 1.17 for use when bootstrapping Go 1.20.
   Go 1.20 does require a Go 1.17 release for bootstrapping, but we realized that we should
   adopt the latest point release of the bootstrap toolchain, so it requires Go 1.17.13.
   Go 1.20 looks for <code>$HOME/go1.17.13</code> or <code>$HOME/sdk/go1.17.13</code>
@@ -417,7 +424,7 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 <p>
   The <a href="/pkg/fmt/#Errorf"><code>fmt.Errorf</code></a> function
-  now supports multiple occurrances of the <code>%w</code> format verb,
+  now supports multiple occurrences of the <code>%w</code> format verb,
   which will cause it to return an error that wraps all of those error operands.
 </p>
 <p>
@@ -808,7 +815,7 @@ proxyHandler := &httputil.ReverseProxy{
       The new <a href="/pkg/go/types/#Satisfies"><code>Satisfies</code></a> function reports
       whether a type satisfies a constraint.
       This change aligns with the <a href="#language">new language semantics</a>
-      that distinguish satsifying a constraint from implementing an interface.
+      that distinguish satisfying a constraint from implementing an interface.
     </p>
   </dd>
 </dl><!-- go/types -->
@@ -883,7 +890,7 @@ proxyHandler := &httputil.ReverseProxy{
       if a <code>CNAME</code> record referred to a name that with no <code>A</code>,
       <code>AAAA</code>, or <code>CNAME</code> record. This change modifies
       <code>LookupCNAME</code> to match the previous behavior on Windows,
-      allowing allowing <code>LookupCNAME</code> to succeed whenever a
+      allowing <code>LookupCNAME</code> to succeed whenever a
       <code>CNAME</code> exists.
     </p>
 

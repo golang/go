@@ -192,8 +192,10 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 		var readPtr func([]byte) uint64
 		if ptrSize == 4 {
 			readPtr = func(b []byte) uint64 { return uint64(bo.Uint32(b)) }
-		} else {
+		} else if ptrSize == 8 {
 			readPtr = bo.Uint64
+		} else {
+			return "", "", errNotGoExe
 		}
 		vers = readString(x, ptrSize, readPtr, readPtr(data[16:]))
 		mod = readString(x, ptrSize, readPtr, readPtr(data[16+ptrSize:]))

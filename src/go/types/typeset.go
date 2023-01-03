@@ -350,7 +350,7 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
 		i := 0
 		for _, t := range terms {
 			assert(t.typ != nil)
-			if Comparable(t.typ) {
+			if comparable(t.typ, false /* strictly comparable */, nil, nil) {
 				terms[i] = t
 				i++
 			}

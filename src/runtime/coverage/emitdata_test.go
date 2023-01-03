@@ -157,7 +157,7 @@ func runHarness(t *testing.T, harnessPath string, tp string, setGoCoverDir bool,
 
 func testForSpecificFunctions(t *testing.T, dir string, want []string, avoid []string) string {
 	args := []string{"tool", "covdata", "debugdump",
-		"-live", "-pkg=main", "-i=" + dir}
+		"-live", "-pkg=command-line-arguments", "-i=" + dir}
 	t.Logf("running: go %v\n", args)
 	cmd := exec.Command(testenv.GoToolPath(t), args...)
 	b, err := cmd.CombinedOutput()
@@ -167,17 +167,20 @@ func testForSpecificFunctions(t *testing.T, dir string, want []string, avoid []s
 	output := string(b)
 	rval := ""
 	for _, f := range want {
-		wf := "Func: " + f
+		wf := "Func: " + f + "\n"
 		if strings.Contains(output, wf) {
 			continue
 		}
 		rval += fmt.Sprintf("error: output should contain %q but does not\n", wf)
 	}
 	for _, f := range avoid {
-		wf := "Func: " + f
+		wf := "Func: " + f + "\n"
 		if strings.Contains(output, wf) {
 			rval += fmt.Sprintf("error: output should not contain %q but does\n", wf)
 		}
+	}
+	if rval != "" {
+		t.Logf("=-= begin output:\n" + output + "\n=-= end output\n")
 	}
 	return rval
 }

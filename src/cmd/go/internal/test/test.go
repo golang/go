@@ -1306,6 +1306,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		cmd.Env = env
 	}
 
+	base.StartSigHandlers()
 	t0 := time.Now()
 	err = cmd.Start()
 
@@ -1314,7 +1315,6 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	// running.
 	if err == nil {
 		tick := time.NewTimer(testKillTimeout)
-		base.StartSigHandlers()
 		done := make(chan error)
 		go func() {
 			done <- cmd.Wait()

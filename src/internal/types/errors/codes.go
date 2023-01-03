@@ -882,7 +882,7 @@ const (
 	// context in which it is used.
 	//
 	// Example:
-	//  var _ = 1 + new(int)
+	//  var _ = 1 + []int{}
 	InvalidUntypedConversion
 
 	// BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument

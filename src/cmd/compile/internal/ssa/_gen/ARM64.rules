@@ -342,9 +342,9 @@
 (FCMPD x (FMOVDconst [0])) => (FCMPD0 x)
 (FCMPD (FMOVDconst [0]) x) => (InvertFlags (FCMPD0 x))
 
-// CSEL needs a flag-generating argument. Synthesize a CMPW if necessary.
+// CSEL needs a flag-generating argument. Synthesize a TSTW if necessary.
 (CondSelect x y boolval) && flagArg(boolval) != nil => (CSEL [boolval.Op] x y flagArg(boolval))
-(CondSelect x y boolval) && flagArg(boolval) == nil => (CSEL [OpARM64NotEqual] x y (CMPWconst [0] boolval))
+(CondSelect x y boolval) && flagArg(boolval) == nil => (CSEL [OpARM64NotEqual] x y (TSTWconst [1] boolval))
 
 (OffPtr [off] ptr:(SP)) && is32Bit(off) => (MOVDaddr [int32(off)] ptr)
 (OffPtr [off] ptr) => (ADDconst [off] ptr)
