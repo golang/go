@@ -179,6 +179,45 @@ func pthread_kill(t pthread, sig uint32) {
 }
 func pthread_kill_trampoline()
 
+// osinit_hack is a clumsy hack to work around Apple libc bugs
+// causing fork+exec to hang in the child process intermittently.
+// See go.dev/issue/33565 and go.dev/issue/56784 for a few reports.
+//
+// The stacks obtained from the hung child processes are in
+// libSystem_atfork_child, which is supposed to reinitialize various
+// parts of the C library in the new process.
+//
+// One common stack dies in _notify_fork_child calling _notify_globals
+// (inlined) calling _os_alloc_once, because _os_alloc_once detects that
+// the once lock is held by the parent process and then calls
+// _os_once_gate_corruption_abort. The allocation is setting up the
+// globals for the notification subsystem. See the source code at [1].
+// To work around this, we can allocate the globals earlier in the Go
+// program's lifetime, before any execs are involved, by calling any
+// notify routine that is exported, calls _notify_globals, and doesn't do
+// anything too expensive otherwise. notify_is_valid_token(0) fits the bill.
+//
+// The other common stack dies in xpc_atfork_child calling
+// _objc_msgSend_uncached which ends up in
+// WAITING_FOR_ANOTHER_THREAD_TO_FINISH_CALLING_+initialize. Of course,
+// whatever thread the child is waiting for is in the parent process and
+// is not going to finish anything in the child process. There is no
+// public source code for these routines, so it is unclear exactly what
+// the problem is. An Apple engineer suggests using xpc_date_create_from_current,
+// which empirically does fix the problem.
+//
+// So osinit_hack_trampoline (in sys_darwin_$GOARCH.s) calls
+// notify_is_valid_token(0) and xpc_date_create_from_current(), which makes the
+// fork+exec hangs stop happening. If Apple fixes the libc bug in
+// some future version of macOS, then we can remove this awful code.
+//
+//go:nosplit
+func osinit_hack() {
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(osinit_hack_trampoline)), nil)
+	return
+}
+func osinit_hack_trampoline()
+
 // mmap is used to do low-level memory allocation via mmap. Don't allow stack
 // splits, since this function (used by sysAlloc) is called in a lot of low-level
 // parts of the runtime and callers often assume it won't acquire any locks.
@@ -548,3 +587,6 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+
+//go:cgo_import_dynamic libc_notify_is_valid_token notify_is_valid_token "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_xpc_date_create_from_current xpc_date_create_from_current "/usr/lib/libSystem.B.dylib"
