@@ -24,6 +24,6 @@ func F1[V [2]any](v V) {
 
 func F2[V [2]any](v V) {
 	_ = G2[V /* ERROR "V does not satisfy C2" */]
-	_ = G2[[ /* ERROR "\[2\]any does not satisfy C2 \(\[2\]any missing in int\)" */ 2]any]
+	_ = G2[[ /* ERROR "\[2\]any does not satisfy C2 \(C2 mentions \[2\]any, but \[2\]any is not in the type set of C2\)" */ 2]any]
 	_ = G2[int]
 }

@@ -324,14 +324,43 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		return false
 	}) {
 		if cause != nil {
-			if alt != nil {
-				*cause = check.sprintf("%s does not %s %s (possibly missing ~ for %s in constraint %s)", V, verb, T, alt, T)
-			} else {
-				*cause = check.sprintf("%s does not %s %s (%s missing in %s)", V, verb, T, V, Ti.typeSet().terms)
+			var detail string
+			switch {
+			case alt != nil:
+				detail = check.sprintf("possibly missing ~ for %s in %s", alt, T)
+			case mentions(Ti, V):
+				detail = check.sprintf("%s mentions %s, but %s is not in the type set of %s", T, V, V, T)
+			default:
+				detail = check.sprintf("%s missing in %s", V, Ti.typeSet().terms)
 			}
+			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
 		}
 		return false
 	}
 
 	return checkComparability()
+}
+
+// mentions reports whether type T "mentions" typ in an (embedded) element or term
+// of T (whether typ is in the type set of T or not). For better error messages.
+func mentions(T, typ Type) bool {
+	switch T := T.(type) {
+	case *Interface:
+		for _, e := range T.embeddeds {
+			if mentions(e, typ) {
+				return true
+			}
+		}
+	case *Union:
+		for _, t := range T.terms {
+			if mentions(t.typ, typ) {
+				return true
+			}
+		}
+	default:
+		if Identical(T, typ) {
+			return true
+		}
+	}
+	return false
 }
