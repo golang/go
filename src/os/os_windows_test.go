@@ -872,10 +872,19 @@ func findOneDriveDir() (string, error) {
 	}
 	defer k.Close()
 
-	path, _, err := k.GetStringValue("UserFolder")
+	path, valtype, err := k.GetStringValue("UserFolder")
 	if err != nil {
 		return "", fmt.Errorf("reading UserFolder failed: %v", err)
 	}
+
+	if valtype == registry.EXPAND_SZ {
+		expanded, err := registry.ExpandString(path)
+		if err != nil {
+			return "", fmt.Errorf("expanding UserFolder failed: %v", err)
+		}
+		path = expanded
+	}
+
 	return path, nil
 }
 
