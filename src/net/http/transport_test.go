@@ -6656,86 +6656,32 @@ func testHandlerAbortRacesBodyRead(t *testing.T, mode testMode) {
 	wg.Wait()
 }
 
-type issue49621Listener struct {
-	net.Listener
-}
 type issue49621Conn struct {
-	net.Conn // base
-
-	mtx sync.Mutex
-	err error
-	n   int
+	net.Conn
 }
 
-func (l *issue49621Listener) Accept() (net.Conn, error) {
-	c, err := l.Listener.Accept()
-	if err == nil {
-		c = &issue49621Conn{Conn: c}
-	}
-	return c, err
+func (c *issue49621Conn) Read(_ []byte) (n int, err error) {
+	return 0, syscall.ECONNRESET
 }
 
-func (c *issue49621Conn) inject(n int) bool {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	c.n += n
-	return c.n > 1000
+type testIssue49621Closer struct {
+	io.Reader
+	close int
 }
 
-func (c *issue49621Conn) isFailed() error {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	return c.err
-}
-
-func (c *issue49621Conn) markFailed(err error) error {
-	c.mtx.Lock()
-	defer c.mtx.Unlock()
-	c.err = err
-	return c.err
-}
-
-func (c *issue49621Conn) Read(b []byte) (n int, err error) {
-	if err = c.isFailed(); err != nil {
-		return 0, err
-	}
-
-	n, err = c.Conn.Read(b)
-	if err != nil {
-		c.markFailed(err)
-		return n, err
-	}
-
-	if c.inject(n) {
-		return 0, c.markFailed(syscall.ECONNRESET)
-	}
-
-	return n, nil
-}
-
-func (c *issue49621Conn) Write(b []byte) (n int, err error) {
-	if err = c.isFailed(); err != nil {
-		return 0, err
-	}
-
-	if c.inject(len(b)) {
-		return 0, c.markFailed(syscall.ECONNRESET)
-	}
-
-	n, err = c.Conn.Write(b)
-	if err != nil {
-		return n, c.markFailed(err)
-	}
-	return n, nil
+func (i *testIssue49621Closer) Close() error {
+	i.close++
+	return nil
 }
 
 // Issue 49621: request not retry or close body after writeLoop exited.
 func TestIssue49621(t *testing.T) {
-	ln := &issue49621Listener{newLocalListener(t)}
+	ln := newLocalListener(t)
 	defer ln.Close()
 
 	addr := ln.Addr().String()
-	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
+
+	s := &Server{Addr: addr, Handler: HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.Method != MethodPost {
 			w.WriteHeader(StatusMethodNotAllowed)
 			return
@@ -6744,45 +6690,29 @@ func TestIssue49621(t *testing.T) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		_ = r.Body.Close()
 		w.WriteHeader(StatusOK)
-	})
-	s := &Server{
-		Addr:    addr,
-		Handler: handler,
-	}
+	})}
+
 	go func() { s.Serve(ln) }()
+	defer s.Close()
 
-	for i := 0; i < 10; i++ {
-		testIssue49621Request(t, "http://"+addr)
-	}
-	s.Close()
-}
-
-func testIssue49621Request(t *testing.T, addr string) {
-	var wg sync.WaitGroup
+	client := &Client{Transport: &Transport{
+		DialContext: func(_ context.Context, network, addr string) (net.Conn, error) {
+			c, err := net.Dial(network, addr)
+			return &issue49621Conn{Conn: c}, err
+		},
+	}}
 
 	for i := 0; i < 50; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		rc := &testIssue49621Closer{Reader: bytes.NewReader(make([]byte, 100))}
 
-			body := bytes.NewBuffer([]byte(`
-				hello world hello world hello world hello world
-				hello world hello world hello world hello world
-				hello world hello world hello world hello world
-				hello world hello world hello world hello world
-				hello world hello world hello world hello world
-			`))
-
-			resp, err := Post(addr, "plain", body)
-			if err == nil {
-				_, _ = io.Copy(io.Discard, resp.Body)
-				_ = resp.Body.Close()
-				return
-			}
-			if err == ExportErrServerClosedIdle {
-				t.Errorf("resp = %v, err = %v\n", resp, err)
-			}
-		}()
+		resp, err := client.Post("http://"+addr, "text/plain", rc)
+		if err == nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			return
+		}
+		if rc.close == 0 {
+			t.Errorf("resp = %v, err = %v, close = %d\n", resp, err, rc.close)
+		}
 	}
-	wg.Wait()
 }
