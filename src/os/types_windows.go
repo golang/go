@@ -25,7 +25,7 @@ type fileStat struct {
 	FileSizeLow    uint32
 
 	// from Win32finddata
-	Reserved0 uint32
+	ReparseTag uint32
 
 	// what syscall.GetFileType returns
 	filetype uint32
@@ -73,7 +73,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		vol:            d.VolumeSerialNumber,
 		idxhi:          d.FileIndexHigh,
 		idxlo:          d.FileIndexLow,
-		Reserved0:      ti.ReparseTag,
+		ReparseTag:     ti.ReparseTag,
 		// fileStat.path is used by os.SameFile to decide if it needs
 		// to fetch vol, idxhi and idxlo. But these are already set,
 		// so set fileStat.path to "" to prevent os.SameFile doing it again.
@@ -83,26 +83,39 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 // newFileStatFromWin32finddata copies all required information
 // from syscall.Win32finddata d into the newly created fileStat.
 func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
-	return &fileStat{
+	fs := &fileStat{
 		FileAttributes: d.FileAttributes,
 		CreationTime:   d.CreationTime,
 		LastAccessTime: d.LastAccessTime,
 		LastWriteTime:  d.LastWriteTime,
 		FileSizeHigh:   d.FileSizeHigh,
 		FileSizeLow:    d.FileSizeLow,
-		Reserved0:      d.Reserved0,
 	}
+	if d.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+		// Per https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataw:
+		// “If the dwFileAttributes member includes the FILE_ATTRIBUTE_REPARSE_POINT
+		// attribute, this member specifies the reparse point tag. Otherwise, this
+		// value is undefined and should not be used.”
+		fs.ReparseTag = d.Reserved0
+	}
+	return fs
 }
 
 func (fs *fileStat) isSymlink() bool {
-	// Use instructions described at
-	// https://blogs.msdn.microsoft.com/oldnewthing/20100212-00/?p=14963/
-	// to recognize whether it's a symlink.
-	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
-		return false
-	}
-	return fs.Reserved0 == syscall.IO_REPARSE_TAG_SYMLINK ||
-		fs.Reserved0 == windows.IO_REPARSE_TAG_MOUNT_POINT
+	// As of https://go.dev/cl/86556, we treat MOUNT_POINT reparse points as
+	// symlinks because otherwise certain directory junction tests in the
+	// path/filepath package would fail.
+	//
+	// However,
+	// https://learn.microsoft.com/en-us/windows/win32/fileio/hard-links-and-junctions
+	// seems to suggest that directory junctions should be treated like hard
+	// links, not symlinks.
+	//
+	// TODO(bcmills): Get more input from Microsoft on what the behavior ought to
+	// be for MOUNT_POINT reparse points.
+
+	return fs.ReparseTag == syscall.IO_REPARSE_TAG_SYMLINK ||
+		fs.ReparseTag == windows.IO_REPARSE_TAG_MOUNT_POINT
 }
 
 func (fs *fileStat) Size() int64 {
@@ -126,6 +139,9 @@ func (fs *fileStat) Mode() (m FileMode) {
 		m |= ModeNamedPipe
 	case syscall.FILE_TYPE_CHAR:
 		m |= ModeDevice | ModeCharDevice
+	}
+	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 && m&ModeType == 0 {
+		m |= ModeIrregular
 	}
 	return m
 }
@@ -163,12 +179,23 @@ func (fs *fileStat) loadFileId() error {
 	if err != nil {
 		return err
 	}
-	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
-	if fs.isSymlink() {
-		// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
-		// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
-		attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
-	}
+
+	// Per https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-points-and-file-operations,
+	// “Applications that use the CreateFile function should specify the
+	// FILE_FLAG_OPEN_REPARSE_POINT flag when opening the file if it is a reparse
+	// point.”
+	//
+	// And per https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew,
+	// “If the file is not a reparse point, then this flag is ignored.”
+	//
+	// So we set FILE_FLAG_OPEN_REPARSE_POINT unconditionally, since we want
+	// information about the reparse point itself.
+	//
+	// If the file is a symlink, the symlink target should have already been
+	// resolved when the fileStat was created, so we don't need to worry about
+	// resolving symlink reparse points again here.
+	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS | syscall.FILE_FLAG_OPEN_REPARSE_POINT)
+
 	h, err := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
 	if err != nil {
 		return err

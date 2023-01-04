@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -713,11 +714,13 @@ func TestReadStdin(t *testing.T) {
 func TestStatPagefile(t *testing.T) {
 	t.Parallel()
 
-	fi, err := os.Stat(`c:\pagefile.sys`)
+	const path = `c:\pagefile.sys`
+	fi, err := os.Stat(path)
 	if err == nil {
 		if fi.Name() == "" {
-			t.Fatal(`FileInfo of c:\pagefile.sys has empty name`)
+			t.Fatalf("Stat(%q).Name() is empty", path)
 		}
+		t.Logf("Stat(%q).Size() = %v", path, fi.Size())
 		return
 	}
 	if os.IsNotExist(err) {
@@ -1288,5 +1291,80 @@ func TestOpenDirTOCTOU(t *testing.T) {
 	err = os.Rename(dir, newpath)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestAppExecLinkStat(t *testing.T) {
+	// We expect executables installed to %LOCALAPPDATA%\Microsoft\WindowsApps to
+	// be reparse points with tag IO_REPARSE_TAG_APPEXECLINK. Here we check that
+	// such reparse points are treated as irregular (but executable) files, not
+	// broken symlinks.
+	appdata := os.Getenv("LOCALAPPDATA")
+	if appdata == "" {
+		t.Skipf("skipping: LOCALAPPDATA not set")
+	}
+
+	pythonExeName := "python3.exe"
+	pythonPath := filepath.Join(appdata, `Microsoft\WindowsApps`, pythonExeName)
+
+	lfi, err := os.Lstat(pythonPath)
+	if err != nil {
+		t.Skip("skipping test, because Python 3 is not installed via the Windows App Store on this system; see https://golang.org/issue/42919")
+	}
+
+	// An APPEXECLINK reparse point is not a symlink, so os.Readlink should return
+	// a non-nil error for it, and Stat should return results identical to Lstat.
+	linkName, err := os.Readlink(pythonPath)
+	if err == nil {
+		t.Errorf("os.Readlink(%q) = %q, but expected an error\n(should be an APPEXECLINK reparse point, not a symlink)", pythonPath, linkName)
+	}
+
+	sfi, err := os.Stat(pythonPath)
+	if err != nil {
+		t.Fatalf("Stat %s: %v", pythonPath, err)
+	}
+
+	if lfi.Name() != sfi.Name() {
+		t.Logf("os.Lstat(%q) = %+v", pythonPath, lfi)
+		t.Logf("os.Stat(%q)  = %+v", pythonPath, sfi)
+		t.Errorf("files should be same")
+	}
+
+	if lfi.Name() != pythonExeName {
+		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, lfi.Name(), pythonExeName)
+	}
+	if m := lfi.Mode(); m&fs.ModeSymlink != 0 {
+		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := lfi.Mode(); m&fs.ModeDir != 0 {
+		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := lfi.Mode(); m&fs.ModeIrregular == 0 {
+		// A reparse point is not a regular file, but we don't have a more appropriate
+		// ModeType bit for it, so it should be marked as irregular.
+		t.Errorf("%q should not be a regular file (mode=0x%x)", pythonPath, uint32(m))
+	}
+
+	if sfi.Name() != pythonExeName {
+		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, sfi.Name(), pythonExeName)
+	}
+	if m := sfi.Mode(); m&fs.ModeSymlink != 0 {
+		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := sfi.Mode(); m&fs.ModeDir != 0 {
+		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := sfi.Mode(); m&fs.ModeIrregular == 0 {
+		// A reparse point is not a regular file, but we don't have a more appropriate
+		// ModeType bit for it, so it should be marked as irregular.
+		t.Errorf("%q should not be a regular file (mode=0x%x)", pythonPath, uint32(m))
+	}
+
+	p, err := exec.LookPath(pythonPath)
+	if err != nil {
+		t.Errorf("exec.LookPath(%q): %v", pythonPath, err)
+	}
+	if p != pythonPath {
+		t.Errorf("exec.LookPath(%q) = %q; want %q", pythonPath, p, pythonPath)
 	}
 }
