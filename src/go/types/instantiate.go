@@ -188,7 +188,7 @@ func (check *Checker) verify(pos token.Pos, tparams []*TypeParam, targs []Type, 
 // is set, T is a type constraint.
 //
 // If the provided cause is non-nil, it may be set to an error string
-// explaining why V does not implement T.
+// explaining why V does not implement (or satisfy, for constraints) T.
 func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
 	Vu := under(V)
 	Tu := under(T)
@@ -197,6 +197,11 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 	}
 	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
 		return true // avoid follow-on errors (see issue #49541 for an example)
+	}
+
+	verb := "implement"
+	if constraint {
+		verb = "satisfy"
 	}
 
 	Ti, _ := Tu.(*Interface)
@@ -208,7 +213,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 			} else {
 				detail = check.sprintf("%s is not an interface", T)
 			}
-			*cause = check.sprintf("%s does not implement %s (%s)", V, T, detail)
+			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
 		}
 		return false
 	}
@@ -230,7 +235,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 	// No type with non-empty type set satisfies the empty type set.
 	if Ti.typeSet().IsEmpty() {
 		if cause != nil {
-			*cause = check.sprintf("cannot implement %s (empty type set)", T)
+			*cause = check.sprintf("cannot %s %s (empty type set)", verb, T)
 		}
 		return false
 	}
@@ -238,7 +243,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 	// V must implement T's methods, if any.
 	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
 		if cause != nil {
-			*cause = check.sprintf("%s does not implement %s %s", V, T, check.missingMethodCause(V, T, m, wrong))
+			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, check.missingMethodCause(V, T, m, wrong))
 		}
 		return false
 	}
@@ -258,7 +263,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		// TODO(gri) remove this check for Go 1.21
 		if check != nil && check.conf.oldComparableSemantics {
 			if cause != nil {
-				*cause = check.sprintf("%s does not implement comparable", V)
+				*cause = check.sprintf("%s does not %s comparable", V, verb)
 			}
 			return false
 		}
@@ -270,12 +275,12 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 				return true
 			}
 			if cause != nil {
-				*cause = check.sprintf("%s to implement comparable requires go1.20 or later", V)
+				*cause = check.sprintf("%s to %s comparable requires go1.20 or later", V, verb)
 			}
 			return false
 		}
 		if cause != nil {
-			*cause = check.sprintf("%s does not implement comparable", V)
+			*cause = check.sprintf("%s does not %s comparable", V, verb)
 		}
 		return false
 	}
@@ -293,7 +298,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
 			// TODO(gri) report which type is missing
 			if cause != nil {
-				*cause = check.sprintf("%s does not implement %s", V, T)
+				*cause = check.sprintf("%s does not %s %s", V, verb, T)
 			}
 			return false
 		}
@@ -320,9 +325,9 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 	}) {
 		if cause != nil {
 			if alt != nil {
-				*cause = check.sprintf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
+				*cause = check.sprintf("%s does not %s %s (possibly missing ~ for %s in constraint %s)", V, verb, T, alt, T)
 			} else {
-				*cause = check.sprintf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
+				*cause = check.sprintf("%s does not %s %s (%s missing in %s)", V, verb, T, V, Ti.typeSet().terms)
 			}
 		}
 		return false

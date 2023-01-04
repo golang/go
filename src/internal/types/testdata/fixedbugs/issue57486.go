@@ -17,13 +17,13 @@ func G1[T C1](t T) { _ = t == t }
 func G2[T C2](t T) { _ = t == t }
 
 func F1[V [2]any](v V) {
-	_ = G1[V /* ERROR "V does not implement comparable" */]
+	_ = G1[V /* ERROR "V does not satisfy comparable" */]
 	_ = G1[[2]any]
 	_ = G1[int]
 }
 
 func F2[V [2]any](v V) {
-	_ = G2[V /* ERROR "V does not implement C2" */]
-	_ = G2[[ /* ERROR "\[2\]any does not implement C2 \(\[2\]any missing in int\)" */ 2]any]
+	_ = G2[V /* ERROR "V does not satisfy C2" */]
+	_ = G2[[ /* ERROR "\[2\]any does not satisfy C2 \(\[2\]any missing in int\)" */ 2]any]
 	_ = G2[int]
 }

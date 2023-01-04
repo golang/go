@@ -12,5 +12,5 @@ type number interface {
 func f[T number]() {}
 
 func _() {
-	_ = f[int /* ERROR int does not implement number \(int missing in float64 | ~int32\)*/]
+	_ = f[int /* ERROR int does not satisfy number \(int missing in float64 \| ~int32\)*/]
 }
