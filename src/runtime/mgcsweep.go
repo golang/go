@@ -873,11 +873,30 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 		traceGCSweepStart()
 	}
 
+	// Fix debt if necessary.
 retry:
 	sweptBasis := mheap_.pagesSweptBasis.Load()
-
-	// Fix debt if necessary.
-	newHeapLive := uintptr(gcController.heapLive.Load()-mheap_.sweepHeapLiveBasis) + spanBytes
+	live := gcController.heapLive.Load()
+	liveBasis := mheap_.sweepHeapLiveBasis
+	newHeapLive := spanBytes
+	if liveBasis < live {
+		// Only do this subtraction when we don't overflow. Otherwise, pagesTarget
+		// might be computed as something really huge, causing us to get stuck
+		// sweeping here until the next mark phase.
+		//
+		// Overflow can happen here if gcPaceSweeper is called concurrently with
+		// sweeping (i.e. not during a STW, like it usually is) because this code
+		// is intentionally racy. A concurrent call to gcPaceSweeper can happen
+		// if a GC tuning parameter is modified and we read an older value of
+		// heapLive than what was used to set the basis.
+		//
+		// This state should be transient, so it's fine to just let newHeapLive
+		// be a relatively small number. We'll probably just skip this attempt to
+		// sweep.
+		//
+		// See issue #57523.
+		newHeapLive += uintptr(live - liveBasis)
+	}
 	pagesTarget := int64(mheap_.sweepPagesPerByte*float64(newHeapLive)) - int64(callerSweepPages)
 	for pagesTarget > int64(mheap_.pagesSwept.Load()-sweptBasis) {
 		if sweepone() == ^uintptr(0) {
