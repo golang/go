@@ -577,7 +577,7 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 	if !pgf.File.Name.Pos().IsValid() {
 		return nil
 	}
-	rng, err := pgf.Mapper.PosRange(pgf.File.Name.Pos(), pgf.File.Name.End())
+	rng, err := pgf.PosRange(pgf.File.Name.Pos(), pgf.File.Name.End())
 	if err != nil {
 		return nil
 	}

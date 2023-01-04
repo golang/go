@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -263,7 +262,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 				if !ok {
 					return nil, fmt.Errorf("no missing module fix for %q (%q)", importPath, req.Mod.Path)
 				}
-				srcErr, err := missingModuleForImport(pgf.Tok, m, imp, req, fixes)
+				srcErr, err := missingModuleForImport(pgf, imp, req, fixes)
 				if err != nil {
 					return nil, err
 				}
@@ -423,41 +422,22 @@ func switchDirectness(req *modfile.Require, m *protocol.ColumnMapper, computeEdi
 
 // missingModuleForImport creates an error for a given import path that comes
 // from a missing module.
-func missingModuleForImport(file *token.File, m *protocol.ColumnMapper, imp *ast.ImportSpec, req *modfile.Require, fixes []source.SuggestedFix) (*source.Diagnostic, error) {
+func missingModuleForImport(pgf *source.ParsedGoFile, imp *ast.ImportSpec, req *modfile.Require, fixes []source.SuggestedFix) (*source.Diagnostic, error) {
 	if req.Syntax == nil {
 		return nil, fmt.Errorf("no syntax for %v", req)
 	}
-	rng, err := m.PosRange(imp.Path.Pos(), imp.Path.End())
+	rng, err := pgf.PosRange(imp.Path.Pos(), imp.Path.End())
 	if err != nil {
 		return nil, err
 	}
 	return &source.Diagnostic{
-		URI:            m.URI,
+		URI:            pgf.URI,
 		Range:          rng,
 		Severity:       protocol.SeverityError,
 		Source:         source.ModTidyError,
 		Message:        fmt.Sprintf("%s is not in your go.mod file", req.Mod.Path),
 		SuggestedFixes: fixes,
 	}, nil
-}
-
-func spanFromPositions(m *protocol.ColumnMapper, s, e modfile.Position) (span.Span, error) {
-	toPoint := func(offset int) (span.Point, error) {
-		l, c, err := span.ToPosition(m.TokFile, offset)
-		if err != nil {
-			return span.Point{}, err
-		}
-		return span.NewPoint(l, c, offset), nil
-	}
-	start, err := toPoint(s.Byte)
-	if err != nil {
-		return span.Span{}, err
-	}
-	end, err := toPoint(e.Byte)
-	if err != nil {
-		return span.Span{}, err
-	}
-	return span.New(m.URI, start, end), nil
 }
 
 // parseImports parses the headers of the specified files and returns

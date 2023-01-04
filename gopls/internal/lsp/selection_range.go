@@ -41,7 +41,7 @@ func (s *Server) selectionRange(ctx context.Context, params *protocol.SelectionR
 
 	result := make([]protocol.SelectionRange, len(params.Positions))
 	for i, protocolPos := range params.Positions {
-		pos, err := pgf.Mapper.Pos(protocolPos)
+		pos, err := pgf.Pos(protocolPos)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +51,7 @@ func (s *Server) selectionRange(ctx context.Context, params *protocol.SelectionR
 		tail := &result[i] // tail of the Parent linked list, built head first
 
 		for j, node := range path {
-			rng, err := pgf.Mapper.PosRange(node.Pos(), node.End())
+			rng, err := pgf.PosRange(node.Pos(), node.End())
 			if err != nil {
 				return nil, err
 			}

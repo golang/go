@@ -683,7 +683,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 			}
 
 			for _, imp := range allImports[item] {
-				rng, err := source.NewMappedRange(imp.cgf.Mapper, imp.imp.Pos(), imp.imp.End()).Range()
+				rng, err := imp.cgf.PosRange(imp.imp.Pos(), imp.imp.End())
 				if err != nil {
 					return nil, err
 				}

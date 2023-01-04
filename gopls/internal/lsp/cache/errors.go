@@ -86,17 +86,12 @@ func parseErrorDiagnostics(snapshot *snapshot, pkg *pkg, errList scanner.ErrorLi
 	if err != nil {
 		return nil, err
 	}
-	pos := pgf.Tok.Pos(e.Pos.Offset)
-	spn, err := span.NewRange(pgf.Tok, pos, pos).Span()
-	if err != nil {
-		return nil, err
-	}
-	rng, err := spanToRange(pkg, spn)
+	rng, err := pgf.Mapper.OffsetRange(e.Pos.Offset, e.Pos.Offset)
 	if err != nil {
 		return nil, err
 	}
 	return []*source.Diagnostic{{
-		URI:      spn.URI(),
+		URI:      pgf.URI,
 		Range:    rng,
 		Severity: protocol.SeverityError,
 		Source:   source.ParseError,
@@ -327,7 +322,7 @@ func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Sp
 	if !end.IsValid() || end == start {
 		end = analysisinternal.TypeErrorEndPos(fset, pgf.Src, start)
 	}
-	spn, err := span.FileSpan(pgf.Mapper.TokFile, start, end)
+	spn, err := span.FileSpan(pgf.Tok, start, end)
 	if err != nil {
 		return 0, span.Span{}, err
 	}
@@ -379,7 +374,11 @@ func parseGoListImportCycleError(snapshot *snapshot, e packages.Error, pkg *pkg)
 		// Search file imports for the import that is causing the import cycle.
 		for _, imp := range cgf.File.Imports {
 			if imp.Path.Value == circImp {
-				spn, err := span.NewRange(cgf.Tok, imp.Pos(), imp.End()).Span()
+				start, end, err := safetoken.Offsets(cgf.Tok, imp.Pos(), imp.End())
+				if err != nil {
+					return msg, span.Span{}, false
+				}
+				spn, err := cgf.Mapper.OffsetSpan(start, end)
 				if err != nil {
 					return msg, span.Span{}, false
 				}

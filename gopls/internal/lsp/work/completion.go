@@ -8,15 +8,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go/token"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
 )
 
 func Completion(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle, position protocol.Position) (*protocol.CompletionList, error) {
@@ -28,18 +27,17 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.Version
 	if err != nil {
 		return nil, fmt.Errorf("getting go.work file handle: %w", err)
 	}
-	pos, err := pw.Mapper.Pos(position)
+	cursor, err := pw.Mapper.Offset(position)
 	if err != nil {
-		return nil, fmt.Errorf("computing cursor position: %w", err)
+		return nil, fmt.Errorf("computing cursor offset: %w", err)
 	}
 
 	// Find the use statement the user is in.
-	cursor := pos - 1
 	use, pathStart, _ := usePath(pw, cursor)
 	if use == nil {
 		return &protocol.CompletionList{}, nil
 	}
-	completingFrom := use.Path[:cursor-token.Pos(pathStart)]
+	completingFrom := use.Path[:cursor-pathStart]
 
 	// We're going to find the completions of the user input
 	// (completingFrom) by doing a walk on the innermost directory

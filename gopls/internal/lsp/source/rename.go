@@ -107,7 +107,7 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 		}
 
 		// Return the location of the package declaration.
-		rng, err := pgf.Mapper.PosRange(pgf.File.Name.Pos(), pgf.File.Name.End())
+		rng, err := pgf.PosRange(pgf.File.Name.Pos(), pgf.File.Name.End())
 		if err != nil {
 			return nil, err, err
 		}
@@ -434,7 +434,7 @@ func renamePackageClause(ctx context.Context, m *Metadata, snapshot Snapshot, ne
 		if f.File.Name == nil {
 			continue // no package declaration
 		}
-		rng, err := f.Mapper.PosRange(f.File.Name.Pos(), f.File.Name.End())
+		rng, err := f.PosRange(f.File.Name.Pos(), f.File.Name.End())
 		if err != nil {
 			return err
 		}
@@ -493,8 +493,7 @@ func renameImports(ctx context.Context, snapshot Snapshot, m *Metadata, newPath 
 				}
 
 				// Create text edit for the import path (string literal).
-				impPathMappedRange := NewMappedRange(f.Mapper, imp.Path.Pos(), imp.Path.End())
-				rng, err := impPathMappedRange.Range()
+				rng, err := f.PosRange(imp.Path.Pos(), imp.Path.End())
 				if err != nil {
 					return err
 				}
@@ -667,7 +666,7 @@ func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
 		return nil, err
 	}
 	for _, ref := range r.refs {
-		refSpan, err := ref.Span()
+		refSpan, err := ref.MappedRange.Span()
 		if err != nil {
 			return nil, err
 		}
@@ -726,8 +725,7 @@ func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
 				for _, locs := range docRegexp.FindAllIndex([]byte(line), -1) {
 					// The File.Offset static check complains
 					// even though these uses are manifestly safe.
-					start, _ := safetoken.Offset(tokFile, lineStart+token.Pos(locs[0]))
-					end, _ := safetoken.Offset(tokFile, lineStart+token.Pos(locs[1]))
+					start, end, _ := safetoken.Offsets(tokFile, lineStart+token.Pos(locs[0]), lineStart+token.Pos(locs[1]))
 					result[uri] = append(result[uri], diff.Edit{
 						Start: start,
 						End:   end,
@@ -813,15 +811,14 @@ func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.Edit, error) {
 	// Replace the portion (possibly empty) of the spec before the path:
 	//     local "path"      or      "path"
 	//   ->      <-                -><-
-	rng := span.NewRange(tokFile, spec.Pos(), spec.Path.Pos())
-	spn, err := rng.Span()
+	start, end, err := safetoken.Offsets(tokFile, spec.Pos(), spec.Path.Pos())
 	if err != nil {
 		return nil, err
 	}
 
 	return &diff.Edit{
-		Start: spn.Start().Offset(),
-		End:   spn.End().Offset(),
+		Start: start,
+		End:   end,
 		New:   newText,
 	}, nil
 }

@@ -23,6 +23,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event/label"
 	"golang.org/x/tools/internal/event/tag"
@@ -378,6 +379,33 @@ type ParsedGoFile struct {
 	Fixed    bool
 	Mapper   *protocol.ColumnMapper
 	ParseErr scanner.ErrorList
+}
+
+// Pos returns the token.Pos of protocol position p within the file.
+func (pgf *ParsedGoFile) Pos(p protocol.Position) (token.Pos, error) {
+	point, err := pgf.Mapper.Point(p)
+	if err != nil {
+		return token.NoPos, err
+	}
+	return safetoken.Pos(pgf.Tok, point.Offset())
+}
+
+// PosRange returns a protocol Range for the token.Pos interval in this file.
+func (pgf *ParsedGoFile) PosRange(start, end token.Pos) (protocol.Range, error) {
+	startOffset, endOffset, err := safetoken.Offsets(pgf.Tok, start, end)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	return pgf.Mapper.OffsetRange(startOffset, endOffset)
+}
+
+// RangeToSpanRange parses a protocol Range back into the go/token domain.
+func (pgf *ParsedGoFile) RangeToSpanRange(r protocol.Range) (span.Range, error) {
+	spn, err := pgf.Mapper.RangeSpan(r)
+	if err != nil {
+		return span.Range{}, err
+	}
+	return spn.Range(pgf.Tok)
 }
 
 // A ParsedModule contains the results of parsing a go.mod file.

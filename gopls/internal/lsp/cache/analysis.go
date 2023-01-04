@@ -1024,7 +1024,7 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 				if end == token.NoPos {
 					end = start
 				}
-				rng, err := p.Mapper.PosRange(start, end)
+				rng, err := p.PosRange(start, end)
 				if err != nil {
 					return protocol.Location{}, err
 				}

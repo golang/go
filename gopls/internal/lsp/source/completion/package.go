@@ -37,7 +37,7 @@ func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh 
 		return nil, nil, err
 	}
 
-	pos, err := pgf.Mapper.Pos(position)
+	pos, err := pgf.Pos(position)
 	if err != nil {
 		return nil, nil, err
 	}

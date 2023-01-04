@@ -24,7 +24,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, positi
 	if err != nil {
 		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
 	}
-	pos, err := pgf.Mapper.Pos(position)
+	pos, err := pgf.Pos(position)
 	if err != nil {
 		return nil, 0, err
 	}

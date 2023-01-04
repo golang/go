@@ -28,7 +28,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 		return nil, fmt.Errorf("getting package for Highlight: %w", err)
 	}
 
-	pos, err := pgf.Mapper.Pos(position)
+	pos, err := pgf.Pos(position)
 	if err != nil {
 		return nil, err
 	}

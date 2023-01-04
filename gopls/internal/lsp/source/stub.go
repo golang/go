@@ -109,12 +109,11 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFi
 
 	// Return the diff.
 	diffs := snapshot.View().Options().ComputeEdits(string(parsedConcreteFile.Src), source.String())
-	tf := parsedConcreteFile.Mapper.TokFile
 	var edits []analysis.TextEdit
 	for _, edit := range diffs {
 		edits = append(edits, analysis.TextEdit{
-			Pos:     tf.Pos(edit.Start),
-			End:     tf.Pos(edit.End),
+			Pos:     parsedConcreteFile.Tok.Pos(edit.Start),
+			End:     parsedConcreteFile.Tok.Pos(edit.End),
 			NewText: []byte(edit.New),
 		})
 	}
@@ -223,7 +222,7 @@ func getStubNodes(pgf *ParsedGoFile, pRng protocol.Range) ([]ast.Node, token.Pos
 	if err != nil {
 		return nil, 0, err
 	}
-	rng, err := spn.Range(pgf.Mapper.TokFile)
+	rng, err := spn.Range(pgf.Tok)
 	if err != nil {
 		return nil, 0, err
 	}

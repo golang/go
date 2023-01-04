@@ -11,7 +11,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/token"
 	"io/ioutil"
 	"log"
 	"os"
@@ -385,8 +384,7 @@ type connection struct {
 
 type cmdClient struct {
 	protocol.Server
-	app  *Application
-	fset *token.FileSet
+	app *Application
 
 	diagnosticsMu   sync.Mutex
 	diagnosticsDone chan struct{}
@@ -407,7 +405,6 @@ func newConnection(app *Application) *connection {
 	return &connection{
 		Client: &cmdClient{
 			app:   app,
-			fset:  token.NewFileSet(),
 			files: make(map[span.URI]*cmdFile),
 		},
 	}
@@ -541,19 +538,12 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 		c.files[uri] = file
 	}
 	if file.mapper == nil {
-		fname := uri.Filename()
-		content, err := ioutil.ReadFile(fname)
+		content, err := ioutil.ReadFile(uri.Filename())
 		if err != nil {
 			file.err = fmt.Errorf("getFile: %v: %v", uri, err)
 			return file
 		}
-		f := c.fset.AddFile(fname, -1, len(content))
-		f.SetLinesForContent(content)
-		file.mapper = &protocol.ColumnMapper{
-			URI:     uri,
-			TokFile: f,
-			Content: content,
-		}
+		file.mapper = protocol.NewColumnMapper(uri, content)
 	}
 	return file
 }

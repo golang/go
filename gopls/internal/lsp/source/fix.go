@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 )
@@ -93,6 +94,10 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 		if !end.IsValid() {
 			end = edit.Pos
 		}
+		startOffset, endOffset, err := safetoken.Offsets(tokFile, edit.Pos, end)
+		if err != nil {
+			return nil, err
+		}
 		fh, err := snapshot.GetVersionedFile(ctx, span.URIFromPath(tokFile.Name()))
 		if err != nil {
 			return nil, err
@@ -109,12 +114,13 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 			}
 			editsPerFile[fh.URI()] = te
 		}
+		// TODO(adonovan): once FileHandle has a ColumnMapper, eliminate this.
 		content, err := fh.Read()
 		if err != nil {
 			return nil, err
 		}
-		m := protocol.ColumnMapper{URI: fh.URI(), TokFile: tokFile, Content: content}
-		rng, err := m.PosRange(edit.Pos, end)
+		m := protocol.NewColumnMapper(fh.URI(), content)
+		rng, err := m.OffsetRange(startOffset, endOffset)
 		if err != nil {
 			return nil, err
 		}
@@ -137,7 +143,7 @@ func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHan
 	if err != nil {
 		return nil, span.Range{}, nil, nil, nil, nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
-	rng, err := pgf.Mapper.RangeToSpanRange(pRng)
+	rng, err := pgf.RangeToSpanRange(pRng)
 	if err != nil {
 		return nil, span.Range{}, nil, nil, nil, nil, err
 	}

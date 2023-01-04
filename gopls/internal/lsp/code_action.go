@@ -316,7 +316,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
-	srng, err := pgf.Mapper.RangeToSpanRange(rng)
+	srng, err := pgf.RangeToSpanRange(rng)
 	if err != nil {
 		return nil, err
 	}

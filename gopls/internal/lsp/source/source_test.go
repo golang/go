@@ -431,11 +431,11 @@ func nonOverlappingRanges(t *testing.T, ranges []*source.FoldingRangeInfo) (res 
 }
 
 func conflict(t *testing.T, a, b *source.FoldingRangeInfo) bool {
-	arng, err := a.Range()
+	arng, err := a.MappedRange.Range()
 	if err != nil {
 		t.Fatal(err)
 	}
-	brng, err := b.Range()
+	brng, err := b.MappedRange.Range()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -450,7 +450,7 @@ func foldRanges(contents string, ranges []*source.FoldingRangeInfo) (string, err
 	// to preserve the offsets.
 	for i := len(ranges) - 1; i >= 0; i-- {
 		fRange := ranges[i]
-		spn, err := fRange.Span()
+		spn, err := fRange.MappedRange.Span()
 		if err != nil {
 			return "", err
 		}
@@ -552,7 +552,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		t.Fatal(err)
 	}
 	if d.IsType {
-		rng, err = ident.Type.Range()
+		rng, err = ident.Type.MappedRange.Range()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -725,7 +725,7 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 			}
 			got := make(map[span.Span]bool)
 			for _, refInfo := range refs {
-				refSpan, err := refInfo.Span()
+				refSpan, err := refInfo.MappedRange.Span()
 				if err != nil {
 					t.Fatal(err)
 				}

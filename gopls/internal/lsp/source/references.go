@@ -23,8 +23,8 @@ import (
 
 // ReferenceInfo holds information about reference to an identifier in Go source.
 type ReferenceInfo struct {
-	Name string
-	MappedRange
+	Name          string
+	MappedRange   MappedRange
 	ident         *ast.Ident
 	obj           types.Object
 	pkg           Package
@@ -74,7 +74,7 @@ func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protoco
 					if rdep.DepsByImpPath[UnquoteImportPath(imp)] == targetPkg.ID {
 						refs = append(refs, &ReferenceInfo{
 							Name:        pgf.File.Name.Name,
-							MappedRange: NewMappedRange(f.Mapper, imp.Pos(), imp.End()),
+							MappedRange: NewMappedRange(f, imp.Pos(), imp.End()),
 						})
 					}
 				}
@@ -93,7 +93,7 @@ func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protoco
 			}
 			refs = append(refs, &ReferenceInfo{
 				Name:        pgf.File.Name.Name,
-				MappedRange: NewMappedRange(f.Mapper, f.File.Name.Pos(), f.File.Name.End()),
+				MappedRange: NewMappedRange(f, f.File.Name.Pos(), f.File.Name.End()),
 			})
 		}
 
@@ -120,7 +120,7 @@ func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protoco
 	}
 	sort.Slice(toSort, func(i, j int) bool {
 		x, y := toSort[i], toSort[j]
-		if cmp := strings.Compare(string(x.URI()), string(y.URI())); cmp != 0 {
+		if cmp := strings.Compare(string(x.MappedRange.URI()), string(y.MappedRange.URI())); cmp != 0 {
 			return cmp < 0
 		}
 		return x.ident.Pos() < y.ident.Pos()
@@ -137,8 +137,8 @@ func parsePackageNameDecl(ctx context.Context, snapshot Snapshot, fh FileHandle,
 		return nil, false, err
 	}
 	// Careful: because we used ParseHeader,
-	// Mapper.Pos(ppos) may be beyond EOF => (0, err).
-	pos, _ := pgf.Mapper.Pos(ppos)
+	// pgf.Pos(ppos) may be beyond EOF => (0, err).
+	pos, _ := pgf.Pos(ppos)
 	return pgf, pgf.File.Name.Pos() <= pos && pos <= pgf.File.Name.End(), nil
 }
 
@@ -261,11 +261,11 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 	if includeInterfaceRefs && !isType {
 		// TODO(adonovan): opt: don't go back into the position domain:
 		// we have complete type information already.
-		declRange, err := declIdent.Range()
+		declRange, err := declIdent.MappedRange.Range()
 		if err != nil {
 			return nil, err
 		}
-		fh, err := snapshot.GetFile(ctx, declIdent.URI())
+		fh, err := snapshot.GetFile(ctx, declIdent.MappedRange.URI())
 		if err != nil {
 			return nil, err
 		}

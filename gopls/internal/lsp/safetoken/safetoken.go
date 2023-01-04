@@ -41,6 +41,19 @@ func Offset(f *token.File, pos token.Pos) (int, error) {
 	return int(pos) - f.Base(), nil
 }
 
+// Offsets returns Offset(start) and Offset(end).
+func Offsets(f *token.File, start, end token.Pos) (int, int, error) {
+	startOffset, err := Offset(f, start)
+	if err != nil {
+		return 0, 0, fmt.Errorf("start: %v", err)
+	}
+	endOffset, err := Offset(f, end)
+	if err != nil {
+		return 0, 0, fmt.Errorf("end: %v", err)
+	}
+	return startOffset, endOffset, nil
+}
+
 // Pos returns f.Pos(offset), but first checks that the offset is
 // non-negative and not larger than the size of the file.
 func Pos(f *token.File, offset int) (token.Pos, error) {

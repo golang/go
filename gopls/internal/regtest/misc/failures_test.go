@@ -50,7 +50,7 @@ func main() {
 func TestFailingDiagnosticClearingOnEdit(t *testing.T) {
 	t.Skip("line directives //line ")
 	// badPackageDup contains a duplicate definition of the 'a' const.
-	// This is a minor variant of TestDiagnosticClearingOnEditfrom from
+	// This is a minor variant of TestDiagnosticClearingOnEdit from
 	// diagnostics_test.go, with a line directive, which makes no difference.
 	const badPackageDup = `
 -- go.mod --

@@ -24,13 +24,13 @@ import (
 
 // IdentifierInfo holds information about an identifier in Go source.
 type IdentifierInfo struct {
-	Name     string
-	Snapshot Snapshot // only needed for .View(); TODO(adonovan): reduce.
-	MappedRange
+	Name        string
+	Snapshot    Snapshot // only needed for .View(); TODO(adonovan): reduce.
+	MappedRange MappedRange
 
 	Type struct {
-		MappedRange
-		Object types.Object
+		MappedRange MappedRange // TODO(adonovan): strength-reduce to a protocol.Location
+		Object      types.Object
 	}
 
 	Inferred *types.Signature
@@ -83,7 +83,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, position 
 	if err != nil {
 		return nil, err
 	}
-	pos, err := pgf.Mapper.Pos(position)
+	pos, err := pgf.Pos(position)
 	if err != nil {
 		return nil, err
 	}
@@ -114,24 +114,15 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	// Special case for package declarations, since they have no
 	// corresponding types.Object.
 	if ident == file.Name {
-		rng, err := posToMappedRange(pkg, file.Name.Pos(), file.Name.End())
-		if err != nil {
-			return nil, err
-		}
-		var declAST *ast.File
+		rng := NewMappedRange(pgf, file.Name.Pos(), file.Name.End())
+		// If there's no package documentation, just use current file.
+		decl := pgf
 		for _, pgf := range pkg.CompiledGoFiles() {
 			if pgf.File.Doc != nil {
-				declAST = pgf.File
+				decl = pgf
 			}
 		}
-		// If there's no package documentation, just use current file.
-		if declAST == nil {
-			declAST = file
-		}
-		declRng, err := posToMappedRange(pkg, declAST.Name.Pos(), declAST.Name.End())
-		if err != nil {
-			return nil, err
-		}
+		declRng := NewMappedRange(decl, decl.File.Name.Pos(), decl.File.Name.End())
 		return &IdentifierInfo{
 			Name:        file.Name.Name,
 			ident:       file.Name,
@@ -140,7 +131,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 			qf:          qf,
 			Snapshot:    snapshot,
 			Declaration: Declaration{
-				node:        declAST.Name,
+				node:        decl.File.Name,
 				MappedRange: []MappedRange{declRng},
 			},
 		}, nil
@@ -199,7 +190,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 
 		// The builtin package isn't in the dependency graph, so the usual
 		// utilities won't work here.
-		rng := NewMappedRange(builtin.Mapper, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
+		rng := NewMappedRange(builtin, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
 		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 		return result, nil
 	}
@@ -240,7 +231,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 			}
 			name := method.Names[0].Name
 			result.Declaration.node = method
-			rng := NewMappedRange(builtin.Mapper, method.Pos(), method.Pos()+token.Pos(len(name)))
+			rng := NewMappedRange(builtin, method.Pos(), method.Pos()+token.Pos(len(name)))
 			result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 			return result, nil
 		}

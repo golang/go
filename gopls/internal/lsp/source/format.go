@@ -199,7 +199,7 @@ func computeFixEdits(snapshot Snapshot, pgf *ParsedGoFile, options *imports.Opti
 		fixedData = append(fixedData, '\n') // ApplyFixes may miss the newline, go figure.
 	}
 	edits := snapshot.View().Options().ComputeEdits(left, string(fixedData))
-	return protocolEditsFromSource([]byte(left), edits, pgf.Mapper.TokFile)
+	return protocolEditsFromSource([]byte(left), edits)
 }
 
 // importPrefix returns the prefix of the given file content through the final
@@ -314,7 +314,7 @@ func computeTextEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile,
 
 // protocolEditsFromSource converts text edits to LSP edits using the original
 // source.
-func protocolEditsFromSource(src []byte, edits []diff.Edit, tf *token.File) ([]protocol.TextEdit, error) {
+func protocolEditsFromSource(src []byte, edits []diff.Edit) ([]protocol.TextEdit, error) {
 	m := lsppos.NewMapper(src)
 	var result []protocol.TextEdit
 	for _, edit := range edits {

@@ -58,13 +58,13 @@ func (s *Server) typeDefinition(ctx context.Context, params *protocol.TypeDefini
 	if ident.Type.Object == nil {
 		return nil, fmt.Errorf("no type definition for %s", ident.Name)
 	}
-	identRange, err := ident.Type.Range()
+	identRange, err := ident.Type.MappedRange.Range()
 	if err != nil {
 		return nil, err
 	}
 	return []protocol.Location{
 		{
-			URI:   protocol.URIFromSpanURI(ident.Type.URI()),
+			URI:   protocol.URIFromSpanURI(ident.Type.MappedRange.URI()),
 			Range: identRange,
 		},
 	}, nil

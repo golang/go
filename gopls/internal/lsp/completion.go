@@ -60,6 +60,8 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	// internal/span, as the latter treats end of file as the beginning of the
 	// next line, even when it's not newline-terminated. See golang/go#41029 for
 	// more details.
+	// TODO(adonovan): make completion retain the pgf.Mapper
+	// so we can convert to rng without reading.
 	src, err := fh.Read()
 	if err != nil {
 		return nil, err

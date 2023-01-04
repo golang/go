@@ -291,6 +291,10 @@ type Selection struct {
 	content string
 	cursor  token.Pos // relative to rng.TokFile
 	rng     span.Range
+	// TODO(adonovan): keep the ColumnMapper (completer.mapper)
+	// nearby so we can convert rng to protocol form without
+	// needing to read the file again, as the sole caller of
+	// Selection.Range() must currently do.
 }
 
 func (p Selection) Content() string {
@@ -441,7 +445,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		}
 		return items, surrounding, nil
 	}
-	pos, err := pgf.Mapper.Pos(protoPos)
+	pos, err := pgf.Pos(protoPos)
 	if err != nil {
 		return nil, nil, err
 	}

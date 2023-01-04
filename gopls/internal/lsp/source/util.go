@@ -20,66 +20,46 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/typeparams"
 )
 
-// MappedRange provides mapped protocol.Range for a span.Range, accounting for
-// UTF-16 code points.
+// A MappedRange represents an interval within a parsed Go file and
+// has the ability to convert to protocol.Range or span.Span form.
 //
-// TOOD(adonovan): eliminate this type. Replace all uses by an
-// explicit pair (span.Range, protocol.ColumnMapper), and an operation
-// to map both to a protocol.Range.
+// TOOD(adonovan): eliminate this type by inlining it: make callers
+// hold the triple themselves, or convert to Mapper + start/end offsets
+// and hold that.
 type MappedRange struct {
-	spanRange span.Range             // the range in the compiled source (package.CompiledGoFiles)
-	m         *protocol.ColumnMapper // a mapper of the edited source (package.GoFiles)
+	// TODO(adonovan): eliminate sole tricky direct use of this,
+	// which is entangled with IdentifierInfo.Declaration.node.
+	File       *ParsedGoFile
+	start, end token.Pos
 }
 
 // NewMappedRange returns a MappedRange for the given file and
-// start/end positions, which must be valid within m.TokFile.
-func NewMappedRange(m *protocol.ColumnMapper, start, end token.Pos) MappedRange {
-	return MappedRange{
-		spanRange: span.NewRange(m.TokFile, start, end),
-		m:         m,
-	}
+// start/end positions, which must be valid within the file.
+func NewMappedRange(pgf *ParsedGoFile, start, end token.Pos) MappedRange {
+	_ = span.NewRange(pgf.Tok, start, end) // just for assertions
+	return MappedRange{File: pgf, start: start, end: end}
 }
 
 // Range returns the LSP range in the edited source.
-//
-// See the documentation of NewMappedRange for information on edited vs
-// compiled source.
 func (s MappedRange) Range() (protocol.Range, error) {
-	if s.m == nil {
-		return protocol.Range{}, bug.Errorf("invalid range")
-	}
-	spn, err := span.FileSpan(s.spanRange.TokFile, s.spanRange.Start, s.spanRange.End)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	return s.m.Range(spn)
+	return s.File.PosRange(s.start, s.end)
 }
 
-// Span returns the span corresponding to the mapped range in the edited
-// source.
-//
-// See the documentation of NewMappedRange for information on edited vs
-// compiled source.
+// Span returns the span corresponding to the mapped range in the edited source.
 func (s MappedRange) Span() (span.Span, error) {
-	// In the past, some code-paths have relied on Span returning an error if s
-	// is the zero value (i.e. s.m is nil). But this should be treated as a bug:
-	// observe that s.URI() would panic in this case.
-	if s.m == nil {
-		return span.Span{}, bug.Errorf("invalid range")
+	start, end, err := safetoken.Offsets(s.File.Tok, s.start, s.end)
+	if err != nil {
+		return span.Span{}, err
 	}
-	return span.FileSpan(s.spanRange.TokFile, s.spanRange.Start, s.spanRange.End)
+	return s.File.Mapper.OffsetSpan(start, end)
 }
 
 // URI returns the URI of the edited file.
-//
-// See the documentation of NewMappedRange for information on edited vs
-// compiled source.
 func (s MappedRange) URI() span.URI {
-	return s.m.URI
+	return s.File.Mapper.URI
 }
 
 func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
@@ -126,6 +106,10 @@ func objToMappedRange(pkg Package, obj types.Object) (MappedRange, error) {
 
 // posToMappedRange returns the MappedRange for the given [start, end) span,
 // which must be among the transitive dependencies of pkg.
+//
+// TODO(adonovan): many of the callers need only the ParsedGoFile so
+// that they can call pgf.PosRange(pos, end) to get a Range; they
+// don't actually need a MappedRange.
 func posToMappedRange(pkg Package, pos, end token.Pos) (MappedRange, error) {
 	if !pos.IsValid() {
 		return MappedRange{}, fmt.Errorf("invalid start position")
@@ -139,7 +123,7 @@ func posToMappedRange(pkg Package, pos, end token.Pos) (MappedRange, error) {
 	if err != nil {
 		return MappedRange{}, err
 	}
-	return NewMappedRange(pgf.Mapper, pos, end), nil
+	return NewMappedRange(pgf, pos, end), nil
 }
 
 // FindPackageFromPos returns the Package for the given position, which must be

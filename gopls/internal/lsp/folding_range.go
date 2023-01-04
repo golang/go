@@ -28,7 +28,7 @@ func (s *Server) foldingRange(ctx context.Context, params *protocol.FoldingRange
 func toProtocolFoldingRanges(ranges []*source.FoldingRangeInfo) ([]protocol.FoldingRange, error) {
 	result := make([]protocol.FoldingRange, 0, len(ranges))
 	for _, info := range ranges {
-		rng, err := info.Range()
+		rng, err := info.MappedRange.Range()
 		if err != nil {
 			return nil, err
 		}

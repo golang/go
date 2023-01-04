@@ -134,11 +134,7 @@ func CanExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, b
 // line of code on which the insertion occurs.
 func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.Node) (string, error) {
 	line := tok.Line(insertBeforeStmt.Pos())
-	lineOffset, err := safetoken.Offset(tok, tok.LineStart(line))
-	if err != nil {
-		return "", err
-	}
-	stmtOffset, err := safetoken.Offset(tok, insertBeforeStmt.Pos())
+	lineOffset, stmtOffset, err := safetoken.Offsets(tok, tok.LineStart(line), insertBeforeStmt.Pos())
 	if err != nil {
 		return "", err
 	}
@@ -405,11 +401,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 
 	// We put the selection in a constructed file. We can then traverse and edit
 	// the extracted selection without modifying the original AST.
-	startOffset, err := safetoken.Offset(tok, rng.Start)
-	if err != nil {
-		return nil, err
-	}
-	endOffset, err := safetoken.Offset(tok, rng.End)
+	startOffset, endOffset, err := safetoken.Offsets(tok, rng.Start, rng.End)
 	if err != nil {
 		return nil, err
 	}
@@ -605,11 +597,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 
 	// We're going to replace the whole enclosing function,
 	// so preserve the text before and after the selected block.
-	outerStart, err := safetoken.Offset(tok, outer.Pos())
-	if err != nil {
-		return nil, err
-	}
-	outerEnd, err := safetoken.Offset(tok, outer.End())
+	outerStart, outerEnd, err := safetoken.Offsets(tok, outer.Pos(), outer.End())
 	if err != nil {
 		return nil, err
 	}

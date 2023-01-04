@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"go/token"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -30,14 +29,14 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("getting go.work file handle: %w", err)
 	}
-	pos, err := pw.Mapper.Pos(position)
+	offset, err := pw.Mapper.Offset(position)
 	if err != nil {
-		return nil, fmt.Errorf("computing cursor position: %w", err)
+		return nil, fmt.Errorf("computing cursor offset: %w", err)
 	}
 
 	// Confirm that the cursor is inside a use statement, and then find
 	// the position of the use statement's directory path.
-	use, pathStart, pathEnd := usePath(pw, pos)
+	use, pathStart, pathEnd := usePath(pw, offset)
 
 	// The cursor position is not on a use statement.
 	if use == nil {
@@ -70,7 +69,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	}, nil
 }
 
-func usePath(pw *source.ParsedWorkFile, pos token.Pos) (use *modfile.Use, pathStart, pathEnd int) {
+func usePath(pw *source.ParsedWorkFile, offset int) (use *modfile.Use, pathStart, pathEnd int) {
 	for _, u := range pw.File.Use {
 		path := []byte(u.Path)
 		s, e := u.Syntax.Start.Byte, u.Syntax.End.Byte
@@ -82,7 +81,7 @@ func usePath(pw *source.ParsedWorkFile, pos token.Pos) (use *modfile.Use, pathSt
 		// Shift the start position to the location of the
 		// module directory within the use statement.
 		pathStart, pathEnd = s+i, s+i+len(path)
-		if token.Pos(pathStart) <= pos && pos <= token.Pos(pathEnd) {
+		if pathStart <= offset && offset <= pathEnd {
 			return u, pathStart, pathEnd
 		}
 	}

@@ -15,6 +15,8 @@ import (
 // Range represents a source code range in token.Pos form.
 // It also carries the token.File that produced the positions, so that it is
 // self contained.
+//
+// TODO(adonovan): move to safetoken.Range (but the Range.Span function must stay behind).
 type Range struct {
 	TokFile    *token.File // non-nil
 	Start, End token.Pos   // both IsValid()
@@ -55,14 +57,6 @@ func NewRange(file *token.File, start, end token.Pos) Range {
 	}
 }
 
-// NewTokenFile returns a token.File for the given file content.
-func NewTokenFile(filename string, content []byte) *token.File {
-	fset := token.NewFileSet()
-	f := fset.AddFile(filename, -1, len(content))
-	f.SetLinesForContent(content)
-	return f
-}
-
 // IsPoint returns true if the range represents a single point.
 func (r Range) IsPoint() bool {
 	return r.Start == r.End
@@ -95,8 +89,6 @@ func FileSpan(file *token.File, start, end token.Pos) (Span, error) {
 		if err != nil {
 			return Span{}, err
 		}
-		// In the presence of line directives, a single File can have sections from
-		// multiple file names.
 		if endFilename != startFilename {
 			return Span{}, fmt.Errorf("span begins in file %q but ends in %q", startFilename, endFilename)
 		}
@@ -160,11 +152,13 @@ func (s Span) Range(tf *token.File) (Range, error) {
 	}, nil
 }
 
-// ToPosition converts a byte offset in the file corresponding to tf into
+// OffsetToLineCol8 converts a byte offset in the file corresponding to tf into
 // 1-based line and utf-8 column indexes.
-func ToPosition(tf *token.File, offset int) (int, int, error) {
-	_, line, col, err := positionFromOffset(tf, offset)
-	return line, col, err
+//
+// TODO(adonovan): move to safetoken package for consistency?
+func OffsetToLineCol8(tf *token.File, offset int) (int, int, error) {
+	_, line, col8, err := positionFromOffset(tf, offset)
+	return line, col8, err
 }
 
 // ToOffset converts a 1-based line and utf-8 column index into a byte offset

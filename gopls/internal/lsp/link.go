@@ -17,8 +17,8 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 )
@@ -48,7 +48,6 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	if err != nil {
 		return nil, err
 	}
-	tokFile := pm.Mapper.TokFile
 
 	var links []protocol.DocumentLink
 	for _, req := range pm.File.Require {
@@ -60,16 +59,15 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 			continue
 		}
 		dep := []byte(req.Mod.Path)
-		s, e := req.Syntax.Start.Byte, req.Syntax.End.Byte
-		i := bytes.Index(pm.Mapper.Content[s:e], dep)
+		start, end := req.Syntax.Start.Byte, req.Syntax.End.Byte
+		i := bytes.Index(pm.Mapper.Content[start:end], dep)
 		if i == -1 {
 			continue
 		}
 		// Shift the start position to the location of the
 		// dependency within the require statement.
-		start, end := tokFile.Pos(s+i), tokFile.Pos(s+i+len(dep))
 		target := source.BuildLink(snapshot.View().Options().LinkTarget, "mod/"+req.Mod.String(), "")
-		l, err := toProtocolLink(tokFile, pm.Mapper, target, start, end)
+		l, err := toProtocolLink(pm.Mapper, target, start+i, start+i+len(dep))
 		if err != nil {
 			return nil, err
 		}
@@ -89,8 +87,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		}
 		for _, section := range [][]modfile.Comment{comments.Before, comments.Suffix, comments.After} {
 			for _, comment := range section {
-				start := tokFile.Pos(comment.Start.Byte)
-				l, err := findLinksInString(urlRegexp, comment.Token, start, tokFile, pm.Mapper)
+				l, err := findLinksInString(urlRegexp, comment.Token, comment.Start.Byte, pm.Mapper)
 				if err != nil {
 					return nil, err
 				}
@@ -145,11 +142,13 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 				urlPath = strings.Replace(urlPath, m.Module.Path, m.Module.Path+"@"+m.Module.Version, 1)
 			}
 
-			// Account for the quotation marks in the positions.
-			start := imp.Path.Pos() + 1
-			end := imp.Path.End() - 1
+			start, end, err := safetoken.Offsets(pgf.Tok, imp.Path.Pos(), imp.Path.End())
+			if err != nil {
+				return nil, err
+			}
 			targetURL := source.BuildLink(view.Options().LinkTarget, urlPath, "")
-			l, err := toProtocolLink(pgf.Tok, pgf.Mapper, targetURL, start, end)
+			// Account for the quotation marks in the positions.
+			l, err := toProtocolLink(pgf.Mapper, targetURL, start+len(`"`), end-len(`"`))
 			if err != nil {
 				return nil, err
 			}
@@ -173,7 +172,11 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 		return true
 	})
 	for _, s := range str {
-		l, err := findLinksInString(urlRegexp, s.Value, s.Pos(), pgf.Tok, pgf.Mapper)
+		strOffset, err := safetoken.Offset(pgf.Tok, s.Pos())
+		if err != nil {
+			return nil, err
+		}
+		l, err := findLinksInString(urlRegexp, s.Value, strOffset, pgf.Mapper)
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +186,11 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 	// Gather links found in comments.
 	for _, commentGroup := range pgf.File.Comments {
 		for _, comment := range commentGroup.List {
-			l, err := findLinksInString(urlRegexp, comment.Text, comment.Pos(), pgf.Tok, pgf.Mapper)
+			commentOffset, err := safetoken.Offset(pgf.Tok, comment.Pos())
+			if err != nil {
+				return nil, err
+			}
+			l, err := findLinksInString(urlRegexp, comment.Text, commentOffset, pgf.Mapper)
 			if err != nil {
 				return nil, err
 			}
@@ -203,13 +210,11 @@ var acceptedSchemes = map[string]bool{
 }
 
 // urlRegexp is the user-supplied regular expression to match URL.
-// tokFile may be a throwaway File for non-Go files.
-func findLinksInString(urlRegexp *regexp.Regexp, src string, pos token.Pos, tokFile *token.File, m *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
+// srcOffset is the start offset of 'src' within m's file.
+func findLinksInString(urlRegexp *regexp.Regexp, src string, srcOffset int, m *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
 	var links []protocol.DocumentLink
 	for _, index := range urlRegexp.FindAllIndex([]byte(src), -1) {
 		start, end := index[0], index[1]
-		startPos := token.Pos(int(pos) + start)
-		endPos := token.Pos(int(pos) + end)
 		link := src[start:end]
 		linkURL, err := url.Parse(link)
 		// Fallback: Linkify IP addresses as suggested in golang/go#18824.
@@ -227,7 +232,8 @@ func findLinksInString(urlRegexp *regexp.Regexp, src string, pos token.Pos, tokF
 		if !acceptedSchemes[linkURL.Scheme] {
 			continue
 		}
-		l, err := toProtocolLink(tokFile, m, linkURL.String(), startPos, endPos)
+
+		l, err := toProtocolLink(m, linkURL.String(), srcOffset+start, srcOffset+end)
 		if err != nil {
 			return nil, err
 		}
@@ -237,15 +243,13 @@ func findLinksInString(urlRegexp *regexp.Regexp, src string, pos token.Pos, tokF
 	r := getIssueRegexp()
 	for _, index := range r.FindAllIndex([]byte(src), -1) {
 		start, end := index[0], index[1]
-		startPos := token.Pos(int(pos) + start)
-		endPos := token.Pos(int(pos) + end)
 		matches := r.FindStringSubmatch(src)
 		if len(matches) < 4 {
 			continue
 		}
 		org, repo, number := matches[1], matches[2], matches[3]
 		targetURL := fmt.Sprintf("https://github.com/%s/%s/issues/%s", org, repo, number)
-		l, err := toProtocolLink(tokFile, m, targetURL, startPos, endPos)
+		l, err := toProtocolLink(m, targetURL, srcOffset+start, srcOffset+end)
 		if err != nil {
 			return nil, err
 		}
@@ -266,12 +270,8 @@ var (
 	issueRegexp *regexp.Regexp
 )
 
-func toProtocolLink(tokFile *token.File, m *protocol.ColumnMapper, targetURL string, start, end token.Pos) (protocol.DocumentLink, error) {
-	spn, err := span.NewRange(tokFile, start, end).Span()
-	if err != nil {
-		return protocol.DocumentLink{}, err
-	}
-	rng, err := m.Range(spn)
+func toProtocolLink(m *protocol.ColumnMapper, targetURL string, start, end int) (protocol.DocumentLink, error) {
+	rng, err := m.OffsetRange(start, end)
 	if err != nil {
 		return protocol.DocumentLink{}, err
 	}

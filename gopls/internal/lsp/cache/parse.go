@@ -202,17 +202,13 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 	}
 
 	return &source.ParsedGoFile{
-		URI:   fh.URI(),
-		Mode:  mode,
-		Src:   src,
-		Fixed: fixed,
-		File:  file,
-		Tok:   tok,
-		Mapper: &protocol.ColumnMapper{
-			URI:     fh.URI(),
-			TokFile: tok,
-			Content: src,
-		},
+		URI:      fh.URI(),
+		Mode:     mode,
+		Src:      src,
+		Fixed:    fixed,
+		File:     file,
+		Tok:      tok,
+		Mapper:   protocol.NewColumnMapper(fh.URI(), src),
 		ParseErr: parseErr,
 	}, nil
 }
@@ -900,11 +896,7 @@ func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte)
 	}
 
 	// Try to extract a statement from the BadExpr.
-	start, err := safetoken.Offset(tok, bad.Pos())
-	if err != nil {
-		return
-	}
-	end, err := safetoken.Offset(tok, bad.End()-1)
+	start, end, err := safetoken.Offsets(tok, bad.Pos(), bad.End()-1)
 	if err != nil {
 		return
 	}
@@ -989,11 +981,7 @@ func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte
 	// Avoid doing tok.Offset(to) since that panics if badExpr ends at EOF.
 	// It also panics if the position is not in the range of the file, and
 	// badExprs may not necessarily have good positions, so check first.
-	fromOffset, err := safetoken.Offset(tok, from)
-	if err != nil {
-		return false
-	}
-	toOffset, err := safetoken.Offset(tok, to-1)
+	fromOffset, toOffset, err := safetoken.Offsets(tok, from, to-1)
 	if err != nil {
 		return false
 	}
@@ -1150,16 +1138,11 @@ FindTo:
 		}
 	}
 
-	fromOffset, err := safetoken.Offset(tok, from)
+	fromOffset, toOffset, err := safetoken.Offsets(tok, from, to)
 	if err != nil {
 		return false
 	}
 	if !from.IsValid() || fromOffset >= len(src) {
-		return false
-	}
-
-	toOffset, err := safetoken.Offset(tok, to)
-	if err != nil {
 		return false
 	}
 	if !to.IsValid() || toOffset >= len(src) {

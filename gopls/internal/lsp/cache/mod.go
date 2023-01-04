@@ -402,11 +402,12 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, pm *source.ParsedModu
 		if pm.File.Module == nil {
 			return span.New(pm.URI, span.NewPoint(1, 1, 0), span.Point{}), false, nil
 		}
-		spn, err := spanFromPositions(pm.Mapper, pm.File.Module.Syntax.Start, pm.File.Module.Syntax.End)
+		syntax := pm.File.Module.Syntax
+		spn, err := pm.Mapper.OffsetSpan(syntax.Start.Byte, syntax.End.Byte)
 		return spn, false, err
 	}
 
-	spn, err := spanFromPositions(pm.Mapper, reference.Start, reference.End)
+	spn, err := pm.Mapper.OffsetSpan(reference.Start.Byte, reference.End.Byte)
 	return spn, true, err
 }
 

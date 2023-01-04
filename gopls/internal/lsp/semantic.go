@@ -182,8 +182,7 @@ func (e *encoded) token(start token.Pos, leng int, typ tokenType, mods []string)
 		return
 	}
 	// want a line and column from start (in LSP coordinates). Ignore line directives.
-	rng := source.NewMappedRange(e.pgf.Mapper, start, start+token.Pos(leng))
-	lspRange, err := rng.Range()
+	lspRange, err := e.pgf.PosRange(start, start+token.Pos(leng))
 	if err != nil {
 		event.Error(e.ctx, "failed to convert to range", err)
 		return

@@ -391,10 +391,7 @@ func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, fi
 			if pgf, err := s.ParseGo(ctx, fh, source.ParseHeader); err == nil {
 				// Check that we have a valid `package foo` range to use for positioning the error.
 				if pgf.File.Package.IsValid() && pgf.File.Name != nil && pgf.File.Name.End().IsValid() {
-					pkgDecl := span.NewRange(pgf.Tok, pgf.File.Package, pgf.File.Name.End())
-					if spn, err := pkgDecl.Span(); err == nil {
-						rng, _ = pgf.Mapper.Range(spn)
-					}
+					rng, _ = pgf.PosRange(pgf.File.Package, pgf.File.Name.End())
 				}
 			}
 		case source.Mod:

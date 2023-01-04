@@ -86,12 +86,12 @@ func toProtocolIncomingCalls(ctx context.Context, snapshot Snapshot, refs []*Ref
 	// once in the result but highlight all calls using FromRanges (ranges at which the calls occur)
 	var incomingCalls = map[protocol.Location]*protocol.CallHierarchyIncomingCall{}
 	for _, ref := range refs {
-		refRange, err := ref.Range()
+		refRange, err := ref.MappedRange.Range()
 		if err != nil {
 			return nil, err
 		}
 
-		callItem, err := enclosingNodeCallItem(snapshot, ref.pkg, ref.URI(), ref.ident.NamePos)
+		callItem, err := enclosingNodeCallItem(snapshot, ref.pkg, ref.MappedRange.URI(), ref.ident.NamePos)
 		if err != nil {
 			event.Error(ctx, "error getting enclosing node", err, tag.Method.Of(ref.Name))
 			continue
@@ -155,7 +155,7 @@ outer:
 		nameStart, nameEnd = funcLit.Type.Func, funcLit.Type.Params.Pos()
 		kind = protocol.Function
 	}
-	rng, err := NewMappedRange(pgf.Mapper, nameStart, nameEnd).Range()
+	rng, err := pgf.PosRange(nameStart, nameEnd)
 	if err != nil {
 		return protocol.CallHierarchyItem{}, err
 	}
@@ -199,7 +199,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	if len(identifier.Declaration.MappedRange) == 0 {
 		return nil, nil
 	}
-	callExprs, err := collectCallExpressions(identifier.Declaration.MappedRange[0].m, node)
+	callExprs, err := collectCallExpressions(identifier.Declaration.MappedRange[0].File, node)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +208,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 }
 
 // collectCallExpressions collects call expression ranges inside a function.
-func collectCallExpressions(mapper *protocol.ColumnMapper, node ast.Node) ([]protocol.Range, error) {
+func collectCallExpressions(pgf *ParsedGoFile, node ast.Node) ([]protocol.Range, error) {
 	type callPos struct {
 		start, end token.Pos
 	}
@@ -238,7 +238,7 @@ func collectCallExpressions(mapper *protocol.ColumnMapper, node ast.Node) ([]pro
 
 	callRanges := []protocol.Range{}
 	for _, call := range callPositions {
-		callRange, err := NewMappedRange(mapper, call.start, call.end).Range()
+		callRange, err := pgf.PosRange(call.start, call.end)
 		if err != nil {
 			return nil, err
 		}

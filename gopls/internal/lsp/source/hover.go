@@ -83,7 +83,7 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 	if err != nil {
 		return nil, err
 	}
-	rng, err := ident.Range()
+	rng, err := ident.MappedRange.Range()
 	if err != nil {
 		return nil, err
 	}
@@ -104,11 +104,7 @@ func hoverRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 	ctx, done := event.Start(ctx, "source.hoverRune")
 	defer done()
 
-	r, mrng, err := findRune(ctx, snapshot, fh, position)
-	if err != nil {
-		return nil, err
-	}
-	rng, err := mrng.Range()
+	r, rng, err := findRune(ctx, snapshot, fh, position)
 	if err != nil {
 		return nil, err
 	}
@@ -138,18 +134,18 @@ func hoverRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 var ErrNoRuneFound = errors.New("no rune found")
 
 // findRune returns rune information for a position in a file.
-func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (rune, MappedRange, error) {
+func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (rune, protocol.Range, error) {
 	fh, err := snapshot.GetFile(ctx, fh.URI())
 	if err != nil {
-		return 0, MappedRange{}, err
+		return 0, protocol.Range{}, err
 	}
 	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
-		return 0, MappedRange{}, err
+		return 0, protocol.Range{}, err
 	}
-	pos, err := pgf.Mapper.Pos(position)
+	pos, err := pgf.Pos(position)
 	if err != nil {
-		return 0, MappedRange{}, err
+		return 0, protocol.Range{}, err
 	}
 
 	// Find the basic literal enclosing the given position, if there is one.
@@ -166,7 +162,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 		return lit == nil // descend unless target is found
 	})
 	if lit == nil {
-		return 0, MappedRange{}, ErrNoRuneFound
+		return 0, protocol.Range{}, ErrNoRuneFound
 	}
 
 	var r rune
@@ -177,26 +173,26 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 		if err != nil {
 			// If the conversion fails, it's because of an invalid syntax, therefore
 			// there is no rune to be found.
-			return 0, MappedRange{}, ErrNoRuneFound
+			return 0, protocol.Range{}, ErrNoRuneFound
 		}
 		r, _ = utf8.DecodeRuneInString(s)
 		if r == utf8.RuneError {
-			return 0, MappedRange{}, fmt.Errorf("rune error")
+			return 0, protocol.Range{}, fmt.Errorf("rune error")
 		}
 		start, end = lit.Pos(), lit.End()
 	case token.INT:
 		// It's an integer, scan only if it is a hex litteral whose bitsize in
 		// ranging from 8 to 32.
 		if !(strings.HasPrefix(lit.Value, "0x") && len(lit.Value[2:]) >= 2 && len(lit.Value[2:]) <= 8) {
-			return 0, MappedRange{}, ErrNoRuneFound
+			return 0, protocol.Range{}, ErrNoRuneFound
 		}
 		v, err := strconv.ParseUint(lit.Value[2:], 16, 32)
 		if err != nil {
-			return 0, MappedRange{}, err
+			return 0, protocol.Range{}, err
 		}
 		r = rune(v)
 		if r == utf8.RuneError {
-			return 0, MappedRange{}, fmt.Errorf("rune error")
+			return 0, protocol.Range{}, fmt.Errorf("rune error")
 		}
 		start, end = lit.Pos(), lit.End()
 	case token.STRING:
@@ -205,17 +201,17 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 		var found bool
 		litOffset, err := safetoken.Offset(pgf.Tok, lit.Pos())
 		if err != nil {
-			return 0, MappedRange{}, err
+			return 0, protocol.Range{}, err
 		}
 		offset, err := safetoken.Offset(pgf.Tok, pos)
 		if err != nil {
-			return 0, MappedRange{}, err
+			return 0, protocol.Range{}, err
 		}
 		for i := offset - litOffset; i > 0; i-- {
 			// Start at the cursor position and search backward for the beginning of a rune escape sequence.
 			rr, _ := utf8.DecodeRuneInString(lit.Value[i:])
 			if rr == utf8.RuneError {
-				return 0, MappedRange{}, fmt.Errorf("rune error")
+				return 0, protocol.Range{}, fmt.Errorf("rune error")
 			}
 			if rr == '\\' {
 				// Got the beginning, decode it.
@@ -223,7 +219,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 				r, _, tail, err = strconv.UnquoteChar(lit.Value[i:], '"')
 				if err != nil {
 					// If the conversion fails, it's because of an invalid syntax, therefore is no rune to be found.
-					return 0, MappedRange{}, ErrNoRuneFound
+					return 0, protocol.Range{}, ErrNoRuneFound
 				}
 				// Only the rune escape sequence part of the string has to be highlighted, recompute the range.
 				runeLen := len(lit.Value) - (int(i) + len(tail))
@@ -235,12 +231,16 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 		}
 		if !found {
 			// No escape sequence found
-			return 0, MappedRange{}, ErrNoRuneFound
+			return 0, protocol.Range{}, ErrNoRuneFound
 		}
 	default:
-		return 0, MappedRange{}, ErrNoRuneFound
+		return 0, protocol.Range{}, ErrNoRuneFound
 	}
-	return r, NewMappedRange(pgf.Mapper, start, end), nil
+	rng, err := pgf.PosRange(start, end)
+	if err != nil {
+		return 0, protocol.Range{}, err
+	}
+	return r, rng, nil
 }
 
 func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error) {
@@ -580,11 +580,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 			var spec ast.Spec
 			for _, s := range node.Specs {
 				// Avoid panics by guarding the calls to token.Offset (golang/go#48249).
-				start, err := safetoken.Offset(fullTok, s.Pos())
-				if err != nil {
-					return nil, err
-				}
-				end, err := safetoken.Offset(fullTok, s.End())
+				start, end, err := safetoken.Offsets(fullTok, s.Pos(), s.End())
 				if err != nil {
 					return nil, err
 				}

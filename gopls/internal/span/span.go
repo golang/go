@@ -36,9 +36,9 @@ type span struct {
 }
 
 type point struct {
-	Line   int `json:"line"`
-	Column int `json:"column"`
-	Offset int `json:"offset"`
+	Line   int `json:"line"`   // 1-based line number
+	Column int `json:"column"` // 1-based, UTF-8 codes (bytes)
+	Offset int `json:"offset"` // 0-based byte offset
 }
 
 // Invalid is a span that reports false from IsValid
@@ -274,12 +274,12 @@ func (s *Span) update(tf *token.File, withPos, withOffset bool) error {
 }
 
 func (p *point) updatePosition(tf *token.File) error {
-	line, col, err := ToPosition(tf, p.Offset)
+	line, col8, err := OffsetToLineCol8(tf, p.Offset)
 	if err != nil {
 		return err
 	}
 	p.Line = line
-	p.Column = col
+	p.Column = col8
 	return nil
 }
 
