@@ -5,6 +5,7 @@
 package workspace
 
 import (
+	"strings"
 	"testing"
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
@@ -107,5 +108,82 @@ func main() {}
 				env.DiagnosticAtRegexpWithMessage("bar.go", "package (main)", "No packages"),
 			),
 		)
+	})
+}
+
+func TestReinitializeRepeatedly(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // uses go.work
+
+	const multiModule = `
+-- go.work --
+go 1.18
+
+use (
+	moda/a
+	modb
+)
+-- moda/a/go.mod --
+module a.com
+
+require b.com v1.2.3
+-- moda/a/go.sum --
+b.com v1.2.3 h1:tXrlXP0rnjRpKNmkbLYoWBdq0ikb3C3bKK9//moAWBI=
+b.com v1.2.3/go.mod h1:D+J7pfFBZK5vdIdZEFquR586vKKIkqG7Qjw9AxG5BQ8=
+-- moda/a/a.go --
+package a
+
+import (
+	"b.com/b"
+)
+
+func main() {
+	var x int
+	_ = b.Hello()
+	// AAA
+}
+-- modb/go.mod --
+module b.com
+
+-- modb/b/b.go --
+package b
+
+func Hello() int {
+	var x int
+}
+`
+	WithOptions(
+		ProxyFiles(workspaceModuleProxy),
+		Settings{
+			// For this test, we want workspace diagnostics to start immediately
+			// during change processing.
+			"diagnosticsDelay": "0",
+		},
+	).Run(t, multiModule, func(t *testing.T, env *Env) {
+		env.OpenFile("moda/a/a.go")
+		env.AfterChange()
+
+		// This test verifies that we fully process workspace reinitialization
+		// (which allows GOPROXY), even when the reinitialized snapshot is
+		// invalidated by subsequent changes.
+		//
+		// First, update go.work to remove modb. This will cause reinitialization
+		// to fetch b.com from the proxy.
+		env.WriteWorkspaceFile("go.work", "go 1.18\nuse moda/a")
+		// Next, wait for gopls to start processing the change. Because we've set
+		// diagnosticsDelay to zero, this will start diagnosing the workspace (and
+		// try to reinitialize on the snapshot context).
+		env.Await(env.StartedChangeWatchedFiles())
+		// Finally, immediately make a file change to cancel the previous
+		// operation. This is racy, but will usually cause initialization to be
+		// canceled.
+		env.RegexpReplace("moda/a/a.go", "AAA", "BBB")
+		env.AfterChange()
+		// Now, to satisfy a definition request, gopls will try to reload moda. But
+		// without access to the proxy (because this is no longer a
+		// reinitialization), this loading will fail.
+		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
+			t.Errorf("expected %s, got %v", want, got)
+		}
 	})
 }

@@ -328,6 +328,13 @@ func (e *Env) DoneWithSave() Expectation {
 	return CompletedWork(lsp.DiagnosticWorkTitle(lsp.FromDidSave), saves, true)
 }
 
+// StartedChangeWatchedFiles expects that the server has at least started
+// processing all didChangeWatchedFiles notifications sent from the client.
+func (e *Env) StartedChangeWatchedFiles() Expectation {
+	changes := e.Editor.Stats().DidChangeWatchedFiles
+	return StartedWork(lsp.DiagnosticWorkTitle(lsp.FromDidChangeWatchedFiles), changes)
+}
+
 // DoneWithChangeWatchedFiles expects all didChangeWatchedFiles notifications
 // currently sent by the editor to be completely processed.
 func (e *Env) DoneWithChangeWatchedFiles() Expectation {

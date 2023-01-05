@@ -657,11 +657,22 @@ func (s *snapshot) initialize(ctx context.Context, firstAttempt bool) {
 	s.collectAllKnownSubdirs(ctx)
 }
 
-func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
+func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) (loadErr error) {
+	// A failure is retryable if it may have been due to context cancellation,
+	// and this is not the initial workspace load (firstAttempt==true).
+	//
+	// The IWL runs on a detached context with a long (~10m) timeout, so
+	// if the context was canceled we consider loading to have failed
+	// permanently.
+	retryableFailure := func() bool {
+		return loadErr != nil && ctx.Err() != nil && !firstAttempt
+	}
 	defer func() {
-		s.mu.Lock()
-		s.initialized = true
-		s.mu.Unlock()
+		if !retryableFailure() {
+			s.mu.Lock()
+			s.initialized = true
+			s.mu.Unlock()
+		}
 		if firstAttempt {
 			close(s.view.initialWorkspaceLoad)
 		}
@@ -719,26 +730,24 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 	if len(scopes) > 0 {
 		scopes = append(scopes, packageLoadScope("builtin"))
 	}
-	err := s.load(ctx, true, scopes...)
+	loadErr = s.load(ctx, true, scopes...)
 
-	// If the context is canceled on the first attempt, loading has failed
-	// because the go command has timed out--that should be a critical error.
-	if err != nil && !firstAttempt && ctx.Err() != nil {
-		return
+	if retryableFailure() {
+		return loadErr
 	}
 
 	var criticalErr *source.CriticalError
 	switch {
-	case err != nil && ctx.Err() != nil:
-		event.Error(ctx, fmt.Sprintf("initial workspace load: %v", err), err)
+	case loadErr != nil && ctx.Err() != nil:
+		event.Error(ctx, fmt.Sprintf("initial workspace load: %v", loadErr), loadErr)
 		criticalErr = &source.CriticalError{
-			MainError: err,
+			MainError: loadErr,
 		}
-	case err != nil:
-		event.Error(ctx, "initial workspace load failed", err)
-		extractedDiags := s.extractGoCommandErrors(ctx, err)
+	case loadErr != nil:
+		event.Error(ctx, "initial workspace load failed", loadErr)
+		extractedDiags := s.extractGoCommandErrors(ctx, loadErr)
 		criticalErr = &source.CriticalError{
-			MainError:   err,
+			MainError:   loadErr,
 			Diagnostics: append(modDiagnostics, extractedDiags...),
 		}
 	case len(modDiagnostics) == 1:
@@ -757,6 +766,7 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.initializedErr = criticalErr
+	return loadErr
 }
 
 // invalidateContent invalidates the content of a Go file,
