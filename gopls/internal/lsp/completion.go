@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/tools/gopls/internal/lsp/lsppos"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
@@ -56,19 +55,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		}, nil
 	}
 
-	// Map positions to LSP positions using the original content, rather than
-	// internal/span, as the latter treats end of file as the beginning of the
-	// next line, even when it's not newline-terminated. See golang/go#41029 for
-	// more details.
-	// TODO(adonovan): make completion retain the pgf.Mapper
-	// so we can convert to rng without reading.
-	src, err := fh.Read()
-	if err != nil {
-		return nil, err
-	}
-	srng := surrounding.Range()
-	tf := snapshot.FileSet().File(srng.Start) // not same as srng.TokFile due to //line
-	rng, err := lsppos.NewTokenMapper(src, tf).Range(srng.Start, srng.End)
+	rng, err := surrounding.Range()
 	if err != nil {
 		return nil, err
 	}

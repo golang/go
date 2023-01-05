@@ -13,7 +13,6 @@ import (
 	"go/types"
 	"strings"
 
-	"golang.org/x/tools/gopls/internal/lsp/lsppos"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/typeparams"
@@ -23,7 +22,7 @@ const (
 	maxLabelLength = 28
 )
 
-type InlayHintFunc func(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint
+type InlayHintFunc func(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint
 
 type Hint struct {
 	Name string
@@ -103,7 +102,6 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng proto
 		return nil, nil
 	}
 
-	tmap := lsppos.NewTokenMapper(pgf.Src, pgf.Tok)
 	info := pkg.GetTypesInfo()
 	q := Qualifier(pgf.File, pkg.GetTypes(), info)
 
@@ -125,14 +123,14 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng proto
 			return false
 		}
 		for _, fn := range enabledHints {
-			hints = append(hints, fn(node, tmap, info, &q)...)
+			hints = append(hints, fn(node, pgf.Mapper, pgf.Tok, info, &q)...)
 		}
 		return true
 	})
 	return hints, nil
 }
 
-func parameterNames(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
+func parameterNames(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
 	callExpr, ok := node.(*ast.CallExpr)
 	if !ok {
 		return nil
@@ -144,8 +142,8 @@ func parameterNames(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _
 
 	var hints []protocol.InlayHint
 	for i, v := range callExpr.Args {
-		start, ok := tmap.Position(v.Pos())
-		if !ok {
+		start, err := m.PosPosition(tf, v.Pos())
+		if err != nil {
 			continue
 		}
 		params := signature.Params()
@@ -179,7 +177,7 @@ func parameterNames(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _
 	return hints
 }
 
-func funcTypeParams(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
+func funcTypeParams(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
 	ce, ok := node.(*ast.CallExpr)
 	if !ok {
 		return nil
@@ -192,8 +190,8 @@ func funcTypeParams(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _
 	if inst.TypeArgs == nil {
 		return nil
 	}
-	start, ok := tmap.Position(id.End())
-	if !ok {
+	start, err := m.PosPosition(tf, id.End())
+	if err != nil {
 		return nil
 	}
 	var args []string
@@ -210,7 +208,7 @@ func funcTypeParams(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _
 	}}
 }
 
-func assignVariableTypes(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+func assignVariableTypes(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
 	stmt, ok := node.(*ast.AssignStmt)
 	if !ok || stmt.Tok != token.DEFINE {
 		return nil
@@ -218,35 +216,35 @@ func assignVariableTypes(node ast.Node, tmap *lsppos.TokenMapper, info *types.In
 
 	var hints []protocol.InlayHint
 	for _, v := range stmt.Lhs {
-		if h := variableType(v, tmap, info, q); h != nil {
+		if h := variableType(v, m, tf, info, q); h != nil {
 			hints = append(hints, *h)
 		}
 	}
 	return hints
 }
 
-func rangeVariableTypes(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+func rangeVariableTypes(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
 	rStmt, ok := node.(*ast.RangeStmt)
 	if !ok {
 		return nil
 	}
 	var hints []protocol.InlayHint
-	if h := variableType(rStmt.Key, tmap, info, q); h != nil {
+	if h := variableType(rStmt.Key, m, tf, info, q); h != nil {
 		hints = append(hints, *h)
 	}
-	if h := variableType(rStmt.Value, tmap, info, q); h != nil {
+	if h := variableType(rStmt.Value, m, tf, info, q); h != nil {
 		hints = append(hints, *h)
 	}
 	return hints
 }
 
-func variableType(e ast.Expr, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) *protocol.InlayHint {
+func variableType(e ast.Expr, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) *protocol.InlayHint {
 	typ := info.TypeOf(e)
 	if typ == nil {
 		return nil
 	}
-	end, ok := tmap.Position(e.End())
-	if !ok {
+	end, err := m.PosPosition(tf, e.End())
+	if err != nil {
 		return nil
 	}
 	return &protocol.InlayHint{
@@ -257,7 +255,7 @@ func variableType(e ast.Expr, tmap *lsppos.TokenMapper, info *types.Info, q *typ
 	}
 }
 
-func constantValues(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
+func constantValues(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
 	genDecl, ok := node.(*ast.GenDecl)
 	if !ok || genDecl.Tok != token.CONST {
 		return nil
@@ -269,8 +267,8 @@ func constantValues(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _
 		if !ok {
 			continue
 		}
-		end, ok := tmap.Position(v.End())
-		if !ok {
+		end, err := m.PosPosition(tf, v.End())
+		if err != nil {
 			continue
 		}
 		// Show hints when values are missing or at least one value is not
@@ -308,7 +306,7 @@ func constantValues(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, _
 	return hints
 }
 
-func compositeLiteralFields(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+func compositeLiteralFields(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
 	compLit, ok := node.(*ast.CompositeLit)
 	if !ok {
 		return nil
@@ -329,8 +327,8 @@ func compositeLiteralFields(node ast.Node, tmap *lsppos.TokenMapper, info *types
 	var allEdits []protocol.TextEdit
 	for i, v := range compLit.Elts {
 		if _, ok := v.(*ast.KeyValueExpr); !ok {
-			start, ok := tmap.Position(v.Pos())
-			if !ok {
+			start, err := m.PosPosition(tf, v.Pos())
+			if err != nil {
 				continue
 			}
 			if i > strct.NumFields()-1 {
@@ -356,7 +354,7 @@ func compositeLiteralFields(node ast.Node, tmap *lsppos.TokenMapper, info *types
 	return hints
 }
 
-func compositeLiteralTypes(node ast.Node, tmap *lsppos.TokenMapper, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+func compositeLiteralTypes(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
 	compLit, ok := node.(*ast.CompositeLit)
 	if !ok {
 		return nil
@@ -374,8 +372,8 @@ func compositeLiteralTypes(node ast.Node, tmap *lsppos.TokenMapper, info *types.
 		prefix = "&"
 	}
 	// The type for this composite literal is implicit, add an inlay hint.
-	start, ok := tmap.Position(compLit.Lbrace)
-	if !ok {
+	start, err := m.PosPosition(tf, compLit.Lbrace)
+	if err != nil {
 		return nil
 	}
 	return []protocol.InlayHint{{

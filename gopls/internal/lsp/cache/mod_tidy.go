@@ -426,7 +426,7 @@ func missingModuleForImport(pgf *source.ParsedGoFile, imp *ast.ImportSpec, req *
 	if req.Syntax == nil {
 		return nil, fmt.Errorf("no syntax for %v", req)
 	}
-	rng, err := pgf.PosRange(imp.Path.Pos(), imp.Path.End())
+	rng, err := pgf.NodeRange(imp.Path)
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,6 @@ import (
 	"go/token"
 	"go/types"
 
-	"golang.org/x/tools/gopls/internal/lsp/lsppos"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/event"
 )
@@ -20,17 +19,10 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	ctx, done := event.Start(ctx, "source.DocumentSymbols")
 	defer done()
 
-	content, err := fh.Read()
-	if err != nil {
-		return nil, err
-	}
-
 	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for DocumentSymbols: %w", err)
 	}
-
-	m := lsppos.NewTokenMapper(content, pgf.Tok)
 
 	// Build symbols for file declarations. When encountering a declaration with
 	// errors (typically because positions are invalid), we skip the declaration
@@ -43,7 +35,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 			if decl.Name.Name == "_" {
 				continue
 			}
-			fs, err := funcSymbol(m, decl)
+			fs, err := funcSymbol(pgf.Mapper, pgf.Tok, decl)
 			if err == nil {
 				// If function is a method, prepend the type of the method.
 				if decl.Recv != nil && len(decl.Recv.List) > 0 {
@@ -58,7 +50,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 					if spec.Name.Name == "_" {
 						continue
 					}
-					ts, err := typeSymbol(m, spec)
+					ts, err := typeSymbol(pgf.Mapper, pgf.Tok, spec)
 					if err == nil {
 						symbols = append(symbols, ts)
 					}
@@ -67,7 +59,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 						if name.Name == "_" {
 							continue
 						}
-						vs, err := varSymbol(m, spec, name, decl.Tok == token.CONST)
+						vs, err := varSymbol(pgf.Mapper, pgf.Tok, spec, name, decl.Tok == token.CONST)
 						if err == nil {
 							symbols = append(symbols, vs)
 						}
@@ -79,7 +71,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	return symbols, nil
 }
 
-func funcSymbol(m *lsppos.TokenMapper, decl *ast.FuncDecl) (protocol.DocumentSymbol, error) {
+func funcSymbol(m *protocol.ColumnMapper, tf *token.File, decl *ast.FuncDecl) (protocol.DocumentSymbol, error) {
 	s := protocol.DocumentSymbol{
 		Name: decl.Name.Name,
 		Kind: protocol.Function,
@@ -88,11 +80,11 @@ func funcSymbol(m *lsppos.TokenMapper, decl *ast.FuncDecl) (protocol.DocumentSym
 		s.Kind = protocol.Method
 	}
 	var err error
-	s.Range, err = m.Range(decl.Pos(), decl.End())
+	s.Range, err = m.NodeRange(tf, decl)
 	if err != nil {
 		return protocol.DocumentSymbol{}, err
 	}
-	s.SelectionRange, err = m.Range(decl.Name.Pos(), decl.Name.End())
+	s.SelectionRange, err = m.NodeRange(tf, decl.Name)
 	if err != nil {
 		return protocol.DocumentSymbol{}, err
 	}
@@ -100,28 +92,28 @@ func funcSymbol(m *lsppos.TokenMapper, decl *ast.FuncDecl) (protocol.DocumentSym
 	return s, nil
 }
 
-func typeSymbol(m *lsppos.TokenMapper, spec *ast.TypeSpec) (protocol.DocumentSymbol, error) {
+func typeSymbol(m *protocol.ColumnMapper, tf *token.File, spec *ast.TypeSpec) (protocol.DocumentSymbol, error) {
 	s := protocol.DocumentSymbol{
 		Name: spec.Name.Name,
 	}
 	var err error
-	s.Range, err = m.NodeRange(spec)
+	s.Range, err = m.NodeRange(tf, spec)
 	if err != nil {
 		return protocol.DocumentSymbol{}, err
 	}
-	s.SelectionRange, err = m.NodeRange(spec.Name)
+	s.SelectionRange, err = m.NodeRange(tf, spec.Name)
 	if err != nil {
 		return protocol.DocumentSymbol{}, err
 	}
-	s.Kind, s.Detail, s.Children = typeDetails(m, spec.Type)
+	s.Kind, s.Detail, s.Children = typeDetails(m, tf, spec.Type)
 	return s, nil
 }
 
-func typeDetails(m *lsppos.TokenMapper, typExpr ast.Expr) (kind protocol.SymbolKind, detail string, children []protocol.DocumentSymbol) {
+func typeDetails(m *protocol.ColumnMapper, tf *token.File, typExpr ast.Expr) (kind protocol.SymbolKind, detail string, children []protocol.DocumentSymbol) {
 	switch typExpr := typExpr.(type) {
 	case *ast.StructType:
 		kind = protocol.Struct
-		children = fieldListSymbols(m, typExpr.Fields, protocol.Field)
+		children = fieldListSymbols(m, tf, typExpr.Fields, protocol.Field)
 		if len(children) > 0 {
 			detail = "struct{...}"
 		} else {
@@ -131,7 +123,7 @@ func typeDetails(m *lsppos.TokenMapper, typExpr ast.Expr) (kind protocol.SymbolK
 		// Find interface methods and embedded types.
 	case *ast.InterfaceType:
 		kind = protocol.Interface
-		children = fieldListSymbols(m, typExpr.Methods, protocol.Method)
+		children = fieldListSymbols(m, tf, typExpr.Methods, protocol.Method)
 		if len(children) > 0 {
 			detail = "interface{...}"
 		} else {
@@ -149,7 +141,7 @@ func typeDetails(m *lsppos.TokenMapper, typExpr ast.Expr) (kind protocol.SymbolK
 	return
 }
 
-func fieldListSymbols(m *lsppos.TokenMapper, fields *ast.FieldList, fieldKind protocol.SymbolKind) []protocol.DocumentSymbol {
+func fieldListSymbols(m *protocol.ColumnMapper, tf *token.File, fields *ast.FieldList, fieldKind protocol.SymbolKind) []protocol.DocumentSymbol {
 	if fields == nil {
 		return nil
 	}
@@ -158,7 +150,7 @@ func fieldListSymbols(m *lsppos.TokenMapper, fields *ast.FieldList, fieldKind pr
 	for _, field := range fields.List {
 		detail, children := "", []protocol.DocumentSymbol(nil)
 		if field.Type != nil {
-			_, detail, children = typeDetails(m, field.Type)
+			_, detail, children = typeDetails(m, tf, field.Type)
 		}
 		if len(field.Names) == 0 { // embedded interface or struct field
 			// By default, use the formatted type details as the name of this field.
@@ -179,10 +171,10 @@ func fieldListSymbols(m *lsppos.TokenMapper, fields *ast.FieldList, fieldKind pr
 				selection = id
 			}
 
-			if rng, err := m.NodeRange(field.Type); err == nil {
+			if rng, err := m.NodeRange(tf, field.Type); err == nil {
 				child.Range = rng
 			}
-			if rng, err := m.NodeRange(selection); err == nil {
+			if rng, err := m.NodeRange(tf, selection); err == nil {
 				child.SelectionRange = rng
 			}
 
@@ -196,10 +188,10 @@ func fieldListSymbols(m *lsppos.TokenMapper, fields *ast.FieldList, fieldKind pr
 					Children: children,
 				}
 
-				if rng, err := m.NodeRange(field); err == nil {
+				if rng, err := m.NodeRange(tf, field); err == nil {
 					child.Range = rng
 				}
-				if rng, err := m.NodeRange(name); err == nil {
+				if rng, err := m.NodeRange(tf, name); err == nil {
 					child.SelectionRange = rng
 				}
 
@@ -211,7 +203,7 @@ func fieldListSymbols(m *lsppos.TokenMapper, fields *ast.FieldList, fieldKind pr
 	return symbols
 }
 
-func varSymbol(m *lsppos.TokenMapper, spec *ast.ValueSpec, name *ast.Ident, isConst bool) (protocol.DocumentSymbol, error) {
+func varSymbol(m *protocol.ColumnMapper, tf *token.File, spec *ast.ValueSpec, name *ast.Ident, isConst bool) (protocol.DocumentSymbol, error) {
 	s := protocol.DocumentSymbol{
 		Name: name.Name,
 		Kind: protocol.Variable,
@@ -220,16 +212,16 @@ func varSymbol(m *lsppos.TokenMapper, spec *ast.ValueSpec, name *ast.Ident, isCo
 		s.Kind = protocol.Constant
 	}
 	var err error
-	s.Range, err = m.NodeRange(spec)
+	s.Range, err = m.NodeRange(tf, spec)
 	if err != nil {
 		return protocol.DocumentSymbol{}, err
 	}
-	s.SelectionRange, err = m.NodeRange(name)
+	s.SelectionRange, err = m.NodeRange(tf, name)
 	if err != nil {
 		return protocol.DocumentSymbol{}, err
 	}
 	if spec.Type != nil { // type may be missing from the syntax
-		_, s.Detail, s.Children = typeDetails(m, spec.Type)
+		_, s.Detail, s.Children = typeDetails(m, tf, spec.Type)
 	}
 	return s, nil
 }

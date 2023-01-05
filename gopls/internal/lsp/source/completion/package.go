@@ -22,7 +22,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/fuzzy"
 )
 
@@ -31,18 +30,17 @@ import (
 func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, position protocol.Position) ([]CompletionItem, *Selection, error) {
 	// We know that the AST for this file will be empty due to the missing
 	// package declaration, but parse it anyway to get a mapper.
-	fset := snapshot.FileSet()
+	// TODO(adonovan): opt: there's no need to parse just to get a mapper.
 	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseFull)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	pos, err := pgf.Pos(position)
+	offset, err := pgf.Mapper.Offset(position)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	surrounding, err := packageCompletionSurrounding(fset, pgf, pos)
+	surrounding, err := packageCompletionSurrounding(pgf, offset)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid position for package completion: %w", err)
 	}
@@ -67,31 +65,18 @@ func packageClauseCompletions(ctx context.Context, snapshot source.Snapshot, fh 
 }
 
 // packageCompletionSurrounding returns surrounding for package completion if a
-// package completions can be suggested at a given position. A valid location
+// package completions can be suggested at a given cursor offset. A valid location
 // for package completion is above any declarations or import statements.
-func packageCompletionSurrounding(fset *token.FileSet, pgf *source.ParsedGoFile, pos token.Pos) (*Selection, error) {
+func packageCompletionSurrounding(pgf *source.ParsedGoFile, offset int) (*Selection, error) {
+	m := pgf.Mapper
 	// If the file lacks a package declaration, the parser will return an empty
 	// AST. As a work-around, try to parse an expression from the file contents.
-	filename := pgf.URI.Filename()
-	expr, _ := parser.ParseExprFrom(fset, filename, pgf.Src, parser.Mode(0))
+	fset := token.NewFileSet()
+	expr, _ := parser.ParseExprFrom(fset, m.URI.Filename(), pgf.Src, parser.Mode(0))
 	if expr == nil {
-		return nil, fmt.Errorf("unparseable file (%s)", pgf.URI)
+		return nil, fmt.Errorf("unparseable file (%s)", m.URI)
 	}
 	tok := fset.File(expr.Pos())
-	offset, err := safetoken.Offset(pgf.Tok, pos)
-	if err != nil {
-		return nil, err
-	}
-	if offset > tok.Size() {
-		// internal bug: we should never get an offset that exceeds the size of our
-		// file.
-		bug.Report("out of bounds cursor", bug.Data{
-			"offset": offset,
-			"URI":    pgf.URI,
-			"size":   tok.Size(),
-		})
-		return nil, fmt.Errorf("cursor out of bounds")
-	}
 	cursor := tok.Pos(offset)
 
 	// If we were able to parse out an identifier as the first expression from
@@ -106,6 +91,7 @@ func packageCompletionSurrounding(fset *token.FileSet, pgf *source.ParsedGoFile,
 				content: name.Name,
 				cursor:  cursor,
 				rng:     span.NewRange(tok, name.Pos(), name.End()),
+				mapper:  m,
 			}, nil
 		}
 	}
@@ -143,6 +129,7 @@ func packageCompletionSurrounding(fset *token.FileSet, pgf *source.ParsedGoFile,
 					content: content,
 					cursor:  cursor,
 					rng:     span.NewRange(tok, start, end),
+					mapper:  m,
 				}, nil
 			}
 		}
@@ -155,21 +142,16 @@ func packageCompletionSurrounding(fset *token.FileSet, pgf *source.ParsedGoFile,
 	}
 
 	// If the cursor is in a comment, don't offer any completions.
-	if cursorInComment(fset.File(cursor), cursor, pgf.Src) {
+	if cursorInComment(tok, cursor, m.Content) {
 		return nil, fmt.Errorf("cursor in comment")
 	}
 
-	// The surrounding range in this case is the cursor except for empty file,
-	// in which case it's end of file - 1
-	start, end := cursor, cursor
-	if tok.Size() == 0 {
-		start, end = tok.Pos(0)-1, tok.Pos(0)-1
-	}
-
+	// The surrounding range in this case is the cursor.
 	return &Selection{
 		content: "",
 		cursor:  cursor,
-		rng:     span.NewRange(tok, start, end),
+		rng:     span.NewRange(tok, cursor, cursor),
+		mapper:  m,
 	}, nil
 }
 

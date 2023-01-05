@@ -56,7 +56,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 func hoverOnRequireStatement(ctx context.Context, pm *source.ParsedModule, offset int, snapshot source.Snapshot, fh source.FileHandle) (*protocol.Hover, error) {
 	// Confirm that the cursor is at the position of a require statement.
 	var req *modfile.Require
-	var startPos, endPos int
+	var startOffset, endOffset int
 	for _, r := range pm.File.Require {
 		dep := []byte(r.Mod.Path)
 		s, e := r.Syntax.Start.Byte, r.Syntax.End.Byte
@@ -66,8 +66,8 @@ func hoverOnRequireStatement(ctx context.Context, pm *source.ParsedModule, offse
 		}
 		// Shift the start position to the location of the
 		// dependency within the require statement.
-		startPos, endPos = s+i, e
-		if startPos <= offset && offset <= endPos {
+		startOffset, endOffset = s+i, e
+		if startOffset <= offset && offset <= endOffset {
 			req = r
 			break
 		}
@@ -105,7 +105,7 @@ func hoverOnRequireStatement(ctx context.Context, pm *source.ParsedModule, offse
 	// Get the range to highlight for the hover.
 	// TODO(hyangah): adjust the hover range to include the version number
 	// to match the diagnostics' range.
-	rng, err := pm.Mapper.OffsetRange(startPos, endPos)
+	rng, err := pm.Mapper.OffsetRange(startOffset, endOffset)
 	if err != nil {
 		return nil, err
 	}

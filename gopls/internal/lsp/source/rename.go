@@ -107,7 +107,7 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 		}
 
 		// Return the location of the package declaration.
-		rng, err := pgf.PosRange(pgf.File.Name.Pos(), pgf.File.Name.End())
+		rng, err := pgf.NodeRange(pgf.File.Name)
 		if err != nil {
 			return nil, err, err
 		}
@@ -434,7 +434,7 @@ func renamePackageClause(ctx context.Context, m *Metadata, snapshot Snapshot, ne
 		if f.File.Name == nil {
 			continue // no package declaration
 		}
-		rng, err := f.PosRange(f.File.Name.Pos(), f.File.Name.End())
+		rng, err := f.NodeRange(f.File.Name)
 		if err != nil {
 			return err
 		}
@@ -493,7 +493,7 @@ func renameImports(ctx context.Context, snapshot Snapshot, m *Metadata, newPath 
 				}
 
 				// Create text edit for the import path (string literal).
-				rng, err := f.PosRange(imp.Path.Pos(), imp.Path.End())
+				rng, err := f.NodeRange(imp.Path)
 				if err != nil {
 					return err
 				}

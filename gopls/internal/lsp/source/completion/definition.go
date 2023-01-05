@@ -6,7 +6,6 @@ package completion
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
 	"strings"
 	"unicode"
@@ -23,11 +22,11 @@ import (
 // BenchmarkFoo(b *testing.B), FuzzFoo(f *testing.F)
 
 // path[0] is known to be *ast.Ident
-func definition(path []ast.Node, obj types.Object, tokFile *token.File, fh source.FileHandle) ([]CompletionItem, *Selection) {
+func definition(path []ast.Node, obj types.Object, pgf *source.ParsedGoFile) ([]CompletionItem, *Selection) {
 	if _, ok := obj.(*types.Func); !ok {
 		return nil, nil // not a function at all
 	}
-	if !strings.HasSuffix(fh.URI().Filename(), "_test.go") {
+	if !strings.HasSuffix(pgf.URI.Filename(), "_test.go") {
 		return nil, nil // not a test file
 	}
 
@@ -41,7 +40,8 @@ func definition(path []ast.Node, obj types.Object, tokFile *token.File, fh sourc
 	sel := &Selection{
 		content: "",
 		cursor:  start,
-		rng:     span.NewRange(tokFile, start, end),
+		rng:     span.NewRange(pgf.Tok, start, end),
+		mapper:  pgf.Mapper,
 	}
 	var ans []CompletionItem
 	var hasParens bool

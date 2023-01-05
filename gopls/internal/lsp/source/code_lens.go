@@ -111,7 +111,7 @@ func TestsAndBenchmarks(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 			continue
 		}
 
-		rng, err := pgf.PosRange(fn.Pos(), fn.End())
+		rng, err := pgf.NodeRange(fn)
 		if err != nil {
 			return out, err
 		}
@@ -214,7 +214,7 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 	if c == nil {
 		return nil, nil
 	}
-	rng, err := pgf.PosRange(c.Pos(), c.End())
+	rng, err := pgf.NodeRange(c)
 	if err != nil {
 		return nil, err
 	}

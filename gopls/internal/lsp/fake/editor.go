@@ -566,6 +566,16 @@ func (e *Editor) SaveBufferWithoutActions(ctx context.Context, path string) erro
 
 // contentPosition returns the (Line, Column) position corresponding to offset
 // in the buffer referenced by path.
+//
+// TODO(adonovan): offset is measured in runes, according to the test,
+// but I can't imagine why that would be useful, and the only actual
+// caller (regexpRange) seems to pass a byte offset.
+// I would expect the implementation to be simply:
+//
+//	prefix := content[:offset]
+//	line := strings.Count(prefix, "\n")                                       // 0-based
+//	col := utf8.RuneCountInString(prefix[strings.LastIndex(prefix, "\n")+1:]) // 0-based, runes
+//	return Pos{Line: line, Column: col}, nil
 func contentPosition(content string, offset int) (Pos, error) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	start := 0

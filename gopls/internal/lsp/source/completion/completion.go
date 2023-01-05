@@ -291,18 +291,15 @@ type Selection struct {
 	content string
 	cursor  token.Pos // relative to rng.TokFile
 	rng     span.Range
-	// TODO(adonovan): keep the ColumnMapper (completer.mapper)
-	// nearby so we can convert rng to protocol form without
-	// needing to read the file again, as the sole caller of
-	// Selection.Range() must currently do.
+	mapper  *protocol.ColumnMapper
 }
 
 func (p Selection) Content() string {
 	return p.content
 }
 
-func (p Selection) Range() span.Range {
-	return p.rng
+func (p Selection) Range() (protocol.Range, error) {
+	return p.mapper.PosRange(p.rng.TokFile, p.rng.Start, p.rng.End)
 }
 
 func (p Selection) Prefix() string {
@@ -325,7 +322,8 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		content: ident.Name,
 		cursor:  c.pos,
 		// Overwrite the prefix only.
-		rng: span.NewRange(c.tokFile, ident.Pos(), ident.End()),
+		rng:    span.NewRange(c.tokFile, ident.Pos(), ident.End()),
+		mapper: c.mapper,
 	}
 
 	c.setMatcherFromPrefix(c.surrounding.Prefix())
@@ -348,6 +346,7 @@ func (c *completer) getSurrounding() *Selection {
 			content: "",
 			cursor:  c.pos,
 			rng:     span.NewRange(c.tokFile, c.pos, c.pos),
+			mapper:  c.mapper,
 		}
 	}
 	return c.surrounding
@@ -486,7 +485,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 					qual := types.RelativeTo(pkg.GetTypes())
 					objStr = types.ObjectString(obj, qual)
 				}
-				ans, sel := definition(path, obj, pgf.Tok, fh)
+				ans, sel := definition(path, obj, pgf)
 				if ans != nil {
 					sort.Slice(ans, func(i, j int) bool {
 						return ans[i].Score > ans[j].Score
@@ -800,6 +799,7 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 		content: content,
 		cursor:  c.pos,
 		rng:     span.NewRange(c.tokFile, start, end),
+		mapper:  c.mapper,
 	}
 
 	seenImports := make(map[string]struct{})
@@ -1020,6 +1020,7 @@ func (c *completer) setSurroundingForComment(comments *ast.CommentGroup) {
 		content: cursorComment.Text[start:end],
 		cursor:  c.pos,
 		rng:     span.NewRange(c.tokFile, token.Pos(int(cursorComment.Slash)+start), token.Pos(int(cursorComment.Slash)+end)),
+		mapper:  c.mapper,
 	}
 	c.setMatcherFromPrefix(c.surrounding.Prefix())
 }

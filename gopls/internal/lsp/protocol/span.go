@@ -8,7 +8,6 @@
 //
 // Imports: lsppos  -->  protocol  -->  span  -->  token
 //
-// lsppos.TokenMapper = (token.File, lsppos.Mapper)
 // lsppos.Mapper = (line offset table, content)
 //
 // protocol.ColumnMapper = (URI, Content). Does all offset <=> column conversions.
@@ -33,8 +32,6 @@
 //     It is mostly used by completion. Given access to complete.mapper,
 //     it could use a pair byte offsets instead.
 //   - Merge lsppos.Mapper and protocol.ColumnMapper.
-//   - Replace all uses of lsppos.TokenMapper by the underlying ParsedGoFile,
-//     which carries a token.File and a ColumnMapper.
 //   - Then delete lsppos package.
 //   - ColumnMapper.OffsetPoint and .Position aren't used outside this package.
 //     OffsetSpan is barely used, and its user would better off with a MappedRange
@@ -46,11 +43,13 @@ package protocol
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
 	"go/token"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 )
@@ -66,16 +65,18 @@ import (
 //
 //   - (line, colRune) pairs, where colRune is a rune index, as used by ParseWork.
 //
-// This type does not depend on or use go/token-based representations.
-// Use safetoken to map between token.Pos <=> byte offsets.
+// This type does not intrinsically depend on go/token-based
+// representations.  Use safetoken to map between token.Pos <=> byte
+// offsets, or the convenience methods such as PosPosition,
+// NodePosition, or NodeRange.
 type ColumnMapper struct {
 	URI     span.URI
 	Content []byte
 
-	// This field provides a line-number table, nothing more.
-	// The public API of ColumnMapper doesn't mention go/token,
-	// nor should it. It need not be consistent with any
-	// other token.File or FileSet.
+	// This field provides a line-number table, nothing more.  The
+	// public API of ColumnMapper doesn't implicate it in any
+	// relationship with any instances of token.File or
+	// token.FileSet, nor should it.
 	//
 	// TODO(adonovan): eliminate this field in a follow-up
 	// by inlining the line-number table. Then merge this
@@ -204,6 +205,28 @@ func (m *ColumnMapper) OffsetPosition(offset int) (Position, error) {
 		Line:      uint32(line - 1),
 		Character: uint32(char),
 	}, nil
+}
+
+// -- go/token domain convenience methods --
+
+func (m *ColumnMapper) PosPosition(tf *token.File, pos token.Pos) (Position, error) {
+	offset, err := safetoken.Offset(tf, pos)
+	if err != nil {
+		return Position{}, err
+	}
+	return m.OffsetPosition(offset)
+}
+
+func (m *ColumnMapper) PosRange(tf *token.File, start, end token.Pos) (Range, error) {
+	startOffset, endOffset, err := safetoken.Offsets(tf, start, end)
+	if err != nil {
+		return Range{}, err
+	}
+	return m.OffsetRange(startOffset, endOffset)
+}
+
+func (m *ColumnMapper) NodeRange(tf *token.File, node ast.Node) (Range, error) {
+	return m.PosRange(tf, node.Pos(), node.End())
 }
 
 // utf16Column returns the zero-based column index of the

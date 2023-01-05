@@ -680,7 +680,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 			}
 
 			for _, imp := range allImports[item] {
-				rng, err := imp.cgf.PosRange(imp.imp.Pos(), imp.imp.End())
+				rng, err := imp.cgf.NodeRange(imp.imp)
 				if err != nil {
 					return nil, err
 				}

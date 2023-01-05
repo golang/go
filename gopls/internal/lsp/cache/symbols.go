@@ -12,7 +12,6 @@ import (
 	"go/types"
 	"strings"
 
-	"golang.org/x/tools/gopls/internal/lsp/lsppos"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
@@ -66,8 +65,9 @@ func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, e
 	}
 
 	var (
-		file     *ast.File
-		fileDesc *token.File
+		file    *ast.File
+		tokFile *token.File
+		mapper  *protocol.ColumnMapper
 	)
 
 	// If the file has already been fully parsed through the
@@ -78,7 +78,8 @@ func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, e
 	snapshot.mu.Unlock()
 	if pgf != nil {
 		file = pgf.File
-		fileDesc = pgf.Tok
+		tokFile = pgf.Tok
+		mapper = pgf.Mapper
 	}
 
 	// Otherwise, we parse the file ourselves. Notably we don't use parseGo here,
@@ -91,11 +92,13 @@ func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, e
 		if file == nil {
 			return nil, err
 		}
-		fileDesc = fset.File(file.Package)
+		tokFile = fset.File(file.Package)
+		mapper = protocol.NewColumnMapper(fh.URI(), src)
 	}
 
 	w := &symbolWalker{
-		mapper: lsppos.NewTokenMapper(src, fileDesc),
+		tokFile: tokFile,
+		mapper:  mapper,
 	}
 
 	w.fileDecls(file.Decls)
@@ -104,7 +107,9 @@ func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, e
 }
 
 type symbolWalker struct {
-	mapper *lsppos.TokenMapper // for computing positions
+	// for computing positions
+	tokFile *token.File
+	mapper  *protocol.ColumnMapper
 
 	symbols    []source.Symbol
 	firstError error
@@ -120,7 +125,7 @@ func (w *symbolWalker) atNode(node ast.Node, name string, kind protocol.SymbolKi
 	}
 	b.WriteString(name)
 
-	rng, err := w.mapper.Range(node.Pos(), node.End())
+	rng, err := w.mapper.NodeRange(w.tokFile, node)
 	if err != nil {
 		w.error(err)
 		return

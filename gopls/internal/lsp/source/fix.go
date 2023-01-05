@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 )
@@ -94,10 +93,6 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 		if !end.IsValid() {
 			end = edit.Pos
 		}
-		startOffset, endOffset, err := safetoken.Offsets(tokFile, edit.Pos, end)
-		if err != nil {
-			return nil, err
-		}
 		fh, err := snapshot.GetVersionedFile(ctx, span.URIFromPath(tokFile.Name()))
 		if err != nil {
 			return nil, err
@@ -120,7 +115,7 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 			return nil, err
 		}
 		m := protocol.NewColumnMapper(fh.URI(), content)
-		rng, err := m.OffsetRange(startOffset, endOffset)
+		rng, err := m.PosRange(tokFile, edit.Pos, end)
 		if err != nil {
 			return nil, err
 		}

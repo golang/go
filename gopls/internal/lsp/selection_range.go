@@ -51,7 +51,7 @@ func (s *Server) selectionRange(ctx context.Context, params *protocol.SelectionR
 		tail := &result[i] // tail of the Parent linked list, built head first
 
 		for j, node := range path {
-			rng, err := pgf.PosRange(node.Pos(), node.End())
+			rng, err := pgf.NodeRange(node)
 			if err != nil {
 				return nil, err
 			}
