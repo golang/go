@@ -359,9 +359,9 @@ Outer:
 
 		// Double check for any type-checking inconsistencies. This can be
 		// removed once we're confident in IR generation results.
-		syntax.Crawl(p.file, func(n syntax.Node) bool {
+		syntax.Inspect(p.file, func(n syntax.Node) bool {
 			g.validate(n)
-			return false
+			return true
 		})
 	}
 
