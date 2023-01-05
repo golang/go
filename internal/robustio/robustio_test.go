@@ -7,6 +7,7 @@ package robustio_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"golang.org/x/tools/internal/robustio"
@@ -43,28 +44,30 @@ func TestFileID(t *testing.T) {
 	}
 
 	// A symbolic link has the same ID as its target.
-	symlink := filepath.Join(t.TempDir(), "symlink")
-	if err := os.Symlink(real, symlink); err != nil {
-		t.Fatalf("can't create symbolic link: %v", err)
-	}
-	symlinkID, err := robustio.GetFileID(symlink)
-	if err != nil {
-		t.Fatalf("can't get ID of symbolic link: %v", err)
-	}
-	if realID != symlinkID {
-		t.Errorf("realID %+v != symlinkID %+v", realID, symlinkID)
-	}
+	if runtime.GOOS != "plan9" {
+		symlink := filepath.Join(t.TempDir(), "symlink")
+		if err := os.Symlink(real, symlink); err != nil {
+			t.Fatalf("can't create symbolic link: %v", err)
+		}
+		symlinkID, err := robustio.GetFileID(symlink)
+		if err != nil {
+			t.Fatalf("can't get ID of symbolic link: %v", err)
+		}
+		if realID != symlinkID {
+			t.Errorf("realID %+v != symlinkID %+v", realID, symlinkID)
+		}
 
-	// Two hard-linked files have the same ID.
-	hardlink := filepath.Join(t.TempDir(), "hardlink")
-	if err := os.Link(real, hardlink); err != nil {
-		t.Fatal(err)
-	}
-	hardlinkID, err := robustio.GetFileID(hardlink)
-	if err != nil {
-		t.Fatalf("can't get ID of hard link: %v", err)
-	}
-	if hardlinkID != realID {
-		t.Errorf("realID %+v != hardlinkID %+v", realID, hardlinkID)
+		// Two hard-linked files have the same ID.
+		hardlink := filepath.Join(t.TempDir(), "hardlink")
+		if err := os.Link(real, hardlink); err != nil {
+			t.Fatal(err)
+		}
+		hardlinkID, err := robustio.GetFileID(hardlink)
+		if err != nil {
+			t.Fatalf("can't get ID of hard link: %v", err)
+		}
+		if hardlinkID != realID {
+			t.Errorf("realID %+v != hardlinkID %+v", realID, hardlinkID)
+		}
 	}
 }

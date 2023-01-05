@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !windows && !plan9
-// +build !windows,!plan9
-
-// TODO(adonovan): use 'unix' tag when go1.19 can be assumed.
+//go:build plan9
+// +build plan9
 
 package robustio
 
@@ -19,9 +17,9 @@ func getFileID(filename string) (FileID, error) {
 	if err != nil {
 		return FileID{}, err
 	}
-	stat := fi.Sys().(*syscall.Stat_t)
+	dir := fi.Sys().(*syscall.Dir)
 	return FileID{
-		device: uint64(stat.Dev), // (int32 on darwin, uint64 on linux)
-		inode:  stat.Ino,
+		device: uint64(dir.Type)<<32 | uint64(dir.Dev),
+		inode:  dir.Qid.Path,
 	}, nil
 }
