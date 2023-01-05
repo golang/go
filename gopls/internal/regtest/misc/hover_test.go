@@ -253,3 +253,15 @@ package lib
 		})
 	})
 }
+
+// This is a regression test for Go issue #57625.
+func TestHoverModMissingModuleStmt(t *testing.T) {
+	const source = `
+-- go.mod --
+go 1.16
+`
+	Run(t, source, func(t *testing.T, env *Env) {
+		env.OpenFile("go.mod")
+		env.Hover("go.mod", env.RegexpSearch("go.mod", "go")) // no panic
+	})
+}

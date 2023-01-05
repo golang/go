@@ -125,11 +125,15 @@ func hoverOnRequireStatement(ctx context.Context, pm *source.ParsedModule, offse
 }
 
 func hoverOnModuleStatement(ctx context.Context, pm *source.ParsedModule, offset int, snapshot source.Snapshot, fh source.FileHandle) (*protocol.Hover, bool) {
-	if offset < pm.File.Module.Syntax.Start.Byte || offset > pm.File.Module.Syntax.End.Byte {
-		return nil, false
+	module := pm.File.Module
+	if module == nil {
+		return nil, false // no module stmt
+	}
+	if offset < module.Syntax.Start.Byte || offset > module.Syntax.End.Byte {
+		return nil, false // cursor not in module stmt
 	}
 
-	rng, err := pm.Mapper.OffsetRange(pm.File.Module.Syntax.Start.Byte, pm.File.Module.Syntax.End.Byte)
+	rng, err := pm.Mapper.OffsetRange(module.Syntax.Start.Byte, module.Syntax.End.Byte)
 	if err != nil {
 		return nil, false
 	}
