@@ -368,7 +368,10 @@ func (r *objReader) parseArchive(verbose bool) error {
 			if bytes.Equal(p, goobjHeader) {
 				typ = EntryGoObj
 				o = &GoObj{}
-				r.parseObject(o, size)
+				err := r.parseObject(o, size)
+				if err != nil {
+					return err
+				}
 			} else {
 				typ = EntryNativeObj
 				r.skip(size)
