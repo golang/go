@@ -32,6 +32,7 @@ func (s *snapshot) ParseMod(ctx context.Context, fh source.FileHandle) (*source.
 	entry, hit := s.parseModHandles.Get(uri)
 	s.mu.Unlock()
 
+	type parseModKey source.FileIdentity
 	type parseModResult struct {
 		parsed *source.ParsedModule
 		err    error
@@ -39,7 +40,7 @@ func (s *snapshot) ParseMod(ctx context.Context, fh source.FileHandle) (*source.
 
 	// cache miss?
 	if !hit {
-		promise, release := s.store.Promise(fh.FileIdentity(), func(ctx context.Context, _ interface{}) interface{} {
+		promise, release := s.store.Promise(parseModKey(fh.FileIdentity()), func(ctx context.Context, _ interface{}) interface{} {
 			parsed, err := parseModImpl(ctx, fh)
 			return parseModResult{parsed, err}
 		})
@@ -109,6 +110,7 @@ func (s *snapshot) ParseWork(ctx context.Context, fh source.FileHandle) (*source
 	entry, hit := s.parseWorkHandles.Get(uri)
 	s.mu.Unlock()
 
+	type parseWorkKey source.FileIdentity
 	type parseWorkResult struct {
 		parsed *source.ParsedWorkFile
 		err    error
@@ -116,7 +118,7 @@ func (s *snapshot) ParseWork(ctx context.Context, fh source.FileHandle) (*source
 
 	// cache miss?
 	if !hit {
-		handle, release := s.store.Promise(fh.FileIdentity(), func(ctx context.Context, _ interface{}) interface{} {
+		handle, release := s.store.Promise(parseWorkKey(fh.FileIdentity()), func(ctx context.Context, _ interface{}) interface{} {
 			parsed, err := parseWorkImpl(ctx, fh)
 			return parseWorkResult{parsed, err}
 		})
