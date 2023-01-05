@@ -1185,3 +1185,17 @@ package main
 		env.Await(EmptyDiagnostics("go.mod"))
 	})
 }
+
+// This is a regression test for a bug in the line-oriented implementation
+// of the "apply diffs" operation used by the fake editor.
+func TestIssue57627(t *testing.T) {
+	const files = `
+-- go.work --
+package main
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("go.work")
+		env.SetBufferContent("go.work", "go 1.18\nuse moda/a")
+		env.SaveBuffer("go.work") // doesn't fail
+	})
+}

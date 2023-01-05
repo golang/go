@@ -47,6 +47,23 @@ func TestApplyEdits(t *testing.T) {
 			want: "ABC\nD12\n345\nJKL",
 		},
 		{
+			label:   "regression test for issue #57627",
+			content: "go 1.18\nuse moda/a",
+			edits: []Edit{
+				{
+					Start: Pos{Line: 1, Column: 0},
+					End:   Pos{Line: 1, Column: 0},
+					Text:  "\n",
+				},
+				{
+					Start: Pos{Line: 2, Column: 0},
+					End:   Pos{Line: 2, Column: 0},
+					Text:  "\n",
+				},
+			},
+			want: "go 1.18\n\nuse moda/a\n",
+		},
+		{
 			label:   "end before start",
 			content: "ABC\nDEF\nGHI\nJKL",
 			edits: []Edit{{

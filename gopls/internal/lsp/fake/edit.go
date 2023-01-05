@@ -114,26 +114,33 @@ func applyEdits(lines []string, edits []Edit) ([]string, error) {
 	src := strings.Join(lines, "\n")
 
 	// Build a table of byte offset of start of each line.
-	lineOffset := make([]int, len(lines)+1)
+	lineOffset := make([]int, len(lines))
 	offset := 0
 	for i, line := range lines {
 		lineOffset[i] = offset
 		offset += len(line) + len("\n")
 	}
-	lineOffset[len(lines)] = offset // EOF
 
-	var badCol error
+	var posErr error
 	posToOffset := func(pos Pos) int {
-		offset := lineOffset[pos.Line]
 		// Convert pos.Column (runes) to a UTF-8 byte offset.
-		if pos.Line < len(lines) {
-			for i := 0; i < pos.Column; i++ {
-				r, sz := utf8.DecodeRuneInString(src[offset:])
-				if r == '\n' && badCol == nil {
-					badCol = fmt.Errorf("bad column")
-				}
-				offset += sz
+		if pos.Line > len(lines) {
+			posErr = fmt.Errorf("bad line")
+			return 0
+		}
+		if pos.Line == len(lines) {
+			if pos.Column > 0 {
+				posErr = fmt.Errorf("bad column")
 			}
+			return len(src) // EOF
+		}
+		offset := lineOffset[pos.Line]
+		for i := 0; i < pos.Column; i++ {
+			r, sz := utf8.DecodeRuneInString(src[offset:])
+			if r == '\n' && posErr == nil {
+				posErr = fmt.Errorf("bad column")
+			}
+			offset += sz
 		}
 		return offset
 	}
@@ -153,5 +160,5 @@ func applyEdits(lines []string, edits []Edit) ([]string, error) {
 		return nil, err
 	}
 
-	return strings.Split(patched, "\n"), badCol
+	return strings.Split(patched, "\n"), posErr
 }
