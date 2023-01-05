@@ -72,9 +72,13 @@ func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protoco
 				}
 				for _, imp := range f.File.Imports {
 					if rdep.DepsByImpPath[UnquoteImportPath(imp)] == targetPkg.ID {
+						rng, err := f.PosMappedRange(imp.Pos(), imp.End())
+						if err != nil {
+							return nil, err
+						}
 						refs = append(refs, &ReferenceInfo{
 							Name:        pgf.File.Name.Name,
-							MappedRange: NewMappedRange(f, imp.Pos(), imp.End()),
+							MappedRange: rng,
 						})
 					}
 				}
@@ -91,9 +95,13 @@ func References(ctx context.Context, snapshot Snapshot, f FileHandle, pp protoco
 			if err != nil {
 				return nil, err
 			}
+			rng, err := f.PosMappedRange(f.File.Name.Pos(), f.File.Name.End())
+			if err != nil {
+				return nil, err
+			}
 			refs = append(refs, &ReferenceInfo{
 				Name:        pgf.File.Name.Name,
-				MappedRange: NewMappedRange(f, f.File.Name.Pos(), f.File.Name.End()),
+				MappedRange: rng,
 			})
 		}
 

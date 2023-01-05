@@ -29,7 +29,7 @@ type IdentifierInfo struct {
 	MappedRange MappedRange
 
 	Type struct {
-		MappedRange MappedRange // TODO(adonovan): strength-reduce to a protocol.Location
+		MappedRange MappedRange
 		Object      types.Object
 	}
 
@@ -56,8 +56,9 @@ func (i *IdentifierInfo) IsImport() bool {
 type Declaration struct {
 	MappedRange []MappedRange
 
-	// The typechecked node.
-	node ast.Node
+	// The typechecked node
+	node     ast.Node
+	nodeFile *ParsedGoFile // provides token.File and ColumnMapper for node
 
 	// Optional: the fully parsed node, to be used for formatting in cases where
 	// node has missing information. This could be the case when node was parsed
@@ -97,7 +98,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	file := pgf.File
 	// Handle import specs separately, as there is no formal position for a
 	// package declaration.
-	if result, err := importSpec(snapshot, pkg, file, pos); result != nil || err != nil {
+	if result, err := importSpec(snapshot, pkg, pgf, pos); result != nil || err != nil {
 		return result, err
 	}
 	path := pathEnclosingObjNode(file, pos)
@@ -114,7 +115,6 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	// Special case for package declarations, since they have no
 	// corresponding types.Object.
 	if ident == file.Name {
-		rng := NewMappedRange(pgf, file.Name.Pos(), file.Name.End())
 		// If there's no package documentation, just use current file.
 		decl := pgf
 		for _, pgf := range pkg.CompiledGoFiles() {
@@ -122,16 +122,24 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 				decl = pgf
 			}
 		}
-		declRng := NewMappedRange(decl, decl.File.Name.Pos(), decl.File.Name.End())
+		pkgRng, err := pgf.PosMappedRange(file.Name.Pos(), file.Name.End())
+		if err != nil {
+			return nil, err
+		}
+		declRng, err := decl.PosMappedRange(decl.File.Name.Pos(), decl.File.Name.End())
+		if err != nil {
+			return nil, err
+		}
 		return &IdentifierInfo{
 			Name:        file.Name.Name,
 			ident:       file.Name,
-			MappedRange: rng,
+			MappedRange: pkgRng,
 			pkg:         pkg,
 			qf:          qf,
 			Snapshot:    snapshot,
 			Declaration: Declaration{
 				node:        decl.File.Name,
+				nodeFile:    decl,
 				MappedRange: []MappedRange{declRng},
 			},
 		}, nil
@@ -183,6 +191,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 			return nil, fmt.Errorf("no declaration for %s", result.Name)
 		}
 		result.Declaration.node = decl
+		result.Declaration.nodeFile = builtin
 		if typeSpec, ok := decl.(*ast.TypeSpec); ok {
 			// Find the GenDecl (which has the doc comments) for the TypeSpec.
 			result.Declaration.fullDecl = findGenDecl(builtin.File, typeSpec)
@@ -190,7 +199,10 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 
 		// The builtin package isn't in the dependency graph, so the usual
 		// utilities won't work here.
-		rng := NewMappedRange(builtin, decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
+		rng, err := builtin.PosMappedRange(decl.Pos(), decl.Pos()+token.Pos(len(result.Name)))
+		if err != nil {
+			return nil, err
+		}
 		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 		return result, nil
 	}
@@ -231,7 +243,11 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 			}
 			name := method.Names[0].Name
 			result.Declaration.node = method
-			rng := NewMappedRange(builtin, method.Pos(), method.Pos()+token.Pos(len(name)))
+			result.Declaration.nodeFile = builtin
+			rng, err := builtin.PosMappedRange(method.Pos(), method.Pos()+token.Pos(len(name)))
+			if err != nil {
+				return nil, err
+			}
 			result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 			return result, nil
 		}
@@ -246,17 +262,26 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 		}
 	}
 
+	// TODO(adonovan): this step calls the somewhat expensive
+	// findFileInDeps, which is also called below.  Refactor
+	// objToMappedRange to separate the find-file from the
+	// lookup-position steps to avoid the redundancy.
 	rng, err := objToMappedRange(pkg, result.Declaration.obj)
 	if err != nil {
 		return nil, err
 	}
 	result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
-	declPkg, err := FindPackageFromPos(pkg, result.Declaration.obj.Pos())
+	declPos := result.Declaration.obj.Pos()
+	objURI := span.URIFromPath(pkg.FileSet().File(declPos).Name())
+	declFile, declPkg, err := findFileInDeps(pkg, objURI)
 	if err != nil {
 		return nil, err
 	}
-	result.Declaration.node, _ = FindDeclAndField(declPkg.GetSyntax(), result.Declaration.obj.Pos()) // may be nil
+	// TODO(adonovan): there's no need to inspect the entire GetSyntax() slice:
+	// we already know it's declFile.File.
+	result.Declaration.node, _ = FindDeclAndField(declPkg.GetSyntax(), declPos) // may be nil
+	result.Declaration.nodeFile = declFile
 
 	// Ensure that we have the full declaration, in case the declaration was
 	// parsed in ParseExported and therefore could be missing information.
@@ -424,9 +449,9 @@ func hasErrorType(obj types.Object) bool {
 }
 
 // importSpec handles positions inside of an *ast.ImportSpec.
-func importSpec(snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+func importSpec(snapshot Snapshot, pkg Package, pgf *ParsedGoFile, pos token.Pos) (*IdentifierInfo, error) {
 	var imp *ast.ImportSpec
-	for _, spec := range file.Imports {
+	for _, spec := range pgf.File.Imports {
 		if spec.Path.Pos() <= pos && pos < spec.Path.End() {
 			imp = spec
 		}
@@ -461,6 +486,7 @@ func importSpec(snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (
 	}
 
 	result.Declaration.node = imp
+	result.Declaration.nodeFile = pgf
 	return result, nil
 }
 

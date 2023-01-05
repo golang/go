@@ -196,10 +196,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	if node == nil {
 		return nil, nil
 	}
-	if len(identifier.Declaration.MappedRange) == 0 {
-		return nil, nil
-	}
-	callExprs, err := collectCallExpressions(identifier.Declaration.MappedRange[0].File, node)
+	callExprs, err := collectCallExpressions(identifier.Declaration.nodeFile, node)
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/bug"
 )
 
 // FoldingRangeInfo holds range and kind info of folding for an ast.Node
@@ -126,8 +127,12 @@ func foldingRangeFunc(pgf *ParsedGoFile, n ast.Node, lineFoldingOnly bool) *Fold
 	if lineFoldingOnly && pgf.Tok.Line(start) == pgf.Tok.Line(end) {
 		return nil
 	}
+	mrng, err := pgf.PosMappedRange(start, end)
+	if err != nil {
+		bug.Errorf("%w", err) // can't happen
+	}
 	return &FoldingRangeInfo{
-		MappedRange: NewMappedRange(pgf, start, end),
+		MappedRange: mrng,
 		Kind:        kind,
 	}
 }
@@ -174,9 +179,13 @@ func commentsFoldingRange(pgf *ParsedGoFile) (comments []*FoldingRangeInfo) {
 			// folding range start at the end of the first line.
 			endLinePos = token.Pos(int(startPos) + len(strings.Split(firstComment.Text, "\n")[0]))
 		}
+		mrng, err := pgf.PosMappedRange(endLinePos, commentGrp.End())
+		if err != nil {
+			bug.Errorf("%w", err) // can't happen
+		}
 		comments = append(comments, &FoldingRangeInfo{
 			// Fold from the end of the first line comment to the end of the comment block.
-			MappedRange: NewMappedRange(pgf, endLinePos, commentGrp.End()),
+			MappedRange: mrng,
 			Kind:        protocol.Comment,
 		})
 	}

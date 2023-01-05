@@ -23,43 +23,31 @@ import (
 	"golang.org/x/tools/internal/typeparams"
 )
 
-// A MappedRange represents an interval within a parsed Go file and
-// has the ability to convert to protocol.Range or span.Span form.
+// A MappedRange represents a byte-offset interval within a file.
+// Through the ColumnMapper it can be converted into other forms such
+// as protocol.Range or span.Span.
 //
-// TOOD(adonovan): eliminate this type by inlining it: make callers
-// hold the triple themselves, or convert to Mapper + start/end offsets
-// and hold that.
+// Call ParsedGoFile.MappedPosRange to construct from the go/token domain.
 type MappedRange struct {
-	// TODO(adonovan): eliminate sole tricky direct use of this,
-	// which is entangled with IdentifierInfo.Declaration.node.
-	File       *ParsedGoFile
-	start, end token.Pos
+	Mapper     *protocol.ColumnMapper
+	Start, End int // byte offsets
 }
 
-// NewMappedRange returns a MappedRange for the given file and
-// start/end positions, which must be valid within the file.
-func NewMappedRange(pgf *ParsedGoFile, start, end token.Pos) MappedRange {
-	_ = span.NewRange(pgf.Tok, start, end) // just for assertions
-	return MappedRange{File: pgf, start: start, end: end}
+// -- convenience functions --
+
+// Range returns the range in protocol form.
+func (mr MappedRange) Range() (protocol.Range, error) {
+	return mr.Mapper.OffsetRange(mr.Start, mr.End)
 }
 
-// Range returns the LSP range in the edited source.
-func (s MappedRange) Range() (protocol.Range, error) {
-	return s.File.PosRange(s.start, s.end)
+// Span returns the range in span form.
+func (mr MappedRange) Span() (span.Span, error) {
+	return mr.Mapper.OffsetSpan(mr.Start, mr.End)
 }
 
-// Span returns the span corresponding to the mapped range in the edited source.
-func (s MappedRange) Span() (span.Span, error) {
-	start, end, err := safetoken.Offsets(s.File.Tok, s.start, s.end)
-	if err != nil {
-		return span.Span{}, err
-	}
-	return s.File.Mapper.OffsetSpan(start, end)
-}
-
-// URI returns the URI of the edited file.
-func (s MappedRange) URI() span.URI {
-	return s.File.Mapper.URI
+// URI returns the URI of the range's file.
+func (mr MappedRange) URI() span.URI {
+	return mr.Mapper.URI
 }
 
 func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
@@ -123,7 +111,7 @@ func posToMappedRange(pkg Package, pos, end token.Pos) (MappedRange, error) {
 	if err != nil {
 		return MappedRange{}, err
 	}
-	return NewMappedRange(pgf, pos, end), nil
+	return pgf.PosMappedRange(pos, end)
 }
 
 // FindPackageFromPos returns the Package for the given position, which must be

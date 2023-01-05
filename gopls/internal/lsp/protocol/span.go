@@ -8,7 +8,7 @@
 //
 // Imports: source  --> lsppos  -->  protocol  -->  span  -->  token
 //
-// source.MappedRange = (*ParsedGoFile, start/end token.Pos)
+// source.MappedRange = (protocol.ColumnMapper, {start,end}Offset int)
 //
 // lsppos.TokenMapper = (token.File, lsppos.Mapper)
 // lsppos.Mapper = (line offset table, content)
