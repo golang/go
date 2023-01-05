@@ -1544,6 +1544,7 @@ func (s *regAllocState) regalloc(f *Func) {
 						}
 					}
 				}
+
 				// Avoid future fixed uses if we can.
 				if m&^desired.avoid != 0 {
 					m &^= desired.avoid
@@ -1551,6 +1552,19 @@ func (s *regAllocState) regalloc(f *Func) {
 				// Save input 0 to a new register so we can clobber it.
 				c := s.allocValToReg(v.Args[0], m, true, v.Pos)
 				s.copies[c] = false
+
+				// Normally we use the register of the old copy of input 0 as the target.
+				// However, if input 0 is already in its desired register then we use
+				// the register of the new copy instead.
+				if rp, ok := s.f.getHome(args[0].ID).(*Register); ok {
+					r := register(rp.num)
+					for _, r2 := range dinfo[idx].in[0] {
+						if r == r2 {
+							args[0] = c
+							break
+						}
+					}
+				}
 			}
 
 		ok:
