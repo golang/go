@@ -52,8 +52,13 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 	// (This turns every read into a write operation.
 	// If this is a performance problem, we should
 	// touch the files aynchronously.)
+	//
+	// (Traditionally the access time would be updated
+	// automatically, but for efficiency most POSIX systems have
+	// for many years set the noatime mount option to avoid every
+	// open or read operation entailing a metadata write.)
 	now := time.Now()
-	if err := setFileTime(name, now, now); err != nil {
+	if err := os.Chtimes(name, now, now); err != nil {
 		return nil, fmt.Errorf("failed to update access time: %w", err)
 	}
 
