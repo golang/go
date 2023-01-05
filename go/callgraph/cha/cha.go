@@ -40,6 +40,54 @@ func CallGraph(prog *ssa.Program) *callgraph.Graph {
 
 	allFuncs := ssautil.AllFunctions(prog)
 
+	calleesOf := lazyCallees(allFuncs)
+
+	addEdge := func(fnode *callgraph.Node, site ssa.CallInstruction, g *ssa.Function) {
+		gnode := cg.CreateNode(g)
+		callgraph.AddEdge(fnode, site, gnode)
+	}
+
+	addEdges := func(fnode *callgraph.Node, site ssa.CallInstruction, callees []*ssa.Function) {
+		// Because every call to a highly polymorphic and
+		// frequently used abstract method such as
+		// (io.Writer).Write is assumed to call every concrete
+		// Write method in the program, the call graph can
+		// contain a lot of duplication.
+		//
+		// TODO(taking): opt: consider making lazyCallees public.
+		// Using the same benchmarks as callgraph_test.go, removing just
+		// the explicit callgraph.Graph construction is 4x less memory
+		// and is 37% faster.
+		// CHA			86 ms/op	16 MB/op
+		// lazyCallees	63 ms/op	 4 MB/op
+		for _, g := range callees {
+			addEdge(fnode, site, g)
+		}
+	}
+
+	for f := range allFuncs {
+		fnode := cg.CreateNode(f)
+		for _, b := range f.Blocks {
+			for _, instr := range b.Instrs {
+				if site, ok := instr.(ssa.CallInstruction); ok {
+					if g := site.Common().StaticCallee(); g != nil {
+						addEdge(fnode, site, g)
+					} else {
+						addEdges(fnode, site, calleesOf(site))
+					}
+				}
+			}
+		}
+	}
+
+	return cg
+}
+
+// lazyCallees returns a function that maps a call site (in a function in fns)
+// to its callees within fns.
+//
+// The resulting function is not concurrency safe.
+func lazyCallees(fns map[*ssa.Function]bool) func(site ssa.CallInstruction) []*ssa.Function {
 	// funcsBySig contains all functions, keyed by signature.  It is
 	// the effective set of address-taken functions used to resolve
 	// a dynamic call of a particular signature.
@@ -81,7 +129,7 @@ func CallGraph(prog *ssa.Program) *callgraph.Graph {
 		return methods
 	}
 
-	for f := range allFuncs {
+	for f := range fns {
 		if f.Signature.Recv() == nil {
 			// Package initializers can never be address-taken.
 			if f.Name() == "init" && f.Synthetic == "package initializer" {
@@ -95,45 +143,17 @@ func CallGraph(prog *ssa.Program) *callgraph.Graph {
 		}
 	}
 
-	addEdge := func(fnode *callgraph.Node, site ssa.CallInstruction, g *ssa.Function) {
-		gnode := cg.CreateNode(g)
-		callgraph.AddEdge(fnode, site, gnode)
-	}
-
-	addEdges := func(fnode *callgraph.Node, site ssa.CallInstruction, callees []*ssa.Function) {
-		// Because every call to a highly polymorphic and
-		// frequently used abstract method such as
-		// (io.Writer).Write is assumed to call every concrete
-		// Write method in the program, the call graph can
-		// contain a lot of duplication.
-		//
-		// TODO(adonovan): opt: consider factoring the callgraph
-		// API so that the Callers component of each edge is a
-		// slice of nodes, not a singleton.
-		for _, g := range callees {
-			addEdge(fnode, site, g)
+	return func(site ssa.CallInstruction) []*ssa.Function {
+		call := site.Common()
+		if call.IsInvoke() {
+			tiface := call.Value.Type().Underlying().(*types.Interface)
+			return lookupMethods(tiface, call.Method)
+		} else if g := call.StaticCallee(); g != nil {
+			return []*ssa.Function{g}
+		} else if _, ok := call.Value.(*ssa.Builtin); !ok {
+			fns, _ := funcsBySig.At(call.Signature()).([]*ssa.Function)
+			return fns
 		}
+		return nil
 	}
-
-	for f := range allFuncs {
-		fnode := cg.CreateNode(f)
-		for _, b := range f.Blocks {
-			for _, instr := range b.Instrs {
-				if site, ok := instr.(ssa.CallInstruction); ok {
-					call := site.Common()
-					if call.IsInvoke() {
-						tiface := call.Value.Type().Underlying().(*types.Interface)
-						addEdges(fnode, site, lookupMethods(tiface, call.Method))
-					} else if g := call.StaticCallee(); g != nil {
-						addEdge(fnode, site, g)
-					} else if _, ok := call.Value.(*ssa.Builtin); !ok {
-						callees, _ := funcsBySig.At(call.Signature()).([]*ssa.Function)
-						addEdges(fnode, site, callees)
-					}
-				}
-			}
-		}
-	}
-
-	return cg
 }
