@@ -23,33 +23,12 @@ import (
 	"golang.org/x/tools/internal/typeparams"
 )
 
-// A MappedRange represents a byte-offset interval within a file.
-// Through the ColumnMapper it can be converted into other forms such
-// as protocol.Range or span.Span.
+// IsGenerated gets and reads the file denoted by uri and reports
+// whether it contains a "go:generated" directive as described at
+// https://golang.org/s/generatedcode.
 //
-// Call ParsedGoFile.MappedPosRange to construct from the go/token domain.
-type MappedRange struct {
-	Mapper     *protocol.ColumnMapper
-	Start, End int // byte offsets
-}
-
-// -- convenience functions --
-
-// Range returns the range in protocol form.
-func (mr MappedRange) Range() (protocol.Range, error) {
-	return mr.Mapper.OffsetRange(mr.Start, mr.End)
-}
-
-// Span returns the range in span form.
-func (mr MappedRange) Span() (span.Span, error) {
-	return mr.Mapper.OffsetSpan(mr.Start, mr.End)
-}
-
-// URI returns the URI of the range's file.
-func (mr MappedRange) URI() span.URI {
-	return mr.Mapper.URI
-}
-
+// TODO(adonovan): opt: this function does too much.
+// Move snapshot.GetFile into the caller (most of which have already done it).
 func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
@@ -72,7 +51,7 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	return false
 }
 
-func objToMappedRange(pkg Package, obj types.Object) (MappedRange, error) {
+func objToMappedRange(pkg Package, obj types.Object) (protocol.MappedRange, error) {
 	nameLen := len(obj.Name())
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		// An imported Go package has a package-local, unqualified name.
@@ -98,18 +77,18 @@ func objToMappedRange(pkg Package, obj types.Object) (MappedRange, error) {
 // TODO(adonovan): many of the callers need only the ParsedGoFile so
 // that they can call pgf.PosRange(pos, end) to get a Range; they
 // don't actually need a MappedRange.
-func posToMappedRange(pkg Package, pos, end token.Pos) (MappedRange, error) {
+func posToMappedRange(pkg Package, pos, end token.Pos) (protocol.MappedRange, error) {
 	if !pos.IsValid() {
-		return MappedRange{}, fmt.Errorf("invalid start position")
+		return protocol.MappedRange{}, fmt.Errorf("invalid start position")
 	}
 	if !end.IsValid() {
-		return MappedRange{}, fmt.Errorf("invalid end position")
+		return protocol.MappedRange{}, fmt.Errorf("invalid end position")
 	}
 
 	logicalFilename := pkg.FileSet().File(pos).Name() // ignore line directives
 	pgf, _, err := findFileInDeps(pkg, span.URIFromPath(logicalFilename))
 	if err != nil {
-		return MappedRange{}, err
+		return protocol.MappedRange{}, err
 	}
 	return pgf.PosMappedRange(pos, end)
 }

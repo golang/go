@@ -26,10 +26,10 @@ import (
 type IdentifierInfo struct {
 	Name        string
 	Snapshot    Snapshot // only needed for .View(); TODO(adonovan): reduce.
-	MappedRange MappedRange
+	MappedRange protocol.MappedRange
 
 	Type struct {
-		MappedRange MappedRange
+		MappedRange protocol.MappedRange
 		Object      types.Object
 	}
 
@@ -54,7 +54,7 @@ func (i *IdentifierInfo) IsImport() bool {
 }
 
 type Declaration struct {
-	MappedRange []MappedRange
+	MappedRange []protocol.MappedRange
 
 	// The typechecked node
 	node     ast.Node
@@ -140,7 +140,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 			Declaration: Declaration{
 				node:        decl.File.Name,
 				nodeFile:    decl,
-				MappedRange: []MappedRange{declRng},
+				MappedRange: []protocol.MappedRange{declRng},
 			},
 		}, nil
 	}

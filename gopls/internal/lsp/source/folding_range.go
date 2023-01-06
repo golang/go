@@ -17,7 +17,7 @@ import (
 
 // FoldingRangeInfo holds range and kind info of folding for an ast.Node
 type FoldingRangeInfo struct {
-	MappedRange MappedRange
+	MappedRange protocol.MappedRange
 	Kind        protocol.FoldingRangeKind
 }
 

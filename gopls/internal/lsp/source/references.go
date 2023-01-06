@@ -24,7 +24,7 @@ import (
 // ReferenceInfo holds information about reference to an identifier in Go source.
 type ReferenceInfo struct {
 	Name          string
-	MappedRange   MappedRange
+	MappedRange   protocol.MappedRange
 	ident         *ast.Ident
 	obj           types.Object
 	pkg           Package

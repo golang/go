@@ -401,12 +401,12 @@ func (pgf *ParsedGoFile) PosRange(start, end token.Pos) (protocol.Range, error) 
 
 // PosMappedRange returns a MappedRange for the token.Pos interval in this file.
 // A MappedRange can be converted to any other form.
-func (pgf *ParsedGoFile) PosMappedRange(startPos, endPos token.Pos) (MappedRange, error) {
+func (pgf *ParsedGoFile) PosMappedRange(startPos, endPos token.Pos) (protocol.MappedRange, error) {
 	start, end, err := safetoken.Offsets(pgf.Tok, startPos, endPos)
 	if err != nil {
-		return MappedRange{}, nil
+		return protocol.MappedRange{}, nil
 	}
-	return MappedRange{pgf.Mapper, start, end}, nil
+	return pgf.Mapper.OffsetMappedRange(start, end)
 }
 
 // RangeToSpanRange parses a protocol Range back into the go/token domain.

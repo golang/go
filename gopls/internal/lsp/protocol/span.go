@@ -6,14 +6,13 @@
 
 // Here's a handy guide for your tour of the location zoo:
 //
-// Imports: source  --> lsppos  -->  protocol  -->  span  -->  token
-//
-// source.MappedRange = (protocol.ColumnMapper, {start,end}Offset int)
+// Imports: lsppos  -->  protocol  -->  span  -->  token
 //
 // lsppos.TokenMapper = (token.File, lsppos.Mapper)
 // lsppos.Mapper = (line offset table, content)
 //
 // protocol.ColumnMapper = (URI, Content). Does all offset <=> column conversions.
+// protocol.MappedRange = (protocol.ColumnMapper, {start,end} int)
 // protocol.Location = (URI, protocol.Range)
 // protocol.Range = (start, end Position)
 // protocol.Position = (line, char uint32) 0-based UTF-16
@@ -37,6 +36,10 @@
 //   - Replace all uses of lsppos.TokenMapper by the underlying ParsedGoFile,
 //     which carries a token.File and a ColumnMapper.
 //   - Then delete lsppos package.
+//   - ColumnMapper.OffsetPoint and .Position aren't used outside this package.
+//     OffsetSpan is barely used, and its user would better off with a MappedRange
+//     or protocol.Range. The span package data tyes are mostly used in tests
+//     and in argument parsing (without access to file content).
 
 package protocol
 
@@ -285,6 +288,54 @@ func (m *ColumnMapper) Point(p Position) (span.Point, error) {
 	}
 	lineStart := span.NewPoint(line, 1, offset)
 	return span.FromUTF16Column(lineStart, int(p.Character)+1, m.Content)
+}
+
+// OffsetMappedRange returns a MappedRange for the given byte offsets.
+// A MappedRange can be converted to any other form.
+func (m *ColumnMapper) OffsetMappedRange(start, end int) (MappedRange, error) {
+	if !(0 <= start && start <= end && end <= len(m.Content)) {
+		return MappedRange{}, fmt.Errorf("invalid offsets (%d, %d) (file %s has size %d)", start, end, m.URI, len(m.Content))
+	}
+	return MappedRange{m, start, end}, nil
+}
+
+// A MappedRange represents a valid byte-offset range of a file.
+// Through its ColumnMapper it can be converted into other forms such
+// as protocol.Range or span.Span.
+//
+// Construct one by calling ColumnMapper.OffsetMappedRange with start/end offsets.
+// From the go/token domain, call safetoken.Offsets first,
+// or use a helper such as ParsedGoFile.MappedPosRange.
+type MappedRange struct {
+	Mapper     *ColumnMapper
+	start, end int // valid byte offsets
+}
+
+// Offsets returns the (start, end) byte offsets of this range.
+func (mr MappedRange) Offsets() (start, end int) { return mr.start, mr.end }
+
+// -- convenience functions --
+
+// URI returns the URI of the range's file.
+func (mr MappedRange) URI() span.URI {
+	return mr.Mapper.URI
+}
+
+// TODO(adonovan): once the fluff is removed from all the
+// location-conversion methods, it will be obvious that a properly
+// constructed MappedRange is always valid and its Range and Span (and
+// other) methods simply cannot fail.
+// At that point we might want to provide variants of methods such as
+// Range and Span below that don't return an error.
+
+// Range returns the range in protocol form.
+func (mr MappedRange) Range() (Range, error) {
+	return mr.Mapper.OffsetRange(mr.start, mr.end)
+}
+
+// Span returns the range in span form.
+func (mr MappedRange) Span() (span.Span, error) {
+	return mr.Mapper.OffsetSpan(mr.start, mr.end)
 }
 
 func IsPoint(r Range) bool {
