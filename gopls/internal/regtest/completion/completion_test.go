@@ -79,7 +79,7 @@ package
 `
 	var (
 		testfile4 = ""
-		//testfile5 = "/*a comment*/ "
+		testfile5 = "/*a comment*/ "
 		testfile6 = "/*a comment*/\n"
 	)
 	for _, tc := range []struct {
@@ -137,16 +137,14 @@ package
 			want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
 			editRegexp:    "^$",
 		},
-		// Disabled pending correct implementation of EOF positions
-		// in CL 460975 (next CL in stack) following approach of lsppos.Mapper.
-		// {
-		// 	name:          "package completion without terminal newline",
-		// 	filename:      "fruits/testfile5.go",
-		// 	triggerRegexp: `\*\/ ()`,
-		// 	content:       &testfile5,
-		// 	want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
-		// 	editRegexp:    `\*\/ ()`,
-		// },
+		{
+			name:          "package completion without terminal newline",
+			filename:      "fruits/testfile5.go",
+			triggerRegexp: `\*\/ ()`,
+			content:       &testfile5,
+			want:          []string{"package apple", "package apple_test", "package fruits", "package fruits_test", "package main"},
+			editRegexp:    `\*\/ ()`,
+		},
 		{
 			name:          "package completion on terminal newline",
 			filename:      "fruits/testfile6.go",

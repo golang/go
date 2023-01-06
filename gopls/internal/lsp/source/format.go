@@ -16,7 +16,6 @@ import (
 	"strings"
 	"text/scanner"
 
-	"golang.org/x/tools/gopls/internal/lsp/lsppos"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/diff"
@@ -315,10 +314,10 @@ func computeTextEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile,
 // protocolEditsFromSource converts text edits to LSP edits using the original
 // source.
 func protocolEditsFromSource(src []byte, edits []diff.Edit) ([]protocol.TextEdit, error) {
-	m := lsppos.NewMapper(src)
+	m := protocol.NewColumnMapper("", src)
 	var result []protocol.TextEdit
 	for _, edit := range edits {
-		rng, err := m.Range(edit.Start, edit.End)
+		rng, err := m.OffsetRange(edit.Start, edit.End)
 		if err != nil {
 			return nil, err
 		}
@@ -367,13 +366,13 @@ func FromProtocolEdits(m *protocol.ColumnMapper, edits []protocol.TextEdit) ([]d
 	}
 	result := make([]diff.Edit, len(edits))
 	for i, edit := range edits {
-		spn, err := m.RangeSpan(edit.Range)
+		start, end, err := m.RangeOffsets(edit.Range)
 		if err != nil {
 			return nil, err
 		}
 		result[i] = diff.Edit{
-			Start: spn.Start().Offset(),
-			End:   spn.End().Offset(),
+			Start: start,
+			End:   end,
 			New:   edit.NewText,
 		}
 	}

@@ -218,11 +218,7 @@ func deduceIfaceName(concretePkg, ifacePkg *types.Package, ifaceObj types.Object
 }
 
 func getStubNodes(pgf *ParsedGoFile, pRng protocol.Range) ([]ast.Node, token.Pos, error) {
-	spn, err := pgf.Mapper.RangeSpan(pRng)
-	if err != nil {
-		return nil, 0, err
-	}
-	rng, err := spn.Range(pgf.Tok)
+	rng, err := pgf.RangeToSpanRange(pRng)
 	if err != nil {
 		return nil, 0, err
 	}

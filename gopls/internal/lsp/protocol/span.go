@@ -8,9 +8,7 @@
 //
 // Here's a handy guide for your tour of the location zoo:
 //
-// Imports: lsppos  -->  protocol  -->  span  -->  token
-//
-// lsppos.Mapper = (line offset table, content)
+// Imports: protocol  -->  span  -->  token
 //
 // protocol: for the LSP protocol.
 // protocol.ColumnMapper = (URI, Content). Does all offset <=> column conversions.
@@ -29,14 +27,13 @@
 // token.FileSet
 // token.File
 // offset int
+// (see also safetoken)
 //
 // TODO(adonovan): simplify this picture:
 //   - Move span.Range to package safetoken. Can we eliminate most uses in gopls?
 //     Without a ColumnMapper it's not really self-contained.
 //     It is mostly used by completion. Given access to complete.mapper,
 //     it could use a pair of byte offsets instead.
-//   - Merge lsppos.Mapper and protocol.ColumnMapper.
-//   - Then delete lsppos package.
 //   - ColumnMapper.OffsetPoint and .PointPosition aren't used outside this package.
 //     OffsetSpan is barely used, and its user would better off with a MappedRange
 //     or protocol.Range. The span package data types are mostly used in tests
@@ -44,6 +41,14 @@
 //   - share core conversion primitives with span package.
 //   - rename ColumnMapper to just Mapper, since it also maps lines
 //     <=> offsets, and move it to file mapper.go.
+//
+// TODO(adonovan): also, write an overview of the position landscape
+// in the ColumnMapper doc comment, mentioning the various subtleties,
+// the EOF+1 bug (#57490), the \n-at-EOF bug (#41029), the workarounds
+// for both bugs in both safetoken and ColumnMapper. Also mention that
+// export data doesn't currently preserve accurate column or offset
+// information: both are set to garbage based on the assumption of a
+// "rectangular" file.
 
 package protocol
 
@@ -67,7 +72,7 @@ import (
 // from byte offsets to and from other notations of position:
 //
 //   - (line, col8) pairs, where col8 is a 1-based UTF-8 column number (bytes),
-//     as used by go/token;
+//     as used by the go/token and span packages.
 //
 //   - (line, col16) pairs, where col16 is a 1-based UTF-16 column number,
 //     as used by the LSP protocol;
@@ -155,7 +160,7 @@ func (m *ColumnMapper) Range(s span.Span) (Range, error) {
 	return Range{Start: start, End: end}, nil
 }
 
-// PointPosition converts a valid span (UTF-8) point to a protocol (UTF-8) position.
+// PointPosition converts a valid span (UTF-8) point to a protocol (UTF-16) position.
 func (m *ColumnMapper) PointPosition(p span.Point) (Position, error) {
 	if p.HasPosition() {
 		line, col8 := p.Line()-1, p.Column()-1 // both 0-based
@@ -342,8 +347,7 @@ func (m *ColumnMapper) PositionOffset(p Position) (int, error) {
 			return 0, fmt.Errorf("column is beyond end of file")
 		}
 		if r == '\n' {
-			// TODO(adonovan): report an error?
-			break // column denotes position beyond EOL: truncate
+			return 0, fmt.Errorf("column is beyond end of line")
 		}
 		if sz == 1 && r == utf8.RuneError {
 			return 0, fmt.Errorf("buffer contains invalid UTF-8 text")
@@ -435,6 +439,7 @@ func (mr MappedRange) URI() span.URI {
 // TODO(adonovan): the Range and Span methods of a properly
 // constructed MappedRange cannot fail. Change them to panic instead
 // of returning the error, for convenience of the callers.
+// This means we can also add a String() method!
 
 // Range returns the range in protocol form.
 func (mr MappedRange) Range() (Range, error) {
