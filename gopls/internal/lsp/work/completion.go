@@ -27,7 +27,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.Version
 	if err != nil {
 		return nil, fmt.Errorf("getting go.work file handle: %w", err)
 	}
-	cursor, err := pw.Mapper.Offset(position)
+	cursor, err := pw.Mapper.PositionOffset(position)
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor offset: %w", err)
 	}

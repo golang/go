@@ -7,7 +7,6 @@ package lsp
 import (
 	"context"
 	"fmt"
-	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -363,11 +362,11 @@ func foldRanges(m *protocol.ColumnMapper, contents string, ranges []protocol.Fol
 	// TODO(adonovan): factor to use diff.ApplyEdits, which validates the input.
 	for i := len(ranges) - 1; i >= 0; i-- {
 		r := ranges[i]
-		start, err := m.Point(protocol.Position{Line: r.StartLine, Character: r.StartCharacter})
+		start, err := m.PositionPoint(protocol.Position{Line: r.StartLine, Character: r.StartCharacter})
 		if err != nil {
 			return "", err
 		}
-		end, err := m.Point(protocol.Position{Line: r.EndLine, Character: r.EndCharacter})
+		end, err := m.PositionPoint(protocol.Position{Line: r.EndLine, Character: r.EndCharacter})
 		if err != nil {
 			return "", err
 		}
@@ -1342,11 +1341,7 @@ func (r *runner) SelectionRanges(t *testing.T, spn span.Span) {
 		fmt.Fprintf(sb, "Ranges %d: ", i)
 		rng := path
 		for {
-			s, err := sm.Offset(rng.Range.Start)
-			if err != nil {
-				t.Error(err)
-			}
-			e, err := sm.Offset(rng.Range.End)
+			s, e, err := sm.RangeOffsets(rng.Range)
 			if err != nil {
 				t.Error(err)
 			}
@@ -1387,6 +1382,7 @@ func TestBytesOffset(t *testing.T) {
 		pos  protocol.Position
 		want int
 	}{
+		// U+10400 encodes as [F0 90 90 80] in UTF-8 and [D801 DC00] in UTF-16.
 		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 0}, want: 0},
 		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 1}, want: 1},
 		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 2}, want: 1},
@@ -1405,12 +1401,9 @@ func TestBytesOffset(t *testing.T) {
 
 	for i, test := range tests {
 		fname := fmt.Sprintf("test %d", i)
-		fset := token.NewFileSet()
-		f := fset.AddFile(fname, -1, len(test.text))
-		f.SetLinesForContent([]byte(test.text))
 		uri := span.URIFromPath(fname)
 		mapper := protocol.NewColumnMapper(uri, []byte(test.text))
-		got, err := mapper.Point(test.pos)
+		got, err := mapper.PositionPoint(test.pos)
 		if err != nil && test.want != -1 {
 			t.Errorf("unexpected error: %v", err)
 		}

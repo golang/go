@@ -232,13 +232,14 @@ func (s Span) withPosition(tf *token.File) (Span, error) {
 	return s, nil
 }
 
-func (s Span) WithOffset(tf *token.File) (Span, error) {
+func (s Span) withOffset(tf *token.File) (Span, error) {
 	if err := s.update(tf, false, true); err != nil {
 		return Span{}, err
 	}
 	return s, nil
 }
 
+// (Currently unused except by test.)
 func (s Span) WithAll(tf *token.File) (Span, error) {
 	if err := s.update(tf, true, true); err != nil {
 		return Span{}, err
@@ -274,7 +275,7 @@ func (s *Span) update(tf *token.File, withPos, withOffset bool) error {
 }
 
 func (p *point) updatePosition(tf *token.File) error {
-	line, col8, err := OffsetToLineCol8(tf, p.Offset)
+	line, col8, err := offsetToLineCol8(tf, p.Offset)
 	if err != nil {
 		return err
 	}
@@ -284,7 +285,7 @@ func (p *point) updatePosition(tf *token.File) error {
 }
 
 func (p *point) updateOffset(tf *token.File) error {
-	offset, err := ToOffset(tf, p.Line, p.Column)
+	offset, err := toOffset(tf, p.Line, p.Column)
 	if err != nil {
 		return err
 	}

@@ -29,7 +29,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("getting go.work file handle: %w", err)
 	}
-	offset, err := pw.Mapper.Offset(position)
+	offset, err := pw.Mapper.PositionOffset(position)
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor offset: %w", err)
 	}

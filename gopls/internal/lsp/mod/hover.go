@@ -41,7 +41,7 @@ func Hover(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, 
 	if err != nil {
 		return nil, fmt.Errorf("getting modfile handle: %w", err)
 	}
-	offset, err := pm.Mapper.Offset(position)
+	offset, err := pm.Mapper.PositionOffset(position)
 	if err != nil {
 		return nil, fmt.Errorf("computing cursor position: %w", err)
 	}

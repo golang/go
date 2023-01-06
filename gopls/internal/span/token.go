@@ -96,7 +96,7 @@ func FileSpan(file *token.File, start, end token.Pos) (Span, error) {
 	s.v.Start.clean()
 	s.v.End.clean()
 	s.v.clean()
-	return s.WithOffset(file)
+	return s.withOffset(file)
 }
 
 func position(tf *token.File, pos token.Pos) (string, int, int, error) {
@@ -133,7 +133,7 @@ func offset(tf *token.File, pos token.Pos) (int, error) {
 // Range converts a Span to a Range that represents the Span for the supplied
 // File.
 func (s Span) Range(tf *token.File) (Range, error) {
-	s, err := s.WithOffset(tf)
+	s, err := s.withOffset(tf)
 	if err != nil {
 		return Range{}, err
 	}
@@ -152,18 +152,16 @@ func (s Span) Range(tf *token.File) (Range, error) {
 	}, nil
 }
 
-// OffsetToLineCol8 converts a byte offset in the file corresponding to tf into
+// offsetToLineCol8 converts a byte offset in the file corresponding to tf into
 // 1-based line and utf-8 column indexes.
-//
-// TODO(adonovan): move to safetoken package for consistency?
-func OffsetToLineCol8(tf *token.File, offset int) (int, int, error) {
+func offsetToLineCol8(tf *token.File, offset int) (int, int, error) {
 	_, line, col8, err := positionFromOffset(tf, offset)
 	return line, col8, err
 }
 
 // ToOffset converts a 1-based line and utf-8 column index into a byte offset
 // in the file corresponding to tf.
-func ToOffset(tf *token.File, line, col int) (int, error) {
+func toOffset(tf *token.File, line, col int) (int, error) {
 	if line < 1 { // token.File.LineStart panics if line < 1
 		return -1, fmt.Errorf("invalid line: %d", line)
 	}
