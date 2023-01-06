@@ -31,11 +31,11 @@ import (
 // BenchmarkCHA-12    	 86 ms/op	 16 MB/op	12113 nodes	131717 edges	7640 reachable
 // BenchmarkRTA-12		110 ms/op	 12 MB/op	 6566 nodes	 42291 edges	5099 reachable
 // BenchmarkPTA-12	   1427 ms/op	600 MB/op	 8714 nodes	 28244 edges	4184 reachable
-// BenchmarkVTA-12		562 ms/op	 78 MB/op	12112 nodes	 44857 edges	4918 reachable
-// BenchmarkVTA2-12		743 ms/op	103 MB/op	 4918 nodes	 20247 edges	3841 reachable
-// BenchmarkVTA3-12		837 ms/op	119 MB/op	 3841 nodes	 16502 edges	3542 reachable
-// BenchmarkVTAAlt-12	356 ms/op	 56 MB/op	 7640 nodes  29629 edges	4257 reachable
-// BenchmarkVTAAlt2-12	490 ms/op	 75 MB/op	 4257 nodes	 18057 edges	3586 reachable
+// BenchmarkVTA-12		600 ms/op	 78 MB/op	12114 nodes	 44861 edges	4919 reachable
+// BenchmarkVTA2-12		793 ms/op	104 MB/op	 5450 nodes	 22208 edges	4042 reachable
+// BenchmarkVTA3-12		977 ms/op	124 MB/op	 4621 nodes	 19331 edges	3700 reachable
+// BenchmarkVTAAlt-12	372 ms/op	 57 MB/op	 7763 nodes	 29912 edges	4258 reachable
+// BenchmarkVTAAlt2-12	570 ms/op	 78 MB/op	 4838 nodes	 20169 edges	3737 reachable
 //
 // Note:
 // * Static is unsound and may miss real edges.
@@ -94,13 +94,13 @@ func example() (*ssa.Program, *ssa.Function) {
 
 var stats bool = false // print stats?
 
-func logStats(b *testing.B, name string, cg *callgraph.Graph, main *ssa.Function) {
-	if stats {
+func logStats(b *testing.B, cnd bool, name string, cg *callgraph.Graph, main *ssa.Function) {
+	if cnd && stats {
 		e := 0
 		for _, n := range cg.Nodes {
 			e += len(n.Out)
 		}
-		r := len(reaches(cg, main))
+		r := len(reaches(main, cg, false))
 		b.Logf("%s:\t%d nodes\t%d edges\t%d reachable", name, len(cg.Nodes), e, r)
 	}
 }
@@ -112,7 +112,7 @@ func BenchmarkStatic(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		cg := static.CallGraph(prog)
-		logStats(b, "static", cg, main)
+		logStats(b, i == 0, "static", cg, main)
 	}
 }
 
@@ -123,7 +123,7 @@ func BenchmarkCHA(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		cg := cha.CallGraph(prog)
-		logStats(b, "cha", cg, main)
+		logStats(b, i == 0, "cha", cg, main)
 	}
 }
 
@@ -135,7 +135,7 @@ func BenchmarkRTA(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		res := rta.Analyze([]*ssa.Function{main}, true)
 		cg := res.CallGraph
-		logStats(b, "rta", cg, main)
+		logStats(b, i == 0, "rta", cg, main)
 	}
 }
 
@@ -150,7 +150,7 @@ func BenchmarkPTA(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		logStats(b, "pta", res.CallGraph, main)
+		logStats(b, i == 0, "pta", res.CallGraph, main)
 	}
 }
 
@@ -161,7 +161,7 @@ func BenchmarkVTA(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		cg := vta.CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
-		logStats(b, "vta", cg, main)
+		logStats(b, i == 0, "vta", cg, main)
 	}
 }
 
@@ -172,8 +172,8 @@ func BenchmarkVTA2(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		vta1 := vta.CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
-		cg := vta.CallGraph(reaches(vta1, main), vta1)
-		logStats(b, "vta2", cg, main)
+		cg := vta.CallGraph(reaches(main, vta1, true), vta1)
+		logStats(b, i == 0, "vta2", cg, main)
 	}
 }
 
@@ -184,9 +184,9 @@ func BenchmarkVTA3(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		vta1 := vta.CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
-		vta2 := vta.CallGraph(reaches(vta1, main), vta1)
-		cg := vta.CallGraph(reaches(vta2, main), vta2)
-		logStats(b, "vta3", cg, main)
+		vta2 := vta.CallGraph(reaches(main, vta1, true), vta1)
+		cg := vta.CallGraph(reaches(main, vta2, true), vta2)
+		logStats(b, i == 0, "vta3", cg, main)
 	}
 }
 
@@ -197,8 +197,8 @@ func BenchmarkVTAAlt(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		cha := cha.CallGraph(prog)
-		cg := vta.CallGraph(reaches(cha, main), cha) // start from only functions reachable by CHA.
-		logStats(b, "vta-alt", cg, main)
+		cg := vta.CallGraph(reaches(main, cha, true), cha) // start from only functions reachable by CHA.
+		logStats(b, i == 0, "vta-alt", cg, main)
 	}
 }
 
@@ -209,24 +209,45 @@ func BenchmarkVTAAlt2(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		cha := cha.CallGraph(prog)
-		vta1 := vta.CallGraph(reaches(cha, main), cha)
-		cg := vta.CallGraph(reaches(vta1, main), vta1)
-		logStats(b, "vta-alt2", cg, main)
+		vta1 := vta.CallGraph(reaches(main, cha, true), cha)
+		cg := vta.CallGraph(reaches(main, vta1, true), vta1)
+		logStats(b, i == 0, "vta-alt2", cg, main)
 	}
 }
 
-// reaches returns the set of functions forward reachable from f in g.
-func reaches(g *callgraph.Graph, f *ssa.Function) map[*ssa.Function]bool {
+// reaches computes the transitive closure of functions forward reachable
+// via calls in cg starting from `sources`. If refs is true, include
+// functions referred to in an instruction.
+func reaches(source *ssa.Function, cg *callgraph.Graph, refs bool) map[*ssa.Function]bool {
 	seen := make(map[*ssa.Function]bool)
-	var visit func(n *callgraph.Node)
-	visit = func(n *callgraph.Node) {
-		if !seen[n.Func] {
-			seen[n.Func] = true
+	var visit func(f *ssa.Function)
+	visit = func(f *ssa.Function) {
+		if seen[f] {
+			return
+		}
+		seen[f] = true
+
+		if n := cg.Nodes[f]; n != nil {
 			for _, e := range n.Out {
-				visit(e.Callee)
+				if e.Site != nil {
+					visit(e.Callee.Func)
+				}
+			}
+		}
+
+		if refs {
+			var buf [10]*ssa.Value // avoid alloc in common case
+			for _, b := range f.Blocks {
+				for _, instr := range b.Instrs {
+					for _, op := range instr.Operands(buf[:0]) {
+						if fn, ok := (*op).(*ssa.Function); ok {
+							visit(fn)
+						}
+					}
+				}
 			}
 		}
 	}
-	visit(g.Nodes[f])
+	visit(source)
 	return seen
 }
