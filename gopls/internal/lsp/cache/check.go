@@ -634,9 +634,6 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *pkg) ([]*source.Diagnost
 		// Up to Go 1.15, the missing package was included in the stack, which
 		// was presumably a bug. We want the next one up.
 		directImporterIdx := len(depsError.ImportStack) - 1
-		if s.view.goversion < 15 {
-			directImporterIdx = len(depsError.ImportStack) - 2
-		}
 		if directImporterIdx < 0 {
 			continue
 		}

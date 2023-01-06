@@ -141,19 +141,16 @@ type workspaceInformation struct {
 }
 
 // effectiveGO111MODULE reports the value of GO111MODULE effective in the go
-// command at this go version, accounting for default values at different go
-// versions.
+// command at this go version, assuming at least Go 1.16.
 func (w workspaceInformation) effectiveGO111MODULE() go111module {
-	// Off by default until Go 1.12.
-	go111module := w.GO111MODULE()
-	if go111module == "off" || (w.goversion < 12 && go111module == "") {
+	switch w.GO111MODULE() {
+	case "off":
 		return off
-	}
-	// On by default as of Go 1.16.
-	if go111module == "on" || (w.goversion >= 16 && go111module == "") {
+	case "on", "":
 		return on
+	default:
+		return auto
 	}
-	return auto
 }
 
 // GO111MODULE returns the value of GO111MODULE to use for running the go
@@ -167,7 +164,7 @@ func (w workspaceInformation) effectiveGO111MODULE() go111module {
 // Put differently: we shouldn't go out of our way to make GOPATH work, when
 // the go command does not.
 func (w workspaceInformation) GO111MODULE() string {
-	if w.goversion >= 16 && w.go111module == "" {
+	if w.go111module == "" {
 		return "auto"
 	}
 	return w.go111module

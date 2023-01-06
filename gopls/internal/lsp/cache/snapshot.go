@@ -328,8 +328,7 @@ func (s *snapshot) workspaceMode() workspaceMode {
 	}
 	mode |= moduleMode
 	options := s.view.Options()
-	// The -modfile flag is available for Go versions >= 1.14.
-	if options.TempModfile && s.view.workspaceInformation.goversion >= 14 {
+	if options.TempModfile {
 		mode |= tempModfile
 	}
 	return mode
@@ -539,13 +538,9 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 		return "", nil, cleanup, err
 	}
 
-	mutableModFlag := ""
+	const mutableModFlag = "mod"
 	// If the mod flag isn't set, populate it based on the mode and workspace.
 	if inv.ModFlag == "" {
-		if s.view.goversion >= 16 {
-			mutableModFlag = "mod"
-		}
-
 		switch mode {
 		case source.LoadWorkspace, source.Normal:
 			if vendorEnabled {
