@@ -3347,7 +3347,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Type == obj.TYPE_NONE {
 			rt = REGZERO
 		}
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
@@ -3367,7 +3367,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		v := int32(c.regoff(&p.From))
@@ -3393,7 +3393,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		r := int(p.Reg)
 		if p.As == AMVN || p.As == AMVNW || isNEGop(p.As) {
 			r = REGZERO
-		} else if r == 0 {
+		} else if r == obj.REG_NONE {
 			r = rt
 		}
 		o1 |= (uint32(r&31) << 5) | uint32(rt&31)
@@ -3402,12 +3402,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		r := int(o.param)
 
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = REGZERO
 		} else if r == REGFROM {
 			r = int(p.From.Reg)
 		}
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = REGSP
 		}
 
@@ -3464,7 +3464,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 
 		rf := int(p.Reg)
-		if rf == 0 {
+		if rf == obj.REG_NONE {
 			rf = rt
 		}
 		v := int32(p.From.Offset)
@@ -3502,7 +3502,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oprrr(p, p.As)
 
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = int(p.To.Reg)
 		}
 		o1 |= (uint32(p.From.Reg&31) << 16) | (uint32(r&31) << 5) | uint32(p.To.Reg&31)
@@ -3568,7 +3568,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rt = REGZERO
 		}
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		if p.To.Type != obj.TYPE_NONE && (p.To.Reg == REGSP || r == REGSP) {
@@ -3618,12 +3618,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.From3Type() == obj.TYPE_REG {
 			r = int(p.GetFrom3().Reg)
 			ra = int(p.Reg)
-			if ra == 0 {
+			if ra == obj.REG_NONE {
 				ra = REGZERO
 			}
 		} else {
 			r = int(p.Reg)
-			if r == 0 {
+			if r == obj.REG_NONE {
 				r = rt
 			}
 			ra = REGZERO
@@ -3637,7 +3637,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | REGTMP&31
@@ -3654,7 +3654,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Type == obj.TYPE_NONE {
 			rt = REGZERO
 		}
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = REGZERO
 		}
 		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
@@ -3673,7 +3673,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		var rf int = r
 		if p.From3Type() == obj.TYPE_NONE {
 			/* CINC/CINV/CNEG or CSET/CSETM*/
-			if r == 0 {
+			if r == obj.REG_NONE {
 				/* CSET/CSETM */
 				rf = REGZERO
 				r = rf
@@ -3711,7 +3711,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		sz := int32(1 << uint(movesize(p.As)))
 
 		r := int(p.To.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = int(o.param)
 		}
 		if v < 0 || v%sz != 0 { /* unscaled 9-bit signed */
@@ -3726,7 +3726,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		sz := int32(1 << uint(movesize(p.As)))
 
 		r := int(p.From.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = int(o.param)
 		}
 		if v < 0 || v%sz != 0 { /* unscaled 9-bit signed */
@@ -3822,7 +3822,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rt = REGZERO
 		}
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		o1 |= (uint32(r&31) << 5) | uint32(rt&31)
@@ -3851,7 +3851,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rt = REGZERO
 		}
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		o = c.oprrr(p, p.As)
@@ -3896,7 +3896,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		r := int(p.To.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = int(o.param)
 		}
 
@@ -3940,7 +3940,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		r := int(p.From.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = int(o.param)
 		}
 
@@ -4001,7 +4001,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o2 |= REGTMP & 31 << 16
 		o2 |= LSL0_64
 		r := int(p.From.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = int(o.param)
 		}
 		o2 |= uint32(r&31) << 5
@@ -4105,7 +4105,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		s := int(p.GetFrom3().Offset)
 		rf := int(p.Reg)
 		rt := int(p.To.Reg)
-		if rf == 0 {
+		if rf == obj.REG_NONE {
 			rf = rt
 		}
 		switch p.As {
@@ -4255,7 +4255,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		rt := int(p.To.Reg)
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		o1 = c.oaddi(p, int32(op), int32(c.regoff(&p.From))&0x000fff, r, rt)
@@ -4293,7 +4293,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rt = REGZERO
 		}
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		if r == REG_RSP {
@@ -4322,7 +4322,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if (o1&(0x1F<<24)) == (0x1E<<24) && (o1&(1<<11)) == 0 { /* monadic */
 			r = rf
 			rf = 0
-		} else if r == 0 {
+		} else if r == obj.REG_NONE {
 			r = rt
 		}
 		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
@@ -4448,7 +4448,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			rt = REGZERO
 		}
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		if p.To.Reg == REGSP || r == REGSP {
@@ -5107,7 +5107,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
 		r := int(p.Reg)
-		if r == 0 {
+		if r == obj.REG_NONE {
 			r = rt
 		}
 		o1 |= (uint32(rf&31) << 16) | (uint32(r&31) << 5) | uint32(rt&31)
@@ -5671,12 +5671,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 = c.opirr(p, p.As)
 		if op.hasOperand2 {
-			if p.To.Reg == 0 {
+			if p.To.Reg == obj.REG_NONE {
 				c.ctxt.Diag("missing register at operand 2: %v\n", p)
 			}
 			o1 |= uint32(p.To.Reg & 0x1F)
 		} else {
-			if p.To.Reg != 0 || p.Reg != 0 {
+			if p.To.Reg != obj.REG_NONE || p.Reg != obj.REG_NONE {
 				c.ctxt.Diag("extraneous register at operand 2: %v\n", p)
 			}
 			o1 |= uint32(0x1F)
