@@ -3215,7 +3215,7 @@ func SYSARG4(op1 int, Cn int, Cm int, op2 int) int {
 	return SYSARG5(0, op1, Cn, Cm, op2)
 }
 
-// checkUnpredictable checks if the sourse and transfer registers are the same register.
+// checkUnpredictable checks if the source and transfer registers are the same register.
 // ARM64 manual says it is "constrained unpredictable" if the src and dst registers of STP/LDP are same.
 func (c *ctxt7) checkUnpredictable(p *obj.Prog, isload bool, wback bool, rn int16, rt1 int16, rt2 int16) {
 	if wback && rn != REGSP && (rn == rt1 || rn == rt2) {
