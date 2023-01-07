@@ -3997,10 +3997,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 34: /* mov $lacon,R */
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
-
-		if o1 == 0 {
-			break
-		}
 		o2 = c.opxrrr(p, AADD, false)
 		o2 |= REGTMP & 31 << 16
 		o2 |= LSL0_64
