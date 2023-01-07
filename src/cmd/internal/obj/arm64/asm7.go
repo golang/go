@@ -3782,8 +3782,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 				ra = REGZERO
 			}
 		}
-		o1 = c.oprrr(p, p.As, rt, r, rf)
-		o1 |= uint32(ra&31) << 10
+		o1 = c.oprrrr(p, p.As, rt, r, rf, ra)
 
 	case 16: /* XremY R[,R],R -> XdivY; XmsubY */
 		rt, r, rf := p.To.Reg, p.Reg, p.From.Reg
@@ -3791,9 +3790,8 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			r = rt
 		}
 		o1 = c.oprrr(p, p.As, REGTMP, r, rf)
-		o2 = c.oprrr(p, AMSUBW, rt, REGTMP, rf)
+		o2 = c.oprrrr(p, AMSUBW, rt, REGTMP, rf, r)
 		o2 |= o1 & (1 << 31) /* same size */
-		o2 |= uint32(r&31) << 10
 
 	case 17: /* op Rm,[Rn],Rd; default Rn=ZR */
 		rt, r, rf := p.To.Reg, p.Reg, p.From.Reg
@@ -5763,9 +5761,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			break
 		}
 
-		o1 = c.oprrr(p, p.As, p.To.Reg, p.GetFrom3().Reg, p.Reg)
-		ra := int(p.From.Reg)
-		o1 |= uint32(ra&31) << 10
+		o1 = c.oprrrr(p, p.As, p.To.Reg, p.GetFrom3().Reg, p.Reg, p.From.Reg)
 
 	case 104: /* vxar $imm4, Vm.<T>, Vn.<T>, Vd.<T> */
 		af := ((p.GetFrom3().Reg) >> 5) & 15
@@ -6574,6 +6570,10 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 	op |= uint32(rm&0x1f)<<16 | uint32(rn&0x1f)<<5 | uint32(rd&0x1f)
 
 	return op
+}
+
+func (c *ctxt7) oprrrr(p *obj.Prog, a obj.As, rd, rn, rm, ra int16) uint32 {
+	return c.oprrr(p, a, rd, rn, rm) | uint32(ra&0x1f)<<10
 }
 
 /*
