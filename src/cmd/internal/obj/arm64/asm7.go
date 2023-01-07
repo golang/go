@@ -282,7 +282,6 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 const (
 	// Optab.flag
 	LFROM        = 1 << iota // p.From uses constant pool
-	LFROM128                 // p.From3<<64+p.From forms a 128-bit constant in literal pool
 	LTO                      // p.To uses constant pool
 	NOTUSETMP                // p expands to multiple instructions, but does NOT use REGTMP
 	BRANCH14BITS             // branch instruction encodes 14 bits
@@ -423,10 +422,10 @@ var optab = []Optab{
 	/* load long effective stack address (load int32 offset and add) */
 	{AMOVD, C_LACON, C_NONE, C_NONE, C_RSP, C_NONE, 34, 8, REGSP, LFROM, 0},
 
-	// Move a large constant to a vector register.
-	{AVMOVQ, C_VCON, C_NONE, C_VCON, C_VREG, C_NONE, 101, 4, 0, LFROM128, 0},
-	{AVMOVD, C_VCON, C_NONE, C_NONE, C_VREG, C_NONE, 101, 4, 0, LFROM, 0},
-	{AVMOVS, C_LCON, C_NONE, C_NONE, C_VREG, C_NONE, 101, 4, 0, LFROM, 0},
+	// Load a large constant into a vector register.
+	{AVMOVS, C_ADDR, C_NONE, C_NONE, C_VREG, C_NONE, 65, 12, 0, 0, 0},
+	{AVMOVD, C_ADDR, C_NONE, C_NONE, C_VREG, C_NONE, 65, 12, 0, 0, 0},
+	{AVMOVQ, C_ADDR, C_NONE, C_NONE, C_VREG, C_NONE, 65, 12, 0, 0, 0},
 
 	/* jump operations */
 	{AB, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 5, 4, 0, 0, 0},
@@ -1117,9 +1116,6 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if o.flag&LFROM != 0 {
 			c.addpool(p, &p.From)
 		}
-		if o.flag&LFROM128 != 0 {
-			c.addpool128(p, &p.From, p.GetFrom3())
-		}
 		if o.flag&LTO != 0 {
 			c.addpool(p, &p.To)
 		}
@@ -1321,34 +1317,6 @@ func (c *ctxt7) flushpool(p *obj.Prog) {
 	c.pool.start = 0
 }
 
-// addpool128 adds a 128-bit constant to literal pool by two consecutive DWORD
-// instructions, the 128-bit constant is formed by ah.Offset<<64+al.Offset.
-func (c *ctxt7) addpool128(p *obj.Prog, al, ah *obj.Addr) {
-	q := c.newprog()
-	q.As = ADWORD
-	q.To.Type = obj.TYPE_CONST
-	q.To.Offset = al.Offset // q.Pc is lower than t.Pc, so al.Offset is stored in q.
-
-	t := c.newprog()
-	t.As = ADWORD
-	t.To.Type = obj.TYPE_CONST
-	t.To.Offset = ah.Offset
-
-	q.Link = t
-
-	if c.blitrl == nil {
-		c.blitrl = q
-		c.pool.start = uint32(p.Pc)
-	} else {
-		c.elitrl.Link = q
-	}
-
-	c.elitrl = t
-	c.pool.size = roundUp(c.pool.size, 16)
-	c.pool.size += 16
-	p.Pool = q
-}
-
 /*
  * MOVD foo(SB), R is actually
  *   MOVD addr, REGTMP
@@ -1365,8 +1333,8 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
 	sz := 4
 
 	if a.Type == obj.TYPE_CONST {
-		if (lit != int64(int32(lit)) && uint64(lit) != uint64(uint32(lit))) || p.As == AVMOVQ || p.As == AVMOVD {
-			// out of range -0x80000000 ~ 0xffffffff or VMOVQ or VMOVD operand, must store 64-bit.
+		if lit != int64(int32(lit)) && uint64(lit) != uint64(uint32(lit)) {
+			// out of range -0x80000000 ~ 0xffffffff, must store 64-bit.
 			t.As = ADWORD
 			sz = 8
 		} // else store 32-bit
@@ -5660,9 +5628,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = q<<30 | 0xe<<24 | len<<13 | op<<12
 		o1 |= (uint32(rf&31) << 16) | uint32(offset&31)<<5 | uint32(rt&31)
 
-	case 101: // VMOVQ $vcon1, $vcon2, Vd or VMOVD|VMOVS $vcon, Vd -> FMOVQ/FMOVD/FMOVS pool(PC), Vd: load from constant pool.
-		o1 = c.omovlit(p.As, p, &p.From, int(p.To.Reg))
-
 	case 102: /* vushll, vushll2, vuxtl, vuxtl2 */
 		o1 = c.opirr(p, p.As)
 		rf := p.Reg
@@ -7187,13 +7152,13 @@ func (c *ctxt7) opldr(p *obj.Prog, a obj.As) uint32 {
 	case AMOVBU:
 		return LDSTR(0, 0, 1)
 
-	case AFMOVS:
+	case AFMOVS, AVMOVS:
 		return LDSTR(2, 1, 1)
 
-	case AFMOVD:
+	case AFMOVD, AVMOVD:
 		return LDSTR(3, 1, 1)
 
-	case AFMOVQ:
+	case AFMOVQ, AVMOVQ:
 		return LDSTR(0, 1, 3)
 	}
 
