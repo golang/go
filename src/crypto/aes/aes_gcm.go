@@ -89,9 +89,6 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
 // Seal encrypts and authenticates plaintext. See the cipher.AEAD interface for
 // details.
 func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
-	if len(nonce) != g.nonceSize {
-		panic("crypto/cipher: incorrect nonce length given to GCM")
-	}
 	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
 		panic("crypto/cipher: message too large for GCM")
 	}
