@@ -278,7 +278,7 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser, internal/types/errors, regexp
+	container/heap, go/constant, go/parser, internal/types/errors, internal/lazyregexp
 	< go/types;
 
 	FMT, internal/goexperiment
