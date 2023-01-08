@@ -19,10 +19,10 @@ var errClosed = errors.New("use of closed network connection")
 // isErrClosed reports whether err ends in the same string as errClosed.
 func isErrClosed(err error) bool {
 	// As of Go 1.16, this could be 'errors.Is(err, net.ErrClosing)', but
-	// unfortunately gopls still requires compatiblity with
+	// unfortunately gopls still requires compatibility with
 	// (otherwise-unsupported) older Go versions.
 	//
-	// In the meantime, this error strirng has not changed on any supported Go
+	// In the meantime, this error string has not changed on any supported Go
 	// version, and is not expected to change in the future.
 	// This is not ideal, but since the worst that could happen here is some
 	// superfluous logging, it is acceptable.

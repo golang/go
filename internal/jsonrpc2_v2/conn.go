@@ -156,11 +156,11 @@ func (c *Connection) updateInFlight(f func(*inFlightState)) {
 	}
 }
 
-// idle reports whether the connction is in a state with no pending calls or
+// idle reports whether the connection is in a state with no pending calls or
 // notifications.
 //
 // If idle returns true, the readIncoming goroutine may still be running,
-// but no other goroutines are doing work on behalf of the connnection.
+// but no other goroutines are doing work on behalf of the connection.
 func (s *inFlightState) idle() bool {
 	return len(s.outgoingCalls) == 0 && s.outgoingNotifications == 0 && s.incoming == 0 && !s.handlerRunning
 }

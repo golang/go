@@ -183,7 +183,7 @@ func (l *idleListener) Accept(ctx context.Context) (io.ReadWriteCloser, error) {
 			// In theory the timeout could have raced with an unrelated error return
 			// from Accept. However, ErrIdleTimeout is arguably still valid (since we
 			// would have closed due to the timeout independent of the error), and the
-			// harm from returning a spurious ErrIdleTimeout is negliglible anyway.
+			// harm from returning a spurious ErrIdleTimeout is negligible anyway.
 		}
 		return nil, ErrIdleTimeout
 
