@@ -160,7 +160,6 @@ func userType(rt reflect.Type) *userTypeInfo {
 // Internally, typeIds are used as keys to a map to recover the underlying type info.
 type typeId int32
 
-var nextId typeId       // incremented for each new type we build
 var typeLock sync.Mutex // set while building a type
 const firstUserId = 64  // lowest id number granted to user
 
@@ -172,18 +171,25 @@ type gobType interface {
 	safeString(seen map[typeId]bool) string
 }
 
-var types = make(map[reflect.Type]gobType)
-var idToType = make(map[typeId]gobType)
-var builtinIdToType map[typeId]gobType // set in init() after builtins are established
+var types = make(map[reflect.Type]gobType, 32)
+var idToType = make([]gobType, 1, firstUserId)
+var builtinIdToTypeSlice [firstUserId]gobType // set in init() after builtins are established
+
+func builtinIdToType(id typeId) gobType {
+	if id < 0 || int(id) >= len(builtinIdToTypeSlice) {
+		return nil
+	}
+	return builtinIdToTypeSlice[id]
+}
 
 func setTypeId(typ gobType) {
 	// When building recursive types, someone may get there before us.
 	if typ.id() != 0 {
 		return
 	}
-	nextId++
+	nextId := typeId(len(idToType))
 	typ.setId(nextId)
-	idToType[nextId] = typ
+	idToType = append(idToType, typ)
 }
 
 func (t typeId) gobType() gobType {
@@ -256,30 +262,29 @@ var (
 )
 
 // Predefined because it's needed by the Decoder
-var tWireType = mustGetTypeInfo(reflect.TypeOf(wireType{})).id
+var tWireType = mustGetTypeInfo(reflect.TypeOf((*wireType)(nil)).Elem()).id
 var wireTypeUserInfo *userTypeInfo // userTypeInfo of (*wireType)
 
 func init() {
 	// Some magic numbers to make sure there are no surprises.
 	checkId(16, tWireType)
-	checkId(17, mustGetTypeInfo(reflect.TypeOf(arrayType{})).id)
-	checkId(18, mustGetTypeInfo(reflect.TypeOf(CommonType{})).id)
-	checkId(19, mustGetTypeInfo(reflect.TypeOf(sliceType{})).id)
-	checkId(20, mustGetTypeInfo(reflect.TypeOf(structType{})).id)
-	checkId(21, mustGetTypeInfo(reflect.TypeOf(fieldType{})).id)
-	checkId(23, mustGetTypeInfo(reflect.TypeOf(mapType{})).id)
+	checkId(17, mustGetTypeInfo(reflect.TypeOf((*arrayType)(nil)).Elem()).id)
+	checkId(18, mustGetTypeInfo(reflect.TypeOf((*CommonType)(nil)).Elem()).id)
+	checkId(19, mustGetTypeInfo(reflect.TypeOf((*sliceType)(nil)).Elem()).id)
+	checkId(20, mustGetTypeInfo(reflect.TypeOf((*structType)(nil)).Elem()).id)
+	checkId(21, mustGetTypeInfo(reflect.TypeOf((*fieldType)(nil)).Elem()).id)
+	checkId(23, mustGetTypeInfo(reflect.TypeOf((*mapType)(nil)).Elem()).id)
 
-	builtinIdToType = make(map[typeId]gobType)
 	for k, v := range idToType {
-		builtinIdToType[k] = v
+		builtinIdToTypeSlice[k] = v
 	}
 
 	// Move the id space upwards to allow for growth in the predefined world
 	// without breaking existing files.
-	if nextId > firstUserId {
+	if nextId := len(idToType); nextId > firstUserId {
 		panic(fmt.Sprintln("nextId too large:", nextId))
 	}
-	nextId = firstUserId
+	idToType = idToType[:firstUserId]
 	registerBasics()
 	wireTypeUserInfo = userType(reflect.TypeOf((*wireType)(nil)))
 }
@@ -620,9 +625,8 @@ func bootstrapType(name string, e any, expect typeId) typeId {
 	typ := &CommonType{Name: name}
 	types[rt] = typ
 	setTypeId(typ)
-	checkId(expect, nextId)
 	userType(rt) // might as well cache it now
-	return nextId
+	return typ.id()
 }
 
 // Representation of the information we send and receive about this type.
@@ -685,7 +689,16 @@ type typeInfo struct {
 // protected by a mutex.
 var typeInfoMap atomic.Value
 
+// typeInfoMapInit is used instead of typeInfoMap during init time,
+// as types are registered sequentially during init and we can save
+// the overhead of making map copies.
+// It is saved to typeInfoMap and set to nil before init finishes.
+var typeInfoMapInit = make(map[reflect.Type]*typeInfo, 16)
+
 func lookupTypeInfo(rt reflect.Type) *typeInfo {
+	if m := typeInfoMapInit; m != nil {
+		return m[rt]
+	}
 	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
 	return m[rt]
 }
@@ -750,9 +763,14 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
 		}
 	}
 
+	if m := typeInfoMapInit; m != nil {
+		m[rt] = info
+		return info, nil
+	}
+
 	// Create new map with old contents plus new entry.
-	newm := make(map[reflect.Type]*typeInfo)
 	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
+	newm := make(map[reflect.Type]*typeInfo, len(m))
 	for k, v := range m {
 		newm[k] = v
 	}
@@ -910,4 +928,9 @@ func registerBasics() {
 	Register([]uintptr(nil))
 	Register([]bool(nil))
 	Register([]string(nil))
+}
+
+func init() {
+	typeInfoMap.Store(typeInfoMapInit)
+	typeInfoMapInit = nil
 }
