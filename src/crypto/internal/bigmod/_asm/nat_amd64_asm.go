@@ -17,6 +17,7 @@ func main() {
 	ConstraintExpr("amd64,gc,!purego")
 
 	Implement("montgomeryLoop")
+	Pragma("noescape")
 
 	size := Load(Param("d").Len(), GP64())
 	d := Mem{Base: Load(Param("d").Base(), GP64())}
