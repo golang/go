@@ -4678,27 +4678,15 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 74:
 		//	add $O, R, Rtmp or sub $O, R, Rtmp
 		//	ldp (Rtmp), (R1, R2)
-		r := int(p.From.Reg)
-		if r == obj.REG_NONE {
-			r = int(o.param)
+		rf := p.From.Reg
+		if rf == obj.REG_NONE {
+			rf = o.param
 		}
-		if r == obj.REG_NONE {
+		if rf == obj.REG_NONE {
 			c.ctxt.Diag("invalid ldp source: %v", p)
 		}
 		v := int32(c.regoff(&p.From))
-
-		if v > 0 {
-			if v > 4095 {
-				c.ctxt.Diag("offset out of range: %v", p)
-			}
-			o1 = c.oaddi(p, int32(c.opirr(p, AADD)), v, r, REGTMP)
-		}
-		if v < 0 {
-			if v < -4095 {
-				c.ctxt.Diag("offset out of range: %v", p)
-			}
-			o1 = c.oaddi(p, int32(c.opirr(p, ASUB)), -v, r, REGTMP)
-		}
+		o1 = c.oaddi12(p, v, REGTMP, rf)
 		o2 = c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.To.Reg), uint32(p.To.Offset), 1)
 
 	case 75:
@@ -4728,26 +4716,15 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.From.Reg == REGTMP || p.From.Offset == REGTMP {
 			c.ctxt.Diag("cannot use REGTMP as source: %v", p)
 		}
-		r := int(p.To.Reg)
-		if r == obj.REG_NONE {
-			r = int(o.param)
+		rt := p.To.Reg
+		if rt == obj.REG_NONE {
+			rt = o.param
 		}
-		if r == obj.REG_NONE {
+		if rt == obj.REG_NONE {
 			c.ctxt.Diag("invalid stp destination: %v", p)
 		}
 		v := int32(c.regoff(&p.To))
-		if v > 0 {
-			if v > 4095 {
-				c.ctxt.Diag("offset out of range: %v", p)
-			}
-			o1 = c.oaddi(p, int32(c.opirr(p, AADD)), v, r, REGTMP)
-		}
-		if v < 0 {
-			if v < -4095 {
-				c.ctxt.Diag("offset out of range: %v", p)
-			}
-			o1 = c.oaddi(p, int32(c.opirr(p, ASUB)), -v, r, REGTMP)
-		}
+		o1 = c.oaddi12(p, v, REGTMP, rt)
 		o2 = c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.From.Reg), uint32(p.From.Offset), 0)
 
 	case 77:
@@ -7144,6 +7121,19 @@ func (c *ctxt7) oaddi(p *obj.Prog, o1 int32, v int32, r int, rt int) uint32 {
 
 	o1 |= ((v & 0xFFF) << 10) | (int32(r&31) << 5) | int32(rt&31)
 	return uint32(o1)
+}
+
+func (c *ctxt7) oaddi12(p *obj.Prog, v int32, rd, rn int16) uint32 {
+	if v < -4095 || v > 4095 {
+		c.ctxt.Diag("%v is not a 12 bit immediate: %v", v, p)
+		return 0
+	}
+	a := AADD
+	if v < 0 {
+		a = ASUB
+		v = -v
+	}
+	return c.oaddi(p, int32(c.opirr(p, a)), v, int(rn), int(rd))
 }
 
 /*
