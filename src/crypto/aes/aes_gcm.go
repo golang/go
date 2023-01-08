@@ -31,9 +31,10 @@ func gcmAesDec(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []
 func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
 
 const (
-	gcmBlockSize      = 16
-	gcmTagSize        = 16
-	gcmMinimumTagSize = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
+	gcmBlockSize         = 16
+	gcmTagSize           = 16
+	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
+	gcmStandardNonceSize = 12
 )
 
 var errOpen = errors.New("cipher: message authentication failed")
@@ -94,9 +95,15 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 
 	var counter, tagMask [gcmBlockSize]byte
 
-	// Otherwise counter = GHASH(nonce)
-	gcmAesData(&g.productTable, nonce, &counter)
-	gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+	if len(nonce) == gcmStandardNonceSize {
+		// Init counter to nonce||1
+		copy(counter[:], nonce)
+		counter[gcmBlockSize-1] = 1
+	} else {
+		// Otherwise counter = GHASH(nonce)
+		gcmAesData(&g.productTable, nonce, &counter)
+		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+	}
 
 	encryptBlockAsm(len(g.ks)/4-1, &g.ks[0], &tagMask[0], &counter[0])
 
@@ -141,9 +148,15 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	// See GCM spec, section 7.1.
 	var counter, tagMask [gcmBlockSize]byte
 
-	// Otherwise counter = GHASH(nonce)
-	gcmAesData(&g.productTable, nonce, &counter)
-	gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+	if len(nonce) == gcmStandardNonceSize {
+		// Init counter to nonce||1
+		copy(counter[:], nonce)
+		counter[gcmBlockSize-1] = 1
+	} else {
+		// Otherwise counter = GHASH(nonce)
+		gcmAesData(&g.productTable, nonce, &counter)
+		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+	}
 
 	encryptBlockAsm(len(g.ks)/4-1, &g.ks[0], &tagMask[0], &counter[0])
 
