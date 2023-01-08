@@ -10,11 +10,6 @@ import (
 	"internal/abi"
 )
 
-var (
-	exitTrampoline = abi.FuncPCABI0(libc_exit_trampoline)
-	forkTrampoline = abi.FuncPCABI0(libc_fork_trampoline)
-)
-
 func init() {
 	execveOpenBSD = execve
 }
