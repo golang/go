@@ -34,7 +34,7 @@ const (
 	gcmBlockSize         = 16
 	gcmTagSize           = 16
 	gcmMinimumTagSize    = 12 // NIST SP 800-38D recommends tags with 12 or more bytes.
-	gcmStandardNonceSize = 12
+	gcmStandardNonceSize = 16
 )
 
 var errOpen = errors.New("cipher: message authentication failed")
