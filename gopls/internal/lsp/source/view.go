@@ -415,12 +415,12 @@ func (pgf *ParsedGoFile) PosMappedRange(startPos, endPos token.Pos) (protocol.Ma
 }
 
 // RangeToSpanRange parses a protocol Range back into the go/token domain.
-func (pgf *ParsedGoFile) RangeToSpanRange(r protocol.Range) (span.Range, error) {
-	spn, err := pgf.Mapper.RangeSpan(r)
+func (pgf *ParsedGoFile) RangeToTokenRange(r protocol.Range) (safetoken.Range, error) {
+	start, end, err := pgf.Mapper.RangeOffsets(r)
 	if err != nil {
-		return span.Range{}, err
+		return safetoken.Range{}, err
 	}
-	return spn.Range(pgf.Tok)
+	return safetoken.NewRange(pgf.Tok, pgf.Tok.Pos(start), pgf.Tok.Pos(end)), nil
 }
 
 // A ParsedModule contains the results of parsing a go.mod file.

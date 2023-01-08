@@ -12,9 +12,9 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/gopls/internal/span"
 )
 
 // some function definitions in test files can be completed
@@ -40,7 +40,7 @@ func definition(path []ast.Node, obj types.Object, pgf *source.ParsedGoFile) ([]
 	sel := &Selection{
 		content: "",
 		cursor:  start,
-		rng:     span.NewRange(pgf.Tok, start, end),
+		rng:     safetoken.NewRange(pgf.Tok, start, end),
 		mapper:  pgf.Mapper,
 	}
 	var ans []CompletionItem

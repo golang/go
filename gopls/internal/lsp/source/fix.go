@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 )
@@ -27,7 +28,7 @@ type (
 	// separately. Such analyzers should provide a function with a signature of
 	// SuggestedFixFunc.
 	SuggestedFixFunc  func(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, pRng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error)
-	singleFileFixFunc func(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error)
+	singleFileFixFunc func(fset *token.FileSet, rng safetoken.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error)
 )
 
 const (
@@ -133,14 +134,14 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 
 // getAllSuggestedFixInputs is a helper function to collect all possible needed
 // inputs for an AppliesFunc or SuggestedFixFunc.
-func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, span.Range, []byte, *ast.File, *types.Package, *types.Info, error) {
+func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, safetoken.Range, []byte, *ast.File, *types.Package, *types.Info, error) {
 	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckWorkspace, NarrowestPackage)
 	if err != nil {
-		return nil, span.Range{}, nil, nil, nil, nil, fmt.Errorf("getting file for Identifier: %w", err)
+		return nil, safetoken.Range{}, nil, nil, nil, nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
-	rng, err := pgf.RangeToSpanRange(pRng)
+	rng, err := pgf.RangeToTokenRange(pRng)
 	if err != nil {
-		return nil, span.Range{}, nil, nil, nil, nil, err
+		return nil, safetoken.Range{}, nil, nil, nil, nil, err
 	}
 	return pkg.FileSet(), rng, pgf.Src, pgf.File, pkg.GetTypes(), pkg.GetTypesInfo(), nil
 }

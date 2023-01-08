@@ -90,7 +90,7 @@ func packageCompletionSurrounding(pgf *source.ParsedGoFile, offset int) (*Select
 			return &Selection{
 				content: name.Name,
 				cursor:  cursor,
-				rng:     span.NewRange(tok, name.Pos(), name.End()),
+				rng:     safetoken.NewRange(tok, name.Pos(), name.End()),
 				mapper:  m,
 			}, nil
 		}
@@ -128,7 +128,7 @@ func packageCompletionSurrounding(pgf *source.ParsedGoFile, offset int) (*Select
 				return &Selection{
 					content: content,
 					cursor:  cursor,
-					rng:     span.NewRange(tok, start, end),
+					rng:     safetoken.NewRange(tok, start, end),
 					mapper:  m,
 				}, nil
 			}
@@ -150,7 +150,7 @@ func packageCompletionSurrounding(pgf *source.ParsedGoFile, offset int) (*Select
 	return &Selection{
 		content: "",
 		cursor:  cursor,
-		rng:     span.NewRange(tok, cursor, cursor),
+		rng:     safetoken.NewRange(tok, cursor, cursor),
 		mapper:  m,
 	}, nil
 }

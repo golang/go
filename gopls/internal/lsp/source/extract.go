@@ -19,12 +19,11 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
-	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/bug"
 )
 
-func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, _ *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+func extractVariable(fset *token.FileSet, rng safetoken.Range, src []byte, file *ast.File, _ *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
 	tokFile := fset.File(file.Pos())
 	expr, path, ok, err := CanExtractVariable(rng, file)
 	if !ok {
@@ -99,7 +98,7 @@ func extractVariable(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 
 // CanExtractVariable reports whether the code in the given range can be
 // extracted to a variable.
-func CanExtractVariable(rng span.Range, file *ast.File) (ast.Expr, []ast.Node, bool, error) {
+func CanExtractVariable(rng safetoken.Range, file *ast.File) (ast.Expr, []ast.Node, bool, error) {
 	if rng.Start == rng.End {
 		return nil, nil, false, fmt.Errorf("start and end are equal")
 	}
@@ -190,12 +189,12 @@ type returnVariable struct {
 }
 
 // extractMethod refactors the selected block of code into a new method.
-func extractMethod(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+func extractMethod(fset *token.FileSet, rng safetoken.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
 	return extractFunctionMethod(fset, rng, src, file, pkg, info, true)
 }
 
 // extractFunction refactors the selected block of code into a new function.
-func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+func extractFunction(fset *token.FileSet, rng safetoken.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
 	return extractFunctionMethod(fset, rng, src, file, pkg, info, false)
 }
 
@@ -207,7 +206,7 @@ func extractFunction(fset *token.FileSet, rng span.Range, src []byte, file *ast.
 // and return values of the extracted function/method. Lastly, we construct the call
 // of the function/method and insert this call as well as the extracted function/method into
 // their proper locations.
-func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info, isMethod bool) (*analysis.SuggestedFix, error) {
+func extractFunctionMethod(fset *token.FileSet, rng safetoken.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info, isMethod bool) (*analysis.SuggestedFix, error) {
 	errorPrefix := "extractFunction"
 	if isMethod {
 		errorPrefix = "extractMethod"
@@ -344,7 +343,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 		if v.obj.Parent() == nil {
 			return nil, fmt.Errorf("parent nil")
 		}
-		isUsed, firstUseAfter := objUsed(info, span.NewRange(tok, rng.End, v.obj.Parent().End()), v.obj)
+		isUsed, firstUseAfter := objUsed(info, safetoken.NewRange(tok, rng.End, v.obj.Parent().End()), v.obj)
 		if v.assigned && isUsed && !varOverridden(info, firstUseAfter, v.obj, v.free, outer) {
 			returnTypes = append(returnTypes, &ast.Field{Type: typ})
 			returns = append(returns, identifier)
@@ -653,7 +652,7 @@ func extractFunctionMethod(fset *token.FileSet, rng span.Range, src []byte, file
 // their cursors for whitespace. To support this use case, we must manually adjust the
 // ranges to match the correct AST node. In this particular example, we would adjust
 // rng.Start forward to the start of 'if' and rng.End backward to after '}'.
-func adjustRangeForCommentsAndWhiteSpace(rng span.Range, tok *token.File, content []byte, file *ast.File) (span.Range, error) {
+func adjustRangeForCommentsAndWhiteSpace(rng safetoken.Range, tok *token.File, content []byte, file *ast.File) (safetoken.Range, error) {
 	// Adjust the end of the range to after leading whitespace and comments.
 	prevStart, start := token.NoPos, rng.Start
 	startComment := sort.Search(len(file.Comments), func(i int) bool {
@@ -671,7 +670,7 @@ func adjustRangeForCommentsAndWhiteSpace(rng span.Range, tok *token.File, conten
 		// Move forwards to find a non-whitespace character.
 		offset, err := safetoken.Offset(tok, start)
 		if err != nil {
-			return span.Range{}, err
+			return safetoken.Range{}, err
 		}
 		for offset < len(content) && isGoWhiteSpace(content[offset]) {
 			offset++
@@ -701,7 +700,7 @@ func adjustRangeForCommentsAndWhiteSpace(rng span.Range, tok *token.File, conten
 		// Move backwards to find a non-whitespace character.
 		offset, err := safetoken.Offset(tok, end)
 		if err != nil {
-			return span.Range{}, err
+			return safetoken.Range{}, err
 		}
 		for offset > 0 && isGoWhiteSpace(content[offset-1]) {
 			offset--
@@ -709,7 +708,7 @@ func adjustRangeForCommentsAndWhiteSpace(rng span.Range, tok *token.File, conten
 		end = tok.Pos(offset)
 	}
 
-	return span.NewRange(tok, start, end), nil
+	return safetoken.NewRange(tok, start, end), nil
 }
 
 // isGoWhiteSpace returns true if b is a considered white space in
@@ -753,7 +752,7 @@ type variable struct {
 // variables will be used as arguments in the extracted function. It also returns a
 // list of identifiers that may need to be returned by the extracted function.
 // Some of the code in this function has been adapted from tools/cmd/guru/freevars.go.
-func collectFreeVars(info *types.Info, file *ast.File, fileScope, pkgScope *types.Scope, rng span.Range, node ast.Node) ([]*variable, error) {
+func collectFreeVars(info *types.Info, file *ast.File, fileScope, pkgScope *types.Scope, rng safetoken.Range, node ast.Node) ([]*variable, error) {
 	// id returns non-nil if n denotes an object that is referenced by the span
 	// and defined either within the span or in the lexical environment. The bool
 	// return value acts as an indicator for where it was defined.
@@ -962,14 +961,14 @@ func referencesObj(info *types.Info, expr ast.Expr, obj types.Object) bool {
 type fnExtractParams struct {
 	tok   *token.File
 	path  []ast.Node
-	rng   span.Range
+	rng   safetoken.Range
 	outer *ast.FuncDecl
 	start ast.Node
 }
 
 // CanExtractFunction reports whether the code in the given range can be
 // extracted to a function.
-func CanExtractFunction(tok *token.File, rng span.Range, src []byte, file *ast.File) (*fnExtractParams, bool, bool, error) {
+func CanExtractFunction(tok *token.File, rng safetoken.Range, src []byte, file *ast.File) (*fnExtractParams, bool, bool, error) {
 	if rng.Start == rng.End {
 		return nil, false, false, fmt.Errorf("start and end are equal")
 	}
@@ -1041,7 +1040,7 @@ func CanExtractFunction(tok *token.File, rng span.Range, src []byte, file *ast.F
 
 // objUsed checks if the object is used within the range. It returns the first
 // occurrence of the object in the range, if it exists.
-func objUsed(info *types.Info, rng span.Range, obj types.Object) (bool, *ast.Ident) {
+func objUsed(info *types.Info, rng safetoken.Range, obj types.Object) (bool, *ast.Ident) {
 	var firstUse *ast.Ident
 	for id, objUse := range info.Uses {
 		if obj != objUse {

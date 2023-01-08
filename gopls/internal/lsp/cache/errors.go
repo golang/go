@@ -103,17 +103,13 @@ var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
 var unsupportedFeatureRe = regexp.MustCompile(`.*require.* go(\d+\.\d+) or later`)
 
 func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*source.Diagnostic, error) {
-	code, spn, err := typeErrorData(pkg, e.primary)
-	if err != nil {
-		return nil, err
-	}
-	rng, err := spanToRange(pkg, spn)
+	code, loc, err := typeErrorData(pkg, e.primary)
 	if err != nil {
 		return nil, err
 	}
 	diag := &source.Diagnostic{
-		URI:      spn.URI(),
-		Range:    rng,
+		URI:      loc.URI.SpanURI(),
+		Range:    loc.Range,
 		Severity: protocol.SeverityError,
 		Source:   source.TypeError,
 		Message:  e.primary.Msg,
@@ -128,29 +124,25 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*sou
 	}
 
 	for _, secondary := range e.secondaries {
-		_, secondarySpan, err := typeErrorData(pkg, secondary)
-		if err != nil {
-			return nil, err
-		}
-		rng, err := spanToRange(pkg, secondarySpan)
+		_, secondaryLoc, err := typeErrorData(pkg, secondary)
 		if err != nil {
 			return nil, err
 		}
 		diag.Related = append(diag.Related, source.RelatedInformation{
-			URI:     secondarySpan.URI(),
-			Range:   rng,
+			URI:     secondaryLoc.URI.SpanURI(),
+			Range:   secondaryLoc.Range,
 			Message: secondary.Msg,
 		})
 	}
 
 	if match := importErrorRe.FindStringSubmatch(e.primary.Msg); match != nil {
-		diag.SuggestedFixes, err = goGetQuickFixes(snapshot, spn.URI(), match[1])
+		diag.SuggestedFixes, err = goGetQuickFixes(snapshot, loc.URI.SpanURI(), match[1])
 		if err != nil {
 			return nil, err
 		}
 	}
 	if match := unsupportedFeatureRe.FindStringSubmatch(e.primary.Msg); match != nil {
-		diag.SuggestedFixes, err = editGoDirectiveQuickFix(snapshot, spn.URI(), match[1])
+		diag.SuggestedFixes, err = editGoDirectiveQuickFix(snapshot, loc.URI.SpanURI(), match[1])
 		if err != nil {
 			return nil, err
 		}
@@ -294,7 +286,7 @@ func relatedInformation(diag *gobDiagnostic) []source.RelatedInformation {
 	return out
 }
 
-func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Span, error) {
+func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, protocol.Location, error) {
 	ecode, start, end, ok := typesinternal.ReadGo116ErrorData(terr)
 	if !ok {
 		start, end = terr.Pos, terr.Pos
@@ -303,30 +295,27 @@ func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, span.Sp
 	// go/types may return invalid positions in some cases, such as
 	// in errors on tokens missing from the syntax tree.
 	if !start.IsValid() {
-		return 0, span.Span{}, fmt.Errorf("type error (%q, code %d, go116=%t) without position", terr.Msg, ecode, ok)
+		return 0, protocol.Location{}, fmt.Errorf("type error (%q, code %d, go116=%t) without position", terr.Msg, ecode, ok)
 	}
 	// go/types errors retain their FileSet.
 	// Sanity-check that we're using the right one.
 	fset := pkg.FileSet()
 	if fset != terr.Fset {
-		return 0, span.Span{}, bug.Errorf("wrong FileSet for type error")
+		return 0, protocol.Location{}, bug.Errorf("wrong FileSet for type error")
 	}
 	posn := safetoken.StartPosition(fset, start)
 	if !posn.IsValid() {
-		return 0, span.Span{}, fmt.Errorf("position %d of type error %q (code %q) not found in FileSet", start, start, terr)
+		return 0, protocol.Location{}, fmt.Errorf("position %d of type error %q (code %q) not found in FileSet", start, start, terr)
 	}
 	pgf, err := pkg.File(span.URIFromPath(posn.Filename))
 	if err != nil {
-		return 0, span.Span{}, err
+		return 0, protocol.Location{}, err
 	}
 	if !end.IsValid() || end == start {
 		end = analysisinternal.TypeErrorEndPos(fset, pgf.Src, start)
 	}
-	spn, err := span.FileSpan(pgf.Tok, start, end)
-	if err != nil {
-		return 0, span.Span{}, err
-	}
-	return ecode, spn, nil
+	loc, err := pgf.Mapper.PosLocation(pgf.Tok, start, end)
+	return ecode, loc, err
 }
 
 // spanToRange converts a span.Span to a protocol.Range,

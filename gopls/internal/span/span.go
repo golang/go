@@ -17,7 +17,17 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 )
 
-// Span represents a source code range in standardized form.
+// A Span represents a range of text within a source file.  The start
+// and end points of a valid span may be hold either its byte offset,
+// or its (line, column) pair, or both.  Columns are measured in bytes.
+//
+// Spans are appropriate in user interfaces (e.g. command-line tools)
+// and tests where a position is notated without access to the content
+// of the file.
+//
+// Use protocol.ColumnMapper to convert between Span and other
+// representations, such as go/token (also UTF-8) or the LSP protocol
+// (UTF-16). The latter requires access to file contents.
 type Span struct {
 	v span
 }
@@ -28,6 +38,12 @@ type Span struct {
 type Point struct {
 	v point
 }
+
+// The private span/point types have public fields to support JSON
+// encoding, but the public Span/Point types hide these fields by
+// defining methods that shadow them. (This is used by a few of the
+// command-line tool subcommands, which emit spans and have a -json
+// flag.)
 
 type span struct {
 	URI   URI   `json:"uri"`
@@ -222,75 +238,6 @@ func (s Span) Format(f fmt.State, c rune) {
 	if printOffset {
 		fmt.Fprintf(f, "#%d", s.v.End.Offset)
 	}
-}
-
-// (Currently unused, but we gain little yet by deleting it.)
-func (s Span) withPosition(tf *token.File) (Span, error) {
-	if err := s.update(tf, true, false); err != nil {
-		return Span{}, err
-	}
-	return s, nil
-}
-
-func (s Span) withOffset(tf *token.File) (Span, error) {
-	if err := s.update(tf, false, true); err != nil {
-		return Span{}, err
-	}
-	return s, nil
-}
-
-// (Currently unused except by test.)
-func (s Span) WithAll(tf *token.File) (Span, error) {
-	if err := s.update(tf, true, true); err != nil {
-		return Span{}, err
-	}
-	return s, nil
-}
-
-func (s *Span) update(tf *token.File, withPos, withOffset bool) error {
-	if !s.IsValid() {
-		return fmt.Errorf("cannot add information to an invalid span")
-	}
-	if withPos && !s.HasPosition() {
-		if err := s.v.Start.updatePosition(tf); err != nil {
-			return err
-		}
-		if s.v.End.Offset == s.v.Start.Offset {
-			s.v.End = s.v.Start
-		} else if err := s.v.End.updatePosition(tf); err != nil {
-			return err
-		}
-	}
-	if withOffset && (!s.HasOffset() || (s.v.End.hasPosition() && !s.v.End.hasOffset())) {
-		if err := s.v.Start.updateOffset(tf); err != nil {
-			return err
-		}
-		if s.v.End.Line == s.v.Start.Line && s.v.End.Column == s.v.Start.Column {
-			s.v.End.Offset = s.v.Start.Offset
-		} else if err := s.v.End.updateOffset(tf); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (p *point) updatePosition(tf *token.File) error {
-	line, col8, err := offsetToLineCol8(tf, p.Offset)
-	if err != nil {
-		return err
-	}
-	p.Line = line
-	p.Column = col8
-	return nil
-}
-
-func (p *point) updateOffset(tf *token.File) error {
-	offset, err := toOffset(tf, p.Line, p.Column)
-	if err != nil {
-		return err
-	}
-	p.Offset = offset
-	return nil
 }
 
 // SetRange implements packagestest.rangeSetter, allowing

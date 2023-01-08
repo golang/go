@@ -20,9 +20,9 @@
 // span: for optional fields; useful for CLIs and tests without access to file contents.
 // span.Point = (line?, col?, offset?) 1-based UTF-8
 // span.Span = (uri URI, start, end span.Point)
-// span.Range = (file token.File, start, end token.Pos)
 //
 // token: for interaction with the go/* syntax packages:
+// safetoken.Range = (file token.File, start, end token.Pos)
 // token.Pos
 // token.FileSet
 // token.File
@@ -30,15 +30,14 @@
 // (see also safetoken)
 //
 // TODO(adonovan): simplify this picture:
-//   - Move span.Range to package safetoken. Can we eliminate most uses in gopls?
-//     Without a ColumnMapper it's not really self-contained.
+//   - Eliminate most/all uses of safetoken.Range in gopls, as
+//     without a ColumnMapper it's not really self-contained.
 //     It is mostly used by completion. Given access to complete.mapper,
 //     it could use a pair of byte offsets instead.
 //   - ColumnMapper.OffsetPoint and .PointPosition aren't used outside this package.
 //     OffsetSpan is barely used, and its user would better off with a MappedRange
 //     or protocol.Range. The span package data types are mostly used in tests
 //     and in argument parsing (without access to file content).
-//   - share core conversion primitives with span package.
 //   - rename ColumnMapper to just Mapper, since it also maps lines
 //     <=> offsets, and move it to file mapper.go.
 //
@@ -206,6 +205,7 @@ func (m *ColumnMapper) OffsetRange(start, end int) (Range, error) {
 }
 
 // OffsetSpan converts a byte-offset interval to a (UTF-8) span.
+// The resulting span contains line, column, and offset information.
 func (m *ColumnMapper) OffsetSpan(start, end int) (span.Span, error) {
 	if start > end {
 		return span.Span{}, fmt.Errorf("start offset (%d) > end (%d)", start, end)
@@ -281,6 +281,7 @@ func (m *ColumnMapper) line(offset int) (int, int, bool) {
 }
 
 // OffsetPoint converts a byte offset to a span (UTF-8) point.
+// The resulting point contains line, column, and offset information.
 func (m *ColumnMapper) OffsetPoint(offset int) (span.Point, error) {
 	if !(0 <= offset && offset <= len(m.Content)) {
 		return span.Point{}, fmt.Errorf("invalid offset %d (want 0-%d)", offset, len(m.Content))
@@ -387,6 +388,19 @@ func (m *ColumnMapper) PosPosition(tf *token.File, pos token.Pos) (Position, err
 		return Position{}, err
 	}
 	return m.OffsetPosition(offset)
+}
+
+// PosPosition converts a token range to a protocol (UTF-16) location.
+func (m *ColumnMapper) PosLocation(tf *token.File, start, end token.Pos) (Location, error) {
+	startOffset, endOffset, err := safetoken.Offsets(tf, start, end)
+	if err != nil {
+		return Location{}, err
+	}
+	rng, err := m.OffsetRange(startOffset, endOffset)
+	if err != nil {
+		return Location{}, err
+	}
+	return Location{URI: URIFromSpanURI(m.URI), Range: rng}, nil
 }
 
 // PosPosition converts a token range to a protocol (UTF-16) range.
