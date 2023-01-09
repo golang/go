@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"unsafe"
 
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -100,6 +102,7 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 		shallow:     shallow,
 		allPkgs:     map[*types.Package]bool{},
 		stringIndex: map[string]uint64{},
+		fileIndex:   map[*token.File]uint64{},
 		declIndex:   map[types.Object]uint64{},
 		tparamNames: map[types.Object]string{},
 		typIndex:    map[types.Type]uint64{},
@@ -163,11 +166,17 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 	}
 	hdr.uint64(uint64(p.version))
 	hdr.uint64(uint64(p.strings.Len()))
+	if p.shallow {
+		hdr.uint64(uint64(p.files.Len()))
+	}
 	hdr.uint64(dataLen)
 
 	// Flush output.
 	io.Copy(out, &hdr)
 	io.Copy(out, &p.strings)
+	if p.shallow {
+		io.Copy(out, &p.files)
+	}
 	io.Copy(out, &p.data0)
 
 	return nil
@@ -255,6 +264,11 @@ type iexporter struct {
 	strings     intWriter
 	stringIndex map[string]uint64
 
+	// In shallow mode, object positions are encoded as (file, offset).
+	// Each file is recorded as a line-number table.
+	files     intWriter
+	fileIndex map[*token.File]uint64
+
 	data0       intWriter
 	declIndex   map[types.Object]uint64
 	tparamNames map[types.Object]string // typeparam->exported name
@@ -282,6 +296,35 @@ func (p *iexporter) stringOff(s string) uint64 {
 
 		p.strings.uint64(uint64(len(s)))
 		p.strings.WriteString(s)
+	}
+	return off
+}
+
+// fileOff returns the offset of the token.File encoding.
+// If not already present, it's added to the end.
+func (p *iexporter) fileOff(file *token.File) uint64 {
+	off, ok := p.fileIndex[file]
+	if !ok {
+		off = uint64(p.files.Len())
+		p.fileIndex[file] = off
+
+		p.files.uint64(p.stringOff(file.Name()))
+		p.files.uint64(uint64(file.Size()))
+
+		// Delta-encode the line offsets, omitting the initial zero.
+		// (An empty file has an empty lines array.)
+		//
+		// TODO(adonovan): opt: use a two-pass approach that
+		// first gathers the set of Pos values and then
+		// encodes only the information necessary for them.
+		// This would allow us to discard the lines after the
+		// last object of interest and to run-length encode the
+		// trivial lines between lines with needed positions.
+		lines := getLines(file)
+		p.files.uint64(uint64(len(lines)))
+		for i := 1; i < len(lines); i++ {
+			p.files.uint64(uint64(lines[i] - lines[i-1]))
+		}
 	}
 	return off
 }
@@ -464,11 +507,27 @@ func (w *exportWriter) tag(tag byte) {
 }
 
 func (w *exportWriter) pos(pos token.Pos) {
-	if w.p.version >= iexportVersionPosCol {
+	if w.p.shallow {
+		w.posV2(pos)
+	} else if w.p.version >= iexportVersionPosCol {
 		w.posV1(pos)
 	} else {
 		w.posV0(pos)
 	}
+}
+
+// posV2 encoding (used only in shallow mode) records positions as
+// (file, offset), where file is the index in the token.File table
+// (which records the file name and newline offsets) and offset is a
+// byte offset. It effectively ignores //line directives.
+func (w *exportWriter) posV2(pos token.Pos) {
+	if pos == token.NoPos {
+		w.uint64(0)
+		return
+	}
+	file := w.p.fset.File(pos) // fset must be non-nil
+	w.uint64(1 + w.p.fileOff(file))
+	w.uint64(uint64(file.Offset(pos)))
 }
 
 func (w *exportWriter) posV1(pos token.Pos) {
@@ -1059,4 +1118,51 @@ func (q *objQueue) popHead() types.Object {
 	obj := q.ring[q.head%len(q.ring)]
 	q.head++
 	return obj
+}
+
+// getLines returns the table of line-start offsets from a token.File.
+func getLines(file *token.File) []int {
+	// Use this variant once proposal #57708 is implemented:
+	//
+	// if file, ok := file.(interface{ Lines() []int }); ok {
+	// 	return file.Lines()
+	// }
+
+	// This declaration must match that of token.File.
+	// This creates a risk of dependency skew.
+	// For now we check that the size of the two
+	// declarations is the same, on the (fragile) assumption
+	// that future changes would add fields.
+	type tokenFile119 struct {
+		_     string
+		_     int
+		_     int
+		mu    sync.Mutex // we're not complete monsters
+		lines []int
+		_     []struct{}
+	}
+	type tokenFile118 struct {
+		_ *token.FileSet // deleted in go1.19
+		tokenFile119
+	}
+
+	type uP = unsafe.Pointer
+	switch unsafe.Sizeof(*file) {
+	case unsafe.Sizeof(tokenFile118{}):
+		var ptr *tokenFile118
+		*(*uP)(uP(&ptr)) = uP(file)
+		ptr.mu.Lock()
+		defer ptr.mu.Unlock()
+		return ptr.lines
+
+	case unsafe.Sizeof(tokenFile119{}):
+		var ptr *tokenFile119
+		*(*uP)(uP(&ptr)) = uP(file)
+		ptr.mu.Lock()
+		defer ptr.mu.Unlock()
+		return ptr.lines
+
+	default:
+		panic("unexpected token.File size")
+	}
 }

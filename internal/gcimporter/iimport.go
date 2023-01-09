@@ -137,12 +137,18 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 	}
 
 	sLen := int64(r.uint64())
+	var fLen int64
+	if insert != nil {
+		// shallow mode uses a different position encoding
+		fLen = int64(r.uint64())
+	}
 	dLen := int64(r.uint64())
 
 	whence, _ := r.Seek(0, io.SeekCurrent)
 	stringData := data[whence : whence+sLen]
-	declData := data[whence+sLen : whence+sLen+dLen]
-	r.Seek(sLen+dLen, io.SeekCurrent)
+	fileData := data[whence+sLen : whence+sLen+fLen]
+	declData := data[whence+sLen+fLen : whence+sLen+fLen+dLen]
+	r.Seek(sLen+fLen+dLen, io.SeekCurrent)
 
 	p := iimporter{
 		version: int(version),
@@ -151,6 +157,8 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 
 		stringData:  stringData,
 		stringCache: make(map[uint64]string),
+		fileData:    fileData,
+		fileCache:   make(map[uint64]*token.File),
 		pkgCache:    make(map[uint64]*types.Package),
 
 		declData: declData,
@@ -280,6 +288,8 @@ type iimporter struct {
 
 	stringData  []byte
 	stringCache map[uint64]string
+	fileData    []byte
+	fileCache   map[uint64]*token.File
 	pkgCache    map[uint64]*types.Package
 
 	declData    []byte
@@ -350,6 +360,29 @@ func (p *iimporter) stringAt(off uint64) string {
 	s := string(p.stringData[spos : spos+slen])
 	p.stringCache[off] = s
 	return s
+}
+
+func (p *iimporter) fileAt(off uint64) *token.File {
+	file, ok := p.fileCache[off]
+	if !ok {
+		rd := intReader{bytes.NewReader(p.fileData[off:]), p.ipath}
+		filename := p.stringAt(rd.uint64())
+		size := int(rd.uint64())
+		file = p.fake.fset.AddFile(filename, -1, size)
+
+		if n := int(rd.uint64()); n > 0 {
+			lines := make([]int, n) // initial element always implicitly zero
+			for i := 1; i < n; i++ {
+				lines[i] = lines[i-1] + int(rd.uint64())
+			}
+			if !file.SetLines(lines) {
+				errorf("SetLines failed") // can't happen
+			}
+		}
+
+		p.fileCache[off] = file
+	}
+	return file
 }
 
 func (p *iimporter) pkgAt(off uint64) *types.Package {
@@ -645,6 +678,9 @@ func (r *importReader) qualifiedIdent() (*types.Package, string) {
 }
 
 func (r *importReader) pos() token.Pos {
+	if r.p.insert != nil { // shallow mode
+		return r.posv2()
+	}
 	if r.p.version >= iexportVersionPosCol {
 		r.posv1()
 	} else {
@@ -679,6 +715,15 @@ func (r *importReader) posv1() {
 			r.prevFile = r.string()
 		}
 	}
+}
+
+func (r *importReader) posv2() token.Pos {
+	file := r.uint64()
+	if file == 0 {
+		return token.NoPos
+	}
+	tf := r.p.fileAt(file - 1)
+	return tf.Pos(int(r.uint64()))
 }
 
 func (r *importReader) typ() types.Type {

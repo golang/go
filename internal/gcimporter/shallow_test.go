@@ -10,6 +10,8 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"os"
+	"strings"
 	"testing"
 
 	"golang.org/x/sync/errgroup"
@@ -153,6 +155,7 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 
 	// Type-check the syntax trees.
 	tpkg, _ := cfg.Check(ppkg.PkgPath, fset, syntax, nil)
+	postTypeCheck(t, fset, tpkg)
 
 	// Save the export data.
 	data, err := gcimporter.IExportShallow(fset, tpkg)
@@ -160,4 +163,31 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 		t.Fatalf("internal error marshalling export data: %v", err)
 	}
 	ppkg.ExportFile = string(data)
+}
+
+// postTypeCheck is called after a package is type checked.
+// We use it to assert additional correctness properties,
+// for example, that the apparent location of "fmt.Println"
+// corresponds to its source location: in other words,
+// export+import preserves high-fidelity positions.
+func postTypeCheck(t *testing.T, fset *token.FileSet, pkg *types.Package) {
+	if pkg.Path() == "fmt" {
+		obj := pkg.Scope().Lookup("Println")
+		posn := fset.Position(obj.Pos())
+		data, err := os.ReadFile(posn.Filename)
+		if err != nil {
+			t.Errorf("can't read source file declaring fmt.Println: %v", err)
+			return
+		}
+		// Check line and column.
+		line := strings.Split(string(data), "\n")[posn.Line-1]
+
+		if id := line[posn.Column-1 : posn.Column-1+len(obj.Name())]; id != "Println" {
+			t.Errorf("%+v: expected declaration of fmt.Println at this line, column; got %q", posn, line)
+		}
+		// Check offset.
+		if id := string(data[posn.Offset : posn.Offset+len(obj.Name())]); id != "Println" {
+			t.Errorf("%+v: expected declaration of fmt.Println at this offset; got %q", posn, id)
+		}
+	}
 }
