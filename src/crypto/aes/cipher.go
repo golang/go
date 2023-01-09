@@ -48,7 +48,8 @@ func NewCipher(key []byte) (cipher.Block, error) {
 // implemented in pure Go.
 func newCipherGeneric(key []byte) (cipher.Block, error) {
 	n := len(key) + 28
-	c := aesCipher{make([]uint32, n), make([]uint32, n)}
+	buf := make([]uint32, n*2)
+	c := aesCipher{buf[:n:n], buf[n:]}
 	expandKeyGo(key, c.enc, c.dec)
 	return &c, nil
 }

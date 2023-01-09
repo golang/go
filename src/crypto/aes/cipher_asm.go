@@ -44,8 +44,10 @@ func newCipher(key []byte) (cipher.Block, error) {
 	if !supportsAES {
 		return newCipherGeneric(key)
 	}
+
 	n := len(key) + 28
-	c := aesCipherGCM{aesCipherAsm{aesCipher{make([]uint32, n), make([]uint32, n)}}}
+	buf := make([]uint32, n*2)
+	c := aesCipherGCM{aesCipherAsm{aesCipher{buf[:n:n], buf[n:]}}}
 	var rounds int
 	switch len(key) {
 	case 128 / 8:
