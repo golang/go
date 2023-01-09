@@ -384,11 +384,11 @@ func BenchmarkExpand(b *testing.B) {
 
 func BenchmarkNewEncrypt(b *testing.B) {
 	tt := encryptTests[0]
-	out := make([]byte, len(tt.out))
+	out := make([]byte, len(tt.in))
 	b.SetBytes(int64(len(out)))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c, _ := NewCipher(tt.key)
-		c.Decrypt(out, tt.out)
+		c.Encrypt(out, tt.in)
 	}
 }
