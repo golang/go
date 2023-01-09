@@ -145,7 +145,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	flags.BoolVar(addrOldComparableSemantics(&conf), "oldComparableSemantics", false, "")
+	flags.BoolVar(boolFieldAddr(&conf, "oldComparableSemantics"), "oldComparableSemantics", false, "")
 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
 		t.Fatal(err)
 	}
@@ -166,6 +166,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	}
 
 	// typecheck and collect typechecker errors
+	*boolFieldAddr(&conf, "trace") = manual && testing.Verbose()
 	if imp == nil {
 		imp = importer.Default()
 	}
@@ -299,10 +300,11 @@ func readCode(err Error) int {
 	return int(v.FieldByName("go116code").Int())
 }
 
-// addrOldComparableSemantics(conf) returns &conf.oldComparableSemantics (unexported field).
-func addrOldComparableSemantics(conf *Config) *bool {
+// boolFieldAddr(conf, name) returns the address of the boolean field conf.<name>.
+// For accessing unexported fields.
+func boolFieldAddr(conf *Config, name string) *bool {
 	v := reflect.Indirect(reflect.ValueOf(conf))
-	return (*bool)(v.FieldByName("oldComparableSemantics").Addr().UnsafePointer())
+	return (*bool)(v.FieldByName(name).Addr().UnsafePointer())
 }
 
 // TestManual is for manual testing of a package - either provided

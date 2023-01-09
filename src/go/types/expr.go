@@ -1224,7 +1224,7 @@ const (
 // If allowGeneric is set, the operand type may be an uninstantiated
 // parameterized type or function value.
 func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
-	if trace {
+	if check.conf.trace {
 		check.trace(e.Pos(), "-- expr %s", e)
 		check.indent++
 		defer func() {

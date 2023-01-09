@@ -16,10 +16,7 @@ import (
 )
 
 // debugging/development support
-const (
-	debug = false // leave on during development
-	trace = false // turn on for detailed type resolution traces
-)
+const debug = false // leave on during development
 
 // exprInfo stores information about an untyped expression.
 type exprInfo struct {
@@ -313,7 +310,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	defer check.handleBailout(&err)
 
 	print := func(msg string) {
-		if trace {
+		if check.conf.trace {
 			fmt.Println()
 			fmt.Println(msg)
 		}
@@ -377,7 +374,7 @@ func (check *Checker) processDelayed(top int) {
 	// this is a sufficiently bounded process.
 	for i := top; i < len(check.delayed); i++ {
 		a := &check.delayed[i]
-		if trace {
+		if check.conf.trace {
 			if a.desc != nil {
 				check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
 			} else {
@@ -385,7 +382,7 @@ func (check *Checker) processDelayed(top int) {
 			}
 		}
 		a.f() // may append to check.delayed
-		if trace {
+		if check.conf.trace {
 			fmt.Println()
 		}
 	}

@@ -65,7 +65,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs 
 	assert(check != nil)
 	assert(len(targs) == typ.TypeParams().Len())
 
-	if trace {
+	if check.conf.trace {
 		check.trace(pos, "-- instantiating signature %s with %s", typ, targs)
 		check.indent++
 		defer func() {

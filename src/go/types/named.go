@@ -581,7 +581,7 @@ func (check *Checker) context() *Context {
 // returning the result. Returns Typ[Invalid] if there was an error.
 func (n *Named) expandUnderlying() Type {
 	check := n.check
-	if check != nil && trace {
+	if check != nil && check.conf.trace {
 		check.trace(n.obj.pos, "-- Named.expandUnderlying %s", n)
 		check.indent++
 		defer func() {
