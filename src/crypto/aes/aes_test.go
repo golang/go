@@ -381,3 +381,14 @@ func BenchmarkExpand(b *testing.B) {
 		expandKey(tt.key, c.enc, c.dec)
 	}
 }
+
+func BenchmarkNewEncrypt(b *testing.B) {
+	tt := encryptTests[0]
+	out := make([]byte, len(tt.out))
+	b.SetBytes(int64(len(out)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c, _ := NewCipher(tt.key)
+		c.Decrypt(out, tt.out)
+	}
+}
