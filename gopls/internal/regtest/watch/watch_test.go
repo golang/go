@@ -38,10 +38,13 @@ func _() {
 	t.Run("unopened", func(t *testing.T) {
 		Run(t, pkg, func(t *testing.T, env *Env) {
 			env.Await(
-				env.DiagnosticAtRegexp("a/a.go", "x"),
+				OnceMet(
+					InitialWorkspaceLoad,
+					env.DiagnosticAtRegexp("a/a.go", "x"),
+				),
 			)
 			env.WriteWorkspaceFile("a/a.go", `package a; func _() {};`)
-			env.Await(
+			env.AfterChange(
 				EmptyDiagnostics("a/a.go"),
 			)
 		})
@@ -55,13 +58,11 @@ func _() {
 			// Insert a trivial edit so that we don't automatically update the buffer
 			// (see CL 267577).
 			env.EditBuffer("a/a.go", fake.NewEdit(0, 0, 0, 0, " "))
-			env.Await(env.DoneWithOpen())
+			env.AfterChange()
 			env.WriteWorkspaceFile("a/a.go", `package a; func _() {};`)
-			env.Await(
-				OnceMet(
-					env.DoneWithChangeWatchedFiles(),
-					env.DiagnosticAtRegexp("a/a.go", "x"),
-				))
+			env.AfterChange(
+				env.DiagnosticAtRegexp("a/a.go", "x"),
+			)
 		})
 	})
 }

@@ -6,8 +6,10 @@ package fake
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
+	"golang.org/x/tools/gopls/internal/lsp/glob"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
@@ -89,7 +91,40 @@ func (c *Client) Configuration(_ context.Context, p *protocol.ParamConfiguration
 
 func (c *Client) RegisterCapability(ctx context.Context, params *protocol.RegistrationParams) error {
 	if c.hooks.OnRegistration != nil {
-		return c.hooks.OnRegistration(ctx, params)
+		if err := c.hooks.OnRegistration(ctx, params); err != nil {
+			return err
+		}
+	}
+	// Update file watching patterns.
+	//
+	// TODO(rfindley): We could verify more here, like verify that the
+	// registration ID is distinct, and that the capability is not currently
+	// registered.
+	for _, registration := range params.Registrations {
+		if registration.Method == "workspace/didChangeWatchedFiles" {
+			// Marshal and unmarshal to interpret RegisterOptions as
+			// DidChangeWatchedFilesRegistrationOptions.
+			raw, err := json.Marshal(registration.RegisterOptions)
+			if err != nil {
+				return fmt.Errorf("marshaling registration options: %v", err)
+			}
+			var opts protocol.DidChangeWatchedFilesRegistrationOptions
+			if err := json.Unmarshal(raw, &opts); err != nil {
+				return fmt.Errorf("unmarshaling registration options: %v", err)
+			}
+			var globs []*glob.Glob
+			for _, watcher := range opts.Watchers {
+				// TODO(rfindley): honor the watch kind.
+				g, err := glob.Parse(watcher.GlobPattern)
+				if err != nil {
+					return fmt.Errorf("error parsing glob pattern %q: %v", watcher.GlobPattern, err)
+				}
+				globs = append(globs, g)
+			}
+			c.editor.mu.Lock()
+			c.editor.watchPatterns = globs
+			c.editor.mu.Unlock()
+		}
 	}
 	return nil
 }

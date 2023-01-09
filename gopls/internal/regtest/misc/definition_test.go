@@ -291,6 +291,8 @@ func TestGoToCrashingDefinition_Issue49223(t *testing.T) {
 // causes packages to move; see issue #55995.
 // See also TestImplementationsInVendor, which tests the same fix.
 func TestVendoringInvalidatesMetadata(t *testing.T) {
+	t.Skip("golang/go#56169: file watching does not capture vendor dirs")
+
 	const proxy = `
 -- other.com/b@v1.0.0/go.mod --
 module other.com/b

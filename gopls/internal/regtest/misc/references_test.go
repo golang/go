@@ -296,6 +296,8 @@ func _() {
 // implementations in vendored modules were not found. The actual fix
 // was the same as for #55995; see TestVendoringInvalidatesMetadata.
 func TestImplementationsInVendor(t *testing.T) {
+	t.Skip("golang/go#56169: file watching does not capture vendor dirs")
+
 	const proxy = `
 -- other.com/b@v1.0.0/go.mod --
 module other.com/b

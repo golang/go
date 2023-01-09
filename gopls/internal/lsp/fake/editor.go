@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/gopls/internal/lsp/command"
+	"golang.org/x/tools/gopls/internal/lsp/glob"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
@@ -38,10 +39,11 @@ type Editor struct {
 	sandbox    *Sandbox
 	defaultEnv map[string]string
 
-	mu                 sync.Mutex                  // guards config, buffers, serverCapabilities
+	mu                 sync.Mutex
 	config             EditorConfig                // editor configuration
 	buffers            map[string]buffer           // open buffers (relative path -> buffer content)
 	serverCapabilities protocol.ServerCapabilities // capabilities / options
+	watchPatterns      []*glob.Glob                // glob patterns to watch
 
 	// Call metrics for the purpose of expectations. This is done in an ad-hoc
 	// manner for now. Perhaps in the future we should do something more
@@ -361,8 +363,20 @@ func (e *Editor) onFileChanges(ctx context.Context, evts []protocol.FileEvent) {
 				_ = e.setBufferContentLocked(ctx, path, false, lines(content), nil)
 			}
 		}
+		var matchedEvts []protocol.FileEvent
+		for _, evt := range evts {
+			filename := filepath.ToSlash(evt.URI.SpanURI().Filename())
+			for _, g := range e.watchPatterns {
+				if g.Match(filename) {
+					matchedEvts = append(matchedEvts, evt)
+					break
+				}
+			}
+		}
+
+		// TODO(rfindley): don't send notifications while locked.
 		e.Server.DidChangeWatchedFiles(ctx, &protocol.DidChangeWatchedFilesParams{
-			Changes: evts,
+			Changes: matchedEvts,
 		})
 	}()
 }
