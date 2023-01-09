@@ -8,7 +8,6 @@ package types
 
 import (
 	"go/constant"
-	"go/token"
 	"strings"
 )
 
@@ -73,33 +72,33 @@ var aliases = [...]*Basic{
 
 func defPredeclaredTypes() {
 	for _, t := range Typ {
-		def(NewTypeName(token.NoPos, nil, t.name, t))
+		def(NewTypeName(nopos, nil, t.name, t))
 	}
 	for _, t := range aliases {
-		def(NewTypeName(token.NoPos, nil, t.name, t))
+		def(NewTypeName(nopos, nil, t.name, t))
 	}
 
 	// type any = interface{}
 	// Note: don't use &emptyInterface for the type of any. Using a unique
 	// pointer allows us to detect any and format it as "any" rather than
 	// interface{}, which clarifies user-facing error messages significantly.
-	def(NewTypeName(token.NoPos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
+	def(NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
 
 	// type error interface{ Error() string }
 	{
-		obj := NewTypeName(token.NoPos, nil, "error", nil)
+		obj := NewTypeName(nopos, nil, "error", nil)
 		obj.setColor(black)
 		typ := NewNamed(obj, nil, nil)
 
 		// error.Error() string
-		recv := NewVar(token.NoPos, nil, "", typ)
-		res := NewVar(token.NoPos, nil, "", Typ[String])
+		recv := NewVar(nopos, nil, "", typ)
+		res := NewVar(nopos, nil, "", Typ[String])
 		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
-		err := NewFunc(token.NoPos, nil, "Error", sig)
+		err := NewFunc(nopos, nil, "Error", sig)
 
 		// interface{ Error() string }
 		ityp := &Interface{methods: []*Func{err}, complete: true}
-		computeInterfaceTypeSet(nil, token.NoPos, ityp) // prevent races due to lazy computation of tset
+		computeInterfaceTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
 
 		typ.SetUnderlying(ityp)
 		def(obj)
@@ -107,7 +106,7 @@ func defPredeclaredTypes() {
 
 	// type comparable interface{} // marked as comparable
 	{
-		obj := NewTypeName(token.NoPos, nil, "comparable", nil)
+		obj := NewTypeName(nopos, nil, "comparable", nil)
 		obj.setColor(black)
 		typ := NewNamed(obj, nil, nil)
 
@@ -131,7 +130,7 @@ var predeclaredConsts = [...]struct {
 
 func defPredeclaredConsts() {
 	for _, c := range predeclaredConsts {
-		def(NewConst(token.NoPos, nil, c.name, Typ[c.kind], c.val))
+		def(NewConst(nopos, nil, c.name, Typ[c.kind], c.val))
 	}
 }
 
@@ -234,7 +233,7 @@ func DefPredeclaredTestFuncs() {
 }
 
 func init() {
-	Universe = NewScope(nil, token.NoPos, token.NoPos, "universe")
+	Universe = NewScope(nil, nopos, nopos, "universe")
 	Unsafe = NewPackage("unsafe", "unsafe")
 	Unsafe.complete = true
 

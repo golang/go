@@ -391,8 +391,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 			params = sig.params.vars
 		}
 		err := newErrorf(at, WrongArgCount, "%s arguments in call to %s", qualifier, call.Fun)
-		err.errorf(token.NoPos, "have %s", check.typesSummary(operandTypes(args), false))
-		err.errorf(token.NoPos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
+		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
 		check.report(err)
 		return
 	}
@@ -799,7 +799,7 @@ func (check *Checker) useLHS(arg ...ast.Expr) {
 			if ident.Name == "_" {
 				continue
 			}
-			if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
+			if _, obj := check.scope.LookupParent(ident.Name, nopos); obj != nil {
 				// It's ok to mark non-local variables, but ignore variables
 				// from other packages to avoid potential race conditions with
 				// dot-imported variables.

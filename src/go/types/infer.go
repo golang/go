@@ -9,7 +9,6 @@ package types
 
 import (
 	"fmt"
-	"go/token"
 	. "internal/types/errors"
 	"strings"
 )
@@ -174,7 +173,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	//           but that doesn't impact the isParameterized check for now).
 	if params.Len() > 0 {
 		smap := makeSubstMap(tparams, targs)
-		params = check.subst(token.NoPos, params, smap, nil, check.context()).(*Tuple)
+		params = check.subst(nopos, params, smap, nil, check.context()).(*Tuple)
 	}
 
 	// Unify parameter and argument types for generic parameters with typed arguments
@@ -618,7 +617,7 @@ func (check *Checker) inferB(posn positioner, tparams []*TypeParam, targs []Type
 		n := 0
 		for _, index := range dirty {
 			t0 := types[index]
-			if t1 := check.subst(token.NoPos, t0, smap, nil, check.context()); t1 != t0 {
+			if t1 := check.subst(nopos, t0, smap, nil, check.context()); t1 != t0 {
 				types[index] = t1
 				dirty[n] = index
 				n++

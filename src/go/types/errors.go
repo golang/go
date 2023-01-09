@@ -54,7 +54,7 @@ func (err *error_) empty() bool {
 
 func (err *error_) pos() token.Pos {
 	if err.empty() {
-		return token.NoPos
+		return nopos
 	}
 	return err.desc[0].posn.Pos()
 }
@@ -367,7 +367,7 @@ func spanOf(at positioner) posSpan {
 			pos := x.Pos()
 			return posSpan{pos, pos, x.expr.End()}
 		}
-		return posSpan{token.NoPos, token.NoPos, token.NoPos}
+		return posSpan{nopos, nopos, nopos}
 	default:
 		pos := at.Pos()
 		return posSpan{pos, pos, pos}

@@ -189,7 +189,7 @@ type PkgName struct {
 // NewPkgName returns a new PkgName object representing an imported package.
 // The remaining arguments set the attributes found with all Objects.
 func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, token.NoPos}, imported, false}
+	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported, false}
 }
 
 // Imported returns the package that was imported.
@@ -205,7 +205,7 @@ type Const struct {
 // NewConst returns a new constant with value val.
 // The remaining arguments set the attributes found with all Objects.
 func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
-	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, val}
+	return &Const{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, val}
 }
 
 // Val returns the constant's value.
@@ -226,7 +226,7 @@ type TypeName struct {
 // argument for NewNamed, which will set the TypeName's type as a side-
 // effect.
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
-	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
+	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}}
 }
 
 // _NewTypeNameLazy returns a new defined type like NewTypeName, but it
@@ -275,19 +275,19 @@ type Var struct {
 // NewVar returns a new variable.
 // The arguments set the attributes found with all Objects.
 func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}}
 }
 
 // NewParam returns a new variable representing a function parameter.
 func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, used: true} // parameters are always 'used'
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, used: true} // parameters are always 'used'
 }
 
 // NewField returns a new variable representing a struct field.
 // For embedded fields, the name is the unqualified type name
 // under which the field is accessible.
 func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, embedded: embedded, isField: true}
+	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, embedded: embedded, isField: true}
 }
 
 // Anonymous reports whether the variable is an embedded field.
@@ -333,7 +333,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
 	if sig != nil {
 		typ = sig
 	}
-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false, nil}
+	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, false, nil}
 }
 
 // FullName returns the package- or receiver-type-qualified name of

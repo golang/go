@@ -118,7 +118,7 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
 		return
 	}
 
-	check.declare(check.pkg.scope, ident, obj, token.NoPos)
+	check.declare(check.pkg.scope, ident, obj, nopos)
 	check.objMap[obj] = d
 	obj.setOrder(uint32(len(check.objMap)))
 }
@@ -338,7 +338,7 @@ func (check *Checker) collectObjects() {
 				} else {
 					// declare imported package object in file scope
 					// (no need to provide s.Name since we called check.recordDef earlier)
-					check.declare(fileScope, nil, pkgName, token.NoPos)
+					check.declare(fileScope, nil, pkgName, nopos)
 				}
 			case constDecl:
 				// declare all constants
@@ -425,7 +425,7 @@ func (check *Checker) collectObjects() {
 							check.softErrorf(obj, MissingInitBody, "missing function body")
 						}
 					} else {
-						check.declare(pkg.scope, d.decl.Name, obj, token.NoPos)
+						check.declare(pkg.scope, d.decl.Name, obj, nopos)
 					}
 				} else {
 					// method

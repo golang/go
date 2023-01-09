@@ -14,6 +14,7 @@ import (
 	. "internal/types/errors"
 )
 
+// nopos indicates an unknown position
 var nopos syntax.Pos
 
 // debugging/development support

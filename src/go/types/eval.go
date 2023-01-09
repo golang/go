@@ -58,7 +58,7 @@ func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, 
 	var scope *Scope
 	if pkg == nil {
 		scope = Universe
-		pos = token.NoPos
+		pos = nopos
 	} else if !pos.IsValid() {
 		scope = pkg.scope
 	} else {

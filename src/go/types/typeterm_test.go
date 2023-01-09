@@ -5,13 +5,12 @@
 package types
 
 import (
-	"go/token"
 	"strings"
 	"testing"
 )
 
 var myInt = func() Type {
-	tname := NewTypeName(token.NoPos, nil, "myInt", nil)
+	tname := NewTypeName(nopos, nil, "myInt", nil)
 	return NewNamed(tname, Typ[Int], nil)
 }()
 

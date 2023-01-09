@@ -55,12 +55,12 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 		if len(targs) != len(tparams) {
 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
 		}
-		if i, err := (*Checker)(nil).verify(token.NoPos, tparams, targs, ctxt); err != nil {
+		if i, err := (*Checker)(nil).verify(nopos, tparams, targs, ctxt); err != nil {
 			return nil, &ArgumentError{i, err}
 		}
 	}
 
-	inst := (*Checker)(nil).instance(token.NoPos, orig, targs, nil, ctxt)
+	inst := (*Checker)(nil).instance(nopos, orig, targs, nil, ctxt)
 	return inst, nil
 }
 

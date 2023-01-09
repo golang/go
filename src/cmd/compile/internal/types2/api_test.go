@@ -18,6 +18,9 @@ import (
 	. "cmd/compile/internal/types2"
 )
 
+// nopos indicates an unknown position
+var nopos syntax.Pos
+
 func parse(path, src string) (*syntax.File, error) {
 	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
 	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
@@ -1820,8 +1823,6 @@ func F(){
 		}
 	}
 }
-
-var nopos syntax.Pos
 
 // newDefined creates a new defined type named T with the given underlying type.
 func newDefined(underlying Type) *Named {

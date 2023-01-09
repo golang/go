@@ -516,14 +516,14 @@ func TestIssue43088(t *testing.T) {
 	//                 _ T2
 	//         }
 	// }
-	n1 := NewTypeName(token.NoPos, nil, "T1", nil)
+	n1 := NewTypeName(nopos, nil, "T1", nil)
 	T1 := NewNamed(n1, nil, nil)
-	n2 := NewTypeName(token.NoPos, nil, "T2", nil)
+	n2 := NewTypeName(nopos, nil, "T2", nil)
 	T2 := NewNamed(n2, nil, nil)
-	s1 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
+	s1 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
 	T1.SetUnderlying(s1)
-	s2 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
-	s3 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", s2, false)}, nil)
+	s2 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
+	s3 := NewStruct([]*Var{NewField(nopos, nil, "_", s2, false)}, nil)
 	T2.SetUnderlying(s3)
 
 	// These calls must terminate (no endless recursion).
@@ -644,7 +644,7 @@ func TestIssue50646(t *testing.T) {
 func TestIssue55030(t *testing.T) {
 	// makeSig makes the signature func(typ...)
 	makeSig := func(typ Type) {
-		par := NewVar(token.NoPos, nil, "", typ)
+		par := NewVar(nopos, nil, "", typ)
 		params := NewTuple(par)
 		NewSignatureType(nil, nil, nil, params, nil, true)
 	}
@@ -658,22 +658,22 @@ func TestIssue55030(t *testing.T) {
 
 	// P where P's core type is string
 	{
-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P string]
+		P := NewTypeName(nopos, nil, "P", nil) // [P string]
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})))
 	}
 
 	// P where P's core type is an (unnamed) slice
 	{
-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P []int]
+		P := NewTypeName(nopos, nil, "P", nil) // [P []int]
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})))
 	}
 
 	// P where P's core type is bytestring (i.e., string or []byte)
 	{
-		t1 := NewTerm(true, Typ[String])             // ~string
-		t2 := NewTerm(false, NewSlice(Typ[Byte]))    // []byte
-		u := NewUnion([]*Term{t1, t2})               // ~string | []byte
-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P ~string | []byte]
+		t1 := NewTerm(true, Typ[String])          // ~string
+		t2 := NewTerm(false, NewSlice(Typ[Byte])) // []byte
+		u := NewUnion([]*Term{t1, t2})            // ~string | []byte
+		P := NewTypeName(nopos, nil, "P", nil)    // [P ~string | []byte]
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
 	}
 }

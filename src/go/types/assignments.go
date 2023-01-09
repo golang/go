@@ -9,7 +9,6 @@ package types
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 	. "internal/types/errors"
 	"strings"
 )
@@ -335,8 +334,8 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
 				at = rhs[len(rhs)-1].expr // report at last value
 			}
 			err := newErrorf(at, WrongResultCount, "%s return values", qualifier)
-			err.errorf(token.NoPos, "have %s", check.typesSummary(operandTypes(rhs), false))
-			err.errorf(token.NoPos, "want %s", check.typesSummary(varTypes(lhs), false))
+			err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
+			err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
 			check.report(err)
 			return
 		}

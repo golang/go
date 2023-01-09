@@ -6,8 +6,6 @@
 
 package types
 
-import "go/token"
-
 // The isX predicates below report whether t is an X.
 // If t is a type parameter the result is false; i.e.,
 // these predicates don't look inside a type parameter.
@@ -312,14 +310,14 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 
 			// Constraints must be pair-wise identical, after substitution.
 			for i, xtparam := range xtparams {
-				ybound := check.subst(token.NoPos, ytparams[i].bound, smap, nil, ctxt)
+				ybound := check.subst(nopos, ytparams[i].bound, smap, nil, ctxt)
 				if !identical(xtparam.bound, ybound, cmpTags, p) {
 					return false
 				}
 			}
 
-			yparams = check.subst(token.NoPos, y.params, smap, nil, ctxt).(*Tuple)
-			yresults = check.subst(token.NoPos, y.results, smap, nil, ctxt).(*Tuple)
+			yparams = check.subst(nopos, y.params, smap, nil, ctxt).(*Tuple)
+			yresults = check.subst(nopos, y.results, smap, nil, ctxt).(*Tuple)
 		}
 
 		return x.variadic == y.variadic &&
@@ -331,8 +329,8 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
 			// TODO(rfindley): can this be reached during type checking? If so,
 			// consider passing a type set map.
 			unionSets := make(map[*Union]*_TypeSet)
-			xset := computeUnionTypeSet(nil, unionSets, token.NoPos, x)
-			yset := computeUnionTypeSet(nil, unionSets, token.NoPos, y)
+			xset := computeUnionTypeSet(nil, unionSets, nopos, x)
+			yset := computeUnionTypeSet(nil, unionSets, nopos, y)
 			return xset.terms.equal(yset.terms)
 		}
 

@@ -15,6 +15,9 @@ import (
 	. "internal/types/errors"
 )
 
+// nopos indicates an unknown position
+var nopos token.Pos
+
 // debugging/development support
 const debug = false // leave on during development
 
@@ -378,7 +381,7 @@ func (check *Checker) processDelayed(top int) {
 			if a.desc != nil {
 				check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
 			} else {
-				check.trace(token.NoPos, "-- delayed %p", a.f)
+				check.trace(nopos, "-- delayed %p", a.f)
 			}
 		}
 		a.f() // may append to check.delayed

@@ -5,7 +5,6 @@
 package types
 
 import (
-	"go/token"
 	"testing"
 )
 
@@ -28,18 +27,18 @@ func TestContextHashCollisions(t *testing.T) {
 	var nullaryP, nullaryQ, unaryP Type
 	{
 		// type nullaryP = func[P any]()
-		tparam := NewTypeParam(NewTypeName(token.NoPos, nil, "P", nil), &emptyInterface)
+		tparam := NewTypeParam(NewTypeName(nopos, nil, "P", nil), &emptyInterface)
 		nullaryP = NewSignatureType(nil, nil, []*TypeParam{tparam}, nil, nil, false)
 	}
 	{
 		// type nullaryQ = func[Q any]()
-		tparam := NewTypeParam(NewTypeName(token.NoPos, nil, "Q", nil), &emptyInterface)
+		tparam := NewTypeParam(NewTypeName(nopos, nil, "Q", nil), &emptyInterface)
 		nullaryQ = NewSignatureType(nil, nil, []*TypeParam{tparam}, nil, nil, false)
 	}
 	{
 		// type unaryP = func[P any](_ P)
-		tparam := NewTypeParam(NewTypeName(token.NoPos, nil, "P", nil), &emptyInterface)
-		params := NewTuple(NewVar(token.NoPos, nil, "_", tparam))
+		tparam := NewTypeParam(NewTypeName(nopos, nil, "P", nil), &emptyInterface)
+		params := NewTuple(NewVar(nopos, nil, "_", tparam))
 		unaryP = NewSignatureType(nil, nil, []*TypeParam{tparam}, params, nil, false)
 	}
 

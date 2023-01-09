@@ -21,6 +21,9 @@ import (
 	. "go/types"
 )
 
+// nopos indicates an unknown position
+var nopos token.Pos
+
 func parse(fset *token.FileSet, filename, src string) (*ast.File, error) {
 	return parser.ParseFile(fset, filename, src, 0)
 }
@@ -1816,7 +1819,7 @@ func F(){
 // newDefined creates a new defined type named T with the given underlying type.
 // Helper function for use with TestIncompleteInterfaces only.
 func newDefined(underlying Type) *Named {
-	tname := NewTypeName(token.NoPos, nil, "T", nil)
+	tname := NewTypeName(nopos, nil, "T", nil)
 	return NewNamed(tname, underlying, nil)
 }
 
@@ -1932,7 +1935,7 @@ func TestIdentical_issue15173(t *testing.T) {
 }
 
 func TestIdenticalUnions(t *testing.T) {
-	tname := NewTypeName(token.NoPos, nil, "myInt", nil)
+	tname := NewTypeName(nopos, nil, "myInt", nil)
 	myInt := NewNamed(tname, Typ[Int], nil)
 	tmap := map[string]*Term{
 		"int":     NewTerm(false, Typ[Int]),
