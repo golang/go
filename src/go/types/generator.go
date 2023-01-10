@@ -91,6 +91,7 @@ var filemap = map[string]action{
 	"typeparam.go":        nil,
 	"typeterm_test.go":    nil,
 	"typeterm.go":         nil,
+	"under.go":            nil,
 	"universe.go":         fixGlobalTypVarDecl,
 	"validtype.go":        nil,
 }
