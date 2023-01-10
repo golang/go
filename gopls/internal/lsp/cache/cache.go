@@ -72,12 +72,6 @@ type fileHandle struct {
 	bytes   []byte
 	hash    source.Hash
 	err     error
-
-	// size is the file length as reported by Stat, for the purpose of
-	// invalidation. Probably we could just use len(bytes), but this is done
-	// defensively in case the definition of file size in the file system
-	// differs.
-	size int64
 }
 
 func (h *fileHandle) Saved() bool {
@@ -98,22 +92,22 @@ func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) 
 		}, nil
 	}
 
+	// We check if the file has changed by comparing modification times. Notably,
+	// this is an imperfect heuristic as various systems have low resolution
+	// mtimes (as much as 1s on WSL or s390x builders), so we only cache
+	// filehandles if mtime is old enough to be reliable, meaning that we don't
+	// expect a subsequent write to have the same mtime.
+	//
+	// The coarsest mtime precision we've seen in practice is 1s, so consider
+	// mtime to be unreliable if it is less than 2s old. Capture this before
+	// doing anything else.
+	recentlyModified := time.Since(fi.ModTime()) < 2*time.Second
+
 	c.fileMu.Lock()
 	fh, ok := c.fileContent[uri]
 	c.fileMu.Unlock()
 
-	// Check mtime and file size to infer whether the file has changed. This is
-	// an imperfect heuristic. Notably on some real systems (such as WSL) the
-	// filesystem clock resolution can be large -- 1/64s was observed. Therefore
-	// it's quite possible for multiple file modifications to occur within a
-	// single logical 'tick'. This can leave the cache in an incorrect state, but
-	// unfortunately we can't afford to pay the price of reading the actual file
-	// content here. Or to be more precise, reading would be a risky change and
-	// we don't know if we can afford it.
-	//
-	// We check file size in an attempt to reduce the probability of false cache
-	// hits.
-	if ok && fh.modTime.Equal(fi.ModTime()) && fh.size == fi.Size() {
+	if ok && fh.modTime.Equal(fi.ModTime()) {
 		return fh, nil
 	}
 
@@ -122,7 +116,11 @@ func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) 
 		return nil, err
 	}
 	c.fileMu.Lock()
-	c.fileContent[uri] = fh
+	if !recentlyModified {
+		c.fileContent[uri] = fh
+	} else {
+		delete(c.fileContent, uri)
+	}
 	c.fileMu.Unlock()
 	return fh, nil
 }
@@ -146,13 +144,11 @@ func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*fileHandle, e
 	if err != nil {
 		return &fileHandle{
 			modTime: fi.ModTime(),
-			size:    fi.Size(),
 			err:     err,
 		}, nil
 	}
 	return &fileHandle{
 		modTime: fi.ModTime(),
-		size:    fi.Size(),
 		uri:     uri,
 		bytes:   data,
 		hash:    source.HashOf(data),
