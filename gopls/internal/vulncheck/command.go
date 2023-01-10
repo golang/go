@@ -70,8 +70,12 @@ func init() {
 			return err
 		}
 		logf("Loaded %d packages and their dependencies", len(pkgs))
+		cache, err := govulncheck.DefaultCache()
+		if err != nil {
+			return err
+		}
 		cli, err := client.NewClient(findGOVULNDB(cfg.Env), client.Options{
-			HTTPCache: govulncheck.DefaultCache(),
+			HTTPCache: cache,
 		})
 		if err != nil {
 			return err
@@ -232,9 +236,13 @@ func vulnerablePackages(ctx context.Context, snapshot source.Snapshot, modfile s
 	}
 
 	// Request vuln entries from remote service.
+	fsCache, err := govulncheck.DefaultCache()
+	if err != nil {
+		return nil, err
+	}
 	cli, err := client.NewClient(
 		findGOVULNDB(snapshot.View().Options().EnvSlice()),
-		client.Options{HTTPCache: govulncheck.NewInMemoryCache(govulncheck.DefaultCache())})
+		client.Options{HTTPCache: govulncheck.NewInMemoryCache(fsCache)})
 	if err != nil {
 		return nil, err
 	}
