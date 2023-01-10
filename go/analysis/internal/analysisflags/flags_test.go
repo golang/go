@@ -42,7 +42,7 @@ func TestExec(t *testing.T) {
 
 	for _, test := range []struct {
 		flags string
-		want  string
+		want  string // output should contain want
 	}{
 		{"", "[a1 a2 a3]"},
 		{"-a1=0", "[a2 a3]"},
@@ -50,6 +50,7 @@ func TestExec(t *testing.T) {
 		{"-a1", "[a1]"},
 		{"-a1=1 -a3=1", "[a1 a3]"},
 		{"-a1=1 -a3=0", "[a1]"},
+		{"-V=full", "analysisflags.test version devel"},
 	} {
 		cmd := exec.Command(progname, "-test.run=TestExec")
 		cmd.Env = append(os.Environ(), "ANALYSISFLAGS_CHILD=1", "FLAGS="+test.flags)
@@ -60,8 +61,8 @@ func TestExec(t *testing.T) {
 		}
 
 		got := strings.TrimSpace(string(output))
-		if got != test.want {
-			t.Errorf("got %s, want %s", got, test.want)
+		if !strings.Contains(got, test.want) {
+			t.Errorf("got %q, does not contain %q", got, test.want)
 		}
 	}
 }
