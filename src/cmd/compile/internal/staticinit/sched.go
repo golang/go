@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"os"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -16,6 +17,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
 
@@ -53,6 +55,28 @@ func (s *Schedule) StaticInit(n ir.Node) {
 		}
 		s.append(n)
 	}
+}
+
+// varToMapInit holds book-keeping state for global map initialization;
+// it records the init function created by the compiler to host the
+// initialization code for the map in question.
+var varToMapInit map[*ir.Name]*ir.Func
+
+// MapInitToVar is the inverse of VarToMapInit; it maintains a mapping
+// from a compiler-generated init function to the map the function is
+// initializing.
+var MapInitToVar map[*ir.Func]*ir.Name
+
+// recordFuncForVar establishes a mapping between global map var "v" and
+// outlined init function "fn" (and vice versa); so that we can use
+// the mappings later on to update relocations.
+func recordFuncForVar(v *ir.Name, fn *ir.Func) {
+	if varToMapInit == nil {
+		varToMapInit = make(map[*ir.Name]*ir.Func)
+		MapInitToVar = make(map[*ir.Func]*ir.Name)
+	}
+	varToMapInit[v] = fn
+	MapInitToVar[fn] = v
 }
 
 // tryStaticInit attempts to statically execute an initialization
@@ -886,4 +910,163 @@ func truncate(c *ir.ConstExpr, t *types.Type) (*ir.ConstExpr, bool) {
 	c = ir.NewConstExpr(cv, c).(*ir.ConstExpr)
 	c.SetType(t)
 	return c, true
+}
+
+const wrapGlobalMapInitSizeThreshold = 20
+
+// tryWrapGlobalMapInit examines the node 'n' to see if it is a map
+// variable initialization, and if so, possibly returns the mapvar
+// being assigned, a new function containing the init code, and a call
+// to the function passing the mapvar. Returns will be nil if the
+// assignment is not to a map, or the map init is not big enough,
+// or if the expression being assigned to the map has side effects.
+func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.Node) {
+	// Look for "X = ..." where X has map type.
+	// FIXME: might also be worth trying to look for cases where
+	// the LHS is of interface type but RHS is map type.
+	if n.Op() != ir.OAS {
+		return nil, nil, nil
+	}
+	as := n.(*ir.AssignStmt)
+	if ir.IsBlank(as.X) || as.X.Op() != ir.ONAME {
+		return nil, nil, nil
+	}
+	nm := as.X.(*ir.Name)
+	if !nm.Type().IsMap() {
+		return nil, nil, nil
+	}
+
+	// Determine size of RHS.
+	rsiz := 0
+	ir.Any(as.Y, func(n ir.Node) bool {
+		rsiz++
+		return false
+	})
+	if base.Debug.WrapGlobalMapDbg > 0 {
+		fmt.Fprintf(os.Stderr, "=-= mapassign %s %v rhs size %d\n",
+			base.Ctxt.Pkgpath, n, rsiz)
+	}
+
+	// Reject smaller candidates if not in stress mode.
+	if rsiz < wrapGlobalMapInitSizeThreshold && base.Debug.WrapGlobalMapStress == 0 {
+		if base.Debug.WrapGlobalMapDbg > 1 {
+			fmt.Fprintf(os.Stderr, "=-= skipping %v size too small at %d\n",
+				nm, rsiz)
+		}
+		return nil, nil, nil
+	}
+
+	// Reject right hand sides with side effects.
+	if AnySideEffects(as.Y) {
+		if base.Debug.WrapGlobalMapDbg > 0 {
+			fmt.Fprintf(os.Stderr, "=-= rejected %v due to side effects\n", nm)
+		}
+		return nil, nil, nil
+	}
+
+	if base.Debug.WrapGlobalMapDbg > 1 {
+		fmt.Fprintf(os.Stderr, "=-= committed for: %+v\n", n)
+	}
+
+	// Create a new function that will (eventually) have this form:
+	//
+	//    func map.init.%d() {
+	//      globmapvar = <map initialization>
+	//    }
+	//
+	minitsym := typecheck.LookupNum("map.init.", mapinitgen)
+	mapinitgen++
+	newfn := typecheck.DeclFunc(minitsym, nil, nil, nil)
+	if base.Debug.WrapGlobalMapDbg > 0 {
+		fmt.Fprintf(os.Stderr, "=-= generated func is %v\n", newfn)
+	}
+
+	// NB: we're relying on this phase being run before inlining;
+	// if for some reason we need to move it after inlining, we'll
+	// need code here that relocates or duplicates inline temps.
+
+	// Insert assignment into function body; mark body finished.
+	newfn.Body = append(newfn.Body, as)
+	typecheck.FinishFuncBody()
+
+	typecheck.Func(newfn)
+
+	const no = `
+	// Register new function with decls.
+	typecheck.Target.Decls = append(typecheck.Target.Decls, newfn)
+`
+
+	// Create call to function, passing mapvar.
+	fncall := ir.NewCallExpr(n.Pos(), ir.OCALL, newfn.Nname, nil)
+
+	if base.Debug.WrapGlobalMapDbg > 1 {
+		fmt.Fprintf(os.Stderr, "=-= mapvar is %v\n", nm)
+		fmt.Fprintf(os.Stderr, "=-= newfunc is %+v\n", newfn)
+		fmt.Fprintf(os.Stderr, "=-= call is %+v\n", fncall)
+	}
+
+	return nm, newfn, typecheck.Stmt(fncall)
+}
+
+// mapinitgen is a counter used to uniquify compiler-generated
+// map init functions.
+var mapinitgen int
+
+// AddKeepRelocations adds a dummy "R_KEEP" relocation from each
+// global map variable V to its associated outlined init function.
+// These relocation ensure that if the map var itself is determined to
+// be reachable at link time, we also mark the init function as
+// reachable.
+func AddKeepRelocations() {
+	if varToMapInit == nil {
+		return
+	}
+	for k, v := range varToMapInit {
+		// Add R_KEEP relocation from map to init function.
+		fs := v.Linksym()
+		if fs == nil {
+			base.Fatalf("bad: func %v has no linksym", v)
+		}
+		vs := k.Linksym()
+		if vs == nil {
+			base.Fatalf("bad: mapvar %v has no linksym", k)
+		}
+		r := obj.Addrel(vs)
+		r.Sym = fs
+		r.Type = objabi.R_KEEP
+		if base.Debug.WrapGlobalMapDbg > 1 {
+			fmt.Fprintf(os.Stderr, "=-= add R_KEEP relo from %s to %s\n",
+				vs.Name, fs.Name)
+		}
+	}
+	varToMapInit = nil
+}
+
+// OutlineMapInits walks through a list of init statements (candidates
+// for inclusion in the package "init" function) and returns an
+// updated list in which items corresponding to map variable
+// initializations have been replaced with calls to outline "map init"
+// functions (if legal/profitable). Return value is an updated list
+// and a list of any newly generated "map init" functions.
+func OutlineMapInits(stmts []ir.Node) ([]ir.Node, []*ir.Func) {
+	if !base.Flag.WrapGlobalMapInit {
+		return stmts, nil
+	}
+	newfuncs := []*ir.Func{}
+	for i := range stmts {
+		s := stmts[i]
+		// Call the helper tryWrapGlobalMapInit to see if the LHS of
+		// this assignment is to a map var, and if so whether the RHS
+		// should be outlined into a separate init function. If the
+		// outline goes through, then replace the original init
+		// statement with the call to the outlined func, and append
+		// the new outlined func to our return list.
+		if mapvar, genfn, call := tryWrapGlobalMapInit(s); call != nil {
+			stmts[i] = call
+			newfuncs = append(newfuncs, genfn)
+			recordFuncForVar(mapvar, genfn)
+		}
+	}
+
+	return stmts, newfuncs
 }

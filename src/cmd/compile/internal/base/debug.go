@@ -51,6 +51,8 @@ type DebugFlags struct {
 	PGOInlineCDFThreshold string `help:"cummulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
 	PGOInline             int    `help:"debug profile-guided inlining"`
+	WrapGlobalMapDbg      int    "help:\"debug trace output for global map init wrapping\""
+	WrapGlobalMapStress   int    "help:\"run global map init wrap in stress mode (no size cutoff)\""
 
 	ConcurrentOk bool // true if only concurrentOk flags seen
 }

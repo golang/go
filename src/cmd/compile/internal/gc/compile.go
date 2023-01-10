@@ -15,6 +15,7 @@ import (
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/compile/internal/walk"
@@ -83,6 +84,14 @@ func prepareFunc(fn *ir.Func) {
 	// Do this before walk, as walk needs the LSym to set attributes/relocations
 	// (e.g. in MarkTypeUsedInInterface).
 	ir.InitLSym(fn, true)
+
+	// If this function is a compiler-generated outlined global map
+	// initializer function, register its LSym for later processing.
+	if staticinit.MapInitToVar != nil {
+		if _, ok := staticinit.MapInitToVar[fn]; ok {
+			ssagen.RegisterMapInitLsym(fn.Linksym())
+		}
+	}
 
 	// Calculate parameter offsets.
 	types.CalcSize(fn.Type())

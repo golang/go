@@ -22,6 +22,7 @@ import (
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
@@ -328,6 +329,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	if base.Flag.CompilingRuntime {
 		// Write barriers are now known. Check the call graph.
 		ssagen.NoWriteBarrierRecCheck()
+	}
+
+	// Add keep relocations for global maps.
+	if base.Flag.WrapGlobalMapInit {
+		staticinit.AddKeepRelocations()
 	}
 
 	// Finalize DWARF inline routine DIEs, then explicitly turn off
