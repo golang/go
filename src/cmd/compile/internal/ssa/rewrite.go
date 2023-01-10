@@ -729,6 +729,13 @@ type Aux interface {
 	CanBeAnSSAAux()
 }
 
+// for now only used to mark moves that need to avoid clobbering flags
+type auxMark bool
+
+func (auxMark) CanBeAnSSAAux() {}
+
+var AuxMark auxMark
+
 // stringAux wraps string values for use in Aux.
 type stringAux string
 
