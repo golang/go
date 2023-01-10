@@ -248,7 +248,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, p
 	if err != nil {
 		return nil, err
 	}
-	m := protocol.NewColumnMapper(uri, content)
+	m := protocol.NewMapper(uri, content)
 	offset, err := m.PositionOffset(pp)
 	if err != nil {
 		return nil, err

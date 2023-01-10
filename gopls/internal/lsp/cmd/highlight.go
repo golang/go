@@ -51,7 +51,7 @@ func (r *highlight) Run(ctx context.Context, args ...string) error {
 		return file.err
 	}
 
-	loc, err := file.mapper.Location(from)
+	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (r *highlight) Run(ctx context.Context, args ...string) error {
 	var results []span.Span
 	for _, h := range highlights {
 		l := protocol.Location{Range: h.Range}
-		s, err := file.mapper.Span(l)
+		s, err := file.mapper.LocationSpan(l)
 		if err != nil {
 			return err
 		}

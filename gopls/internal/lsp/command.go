@@ -626,7 +626,7 @@ func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI,
 		return nil, err
 	}
 
-	m := protocol.NewColumnMapper(fh.URI(), oldContent)
+	m := protocol.NewMapper(fh.URI(), oldContent)
 	diff := snapshot.View().Options().ComputeEdits(string(oldContent), string(newContent))
 	edits, err := source.ToProtocolEdits(m, diff)
 	if err != nil {

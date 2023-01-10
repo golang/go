@@ -58,7 +58,7 @@ type Declaration struct {
 
 	// The typechecked node
 	node     ast.Node
-	nodeFile *ParsedGoFile // provides token.File and ColumnMapper for node
+	nodeFile *ParsedGoFile // provides token.File and Mapper for node
 
 	// Optional: the fully parsed node, to be used for formatting in cases where
 	// node has missing information. This could be the case when node was parsed

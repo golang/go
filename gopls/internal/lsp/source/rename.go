@@ -646,7 +646,7 @@ func renameObj(ctx context.Context, s Snapshot, newName string, qos []qualifiedO
 		if err != nil {
 			return nil, err
 		}
-		m := protocol.NewColumnMapper(uri, data)
+		m := protocol.NewMapper(uri, data)
 		protocolEdits, err := ToProtocolEdits(m, edits)
 		if err != nil {
 			return nil, err

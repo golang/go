@@ -84,7 +84,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if file.err != nil {
 		return file.err
 	}
-	loc, err := file.mapper.Location(from)
+	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if file.err != nil {
 		return fmt.Errorf("%v: %v", from, file.err)
 	}
-	definition, err := file.mapper.Span(locs[0])
+	definition, err := file.mapper.LocationSpan(locs[0])
 	if err != nil {
 		return fmt.Errorf("%v: %v", from, err)
 	}

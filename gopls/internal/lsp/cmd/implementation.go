@@ -52,7 +52,7 @@ func (i *implementation) Run(ctx context.Context, args ...string) error {
 		return file.err
 	}
 
-	loc, err := file.mapper.Location(from)
+	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (i *implementation) Run(ctx context.Context, args ...string) error {
 	var spans []string
 	for _, impl := range implementations {
 		f := conn.openFile(ctx, fileURI(impl.URI))
-		span, err := f.mapper.Span(impl)
+		span, err := f.mapper.LocationSpan(impl)
 		if err != nil {
 			return err
 		}

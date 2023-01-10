@@ -208,7 +208,7 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 		Fixed:    fixed,
 		File:     file,
 		Tok:      tok,
-		Mapper:   protocol.NewColumnMapper(fh.URI(), src),
+		Mapper:   protocol.NewMapper(fh.URI(), src),
 		ParseErr: parseErr,
 	}, nil
 }

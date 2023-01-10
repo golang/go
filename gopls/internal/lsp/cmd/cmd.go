@@ -395,7 +395,7 @@ type cmdClient struct {
 
 type cmdFile struct {
 	uri         span.URI
-	mapper      *protocol.ColumnMapper
+	mapper      *protocol.Mapper
 	err         error
 	open        bool
 	diagnostics []protocol.Diagnostic
@@ -543,7 +543,7 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 			file.err = fmt.Errorf("getFile: %v: %v", uri, err)
 			return file
 		}
-		file.mapper = protocol.NewColumnMapper(uri, content)
+		file.mapper = protocol.NewMapper(uri, content)
 	}
 	return file
 }

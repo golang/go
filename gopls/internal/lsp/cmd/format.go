@@ -62,7 +62,7 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 			return file.err
 		}
 		filename := spn.URI().Filename()
-		loc, err := file.mapper.Location(spn)
+		loc, err := file.mapper.SpanLocation(spn)
 		if err != nil {
 			return err
 		}

@@ -325,7 +325,7 @@ func spanToRange(pkg *pkg, spn span.Span) (protocol.Range, error) {
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	return pgf.Mapper.Range(spn)
+	return pgf.Mapper.SpanRange(spn)
 }
 
 // parseGoListError attempts to parse a standard `go list` error message

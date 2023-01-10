@@ -218,7 +218,7 @@ type completer struct {
 	methodSetCache map[methodSetKey]*types.MethodSet
 
 	// mapper converts the positions in the file from which the completion originated.
-	mapper *protocol.ColumnMapper
+	mapper *protocol.Mapper
 
 	// startTime is when we started processing this completion request. It does
 	// not include any time the request spent in the queue.
@@ -291,7 +291,7 @@ type Selection struct {
 	content string
 	cursor  token.Pos // relative to rng.TokFile
 	rng     safetoken.Range
-	mapper  *protocol.ColumnMapper
+	mapper  *protocol.Mapper
 }
 
 func (p Selection) Content() string {

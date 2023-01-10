@@ -211,7 +211,7 @@ var acceptedSchemes = map[string]bool{
 
 // urlRegexp is the user-supplied regular expression to match URL.
 // srcOffset is the start offset of 'src' within m's file.
-func findLinksInString(urlRegexp *regexp.Regexp, src string, srcOffset int, m *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
+func findLinksInString(urlRegexp *regexp.Regexp, src string, srcOffset int, m *protocol.Mapper) ([]protocol.DocumentLink, error) {
 	var links []protocol.DocumentLink
 	for _, index := range urlRegexp.FindAllIndex([]byte(src), -1) {
 		start, end := index[0], index[1]
@@ -270,7 +270,7 @@ var (
 	issueRegexp *regexp.Regexp
 )
 
-func toProtocolLink(m *protocol.ColumnMapper, targetURL string, start, end int) (protocol.DocumentLink, error) {
+func toProtocolLink(m *protocol.Mapper, targetURL string, start, end int) (protocol.DocumentLink, error) {
 	rng, err := m.OffsetRange(start, end)
 	if err != nil {
 		return protocol.DocumentLink{}, err

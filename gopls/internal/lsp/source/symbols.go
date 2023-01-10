@@ -71,7 +71,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	return symbols, nil
 }
 
-func funcSymbol(m *protocol.ColumnMapper, tf *token.File, decl *ast.FuncDecl) (protocol.DocumentSymbol, error) {
+func funcSymbol(m *protocol.Mapper, tf *token.File, decl *ast.FuncDecl) (protocol.DocumentSymbol, error) {
 	s := protocol.DocumentSymbol{
 		Name: decl.Name.Name,
 		Kind: protocol.Function,
@@ -92,7 +92,7 @@ func funcSymbol(m *protocol.ColumnMapper, tf *token.File, decl *ast.FuncDecl) (p
 	return s, nil
 }
 
-func typeSymbol(m *protocol.ColumnMapper, tf *token.File, spec *ast.TypeSpec) (protocol.DocumentSymbol, error) {
+func typeSymbol(m *protocol.Mapper, tf *token.File, spec *ast.TypeSpec) (protocol.DocumentSymbol, error) {
 	s := protocol.DocumentSymbol{
 		Name: spec.Name.Name,
 	}
@@ -109,7 +109,7 @@ func typeSymbol(m *protocol.ColumnMapper, tf *token.File, spec *ast.TypeSpec) (p
 	return s, nil
 }
 
-func typeDetails(m *protocol.ColumnMapper, tf *token.File, typExpr ast.Expr) (kind protocol.SymbolKind, detail string, children []protocol.DocumentSymbol) {
+func typeDetails(m *protocol.Mapper, tf *token.File, typExpr ast.Expr) (kind protocol.SymbolKind, detail string, children []protocol.DocumentSymbol) {
 	switch typExpr := typExpr.(type) {
 	case *ast.StructType:
 		kind = protocol.Struct
@@ -141,7 +141,7 @@ func typeDetails(m *protocol.ColumnMapper, tf *token.File, typExpr ast.Expr) (ki
 	return
 }
 
-func fieldListSymbols(m *protocol.ColumnMapper, tf *token.File, fields *ast.FieldList, fieldKind protocol.SymbolKind) []protocol.DocumentSymbol {
+func fieldListSymbols(m *protocol.Mapper, tf *token.File, fields *ast.FieldList, fieldKind protocol.SymbolKind) []protocol.DocumentSymbol {
 	if fields == nil {
 		return nil
 	}
@@ -203,7 +203,7 @@ func fieldListSymbols(m *protocol.ColumnMapper, tf *token.File, fields *ast.Fiel
 	return symbols
 }
 
-func varSymbol(m *protocol.ColumnMapper, tf *token.File, spec *ast.ValueSpec, name *ast.Ident, isConst bool) (protocol.DocumentSymbol, error) {
+func varSymbol(m *protocol.Mapper, tf *token.File, spec *ast.ValueSpec, name *ast.Ident, isConst bool) (protocol.DocumentSymbol, error) {
 	s := protocol.DocumentSymbol{
 		Name: name.Name,
 		Kind: protocol.Variable,

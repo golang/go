@@ -25,7 +25,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 	if err != nil {
 		t.Fatal(err)
 	}
-	mapper := protocol.NewColumnMapper(uri, content)
+	mapper := protocol.NewMapper(uri, content)
 
 	// Parse command output into a set of diagnostics.
 	var got []*source.Diagnostic
@@ -38,7 +38,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 			t.Fatalf("output line not of form 'span: message': %q", line)
 		}
 		spn, message := span.Parse(parts[0]), parts[1]
-		rng, err := mapper.Range(spn)
+		rng, err := mapper.SpanRange(spn)
 		if err != nil {
 			t.Fatal(err)
 		}

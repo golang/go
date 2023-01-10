@@ -55,7 +55,7 @@ func (r *references) Run(ctx context.Context, args ...string) error {
 	if file.err != nil {
 		return file.err
 	}
-	loc, err := file.mapper.Location(from)
+	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (r *references) Run(ctx context.Context, args ...string) error {
 		f := conn.openFile(ctx, fileURI(l.URI))
 		// convert location to span for user-friendly 1-indexed line
 		// and column numbers
-		span, err := f.mapper.Span(l)
+		span, err := f.mapper.LocationSpan(l)
 		if err != nil {
 			return err
 		}

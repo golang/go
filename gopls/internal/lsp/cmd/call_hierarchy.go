@@ -52,7 +52,7 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 		return file.err
 	}
 
-	loc, err := file.mapper.Location(from)
+	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func callItemPrintString(ctx context.Context, conn *connection, item protocol.Ca
 	if itemFile.err != nil {
 		return "", itemFile.err
 	}
-	itemSpan, err := itemFile.mapper.Span(protocol.Location{URI: item.URI, Range: item.Range})
+	itemSpan, err := itemFile.mapper.LocationSpan(protocol.Location{URI: item.URI, Range: item.Range})
 	if err != nil {
 		return "", err
 	}
@@ -129,7 +129,7 @@ func callItemPrintString(ctx context.Context, conn *connection, item protocol.Ca
 	}
 	var callRanges []string
 	for _, rng := range calls {
-		callSpan, err := callsFile.mapper.Span(protocol.Location{URI: item.URI, Range: rng})
+		callSpan, err := callsFile.mapper.LocationSpan(protocol.Location{URI: item.URI, Range: rng})
 		if err != nil {
 			return "", err
 		}

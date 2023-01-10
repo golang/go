@@ -22,7 +22,7 @@ const (
 	maxLabelLength = 28
 )
 
-type InlayHintFunc func(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint
+type InlayHintFunc func(node ast.Node, m *protocol.Mapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint
 
 type Hint struct {
 	Name string
@@ -130,7 +130,7 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng proto
 	return hints, nil
 }
 
-func parameterNames(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
+func parameterNames(node ast.Node, m *protocol.Mapper, tf *token.File, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
 	callExpr, ok := node.(*ast.CallExpr)
 	if !ok {
 		return nil
@@ -177,7 +177,7 @@ func parameterNames(node ast.Node, m *protocol.ColumnMapper, tf *token.File, inf
 	return hints
 }
 
-func funcTypeParams(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
+func funcTypeParams(node ast.Node, m *protocol.Mapper, tf *token.File, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
 	ce, ok := node.(*ast.CallExpr)
 	if !ok {
 		return nil
@@ -208,7 +208,7 @@ func funcTypeParams(node ast.Node, m *protocol.ColumnMapper, tf *token.File, inf
 	}}
 }
 
-func assignVariableTypes(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+func assignVariableTypes(node ast.Node, m *protocol.Mapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
 	stmt, ok := node.(*ast.AssignStmt)
 	if !ok || stmt.Tok != token.DEFINE {
 		return nil
@@ -223,7 +223,7 @@ func assignVariableTypes(node ast.Node, m *protocol.ColumnMapper, tf *token.File
 	return hints
 }
 
-func rangeVariableTypes(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+func rangeVariableTypes(node ast.Node, m *protocol.Mapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
 	rStmt, ok := node.(*ast.RangeStmt)
 	if !ok {
 		return nil
@@ -238,7 +238,7 @@ func rangeVariableTypes(node ast.Node, m *protocol.ColumnMapper, tf *token.File,
 	return hints
 }
 
-func variableType(e ast.Expr, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) *protocol.InlayHint {
+func variableType(e ast.Expr, m *protocol.Mapper, tf *token.File, info *types.Info, q *types.Qualifier) *protocol.InlayHint {
 	typ := info.TypeOf(e)
 	if typ == nil {
 		return nil
@@ -255,7 +255,7 @@ func variableType(e ast.Expr, m *protocol.ColumnMapper, tf *token.File, info *ty
 	}
 }
 
-func constantValues(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
+func constantValues(node ast.Node, m *protocol.Mapper, tf *token.File, info *types.Info, _ *types.Qualifier) []protocol.InlayHint {
 	genDecl, ok := node.(*ast.GenDecl)
 	if !ok || genDecl.Tok != token.CONST {
 		return nil
@@ -306,7 +306,7 @@ func constantValues(node ast.Node, m *protocol.ColumnMapper, tf *token.File, inf
 	return hints
 }
 
-func compositeLiteralFields(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+func compositeLiteralFields(node ast.Node, m *protocol.Mapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
 	compLit, ok := node.(*ast.CompositeLit)
 	if !ok {
 		return nil
@@ -354,7 +354,7 @@ func compositeLiteralFields(node ast.Node, m *protocol.ColumnMapper, tf *token.F
 	return hints
 }
 
-func compositeLiteralTypes(node ast.Node, m *protocol.ColumnMapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
+func compositeLiteralTypes(node ast.Node, m *protocol.Mapper, tf *token.File, info *types.Info, q *types.Qualifier) []protocol.InlayHint {
 	compLit, ok := node.(*ast.CompositeLit)
 	if !ok {
 		return nil

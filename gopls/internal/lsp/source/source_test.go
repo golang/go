@@ -102,7 +102,7 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 	if err != nil {
 		t.Fatal(err)
 	}
-	loc, err := mapper.Location(spn)
+	loc, err := mapper.SpanLocation(spn)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
@@ -590,7 +590,7 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, impls []span.Span) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	loc, err := sm.Location(spn)
+	loc, err := sm.SpanLocation(spn)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
@@ -612,7 +612,7 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, impls []span.Span) 
 		if err != nil {
 			t.Fatal(err)
 		}
-		imp, err := lm.Span(locs[i])
+		imp, err := lm.LocationSpan(locs[i])
 		if err != nil {
 			t.Fatalf("failed for %v: %v", locs[i], err)
 		}
@@ -817,12 +817,12 @@ func (r *runner) MethodExtraction(t *testing.T, start span.Span, end span.Span) 
 func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens)                    {}
 func (r *runner) AddImport(t *testing.T, uri span.URI, expectedImport string)                      {}
 
-func spanToRange(data *tests.Data, spn span.Span) (*protocol.ColumnMapper, protocol.Range, error) {
+func spanToRange(data *tests.Data, spn span.Span) (*protocol.Mapper, protocol.Range, error) {
 	m, err := data.Mapper(spn.URI())
 	if err != nil {
 		return nil, protocol.Range{}, err
 	}
-	srcRng, err := m.Range(spn)
+	srcRng, err := m.SpanRange(spn)
 	if err != nil {
 		return nil, protocol.Range{}, err
 	}

@@ -34,7 +34,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		return
 	}
 
-	ws, err := m.Span(protocol.Location{Range: want.Range})
+	ws, err := m.LocationSpan(protocol.Location{Range: want.Range})
 	if err != nil {
 		t.Errorf("prepare_rename failed: %v", err)
 	}

@@ -74,7 +74,7 @@ func (r *workspaceSymbol) Run(ctx context.Context, args ...string) error {
 	}
 	for _, s := range symbols {
 		f := conn.openFile(ctx, fileURI(s.Location.URI))
-		span, err := f.mapper.Span(s.Location)
+		span, err := f.mapper.LocationSpan(s.Location)
 		if err != nil {
 			return err
 		}

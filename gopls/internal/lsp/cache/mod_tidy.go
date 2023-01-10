@@ -283,7 +283,7 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 }
 
 // unusedDiagnostic returns a source.Diagnostic for an unused require.
-func unusedDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, onlyDiagnostic bool) (*source.Diagnostic, error) {
+func unusedDiagnostic(m *protocol.Mapper, req *modfile.Require, onlyDiagnostic bool) (*source.Diagnostic, error) {
 	rng, err := m.OffsetRange(req.Syntax.Start.Byte, req.Syntax.End.Byte)
 	if err != nil {
 		return nil, err
@@ -309,7 +309,7 @@ func unusedDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, onlyDiagno
 
 // directnessDiagnostic extracts errors when a dependency is labeled indirect when
 // it should be direct and vice versa.
-func directnessDiagnostic(m *protocol.ColumnMapper, req *modfile.Require, computeEdits source.DiffFunction) (*source.Diagnostic, error) {
+func directnessDiagnostic(m *protocol.Mapper, req *modfile.Require, computeEdits source.DiffFunction) (*source.Diagnostic, error) {
 	rng, err := m.OffsetRange(req.Syntax.Start.Byte, req.Syntax.End.Byte)
 	if err != nil {
 		return nil, err
@@ -382,7 +382,7 @@ func missingModuleDiagnostic(pm *source.ParsedModule, req *modfile.Require) (*so
 
 // switchDirectness gets the edits needed to change an indirect dependency to
 // direct and vice versa.
-func switchDirectness(req *modfile.Require, m *protocol.ColumnMapper, computeEdits source.DiffFunction) ([]protocol.TextEdit, error) {
+func switchDirectness(req *modfile.Require, m *protocol.Mapper, computeEdits source.DiffFunction) ([]protocol.TextEdit, error) {
 	// We need a private copy of the parsed go.mod file, since we're going to
 	// modify it.
 	copied, err := modfile.Parse("", m.Content, nil)

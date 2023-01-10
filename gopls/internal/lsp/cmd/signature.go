@@ -51,7 +51,7 @@ func (r *signature) Run(ctx context.Context, args ...string) error {
 		return file.err
 	}
 
-	loc, err := file.mapper.Location(from)
+	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
 		return err
 	}

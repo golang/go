@@ -75,7 +75,7 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 		}
 	}
 
-	rng, err := file.mapper.Range(from)
+	rng, err := file.mapper.SpanRange(from)
 	if err != nil {
 		return err
 	}

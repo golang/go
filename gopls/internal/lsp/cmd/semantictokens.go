@@ -49,7 +49,7 @@ type semtok struct {
 	app *Application
 }
 
-var colmap *protocol.ColumnMapper
+var colmap *protocol.Mapper
 
 func (c *semtok) Name() string      { return "semtok" }
 func (c *semtok) Parent() string    { return c.app.Name() }
@@ -117,7 +117,7 @@ func (c *semtok) Run(ctx context.Context, args ...string) error {
 		// can't happen; just parsed this file
 		return fmt.Errorf("can't find %s in fset", args[0])
 	}
-	colmap = protocol.NewColumnMapper(uri, buf)
+	colmap = protocol.NewMapper(uri, buf)
 	err = decorate(file.uri.Filename(), resp.Data)
 	if err != nil {
 		return err

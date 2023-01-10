@@ -13,7 +13,7 @@ import (
 	"golang.org/x/tools/gopls/internal/span"
 )
 
-// This file tests ColumnMapper's logic for converting between
+// This file tests Mapper's logic for converting between
 // span.Point and UTF-16 columns. (The strange form attests to an
 // earlier abstraction.)
 
@@ -234,7 +234,7 @@ func TestToUTF16(t *testing.T) {
 				t.Skip("expected to fail")
 			}
 			p := span.NewPoint(e.line, e.col, e.offset)
-			m := protocol.NewColumnMapper("", e.input)
+			m := protocol.NewMapper("", e.input)
 			pos, err := m.PointPosition(p)
 			if err != nil {
 				if err.Error() != e.err {
@@ -263,7 +263,7 @@ func TestToUTF16(t *testing.T) {
 func TestFromUTF16(t *testing.T) {
 	for _, e := range fromUTF16Tests {
 		t.Run(e.scenario, func(t *testing.T) {
-			m := protocol.NewColumnMapper("", []byte(e.input))
+			m := protocol.NewMapper("", []byte(e.input))
 			p, err := m.PositionPoint(protocol.Position{
 				Line:      uint32(e.line - 1),
 				Character: uint32(e.utf16col - 1),
@@ -347,7 +347,7 @@ var tests = []testCase{
 
 func TestLineChar(t *testing.T) {
 	for _, test := range tests {
-		m := protocol.NewColumnMapper("", []byte(test.content))
+		m := protocol.NewMapper("", []byte(test.content))
 		offset := test.offset()
 		posn, _ := m.OffsetPosition(offset)
 		gotLine, gotChar := int(posn.Line), int(posn.Character)
@@ -359,7 +359,7 @@ func TestLineChar(t *testing.T) {
 
 func TestInvalidOffset(t *testing.T) {
 	content := []byte("a𐐀b\r\nx\ny")
-	m := protocol.NewColumnMapper("", content)
+	m := protocol.NewMapper("", content)
 	for _, offset := range []int{-1, 100} {
 		posn, err := m.OffsetPosition(offset)
 		if err == nil {
@@ -370,7 +370,7 @@ func TestInvalidOffset(t *testing.T) {
 
 func TestPosition(t *testing.T) {
 	for _, test := range tests {
-		m := protocol.NewColumnMapper("", []byte(test.content))
+		m := protocol.NewMapper("", []byte(test.content))
 		offset := test.offset()
 		got, err := m.OffsetPosition(offset)
 		if err != nil {
@@ -386,7 +386,7 @@ func TestPosition(t *testing.T) {
 
 func TestRange(t *testing.T) {
 	for _, test := range tests {
-		m := protocol.NewColumnMapper("", []byte(test.content))
+		m := protocol.NewMapper("", []byte(test.content))
 		offset := test.offset()
 		got, err := m.OffsetRange(0, offset)
 		if err != nil {

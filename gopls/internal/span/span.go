@@ -25,7 +25,7 @@ import (
 // and tests where a position is notated without access to the content
 // of the file.
 //
-// Use protocol.ColumnMapper to convert between Span and other
+// Use protocol.Mapper to convert between Span and other
 // representations, such as go/token (also UTF-8) or the LSP protocol
 // (UTF-16). The latter requires access to file contents.
 type Span struct {

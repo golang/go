@@ -70,7 +70,7 @@ func parseModImpl(ctx context.Context, fh source.FileHandle) (*source.ParsedModu
 	if err != nil {
 		return nil, err
 	}
-	m := protocol.NewColumnMapper(fh.URI(), contents)
+	m := protocol.NewMapper(fh.URI(), contents)
 	file, parseErr := modfile.Parse(fh.URI().Filename(), contents, nil)
 	// Attempt to convert the error to a standardized parse error.
 	var parseErrors []*source.Diagnostic
@@ -147,7 +147,7 @@ func parseWorkImpl(ctx context.Context, fh source.FileHandle) (*source.ParsedWor
 	if err != nil {
 		return nil, err
 	}
-	m := protocol.NewColumnMapper(fh.URI(), contents)
+	m := protocol.NewMapper(fh.URI(), contents)
 	file, parseErr := modfile.ParseWork(fh.URI().Filename(), contents, nil)
 	// Attempt to convert the error to a standardized parse error.
 	var parseErrors []*source.Diagnostic
@@ -415,7 +415,7 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, pm *source.ParsedModu
 
 // goCommandDiagnostic creates a diagnostic for a given go command error.
 func (s *snapshot) goCommandDiagnostic(pm *source.ParsedModule, spn span.Span, goCmdError string) (*source.Diagnostic, error) {
-	rng, err := pm.Mapper.Range(spn)
+	rng, err := pm.Mapper.SpanRange(spn)
 	if err != nil {
 		return nil, err
 	}

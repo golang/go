@@ -65,7 +65,7 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 	if file.err != nil {
 		return file.err
 	}
-	loc, err := file.mapper.Location(from)
+	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
 		return err
 	}

@@ -67,7 +67,7 @@ func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, e
 	var (
 		file    *ast.File
 		tokFile *token.File
-		mapper  *protocol.ColumnMapper
+		mapper  *protocol.Mapper
 	)
 
 	// If the file has already been fully parsed through the
@@ -93,7 +93,7 @@ func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, e
 			return nil, err
 		}
 		tokFile = fset.File(file.Package)
-		mapper = protocol.NewColumnMapper(fh.URI(), src)
+		mapper = protocol.NewMapper(fh.URI(), src)
 	}
 
 	w := &symbolWalker{
@@ -109,7 +109,7 @@ func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, e
 type symbolWalker struct {
 	// for computing positions
 	tokFile *token.File
-	mapper  *protocol.ColumnMapper
+	mapper  *protocol.Mapper
 
 	symbols    []source.Symbol
 	firstError error

@@ -314,7 +314,7 @@ func computeTextEdits(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile,
 // protocolEditsFromSource converts text edits to LSP edits using the original
 // source.
 func protocolEditsFromSource(src []byte, edits []diff.Edit) ([]protocol.TextEdit, error) {
-	m := protocol.NewColumnMapper("", src)
+	m := protocol.NewMapper("", src)
 	var result []protocol.TextEdit
 	for _, edit := range edits {
 		rng, err := m.OffsetRange(edit.Start, edit.End)
@@ -337,7 +337,7 @@ func protocolEditsFromSource(src []byte, edits []diff.Edit) ([]protocol.TextEdit
 
 // ToProtocolEdits converts diff.Edits to LSP TextEdits.
 // See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textEditArray
-func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.Edit) ([]protocol.TextEdit, error) {
+func ToProtocolEdits(m *protocol.Mapper, edits []diff.Edit) ([]protocol.TextEdit, error) {
 	// LSP doesn't require TextEditArray to be sorted:
 	// this is the receiver's concern. But govim, and perhaps
 	// other clients have historically relied on the order.
@@ -360,7 +360,7 @@ func ToProtocolEdits(m *protocol.ColumnMapper, edits []diff.Edit) ([]protocol.Te
 
 // FromProtocolEdits converts LSP TextEdits to diff.Edits.
 // See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textEditArray
-func FromProtocolEdits(m *protocol.ColumnMapper, edits []protocol.TextEdit) ([]diff.Edit, error) {
+func FromProtocolEdits(m *protocol.Mapper, edits []protocol.TextEdit) ([]diff.Edit, error) {
 	if edits == nil {
 		return nil, nil
 	}
@@ -381,7 +381,7 @@ func FromProtocolEdits(m *protocol.ColumnMapper, edits []protocol.TextEdit) ([]d
 
 // ApplyProtocolEdits applies the patch (edits) to m.Content and returns the result.
 // It also returns the edits converted to diff-package form.
-func ApplyProtocolEdits(m *protocol.ColumnMapper, edits []protocol.TextEdit) (string, []diff.Edit, error) {
+func ApplyProtocolEdits(m *protocol.Mapper, edits []protocol.TextEdit) (string, []diff.Edit, error) {
 	diffEdits, err := FromProtocolEdits(m, edits)
 	if err != nil {
 		return "", nil, err

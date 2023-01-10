@@ -110,12 +110,12 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 			}
 			editsPerFile[fh.URI()] = te
 		}
-		// TODO(adonovan): once FileHandle has a ColumnMapper, eliminate this.
+		// TODO(adonovan): once FileHandle has a Mapper, eliminate this.
 		content, err := fh.Read()
 		if err != nil {
 			return nil, err
 		}
-		m := protocol.NewColumnMapper(fh.URI(), content)
+		m := protocol.NewMapper(fh.URI(), content)
 		rng, err := m.PosRange(tokFile, edit.Pos, end)
 		if err != nil {
 			return nil, err

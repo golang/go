@@ -23,7 +23,7 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 			if err != nil {
 				t.Fatal(err)
 			}
-			callSpan, err := mapper.Span(protocol.Location{URI: call.URI, Range: call.Range})
+			callSpan, err := mapper.LocationSpan(protocol.Location{URI: call.URI, Range: call.Range})
 			if err != nil {
 				t.Fatal(err)
 			}

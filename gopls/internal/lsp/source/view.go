@@ -378,7 +378,7 @@ type ParsedGoFile struct {
 	// actual content of the file if we have fixed the AST.
 	Src      []byte
 	Fixed    bool
-	Mapper   *protocol.ColumnMapper
+	Mapper   *protocol.Mapper
 	ParseErr scanner.ErrorList
 }
 
@@ -427,7 +427,7 @@ func (pgf *ParsedGoFile) RangeToTokenRange(r protocol.Range) (safetoken.Range, e
 type ParsedModule struct {
 	URI         span.URI
 	File        *modfile.File
-	Mapper      *protocol.ColumnMapper
+	Mapper      *protocol.Mapper
 	ParseErrors []*Diagnostic
 }
 
@@ -435,7 +435,7 @@ type ParsedModule struct {
 type ParsedWorkFile struct {
 	URI         span.URI
 	File        *modfile.WorkFile
-	Mapper      *protocol.ColumnMapper
+	Mapper      *protocol.Mapper
 	ParseErrors []*Diagnostic
 }
 

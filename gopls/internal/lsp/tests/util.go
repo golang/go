@@ -27,7 +27,7 @@ import (
 // DiffLinks takes the links we got and checks if they are located within the source or a Note.
 // If the link is within a Note, the link is removed.
 // Returns an diff comment if there are differences and empty string if no diffs.
-func DiffLinks(mapper *protocol.ColumnMapper, wantLinks []Link, gotLinks []protocol.DocumentLink) string {
+func DiffLinks(mapper *protocol.Mapper, wantLinks []Link, gotLinks []protocol.DocumentLink) string {
 	var notePositions []token.Position
 	links := make(map[span.Span]string, len(wantLinks))
 	for _, link := range wantLinks {
@@ -508,7 +508,7 @@ func WorkspaceSymbolsString(ctx context.Context, data *Data, queryURI span.URI, 
 		if err != nil {
 			return "", err
 		}
-		spn, err := m.Span(s.Location)
+		spn, err := m.LocationSpan(s.Location)
 		if err != nil {
 			return "", err
 		}

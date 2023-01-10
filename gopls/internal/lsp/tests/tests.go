@@ -140,7 +140,7 @@ type Data struct {
 	ModfileFlagAvailable bool
 
 	mappersMu sync.Mutex
-	mappers   map[span.URI]*protocol.ColumnMapper
+	mappers   map[span.URI]*protocol.Mapper
 }
 
 // TODO(adonovan): there are multiple implementations of this (undocumented)
@@ -339,7 +339,7 @@ func load(t testing.TB, mode string, dir string) *Data {
 		fragments: map[string]string{},
 		golden:    map[string]*Golden{},
 		mode:      mode,
-		mappers:   map[span.URI]*protocol.ColumnMapper{},
+		mappers:   map[span.URI]*protocol.Mapper{},
 	}
 
 	if !*UpdateGolden {
@@ -1057,7 +1057,7 @@ func checkData(t *testing.T, data *Data) {
 	}
 }
 
-func (data *Data) Mapper(uri span.URI) (*protocol.ColumnMapper, error) {
+func (data *Data) Mapper(uri span.URI) (*protocol.Mapper, error) {
 	data.mappersMu.Lock()
 	defer data.mappersMu.Unlock()
 
@@ -1066,7 +1066,7 @@ func (data *Data) Mapper(uri span.URI) (*protocol.ColumnMapper, error) {
 		if err != nil {
 			return nil, err
 		}
-		data.mappers[uri] = protocol.NewColumnMapper(uri, content)
+		data.mappers[uri] = protocol.NewMapper(uri, content)
 	}
 	return data.mappers[uri], nil
 }
@@ -1357,7 +1357,7 @@ func (data *Data) collectSymbols(name string, selectionRng span.Span, kind, deta
 // mustRange converts spn into a protocol.Range, panicking on any error.
 func (data *Data) mustRange(spn span.Span) protocol.Range {
 	m, err := data.Mapper(spn.URI())
-	rng, err := m.Range(spn)
+	rng, err := m.SpanRange(spn)
 	if err != nil {
 		panic(fmt.Sprintf("converting span %s to range: %v", spn, err))
 	}
