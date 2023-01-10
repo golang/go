@@ -137,14 +137,17 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 		// externally linking, I don't think this makes a lot of sense.
 		other = int(elf.STV_HIDDEN)
 	}
-	if ctxt.IsPPC64() && typ == elf.STT_FUNC && ldr.AttrShared(x) && ldr.SymName(x) != "runtime.duffzero" && ldr.SymName(x) != "runtime.duffcopy" {
-		// On ppc64 the top three bits of the st_other field indicate how
-		// many instructions separate the global and local entry points. In
-		// our case it is two instructions, indicated by the value 3.
-		// The conditions here match those in preprocess in
-		// cmd/internal/obj/ppc64/obj9.go, which is where the
-		// instructions are inserted.
-		other |= 3 << 5
+	if ctxt.IsPPC64() && typ == elf.STT_FUNC && ldr.AttrShared(x) {
+		// On ppc64 the top three bits of the st_other field indicate how many
+		// bytes separate the global and local entry points. For non-PCrel shared
+		// symbols this is always 8 bytes except for some special functions.
+		hasPCrel := buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux"
+
+		// This should match the preprocessing behavior in cmd/internal/obj/ppc64/obj9.go
+		// where the distinct global entry is inserted.
+		if !hasPCrel && ldr.SymName(x) != "runtime.duffzero" && ldr.SymName(x) != "runtime.duffcopy" {
+			other |= 3 << 5
+		}
 	}
 
 	// When dynamically linking, we create Symbols by reading the names from

@@ -1869,7 +1869,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		pp.To.Reg = ppc64.REG_LR
 		pp.SetFrom3Const(1)
 
-		if base.Ctxt.Flag_shared {
+		if ppc64.NeedTOCpointer(base.Ctxt) {
 			// When compiling Go into PIC, the function we just
 			// called via pointer might have been implemented in
 			// a separate module and so overwritten the TOC

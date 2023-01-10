@@ -221,10 +221,10 @@ func genpltstub(ctxt *ld.Link, ldr *loader.Loader, r loader.Reloc, ri int, s loa
 	// An R_PPC64_REL24_NOTOC relocation does not use or maintain
 	// a TOC pointer, and almost always implies a Power10 target.
 	//
-	// For dynamic calls made from a Go object, the shared attribute
-	// indicates a PIC symbol, which requires a TOC pointer be
-	// maintained. Otherwise, a simpler non-PIC stub suffices.
-	if (r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24)) || (!ldr.AttrExternal(s) && ldr.AttrShared(s)) {
+	// For dynamic calls made from a Go caller, a TOC relative stub is
+	// always needed when a TOC pointer is maintained (specifically, if
+	// the Go caller is PIC, and cannot use PCrel instructions).
+	if (r.Type() == objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24)) || (!ldr.AttrExternal(s) && ldr.AttrShared(s) && !hasPCrel) {
 		stubTypeStr = "_tocrel"
 		stubType = 1
 	} else {
@@ -318,7 +318,7 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
 
 				case sym.STEXT:
 					targ := r.Sym()
-					if (ldr.AttrExternal(targ) && ldr.SymLocalentry(targ) <= 1) || (!ldr.AttrExternal(targ) && !ldr.AttrShared(targ)) {
+					if (ldr.AttrExternal(targ) && ldr.SymLocalentry(targ) <= 1) || (!ldr.AttrExternal(targ) && (!ldr.AttrShared(targ) || hasPCrel)) {
 						// This is NOTOC to NOTOC call (st_other is 0 or 1). No call stub is needed.
 					} else {
 						// This is a NOTOC to TOC function. Generate a calling stub.
@@ -387,10 +387,12 @@ func genaddmoduledata(ctxt *ld.Link, ldr *loader.Loader) {
 	//	runtime.addmoduledata(local.moduledata)
 	// }
 
-	// Regenerate TOC from R12 (the address of this function).
-	sz := initfunc.AddSymRef(ctxt.Arch, ctxt.DotTOC[0], 0, objabi.R_ADDRPOWER_PCREL, 8)
-	initfunc.SetUint32(ctxt.Arch, sz-8, 0x3c4c0000) // addis r2, r12, .TOC.-func@ha
-	initfunc.SetUint32(ctxt.Arch, sz-4, 0x38420000) // addi r2, r2, .TOC.-func@l
+	if !hasPCrel {
+		// Regenerate TOC from R12 (the address of this function).
+		sz := initfunc.AddSymRef(ctxt.Arch, ctxt.DotTOC[0], 0, objabi.R_ADDRPOWER_PCREL, 8)
+		initfunc.SetUint32(ctxt.Arch, sz-8, 0x3c4c0000) // addis r2, r12, .TOC.-func@ha
+		initfunc.SetUint32(ctxt.Arch, sz-4, 0x38420000) // addi r2, r2, .TOC.-func@l
+	}
 
 	// This is Go ABI. Stack a frame and save LR.
 	o(OP_MFLR_R0) // mflr r0
@@ -407,11 +409,11 @@ func genaddmoduledata(ctxt *ld.Link, ldr *loader.Loader) {
 	}
 
 	if !hasPCrel {
-		sz = initfunc.AddSymRef(ctxt.Arch, tgt, 0, objabi.R_ADDRPOWER_GOT, 8)
+		sz := initfunc.AddSymRef(ctxt.Arch, tgt, 0, objabi.R_ADDRPOWER_GOT, 8)
 		initfunc.SetUint32(ctxt.Arch, sz-8, 0x3c620000) // addis r3, r2, local.moduledata@got@ha
 		initfunc.SetUint32(ctxt.Arch, sz-4, 0xe8630000) // ld r3, local.moduledata@got@l(r3)
 	} else {
-		sz = initfunc.AddSymRef(ctxt.Arch, tgt, 0, objabi.R_ADDRPOWER_GOT_PCREL34, 8)
+		sz := initfunc.AddSymRef(ctxt.Arch, tgt, 0, objabi.R_ADDRPOWER_GOT_PCREL34, 8)
 		// Note, this is prefixed instruction. It must not cross a 64B boundary.
 		// It is doubleworld aligned here, so it will never cross (this function is 16B aligned, minimum).
 		initfunc.SetUint32(ctxt.Arch, sz-8, OP_PLD_PFX_PCREL)
@@ -419,7 +421,7 @@ func genaddmoduledata(ctxt *ld.Link, ldr *loader.Loader) {
 	}
 
 	// Call runtime.addmoduledata
-	sz = initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_CALLPOWER, 4)
+	sz := initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_CALLPOWER, 4)
 	initfunc.SetUint32(ctxt.Arch, sz-4, OP_BL) // bl runtime.addmoduledata
 	o(OP_NOP)                                  // nop (for TOC restore)
 
@@ -995,7 +997,12 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		if r.Size != 4 {
 			return false
 		}
-		out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)
+		if !hasPCrel {
+			out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)
+		} else {
+			// TOC is not used in PCrel compiled Go code.
+			out.Write64(uint64(elf.R_PPC64_REL24_NOTOC) | uint64(elfsym)<<32)
+		}
 
 	}
 	out.Write64(uint64(r.Xadd))
@@ -1441,10 +1448,10 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 		tgtName := ldr.SymName(rs)
 
-		// If we are linking PIE or shared code, all golang generated object files have an extra 2 instruction prologue
+		// If we are linking PIE or shared code, non-PCrel golang generated object files have an extra 2 instruction prologue
 		// to regenerate the TOC pointer from R12.  The exception are two special case functions tested below.  Note,
 		// local call offsets for externally generated objects are accounted for when converting into golang relocs.
-		if !ldr.AttrExternal(rs) && ldr.AttrShared(rs) && tgtName != "runtime.duffzero" && tgtName != "runtime.duffcopy" {
+		if !hasPCrel && !ldr.AttrExternal(rs) && ldr.AttrShared(rs) && tgtName != "runtime.duffzero" && tgtName != "runtime.duffcopy" {
 			// Furthermore, only apply the offset if the target looks like the start of a function call.
 			if r.Add() == 0 && ldr.SymType(rs) == sym.STEXT {
 				t += 8
