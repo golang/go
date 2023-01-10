@@ -413,12 +413,9 @@ package b
 
 		// Moving x.go should make the diagnostic go away.
 		env.RenameFile("a/x.go", "b/x.go")
-		env.Await(
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				EmptyDiagnostics("a/a.go"),                  // no more duplicate declarations
-				env.DiagnosticAtRegexp("b/b.go", "package"), // as package names mismatch
-			),
+		env.AfterChange(
+			EmptyDiagnostics("a/a.go"),                  // no more duplicate declarations
+			env.DiagnosticAtRegexp("b/b.go", "package"), // as package names mismatch
 		)
 
 		// Renaming should also work on open buffers.
@@ -426,17 +423,14 @@ package b
 
 		// Moving x.go back to a/ should cause the diagnostics to reappear.
 		env.RenameFile("b/x.go", "a/x.go")
-		// TODO(rfindley): enable using a OnceMet precondition here. We can't
-		// currently do this because DidClose, DidOpen and DidChangeWatchedFiles
-		// are sent, and it is not easy to use all as a precondition.
-		env.Await(
+		env.AfterChange(
 			env.DiagnosticAtRegexp("a/a.go", "X"),
 			env.DiagnosticAtRegexp("a/x.go", "X"),
 		)
 
 		// Renaming the entire directory should move both the open and closed file.
 		env.RenameFile("a", "x")
-		env.Await(
+		env.AfterChange(
 			env.DiagnosticAtRegexp("x/a.go", "X"),
 			env.DiagnosticAtRegexp("x/x.go", "X"),
 		)
