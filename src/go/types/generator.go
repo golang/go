@@ -80,20 +80,25 @@ var filemap = map[string]action{
 	"package.go":          nil,
 	"pointer.go":          nil,
 	"predicates.go":       nil,
-	"selection.go":        nil,
-	"sizes.go":            func(f *ast.File) { renameIdent(f, "IsSyncAtomicAlign64", "isSyncAtomicAlign64") },
-	"slice.go":            nil,
-	"subst.go":            func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
-	"termlist.go":         nil,
-	"termlist_test.go":    nil,
-	"tuple.go":            nil,
-	"typelists.go":        nil,
-	"typeparam.go":        nil,
-	"typeterm_test.go":    nil,
-	"typeterm.go":         nil,
-	"under.go":            nil,
-	"universe.go":         fixGlobalTypVarDecl,
-	"validtype.go":        nil,
+	"scope.go": func(f *ast.File) {
+		fixTokenPos(f)
+		renameIdent(f, "Squash", "squash")
+		renameIdent(f, "InsertLazy", "_InsertLazy")
+	},
+	"selection.go":     nil,
+	"sizes.go":         func(f *ast.File) { renameIdent(f, "IsSyncAtomicAlign64", "isSyncAtomicAlign64") },
+	"slice.go":         nil,
+	"subst.go":         func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
+	"termlist.go":      nil,
+	"termlist_test.go": nil,
+	"tuple.go":         nil,
+	"typelists.go":     nil,
+	"typeparam.go":     nil,
+	"typeterm_test.go": nil,
+	"typeterm.go":      nil,
+	"under.go":         nil,
+	"universe.go":      fixGlobalTypVarDecl,
+	"validtype.go":     nil,
 }
 
 // TODO(gri) We should be able to make these rewriters more configurable/composable.
@@ -134,13 +139,21 @@ func fixTokenPos(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.ImportSpec:
+			// rewrite import path "cmd/compile/internal/syntax" to "go/token"
 			if n.Path.Kind == token.STRING && n.Path.Value == `"cmd/compile/internal/syntax"` {
 				n.Path.Value = `"go/token"`
 				return false
 			}
 		case *ast.SelectorExpr:
+			// rewrite syntax.Pos to token.Pos
 			if x, _ := n.X.(*ast.Ident); x != nil && x.Name == "syntax" && n.Sel.Name == "Pos" {
 				x.Name = "token"
+				return false
+			}
+		case *ast.CallExpr:
+			// rewrite x.IsKnown() to x.IsValid()
+			if fun, _ := n.Fun.(*ast.SelectorExpr); fun != nil && fun.Sel.Name == "IsKnown" && len(n.Args) == 0 {
+				fun.Sel.Name = "IsValid"
 				return false
 			}
 		}
@@ -153,6 +166,7 @@ func fixTraceSel(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
+			// rewrite x.Trace to x.trace (for Config.Trace)
 			if n.Sel.Name == "Trace" {
 				n.Sel.Name = "trace"
 				return false
@@ -169,6 +183,7 @@ func fixGlobalTypVarDecl(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.ValueSpec:
+			// rewrite type Typ = [...]Type{...} to type Typ = []Type{...}
 			if len(n.Names) == 1 && n.Names[0].Name == "Typ" && len(n.Values) == 1 {
 				n.Values[0].(*ast.CompositeLit).Type.(*ast.ArrayType).Len = nil
 				return false

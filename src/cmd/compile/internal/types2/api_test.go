@@ -622,7 +622,7 @@ func sortedInstances(m map[*syntax.Name]Instance) (instances []recordedInstance)
 		instances = append(instances, recordedInstance{id, inst})
 	}
 	sort.Slice(instances, func(i, j int) bool {
-		return instances[i].Name.Pos().Cmp(instances[j].Name.Pos()) < 0
+		return CmpPos(instances[i].Name.Pos(), instances[j].Name.Pos()) < 0
 	})
 	return instances
 }

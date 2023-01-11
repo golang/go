@@ -355,7 +355,7 @@ func (check *Checker) cycleError(cycle []Object) {
 func firstInSrc(path []Object) int {
 	fst, pos := 0, path[0].Pos()
 	for i, t := range path[1:] {
-		if t.Pos() < pos {
+		if cmpPos(t.Pos(), pos) < 0 {
 			fst, pos = i+1, t.Pos()
 		}
 	}
