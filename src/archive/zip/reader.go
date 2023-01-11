@@ -151,20 +151,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	for {
 		f := &File{zip: z, zipr: r}
 		err = readDirectoryHeader(f, buf)
-
-		// For compatibility with other zip programs,
-		// if we have a non-zero base offset and can't read
-		// the first directory header, try again with a zero
-		// base offset.
-		if err == ErrFormat && z.baseOffset != 0 && len(z.File) == 0 {
-			z.baseOffset = 0
-			if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
-				return err
-			}
-			buf.Reset(rs)
-			continue
-		}
-
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
@@ -627,6 +613,20 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, baseOffset 
 	if o := baseOffset + int64(d.directoryOffset); o < 0 || o >= size {
 		return nil, 0, ErrFormat
 	}
+
+	// If the directory end data tells us to use a non-zero baseOffset,
+	// but we would find a valid directory entry if we assume that the
+	// baseOffset is 0, then just use a baseOffset of 0.
+	// We've seen files in which the directory end data gives us
+	// an incorrect baseOffset.
+	if baseOffset > 0 {
+		off := int64(d.directoryOffset)
+		rs := io.NewSectionReader(r, off, size-off)
+		if readDirectoryHeader(&File{}, rs) == nil {
+			baseOffset = 0
+		}
+	}
+
 	return d, baseOffset, nil
 }
 

@@ -127,6 +127,24 @@ var tests = []ZipTest{
 		},
 	},
 	{
+		Name:    "test-badbase.zip",
+		Comment: "This is a zipfile comment.",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte("This is a test text file.\n"),
+				Modified: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+			{
+				Name:     "gophercolor16x16.png",
+				File:     "gophercolor16x16.png",
+				Modified: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+		},
+	},
+	{
 		Name:   "r.zip",
 		Source: returnRecursiveZip,
 		File: []ZipTestFile{
