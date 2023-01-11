@@ -59,15 +59,7 @@ func References(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protoc
 			}
 			var locations []protocol.Location
 			for _, ref := range references {
-				// TODO(adonovan): add MappedRange.Location() helper.
-				refRange, err := ref.MappedRange.Range()
-				if err != nil {
-					return nil, err
-				}
-				locations = append(locations, protocol.Location{
-					URI:   protocol.URIFromSpanURI(ref.MappedRange.URI()),
-					Range: refRange,
-				})
+				locations = append(locations, ref.MappedRange.Location())
 			}
 			return locations, nil
 		}
@@ -239,7 +231,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	}
 
 	// Find the selected object (declaration or reference).
-	pos, err := pgf.Pos(pp)
+	pos, err := pgf.PositionPos(pp)
 	if err != nil {
 		return nil, err
 	}
@@ -484,13 +476,9 @@ func globalReferences(ctx context.Context, snapshot Snapshot, m *Metadata, pkgPa
 // mustLocation reports the location interval a syntax node,
 // which must belong to m.File! Safe for use only by references2.
 func mustLocation(pgf *ParsedGoFile, n ast.Node) protocol.Location {
-	// TODO(adonovan): add pgf.PosLocation helper.
-	refRange, err := pgf.PosRange(n.Pos(), n.End())
+	loc, err := pgf.PosLocation(n.Pos(), n.End())
 	if err != nil {
 		panic(err) // can't happen in references2
 	}
-	return protocol.Location{
-		URI:   protocol.URIFromSpanURI(pgf.Mapper.URI),
-		Range: refRange,
-	}
+	return loc
 }

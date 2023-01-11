@@ -83,10 +83,6 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 	if err != nil {
 		return nil, err
 	}
-	rng, err := ident.MappedRange.Range()
-	if err != nil {
-		return nil, err
-	}
 	hover, err := FormatHover(h, snapshot.View().Options())
 	if err != nil {
 		return nil, err
@@ -96,7 +92,7 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 			Kind:  snapshot.View().Options().PreferredContentFormat,
 			Value: hover,
 		},
-		Range: rng,
+		Range: ident.MappedRange.Range(),
 	}, nil
 }
 
@@ -143,7 +139,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 	if err != nil {
 		return 0, protocol.Range{}, err
 	}
-	pos, err := pgf.Pos(position)
+	pos, err := pgf.PositionPos(position)
 	if err != nil {
 		return 0, protocol.Range{}, err
 	}

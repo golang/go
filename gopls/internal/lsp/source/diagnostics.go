@@ -19,6 +19,7 @@ type SuggestedFix struct {
 }
 
 type RelatedInformation struct {
+	// TOOD(adonovan): replace these two fields by a protocol.Location.
 	URI     span.URI
 	Range   protocol.Range
 	Message string

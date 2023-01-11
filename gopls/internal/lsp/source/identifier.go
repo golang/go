@@ -84,7 +84,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, position 
 	if err != nil {
 		return nil, err
 	}
-	pos, err := pgf.Pos(position)
+	pos, err := pgf.PositionPos(position)
 	if err != nil {
 		return nil, err
 	}

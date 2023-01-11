@@ -41,7 +41,7 @@ func (s *Server) selectionRange(ctx context.Context, params *protocol.SelectionR
 
 	result := make([]protocol.SelectionRange, len(params.Positions))
 	for i, protocolPos := range params.Positions {
-		pos, err := pgf.Pos(protocolPos)
+		pos, err := pgf.PositionPos(protocolPos)
 		if err != nil {
 			return nil, err
 		}

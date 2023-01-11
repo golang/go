@@ -431,14 +431,8 @@ func nonOverlappingRanges(t *testing.T, ranges []*source.FoldingRangeInfo) (res 
 }
 
 func conflict(t *testing.T, a, b *source.FoldingRangeInfo) bool {
-	arng, err := a.MappedRange.Range()
-	if err != nil {
-		t.Fatal(err)
-	}
-	brng, err := b.MappedRange.Range()
-	if err != nil {
-		t.Fatal(err)
-	}
+	arng := a.MappedRange.Range()
+	brng := b.MappedRange.Range()
 	// a start position is <= b start positions
 	return protocol.ComparePosition(arng.Start, brng.Start) <= 0 && protocol.ComparePosition(arng.End, brng.Start) > 0
 }
@@ -450,10 +444,7 @@ func foldRanges(contents string, ranges []*source.FoldingRangeInfo) (string, err
 	// to preserve the offsets.
 	for i := len(ranges) - 1; i >= 0; i-- {
 		fRange := ranges[i]
-		spn, err := fRange.MappedRange.Span()
-		if err != nil {
-			return "", err
-		}
+		spn := fRange.MappedRange.Span()
 		start := spn.Start().Offset()
 		end := spn.End().Offset()
 
@@ -547,15 +538,9 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rng, err := ident.Declaration.MappedRange[0].Range()
-	if err != nil {
-		t.Fatal(err)
-	}
+	rng := ident.Declaration.MappedRange[0].Range()
 	if d.IsType {
-		rng, err = ident.Type.MappedRange.Range()
-		if err != nil {
-			t.Fatal(err)
-		}
+		rng = ident.Type.MappedRange.Range()
 		hover = ""
 	}
 	didSomething := false

@@ -12,6 +12,11 @@ import "go/token"
 // so that it is capable of returning (file, line, col8) information.
 // However it cannot be converted to protocol (UTF-16) form
 // without access to file content; to do that, use a protocol.ContentMapper.
+//
+// TODO(adonovan): Eliminate most/all uses of Range in gopls, as
+// without a Mapper it's not really self-contained.  It is mostly used
+// by completion. Given access to complete.mapper, it could use a pair
+// of byte offsets instead.
 type Range struct {
 	TokFile    *token.File // non-nil
 	Start, End token.Pos   // both IsValid()

@@ -36,14 +36,7 @@ func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 		if err != nil {
 			return nil, err
 		}
-		pr, err := rng.Range()
-		if err != nil {
-			return nil, err
-		}
-		locations = append(locations, protocol.Location{
-			URI:   protocol.URIFromSpanURI(rng.URI()),
-			Range: pr,
-		})
+		locations = append(locations, rng.Location())
 	}
 	sort.Slice(locations, func(i, j int) bool {
 		li, lj := locations[i], locations[j]

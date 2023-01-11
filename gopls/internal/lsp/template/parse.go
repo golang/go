@@ -269,6 +269,8 @@ func (p *Parsed) Tokens() []Token {
 	return p.tokens
 }
 
+// TODO(adonovan): the next 100 lines could perhaps replaced by use of protocol.Mapper.
+
 func (p *Parsed) utf16len(buf []byte) int {
 	cnt := 0
 	if !p.nonASCII {

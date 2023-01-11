@@ -8,47 +8,59 @@ package protocol
 // ([]byte) and provides efficient conversion between every kind of
 // position representation.
 //
-// Here's a handy guide for your tour of the location zoo:
+// gopls uses four main representations of position:
 //
-// Imports: protocol  -->  span  -->  token
+// 1. byte offsets, e.g. (start, end int), starting from zero.
 //
-// protocol: for the LSP protocol.
-// protocol.Mapper = (URI, Content). Does all offset <=> column conversions.
-// protocol.MappedRange = (protocol.Mapper, {start,end} int)
-// protocol.Location = (URI, protocol.Range)
-// protocol.Range = (start, end Position)
-// protocol.Position = (line, char uint32) 0-based UTF-16
+// 2. go/token notation. Use these types when interacting directly
+//    with the go/* syntax packages:
 //
-// span: for optional fields; useful for CLIs and tests without access to file contents.
-// span.Point = (line?, col?, offset?) 1-based UTF-8
-// span.Span = (uri URI, start, end span.Point)
+// 	token.Pos
+// 	token.FileSet
+// 	token.File
+// 	safetoken.Range = (file token.File, start, end token.Pos)
 //
-// token: for interaction with the go/* syntax packages:
-// safetoken.Range = (file token.File, start, end token.Pos)
-// token.Pos
-// token.FileSet
-// token.File
-// offset int
-// (see also safetoken)
+//    Because File.Offset and File.Pos panic on invalid inputs,
+//    we do not call them directly and instead use the safetoken package
+//    for these conversions. This is enforced by a static check.
 //
-// TODO(adonovan): simplify this picture:
-//   - Eliminate most/all uses of safetoken.Range in gopls, as
-//     without a Mapper it's not really self-contained.
-//     It is mostly used by completion. Given access to complete.mapper,
-//     it could use a pair of byte offsets instead.
-//   - Mapper.OffsetPoint and .PointPosition aren't used outside this package.
-//     OffsetSpan is barely used, and its user would better off with a MappedRange
-//     or protocol.Range. The span package data types are mostly used in tests
-//     and in argument parsing (without access to file content).
-//   - move Mapper to mapper.go.
+//    Beware also that the methods of token.File have two bugs for which
+//    safetoken contain workarounds:
+//    - #57490, whereby the parser may create ast.Nodes during error
+//      recovery whose computed positions are out of bounds (EOF+1).
+//    - #41029, whereby the wrong line number is returned for the EOF position.
 //
-// TODO(adonovan): also, write an overview of the position landscape
-// in the Mapper doc comment, mentioning the various subtleties,
-// the EOF+1 bug (#57490), the \n-at-EOF bug (#41029), the workarounds
-// for both bugs in both safetoken and Mapper. Also mention that
-// export data doesn't currently preserve accurate column or offset
-// information: both are set to garbage based on the assumption of a
-// "rectangular" file.
+// 3. the span package.
+//
+//    span.Point = (line, col8, offset).
+//    span.Span = (uri URI, start, end span.Point)
+//
+//          Line and column are 1-based.
+//          Columns are measured in bytes (UTF-8 codes).
+//          All fields are optional.
+//
+//    These types are useful as intermediate conversions of validated
+//    ranges (though MappedRange is superior as it is self contained
+//    and universally convertible).  Since their fields are optional
+//    they are also useful for parsing user-provided positions (e.g. in
+//    the CLI) before we have access to file contents.
+//
+// 4. protocol, the LSP wire format.
+//
+//    protocol.Position = (Line, Character uint32)
+//    protocol.Range = (start, end Position)
+//    protocol.Location = (URI, protocol.Range)
+//
+//          Line and Character are 0-based.
+//          Characters (columns) are measured in UTF-16 codes.
+//
+//    protocol.Mapper holds the (URI, Content) of a file, enabling
+//    efficient mapping between byte offsets, span ranges, and
+//    protocol ranges.
+//
+//    protocol.MappedRange holds a protocol.Mapper and valid (start,
+//    end int) byte offsets, enabling infallible, efficient conversion
+//    to any other format.
 
 import (
 	"bytes"
@@ -67,16 +79,13 @@ import (
 )
 
 // A Mapper wraps the content of a file and provides mapping
-// from byte offsets to and from other notations of position:
+// between byte offsets and notations of position such as:
 //
-//   - (line, col8) pairs, where col8 is a 1-based UTF-8 column number (bytes),
-//     as used by the go/token and span packages.
+//   - (line, col8) pairs, where col8 is a 1-based UTF-8 column number
+//     (bytes), as used by the go/token and span packages.
 //
-//   - (line, col16) pairs, where col16 is a 1-based UTF-16 column number,
-//     as used by the LSP protocol;
-//
-//   - (line, colRune) pairs, where colRune is a rune index, as used by ParseWork.
-//     (Not yet implemented, but could easily be.)
+//   - (line, col16) pairs, where col16 is a 1-based UTF-16 column
+//     number, as used by the LSP protocol.
 //
 // All conversion methods are named "FromTo", where From and To are the two types.
 // For example, the PointPosition method converts from a Point to a Position.
@@ -85,6 +94,8 @@ import (
 // representations.  Use safetoken to map between token.Pos <=> byte
 // offsets, or the convenience methods such as PosPosition,
 // NodePosition, or NodeRange.
+//
+// See overview comments at top of this file.
 type Mapper struct {
 	URI     span.URI
 	Content []byte
@@ -223,6 +234,10 @@ func (m *Mapper) OffsetPosition(offset int) (Position, error) {
 	if !(0 <= offset && offset <= len(m.Content)) {
 		return Position{}, fmt.Errorf("invalid offset %d (want 0-%d)", offset, len(m.Content))
 	}
+	// No error may be returned after this point,
+	// even if the offset does not fall at a rune boundary.
+	// (See panic in MappedRange.Range reachable.)
+
 	line, col16 := m.lineCol16(offset)
 	return Position{Line: uint32(line), Character: uint32(col16)}, nil
 }
@@ -287,7 +302,7 @@ func (m *Mapper) OffsetPoint(offset int) (span.Point, error) {
 	return span.NewPoint(line+1, col8+1, offset), nil
 }
 
-// -- conversions from protocol domain --
+// -- conversions from protocol (UTF-16) domain --
 
 // LocationSpan converts a protocol (UTF-16) Location to a (UTF-8) span.
 // Precondition: the URIs of Location and Mapper match.
@@ -446,17 +461,33 @@ func (mr MappedRange) URI() span.URI {
 	return mr.Mapper.URI
 }
 
-// TODO(adonovan): the Range and Span methods of a properly
-// constructed MappedRange cannot fail. Change them to panic instead
-// of returning the error, for convenience of the callers.
-// This means we can also add a String() method!
-
-// Range returns the range in protocol form.
-func (mr MappedRange) Range() (Range, error) {
-	return mr.Mapper.OffsetRange(mr.start, mr.end)
+// Range returns the range in protocol (UTF-16) form.
+func (mr MappedRange) Range() Range {
+	rng, err := mr.Mapper.OffsetRange(mr.start, mr.end)
+	if err != nil {
+		panic(err) // can't happen
+	}
+	return rng
 }
 
-// Span returns the range in span form.
-func (mr MappedRange) Span() (span.Span, error) {
-	return mr.Mapper.OffsetSpan(mr.start, mr.end)
+// Location returns the range in protocol location (UTF-16) form.
+func (mr MappedRange) Location() Location {
+	return Location{
+		URI:   URIFromSpanURI(mr.URI()),
+		Range: mr.Range(),
+	}
+}
+
+// Span returns the range in span (UTF-8) form.
+func (mr MappedRange) Span() span.Span {
+	spn, err := mr.Mapper.OffsetSpan(mr.start, mr.end)
+	if err != nil {
+		panic(err) // can't happen
+	}
+	return spn
+}
+
+// String formats the range in span (UTF-8) notation.
+func (mr MappedRange) String() string {
+	return fmt.Sprint(mr.Span())
 }

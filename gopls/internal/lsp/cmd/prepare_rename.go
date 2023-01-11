@@ -73,8 +73,7 @@ func (r *prepareRename) Run(ctx context.Context, args ...string) error {
 		return ErrInvalidRenamePosition
 	}
 
-	l := protocol.Location{Range: result.Range}
-	s, err := file.mapper.LocationSpan(l)
+	s, err := file.mapper.RangeSpan(result.Range)
 	if err != nil {
 		return err
 	}

@@ -149,7 +149,7 @@ func parsePackageNameDecl(ctx context.Context, snapshot Snapshot, fh FileHandle,
 	}
 	// Careful: because we used ParseHeader,
 	// pgf.Pos(ppos) may be beyond EOF => (0, err).
-	pos, _ := pgf.Pos(ppos)
+	pos, _ := pgf.PositionPos(ppos)
 	return pgf, pgf.File.Name.Pos() <= pos && pos <= pgf.File.Name.End(), nil
 }
 
@@ -275,10 +275,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 	if includeInterfaceRefs && !isType {
 		// TODO(adonovan): opt: don't go back into the position domain:
 		// we have complete type information already.
-		declRange, err := declIdent.MappedRange.Range()
-		if err != nil {
-			return nil, err
-		}
+		declRange := declIdent.MappedRange.Range()
 		fh, err := snapshot.GetFile(ctx, declIdent.MappedRange.URI())
 		if err != nil {
 			return nil, err

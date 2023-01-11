@@ -137,10 +137,7 @@ func computePrepareRenameResp(snapshot Snapshot, pkg Package, node ast.Node, tex
 	if err != nil {
 		return nil, err
 	}
-	rng, err := mr.Range()
-	if err != nil {
-		return nil, err
-	}
+	rng := mr.Range()
 	if _, isImport := node.(*ast.ImportSpec); isImport {
 		// We're not really renaming the import path.
 		rng.End = rng.Start
@@ -666,10 +663,7 @@ func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
 		return nil, err
 	}
 	for _, ref := range r.refs {
-		refSpan, err := ref.MappedRange.Span()
-		if err != nil {
-			return nil, err
-		}
+		refSpan := ref.MappedRange.Span()
 		if seen[refSpan] {
 			continue
 		}

@@ -46,10 +46,7 @@ func PrepareCallHierarchy(ctx context.Context, snapshot Snapshot, fh FileHandle,
 		return nil, nil
 	}
 	declMappedRange := identifier.Declaration.MappedRange[0]
-	rng, err := declMappedRange.Range()
-	if err != nil {
-		return nil, err
-	}
+	rng := declMappedRange.Range()
 
 	callHierarchyItem := protocol.CallHierarchyItem{
 		Name:           identifier.Name,
@@ -92,11 +89,7 @@ func toProtocolIncomingCalls(ctx context.Context, snapshot Snapshot, refs []*Ref
 	// once in the result but highlight all calls using FromRanges (ranges at which the calls occur)
 	var incomingCalls = map[protocol.Location]*protocol.CallHierarchyIncomingCall{}
 	for _, ref := range refs {
-		refRange, err := ref.MappedRange.Range()
-		if err != nil {
-			return nil, err
-		}
-
+		refRange := ref.MappedRange.Range()
 		callItem, err := enclosingNodeCallItem(snapshot, ref.pkg, ref.MappedRange.URI(), ref.ident.NamePos)
 		if err != nil {
 			event.Error(ctx, "error getting enclosing node", err, tag.Method.Of(ref.Name))
@@ -284,10 +277,7 @@ func toProtocolOutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHand
 			continue
 		}
 		declMappedRange := identifier.Declaration.MappedRange[0]
-		rng, err := declMappedRange.Range()
-		if err != nil {
-			return nil, err
-		}
+		rng := declMappedRange.Range()
 
 		outgoingCalls[key{identifier.Declaration.node, identifier.Name}] = &protocol.CallHierarchyOutgoingCall{
 			To: protocol.CallHierarchyItem{

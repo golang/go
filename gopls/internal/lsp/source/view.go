@@ -384,9 +384,8 @@ type ParsedGoFile struct {
 
 // -- go/token domain convenience helpers --
 
-// Pos returns the token.Pos of protocol position p within the file.
-// TODO(adonovan): rename to PositionPos.
-func (pgf *ParsedGoFile) Pos(p protocol.Position) (token.Pos, error) {
+// PositionPos returns the token.Pos of protocol position p within the file.
+func (pgf *ParsedGoFile) PositionPos(p protocol.Position) (token.Pos, error) {
 	offset, err := pgf.Mapper.PositionOffset(p)
 	if err != nil {
 		return token.NoPos, err
@@ -397,6 +396,11 @@ func (pgf *ParsedGoFile) Pos(p protocol.Position) (token.Pos, error) {
 // PosRange returns a protocol Range for the token.Pos interval in this file.
 func (pgf *ParsedGoFile) PosRange(start, end token.Pos) (protocol.Range, error) {
 	return pgf.Mapper.PosRange(pgf.Tok, start, end)
+}
+
+// PosLocation returns a protocol Location for the token.Pos interval in this file.
+func (pgf *ParsedGoFile) PosLocation(start, end token.Pos) (protocol.Location, error) {
+	return pgf.Mapper.PosLocation(pgf.Tok, start, end)
 }
 
 // NodeRange returns a protocol Range for the ast.Node interval in this file.

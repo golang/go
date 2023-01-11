@@ -28,7 +28,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 		return nil, fmt.Errorf("getting package for Highlight: %w", err)
 	}
 
-	pos, err := pgf.Pos(position)
+	pos, err := pgf.PositionPos(position)
 	if err != nil {
 		return nil, err
 	}
@@ -58,11 +58,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 		if err != nil {
 			return nil, err
 		}
-		pRng, err := mRng.Range()
-		if err != nil {
-			return nil, err
-		}
-		ranges = append(ranges, pRng)
+		ranges = append(ranges, mRng.Range())
 	}
 	return ranges, nil
 }

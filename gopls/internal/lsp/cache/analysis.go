@@ -1024,16 +1024,7 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 				if end == token.NoPos {
 					end = start
 				}
-				rng, err := p.PosRange(start, end)
-				if err != nil {
-					return protocol.Location{}, err
-				}
-				return protocol.Location{
-					// TODO(adonovan): is this sound?
-					// See dual conversion in toSourceDiagnostic.
-					URI:   protocol.DocumentURI(p.URI),
-					Range: rng,
-				}, nil
+				return p.PosLocation(start, end)
 			}
 		}
 		return protocol.Location{},

@@ -444,7 +444,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		}
 		return items, surrounding, nil
 	}
-	pos, err := pgf.Pos(protoPos)
+	pos, err := pgf.PositionPos(protoPos)
 	if err != nil {
 		return nil, nil, err
 	}

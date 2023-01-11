@@ -56,8 +56,8 @@ func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFol
 	ast.Inspect(pgf.File, visit)
 
 	sort.Slice(ranges, func(i, j int) bool {
-		irng, _ := ranges[i].MappedRange.Range()
-		jrng, _ := ranges[j].MappedRange.Range()
+		irng := ranges[i].MappedRange.Range()
+		jrng := ranges[j].MappedRange.Range()
 		return protocol.CompareRange(irng, jrng) < 0
 	})
 

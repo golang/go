@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/cmd"
-	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
 )
@@ -34,7 +33,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		return
 	}
 
-	ws, err := m.LocationSpan(protocol.Location{Range: want.Range})
+	ws, err := m.RangeSpan(want.Range)
 	if err != nil {
 		t.Errorf("prepare_rename failed: %v", err)
 	}
