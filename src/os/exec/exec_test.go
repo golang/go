@@ -1182,6 +1182,7 @@ func cmdHang(args ...string) {
 			os.Exit(1)
 		}
 		fmt.Fprintf(os.Stderr, "%d: started %d: %v\n", pid, cmd.Process.Pid, cmd)
+		go cmd.Wait() // Release resources if cmd happens not to outlive this process.
 	}
 
 	if *exitOnInterrupt {

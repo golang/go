@@ -22,34 +22,7 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
-// These are called from exec_libc2.go in the child of fork.
-// The names differ between macOS and OpenBSD, so we need
-// to declare the specific ones used here to keep the exec_libc2.go
-// code portable.
-//
-// We use __fork and __exit, not fork and exit, to avoid the libc atfork
-// and atexit handlers. The atfork handlers have caused fork child
-// hangs in the past (see #33565, #56784). The atexit handlers have
-// not, but the non-libc ports all invoke the system call, so doing
-// the same here makes sense. In general we wouldn't expect
-// atexit handlers to work terribly well in a fork child anyway.
-// (Also, perhaps the atfork handlers clear the atexit handlers,
-// in which case we definitely need to avoid calling the libc exit
-// if we bypass the libc fork.)
-//
-// Other calls that are made in the child after the fork are
-// ptrace, setsid, setpgid, getpid, ioctl, chroot, setgroups,
-// setgid, setuid, chdir, dup2, fcntl, close, execve, and write.
-// Those are all simple kernel wrappers that should be safe
-// to be called directly. The fcntl and ioctl functions do run
-// some code around the kernel call, but they don't call any
-// other functions, so for now we keep using them instead of
-// calling the lower-level __fcntl and __ioctl functions.
-var (
-	dupTrampoline  = abi.FuncPCABI0(libc_dup2_trampoline)
-	exitTrampoline = abi.FuncPCABI0(libc___exit_trampoline)
-	forkTrampoline = abi.FuncPCABI0(libc___fork_trampoline)
-)
+var dupTrampoline = abi.FuncPCABI0(libc_dup2_trampoline)
 
 type SockaddrDatalink struct {
 	Len    uint8
@@ -237,12 +210,11 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sys	writev(fd int, iovecs []Iovec) (cnt uintptr, err error)
 //sys   mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
 //sys   munmap(addr uintptr, length uintptr) (err error)
-//sysnb __fork() (pid int, err error)
+//sysnb fork() (pid int, err error)
 //sysnb ioctl(fd int, req int, arg int) (err error)
 //sysnb ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_ioctl
 //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
 //sysnb exit(res int) (err error)
-//sysnb __exit(res int) (err error)
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
 //sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_fcntl
 //sys   unlinkat(fd int, path string, flags int) (err error)

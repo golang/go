@@ -607,7 +607,7 @@ func matchAndAvoidStacks(matches sampleMatchFunc, need []string, avoid []string)
 		var total uintptr
 		for i, name := range need {
 			total += have[i]
-			t.Logf("%s: %d\n", name, have[i])
+			t.Logf("found %d samples in expected function %s\n", have[i], name)
 		}
 		if total == 0 {
 			t.Logf("no samples in expected functions")
@@ -727,6 +727,9 @@ func TestGoroutineSwitch(t *testing.T) {
 }
 
 func fprintStack(w io.Writer, stk []*profile.Location) {
+	if len(stk) == 0 {
+		fmt.Fprintf(w, " (stack empty)")
+	}
 	for _, loc := range stk {
 		fmt.Fprintf(w, " %#x", loc.Address)
 		fmt.Fprintf(w, " (")
@@ -1867,14 +1870,14 @@ func TestLabelSystemstack(t *testing.T) {
 		isLabeled := s.Label != nil && contains(s.Label["key"], "value")
 		var (
 			mayBeLabeled     bool
-			mustBeLabeled    bool
-			mustNotBeLabeled bool
+			mustBeLabeled    string
+			mustNotBeLabeled string
 		)
 		for _, loc := range s.Location {
 			for _, l := range loc.Line {
 				switch l.Function.Name {
 				case "runtime/pprof.labelHog", "runtime/pprof.parallelLabelHog", "runtime/pprof.parallelLabelHog.func1":
-					mustBeLabeled = true
+					mustBeLabeled = l.Function.Name
 				case "runtime/pprof.Do":
 					// Do sets the labels, so samples may
 					// or may not be labeled depending on
@@ -1886,7 +1889,7 @@ func TestLabelSystemstack(t *testing.T) {
 					// (such as those identified by
 					// runtime.isSystemGoroutine). These
 					// should never be labeled.
-					mustNotBeLabeled = true
+					mustNotBeLabeled = l.Function.Name
 				case "gogo", "gosave_systemstack_switch", "racecall":
 					// These are context switch/race
 					// critical that we can't do a full
@@ -1908,25 +1911,28 @@ func TestLabelSystemstack(t *testing.T) {
 				}
 			}
 		}
-		if mustNotBeLabeled {
-			// If this must not be labeled, then mayBeLabeled hints
-			// are not relevant.
+		errorStack := func(f string, args ...any) {
+			var buf strings.Builder
+			fprintStack(&buf, s.Location)
+			t.Errorf("%s: %s", fmt.Sprintf(f, args...), buf.String())
+		}
+		if mustBeLabeled != "" && mustNotBeLabeled != "" {
+			errorStack("sample contains both %s, which must be labeled, and %s, which must not be labeled", mustBeLabeled, mustNotBeLabeled)
+			continue
+		}
+		if mustBeLabeled != "" || mustNotBeLabeled != "" {
+			// We found a definitive frame, so mayBeLabeled hints are not relevant.
 			mayBeLabeled = false
 		}
-		if mustBeLabeled && !isLabeled {
-			var buf strings.Builder
-			fprintStack(&buf, s.Location)
-			t.Errorf("Sample labeled got false want true: %s", buf.String())
+		if mayBeLabeled {
+			// This sample may or may not be labeled, so there's nothing we can check.
+			continue
 		}
-		if mustNotBeLabeled && isLabeled {
-			var buf strings.Builder
-			fprintStack(&buf, s.Location)
-			t.Errorf("Sample labeled got true want false: %s", buf.String())
+		if mustBeLabeled != "" && !isLabeled {
+			errorStack("sample must be labeled because of %s, but is not", mustBeLabeled)
 		}
-		if isLabeled && !(mayBeLabeled || mustBeLabeled) {
-			var buf strings.Builder
-			fprintStack(&buf, s.Location)
-			t.Errorf("Sample labeled got true want false: %s", buf.String())
+		if mustNotBeLabeled != "" && isLabeled {
+			errorStack("sample must not be labeled because of %s, but is", mustNotBeLabeled)
 		}
 	}
 }
