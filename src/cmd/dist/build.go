@@ -1470,12 +1470,9 @@ func cmdbootstrap() {
 		if vflag > 0 {
 			xprintf("\n")
 		}
-		xprintf("Building packages and commands for host, %s/%s.\n", goos, goarch)
-		goInstall(nil, goBootstrap, "std")
+		xprintf("Building commands for host, %s/%s.\n", goos, goarch)
 		goInstall(toolenv, goBootstrap, "cmd")
-		checkNotStale(nil, goBootstrap, "std")
 		checkNotStale(toolenv, goBootstrap, "cmd")
-		checkNotStale(nil, gorootBinGo, "std")
 		checkNotStale(toolenv, gorootBinGo, "cmd")
 
 		timelog("build", "target toolchain")
