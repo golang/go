@@ -97,7 +97,7 @@ func issue10979() {
 		nosuchpkg /* ERROR undefined: nosuchpkg */ .Nosuchtype
 	}
 	type I interface {
-		I.m /* ERROR no field or method m */
+		I.m /* ERROR I.m is not a type */
 		m()
 	}
 }

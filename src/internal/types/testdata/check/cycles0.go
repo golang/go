@@ -45,7 +45,7 @@ type (
 
 	// pointers
 	P0 *P0
-	PP *struct{ PP.f /* ERROR no field or method f */ }
+	PP *struct{ PP.f /* ERROR PP.f is not a type */ }
 
 	// functions
 	F0 func(F0)

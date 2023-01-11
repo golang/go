@@ -19,7 +19,7 @@ func(*ph1[e,e /* ERROR redeclared */ ])h(d /* ERROR undefined */ )
 // func t2[T Numeric2](s[]T){0 /* ERROR not a type */ []{s /* ERROR cannot index */ [0][0]}}
 
 // crash 3
-type t3 *interface{ t3.p /* ERROR no field or method p */ }
+type t3 *interface{ t3.p /* ERROR t3.p is not a type */ }
 
 // crash 4
 type Numeric4 interface{t4 /* ERROR not a type */ }
