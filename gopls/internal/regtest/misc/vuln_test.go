@@ -503,16 +503,16 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 						msg:      "golang.org/amod has known vulnerabilities GO-2022-01, GO-2022-03.",
 						severity: protocol.SeverityInformation,
 						codeActions: []string{
-							"Upgrade to latest",
-							"Upgrade to v1.0.6",
 							"Run govulncheck to verify",
+							"Upgrade to v1.0.6",
+							"Upgrade to latest",
 						},
 					},
 				},
 				codeActions: []string{
-					"Upgrade to latest",
-					"Upgrade to v1.0.6",
 					"Run govulncheck to verify",
+					"Upgrade to v1.0.6",
+					"Upgrade to latest",
 				},
 				hover: []string{"GO-2022-01", "Fixed in v1.0.4.", "GO-2022-03"},
 			},
@@ -655,8 +655,8 @@ func TestRunVulncheckWarning(t *testing.T) {
 						msg:      "golang.org/amod has a vulnerability used in the code: GO-2022-01.",
 						severity: protocol.SeverityWarning,
 						codeActions: []string{
-							"Upgrade to latest",
 							"Upgrade to v1.0.4",
+							"Upgrade to latest",
 							"Reset govulncheck result",
 						},
 						relatedInfo: []vulnRelatedInfo{
@@ -668,8 +668,8 @@ func TestRunVulncheckWarning(t *testing.T) {
 						msg:      "golang.org/amod has a vulnerability GO-2022-03 that is not used in the code.",
 						severity: protocol.SeverityInformation,
 						codeActions: []string{
-							"Upgrade to latest",
 							"Upgrade to v1.0.6",
+							"Upgrade to latest",
 							"Reset govulncheck result",
 						},
 						relatedInfo: []vulnRelatedInfo{
@@ -679,8 +679,8 @@ func TestRunVulncheckWarning(t *testing.T) {
 					},
 				},
 				codeActions: []string{
-					"Upgrade to latest",
 					"Upgrade to v1.0.6",
+					"Upgrade to latest",
 					"Reset govulncheck result",
 				},
 				hover: []string{"GO-2022-01", "Fixed in v1.0.4.", "GO-2022-03"},
