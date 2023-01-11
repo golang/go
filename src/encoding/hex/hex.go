@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unsafe"
 )
 
 const (
@@ -104,9 +105,12 @@ func Decode(dst, src []byte) (int, error) {
 
 // EncodeToString returns the hexadecimal encoding of src.
 func EncodeToString(src []byte) string {
+	if len(src) == 0 {
+		return ""
+	}
 	dst := make([]byte, EncodedLen(len(src)))
 	Encode(dst, src)
-	return string(dst)
+	return unsafe.String(&dst[0], len(dst))
 }
 
 // DecodeString returns the bytes represented by the hexadecimal string s.
