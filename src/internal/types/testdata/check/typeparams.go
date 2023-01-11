@@ -354,7 +354,7 @@ func _[P any]() {
 }
 
 // corner case for type inference
-// (was bug: after instanting f11, the type-checker didn't mark f11 as non-generic)
+// (was bug: after instantiating f11, the type-checker didn't mark f11 as non-generic)
 
 func f11[T any]() {}
 

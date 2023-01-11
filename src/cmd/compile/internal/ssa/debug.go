@@ -803,7 +803,7 @@ func (state *debugState) liveness() []*BlockDebug {
 // the first call, subsequent calls can only shrink startState.
 //
 // Passing forLocationLists=true enables additional side-effects that
-// are necessary for building location lists but superflous while still
+// are necessary for building location lists but superfluous while still
 // iterating to an answer.
 //
 // If previousBlock is non-nil, it registers changes vs. that block's

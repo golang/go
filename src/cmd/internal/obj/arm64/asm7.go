@@ -1012,7 +1012,7 @@ var sysInstFields = map[SpecialOperand]struct {
 	SPOP_CVADP:   {3, 7, 13, 1, true},
 }
 
-// Used for padinng NOOP instruction
+// Used for padding NOOP instruction
 const OP_NOOP = 0xd503201f
 
 // align code to a certain length by padding bytes.

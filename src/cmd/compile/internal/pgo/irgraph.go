@@ -53,7 +53,7 @@ import (
 	"os"
 )
 
-// IRGraph is the key datastrcture that is built from profile. It is
+// IRGraph is the key data structure that is built from profile. It is
 // essentially a call graph with nodes pointing to IRs of functions and edges
 // carrying weights and callsite information. The graph is bidirectional that
 // helps in removing nodes efficiently.
@@ -223,7 +223,7 @@ func (p *Profile) processprofileGraph(g *Graph) bool {
 	return true
 }
 
-// initializeIRGraph builds the IRGraph by visting all the ir.Func in decl list
+// initializeIRGraph builds the IRGraph by visiting all the ir.Func in decl list
 // of a package.
 func (p *Profile) initializeIRGraph() {
 	// Bottomup walk over the function to create IRGraph.
