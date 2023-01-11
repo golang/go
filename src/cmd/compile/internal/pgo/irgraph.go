@@ -217,7 +217,7 @@ func (p *Profile) processprofileGraph(g *Graph) bool {
 		// TODO(prattic): If Function.start_line is missing we could
 		// fall back to using absolute line numbers, which is better
 		// than nothing.
-		log.Fatal("PGO profile missing Function.start_line data")
+		log.Fatal("PGO profile missing Function.start_line data (Go version of profiled application too old? Go 1.20+ automatically adds this to profiles)")
 	}
 
 	return true

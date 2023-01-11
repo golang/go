@@ -447,7 +447,7 @@ var cgoPrefixes = [...]string{
 	"_Cmacro_", // function to evaluate the expanded expression
 }
 
-func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named, wantType bool) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -556,6 +556,25 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 		check.errorf(e.Pos(), UncalledBuiltin, "cannot select on %s", x)
 		goto Error
 	case invalid:
+		goto Error
+	}
+
+	// Avoid crashing when checking an invalid selector in a method declaration
+	// (i.e., where def is not set):
+	//
+	//   type S[T any] struct{}
+	//   type V = S[any]
+	//   func (fs *S[T]) M(x V.M) {}
+	//
+	// All codepaths below return a non-type expression. If we get here while
+	// expecting a type expression, it is an error.
+	//
+	// See issue #57522 for more details.
+	//
+	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
+	// x.typ is incomplete.
+	if wantType {
+		check.errorf(e.Sel, NotAType, "%s is not a type", syntax.Expr(e))
 		goto Error
 	}
 

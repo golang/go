@@ -25,8 +25,8 @@ func f0t[P ~struct{f int}](p P) {
 var _ = f0[Sf]
 var _ = f0t[Sf]
 
-var _ = f0[Sm /* ERROR does not implement */ ]
-var _ = f0t[Sm /* ERROR does not implement */ ]
+var _ = f0[Sm /* ERROR does not satisfy */ ]
+var _ = f0t[Sm /* ERROR does not satisfy */ ]
 
 func f1[P interface{ Sf; m() }](p P) {
         _ = p.f // ERROR p\.f undefined
@@ -35,7 +35,7 @@ func f1[P interface{ Sf; m() }](p P) {
 }
 
 var _ = f1[Sf /* ERROR missing method m */ ]
-var _ = f1[Sm /* ERROR does not implement */ ]
+var _ = f1[Sm /* ERROR does not satisfy */ ]
 
 type Sm struct {}
 

@@ -22,7 +22,7 @@ func _[X comparable, Y interface{comparable; m()}]() {
 	eql(x, x)
 	eql(y, y)
 	eql(y, nil /* ERROR cannot use nil as Y value in argument to eql */ )
-	eql[io /* ERROR does not implement comparable */ .Reader](nil, nil)
+	eql[io /* ERROR does not satisfy comparable */ .Reader](nil, nil)
 }
 
 // If we have a receiver of pointer to type parameter type (below: *T)
@@ -58,7 +58,7 @@ func _() {
 type T1[P interface{~uint}] struct{}
 
 func _[P any]() {
-    _ = T1[P /* ERROR P does not implement interface{~uint} */ ]{}
+    _ = T1[P /* ERROR P does not satisfy interface{~uint} */ ]{}
 }
 
 // This is the original (simplified) program causing the same issue.
@@ -74,8 +74,8 @@ func (u T2[U]) Add1() U {
     return u.s + 1
 }
 
-func NewT2[U any]() T2[U /* ERROR U does not implement Unsigned */ ] {
-    return T2[U /* ERROR U does not implement Unsigned */ ]{}
+func NewT2[U any]() T2[U /* ERROR U does not satisfy Unsigned */ ] {
+    return T2[U /* ERROR U does not satisfy Unsigned */ ]{}
 }
 
 func _() {

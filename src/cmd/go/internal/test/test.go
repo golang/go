@@ -825,8 +825,11 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
-		// sync/atomic import is inserted by the cover tool. See #18486
-		if cfg.BuildCover && cfg.BuildCoverMode == "atomic" {
+		// sync/atomic import is inserted by the cover tool if we're
+		// using atomic mode (and not compiling sync/atomic package itself).
+		// See #18486 and #57445.
+		if cfg.BuildCover && cfg.BuildCoverMode == "atomic" &&
+			p.ImportPath != "sync/atomic" {
 			load.EnsureImport(p, "sync/atomic")
 		}
 

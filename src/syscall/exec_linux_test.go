@@ -505,8 +505,9 @@ func prepareCgroupFD(t *testing.T) (int, string) {
 	// Need an ability to create a sub-cgroup.
 	subCgroup, err := os.MkdirTemp(prefix+string(bytes.TrimSpace(cg)), "subcg-")
 	if err != nil {
-		// Running in an unprivileged container, this may also return EROFS #57262.
-		if os.IsPermission(err) || errors.Is(err, syscall.EROFS) {
+		// ErrPermission or EROFS (#57262) when running in an unprivileged container.
+		// ErrNotExist when cgroupfs is not mounted in chroot/schroot.
+		if os.IsNotExist(err) || os.IsPermission(err) || errors.Is(err, syscall.EROFS) {
 			t.Skip(err)
 		}
 		t.Fatal(err)

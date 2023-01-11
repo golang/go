@@ -395,6 +395,10 @@ func (b *profileBuilder) build() {
 // location ID slice, locs. The addresses in the stack are return PCs or 1 + the PC of
 // an inline marker as the runtime traceback function returns.
 //
+// It may return an empty slice even if locs is non-empty, for example if locs consists
+// solely of runtime.goexit. We still count these empty stacks in profiles in order to
+// get the right cumulative sample count.
+//
 // It may emit to b.pb, so there must be no message encoding in progress.
 func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLocs []uint64) {
 	b.deck.reset()

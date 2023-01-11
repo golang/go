@@ -256,7 +256,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 
 	case *ast.SelectorExpr:
 		var x operand
-		check.selector(&x, e, def)
+		check.selector(&x, e, def, true)
 
 		switch x.mode {
 		case typexpr:

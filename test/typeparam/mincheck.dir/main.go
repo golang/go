@@ -28,11 +28,11 @@ func main() {
 	}
 
 	const want2 = "ay"
-	if got := a.Min[string]("bb", "ay"); got != want2 { // ERROR "string does not implement"
+	if got := a.Min[string]("bb", "ay"); got != want2 { // ERROR "string does not satisfy"
 		panic(fmt.Sprintf("got %d, want %d", got, want2))
 	}
 
-	if got := a.Min("bb", "ay"); got != want2 { // ERROR "string does not implement"
+	if got := a.Min("bb", "ay"); got != want2 { // ERROR "string does not satisfy"
 		panic(fmt.Sprintf("got %d, want %d", got, want2))
 	}
 }

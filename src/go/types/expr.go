@@ -1568,7 +1568,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		return kind
 
 	case *ast.SelectorExpr:
-		check.selector(x, e, nil)
+		check.selector(x, e, nil, false)
 
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(e)
