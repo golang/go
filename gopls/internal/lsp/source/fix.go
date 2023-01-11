@@ -110,7 +110,6 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 			}
 			editsPerFile[fh.URI()] = te
 		}
-		// TODO(adonovan): once FileHandle has a Mapper, eliminate this.
 		content, err := fh.Read()
 		if err != nil {
 			return nil, err

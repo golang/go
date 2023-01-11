@@ -11,7 +11,6 @@ import (
 	"go/token"
 	"go/types"
 	"html/template"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"sort"
@@ -69,7 +68,7 @@ type Cache struct {
 type fileHandle struct {
 	modTime time.Time
 	uri     span.URI
-	bytes   []byte
+	content []byte
 	hash    source.Hash
 	err     error
 }
@@ -140,18 +139,16 @@ func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*fileHandle, e
 	_ = ctx
 	defer done()
 
-	data, err := ioutil.ReadFile(uri.Filename()) // ~20us
+	content, err := os.ReadFile(uri.Filename()) // ~20us
 	if err != nil {
-		return &fileHandle{
-			modTime: fi.ModTime(),
-			err:     err,
-		}, nil
+		content = nil // just in case
 	}
 	return &fileHandle{
 		modTime: fi.ModTime(),
 		uri:     uri,
-		bytes:   data,
-		hash:    source.HashOf(data),
+		content: content,
+		hash:    source.HashOf(content),
+		err:     err,
 	}, nil
 }
 
@@ -187,7 +184,7 @@ func (h *fileHandle) FileIdentity() source.FileIdentity {
 }
 
 func (h *fileHandle) Read() ([]byte, error) {
-	return h.bytes, h.err
+	return h.content, h.err
 }
 
 var cacheIndex, sessionIndex, viewIndex int64
