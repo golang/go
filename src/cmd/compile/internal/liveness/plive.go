@@ -589,66 +589,6 @@ func (lv *liveness) markUnsafePoints() {
 			}
 		}
 	}
-
-	// Find uintptr -> unsafe.Pointer conversions and flood
-	// unsafeness back to a call (which is always a safe point).
-	//
-	// Looking for the uintptr -> unsafe.Pointer conversion has a
-	// few advantages over looking for unsafe.Pointer -> uintptr
-	// conversions:
-	//
-	// 1. We avoid needlessly blocking safe-points for
-	// unsafe.Pointer -> uintptr conversions that never go back to
-	// a Pointer.
-	//
-	// 2. We don't have to detect calls to reflect.Value.Pointer,
-	// reflect.Value.UnsafeAddr, and reflect.Value.InterfaceData,
-	// which are implicit unsafe.Pointer -> uintptr conversions.
-	// We can't even reliably detect this if there's an indirect
-	// call to one of these methods.
-	//
-	// TODO: For trivial unsafe.Pointer arithmetic, it would be
-	// nice to only flood as far as the unsafe.Pointer -> uintptr
-	// conversion, but it's hard to know which argument of an Add
-	// or Sub to follow.
-	var flooded bitvec.BitVec
-	var flood func(b *ssa.Block, vi int)
-	flood = func(b *ssa.Block, vi int) {
-		if flooded.N == 0 {
-			flooded = bitvec.New(int32(lv.f.NumBlocks()))
-		}
-		if flooded.Get(int32(b.ID)) {
-			return
-		}
-		for i := vi - 1; i >= 0; i-- {
-			v := b.Values[i]
-			if v.Op.IsCall() {
-				// Uintptrs must not contain live
-				// pointers across calls, so stop
-				// flooding.
-				return
-			}
-			lv.unsafePoints.Set(int32(v.ID))
-		}
-		if vi == len(b.Values) {
-			// We marked all values in this block, so no
-			// need to flood this block again.
-			flooded.Set(int32(b.ID))
-		}
-		for _, pred := range b.Preds {
-			flood(pred.Block(), len(pred.Block().Values))
-		}
-	}
-	for _, b := range lv.f.Blocks {
-		for i, v := range b.Values {
-			if !(v.Op == ssa.OpConvert && v.Type.IsPtrShaped()) {
-				continue
-			}
-			// Flood the unsafe-ness of this backwards
-			// until we hit a call.
-			flood(b, i+1)
-		}
-	}
 }
 
 // Returns true for instructions that must have a stack map.
