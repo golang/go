@@ -841,6 +841,9 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 	// Emit the export data and compute the deep hash.
 	export, err := gcimporter.IExportShallow(pkg.fset, pkg.types)
 	if err != nil {
+		// TODO(adonovan): in light of exporter bugs such as #57729,
+		// consider using bug.Report here and retrying the IExportShallow
+		// call here using an empty types.Package.
 		log.Fatalf("internal error writing shallow export data: %v", err)
 	}
 	pkg.export = export

@@ -346,7 +346,13 @@ func (p *iexporter) doDecl(obj types.Object) {
 	case *types.Func:
 		sig, _ := obj.Type().(*types.Signature)
 		if sig.Recv() != nil {
-			panic(internalErrorf("unexpected method: %v", sig))
+			// We shouldn't see methods in the package scope,
+			// but the type checker may repair "func () F() {}"
+			// to "func (Invalid) F()" and then treat it like "func F()",
+			// so allow that. See golang/go#57729.
+			if sig.Recv().Type() != types.Typ[types.Invalid] {
+				panic(internalErrorf("unexpected method: %v", sig))
+			}
 		}
 
 		// Function.
