@@ -223,7 +223,7 @@ func (c *commandHandler) ResetGoModDiagnostics(ctx context.Context, args command
 			c.s.clearDiagnosticSource(modCheckUpgradesSource)
 		}
 
-		if args.DiagnosticSource == "" || args.DiagnosticSource == string(source.Vulncheck) {
+		if args.DiagnosticSource == "" || args.DiagnosticSource == string(source.Govulncheck) {
 			deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), nil)
 			c.s.clearDiagnosticSource(modVulncheckSource)
 		}

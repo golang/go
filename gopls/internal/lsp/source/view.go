@@ -840,7 +840,8 @@ const (
 	ModTidyError             DiagnosticSource = "go mod tidy"
 	OptimizationDetailsError DiagnosticSource = "optimizer details"
 	UpgradeNotification      DiagnosticSource = "upgrade available"
-	Vulncheck                DiagnosticSource = "govulncheck"
+	Vulncheck                DiagnosticSource = "vulncheck imports"
+	Govulncheck              DiagnosticSource = "govulncheck"
 	TemplateError            DiagnosticSource = "template"
 	WorkFileError            DiagnosticSource = "go.work file"
 )

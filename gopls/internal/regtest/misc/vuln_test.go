@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/gopls/internal/vulncheck/vulntest"
@@ -502,6 +503,7 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 					{
 						msg:      "golang.org/amod has known vulnerabilities GO-2022-01, GO-2022-03.",
 						severity: protocol.SeverityInformation,
+						source:   string(source.Vulncheck),
 						codeActions: []string{
 							"Run govulncheck to verify",
 							"Upgrade to v1.0.6",
@@ -521,6 +523,7 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 					{
 						msg:      "golang.org/bmod has a vulnerability GO-2022-02.",
 						severity: protocol.SeverityInformation,
+						source:   string(source.Vulncheck),
 						codeActions: []string{
 							"Run govulncheck to verify",
 						},
@@ -654,6 +657,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 					{
 						msg:      "golang.org/amod has a vulnerability used in the code: GO-2022-01.",
 						severity: protocol.SeverityWarning,
+						source:   string(source.Govulncheck),
 						codeActions: []string{
 							"Upgrade to v1.0.4",
 							"Upgrade to latest",
@@ -667,6 +671,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 					{
 						msg:      "golang.org/amod has a vulnerability GO-2022-03 that is not used in the code.",
 						severity: protocol.SeverityInformation,
+						source:   string(source.Govulncheck),
 						codeActions: []string{
 							"Upgrade to v1.0.6",
 							"Upgrade to latest",
@@ -690,6 +695,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 					{
 						msg:      "golang.org/bmod has a vulnerability used in the code: GO-2022-02.",
 						severity: protocol.SeverityWarning,
+						source:   string(source.Govulncheck),
 						codeActions: []string{
 							"Reset govulncheck result", // no fix, but we should give an option to reset.
 						},
@@ -817,6 +823,7 @@ func TestGovulncheckInfo(t *testing.T) {
 					{
 						msg:      "golang.org/bmod has a vulnerability GO-2022-02 that is not used in the code.",
 						severity: protocol.SeverityInformation,
+						source:   string(source.Govulncheck),
 						codeActions: []string{
 							"Reset govulncheck result",
 						},
@@ -879,8 +886,8 @@ func testVulnDiagnostics(t *testing.T, env *Env, pattern string, want vulnDiagEx
 			t.Errorf("no diagnostic at %q matching %q found\n", pattern, w.msg)
 			continue
 		}
-		if diag.Severity != w.severity {
-			t.Errorf("incorrect severity for %q, want %s got %s\n", w.msg, w.severity, diag.Severity)
+		if diag.Severity != w.severity || diag.Source != w.source {
+			t.Errorf("incorrect (severity, source) for %q, want (%s, %s) got (%s, %s)\n", w.msg, w.severity, w.source, diag.Severity, diag.Source)
 		}
 		sort.Slice(w.relatedInfo, func(i, j int) bool { return w.relatedInfo[i].less(w.relatedInfo[j]) })
 		if got, want := summarizeRelatedInfo(diag.RelatedInformation), w.relatedInfo; !cmp.Equal(got, want) {
@@ -937,6 +944,8 @@ type vulnDiag struct {
 	// relatedInfo is related info message prefixed by the file base.
 	// See summarizeRelatedInfo.
 	relatedInfo []vulnRelatedInfo
+	// diagnostic source.
+	source string
 }
 
 func (i vulnRelatedInfo) less(j vulnRelatedInfo) bool {

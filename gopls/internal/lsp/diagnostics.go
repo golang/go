@@ -39,7 +39,7 @@ const (
 	orphanedSource
 	workSource
 	modCheckUpgradesSource
-	modVulncheckSource
+	modVulncheckSource // source.Govulncheck + source.Vulncheck
 )
 
 // A diagnosticReport holds results for a single diagnostic source.

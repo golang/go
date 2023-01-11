@@ -191,20 +191,20 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		return nil, err
 	}
 
-	fromGovulncheck := true
+	diagSource := source.Govulncheck
 	vs := snapshot.View().Vulnerabilities(fh.URI())[fh.URI()]
 	if vs == nil && snapshot.View().Options().Vulncheck == source.ModeVulncheckImports {
 		vs, err = snapshot.ModVuln(ctx, fh.URI())
 		if err != nil {
 			return nil, err
 		}
-		fromGovulncheck = false
+		diagSource = source.Vulncheck
 	}
 	if vs == nil || len(vs.Vulns) == 0 {
 		return nil, nil
 	}
 
-	suggestRunOrResetGovulncheck, err := suggestGovulncheckAction(fromGovulncheck, fh.URI())
+	suggestRunOrResetGovulncheck, err := suggestGovulncheckAction(diagSource == source.Govulncheck, fh.URI())
 	if err != nil {
 		// must not happen
 		return nil, err // TODO: bug report
@@ -310,8 +310,8 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				URI:            fh.URI(),
 				Range:          rng,
 				Severity:       protocol.SeverityWarning,
-				Source:         source.Vulncheck,
-				Message:        getVulnMessage(req.Mod.Path, warning, true, fromGovulncheck),
+				Source:         diagSource,
+				Message:        getVulnMessage(req.Mod.Path, warning, true, diagSource == source.Govulncheck),
 				SuggestedFixes: warningFixes,
 				Related:        relatedInfo,
 			})
@@ -322,8 +322,8 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				URI:            fh.URI(),
 				Range:          rng,
 				Severity:       protocol.SeverityInformation,
-				Source:         source.Vulncheck,
-				Message:        getVulnMessage(req.Mod.Path, info, false, fromGovulncheck),
+				Source:         diagSource,
+				Message:        getVulnMessage(req.Mod.Path, info, false, diagSource == source.Govulncheck),
 				SuggestedFixes: infoFixes,
 				Related:        relatedInfo,
 			})
@@ -365,8 +365,8 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				URI:            fh.URI(),
 				Range:          rng,
 				Severity:       protocol.SeverityWarning,
-				Source:         source.Vulncheck,
-				Message:        getVulnMessage(stdlib, warning, true, fromGovulncheck),
+				Source:         diagSource,
+				Message:        getVulnMessage(stdlib, warning, true, diagSource == source.Govulncheck),
 				SuggestedFixes: fixes,
 				Related:        relatedInfo,
 			})
@@ -377,8 +377,8 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				URI:            fh.URI(),
 				Range:          rng,
 				Severity:       protocol.SeverityInformation,
-				Source:         source.Vulncheck,
-				Message:        getVulnMessage(stdlib, info, false, fromGovulncheck),
+				Source:         diagSource,
+				Message:        getVulnMessage(stdlib, info, false, diagSource == source.Govulncheck),
 				SuggestedFixes: fixes,
 				Related:        relatedInfo,
 			})
@@ -396,7 +396,7 @@ func suggestGovulncheckAction(fromGovulncheck bool, uri span.URI) (source.Sugges
 	if fromGovulncheck {
 		resetVulncheck, err := command.NewResetGoModDiagnosticsCommand("Reset govulncheck result", command.ResetGoModDiagnosticsArgs{
 			URIArg:           command.URIArg{URI: protocol.DocumentURI(uri)},
-			DiagnosticSource: string(source.Vulncheck),
+			DiagnosticSource: string(source.Govulncheck),
 		})
 		if err != nil {
 			return source.SuggestedFix{}, err
