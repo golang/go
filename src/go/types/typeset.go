@@ -381,7 +381,7 @@ func assertSortedMethods(list []*Func) {
 type byUniqueMethodName []*Func
 
 func (a byUniqueMethodName) Len() int           { return len(a) }
-func (a byUniqueMethodName) Less(i, j int) bool { return a[i].Id() < a[j].Id() }
+func (a byUniqueMethodName) Less(i, j int) bool { return a[i].less(&a[j].object) }
 func (a byUniqueMethodName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // invalidTypeSet is a singleton type set to signal an invalid type set
