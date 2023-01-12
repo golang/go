@@ -47,9 +47,37 @@ func BenchmarkRename(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 1; i < b.N; i++ {
 		pos := env.RegexpSearch("internal/imports/mod.go", "gopathwalk")
 		newName := fmt.Sprintf("%s%d", "gopathwalk", i)
 		env.Rename("internal/imports/mod.go", pos, newName)
+	}
+}
+
+func BenchmarkFindAllImplementations(b *testing.B) {
+	env := benchmarkEnv(b)
+
+	env.OpenFile("internal/imports/mod.go")
+	pos := env.RegexpSearch("internal/imports/mod.go", "initAllMods")
+	env.Await(env.DoneWithOpen())
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		env.Implementations("internal/imports/mod.go", pos)
+	}
+}
+
+func BenchmarkHover(b *testing.B) {
+	env := benchmarkEnv(b)
+
+	env.OpenFile("internal/imports/mod.go")
+	pos := env.RegexpSearch("internal/imports/mod.go", "bytes")
+	env.Await(env.DoneWithOpen())
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		env.Hover("internal/imports/mod.go", pos)
 	}
 }
