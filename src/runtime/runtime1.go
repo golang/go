@@ -296,8 +296,10 @@ func check() {
 }
 
 type dbgVar struct {
-	name  string
-	value *int32
+	name   string
+	value  *int32        // for variables that can only be set at startup
+	atomic *atomic.Int32 // for variables that can be changed during execution
+	def    int32         // default value (ideally zero)
 }
 
 // Holds variables parsed from GODEBUG env var,
@@ -330,32 +332,33 @@ var debug struct {
 	allocfreetrace int32
 	inittrace      int32
 	sbrk           int32
+
+	panicnil atomic.Int32
 }
 
-var dbgvars = []dbgVar{
-	{"allocfreetrace", &debug.allocfreetrace},
-	{"clobberfree", &debug.clobberfree},
-	{"cgocheck", &debug.cgocheck},
-	{"efence", &debug.efence},
-	{"gccheckmark", &debug.gccheckmark},
-	{"gcpacertrace", &debug.gcpacertrace},
-	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
-	{"gcstoptheworld", &debug.gcstoptheworld},
-	{"gctrace", &debug.gctrace},
-	{"invalidptr", &debug.invalidptr},
-	{"madvdontneed", &debug.madvdontneed},
-	{"sbrk", &debug.sbrk},
-	{"scavtrace", &debug.scavtrace},
-	{"scheddetail", &debug.scheddetail},
-	{"schedtrace", &debug.schedtrace},
-	{"tracebackancestors", &debug.tracebackancestors},
-	{"asyncpreemptoff", &debug.asyncpreemptoff},
-	{"inittrace", &debug.inittrace},
-	{"harddecommit", &debug.harddecommit},
-	{"adaptivestackstart", &debug.adaptivestackstart},
+var dbgvars = []*dbgVar{
+	{name: "allocfreetrace", value: &debug.allocfreetrace},
+	{name: "clobberfree", value: &debug.clobberfree},
+	{name: "cgocheck", value: &debug.cgocheck},
+	{name: "efence", value: &debug.efence},
+	{name: "gccheckmark", value: &debug.gccheckmark},
+	{name: "gcpacertrace", value: &debug.gcpacertrace},
+	{name: "gcshrinkstackoff", value: &debug.gcshrinkstackoff},
+	{name: "gcstoptheworld", value: &debug.gcstoptheworld},
+	{name: "gctrace", value: &debug.gctrace},
+	{name: "invalidptr", value: &debug.invalidptr},
+	{name: "madvdontneed", value: &debug.madvdontneed},
+	{name: "sbrk", value: &debug.sbrk},
+	{name: "scavtrace", value: &debug.scavtrace},
+	{name: "scheddetail", value: &debug.scheddetail},
+	{name: "schedtrace", value: &debug.schedtrace},
+	{name: "tracebackancestors", value: &debug.tracebackancestors},
+	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
+	{name: "inittrace", value: &debug.inittrace},
+	{name: "harddecommit", value: &debug.harddecommit},
+	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
+	{name: "panicnil", atomic: &debug.panicnil},
 }
-
-var globalGODEBUG string
 
 func parsedebugvars() {
 	// defaults
@@ -374,26 +377,101 @@ func parsedebugvars() {
 		debug.madvdontneed = 1
 	}
 
-	globalGODEBUG = gogetenv("GODEBUG")
-	godebugEnv.StoreNoWB(&globalGODEBUG)
-	for p := globalGODEBUG; p != ""; {
-		field := ""
-		i := bytealg.IndexByteString(p, ',')
-		if i < 0 {
-			field, p = p, ""
-		} else {
-			field, p = p[:i], p[i+1:]
+	godebug := gogetenv("GODEBUG")
+
+	p := new(string)
+	*p = godebug
+	godebugEnv.Store(p)
+
+	// apply runtime defaults, if any
+	for _, v := range dbgvars {
+		if v.def != 0 {
+			// Every var should have either v.value or v.atomic set.
+			if v.value != nil {
+				*v.value = v.def
+			} else if v.atomic != nil {
+				v.atomic.Store(v.def)
+			}
 		}
-		i = bytealg.IndexByteString(field, '=')
+	}
+
+	// apply compile-time GODEBUG settings
+	parsegodebug(godebugDefault, nil)
+
+	// apply environment settings
+	parsegodebug(godebug, nil)
+
+	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
+
+	setTraceback(gogetenv("GOTRACEBACK"))
+	traceback_env = traceback_cache
+}
+
+// reparsedebugvars reparses the runtime's debug variables
+// because the environment variable has been changed to env.
+func reparsedebugvars(env string) {
+	seen := make(map[string]bool)
+	// apply environment settings
+	parsegodebug(env, seen)
+	// apply compile-time GODEBUG settings for as-yet-unseen variables
+	parsegodebug(godebugDefault, seen)
+	// apply defaults for as-yet-unseen variables
+	for _, v := range dbgvars {
+		if v.atomic != nil && !seen[v.name] {
+			v.atomic.Store(0)
+		}
+	}
+}
+
+// parsegodebug parses the godebug string, updating variables listed in dbgvars.
+// If seen == nil, this is startup time and we process the string left to right
+// overwriting older settings with newer ones.
+// If seen != nil, $GODEBUG has changed and we are doing an
+// incremental update. To avoid flapping in the case where a value is
+// set multiple times (perhaps in the default and the environment,
+// or perhaps twice in the environment), we process the string right-to-left
+// and only change values not already seen. After doing this for both
+// the environment and the default settings, the caller must also call
+// cleargodebug(seen) to reset any now-unset values back to their defaults.
+func parsegodebug(godebug string, seen map[string]bool) {
+	for p := godebug; p != ""; {
+		var field string
+		if seen == nil {
+			// startup: process left to right, overwriting older settings with newer
+			i := bytealg.IndexByteString(p, ',')
+			if i < 0 {
+				field, p = p, ""
+			} else {
+				field, p = p[:i], p[i+1:]
+			}
+		} else {
+			// incremental update: process right to left, updating and skipping seen
+			i := len(p) - 1
+			for i >= 0 && p[i] != ',' {
+				i--
+			}
+			if i < 0 {
+				p, field = "", p
+			} else {
+				p, field = p[:i], p[i+1:]
+			}
+		}
+		i := bytealg.IndexByteString(field, '=')
 		if i < 0 {
 			continue
 		}
 		key, value := field[:i], field[i+1:]
+		if seen[key] {
+			continue
+		}
+		if seen != nil {
+			seen[key] = true
+		}
 
 		// Update MemProfileRate directly here since it
 		// is int, not int32, and should only be updated
 		// if specified in GODEBUG.
-		if key == "memprofilerate" {
+		if seen == nil && key == "memprofilerate" {
 			if n, ok := atoi(value); ok {
 				MemProfileRate = n
 			}
@@ -401,17 +479,16 @@ func parsedebugvars() {
 			for _, v := range dbgvars {
 				if v.name == key {
 					if n, ok := atoi32(value); ok {
-						*v.value = n
+						if seen == nil && v.value != nil {
+							*v.value = n
+						} else if v.atomic != nil {
+							v.atomic.Store(n)
+						}
 					}
 				}
 			}
 		}
 	}
-
-	debug.malloc = (debug.allocfreetrace | debug.inittrace | debug.sbrk) != 0
-
-	setTraceback(gogetenv("GOTRACEBACK"))
-	traceback_env = traceback_cache
 }
 
 //go:linkname setTraceback runtime/debug.SetTraceback

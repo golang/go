@@ -75,15 +75,19 @@ func godebug_setUpdate(update func(string, string)) {
 	p := new(func(string, string))
 	*p = update
 	godebugUpdate.Store(p)
-	godebugNotify()
+	godebugNotify(false)
 }
 
-func godebugNotify() {
-	if update := godebugUpdate.Load(); update != nil {
-		var env string
-		if p := godebugEnv.Load(); p != nil {
-			env = *p
-		}
+func godebugNotify(envChanged bool) {
+	update := godebugUpdate.Load()
+	var env string
+	if p := godebugEnv.Load(); p != nil {
+		env = *p
+	}
+	if envChanged {
+		reparsedebugvars(env)
+	}
+	if update != nil {
 		(*update)(godebugDefault, env)
 	}
 }
@@ -95,7 +99,7 @@ func syscall_runtimeSetenv(key, value string) {
 		p := new(string)
 		*p = value
 		godebugEnv.Store(p)
-		godebugNotify()
+		godebugNotify(true)
 	}
 }
 
@@ -104,7 +108,7 @@ func syscall_runtimeUnsetenv(key string) {
 	unsetenv_c(key)
 	if key == "GODEBUG" {
 		godebugEnv.Store(nil)
-		godebugNotify()
+		godebugNotify(true)
 	}
 }
 
