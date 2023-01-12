@@ -160,16 +160,13 @@ const F = named.D - 3
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("p/internal/bar/bar.go")
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				env.DiagnosticAtRegexp("p/internal/bar/bar.go", "\"mod.test/p/internal/foo\""),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("p/internal/bar/bar.go", "\"mod.test/p/internal/foo\""),
 		)
 		env.OpenFile("go.mod")
 		env.RegexpReplace("go.mod", "mod.testx", "mod.test")
 		env.SaveBuffer("go.mod") // saving triggers a reload
-		env.Await(NoOutstandingDiagnostics())
+		env.AfterChange(NoMatchingDiagnostics())
 	})
 }
 

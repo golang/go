@@ -64,13 +64,13 @@ var FooErr error = errors.New("foo")
 		Settings{"staticcheck": true},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
-		env.Await(
-			env.DiagnosticAtRegexpFromSource("a/a.go", "sort.Slice", "sortslice"),
-			env.DiagnosticAtRegexpFromSource("a/a.go", "sort.Slice.(slice)", "SA1028"),
-			env.DiagnosticAtRegexpFromSource("a/a.go", "var (FooErr)", "ST1012"),
-			env.DiagnosticAtRegexpFromSource("a/a.go", `"12234"`, "SA1024"),
-			env.DiagnosticAtRegexpFromSource("a/a.go", "testGenerics.*(p P)", "SA4009"),
-			env.DiagnosticAtRegexpFromSource("a/a.go", "q = (&\\*p)", "SA4001"),
+		env.AfterChange(
+			Diagnostics(env.AtRegexp("a/a.go", "sort.Slice"), FromSource("sortslice")),
+			Diagnostics(env.AtRegexp("a/a.go", "sort.Slice.(slice)"), FromSource("SA1028")),
+			Diagnostics(env.AtRegexp("a/a.go", "var (FooErr)"), FromSource("ST1012")),
+			Diagnostics(env.AtRegexp("a/a.go", `"12234"`), FromSource("SA1024")),
+			Diagnostics(env.AtRegexp("a/a.go", "testGenerics.*(p P)"), FromSource("SA4009")),
+			Diagnostics(env.AtRegexp("a/a.go", "q = (&\\*p)"), FromSource("SA4001")),
 		)
 	})
 }
@@ -103,11 +103,8 @@ func Foo(enabled interface{}) {
 		Settings{"staticcheck": true},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("p.go")
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				env.DiagnosticAtRegexpFromSource("p.go", ", (enabled)", "SA9008"),
-			),
+		env.AfterChange(
+			Diagnostics(env.AtRegexp("p.go", ", (enabled)"), FromSource("SA9008")),
 		)
 	})
 }

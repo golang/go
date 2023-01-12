@@ -700,22 +700,143 @@ func (e DiagnosticExpectation) Description() string {
 	return desc
 }
 
-// NoOutstandingDiagnostics asserts that the workspace has no outstanding
-// diagnostic messages.
-func NoOutstandingDiagnostics() Expectation {
+// Diagnostics asserts that there is at least one diagnostic matching the given
+// filters.
+func Diagnostics(filters ...DiagnosticFilter) Expectation {
 	check := func(s State) Verdict {
-		for _, diags := range s.diagnostics {
-			if len(diags.Diagnostics) > 0 {
+		diags := flattenDiagnostics(s)
+		for _, filter := range filters {
+			var filtered []flatDiagnostic
+			for _, d := range diags {
+				if filter.check(d.name, d.diag) {
+					filtered = append(filtered, d)
+				}
+			}
+			if len(filtered) == 0 {
+				// TODO(rfindley): if/when expectations describe their own failure, we
+				// can provide more useful information here as to which filter caused
+				// the failure.
 				return Unmet
 			}
+			diags = filtered
 		}
 		return Met
 	}
+	var descs []string
+	for _, filter := range filters {
+		descs = append(descs, filter.desc)
+	}
 	return SimpleExpectation{
 		check:       check,
-		description: "no outstanding diagnostics",
+		description: "any diagnostics " + strings.Join(descs, ", "),
 	}
 }
+
+// NoMatchingDiagnostics asserts that there are no diagnostics matching the
+// given filters. Notably, if no filters are supplied this assertion checks
+// that there are no diagnostics at all, for any file.
+//
+// TODO(rfindley): replace NoDiagnostics with this, and rename.
+func NoMatchingDiagnostics(filters ...DiagnosticFilter) Expectation {
+	check := func(s State) Verdict {
+		diags := flattenDiagnostics(s)
+		for _, filter := range filters {
+			var filtered []flatDiagnostic
+			for _, d := range diags {
+				if filter.check(d.name, d.diag) {
+					filtered = append(filtered, d)
+				}
+			}
+			diags = filtered
+		}
+		if len(diags) > 0 {
+			return Unmet
+		}
+		return Met
+	}
+	var descs []string
+	for _, filter := range filters {
+		descs = append(descs, filter.desc)
+	}
+	return SimpleExpectation{
+		check:       check,
+		description: "no diagnostics " + strings.Join(descs, ", "),
+	}
+}
+
+type flatDiagnostic struct {
+	name string
+	diag protocol.Diagnostic
+}
+
+func flattenDiagnostics(state State) []flatDiagnostic {
+	var result []flatDiagnostic
+	for name, diags := range state.diagnostics {
+		for _, diag := range diags.Diagnostics {
+			result = append(result, flatDiagnostic{name, diag})
+		}
+	}
+	return result
+}
+
+// -- Diagnostic filters --
+
+// A DiagnosticFilter filters the set of diagnostics, for assertion with
+// Diagnostics or NoMatchingDiagnostics.
+type DiagnosticFilter struct {
+	desc  string
+	check func(name string, _ protocol.Diagnostic) bool
+}
+
+// ForFile filters to diagnostics matching the sandbox-relative file name.
+func ForFile(name string) DiagnosticFilter {
+	return DiagnosticFilter{
+		desc: fmt.Sprintf("for file %q", name),
+		check: func(diagName string, _ protocol.Diagnostic) bool {
+			return diagName == name
+		},
+	}
+}
+
+// FromSource filters to diagnostics matching the given diagnostics source.
+func FromSource(source string) DiagnosticFilter {
+	return DiagnosticFilter{
+		desc: fmt.Sprintf("with source %q", source),
+		check: func(_ string, d protocol.Diagnostic) bool {
+			return d.Source == source
+		},
+	}
+}
+
+// AtRegexp filters to diagnostics in the file with sandbox-relative path name,
+// at the first position matching the given regexp pattern.
+//
+// TODO(rfindley): pass in the editor to expectations, so that they may depend
+// on editor state and AtRegexp can be a function rather than a method.
+func (e *Env) AtRegexp(name, pattern string) DiagnosticFilter {
+	pos := e.RegexpSearch(name, pattern)
+	return DiagnosticFilter{
+		desc: fmt.Sprintf("at the first position matching %q in %q", pattern, name),
+		check: func(diagName string, d protocol.Diagnostic) bool {
+			// TODO(rfindley): just use protocol.Position for Pos, rather than
+			// duplicating.
+			return diagName == name && d.Range.Start.Line == uint32(pos.Line) && d.Range.Start.Character == uint32(pos.Column)
+		},
+	}
+}
+
+// WithMessageContaining filters to diagnostics whose message contains the
+// given substring.
+func WithMessageContaining(substring string) DiagnosticFilter {
+	return DiagnosticFilter{
+		desc: fmt.Sprintf("with message containing %q", substring),
+		check: func(_ string, d protocol.Diagnostic) bool {
+			return strings.Contains(d.Message, substring)
+		},
+	}
+}
+
+// TODO(rfindley): eliminate all expectations below this point.
 
 // NoDiagnostics asserts that either no diagnostics are sent for the
 // workspace-relative path name, or empty diagnostics are sent.
@@ -749,43 +870,17 @@ func (e *Env) DiagnosticAtRegexpWithMessage(name, re, msg string) DiagnosticExpe
 	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true, message: msg}
 }
 
-// DiagnosticAtRegexpFromSource expects a diagnostic at the first position
-// matching re, from the given source.
-func (e *Env) DiagnosticAtRegexpFromSource(name, re, source string) DiagnosticExpectation {
-	e.T.Helper()
-	pos := e.RegexpSearch(name, re)
-	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true, source: source}
-}
-
 // DiagnosticAt asserts that there is a diagnostic entry at the position
 // specified by line and col, for the workdir-relative path name.
 func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
 	return DiagnosticExpectation{path: name, pos: &fake.Pos{Line: line, Column: col}, present: true}
 }
 
-// NoDiagnosticAtRegexp expects that there is no diagnostic entry at the start
-// position matching the regexp search string re in the buffer specified by
-// name. Note that this currently ignores the end position.
-// This should only be used in combination with OnceMet for a given condition,
-// otherwise it may always succeed.
-func (e *Env) NoDiagnosticAtRegexp(name, re string) DiagnosticExpectation {
-	e.T.Helper()
-	pos := e.RegexpSearch(name, re)
-	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: false}
-}
-
-// NoDiagnosticWithMessage asserts that there is no diagnostic entry with the
-// given message.
-//
-// This should only be used in combination with OnceMet for a given condition,
-// otherwise it may always succeed.
-func NoDiagnosticWithMessage(name, msg string) DiagnosticExpectation {
-	return DiagnosticExpectation{path: name, message: msg, present: false}
-}
-
 // GoSumDiagnostic asserts that a "go.sum is out of sync" diagnostic for the
 // given module (as formatted in a go.mod file, e.g. "example.com v1.0.0") is
 // present.
+//
+// TODO(rfindley): remove this.
 func (e *Env) GoSumDiagnostic(name, module string) Expectation {
 	e.T.Helper()
 	// In 1.16, go.sum diagnostics should appear on the relevant module. Earlier

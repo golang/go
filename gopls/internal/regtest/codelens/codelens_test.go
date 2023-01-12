@@ -216,7 +216,7 @@ require golang.org/x/hello v1.2.3
 						// but there may be some subtlety in timing here, where this
 						// should always succeed, but may not actually test the correct
 						// behavior.
-						env.NoDiagnosticAtRegexp("b/go.mod", `require`),
+						NoMatchingDiagnostics(env.AtRegexp("b/go.mod", `require`)),
 					),
 				)
 				// Check for upgrades in b/go.mod and then clear them.

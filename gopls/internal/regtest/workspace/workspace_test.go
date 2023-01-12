@@ -272,7 +272,7 @@ func Hello() int {
 		env.AfterChange(
 			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
 			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
-			env.NoDiagnosticAtRegexp("moda/a/a.go", `"b.com/b"`),
+			NoMatchingDiagnostics(env.AtRegexp("moda/a/a.go", `"b.com/b"`)),
 		)
 	})
 }
@@ -702,7 +702,7 @@ module example.com/bar
 		// the diagnostic still shows up.
 		env.SetBufferContent("go.work", "go 1.18 \n\n use ./bar\n")
 		env.AfterChange(
-			env.NoDiagnosticAtRegexp("go.work", "use"),
+			NoMatchingDiagnostics(env.AtRegexp("go.work", "use")),
 		)
 		env.SetBufferContent("go.work", "go 1.18 \n\n use ./foo\n")
 		env.AfterChange(
@@ -1069,7 +1069,7 @@ use (
 	b
 )
 `)
-		env.AfterChange(NoOutstandingDiagnostics())
+		env.AfterChange(NoMatchingDiagnostics())
 		// Removing the go.work file should put us back where we started.
 		env.RemoveWorkspaceFile("go.work")
 

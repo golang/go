@@ -1404,7 +1404,7 @@ func main() {
 		env.Await(
 			OnceMet(
 				InitialWorkspaceLoad,
-				NoDiagnosticWithMessage("", "illegal character U+0023 '#'"),
+				NoMatchingDiagnostics(WithMessageContaining("illegal character U+0023 '#'")),
 			),
 		)
 	})
