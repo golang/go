@@ -115,6 +115,7 @@ var filemap = map[string]action{
 	"typeterm_test.go": nil,
 	"typeterm.go":      nil,
 	"under.go":         nil,
+	"unify.go":         fixSprintf,
 	"universe.go":      fixGlobalTypVarDecl,
 	"validtype.go":     nil,
 }
@@ -209,4 +210,33 @@ func fixGlobalTypVarDecl(f *ast.File) {
 		}
 		return true
 	})
+}
+
+// fixSprintf adds an extra nil argument for the *token.FileSet parameter in sprintf calls.
+func fixSprintf(f *ast.File) {
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.CallExpr:
+			if fun, _ := n.Fun.(*ast.Ident); fun != nil && fun.Name == "sprintf" && len(n.Args) >= 4 /* ... args */ {
+				n.Args = insert(n.Args, 1, newIdent(n.Args[1].Pos(), "nil"))
+				return false
+			}
+		}
+		return true
+	})
+}
+
+// newIdent returns a new identifier with the given position and name.
+func newIdent(pos token.Pos, name string) *ast.Ident {
+	id := ast.NewIdent(name)
+	id.NamePos = pos
+	return id
+}
+
+// insert inserts x at list[at] and moves the remaining elements up.
+func insert(list []ast.Expr, at int, x ast.Expr) []ast.Expr {
+	list = append(list, nil)
+	copy(list[at+1:], list[at:])
+	list[at] = x
+	return list
 }
