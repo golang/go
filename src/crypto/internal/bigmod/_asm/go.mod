@@ -1,4 +1,4 @@
-module asm
+module std/crypto/internal/bigmod/_asm
 
 go 1.19
 
