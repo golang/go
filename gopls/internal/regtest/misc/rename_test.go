@@ -403,12 +403,10 @@ package b
 		// Rename files and verify that diagnostics are affected accordingly.
 
 		// Initially, we should have diagnostics on both X's, for their duplicate declaration.
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexp("a/a.go", "X"),
-				env.DiagnosticAtRegexp("a/x.go", "X"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			env.DiagnosticAtRegexp("a/a.go", "X"),
+			env.DiagnosticAtRegexp("a/x.go", "X"),
 		)
 
 		// Moving x.go should make the diagnostic go away.

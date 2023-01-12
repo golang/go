@@ -225,12 +225,10 @@ func main() {
 			Arguments: lens.Command.Arguments,
 		}, &result)
 
-		env.Await(
-			OnceMet(
-				CompletedProgress(result.Token, nil),
-				ShownMessage("Found GOSTDLIB"),
-				NoDiagnostics("go.mod"),
-			),
+		env.OnceMet(
+			CompletedProgress(result.Token, nil),
+			ShownMessage("Found GOSTDLIB"),
+			NoDiagnostics("go.mod"),
 		)
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
 			"go.mod": {IDs: []string{"GOSTDLIB"}, Mode: govulncheck.ModeGovulncheck}})
@@ -586,17 +584,13 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 					var result command.RunVulncheckResult
 					env.ExecuteCodeLensCommand("go.mod", command.RunGovulncheck, &result)
 					gotDiagnostics := &protocol.PublishDiagnosticsParams{}
-					env.Await(
-						OnceMet(
-							CompletedProgress(result.Token, nil),
-							ShownMessage("Found"),
-						),
+					env.OnceMet(
+						CompletedProgress(result.Token, nil),
+						ShownMessage("Found"),
 					)
-					env.Await(
-						OnceMet(
-							env.DiagnosticAtRegexp("go.mod", "golang.org/bmod"),
-							ReadDiagnostics("go.mod", gotDiagnostics),
-						),
+					env.OnceMet(
+						env.DiagnosticAtRegexp("go.mod", "golang.org/bmod"),
+						ReadDiagnostics("go.mod", gotDiagnostics),
 					)
 					// We expect only one diagnostic for GO-2022-02.
 					count := 0
@@ -636,18 +630,14 @@ func TestRunVulncheckWarning(t *testing.T) {
 		var result command.RunVulncheckResult
 		env.ExecuteCodeLensCommand("go.mod", command.RunGovulncheck, &result)
 		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
-		env.Await(
-			OnceMet(
-				CompletedProgress(result.Token, nil),
-				ShownMessage("Found"),
-			),
+		env.OnceMet(
+			CompletedProgress(result.Token, nil),
+			ShownMessage("Found"),
 		)
 		// Vulncheck diagnostics asynchronous to the vulncheck command.
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexp("go.mod", `golang.org/amod`),
-				ReadDiagnostics("go.mod", gotDiagnostics),
-			),
+		env.OnceMet(
+			env.DiagnosticAtRegexp("go.mod", `golang.org/amod`),
+			ReadDiagnostics("go.mod", gotDiagnostics),
 		)
 
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
@@ -806,19 +796,15 @@ func TestGovulncheckInfo(t *testing.T) {
 		var result command.RunVulncheckResult
 		env.ExecuteCodeLensCommand("go.mod", command.RunGovulncheck, &result)
 		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
-		env.Await(
-			OnceMet(
-				CompletedProgress(result.Token, nil),
-				ShownMessage("No vulnerabilities found"), // only count affecting vulnerabilities.
-			),
+		env.OnceMet(
+			CompletedProgress(result.Token, nil),
+			ShownMessage("No vulnerabilities found"), // only count affecting vulnerabilities.
 		)
 
 		// Vulncheck diagnostics asynchronous to the vulncheck command.
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexp("go.mod", "golang.org/bmod"),
-				ReadDiagnostics("go.mod", gotDiagnostics),
-			),
+		env.OnceMet(
+			env.DiagnosticAtRegexp("go.mod", "golang.org/bmod"),
+			ReadDiagnostics("go.mod", gotDiagnostics),
 		)
 
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{"go.mod": {IDs: []string{"GO-2022-02"}, Mode: govulncheck.ModeGovulncheck}})

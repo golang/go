@@ -302,11 +302,23 @@ func checkExpectations(s State, expectations []Expectation) (Verdict, string) {
 	return finalVerdict, summary.String()
 }
 
+// Await blocks until the given expectations are all simultaneously met.
+//
+// Generally speaking Await should be avoided because it can block indefinitely
+// if gopls ends up in a state where the expectations are never going to be
+// met. Use AfterChange or OnceMet instead, so that the runner knows when to
+// stop waiting.
 func (e *Env) Await(expectations ...Expectation) {
 	e.T.Helper()
 	if err := e.Awaiter.Await(e.Ctx, expectations...); err != nil {
 		e.T.Fatal(err)
 	}
+}
+
+// OnceMet blocks until precondition is met or unmeetable; if the precondition
+// is met, it atomically checks that all expectations in mustMeets are met.
+func (e *Env) OnceMet(precondition Expectation, mustMeets ...Expectation) {
+	e.Await(OnceMet(precondition, mustMeets...))
 }
 
 // Await waits for all expectations to simultaneously be met. It should only be

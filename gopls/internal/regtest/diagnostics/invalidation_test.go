@@ -30,30 +30,21 @@ func _() {
 	Run(t, files, func(_ *testing.T, env *Env) { // Create a new workspace-level directory and empty file.
 		env.OpenFile("main.go")
 		var afterOpen protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				ReadDiagnostics("main.go", &afterOpen),
-			),
+		env.AfterChange(
+			ReadDiagnostics("main.go", &afterOpen),
 		)
 		env.CloseBuffer("main.go")
 		var afterClose protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DoneWithClose(),
-				ReadDiagnostics("main.go", &afterClose),
-			),
+		env.AfterChange(
+			ReadDiagnostics("main.go", &afterClose),
 		)
 		if afterOpen.Version == afterClose.Version {
 			t.Errorf("publishDiagnostics: got the same version after closing (%d) as after opening", afterOpen.Version)
 		}
 		env.OpenFile("main.go")
 		var afterReopen protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				ReadDiagnostics("main.go", &afterReopen),
-			),
+		env.AfterChange(
+			ReadDiagnostics("main.go", &afterReopen),
 		)
 		if afterReopen.Version == afterClose.Version {
 			t.Errorf("pubslishDiagnostics: got the same version after reopening (%d) as after closing", afterClose.Version)
@@ -87,11 +78,8 @@ func _() {
 
 		env.OpenFile("main.go")
 		var d protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				ReadDiagnostics("main.go", &d),
-			),
+		env.AfterChange(
+			ReadDiagnostics("main.go", &d),
 		)
 
 		if len(d.Diagnostics) != 1 {
@@ -102,11 +90,8 @@ func _() {
 		for i := 0; i < 5; i++ {
 			before := d.Version
 			env.RegexpReplace("main.go", "Irrelevant comment #.", fmt.Sprintf("Irrelevant comment #%d", i))
-			env.Await(
-				OnceMet(
-					env.DoneWithChange(),
-					ReadDiagnostics("main.go", &d),
-				),
+			env.AfterChange(
+				ReadDiagnostics("main.go", &d),
 			)
 
 			if d.Version == before {

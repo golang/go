@@ -45,11 +45,9 @@ func main() {
 		env.OpenFile("main.go")
 		env.ExecuteCodeLensCommand("main.go", command.GCDetails, nil)
 		d := &protocol.PublishDiagnosticsParams{}
-		env.Await(
-			OnceMet(
-				DiagnosticAt("main.go", 5, 13),
-				ReadDiagnostics("main.go", d),
-			),
+		env.OnceMet(
+			DiagnosticAt("main.go", 5, 13),
+			ReadDiagnostics("main.go", d),
 		)
 		// Confirm that the diagnostics come from the gc details code lens.
 		var found bool

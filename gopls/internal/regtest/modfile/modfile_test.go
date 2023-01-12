@@ -92,11 +92,8 @@ func main() {
 			// modify the go.mod file.
 			goModContent := env.ReadWorkspaceFile("a/go.mod")
 			env.OpenFile("a/main.go")
-			env.Await(
-				OnceMet(
-					env.DoneWithOpen(),
-					env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
-				),
+			env.AfterChange(
+				env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
 				t.Fatalf("go.mod changed on disk:\n%s", compare.Text(goModContent, got))
@@ -145,11 +142,8 @@ func main() {
 			)
 
 			env.WriteWorkspaceFile("a/main.go", mainContent)
-			env.Await(
-				OnceMet(
-					env.DoneWithChangeWatchedFiles(),
-					env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
-				),
+			env.AfterChange(
+				env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
 				t.Fatalf("go.mod changed on disk:\n%s", compare.Text(goModContent, got))
@@ -189,11 +183,9 @@ require example.com v1.2.3
 		}
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexp("a/main.go", `"example.com/blah"`),
-				ReadDiagnostics("a/main.go", &d),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("a/main.go", `"example.com/blah"`),
+			ReadDiagnostics("a/main.go", &d),
 		)
 		var goGetDiag protocol.Diagnostic
 		for _, diag := range d.Diagnostics {
@@ -238,11 +230,9 @@ require random.org v1.2.3
 	}.Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexp("a/main.go", `"random.org/blah"`),
-				ReadDiagnostics("a/main.go", &d),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("a/main.go", `"random.org/blah"`),
+			ReadDiagnostics("a/main.go", &d),
 		)
 		var randomDiag protocol.Diagnostic
 		for _, diag := range d.Diagnostics {
@@ -294,11 +284,9 @@ require random.org v1.2.3
 	}.Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexp("a/main.go", `"random.org/blah"`),
-				ReadDiagnostics("a/main.go", &d),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("a/main.go", `"random.org/blah"`),
+			ReadDiagnostics("a/main.go", &d),
 		)
 		var randomDiag protocol.Diagnostic
 		for _, diag := range d.Diagnostics {
@@ -345,11 +333,9 @@ require example.com v1.2.3
 	}.Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/go.mod")
 		var d protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexp("a/go.mod", "// indirect"),
-				ReadDiagnostics("a/go.mod", &d),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("a/go.mod", "// indirect"),
+			ReadDiagnostics("a/go.mod", &d),
 		)
 		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
 		if got := env.BufferText("a/go.mod"); got != want {
@@ -389,11 +375,9 @@ go 1.14
 	}.Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/go.mod")
 		var d protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexp("a/go.mod", `require example.com`),
-				ReadDiagnostics("a/go.mod", &d),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("a/go.mod", `require example.com`),
+			ReadDiagnostics("a/go.mod", &d),
 		)
 		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
 		if got := env.BufferText("a/go.mod"); got != want {
@@ -451,11 +435,9 @@ func _() {
 	}.Run(t, repro, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DiagnosticAtRegexp("a/main.go", `"github.com/esimov/caire"`),
-				ReadDiagnostics("a/main.go", &d),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("a/main.go", `"github.com/esimov/caire"`),
+			ReadDiagnostics("a/main.go", &d),
 		)
 		env.ApplyQuickFixes("a/main.go", d.Diagnostics)
 		want := `module mod.com
@@ -497,11 +479,9 @@ func main() {
 		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
 		{"nested", WithOptions(ProxyFiles(proxy))},
 	}.Run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexp("a/go.mod", "require"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			env.DiagnosticAtRegexp("a/go.mod", "require"),
 		)
 		env.RunGoCommandInDir("a", "mod", "tidy")
 		env.AfterChange(
@@ -1000,11 +980,9 @@ func main() {}
 		).Run(t, mod, func(t *testing.T, env *Env) {
 			env.OpenFile("go.mod")
 			d := &protocol.PublishDiagnosticsParams{}
-			env.Await(
-				OnceMet(
-					env.DiagnosticAtRegexp("go.mod", "require hasdep.com v1.2.3"),
-					ReadDiagnostics("go.mod", d),
-				),
+			env.AfterChange(
+				env.DiagnosticAtRegexp("go.mod", "require hasdep.com v1.2.3"),
+				ReadDiagnostics("go.mod", d),
 			)
 			const want = `module mod.com
 
@@ -1044,11 +1022,9 @@ func main() {}
 			d := &protocol.PublishDiagnosticsParams{}
 			env.OpenFile("go.mod")
 			pos := env.RegexpSearch("go.mod", "require hasdep.com v1.2.3")
-			env.Await(
-				OnceMet(
-					DiagnosticAt("go.mod", pos.Line, pos.Column),
-					ReadDiagnostics("go.mod", d),
-				),
+			env.AfterChange(
+				DiagnosticAt("go.mod", pos.Line, pos.Column),
+				ReadDiagnostics("go.mod", d),
 			)
 			const want = `module mod.com
 
@@ -1099,14 +1075,12 @@ func main() {
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		params := &protocol.PublishDiagnosticsParams{}
-		env.Await(
-			OnceMet(
-				Diagnostics(
-					env.AtRegexp("go.mod", `example.com`),
-					WithMessageContaining("go.sum is out of sync"),
-				),
-				ReadDiagnostics("go.mod", params),
+		env.AfterChange(
+			Diagnostics(
+				env.AtRegexp("go.mod", `example.com`),
+				WithMessageContaining("go.sum is out of sync"),
 			),
+			ReadDiagnostics("go.mod", params),
 		)
 		env.ApplyQuickFixes("go.mod", params.Diagnostics)
 		const want = `example.com v1.2.3 h1:Yryq11hF02fEf2JlOS2eph+ICE2/ceevGV3C9dl5V/c=
@@ -1191,11 +1165,9 @@ go foo
 package main
 `
 	Run(t, files, func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexpWithMessage("go.mod", `go foo`, "invalid go version"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			env.DiagnosticAtRegexpWithMessage("go.mod", `go foo`, "invalid go version"),
 		)
 		env.WriteWorkspaceFile("go.mod", "module mod.com \n\ngo 1.12\n")
 		env.AfterChange(NoDiagnostics("go.mod"))

@@ -177,11 +177,8 @@ func TestReloadOnlyOnce(t *testing.T) {
 replace random.org => %s
 `, env.ReadWorkspaceFile("pkg/go.mod"), dir)
 		env.WriteWorkspaceFile("pkg/go.mod", goModWithReplace)
-		env.Await(
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				LogMatching(protocol.Info, `packages\.Load #\d+\n`, 2, false),
-			),
+		env.AfterChange(
+			LogMatching(protocol.Info, `packages\.Load #\d+\n`, 2, false),
 		)
 	})
 }
@@ -505,11 +502,8 @@ func Hello() int {
 		ProxyFiles(workspaceModuleProxy),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("modb/go.mod")
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				DiagnosticAt("modb/go.mod", 0, 0),
-			),
+		env.AfterChange(
+			DiagnosticAt("modb/go.mod", 0, 0),
 		)
 		env.RegexpReplace("modb/go.mod", "modul", "module")
 		env.SaveBufferWithoutActions("modb/go.mod")
@@ -612,11 +606,8 @@ use (
 
 		// As of golang/go#54069, writing go.work to the workspace triggers a
 		// workspace reload.
-		env.Await(
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				env.DiagnosticAtRegexp("modb/b/b.go", "x"),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
 		)
 
 		// Jumping to definition should now go to b.com in the workspace.
@@ -627,7 +618,7 @@ use (
 		// Now, let's modify the go.work *overlay* (not on disk), and verify that
 		// this change is only picked up once it is saved.
 		env.OpenFile("go.work")
-		env.Await(env.DoneWithOpen())
+		env.AfterChange()
 		env.SetBufferContent("go.work", `go 1.17
 
 use (
@@ -910,16 +901,14 @@ func main() {
 	WithOptions(
 		ProxyFiles(proxy),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				// TODO(rfindley): assert on the full set of diagnostics here. We
-				// should ensure that we don't have a diagnostic at b.Hi in a.go.
-				env.DiagnosticAtRegexp("moda/a/a.go", "x"),
-				env.DiagnosticAtRegexp("modb/b/b.go", "x"),
-				env.DiagnosticAtRegexp("modb/v2/b/b.go", "x"),
-				env.DiagnosticAtRegexp("modc/main.go", "x"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			// TODO(rfindley): assert on the full set of diagnostics here. We
+			// should ensure that we don't have a diagnostic at b.Hi in a.go.
+			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
+			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+			env.DiagnosticAtRegexp("modb/v2/b/b.go", "x"),
+			env.DiagnosticAtRegexp("modc/main.go", "x"),
 		)
 	})
 }
@@ -1203,11 +1192,9 @@ func TestOldGoNotification_SupportedVersion(t *testing.T) {
 	}
 
 	Run(t, "", func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				NoShownMessage("upgrade"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			NoShownMessage("upgrade"),
 		)
 	})
 }

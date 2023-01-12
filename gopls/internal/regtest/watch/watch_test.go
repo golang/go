@@ -37,11 +37,9 @@ func _() {
 	// diagnostics are updated.
 	t.Run("unopened", func(t *testing.T) {
 		Run(t, pkg, func(t *testing.T, env *Env) {
-			env.Await(
-				OnceMet(
-					InitialWorkspaceLoad,
-					env.DiagnosticAtRegexp("a/a.go", "x"),
-				),
+			env.OnceMet(
+				InitialWorkspaceLoad,
+				env.DiagnosticAtRegexp("a/a.go", "x"),
 			)
 			env.WriteWorkspaceFile("a/a.go", `package a; func _() {};`)
 			env.AfterChange(
@@ -124,11 +122,9 @@ func _() {
 }
 `
 	Run(t, pkg, func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexp("a/a.go", "x"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			env.DiagnosticAtRegexp("a/a.go", "x"),
 		)
 		env.WriteWorkspaceFiles(map[string]string{
 			"b/b.go": `package b; func B() {};`,
@@ -202,11 +198,9 @@ func _() {
 }
 `
 	Run(t, missing, func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexp("a/a.go", "\"mod.com/c\""),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			env.DiagnosticAtRegexp("a/a.go", "\"mod.com/c\""),
 		)
 		env.WriteWorkspaceFile("c/c.go", `package c; func C() {};`)
 		env.AfterChange(
@@ -252,11 +246,9 @@ func _() {
 }
 `
 	Run(t, pkg, func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexp("a/a.go", "hello"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			env.DiagnosticAtRegexp("a/a.go", "hello"),
 		)
 		env.WriteWorkspaceFile("a/a2.go", `package a; func hello() {};`)
 		env.AfterChange(
@@ -391,18 +383,15 @@ package a
 		).Run(t, pkg, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
 			env.OpenFile("a/a_unneeded.go")
-			env.Await(
-				OnceMet(
-					env.DoneWithOpen(),
-					LogMatching(protocol.Info, "a_unneeded.go", 1, false),
-				),
+			env.AfterChange(
+				LogMatching(protocol.Info, "a_unneeded.go", 1, false),
 			)
 
 			// Close and delete the open file, mimicking what an editor would do.
 			env.CloseBuffer("a/a_unneeded.go")
 			env.RemoveWorkspaceFile("a/a_unneeded.go")
 			env.RegexpReplace("a/a.go", "var _ int", "fmt.Println(\"\")")
-			env.Await(
+			env.AfterChange(
 				env.DiagnosticAtRegexp("a/a.go", "fmt"),
 			)
 			env.SaveBuffer("a/a.go")
@@ -422,11 +411,8 @@ package a
 		).Run(t, pkg, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
 			env.OpenFile("a/a_unneeded.go")
-			env.Await(
-				OnceMet(
-					env.DoneWithOpen(),
-					LogMatching(protocol.Info, "a_unneeded.go", 1, false),
-				),
+			env.AfterChange(
+				LogMatching(protocol.Info, "a_unneeded.go", 1, false),
 			)
 
 			// Delete and then close the file.
@@ -682,15 +668,9 @@ func TestAll(t *testing.T) {
 }
 `,
 		})
-		env.Await(
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				NoDiagnostics("a/a.go"),
-			),
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				NoDiagnostics("a/a_test.go"),
-			),
+		env.AfterChange(
+			NoDiagnostics("a/a.go"),
+			NoDiagnostics("a/a_test.go"),
 		)
 		// Now, add a new file to the test variant and use its symbol in the
 		// original test file. Expect no diagnostics.
@@ -714,15 +694,9 @@ func hi() {}
 func TestSomething(t *testing.T) {}
 `,
 		})
-		env.Await(
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				NoDiagnostics("a/a_test.go"),
-			),
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				NoDiagnostics("a/a2_test.go"),
-			),
+		env.AfterChange(
+			NoDiagnostics("a/a_test.go"),
+			NoDiagnostics("a/a2_test.go"),
 		)
 	})
 }

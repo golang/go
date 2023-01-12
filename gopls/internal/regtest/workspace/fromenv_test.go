@@ -52,12 +52,10 @@ use (
 		EnvVars{"GOWORK": "$SANDBOX_WORKDIR/config/go.work"},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		// When we have an explicit GOWORK set, we should get a file watch request.
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				FileWatchMatching(`other`),
-				FileWatchMatching(`config.go\.work`),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			FileWatchMatching(`other`),
+			FileWatchMatching(`config.go\.work`),
 		)
 		env.Await(FileWatchMatching(`config.go\.work`))
 		// Even though work/b is not open, we should get its diagnostics as it is

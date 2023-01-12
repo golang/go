@@ -208,16 +208,14 @@ require golang.org/x/hello v1.2.3
 				env.OpenFile("b/go.mod")
 				env.ExecuteCodeLensCommand("a/go.mod", command.CheckUpgrades, nil)
 				d := &protocol.PublishDiagnosticsParams{}
-				env.Await(
-					OnceMet(
-						env.DiagnosticAtRegexpWithMessage("a/go.mod", `require`, "can be upgraded"),
-						ReadDiagnostics("a/go.mod", d),
-						// We do not want there to be a diagnostic for b/go.mod,
-						// but there may be some subtlety in timing here, where this
-						// should always succeed, but may not actually test the correct
-						// behavior.
-						NoMatchingDiagnostics(env.AtRegexp("b/go.mod", `require`)),
-					),
+				env.OnceMet(
+					env.DiagnosticAtRegexpWithMessage("a/go.mod", `require`, "can be upgraded"),
+					ReadDiagnostics("a/go.mod", d),
+					// We do not want there to be a diagnostic for b/go.mod,
+					// but there may be some subtlety in timing here, where this
+					// should always succeed, but may not actually test the correct
+					// behavior.
+					NoMatchingDiagnostics(env.AtRegexp("b/go.mod", `require`)),
 				)
 				// Check for upgrades in b/go.mod and then clear them.
 				env.ExecuteCodeLensCommand("b/go.mod", command.CheckUpgrades, nil)

@@ -30,9 +30,6 @@ const (
 		if !strings.HasSuffix(name, "builtin.go") {
 			t.Fatalf("jumped to %q, want builtin.go", name)
 		}
-		env.Await(OnceMet(
-			env.DoneWithOpen(),
-			NoDiagnostics("builtin.go"),
-		))
+		env.AfterChange(NoDiagnostics("builtin.go"))
 	})
 }

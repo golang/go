@@ -291,11 +291,9 @@ func (e *Env) DoneDiagnosingChanges() Expectation {
 // expectations.
 func (e *Env) AfterChange(expectations ...Expectation) {
 	e.T.Helper()
-	e.Await(
-		OnceMet(
-			e.DoneDiagnosingChanges(),
-			expectations...,
-		),
+	e.OnceMet(
+		e.DoneDiagnosingChanges(),
+		expectations...,
 	)
 }
 

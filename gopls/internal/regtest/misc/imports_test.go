@@ -200,10 +200,8 @@ func TestA(t *testing.T) {
 		env.OpenFile("a/a.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			OnceMet(
-				env.DiagnosticAtRegexp("a/a.go", "os.Stat"),
-				ReadDiagnostics("a/a.go", &d),
-			),
+			env.DiagnosticAtRegexp("a/a.go", "os.Stat"),
+			ReadDiagnostics("a/a.go", &d),
 		)
 		env.ApplyQuickFixes("a/a.go", d.Diagnostics)
 		env.AfterChange(

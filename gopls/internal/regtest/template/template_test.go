@@ -71,12 +71,10 @@ Hello {{}} <-- missing body
 	).Run(t, files, func(t *testing.T, env *Env) {
 		// TODO: can we move this diagnostic onto {{}}?
 		var diags protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"),
-				ReadDiagnostics("hello.tmpl", &diags),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"),
+			ReadDiagnostics("hello.tmpl", &diags),
 		)
 		d := diags.Diagnostics // issue 50786: check for Source
 		if len(d) != 1 {
@@ -120,12 +118,10 @@ B {{}} <-- missing body
 			"templateExtensions": []string{"tmpl"},
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexp("a/a.tmpl", "()A"),
-				NoDiagnostics("b/b.tmpl"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			env.DiagnosticAtRegexp("a/a.tmpl", "()A"),
+			NoDiagnostics("b/b.tmpl"),
 		)
 	})
 }

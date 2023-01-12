@@ -185,12 +185,9 @@ func main() {}
 		env.OpenFile("ignore.go")
 		env.OpenFile("standalone.go")
 
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				env.DiagnosticAtRegexp("ignore.go", "package (main)"),
-				NoDiagnostics("standalone.go"),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("ignore.go", "package (main)"),
+			NoDiagnostics("standalone.go"),
 		)
 
 		cfg := env.Editor.Config()
@@ -203,12 +200,9 @@ func main() {}
 		// diagnostice when configuration changes.
 		env.RegexpReplace("ignore.go", "arbitrary", "meaningless")
 
-		env.Await(
-			OnceMet(
-				env.DoneWithChange(),
-				NoDiagnostics("ignore.go"),
-				env.DiagnosticAtRegexp("standalone.go", "package (main)"),
-			),
+		env.AfterChange(
+			NoDiagnostics("ignore.go"),
+			env.DiagnosticAtRegexp("standalone.go", "package (main)"),
 		)
 	})
 }

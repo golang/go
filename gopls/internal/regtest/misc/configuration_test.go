@@ -72,11 +72,9 @@ var FooErr = errors.New("foo")
 	WithOptions(
 		Settings{"staticcheck": true},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				ShownMessage("staticcheck is not supported"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			ShownMessage("staticcheck is not supported"),
 		)
 	})
 }
@@ -87,11 +85,9 @@ func TestGofumptWarning(t *testing.T) {
 	WithOptions(
 		Settings{"gofumpt": true},
 	).Run(t, "", func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				ShownMessage("gofumpt is not supported"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			ShownMessage("gofumpt is not supported"),
 		)
 	})
 }
@@ -104,13 +100,11 @@ func TestDeprecatedSettings(t *testing.T) {
 			"experimentalWorkspaceModule":    true,
 		},
 	).Run(t, "", func(t *testing.T, env *Env) {
-		env.Await(
-			OnceMet(
-				InitialWorkspaceLoad,
-				ShownMessage("experimentalWorkspaceModule"),
-				ShownMessage("experimentalUseInvalidMetadata"),
-				ShownMessage("experimentalWatchedFileDelay"),
-			),
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			ShownMessage("experimentalWorkspaceModule"),
+			ShownMessage("experimentalUseInvalidMetadata"),
+			ShownMessage("experimentalWatchedFileDelay"),
 		)
 	})
 }
