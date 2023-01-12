@@ -37,9 +37,9 @@ func main() {
 	// process provided filenames, if any
 	if flag.NArg() > 0 {
 		for _, filename := range flag.Args() {
-			fmt.Println("generating", filename)
 			generate(filename, filemap[filename])
 		}
+		fmt.Printf("generated %d files\n", flag.NArg())
 		return
 	}
 
@@ -47,6 +47,7 @@ func main() {
 	for filename, action := range filemap {
 		generate(filename, action)
 	}
+	fmt.Printf("generated %d files\n", len(filemap))
 }
 
 func generate(filename string, action action) {
@@ -117,6 +118,7 @@ var filemap = map[string]action{
 	"under.go":         nil,
 	"unify.go":         fixSprintf,
 	"universe.go":      fixGlobalTypVarDecl,
+	"util_test.go":     fixTokenPos,
 	"validtype.go":     nil,
 }
 
@@ -152,8 +154,8 @@ func renameImportPath(f *ast.File, from, to string) {
 	})
 }
 
-// fixTokenPos changes imports of "cmd/compile/internal/syntax" to "go/token"
-// and uses of syntax.Pos to token.Pos.
+// fixTokenPos changes imports of "cmd/compile/internal/syntax" to "go/token",
+// uses of syntax.Pos to token.Pos, and calls to x.IsKnown() to x.IsValid().
 func fixTokenPos(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
