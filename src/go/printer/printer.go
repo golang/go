@@ -878,8 +878,12 @@ func mayCombine(prev token.Token, next byte) (b bool) {
 }
 
 func (p *printer) setPos(pos token.Pos) {
+	// If p.pos is already equivalent to pos,
+	// we can avoid calling posFor again.
 	if pos.IsValid() {
-		p.pos = p.posFor(pos) // accurate position of next item
+		if file := p.fset.File(pos); file != nil && file.Offset(pos) != p.pos.Offset {
+			p.pos = p.posFor(pos) // accurate position of next item
+		}
 	}
 }
 
