@@ -156,9 +156,9 @@ var _, _ = x.X, y.Y
 		ProxyFiles(proxy),
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		env.Await(env.DiagnosticAtRegexp("main.go", `y.Y`))
+		env.AfterChange(env.DiagnosticAtRegexp("main.go", `y.Y`))
 		env.SaveBuffer("main.go")
-		env.Await(EmptyDiagnostics("main.go"))
+		env.AfterChange(NoDiagnostics("main.go"))
 		path, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `y.(Y)`))
 		if !strings.HasPrefix(path, filepath.ToSlash(modcache)) {
 			t.Errorf("found module dependency outside of GOMODCACHE: got %v, wanted subdir of %v", path, filepath.ToSlash(modcache))
@@ -199,15 +199,15 @@ func TestA(t *testing.T) {
 	Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		var d protocol.PublishDiagnosticsParams
-		env.Await(
+		env.AfterChange(
 			OnceMet(
 				env.DiagnosticAtRegexp("a/a.go", "os.Stat"),
 				ReadDiagnostics("a/a.go", &d),
 			),
 		)
 		env.ApplyQuickFixes("a/a.go", d.Diagnostics)
-		env.Await(
-			EmptyDiagnostics("a/a.go"),
+		env.AfterChange(
+			NoDiagnostics("a/a.go"),
 		)
 	})
 }
@@ -249,11 +249,11 @@ func Test() {
 `
 	Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("caller/caller.go")
-		env.Await(env.DiagnosticAtRegexp("caller/caller.go", "a.Test"))
+		env.AfterChange(env.DiagnosticAtRegexp("caller/caller.go", "a.Test"))
 
 		// Saving caller.go should trigger goimports, which should find a.Test in
 		// the mod.com module, thanks to the go.work file.
 		env.SaveBuffer("caller/caller.go")
-		env.Await(EmptyDiagnostics("caller/caller.go"))
+		env.AfterChange(NoDiagnostics("caller/caller.go"))
 	})
 }

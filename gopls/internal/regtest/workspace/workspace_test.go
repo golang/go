@@ -151,12 +151,12 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 		WorkspaceFolders("pkg/inner"),
 	).Run(t, workspaceModule, func(t *testing.T, env *Env) {
 		env.OpenFile("pkg/main.go")
-		env.Await(
+		env.AfterChange(
 			env.DiagnosticAtRegexp("pkg/main2.go", "fmt.Print"),
 		)
 		env.CloseBuffer("pkg/main.go")
-		env.Await(
-			EmptyDiagnostics("pkg/main2.go"),
+		env.AfterChange(
+			NoDiagnostics("pkg/main2.go"),
 		)
 	})
 }
@@ -971,11 +971,9 @@ func main() {
 	).Run(t, files, func(t *testing.T, env *Env) {
 		params := &protocol.PublishDiagnosticsParams{}
 		env.OpenFile("b/go.mod")
-		env.Await(
-			OnceMet(
-				env.GoSumDiagnostic("b/go.mod", `example.com v1.2.3`),
-				ReadDiagnostics("b/go.mod", params),
-			),
+		env.AfterChange(
+			env.GoSumDiagnostic("b/go.mod", `example.com v1.2.3`),
+			ReadDiagnostics("b/go.mod", params),
 		)
 		for _, d := range params.Diagnostics {
 			if !strings.Contains(d.Message, "go.sum is out of sync") {
@@ -987,8 +985,8 @@ func main() {
 			}
 			env.ApplyQuickFixes("b/go.mod", []protocol.Diagnostic{d})
 		}
-		env.Await(
-			EmptyDiagnostics("b/go.mod"),
+		env.AfterChange(
+			NoDiagnostics("b/go.mod"),
 		)
 	})
 }
@@ -1061,7 +1059,7 @@ func main() {}
 		// Since b/main.go is not in the workspace, it should have a warning on its
 		// package declaration.
 		env.AfterChange(
-			EmptyDiagnostics("main.go"),
+			NoDiagnostics("main.go"),
 			DiagnosticAt("b/main.go", 0, 0),
 		)
 		env.WriteWorkspaceFile("go.work", `go 1.16
@@ -1087,7 +1085,7 @@ use (
 		env.OpenFile("b/main.go")
 
 		env.AfterChange(
-			EmptyDiagnostics("main.go"),
+			NoDiagnostics("main.go"),
 			DiagnosticAt("b/main.go", 0, 0),
 		)
 	})
@@ -1128,9 +1126,9 @@ func (Server) Foo() {}
 			env.DiagnosticAtRegexp("main_test.go", "otherConst"),
 		)
 		env.RegexpReplace("other_test.go", "main", "main_test")
-		env.Await(
-			EmptyDiagnostics("other_test.go"),
-			EmptyDiagnostics("main_test.go"),
+		env.AfterChange(
+			NoDiagnostics("other_test.go"),
+			NoDiagnostics("main_test.go"),
 		)
 
 		// This will cause a test failure if other_test.go is not in any package.
@@ -1176,11 +1174,8 @@ import (
 			NoDiagnostics("a/main.go"),
 		)
 		env.OpenFile("a/main.go")
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				env.DiagnosticAtRegexpWithMessage("a/main.go", "V", "not used"),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexpWithMessage("a/main.go", "V", "not used"),
 		)
 		env.CloseBuffer("a/main.go")
 
@@ -1190,11 +1185,8 @@ import (
 		// TODO(rfindley): it should not be necessary to make another edit here.
 		// Gopls should be smart enough to avoid diagnosing a.
 		env.RegexpReplace("b/main.go", "package b", "package b // a package")
-		env.Await(
-			OnceMet(
-				env.DoneWithChange(),
-				EmptyDiagnostics("a/main.go"),
-			),
+		env.AfterChange(
+			NoDiagnostics("a/main.go"),
 		)
 	})
 }

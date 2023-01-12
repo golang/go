@@ -223,11 +223,11 @@ require golang.org/x/hello v1.2.3
 				env.ExecuteCodeLensCommand("b/go.mod", command.CheckUpgrades, nil)
 				env.Await(env.DiagnosticAtRegexpWithMessage("b/go.mod", `require`, "can be upgraded"))
 				env.ExecuteCodeLensCommand("b/go.mod", command.ResetGoModDiagnostics, nil)
-				env.Await(EmptyDiagnostics("b/go.mod"))
+				env.Await(NoDiagnostics("b/go.mod"))
 
 				// Apply the diagnostics to a/go.mod.
 				env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
-				env.Await(env.DoneWithChangeWatchedFiles())
+				env.AfterChange()
 				if got := env.BufferText("a/go.mod"); got != wantGoModA {
 					t.Fatalf("a/go.mod upgrade failed:\n%s", compare.Text(wantGoModA, got))
 				}
@@ -320,18 +320,19 @@ func Foo() {
 	Run(t, workspace, func(t *testing.T, env *Env) {
 		// Open the file. We have a nonexistant symbol that will break cgo processing.
 		env.OpenFile("cgo.go")
-		env.Await(env.DiagnosticAtRegexpWithMessage("cgo.go", ``, "go list failed to return CompiledGoFiles"))
+		env.AfterChange(
+			env.DiagnosticAtRegexpWithMessage("cgo.go", ``, "go list failed to return CompiledGoFiles"),
+		)
 
 		// Fix the C function name. We haven't regenerated cgo, so nothing should be fixed.
 		env.RegexpReplace("cgo.go", `int fortythree`, "int fortytwo")
 		env.SaveBuffer("cgo.go")
-		env.Await(OnceMet(
-			env.DoneWithSave(),
+		env.AfterChange(
 			env.DiagnosticAtRegexpWithMessage("cgo.go", ``, "go list failed to return CompiledGoFiles"),
-		))
+		)
 
 		// Regenerate cgo, fixing the diagnostic.
 		env.ExecuteCodeLensCommand("cgo.go", command.RegenerateCgo, nil)
-		env.Await(EmptyDiagnostics("cgo.go"))
+		env.Await(NoDiagnostics("cgo.go"))
 	})
 }

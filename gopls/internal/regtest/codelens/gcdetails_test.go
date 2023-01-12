@@ -68,18 +68,16 @@ func main() {
 		// Editing a buffer should cause gc_details diagnostics to disappear, since
 		// they only apply to saved buffers.
 		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, "\n\n"))
-		env.Await(EmptyDiagnostics("main.go"))
+		env.AfterChange(NoDiagnostics("main.go"))
 
 		// Saving a buffer should re-format back to the original state, and
 		// re-enable the gc_details diagnostics.
 		env.SaveBuffer("main.go")
-		env.Await(DiagnosticAt("main.go", 5, 13))
+		env.AfterChange(DiagnosticAt("main.go", 5, 13))
 
 		// Toggle the GC details code lens again so now it should be off.
 		env.ExecuteCodeLensCommand("main.go", command.GCDetails, nil)
-		env.Await(
-			EmptyDiagnostics("main.go"),
-		)
+		env.Await(NoDiagnostics("main.go"))
 	})
 }
 

@@ -98,7 +98,7 @@ Hello {{}} <-- missing body
 		}
 
 		env.WriteWorkspaceFile("hello.tmpl", "{{range .Planets}}\nHello {{.}}\n{{end}}")
-		env.AfterChange(EmptyDiagnostics("hello.tmpl"))
+		env.AfterChange(NoDiagnostics("hello.tmpl"))
 	})
 }
 
@@ -140,11 +140,8 @@ go 1.12
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.CreateBuffer("hello.tmpl", "")
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				EmptyDiagnostics("hello.tmpl"), // Don't get spurious errors for empty templates.
-			),
+		env.AfterChange(
+			NoDiagnostics("hello.tmpl"), // Don't get spurious errors for empty templates.
 		)
 		env.SetBufferContent("hello.tmpl", "{{range .Planets}}\nHello {{}}\n{{end}}")
 		env.Await(env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"))
@@ -167,11 +164,15 @@ Hello {{}} <-- missing body
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("hello.tmpl")
-		env.Await(env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"))
+		env.AfterChange(
+			env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"),
+		)
 		// Since we don't have templateExtensions configured, closing hello.tmpl
 		// should make its diagnostics disappear.
 		env.CloseBuffer("hello.tmpl")
-		env.Await(EmptyDiagnostics("hello.tmpl"))
+		env.AfterChange(
+			NoDiagnostics("hello.tmpl"),
+		)
 	})
 }
 

@@ -38,17 +38,12 @@ func main() {
 		env.OpenFile("main.go")
 
 		var d protocol.PublishDiagnosticsParams
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				env.DiagnosticAtRegexp("main.go", "2006-02-01"),
-				ReadDiagnostics("main.go", &d),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexp("main.go", "2006-02-01"),
+			ReadDiagnostics("main.go", &d),
 		)
 
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
-		env.Await(
-			EmptyDiagnostics("main.go"),
-		)
+		env.AfterChange(NoDiagnostics("main.go"))
 	})
 }

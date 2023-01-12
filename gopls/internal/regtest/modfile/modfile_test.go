@@ -497,10 +497,15 @@ func main() {
 		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
 		{"nested", WithOptions(ProxyFiles(proxy))},
 	}.Run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(env.DiagnosticAtRegexp("a/go.mod", "require"))
-		env.RunGoCommandInDir("a", "mod", "tidy")
 		env.Await(
-			EmptyDiagnostics("a/go.mod"),
+			OnceMet(
+				InitialWorkspaceLoad,
+				env.DiagnosticAtRegexp("a/go.mod", "require"),
+			),
+		)
+		env.RunGoCommandInDir("a", "mod", "tidy")
+		env.AfterChange(
+			NoDiagnostics("a/go.mod"),
 		)
 	})
 }
@@ -573,7 +578,7 @@ require (
 )
 `
 		env.SaveBuffer("a/go.mod")
-		env.AfterChange(EmptyDiagnostics("a/main.go"))
+		env.AfterChange(NoDiagnostics("a/main.go"))
 		if got := env.BufferText("a/go.mod"); got != want {
 			t.Fatalf("suggested fixes failed:\n%s", compare.Text(want, got))
 		}
@@ -629,7 +634,7 @@ func main() {
 			env.ApplyCodeAction(qfs[0]) // Arbitrarily pick a single fix to apply. Applying all of them seems to cause trouble in this particular test.
 			env.SaveBuffer("a/go.mod")  // Save to trigger diagnostics.
 			env.AfterChange(
-				EmptyDiagnostics("a/go.mod"),
+				NoDiagnostics("a/go.mod"),
 				env.DiagnosticAtRegexp("a/main.go", "x = "),
 			)
 		})
@@ -758,8 +763,8 @@ func main() {
 		}
 		env.RunGoCommand("get", "example.com/blah@v1.2.3")
 		env.RunGoCommand("mod", "tidy")
-		env.Await(
-			EmptyDiagnostics("main.go"),
+		env.AfterChange(
+			NoDiagnostics("main.go"),
 		)
 	})
 }
@@ -887,16 +892,14 @@ func main() {
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		d := &protocol.PublishDiagnosticsParams{}
 		env.OpenFile("go.mod")
-		env.Await(
-			OnceMet(
-				env.GoSumDiagnostic("go.mod", `example.com v1.2.3`),
-				ReadDiagnostics("go.mod", d),
-			),
+		env.AfterChange(
+			env.GoSumDiagnostic("go.mod", `example.com v1.2.3`),
+			ReadDiagnostics("go.mod", d),
 		)
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
 		env.SaveBuffer("go.mod") // Save to trigger diagnostics.
-		env.Await(
-			EmptyDiagnostics("go.mod"),
+		env.AfterChange(
+			NoDiagnostics("go.mod"),
 		)
 	})
 }
@@ -1182,9 +1185,14 @@ go foo
 package main
 `
 	Run(t, files, func(t *testing.T, env *Env) {
-		env.Await(env.DiagnosticAtRegexpWithMessage("go.mod", `go foo`, "invalid go version"))
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				env.DiagnosticAtRegexpWithMessage("go.mod", `go foo`, "invalid go version"),
+			),
+		)
 		env.WriteWorkspaceFile("go.mod", "module mod.com \n\ngo 1.12\n")
-		env.Await(EmptyDiagnostics("go.mod"))
+		env.AfterChange(NoDiagnostics("go.mod"))
 	})
 }
 

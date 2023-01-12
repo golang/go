@@ -64,10 +64,8 @@ func main() {
 		)
 		env.RunGenerate("./lib1")
 		env.RunGenerate("./lib2")
-		env.Await(
-			OnceMet(
-				env.DoneWithChangeWatchedFiles(),
-				EmptyDiagnostics("main.go")),
+		env.AfterChange(
+			NoDiagnostics("main.go"),
 		)
 	})
 }

@@ -717,21 +717,6 @@ func NoOutstandingDiagnostics() Expectation {
 	}
 }
 
-// EmptyDiagnostics asserts that empty diagnostics are sent for the
-// workspace-relative path name.
-func EmptyDiagnostics(name string) Expectation {
-	check := func(s State) Verdict {
-		if diags := s.diagnostics[name]; diags != nil && len(diags.Diagnostics) == 0 {
-			return Met
-		}
-		return Unmet
-	}
-	return SimpleExpectation{
-		check:       check,
-		description: fmt.Sprintf("empty diagnostics for %q", name),
-	}
-}
-
 // NoDiagnostics asserts that either no diagnostics are sent for the
 // workspace-relative path name, or empty diagnostics are sent.
 func NoDiagnostics(name string) Expectation {

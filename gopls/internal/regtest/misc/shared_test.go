@@ -64,11 +64,8 @@ func main() {
 		}
 
 		env1.RegexpReplace("main.go", "Printl", "Println")
-		env1.Await(
-			OnceMet(
-				env1.DoneWithChange(),
-				EmptyDiagnostics("main.go"),
-			),
+		env1.AfterChange(
+			NoDiagnostics("main.go"),
 		)
 	})
 }

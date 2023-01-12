@@ -33,10 +33,9 @@ const C = 42
 	Run(t, src, func(t *testing.T, env *Env) {
 		env.OpenFile("p.go")
 		env.RegexpReplace("p.go", "\"fmt\"", "\"fmt\"\n)")
-		env.Await(OnceMet(
-			env.DoneWithChange(),
-			EmptyDiagnostics("p.go"),
-		))
+		env.AfterChange(
+			NoDiagnostics("p.go"),
+		)
 	})
 }
 
@@ -90,23 +89,17 @@ func main() {}
 		// But of course, this should not be necessary: we should invalidate stale
 		// information when fresh metadata arrives.
 		// env.RegexpReplace("foo.go", "package main", "package main // test")
-		env.Await(
-			OnceMet(
-				env.DoneWithChange(),
-				EmptyDiagnostics("foo.go"),
-				EmptyDiagnostics("bar.go"),
-			),
+		env.AfterChange(
+			NoDiagnostics("foo.go"),
+			NoDiagnostics("bar.go"),
 		)
 
 		// If instead of 'ignore' (which gopls treats as a standalone package) we
 		// used a different build tag, we should get a warning about having no
 		// packages for bar.go
 		env.RegexpReplace("bar.go", "ignore", "excluded")
-		env.Await(
-			OnceMet(
-				env.DoneWithChange(),
-				env.DiagnosticAtRegexpWithMessage("bar.go", "package (main)", "No packages"),
-			),
+		env.AfterChange(
+			env.DiagnosticAtRegexpWithMessage("bar.go", "package (main)", "No packages"),
 		)
 	})
 }

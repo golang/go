@@ -222,8 +222,8 @@ package b
 				// workspace folder, therefore we can't invoke AfterChange here.
 				env.ChangeWorkspaceFolders("a", "b")
 				env.Await(
-					EmptyDiagnostics("a/a.go"),
-					EmptyDiagnostics("b/go.mod"),
+					NoDiagnostics("a/a.go"),
+					NoDiagnostics("b/go.mod"),
 					NoOutstandingWork(),
 				)
 
@@ -239,7 +239,7 @@ package b
 				// (better) trying to get workspace packages for each open file. See
 				// also golang/go#54261.
 				env.OpenFile("b/b.go")
-				env.Await(
+				env.AfterChange(
 					// TODO(rfindley): fix these missing diagnostics.
 					// env.DiagnosticAtRegexp("a/a.go", "package a"),
 					// env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
@@ -258,11 +258,8 @@ package b
 			InGOPATH(),
 		).Run(t, modules, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
-			env.Await(
-				OnceMet(
-					env.DoneWithOpen(),
-					EmptyDiagnostics("a/a.go"),
-				),
+			env.AfterChange(
+				NoDiagnostics("a/a.go"),
 				NoOutstandingWork(),
 			)
 		})
