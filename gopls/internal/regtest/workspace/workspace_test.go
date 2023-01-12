@@ -972,7 +972,10 @@ func main() {
 		params := &protocol.PublishDiagnosticsParams{}
 		env.OpenFile("b/go.mod")
 		env.AfterChange(
-			env.GoSumDiagnostic("b/go.mod", `example.com v1.2.3`),
+			Diagnostics(
+				env.AtRegexp("go.mod", `example.com v1.2.3`),
+				WithMessageContaining("go.sum is out of sync"),
+			),
 			ReadDiagnostics("b/go.mod", params),
 		)
 		for _, d := range params.Diagnostics {

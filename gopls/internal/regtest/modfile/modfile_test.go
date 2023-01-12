@@ -893,7 +893,10 @@ func main() {
 		d := &protocol.PublishDiagnosticsParams{}
 		env.OpenFile("go.mod")
 		env.AfterChange(
-			env.GoSumDiagnostic("go.mod", `example.com v1.2.3`),
+			Diagnostics(
+				env.AtRegexp("go.mod", `example.com v1.2.3`),
+				WithMessageContaining("go.sum is out of sync"),
+			),
 			ReadDiagnostics("go.mod", d),
 		)
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
@@ -1098,7 +1101,10 @@ func main() {
 		params := &protocol.PublishDiagnosticsParams{}
 		env.Await(
 			OnceMet(
-				env.GoSumDiagnostic("go.mod", "example.com"),
+				Diagnostics(
+					env.AtRegexp("go.mod", `example.com`),
+					WithMessageContaining("go.sum is out of sync"),
+				),
 				ReadDiagnostics("go.mod", params),
 			),
 		)
