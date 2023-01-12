@@ -327,14 +327,16 @@ func (b *builder) instr(instr ssa.Instruction) {
 		// change type command a := A(b) results in a and b being the
 		// same value. For concrete type A, there is no interesting flow.
 		//
-		// Note: When A is an interface, most interface casts are handled
+		// When A is an interface, most interface casts are handled
 		// by the ChangeInterface instruction. The relevant case here is
 		// when converting a pointer to an interface type. This can happen
 		// when the underlying interfaces have the same method set.
-		//   type I interface{ foo() }
-		//   type J interface{ foo() }
-		//   var b *I
-		//   a := (*J)(b)
+		//
+		//	type I interface{ foo() }
+		//	type J interface{ foo() }
+		//	var b *I
+		//	a := (*J)(b)
+		//
 		// When this happens we add flows between a <--> b.
 		b.addInFlowAliasEdges(b.nodeFromVal(i), b.nodeFromVal(i.X))
 	case *ssa.TypeAssert:
@@ -588,14 +590,22 @@ func addArgumentFlows(b *builder, c ssa.CallInstruction, f *ssa.Function) {
 		return
 	}
 	cc := c.Common()
+	if cc.Method != nil {
+		// In principle we don't add interprocedural flows for receiver
+		// objects. At a call site, the receiver object is interface
+		// while the callee object is concrete. The flow from interface
+		// to concrete type in general does not make sense. The exception
+		// is when the concrete type is a named function type (see #57756).
+		//
+		// The flow other way around would bake in information from the
+		// initial call graph.
+		if isFunction(f.Params[0].Type()) {
+			b.addInFlowEdge(b.nodeFromVal(cc.Value), b.nodeFromVal(f.Params[0]))
+		}
+	}
 
 	offset := 0
 	if cc.Method != nil {
-		// We don't add interprocedural flows for receiver objects.
-		// At a call site, the receiver object is interface while the
-		// callee object is concrete. The flow from interface to
-		// concrete type does not make sense. The flow other way around
-		// would bake in information from the initial call graph.
 		offset = 1
 	}
 	for i, v := range cc.Args {
