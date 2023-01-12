@@ -219,20 +219,23 @@ func genaddmoduledata(ctxt *ld.Link, ldr *loader.Loader) {
 		initfunc.AddUint32(ctxt.Arch, op)
 	}
 
-	// addis r2, r12, .TOC.-func@ha
-	toc := ctxt.DotTOC[0]
-	rel1, _ := initfunc.AddRel(objabi.R_ADDRPOWER_PCREL)
-	rel1.SetOff(0)
-	rel1.SetSiz(8)
-	rel1.SetSym(toc)
-	o(0x3c4c0000)
-	// addi r2, r2, .TOC.-func@l
-	o(0x38420000)
-	// mflr r31
-	o(0x7c0802a6)
-	// stdu r31, -32(r1)
-	o(0xf801ffe1)
-	// addis r3, r2, local.moduledata@got@ha
+	// Write a function to load this module's local.moduledata. This is shared code.
+	//
+	// package link
+	// void addmoduledata() {
+	//	runtime.addmoduledata(local.moduledata)
+	// }
+
+	// Regenerate TOC from R12 (the address of this function).
+	sz := initfunc.AddSymRef(ctxt.Arch, ctxt.DotTOC[0], 0, objabi.R_ADDRPOWER_PCREL, 8)
+	initfunc.SetUint32(ctxt.Arch, sz-8, 0x3c4c0000) // addis r2, r12, .TOC.-func@ha
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x38420000) // addi r2, r2, .TOC.-func@l
+
+	// This is Go ABI. Stack a frame and save LR.
+	o(0x7c0802a6) // mflr r31
+	o(0xf801ffe1) // stdu r31, -32(r1)
+
+	// Get the moduledata pointer from GOT and put into R3.
 	var tgt loader.Sym
 	if s := ldr.Lookup("local.moduledata", 0); s != 0 {
 		tgt = s
@@ -241,29 +244,29 @@ func genaddmoduledata(ctxt *ld.Link, ldr *loader.Loader) {
 	} else {
 		tgt = ldr.LookupOrCreateSym("runtime.firstmoduledata", 0)
 	}
-	rel2, _ := initfunc.AddRel(objabi.R_ADDRPOWER_GOT)
-	rel2.SetOff(int32(initfunc.Size()))
-	rel2.SetSiz(8)
-	rel2.SetSym(tgt)
-	o(0x3c620000)
-	// ld r3, local.moduledata@got@l(r3)
-	o(0xe8630000)
-	// bl runtime.addmoduledata
-	rel3, _ := initfunc.AddRel(objabi.R_CALLPOWER)
-	rel3.SetOff(int32(initfunc.Size()))
-	rel3.SetSiz(4)
-	rel3.SetSym(addmoduledata)
-	o(0x48000001)
-	// nop
-	o(0x60000000)
-	// ld r31, 0(r1)
-	o(0xe8010000)
-	// mtlr r31
-	o(0x7c0803a6)
-	// addi r1,r1,32
-	o(0x38210020)
-	// blr
-	o(0x4e800020)
+
+	if !hasPCrel {
+		sz = initfunc.AddSymRef(ctxt.Arch, tgt, 0, objabi.R_ADDRPOWER_GOT, 8)
+		initfunc.SetUint32(ctxt.Arch, sz-8, 0x3c620000) // addis r3, r2, local.moduledata@got@ha
+		initfunc.SetUint32(ctxt.Arch, sz-4, 0xe8630000) // ld r3, local.moduledata@got@l(r3)
+	} else {
+		sz = initfunc.AddSymRef(ctxt.Arch, tgt, 0, objabi.R_ADDRPOWER_GOT_PCREL34, 8)
+		// Note, this is prefixed instruction. It must not cross a 64B boundary.
+		// It is doubleworld aligned here, so it will never cross (this function is 16B aligned, minimum).
+		initfunc.SetUint32(ctxt.Arch, sz-8, 0x04100000)
+		initfunc.SetUint32(ctxt.Arch, sz-4, 0xe4600000) // pld r3, local.moduledata@got@pcrel
+	}
+
+	// Call runtime.addmoduledata
+	sz = initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_CALLPOWER, 4)
+	initfunc.SetUint32(ctxt.Arch, sz-4, 0x48000001) // bl runtime.addmoduledata
+	o(0x60000000)                                   // nop (for TOC restore)
+
+	// Pop stack frame and return.
+	o(0xe8010000) // ld r31, 0(r1)
+	o(0x7c0803a6) // mtlr r31
+	o(0x38210020) // addi r1,r1,32
+	o(0x4e800020) // blr
 }
 
 // Rewrite ELF (v1 or v2) calls to _savegpr0_n, _savegpr1_n, _savefpr_n, _restfpr_n, _savevr_m, or
