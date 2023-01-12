@@ -329,8 +329,9 @@ var (
 	Segdata      sym.Segment
 	Segdwarf     sym.Segment
 	Segpdata     sym.Segment // windows-only
+	Segxdata     sym.Segment // windows-only
 
-	Segments = []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf, &Segpdata}
+	Segments = []*sym.Segment{&Segtext, &Segrodata, &Segrelrodata, &Segdata, &Segdwarf, &Segpdata, &Segxdata}
 )
 
 const pkgdef = "__.PKGDEF"

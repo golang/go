@@ -12,6 +12,7 @@ import (
 
 var sehp struct {
 	pdata loader.Sym
+	xdata loader.Sym
 }
 
 func writeSEH(ctxt *Link) {
@@ -29,11 +30,15 @@ func writeSEHAMD64(ctxt *Link) {
 		s.SetAlign(4)
 		return s
 	}
-	pdata := mkSecSym(".pdata", sym.SPDATASECT)
-	// TODO: the following 12 bytes represent a dummy unwind info,
-	// remove once unwind infos are encoded in the .xdata section.
-	pdata.AddUint64(ctxt.Arch, 0)
-	pdata.AddUint32(ctxt.Arch, 0)
+	pdata := mkSecSym(".pdata", sym.SSEHSECT)
+	xdata := mkSecSym(".xdata", sym.SSEHSECT)
+	// The .xdata entries have very low cardinality
+	// as it only contains frame pointer operations,
+	// which are very similar across functions.
+	// These are referenced by .pdata entries using
+	// an RVA, so it is possible, and binary-size wise,
+	// to deduplicate .xdata entries.
+	uwcache := make(map[string]int64) // aux symbol name --> .xdata offset
 	for _, s := range ctxt.Textp {
 		if fi := ldr.FuncInfo(s); !fi.Valid() || fi.TopFrame() {
 			continue
@@ -42,13 +47,20 @@ func writeSEHAMD64(ctxt *Link) {
 		if uw == 0 {
 			continue
 		}
+		name := ctxt.SymName(uw)
+		off, cached := uwcache[name]
+		if !cached {
+			off = xdata.Size()
+			uwcache[name] = off
+			xdata.AddBytes(ldr.Data(uw))
+		}
 
 		// Reference:
 		// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-runtime_function
 		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, 0)
 		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, ldr.SymSize(s))
-		// TODO: reference the .xdata symbol.
-		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, pdata.Sym(), 0)
+		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, xdata.Sym(), off)
 	}
 	sehp.pdata = pdata.Sym()
+	sehp.xdata = xdata.Sym()
 }

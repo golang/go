@@ -434,6 +434,7 @@ type peFile struct {
 	bssSect        *peSection
 	ctorsSect      *peSection
 	pdataSect      *peSection
+	xdataSect      *peSection
 	nextSectOffset uint32
 	nextFileOffset uint32
 	symtabOffset   int64 // offset to the start of symbol table
@@ -501,6 +502,8 @@ func (f *peFile) addDWARF() {
 
 // addSEH adds SEH information to the COFF file f.
 func (f *peFile) addSEH(ctxt *Link) {
+	// .pdata section can exist without the .xdata section.
+	// .xdata section depends on the .pdata section.
 	if Segpdata.Length == 0 {
 		return
 	}
@@ -512,10 +515,19 @@ func (f *peFile) addSEH(ctxt *Link) {
 	}
 	pefile.pdataSect = d
 	d.checkSegment(&Segpdata)
-	// TODO: remove extraSize once the dummy unwind info is removed from the .pdata section.
-	const extraSize = 12
-	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = d.virtualAddress + extraSize
-	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = d.virtualSize - extraSize
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = d.virtualAddress
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = d.virtualSize
+
+	if Segxdata.Length > 0 {
+		d = pefile.addSection(".xdata", int(Segxdata.Length), int(Segxdata.Length))
+		d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+		if ctxt.LinkMode == LinkExternal {
+			// Some gcc versions don't honor the default alignment for the .xdata section.
+			d.characteristics |= IMAGE_SCN_ALIGN_4BYTES
+		}
+		pefile.xdataSect = d
+		d.checkSegment(&Segxdata)
+	}
 }
 
 // addInitArray adds .ctors COFF section to the file f.
@@ -625,6 +637,9 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 	}
 	if sehp.pdata != 0 {
 		sects = append(sects, relsect{f.pdataSect, &Segpdata, []loader.Sym{sehp.pdata}})
+	}
+	if sehp.xdata != 0 {
+		sects = append(sects, relsect{f.xdataSect, &Segxdata, []loader.Sym{sehp.xdata}})
 	}
 	for _, s := range sects {
 		s.peSect.emitRelocations(ctxt.Out, func() int {

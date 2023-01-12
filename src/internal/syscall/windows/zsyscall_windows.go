@@ -70,6 +70,7 @@ var (
 	procMoveFileExW                   = modkernel32.NewProc("MoveFileExW")
 	procMultiByteToWideChar           = modkernel32.NewProc("MultiByteToWideChar")
 	procRtlLookupFunctionEntry        = modkernel32.NewProc("RtlLookupFunctionEntry")
+	procRtlVirtualUnwind              = modkernel32.NewProc("RtlVirtualUnwind")
 	procSetFileInformationByHandle    = modkernel32.NewProc("SetFileInformationByHandle")
 	procUnlockFileEx                  = modkernel32.NewProc("UnlockFileEx")
 	procVirtualQuery                  = modkernel32.NewProc("VirtualQuery")
@@ -292,6 +293,12 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
 
 func RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) {
 	r0, _, _ := syscall.Syscall(procRtlLookupFunctionEntry.Addr(), 3, uintptr(pc), uintptr(unsafe.Pointer(baseAddress)), uintptr(unsafe.Pointer(table)))
+	ret = uintptr(r0)
+	return
+}
+
+func RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) {
+	r0, _, _ := syscall.Syscall9(procRtlVirtualUnwind.Addr(), 8, uintptr(handlerType), uintptr(baseAddress), uintptr(pc), uintptr(entry), uintptr(ctxt), uintptr(unsafe.Pointer(data)), uintptr(unsafe.Pointer(frame)), uintptr(unsafe.Pointer(ctxptrs)), 0)
 	ret = uintptr(r0)
 	return
 }

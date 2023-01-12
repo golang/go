@@ -1158,6 +1158,10 @@ func pdatablk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, []loader.Sym{sehp.pdata}, addr, size, zeros[:])
 }
 
+func xdatablk(ctxt *Link, out *OutBuf, addr int64, size int64) {
+	writeBlocks(ctxt, out, ctxt.outSem, ctxt.loader, []loader.Sym{sehp.xdata}, addr, size, zeros[:])
+}
+
 var covCounterDataStartOff, covCounterDataLen uint64
 
 var zeros [512]byte
@@ -1686,6 +1690,10 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
 		sect.Extnum = n
 		n++
 	}
+	for _, sect := range Segxdata.Sections {
+		sect.Extnum = n
+		n++
+	}
 }
 
 // allocateDataSectionForSym creates a new sym.Section into which a
@@ -2164,7 +2172,12 @@ func (state *dodataState) allocateSEHSections(ctxt *Link) {
 	if sehp.pdata > 0 {
 		sect := state.allocateDataSectionForSym(&Segpdata, sehp.pdata, 04)
 		state.assignDsymsToSection(sect, []loader.Sym{sehp.pdata}, sym.SRODATA, aligndatsize)
-		state.checkdatsize(sym.SPDATASECT)
+		state.checkdatsize(sym.SSEHSECT)
+	}
+	if sehp.xdata > 0 {
+		sect := state.allocateNamedDataSection(&Segxdata, ".xdata", []sym.SymKind{}, 04)
+		state.assignDsymsToSection(sect, []loader.Sym{sehp.xdata}, sym.SRODATA, aligndatsize)
+		state.checkdatsize(sym.SSEHSECT)
 	}
 }
 
@@ -2719,6 +2732,21 @@ func (ctxt *Link) address() []*sym.Segment {
 		Segpdata.Length = va - Segpdata.Vaddr
 	}
 
+	if len(Segxdata.Sections) > 0 {
+		va = uint64(Rnd(int64(va), int64(*FlagRound)))
+		order = append(order, &Segxdata)
+		Segxdata.Rwx = 04
+		Segxdata.Vaddr = va
+		// Segxdata.Sections is intended to contain just one section.
+		// Loop through the slice anyway for consistency.
+		for _, s := range Segxdata.Sections {
+			va = uint64(Rnd(int64(va), int64(s.Align)))
+			s.Vaddr = va
+			va += s.Length
+		}
+		Segxdata.Length = va - Segxdata.Vaddr
+	}
+
 	va = uint64(Rnd(int64(va), int64(*FlagRound)))
 	order = append(order, &Segdwarf)
 	Segdwarf.Rwx = 06
@@ -2770,8 +2798,10 @@ func (ctxt *Link) address() []*sym.Segment {
 		}
 	}
 
-	if sect := ldr.SymSect(sehp.pdata); sect != nil {
-		ldr.AddToSymValue(sehp.pdata, int64(sect.Vaddr))
+	for _, s := range []loader.Sym{sehp.pdata, sehp.xdata} {
+		if sect := ldr.SymSect(s); sect != nil {
+			ldr.AddToSymValue(s, int64(sect.Vaddr))
+		}
 	}
 
 	if ctxt.BuildMode == BuildModeShared {

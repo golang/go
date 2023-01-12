@@ -8,7 +8,9 @@ import (
 	"internal/abi"
 	"internal/syscall/windows"
 	"runtime"
+	"slices"
 	"testing"
+	"unsafe"
 )
 
 func sehf1() int {
@@ -59,5 +61,131 @@ func TestSehLookupFunctionEntry(t *testing.T) {
 		if fn == 0 {
 			t.Errorf("%s: missing frame", tt.name)
 		}
+	}
+}
+
+func sehCallers() []uintptr {
+	// We don't need a real context,
+	// RtlVirtualUnwind just needs a context with
+	// valid a pc, sp and fp (aka bp).
+	ctx := runtime.NewContextStub()
+
+	pcs := make([]uintptr, 15)
+	var base, frame uintptr
+	var n int
+	for i := 0; i < len(pcs); i++ {
+		fn := windows.RtlLookupFunctionEntry(ctx.GetPC(), &base, nil)
+		if fn == 0 {
+			break
+		}
+		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, uintptr(unsafe.Pointer(&ctx)), nil, &frame, nil)
+		n++
+		pcs[i] = ctx.GetPC()
+	}
+	return pcs[:n]
+}
+
+// SEH unwinding does not report inlined frames.
+//
+//go:noinline
+func sehf3(pan bool) []uintptr {
+	return sehf4(pan)
+}
+
+//go:noinline
+func sehf4(pan bool) []uintptr {
+	var pcs []uintptr
+	if pan {
+		panic("sehf4")
+	}
+	pcs = sehCallers()
+	return pcs
+}
+
+func testSehCallersEqual(t *testing.T, pcs []uintptr, want []string) {
+	t.Helper()
+	got := make([]string, 0, len(want))
+	for _, pc := range pcs {
+		fn := runtime.FuncForPC(pc)
+		if fn == nil || len(got) >= len(want) {
+			break
+		}
+		name := fn.Name()
+		switch name {
+		case "runtime.deferCallSave", "runtime.runOpenDeferFrame", "runtime.panicmem":
+			// These functions are skipped as they appear inconsistently depending
+			// whether inlining is on or off.
+			continue
+		}
+		got = append(got, name)
+	}
+	if !slices.Equal(want, got) {
+		t.Fatalf("wanted %v, got %v", want, got)
+	}
+}
+
+func TestSehUnwind(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping amd64-only test")
+	}
+	pcs := sehf3(false)
+	testSehCallersEqual(t, pcs, []string{"runtime_test.sehCallers", "runtime_test.sehf4",
+		"runtime_test.sehf3", "runtime_test.TestSehUnwind"})
+}
+
+func TestSehUnwindPanic(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping amd64-only test")
+	}
+	want := []string{"runtime_test.sehCallers", "runtime_test.TestSehUnwindPanic.func1", "runtime.gopanic",
+		"runtime_test.sehf4", "runtime_test.sehf3", "runtime_test.TestSehUnwindPanic"}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("did not panic")
+		}
+		pcs := sehCallers()
+		testSehCallersEqual(t, pcs, want)
+	}()
+	sehf3(true)
+}
+
+func TestSehUnwindDoublePanic(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping amd64-only test")
+	}
+	want := []string{"runtime_test.sehCallers", "runtime_test.TestSehUnwindDoublePanic.func1.1", "runtime.gopanic",
+		"runtime_test.TestSehUnwindDoublePanic.func1", "runtime.gopanic", "runtime_test.TestSehUnwindDoublePanic"}
+	defer func() {
+		defer func() {
+			if recover() == nil {
+				t.Fatal("did not panic")
+			}
+			pcs := sehCallers()
+			testSehCallersEqual(t, pcs, want)
+		}()
+		if recover() == nil {
+			t.Fatal("did not panic")
+		}
+		panic(2)
+	}()
+	panic(1)
+}
+
+func TestSehUnwindNilPointerPanic(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping amd64-only test")
+	}
+	want := []string{"runtime_test.sehCallers", "runtime_test.TestSehUnwindNilPointerPanic.func1", "runtime.gopanic",
+		"runtime.sigpanic", "runtime_test.TestSehUnwindNilPointerPanic"}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("did not panic")
+		}
+		pcs := sehCallers()
+		testSehCallersEqual(t, pcs, want)
+	}()
+	var p *int
+	if *p == 3 {
+		t.Fatal("did not see nil pointer panic")
 	}
 }
