@@ -338,6 +338,17 @@ func TestAddDataMethods(t *testing.T) {
 			expKind: sym.SDATA,
 			expRel:  []Reloc{mkReloc(ldr, objabi.R_ADDRCUOFF, 0, 8, 7, 8)},
 		},
+		{
+			which: "AddPEImageRelativeAddrPlus",
+			addDataFunc: func(l *Loader, s Sym, s2 Sym) Sym {
+				sb := l.MakeSymbolUpdater(s)
+				sb.AddPEImageRelativeAddrPlus(arch, s2, 3)
+				return s
+			},
+			expData: []byte{0, 0, 0, 0},
+			expKind: sym.SDATA,
+			expRel:  []Reloc{mkReloc(ldr, objabi.R_PEIMAGEOFF, 0, 4, 3, 9)},
+		},
 	}
 
 	var pmi Sym

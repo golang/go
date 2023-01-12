@@ -679,6 +679,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			out.Write16(ld.IMAGE_REL_ARM64_ADDR32)
 		}
 
+	case objabi.R_PEIMAGEOFF:
+		out.Write16(ld.IMAGE_REL_ARM64_ADDR32NB)
+
 	case objabi.R_ADDRARM64:
 		// Note: r.Xadd has been taken care of below, in archreloc.
 		out.Write32(uint32(sectoff))

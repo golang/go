@@ -333,6 +333,10 @@ const (
 	// in a symbol and target any symbols.
 	R_XCOFFREF
 
+	// R_PEIMAGEOFF resolves to a 32-bit offset from the start address of where
+	// the executable file is mapped in memory.
+	R_PEIMAGEOFF
+
 	// R_WEAK marks the relocation as a weak reference.
 	// A weak relocation does not make the symbol it refers to reachable,
 	// and is only honored by the linker if the symbol is in some other way

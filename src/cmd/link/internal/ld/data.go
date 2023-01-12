@@ -345,7 +345,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			} else {
 				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
 			}
-		case objabi.R_ADDR:
+		case objabi.R_ADDR, objabi.R_PEIMAGEOFF:
 			if weak && !ldr.AttrReachable(rs) {
 				// Redirect it to runtime.unreachableMethod, which will throw if called.
 				rs = syms.unreachableMethod
@@ -398,6 +398,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			}
 
 			o = ldr.SymValue(rs) + r.Add()
+			if rt == objabi.R_PEIMAGEOFF {
+				// The R_PEIMAGEOFF offset is a RVA, so subtract
+				// the base address for the executable.
+				o -= PEBASE
+			}
 
 			// On amd64, 4-byte offsets will be sign-extended, so it is impossible to
 			// access more than 2GB of static data; fail at link time is better than
@@ -639,7 +644,7 @@ func extreloc(ctxt *Link, ldr *loader.Loader, s loader.Sym, r loader.Reloc) (loa
 		}
 		return rr, false
 
-	case objabi.R_ADDR:
+	case objabi.R_ADDR, objabi.R_PEIMAGEOFF:
 		// set up addend for eventual relocation via outer symbol.
 		rs := r.Sym()
 		if r.Weak() && !ldr.AttrReachable(rs) {

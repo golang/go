@@ -356,6 +356,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 
 	case objabi.R_ADDR:
 		v = ld.IMAGE_REL_ARM_ADDR32
+
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_ARM_ADDR32NB
 	}
 
 	out.Write16(uint16(v))
