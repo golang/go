@@ -53,7 +53,12 @@ const _ = Nonexistant
 	WithOptions(
 		Settings{"directoryFilters": []string{"-exclude"}},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		env.Await(NoDiagnostics("exclude/x.go"))
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				EmptyOrNoDiagnostics("exclude/x.go"),
+			),
+		)
 	})
 }
 
@@ -81,8 +86,11 @@ const X = 1
 		Settings{"directoryFilters": []string{"-exclude"}},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.Await(
-			NoDiagnostics("exclude/exclude.go"), // filtered out
-			NoDiagnostics("include/include.go"), // successfully builds
+			OnceMet(
+				InitialWorkspaceLoad,
+				EmptyOrNoDiagnostics("exclude/exclude.go"), // filtered out
+				EmptyOrNoDiagnostics("include/include.go"), // successfully builds
+			),
 		)
 	})
 }

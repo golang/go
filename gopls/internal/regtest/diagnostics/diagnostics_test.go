@@ -1092,7 +1092,7 @@ func main() {
 		env.Await(
 			OnceMet(
 				env.DoneWithChange(),
-				NoDiagnostics("foo/foo.go"),
+				EmptyOrNoDiagnostics("foo/foo.go"),
 			),
 		)
 	})
@@ -1208,7 +1208,7 @@ func main() {
 		WorkspaceFolders("a"),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
-		env.Await(
+		env.AfterChange(
 			env.DiagnosticAtRegexp("main.go", "x"),
 		)
 	})
@@ -1217,8 +1217,8 @@ func main() {
 		Settings{"expandWorkspaceToModule": false},
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
-		env.Await(
-			NoDiagnostics("main.go"),
+		env.AfterChange(
+			EmptyOrNoDiagnostics("main.go"),
 		)
 	})
 }

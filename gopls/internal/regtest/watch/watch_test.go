@@ -225,8 +225,8 @@ func _() {}
 	Run(t, original, func(t *testing.T, env *Env) {
 		env.WriteWorkspaceFile("c/c.go", `package c; func C() {};`)
 		env.WriteWorkspaceFile("a/a.go", `package a; import "mod.com/c"; func _() { c.C() }`)
-		env.Await(
-			NoDiagnostics("a/a.go"),
+		env.AfterChange(
+			EmptyOrNoDiagnostics("a/a.go"),
 		)
 	})
 }
@@ -490,7 +490,7 @@ func _() {}
 		env.RemoveWorkspaceFile("a/a1.go")
 		env.WriteWorkspaceFile("a/a2.go", "package a; func _() {};")
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			EmptyOrNoDiagnostics("main.go"),
 		)
 	})
 }

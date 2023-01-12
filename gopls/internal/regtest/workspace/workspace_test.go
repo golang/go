@@ -1172,11 +1172,8 @@ import (
 `
 	Run(t, ws, func(t *testing.T, env *Env) {
 		env.OpenFile("b/main.go")
-		env.Await(
-			OnceMet(
-				env.DoneWithOpen(),
-				NoDiagnostics("a/main.go"),
-			),
+		env.AfterChange(
+			EmptyOrNoDiagnostics("a/main.go"),
 		)
 		env.OpenFile("a/main.go")
 		env.Await(

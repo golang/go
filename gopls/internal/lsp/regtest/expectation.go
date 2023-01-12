@@ -749,23 +749,6 @@ func EmptyOrNoDiagnostics(name string) Expectation {
 	}
 }
 
-// NoDiagnostics asserts that no diagnostics are sent for the
-// workspace-relative path name. It should be used primarily in conjunction
-// with a OnceMet, as it has to check that all outstanding diagnostics have
-// already been delivered.
-func NoDiagnostics(name string) Expectation {
-	check := func(s State) Verdict {
-		if _, ok := s.diagnostics[name]; !ok {
-			return Met
-		}
-		return Unmet
-	}
-	return SimpleExpectation{
-		check:       check,
-		description: fmt.Sprintf("no diagnostics for %q", name),
-	}
-}
-
 // DiagnosticAtRegexp expects that there is a diagnostic entry at the start
 // position matching the regexp search string re in the buffer specified by
 // name. Note that this currently ignores the end position.

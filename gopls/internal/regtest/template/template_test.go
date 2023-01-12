@@ -121,8 +121,11 @@ B {{}} <-- missing body
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.Await(
-			OnceMet(env.DiagnosticAtRegexp("a/a.tmpl", "()A")),
-			NoDiagnostics("b/b.tmpl"),
+			OnceMet(
+				InitialWorkspaceLoad,
+				env.DiagnosticAtRegexp("a/a.tmpl", "()A"),
+				EmptyOrNoDiagnostics("b/b.tmpl"),
+			),
 		)
 	})
 }

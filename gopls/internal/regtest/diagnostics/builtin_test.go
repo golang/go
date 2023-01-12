@@ -32,7 +32,7 @@ const (
 		}
 		env.Await(OnceMet(
 			env.DoneWithOpen(),
-			NoDiagnostics("builtin.go"),
+			EmptyOrNoDiagnostics("builtin.go"),
 		))
 	})
 }
