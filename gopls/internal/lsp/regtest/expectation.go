@@ -732,11 +732,9 @@ func EmptyDiagnostics(name string) Expectation {
 	}
 }
 
-// EmptyOrNoDiagnostics asserts that either no diagnostics are sent for the
+// NoDiagnostics asserts that either no diagnostics are sent for the
 // workspace-relative path name, or empty diagnostics are sent.
-// TODO(rFindley): this subtlety shouldn't be necessary. Gopls should always
-// send at least one diagnostic set for open files.
-func EmptyOrNoDiagnostics(name string) Expectation {
+func NoDiagnostics(name string) Expectation {
 	check := func(s State) Verdict {
 		if diags := s.diagnostics[name]; diags == nil || len(diags.Diagnostics) == 0 {
 			return Met

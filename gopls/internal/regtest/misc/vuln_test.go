@@ -229,7 +229,7 @@ func main() {
 			OnceMet(
 				CompletedProgress(result.Token, nil),
 				ShownMessage("Found GOSTDLIB"),
-				EmptyOrNoDiagnostics("go.mod"),
+				NoDiagnostics("go.mod"),
 			),
 		)
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
@@ -276,7 +276,7 @@ func main() {
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.AfterChange(
-			EmptyOrNoDiagnostics("go.mod"),
+			NoDiagnostics("go.mod"),
 			// we don't publish diagnostics for standard library vulnerability yet.
 		)
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
@@ -868,7 +868,7 @@ func TestGovulncheckInfo(t *testing.T) {
 		}
 		env.ApplyCodeAction(reset)
 
-		env.Await(EmptyOrNoDiagnostics("go.mod"))
+		env.Await(NoDiagnostics("go.mod"))
 	})
 }
 

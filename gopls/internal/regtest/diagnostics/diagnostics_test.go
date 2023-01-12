@@ -886,8 +886,8 @@ package foo_
 		env.Await(
 			OnceMet(
 				env.DoneWithChange(),
-				EmptyOrNoDiagnostics("foo/bar_test.go"),
-				EmptyOrNoDiagnostics("foo/foo.go"),
+				NoDiagnostics("foo/bar_test.go"),
+				NoDiagnostics("foo/foo.go"),
 			),
 		)
 	})
@@ -1092,7 +1092,7 @@ func main() {
 		env.Await(
 			OnceMet(
 				env.DoneWithChange(),
-				EmptyOrNoDiagnostics("foo/foo.go"),
+				NoDiagnostics("foo/foo.go"),
 			),
 		)
 	})
@@ -1218,7 +1218,7 @@ func main() {
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.AfterChange(
-			EmptyOrNoDiagnostics("main.go"),
+			NoDiagnostics("main.go"),
 		)
 	})
 }
@@ -1636,8 +1636,8 @@ const B = a.B
 		env.RegexpReplace("b/b.go", `const B = a\.B`, "")
 		env.SaveBuffer("b/b.go")
 		env.Await(
-			EmptyOrNoDiagnostics("a/a.go"),
-			EmptyOrNoDiagnostics("b/b.go"),
+			NoDiagnostics("a/a.go"),
+			NoDiagnostics("b/b.go"),
 		)
 	})
 }

@@ -1166,8 +1166,8 @@ func main() {
 		)
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		env.Await(
-			EmptyOrNoDiagnostics("main.go"),
-			EmptyOrNoDiagnostics("go.mod"),
+			NoDiagnostics("main.go"),
+			NoDiagnostics("go.mod"),
 		)
 	})
 }

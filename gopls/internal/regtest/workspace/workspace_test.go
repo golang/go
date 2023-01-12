@@ -652,7 +652,7 @@ use (
 
 		// This fails if guarded with a OnceMet(DoneWithSave(), ...), because it is
 		// debounced (and therefore not synchronous with the change).
-		env.Await(EmptyOrNoDiagnostics("modb/go.mod"))
+		env.Await(NoDiagnostics("modb/go.mod"))
 
 		// Test Formatting.
 		env.SetBufferContent("go.work", `go 1.18
@@ -1173,7 +1173,7 @@ import (
 	Run(t, ws, func(t *testing.T, env *Env) {
 		env.OpenFile("b/main.go")
 		env.AfterChange(
-			EmptyOrNoDiagnostics("a/main.go"),
+			NoDiagnostics("a/main.go"),
 		)
 		env.OpenFile("a/main.go")
 		env.Await(

@@ -139,7 +139,7 @@ func _() {
 		})
 		env.Await(
 			EmptyDiagnostics("a/a.go"),
-			EmptyOrNoDiagnostics("b/b.go"),
+			NoDiagnostics("b/b.go"),
 		)
 	})
 }
@@ -226,7 +226,7 @@ func _() {}
 		env.WriteWorkspaceFile("c/c.go", `package c; func C() {};`)
 		env.WriteWorkspaceFile("a/a.go", `package a; import "mod.com/c"; func _() { c.C() }`)
 		env.AfterChange(
-			EmptyOrNoDiagnostics("a/a.go"),
+			NoDiagnostics("a/a.go"),
 		)
 	})
 }
@@ -341,12 +341,12 @@ func _() {
 			env.Await(
 				OnceMet(
 					env.DoneWithChangeWatchedFiles(),
-					EmptyOrNoDiagnostics("a/a.go"),
+					NoDiagnostics("a/a.go"),
 				),
 			)
 			env.WriteWorkspaceFile("b/b.go", newMethod)
 			env.Await(
-				EmptyOrNoDiagnostics("a/a.go"),
+				NoDiagnostics("a/a.go"),
 			)
 		})
 	})
@@ -360,9 +360,9 @@ func _() {
 			env.Await(
 				OnceMet(
 					env.DoneWithChangeWatchedFiles(),
-					EmptyOrNoDiagnostics("a/a.go"),
+					NoDiagnostics("a/a.go"),
 				),
-				EmptyOrNoDiagnostics("b/b.go"),
+				NoDiagnostics("b/b.go"),
 			)
 		})
 	})
@@ -490,7 +490,7 @@ func _() {}
 		env.RemoveWorkspaceFile("a/a1.go")
 		env.WriteWorkspaceFile("a/a2.go", "package a; func _() {};")
 		env.AfterChange(
-			EmptyOrNoDiagnostics("main.go"),
+			NoDiagnostics("main.go"),
 		)
 	})
 }
@@ -567,7 +567,7 @@ func main() {
 		})
 		env.AfterChange(
 			env.DoneWithChangeWatchedFiles(),
-			EmptyOrNoDiagnostics("main.go"),
+			NoDiagnostics("main.go"),
 		)
 	})
 }
@@ -694,11 +694,11 @@ func TestAll(t *testing.T) {
 		env.Await(
 			OnceMet(
 				env.DoneWithChangeWatchedFiles(),
-				EmptyOrNoDiagnostics("a/a.go"),
+				NoDiagnostics("a/a.go"),
 			),
 			OnceMet(
 				env.DoneWithChangeWatchedFiles(),
-				EmptyOrNoDiagnostics("a/a_test.go"),
+				NoDiagnostics("a/a_test.go"),
 			),
 		)
 		// Now, add a new file to the test variant and use its symbol in the
@@ -726,11 +726,11 @@ func TestSomething(t *testing.T) {}
 		env.Await(
 			OnceMet(
 				env.DoneWithChangeWatchedFiles(),
-				EmptyOrNoDiagnostics("a/a_test.go"),
+				NoDiagnostics("a/a_test.go"),
 			),
 			OnceMet(
 				env.DoneWithChangeWatchedFiles(),
-				EmptyOrNoDiagnostics("a/a2_test.go"),
+				NoDiagnostics("a/a2_test.go"),
 			),
 		)
 	})

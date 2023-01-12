@@ -56,7 +56,7 @@ const _ = Nonexistant
 		env.Await(
 			OnceMet(
 				InitialWorkspaceLoad,
-				EmptyOrNoDiagnostics("exclude/x.go"),
+				NoDiagnostics("exclude/x.go"),
 			),
 		)
 	})
@@ -88,8 +88,8 @@ const X = 1
 		env.Await(
 			OnceMet(
 				InitialWorkspaceLoad,
-				EmptyOrNoDiagnostics("exclude/exclude.go"), // filtered out
-				EmptyOrNoDiagnostics("include/include.go"), // successfully builds
+				NoDiagnostics("exclude/exclude.go"), // filtered out
+				NoDiagnostics("include/include.go"), // successfully builds
 			),
 		)
 	})

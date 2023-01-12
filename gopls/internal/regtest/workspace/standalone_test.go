@@ -219,7 +219,7 @@ func main() {}
 			OnceMet(
 				env.DoneWithOpen(),
 				env.DiagnosticAtRegexp("ignore.go", "package (main)"),
-				EmptyOrNoDiagnostics("standalone.go"),
+				NoDiagnostics("standalone.go"),
 			),
 		)
 
@@ -236,7 +236,7 @@ func main() {}
 		env.Await(
 			OnceMet(
 				env.DoneWithChange(),
-				EmptyOrNoDiagnostics("ignore.go"),
+				NoDiagnostics("ignore.go"),
 				env.DiagnosticAtRegexp("standalone.go", "package (main)"),
 			),
 		)

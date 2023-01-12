@@ -124,7 +124,7 @@ B {{}} <-- missing body
 			OnceMet(
 				InitialWorkspaceLoad,
 				env.DiagnosticAtRegexp("a/a.tmpl", "()A"),
-				EmptyOrNoDiagnostics("b/b.tmpl"),
+				NoDiagnostics("b/b.tmpl"),
 			),
 		)
 	})
@@ -149,7 +149,7 @@ go 1.12
 		env.SetBufferContent("hello.tmpl", "{{range .Planets}}\nHello {{}}\n{{end}}")
 		env.Await(env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"))
 		env.RegexpReplace("hello.tmpl", "{{}}", "{{.}}")
-		env.Await(EmptyOrNoDiagnostics("hello.tmpl"))
+		env.Await(NoDiagnostics("hello.tmpl"))
 	})
 }
 
