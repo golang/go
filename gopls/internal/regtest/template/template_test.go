@@ -70,8 +70,15 @@ Hello {{}} <-- missing body
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		// TODO: can we move this diagnostic onto {{}}?
-		env.Await(env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"))
-		d := env.Awaiter.DiagnosticsFor("hello.tmpl").Diagnostics // issue 50786: check for Source
+		var diags protocol.PublishDiagnosticsParams
+		env.Await(
+			OnceMet(
+				InitialWorkspaceLoad,
+				env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"),
+				ReadDiagnostics("hello.tmpl", &diags),
+			),
+		)
+		d := diags.Diagnostics // issue 50786: check for Source
 		if len(d) != 1 {
 			t.Errorf("expected 1 diagnostic, got %d", len(d))
 			return
@@ -91,7 +98,7 @@ Hello {{}} <-- missing body
 		}
 
 		env.WriteWorkspaceFile("hello.tmpl", "{{range .Planets}}\nHello {{.}}\n{{end}}")
-		env.Await(EmptyDiagnostics("hello.tmpl"))
+		env.AfterChange(EmptyDiagnostics("hello.tmpl"))
 	})
 }
 

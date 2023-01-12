@@ -44,23 +44,30 @@ func _() int {
 
 		// 'x' is undeclared, but still necessary.
 		env.OpenFile("a/a.go")
-		env.Await(env.DiagnosticAtRegexp("a/a.go", "x"))
-		diags := env.Awaiter.DiagnosticsFor("a/a.go")
-		if got := len(diags.Diagnostics); got != 1 {
+		var adiags protocol.PublishDiagnosticsParams
+		env.AfterChange(
+			env.DiagnosticAtRegexp("a/a.go", "x"),
+			ReadDiagnostics("a/a.go", &adiags),
+		)
+		env.Await()
+		if got := len(adiags.Diagnostics); got != 1 {
 			t.Errorf("len(Diagnostics) = %d, want 1", got)
 		}
-		if diag := diags.Diagnostics[0]; isUnnecessary(diag) {
+		if diag := adiags.Diagnostics[0]; isUnnecessary(diag) {
 			t.Errorf("%v tagged unnecessary, want necessary", diag)
 		}
 
 		// 'y = y' is pointless, and should be detected as unnecessary.
 		env.OpenFile("b/b.go")
-		env.Await(env.DiagnosticAtRegexp("b/b.go", "y = y"))
-		diags = env.Awaiter.DiagnosticsFor("b/b.go")
-		if got := len(diags.Diagnostics); got != 1 {
+		var bdiags protocol.PublishDiagnosticsParams
+		env.AfterChange(
+			env.DiagnosticAtRegexp("b/b.go", "y = y"),
+			ReadDiagnostics("b/b.go", &bdiags),
+		)
+		if got := len(bdiags.Diagnostics); got != 1 {
 			t.Errorf("len(Diagnostics) = %d, want 1", got)
 		}
-		if diag := diags.Diagnostics[0]; !isUnnecessary(diag) {
+		if diag := bdiags.Diagnostics[0]; !isUnnecessary(diag) {
 			t.Errorf("%v tagged necessary, want unnecessary", diag)
 		}
 	})

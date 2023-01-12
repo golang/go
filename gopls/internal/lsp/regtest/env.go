@@ -302,18 +302,6 @@ func checkExpectations(s State, expectations []Expectation) (Verdict, string) {
 	return finalVerdict, summary.String()
 }
 
-// DiagnosticsFor returns the current diagnostics for the file. It is useful
-// after waiting on AnyDiagnosticAtCurrentVersion, when the desired diagnostic
-// is not simply described by DiagnosticAt.
-//
-// TODO(rfindley): this method is inherently racy. Replace usages of this
-// method with the atomic OnceMet(..., ReadDiagnostics) pattern.
-func (a *Awaiter) DiagnosticsFor(name string) *protocol.PublishDiagnosticsParams {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.state.diagnostics[name]
-}
-
 func (e *Env) Await(expectations ...Expectation) {
 	e.T.Helper()
 	if err := e.Awaiter.Await(e.Ctx, expectations...); err != nil {

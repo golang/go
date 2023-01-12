@@ -554,13 +554,15 @@ var _ = blah.Name
 	}.Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.OpenFile("a/go.mod")
-		env.Await(
+		var modDiags protocol.PublishDiagnosticsParams
+		env.AfterChange(
 			// We would like for the error to appear in the v2 module, but
 			// as of writing non-workspace packages are not diagnosed.
 			env.DiagnosticAtRegexpWithMessage("a/main.go", `"example.com/blah/v2"`, "cannot find module providing"),
 			env.DiagnosticAtRegexpWithMessage("a/go.mod", `require example.com/blah/v2`, "cannot find module providing"),
+			ReadDiagnostics("a/go.mod", &modDiags),
 		)
-		env.ApplyQuickFixes("a/go.mod", env.Awaiter.DiagnosticsFor("a/go.mod").Diagnostics)
+		env.ApplyQuickFixes("a/go.mod", modDiags.Diagnostics)
 		const want = `module mod.com
 
 go 1.12
@@ -571,7 +573,7 @@ require (
 )
 `
 		env.SaveBuffer("a/go.mod")
-		env.Await(EmptyDiagnostics("a/main.go"))
+		env.AfterChange(EmptyDiagnostics("a/main.go"))
 		if got := env.BufferText("a/go.mod"); got != want {
 			t.Fatalf("suggested fixes failed:\n%s", compare.Text(want, got))
 		}

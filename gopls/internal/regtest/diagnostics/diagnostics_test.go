@@ -1280,23 +1280,23 @@ func main() {}
 	Run(t, dir, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OpenFile("other.go")
-		x := env.Awaiter.DiagnosticsFor("main.go")
-		if x == nil {
-			t.Fatalf("expected 1 diagnostic, got none")
+		var mainDiags, otherDiags protocol.PublishDiagnosticsParams
+		env.AfterChange(
+			ReadDiagnostics("main.go", &mainDiags),
+			ReadDiagnostics("other.go", &otherDiags),
+		)
+		if len(mainDiags.Diagnostics) != 1 {
+			t.Fatalf("main.go, got %d diagnostics, expected 1", len(mainDiags.Diagnostics))
 		}
-		if len(x.Diagnostics) != 1 {
-			t.Fatalf("main.go, got %d diagnostics, expected 1", len(x.Diagnostics))
+		keep := mainDiags.Diagnostics[0]
+		if len(otherDiags.Diagnostics) != 1 {
+			t.Fatalf("other.go: got %d diagnostics, expected 1", len(otherDiags.Diagnostics))
 		}
-		keep := x.Diagnostics[0]
-		y := env.Awaiter.DiagnosticsFor("other.go")
-		if len(y.Diagnostics) != 1 {
-			t.Fatalf("other.go: got %d diagnostics, expected 1", len(y.Diagnostics))
-		}
-		if len(y.Diagnostics[0].RelatedInformation) != 1 {
-			t.Fatalf("got %d RelatedInformations, expected 1", len(y.Diagnostics[0].RelatedInformation))
+		if len(otherDiags.Diagnostics[0].RelatedInformation) != 1 {
+			t.Fatalf("got %d RelatedInformations, expected 1", len(otherDiags.Diagnostics[0].RelatedInformation))
 		}
 		// check that the RelatedInformation matches the error from main.go
-		c := y.Diagnostics[0].RelatedInformation[0]
+		c := otherDiags.Diagnostics[0].RelatedInformation[0]
 		if c.Location.Range != keep.Range {
 			t.Errorf("locations don't match. Got %v expected %v", c.Location.Range, keep.Range)
 		}
