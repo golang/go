@@ -54,7 +54,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 	}
 	var ranges []protocol.Range
 	for rng := range result {
-		mRng, err := posToMappedRange(pkg, rng.start, rng.end)
+		mRng, err := posToMappedRange(ctx, snapshot, pkg, rng.start, rng.end)
 		if err != nil {
 			return nil, err
 		}

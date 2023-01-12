@@ -107,7 +107,11 @@ func ModDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.Fil
 			return nil, err
 		}
 		for _, pkg := range pkgs {
-			diagnostics = append(diagnostics, pkg.DiagnosticsForFile(fh.URI())...)
+			pkgDiags, err := pkg.DiagnosticsForFile(ctx, snapshot, fh.URI())
+			if err != nil {
+				return nil, err
+			}
+			diagnostics = append(diagnostics, pkgDiags...)
 		}
 	}
 

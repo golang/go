@@ -98,7 +98,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	file := pgf.File
 	// Handle import specs separately, as there is no formal position for a
 	// package declaration.
-	if result, err := importSpec(snapshot, pkg, pgf, pos); result != nil || err != nil {
+	if result, err := importSpec(ctx, snapshot, pkg, pgf, pos); result != nil || err != nil {
 		return result, err
 	}
 	path := pathEnclosingObjNode(file, pos)
@@ -155,7 +155,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 
 	result.Name = result.ident.Name
 	var err error
-	if result.MappedRange, err = posToMappedRange(pkg, result.ident.Pos(), result.ident.End()); err != nil {
+	if result.MappedRange, err = posToMappedRange(ctx, snapshot, pkg, result.ident.Pos(), result.ident.End()); err != nil {
 		return nil, err
 	}
 
@@ -266,7 +266,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	// findFileInDeps, which is also called below.  Refactor
 	// objToMappedRange to separate the find-file from the
 	// lookup-position steps to avoid the redundancy.
-	rng, err := objToMappedRange(pkg, result.Declaration.obj)
+	rng, err := objToMappedRange(ctx, snapshot, pkg, result.Declaration.obj)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +274,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 
 	declPos := result.Declaration.obj.Pos()
 	objURI := span.URIFromPath(pkg.FileSet().File(declPos).Name())
-	declFile, declPkg, err := findFileInDeps(pkg, objURI)
+	declFile, declPkg, err := findFileInDeps(ctx, snapshot, pkg, objURI)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +301,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 		if hasErrorType(result.Type.Object) {
 			return result, nil
 		}
-		if result.Type.MappedRange, err = objToMappedRange(pkg, result.Type.Object); err != nil {
+		if result.Type.MappedRange, err = objToMappedRange(ctx, snapshot, pkg, result.Type.Object); err != nil {
 			return nil, err
 		}
 	}
@@ -449,7 +449,7 @@ func hasErrorType(obj types.Object) bool {
 }
 
 // importSpec handles positions inside of an *ast.ImportSpec.
-func importSpec(snapshot Snapshot, pkg Package, pgf *ParsedGoFile, pos token.Pos) (*IdentifierInfo, error) {
+func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, pgf *ParsedGoFile, pos token.Pos) (*IdentifierInfo, error) {
 	var imp *ast.ImportSpec
 	for _, spec := range pgf.File.Imports {
 		if spec.Path.Pos() <= pos && pos < spec.Path.End() {
@@ -463,7 +463,7 @@ func importSpec(snapshot Snapshot, pkg Package, pgf *ParsedGoFile, pos token.Pos
 	if err != nil {
 		return nil, fmt.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
-	imported, err := pkg.ResolveImportPath(ImportPath(importPath))
+	imported, err := ResolveImportPath(ctx, snapshot, pkg.Metadata().ID, ImportPath(importPath))
 	if err != nil {
 		return nil, err
 	}
@@ -472,13 +472,13 @@ func importSpec(snapshot Snapshot, pkg Package, pgf *ParsedGoFile, pos token.Pos
 		Name:     importPath, // should this perhaps be imported.PkgPath()?
 		pkg:      pkg,
 	}
-	if result.MappedRange, err = posToMappedRange(pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
+	if result.MappedRange, err = posToMappedRange(ctx, snapshot, pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
 		return nil, err
 	}
 	// Consider the "declaration" of an import spec to be the imported package.
 	// Return all of the files in the package as the definition of the import spec.
 	for _, dst := range imported.GetSyntax() {
-		rng, err := posToMappedRange(pkg, dst.Pos(), dst.End())
+		rng, err := posToMappedRange(ctx, snapshot, pkg, dst.Pos(), dst.End())
 		if err != nil {
 			return nil, err
 		}

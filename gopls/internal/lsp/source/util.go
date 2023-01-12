@@ -51,7 +51,7 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	return false
 }
 
-func objToMappedRange(pkg Package, obj types.Object) (protocol.MappedRange, error) {
+func objToMappedRange(ctx context.Context, snapshot Snapshot, pkg Package, obj types.Object) (protocol.MappedRange, error) {
 	nameLen := len(obj.Name())
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		// An imported Go package has a package-local, unqualified name.
@@ -68,7 +68,7 @@ func objToMappedRange(pkg Package, obj types.Object) (protocol.MappedRange, erro
 			nameLen = len(pkgName.Imported().Path()) + len(`""`)
 		}
 	}
-	return posToMappedRange(pkg, obj.Pos(), obj.Pos()+token.Pos(nameLen))
+	return posToMappedRange(ctx, snapshot, pkg, obj.Pos(), obj.Pos()+token.Pos(nameLen))
 }
 
 // posToMappedRange returns the MappedRange for the given [start, end) span,
@@ -77,7 +77,7 @@ func objToMappedRange(pkg Package, obj types.Object) (protocol.MappedRange, erro
 // TODO(adonovan): many of the callers need only the ParsedGoFile so
 // that they can call pgf.PosRange(pos, end) to get a Range; they
 // don't actually need a MappedRange.
-func posToMappedRange(pkg Package, pos, end token.Pos) (protocol.MappedRange, error) {
+func posToMappedRange(ctx context.Context, snapshot Snapshot, pkg Package, pos, end token.Pos) (protocol.MappedRange, error) {
 	if !pos.IsValid() {
 		return protocol.MappedRange{}, fmt.Errorf("invalid start position")
 	}
@@ -86,7 +86,7 @@ func posToMappedRange(pkg Package, pos, end token.Pos) (protocol.MappedRange, er
 	}
 
 	logicalFilename := pkg.FileSet().File(pos).Name() // ignore line directives
-	pgf, _, err := findFileInDeps(pkg, span.URIFromPath(logicalFilename))
+	pgf, _, err := findFileInDeps(ctx, snapshot, pkg, span.URIFromPath(logicalFilename))
 	if err != nil {
 		return protocol.MappedRange{}, err
 	}
@@ -99,13 +99,13 @@ func posToMappedRange(pkg Package, pos, end token.Pos) (protocol.MappedRange, er
 // TODO(rfindley): is this the best factoring of this API? This function is
 // really a trivial wrapper around findFileInDeps, which may be a more useful
 // function to expose.
-func FindPackageFromPos(pkg Package, pos token.Pos) (Package, error) {
+func FindPackageFromPos(ctx context.Context, snapshot Snapshot, pkg Package, pos token.Pos) (Package, error) {
 	if !pos.IsValid() {
 		return nil, fmt.Errorf("invalid position")
 	}
 	fileName := pkg.FileSet().File(pos).Name()
 	uri := span.URIFromPath(fileName)
-	_, pkg, err := findFileInDeps(pkg, uri)
+	_, pkg, err := findFileInDeps(ctx, snapshot, pkg, uri)
 	return pkg, err
 }
 
@@ -223,25 +223,52 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 }
 
 // findFileInDeps finds uri in pkg or its dependencies.
-func findFileInDeps(pkg Package, uri span.URI) (*ParsedGoFile, Package, error) {
-	queue := []Package{pkg}
-	seen := make(map[PackageID]bool)
-
-	for len(queue) > 0 {
-		pkg := queue[0]
-		queue = queue[1:]
-		seen[pkg.ID()] = true
-
+func findFileInDeps(ctx context.Context, snapshot Snapshot, pkg Package, uri span.URI) (*ParsedGoFile, Package, error) {
+	pkgs := []Package{pkg}
+	deps := recursiveDeps(snapshot, pkg.Metadata())[1:]
+	// Ignore the error from type checking, but check if the context was
+	// canceled (which would have caused TypeCheck to exit early).
+	depPkgs, _ := snapshot.TypeCheck(ctx, TypecheckWorkspace, deps...)
+	if ctx.Err() != nil {
+		return nil, nil, ctx.Err()
+	}
+	for _, dep := range depPkgs {
+		// Since we ignored the error from type checking, pkg may be nil.
+		if dep != nil {
+			pkgs = append(pkgs, dep)
+		}
+	}
+	for _, pkg := range pkgs {
 		if pgf, err := pkg.File(uri); err == nil {
 			return pgf, pkg, nil
 		}
-		for _, dep := range pkg.Imports() {
-			if !seen[dep.ID()] {
-				queue = append(queue, dep)
-			}
+	}
+	return nil, nil, fmt.Errorf("no file for %s in deps of package %s", uri, pkg.Metadata().ID)
+}
+
+// recursiveDeps finds unique transitive dependencies of m, including m itself.
+//
+// Invariant: for the resulting slice res, res[0] == m.ID.
+//
+// TODO(rfindley): consider replacing this with a snapshot.ForwardDependencies
+// method, or exposing the metadata graph itself.
+func recursiveDeps(s interface{ Metadata(PackageID) *Metadata }, m *Metadata) []PackageID {
+	seen := make(map[PackageID]bool)
+	var ids []PackageID
+	var add func(*Metadata)
+	add = func(m *Metadata) {
+		if seen[m.ID] {
+			return
+		}
+		seen[m.ID] = true
+		ids = append(ids, m.ID)
+		for _, dep := range m.DepsByPkgPath {
+			m := s.Metadata(dep)
+			add(m)
 		}
 	}
-	return nil, nil, fmt.Errorf("no file for %s in package %s", uri, pkg.ID())
+	add(m)
+	return ids
 }
 
 // UnquoteImportPath returns the unquoted import path of s,
@@ -462,4 +489,24 @@ func embeddedIdent(x ast.Expr) *ast.Ident {
 		}
 	}
 	return nil
+}
+
+// ResolveImportPath returns the directly imported dependency of the package with id fromID,
+// given its ImportPath, type-checked in its workspace parse mode.
+//
+// TODO(rfindley): eliminate this function, in favor of inlining where it is used.
+func ResolveImportPath(ctx context.Context, snapshot Snapshot, fromID PackageID, importPath ImportPath) (Package, error) {
+	meta := snapshot.Metadata(fromID)
+	if meta == nil {
+		return nil, fmt.Errorf("unknown package %s", fromID)
+	}
+	depID, ok := meta.DepsByImpPath[importPath]
+	if !ok {
+		return nil, fmt.Errorf("package does not import %s", importPath)
+	}
+	pkgs, err := snapshot.TypeCheck(ctx, TypecheckWorkspace, depID)
+	if err != nil {
+		return nil, fmt.Errorf("type checking dep: %v", err)
+	}
+	return pkgs[0], nil
 }

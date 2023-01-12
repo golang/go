@@ -81,7 +81,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
-			detail = source.FormatVarType(c.pkg, obj, c.qf)
+			detail = source.FormatVarType(ctx, c.snapshot, c.pkg, obj, c.qf)
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
@@ -238,7 +238,7 @@ Suffixes:
 	uri := span.URIFromPath(pos.Filename)
 
 	// Find the source file of the candidate.
-	pkg, err := source.FindPackageFromPos(c.pkg, obj.Pos())
+	pkg, err := source.FindPackageFromPos(ctx, c.snapshot, c.pkg, obj.Pos())
 	if err != nil {
 		return item, nil
 	}

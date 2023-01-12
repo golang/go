@@ -330,22 +330,29 @@ func getTestVar(enclosingFunc *funcInfo, pkg source.Package) string {
 		return ""
 	}
 
+	var testingPkg *types.Package
+	for _, p := range pkg.GetTypes().Imports() {
+		if p.Path() == "testing" {
+			testingPkg = p
+			break
+		}
+	}
+	if testingPkg == nil {
+		return ""
+	}
+	tbObj := testingPkg.Scope().Lookup("TB")
+	if tbObj == nil {
+		return ""
+	}
+	iface, ok := tbObj.Type().Underlying().(*types.Interface)
+	if !ok {
+		return ""
+	}
+
 	sig := enclosingFunc.sig
 	for i := 0; i < sig.Params().Len(); i++ {
 		param := sig.Params().At(i)
 		if param.Name() == "_" {
-			continue
-		}
-		testingPkg, err := pkg.DirectDep("testing")
-		if err != nil {
-			continue
-		}
-		tbObj := testingPkg.GetTypes().Scope().Lookup("TB")
-		if tbObj == nil {
-			continue
-		}
-		iface, ok := tbObj.Type().Underlying().(*types.Interface)
-		if !ok {
 			continue
 		}
 		if !types.Implements(param.Type(), iface) {

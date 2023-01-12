@@ -401,8 +401,15 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, m *s
 		if snapshot.IsBuiltin(ctx, cgf.URI) {
 			continue
 		}
+
+		pkgDiags, err := pkg.DiagnosticsForFile(ctx, snapshot, cgf.URI)
+		if err != nil {
+			event.Error(ctx, "warning: getting package diagnostics", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
+			return
+		}
+
 		var tdiags, adiags []*source.Diagnostic
-		source.CombineDiagnostics(pkg, cgf.URI, analysisDiags, &tdiags, &adiags)
+		source.CombineDiagnostics(pkgDiags, analysisDiags[cgf.URI], &tdiags, &adiags)
 		s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, tdiags, true)
 		s.storeDiagnostics(snapshot, cgf.URI, analysisSource, adiags, true)
 	}

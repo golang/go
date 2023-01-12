@@ -28,30 +28,20 @@ import (
 	"golang.org/x/tools/internal/typesinternal"
 )
 
-func goPackagesErrorDiagnostics(snapshot *snapshot, pkg *pkg, e packages.Error) ([]*source.Diagnostic, error) {
-	if msg, spn, ok := parseGoListImportCycleError(snapshot, e, pkg); ok {
-		rng, err := spanToRange(pkg, spn)
-		if err != nil {
-			return nil, err
-		}
-		return []*source.Diagnostic{{
-			URI:      spn.URI(),
-			Range:    rng,
-			Severity: protocol.SeverityError,
-			Source:   source.ListError,
-			Message:  msg,
-		}}, nil
+func goPackagesErrorDiagnostics(e packages.Error, pkg *syntaxPackage, fromDir string) (diags []*source.Diagnostic, rerr error) {
+	if diag, ok := parseGoListImportCycleError(e, pkg); ok {
+		return []*source.Diagnostic{diag}, nil
 	}
 
 	var spn span.Span
 	if e.Pos == "" {
-		spn = parseGoListError(e.Msg, pkg.m.Config.Dir)
+		spn = parseGoListError(e.Msg, fromDir)
 		// We may not have been able to parse a valid span. Apply the errors to all files.
 		if _, err := spanToRange(pkg, spn); err != nil {
 			var diags []*source.Diagnostic
-			for _, cgf := range pkg.compiledGoFiles {
+			for _, pgf := range pkg.compiledGoFiles {
 				diags = append(diags, &source.Diagnostic{
-					URI:      cgf.URI,
+					URI:      pgf.URI,
 					Severity: protocol.SeverityError,
 					Source:   source.ListError,
 					Message:  e.Msg,
@@ -60,9 +50,20 @@ func goPackagesErrorDiagnostics(snapshot *snapshot, pkg *pkg, e packages.Error) 
 			return diags, nil
 		}
 	} else {
-		spn = span.ParseInDir(e.Pos, pkg.m.Config.Dir)
+		spn = span.ParseInDir(e.Pos, fromDir)
 	}
 
+	// TODO(rfindley): in some cases the go command outputs invalid spans, for
+	// example (from TestGoListErrors):
+	//
+	//   package a
+	//   import
+	//
+	// In this case, the go command will complain about a.go:2:8, which is after
+	// the trailing newline but still considered to be on the second line, most
+	// likely because *token.File lacks information about newline termination.
+	//
+	// We could do better here by handling that case.
 	rng, err := spanToRange(pkg, spn)
 	if err != nil {
 		return nil, err
@@ -76,7 +77,7 @@ func goPackagesErrorDiagnostics(snapshot *snapshot, pkg *pkg, e packages.Error) 
 	}}, nil
 }
 
-func parseErrorDiagnostics(snapshot *snapshot, pkg *pkg, errList scanner.ErrorList) ([]*source.Diagnostic, error) {
+func parseErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, errList scanner.ErrorList) ([]*source.Diagnostic, error) {
 	// The first parser error is likely the root cause of the problem.
 	if errList.Len() <= 0 {
 		return nil, fmt.Errorf("no errors in %v", errList)
@@ -102,7 +103,7 @@ func parseErrorDiagnostics(snapshot *snapshot, pkg *pkg, errList scanner.ErrorLi
 var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
 var unsupportedFeatureRe = regexp.MustCompile(`.*require.* go(\d+\.\d+) or later`)
 
-func typeErrorDiagnostics(snapshot *snapshot, pkg *pkg, e extendedError) ([]*source.Diagnostic, error) {
+func typeErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, e extendedError) ([]*source.Diagnostic, error) {
 	code, loc, err := typeErrorData(pkg, e.primary)
 	if err != nil {
 		return nil, err
@@ -286,7 +287,7 @@ func relatedInformation(diag *gobDiagnostic) []source.RelatedInformation {
 	return out
 }
 
-func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, protocol.Location, error) {
+func typeErrorData(pkg *syntaxPackage, terr types.Error) (typesinternal.ErrorCode, protocol.Location, error) {
 	ecode, start, end, ok := typesinternal.ReadGo116ErrorData(terr)
 	if !ok {
 		start, end = terr.Pos, terr.Pos
@@ -299,7 +300,7 @@ func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, protoco
 	}
 	// go/types errors retain their FileSet.
 	// Sanity-check that we're using the right one.
-	fset := pkg.FileSet()
+	fset := pkg.fset
 	if fset != terr.Fset {
 		return 0, protocol.Location{}, bug.Errorf("wrong FileSet for type error")
 	}
@@ -320,7 +321,7 @@ func typeErrorData(pkg *pkg, terr types.Error) (typesinternal.ErrorCode, protoco
 
 // spanToRange converts a span.Span to a protocol.Range,
 // assuming that the span belongs to the package whose diagnostics are being computed.
-func spanToRange(pkg *pkg, spn span.Span) (protocol.Range, error) {
+func spanToRange(pkg *syntaxPackage, spn span.Span) (protocol.Range, error) {
 	pgf, err := pkg.File(spn.URI())
 	if err != nil {
 		return protocol.Range{}, err
@@ -344,36 +345,39 @@ func parseGoListError(input, wd string) span.Span {
 	return span.ParseInDir(input[:msgIndex], wd)
 }
 
-func parseGoListImportCycleError(snapshot *snapshot, e packages.Error, pkg *pkg) (string, span.Span, bool) {
+func parseGoListImportCycleError(e packages.Error, pkg *syntaxPackage) (*source.Diagnostic, bool) {
 	re := regexp.MustCompile(`(.*): import stack: \[(.+)\]`)
 	matches := re.FindStringSubmatch(strings.TrimSpace(e.Msg))
 	if len(matches) < 3 {
-		return e.Msg, span.Span{}, false
+		return nil, false
 	}
 	msg := matches[1]
 	importList := strings.Split(matches[2], " ")
 	// Since the error is relative to the current package. The import that is causing
 	// the import cycle error is the second one in the list.
 	if len(importList) < 2 {
-		return msg, span.Span{}, false
+		return nil, false
 	}
 	// Imports have quotation marks around them.
 	circImp := strconv.Quote(importList[1])
-	for _, cgf := range pkg.compiledGoFiles {
+	for _, pgf := range pkg.compiledGoFiles {
 		// Search file imports for the import that is causing the import cycle.
-		for _, imp := range cgf.File.Imports {
+		for _, imp := range pgf.File.Imports {
 			if imp.Path.Value == circImp {
-				start, end, err := safetoken.Offsets(cgf.Tok, imp.Pos(), imp.End())
+				rng, err := pgf.PosMappedRange(imp.Pos(), imp.End())
 				if err != nil {
-					return msg, span.Span{}, false
+					return nil, false
 				}
-				spn, err := cgf.Mapper.OffsetSpan(start, end)
-				if err != nil {
-					return msg, span.Span{}, false
-				}
-				return msg, spn, true
+
+				return &source.Diagnostic{
+					URI:      pgf.URI,
+					Range:    rng.Range(),
+					Severity: protocol.SeverityError,
+					Source:   source.ListError,
+					Message:  msg,
+				}, true
 			}
 		}
 	}
-	return msg, span.Span{}, false
+	return nil, false
 }

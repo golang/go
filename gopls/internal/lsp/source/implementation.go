@@ -324,22 +324,28 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, s
 		}
 
 		// Get all of the transitive dependencies of the search package.
-		pkgs := make(map[*types.Package]Package)
-		var addPkg func(pkg Package)
-		addPkg = func(pkg Package) {
-			pkgs[pkg.GetTypes()] = pkg
-			for _, imp := range pkg.Imports() {
-				if _, ok := pkgs[imp.GetTypes()]; !ok {
-					addPkg(imp)
-				}
+		pkgSet := map[*types.Package]Package{
+			searchpkg.GetTypes(): searchpkg,
+		}
+		deps := recursiveDeps(s, searchpkg.Metadata())[1:]
+		// Ignore the error from type checking, but check if the context was
+		// canceled (which would have caused TypeCheck to exit early).
+		depPkgs, _ := s.TypeCheck(ctx, TypecheckWorkspace, deps...)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		for _, dep := range depPkgs {
+			// Since we ignored the error from type checking, pkg may be nil.
+			if dep != nil {
+				pkgSet[dep.GetTypes()] = dep
 			}
 		}
-		addPkg(searchpkg)
+
 		for _, obj := range objs {
 			if obj.Parent() == types.Universe {
 				return nil, fmt.Errorf("%q: %w", obj.Name(), errBuiltin)
 			}
-			pkg, ok := pkgs[obj.Pkg()]
+			pkg, ok := pkgSet[obj.Pkg()]
 			if !ok {
 				event.Error(ctx, fmt.Sprintf("no package for obj %s: %v", obj, obj.Pkg()), err)
 				continue

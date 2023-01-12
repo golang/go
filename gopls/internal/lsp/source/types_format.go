@@ -206,7 +206,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 	params := make([]string, 0, sig.Params().Len())
 	for i := 0; i < sig.Params().Len(); i++ {
 		el := sig.Params().At(i)
-		typ := FormatVarType(pkg, el, qf)
+		typ := FormatVarType(ctx, s, pkg, el, qf)
 		p := typ
 		if el.Name() != "" {
 			p = el.Name() + " " + typ
@@ -221,7 +221,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 			needResultParens = true
 		}
 		el := sig.Results().At(i)
-		typ := FormatVarType(pkg, el, qf)
+		typ := FormatVarType(ctx, s, pkg, el, qf)
 		if el.Name() == "" {
 			results = append(results, typ)
 		} else {
@@ -254,8 +254,8 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 // FormatVarType formats a *types.Var, accounting for type aliases.
 // To do this, it looks in the AST of the file in which the object is declared.
 // On any errors, it always falls back to types.TypeString.
-func FormatVarType(srcpkg Package, obj *types.Var, qf types.Qualifier) string {
-	pkg, err := FindPackageFromPos(srcpkg, obj.Pos())
+func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, obj *types.Var, qf types.Qualifier) string {
+	pkg, err := FindPackageFromPos(ctx, snapshot, srcpkg, obj.Pos())
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}

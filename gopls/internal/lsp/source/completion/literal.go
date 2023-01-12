@@ -162,7 +162,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 	if score := c.matcher.Score("func"); !cand.hasMod(reference) && score > 0 && (expType == nil || !types.IsInterface(expType)) {
 		switch t := literalType.Underlying().(type) {
 		case *types.Signature:
-			c.functionLiteral(t, float64(score))
+			c.functionLiteral(ctx, t, float64(score))
 		}
 	}
 }
@@ -175,7 +175,7 @@ const literalCandidateScore = highScore / 2
 
 // functionLiteral adds a function literal completion item for the
 // given signature.
-func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
+func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, matchScore float64) {
 	snip := &snippet.Builder{}
 	snip.WriteText("func(")
 
@@ -202,7 +202,7 @@ func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
 			// If the param has no name in the signature, guess a name based
 			// on the type. Use an empty qualifier to ignore the package.
 			// For example, we want to name "http.Request" "r", not "hr".
-			name = source.FormatVarType(c.pkg, p, func(p *types.Package) string {
+			name = source.FormatVarType(ctx, c.snapshot, c.pkg, p, func(p *types.Package) string {
 				return ""
 			})
 			name = abbreviateTypeName(name)
@@ -264,7 +264,7 @@ func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
 		// of "i int, j int".
 		if i == sig.Params().Len()-1 || !types.Identical(p.Type(), sig.Params().At(i+1).Type()) {
 			snip.WriteText(" ")
-			typeStr := source.FormatVarType(c.pkg, p, c.qf)
+			typeStr := source.FormatVarType(ctx, c.snapshot, c.pkg, p, c.qf)
 			if sig.Variadic() && i == sig.Params().Len()-1 {
 				typeStr = strings.Replace(typeStr, "[]", "...", 1)
 			}
@@ -314,7 +314,7 @@ func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
 			snip.WriteText(name + " ")
 		}
 
-		text := source.FormatVarType(c.pkg, r, c.qf)
+		text := source.FormatVarType(ctx, c.snapshot, c.pkg, r, c.qf)
 		if tp, _ := r.Type().(*typeparams.TypeParam); tp != nil && !c.typeParamInScope(tp) {
 			snip.WritePlaceholder(func(snip *snippet.Builder) {
 				snip.WriteText(text)

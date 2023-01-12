@@ -327,7 +327,7 @@ func hoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error)
 	// Check if the identifier is test-only (and is therefore not part of a
 	// package's API). This is true if the request originated in a test package,
 	// and if the declaration is also found in the same test package.
-	if i.pkg != nil && obj.Pkg() != nil && i.pkg.ForTest() != "" {
+	if i.pkg != nil && obj.Pkg() != nil && i.pkg.Metadata().ForTest != "" {
 		if _, err := i.pkg.File(i.Declaration.MappedRange[0].URI()); err == nil {
 			return h, nil
 		}
@@ -443,18 +443,22 @@ func moduleAtVersion(path string, i *IdentifierInfo) (string, string, bool) {
 	if strings.ToLower(i.Snapshot.View().Options().LinkTarget) != "pkg.go.dev" {
 		return "", "", false
 	}
-	impPkg, err := i.pkg.DirectDep(PackagePath(path))
-	if err != nil {
+	impID, ok := i.pkg.Metadata().DepsByPkgPath[PackagePath(path)]
+	if !ok {
 		return "", "", false
 	}
-	if impPkg.Version() == nil {
+	impMeta := i.Snapshot.Metadata(impID)
+	if impMeta == nil {
 		return "", "", false
 	}
-	version, modpath := impPkg.Version().Version, impPkg.Version().Path
-	if modpath == "" || version == "" {
+	module := impMeta.Module
+	if module == nil {
 		return "", "", false
 	}
-	return modpath, version, true
+	if module.Path == "" || module.Version == "" {
+		return "", "", false
+	}
+	return module.Path, module.Version, true
 }
 
 // objectString is a wrapper around the types.ObjectString function.
@@ -534,7 +538,9 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 		if err != nil {
 			return nil, err
 		}
-		imp, err := pkg.ResolveImportPath(ImportPath(importPath))
+		// TODO(rfindley): avoid type-checking here, by re-parsing the package with
+		// ParseHeader.
+		imp, err := ResolveImportPath(ctx, s, pkg.Metadata().ID, ImportPath(importPath))
 		if err != nil {
 			return nil, err
 		}

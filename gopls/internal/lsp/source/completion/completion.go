@@ -1088,10 +1088,12 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
-			pkg, _ := c.pkg.DirectDep(source.PackagePath(pkgName.Imported().Path()))
-			// If the package is not imported, try searching for unimported
-			// completions.
-			if pkg == nil && c.opts.unimported {
+			// If this package path is not a known dep, it means that it resolves to
+			// an import path that couldn't be resolved by go/packages.
+			//
+			// Try to complete from the package cache.
+			pkgPath := source.PackagePath(pkgName.Imported().Path())
+			if _, ok := c.pkg.Metadata().DepsByPkgPath[pkgPath]; !ok && c.opts.unimported {
 				if err := c.unimportedMembers(ctx, id); err != nil {
 					return err
 				}
@@ -1133,7 +1135,7 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 
 	var paths []string
 	for path, pkg := range known {
-		if pkg.GetTypes().Name() != id.Name {
+		if pkg.Name() != id.Name {
 			continue
 		}
 		paths = append(paths, string(path))
@@ -1155,16 +1157,16 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 
 	for _, path := range paths {
 		pkg := known[source.PackagePath(path)]
-		if pkg.GetTypes().Name() != id.Name {
+		if pkg.Name() != id.Name {
 			continue
 		}
 		imp := &importInfo{
 			importPath: path,
 		}
-		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
-			imp.name = pkg.GetTypes().Name()
+		if imports.ImportPathToAssumedName(path) != pkg.Name() {
+			imp.name = pkg.Name()
 		}
-		c.packageMembers(pkg.GetTypes(), unimportedScore(relevances[path]), imp, func(cand candidate) {
+		c.packageMembers(pkg, unimportedScore(relevances[path]), imp, func(cand candidate) {
 			c.deepState.enqueue(cand)
 		})
 		if len(c.items) >= unimportedMemberTarget {
@@ -1479,7 +1481,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 	}
 	var paths []string // actually PackagePaths
 	for path, pkg := range known {
-		if !strings.HasPrefix(pkg.GetTypes().Name(), prefix) {
+		if !strings.HasPrefix(pkg.Name(), prefix) {
 			continue
 		}
 		paths = append(paths, string(path))
@@ -1508,21 +1510,21 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 
 	for _, path := range paths {
 		pkg := known[source.PackagePath(path)]
-		if _, ok := seen[pkg.GetTypes().Name()]; ok {
+		if _, ok := seen[pkg.Name()]; ok {
 			continue
 		}
 		imp := &importInfo{
 			importPath: path,
 		}
-		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
-			imp.name = pkg.GetTypes().Name()
+		if imports.ImportPathToAssumedName(path) != pkg.Name() {
+			imp.name = pkg.Name()
 		}
 		if count >= maxUnimportedPackageNames {
 			return nil
 		}
 		c.deepState.enqueue(candidate{
 			// Pass an empty *types.Package to disable deep completions.
-			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), types.NewPackage(path, string(pkg.Name()))),
+			obj:   types.NewPkgName(0, nil, pkg.Name(), types.NewPackage(path, string(pkg.Name()))),
 			score: unimportedScore(relevances[path]),
 			imp:   imp,
 		})

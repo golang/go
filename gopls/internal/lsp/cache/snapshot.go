@@ -118,7 +118,7 @@ type snapshot struct {
 	// analyses maps an analysisKey (which identifies a package
 	// and a set of analyzers) to the handle for the future result
 	// of loading the package and analyzing it.
-	analyses *persistent.Map // from analysisKey to analysisHandle
+	analyses *persistent.Map // from analysisKey to analysisPromise
 
 	// workspacePackages contains the workspace's packages, which are loaded
 	// when the view is created.
@@ -626,10 +626,20 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 }
 
 // TypeCheck type-checks the specified packages in the given mode.
+//
+// The resulting packages slice always contains len(ids) entries, though some
+// of them may be nil if (and only if) the resulting error is non-nil.
+//
+// An error is returned if any of the packages fail to type-check. This is
+// different from having type-checking errors: a failure to type-check
+// indicates context cancellation or otherwise significant failure to perform
+// the type-checking operation.
 func (s *snapshot) TypeCheck(ctx context.Context, mode source.TypecheckMode, ids ...PackageID) ([]source.Package, error) {
 	// Build all the handles...
-	var phs []*packageHandle
-	for _, id := range ids {
+	phs := make([]*packageHandle, len(ids))
+	pkgs := make([]source.Package, len(ids))
+	var firstErr error
+	for i, id := range ids {
 		parseMode := source.ParseFull
 		if mode == source.TypecheckWorkspace {
 			parseMode = s.workspaceParseMode(id)
@@ -637,21 +647,36 @@ func (s *snapshot) TypeCheck(ctx context.Context, mode source.TypecheckMode, ids
 
 		ph, err := s.buildPackageHandle(ctx, id, parseMode)
 		if err != nil {
-			return nil, err
+			if firstErr == nil {
+				firstErr = err
+			}
+			if ctx.Err() != nil {
+				return pkgs, firstErr
+			}
+			continue
 		}
-		phs = append(phs, ph)
+		phs[i] = ph
 	}
 
 	// ...then await them all.
-	var pkgs []source.Package
-	for _, ph := range phs {
-		pkg, err := ph.await(ctx, s)
-		if err != nil {
-			return nil, err
+	for i, ph := range phs {
+		if ph == nil {
+			continue
 		}
-		pkgs = append(pkgs, pkg)
+		p, err := ph.await(ctx, s)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			if ctx.Err() != nil {
+				return pkgs, firstErr
+			}
+			continue
+		}
+		pkgs[i] = newPackage(ph.m, p)
 	}
-	return pkgs, nil
+
+	return pkgs, firstErr
 }
 
 func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source.Metadata, error) {
@@ -1058,7 +1083,7 @@ func (s *snapshot) AllMetadata(ctx context.Context) ([]*source.Metadata, error) 
 	return meta, nil
 }
 
-func (s *snapshot) CachedImportPaths(ctx context.Context) (map[PackagePath]source.Package, error) {
+func (s *snapshot) CachedImportPaths(ctx context.Context) (map[PackagePath]*types.Package, error) {
 	// Don't reload workspace package metadata.
 	// This function is meant to only return currently cached information.
 	s.AwaitInitialized(ctx)
@@ -1066,24 +1091,41 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[PackagePath]sourc
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	results := map[PackagePath]source.Package{}
+	pkgs := make(map[PackagePath]*syntaxPackage)
+
+	// Find all cached packages that are imported a nonzero amount of time.
+	//
+	// TODO(rfindley): this is pre-existing behavior, and a test fails if we
+	// don't do the importCount filter, but why do we care if a package is
+	// imported a nonzero amount of times?
+	imported := make(map[PackagePath]bool)
 	s.packages.Range(func(_, v interface{}) {
-		cachedPkg, err := v.(*packageHandle).cached()
+		ph := v.(*packageHandle)
+		for dep := range ph.m.DepsByPkgPath {
+			imported[dep] = true
+		}
+		if ph.m.Name == "main" {
+			return
+		}
+		pkg, err := ph.cached()
 		if err != nil {
 			return
 		}
-		for _, newPkg := range cachedPkg.deps {
-			pkgPath := newPkg.PkgPath()
-			if oldPkg, ok := results[pkgPath]; ok {
-				// Using the same trick as NarrowestPackage, prefer non-variants.
-				if len(newPkg.compiledGoFiles) < len(oldPkg.(*pkg).compiledGoFiles) {
-					results[pkgPath] = newPkg
-				}
-			} else {
-				results[pkgPath] = newPkg
+		if old, ok := pkgs[ph.m.PkgPath]; ok {
+			if len(pkg.compiledGoFiles) < len(old.compiledGoFiles) {
+				pkgs[ph.m.PkgPath] = pkg
 			}
+		} else {
+			pkgs[ph.m.PkgPath] = pkg
 		}
 	})
+	results := make(map[PackagePath]*types.Package)
+	for pkgPath, pkg := range pkgs {
+		if imported[pkgPath] {
+			results[pkgPath] = pkg.types
+		}
+	}
+
 	return results, nil
 }
 

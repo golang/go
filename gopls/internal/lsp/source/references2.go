@@ -316,7 +316,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 		ref := &ReferenceInfoV2{
 			IsDeclaration: isDecl,
 			Location:      loc,
-			PkgPath:       pkg.PkgPath(),
+			PkgPath:       pkg.Metadata().PkgPath,
 			Name:          obj.Name(),
 		}
 		refsMu.Lock()
@@ -402,7 +402,7 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 
 			// Expand global search scope to include rdeps of this pkg.
 			if len(results) > 0 {
-				rdeps, err := snapshot.ReverseDependencies(ctx, pkg.ID(), true)
+				rdeps, err := snapshot.ReverseDependencies(ctx, pkg.Metadata().ID, true)
 				if err != nil {
 					return err
 				}

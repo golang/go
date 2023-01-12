@@ -204,6 +204,10 @@ func main() {
 		env.OpenFile("main.go")
 		for _, test := range tests {
 			got, _ := env.Hover("main.go", env.RegexpSearch("main.go", test.hoverPackage))
+			if got == nil {
+				t.Error("nil hover for", test.hoverPackage)
+				continue
+			}
 			if !strings.Contains(got.Value, test.want) {
 				t.Errorf("Hover: got:\n%q\nwant:\n%q", got.Value, test.want)
 			}

@@ -209,7 +209,7 @@ func (c *Cache) PackageStats(withNames bool) template.HTML {
 			typsCost := typesCost(v.pkg.types.Scope())
 			typInfoCost := typesInfoCost(v.pkg.typesInfo)
 			stat := packageStat{
-				id:        v.pkg.m.ID,
+				id:        v.pkg.id,
 				mode:      v.pkg.mode,
 				types:     typsCost,
 				typesInfo: typInfoCost,

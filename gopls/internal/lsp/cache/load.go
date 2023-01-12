@@ -447,21 +447,13 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 		Name:       PackageName(pkg.Name),
 		ForTest:    PackagePath(packagesinternal.GetForTest(pkg)),
 		TypesSizes: pkg.TypesSizes,
-		Config:     cfg,
+		LoadDir:    cfg.Dir,
 		Module:     pkg.Module,
+		Errors:     pkg.Errors,
 		DepsErrors: packagesinternal.GetDepsErrors(pkg),
 	}
-	updates[id] = m
 
-	for _, err := range pkg.Errors {
-		// Filter out parse errors from go list. We'll get them when we
-		// actually parse, and buggy overlay support may generate spurious
-		// errors. (See TestNewModule_Issue38207.)
-		if strings.Contains(err.Msg, "expected '") {
-			continue
-		}
-		m.Errors = append(m.Errors, err)
-	}
+	updates[id] = m
 
 	for _, filename := range pkg.CompiledGoFiles {
 		uri := span.URIFromPath(filename)

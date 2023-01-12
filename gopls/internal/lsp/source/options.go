@@ -116,12 +116,11 @@ func DefaultOptions() *Options {
 			},
 			UserOptions: UserOptions{
 				BuildOptions: BuildOptions{
-					ExpandWorkspaceToModule:     true,
-					ExperimentalPackageCacheKey: true,
-					MemoryMode:                  ModeNormal,
-					DirectoryFilters:            []string{"-**/node_modules"},
-					TemplateExtensions:          []string{},
-					StandaloneTags:              []string{"ignore"},
+					ExpandWorkspaceToModule: true,
+					MemoryMode:              ModeNormal,
+					DirectoryFilters:        []string{"-**/node_modules"},
+					TemplateExtensions:      []string{},
+					StandaloneTags:          []string{"ignore"},
 				},
 				UIOptions: UIOptions{
 					DiagnosticOptions: DiagnosticOptions{
@@ -268,15 +267,6 @@ type BuildOptions struct {
 	// found, gopls will check if there is exactly one child directory containing
 	// a go.mod file, narrowing the scope to that directory if it exists.
 	ExpandWorkspaceToModule bool `status:"experimental"`
-
-	// ExperimentalPackageCacheKey controls whether to use a coarser cache key
-	// for package type information to increase cache hits. This setting removes
-	// the user's environment, build flags, and working directory from the cache
-	// key, which should be a safe change as all relevant inputs into the type
-	// checking pass are already hashed into the key. This is temporarily guarded
-	// by an experiment because caching behavior is subtle and difficult to
-	// comprehensively test.
-	ExperimentalPackageCacheKey bool `status:"experimental"`
 
 	// AllowModfileModifications disables -mod=readonly, allowing imports from
 	// out-of-scope modules. This option will eventually be removed.
@@ -1113,7 +1103,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.deprecated("")
 
 	case "experimentalPackageCacheKey":
-		result.setBool(&o.ExperimentalPackageCacheKey)
+		result.deprecated("")
 
 	case "allowModfileModifications":
 		result.setBool(&o.AllowModfileModifications)

@@ -862,6 +862,7 @@ package foo_
 `
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/bar_test.go")
+		env.AfterChange()
 		env.RegexpReplace("foo/bar_test.go", "package foo_", "package foo_test")
 		env.AfterChange(
 			NoDiagnostics(ForFile("foo/bar_test.go")),

@@ -166,7 +166,7 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 	}
 	globalIDs := make([]PackageID, 0, len(globalMetas))
 	for _, m := range globalMetas {
-		if m.PkgPath == declPkg.PkgPath() {
+		if m.PkgPath == declPkg.Metadata().PkgPath {
 			continue // declaring package is handled by local implementation
 		}
 		globalIDs = append(globalIDs, m.ID)

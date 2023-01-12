@@ -82,18 +82,22 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (File
 	if err != nil {
 		return nil, nil, err
 	}
-	adiags, err := Analyze(ctx, snapshot, pkg.ID(), false)
+	pkgDiags, err := pkg.DiagnosticsForFile(ctx, snapshot, uri)
+	if err != nil {
+		return nil, nil, err
+	}
+	adiags, err := Analyze(ctx, snapshot, pkg.Metadata().ID, false)
 	if err != nil {
 		return nil, nil, err
 	}
 	var fileDiags []*Diagnostic // combine load/parse/type + analysis diagnostics
-	CombineDiagnostics(pkg, fh.URI(), adiags, &fileDiags, &fileDiags)
+	CombineDiagnostics(pkgDiags, adiags[uri], &fileDiags, &fileDiags)
 	return fh, fileDiags, nil
 }
 
-// CombineDiagnostics combines and filters list/parse/type diagnostics
-// from pkg.DiagnosticsForFile(uri) with analysisDiagnostics[uri], and
-// appends the two lists to *outT and *outA, respectively.
+// CombineDiagnostics combines and filters list/parse/type diagnostics from
+// tdiags with adiags, and appends the two lists to *outT and *outA,
+// respectively.
 //
 // Type-error analyzers produce diagnostics that are redundant
 // with type checker diagnostics, but more detailed (e.g. fixes).
@@ -111,7 +115,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (File
 // easily choose whether to keep the results separate or combined.
 //
 // The arguments are not modified.
-func CombineDiagnostics(pkg Package, uri span.URI, analysisDiagnostics map[span.URI][]*Diagnostic, outT, outA *[]*Diagnostic) {
+func CombineDiagnostics(tdiags []*Diagnostic, adiags []*Diagnostic, outT, outA *[]*Diagnostic) {
 
 	// Build index of (list+parse+)type errors.
 	type key struct {
@@ -119,14 +123,13 @@ func CombineDiagnostics(pkg Package, uri span.URI, analysisDiagnostics map[span.
 		message string
 	}
 	index := make(map[key]int) // maps (Range,Message) to index in tdiags slice
-	tdiags := pkg.DiagnosticsForFile(uri)
 	for i, diag := range tdiags {
 		index[key{diag.Range, diag.Message}] = i
 	}
 
 	// Filter out analysis diagnostics that match type errors,
 	// retaining their suggested fix (etc) fields.
-	for _, diag := range analysisDiagnostics[uri] {
+	for _, diag := range adiags {
 		if i, ok := index[key{diag.Range, diag.Message}]; ok {
 			copy := *tdiags[i]
 			copy.SuggestedFixes = diag.SuggestedFixes

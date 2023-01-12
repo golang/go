@@ -76,10 +76,11 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		// this is a little cumbersome to avoid both exporting 'encoded' and its methods
 		// and to avoid import cycles
 		e := &encoded{
-			ctx:      ctx,
-			rng:      rng,
-			tokTypes: s.session.Options().SemanticTypes,
-			tokMods:  s.session.Options().SemanticMods,
+			ctx:            ctx,
+			metadataSource: snapshot,
+			rng:            rng,
+			tokTypes:       s.session.Options().SemanticTypes,
+			tokMods:        s.session.Options().SemanticMods,
 		}
 		add := func(line, start uint32, len uint32) {
 			e.add(line, start, len, tokMacro, nil)
@@ -103,16 +104,17 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 		return nil, err
 	}
 	e := &encoded{
-		ctx:       ctx,
-		pgf:       pgf,
-		rng:       rng,
-		ti:        pkg.GetTypesInfo(),
-		pkg:       pkg,
-		fset:      pkg.FileSet(),
-		tokTypes:  s.session.Options().SemanticTypes,
-		tokMods:   s.session.Options().SemanticMods,
-		noStrings: vv.Options().NoSemanticString,
-		noNumbers: vv.Options().NoSemanticNumber,
+		ctx:            ctx,
+		metadataSource: snapshot,
+		pgf:            pgf,
+		rng:            rng,
+		ti:             pkg.GetTypesInfo(),
+		pkg:            pkg,
+		fset:           pkg.FileSet(),
+		tokTypes:       s.session.Options().SemanticTypes,
+		tokMods:        s.session.Options().SemanticMods,
+		noStrings:      vv.Options().NoSemanticString,
+		noNumbers:      vv.Options().NoSemanticNumber,
 	}
 	if err := e.init(); err != nil {
 		// e.init should never return an error, unless there's some
@@ -216,7 +218,11 @@ type encoded struct {
 	noStrings bool
 	noNumbers bool
 
-	ctx               context.Context
+	ctx context.Context
+	// metadataSource is used to resolve imports
+	metadataSource interface {
+		Metadata(source.PackageID) *source.Metadata
+	}
 	tokTypes, tokMods []string
 	pgf               *source.ParsedGoFile
 	rng               *protocol.Range
@@ -908,20 +914,24 @@ func (e *encoded) importSpec(d *ast.ImportSpec) {
 		return
 	}
 	// Import strings are implementation defined. Try to match with parse information.
-	imported, err := e.pkg.ResolveImportPath(importPath)
-	if err != nil {
+	depID := e.pkg.Metadata().DepsByImpPath[importPath]
+	if depID == "" {
+		return
+	}
+	depMD := e.metadataSource.Metadata(depID)
+	if depMD == nil {
 		// unexpected, but impact is that maybe some import is not colored
 		return
 	}
 	// Check whether the original literal contains the package's declared name.
-	j := strings.LastIndex(d.Path.Value, string(imported.Name()))
+	j := strings.LastIndex(d.Path.Value, string(depMD.Name))
 	if j == -1 {
-		// name doesn't show up, for whatever reason, so nothing to report
+		// Package name does not match import path, so there is nothing to report.
 		return
 	}
 	// Report virtual declaration at the position of the substring.
 	start := d.Path.Pos() + token.Pos(j)
-	e.token(start, len(imported.Name()), tokNamespace, nil)
+	e.token(start, len(depMD.Name), tokNamespace, nil)
 }
 
 // log unexpected state

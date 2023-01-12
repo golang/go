@@ -93,7 +93,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 			// transitively for (e.g.) capitalized local variables.
 			// We could do better by checking for an objectpath.
 			transitive := qo.obj.Pkg().Scope().Lookup(qo.obj.Name()) != qo.obj
-			rdeps, err := snapshot.ReverseDependencies(ctx, qo.pkg.ID(), transitive)
+			rdeps, err := snapshot.ReverseDependencies(ctx, qo.pkg.Metadata().ID, transitive)
 			if err != nil {
 				return nil, err
 			}
@@ -134,14 +134,14 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 				}
 				key, found := packagePositionKey(pkg, ident.Pos())
 				if !found {
-					bug.Reportf("ident %v (pos: %v) not found in package %v", ident.Name, ident.Pos(), pkg.Name())
+					bug.Reportf("ident %v (pos: %v) not found in package %v", ident.Name, ident.Pos(), pkg.Metadata().ID)
 					continue
 				}
 				if seen[key] {
 					continue
 				}
 				seen[key] = true
-				rng, err := posToMappedRange(pkg, ident.Pos(), ident.End())
+				rng, err := posToMappedRange(ctx, snapshot, pkg, ident.Pos(), ident.End())
 				if err != nil {
 					return nil, err
 				}

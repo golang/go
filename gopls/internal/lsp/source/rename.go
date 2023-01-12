@@ -30,6 +30,7 @@ import (
 
 type renamer struct {
 	ctx                context.Context
+	snapshot           Snapshot
 	refs               []*ReferenceInfo
 	objsToUpdate       map[types.Object]bool
 	hadConflicts       bool
@@ -125,15 +126,15 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 	if err := checkRenamable(obj); err != nil {
 		return nil, nil, err
 	}
-	result, err := computePrepareRenameResp(snapshot, pkg, node, obj.Name())
+	result, err := computePrepareRenameResp(ctx, snapshot, pkg, node, obj.Name())
 	if err != nil {
 		return nil, nil, err
 	}
 	return result, nil, nil
 }
 
-func computePrepareRenameResp(snapshot Snapshot, pkg Package, node ast.Node, text string) (*PrepareItem, error) {
-	mr, err := posToMappedRange(pkg, node.Pos(), node.End())
+func computePrepareRenameResp(ctx context.Context, snapshot Snapshot, pkg Package, node ast.Node, text string) (*PrepareItem, error) {
+	mr, err := posToMappedRange(ctx, snapshot, pkg, node.Pos(), node.End())
 	if err != nil {
 		return nil, err
 	}
@@ -592,6 +593,7 @@ func renameObj(ctx context.Context, s Snapshot, newName string, qos []qualifiedO
 	}
 	r := renamer{
 		ctx:          ctx,
+		snapshot:     s,
 		refs:         refs,
 		objsToUpdate: make(map[types.Object]bool),
 		from:         obj.Name(),
@@ -735,7 +737,7 @@ func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
 
 // docComment returns the doc for an identifier.
 func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
-	_, tokFile, nodes, _ := pathEnclosingInterval(pkg, id.Pos(), id.End())
+	_, tokFile, nodes, _ := pathEnclosingInterval(r.ctx, r.snapshot, pkg, id.Pos(), id.End())
 	for _, node := range nodes {
 		switch decl := node.(type) {
 		case *ast.FuncDecl:
@@ -788,7 +790,7 @@ func (r *renamer) docComment(pkg Package, id *ast.Ident) *ast.CommentGroup {
 func (r *renamer) updatePkgName(pkgName *types.PkgName) (*diff.Edit, error) {
 	// Modify ImportSpec syntax to add or remove the Name as needed.
 	pkg := r.packages[pkgName.Pkg()]
-	_, tokFile, path, _ := pathEnclosingInterval(pkg, pkgName.Pos(), pkgName.Pos())
+	_, tokFile, path, _ := pathEnclosingInterval(r.ctx, r.snapshot, pkg, pkgName.Pos(), pkgName.Pos())
 	if len(path) < 2 {
 		return nil, fmt.Errorf("no path enclosing interval for %s", pkgName.Name())
 	}

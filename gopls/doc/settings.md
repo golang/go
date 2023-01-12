@@ -116,20 +116,6 @@ a go.mod file, narrowing the scope to that directory if it exists.
 
 Default: `true`.
 
-#### **experimentalPackageCacheKey** *bool*
-
-**This setting is experimental and may be deleted.**
-
-experimentalPackageCacheKey controls whether to use a coarser cache key
-for package type information to increase cache hits. This setting removes
-the user's environment, build flags, and working directory from the cache
-key, which should be a safe change as all relevant inputs into the type
-checking pass are already hashed into the key. This is temporarily guarded
-by an experiment because caching behavior is subtle and difficult to
-comprehensively test.
-
-Default: `true`.
-
 #### **allowModfileModifications** *bool*
 
 **This setting is experimental and may be deleted.**

@@ -7,6 +7,7 @@
 package source
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -371,7 +372,7 @@ func (r *renamer) checkStructField(from *types.Var) {
 	if !ok {
 		return
 	}
-	pkg, _, path, _ := pathEnclosingInterval(fromPkg, from.Pos(), from.Pos())
+	pkg, _, path, _ := pathEnclosingInterval(r.ctx, r.snapshot, fromPkg, from.Pos(), from.Pos())
 	if pkg == nil || path == nil {
 		return
 	}
@@ -790,10 +791,10 @@ func (r *renamer) satisfy() map[satisfy.Constraint]bool {
 			// type-checker.
 			//
 			// Only proceed if all packages have no errors.
-			if pkg.HasListOrParseErrors() || pkg.HasTypeErrors() {
+			if pkg.HasParseErrors() || pkg.HasTypeErrors() {
 				r.errorf(token.NoPos, // we don't have a position for this error.
 					"renaming %q to %q not possible because %q has errors",
-					r.from, r.to, pkg.PkgPath())
+					r.from, r.to, pkg.Metadata().PkgPath)
 				return nil
 			}
 			f.Find(pkg.GetTypesInfo(), pkg.GetSyntax())
@@ -826,7 +827,9 @@ func someUse(info *types.Info, obj types.Object) *ast.Ident {
 // exact is defined as for astutil.PathEnclosingInterval.
 //
 // The zero value is returned if not found.
-func pathEnclosingInterval(pkg Package, start, end token.Pos) (resPkg Package, tokFile *token.File, path []ast.Node, exact bool) {
+//
+// TODO(rfindley): this has some redundancy with FindPackageFromPos, etc. Refactor.
+func pathEnclosingInterval(ctx context.Context, s Snapshot, pkg Package, start, end token.Pos) (resPkg Package, tokFile *token.File, path []ast.Node, exact bool) {
 	pkgs := []Package{pkg}
 	for _, f := range pkg.GetSyntax() {
 		for _, imp := range f.Imports {
@@ -837,7 +840,7 @@ func pathEnclosingInterval(pkg Package, start, end token.Pos) (resPkg Package, t
 			if importPath == "" {
 				continue
 			}
-			imported, err := pkg.ResolveImportPath(importPath)
+			imported, err := ResolveImportPath(ctx, s, pkg.Metadata().ID, importPath)
 			if err != nil {
 				return nil, nil, nil, false
 			}

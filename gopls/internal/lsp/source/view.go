@@ -17,7 +17,6 @@ import (
 	"io"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/module"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/objectpath"
@@ -171,7 +170,7 @@ type Snapshot interface {
 	//
 	// To reduce latency, it does not wait for type-checking to complete.
 	// It is intended for use only in completions.
-	CachedImportPaths(ctx context.Context) (map[PackagePath]Package, error)
+	CachedImportPaths(ctx context.Context) (map[PackagePath]*types.Package, error)
 
 	// ActiveMetadata returns a new, unordered slice containing
 	// metadata for all packages considered 'active' in the workspace.
@@ -460,9 +459,7 @@ type Metadata struct {
 	DepsByPkgPath   map[PackagePath]PackageID // values are unique and non-empty
 	Module          *packages.Module
 	DepsErrors      []*packagesinternal.PackageError
-
-	// Config is the *packages.Config associated with the loaded package.
-	Config *packages.Config
+	LoadDir         string // directory from which go/packages was run
 }
 
 // IsIntermediateTestVariant reports whether the given package is an
@@ -750,13 +747,7 @@ type (
 // Package represents a Go package that has been parsed and type-checked.
 // It maintains only the relevant fields of a *go/packages.Package.
 type Package interface {
-	// Metadata:
-	ID() PackageID
-	Name() PackageName
-	PkgPath() PackagePath
-	GetTypesSizes() types.Sizes
-	ForTest() string
-	Version() *module.Version
+	Metadata() *Metadata
 
 	// Results of parsing:
 	FileSet() *token.FileSet
@@ -764,17 +755,14 @@ type Package interface {
 	CompiledGoFiles() []*ParsedGoFile // (borrowed)
 	File(uri span.URI) (*ParsedGoFile, error)
 	GetSyntax() []*ast.File // (borrowed)
-	HasListOrParseErrors() bool
+	HasParseErrors() bool
 
 	// Results of type checking:
 	GetTypes() *types.Package
 	GetTypesInfo() *types.Info
-	DirectDep(path PackagePath) (Package, error)
-	ResolveImportPath(path ImportPath) (Package, error)
-	Imports() []Package // new slice of all direct dependencies, unordered
 	HasTypeErrors() bool
-	DiagnosticsForFile(uri span.URI) []*Diagnostic                             // new array of list/parse/type errors
-	ReferencesTo(map[PackagePath]map[objectpath.Path]unit) []protocol.Location // new sorted array of xrefs
+	DiagnosticsForFile(ctx context.Context, s Snapshot, uri span.URI) ([]*Diagnostic, error)
+	ReferencesTo(map[PackagePath]map[objectpath.Path]unit) []protocol.Location
 	MethodSetsIndex() *methodsets.Index
 }
 

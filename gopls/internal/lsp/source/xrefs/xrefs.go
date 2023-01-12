@@ -23,7 +23,7 @@ import (
 
 // Index constructs a serializable index of outbound cross-references
 // for the specified type-checked package.
-func Index(pkg source.Package) []byte {
+func Index(files []*source.ParsedGoFile, pkg *types.Package, info *types.Info) []byte {
 	// pkgObjects maps each referenced package Q to a mapping:
 	// from each referenced symbol in Q to the ordered list
 	// of references to that symbol from this package.
@@ -41,7 +41,7 @@ func Index(pkg source.Package) []byte {
 		return objects
 	}
 
-	for fileIndex, pgf := range pkg.CompiledGoFiles() {
+	for fileIndex, pgf := range files {
 
 		nodeRange := func(n ast.Node) protocol.Range {
 			rng, err := pgf.PosRange(n.Pos(), n.End())
@@ -58,9 +58,9 @@ func Index(pkg source.Package) []byte {
 				// uses a symbol exported from another package.
 				// (The built-in error.Error method has no package.)
 				if n.IsExported() {
-					if obj, ok := pkg.GetTypesInfo().Uses[n]; ok &&
+					if obj, ok := info.Uses[n]; ok &&
 						obj.Pkg() != nil &&
-						obj.Pkg() != pkg.GetTypes() {
+						obj.Pkg() != pkg {
 
 						objects := getObjects(obj.Pkg())
 						gobObj, ok := objects[obj]
@@ -87,9 +87,9 @@ func Index(pkg source.Package) []byte {
 				// string to the imported package.
 				var obj types.Object
 				if n.Name != nil {
-					obj = pkg.GetTypesInfo().Defs[n.Name]
+					obj = info.Defs[n.Name]
 				} else {
-					obj = pkg.GetTypesInfo().Implicits[n]
+					obj = info.Implicits[n]
 				}
 				if obj == nil {
 					return true // missing import

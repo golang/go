@@ -520,10 +520,8 @@ func analysisCacheKey(analyzers []*analysis.Analyzer, m *source.Metadata, compil
 	sz := m.TypesSizes.(*types.StdSizes)
 	fmt.Fprintf(hasher, "sizes: %d %d\n", sz.WordSize, sz.MaxAlign)
 
-	// metadata errors
-	for _, err := range m.Errors {
-		fmt.Fprintf(hasher, "error: %q", err)
-	}
+	// metadata errors: used for 'compiles' field
+	fmt.Fprintf(hasher, "errors: %d", len(m.Errors))
 
 	// module Go version
 	if m.Module != nil && m.Module.GoVersion != "" {
@@ -542,8 +540,8 @@ func analysisCacheKey(analyzers []*analysis.Analyzer, m *source.Metadata, compil
 		depIDs = append(depIDs, string(depID))
 	}
 	sort.Strings(depIDs)
-	for _, id := range depIDs {
-		vdep := vdeps[PackageID(id)]
+	for _, depID := range depIDs {
+		vdep := vdeps[PackageID(depID)]
 		fmt.Fprintf(hasher, "dep: %s\n", vdep.PkgPath)
 		fmt.Fprintf(hasher, "export: %s\n", vdep.DeepExportHash)
 
@@ -766,6 +764,7 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 	}
 
 	cfg := &types.Config{
+		Sizes: m.TypesSizes,
 		Error: func(e error) {
 			pkg.compiles = false // type error
 			pkg.typeErrors = append(pkg.typeErrors, e.(types.Error))
