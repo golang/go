@@ -206,7 +206,7 @@ func (subst *subster) typ(typ Type) Type {
 	case *Named:
 		// dump is for debugging
 		dump := func(string, ...interface{}) {}
-		if subst.check != nil && subst.check.conf.trace {
+		if subst.check != nil && subst.check.conf._Trace {
 			subst.check.indent++
 			defer func() {
 				subst.check.indent--

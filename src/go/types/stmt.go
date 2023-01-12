@@ -19,7 +19,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		panic("function body not ignored")
 	}
 
-	if check.conf.trace {
+	if check.conf._Trace {
 		check.trace(body.Pos(), "-- %s: %s", name, sig)
 	}
 

@@ -54,7 +54,7 @@ func pathString(path []Object) string {
 // objDecl type-checks the declaration of obj in its respective (file) environment.
 // For the meaning of def, see Checker.definedType, in typexpr.go.
 func (check *Checker) objDecl(obj Object, def *Named) {
-	if check.conf.trace && obj.Type() == nil {
+	if check.conf._Trace && obj.Type() == nil {
 		if check.indent == 0 {
 			fmt.Println() // empty line between top-level objects for readability
 		}
@@ -264,7 +264,7 @@ loop:
 		}
 	}
 
-	if check.conf.trace {
+	if check.conf._Trace {
 		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", pathString(cycle), obj.Name(), len(cycle))
 		if tparCycle {
 			check.trace(obj.Pos(), "## cycle contains: generic type in a type parameter list")
@@ -707,7 +707,7 @@ func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident
 		tparams = append(tparams, tpar)
 	}
 
-	if check.conf.trace && len(names) > 0 {
+	if check.conf._Trace && len(names) > 0 {
 		check.trace(names[0].Pos(), "type params = %v", tparams[len(tparams)-len(names):])
 	}
 

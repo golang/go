@@ -105,7 +105,7 @@ var filemap = map[string]action{
 		renameIdent(f, "InsertLazy", "_InsertLazy")
 	},
 	"selection.go":     nil,
-	"sizes.go":         func(f *ast.File) { renameIdent(f, "IsSyncAtomicAlign64", "isSyncAtomicAlign64") },
+	"sizes.go":         func(f *ast.File) { renameIdent(f, "IsSyncAtomicAlign64", "_IsSyncAtomicAlign64") },
 	"slice.go":         nil,
 	"subst.go":         func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
 	"termlist.go":      nil,
@@ -187,9 +187,9 @@ func fixTraceSel(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.SelectorExpr:
-			// rewrite x.Trace to x.trace (for Config.Trace)
+			// rewrite x.Trace to x._Trace (for Config.Trace)
 			if n.Sel.Name == "Trace" {
-				n.Sel.Name = "trace"
+				n.Sel.Name = "_Trace"
 				return false
 			}
 		}

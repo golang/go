@@ -166,7 +166,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	}
 
 	// typecheck and collect typechecker errors
-	*boolFieldAddr(&conf, "trace") = manual && testing.Verbose()
+	*boolFieldAddr(&conf, "_Trace") = manual && testing.Verbose()
 	if imp == nil {
 		imp = importer.Default()
 	}

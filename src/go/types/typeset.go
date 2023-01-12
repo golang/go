@@ -170,7 +170,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 		return &topTypeSet
 	}
 
-	if check != nil && check.conf.trace {
+	if check != nil && check.conf._Trace {
 		// Types don't generally have position information.
 		// If we don't have a valid pos provided, try to use
 		// one close enough.

@@ -214,7 +214,7 @@ func goTypeName(typ Type) string {
 // typInternal drives type checking of types.
 // Must only be called by definedType or genericType.
 func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
-	if check.conf.trace {
+	if check.conf._Trace {
 		check.trace(e0.Pos(), "-- type %s", e0)
 		check.indent++
 		defer func() {
@@ -395,7 +395,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 }
 
 func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (res Type) {
-	if check.conf.trace {
+	if check.conf._Trace {
 		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.X, ix.Indices)
 		check.indent++
 		defer func() {

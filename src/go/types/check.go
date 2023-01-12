@@ -313,7 +313,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	defer check.handleBailout(&err)
 
 	print := func(msg string) {
-		if check.conf.trace {
+		if check.conf._Trace {
 			fmt.Println()
 			fmt.Println(msg)
 		}
@@ -377,7 +377,7 @@ func (check *Checker) processDelayed(top int) {
 	// this is a sufficiently bounded process.
 	for i := top; i < len(check.delayed); i++ {
 		a := &check.delayed[i]
-		if check.conf.trace {
+		if check.conf._Trace {
 			if a.desc != nil {
 				check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
 			} else {
@@ -385,7 +385,7 @@ func (check *Checker) processDelayed(top int) {
 			}
 		}
 		a.f() // may append to check.delayed
-		if check.conf.trace {
+		if check.conf._Trace {
 			fmt.Println()
 		}
 	}

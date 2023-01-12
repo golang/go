@@ -143,8 +143,8 @@ type Config struct {
 	// It is an error to set both FakeImportC and go115UsesCgo.
 	go115UsesCgo bool
 
-	// If trace is set, a debug trace is printed to stdout.
-	trace bool
+	// If _Trace is set, a debug trace is printed to stdout.
+	_Trace bool
 
 	// If Error != nil, it is called with each error found
 	// during type checking; err has dynamic type Error.

@@ -266,7 +266,7 @@ func (check *Checker) report(errp *error_) {
 		check.firstErr = err
 	}
 
-	if check.conf.trace {
+	if check.conf._Trace {
 		pos := e.Pos
 		msg := e.Msg
 		check.trace(pos, "ERROR: %s", msg)
