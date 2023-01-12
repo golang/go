@@ -187,3 +187,29 @@ func uniqueKey() (key [32]byte) {
 	}
 	return
 }
+
+func BenchmarkUncontendedGet(b *testing.B) {
+	const kind = "BenchmarkUncontendedGet"
+	key := uniqueKey()
+
+	var value [8192]byte
+	if _, err := mathrand.Read(value[:]); err != nil {
+		b.Fatalf("rand: %v", err)
+	}
+	if err := filecache.Set(kind, key, value[:]); err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+
+	var group errgroup.Group
+	group.SetLimit(50)
+	for i := 0; i < b.N; i++ {
+		group.Go(func() error {
+			_, err := filecache.Get(kind, key)
+			return err
+		})
+	}
+	if err := group.Wait(); err != nil {
+		b.Fatal(err)
+	}
+}

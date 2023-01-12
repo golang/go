@@ -18,12 +18,13 @@
 package filecache
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"sort"
@@ -31,7 +32,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/tools/internal/robustio"
+	"golang.org/x/tools/internal/lockedfile"
 )
 
 // Get retrieves from the cache and returns a newly allocated
@@ -40,13 +41,23 @@ import (
 // Get returns ErrNotFound if the value was not found.
 func Get(kind string, key [32]byte) ([]byte, error) {
 	name := filename(kind, key)
-	data, err := robustio.ReadFile(name)
+	data, err := lockedfile.Read(name)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
+
+	// Verify that the Write was complete
+	// by checking the recorded length.
+	if len(data) < 8 {
+		return nil, ErrNotFound // cache entry is incomplete
+	}
+	if length := binary.LittleEndian.Uint64(data); int(length) != len(data)-8 {
+		return nil, ErrNotFound // cache entry is incomplete (or too long!)
+	}
+	data = data[8:]
 
 	// Update file time for use by LRU eviction.
 	// (This turns every read into a write operation.
@@ -76,41 +87,21 @@ func Set(kind string, key [32]byte, value []byte) error {
 		return err
 	}
 
-	// The sequence below uses rename to achieve atomic cache
-	// updates even with concurrent processes.
-	var cause error
-	for try := 0; try < 3; try++ {
-		tmpname := fmt.Sprintf("%s.tmp.%d", name, rand.Int())
-		tmp, err := os.OpenFile(tmpname, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-		if err != nil {
-			if os.IsExist(err) {
-				// Create raced with another thread (or stale file).
-				// Try again.
-				cause = err
-				continue
-			}
-			return err
-		}
+	// In the unlikely event of a short write (e.g. ENOSPC)
+	// followed by process termination (e.g. a power cut), we
+	// don't want a reader to see a short file, so we record
+	// the expected length first and verify it in Get.
+	var length [8]byte
+	binary.LittleEndian.PutUint64(length[:], uint64(len(value)))
+	header := bytes.NewReader(length[:])
+	payload := bytes.NewReader(value)
 
-		_, err = tmp.Write(value)
-		if closeErr := tmp.Close(); err == nil {
-			err = closeErr // prefer error from write over close
-		}
-		if err != nil {
-			os.Remove(tmp.Name()) // ignore error
-			return err
-		}
-
-		err = robustio.Rename(tmp.Name(), name)
-		if err == nil {
-			return nil // success
-		}
-		cause = err
-
-		// Rename raced with another thread. Try again.
-		os.Remove(tmp.Name()) // ignore error
-	}
-	return cause
+	// Windows doesn't support atomic rename--we tried MoveFile,
+	// MoveFileEx, ReplaceFileEx, and SetFileInformationByHandle
+	// of RenameFileInfo, all to no avail--so instead we use
+	// advisory file locking, which is only about 2x slower even
+	// on POSIX platforms with atomic rename.
+	return lockedfile.Write(name, io.MultiReader(header, payload), 0600)
 }
 
 var budget int64 = 1e9 // 1GB
