@@ -145,7 +145,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	flags.BoolVar(boolFieldAddr(&conf, "oldComparableSemantics"), "oldComparableSemantics", false, "")
 	if err := parseFlags(filenames[0], srcs[0], flags); err != nil {
 		t.Fatal(err)
 	}

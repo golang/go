@@ -55,9 +55,8 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 			}
 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", msg)
 		},
-		Importer:               &importer,
-		Sizes:                  &gcSizes{},
-		OldComparableSemantics: base.Flag.OldComparable, // default is new comparable semantics
+		Importer: &importer,
+		Sizes:    &gcSizes{},
 	}
 	info := &types2.Info{
 		StoreTypesInSyntax: true,

@@ -170,11 +170,6 @@ type Config struct {
 	// If DisableUnusedImportCheck is set, packages are not checked
 	// for unused imports.
 	DisableUnusedImportCheck bool
-
-	// If oldComparableSemantics is set, ordinary (non-type parameter)
-	// interfaces do not satisfy the comparable constraint.
-	// TODO(gri) remove this flag for Go 1.21
-	oldComparableSemantics bool
 }
 
 func srcimporter_setUsesCgo(conf *Config) {

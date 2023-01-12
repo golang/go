@@ -1,5 +1,3 @@
-// -oldComparableSemantics
-
 // Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -22,7 +20,7 @@ func _[X comparable, Y interface{comparable; m()}]() {
 	eql(x, x)
 	eql(y, y)
 	eql(y, nil /* ERROR "cannot use nil as Y value in argument to eql" */ )
-	eql[io /* ERROR "does not satisfy comparable" */ .Reader](nil, nil)
+	eql[io.Reader](nil, nil)
 }
 
 // If we have a receiver of pointer to type parameter type (below: *T)
