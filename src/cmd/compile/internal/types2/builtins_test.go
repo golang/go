@@ -7,7 +7,6 @@ package types2_test
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
-	"strings"
 	"testing"
 
 	. "cmd/compile/internal/types2"
@@ -172,14 +171,9 @@ func TestBuiltinSignatures(t *testing.T) {
 	}
 }
 
-func parseGenericSrc(path, src string) (*syntax.File, error) {
-	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
-	return syntax.Parse(syntax.NewFileBase(path), strings.NewReader(src), errh, nil, 0)
-}
-
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P ~[]byte]() { %s }`, src0)
-	f, err := parseGenericSrc("", src)
+	f, err := parse("", src)
 	if err != nil {
 		t.Errorf("%s: %s", src0, err)
 		return

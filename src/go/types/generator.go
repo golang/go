@@ -89,6 +89,7 @@ var filemap = map[string]action{
 	"context.go":          nil,
 	"context_test.go":     nil,
 	"gccgosizes.go":       nil,
+	"hilbert_test.go":     nil,
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
 	"lookup.go":           nil,
 	"main_test.go":        nil,

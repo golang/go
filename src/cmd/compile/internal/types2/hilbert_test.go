@@ -10,9 +10,6 @@ import (
 	"fmt"
 	"os"
 	"testing"
-
-	"cmd/compile/internal/syntax"
-	. "cmd/compile/internal/types2"
 )
 
 var (
@@ -28,19 +25,7 @@ func TestHilbert(t *testing.T) {
 		return
 	}
 
-	// parse source
-	f, err := syntax.Parse(syntax.NewFileBase("hilbert.go"), bytes.NewReader(src), nil, nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// type-check file
-	DefPredeclaredTestFuncs() // define assert built-in
-	conf := Config{Importer: defaultImporter()}
-	_, err = conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck("hilbert.go", string(src), nil)
 }
 
 func program(n int, out string) []byte {

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/importer"
-	"go/parser"
 	"testing"
 
 	. "go/types"
@@ -173,11 +172,9 @@ func TestBuiltinSignatures(t *testing.T) {
 	}
 }
 
-// parseGenericSrc in types2 is not necessary. We can just parse in testBuiltinSignature below.
-
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P ~[]byte]() { %s }`, src0)
-	f, err := parser.ParseFile(fset, "", src, 0)
+	f, err := parse(fset, "", src)
 	if err != nil {
 		t.Errorf("%s: %s", src0, err)
 		return
