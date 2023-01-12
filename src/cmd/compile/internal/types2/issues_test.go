@@ -19,9 +19,7 @@ import (
 )
 
 func TestIssue5770(t *testing.T) {
-	f := mustParse("", `package p; type S struct{T}`)
-	var conf Config
-	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
+	_, err := typecheck("p", `package p; type S struct{T}`, nil)
 	const want = "undefined: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)
@@ -231,13 +229,8 @@ func main() {
 }
 `
 	f := func(test, src string) {
-		f := mustParse("", src)
-		conf := Config{Importer: defaultImporter()}
-		info := Info{Uses: make(map[*syntax.Name]Object)}
-		_, err := conf.Check("main", []*syntax.File{f}, &info)
-		if err != nil {
-			t.Fatal(err)
-		}
+		info := &Info{Uses: make(map[*syntax.Name]Object)}
+		mustTypecheck("main", src, info)
 
 		var pkg *Package
 		count := 0

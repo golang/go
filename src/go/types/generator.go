@@ -96,6 +96,7 @@ var filemap = map[string]action{
 	"map.go":              nil,
 	"named.go":            func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
 	"object.go":           func(f *ast.File) { fixTokenPos(f); renameIdent(f, "NewTypeNameLazy", "_NewTypeNameLazy") },
+	"object_test.go":      func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
 	"objset.go":           nil,
 	"package.go":          nil,
 	"pointer.go":          nil,
