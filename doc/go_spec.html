@@ -7564,13 +7564,16 @@ Suppose a function <code>G</code> defers a function <code>D</code> that calls
 <code>recover</code> and a panic occurs in a function on the same goroutine in which <code>G</code>
 is executing.
 When the running of deferred functions reaches <code>D</code>,
-the return value of <code>D</code>'s call to <code>recover</code> will be the value passed to the call of <code>panic</code>.
-If <code>D</code> returns normally, without starting a new
-<code>panic</code>, the panicking sequence stops. In that case,
-the state of functions called between <code>G</code> and the call to <code>panic</code>
-is discarded, and normal execution resumes.
-Any functions deferred by <code>G</code> before <code>D</code> are then run and <code>G</code>'s
-execution terminates by returning to its caller.
+the return value of <code>D</code>'s call to <code>recover</code> will be the value previously passed to the call of <code>panic</code>
+that initiated the unwinding. If <code>D</code> returns normally, without starting a new panic,
+the local state of functions called between <code>G</code> and the call to panic is discarded, and any functions deferred 
+by <code>G</code> before <code>D</code> run in their normal order; that is, <code>D</code> is just one of the functions
+in the normal sequence of deferred functions that would have run when <code>G</code> terminates.
+However, the panic sequence which would otherwise ultimately have exited the program has been terminated by the call to <code>recover</code>.
+Once all deferred functions have run, <code>G</code>'s execution then terminates by returning to its caller, and normal execution resumes.
+<code>G</code>'s return values will be those set prior to the call to <code>panic</code>, unless they have been modified by
+one of the deferred functions (via their names). Similarly, any side effects such as changes to non-local variables outside
+of <code>G</code>'s scope are not discarded.
 </p>
 
 <p>
