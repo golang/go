@@ -43,7 +43,7 @@ func TestMarker(t *testing.T) {
 			},
 		},
 		{
-			filename:    "testdata/go.mod",
+			filename:    "testdata/go.fake.mod",
 			expectNotes: 2,
 			expectMarkers: map[string]string{
 				"αMarker": "αfake1α",
