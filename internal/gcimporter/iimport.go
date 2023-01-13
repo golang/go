@@ -138,9 +138,14 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 
 	sLen := int64(r.uint64())
 	var fLen int64
+	var fileOffset []uint64
 	if insert != nil {
-		// shallow mode uses a different position encoding
+		// Shallow mode uses a different position encoding.
 		fLen = int64(r.uint64())
+		fileOffset = make([]uint64, r.uint64())
+		for i := range fileOffset {
+			fileOffset[i] = r.uint64()
+		}
 	}
 	dLen := int64(r.uint64())
 
@@ -157,8 +162,9 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 
 		stringData:  stringData,
 		stringCache: make(map[uint64]string),
+		fileOffset:  fileOffset,
 		fileData:    fileData,
-		fileCache:   make(map[uint64]*token.File),
+		fileCache:   make([]*token.File, len(fileOffset)),
 		pkgCache:    make(map[uint64]*types.Package),
 
 		declData: declData,
@@ -288,8 +294,9 @@ type iimporter struct {
 
 	stringData  []byte
 	stringCache map[uint64]string
+	fileOffset  []uint64 // fileOffset[i] is offset in fileData for info about file encoded as i
 	fileData    []byte
-	fileCache   map[uint64]*token.File
+	fileCache   []*token.File // memoized decoding of file encoded as i
 	pkgCache    map[uint64]*types.Package
 
 	declData    []byte
@@ -362,9 +369,10 @@ func (p *iimporter) stringAt(off uint64) string {
 	return s
 }
 
-func (p *iimporter) fileAt(off uint64) *token.File {
-	file, ok := p.fileCache[off]
-	if !ok {
+func (p *iimporter) fileAt(index uint64) *token.File {
+	file := p.fileCache[index]
+	if file == nil {
+		off := p.fileOffset[index]
 		rd := intReader{bytes.NewReader(p.fileData[off:]), p.ipath}
 		filename := p.stringAt(rd.uint64())
 		size := int(rd.uint64())
@@ -380,7 +388,7 @@ func (p *iimporter) fileAt(off uint64) *token.File {
 			}
 		}
 
-		p.fileCache[off] = file
+		p.fileCache[index] = file
 	}
 	return file
 }

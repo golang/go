@@ -102,7 +102,6 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 		shallow:     shallow,
 		allPkgs:     map[*types.Package]bool{},
 		stringIndex: map[string]uint64{},
-		fileIndex:   map[*token.File]uint64{},
 		declIndex:   map[types.Object]uint64{},
 		tparamNames: map[types.Object]string{},
 		typIndex:    map[types.Type]uint64{},
@@ -141,6 +140,34 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 		p.doDecl(p.declTodo.popHead())
 	}
 
+	// Produce index of offset of each file record in files.
+	var files intWriter
+	var fileOffset []uint64 // fileOffset[i] is offset in files of file encoded as i
+	if p.shallow {
+		fileOffset = make([]uint64, len(p.fileInfos))
+		for i, info := range p.fileInfos {
+			fileOffset[i] = uint64(files.Len())
+
+			files.uint64(p.stringOff(info.file.Name()))
+			files.uint64(uint64(info.file.Size()))
+
+			// Delta-encode the line offsets, omitting the initial zero.
+			// (An empty file has an empty lines array.)
+			//
+			// TODO(adonovan): opt: use a two-pass approach that
+			// first gathers the set of Pos values and then
+			// encodes only the information necessary for them.
+			// This would allow us to discard the lines after the
+			// last object of interest and to run-length encode the
+			// trivial lines between lines with needed positions.
+			lines := getLines(info.file)
+			files.uint64(uint64(len(lines)))
+			for i := 1; i < len(lines); i++ {
+				files.uint64(uint64(lines[i] - lines[i-1]))
+			}
+		}
+	}
+
 	// Append indices to data0 section.
 	dataLen := uint64(p.data0.Len())
 	w := p.newWriter()
@@ -167,7 +194,11 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 	hdr.uint64(uint64(p.version))
 	hdr.uint64(uint64(p.strings.Len()))
 	if p.shallow {
-		hdr.uint64(uint64(p.files.Len()))
+		hdr.uint64(uint64(files.Len()))
+		hdr.uint64(uint64(len(fileOffset)))
+		for _, offset := range fileOffset {
+			hdr.uint64(offset)
+		}
 	}
 	hdr.uint64(dataLen)
 
@@ -175,7 +206,7 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 	io.Copy(out, &hdr)
 	io.Copy(out, &p.strings)
 	if p.shallow {
-		io.Copy(out, &p.files)
+		io.Copy(out, &files)
 	}
 	io.Copy(out, &p.data0)
 
@@ -266,8 +297,9 @@ type iexporter struct {
 
 	// In shallow mode, object positions are encoded as (file, offset).
 	// Each file is recorded as a line-number table.
-	files     intWriter
-	fileIndex map[*token.File]uint64
+	// Only the lines of needed positions are saved faithfully.
+	fileInfo  map[*token.File]uint64 // value is index in fileInfos
+	fileInfos []*filePositions
 
 	data0       intWriter
 	declIndex   map[types.Object]uint64
@@ -275,6 +307,11 @@ type iexporter struct {
 	typIndex    map[types.Type]uint64
 
 	indent int // for tracing support
+}
+
+type filePositions struct {
+	file   *token.File
+	needed []token.Pos // unordered list of needed positions
 }
 
 func (p *iexporter) trace(format string, args ...interface{}) {
@@ -300,33 +337,21 @@ func (p *iexporter) stringOff(s string) uint64 {
 	return off
 }
 
-// fileOff returns the offset of the token.File encoding.
-// If not already present, it's added to the end.
-func (p *iexporter) fileOff(file *token.File) uint64 {
-	off, ok := p.fileIndex[file]
+// fileIndex returns the index of the token.File.
+func (p *iexporter) fileIndex(file *token.File, pos token.Pos) uint64 {
+	index, ok := p.fileInfo[file]
 	if !ok {
-		off = uint64(p.files.Len())
-		p.fileIndex[file] = off
-
-		p.files.uint64(p.stringOff(file.Name()))
-		p.files.uint64(uint64(file.Size()))
-
-		// Delta-encode the line offsets, omitting the initial zero.
-		// (An empty file has an empty lines array.)
-		//
-		// TODO(adonovan): opt: use a two-pass approach that
-		// first gathers the set of Pos values and then
-		// encodes only the information necessary for them.
-		// This would allow us to discard the lines after the
-		// last object of interest and to run-length encode the
-		// trivial lines between lines with needed positions.
-		lines := getLines(file)
-		p.files.uint64(uint64(len(lines)))
-		for i := 1; i < len(lines); i++ {
-			p.files.uint64(uint64(lines[i] - lines[i-1]))
+		index = uint64(len(p.fileInfo))
+		p.fileInfos = append(p.fileInfos, &filePositions{file: file})
+		if p.fileInfo == nil {
+			p.fileInfo = make(map[*token.File]uint64)
 		}
+		p.fileInfo[file] = index
 	}
-	return off
+	// Record each needed position.
+	info := p.fileInfos[index]
+	info.needed = append(info.needed, pos)
+	return index
 }
 
 // pushDecl adds n to the declaration work queue, if not already present.
@@ -526,7 +551,7 @@ func (w *exportWriter) posV2(pos token.Pos) {
 		return
 	}
 	file := w.p.fset.File(pos) // fset must be non-nil
-	w.uint64(1 + w.p.fileOff(file))
+	w.uint64(1 + w.p.fileIndex(file, pos))
 	w.uint64(uint64(file.Offset(pos)))
 }
 
