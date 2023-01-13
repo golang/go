@@ -131,7 +131,7 @@ func main() {
 		// Renaming "lib.C" to "lib.D" should cause a diagnostic in the standalone
 		// file.
 		env.RegexpReplace("lib/lib.go", "C", "D")
-		env.AfterChange(env.DiagnosticAtRegexp("lib/ignore.go", "lib.(C)"))
+		env.AfterChange(Diagnostics(env.AtRegexp("lib/ignore.go", "lib.(C)")))
 
 		// Undoing the replacement should fix diagnostics
 		env.RegexpReplace("lib/lib.go", "D", "C")
@@ -186,7 +186,7 @@ func main() {}
 		env.OpenFile("standalone.go")
 
 		env.AfterChange(
-			env.DiagnosticAtRegexp("ignore.go", "package (main)"),
+			Diagnostics(env.AtRegexp("ignore.go", "package (main)")),
 			NoDiagnostics(ForFile("standalone.go")),
 		)
 
@@ -202,7 +202,7 @@ func main() {}
 
 		env.AfterChange(
 			NoDiagnostics(ForFile("ignore.go")),
-			env.DiagnosticAtRegexp("standalone.go", "package (main)"),
+			Diagnostics(env.AtRegexp("standalone.go", "package (main)")),
 		)
 	})
 }

@@ -485,7 +485,7 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 
 		gotDiagnostics := &protocol.PublishDiagnosticsParams{}
 		env.AfterChange(
-			env.DiagnosticAtRegexp("go.mod", `golang.org/amod`),
+			Diagnostics(env.AtRegexp("go.mod", `golang.org/amod`)),
 			ReadDiagnostics("go.mod", gotDiagnostics),
 		)
 
@@ -589,7 +589,7 @@ func TestRunVulncheckPackageDiagnostics(t *testing.T) {
 						ShownMessage("Found"),
 					)
 					env.OnceMet(
-						env.DiagnosticAtRegexp("go.mod", "golang.org/bmod"),
+						Diagnostics(env.AtRegexp("go.mod", "golang.org/bmod")),
 						ReadDiagnostics("go.mod", gotDiagnostics),
 					)
 					// We expect only one diagnostic for GO-2022-02.
@@ -636,7 +636,7 @@ func TestRunVulncheckWarning(t *testing.T) {
 		)
 		// Vulncheck diagnostics asynchronous to the vulncheck command.
 		env.OnceMet(
-			env.DiagnosticAtRegexp("go.mod", `golang.org/amod`),
+			Diagnostics(env.AtRegexp("go.mod", `golang.org/amod`)),
 			ReadDiagnostics("go.mod", gotDiagnostics),
 		)
 
@@ -803,7 +803,7 @@ func TestGovulncheckInfo(t *testing.T) {
 
 		// Vulncheck diagnostics asynchronous to the vulncheck command.
 		env.OnceMet(
-			env.DiagnosticAtRegexp("go.mod", "golang.org/bmod"),
+			Diagnostics(env.AtRegexp("go.mod", "golang.org/bmod")),
 			ReadDiagnostics("go.mod", gotDiagnostics),
 		)
 

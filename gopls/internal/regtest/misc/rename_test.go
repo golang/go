@@ -405,15 +405,15 @@ package b
 		// Initially, we should have diagnostics on both X's, for their duplicate declaration.
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexp("a/a.go", "X"),
-			env.DiagnosticAtRegexp("a/x.go", "X"),
+			Diagnostics(env.AtRegexp("a/a.go", "X")),
+			Diagnostics(env.AtRegexp("a/x.go", "X")),
 		)
 
 		// Moving x.go should make the diagnostic go away.
 		env.RenameFile("a/x.go", "b/x.go")
 		env.AfterChange(
-			NoDiagnostics(ForFile("a/a.go")),            // no more duplicate declarations
-			env.DiagnosticAtRegexp("b/b.go", "package"), // as package names mismatch
+			NoDiagnostics(ForFile("a/a.go")),               // no more duplicate declarations
+			Diagnostics(env.AtRegexp("b/b.go", "package")), // as package names mismatch
 		)
 
 		// Renaming should also work on open buffers.
@@ -422,15 +422,15 @@ package b
 		// Moving x.go back to a/ should cause the diagnostics to reappear.
 		env.RenameFile("b/x.go", "a/x.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a/a.go", "X"),
-			env.DiagnosticAtRegexp("a/x.go", "X"),
+			Diagnostics(env.AtRegexp("a/a.go", "X")),
+			Diagnostics(env.AtRegexp("a/x.go", "X")),
 		)
 
 		// Renaming the entire directory should move both the open and closed file.
 		env.RenameFile("a", "x")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("x/a.go", "X"),
-			env.DiagnosticAtRegexp("x/x.go", "X"),
+			Diagnostics(env.AtRegexp("x/a.go", "X")),
+			Diagnostics(env.AtRegexp("x/x.go", "X")),
 		)
 
 		// As a sanity check, verify that x/x.go is open.

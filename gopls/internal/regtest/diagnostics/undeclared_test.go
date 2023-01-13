@@ -46,7 +46,7 @@ func _() int {
 		env.OpenFile("a/a.go")
 		var adiags protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a/a.go", "x"),
+			Diagnostics(env.AtRegexp("a/a.go", "x")),
 			ReadDiagnostics("a/a.go", &adiags),
 		)
 		env.Await()
@@ -61,7 +61,7 @@ func _() int {
 		env.OpenFile("b/b.go")
 		var bdiags protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("b/b.go", "y = y"),
+			Diagnostics(env.AtRegexp("b/b.go", "y = y")),
 			ReadDiagnostics("b/b.go", &bdiags),
 		)
 		if got := len(bdiags.Diagnostics); got != 1 {

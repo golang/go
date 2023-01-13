@@ -152,7 +152,7 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 	).Run(t, workspaceModule, func(t *testing.T, env *Env) {
 		env.OpenFile("pkg/main.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("pkg/main2.go", "fmt.Print"),
+			Diagnostics(env.AtRegexp("pkg/main2.go", "fmt.Print")),
 		)
 		env.CloseBuffer("pkg/main.go")
 		env.AfterChange(
@@ -267,8 +267,8 @@ func Hello() int {
 		env.RunGoCommand("work", "init")
 		env.RunGoCommand("work", "use", "-r", ".")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
-			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+			Diagnostics(env.AtRegexp("moda/a/a.go", "x")),
+			Diagnostics(env.AtRegexp("modb/b/b.go", "x")),
 			NoDiagnostics(env.AtRegexp("moda/a/a.go", `"b.com/b"`)),
 		)
 	})
@@ -324,7 +324,7 @@ func main() {
 		ProxyFiles(proxy),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", "x"),
+			Diagnostics(env.AtRegexp("main.go", "x")),
 		)
 	})
 }
@@ -452,7 +452,7 @@ func Hello() int {
 }
 `,
 		})
-		env.AfterChange(env.DiagnosticAtRegexp("modb/b/b.go", "x"))
+		env.AfterChange(Diagnostics(env.AtRegexp("modb/b/b.go", "x")))
 		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
 		if want := "modb/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, original)
@@ -508,7 +508,7 @@ func Hello() int {
 		env.RegexpReplace("modb/go.mod", "modul", "module")
 		env.SaveBufferWithoutActions("modb/go.mod")
 		env.Await(
-			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+			Diagnostics(env.AtRegexp("modb/b/b.go", "x")),
 		)
 	})
 }
@@ -607,7 +607,7 @@ use (
 		// As of golang/go#54069, writing go.work to the workspace triggers a
 		// workspace reload.
 		env.AfterChange(
-			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
+			Diagnostics(env.AtRegexp("modb/b/b.go", "x")),
 		)
 
 		// Jumping to definition should now go to b.com in the workspace.
@@ -905,10 +905,10 @@ func main() {
 			InitialWorkspaceLoad,
 			// TODO(rfindley): assert on the full set of diagnostics here. We
 			// should ensure that we don't have a diagnostic at b.Hi in a.go.
-			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
-			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
-			env.DiagnosticAtRegexp("modb/v2/b/b.go", "x"),
-			env.DiagnosticAtRegexp("modc/main.go", "x"),
+			Diagnostics(env.AtRegexp("moda/a/a.go", "x")),
+			Diagnostics(env.AtRegexp("modb/b/b.go", "x")),
+			Diagnostics(env.AtRegexp("modb/v2/b/b.go", "x")),
+			Diagnostics(env.AtRegexp("modc/main.go", "x")),
 		)
 	})
 }
@@ -1114,8 +1114,8 @@ func (Server) Foo() {}
 		// as invalid. So we need to wait for the metadata of main_test.go to be
 		// updated before moving other_test.go back to the main_test package.
 		env.Await(
-			env.DiagnosticAtRegexp("other_test.go", "Server"),
-			env.DiagnosticAtRegexp("main_test.go", "otherConst"),
+			Diagnostics(env.AtRegexp("other_test.go", "Server")),
+			Diagnostics(env.AtRegexp("main_test.go", "otherConst")),
 		)
 		env.RegexpReplace("other_test.go", "main", "main_test")
 		env.AfterChange(

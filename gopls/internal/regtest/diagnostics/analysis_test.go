@@ -39,7 +39,7 @@ func main() {
 
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("main.go", "2006-02-01"),
+			Diagnostics(env.AtRegexp("main.go", "2006-02-01")),
 			ReadDiagnostics("main.go", &d),
 		)
 

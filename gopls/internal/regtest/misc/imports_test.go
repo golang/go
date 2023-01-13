@@ -156,7 +156,7 @@ var _, _ = x.X, y.Y
 		ProxyFiles(proxy),
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		env.AfterChange(env.DiagnosticAtRegexp("main.go", `y.Y`))
+		env.AfterChange(Diagnostics(env.AtRegexp("main.go", `y.Y`)))
 		env.SaveBuffer("main.go")
 		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 		path, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `y.(Y)`))
@@ -200,7 +200,7 @@ func TestA(t *testing.T) {
 		env.OpenFile("a/a.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a/a.go", "os.Stat"),
+			Diagnostics(env.AtRegexp("a/a.go", "os.Stat")),
 			ReadDiagnostics("a/a.go", &d),
 		)
 		env.ApplyQuickFixes("a/a.go", d.Diagnostics)
@@ -247,7 +247,7 @@ func Test() {
 `
 	Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("caller/caller.go")
-		env.AfterChange(env.DiagnosticAtRegexp("caller/caller.go", "a.Test"))
+		env.AfterChange(Diagnostics(env.AtRegexp("caller/caller.go", "a.Test")))
 
 		// Saving caller.go should trigger goimports, which should find a.Test in
 		// the mod.com module, thanks to the go.work file.

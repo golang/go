@@ -73,7 +73,7 @@ Hello {{}} <-- missing body
 		var diags protocol.PublishDiagnosticsParams
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"),
+			Diagnostics(env.AtRegexp("hello.tmpl", "()Hello {{}}")),
 			ReadDiagnostics("hello.tmpl", &diags),
 		)
 		d := diags.Diagnostics // issue 50786: check for Source
@@ -120,7 +120,7 @@ B {{}} <-- missing body
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexp("a/a.tmpl", "()A"),
+			Diagnostics(env.AtRegexp("a/a.tmpl", "()A")),
 			NoDiagnostics(ForFile("b/b.tmpl")),
 		)
 	})
@@ -140,7 +140,7 @@ go 1.12
 			NoDiagnostics(ForFile("hello.tmpl")), // Don't get spurious errors for empty templates.
 		)
 		env.SetBufferContent("hello.tmpl", "{{range .Planets}}\nHello {{}}\n{{end}}")
-		env.Await(env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"))
+		env.Await(Diagnostics(env.AtRegexp("hello.tmpl", "()Hello {{}}")))
 		env.RegexpReplace("hello.tmpl", "{{}}", "{{.}}")
 		env.Await(NoDiagnostics(ForFile("hello.tmpl")))
 	})
@@ -161,7 +161,7 @@ Hello {{}} <-- missing body
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("hello.tmpl")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"),
+			Diagnostics(env.AtRegexp("hello.tmpl", "()Hello {{}}")),
 		)
 		// Since we don't have templateExtensions configured, closing hello.tmpl
 		// should make its diagnostics disappear.

@@ -93,7 +93,9 @@ func Add[T int](target T, l []T) []T {
 		Settings{"semanticTokens": true},
 	).Run(t, src, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		env.AfterChange(env.DiagnosticAtRegexp("main.go", "for range"))
+		env.AfterChange(
+			Diagnostics(env.AtRegexp("main.go", "for range")),
+		)
 		p := &protocol.SemanticTokensParams{
 			TextDocument: protocol.TextDocumentIdentifier{
 				URI: env.Sandbox.Workdir.URI("main.go"),

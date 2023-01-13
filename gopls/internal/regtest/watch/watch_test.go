@@ -39,7 +39,7 @@ func _() {
 		Run(t, pkg, func(t *testing.T, env *Env) {
 			env.OnceMet(
 				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexp("a/a.go", "x"),
+				Diagnostics(env.AtRegexp("a/a.go", "x")),
 			)
 			env.WriteWorkspaceFile("a/a.go", `package a; func _() {};`)
 			env.AfterChange(
@@ -59,7 +59,7 @@ func _() {
 			env.AfterChange()
 			env.WriteWorkspaceFile("a/a.go", `package a; func _() {};`)
 			env.AfterChange(
-				env.DiagnosticAtRegexp("a/a.go", "x"),
+				Diagnostics(env.AtRegexp("a/a.go", "x")),
 			)
 		})
 	})
@@ -92,7 +92,7 @@ func _() {
 		env.Await(env.DoneWithOpen())
 		env.WriteWorkspaceFile("b/b.go", `package b; func B() {};`)
 		env.Await(
-			env.DiagnosticAtRegexp("a/a.go", "b.B"),
+			Diagnostics(env.AtRegexp("a/a.go", "b.B")),
 		)
 	})
 }
@@ -124,7 +124,7 @@ func _() {
 	Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexp("a/a.go", "x"),
+			Diagnostics(env.AtRegexp("a/a.go", "x")),
 		)
 		env.WriteWorkspaceFiles(map[string]string{
 			"b/b.go": `package b; func B() {};`,
@@ -170,7 +170,7 @@ func _() {
 		env.Await(env.DoneWithOpen())
 		env.RemoveWorkspaceFile("b/b.go")
 		env.Await(
-			env.DiagnosticAtRegexp("a/a.go", "\"mod.com/b\""),
+			Diagnostics(env.AtRegexp("a/a.go", "\"mod.com/b\"")),
 		)
 	})
 }
@@ -200,7 +200,7 @@ func _() {
 	Run(t, missing, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexp("a/a.go", "\"mod.com/c\""),
+			Diagnostics(env.AtRegexp("a/a.go", "\"mod.com/c\"")),
 		)
 		env.WriteWorkspaceFile("c/c.go", `package c; func C() {};`)
 		env.AfterChange(
@@ -248,7 +248,7 @@ func _() {
 	Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexp("a/a.go", "hello"),
+			Diagnostics(env.AtRegexp("a/a.go", "hello")),
 		)
 		env.WriteWorkspaceFile("a/a2.go", `package a; func hello() {};`)
 		env.AfterChange(
@@ -392,7 +392,7 @@ package a
 			env.RemoveWorkspaceFile("a/a_unneeded.go")
 			env.RegexpReplace("a/a.go", "var _ int", "fmt.Println(\"\")")
 			env.AfterChange(
-				env.DiagnosticAtRegexp("a/a.go", "fmt"),
+				Diagnostics(env.AtRegexp("a/a.go", "fmt")),
 			)
 			env.SaveBuffer("a/a.go")
 			env.AfterChange(
@@ -420,7 +420,7 @@ package a
 			env.CloseBuffer("a/a_unneeded.go")
 			env.RegexpReplace("a/a.go", "var _ int", "fmt.Println(\"\")")
 			env.Await(
-				env.DiagnosticAtRegexp("a/a.go", "fmt"),
+				Diagnostics(env.AtRegexp("a/a.go", "fmt")),
 			)
 			env.SaveBuffer("a/a.go")
 			env.AfterChange(
@@ -621,7 +621,7 @@ func main() {
 		env.OpenFile("foo/main.go")
 		env.RemoveWorkspaceFile("foo/go.mod")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("foo/main.go", `"mod.com/blah"`),
+			Diagnostics(env.AtRegexp("foo/main.go", `"mod.com/blah"`)),
 		)
 		env.RegexpReplace("foo/main.go", `"mod.com/blah"`, `"foo/blah"`)
 		env.AfterChange(

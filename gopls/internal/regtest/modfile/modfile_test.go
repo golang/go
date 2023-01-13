@@ -93,7 +93,7 @@ func main() {
 			goModContent := env.ReadWorkspaceFile("a/go.mod")
 			env.OpenFile("a/main.go")
 			env.AfterChange(
-				env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
+				Diagnostics(env.AtRegexp("a/main.go", "\"example.com/blah\"")),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
 				t.Fatalf("go.mod changed on disk:\n%s", compare.Text(goModContent, got))
@@ -102,7 +102,7 @@ func main() {
 			// Confirm that the go.mod file still does not change.
 			env.SaveBuffer("a/main.go")
 			env.Await(
-				env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
+				Diagnostics(env.AtRegexp("a/main.go", "\"example.com/blah\"")),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
 				t.Fatalf("go.mod changed on disk:\n%s", compare.Text(goModContent, got))
@@ -143,7 +143,7 @@ func main() {
 
 			env.WriteWorkspaceFile("a/main.go", mainContent)
 			env.AfterChange(
-				env.DiagnosticAtRegexp("a/main.go", "\"example.com/blah\""),
+				Diagnostics(env.AtRegexp("a/main.go", "\"example.com/blah\"")),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
 				t.Fatalf("go.mod changed on disk:\n%s", compare.Text(goModContent, got))
@@ -184,7 +184,7 @@ require example.com v1.2.3
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a/main.go", `"example.com/blah"`),
+			Diagnostics(env.AtRegexp("a/main.go", `"example.com/blah"`)),
 			ReadDiagnostics("a/main.go", &d),
 		)
 		var goGetDiag protocol.Diagnostic
@@ -231,7 +231,7 @@ require random.org v1.2.3
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a/main.go", `"random.org/blah"`),
+			Diagnostics(env.AtRegexp("a/main.go", `"random.org/blah"`)),
 			ReadDiagnostics("a/main.go", &d),
 		)
 		var randomDiag protocol.Diagnostic
@@ -285,7 +285,7 @@ require random.org v1.2.3
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a/main.go", `"random.org/blah"`),
+			Diagnostics(env.AtRegexp("a/main.go", `"random.org/blah"`)),
 			ReadDiagnostics("a/main.go", &d),
 		)
 		var randomDiag protocol.Diagnostic
@@ -334,7 +334,7 @@ require example.com v1.2.3
 		env.OpenFile("a/go.mod")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a/go.mod", "// indirect"),
+			Diagnostics(env.AtRegexp("a/go.mod", "// indirect")),
 			ReadDiagnostics("a/go.mod", &d),
 		)
 		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
@@ -376,7 +376,7 @@ go 1.14
 		env.OpenFile("a/go.mod")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a/go.mod", `require example.com`),
+			Diagnostics(env.AtRegexp("a/go.mod", `require example.com`)),
 			ReadDiagnostics("a/go.mod", &d),
 		)
 		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
@@ -436,7 +436,7 @@ func _() {
 		env.OpenFile("a/main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a/main.go", `"github.com/esimov/caire"`),
+			Diagnostics(env.AtRegexp("a/main.go", `"github.com/esimov/caire"`)),
 			ReadDiagnostics("a/main.go", &d),
 		)
 		env.ApplyQuickFixes("a/main.go", d.Diagnostics)
@@ -481,7 +481,7 @@ func main() {
 	}.Run(t, mod, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexp("a/go.mod", "require"),
+			Diagnostics(env.AtRegexp("a/go.mod", "require")),
 		)
 		env.RunGoCommandInDir("a", "mod", "tidy")
 		env.AfterChange(
@@ -596,7 +596,7 @@ func main() {
 		runner.Run(t, unknown, func(t *testing.T, env *Env) {
 			env.OpenFile("a/go.mod")
 			env.Await(
-				env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.2"),
+				Diagnostics(env.AtRegexp("a/go.mod", "example.com v1.2.2")),
 			)
 			env.RegexpReplace("a/go.mod", "v1.2.2", "v1.2.3")
 			env.SaveBuffer("a/go.mod") // Save to trigger diagnostics.
@@ -615,7 +615,7 @@ func main() {
 			env.SaveBuffer("a/go.mod")  // Save to trigger diagnostics.
 			env.AfterChange(
 				NoDiagnostics(ForFile("a/go.mod")),
-				env.DiagnosticAtRegexp("a/main.go", "x = "),
+				Diagnostics(env.AtRegexp("a/main.go", "x = ")),
 			)
 		})
 	})
@@ -645,17 +645,17 @@ func main() {
 		runner.Run(t, known, func(t *testing.T, env *Env) {
 			env.OpenFile("a/go.mod")
 			env.AfterChange(
-				env.DiagnosticAtRegexp("a/main.go", "x = "),
+				Diagnostics(env.AtRegexp("a/main.go", "x = ")),
 			)
 			env.RegexpReplace("a/go.mod", "v1.2.3", "v1.2.2")
 			env.Editor.SaveBuffer(env.Ctx, "a/go.mod") // go.mod changes must be on disk
 			env.AfterChange(
-				env.DiagnosticAtRegexp("a/go.mod", "example.com v1.2.2"),
+				Diagnostics(env.AtRegexp("a/go.mod", "example.com v1.2.2")),
 			)
 			env.RegexpReplace("a/go.mod", "v1.2.2", "v1.2.3")
 			env.Editor.SaveBuffer(env.Ctx, "a/go.mod") // go.mod changes must be on disk
 			env.AfterChange(
-				env.DiagnosticAtRegexp("a/main.go", "x = "),
+				Diagnostics(env.AtRegexp("a/main.go", "x = ")),
 			)
 		})
 	})
@@ -706,7 +706,7 @@ func main() {
 	}.Run(t, module, func(t *testing.T, env *Env) {
 		env.OpenFile("a/go.mod")
 		env.Await(
-			env.DiagnosticAtRegexp("a/go.mod", "require example.com v1.2.3"),
+			Diagnostics(env.AtRegexp("a/go.mod", "require example.com v1.2.3")),
 		)
 	})
 }
@@ -735,7 +735,7 @@ func main() {
 		env.OpenFile("main.go")
 		original := env.ReadWorkspaceFile("go.mod")
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
+			Diagnostics(env.AtRegexp("main.go", `"example.com/blah"`)),
 		)
 		got := env.ReadWorkspaceFile("go.mod")
 		if got != original {
@@ -820,7 +820,7 @@ func main() {
 		Settings{"buildFlags": []string{"-tags", "bob"}},
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
+			Diagnostics(env.AtRegexp("main.go", `"example.com/blah"`)),
 		)
 	})
 }
@@ -840,7 +840,7 @@ func main() {}
 		env.OpenFile("go.mod")
 		env.RegexpReplace("go.mod", "module", "modul")
 		env.Await(
-			env.DiagnosticAtRegexp("go.mod", "modul"),
+			Diagnostics(env.AtRegexp("go.mod", "modul")),
 		)
 	})
 }
@@ -981,7 +981,7 @@ func main() {}
 			env.OpenFile("go.mod")
 			d := &protocol.PublishDiagnosticsParams{}
 			env.AfterChange(
-				env.DiagnosticAtRegexp("go.mod", "require hasdep.com v1.2.3"),
+				Diagnostics(env.AtRegexp("go.mod", "require hasdep.com v1.2.3")),
 				ReadDiagnostics("go.mod", d),
 			)
 			const want = `module mod.com

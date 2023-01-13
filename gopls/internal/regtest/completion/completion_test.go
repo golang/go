@@ -319,7 +319,7 @@ func _() {
 
 		// Await the diagnostics to add example.com/blah to the go.mod file.
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", `"example.com/blah"`),
+			Diagnostics(env.AtRegexp("main.go", `"example.com/blah"`)),
 		)
 	})
 }

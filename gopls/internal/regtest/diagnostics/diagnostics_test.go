@@ -49,7 +49,7 @@ func TestDiagnosticErrorInEditedFile(t *testing.T) {
 		env.OpenFile("main.go")
 		env.RegexpReplace("main.go", "Printl(n)", "")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("main.go", "Printl"),
+			Diagnostics(env.AtRegexp("main.go", "Printl")),
 			// Assert that this test has sent no error logs to the client. This is not
 			// strictly necessary for testing this regression, but is included here
 			// as an example of using the NoErrorLogs() expectation. Feel free to
@@ -74,7 +74,7 @@ func m() {
 }
 `)
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", "log"),
+			Diagnostics(env.AtRegexp("main.go", "log")),
 		)
 		env.SaveBuffer("main.go")
 		env.AfterChange(NoDiagnostics(ForFile("main.go")))
@@ -88,7 +88,7 @@ const Foo = "abc
 `
 	Run(t, brokenFile, func(t *testing.T, env *Env) {
 		env.CreateBuffer("broken.go", brokenFile)
-		env.Await(env.DiagnosticAtRegexp("broken.go", "\"abc"))
+		env.Await(Diagnostics(env.AtRegexp("broken.go", "\"abc")))
 	})
 }
 
@@ -112,8 +112,8 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 	Run(t, badPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("b.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a.go", "a = 1"),
-			env.DiagnosticAtRegexp("b.go", "a = 2"),
+			Diagnostics(env.AtRegexp("a.go", "a = 1")),
+			Diagnostics(env.AtRegexp("b.go", "a = 2")),
 		)
 
 		// Fix the error by editing the const name in b.go to `b`.
@@ -128,7 +128,10 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 func TestDiagnosticClearingOnDelete_Issue37049(t *testing.T) {
 	Run(t, badPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
-		env.Await(env.DiagnosticAtRegexp("a.go", "a = 1"), env.DiagnosticAtRegexp("b.go", "a = 2"))
+		env.Await(
+			Diagnostics(env.AtRegexp("a.go", "a = 1")),
+			Diagnostics(env.AtRegexp("b.go", "a = 2")),
+		)
 		env.RemoveWorkspaceFile("b.go")
 
 		env.Await(
@@ -144,14 +147,14 @@ func TestDiagnosticClearingOnClose(t *testing.T) {
 
 const a = 3`)
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a.go", "a = 1"),
-			env.DiagnosticAtRegexp("b.go", "a = 2"),
-			env.DiagnosticAtRegexp("c.go", "a = 3"),
+			Diagnostics(env.AtRegexp("a.go", "a = 1")),
+			Diagnostics(env.AtRegexp("b.go", "a = 2")),
+			Diagnostics(env.AtRegexp("c.go", "a = 3")),
 		)
 		env.CloseBuffer("c.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("a.go", "a = 1"),
-			env.DiagnosticAtRegexp("b.go", "a = 2"),
+			Diagnostics(env.AtRegexp("a.go", "a = 1")),
+			Diagnostics(env.AtRegexp("b.go", "a = 2")),
 			NoDiagnostics(ForFile("c.go")),
 		)
 	})
@@ -171,7 +174,7 @@ const a = http.MethodGet
 `,
 		})
 		env.AfterChange(
-			env.DiagnosticAtRegexp("c/c.go", "http.MethodGet"),
+			Diagnostics(env.AtRegexp("c/c.go", "http.MethodGet")),
 		)
 		// Save file, which will organize imports, adding the expected import.
 		// Expect the diagnostics to clear.
@@ -211,7 +214,7 @@ func TestA(t *testing.T) {
 // not break the workspace.
 func TestDeleteTestVariant(t *testing.T) {
 	Run(t, test38878, func(t *testing.T, env *Env) {
-		env.Await(env.DiagnosticAtRegexp("a_test.go", `f\((3)\)`))
+		env.Await(Diagnostics(env.AtRegexp("a_test.go", `f\((3)\)`)))
 		env.RemoveWorkspaceFile("a_test.go")
 		env.AfterChange(NoDiagnostics(ForFile("a_test.go")))
 
@@ -219,7 +222,7 @@ func TestDeleteTestVariant(t *testing.T) {
 		// triggering a metadata load.
 		env.OpenFile("a.go")
 		env.RegexpReplace("a.go", `// import`, "import")
-		env.AfterChange(env.DiagnosticAtRegexp("a.go", `"fmt"`))
+		env.AfterChange(Diagnostics(env.AtRegexp("a.go", `"fmt"`)))
 	})
 }
 
@@ -258,7 +261,7 @@ func Hello() {
 		Run(t, noMod, func(t *testing.T, env *Env) {
 			env.OnceMet(
 				InitialWorkspaceLoad,
-				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
+				Diagnostics(env.AtRegexp("main.go", `"mod.com/bob"`)),
 			)
 			env.CreateBuffer("go.mod", `module mod.com
 
@@ -268,7 +271,7 @@ func Hello() {
 			var d protocol.PublishDiagnosticsParams
 			env.AfterChange(
 				NoDiagnostics(ForFile("main.go")),
-				env.DiagnosticAtRegexp("bob/bob.go", "x"),
+				Diagnostics(env.AtRegexp("bob/bob.go", "x")),
 				ReadDiagnostics("bob/bob.go", &d),
 			)
 			if len(d.Diagnostics) != 1 {
@@ -279,12 +282,12 @@ func Hello() {
 	t.Run("initialized", func(t *testing.T) {
 		Run(t, noMod, func(t *testing.T, env *Env) {
 			env.Await(
-				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
+				Diagnostics(env.AtRegexp("main.go", `"mod.com/bob"`)),
 			)
 			env.RunGoCommand("mod", "init", "mod.com")
 			env.AfterChange(
 				NoDiagnostics(ForFile("main.go")),
-				env.DiagnosticAtRegexp("bob/bob.go", "x"),
+				Diagnostics(env.AtRegexp("bob/bob.go", "x")),
 			)
 		})
 	})
@@ -294,14 +297,14 @@ func Hello() {
 			Modes(Default),
 		).Run(t, noMod, func(t *testing.T, env *Env) {
 			env.Await(
-				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
+				Diagnostics(env.AtRegexp("main.go", `"mod.com/bob"`)),
 			)
 			if err := env.Sandbox.RunGoCommand(env.Ctx, "", "mod", []string{"init", "mod.com"}, true); err != nil {
 				t.Fatal(err)
 			}
 			env.AfterChange(
 				NoDiagnostics(ForFile("main.go")),
-				env.DiagnosticAtRegexp("bob/bob.go", "x"),
+				Diagnostics(env.AtRegexp("bob/bob.go", "x")),
 			)
 		})
 	})
@@ -349,7 +352,7 @@ func TestHello(t *testing.T) {
 		env.OpenFile("lib.go")
 		env.RegexpReplace("lib.go", "_ = x", "var y int")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("lib.go", "y int"),
+			Diagnostics(env.AtRegexp("lib.go", "y int")),
 			NoDiagnostics(ForFile("lib_test.go")),
 		)
 	})
@@ -418,7 +421,7 @@ func TestResolveDiagnosticWithDownload(t *testing.T) {
 		// Check that gopackages correctly loaded this dependency. We should get a
 		// diagnostic for the wrong formatting type.
 		// TODO: we should be able to easily also match the diagnostic message.
-		env.Await(env.DiagnosticAtRegexp("print.go", "fmt.Printf"))
+		env.Await(Diagnostics(env.AtRegexp("print.go", "fmt.Printf")))
 	})
 }
 
@@ -441,7 +444,7 @@ func Hello() {
 `
 	Run(t, adHoc, func(t *testing.T, env *Env) {
 		env.OpenFile("b/b.go")
-		env.Await(env.DiagnosticAtRegexp("b/b.go", "x"))
+		env.Await(Diagnostics(env.AtRegexp("b/b.go", "x")))
 	})
 }
 
@@ -462,7 +465,7 @@ func _() {
 		},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		env.AfterChange(env.DiagnosticAtRegexp("main.go", "fmt"))
+		env.AfterChange(Diagnostics(env.AtRegexp("main.go", "fmt")))
 		env.SaveBuffer("main.go")
 		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 	})
@@ -602,7 +605,7 @@ func main() {
 		if testenv.Go1Point() >= 16 {
 			env.RegexpReplace("x/x.go", `package x`, `package main`)
 			env.AfterChange(
-				env.DiagnosticAtRegexp("x/main.go", `fmt`),
+				Diagnostics(env.AtRegexp("x/main.go", `fmt`)),
 			)
 		}
 	})
@@ -644,7 +647,7 @@ func main() {
 		env.OpenFile("main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+			Diagnostics(env.AtRegexp("main.go", `"github.com/ardanlabs/conf"`)),
 			ReadDiagnostics("main.go", &d),
 		)
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
@@ -656,7 +659,7 @@ func main() {
 		// diagnostic and a fix to remove the import.
 		env.RegexpReplace("main.go", "_ = conf.ErrHelpWanted", "//_ = conf.ErrHelpWanted")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+			Diagnostics(env.AtRegexp("main.go", `"github.com/ardanlabs/conf"`)),
 		)
 		env.SaveBuffer("main.go")
 		// Expect a diagnostic and fix to remove the dependency in the go.mod.
@@ -674,7 +677,7 @@ func main() {
 		env.RegexpReplace("main.go", "//_ = conf.ErrHelpWanted", "_ = conf.ErrHelpWanted")
 		env.SaveBuffer("main.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+			Diagnostics(env.AtRegexp("main.go", `"github.com/ardanlabs/conf"`)),
 		)
 	})
 }
@@ -772,8 +775,8 @@ func TestHello(t *testing.T) {
 		// There are errors in the code to ensure all is working as expected.
 		env.OpenFile("hello/hello.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("hello/hello.go", "x"),
-			env.DiagnosticAtRegexp("hello/hello_test.go", "x"),
+			Diagnostics(env.AtRegexp("hello/hello.go", "x")),
+			Diagnostics(env.AtRegexp("hello/hello_test.go", "x")),
 		)
 
 		// Create an empty file with the intention of making it an x test.
@@ -801,7 +804,7 @@ func TestHello(t *testing.T) {
 		// Expect a diagnostic for the missing import. Save, which should
 		// trigger import organization. The diagnostic should clear.
 		env.AfterChange(
-			env.DiagnosticAtRegexp("hello/hello_x_test.go", "hello.Hello"),
+			Diagnostics(env.AtRegexp("hello/hello_x_test.go", "hello.Hello")),
 		)
 		env.SaveBuffer("hello/hello_x_test.go")
 		env.AfterChange(
@@ -834,7 +837,7 @@ func TestX(t *testing.T) {
 }
 `)
 		env.Await(
-			env.DiagnosticAtRegexp("foo/bar_test.go", "x"),
+			Diagnostics(env.AtRegexp("foo/bar_test.go", "x")),
 		)
 	})
 }
@@ -915,7 +918,7 @@ const C = a.A
 
 		// We should still get diagnostics for files that exist.
 		env.RegexpReplace("b/b.go", `a.A`, "a.Nonexistant")
-		env.Await(env.DiagnosticAtRegexp("b/b.go", `Nonexistant`))
+		env.Await(Diagnostics(env.AtRegexp("b/b.go", `Nonexistant`)))
 	})
 }
 
@@ -961,7 +964,7 @@ func main() {
 		Run(t, mod, func(t *testing.T, env *Env) {
 			writeGoVim(env, "p/p.go", p)
 			writeGoVim(env, "main.go", main)
-			env.Await(env.DiagnosticAtRegexp("main.go", "5"))
+			env.Await(Diagnostics(env.AtRegexp("main.go", "5")))
 		})
 	})
 
@@ -991,9 +994,9 @@ func TestDoIt(t *testing.T) {
 }
 `)
 			env.Await(
-				env.DiagnosticAtRegexp("main.go", "5"),
-				env.DiagnosticAtRegexp("p/p_test.go", "5"),
-				env.DiagnosticAtRegexp("p/x_test.go", "5"),
+				Diagnostics(env.AtRegexp("main.go", "5")),
+				Diagnostics(env.AtRegexp("p/p_test.go", "5")),
+				Diagnostics(env.AtRegexp("p/x_test.go", "5")),
 			)
 			env.RegexpReplace("p/p.go", "s string", "i int")
 			env.AfterChange(
@@ -1024,7 +1027,7 @@ func _() {
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		env.Await(
-			env.DiagnosticAtRegexp("a/a.go", "x"),
+			Diagnostics(env.AtRegexp("a/a.go", "x")),
 		)
 	})
 }
@@ -1116,7 +1119,7 @@ func main() {
 }
 `))
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", "x"),
+			Diagnostics(env.AtRegexp("main.go", "x")),
 		)
 	})
 }
@@ -1164,7 +1167,7 @@ func main() {
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("main.go", "x"),
+			Diagnostics(env.AtRegexp("main.go", "x")),
 		)
 	})
 	WithOptions(
@@ -1282,7 +1285,7 @@ func _() {
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		env.Await(
-			env.DiagnosticAtRegexp("a/a.go", "x"),
+			Diagnostics(env.AtRegexp("a/a.go", "x")),
 		)
 		env.OpenFile("a/a_exclude.go")
 		env.Await(
@@ -1497,7 +1500,7 @@ func main() {
 		)
 		env.RemoveWorkspaceFile("bob")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("cmd/main.go", `"mod.com/bob"`),
+			Diagnostics(env.AtRegexp("cmd/main.go", `"mod.com/bob"`)),
 			NoDiagnostics(ForFile("bob/bob.go")),
 			NoFileWatchMatching("bob"),
 		)
@@ -1675,7 +1678,7 @@ func helloHelper() {}
 		// Expect a diagnostic in a nested module.
 		env.OpenFile("nested/hello/hello.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("nested/hello/hello.go", "helloHelper"),
+			Diagnostics(env.AtRegexp("nested/hello/hello.go", "helloHelper")),
 			Diagnostics(env.AtRegexp("nested/hello/hello.go", "package hello"), WithMessage("nested module")),
 			OutstandingWork(lsp.WorkspaceLoadFailure, "nested module"),
 		)
@@ -1716,7 +1719,7 @@ var Bar = Foo
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo.go")
-		env.AfterChange(env.DiagnosticAtRegexp("bar.go", `Foo`))
+		env.AfterChange(Diagnostics(env.AtRegexp("bar.go", `Foo`)))
 		env.RegexpReplace("foo.go", `\+build`, "")
 		env.AfterChange(NoDiagnostics(ForFile("bar.go")))
 	})
@@ -1747,14 +1750,14 @@ package main
 		env.OpenFile("main.go")
 		env.OpenFile("other.go")
 		env.Await(
-			env.DiagnosticAtRegexp("main.go", "asdf"),
-			env.DiagnosticAtRegexp("main.go", "fdas"),
+			Diagnostics(env.AtRegexp("main.go", "asdf")),
+			Diagnostics(env.AtRegexp("main.go", "fdas")),
 		)
 		env.SetBufferContent("other.go", "package main\n\nasdf")
 		// The new diagnostic in other.go should not suppress diagnostics in main.go.
 		env.AfterChange(
 			Diagnostics(env.AtRegexp("other.go", "asdf"), WithMessage("expected declaration")),
-			env.DiagnosticAtRegexp("main.go", "asdf"),
+			Diagnostics(env.AtRegexp("main.go", "asdf")),
 		)
 	})
 }
@@ -1842,7 +1845,7 @@ func F[T C](_ T) {
 		var d protocol.PublishDiagnosticsParams
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexp("main.go", `C`),
+			Diagnostics(env.AtRegexp("main.go", `C`)),
 			ReadDiagnostics("main.go", &d),
 		)
 		if fixes := env.GetQuickFixes("main.go", d.Diagnostics); len(fixes) != 0 {

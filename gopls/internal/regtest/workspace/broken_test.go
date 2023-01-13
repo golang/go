@@ -161,7 +161,7 @@ const F = named.D - 3
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("p/internal/bar/bar.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexp("p/internal/bar/bar.go", "\"mod.test/p/internal/foo\""),
+			Diagnostics(env.AtRegexp("p/internal/bar/bar.go", "\"mod.test/p/internal/foo\"")),
 		)
 		env.OpenFile("go.mod")
 		env.RegexpReplace("go.mod", "mod.testx", "mod.test")
@@ -207,8 +207,8 @@ package b
 				env.OpenFile("a/empty.go")
 				env.OpenFile("b/go.mod")
 				env.AfterChange(
-					env.DiagnosticAtRegexp("a/a.go", "package a"),
-					env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
+					Diagnostics(env.AtRegexp("a/a.go", "package a")),
+					Diagnostics(env.AtRegexp("b/go.mod", "module b.com")),
 					OutstandingWork(lsp.WorkspaceLoadFailure, msg),
 				)
 
@@ -238,9 +238,9 @@ package b
 				env.OpenFile("b/b.go")
 				env.AfterChange(
 					// TODO(rfindley): fix these missing diagnostics.
-					// env.DiagnosticAtRegexp("a/a.go", "package a"),
-					// env.DiagnosticAtRegexp("b/go.mod", "module b.com"),
-					env.DiagnosticAtRegexp("b/b.go", "package b"),
+					// Diagnostics(env.AtRegexp("a/a.go", "package a")),
+					// Diagnostics(env.AtRegexp("b/go.mod", "module b.com")),
+					Diagnostics(env.AtRegexp("b/b.go", "package b")),
 					OutstandingWork(lsp.WorkspaceLoadFailure, msg),
 				)
 			})

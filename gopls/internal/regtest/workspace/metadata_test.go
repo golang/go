@@ -73,8 +73,8 @@ func main() {}
 		env.OpenFile("bar.go")
 		env.OnceMet(
 			env.DoneWithOpen(),
-			env.DiagnosticAtRegexp("foo.go", "func (main)"),
-			env.DiagnosticAtRegexp("bar.go", "func (main)"),
+			Diagnostics(env.AtRegexp("foo.go", "func (main)")),
+			Diagnostics(env.AtRegexp("bar.go", "func (main)")),
 		)
 
 		// Ignore bar.go. This should resolve diagnostics.

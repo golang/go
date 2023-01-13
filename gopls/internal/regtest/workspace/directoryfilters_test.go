@@ -135,7 +135,7 @@ package exclude
 		ProxyFiles(proxy),
 		Settings{"directoryFilters": []string{"-exclude"}},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		env.Await(env.DiagnosticAtRegexp("include/include.go", `exclude.(X)`))
+		env.Await(Diagnostics(env.AtRegexp("include/include.go", `exclude.(X)`)))
 	})
 }
 
