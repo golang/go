@@ -65,7 +65,7 @@ func main() {
 		env.RunGenerate("./lib1")
 		env.RunGenerate("./lib2")
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }

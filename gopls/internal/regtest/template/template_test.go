@@ -96,7 +96,7 @@ Hello {{}} <-- missing body
 		}
 
 		env.WriteWorkspaceFile("hello.tmpl", "{{range .Planets}}\nHello {{.}}\n{{end}}")
-		env.AfterChange(NoDiagnostics("hello.tmpl"))
+		env.AfterChange(NoDiagnostics(ForFile("hello.tmpl")))
 	})
 }
 
@@ -121,7 +121,7 @@ B {{}} <-- missing body
 		env.OnceMet(
 			InitialWorkspaceLoad,
 			env.DiagnosticAtRegexp("a/a.tmpl", "()A"),
-			NoDiagnostics("b/b.tmpl"),
+			NoDiagnostics(ForFile("b/b.tmpl")),
 		)
 	})
 }
@@ -137,12 +137,12 @@ go 1.12
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.CreateBuffer("hello.tmpl", "")
 		env.AfterChange(
-			NoDiagnostics("hello.tmpl"), // Don't get spurious errors for empty templates.
+			NoDiagnostics(ForFile("hello.tmpl")), // Don't get spurious errors for empty templates.
 		)
 		env.SetBufferContent("hello.tmpl", "{{range .Planets}}\nHello {{}}\n{{end}}")
 		env.Await(env.DiagnosticAtRegexp("hello.tmpl", "()Hello {{}}"))
 		env.RegexpReplace("hello.tmpl", "{{}}", "{{.}}")
-		env.Await(NoDiagnostics("hello.tmpl"))
+		env.Await(NoDiagnostics(ForFile("hello.tmpl")))
 	})
 }
 
@@ -167,7 +167,7 @@ Hello {{}} <-- missing body
 		// should make its diagnostics disappear.
 		env.CloseBuffer("hello.tmpl")
 		env.AfterChange(
-			NoDiagnostics("hello.tmpl"),
+			NoDiagnostics(ForFile("hello.tmpl")),
 		)
 	})
 }

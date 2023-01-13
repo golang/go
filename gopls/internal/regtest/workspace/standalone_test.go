@@ -74,14 +74,14 @@ func main() {
 		}
 
 		env.OpenFile("lib/lib.go")
-		env.AfterChange(NoMatchingDiagnostics())
+		env.AfterChange(NoDiagnostics())
 
 		// Replacing C with D should not cause any workspace diagnostics, since we
 		// haven't yet opened the standalone file.
 		env.RegexpReplace("lib/lib.go", "C", "D")
-		env.AfterChange(NoMatchingDiagnostics())
+		env.AfterChange(NoDiagnostics())
 		env.RegexpReplace("lib/lib.go", "D", "C")
-		env.AfterChange(NoMatchingDiagnostics())
+		env.AfterChange(NoDiagnostics())
 
 		refs := env.References("lib/lib.go", env.RegexpSearch("lib/lib.go", "C"))
 		checkLocations("References", refs, "lib/lib.go")
@@ -91,7 +91,7 @@ func main() {
 
 		// Opening the standalone file should not result in any diagnostics.
 		env.OpenFile("lib/ignore.go")
-		env.AfterChange(NoMatchingDiagnostics())
+		env.AfterChange(NoDiagnostics())
 
 		// Having opened the standalone file, we should find its symbols in the
 		// workspace.
@@ -135,7 +135,7 @@ func main() {
 
 		// Undoing the replacement should fix diagnostics
 		env.RegexpReplace("lib/lib.go", "D", "C")
-		env.AfterChange(NoMatchingDiagnostics())
+		env.AfterChange(NoDiagnostics())
 
 		// Now that our workspace has no errors, we should be able to find
 		// references and rename.
@@ -187,7 +187,7 @@ func main() {}
 
 		env.AfterChange(
 			env.DiagnosticAtRegexp("ignore.go", "package (main)"),
-			NoDiagnostics("standalone.go"),
+			NoDiagnostics(ForFile("standalone.go")),
 		)
 
 		cfg := env.Editor.Config()
@@ -201,7 +201,7 @@ func main() {}
 		env.RegexpReplace("ignore.go", "arbitrary", "meaningless")
 
 		env.AfterChange(
-			NoDiagnostics("ignore.go"),
+			NoDiagnostics(ForFile("ignore.go")),
 			env.DiagnosticAtRegexp("standalone.go", "package (main)"),
 		)
 	})

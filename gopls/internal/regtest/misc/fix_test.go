@@ -102,6 +102,6 @@ func Foo() error {
 			t.Fatalf("expected fixall code action, got none")
 		}
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
-		env.AfterChange(NoDiagnostics("main.go"))
+		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 	})
 }

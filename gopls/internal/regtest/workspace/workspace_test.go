@@ -156,7 +156,7 @@ func TestClearAnalysisDiagnostics(t *testing.T) {
 		)
 		env.CloseBuffer("pkg/main.go")
 		env.AfterChange(
-			NoDiagnostics("pkg/main2.go"),
+			NoDiagnostics(ForFile("pkg/main2.go")),
 		)
 	})
 }
@@ -269,7 +269,7 @@ func Hello() int {
 		env.AfterChange(
 			env.DiagnosticAtRegexp("moda/a/a.go", "x"),
 			env.DiagnosticAtRegexp("modb/b/b.go", "x"),
-			NoMatchingDiagnostics(env.AtRegexp("moda/a/a.go", `"b.com/b"`)),
+			NoDiagnostics(env.AtRegexp("moda/a/a.go", `"b.com/b"`)),
 		)
 	})
 }
@@ -643,7 +643,7 @@ use (
 
 		// This fails if guarded with a OnceMet(DoneWithSave(), ...), because it is
 		// debounced (and therefore not synchronous with the change).
-		env.Await(NoDiagnostics("modb/go.mod"))
+		env.Await(NoDiagnostics(ForFile("modb/go.mod")))
 
 		// Test Formatting.
 		env.SetBufferContent("go.work", `go 1.18
@@ -693,7 +693,7 @@ module example.com/bar
 		// the diagnostic still shows up.
 		env.SetBufferContent("go.work", "go 1.18 \n\n use ./bar\n")
 		env.AfterChange(
-			NoMatchingDiagnostics(env.AtRegexp("go.work", "use")),
+			NoDiagnostics(env.AtRegexp("go.work", "use")),
 		)
 		env.SetBufferContent("go.work", "go 1.18 \n\n use ./foo\n")
 		env.AfterChange(
@@ -978,7 +978,7 @@ func main() {
 			env.ApplyQuickFixes("b/go.mod", []protocol.Diagnostic{d})
 		}
 		env.AfterChange(
-			NoDiagnostics("b/go.mod"),
+			NoDiagnostics(ForFile("b/go.mod")),
 		)
 	})
 }
@@ -1051,7 +1051,7 @@ func main() {}
 		// Since b/main.go is not in the workspace, it should have a warning on its
 		// package declaration.
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 			DiagnosticAt("b/main.go", 0, 0),
 		)
 		env.WriteWorkspaceFile("go.work", `go 1.16
@@ -1061,7 +1061,7 @@ use (
 	b
 )
 `)
-		env.AfterChange(NoMatchingDiagnostics())
+		env.AfterChange(NoDiagnostics())
 		// Removing the go.work file should put us back where we started.
 		env.RemoveWorkspaceFile("go.work")
 
@@ -1077,7 +1077,7 @@ use (
 		env.OpenFile("b/main.go")
 
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 			DiagnosticAt("b/main.go", 0, 0),
 		)
 	})
@@ -1119,8 +1119,8 @@ func (Server) Foo() {}
 		)
 		env.RegexpReplace("other_test.go", "main", "main_test")
 		env.AfterChange(
-			NoDiagnostics("other_test.go"),
-			NoDiagnostics("main_test.go"),
+			NoDiagnostics(ForFile("other_test.go")),
+			NoDiagnostics(ForFile("main_test.go")),
 		)
 
 		// This will cause a test failure if other_test.go is not in any package.
@@ -1163,7 +1163,7 @@ import (
 	Run(t, ws, func(t *testing.T, env *Env) {
 		env.OpenFile("b/main.go")
 		env.AfterChange(
-			NoDiagnostics("a/main.go"),
+			NoDiagnostics(ForFile("a/main.go")),
 		)
 		env.OpenFile("a/main.go")
 		env.AfterChange(
@@ -1178,7 +1178,7 @@ import (
 		// Gopls should be smart enough to avoid diagnosing a.
 		env.RegexpReplace("b/main.go", "package b", "package b // a package")
 		env.AfterChange(
-			NoDiagnostics("a/main.go"),
+			NoDiagnostics(ForFile("a/main.go")),
 		)
 	})
 }

@@ -43,7 +43,7 @@ func _() {
 			)
 			env.WriteWorkspaceFile("a/a.go", `package a; func _() {};`)
 			env.AfterChange(
-				NoDiagnostics("a/a.go"),
+				NoDiagnostics(ForFile("a/a.go")),
 			)
 		})
 	})
@@ -137,8 +137,8 @@ func _() {
 }`,
 		})
 		env.AfterChange(
-			NoDiagnostics("a/a.go"),
-			NoDiagnostics("b/b.go"),
+			NoDiagnostics(ForFile("a/a.go")),
+			NoDiagnostics(ForFile("b/b.go")),
 		)
 	})
 }
@@ -204,7 +204,7 @@ func _() {
 		)
 		env.WriteWorkspaceFile("c/c.go", `package c; func C() {};`)
 		env.AfterChange(
-			NoDiagnostics("a/a.go"),
+			NoDiagnostics(ForFile("a/a.go")),
 		)
 	})
 }
@@ -226,7 +226,7 @@ func _() {}
 		env.WriteWorkspaceFile("c/c.go", `package c; func C() {};`)
 		env.WriteWorkspaceFile("a/a.go", `package a; import "mod.com/c"; func _() { c.C() }`)
 		env.AfterChange(
-			NoDiagnostics("a/a.go"),
+			NoDiagnostics(ForFile("a/a.go")),
 		)
 	})
 }
@@ -252,7 +252,7 @@ func _() {
 		)
 		env.WriteWorkspaceFile("a/a2.go", `package a; func hello() {};`)
 		env.AfterChange(
-			NoDiagnostics("a/a.go"),
+			NoDiagnostics(ForFile("a/a.go")),
 		)
 	})
 }
@@ -328,7 +328,7 @@ func _() {
 			)
 			env.WriteWorkspaceFile("a/a.go", implementation)
 			env.AfterChange(
-				NoDiagnostics("a/a.go"),
+				NoDiagnostics(ForFile("a/a.go")),
 			)
 		})
 	})
@@ -337,11 +337,11 @@ func _() {
 		Run(t, pkg, func(t *testing.T, env *Env) {
 			env.WriteWorkspaceFile("a/a.go", implementation)
 			env.AfterChange(
-				NoDiagnostics("a/a.go"),
+				NoDiagnostics(ForFile("a/a.go")),
 			)
 			env.WriteWorkspaceFile("b/b.go", newMethod)
 			env.AfterChange(
-				NoDiagnostics("a/a.go"),
+				NoDiagnostics(ForFile("a/a.go")),
 			)
 		})
 	})
@@ -353,8 +353,8 @@ func _() {
 				"b/b.go": newMethod,
 			})
 			env.AfterChange(
-				NoDiagnostics("a/a.go"),
-				NoDiagnostics("b/b.go"),
+				NoDiagnostics(ForFile("a/a.go")),
+				NoDiagnostics(ForFile("b/b.go")),
 			)
 		})
 	})
@@ -400,7 +400,7 @@ package a
 				// a_unneeded.go, from the initial workspace load, which we
 				// check for earlier. If there are more, there's a bug.
 				LogMatching(protocol.Info, "a_unneeded.go", 1, false),
-				NoDiagnostics("a/a.go"),
+				NoDiagnostics(ForFile("a/a.go")),
 			)
 		})
 	})
@@ -428,7 +428,7 @@ package a
 				// a_unneeded.go, from the initial workspace load, which we
 				// check for earlier. If there are more, there's a bug.
 				LogMatching(protocol.Info, "a_unneeded.go", 1, false),
-				NoDiagnostics("a/a.go"),
+				NoDiagnostics(ForFile("a/a.go")),
 			)
 		})
 	})
@@ -470,7 +470,7 @@ func _() {}
 		env.RemoveWorkspaceFile("a/a1.go")
 		env.WriteWorkspaceFile("a/a2.go", "package a; func _() {};")
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }
@@ -547,7 +547,7 @@ func main() {
 		})
 		env.AfterChange(
 			env.DoneWithChangeWatchedFiles(),
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }
@@ -575,7 +575,7 @@ func main() {
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 		if err := env.Sandbox.RunGoCommand(env.Ctx, "", "mod", []string{"init", "mod.com"}, true); err != nil {
 			t.Fatal(err)
@@ -589,7 +589,7 @@ func main() {
 
 		env.RegexpReplace("main.go", `"foo/blah"`, `"mod.com/foo/blah"`)
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }
@@ -625,7 +625,7 @@ func main() {
 		)
 		env.RegexpReplace("foo/main.go", `"mod.com/blah"`, `"foo/blah"`)
 		env.AfterChange(
-			NoDiagnostics("foo/main.go"),
+			NoDiagnostics(ForFile("foo/main.go")),
 		)
 	})
 }
@@ -669,8 +669,8 @@ func TestAll(t *testing.T) {
 `,
 		})
 		env.AfterChange(
-			NoDiagnostics("a/a.go"),
-			NoDiagnostics("a/a_test.go"),
+			NoDiagnostics(ForFile("a/a.go")),
+			NoDiagnostics(ForFile("a/a_test.go")),
 		)
 		// Now, add a new file to the test variant and use its symbol in the
 		// original test file. Expect no diagnostics.
@@ -695,8 +695,8 @@ func TestSomething(t *testing.T) {}
 `,
 		})
 		env.AfterChange(
-			NoDiagnostics("a/a_test.go"),
-			NoDiagnostics("a/a2_test.go"),
+			NoDiagnostics(ForFile("a/a_test.go")),
+			NoDiagnostics(ForFile("a/a2_test.go")),
 		)
 	})
 }

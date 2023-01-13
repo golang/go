@@ -215,13 +215,13 @@ require golang.org/x/hello v1.2.3
 					// but there may be some subtlety in timing here, where this
 					// should always succeed, but may not actually test the correct
 					// behavior.
-					NoMatchingDiagnostics(env.AtRegexp("b/go.mod", `require`)),
+					NoDiagnostics(env.AtRegexp("b/go.mod", `require`)),
 				)
 				// Check for upgrades in b/go.mod and then clear them.
 				env.ExecuteCodeLensCommand("b/go.mod", command.CheckUpgrades, nil)
 				env.Await(env.DiagnosticAtRegexpWithMessage("b/go.mod", `require`, "can be upgraded"))
 				env.ExecuteCodeLensCommand("b/go.mod", command.ResetGoModDiagnostics, nil)
-				env.Await(NoDiagnostics("b/go.mod"))
+				env.Await(NoDiagnostics(ForFile("b/go.mod")))
 
 				// Apply the diagnostics to a/go.mod.
 				env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
@@ -331,6 +331,6 @@ func Foo() {
 
 		// Regenerate cgo, fixing the diagnostic.
 		env.ExecuteCodeLensCommand("cgo.go", command.RegenerateCgo, nil)
-		env.Await(NoDiagnostics("cgo.go"))
+		env.Await(NoDiagnostics(ForFile("cgo.go")))
 	})
 }

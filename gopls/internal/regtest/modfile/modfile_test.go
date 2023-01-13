@@ -485,7 +485,7 @@ func main() {
 		)
 		env.RunGoCommandInDir("a", "mod", "tidy")
 		env.AfterChange(
-			NoDiagnostics("a/go.mod"),
+			NoDiagnostics(ForFile("a/go.mod")),
 		)
 	})
 }
@@ -558,7 +558,7 @@ require (
 )
 `
 		env.SaveBuffer("a/go.mod")
-		env.AfterChange(NoDiagnostics("a/main.go"))
+		env.AfterChange(NoDiagnostics(ForFile("a/main.go")))
 		if got := env.BufferText("a/go.mod"); got != want {
 			t.Fatalf("suggested fixes failed:\n%s", compare.Text(want, got))
 		}
@@ -614,7 +614,7 @@ func main() {
 			env.ApplyCodeAction(qfs[0]) // Arbitrarily pick a single fix to apply. Applying all of them seems to cause trouble in this particular test.
 			env.SaveBuffer("a/go.mod")  // Save to trigger diagnostics.
 			env.AfterChange(
-				NoDiagnostics("a/go.mod"),
+				NoDiagnostics(ForFile("a/go.mod")),
 				env.DiagnosticAtRegexp("a/main.go", "x = "),
 			)
 		})
@@ -744,7 +744,7 @@ func main() {
 		env.RunGoCommand("get", "example.com/blah@v1.2.3")
 		env.RunGoCommand("mod", "tidy")
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }
@@ -882,7 +882,7 @@ func main() {
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
 		env.SaveBuffer("go.mod") // Save to trigger diagnostics.
 		env.AfterChange(
-			NoDiagnostics("go.mod"),
+			NoDiagnostics(ForFile("go.mod")),
 		)
 	})
 }
@@ -1149,8 +1149,8 @@ func main() {
 		)
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		env.Await(
-			NoDiagnostics("main.go"),
-			NoDiagnostics("go.mod"),
+			NoDiagnostics(ForFile("main.go")),
+			NoDiagnostics(ForFile("go.mod")),
 		)
 	})
 }
@@ -1170,7 +1170,7 @@ package main
 			env.DiagnosticAtRegexpWithMessage("go.mod", `go foo`, "invalid go version"),
 		)
 		env.WriteWorkspaceFile("go.mod", "module mod.com \n\ngo 1.12\n")
-		env.AfterChange(NoDiagnostics("go.mod"))
+		env.AfterChange(NoDiagnostics(ForFile("go.mod")))
 	})
 }
 

@@ -228,7 +228,7 @@ func main() {
 		env.OnceMet(
 			CompletedProgress(result.Token, nil),
 			ShownMessage("Found GOSTDLIB"),
-			NoDiagnostics("go.mod"),
+			NoDiagnostics(ForFile("go.mod")),
 		)
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
 			"go.mod": {IDs: []string{"GOSTDLIB"}, Mode: govulncheck.ModeGovulncheck}})
@@ -274,7 +274,7 @@ func main() {
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.AfterChange(
-			NoDiagnostics("go.mod"),
+			NoDiagnostics(ForFile("go.mod")),
 			// we don't publish diagnostics for standard library vulnerability yet.
 		)
 		testFetchVulncheckResult(t, env, map[string]fetchVulncheckResult{
@@ -854,7 +854,7 @@ func TestGovulncheckInfo(t *testing.T) {
 		}
 		env.ApplyCodeAction(reset)
 
-		env.Await(NoDiagnostics("go.mod"))
+		env.Await(NoDiagnostics(ForFile("go.mod")))
 	})
 }
 

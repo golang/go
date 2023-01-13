@@ -30,6 +30,6 @@ var foo string
 		env.OpenFile("x.go")
 		env.AfterChange(env.DiagnosticAtRegexpWithMessage("x.go", `NONEXISTENT`, "no matching files found"))
 		env.RegexpReplace("x.go", `NONEXISTENT`, "x.go")
-		env.AfterChange(NoDiagnostics("x.go"))
+		env.AfterChange(NoDiagnostics(ForFile("x.go")))
 	})
 }

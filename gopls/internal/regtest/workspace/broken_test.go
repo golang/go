@@ -166,7 +166,7 @@ const F = named.D - 3
 		env.OpenFile("go.mod")
 		env.RegexpReplace("go.mod", "mod.testx", "mod.test")
 		env.SaveBuffer("go.mod") // saving triggers a reload
-		env.AfterChange(NoMatchingDiagnostics())
+		env.AfterChange(NoDiagnostics())
 	})
 }
 
@@ -219,8 +219,8 @@ package b
 				// workspace folder, therefore we can't invoke AfterChange here.
 				env.ChangeWorkspaceFolders("a", "b")
 				env.Await(
-					NoDiagnostics("a/a.go"),
-					NoDiagnostics("b/go.mod"),
+					NoDiagnostics(ForFile("a/a.go")),
+					NoDiagnostics(ForFile("b/go.mod")),
 					NoOutstandingWork(),
 				)
 
@@ -256,7 +256,7 @@ package b
 		).Run(t, modules, func(t *testing.T, env *Env) {
 			env.OpenFile("a/a.go")
 			env.AfterChange(
-				NoDiagnostics("a/a.go"),
+				NoDiagnostics(ForFile("a/a.go")),
 				NoOutstandingWork(),
 			)
 		})

@@ -77,7 +77,7 @@ func m() {
 			env.DiagnosticAtRegexp("main.go", "log"),
 		)
 		env.SaveBuffer("main.go")
-		env.AfterChange(NoDiagnostics("main.go"))
+		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 	})
 }
 
@@ -119,8 +119,8 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 		// Fix the error by editing the const name in b.go to `b`.
 		env.RegexpReplace("b.go", "(a) = 2", "b")
 		env.AfterChange(
-			NoDiagnostics("a.go"),
-			NoDiagnostics("b.go"),
+			NoDiagnostics(ForFile("a.go")),
+			NoDiagnostics(ForFile("b.go")),
 		)
 	})
 }
@@ -132,8 +132,8 @@ func TestDiagnosticClearingOnDelete_Issue37049(t *testing.T) {
 		env.RemoveWorkspaceFile("b.go")
 
 		env.Await(
-			NoDiagnostics("a.go"),
-			NoDiagnostics("b.go"),
+			NoDiagnostics(ForFile("a.go")),
+			NoDiagnostics(ForFile("b.go")),
 		)
 	})
 }
@@ -152,7 +152,7 @@ const a = 3`)
 		env.AfterChange(
 			env.DiagnosticAtRegexp("a.go", "a = 1"),
 			env.DiagnosticAtRegexp("b.go", "a = 2"),
-			NoDiagnostics("c.go"),
+			NoDiagnostics(ForFile("c.go")),
 		)
 	})
 }
@@ -177,7 +177,7 @@ const a = http.MethodGet
 		// Expect the diagnostics to clear.
 		env.SaveBuffer("c/c.go")
 		env.AfterChange(
-			NoDiagnostics("c/c.go"),
+			NoDiagnostics(ForFile("c/c.go")),
 		)
 	})
 }
@@ -213,7 +213,7 @@ func TestDeleteTestVariant(t *testing.T) {
 	Run(t, test38878, func(t *testing.T, env *Env) {
 		env.Await(env.DiagnosticAtRegexp("a_test.go", `f\((3)\)`))
 		env.RemoveWorkspaceFile("a_test.go")
-		env.AfterChange(NoDiagnostics("a_test.go"))
+		env.AfterChange(NoDiagnostics(ForFile("a_test.go")))
 
 		// Make sure the test variant has been removed from the workspace by
 		// triggering a metadata load.
@@ -267,7 +267,7 @@ func Hello() {
 			env.SaveBuffer("go.mod")
 			var d protocol.PublishDiagnosticsParams
 			env.AfterChange(
-				NoDiagnostics("main.go"),
+				NoDiagnostics(ForFile("main.go")),
 				env.DiagnosticAtRegexp("bob/bob.go", "x"),
 				ReadDiagnostics("bob/bob.go", &d),
 			)
@@ -283,7 +283,7 @@ func Hello() {
 			)
 			env.RunGoCommand("mod", "init", "mod.com")
 			env.AfterChange(
-				NoDiagnostics("main.go"),
+				NoDiagnostics(ForFile("main.go")),
 				env.DiagnosticAtRegexp("bob/bob.go", "x"),
 			)
 		})
@@ -300,7 +300,7 @@ func Hello() {
 				t.Fatal(err)
 			}
 			env.AfterChange(
-				NoDiagnostics("main.go"),
+				NoDiagnostics(ForFile("main.go")),
 				env.DiagnosticAtRegexp("bob/bob.go", "x"),
 			)
 		})
@@ -350,7 +350,7 @@ func TestHello(t *testing.T) {
 		env.RegexpReplace("lib.go", "_ = x", "var y int")
 		env.AfterChange(
 			env.DiagnosticAtRegexp("lib.go", "y int"),
-			NoDiagnostics("lib_test.go"),
+			NoDiagnostics(ForFile("lib_test.go")),
 		)
 	})
 }
@@ -370,7 +370,7 @@ func main() {}
 		env.OpenFile("a.go")
 		env.RegexpReplace("a.go", "foo", "foox")
 		env.AfterChange(
-			NoDiagnostics("a.go"),
+			NoDiagnostics(ForFile("a.go")),
 		)
 	})
 }
@@ -464,7 +464,7 @@ func _() {
 		env.OpenFile("main.go")
 		env.AfterChange(env.DiagnosticAtRegexp("main.go", "fmt"))
 		env.SaveBuffer("main.go")
-		env.AfterChange(NoDiagnostics("main.go"))
+		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 	})
 }
 
@@ -489,7 +489,7 @@ var X = 0
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OrganizeImports("main.go")
-		env.AfterChange(NoDiagnostics("main.go"))
+		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 	})
 }
 
@@ -650,7 +650,7 @@ func main() {
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		env.SaveBuffer("go.mod")
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 		// Comment out the line that depends on conf and expect a
 		// diagnostic and a fix to remove the import.
@@ -661,14 +661,14 @@ func main() {
 		env.SaveBuffer("main.go")
 		// Expect a diagnostic and fix to remove the dependency in the go.mod.
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 			env.DiagnosticAtRegexpWithMessage("go.mod", "require github.com/ardanlabs/conf", "not used in this module"),
 			ReadDiagnostics("go.mod", &d),
 		)
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
 		env.SaveBuffer("go.mod")
 		env.AfterChange(
-			NoDiagnostics("go.mod"),
+			NoDiagnostics(ForFile("go.mod")),
 		)
 		// Uncomment the lines and expect a new diagnostic for the import.
 		env.RegexpReplace("main.go", "//_ = conf.ErrHelpWanted", "_ = conf.ErrHelpWanted")
@@ -707,7 +707,7 @@ func main() {
 		)
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }
@@ -733,11 +733,11 @@ func _() {
 		env.CreateBuffer("a/a2.go", ``)
 		env.SaveBufferWithoutActions("a/a2.go")
 		env.AfterChange(
-			NoDiagnostics("a/a1.go"),
+			NoDiagnostics(ForFile("a/a1.go")),
 		)
 		env.EditBuffer("a/a2.go", fake.NewEdit(0, 0, 0, 0, `package a`))
 		env.AfterChange(
-			NoDiagnostics("a/a1.go"),
+			NoDiagnostics(ForFile("a/a1.go")),
 		)
 	})
 }
@@ -805,7 +805,7 @@ func TestHello(t *testing.T) {
 		)
 		env.SaveBuffer("hello/hello_x_test.go")
 		env.AfterChange(
-			NoDiagnostics("hello/hello_x_test.go"),
+			NoDiagnostics(ForFile("hello/hello_x_test.go")),
 		)
 	})
 }
@@ -854,8 +854,8 @@ package foo_
 		env.OpenFile("foo/bar_test.go")
 		env.RegexpReplace("foo/bar_test.go", "package foo_", "package foo_test")
 		env.AfterChange(
-			NoDiagnostics("foo/bar_test.go"),
-			NoDiagnostics("foo/foo.go"),
+			NoDiagnostics(ForFile("foo/bar_test.go")),
+			NoDiagnostics(ForFile("foo/foo.go")),
 		)
 	})
 }
@@ -874,7 +874,7 @@ var _ = foo.Bar
 	Run(t, ws, func(t *testing.T, env *Env) {
 		env.OpenFile("_foo/x.go")
 		env.AfterChange(
-			NoDiagnostics("_foo/x.go"),
+			NoDiagnostics(ForFile("_foo/x.go")),
 		)
 	})
 }
@@ -997,9 +997,9 @@ func TestDoIt(t *testing.T) {
 			)
 			env.RegexpReplace("p/p.go", "s string", "i int")
 			env.AfterChange(
-				NoDiagnostics("main.go"),
-				NoDiagnostics("p/p_test.go"),
-				NoDiagnostics("p/x_test.go"),
+				NoDiagnostics(ForFile("main.go")),
+				NoDiagnostics(ForFile("p/p_test.go")),
+				NoDiagnostics(ForFile("p/x_test.go")),
 			)
 		})
 	})
@@ -1054,7 +1054,7 @@ func main() {
 }`)
 		env.OpenFile("foo/foo_test.go")
 		env.RegexpReplace("foo/foo_test.go", `package main`, `package foo`)
-		env.AfterChange(NoDiagnostics("foo/foo.go"))
+		env.AfterChange(NoDiagnostics(ForFile("foo/foo.go")))
 	})
 }
 
@@ -1173,7 +1173,7 @@ func main() {
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/main.go")
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }
@@ -1212,7 +1212,7 @@ func main() {
 			t.Errorf("wanted Unnecessary tag on diagnostic, got %v", tags)
 		}
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
-		env.AfterChange(NoDiagnostics("main.go"))
+		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 	})
 }
 
@@ -1369,7 +1369,7 @@ func main() {
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			NoMatchingDiagnostics(WithMessageContaining("illegal character U+0023 '#'")),
+			NoDiagnostics(WithMessageContaining("illegal character U+0023 '#'")),
 		)
 	})
 }
@@ -1431,7 +1431,7 @@ package foo_
 		env.Await(env.DoneWithChange())
 		env.RegexpReplace("foo/foo_test.go", "_t", "_test")
 		env.AfterChange(
-			NoDiagnostics("foo/foo_test.go"),
+			NoDiagnostics(ForFile("foo/foo_test.go")),
 			NoOutstandingWork(),
 		)
 	})
@@ -1498,7 +1498,7 @@ func main() {
 		env.RemoveWorkspaceFile("bob")
 		env.AfterChange(
 			env.DiagnosticAtRegexp("cmd/main.go", `"mod.com/bob"`),
-			NoDiagnostics("bob/bob.go"),
+			NoDiagnostics(ForFile("bob/bob.go")),
 			NoFileWatchMatching("bob"),
 		)
 	})
@@ -1585,8 +1585,8 @@ const B = a.B
 		env.RegexpReplace("b/b.go", `const B = a\.B`, "")
 		env.SaveBuffer("b/b.go")
 		env.Await(
-			NoDiagnostics("a/a.go"),
-			NoDiagnostics("b/b.go"),
+			NoDiagnostics(ForFile("a/a.go")),
+			NoDiagnostics(ForFile("b/b.go")),
 		)
 	})
 }
@@ -1718,7 +1718,7 @@ var Bar = Foo
 		env.OpenFile("foo.go")
 		env.AfterChange(env.DiagnosticAtRegexp("bar.go", `Foo`))
 		env.RegexpReplace("foo.go", `\+build`, "")
-		env.AfterChange(NoDiagnostics("bar.go"))
+		env.AfterChange(NoDiagnostics(ForFile("bar.go")))
 	})
 
 }
@@ -1819,7 +1819,7 @@ const C = 0b10
 		)
 		env.WriteWorkspaceFile("go.mod", "module mod.com \n\ngo 1.13\n")
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }
@@ -1874,7 +1874,7 @@ func F[T any](_ T) {
 
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }
@@ -1912,7 +1912,7 @@ func F[T any](_ T) {
 		// Once the edit is applied, the problematic diagnostics should be
 		// resolved.
 		env.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }

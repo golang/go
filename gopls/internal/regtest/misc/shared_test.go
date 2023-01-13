@@ -65,7 +65,7 @@ func main() {
 
 		env1.RegexpReplace("main.go", "Printl", "Println")
 		env1.AfterChange(
-			NoDiagnostics("main.go"),
+			NoDiagnostics(ForFile("main.go")),
 		)
 	})
 }

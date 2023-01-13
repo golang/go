@@ -412,7 +412,7 @@ package b
 		// Moving x.go should make the diagnostic go away.
 		env.RenameFile("a/x.go", "b/x.go")
 		env.AfterChange(
-			NoDiagnostics("a/a.go"),                     // no more duplicate declarations
+			NoDiagnostics(ForFile("a/a.go")),            // no more duplicate declarations
 			env.DiagnosticAtRegexp("b/b.go", "package"), // as package names mismatch
 		)
 

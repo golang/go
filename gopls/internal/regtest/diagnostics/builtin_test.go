@@ -30,6 +30,6 @@ const (
 		if !strings.HasSuffix(name, "builtin.go") {
 			t.Fatalf("jumped to %q, want builtin.go", name)
 		}
-		env.AfterChange(NoDiagnostics("builtin.go"))
+		env.AfterChange(NoDiagnostics(ForFile("builtin.go")))
 	})
 }

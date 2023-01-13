@@ -728,12 +728,10 @@ func Diagnostics(filters ...DiagnosticFilter) Expectation {
 	}
 }
 
-// NoMatchingDiagnostics asserts that there are no diagnostics matching the
-// given filters. Notably, if no filters are supplied this assertion checks
-// that there are no diagnostics at all, for any file.
-//
-// TODO(rfindley): replace NoDiagnostics with this, and rename.
-func NoMatchingDiagnostics(filters ...DiagnosticFilter) Expectation {
+// NoDiagnostics asserts that there are no diagnostics matching the given
+// filters. Notably, if no filters are supplied this assertion checks that
+// there are no diagnostics at all, for any file.
+func NoDiagnostics(filters ...DiagnosticFilter) Expectation {
 	check := func(s State) Verdict {
 		diags := flattenDiagnostics(s)
 		for _, filter := range filters {
@@ -778,7 +776,7 @@ func flattenDiagnostics(state State) []flatDiagnostic {
 // -- Diagnostic filters --
 
 // A DiagnosticFilter filters the set of diagnostics, for assertion with
-// Diagnostics or NoMatchingDiagnostics.
+// Diagnostics or NoDiagnostics.
 type DiagnosticFilter struct {
 	desc  string
 	check func(name string, _ protocol.Diagnostic) bool
@@ -831,21 +829,6 @@ func WithMessageContaining(substring string) DiagnosticFilter {
 }
 
 // TODO(rfindley): eliminate all expectations below this point.
-
-// NoDiagnostics asserts that either no diagnostics are sent for the
-// workspace-relative path name, or empty diagnostics are sent.
-func NoDiagnostics(name string) Expectation {
-	check := func(s State) Verdict {
-		if diags := s.diagnostics[name]; diags == nil || len(diags.Diagnostics) == 0 {
-			return Met
-		}
-		return Unmet
-	}
-	return SimpleExpectation{
-		check:       check,
-		description: fmt.Sprintf("empty or no diagnostics for %q", name),
-	}
-}
 
 // DiagnosticAtRegexp expects that there is a diagnostic entry at the start
 // position matching the regexp search string re in the buffer specified by

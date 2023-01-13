@@ -36,7 +36,7 @@ var FooErr = errors.New("foo")
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		env.AfterChange(
-			NoDiagnostics("a/a.go"),
+			NoDiagnostics(ForFile("a/a.go")),
 		)
 		cfg := env.Editor.Config()
 		cfg.Settings = map[string]interface{}{

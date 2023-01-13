@@ -158,7 +158,7 @@ var _, _ = x.X, y.Y
 		env.OpenFile("main.go")
 		env.AfterChange(env.DiagnosticAtRegexp("main.go", `y.Y`))
 		env.SaveBuffer("main.go")
-		env.AfterChange(NoDiagnostics("main.go"))
+		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 		path, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `y.(Y)`))
 		if !strings.HasPrefix(path, filepath.ToSlash(modcache)) {
 			t.Errorf("found module dependency outside of GOMODCACHE: got %v, wanted subdir of %v", path, filepath.ToSlash(modcache))
@@ -205,7 +205,7 @@ func TestA(t *testing.T) {
 		)
 		env.ApplyQuickFixes("a/a.go", d.Diagnostics)
 		env.AfterChange(
-			NoDiagnostics("a/a.go"),
+			NoDiagnostics(ForFile("a/a.go")),
 		)
 	})
 }
@@ -252,6 +252,6 @@ func Test() {
 		// Saving caller.go should trigger goimports, which should find a.Test in
 		// the mod.com module, thanks to the go.work file.
 		env.SaveBuffer("caller/caller.go")
-		env.AfterChange(NoDiagnostics("caller/caller.go"))
+		env.AfterChange(NoDiagnostics(ForFile("caller/caller.go")))
 	})
 }

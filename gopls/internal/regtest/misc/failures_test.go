@@ -77,8 +77,8 @@ const a = 2
 		// Fix the error by editing the const name in b.go to `b`.
 		env.RegexpReplace("b.go", "(a) = 2", "b")
 		env.Await(
-			NoDiagnostics("a.go"),
-			NoDiagnostics("b.go"),
+			NoDiagnostics(ForFile("a.go")),
+			NoDiagnostics(ForFile("b.go")),
 		)
 	})
 }

@@ -34,7 +34,7 @@ const C = 42
 		env.OpenFile("p.go")
 		env.RegexpReplace("p.go", "\"fmt\"", "\"fmt\"\n)")
 		env.AfterChange(
-			NoDiagnostics("p.go"),
+			NoDiagnostics(ForFile("p.go")),
 		)
 	})
 }
@@ -88,8 +88,8 @@ func main() {}
 		// information when fresh metadata arrives.
 		// env.RegexpReplace("foo.go", "package main", "package main // test")
 		env.AfterChange(
-			NoDiagnostics("foo.go"),
-			NoDiagnostics("bar.go"),
+			NoDiagnostics(ForFile("foo.go")),
+			NoDiagnostics(ForFile("bar.go")),
 		)
 
 		// If instead of 'ignore' (which gopls treats as a standalone package) we

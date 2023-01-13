@@ -55,7 +55,7 @@ const _ = Nonexistant
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			NoDiagnostics("exclude/x.go"),
+			NoDiagnostics(ForFile("exclude/x.go")),
 		)
 	})
 }
@@ -85,8 +85,8 @@ const X = 1
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			NoDiagnostics("exclude/exclude.go"), // filtered out
-			NoDiagnostics("include/include.go"), // successfully builds
+			NoDiagnostics(ForFile("exclude/exclude.go")), // filtered out
+			NoDiagnostics(ForFile("include/include.go")), // successfully builds
 		)
 	})
 }

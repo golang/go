@@ -44,6 +44,6 @@ func main() {
 		)
 
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
-		env.AfterChange(NoDiagnostics("main.go"))
+		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 	})
 }
