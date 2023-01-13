@@ -765,6 +765,22 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		moduledata.AddUint(ctxt.Arch, 0)
 		moduledata.AddUint(ctxt.Arch, 0)
 	}
+	// Add inittasks slice
+	t := ctxt.mainInittasks
+	if t != 0 {
+		moduledata.AddAddr(ctxt.Arch, t)
+		moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(t)/int64(ctxt.Arch.PtrSize)))
+		moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(t)/int64(ctxt.Arch.PtrSize)))
+	} else {
+		// Some build modes have no inittasks, like a shared library.
+		// Its inittask list will be constructed by a higher-level
+		// linking step.
+		// This branch can also happen if there are no init tasks at all.
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0)
+	}
+
 	if len(ctxt.Shlibs) > 0 {
 		thismodulename := filepath.Base(*flagOutfile)
 		switch ctxt.BuildMode {

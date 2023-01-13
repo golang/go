@@ -466,6 +466,10 @@ type moduledata struct {
 	pluginpath string
 	pkghashes  []modulehash
 
+	// This slice records the initializing tasks that need to be
+	// done to start up the program. It is built by the linker.
+	inittasks []*initTask
+
 	modulename   string
 	modulehashes []modulehash
 

@@ -328,9 +328,8 @@ func init() {
 // Actual test: check for init funcs in runtime data structures.
 
 type initTask struct {
-	state uintptr
-	ndeps uintptr
-	nfns  uintptr
+	state uint32
+	nfns  uint32
 }
 
 //go:linkname main_inittask main..inittask

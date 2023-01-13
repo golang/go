@@ -119,6 +119,10 @@ type ArchSyms struct {
 	DynStr  loader.Sym
 
 	unreachableMethod loader.Sym
+
+	// Symbol containing a list of all the inittasks that need
+	// to be run at startup.
+	mainInittasks loader.Sym
 }
 
 // mkArchSym is a helper for setArchSyms, to set up a special symbol.

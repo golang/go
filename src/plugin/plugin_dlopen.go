@@ -74,7 +74,7 @@ func open(name string) (*Plugin, error) {
 	if plugins == nil {
 		plugins = make(map[string]*Plugin)
 	}
-	pluginpath, syms, errstr := lastmoduleinit()
+	pluginpath, syms, initTasks, errstr := lastmoduleinit()
 	if errstr != "" {
 		plugins[filepath] = &Plugin{
 			pluginpath: pluginpath,
@@ -92,14 +92,7 @@ func open(name string) (*Plugin, error) {
 	plugins[filepath] = p
 	pluginsMu.Unlock()
 
-	initStr := make([]byte, len(pluginpath)+len("..inittask")+1) // +1 for terminating NUL
-	copy(initStr, pluginpath)
-	copy(initStr[len(pluginpath):], "..inittask")
-
-	initTask := C.pluginLookup(h, (*C.char)(unsafe.Pointer(&initStr[0])), &cErr)
-	if initTask != nil {
-		doInit(initTask)
-	}
+	doInit(initTasks)
 
 	// Fill out the value of each plugin symbol.
 	updatedSyms := map[string]any{}
@@ -147,9 +140,14 @@ var (
 )
 
 // lastmoduleinit is defined in package runtime.
-func lastmoduleinit() (pluginpath string, syms map[string]any, errstr string)
+func lastmoduleinit() (pluginpath string, syms map[string]any, inittasks []*initTask, errstr string)
 
 // doInit is defined in package runtime.
 //
 //go:linkname doInit runtime.doInit
-func doInit(t unsafe.Pointer) // t should be a *runtime.initTask
+func doInit(t []*initTask)
+
+type initTask struct {
+	// fields defined in runtime.initTask. We only handle pointers to an initTask
+	// in this package, so the contents are irrelevant.
+}
