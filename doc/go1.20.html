@@ -350,8 +350,10 @@ Do not send CLs removing the interior tags from such phrases.
 </p>
 
 <p><!-- https://go.dev/issue/49569 -->
-  Relative to Go 1.19, generated code performance is generally slightly improved,
-  build wall times are slightly increased, build user times are slightly decreased.
+  Go 1.18 and 1.19 saw regressions in build speed, largely due to the addition
+  of support for generics and follow-on work. Go 1.20 improves build speeds by
+  up to 10%, bringing it back in line with Go 1.17.
+  Relative to Go 1.19, generated code performance is also generally slightly improved.
 </p>
 
 <h2 id="linker">Linker</h2>
