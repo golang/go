@@ -816,9 +816,7 @@ func (e *Editor) extractFirstPathAndPos(ctx context.Context, locs []protocol.Loc
 
 // Symbol performs a workspace symbol search using query
 func (e *Editor) Symbol(ctx context.Context, query string) ([]protocol.SymbolInformation, error) {
-	params := &protocol.WorkspaceSymbolParams{}
-	params.Query = query
-
+	params := &protocol.WorkspaceSymbolParams{Query: query}
 	return e.Server.Symbol(ctx, params)
 }
 

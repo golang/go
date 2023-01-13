@@ -79,7 +79,7 @@ const (
 			"Fooest",
 		}
 		got := env.Symbol("Foo")
-		compareSymbols(t, got, want)
+		compareSymbols(t, got, want...)
 	})
 }
 
@@ -102,15 +102,15 @@ const (
 	WithOptions(
 		Settings{"symbolMatcher": symbolMatcher},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		compareSymbols(t, env.Symbol("ABC"), []string{"ABC", "AxxBxxCxx"})
-		compareSymbols(t, env.Symbol("'ABC"), []string{"ABC"})
-		compareSymbols(t, env.Symbol("^mod.com"), []string{"mod.com/a.ABC", "mod.com/a.AxxBxxCxx"})
-		compareSymbols(t, env.Symbol("^mod.com Axx"), []string{"mod.com/a.AxxBxxCxx"})
-		compareSymbols(t, env.Symbol("C$"), []string{"ABC"})
+		compareSymbols(t, env.Symbol("ABC"), "ABC", "AxxBxxCxx")
+		compareSymbols(t, env.Symbol("'ABC"), "ABC")
+		compareSymbols(t, env.Symbol("^mod.com"), "mod.com/a.ABC", "mod.com/a.AxxBxxCxx")
+		compareSymbols(t, env.Symbol("^mod.com Axx"), "mod.com/a.AxxBxxCxx")
+		compareSymbols(t, env.Symbol("C$"), "ABC")
 	})
 }
 
-func compareSymbols(t *testing.T, got []protocol.SymbolInformation, want []string) {
+func compareSymbols(t *testing.T, got []protocol.SymbolInformation, want ...string) {
 	t.Helper()
 	if len(got) != len(want) {
 		t.Errorf("got %d symbols, want %d", len(got), len(want))

@@ -49,9 +49,25 @@ func (v Verdict) String() string {
 	return fmt.Sprintf("unrecognized verdict %d", v)
 }
 
-// Expectation holds an arbitrary check func, and implements the Expectation interface.
+// An Expectation is an expected property of the state of the LSP client.
+// The Check function reports whether the property is met.
+//
+// Expectations are combinators. By composing them, tests may express
+// complex expectations in terms of simpler ones.
+//
+// TODO(rfindley): as expectations are combined, it becomes harder to identify
+// why they failed. A better signature for Check would be
+//
+//	func(State) (Verdict, string)
+//
+// returning a reason for the verdict that can be composed similarly to
+// descriptions.
 type Expectation struct {
-	Check       func(State) Verdict
+	Check func(State) Verdict
+
+	// Description holds a noun-phrase identifying what the expectation checks.
+	//
+	// TODO(rfindley): revisit existing descriptions to ensure they compose nicely.
 	Description string
 }
 
@@ -135,8 +151,11 @@ func AllOf(allOf ...Expectation) Expectation {
 	}
 }
 
-// ReadDiagnostics is an 'expectation' that is used to read diagnostics
-// atomically. It is intended to be used with 'OnceMet'.
+// ReadDiagnostics is an Expectation that stores the current diagnostics for
+// fileName in into, whenever it is evaluated.
+//
+// It can be used in combination with OnceMet or AfterChange to capture the
+// state of diagnostics when other expectations are satisfied.
 func ReadDiagnostics(fileName string, into *protocol.PublishDiagnosticsParams) Expectation {
 	check := func(s State) Verdict {
 		diags, ok := s.diagnostics[fileName]
@@ -695,7 +714,7 @@ func FromSource(source string) DiagnosticFilter {
 func (e *Env) AtRegexp(name, pattern string) DiagnosticFilter {
 	pos := e.RegexpSearch(name, pattern)
 	return DiagnosticFilter{
-		desc: fmt.Sprintf("at the first position matching %q in %q", pattern, name),
+		desc: fmt.Sprintf("at the first position matching %#q in %q", pattern, name),
 		check: func(diagName string, d protocol.Diagnostic) bool {
 			return diagName == name && d.Range.Start == pos
 		},
@@ -704,6 +723,10 @@ func (e *Env) AtRegexp(name, pattern string) DiagnosticFilter {
 
 // AtPosition filters to diagnostics at location name:line:character, for a
 // sandbox-relative path name.
+//
+// Line and character are 0-based, and character measures UTF-16 codes.
+//
+// Note: prefer the more readable AtRegexp.
 func AtPosition(name string, line, character uint32) DiagnosticFilter {
 	pos := protocol.Position{Line: line, Character: character}
 	return DiagnosticFilter{

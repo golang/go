@@ -9,8 +9,10 @@ import (
 	"golang.org/x/tools/internal/diff"
 )
 
-// NewEdit creates an edit replacing all content between
+// NewEdit creates an edit replacing all content between the 0-based
 // (startLine, startColumn) and (endLine, endColumn) with text.
+//
+// Columns measure UTF-16 codes.
 func NewEdit(startLine, startColumn, endLine, endColumn uint32, text string) protocol.TextEdit {
 	return protocol.TextEdit{
 		Range: protocol.Range{
