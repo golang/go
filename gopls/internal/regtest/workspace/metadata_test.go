@@ -97,7 +97,7 @@ func main() {}
 		// packages for bar.go
 		env.RegexpReplace("bar.go", "ignore", "excluded")
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("bar.go", "package (main)", "No packages"),
+			Diagnostics(env.AtRegexp("bar.go", "package (main)"), WithMessage("No packages")),
 		)
 	})
 }

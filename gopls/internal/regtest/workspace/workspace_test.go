@@ -683,7 +683,7 @@ module example.com/bar
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("go.work")
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("go.work", "use", "directory ./foo does not contain a module"),
+			Diagnostics(env.AtRegexp("go.work", "use"), WithMessage("directory ./foo does not contain a module")),
 		)
 		// The following tests is a regression test against an issue where we weren't
 		// copying the workFile struct field on workspace when a new one was created in
@@ -697,7 +697,7 @@ module example.com/bar
 		)
 		env.SetBufferContent("go.work", "go 1.18 \n\n use ./foo\n")
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("go.work", "use", "directory ./foo does not contain a module"),
+			Diagnostics(env.AtRegexp("go.work", "use"), WithMessage("directory ./foo does not contain a module")),
 		)
 	})
 }
@@ -714,8 +714,8 @@ replace
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("go.work")
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("go.work", "usa", "unknown directive: usa"),
-			env.DiagnosticAtRegexpWithMessage("go.work", "replace", "usage: replace"),
+			Diagnostics(env.AtRegexp("go.work", "usa"), WithMessage("unknown directive: usa")),
+			Diagnostics(env.AtRegexp("go.work", "replace"), WithMessage("usage: replace")),
 		)
 	})
 }
@@ -963,7 +963,7 @@ func main() {
 		env.AfterChange(
 			Diagnostics(
 				env.AtRegexp("go.mod", `example.com v1.2.3`),
-				WithMessageContaining("go.sum is out of sync"),
+				WithMessage("go.sum is out of sync"),
 			),
 			ReadDiagnostics("b/go.mod", params),
 		)
@@ -1167,7 +1167,7 @@ import (
 		)
 		env.OpenFile("a/main.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("a/main.go", "V", "not used"),
+			Diagnostics(env.AtRegexp("a/main.go", "V"), WithMessage("not used")),
 		)
 		env.CloseBuffer("a/main.go")
 

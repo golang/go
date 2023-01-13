@@ -594,8 +594,8 @@ func main() {
 	).Run(t, collision, func(t *testing.T, env *Env) {
 		env.OpenFile("x/x.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("x/x.go", `^`, "found packages main (main.go) and x (x.go)"),
-			env.DiagnosticAtRegexpWithMessage("x/main.go", `^`, "found packages main (main.go) and x (x.go)"),
+			Diagnostics(env.AtRegexp("x/x.go", `^`), WithMessage("found packages main (main.go) and x (x.go)")),
+			Diagnostics(env.AtRegexp("x/main.go", `^`), WithMessage("found packages main (main.go) and x (x.go)")),
 		)
 
 		// We don't recover cleanly from the errors without good overlay support.
@@ -662,7 +662,7 @@ func main() {
 		// Expect a diagnostic and fix to remove the dependency in the go.mod.
 		env.AfterChange(
 			NoDiagnostics(ForFile("main.go")),
-			env.DiagnosticAtRegexpWithMessage("go.mod", "require github.com/ardanlabs/conf", "not used in this module"),
+			Diagnostics(env.AtRegexp("go.mod", "require github.com/ardanlabs/conf"), WithMessage("not used in this module")),
 			ReadDiagnostics("go.mod", &d),
 		)
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
@@ -702,7 +702,7 @@ func main() {
 		env.SaveBuffer("main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("main.go", `"github.com/ardanlabs/conf"`, "no required module"),
+			Diagnostics(env.AtRegexp("main.go", `"github.com/ardanlabs/conf"`), WithMessage("no required module")),
 			ReadDiagnostics("main.go", &d),
 		)
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
@@ -1136,7 +1136,7 @@ func main() {}
 	Run(t, pkgDefault, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Await(
-			env.DiagnosticAtRegexpWithMessage("main.go", "default", "expected 'IDENT'"),
+			Diagnostics(env.AtRegexp("main.go", "default"), WithMessage("expected 'IDENT'")),
 		)
 	})
 }
@@ -1205,7 +1205,7 @@ func main() {
 		env.OpenFile("main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("main.go", `t{"msg"}`, "redundant type"),
+			Diagnostics(env.AtRegexp("main.go", `t{"msg"}`), WithMessage("redundant type")),
 			ReadDiagnostics("main.go", &d),
 		)
 		if tags := d.Diagnostics[0].Tags; len(tags) == 0 || tags[0] != protocol.Unnecessary {
@@ -1369,7 +1369,7 @@ func main() {
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			NoDiagnostics(WithMessageContaining("illegal character U+0023 '#'")),
+			NoDiagnostics(WithMessage("illegal character U+0023 '#'")),
 		)
 	})
 }
@@ -1539,9 +1539,9 @@ import _ "mod.com/triple/a"
 `
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
-			env.DiagnosticAtRegexpWithMessage("self/self.go", `_ "mod.com/self"`, "import cycle not allowed"),
-			env.DiagnosticAtRegexpWithMessage("double/a/a.go", `_ "mod.com/double/b"`, "import cycle not allowed"),
-			env.DiagnosticAtRegexpWithMessage("triple/a/a.go", `_ "mod.com/triple/b"`, "import cycle not allowed"),
+			Diagnostics(env.AtRegexp("self/self.go", `_ "mod.com/self"`), WithMessage("import cycle not allowed")),
+			Diagnostics(env.AtRegexp("double/a/a.go", `_ "mod.com/double/b"`), WithMessage("import cycle not allowed")),
+			Diagnostics(env.AtRegexp("triple/a/a.go", `_ "mod.com/triple/b"`), WithMessage("import cycle not allowed")),
 		)
 	})
 }
@@ -1578,8 +1578,8 @@ const B = a.B
 			//
 			// TODO(golang/go#52904): we should get *both* of these errors.
 			AnyOf(
-				env.DiagnosticAtRegexpWithMessage("a/a.go", `"mod.test/b"`, "import cycle"),
-				env.DiagnosticAtRegexpWithMessage("b/b.go", `"mod.test/a"`, "import cycle"),
+				Diagnostics(env.AtRegexp("a/a.go", `"mod.test/b"`), WithMessage("import cycle")),
+				Diagnostics(env.AtRegexp("b/b.go", `"mod.test/a"`), WithMessage("import cycle")),
 			),
 		)
 		env.RegexpReplace("b/b.go", `const B = a\.B`, "")
@@ -1607,7 +1607,7 @@ import (
 	t.Run("module", func(t *testing.T) {
 		Run(t, mod, func(t *testing.T, env *Env) {
 			env.Await(
-				env.DiagnosticAtRegexpWithMessage("main.go", `"nosuchpkg"`, `could not import nosuchpkg (no required module provides package "nosuchpkg"`),
+				Diagnostics(env.AtRegexp("main.go", `"nosuchpkg"`), WithMessage(`could not import nosuchpkg (no required module provides package "nosuchpkg"`)),
 			)
 		})
 	})
@@ -1618,7 +1618,7 @@ import (
 			Modes(Default),
 		).Run(t, mod, func(t *testing.T, env *Env) {
 			env.Await(
-				env.DiagnosticAtRegexpWithMessage("main.go", `"nosuchpkg"`, `cannot find package "nosuchpkg" in any of`),
+				Diagnostics(env.AtRegexp("main.go", `"nosuchpkg"`), WithMessage(`cannot find package "nosuchpkg" in any of`)),
 			)
 		})
 	})
@@ -1676,7 +1676,7 @@ func helloHelper() {}
 		env.OpenFile("nested/hello/hello.go")
 		env.AfterChange(
 			env.DiagnosticAtRegexp("nested/hello/hello.go", "helloHelper"),
-			env.DiagnosticAtRegexpWithMessage("nested/hello/hello.go", "package hello", "nested module"),
+			Diagnostics(env.AtRegexp("nested/hello/hello.go", "package hello"), WithMessage("nested module")),
 			OutstandingWork(lsp.WorkspaceLoadFailure, "nested module"),
 		)
 	})
@@ -1753,7 +1753,7 @@ package main
 		env.SetBufferContent("other.go", "package main\n\nasdf")
 		// The new diagnostic in other.go should not suppress diagnostics in main.go.
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("other.go", "asdf", "expected declaration"),
+			Diagnostics(env.AtRegexp("other.go", "asdf"), WithMessage("expected declaration")),
 			env.DiagnosticAtRegexp("main.go", "asdf"),
 		)
 	})
@@ -1815,7 +1815,7 @@ const C = 0b10
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexpWithMessage("main.go", `0b10`, "go1.13 or later"),
+			Diagnostics(env.AtRegexp("main.go", `0b10`), WithMessage("go1.13 or later")),
 		)
 		env.WriteWorkspaceFile("go.mod", "module mod.com \n\ngo 1.13\n")
 		env.AfterChange(
@@ -1868,7 +1868,7 @@ func F[T any](_ T) {
 		var d protocol.PublishDiagnosticsParams
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexpWithMessage("main.go", `T any`, "type parameter"),
+			Diagnostics(env.AtRegexp("main.go", `T any`), WithMessage("type parameter")),
 			ReadDiagnostics("main.go", &d),
 		)
 
@@ -1902,7 +1902,7 @@ func F[T any](_ T) {
 		// We should have a diagnostic because generics are not supported at 1.16.
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexpWithMessage("main.go", `T any`, "type parameter"),
+			Diagnostics(env.AtRegexp("main.go", `T any`), WithMessage("type parameter")),
 			ReadDiagnostics("main.go", &d),
 		)
 
@@ -1955,8 +1955,11 @@ func MyPrintf(format string, args ...interface{}) {
 	Run(t, src, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("a/a.go", "new.*Printf",
-				"format %d has arg \"s\" of wrong type string"))
+			Diagnostics(
+				env.AtRegexp("a/a.go", "new.*Printf"),
+				WithMessage("format %d has arg \"s\" of wrong type string"),
+			),
+		)
 	})
 }
 
@@ -2005,7 +2008,7 @@ var _ = 1 / "" // type error
 		var diags protocol.PublishDiagnosticsParams
 		env.OpenFile("a/a.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("a/a.go", "mu2 := (mu)", "assignment copies lock value"),
+			Diagnostics(env.AtRegexp("a/a.go", "mu2 := (mu)"), WithMessage("assignment copies lock value")),
 			ReadDiagnostics("a/a.go", &diags))
 
 		// Assert that there were no other diagnostics.

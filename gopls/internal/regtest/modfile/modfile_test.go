@@ -543,8 +543,8 @@ var _ = blah.Name
 		env.AfterChange(
 			// We would like for the error to appear in the v2 module, but
 			// as of writing non-workspace packages are not diagnosed.
-			env.DiagnosticAtRegexpWithMessage("a/main.go", `"example.com/blah/v2"`, "cannot find module providing"),
-			env.DiagnosticAtRegexpWithMessage("a/go.mod", `require example.com/blah/v2`, "cannot find module providing"),
+			Diagnostics(env.AtRegexp("a/main.go", `"example.com/blah/v2"`), WithMessage("cannot find module providing")),
+			Diagnostics(env.AtRegexp("a/go.mod", `require example.com/blah/v2`), WithMessage("cannot find module providing")),
 			ReadDiagnostics("a/go.mod", &modDiags),
 		)
 		env.ApplyQuickFixes("a/go.mod", modDiags.Diagnostics)
@@ -604,7 +604,7 @@ func main() {
 			d := protocol.PublishDiagnosticsParams{}
 			env.AfterChange(
 				// Make sure the diagnostic mentions the new version -- the old diagnostic is in the same place.
-				env.DiagnosticAtRegexpWithMessage("a/go.mod", "example.com v1.2.3", "example.com@v1.2.3"),
+				Diagnostics(env.AtRegexp("a/go.mod", "example.com v1.2.3"), WithMessage("example.com@v1.2.3")),
 				ReadDiagnostics("a/go.mod", &d),
 			)
 			qfs := env.GetQuickFixes("a/go.mod", d.Diagnostics)
@@ -793,7 +793,7 @@ func main() {
 		ProxyFiles(workspaceProxy),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.Await(
-			env.DiagnosticAtRegexpWithMessage("a/go.mod", "example.com v1.2.3", "is not used"),
+			Diagnostics(env.AtRegexp("a/go.mod", "example.com v1.2.3"), WithMessage("is not used")),
 		)
 	})
 }
@@ -875,7 +875,7 @@ func main() {
 		env.AfterChange(
 			Diagnostics(
 				env.AtRegexp("go.mod", `example.com v1.2.3`),
-				WithMessageContaining("go.sum is out of sync"),
+				WithMessage("go.sum is out of sync"),
 			),
 			ReadDiagnostics("go.mod", d),
 		)
@@ -1078,7 +1078,7 @@ func main() {
 		env.AfterChange(
 			Diagnostics(
 				env.AtRegexp("go.mod", `example.com`),
-				WithMessageContaining("go.sum is out of sync"),
+				WithMessage("go.sum is out of sync"),
 			),
 			ReadDiagnostics("go.mod", params),
 		)
@@ -1144,7 +1144,10 @@ func main() {
 		env.OpenFile("main.go")
 		d := &protocol.PublishDiagnosticsParams{}
 		env.Await(
-			env.DiagnosticAtRegexpWithMessage("main.go", `"example.com/blah"`, `could not import example.com/blah (no required module provides package "example.com/blah")`),
+			Diagnostics(
+				env.AtRegexp("main.go", `"example.com/blah"`),
+				WithMessage(`could not import example.com/blah (no required module provides package "example.com/blah")`),
+			),
 			ReadDiagnostics("main.go", d),
 		)
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
@@ -1167,7 +1170,7 @@ package main
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexpWithMessage("go.mod", `go foo`, "invalid go version"),
+			Diagnostics(env.AtRegexp("go.mod", `go foo`), WithMessage("invalid go version")),
 		)
 		env.WriteWorkspaceFile("go.mod", "module mod.com \n\ngo 1.12\n")
 		env.AfterChange(NoDiagnostics(ForFile("go.mod")))

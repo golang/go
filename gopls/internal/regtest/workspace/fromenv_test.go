@@ -62,7 +62,7 @@ use (
 		// included in the workspace.
 		env.OpenFile("work/a/a.go")
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("work/b/b.go", "x := 1", "not used"),
+			Diagnostics(env.AtRegexp("work/b/b.go", "x := 1"), WithMessage("not used")),
 		)
 	})
 }

@@ -53,13 +53,13 @@ func _() {
 		d := &protocol.PublishDiagnosticsParams{}
 		env.OnceMet(
 			InitialWorkspaceLoad,
-			env.DiagnosticAtRegexpWithMessage("go.mod", "module mod.com", "Inconsistent vendoring"),
+			Diagnostics(env.AtRegexp("go.mod", "module mod.com"), WithMessage("Inconsistent vendoring")),
 			ReadDiagnostics("go.mod", d),
 		)
 		env.ApplyQuickFixes("go.mod", d.Diagnostics)
 
 		env.AfterChange(
-			env.DiagnosticAtRegexpWithMessage("a/a1.go", `q int`, "not used"),
+			Diagnostics(env.AtRegexp("a/a1.go", `q int`), WithMessage("not used")),
 		)
 	})
 }

@@ -829,9 +829,9 @@ func AtPosition(name string, line, character uint32) DiagnosticFilter {
 	}
 }
 
-// WithMessageContaining filters to diagnostics whose message contains the
-// given substring.
-func WithMessageContaining(substring string) DiagnosticFilter {
+// WithMessage filters to diagnostics whose message contains the given
+// substring.
+func WithMessage(substring string) DiagnosticFilter {
 	return DiagnosticFilter{
 		desc: fmt.Sprintf("with message containing %q", substring),
 		check: func(_ string, d protocol.Diagnostic) bool {
@@ -849,12 +849,4 @@ func (e *Env) DiagnosticAtRegexp(name, re string) DiagnosticExpectation {
 	e.T.Helper()
 	pos := e.RegexpSearch(name, re)
 	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true}
-}
-
-// DiagnosticAtRegexpWithMessage is like DiagnosticAtRegexp, but it also
-// checks for the content of the diagnostic message,
-func (e *Env) DiagnosticAtRegexpWithMessage(name, re, msg string) DiagnosticExpectation {
-	e.T.Helper()
-	pos := e.RegexpSearch(name, re)
-	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true, message: msg}
 }

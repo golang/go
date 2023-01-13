@@ -28,7 +28,12 @@ var foo string
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("x.go")
-		env.AfterChange(env.DiagnosticAtRegexpWithMessage("x.go", `NONEXISTENT`, "no matching files found"))
+		env.AfterChange(
+			Diagnostics(
+				env.AtRegexp("x.go", `NONEXISTENT`),
+				WithMessage("no matching files found"),
+			),
+		)
 		env.RegexpReplace("x.go", `NONEXISTENT`, "x.go")
 		env.AfterChange(NoDiagnostics(ForFile("x.go")))
 	})

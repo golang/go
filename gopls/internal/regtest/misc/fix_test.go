@@ -79,7 +79,7 @@ func Foo() error {
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
 			// The error message here changed in 1.18; "return values" covers both forms.
-			env.DiagnosticAtRegexpWithMessage("main.go", `return`, "return values"),
+			Diagnostics(env.AtRegexp("main.go", `return`), WithMessage("return values")),
 			ReadDiagnostics("main.go", &d),
 		)
 		codeActions := env.CodeAction("main.go", d.Diagnostics)
