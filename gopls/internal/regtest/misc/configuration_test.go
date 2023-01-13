@@ -46,7 +46,7 @@ var FooErr = errors.New("foo")
 		// change.
 		env.ChangeConfiguration(cfg)
 		env.Await(
-			DiagnosticAt("a/a.go", 5, 4),
+			Diagnostics(env.AtRegexp("a/a.go", "var (FooErr)")),
 		)
 	})
 }

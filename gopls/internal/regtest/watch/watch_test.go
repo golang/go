@@ -324,7 +324,7 @@ func _() {
 		Run(t, pkg, func(t *testing.T, env *Env) {
 			env.WriteWorkspaceFile("b/b.go", newMethod)
 			env.AfterChange(
-				DiagnosticAt("a/a.go", 12, 12),
+				Diagnostics(AtPosition("a/a.go", 12, 12)),
 			)
 			env.WriteWorkspaceFile("a/a.go", implementation)
 			env.AfterChange(

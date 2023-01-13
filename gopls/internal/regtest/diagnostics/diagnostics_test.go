@@ -228,9 +228,9 @@ func TestDeleteTestVariant(t *testing.T) {
 func TestDeleteTestVariant_DiskOnly(t *testing.T) {
 	Run(t, test38878, func(t *testing.T, env *Env) {
 		env.OpenFile("a_test.go")
-		env.Await(DiagnosticAt("a_test.go", 5, 3))
+		env.Await(Diagnostics(AtPosition("a_test.go", 5, 3)))
 		env.Sandbox.Workdir.RemoveFile(context.Background(), "a_test.go")
-		env.AfterChange(DiagnosticAt("a_test.go", 5, 3))
+		env.AfterChange(Diagnostics(AtPosition("a_test.go", 5, 3)))
 	})
 }
 
@@ -343,8 +343,8 @@ func TestHello(t *testing.T) {
 	Run(t, testPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("lib_test.go")
 		env.Await(
-			DiagnosticAt("lib_test.go", 10, 2),
-			DiagnosticAt("lib_test.go", 11, 2),
+			Diagnostics(AtPosition("lib_test.go", 10, 2)),
+			Diagnostics(AtPosition("lib_test.go", 11, 2)),
 		)
 		env.OpenFile("lib.go")
 		env.RegexpReplace("lib.go", "_ = x", "var y int")
@@ -515,7 +515,7 @@ func _() {
 		env.OpenFile("main.go")
 		var d protocol.PublishDiagnosticsParams
 		env.AfterChange(
-			DiagnosticAt("main.go", 5, 8),
+			Diagnostics(AtPosition("main.go", 5, 8)),
 			ReadDiagnostics("main.go", &d),
 		)
 		if fixes := env.GetQuickFixes("main.go", d.Diagnostics); len(fixes) != 0 {
@@ -1286,7 +1286,7 @@ func _() {
 		)
 		env.OpenFile("a/a_exclude.go")
 		env.Await(
-			DiagnosticAt("a/a_exclude.go", 2, 8),
+			Diagnostics(env.AtRegexp("a/a_exclude.go", "package (a)")),
 		)
 	})
 }

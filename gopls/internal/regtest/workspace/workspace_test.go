@@ -503,7 +503,7 @@ func Hello() int {
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("modb/go.mod")
 		env.AfterChange(
-			DiagnosticAt("modb/go.mod", 0, 0),
+			Diagnostics(AtPosition("modb/go.mod", 0, 0)),
 		)
 		env.RegexpReplace("modb/go.mod", "modul", "module")
 		env.SaveBufferWithoutActions("modb/go.mod")
@@ -1052,7 +1052,7 @@ func main() {}
 		// package declaration.
 		env.AfterChange(
 			NoDiagnostics(ForFile("main.go")),
-			DiagnosticAt("b/main.go", 0, 0),
+			Diagnostics(AtPosition("b/main.go", 0, 0)),
 		)
 		env.WriteWorkspaceFile("go.work", `go 1.16
 
@@ -1078,7 +1078,7 @@ use (
 
 		env.AfterChange(
 			NoDiagnostics(ForFile("main.go")),
-			DiagnosticAt("b/main.go", 0, 0),
+			Diagnostics(AtPosition("b/main.go", 0, 0)),
 		)
 	})
 }

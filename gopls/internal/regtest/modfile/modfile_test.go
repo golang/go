@@ -1023,7 +1023,7 @@ func main() {}
 			env.OpenFile("go.mod")
 			pos := env.RegexpSearch("go.mod", "require hasdep.com v1.2.3")
 			env.AfterChange(
-				DiagnosticAt("go.mod", pos.Line, pos.Character),
+				Diagnostics(AtPosition("go.mod", pos.Line, pos.Character)),
 				ReadDiagnostics("go.mod", d),
 			)
 			const want = `module mod.com

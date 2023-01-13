@@ -46,7 +46,7 @@ func main() {
 		env.ExecuteCodeLensCommand("main.go", command.GCDetails, nil)
 		d := &protocol.PublishDiagnosticsParams{}
 		env.OnceMet(
-			DiagnosticAt("main.go", 5, 13),
+			Diagnostics(AtPosition("main.go", 5, 13)),
 			ReadDiagnostics("main.go", d),
 		)
 		// Confirm that the diagnostics come from the gc details code lens.
@@ -71,7 +71,7 @@ func main() {
 		// Saving a buffer should re-format back to the original state, and
 		// re-enable the gc_details diagnostics.
 		env.SaveBuffer("main.go")
-		env.AfterChange(DiagnosticAt("main.go", 5, 13))
+		env.AfterChange(Diagnostics(AtPosition("main.go", 5, 13)))
 
 		// Toggle the GC details code lens again so now it should be off.
 		env.ExecuteCodeLensCommand("main.go", command.GCDetails, nil)

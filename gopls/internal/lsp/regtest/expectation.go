@@ -817,6 +817,18 @@ func (e *Env) AtRegexp(name, pattern string) DiagnosticFilter {
 	}
 }
 
+// AtPosition filters to diagnostics at location name:line:character, for a
+// sandbox-relative path name.
+func AtPosition(name string, line, character uint32) DiagnosticFilter {
+	pos := protocol.Position{Line: line, Character: character}
+	return DiagnosticFilter{
+		desc: fmt.Sprintf("at %s:%d:%d", name, line, character),
+		check: func(diagName string, d protocol.Diagnostic) bool {
+			return diagName == name && d.Range.Start == pos
+		},
+	}
+}
+
 // WithMessageContaining filters to diagnostics whose message contains the
 // given substring.
 func WithMessageContaining(substring string) DiagnosticFilter {
@@ -845,10 +857,4 @@ func (e *Env) DiagnosticAtRegexpWithMessage(name, re, msg string) DiagnosticExpe
 	e.T.Helper()
 	pos := e.RegexpSearch(name, re)
 	return DiagnosticExpectation{path: name, pos: &pos, re: re, present: true, message: msg}
-}
-
-// DiagnosticAt asserts that there is a diagnostic entry at the position
-// specified by line and col, for the workdir-relative path name.
-func DiagnosticAt(name string, line, col uint32) DiagnosticExpectation {
-	return DiagnosticExpectation{path: name, pos: &protocol.Position{Line: line, Character: col}, present: true}
 }
