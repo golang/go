@@ -14,8 +14,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
-
-	"golang.org/x/tools/gopls/internal/lsp/fake"
 )
 
 const internalDefinition = `
@@ -166,9 +164,9 @@ func main() {}
 			).Run(t, mod, func(t *testing.T, env *Env) {
 				env.OpenFile("main.go")
 				file, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `"fmt"`))
-				if !tt.wantDef && (file != "" || pos != (fake.Pos{})) {
+				if !tt.wantDef && (file != "" || pos != (protocol.Position{})) {
 					t.Fatalf("expected no definition, got one: %s:%v", file, pos)
-				} else if tt.wantDef && file == "" && pos == (fake.Pos{}) {
+				} else if tt.wantDef && file == "" && pos == (protocol.Position{}) {
 					t.Fatalf("expected definition, got none")
 				}
 				links := env.DocumentLink("main.go")

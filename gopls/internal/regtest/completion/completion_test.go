@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/hooks"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/testenv"
 
-	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
@@ -193,11 +193,7 @@ package
 				}
 
 				if tc.want != nil {
-					start, end := env.RegexpRange(tc.filename, tc.editRegexp)
-					expectedRng := protocol.Range{
-						Start: start.ToProtocolPosition(),
-						End:   end.ToProtocolPosition(),
-					}
+					expectedRng := env.RegexpRange(tc.filename, tc.editRegexp)
 					for _, item := range completions.Items {
 						gotRng := item.TextEdit.Range
 						if expectedRng != gotRng {
@@ -229,10 +225,7 @@ package ma
 	want := []string{"ma", "ma_test", "main", "math", "math_test"}
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("math/add.go")
-		completions := env.Completion("math/add.go", fake.Pos{
-			Line:   0,
-			Column: 10,
-		})
+		completions := env.Completion("math/add.go", env.RegexpSearch("math/add.go", "package ma()"))
 
 		diff := compareCompletionLabels(want, completions.Items)
 		if diff != "" {
@@ -484,7 +477,7 @@ func doit() {
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("prog.go")
 		pos := env.RegexpSearch("prog.go", "if fooF")
-		pos.Column += len("if fooF")
+		pos.Character += uint32(protocol.UTF16Len([]byte("if fooF")))
 		completions := env.Completion("prog.go", pos)
 		diff := compareCompletionLabels([]string{"fooFunc"}, completions.Items)
 		if diff != "" {
@@ -494,7 +487,7 @@ func doit() {
 			t.Errorf("expected Tags to show deprecation %#v", diff[0])
 		}
 		pos = env.RegexpSearch("prog.go", "= badP")
-		pos.Column += len("= badP")
+		pos.Character += uint32(protocol.UTF16Len([]byte("= badP")))
 		completions = env.Completion("prog.go", pos)
 		diff = compareCompletionLabels([]string{"badPi"}, completions.Items)
 		if diff != "" {
@@ -538,8 +531,8 @@ func main() {
 		env.Await(env.DoneWithChange())
 		got := env.BufferText("main.go")
 		want := "package main\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"math\"\r\n)\r\n\r\nfunc main() {\r\n\tfmt.Println(\"a\")\r\n\tmath.Sqrt(${1:})\r\n}\r\n"
-		if got != want {
-			t.Errorf("unimported completion: got %q, want %q", got, want)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("unimported completion (-want +got):\n%s", diff)
 		}
 	})
 }
@@ -584,7 +577,7 @@ package foo
 		for _, tst := range tests {
 			env.SetBufferContent(fname, "package foo\n"+tst.line)
 			pos := env.RegexpSearch(fname, tst.pat)
-			pos.Column += len(tst.pat)
+			pos.Character += uint32(protocol.UTF16Len([]byte(tst.pat)))
 			completions := env.Completion(fname, pos)
 			result := compareCompletionLabels(tst.want, completions.Items)
 			if result != "" {
@@ -666,7 +659,7 @@ func Benchmark${1:Xxx}(b *testing.B) {
 			env.SetBufferContent("foo_test.go", tst.before)
 
 			pos := env.RegexpSearch("foo_test.go", tst.name)
-			pos.Column = len(tst.name)
+			pos.Character = uint32(protocol.UTF16Len([]byte(tst.name)))
 			completions := env.Completion("foo_test.go", pos)
 			if len(completions.Items) == 0 {
 				t.Fatalf("no completion items")

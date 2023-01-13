@@ -34,7 +34,7 @@ func Foo() {
 `
 	Run(t, basic, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		pos := env.RegexpSearch("main.go", "Info{}").ToProtocolPosition()
+		pos := env.RegexpSearch("main.go", "Info{}")
 		if err := env.Editor.RefactorRewrite(env.Ctx, "main.go", &protocol.Range{
 			Start: pos,
 			End:   pos,

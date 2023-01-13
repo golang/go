@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
@@ -84,15 +85,16 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 
 // endPosInBuffer returns the position for last character in the buffer for
 // the given file.
-func endPosInBuffer(env *Env, name string) fake.Pos {
+func endRangeInBuffer(env *Env, name string) protocol.Range {
 	buffer := env.BufferText(name)
 	lines := strings.Split(buffer, "\n")
 	numLines := len(lines)
 
-	return fake.Pos{
-		Line:   numLines - 1,
-		Column: len([]rune(lines[numLines-1])),
+	end := protocol.Position{
+		Line:      uint32(numLines - 1),
+		Character: uint32(len([]rune(lines[numLines-1]))),
 	}
+	return protocol.Range{Start: end, End: end}
 }
 
 // Benchmark struct completion in tools codebase.
@@ -101,10 +103,9 @@ func BenchmarkStructCompletion(b *testing.B) {
 
 	setup := func(env *Env) {
 		env.OpenFile(file)
-		originalBuffer := env.BufferText(file)
-		env.EditBuffer(file, fake.Edit{
-			End:  endPosInBuffer(env, file),
-			Text: originalBuffer + "\nvar testVariable map[string]bool = Session{}.\n",
+		env.EditBuffer(file, protocol.TextEdit{
+			Range:   endRangeInBuffer(env, file),
+			NewText: "\nvar testVariable map[string]bool = Session{}.\n",
 		})
 	}
 
@@ -131,10 +132,9 @@ func BenchmarkSliceCompletion(b *testing.B) {
 
 	setup := func(env *Env) {
 		env.OpenFile(file)
-		originalBuffer := env.BufferText(file)
-		env.EditBuffer(file, fake.Edit{
-			End:  endPosInBuffer(env, file),
-			Text: originalBuffer + "\nvar testVariable []byte = \n",
+		env.EditBuffer(file, protocol.TextEdit{
+			Range:   endRangeInBuffer(env, file),
+			NewText: "\nvar testVariable []byte = \n",
 		})
 	}
 
@@ -156,9 +156,9 @@ func (c *completer) _() {
 	setup := func(env *Env) {
 		env.OpenFile(file)
 		originalBuffer := env.BufferText(file)
-		env.EditBuffer(file, fake.Edit{
-			End:  endPosInBuffer(env, file),
-			Text: originalBuffer + fileContent,
+		env.EditBuffer(file, protocol.TextEdit{
+			Range:   endRangeInBuffer(env, file),
+			NewText: originalBuffer + fileContent,
 		})
 	}
 

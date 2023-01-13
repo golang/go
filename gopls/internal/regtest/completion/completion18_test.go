@@ -10,6 +10,7 @@ package completion
 import (
 	"testing"
 
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
 
@@ -42,7 +43,7 @@ func (s SyncMap[XX,string]) g(v UU) {}
 		env.Await(env.DoneWithOpen())
 		for _, tst := range tests {
 			pos := env.RegexpSearch("main.go", tst.pat)
-			pos.Column += len(tst.pat)
+			pos.Character += uint32(protocol.UTF16Len([]byte(tst.pat)))
 			completions := env.Completion("main.go", pos)
 			result := compareCompletionLabels(tst.want, completions.Items)
 			if result != "" {
@@ -95,7 +96,7 @@ func FuzzHex(f *testing.F) {
 	tests := []struct {
 		file   string
 		pat    string
-		offset int // from the beginning of pat to what the user just typed
+		offset uint32 // UTF16 length from the beginning of pat to what the user just typed
 		want   []string
 	}{
 		{"a_test.go", "f.Ad", 3, []string{"Add"}},
@@ -109,7 +110,7 @@ func FuzzHex(f *testing.F) {
 			env.OpenFile(test.file)
 			env.Await(env.DoneWithOpen())
 			pos := env.RegexpSearch(test.file, test.pat)
-			pos.Column += test.offset // character user just typed? will type?
+			pos.Character += test.offset // character user just typed? will type?
 			completions := env.Completion(test.file, pos)
 			result := compareCompletionLabels(test.want, completions.Items)
 			if result != "" {

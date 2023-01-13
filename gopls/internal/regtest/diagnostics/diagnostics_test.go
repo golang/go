@@ -164,8 +164,8 @@ func TestIssue37978(t *testing.T) {
 		env.CreateBuffer("c/c.go", "")
 
 		// Write the file contents with a missing import.
-		env.EditBuffer("c/c.go", fake.Edit{
-			Text: `package c
+		env.EditBuffer("c/c.go", protocol.TextEdit{
+			NewText: `package c
 
 const a = http.MethodGet
 `,

@@ -29,8 +29,8 @@ func Foo() int {
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 
-		start := env.RegexpSearch("main.go", "a := 5").ToProtocolPosition()
-		end := env.RegexpSearch("main.go", "return a").ToProtocolPosition()
+		start := env.RegexpSearch("main.go", "a := 5")
+		end := env.RegexpSearch("main.go", "return a")
 
 		actions, err := env.Editor.CodeAction(env.Ctx, "main.go", &protocol.Range{Start: start, End: end}, nil)
 		if err != nil {

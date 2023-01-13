@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp"
-	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
@@ -624,7 +623,7 @@ func UnregistrationMatching(re string) SimpleExpectation {
 // of diagnostics for a file.
 type DiagnosticExpectation struct {
 	// optionally, the position of the diagnostic and the regex used to calculate it.
-	pos *fake.Pos
+	pos *protocol.Position
 	re  string
 
 	// optionally, the message that the diagnostic should contain.
@@ -653,7 +652,7 @@ func (e DiagnosticExpectation) Check(s State) Verdict {
 	found := false
 	for _, d := range diags.Diagnostics {
 		if e.pos != nil {
-			if d.Range.Start.Line != uint32(e.pos.Line) || d.Range.Start.Character != uint32(e.pos.Column) {
+			if d.Range.Start != *e.pos {
 				continue
 			}
 		}
@@ -683,7 +682,7 @@ func (e DiagnosticExpectation) Description() string {
 	}
 	desc += " diagnostic"
 	if e.pos != nil {
-		desc += fmt.Sprintf(" at {line:%d, column:%d}", e.pos.Line, e.pos.Column)
+		desc += fmt.Sprintf(" at {line:%d, column:%d}", e.pos.Line, e.pos.Character)
 		if e.re != "" {
 			desc += fmt.Sprintf(" (location of %q)", e.re)
 		}
@@ -815,9 +814,7 @@ func (e *Env) AtRegexp(name, pattern string) DiagnosticFilter {
 	return DiagnosticFilter{
 		desc: fmt.Sprintf("at the first position matching %q in %q", pattern, name),
 		check: func(diagName string, d protocol.Diagnostic) bool {
-			// TODO(rfindley): just use protocol.Position for Pos, rather than
-			// duplicating.
-			return diagName == name && d.Range.Start.Line == uint32(pos.Line) && d.Range.Start.Character == uint32(pos.Column)
+			return diagName == name && d.Range.Start == pos
 		},
 	}
 }
@@ -869,6 +866,6 @@ func (e *Env) DiagnosticAtRegexpWithMessage(name, re, msg string) DiagnosticExpe
 
 // DiagnosticAt asserts that there is a diagnostic entry at the position
 // specified by line and col, for the workdir-relative path name.
-func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
-	return DiagnosticExpectation{path: name, pos: &fake.Pos{Line: line, Column: col}, present: true}
+func DiagnosticAt(name string, line, col uint32) DiagnosticExpectation {
+	return DiagnosticExpectation{path: name, pos: &protocol.Position{Line: line, Character: col}, present: true}
 }

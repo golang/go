@@ -85,7 +85,7 @@ func TestWorkdir_ReadFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "Hello World!\n"
-	if got != want {
+	if got := string(got); got != want {
 		t.Errorf("reading workdir file, got %q, want %q", got, want)
 	}
 }
@@ -123,7 +123,7 @@ func TestWorkdir_WriteFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := "42"
-		if got != want {
+		if got := string(got); got != want {
 			t.Errorf("ws.ReadFile(%q) = %q, want %q", test.path, got, want)
 		}
 	}

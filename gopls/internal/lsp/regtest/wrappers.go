@@ -30,7 +30,7 @@ func (e *Env) ReadWorkspaceFile(name string) string {
 	if err != nil {
 		e.T.Fatal(err)
 	}
-	return content
+	return string(content)
 }
 
 // WriteWorkspaceFile writes a file to disk but does nothing in the editor.
@@ -99,7 +99,7 @@ func (e *Env) CloseBuffer(name string) {
 }
 
 // EditBuffer applies edits to an editor buffer, calling t.Fatal on any error.
-func (e *Env) EditBuffer(name string, edits ...fake.Edit) {
+func (e *Env) EditBuffer(name string, edits ...protocol.TextEdit) {
 	e.T.Helper()
 	if err := e.Editor.EditBuffer(e.Ctx, name, edits); err != nil {
 		e.T.Fatal(err)
@@ -116,22 +116,22 @@ func (e *Env) SetBufferContent(name string, content string) {
 // RegexpRange returns the range of the first match for re in the buffer
 // specified by name, calling t.Fatal on any error. It first searches for the
 // position in open buffers, then in workspace files.
-func (e *Env) RegexpRange(name, re string) (fake.Pos, fake.Pos) {
+func (e *Env) RegexpRange(name, re string) protocol.Range {
 	e.T.Helper()
-	start, end, err := e.Editor.RegexpRange(name, re)
+	rng, err := e.Editor.RegexpRange(name, re)
 	if err == fake.ErrUnknownBuffer {
-		start, end, err = e.Sandbox.Workdir.RegexpRange(name, re)
+		rng, err = e.Sandbox.Workdir.RegexpRange(name, re)
 	}
 	if err != nil {
 		e.T.Fatalf("RegexpRange: %v, %v", name, err)
 	}
-	return start, end
+	return rng
 }
 
 // RegexpSearch returns the starting position of the first match for re in the
 // buffer specified by name, calling t.Fatal on any error. It first searches
 // for the position in open buffers, then in workspace files.
-func (e *Env) RegexpSearch(name, re string) fake.Pos {
+func (e *Env) RegexpSearch(name, re string) protocol.Position {
 	e.T.Helper()
 	pos, err := e.Editor.RegexpSearch(name, re)
 	if err == fake.ErrUnknownBuffer {
@@ -169,7 +169,7 @@ func (e *Env) SaveBufferWithoutActions(name string) {
 
 // GoToDefinition goes to definition in the editor, calling t.Fatal on any
 // error. It returns the path and position of the resulting jump.
-func (e *Env) GoToDefinition(name string, pos fake.Pos) (string, fake.Pos) {
+func (e *Env) GoToDefinition(name string, pos protocol.Position) (string, protocol.Position) {
 	e.T.Helper()
 	n, p, err := e.Editor.GoToDefinition(e.Ctx, name, pos)
 	if err != nil {
@@ -232,7 +232,7 @@ func (e *Env) GetQuickFixes(path string, diagnostics []protocol.Diagnostic) []pr
 }
 
 // Hover in the editor, calling t.Fatal on any error.
-func (e *Env) Hover(name string, pos fake.Pos) (*protocol.MarkupContent, fake.Pos) {
+func (e *Env) Hover(name string, pos protocol.Position) (*protocol.MarkupContent, protocol.Position) {
 	e.T.Helper()
 	c, p, err := e.Editor.Hover(e.Ctx, name, pos)
 	if err != nil {
@@ -250,7 +250,7 @@ func (e *Env) DocumentLink(name string) []protocol.DocumentLink {
 	return links
 }
 
-func (e *Env) DocumentHighlight(name string, pos fake.Pos) []protocol.DocumentHighlight {
+func (e *Env) DocumentHighlight(name string, pos protocol.Position) []protocol.DocumentHighlight {
 	e.T.Helper()
 	highlights, err := e.Editor.DocumentHighlight(e.Ctx, name, pos)
 	if err != nil {
@@ -405,7 +405,7 @@ func (e *Env) WorkspaceSymbol(sym string) []protocol.SymbolInformation {
 }
 
 // References wraps Editor.References, calling t.Fatal on any error.
-func (e *Env) References(path string, pos fake.Pos) []protocol.Location {
+func (e *Env) References(path string, pos protocol.Position) []protocol.Location {
 	e.T.Helper()
 	locations, err := e.Editor.References(e.Ctx, path, pos)
 	if err != nil {
@@ -415,7 +415,7 @@ func (e *Env) References(path string, pos fake.Pos) []protocol.Location {
 }
 
 // Rename wraps Editor.Rename, calling t.Fatal on any error.
-func (e *Env) Rename(path string, pos fake.Pos, newName string) {
+func (e *Env) Rename(path string, pos protocol.Position, newName string) {
 	e.T.Helper()
 	if err := e.Editor.Rename(e.Ctx, path, pos, newName); err != nil {
 		e.T.Fatal(err)
@@ -423,7 +423,7 @@ func (e *Env) Rename(path string, pos fake.Pos, newName string) {
 }
 
 // Implementations wraps Editor.Implementations, calling t.Fatal on any error.
-func (e *Env) Implementations(path string, pos fake.Pos) []protocol.Location {
+func (e *Env) Implementations(path string, pos protocol.Position) []protocol.Location {
 	e.T.Helper()
 	locations, err := e.Editor.Implementations(e.Ctx, path, pos)
 	if err != nil {
@@ -441,7 +441,7 @@ func (e *Env) RenameFile(oldPath, newPath string) {
 }
 
 // Completion executes a completion request on the server.
-func (e *Env) Completion(path string, pos fake.Pos) *protocol.CompletionList {
+func (e *Env) Completion(path string, pos protocol.Position) *protocol.CompletionList {
 	e.T.Helper()
 	completions, err := e.Editor.Completion(e.Ctx, path, pos)
 	if err != nil {
@@ -452,7 +452,7 @@ func (e *Env) Completion(path string, pos fake.Pos) *protocol.CompletionList {
 
 // AcceptCompletion accepts a completion for the given item at the given
 // position.
-func (e *Env) AcceptCompletion(path string, pos fake.Pos, item protocol.CompletionItem) {
+func (e *Env) AcceptCompletion(path string, pos protocol.Position, item protocol.CompletionItem) {
 	e.T.Helper()
 	if err := e.Editor.AcceptCompletion(e.Ctx, path, pos, item); err != nil {
 		e.T.Fatal(err)

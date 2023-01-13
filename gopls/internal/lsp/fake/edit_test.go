@@ -5,15 +5,16 @@
 package fake
 
 import (
-	"strings"
 	"testing"
+
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
 func TestApplyEdits(t *testing.T) {
 	tests := []struct {
 		label   string
 		content string
-		edits   []Edit
+		edits   []protocol.TextEdit
 		want    string
 		wantErr bool
 	}{
@@ -23,74 +24,56 @@ func TestApplyEdits(t *testing.T) {
 		{
 			label:   "empty edit",
 			content: "hello",
-			edits:   []Edit{},
+			edits:   []protocol.TextEdit{},
 			want:    "hello",
 		},
 		{
 			label:   "unicode edit",
 			content: "hello, 日本語",
-			edits: []Edit{{
-				Start: Pos{Line: 0, Column: 7},
-				End:   Pos{Line: 0, Column: 10},
-				Text:  "world",
-			}},
+			edits: []protocol.TextEdit{
+				NewEdit(0, 7, 0, 10, "world"),
+			},
 			want: "hello, world",
 		},
 		{
 			label:   "range edit",
 			content: "ABC\nDEF\nGHI\nJKL",
-			edits: []Edit{{
-				Start: Pos{Line: 1, Column: 1},
-				End:   Pos{Line: 2, Column: 3},
-				Text:  "12\n345",
-			}},
+			edits: []protocol.TextEdit{
+				NewEdit(1, 1, 2, 3, "12\n345"),
+			},
 			want: "ABC\nD12\n345\nJKL",
 		},
 		{
 			label:   "regression test for issue #57627",
 			content: "go 1.18\nuse moda/a",
-			edits: []Edit{
-				{
-					Start: Pos{Line: 1, Column: 0},
-					End:   Pos{Line: 1, Column: 0},
-					Text:  "\n",
-				},
-				{
-					Start: Pos{Line: 2, Column: 0},
-					End:   Pos{Line: 2, Column: 0},
-					Text:  "\n",
-				},
+			edits: []protocol.TextEdit{
+				NewEdit(1, 0, 1, 0, "\n"),
+				NewEdit(2, 0, 2, 0, "\n"),
 			},
 			want: "go 1.18\n\nuse moda/a\n",
 		},
 		{
 			label:   "end before start",
 			content: "ABC\nDEF\nGHI\nJKL",
-			edits: []Edit{{
-				End:   Pos{Line: 1, Column: 1},
-				Start: Pos{Line: 2, Column: 3},
-				Text:  "12\n345",
-			}},
+			edits: []protocol.TextEdit{
+				NewEdit(2, 3, 1, 1, "12\n345"),
+			},
 			wantErr: true,
 		},
 		{
 			label:   "out of bounds line",
 			content: "ABC\nDEF\nGHI\nJKL",
-			edits: []Edit{{
-				Start: Pos{Line: 1, Column: 1},
-				End:   Pos{Line: 4, Column: 3},
-				Text:  "12\n345",
-			}},
+			edits: []protocol.TextEdit{
+				NewEdit(1, 1, 4, 3, "12\n345"),
+			},
 			wantErr: true,
 		},
 		{
 			label:   "out of bounds column",
 			content: "ABC\nDEF\nGHI\nJKL",
-			edits: []Edit{{
-				Start: Pos{Line: 1, Column: 4},
-				End:   Pos{Line: 2, Column: 3},
-				Text:  "12\n345",
-			}},
+			edits: []protocol.TextEdit{
+				NewEdit(1, 4, 2, 3, "12\n345"),
+			},
 			wantErr: true,
 		},
 	}
@@ -98,15 +81,14 @@ func TestApplyEdits(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.label, func(t *testing.T) {
-			lines := strings.Split(test.content, "\n")
-			newLines, err := applyEdits(lines, test.edits)
+			got, err := applyEdits(protocol.NewMapper("", []byte(test.content)), test.edits, false)
 			if (err != nil) != test.wantErr {
 				t.Errorf("got err %v, want error: %t", err, test.wantErr)
 			}
 			if err != nil {
 				return
 			}
-			if got := strings.Join(newLines, "\n"); got != test.want {
+			if got := string(got); got != test.want {
 				t.Errorf("got %q, want %q", got, test.want)
 			}
 		})

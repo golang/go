@@ -869,7 +869,7 @@ func testVulnDiagnostics(t *testing.T, env *Env, pattern string, want vulnDiagEx
 		var diag *protocol.Diagnostic
 		for _, g := range got.Diagnostics {
 			g := g
-			if g.Range.Start == pos.ToProtocolPosition() && w.msg == g.Message {
+			if g.Range.Start == pos && w.msg == g.Message {
 				modPathDiagnostics = append(modPathDiagnostics, g)
 				diag = &g
 				break

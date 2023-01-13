@@ -96,8 +96,8 @@ func (p Position) Format(f fmt.State, _ rune) {
 
 // -- implementation helpers --
 
-// utf16len returns the number of codes in the UTF-16 transcoding of s.
-func utf16len(s []byte) int {
+// UTF16Len returns the number of codes in the UTF-16 transcoding of s.
+func UTF16Len(s []byte) int {
 	var n int
 	for len(s) > 0 {
 		n++

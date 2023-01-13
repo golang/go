@@ -178,7 +178,7 @@ func toURI(fp string) protocol.DocumentURI {
 }
 
 // ReadFile reads a text file specified by a workdir-relative path.
-func (w *Workdir) ReadFile(path string) (string, error) {
+func (w *Workdir) ReadFile(path string) ([]byte, error) {
 	backoff := 1 * time.Millisecond
 	for {
 		b, err := ioutil.ReadFile(w.AbsPath(path))
@@ -190,29 +190,31 @@ func (w *Workdir) ReadFile(path string) (string, error) {
 				backoff *= 2
 				continue
 			}
-			return "", err
+			return nil, err
 		}
-		return string(b), nil
+		return b, nil
 	}
 }
 
-func (w *Workdir) RegexpRange(path, re string) (Pos, Pos, error) {
+func (w *Workdir) RegexpRange(path, re string) (protocol.Range, error) {
 	content, err := w.ReadFile(path)
 	if err != nil {
-		return Pos{}, Pos{}, err
+		return protocol.Range{}, err
 	}
-	return regexpRange(content, re)
+	mapper := protocol.NewMapper(w.URI(path).SpanURI(), content)
+	return regexpRange(mapper, re)
 }
 
 // RegexpSearch searches the file corresponding to path for the first position
 // matching re.
-func (w *Workdir) RegexpSearch(path string, re string) (Pos, error) {
+func (w *Workdir) RegexpSearch(path string, re string) (protocol.Position, error) {
 	content, err := w.ReadFile(path)
 	if err != nil {
-		return Pos{}, err
+		return protocol.Position{}, err
 	}
-	start, _, err := regexpRange(content, re)
-	return start, err
+	mapper := protocol.NewMapper(w.URI(path).SpanURI(), content)
+	rng, err := regexpRange(mapper, re)
+	return rng.Start, err
 }
 
 // RemoveFile removes a workdir-relative file path and notifies watchers of the

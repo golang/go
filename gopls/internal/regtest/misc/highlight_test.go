@@ -8,7 +8,6 @@ import (
 	"sort"
 	"testing"
 
-	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
@@ -123,7 +122,7 @@ func main() {}`
 	})
 }
 
-func checkHighlights(env *Env, file string, pos fake.Pos, highlightCount int) {
+func checkHighlights(env *Env, file string, pos protocol.Position, highlightCount int) {
 	t := env.T
 	t.Helper()
 

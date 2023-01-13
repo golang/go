@@ -185,7 +185,7 @@ func (m *Mapper) PointPosition(p span.Point) (Position, error) {
 			return Position{}, fmt.Errorf("column is beyond end of line")
 		}
 
-		char := utf16len(m.Content[offset:end])
+		char := UTF16Len(m.Content[offset:end])
 		return Position{Line: uint32(line), Character: uint32(char)}, nil
 	}
 	if p.HasOffset() {
@@ -247,7 +247,7 @@ func (m *Mapper) lineCol16(offset int) (int, int) {
 	line, start, cr := m.line(offset)
 	var col16 int
 	if m.nonASCII {
-		col16 = utf16len(m.Content[start:offset])
+		col16 = UTF16Len(m.Content[start:offset])
 	} else {
 		col16 = offset - start
 	}

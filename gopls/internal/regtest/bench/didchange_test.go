@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"golang.org/x/tools/gopls/internal/lsp/fake"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
 // BenchmarkDidChange benchmarks modifications of a single file by making
@@ -23,15 +23,17 @@ func BenchmarkDidChange(b *testing.B) {
 	env.Await(env.DoneWithOpen())
 
 	// Insert the text we'll be modifying at the top of the file.
-	env.EditBuffer(*file, fake.Edit{Text: "// __REGTEST_PLACEHOLDER_0__\n"})
+	env.EditBuffer(*file, protocol.TextEdit{NewText: "// __REGTEST_PLACEHOLDER_0__\n"})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		env.EditBuffer(*file, fake.Edit{
-			Start: fake.Pos{Line: 0, Column: 0},
-			End:   fake.Pos{Line: 1, Column: 0},
+		env.EditBuffer(*file, protocol.TextEdit{
+			Range: protocol.Range{
+				Start: protocol.Position{Line: 0, Character: 0},
+				End:   protocol.Position{Line: 1, Character: 0},
+			},
 			// Increment the placeholder text, to ensure cache misses.
-			Text: fmt.Sprintf("// __REGTEST_PLACEHOLDER_%d__\n", i+1),
+			NewText: fmt.Sprintf("// __REGTEST_PLACEHOLDER_%d__\n", i+1),
 		})
 		env.Await(env.StartedChange())
 	}

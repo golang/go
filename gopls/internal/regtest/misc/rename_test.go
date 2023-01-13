@@ -37,7 +37,7 @@ func main() {
 		pos := env.RegexpSearch("main.go", `main`)
 		tdpp := protocol.TextDocumentPositionParams{
 			TextDocument: env.Editor.TextDocumentIdentifier("main.go"),
-			Position:     pos.ToProtocolPosition(),
+			Position:     pos,
 		}
 		params := &protocol.PrepareRenameParams{
 			TextDocumentPositionParams: tdpp,
@@ -145,7 +145,7 @@ func main() {
 		pos := env.RegexpSearch("lib/a.go", "lib")
 		tdpp := protocol.TextDocumentPositionParams{
 			TextDocument: env.Editor.TextDocumentIdentifier("lib/a.go"),
-			Position:     pos.ToProtocolPosition(),
+			Position:     pos,
 		}
 		params := &protocol.PrepareRenameParams{
 			TextDocumentPositionParams: tdpp,
