@@ -4229,17 +4229,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if rt == REG_RSP {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
 		}
-		if enc, ok := atomicLDADD[p.As]; ok {
-			// for LDADDx-like instructions, rt can't be r31 when field.enc A is 0, A bit is the 23rd bit.
-			if (rt == REGZERO) && (enc&(1<<23) == 0) {
-				c.ctxt.Diag("illegal destination register: %v\n", p)
-			}
-			o1 |= enc
-		} else if enc, ok := atomicSWP[p.As]; ok {
-			o1 |= enc
-		} else {
-			c.ctxt.Diag("invalid atomic instructions: %v\n", p)
-		}
+
+		o1 = atomicLDADD[p.As] | atomicSWP[p.As]
 		o1 |= uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
 
 	case 48: /* ADD $C_ADDCON2, Rm, Rd */
