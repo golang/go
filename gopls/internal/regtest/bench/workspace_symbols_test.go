@@ -18,7 +18,7 @@ func BenchmarkWorkspaceSymbols(b *testing.B) {
 	env := benchmarkEnv(b)
 
 	// Make an initial symbol query to warm the cache.
-	symbols := env.WorkspaceSymbol(*symbolQuery)
+	symbols := env.Symbol(*symbolQuery)
 
 	if testing.Verbose() {
 		fmt.Println("Results:")
@@ -30,6 +30,6 @@ func BenchmarkWorkspaceSymbols(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		env.WorkspaceSymbol(*symbolQuery)
+		env.Symbol(*symbolQuery)
 	}
 }

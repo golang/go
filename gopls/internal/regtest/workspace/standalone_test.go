@@ -54,7 +54,7 @@ func main() {
 	).Run(t, files, func(t *testing.T, env *Env) {
 		// Initially, gopls should not know about the standalone file as it hasn't
 		// been opened. Therefore, we should only find one symbol 'C'.
-		syms := env.WorkspaceSymbol("C")
+		syms := env.Symbol("C")
 		if got, want := len(syms), 1; got != want {
 			t.Errorf("got %d symbols, want %d", got, want)
 		}
@@ -95,7 +95,7 @@ func main() {
 
 		// Having opened the standalone file, we should find its symbols in the
 		// workspace.
-		syms = env.WorkspaceSymbol("C")
+		syms = env.Symbol("C")
 		if got, want := len(syms), 2; got != want {
 			t.Fatalf("got %d symbols, want %d", got, want)
 		}

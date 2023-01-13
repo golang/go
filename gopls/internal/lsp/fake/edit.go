@@ -9,21 +9,6 @@ import (
 	"golang.org/x/tools/internal/diff"
 )
 
-// Location is the editor friendly equivalent of protocol.Location
-type Location struct {
-	Path  string
-	Range protocol.Range
-}
-
-// SymbolInformation is an editor friendly version of
-// protocol.SymbolInformation, with location information transformed to byte
-// offsets. Field names correspond to the protocol type.
-type SymbolInformation struct {
-	Name     string
-	Kind     protocol.SymbolKind
-	Location Location
-}
-
 // NewEdit creates an edit replacing all content between
 // (startLine, startColumn) and (endLine, endColumn) with text.
 func NewEdit(startLine, startColumn, endLine, endColumn uint32, text string) protocol.TextEdit {

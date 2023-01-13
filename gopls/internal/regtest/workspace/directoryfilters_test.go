@@ -27,7 +27,7 @@ func TestDirectoryFilters(t *testing.T) {
 			"directoryFilters": []string{"-inner"},
 		},
 	).Run(t, workspaceModule, func(t *testing.T, env *Env) {
-		syms := env.WorkspaceSymbol("Hi")
+		syms := env.Symbol("Hi")
 		sort.Slice(syms, func(i, j int) bool { return syms[i].ContainerName < syms[j].ContainerName })
 		for _, s := range syms {
 			if strings.Contains(s.ContainerName, "inner") {
@@ -149,7 +149,7 @@ func TestDirectoryFilters_Wildcard(t *testing.T) {
 			"directoryFilters": filters,
 		},
 	).Run(t, workspaceModule, func(t *testing.T, env *Env) {
-		syms := env.WorkspaceSymbol("Bye")
+		syms := env.Symbol("Bye")
 		sort.Slice(syms, func(i, j int) bool { return syms[i].ContainerName < syms[j].ContainerName })
 		for _, s := range syms {
 			if strings.Contains(s.ContainerName, "bye") {

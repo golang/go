@@ -178,16 +178,6 @@ func (e *Env) GoToDefinition(name string, pos protocol.Position) (string, protoc
 	return n, p
 }
 
-// Symbol returns symbols matching query
-func (e *Env) Symbol(query string) []fake.SymbolInformation {
-	e.T.Helper()
-	r, err := e.Editor.Symbol(e.Ctx, query)
-	if err != nil {
-		e.T.Fatal(err)
-	}
-	return r
-}
-
 // FormatBuffer formats the editor buffer, calling t.Fatal on any error.
 func (e *Env) FormatBuffer(name string) {
 	e.T.Helper()
@@ -394,10 +384,10 @@ func (e *Env) InlayHints(path string) []protocol.InlayHint {
 	return hints
 }
 
-// WorkspaceSymbol calls workspace/symbol
-func (e *Env) WorkspaceSymbol(sym string) []protocol.SymbolInformation {
+// Symbol calls workspace/symbol
+func (e *Env) Symbol(query string) []protocol.SymbolInformation {
 	e.T.Helper()
-	ans, err := e.Editor.Symbols(e.Ctx, sym)
+	ans, err := e.Editor.Symbols(e.Ctx, query)
 	if err != nil {
 		e.T.Fatal(err)
 	}

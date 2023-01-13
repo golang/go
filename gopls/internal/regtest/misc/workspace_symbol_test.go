@@ -34,7 +34,7 @@ const C2 = "exclude.go"
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
-		syms := env.WorkspaceSymbol("C")
+		syms := env.Symbol("C")
 		if got, want := len(syms), 1; got != want {
 			t.Errorf("got %d symbols, want %d", got, want)
 		}
@@ -42,7 +42,7 @@ const C2 = "exclude.go"
 		// Opening up an ignored file will result in an overlay with missing
 		// metadata, but this shouldn't break workspace symbols requests.
 		env.OpenFile("exclude.go")
-		syms = env.WorkspaceSymbol("C")
+		syms = env.Symbol("C")
 		if got, want := len(syms), 1; got != want {
 			t.Errorf("got %d symbols, want %d", got, want)
 		}
@@ -78,7 +78,7 @@ const (
 			"Fooey",  // shorter than Fooest, Foobar
 			"Fooest",
 		}
-		got := env.WorkspaceSymbol("Foo")
+		got := env.Symbol("Foo")
 		compareSymbols(t, got, want)
 	})
 }
@@ -102,11 +102,11 @@ const (
 	WithOptions(
 		Settings{"symbolMatcher": symbolMatcher},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		compareSymbols(t, env.WorkspaceSymbol("ABC"), []string{"ABC", "AxxBxxCxx"})
-		compareSymbols(t, env.WorkspaceSymbol("'ABC"), []string{"ABC"})
-		compareSymbols(t, env.WorkspaceSymbol("^mod.com"), []string{"mod.com/a.ABC", "mod.com/a.AxxBxxCxx"})
-		compareSymbols(t, env.WorkspaceSymbol("^mod.com Axx"), []string{"mod.com/a.AxxBxxCxx"})
-		compareSymbols(t, env.WorkspaceSymbol("C$"), []string{"ABC"})
+		compareSymbols(t, env.Symbol("ABC"), []string{"ABC", "AxxBxxCxx"})
+		compareSymbols(t, env.Symbol("'ABC"), []string{"ABC"})
+		compareSymbols(t, env.Symbol("^mod.com"), []string{"mod.com/a.ABC", "mod.com/a.AxxBxxCxx"})
+		compareSymbols(t, env.Symbol("^mod.com Axx"), []string{"mod.com/a.AxxBxxCxx"})
+		compareSymbols(t, env.Symbol("C$"), []string{"ABC"})
 	})
 }
 

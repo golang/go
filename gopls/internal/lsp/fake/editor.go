@@ -815,29 +815,11 @@ func (e *Editor) extractFirstPathAndPos(ctx context.Context, locs []protocol.Loc
 }
 
 // Symbol performs a workspace symbol search using query
-func (e *Editor) Symbol(ctx context.Context, query string) ([]SymbolInformation, error) {
+func (e *Editor) Symbol(ctx context.Context, query string) ([]protocol.SymbolInformation, error) {
 	params := &protocol.WorkspaceSymbolParams{}
 	params.Query = query
 
-	resp, err := e.Server.Symbol(ctx, params)
-	if err != nil {
-		return nil, fmt.Errorf("symbol: %w", err)
-	}
-	var res []SymbolInformation
-	for _, si := range resp {
-		ploc := si.Location
-		path := e.sandbox.Workdir.URIToPath(ploc.URI)
-		loc := Location{
-			Path:  path,
-			Range: ploc.Range,
-		}
-		res = append(res, SymbolInformation{
-			Name:     si.Name,
-			Kind:     si.Kind,
-			Location: loc,
-		})
-	}
-	return res, nil
+	return e.Server.Symbol(ctx, params)
 }
 
 // OrganizeImports requests and performs the source.organizeImports codeAction.
