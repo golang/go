@@ -342,6 +342,12 @@ const (
 	// the executable file is mapped in memory.
 	R_PEIMAGEOFF
 
+	// R_INITORDER specifies an ordering edge between two inittask records.
+	// (From one p..inittask record to another one.)
+	// This relocation does not apply any changes to the actual data, it is
+	// just used in the linker to order the inittask records appropriately.
+	R_INITORDER
+
 	// R_WEAK marks the relocation as a weak reference.
 	// A weak relocation does not make the symbol it refers to reachable,
 	// and is only honored by the linker if the symbol is in some other way

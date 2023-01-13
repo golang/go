@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
 	"os"
@@ -201,14 +202,19 @@ func Task() *ir.Name {
 	sym.Def = task
 	lsym := task.Linksym()
 	ot := 0
-	ot = objw.Uintptr(lsym, ot, 0) // state: not initialized yet
-	ot = objw.Uintptr(lsym, ot, uint64(len(deps)))
-	ot = objw.Uintptr(lsym, ot, uint64(len(fns)))
-	for _, d := range deps {
-		ot = objw.SymPtr(lsym, ot, d, 0)
-	}
+	ot = objw.Uint32(lsym, ot, 0) // state: not initialized yet
+	ot = objw.Uint32(lsym, ot, uint32(len(fns)))
 	for _, f := range fns {
 		ot = objw.SymPtr(lsym, ot, f, 0)
+	}
+
+	// Add relocations which tell the linker all of the packages
+	// that this package depends on (and thus, all of the packages
+	// that need to be initialized before this one).
+	for _, d := range deps {
+		r := obj.Addrel(lsym)
+		r.Type = objabi.R_INITORDER
+		r.Sym = d
 	}
 	// An initTask has pointers, but none into the Go heap.
 	// It's not quite read only, the state field must be modifiable.

@@ -117,11 +117,9 @@ var (
 	raceprocctx0 uintptr
 )
 
-//go:linkname runtime_inittask runtime..inittask
-var runtime_inittask initTask
-
-//go:linkname main_inittask main..inittask
-var main_inittask initTask
+// This slice records the initializing tasks that need to be
+// done to start up the runtime. It is built by the linker.
+var runtime_inittasks []*initTask
 
 // main_init_done is a signal used by cgocallbackg that initialization
 // has been completed. It is made before _cgo_notify_runtime_init_done,
@@ -196,7 +194,7 @@ func main() {
 		inittrace.active = true
 	}
 
-	doInit(&runtime_inittask) // Must be before defer.
+	doInit(runtime_inittasks) // Must be before defer.
 
 	// Defer unlock so that runtime.Goexit during init does the unlock too.
 	needUnlock := true
@@ -241,7 +239,14 @@ func main() {
 		cgocall(_cgo_notify_runtime_init_done, nil)
 	}
 
-	doInit(&main_inittask)
+	// Run the initializing tasks. Depending on build mode this
+	// list can arrive a few different ways, but it will always
+	// contain the init tasks computed by the linker for all the
+	// packages in the program (excluding those added at runtime
+	// by package plugin).
+	for _, m := range activeModules() {
+		doInit(m.inittasks)
+	}
 
 	// Disable init tracing after main init done to avoid overhead
 	// of collecting statistics in malloc and newproc
@@ -6520,14 +6525,11 @@ func gcd(a, b uint32) uint32 {
 }
 
 // An initTask represents the set of initializations that need to be done for a package.
-// Keep in sync with ../../test/initempty.go:initTask
+// Keep in sync with ../../test/noinit.go:initTask
 type initTask struct {
-	// TODO: pack the first 3 fields more tightly?
-	state uintptr // 0 = uninitialized, 1 = in progress, 2 = done
-	ndeps uintptr
-	nfns  uintptr
-	// followed by ndeps instances of an *initTask, one per package depended on
-	// followed by nfns pcs, one per init function to run
+	state uint32 // 0 = uninitialized, 1 = in progress, 2 = done
+	nfns  uint32
+	// followed by nfns pcs, uintptr sized, one per init function to run
 }
 
 // inittrace stores statistics for init functions which are
@@ -6541,7 +6543,13 @@ type tracestat struct {
 	bytes  uint64 // heap allocated bytes
 }
 
-func doInit(t *initTask) {
+func doInit(ts []*initTask) {
+	for _, t := range ts {
+		doInit1(t)
+	}
+}
+
+func doInit1(t *initTask) {
 	switch t.state {
 	case 2: // fully initialized
 		return
@@ -6549,17 +6557,6 @@ func doInit(t *initTask) {
 		throw("recursive call during initialization - linker skew")
 	default: // not initialized yet
 		t.state = 1 // initialization in progress
-
-		for i := uintptr(0); i < t.ndeps; i++ {
-			p := add(unsafe.Pointer(t), (3+i)*goarch.PtrSize)
-			t2 := *(**initTask)(p)
-			doInit(t2)
-		}
-
-		if t.nfns == 0 {
-			t.state = 2 // initialization done
-			return
-		}
 
 		var (
 			start  int64
@@ -6572,9 +6569,14 @@ func doInit(t *initTask) {
 			before = inittrace
 		}
 
-		firstFunc := add(unsafe.Pointer(t), (3+t.ndeps)*goarch.PtrSize)
-		for i := uintptr(0); i < t.nfns; i++ {
-			p := add(firstFunc, i*goarch.PtrSize)
+		if t.nfns == 0 {
+			// We should have pruned all of these in the linker.
+			throw("inittask with no functions")
+		}
+
+		firstFunc := add(unsafe.Pointer(t), 8)
+		for i := uint32(0); i < t.nfns; i++ {
+			p := add(firstFunc, uintptr(i)*goarch.PtrSize)
 			f := *(*func())(unsafe.Pointer(&p))
 			f()
 		}

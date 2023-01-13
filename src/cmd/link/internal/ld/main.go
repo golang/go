@@ -276,6 +276,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("loadlib")
 	ctxt.loadlib()
 
+	bench.Start("inittasks")
+	ctxt.inittasks()
+
 	bench.Start("deadcode")
 	deadcode(ctxt)
 

@@ -113,6 +113,9 @@ func (d *deadcodePass) init() {
 	if d.mapinitnoop == 0 {
 		panic("could not look up runtime.mapinitnoop")
 	}
+	if d.ctxt.mainInittasks != 0 {
+		d.mark(d.ctxt.mainInittasks, 0)
+	}
 }
 
 func (d *deadcodePass) flood() {
@@ -208,6 +211,11 @@ func (d *deadcodePass) flood() {
 				}
 				d.genericIfaceMethod[name] = true
 				continue // don't mark referenced symbol - it is not needed in the final binary.
+			case objabi.R_INITORDER:
+				// inittasks has already run, so any R_INITORDER links are now
+				// superfluous - the only live inittask records are those which are
+				// in a scheduled list somewhere (e.g. runtime.moduledata.inittasks).
+				continue
 			}
 			rs := r.Sym()
 			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
