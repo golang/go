@@ -133,6 +133,10 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 
 	var key *ecdh.PrivateKey
 	if hello.supportedVersions[0] == VersionTLS13 {
+		// Reset the list of ciphers when the client only supports TLS 1.3.
+		if len(hello.supportedVersions) == 1 {
+			hello.cipherSuites = nil
+		}
 		if hasAESGCMHardwareSupport {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
 		} else {

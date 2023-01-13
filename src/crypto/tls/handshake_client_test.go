@@ -2658,3 +2658,66 @@ func TestClientHandshakeContextCancellation(t *testing.T) {
 		t.Error("Client connection was not closed when the context was canceled")
 	}
 }
+
+// TestTLS13OnlyClientHelloCipherSuite tests that when a client states that
+// it only supports TLS 1.3, it correctly advertises only TLS 1.3 ciphers.
+func TestTLS13OnlyClientHelloCipherSuite(t *testing.T) {
+	tls13Tests := []struct {
+		name    string
+		ciphers []uint16
+	}{
+		{
+			name:    "nil",
+			ciphers: nil,
+		},
+		{
+			name:    "empty",
+			ciphers: []uint16{},
+		},
+		{
+			name:    "some TLS 1.2 cipher",
+			ciphers: []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+		},
+		{
+			name:    "some TLS 1.3 cipher",
+			ciphers: []uint16{TLS_AES_128_GCM_SHA256},
+		},
+		{
+			name:    "some TLS 1.2 and 1.3 ciphers",
+			ciphers: []uint16{TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_AES_256_GCM_SHA384},
+		},
+	}
+	for _, tt := range tls13Tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			testTLS13OnlyClientHelloCipherSuite(t, tt.ciphers)
+		})
+	}
+}
+
+func testTLS13OnlyClientHelloCipherSuite(t *testing.T, ciphers []uint16) {
+	serverConfig := &Config{
+		Certificates: testConfig.Certificates,
+		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
+			if len(chi.CipherSuites) != len(defaultCipherSuitesTLS13NoAES) {
+				t.Errorf("only TLS 1.3 suites should be advertised, got=%x", chi.CipherSuites)
+			} else {
+				for i := range defaultCipherSuitesTLS13NoAES {
+					if want, got := defaultCipherSuitesTLS13NoAES[i], chi.CipherSuites[i]; want != got {
+						t.Errorf("cipher at index %d does not match, want=%x, got=%x", i, want, got)
+					}
+				}
+			}
+			return nil, nil
+		},
+	}
+	clientConfig := &Config{
+		MinVersion:         VersionTLS13, // client only supports TLS 1.3
+		CipherSuites:       ciphers,
+		InsecureSkipVerify: true,
+	}
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+		t.Fatalf("handshake failed: %s", err)
+	}
+}
