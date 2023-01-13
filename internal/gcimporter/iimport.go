@@ -373,22 +373,47 @@ func (p *iimporter) fileAt(index uint64) *token.File {
 	file := p.fileCache[index]
 	if file == nil {
 		off := p.fileOffset[index]
-		rd := intReader{bytes.NewReader(p.fileData[off:]), p.ipath}
-		filename := p.stringAt(rd.uint64())
-		size := int(rd.uint64())
-		file = p.fake.fset.AddFile(filename, -1, size)
-
-		if n := int(rd.uint64()); n > 0 {
-			lines := make([]int, n) // initial element always implicitly zero
-			for i := 1; i < n; i++ {
-				lines[i] = lines[i-1] + int(rd.uint64())
-			}
-			if !file.SetLines(lines) {
-				errorf("SetLines failed") // can't happen
-			}
-		}
-
+		file = p.decodeFile(intReader{bytes.NewReader(p.fileData[off:]), p.ipath})
 		p.fileCache[index] = file
+	}
+	return file
+}
+
+func (p *iimporter) decodeFile(rd intReader) *token.File {
+	filename := p.stringAt(rd.uint64())
+	size := int(rd.uint64())
+	file := p.fake.fset.AddFile(filename, -1, size)
+
+	// SetLines requires a nondecreasing sequence.
+	// Because it is common for clients to derive the interval
+	// [start, start+len(name)] from a start position, and we
+	// want to ensure that the end offset is on the same line,
+	// we fill in the gaps of the sparse encoding with values
+	// that strictly increase by the largest possible amount.
+	// This allows us to avoid having to record the actual end
+	// offset of each needed line.
+
+	lines := make([]int, int(rd.uint64()))
+	var index, offset int
+	for i, n := 0, int(rd.uint64()); i < n; i++ {
+		index += int(rd.uint64())
+		offset += int(rd.uint64())
+		lines[index] = offset
+
+		// Ensure monotonicity between points.
+		for j := index - 1; j > 0 && lines[j] == 0; j-- {
+			lines[j] = lines[j+1] - 1
+		}
+	}
+
+	// Ensure monotonicity after last point.
+	for j := len(lines) - 1; j > 0 && lines[j] == 0; j-- {
+		size--
+		lines[j] = size
+	}
+
+	if !file.SetLines(lines) {
+		errorf("SetLines failed: %d", lines) // can't happen
 	}
 	return file
 }

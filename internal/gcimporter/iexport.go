@@ -147,24 +147,7 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 		fileOffset = make([]uint64, len(p.fileInfos))
 		for i, info := range p.fileInfos {
 			fileOffset[i] = uint64(files.Len())
-
-			files.uint64(p.stringOff(info.file.Name()))
-			files.uint64(uint64(info.file.Size()))
-
-			// Delta-encode the line offsets, omitting the initial zero.
-			// (An empty file has an empty lines array.)
-			//
-			// TODO(adonovan): opt: use a two-pass approach that
-			// first gathers the set of Pos values and then
-			// encodes only the information necessary for them.
-			// This would allow us to discard the lines after the
-			// last object of interest and to run-length encode the
-			// trivial lines between lines with needed positions.
-			lines := getLines(info.file)
-			files.uint64(uint64(len(lines)))
-			for i := 1; i < len(lines); i++ {
-				files.uint64(uint64(lines[i] - lines[i-1]))
-			}
+			p.encodeFile(&files, info.file, info.needed)
 		}
 	}
 
@@ -211,6 +194,55 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 	io.Copy(out, &p.data0)
 
 	return nil
+}
+
+// encodeFile writes to w a representation of the file sufficient to
+// faithfully restore position information about all needed offsets.
+// Mutates the needed array.
+func (p *iexporter) encodeFile(w *intWriter, file *token.File, needed []uint64) {
+	_ = needed[0] // precondition: needed is non-empty
+
+	w.uint64(p.stringOff(file.Name()))
+
+	size := uint64(file.Size())
+	w.uint64(size)
+
+	// Sort the set of needed offsets. Duplicates are harmless.
+	sort.Slice(needed, func(i, j int) bool { return needed[i] < needed[j] })
+
+	lines := getLines(file) // byte offset of each line start
+	w.uint64(uint64(len(lines)))
+
+	// Rather than record the entire array of line start offsets,
+	// we save only a sparse list of (index, offset) pairs for
+	// the start of each line that contains a needed position.
+	var sparse [][2]int // (index, offset) pairs
+outer:
+	for i, lineStart := range lines {
+		lineEnd := size
+		if i < len(lines)-1 {
+			lineEnd = uint64(lines[i+1])
+		}
+		// Does this line contains a needed offset?
+		if needed[0] < lineEnd {
+			sparse = append(sparse, [2]int{i, lineStart})
+			for needed[0] < lineEnd {
+				needed = needed[1:]
+				if len(needed) == 0 {
+					break outer
+				}
+			}
+		}
+	}
+
+	// Delta-encode the columns.
+	w.uint64(uint64(len(sparse)))
+	var prev [2]int
+	for _, pair := range sparse {
+		w.uint64(uint64(pair[0] - prev[0]))
+		w.uint64(uint64(pair[1] - prev[1]))
+		prev = pair
+	}
 }
 
 // writeIndex writes out an object index. mainIndex indicates whether
@@ -311,7 +343,7 @@ type iexporter struct {
 
 type filePositions struct {
 	file   *token.File
-	needed []token.Pos // unordered list of needed positions
+	needed []uint64 // unordered list of needed file offsets
 }
 
 func (p *iexporter) trace(format string, args ...interface{}) {
@@ -337,8 +369,8 @@ func (p *iexporter) stringOff(s string) uint64 {
 	return off
 }
 
-// fileIndex returns the index of the token.File.
-func (p *iexporter) fileIndex(file *token.File, pos token.Pos) uint64 {
+// fileIndex returns the index of the token.File and the byte offset of pos within it.
+func (p *iexporter) fileIndexAndOffset(file *token.File, pos token.Pos) (uint64, uint64) {
 	index, ok := p.fileInfo[file]
 	if !ok {
 		index = uint64(len(p.fileInfo))
@@ -348,10 +380,12 @@ func (p *iexporter) fileIndex(file *token.File, pos token.Pos) uint64 {
 		}
 		p.fileInfo[file] = index
 	}
-	// Record each needed position.
+	// Record each needed offset.
 	info := p.fileInfos[index]
-	info.needed = append(info.needed, pos)
-	return index
+	offset := uint64(file.Offset(pos))
+	info.needed = append(info.needed, offset)
+
+	return index, offset
 }
 
 // pushDecl adds n to the declaration work queue, if not already present.
@@ -551,8 +585,9 @@ func (w *exportWriter) posV2(pos token.Pos) {
 		return
 	}
 	file := w.p.fset.File(pos) // fset must be non-nil
-	w.uint64(1 + w.p.fileIndex(file, pos))
-	w.uint64(uint64(file.Offset(pos)))
+	index, offset := w.p.fileIndexAndOffset(file, pos)
+	w.uint64(1 + index)
+	w.uint64(offset)
 }
 
 func (w *exportWriter) posV1(pos token.Pos) {

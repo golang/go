@@ -171,23 +171,56 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 // corresponds to its source location: in other words,
 // export+import preserves high-fidelity positions.
 func postTypeCheck(t *testing.T, fset *token.FileSet, pkg *types.Package) {
-	if pkg.Path() == "fmt" {
-		obj := pkg.Scope().Lookup("Println")
-		posn := fset.Position(obj.Pos())
-		data, err := os.ReadFile(posn.Filename)
-		if err != nil {
-			t.Errorf("can't read source file declaring fmt.Println: %v", err)
-			return
-		}
-		// Check line and column.
-		line := strings.Split(string(data), "\n")[posn.Line-1]
+	// We hard-code a few interesting test-case objects.
+	var obj types.Object
+	switch pkg.Path() {
+	case "fmt":
+		// func fmt.Println
+		obj = pkg.Scope().Lookup("Println")
+	case "net/http":
+		// method (*http.Request).ParseForm
+		req := pkg.Scope().Lookup("Request")
+		obj, _, _ = types.LookupFieldOrMethod(req.Type(), true, pkg, "ParseForm")
+	default:
+		return
+	}
+	if obj == nil {
+		t.Errorf("object not found in package %s", pkg.Path())
+		return
+	}
 
-		if id := line[posn.Column-1 : posn.Column-1+len(obj.Name())]; id != "Println" {
-			t.Errorf("%+v: expected declaration of fmt.Println at this line, column; got %q", posn, line)
-		}
-		// Check offset.
-		if id := string(data[posn.Offset : posn.Offset+len(obj.Name())]); id != "Println" {
-			t.Errorf("%+v: expected declaration of fmt.Println at this offset; got %q", posn, id)
-		}
+	// Now check the source fidelity of the object's position.
+	posn := fset.Position(obj.Pos())
+	data, err := os.ReadFile(posn.Filename)
+	if err != nil {
+		t.Errorf("can't read source file declaring %v: %v", obj, err)
+		return
+	}
+
+	// Check line and column denote a source interval containing the object's identifier.
+	line := strings.Split(string(data), "\n")[posn.Line-1]
+
+	if id := line[posn.Column-1 : posn.Column-1+len(obj.Name())]; id != obj.Name() {
+		t.Errorf("%+v: expected declaration of %v at this line, column; got %q", posn, obj, line)
+	}
+
+	// Check offset.
+	if id := string(data[posn.Offset : posn.Offset+len(obj.Name())]); id != obj.Name() {
+		t.Errorf("%+v: expected declaration of %v at this offset; got %q", posn, obj, id)
+	}
+
+	// Check commutativity of Position() and start+len(name) operations:
+	// Position(startPos+len(name)) == Position(startPos) + len(name).
+	// This important property is a consequence of the way in which the
+	// decoder fills the gaps in the sparse line-start offset table.
+	endPosn := fset.Position(obj.Pos() + token.Pos(len(obj.Name())))
+	wantEndPosn := token.Position{
+		Filename: posn.Filename,
+		Offset:   posn.Offset + len(obj.Name()),
+		Line:     posn.Line,
+		Column:   posn.Column + len(obj.Name()),
+	}
+	if endPosn != wantEndPosn {
+		t.Errorf("%+v: expected end Position of %v here; was at %+v", wantEndPosn, obj, endPosn)
 	}
 }
