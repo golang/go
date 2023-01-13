@@ -23,12 +23,12 @@ import (
 // moduleWalkErr returns filepath.SkipDir if the directory isn't relevant
 // when indexing a module or generating a filehash, ErrNotIndexed,
 // if the module shouldn't be indexed, and nil otherwise.
-func moduleWalkErr(modroot string, path string, info fs.FileInfo, err error) error {
+func moduleWalkErr(root string, path string, info fs.FileInfo, err error) error {
 	if err != nil {
 		return ErrNotIndexed
 	}
 	// stop at module boundaries
-	if info.IsDir() && path != modroot {
+	if info.IsDir() && path != root {
 		if fi, err := fsys.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
 			return filepath.SkipDir
 		}
@@ -52,18 +52,23 @@ func moduleWalkErr(modroot string, path string, info fs.FileInfo, err error) err
 func indexModule(modroot string) ([]byte, error) {
 	fsys.Trace("indexModule", modroot)
 	var packages []*rawPackage
-	err := fsys.Walk(modroot, func(path string, info fs.FileInfo, err error) error {
-		if err := moduleWalkErr(modroot, path, info, err); err != nil {
+
+	// If the root itself is a symlink to a directory,
+	// we want to follow it (see https://go.dev/issue/50807).
+	// Add a trailing separator to force that to happen.
+	root := str.WithFilePathSeparator(modroot)
+	err := fsys.Walk(root, func(path string, info fs.FileInfo, err error) error {
+		if err := moduleWalkErr(root, path, info, err); err != nil {
 			return err
 		}
 
 		if !info.IsDir() {
 			return nil
 		}
-		if !str.HasFilePathPrefix(path, modroot) {
+		if !strings.HasPrefix(path, root) {
 			panic(fmt.Errorf("path %v in walk doesn't have modroot %v as prefix", path, modroot))
 		}
-		rel := str.TrimFilePathPrefix(path, modroot)
+		rel := path[len(root):]
 		packages = append(packages, importRaw(modroot, rel))
 		return nil
 	})

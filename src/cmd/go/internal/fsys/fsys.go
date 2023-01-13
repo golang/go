@@ -295,6 +295,10 @@ func parentIsOverlayFile(name string) (string, bool) {
 // return an error.
 var errNotDir = errors.New("not a directory")
 
+func nonFileInOverlayError(overlayPath string) error {
+	return fmt.Errorf("replacement path %q is a directory, not a file", overlayPath)
+}
+
 // readDir reads a dir on disk, returning an error that is errNotDir if the dir is not a directory.
 // Unfortunately, the error returned by os.ReadDir if dir is not a directory
 // can vary depending on the OS (Linux, Mac, Windows return ENOTDIR; BSD returns EINVAL).
@@ -354,18 +358,21 @@ func ReadDir(dir string) ([]fs.FileInfo, error) {
 		case to.isDeleted():
 			delete(files, name)
 		default:
-			// This is a regular file.
-			f, err := os.Lstat(to.actualFilePath)
+			// To keep the data model simple, if the overlay contains a symlink we
+			// always stat through it (using Stat, not Lstat). That way we don't need
+			// to worry about the interaction between Lstat and directories: if a
+			// symlink in the overlay points to a directory, we reject it like an
+			// ordinary directory.
+			fi, err := os.Stat(to.actualFilePath)
 			if err != nil {
 				files[name] = missingFile(name)
 				continue
-			} else if f.IsDir() {
-				return nil, fmt.Errorf("for overlay of %q to %q: overlay Replace entries can't point to directories",
-					filepath.Join(dir, name), to.actualFilePath)
+			} else if fi.IsDir() {
+				return nil, &fs.PathError{Op: "Stat", Path: filepath.Join(dir, name), Err: nonFileInOverlayError(to.actualFilePath)}
 			}
 			// Add a fileinfo for the overlaid file, so that it has
 			// the original file's name, but the overlaid file's metadata.
-			files[name] = fakeFile{name, f}
+			files[name] = fakeFile{name, fi}
 		}
 	}
 	sortedFiles := diskfis[:0]
@@ -541,13 +548,21 @@ func overlayStat(path string, osStat func(string) (fs.FileInfo, error), opName s
 
 	switch {
 	case node.isDeleted():
-		return nil, &fs.PathError{Op: "lstat", Path: cpath, Err: fs.ErrNotExist}
+		return nil, &fs.PathError{Op: opName, Path: cpath, Err: fs.ErrNotExist}
 	case node.isDir():
 		return fakeDir(filepath.Base(path)), nil
 	default:
-		fi, err := osStat(node.actualFilePath)
+		// To keep the data model simple, if the overlay contains a symlink we
+		// always stat through it (using Stat, not Lstat). That way we don't need to
+		// worry about the interaction between Lstat and directories: if a symlink
+		// in the overlay points to a directory, we reject it like an ordinary
+		// directory.
+		fi, err := os.Stat(node.actualFilePath)
 		if err != nil {
 			return nil, err
+		}
+		if fi.IsDir() {
+			return nil, &fs.PathError{Op: opName, Path: cpath, Err: nonFileInOverlayError(node.actualFilePath)}
 		}
 		return fakeFile{name: filepath.Base(path), real: fi}, nil
 	}

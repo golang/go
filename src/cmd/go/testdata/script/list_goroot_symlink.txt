@@ -55,7 +55,6 @@ stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$
 # So we check such a pattern to confirm that it works and reports a path relative
 # to $GOROOT/src (and not the symlink target).
 
-	# BUG(#50807): This should report encoding/binary, not "matched no packages".
 exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' .../binary
-! stdout .
-stderr '^go: warning: "\.\.\./binary" matched no packages$'
+stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
+! stderr .

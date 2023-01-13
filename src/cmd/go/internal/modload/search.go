@@ -23,6 +23,7 @@ import (
 	"cmd/go/internal/modindex"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/pkgpattern"
 
@@ -77,7 +78,10 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 		_, span := trace.StartSpan(ctx, "walkPkgs "+root)
 		defer span.Done()
 
-		root = filepath.Clean(root)
+		// If the root itself is a symlink to a directory,
+		// we want to follow it (see https://go.dev/issue/50807).
+		// Add a trailing separator to force that to happen.
+		root = str.WithFilePathSeparator(filepath.Clean(root))
 		err := fsys.Walk(root, func(pkgDir string, fi fs.FileInfo, err error) error {
 			if err != nil {
 				m.AddError(err)
@@ -100,9 +104,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 				}
 			}
 
-			rel := strings.TrimPrefix(filepath.ToSlash(pkgDir[len(root):]), "/")
-			name := path.Join(importPathRoot, rel)
-
+			name := path.Join(importPathRoot, filepath.ToSlash(pkgDir[len(root):]))
 			if !treeCanMatch(name) {
 				want = false
 			}

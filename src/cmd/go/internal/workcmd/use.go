@@ -131,7 +131,10 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		// Add or remove entries for any subdirectories that still exist.
-		fsys.Walk(useDir, func(path string, info fs.FileInfo, err error) error {
+		// If the root itself is a symlink to a directory,
+		// we want to follow it (see https://go.dev/issue/50807).
+		// Add a trailing separator to force that to happen.
+		fsys.Walk(str.WithFilePathSeparator(useDir), func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}

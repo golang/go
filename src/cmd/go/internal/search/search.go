@@ -125,11 +125,16 @@ func (m *Match) MatchPackages() {
 		if (m.pattern == "std" || m.pattern == "cmd") && src != cfg.GOROOTsrc {
 			continue
 		}
+
+		// If the root itself is a symlink to a directory,
+		// we want to follow it (see https://go.dev/issue/50807).
+		// Add a trailing separator to force that to happen.
 		src = str.WithFilePathSeparator(filepath.Clean(src))
 		root := src
 		if m.pattern == "cmd" {
 			root += "cmd" + string(filepath.Separator)
 		}
+
 		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
 			if err != nil {
 				return err // Likely a permission error, which could interfere with matching.
@@ -269,6 +274,10 @@ func (m *Match) MatchDirs(modRoots []string) {
 		}
 	}
 
+	// If dir is actually a symlink to a directory,
+	// we want to follow it (see https://go.dev/issue/50807).
+	// Add a trailing separator to force that to happen.
+	dir = str.WithFilePathSeparator(dir)
 	err := fsys.Walk(dir, func(path string, fi fs.FileInfo, err error) error {
 		if err != nil {
 			return err // Likely a permission error, which could interfere with matching.
