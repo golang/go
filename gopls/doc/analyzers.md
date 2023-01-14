@@ -48,7 +48,7 @@ check for common mistakes involving boolean operators
 
 ## **buildtag**
 
-check that +build tags are well-formed and correctly located
+check //go:build and // +build directives
 
 **Enabled by default.**
 
@@ -105,6 +105,26 @@ The deepequalerrors checker looks for calls of the form:
 
 where err1 and err2 are errors. Using reflect.DeepEqual to compare
 errors is discouraged.
+
+**Enabled by default.**
+
+## **directive**
+
+check Go toolchain directives such as //go:debug
+
+This analyzer checks for problems with known Go toolchain directives
+in all Go source files in a package directory, even those excluded by
+//go:build constraints, and all non-Go source files too.
+
+For //go:debug (see https://go.dev/doc/godebug), the analyzer checks
+that the directives are placed only in Go source files, only above the
+package comment, and only in package main or *_test.go files.
+
+Support for other known directives may be added in the future.
+
+This analyzer does not check //go:build, which is handled by the
+buildtag analyzer.
+
 
 **Enabled by default.**
 
