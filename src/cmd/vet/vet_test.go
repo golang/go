@@ -71,6 +71,7 @@ func TestVet(t *testing.T) {
 		"composite",
 		"copylock",
 		"deadcode",
+		"directive",
 		"httpresponse",
 		"lostcancel",
 		"method",
