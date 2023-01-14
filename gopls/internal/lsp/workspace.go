@@ -46,7 +46,6 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChangeConfigurationParams) error {
 	// Apply any changes to the session-level settings.
 	options := s.session.Options().Clone()
-	semanticTokensRegistered := options.SemanticTokens
 	if err := s.fetchConfig(ctx, "", "", options); err != nil {
 		return err
 	}
@@ -75,26 +74,6 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 	// An options change may have affected the detected Go version.
 	s.checkViewGoVersions()
 
-	registration := semanticTokenRegistration(options.SemanticTypes, options.SemanticMods)
-	// Update any session-specific registrations or unregistrations.
-	if !semanticTokensRegistered && options.SemanticTokens {
-		if err := s.client.RegisterCapability(ctx, &protocol.RegistrationParams{
-			Registrations: []protocol.Registration{registration},
-		}); err != nil {
-			return err
-		}
-	} else if semanticTokensRegistered && !options.SemanticTokens {
-		if err := s.client.UnregisterCapability(ctx, &protocol.UnregistrationParams{
-			Unregisterations: []protocol.Unregistration{
-				{
-					ID:     registration.ID,
-					Method: registration.Method,
-				},
-			},
-		}); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 

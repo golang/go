@@ -753,7 +753,8 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 	o.LineFoldingOnly = fr.LineFoldingOnly
 	// Check if the client supports hierarchical document symbols.
 	o.HierarchicalDocumentSymbolSupport = caps.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport
-	// Check if the client supports semantic tokens
+
+	// Client's semantic tokens
 	o.SemanticTypes = caps.TextDocument.SemanticTokens.TokenTypes
 	o.SemanticMods = caps.TextDocument.SemanticTokens.TokenModifiers
 	// we don't need Requests, as we support full functionality
