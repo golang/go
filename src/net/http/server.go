@@ -2278,7 +2278,7 @@ func RedirectHandler(url string, code int) Handler {
 // Longer patterns take precedence over shorter ones, so that
 // if there are handlers registered for both "/images/"
 // and "/images/thumbnails/", the latter handler will be
-// called for paths beginning "/images/thumbnails/" and the
+// called for paths beginning with "/images/thumbnails/" and the
 // former will receive requests for any other paths in the
 // "/images/" subtree.
 //
