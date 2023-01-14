@@ -1973,36 +1973,46 @@ func Signalfd(fd int, sigmask *Sigset_t, flags int) (newfd int, err error) {
 //sys	preadv2(fd int, iovs []Iovec, offs_l uintptr, offs_h uintptr, flags int) (n int, err error) = SYS_PREADV2
 //sys	pwritev2(fd int, iovs []Iovec, offs_l uintptr, offs_h uintptr, flags int) (n int, err error) = SYS_PWRITEV2
 
-func bytes2iovec(bs [][]byte) []Iovec {
-	iovecs := make([]Iovec, len(bs))
-	for i, b := range bs {
-		iovecs[i].SetLen(len(b))
+// minIovec is the size of the small initial allocation used by
+// Readv, Writev, etc.
+//
+// This small allocation gets stack allocated, which lets the
+// common use case of len(iovs) <= minIovs avoid more expensive
+// heap allocations.
+const minIovec = 8
+
+// appendBytes converts bs to Iovecs and appends them to vecs.
+func appendBytes(vecs []Iovec, bs [][]byte) []Iovec {
+	for _, b := range bs {
+		var v Iovec
+		v.SetLen(len(b))
 		if len(b) > 0 {
-			iovecs[i].Base = &b[0]
+			v.Base = &b[0]
 		} else {
-			iovecs[i].Base = (*byte)(unsafe.Pointer(&_zero))
+			v.Base = (*byte)(unsafe.Pointer(&_zero))
 		}
+		vecs = append(vecs, v)
 	}
-	return iovecs
+	return vecs
 }
 
-// offs2lohi splits offs into its lower and upper unsigned long. On 64-bit
-// systems, hi will always be 0. On 32-bit systems, offs will be split in half.
-// preadv/pwritev chose this calling convention so they don't need to add a
-// padding-register for alignment on ARM.
+// offs2lohi splits offs into its low and high order bits.
 func offs2lohi(offs int64) (lo, hi uintptr) {
-	return uintptr(offs), uintptr(uint64(offs) >> SizeofLong)
+	const longBits = SizeofLong * 8
+	return uintptr(offs), uintptr(uint64(offs) >> (longBits - 1) >> 1) // two shifts to avoid false positive in vet
 }
 
 func Readv(fd int, iovs [][]byte) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	n, err = readv(fd, iovecs)
 	readvRacedetect(iovecs, n, err)
 	return n, err
 }
 
 func Preadv(fd int, iovs [][]byte, offset int64) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	lo, hi := offs2lohi(offset)
 	n, err = preadv(fd, iovecs, lo, hi)
 	readvRacedetect(iovecs, n, err)
@@ -2010,7 +2020,8 @@ func Preadv(fd int, iovs [][]byte, offset int64) (n int, err error) {
 }
 
 func Preadv2(fd int, iovs [][]byte, offset int64, flags int) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	lo, hi := offs2lohi(offset)
 	n, err = preadv2(fd, iovecs, lo, hi, flags)
 	readvRacedetect(iovecs, n, err)
@@ -2037,7 +2048,8 @@ func readvRacedetect(iovecs []Iovec, n int, err error) {
 }
 
 func Writev(fd int, iovs [][]byte) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	if raceenabled {
 		raceReleaseMerge(unsafe.Pointer(&ioSync))
 	}
@@ -2047,7 +2059,8 @@ func Writev(fd int, iovs [][]byte) (n int, err error) {
 }
 
 func Pwritev(fd int, iovs [][]byte, offset int64) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	if raceenabled {
 		raceReleaseMerge(unsafe.Pointer(&ioSync))
 	}
@@ -2058,7 +2071,8 @@ func Pwritev(fd int, iovs [][]byte, offset int64) (n int, err error) {
 }
 
 func Pwritev2(fd int, iovs [][]byte, offset int64, flags int) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	if raceenabled {
 		raceReleaseMerge(unsafe.Pointer(&ioSync))
 	}

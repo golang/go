@@ -58,22 +58,22 @@ type Rlimit struct {
 type _Gid_t uint32
 
 type Stat_t struct {
-	Mode           uint32
-	Dev            int32
-	Ino            uint64
-	Nlink          uint32
-	Uid            uint32
-	Gid            uint32
-	Rdev           int32
-	Atim           Timespec
-	Mtim           Timespec
-	Ctim           Timespec
-	Size           int64
-	Blocks         int64
-	Blksize        uint32
-	Flags          uint32
-	Gen            uint32
-	X__st_birthtim Timespec
+	Mode    uint32
+	Dev     int32
+	Ino     uint64
+	Nlink   uint32
+	Uid     uint32
+	Gid     uint32
+	Rdev    int32
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Size    int64
+	Blocks  int64
+	Blksize int32
+	Flags   uint32
+	Gen     uint32
+	_       Timespec
 }
 
 type Statfs_t struct {
@@ -98,7 +98,7 @@ type Statfs_t struct {
 	F_mntonname   [90]byte
 	F_mntfromname [90]byte
 	F_mntfromspec [90]byte
-	Pad_cgo_0     [2]byte
+	_             [2]byte
 	Mount_info    [160]byte
 }
 
@@ -111,13 +111,13 @@ type Flock_t struct {
 }
 
 type Dirent struct {
-	Fileno       uint64
-	Off          int64
-	Reclen       uint16
-	Type         uint8
-	Namlen       uint8
-	X__d_padding [4]uint8
-	Name         [256]int8
+	Fileno uint64
+	Off    int64
+	Reclen uint16
+	Type   uint8
+	Namlen uint8
+	_      [4]uint8
+	Name   [256]int8
 }
 
 type Fsid struct {
@@ -262,8 +262,8 @@ type FdSet struct {
 }
 
 const (
-	SizeofIfMsghdr         = 0xec
-	SizeofIfData           = 0xd4
+	SizeofIfMsghdr         = 0xa0
+	SizeofIfData           = 0x88
 	SizeofIfaMsghdr        = 0x18
 	SizeofIfAnnounceMsghdr = 0x1a
 	SizeofRtMsghdr         = 0x60
@@ -292,7 +292,7 @@ type IfData struct {
 	Link_state   uint8
 	Mtu          uint32
 	Metric       uint32
-	Pad          uint32
+	Rdomain      uint32
 	Baudrate     uint64
 	Ipackets     uint64
 	Ierrors      uint64
@@ -304,10 +304,10 @@ type IfData struct {
 	Imcasts      uint64
 	Omcasts      uint64
 	Iqdrops      uint64
+	Oqdrops      uint64
 	Noproto      uint64
 	Capabilities uint32
 	Lastchange   Timeval
-	Mclpool      [7]Mclpool
 }
 
 type IfaMsghdr struct {
@@ -368,20 +368,12 @@ type RtMetrics struct {
 	Pad      uint32
 }
 
-type Mclpool struct {
-	Grown int32
-	Alive uint16
-	Hwm   uint16
-	Cwm   uint16
-	Lwm   uint16
-}
-
 const (
 	SizeofBpfVersion = 0x4
 	SizeofBpfStat    = 0x8
 	SizeofBpfProgram = 0x8
 	SizeofBpfInsn    = 0x8
-	SizeofBpfHdr     = 0x14
+	SizeofBpfHdr     = 0x18
 )
 
 type BpfVersion struct {
@@ -407,11 +399,14 @@ type BpfInsn struct {
 }
 
 type BpfHdr struct {
-	Tstamp    BpfTimeval
-	Caplen    uint32
-	Datalen   uint32
-	Hdrlen    uint16
-	Pad_cgo_0 [2]byte
+	Tstamp  BpfTimeval
+	Caplen  uint32
+	Datalen uint32
+	Hdrlen  uint16
+	Ifidx   uint16
+	Flowid  uint16
+	Flags   uint8
+	Drops   uint8
 }
 
 type BpfTimeval struct {
@@ -488,7 +483,7 @@ type Uvmexp struct {
 	Zeropages          int32
 	Reserve_pagedaemon int32
 	Reserve_kernel     int32
-	Anonpages          int32
+	Unused01           int32
 	Vnodepages         int32
 	Vtextpages         int32
 	Freemin            int32
@@ -507,8 +502,8 @@ type Uvmexp struct {
 	Swpgonly           int32
 	Nswget             int32
 	Nanon              int32
-	Nanonneeded        int32
-	Nfreeanon          int32
+	Unused05           int32
+	Unused06           int32
 	Faults             int32
 	Traps              int32
 	Intrs              int32
@@ -516,8 +511,8 @@ type Uvmexp struct {
 	Softs              int32
 	Syscalls           int32
 	Pageins            int32
-	Obsolete_swapins   int32
-	Obsolete_swapouts  int32
+	Unused07           int32
+	Unused08           int32
 	Pgswapin           int32
 	Pgswapout          int32
 	Forks              int32
@@ -525,7 +520,7 @@ type Uvmexp struct {
 	Forks_sharevm      int32
 	Pga_zerohit        int32
 	Pga_zeromiss       int32
-	Zeroaborts         int32
+	Unused09           int32
 	Fltnoram           int32
 	Fltnoanon          int32
 	Fltnoamap          int32
@@ -557,9 +552,9 @@ type Uvmexp struct {
 	Pdpageouts         int32
 	Pdpending          int32
 	Pddeact            int32
-	Pdreanon           int32
-	Pdrevnode          int32
-	Pdrevtext          int32
+	Unused11           int32
+	Unused12           int32
+	Unused13           int32
 	Fpswtch            int32
 	Kmapent            int32
 }
