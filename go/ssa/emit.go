@@ -525,7 +525,7 @@ func emitSliceToArray(f *Function, val Value, typ types.Type) Value {
 
 	phi := &Phi{Edges: []Value{zero, ptr}, Comment: "slicetoarray"}
 	phi.pos = val.Pos()
-	phi.setType(typ)
+	phi.setType(ptype)
 	x := f.emit(phi)
 	unOp := &UnOp{Op: token.MUL, X: x}
 	unOp.setType(typ)
