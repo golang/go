@@ -2564,7 +2564,7 @@ func TestUserCacheDir(t *testing.T) {
 	}
 
 	if !stat.IsDir() {
-		t.Fatalf("dir %s is not directory and type is %T", cacheDir, stat.Mode())
+		t.Fatalf("dir %s is not directory and type is %v", cacheDir, stat.Mode())
 	}
 }
 
