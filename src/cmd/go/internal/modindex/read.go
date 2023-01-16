@@ -819,7 +819,7 @@ func (m *Module) Package(path string) *IndexPackage {
 	return m.pkg(i)
 }
 
-// pkgAt returns the i'th IndexPackage in m.
+// pkg returns the i'th IndexPackage in m.
 func (m *Module) pkg(i int) *IndexPackage {
 	r := m.d.readAt(m.pkgOff(i))
 	p := new(IndexPackage)
@@ -966,7 +966,7 @@ func (d *decoder) boolAt(off int) bool {
 	return d.intAt(off) != 0
 }
 
-// stringTableAt returns the string pointed at by the int at the given offset in d.data.
+// stringAt returns the string pointed at by the int at the given offset in d.data.
 func (d *decoder) stringAt(off int) string {
 	return d.stringTableAt(d.intAt(off))
 }
