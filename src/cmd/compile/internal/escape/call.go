@@ -180,9 +180,13 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 			argument(e.discardHole(), &call.Args[i])
 		}
 
-	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
 		call := call.(*ir.UnaryExpr)
 		argument(e.discardHole(), &call.X)
+
+	case ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
+		call := call.(*ir.UnaryExpr)
+		argument(ks[0], &call.X)
 
 	case ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING:
 		call := call.(*ir.BinaryExpr)
