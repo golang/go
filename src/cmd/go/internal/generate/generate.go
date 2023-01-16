@@ -91,6 +91,10 @@ Go generate sets several variables when it runs the generator:
 	$DOLLAR
 		A dollar sign.
 
+Place GOROOT/bin at the beginning of PATH in 'go generate'.
+This causes tests and generators that execute 'go' as a subprocess
+to use the same go command as the parent 'go generate' command.
+
 Other than variable substitution and quoted-string evaluation, no
 special processing such as "globbing" is performed on the command
 line.
