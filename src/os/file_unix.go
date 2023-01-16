@@ -341,7 +341,7 @@ func tempDir() string {
 	switch runtime.GOOS {
 	case "windows":
 		if dir = Getenv("TEMP"); dir == "" {
-			dir = "%USERPROFILE%/AppData/Local/Temp"
+			dir = "%USERPROFILE%\\AppData\\Local\\Temp"
 		}
 	case "darwin":
 		if dir = Getenv("TMPDIR"); dir == "" {
