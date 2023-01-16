@@ -5,8 +5,10 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // ----------------------------------------------------------------------------
@@ -41,16 +43,18 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 // NewSignatureType creates a new function type for the given receiver,
 // receiver type parameters, type parameters, parameters, and results. If
 // variadic is set, params must hold at least one parameter and the last
-// parameter must be of unnamed slice type. If recv is non-nil, typeParams must
-// be empty. If recvTypeParams is non-empty, recv must be non-nil.
+// parameter's core type must be of unnamed slice or bytestring type.
+// If recv is non-nil, typeParams must be empty. If recvTypeParams is
+// non-empty, recv must be non-nil.
 func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params, results *Tuple, variadic bool) *Signature {
 	if variadic {
 		n := params.Len()
 		if n == 0 {
 			panic("variadic function must have at least one parameter")
 		}
-		if _, ok := params.At(n - 1).typ.(*Slice); !ok {
-			panic("variadic parameter must be of unnamed slice type")
+		core := coreString(params.At(n - 1).typ)
+		if _, ok := core.(*Slice); !ok && !isString(core) {
+			panic(fmt.Sprintf("got %s, want variadic parameter with unnamed slice type or string as core type", core.String()))
 		}
 	}
 	sig := &Signature{recv: recv, params: params, results: results, variadic: variadic}
@@ -158,7 +162,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// may lead to follow-on errors (see issues #51339, #51343).
 				// TODO(gri) find a better solution
 				got := measure(len(tparams), "type parameter")
-				check.errorf(recvPar, _BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
+				check.errorf(recvPar, BadRecv, "got %s, but receiver base type declares %d", got, len(recvTParams))
 			}
 		}
 	}
@@ -169,7 +173,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// (A separate check is needed when type-checking interface method signatures because
 		// they don't have a receiver specification.)
 		if recvPar != nil {
-			check.errorf(ftyp.TypeParams, _InvalidMethodTypeParams, "methods cannot have type parameters")
+			check.error(ftyp.TypeParams, InvalidMethodTypeParams, "methods cannot have type parameters")
 		}
 	}
 
@@ -181,7 +185,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	params, variadic := check.collectParams(scope, ftyp.Params, true)
 	results, _ := check.collectParams(scope, ftyp.Results, false)
 	scope.squash(func(obj, alt Object) {
-		check.errorf(obj, _DuplicateDecl, "%s redeclared in this block", obj.Name())
+		check.errorf(obj, DuplicateDecl, "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
 	})
 
@@ -196,7 +200,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
-			check.error(recvList[len(recvList)-1], _InvalidRecv, "method must have exactly one receiver")
+			check.error(recvList[len(recvList)-1], InvalidRecv, "method has multiple receivers")
 			fallthrough // continue with first receiver
 		case 1:
 			recv = recvList[0]
@@ -219,11 +223,11 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// The receiver type may be an instantiated type referred to
 				// by an alias (which cannot have receiver parameters for now).
 				if T.TypeArgs() != nil && sig.RecvTypeParams() == nil {
-					check.errorf(recv, _InvalidRecv, "cannot define new methods on instantiated type %s", rtyp)
+					check.errorf(recv, InvalidRecv, "cannot define new methods on instantiated type %s", rtyp)
 					break
 				}
 				if T.obj.pkg != check.pkg {
-					check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+					check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
 					break
 				}
 				var cause string
@@ -241,12 +245,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 					unreachable()
 				}
 				if cause != "" {
-					check.errorf(recv, _InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
+					check.errorf(recv, InvalidRecv, "invalid receiver type %s (%s)", rtyp, cause)
 				}
 			case *Basic:
-				check.errorf(recv, _InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+				check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
 			default:
-				check.errorf(recv, _InvalidRecv, "invalid receiver type %s", recv.typ)
+				check.errorf(recv, InvalidRecv, "invalid receiver type %s", recv.typ)
 			}
 		}).describef(recv, "validate receiver %s", recv)
 	}
@@ -271,7 +275,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
 				variadic = true
 			} else {
-				check.softErrorf(t, _MisplacedDotDotDot, "can only use ... with final parameter in list")
+				check.softErrorf(t, MisplacedDotDotDot, "can only use ... with final parameter in list")
 				// ignore ... and continue
 			}
 		}
@@ -282,7 +286,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 			// named parameter
 			for _, name := range field.Names {
 				if name.Name == "" {
-					check.invalidAST(name, "anonymous parameter")
+					check.error(name, InvalidSyntaxTree, "anonymous parameter")
 					// ok to continue
 				}
 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
@@ -300,7 +304,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	}
 
 	if named && anonymous {
-		check.invalidAST(list, "list contains both named and anonymous parameters")
+		check.error(list, InvalidSyntaxTree, "list contains both named and anonymous parameters")
 		// ok to continue
 	}
 

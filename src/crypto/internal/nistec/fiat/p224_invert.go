@@ -12,7 +12,7 @@ package fiat
 func (e *P224Element) Invert(x *P224Element) *P224Element {
 	// Inversion is implemented as exponentiation with exponent p − 2.
 	// The sequence of 11 multiplications and 223 squarings is derived from the
-	// following addition chain generated with github.com/mmcloughlin/addchain v0.3.0.
+	// following addition chain generated with github.com/mmcloughlin/addchain v0.4.0.
 	//
 	//	_10     = 2*1
 	//	_11     = 1 + _10

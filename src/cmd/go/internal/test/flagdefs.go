@@ -32,6 +32,7 @@ var passFlagToTest = map[string]bool{
 	"run":                  true,
 	"short":                true,
 	"shuffle":              true,
+	"skip":                 true,
 	"timeout":              true,
 	"trace":                true,
 	"v":                    true,

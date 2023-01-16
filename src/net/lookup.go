@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"internal/nettrace"
 	"internal/singleflight"
 	"net/netip"
@@ -224,10 +225,15 @@ func (r *Resolver) LookupIP(ctx context.Context, network, host string) ([]IP, er
 	default:
 		return nil, UnknownNetworkError(network)
 	}
+
+	if host == "" {
+		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
+	}
 	addrs, err := r.internetAddrList(ctx, afnet, host)
 	if err != nil {
 		return nil, err
 	}
+
 	ips := make([]IP, 0, len(addrs))
 	for _, addr := range addrs {
 		ips = append(ips, addr.(*IPAddr).IP)
@@ -316,14 +322,15 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 
 	lookupKey := network + "\000" + host
 	dnsWaitGroup.Add(1)
-	ch, called := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
-		defer dnsWaitGroup.Done()
+	ch := r.getLookupGroup().DoChan(lookupKey, func() (any, error) {
 		return testHookLookupIP(lookupGroupCtx, resolverFunc, network, host)
 	})
-	if !called {
-		dnsWaitGroup.Done()
-	}
 
+	dnsWaitGroupDone := func(ch <-chan singleflight.Result, cancelFn context.CancelFunc) {
+		<-ch
+		dnsWaitGroup.Done()
+		cancelFn()
+	}
 	select {
 	case <-ctx.Done():
 		// Our context was canceled. If we are the only
@@ -335,11 +342,9 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 		// See issues 8602, 20703, 22724.
 		if r.getLookupGroup().ForgetUnshared(lookupKey) {
 			lookupGroupCancel()
+			go dnsWaitGroupDone(ch, func() {})
 		} else {
-			go func() {
-				<-ch
-				lookupGroupCancel()
-			}()
+			go dnsWaitGroupDone(ch, lookupGroupCancel)
 		}
 		ctxErr := ctx.Err()
 		err := &DNSError{
@@ -352,6 +357,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 		}
 		return nil, err
 	case r := <-ch:
+		dnsWaitGroup.Done()
 		lookupGroupCancel()
 		err := r.Err
 		if err != nil {
@@ -706,7 +712,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 	} else {
 		target = "_" + service + "._" + proto + "." + name
 	}
-	p, server, err := r.lookup(ctx, target, dnsmessage.TypeSRV)
+	p, server, err := r.lookup(ctx, target, dnsmessage.TypeSRV, nil)
 	if err != nil {
 		return "", nil, err
 	}
@@ -752,7 +758,7 @@ func (r *Resolver) goLookupSRV(ctx context.Context, service, proto, name string)
 
 // goLookupMX returns the MX records for name.
 func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeMX)
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeMX, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -796,7 +802,7 @@ func (r *Resolver) goLookupMX(ctx context.Context, name string) ([]*MX, error) {
 
 // goLookupNS returns the NS records for name.
 func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeNS)
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeNS, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -838,7 +844,7 @@ func (r *Resolver) goLookupNS(ctx context.Context, name string) ([]*NS, error) {
 
 // goLookupTXT returns the TXT records from name.
 func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, error) {
-	p, server, err := r.lookup(ctx, name, dnsmessage.TypeTXT)
+	p, server, err := r.lookup(ctx, name, dnsmessage.TypeTXT, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -890,4 +896,15 @@ func (r *Resolver) goLookupTXT(ctx context.Context, name string) ([]string, erro
 		txts = append(txts, string(txtJoin))
 	}
 	return txts, nil
+}
+
+func parseCNAMEFromResources(resources []dnsmessage.Resource) (string, error) {
+	if len(resources) == 0 {
+		return "", errors.New("no CNAME record received")
+	}
+	c, ok := resources[0].Body.(*dnsmessage.CNAMEResource)
+	if !ok {
+		return "", errors.New("could not parse CNAME record")
+	}
+	return c.CNAME.String(), nil
 }

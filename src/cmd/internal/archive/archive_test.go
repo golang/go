@@ -13,9 +13,7 @@ import (
 	"internal/testenv"
 	"internal/xcoff"
 	"io"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -43,12 +41,12 @@ func copyDir(dst, src string) error {
 	if err != nil {
 		return err
 	}
-	fis, err := ioutil.ReadDir(src)
+	entries, err := os.ReadDir(src)
 	if err != nil {
 		return err
 	}
-	for _, fi := range fis {
-		err = copyFile(filepath.Join(dst, fi.Name()), filepath.Join(src, fi.Name()))
+	for _, entry := range entries {
+		err = copyFile(filepath.Join(dst, entry.Name()), filepath.Join(src, entry.Name()))
 		if err != nil {
 			return err
 		}
@@ -96,7 +94,7 @@ type goobjPaths struct {
 func buildGoobj(t *testing.T) goobjPaths {
 	buildOnce.Do(func() {
 		buildErr = func() (err error) {
-			buildDir, err = ioutil.TempDir("", "TestGoobj")
+			buildDir, err = os.MkdirTemp("", "TestGoobj")
 			if err != nil {
 				return err
 			}
@@ -114,15 +112,18 @@ func buildGoobj(t *testing.T) goobjPaths {
 			go1src := filepath.Join("testdata", "go1.go")
 			go2src := filepath.Join("testdata", "go2.go")
 
-			out, err := exec.Command(gotool, "tool", "compile", "-p=p", "-o", go1obj, go1src).CombinedOutput()
+			importcfgfile := filepath.Join(buildDir, "importcfg")
+			testenv.WriteImportcfg(t, importcfgfile, nil)
+
+			out, err := testenv.Command(t, gotool, "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", go1obj, go1src).CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go1obj, go1src, err, out)
 			}
-			out, err = exec.Command(gotool, "tool", "compile", "-p=p", "-o", go2obj, go2src).CombinedOutput()
+			out, err = testenv.Command(t, gotool, "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", go2obj, go2src).CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go2obj, go2src, err, out)
 			}
-			out, err = exec.Command(gotool, "tool", "pack", "c", goarchive, go1obj, go2obj).CombinedOutput()
+			out, err = testenv.Command(t, gotool, "tool", "pack", "c", goarchive, go1obj, go2obj).CombinedOutput()
 			if err != nil {
 				return fmt.Errorf("go tool pack c %s %s %s: %v\n%s", goarchive, go1obj, go2obj, err, out)
 			}
@@ -132,12 +133,12 @@ func buildGoobj(t *testing.T) goobjPaths {
 				gopath := filepath.Join(buildDir, "gopath")
 				err = copyDir(filepath.Join(gopath, "src", "mycgo"), filepath.Join("testdata", "mycgo"))
 				if err == nil {
-					err = ioutil.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
+					err = os.WriteFile(filepath.Join(gopath, "src", "mycgo", "go.mod"), []byte("module mycgo\n"), 0666)
 				}
 				if err != nil {
 					return err
 				}
-				cmd := exec.Command(gotool, "build", "-buildmode=archive", "-o", cgoarchive, "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
+				cmd := testenv.Command(t, gotool, "build", "-buildmode=archive", "-o", cgoarchive, "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
 				cmd.Dir = filepath.Join(gopath, "src", "mycgo")
 				cmd.Env = append(os.Environ(), "GOPATH="+gopath)
 				out, err = cmd.CombinedOutput()

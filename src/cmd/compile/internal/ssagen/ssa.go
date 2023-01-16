@@ -105,6 +105,7 @@ func InitConfig() {
 	ir.Syms.GCWriteBarrier = typecheck.LookupRuntimeFunc("gcWriteBarrier")
 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
+	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
 	ir.Syms.Msanmove = typecheck.LookupRuntimeFunc("msanmove")
@@ -205,8 +206,6 @@ func InitConfig() {
 	}
 
 	// Wasm (all asm funcs with special ABIs)
-	ir.Syms.WasmMove = typecheck.LookupRuntimeVar("wasmMove")
-	ir.Syms.WasmZero = typecheck.LookupRuntimeVar("wasmZero")
 	ir.Syms.WasmDiv = typecheck.LookupRuntimeVar("wasmDiv")
 	ir.Syms.WasmTruncS = typecheck.LookupRuntimeVar("wasmTruncS")
 	ir.Syms.WasmTruncU = typecheck.LookupRuntimeVar("wasmTruncU")
@@ -253,7 +252,7 @@ func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 	return a
 }
 
-// dvarint writes a varint v to the funcdata in symbol x and returns the new offset
+// dvarint writes a varint v to the funcdata in symbol x and returns the new offset.
 func dvarint(x *obj.LSym, off int, v int64) int {
 	if v < 0 || v > 1e9 {
 		panic(fmt.Sprintf("dvarint: bad offset for funcdata - %v", v))
@@ -357,7 +356,6 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 	s.f.Cache = &ssaCaches[worker]
 	s.f.Cache.Reset()
 	s.f.Name = name
-	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH")
 	s.f.PrintOrHtmlSSA = printssa
 	if fn.Pragma&ir.Nosplit != 0 {
 		s.f.NoSplit = true
@@ -521,7 +519,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 				typ = types.NewPtr(typ)
 			}
 
-			offset = types.Rnd(offset, typ.Alignment())
+			offset = types.RoundUp(offset, typ.Alignment())
 			ptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
 			offset += typ.Size()
 
@@ -631,7 +629,9 @@ func (s *state) zeroResults() {
 		if typ := n.Type(); TypeOK(typ) {
 			s.assign(n, s.zeroVal(typ), false, 0)
 		} else {
-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+			if typ.HasPointers() {
+				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+			}
 			s.zero(n.Type(), s.decladdrs[n])
 		}
 	}
@@ -664,7 +664,7 @@ func (s *state) paramsToHeap() {
 
 // newHeapaddr allocates heap memory for n and sets its heap address.
 func (s *state) newHeapaddr(n *ir.Name) {
-	s.setHeapaddr(n.Pos(), n, s.newObject(n.Type()))
+	s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
 }
 
 // setHeapaddr allocates a new PAUTO variable to store ptr (which must be non-nil)
@@ -692,23 +692,26 @@ func (s *state) setHeapaddr(pos src.XPos, n *ir.Name, ptr *ssa.Value) {
 }
 
 // newObject returns an SSA value denoting new(typ).
-func (s *state) newObject(typ *types.Type) *ssa.Value {
+func (s *state) newObject(typ *types.Type, rtype *ssa.Value) *ssa.Value {
 	if typ.Size() == 0 {
 		return s.newValue1A(ssa.OpAddr, types.NewPtr(typ), ir.Syms.Zerobase, s.sb)
 	}
-	return s.rtcall(ir.Syms.Newobject, true, []*types.Type{types.NewPtr(typ)}, s.reflectType(typ))[0]
+	if rtype == nil {
+		rtype = s.reflectType(typ)
+	}
+	return s.rtcall(ir.Syms.Newobject, true, []*types.Type{types.NewPtr(typ)}, rtype)[0]
 }
 
 func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value) {
 	if !n.Type().IsPtr() {
 		s.Fatalf("expected pointer type: %v", n.Type())
 	}
-	elem := n.Type().Elem()
+	elem, rtypeExpr := n.Type().Elem(), n.ElemRType
 	if count != nil {
 		if !elem.IsArray() {
 			s.Fatalf("expected array type: %v", elem)
 		}
-		elem = elem.Elem()
+		elem, rtypeExpr = elem.Elem(), n.ElemElemRType
 	}
 	size := elem.Size()
 	// Casting from larger type to smaller one is ok, so for smallest type, do nothing.
@@ -721,12 +724,20 @@ func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value
 	if count.Type.Size() != s.config.PtrSize {
 		s.Fatalf("expected count fit to an uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
 	}
-	s.rtcall(ir.Syms.CheckPtrAlignment, true, nil, v, s.reflectType(elem), count)
+	var rtype *ssa.Value
+	if rtypeExpr != nil {
+		rtype = s.expr(rtypeExpr)
+	} else {
+		rtype = s.reflectType(elem)
+	}
+	s.rtcall(ir.Syms.CheckPtrAlignment, true, nil, v, rtype, count)
 }
 
 // reflectType returns an SSA value representing a pointer to typ's
 // reflection type descriptor.
 func (s *state) reflectType(typ *types.Type) *ssa.Value {
+	// TODO(mdempsky): Make this Fatalf under Unified IR; frontend needs
+	// to supply RType expressions.
 	lsym := reflectdata.TypeLinksym(typ)
 	return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(types.Types[types.TUINT8]), lsym, s.sb)
 }
@@ -938,7 +949,6 @@ var (
 	// marker nodes for temporary variables
 	ptrVar       = ssaMarker("ptr")
 	lenVar       = ssaMarker("len")
-	newlenVar    = ssaMarker("newlen")
 	capVar       = ssaMarker("cap")
 	typVar       = ssaMarker("typ")
 	okVar        = ssaMarker("ok")
@@ -1103,7 +1113,7 @@ func (s *state) newValue4(op ssa.Op, t *types.Type, arg0, arg1, arg2, arg3 *ssa.
 	return s.curBlock.NewValue4(s.peekPos(), op, t, arg0, arg1, arg2, arg3)
 }
 
-// newValue4 adds a new value with four arguments and an auxint value to the current block.
+// newValue4I adds a new value with four arguments and an auxint value to the current block.
 func (s *state) newValue4I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue4I(s.peekPos(), op, t, aux, arg0, arg1, arg2, arg3)
 }
@@ -1135,7 +1145,7 @@ func (s *state) entryNewValue1(op ssa.Op, t *types.Type, arg *ssa.Value) *ssa.Va
 	return s.entryBlock().NewValue1(src.NoXPos, op, t, arg)
 }
 
-// entryNewValue1 adds a new value with one argument and an auxint value to the entry block.
+// entryNewValue1I adds a new value with one argument and an auxint value to the entry block.
 func (s *state) entryNewValue1I(op ssa.Op, t *types.Type, auxint int64, arg *ssa.Value) *ssa.Value {
 	return s.entryBlock().NewValue1I(src.NoXPos, op, t, auxint, arg)
 }
@@ -1359,7 +1369,47 @@ func (s *state) zero(t *types.Type, dst *ssa.Value) {
 }
 
 func (s *state) move(t *types.Type, dst, src *ssa.Value) {
+	s.moveWhichMayOverlap(t, dst, src, false)
+}
+func (s *state) moveWhichMayOverlap(t *types.Type, dst, src *ssa.Value, mayOverlap bool) {
 	s.instrumentMove(t, dst, src)
+	if mayOverlap && t.IsArray() && t.NumElem() > 1 && !ssa.IsInlinableMemmove(dst, src, t.Size(), s.f.Config) {
+		// Normally, when moving Go values of type T from one location to another,
+		// we don't need to worry about partial overlaps. The two Ts must either be
+		// in disjoint (nonoverlapping) memory or in exactly the same location.
+		// There are 2 cases where this isn't true:
+		//  1) Using unsafe you can arrange partial overlaps.
+		//  2) Since Go 1.17, you can use a cast from a slice to a ptr-to-array.
+		//     https://go.dev/ref/spec#Conversions_from_slice_to_array_pointer
+		//     This feature can be used to construct partial overlaps of array types.
+		//       var a [3]int
+		//       p := (*[2]int)(a[:])
+		//       q := (*[2]int)(a[1:])
+		//       *p = *q
+		// We don't care about solving 1. Or at least, we haven't historically
+		// and no one has complained.
+		// For 2, we need to ensure that if there might be partial overlap,
+		// then we can't use OpMove; we must use memmove instead.
+		// (memmove handles partial overlap by copying in the correct
+		// direction. OpMove does not.)
+		//
+		// Note that we have to be careful here not to introduce a call when
+		// we're marshaling arguments to a call or unmarshaling results from a call.
+		// Cases where this is happening must pass mayOverlap to false.
+		// (Currently this only happens when unmarshaling results of a call.)
+		if t.HasPointers() {
+			s.rtcall(ir.Syms.Typedmemmove, true, nil, s.reflectType(t), dst, src)
+			// We would have otherwise implemented this move with straightline code,
+			// including a write barrier. Pretend we issue a write barrier here,
+			// so that the write barrier tests work. (Otherwise they'd need to know
+			// the details of IsInlineableMemmove.)
+			s.curfn.SetWBPos(s.peekPos())
+		} else {
+			s.rtcall(ir.Syms.Memmove, true, nil, dst, src, s.constInt(types.Types[types.TUINTPTR], t.Size()))
+		}
+		ssa.LogLargeCopy(s.f.Name, s.peekPos(), t.Size())
+		return
+	}
 	store := s.newValue3I(ssa.OpMove, types.TypeMem, t.Size(), dst, src, s.mem())
 	store.Aux = t
 	s.vars[memVar] = store
@@ -1374,11 +1424,8 @@ func (s *state) stmtList(l ir.Nodes) {
 
 // stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n ir.Node) {
-	if !(n.Op() == ir.OVARKILL || n.Op() == ir.OVARLIVE || n.Op() == ir.OVARDEF) {
-		// OVARKILL, OVARLIVE, and OVARDEF are invisible to the programmer, so we don't use their line numbers to avoid confusion in debugging.
-		s.pushLine(n.Pos())
-		defer s.popLine()
-	}
+	s.pushLine(n.Pos())
+	defer s.popLine()
 
 	// If s.curBlock is nil, and n isn't a label (which might have an associated goto somewhere),
 	// then this code is dead. Stop here.
@@ -1410,7 +1457,7 @@ func (s *state) stmt(n ir.Node) {
 		s.callResult(n, callNormal)
 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class == ir.PFUNC {
 			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
-				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
+				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap" || fn == "panicunsafeslicelen" || fn == "panicunsafeslicenilptr" || fn == "panicunsafestringlen" || fn == "panicunsafestringnilptr") {
 				m := s.mem()
 				b := s.endBlock()
 				b.Kind = ssa.BlockExit
@@ -1460,9 +1507,6 @@ func (s *state) stmt(n ir.Node) {
 				s.Fatalf("dottype of non-load")
 			}
 			mem := s.mem()
-			if mem.Op == ssa.OpVarKill {
-				mem = mem.Args[0]
-			}
 			if res.Args[1] != mem {
 				s.Fatalf("memory no longer live from 2-result dottype load")
 			}
@@ -1496,6 +1540,10 @@ func (s *state) stmt(n ir.Node) {
 	case ir.OLABEL:
 		n := n.(*ir.LabelStmt)
 		sym := n.Label
+		if sym.IsBlank() {
+			// Nothing to do because the label isn't targetable. See issue 52278.
+			break
+		}
 		lab := s.label(sym)
 
 		// The label might already have a target block via a goto.
@@ -1535,6 +1583,28 @@ func (s *state) stmt(n ir.Node) {
 			// which is bad because x is incorrectly considered
 			// dead before the vardef. See issue #14904.
 			return
+		}
+
+		// mayOverlap keeps track of whether the LHS and RHS might
+		// refer to partially overlapping memory. Partial overlapping can
+		// only happen for arrays, see the comment in moveWhichMayOverlap.
+		//
+		// If both sides of the assignment are not dereferences, then partial
+		// overlap can't happen. Partial overlap can only occur only when the
+		// arrays referenced are strictly smaller parts of the same base array.
+		// If one side of the assignment is a full array, then partial overlap
+		// can't happen. (The arrays are either disjoint or identical.)
+		mayOverlap := n.X.Op() == ir.ODEREF && (n.Y != nil && n.Y.Op() == ir.ODEREF)
+		if n.Y != nil && n.Y.Op() == ir.ODEREF {
+			p := n.Y.(*ir.StarExpr).X
+			for p.Op() == ir.OCONVNOP {
+				p = p.(*ir.ConvExpr).X
+			}
+			if p.Op() == ir.OSPTR && p.(*ir.UnaryExpr).X.Type().IsString() {
+				// Pointer fields of strings point to unmodifiable memory.
+				// That memory can't overlap with the memory being written.
+				mayOverlap = false
+			}
 		}
 
 		// Evaluate RHS.
@@ -1620,12 +1690,12 @@ func (s *state) stmt(n ir.Node) {
 			// Currently doesn't really work because (*p)[:len(*p)] appears here as:
 			//    tmp = len(*p)
 			//    (*p)[:tmp]
-			//if j != nil && (j.Op == OLEN && SameSafeExpr(j.Left, n.Left)) {
+			// if j != nil && (j.Op == OLEN && SameSafeExpr(j.Left, n.Left)) {
 			//      j = nil
-			//}
-			//if k != nil && (k.Op == OCAP && SameSafeExpr(k.Left, n.Left)) {
+			// }
+			// if k != nil && (k.Op == OCAP && SameSafeExpr(k.Left, n.Left)) {
 			//      k = nil
-			//}
+			// }
 			if i == nil {
 				skip |= skipPtr
 				if j == nil {
@@ -1637,7 +1707,7 @@ func (s *state) stmt(n ir.Node) {
 			}
 		}
 
-		s.assign(n.X, r, deref, skip)
+		s.assignWhichMayOverlap(n.X, r, deref, skip, mayOverlap)
 
 	case ir.OIF:
 		n := n.(*ir.IfStmt)
@@ -1727,12 +1797,9 @@ func (s *state) stmt(n ir.Node) {
 		b.Pos = s.lastPos.WithIsStmt() // Do this even if b is an empty block.
 		b.AddEdgeTo(to)
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		// OFOR: for Ninit; Left; Right { Nbody }
 		// cond (Left); body (Nbody); incr (Right)
-		//
-		// OFORUNTIL: for Ninit; Left; Right; List { Nbody }
-		// => body: { Nbody }; incr: Right; if Left { lateincr: List; goto body }; end:
 		n := n.(*ir.ForStmt)
 		bCond := s.f.NewBlock(ssa.BlockPlain)
 		bBody := s.f.NewBlock(ssa.BlockPlain)
@@ -1742,21 +1809,17 @@ func (s *state) stmt(n ir.Node) {
 		// ensure empty for loops have correct position; issue #30167
 		bBody.Pos = n.Pos()
 
-		// first, jump to condition test (OFOR) or body (OFORUNTIL)
+		// first, jump to condition test
 		b := s.endBlock()
-		if n.Op() == ir.OFOR {
-			b.AddEdgeTo(bCond)
-			// generate code to test condition
-			s.startBlock(bCond)
-			if n.Cond != nil {
-				s.condBranch(n.Cond, bBody, bEnd, 1)
-			} else {
-				b := s.endBlock()
-				b.Kind = ssa.BlockPlain
-				b.AddEdgeTo(bBody)
-			}
+		b.AddEdgeTo(bCond)
 
+		// generate code to test condition
+		s.startBlock(bCond)
+		if n.Cond != nil {
+			s.condBranch(n.Cond, bBody, bEnd, 1)
 		} else {
+			b := s.endBlock()
+			b.Kind = ssa.BlockPlain
 			b.AddEdgeTo(bBody)
 		}
 
@@ -1790,29 +1853,18 @@ func (s *state) stmt(n ir.Node) {
 			b.AddEdgeTo(bIncr)
 		}
 
-		// generate incr (and, for OFORUNTIL, condition)
+		// generate incr
 		s.startBlock(bIncr)
 		if n.Post != nil {
 			s.stmt(n.Post)
 		}
-		if n.Op() == ir.OFOR {
-			if b := s.endBlock(); b != nil {
-				b.AddEdgeTo(bCond)
-				// It can happen that bIncr ends in a block containing only VARKILL,
-				// and that muddles the debugging experience.
-				if b.Pos == src.NoXPos {
-					b.Pos = bCond.Pos
-				}
+		if b := s.endBlock(); b != nil {
+			b.AddEdgeTo(bCond)
+			// It can happen that bIncr ends in a block containing only VARKILL,
+			// and that muddles the debugging experience.
+			if b.Pos == src.NoXPos {
+				b.Pos = bCond.Pos
 			}
-		} else {
-			// bCond is unused in OFORUNTIL, so repurpose it.
-			bLateIncr := bCond
-			// test condition
-			s.condBranch(n.Cond, bLateIncr, bEnd, 1)
-			// generate late increment
-			s.startBlock(bLateIncr)
-			s.stmtList(n.Late)
-			s.endBlock().AddEdgeTo(bBody)
 		}
 
 		s.startBlock(bEnd)
@@ -1939,35 +1991,6 @@ func (s *state) stmt(n ir.Node) {
 
 		s.startBlock(bEnd)
 
-	case ir.OVARDEF:
-		n := n.(*ir.UnaryExpr)
-		if !s.canSSA(n.X) {
-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, n.X.(*ir.Name), s.mem(), false)
-		}
-	case ir.OVARKILL:
-		// Insert a varkill op to record that a variable is no longer live.
-		// We only care about liveness info at call sites, so putting the
-		// varkill in the store chain is enough to keep it correctly ordered
-		// with respect to call ops.
-		n := n.(*ir.UnaryExpr)
-		if !s.canSSA(n.X) {
-			s.vars[memVar] = s.newValue1Apos(ssa.OpVarKill, types.TypeMem, n.X.(*ir.Name), s.mem(), false)
-		}
-
-	case ir.OVARLIVE:
-		// Insert a varlive op to record that a variable is still live.
-		n := n.(*ir.UnaryExpr)
-		v := n.X.(*ir.Name)
-		if !v.Addrtaken() {
-			s.Fatalf("VARLIVE variable %v must have Addrtaken set", v)
-		}
-		switch v.Class {
-		case ir.PAUTO, ir.PPARAM, ir.PPARAMOUT:
-		default:
-			s.Fatalf("VARLIVE variable %v must be Auto or Arg", v)
-		}
-		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, v, s.mem())
-
 	case ir.OCHECKNIL:
 		n := n.(*ir.UnaryExpr)
 		p := s.expr(n.X)
@@ -2017,14 +2040,16 @@ func (s *state) exit() *ssa.Block {
 	for i, f := range resultFields {
 		n := f.Nname.(*ir.Name)
 		if s.canSSA(n) { // result is in some SSA variable
-			if !n.IsOutputParamInRegisters() {
+			if !n.IsOutputParamInRegisters() && n.Type().HasPointers() {
 				// We are about to store to the result slot.
 				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
 			}
 			results[i] = s.variable(n, n.Type())
 		} else if !n.OnStack() { // result is actually heap allocated
 			// We are about to copy the in-heap result to the result slot.
-			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+			if n.Type().HasPointers() {
+				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+			}
 			ha := s.expr(n.Heapaddr)
 			s.instrumentFields(n.Type(), ha, instrumentRead)
 			results[i] = s.newValue2(ssa.OpDereference, n.Type(), ha, s.mem())
@@ -2059,175 +2084,175 @@ type opAndType struct {
 }
 
 var opToSSA = map[opAndType]ssa.Op{
-	opAndType{ir.OADD, types.TINT8}:    ssa.OpAdd8,
-	opAndType{ir.OADD, types.TUINT8}:   ssa.OpAdd8,
-	opAndType{ir.OADD, types.TINT16}:   ssa.OpAdd16,
-	opAndType{ir.OADD, types.TUINT16}:  ssa.OpAdd16,
-	opAndType{ir.OADD, types.TINT32}:   ssa.OpAdd32,
-	opAndType{ir.OADD, types.TUINT32}:  ssa.OpAdd32,
-	opAndType{ir.OADD, types.TINT64}:   ssa.OpAdd64,
-	opAndType{ir.OADD, types.TUINT64}:  ssa.OpAdd64,
-	opAndType{ir.OADD, types.TFLOAT32}: ssa.OpAdd32F,
-	opAndType{ir.OADD, types.TFLOAT64}: ssa.OpAdd64F,
+	{ir.OADD, types.TINT8}:    ssa.OpAdd8,
+	{ir.OADD, types.TUINT8}:   ssa.OpAdd8,
+	{ir.OADD, types.TINT16}:   ssa.OpAdd16,
+	{ir.OADD, types.TUINT16}:  ssa.OpAdd16,
+	{ir.OADD, types.TINT32}:   ssa.OpAdd32,
+	{ir.OADD, types.TUINT32}:  ssa.OpAdd32,
+	{ir.OADD, types.TINT64}:   ssa.OpAdd64,
+	{ir.OADD, types.TUINT64}:  ssa.OpAdd64,
+	{ir.OADD, types.TFLOAT32}: ssa.OpAdd32F,
+	{ir.OADD, types.TFLOAT64}: ssa.OpAdd64F,
 
-	opAndType{ir.OSUB, types.TINT8}:    ssa.OpSub8,
-	opAndType{ir.OSUB, types.TUINT8}:   ssa.OpSub8,
-	opAndType{ir.OSUB, types.TINT16}:   ssa.OpSub16,
-	opAndType{ir.OSUB, types.TUINT16}:  ssa.OpSub16,
-	opAndType{ir.OSUB, types.TINT32}:   ssa.OpSub32,
-	opAndType{ir.OSUB, types.TUINT32}:  ssa.OpSub32,
-	opAndType{ir.OSUB, types.TINT64}:   ssa.OpSub64,
-	opAndType{ir.OSUB, types.TUINT64}:  ssa.OpSub64,
-	opAndType{ir.OSUB, types.TFLOAT32}: ssa.OpSub32F,
-	opAndType{ir.OSUB, types.TFLOAT64}: ssa.OpSub64F,
+	{ir.OSUB, types.TINT8}:    ssa.OpSub8,
+	{ir.OSUB, types.TUINT8}:   ssa.OpSub8,
+	{ir.OSUB, types.TINT16}:   ssa.OpSub16,
+	{ir.OSUB, types.TUINT16}:  ssa.OpSub16,
+	{ir.OSUB, types.TINT32}:   ssa.OpSub32,
+	{ir.OSUB, types.TUINT32}:  ssa.OpSub32,
+	{ir.OSUB, types.TINT64}:   ssa.OpSub64,
+	{ir.OSUB, types.TUINT64}:  ssa.OpSub64,
+	{ir.OSUB, types.TFLOAT32}: ssa.OpSub32F,
+	{ir.OSUB, types.TFLOAT64}: ssa.OpSub64F,
 
-	opAndType{ir.ONOT, types.TBOOL}: ssa.OpNot,
+	{ir.ONOT, types.TBOOL}: ssa.OpNot,
 
-	opAndType{ir.ONEG, types.TINT8}:    ssa.OpNeg8,
-	opAndType{ir.ONEG, types.TUINT8}:   ssa.OpNeg8,
-	opAndType{ir.ONEG, types.TINT16}:   ssa.OpNeg16,
-	opAndType{ir.ONEG, types.TUINT16}:  ssa.OpNeg16,
-	opAndType{ir.ONEG, types.TINT32}:   ssa.OpNeg32,
-	opAndType{ir.ONEG, types.TUINT32}:  ssa.OpNeg32,
-	opAndType{ir.ONEG, types.TINT64}:   ssa.OpNeg64,
-	opAndType{ir.ONEG, types.TUINT64}:  ssa.OpNeg64,
-	opAndType{ir.ONEG, types.TFLOAT32}: ssa.OpNeg32F,
-	opAndType{ir.ONEG, types.TFLOAT64}: ssa.OpNeg64F,
+	{ir.ONEG, types.TINT8}:    ssa.OpNeg8,
+	{ir.ONEG, types.TUINT8}:   ssa.OpNeg8,
+	{ir.ONEG, types.TINT16}:   ssa.OpNeg16,
+	{ir.ONEG, types.TUINT16}:  ssa.OpNeg16,
+	{ir.ONEG, types.TINT32}:   ssa.OpNeg32,
+	{ir.ONEG, types.TUINT32}:  ssa.OpNeg32,
+	{ir.ONEG, types.TINT64}:   ssa.OpNeg64,
+	{ir.ONEG, types.TUINT64}:  ssa.OpNeg64,
+	{ir.ONEG, types.TFLOAT32}: ssa.OpNeg32F,
+	{ir.ONEG, types.TFLOAT64}: ssa.OpNeg64F,
 
-	opAndType{ir.OBITNOT, types.TINT8}:   ssa.OpCom8,
-	opAndType{ir.OBITNOT, types.TUINT8}:  ssa.OpCom8,
-	opAndType{ir.OBITNOT, types.TINT16}:  ssa.OpCom16,
-	opAndType{ir.OBITNOT, types.TUINT16}: ssa.OpCom16,
-	opAndType{ir.OBITNOT, types.TINT32}:  ssa.OpCom32,
-	opAndType{ir.OBITNOT, types.TUINT32}: ssa.OpCom32,
-	opAndType{ir.OBITNOT, types.TINT64}:  ssa.OpCom64,
-	opAndType{ir.OBITNOT, types.TUINT64}: ssa.OpCom64,
+	{ir.OBITNOT, types.TINT8}:   ssa.OpCom8,
+	{ir.OBITNOT, types.TUINT8}:  ssa.OpCom8,
+	{ir.OBITNOT, types.TINT16}:  ssa.OpCom16,
+	{ir.OBITNOT, types.TUINT16}: ssa.OpCom16,
+	{ir.OBITNOT, types.TINT32}:  ssa.OpCom32,
+	{ir.OBITNOT, types.TUINT32}: ssa.OpCom32,
+	{ir.OBITNOT, types.TINT64}:  ssa.OpCom64,
+	{ir.OBITNOT, types.TUINT64}: ssa.OpCom64,
 
-	opAndType{ir.OIMAG, types.TCOMPLEX64}:  ssa.OpComplexImag,
-	opAndType{ir.OIMAG, types.TCOMPLEX128}: ssa.OpComplexImag,
-	opAndType{ir.OREAL, types.TCOMPLEX64}:  ssa.OpComplexReal,
-	opAndType{ir.OREAL, types.TCOMPLEX128}: ssa.OpComplexReal,
+	{ir.OIMAG, types.TCOMPLEX64}:  ssa.OpComplexImag,
+	{ir.OIMAG, types.TCOMPLEX128}: ssa.OpComplexImag,
+	{ir.OREAL, types.TCOMPLEX64}:  ssa.OpComplexReal,
+	{ir.OREAL, types.TCOMPLEX128}: ssa.OpComplexReal,
 
-	opAndType{ir.OMUL, types.TINT8}:    ssa.OpMul8,
-	opAndType{ir.OMUL, types.TUINT8}:   ssa.OpMul8,
-	opAndType{ir.OMUL, types.TINT16}:   ssa.OpMul16,
-	opAndType{ir.OMUL, types.TUINT16}:  ssa.OpMul16,
-	opAndType{ir.OMUL, types.TINT32}:   ssa.OpMul32,
-	opAndType{ir.OMUL, types.TUINT32}:  ssa.OpMul32,
-	opAndType{ir.OMUL, types.TINT64}:   ssa.OpMul64,
-	opAndType{ir.OMUL, types.TUINT64}:  ssa.OpMul64,
-	opAndType{ir.OMUL, types.TFLOAT32}: ssa.OpMul32F,
-	opAndType{ir.OMUL, types.TFLOAT64}: ssa.OpMul64F,
+	{ir.OMUL, types.TINT8}:    ssa.OpMul8,
+	{ir.OMUL, types.TUINT8}:   ssa.OpMul8,
+	{ir.OMUL, types.TINT16}:   ssa.OpMul16,
+	{ir.OMUL, types.TUINT16}:  ssa.OpMul16,
+	{ir.OMUL, types.TINT32}:   ssa.OpMul32,
+	{ir.OMUL, types.TUINT32}:  ssa.OpMul32,
+	{ir.OMUL, types.TINT64}:   ssa.OpMul64,
+	{ir.OMUL, types.TUINT64}:  ssa.OpMul64,
+	{ir.OMUL, types.TFLOAT32}: ssa.OpMul32F,
+	{ir.OMUL, types.TFLOAT64}: ssa.OpMul64F,
 
-	opAndType{ir.ODIV, types.TFLOAT32}: ssa.OpDiv32F,
-	opAndType{ir.ODIV, types.TFLOAT64}: ssa.OpDiv64F,
+	{ir.ODIV, types.TFLOAT32}: ssa.OpDiv32F,
+	{ir.ODIV, types.TFLOAT64}: ssa.OpDiv64F,
 
-	opAndType{ir.ODIV, types.TINT8}:   ssa.OpDiv8,
-	opAndType{ir.ODIV, types.TUINT8}:  ssa.OpDiv8u,
-	opAndType{ir.ODIV, types.TINT16}:  ssa.OpDiv16,
-	opAndType{ir.ODIV, types.TUINT16}: ssa.OpDiv16u,
-	opAndType{ir.ODIV, types.TINT32}:  ssa.OpDiv32,
-	opAndType{ir.ODIV, types.TUINT32}: ssa.OpDiv32u,
-	opAndType{ir.ODIV, types.TINT64}:  ssa.OpDiv64,
-	opAndType{ir.ODIV, types.TUINT64}: ssa.OpDiv64u,
+	{ir.ODIV, types.TINT8}:   ssa.OpDiv8,
+	{ir.ODIV, types.TUINT8}:  ssa.OpDiv8u,
+	{ir.ODIV, types.TINT16}:  ssa.OpDiv16,
+	{ir.ODIV, types.TUINT16}: ssa.OpDiv16u,
+	{ir.ODIV, types.TINT32}:  ssa.OpDiv32,
+	{ir.ODIV, types.TUINT32}: ssa.OpDiv32u,
+	{ir.ODIV, types.TINT64}:  ssa.OpDiv64,
+	{ir.ODIV, types.TUINT64}: ssa.OpDiv64u,
 
-	opAndType{ir.OMOD, types.TINT8}:   ssa.OpMod8,
-	opAndType{ir.OMOD, types.TUINT8}:  ssa.OpMod8u,
-	opAndType{ir.OMOD, types.TINT16}:  ssa.OpMod16,
-	opAndType{ir.OMOD, types.TUINT16}: ssa.OpMod16u,
-	opAndType{ir.OMOD, types.TINT32}:  ssa.OpMod32,
-	opAndType{ir.OMOD, types.TUINT32}: ssa.OpMod32u,
-	opAndType{ir.OMOD, types.TINT64}:  ssa.OpMod64,
-	opAndType{ir.OMOD, types.TUINT64}: ssa.OpMod64u,
+	{ir.OMOD, types.TINT8}:   ssa.OpMod8,
+	{ir.OMOD, types.TUINT8}:  ssa.OpMod8u,
+	{ir.OMOD, types.TINT16}:  ssa.OpMod16,
+	{ir.OMOD, types.TUINT16}: ssa.OpMod16u,
+	{ir.OMOD, types.TINT32}:  ssa.OpMod32,
+	{ir.OMOD, types.TUINT32}: ssa.OpMod32u,
+	{ir.OMOD, types.TINT64}:  ssa.OpMod64,
+	{ir.OMOD, types.TUINT64}: ssa.OpMod64u,
 
-	opAndType{ir.OAND, types.TINT8}:   ssa.OpAnd8,
-	opAndType{ir.OAND, types.TUINT8}:  ssa.OpAnd8,
-	opAndType{ir.OAND, types.TINT16}:  ssa.OpAnd16,
-	opAndType{ir.OAND, types.TUINT16}: ssa.OpAnd16,
-	opAndType{ir.OAND, types.TINT32}:  ssa.OpAnd32,
-	opAndType{ir.OAND, types.TUINT32}: ssa.OpAnd32,
-	opAndType{ir.OAND, types.TINT64}:  ssa.OpAnd64,
-	opAndType{ir.OAND, types.TUINT64}: ssa.OpAnd64,
+	{ir.OAND, types.TINT8}:   ssa.OpAnd8,
+	{ir.OAND, types.TUINT8}:  ssa.OpAnd8,
+	{ir.OAND, types.TINT16}:  ssa.OpAnd16,
+	{ir.OAND, types.TUINT16}: ssa.OpAnd16,
+	{ir.OAND, types.TINT32}:  ssa.OpAnd32,
+	{ir.OAND, types.TUINT32}: ssa.OpAnd32,
+	{ir.OAND, types.TINT64}:  ssa.OpAnd64,
+	{ir.OAND, types.TUINT64}: ssa.OpAnd64,
 
-	opAndType{ir.OOR, types.TINT8}:   ssa.OpOr8,
-	opAndType{ir.OOR, types.TUINT8}:  ssa.OpOr8,
-	opAndType{ir.OOR, types.TINT16}:  ssa.OpOr16,
-	opAndType{ir.OOR, types.TUINT16}: ssa.OpOr16,
-	opAndType{ir.OOR, types.TINT32}:  ssa.OpOr32,
-	opAndType{ir.OOR, types.TUINT32}: ssa.OpOr32,
-	opAndType{ir.OOR, types.TINT64}:  ssa.OpOr64,
-	opAndType{ir.OOR, types.TUINT64}: ssa.OpOr64,
+	{ir.OOR, types.TINT8}:   ssa.OpOr8,
+	{ir.OOR, types.TUINT8}:  ssa.OpOr8,
+	{ir.OOR, types.TINT16}:  ssa.OpOr16,
+	{ir.OOR, types.TUINT16}: ssa.OpOr16,
+	{ir.OOR, types.TINT32}:  ssa.OpOr32,
+	{ir.OOR, types.TUINT32}: ssa.OpOr32,
+	{ir.OOR, types.TINT64}:  ssa.OpOr64,
+	{ir.OOR, types.TUINT64}: ssa.OpOr64,
 
-	opAndType{ir.OXOR, types.TINT8}:   ssa.OpXor8,
-	opAndType{ir.OXOR, types.TUINT8}:  ssa.OpXor8,
-	opAndType{ir.OXOR, types.TINT16}:  ssa.OpXor16,
-	opAndType{ir.OXOR, types.TUINT16}: ssa.OpXor16,
-	opAndType{ir.OXOR, types.TINT32}:  ssa.OpXor32,
-	opAndType{ir.OXOR, types.TUINT32}: ssa.OpXor32,
-	opAndType{ir.OXOR, types.TINT64}:  ssa.OpXor64,
-	opAndType{ir.OXOR, types.TUINT64}: ssa.OpXor64,
+	{ir.OXOR, types.TINT8}:   ssa.OpXor8,
+	{ir.OXOR, types.TUINT8}:  ssa.OpXor8,
+	{ir.OXOR, types.TINT16}:  ssa.OpXor16,
+	{ir.OXOR, types.TUINT16}: ssa.OpXor16,
+	{ir.OXOR, types.TINT32}:  ssa.OpXor32,
+	{ir.OXOR, types.TUINT32}: ssa.OpXor32,
+	{ir.OXOR, types.TINT64}:  ssa.OpXor64,
+	{ir.OXOR, types.TUINT64}: ssa.OpXor64,
 
-	opAndType{ir.OEQ, types.TBOOL}:      ssa.OpEqB,
-	opAndType{ir.OEQ, types.TINT8}:      ssa.OpEq8,
-	opAndType{ir.OEQ, types.TUINT8}:     ssa.OpEq8,
-	opAndType{ir.OEQ, types.TINT16}:     ssa.OpEq16,
-	opAndType{ir.OEQ, types.TUINT16}:    ssa.OpEq16,
-	opAndType{ir.OEQ, types.TINT32}:     ssa.OpEq32,
-	opAndType{ir.OEQ, types.TUINT32}:    ssa.OpEq32,
-	opAndType{ir.OEQ, types.TINT64}:     ssa.OpEq64,
-	opAndType{ir.OEQ, types.TUINT64}:    ssa.OpEq64,
-	opAndType{ir.OEQ, types.TINTER}:     ssa.OpEqInter,
-	opAndType{ir.OEQ, types.TSLICE}:     ssa.OpEqSlice,
-	opAndType{ir.OEQ, types.TFUNC}:      ssa.OpEqPtr,
-	opAndType{ir.OEQ, types.TMAP}:       ssa.OpEqPtr,
-	opAndType{ir.OEQ, types.TCHAN}:      ssa.OpEqPtr,
-	opAndType{ir.OEQ, types.TPTR}:       ssa.OpEqPtr,
-	opAndType{ir.OEQ, types.TUINTPTR}:   ssa.OpEqPtr,
-	opAndType{ir.OEQ, types.TUNSAFEPTR}: ssa.OpEqPtr,
-	opAndType{ir.OEQ, types.TFLOAT64}:   ssa.OpEq64F,
-	opAndType{ir.OEQ, types.TFLOAT32}:   ssa.OpEq32F,
+	{ir.OEQ, types.TBOOL}:      ssa.OpEqB,
+	{ir.OEQ, types.TINT8}:      ssa.OpEq8,
+	{ir.OEQ, types.TUINT8}:     ssa.OpEq8,
+	{ir.OEQ, types.TINT16}:     ssa.OpEq16,
+	{ir.OEQ, types.TUINT16}:    ssa.OpEq16,
+	{ir.OEQ, types.TINT32}:     ssa.OpEq32,
+	{ir.OEQ, types.TUINT32}:    ssa.OpEq32,
+	{ir.OEQ, types.TINT64}:     ssa.OpEq64,
+	{ir.OEQ, types.TUINT64}:    ssa.OpEq64,
+	{ir.OEQ, types.TINTER}:     ssa.OpEqInter,
+	{ir.OEQ, types.TSLICE}:     ssa.OpEqSlice,
+	{ir.OEQ, types.TFUNC}:      ssa.OpEqPtr,
+	{ir.OEQ, types.TMAP}:       ssa.OpEqPtr,
+	{ir.OEQ, types.TCHAN}:      ssa.OpEqPtr,
+	{ir.OEQ, types.TPTR}:       ssa.OpEqPtr,
+	{ir.OEQ, types.TUINTPTR}:   ssa.OpEqPtr,
+	{ir.OEQ, types.TUNSAFEPTR}: ssa.OpEqPtr,
+	{ir.OEQ, types.TFLOAT64}:   ssa.OpEq64F,
+	{ir.OEQ, types.TFLOAT32}:   ssa.OpEq32F,
 
-	opAndType{ir.ONE, types.TBOOL}:      ssa.OpNeqB,
-	opAndType{ir.ONE, types.TINT8}:      ssa.OpNeq8,
-	opAndType{ir.ONE, types.TUINT8}:     ssa.OpNeq8,
-	opAndType{ir.ONE, types.TINT16}:     ssa.OpNeq16,
-	opAndType{ir.ONE, types.TUINT16}:    ssa.OpNeq16,
-	opAndType{ir.ONE, types.TINT32}:     ssa.OpNeq32,
-	opAndType{ir.ONE, types.TUINT32}:    ssa.OpNeq32,
-	opAndType{ir.ONE, types.TINT64}:     ssa.OpNeq64,
-	opAndType{ir.ONE, types.TUINT64}:    ssa.OpNeq64,
-	opAndType{ir.ONE, types.TINTER}:     ssa.OpNeqInter,
-	opAndType{ir.ONE, types.TSLICE}:     ssa.OpNeqSlice,
-	opAndType{ir.ONE, types.TFUNC}:      ssa.OpNeqPtr,
-	opAndType{ir.ONE, types.TMAP}:       ssa.OpNeqPtr,
-	opAndType{ir.ONE, types.TCHAN}:      ssa.OpNeqPtr,
-	opAndType{ir.ONE, types.TPTR}:       ssa.OpNeqPtr,
-	opAndType{ir.ONE, types.TUINTPTR}:   ssa.OpNeqPtr,
-	opAndType{ir.ONE, types.TUNSAFEPTR}: ssa.OpNeqPtr,
-	opAndType{ir.ONE, types.TFLOAT64}:   ssa.OpNeq64F,
-	opAndType{ir.ONE, types.TFLOAT32}:   ssa.OpNeq32F,
+	{ir.ONE, types.TBOOL}:      ssa.OpNeqB,
+	{ir.ONE, types.TINT8}:      ssa.OpNeq8,
+	{ir.ONE, types.TUINT8}:     ssa.OpNeq8,
+	{ir.ONE, types.TINT16}:     ssa.OpNeq16,
+	{ir.ONE, types.TUINT16}:    ssa.OpNeq16,
+	{ir.ONE, types.TINT32}:     ssa.OpNeq32,
+	{ir.ONE, types.TUINT32}:    ssa.OpNeq32,
+	{ir.ONE, types.TINT64}:     ssa.OpNeq64,
+	{ir.ONE, types.TUINT64}:    ssa.OpNeq64,
+	{ir.ONE, types.TINTER}:     ssa.OpNeqInter,
+	{ir.ONE, types.TSLICE}:     ssa.OpNeqSlice,
+	{ir.ONE, types.TFUNC}:      ssa.OpNeqPtr,
+	{ir.ONE, types.TMAP}:       ssa.OpNeqPtr,
+	{ir.ONE, types.TCHAN}:      ssa.OpNeqPtr,
+	{ir.ONE, types.TPTR}:       ssa.OpNeqPtr,
+	{ir.ONE, types.TUINTPTR}:   ssa.OpNeqPtr,
+	{ir.ONE, types.TUNSAFEPTR}: ssa.OpNeqPtr,
+	{ir.ONE, types.TFLOAT64}:   ssa.OpNeq64F,
+	{ir.ONE, types.TFLOAT32}:   ssa.OpNeq32F,
 
-	opAndType{ir.OLT, types.TINT8}:    ssa.OpLess8,
-	opAndType{ir.OLT, types.TUINT8}:   ssa.OpLess8U,
-	opAndType{ir.OLT, types.TINT16}:   ssa.OpLess16,
-	opAndType{ir.OLT, types.TUINT16}:  ssa.OpLess16U,
-	opAndType{ir.OLT, types.TINT32}:   ssa.OpLess32,
-	opAndType{ir.OLT, types.TUINT32}:  ssa.OpLess32U,
-	opAndType{ir.OLT, types.TINT64}:   ssa.OpLess64,
-	opAndType{ir.OLT, types.TUINT64}:  ssa.OpLess64U,
-	opAndType{ir.OLT, types.TFLOAT64}: ssa.OpLess64F,
-	opAndType{ir.OLT, types.TFLOAT32}: ssa.OpLess32F,
+	{ir.OLT, types.TINT8}:    ssa.OpLess8,
+	{ir.OLT, types.TUINT8}:   ssa.OpLess8U,
+	{ir.OLT, types.TINT16}:   ssa.OpLess16,
+	{ir.OLT, types.TUINT16}:  ssa.OpLess16U,
+	{ir.OLT, types.TINT32}:   ssa.OpLess32,
+	{ir.OLT, types.TUINT32}:  ssa.OpLess32U,
+	{ir.OLT, types.TINT64}:   ssa.OpLess64,
+	{ir.OLT, types.TUINT64}:  ssa.OpLess64U,
+	{ir.OLT, types.TFLOAT64}: ssa.OpLess64F,
+	{ir.OLT, types.TFLOAT32}: ssa.OpLess32F,
 
-	opAndType{ir.OLE, types.TINT8}:    ssa.OpLeq8,
-	opAndType{ir.OLE, types.TUINT8}:   ssa.OpLeq8U,
-	opAndType{ir.OLE, types.TINT16}:   ssa.OpLeq16,
-	opAndType{ir.OLE, types.TUINT16}:  ssa.OpLeq16U,
-	opAndType{ir.OLE, types.TINT32}:   ssa.OpLeq32,
-	opAndType{ir.OLE, types.TUINT32}:  ssa.OpLeq32U,
-	opAndType{ir.OLE, types.TINT64}:   ssa.OpLeq64,
-	opAndType{ir.OLE, types.TUINT64}:  ssa.OpLeq64U,
-	opAndType{ir.OLE, types.TFLOAT64}: ssa.OpLeq64F,
-	opAndType{ir.OLE, types.TFLOAT32}: ssa.OpLeq32F,
+	{ir.OLE, types.TINT8}:    ssa.OpLeq8,
+	{ir.OLE, types.TUINT8}:   ssa.OpLeq8U,
+	{ir.OLE, types.TINT16}:   ssa.OpLeq16,
+	{ir.OLE, types.TUINT16}:  ssa.OpLeq16U,
+	{ir.OLE, types.TINT32}:   ssa.OpLeq32,
+	{ir.OLE, types.TUINT32}:  ssa.OpLeq32U,
+	{ir.OLE, types.TINT64}:   ssa.OpLeq64,
+	{ir.OLE, types.TUINT64}:  ssa.OpLeq64U,
+	{ir.OLE, types.TFLOAT64}: ssa.OpLeq64F,
+	{ir.OLE, types.TFLOAT32}: ssa.OpLeq32F,
 }
 
 func (s *state) concreteEtype(t *types.Type) types.Kind {
@@ -2281,142 +2306,142 @@ type twoOpsAndType struct {
 
 var fpConvOpToSSA = map[twoTypes]twoOpsAndType{
 
-	twoTypes{types.TINT8, types.TFLOAT32}:  twoOpsAndType{ssa.OpSignExt8to32, ssa.OpCvt32to32F, types.TINT32},
-	twoTypes{types.TINT16, types.TFLOAT32}: twoOpsAndType{ssa.OpSignExt16to32, ssa.OpCvt32to32F, types.TINT32},
-	twoTypes{types.TINT32, types.TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32to32F, types.TINT32},
-	twoTypes{types.TINT64, types.TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64to32F, types.TINT64},
+	{types.TINT8, types.TFLOAT32}:  {ssa.OpSignExt8to32, ssa.OpCvt32to32F, types.TINT32},
+	{types.TINT16, types.TFLOAT32}: {ssa.OpSignExt16to32, ssa.OpCvt32to32F, types.TINT32},
+	{types.TINT32, types.TFLOAT32}: {ssa.OpCopy, ssa.OpCvt32to32F, types.TINT32},
+	{types.TINT64, types.TFLOAT32}: {ssa.OpCopy, ssa.OpCvt64to32F, types.TINT64},
 
-	twoTypes{types.TINT8, types.TFLOAT64}:  twoOpsAndType{ssa.OpSignExt8to32, ssa.OpCvt32to64F, types.TINT32},
-	twoTypes{types.TINT16, types.TFLOAT64}: twoOpsAndType{ssa.OpSignExt16to32, ssa.OpCvt32to64F, types.TINT32},
-	twoTypes{types.TINT32, types.TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32to64F, types.TINT32},
-	twoTypes{types.TINT64, types.TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64to64F, types.TINT64},
+	{types.TINT8, types.TFLOAT64}:  {ssa.OpSignExt8to32, ssa.OpCvt32to64F, types.TINT32},
+	{types.TINT16, types.TFLOAT64}: {ssa.OpSignExt16to32, ssa.OpCvt32to64F, types.TINT32},
+	{types.TINT32, types.TFLOAT64}: {ssa.OpCopy, ssa.OpCvt32to64F, types.TINT32},
+	{types.TINT64, types.TFLOAT64}: {ssa.OpCopy, ssa.OpCvt64to64F, types.TINT64},
 
-	twoTypes{types.TFLOAT32, types.TINT8}:  twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpTrunc32to8, types.TINT32},
-	twoTypes{types.TFLOAT32, types.TINT16}: twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpTrunc32to16, types.TINT32},
-	twoTypes{types.TFLOAT32, types.TINT32}: twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpCopy, types.TINT32},
-	twoTypes{types.TFLOAT32, types.TINT64}: twoOpsAndType{ssa.OpCvt32Fto64, ssa.OpCopy, types.TINT64},
+	{types.TFLOAT32, types.TINT8}:  {ssa.OpCvt32Fto32, ssa.OpTrunc32to8, types.TINT32},
+	{types.TFLOAT32, types.TINT16}: {ssa.OpCvt32Fto32, ssa.OpTrunc32to16, types.TINT32},
+	{types.TFLOAT32, types.TINT32}: {ssa.OpCvt32Fto32, ssa.OpCopy, types.TINT32},
+	{types.TFLOAT32, types.TINT64}: {ssa.OpCvt32Fto64, ssa.OpCopy, types.TINT64},
 
-	twoTypes{types.TFLOAT64, types.TINT8}:  twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpTrunc32to8, types.TINT32},
-	twoTypes{types.TFLOAT64, types.TINT16}: twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpTrunc32to16, types.TINT32},
-	twoTypes{types.TFLOAT64, types.TINT32}: twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpCopy, types.TINT32},
-	twoTypes{types.TFLOAT64, types.TINT64}: twoOpsAndType{ssa.OpCvt64Fto64, ssa.OpCopy, types.TINT64},
+	{types.TFLOAT64, types.TINT8}:  {ssa.OpCvt64Fto32, ssa.OpTrunc32to8, types.TINT32},
+	{types.TFLOAT64, types.TINT16}: {ssa.OpCvt64Fto32, ssa.OpTrunc32to16, types.TINT32},
+	{types.TFLOAT64, types.TINT32}: {ssa.OpCvt64Fto32, ssa.OpCopy, types.TINT32},
+	{types.TFLOAT64, types.TINT64}: {ssa.OpCvt64Fto64, ssa.OpCopy, types.TINT64},
 	// unsigned
-	twoTypes{types.TUINT8, types.TFLOAT32}:  twoOpsAndType{ssa.OpZeroExt8to32, ssa.OpCvt32to32F, types.TINT32},
-	twoTypes{types.TUINT16, types.TFLOAT32}: twoOpsAndType{ssa.OpZeroExt16to32, ssa.OpCvt32to32F, types.TINT32},
-	twoTypes{types.TUINT32, types.TFLOAT32}: twoOpsAndType{ssa.OpZeroExt32to64, ssa.OpCvt64to32F, types.TINT64}, // go wide to dodge unsigned
-	twoTypes{types.TUINT64, types.TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpInvalid, types.TUINT64},            // Cvt64Uto32F, branchy code expansion instead
+	{types.TUINT8, types.TFLOAT32}:  {ssa.OpZeroExt8to32, ssa.OpCvt32to32F, types.TINT32},
+	{types.TUINT16, types.TFLOAT32}: {ssa.OpZeroExt16to32, ssa.OpCvt32to32F, types.TINT32},
+	{types.TUINT32, types.TFLOAT32}: {ssa.OpZeroExt32to64, ssa.OpCvt64to32F, types.TINT64}, // go wide to dodge unsigned
+	{types.TUINT64, types.TFLOAT32}: {ssa.OpCopy, ssa.OpInvalid, types.TUINT64},            // Cvt64Uto32F, branchy code expansion instead
 
-	twoTypes{types.TUINT8, types.TFLOAT64}:  twoOpsAndType{ssa.OpZeroExt8to32, ssa.OpCvt32to64F, types.TINT32},
-	twoTypes{types.TUINT16, types.TFLOAT64}: twoOpsAndType{ssa.OpZeroExt16to32, ssa.OpCvt32to64F, types.TINT32},
-	twoTypes{types.TUINT32, types.TFLOAT64}: twoOpsAndType{ssa.OpZeroExt32to64, ssa.OpCvt64to64F, types.TINT64}, // go wide to dodge unsigned
-	twoTypes{types.TUINT64, types.TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpInvalid, types.TUINT64},            // Cvt64Uto64F, branchy code expansion instead
+	{types.TUINT8, types.TFLOAT64}:  {ssa.OpZeroExt8to32, ssa.OpCvt32to64F, types.TINT32},
+	{types.TUINT16, types.TFLOAT64}: {ssa.OpZeroExt16to32, ssa.OpCvt32to64F, types.TINT32},
+	{types.TUINT32, types.TFLOAT64}: {ssa.OpZeroExt32to64, ssa.OpCvt64to64F, types.TINT64}, // go wide to dodge unsigned
+	{types.TUINT64, types.TFLOAT64}: {ssa.OpCopy, ssa.OpInvalid, types.TUINT64},            // Cvt64Uto64F, branchy code expansion instead
 
-	twoTypes{types.TFLOAT32, types.TUINT8}:  twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpTrunc32to8, types.TINT32},
-	twoTypes{types.TFLOAT32, types.TUINT16}: twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpTrunc32to16, types.TINT32},
-	twoTypes{types.TFLOAT32, types.TUINT32}: twoOpsAndType{ssa.OpCvt32Fto64, ssa.OpTrunc64to32, types.TINT64}, // go wide to dodge unsigned
-	twoTypes{types.TFLOAT32, types.TUINT64}: twoOpsAndType{ssa.OpInvalid, ssa.OpCopy, types.TUINT64},          // Cvt32Fto64U, branchy code expansion instead
+	{types.TFLOAT32, types.TUINT8}:  {ssa.OpCvt32Fto32, ssa.OpTrunc32to8, types.TINT32},
+	{types.TFLOAT32, types.TUINT16}: {ssa.OpCvt32Fto32, ssa.OpTrunc32to16, types.TINT32},
+	{types.TFLOAT32, types.TUINT32}: {ssa.OpCvt32Fto64, ssa.OpTrunc64to32, types.TINT64}, // go wide to dodge unsigned
+	{types.TFLOAT32, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64},          // Cvt32Fto64U, branchy code expansion instead
 
-	twoTypes{types.TFLOAT64, types.TUINT8}:  twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpTrunc32to8, types.TINT32},
-	twoTypes{types.TFLOAT64, types.TUINT16}: twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpTrunc32to16, types.TINT32},
-	twoTypes{types.TFLOAT64, types.TUINT32}: twoOpsAndType{ssa.OpCvt64Fto64, ssa.OpTrunc64to32, types.TINT64}, // go wide to dodge unsigned
-	twoTypes{types.TFLOAT64, types.TUINT64}: twoOpsAndType{ssa.OpInvalid, ssa.OpCopy, types.TUINT64},          // Cvt64Fto64U, branchy code expansion instead
+	{types.TFLOAT64, types.TUINT8}:  {ssa.OpCvt64Fto32, ssa.OpTrunc32to8, types.TINT32},
+	{types.TFLOAT64, types.TUINT16}: {ssa.OpCvt64Fto32, ssa.OpTrunc32to16, types.TINT32},
+	{types.TFLOAT64, types.TUINT32}: {ssa.OpCvt64Fto64, ssa.OpTrunc64to32, types.TINT64}, // go wide to dodge unsigned
+	{types.TFLOAT64, types.TUINT64}: {ssa.OpInvalid, ssa.OpCopy, types.TUINT64},          // Cvt64Fto64U, branchy code expansion instead
 
 	// float
-	twoTypes{types.TFLOAT64, types.TFLOAT32}: twoOpsAndType{ssa.OpCvt64Fto32F, ssa.OpCopy, types.TFLOAT32},
-	twoTypes{types.TFLOAT64, types.TFLOAT64}: twoOpsAndType{ssa.OpRound64F, ssa.OpCopy, types.TFLOAT64},
-	twoTypes{types.TFLOAT32, types.TFLOAT32}: twoOpsAndType{ssa.OpRound32F, ssa.OpCopy, types.TFLOAT32},
-	twoTypes{types.TFLOAT32, types.TFLOAT64}: twoOpsAndType{ssa.OpCvt32Fto64F, ssa.OpCopy, types.TFLOAT64},
+	{types.TFLOAT64, types.TFLOAT32}: {ssa.OpCvt64Fto32F, ssa.OpCopy, types.TFLOAT32},
+	{types.TFLOAT64, types.TFLOAT64}: {ssa.OpRound64F, ssa.OpCopy, types.TFLOAT64},
+	{types.TFLOAT32, types.TFLOAT32}: {ssa.OpRound32F, ssa.OpCopy, types.TFLOAT32},
+	{types.TFLOAT32, types.TFLOAT64}: {ssa.OpCvt32Fto64F, ssa.OpCopy, types.TFLOAT64},
 }
 
 // this map is used only for 32-bit arch, and only includes the difference
 // on 32-bit arch, don't use int64<->float conversion for uint32
 var fpConvOpToSSA32 = map[twoTypes]twoOpsAndType{
-	twoTypes{types.TUINT32, types.TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32Uto32F, types.TUINT32},
-	twoTypes{types.TUINT32, types.TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32Uto64F, types.TUINT32},
-	twoTypes{types.TFLOAT32, types.TUINT32}: twoOpsAndType{ssa.OpCvt32Fto32U, ssa.OpCopy, types.TUINT32},
-	twoTypes{types.TFLOAT64, types.TUINT32}: twoOpsAndType{ssa.OpCvt64Fto32U, ssa.OpCopy, types.TUINT32},
+	{types.TUINT32, types.TFLOAT32}: {ssa.OpCopy, ssa.OpCvt32Uto32F, types.TUINT32},
+	{types.TUINT32, types.TFLOAT64}: {ssa.OpCopy, ssa.OpCvt32Uto64F, types.TUINT32},
+	{types.TFLOAT32, types.TUINT32}: {ssa.OpCvt32Fto32U, ssa.OpCopy, types.TUINT32},
+	{types.TFLOAT64, types.TUINT32}: {ssa.OpCvt64Fto32U, ssa.OpCopy, types.TUINT32},
 }
 
 // uint64<->float conversions, only on machines that have instructions for that
 var uint64fpConvOpToSSA = map[twoTypes]twoOpsAndType{
-	twoTypes{types.TUINT64, types.TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64Uto32F, types.TUINT64},
-	twoTypes{types.TUINT64, types.TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64Uto64F, types.TUINT64},
-	twoTypes{types.TFLOAT32, types.TUINT64}: twoOpsAndType{ssa.OpCvt32Fto64U, ssa.OpCopy, types.TUINT64},
-	twoTypes{types.TFLOAT64, types.TUINT64}: twoOpsAndType{ssa.OpCvt64Fto64U, ssa.OpCopy, types.TUINT64},
+	{types.TUINT64, types.TFLOAT32}: {ssa.OpCopy, ssa.OpCvt64Uto32F, types.TUINT64},
+	{types.TUINT64, types.TFLOAT64}: {ssa.OpCopy, ssa.OpCvt64Uto64F, types.TUINT64},
+	{types.TFLOAT32, types.TUINT64}: {ssa.OpCvt32Fto64U, ssa.OpCopy, types.TUINT64},
+	{types.TFLOAT64, types.TUINT64}: {ssa.OpCvt64Fto64U, ssa.OpCopy, types.TUINT64},
 }
 
 var shiftOpToSSA = map[opAndTwoTypes]ssa.Op{
-	opAndTwoTypes{ir.OLSH, types.TINT8, types.TUINT8}:   ssa.OpLsh8x8,
-	opAndTwoTypes{ir.OLSH, types.TUINT8, types.TUINT8}:  ssa.OpLsh8x8,
-	opAndTwoTypes{ir.OLSH, types.TINT8, types.TUINT16}:  ssa.OpLsh8x16,
-	opAndTwoTypes{ir.OLSH, types.TUINT8, types.TUINT16}: ssa.OpLsh8x16,
-	opAndTwoTypes{ir.OLSH, types.TINT8, types.TUINT32}:  ssa.OpLsh8x32,
-	opAndTwoTypes{ir.OLSH, types.TUINT8, types.TUINT32}: ssa.OpLsh8x32,
-	opAndTwoTypes{ir.OLSH, types.TINT8, types.TUINT64}:  ssa.OpLsh8x64,
-	opAndTwoTypes{ir.OLSH, types.TUINT8, types.TUINT64}: ssa.OpLsh8x64,
+	{ir.OLSH, types.TINT8, types.TUINT8}:   ssa.OpLsh8x8,
+	{ir.OLSH, types.TUINT8, types.TUINT8}:  ssa.OpLsh8x8,
+	{ir.OLSH, types.TINT8, types.TUINT16}:  ssa.OpLsh8x16,
+	{ir.OLSH, types.TUINT8, types.TUINT16}: ssa.OpLsh8x16,
+	{ir.OLSH, types.TINT8, types.TUINT32}:  ssa.OpLsh8x32,
+	{ir.OLSH, types.TUINT8, types.TUINT32}: ssa.OpLsh8x32,
+	{ir.OLSH, types.TINT8, types.TUINT64}:  ssa.OpLsh8x64,
+	{ir.OLSH, types.TUINT8, types.TUINT64}: ssa.OpLsh8x64,
 
-	opAndTwoTypes{ir.OLSH, types.TINT16, types.TUINT8}:   ssa.OpLsh16x8,
-	opAndTwoTypes{ir.OLSH, types.TUINT16, types.TUINT8}:  ssa.OpLsh16x8,
-	opAndTwoTypes{ir.OLSH, types.TINT16, types.TUINT16}:  ssa.OpLsh16x16,
-	opAndTwoTypes{ir.OLSH, types.TUINT16, types.TUINT16}: ssa.OpLsh16x16,
-	opAndTwoTypes{ir.OLSH, types.TINT16, types.TUINT32}:  ssa.OpLsh16x32,
-	opAndTwoTypes{ir.OLSH, types.TUINT16, types.TUINT32}: ssa.OpLsh16x32,
-	opAndTwoTypes{ir.OLSH, types.TINT16, types.TUINT64}:  ssa.OpLsh16x64,
-	opAndTwoTypes{ir.OLSH, types.TUINT16, types.TUINT64}: ssa.OpLsh16x64,
+	{ir.OLSH, types.TINT16, types.TUINT8}:   ssa.OpLsh16x8,
+	{ir.OLSH, types.TUINT16, types.TUINT8}:  ssa.OpLsh16x8,
+	{ir.OLSH, types.TINT16, types.TUINT16}:  ssa.OpLsh16x16,
+	{ir.OLSH, types.TUINT16, types.TUINT16}: ssa.OpLsh16x16,
+	{ir.OLSH, types.TINT16, types.TUINT32}:  ssa.OpLsh16x32,
+	{ir.OLSH, types.TUINT16, types.TUINT32}: ssa.OpLsh16x32,
+	{ir.OLSH, types.TINT16, types.TUINT64}:  ssa.OpLsh16x64,
+	{ir.OLSH, types.TUINT16, types.TUINT64}: ssa.OpLsh16x64,
 
-	opAndTwoTypes{ir.OLSH, types.TINT32, types.TUINT8}:   ssa.OpLsh32x8,
-	opAndTwoTypes{ir.OLSH, types.TUINT32, types.TUINT8}:  ssa.OpLsh32x8,
-	opAndTwoTypes{ir.OLSH, types.TINT32, types.TUINT16}:  ssa.OpLsh32x16,
-	opAndTwoTypes{ir.OLSH, types.TUINT32, types.TUINT16}: ssa.OpLsh32x16,
-	opAndTwoTypes{ir.OLSH, types.TINT32, types.TUINT32}:  ssa.OpLsh32x32,
-	opAndTwoTypes{ir.OLSH, types.TUINT32, types.TUINT32}: ssa.OpLsh32x32,
-	opAndTwoTypes{ir.OLSH, types.TINT32, types.TUINT64}:  ssa.OpLsh32x64,
-	opAndTwoTypes{ir.OLSH, types.TUINT32, types.TUINT64}: ssa.OpLsh32x64,
+	{ir.OLSH, types.TINT32, types.TUINT8}:   ssa.OpLsh32x8,
+	{ir.OLSH, types.TUINT32, types.TUINT8}:  ssa.OpLsh32x8,
+	{ir.OLSH, types.TINT32, types.TUINT16}:  ssa.OpLsh32x16,
+	{ir.OLSH, types.TUINT32, types.TUINT16}: ssa.OpLsh32x16,
+	{ir.OLSH, types.TINT32, types.TUINT32}:  ssa.OpLsh32x32,
+	{ir.OLSH, types.TUINT32, types.TUINT32}: ssa.OpLsh32x32,
+	{ir.OLSH, types.TINT32, types.TUINT64}:  ssa.OpLsh32x64,
+	{ir.OLSH, types.TUINT32, types.TUINT64}: ssa.OpLsh32x64,
 
-	opAndTwoTypes{ir.OLSH, types.TINT64, types.TUINT8}:   ssa.OpLsh64x8,
-	opAndTwoTypes{ir.OLSH, types.TUINT64, types.TUINT8}:  ssa.OpLsh64x8,
-	opAndTwoTypes{ir.OLSH, types.TINT64, types.TUINT16}:  ssa.OpLsh64x16,
-	opAndTwoTypes{ir.OLSH, types.TUINT64, types.TUINT16}: ssa.OpLsh64x16,
-	opAndTwoTypes{ir.OLSH, types.TINT64, types.TUINT32}:  ssa.OpLsh64x32,
-	opAndTwoTypes{ir.OLSH, types.TUINT64, types.TUINT32}: ssa.OpLsh64x32,
-	opAndTwoTypes{ir.OLSH, types.TINT64, types.TUINT64}:  ssa.OpLsh64x64,
-	opAndTwoTypes{ir.OLSH, types.TUINT64, types.TUINT64}: ssa.OpLsh64x64,
+	{ir.OLSH, types.TINT64, types.TUINT8}:   ssa.OpLsh64x8,
+	{ir.OLSH, types.TUINT64, types.TUINT8}:  ssa.OpLsh64x8,
+	{ir.OLSH, types.TINT64, types.TUINT16}:  ssa.OpLsh64x16,
+	{ir.OLSH, types.TUINT64, types.TUINT16}: ssa.OpLsh64x16,
+	{ir.OLSH, types.TINT64, types.TUINT32}:  ssa.OpLsh64x32,
+	{ir.OLSH, types.TUINT64, types.TUINT32}: ssa.OpLsh64x32,
+	{ir.OLSH, types.TINT64, types.TUINT64}:  ssa.OpLsh64x64,
+	{ir.OLSH, types.TUINT64, types.TUINT64}: ssa.OpLsh64x64,
 
-	opAndTwoTypes{ir.ORSH, types.TINT8, types.TUINT8}:   ssa.OpRsh8x8,
-	opAndTwoTypes{ir.ORSH, types.TUINT8, types.TUINT8}:  ssa.OpRsh8Ux8,
-	opAndTwoTypes{ir.ORSH, types.TINT8, types.TUINT16}:  ssa.OpRsh8x16,
-	opAndTwoTypes{ir.ORSH, types.TUINT8, types.TUINT16}: ssa.OpRsh8Ux16,
-	opAndTwoTypes{ir.ORSH, types.TINT8, types.TUINT32}:  ssa.OpRsh8x32,
-	opAndTwoTypes{ir.ORSH, types.TUINT8, types.TUINT32}: ssa.OpRsh8Ux32,
-	opAndTwoTypes{ir.ORSH, types.TINT8, types.TUINT64}:  ssa.OpRsh8x64,
-	opAndTwoTypes{ir.ORSH, types.TUINT8, types.TUINT64}: ssa.OpRsh8Ux64,
+	{ir.ORSH, types.TINT8, types.TUINT8}:   ssa.OpRsh8x8,
+	{ir.ORSH, types.TUINT8, types.TUINT8}:  ssa.OpRsh8Ux8,
+	{ir.ORSH, types.TINT8, types.TUINT16}:  ssa.OpRsh8x16,
+	{ir.ORSH, types.TUINT8, types.TUINT16}: ssa.OpRsh8Ux16,
+	{ir.ORSH, types.TINT8, types.TUINT32}:  ssa.OpRsh8x32,
+	{ir.ORSH, types.TUINT8, types.TUINT32}: ssa.OpRsh8Ux32,
+	{ir.ORSH, types.TINT8, types.TUINT64}:  ssa.OpRsh8x64,
+	{ir.ORSH, types.TUINT8, types.TUINT64}: ssa.OpRsh8Ux64,
 
-	opAndTwoTypes{ir.ORSH, types.TINT16, types.TUINT8}:   ssa.OpRsh16x8,
-	opAndTwoTypes{ir.ORSH, types.TUINT16, types.TUINT8}:  ssa.OpRsh16Ux8,
-	opAndTwoTypes{ir.ORSH, types.TINT16, types.TUINT16}:  ssa.OpRsh16x16,
-	opAndTwoTypes{ir.ORSH, types.TUINT16, types.TUINT16}: ssa.OpRsh16Ux16,
-	opAndTwoTypes{ir.ORSH, types.TINT16, types.TUINT32}:  ssa.OpRsh16x32,
-	opAndTwoTypes{ir.ORSH, types.TUINT16, types.TUINT32}: ssa.OpRsh16Ux32,
-	opAndTwoTypes{ir.ORSH, types.TINT16, types.TUINT64}:  ssa.OpRsh16x64,
-	opAndTwoTypes{ir.ORSH, types.TUINT16, types.TUINT64}: ssa.OpRsh16Ux64,
+	{ir.ORSH, types.TINT16, types.TUINT8}:   ssa.OpRsh16x8,
+	{ir.ORSH, types.TUINT16, types.TUINT8}:  ssa.OpRsh16Ux8,
+	{ir.ORSH, types.TINT16, types.TUINT16}:  ssa.OpRsh16x16,
+	{ir.ORSH, types.TUINT16, types.TUINT16}: ssa.OpRsh16Ux16,
+	{ir.ORSH, types.TINT16, types.TUINT32}:  ssa.OpRsh16x32,
+	{ir.ORSH, types.TUINT16, types.TUINT32}: ssa.OpRsh16Ux32,
+	{ir.ORSH, types.TINT16, types.TUINT64}:  ssa.OpRsh16x64,
+	{ir.ORSH, types.TUINT16, types.TUINT64}: ssa.OpRsh16Ux64,
 
-	opAndTwoTypes{ir.ORSH, types.TINT32, types.TUINT8}:   ssa.OpRsh32x8,
-	opAndTwoTypes{ir.ORSH, types.TUINT32, types.TUINT8}:  ssa.OpRsh32Ux8,
-	opAndTwoTypes{ir.ORSH, types.TINT32, types.TUINT16}:  ssa.OpRsh32x16,
-	opAndTwoTypes{ir.ORSH, types.TUINT32, types.TUINT16}: ssa.OpRsh32Ux16,
-	opAndTwoTypes{ir.ORSH, types.TINT32, types.TUINT32}:  ssa.OpRsh32x32,
-	opAndTwoTypes{ir.ORSH, types.TUINT32, types.TUINT32}: ssa.OpRsh32Ux32,
-	opAndTwoTypes{ir.ORSH, types.TINT32, types.TUINT64}:  ssa.OpRsh32x64,
-	opAndTwoTypes{ir.ORSH, types.TUINT32, types.TUINT64}: ssa.OpRsh32Ux64,
+	{ir.ORSH, types.TINT32, types.TUINT8}:   ssa.OpRsh32x8,
+	{ir.ORSH, types.TUINT32, types.TUINT8}:  ssa.OpRsh32Ux8,
+	{ir.ORSH, types.TINT32, types.TUINT16}:  ssa.OpRsh32x16,
+	{ir.ORSH, types.TUINT32, types.TUINT16}: ssa.OpRsh32Ux16,
+	{ir.ORSH, types.TINT32, types.TUINT32}:  ssa.OpRsh32x32,
+	{ir.ORSH, types.TUINT32, types.TUINT32}: ssa.OpRsh32Ux32,
+	{ir.ORSH, types.TINT32, types.TUINT64}:  ssa.OpRsh32x64,
+	{ir.ORSH, types.TUINT32, types.TUINT64}: ssa.OpRsh32Ux64,
 
-	opAndTwoTypes{ir.ORSH, types.TINT64, types.TUINT8}:   ssa.OpRsh64x8,
-	opAndTwoTypes{ir.ORSH, types.TUINT64, types.TUINT8}:  ssa.OpRsh64Ux8,
-	opAndTwoTypes{ir.ORSH, types.TINT64, types.TUINT16}:  ssa.OpRsh64x16,
-	opAndTwoTypes{ir.ORSH, types.TUINT64, types.TUINT16}: ssa.OpRsh64Ux16,
-	opAndTwoTypes{ir.ORSH, types.TINT64, types.TUINT32}:  ssa.OpRsh64x32,
-	opAndTwoTypes{ir.ORSH, types.TUINT64, types.TUINT32}: ssa.OpRsh64Ux32,
-	opAndTwoTypes{ir.ORSH, types.TINT64, types.TUINT64}:  ssa.OpRsh64x64,
-	opAndTwoTypes{ir.ORSH, types.TUINT64, types.TUINT64}: ssa.OpRsh64Ux64,
+	{ir.ORSH, types.TINT64, types.TUINT8}:   ssa.OpRsh64x8,
+	{ir.ORSH, types.TUINT64, types.TUINT8}:  ssa.OpRsh64Ux8,
+	{ir.ORSH, types.TINT64, types.TUINT16}:  ssa.OpRsh64x16,
+	{ir.ORSH, types.TUINT64, types.TUINT16}: ssa.OpRsh64Ux16,
+	{ir.ORSH, types.TINT64, types.TUINT32}:  ssa.OpRsh64x32,
+	{ir.ORSH, types.TUINT64, types.TUINT32}: ssa.OpRsh64Ux32,
+	{ir.ORSH, types.TINT64, types.TUINT64}:  ssa.OpRsh64x64,
+	{ir.ORSH, types.TUINT64, types.TUINT64}: ssa.OpRsh64Ux64,
 }
 
 func (s *state) ssaShiftOp(op ir.Op, t *types.Type, u *types.Type) ssa.Op {
@@ -3206,6 +3231,12 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		c := s.expr(n.Cap)
 		return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
 
+	case ir.OSTRINGHEADER:
+		n := n.(*ir.StringHeaderExpr)
+		p := s.expr(n.Ptr)
+		l := s.expr(n.Len)
+		return s.newValue2(ssa.OpStringMake, n.Type(), p, l)
+
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR:
 		n := n.(*ir.SliceExpr)
 		check := s.checkPtrEnabled && n.Op() == ir.OSLICE3ARR && n.X.Op() == ir.OCONVNOP && n.X.(*ir.ConvExpr).X.Type().IsUnsafePtr()
@@ -3290,7 +3321,11 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.ONEW:
 		n := n.(*ir.UnaryExpr)
-		return s.newObject(n.Type().Elem())
+		var rtype *ssa.Value
+		if x, ok := n.X.(*ir.DynamicType); ok && x.Op() == ir.ODYNAMICTYPE {
+			rtype = s.expr(x.RType)
+		}
+		return s.newObject(n.Type().Elem(), rtype)
 
 	case ir.OUNSAFEADD:
 		n := n.(*ir.BinaryExpr)
@@ -3339,46 +3374,46 @@ func (s *state) resultAddrOfCall(c *ssa.Value, which int64, t *types.Type) *ssa.
 // If inplace is true, it writes the result of the OAPPEND expression n
 // back to the slice being appended to, and returns nil.
 // inplace MUST be set to false if the slice can be SSA'd.
+// Note: this code only handles fixed-count appends. Dotdotdot appends
+// have already been rewritten at this point (by walk).
 func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// If inplace is false, process as expression "append(s, e1, e2, e3)":
 	//
 	// ptr, len, cap := s
-	// newlen := len + 3
-	// if newlen > cap {
-	//     ptr, len, cap = growslice(s, newlen)
-	//     newlen = len + 3 // recalculate to avoid a spill
+	// len += 3
+	// if uint(len) > uint(cap) {
+	//     ptr, len, cap = growslice(ptr, len, cap, 3, typ)
+	//     Note that len is unmodified by growslice.
 	// }
 	// // with write barriers, if needed:
-	// *(ptr+len) = e1
-	// *(ptr+len+1) = e2
-	// *(ptr+len+2) = e3
-	// return makeslice(ptr, newlen, cap)
+	// *(ptr+(len-3)) = e1
+	// *(ptr+(len-2)) = e2
+	// *(ptr+(len-1)) = e3
+	// return makeslice(ptr, len, cap)
 	//
 	//
 	// If inplace is true, process as statement "s = append(s, e1, e2, e3)":
 	//
 	// a := &s
 	// ptr, len, cap := s
-	// newlen := len + 3
-	// if uint(newlen) > uint(cap) {
-	//    newptr, len, newcap = growslice(ptr, len, cap, newlen)
-	//    vardef(a)       // if necessary, advise liveness we are writing a new a
-	//    *a.cap = newcap // write before ptr to avoid a spill
-	//    *a.ptr = newptr // with write barrier
+	// len += 3
+	// if uint(len) > uint(cap) {
+	//    ptr, len, cap = growslice(ptr, len, cap, 3, typ)
+	//    vardef(a)    // if necessary, advise liveness we are writing a new a
+	//    *a.cap = cap // write before ptr to avoid a spill
+	//    *a.ptr = ptr // with write barrier
 	// }
-	// newlen = len + 3 // recalculate to avoid a spill
-	// *a.len = newlen
+	// *a.len = len
 	// // with write barriers, if needed:
-	// *(ptr+len) = e1
-	// *(ptr+len+1) = e2
-	// *(ptr+len+2) = e3
+	// *(ptr+(len-3)) = e1
+	// *(ptr+(len-2)) = e2
+	// *(ptr+(len-1)) = e3
 
 	et := n.Type().Elem()
 	pt := types.NewPtr(et)
 
 	// Evaluate slice
 	sn := n.Args[0] // the slice node is the first in the list
-
 	var slice, addr *ssa.Value
 	if inplace {
 		addr = s.addr(sn)
@@ -3391,21 +3426,23 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	grow := s.f.NewBlock(ssa.BlockPlain)
 	assign := s.f.NewBlock(ssa.BlockPlain)
 
-	// Decide if we need to grow
-	nargs := int64(len(n.Args) - 1)
+	// Decomposse input slice.
 	p := s.newValue1(ssa.OpSlicePtr, pt, slice)
 	l := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], slice)
 	c := s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], slice)
-	nl := s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, s.constInt(types.Types[types.TINT], nargs))
 
-	cmp := s.newValue2(s.ssaOp(ir.OLT, types.Types[types.TUINT]), types.Types[types.TBOOL], c, nl)
+	// Add number of new elements to length.
+	nargs := s.constInt(types.Types[types.TINT], int64(len(n.Args)-1))
+	l = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
+
+	// Decide if we need to grow
+	cmp := s.newValue2(s.ssaOp(ir.OLT, types.Types[types.TUINT]), types.Types[types.TBOOL], c, l)
+
+	// Record values of ptr/len/cap before branch.
 	s.vars[ptrVar] = p
-
+	s.vars[lenVar] = l
 	if !inplace {
-		s.vars[newlenVar] = nl
 		s.vars[capVar] = c
-	} else {
-		s.vars[lenVar] = l
 	}
 
 	b := s.endBlock()
@@ -3418,8 +3455,16 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	// Call growslice
 	s.startBlock(grow)
 	taddr := s.expr(n.X)
-	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{pt, types.Types[types.TINT], types.Types[types.TINT]}, taddr, p, l, c, nl)
+	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{n.Type()}, p, l, c, nargs, taddr)
 
+	// Decompose output slice
+	p = s.newValue1(ssa.OpSlicePtr, pt, r[0])
+	l = s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], r[0])
+	c = s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], r[0])
+
+	s.vars[ptrVar] = p
+	s.vars[lenVar] = l
+	s.vars[capVar] = c
 	if inplace {
 		if sn.Op() == ir.ONAME {
 			sn := sn.(*ir.Name)
@@ -3429,15 +3474,8 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 			}
 		}
 		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceCapOffset, addr)
-		s.store(types.Types[types.TINT], capaddr, r[2])
-		s.store(pt, addr, r[0])
-		// load the value we just stored to avoid having to spill it
-		s.vars[ptrVar] = s.load(pt, addr)
-		s.vars[lenVar] = r[1] // avoid a spill in the fast path
-	} else {
-		s.vars[ptrVar] = r[0]
-		s.vars[newlenVar] = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], r[1], s.constInt(types.Types[types.TINT], nargs))
-		s.vars[capVar] = r[2]
+		s.store(types.Types[types.TINT], capaddr, c)
+		s.store(pt, addr, p)
 	}
 
 	b = s.endBlock()
@@ -3445,12 +3483,17 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 
 	// assign new elements to slots
 	s.startBlock(assign)
+	p = s.variable(ptrVar, pt)                      // generates phi for ptr
+	l = s.variable(lenVar, types.Types[types.TINT]) // generates phi for len
+	if !inplace {
+		c = s.variable(capVar, types.Types[types.TINT]) // generates phi for cap
+	}
 
 	if inplace {
-		l = s.variable(lenVar, types.Types[types.TINT]) // generates phi for len
-		nl = s.newValue2(s.ssaOp(ir.OADD, types.Types[types.TINT]), types.Types[types.TINT], l, s.constInt(types.Types[types.TINT], nargs))
+		// Update length in place.
+		// We have to wait until here to make sure growslice succeeded.
 		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, types.SliceLenOffset, addr)
-		s.store(types.Types[types.TINT], lenaddr, nl)
+		s.store(types.Types[types.TINT], lenaddr, l)
 	}
 
 	// Evaluate args
@@ -3460,7 +3503,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		v     *ssa.Value
 		store bool
 	}
-	args := make([]argRec, 0, nargs)
+	args := make([]argRec, 0, len(n.Args[1:]))
 	for _, n := range n.Args[1:] {
 		if TypeOK(n.Type()) {
 			args = append(args, argRec{v: s.expr(n), store: true})
@@ -3470,12 +3513,9 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		}
 	}
 
-	p = s.variable(ptrVar, pt) // generates phi for ptr
-	if !inplace {
-		nl = s.variable(newlenVar, types.Types[types.TINT]) // generates phi for nl
-		c = s.variable(capVar, types.Types[types.TINT])     // generates phi for cap
-	}
-	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
+	// Write args into slice.
+	oldLen := s.newValue2(s.ssaOp(ir.OSUB, types.Types[types.TINT]), types.Types[types.TINT], l, nargs)
+	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, oldLen)
 	for i, arg := range args {
 		addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(types.Types[types.TINT], int64(i)))
 		if arg.store {
@@ -3486,14 +3526,16 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	}
 
 	delete(s.vars, ptrVar)
+	delete(s.vars, lenVar)
+	if !inplace {
+		delete(s.vars, capVar)
+	}
+
+	// make result
 	if inplace {
-		delete(s.vars, lenVar)
 		return nil
 	}
-	delete(s.vars, newlenVar)
-	delete(s.vars, capVar)
-	// make result
-	return s.newValue3(ssa.OpSliceMake, n.Type(), p, nl, c)
+	return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
 }
 
 // condBranch evaluates the boolean expression cond and branches to yes
@@ -3560,7 +3602,11 @@ const (
 // If deref is true, then we do left = *right instead (and right has already been nil-checked).
 // If deref is true and right == nil, just do left = 0.
 // skip indicates assignments (at the top level) that can be avoided.
+// mayOverlap indicates whether left&right might partially overlap in memory. Default is false.
 func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask) {
+	s.assignWhichMayOverlap(left, right, deref, skip, false)
+}
+func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool, skip skipMask, mayOverlap bool) {
 	if left.Op() == ir.ONAME && ir.IsBlank(left) {
 		return
 	}
@@ -3642,7 +3688,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
 
 	// If this assignment clobbers an entire local variable, then emit
 	// OpVarDef so liveness analysis knows the variable is redefined.
-	if base, ok := clobberBase(left).(*ir.Name); ok && base.OnStack() && skip == 0 {
+	if base, ok := clobberBase(left).(*ir.Name); ok && base.OnStack() && skip == 0 && t.HasPointers() {
 		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
 	}
 
@@ -3661,7 +3707,7 @@ func (s *state) assign(left ir.Node, right *ssa.Value, deref bool, skip skipMask
 		if right == nil {
 			s.zero(t, addr)
 		} else {
-			s.move(t, addr, right)
+			s.moveWhichMayOverlap(t, addr, right, mayOverlap)
 		}
 		return
 	}
@@ -3755,38 +3801,38 @@ var softFloatOps map[ssa.Op]sfRtCallDef
 func softfloatInit() {
 	// Some of these operations get transformed by sfcall.
 	softFloatOps = map[ssa.Op]sfRtCallDef{
-		ssa.OpAdd32F: sfRtCallDef{typecheck.LookupRuntimeFunc("fadd32"), types.TFLOAT32},
-		ssa.OpAdd64F: sfRtCallDef{typecheck.LookupRuntimeFunc("fadd64"), types.TFLOAT64},
-		ssa.OpSub32F: sfRtCallDef{typecheck.LookupRuntimeFunc("fadd32"), types.TFLOAT32},
-		ssa.OpSub64F: sfRtCallDef{typecheck.LookupRuntimeFunc("fadd64"), types.TFLOAT64},
-		ssa.OpMul32F: sfRtCallDef{typecheck.LookupRuntimeFunc("fmul32"), types.TFLOAT32},
-		ssa.OpMul64F: sfRtCallDef{typecheck.LookupRuntimeFunc("fmul64"), types.TFLOAT64},
-		ssa.OpDiv32F: sfRtCallDef{typecheck.LookupRuntimeFunc("fdiv32"), types.TFLOAT32},
-		ssa.OpDiv64F: sfRtCallDef{typecheck.LookupRuntimeFunc("fdiv64"), types.TFLOAT64},
+		ssa.OpAdd32F: {typecheck.LookupRuntimeFunc("fadd32"), types.TFLOAT32},
+		ssa.OpAdd64F: {typecheck.LookupRuntimeFunc("fadd64"), types.TFLOAT64},
+		ssa.OpSub32F: {typecheck.LookupRuntimeFunc("fadd32"), types.TFLOAT32},
+		ssa.OpSub64F: {typecheck.LookupRuntimeFunc("fadd64"), types.TFLOAT64},
+		ssa.OpMul32F: {typecheck.LookupRuntimeFunc("fmul32"), types.TFLOAT32},
+		ssa.OpMul64F: {typecheck.LookupRuntimeFunc("fmul64"), types.TFLOAT64},
+		ssa.OpDiv32F: {typecheck.LookupRuntimeFunc("fdiv32"), types.TFLOAT32},
+		ssa.OpDiv64F: {typecheck.LookupRuntimeFunc("fdiv64"), types.TFLOAT64},
 
-		ssa.OpEq64F:   sfRtCallDef{typecheck.LookupRuntimeFunc("feq64"), types.TBOOL},
-		ssa.OpEq32F:   sfRtCallDef{typecheck.LookupRuntimeFunc("feq32"), types.TBOOL},
-		ssa.OpNeq64F:  sfRtCallDef{typecheck.LookupRuntimeFunc("feq64"), types.TBOOL},
-		ssa.OpNeq32F:  sfRtCallDef{typecheck.LookupRuntimeFunc("feq32"), types.TBOOL},
-		ssa.OpLess64F: sfRtCallDef{typecheck.LookupRuntimeFunc("fgt64"), types.TBOOL},
-		ssa.OpLess32F: sfRtCallDef{typecheck.LookupRuntimeFunc("fgt32"), types.TBOOL},
-		ssa.OpLeq64F:  sfRtCallDef{typecheck.LookupRuntimeFunc("fge64"), types.TBOOL},
-		ssa.OpLeq32F:  sfRtCallDef{typecheck.LookupRuntimeFunc("fge32"), types.TBOOL},
+		ssa.OpEq64F:   {typecheck.LookupRuntimeFunc("feq64"), types.TBOOL},
+		ssa.OpEq32F:   {typecheck.LookupRuntimeFunc("feq32"), types.TBOOL},
+		ssa.OpNeq64F:  {typecheck.LookupRuntimeFunc("feq64"), types.TBOOL},
+		ssa.OpNeq32F:  {typecheck.LookupRuntimeFunc("feq32"), types.TBOOL},
+		ssa.OpLess64F: {typecheck.LookupRuntimeFunc("fgt64"), types.TBOOL},
+		ssa.OpLess32F: {typecheck.LookupRuntimeFunc("fgt32"), types.TBOOL},
+		ssa.OpLeq64F:  {typecheck.LookupRuntimeFunc("fge64"), types.TBOOL},
+		ssa.OpLeq32F:  {typecheck.LookupRuntimeFunc("fge32"), types.TBOOL},
 
-		ssa.OpCvt32to32F:  sfRtCallDef{typecheck.LookupRuntimeFunc("fint32to32"), types.TFLOAT32},
-		ssa.OpCvt32Fto32:  sfRtCallDef{typecheck.LookupRuntimeFunc("f32toint32"), types.TINT32},
-		ssa.OpCvt64to32F:  sfRtCallDef{typecheck.LookupRuntimeFunc("fint64to32"), types.TFLOAT32},
-		ssa.OpCvt32Fto64:  sfRtCallDef{typecheck.LookupRuntimeFunc("f32toint64"), types.TINT64},
-		ssa.OpCvt64Uto32F: sfRtCallDef{typecheck.LookupRuntimeFunc("fuint64to32"), types.TFLOAT32},
-		ssa.OpCvt32Fto64U: sfRtCallDef{typecheck.LookupRuntimeFunc("f32touint64"), types.TUINT64},
-		ssa.OpCvt32to64F:  sfRtCallDef{typecheck.LookupRuntimeFunc("fint32to64"), types.TFLOAT64},
-		ssa.OpCvt64Fto32:  sfRtCallDef{typecheck.LookupRuntimeFunc("f64toint32"), types.TINT32},
-		ssa.OpCvt64to64F:  sfRtCallDef{typecheck.LookupRuntimeFunc("fint64to64"), types.TFLOAT64},
-		ssa.OpCvt64Fto64:  sfRtCallDef{typecheck.LookupRuntimeFunc("f64toint64"), types.TINT64},
-		ssa.OpCvt64Uto64F: sfRtCallDef{typecheck.LookupRuntimeFunc("fuint64to64"), types.TFLOAT64},
-		ssa.OpCvt64Fto64U: sfRtCallDef{typecheck.LookupRuntimeFunc("f64touint64"), types.TUINT64},
-		ssa.OpCvt32Fto64F: sfRtCallDef{typecheck.LookupRuntimeFunc("f32to64"), types.TFLOAT64},
-		ssa.OpCvt64Fto32F: sfRtCallDef{typecheck.LookupRuntimeFunc("f64to32"), types.TFLOAT32},
+		ssa.OpCvt32to32F:  {typecheck.LookupRuntimeFunc("fint32to32"), types.TFLOAT32},
+		ssa.OpCvt32Fto32:  {typecheck.LookupRuntimeFunc("f32toint32"), types.TINT32},
+		ssa.OpCvt64to32F:  {typecheck.LookupRuntimeFunc("fint64to32"), types.TFLOAT32},
+		ssa.OpCvt32Fto64:  {typecheck.LookupRuntimeFunc("f32toint64"), types.TINT64},
+		ssa.OpCvt64Uto32F: {typecheck.LookupRuntimeFunc("fuint64to32"), types.TFLOAT32},
+		ssa.OpCvt32Fto64U: {typecheck.LookupRuntimeFunc("f32touint64"), types.TUINT64},
+		ssa.OpCvt32to64F:  {typecheck.LookupRuntimeFunc("fint32to64"), types.TFLOAT64},
+		ssa.OpCvt64Fto32:  {typecheck.LookupRuntimeFunc("f64toint32"), types.TINT32},
+		ssa.OpCvt64to64F:  {typecheck.LookupRuntimeFunc("fint64to64"), types.TFLOAT64},
+		ssa.OpCvt64Fto64:  {typecheck.LookupRuntimeFunc("f64toint64"), types.TINT64},
+		ssa.OpCvt64Uto64F: {typecheck.LookupRuntimeFunc("fuint64to64"), types.TFLOAT64},
+		ssa.OpCvt64Fto64U: {typecheck.LookupRuntimeFunc("f64touint64"), types.TUINT64},
+		ssa.OpCvt32Fto64F: {typecheck.LookupRuntimeFunc("f32to64"), types.TFLOAT64},
+		ssa.OpCvt64Fto32F: {typecheck.LookupRuntimeFunc("f64to32"), types.TFLOAT32},
 	}
 }
 
@@ -3920,7 +3966,7 @@ func InitTables() {
 			}
 			return s.newValue2(ssa.OpMul64uover, types.NewTuple(types.Types[types.TUINT], types.Types[types.TUINT]), args[0], args[1])
 		},
-		sys.AMD64, sys.I386, sys.Loong64, sys.MIPS64, sys.RISCV64)
+		sys.AMD64, sys.I386, sys.Loong64, sys.MIPS64, sys.RISCV64, sys.ARM64)
 	alias("runtime", "mulUintptr", "runtime/internal/math", "MulUintptr", all...)
 	add("runtime", "KeepAlive",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -3955,16 +4001,6 @@ func InitTables() {
 		sys.ARM64, sys.PPC64)
 
 	/******** runtime/internal/sys ********/
-	addF("runtime/internal/sys", "Ctz32",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpCtz32, types.Types[types.TINT], args[0])
-		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
-	addF("runtime/internal/sys", "Ctz64",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], args[0])
-		},
-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64)
 	addF("runtime/internal/sys", "Bswap32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
@@ -4284,7 +4320,7 @@ func InitTables() {
 	alias("runtime/internal/atomic", "CasRel", "runtime/internal/atomic", "Cas", lwatomics...)
 
 	/******** math ********/
-	addF("math", "Sqrt",
+	addF("math", "sqrt",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpSqrt, types.Types[types.TFLOAT64], args[0])
 		},
@@ -4599,12 +4635,12 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft32, types.Types[types.TUINT32], args[0], args[1])
 		},
-		sys.AMD64, sys.ARM, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
+		sys.AMD64, sys.ARM, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm, sys.Loong64)
 	addF("math/bits", "RotateLeft64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpRotateLeft64, types.Types[types.TUINT64], args[0], args[1])
 		},
-		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
+		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm, sys.Loong64)
 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
 
 	makeOnesCountAMD64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -4682,14 +4718,14 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X)
-	alias("math/bits", "Add", "math/bits", "Add64", sys.ArchAMD64, sys.ArchARM64, sys.ArchPPC64, sys.ArchPPC64LE, sys.ArchS390X)
+		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64)
+	alias("math/bits", "Add", "math/bits", "Add64", p8...)
 	addF("math/bits", "Sub64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
-		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X)
-	alias("math/bits", "Sub", "math/bits", "Sub64", sys.ArchAMD64, sys.ArchARM64, sys.ArchS390X)
+		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64)
+	alias("math/bits", "Sub", "math/bits", "Sub64", p8...)
 	addF("math/bits", "Div64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// check for divide-by-zero/overflow and panic with appropriate message
@@ -4702,8 +4738,8 @@ func InitTables() {
 		sys.AMD64)
 	alias("math/bits", "Div", "math/bits", "Div64", sys.ArchAMD64)
 
-	alias("runtime/internal/sys", "Ctz8", "math/bits", "TrailingZeros8", all...)
 	alias("runtime/internal/sys", "TrailingZeros8", "math/bits", "TrailingZeros8", all...)
+	alias("runtime/internal/sys", "TrailingZeros32", "math/bits", "TrailingZeros32", all...)
 	alias("runtime/internal/sys", "TrailingZeros64", "math/bits", "TrailingZeros64", all...)
 	alias("runtime/internal/sys", "Len8", "math/bits", "Len8", all...)
 	alias("runtime/internal/sys", "Len64", "math/bits", "Len64", all...)
@@ -4878,14 +4914,18 @@ func (s *state) openDeferSave(t *types.Type, val *ssa.Value) *ssa.Value {
 		// Force the tmp storing this defer function to be declared in the entry
 		// block, so that it will be live for the defer exit code (which will
 		// actually access it only if the associated defer call has been activated).
-		s.defvars[s.f.Entry.ID][memVar] = s.f.Entry.NewValue1A(src.NoXPos, ssa.OpVarDef, types.TypeMem, temp, s.defvars[s.f.Entry.ID][memVar])
+		if t.HasPointers() {
+			s.defvars[s.f.Entry.ID][memVar] = s.f.Entry.NewValue1A(src.NoXPos, ssa.OpVarDef, types.TypeMem, temp, s.defvars[s.f.Entry.ID][memVar])
+		}
 		s.defvars[s.f.Entry.ID][memVar] = s.f.Entry.NewValue1A(src.NoXPos, ssa.OpVarLive, types.TypeMem, temp, s.defvars[s.f.Entry.ID][memVar])
 		addrTemp = s.f.Entry.NewValue2A(src.NoXPos, ssa.OpLocalAddr, types.NewPtr(temp.Type()), temp, s.sp, s.defvars[s.f.Entry.ID][memVar])
 	} else {
 		// Special case if we're still in the entry block. We can't use
 		// the above code, since s.defvars[s.f.Entry.ID] isn't defined
 		// until we end the entry block with s.endBlock().
-		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, temp, s.mem(), false)
+		if t.HasPointers() {
+			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, temp, s.mem(), false)
+		}
 		s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, temp, s.mem(), false)
 		addrTemp = s.newValue2Apos(ssa.OpLocalAddr, types.NewPtr(temp.Type()), temp, s.sp, s.mem(), false)
 	}
@@ -5067,7 +5107,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 		t := deferstruct()
 		d := typecheck.TempAt(n.Pos(), s.curfn, t)
 
-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, d, s.mem())
+		if t.HasPointers() {
+			s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, d, s.mem())
+		}
 		addr := s.addr(d)
 
 		// Must match deferstruct() below and src/runtime/runtime2.go:_defer.
@@ -5172,9 +5214,17 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
 	}
 	s.prevCall = call
 	s.vars[memVar] = s.newValue1I(ssa.OpSelectN, types.TypeMem, int64(len(ACResults)), call)
-	// Insert OVARLIVE nodes
-	for _, name := range n.KeepAlive {
-		s.stmt(ir.NewUnaryExpr(n.Pos(), ir.OVARLIVE, name))
+	// Insert VarLive opcodes.
+	for _, v := range n.KeepAlive {
+		if !v.Addrtaken() {
+			s.Fatalf("KeepAlive variable %v must have Addrtaken set", v)
+		}
+		switch v.Class {
+		case ir.PAUTO, ir.PPARAM, ir.PPARAMOUT:
+		default:
+			s.Fatalf("KeepAlive variable %v must be Auto or Arg", v)
+		}
+		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, v, s.mem())
 	}
 
 	// Finish block for defers
@@ -5606,13 +5656,13 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 
 	for _, arg := range args {
 		t := arg.Type
-		off = types.Rnd(off, t.Alignment())
+		off = types.RoundUp(off, t.Alignment())
 		size := t.Size()
 		callArgs = append(callArgs, arg)
 		callArgTypes = append(callArgTypes, t)
 		off += size
 	}
-	off = types.Rnd(off, int64(types.RegSize))
+	off = types.RoundUp(off, int64(types.RegSize))
 
 	// Issue call
 	var call *ssa.Value
@@ -5637,11 +5687,11 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	// Load results
 	res := make([]*ssa.Value, len(results))
 	for i, t := range results {
-		off = types.Rnd(off, t.Alignment())
+		off = types.RoundUp(off, t.Alignment())
 		res[i] = s.resultOfCall(call, int64(i), t)
 		off += t.Size()
 	}
-	off = types.Rnd(off, int64(types.PtrSize))
+	off = types.RoundUp(off, int64(types.PtrSize))
 
 	// Remember how much callee stack space we needed.
 	call.AuxInt = off
@@ -6222,12 +6272,15 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
 	if n.ITab != nil {
 		targetItab = s.expr(n.ITab)
 	}
-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, nil, target, targetItab, commaok)
 }
 
 func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, resok *ssa.Value) {
 	iface := s.expr(n.X)
-	var target, targetItab *ssa.Value
+	var source, target, targetItab *ssa.Value
+	if n.SrcRType != nil {
+		source = s.expr(n.SrcRType)
+	}
 	if !n.X.Type().IsEmptyInterface() && !n.Type().IsInterface() {
 		byteptr := s.f.Config.Types.BytePtr
 		targetItab = s.expr(n.ITab)
@@ -6237,15 +6290,16 @@ func (s *state) dynamicDottype(n *ir.DynamicTypeAssertExpr, commaok bool) (res, 
 	} else {
 		target = s.expr(n.RType)
 	}
-	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, target, targetItab, commaok)
+	return s.dottype1(n.Pos(), n.X.Type(), n.Type(), iface, source, target, targetItab, commaok)
 }
 
 // dottype1 implements a x.(T) operation. iface is the argument (x), dst is the type we're asserting to (T)
 // and src is the type we're asserting from.
+// source is the *runtime._type of src
 // target is the *runtime._type of dst.
 // If src is a nonempty interface and dst is not an interface, targetItab is an itab representing (dst, src). Otherwise it is nil.
 // commaok is true if the caller wants a boolean success value. Otherwise, the generated code panics if the conversion fails.
-func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, target, targetItab *ssa.Value, commaok bool) (res, resok *ssa.Value) {
+func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, target, targetItab *ssa.Value, commaok bool) (res, resok *ssa.Value) {
 	byteptr := s.f.Config.Types.BytePtr
 	if dst.IsInterface() {
 		if dst.IsEmptyInterface() {
@@ -6381,7 +6435,10 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, target, targ
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-		taddr := s.reflectType(src)
+		taddr := source
+		if taddr == nil {
+			taddr = s.reflectType(src)
+		}
 		if src.IsEmptyInterface() {
 			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
 		} else {
@@ -6439,7 +6496,6 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, target, targ
 		delete(s.vars, valVar)
 	} else {
 		res = s.load(dst, addr)
-		s.vars[memVar] = s.newValue1A(ssa.OpVarKill, types.TypeMem, tmp.(*ir.Name), s.mem())
 	}
 	resok = s.variable(okVar, types.Types[types.TBOOL])
 	delete(s.vars, okVar)
@@ -6449,7 +6505,9 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, target, targ
 // temp allocates a temp of type t at position pos
 func (s *state) temp(pos src.XPos, t *types.Type) (*ir.Name, *ssa.Value) {
 	tmp := typecheck.TempAt(pos, s.curfn, t)
-	s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
+	if t.HasPointers() {
+		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
+	}
 	addr := s.addr(tmp)
 	return tmp, addr
 }
@@ -6467,7 +6525,7 @@ func (s *state) variable(n ir.Node, t *types.Type) *ssa.Value {
 
 	if s.curBlock == s.f.Entry {
 		// No variable should be live at entry.
-		s.Fatalf("Value live at entry. It shouldn't be. func %s, node %v, value %v", s.f.Name, n, v)
+		s.f.Fatalf("value %v (%v) incorrectly live at entry", n, v)
 	}
 	// Make a FwdRef, which records a value that's live on block input.
 	// We'll find the matching definition as part of insertPhis.
@@ -6932,7 +6990,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			case ssa.OpGetG:
 				// nothing to do when there's a g register,
 				// and checkLower complains if there's not
-			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive, ssa.OpVarKill:
+			case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
 				// nothing to do; already used by liveness
 			case ssa.OpPhi:
 				CheckLoweredPhi(v)
@@ -7171,7 +7229,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		}
 	}
 	if f.HTMLWriter != nil { // spew to ssa.html
-		var buf bytes.Buffer
+		var buf strings.Builder
 		buf.WriteString("<code>")
 		buf.WriteString("<dl class=\"ssa-gen\">")
 		filename := ""
@@ -7193,7 +7251,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			}
 			buf.WriteString("</dt>")
 			buf.WriteString("<dd class=\"ssa-prog\">")
-			buf.WriteString(fmt.Sprintf("%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString())))
+			fmt.Fprintf(&buf, "%.5d <span class=\"l%v line-number\">(%s)</span> %s", p.Pc, p.InnermostLineNumber(), p.InnermostLineNumberHTML(), html.EscapeString(p.InstructionString()))
 			buf.WriteString("</dd>")
 		}
 		buf.WriteString("</dl>")
@@ -7258,14 +7316,15 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 func defframe(s *State, e *ssafn, f *ssa.Func) {
 	pp := s.pp
 
-	frame := types.Rnd(s.maxarg+e.stksize, int64(types.RegSize))
+	s.maxarg = types.RoundUp(s.maxarg, e.stkalign)
+	frame := s.maxarg + e.stksize
 	if Arch.PadFrame != nil {
 		frame = Arch.PadFrame(frame)
 	}
 
 	// Fill in argument and frame size.
 	pp.Text.To.Type = obj.TYPE_TEXTSIZE
-	pp.Text.To.Val = int32(types.Rnd(f.OwnAux.ArgWidth(), int64(types.RegSize)))
+	pp.Text.To.Val = int32(types.RoundUp(f.OwnAux.ArgWidth(), int64(types.RegSize)))
 	pp.Text.To.Offset = frame
 
 	p := pp.Text
@@ -7696,7 +7755,14 @@ type ssafn struct {
 	strings    map[string]*obj.LSym // map from constant string to data symbols
 	stksize    int64                // stack size for current frame
 	stkptrsize int64                // prefix of stack containing pointers
-	log        bool                 // print ssa debug to the stdout
+
+	// alignment for current frame.
+	// NOTE: when stkalign > PtrSize, currently this only ensures the offsets of
+	// objects in the stack frame are aligned. The stack pointer is still aligned
+	// only PtrSize.
+	stkalign int64
+
+	log bool // print ssa debug to the stdout
 }
 
 // StringData returns a symbol which
@@ -7747,7 +7813,7 @@ func (e *ssafn) Line(pos src.XPos) string {
 	return base.FmtPos(pos)
 }
 
-// Log logs a message from the compiler.
+// Logf logs a message from the compiler.
 func (e *ssafn) Logf(msg string, args ...interface{}) {
 	if e.log {
 		fmt.Printf(msg, args...)
@@ -7758,7 +7824,7 @@ func (e *ssafn) Log() bool {
 	return e.log
 }
 
-// Fatal reports a compiler error and exits.
+// Fatalf reports a compiler error and exits.
 func (e *ssafn) Fatalf(pos src.XPos, msg string, args ...interface{}) {
 	base.Pos = pos
 	nargs := append([]interface{}{ir.FuncName(e.curfn)}, args...)
@@ -7886,7 +7952,7 @@ func deferstruct() *types.Type {
 	return s
 }
 
-// SlotAddr uses LocalSlot information to initialize an obj.Addr
+// SpillSlotAddr uses LocalSlot information to initialize an obj.Addr
 // The resulting addr is used in a non-standard context -- in the prologue
 // of a function, before the frame has been constructed, so the standard
 // addressing for the parameters will be wrong.

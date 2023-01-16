@@ -14,7 +14,6 @@ import (
 	"go/token"
 	"internal/godebug"
 	"internal/goroot"
-	"internal/unsafeheader"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -38,7 +37,7 @@ import (
 // It will be removed before the release.
 // TODO(matloob): Remove enabled once we have more confidence on the
 // module index.
-var enabled bool = godebug.Get("goindex") != "0"
+var enabled = godebug.New("goindex").Value() != "0"
 
 // Module represents and encoded module index file. It is used to
 // do the equivalent of build.Import of packages in the module and answer other
@@ -369,6 +368,8 @@ func relPath(path, modroot string) string {
 	return str.TrimFilePathPrefix(filepath.Clean(path), filepath.Clean(modroot))
 }
 
+var installgorootAll = godebug.New("installgoroot").Value() == "all"
+
 // Import is the equivalent of build.Import given the information in Module.
 func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *build.Package, err error) {
 	defer unprotect(protect(), &err)
@@ -396,15 +397,12 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 	inTestdata := func(sub string) bool {
 		return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || str.HasPathPrefix(sub, "testdata")
 	}
+	var pkga string
 	if !inTestdata(rp.dir) {
 		// In build.go, p.Root should only be set in the non-local-import case, or in
 		// GOROOT or GOPATH. Since module mode only calls Import with path set to "."
 		// and the module index doesn't apply outside modules, the GOROOT case is
-		// the only case where GOROOT needs to be set.
-		// But: p.Root is actually set in the local-import case outside GOROOT, if
-		// the directory is contained in GOPATH/src
-		// TODO(#37015): fix that behavior in go/build and remove the gopath case
-		// below.
+		// the only case where p.Root needs to be set.
 		if ctxt.GOROOT != "" && str.HasFilePathPrefix(p.Dir, cfg.GOROOTsrc) && p.Dir != cfg.GOROOTsrc {
 			p.Root = ctxt.GOROOT
 			p.Goroot = true
@@ -413,47 +411,37 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			if modprefix != "" {
 				p.ImportPath = filepath.Join(modprefix, p.ImportPath)
 			}
-		}
-		for _, root := range ctxt.gopath() {
-			// TODO(matloob): do we need to reimplement the conflictdir logic?
 
-			// TODO(matloob): ctxt.hasSubdir evaluates symlinks, so it
-			// can be slower than we'd like. Find out if we can drop this
-			// logic before the release.
-			if sub, ok := ctxt.hasSubdir(filepath.Join(root, "src"), p.Dir); ok {
-				p.ImportPath = sub
-				p.Root = root
+			// Set GOROOT-specific fields (sometimes for modules in a GOPATH directory).
+			// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
+			// are only set in build.Import if p.Root != "".
+			var pkgtargetroot string
+			suffix := ""
+			if ctxt.InstallSuffix != "" {
+				suffix = "_" + ctxt.InstallSuffix
 			}
-		}
-	}
-	if p.Root != "" {
-		// Set GOROOT-specific fields (sometimes for modules in a GOPATH directory).
-		// The fields set below (SrcRoot, PkgRoot, BinDir, PkgTargetRoot, and PkgObj)
-		// are only set in build.Import if p.Root != "". As noted in the comment
-		// on setting p.Root above, p.Root should only be set in the GOROOT case for the
-		// set of packages we care about, but is also set for modules in a GOPATH src
-		// directory.
-		var pkgtargetroot string
-		var pkga string
-		suffix := ""
-		if ctxt.InstallSuffix != "" {
-			suffix = "_" + ctxt.InstallSuffix
-		}
-		switch ctxt.Compiler {
-		case "gccgo":
-			pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
-			dir, elem := path.Split(p.ImportPath)
-			pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
-		case "gc":
-			pkgtargetroot = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
-			pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
-		}
-		p.SrcRoot = ctxt.joinPath(p.Root, "src")
-		p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
-		p.BinDir = ctxt.joinPath(p.Root, "bin")
-		if pkga != "" {
-			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
-			p.PkgObj = ctxt.joinPath(p.Root, pkga)
+			switch ctxt.Compiler {
+			case "gccgo":
+				pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
+				dir, elem := path.Split(p.ImportPath)
+				pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
+			case "gc":
+				pkgtargetroot = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
+				pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
+			}
+			p.SrcRoot = ctxt.joinPath(p.Root, "src")
+			p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
+			p.BinDir = ctxt.joinPath(p.Root, "bin")
+			if pkga != "" {
+				// Always set PkgTargetRoot. It might be used when building in shared
+				// mode.
+				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+
+				// Set the install target if applicable.
+				if !p.Goroot || (installgorootAll && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+					p.PkgObj = ctxt.joinPath(p.Root, pkga)
+				}
+			}
 		}
 	}
 
@@ -470,14 +458,14 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 
 	// We need to do a second round of bad file processing.
 	var badGoError error
-	badFiles := make(map[string]bool)
-	badFile := func(name string, err error) {
+	badGoFiles := make(map[string]bool)
+	badGoFile := func(name string, err error) {
 		if badGoError == nil {
 			badGoError = err
 		}
-		if !badFiles[name] {
+		if !badGoFiles[name] {
 			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
-			badFiles[name] = true
+			badGoFiles[name] = true
 		}
 	}
 
@@ -492,12 +480,16 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 	allTags := make(map[string]bool)
 	for _, tf := range rp.sourceFiles {
 		name := tf.name()
-		if error := tf.error(); error != "" {
-			badFile(name, errors.New(tf.error()))
-			continue
-		} else if parseError := tf.parseError(); parseError != "" {
-			badFile(name, parseErrorFromString(tf.parseError()))
-			// Fall through: we still want to list files with parse errors.
+		// Check errors for go files and call badGoFiles to put them in
+		// InvalidGoFiles if they do have an error.
+		if strings.HasSuffix(name, ".go") {
+			if error := tf.error(); error != "" {
+				badGoFile(name, errors.New(tf.error()))
+				continue
+			} else if parseError := tf.parseError(); parseError != "" {
+				badGoFile(name, parseErrorFromString(tf.parseError()))
+				// Fall through: we still want to list files with parse errors.
+			}
 		}
 
 		var shouldBuild = true
@@ -567,7 +559,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			// TODO(#45999): The choice of p.Name is arbitrary based on file iteration
 			// order. Instead of resolving p.Name arbitrarily, we should clear out the
 			// existing Name and mark the existing files as also invalid.
-			badFile(name, &MultiplePackageError{
+			badGoFile(name, &MultiplePackageError{
 				Dir:      p.Dir,
 				Packages: []string{p.Name, pkg},
 				Files:    []string{firstFile, name},
@@ -586,7 +578,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		for _, imp := range imports {
 			if imp.path == "C" {
 				if isTest {
-					badFile(name, fmt.Errorf("use of cgo in test %s not supported", name))
+					badGoFile(name, fmt.Errorf("use of cgo in test %s not supported", name))
 					continue
 				}
 				isCgo = true
@@ -594,7 +586,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		}
 		if directives := tf.cgoDirectives(); directives != "" {
 			if err := ctxt.saveCgo(name, (*Package)(p), directives); err != nil {
-				badFile(name, err)
+				badGoFile(name, err)
 			}
 		}
 
@@ -789,7 +781,7 @@ func shouldBuild(sf *sourceFile, tags map[string]bool) bool {
 	plusBuildConstraints := sf.plusBuildConstraints()
 	for _, text := range plusBuildConstraints {
 		if x, err := constraint.Parse(text); err == nil {
-			if imports.Eval(x, tags, true) == false {
+			if !imports.Eval(x, tags, true) {
 				return false
 			}
 		}
@@ -948,14 +940,7 @@ func (sf *sourceFile) embeds() []embed {
 }
 
 func asString(b []byte) string {
-	p := (*unsafeheader.Slice)(unsafe.Pointer(&b)).Data
-
-	var s string
-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = p
-	hdr.Len = len(b)
-
-	return s
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 // A decoder helps decode the index format.

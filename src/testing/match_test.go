@@ -12,6 +12,10 @@ import (
 	"unicode"
 )
 
+func init() {
+	testingTesting = true
+}
+
 // Verify that our IsSpace agrees with unicode.IsSpace.
 func TestIsSpace(t *T) {
 	n := 0
@@ -89,54 +93,75 @@ func TestSplitRegexp(t *T) {
 func TestMatcher(t *T) {
 	testCases := []struct {
 		pattern     string
+		skip        string
 		parent, sub string
 		ok          bool
 		partial     bool
 	}{
 		// Behavior without subtests.
-		{"", "", "TestFoo", true, false},
-		{"TestFoo", "", "TestFoo", true, false},
-		{"TestFoo/", "", "TestFoo", true, true},
-		{"TestFoo/bar/baz", "", "TestFoo", true, true},
-		{"TestFoo", "", "TestBar", false, false},
-		{"TestFoo/", "", "TestBar", false, false},
-		{"TestFoo/bar/baz", "", "TestBar/bar/baz", false, false},
+		{"", "", "", "TestFoo", true, false},
+		{"TestFoo", "", "", "TestFoo", true, false},
+		{"TestFoo/", "", "", "TestFoo", true, true},
+		{"TestFoo/bar/baz", "", "", "TestFoo", true, true},
+		{"TestFoo", "", "", "TestBar", false, false},
+		{"TestFoo/", "", "", "TestBar", false, false},
+		{"TestFoo/bar/baz", "", "", "TestBar/bar/baz", false, false},
+		{"", "TestBar", "", "TestFoo", true, false},
+		{"", "TestBar", "", "TestBar", false, false},
+
+		// Skipping a non-existent test doesn't change anything.
+		{"", "TestFoo/skipped", "", "TestFoo", true, false},
+		{"TestFoo", "TestFoo/skipped", "", "TestFoo", true, false},
+		{"TestFoo/", "TestFoo/skipped", "", "TestFoo", true, true},
+		{"TestFoo/bar/baz", "TestFoo/skipped", "", "TestFoo", true, true},
+		{"TestFoo", "TestFoo/skipped", "", "TestBar", false, false},
+		{"TestFoo/", "TestFoo/skipped", "", "TestBar", false, false},
+		{"TestFoo/bar/baz", "TestFoo/skipped", "", "TestBar/bar/baz", false, false},
 
 		// with subtests
-		{"", "TestFoo", "x", true, false},
-		{"TestFoo", "TestFoo", "x", true, false},
-		{"TestFoo/", "TestFoo", "x", true, false},
-		{"TestFoo/bar/baz", "TestFoo", "bar", true, true},
+		{"", "", "TestFoo", "x", true, false},
+		{"TestFoo", "", "TestFoo", "x", true, false},
+		{"TestFoo/", "", "TestFoo", "x", true, false},
+		{"TestFoo/bar/baz", "", "TestFoo", "bar", true, true},
+
+		{"", "TestFoo/skipped", "TestFoo", "x", true, false},
+		{"TestFoo", "TestFoo/skipped", "TestFoo", "x", true, false},
+		{"TestFoo", "TestFoo/skipped", "TestFoo", "skipped", false, false},
+		{"TestFoo/", "TestFoo/skipped", "TestFoo", "x", true, false},
+		{"TestFoo/bar/baz", "TestFoo/skipped", "TestFoo", "bar", true, true},
+
 		// Subtest with a '/' in its name still allows for copy and pasted names
 		// to match.
-		{"TestFoo/bar/baz", "TestFoo", "bar/baz", true, false},
-		{"TestFoo/bar/baz", "TestFoo/bar", "baz", true, false},
-		{"TestFoo/bar/baz", "TestFoo", "x", false, false},
-		{"TestFoo", "TestBar", "x", false, false},
-		{"TestFoo/", "TestBar", "x", false, false},
-		{"TestFoo/bar/baz", "TestBar", "x/bar/baz", false, false},
+		{"TestFoo/bar/baz", "", "TestFoo", "bar/baz", true, false},
+		{"TestFoo/bar/baz", "TestFoo/bar/baz", "TestFoo", "bar/baz", false, false},
+		{"TestFoo/bar/baz", "TestFoo/bar/baz/skip", "TestFoo", "bar/baz", true, false},
+		{"TestFoo/bar/baz", "", "TestFoo/bar", "baz", true, false},
+		{"TestFoo/bar/baz", "", "TestFoo", "x", false, false},
+		{"TestFoo", "", "TestBar", "x", false, false},
+		{"TestFoo/", "", "TestBar", "x", false, false},
+		{"TestFoo/bar/baz", "", "TestBar", "x/bar/baz", false, false},
 
-		{"A/B|C/D", "TestA", "B", true, false},
-		{"A/B|C/D", "TestC", "D", true, false},
-		{"A/B|C/D", "TestA", "C", false, false},
+		{"A/B|C/D", "", "TestA", "B", true, false},
+		{"A/B|C/D", "", "TestC", "D", true, false},
+		{"A/B|C/D", "", "TestA", "C", false, false},
 
 		// subtests only
-		{"", "TestFoo", "x", true, false},
-		{"/", "TestFoo", "x", true, false},
-		{"./", "TestFoo", "x", true, false},
-		{"./.", "TestFoo", "x", true, false},
-		{"/bar/baz", "TestFoo", "bar", true, true},
-		{"/bar/baz", "TestFoo", "bar/baz", true, false},
-		{"//baz", "TestFoo", "bar/baz", true, false},
-		{"//", "TestFoo", "bar/baz", true, false},
-		{"/bar/baz", "TestFoo/bar", "baz", true, false},
-		{"//foo", "TestFoo", "bar/baz", false, false},
-		{"/bar/baz", "TestFoo", "x", false, false},
-		{"/bar/baz", "TestBar", "x/bar/baz", false, false},
+		{"", "", "TestFoo", "x", true, false},
+		{"/", "", "TestFoo", "x", true, false},
+		{"./", "", "TestFoo", "x", true, false},
+		{"./.", "", "TestFoo", "x", true, false},
+		{"/bar/baz", "", "TestFoo", "bar", true, true},
+		{"/bar/baz", "", "TestFoo", "bar/baz", true, false},
+		{"//baz", "", "TestFoo", "bar/baz", true, false},
+		{"//", "", "TestFoo", "bar/baz", true, false},
+		{"/bar/baz", "", "TestFoo/bar", "baz", true, false},
+		{"//foo", "", "TestFoo", "bar/baz", false, false},
+		{"/bar/baz", "", "TestFoo", "x", false, false},
+		{"/bar/baz", "", "TestBar", "x/bar/baz", false, false},
 	}
 
 	for _, tc := range testCases {
-		m := newMatcher(regexp.MatchString, tc.pattern, "-test.run")
+		m := newMatcher(regexp.MatchString, tc.pattern, "-test.run", tc.skip)
 
 		parent := &common{name: tc.parent}
 		if tc.parent != "" {
@@ -184,7 +209,7 @@ var namingTestCases = []struct{ name, want string }{
 }
 
 func TestNaming(t *T) {
-	m := newMatcher(regexp.MatchString, "", "")
+	m := newMatcher(regexp.MatchString, "", "", "")
 	parent := &common{name: "x", level: 1} // top-level test.
 
 	for i, tc := range namingTestCases {
@@ -202,7 +227,7 @@ func FuzzNaming(f *F) {
 	var m *matcher
 	var seen map[string]string
 	reset := func() {
-		m = newMatcher(regexp.MatchString, "", "")
+		m = allMatcher()
 		seen = make(map[string]string)
 	}
 	reset()

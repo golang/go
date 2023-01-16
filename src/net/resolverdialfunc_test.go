@@ -213,7 +213,6 @@ var (
 
 type resolverFuncConn struct {
 	h       *resolverDialHandler
-	ctx     context.Context
 	network string
 	address string
 	builder *dnsmessage.Builder

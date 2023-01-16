@@ -268,13 +268,6 @@ func PkgFuncName(f *Func) string {
 	s := f.Sym()
 	pkg := s.Pkg
 
-	// TODO(mdempsky): Remove after submitting CL 393715? This matches
-	// how PkgFuncName has historically handled local functions, but
-	// drchase points out it contradicts the documentation.
-	if pkg == types.LocalPkg {
-		return s.Name
-	}
-
 	return pkg.Path + "." + s.Name
 }
 
@@ -306,7 +299,7 @@ func MarkFunc(n *Name) {
 }
 
 // ClosureDebugRuntimeCheck applies boilerplate checks for debug flags
-// and compiling runtime
+// and compiling runtime.
 func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
 	if base.Debug.Closure > 0 {
 		if clo.Esc() == EscHeap {

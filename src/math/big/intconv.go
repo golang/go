@@ -40,7 +40,7 @@ func (x *Int) String() string {
 	return x.Text(10)
 }
 
-// write count copies of text to s
+// write count copies of text to s.
 func writeMultiple(s fmt.State, text string, count int) {
 	if len(text) > 0 {
 		b := []byte(text)

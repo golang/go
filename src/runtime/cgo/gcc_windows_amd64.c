@@ -13,11 +13,13 @@
 
 static void threadentry(void*);
 static void (*setg_gcc)(void*);
+static DWORD *tls_g;
 
 void
 x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
 	setg_gcc = setg;
+	tls_g = (DWORD *)tlsg;
 }
 
 
@@ -41,8 +43,8 @@ threadentry(void *v)
 	 * Set specific keys in thread local storage.
 	 */
 	asm volatile (
-	  "movq %0, %%gs:0x28\n"	// MOVL tls0, 0x28(GS)
-	  :: "r"(ts.tls)
+	  "movq %0, %%gs:0(%1)\n"	// MOVL tls0, 0(tls_g)(GS)
+	  :: "r"(ts.tls), "r"(*tls_g)
 	);
 
 	crosscall_amd64(ts.fn, setg_gcc, (void*)ts.g);

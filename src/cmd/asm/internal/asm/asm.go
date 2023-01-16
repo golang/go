@@ -5,9 +5,9 @@
 package asm
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 	"text/scanner"
 
 	"cmd/asm/internal/arch"
@@ -22,7 +22,7 @@ import (
 
 // TODO: configure the architecture
 
-var testOut *bytes.Buffer // Gathers output when testing.
+var testOut *strings.Builder // Gathers output when testing.
 
 // append adds the Prog to the end of the program-thus-far.
 // If doLabel is set, it also defines the labels collect for this Prog.
@@ -178,7 +178,7 @@ func (p *Parser) asmText(operands [][]lex.Token) {
 		}
 		argSize = p.positiveAtoi(op[1].String())
 	}
-	p.ctxt.InitTextSym(nameAddr.Sym, int(flag))
+	p.ctxt.InitTextSym(nameAddr.Sym, int(flag), p.pos())
 	prog := &obj.Prog{
 		Ctxt: p.ctxt,
 		As:   obj.ATEXT,
@@ -297,7 +297,7 @@ func (p *Parser) asmGlobl(operands [][]lex.Token) {
 	}
 
 	// log.Printf("GLOBL %s %d, $%d", name, flag, size)
-	p.ctxt.Globl(nameAddr.Sym, addr.Offset, int(flag))
+	p.ctxt.GloblPos(nameAddr.Sym, addr.Offset, int(flag), p.pos())
 }
 
 // asmPCData assembles a PCDATA pseudo-op.
@@ -727,23 +727,17 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				prog.To = a[1]
 				break
 			}
-			// Arithmetic. Choices are:
-			// reg reg reg
-			// imm reg reg
-			// reg imm reg
-			// If the immediate is the middle argument, use From3.
+
+			prog.From = a[0]
+			prog.To = a[2]
+
+			// If the second argument is not a register argument, it must be
+			// passed RestArgs/SetFrom3
 			switch a[1].Type {
 			case obj.TYPE_REG:
-				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
-				prog.To = a[2]
-			case obj.TYPE_CONST:
-				prog.From = a[0]
-				prog.SetFrom3(a[1])
-				prog.To = a[2]
 			default:
-				p.errorf("invalid addressing modes for %s instruction", op)
-				return
+				prog.SetFrom3(a[1])
 			}
 		case sys.RISCV64:
 			// RISCV64 instructions with one input and two outputs.
@@ -810,41 +804,18 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			break
 		}
 		if p.arch.Family == sys.PPC64 {
-			if arch.IsPPC64RLD(op) {
-				prog.From = a[0]
-				prog.Reg = p.getRegister(prog, op, &a[1])
-				prog.SetFrom3(a[2])
-				prog.To = a[3]
-				break
-			} else if arch.IsPPC64ISEL(op) {
-				// ISEL BC,RB,RA,RT becomes isel rt,ra,rb,bc
-				prog.SetFrom3(a[2])                       // ra
-				prog.From = a[0]                          // bc
-				prog.Reg = p.getRegister(prog, op, &a[1]) // rb
-				prog.To = a[3]                            // rt
-				break
-			}
-			// Else, it is a VA-form instruction
-			// reg reg reg reg
-			// imm reg reg reg
-			// Or a VX-form instruction
-			// imm imm reg reg
+			prog.From = a[0]
+			prog.To = a[3]
+			// If the second argument is not a register argument, it must be
+			// passed RestArgs/SetFrom3
 			if a[1].Type == obj.TYPE_REG {
-				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
-				prog.SetFrom3(a[2])
-				prog.To = a[3]
-				break
-			} else if a[1].Type == obj.TYPE_CONST {
-				prog.From = a[0]
-				prog.Reg = p.getRegister(prog, op, &a[2])
-				prog.SetFrom3(a[1])
-				prog.To = a[3]
-				break
+				prog.SetRestArgs([]obj.Addr{a[2]})
 			} else {
-				p.errorf("invalid addressing modes for %s instruction", op)
-				return
+				// Don't set prog.Reg if a1 isn't a reg arg.
+				prog.SetRestArgs([]obj.Addr{a[1], a[2]})
 			}
+			break
 		}
 		if p.arch.Family == sys.RISCV64 {
 			prog.From = a[0]
@@ -909,6 +880,14 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.As = MRC // Both instructions are coded as MRC.
 			break
 		}
+		if p.arch.Family == sys.PPC64 {
+			prog.From = a[0]
+			// Second arg is always a register type on ppc64.
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.SetRestArgs([]obj.Addr{a[2], a[3], a[4]})
+			prog.To = a[5]
+			break
+		}
 		fallthrough
 	default:
 		p.errorf("can't handle %s instruction with %d operands", op, len(a))
@@ -916,13 +895,6 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 	}
 
 	p.append(prog, cond, true)
-}
-
-// newAddr returns a new(Addr) initialized to x.
-func newAddr(x obj.Addr) *obj.Addr {
-	p := new(obj.Addr)
-	*p = x
-	return p
 }
 
 // symbolName returns the symbol name, or an error string if none if available.

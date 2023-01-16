@@ -359,7 +359,7 @@ func (config *ABIConfig) ABIAnalyzeTypes(rcvr *types.Type, ins, outs []*types.Ty
 		result.inparams = append(result.inparams,
 			s.assignParamOrReturn(t, nil, false))
 	}
-	s.stackOffset = types.Rnd(s.stackOffset, int64(types.RegSize))
+	s.stackOffset = types.RoundUp(s.stackOffset, int64(types.RegSize))
 	result.inRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
 
 	// Outputs
@@ -403,7 +403,7 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo 
 		result.inparams = append(result.inparams,
 			s.assignParamOrReturn(f.Type, f.Nname, false))
 	}
-	s.stackOffset = types.Rnd(s.stackOffset, int64(types.RegSize))
+	s.stackOffset = types.RoundUp(s.stackOffset, int64(types.RegSize))
 	result.inRegistersUsed = s.rUsed.intRegs + s.rUsed.floatRegs
 
 	// Outputs
@@ -529,7 +529,7 @@ type assignState struct {
 	spillOffset int64      // current spill offset
 }
 
-// align returns a rounded up to t's alignment
+// align returns a rounded up to t's alignment.
 func align(a int64, t *types.Type) int64 {
 	return alignTo(a, int(uint8(t.Alignment())))
 }
@@ -539,7 +539,7 @@ func alignTo(a int64, t int) int64 {
 	if t == 0 {
 		return a
 	}
-	return types.Rnd(a, int64(t))
+	return types.RoundUp(a, int64(t))
 }
 
 // stackSlot returns a stack offset for a param or result of the
@@ -647,7 +647,7 @@ func (state *assignState) floatUsed() int {
 // can register allocate, FALSE otherwise (and updates state
 // accordingly).
 func (state *assignState) regassignIntegral(t *types.Type) bool {
-	regsNeeded := int(types.Rnd(t.Size(), int64(types.PtrSize)) / int64(types.PtrSize))
+	regsNeeded := int(types.RoundUp(t.Size(), int64(types.PtrSize)) / int64(types.PtrSize))
 	if t.IsComplex() {
 		regsNeeded = 2
 	}

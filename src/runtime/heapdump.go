@@ -120,7 +120,7 @@ type typeCacheBucket struct {
 
 var typecache [typeCacheBuckets]typeCacheBucket
 
-// dump a uint64 in a varint format parseable by encoding/binary
+// dump a uint64 in a varint format parseable by encoding/binary.
 func dumpint(v uint64) {
 	var buf [10]byte
 	var n int
@@ -142,7 +142,7 @@ func dumpbool(b bool) {
 	}
 }
 
-// dump varint uint64 length followed by memory contents
+// dump varint uint64 length followed by memory contents.
 func dumpmemrange(data unsafe.Pointer, len uintptr) {
 	dumpint(uint64(len))
 	dwrite(data, len)
@@ -156,11 +156,10 @@ func dumpslice(b []byte) {
 }
 
 func dumpstr(s string) {
-	sp := stringStructOf(&s)
-	dumpmemrange(sp.str, uintptr(sp.len))
+	dumpmemrange(unsafe.Pointer(unsafe.StringData(s)), uintptr(len(s)))
 }
 
-// dump information for a type
+// dump information for a type.
 func dumptype(t *_type) {
 	if t == nil {
 		return
@@ -197,19 +196,17 @@ func dumptype(t *_type) {
 	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
 		dumpstr(t.string())
 	} else {
-		pkgpathstr := t.nameOff(x.pkgpath).name()
-		pkgpath := stringStructOf(&pkgpathstr)
-		namestr := t.name()
-		name := stringStructOf(&namestr)
-		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
-		dwrite(pkgpath.str, uintptr(pkgpath.len))
+		pkgpath := t.nameOff(x.pkgpath).name()
+		name := t.name()
+		dumpint(uint64(uintptr(len(pkgpath)) + 1 + uintptr(len(name))))
+		dwrite(unsafe.Pointer(unsafe.StringData(pkgpath)), uintptr(len(pkgpath)))
 		dwritebyte('.')
-		dwrite(name.str, uintptr(name.len))
+		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
 	}
 	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
 }
 
-// dump an object
+// dump an object.
 func dumpobj(obj unsafe.Pointer, size uintptr, bv bitvector) {
 	dumpint(tagObject)
 	dumpint(uint64(uintptr(obj)))
@@ -242,7 +239,7 @@ type childInfo struct {
 	depth  uintptr   // depth in call stack (0 == most recent)
 }
 
-// dump kinds & offsets of interesting fields in bv
+// dump kinds & offsets of interesting fields in bv.
 func dumpbv(cbv *bitvector, offset uintptr) {
 	for i := uintptr(0); i < uintptr(cbv.n); i++ {
 		if cbv.ptrbit(i) == 1 {
@@ -327,7 +324,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 
 	// Record arg info for parent.
 	child.argoff = s.argp - s.fp
-	child.arglen = s.arglen
+	child.arglen = s.argBytes()
 	child.sp = (*uint8)(unsafe.Pointer(s.sp))
 	child.depth++
 	stkmap = (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
@@ -354,7 +351,7 @@ func dumpgoroutine(gp *g) {
 	dumpint(tagGoroutine)
 	dumpint(uint64(uintptr(unsafe.Pointer(gp))))
 	dumpint(uint64(sp))
-	dumpint(uint64(gp.goid))
+	dumpint(gp.goid)
 	dumpint(uint64(gp.gopc))
 	dumpint(uint64(readgstatus(gp)))
 	dumpbool(isSystemGoroutine(gp, false))
@@ -693,9 +690,8 @@ func mdump(m *MemStats) {
 func writeheapdump_m(fd uintptr, m *MemStats) {
 	assertWorldStopped()
 
-	_g_ := getg()
-	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
-	_g_.waitreason = waitReasonDumpingHeap
+	gp := getg()
+	casGToWaiting(gp.m.curg, _Grunning, waitReasonDumpingHeap)
 
 	// Set dump file.
 	dumpfd = fd
@@ -710,7 +706,7 @@ func writeheapdump_m(fd uintptr, m *MemStats) {
 		tmpbuf = nil
 	}
 
-	casgstatus(_g_.m.curg, _Gwaiting, _Grunning)
+	casgstatus(gp.m.curg, _Gwaiting, _Grunning)
 }
 
 // dumpint() the kind & offset of each field in an object.
@@ -737,16 +733,16 @@ func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	for i := uintptr(0); i < nptr/8+1; i++ {
 		tmpbuf[i] = 0
 	}
-	i := uintptr(0)
-	hbits := heapBitsForAddr(p)
-	for ; i < nptr; i++ {
-		if !hbits.morePointers() {
-			break // end of object
+
+	hbits := heapBitsForAddr(p, size)
+	for {
+		var addr uintptr
+		hbits, addr = hbits.next()
+		if addr == 0 {
+			break
 		}
-		if hbits.isPointer() {
-			tmpbuf[i/8] |= 1 << (i % 8)
-		}
-		hbits = hbits.next()
+		i := (addr - p) / goarch.PtrSize
+		tmpbuf[i/8] |= 1 << (i % 8)
 	}
-	return bitvector{int32(i), &tmpbuf[0]}
+	return bitvector{int32(nptr), &tmpbuf[0]}
 }

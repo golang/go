@@ -134,6 +134,7 @@ const (
 	OSTR2BYTES    // Type(X) (Type is []byte, X is a string)
 	OSTR2BYTESTMP // Type(X) (Type is []byte, X is a string, ephemeral)
 	OSTR2RUNES    // Type(X) (Type is []rune, X is a string)
+	OSLICE2ARR    // Type(X) (Type is [N]T, X is a []T)
 	OSLICE2ARRPTR // Type(X) (Type is *[N]T, X is a []T)
 	// X = Y or (if Def=true) X := Y
 	// If Def, then Init includes a DCL node for X.
@@ -152,7 +153,7 @@ const (
 	// Prior to walk, they are: X(Args), where Args is all regular arguments.
 	// After walk, if any argument whose evaluation might requires temporary variable,
 	// that temporary variable will be pushed to Init, Args will contains an updated
-	// set of arguments. KeepAlive is all OVARLIVE nodes that are attached to OCALLxxx.
+	// set of arguments.
 	OCALLFUNC  // X(Args) (function call f(args))
 	OCALLMETH  // X(Args) (direct method call x.Method(args))
 	OCALLINTER // X(Args) (interface method call x.Method(args))
@@ -209,45 +210,49 @@ const (
 	//
 	// This node is created so the walk pass can optimize this pattern which would
 	// otherwise be hard to detect after the order pass.
-	OMUL         // X * Y
-	ODIV         // X / Y
-	OMOD         // X % Y
-	OLSH         // X << Y
-	ORSH         // X >> Y
-	OAND         // X & Y
-	OANDNOT      // X &^ Y
-	ONEW         // new(X); corresponds to calls to new in source code
-	ONOT         // !X
-	OBITNOT      // ^X
-	OPLUS        // +X
-	ONEG         // -X
-	OOROR        // X || Y
-	OPANIC       // panic(X)
-	OPRINT       // print(List)
-	OPRINTN      // println(List)
-	OPAREN       // (X)
-	OSEND        // Chan <- Value
-	OSLICE       // X[Low : High] (X is untypechecked or slice)
-	OSLICEARR    // X[Low : High] (X is pointer to array)
-	OSLICESTR    // X[Low : High] (X is string)
-	OSLICE3      // X[Low : High : Max] (X is untypedchecked or slice)
-	OSLICE3ARR   // X[Low : High : Max] (X is pointer to array)
-	OSLICEHEADER // sliceheader{Ptr, Len, Cap} (Ptr is unsafe.Pointer, Len is length, Cap is capacity)
-	ORECOVER     // recover()
-	ORECOVERFP   // recover(Args) w/ explicit FP argument
-	ORECV        // <-X
-	ORUNESTR     // Type(X) (Type is string, X is rune)
-	OSELRECV2    // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
-	OREAL        // real(X)
-	OIMAG        // imag(X)
-	OCOMPLEX     // complex(X, Y)
-	OALIGNOF     // unsafe.Alignof(X)
-	OOFFSETOF    // unsafe.Offsetof(X)
-	OSIZEOF      // unsafe.Sizeof(X)
-	OUNSAFEADD   // unsafe.Add(X, Y)
-	OUNSAFESLICE // unsafe.Slice(X, Y)
-	OMETHEXPR    // X(Args) (method expression T.Method(args), first argument is the method receiver)
-	OMETHVALUE   // X.Sel   (method expression t.Method, not called)
+	OMUL              // X * Y
+	ODIV              // X / Y
+	OMOD              // X % Y
+	OLSH              // X << Y
+	ORSH              // X >> Y
+	OAND              // X & Y
+	OANDNOT           // X &^ Y
+	ONEW              // new(X); corresponds to calls to new in source code
+	ONOT              // !X
+	OBITNOT           // ^X
+	OPLUS             // +X
+	ONEG              // -X
+	OOROR             // X || Y
+	OPANIC            // panic(X)
+	OPRINT            // print(List)
+	OPRINTN           // println(List)
+	OPAREN            // (X)
+	OSEND             // Chan <- Value
+	OSLICE            // X[Low : High] (X is untypechecked or slice)
+	OSLICEARR         // X[Low : High] (X is pointer to array)
+	OSLICESTR         // X[Low : High] (X is string)
+	OSLICE3           // X[Low : High : Max] (X is untypedchecked or slice)
+	OSLICE3ARR        // X[Low : High : Max] (X is pointer to array)
+	OSLICEHEADER      // sliceheader{Ptr, Len, Cap} (Ptr is unsafe.Pointer, Len is length, Cap is capacity)
+	OSTRINGHEADER     // stringheader{Ptr, Len} (Ptr is unsafe.Pointer, Len is length)
+	ORECOVER          // recover()
+	ORECOVERFP        // recover(Args) w/ explicit FP argument
+	ORECV             // <-X
+	ORUNESTR          // Type(X) (Type is string, X is rune)
+	OSELRECV2         // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
+	OREAL             // real(X)
+	OIMAG             // imag(X)
+	OCOMPLEX          // complex(X, Y)
+	OALIGNOF          // unsafe.Alignof(X)
+	OOFFSETOF         // unsafe.Offsetof(X)
+	OSIZEOF           // unsafe.Sizeof(X)
+	OUNSAFEADD        // unsafe.Add(X, Y)
+	OUNSAFESLICE      // unsafe.Slice(X, Y)
+	OUNSAFESLICEDATA  // unsafe.SliceData(X)
+	OUNSAFESTRING     // unsafe.String(X, Y)
+	OUNSAFESTRINGDATA // unsafe.StringData(X)
+	OMETHEXPR         // X(Args) (method expression T.Method(args), first argument is the method receiver)
+	OMETHVALUE        // X.Sel   (method expression t.Method, not called)
 
 	// statements
 	OBLOCK // { List } (block of code)
@@ -263,24 +268,14 @@ const (
 	ODEFER    // defer Call
 	OFALL     // fallthrough
 	OFOR      // for Init; Cond; Post { Body }
-	// OFORUNTIL is like OFOR, but the test (Cond) is applied after the body:
-	// 	Init
-	// 	top: { Body }   // Execute the body at least once
-	// 	cont: Post
-	// 	if Cond {        // And then test the loop condition
-	// 		List     // Before looping to top, execute List
-	// 		goto top
-	// 	}
-	// OFORUNTIL is created by walk. There's no way to write this in Go code.
-	OFORUNTIL
-	OGOTO   // goto Label
-	OIF     // if Init; Cond { Then } else { Else }
-	OLABEL  // Label:
-	OGO     // go Call
-	ORANGE  // for Key, Value = range X { Body }
-	ORETURN // return Results
-	OSELECT // select { Cases }
-	OSWITCH // switch Init; Expr { Cases }
+	OGOTO     // goto Label
+	OIF       // if Init; Cond { Then } else { Else }
+	OLABEL    // Label:
+	OGO       // go Call
+	ORANGE    // for Key, Value = range X { Body }
+	ORETURN   // return Results
+	OSELECT   // select { Cases }
+	OSWITCH   // switch Init; Expr { Cases }
 	// OTYPESW:  X := Y.(type) (appears as .Tag of OSWITCH)
 	//   X is nil if there is no type-switch variable
 	OTYPESW
@@ -298,9 +293,6 @@ const (
 	OSPTR          // base pointer of a slice or string.
 	OCFUNC         // reference to c function pointer (not go func value)
 	OCHECKNIL      // emit code to ensure pointer/interface not nil
-	OVARDEF        // variable is about to be fully initialized
-	OVARKILL       // variable is dead
-	OVARLIVE       // variable is alive
 	ORESULT        // result of a function call; Xoffset is stack offset
 	OINLMARK       // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
 	OLINKSYMOFFSET // offset within a name
@@ -462,9 +454,6 @@ const (
 	Nowritebarrier     // emit compiler error instead of write barrier
 	Nowritebarrierrec  // error on write barrier in this or recursive callees
 	Yeswritebarrierrec // cancels Nowritebarrierrec in this function and callees
-
-	// Runtime and cgo type pragmas
-	NotInHeap // values of this type must not be heap allocated
 
 	// Go command pragmas
 	GoBuildPragma

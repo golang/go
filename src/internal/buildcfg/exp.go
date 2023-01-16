@@ -62,16 +62,16 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// always on.
 	var regabiSupported, regabiAlwaysOn bool
 	switch goarch {
-	case "amd64", "arm64", "ppc64le", "ppc64":
+	case "amd64", "arm64", "ppc64le", "ppc64", "riscv64":
 		regabiAlwaysOn = true
-		regabiSupported = true
-	case "riscv64":
 		regabiSupported = true
 	}
 
 	baseline := goexperiment.Flags{
-		RegabiWrappers: regabiSupported,
-		RegabiArgs:     regabiSupported,
+		RegabiWrappers:   regabiSupported,
+		RegabiArgs:       regabiSupported,
+		Unified:          true,
+		CoverageRedesign: true,
 	}
 
 	// Start with the statically enabled set of experiments.

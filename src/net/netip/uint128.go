@@ -60,17 +60,6 @@ func (u uint128) addOne() uint128 {
 	return uint128{u.hi + carry, lo}
 }
 
-func u64CommonPrefixLen(a, b uint64) uint8 {
-	return uint8(bits.LeadingZeros64(a ^ b))
-}
-
-func (u uint128) commonPrefixLen(v uint128) (n uint8) {
-	if n = u64CommonPrefixLen(u.hi, v.hi); n == 64 {
-		n += u64CommonPrefixLen(u.lo, v.lo)
-	}
-	return
-}
-
 // halves returns the two uint64 halves of the uint128.
 //
 // Logically, think of it as returning two uint64s.

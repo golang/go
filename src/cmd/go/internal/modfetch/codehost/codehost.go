@@ -37,7 +37,9 @@ const (
 // A Repo represents a code hosting source.
 // Typical implementations include local version control repositories,
 // remote version control servers, and code hosting sites.
-// A Repo must be safe for simultaneous use by multiple goroutines.
+//
+// A Repo must be safe for simultaneous use by multiple goroutines,
+// and callers must not modify returned values, which may be cached and shared.
 type Repo interface {
 	// CheckReuse checks whether the old origin information
 	// remains up to date. If so, whatever cached object it was
@@ -197,6 +199,19 @@ func (noCommitsError) Error() string {
 }
 func (noCommitsError) Is(err error) bool {
 	return err == fs.ErrNotExist
+}
+
+// ErrUnsupported indicates that a requested operation cannot be performed,
+// because it is unsupported. This error indicates that there is no alternative
+// way to perform the operation.
+//
+// TODO(#41198): Remove this declaration and use errors.ErrUnsupported instead.
+var ErrUnsupported = unsupportedOperationError{}
+
+type unsupportedOperationError struct{}
+
+func (unsupportedOperationError) Error() string {
+	return "unsupported operation"
 }
 
 // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.

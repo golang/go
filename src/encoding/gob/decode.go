@@ -9,6 +9,7 @@ package gob
 import (
 	"encoding"
 	"errors"
+	"internal/saferio"
 	"io"
 	"math"
 	"math/bits"
@@ -57,17 +58,6 @@ func (d *decBuffer) Drop(n int) {
 	d.offset += n
 }
 
-// Size grows the buffer to exactly n bytes, so d.Bytes() will
-// return a slice of length n. Existing data is first discarded.
-func (d *decBuffer) Size(n int) {
-	d.Reset()
-	if cap(d.data) < n {
-		d.data = make([]byte, n)
-	} else {
-		d.data = d.data[0:n]
-	}
-}
-
 func (d *decBuffer) ReadByte() (byte, error) {
 	if d.offset >= len(d.data) {
 		return 0, io.EOF
@@ -83,6 +73,12 @@ func (d *decBuffer) Len() int {
 
 func (d *decBuffer) Bytes() []byte {
 	return d.data[d.offset:]
+}
+
+// SetBytes sets the buffer to the bytes, discarding any existing data.
+func (d *decBuffer) SetBytes(data []byte) {
+	d.data = data
+	d.offset = 0
 }
 
 func (d *decBuffer) Reset() {
@@ -374,12 +370,40 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 		errorf("bad %s slice length: %d", value.Type(), n)
 	}
 	if value.Cap() < n {
-		value.Set(reflect.MakeSlice(value.Type(), n, n))
+		safe := saferio.SliceCap((*byte)(nil), uint64(n))
+		if safe < 0 {
+			errorf("%s slice too big: %d elements", value.Type(), n)
+		}
+		value.Set(reflect.MakeSlice(value.Type(), safe, safe))
+		ln := safe
+		i := 0
+		for i < n {
+			if i >= ln {
+				// We didn't allocate the entire slice,
+				// due to using saferio.SliceCap.
+				// Append a value to grow the slice.
+				// The slice is full, so this should
+				// bump up the capacity.
+				value.Set(reflect.Append(value, reflect.Zero(value.Type().Elem())))
+			}
+			// Copy into s up to the capacity or n,
+			// whichever is less.
+			ln = value.Cap()
+			if ln > n {
+				ln = n
+			}
+			value.SetLen(ln)
+			sub := value.Slice(i, ln)
+			if _, err := state.b.Read(sub.Bytes()); err != nil {
+				errorf("error decoding []byte at %d: %s", err, i)
+			}
+			i = ln
+		}
 	} else {
 		value.SetLen(n)
-	}
-	if _, err := state.b.Read(value.Bytes()); err != nil {
-		errorf("error decoding []byte: %s", err)
+		if _, err := state.b.Read(value.Bytes()); err != nil {
+			errorf("error decoding []byte: %s", err)
+		}
 	}
 }
 
@@ -454,11 +478,10 @@ func (dec *Decoder) decodeStruct(engine *decEngine, value reflect.Value) {
 		if delta == 0 { // struct terminator is zero delta fieldnum
 			break
 		}
-		fieldnum := state.fieldnum + delta
-		if fieldnum >= len(engine.instr) {
+		if state.fieldnum >= len(engine.instr)-delta { // subtract to compare without overflow
 			error_(errRange)
-			break
 		}
+		fieldnum := state.fieldnum + delta
 		instr := &engine.instr[fieldnum]
 		var field reflect.Value
 		if instr.index != nil {
@@ -519,9 +542,21 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, 
 	}
 	instr := &decInstr{elemOp, 0, nil, ovfl}
 	isPtr := value.Type().Elem().Kind() == reflect.Pointer
+	ln := value.Len()
 	for i := 0; i < length; i++ {
 		if state.b.Len() == 0 {
 			errorf("decoding array or slice: length exceeds input size (%d elements)", length)
+		}
+		if i >= ln {
+			// This is a slice that we only partially allocated.
+			// Grow it using append, up to length.
+			value.Set(reflect.Append(value, reflect.Zero(value.Type().Elem())))
+			cp := value.Cap()
+			if cp > length {
+				cp = length
+			}
+			value.SetLen(cp)
+			ln = cp
 		}
 		v := value.Index(i)
 		if isPtr {
@@ -623,7 +658,11 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
 		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
 	}
 	if value.Cap() < n {
-		value.Set(reflect.MakeSlice(typ, n, n))
+		safe := saferio.SliceCap(reflect.Zero(reflect.PtrTo(typ.Elem())).Interface(), uint64(n))
+		if safe < 0 {
+			errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), u, size)
+		}
+		value.Set(reflect.MakeSlice(typ, safe, safe))
 	} else {
 		value.SetLen(n)
 	}
@@ -1228,9 +1267,14 @@ func (dec *Decoder) decodeIgnoredValue(wireId typeId) {
 	}
 }
 
+const (
+	intBits     = 32 << (^uint(0) >> 63)
+	uintptrBits = 32 << (^uintptr(0) >> 63)
+)
+
 func init() {
 	var iop, uop decOp
-	switch reflect.TypeOf(int(0)).Bits() {
+	switch intBits {
 	case 32:
 		iop = decInt32
 		uop = decUint32
@@ -1244,7 +1288,7 @@ func init() {
 	decOpTable[reflect.Uint] = uop
 
 	// Finally uintptr
-	switch reflect.TypeOf(uintptr(0)).Bits() {
+	switch uintptrBits {
 	case 32:
 		uop = decUint32
 	case 64:

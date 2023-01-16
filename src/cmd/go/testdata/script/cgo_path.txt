@@ -8,10 +8,10 @@
 [!exec:clang] [!exec:gcc] skip 'Unknown C compiler'
 
 env GOCACHE=$WORK/gocache  # Looking for compile flags, so need a clean cache.
-[!windows] env PATH=.:$PATH
-[!windows] chmod 0755 p/gcc p/clang
-[!windows] exists -exec p/gcc p/clang
-[windows] exists -exec p/gcc.bat p/clang.bat
+[!GOOS:windows] env PATH=.:$PATH
+[!GOOS:windows] chmod 0755 p/gcc p/clang
+[!GOOS:windows] exists -exec p/gcc p/clang
+[GOOS:windows] exists -exec p/gcc.bat p/clang.bat
 ! exists p/bug.txt
 ! go build -x
 stderr '^cgo: C compiler "(clang|gcc)" not found: exec: "(clang|gcc)": cannot run executable found relative to current directory'

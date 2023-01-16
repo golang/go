@@ -18,7 +18,6 @@ import (
 	"go/token"
 	"internal/buildcfg"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -153,7 +152,6 @@ type Type struct {
 	EnumValues map[string]int64
 	Typedef    string
 	BadPointer bool // this pointer type should be represented as a uintptr (deprecated)
-	NotInHeap  bool // this type should have a go:notinheap annotation
 }
 
 // A FuncType collects information about a function type in both the C and Go worlds.
@@ -244,6 +242,7 @@ var gccgo = flag.Bool("gccgo", false, "generate files for use with gccgo")
 var gccgoprefix = flag.String("gccgoprefix", "", "-fgo-prefix option used with gccgo")
 var gccgopkgpath = flag.String("gccgopkgpath", "", "-fgo-pkgpath option used with gccgo")
 var gccgoMangler func(string) string
+var gccgoDefineCgoIncomplete = flag.Bool("gccgo_define_cgoincomplete", false, "define cgo.Incomplete for older gccgo/GoLLVM")
 var importRuntimeCgo = flag.Bool("import_runtime_cgo", true, "import runtime/cgo in generated code")
 var importSyscall = flag.Bool("import_syscall", true, "import syscall in generated code")
 var trimpath = flag.String("trimpath", "", "applies supplied rewrites or trims prefixes to recorded source file paths")
@@ -253,8 +252,15 @@ var gccBaseCmd []string
 
 func main() {
 	objabi.AddVersionFlag() // -V
-	flag.Usage = usage
-	flag.Parse()
+	objabi.Flagparse(usage)
+
+	if *gccgoDefineCgoIncomplete {
+		if !*gccgo {
+			fmt.Fprintf(os.Stderr, "cgo: -gccgo_define_cgoincomplete without -gccgo\n")
+			os.Exit(2)
+		}
+		incomplete = "_cgopackage_Incomplete"
+	}
 
 	if *dynobj != "" {
 		// cgo -dynimport is essentially a separate helper command
@@ -347,7 +353,7 @@ func main() {
 			input = aname
 		}
 
-		b, err := ioutil.ReadFile(input)
+		b, err := os.ReadFile(input)
 		if err != nil {
 			fatalf("%s", err)
 		}

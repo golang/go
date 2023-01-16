@@ -7,7 +7,6 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"cmd/internal/src"
 )
 
 // dse does dead-store elimination on the Function.
@@ -39,7 +38,7 @@ func dse(f *Func) {
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						storeUse.add(a.ID)
-						if v.Op != OpStore && v.Op != OpZero && v.Op != OpVarDef && v.Op != OpVarKill {
+						if v.Op != OpStore && v.Op != OpZero && v.Op != OpVarDef {
 							// CALL, DUFFCOPY, etc. are both
 							// reads and writes.
 							loadUse.add(a.ID)
@@ -112,7 +111,7 @@ func dse(f *Func) {
 				if sz > 0x7fffffff { // work around sparseMap's int32 value type
 					sz = 0x7fffffff
 				}
-				shadowed.set(v.Args[0].ID, int32(sz), src.NoXPos)
+				shadowed.set(v.Args[0].ID, int32(sz))
 			}
 		}
 		// walk to previous store
@@ -156,7 +155,7 @@ func elimDeadAutosGeneric(f *Func) {
 				changed = true
 			}
 			return
-		case OpVarDef, OpVarKill:
+		case OpVarDef:
 			// v should be eliminated if we eliminate the auto.
 			n, ok := v.Aux.(*ir.Name)
 			if !ok || n.Class != ir.PAUTO {

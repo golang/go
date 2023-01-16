@@ -454,7 +454,7 @@ func (n name) readvarint(off int) (int, int) {
 	}
 }
 
-func (n name) name() (s string) {
+func (n name) name() string {
 	if n.bytes == nil {
 		return ""
 	}
@@ -462,22 +462,16 @@ func (n name) name() (s string) {
 	if l == 0 {
 		return ""
 	}
-	hdr := (*stringStruct)(unsafe.Pointer(&s))
-	hdr.str = unsafe.Pointer(n.data(1 + i))
-	hdr.len = l
-	return
+	return unsafe.String(n.data(1+i), l)
 }
 
-func (n name) tag() (s string) {
+func (n name) tag() string {
 	if *n.data(0)&(1<<1) == 0 {
 		return ""
 	}
 	i, l := n.readvarint(1)
 	i2, l2 := n.readvarint(1 + i + l)
-	hdr := (*stringStruct)(unsafe.Pointer(&s))
-	hdr.str = unsafe.Pointer(n.data(1 + i + l + i2))
-	hdr.len = l2
-	return
+	return unsafe.String(n.data(1+i+l+i2), l2)
 }
 
 func (n name) pkgPath() string {

@@ -60,8 +60,6 @@ var wasmFuncTypes = map[string]*wasmFuncType{
 	"wasm_export_resume":     {Params: []byte{}},                                         //
 	"wasm_export_getsp":      {Results: []byte{I32}},                                     // sp
 	"wasm_pc_f_loop":         {Params: []byte{}},                                         //
-	"runtime.wasmMove":       {Params: []byte{I32, I32, I32}},                            // dst, src, len
-	"runtime.wasmZero":       {Params: []byte{I32, I32}},                                 // ptr, len
 	"runtime.wasmDiv":        {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
 	"runtime.wasmTruncS":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
 	"runtime.wasmTruncU":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
@@ -156,7 +154,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 	fns := make([]*wasmFunc, len(ctxt.Textp))
 	for i, fn := range ctxt.Textp {
 		wfn := new(bytes.Buffer)
-		if ldr.SymName(fn) == "go.buildid" {
+		if ldr.SymName(fn) == "go:buildid" {
 			writeUleb128(wfn, 0) // number of sets of locals
 			writeI32Const(wfn, 0)
 			wfn.WriteByte(0x0b) // end
@@ -248,7 +246,7 @@ func writeSecSize(ctxt *ld.Link, sizeOffset int64) {
 
 func writeBuildID(ctxt *ld.Link, buildid []byte) {
 	sizeOffset := writeSecHeader(ctxt, sectionCustom)
-	writeName(ctxt.Out, "go.buildid")
+	writeName(ctxt.Out, "go:buildid")
 	ctxt.Out.Write(buildid)
 	writeSecSize(ctxt, sizeOffset)
 }
@@ -412,7 +410,7 @@ func writeElementSec(ctxt *ld.Link, numImports, numFns uint64) {
 	writeSecSize(ctxt, sizeOffset)
 }
 
-// writeElementSec writes the section that provides the function bodies for the functions
+// writeCodeSec writes the section that provides the function bodies for the functions
 // declared by the "func" section.
 func writeCodeSec(ctxt *ld.Link, fns []*wasmFunc) {
 	sizeOffset := writeSecHeader(ctxt, sectionCode)
@@ -520,7 +518,7 @@ func writeProducerSec(ctxt *ld.Link) {
 	writeSecSize(ctxt, sizeOffset)
 }
 
-var nameRegexp = regexp.MustCompile(`[^\w\.]`)
+var nameRegexp = regexp.MustCompile(`[^\w.]`)
 
 // writeNameSec writes an optional section that assigns names to the functions declared by the "func" section.
 // The names are only used by WebAssembly stack traces, debuggers and decompilers.

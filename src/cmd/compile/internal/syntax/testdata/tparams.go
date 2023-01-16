@@ -21,7 +21,7 @@ func f[ /* ERROR empty type parameter list */ ]()
 func f[a, b /* ERROR missing type constraint */ ]()
 func f[a t, b t, c /* ERROR missing type constraint */ ]()
 
-func f[a b,  /* ERROR expecting ] */ 0] ()
+func f[a b,  /* ERROR expected ] */ 0] ()
 
 // issue #49482
 type (

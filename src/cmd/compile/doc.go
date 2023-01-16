@@ -68,6 +68,9 @@ Flags:
 	-importcfg file
 		Read import configuration from file.
 		In the file, set importmap, packagefile to specify import resolution.
+	-installsuffix suffix
+		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
+		instead of $GOROOT/pkg/$GOOS_$GOARCH.
 	-l
 		Disable inlining.
 	-lang version

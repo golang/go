@@ -17,8 +17,8 @@ import (
 // TODO(@musiol, @odeke-em): unify this code back into
 // example.go when js/wasm gets an os.Pipe implementation.
 func runExample(eg InternalExample) (ok bool) {
-	if *chatty {
-		fmt.Printf("=== RUN   %s\n", eg.Name)
+	if chatty.on {
+		fmt.Printf("%s=== RUN   %s\n", chatty.prefix(), eg.Name)
 	}
 
 	// Capture stdout to temporary file. We're not using
@@ -36,7 +36,7 @@ func runExample(eg InternalExample) (ok bool) {
 		// Restore stdout, get output and remove temporary file.
 		os.Stdout = stdout
 		var buf strings.Builder
-		_, seekErr := f.Seek(0, os.SEEK_SET)
+		_, seekErr := f.Seek(0, io.SeekStart)
 		_, readErr := io.Copy(&buf, f)
 		out := buf.String()
 		f.Close()

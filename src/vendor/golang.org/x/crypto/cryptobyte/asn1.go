@@ -264,36 +264,35 @@ func (s *String) ReadASN1Boolean(out *bool) bool {
 	return true
 }
 
-var bigIntType = reflect.TypeOf((*big.Int)(nil)).Elem()
-
 // ReadASN1Integer decodes an ASN.1 INTEGER into out and advances. If out does
-// not point to an integer or to a big.Int, it panics. It reports whether the
-// read was successful.
+// not point to an integer, to a big.Int, or to a []byte it panics. Only
+// positive and zero values can be decoded into []byte, and they are returned as
+// big-endian binary values that share memory with s. Positive values will have
+// no leading zeroes, and zero will be returned as a single zero byte.
+// ReadASN1Integer reports whether the read was successful.
 func (s *String) ReadASN1Integer(out interface{}) bool {
-	if reflect.TypeOf(out).Kind() != reflect.Ptr {
-		panic("out is not a pointer")
-	}
-	switch reflect.ValueOf(out).Elem().Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	switch out := out.(type) {
+	case *int, *int8, *int16, *int32, *int64:
 		var i int64
 		if !s.readASN1Int64(&i) || reflect.ValueOf(out).Elem().OverflowInt(i) {
 			return false
 		}
 		reflect.ValueOf(out).Elem().SetInt(i)
 		return true
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case *uint, *uint8, *uint16, *uint32, *uint64:
 		var u uint64
 		if !s.readASN1Uint64(&u) || reflect.ValueOf(out).Elem().OverflowUint(u) {
 			return false
 		}
 		reflect.ValueOf(out).Elem().SetUint(u)
 		return true
-	case reflect.Struct:
-		if reflect.TypeOf(out).Elem() == bigIntType {
-			return s.readASN1BigInt(out.(*big.Int))
-		}
+	case *big.Int:
+		return s.readASN1BigInt(out)
+	case *[]byte:
+		return s.readASN1Bytes(out)
+	default:
+		panic("out does not point to an integer type")
 	}
-	panic("out does not point to an integer type")
 }
 
 func checkASN1Integer(bytes []byte) bool {
@@ -330,6 +329,21 @@ func (s *String) readASN1BigInt(out *big.Int) bool {
 	} else {
 		out.SetBytes(bytes)
 	}
+	return true
+}
+
+func (s *String) readASN1Bytes(out *[]byte) bool {
+	var bytes String
+	if !s.ReadASN1(&bytes, asn1.INTEGER) || !checkASN1Integer(bytes) {
+		return false
+	}
+	if bytes[0]&0x80 == 0x80 {
+		return false
+	}
+	for len(bytes) > 1 && bytes[0] == 0 {
+		bytes = bytes[1:]
+	}
+	*out = bytes
 	return true
 }
 
@@ -532,7 +546,7 @@ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
 		return false
 	}
 
-	paddingBits := uint8(bytes[0])
+	paddingBits := bytes[0]
 	bytes = bytes[1:]
 	if paddingBits > 7 ||
 		len(bytes) == 0 && paddingBits != 0 ||
@@ -554,7 +568,7 @@ func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {
 		return false
 	}
 
-	paddingBits := uint8(bytes[0])
+	paddingBits := bytes[0]
 	if paddingBits != 0 {
 		return false
 	}
@@ -654,34 +668,27 @@ func (s *String) SkipOptionalASN1(tag asn1.Tag) bool {
 	return s.ReadASN1(&unused, tag)
 }
 
-// ReadOptionalASN1Integer attempts to read an optional ASN.1 INTEGER
-// explicitly tagged with tag into out and advances. If no element with a
-// matching tag is present, it writes defaultValue into out instead. If out
-// does not point to an integer or to a big.Int, it panics. It reports
-// whether the read was successful.
+// ReadOptionalASN1Integer attempts to read an optional ASN.1 INTEGER explicitly
+// tagged with tag into out and advances. If no element with a matching tag is
+// present, it writes defaultValue into out instead. Otherwise, it behaves like
+// ReadASN1Integer.
 func (s *String) ReadOptionalASN1Integer(out interface{}, tag asn1.Tag, defaultValue interface{}) bool {
-	if reflect.TypeOf(out).Kind() != reflect.Ptr {
-		panic("out is not a pointer")
-	}
 	var present bool
 	var i String
 	if !s.ReadOptionalASN1(&i, &present, tag) {
 		return false
 	}
 	if !present {
-		switch reflect.ValueOf(out).Elem().Kind() {
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		switch out.(type) {
+		case *int, *int8, *int16, *int32, *int64,
+			*uint, *uint8, *uint16, *uint32, *uint64, *[]byte:
 			reflect.ValueOf(out).Elem().Set(reflect.ValueOf(defaultValue))
-		case reflect.Struct:
-			if reflect.TypeOf(out).Elem() != bigIntType {
-				panic("invalid integer type")
-			}
-			if reflect.TypeOf(defaultValue).Kind() != reflect.Ptr ||
-				reflect.TypeOf(defaultValue).Elem() != bigIntType {
+		case *big.Int:
+			if defaultValue, ok := defaultValue.(*big.Int); ok {
+				out.(*big.Int).Set(defaultValue)
+			} else {
 				panic("out points to big.Int, but defaultValue does not")
 			}
-			out.(*big.Int).Set(defaultValue.(*big.Int))
 		default:
 			panic("invalid integer type")
 		}

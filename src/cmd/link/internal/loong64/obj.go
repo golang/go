@@ -31,6 +31,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Gentext:          gentext,
 
 		Linuxdynld:     "/lib64/ld.so.1",
+		LinuxdynldMusl: "/lib64/ld-musl-loongarch.so.1",
 		Freebsddynld:   "XXX",
 		Openbsddynld:   "XXX",
 		Netbsddynld:    "XXX",

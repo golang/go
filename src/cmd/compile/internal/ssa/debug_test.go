@@ -5,12 +5,10 @@
 package ssa_test
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,11 +32,11 @@ var (
 
 var (
 	hexRe                 = regexp.MustCompile("0x[a-zA-Z0-9]+")
-	numRe                 = regexp.MustCompile("-?[0-9]+")
+	numRe                 = regexp.MustCompile("-?\\d+")
 	stringRe              = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
-	leadingDollarNumberRe = regexp.MustCompile("^[$][0-9]+")
+	leadingDollarNumberRe = regexp.MustCompile("^[$]\\d+")
 	optOutGdbRe           = regexp.MustCompile("[<]optimized out[>]")
-	numberColonRe         = regexp.MustCompile("^ *[0-9]+:")
+	numberColonRe         = regexp.MustCompile("^ *\\d+:")
 )
 
 var gdb = "gdb"      // Might be "ggdb" on Darwin, because gdb no longer part of XCode
@@ -224,7 +222,7 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 
 	// Use a temporary directory unless -f is specified
 	if !*force {
-		tmpdir, err := ioutil.TempDir("", "debug_test")
+		tmpdir, err := os.MkdirTemp("", "debug_test")
 		if err != nil {
 			panic(fmt.Sprintf("Problem creating TempDir, error %v\n", err))
 		}
@@ -246,9 +244,9 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 	tmplog := tmpbase + ".nexts"
 	var dbg dbgr
 	if *useGdb {
-		dbg = newGdb(tag, exe)
+		dbg = newGdb(t, tag, exe)
 	} else {
-		dbg = newDelve(tag, exe)
+		dbg = newDelve(t, tag, exe)
 	}
 	h1 := runDbgr(dbg, count)
 	if *dryrun {
@@ -263,7 +261,7 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 		if !h0.equals(h1) {
 			// Be very noisy about exactly what's wrong to simplify debugging.
 			h1.write(tmplog)
-			cmd := exec.Command("diff", "-u", nextlog, tmplog)
+			cmd := testenv.Command(t, "diff", "-u", nextlog, tmplog)
 			line := asCommandLine("", cmd)
 			bytes, err := cmd.CombinedOutput()
 			if err != nil && len(bytes) == 0 {
@@ -298,8 +296,8 @@ func runDbgr(dbg dbgr, maxNext int) *nextHist {
 }
 
 func runGo(t *testing.T, dir string, args ...string) string {
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	var stdout, stderr strings.Builder
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	cmd.Dir = dir
 	if *dryrun {
 		fmt.Printf("%s\n", asCommandLine("", cmd))
@@ -367,7 +365,7 @@ func (h *nextHist) write(filename string) {
 
 func (h *nextHist) read(filename string) {
 	h.f2i = make(map[string]uint8)
-	bytes, err := ioutil.ReadFile(filename)
+	bytes, err := os.ReadFile(filename)
 	if err != nil {
 		panic(fmt.Sprintf("Problem reading %s, error %v\n", filename, err))
 	}
@@ -503,8 +501,8 @@ type delveState struct {
 	function         string
 }
 
-func newDelve(tag, executable string, args ...string) dbgr {
-	cmd := exec.Command("dlv", "exec", executable)
+func newDelve(t testing.TB, tag, executable string, args ...string) dbgr {
+	cmd := testenv.Command(t, "dlv", "exec", executable)
 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")
 	if len(args) > 0 {
 		cmd.Args = append(cmd.Args, "--")
@@ -588,9 +586,9 @@ type gdbState struct {
 	function         string
 }
 
-func newGdb(tag, executable string, args ...string) dbgr {
+func newGdb(t testing.TB, tag, executable string, args ...string) dbgr {
 	// Turn off shell, necessary for Darwin apparently
-	cmd := exec.Command(gdb, "-nx",
+	cmd := testenv.Command(t, gdb, "-nx",
 		"-iex", fmt.Sprintf("add-auto-load-safe-path %s/src/runtime", runtime.GOROOT()),
 		"-ex", "set startup-with-shell off", executable)
 	cmd.Env = replaceEnv(cmd.Env, "TERM", "dumb")

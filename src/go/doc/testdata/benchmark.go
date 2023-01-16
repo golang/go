@@ -48,7 +48,7 @@ func (b *B) StartTimer() {
 // want to measure.
 func (b *B) StopTimer() {
 	if b.timerOn {
-		b.duration += time.Now().Sub(b.start)
+		b.duration += time.Since(b.start)
 		b.timerOn = false
 	}
 }

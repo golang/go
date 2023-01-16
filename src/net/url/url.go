@@ -351,11 +351,14 @@ func escape(s string, mode encoding) string {
 // Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
 // A consequence is that it is impossible to tell which slashes in the Path were
 // slashes in the raw URL and which were %2f. This distinction is rarely important,
-// but when it is, the code should use RawPath, an optional field which only gets
-// set if the default encoding is different from Path.
+// but when it is, the code should use the EscapedPath method, which preserves
+// the original encoding of Path.
 //
-// URL's String method uses the EscapedPath method to obtain the path. See the
-// EscapedPath method for more details.
+// The RawPath field is an optional field which is only set when the default
+// encoding of Path is different from the escaped path. See the EscapedPath method
+// for more details.
+//
+// URL's String method uses the EscapedPath method to obtain the path.
 type URL struct {
 	Scheme      string
 	Opaque      string    // encoded opaque data
@@ -1191,17 +1194,23 @@ func (u *URL) UnmarshalBinary(text []byte) error {
 // any existing path and the resulting path cleaned of any ./ or ../ elements.
 // Any sequences of multiple / characters will be reduced to a single /.
 func (u *URL) JoinPath(elem ...string) *URL {
-	url := *u
-	if len(elem) > 0 {
-		elem = append([]string{u.EscapedPath()}, elem...)
-		p := path.Join(elem...)
-		// path.Join will remove any trailing slashes.
-		// Preserve at least one.
-		if strings.HasSuffix(elem[len(elem)-1], "/") && !strings.HasSuffix(p, "/") {
-			p += "/"
-		}
-		url.setPath(p)
+	elem = append([]string{u.EscapedPath()}, elem...)
+	var p string
+	if !strings.HasPrefix(elem[0], "/") {
+		// Return a relative path if u is relative,
+		// but ensure that it contains no ../ elements.
+		elem[0] = "/" + elem[0]
+		p = path.Join(elem...)[1:]
+	} else {
+		p = path.Join(elem...)
 	}
+	// path.Join will remove any trailing slashes.
+	// Preserve at least one.
+	if strings.HasSuffix(elem[len(elem)-1], "/") && !strings.HasSuffix(p, "/") {
+		p += "/"
+	}
+	url := *u
+	url.setPath(p)
 	return &url
 }
 

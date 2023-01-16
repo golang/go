@@ -334,10 +334,6 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 	} else { // ir.OMETHEXPR or ir.METHVALUE
 		// Method expression T.M where T is a generic type.
 		se := x.(*ir.SelectorExpr)
-		targs := deref(se.X.Type()).RParams()
-		if len(targs) == 0 {
-			panic("bad")
-		}
 		if x.Op() == ir.OMETHVALUE {
 			rcvrValue = se.X
 		}
@@ -348,7 +344,8 @@ func (g *genInst) buildClosure(outer *ir.Func, x ir.Node) ir.Node {
 		// of se.Selection, since that will be the type that actually has
 		// the method.
 		recv := deref(se.Selection.Type.Recv().Type)
-		if len(recv.RParams()) == 0 {
+		targs := recv.RParams()
+		if len(targs) == 0 {
 			// The embedded type that actually has the method is not
 			// actually generic, so no need to build a closure.
 			return x
@@ -550,7 +547,7 @@ func (g *genInst) instantiateMethods() {
 			// Lookup the method on the base generic type, since methods may
 			// not be set on imported instantiated types.
 			baseType := typ.OrigType()
-			for j, _ := range typ.Methods().Slice() {
+			for j := range typ.Methods().Slice() {
 				if baseType.Methods().Slice()[j].Nointerface() {
 					typ.Methods().Slice()[j].SetNointerface(true)
 				}
@@ -623,7 +620,7 @@ func checkFetchBody(nameNode *ir.Name) {
 	}
 }
 
-// getInstantiation gets the instantiantion and dictionary of the function or method nameNode
+// getInstantiation gets the instantiation and dictionary of the function or method nameNode
 // with the type arguments shapes. If the instantiated function is not already
 // cached, then it calls genericSubst to create the new instantiation.
 func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMeth bool) *instInfo {
@@ -1357,6 +1354,9 @@ func (g *genInst) dictPass(info *instInfo) {
 			}
 		case ir.ODOTTYPE, ir.ODOTTYPE2:
 			dt := m.(*ir.TypeAssertExpr)
+			if dt.Type().IsEmptyInterface() || (dt.Type().IsInterface() && !dt.Type().HasShape()) {
+				break
+			}
 			if !dt.Type().HasShape() && !(dt.X.Type().HasShape() && !dt.X.Type().IsEmptyInterface()) {
 				break
 			}
@@ -1656,9 +1656,11 @@ func (g *genInst) getDictionarySym(gf *ir.Name, targs []*types.Type, isMeth bool
 				var nameNode *ir.Name
 				se := call.X.(*ir.SelectorExpr)
 				if se.X.Type().IsShape() {
-					// This is a method call enabled by a type bound.
 					tparam := se.X.Type()
-					if call.X.Op() == ir.ODOTMETH {
+					// Ensure methods on all instantiating types are computed.
+					typecheck.CalcMethods(tparam)
+					if typecheck.Lookdot1(nil, se.Sel, tparam, tparam.AllMethods(), 0) != nil {
+						// This is a method call enabled by a type bound.
 						// We need this extra check for method expressions,
 						// which don't add in the implicit XDOTs.
 						tmpse := ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, se.X, se.Sel)
@@ -1787,6 +1789,7 @@ func (g *genInst) getSymForMethodCall(se *ir.SelectorExpr, subst *typecheck.Tsub
 // instantiations have been created.
 // Also handles writing method expression closures into the dictionaries.
 func (g *genInst) finalizeSyms() {
+Outer:
 	for _, d := range g.dictSymsToFinalize {
 		infoPrint("=== Finalizing dictionary %s\n", d.sym.Name)
 
@@ -1856,7 +1859,30 @@ func (g *genInst) finalizeSyms() {
 				}
 			}
 			if !found {
-				base.Fatalf("method %s on %v not found", bf.name, rcvr)
+				// We failed to find a method expression needed for this
+				// dictionary. This may happen because we tried to create a
+				// dictionary for an invalid instantiation.
+				//
+				// For example, in test/typeparam/issue54225.go, we attempt to
+				// construct a dictionary for "Node[struct{}].contentLen",
+				// even though "struct{}" does not implement "Value", so it
+				// cannot actually be used as a type argument to "Node".
+				//
+				// The real issue here is we shouldn't be attempting to create
+				// those dictionaries in the first place (e.g., CL 428356),
+				// but that fix is scarier for backporting to Go 1.19. Too
+				// many backport CLs to this code have fixed one issue while
+				// introducing another.
+				//
+				// So as a hack, instead of calling Fatalf, we simply skip
+				// calling objw.Global below, which prevents us from emitting
+				// the broken dictionary. The linker's dead code elimination
+				// should then naturally prune this invalid, unneeded
+				// dictionary. Worst case, if the dictionary somehow *is*
+				// needed by the final executable, we've just turned an ICE
+				// into a link-time missing symbol failure.
+				infoPrint(" ! abandoning dictionary %v; missing method expression %v.%s\n", d.sym.Name, rcvr, bf.name)
+				continue Outer
 			}
 		}
 
@@ -2239,7 +2265,7 @@ func parameterizedBy1(t *types.Type, params []*types.Type, visited map[*types.Ty
 	}
 }
 
-// startClosures starts creation of a closure that has the function type typ. It
+// startClosure starts creation of a closure that has the function type typ. It
 // creates all the formal params and results according to the type typ. On return,
 // the body and closure variables of the closure must still be filled in, and
 // ir.UseClosure() called.

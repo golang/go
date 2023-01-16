@@ -14,11 +14,20 @@ import (
 // the first run and then simply copied into bv at the correct offset
 // on future calls with the same type t.
 func Set(t *types.Type, off int64, bv bitvec.BitVec) {
-	if uint8(t.Alignment()) > 0 && off&int64(uint8(t.Alignment())-1) != 0 {
+	set(t, off, bv, false)
+}
+
+// SetNoCheck is like Set, but do not check for alignment.
+func SetNoCheck(t *types.Type, off int64, bv bitvec.BitVec) {
+	set(t, off, bv, true)
+}
+
+func set(t *types.Type, off int64, bv bitvec.BitVec, skip bool) {
+	if !skip && uint8(t.Alignment()) > 0 && off&int64(uint8(t.Alignment())-1) != 0 {
 		base.Fatalf("typebits.Set: invalid initial alignment: type %v has alignment %d, but offset is %v", t, uint8(t.Alignment()), off)
 	}
 	if !t.HasPointers() {
-		// Note: this case ensures that pointers to go:notinheap types
+		// Note: this case ensures that pointers to not-in-heap types
 		// are not considered pointers by garbage collection and stack copying.
 		return
 	}
@@ -72,13 +81,13 @@ func Set(t *types.Type, off int64, bv bitvec.BitVec) {
 			break
 		}
 		for i := int64(0); i < t.NumElem(); i++ {
-			Set(elt, off, bv)
+			set(elt, off, bv, skip)
 			off += elt.Size()
 		}
 
 	case types.TSTRUCT:
 		for _, f := range t.Fields().Slice() {
-			Set(f.Type, off+f.Offset, bv)
+			set(f.Type, off+f.Offset, bv, skip)
 		}
 
 	default:

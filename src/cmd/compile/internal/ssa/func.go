@@ -8,19 +8,11 @@ import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
-	"cmd/internal/notsha256"
 	"cmd/internal/src"
 	"fmt"
-	"io"
 	"math"
-	"os"
 	"strings"
 )
-
-type writeSyncer interface {
-	io.Writer
-	Sync() error
-}
 
 // A Func represents a Go func declaration (or function literal) and its body.
 // This package compiles each Func independently.
@@ -38,11 +30,7 @@ type Func struct {
 	bid idAlloc // block ID allocator
 	vid idAlloc // value ID allocator
 
-	// Given an environment variable used for debug hash match,
-	// what file (if any) receives the yes/no logging?
-	logfiles       map[string]writeSyncer
 	HTMLWriter     *HTMLWriter    // html writer, for debugging
-	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
 	ABI0           *abi.ABIConfig // A copy, for no-sync access
@@ -57,6 +45,9 @@ type Func struct {
 
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
+
+	// temporary registers allocated to rare instructions
+	tempRegs map[ID]*Register
 
 	// map from LocalSlot to set of Values that we want to store in that slot.
 	NamedValues map[LocalSlot][]*Value
@@ -116,50 +107,35 @@ func (f *Func) NumValues() int {
 
 // newSparseSet returns a sparse set that can store at least up to n integers.
 func (f *Func) newSparseSet(n int) *sparseSet {
-	for i, scr := range f.Cache.scrSparseSet {
-		if scr != nil && scr.cap() >= n {
-			f.Cache.scrSparseSet[i] = nil
-			scr.clear()
-			return scr
-		}
-	}
-	return newSparseSet(n)
+	return f.Cache.allocSparseSet(n)
 }
 
 // retSparseSet returns a sparse set to the config's cache of sparse
 // sets to be reused by f.newSparseSet.
 func (f *Func) retSparseSet(ss *sparseSet) {
-	for i, scr := range f.Cache.scrSparseSet {
-		if scr == nil {
-			f.Cache.scrSparseSet[i] = ss
-			return
-		}
-	}
-	f.Cache.scrSparseSet = append(f.Cache.scrSparseSet, ss)
+	f.Cache.freeSparseSet(ss)
 }
 
 // newSparseMap returns a sparse map that can store at least up to n integers.
 func (f *Func) newSparseMap(n int) *sparseMap {
-	for i, scr := range f.Cache.scrSparseMap {
-		if scr != nil && scr.cap() >= n {
-			f.Cache.scrSparseMap[i] = nil
-			scr.clear()
-			return scr
-		}
-	}
-	return newSparseMap(n)
+	return f.Cache.allocSparseMap(n)
 }
 
 // retSparseMap returns a sparse map to the config's cache of sparse
 // sets to be reused by f.newSparseMap.
 func (f *Func) retSparseMap(ss *sparseMap) {
-	for i, scr := range f.Cache.scrSparseMap {
-		if scr == nil {
-			f.Cache.scrSparseMap[i] = ss
-			return
-		}
-	}
-	f.Cache.scrSparseMap = append(f.Cache.scrSparseMap, ss)
+	f.Cache.freeSparseMap(ss)
+}
+
+// newSparseMapPos returns a sparse map that can store at least up to n integers.
+func (f *Func) newSparseMapPos(n int) *sparseMapPos {
+	return f.Cache.allocSparseMapPos(n)
+}
+
+// retSparseMapPos returns a sparse map to the config's cache of sparse
+// sets to be reused by f.newSparseMapPos.
+func (f *Func) retSparseMapPos(ss *sparseMapPos) {
+	f.Cache.freeSparseMapPos(ss)
 }
 
 // newPoset returns a new poset from the internal cache
@@ -175,33 +151,6 @@ func (f *Func) newPoset() *poset {
 // retPoset returns a poset to the internal cache
 func (f *Func) retPoset(po *poset) {
 	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
-}
-
-// newDeadcodeLive returns a slice for the
-// deadcode pass to use to indicate which values are live.
-func (f *Func) newDeadcodeLive() []bool {
-	r := f.Cache.deadcode.live
-	f.Cache.deadcode.live = nil
-	return r
-}
-
-// retDeadcodeLive returns a deadcode live value slice for re-use.
-func (f *Func) retDeadcodeLive(live []bool) {
-	f.Cache.deadcode.live = live
-}
-
-// newDeadcodeLiveOrderStmts returns a slice for the
-// deadcode pass to use to indicate which values
-// need special treatment for statement boundaries.
-func (f *Func) newDeadcodeLiveOrderStmts() []*Value {
-	r := f.Cache.deadcode.liveOrderStmts
-	f.Cache.deadcode.liveOrderStmts = nil
-	return r
-}
-
-// retDeadcodeLiveOrderStmts returns a deadcode liveOrderStmts slice for re-use.
-func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
-	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
 }
 
 func (f *Func) localSlotAddr(slot LocalSlot) *LocalSlot {
@@ -355,7 +304,7 @@ func (f *Func) newValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
 	return v
 }
 
-// logPassStat writes a string key and int value as a warning in a
+// LogStat writes a string key and int value as a warning in a
 // tab-separated format easily handled by spreadsheets or awk.
 // file names, lines, and function names are included to provide enough (?)
 // context to allow item-by-item comparisons across runs.
@@ -438,7 +387,7 @@ func (f *Func) freeValue(v *Value) {
 	f.freeValues = v
 }
 
-// newBlock allocates a new Block of the given kind and places it at the end of f.Blocks.
+// NewBlock allocates a new Block of the given kind and places it at the end of f.Blocks.
 func (f *Func) NewBlock(kind BlockKind) *Block {
 	var b *Block
 	if f.freeBlocks != nil {
@@ -484,7 +433,7 @@ func (b *Block) NewValue0(pos src.XPos, op Op, t *types.Type) *Value {
 	return v
 }
 
-// NewValue returns a new value in the block with no arguments and an auxint value.
+// NewValue0I returns a new value in the block with no arguments and an auxint value.
 func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
@@ -492,7 +441,7 @@ func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Va
 	return v
 }
 
-// NewValue returns a new value in the block with no arguments and an aux value.
+// NewValue0A returns a new value in the block with no arguments and an aux value.
 func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = 0
@@ -501,7 +450,7 @@ func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
 	return v
 }
 
-// NewValue returns a new value in the block with no arguments and both an auxint and aux values.
+// NewValue0IA returns a new value in the block with no arguments and both an auxint and aux values.
 func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux) *Value {
 	v := b.Func.newValue(op, t, b, pos)
 	v.AuxInt = auxint
@@ -705,7 +654,7 @@ const (
 	constEmptyStringMagic = 4455667788
 )
 
-// ConstInt returns an int constant representing its argument.
+// ConstBool returns an int constant representing its argument.
 func (f *Func) ConstBool(t *types.Type, c bool) *Value {
 	i := int64(0)
 	if c {
@@ -819,88 +768,19 @@ func (f *Func) invalidateCFG() {
 	f.cachedLoopnest = nil
 }
 
-// DebugHashMatch reports whether environment variable evname
-//  1. is empty (this is a special more-quickly implemented case of 3)
-//  2. is "y" or "Y"
-//  3. is a suffix of the sha1 hash of name
-//  4. is a suffix of the environment variable
-//     fmt.Sprintf("%s%d", evname, n)
-//     provided that all such variables are nonempty for 0 <= i <= n
+// DebugHashMatch returns
 //
-// Otherwise it returns false.
-// When true is returned the message
+//	base.DebugHashMatch(this function's package.name)
 //
-//	"%s triggered %s\n", evname, name
-//
-// is printed on the file named in environment variable
-//
-//	GSHS_LOGFILE
-//
-// or standard out if that is empty or there is an error
-// opening the file.
-func (f *Func) DebugHashMatch(evname string) bool {
+// for use in bug isolation.  The return value is true unless
+// environment variable GOSSAHASH is set, in which case "it depends".
+// See [base.DebugHashMatch] for more information.
+func (f *Func) DebugHashMatch() bool {
+	if !base.HasDebugHash() {
+		return true
+	}
 	name := f.fe.MyImportPath() + "." + f.Name
-	evhash := os.Getenv(evname)
-	switch evhash {
-	case "":
-		return true // default behavior with no EV is "on"
-	case "y", "Y":
-		f.logDebugHashMatch(evname, name)
-		return true
-	case "n", "N":
-		return false
-	}
-	// Check the hash of the name against a partial input hash.
-	// We use this feature to do a binary search to
-	// find a function that is incorrectly compiled.
-	hstr := ""
-	for _, b := range notsha256.Sum256([]byte(name)) {
-		hstr += fmt.Sprintf("%08b", b)
-	}
-
-	if strings.HasSuffix(hstr, evhash) {
-		f.logDebugHashMatch(evname, name)
-		return true
-	}
-
-	// Iteratively try additional hashes to allow tests for multi-point
-	// failure.
-	for i := 0; true; i++ {
-		ev := fmt.Sprintf("%s%d", evname, i)
-		evv := os.Getenv(ev)
-		if evv == "" {
-			break
-		}
-		if strings.HasSuffix(hstr, evv) {
-			f.logDebugHashMatch(ev, name)
-			return true
-		}
-	}
-	return false
-}
-
-func (f *Func) logDebugHashMatch(evname, name string) {
-	if f.logfiles == nil {
-		f.logfiles = make(map[string]writeSyncer)
-	}
-	file := f.logfiles[evname]
-	if file == nil {
-		file = os.Stdout
-		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
-			var err error
-			file, err = os.OpenFile(tmpfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-			if err != nil {
-				f.Fatalf("could not open hash-testing logfile %s", tmpfile)
-			}
-		}
-		f.logfiles[evname] = file
-	}
-	fmt.Fprintf(file, "%s triggered %s\n", evname, name)
-	file.Sync()
-}
-
-func DebugNameMatch(evname, name string) bool {
-	return os.Getenv(evname) == name
+	return base.DebugHashMatch(name)
 }
 
 func (f *Func) spSb() (sp, sb *Value) {
@@ -923,4 +803,17 @@ func (f *Func) spSb() (sp, sb *Value) {
 		sp = f.Entry.NewValue0(initpos.WithNotStmt(), OpSP, f.Config.Types.Uintptr)
 	}
 	return
+}
+
+// useFMA allows targeted debugging w/ GOFMAHASH
+// If you have an architecture-dependent FP glitch, this will help you find it.
+func (f *Func) useFMA(v *Value) bool {
+	if !f.Config.UseFMA {
+		return false
+	}
+	if base.FmaHash == nil {
+		return true
+	}
+	ctxt := v.Block.Func.Config.Ctxt()
+	return base.FmaHash.DebugHashMatchPos(ctxt, v.Pos)
 }

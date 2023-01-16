@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-const funcSize = 10 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
+const funcSize = 11 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
 
 // pclntab holds the state needed for pclntab generation.
 type pclntab struct {
@@ -162,26 +162,36 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 	ninl := fi.NumInlTree()
 	for i := 0; i < int(ninl); i++ {
 		call := fi.InlTree(i)
-		val := call.File
-		nameoff, ok := nameOffsets[call.Func]
+		nameOff, ok := nameOffsets[call.Func]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
 
-		inlTreeSym.SetUint16(arch, int64(i*20+0), uint16(call.Parent))
 		inlFunc := ldr.FuncInfo(call.Func)
-
 		var funcID objabi.FuncID
+		startLine := int32(0)
 		if inlFunc.Valid() {
 			funcID = inlFunc.FuncID()
+			startLine = inlFunc.StartLine()
+		} else if !ctxt.linkShared {
+			// Inlined functions are always Go functions, and thus
+			// must have FuncInfo.
+			//
+			// Unfortunately, with -linkshared, the inlined
+			// function may be external symbols (from another
+			// shared library), and we don't load FuncInfo from the
+			// shared library. We will report potentially incorrect
+			// FuncID in this case. See https://go.dev/issue/55954.
+			panic(fmt.Sprintf("inlined function %s missing func info", ldr.SymName(call.Func)))
 		}
-		inlTreeSym.SetUint8(arch, int64(i*20+2), uint8(funcID))
 
-		// byte 3 is unused
-		inlTreeSym.SetUint32(arch, int64(i*20+4), uint32(val))
-		inlTreeSym.SetUint32(arch, int64(i*20+8), uint32(call.Line))
-		inlTreeSym.SetUint32(arch, int64(i*20+12), uint32(nameoff))
-		inlTreeSym.SetUint32(arch, int64(i*20+16), uint32(call.ParentPC))
+		// Construct runtime.inlinedCall value.
+		const size = 16
+		inlTreeSym.SetUint8(arch, int64(i*size+0), uint8(funcID))
+		// Bytes 1-3 are unused.
+		inlTreeSym.SetUint32(arch, int64(i*size+4), uint32(nameOff))
+		inlTreeSym.SetUint32(arch, int64(i*size+8), uint32(call.ParentPC))
+		inlTreeSym.SetUint32(arch, int64(i*size+12), uint32(startLine))
 	}
 	return its
 }
@@ -222,7 +232,7 @@ func (state *pclntab) generatePCHeader(ctxt *Link) {
 
 		// Write header.
 		// Keep in sync with runtime/symtab.go:pcHeader and package debug/gosym.
-		header.SetUint32(ctxt.Arch, 0, 0xfffffff0)
+		header.SetUint32(ctxt.Arch, 0, 0xfffffff1)
 		header.SetUint8(ctxt.Arch, 6, uint8(ctxt.Arch.MinLC))
 		header.SetUint8(ctxt.Arch, 7, uint8(ctxt.Arch.PtrSize))
 		off := header.SetUint(ctxt.Arch, 8, uint64(state.nfunc))
@@ -627,7 +637,7 @@ func writePCToFunc(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, sta
 func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
 	ldr := ctxt.loader
 	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
-	gofunc := ldr.Lookup("go.func.*", 0)
+	gofunc := ldr.Lookup("go:func.*", 0)
 	gofuncBase := ldr.SymValue(gofunc)
 	textStart := ldr.SymValue(ldr.Lookup("runtime.text", 0))
 	funcdata := []loader.Sym{}
@@ -636,26 +646,28 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 
 	// Write the individual func objects.
 	for i, s := range funcs {
+		startLine := int32(0)
 		fi := ldr.FuncInfo(s)
 		if fi.Valid() {
 			fi.Preload()
 			pcsp, pcfile, pcline, pcinline, pcdata = ldr.PcdataAuxs(s, pcdata)
+			startLine = fi.StartLine()
 		}
 
 		off := int64(startLocations[i])
-		// entry uintptr (offset of func entry PC from textStart)
+		// entryOff uint32 (offset of func entry PC from textStart)
 		entryOff := ldr.SymValue(s) - textStart
 		if entryOff < 0 {
 			panic(fmt.Sprintf("expected func %s(%x) to be placed before or at textStart (%x)", ldr.SymName(s), ldr.SymValue(s), textStart))
 		}
 		off = sb.SetUint32(ctxt.Arch, off, uint32(entryOff))
 
-		// name int32
-		nameoff, ok := nameOffsets[s]
+		// nameOff int32
+		nameOff, ok := nameOffsets[s]
 		if !ok {
 			panic("couldn't find function name offset")
 		}
-		off = sb.SetUint32(ctxt.Arch, off, uint32(nameoff))
+		off = sb.SetUint32(ctxt.Arch, off, uint32(nameOff))
 
 		// args int32
 		// TODO: Move into funcinfo.
@@ -685,6 +697,9 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 			cuIdx = cuOffsets[cu.PclnIndex]
 		}
 		off = sb.SetUint32(ctxt.Arch, off, cuIdx)
+
+		// startLine int32
+		off = sb.SetUint32(ctxt.Arch, off, uint32(startLine))
 
 		// funcID uint8
 		var funcID objabi.FuncID
@@ -716,7 +731,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 			}
 		}
 
-		// Write funcdata refs as offsets from go.func.* and go.funcrel.*.
+		// Write funcdata refs as offsets from go:func.* and go:funcrel.*.
 		funcdata = funcData(ldr, s, fi, inlSyms[s], funcdata)
 		// Missing funcdata will be ^0. See runtime/symtab.go:funcdata.
 		off = int64(startLocations[i] + funcSize + numPCData(ldr, s, fi)*4)
@@ -729,7 +744,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 			}
 
 			if outer := ldr.OuterSym(fdsym); outer != gofunc {
-				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go.func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
+				panic(fmt.Sprintf("bad carrier sym for symbol %s (funcdata %s#%d), want go:func.* got %s", ldr.SymName(fdsym), ldr.SymName(s), j, ldr.SymName(outer)))
 			}
 			sb.SetUint32(ctxt.Arch, dataoff, uint32(ldr.SymValue(fdsym)-gofuncBase))
 		}

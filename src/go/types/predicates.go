@@ -98,6 +98,18 @@ func isTypeParam(t Type) bool {
 	return ok
 }
 
+// hasEmptyTypeset reports whether t is a type parameter with an empty type set.
+// The function does not force the computation of the type set and so is safe to
+// use anywhere, but it may report a false negative if the type set has not been
+// computed yet.
+func hasEmptyTypeset(t Type) bool {
+	if tpar, _ := t.(*TypeParam); tpar != nil && tpar.bound != nil {
+		iface, _ := safeUnderlying(tpar.bound).(*Interface)
+		return iface != nil && iface.tset != nil && iface.tset.IsEmpty()
+	}
+	return false
+}
+
 // isGeneric reports whether a type is a generic, uninstantiated type
 // (generic signatures are not included).
 // TODO(gri) should we include signatures or assert that they are not present?

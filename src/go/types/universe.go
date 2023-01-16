@@ -146,6 +146,7 @@ const (
 	// universe scope
 	_Append builtinId = iota
 	_Cap
+	_Clear
 	_Close
 	_Complex
 	_Copy
@@ -166,6 +167,9 @@ const (
 	_Offsetof
 	_Sizeof
 	_Slice
+	_SliceData
+	_String
+	_StringData
 
 	// testing support
 	_Assert
@@ -180,6 +184,7 @@ var predeclaredFuncs = [...]struct {
 }{
 	_Append:  {"append", 1, true, expression},
 	_Cap:     {"cap", 1, false, expression},
+	_Clear:   {"clear", 1, false, statement},
 	_Close:   {"close", 1, false, statement},
 	_Complex: {"complex", 2, false, expression},
 	_Copy:    {"copy", 2, false, statement},
@@ -194,11 +199,14 @@ var predeclaredFuncs = [...]struct {
 	_Real:    {"real", 1, false, expression},
 	_Recover: {"recover", 0, false, statement},
 
-	_Add:      {"Add", 2, false, expression},
-	_Alignof:  {"Alignof", 1, false, expression},
-	_Offsetof: {"Offsetof", 1, false, expression},
-	_Sizeof:   {"Sizeof", 1, false, expression},
-	_Slice:    {"Slice", 2, false, expression},
+	_Add:        {"Add", 2, false, expression},
+	_Alignof:    {"Alignof", 1, false, expression},
+	_Offsetof:   {"Offsetof", 1, false, expression},
+	_Sizeof:     {"Sizeof", 1, false, expression},
+	_Slice:      {"Slice", 2, false, expression},
+	_SliceData:  {"SliceData", 1, false, expression},
+	_String:     {"String", 2, false, expression},
+	_StringData: {"StringData", 1, false, expression},
 
 	_Assert: {"assert", 1, false, statement},
 	_Trace:  {"trace", 0, true, statement},

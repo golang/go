@@ -614,7 +614,7 @@ index4loop:
 next4:
 	VSPLTISB $0, V10            // Clear
 	MOVD     $3, R9             // Number of bytes beyond 16
-	LXVB16X  (R7)(R9), V3       // Load 16 bytes @R7 into V2
+	LXVB16X  (R7)(R9), V3       // Load 16 bytes @R7 into V3
 	VSLDOI   $13, V3, V10, V3   // Shift left last 3 bytes
 	VSLDOI   $1, V2, V3, V4     // V4=(V2:V3)<<1
 	VSLDOI   $2, V2, V3, V9     // V9=(V2:V3)<<2
@@ -654,13 +654,13 @@ index2to16:
 
 	ADD $19, R7, R9    // To check 4 indices per iteration, need at least 16+3 bytes
 	CMP R9, LASTBYTE
-	BGT index2to16tail
-
 	// At least 16 bytes of string left
 	// Mask the number of bytes in sep
 	VSPLTISB $0, V10            // Clear
-	MOVD     $3, R17            // Number of bytes beyond 16
+	BGT index2to16tail
 
+	MOVD     $3, R17            // Number of bytes beyond 16
+	PCALIGN  $32
 index2to16loop:
 	LXVB16X  (R7)(R0), V1       // Load next 16 bytes of string into V1 from R7
 	LXVB16X  (R7)(R17), V5      // Load next 16 bytes of string into V5 from R7+3
@@ -720,14 +720,15 @@ extra2:
 	ADD        $1, R7          // Not found, try next partial string
 	CMP        R7, LASTSTR     // Check for end of string
 	BGT        notfound        // If at end, then not found
-	VSLDOI     $1, V1, V25, V1 // Shift string left by 1 byte
+	VOR        V1, V1, V4      // save remaining string
+	VSLDOI     $1, V1, V25, V1 // Shift string left by 1 byte for 17th byte
 	VAND       V1, SEPMASK, V2 // Just compare size of sep
 	VCMPEQUBCC V0, V2, V3      // Compare sep and partial string
 	BLT        CR6, found      // Found
 	ADD        $1, R7          // Not found, try next partial string
 	CMP        R7, LASTSTR     // Check for end of string
 	BGT        notfound        // If at end, then not found
-	VSLDOI     $1, V1, V25, V1 // Shift string left by 1 byte
+	VSLDOI     $2, V4, V25, V1 // Shift saved string left by 2 bytes for 18th byte
 	BR         index2to16next  // Check the remaining partial string in index2to16next
 
 short:
@@ -737,7 +738,7 @@ short:
 	MTVSRD   R10, V8           // Set up shift
 	VSLDOI   $8, V8, V8, V8
 	VSLO     V1, V8, V1        // Shift by start byte
-
+	PCALIGN  $32
 index2to16next:
 	VAND       V1, SEPMASK, V2 // Just compare size of sep
 	VCMPEQUBCC V0, V2, V3      // Compare sep and partial string

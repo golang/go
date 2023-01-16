@@ -72,7 +72,7 @@ func storeByType(t *types.Type) obj.As {
 	panic("bad store type")
 }
 
-// shift type is used as Offset in obj.TYPE_SHIFT operands to encode shifted register operands
+// shift type is used as Offset in obj.TYPE_SHIFT operands to encode shifted register operands.
 type shift int64
 
 // copied from ../../../internal/obj/util.go:/TYPE_SHIFT
@@ -87,7 +87,7 @@ func (v shift) String() string {
 	}
 }
 
-// makeshift encodes a register shifted by a constant
+// makeshift encodes a register shifted by a constant.
 func makeshift(v *ssa.Value, reg int16, typ int64, s int64) shift {
 	if s < 0 || s >= 32 {
 		v.Fatalf("shift out of range: %d", s)
@@ -95,7 +95,7 @@ func makeshift(v *ssa.Value, reg int16, typ int64, s int64) shift {
 	return shift(int64(reg&0xf) | typ | (s&31)<<7)
 }
 
-// genshift generates a Prog for r = r0 op (r1 shifted by n)
+// genshift generates a Prog for r = r0 op (r1 shifted by n).
 func genshift(s *ssagen.State, v *ssa.Value, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
 	p := s.Prog(as)
 	p.From.Type = obj.TYPE_SHIFT
@@ -108,12 +108,12 @@ func genshift(s *ssagen.State, v *ssa.Value, as obj.As, r0, r1, r int16, typ int
 	return p
 }
 
-// makeregshift encodes a register shifted by a register
+// makeregshift encodes a register shifted by a register.
 func makeregshift(r1 int16, typ int64, r2 int16) shift {
 	return shift(int64(r1&0xf) | typ | int64(r2&0xf)<<8 | 1<<4)
 }
 
-// genregshift generates a Prog for r = r0 op (r1 shifted by r2)
+// genregshift generates a Prog for r = r0 op (r1 shifted by r2).
 func genregshift(s *ssagen.State, as obj.As, r0, r1, r2, r int16, typ int64) *obj.Prog {
 	p := s.Prog(as)
 	p.From.Type = obj.TYPE_SHIFT
@@ -903,13 +903,13 @@ var blockJump = map[ssa.BlockKind]struct {
 	ssa.BlockARMGEnoov: {arm.ABPL, arm.ABMI},
 }
 
-// To model a 'LEnoov' ('<=' without overflow checking) branching
+// To model a 'LEnoov' ('<=' without overflow checking) branching.
 var leJumps = [2][2]ssagen.IndexJump{
 	{{Jump: arm.ABEQ, Index: 0}, {Jump: arm.ABPL, Index: 1}}, // next == b.Succs[0]
 	{{Jump: arm.ABMI, Index: 0}, {Jump: arm.ABEQ, Index: 0}}, // next == b.Succs[1]
 }
 
-// To model a 'GTnoov' ('>' without overflow checking) branching
+// To model a 'GTnoov' ('>' without overflow checking) branching.
 var gtJumps = [2][2]ssagen.IndexJump{
 	{{Jump: arm.ABMI, Index: 1}, {Jump: arm.ABEQ, Index: 1}}, // next == b.Succs[0]
 	{{Jump: arm.ABEQ, Index: 1}, {Jump: arm.ABPL, Index: 0}}, // next == b.Succs[1]

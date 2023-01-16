@@ -6,13 +6,6 @@
 #include "textflag.h"
 
 TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
-#ifndef GOEXPERIMENT_regabiargs
-	MOV	a_base+0(FP), X10
-	MOV	a_len+8(FP), X11
-	MOV	b_base+24(FP), X12
-	MOV	b_len+32(FP), X13
-	MOV	$ret+48(FP), X14
-#else
 	// X10 = a_base
 	// X11 = a_len
 	// X12 = a_cap (unused)
@@ -21,17 +14,9 @@ TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
 	// X15 = b_cap (unused)
 	MOV	X13, X12
 	MOV	X14, X13
-#endif
 	JMP	compare<>(SB)
 
 TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
-#ifndef GOEXPERIMENT_regabiargs
-	MOV	a_base+0(FP), X10
-	MOV	a_len+8(FP), X11
-	MOV	b_base+16(FP), X12
-	MOV	b_len+24(FP), X13
-	MOV	$ret+32(FP), X14
-#endif
 	// X10 = a_base
 	// X11 = a_len
 	// X12 = b_base
@@ -58,8 +43,8 @@ use_a_len:
 	BLT	X5, X6, loop4_check
 
 	// Check alignment - if alignment differs we have to do one byte at a time.
-	AND	$3, X10, X7
-	AND	$3, X12, X8
+	AND	$7, X10, X7
+	AND	$7, X12, X8
 	BNE	X7, X8, loop4_check
 	BEQZ	X7, loop32_check
 
@@ -199,7 +184,4 @@ cmp:
 	SLTU	X8, X9, X6
 cmp_ret:
 	SUB	X5, X6, X10
-#ifndef GOEXPERIMENT_regabiargs
-	MOV	X10, (X14)
-#endif
 	RET

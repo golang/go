@@ -92,7 +92,7 @@ func memFree(ap unsafe.Pointer, n uintptr) {
 }
 
 func memCheck() {
-	if memDebug == false {
+	if !memDebug {
 		return
 	}
 	for p := memFreelist.ptr(); p != nil && p.next != 0; p = p.next.ptr() {

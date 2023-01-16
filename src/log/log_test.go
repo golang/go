@@ -53,7 +53,7 @@ var tests = []tester{
 
 // Test using Println("hello", 23, "world") or using Printf("hello %d world", 23)
 func testPrint(t *testing.T, flag int, prefix string, pattern string, useFormat bool) {
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	SetOutput(buf)
 	SetFlags(flag)
 	SetPrefix(prefix)
@@ -90,7 +90,7 @@ func TestAll(t *testing.T) {
 
 func TestOutput(t *testing.T) {
 	const testString = "test"
-	var b bytes.Buffer
+	var b strings.Builder
 	l := New(&b, "", 0)
 	l.Println(testString)
 	if expect := testString + "\n"; b.String() != expect {
@@ -143,7 +143,7 @@ func TestFlagAndPrefixSetting(t *testing.T) {
 }
 
 func TestUTCFlag(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	l := New(&b, "Test:", LstdFlags)
 	l.SetFlags(Ldate | Ltime | LUTC)
 	// Verify a log message looks right in the right time zone. Quantize to the second only.
@@ -167,7 +167,7 @@ func TestUTCFlag(t *testing.T) {
 }
 
 func TestEmptyPrintCreatesLine(t *testing.T) {
-	var b bytes.Buffer
+	var b strings.Builder
 	l := New(&b, "Header:", LstdFlags)
 	l.Print()
 	l.Println("non-empty")

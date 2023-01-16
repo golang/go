@@ -4,22 +4,29 @@
 
 package p
 
-type _[a /* ERROR "all type parameters must be named" */, b] struct{}
-type _[a t, b t, c /* ERROR "all type parameters must be named" */ ] struct{}
+type _[a /* ERROR "type parameters must be named" */, b] struct{}
+type _[a t, b t, c /* ERROR "type parameters must be named" */ ] struct{}
 type _ struct {
 	t [n]byte
 	t[a]
+	t[a,]
 	t[a, b]
+	t[a, b,]
+}
+type _ struct {
+	t [n, /* ERROR "unexpected comma; expecting ]" */ ]byte
 }
 type _ interface {
 	t[a]
+	t[a,]
 	m[ /* ERROR "method must have no type parameters" */ _ _, /* ERROR mixed */ _]()
 	t[a, b]
+	t[a, b,]
 }
 
 func _[] /* ERROR "empty type parameter list" */ ()
-func _[a /* ERROR "all type parameters must be named" */, b ]()
-func _[a t, b t, c /* ERROR "all type parameters must be named" */ ]()
+func _[a /* ERROR "type parameters must be named" */, b ]()
+func _[a t, b t, c /* ERROR "type parameters must be named" */ ]()
 
 // TODO(rfindley) incorrect error message (see existing TODO in parser)
 func f[a b, 0 /* ERROR "expected '\)', found 0" */ ] ()

@@ -4,6 +4,8 @@
 
 // +build mips64 mips64le
 
+.file "gcc_mips64x.S"
+
 /*
  * void crosscall1(void (*fn)(void), void (*setg_gcc)(void *g), void *g)
  *

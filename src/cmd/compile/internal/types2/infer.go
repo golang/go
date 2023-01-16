@@ -7,9 +7,10 @@
 package types2
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
+	. "internal/types/errors"
+	"strings"
 )
 
 const useConstraintTypeInference = true
@@ -88,34 +89,22 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 		//    f(p)
 		//  }
 		//
-		// We can turn the first example into the second example by renaming type
-		// parameters in the original signature to give them a new identity. As an
-		// optimization, we do this only for self-recursive calls.
-
-		// We can detect if we are in a self-recursive call by comparing the
-		// identity of the first type parameter in the current function with the
-		// first type parameter in tparams. This works because type parameters are
-		// unique to their type parameter list.
-		selfRecursive := check.sig != nil && check.sig.tparams.Len() > 0 && tparams[0] == check.sig.tparams.At(0)
-
-		if selfRecursive {
-			// In self-recursive inference, rename the type parameters with new type
-			// parameters that are the same but for their pointer identity.
-			tparams2 := make([]*TypeParam, len(tparams))
-			for i, tparam := range tparams {
-				tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
-				tparams2[i] = NewTypeParam(tname, nil)
-				tparams2[i].index = tparam.index // == i
-			}
-
-			renameMap := makeRenameMap(tparams, tparams2)
-			for i, tparam := range tparams {
-				tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
-			}
-
-			tparams = tparams2
-			params = check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
+		// We turn the first example into the second example by renaming type
+		// parameters in the original signature to give them a new identity.
+		tparams2 := make([]*TypeParam, len(tparams))
+		for i, tparam := range tparams {
+			tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
+			tparams2[i] = NewTypeParam(tname, nil)
+			tparams2[i].index = tparam.index // == i
 		}
+
+		renameMap := makeRenameMap(tparams, tparams2)
+		for i, tparam := range tparams {
+			tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
+		}
+
+		tparams = tparams2
+		params = check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
 	}
 
 	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
@@ -216,16 +205,20 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 				}
 			}
 			if allFailed {
-				check.errorf(arg, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
+				check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s (cannot infer %s)", kind, targ, arg.expr, tpar, typeParamsString(tparams))
 				return
 			}
 		}
 		smap := makeSubstMap(tparams, targs)
 		inferred := check.subst(arg.Pos(), tpar, smap, nil, check.context())
+		// _CannotInferTypeArgs indicates a failure of inference, though the actual
+		// error may be better attributed to a user-provided type argument (hence
+		// _InvalidTypeArg). We can't differentiate these cases, so fall back on
+		// the more general _CannotInferTypeArgs.
 		if inferred != tpar {
-			check.errorf(arg, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {
-			check.errorf(arg, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
 		}
 	}
 
@@ -319,7 +312,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// At least one type argument couldn't be inferred.
 	assert(targs != nil && index >= 0 && targs[index] == nil)
 	tpar := tparams[index]
-	check.errorf(pos, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
+	check.errorf(pos, CannotInferTypeArgs, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
 	return nil
 }
 
@@ -338,17 +331,16 @@ func typeParamsString(list []*TypeParam) string {
 	}
 
 	// general case (n > 2)
-	// Would like to use strings.Builder but it's not available in Go 1.4.
-	var b bytes.Buffer
+	var buf strings.Builder
 	for i, tname := range list[:n-1] {
 		if i > 0 {
-			b.WriteString(", ")
+			buf.WriteString(", ")
 		}
-		b.WriteString(tname.obj.name)
+		buf.WriteString(tname.obj.name)
 	}
-	b.WriteString(", and ")
-	b.WriteString(list[n-1].obj.name)
-	return b.String()
+	buf.WriteString(", and ")
+	buf.WriteString(list[n-1].obj.name)
+	return buf.String()
 }
 
 // isParameterized reports whether typ contains any of the type parameters of tparams.
@@ -533,7 +525,7 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 						if core.tilde {
 							tilde = "~"
 						}
-						check.errorf(pos, "%s does not match %s%s", tpar, tilde, core.typ)
+						check.errorf(pos, InvalidTypeArg, "%s does not match %s%s", tx, tilde, core.typ)
 						return nil, 0
 					}
 

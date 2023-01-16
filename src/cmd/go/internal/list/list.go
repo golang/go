@@ -409,7 +409,7 @@ var nl = []byte{'\n'}
 func runList(ctx context.Context, cmd *base.Command, args []string) {
 	modload.InitWorkfile()
 
-	if *listFmt != "" && listJson == true {
+	if *listFmt != "" && listJson {
 		base.Fatalf("go list -f cannot be used with -json")
 	}
 	if *listReuse != "" && !*listM {
@@ -592,7 +592,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	pkgOpts := load.PackageOpts{
 		IgnoreImports:   *listFind,
 		ModResolveTests: *listTest,
-		LoadVCS:         true,
+		AutoVCS:         true,
 		// SuppressDeps is set if the user opts to explicitly ask for the json fields they
 		// need, don't ask for Deps or DepsErrors. It's not set when using a template string,
 		// even if *listFmt doesn't contain .Deps because Deps are used to find import cycles
@@ -689,8 +689,16 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	// Do we need to run a build to gather information?
 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
 	if needStale || *listExport || *listCompiled {
-		var b work.Builder
-		b.Init()
+		b := work.NewBuilder("")
+		if *listE {
+			b.AllowErrors = true
+		}
+		defer func() {
+			if err := b.Close(); err != nil {
+				base.Fatalf("go: %v", err)
+			}
+		}()
+
 		b.IsCmdList = true
 		b.NeedExport = *listExport
 		b.NeedCompiledGoFiles = *listCompiled

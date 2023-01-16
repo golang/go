@@ -43,6 +43,7 @@ var useR = cmdUse.Flag.Bool("r", false, "")
 func init() {
 	cmdUse.Run = runUse // break init cycle
 
+	base.AddChdirFlag(&cmdUse.Flag)
 	base.AddModCommonFlags(&cmdUse.Flag)
 }
 
@@ -149,7 +150,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 
 		// Remove entries for subdirectories that no longer exist.
 		// Because they don't exist, they will be skipped by Walk.
-		for absDir, _ := range haveDirs {
+		for absDir := range haveDirs {
 			if str.HasFilePathPrefix(absDir, absArg) {
 				if _, ok := keepDirs[absDir]; !ok {
 					keepDirs[absDir] = "" // Mark for deletion.

@@ -5,8 +5,8 @@ env GO111MODULE=on
 [short] skip
 
 # Skip platforms that do not have Unix-style file permissions.
-[windows] skip
-[plan9] skip
+[GOOS:windows] skip
+[GOOS:plan9] skip
 
 chmod 0640 go.mod
 chmod 0604 go.sum

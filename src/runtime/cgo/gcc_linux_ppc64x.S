@@ -5,6 +5,8 @@
 // +build ppc64 ppc64le
 // +build linux
 
+.file "gcc_linux_ppc64x.S"
+
 /*
  * Apple still insists on underscore prefixes for C function names.
  */

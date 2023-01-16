@@ -57,7 +57,7 @@ type netFD struct {
 
 // socket returns a network file descriptor that is ready for
 // asynchronous I/O using the network poller.
-func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, ctrlFn func(string, string, syscall.RawConn) error) (*netFD, error) {
+func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only bool, laddr, raddr sockaddr, ctrlCtxFn func(context.Context, string, string, syscall.RawConn) error) (*netFD, error) {
 	fd := &netFD{family: family, sotype: sotype, net: net}
 
 	if laddr != nil && raddr == nil { // listener
@@ -194,7 +194,7 @@ func (p *bufferedPipe) Read(b []byte) (int, error) {
 		if !p.rDeadline.IsZero() {
 			d := time.Until(p.rDeadline)
 			if d <= 0 {
-				return 0, syscall.EAGAIN
+				return 0, os.ErrDeadlineExceeded
 			}
 			time.AfterFunc(d, p.rCond.Broadcast)
 		}
@@ -221,7 +221,7 @@ func (p *bufferedPipe) Write(b []byte) (int, error) {
 		if !p.wDeadline.IsZero() {
 			d := time.Until(p.wDeadline)
 			if d <= 0 {
-				return 0, syscall.EAGAIN
+				return 0, os.ErrDeadlineExceeded
 			}
 			time.AfterFunc(d, p.wCond.Broadcast)
 		}
@@ -317,6 +317,6 @@ func (fd *netFD) dup() (f *os.File, err error) {
 	return nil, syscall.ENOSYS
 }
 
-func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type) (dnsmessage.Parser, string, error) {
+func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (dnsmessage.Parser, string, error) {
 	panic("unreachable")
 }

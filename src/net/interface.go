@@ -39,11 +39,12 @@ type Interface struct {
 type Flags uint
 
 const (
-	FlagUp           Flags = 1 << iota // interface is up
+	FlagUp           Flags = 1 << iota // interface is administratively up
 	FlagBroadcast                      // interface supports broadcast access capability
 	FlagLoopback                       // interface is a loopback interface
 	FlagPointToPoint                   // interface belongs to a point-to-point link
 	FlagMulticast                      // interface supports multicast access capability
+	FlagRunning                        // interface is in running state
 )
 
 var flagNames = []string{
@@ -52,6 +53,7 @@ var flagNames = []string{
 	"loopback",
 	"pointtopoint",
 	"multicast",
+	"running",
 }
 
 func (f Flags) String() string {

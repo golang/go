@@ -45,17 +45,19 @@ type Value struct {
 	ptr unsafe.Pointer
 
 	// flag holds metadata about the value.
-	// The lowest bits are flag bits:
+	//
+	// The lowest five bits give the Kind of the value, mirroring typ.Kind().
+	//
+	// The next set of bits are flag bits:
 	//	- flagStickyRO: obtained via unexported not embedded field, so read-only
 	//	- flagEmbedRO: obtained via unexported embedded field, so read-only
 	//	- flagIndir: val holds a pointer to the data
-	//	- flagAddr: v.CanAddr is true (implies flagIndir)
+	//	- flagAddr: v.CanAddr is true (implies flagIndir and ptr is non-nil)
 	//	- flagMethod: v is a method value.
-	// The next five bits give the Kind of the value.
-	// This repeats typ.Kind() except for method values.
-	// The remaining 23+ bits give a method number for method values.
-	// If flag.kind() != Func, code can assume that flagMethod is unset.
 	// If ifaceIndir(typ), code can assume that flagIndir is set.
+	//
+	// The remaining 22+ bits give a method number for method values.
+	// If flag.kind() != Func, code can assume that flagMethod is unset.
 	flag
 
 	// A method value represents a curried method invocation
@@ -92,7 +94,7 @@ func (f flag) ro() flag {
 
 // pointer returns the underlying pointer represented by v.
 // v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
-// if v.Kind() == Pointer, the base type must not be go:notinheap.
+// if v.Kind() == Pointer, the base type must not be not-in-heap.
 func (v Value) pointer() unsafe.Pointer {
 	if v.typ.size != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
@@ -290,7 +292,7 @@ func (v Value) panicNotBool() {
 	v.mustBe(Bool)
 }
 
-var bytesType = TypeOf(([]byte)(nil)).(*rtype)
+var bytesType = rtypeOf(([]byte)(nil))
 
 // Bytes returns v's underlying value.
 // It panics if v's underlying value is not a slice of bytes or
@@ -1381,7 +1383,7 @@ func (v Value) Float() float64 {
 	panic(&ValueError{"reflect.Value.Float", v.kind()})
 }
 
-var uint8Type = TypeOf(uint8(0)).(*rtype)
+var uint8Type = rtypeOf(uint8(0))
 
 // Index returns v's i'th element.
 // It panics if v's Kind is not Array, Slice, or String or i is out of range.
@@ -1579,7 +1581,16 @@ func (v Value) IsZero() bool {
 		c := v.Complex()
 		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
 	case Array:
-		for i := 0; i < v.Len(); i++ {
+		// If the type is comparable, then compare directly with zero.
+		if v.typ.equal != nil && v.typ.size <= maxZero {
+			if v.flag&flagIndir == 0 {
+				return v.ptr == nil
+			}
+			return v.typ.equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+		}
+
+		n := v.Len()
+		for i := 0; i < n; i++ {
 			if !v.Index(i).IsZero() {
 				return false
 			}
@@ -1590,16 +1601,79 @@ func (v Value) IsZero() bool {
 	case String:
 		return v.Len() == 0
 	case Struct:
-		for i := 0; i < v.NumField(); i++ {
+		// If the type is comparable, then compare directly with zero.
+		if v.typ.equal != nil && v.typ.size <= maxZero {
+			if v.flag&flagIndir == 0 {
+				return v.ptr == nil
+			}
+			return v.typ.equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+		}
+
+		n := v.NumField()
+		for i := 0; i < n; i++ {
 			if !v.Field(i).IsZero() {
 				return false
 			}
 		}
 		return true
 	default:
-		// This should never happens, but will act as a safeguard for
-		// later, as a default value doesn't makes sense here.
+		// This should never happen, but will act as a safeguard for later,
+		// as a default value doesn't makes sense here.
 		panic(&ValueError{"reflect.Value.IsZero", v.Kind()})
+	}
+}
+
+// SetZero sets v to be the zero value of v's type.
+// It panics if CanSet returns false.
+func (v Value) SetZero() {
+	v.mustBeAssignable()
+	switch v.kind() {
+	case Bool:
+		*(*bool)(v.ptr) = false
+	case Int:
+		*(*int)(v.ptr) = 0
+	case Int8:
+		*(*int8)(v.ptr) = 0
+	case Int16:
+		*(*int16)(v.ptr) = 0
+	case Int32:
+		*(*int32)(v.ptr) = 0
+	case Int64:
+		*(*int64)(v.ptr) = 0
+	case Uint:
+		*(*uint)(v.ptr) = 0
+	case Uint8:
+		*(*uint8)(v.ptr) = 0
+	case Uint16:
+		*(*uint16)(v.ptr) = 0
+	case Uint32:
+		*(*uint32)(v.ptr) = 0
+	case Uint64:
+		*(*uint64)(v.ptr) = 0
+	case Uintptr:
+		*(*uintptr)(v.ptr) = 0
+	case Float32:
+		*(*float32)(v.ptr) = 0
+	case Float64:
+		*(*float64)(v.ptr) = 0
+	case Complex64:
+		*(*complex64)(v.ptr) = 0
+	case Complex128:
+		*(*complex128)(v.ptr) = 0
+	case String:
+		*(*string)(v.ptr) = ""
+	case Slice:
+		*(*unsafeheader.Slice)(v.ptr) = unsafeheader.Slice{}
+	case Interface:
+		*(*[2]unsafe.Pointer)(v.ptr) = [2]unsafe.Pointer{}
+	case Chan, Func, Map, Pointer, UnsafePointer:
+		*(*unsafe.Pointer)(v.ptr) = nil
+	case Array, Struct:
+		typedmemclr(v.typ, v.ptr)
+	default:
+		// This should never happen, but will act as a safeguard for later,
+		// as a default value doesn't makes sense here.
+		panic(&ValueError{"reflect.Value.SetZero", v.Kind()})
 	}
 }
 
@@ -1640,7 +1714,7 @@ func (v Value) lenNonSlice() int {
 	panic(&ValueError{"reflect.Value.Len", v.kind()})
 }
 
-var stringType = TypeOf("").(*rtype)
+var stringType = rtypeOf("")
 
 // MapIndex returns the value associated with key in the map v.
 // It panics if v's Kind is not Map.
@@ -1765,7 +1839,8 @@ func (iter *MapIter) Key() Value {
 
 // SetIterKey assigns to v the key of iter's current map entry.
 // It is equivalent to v.Set(iter.Key()), but it avoids allocating a new Value.
-// As in Go, the key must be assignable to v's type.
+// As in Go, the key must be assignable to v's type and
+// must not be derived from an unexported field.
 func (v Value) SetIterKey(iter *MapIter) {
 	if !iter.hiter.initialized() {
 		panic("reflect: Value.SetIterKey called before Next")
@@ -1784,6 +1859,7 @@ func (v Value) SetIterKey(iter *MapIter) {
 	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	ktype := t.key
 
+	iter.m.mustBeExported() // do not let unexported m leak
 	key := Value{ktype, iterkey, iter.m.flag | flag(ktype.Kind()) | flagIndir}
 	key = key.assignTo("reflect.MapIter.SetKey", v.typ, target)
 	typedmemmove(v.typ, v.ptr, key.ptr)
@@ -1806,7 +1882,8 @@ func (iter *MapIter) Value() Value {
 
 // SetIterValue assigns to v the value of iter's current map entry.
 // It is equivalent to v.Set(iter.Value()), but it avoids allocating a new Value.
-// As in Go, the value must be assignable to v's type.
+// As in Go, the value must be assignable to v's type and
+// must not be derived from an unexported field.
 func (v Value) SetIterValue(iter *MapIter) {
 	if !iter.hiter.initialized() {
 		panic("reflect: Value.SetIterValue called before Next")
@@ -1825,6 +1902,7 @@ func (v Value) SetIterValue(iter *MapIter) {
 	t := (*mapType)(unsafe.Pointer(iter.m.typ))
 	vtype := t.elem
 
+	iter.m.mustBeExported() // do not let unexported m leak
 	elem := Value{vtype, iterelem, iter.m.flag | flag(vtype.Kind()) | flagIndir}
 	elem = elem.assignTo("reflect.MapIter.SetValue", v.typ, target)
 	typedmemmove(v.typ, v.ptr, elem.ptr)
@@ -2030,9 +2108,6 @@ func (v Value) OverflowUint(x uint64) bool {
 // and make an exception.
 
 // Pointer returns v's value as a uintptr.
-// It returns uintptr instead of unsafe.Pointer so that
-// code using reflect cannot obtain unsafe.Pointers
-// without importing the unsafe package explicitly.
 // It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
 //
 // If v's Kind is Func, the returned pointer is an underlying
@@ -2080,7 +2155,7 @@ func (v Value) Pointer() uintptr {
 		return uintptr(p)
 
 	case Slice:
-		return (*SliceHeader)(v.ptr).Data
+		return uintptr((*unsafeheader.Slice)(v.ptr).Data)
 	}
 	panic(&ValueError{"reflect.Value.Pointer", v.kind()})
 }
@@ -2149,7 +2224,8 @@ func (v Value) send(x Value, nb bool) (selected bool) {
 
 // Set assigns x to the value v.
 // It panics if CanSet returns false.
-// As in Go, x's value must be assignable to v's type.
+// As in Go, x's value must be assignable to v's type and
+// must not be derived from an unexported field.
 func (v Value) Set(x Value) {
 	v.mustBeAssignable()
 	x.mustBeExported() // do not let unexported x leak
@@ -2347,7 +2423,7 @@ func (v Value) SetUint(x uint64) {
 	}
 }
 
-// SetPointer sets the unsafe.Pointer value v to x.
+// SetPointer sets the [unsafe.Pointer] value v to x.
 // It panics if v's Kind is not UnsafePointer.
 func (v Value) SetPointer(x unsafe.Pointer) {
 	v.mustBeAssignable()
@@ -2596,7 +2672,6 @@ func (v Value) Uint() uint64 {
 // and make an exception.
 
 // UnsafeAddr returns a pointer to v's data, as a uintptr.
-// It is for advanced clients that also import the "unsafe" package.
 // It panics if v is not addressable.
 //
 // It's preferred to use uintptr(Value.Addr().UnsafePointer()) to get the equivalent result.
@@ -2610,7 +2685,7 @@ func (v Value) UnsafeAddr() uintptr {
 	return uintptr(v.ptr)
 }
 
-// UnsafePointer returns v's value as a unsafe.Pointer.
+// UnsafePointer returns v's value as a [unsafe.Pointer].
 // It panics if v's Kind is not Chan, Func, Map, Pointer, Slice, or UnsafePointer.
 //
 // If v's Kind is Func, the returned pointer is an underlying
@@ -2667,6 +2742,8 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 // Moreover, the Data field is not sufficient to guarantee the data
 // it references will not be garbage collected, so programs must keep
 // a separate, correctly typed pointer to the underlying data.
+//
+// In new code, use unsafe.String or unsafe.StringData instead.
 type StringHeader struct {
 	Data uintptr
 	Len  int
@@ -2678,6 +2755,8 @@ type StringHeader struct {
 // Moreover, the Data field is not sufficient to guarantee the data
 // it references will not be garbage collected, so programs must keep
 // a separate, correctly typed pointer to the underlying data.
+//
+// In new code, use unsafe.Slice or unsafe.SliceData instead.
 type SliceHeader struct {
 	Data uintptr
 	Len  int
@@ -2701,42 +2780,61 @@ func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Po
 	return add(p, uintptr(i)*eltSize, "i < len")
 }
 
-// grow grows the slice s so that it can hold extra more values, allocating
-// more capacity if needed. It also returns the old and new slice lengths.
-func grow(s Value, extra int) (Value, int, int) {
-	i0 := s.Len()
-	i1 := i0 + extra
-	if i1 < i0 {
-		panic("reflect.Append: slice overflow")
+// Grow increases the slice's capacity, if necessary, to guarantee space for
+// another n elements. After Grow(n), at least n elements can be appended
+// to the slice without another allocation.
+//
+// It panics if v's Kind is not a Slice or if n is negative or too large to
+// allocate the memory.
+func (v Value) Grow(n int) {
+	v.mustBeAssignable()
+	v.mustBe(Slice)
+	v.grow(n)
+}
+
+// grow is identical to Grow but does not check for assignability.
+func (v Value) grow(n int) {
+	p := (*unsafeheader.Slice)(v.ptr)
+	switch {
+	case n < 0:
+		panic("reflect.Value.Grow: negative len")
+	case p.Len+n < 0:
+		panic("reflect.Value.Grow: slice overflow")
+	case p.Len+n > p.Cap:
+		t := v.typ.Elem().(*rtype)
+		*p = growslice(t, *p, n)
 	}
-	m := s.Cap()
-	if i1 <= m {
-		return s.Slice(0, i1), i0, i1
-	}
-	if m == 0 {
-		m = extra
-	} else {
-		const threshold = 256
-		for m < i1 {
-			if i0 < threshold {
-				m += m
-			} else {
-				m += (m + 3*threshold) / 4
-			}
-		}
-	}
-	t := MakeSlice(s.Type(), i1, m)
-	Copy(t, s)
-	return t, i0, i1
+}
+
+// extendSlice extends a slice by n elements.
+//
+// Unlike Value.grow, which modifies the slice in place and
+// does not change the length of the slice in place,
+// extendSlice returns a new slice value with the length
+// incremented by the number of specified elements.
+func (v Value) extendSlice(n int) Value {
+	v.mustBeExported()
+	v.mustBe(Slice)
+
+	// Shallow copy the slice header to avoid mutating the source slice.
+	sh := *(*unsafeheader.Slice)(v.ptr)
+	s := &sh
+	v.ptr = unsafe.Pointer(s)
+	v.flag = flagIndir | flag(Slice) // equivalent flag to MakeSlice
+
+	v.grow(n) // fine to treat as assignable since we allocate a new slice header
+	s.Len += n
+	return v
 }
 
 // Append appends the values x to a slice s and returns the resulting slice.
 // As in Go, each x's value must be assignable to the slice's element type.
 func Append(s Value, x ...Value) Value {
 	s.mustBe(Slice)
-	s, i0, i1 := grow(s, len(x))
-	for i, j := i0, 0; i < i1; i, j = i+1, j+1 {
-		s.Index(i).Set(x[j])
+	n := s.Len()
+	s = s.extendSlice(len(x))
+	for i, v := range x {
+		s.Index(n + i).Set(v)
 	}
 	return s
 }
@@ -2747,8 +2845,10 @@ func AppendSlice(s, t Value) Value {
 	s.mustBe(Slice)
 	t.mustBe(Slice)
 	typesMustMatch("reflect.AppendSlice", s.Type().Elem(), t.Type().Elem())
-	s, i0, i1 := grow(s, t.Len())
-	Copy(s.Slice(i0, i1), t)
+	ns := s.Len()
+	nt := t.Len()
+	s = s.extendSlice(nt)
+	Copy(s.Slice(ns, ns+nt), t)
 	return s
 }
 
@@ -3088,7 +3188,7 @@ func New(typ Type) Value {
 	t := typ.(*rtype)
 	pt := t.ptrTo()
 	if ifaceIndir(pt) {
-		// This is a pointer to a go:notinheap type.
+		// This is a pointer to a not-in-heap type.
 		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
 	}
 	ptr := unsafe_New(t)
@@ -3166,16 +3266,132 @@ func (v Value) CanConvert(t Type) bool {
 	if !vt.ConvertibleTo(t) {
 		return false
 	}
-	// Currently the only conversion that is OK in terms of type
-	// but that can panic depending on the value is converting
-	// from slice to pointer-to-array.
-	if vt.Kind() == Slice && t.Kind() == Pointer && t.Elem().Kind() == Array {
+	// Converting from slice to array or to pointer-to-array can panic
+	// depending on the value.
+	switch {
+	case vt.Kind() == Slice && t.Kind() == Array:
+		if t.Len() > v.Len() {
+			return false
+		}
+	case vt.Kind() == Slice && t.Kind() == Pointer && t.Elem().Kind() == Array:
 		n := t.Elem().Len()
 		if n > v.Len() {
 			return false
 		}
 	}
 	return true
+}
+
+// Comparable reports whether the value v is comparable.
+// If the type of v is an interface, this checks the dynamic type.
+// If this reports true then v.Interface() == x will not panic for any x,
+// nor will v.Equal(u) for any Value u.
+func (v Value) Comparable() bool {
+	k := v.Kind()
+	switch k {
+	case Invalid:
+		return false
+
+	case Array:
+		switch v.Type().Elem().Kind() {
+		case Interface, Array, Struct:
+			for i := 0; i < v.Type().Len(); i++ {
+				if !v.Index(i).Comparable() {
+					return false
+				}
+			}
+			return true
+		}
+		return v.Type().Comparable()
+
+	case Interface:
+		return v.Elem().Comparable()
+
+	case Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if !v.Field(i).Comparable() {
+				return false
+			}
+		}
+		return true
+
+	default:
+		return v.Type().Comparable()
+	}
+}
+
+// Equal reports true if v is equal to u.
+// For two invalid values, Equal will report true.
+// For an interface value, Equal will compare the value within the interface.
+// Otherwise, If the values have different types, Equal will report false.
+// Otherwise, for arrays and structs Equal will compare each element in order,
+// and report false if it finds non-equal elements.
+// During all comparisons, if values of the same type are compared,
+// and the type is not comparable, Equal will panic.
+func (v Value) Equal(u Value) bool {
+	if v.Kind() == Interface {
+		v = v.Elem()
+	}
+	if u.Kind() == Interface {
+		u = u.Elem()
+	}
+
+	if !v.IsValid() || !u.IsValid() {
+		return v.IsValid() == u.IsValid()
+	}
+
+	if v.Kind() != u.Kind() || v.Type() != u.Type() {
+		return false
+	}
+
+	// Handle each Kind directly rather than calling valueInterface
+	// to avoid allocating.
+	switch v.Kind() {
+	default:
+		panic("reflect.Value.Equal: invalid Kind")
+	case Bool:
+		return v.Bool() == u.Bool()
+	case Int, Int8, Int16, Int32, Int64:
+		return v.Int() == u.Int()
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return v.Uint() == u.Uint()
+	case Float32, Float64:
+		return v.Float() == u.Float()
+	case Complex64, Complex128:
+		return v.Complex() == u.Complex()
+	case String:
+		return v.String() == u.String()
+	case Chan, Pointer, UnsafePointer:
+		return v.Pointer() == u.Pointer()
+	case Array:
+		// u and v have the same type so they have the same length
+		vl := v.Len()
+		if vl == 0 {
+			// panic on [0]func()
+			if !v.Type().Elem().Comparable() {
+				break
+			}
+			return true
+		}
+		for i := 0; i < vl; i++ {
+			if !v.Index(i).Equal(u.Index(i)) {
+				return false
+			}
+		}
+		return true
+	case Struct:
+		// u and v have the same type so they have the same fields
+		nf := v.NumField()
+		for i := 0; i < nf; i++ {
+			if !v.Field(i).Equal(u.Field(i)) {
+				return false
+			}
+		}
+		return true
+	case Func, Map, Slice:
+		break
+	}
+	panic("reflect.Value.Equal: values of type " + v.Type().String() + " are not comparable")
 }
 
 // convertOp returns the function to convert a value of type src
@@ -3242,6 +3458,11 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 		if dst.Kind() == Pointer && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
 			return cvtSliceArrayPtr
 		}
+		// "x is a slice, T is a array type,
+		// and the slice and array types have identical element types."
+		if dst.Kind() == Array && src.Elem() == dst.Elem() {
+			return cvtSliceArray
+		}
 
 	case Chan:
 		if dst.Kind() == Chan && specialChannelAssignability(dst, src) {
@@ -3303,7 +3524,7 @@ func makeFloat(f flag, v float64, t Type) Value {
 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
 }
 
-// makeFloat returns a Value of type t equal to v, where t is a float32 type.
+// makeFloat32 returns a Value of type t equal to v, where t is a float32 type.
 func makeFloat32(f flag, v float32, t Type) Value {
 	typ := t.common()
 	ptr := unsafe_New(typ)
@@ -3443,6 +3664,22 @@ func cvtSliceArrayPtr(v Value, t Type) Value {
 	}
 	h := (*unsafeheader.Slice)(v.ptr)
 	return Value{t.common(), h.Data, v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Pointer)}
+}
+
+// convertOp: []T -> [N]T
+func cvtSliceArray(v Value, t Type) Value {
+	n := t.Len()
+	if n > v.Len() {
+		panic("reflect: cannot convert slice with length " + itoa.Itoa(v.Len()) + " to array with length " + itoa.Itoa(n))
+	}
+	h := (*unsafeheader.Slice)(v.ptr)
+	typ := t.common()
+	ptr := h.Data
+	c := unsafe_New(typ)
+	typedmemmove(typ, c, ptr)
+	ptr = c
+
+	return Value{typ, ptr, v.flag&^(flagAddr|flagKindMask) | flag(Array)}
 }
 
 // convertOp: direct copy
@@ -3604,6 +3841,9 @@ func typedslicecopy(elemType *rtype, dst, src unsafeheader.Slice) int
 func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
 
 func verifyNotInHeapPtr(p uintptr) bool
+
+//go:noescape
+func growslice(t *rtype, old unsafeheader.Slice, num int) unsafeheader.Slice
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that

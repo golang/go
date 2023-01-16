@@ -484,12 +484,15 @@ var invalidRegexps = []string{
 	`(?P<>a)`,
 	`[a-Z]`,
 	`(?i)[a-Z]`,
-	`a{100000}`,
-	`a{100000,}`,
-	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
-	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),
-	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000),
 	`\Q\E*`,
+	`a{100000}`,  // too much repetition
+	`a{100000,}`, // too much repetition
+	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",    // too much repetition
+	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),    // too deep
+	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000), // too deep
+	"(" + strings.Repeat("(xx?)", 1000) + "){1000}",          // too long
+	strings.Repeat("(xx?){1000}", 1000),                      // too long
+	strings.Repeat(`\pL`, 27000),                             // too many runes
 }
 
 var onlyPerl = []string{

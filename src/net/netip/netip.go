@@ -75,6 +75,13 @@ var (
 // address ff02::1.
 func IPv6LinkLocalAllNodes() Addr { return AddrFrom16([16]byte{0: 0xff, 1: 0x02, 15: 0x01}) }
 
+// IPv6LinkLocalAllRouters returns the IPv6 link-local all routers multicast
+// address ff02::2.
+func IPv6LinkLocalAllRouters() Addr { return AddrFrom16([16]byte{0: 0xff, 1: 0x02, 15: 0x02}) }
+
+// IPv6Loopback returns the IPv6 loopback address ::1.
+func IPv6Loopback() Addr { return AddrFrom16([16]byte{15: 0x01}) }
+
 // IPv6Unspecified returns the IPv6 unspecified address "::".
 func IPv6Unspecified() Addr { return Addr{z: z6noz} }
 
@@ -93,18 +100,6 @@ func AddrFrom4(addr [4]byte) Addr {
 // An IPv4-mapped IPv6 address is left as an IPv6 address.
 // (Use Unmap to convert them if needed.)
 func AddrFrom16(addr [16]byte) Addr {
-	return Addr{
-		addr: uint128{
-			beUint64(addr[:8]),
-			beUint64(addr[8:]),
-		},
-		z: z6noz,
-	}
-}
-
-// ipv6Slice is like IPv6Raw, but operates on a 16-byte slice. Assumes
-// slice is 16 bytes, caller must enforce this.
-func ipv6Slice(addr []byte) Addr {
 	return Addr{
 		addr: uint128{
 			beUint64(addr[:8]),
@@ -345,9 +340,9 @@ func parseIPv6(in string) (Addr, error) {
 func AddrFromSlice(slice []byte) (ip Addr, ok bool) {
 	switch len(slice) {
 	case 4:
-		return AddrFrom4(*(*[4]byte)(slice)), true
+		return AddrFrom4([4]byte(slice)), true
 	case 16:
-		return ipv6Slice(slice), true
+		return AddrFrom16([16]byte(slice)), true
 	}
 	return Addr{}, false
 }
@@ -451,8 +446,6 @@ func (ip Addr) Compare(ip2 Addr) int {
 // IP addresses sort first by length, then their address.
 // IPv6 addresses with zones sort just after the same address without a zone.
 func (ip Addr) Less(ip2 Addr) bool { return ip.Compare(ip2) == -1 }
-
-func (ip Addr) lessOrEq(ip2 Addr) bool { return ip.Compare(ip2) <= 0 }
 
 // Is4 reports whether ip is an IPv4 address.
 //
@@ -1017,13 +1010,13 @@ func (ip *Addr) UnmarshalBinary(b []byte) error {
 		*ip = Addr{}
 		return nil
 	case n == 4:
-		*ip = AddrFrom4(*(*[4]byte)(b))
+		*ip = AddrFrom4([4]byte(b))
 		return nil
 	case n == 16:
-		*ip = ipv6Slice(b)
+		*ip = AddrFrom16([16]byte(b))
 		return nil
 	case n > 16:
-		*ip = ipv6Slice(b[:16]).WithZone(string(b[16:]))
+		*ip = AddrFrom16([16]byte(b[:16])).WithZone(string(b[16:]))
 		return nil
 	}
 	return errors.New("unexpected slice size")
@@ -1111,10 +1104,7 @@ func MustParseAddrPort(s string) AddrPort {
 	return ip
 }
 
-// isZero reports whether p is the zero AddrPort.
-func (p AddrPort) isZero() bool { return p == AddrPort{} }
-
-// IsValid reports whether p.IP() is valid.
+// IsValid reports whether p.Addr() is valid.
 // All ports are valid, including zero.
 func (p AddrPort) IsValid() bool { return p.ip.IsValid() }
 
@@ -1276,7 +1266,7 @@ func (p Prefix) Addr() Addr { return p.ip }
 // It reports -1 if invalid.
 func (p Prefix) Bits() int { return int(p.bits) }
 
-// IsValid reports whether p.Bits() has a valid range for p.IP().
+// IsValid reports whether p.Bits() has a valid range for p.Addr().
 // If p.Addr() is the zero Addr, IsValid returns false.
 // Note that if p is the zero Prefix, then p.IsValid() == false.
 func (p Prefix) IsValid() bool { return !p.ip.isZero() && p.bits >= 0 && int(p.bits) <= p.ip.BitLen() }

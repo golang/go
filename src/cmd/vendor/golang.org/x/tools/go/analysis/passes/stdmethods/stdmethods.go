@@ -134,6 +134,19 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 		}
 	}
 
+	// Special case: Unwrap has two possible signatures.
+	// Check for Unwrap() []error here.
+	if id.Name == "Unwrap" {
+		if args.Len() == 0 && results.Len() == 1 {
+			t := typeString(results.At(0).Type())
+			if t == "error" || t == "[]error" {
+				return
+			}
+		}
+		pass.ReportRangef(id, "method Unwrap() should have signature Unwrap() error or Unwrap() []error")
+		return
+	}
+
 	// Do the =s (if any) all match?
 	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
 		return

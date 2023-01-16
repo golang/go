@@ -356,9 +356,34 @@ func TestUserDefinedBool(t *testing.T) {
 	}
 }
 
+func TestUserDefinedBoolUsage(t *testing.T) {
+	var flags FlagSet
+	flags.Init("test", ContinueOnError)
+	var buf bytes.Buffer
+	flags.SetOutput(&buf)
+	var b boolFlagVar
+	flags.Var(&b, "b", "X")
+	b.count = 0
+	// b.IsBoolFlag() will return true and usage will look boolean.
+	flags.PrintDefaults()
+	got := buf.String()
+	want := "  -b\tX\n"
+	if got != want {
+		t.Errorf("false: want %q; got %q", want, got)
+	}
+	b.count = 4
+	// b.IsBoolFlag() will return false and usage will look non-boolean.
+	flags.PrintDefaults()
+	got = buf.String()
+	want = "  -b\tX\n  -b value\n    \tX\n"
+	if got != want {
+		t.Errorf("false: want %q; got %q", want, got)
+	}
+}
+
 func TestSetOutput(t *testing.T) {
 	var flags FlagSet
-	var buf bytes.Buffer
+	var buf strings.Builder
 	flags.SetOutput(&buf)
 	flags.Init("test", ContinueOnError)
 	flags.Parse([]string{"-unknown"})
@@ -488,7 +513,7 @@ panic calling String method on zero flag_test.zeroPanicker for flag ZP1: panic!
 
 func TestPrintDefaults(t *testing.T) {
 	fs := NewFlagSet("print defaults test", ContinueOnError)
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fs.SetOutput(&buf)
 	fs.Bool("A", false, "for bootstrapping, allow 'any' type")
 	fs.Bool("Alongflagname", false, "disable bounds checking")
@@ -531,7 +556,7 @@ func TestIntFlagOverflow(t *testing.T) {
 // Issue 20998: Usage should respect CommandLine.output.
 func TestUsageOutput(t *testing.T) {
 	ResetForTesting(DefaultUsage)
-	var buf bytes.Buffer
+	var buf strings.Builder
 	CommandLine.SetOutput(&buf)
 	defer func(old []string) { os.Args = old }(os.Args)
 	os.Args = []string{"app", "-i=1", "-unknown"}
@@ -726,7 +751,7 @@ func TestInvalidFlags(t *testing.T) {
 		testName := fmt.Sprintf("FlagSet.Var(&v, %q, \"\")", test.flag)
 
 		fs := NewFlagSet("", ContinueOnError)
-		buf := bytes.NewBuffer(nil)
+		buf := &strings.Builder{}
 		fs.SetOutput(buf)
 
 		mustPanic(t, testName, test.errorMsg, func() {
@@ -758,7 +783,7 @@ func TestRedefinedFlags(t *testing.T) {
 		testName := fmt.Sprintf("flag redefined in FlagSet(%q)", test.flagSetName)
 
 		fs := NewFlagSet(test.flagSetName, ContinueOnError)
-		buf := bytes.NewBuffer(nil)
+		buf := &strings.Builder{}
 		fs.SetOutput(buf)
 
 		var v flagVar

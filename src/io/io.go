@@ -555,6 +555,46 @@ func (s *SectionReader) ReadAt(p []byte, off int64) (n int, err error) {
 // Size returns the size of the section in bytes.
 func (s *SectionReader) Size() int64 { return s.limit - s.base }
 
+// An OffsetWriter maps writes at offset base to offset base+off in the underlying writer.
+type OffsetWriter struct {
+	w    WriterAt
+	base int64 // the original offset
+	off  int64 // the current offset
+}
+
+// NewOffsetWriter returns an OffsetWriter that writes to w
+// starting at offset off.
+func NewOffsetWriter(w WriterAt, off int64) *OffsetWriter {
+	return &OffsetWriter{w, off, off}
+}
+
+func (o *OffsetWriter) Write(p []byte) (n int, err error) {
+	n, err = o.w.WriteAt(p, o.off)
+	o.off += int64(n)
+	return
+}
+
+func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
+	off += o.base
+	return o.w.WriteAt(p, off)
+}
+
+func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	default:
+		return 0, errWhence
+	case SeekStart:
+		offset += o.base
+	case SeekCurrent:
+		offset += o.off
+	}
+	if offset < o.base {
+		return 0, errOffset
+	}
+	o.off = offset
+	return offset - o.base, nil
+}
+
 // TeeReader returns a Reader that writes to w what it reads from r.
 // All reads from r performed through it are matched with
 // corresponding writes to w. There is no internal buffering -

@@ -516,6 +516,18 @@ func tcDot(n *ir.SelectorExpr, top int) ir.Node {
 	return n
 }
 
+func wrongTypeFor(haveSym *types.Sym, haveType *types.Type, wantSym *types.Sym, wantType *types.Type) string {
+	haveT := fmt.Sprintf("%S", haveType)
+	wantT := fmt.Sprintf("%S", wantType)
+	if haveT == wantT {
+		// Add packages instead of reporting "got Foo but wanted Foo", see #54258.
+		haveT = haveType.Pkg().Path + "." + haveT
+		wantT = wantType.Pkg().Path + "." + wantT
+	}
+	return fmt.Sprintf("(wrong type for %v method)\n"+
+		"\t\thave %v%s\n\t\twant %v%s", wantSym, haveSym, haveT, wantSym, wantT)
+}
+
 // tcDotType typechecks an ODOTTYPE node.
 func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 	n.X = Expr(n.X)
@@ -539,8 +551,8 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 		var ptr int
 		if !implements(n.Type(), t, &missing, &have, &ptr) {
 			if have != nil && have.Sym == missing.Sym {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+
-					"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+				base.Errorf("impossible type assertion:\n\t%v does not implement %v %s", n.Type(), t,
+					wrongTypeFor(have.Sym, have.Type, missing.Sym, missing.Type))
 			} else if ptr != 0 {
 				base.Errorf("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type(), t, missing.Sym)
 			} else if have != nil {
@@ -656,6 +668,40 @@ func tcLenCap(n *ir.UnaryExpr) ir.Node {
 	}
 
 	n.SetType(types.Types[types.TINT])
+	return n
+}
+
+// tcUnsafeData typechecks an OUNSAFESLICEDATA or OUNSAFESTRINGDATA node.
+func tcUnsafeData(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	n.X = DefaultLit(n.X, nil)
+	l := n.X
+	t := l.Type()
+	if t == nil {
+		n.SetType(nil)
+		return n
+	}
+
+	var kind types.Kind
+	if n.Op() == ir.OUNSAFESLICEDATA {
+		kind = types.TSLICE
+	} else {
+		/* kind is string */
+		kind = types.TSTRING
+	}
+
+	if t.Kind() != kind {
+		base.Errorf("invalid argument %L for %v", l, n.Op())
+		n.SetType(nil)
+		return n
+	}
+
+	if kind == types.TSTRING {
+		t = types.ByteType
+	} else {
+		t = t.Elem()
+	}
+	n.SetType(types.NewPtr(t))
 	return n
 }
 
@@ -807,6 +853,31 @@ func tcSliceHeader(n *ir.SliceHeaderExpr) ir.Node {
 
 	if ir.IsConst(n.Len, constant.Int) && ir.IsConst(n.Cap, constant.Int) && constant.Compare(n.Len.Val(), token.GTR, n.Cap.Val()) {
 		base.Fatalf("len larger than cap for OSLICEHEADER")
+	}
+
+	return n
+}
+
+// tcStringHeader typechecks an OSTRINGHEADER node.
+func tcStringHeader(n *ir.StringHeaderExpr) ir.Node {
+	t := n.Type()
+	if t == nil {
+		base.Fatalf("no type specified for OSTRINGHEADER")
+	}
+
+	if !t.IsString() {
+		base.Fatalf("invalid type %v for OSTRINGHEADER", n.Type())
+	}
+
+	if n.Ptr == nil || n.Ptr.Type() == nil || !n.Ptr.Type().IsUnsafePtr() {
+		base.Fatalf("need unsafe.Pointer for OSTRINGHEADER")
+	}
+
+	n.Ptr = Expr(n.Ptr)
+	n.Len = DefaultLit(Expr(n.Len), types.Types[types.TINT])
+
+	if ir.IsConst(n.Len, constant.Int) && ir.Int64Val(n.Len) < 0 {
+		base.Fatalf("len for OSTRINGHEADER must be non-negative")
 	}
 
 	return n

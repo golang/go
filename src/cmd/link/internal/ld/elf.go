@@ -15,6 +15,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"internal/buildcfg"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -457,7 +458,7 @@ func elfwritehdr(out *OutBuf) uint32 {
 	return elf32writehdr(out)
 }
 
-/* Taken directly from the definition document for ELF64 */
+/* Taken directly from the definition document for ELF64. */
 func elfhash(name string) uint32 {
 	var h uint32
 	for i := 0; i < len(name); i++ {
@@ -606,8 +607,13 @@ func elfWriteMipsAbiFlags(ctxt *Link) int {
 	return int(sh.Size)
 }
 
-func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sz int) int {
-	n := 3*4 + uint64(sz) + resoff%4
+func elfnote(sh *ElfShdr, startva uint64, resoff uint64, sizes ...int) int {
+	n := resoff % 4
+	// if section contains multiple notes (as is the case with FreeBSD signature),
+	// multiple note sizes can be specified
+	for _, sz := range sizes {
+		n += 3*4 + uint64(sz)
+	}
 
 	sh.Type = uint32(elf.SHT_NOTE)
 	sh.Flags = uint64(elf.SHF_ALLOC)
@@ -709,6 +715,67 @@ func elfwriteopenbsdsig(out *OutBuf) int {
 	out.Write(ELF_NOTE_OPENBSD_NAME)
 
 	out.Write32(ELF_NOTE_OPENBSD_VERSION)
+
+	return int(sh.Size)
+}
+
+// FreeBSD Signature (as per sys/elf_common.h)
+const (
+	ELF_NOTE_FREEBSD_NAMESZ            = 8
+	ELF_NOTE_FREEBSD_DESCSZ            = 4
+	ELF_NOTE_FREEBSD_ABI_TAG           = 1
+	ELF_NOTE_FREEBSD_NOINIT_TAG        = 2
+	ELF_NOTE_FREEBSD_FEATURE_CTL_TAG   = 4
+	ELF_NOTE_FREEBSD_VERSION           = 1203000 // 12.3-RELEASE
+	ELF_NOTE_FREEBSD_FCTL_ASLR_DISABLE = 0x1
+)
+
+const ELF_NOTE_FREEBSD_NAME = "FreeBSD\x00"
+
+func elffreebsdsig(sh *ElfShdr, startva uint64, resoff uint64) int {
+	n := ELF_NOTE_FREEBSD_NAMESZ + ELF_NOTE_FREEBSD_DESCSZ
+	// FreeBSD signature section contains 3 equally sized notes
+	return elfnote(sh, startva, resoff, n, n, n)
+}
+
+// elfwritefreebsdsig writes FreeBSD .note section.
+//
+// See https://www.netbsd.org/docs/kernel/elf-notes.html for the description of
+// a Note element format and
+// https://github.com/freebsd/freebsd-src/blob/main/sys/sys/elf_common.h#L790
+// for the FreeBSD-specific values.
+func elfwritefreebsdsig(out *OutBuf) int {
+	sh := elfshname(".note.tag")
+	if sh == nil {
+		return 0
+	}
+	out.SeekSet(int64(sh.Off))
+
+	// NT_FREEBSD_ABI_TAG
+	out.Write32(ELF_NOTE_FREEBSD_NAMESZ)
+	out.Write32(ELF_NOTE_FREEBSD_DESCSZ)
+	out.Write32(ELF_NOTE_FREEBSD_ABI_TAG)
+	out.WriteString(ELF_NOTE_FREEBSD_NAME)
+	out.Write32(ELF_NOTE_FREEBSD_VERSION)
+
+	// NT_FREEBSD_NOINIT_TAG
+	out.Write32(ELF_NOTE_FREEBSD_NAMESZ)
+	out.Write32(ELF_NOTE_FREEBSD_DESCSZ)
+	out.Write32(ELF_NOTE_FREEBSD_NOINIT_TAG)
+	out.WriteString(ELF_NOTE_FREEBSD_NAME)
+	out.Write32(0)
+
+	// NT_FREEBSD_FEATURE_CTL
+	out.Write32(ELF_NOTE_FREEBSD_NAMESZ)
+	out.Write32(ELF_NOTE_FREEBSD_DESCSZ)
+	out.Write32(ELF_NOTE_FREEBSD_FEATURE_CTL_TAG)
+	out.WriteString(ELF_NOTE_FREEBSD_NAME)
+	if *flagRace {
+		// The race detector can't handle ASLR, turn the ASLR off when compiling with -race.
+		out.Write32(ELF_NOTE_FREEBSD_FCTL_ASLR_DISABLE)
+	} else {
+		out.Write32(0)
+	}
 
 	return int(sh.Size)
 }
@@ -1030,7 +1097,7 @@ func elfshname(name string) *ElfShdr {
 }
 
 // Create an ElfShdr for the section with name.
-// Create a duplicate if one already exists with that name
+// Create a duplicate if one already exists with that name.
 func elfshnamedup(name string) *ElfShdr {
 	for i := 0; i < nelfstr; i++ {
 		if name == elfstr[i].s {
@@ -1304,7 +1371,7 @@ func (ctxt *Link) doelf() {
 	shstrtab.Addstring(".data")
 	shstrtab.Addstring(".bss")
 	shstrtab.Addstring(".noptrbss")
-	shstrtab.Addstring("__sancov_cntrs")
+	shstrtab.Addstring(".go.fuzzcntrs")
 	shstrtab.Addstring(".go.buildinfo")
 	if ctxt.IsMIPS() {
 		shstrtab.Addstring(".MIPS.abiflags")
@@ -1325,6 +1392,9 @@ func (ctxt *Link) doelf() {
 	}
 	if ctxt.IsOpenbsd() {
 		shstrtab.Addstring(".note.openbsd.ident")
+	}
+	if ctxt.IsFreebsd() {
+		shstrtab.Addstring(".note.tag")
 	}
 	if len(buildinfo) > 0 {
 		shstrtab.Addstring(".note.gnu.build-id")
@@ -1530,7 +1600,7 @@ func (ctxt *Link) doelf() {
 	if ctxt.IsShared() {
 		// The go.link.abihashbytes symbol will be pointed at the appropriate
 		// part of the .note.go.abihash section in data.go:func address().
-		s := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
+		s := ldr.LookupOrCreateSym("go:link.abihashbytes", 0)
 		sb := ldr.MakeSymbolUpdater(s)
 		ldr.SetAttrLocal(s, true)
 		sb.SetType(sym.SRODATA)
@@ -1782,6 +1852,16 @@ func asmbElf(ctxt *Link) {
 					}
 				} else {
 					interpreter = thearch.Linuxdynld
+					// If interpreter does not exist, try musl instead.
+					// This lets the same cmd/link binary work on
+					// both glibc-based and musl-based systems.
+					if _, err := os.Stat(interpreter); err != nil {
+						if musl := thearch.LinuxdynldMusl; musl != "" {
+							if _, err := os.Stat(musl); err == nil {
+								interpreter = musl
+							}
+						}
+					}
 				}
 
 			case objabi.Hfreebsd:
@@ -1809,7 +1889,7 @@ func asmbElf(ctxt *Link) {
 		phsh(ph, sh)
 	}
 
-	if ctxt.HeadType == objabi.Hnetbsd || ctxt.HeadType == objabi.Hopenbsd {
+	if ctxt.HeadType == objabi.Hnetbsd || ctxt.HeadType == objabi.Hopenbsd || ctxt.HeadType == objabi.Hfreebsd {
 		var sh *ElfShdr
 		switch ctxt.HeadType {
 		case objabi.Hnetbsd:
@@ -1819,8 +1899,12 @@ func asmbElf(ctxt *Link) {
 		case objabi.Hopenbsd:
 			sh = elfshname(".note.openbsd.ident")
 			resoff -= int64(elfopenbsdsig(sh, uint64(startva), uint64(resoff)))
+
+		case objabi.Hfreebsd:
+			sh = elfshname(".note.tag")
+			resoff -= int64(elffreebsdsig(sh, uint64(startva), uint64(resoff)))
 		}
-		// netbsd and openbsd require ident in an independent segment.
+		// NetBSD, OpenBSD and FreeBSD require ident in an independent segment.
 		pnotei := newElfPhdr()
 		pnotei.Type = elf.PT_NOTE
 		pnotei.Flags = elf.PF_R
@@ -2197,6 +2281,9 @@ elfobj:
 		}
 		if ctxt.HeadType == objabi.Hopenbsd {
 			a += int64(elfwriteopenbsdsig(ctxt.Out))
+		}
+		if ctxt.HeadType == objabi.Hfreebsd {
+			a += int64(elfwritefreebsdsig(ctxt.Out))
 		}
 		if len(buildinfo) > 0 {
 			a += int64(elfwritebuildinfo(ctxt.Out))

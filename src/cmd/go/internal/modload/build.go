@@ -76,8 +76,7 @@ func PackageModRoot(ctx context.Context, pkgpath string) string {
 	if !ok {
 		return ""
 	}
-	const needSum = true
-	root, _, err := fetch(ctx, m, needSum)
+	root, _, err := fetch(ctx, m)
 	if err != nil {
 		return ""
 	}
@@ -89,8 +88,8 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return nil
 	}
 
-	if i := strings.Index(path, "@"); i >= 0 {
-		m := module.Version{Path: path[:i], Version: path[i+1:]}
+	if path, vers, found := strings.Cut(path, "@"); found {
+		m := module.Version{Path: path, Version: vers}
 		return moduleInfo(ctx, nil, m, 0, nil)
 	}
 
@@ -182,23 +181,27 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
 	if !m2.Checkable() {
 		return m2
 	}
+
+	merged := new(codehost.Origin)
+	*merged = *m1 // Clone to avoid overwriting fields in cached results.
+
 	if m2.TagSum != "" {
 		if m1.TagSum != "" && (m1.TagSum != m2.TagSum || m1.TagPrefix != m2.TagPrefix) {
-			m1.ClearCheckable()
-			return m1
+			merged.ClearCheckable()
+			return merged
 		}
-		m1.TagSum = m2.TagSum
-		m1.TagPrefix = m2.TagPrefix
+		merged.TagSum = m2.TagSum
+		merged.TagPrefix = m2.TagPrefix
 	}
 	if m2.Hash != "" {
 		if m1.Hash != "" && (m1.Hash != m2.Hash || m1.Ref != m2.Ref) {
-			m1.ClearCheckable()
-			return m1
+			merged.ClearCheckable()
+			return merged
 		}
-		m1.Hash = m2.Hash
-		m1.Ref = m2.Ref
+		merged.Hash = m2.Hash
+		merged.Ref = m2.Ref
 	}
-	return m1
+	return merged
 }
 
 // addVersions fills in m.Versions with the list of known versions.
@@ -316,7 +319,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 		}
 
 		checksumOk := func(suffix string) bool {
-			return rs == nil || m.Version == "" || cfg.BuildMod == "mod" ||
+			return rs == nil || m.Version == "" || !mustHaveSums() ||
 				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
 		}
 
@@ -427,12 +430,12 @@ func ModInfoProg(info string, isgccgo bool) []byte {
 	// look at the module info in their init functions (see issue 29628),
 	// which won't work. See also issue 30344.
 	if isgccgo {
-		return []byte(fmt.Sprintf(`package main
+		return fmt.Appendf(nil, `package main
 import _ "unsafe"
 //go:linkname __set_debug_modinfo__ runtime.setmodinfo
 func __set_debug_modinfo__(string)
 func init() { __set_debug_modinfo__(%q) }
-`, ModInfoData(info)))
+`, ModInfoData(info))
 	}
 	return nil
 }

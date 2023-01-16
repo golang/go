@@ -8,9 +8,7 @@ import (
 	"debug/dwarf"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -221,7 +219,7 @@ func TestScopeRanges(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	dir, err := ioutil.TempDir("", "TestScopeRanges")
+	dir, err := os.MkdirTemp("", "TestScopeRanges")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -475,7 +473,7 @@ func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (str
 	}
 	args = append(args, "-o", dst, src)
 
-	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", string(b))
 		t.Fatal(err)
@@ -498,7 +496,7 @@ func TestEmptyDwarfRanges(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	dir, err := ioutil.TempDir("", "TestEmptyDwarfRanges")
+	dir, err := os.MkdirTemp("", "TestEmptyDwarfRanges")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}

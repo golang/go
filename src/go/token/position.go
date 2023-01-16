@@ -245,7 +245,7 @@ func (f *File) AddLineInfo(offset int, filename string, line int) {
 // information for line directives such as //line filename:line:column.
 func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) {
 	f.mutex.Lock()
-	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
+	if i := len(f.infos); (i == 0 || f.infos[i-1].Offset < offset) && offset < f.size {
 		f.infos = append(f.infos, lineInfo{offset, filename, line, column})
 	}
 	f.mutex.Unlock()
@@ -286,7 +286,6 @@ func searchLineInfos(a []lineInfo, x int) int {
 // possibly adjusted by //line comments; otherwise those comments are ignored.
 func (f *File) unpack(offset int, adjusted bool) (filename string, line, column int) {
 	f.mutex.Lock()
-	defer f.mutex.Unlock()
 	filename = f.name
 	if i := searchInts(f.lines, offset); i >= 0 {
 		line, column = i+1, offset-f.lines[i]+1
@@ -314,6 +313,9 @@ func (f *File) unpack(offset int, adjusted bool) (filename string, line, column 
 			}
 		}
 	}
+	// TODO(mvdan): move Unlock back under Lock with a defer statement once
+	// https://go.dev/issue/38471 is fixed to remove the performance penalty.
+	f.mutex.Unlock()
 	return
 }
 
@@ -366,6 +368,9 @@ func (f *File) Position(p Pos) (pos Position) {
 // recently added file, plus one. Unless there is a need to extend an
 // interval later, using the FileSet.Base should be used as argument
 // for FileSet.AddFile.
+//
+// A File may be removed from a FileSet when it is no longer needed.
+// This may reduce memory usage in a long-running application.
 type FileSet struct {
 	mutex sync.RWMutex         // protects the file set
 	base  int                  // base offset for the next file
@@ -431,6 +436,25 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
 	s.files = append(s.files, f)
 	s.last.Store(f)
 	return f
+}
+
+// RemoveFile removes a file from the FileSet so that subsequent
+// queries for its Pos interval yield a negative result.
+// This reduces the memory usage of a long-lived FileSet that
+// encounters an unbounded stream of files.
+//
+// Removing a file that does not belong to the set has no effect.
+func (s *FileSet) RemoveFile(file *File) {
+	s.last.CompareAndSwap(file, nil) // clear last file cache
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if i := searchFiles(s.files, file.base); i >= 0 && s.files[i] == file {
+		last := &s.files[len(s.files)-1]
+		s.files = append(s.files[:i], s.files[i+1:]...)
+		*last = nil // don't prolong lifetime when popping last element
+	}
 }
 
 // Iterate calls f for the files in the file set in the order they were added

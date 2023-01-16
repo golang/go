@@ -13,6 +13,7 @@ package tar
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io/fs"
 	"math"
 	"path"
@@ -26,11 +27,14 @@ import (
 // architectures. If a large value is encountered when decoding, the result
 // stored in Header will be the truncated version.
 
+var tarinsecurepath = godebug.New("tarinsecurepath")
+
 var (
 	ErrHeader          = errors.New("archive/tar: invalid tar header")
 	ErrWriteTooLong    = errors.New("archive/tar: write too long")
 	ErrFieldTooLong    = errors.New("archive/tar: header field too long")
 	ErrWriteAfterClose = errors.New("archive/tar: write after close")
+	ErrInsecurePath    = errors.New("archive/tar: insecure file path")
 	errMissData        = errors.New("archive/tar: sparse file references non-existent data")
 	errUnrefData       = errors.New("archive/tar: sparse file contains unreferenced data")
 	errWriteHole       = errors.New("archive/tar: write non-NUL byte in sparse hole")
@@ -55,8 +59,10 @@ func (he headerError) Error() string {
 // Type flags for Header.Typeflag.
 const (
 	// Type '0' indicates a regular file.
-	TypeReg  = '0'
-	TypeRegA = '\x00' // Deprecated: Use TypeReg instead.
+	TypeReg = '0'
+
+	// Deprecated: Use TypeReg instead.
+	TypeRegA = '\x00'
 
 	// Type '1' to '6' are header-only flags and may not have a data body.
 	TypeLink    = '1' // Hard link

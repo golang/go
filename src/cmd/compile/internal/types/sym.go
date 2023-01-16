@@ -97,14 +97,7 @@ func (sym *Sym) LinksymABI(abi obj.ABI) *obj.LSym {
 // Less reports whether symbol a is ordered before symbol b.
 //
 // Symbols are ordered exported before non-exported, then by name, and
-// finally (for non-exported symbols) by package height and path.
-//
-// Ordering by package height is necessary to establish a consistent
-// ordering for non-exported names with the same spelling but from
-// different packages. We don't necessarily know the path for the
-// package being compiled, but by definition it will have a height
-// greater than any other packages seen within the compilation unit.
-// For more background, see issue #24693.
+// finally (for non-exported symbols) by package path.
 func (a *Sym) Less(b *Sym) bool {
 	if a == b {
 		return false
@@ -131,9 +124,6 @@ func (a *Sym) Less(b *Sym) bool {
 		return a.Name < b.Name
 	}
 	if !ea {
-		if a.Pkg.Height != b.Pkg.Height {
-			return a.Pkg.Height < b.Pkg.Height
-		}
 		return a.Pkg.Path < b.Pkg.Path
 	}
 	return false

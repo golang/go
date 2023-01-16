@@ -259,6 +259,7 @@ func (n *CaseClause) copy() Node {
 	c := *n
 	c.init = copyNodes(c.init)
 	c.List = copyNodes(c.List)
+	c.RTypes = copyNodes(c.RTypes)
 	c.Body = copyNodes(c.Body)
 	return &c
 }
@@ -272,6 +273,9 @@ func (n *CaseClause) doChildren(do func(Node) bool) bool {
 	if doNodes(n.List, do) {
 		return true
 	}
+	if doNodes(n.RTypes, do) {
+		return true
+	}
 	if doNodes(n.Body, do) {
 		return true
 	}
@@ -283,6 +287,7 @@ func (n *CaseClause) editChildren(edit func(Node) Node) {
 		n.Var = edit(n.Var).(*Name)
 	}
 	editNodes(n.List, edit)
+	editNodes(n.RTypes, edit)
 	editNodes(n.Body, edit)
 }
 
@@ -458,6 +463,9 @@ func (n *DynamicTypeAssertExpr) doChildren(do func(Node) bool) bool {
 	if n.X != nil && do(n.X) {
 		return true
 	}
+	if n.SrcRType != nil && do(n.SrcRType) {
+		return true
+	}
 	if n.RType != nil && do(n.RType) {
 		return true
 	}
@@ -471,6 +479,9 @@ func (n *DynamicTypeAssertExpr) editChildren(edit func(Node) Node) {
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
 	}
+	if n.SrcRType != nil {
+		n.SrcRType = edit(n.SrcRType).(Node)
+	}
 	if n.RType != nil {
 		n.RType = edit(n.RType).(Node)
 	}
@@ -483,7 +494,6 @@ func (n *ForStmt) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
 func (n *ForStmt) copy() Node {
 	c := *n
 	c.init = copyNodes(c.init)
-	c.Late = copyNodes(c.Late)
 	c.Body = copyNodes(c.Body)
 	return &c
 }
@@ -492,9 +502,6 @@ func (n *ForStmt) doChildren(do func(Node) bool) bool {
 		return true
 	}
 	if n.Cond != nil && do(n.Cond) {
-		return true
-	}
-	if doNodes(n.Late, do) {
 		return true
 	}
 	if n.Post != nil && do(n.Post) {
@@ -510,7 +517,6 @@ func (n *ForStmt) editChildren(edit func(Node) Node) {
 	if n.Cond != nil {
 		n.Cond = edit(n.Cond).(Node)
 	}
-	editNodes(n.Late, edit)
 	if n.Post != nil {
 		n.Post = edit(n.Post).(Node)
 	}
@@ -1137,6 +1143,34 @@ func (n *StarExpr) editChildren(edit func(Node) Node) {
 	editNodes(n.init, edit)
 	if n.X != nil {
 		n.X = edit(n.X).(Node)
+	}
+}
+
+func (n *StringHeaderExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+func (n *StringHeaderExpr) copy() Node {
+	c := *n
+	c.init = copyNodes(c.init)
+	return &c
+}
+func (n *StringHeaderExpr) doChildren(do func(Node) bool) bool {
+	if doNodes(n.init, do) {
+		return true
+	}
+	if n.Ptr != nil && do(n.Ptr) {
+		return true
+	}
+	if n.Len != nil && do(n.Len) {
+		return true
+	}
+	return false
+}
+func (n *StringHeaderExpr) editChildren(edit func(Node) Node) {
+	editNodes(n.init, edit)
+	if n.Ptr != nil {
+		n.Ptr = edit(n.Ptr).(Node)
+	}
+	if n.Len != nil {
+		n.Len = edit(n.Len).(Node)
 	}
 }
 

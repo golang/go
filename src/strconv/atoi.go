@@ -33,20 +33,36 @@ func (e *NumError) Error() string {
 
 func (e *NumError) Unwrap() error { return e.Err }
 
+// cloneString returns a string copy of x.
+//
+// All ParseXXX functions allow the input string to escape to the error value.
+// This hurts strconv.ParseXXX(string(b)) calls where b is []byte since
+// the conversion from []byte must allocate a string on the heap.
+// If we assume errors are infrequent, then we can avoid escaping the input
+// back to the output by copying it first. This allows the compiler to call
+// strconv.ParseXXX without a heap allocation for most []byte to string
+// conversions, since it can now prove that the string cannot escape Parse.
+//
+// TODO: Use strings.Clone instead? However, we cannot depend on "strings"
+// since it incurs a transitive dependency on "unicode".
+// Either move strings.Clone to an internal/bytealg or make the
+// "strings" to "unicode" dependency lighter (see https://go.dev/issue/54098).
+func cloneString(x string) string { return string([]byte(x)) }
+
 func syntaxError(fn, str string) *NumError {
-	return &NumError{fn, str, ErrSyntax}
+	return &NumError{fn, cloneString(str), ErrSyntax}
 }
 
 func rangeError(fn, str string) *NumError {
-	return &NumError{fn, str, ErrRange}
+	return &NumError{fn, cloneString(str), ErrRange}
 }
 
 func baseError(fn, str string, base int) *NumError {
-	return &NumError{fn, str, errors.New("invalid base " + Itoa(base))}
+	return &NumError{fn, cloneString(str), errors.New("invalid base " + Itoa(base))}
 }
 
 func bitSizeError(fn, str string, bitSize int) *NumError {
-	return &NumError{fn, str, errors.New("invalid bit size " + Itoa(bitSize))}
+	return &NumError{fn, cloneString(str), errors.New("invalid bit size " + Itoa(bitSize))}
 }
 
 const intSize = 32 << (^uint(0) >> 63)
@@ -205,7 +221,7 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	un, err = ParseUint(s, base, bitSize)
 	if err != nil && err.(*NumError).Err != ErrRange {
 		err.(*NumError).Func = fnParseInt
-		err.(*NumError).Num = s0
+		err.(*NumError).Num = cloneString(s0)
 		return 0, err
 	}
 
@@ -239,7 +255,7 @@ func Atoi(s string) (int, error) {
 		if s[0] == '-' || s[0] == '+' {
 			s = s[1:]
 			if len(s) < 1 {
-				return 0, &NumError{fnAtoi, s0, ErrSyntax}
+				return 0, syntaxError(fnAtoi, s0)
 			}
 		}
 
@@ -247,7 +263,7 @@ func Atoi(s string) (int, error) {
 		for _, ch := range []byte(s) {
 			ch -= '0'
 			if ch > 9 {
-				return 0, &NumError{fnAtoi, s0, ErrSyntax}
+				return 0, syntaxError(fnAtoi, s0)
 			}
 			n = n*10 + int(ch)
 		}

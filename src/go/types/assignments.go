@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	. "internal/types/errors"
 	"strings"
 )
 
@@ -28,7 +29,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// ok
 	default:
 		// we may get here because of other problems (issue #39634, crash 12)
-		check.errorf(x, 0, "cannot assign %s to %s in %s", x, T, context)
+		// TODO(gri) do we need a new "generic" error code here?
+		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
 		return
 	}
 
@@ -41,7 +43,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// complex, or string constant."
 		if T == nil || isNonTypeParamInterface(T) {
 			if T == nil && x.typ == Typ[UntypedNil] {
-				check.errorf(x, _UntypedNil, "use of untyped nil in %s", context)
+				check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
 				x.mode = invalid
 				return
 			}
@@ -51,12 +53,12 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		if code != 0 {
 			msg := check.sprintf("cannot use %s as %s value in %s", x, target, context)
 			switch code {
-			case _TruncatedFloat:
+			case TruncatedFloat:
 				msg += " (truncated)"
-			case _NumericOverflow:
+			case NumericOverflow:
 				msg += " (overflows)"
 			default:
-				code = _IncompatibleAssign
+				code = IncompatibleAssign
 			}
 			check.error(x, code, msg)
 			x.mode = invalid
@@ -74,7 +76,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
 	if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
-		check.errorf(x, _WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
+		check.errorf(x, WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
 	}
 
 	// spec: "If a left-hand side is the blank identifier, any typed or
@@ -84,20 +86,12 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
-	reason := ""
-	if ok, code := x.assignableTo(check, T, &reason); !ok {
-		if compilerErrorMessages {
-			if reason != "" {
-				check.errorf(x, code, "cannot use %s as type %s in %s:\n\t%s", x, T, context, reason)
-			} else {
-				check.errorf(x, code, "cannot use %s as type %s in %s", x, T, context)
-			}
+	cause := ""
+	if ok, code := x.assignableTo(check, T, &cause); !ok {
+		if cause != "" {
+			check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, cause)
 		} else {
-			if reason != "" {
-				check.errorf(x, code, "cannot use %s as %s value in %s: %s", x, T, context, reason)
-			} else {
-				check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
-			}
+			check.errorf(x, code, "cannot use %s as %s value in %s", x, T, context)
 		}
 		x.mode = invalid
 	}
@@ -113,7 +107,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 
 	// rhs must be a constant
 	if x.mode != constant_ {
-		check.errorf(x, _InvalidConstInit, "%s is not constant", x)
+		check.errorf(x, InvalidConstInit, "%s is not constant", x)
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -148,7 +142,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 		if isUntyped(typ) {
 			// convert untyped types to default types
 			if typ == Typ[UntypedNil] {
-				check.errorf(x, _UntypedNil, "use of untyped nil in %s", context)
+				check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
 				lhs.typ = Typ[Invalid]
 				return nil
 			}
@@ -223,11 +217,11 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 			var op operand
 			check.expr(&op, sel.X)
 			if op.mode == mapindex {
-				check.errorf(&z, _UnaddressableFieldAssign, "cannot assign to struct field %s in map", ExprString(z.expr))
+				check.errorf(&z, UnaddressableFieldAssign, "cannot assign to struct field %s in map", ExprString(z.expr))
 				return nil
 			}
 		}
-		check.errorf(&z, _UnassignableOperand, "cannot assign to %s", &z)
+		check.errorf(&z, UnassignableOperand, "cannot assign to %s", &z)
 		return nil
 	}
 
@@ -305,11 +299,11 @@ func (check *Checker) assignError(rhs []ast.Expr, nvars, nvals int) {
 
 	if len(rhs) == 1 {
 		if call, _ := unparen(rhs0).(*ast.CallExpr); call != nil {
-			check.errorf(rhs0, _WrongAssignCount, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
+			check.errorf(rhs0, WrongAssignCount, "assignment mismatch: %s but %s returns %s", vars, call.Fun, vals)
 			return
 		}
 	}
-	check.errorf(rhs0, _WrongAssignCount, "assignment mismatch: %s but %s", vars, vals)
+	check.errorf(rhs0, WrongAssignCount, "assignment mismatch: %s but %s", vars, vals)
 }
 
 // If returnStmt != nil, initVars is called to type-check the assignment
@@ -320,7 +314,7 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
 	if len(lhs) != len(rhs) {
 		// invalidate lhs
 		for _, obj := range lhs {
-			obj.used = true // avoid declared but not used errors
+			obj.used = true // avoid declared and not used errors
 			if obj.typ == nil {
 				obj.typ = Typ[Invalid]
 			}
@@ -340,17 +334,13 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
 			} else if len(rhs) > 0 {
 				at = rhs[len(rhs)-1].expr // report at last value
 			}
-			err := newErrorf(at, _WrongResultCount, "%s return values", qualifier)
+			err := newErrorf(at, WrongResultCount, "%s return values", qualifier)
 			err.errorf(token.NoPos, "have %s", check.typesSummary(operandTypes(rhs), false))
 			err.errorf(token.NoPos, "want %s", check.typesSummary(varTypes(lhs), false))
 			check.report(err)
 			return
 		}
-		if compilerErrorMessages {
-			check.assignError(origRHS, len(lhs), len(rhs))
-		} else {
-			check.errorf(rhs[0], _WrongAssignCount, "cannot initialize %d variables with %d values", len(lhs), len(rhs))
-		}
+		check.assignError(origRHS, len(lhs), len(rhs))
 		return
 	}
 
@@ -384,11 +374,7 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
 				return
 			}
 		}
-		if compilerErrorMessages {
-			check.assignError(origRHS, len(lhs), len(rhs))
-		} else {
-			check.errorf(rhs[0], _WrongAssignCount, "cannot assign %d values to %d variables", len(rhs), len(lhs))
-		}
+		check.assignError(origRHS, len(lhs), len(rhs))
 		return
 	}
 
@@ -420,7 +406,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
 		if ident == nil {
 			check.useLHS(lhs)
 			// TODO(rFindley) this is redundant with a parser error. Consider omitting?
-			check.errorf(lhs, _BadDecl, "non-name %s on left side of :=", lhs)
+			check.errorf(lhs, BadDecl, "non-name %s on left side of :=", lhs)
 			hasErr = true
 			continue
 		}
@@ -428,7 +414,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
 		name := ident.Name
 		if name != "_" {
 			if seen[name] {
-				check.errorf(lhs, _RepeatedDecl, "%s repeated on left side of :=", lhs)
+				check.errorf(lhs, RepeatedDecl, "%s repeated on left side of :=", lhs)
 				hasErr = true
 				continue
 			}
@@ -445,7 +431,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
 			if obj, _ := alt.(*Var); obj != nil {
 				lhsVars[i] = obj
 			} else {
-				check.errorf(lhs, _UnassignableOperand, "cannot assign to %s", lhs)
+				check.errorf(lhs, UnassignableOperand, "cannot assign to %s", lhs)
 				hasErr = true
 			}
 			continue
@@ -473,7 +459,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
 	check.processDelayed(top)
 
 	if len(newVars) == 0 && !hasErr {
-		check.softErrorf(pos, _NoNewVar, "no new variables on left side of :=")
+		check.softErrorf(pos, NoNewVar, "no new variables on left side of :=")
 		return
 	}
 

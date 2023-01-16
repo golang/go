@@ -11,7 +11,6 @@
 # If we didn't load the whole graph and didn't load the dependencies of b
 # when loading p, we would end up loading q v1.0.0, rather than v1.1.0,
 # which is selected by MVS.
-# TODO(#48331): We currently load the wrong version of q. Fix this.
 
 go list -m -f '{{.Version}}' example.com/q
 stdout '^v1.1.0$'

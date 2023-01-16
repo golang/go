@@ -7,10 +7,10 @@
 package race_test
 
 import (
-	"bytes"
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -40,7 +40,7 @@ func TestRandomScheduling(t *testing.T) {
 		}
 	}
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i := 0; i < N; i++ {
 		fmt.Fprintf(&buf, "%v\n", out[i])
 	}

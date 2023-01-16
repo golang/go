@@ -170,6 +170,17 @@ type CaseClause struct {
 	miniStmt
 	Var  *Name // declared variable for this case in type switch
 	List Nodes // list of expressions for switch, early select
+
+	// RTypes is a list of RType expressions, which are copied to the
+	// corresponding OEQ nodes that are emitted when switch statements
+	// are desugared. RTypes[i] must be non-nil if the emitted
+	// comparison for List[i] will be a mixed interface/concrete
+	// comparison; see reflectdata.CompareRType for details.
+	//
+	// Because mixed interface/concrete switch cases are rare, we allow
+	// len(RTypes) < len(List). Missing entries are implicitly nil.
+	RTypes Nodes
+
 	Body Nodes
 }
 
@@ -194,12 +205,10 @@ func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
 }
 
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
-// Op can be OFOR or OFORUNTIL (!Cond).
 type ForStmt struct {
 	miniStmt
 	Label    *types.Sym
 	Cond     Node
-	Late     Nodes
 	Post     Node
 	Body     Nodes
 	HasBreak bool
@@ -214,13 +223,6 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt 
 	}
 	n.Body = body
 	return n
-}
-
-func (n *ForStmt) SetOp(op Op) {
-	if op != OFOR && op != OFORUNTIL {
-		panic(n.no("SetOp " + op.String()))
-	}
-	n.op = op
 }
 
 // A GoDeferStmt is a go or defer statement: go Call / defer Call.
@@ -333,11 +335,20 @@ type RangeStmt struct {
 	Label    *types.Sym
 	Def      bool
 	X        Node
+	RType    Node `mknode:"-"` // see reflectdata/helpers.go
 	Key      Node
 	Value    Node
 	Body     Nodes
 	HasBreak bool
 	Prealloc *Name
+
+	// When desugaring the RangeStmt during walk, the assignments to Key
+	// and Value may require OCONVIFACE operations. If so, these fields
+	// will be copied to their respective ConvExpr fields.
+	KeyTypeWord   Node `mknode:"-"`
+	KeySrcRType   Node `mknode:"-"`
+	ValueTypeWord Node `mknode:"-"`
+	ValueSrcRType Node `mknode:"-"`
 }
 
 func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {

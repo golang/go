@@ -26,7 +26,7 @@ func TestOneByteReader_nonEmptyReader(t *testing.T) {
 
 	b = make([]byte, 3)
 	// Read from obr until EOF.
-	got := new(bytes.Buffer)
+	got := new(strings.Builder)
 	for i := 0; ; i++ {
 		n, err = obr.Read(b)
 		if err != nil {
@@ -77,7 +77,7 @@ func TestHalfReader_nonEmptyReader(t *testing.T) {
 	}
 	// non empty read buffer
 	b = make([]byte, 2)
-	got := new(bytes.Buffer)
+	got := new(strings.Builder)
 	for i := 0; ; i++ {
 		n, err = hr.Read(b)
 		if err != nil {
@@ -190,7 +190,7 @@ func TestDataErrReader_nonEmptyReader(t *testing.T) {
 	der := DataErrReader(buf)
 
 	b := make([]byte, 3)
-	got := new(bytes.Buffer)
+	got := new(strings.Builder)
 	var n int
 	var err error
 	for {

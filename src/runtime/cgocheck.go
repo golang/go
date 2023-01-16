@@ -32,14 +32,14 @@ func cgoCheckWriteBarrier(dst *uintptr, src uintptr) {
 
 	// If we are running on the system stack then dst might be an
 	// address on the stack, which is OK.
-	g := getg()
-	if g == g.m.g0 || g == g.m.gsignal {
+	gp := getg()
+	if gp == gp.m.g0 || gp == gp.m.gsignal {
 		return
 	}
 
 	// Allocating memory can write to various mfixalloc structs
 	// that look like they are non-Go memory.
-	if g.m.mallocing != 0 {
+	if gp.m.mallocing != 0 {
 		return
 	}
 
@@ -153,16 +153,16 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 
 	// src must be in the regular heap.
 
-	hbits := heapBitsForAddr(uintptr(src))
-	for i := uintptr(0); i < off+size; i += goarch.PtrSize {
-		bits := hbits.bits()
-		if i >= off && bits&bitPointer != 0 {
-			v := *(*unsafe.Pointer)(add(src, i))
-			if cgoIsGoPointer(v) {
-				throw(cgoWriteBarrierFail)
-			}
+	hbits := heapBitsForAddr(uintptr(src), size)
+	for {
+		var addr uintptr
+		if hbits, addr = hbits.next(); addr == 0 {
+			break
 		}
-		hbits = hbits.next()
+		v := *(*unsafe.Pointer)(unsafe.Pointer(addr))
+		if cgoIsGoPointer(v) {
+			throw(cgoWriteBarrierFail)
+		}
 	}
 }
 

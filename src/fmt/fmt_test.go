@@ -249,6 +249,7 @@ var fmtTests = []struct {
 	{"%.0c", '⌘', "⌘"}, // Specifying precision should have no effect.
 	{"%3c", '⌘', "  ⌘"},
 	{"%-3c", '⌘', "⌘  "},
+	{"%c", uint64(0x100000000), "\ufffd"},
 	// Runes that are not printable.
 	{"%c", '\U00000e00', "\u0e00"},
 	{"%c", '\U0010ffff', "\U0010ffff"},
@@ -1429,11 +1430,16 @@ var mallocTest = []struct {
 }{
 	{0, `Sprintf("")`, func() { Sprintf("") }},
 	{1, `Sprintf("xxx")`, func() { Sprintf("xxx") }},
-	{2, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
-	{2, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
-	{3, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
-	{2, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }}, // TODO: Can this be 1?
-	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	{0, `Sprintf("%x")`, func() { Sprintf("%x", 7) }},
+	{1, `Sprintf("%x")`, func() { Sprintf("%x", 1<<16) }},
+	{3, `Sprintf("%80000s")`, func() { Sprintf("%80000s", "hello") }}, // large buffer (>64KB)
+	{1, `Sprintf("%s")`, func() { Sprintf("%s", "hello") }},
+	{1, `Sprintf("%x %x")`, func() { Sprintf("%x %x", 7, 112) }},
+	{1, `Sprintf("%g")`, func() { Sprintf("%g", float32(3.14159)) }},
+	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 7) }},
+	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 1<<16) }},
+	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)
 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
 	{0, `Fprintf(buf, "%x %x %x")`, func() {
 		mallocBuf.Reset()

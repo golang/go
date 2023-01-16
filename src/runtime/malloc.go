@@ -247,13 +247,15 @@ const (
 	// memory.
 	heapArenaBytes = 1 << logHeapArenaBytes
 
+	heapArenaWords = heapArenaBytes / goarch.PtrSize
+
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
 	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (2+20)*goarch.IsWasm + (2+20)*goos.IsIos*goarch.IsArm64
 
-	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
-	heapArenaBitmapBytes = heapArenaBytes / (goarch.PtrSize * 8 / 2)
+	// heapArenaBitmapWords is the size of each heap arena's bitmap in uintptrs.
+	heapArenaBitmapWords = heapArenaWords / (8 * goarch.PtrSize)
 
 	pagesPerArena = heapArenaBytes / pageSize
 
@@ -353,10 +355,10 @@ func mallocinit() {
 		throw("bad TinySizeClass")
 	}
 
-	if heapArenaBitmapBytes&(heapArenaBitmapBytes-1) != 0 {
+	if heapArenaBitmapWords&(heapArenaBitmapWords-1) != 0 {
 		// heapBits expects modular arithmetic on bitmap
 		// addresses to work.
-		throw("heapArenaBitmapBytes not a power of 2")
+		throw("heapArenaBitmapWords not a power of 2")
 	}
 
 	// Check physPageSize.
@@ -450,6 +452,14 @@ func mallocinit() {
 		//
 		// On AIX, mmaps starts at 0x0A00000000000000 for 64-bit.
 		// processes.
+		//
+		// Space mapped for user arenas comes immediately after the range
+		// originally reserved for the regular heap when race mode is not
+		// enabled because user arena chunks can never be used for regular heap
+		// allocations and we want to avoid fragmenting the address space.
+		//
+		// In race mode we have no choice but to just use the same hints because
+		// the race detector requires that the heap be mapped contiguously.
 		for i := 0x7f; i >= 0; i-- {
 			var p uintptr
 			switch {
@@ -475,9 +485,16 @@ func mallocinit() {
 			default:
 				p = uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
 			}
+			// Switch to generating hints for user arenas if we've gone
+			// through about half the hints. In race mode, take only about
+			// a quarter; we don't have very much space to work with.
+			hintList := &mheap_.arenaHints
+			if (!raceenabled && i > 0x3f) || (raceenabled && i > 0x5f) {
+				hintList = &mheap_.userArena.arenaHints
+			}
 			hint := (*arenaHint)(mheap_.arenaHintAlloc.alloc())
 			hint.addr = p
-			hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
+			hint.next, *hintList = *hintList, hint
 		}
 	} else {
 		// On a 32-bit machine, we're much more concerned
@@ -545,6 +562,14 @@ func mallocinit() {
 		hint := (*arenaHint)(mheap_.arenaHintAlloc.alloc())
 		hint.addr = p
 		hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
+
+		// Place the hint for user arenas just after the large reservation.
+		//
+		// While this potentially competes with the hint above, in practice we probably
+		// aren't going to be getting this far anyway on 32-bit platforms.
+		userArenaHint := (*arenaHint)(mheap_.arenaHintAlloc.alloc())
+		userArenaHint.addr = p
+		userArenaHint.next, mheap_.userArena.arenaHints = mheap_.userArena.arenaHints, userArenaHint
 	}
 }
 
@@ -554,26 +579,37 @@ func mallocinit() {
 // heapArenaBytes. sysAlloc returns nil on failure.
 // There is no corresponding free function.
 //
+// hintList is a list of hint addresses for where to allocate new
+// heap arenas. It must be non-nil.
+//
+// register indicates whether the heap arena should be registered
+// in allArenas.
+//
 // sysAlloc returns a memory region in the Reserved state. This region must
 // be transitioned to Prepared and then Ready before use.
 //
 // h must be locked.
-func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, register bool) (v unsafe.Pointer, size uintptr) {
 	assertLockHeld(&h.lock)
 
 	n = alignUp(n, heapArenaBytes)
 
-	// First, try the arena pre-reservation.
-	// Newly-used mappings are considered released.
-	v = h.arena.alloc(n, heapArenaBytes, &gcController.heapReleased)
-	if v != nil {
-		size = n
-		goto mapped
+	if hintList == &h.arenaHints {
+		// First, try the arena pre-reservation.
+		// Newly-used mappings are considered released.
+		//
+		// Only do this if we're using the regular heap arena hints.
+		// This behavior is only for the heap.
+		v = h.arena.alloc(n, heapArenaBytes, &gcController.heapReleased)
+		if v != nil {
+			size = n
+			goto mapped
+		}
 	}
 
 	// Try to grow the heap at a hint address.
-	for h.arenaHints != nil {
-		hint := h.arenaHints
+	for *hintList != nil {
+		hint := *hintList
 		p := hint.addr
 		if hint.down {
 			p -= n
@@ -605,7 +641,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
 		if v != nil {
 			sysFreeOS(v, n)
 		}
-		h.arenaHints = hint.next
+		*hintList = hint.next
 		h.arenaHintAlloc.free(unsafe.Pointer(hint))
 	}
 
@@ -690,26 +726,28 @@ mapped:
 			}
 		}
 
-		// Add the arena to the arenas list.
-		if len(h.allArenas) == cap(h.allArenas) {
-			size := 2 * uintptr(cap(h.allArenas)) * goarch.PtrSize
-			if size == 0 {
-				size = physPageSize
+		// Register the arena in allArenas if requested.
+		if register {
+			if len(h.allArenas) == cap(h.allArenas) {
+				size := 2 * uintptr(cap(h.allArenas)) * goarch.PtrSize
+				if size == 0 {
+					size = physPageSize
+				}
+				newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
+				if newArray == nil {
+					throw("out of memory allocating allArenas")
+				}
+				oldSlice := h.allArenas
+				*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / goarch.PtrSize)}
+				copy(h.allArenas, oldSlice)
+				// Do not free the old backing array because
+				// there may be concurrent readers. Since we
+				// double the array each time, this can lead
+				// to at most 2x waste.
 			}
-			newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
-			if newArray == nil {
-				throw("out of memory allocating allArenas")
-			}
-			oldSlice := h.allArenas
-			*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / goarch.PtrSize)}
-			copy(h.allArenas, oldSlice)
-			// Do not free the old backing array because
-			// there may be concurrent readers. Since we
-			// double the array each time, this can lead
-			// to at most 2x waste.
+			h.allArenas = h.allArenas[:len(h.allArenas)+1]
+			h.allArenas[len(h.allArenas)-1] = ri
 		}
-		h.allArenas = h.allArenas[:len(h.allArenas)+1]
-		h.allArenas[len(h.allArenas)-1] = ri
 
 		// Store atomically just in case an object from the
 		// new heap arena becomes visible before the heap lock
@@ -740,8 +778,6 @@ retry:
 	case p == 0:
 		return nil, 0
 	case p&(align-1) == 0:
-		// We got lucky and got an aligned region, so we can
-		// use the whole thing.
 		return unsafe.Pointer(p), size + align
 	case GOOS == "windows":
 		// On Windows we can't release pieces of a
@@ -780,7 +816,7 @@ var zerobase uintptr
 // nextFreeFast returns the next free object if one is quickly available.
 // Otherwise it returns 0.
 func nextFreeFast(s *mspan) gclinkptr {
-	theBit := sys.Ctz64(s.allocCache) // Is there a free object in the allocCache?
+	theBit := sys.TrailingZeros64(s.allocCache) // Is there a free object in the allocCache?
 	if theBit < 64 {
 		result := s.freeindex + uintptr(theBit)
 		if result < s.nelems {
@@ -847,6 +883,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if size == 0 {
 		return unsafe.Pointer(&zerobase)
 	}
+
+	// It's possible for any malloc to trigger sweeping, which may in
+	// turn queue finalizers. Record this dynamic lock edge.
+	lockRankMayQueueFinalizer()
+
 	userSize := size
 	if asanenabled {
 		// Refer to ASAN runtime library, the malloc() function allocates extra memory,
@@ -888,24 +929,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	// assistG is the G to charge for this allocation, or nil if
 	// GC is not currently active.
-	var assistG *g
-	if gcBlackenEnabled != 0 {
-		// Charge the current user G for this allocation.
-		assistG = getg()
-		if assistG.m.curg != nil {
-			assistG = assistG.m.curg
-		}
-		// Charge the allocation against the G. We'll account
-		// for internal fragmentation at the end of mallocgc.
-		assistG.gcAssistBytes -= int64(size)
-
-		if assistG.gcAssistBytes < 0 {
-			// This G is in debt. Assist the GC to correct
-			// this before allocating. This must happen
-			// before disabling preemption.
-			gcAssistAlloc(assistG)
-		}
-	}
+	assistG := deductAssistCredit(size)
 
 	// Set mp.mallocing to keep from being preempted by GC.
 	mp := acquirem()
@@ -1019,7 +1043,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			}
 			x = unsafe.Pointer(v)
 			if needzero && span.needzero != 0 {
-				memclrNoHeapPointers(unsafe.Pointer(v), size)
+				memclrNoHeapPointers(x, size)
 			}
 		}
 	} else {
@@ -1045,8 +1069,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
-	var scanSize uintptr
 	if !noscan {
+		var scanSize uintptr
 		heapBitsSetType(uintptr(x), size, dataSize, typ)
 		if dataSize > typ.size {
 			// Array allocation. If there are any
@@ -1068,13 +1092,23 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// the garbage collector could follow a pointer to x,
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
+	// As x and the heap bits are initialized, update
+	// freeIndexForScan now so x is seen by the GC
+	// (including convervative scan) as an allocated object.
+	// While this pointer can't escape into user code as a
+	// _live_ pointer until we return, conservative scanning
+	// may find a dead pointer that happens to point into this
+	// object. Delaying this update until now ensures that
+	// conservative scanning considers this pointer dead until
+	// this point.
+	span.freeIndexForScan = span.freeindex
 
 	// Allocate black during GC.
 	// All slots hold nil so no scanning is needed.
 	// This may be racing with GC so do it atomically if there can be
 	// a race marking the bit.
 	if gcphase != _GCoff {
-		gcmarknewobject(span, uintptr(x), size, scanSize)
+		gcmarknewobject(span, uintptr(x), size)
 	}
 
 	if raceenabled {
@@ -1158,6 +1192,34 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return x
 }
 
+// deductAssistCredit reduces the current G's assist credit
+// by size bytes, and assists the GC if necessary.
+//
+// Caller must be preemptible.
+//
+// Returns the G for which the assist credit was accounted.
+func deductAssistCredit(size uintptr) *g {
+	var assistG *g
+	if gcBlackenEnabled != 0 {
+		// Charge the current user G for this allocation.
+		assistG = getg()
+		if assistG.m.curg != nil {
+			assistG = assistG.m.curg
+		}
+		// Charge the allocation against the G. We'll account
+		// for internal fragmentation at the end of mallocgc.
+		assistG.gcAssistBytes -= int64(size)
+
+		if assistG.gcAssistBytes < 0 {
+			// This G is in debt. Assist the GC to correct
+			// this before allocating. This must happen
+			// before disabling preemption.
+			gcAssistAlloc(assistG)
+		}
+	}
+	return assistG
+}
+
 // memclrNoHeapPointersChunked repeatedly calls memclrNoHeapPointers
 // on chunks of the buffer to be zeroed, with opportunities for preemption
 // along the way.  memclrNoHeapPointers contains no safepoints and also
@@ -1187,7 +1249,7 @@ func memclrNoHeapPointersChunked(size uintptr, x unsafe.Pointer) {
 
 // implementation of new builtin
 // compiler (both frontend and SSA backend) knows the signature
-// of this function
+// of this function.
 func newobject(typ *_type) unsafe.Pointer {
 	return mallocgc(typ.size, typ, true)
 }
@@ -1245,7 +1307,7 @@ func nextSample() uintptr {
 	}
 	if GOOS == "plan9" {
 		// Plan 9 doesn't support floating point in note handler.
-		if g := getg(); g == g.m.gsignal {
+		if gp := getg(); gp == gp.m.gsignal {
 			return nextSampleNoFP()
 		}
 	}
@@ -1323,7 +1385,8 @@ var persistentChunks *notInHeap
 // The returned memory will be zeroed.
 // sysStat must be non-nil.
 //
-// Consider marking persistentalloc'd types go:notinheap.
+// Consider marking persistentalloc'd types not in heap by embedding
+// runtime/internal/sys.NotInHeap.
 func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
 	var p *notInHeap
 	systemstack(func() {
@@ -1464,14 +1527,12 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
 // notInHeap is off-heap memory allocated by a lower-level allocator
 // like sysAlloc or persistentAlloc.
 //
-// In general, it's better to use real types marked as go:notinheap,
-// but this serves as a generic type for situations where that isn't
-// possible (like in the allocators).
+// In general, it's better to use real types which embed
+// runtime/internal/sys.NotInHeap, but this serves as a generic type
+// for situations where that isn't possible (like in the allocators).
 //
 // TODO: Use this as the return type of sysAlloc, persistentAlloc, etc?
-//
-//go:notinheap
-type notInHeap struct{}
+type notInHeap struct{ _ sys.NotInHeap }
 
 func (p *notInHeap) add(bytes uintptr) *notInHeap {
 	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))

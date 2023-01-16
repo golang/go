@@ -1,11 +1,13 @@
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
 package x509
 
 import (
 	"bytes"
 	"crypto/dsa"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -212,13 +214,15 @@ func parseExtension(der cryptobyte.String) (pkix.Extension, error) {
 	return ext, nil
 }
 
-func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error) {
+func parsePublicKey(keyData *publicKeyInfo) (any, error) {
+	oid := keyData.Algorithm.Algorithm
+	params := keyData.Algorithm.Parameters
 	der := cryptobyte.String(keyData.PublicKey.RightAlign())
-	switch algo {
-	case RSA:
+	switch {
+	case oid.Equal(oidPublicKeyRSA):
 		// RSA public keys must have a NULL in the parameters.
 		// See RFC 3279, Section 2.3.1.
-		if !bytes.Equal(keyData.Algorithm.Parameters.FullBytes, asn1.NullBytes) {
+		if !bytes.Equal(params.FullBytes, asn1.NullBytes) {
 			return nil, errors.New("x509: RSA key missing NULL parameters")
 		}
 
@@ -245,8 +249,8 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error
 			N: p.N,
 		}
 		return pub, nil
-	case ECDSA:
-		paramsDer := cryptobyte.String(keyData.Algorithm.Parameters.FullBytes)
+	case oid.Equal(oidPublicKeyECDSA):
+		paramsDer := cryptobyte.String(params.FullBytes)
 		namedCurveOID := new(asn1.ObjectIdentifier)
 		if !paramsDer.ReadASN1ObjectIdentifier(namedCurveOID) {
 			return nil, errors.New("x509: invalid ECDSA parameters")
@@ -265,17 +269,24 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error
 			Y:     y,
 		}
 		return pub, nil
-	case Ed25519:
+	case oid.Equal(oidPublicKeyEd25519):
 		// RFC 8410, Section 3
 		// > For all of the OIDs, the parameters MUST be absent.
-		if len(keyData.Algorithm.Parameters.FullBytes) != 0 {
+		if len(params.FullBytes) != 0 {
 			return nil, errors.New("x509: Ed25519 key encoded with illegal parameters")
 		}
 		if len(der) != ed25519.PublicKeySize {
 			return nil, errors.New("x509: wrong Ed25519 public key size")
 		}
 		return ed25519.PublicKey(der), nil
-	case DSA:
+	case oid.Equal(oidPublicKeyX25519):
+		// RFC 8410, Section 3
+		// > For all of the OIDs, the parameters MUST be absent.
+		if len(params.FullBytes) != 0 {
+			return nil, errors.New("x509: X25519 key encoded with illegal parameters")
+		}
+		return ecdh.X25519().NewPublicKey(der)
+	case oid.Equal(oidPublicKeyDSA):
 		y := new(big.Int)
 		if !der.ReadASN1Integer(y) {
 			return nil, errors.New("x509: invalid DSA public key")
@@ -288,7 +299,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error
 				G: new(big.Int),
 			},
 		}
-		paramsDer := cryptobyte.String(keyData.Algorithm.Parameters.FullBytes)
+		paramsDer := cryptobyte.String(params.FullBytes)
 		if !paramsDer.ReadASN1(&paramsDer, cryptobyte_asn1.SEQUENCE) ||
 			!paramsDer.ReadASN1Integer(pub.Parameters.P) ||
 			!paramsDer.ReadASN1Integer(pub.Parameters.Q) ||
@@ -301,7 +312,7 @@ func parsePublicKey(algo PublicKeyAlgorithm, keyData *publicKeyInfo) (any, error
 		}
 		return pub, nil
 	default:
-		return nil, nil
+		return nil, errors.New("x509: unknown public key algorithm")
 	}
 }
 
@@ -908,12 +919,14 @@ func parseCertificate(der []byte) (*Certificate, error) {
 	if !spki.ReadASN1BitString(&spk) {
 		return nil, errors.New("x509: malformed subjectPublicKey")
 	}
-	cert.PublicKey, err = parsePublicKey(cert.PublicKeyAlgorithm, &publicKeyInfo{
-		Algorithm: pkAI,
-		PublicKey: spk,
-	})
-	if err != nil {
-		return nil, err
+	if cert.PublicKeyAlgorithm != UnknownPublicKeyAlgorithm {
+		cert.PublicKey, err = parsePublicKey(&publicKeyInfo{
+			Algorithm: pkAI,
+			PublicKey: spk,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if cert.Version > 1 {

@@ -28,7 +28,7 @@ func TestIndex(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		bp1, err := build.Default.Import(pkg, filepath.Join(src, pkg), build.ImportComment)
+		bp1, err := build.Default.Import(".", filepath.Join(src, pkg), build.ImportComment)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -84,4 +84,21 @@ func TestIndex(t *testing.T) {
 			checkPkg(t, m, pkg, data)
 		}
 	})
+}
+
+func TestImportRaw_IgnoreNonGo(t *testing.T) {
+	path := filepath.Join("testdata", "ignore_non_source")
+	p := importRaw(path, ".")
+
+	wantFiles := []string{"a.syso", "b.go", "c.c"}
+
+	var gotFiles []string
+	for i := range p.sourceFiles {
+		gotFiles = append(gotFiles, p.sourceFiles[i].name)
+	}
+
+	if !reflect.DeepEqual(gotFiles, wantFiles) {
+		t.Errorf("names of files in importRaw(testdata/ignore_non_source): got %v; want %v",
+			gotFiles, wantFiles)
+	}
 }

@@ -5,11 +5,11 @@
 package signal
 
 import (
-	"bytes"
 	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -78,9 +78,9 @@ func main() {
 
 	// run it
 	cmd := exec.Command(exe)
-	var b bytes.Buffer
-	cmd.Stdout = &b
-	cmd.Stderr = &b
+	var buf strings.Builder
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
 	}
@@ -94,6 +94,6 @@ func main() {
 	}()
 	err = cmd.Wait()
 	if err != nil {
-		t.Fatalf("Program exited with error: %v\n%v", err, string(b.Bytes()))
+		t.Fatalf("Program exited with error: %v\n%v", err, buf.String())
 	}
 }

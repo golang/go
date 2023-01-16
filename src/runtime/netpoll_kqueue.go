@@ -18,7 +18,7 @@ var (
 
 	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
 
-	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+	netpollWakeSig atomic.Uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func netpollinit() {
@@ -83,19 +83,22 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts a kevent.
 func netpollBreak() {
-	if atomic.Cas(&netpollWakeSig, 0, 1) {
-		for {
-			var b byte
-			n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
-			if n == 1 || n == -_EAGAIN {
-				break
-			}
-			if n == -_EINTR {
-				continue
-			}
-			println("runtime: netpollBreak write failed with", -n)
-			throw("runtime: netpollBreak write failed")
+	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
+	if !netpollWakeSig.CompareAndSwap(0, 1) {
+		return
+	}
+
+	for {
+		var b byte
+		n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+		if n == 1 || n == -_EAGAIN {
+			break
 		}
+		if n == -_EINTR {
+			continue
+		}
+		println("runtime: netpollBreak write failed with", -n)
+		throw("runtime: netpollBreak write failed")
 	}
 }
 
@@ -152,7 +155,7 @@ retry:
 				// if blocking.
 				var tmp [16]byte
 				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
-				atomic.Store(&netpollWakeSig, 0)
+				netpollWakeSig.Store(0)
 			}
 			continue
 		}

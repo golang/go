@@ -745,6 +745,8 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // Certificates that use SHA1WithRSA and ECDSAWithSHA1 signatures are not supported,
 // and will not be used to build chains.
 //
+// Certificates other than c in the returned chains should not be modified.
+//
 // WARNING: this function doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
 	// Platform-specific verification needs the ASN.1 contents so
@@ -764,7 +766,10 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 
 	// Use platform verifiers, where available, if Roots is from SystemCertPool.
 	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		if opts.Roots == nil {
+		// Don't use the system verifier if the system pool was replaced with a non-system pool,
+		// i.e. if SetFallbackRoots was called with x509usefallbackroots=1.
+		systemPool := systemRootsPool()
+		if opts.Roots == nil && (systemPool == nil || systemPool.systemPool) {
 			return c.systemVerify(&opts)
 		}
 		if opts.Roots != nil && opts.Roots.systemPool {
@@ -920,6 +925,10 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 
 		err = candidate.isValid(certType, currentChain, opts)
 		if err != nil {
+			if hintErr == nil {
+				hintErr = err
+				hintCert = candidate
+			}
 			return
 		}
 

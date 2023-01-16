@@ -53,7 +53,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
 		// is the same as unsafe.Alignof(x[0]), but at least 1."
 		return s.Alignof(t.elem)
 	case *Struct:
-		if len(t.fields) == 0 && isSyncAtomicAlign64(T) {
+		if len(t.fields) == 0 && IsSyncAtomicAlign64(T) {
 			// Special case: sync/atomic.align64 is an
 			// empty struct we recognize as a signal that
 			// the struct it contains must be
@@ -104,7 +104,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
 	return a
 }
 
-func isSyncAtomicAlign64(T Type) bool {
+func IsSyncAtomicAlign64(T Type) bool {
 	named, ok := T.(*Named)
 	if !ok {
 		return false

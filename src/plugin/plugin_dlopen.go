@@ -146,10 +146,10 @@ var (
 	plugins   map[string]*Plugin
 )
 
-// lastmoduleinit is defined in package runtime
+// lastmoduleinit is defined in package runtime.
 func lastmoduleinit() (pluginpath string, syms map[string]any, errstr string)
 
-// doInit is defined in package runtime
+// doInit is defined in package runtime.
 //
 //go:linkname doInit runtime.doInit
 func doInit(t unsafe.Pointer) // t should be a *runtime.initTask

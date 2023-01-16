@@ -123,8 +123,14 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R1, R7			// Save param1
 
 	BL      runtime·load_g(SB)
-	CMP	$0, g			// is there a current g?
-	BL.EQ	runtime·badsignal2(SB)
+	CMP	$0,	g		// is there a current g?
+	BNE	g_ok
+	ADD	$(8+20), R13	// free locals
+	MOVM.IA.W (R13), [R3, R4-R11, R14]	// pop {r3, r4-r11, lr}
+	MOVW	$0, R0		// continue 
+	BEQ	return
+
+g_ok:
 
 	// save g and SP in case of stack switch
 	MOVW	R13, 24(R13)

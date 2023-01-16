@@ -52,15 +52,14 @@ func NewP256Point() *P256Point {
 	}
 }
 
-// NewP256Generator returns a new P256Point set to the canonical generator.
-func NewP256Generator() *P256Point {
-	return &P256Point{
-		x: p256Element{0x79e730d418a9143c, 0x75ba95fc5fedb601,
-			0x79fb732b77622510, 0x18905f76a53755c6},
-		y: p256Element{0xddf25357ce95560a, 0x8b4ab8e4ba19e45c,
-			0xd2e88688dd21f325, 0x8571ff1825885d85},
-		z: p256One,
-	}
+// SetGenerator sets p to the canonical generator and returns p.
+func (p *P256Point) SetGenerator() *P256Point {
+	p.x = p256Element{0x79e730d418a9143c, 0x75ba95fc5fedb601,
+		0x79fb732b77622510, 0x18905f76a53755c6}
+	p.y = p256Element{0xddf25357ce95560a, 0x8b4ab8e4ba19e45c,
+		0xd2e88688dd21f325, 0x8571ff1825885d85}
+	p.z = p256One
+	return p
 }
 
 // Set sets p = q and returns p.
@@ -477,6 +476,30 @@ func (p *P256Point) affineFromMont(x, y *p256Element) {
 
 	p256FromMont(x, x)
 	p256FromMont(y, y)
+}
+
+// BytesX returns the encoding of the x-coordinate of p, as specified in SEC 1,
+// Version 2.0, Section 2.3.5, or an error if p is the point at infinity.
+func (p *P256Point) BytesX() ([]byte, error) {
+	// This function is outlined to make the allocations inline in the caller
+	// rather than happen on the heap.
+	var out [p256ElementLength]byte
+	return p.bytesX(&out)
+}
+
+func (p *P256Point) bytesX(out *[p256ElementLength]byte) ([]byte, error) {
+	if p.isInfinity() == 1 {
+		return nil, errors.New("P256 point is the point at infinity")
+	}
+
+	x := new(p256Element)
+	p256Inverse(x, &p.z)
+	p256Sqr(x, x, 1)
+	p256Mul(x, &p.x, x)
+	p256FromMont(x, x)
+	p256LittleToBig((*[32]byte)(out[:]), x)
+
+	return out[:], nil
 }
 
 // BytesCompressed returns the compressed or infinity encoding of p, as

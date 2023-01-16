@@ -7,6 +7,7 @@ package gob
 import (
 	"bufio"
 	"errors"
+	"internal/saferio"
 	"io"
 	"reflect"
 	"sync"
@@ -98,8 +99,9 @@ func (dec *Decoder) readMessage(nbytes int) {
 		panic("non-empty decoder buffer")
 	}
 	// Read the data
-	dec.buf.Size(nbytes)
-	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
+	var buf []byte
+	buf, dec.err = saferio.ReadData(dec.r, uint64(nbytes))
+	dec.buf.SetBytes(buf)
 	if dec.err == io.EOF {
 		dec.err = io.ErrUnexpectedEOF
 	}

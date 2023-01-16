@@ -80,6 +80,8 @@ var (
 	flagExtldflags quoted.Flag
 	flagExtar      = flag.String("extar", "", "archive program for buildmode=c-archive")
 
+	flagCaptureHostObjs = flag.String("capturehostobjs", "", "capture host object files loaded during internal linking to specified dir")
+
 	flagA             = flag.Bool("a", false, "no-op (deprecated)")
 	FlagC             = flag.Bool("c", false, "dump call graph")
 	FlagD             = flag.Bool("d", false, "disable dynamic executable")

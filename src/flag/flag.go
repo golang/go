@@ -550,9 +550,11 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 	}
 	// No explicit name, so use type if we can find one.
 	name = "value"
-	switch flag.Value.(type) {
+	switch fv := flag.Value.(type) {
 	case boolFlag:
-		name = ""
+		if fv.IsBoolFlag() {
+			name = ""
+		}
 	case *durationValue:
 		name = "duration"
 	case *float64Value:
@@ -1054,9 +1056,9 @@ func (f *FlagSet) parseOne() (bool, error) {
 			break
 		}
 	}
-	m := f.formal
-	flag, alreadythere := m[name] // BUG
-	if !alreadythere {
+
+	flag, ok := f.formal[name]
+	if !ok {
 		if name == "help" || name == "h" { // special case for nice help message.
 			f.usage()
 			return false, ErrHelp

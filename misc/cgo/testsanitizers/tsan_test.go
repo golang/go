@@ -10,6 +10,19 @@ import (
 )
 
 func TestTSAN(t *testing.T) {
+	goos, err := goEnv("GOOS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	goarch, err := goEnv("GOARCH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The msan tests require support for the -msan option.
+	if !compilerRequiredTsanVersion(goos, goarch) {
+		t.Skipf("skipping on %s/%s; compiler version for -tsan option is too old.", goos, goarch)
+	}
+
 	t.Parallel()
 	requireOvercommit(t)
 	config := configure("thread")

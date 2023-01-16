@@ -908,23 +908,9 @@ func TestVariousDeadlines4Proc(t *testing.T) {
 	testVariousDeadlines(t)
 }
 
-type neverEnding byte
-
-func (b neverEnding) Read(p []byte) (int, error) {
-	for i := range p {
-		p[i] = byte(b)
-	}
-	return len(p), nil
-}
-
 func testVariousDeadlines(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test on plan9; see golang.org/issue/26945")
-	}
-	type result struct {
-		n   int64
-		err error
-		d   time.Duration
 	}
 
 	handler := func(ls *localServer, ln Listener) {

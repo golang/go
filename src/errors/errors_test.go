@@ -51,3 +51,21 @@ func ExampleNew_errorf() {
 	}
 	// Output: user "bimmler" (id 17) not found
 }
+
+func ExampleJoin() {
+	err1 := errors.New("err1")
+	err2 := errors.New("err2")
+	err := errors.Join(err1, err2)
+	fmt.Println(err)
+	if errors.Is(err, err1) {
+		fmt.Println("err is err1")
+	}
+	if errors.Is(err, err2) {
+		fmt.Println("err is err2")
+	}
+	// Output:
+	// err1
+	// err2
+	// err is err1
+	// err is err2
+}

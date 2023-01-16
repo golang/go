@@ -9,8 +9,10 @@ import (
 	"testing"
 )
 
-// TestErrorCalls makes sure that check.errorf calls have at
-// least 3 arguments (otherwise we should be using check.error).
+const errorfMinArgCount = 4
+
+// TestErrorCalls makes sure that check.errorf calls have at least
+// errorfMinArgCount arguments (otherwise we should use check.error).
 func TestErrorCalls(t *testing.T) {
 	files, err := pkgFiles(".")
 	if err != nil {
@@ -30,11 +32,11 @@ func TestErrorCalls(t *testing.T) {
 			if !(isName(selx.X, "check") && isName(selx.Sel, "errorf")) {
 				return false
 			}
-			// check.errorf calls should have more than 2 arguments:
-			// position, format string, and arguments to format
-			if n := len(call.ArgList); n <= 2 {
-				t.Errorf("%s: got %d arguments, want > 2", call.Pos(), n)
-				return true
+			// check.errorf calls should have at least errorfMinArgCount arguments:
+			// position, code, format string, and arguments to format
+			if n := len(call.ArgList); n < errorfMinArgCount {
+				t.Errorf("%s: got %d arguments, want at least %d", call.Pos(), n, errorfMinArgCount)
+				return false
 			}
 			return false
 		})

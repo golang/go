@@ -13,8 +13,8 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/modload"
 	"cmd/internal/quoted"
-	"cmd/internal/sys"
 	"fmt"
+	"internal/platform"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,7 +24,15 @@ import (
 	"sync"
 )
 
+var buildInitStarted = false
+
 func BuildInit() {
+	if buildInitStarted {
+		base.Fatalf("go: internal error: work.BuildInit called more than once")
+	}
+	buildInitStarted = true
+	base.AtExit(closeBuilders)
+
 	modload.Init()
 	instrumentInit()
 	buildModeInit()
@@ -63,6 +71,19 @@ func BuildInit() {
 			base.Fatalf("go: %s environment variable is relative; must be absolute path: %s\n", key, path)
 		}
 	}
+
+	// Set covermode if not already set.
+	// Ensure that -race and -covermode are compatible.
+	if cfg.BuildCoverMode == "" {
+		cfg.BuildCoverMode = "set"
+		if cfg.BuildRace {
+			// Default coverage mode is atomic when -race is set.
+			cfg.BuildCoverMode = "atomic"
+		}
+	}
+	if cfg.BuildRace && cfg.BuildCoverMode != "atomic" {
+		base.Fatalf(`-covermode must be "atomic", not %q, when -race is enabled`, cfg.BuildCoverMode)
+	}
 }
 
 // fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
@@ -72,7 +93,7 @@ func BuildInit() {
 // instrumentation is added. 'go test -fuzz' still works without coverage,
 // but it generates random inputs without guidance, so it's much less effective.
 func fuzzInstrumentFlags() []string {
-	if !sys.FuzzInstrumented(cfg.Goos, cfg.Goarch) {
+	if !platform.FuzzInstrumented(cfg.Goos, cfg.Goarch) {
 		return nil
 	}
 	return []string{"-d=libfuzzer"}
@@ -97,17 +118,17 @@ func instrumentInit() {
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	if cfg.BuildMSan && !sys.MSanSupported(cfg.Goos, cfg.Goarch) {
+	if cfg.BuildMSan && !platform.MSanSupported(cfg.Goos, cfg.Goarch) {
 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	if cfg.BuildRace && !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+	if cfg.BuildRace && !platform.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
 		fmt.Fprintf(os.Stderr, "-race is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
 		base.SetExitStatus(2)
 		base.Exit()
 	}
-	if cfg.BuildASan && !sys.ASanSupported(cfg.Goos, cfg.Goarch) {
+	if cfg.BuildASan && !platform.ASanSupported(cfg.Goos, cfg.Goarch) {
 		fmt.Fprintf(os.Stderr, "-asan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
 		base.SetExitStatus(2)
 		base.Exit()
@@ -128,9 +149,9 @@ func instrumentInit() {
 	mode := "race"
 	if cfg.BuildMSan {
 		mode = "msan"
-		// MSAN does not support non-PIE binaries on ARM64.
-		// See issue #33712 for details.
-		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
+		// MSAN needs PIE on all platforms except linux/amd64.
+		// https://github.com/llvm/llvm-project/blob/llvmorg-13.0.1/clang/lib/Driver/SanitizerArgs.cpp#L621
+		if cfg.BuildBuildmode == "default" && (cfg.Goos != "linux" || cfg.Goarch != "amd64") {
 			cfg.BuildBuildmode = "pie"
 		}
 	}
@@ -139,7 +160,9 @@ func instrumentInit() {
 	}
 	modeFlag := "-" + mode
 
-	if !cfg.BuildContext.CgoEnabled {
+	// Check that cgo is enabled.
+	// Note: On macOS, -race does not require cgo. -asan and -msan still do.
+	if !cfg.BuildContext.CgoEnabled && (cfg.Goos != "darwin" || cfg.BuildASan || cfg.BuildMSan) {
 		if runtime.GOOS != cfg.Goos || runtime.GOARCH != cfg.Goarch {
 			fmt.Fprintf(os.Stderr, "go: %s requires cgo\n", modeFlag)
 		} else {
@@ -278,12 +301,12 @@ func buildModeInit() {
 		base.Fatalf("buildmode=%s not supported", cfg.BuildBuildmode)
 	}
 
-	if !sys.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
+	if !platform.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
 		base.Fatalf("-buildmode=%s not supported on %s/%s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
 	}
 
 	if cfg.BuildLinkshared {
-		if !sys.BuildModeSupported(cfg.BuildToolchainName, "shared", cfg.Goos, cfg.Goarch) {
+		if !platform.BuildModeSupported(cfg.BuildToolchainName, "shared", cfg.Goos, cfg.Goarch) {
 			base.Fatalf("-linkshared not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
 		}
 		if gccgo {
@@ -402,12 +425,15 @@ func compilerRequiredAsanVersion() error {
 
 	switch compiler.name {
 	case "gcc":
+		if runtime.GOARCH == "ppc64le" && compiler.major < 9 {
+			return fmt.Errorf("-asan is not supported with %s compiler %d.%d\n", compiler.name, compiler.major, compiler.minor)
+		}
 		if compiler.major < 7 {
-			return fmt.Errorf("-asan is not supported with C compiler %d.%d\n", compiler.major, compiler.minor)
+			return fmt.Errorf("-asan is not supported with %s compiler %d.%d\n", compiler.name, compiler.major, compiler.minor)
 		}
 	case "clang":
 		if compiler.major < 9 {
-			return fmt.Errorf("-asan is not supported with C compiler %d.%d\n", compiler.major, compiler.minor)
+			return fmt.Errorf("-asan is not supported with %s compiler %d.%d\n", compiler.name, compiler.major, compiler.minor)
 		}
 	default:
 		return fmt.Errorf("-asan: C compiler is not gcc or clang")

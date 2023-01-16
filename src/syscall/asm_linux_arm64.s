@@ -4,10 +4,10 @@
 
 #include "textflag.h"
 
-// func rawVforkSyscall(trap, a1 uintptr) (r1, err uintptr)
-TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
+// func rawVforkSyscall(trap, a1, a2 uintptr) (r1, err uintptr)
+TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-40
 	MOVD	a1+8(FP), R0
-	MOVD	$0, R1
+	MOVD	a2+16(FP), R1
 	MOVD	$0, R2
 	MOVD	$0, R3
 	MOVD	$0, R4
@@ -17,13 +17,13 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT,$0-32
 	CMN	$4095, R0
 	BCC	ok
 	MOVD	$-1, R4
-	MOVD	R4, r1+16(FP)	// r1
+	MOVD	R4, r1+24(FP)	// r1
 	NEG	R0, R0
-	MOVD	R0, err+24(FP)	// errno
+	MOVD	R0, err+32(FP)	// errno
 	RET
 ok:
-	MOVD	R0, r1+16(FP)	// r1
-	MOVD	ZR, err+24(FP)	// errno
+	MOVD	R0, r1+24(FP)	// r1
+	MOVD	ZR, err+32(FP)	// errno
 	RET
 
 // func rawSyscallNoError(trap uintptr, a1, a2, a3 uintptr) (r1, r2 uintptr);

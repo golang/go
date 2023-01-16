@@ -166,7 +166,7 @@ func buildList(targets []module.Version, reqs Reqs, upgrade func(module.Version)
 			}
 			return false
 		}
-		return nil, NewBuildListError(err.(error), errPath, isUpgrade)
+		return nil, NewBuildListError(err, errPath, isUpgrade)
 	}
 
 	// The final list is the minimum version of each module found in the graph.

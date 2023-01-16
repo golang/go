@@ -6,18 +6,17 @@ package ppc64
 
 import (
 	"bytes"
-	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+
+	"cmd/internal/obj"
+	"cmd/internal/objabi"
 )
 
 var platformEnvs = [][]string{
@@ -167,7 +166,7 @@ PNOP
 func TestPfxAlign(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "testpfxalign")
+	dir, err := os.MkdirTemp("", "testpfxalign")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -188,11 +187,11 @@ func TestPfxAlign(t *testing.T) {
 
 	for _, pgm := range pgms {
 		tmpfile := filepath.Join(dir, "x.s")
-		err = ioutil.WriteFile(tmpfile, pgm.text, 0644)
+		err = os.WriteFile(tmpfile, pgm.text, 0644)
 		if err != nil {
 			t.Fatalf("can't write output: %v\n", err)
 		}
-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
 		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=ppc64le")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -217,7 +216,7 @@ func TestLarge(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "testlarge")
+	dir, err := os.MkdirTemp("", "testlarge")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -281,14 +280,14 @@ func TestLarge(t *testing.T) {
 		gen(buf, test.jmpinsn)
 
 		tmpfile := filepath.Join(dir, "x.s")
-		err = ioutil.WriteFile(tmpfile, buf.Bytes(), 0644)
+		err = os.WriteFile(tmpfile, buf.Bytes(), 0644)
 		if err != nil {
 			t.Fatalf("can't write output: %v\n", err)
 		}
 
 		// Test on all supported ppc64 platforms
 		for _, platenv := range platformEnvs {
-			cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
 			cmd.Env = append(os.Environ(), platenv...)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
@@ -336,7 +335,7 @@ func TestPCalign(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := ioutil.TempDir("", "testpcalign")
+	dir, err := os.MkdirTemp("", "testpcalign")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -345,13 +344,13 @@ func TestPCalign(t *testing.T) {
 	// generate a test with valid uses of PCALIGN
 
 	tmpfile := filepath.Join(dir, "x.s")
-	err = ioutil.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
+	err = os.WriteFile(tmpfile, []byte(validPCAlignSrc), 0644)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}
 
 	// build generated file without errors and assemble it
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), "-S", tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=ppc64le", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -385,13 +384,13 @@ func TestPCalign(t *testing.T) {
 	// generate a test with invalid use of PCALIGN
 
 	tmpfile = filepath.Join(dir, "xi.s")
-	err = ioutil.WriteFile(tmpfile, []byte(invalidPCAlignSrc), 0644)
+	err = os.WriteFile(tmpfile, []byte(invalidPCAlignSrc), 0644)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}
 
 	// build test with errors and check for messages
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "xi.o"), "-S", tmpfile)
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "xi.o"), "-S", tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=ppc64le", "GOOS=linux")
 	out, err = cmd.CombinedOutput()
 	if !strings.Contains(string(out), "Unexpected alignment") {
@@ -469,6 +468,7 @@ func TestAddrClassifier(t *testing.T) {
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 8}, C_LR},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_SPR0 + 9}, C_CTR},
 		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_FPSCR}, C_FPSCR},
+		{obj.Addr{Type: obj.TYPE_REG, Reg: REG_A1}, C_AREG},
 
 		// Memory type arguments.
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_GOTREF}, C_ADDR},
@@ -482,6 +482,7 @@ func TestAddrClassifier(t *testing.T) {
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_PARAM, Offset: BIG}, C_LOREG},
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_PARAM, Offset: -BIG - 33}, C_LOREG}, // 33 is FixedFrameSize-1
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE}, C_ZOREG},
+		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Index: REG_R4}, C_XOREG},
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Offset: 1}, C_SOREG},
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Offset: BIG}, C_LOREG},
 		{obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_NONE, Offset: -BIG - 33}, C_LOREG},
@@ -545,7 +546,7 @@ func TestAddrClassifier(t *testing.T) {
 		case int:
 			expect = []int{tst.output.(int), tst.output.(int), tst.output.(int), tst.output.(int)}
 		}
-		for i, _ := range ctxts {
+		for i := range ctxts {
 			if output := ctxts[i].aclass(&tst.arg); output != expect[i] {
 				t.Errorf("%s.aclass(%v) = %v, expected %v\n", name[i], tst.arg, DRconv(output), DRconv(expect[i]))
 			}

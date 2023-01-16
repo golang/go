@@ -97,12 +97,13 @@
 // ends with a slash or backslash, then any resulting executables
 // will be written to that directory.
 //
-// The -i flag installs the packages that are dependencies of the target.
-// The -i flag is deprecated. Compiled packages are cached automatically.
-//
 // The build flags are shared by the build, clean, get, install, list, run,
 // and test commands:
 //
+//	-C dir
+//		Change to dir before running the command.
+//		Any files named on the command line are interpreted after
+//		changing directories.
 //	-a
 //		force rebuilding of packages that are already up-to-date.
 //	-n
@@ -117,14 +118,23 @@
 //		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 //	-msan
 //		enable interoperation with memory sanitizer.
-//		Supported only on linux/amd64, linux/arm64
+//		Supported only on linux/amd64, linux/arm64, freebsd/amd64
 //		and only with Clang/LLVM as the host C compiler.
-//		On linux/arm64, pie build mode will be used.
+//		PIE build mode will be used on all platforms except linux/amd64.
 //	-asan
 //		enable interoperation with address sanitizer.
 //		Supported only on linux/arm64, linux/amd64.
 //		Supported only on linux/amd64 or linux/arm64 and only with GCC 7 and higher
 //		or Clang/LLVM 9 and higher.
+//	-cover
+//		enable code coverage instrumentation (requires
+//		that GOEXPERIMENT=coverageredesign be set).
+//	-coverpkg pattern1,pattern2,pattern3
+//		For a build that targets package 'main' (e.g. building a Go
+//		executable), apply coverage analysis to each package matching
+//		the patterns. The default is to apply coverage analysis to
+//		packages in the main Go module. See 'go help packages' for a
+//		description of package patterns.  Sets -cover.
 //	-v
 //		print the names of packages as they are compiled.
 //	-work
@@ -190,6 +200,11 @@
 //		include path must be in the same directory as the Go package they are
 //		included from, and overlays will not appear when binaries and tests are
 //		run through go run and go test respectively.
+//	-pgo file
+//		specify the file path of a profile for profile-guided optimization (PGO).
+//		Special name "auto" lets the go command select a file named
+//		"default.pgo" in the main package's directory if that file exists.
+//		Special name "off" turns off PGO.
 //	-pkgdir dir
 //		install and load all packages from dir instead of the usual locations.
 //		For example, when building with a non-standard configuration,
@@ -594,13 +609,20 @@
 //
 // The generator is run in the package's source directory.
 //
-// Go generate accepts one specific flag:
+// Go generate accepts two specific flags:
 //
 //	-run=""
 //		if non-empty, specifies a regular expression to select
 //		directives whose full original source text (excluding
 //		any trailing spaces and final newline) matches the
 //		expression.
+//
+//	-skip=""
+//		if non-empty, specifies a regular expression to suppress
+//		directives whose full original source text (excluding
+//		any trailing spaces and final newline) matches the
+//		expression. If a directive matches both the -run and
+//		the -skip arguments, it is skipped.
 //
 // It also accepts the standard build flags including -v, -n, and -x.
 // The -v flag prints the names of packages and files as they are
@@ -727,9 +749,6 @@
 // When module-aware mode is disabled, other packages are installed in the
 // directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
 // other packages are built and cached but not installed.
-//
-// The -i flag installs the dependencies of the named packages as well.
-// The -i flag is deprecated. Compiled packages are cached automatically.
 //
 // For more about the build flags, see 'go help build'.
 // For more about specifying packages, see 'go help packages'.
@@ -1223,13 +1242,15 @@
 // referred to indirectly. For the full set of modules available to a build,
 // use 'go list -m -json all'.
 //
+// Edit also provides the -C, -n, and -x build flags.
+//
 // See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
 //
 // # Print module requirement graph
 //
 // Usage:
 //
-//	go mod graph [-go=version]
+//	go mod graph [-go=version] [-x]
 //
 // Graph prints the module requirement graph (with replacements applied)
 // in text form. Each line in the output has two space-separated fields: a module
@@ -1239,6 +1260,8 @@
 // The -go flag causes graph to report the module graph as loaded by the
 // given Go version, instead of the version indicated by the 'go' directive
 // in the go.mod file.
+//
+// The -x flag causes graph to print the commands graph executes.
 //
 // See https://golang.org/ref/mod#go-mod-graph for more about 'go mod graph'.
 //
@@ -1266,7 +1289,7 @@
 //
 // Usage:
 //
-//	go mod tidy [-e] [-v] [-go=version] [-compat=version]
+//	go mod tidy [-e] [-v] [-x] [-go=version] [-compat=version]
 //
 // Tidy makes sure go.mod matches the source code in the module.
 // It adds any missing modules necessary to build the current module's
@@ -1293,6 +1316,8 @@
 // version. By default, tidy acts as if the -compat flag were set to the
 // version prior to the one indicated by the 'go' directive in the go.mod
 // file.
+//
+// The -x flag causes tidy to print the commands download executes.
 //
 // See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
 //
@@ -1708,7 +1733,7 @@
 // the package's source root (usually $GOPATH) or that consult environment
 // variables only match future runs in which the files and environment
 // variables are unchanged. A cached test result is treated as executing
-// in no time at all,so a successful package test result will be cached and
+// in no time at all, so a successful package test result will be cached and
 // reused regardless of -timeout setting.
 //
 // In addition to the build flags, the flags handled by 'go test' itself are:
@@ -1727,11 +1752,6 @@
 //	-exec xprog
 //	    Run the test binary using xprog. The behavior is the same as
 //	    in 'go run'. See 'go help run' for details.
-//
-//	-i
-//	    Install packages that are dependencies of the test.
-//	    Do not run the test.
-//	    The -i flag is deprecated. Compiled packages are cached automatically.
 //
 //	-json
 //	    Convert test output to JSON suitable for automated processing.
@@ -1769,10 +1789,9 @@
 //
 //	go version [-m] [-v] [file ...]
 //
-// Version prints the build information for Go executables.
+// Version prints the build information for Go binary files.
 //
-// Go version reports the Go version used to build each of the named
-// executable files.
+// Go version reports the Go version used to build each of the named files.
 //
 // If no files are named on the command line, go version prints its own
 // version information.
@@ -1782,7 +1801,7 @@
 // By default, go version does not report unrecognized files found
 // during a directory scan. The -v flag causes it to report unrecognized files.
 //
-// The -m flag causes go version to print each executable's embedded
+// The -m flag causes go version to print each file's embedded
 // module version information, when available. In the output, the module
 // information consists of multiple lines following the version line, each
 // indented by a leading tab character.
@@ -1793,7 +1812,7 @@
 //
 // Usage:
 //
-//	go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
+//	go vet [-C dir] [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
 //
 // Vet runs the Go vet command on the packages named by the import paths.
 //
@@ -1802,6 +1821,7 @@
 // For a list of checkers and their flags, see 'go tool vet help'.
 // For details of a specific checker such as 'printf', see 'go tool vet help printf'.
 //
+// The -C flag changes to dir before running the 'go vet' command.
 // The -n flag prints commands that would be executed.
 // The -x flag prints commands as they are executed.
 //
@@ -1809,7 +1829,7 @@
 // or additional checks.
 // For example, the 'shadow' analyzer can be built and run using these commands:
 //
-//	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+//	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow@latest
 //	go vet -vettool=$(which shadow)
 //
 // The build flags supported by go vet are those that control package resolution
@@ -1852,6 +1872,8 @@
 //     GOOS environment variable.
 //   - the target architecture, as spelled by runtime.GOARCH, set with the
 //     GOARCH environment variable.
+//   - any architecture features, in the form GOARCH.feature
+//     (for example, "amd64.v2"), as detailed below.
 //   - "unix", if GOOS is a Unix or Unix-like system.
 //   - the compiler being used, either "gc" or "gccgo"
 //   - "cgo", if the cgo command is supported (see CGO_ENABLED in
@@ -1883,11 +1905,45 @@
 // Using GOOS=ios matches build tags and files as for GOOS=darwin
 // in addition to ios tags and files.
 //
-// To keep a file from being considered for the build:
+// The defined architecture feature build tags are:
+//
+//   - For GOARCH=386, GO386=387 and GO386=sse2
+//     set the 386.387 and 386.sse2 build tags, respectively.
+//   - For GOARCH=amd64, GOAMD64=v1, v2, and v3
+//     correspond to the amd64.v1, amd64.v2, and amd64.v3 feature build tags.
+//   - For GOARCH=arm, GOARM=5, 6, and 7
+//     correspond to the arm.5, arm.6, and arm.7 feature build tags.
+//   - For GOARCH=mips or mipsle,
+//     GOMIPS=hardfloat and softfloat
+//     correspond to the mips.hardfloat and mips.softfloat
+//     (or mipsle.hardfloat and mipsle.softfloat) feature build tags.
+//   - For GOARCH=mips64 or mips64le,
+//     GOMIPS64=hardfloat and softfloat
+//     correspond to the mips64.hardfloat and mips64.softfloat
+//     (or mips64le.hardfloat and mips64le.softfloat) feature build tags.
+//   - For GOARCH=ppc64 or ppc64le,
+//     GOPPC64=power8, power9, and power10 correspond to the
+//     ppc64.power8, ppc64.power9, and ppc64.power10
+//     (or ppc64le.power8, ppc64le.power9, and ppc64le.power10)
+//     feature build tags.
+//   - For GOARCH=wasm, GOWASM=satconv and signext
+//     correspond to the wasm.satconv and wasm.signext feature build tags.
+//
+// For GOARCH=amd64, arm, ppc64, and ppc64le, a particular feature level
+// sets the feature build tags for all previous levels as well.
+// For example, GOAMD64=v2 sets the amd64.v1 and amd64.v2 feature flags.
+// This ensures that code making use of v2 features continues to compile
+// when, say, GOAMD64=v4 is introduced.
+// Code handling the absence of a particular feature level
+// should use a negation:
+//
+//	//go:build !amd64.v2
+//
+// To keep a file from being considered for any build:
 //
 //	//go:build ignore
 //
-// (any other unsatisfied word will work as well, but "ignore" is conventional.)
+// (Any other unsatisfied word will work as well, but "ignore" is conventional.)
 //
 // To build a file only when using cgo, and only on Linux and OS X:
 //
@@ -2164,10 +2220,17 @@
 //		Valid values are hardfloat (default), softfloat.
 //	GOPPC64
 //		For GOARCH=ppc64{,le}, the target ISA (Instruction Set Architecture).
-//		Valid values are power8 (default), power9.
+//		Valid values are power8 (default), power9, power10.
 //	GOWASM
 //		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
 //		Valid values are satconv, signext.
+//
+// Environment variables for use with code coverage:
+//
+//	GOCOVERDIR
+//		Directory into which to write code coverage data files
+//		generated by running a "go build -cover" binary.
+//		Requires that GOEXPERIMENT=coverageredesign is enabled.
 //
 // Special-purpose environment variables:
 //
@@ -2976,6 +3039,7 @@
 //	    run too, so that -run=X/Y matches and runs and reports the result
 //	    of all tests matching X, even those without sub-tests matching Y,
 //	    because it must run them to look for those sub-tests.
+//	    See also -skip.
 //
 //	-short
 //	    Tell long-running tests to shorten their run time.
@@ -2989,6 +3053,14 @@
 //	    the randomizer using the system clock. If -shuffle is set to an
 //	    integer N, then N will be used as the seed value. In both cases,
 //	    the seed will be reported for reproducibility.
+//
+//	-skip regexp
+//	    Run only those tests, examples, fuzz tests, and benchmarks that
+//	    do not match the regular expression. Like for -run and -bench,
+//	    for tests and benchmarks, the regular expression is split by unbracketed
+//	    slash (/) characters into a sequence of regular expressions, and each
+//	    part of a test's identifier must match the corresponding element in
+//	    the sequence, if any.
 //
 //	-timeout d
 //	    If a test binary runs longer than duration d, panic.

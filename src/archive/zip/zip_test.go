@@ -24,7 +24,7 @@ func TestOver65kFiles(t *testing.T) {
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skip("skipping in short mode")
 	}
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	w := NewWriter(buf)
 	const nFiles = (1 << 16) + 42
 	for i := 0; i < nFiles; i++ {

@@ -38,6 +38,8 @@ type FuncDebug struct {
 	// Register-resident output parameters for the function. This is filled in at
 	// SSA generation time.
 	RegOutputParams []*ir.Name
+	// Variable declarations that were removed during optimization
+	OptDcl []*ir.Name
 
 	// Filled in by the user. Translates Block and Value ID to PC.
 	GetPC func(ID, ID) int64
@@ -613,7 +615,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 	// This would probably be better as an output from stackframe.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op == OpVarDef || v.Op == OpVarKill {
+			if v.Op == OpVarDef {
 				n := v.Aux.(*ir.Name)
 				if ir.IsSynthetic(n) {
 					continue
@@ -1080,7 +1082,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 	}
 
 	switch {
-	case v.Op == OpVarDef, v.Op == OpVarKill:
+	case v.Op == OpVarDef:
 		n := v.Aux.(*ir.Name)
 		if ir.IsSynthetic(n) {
 			break

@@ -20,7 +20,10 @@ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, 
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
-const _SYS_DUP3 = SYS_DUP3
+const (
+	_SYS_DUP3         = SYS_DUP3
+	_F_DUP2FD_CLOEXEC = 0
+)
 
 type SockaddrDatalink struct {
 	Len    uint8

@@ -38,6 +38,7 @@ See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
 }
 
 func init() {
+	base.AddChdirFlag(&cmdVerify.Flag)
 	base.AddModCommonFlags(&cmdVerify.Flag)
 }
 

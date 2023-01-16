@@ -160,6 +160,10 @@ const (
 
 	MAX_COMPUTERNAME_LENGTH = 15
 
+	MAX_DHCPV6_DUID_LENGTH = 130
+
+	MAX_DNS_SUFFIX_STRING_LENGTH = 256
+
 	TIME_ZONE_ID_UNKNOWN  = 0
 	TIME_ZONE_ID_STANDARD = 1
 
@@ -2000,27 +2004,62 @@ type IpAdapterPrefix struct {
 }
 
 type IpAdapterAddresses struct {
-	Length                uint32
-	IfIndex               uint32
-	Next                  *IpAdapterAddresses
-	AdapterName           *byte
-	FirstUnicastAddress   *IpAdapterUnicastAddress
-	FirstAnycastAddress   *IpAdapterAnycastAddress
-	FirstMulticastAddress *IpAdapterMulticastAddress
-	FirstDnsServerAddress *IpAdapterDnsServerAdapter
-	DnsSuffix             *uint16
-	Description           *uint16
-	FriendlyName          *uint16
-	PhysicalAddress       [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
-	PhysicalAddressLength uint32
-	Flags                 uint32
-	Mtu                   uint32
-	IfType                uint32
-	OperStatus            uint32
-	Ipv6IfIndex           uint32
-	ZoneIndices           [16]uint32
-	FirstPrefix           *IpAdapterPrefix
-	/* more fields might be present here. */
+	Length                 uint32
+	IfIndex                uint32
+	Next                   *IpAdapterAddresses
+	AdapterName            *byte
+	FirstUnicastAddress    *IpAdapterUnicastAddress
+	FirstAnycastAddress    *IpAdapterAnycastAddress
+	FirstMulticastAddress  *IpAdapterMulticastAddress
+	FirstDnsServerAddress  *IpAdapterDnsServerAdapter
+	DnsSuffix              *uint16
+	Description            *uint16
+	FriendlyName           *uint16
+	PhysicalAddress        [syscall.MAX_ADAPTER_ADDRESS_LENGTH]byte
+	PhysicalAddressLength  uint32
+	Flags                  uint32
+	Mtu                    uint32
+	IfType                 uint32
+	OperStatus             uint32
+	Ipv6IfIndex            uint32
+	ZoneIndices            [16]uint32
+	FirstPrefix            *IpAdapterPrefix
+	TransmitLinkSpeed      uint64
+	ReceiveLinkSpeed       uint64
+	FirstWinsServerAddress *IpAdapterWinsServerAddress
+	FirstGatewayAddress    *IpAdapterGatewayAddress
+	Ipv4Metric             uint32
+	Ipv6Metric             uint32
+	Luid                   uint64
+	Dhcpv4Server           SocketAddress
+	CompartmentId          uint32
+	NetworkGuid            GUID
+	ConnectionType         uint32
+	TunnelType             uint32
+	Dhcpv6Server           SocketAddress
+	Dhcpv6ClientDuid       [MAX_DHCPV6_DUID_LENGTH]byte
+	Dhcpv6ClientDuidLength uint32
+	Dhcpv6Iaid             uint32
+	FirstDnsSuffix         *IpAdapterDNSSuffix
+}
+
+type IpAdapterWinsServerAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterWinsServerAddress
+	Address  SocketAddress
+}
+
+type IpAdapterGatewayAddress struct {
+	Length   uint32
+	Reserved uint32
+	Next     *IpAdapterGatewayAddress
+	Address  SocketAddress
+}
+
+type IpAdapterDNSSuffix struct {
+	Next   *IpAdapterDNSSuffix
+	String [MAX_DNS_SUFFIX_STRING_LENGTH]uint16
 }
 
 const (
@@ -3174,3 +3213,48 @@ type ModuleInfo struct {
 }
 
 const ALL_PROCESSOR_GROUPS = 0xFFFF
+
+type Rect struct {
+	Left   int32
+	Top    int32
+	Right  int32
+	Bottom int32
+}
+
+type GUIThreadInfo struct {
+	Size        uint32
+	Flags       uint32
+	Active      HWND
+	Focus       HWND
+	Capture     HWND
+	MenuOwner   HWND
+	MoveSize    HWND
+	CaretHandle HWND
+	CaretRect   Rect
+}
+
+const (
+	DWMWA_NCRENDERING_ENABLED            = 1
+	DWMWA_NCRENDERING_POLICY             = 2
+	DWMWA_TRANSITIONS_FORCEDISABLED      = 3
+	DWMWA_ALLOW_NCPAINT                  = 4
+	DWMWA_CAPTION_BUTTON_BOUNDS          = 5
+	DWMWA_NONCLIENT_RTL_LAYOUT           = 6
+	DWMWA_FORCE_ICONIC_REPRESENTATION    = 7
+	DWMWA_FLIP3D_POLICY                  = 8
+	DWMWA_EXTENDED_FRAME_BOUNDS          = 9
+	DWMWA_HAS_ICONIC_BITMAP              = 10
+	DWMWA_DISALLOW_PEEK                  = 11
+	DWMWA_EXCLUDED_FROM_PEEK             = 12
+	DWMWA_CLOAK                          = 13
+	DWMWA_CLOAKED                        = 14
+	DWMWA_FREEZE_REPRESENTATION          = 15
+	DWMWA_PASSIVE_UPDATE_MODE            = 16
+	DWMWA_USE_HOSTBACKDROPBRUSH          = 17
+	DWMWA_USE_IMMERSIVE_DARK_MODE        = 20
+	DWMWA_WINDOW_CORNER_PREFERENCE       = 33
+	DWMWA_BORDER_COLOR                   = 34
+	DWMWA_CAPTION_COLOR                  = 35
+	DWMWA_TEXT_COLOR                     = 36
+	DWMWA_VISIBLE_FRAME_BORDER_THICKNESS = 37
+)

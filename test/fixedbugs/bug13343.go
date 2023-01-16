@@ -7,7 +7,7 @@
 package main
 
 var (
-	a, b = f() // ERROR "initialization loop|depends upon itself|depend upon each other"
+	a, b = f() // ERROR "initialization cycle|depends upon itself|depend upon each other"
 	c    = b   // GCCGO_ERROR "depends upon itself|depend upon each other"
 )
 

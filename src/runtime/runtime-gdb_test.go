@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // NOTE: In some configurations, GDB will segfault when sent a SIGWINCH signal.
@@ -39,6 +41,10 @@ func checkGdbEnvironment(t *testing.T) {
 		}
 		if runtime.GOARCH == "mips" {
 			t.Skip("skipping gdb tests on linux/mips; see https://golang.org/issue/25939")
+		}
+		// Disable GDB tests on alpine until issue #54352 resolved.
+		if strings.HasSuffix(testenv.Builder(), "-alpine") {
+			t.Skip("skipping gdb tests on alpine; see https://golang.org/issue/54352")
 		}
 	case "freebsd":
 		t.Skip("skipping gdb tests on FreeBSD; see https://golang.org/issue/29508")
@@ -394,6 +400,15 @@ func TestGdbBacktrace(t *testing.T) {
 	if runtime.GOOS == "netbsd" {
 		testenv.SkipFlaky(t, 15603)
 	}
+	if flag.Lookup("test.parallel").Value.(flag.Getter).Get().(int) < 2 {
+		// It is possible that this test will hang for a long time due to an
+		// apparent GDB bug reported in https://go.dev/issue/37405.
+		// If test parallelism is high enough, that might be ok: the other parallel
+		// tests will finish, and then this test will finish right before it would
+		// time out. However, if test are running sequentially, a hang in this test
+		// would likely cause the remaining tests to run out of time.
+		testenv.SkipFlaky(t, 37405)
+	}
 
 	checkGdbEnvironment(t)
 	t.Parallel()
@@ -415,6 +430,7 @@ func TestGdbBacktrace(t *testing.T) {
 	}
 
 	// Execute gdb commands.
+	start := time.Now()
 	args := []string{"-nx", "-batch",
 		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
@@ -424,7 +440,32 @@ func TestGdbBacktrace(t *testing.T) {
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
 	}
-	got, err := testenv.RunWithTimeout(t, exec.Command("gdb", args...))
+	cmd = testenv.Command(t, "gdb", args...)
+
+	// Work around the GDB hang reported in https://go.dev/issue/37405.
+	// Sometimes (rarely), the GDB process hangs completely when the Go program
+	// exits, and we suspect that the bug is on the GDB side.
+	//
+	// The default Cancel function added by testenv.Command will mark the test as
+	// failed if it is in danger of timing out, but we want to instead mark it as
+	// skipped. Change the Cancel function to kill the process and merely log
+	// instead of failing the test.
+	//
+	// (This approach does not scale: if the test parallelism is less than or
+	// equal to the number of tests that run right up to the deadline, then the
+	// remaining parallel tests are likely to time out. But as long as it's just
+	// this one flaky test, it's probably fine..?)
+	//
+	// If there is no deadline set on the test at all, relying on the timeout set
+	// by testenv.Command will cause the test to hang indefinitely, but that's
+	// what “no deadline” means, after all — and it's probably the right behavior
+	// anyway if someone is trying to investigate and fix the GDB bug.
+	cmd.Cancel = func() error {
+		t.Logf("GDB command timed out after %v: %v", time.Since(start), cmd)
+		return cmd.Process.Kill()
+	}
+
+	got, err := cmd.CombinedOutput()
 	t.Logf("gdb output:\n%s", got)
 	if err != nil {
 		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {

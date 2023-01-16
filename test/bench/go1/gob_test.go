@@ -16,31 +16,28 @@ import (
 	"testing"
 )
 
-var (
-	gobbytes []byte
-	gobdata  *JSONResponse
-)
-
-func init() {
-	gobdata = gobResponse(&jsondata)
+func makeGob(jsondata *JSONResponse) (data *JSONResponse, b []byte) {
+	data = gobResponse(jsondata)
 
 	var buf bytes.Buffer
-	if err := gob.NewEncoder(&buf).Encode(gobdata); err != nil {
+	if err := gob.NewEncoder(&buf).Encode(data); err != nil {
 		panic(err)
 	}
-	gobbytes = buf.Bytes()
+	b = buf.Bytes()
 
 	var r JSONResponse
-	if err := gob.NewDecoder(bytes.NewBuffer(gobbytes)).Decode(&r); err != nil {
+	if err := gob.NewDecoder(bytes.NewBuffer(b)).Decode(&r); err != nil {
 		panic(err)
 	}
-	if !reflect.DeepEqual(gobdata, &r) {
+	if !reflect.DeepEqual(data, &r) {
 		log.Printf("%v\n%v", jsondata, r)
 		b, _ := json.Marshal(&jsondata)
 		br, _ := json.Marshal(&r)
 		log.Printf("%s\n%s\n", b, br)
 		panic("gob: encode+decode lost data")
 	}
+
+	return
 }
 
 // gob turns [] into null, so make a copy of the data structure like that
@@ -61,33 +58,38 @@ func gobNode(n *JSONNode) *JSONNode {
 	return n1
 }
 
-func gobdec() {
-	if gobbytes == nil {
-		panic("gobdata not initialized")
-	}
+func gobdec(b []byte) {
 	var r JSONResponse
-	if err := gob.NewDecoder(bytes.NewBuffer(gobbytes)).Decode(&r); err != nil {
+	if err := gob.NewDecoder(bytes.NewBuffer(b)).Decode(&r); err != nil {
 		panic(err)
 	}
 	_ = r
 }
 
-func gobenc() {
-	if err := gob.NewEncoder(io.Discard).Encode(&gobdata); err != nil {
+func gobenc(data *JSONResponse) {
+	if err := gob.NewEncoder(io.Discard).Encode(data); err != nil {
 		panic(err)
 	}
 }
 
 func BenchmarkGobDecode(b *testing.B) {
-	b.SetBytes(int64(len(gobbytes)))
+	jsonbytes := makeJsonBytes()
+	jsondata := makeJsonData(jsonbytes)
+	_, bytes := makeGob(jsondata)
+	b.ResetTimer()
+	b.SetBytes(int64(len(bytes)))
 	for i := 0; i < b.N; i++ {
-		gobdec()
+		gobdec(bytes)
 	}
 }
 
 func BenchmarkGobEncode(b *testing.B) {
-	b.SetBytes(int64(len(gobbytes)))
+	jsonbytes := makeJsonBytes()
+	jsondata := makeJsonData(jsonbytes)
+	data, bytes := makeGob(jsondata)
+	b.ResetTimer()
+	b.SetBytes(int64(len(bytes)))
 	for i := 0; i < b.N; i++ {
-		gobenc()
+		gobenc(data)
 	}
 }

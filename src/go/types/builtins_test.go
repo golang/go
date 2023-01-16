@@ -42,6 +42,11 @@ var builtinCalls = []struct {
 	{"len", `type S []byte; var s S; _ = len(s)`, `func(p.S) int`},
 	{"len", `var s P; _ = len(s)`, `func(P) int`},
 
+	{"clear", `var m map[float64]int; clear(m)`, `func(map[float64]int)`},
+	{"clear", `var s []byte; clear(s)`, `func([]byte)`},
+	{"clear", `var p *[10]int; clear(p)`, `func(*[10]int)`},
+	{"clear", `var s P; clear(s)`, `func(P)`},
+
 	{"close", `var c chan int; close(c)`, `func(chan int)`},
 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
 
@@ -129,6 +134,16 @@ var builtinCalls = []struct {
 
 	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
 	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
+	{"Slice", `type B *byte; var b B; _ = unsafe.Slice(b, 0)`, `func(*byte, int) []byte`},
+
+	{"SliceData", "var s []int; _ = unsafe.SliceData(s)", `func([]int) *int`},
+	{"SliceData", "type S []int; var s S; _ = unsafe.SliceData(s)", `func([]int) *int`},
+
+	{"String", `var p *byte; _ = unsafe.String(p, 1)`, `func(*byte, int) string`},
+	{"String", `type B *byte; var b B; _ = unsafe.String(b, 0)`, `func(*byte, int) string`},
+
+	{"StringData", `var s string; _ = unsafe.StringData(s)`, `func(string) *byte`},
+	{"StringData", `_ = unsafe.StringData("foo")`, `func(string) *byte`},
 
 	{"assert", `assert(true)`, `invalid type`},                                    // constant
 	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant

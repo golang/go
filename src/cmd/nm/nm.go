@@ -29,7 +29,7 @@ const helpText = `usage: go tool nm [options] file...
 `
 
 func usage() {
-	fmt.Fprintf(os.Stderr, helpText)
+	fmt.Fprint(os.Stderr, helpText)
 	os.Exit(2)
 }
 

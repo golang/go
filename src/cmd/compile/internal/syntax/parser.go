@@ -190,7 +190,7 @@ func (p *parser) got(tok token) bool {
 
 func (p *parser) want(tok token) {
 	if !p.got(tok) {
-		p.syntaxError("expecting " + tokstring(tok))
+		p.syntaxError("expected " + tokstring(tok))
 		p.advance()
 	}
 }
@@ -200,7 +200,7 @@ func (p *parser) want(tok token) {
 func (p *parser) gotAssign() bool {
 	switch p.tok {
 	case _Define:
-		p.syntaxError("expecting =")
+		p.syntaxError("expected =")
 		fallthrough
 	case _Assign:
 		p.next()
@@ -217,7 +217,7 @@ func (p *parser) posAt(line, col uint) Pos {
 	return MakePos(p.base, line, col)
 }
 
-// error reports an error at the given position.
+// errorAt reports an error at the given position.
 func (p *parser) errorAt(pos Pos, msg string) {
 	err := Error{pos, msg}
 	if p.first == nil {
@@ -246,7 +246,7 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
 		// nothing to do
 	case strings.HasPrefix(msg, "in "), strings.HasPrefix(msg, "at "), strings.HasPrefix(msg, "after "):
 		msg = " " + msg
-	case strings.HasPrefix(msg, "expecting "):
+	case strings.HasPrefix(msg, "expected "):
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
@@ -272,6 +272,8 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
 		tok = tokstring(p.tok)
 	}
 
+	// TODO(gri) This may print "unexpected X, expected Y".
+	//           Consider "got X, expected Y" in this case.
 	p.errorAt(pos, "syntax error: unexpected "+tok+msg)
 }
 
@@ -312,7 +314,7 @@ const stopset uint64 = 1<<_Break |
 	1<<_Type |
 	1<<_Var
 
-// Advance consumes tokens until it finds a token of the stopset or followlist.
+// advance consumes tokens until it finds a token of the stopset or followlist.
 // The stopset is only considered if we are inside a function (p.fnest > 0).
 // The followlist is the list of valid tokens that can follow a production;
 // if it is empty, exactly one (non-EOF) token is consumed to ensure progress.
@@ -399,15 +401,20 @@ func (p *parser) fileOrNil() *File {
 		return nil
 	}
 
-	// { ImportDecl ";" }
-	for p.got(_Import) {
-		f.DeclList = p.appendGroup(f.DeclList, p.importDecl)
-		p.want(_Semi)
-	}
-
-	// { TopLevelDecl ";" }
+	// Accept import declarations anywhere for error tolerance, but complain.
+	// { ( ImportDecl | TopLevelDecl ) ";" }
+	prev := _Import
 	for p.tok != _EOF {
+		if p.tok == _Import && prev != _Import {
+			p.syntaxError("imports must appear before other declarations")
+		}
+		prev = p.tok
+
 		switch p.tok {
+		case _Import:
+			p.next()
+			f.DeclList = p.appendGroup(f.DeclList, p.importDecl)
+
 		case _Const:
 			p.next()
 			f.DeclList = p.appendGroup(f.DeclList, p.constDecl)
@@ -433,7 +440,7 @@ func (p *parser) fileOrNil() *File {
 			} else {
 				p.syntaxError("non-declaration statement outside function body")
 			}
-			p.advance(_Const, _Type, _Var, _Func)
+			p.advance(_Import, _Const, _Type, _Var, _Func)
 			continue
 		}
 
@@ -443,7 +450,7 @@ func (p *parser) fileOrNil() *File {
 
 		if p.tok != _EOF && !p.got(_Semi) {
 			p.syntaxError("after top level declaration")
-			p.advance(_Const, _Type, _Var, _Func)
+			p.advance(_Import, _Const, _Type, _Var, _Func)
 		}
 	}
 	// p.tok == _EOF
@@ -541,7 +548,7 @@ func (p *parser) importDecl(group *Group) Decl {
 		return d
 	}
 	if !d.Path.Bad && d.Path.Kind != StringLit {
-		p.syntaxError("import path must be a string")
+		p.syntaxErrorAt(d.Path.Pos(), "import path must be a string")
 		d.Path.Bad = true
 	}
 	// d.Path.Bad || d.Path.Kind == StringLit
@@ -760,7 +767,9 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 	f.pos = p.pos()
 	f.Pragma = p.takePragma()
 
+	var context string
 	if p.got(_Lparen) {
+		context = "method"
 		rcvr := p.paramList(nil, nil, _Rparen, false)
 		switch len(rcvr) {
 		case 0:
@@ -773,19 +782,17 @@ func (p *parser) funcDeclOrNil() *FuncDecl {
 		}
 	}
 
-	if p.tok != _Name {
-		p.syntaxError("expecting name or (")
+	if p.tok == _Name {
+		f.Name = p.name()
+		f.TParamList, f.Type = p.funcType(context)
+	} else {
+		msg := "expected name or ("
+		if context != "" {
+			msg = "expected name"
+		}
+		p.syntaxError(msg)
 		p.advance(_Lbrace, _Semi)
-		return nil
 	}
-
-	f.Name = p.name()
-
-	context := ""
-	if f.Recv != nil {
-		context = "method" // don't permit (method) type parameters in funcType
-	}
-	f.TParamList, f.Type = p.funcType(context)
 
 	if p.tok == _Lbrace {
 		f.Body = p.funcBody()
@@ -904,7 +911,7 @@ func (p *parser) unaryExpr() Expr {
 				if dir == RecvOnly {
 					// t is type <-chan E but <-<-chan E is not permitted
 					// (report same error as for "type _ <-<-chan E")
-					p.syntaxError("unexpected <-, expecting chan")
+					p.syntaxError("unexpected <-, expected chan")
 					// already progressed, no need to advance
 				}
 				c.Dir = RecvOnly
@@ -913,7 +920,7 @@ func (p *parser) unaryExpr() Expr {
 			if dir == SendOnly {
 				// channel dir is <- but channel element E is not a channel
 				// (report same error as for "type _ <-chan<-E")
-				p.syntaxError(fmt.Sprintf("unexpected %s, expecting chan", String(t)))
+				p.syntaxError(fmt.Sprintf("unexpected %s, expected chan", String(t)))
 				// already progressed, no need to advance
 			}
 			return x
@@ -951,16 +958,7 @@ func (p *parser) callStmt() *CallStmt {
 		x = t
 	}
 
-	cx, ok := x.(*CallExpr)
-	if !ok {
-		p.errorAt(x.Pos(), fmt.Sprintf("expression in %s must be function call", s.Tok))
-		// already progressed, no need to advance
-		cx = new(CallExpr)
-		cx.pos = x.Pos()
-		cx.Fun = x // assume common error of missing parentheses (function invocation)
-	}
-
-	s.Call = cx
+	s.Call = x
 	return s
 }
 
@@ -1033,7 +1031,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 
 	default:
 		x := p.badExpr()
-		p.syntaxError("expecting expression")
+		p.syntaxError("expected expression")
 		p.advance(_Rparen, _Rbrack, _Rbrace)
 		return x
 	}
@@ -1104,27 +1102,26 @@ loop:
 				p.want(_Rparen)
 
 			default:
-				p.syntaxError("expecting name or (")
+				p.syntaxError("expected name or (")
 				p.advance(_Semi, _Rparen)
 			}
 
 		case _Lbrack:
 			p.next()
 
-			if p.tok == _Rbrack {
-				// invalid empty instance, slice or index expression; accept but complain
-				p.syntaxError("expecting operand")
-				p.next()
-				break
-			}
-
 			var i Expr
 			if p.tok != _Colon {
 				var comma bool
-				i, comma = p.typeList()
+				if p.tok == _Rbrack {
+					// invalid empty instance, slice or index expression; accept but complain
+					p.syntaxError("expected operand")
+					i = p.badExpr()
+				} else {
+					i, comma = p.typeList(false)
+				}
 				if comma || p.tok == _Rbrack {
 					p.want(_Rbrack)
-					// x[i,] or x[i, j, ...]
+					// x[], x[i,] or x[i, j, ...]
 					t := new(IndexExpr)
 					t.pos = pos
 					t.X = x
@@ -1137,7 +1134,7 @@ loop:
 			// x[i:...
 			// For better error message, don't simply use p.want(_Colon) here (issue #47704).
 			if !p.got(_Colon) {
-				p.syntaxError("expecting comma, : or ]")
+				p.syntaxError("expected comma, : or ]")
 				p.advance(_Comma, _Colon, _Rbrack)
 			}
 			p.xnest++
@@ -1289,7 +1286,7 @@ func (p *parser) type_() Expr {
 	typ := p.typeOrNil()
 	if typ == nil {
 		typ = p.badExpr()
-		p.syntaxError("expecting type")
+		p.syntaxError("expected type")
 		p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
 	}
 
@@ -1401,10 +1398,10 @@ func (p *parser) typeInstance(typ Expr) Expr {
 	x.pos = pos
 	x.X = typ
 	if p.tok == _Rbrack {
-		p.syntaxError("expecting type")
+		p.syntaxError("expected type argument list")
 		x.Index = p.badExpr()
 	} else {
-		x.Index, _ = p.typeList()
+		x.Index, _ = p.typeList(true)
 	}
 	p.want(_Rbrack)
 	return x
@@ -1456,7 +1453,7 @@ func (p *parser) arrayType(pos Pos, len Expr) Expr {
 		// Trailing commas are accepted in type parameter
 		// lists but not in array type declarations.
 		// Accept for better error handling but complain.
-		p.syntaxError("unexpected comma; expecting ]")
+		p.syntaxError("unexpected comma; expected ]")
 		p.next()
 	}
 	p.want(_Rbrack)
@@ -1509,8 +1506,7 @@ func (p *parser) structType() *StructType {
 	return typ
 }
 
-// InterfaceType = "interface" "{" { ( MethodDecl | EmbeddedElem | TypeList ) ";" } "}" .
-// TypeList      = "type" Type { "," Type } .
+// InterfaceType = "interface" "{" { ( MethodDecl | EmbeddedElem ) ";" } "}" .
 func (p *parser) interfaceType() *InterfaceType {
 	if trace {
 		defer p.trace("interfaceType")()
@@ -1656,7 +1652,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 		p.addField(styp, pos, nil, typ, tag)
 
 	default:
-		p.syntaxError("expecting field name or embedded type")
+		p.syntaxError("expected field name or embedded type")
 		p.advance(_Semi, _Rbrace)
 	}
 }
@@ -1673,7 +1669,7 @@ func (p *parser) arrayOrTArgs() Expr {
 	}
 
 	// x [n]E or x[n,], x[n1, n2], ...
-	n, comma := p.typeList()
+	n, comma := p.typeList(false)
 	p.want(_Rbrack)
 	if !comma {
 		if elem := p.typeOrNil(); elem != nil {
@@ -1846,7 +1842,7 @@ func (p *parser) embeddedTerm() Expr {
 	t := p.typeOrNil()
 	if t == nil {
 		t = p.badExpr()
-		p.syntaxError("expecting ~ term or type")
+		p.syntaxError("expected ~ term or type")
 		p.advance(_Operator, _Semi, _Rparen, _Rbrack, _Rbrace)
 	}
 
@@ -1945,7 +1941,7 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 		return f
 	}
 
-	p.syntaxError("expecting " + tokstring(follow))
+	p.syntaxError("expected " + tokstring(follow))
 	p.advance(_Comma, follow)
 	return nil
 }
@@ -2151,7 +2147,7 @@ func (p *parser) simpleStmt(lhs Expr, keyword token) SimpleStmt {
 		return p.newAssignStmt(pos, op, lhs, rhs)
 
 	default:
-		p.syntaxError("expecting := or = or comma")
+		p.syntaxError("expected := or = or comma")
 		p.advance(_Semi, _Rbrace)
 		// make the best of what we have
 		if x, ok := lhs.(*ListExpr); ok {
@@ -2226,7 +2222,7 @@ func (p *parser) blockStmt(context string) *BlockStmt {
 
 	// people coming from C may forget that braces are mandatory in Go
 	if !p.got(_Lbrace) {
-		p.syntaxError("expecting { after " + context)
+		p.syntaxError("expected { after " + context)
 		p.advance(_Name, _Rbrace)
 		s.Rbrace = p.pos() // in case we found "}"
 		if p.got(_Rbrace) {
@@ -2317,7 +2313,7 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
 		if keyword == _For {
 			if p.tok != _Semi {
 				if p.tok == _Lbrace {
-					p.syntaxError("expecting for loop condition")
+					p.syntaxError("expected for loop condition")
 					goto done
 				}
 				condStmt = p.simpleStmt(nil, 0 /* range not permitted */)
@@ -2343,7 +2339,7 @@ done:
 	case nil:
 		if keyword == _If && semi.pos.IsKnown() {
 			if semi.lit != "semicolon" {
-				p.syntaxErrorAt(semi.pos, fmt.Sprintf("unexpected %s, expecting { after if clause", semi.lit))
+				p.syntaxErrorAt(semi.pos, fmt.Sprintf("unexpected %s, expected { after if clause", semi.lit))
 			} else {
 				p.syntaxErrorAt(semi.pos, "missing condition in if statement")
 			}
@@ -2462,7 +2458,7 @@ func (p *parser) caseClause() *CaseClause {
 		p.next()
 
 	default:
-		p.syntaxError("expecting case or default or }")
+		p.syntaxError("expected case or default or }")
 		p.advance(_Colon, _Case, _Default, _Rbrace)
 	}
 
@@ -2495,14 +2491,12 @@ func (p *parser) commClause() *CommClause {
 		//
 		// All these (and more) are recognized by simpleStmt and invalid
 		// syntax trees are flagged later, during type checking.
-		// TODO(gri) eventually may want to restrict valid syntax trees
-		// here.
 
 	case _Default:
 		p.next()
 
 	default:
-		p.syntaxError("expecting case or default or }")
+		p.syntaxError("expected case or default or }")
 		p.advance(_Colon, _Case, _Default, _Rbrace)
 	}
 
@@ -2679,7 +2673,7 @@ func (p *parser) name() *Name {
 	}
 
 	n := NewName(p.pos(), "_")
-	p.syntaxError("expecting name")
+	p.syntaxError("expected name")
 	p.advance()
 	return n
 }
@@ -2717,7 +2711,7 @@ func (p *parser) qualifiedName(name *Name) Expr {
 		x = p.name()
 	default:
 		x = NewName(p.pos(), "_")
-		p.syntaxError("expecting name")
+		p.syntaxError("expected name")
 		p.advance(_Dot, _Semi, _Rbrace)
 	}
 
@@ -2757,21 +2751,25 @@ func (p *parser) exprList() Expr {
 	return x
 }
 
-// typeList parses a non-empty, comma-separated list of expressions,
-// optionally followed by a comma. The first list element may be any
-// expression, all other list elements must be type expressions.
+// typeList parses a non-empty, comma-separated list of types,
+// optionally followed by a comma. If strict is set to false,
+// the first element may also be a (non-type) expression.
 // If there is more than one argument, the result is a *ListExpr.
 // The comma result indicates whether there was a (separating or
 // trailing) comma.
 //
 // typeList = arg { "," arg } [ "," ] .
-func (p *parser) typeList() (x Expr, comma bool) {
+func (p *parser) typeList(strict bool) (x Expr, comma bool) {
 	if trace {
 		defer p.trace("typeList")()
 	}
 
 	p.xnest++
-	x = p.expr()
+	if strict {
+		x = p.type_()
+	} else {
+		x = p.expr()
+	}
 	if p.got(_Comma) {
 		comma = true
 		if t := p.typeOrNil(); t != nil {

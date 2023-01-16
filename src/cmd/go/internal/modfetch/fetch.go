@@ -408,7 +408,7 @@ type modSumStatus struct {
 }
 
 // Reset resets globals in the modfetch package, so previous loads don't affect
-// contents of go.sum files
+// contents of go.sum files.
 func Reset() {
 	GoSumFile = ""
 	WorkspaceGoSumFiles = nil
@@ -698,9 +698,9 @@ func addModSumLocked(mod module.Version, h string) {
 func checkSumDB(mod module.Version, h string) error {
 	modWithoutSuffix := mod
 	noun := "module"
-	if strings.HasSuffix(mod.Version, "/go.mod") {
+	if before, found := strings.CutSuffix(mod.Version, "/go.mod"); found {
 		noun = "go.mod"
-		modWithoutSuffix.Version = strings.TrimSuffix(mod.Version, "/go.mod")
+		modWithoutSuffix.Version = before
 	}
 
 	db, lines, err := lookupSumDB(mod)

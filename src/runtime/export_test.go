@@ -69,6 +69,9 @@ func LFStackPush(head *uint64, node *LFNode) {
 func LFStackPop(head *uint64) *LFNode {
 	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
 }
+func LFNodeValidate(node *LFNode) {
+	lfnodeValidate((*lfnode)(unsafe.Pointer(node)))
+}
 
 func Netpoll(delta int64) {
 	systemstack(func() {
@@ -84,23 +87,23 @@ func GCMask(x any) (ret []byte) {
 }
 
 func RunSchedLocalQueueTest() {
-	_p_ := new(p)
-	gs := make([]g, len(_p_.runq))
+	pp := new(p)
+	gs := make([]g, len(pp.runq))
 	Escape(gs) // Ensure gs doesn't move, since we use guintptrs
-	for i := 0; i < len(_p_.runq); i++ {
-		if g, _ := runqget(_p_); g != nil {
+	for i := 0; i < len(pp.runq); i++ {
+		if g, _ := runqget(pp); g != nil {
 			throw("runq is not empty initially")
 		}
 		for j := 0; j < i; j++ {
-			runqput(_p_, &gs[i], false)
+			runqput(pp, &gs[i], false)
 		}
 		for j := 0; j < i; j++ {
-			if g, _ := runqget(_p_); g != &gs[i] {
+			if g, _ := runqget(pp); g != &gs[i] {
 				print("bad element at iter ", i, "/", j, "\n")
 				throw("bad element")
 			}
 		}
-		if g, _ := runqget(_p_); g != nil {
+		if g, _ := runqget(pp); g != nil {
 			throw("runq is not empty afterwards")
 		}
 	}
@@ -362,6 +365,9 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			if s.state.get() != mSpanInUse {
 				continue
 			}
+			if s.isUnusedUserArenaChunk() {
+				continue
+			}
 			if sizeclass := s.spanclass.sizeclass(); sizeclass == 0 {
 				slow.Mallocs++
 				slow.Alloc += uint64(s.elemsize)
@@ -460,17 +466,17 @@ func MapBucketsPointerIsNil(m map[int]int) bool {
 }
 
 func LockOSCounts() (external, internal uint32) {
-	g := getg()
-	if g.m.lockedExt+g.m.lockedInt == 0 {
-		if g.lockedm != 0 {
+	gp := getg()
+	if gp.m.lockedExt+gp.m.lockedInt == 0 {
+		if gp.lockedm != 0 {
 			panic("lockedm on non-locked goroutine")
 		}
 	} else {
-		if g.lockedm == 0 {
+		if gp.lockedm == 0 {
 			panic("nil lockedm on locked goroutine")
 		}
 	}
-	return g.m.lockedExt, g.m.lockedInt
+	return gp.m.lockedExt, gp.m.lockedInt
 }
 
 //go:noinline
@@ -500,7 +506,10 @@ func KeepNArenaHints(n int) {
 // MapNextArenaHint reserves a page at the next arena growth hint,
 // preventing the arena from growing there, and returns the range of
 // addresses that are no longer viable.
-func MapNextArenaHint() (start, end uintptr) {
+//
+// This may fail to reserve memory. If it fails, it still returns the
+// address range it attempted to reserve.
+func MapNextArenaHint() (start, end uintptr, ok bool) {
 	hint := mheap_.arenaHints
 	addr := hint.addr
 	if hint.down {
@@ -509,7 +518,13 @@ func MapNextArenaHint() (start, end uintptr) {
 	} else {
 		start, end = addr, addr+heapArenaBytes
 	}
-	sysReserve(unsafe.Pointer(addr), physPageSize)
+	got := sysReserve(unsafe.Pointer(addr), physPageSize)
+	ok = (addr == uintptr(got))
+	if !ok {
+		// We were unable to get the requested reservation.
+		// Release what we did get and fail.
+		sysFreeOS(got, physPageSize)
+	}
 	return
 }
 
@@ -524,6 +539,12 @@ type Sudog = sudog
 func Getg() *G {
 	return getg()
 }
+
+func GIsWaitingOnMutex(gp *G) bool {
+	return readgstatus(gp) == _Gwaiting && gp.waitreason.isMutexWait()
+}
+
+var CasGStatusAlwaysTrack = &casgstatusAlwaysTrack
 
 //go:noinline
 func PanicForTesting(b []byte, i int) byte {
@@ -1164,7 +1185,7 @@ var Semrelease1 = semrelease1
 
 func SemNwait(addr *uint32) uint32 {
 	root := semtable.rootFor(addr)
-	return atomic.Load(&root.nwait)
+	return root.nwait.Load()
 }
 
 const SemTableSize = semTabSize
@@ -1196,8 +1217,6 @@ func (t *SemTable) Dequeue(addr *uint32) bool {
 }
 
 // mspan wrapper for testing.
-//
-//go:notinheap
 type MSpan mspan
 
 // Allocate an mspan for testing.
@@ -1230,23 +1249,29 @@ func MSpanCountAlloc(ms *MSpan, bits []byte) int {
 }
 
 const (
-	TimeHistSubBucketBits   = timeHistSubBucketBits
-	TimeHistNumSubBuckets   = timeHistNumSubBuckets
-	TimeHistNumSuperBuckets = timeHistNumSuperBuckets
+	TimeHistSubBucketBits = timeHistSubBucketBits
+	TimeHistNumSubBuckets = timeHistNumSubBuckets
+	TimeHistNumBuckets    = timeHistNumBuckets
+	TimeHistMinBucketBits = timeHistMinBucketBits
+	TimeHistMaxBucketBits = timeHistMaxBucketBits
 )
 
 type TimeHistogram timeHistogram
 
 // Counts returns the counts for the given bucket, subBucket indices.
 // Returns true if the bucket was valid, otherwise returns the counts
-// for the underflow bucket and false.
-func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
+// for the overflow bucket if bucket > 0 or the underflow bucket if
+// bucket < 0, and false.
+func (th *TimeHistogram) Count(bucket, subBucket int) (uint64, bool) {
 	t := (*timeHistogram)(th)
-	i := bucket*TimeHistNumSubBuckets + subBucket
-	if i >= uint(len(t.counts)) {
-		return t.underflow, false
+	if bucket < 0 {
+		return t.underflow.Load(), false
 	}
-	return t.counts[i], true
+	i := bucket*TimeHistNumSubBuckets + subBucket
+	if i >= len(t.counts) {
+		return t.overflow.Load(), false
+	}
+	return t.counts[i].Load(), true
 }
 
 func (th *TimeHistogram) Record(duration int64) {
@@ -1266,10 +1291,7 @@ func SetIntArgRegs(a int) int {
 }
 
 func FinalizerGAsleep() bool {
-	lock(&finlock)
-	result := fingwait
-	unlock(&finlock)
-	return result
+	return fingStatus.Load()&fingWait != 0
 }
 
 // For GCTestMoveStackOnNextCall, it's important not to introduce an
@@ -1322,10 +1344,10 @@ func (c *GCController) StartCycle(stackSize, globalsSize uint64, scannableFrac f
 	if c.heapMarked > trigger {
 		trigger = c.heapMarked
 	}
-	c.maxStackScan = stackSize
-	c.globalsScan = globalsSize
-	c.heapLive = trigger
-	c.heapScan += uint64(float64(trigger-c.heapMarked) * scannableFrac)
+	c.maxStackScan.Store(stackSize)
+	c.globalsScan.Store(globalsSize)
+	c.heapLive.Store(trigger)
+	c.heapScan.Add(int64(float64(trigger-c.heapMarked) * scannableFrac))
 	c.startCycle(0, gomaxprocs, gcTrigger{kind: gcTriggerHeap})
 }
 
@@ -1338,7 +1360,7 @@ func (c *GCController) HeapGoal() uint64 {
 }
 
 func (c *GCController) HeapLive() uint64 {
-	return c.heapLive
+	return c.heapLive.Load()
 }
 
 func (c *GCController) HeapMarked() uint64 {
@@ -1358,8 +1380,8 @@ type GCControllerReviseDelta struct {
 }
 
 func (c *GCController) Revise(d GCControllerReviseDelta) {
-	c.heapLive += uint64(d.HeapLive)
-	c.heapScan += uint64(d.HeapScan)
+	c.heapLive.Add(d.HeapLive)
+	c.heapScan.Add(d.HeapScan)
 	c.heapScanWork.Add(d.HeapScanWork)
 	c.stackScanWork.Add(d.StackScanWork)
 	c.globalsScanWork.Add(d.GlobalsScanWork)
@@ -1615,4 +1637,84 @@ func (s *ScavengeIndex) Mark(base, limit uintptr) {
 
 func (s *ScavengeIndex) Clear(ci ChunkIdx) {
 	s.i.clear(chunkIdx(ci))
+}
+
+const GTrackingPeriod = gTrackingPeriod
+
+var ZeroBase = unsafe.Pointer(&zerobase)
+
+const UserArenaChunkBytes = userArenaChunkBytes
+
+type UserArena struct {
+	arena *userArena
+}
+
+func NewUserArena() *UserArena {
+	return &UserArena{newUserArena()}
+}
+
+func (a *UserArena) New(out *any) {
+	i := efaceOf(out)
+	typ := i._type
+	if typ.kind&kindMask != kindPtr {
+		panic("new result of non-ptr type")
+	}
+	typ = (*ptrtype)(unsafe.Pointer(typ)).elem
+	i.data = a.arena.new(typ)
+}
+
+func (a *UserArena) Slice(sl any, cap int) {
+	a.arena.slice(sl, cap)
+}
+
+func (a *UserArena) Free() {
+	a.arena.free()
+}
+
+func GlobalWaitingArenaChunks() int {
+	n := 0
+	systemstack(func() {
+		lock(&mheap_.lock)
+		for s := mheap_.userArena.quarantineList.first; s != nil; s = s.next {
+			n++
+		}
+		unlock(&mheap_.lock)
+	})
+	return n
+}
+
+func UserArenaClone[T any](s T) T {
+	return arena_heapify(s).(T)
+}
+
+var AlignUp = alignUp
+
+// BlockUntilEmptyFinalizerQueue blocks until either the finalizer
+// queue is emptied (and the finalizers have executed) or the timeout
+// is reached. Returns true if the finalizer queue was emptied.
+func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
+	start := nanotime()
+	for nanotime()-start < timeout {
+		lock(&finlock)
+		// We know the queue has been drained when both finq is nil
+		// and the finalizer g has stopped executing.
+		empty := finq == nil
+		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
+		unlock(&finlock)
+		if empty {
+			return true
+		}
+		Gosched()
+	}
+	return false
+}
+
+func FrameStartLine(f *Frame) int {
+	return f.startLine
+}
+
+// PersistentAlloc allocates some memory that lives outside the Go heap.
+// This memory will never be freed; use sparingly.
+func PersistentAlloc(n uintptr) unsafe.Pointer {
+	return persistentalloc(n, 0, &memstats.other_sys)
 }

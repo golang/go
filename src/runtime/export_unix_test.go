@@ -9,7 +9,6 @@ package runtime
 import "unsafe"
 
 var NonblockingPipe = nonblockingPipe
-var Closeonexec = closeonexec
 
 func sigismember(mask *sigset, i int) bool {
 	clear := *mask
@@ -90,3 +89,9 @@ func waitForSigusr1Callback(gp *g) bool {
 func SendSigusr1(mp *M) {
 	signalM(mp, _SIGUSR1)
 }
+
+const (
+	O_WRONLY = _O_WRONLY
+	O_CREAT  = _O_CREAT
+	O_TRUNC  = _O_TRUNC
+)

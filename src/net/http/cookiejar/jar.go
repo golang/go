@@ -214,8 +214,8 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 		if len(s[i].Path) != len(s[j].Path) {
 			return len(s[i].Path) > len(s[j].Path)
 		}
-		if !s[i].Creation.Equal(s[j].Creation) {
-			return s[i].Creation.Before(s[j].Creation)
+		if ret := s[i].Creation.Compare(s[j].Creation); ret != 0 {
+			return ret < 0
 		}
 		return s[i].seqNum < s[j].seqNum
 	})
@@ -465,7 +465,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 		// dot in the domain-attribute before processing the cookie.
 		//
 		// Most browsers don't do that for IP addresses, only curl
-		// version 7.54) and and IE (version 11) do not reject a
+		// version 7.54) and IE (version 11) do not reject a
 		//     Set-Cookie: a=1; domain=.127.0.0.1
 		// This leading dot is optional and serves only as hint for
 		// humans to indicate that a cookie with "domain=.bbc.co.uk"

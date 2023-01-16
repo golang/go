@@ -43,7 +43,7 @@ func runtime_AfterForkInChild()
 
 func chdir(path uintptr) (err Errno)
 func chroot1(path uintptr) (err Errno)
-func close(fd uintptr) (err Errno)
+func closeFD(fd uintptr) (err Errno)
 func dup2child(old uintptr, new uintptr) (val uintptr, err Errno)
 func execve(path uintptr, argv uintptr, envp uintptr) (err Errno)
 func exit(code uintptr)
@@ -199,7 +199,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// so that pass 2 won't stomp on an fd it needs later.
 	if pipe < nextfd {
 		switch runtime.GOOS {
-		case "illumos":
+		case "illumos", "solaris":
 			_, err1 = fcntl1(uintptr(pipe), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
 		default:
 			_, err1 = dup2child(uintptr(pipe), uintptr(nextfd))
@@ -215,12 +215,12 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		nextfd++
 	}
 	for i = 0; i < len(fd); i++ {
-		if fd[i] >= 0 && fd[i] < int(i) {
+		if fd[i] >= 0 && fd[i] < i {
 			if nextfd == pipe { // don't stomp on pipe
 				nextfd++
 			}
 			switch runtime.GOOS {
-			case "illumos":
+			case "illumos", "solaris":
 				_, err1 = fcntl1(uintptr(fd[i]), _F_DUP2FD_CLOEXEC, uintptr(nextfd))
 			default:
 				_, err1 = dup2child(uintptr(fd[i]), uintptr(nextfd))
@@ -240,10 +240,10 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Pass 2: dup fd[i] down onto i.
 	for i = 0; i < len(fd); i++ {
 		if fd[i] == -1 {
-			close(uintptr(i))
+			closeFD(uintptr(i))
 			continue
 		}
-		if fd[i] == int(i) {
+		if fd[i] == i {
 			// dup2(i, i) won't clear close-on-exec flag on Linux,
 			// probably not elsewhere either.
 			_, err1 = fcntl1(uintptr(fd[i]), F_SETFD, 0)
@@ -265,7 +265,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	// Programs that know they inherit fds >= 3 will need
 	// to set them close-on-exec.
 	for i = len(fd); i < 3; i++ {
-		close(uintptr(i))
+		closeFD(uintptr(i))
 	}
 
 	// Detach fd 0 from tty

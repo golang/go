@@ -189,13 +189,18 @@ type Pointer *ArbitraryType
 // For instance, if x is a slice, Sizeof returns the size of the slice
 // descriptor, not the size of the memory referenced by the slice.
 // For a struct, the size includes any padding introduced by field alignment.
-// The return value of Sizeof is a Go constant.
+// The return value of Sizeof is a Go constant if the type of the argument x
+// does not have variable size.
+// (A type has variable size if it is a type parameter or if it is an array
+// or struct type with elements of variable size).
 func Sizeof(x ArbitraryType) uintptr
 
 // Offsetof returns the offset within the struct of the field represented by x,
 // which must be of the form structValue.field. In other words, it returns the
 // number of bytes between the start of the struct and the start of the field.
-// The return value of Offsetof is a Go constant.
+// The return value of Offsetof is a Go constant if the type of the argument x
+// does not have variable size.
+// (See the description of [Sizeof] for a definition of variable sized types.)
 func Offsetof(x ArbitraryType) uintptr
 
 // Alignof takes an expression x of any type and returns the required alignment
@@ -206,7 +211,9 @@ func Offsetof(x ArbitraryType) uintptr
 // within that struct, then Alignof(s.f) will return the required alignment
 // of a field of that type within a struct. This case is the same as the
 // value returned by reflect.TypeOf(s.f).FieldAlign().
-// The return value of Alignof is a Go constant.
+// The return value of Alignof is a Go constant if the type of the argument
+// does not have variable size.
+// (See the description of [Sizeof] for a definition of variable sized types.)
 func Alignof(x ArbitraryType) uintptr
 
 // The function Add adds len to ptr and returns the updated pointer
@@ -232,3 +239,31 @@ func Add(ptr Pointer, len IntegerType) Pointer
 // At run time, if len is negative, or if ptr is nil and len is not zero,
 // a run-time panic occurs.
 func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
+
+// SliceData returns a pointer to the underlying array of the argument
+// slice.
+//   - If cap(slice) > 0, SliceData returns &slice[:1][0].
+//   - If slice == nil, SliceData returns nil.
+//   - Otherwise, SliceData returns a non-nil pointer to an
+//     unspecified memory address.
+func SliceData(slice []ArbitraryType) *ArbitraryType
+
+// String returns a string value whose underlying bytes
+// start at ptr and whose length is len.
+//
+// The len argument must be of integer type or an untyped constant.
+// A constant len argument must be non-negative and representable by a value of type int;
+// if it is an untyped constant it is given type int.
+// At run time, if len is negative, or if ptr is nil and len is not zero,
+// a run-time panic occurs.
+//
+// Since Go strings are immutable, the bytes passed to String
+// must not be modified afterwards.
+func String(ptr *byte, len IntegerType) string
+
+// StringData returns a pointer to the underlying bytes of str.
+// For an empty string the return value is unspecified, and may be nil.
+//
+// Since Go strings are immutable, the bytes returned by StringData
+// must not be modified.
+func StringData(str string) *byte

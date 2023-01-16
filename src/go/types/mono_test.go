@@ -5,7 +5,6 @@
 package types_test
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -25,7 +24,7 @@ func checkMono(t *testing.T, body string) error {
 	}
 	files := []*ast.File{file}
 
-	var buf bytes.Buffer
+	var buf strings.Builder
 	conf := types.Config{
 		Error:    func(err error) { fmt.Fprintln(&buf, err) },
 		Importer: importer.Default(),

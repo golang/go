@@ -119,13 +119,15 @@ specified by a -I flag), then "#include <foo/bar.h>" will always find the
 local version in preference to any other version.
 
 The cgo tool is enabled by default for native builds on systems where
-it is expected to work. It is disabled by default when
-cross-compiling. You can control this by setting the CGO_ENABLED
+it is expected to work. It is disabled by default when cross-compiling
+as well as when the CC environment variable is unset and the default
+C compiler (typically gcc or clang) cannot be found on the system PATH.
+You can override the default by setting the CGO_ENABLED
 environment variable when running the go tool: set it to 1 to enable
 the use of cgo, and to 0 to disable it. The go tool will set the
 build constraint "cgo" if cgo is enabled. The special import "C"
 implies the "cgo" build constraint, as though the file also said
-"// +build cgo".  Therefore, if cgo is disabled, files that import
+"//go:build cgo".  Therefore, if cgo is disabled, files that import
 "C" will not be built by the go tool. (For more about build constraints
 see https://golang.org/pkg/go/build/#hdr-Build_Constraints).
 
@@ -498,6 +500,9 @@ The following options are available when running cgo directly:
 		The -fgo-prefix option to be used with gccgo.
 	-gccgopkgpath path
 		The -fgo-pkgpath option to be used with gccgo.
+	-gccgo_define_cgoincomplete
+		Define cgo.Incomplete locally rather than importing it from
+		the "runtime/cgo" package. Used for old gccgo versions.
 	-godefs
 		Write out input file in Go syntax replacing C package
 		names with real values. Used to generate files in the

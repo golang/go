@@ -154,6 +154,22 @@ const (
 	// adrp followed by another add instruction.
 	R_ARM64_PCREL
 
+	// R_ARM64_PCREL_LDST8 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD8 or ST8 instruction.
+	R_ARM64_PCREL_LDST8
+
+	// R_ARM64_PCREL_LDST16 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD16 or ST16 instruction.
+	R_ARM64_PCREL_LDST16
+
+	// R_ARM64_PCREL_LDST32 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD32 or ST32 instruction.
+	R_ARM64_PCREL_LDST32
+
+	// R_ARM64_PCREL_LDST64 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD64 or ST64 instruction.
+	R_ARM64_PCREL_LDST64
+
 	// R_ARM64_LDST8 sets a LD/ST immediate value to bits [11:0] of a local address.
 	R_ARM64_LDST8
 
@@ -192,6 +208,15 @@ const (
 	// (usually called RB in X-form instructions) is assumed to be R13.
 	R_POWER_TLS
 
+	// R_POWER_TLS_IE_PCREL34 is similar to R_POWER_TLS_IE, but marks a single MOVD
+	// which has been assembled as a single prefixed load doubleword without using the
+	// TOC.
+	R_POWER_TLS_IE_PCREL34
+
+	// R_POWER_TLS_LE_TPREL34 is similar to R_POWER_TLS_LE, but computes an offset from
+	// the thread pointer in one prefixed instruction.
+	R_POWER_TLS_LE_TPREL34
+
 	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
 	// instruction is a "DS-form" instruction, which has an immediate field occupying
 	// bits [15:2] of the instruction word. Bits [15:2] of the address of the
@@ -199,10 +224,13 @@ const (
 	// bits of the address are not 0.
 	R_ADDRPOWER_DS
 
-	// R_ADDRPOWER_PCREL relocates a D-form, DS-form instruction sequence like
-	// R_ADDRPOWER_DS but inserts the offset of the GOT slot for the referenced symbol
-	// from the TOC rather than the symbol's address.
+	// R_ADDRPOWER_GOT relocates a D-form + DS-form instruction sequence by inserting
+	// a relative displacement of referenced symbol's GOT entry to the TOC pointer.
 	R_ADDRPOWER_GOT
+
+	// R_ADDRPOWER_GOT_PCREL34 is identical to R_ADDRPOWER_GOT, but uses a PC relative
+	// sequence to generate a GOT symbol addresss.
+	R_ADDRPOWER_GOT_PCREL34
 
 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
 	// inserts the displacement from the place being relocated to the address of the
@@ -214,10 +242,20 @@ const (
 	// rather than the symbol's address.
 	R_ADDRPOWER_TOCREL
 
-	// R_ADDRPOWER_TOCREL relocates a D-form, DS-form instruction sequence like
+	// R_ADDRPOWER_TOCREL_DS relocates a D-form, DS-form instruction sequence like
 	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the
 	// relocated symbol rather than the symbol's address.
 	R_ADDRPOWER_TOCREL_DS
+
+	// R_ADDRPOWER_D34 relocates a single prefixed D-form load/store operation.  All
+	// prefixed forms are D form. The high 18 bits are stored in the prefix,
+	// and the low 16 are stored in the suffix. The address is absolute.
+	R_ADDRPOWER_D34
+
+	// R_ADDRPOWER_PCREL34 relates a single prefixed D-form load/store/add operation.
+	// All prefixed forms are D form. The resulting address is relative to the
+	// PC. It is a signed 34 bit offset.
+	R_ADDRPOWER_PCREL34
 
 	// RISC-V.
 

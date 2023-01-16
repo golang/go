@@ -87,7 +87,7 @@ func (r *Resolver) lookupHost(ctx context.Context, name string) ([]string, error
 // kernel for its answer.
 func (r *Resolver) preferGoOverWindows() bool {
 	conf := systemConf()
-	order := conf.hostLookupOrder(r, "") // name is unused
+	order, _ := conf.hostLookupOrder(r, "") // name is unused
 	return order != hostLookupCgo
 }
 
@@ -134,11 +134,11 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 			switch result.Family {
 			case syscall.AF_INET:
 				a := (*syscall.RawSockaddrInet4)(addr).Addr
-				addrs = append(addrs, IPAddr{IP: IPv4(a[0], a[1], a[2], a[3])})
+				addrs = append(addrs, IPAddr{IP: copyIP(a[:])})
 			case syscall.AF_INET6:
 				a := (*syscall.RawSockaddrInet6)(addr).Addr
 				zone := zoneCache.name(int((*syscall.RawSockaddrInet6)(addr).Scope_id))
-				addrs = append(addrs, IPAddr{IP: IP{a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]}, Zone: zone})
+				addrs = append(addrs, IPAddr{IP: copyIP(a[:]), Zone: zone})
 			default:
 				return nil, &DNSError{Err: syscall.EWINDOWS.Error(), Name: name}
 			}
@@ -230,9 +230,10 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 }
 
 func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupCNAME(ctx, name)
+	if order, conf := systemConf().hostLookupOrder(r, ""); order != hostLookupCgo {
+		return r.goLookupCNAME(ctx, name, order, conf)
 	}
+
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
 	acquireThread()
 	defer releaseThread()
@@ -355,7 +356,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
 	if r.preferGoOverWindows() {
-		return r.goLookupPTR(ctx, addr)
+		return r.goLookupPTR(ctx, addr, nil)
 	}
 
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
@@ -382,7 +383,7 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
 
 const dnsSectionMask = 0x0003
 
-// returns only results applicable to name and resolves CNAME entries
+// returns only results applicable to name and resolves CNAME entries.
 func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNSRecord {
 	cname := syscall.StringToUTF16Ptr(name)
 	if dnstype != syscall.DNS_TYPE_CNAME {
@@ -405,7 +406,7 @@ func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNS
 	return rec
 }
 
-// returns the last CNAME in chain
+// returns the last CNAME in chain.
 func resolveCNAME(name *uint16, r *syscall.DNSRecord) *uint16 {
 	// limit cname resolving to 10 in case of an infinite CNAME loop
 Cname:

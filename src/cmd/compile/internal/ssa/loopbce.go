@@ -200,8 +200,15 @@ func findIndVar(f *Func) []indVar {
 						}
 						v = addU(init.AuxInt, diff(v, init.AuxInt)/uint64(step)*uint64(step))
 					}
-					// It is ok if we can't overflow when incrementing from the largest value.
-					return !addWillOverflow(v, step)
+					if addWillOverflow(v, step) {
+						return false
+					}
+					if inclusive && v != limit.AuxInt || !inclusive && v+1 != limit.AuxInt {
+						// We know a better limit than the programmer did. Use our limit instead.
+						limit = f.ConstInt64(f.Config.Types.Int64, v)
+						inclusive = true
+					}
+					return true
 				}
 				if step == 1 && !inclusive {
 					// Can't overflow because maxint is never a possible value.
@@ -238,8 +245,15 @@ func findIndVar(f *Func) []indVar {
 						}
 						v = subU(init.AuxInt, diff(init.AuxInt, v)/uint64(-step)*uint64(-step))
 					}
-					// It is ok if we can't underflow when decrementing from the smallest value.
-					return !subWillUnderflow(v, -step)
+					if subWillUnderflow(v, -step) {
+						return false
+					}
+					if inclusive && v != limit.AuxInt || !inclusive && v-1 != limit.AuxInt {
+						// We know a better limit than the programmer did. Use our limit instead.
+						limit = f.ConstInt64(f.Config.Types.Int64, v)
+						inclusive = true
+					}
+					return true
 				}
 				if step == -1 && !inclusive {
 					// Can't underflow because minint is never a possible value.

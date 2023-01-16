@@ -5,7 +5,6 @@
 package work
 
 import (
-	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -233,7 +232,7 @@ func TestRespectSetgidDir(t *testing.T) {
 	// Check that `cp` is called instead of `mv` by looking at the output
 	// of `(*Builder).ShowCmd` afterwards as a sanity check.
 	cfg.BuildX = true
-	var cmdBuf bytes.Buffer
+	var cmdBuf strings.Builder
 	b.Print = func(a ...any) (int, error) {
 		return cmdBuf.WriteString(fmt.Sprint(a...))
 	}

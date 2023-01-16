@@ -5,8 +5,8 @@
 package ssagen
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -45,7 +45,7 @@ type nowritebarrierrecCall struct {
 }
 
 // newNowritebarrierrecChecker creates a nowritebarrierrecChecker. It
-// must be called before walk
+// must be called before walk.
 func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
 	c := &nowritebarrierrecChecker{
 		extraCalls: make(map[*ir.Func][]nowritebarrierrecCall),
@@ -179,7 +179,7 @@ func (c *nowritebarrierrecChecker) check() {
 
 		// Check fn.
 		if fn.WBPos.IsKnown() {
-			var err bytes.Buffer
+			var err strings.Builder
 			call := funcs[fn]
 			for call.target != nil {
 				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)

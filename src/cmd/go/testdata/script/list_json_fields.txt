@@ -26,7 +26,7 @@ go list -json=Deps
 stdout '"Deps": \['
 stdout '"errors",'
 
-[!exec:git] skip
+[!git] skip
 
 # Test -json=<field> without Stale skips computing buildinfo
 cd repo

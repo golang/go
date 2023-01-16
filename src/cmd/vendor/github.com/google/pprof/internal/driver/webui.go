@@ -36,13 +36,14 @@ import (
 // webInterface holds the state needed for serving a browser based interface.
 type webInterface struct {
 	prof         *profile.Profile
+	copier       profileCopier
 	options      *plugin.Options
 	help         map[string]string
 	templates    *template.Template
 	settingsFile string
 }
 
-func makeWebInterface(p *profile.Profile, opt *plugin.Options) (*webInterface, error) {
+func makeWebInterface(p *profile.Profile, copier profileCopier, opt *plugin.Options) (*webInterface, error) {
 	settingsFile, err := settingsFileName()
 	if err != nil {
 		return nil, err
@@ -52,6 +53,7 @@ func makeWebInterface(p *profile.Profile, opt *plugin.Options) (*webInterface, e
 	report.AddSourceTemplates(templates)
 	return &webInterface{
 		prof:         p,
+		copier:       copier,
 		options:      opt,
 		help:         make(map[string]string),
 		templates:    templates,
@@ -86,6 +88,7 @@ type webArgs struct {
 	TextBody    string
 	Top         []report.TextItem
 	FlameGraph  template.JS
+	Stacks      template.JS
 	Configs     []configMenuEntry
 }
 
@@ -95,7 +98,8 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 		return err
 	}
 	interactiveMode = true
-	ui, err := makeWebInterface(p, o)
+	copier := makeProfileCopier(p)
+	ui, err := makeWebInterface(p, copier, o)
 	if err != nil {
 		return err
 	}
@@ -107,6 +111,8 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 	}
 	ui.help["details"] = "Show information about the profile and this view"
 	ui.help["graph"] = "Display profile as a directed graph"
+	ui.help["flamegraph"] = "Display profile as a flame graph"
+	ui.help["flamegraph2"] = "Display profile as a flame graph (experimental version that can display caller info on selection)"
 	ui.help["reset"] = "Show the entire profile"
 	ui.help["save_config"] = "Save current settings"
 
@@ -125,6 +131,7 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, d
 			"/source":       http.HandlerFunc(ui.source),
 			"/peek":         http.HandlerFunc(ui.peek),
 			"/flamegraph":   http.HandlerFunc(ui.flamegraph),
+			"/flamegraph2":  http.HandlerFunc(ui.stackView), // Experimental
 			"/saveconfig":   http.HandlerFunc(ui.saveConfig),
 			"/deleteconfig": http.HandlerFunc(ui.deleteConfig),
 			"/download": http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -262,7 +269,7 @@ func (ui *webInterface) makeReport(w http.ResponseWriter, req *http.Request,
 	catcher := &errorCatcher{UI: ui.options.UI}
 	options := *ui.options
 	options.UI = catcher
-	_, rpt, err := generateRawReport(ui.prof, cmd, cfg, &options)
+	_, rpt, err := generateRawReport(ui.copier.newCopy(), cmd, cfg, &options)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		ui.options.UI.PrintErr(err)

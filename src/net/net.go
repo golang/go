@@ -498,7 +498,7 @@ var (
 	// immediate cancellation of dials.
 	aLongTimeAgo = time.Unix(1, 0)
 
-	// nonDeadline and noCancel are just zero values for
+	// noDeadline and noCancel are just zero values for
 	// readability with functions taking too many parameters.
 	noDeadline = time.Time{}
 	noCancel   = (chan struct{})(nil)

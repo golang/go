@@ -1,6 +1,6 @@
 # NOTE: this test is skipped on Windows, since there's no concept of signals.
 # When a process terminates another process, it provides an exit code.
-[windows] skip
+[GOOS:windows] skip
 [!fuzz] skip
 [short] skip
 

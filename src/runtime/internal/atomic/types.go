@@ -15,25 +15,32 @@ type Int32 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (i *Int32) Load() int32 {
 	return Loadint32(&i.value)
 }
 
 // Store updates the value atomically.
+//
+//go:nosplit
 func (i *Int32) Store(value int32) {
 	Storeint32(&i.value, value)
 }
 
 // CompareAndSwap atomically compares i's value with old,
 // and if they're equal, swaps i's value with new.
+// It reports whether the swap ran.
 //
-// Returns true if the operation succeeded.
+//go:nosplit
 func (i *Int32) CompareAndSwap(old, new int32) bool {
 	return Casint32(&i.value, old, new)
 }
 
 // Swap replaces i's value with new, returning
 // i's value before the replacement.
+//
+//go:nosplit
 func (i *Int32) Swap(new int32) int32 {
 	return Xchgint32(&i.value, new)
 }
@@ -43,6 +50,8 @@ func (i *Int32) Swap(new int32) int32 {
 //
 // This operation wraps around in the usual
 // two's-complement way.
+//
+//go:nosplit
 func (i *Int32) Add(delta int32) int32 {
 	return Xaddint32(&i.value, delta)
 }
@@ -59,25 +68,32 @@ type Int64 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (i *Int64) Load() int64 {
 	return Loadint64(&i.value)
 }
 
 // Store updates the value atomically.
+//
+//go:nosplit
 func (i *Int64) Store(value int64) {
 	Storeint64(&i.value, value)
 }
 
 // CompareAndSwap atomically compares i's value with old,
 // and if they're equal, swaps i's value with new.
+// It reports whether the swap ran.
 //
-// Returns true if the operation succeeded.
+//go:nosplit
 func (i *Int64) CompareAndSwap(old, new int64) bool {
 	return Casint64(&i.value, old, new)
 }
 
 // Swap replaces i's value with new, returning
 // i's value before the replacement.
+//
+//go:nosplit
 func (i *Int64) Swap(new int64) int64 {
 	return Xchgint64(&i.value, new)
 }
@@ -87,6 +103,8 @@ func (i *Int64) Swap(new int64) int64 {
 //
 // This operation wraps around in the usual
 // two's-complement way.
+//
+//go:nosplit
 func (i *Int64) Add(delta int64) int64 {
 	return Xaddint64(&i.value, delta)
 }
@@ -100,11 +118,15 @@ type Uint8 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (u *Uint8) Load() uint8 {
 	return Load8(&u.value)
 }
 
 // Store updates the value atomically.
+//
+//go:nosplit
 func (u *Uint8) Store(value uint8) {
 	Store8(&u.value, value)
 }
@@ -114,6 +136,8 @@ func (u *Uint8) Store(value uint8) {
 // the result into u.
 //
 // The full process is performed atomically.
+//
+//go:nosplit
 func (u *Uint8) And(value uint8) {
 	And8(&u.value, value)
 }
@@ -123,6 +147,8 @@ func (u *Uint8) And(value uint8) {
 // the result into u.
 //
 // The full process is performed atomically.
+//
+//go:nosplit
 func (u *Uint8) Or(value uint8) {
 	Or8(&u.value, value)
 }
@@ -136,11 +162,15 @@ type Bool struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (b *Bool) Load() bool {
 	return b.u.Load() != 0
 }
 
 // Store updates the value atomically.
+//
+//go:nosplit
 func (b *Bool) Store(value bool) {
 	s := uint8(0)
 	if value {
@@ -158,6 +188,8 @@ type Uint32 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (u *Uint32) Load() uint32 {
 	return Load(&u.value)
 }
@@ -169,11 +201,15 @@ func (u *Uint32) Load() uint32 {
 // on this thread can be observed to occur before it.
 //
 // WARNING: Use sparingly and with great care.
+//
+//go:nosplit
 func (u *Uint32) LoadAcquire() uint32 {
 	return LoadAcq(&u.value)
 }
 
 // Store updates the value atomically.
+//
+//go:nosplit
 func (u *Uint32) Store(value uint32) {
 	Store(&u.value, value)
 }
@@ -185,14 +221,17 @@ func (u *Uint32) Store(value uint32) {
 // on this thread can be observed to occur after it.
 //
 // WARNING: Use sparingly and with great care.
+//
+//go:nosplit
 func (u *Uint32) StoreRelease(value uint32) {
 	StoreRel(&u.value, value)
 }
 
 // CompareAndSwap atomically compares u's value with old,
 // and if they're equal, swaps u's value with new.
+// It reports whether the swap ran.
 //
-// Returns true if the operation succeeded.
+//go:nosplit
 func (u *Uint32) CompareAndSwap(old, new uint32) bool {
 	return Cas(&u.value, old, new)
 }
@@ -202,16 +241,19 @@ func (u *Uint32) CompareAndSwap(old, new uint32) bool {
 // may observe operations that occur after this operation to
 // precede it, but no operation that precedes it
 // on this thread can be observed to occur after it.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 // WARNING: Use sparingly and with great care.
+//
+//go:nosplit
 func (u *Uint32) CompareAndSwapRelease(old, new uint32) bool {
 	return CasRel(&u.value, old, new)
 }
 
 // Swap replaces u's value with new, returning
 // u's value before the replacement.
+//
+//go:nosplit
 func (u *Uint32) Swap(value uint32) uint32 {
 	return Xchg(&u.value, value)
 }
@@ -221,6 +263,8 @@ func (u *Uint32) Swap(value uint32) uint32 {
 // the result into u.
 //
 // The full process is performed atomically.
+//
+//go:nosplit
 func (u *Uint32) And(value uint32) {
 	And(&u.value, value)
 }
@@ -230,6 +274,8 @@ func (u *Uint32) And(value uint32) {
 // the result into u.
 //
 // The full process is performed atomically.
+//
+//go:nosplit
 func (u *Uint32) Or(value uint32) {
 	Or(&u.value, value)
 }
@@ -239,6 +285,8 @@ func (u *Uint32) Or(value uint32) {
 //
 // This operation wraps around in the usual
 // two's-complement way.
+//
+//go:nosplit
 func (u *Uint32) Add(delta int32) uint32 {
 	return Xadd(&u.value, delta)
 }
@@ -255,25 +303,32 @@ type Uint64 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (u *Uint64) Load() uint64 {
 	return Load64(&u.value)
 }
 
 // Store updates the value atomically.
+//
+//go:nosplit
 func (u *Uint64) Store(value uint64) {
 	Store64(&u.value, value)
 }
 
 // CompareAndSwap atomically compares u's value with old,
 // and if they're equal, swaps u's value with new.
+// It reports whether the swap ran.
 //
-// Returns true if the operation succeeded.
+//go:nosplit
 func (u *Uint64) CompareAndSwap(old, new uint64) bool {
 	return Cas64(&u.value, old, new)
 }
 
 // Swap replaces u's value with new, returning
 // u's value before the replacement.
+//
+//go:nosplit
 func (u *Uint64) Swap(value uint64) uint64 {
 	return Xchg64(&u.value, value)
 }
@@ -283,6 +338,8 @@ func (u *Uint64) Swap(value uint64) uint64 {
 //
 // This operation wraps around in the usual
 // two's-complement way.
+//
+//go:nosplit
 func (u *Uint64) Add(delta int64) uint64 {
 	return Xadd64(&u.value, delta)
 }
@@ -296,6 +353,8 @@ type Uintptr struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (u *Uintptr) Load() uintptr {
 	return Loaduintptr(&u.value)
 }
@@ -307,11 +366,15 @@ func (u *Uintptr) Load() uintptr {
 // on this thread can be observed to occur before it.
 //
 // WARNING: Use sparingly and with great care.
+//
+//go:nosplit
 func (u *Uintptr) LoadAcquire() uintptr {
 	return LoadAcquintptr(&u.value)
 }
 
 // Store updates the value atomically.
+//
+//go:nosplit
 func (u *Uintptr) Store(value uintptr) {
 	Storeuintptr(&u.value, value)
 }
@@ -323,20 +386,25 @@ func (u *Uintptr) Store(value uintptr) {
 // on this thread can be observed to occur after it.
 //
 // WARNING: Use sparingly and with great care.
+//
+//go:nosplit
 func (u *Uintptr) StoreRelease(value uintptr) {
 	StoreReluintptr(&u.value, value)
 }
 
 // CompareAndSwap atomically compares u's value with old,
 // and if they're equal, swaps u's value with new.
+// It reports whether the swap ran.
 //
-// Returns true if the operation succeeded.
+//go:nosplit
 func (u *Uintptr) CompareAndSwap(old, new uintptr) bool {
 	return Casuintptr(&u.value, old, new)
 }
 
 // Swap replaces u's value with new, returning
 // u's value before the replacement.
+//
+//go:nosplit
 func (u *Uintptr) Swap(value uintptr) uintptr {
 	return Xchguintptr(&u.value, value)
 }
@@ -346,6 +414,8 @@ func (u *Uintptr) Swap(value uintptr) uintptr {
 //
 // This operation wraps around in the usual
 // two's-complement way.
+//
+//go:nosplit
 func (u *Uintptr) Add(delta uintptr) uintptr {
 	return Xadduintptr(&u.value, delta)
 }
@@ -361,12 +431,16 @@ type Float64 struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (f *Float64) Load() float64 {
 	r := f.u.Load()
 	return *(*float64)(unsafe.Pointer(&r))
 }
 
 // Store updates the value atomically.
+//
+//go:nosplit
 func (f *Float64) Store(value float64) {
 	f.u.Store(*(*uint64)(unsafe.Pointer(&value)))
 }
@@ -386,6 +460,8 @@ type UnsafePointer struct {
 }
 
 // Load accesses and returns the value atomically.
+//
+//go:nosplit
 func (u *UnsafePointer) Load() unsafe.Pointer {
 	return Loadp(unsafe.Pointer(&u.value))
 }
@@ -396,22 +472,100 @@ func (u *UnsafePointer) Load() unsafe.Pointer {
 // perform a write barrier on value, and so this operation may
 // hide pointers from the GC. Use with care and sparingly.
 // It is safe to use with values not found in the Go heap.
+// Prefer Store instead.
+//
+//go:nosplit
 func (u *UnsafePointer) StoreNoWB(value unsafe.Pointer) {
 	StorepNoWB(unsafe.Pointer(&u.value), value)
 }
 
+// Store updates the value atomically.
+func (u *UnsafePointer) Store(value unsafe.Pointer) {
+	storePointer(&u.value, value)
+}
+
+// provided by runtime
+//go:linkname storePointer
+func storePointer(ptr *unsafe.Pointer, new unsafe.Pointer)
+
 // CompareAndSwapNoWB atomically (with respect to other methods)
 // compares u's value with old, and if they're equal,
 // swaps u's value with new.
-//
-// Returns true if the operation succeeded.
+// It reports whether the swap ran.
 //
 // WARNING: As the name implies this operation does *not*
 // perform a write barrier on value, and so this operation may
 // hide pointers from the GC. Use with care and sparingly.
 // It is safe to use with values not found in the Go heap.
+// Prefer CompareAndSwap instead.
+//
+//go:nosplit
 func (u *UnsafePointer) CompareAndSwapNoWB(old, new unsafe.Pointer) bool {
 	return Casp1(&u.value, old, new)
+}
+
+// CompareAndSwap atomically compares u's value with old,
+// and if they're equal, swaps u's value with new.
+// It reports whether the swap ran.
+func (u *UnsafePointer) CompareAndSwap(old, new unsafe.Pointer) bool {
+	return casPointer(&u.value, old, new)
+}
+
+func casPointer(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
+
+// Pointer is an atomic pointer of type *T.
+type Pointer[T any] struct {
+	u UnsafePointer
+}
+
+// Load accesses and returns the value atomically.
+//
+//go:nosplit
+func (p *Pointer[T]) Load() *T {
+	return (*T)(p.u.Load())
+}
+
+// StoreNoWB updates the value atomically.
+//
+// WARNING: As the name implies this operation does *not*
+// perform a write barrier on value, and so this operation may
+// hide pointers from the GC. Use with care and sparingly.
+// It is safe to use with values not found in the Go heap.
+// Prefer Store instead.
+//
+//go:nosplit
+func (p *Pointer[T]) StoreNoWB(value *T) {
+	p.u.StoreNoWB(unsafe.Pointer(value))
+}
+
+// Store updates the value atomically.
+//go:nosplit
+func (p *Pointer[T]) Store(value *T) {
+	p.u.Store(unsafe.Pointer(value))
+}
+
+// CompareAndSwapNoWB atomically (with respect to other methods)
+// compares u's value with old, and if they're equal,
+// swaps u's value with new.
+// It reports whether the swap ran.
+//
+// WARNING: As the name implies this operation does *not*
+// perform a write barrier on value, and so this operation may
+// hide pointers from the GC. Use with care and sparingly.
+// It is safe to use with values not found in the Go heap.
+// Prefer CompareAndSwap instead.
+//
+//go:nosplit
+func (p *Pointer[T]) CompareAndSwapNoWB(old, new *T) bool {
+	return p.u.CompareAndSwapNoWB(unsafe.Pointer(old), unsafe.Pointer(new))
+}
+
+// CompareAndSwap atomically (with respect to other methods)
+// compares u's value with old, and if they're equal,
+// swaps u's value with new.
+// It reports whether the swap ran.
+func (p *Pointer[T]) CompareAndSwap(old, new *T) bool {
+	return p.u.CompareAndSwap(unsafe.Pointer(old), unsafe.Pointer(new))
 }
 
 // noCopy may be embedded into structs which must not be copied

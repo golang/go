@@ -7,7 +7,6 @@
 package types2
 
 import (
-	"bytes"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"io"
@@ -233,7 +232,7 @@ func (s *Scope) WriteTo(w io.Writer, n int, recurse bool) {
 
 // String returns a string representation of the scope, for debugging.
 func (s *Scope) String() string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	s.WriteTo(&buf, 0, false)
 	return buf.String()
 }

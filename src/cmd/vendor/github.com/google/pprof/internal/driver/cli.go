@@ -363,5 +363,6 @@ var usageMsgVars = "\n\n" +
 	"   PPROF_TOOLS        Search path for object-level tools\n" +
 	"   PPROF_BINARY_PATH  Search path for local binary files\n" +
 	"                      default: $HOME/pprof/binaries\n" +
-	"                      searches $name, $path, $buildid/$name, $path/$buildid\n" +
+	"                      searches $buildid/$name, $buildid/*, $path/$buildid,\n" +
+	"                      ${buildid:0:2}/${buildid:2}.debug, $name, $path\n" +
 	"   * On Windows, %USERPROFILE% is used instead of $HOME"

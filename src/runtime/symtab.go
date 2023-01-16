@@ -49,6 +49,15 @@ type Frame struct {
 	File string
 	Line int
 
+	// startLine is the line number of the beginning of the function in
+	// this frame. Specifically, it is the line number of the func keyword
+	// for Go functions. Note that //line directives can change the
+	// filename and/or line number arbitrarily within a function, meaning
+	// that the Line - startLine offset is not always meaningful.
+	//
+	// This may be zero if not known.
+	startLine int
+
 	// Entry point program counter for the function; may be zero
 	// if not known. If Func is not nil then Entry ==
 	// Func.Entry().
@@ -108,6 +117,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 			pc--
 		}
 		name := funcname(funcInfo)
+		startLine := f.startLine()
 		if inldata := funcdata(funcInfo, _FUNCDATA_InlTree); inldata != nil {
 			inltree := (*[1 << 20]inlinedCall)(inldata)
 			// Non-strict as cgoTraceback may have added bogus PCs
@@ -116,17 +126,19 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 			if ix >= 0 {
 				// Note: entry is not modified. It always refers to a real frame, not an inlined one.
 				f = nil
-				name = funcnameFromNameoff(funcInfo, inltree[ix].func_)
-				// File/line is already correct.
-				// TODO: remove file/line from InlinedCall?
+				ic := inltree[ix]
+				name = funcnameFromNameOff(funcInfo, ic.nameOff)
+				startLine = ic.startLine
+				// File/line from funcline1 below are already correct.
 			}
 		}
 		ci.frames = append(ci.frames, Frame{
-			PC:       pc,
-			Func:     f,
-			Function: name,
-			Entry:    entry,
-			funcInfo: funcInfo,
+			PC:        pc,
+			Func:      f,
+			Function:  name,
+			Entry:     entry,
+			startLine: int(startLine),
+			funcInfo:  funcInfo,
 			// Note: File,Line set below
 		})
 	}
@@ -156,6 +168,13 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		frame.File, frame.Line = file, int(line)
 	}
 	return
+}
+
+// runtime_FrameStartLine returns the start line of the function in a Frame.
+//
+//go:linkname runtime_FrameStartLine runtime/pprof.runtime_FrameStartLine
+func runtime_FrameStartLine(f *Frame) int {
+	return f.startLine
 }
 
 // runtime_expandFinalInlineFrame expands the final pc in stk to include all
@@ -393,7 +412,7 @@ const (
 
 // pcHeader holds data used by the pclntab lookups.
 type pcHeader struct {
-	magic          uint32  // 0xFFFFFFF0
+	magic          uint32  // 0xFFFFFFF1
 	pad1, pad2     uint8   // 0,0
 	minLC          uint8   // min instruction size
 	ptrSize        uint8   // size of a ptr in bytes
@@ -428,6 +447,7 @@ type moduledata struct {
 	data, edata           uintptr
 	bss, ebss             uintptr
 	noptrbss, enoptrbss   uintptr
+	covctrs, ecovctrs     uintptr
 	end, gcdata, gcbss    uintptr
 	types, etypes         uintptr
 	rodata                uintptr
@@ -575,7 +595,7 @@ type textsect struct {
 const minfunc = 16                 // minimum function size
 const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup table
 
-// findfunctab is an array of these structures.
+// findfuncbucket is an array of these structures.
 // Each bucket represents 4096 bytes of the text segment.
 // Each subbucket represents 256 bytes of the text segment.
 // To find a function given a pc, locate the bucket and subbucket for
@@ -599,7 +619,7 @@ const debugPcln = false
 func moduledataverify1(datap *moduledata) {
 	// Check that the pclntab's format is valid.
 	hdr := datap.pcHeader
-	if hdr.magic != 0xfffffff0 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
+	if hdr.magic != 0xfffffff1 || hdr.pad1 != 0 || hdr.pad2 != 0 ||
 		hdr.minLC != sys.PCQuantum || hdr.ptrSize != goarch.PtrSize || hdr.textStart != datap.text {
 		println("runtime: pcHeader: magic=", hex(hdr.magic), "pad1=", hdr.pad1, "pad2=", hdr.pad2,
 			"minLC=", hdr.minLC, "ptrSize=", hdr.ptrSize, "pcHeader.textStart=", hex(hdr.textStart),
@@ -727,14 +747,16 @@ func FuncForPC(pc uintptr) *Func {
 		// The runtime currently doesn't have function end info, alas.
 		if ix := pcdatavalue1(f, _PCDATA_InlTreeIndex, pc, nil, false); ix >= 0 {
 			inltree := (*[1 << 20]inlinedCall)(inldata)
-			name := funcnameFromNameoff(f, inltree[ix].func_)
+			ic := inltree[ix]
+			name := funcnameFromNameOff(f, ic.nameOff)
 			file, line := funcline(f, pc)
 			fi := &funcinl{
-				ones:  ^uint32(0),
-				entry: f.entry(), // entry of the real (the outermost) function.
-				name:  name,
-				file:  file,
-				line:  int(line),
+				ones:      ^uint32(0),
+				entry:     f.entry(), // entry of the real (the outermost) function.
+				name:      name,
+				file:      file,
+				line:      line,
+				startLine: ic.startLine,
 			}
 			return (*Func)(unsafe.Pointer(fi))
 		}
@@ -773,12 +795,23 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 	fn := f.raw()
 	if fn.isInlined() { // inlined version
 		fi := (*funcinl)(unsafe.Pointer(fn))
-		return fi.file, fi.line
+		return fi.file, int(fi.line)
 	}
 	// Pass strict=false here, because anyone can call this function,
 	// and they might just be wrong about targetpc belonging to f.
 	file, line32 := funcline1(f.funcInfo(), pc, false)
 	return file, int(line32)
+}
+
+// startLine returns the starting line number of the function. i.e., the line
+// number of the func keyword.
+func (f *Func) startLine() int32 {
+	fn := f.raw()
+	if fn.isInlined() { // inlined version
+		fi := (*funcinl)(unsafe.Pointer(fn))
+		return fi.startLine
+	}
+	return fn.funcInfo().startLine
 }
 
 // findmoduledatap looks up the moduledata for a PC.
@@ -811,12 +844,12 @@ func (f funcInfo) _Func() *Func {
 
 // isInlined reports whether f should be re-interpreted as a *funcinl.
 func (f *_func) isInlined() bool {
-	return f.entryoff == ^uint32(0) // see comment for funcinl.ones
+	return f.entryOff == ^uint32(0) // see comment for funcinl.ones
 }
 
 // entry returns the entry PC for f.
 func (f funcInfo) entry() uintptr {
-	return f.datap.textAddr(f.entryoff)
+	return f.datap.textAddr(f.entryOff)
 }
 
 // findfunc looks up function metadata for a PC.
@@ -902,7 +935,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 	}
 
 	if !f.valid() {
-		if strict && panicking == 0 {
+		if strict && panicking.Load() == 0 {
 			println("runtime: no module data for", hex(f.entry()))
 			throw("no module data")
 		}
@@ -945,7 +978,7 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 
 	// If there was a table, it should have covered all program counters.
 	// If not, something is wrong.
-	if panicking != 0 || !strict {
+	if panicking.Load() != 0 || !strict {
 		return -1, 0
 	}
 
@@ -968,10 +1001,10 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 }
 
 func cfuncname(f funcInfo) *byte {
-	if !f.valid() || f.nameoff == 0 {
+	if !f.valid() || f.nameOff == 0 {
 		return nil
 	}
-	return &f.datap.funcnametab[f.nameoff]
+	return &f.datap.funcnametab[f.nameOff]
 }
 
 func funcname(f funcInfo) string {
@@ -994,15 +1027,15 @@ func funcpkgpath(f funcInfo) string {
 	return name[:i]
 }
 
-func cfuncnameFromNameoff(f funcInfo, nameoff int32) *byte {
+func cfuncnameFromNameOff(f funcInfo, nameOff int32) *byte {
 	if !f.valid() {
 		return nil
 	}
-	return &f.datap.funcnametab[nameoff]
+	return &f.datap.funcnametab[nameOff]
 }
 
-func funcnameFromNameoff(f funcInfo, nameoff int32) string {
-	return gostringnocopy(cfuncnameFromNameoff(f, nameoff))
+func funcnameFromNameOff(f funcInfo, nameOff int32) string {
+	return gostringnocopy(cfuncnameFromNameOff(f, nameOff))
 }
 
 func funcfile(f funcInfo, fileno int32) string {
@@ -1173,11 +1206,9 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 
 // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
 type inlinedCall struct {
-	parent   int16  // index of parent in the inltree, or < 0
-	funcID   funcID // type of the called function
-	_        byte
-	file     int32 // perCU file index for inlined call. See cmd/link:pcln.go
-	line     int32 // line number of the call site
-	func_    int32 // offset into pclntab for name of called function
-	parentPc int32 // position of an instruction whose source position is the call site (offset from entry)
+	funcID    funcID // type of the called function
+	_         [3]byte
+	nameOff   int32 // offset into pclntab for name of called function
+	parentPc  int32 // position of an instruction whose source position is the call site (offset from entry)
+	startLine int32 // line number of start of function (func keyword/TEXT directive)
 }

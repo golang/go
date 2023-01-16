@@ -101,3 +101,32 @@ func LookupRuntimeVar(name string) *obj.LSym {
 func LookupRuntimeABI(name string, abi obj.ABI) *obj.LSym {
 	return base.PkgLinksym("runtime", name, abi)
 }
+
+// InitCoverage loads the definitions for routines called
+// by code coverage instrumentation (similar to InitRuntime above).
+func InitCoverage() {
+	typs := coverageTypes()
+	for _, d := range &coverageDecls {
+		sym := ir.Pkgs.Coverage.Lookup(d.name)
+		typ := typs[d.typ]
+		switch d.tag {
+		case funcTag:
+			importfunc(src.NoXPos, sym, typ)
+		case varTag:
+			importvar(src.NoXPos, sym, typ)
+		default:
+			base.Fatalf("unhandled declaration tag %v", d.tag)
+		}
+	}
+}
+
+// LookupCoverage looks up the Go function 'name' in package
+// runtime/coverage. This function must follow the internal calling
+// convention.
+func LookupCoverage(name string) *ir.Name {
+	sym := ir.Pkgs.Coverage.Lookup(name)
+	if sym == nil {
+		base.Fatalf("LookupCoverage: can't find runtime/coverage.%s", name)
+	}
+	return ir.AsNode(sym.Def).(*ir.Name)
+}

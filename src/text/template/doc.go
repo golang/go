@@ -424,10 +424,10 @@ The syntax of such definitions is to surround each template declaration with a
 The define action names the template being created by providing a string
 constant. Here is a simple example:
 
-	`{{define "T1"}}ONE{{end}}
+	{{define "T1"}}ONE{{end}}
 	{{define "T2"}}TWO{{end}}
 	{{define "T3"}}{{template "T1"}} {{template "T2"}}{{end}}
-	{{template "T3"}}`
+	{{template "T3"}}
 
 This defines two templates, T1 and T2, and a third T3 that invokes the other two
 when it is executed. Finally it invokes T3. If executed this template will

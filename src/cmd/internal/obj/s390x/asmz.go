@@ -4374,12 +4374,12 @@ func (c *ctxtz) regoff(a *obj.Addr) int32 {
 	return int32(c.vregoff(a))
 }
 
-// find if the displacement is within 12 bit
+// find if the displacement is within 12 bit.
 func isU12(displacement int32) bool {
 	return displacement >= 0 && displacement < DISP12
 }
 
-// zopload12 returns the RX op with 12 bit displacement for the given load
+// zopload12 returns the RX op with 12 bit displacement for the given load.
 func (c *ctxtz) zopload12(a obj.As) (uint32, bool) {
 	switch a {
 	case AFMOVD:
@@ -4390,7 +4390,7 @@ func (c *ctxtz) zopload12(a obj.As) (uint32, bool) {
 	return 0, false
 }
 
-// zopload returns the RXY op for the given load
+// zopload returns the RXY op for the given load.
 func (c *ctxtz) zopload(a obj.As) uint32 {
 	switch a {
 	// fixed point load
@@ -4428,7 +4428,7 @@ func (c *ctxtz) zopload(a obj.As) uint32 {
 	return 0
 }
 
-// zopstore12 returns the RX op with 12 bit displacement for the given store
+// zopstore12 returns the RX op with 12 bit displacement for the given store.
 func (c *ctxtz) zopstore12(a obj.As) (uint32, bool) {
 	switch a {
 	case AFMOVD:
@@ -4445,7 +4445,7 @@ func (c *ctxtz) zopstore12(a obj.As) (uint32, bool) {
 	return 0, false
 }
 
-// zopstore returns the RXY op for the given store
+// zopstore returns the RXY op for the given store.
 func (c *ctxtz) zopstore(a obj.As) uint32 {
 	switch a {
 	// fixed point store
@@ -4477,7 +4477,7 @@ func (c *ctxtz) zopstore(a obj.As) uint32 {
 	return 0
 }
 
-// zoprre returns the RRE op for the given a
+// zoprre returns the RRE op for the given a.
 func (c *ctxtz) zoprre(a obj.As) uint32 {
 	switch a {
 	case ACMP:
@@ -4495,7 +4495,7 @@ func (c *ctxtz) zoprre(a obj.As) uint32 {
 	return 0
 }
 
-// zoprr returns the RR op for the given a
+// zoprr returns the RR op for the given a.
 func (c *ctxtz) zoprr(a obj.As) uint32 {
 	switch a {
 	case ACMPW:
@@ -4507,7 +4507,7 @@ func (c *ctxtz) zoprr(a obj.As) uint32 {
 	return 0
 }
 
-// zopril returns the RIL op for the given a
+// zopril returns the RIL op for the given a.
 func (c *ctxtz) zopril(a obj.As) uint32 {
 	switch a {
 	case ACMP:

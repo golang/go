@@ -158,8 +158,8 @@ TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
  */
 
 // Called during function prolog when more stack is needed.
-// Caller has already loaded:
-// R1: framesize, R2: argsize, R3: LR
+// Called with return address (i.e. caller's PC) in X5 (aka T0),
+// and the LR register contains the caller's LR.
 //
 // The traceback routines see morestack on a g0 as being
 // the top of a stack (for example, morestack calling newstack
@@ -209,6 +209,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 
 // func morestack_noctxt()
 TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+	// Force SPWRITE. This function doesn't actually write SP,
+	// but it is called with a special calling convention where
+	// the caller doesn't save LR on stack but passes it as a
+	// register, and the unwinder currently doesn't understand.
+	// Make it SPWRITE to stop unwinding. (See issue 54332)
+	MOV	X2, X2
+
 	MOV	ZERO, CTXT
 	JMP	runtime·morestack(SB)
 
@@ -261,11 +268,7 @@ TEXT runtime·procyield(SB),NOSPLIT,$0-0
 
 // func mcall(fn func(*g))
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	X10, CTXT
-#else
-	MOV	fn+0(FP), CTXT
-#endif
 
 	// Save caller state in g->sched
 	MOV	X2, (g_sched+gobuf_sp)(g)
@@ -637,7 +640,6 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOV	T0, ret+0(FP)
 	RET
 
-#ifdef GOEXPERIMENT_regabiargs
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in X25.
 TEXT ·spillArgs(SB),NOSPLIT,$0-0
 	MOV	X10, (0*8)(X25)
@@ -709,13 +711,6 @@ TEXT ·unspillArgs(SB),NOSPLIT,$0-0
 	MOVD	(30*8)(X25), F22
 	MOVD	(31*8)(X25), F23
 	RET
-#else
-TEXT ·spillArgs(SB),NOSPLIT,$0-0
-	RET
-
-TEXT ·unspillArgs(SB),NOSPLIT,$0-0
-	RET
-#endif
 
 // gcWriteBarrier performs a heap pointer write and informs the GC.
 //
@@ -825,157 +820,72 @@ flush:
 // corresponding runtime handler.
 // The tail call makes these stubs disappear in backtraces.
 TEXT runtime·panicIndex<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T0, X10
 	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
 	JMP	runtime·goPanicIndex<ABIInternal>(SB)
 TEXT runtime·panicIndexU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T0, X10
 	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
 	JMP	runtime·goPanicIndexU<ABIInternal>(SB)
 TEXT runtime·panicSliceAlen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T1, X10
 	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAlen<ABIInternal>(SB)
 TEXT runtime·panicSliceAlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T1, X10
 	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAlenU<ABIInternal>(SB)
 TEXT runtime·panicSliceAcap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T1, X10
 	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAcap<ABIInternal>(SB)
 TEXT runtime·panicSliceAcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T1, X10
 	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceAcapU<ABIInternal>(SB)
 TEXT runtime·panicSliceB<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T0, X10
 	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceB<ABIInternal>(SB)
 TEXT runtime·panicSliceBU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T0, X10
 	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceBU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Alen<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T2, X10
 	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3Alen<ABIInternal>(SB)
 TEXT runtime·panicSlice3AlenU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T2, X10
 	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3AlenU<ABIInternal>(SB)
 TEXT runtime·panicSlice3Acap<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T2, X10
 	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3Acap<ABIInternal>(SB)
 TEXT runtime·panicSlice3AcapU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T2, X10
 	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3AcapU<ABIInternal>(SB)
 TEXT runtime·panicSlice3B<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T1, X10
 	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3B<ABIInternal>(SB)
 TEXT runtime·panicSlice3BU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T1, X10
 	MOV	T2, X11
-#else
-	MOV	T1, x+0(FP)
-	MOV	T2, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3BU<ABIInternal>(SB)
 TEXT runtime·panicSlice3C<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T0, X10
 	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3C<ABIInternal>(SB)
 TEXT runtime·panicSlice3CU<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T0, X10
 	MOV	T1, X11
-#else
-	MOV	T0, x+0(FP)
-	MOV	T1, y+8(FP)
-#endif
 	JMP	runtime·goPanicSlice3CU<ABIInternal>(SB)
 TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOV	T2, X10
 	MOV	T3, X11
-#else
-	MOV	T2, x+0(FP)
-	MOV	T3, y+8(FP)
-#endif
 	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
 
 DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)

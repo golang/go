@@ -37,12 +37,11 @@ func (e *P256Element) Equal(t *P256Element) int {
 	return subtle.ConstantTimeCompare(eBytes, tBytes)
 }
 
-var p256ZeroEncoding = new(P256Element).Bytes()
-
 // IsZero returns 1 if e == 0, and zero otherwise.
 func (e *P256Element) IsZero() int {
+	zero := make([]byte, p256ElementLen)
 	eBytes := e.Bytes()
-	return subtle.ConstantTimeCompare(eBytes, p256ZeroEncoding)
+	return subtle.ConstantTimeCompare(eBytes, zero)
 }
 
 // Set sets e = t, and returns e.
@@ -67,12 +66,6 @@ func (e *P256Element) bytes(out *[p256ElementLen]byte) []byte {
 	return out[:]
 }
 
-// p256MinusOneEncoding is the encoding of -1 mod p, so p - 1, the
-// highest canonical encoding. It is used by SetBytes to check for non-canonical
-// encodings such as p + k, 2p + k, etc.
-var p256MinusOneEncoding = new(P256Element).Sub(
-	new(P256Element), new(P256Element).One()).Bytes()
-
 // SetBytes sets e = v, where v is a big-endian 32-byte encoding, and returns e.
 // If v is not 32 bytes or it encodes a value higher than 2^256 - 2^224 + 2^192 + 2^96 - 1,
 // SetBytes returns nil and an error, and e is unchanged.
@@ -80,14 +73,20 @@ func (e *P256Element) SetBytes(v []byte) (*P256Element, error) {
 	if len(v) != p256ElementLen {
 		return nil, errors.New("invalid P256Element encoding")
 	}
+
+	// Check for non-canonical encodings (p + k, 2p + k, etc.) by comparing to
+	// the encoding of -1 mod p, so p - 1, the highest canonical encoding.
+	var minusOneEncoding = new(P256Element).Sub(
+		new(P256Element), new(P256Element).One()).Bytes()
 	for i := range v {
-		if v[i] < p256MinusOneEncoding[i] {
+		if v[i] < minusOneEncoding[i] {
 			break
 		}
-		if v[i] > p256MinusOneEncoding[i] {
+		if v[i] > minusOneEncoding[i] {
 			return nil, errors.New("invalid P256Element encoding")
 		}
 	}
+
 	var in [p256ElementLen]byte
 	copy(in[:], v)
 	p256InvertEndianness(in[:])

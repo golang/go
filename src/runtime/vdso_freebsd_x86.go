@@ -34,10 +34,8 @@ func (th *vdsoTimehands) getTSCTimecounter() uint32 {
 	return uint32(tsc)
 }
 
-//go:systemstack
+//go:nosplit
 func (th *vdsoTimehands) getHPETTimecounter() (uint32, bool) {
-	const digits = "0123456789"
-
 	idx := int(th.x86_hpet_idx)
 	if idx >= len(hpetDevMap) {
 		return 0, false
@@ -45,25 +43,7 @@ func (th *vdsoTimehands) getHPETTimecounter() (uint32, bool) {
 
 	p := atomic.Loaduintptr(&hpetDevMap[idx])
 	if p == 0 {
-		var devPath [len(hpetDevPath)]byte
-		copy(devPath[:], hpetDevPath)
-		devPath[9] = digits[idx]
-
-		fd := open(&devPath[0], 0 /* O_RDONLY */, 0)
-		if fd < 0 {
-			atomic.Casuintptr(&hpetDevMap[idx], 0, ^uintptr(0))
-			return 0, false
-		}
-
-		addr, mmapErr := mmap(nil, physPageSize, _PROT_READ, _MAP_SHARED, fd, 0)
-		closefd(fd)
-		newP := uintptr(addr)
-		if mmapErr != 0 {
-			newP = ^uintptr(0)
-		}
-		if !atomic.Casuintptr(&hpetDevMap[idx], 0, newP) && mmapErr == 0 {
-			munmap(addr, physPageSize)
-		}
+		systemstack(func() { initHPETTimecounter(idx) })
 		p = atomic.Loaduintptr(&hpetDevMap[idx])
 	}
 	if p == ^uintptr(0) {
@@ -72,20 +52,38 @@ func (th *vdsoTimehands) getHPETTimecounter() (uint32, bool) {
 	return *(*uint32)(unsafe.Pointer(p + _HPET_MAIN_COUNTER)), true
 }
 
+//go:systemstack
+func initHPETTimecounter(idx int) {
+	const digits = "0123456789"
+
+	var devPath [len(hpetDevPath)]byte
+	copy(devPath[:], hpetDevPath)
+	devPath[9] = digits[idx]
+
+	fd := open(&devPath[0], 0 /* O_RDONLY */ |_O_CLOEXEC, 0)
+	if fd < 0 {
+		atomic.Casuintptr(&hpetDevMap[idx], 0, ^uintptr(0))
+		return
+	}
+
+	addr, mmapErr := mmap(nil, physPageSize, _PROT_READ, _MAP_SHARED, fd, 0)
+	closefd(fd)
+	newP := uintptr(addr)
+	if mmapErr != 0 {
+		newP = ^uintptr(0)
+	}
+	if !atomic.Casuintptr(&hpetDevMap[idx], 0, newP) && mmapErr == 0 {
+		munmap(addr, physPageSize)
+	}
+}
+
 //go:nosplit
 func (th *vdsoTimehands) getTimecounter() (uint32, bool) {
 	switch th.algo {
 	case _VDSO_TH_ALGO_X86_TSC:
 		return th.getTSCTimecounter(), true
 	case _VDSO_TH_ALGO_X86_HPET:
-		var (
-			tc uint32
-			ok bool
-		)
-		systemstack(func() {
-			tc, ok = th.getHPETTimecounter()
-		})
-		return tc, ok
+		return th.getHPETTimecounter()
 	default:
 		return 0, false
 	}

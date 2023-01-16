@@ -182,7 +182,7 @@ func (p *Importer) parseFiles(dir string, filenames []string) ([]*ast.File, erro
 				errors[i] = err // open provides operation and filename in error
 				return
 			}
-			files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, 0)
+			files[i], errors[i] = parser.ParseFile(p.fset, filepath, src, parser.SkipObjectResolution)
 			src.Close() // ignore Close error - parsing may have succeeded which is all we need
 		}(i, p.joinPath(dir, filename))
 	}
@@ -240,7 +240,7 @@ func (p *Importer) cgo(bp *build.Package) (*ast.File, error) {
 		return nil, fmt.Errorf("go tool cgo: %w", err)
 	}
 
-	return parser.ParseFile(p.fset, filepath.Join(tmpdir, "_cgo_gotypes.go"), nil, 0)
+	return parser.ParseFile(p.fset, filepath.Join(tmpdir, "_cgo_gotypes.go"), nil, parser.SkipObjectResolution)
 }
 
 // context-controlled file system operations

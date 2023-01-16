@@ -6,12 +6,12 @@ package textproto
 
 import (
 	"bufio"
-	"bytes"
+	"strings"
 	"testing"
 )
 
 func TestPrintfLine(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	w := NewWriter(bufio.NewWriter(&buf))
 	err := w.PrintfLine("foo %d", 123)
 	if s := buf.String(); s != "foo 123\r\n" || err != nil {
@@ -20,7 +20,7 @@ func TestPrintfLine(t *testing.T) {
 }
 
 func TestDotWriter(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	w := NewWriter(bufio.NewWriter(&buf))
 	d := w.DotWriter()
 	n, err := d.Write([]byte("abc\n.def\n..ghi\n.jkl\n."))
@@ -35,7 +35,7 @@ func TestDotWriter(t *testing.T) {
 }
 
 func TestDotWriterCloseEmptyWrite(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	w := NewWriter(bufio.NewWriter(&buf))
 	d := w.DotWriter()
 	n, err := d.Write([]byte{})
@@ -50,7 +50,7 @@ func TestDotWriterCloseEmptyWrite(t *testing.T) {
 }
 
 func TestDotWriterCloseNoWrite(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	w := NewWriter(bufio.NewWriter(&buf))
 	d := w.DotWriter()
 	d.Close()

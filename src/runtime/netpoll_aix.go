@@ -45,7 +45,7 @@ var (
 	wrwake         int32
 	pendingUpdates int32
 
-	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
+	netpollWakeSig atomic.Uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func netpollinit() {
@@ -135,10 +135,13 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts a poll.
 func netpollBreak() {
-	if atomic.Cas(&netpollWakeSig, 0, 1) {
-		b := [1]byte{0}
-		write(uintptr(wrwake), unsafe.Pointer(&b[0]), 1)
+	// Failing to cas indicates there is an in-flight wakeup, so we're done here.
+	if !netpollWakeSig.CompareAndSwap(0, 1) {
+		return
 	}
+
+	b := [1]byte{0}
+	write(uintptr(wrwake), unsafe.Pointer(&b[0]), 1)
 }
 
 // netpoll checks for ready network connections.
@@ -193,7 +196,7 @@ retry:
 			var b [1]byte
 			for read(rdwake, unsafe.Pointer(&b[0]), 1) == 1 {
 			}
-			atomic.Store(&netpollWakeSig, 0)
+			netpollWakeSig.Store(0)
 		}
 		// Still look at the other fds even if the mode may have
 		// changed, as netpollBreak might have been called.

@@ -29,7 +29,7 @@ func TestStdlib(t *testing.T) {
 
 	pkgCount := 0
 	duration := walkPkgDirs(filepath.Join(testenv.GOROOT(t), "src"), func(dir string, filenames []string) {
-		typecheck(t, dir, filenames)
+		typecheckFiles(t, dir, filenames)
 		pkgCount++
 	}, t.Error)
 
@@ -197,6 +197,18 @@ func TestStdFixed(t *testing.T) {
 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue49767.go",  // go/types does not have constraints on channel element size
 		"issue49814.go",  // go/types does not have constraints on array size
+		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+
+		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+		// However, types2 does not know about build constraints.
+		"bug514.go",
+		"issue40954.go",
+		"issue42032.go",
+		"issue42076.go",
+		"issue46903.go",
+		"issue51733.go",
+		"notinheap2.go",
+		"notinheap3.go",
 	)
 }
 
@@ -212,10 +224,11 @@ var excluded = map[string]bool{
 
 	// See #46027: some imports are missing for this submodule.
 	"crypto/internal/edwards25519/field/_asm": true,
+	"crypto/internal/bigmod/_asm":             true,
 }
 
-// typecheck typechecks the given package files.
-func typecheck(t *testing.T, path string, filenames []string) {
+// typecheckFiles typechecks the given package files.
+func typecheckFiles(t *testing.T, path string, filenames []string) {
 	// parse package files
 	var files []*syntax.File
 	for _, filename := range filenames {

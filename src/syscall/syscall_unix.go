@@ -11,7 +11,6 @@ import (
 	"internal/itoa"
 	"internal/oserror"
 	"internal/race"
-	"internal/unsafeheader"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -57,11 +56,7 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
 	}
 
 	// Use unsafe to turn addr into a []byte.
-	var b []byte
-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
-	hdr.Data = unsafe.Pointer(addr)
-	hdr.Cap = length
-	hdr.Len = length
+	b := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
 
 	// Register mapping in m and return it.
 	p := &b[cap(b)-1]
@@ -442,11 +437,17 @@ func sendtoInet6(fd int, p []byte, flags int, to *SockaddrInet6) (err error) {
 }
 
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
-	ptr, n, err := to.sockaddr()
-	if err != nil {
-		return err
+	var (
+		ptr   unsafe.Pointer
+		salen _Socklen
+	)
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
 	}
-	return sendto(fd, p, flags, ptr, n)
+	return sendto(fd, p, flags, ptr, salen)
 }
 
 func SetsockoptByte(fd, level, opt int, value byte) (err error) {

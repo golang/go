@@ -192,6 +192,13 @@ func newUser(uid, gid, dir, username, domain string) (*User, error) {
 	return u, nil
 }
 
+var (
+	// unused variables (in this implementation)
+	// modified during test to exercise code paths in the cgo implementation.
+	userBuffer  = 0
+	groupBuffer = 0
+)
+
 func current() (*User, error) {
 	t, e := syscall.OpenCurrentProcessToken()
 	if e != nil {

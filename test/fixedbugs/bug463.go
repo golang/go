@@ -9,11 +9,11 @@
 
 package main
 
-const a = a // ERROR "refers to itself|definition loop|initialization loop"
+const a = a // ERROR "refers to itself|definition loop|initialization cycle"
 
 const (
 	X    = A
-	A    = B // ERROR "refers to itself|definition loop|initialization loop"
+	A    = B // ERROR "refers to itself|definition loop|initialization cycle"
 	B    = D
 	C, D = 1, A
 )

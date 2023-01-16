@@ -39,8 +39,8 @@ import (
 // BenchmarkSemTable/OneAddrCollision/* for a benchmark that exercises this.
 type semaRoot struct {
 	lock  mutex
-	treap *sudog // root of balanced tree of unique waiters.
-	nwait uint32 // Number of waiters. Read w/o the lock.
+	treap *sudog        // root of balanced tree of unique waiters.
+	nwait atomic.Uint32 // Number of waiters. Read w/o the lock.
 }
 
 var semtable semTable
@@ -59,12 +59,12 @@ func (t *semTable) rootFor(addr *uint32) *semaRoot {
 
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
 func sync_runtime_Semacquire(addr *uint32) {
-	semacquire1(addr, false, semaBlockProfile, 0)
+	semacquire1(addr, false, semaBlockProfile, 0, waitReasonSemacquire)
 }
 
 //go:linkname poll_runtime_Semacquire internal/poll.runtime_Semacquire
 func poll_runtime_Semacquire(addr *uint32) {
-	semacquire1(addr, false, semaBlockProfile, 0)
+	semacquire1(addr, false, semaBlockProfile, 0, waitReasonSemacquire)
 }
 
 //go:linkname sync_runtime_Semrelease sync.runtime_Semrelease
@@ -74,7 +74,17 @@ func sync_runtime_Semrelease(addr *uint32, handoff bool, skipframes int) {
 
 //go:linkname sync_runtime_SemacquireMutex sync.runtime_SemacquireMutex
 func sync_runtime_SemacquireMutex(addr *uint32, lifo bool, skipframes int) {
-	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes)
+	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncMutexLock)
+}
+
+//go:linkname sync_runtime_SemacquireRWMutexR sync.runtime_SemacquireRWMutexR
+func sync_runtime_SemacquireRWMutexR(addr *uint32, lifo bool, skipframes int) {
+	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncRWMutexRLock)
+}
+
+//go:linkname sync_runtime_SemacquireRWMutex sync.runtime_SemacquireRWMutex
+func sync_runtime_SemacquireRWMutex(addr *uint32, lifo bool, skipframes int) {
+	semacquire1(addr, lifo, semaBlockProfile|semaMutexProfile, skipframes, waitReasonSyncRWMutexLock)
 }
 
 //go:linkname poll_runtime_Semrelease internal/poll.runtime_Semrelease
@@ -98,10 +108,10 @@ const (
 
 // Called from runtime.
 func semacquire(addr *uint32) {
-	semacquire1(addr, false, 0, 0)
+	semacquire1(addr, false, 0, 0, waitReasonSemacquire)
 }
 
-func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes int) {
+func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes int, reason waitReason) {
 	gp := getg()
 	if gp != gp.m.curg {
 		throw("semacquire not on the G stack")
@@ -137,17 +147,17 @@ func semacquire1(addr *uint32, lifo bool, profile semaProfileFlags, skipframes i
 	for {
 		lockWithRank(&root.lock, lockRankRoot)
 		// Add ourselves to nwait to disable "easy case" in semrelease.
-		atomic.Xadd(&root.nwait, 1)
+		root.nwait.Add(1)
 		// Check cansemacquire to avoid missed wakeup.
 		if cansemacquire(addr) {
-			atomic.Xadd(&root.nwait, -1)
+			root.nwait.Add(-1)
 			unlock(&root.lock)
 			break
 		}
 		// Any semrelease after the cansemacquire knows we're waiting
 		// (we set nwait above), so go to sleep.
 		root.queue(addr, s, lifo)
-		goparkunlock(&root.lock, waitReasonSemacquire, traceEvGoBlockSync, 4+skipframes)
+		goparkunlock(&root.lock, reason, traceEvGoBlockSync, 4+skipframes)
 		if s.ticket != 0 || cansemacquire(addr) {
 			break
 		}
@@ -169,13 +179,13 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 	// Easy case: no waiters?
 	// This check must happen after the xadd, to avoid a missed wakeup
 	// (see loop in semacquire).
-	if atomic.Load(&root.nwait) == 0 {
+	if root.nwait.Load() == 0 {
 		return
 	}
 
 	// Harder case: search for a waiter and wake it.
 	lockWithRank(&root.lock, lockRankRoot)
-	if atomic.Load(&root.nwait) == 0 {
+	if root.nwait.Load() == 0 {
 		// The count is already consumed by another goroutine,
 		// so no need to wake up another goroutine.
 		unlock(&root.lock)
@@ -183,7 +193,7 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 	}
 	s, t0 := root.dequeue(addr)
 	if s != nil {
-		atomic.Xadd(&root.nwait, -1)
+		root.nwait.Add(-1)
 	}
 	unlock(&root.lock)
 	if s != nil { // May be slow or even yield, so unlock first
@@ -451,7 +461,7 @@ func (root *semaRoot) rotateRight(y *sudog) {
 type notifyList struct {
 	// wait is the ticket number of the next waiter. It is atomically
 	// incremented outside the lock.
-	wait uint32
+	wait atomic.Uint32
 
 	// notify is the ticket number of the next waiter to be notified. It can
 	// be read outside the lock, but is only written to with lock held.
@@ -482,7 +492,7 @@ func less(a, b uint32) bool {
 func notifyListAdd(l *notifyList) uint32 {
 	// This may be called concurrently, for example, when called from
 	// sync.Cond.Wait while holding a RWMutex in read mode.
-	return atomic.Xadd(&l.wait, 1) - 1
+	return l.wait.Add(1) - 1
 }
 
 // notifyListWait waits for a notification. If one has been sent since
@@ -527,7 +537,7 @@ func notifyListWait(l *notifyList, t uint32) {
 func notifyListNotifyAll(l *notifyList) {
 	// Fast-path: if there are no new waiters since the last notification
 	// we don't need to acquire the lock.
-	if atomic.Load(&l.wait) == atomic.Load(&l.notify) {
+	if l.wait.Load() == atomic.Load(&l.notify) {
 		return
 	}
 
@@ -542,7 +552,7 @@ func notifyListNotifyAll(l *notifyList) {
 	// value of wait because any previous waiters are already in the list
 	// or will notice that they have already been notified when trying to
 	// add themselves to the list.
-	atomic.Store(&l.notify, atomic.Load(&l.wait))
+	atomic.Store(&l.notify, l.wait.Load())
 	unlock(&l.lock)
 
 	// Go through the local list and ready all waiters.
@@ -560,7 +570,7 @@ func notifyListNotifyAll(l *notifyList) {
 func notifyListNotifyOne(l *notifyList) {
 	// Fast-path: if there are no new waiters since the last notification
 	// we don't need to acquire the lock at all.
-	if atomic.Load(&l.wait) == atomic.Load(&l.notify) {
+	if l.wait.Load() == atomic.Load(&l.notify) {
 		return
 	}
 
@@ -568,7 +578,7 @@ func notifyListNotifyOne(l *notifyList) {
 
 	// Re-check under the lock if we need to do anything.
 	t := l.notify
-	if t == atomic.Load(&l.wait) {
+	if t == l.wait.Load() {
 		unlock(&l.lock)
 		return
 	}

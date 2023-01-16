@@ -2,7 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package pe implements access to PE (Microsoft Windows Portable Executable) files.
+/*
+Package pe implements access to PE (Microsoft Windows Portable Executable) files.
+
+# Security
+
+This package is not designed to be hardened against adversarial inputs, and is
+outside the scope of https://go.dev/security/policy. In particular, only basic
+validation is done when parsing object files. As such, care should be taken when
+parsing untrusted inputs, as parsing malformed files may consume significant
+resources, or cause panics.
+*/
 package pe
 
 import (
@@ -90,6 +100,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		IMAGE_FILE_MACHINE_ARM64,
 		IMAGE_FILE_MACHINE_ARMNT,
 		IMAGE_FILE_MACHINE_I386,
+		IMAGE_FILE_MACHINE_RISCV32,
+		IMAGE_FILE_MACHINE_RISCV64,
+		IMAGE_FILE_MACHINE_RISCV128,
 		IMAGE_FILE_MACHINE_UNKNOWN:
 		// ok
 	default:
@@ -322,7 +335,7 @@ func (f *File) ImportedSymbols() ([]string, error) {
 		return nil, nil
 	}
 
-	pe64 := f.Machine == IMAGE_FILE_MACHINE_AMD64 || f.Machine == IMAGE_FILE_MACHINE_ARM64
+	_, pe64 := f.OptionalHeader.(*OptionalHeader64)
 
 	// grab the number of data directory entries
 	var dd_length uint32
@@ -350,7 +363,10 @@ func (f *File) ImportedSymbols() ([]string, error) {
 	var ds *Section
 	ds = nil
 	for _, s := range f.Sections {
-		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress < s.VirtualAddress+s.VirtualSize {
+		// We are using distance between s.VirtualAddress and idd.VirtualAddress
+		// to avoid potential overflow of uint32 caused by addition of s.VirtualSize
+		// to s.VirtualAddress.
+		if s.VirtualAddress <= idd.VirtualAddress && idd.VirtualAddress-s.VirtualAddress < s.VirtualSize {
 			ds = s
 			break
 		}
@@ -600,8 +616,8 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
 // its size and number of data directories as seen in optional header.
 // It parses the given size of bytes and returns given number of data directories.
 func readDataDirectories(r io.ReadSeeker, sz uint16, n uint32) ([]DataDirectory, error) {
-	ddSz := binary.Size(DataDirectory{})
-	if uint32(sz) != n*uint32(ddSz) {
+	ddSz := uint64(binary.Size(DataDirectory{}))
+	if uint64(sz) != uint64(n)*ddSz {
 		return nil, fmt.Errorf("size of data directories(%d) is inconsistent with number of data directories(%d)", sz, n)
 	}
 

@@ -59,13 +59,10 @@ func mcall(fn func(*g))
 //go:noescape
 func systemstack(fn func())
 
-var badsystemstackMsg = "fatal: systemstack called from unexpected goroutine"
-
 //go:nosplit
 //go:nowritebarrierrec
 func badsystemstack() {
-	sp := stringStructOf(&badsystemstackMsg)
-	write(2, sp.str, int32(sp.len))
+	writeErrStr("fatal: systemstack called from unexpected goroutine")
 }
 
 // memclrNoHeapPointers clears n bytes starting at ptr.
@@ -131,7 +128,7 @@ func fastrand() uint32 {
 	// by the compiler should be in this list.
 	if goarch.IsAmd64|goarch.IsArm64|goarch.IsPpc64|
 		goarch.IsPpc64le|goarch.IsMips64|goarch.IsMips64le|
-		goarch.IsS390x|goarch.IsRiscv64 == 1 {
+		goarch.IsS390x|goarch.IsRiscv64|goarch.IsLoong64 == 1 {
 		mp.fastrand += 0xa0761d6478bd642f
 		hi, lo := math.Mul64(mp.fastrand, mp.fastrand^0xe7037ed1a0b428db)
 		return uint32(hi ^ lo)
@@ -195,6 +192,9 @@ func fastrandu() uint {
 	}
 	return uint(fastrand64())
 }
+
+//go:linkname rand_fastrand64 math/rand.fastrand64
+func rand_fastrand64() uint64 { return fastrand64() }
 
 //go:linkname sync_fastrandn sync.fastrandn
 func sync_fastrandn(n uint32) uint32 { return fastrandn(n) }

@@ -757,3 +757,9 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 	m := CIDRMask(n, 8*iplen)
 	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
 }
+
+func copyIP(x IP) IP {
+	y := make(IP, len(x))
+	copy(y, x)
+	return y
+}

@@ -7,7 +7,6 @@ package ssagen
 import (
 	"fmt"
 	"internal/buildcfg"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -59,7 +58,7 @@ func (s *SymABIs) canonicalize(linksym string) string {
 // the symbol name and the third field is the ABI name, as one of the
 // named cmd/internal/obj.ABI constants.
 func (s *SymABIs) ReadSymABIs(file string) {
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-symabis: %v", err)
 	}
@@ -205,7 +204,7 @@ func (s *SymABIs) GenABIWrappers() {
 		// Double check that cgo-exported symbols don't get
 		// any wrappers.
 		if len(cgoExport) > 0 && fn.ABIRefs&^obj.ABISetOf(fn.ABI) != 0 {
-			base.Fatalf("cgo exported function %s cannot have ABI wrappers", fn)
+			base.Fatalf("cgo exported function %v cannot have ABI wrappers", fn)
 		}
 
 		if !buildcfg.Experiment.RegabiWrappers {
@@ -213,30 +212,6 @@ func (s *SymABIs) GenABIWrappers() {
 		}
 
 		forEachWrapperABI(fn, makeABIWrapper)
-	}
-}
-
-// InitLSym defines f's obj.LSym and initializes it based on the
-// properties of f. This includes setting the symbol flags and ABI and
-// creating and initializing related DWARF symbols.
-//
-// InitLSym must be called exactly once per function and must be
-// called for both functions with bodies and functions without bodies.
-// For body-less functions, we only create the LSym; for functions
-// with bodies call a helper to setup up / populate the LSym.
-func InitLSym(f *ir.Func, hasBody bool) {
-	if f.LSym != nil {
-		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
-	}
-
-	if nam := f.Nname; !ir.IsBlank(nam) {
-		f.LSym = nam.LinksymABI(f.ABI)
-		if f.Pragma&ir.Systemstack != 0 {
-			f.LSym.Set(obj.AttrCFunc, true)
-		}
-	}
-	if hasBody {
-		setupTextLSym(f, 0)
 	}
 }
 
@@ -363,48 +338,4 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	base.Pos = savepos
 	typecheck.DeclContext = savedclcontext
 	ir.CurFunc = savedcurfn
-}
-
-// setupTextLsym initializes the LSym for a with-body text symbol.
-func setupTextLSym(f *ir.Func, flag int) {
-	if f.Dupok() {
-		flag |= obj.DUPOK
-	}
-	if f.Wrapper() {
-		flag |= obj.WRAPPER
-	}
-	if f.ABIWrapper() {
-		flag |= obj.ABIWRAPPER
-	}
-	if f.Needctxt() {
-		flag |= obj.NEEDCTXT
-	}
-	if f.Pragma&ir.Nosplit != 0 {
-		flag |= obj.NOSPLIT
-	}
-	if f.ReflectMethod() {
-		flag |= obj.REFLECTMETHOD
-	}
-
-	// Clumsy but important.
-	// For functions that could be on the path of invoking a deferred
-	// function that can recover (runtime.reflectcall, reflect.callReflect,
-	// and reflect.callMethod), we want the panic+recover special handling.
-	// See test/recover.go for test cases and src/reflect/value.go
-	// for the actual functions being considered.
-	//
-	// runtime.reflectcall is an assembly function which tailcalls
-	// WRAPPER functions (runtime.callNN). Its ABI wrapper needs WRAPPER
-	// flag as well.
-	fnname := f.Sym().Name
-	if base.Ctxt.Pkgpath == "runtime" && fnname == "reflectcall" {
-		flag |= obj.WRAPPER
-	} else if base.Ctxt.Pkgpath == "reflect" {
-		switch fnname {
-		case "callReflect", "callMethod":
-			flag |= obj.WRAPPER
-		}
-	}
-
-	base.Ctxt.InitTextSym(f.LSym, flag)
 }

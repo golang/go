@@ -359,7 +359,7 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
 	case ir.OAPPEND:
 		// Must be used (and not BinaryExpr/UnaryExpr).
 		isStmt = false
-	case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN, ir.OVARKILL, ir.OVARLIVE:
+	case ir.OCLOSE, ir.ODELETE, ir.OPANIC, ir.OPRINT, ir.OPRINTN:
 		// Must not be used.
 		isExpr = false
 		isStmt = true
@@ -610,6 +610,10 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.SliceHeaderExpr)
 		return tcSliceHeader(n)
 
+	case ir.OSTRINGHEADER:
+		n := n.(*ir.StringHeaderExpr)
+		return tcStringHeader(n)
+
 	case ir.OMAKESLICECOPY:
 		n := n.(*ir.MakeExpr)
 		return tcMakeSliceCopy(n)
@@ -692,6 +696,18 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		n := n.(*ir.BinaryExpr)
 		return tcUnsafeSlice(n)
 
+	case ir.OUNSAFESLICEDATA:
+		n := n.(*ir.UnaryExpr)
+		return tcUnsafeData(n)
+
+	case ir.OUNSAFESTRING:
+		n := n.(*ir.BinaryExpr)
+		return tcUnsafeString(n)
+
+	case ir.OUNSAFESTRINGDATA:
+		n := n.(*ir.UnaryExpr)
+		return tcUnsafeData(n)
+
 	case ir.OCLOSURE:
 		n := n.(*ir.ClosureExpr)
 		return tcClosure(n, top)
@@ -749,9 +765,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		ir.OCONTINUE,
 		ir.ODCL,
 		ir.OGOTO,
-		ir.OFALL,
-		ir.OVARKILL,
-		ir.OVARLIVE:
+		ir.OFALL:
 		return n
 
 	case ir.OBLOCK:
@@ -774,7 +788,7 @@ func typecheck1(n ir.Node, top int) ir.Node {
 		tcGoDefer(n)
 		return n
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		return tcFor(n)
 
@@ -1470,7 +1484,7 @@ func fmtSignature(nl ir.Nodes, isddd bool) string {
 	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
 }
 
-// type check composite
+// type check composite.
 func fielddup(name string, hash map[string]bool) {
 	if hash[name] {
 		base.Errorf("duplicate field name in struct literal: %s", name)
@@ -1649,11 +1663,11 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
 	return true
 }
 
-// checkunsafeslice is like checkmake but for unsafe.Slice.
-func checkunsafeslice(np *ir.Node) bool {
+// checkunsafesliceorstring is like checkmake but for unsafe.{Slice,String}.
+func checkunsafesliceorstring(op ir.Op, np *ir.Node) bool {
 	n := *np
 	if !n.Type().IsInteger() && n.Type().Kind() != types.TIDEAL {
-		base.Errorf("non-integer len argument in unsafe.Slice - %v", n.Type())
+		base.Errorf("non-integer len argument in %v - %v", op, n.Type())
 		return false
 	}
 
@@ -1662,11 +1676,11 @@ func checkunsafeslice(np *ir.Node) bool {
 	if n.Op() == ir.OLITERAL {
 		v := toint(n.Val())
 		if constant.Sign(v) < 0 {
-			base.Errorf("negative len argument in unsafe.Slice")
+			base.Errorf("negative len argument in %v", op)
 			return false
 		}
 		if ir.ConstOverflow(v, types.Types[types.TINT]) {
-			base.Errorf("len argument too large in unsafe.Slice")
+			base.Errorf("len argument too large in %v", op)
 			return false
 		}
 	}
@@ -1697,7 +1711,7 @@ func markBreak(fn *ir.Func) {
 				setHasBreak(labels[n.Label])
 			}
 
-		case ir.OFOR, ir.OFORUNTIL, ir.OSWITCH, ir.OSELECT, ir.ORANGE:
+		case ir.OFOR, ir.OSWITCH, ir.OSELECT, ir.ORANGE:
 			old := implicit
 			implicit = n
 			var sym *types.Sym
@@ -1773,7 +1787,7 @@ func isTermNode(n ir.Node) bool {
 	case ir.OGOTO, ir.ORETURN, ir.OTAILCALL, ir.OPANIC, ir.OFALL:
 		return true
 
-	case ir.OFOR, ir.OFORUNTIL:
+	case ir.OFOR:
 		n := n.(*ir.ForStmt)
 		if n.Cond != nil {
 			return false
@@ -1820,7 +1834,7 @@ func isTermNode(n ir.Node) bool {
 }
 
 func Conv(n ir.Node, t *types.Type) ir.Node {
-	if types.Identical(n.Type(), t) {
+	if types.IdenticalStrict(n.Type(), t) {
 		return n
 	}
 	n = ir.NewConvExpr(base.Pos, ir.OCONV, nil, n)
@@ -1832,7 +1846,7 @@ func Conv(n ir.Node, t *types.Type) ir.Node {
 // ConvNop converts node n to type t using the OCONVNOP op
 // and typechecks the result with ctxExpr.
 func ConvNop(n ir.Node, t *types.Type) ir.Node {
-	if types.Identical(n.Type(), t) {
+	if types.IdenticalStrict(n.Type(), t) {
 		return n
 	}
 	n = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, n)

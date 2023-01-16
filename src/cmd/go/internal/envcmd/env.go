@@ -57,6 +57,8 @@ For more about environment variables, see 'go help environment'.
 
 func init() {
 	CmdEnv.Run = runEnv // break init cycle
+	base.AddChdirFlag(&CmdEnv.Flag)
+	base.AddBuildFlagsNX(&CmdEnv.Flag)
 }
 
 var (
@@ -96,7 +98,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOROOT", Value: cfg.GOROOT},
 		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
-		{Name: "GOTOOLDIR", Value: base.ToolDir},
+		{Name: "GOTOOLDIR", Value: build.ToolDir},
 		{Name: "GOVCS", Value: cfg.GOVCS},
 		{Name: "GOVERSION", Value: runtime.Version()},
 	}
@@ -174,8 +176,13 @@ func ExtraEnvVars() []cfg.EnvVar {
 // ExtraEnvVarsCostly returns environment variables that should not leak into child processes
 // but are costly to evaluate.
 func ExtraEnvVarsCostly() []cfg.EnvVar {
-	var b work.Builder
-	b.Init()
+	b := work.NewBuilder("")
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatalf("go: %v", err)
+		}
+	}()
+
 	cppflags, cflags, cxxflags, fflags, ldflags, err := b.CFlags(&load.Package{})
 	if err != nil {
 		// Should not happen - b.CFlags was given an empty package.
@@ -272,6 +279,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	if needCostly {
+		work.BuildInit()
 		env = append(env, ExtraEnvVarsCostly()...)
 	}
 
@@ -312,11 +320,10 @@ func runEnvW(args []string) {
 	}
 	add := make(map[string]string)
 	for _, arg := range args {
-		i := strings.Index(arg, "=")
-		if i < 0 {
+		key, val, found := strings.Cut(arg, "=")
+		if !found {
 			base.Fatalf("go: arguments must be KEY=VALUE: invalid argument: %s", arg)
 		}
-		key, val := arg[:i], arg[i+1:]
 		if err := checkEnvWrite(key, val); err != nil {
 			base.Fatalf("go: %v", err)
 		}
@@ -447,8 +454,8 @@ func printEnvAsJSON(env []cfg.EnvVar) {
 
 func getOrigEnv(key string) string {
 	for _, v := range cfg.OrigEnv {
-		if strings.HasPrefix(v, key+"=") {
-			return strings.TrimPrefix(v, key+"=")
+		if v, found := strings.CutPrefix(v, key+"="); found {
+			return v
 		}
 	}
 	return ""

@@ -5,18 +5,12 @@
 package ld
 
 import (
-	intdwarf "cmd/internal/dwarf"
-	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
-	"cmd/link/internal/dwtest"
 	"debug/dwarf"
 	"debug/pe"
 	"fmt"
-	"internal/buildcfg"
 	"internal/testenv"
 	"io"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -24,6 +18,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	intdwarf "cmd/internal/dwarf"
+	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
+	"cmd/link/internal/dwtest"
 )
 
 const (
@@ -97,11 +95,11 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
 	src := filepath.Join(dir, "test.go")
 	dst := filepath.Join(dir, "out.exe")
 
-	if err := ioutil.WriteFile(src, []byte(testfile), 0666); err != nil {
+	if err := os.WriteFile(src, []byte(testfile), 0666); err != nil {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
 	b, err := cmd.CombinedOutput()
 	if len(b) != 0 {
 		t.Logf("## build output:\n%s", b)
@@ -123,7 +121,7 @@ func gobuildTestdata(t *testing.T, tdir string, pkgDir string, gcflags string) *
 	dst := filepath.Join(tdir, "out.exe")
 
 	// Run a build with an updated GOPATH
-	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", gcflags, "-o", dst)
 	cmd.Dir = pkgDir
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", b)
@@ -769,7 +767,7 @@ func main() {
 	f := gobuild(t, dir, prog, flags)
 	defer f.Close()
 
-	out, err := exec.Command(f.path).CombinedOutput()
+	out, err := testenv.Command(t, f.path).CombinedOutput()
 	if err != nil {
 		t.Fatalf("could not run test program: %v", err)
 	}
@@ -1395,7 +1393,7 @@ func TestIssue42484(t *testing.T) {
 
 	t.Parallel()
 
-	tmpdir, err := ioutil.TempDir("", "TestIssue42484")
+	tmpdir, err := os.MkdirTemp("", "TestIssue42484")
 	if err != nil {
 		t.Fatalf("could not create directory: %v", err)
 	}
@@ -1596,9 +1594,6 @@ func TestDictIndex(t *testing.T) {
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
-	if buildcfg.Experiment.Unified {
-		t.Skip("GOEXPERIMENT=unified does not emit dictionaries yet")
 	}
 	t.Parallel()
 
@@ -1839,6 +1834,138 @@ func main() {
 		if foundParams != tc.expected {
 			t.Errorf("check failed for testcase %s -- wanted:\n%s\ngot:%s\n",
 				tc.tag, tc.expected, foundParams)
+		}
+	}
+}
+func TestIssue54320(t *testing.T) {
+	// Check that when trampolines are used, the DWARF LPT is correctly
+	// emitted in the final binary
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	t.Parallel()
+
+	const prog = `
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Printf("Hello world\n");
+}
+`
+
+	dir := t.TempDir()
+	f := gobuild(t, dir, prog, "-ldflags=-debugtramp=2")
+	defer f.Close()
+
+	d, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error reading DWARF: %v", err)
+	}
+
+	rdr := d.Reader()
+	found := false
+	var entry *dwarf.Entry
+	for entry, err = rdr.Next(); entry != nil; entry, err = rdr.Next() {
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if entry.Tag != dwarf.TagCompileUnit {
+			continue
+		}
+		name, _ := entry.Val(dwarf.AttrName).(string)
+		if name == "main" {
+			found = true
+			break
+		}
+		rdr.SkipChildren()
+	}
+
+	if !found {
+		t.Fatalf("could not find main compile unit")
+	}
+	lr, err := d.LineReader(entry)
+	if err != nil {
+		t.Fatalf("error obtaining linereader: %v", err)
+	}
+
+	var le dwarf.LineEntry
+	found = false
+	for {
+		if err := lr.Next(&le); err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatalf("error reading linentry: %v", err)
+		}
+		// check LE contains an entry to test.go
+		if le.File == nil {
+			continue
+		}
+		file := filepath.Base(le.File.Name)
+		if file == "test.go" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("no LPT entries for test.go")
+	}
+}
+
+func TestZeroSizedVariable(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+	t.Parallel()
+
+	// This test verifies that the compiler emits DIEs for zero sized variables
+	// (for example variables of type 'struct {}').
+	// See go.dev/issues/54615.
+
+	const prog = `
+package main
+
+import (
+	"fmt"
+)
+
+func main() {
+	zeroSizedVariable := struct{}{}
+	fmt.Println(zeroSizedVariable)
+}
+`
+
+	for _, opt := range []string{NoOpt, DefaultOpt} {
+		dir := t.TempDir()
+		f := gobuild(t, dir, prog, opt)
+		defer f.Close()
+		defer os.RemoveAll(dir)
+
+		d, err := f.DWARF()
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+
+		rdr := d.Reader()
+		ex := dwtest.Examiner{}
+		if err := ex.Populate(rdr); err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+
+		// Locate the main.zeroSizedVariable DIE
+		abcs := ex.Named("zeroSizedVariable")
+		if len(abcs) == 0 {
+			t.Fatalf("unable to locate DIE for zeroSizedVariable")
+		}
+		if len(abcs) != 1 {
+			t.Fatalf("more than one zeroSizedVariable DIE")
 		}
 	}
 }

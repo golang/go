@@ -44,7 +44,9 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 	}
 	pthread_attr_init(attr);
 	pthread_attr_getstacksize(attr, &size);
-	g->stacklo = (uintptr)&size - size + 4096;
+	g->stacklo = (uintptr)__builtin_frame_address(0) - size + 4096;
+	if (g->stacklo >= g->stackhi)
+		fatalf("bad stack bounds: lo=%p hi=%p\n", g->stacklo, g->stackhi);
 	pthread_attr_destroy(attr);
 	free(attr);
 

@@ -340,6 +340,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	ncomments := 0
 	ndecls := 0
 	filenames := make([]string, len(pkg.Files))
+	var minPos, maxPos token.Pos
 	i := 0
 	for filename, f := range pkg.Files {
 		filenames[i] = filename
@@ -349,6 +350,12 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 		}
 		ncomments += len(f.Comments)
 		ndecls += len(f.Decls)
+		if i == 0 || f.FileStart < minPos {
+			minPos = f.FileStart
+		}
+		if i == 0 || f.FileEnd > maxPos {
+			maxPos = f.FileEnd
+		}
 	}
 	sort.Strings(filenames)
 
@@ -484,5 +491,5 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	}
 
 	// TODO(gri) need to compute unresolved identifiers!
-	return &File{doc, pos, NewIdent(pkg.Name), decls, pkg.Scope, imports, nil, comments}
+	return &File{doc, pos, NewIdent(pkg.Name), decls, minPos, maxPos, pkg.Scope, imports, nil, comments}
 }

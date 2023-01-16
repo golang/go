@@ -177,7 +177,7 @@ func check(bounds image.Rectangle, pix0, pix1 []byte, stride0, stride1 int) erro
 }
 
 func pixString(pix []byte, stride, x, y int) string {
-	s := bytes.NewBuffer(nil)
+	s := &strings.Builder{}
 	for j := 0; j < 8; j++ {
 		fmt.Fprintf(s, "\t")
 		for i := 0; i < 8; i++ {

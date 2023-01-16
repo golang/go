@@ -6,19 +6,17 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/syscall"
+)
 
 const SiginfoMaxSize = _si_max_size
 const SigeventMaxSize = _sigev_max_size
 
+var Closeonexec = syscall.CloseOnExec
 var NewOSProc0 = newosproc0
 var Mincore = mincore
 var Add = add
 
-type EpollEvent epollevent
 type Siginfo siginfo
 type Sigevent sigevent
-
-func Epollctl(epfd, op, fd int32, ev unsafe.Pointer) int32 {
-	return epollctl(epfd, op, fd, (*epollevent)(ev))
-}

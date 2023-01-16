@@ -5,56 +5,75 @@
 //go:build !386
 
 // TODO finish intrinsifying 386, deadcode the assembly, remove build tags, merge w/ intrinsics_common
-// TODO replace all uses of CtzXX with TrailingZerosXX; they are the same.
 
 package sys
 
-// Using techniques from http://supertech.csail.mit.edu/papers/debruijn.pdf
+// Copied from math/bits to avoid dependence.
 
-const deBruijn64ctz = 0x0218a392cd3d5dbf
-
-var deBruijnIdx64ctz = [64]byte{
-	0, 1, 2, 7, 3, 13, 8, 19,
-	4, 25, 14, 28, 9, 34, 20, 40,
-	5, 17, 26, 38, 15, 46, 29, 48,
-	10, 31, 35, 54, 21, 50, 41, 57,
-	63, 6, 12, 18, 24, 27, 33, 39,
-	16, 37, 45, 47, 30, 53, 49, 56,
-	62, 11, 23, 32, 36, 44, 52, 55,
-	61, 22, 43, 51, 60, 42, 59, 58,
+var deBruijn32tab = [32]byte{
+	0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8,
+	31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9,
 }
 
-const deBruijn32ctz = 0x04653adf
+const deBruijn32 = 0x077CB531
 
-var deBruijnIdx32ctz = [32]byte{
-	0, 1, 2, 6, 3, 11, 7, 16,
-	4, 14, 12, 21, 8, 23, 17, 26,
-	31, 5, 10, 15, 13, 20, 22, 25,
-	30, 9, 19, 24, 29, 18, 28, 27,
+var deBruijn64tab = [64]byte{
+	0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4,
+	62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5,
+	63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11,
+	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
 }
 
-// Ctz64 counts trailing (low-order) zeroes,
-// and if all are zero, then 64.
-func Ctz64(x uint64) int {
-	x &= -x                       // isolate low-order bit
-	y := x * deBruijn64ctz >> 58  // extract part of deBruijn sequence
-	i := int(deBruijnIdx64ctz[y]) // convert to bit index
-	z := int((x - 1) >> 57 & 64)  // adjustment if zero
-	return i + z
+const deBruijn64 = 0x03f79d71b4ca8b09
+
+const ntz8tab = "" +
+	"\x08\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x05\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x06\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x05\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x07\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x05\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x06\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x05\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00" +
+	"\x04\x00\x01\x00\x02\x00\x01\x00\x03\x00\x01\x00\x02\x00\x01\x00"
+
+// TrailingZeros32 returns the number of trailing zero bits in x; the result is 32 for x == 0.
+func TrailingZeros32(x uint32) int {
+	if x == 0 {
+		return 32
+	}
+	// see comment in TrailingZeros64
+	return int(deBruijn32tab[(x&-x)*deBruijn32>>(32-5)])
 }
 
-// Ctz32 counts trailing (low-order) zeroes,
-// and if all are zero, then 32.
-func Ctz32(x uint32) int {
-	x &= -x                       // isolate low-order bit
-	y := x * deBruijn32ctz >> 27  // extract part of deBruijn sequence
-	i := int(deBruijnIdx32ctz[y]) // convert to bit index
-	z := int((x - 1) >> 26 & 32)  // adjustment if zero
-	return i + z
+// TrailingZeros64 returns the number of trailing zero bits in x; the result is 64 for x == 0.
+func TrailingZeros64(x uint64) int {
+	if x == 0 {
+		return 64
+	}
+	// If popcount is fast, replace code below with return popcount(^x & (x - 1)).
+	//
+	// x & -x leaves only the right-most bit set in the word. Let k be the
+	// index of that bit. Since only a single bit is set, the value is two
+	// to the power of k. Multiplying by a power of two is equivalent to
+	// left shifting, in this case by k bits. The de Bruijn (64 bit) constant
+	// is such that all six bit, consecutive substrings are distinct.
+	// Therefore, if we have a left shifted version of this constant we can
+	// find by how many bits it was shifted by looking at which six bit
+	// substring ended up at the top of the word.
+	// (Knuth, volume 4, section 7.3.1)
+	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
 }
 
-// Ctz8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
-func Ctz8(x uint8) int {
+// TrailingZeros8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
+func TrailingZeros8(x uint8) int {
 	return int(ntz8tab[x])
 }
 

@@ -335,6 +335,7 @@ const (
 	ASQRTF
 	ASRA
 	ASRL
+	AROTR
 	ASUB
 	ASUBD
 	ASUBF
@@ -351,6 +352,9 @@ const (
 
 	AXOR
 
+	AMASKEQZ
+	AMASKNEZ
+
 	// 64-bit
 	AMOVV
 	AMOVVL
@@ -359,6 +363,7 @@ const (
 	ASLLV
 	ASRAV
 	ASRLV
+	AROTRV
 	ADIVV
 	ADIVVU
 

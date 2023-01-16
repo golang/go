@@ -83,9 +83,24 @@ func goEnv(key string) (string, error) {
 // replaceEnv sets the key environment variable to value in cmd.
 func replaceEnv(cmd *exec.Cmd, key, value string) {
 	if cmd.Env == nil {
-		cmd.Env = os.Environ()
+		cmd.Env = cmd.Environ()
 	}
 	cmd.Env = append(cmd.Env, key+"="+value)
+}
+
+// appendExperimentEnv appends comma-separated experiments to GOEXPERIMENT.
+func appendExperimentEnv(cmd *exec.Cmd, experiments []string) {
+	if cmd.Env == nil {
+		cmd.Env = cmd.Environ()
+	}
+	exps := strings.Join(experiments, ",")
+	for _, evar := range cmd.Env {
+		c := strings.SplitN(evar, "=", 2)
+		if c[0] == "GOEXPERIMENT" {
+			exps = c[1] + "," + exps
+		}
+	}
+	cmd.Env = append(cmd.Env, "GOEXPERIMENT="+exps)
 }
 
 // mustRun executes t and fails cmd with a well-formatted message if it fails.
@@ -202,16 +217,16 @@ func compilerVersion() (version, error) {
 			var match [][]byte
 			if bytes.HasPrefix(out, []byte("gcc")) {
 				compiler.name = "gcc"
-				cmd, err := cc("-v")
+				cmd, err := cc("-dumpfullversion", "-dumpversion")
 				if err != nil {
 					return err
 				}
-				out, err := cmd.CombinedOutput()
+				out, err := cmd.Output()
 				if err != nil {
 					// gcc, but does not support gcc's "-v" flag?!
 					return err
 				}
-				gccRE := regexp.MustCompile(`gcc version (\d+)\.(\d+)`)
+				gccRE := regexp.MustCompile(`(\d+)\.(\d+)`)
 				match = gccRE.FindSubmatch(out)
 			} else {
 				clangRE := regexp.MustCompile(`clang version (\d+)\.(\d+)`)
@@ -252,14 +267,30 @@ func compilerSupportsLocation() bool {
 	}
 }
 
+// compilerRequiredTsanVersion reports whether the compiler is the version required by Tsan.
+// Only restrictions for ppc64le are known; otherwise return true.
+func compilerRequiredTsanVersion(goos, goarch string) bool {
+	compiler, err := compilerVersion()
+	if err != nil {
+		return false
+	}
+	if compiler.name == "gcc" && goarch == "ppc64le" {
+		return compiler.major >= 9
+	}
+	return true
+}
+
 // compilerRequiredAsanVersion reports whether the compiler is the version required by Asan.
-func compilerRequiredAsanVersion() bool {
+func compilerRequiredAsanVersion(goos, goarch string) bool {
 	compiler, err := compilerVersion()
 	if err != nil {
 		return false
 	}
 	switch compiler.name {
 	case "gcc":
+		if goarch == "ppc64le" {
+			return compiler.major >= 9
+		}
 		return compiler.major >= 7
 	case "clang":
 		return compiler.major >= 9
@@ -322,6 +353,9 @@ func configure(sanitizer string) *config {
 		// Set the debug mode to print the C stack trace.
 		c.cFlags = append(c.cFlags, "-g")
 
+	case "fuzzer":
+		c.goFlags = append(c.goFlags, "-tags=libfuzzer", "-gcflags=-d=libfuzzer")
+
 	default:
 		panic(fmt.Sprintf("unrecognized sanitizer: %q", sanitizer))
 	}
@@ -336,11 +370,19 @@ func configure(sanitizer string) *config {
 // goCmd returns a Cmd that executes "go $subcommand $args" with appropriate
 // additional flags and environment.
 func (c *config) goCmd(subcommand string, args ...string) *exec.Cmd {
+	return c.goCmdWithExperiments(subcommand, args, nil)
+}
+
+// goCmdWithExperiments returns a Cmd that executes
+// "GOEXPERIMENT=$experiments go $subcommand $args" with appropriate
+// additional flags and CGO-related environment variables.
+func (c *config) goCmdWithExperiments(subcommand string, args []string, experiments []string) *exec.Cmd {
 	cmd := exec.Command("go", subcommand)
 	cmd.Args = append(cmd.Args, c.goFlags...)
 	cmd.Args = append(cmd.Args, args...)
 	replaceEnv(cmd, "CGO_CFLAGS", strings.Join(c.cFlags, " "))
 	replaceEnv(cmd, "CGO_LDFLAGS", strings.Join(c.ldFlags, " "))
+	appendExperimentEnv(cmd, experiments)
 	return cmd
 }
 
@@ -366,6 +408,13 @@ int main() {
 }
 `)
 
+var cLibFuzzerInput = []byte(`
+#include <stddef.h>
+int LLVMFuzzerTestOneInput(char *data, size_t size) {
+	return 0;
+}
+`)
+
 func (c *config) checkCSanitizer() (skip bool, err error) {
 	dir, err := os.MkdirTemp("", c.sanitizer)
 	if err != nil {
@@ -374,7 +423,12 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
 	defer os.RemoveAll(dir)
 
 	src := filepath.Join(dir, "return0.c")
-	if err := os.WriteFile(src, cMain, 0600); err != nil {
+	cInput := cMain
+	if c.sanitizer == "fuzzer" {
+		// libFuzzer generates the main function itself, and uses a different input.
+		cInput = cLibFuzzerInput
+	}
+	if err := os.WriteFile(src, cInput, 0600); err != nil {
 		return false, fmt.Errorf("failed to write C source file: %v", err)
 	}
 
@@ -393,6 +447,11 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
 			return true, errors.New(string(out))
 		}
 		return true, fmt.Errorf("%#q failed: %v\n%s", strings.Join(cmd.Args, " "), err, out)
+	}
+
+	if c.sanitizer == "fuzzer" {
+		// For fuzzer, don't try running the test binary. It never finishes.
+		return false, nil
 	}
 
 	if out, err := exec.Command(dst).CombinedOutput(); err != nil {
@@ -466,6 +525,10 @@ func (d *tempDir) RemoveAll(t *testing.T) {
 	}
 }
 
+func (d *tempDir) Base() string {
+	return d.base
+}
+
 func (d *tempDir) Join(name string) string {
 	return filepath.Join(d.base, name)
 }
@@ -496,22 +559,24 @@ func hangProneCmd(name string, arg ...string) *exec.Cmd {
 }
 
 // mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
-// because the internal pacakage can't be used here.
+// because the internal package can't be used here.
 func mSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
 		return goarch == "amd64" || goarch == "arm64"
+	case "freebsd":
+		return goarch == "amd64"
 	default:
 		return false
 	}
 }
 
 // aSanSupported is a copy of the function cmd/internal/sys.ASanSupported,
-// because the internal pacakage can't be used here.
+// because the internal package can't be used here.
 func aSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
-		return goarch == "amd64" || goarch == "arm64" || goarch == "riscv64"
+		return goarch == "amd64" || goarch == "arm64" || goarch == "riscv64" || goarch == "ppc64le"
 	default:
 		return false
 	}

@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"internal/testenv"
+	"math"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -92,7 +94,7 @@ func testFunZZ(t *testing.T, msg string, f funZZ, a argZZ) {
 		t.Errorf("%s%v is not normalized", msg, z)
 	}
 	if (&z).Cmp(a.z) != 0 {
-		t.Errorf("%s%+v\n\tgot z = %v; want %v", msg, a, &z, a.z)
+		t.Errorf("%v %s %v\n\tgot z = %v; want %v", a.x, msg, a.y, &z, a.z)
 	}
 }
 
@@ -656,6 +658,41 @@ func BenchmarkExp(b *testing.B) {
 	out := new(Int)
 	for i := 0; i < b.N; i++ {
 		out.Exp(x, y, n)
+	}
+}
+
+func BenchmarkExpMont(b *testing.B) {
+	x, _ := new(Int).SetString("297778224889315382157302278696111964193", 0)
+	y, _ := new(Int).SetString("2548977943381019743024248146923164919440527843026415174732254534318292492375775985739511369575861449426580651447974311336267954477239437734832604782764979371984246675241012538135715981292390886872929238062252506842498360562303324154310849745753254532852868768268023732398278338025070694508489163836616810661033068070127919590264734220833816416141878688318329193389865030063416339367925710474801991305827284114894677717927892032165200876093838921477120036402410731159852999623461591709308405270748511350289172153076023215", 0)
+	var mods = []struct {
+		name string
+		val  string
+	}{
+		{"Odd", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF"},
+		{"Even1", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FE"},
+		{"Even2", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FC"},
+		{"Even3", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281F8"},
+		{"Even4", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281F0"},
+		{"Even8", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B21828100"},
+		{"Even32", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B00000000"},
+		{"Even64", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF82828282828200FF0000000000000000"},
+		{"Even96", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF82828283000000000000000000000000"},
+		{"Even128", "0x82828282828200FFFF28FF2B218281FF82828282828200FFFF28FF2B218281FF00000000000000000000000000000000"},
+		{"Even255", "0x82828282828200FFFF28FF2B218281FF8000000000000000000000000000000000000000000000000000000000000000"},
+		{"SmallEven1", "0x7E"},
+		{"SmallEven2", "0x7C"},
+		{"SmallEven3", "0x78"},
+		{"SmallEven4", "0x70"},
+	}
+	for _, mod := range mods {
+		n, _ := new(Int).SetString(mod.val, 0)
+		out := new(Int)
+		b.Run(mod.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				out.Exp(x, y, n)
+			}
+		})
 	}
 }
 
@@ -1892,5 +1929,29 @@ func TestFillBytes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestNewIntMinInt64(t *testing.T) {
+	// Test for uint64 cast in NewInt.
+	want := int64(math.MinInt64)
+	if got := NewInt(want).Int64(); got != want {
+		t.Fatalf("wanted %d, got %d", want, got)
+	}
+}
+
+func TestNewIntAllocs(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	for _, n := range []int64{0, 7, -7, 1 << 30, -1 << 30, 1 << 50, -1 << 50} {
+		x := NewInt(3)
+		got := testing.AllocsPerRun(100, func() {
+			// NewInt should inline, and all its allocations
+			// can happen on the stack. Passing the result of NewInt
+			// to Add should not cause any of those allocations to escape.
+			x.Add(x, NewInt(n))
+		})
+		if got != 0 {
+			t.Errorf("x.Add(x, NewInt(%d)), wanted 0 allocations, got %f", n, got)
+		}
 	}
 }

@@ -1,3 +1,7 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package fsys is an abstraction for reading files that
 // allows for virtual overlays on top of the files on disk.
 package fsys
@@ -8,7 +12,6 @@ import (
 	"fmt"
 	"internal/godebug"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	pathpkg "path"
@@ -33,27 +36,29 @@ func Trace(op, path string) {
 	traceMu.Lock()
 	defer traceMu.Unlock()
 	fmt.Fprintf(traceFile, "%d gofsystrace %s %s\n", os.Getpid(), op, path)
-	if traceStack != "" {
-		if match, _ := pathpkg.Match(traceStack, path); match {
+	if pattern := gofsystracestack.Value(); pattern != "" {
+		if match, _ := pathpkg.Match(pattern, path); match {
 			traceFile.Write(debug.Stack())
 		}
 	}
 }
 
 var (
-	doTrace    bool
-	traceStack string
-	traceFile  *os.File
-	traceMu    sync.Mutex
+	doTrace   bool
+	traceFile *os.File
+	traceMu   sync.Mutex
+
+	gofsystrace      = godebug.New("gofsystrace")
+	gofsystracelog   = godebug.New("gofsystracelog")
+	gofsystracestack = godebug.New("gofsystracestack")
 )
 
 func init() {
-	if godebug.Get("gofsystrace") != "1" {
+	if gofsystrace.Value() != "1" {
 		return
 	}
 	doTrace = true
-	traceStack = godebug.Get("gofsystracestack")
-	if f := godebug.Get("gofsystracelog"); f != "" {
+	if f := gofsystracelog.Value(); f != "" {
 		// Note: No buffering on writes to this file, so no need to worry about closing it at exit.
 		var err error
 		traceFile, err = os.OpenFile(f, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
@@ -95,7 +100,7 @@ func (n *node) isDeleted() bool {
 var overlay map[string]*node // path -> file or directory node
 var cwd string               // copy of base.Cwd() to avoid dependency
 
-// Canonicalize a path for looking it up in the overlay.
+// canonicalize a path for looking it up in the overlay.
 // Important: filepath.Join(cwd, path) doesn't always produce
 // the correct absolute path if path is relative, because on
 // Windows producing the correct absolute path requires making
@@ -291,21 +296,29 @@ func parentIsOverlayFile(name string) (string, bool) {
 var errNotDir = errors.New("not a directory")
 
 // readDir reads a dir on disk, returning an error that is errNotDir if the dir is not a directory.
-// Unfortunately, the error returned by ioutil.ReadDir if dir is not a directory
+// Unfortunately, the error returned by os.ReadDir if dir is not a directory
 // can vary depending on the OS (Linux, Mac, Windows return ENOTDIR; BSD returns EINVAL).
 func readDir(dir string) ([]fs.FileInfo, error) {
-	fis, err := ioutil.ReadDir(dir)
-	if err == nil {
-		return fis, nil
-	}
-
-	if os.IsNotExist(err) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, err
+		}
+		if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
+			return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+		}
 		return nil, err
 	}
-	if dirfi, staterr := os.Stat(dir); staterr == nil && !dirfi.IsDir() {
-		return nil, &fs.PathError{Op: "ReadDir", Path: dir, Err: errNotDir}
+
+	fis := make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		fis = append(fis, info)
 	}
-	return nil, err
+	return fis, nil
 }
 
 // ReadDir provides a slice of fs.FileInfo entries corresponding
@@ -500,7 +513,7 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 	return err
 }
 
-// lstat implements a version of os.Lstat that operates on the overlay filesystem.
+// Lstat implements a version of os.Lstat that operates on the overlay filesystem.
 func Lstat(path string) (fs.FileInfo, error) {
 	Trace("Lstat", path)
 	return overlayStat(path, os.Lstat, "lstat")

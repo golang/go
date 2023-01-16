@@ -5,9 +5,10 @@
 package ecdsa
 
 import (
-	"crypto/cipher"
 	"crypto/elliptic"
+	"errors"
 	"internal/cpu"
+	"io"
 	"math/big"
 )
 
@@ -69,67 +70,20 @@ func hashToBytes(dst, hash []byte, c elliptic.Curve) {
 	hashToInt(hash, c).FillBytes(dst)
 }
 
-func sign(priv *PrivateKey, csprng *cipher.StreamReader, c elliptic.Curve, hash []byte) (r, s *big.Int, err error) {
-	if functionCode, blockSize, ok := canUseKDSA(c); ok {
-		for {
-			var k *big.Int
-			k, err = randFieldElement(c, *csprng)
-			if err != nil {
-				return nil, nil, err
-			}
-
-			// The parameter block looks like the following for sign.
-			// 	+---------------------+
-			// 	|   Signature(R)      |
-			//	+---------------------+
-			//	|   Signature(S)      |
-			//	+---------------------+
-			//	|   Hashed Message    |
-			//	+---------------------+
-			//	|   Private Key       |
-			//	+---------------------+
-			//	|   Random Number     |
-			//	+---------------------+
-			//	|                     |
-			//	|        ...          |
-			//	|                     |
-			//	+---------------------+
-			// The common components(signatureR, signatureS, hashedMessage, privateKey and
-			// random number) each takes block size of bytes. The block size is different for
-			// different curves and is set by canUseKDSA function.
-			var params [4096]byte
-
-			// Copy content into the parameter block. In the sign case,
-			// we copy hashed message, private key and random number into
-			// the parameter block.
-			hashToBytes(params[2*blockSize:3*blockSize], hash, c)
-			priv.D.FillBytes(params[3*blockSize : 4*blockSize])
-			k.FillBytes(params[4*blockSize : 5*blockSize])
-			// Convert verify function code into a sign function code by adding 8.
-			// We also need to set the 'deterministic' bit in the function code, by
-			// adding 128, in order to stop the instruction using its own random number
-			// generator in addition to the random number we supply.
-			switch kdsa(functionCode+136, &params) {
-			case 0: // success
-				r = new(big.Int)
-				r.SetBytes(params[:blockSize])
-				s = new(big.Int)
-				s.SetBytes(params[blockSize : 2*blockSize])
-				return
-			case 1: // error
-				return nil, nil, errZeroParam
-			case 2: // retry
-				continue
-			}
-			panic("unreachable")
-		}
+func signAsm(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
+	c := priv.Curve
+	functionCode, blockSize, ok := canUseKDSA(c)
+	if !ok {
+		return nil, errNoAsm
 	}
-	return signGeneric(priv, csprng, c, hash)
-}
+	for {
+		var k *big.Int
+		k, err = randFieldElement(c, csprng)
+		if err != nil {
+			return nil, err
+		}
 
-func verify(pub *PublicKey, c elliptic.Curve, hash []byte, r, s *big.Int) bool {
-	if functionCode, blockSize, ok := canUseKDSA(c); ok {
-		// The parameter block looks like the following for verify:
+		// The parameter block looks like the following for sign.
 		// 	+---------------------+
 		// 	|   Signature(R)      |
 		//	+---------------------+
@@ -137,28 +91,87 @@ func verify(pub *PublicKey, c elliptic.Curve, hash []byte, r, s *big.Int) bool {
 		//	+---------------------+
 		//	|   Hashed Message    |
 		//	+---------------------+
-		//	|   Public Key X      |
+		//	|   Private Key       |
 		//	+---------------------+
-		//	|   Public Key Y      |
+		//	|   Random Number     |
 		//	+---------------------+
 		//	|                     |
 		//	|        ...          |
 		//	|                     |
 		//	+---------------------+
-		// The common components(signatureR, signatureS, hashed message, public key X,
-		// and public key Y) each takes block size of bytes. The block size is different for
+		// The common components(signatureR, signatureS, hashedMessage, privateKey and
+		// random number) each takes block size of bytes. The block size is different for
 		// different curves and is set by canUseKDSA function.
 		var params [4096]byte
 
-		// Copy content into the parameter block. In the verify case,
-		// we copy signature (r), signature(s), hashed message, public key x component,
-		// and public key y component into the parameter block.
-		r.FillBytes(params[0*blockSize : 1*blockSize])
-		s.FillBytes(params[1*blockSize : 2*blockSize])
+		// Copy content into the parameter block. In the sign case,
+		// we copy hashed message, private key and random number into
+		// the parameter block.
 		hashToBytes(params[2*blockSize:3*blockSize], hash, c)
-		pub.X.FillBytes(params[3*blockSize : 4*blockSize])
-		pub.Y.FillBytes(params[4*blockSize : 5*blockSize])
-		return kdsa(functionCode, &params) == 0
+		priv.D.FillBytes(params[3*blockSize : 4*blockSize])
+		k.FillBytes(params[4*blockSize : 5*blockSize])
+		// Convert verify function code into a sign function code by adding 8.
+		// We also need to set the 'deterministic' bit in the function code, by
+		// adding 128, in order to stop the instruction using its own random number
+		// generator in addition to the random number we supply.
+		switch kdsa(functionCode+136, &params) {
+		case 0: // success
+			return encodeSignature(params[:blockSize], params[blockSize:2*blockSize])
+		case 1: // error
+			return nil, errZeroParam
+		case 2: // retry
+			continue
+		}
+		panic("unreachable")
 	}
-	return verifyGeneric(pub, c, hash, r, s)
+}
+
+func verifyAsm(pub *PublicKey, hash []byte, sig []byte) error {
+	c := pub.Curve
+	functionCode, blockSize, ok := canUseKDSA(c)
+	if !ok {
+		return errNoAsm
+	}
+
+	r, s, err := parseSignature(sig)
+	if err != nil {
+		return err
+	}
+	if len(r) > blockSize || len(s) > blockSize {
+		return errors.New("invalid signature")
+	}
+
+	// The parameter block looks like the following for verify:
+	// 	+---------------------+
+	// 	|   Signature(R)      |
+	//	+---------------------+
+	//	|   Signature(S)      |
+	//	+---------------------+
+	//	|   Hashed Message    |
+	//	+---------------------+
+	//	|   Public Key X      |
+	//	+---------------------+
+	//	|   Public Key Y      |
+	//	+---------------------+
+	//	|                     |
+	//	|        ...          |
+	//	|                     |
+	//	+---------------------+
+	// The common components(signatureR, signatureS, hashed message, public key X,
+	// and public key Y) each takes block size of bytes. The block size is different for
+	// different curves and is set by canUseKDSA function.
+	var params [4096]byte
+
+	// Copy content into the parameter block. In the verify case,
+	// we copy signature (r), signature(s), hashed message, public key x component,
+	// and public key y component into the parameter block.
+	copy(params[0*blockSize+blockSize-len(r):], r)
+	copy(params[1*blockSize+blockSize-len(s):], s)
+	hashToBytes(params[2*blockSize:3*blockSize], hash, c)
+	pub.X.FillBytes(params[3*blockSize : 4*blockSize])
+	pub.Y.FillBytes(params[4*blockSize : 5*blockSize])
+	if kdsa(functionCode, &params) != 0 {
+		return errors.New("invalid signature")
+	}
+	return nil
 }

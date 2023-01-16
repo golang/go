@@ -379,7 +379,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			p = appendp(p, AGet, regAddr(REGG))
 			p = appendp(p, AI32WrapI64)
 			p = appendp(p, AI32Load, constAddr(2*int64(ctxt.Arch.PtrSize))) // G.stackguard0
-			p = appendp(p, AI32Const, constAddr(int64(framesize)-objabi.StackSmall))
+			p = appendp(p, AI32Const, constAddr(framesize-objabi.StackSmall))
 			p = appendp(p, AI32Add)
 			p = appendp(p, AI32LeU)
 		}
@@ -577,18 +577,18 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.From.Name {
 		case obj.NAME_AUTO:
-			p.From.Offset += int64(framesize)
+			p.From.Offset += framesize
 		case obj.NAME_PARAM:
 			p.From.Reg = REG_SP
-			p.From.Offset += int64(framesize) + 8 // parameters are after the frame and the 8-byte return address
+			p.From.Offset += framesize + 8 // parameters are after the frame and the 8-byte return address
 		}
 
 		switch p.To.Name {
 		case obj.NAME_AUTO:
-			p.To.Offset += int64(framesize)
+			p.To.Offset += framesize
 		case obj.NAME_PARAM:
 			p.To.Reg = REG_SP
-			p.To.Offset += int64(framesize) + 8 // parameters are after the frame and the 8-byte return address
+			p.To.Offset += framesize + 8 // parameters are after the frame and the 8-byte return address
 		}
 
 		switch p.As {
@@ -799,8 +799,6 @@ var notUsePC_B = map[string]bool{
 	"wasm_export_resume":     true,
 	"wasm_export_getsp":      true,
 	"wasm_pc_f_loop":         true,
-	"runtime.wasmMove":       true,
-	"runtime.wasmZero":       true,
 	"runtime.wasmDiv":        true,
 	"runtime.wasmTruncS":     true,
 	"runtime.wasmTruncU":     true,
@@ -844,7 +842,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	// Some functions use a special calling convention.
 	switch s.Name {
 	case "_rt0_wasm_js", "wasm_export_run", "wasm_export_resume", "wasm_export_getsp", "wasm_pc_f_loop",
-		"runtime.wasmMove", "runtime.wasmZero", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
+		"runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
 		varDecls = []*varDecl{}
 		useAssemblyRegMap()
 	case "memchr", "memcmp":
@@ -1088,7 +1086,11 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			writeUleb128(w, align(p.As))
 			writeUleb128(w, uint64(p.To.Offset))
 
-		case ACurrentMemory, AGrowMemory:
+		case ACurrentMemory, AGrowMemory, AMemoryFill:
+			w.WriteByte(0x00)
+
+		case AMemoryCopy:
+			w.WriteByte(0x00)
 			w.WriteByte(0x00)
 
 		}

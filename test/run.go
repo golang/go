@@ -29,6 +29,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 )
@@ -58,7 +59,7 @@ type envVars struct {
 }
 
 var env = func() (res envVars) {
-	cmd := exec.Command("go", "env", "-json")
+	cmd := exec.Command(goTool(), "env", "-json")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Fatal("StdoutPipe:", err)
@@ -75,10 +76,14 @@ var env = func() (res envVars) {
 	return
 }()
 
-// TODO(mdempsky): This will give false negatives if the unified
-// experiment is enabled by default, but presumably at that point we
-// won't need to disable tests for it anymore anyway.
-var unifiedEnabled = strings.Contains(","+env.GOEXPERIMENT+",", ",unified,")
+var unifiedEnabled = func() bool {
+	for _, tag := range build.Default.ToolTags {
+		if tag == "goexperiment.unified" {
+			return true
+		}
+	}
+	return false
+}()
 
 // defaultAllCodeGen returns the default value of the -all_codegen
 // flag. By default, we prefer to be fast (returning false), except on
@@ -255,7 +260,7 @@ func goFiles(dir string) []string {
 type runCmd func(...string) ([]byte, error)
 
 func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, err error) {
-	cmd := []string{goTool(), "tool", "compile", "-e", "-p=p"}
+	cmd := []string{goTool(), "tool", "compile", "-e", "-p=p", "-importcfg=" + stdlibImportcfgFile()}
 	cmd = append(cmd, flags...)
 	if *linkshared {
 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
@@ -264,8 +269,11 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 	return runcmd(cmd...)
 }
 
-func compileInDir(runcmd runCmd, dir string, flags []string, pkgname string, names ...string) (out []byte, err error) {
-	cmd := []string{goTool(), "tool", "compile", "-e", "-D", "test", "-I", "."}
+func compileInDir(runcmd runCmd, dir string, flags []string, importcfg string, pkgname string, names ...string) (out []byte, err error) {
+	if importcfg == "" {
+		importcfg = stdlibImportcfgFile()
+	}
+	cmd := []string{goTool(), "tool", "compile", "-e", "-D", "test", "-importcfg=" + importcfg}
 	if pkgname == "main" {
 		cmd = append(cmd, "-p=main")
 	} else {
@@ -282,9 +290,41 @@ func compileInDir(runcmd runCmd, dir string, flags []string, pkgname string, nam
 	return runcmd(cmd...)
 }
 
-func linkFile(runcmd runCmd, goname string, ldflags []string) (err error) {
+var stdlibImportcfgString string
+var stdlibImportcfgFilename string
+var cfgonce sync.Once
+var fileonce sync.Once
+
+func stdlibImportcfg() string {
+	cfgonce.Do(func() {
+		output, err := exec.Command(goTool(), "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std").Output()
+		if err != nil {
+			log.Fatal(err)
+		}
+		stdlibImportcfgString = string(output)
+	})
+	return stdlibImportcfgString
+}
+
+func stdlibImportcfgFile() string {
+	fileonce.Do(func() {
+		tmpdir, err := os.MkdirTemp("", "importcfg")
+		if err != nil {
+			log.Fatal(err)
+		}
+		filename := filepath.Join(tmpdir, "importcfg")
+		os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
+		stdlibImportcfgFilename = filename
+	})
+	return stdlibImportcfgFilename
+}
+
+func linkFile(runcmd runCmd, goname string, importcfg string, ldflags []string) (err error) {
+	if importcfg == "" {
+		importcfg = stdlibImportcfgFile()
+	}
 	pfile := strings.Replace(goname, ".go", ".o", -1)
-	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-L", "."}
+	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-importcfg=" + importcfg}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
 	}
@@ -334,9 +374,7 @@ func (t *test) initExpectFail() {
 		failureSets = append(failureSets, types2Failures32Bit)
 	}
 
-	if unifiedEnabled {
-		failureSets = append(failureSets, unifiedFailures)
-	} else {
+	if !unifiedEnabled {
 		failureSets = append(failureSets, go118Failures)
 	}
 
@@ -525,7 +563,9 @@ func (ctxt *context) match(name string) bool {
 	return false
 }
 
-func init() { checkShouldTest() }
+func init() {
+	checkShouldTest()
+}
 
 // goGcflags returns the -gcflags argument to use with go build / go run.
 // This must match the flags used for building the standard library,
@@ -710,6 +750,23 @@ func (t *test) run() {
 		if tempDirIsGOPATH {
 			cmd.Env = append(cmd.Env, "GOPATH="+t.tempDir)
 		}
+		cmd.Env = append(cmd.Env, "STDLIB_IMPORTCFG="+stdlibImportcfgFile())
+		// Put the bin directory of the GOROOT that built this program
+		// first in the path. This ensures that tests that use the "go"
+		// tool use the same one that built this program. This ensures
+		// that if you do "../bin/go run run.go" in this directory, all
+		// the tests that start subprocesses that "go tool compile" or
+		// whatever, use ../bin/go as their go tool, not whatever happens
+		// to be first in the user's path.
+		path := os.Getenv("PATH")
+		newdir := filepath.Join(runtime.GOROOT(), "bin")
+		if path != "" {
+			path = newdir + string(filepath.ListSeparator) + path
+		} else {
+			path = newdir
+		}
+		cmd.Env = append(cmd.Env, "PATH="+path)
+
 		cmd.Env = append(cmd.Env, runenv...)
 
 		var err error
@@ -749,6 +806,17 @@ func (t *test) run() {
 			err = fmt.Errorf("%s\n%s", err, buf.Bytes())
 		}
 		return buf.Bytes(), err
+	}
+
+	importcfg := func(dir string, pkgs []*goDirPkg) string {
+		cfg := stdlibImportcfg()
+		for _, pkg := range pkgs {
+			pkgpath := path.Join("test", strings.TrimSuffix(pkg.files[0], ".go"))
+			cfg += "\npackagefile " + pkgpath + "=" + filepath.Join(t.tempDir, pkgpath+".a")
+		}
+		filename := filepath.Join(t.tempDir, "importcfg")
+		os.WriteFile(filename, []byte(cfg), 0644)
+		return filename
 	}
 
 	long := filepath.Join(cwd, t.goFileName())
@@ -815,7 +883,7 @@ func (t *test) run() {
 		// Fail if wantError is true and compilation was successful and vice versa.
 		// Match errors produced by gc against errors in comments.
 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
-		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.o"}
 		// No need to add -dynlink even if linkshared if we're just checking for errors...
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, long)
@@ -852,8 +920,10 @@ func (t *test) run() {
 			t.err = err
 			return
 		}
+		importcfgfile := importcfg(longdir, pkgs)
+
 		for _, pkg := range pkgs {
-			_, t.err = compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
+			_, t.err = compileInDir(runcmd, longdir, flags, importcfgfile, pkg.name, pkg.files...)
 			if t.err != nil {
 				return
 			}
@@ -876,8 +946,9 @@ func (t *test) run() {
 			// Preceding pkg must return an error from compileInDir.
 			errPkg--
 		}
+		importcfgfile := importcfg(longdir, pkgs)
 		for i, pkg := range pkgs {
-			out, err := compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
+			out, err := compileInDir(runcmd, longdir, flags, importcfgfile, pkg.name, pkg.files...)
 			if i == errPkg {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
@@ -925,16 +996,19 @@ func (t *test) run() {
 			}
 		}
 
+		importcfgfile := importcfg(longdir, pkgs)
+
 		for i, pkg := range pkgs {
-			_, err := compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
+			_, err := compileInDir(runcmd, longdir, flags, importcfgfile, pkg.name, pkg.files...)
 			// Allow this package compilation fail based on conditions below;
 			// its errors were checked in previous case.
 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
 				t.err = err
 				return
 			}
+
 			if i == len(pkgs)-1 {
-				err = linkFile(runcmd, pkg.files[0], ldflags)
+				err = linkFile(runcmd, pkg.files[0], importcfgfile, ldflags)
 				if err != nil {
 					t.err = err
 					return
@@ -1036,7 +1110,7 @@ func (t *test) run() {
 			}
 		}
 		var objs []string
-		cmd := []string{goTool(), "tool", "compile", "-p=main", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
+		cmd := []string{goTool(), "tool", "compile", "-p=main", "-e", "-D", ".", "-importcfg=" + stdlibImportcfgFile(), "-o", "go.o"}
 		if len(asms) > 0 {
 			cmd = append(cmd, "-asmhdr", "go_asm.h", "-symabis", "symabis")
 		}
@@ -1064,7 +1138,7 @@ func (t *test) run() {
 			t.err = err
 			break
 		}
-		cmd = []string{goTool(), "tool", "link", "-o", "a.exe", "all.a"}
+		cmd = []string{goTool(), "tool", "link", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.exe", "all.a"}
 		_, err = runcmd(cmd...)
 		if err != nil {
 			t.err = err
@@ -1121,12 +1195,12 @@ func (t *test) run() {
 			// Because we run lots of trivial test programs,
 			// the time adds up.
 			pkg := filepath.Join(t.tempDir, "pkg.a")
-			if _, err := runcmd(goTool(), "tool", "compile", "-p=main", "-o", pkg, t.goFileName()); err != nil {
+			if _, err := runcmd(goTool(), "tool", "compile", "-p=main", "-importcfg="+stdlibImportcfgFile(), "-o", pkg, t.goFileName()); err != nil {
 				t.err = err
 				return
 			}
 			exe := filepath.Join(t.tempDir, "test.exe")
-			cmd := []string{goTool(), "tool", "link", "-s", "-w"}
+			cmd := []string{goTool(), "tool", "link", "-s", "-w", "-importcfg=" + stdlibImportcfgFile()}
 			cmd = append(cmd, "-o", exe, pkg)
 			if _, err := runcmd(cmd...); err != nil {
 				t.err = err
@@ -1203,7 +1277,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
-		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-e", "-o", "a.o"}
+		cmdline := []string{goTool(), "tool", "compile", "-importcfg=" + stdlibImportcfgFile(), "-p=p", "-d=panic", "-e", "-o", "a.o"}
 		cmdline = append(cmdline, flags...)
 		cmdline = append(cmdline, tfile)
 		out, err = runcmd(cmdline...)
@@ -1401,7 +1475,7 @@ func (t *test) updateErrors(out, file string) {
 	}
 	// Parse new errors.
 	errors := make(map[int]map[string]bool)
-	tmpRe := regexp.MustCompile(`autotmp_[0-9]+`)
+	tmpRe := regexp.MustCompile(`autotmp_\d+`)
 	for _, errStr := range splitOutput(out, false) {
 		errFile, rest, ok := strings.Cut(errStr, ":")
 		if !ok || errFile != file {
@@ -1494,7 +1568,7 @@ var (
 	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR (.*)`)
 	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO (.*)`)
 	errQuotesRx = regexp.MustCompile(`"([^"]*)"`)
-	lineRx      = regexp.MustCompile(`LINE(([+-])([0-9]+))?`)
+	lineRx      = regexp.MustCompile(`LINE(([+-])(\d+))?`)
 )
 
 func (t *test) wantedErrors(file, short string) (errs []wantedError) {
@@ -1867,14 +1941,6 @@ func checkShouldTest() {
 	assert(shouldTest("// +build !windows !plan9", "windows", "amd64"))
 }
 
-func getenv(key, def string) string {
-	value := os.Getenv(key)
-	if value != "" {
-		return value
-	}
-	return def
-}
-
 // overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
 func overlayDir(dstRoot, srcRoot string) error {
 	dstRoot = filepath.Clean(dstRoot)
@@ -1947,7 +2013,6 @@ func overlayDir(dstRoot, srcRoot string) error {
 
 // List of files that the compiler cannot errorcheck with the new typechecker (types2).
 var types2Failures = setOf(
-	"notinheap.go",            // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
 	"shift1.go",               // types2 reports two new errors which are probably not right
 	"fixedbugs/issue10700.go", // types2 should give hint about ptr to interface
 	"fixedbugs/issue18331.go", // missing error about misuse of //go:noescape (irgen needs code from noder)
@@ -1955,6 +2020,7 @@ var types2Failures = setOf(
 	"fixedbugs/issue20233.go", // types2 reports two instead of one error (preference: 1.17 compiler)
 	"fixedbugs/issue20245.go", // types2 reports two instead of one error (preference: 1.17 compiler)
 	"fixedbugs/issue31053.go", // types2 reports "unknown field" instead of "cannot refer to unexported field"
+	"fixedbugs/notinheap.go",  // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
 )
 
 var types2Failures32Bit = setOf(
@@ -1964,8 +2030,18 @@ var types2Failures32Bit = setOf(
 )
 
 var go118Failures = setOf(
-	"typeparam/nested.go",     // 1.18 compiler doesn't support function-local types with generics
-	"typeparam/issue51521.go", // 1.18 compiler produces bad panic message and link error
+	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
+	"fixedbugs/issue56280.go",  // 1.18 compiler doesn't support inlining generic functions
+	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
+	"typeparam/issue47631.go",  // 1.18 can not handle local type declarations
+	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error
+	"typeparam/issue54456.go",  // 1.18 compiler fails to distinguish local generic types
+	"typeparam/issue54497.go",  // 1.18 compiler is more conservative about inlining due to repeated issues
+	"typeparam/issue55101.go",  // 1.18 compiler ICEs writing export data
+	"typeparam/mdempsky/16.go", // 1.18 compiler uses interface shape type in failed type assertions
+	"typeparam/mdempsky/17.go", // 1.18 compiler mishandles implicit conversions from range loops
+	"typeparam/mdempsky/18.go", // 1.18 compiler mishandles implicit conversions in select statements
+	"typeparam/mdempsky/20.go", // 1.18 compiler crashes on method expressions promoted to derived types
 )
 
 // In all of these cases, the 1.17 compiler reports reasonable errors, but either the
@@ -1990,21 +2066,6 @@ var _ = setOf(
 	"fixedbugs/issue7525d.go", // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525e.go", // types2 reports init cycle error on different line - ok otherwise
 	"fixedbugs/issue7525.go",  // types2 reports init cycle error on different line - ok otherwise
-)
-
-var unifiedFailures = setOf(
-	"closure3.go",  // unified IR numbers closures differently than -d=inlfuncswithclosures
-	"escape4.go",   // unified IR can inline f5 and f6; test doesn't expect this
-	"inline.go",    // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
-	"linkname3.go", // unified IR is missing some linkname errors
-
-	"fixedbugs/issue42284.go",  // prints "T(0) does not escape", but test expects "a.I(a.T(0)) does not escape"
-	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
-	"typeparam/issue47631.go",  // unified IR can handle local type declarations
-	"fixedbugs/issue42058a.go", // unified IR doesn't report channel element too large
-	"fixedbugs/issue42058b.go", // unified IR doesn't report channel element too large
-	"fixedbugs/issue49767.go",  // unified IR doesn't report channel element too large
-	"fixedbugs/issue49814.go",  // unified IR doesn't report array type too large
 )
 
 func setOf(keys ...string) map[string]bool {

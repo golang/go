@@ -15,7 +15,7 @@ var (
 	errERROR_IO_PENDING error = syscall.Errno(syscall.ERROR_IO_PENDING)
 )
 
-// ErrnoErr returns common boxed Errno values, to prevent
+// errnoErr returns common boxed Errno values, to prevent
 // allocations at runtime.
 func errnoErr(e syscall.Errno) error {
 	switch e {

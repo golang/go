@@ -4,11 +4,12 @@
 
 //go:build illumos
 
-// Illumos system calls not present on Solaris.
-
 package syscall
 
 import "unsafe"
+
+// F_DUP2FD_CLOEXEC has different values on Solaris and Illumos.
+const F_DUP2FD_CLOEXEC = 0x24
 
 //go:cgo_import_dynamic libc_flock flock "libc.so"
 

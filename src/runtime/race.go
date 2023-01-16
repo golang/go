@@ -67,21 +67,21 @@ func RaceReleaseMerge(addr unsafe.Pointer) {
 // Non-synchronization events (memory accesses, function entry/exit) still affect
 // the race detector.
 func RaceDisable() {
-	_g_ := getg()
-	if _g_.raceignore == 0 {
-		racecall(&__tsan_go_ignore_sync_begin, _g_.racectx, 0, 0, 0)
+	gp := getg()
+	if gp.raceignore == 0 {
+		racecall(&__tsan_go_ignore_sync_begin, gp.racectx, 0, 0, 0)
 	}
-	_g_.raceignore++
+	gp.raceignore++
 }
 
 //go:nosplit
 
 // RaceEnable re-enables handling of race events in the current goroutine.
 func RaceEnable() {
-	_g_ := getg()
-	_g_.raceignore--
-	if _g_.raceignore == 0 {
-		racecall(&__tsan_go_ignore_sync_end, _g_.racectx, 0, 0, 0)
+	gp := getg()
+	gp.raceignore--
+	if gp.raceignore == 0 {
+		racecall(&__tsan_go_ignore_sync_end, gp.racectx, 0, 0, 0)
 	}
 }
 
@@ -187,7 +187,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 							continue
 						}
 						ctx.pc = f.Entry() + uintptr(inltree[ix].parentPc) // "caller" pc
-						ctx.fn = cfuncnameFromNameoff(fi, inltree[ix].func_)
+						ctx.fn = cfuncnameFromNameOff(fi, inltree[ix].nameOff)
 						ctx.line = uintptr(line)
 						ctx.file = &bytes(file)[0] // assume NUL-terminated
 						ctx.off = pc - f.Entry()
@@ -350,7 +350,7 @@ func racecallbackthunk(uintptr)
 // with up to 4 uintptr arguments.
 func racecall(fn *byte, arg0, arg1, arg2, arg3 uintptr)
 
-// checks if the address has shadow (i.e. heap or data/bss)
+// checks if the address has shadow (i.e. heap or data/bss).
 //
 //go:nosplit
 func isvalidaddr(addr unsafe.Pointer) bool {
@@ -360,8 +360,8 @@ func isvalidaddr(addr unsafe.Pointer) bool {
 
 //go:nosplit
 func raceinit() (gctx, pctx uintptr) {
-	// cgo is required to initialize libc, which is used by race runtime
-	if !iscgo {
+	// On most machines, cgo is required to initialize libc, which is used by race runtime.
+	if !iscgo && GOOS != "darwin" {
 		throw("raceinit: race build must use cgo")
 	}
 
@@ -453,12 +453,12 @@ func racefree(p unsafe.Pointer, sz uintptr) {
 
 //go:nosplit
 func racegostart(pc uintptr) uintptr {
-	_g_ := getg()
+	gp := getg()
 	var spawng *g
-	if _g_.m.curg != nil {
-		spawng = _g_.m.curg
+	if gp.m.curg != nil {
+		spawng = gp.m.curg
 	} else {
-		spawng = _g_
+		spawng = gp
 	}
 
 	var racectx uintptr
@@ -478,8 +478,8 @@ func racectxend(racectx uintptr) {
 
 //go:nosplit
 func racewriterangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
-	_g_ := getg()
-	if _g_ != _g_.m.curg {
+	gp := getg()
+	if gp != gp.m.curg {
 		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
 		// Not interesting.
 		return
@@ -495,8 +495,8 @@ func racewriterangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
 
 //go:nosplit
 func racereadrangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
-	_g_ := getg()
-	if _g_ != _g_.m.curg {
+	gp := getg()
+	if gp != gp.m.curg {
 		// The call is coming from manual instrumentation of Go code running on g0/gsignal.
 		// Not interesting.
 		return

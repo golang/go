@@ -463,15 +463,23 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 			if parent.Func.pass.debug > 1 {
 				parent.Func.Warnl(parent.Pos, "x+d %s w; x:%v %v delta:%v w:%v d:%v", r, x, parent.String(), delta, w.AuxInt, d)
 			}
+			underflow := true
+			if l, has := ft.limits[x.ID]; has && delta < 0 {
+				if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
+					(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
+					underflow = false
+				}
+			}
+			if delta < 0 && !underflow {
+				// If delta < 0 and x+delta cannot underflow then x > x+delta (that is, x > v)
+				ft.update(parent, x, v, signed, gt)
+			}
 			if !w.isGenericIntConst() {
 				// If we know that x+delta > w but w is not constant, we can derive:
-				//    if delta < 0 and x > MinInt - delta, then x > w (because x+delta cannot underflow)
+				//    if delta < 0 and x+delta cannot underflow, then x > w
 				// This is useful for loops with bounds "len(slice)-K" (delta = -K)
-				if l, has := ft.limits[x.ID]; has && delta < 0 {
-					if (x.Type.Size() == 8 && l.min >= math.MinInt64-delta) ||
-						(x.Type.Size() == 4 && l.min >= math.MinInt32-delta) {
-						ft.update(parent, x, w, signed, r)
-					}
+				if delta < 0 && !underflow {
+					ft.update(parent, x, w, signed, r)
 				}
 			} else {
 				// With w,delta constants, we want to derive: x+delta > w  ⇒  x > w-delta
@@ -507,6 +515,20 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
 
 					vmin = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, min)
 					vmax = parent.NewValue0I(parent.Pos, OpConst32, parent.Func.Config.Types.Int32, max)
+
+				case 2:
+					min = int64(int16(w.AuxInt) - int16(delta))
+					max = int64(int16(^uint16(0)>>1) - int16(delta))
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst16, parent.Func.Config.Types.Int16, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst16, parent.Func.Config.Types.Int16, max)
+
+				case 1:
+					min = int64(int8(w.AuxInt) - int8(delta))
+					max = int64(int8(^uint8(0)>>1) - int8(delta))
+
+					vmin = parent.NewValue0I(parent.Pos, OpConst8, parent.Func.Config.Types.Int8, min)
+					vmax = parent.NewValue0I(parent.Pos, OpConst8, parent.Func.Config.Types.Int8, max)
 
 				default:
 					panic("unimplemented")
@@ -834,10 +856,58 @@ func prove(f *Func) {
 			case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 				ft.update(b, v, v.Args[1], unsigned, lt|eq)
 				ft.update(b, v, v.Args[0], unsigned, lt|eq)
+			case OpOr64, OpOr32, OpOr16, OpOr8:
+				ft.update(b, v, v.Args[1], unsigned, gt|eq)
+				ft.update(b, v, v.Args[0], unsigned, gt|eq)
+			case OpPhi:
+				// Determine the min and max value of OpPhi composed entirely of integer constants.
+				//
+				// For example, for an OpPhi:
+				//
+				// v1 = OpConst64 [13]
+				// v2 = OpConst64 [7]
+				// v3 = OpConst64 [42]
+				//
+				// v4 = OpPhi(v1, v2, v3)
+				//
+				// We can prove:
+				//
+				// v4 >= 7 && v4 <= 42
+				//
+				// TODO(jake-ciolek): Handle nested constant OpPhi's
+				sameConstOp := true
+				min := 0
+				max := 0
+
+				if !v.Args[min].isGenericIntConst() {
+					break
+				}
+
+				for k := range v.Args {
+					if v.Args[k].Op != v.Args[min].Op {
+						sameConstOp = false
+						break
+					}
+					if v.Args[k].AuxInt < v.Args[min].AuxInt {
+						min = k
+					}
+					if v.Args[k].AuxInt > v.Args[max].AuxInt {
+						max = k
+					}
+				}
+
+				if sameConstOp {
+					ft.update(b, v, v.Args[min], signed, gt|eq)
+					ft.update(b, v, v.Args[max], signed, lt|eq)
+				}
+				// One might be tempted to create a v >= ft.zero relation for
+				// all OpPhi's composed of only provably-positive values
+				// but that bloats up the facts table for a very neglible gain.
+				// In Go itself, very few functions get improved (< 5) at a cost of 5-7% total increase
+				// of compile time.
 			}
 		}
 	}
-
 	// Find induction variables. Currently, findIndVars
 	// is limited to one induction variable per block.
 	var indVars map[*Block]indVar
@@ -1099,8 +1169,7 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 // addLocalInductiveFacts adds inductive facts when visiting b, where
 // b is a join point in a loop. In contrast with findIndVar, this
 // depends on facts established for b, which is why it happens when
-// visiting b. addLocalInductiveFacts specifically targets the pattern
-// created by OFORUNTIL, which isn't detected by findIndVar.
+// visiting b.
 //
 // TODO: It would be nice to combine this with findIndVar.
 func addLocalInductiveFacts(ft *factsTable, b *Block) {
@@ -1510,16 +1579,20 @@ func isConstDelta(v *Value) (w *Value, delta int64) {
 	switch v.Op {
 	case OpAdd32, OpSub32:
 		cop = OpConst32
+	case OpAdd16, OpSub16:
+		cop = OpConst16
+	case OpAdd8, OpSub8:
+		cop = OpConst8
 	}
 	switch v.Op {
-	case OpAdd64, OpAdd32:
+	case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
 		if v.Args[0].Op == cop {
 			return v.Args[1], v.Args[0].AuxInt
 		}
 		if v.Args[1].Op == cop {
 			return v.Args[0], v.Args[1].AuxInt
 		}
-	case OpSub64, OpSub32:
+	case OpSub64, OpSub32, OpSub16, OpSub8:
 		if v.Args[1].Op == cop {
 			aux := v.Args[1].AuxInt
 			if aux != -aux { // Overflow; too bad
@@ -1531,7 +1604,7 @@ func isConstDelta(v *Value) (w *Value, delta int64) {
 }
 
 // isCleanExt reports whether v is the result of a value-preserving
-// sign or zero extension
+// sign or zero extension.
 func isCleanExt(v *Value) bool {
 	switch v.Op {
 	case OpSignExt8to16, OpSignExt8to32, OpSignExt8to64,

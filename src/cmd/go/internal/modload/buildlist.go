@@ -73,8 +73,8 @@ type Requirements struct {
 	// nested module back into a parent module).
 	direct map[string]bool
 
-	graphOnce sync.Once    // guards writes to (but not reads from) graph
-	graph     atomic.Value // cachedGraph
+	graphOnce sync.Once // guards writes to (but not reads from) graph
+	graph     atomic.Pointer[cachedGraph]
 }
 
 // A cachedGraph is a non-nil *ModuleGraph, together with any error discovered
@@ -199,7 +199,7 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 			mg.g.Require(vendorMod, vendorList)
 		}
 
-		rs.graph.Store(cachedGraph{mg, nil})
+		rs.graph.Store(&cachedGraph{mg, nil})
 	})
 }
 
@@ -240,9 +240,9 @@ func (rs *Requirements) hasRedundantRoot() bool {
 func (rs *Requirements) Graph(ctx context.Context) (*ModuleGraph, error) {
 	rs.graphOnce.Do(func() {
 		mg, mgErr := readModGraph(ctx, rs.pruning, rs.rootModules)
-		rs.graph.Store(cachedGraph{mg, mgErr})
+		rs.graph.Store(&cachedGraph{mg, mgErr})
 	})
-	cached := rs.graph.Load().(cachedGraph)
+	cached := rs.graph.Load()
 	return cached.mg, cached.err
 }
 

@@ -35,6 +35,9 @@ var intOne = &Int{false, natOne}
 //	 0 if x == 0
 //	+1 if x >  0
 func (x *Int) Sign() int {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	if len(x.abs) == 0 {
 		return 0
 	}
@@ -65,7 +68,20 @@ func (z *Int) SetUint64(x uint64) *Int {
 
 // NewInt allocates and returns a new Int set to x.
 func NewInt(x int64) *Int {
-	return new(Int).SetInt64(x)
+	// This code is arranged to be inlineable and produce
+	// zero allocations when inlined. See issue 29951.
+	u := uint64(x)
+	if x < 0 {
+		u = -u
+	}
+	var abs []Word
+	if x == 0 {
+	} else if _W == 32 && u>>32 != 0 {
+		abs = []Word{Word(u), Word(u >> 32)}
+	} else {
+		abs = []Word{Word(u)}
+	}
+	return &Int{neg: x < 0, abs: abs}
 }
 
 // Set sets z to x and returns z.
@@ -83,6 +99,9 @@ func (z *Int) Set(x *Int) *Int {
 // Bits is intended to support implementation of missing low-level Int
 // functionality outside this package; it should be avoided otherwise.
 func (x *Int) Bits() []Word {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	return x.abs
 }
 
@@ -192,16 +211,46 @@ func (z *Int) MulRange(a, b int64) *Int {
 	return z
 }
 
-// Binomial sets z to the binomial coefficient of (n, k) and returns z.
+// Binomial sets z to the binomial coefficient C(n, k) and returns z.
 func (z *Int) Binomial(n, k int64) *Int {
-	// reduce the number of multiplications by reducing k
-	if n/2 < k && k <= n {
-		k = n - k // Binomial(n, k) == Binomial(n, n-k)
+	if k > n {
+		return z.SetInt64(0)
 	}
-	var a, b Int
-	a.MulRange(n-k+1, n)
-	b.MulRange(1, k)
-	return z.Quo(&a, &b)
+	// reduce the number of multiplications by reducing k
+	if k > n-k {
+		k = n - k // C(n, k) == C(n, n-k)
+	}
+	// C(n, k) == n * (n-1) * ... * (n-k+1) / k * (k-1) * ... * 1
+	//         == n * (n-1) * ... * (n-k+1) / 1 * (1+1) * ... * k
+	//
+	// Using the multiplicative formula produces smaller values
+	// at each step, requiring fewer allocations and computations:
+	//
+	// z = 1
+	// for i := 0; i < k; i = i+1 {
+	//     z *= n-i
+	//     z /= i+1
+	// }
+	//
+	// finally to avoid computing i+1 twice per loop:
+	//
+	// z = 1
+	// i := 0
+	// for i < k {
+	//     z *= n-i
+	//     i++
+	//     z /= i
+	// }
+	var N, K, i, t Int
+	N.SetInt64(n)
+	K.SetInt64(k)
+	z.Set(intOne)
+	for i.Cmp(&K) < 0 {
+		z.Mul(z, t.Sub(&N, &i))
+		i.Add(&i, intOne)
+		z.Quo(z, &i)
+	}
+	return z
 }
 
 // Quo sets z to the quotient x/y for y != 0 and returns z.
@@ -444,6 +493,9 @@ func (z *Int) SetBytes(buf []byte) *Int {
 //
 // To use a fixed length slice, or a preallocated one, use FillBytes.
 func (x *Int) Bytes() []byte {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	buf := make([]byte, len(x.abs)*_S)
 	return buf[x.abs.bytes(buf):]
 }
@@ -464,6 +516,9 @@ func (x *Int) FillBytes(buf []byte) []byte {
 // BitLen returns the length of the absolute value of x in bits.
 // The bit length of 0 is 0.
 func (x *Int) BitLen() int {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	return x.abs.bitLen()
 }
 
@@ -480,6 +535,14 @@ func (x *Int) TrailingZeroBits() uint {
 // Modular exponentiation of inputs of a particular size is not a
 // cryptographically constant-time operation.
 func (z *Int) Exp(x, y, m *Int) *Int {
+	return z.exp(x, y, m, false)
+}
+
+func (z *Int) expSlow(x, y, m *Int) *Int {
+	return z.exp(x, y, m, true)
+}
+
+func (z *Int) exp(x, y, m *Int, slow bool) *Int {
 	// See Knuth, volume 2, section 4.6.3.
 	xWords := x.abs
 	if y.neg {
@@ -503,7 +566,7 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 		mWords = m.abs // m.abs may be nil for m == 0
 	}
 
-	z.abs = z.abs.expNN(xWords, yWords, mWords)
+	z.abs = z.abs.expNN(xWords, yWords, mWords, slow)
 	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
 	if z.neg && len(mWords) > 0 {
 		// make modulus result positive
@@ -620,7 +683,7 @@ func lehmerSimulate(A, B *Int) (u0, u1, v0, v1 Word, even bool) {
 // where the signs of u0, u1, v0, v1 are given by even
 // For even == true: u0, v1 >= 0 && u1, v0 <= 0
 // For even == false: u0, v1 <= 0 && u1, v0 >= 0
-// q, r, s, t are temporary variables to avoid allocations in the multiplication
+// q, r, s, t are temporary variables to avoid allocations in the multiplication.
 func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
 
 	t.abs = t.abs.setWord(u0)
@@ -644,7 +707,7 @@ func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
 }
 
 // euclidUpdate performs a single step of the Euclidean GCD algorithm
-// if extended is true, it also updates the cosequence Ua, Ub
+// if extended is true, it also updates the cosequence Ua, Ub.
 func euclidUpdate(A, B, Ua, Ub, q, r, s, t *Int, extended bool) {
 	q, r = q.QuoRem(A, B, r)
 
@@ -834,6 +897,11 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 		z.Set(&x)
 	}
 	return z
+}
+
+func (z nat) modInverse(g, n nat) nat {
+	// TODO(rsc): ModInverse should be implemented in terms of this function.
+	return (&Int{abs: z}).ModInverse(&Int{abs: g}, &Int{abs: n}).abs
 }
 
 // Jacobi returns the Jacobi symbol (x/y), either +1, -1, or 0.

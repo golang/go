@@ -24,15 +24,20 @@ func TestMSAN(t *testing.T) {
 	}
 
 	t.Parallel()
-	requireOvercommit(t)
+	// Overcommit is enabled by default on FreeBSD (vm.overcommit=0, see tuning(7)).
+	// Do not skip tests with stricter overcommit settings unless testing shows that FreeBSD has similar issues.
+	if goos == "linux" {
+		requireOvercommit(t)
+	}
 	config := configure("memory")
 	config.skipIfCSanitizerBroken(t)
 
 	mustRun(t, config.goCmd("build", "std"))
 
 	cases := []struct {
-		src     string
-		wantErr bool
+		src         string
+		wantErr     bool
+		experiments []string
 	}{
 		{src: "msan.go"},
 		{src: "msan2.go"},
@@ -44,6 +49,11 @@ func TestMSAN(t *testing.T) {
 		{src: "msan7.go"},
 		{src: "msan8.go"},
 		{src: "msan_fail.go", wantErr: true},
+		// This may not always fail specifically due to MSAN. It may sometimes
+		// fail because of a fault. However, we don't care what kind of error we
+		// get here, just that we get an error. This is an MSAN test because without
+		// MSAN it would not fail deterministically.
+		{src: "arena_fail.go", wantErr: true, experiments: []string{"arenas"}},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -55,7 +65,7 @@ func TestMSAN(t *testing.T) {
 			defer dir.RemoveAll(t)
 
 			outPath := dir.Join(name)
-			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
+			mustRun(t, config.goCmdWithExperiments("build", []string{"-o", outPath, srcPath(tc.src)}, tc.experiments))
 
 			cmd := hangProneCmd(outPath)
 			if tc.wantErr {

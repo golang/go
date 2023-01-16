@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 var toRemove []string
@@ -58,18 +59,31 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 }
 
 func runBuiltTestProg(t *testing.T, exe, name string, env ...string) string {
+	t.Helper()
+
 	if *flagQuick {
 		t.Skip("-quick")
 	}
 
-	testenv.MustHaveGoBuild(t)
+	start := time.Now()
 
-	cmd := testenv.CleanCmdEnv(exec.Command(exe, name))
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, name))
 	cmd.Env = append(cmd.Env, env...)
 	if testing.Short() {
 		cmd.Env = append(cmd.Env, "RUNTIME_TEST_SHORT=1")
 	}
-	out, _ := testenv.RunWithTimeout(t, cmd)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Logf("%v (%v): ok", cmd, time.Since(start))
+	} else {
+		if _, ok := err.(*exec.ExitError); ok {
+			t.Logf("%v: %v", cmd, err)
+		} else if errors.Is(err, exec.ErrWaitDelay) {
+			t.Fatalf("%v: %v", cmd, err)
+		} else {
+			t.Fatalf("%v failed to start: %v", cmd, err)
+		}
+	}
 	return string(out)
 }
 
@@ -842,5 +856,13 @@ func TestPanicWhilePanicking(t *testing.T) {
 		if !strings.Contains(output, x.Want) {
 			t.Errorf("output does not contain %q:\n%s", x.Want, output)
 		}
+	}
+}
+
+func TestPanicOnUnsafeSlice(t *testing.T) {
+	output := runTestProg(t, "testprog", "panicOnNilAndEleSizeIsZero")
+	want := "panic: runtime error: unsafe.Slice: ptr is nil and len is not zero"
+	if !strings.Contains(output, want) {
+		t.Errorf("output does not contain %q:\n%s", want, output)
 	}
 }

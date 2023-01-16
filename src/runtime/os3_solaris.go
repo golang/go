@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -171,18 +172,20 @@ func newosproc(mp *m) {
 	// Disable signals during create, so that the new thread starts
 	// with signals disabled. It will enable them in minit.
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret = pthread_create(&tid, &attr, abi.FuncPCABI0(tstart_sysvicall), unsafe.Pointer(mp))
+	ret = retryOnEAGAIN(func() int32 {
+		return pthread_create(&tid, &attr, abi.FuncPCABI0(tstart_sysvicall), unsafe.Pointer(mp))
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if ret != 0 {
 		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
-		if ret == -_EAGAIN {
+		if ret == _EAGAIN {
 			println("runtime: may need to increase max user processes (ulimit -u)")
 		}
 		throw("newosproc")
 	}
 }
 
-func exitThread(wait *uint32) {
+func exitThread(wait *atomic.Uint32) {
 	// We should never reach exitThread on Solaris because we let
 	// libc clean up threads.
 	throw("exitThread")
@@ -267,7 +270,7 @@ func getsig(i uint32) uintptr {
 	return *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
 //
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
@@ -308,18 +311,17 @@ func semacreate(mp *m) {
 	}
 
 	var sem *semt
-	_g_ := getg()
 
 	// Call libc's malloc rather than malloc. This will
 	// allocate space on the C heap. We can't call malloc
 	// here because it could cause a deadlock.
-	_g_.m.libcall.fn = uintptr(unsafe.Pointer(&libc_malloc))
-	_g_.m.libcall.n = 1
-	_g_.m.scratch = mscratch{}
-	_g_.m.scratch.v[0] = unsafe.Sizeof(*sem)
-	_g_.m.libcall.args = uintptr(unsafe.Pointer(&_g_.m.scratch))
-	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&_g_.m.libcall))
-	sem = (*semt)(unsafe.Pointer(_g_.m.libcall.r1))
+	mp.libcall.fn = uintptr(unsafe.Pointer(&libc_malloc))
+	mp.libcall.n = 1
+	mp.scratch = mscratch{}
+	mp.scratch.v[0] = unsafe.Sizeof(*sem)
+	mp.libcall.args = uintptr(unsafe.Pointer(&mp.scratch))
+	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&mp.libcall))
+	sem = (*semt)(unsafe.Pointer(mp.libcall.r1))
 	if sem_init(sem, 0, 0) != 0 {
 		throw("sem_init")
 	}

@@ -104,7 +104,7 @@ func statusCodeError(resp *http.Response) error {
 // cpuProfileHandler is the Go pprof CPU profile handler URL.
 const cpuProfileHandler = "/debug/pprof/profile"
 
-// adjustURL applies the duration/timeout values and Go specific defaults
+// adjustURL applies the duration/timeout values and Go specific defaults.
 func adjustURL(source string, duration, timeout time.Duration) (string, time.Duration) {
 	u, err := url.Parse(source)
 	if err != nil || (u.Host == "" && u.Scheme != "" && u.Scheme != "file") {
@@ -233,8 +233,7 @@ func (f *file) Name() string {
 }
 
 func (f *file) ObjAddr(addr uint64) (uint64, error) {
-	// No support for shared libraries, so translation is a no-op.
-	return addr, nil
+	return addr - f.offset, nil
 }
 
 func (f *file) BuildID() string {

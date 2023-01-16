@@ -35,8 +35,17 @@ func b32(b bool) uint32 {
 	return 0
 }
 
+// For testing *Pointer[T]'s methods can be inlined.
+// Keep in sync with cmd/compile/internal/test/inl_test.go:TestIntendedInlining.
+var _ = &Pointer[int]{}
+
 // A Pointer is an atomic pointer of type *T. The zero value is a nil *T.
 type Pointer[T any] struct {
+	// Mention *T in a field to disallow conversion between Pointer types.
+	// See go.dev/issue/56603 for more details.
+	// Use *T, not T, to avoid spurious recursive type definition errors.
+	_ [0]*T
+
 	_ noCopy
 	v unsafe.Pointer
 }

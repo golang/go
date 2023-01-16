@@ -48,7 +48,6 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -107,7 +106,7 @@ func chunkIndex(p uintptr) chunkIdx {
 	return chunkIdx((p - arenaBaseOffset) / pallocChunkBytes)
 }
 
-// chunkIndex returns the base address of the palloc chunk at index ci.
+// chunkBase returns the base address of the palloc chunk at index ci.
 func chunkBase(ci chunkIdx) uintptr {
 	return uintptr(ci)*pallocChunkBytes + arenaBaseOffset
 }
@@ -267,25 +266,16 @@ type pageAlloc struct {
 	// All access is protected by the mheapLock.
 	inUse addrRanges
 
-	_ uint32 // Align scav so it's easier to reason about alignment within scav.
-
 	// scav stores the scavenger state.
 	scav struct {
 		// index is an efficient index of chunks that have pages available to
 		// scavenge.
 		index scavengeIndex
 
-		// released is the amount of memory released this generation.
+		// released is the amount of memory released this scavenge cycle.
 		//
 		// Updated atomically.
 		released uintptr
-
-		_ uint32 // Align assistTime for atomics on 32-bit platforms.
-
-		// scavengeAssistTime is the time spent scavenging in the last GC cycle.
-		//
-		// This is reset once a GC cycle ends.
-		assistTime atomic.Int64
 	}
 
 	// mheap_.lock. This level of indirection makes it possible
@@ -395,14 +385,13 @@ func (p *pageAlloc) grow(base, size uintptr) {
 	for c := chunkIndex(base); c < chunkIndex(limit); c++ {
 		if p.chunks[c.l1()] == nil {
 			// Create the necessary l2 entry.
-			//
-			// Store it atomically to avoid races with readers which
-			// don't acquire the heap lock.
 			r := sysAlloc(unsafe.Sizeof(*p.chunks[0]), p.sysStat)
 			if r == nil {
 				throw("pageAlloc: out of memory")
 			}
-			atomic.StorepNoWB(unsafe.Pointer(&p.chunks[c.l1()]), r)
+			// Store the new chunk block but avoid a write barrier.
+			// grow is used in call chains that disallow write barriers.
+			*(*uintptr)(unsafe.Pointer(&p.chunks[c.l1()])) = uintptr(r)
 		}
 		p.chunkOf(c).scavenged.setRange(0, pallocChunkPages)
 	}
@@ -678,7 +667,7 @@ nextLevel:
 
 		// Determine j0, the first index we should start iterating from.
 		// The searchAddr may help us eliminate iterations if we followed the
-		// searchAddr on the previous level or we're on the root leve, in which
+		// searchAddr on the previous level or we're on the root level, in which
 		// case the searchAddr should be the same as i after levelShift.
 		j0 := 0
 		if searchIdx := offAddrToLevelIndex(l, p.searchAddr); searchIdx&^(entriesPerBlock-1) == i {

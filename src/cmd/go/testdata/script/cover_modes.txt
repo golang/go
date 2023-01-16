@@ -4,7 +4,7 @@ env GO111MODULE=off
 # and should merge coverage profiles correctly.
 
 [short] skip
-[gccgo] skip # gccgo has no cover tool
+[compiler:gccgo] skip # gccgo has no cover tool
 
 go test -short -cover encoding/binary errors -coverprofile=$WORK/cover.out
 ! stderr '[^0-9]0\.0%'

@@ -54,11 +54,11 @@ import (
 // interior whitespace of the assignment.  E is considered interior
 // whitespace of the BlockStmt containing the assignment.
 //
-// Precondition: [start, end) both lie within the same file as root.
-// TODO(adonovan): return (nil, false) in this case and remove precond.
-// Requires FileSet; see loader.tokenFileContainsPos.
-//
-// Postcondition: path is never nil; it always contains at least 'root'.
+// The resulting path is never empty; it always contains at least the
+// 'root' *ast.File.  Ideally PathEnclosingInterval would reject
+// intervals that lie wholly or partially outside the range of the
+// file, but unfortunately ast.File records only the token.Pos of
+// the 'package' keyword, but not of the start of the file itself.
 func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Node, exact bool) {
 	// fmt.Printf("EnclosingInterval %d %d\n", start, end) // debugging
 
@@ -134,6 +134,7 @@ func PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Nod
 		return false // inexact: overlaps multiple children
 	}
 
+	// Ensure [start,end) is nondecreasing.
 	if start > end {
 		start, end = end, start
 	}

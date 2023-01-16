@@ -212,33 +212,9 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
 		ntyp.SetVargen()
 	}
 
-	pragmas := g.pragmaFlags(decl.Pragma, typePragmas)
+	pragmas := g.pragmaFlags(decl.Pragma, 0)
 	name.SetPragma(pragmas) // TODO(mdempsky): Is this still needed?
 
-	if pragmas&ir.NotInHeap != 0 {
-		ntyp.SetNotInHeap(true)
-	}
-
-	// We need to use g.typeExpr(decl.Type) here to ensure that for
-	// chained, defined-type declarations like:
-	//
-	//	type T U
-	//
-	//	//go:notinheap
-	//	type U struct { … }
-	//
-	// we mark both T and U as NotInHeap. If we instead used just
-	// g.typ(otyp.Underlying()), then we'd instead set T's underlying
-	// type directly to the struct type (which is not marked NotInHeap)
-	// and fail to mark T as NotInHeap.
-	//
-	// Also, we rely here on Type.SetUnderlying allowing passing a
-	// defined type and handling forward references like from T to U
-	// above. Contrast with go/types's Named.SetUnderlying, which
-	// disallows this.
-	//
-	// [mdempsky: Subtleties like these are why I always vehemently
-	// object to new type pragmas.]
 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
 
 	tparams := otyp.(*types2.Named).TypeParams()

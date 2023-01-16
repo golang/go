@@ -200,3 +200,35 @@ func TestSetenvWithParallelBeforeSetenv(t *testing.T) {
 
 	t.Setenv("GO_TEST_KEY_1", "value")
 }
+
+func TestSetenvWithParallelParentBeforeSetenv(t *testing.T) {
+	t.Parallel()
+
+	t.Run("child", func(t *testing.T) {
+		defer func() {
+			want := "testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests"
+			if got := recover(); got != want {
+				t.Fatalf("expected panic; got %#v want %q", got, want)
+			}
+		}()
+
+		t.Setenv("GO_TEST_KEY_1", "value")
+	})
+}
+
+func TestSetenvWithParallelGrandParentBeforeSetenv(t *testing.T) {
+	t.Parallel()
+
+	t.Run("child", func(t *testing.T) {
+		t.Run("grand-child", func(t *testing.T) {
+			defer func() {
+				want := "testing: t.Setenv called after t.Parallel; cannot set environment variables in parallel tests"
+				if got := recover(); got != want {
+					t.Fatalf("expected panic; got %#v want %q", got, want)
+				}
+			}()
+
+			t.Setenv("GO_TEST_KEY_1", "value")
+		})
+	})
+}

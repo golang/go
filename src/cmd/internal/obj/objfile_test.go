@@ -6,15 +6,14 @@ package obj
 
 import (
 	"bytes"
-	"cmd/internal/goobj"
-	"cmd/internal/sys"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"unsafe"
+
+	"cmd/internal/goobj"
+	"cmd/internal/sys"
 )
 
 var dummyArch = LinkArch{Arch: sys.ArchAMD64}
@@ -99,19 +98,19 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
 		t.Skip("skip on 32-bit architectures")
 	}
 
-	tmpdir, err := ioutil.TempDir("", "TestSymbolTooLarge")
+	tmpdir, err := os.MkdirTemp("", "TestSymbolTooLarge")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
 
 	src := filepath.Join(tmpdir, "p.go")
-	err = ioutil.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
+	err = os.WriteFile(src, []byte("package p; var x [1<<32]byte"), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v\n", err)
 	}
 	obj := filepath.Join(tmpdir, "p.o")
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", obj, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", obj, src)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("did not fail\noutput: %s", out)
@@ -129,7 +128,7 @@ func TestNoRefName(t *testing.T) {
 	tmpdir := t.TempDir()
 
 	src := filepath.Join(tmpdir, "x.go")
-	err := ioutil.WriteFile(src, []byte("package main; import \"fmt\"; func main() { fmt.Println(123) }\n"), 0666)
+	err := os.WriteFile(src, []byte("package main; import \"fmt\"; func main() { fmt.Println(123) }\n"), 0666)
 	if err != nil {
 		t.Fatalf("failed to write source file: %v\n", err)
 	}
@@ -137,7 +136,7 @@ func TestNoRefName(t *testing.T) {
 
 	// Build the fmt package with norefname. Not rebuilding all packages to save time.
 	// Also testing that norefname and non-norefname packages can link together.
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=fmt=-d=norefname", "-o", exe, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-gcflags=fmt=-d=norefname", "-o", exe, src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failed: %v, output:\n%s", err, out)

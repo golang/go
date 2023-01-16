@@ -61,11 +61,12 @@ func Init() (*sys.Arch, ld.Arch) {
 		Machoreloc1:      machoreloc1,
 		PEreloc1:         pereloc1,
 
-		Linuxdynld:   "/lib/ld-linux.so.2",
-		Freebsddynld: "/usr/libexec/ld-elf.so.1",
-		Openbsddynld: "/usr/libexec/ld.so",
-		Netbsddynld:  "/usr/libexec/ld.elf_so",
-		Solarisdynld: "/lib/ld.so.1",
+		Linuxdynld:     "/lib/ld-linux.so.2",
+		LinuxdynldMusl: "/lib/ld-musl-i386.so.1",
+		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+		Openbsddynld:   "/usr/libexec/ld.so",
+		Netbsddynld:    "/usr/libexec/ld.elf_so",
+		Solarisdynld:   "/lib/ld.so.1",
 	}
 
 	return arch, theArch

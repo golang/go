@@ -72,6 +72,7 @@ func (TestFrontend) StringData(s string) *obj.LSym {
 }
 func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
 	n := ir.NewNameAt(pos, &types.Sym{Name: "aFakeAuto"})
+	n.SetType(t)
 	n.Class = ir.PAUTO
 	return n
 }

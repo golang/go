@@ -9,7 +9,7 @@ package fuzz
 // For now, this is a simple ring buffer
 // (https://en.wikipedia.org/wiki/Circular_buffer).
 //
-// TODO(golang.org/issue/46224): use a priotization algorithm based on input
+// TODO(golang.org/issue/46224): use a prioritization algorithm based on input
 // size, previous duration, coverage, and any other metrics that seem useful.
 type queue struct {
 	// elems holds a ring buffer.

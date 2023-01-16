@@ -20,7 +20,7 @@ TEXT ·chdir(SB),NOSPLIT,$0
 TEXT ·chroot1(SB),NOSPLIT,$0
 	JMP	runtime·syscall_chroot(SB)
 
-TEXT ·close(SB),NOSPLIT,$0
+TEXT ·closeFD(SB),NOSPLIT,$0
 	JMP	runtime·syscall_close(SB)
 
 TEXT ·dup2child(SB),NOSPLIT,$0

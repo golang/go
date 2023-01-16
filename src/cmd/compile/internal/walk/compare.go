@@ -54,6 +54,10 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	// Given mixed interface/concrete comparison,
 	// rewrite into types-equal && data-equal.
 	// This is efficient, avoids allocations, and avoids runtime calls.
+	//
+	// TODO(mdempsky): It would be more general and probably overall
+	// simpler to just extend walkCompareInterface to optimize when one
+	// operand is an OCONVIFACE.
 	if n.X.Type().IsInterface() != n.Y.Type().IsInterface() {
 		// Preserve side-effects in case of short-circuiting; see #32187.
 		l := cheapExpr(n.X, init)
@@ -74,9 +78,12 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		//   l.tab == type(r)
 		// For non-empty interface, this is:
 		//   l.tab != nil && l.tab._type == type(r)
+		//
+		// TODO(mdempsky): For non-empty interface comparisons, just
+		// compare against the itab address directly?
 		var eqtype ir.Node
 		tab := ir.NewUnaryExpr(base.Pos, ir.OITAB, l)
-		rtyp := reflectdata.TypePtr(r.Type())
+		rtyp := reflectdata.CompareRType(base.Pos, n)
 		if l.Type().IsEmptyInterface() {
 			tab.SetType(types.NewPtr(types.Types[types.TUINT8]))
 			tab.SetTypecheck(1)
@@ -109,7 +116,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 
 	switch t.Kind() {
 	default:
-		if base.Debug.Libfuzzer != 0 && t.IsInteger() {
+		if base.Debug.Libfuzzer != 0 && t.IsInteger() && (n.X.Name() == nil || !n.X.Name().Libfuzzer8BitCounter()) {
 			n.X = cheapExpr(n.X, init)
 			n.Y = cheapExpr(n.Y, init)
 
@@ -160,7 +167,7 @@ func walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 		// We can compare several elements at once with 2/4/8 byte integer compares
 		inline = t.NumElem() <= 1 || (types.IsSimple[t.Elem().Kind()] && (t.NumElem() <= 4 || t.Elem().Size()*t.NumElem() <= maxcmpsize))
 	case types.TSTRUCT:
-		inline = t.NumComponents(types.IgnoreBlankFields) <= 4
+		inline = compare.EqStructCost(t) <= 4
 	}
 
 	cmpl := n.X

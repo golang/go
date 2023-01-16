@@ -21,12 +21,12 @@ type mOS struct {
 	// profileTimer holds the ID of the POSIX interval timer for profiling CPU
 	// usage on this thread.
 	//
-	// It is valid when the profileTimerValid field is non-zero. A thread
+	// It is valid when the profileTimerValid field is true. A thread
 	// creates and manages its own timer, and these fields are read and written
 	// only by this thread. But because some of the reads on profileTimerValid
-	// are in signal handling code, access to that field uses atomic operations.
+	// are in signal handling code, this field should be atomic type.
 	profileTimer      int32
-	profileTimerValid uint32
+	profileTimerValid atomic.Bool
 
 	// needPerThreadSyscall indicates that a per-thread syscall is required
 	// for doAllThreadsSyscall.
@@ -176,12 +176,20 @@ func newosproc(mp *m) {
 	// with signals disabled. It will enable them in minit.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
+	ret := retryOnEAGAIN(func() int32 {
+		r := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(abi.FuncPCABI0(mstart)))
+		// clone returns positive TID, negative errno.
+		// We don't care about the TID.
+		if r >= 0 {
+			return 0
+		}
+		return -r
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
-	if ret < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", -ret, ")\n")
-		if ret == -_EAGAIN {
+	if ret != 0 {
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", ret, ")\n")
+		if ret == _EAGAIN {
 			println("runtime: may need to increase max user processes (ulimit -u)")
 		}
 		throw("newosproc")
@@ -194,18 +202,15 @@ func newosproc(mp *m) {
 func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	stack := sysAlloc(stacksize, &memstats.stacks_sys)
 	if stack == nil {
-		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+		writeErrStr(failallocatestack)
 		exit(1)
 	}
 	ret := clone(cloneFlags, unsafe.Pointer(uintptr(stack)+stacksize), nil, nil, fn)
 	if ret < 0 {
-		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		writeErrStr(failthreadcreate)
 		exit(1)
 	}
 }
-
-var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
-var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
 const (
 	_AT_NULL   = 0  // End of vector
@@ -504,7 +509,7 @@ func getsig(i uint32) uintptr {
 	return sa.sa_handler
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
 //
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
@@ -593,7 +598,7 @@ func validSIGPROF(mp *m, c *sigctxt) bool {
 
 	// Having an M means the thread interacts with the Go scheduler, and we can
 	// check whether there's an active per-thread timer for this thread.
-	if atomic.Load(&mp.profileTimerValid) != 0 {
+	if mp.profileTimerValid.Load() {
 		// If this M has its own per-thread CPU profiling interval timer, we
 		// should track the SIGPROF signals that come from that timer (for
 		// accurate reporting of its CPU usage; see issue 35057) and ignore any
@@ -619,9 +624,9 @@ func setThreadCPUProfiler(hz int32) {
 	}
 
 	// destroy any active timer
-	if atomic.Load(&mp.profileTimerValid) != 0 {
+	if mp.profileTimerValid.Load() {
 		timerid := mp.profileTimer
-		atomic.Store(&mp.profileTimerValid, 0)
+		mp.profileTimerValid.Store(false)
 		mp.profileTimer = 0
 
 		ret := timer_delete(timerid)
@@ -681,7 +686,7 @@ func setThreadCPUProfiler(hz int32) {
 	}
 
 	mp.profileTimer = timerid
-	atomic.Store(&mp.profileTimerValid, 1)
+	mp.profileTimerValid.Store(true)
 }
 
 // perThreadSyscallArgs contains the system call number, arguments, and
@@ -880,9 +885,23 @@ func runPerThreadSyscall() {
 	}
 	if errno != 0 || r1 != args.r1 || r2 != args.r2 {
 		print("trap:", args.trap, ", a123456=[", args.a1, ",", args.a2, ",", args.a3, ",", args.a4, ",", args.a5, ",", args.a6, "]\n")
-		print("results: got {r1=", r1, ",r2=", r2, ",errno=", errno, "}, want {r1=", args.r1, ",r2=", args.r2, ",errno=0\n")
+		print("results: got {r1=", r1, ",r2=", r2, ",errno=", errno, "}, want {r1=", args.r1, ",r2=", args.r2, ",errno=0}\n")
 		fatal("AllThreadsSyscall6 results differ between threads; runtime corrupted")
 	}
 
 	gp.m.needPerThreadSyscall.Store(0)
+}
+
+const (
+	_SI_USER  = 0
+	_SI_TKILL = -6
+)
+
+// sigFromUser reports whether the signal was sent because of a call
+// to kill or tgkill.
+//
+//go:nosplit
+func (c *sigctxt) sigFromUser() bool {
+	code := int32(c.sigcode())
+	return code == _SI_USER || code == _SI_TKILL
 }

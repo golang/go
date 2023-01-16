@@ -109,7 +109,7 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
 	// a signal handler. Add the go:nowritebarrierrec annotation and restructure
 	// this to avoid write barriers.
 
-	switch h.gp.atomicstatus {
+	switch h.gp.atomicstatus.Load() {
 	case _Grunning:
 		if getg().m != h.mp {
 			println("trap on wrong M", getg().m, h.mp)

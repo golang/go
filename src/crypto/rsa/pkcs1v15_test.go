@@ -2,18 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rsa
+package rsa_test
 
 import (
 	"bytes"
 	"crypto"
 	"crypto/rand"
+	. "crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
 	"io"
-	"math/big"
 	"testing"
 	"testing/quick"
 )
@@ -170,7 +172,7 @@ func TestNonZeroRandomBytes(t *testing.T) {
 	random := rand.Reader
 
 	b := make([]byte, 512)
-	err := nonZeroRandomBytes(b, random)
+	err := NonZeroRandomBytes(b, random)
 	if err != nil {
 		t.Errorf("returned error: %s", err)
 	}
@@ -276,34 +278,30 @@ func TestShortSessionKey(t *testing.T) {
 	}
 }
 
-// In order to generate new test vectors you'll need the PEM form of this key (and s/TESTING/PRIVATE/):
-// -----BEGIN RSA TESTING KEY-----
-// MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
-// fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
-// /ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
-// RTUCIQDasvGASLqmjeffBNLTXV2A5g4t+kLVCpsEIZAycV5GswIhANEPLmax0ME/
-// EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
-// IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
-// tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
-// -----END RSA TESTING KEY-----
+var rsaPrivateKey = parseKey(testingKey(`-----BEGIN RSA TESTING KEY-----
+MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
+fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
+/ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
+RTUCIQDasvGASLqmjeffBNLTXV2A5g4t+kLVCpsEIZAycV5GswIhANEPLmax0ME/
+EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
+IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
+tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
+-----END RSA TESTING KEY-----`))
 
-var rsaPrivateKey = &PrivateKey{
-	PublicKey: PublicKey{
-		N: fromBase10("9353930466774385905609975137998169297361893554149986716853295022578535724979677252958524466350471210367835187480748268864277464700638583474144061408845077"),
-		E: 65537,
-	},
-	D: fromBase10("7266398431328116344057699379749222532279343923819063639497049039389899328538543087657733766554155839834519529439851673014800261285757759040931985506583861"),
-	Primes: []*big.Int{
-		fromBase10("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
-		fromBase10("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
-	},
+func parsePublicKey(s string) *PublicKey {
+	p, _ := pem.Decode([]byte(s))
+	k, err := x509.ParsePKCS1PublicKey(p.Bytes)
+	if err != nil {
+		panic(err)
+	}
+	return k
 }
 
 func TestShortPKCS1v15Signature(t *testing.T) {
-	pub := &PublicKey{
-		E: 65537,
-		N: fromBase10("8272693557323587081220342447407965471608219912416565371060697606400726784709760494166080686904546560026343451112103559482851304715739629410219358933351333"),
-	}
+	pub := parsePublicKey(`-----BEGIN RSA PUBLIC KEY-----
+MEgCQQCd9BVzo775lkohasxjnefF1nCMcNoibqIWEVDe/K7M2GSoO4zlSQB+gkix
+O3AnTcdHB51iaZpWfxPSnew8yfulAgMBAAE=
+-----END RSA PUBLIC KEY-----`)
 	sig, err := hex.DecodeString("193a310d0dcf64094c6e3a00c8219b80ded70535473acff72c08e1222974bb24a93a535b1dc4c59fc0e65775df7ba2007dd20e9193f4c4025a18a7070aee93")
 	if err != nil {
 		t.Fatalf("failed to decode signature: %s", err)

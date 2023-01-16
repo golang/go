@@ -102,6 +102,9 @@ func LookPath(file string) (string, error) {
 	)
 	if _, found := syscall.Getenv("NoDefaultCurrentDirectoryInExePath"); !found {
 		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
+			if execerrdot.Value() == "0" {
+				return f, nil
+			}
 			dotf, dotErr = f, &Error{file, ErrDot}
 		}
 	}
@@ -124,7 +127,7 @@ func LookPath(file string) (string, error) {
 				}
 			}
 
-			if !filepath.IsAbs(f) {
+			if !filepath.IsAbs(f) && execerrdot.Value() != "0" {
 				return f, &Error{file, ErrDot}
 			}
 			return f, nil

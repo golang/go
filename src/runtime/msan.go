@@ -31,8 +31,8 @@ const msanenabled = true
 //
 //go:nosplit
 func msanread(addr unsafe.Pointer, sz uintptr) {
-	g := getg()
-	if g == nil || g.m == nil || g == g.m.g0 || g == g.m.gsignal {
+	gp := getg()
+	if gp == nil || gp.m == nil || gp == gp.m.g0 || gp == gp.m.gsignal {
 		return
 	}
 	domsanread(addr, sz)

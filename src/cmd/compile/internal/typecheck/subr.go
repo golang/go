@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 )
@@ -49,7 +50,7 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
 	return args
 }
 
-// newname returns a new ONAME Node associated with symbol s.
+// NewName returns a new ONAME Node associated with symbol s.
 func NewName(s *types.Sym) *ir.Name {
 	n := ir.NewNameAt(base.Pos, s)
 	n.Curfn = ir.CurFunc
@@ -61,7 +62,7 @@ func NodAddr(n ir.Node) *ir.AddrExpr {
 	return NodAddrAt(base.Pos, n)
 }
 
-// nodAddrPos returns a node representing &n at position pos.
+// NodAddrAt returns a node representing &n at position pos.
 func NodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
 	n = markAddrOf(n)
 	return ir.NewAddrExpr(pos, n)
@@ -117,6 +118,13 @@ func ComputeAddrtaken(top []ir.Node) {
 		}
 		ir.Visit(n, doVisit)
 	}
+}
+
+// LinksymAddr returns a new expression that evaluates to the address
+// of lsym. typ specifies the type of the addressed memory.
+func LinksymAddr(pos src.XPos, lsym *obj.LSym, typ *types.Type) *ir.AddrExpr {
+	n := ir.NewLinksymExpr(pos, lsym, typ)
+	return Expr(NodAddrAt(pos, n)).(*ir.AddrExpr)
 }
 
 func NodNil() ir.Node {
@@ -293,24 +301,14 @@ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
 
 	n = convlit1(n, t, false, context)
 	if n.Type() == nil {
-		return n
+		base.Fatalf("cannot assign %v to %v", n, t)
+	}
+	if n.Type().IsUntyped() {
+		base.Fatalf("%L has untyped type", n)
 	}
 	if t.Kind() == types.TBLANK {
 		return n
 	}
-
-	// Convert ideal bool from comparison to plain bool
-	// if the next step is non-bool (like interface{}).
-	if n.Type() == types.UntypedBool && !t.IsBoolean() {
-		if n.Op() == ir.ONAME || n.Op() == ir.OLITERAL {
-			r := ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, n)
-			r.SetType(types.Types[types.TBOOL])
-			r.SetTypecheck(1)
-			r.SetImplicit(true)
-			n = r
-		}
-	}
-
 	if types.Identical(n.Type(), t) {
 		return n
 	}
@@ -384,6 +382,11 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
 			// don't have the methods for them.
 			return ir.OCONVIFACE, ""
 		}
+		if base.Debug.Unified != 0 && src.HasShape() {
+			// Unified IR uses OCONVIFACE for converting all derived types
+			// to interface type, not just type arguments themselves.
+			return ir.OCONVIFACE, ""
+		}
 		if implements(src, dst, &missing, &have, &ptr) {
 			return ir.OCONVIFACE, ""
 		}
@@ -394,8 +397,7 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
 		} else if have != nil && have.Sym == missing.Sym && have.Nointerface() {
 			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
 		} else if have != nil && have.Sym == missing.Sym {
-			why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
-				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+			why = fmt.Sprintf(":\n\t%v does not implement %v %s", src, dst, wrongTypeFor(have.Sym, have.Type, missing.Sym, missing.Type))
 		} else if ptr != 0 {
 			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
 		} else if have != nil {
@@ -468,15 +470,15 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 		return ir.OXXX, ""
 	}
 
-	// Conversions from regular to go:notinheap are not allowed
+	// Conversions from regular to not-in-heap are not allowed
 	// (unless it's unsafe.Pointer). These are runtime-specific
 	// rules.
-	// (a) Disallow (*T) to (*U) where T is go:notinheap but U isn't.
+	// (a) Disallow (*T) to (*U) where T is not-in-heap but U isn't.
 	if src.IsPtr() && dst.IsPtr() && dst.Elem().NotInHeap() && !src.Elem().NotInHeap() {
 		why := fmt.Sprintf(":\n\t%v is incomplete (or unallocatable), but %v is not", dst.Elem(), src.Elem())
 		return ir.OXXX, why
 	}
-	// (b) Disallow string to []T where T is go:notinheap.
+	// (b) Disallow string to []T where T is not-in-heap.
 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Kind() == types.ByteType.Kind() || dst.Elem().Kind() == types.RuneType.Kind()) {
 		why := fmt.Sprintf(":\n\t%v is incomplete (or unallocatable)", dst.Elem())
 		return ir.OXXX, why
@@ -576,11 +578,16 @@ func Convertop(srcConstant bool, src, dst *types.Type) (ir.Op, string) {
 		return ir.OCONVNOP, ""
 	}
 
-	// 11. src is a slice and dst is a pointer-to-array.
+	// 11. src is a slice and dst is an array or pointer-to-array.
 	// They must have same element type.
-	if src.IsSlice() && dst.IsPtr() && dst.Elem().IsArray() &&
-		types.Identical(src.Elem(), dst.Elem().Elem()) {
-		return ir.OSLICE2ARRPTR, ""
+	if src.IsSlice() {
+		if dst.IsArray() && types.Identical(src.Elem(), dst.Elem()) {
+			return ir.OSLICE2ARR, ""
+		}
+		if dst.IsPtr() && dst.Elem().IsArray() &&
+			types.Identical(src.Elem(), dst.Elem().Elem()) {
+			return ir.OSLICE2ARRPTR, ""
+		}
 	}
 
 	return ir.OXXX, ""
@@ -1350,7 +1357,8 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 				newfields[i].SetNointerface(true)
 			}
 			if f.Nname != nil && ts.Vars != nil {
-				v := ts.Vars[f.Nname.(*ir.Name)]
+				n := f.Nname.(*ir.Name)
+				v := ts.Vars[n]
 				if v != nil {
 					// This is the case where we are
 					// translating the type of the function we
@@ -1358,6 +1366,13 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
 					// the subst.ts.vars table, and we want to
 					// change to reference the new dcl.
 					newfields[i].Nname = v
+				} else if ir.IsBlank(n) {
+					// Blank variable is not dcl list. Make a
+					// new one to not share.
+					m := ir.NewNameAt(n.Pos(), ir.BlankNode.Sym())
+					m.SetType(n.Type())
+					m.SetTypecheck(1)
+					newfields[i].Nname = m
 				} else {
 					// This is the case where we are
 					// translating the type of a function
@@ -1411,7 +1426,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
 	return t
 }
 
-// genericSym returns the name of the base generic type for the type named by
+// genericTypeName returns the name of the base generic type for the type named by
 // sym. It simply returns the name obtained by removing everything after the
 // first bracket ("[").
 func genericTypeName(sym *types.Sym) string {

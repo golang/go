@@ -6,14 +6,11 @@ package syscall
 
 import "unsafe"
 
-const _SYS_setgroups = SYS_SETGROUPS
-
-func EpollCreate(size int) (fd int, err error) {
-	if size <= 0 {
-		return -1, EINVAL
-	}
-	return EpollCreate1(0)
-}
+const (
+	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_clone3     = 435
+	_SYS_faccessat2 = 439
+)
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fchown(fd int, uid int, gid int) (err error)
@@ -221,5 +218,3 @@ func Pause() error {
 	_, err := ppoll(nil, 0, nil, nil)
 	return err
 }
-
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

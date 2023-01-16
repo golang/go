@@ -111,7 +111,7 @@ func parseInt64(bytes []byte) (ret int64, err error) {
 	return
 }
 
-// parseInt treats the given bytes as a big-endian, signed integer and returns
+// parseInt32 treats the given bytes as a big-endian, signed integer and returns
 // the result.
 func parseInt32(bytes []byte) (int32, error) {
 	if err := checkInteger(bytes); err != nil {
@@ -162,7 +162,7 @@ type BitString struct {
 }
 
 // At returns the bit at the given index. If the index is out of range it
-// returns false.
+// returns 0.
 func (b BitString) At(i int) int {
 	if i < 0 || i >= b.BitLength {
 		return 0
@@ -660,7 +660,7 @@ var (
 	timeType             = reflect.TypeOf(time.Time{})
 	rawValueType         = reflect.TypeOf(RawValue{})
 	rawContentsType      = reflect.TypeOf(RawContent(nil))
-	bigIntType           = reflect.TypeOf(new(big.Int))
+	bigIntType           = reflect.TypeOf((*big.Int)(nil))
 )
 
 // invalidLength reports whether offset + length > sliceLength, or if the

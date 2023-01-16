@@ -107,8 +107,18 @@ nocgo:
 DATA	runtime·mainPC+0(SB)/8,$runtime·main<ABIInternal>(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
+// Windows ARM64 needs an immediate 0xf000 argument.
+// See go.dev/issues/53837.
+#define BREAK	\
+#ifdef GOOS_windows	\
+	BRK	$0xf000 	\
+#else 				\
+	BRK 			\
+#endif 				\
+
+
 TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
-	BRK
+	BREAK
 	RET
 
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
@@ -310,6 +320,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	UNDEF
 
 TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+	// Force SPWRITE. This function doesn't actually write SP,
+	// but it is called with a special calling convention where
+	// the caller doesn't save LR on stack but passes it as a
+	// register (R3), and the unwinder currently doesn't understand.
+	// Make it SPWRITE to stop unwinding. (See issue 54332)
+	MOVD	RSP, RSP
+
 	MOVW	$0, R26
 	B runtime·morestack(SB)
 
@@ -1325,7 +1342,7 @@ TEXT runtime·debugCallV2<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
 	// Set R20 to 8 and invoke BRK. The debugger should get the
 	// reason a call can't be injected from SP+8 and resume execution.
 	MOVD	$8, R20
-	BRK
+	BREAK
 	JMP	restore
 
 good:
@@ -1374,7 +1391,7 @@ good:
 	MOVD	$20, R0
 	MOVD	R0, 16(RSP) // length of debugCallFrameTooLarge string
 	MOVD	$8, R20
-	BRK
+	BREAK
 	JMP	restore
 
 restore:
@@ -1383,7 +1400,7 @@ restore:
 	// Set R20 to 16 and invoke BRK. The debugger should restore
 	// all registers except for PC and RSP and resume execution.
 	MOVD	$16, R20
-	BRK
+	BREAK
 	// We must not modify flags after this point.
 
 	// Restore pointer-containing registers, which may have been
@@ -1414,9 +1431,9 @@ restore:
 TEXT NAME(SB),WRAPPER,$MAXSIZE-0;		\
 	NO_LOCAL_POINTERS;		\
 	MOVD	$0, R20;		\
-	BRK;		\
+	BREAK;		\
 	MOVD	$1, R20;		\
-	BRK;		\
+	BREAK;		\
 	RET
 DEBUG_CALL_FN(debugCall32<>, 32)
 DEBUG_CALL_FN(debugCall64<>, 64)
@@ -1439,7 +1456,7 @@ TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
 	MOVD	val_data+8(FP), R0
 	MOVD	R0, 16(RSP)
 	MOVD	$2, R20
-	BRK
+	BREAK
 	RET
 
 // Note: these functions use a special calling convention to save generated code space.

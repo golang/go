@@ -15,7 +15,7 @@ import (
 
 // explode splits s into a slice of UTF-8 strings,
 // one string per Unicode character up to a maximum of n (n < 0 means no limit).
-// Invalid UTF-8 sequences become correct encodings of U+FFFD.
+// Invalid UTF-8 bytes are sliced individually.
 func explode(s string, n int) []string {
 	l := utf8.RuneCountInString(s)
 	if n < 0 || n > l {
@@ -23,12 +23,9 @@ func explode(s string, n int) []string {
 	}
 	a := make([]string, n)
 	for i := 0; i < n-1; i++ {
-		ch, size := utf8.DecodeRuneInString(s)
+		_, size := utf8.DecodeRuneInString(s)
 		a[i] = s[:size]
 		s = s[size:]
-		if ch == utf8.RuneError {
-			a[i] = string(utf8.RuneError)
-		}
 	}
 	if n > 0 {
 		a[n-1] = s
@@ -523,34 +520,63 @@ func Map(mapping func(rune) rune, s string) string {
 
 // Repeat returns a new string consisting of count copies of the string s.
 //
-// It panics if count is negative or if
-// the result of (len(s) * count) overflows.
+// It panics if count is negative or if the result of (len(s) * count)
+// overflows.
 func Repeat(s string, count int) string {
-	if count == 0 {
+	switch count {
+	case 0:
 		return ""
+	case 1:
+		return s
 	}
 
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate
 	// an overflow.
-	// See Issue golang.org/issue/16237
+	// See golang.org/issue/16237.
 	if count < 0 {
 		panic("strings: negative Repeat count")
 	} else if len(s)*count/count != len(s) {
 		panic("strings: Repeat count causes overflow")
 	}
 
+	if len(s) == 0 {
+		return ""
+	}
+
 	n := len(s) * count
+
+	// Past a certain chunk size it is counterproductive to use
+	// larger chunks as the source of the write, as when the source
+	// is too large we are basically just thrashing the CPU D-cache.
+	// So if the result length is larger than an empirically-found
+	// limit (8KB), we stop growing the source string once the limit
+	// is reached and keep reusing the same source string - that
+	// should therefore be always resident in the L1 cache - until we
+	// have completed the construction of the result.
+	// This yields significant speedups (up to +100%) in cases where
+	// the result length is large (roughly, over L2 cache size).
+	const chunkLimit = 8 * 1024
+	chunkMax := n
+	if n > chunkLimit {
+		chunkMax = chunkLimit / len(s) * len(s)
+		if chunkMax == 0 {
+			chunkMax = len(s)
+		}
+	}
+
 	var b Builder
 	b.Grow(n)
 	b.WriteString(s)
 	for b.Len() < n {
-		if b.Len() <= n/2 {
-			b.WriteString(b.String())
-		} else {
-			b.WriteString(b.String()[:n-b.Len()])
-			break
+		chunk := n - b.Len()
+		if chunk > b.Len() {
+			chunk = b.Len()
 		}
+		if chunk > chunkMax {
+			chunk = chunkMax
+		}
+		b.WriteString(b.String()[:chunk])
 	}
 	return b.String()
 }
@@ -571,14 +597,24 @@ func ToUpper(s string) string {
 		if !hasLower {
 			return s
 		}
-		var b Builder
+		var (
+			b   Builder
+			pos int
+		)
 		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if 'a' <= c && c <= 'z' {
 				c -= 'a' - 'A'
+				if pos < i {
+					b.WriteString(s[pos:i])
+				}
+				b.WriteByte(c)
+				pos = i + 1
 			}
-			b.WriteByte(c)
+		}
+		if pos < len(s) {
+			b.WriteString(s[pos:])
 		}
 		return b.String()
 	}
@@ -601,14 +637,24 @@ func ToLower(s string) string {
 		if !hasUpper {
 			return s
 		}
-		var b Builder
+		var (
+			b   Builder
+			pos int
+		)
 		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
 			if 'A' <= c && c <= 'Z' {
 				c += 'a' - 'A'
+				if pos < i {
+					b.WriteString(s[pos:i])
+				}
+				b.WriteByte(c)
+				pos = i + 1
 			}
-			b.WriteByte(c)
+		}
+		if pos < len(s) {
+			b.WriteString(s[pos:])
 		}
 		return b.String()
 	}
@@ -1047,15 +1093,44 @@ func ReplaceAll(s, old, new string) string {
 // are equal under simple Unicode case-folding, which is a more general
 // form of case-insensitivity.
 func EqualFold(s, t string) bool {
-	for s != "" && t != "" {
-		// Extract first rune from each string.
-		var sr, tr rune
-		if s[0] < utf8.RuneSelf {
-			sr, s = rune(s[0]), s[1:]
-		} else {
-			r, size := utf8.DecodeRuneInString(s)
-			sr, s = r, s[size:]
+	// ASCII fast path
+	i := 0
+	for ; i < len(s) && i < len(t); i++ {
+		sr := s[i]
+		tr := t[i]
+		if sr|tr >= utf8.RuneSelf {
+			goto hasUnicode
 		}
+
+		// Easy case.
+		if tr == sr {
+			continue
+		}
+
+		// Make sr < tr to simplify what follows.
+		if tr < sr {
+			tr, sr = sr, tr
+		}
+		// ASCII only, sr/tr must be upper/lower case
+		if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
+			continue
+		}
+		return false
+	}
+	// Check if we've exhausted both strings.
+	return len(s) == len(t)
+
+hasUnicode:
+	s = s[i:]
+	t = t[i:]
+	for _, sr := range s {
+		// If t is exhausted the strings are not equal.
+		if len(t) == 0 {
+			return false
+		}
+
+		// Extract first rune from second string.
+		var tr rune
 		if t[0] < utf8.RuneSelf {
 			tr, t = rune(t[0]), t[1:]
 		} else {
@@ -1095,8 +1170,8 @@ func EqualFold(s, t string) bool {
 		return false
 	}
 
-	// One string is empty. Are both?
-	return s == t
+	// First string is empty, so check if the second one is also empty.
+	return len(t) == 0
 }
 
 // Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
@@ -1189,4 +1264,26 @@ func Cut(s, sep string) (before, after string, found bool) {
 		return s[:i], s[i+len(sep):], true
 	}
 	return s, "", false
+}
+
+// CutPrefix returns s without the provided leading prefix string
+// and reports whether it found the prefix.
+// If s doesn't start with prefix, CutPrefix returns s, false.
+// If prefix is the empty string, CutPrefix returns s, true.
+func CutPrefix(s, prefix string) (after string, found bool) {
+	if !HasPrefix(s, prefix) {
+		return s, false
+	}
+	return s[len(prefix):], true
+}
+
+// CutSuffix returns s without the provided ending suffix string
+// and reports whether it found the suffix.
+// If s doesn't end with suffix, CutSuffix returns s, false.
+// If suffix is the empty string, CutSuffix returns s, true.
+func CutSuffix(s, suffix string) (before string, found bool) {
+	if !HasSuffix(s, suffix) {
+		return s, false
+	}
+	return s[:len(s)-len(suffix)], true
 }

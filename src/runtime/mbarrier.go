@@ -196,7 +196,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	reflect_typedmemmove(typ, dst, src)
 }
 
-// typedmemmovepartial is like typedmemmove but assumes that
+// reflect_typedmemmovepartial is like typedmemmove but assumes that
 // dst and src point off bytes into the value and only copies size bytes.
 // off must be a multiple of goarch.PtrSize.
 //
@@ -310,6 +310,8 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 //
 // If the caller knows that typ has pointers, it can alternatively
 // call memclrHasPointers.
+//
+// TODO: A "go:nosplitrec" annotation would be perfect for this.
 //
 //go:nosplit
 func typedmemclr(typ *_type, ptr unsafe.Pointer) {

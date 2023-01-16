@@ -19,7 +19,7 @@ import "unsafe"
 
 func CompareString1(s string) bool {
 	// amd64:`CMPW\t\(.*\), [$]`
-	// arm64:`MOVHU\t\(.*\), [R]`,`CMPW\t[$]`
+	// arm64:`MOVHU\t\(.*\), [R]`,`MOVD\t[$]`,`CMPW\tR`
 	// ppc64le:`MOVHZ\t\(.*\), [R]`,`CMPW\t.*, [$]`
 	// s390x:`MOVHBR\t\(.*\), [R]`,`CMPW\t.*, [$]`
 	return s == "xx"
@@ -82,6 +82,51 @@ func CompareArray6(a, b unsafe.Pointer) bool {
 	// ppc64le:`MOVWZ\t\(.*\), [R]`,`CMPW\t.*, [R]`
 	// s390x:`MOVWBR\t\(.*\), [R]`,`CMPW\t.*, [R]`
 	return *((*[4]byte)(a)) != *((*[4]byte)(b))
+}
+
+// Check that some structs generate 2/4/8 byte compares.
+
+type T1 struct {
+	a [8]byte
+}
+
+func CompareStruct1(s1, s2 T1) bool {
+	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// amd64:-`CALL`
+	return s1 == s2
+}
+
+type T2 struct {
+	a [16]byte
+}
+
+func CompareStruct2(s1, s2 T2) bool {
+	// amd64:`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// amd64:-`CALL`
+	return s1 == s2
+}
+
+// Assert that a memequal call is still generated when
+// inlining would increase binary size too much.
+
+type T3 struct {
+	a [24]byte
+}
+
+func CompareStruct3(s1, s2 T3) bool {
+	// amd64:-`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// amd64:`CALL`
+	return s1 == s2
+}
+
+type T4 struct {
+	a [32]byte
+}
+
+func CompareStruct4(s1, s2 T4) bool {
+	// amd64:-`CMPQ\tcommand-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// amd64:`CALL`
+	return s1 == s2
 }
 
 // -------------- //
@@ -282,12 +327,12 @@ func CmpToZero_ex1(a int64, e int32) int {
 		return 3
 	}
 
-	// arm64:`CMP|CMN`,-`(ADD|SUB)`,`(BMI|BPL)`
+	// arm64:`SUB`,`TBZ`
 	if a-11 >= 0 {
 		return 4
 	}
 
-	// arm64:`CMP|CMN`,-`(ADD|SUB)`,`BEQ`,`(BMI|BPL)`
+	// arm64:`SUB`,`CMP`,`BGT`
 	if a-19 > 0 {
 		return 4
 	}
@@ -310,7 +355,7 @@ func CmpToZero_ex1(a int64, e int32) int {
 		return 7
 	}
 
-	// arm64:`CMPW|CMNW`,`(BMI|BPL)`
+	// arm64:`SUB`,`TBNZ`
 	// arm:`CMP|CMN`, -`(ADD|SUB)`, `(BMI|BPL)`
 	if e-11 >= 0 {
 		return 8
@@ -619,4 +664,53 @@ func equalVarString8(a string) bool {
 	// ppc64:-".*memequal"
 	// ppc64le:-".*memequal"
 	return a[:8] == b
+}
+
+func cmpToCmn(a, b, c, d int) int {
+	var c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11 int
+	// arm64:`CMN`,-`CMP`
+	if a < -8 {
+		c1 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a+1 == 0 {
+		c2 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a+3 != 0 {
+		c3 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a+b == 0 {
+		c4 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if b+c != 0 {
+		c5 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a == -c {
+		c6 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if b != -d {
+		c7 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a*b+c == 0 {
+		c8 = 1
+	}
+	// arm64:`CMN`,-`CMP`
+	if a*c+b != 0 {
+		c9 = 1
+	}
+	// arm64:`CMP`,-`CMN`
+	if b*c-a == 0 {
+		c10 = 1
+	}
+	// arm64:`CMP`,-`CMN`
+	if a*d-b != 0 {
+		c11 = 1
+	}
+	return c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8 + c9 + c10 + c11
 }

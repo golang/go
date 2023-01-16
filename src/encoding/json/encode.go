@@ -156,14 +156,13 @@ import (
 // an error.
 func Marshal(v any) ([]byte, error) {
 	e := newEncodeState()
+	defer encodeStatePool.Put(e)
 
 	err := e.marshal(v, encOpts{escapeHTML: true})
 	if err != nil {
 		return nil, err
 	}
 	buf := append([]byte(nil), e.Bytes()...)
-
-	encodeStatePool.Put(e)
 
 	return buf, nil
 }

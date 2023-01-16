@@ -38,7 +38,6 @@
 #define SYS_sched_yield		331
 #define SYS_sigprocmask		340
 #define SYS_kqueue		362
-#define SYS_kevent		363
 #define SYS_sigaction		416
 #define SYS_thr_exit		431
 #define SYS_thr_self		432
@@ -48,6 +47,7 @@
 #define SYS_mmap		477
 #define SYS_cpuset_getaffinity	487
 #define SYS_pipe2 		542
+#define SYS_kevent		560
 
 TEXT emptyfunc<>(SB),0,$0-0
 	RET
@@ -99,7 +99,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVD	$0, R0
 	MOVD	R0, (R0)
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
 	MOVD	wait+0(FP), R0
 	// We're done using the stack.
@@ -460,7 +460,7 @@ TEXT runtime·getCntxct(SB),NOSPLIT,$0
 	BEQ	3(PC)
 
 	// get CNTPCT (Physical Count Register) into R0
-	MRS	CNTPCT_EL0, R0 // SIGILL
+	MRS	CNTPCT_EL0, R0
 	B	2(PC)
 
 	// get CNTVCT (Virtual Count Register) into R0

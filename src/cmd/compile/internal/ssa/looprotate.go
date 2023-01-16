@@ -30,7 +30,8 @@ func loopRotate(f *Func) {
 		return
 	}
 
-	idToIdx := make([]int, f.NumBlocks())
+	idToIdx := f.Cache.allocIntSlice(f.NumBlocks())
+	defer f.Cache.freeIntSlice(idToIdx)
 	for i, b := range f.Blocks {
 		idToIdx[b.ID] = i
 	}
@@ -92,20 +93,21 @@ func loopRotate(f *Func) {
 	// Some blocks that are not part of a loop may be placed
 	// between loop blocks. In order to avoid these blocks from
 	// being overwritten, use a temporary slice.
-	newOrder := make([]*Block, 0, f.NumBlocks())
-	for _, b := range f.Blocks {
+	oldOrder := f.Cache.allocBlockSlice(len(f.Blocks))
+	defer f.Cache.freeBlockSlice(oldOrder)
+	copy(oldOrder, f.Blocks)
+	for _, b := range oldOrder {
 		if _, ok := move[b.ID]; ok {
 			continue
 		}
-		newOrder = append(newOrder, b)
+		f.Blocks[j] = b
 		j++
 		for _, a := range after[b.ID] {
-			newOrder = append(newOrder, a)
+			f.Blocks[j] = a
 			j++
 		}
 	}
-	if j != len(f.Blocks) {
+	if j != len(oldOrder) {
 		f.Fatalf("bad reordering in looprotate")
 	}
-	f.Blocks = newOrder
 }

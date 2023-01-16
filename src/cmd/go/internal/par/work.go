@@ -108,7 +108,7 @@ type Cache struct {
 }
 
 type cacheEntry struct {
-	done   uint32
+	done   atomic.Bool
 	mu     sync.Mutex
 	result any
 }
@@ -122,11 +122,11 @@ func (c *Cache) Do(key any, f func() any) any {
 		entryIface, _ = c.m.LoadOrStore(key, new(cacheEntry))
 	}
 	e := entryIface.(*cacheEntry)
-	if atomic.LoadUint32(&e.done) == 0 {
+	if !e.done.Load() {
 		e.mu.Lock()
-		if atomic.LoadUint32(&e.done) == 0 {
+		if !e.done.Load() {
 			e.result = f()
-			atomic.StoreUint32(&e.done, 1)
+			e.done.Store(true)
 		}
 		e.mu.Unlock()
 	}
@@ -142,7 +142,7 @@ func (c *Cache) Get(key any) any {
 		return nil
 	}
 	e := entryIface.(*cacheEntry)
-	if atomic.LoadUint32(&e.done) == 0 {
+	if !e.done.Load() {
 		return nil
 	}
 	return e.result

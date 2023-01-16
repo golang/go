@@ -15,6 +15,28 @@ import (
 	"testing"
 )
 
+func TestOpen_Dir(t *testing.T) {
+	dir := t.TempDir()
+
+	h, err := syscall.Open(dir, syscall.O_RDONLY, 0)
+	if err != nil {
+		t.Fatalf("Open failed: %v", err)
+	}
+	syscall.CloseHandle(h)
+	h, err = syscall.Open(dir, syscall.O_RDONLY|syscall.O_TRUNC, 0)
+	if err == nil {
+		t.Error("Open should have failed")
+	} else {
+		syscall.CloseHandle(h)
+	}
+	h, err = syscall.Open(dir, syscall.O_RDONLY|syscall.O_CREAT, 0)
+	if err == nil {
+		t.Error("Open should have failed")
+	} else {
+		syscall.CloseHandle(h)
+	}
+}
+
 func TestWin32finddata(t *testing.T) {
 	dir := t.TempDir()
 

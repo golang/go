@@ -363,3 +363,14 @@ func issue48467(x, y uint64) uint64 {
 	d, borrow := bits.Sub64(x, y, 0)
 	return x - d&(-borrow)
 }
+
+func foldConst(x, y uint64) uint64 {
+	// arm64: "ADDS\t[$]7",-"MOVD\t[$]7"
+	d, b := bits.Add64(x, 7, 0)
+	return b & d
+}
+
+func foldConstOutOfRange(a uint64) uint64 {
+	// arm64: "MOVD\t[$]19088744",-"ADD\t[$]19088744"
+	return a + 0x1234568
+}

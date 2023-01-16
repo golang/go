@@ -180,11 +180,11 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 			argument(e.discardHole(), &call.Args[i])
 		}
 
-	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
+	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 		call := call.(*ir.UnaryExpr)
 		argument(e.discardHole(), &call.X)
 
-	case ir.OUNSAFEADD, ir.OUNSAFESLICE:
+	case ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING:
 		call := call.(*ir.BinaryExpr)
 		argument(ks[0], &call.X)
 		argument(e.discardHole(), &call.Y)
@@ -223,6 +223,10 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 
 	// If the function is already a zero argument/result function call,
 	// just escape analyze it normally.
+	//
+	// Note that the runtime is aware of this optimization for
+	// "go" statements that start in reflect.makeFuncStub or
+	// reflect.methodValueCall.
 	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
 		if sig := call.X.Type(); sig.NumParams()+sig.NumResults() == 0 {
 			if clo, ok := call.X.(*ir.ClosureExpr); ok && n.Op() == ir.OGO {

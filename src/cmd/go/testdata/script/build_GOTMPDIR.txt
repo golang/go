@@ -1,10 +1,10 @@
 # Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
-[!windows] env GOCACHE=$WORK/gocache
-[windows] env GOCACHE=$WORK\gocache
+[!GOOS:windows] env GOCACHE=$WORK/gocache
+[GOOS:windows] env GOCACHE=$WORK\gocache
 
 # 'go build' should use GOTMPDIR if set.
-[!windows] env GOTMPDIR=$WORK/my-favorite-tmpdir
-[windows] env GOTMPDIR=$WORK\my-favorite-tmpdir
+[!GOOS:windows] env GOTMPDIR=$WORK/my-favorite-tmpdir
+[GOOS:windows] env GOTMPDIR=$WORK\my-favorite-tmpdir
 mkdir $GOTMPDIR
 go build -x hello.go
 stderr ^WORK=.*my-favorite-tmpdir

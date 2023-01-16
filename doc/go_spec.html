@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of June 29, 2022",
+	"Subtitle": "Version of December 15, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -944,6 +944,29 @@ multi-dimensional types.
 [2][2][2]float64  // same as [2]([2]([2]float64))
 </pre>
 
+<p>
+An array type <code>T</code> may not have an element of type <code>T</code>,
+or of a type containing <code>T</code> as a component, directly or indirectly,
+if those containing types are only array or struct types.
+</p>
+
+<pre>
+// invalid array types
+type (
+	T1 [10]T1                 // element type of T1 is T1
+	T2 [10]struct{ f T2 }     // T2 contains T2 as component of a struct
+	T3 [10]T4                 // T3 contains T3 as component of a struct in T4
+	T4 struct{ f T3 }         // T4 contains T4 as component of array T3 in a struct
+)
+
+// valid array types
+type (
+	T5 [10]*T5                // T5 contains T5 as component of a pointer
+	T6 [10]func() T6          // T6 contains T6 as component of a function type
+	T7 [10]struct{ f []T7 }   // T7 contains T7 as component of a slice in a struct
+)
+</pre>
+
 <h3 id="Slice_types">Slice types</h3>
 
 <p>
@@ -1134,6 +1157,29 @@ struct {
 	microsec  uint64 `protobuf:"1"`
 	serverIP6 uint64 `protobuf:"2"`
 }
+</pre>
+
+<p>
+A struct type <code>T</code> may not contain a field of type <code>T</code>,
+or of a type containing <code>T</code> as a component, directly or indirectly,
+if those containing types are only array or struct types.
+</p>
+
+<pre>
+// invalid struct types
+type (
+	T1 struct{ T1 }            // T1 contains a field of T1
+	T2 struct{ f [10]T2 }      // T2 contains T2 as component of an array
+	T3 struct{ T4 }            // T3 contains T3 as component of an array in struct T4
+	T4 struct{ f [10]T3 }      // T4 contains T4 as component of struct T3 in an array
+)
+
+// valid struct types
+type (
+	T5 struct{ f *T5 }         // T5 contains T5 as component of a pointer
+	T6 struct{ f func() T6 }   // T6 contains T6 as component of a function type
+	T7 struct{ f [10][]T7 }    // T7 contains T7 as component of a slice in an array
+)
 </pre>
 
 <h3 id="Pointer_types">Pointer types</h3>
@@ -1511,17 +1557,17 @@ type Floatish struct {
 </pre>
 
 <p>
-An interface type <code>T</code> may not embed any type element
-that is, contains, or embeds <code>T</code>, recursively.
+An interface type <code>T</code> may not embed a type element
+that is, contains, or embeds <code>T</code>, directly or indirectly.
 </p>
 
 <pre>
-// illegal: Bad cannot embed itself
+// illegal: Bad may not embed itself
 type Bad interface {
 	Bad
 }
 
-// illegal: Bad1 cannot embed itself using Bad2
+// illegal: Bad1 may not embed itself using Bad2
 type Bad1 interface {
 	Bad2
 }
@@ -1529,9 +1575,14 @@ type Bad2 interface {
 	Bad1
 }
 
-// illegal: Bad3 cannot embed a union containing Bad3
+// illegal: Bad3 may not embed a union containing Bad3
 type Bad3 interface {
 	~int | ~string | Bad3
+}
+
+// illegal: Bad4 may not embed an array containing Bad4 as element type
+type Bad4 interface {
+	[10]Bad4
 }
 </pre>
 
@@ -2644,15 +2695,26 @@ of a <a href="#Method_declarations">method declaration</a> associated
 with a generic type.
 </p>
 
-<!--
-This section needs to explain if and what kind of cycles are permitted
-using type parameters in a type parameter list.
--->
+<p>
+Within a type parameter list of a generic type <code>T</code>, a type constraint
+may not (directly, or indirectly through the type parameter list of another
+generic type) refer to <code>T</code>.
+</p>
+
+<pre>
+type T1[P T1[P]] …                    // illegal: T1 refers to itself
+type T2[P interface{ T2[int] }] …     // illegal: T2 refers to itself
+type T3[P interface{ m(T3[int])}] …   // illegal: T3 refers to itself
+type T4[P T5[P]] …                    // illegal: T4 refers to T5 and
+type T5[P T4[P]] …                    //          T5 refers to T4
+
+type T6[P int] struct{ f *T6[P] }     // ok: reference to T6 is not in type parameter list
+</pre>
 
 <h4 id="Type_constraints">Type constraints</h4>
 
 <p>
-A type constraint is an <a href="#Interface_types">interface</a> that defines the
+A <i>type constraint</i> is an <a href="#Interface_types">interface</a> that defines the
 set of permissible type arguments for the respective type parameter and controls the
 operations supported by values of that type parameter.
 </p>
@@ -2663,7 +2725,7 @@ TypeConstraint = TypeElem .
 
 <p>
 If the constraint is an interface literal of the form <code>interface{E}</code> where
-<code>E</code> is an embedded type element (not a method), in a type parameter list
+<code>E</code> is an embedded <a href="#Interface_types">type element</a> (not a method), in a type parameter list
 the enclosing <code>interface{ … }</code> may be omitted for convenience:
 </p>
 
@@ -2671,7 +2733,7 @@ the enclosing <code>interface{ … }</code> may be omitted for convenience:
 [T []P]                      // = [T interface{[]P}]
 [T ~int]                     // = [T interface{~int}]
 [T int|string]               // = [T interface{int|string}]
-type Constraint ~int         // illegal: ~int is not inside a type parameter list
+type Constraint ~int         // illegal: ~int is not in a type parameter list
 </pre>
 
 <!--
@@ -2684,41 +2746,74 @@ other interfaces based on their type sets. But this should get us going for now.
 The <a href="#Predeclared_identifiers">predeclared</a>
 <a href="#Interface_types">interface type</a> <code>comparable</code>
 denotes the set of all non-interface types that are
-<a href="#Comparison_operators">comparable</a>. Specifically,
-a type <code>T</code> implements <code>comparable</code> if:
+<a href="#Comparison_operators">strictly comparable</a>.
 </p>
 
-<ul>
-<li>
-	<code>T</code> is not an interface type and <code>T</code> supports the operations
-	<code>==</code> and <code>!=</code>; or
-</li>
-<li>
-	<code>T</code> is an interface type and each type in <code>T</code>'s
-	<a href="#Interface_types">type set</a> implements <code>comparable</code>.
-</li>
-</ul>
-
 <p>
-Even though interfaces that are not type parameters can be
-<a href="#Comparison_operators">compared</a>
-(possibly causing a run-time panic) they do not implement
-<code>comparable</code>.
+Even though interfaces that are not type parameters are <a href="#Comparison_operators">comparable</a>,
+they are not strictly comparable and therefore they do not implement <code>comparable</code>.
+However, they <a href="#Satisfying_a_type_constraint">satisfy</a> <code>comparable</code>.
 </p>
 
 <pre>
-int                          // implements comparable
+int                          // implements comparable (int is strictly comparable)
 []byte                       // does not implement comparable (slices cannot be compared)
 interface{}                  // does not implement comparable (see above)
-interface{ ~int | ~string }  // type parameter only: implements comparable
-interface{ comparable }      // type parameter only: implements comparable
-interface{ ~int | ~[]byte }  // type parameter only: does not implement comparable (not all types in the type set are comparable)
+interface{ ~int | ~string }  // type parameter only: implements comparable (int, string types are stricly comparable)
+interface{ comparable }      // type parameter only: implements comparable (comparable implements itself)
+interface{ ~int | ~[]byte }  // type parameter only: does not implement comparable (slices are not comparable)
+interface{ ~struct{ any } }  // type parameter only: does not implement comparable (field any is not strictly comparable)
 </pre>
 
 <p>
 The <code>comparable</code> interface and interfaces that (directly or indirectly) embed
 <code>comparable</code> may only be used as type constraints. They cannot be the types of
 values or variables, or components of other, non-interface types.
+</p>
+
+<h4 id="Satisfying_a_type_constraint">Satisfying a type constraint</h4>
+
+<p>
+A type argument <code>T</code><i> satisfies</i> a type constraint <code>C</code>
+if <code>T</code> is an element of the type set defined by <code>C</code>; i.e.,
+if <code>T</code> <a href="#Implementing_an_interface">implements</a> <code>C</code>.
+As an exception, a <a href="#Comparison_operators">strictly comparable</a>
+type constraint may also be satisfied by a <a href="#Comparison_operators">comparable</a>
+(not necessarily strictly comparable) type argument.
+More precisely:
+</p>
+
+<p>
+A type T <i>satisfies</i> a constraint <code>C</code> if
+</p>
+
+<ul>
+<li>
+	<code>T</code> <a href="#Implementing_an_interface">implements</a> <code>C</code>; or
+</li>
+<li>
+	<code>C</code> can be written in the form <code>interface{ comparable; E }</code>,
+	where <code>E</code> is a <a href="#Basic_interfaces">basic interface</a> and
+	<code>T</code> is <a href="#Comparison_operators">comparable</a> and implements <code>E</code>.
+</li>
+</ul>
+
+<pre>
+type argument      type constraint                // constraint satisfaction
+
+int                interface{ ~int }              // satisfied: int implements interface{ ~int }
+string             comparable                     // satisfied: string implements comparable (string is stricty comparable)
+[]byte             comparable                     // not satisfied: slices are not comparable
+any                interface{ comparable; int }   // not satisfied: any does not implement interface{ int }
+any                comparable                     // satisfied: any is comparable and implements the basic interface any
+struct{f any}      comparable                     // satisfied: struct{f any} is comparable and implements the basic interface any
+any                interface{ comparable; m() }   // not satisfied: any does not implement the basic interface interface{ m() }
+interface{ m() }   interface{ comparable; m() }   // satisfied: interface{ m() } is comparable and implements the basic interface interface{ m() }
+</pre>
+
+<p>
+Because of the exception in the constraint satisfaction rule, comparing operands of type parameter type
+may panic at run-time (even though comparable type parameters are always strictly comparable).
 </p>
 
 <h3 id="Variable_declarations">Variable declarations</h3>
@@ -3305,7 +3400,7 @@ PrimaryExpr =
 	PrimaryExpr Arguments .
 
 Selector       = "." identifier .
-Index          = "[" Expression "]" .
+Index          = "[" Expression [ "," ] "]" .
 Slice          = "[" [ Expression ] ":" [ Expression ] "]" |
                  "[" [ Expression ] ":" Expression ":" Expression "]" .
 TypeAssertion  = "." "(" Type ")" .
@@ -3934,6 +4029,9 @@ var a [10]int
 s1 := a[3:7]   // underlying array of s1 is array a; &amp;s1[2] == &amp;a[5]
 s2 := s1[1:4]  // underlying array of s2 is underlying array of s1 which is array a; &amp;s2[1] == &amp;a[5]
 s2[1] = 42     // s2[1] == s1[2] == a[5] == 42; they all refer to the same underlying array element
+
+var s []int
+s3 := s[:0]    // s3 == nil
 </pre>
 
 
@@ -4218,7 +4316,7 @@ including the type parameter list itself and any types in that list.
 </li>
 
 <li>
-After substitution, each type argument must <a href="#Interface_types">implement</a>
+After substitution, each type argument must <a href="#Satisfying_a_type_constraint">satisfy</a>
 the <a href="#Type_parameter_declarations">constraint</a> (instantiated, if necessary)
 of the corresponding type parameter. Otherwise instantiation fails.
 </li>
@@ -4232,9 +4330,10 @@ instantiating a function produces a new non-generic function.
 <pre>
 type parameter list    type arguments    after substitution
 
-[P any]                int               int implements any
-[S ~[]E, E any]        []int, int        []int implements ~[]int, int implements any
-[P io.Writer]          string            illegal: string doesn't implement io.Writer
+[P any]                int               int satisfies any
+[S ~[]E, E any]        []int, int        []int satisfies ~[]int, int satisfies any
+[P io.Writer]          string            illegal: string doesn't satisfy io.Writer
+[P comparable]         any               any satisfies (but does not implement) comparable
 </pre>
 
 <p>
@@ -4265,7 +4364,7 @@ to be inferred. Loosely speaking, type arguments may be omitted from "right to l
 </p>
 
 <pre>
-func apply[S ~[]E, E any](s S, f(E) E) S { … }
+func apply[S ~[]E, E any](s S, f func(E) E) S { … }
 
 f0 := apply[]                  // illegal: type argument list cannot be empty
 f1 := apply[[]int]             // type argument for S explicitly provided, type argument for E inferred
@@ -5016,89 +5115,99 @@ to the type of the second operand, or vice versa.
 </p>
 <p>
 The equality operators <code>==</code> and <code>!=</code> apply
-to operands that are <i>comparable</i>.
+to operands of <i>comparable</i> types.
 The ordering operators <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and <code>&gt;=</code>
-apply to operands that are <i>ordered</i>.
+apply to operands of <i>ordered</i> types.
 These terms and the result of the comparisons are defined as follows:
 </p>
 
 <ul>
 	<li>
-	Boolean values are comparable.
+	Boolean types are comparable.
 	Two boolean values are equal if they are either both
 	<code>true</code> or both <code>false</code>.
 	</li>
 
 	<li>
-	Integer values are comparable and ordered, in the usual way.
+	Integer types are comparable and ordered.
+	Two integer values are compared in the usual way.
 	</li>
 
 	<li>
-	Floating-point values are comparable and ordered,
-	as defined by the IEEE-754 standard.
+	Floating-point types are comparable and ordered.
+	Two floating-point values are compared as defined by the IEEE-754 standard.
 	</li>
 
 	<li>
-	Complex values are comparable.
+	Complex types are comparable.
 	Two complex values <code>u</code> and <code>v</code> are
 	equal if both <code>real(u) == real(v)</code> and
 	<code>imag(u) == imag(v)</code>.
 	</li>
 
 	<li>
-	String values are comparable and ordered, lexically byte-wise.
+	String types are comparable and ordered.
+	Two string values are compared lexically byte-wise.
 	</li>
 
 	<li>
-	Pointer values are comparable.
+	Pointer types are comparable.
 	Two pointer values are equal if they point to the same variable or if both have value <code>nil</code>.
 	Pointers to distinct <a href="#Size_and_alignment_guarantees">zero-size</a> variables may or may not be equal.
 	</li>
 
 	<li>
-	Channel values are comparable.
+	Channel types are comparable.
 	Two channel values are equal if they were created by the same call to
 	<a href="#Making_slices_maps_and_channels"><code>make</code></a>
 	or if both have value <code>nil</code>.
 	</li>
 
 	<li>
-	Interface values are comparable.
+	Interface types that are not type parameters are comparable.
 	Two interface values are equal if they have <a href="#Type_identity">identical</a> dynamic types
 	and equal dynamic values or if both have value <code>nil</code>.
 	</li>
 
 	<li>
 	A value <code>x</code> of non-interface type <code>X</code> and
-	a value <code>t</code> of interface type <code>T</code> are comparable when values
-	of type <code>X</code> are comparable and
+	a value <code>t</code> of interface type <code>T</code> can be compared
+	if type <code>X</code> is comparable and
 	<code>X</code> <a href="#Implementing_an_interface">implements</a> <code>T</code>.
 	They are equal if <code>t</code>'s dynamic type is identical to <code>X</code>
 	and <code>t</code>'s dynamic value is equal to <code>x</code>.
 	</li>
 
 	<li>
-	Struct values are comparable if all their fields are comparable.
+	Struct types are comparable if all their field types are comparable.
 	Two struct values are equal if their corresponding
-	non-<a href="#Blank_identifier">blank</a> fields are equal.
+	non-<a href="#Blank_identifier">blank</a> field values are equal.
+	The fields are compared in source order, and comparison stops as
+	soon as two field values differ (or all fields have been compared).
 	</li>
 
 	<li>
-	Array values are comparable if values of the array element type are comparable.
-	Two array values are equal if their corresponding elements are equal.
+	Array types are comparable if their array element types are comparable.
+	Two array values are equal if their corresponding element values are equal.
+	The elements are compared in ascending index order, and comparison stops
+	as soon as two element values differ (or all elements have been compared).
+	</li>
+
+	<li>
+	Type parameters are comparable if they are strictly comparable (see below).
 	</li>
 </ul>
 
 <p>
 A comparison of two interface values with identical dynamic types
-causes a <a href="#Run_time_panics">run-time panic</a> if values
-of that type are not comparable.  This behavior applies not only to direct interface
+causes a <a href="#Run_time_panics">run-time panic</a> if that type
+is not comparable.  This behavior applies not only to direct interface
 value comparisons but also when comparing arrays of interface values
 or structs with interface-valued fields.
 </p>
 
 <p>
-Slice, map, and function values are not comparable.
+Slice, map, and function types are not comparable.
 However, as a special case, a slice, map, or function value may
 be compared to the predeclared identifier <code>nil</code>.
 Comparison of pointer, channel, and interface values to <code>nil</code>
@@ -5118,6 +5227,30 @@ var (
 	b5 MyBool = x == y // b5 has type MyBool
 )
 </pre>
+
+<p>
+A type is <i>strictly comparable</i> if it is comparable and not an interface
+type nor composed of interface types.
+Specifically:
+</p>
+
+<ul>
+	<li>
+	Boolean, numeric, string, pointer, and channel types are strictly comparable.
+	</li>
+
+	<li>
+	Struct types are strictly comparable if all their field types are strictly comparable.
+	</li>
+
+	<li>
+	Array types are strictly comparable if their array element types are strictly comparable.
+	</li>
+
+	<li>
+	Type parameters are strictly comparable if all types in their type set are strictly comparable.
+	</li>
+</ul>
 
 <h3 id="Logical_operators">Logical operators</h3>
 
@@ -5341,7 +5474,7 @@ in any of these cases:
 	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
 	</li>
 	<li>
-	<code>x</code> is a slice, <code>T</code> is a pointer to an array,
+	<code>x</code> is a slice, <code>T</code> is an array or a pointer to an array,
 	and the slice and array types have <a href="#Type_identity">identical</a> element types.
 	</li>
 </ul>
@@ -5530,24 +5663,32 @@ runes("白鵬翔")              // []rune{0x767d, 0x9d6c, 0x7fd4}
 </li>
 </ol>
 
-<h4 id="Conversions_from_slice_to_array_pointer">Conversions from slice to array pointer</h4>
+<h4 id="Conversions_from_slice_to_array_or_array_pointer">Conversions from slice to array or array pointer</h4>
 
 <p>
-Converting a slice to an array pointer yields a pointer to the underlying array of the slice.
-If the <a href="#Length_and_capacity">length</a> of the slice is less than the length of the array,
+Converting a slice to an array yields an array containing the elements of the underlying array of the slice.
+Similarly, converting a slice to an array pointer yields a pointer to the underlying array of the slice.
+In both cases, if the <a href="#Length_and_capacity">length</a> of the slice is less than the length of the array,
 a <a href="#Run_time_panics">run-time panic</a> occurs.
 </p>
 
 <pre>
 s := make([]byte, 2, 4)
+
+a0 := [0]byte(s)
+a1 := [1]byte(s[1:])     // a1[0] == s[1]
+a2 := [2]byte(s)         // a2[0] == s[0]
+a4 := [4]byte(s)         // panics: len([4]byte) > len(s)
+
 s0 := (*[0]byte)(s)      // s0 != nil
 s1 := (*[1]byte)(s[1:])  // &amp;s1[0] == &amp;s[1]
 s2 := (*[2]byte)(s)      // &amp;s2[0] == &amp;s[0]
 s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
 
 var t []string
-t0 := (*[0]string)(t)    // t0 == nil
-t1 := (*[1]string)(t)    // panics: len([1]string) > len(t)
+t0 := [0]string(t)       // ok for nil slice t
+t1 := (*[0]string)(t)    // t1 == nil
+t2 := (*[1]string)(t)    // panics: len([1]string) > len(t)
 
 u := make([]byte, 0)
 u0 := (*[0]byte)(u)      // u0 != nil
@@ -7241,7 +7382,7 @@ append(s S, x ...E) S  // core type of S is []E
 
 <p>
 If the capacity of <code>s</code> is not large enough to fit the additional
-values, <code>append</code> allocates a new, sufficiently large underlying
+values, <code>append</code> <a href="#Allocation">allocates</a> a new, sufficiently large underlying
 array that fits both the existing slice elements and the additional values.
 Otherwise, <code>append</code> re-uses the underlying array.
 </p>
@@ -7991,11 +8132,14 @@ func Sizeof(variable ArbitraryType) uintptr
 type IntegerType int  // shorthand for an integer type; it is not a real type
 func Add(ptr Pointer, len IntegerType) Pointer
 func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
+func SliceData(slice []ArbitraryType) *ArbitraryType
+func String(ptr *byte, len IntegerType) string
+func StringData(str string) *byte
 </pre>
 
 <!--
 These conversions also apply to type parameters with suitable core types.
-Determine if we can simply use core type insted of underlying type here,
+Determine if we can simply use core type instead of underlying type here,
 of if the general conversion rules take care of this.
 -->
 
@@ -8092,6 +8236,27 @@ if it is an untyped constant it is given type <code>int</code>.
 At run time, if <code>len</code> is negative,
 or if <code>ptr</code> is <code>nil</code> and <code>len</code> is not zero,
 a <a href="#Run_time_panics">run-time panic</a> occurs.
+</p>
+
+<p>
+The function <code>SliceData</code> returns a pointer to the underlying array of the <code>slice</code> argument.
+If the slice's capacity <code>cap(slice)</code> is not zero, that pointer is <code>&slice[:1][0]</code>.
+If <code>slice</code> is <code>nil</code>, the result is <code>nil</code>.
+Otherwise it  is a non-<code>nil</code> pointer to an unspecified memory address.
+</p>
+
+<p>
+The function <code>String</code> returns a <code>string</code> value whose underlying bytes start at
+<code>ptr</code> and whose length is <code>len</code>.
+The same requirements apply to the <code>ptr</code> and <code>len</code> argument as in the function
+<code>Slice</code>. If <code>len</code> is zero, the result is the empty string <code>""</code>.
+Since Go strings are immutable, the bytes passed to <code>String</code> must not be modified afterwards.
+</p>
+
+<p>
+The function <code>StringData</code> returns a pointer to the underlying bytes of the <code>str</code> argument.
+For an empty string the return value is unspecified, and may be <code>nil</code>.
+Since Go strings are immutable, the bytes returned by <code>StringData</code> must not be modified.
 </p>
 
 <h3 id="Size_and_alignment_guarantees">Size and alignment guarantees</h3>

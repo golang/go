@@ -1,0 +1,69 @@
+# Test go build -pgo=auto flag.
+
+# use default.pgo for a single main package
+go build -n -pgo=auto ./a/a1
+stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+
+# check that pgo applied to dependencies
+stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
+
+# use default.pgo for ... with a single main package
+go build -n -pgo=auto ./a/...
+stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+
+# error with multiple packages
+! go build -n -pgo=auto ./b/...
+stderr '-pgo=auto requires exactly one main package'
+
+# build succeeds without PGO when default.pgo file is absent
+go build -n -pgo=auto -o nopgo.exe ./nopgo
+stderr 'compile.*nopgo.go'
+! stderr '-pgoprofile'
+
+# other build-related commands
+go install -n -pgo=auto ./a/a1
+stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+
+go run -n -pgo=auto ./a/a1
+stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+
+go test -n -pgo=auto ./a/a1
+stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go.*a1_test.go'
+stderr 'compile.*-pgoprofile=.*default\.pgo.*external_test.go'
+
+# go list commands should succeed as usual
+go list -pgo=auto ./a/a1
+
+go list -test -pgo=auto ./a/a1
+
+go list -deps -pgo=auto ./a/a1
+
+-- go.mod --
+module test
+go 1.20
+-- a/a1/a1.go --
+package main
+import _ "test/dep"
+func main() {}
+-- a/a1/a1_test.go --
+package main
+import "testing"
+func TestA(*testing.T) {}
+-- a/a1/external_test.go --
+package main_test
+import "testing"
+func TestExternal(*testing.T) {}
+-- a/a1/default.pgo --
+-- b/b1/b1.go --
+package main
+func main() {}
+-- b/b1/default.pgo --
+-- b/b2/b2.go --
+package main
+func main() {}
+-- b/b2/default.pgo --
+-- nopgo/nopgo.go --
+package main
+func main() {}
+-- dep/dep.go --
+package dep

@@ -123,9 +123,13 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		n := n.(*ir.BinaryExpr)
 		// Note: n.X is not needed because it can never point to memory that might escape.
 		e.expr(k, n.Y)
-	case ir.OIDATA, ir.OSPTR:
+	case ir.OITAB, ir.OIDATA, ir.OSPTR:
 		n := n.(*ir.UnaryExpr)
 		e.expr(k, n.X)
+	case ir.OSLICE2ARR:
+		// Converting a slice to array is effectively a deref.
+		n := n.(*ir.ConvExpr)
+		e.expr(k.deref(n, "slice-to-array"), n.X)
 	case ir.OSLICE2ARRPTR:
 		// the slice pointer flows directly to the result
 		n := n.(*ir.ConvExpr)
@@ -134,7 +138,9 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		n := n.(*ir.UnaryExpr)
 		e.discard(n.X)
 
-	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OINLCALL, ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.ORECOVER, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+	case ir.OCALLMETH, ir.OCALLFUNC, ir.OCALLINTER, ir.OINLCALL,
+		ir.OLEN, ir.OCAP, ir.OCOMPLEX, ir.OREAL, ir.OIMAG, ir.OAPPEND, ir.OCOPY, ir.ORECOVER,
+		ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 		e.call([]hole{k}, n)
 
 	case ir.ONEW:

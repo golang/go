@@ -15,7 +15,9 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"internal/saferio"
 	"io"
+	"math"
 	"math/big"
 	"sort"
 	"strings"
@@ -103,12 +105,16 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
 		errorf("unknown iexport format version %d", version)
 	}
 
-	sLen := int64(r.uint64())
-	dLen := int64(r.uint64())
+	sLen := r.uint64()
+	dLen := r.uint64()
 
-	data := make([]byte, sLen+dLen)
-	if _, err := io.ReadFull(r, data); err != nil {
-		errorf("cannot read %d bytes of stringData and declData: %s", len(data), err)
+	if sLen > math.MaxUint64-dLen {
+		errorf("lengths out of range (%d, %d)", sLen, dLen)
+	}
+
+	data, err := saferio.ReadData(r, sLen+dLen)
+	if err != nil {
+		errorf("cannot read %d bytes of stringData and declData: %s", sLen+dLen, err)
 	}
 	stringData := data[:sLen]
 	declData := data[sLen:]
@@ -342,7 +348,7 @@ func (r *importReader) obj(name string) {
 
 	case 'T', 'U':
 		// Types can be recursive. We need to setup a stub
-		// declaration before recursing.
+		// declaration before recurring.
 		obj := types.NewTypeName(pos, r.currPkg, name, nil)
 		named := types.NewNamed(obj, nil, nil)
 		// Declare obj before calling r.tparamList, so the new type name is recognized

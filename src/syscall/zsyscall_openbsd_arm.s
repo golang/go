@@ -201,6 +201,8 @@ TEXT ·libc_unmount_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_unmount(SB)
 TEXT ·libc_write_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_write(SB)
+TEXT ·libc_writev_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_writev(SB)
 TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_mmap(SB)
 TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0

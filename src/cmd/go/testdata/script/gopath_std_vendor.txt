@@ -1,6 +1,6 @@
 env GO111MODULE=off
 
-[!gc] skip
+[!compiler:gc] skip
 
 go list -f '{{.Dir}}' vendor/golang.org/x/net/http2/hpack
 stdout $GOPATH[/\\]src[/\\]vendor

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strconv"
 	"sync"
 	"unicode/utf8"
 )
@@ -71,6 +72,31 @@ type GoStringer interface {
 	GoString() string
 }
 
+// FormatString returns a string representing the fully qualified formatting
+// directive captured by the State, followed by the argument verb. (State does not
+// itself contain the verb.) The result has a leading percent sign followed by any
+// flags, the width, and the precision. Missing flags, width, and precision are
+// omitted. This function allows a Formatter to reconstruct the original
+// directive triggering the call to Format.
+func FormatString(state State, verb rune) string {
+	var tmp [16]byte // Use a local buffer.
+	b := append(tmp[:0], '%')
+	for _, c := range " +-#0" { // All known flags
+		if state.Flag(int(c)) { // The argument is an int for historical reasons.
+			b = append(b, byte(c))
+		}
+	}
+	if w, ok := state.Width(); ok {
+		b = strconv.AppendInt(b, int64(w), 10)
+	}
+	if p, ok := state.Precision(); ok {
+		b = append(b, '.')
+		b = strconv.AppendInt(b, int64(p), 10)
+	}
+	b = utf8.AppendRune(b, verb)
+	return string(b)
+}
+
 // Use simple []byte instead of bytes.Buffer to avoid large dependency.
 type buffer []byte
 
@@ -87,18 +113,7 @@ func (b *buffer) writeByte(c byte) {
 }
 
 func (bp *buffer) writeRune(r rune) {
-	if r < utf8.RuneSelf {
-		*bp = append(*bp, byte(r))
-		return
-	}
-
-	b := *bp
-	n := len(b)
-	for n+utf8.UTFMax > cap(b) {
-		b = append(b, 0)
-	}
-	w := utf8.EncodeRune(b[n:n+utf8.UTFMax], r)
-	*bp = b[:n+w]
+	*bp = utf8.AppendRune(*bp, r)
 }
 
 // pp is used to store a printer's state and is reused with sync.Pool to avoid allocations.
@@ -124,8 +139,8 @@ type pp struct {
 	erroring bool
 	// wrapErrs is set when the format string may contain a %w verb.
 	wrapErrs bool
-	// wrappedErr records the target of the %w verb.
-	wrappedErr error
+	// wrappedErrs records the targets of the %w verb.
+	wrappedErrs []int
 }
 
 var ppFree = sync.Pool{
@@ -146,18 +161,23 @@ func newPrinter() *pp {
 func (p *pp) free() {
 	// Proper usage of a sync.Pool requires each entry to have approximately
 	// the same memory cost. To obtain this property when the stored type
-	// contains a variably-sized buffer, we add a hard limit on the maximum buffer
-	// to place back in the pool.
+	// contains a variably-sized buffer, we add a hard limit on the maximum
+	// buffer to place back in the pool. If the buffer is larger than the
+	// limit, we drop the buffer and recycle just the printer.
 	//
-	// See https://golang.org/issue/23199
-	if cap(p.buf) > 64<<10 {
-		return
+	// See https://golang.org/issue/23199.
+	if cap(p.buf) > 64*1024 {
+		p.buf = nil
+	} else {
+		p.buf = p.buf[:0]
+	}
+	if cap(p.wrappedErrs) > 8 {
+		p.wrappedErrs = nil
 	}
 
-	p.buf = p.buf[:0]
 	p.arg = nil
 	p.value = reflect.Value{}
-	p.wrappedErr = nil
+	p.wrappedErrs = p.wrappedErrs[:0]
 	ppFree.Put(p)
 }
 
@@ -603,16 +623,12 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 		return
 	}
 	if verb == 'w' {
-		// It is invalid to use %w other than with Errorf, more than once,
-		// or with a non-error arg.
-		err, ok := p.arg.(error)
-		if !ok || !p.wrapErrs || p.wrappedErr != nil {
-			p.wrappedErr = nil
-			p.wrapErrs = false
+		// It is invalid to use %w other than with Errorf or with a non-error arg.
+		_, ok := p.arg.(error)
+		if !ok || !p.wrapErrs {
 			p.badVerb(verb)
 			return true
 		}
-		p.wrappedErr = err
 		// If the arg is a Formatter, pass 'v' as the verb to it.
 		verb = 'v'
 	}
@@ -1046,7 +1062,11 @@ formatLoop:
 				// Fast path for common case of ascii lower case simple verbs
 				// without precision or width or argument indices.
 				if 'a' <= c && c <= 'z' && argNum < len(a) {
-					if c == 'v' {
+					switch c {
+					case 'w':
+						p.wrappedErrs = append(p.wrappedErrs, argNum)
+						fallthrough
+					case 'v':
 						// Go syntax
 						p.fmt.sharpV = p.fmt.sharp
 						p.fmt.sharp = false
@@ -1141,6 +1161,9 @@ formatLoop:
 			p.badArgNum(verb)
 		case argNum >= len(a): // No argument left over to print for the current verb.
 			p.missingArg(verb)
+		case verb == 'w':
+			p.wrappedErrs = append(p.wrappedErrs, argNum)
+			fallthrough
 		case verb == 'v':
 			// Go syntax
 			p.fmt.sharpV = p.fmt.sharp

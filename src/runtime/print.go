@@ -6,7 +6,6 @@ package runtime
 
 import (
 	"internal/goarch"
-	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -40,7 +39,7 @@ var (
 func recordForPanic(b []byte) {
 	printlock()
 
-	if atomic.Load(&panicking) == 0 {
+	if panicking.Load() == 0 {
 		// Not actively crashing: maintain circular buffer of print output.
 		for i := 0; i < len(b); {
 			n := copy(printBacklog[printBacklogIndex:], b[i:])

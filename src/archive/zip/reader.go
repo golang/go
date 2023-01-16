@@ -10,20 +10,25 @@ import (
 	"errors"
 	"hash"
 	"hash/crc32"
+	"internal/godebug"
 	"io"
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 )
 
+var zipinsecurepath = godebug.New("zipinsecurepath")
+
 var (
-	ErrFormat    = errors.New("zip: not a valid zip file")
-	ErrAlgorithm = errors.New("zip: unsupported compression algorithm")
-	ErrChecksum  = errors.New("zip: checksum error")
+	ErrFormat       = errors.New("zip: not a valid zip file")
+	ErrAlgorithm    = errors.New("zip: unsupported compression algorithm")
+	ErrChecksum     = errors.New("zip: checksum error")
+	ErrInsecurePath = errors.New("zip: insecure file path")
 )
 
 // A Reader serves content from a ZIP archive.
@@ -89,6 +94,20 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	zr := new(Reader)
 	if err := zr.init(r, size); err != nil {
 		return nil, err
+	}
+	for _, f := range zr.File {
+		if f.Name == "" {
+			// Zip permits an empty file name field.
+			continue
+		}
+		if zipinsecurepath.Value() != "0" {
+			continue
+		}
+		// The zip specification states that names must use forward slashes,
+		// so consider any backslashes in the name insecure.
+		if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
+			return zr, ErrInsecurePath
+		}
 	}
 	return zr, nil
 }
@@ -197,6 +216,22 @@ func (f *File) Open() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	if strings.HasSuffix(f.Name, "/") {
+		// The ZIP specification (APPNOTE.TXT) specifies that directories, which
+		// are technically zero-byte files, must not have any associated file
+		// data. We previously tried failing here if f.CompressedSize64 != 0,
+		// but it turns out that a number of implementations (namely, the Java
+		// jar tool) don't properly set the storage method on directories
+		// resulting in a file with compressed size > 0 but uncompressed size ==
+		// 0. We still want to fail when a directory has associated uncompressed
+		// data, but we are tolerant of cases where the uncompressed size is
+		// zero but compressed size is not.
+		if f.UncompressedSize64 != 0 {
+			return &dirReader{ErrFormat}, nil
+		} else {
+			return &dirReader{io.EOF}, nil
+		}
+	}
 	size := int64(f.CompressedSize64)
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, size)
 	dcomp := f.zip.decompressor(f.Method)
@@ -226,6 +261,18 @@ func (f *File) OpenRaw() (io.Reader, error) {
 	}
 	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset, int64(f.CompressedSize64))
 	return r, nil
+}
+
+type dirReader struct {
+	err error
+}
+
+func (r *dirReader) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
+func (r *dirReader) Close() error {
+	return nil
 }
 
 type checksumReader struct {
@@ -715,12 +762,13 @@ func (f *fileListEntry) Info() (fs.FileInfo, error) { return f, nil }
 func toValidName(name string) string {
 	name = strings.ReplaceAll(name, `\`, `/`)
 	p := path.Clean(name)
-	if strings.HasPrefix(p, "/") {
-		p = p[len("/"):]
-	}
+
+	p = strings.TrimPrefix(p, "/")
+
 	for strings.HasPrefix(p, "../") {
 		p = p[len("../"):]
 	}
+
 	return p
 }
 

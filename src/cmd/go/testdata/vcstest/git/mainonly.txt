@@ -1,0 +1,23 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2019-09-05T14:07:43-04:00
+git add main.go
+git commit -a -m 'add main.go'
+git branch -m master
+
+git log --oneline --decorate=short
+cmp stdout .git-log
+
+-- .git-log --
+8a27e8b (HEAD -> master) add main.go
+-- main.go --
+package main
+
+func main() {}

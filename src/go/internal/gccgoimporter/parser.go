@@ -5,7 +5,6 @@
 package gccgoimporter
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/constant"
@@ -129,16 +128,16 @@ func (p *parser) parseUnquotedString() string {
 	if p.tok == scanner.EOF {
 		p.error("unexpected EOF")
 	}
-	var buf bytes.Buffer
-	buf.WriteString(p.scanner.TokenText())
+	var b strings.Builder
+	b.WriteString(p.scanner.TokenText())
 	// This loop needs to examine each character before deciding whether to consume it. If we see a semicolon,
 	// we need to let it be consumed by p.next().
 	for ch := p.scanner.Peek(); ch != '\n' && ch != ';' && ch != scanner.EOF && p.scanner.Whitespace&(1<<uint(ch)) == 0; ch = p.scanner.Peek() {
-		buf.WriteRune(ch)
+		b.WriteRune(ch)
 		p.scanner.Next()
 	}
 	p.next()
-	return buf.String()
+	return b.String()
 }
 
 func (p *parser) next() {

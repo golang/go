@@ -38,6 +38,8 @@ type VCSError struct {
 
 func (e *VCSError) Error() string { return e.Err.Error() }
 
+func (e *VCSError) Unwrap() error { return e.Err }
+
 func vcsErrorf(format string, a ...any) error {
 	return &VCSError{Err: fmt.Errorf(format, a...)}
 }
@@ -290,10 +292,8 @@ func (r *vcsRepo) loadBranches() {
 	}
 }
 
-var ErrNoRepoHash = errors.New("RepoHash not supported")
-
 func (r *vcsRepo) CheckReuse(old *Origin, subdir string) error {
-	return fmt.Errorf("vcs %s does not implement CheckReuse", r.cmd.vcs)
+	return fmt.Errorf("vcs %s: CheckReuse: %w", r.cmd.vcs, ErrUnsupported)
 }
 
 func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
@@ -417,7 +417,7 @@ func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag 
 	}
 	defer unlock()
 
-	return "", vcsErrorf("RecentTag not implemented")
+	return "", vcsErrorf("vcs %s: RecentTag: %w", r.cmd.vcs, ErrUnsupported)
 }
 
 func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
@@ -427,12 +427,12 @@ func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
 	}
 	defer unlock()
 
-	return false, vcsErrorf("DescendsFrom not implemented")
+	return false, vcsErrorf("vcs %s: DescendsFrom: %w", r.cmd.vcs, ErrUnsupported)
 }
 
 func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
 	if r.cmd.readZip == nil && r.cmd.doReadZip == nil {
-		return nil, vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
+		return nil, vcsErrorf("vcs %s: ReadZip: %w", r.cmd.vcs, ErrUnsupported)
 	}
 
 	unlock, err := r.mu.Lock()
@@ -539,12 +539,12 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 		if line[0] == '-' {
 			continue
 		}
-		i := strings.Index(line, ":")
-		if i < 0 {
+		before, after, found := strings.Cut(line, ":")
+		if !found {
 			// End of header, start of commit message.
 			break
 		}
-		key, val := line[:i], strings.TrimSpace(line[i+1:])
+		key, val := before, strings.TrimSpace(after)
 		switch key {
 		case "revno":
 			if j := strings.Index(val, " "); j >= 0 {
@@ -587,7 +587,7 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
 			if len(f) != 5 || len(f[1]) != 40 || f[4] != "UTC" {
 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
 			}
-			t, err := time.Parse("2006-01-02 15:04:05", f[2]+" "+f[3])
+			t, err := time.Parse(time.DateTime, f[2]+" "+f[3])
 			if err != nil {
 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
 			}

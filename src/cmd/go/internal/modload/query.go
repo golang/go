@@ -25,6 +25,7 @@ import (
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -220,6 +221,17 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		return revErr, err
 	}
 
+	mergeRevOrigin := func(rev *modfetch.RevInfo, origin *codehost.Origin) *modfetch.RevInfo {
+		merged := mergeOrigin(rev.Origin, origin)
+		if merged == rev.Origin {
+			return rev
+		}
+		clone := new(modfetch.RevInfo)
+		*clone = *rev
+		clone.Origin = merged
+		return clone
+	}
+
 	lookup := func(v string) (*modfetch.RevInfo, error) {
 		rev, err := repo.Stat(v)
 		// Stat can return a non-nil rev and a non-nil err,
@@ -227,7 +239,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 		if rev == nil && err != nil {
 			return revErr, err
 		}
-		rev.Origin = mergeOrigin(rev.Origin, versions.Origin)
+		rev = mergeRevOrigin(rev, versions.Origin)
 		if err != nil {
 			return rev, err
 		}
@@ -256,12 +268,12 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
 					return revErr, err
 				}
-				info, err := repo.Stat(current)
-				if info == nil && err != nil {
+				rev, err = repo.Stat(current)
+				if rev == nil && err != nil {
 					return revErr, err
 				}
-				info.Origin = mergeOrigin(info.Origin, versions.Origin)
-				return info, err
+				rev = mergeRevOrigin(rev, versions.Origin)
+				return rev, err
 			}
 		}
 
@@ -613,7 +625,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 	}
 
 	var match func(mod module.Version, roots []string, isLocal bool) *search.Match
-	matchPattern := search.MatchPattern(pattern)
+	matchPattern := pkgpattern.MatchPattern(pattern)
 
 	if i := strings.Index(pattern, "..."); i >= 0 {
 		base = pathpkg.Dir(pattern[:i+3])
@@ -717,8 +729,7 @@ func QueryPattern(ctx context.Context, pattern, query string, current func(strin
 				return r, err
 			}
 			r.Mod.Version = r.Rev.Version
-			needSum := true
-			root, isLocal, err := fetch(ctx, r.Mod, needSum)
+			root, isLocal, err := fetch(ctx, r.Mod)
 			if err != nil {
 				return r, err
 			}
@@ -997,17 +1008,6 @@ func (e *PackageNotInModuleError) ImportPath() string {
 	return ""
 }
 
-// moduleHasRootPackage returns whether module m contains a package m.Path.
-func moduleHasRootPackage(ctx context.Context, m module.Version) (bool, error) {
-	needSum := false
-	root, isLocal, err := fetch(ctx, m, needSum)
-	if err != nil {
-		return false, err
-	}
-	_, ok, err := dirInModule(m.Path, m.Path, root, isLocal)
-	return ok, err
-}
-
 // versionHasGoMod returns whether a version has a go.mod file.
 //
 // versionHasGoMod fetches the go.mod file (possibly a fake) and true if it
@@ -1116,7 +1116,7 @@ func (rr *replacementRepo) Versions(prefix string) (*modfetch.Versions, error) {
 	for _, mm := range MainModules.Versions() {
 		if index := MainModules.Index(mm); index != nil && len(index.replace) > 0 {
 			path := rr.ModulePath()
-			for m, _ := range index.replace {
+			for m := range index.replace {
 				if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
 					versions = append(versions, m.Version)
 				}

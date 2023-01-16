@@ -86,4 +86,18 @@ type Flags struct {
 	// has been broken out to its own experiment that is disabled
 	// by default.
 	HeapMinimum512KiB bool
+
+	// CoverageRedesign enables the new compiler-based code coverage
+	// tooling.
+	CoverageRedesign bool
+
+	// Arenas causes the "arena" standard library package to be visible
+	// to the outside world.
+	Arenas bool
+
+	// PageTrace enables GODEBUG=pagetrace=/path/to/result. This feature
+	// is a GOEXPERIMENT due to a security risk with setuid binaries:
+	// this compels the Go runtime to write to some arbitrary file, which
+	// may be exploited.
+	PageTrace bool
 }

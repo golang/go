@@ -1,3 +1,7 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package modindex
 
 import (
@@ -69,7 +73,7 @@ func indexModule(modroot string) ([]byte, error) {
 	return encodeModuleBytes(packages), nil
 }
 
-// indexModule indexes the package at the given directory and returns its
+// indexPackage indexes the package at the given directory and returns its
 // encoded representation. It returns ErrNotIndexed if the package can't
 // be indexed.
 func indexPackage(modroot, pkgdir string) []byte {
@@ -115,7 +119,7 @@ func parseErrorToString(err error) string {
 	return string(s)
 }
 
-// parseErrorFrom string converts a string produced by parseErrorToString back
+// parseErrorFromString converts a string produced by parseErrorToString back
 // to an error.  An empty string is converted to a nil error, and all
 // other strings are expected to be JSON-marshalled parseError structs.
 // The two functions are meant to preserve the structure of an
@@ -210,7 +214,10 @@ func importRaw(modroot, reldir string) *rawPackage {
 			continue
 		}
 		info, err := getFileInfo(absdir, name, fset)
-		if err != nil {
+		if err == errNonSource {
+			// not a source or object file. completely ignore in the index
+			continue
+		} else if err != nil {
 			p.sourceFiles = append(p.sourceFiles, &rawFile{name: name, error: err.Error()})
 			continue
 		} else if info == nil {

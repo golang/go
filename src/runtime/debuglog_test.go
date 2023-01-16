@@ -23,8 +23,8 @@
 package runtime_test
 
 import (
-	"bytes"
 	"fmt"
+	"internal/testenv"
 	"regexp"
 	"runtime"
 	"strings"
@@ -94,7 +94,7 @@ func TestDebugLogInterleaving(t *testing.T) {
 		}
 		wg.Done()
 	}()
-	var want bytes.Buffer
+	var want strings.Builder
 	for i := 0; i < 1000; i++ {
 		runtime.Dlog().I(i).End()
 		fmt.Fprintf(&want, "[] %d\n", i)
@@ -122,7 +122,7 @@ func TestDebugLogWraparound(t *testing.T) {
 
 	runtime.ResetDebugLog()
 	var longString = strings.Repeat("a", 128)
-	var want bytes.Buffer
+	var want strings.Builder
 	for i, j := 0, 0; j < 2*runtime.DebugLogBytes; i, j = i+1, j+len(longString) {
 		runtime.Dlog().I(i).S(longString).End()
 		fmt.Fprintf(&want, "[] %d %s\n", i, longString)
@@ -154,5 +154,16 @@ func TestDebugLogLongString(t *testing.T) {
 	want := "[] " + strings.Repeat("a", runtime.DebugLogStringLimit) + " ..(1 more bytes)..\n"
 	if got != want {
 		t.Fatalf("want %q, got %q", want, got)
+	}
+}
+
+// TestDebugLogBuild verifies that the runtime builds with -tags=debuglog.
+func TestDebugLogBuild(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// It doesn't matter which program we build, anything will rebuild the
+	// runtime.
+	if _, err := buildTestProg(t, "testprog", "-tags=debuglog"); err != nil {
+		t.Fatal(err)
 	}
 }

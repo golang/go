@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/asn1"
@@ -51,15 +52,28 @@ func MarshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
 	return marshalECPrivateKeyWithOID(key, oid)
 }
 
-// marshalECPrivateKey marshals an EC private key into ASN.1, DER format and
+// marshalECPrivateKeyWithOID marshals an EC private key into ASN.1, DER format and
 // sets the curve ID to the given OID, or omits it if OID is nil.
 func marshalECPrivateKeyWithOID(key *ecdsa.PrivateKey, oid asn1.ObjectIdentifier) ([]byte, error) {
+	if !key.Curve.IsOnCurve(key.X, key.Y) {
+		return nil, errors.New("invalid elliptic key public key")
+	}
 	privateKey := make([]byte, (key.Curve.Params().N.BitLen()+7)/8)
 	return asn1.Marshal(ecPrivateKey{
 		Version:       1,
 		PrivateKey:    key.D.FillBytes(privateKey),
 		NamedCurveOID: oid,
 		PublicKey:     asn1.BitString{Bytes: elliptic.Marshal(key.Curve, key.X, key.Y)},
+	})
+}
+
+// marshalECPrivateKeyWithOID marshals an EC private key into ASN.1, DER format
+// suitable for NIST curves.
+func marshalECDHPrivateKey(key *ecdh.PrivateKey) ([]byte, error) {
+	return asn1.Marshal(ecPrivateKey{
+		Version:    1,
+		PrivateKey: key.Bytes(),
+		PublicKey:  asn1.BitString{Bytes: key.PublicKey().Bytes()},
 	})
 }
 

@@ -11,12 +11,12 @@ type A = T
 type B = T
 
 func (T) m() {}
-func (T) m() {} // ERROR "redeclared|redefinition"
-func (A) m() {} // ERROR "redeclared|redefinition"
-func (A) m() {} // ERROR "redeclared|redefinition"
-func (B) m() {} // ERROR "redeclared|redefinition"
-func (B) m() {} // ERROR "redeclared|redefinition"
+func (T) m() {} // ERROR "already declared|redefinition"
+func (A) m() {} // ERROR "already declared|redefinition"
+func (A) m() {} // ERROR "already declared|redefinition"
+func (B) m() {} // ERROR "already declared|redefinition"
+func (B) m() {} // ERROR "already declared|redefinition"
 
-func (*T) m() {} // ERROR "redeclared|redefinition"
-func (*A) m() {} // ERROR "redeclared|redefinition"
-func (*B) m() {} // ERROR "redeclared|redefinition"
+func (*T) m() {} // ERROR "already declared|redefinition"
+func (*A) m() {} // ERROR "already declared|redefinition"
+func (*B) m() {} // ERROR "already declared|redefinition"

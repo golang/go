@@ -66,10 +66,12 @@ var (
 	valSafe = safeMap()         // non-nil in safe+leaky mode
 )
 
+var intern = godebug.New("intern")
+
 // safeMap returns a non-nil map if we're in safe-but-leaky mode,
 // as controlled by GODEBUG=intern=leaky
 func safeMap() map[key]*Value {
-	if godebug.Get("intern") == "leaky" {
+	if intern.Value() == "leaky" {
 		return map[key]*Value{}
 	}
 	return nil

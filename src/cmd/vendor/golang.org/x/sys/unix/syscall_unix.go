@@ -13,8 +13,6 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
-
-	"golang.org/x/sys/internal/unsafeheader"
 )
 
 var (
@@ -117,11 +115,7 @@ func (m *mmapper) Mmap(fd int, offset int64, length int, prot int, flags int) (d
 	}
 
 	// Use unsafe to convert addr into a []byte.
-	var b []byte
-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
-	hdr.Data = unsafe.Pointer(addr)
-	hdr.Cap = length
-	hdr.Len = length
+	b := unsafe.Slice((*byte)(unsafe.Pointer(addr)), length)
 
 	// Register mapping in m and return it.
 	p := &b[cap(b)-1]
@@ -338,10 +332,40 @@ func Recvfrom(fd int, p []byte, flags int) (n int, from Sockaddr, err error) {
 }
 
 func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+	var iov [1]Iovec
+	if len(p) > 0 {
+		iov[0].Base = &p[0]
+		iov[0].SetLen(len(p))
+	}
 	var rsa RawSockaddrAny
-	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
+	n, oobn, recvflags, err = recvmsgRaw(fd, iov[:], oob, flags, &rsa)
 	// source address is only specified if the socket is unconnected
 	if rsa.Addr.Family != AF_UNSPEC {
+		from, err = anyToSockaddr(fd, &rsa)
+	}
+	return
+}
+
+// RecvmsgBuffers receives a message from a socket using the recvmsg
+// system call. The flags are passed to recvmsg. Any non-control data
+// read is scattered into the buffers slices. The results are:
+//   - n is the number of non-control data read into bufs
+//   - oobn is the number of control data read into oob; this may be interpreted using [ParseSocketControlMessage]
+//   - recvflags is flags returned by recvmsg
+//   - from is the address of the sender
+func RecvmsgBuffers(fd int, buffers [][]byte, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
+	iov := make([]Iovec, len(buffers))
+	for i := range buffers {
+		if len(buffers[i]) > 0 {
+			iov[i].Base = &buffers[i][0]
+			iov[i].SetLen(len(buffers[i]))
+		} else {
+			iov[i].Base = (*byte)(unsafe.Pointer(&_zero))
+		}
+	}
+	var rsa RawSockaddrAny
+	n, oobn, recvflags, err = recvmsgRaw(fd, iov, oob, flags, &rsa)
+	if err == nil && rsa.Addr.Family != AF_UNSPEC {
 		from, err = anyToSockaddr(fd, &rsa)
 	}
 	return
@@ -353,6 +377,11 @@ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
 }
 
 func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) {
+	var iov [1]Iovec
+	if len(p) > 0 {
+		iov[0].Base = &p[0]
+		iov[0].SetLen(len(p))
+	}
 	var ptr unsafe.Pointer
 	var salen _Socklen
 	if to != nil {
@@ -361,7 +390,32 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 			return 0, err
 		}
 	}
-	return sendmsgN(fd, p, oob, ptr, salen, flags)
+	return sendmsgN(fd, iov[:], oob, ptr, salen, flags)
+}
+
+// SendmsgBuffers sends a message on a socket to an address using the sendmsg
+// system call. The flags are passed to sendmsg. Any non-control data written
+// is gathered from buffers. The function returns the number of bytes written
+// to the socket.
+func SendmsgBuffers(fd int, buffers [][]byte, oob []byte, to Sockaddr, flags int) (n int, err error) {
+	iov := make([]Iovec, len(buffers))
+	for i := range buffers {
+		if len(buffers[i]) > 0 {
+			iov[i].Base = &buffers[i][0]
+			iov[i].SetLen(len(buffers[i]))
+		} else {
+			iov[i].Base = (*byte)(unsafe.Pointer(&_zero))
+		}
+	}
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return 0, err
+		}
+	}
+	return sendmsgN(fd, iov, oob, ptr, salen, flags)
 }
 
 func Send(s int, buf []byte, flags int) (err error) {
@@ -369,11 +423,15 @@ func Send(s int, buf []byte, flags int) (err error) {
 }
 
 func Sendto(fd int, p []byte, flags int, to Sockaddr) (err error) {
-	ptr, n, err := to.sockaddr()
-	if err != nil {
-		return err
+	var ptr unsafe.Pointer
+	var salen _Socklen
+	if to != nil {
+		ptr, salen, err = to.sockaddr()
+		if err != nil {
+			return err
+		}
 	}
-	return sendto(fd, p, flags, ptr, n)
+	return sendto(fd, p, flags, ptr, salen)
 }
 
 func SetsockoptByte(fd, level, opt int, value byte) (err error) {
@@ -483,4 +541,14 @@ func Lutimes(path string, tv []Timeval) error {
 		NsecToTimespec(TimevalToNsec(tv[1])),
 	}
 	return UtimesNanoAt(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW)
+}
+
+// emptyIovec reports whether there are no bytes in the slice of Iovec.
+func emptyIovecs(iov []Iovec) bool {
+	for i := range iov {
+		if iov[i].Len > 0 {
+			return false
+		}
+	}
+	return true
 }

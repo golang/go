@@ -11,7 +11,7 @@ package fipstls
 
 import "sync/atomic"
 
-var required uint32
+var required atomic.Bool
 
 // Force forces crypto/tls to restrict TLS configurations to FIPS-approved settings.
 // By design, this call is impossible to undo (except in tests).
@@ -19,7 +19,7 @@ var required uint32
 // Note that this call has an effect even in programs using
 // standard crypto (that is, even when Enabled = false).
 func Force() {
-	atomic.StoreUint32(&required, 1)
+	required.Store(true)
 }
 
 // Abandon allows non-FIPS-approved settings.
@@ -36,7 +36,7 @@ func Abandon() {
 	if !hasSuffix(name, "_test") && !hasSuffix(name, ".test") && name != "NaClMain" && name != "" {
 		panic("fipstls: invalid use of Abandon in " + name)
 	}
-	atomic.StoreUint32(&required, 0)
+	required.Store(false)
 }
 
 // provided by runtime
@@ -48,5 +48,5 @@ func hasSuffix(s, t string) bool {
 
 // Required reports whether FIPS-approved settings are required.
 func Required() bool {
-	return atomic.LoadUint32(&required) != 0
+	return required.Load()
 }

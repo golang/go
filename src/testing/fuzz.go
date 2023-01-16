@@ -5,7 +5,6 @@
 package testing
 
 import (
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,7 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"sync/atomic"
+	"strings"
 	"time"
 )
 
@@ -41,7 +40,7 @@ var (
 
 // fuzzWorkerExitCode is used as an exit code by fuzz worker processes after an
 // internal error. This distinguishes internal errors from uncontrolled panics
-// and other failiures. Keep in sync with internal/fuzz.workerExitCode.
+// and other failures. Keep in sync with internal/fuzz.workerExitCode.
 const fuzzWorkerExitCode = 70
 
 // InternalFuzzTarget is an internal type but exported because it is
@@ -317,7 +316,6 @@ func (f *F) Fuzz(ff any) {
 		}
 		t.w = indenter{&t.common}
 		if t.chatty != nil {
-			// TODO(#48132): adjust this to work with test2json.
 			t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 		}
 		f.common.inFuzzFn, f.inFuzzFn = true, true
@@ -337,6 +335,9 @@ func (f *F) Fuzz(ff any) {
 			fn.Call(args)
 		})
 		<-t.signal
+		if t.chatty != nil && t.chatty.json {
+			t.chatty.Updatef(t.parent.name, "=== NAME  %s\n", t.parent.name)
+		}
 		f.common.inFuzzFn, f.inFuzzFn = false, false
 		return !t.Failed()
 	}
@@ -380,7 +381,7 @@ func (f *F) Fuzz(ff any) {
 			// fuzz worker. This would become very verbose, particularly during
 			// minimization. Return the error instead, and let the caller deal
 			// with the output.
-			var buf bytes.Buffer
+			var buf strings.Builder
 			if ok := run(&buf, e); !ok {
 				return errors.New(buf.String())
 			}
@@ -472,55 +473,74 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 	if len(fuzzTests) == 0 || *isFuzzWorker {
 		return ran, ok
 	}
-	m := newMatcher(deps.MatchString, *match, "-test.run")
-	tctx := newTestContext(*parallel, m)
-	tctx.deadline = deadline
+	m := newMatcher(deps.MatchString, *match, "-test.run", *skip)
 	var mFuzz *matcher
 	if *matchFuzz != "" {
-		mFuzz = newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
+		mFuzz = newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz", *skip)
 	}
-	fctx := &fuzzContext{deps: deps, mode: seedCorpusOnly}
-	root := common{w: os.Stdout} // gather output in one place
-	if Verbose() {
-		root.chatty = newChattyPrinter(root.w)
-	}
-	for _, ft := range fuzzTests {
-		if shouldFailFast() {
-			break
-		}
-		testName, matched, _ := tctx.match.fullName(nil, ft.Name)
-		if !matched {
-			continue
-		}
-		if mFuzz != nil {
-			if _, fuzzMatched, _ := mFuzz.fullName(nil, ft.Name); fuzzMatched {
-				// If this will be fuzzed, then don't run the seed corpus
-				// right now. That will happen later.
-				continue
+
+	for _, procs := range cpuList {
+		runtime.GOMAXPROCS(procs)
+		for i := uint(0); i < *count; i++ {
+			if shouldFailFast() {
+				break
+			}
+
+			tctx := newTestContext(*parallel, m)
+			tctx.deadline = deadline
+			fctx := &fuzzContext{deps: deps, mode: seedCorpusOnly}
+			root := common{w: os.Stdout} // gather output in one place
+			if Verbose() {
+				root.chatty = newChattyPrinter(root.w)
+			}
+			for _, ft := range fuzzTests {
+				if shouldFailFast() {
+					break
+				}
+				testName, matched, _ := tctx.match.fullName(nil, ft.Name)
+				if !matched {
+					continue
+				}
+				if mFuzz != nil {
+					if _, fuzzMatched, _ := mFuzz.fullName(nil, ft.Name); fuzzMatched {
+						// If this will be fuzzed, then don't run the seed corpus
+						// right now. That will happen later.
+						continue
+					}
+				}
+				f := &F{
+					common: common{
+						signal:  make(chan bool),
+						barrier: make(chan bool),
+						name:    testName,
+						parent:  &root,
+						level:   root.level + 1,
+						chatty:  root.chatty,
+					},
+					testContext: tctx,
+					fuzzContext: fctx,
+				}
+				f.w = indenter{&f.common}
+				if f.chatty != nil {
+					f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
+				}
+				go fRunner(f, ft.Fn)
+				<-f.signal
+				if f.chatty != nil && f.chatty.json {
+					f.chatty.Updatef(f.parent.name, "=== NAME  %s\n", f.parent.name)
+				}
+				ok = ok && !f.Failed()
+				ran = ran || f.ran
+			}
+			if !ran {
+				// There were no tests to run on this iteration.
+				// This won't change, so no reason to keep trying.
+				break
 			}
 		}
-		f := &F{
-			common: common{
-				signal:  make(chan bool),
-				barrier: make(chan bool),
-				name:    testName,
-				parent:  &root,
-				level:   root.level + 1,
-				chatty:  root.chatty,
-			},
-			testContext: tctx,
-			fuzzContext: fctx,
-		}
-		f.w = indenter{&f.common}
-		if f.chatty != nil {
-			// TODO(#48132): adjust this to work with test2json.
-			f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
-		}
-
-		go fRunner(f, ft.Fn)
-		<-f.signal
 	}
-	return root.ran, !root.Failed()
+
+	return ran, ok
 }
 
 // runFuzzing runs the fuzz test matching the pattern for -fuzz. Only one such
@@ -533,7 +553,7 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 	if len(fuzzTests) == 0 || *matchFuzz == "" {
 		return true
 	}
-	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz")
+	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz", *skip)
 	tctx := newTestContext(1, m)
 	tctx.isFuzzing = true
 	fctx := &fuzzContext{
@@ -584,11 +604,13 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 	}
 	f.w = indenter{&f.common}
 	if f.chatty != nil {
-		// TODO(#48132): adjust this to work with test2json.
-		f.chatty.Updatef(f.name, "=== FUZZ  %s\n", f.name)
+		f.chatty.Updatef(f.name, "=== RUN   %s\n", f.name)
 	}
 	go fRunner(f, fuzzTest.Fn)
 	<-f.signal
+	if f.chatty != nil {
+		f.chatty.Updatef(f.parent.name, "=== NAME  %s\n", f.parent.name)
+	}
 	return !f.failed
 }
 
@@ -615,7 +637,7 @@ func fRunner(f *F, fn func(*F)) {
 		// the original panic should still be
 		// clear.
 		if f.Failed() {
-			atomic.AddUint32(&numFailed, 1)
+			numFailed.Add(1)
 		}
 		err := recover()
 		if err == nil {

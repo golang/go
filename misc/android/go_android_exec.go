@@ -10,7 +10,6 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/build"
@@ -28,7 +27,7 @@ import (
 
 func run(args ...string) (string, error) {
 	cmd := adbCmd(args...)
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	cmd.Stdout = io.MultiWriter(os.Stdout, buf)
 	// If the adb subprocess somehow hangs, go test will kill this wrapper
 	// and wait for our os.Stderr (and os.Stdout) to close as a result.

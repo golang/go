@@ -81,4 +81,4 @@ func currentLang() string {
 
 // goVersionRE is a regular expression that matches the valid
 // arguments to the -lang flag.
-var goVersionRE = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+var goVersionRE = regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)

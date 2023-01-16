@@ -7,10 +7,10 @@
 package net
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"internal/testenv"
+	"net/netip"
 	"reflect"
 	"runtime"
 	"sort"
@@ -49,21 +49,21 @@ var lookupGoogleSRVTests = []struct {
 	cname, target        string
 }{
 	{
-		"xmpp-server", "tcp", "google.com",
+		"ldap", "tcp", "google.com",
 		"google.com.", "google.com.",
 	},
 	{
-		"xmpp-server", "tcp", "google.com.",
+		"ldap", "tcp", "google.com.",
 		"google.com.", "google.com.",
 	},
 
 	// non-standard back door
 	{
-		"", "", "_xmpp-server._tcp.google.com",
+		"", "", "_ldap._tcp.google.com",
 		"google.com.", "google.com.",
 	},
 	{
-		"", "", "_xmpp-server._tcp.google.com.",
+		"", "", "_ldap._tcp.google.com.",
 		"google.com.", "google.com.",
 	},
 }
@@ -348,6 +348,8 @@ var lookupCNAMETests = []struct {
 	{"www.iana.org", "icann.org."},
 	{"www.iana.org.", "icann.org."},
 	{"www.google.com", "google.com."},
+	{"google.com", "google.com."},
+	{"cname-to-txt.go4.org", "test-txt-record.go4.org."},
 }
 
 func TestLookupCNAME(t *testing.T) {
@@ -701,16 +703,16 @@ func testDots(t *testing.T, mode string) {
 		}
 	}
 
-	cname, srvs, err := LookupSRV("xmpp-server", "tcp", "google.com")
+	cname, srvs, err := LookupSRV("ldap", "tcp", "google.com")
 	if err != nil {
-		t.Errorf("LookupSRV(xmpp-server, tcp, google.com): %v (mode=%v)", err, mode)
+		t.Errorf("LookupSRV(ldap, tcp, google.com): %v (mode=%v)", err, mode)
 	} else {
 		if !hasSuffixFold(cname, ".google.com.") {
-			t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned cname=%v, want name ending in .google.com. with trailing dot (mode=%v)", cname, mode)
+			t.Errorf("LookupSRV(ldap, tcp, google.com) returned cname=%v, want name ending in .google.com. with trailing dot (mode=%v)", cname, mode)
 		}
 		for _, srv := range srvs {
 			if !hasSuffixFold(srv.Target, ".google.com.") {
-				t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned addrs=%v, want names ending in .google.com. with trailing dot (mode=%v)", srvString(srvs), mode)
+				t.Errorf("LookupSRV(ldap, tcp, google.com) returned addrs=%v, want names ending in .google.com. with trailing dot (mode=%v)", srvString(srvs), mode)
 				break
 			}
 		}
@@ -718,7 +720,7 @@ func testDots(t *testing.T, mode string) {
 }
 
 func mxString(mxs []*MX) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	sep := ""
 	fmt.Fprintf(&buf, "[")
 	for _, mx := range mxs {
@@ -730,7 +732,7 @@ func mxString(mxs []*MX) string {
 }
 
 func nsString(nss []*NS) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	sep := ""
 	fmt.Fprintf(&buf, "[")
 	for _, ns := range nss {
@@ -742,7 +744,7 @@ func nsString(nss []*NS) string {
 }
 
 func srvString(srvs []*SRV) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	sep := ""
 	fmt.Fprintf(&buf, "[")
 	for _, srv := range srvs {
@@ -1208,6 +1210,17 @@ func TestLookupIPAddrConcurrentCallsForNetworks(t *testing.T) {
 	wg.Wait()
 }
 
+// Issue 53995: Resolver.LookupIP should return error for empty host name.
+func TestResolverLookupIPWithEmptyHost(t *testing.T) {
+	_, err := DefaultResolver.LookupIP(context.Background(), "ip", "")
+	if err == nil {
+		t.Fatal("DefaultResolver.LookupIP for empty host success, want no host error")
+	}
+	if !strings.HasSuffix(err.Error(), errNoSuchHost.Error()) {
+		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
+	}
+}
+
 func TestWithUnexpiredValuesPreserved(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -1279,18 +1292,16 @@ func TestResolverLookupIP(t *testing.T) {
 						t.Fatalf("DefaultResolver.LookupIP(%q, %q): failed with unexpected error: %v", network, host, err)
 					}
 
-					var v4Addrs []IP
-					var v6Addrs []IP
+					var v4Addrs []netip.Addr
+					var v6Addrs []netip.Addr
 					for _, ip := range ips {
-						switch {
-						case ip.To4() != nil:
-							// We need to skip the test below because To16 will
-							// convent an IPv4 address to an IPv4-mapped IPv6
-							// address.
-							v4Addrs = append(v4Addrs, ip)
-						case ip.To16() != nil:
-							v6Addrs = append(v6Addrs, ip)
-						default:
+						if addr, ok := netip.AddrFromSlice(ip); ok {
+							if addr.Is4() {
+								v4Addrs = append(v4Addrs, addr)
+							} else {
+								v6Addrs = append(v6Addrs, addr)
+							}
+						} else {
 							t.Fatalf("IP=%q is neither IPv4 nor IPv6", ip)
 						}
 					}
@@ -1312,7 +1323,7 @@ func TestResolverLookupIP(t *testing.T) {
 						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv4 addresses: %v", network, host, v4Addrs)
 					}
 					if network == "ip4" && len(v6Addrs) > 0 {
-						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv6 addresses: %v", network, host, v6Addrs)
+						t.Errorf("DefaultResolver.LookupIP(%q, %q): unexpected IPv6 or IPv4-mapped IPv6 addresses: %v", network, host, v6Addrs)
 					}
 				})
 			}

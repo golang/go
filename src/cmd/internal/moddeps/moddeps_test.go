@@ -11,9 +11,7 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -54,7 +52,7 @@ func TestAllDependencies(t *testing.T) {
 				// Load all of the packages in the module to ensure that their
 				// dependencies are vendored. If any imported package is missing,
 				// 'go list -deps' will fail when attempting to load it.
-				cmd := exec.Command(goBin, "list", "-mod=vendor", "-deps", "./...")
+				cmd := testenv.Command(t, goBin, "list", "-mod=vendor", "-deps", "./...")
 				cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 				cmd.Dir = m.Dir
 				cmd.Stderr = new(strings.Builder)
@@ -68,7 +66,7 @@ func TestAllDependencies(t *testing.T) {
 
 			// There is no vendor directory, so the module must have no dependencies.
 			// Check that the list of active modules contains only the main module.
-			cmd := exec.Command(goBin, "list", "-mod=readonly", "-m", "all")
+			cmd := testenv.Command(t, goBin, "list", "-mod=readonly", "-m", "all")
 			cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 			cmd.Dir = m.Dir
 			cmd.Stderr = new(strings.Builder)
@@ -106,11 +104,11 @@ func TestAllDependencies(t *testing.T) {
 
 	testenv.MustHaveExternalNetwork(t)
 	if haveDiff := func() bool {
-		diff, err := exec.Command("diff", "--recursive", "--unified", ".", ".").CombinedOutput()
+		diff, err := testenv.Command(t, "diff", "--recursive", "--unified", ".", ".").CombinedOutput()
 		if err != nil || len(diff) != 0 {
 			return false
 		}
-		diff, err = exec.Command("diff", "--recursive", "--unified", ".", "..").CombinedOutput()
+		diff, err = testenv.Command(t, "diff", "--recursive", "--unified", ".", "..").CombinedOutput()
 		if err == nil || len(diff) == 0 {
 			return false
 		}
@@ -130,7 +128,7 @@ func TestAllDependencies(t *testing.T) {
 	// GO_TEST_SHORT=0 causes it to run this portion of the test.)
 	var modcacheEnv []string
 	{
-		out, err := exec.Command(goBin, "env", "GOMODCACHE").Output()
+		out, err := testenv.Command(t, goBin, "env", "GOMODCACHE").Output()
 		if err != nil {
 			t.Fatalf("%s env GOMODCACHE: %v", goBin, err)
 		}
@@ -216,7 +214,7 @@ func TestAllDependencies(t *testing.T) {
 			}
 			// TODO(golang.org/issue/43440): Check anything else influenced by dependency versions.
 
-			diff, err := exec.Command("diff", "--recursive", "--unified", r.Dir, m.Dir).CombinedOutput()
+			diff, err := testenv.Command(t, "diff", "--recursive", "--unified", r.Dir, m.Dir).CombinedOutput()
 			if err != nil || len(diff) != 0 {
 				t.Errorf(`Module %s in %s is not tidy (-want +got):
 
@@ -322,7 +320,7 @@ type runner struct {
 // run runs the command and requires that it succeeds.
 func (r runner) run(t *testing.T, args ...string) {
 	t.Helper()
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := testenv.Command(t, args[0], args[1:]...)
 	cmd.Dir = r.Dir
 	cmd.Env = r.Env
 	out, err := cmd.CombinedOutput()
@@ -361,7 +359,7 @@ func TestDependencyVersionsConsistent(t *testing.T) {
 		// It's ok if there are undetected differences in modules that do not
 		// provide imported packages: we will not have to pull in any backports of
 		// fixes to those modules anyway.
-		vendor, err := ioutil.ReadFile(filepath.Join(m.Dir, "vendor", "modules.txt"))
+		vendor, err := os.ReadFile(filepath.Join(m.Dir, "vendor", "modules.txt"))
 		if err != nil {
 			t.Error(err)
 			continue
@@ -463,7 +461,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 
 			// Use 'go list' to describe the module contained in this directory (but
 			// not its dependencies).
-			cmd := exec.Command(goBin, "list", "-json", "-m")
+			cmd := testenv.Command(t, goBin, "list", "-json", "-m")
 			cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 			cmd.Dir = dir
 			cmd.Stderr = new(strings.Builder)

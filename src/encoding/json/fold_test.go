@@ -52,9 +52,7 @@ func TestFold(t *testing.T) {
 }
 
 func TestFoldAgainstUnicode(t *testing.T) {
-	const bufSize = 5
-	buf1 := make([]byte, 0, bufSize)
-	buf2 := make([]byte, 0, bufSize)
+	var buf1, buf2 []byte
 	var runes []rune
 	for i := 0x20; i <= 0x7f; i++ {
 		runes = append(runes, rune(i))
@@ -96,12 +94,8 @@ func TestFoldAgainstUnicode(t *testing.T) {
 				continue
 			}
 			for _, r2 := range runes {
-				buf1 := append(buf1[:0], 'x')
-				buf2 := append(buf2[:0], 'x')
-				buf1 = buf1[:1+utf8.EncodeRune(buf1[1:bufSize], r)]
-				buf2 = buf2[:1+utf8.EncodeRune(buf2[1:bufSize], r2)]
-				buf1 = append(buf1, 'x')
-				buf2 = append(buf2, 'x')
+				buf1 = append(utf8.AppendRune(append(buf1[:0], 'x'), r), 'x')
+				buf2 = append(utf8.AppendRune(append(buf2[:0], 'x'), r2), 'x')
 				want := bytes.EqualFold(buf1, buf2)
 				if got := ff.fold(buf1, buf2); got != want {
 					t.Errorf("%s(%q, %q) = %v; want %v", ff.name, buf1, buf2, got, want)

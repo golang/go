@@ -49,6 +49,7 @@ var badRe = []stringError{
 	{`a**`, "invalid nested repetition operator: `**`"},
 	{`a*+`, "invalid nested repetition operator: `*+`"},
 	{`\x`, "invalid escape sequence: `\\x`"},
+	{strings.Repeat(`\pL`, 27000), "expression too large"},
 }
 
 func compileTest(t *testing.T, expr string, error string) *Regexp {

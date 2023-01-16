@@ -13,7 +13,6 @@
 package maphash
 
 import (
-	"internal/unsafeheader"
 	"unsafe"
 )
 
@@ -72,11 +71,11 @@ func String(seed Seed, s string) uint64 {
 		panic("maphash: use of uninitialized Seed")
 	}
 	for len(s) > bufSize {
-		p := (*byte)((*unsafeheader.String)(unsafe.Pointer(&s)).Data)
+		p := (*byte)(unsafe.StringData(s))
 		state = rthash(p, bufSize, state)
 		s = s[bufSize:]
 	}
-	p := (*byte)((*unsafeheader.String)(unsafe.Pointer(&s)).Data)
+	p := (*byte)(unsafe.StringData(s))
 	return rthash(p, len(s), state)
 }
 
@@ -190,7 +189,7 @@ func (h *Hash) WriteString(s string) (int, error) {
 	if len(s) > bufSize {
 		h.initSeed()
 		for len(s) > bufSize {
-			ptr := (*byte)((*unsafeheader.String)(unsafe.Pointer(&s)).Data)
+			ptr := (*byte)(unsafe.StringData(s))
 			h.state.s = rthash(ptr, bufSize, h.state.s)
 			s = s[bufSize:]
 		}

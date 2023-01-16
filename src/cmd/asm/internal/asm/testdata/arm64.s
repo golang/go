@@ -95,6 +95,14 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	// CLS
 	CLSW	R1, R2
 	CLS	R1, R2
+	SBC	$0, R1                           // 21001fda
+	SBCW	$0, R1                           // 21001f5a
+	SBCS	$0, R1                           // 21001ffa
+	SBCSW	$0, R1                           // 21001f7a
+	ADC	$0, R1                           // 21001f9a
+	ADCW	$0, R1                           // 21001f1a
+	ADCS	$0, R1                           // 21001fba
+	ADCSW	$0, R1                           // 21001f3a
 
 // fp/simd instructions.
 	VADDP	V1.B16, V2.B16, V3.B16          // 43bc214e
@@ -167,6 +175,22 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VTBL	V14.B16, [V3.B16, V4.B16, V5.B16], V17.B16                              // 71400e4e
 	VTBL	V13.B16, [V29.B16, V30.B16, V31.B16, V0.B16], V28.B16                   // bc630d4e
 	VTBL	V3.B8, [V27.B16], V8.B8                                                 // 6803030e
+	VTBX	V22.B16, [V28.B16, V29.B16], V11.B16                                    // 8b33164e
+	VTBX	V18.B8, [V17.B16, V18.B16, V19.B16], V22.B8                             // 3652120e
+	VTBX	V31.B8, [V14.B16, V15.B16, V16.B16, V17.B16], V15.B8                    // cf711f0e
+	VTBX	V14.B16, [V16.B16], V11.B16                                             // 0b120e4e
+	VTBX	V28.B16, [V25.B16, V26.B16], V5.B16                                     // 25331c4e
+	VTBX	V16.B8, [V4.B16, V5.B16, V6.B16], V12.B8                                // 8c50100e
+	VTBX	V4.B8, [V16.B16, V17.B16, V18.B16, V19.B16], V4.B8                      // 0472040e
+	VTBX	V15.B8, [V1.B16], V20.B8                                                // 34100f0e
+	VTBX	V26.B16, [V2.B16, V3.B16], V26.B16                                      // 5a301a4e
+	VTBX	V15.B8, [V6.B16, V7.B16, V8.B16], V2.B8                                 // c2500f0e
+	VTBX	V2.B16, [V27.B16, V28.B16, V29.B16, V30.B16], V18.B16                   // 7273024e
+	VTBX	V11.B16, [V13.B16], V27.B16                                             // bb110b4e
+	VTBX	V3.B8, [V7.B16, V8.B16], V25.B8                                         // f930030e
+	VTBX	V14.B16, [V3.B16, V4.B16, V5.B16], V17.B16                              // 71500e4e
+	VTBX	V13.B16, [V29.B16, V30.B16, V31.B16, V0.B16], V28.B16                   // bc730d4e
+	VTBX	V3.B8, [V27.B16], V8.B8                                                 // 6813030e
 	VZIP1	V16.H8, V3.H8, V19.H8           // 7338504e
 	VZIP2	V22.D2, V25.D2, V21.D2          // 357bd64e
 	VZIP1	V6.D2, V9.D2, V11.D2            // 2b39c64e
@@ -210,6 +234,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD	$(0.1796875), F2                // 02f0681e
 	FMOVS	$(0.96875), F3                  // 03f02d1e
 	FMOVD	$(28.0), F4                     // 0490671e
+	FMOVD	$0, F0                          // e003679e
+	FMOVS	$0, F0                          // e003271e
+	FMOVD	ZR, F0                          // e003679e
+	FMOVS	ZR, F0                          // e003271e
 	VUADDW	V9.B8, V12.H8, V14.H8           // 8e11292e
 	VUADDW	V13.H4, V10.S4, V11.S4          // 4b116d2e
 	VUADDW	V21.S2, V24.D2, V29.D2          // 1d13b52e
@@ -370,7 +398,7 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$0x11110000, R1               // MOVD	$286326784, R1              // 2122a2d2
 	MOVD	$0xaaaa0000aaaa1111, R1       // MOVD	$-6149102338357718767, R1   // 212282d24155b5f24155f5f2
 	MOVD	$0x1111ffff1111aaaa, R1       // MOVD	$1230045644216969898, R1    // a1aa8a922122a2f22122e2f2
-	MOVD	$0, R1                        // 010080d2
+	MOVD	$0, R1                        // e1031faa
 	MOVD	$-1, R1                       // 01008092
 	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                // 2004a0d2
 	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                 // a1aa8a92
@@ -479,6 +507,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVD.W	8(R1), F20                                      // 348c40fc
 	FMOVQ.P	11(R10), F13                                    // 4db5c03c
 	FMOVQ.W	11(R20), F15                                    // 8fbec03c
+
+// storing $0 to memory, $0 will be replaced with ZR.
+	MOVD	$0, (R1)  // 3f0000f9
+	MOVW	$0, (R1)  // 3f0000b9
+	MOVWU	$0, (R1)  // 3f0000b9
+	MOVH	$0, (R1)  // 3f000079
+	MOVHU	$0, (R1)  // 3f000079
+	MOVB	$0, (R1)  // 3f000039
+	MOVBU	$0, (R1)  // 3f000039
 
 // small offset fits into instructions
 	MOVB	R1, 1(R2) // 41040039
@@ -1076,6 +1113,7 @@ next:
 	MSR	$1, SPSel                          // bf4100d5
 	MSR	$9, DAIFSet                        // df4903d5
 	MSR	$6, DAIFClr                        // ff4603d5
+	MSR	$0, CPACR_EL1                      // 5f1018d5
 	MRS	ELR_EL1, R8                        // 284038d5
 	MSR	R16, ELR_EL1                       // 304018d5
 	MSR	R2, ACTLR_EL1                      // 221018d5

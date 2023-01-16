@@ -175,7 +175,7 @@ func TestSendfileSeeked(t *testing.T) {
 				return
 			}
 			defer f.Close()
-			if _, err := f.Seek(seekTo, os.SEEK_SET); err != nil {
+			if _, err := f.Seek(seekTo, io.SeekStart); err != nil {
 				errc <- err
 				return
 			}

@@ -17,7 +17,6 @@ package reflect
 
 import (
 	"internal/goarch"
-	"internal/unsafeheader"
 	"strconv"
 	"sync"
 	"unicode"
@@ -525,27 +524,21 @@ func writeVarint(buf []byte, n int) int {
 	}
 }
 
-func (n name) name() (s string) {
+func (n name) name() string {
 	if n.bytes == nil {
-		return
+		return ""
 	}
 	i, l := n.readVarint(1)
-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(n.data(1+i, "non-empty string"))
-	hdr.Len = l
-	return
+	return unsafe.String(n.data(1+i, "non-empty string"), l)
 }
 
-func (n name) tag() (s string) {
+func (n name) tag() string {
 	if !n.hasTag() {
 		return ""
 	}
 	i, l := n.readVarint(1)
 	i2, l2 := n.readVarint(1 + i + l)
-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
-	hdr.Data = unsafe.Pointer(n.data(1+i+l+i2, "non-empty string"))
-	hdr.Len = l2
-	return
+	return unsafe.String(n.data(1+i+l+i2, "non-empty string"), l2)
 }
 
 func (n name) pkgPath() string {
@@ -892,12 +885,26 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 	if ut == nil {
 		return Method{}, false
 	}
-	// TODO(mdempsky): Binary search.
-	for i, p := range ut.exportedMethods() {
-		if t.nameOff(p.name).name() == name {
-			return t.Method(i), true
+
+	methods := ut.exportedMethods()
+
+	// We are looking for the first index i where the string becomes >= s.
+	// This is a copy of sort.Search, with f(h) replaced by (t.nameOff(methods[h].name).name() >= name).
+	i, j := 0, len(methods)
+	for i < j {
+		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		// i ≤ h < j
+		if !(t.nameOff(methods[h].name).name() >= name) {
+			i = h + 1 // preserves f(i-1) == false
+		} else {
+			j = h // preserves f(j) == true
 		}
 	}
+	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+	if i < len(methods) && name == t.nameOff(methods[i].name).name() {
+		return t.Method(i), true
+	}
+
 	return Method{}, false
 }
 
@@ -1431,6 +1438,12 @@ func (t *structType) FieldByName(name string) (f StructField, present bool) {
 func TypeOf(i any) Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
 	return toType(eface.typ)
+}
+
+// rtypeOf directly extracts the *rtype of the provided value.
+func rtypeOf(i any) *rtype {
+	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+	return eface.typ
 }
 
 // ptrMap is the cache for PointerTo.
@@ -1979,31 +1992,32 @@ func MapOf(key, elem Type) Type {
 	return ti.(Type)
 }
 
-// TODO(crawshaw): as these funcTypeFixedN structs have no methods,
-// they could be defined at runtime using the StructOf function.
-type funcTypeFixed4 struct {
-	funcType
-	args [4]*rtype
-}
-type funcTypeFixed8 struct {
-	funcType
-	args [8]*rtype
-}
-type funcTypeFixed16 struct {
-	funcType
-	args [16]*rtype
-}
-type funcTypeFixed32 struct {
-	funcType
-	args [32]*rtype
-}
-type funcTypeFixed64 struct {
-	funcType
-	args [64]*rtype
-}
-type funcTypeFixed128 struct {
-	funcType
-	args [128]*rtype
+var funcTypes []Type
+var funcTypesMutex sync.Mutex
+
+func initFuncTypes(n int) Type {
+	funcTypesMutex.Lock()
+	defer funcTypesMutex.Unlock()
+	if n >= len(funcTypes) {
+		newFuncTypes := make([]Type, n+1)
+		copy(newFuncTypes, funcTypes)
+		funcTypes = newFuncTypes
+	}
+	if funcTypes[n] != nil {
+		return funcTypes[n]
+	}
+
+	funcTypes[n] = StructOf([]StructField{
+		{
+			Name: "FuncType",
+			Type: TypeOf(funcType{}),
+		},
+		{
+			Name: "Args",
+			Type: ArrayOf(n, TypeOf(&rtype{})),
+		},
+	})
+	return funcTypes[n]
 }
 
 // FuncOf returns the function type with the given argument and result types.
@@ -2023,36 +2037,13 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	prototype := *(**funcType)(unsafe.Pointer(&ifunc))
 	n := len(in) + len(out)
 
-	var ft *funcType
-	var args []*rtype
-	switch {
-	case n <= 4:
-		fixed := new(funcTypeFixed4)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 8:
-		fixed := new(funcTypeFixed8)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 16:
-		fixed := new(funcTypeFixed16)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 32:
-		fixed := new(funcTypeFixed32)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 64:
-		fixed := new(funcTypeFixed64)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	case n <= 128:
-		fixed := new(funcTypeFixed128)
-		args = fixed.args[:0:len(fixed.args)]
-		ft = &fixed.funcType
-	default:
+	if n > 128 {
 		panic("reflect.FuncOf: too many arguments")
 	}
+
+	o := New(initFuncTypes(n)).Elem()
+	ft := (*funcType)(unsafe.Pointer(o.Field(0).Addr().Pointer()))
+	args := unsafe.Slice((**rtype)(unsafe.Pointer(o.Field(1).Addr().Pointer())), n)[0:0:n]
 	*ft = *prototype
 
 	// Build a hash and minimally populate ft.
@@ -2071,9 +2062,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 		args = append(args, t)
 		hash = fnv1(hash, byte(t.hash>>24), byte(t.hash>>16), byte(t.hash>>8), byte(t.hash))
 	}
-	if len(args) > 50 {
-		panic("reflect.FuncOf does not support more than 50 arguments")
-	}
+
 	ft.tflag = 0
 	ft.hash = hash
 	ft.inCount = uint16(len(in))
@@ -2265,7 +2254,10 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 
 	if ktyp.ptrdata != 0 || etyp.ptrdata != 0 {
 		nptr := (bucketSize*(1+ktyp.size+etyp.size) + goarch.PtrSize) / goarch.PtrSize
-		mask := make([]byte, (nptr+7)/8)
+		n := (nptr + 7) / 8
+		// Runtime needs pointer masks to be a multiple of uintptr in size.
+		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
+		mask := make([]byte, n)
 		base := bucketSize / goarch.PtrSize
 
 		if ktyp.ptrdata != 0 {
@@ -2971,7 +2963,10 @@ func ArrayOf(length int, elem Type) Type {
 		// Element is small with pointer mask; array is still small.
 		// Create direct pointer mask by turning each 1 bit in elem
 		// into length 1 bits in larger mask.
-		mask := make([]byte, (array.ptrdata/goarch.PtrSize+7)/8)
+		n := (array.ptrdata/goarch.PtrSize + 7) / 8
+		// Runtime needs pointer masks to be a multiple of uintptr in size.
+		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
+		mask := make([]byte, n)
 		emitGCMask(mask, 0, typ, array.len)
 		array.gcdata = &mask[0]
 
@@ -3140,8 +3135,13 @@ type bitVector struct {
 
 // append a bit to the bitmap.
 func (bv *bitVector) append(bit uint8) {
-	if bv.n%8 == 0 {
-		bv.data = append(bv.data, 0)
+	if bv.n%(8*goarch.PtrSize) == 0 {
+		// Runtime needs pointer masks to be a multiple of uintptr in size.
+		// Since reflect passes bv.data directly to the runtime as a pointer mask,
+		// we append a full uintptr of zeros at a time.
+		for i := 0; i < goarch.PtrSize; i++ {
+			bv.data = append(bv.data, 0)
+		}
 	}
 	bv.data[bv.n/8] |= bit << (bv.n % 8)
 	bv.n++

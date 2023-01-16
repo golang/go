@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"errors"
 	"fmt"
+	. "internal/types/errors"
 )
 
 // Instantiate instantiates the type orig with the given type arguments targs.
@@ -156,7 +157,7 @@ func (check *Checker) validateTArgLen(pos syntax.Pos, ntparams, ntargs int) bool
 	if ntargs != ntparams {
 		// TODO(gri) provide better error message
 		if check != nil {
-			check.errorf(pos, "got %d arguments but %d type parameters", ntargs, ntparams)
+			check.errorf(pos, WrongTypeArgCount, "got %d arguments but %d type parameters", ntargs, ntparams)
 			return false
 		}
 		panic(fmt.Sprintf("%v: got %d arguments but %d type parameters", pos, ntargs, ntparams))
@@ -174,44 +175,52 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 		// need to instantiate it with the type arguments with which we instantiated
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
-		if err := check.implements(targs[i], bound); err != nil {
-			return i, err
+		var cause string
+		if !check.implements(targs[i], bound, true, &cause) {
+			return i, errors.New(cause)
 		}
 	}
 	return -1, nil
 }
 
-// implements checks if V implements T and reports an error if it doesn't.
-// The receiver may be nil if implements is called through an exported
-// API call such as AssignableTo.
-func (check *Checker) implements(V, T Type) error {
+// implements checks if V implements T. The receiver may be nil if implements
+// is called through an exported API call such as AssignableTo. If constraint
+// is set, T is a type constraint.
+//
+// If the provided cause is non-nil, it may be set to an error string
+// explaining why V does not implement (or satisfy, for constraints) T.
+func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
 	Vu := under(V)
 	Tu := under(T)
 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
-		return nil // avoid follow-on errors
+		return true // avoid follow-on errors
 	}
 	if p, _ := Vu.(*Pointer); p != nil && under(p.base) == Typ[Invalid] {
-		return nil // avoid follow-on errors (see issue #49541 for an example)
+		return true // avoid follow-on errors (see issue #49541 for an example)
 	}
 
-	errorf := func(format string, args ...interface{}) error {
-		return errors.New(check.sprintf(format, args...))
+	verb := "implement"
+	if constraint {
+		verb = "satisfy"
 	}
 
 	Ti, _ := Tu.(*Interface)
 	if Ti == nil {
-		var cause string
-		if isInterfacePtr(Tu) {
-			cause = check.sprintf("type %s is pointer to interface, not interface", T)
-		} else {
-			cause = check.sprintf("%s is not an interface", T)
+		if cause != nil {
+			var detail string
+			if isInterfacePtr(Tu) {
+				detail = check.sprintf("type %s is pointer to interface, not interface", T)
+			} else {
+				detail = check.sprintf("%s is not an interface", T)
+			}
+			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
 		}
-		return errorf("%s does not implement %s (%s)", V, T, cause)
+		return false
 	}
 
 	// Every type satisfies the empty interface.
 	if Ti.Empty() {
-		return nil
+		return true
 	}
 	// T is not the empty interface (i.e., the type set of T is restricted)
 
@@ -219,31 +228,67 @@ func (check *Checker) implements(V, T Type) error {
 	// (The empty set is a subset of any set.)
 	Vi, _ := Vu.(*Interface)
 	if Vi != nil && Vi.typeSet().IsEmpty() {
-		return nil
+		return true
 	}
 	// type set of V is not empty
 
 	// No type with non-empty type set satisfies the empty type set.
 	if Ti.typeSet().IsEmpty() {
-		return errorf("cannot implement %s (empty type set)", T)
+		if cause != nil {
+			*cause = check.sprintf("cannot %s %s (empty type set)", verb, T)
+		}
+		return false
 	}
 
 	// V must implement T's methods, if any.
 	if m, wrong := check.missingMethod(V, Ti, true); m != nil /* !Implements(V, Ti) */ {
-		return errorf("%s does not implement %s %s", V, T, check.missingMethodReason(V, T, m, wrong))
+		if cause != nil {
+			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, check.missingMethodCause(V, T, m, wrong))
+		}
+		return false
 	}
 
-	// If T is comparable, V must be comparable.
-	// Remember as a pending error and report only if we don't have a more specific error.
-	var pending error
-	if Ti.IsComparable() && !comparable(V, false, nil, nil) {
-		pending = errorf("%s does not implement comparable", V)
+	// Only check comparability if we don't have a more specific error.
+	checkComparability := func() bool {
+		if !Ti.IsComparable() {
+			return true
+		}
+		// If T is comparable, V must be comparable.
+		// If V is strictly comparable, we're done.
+		if comparable(V, false /* strict comparability */, nil, nil) {
+			return true
+		}
+		// If check.conf.OldComparableSemantics is set (by the compiler or
+		// a test), we only consider strict comparability and we're done.
+		// TODO(gri) remove this check for Go 1.21
+		if check != nil && check.conf.OldComparableSemantics {
+			if cause != nil {
+				*cause = check.sprintf("%s does not %s comparable", V, verb)
+			}
+			return false
+		}
+		// For constraint satisfaction, use dynamic (spec) comparability
+		// so that ordinary, non-type parameter interfaces implement comparable.
+		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
+			// V is comparable if we are at Go 1.20 or higher.
+			if check == nil || check.allowVersion(check.pkg, 1, 20) {
+				return true
+			}
+			if cause != nil {
+				*cause = check.sprintf("%s to %s comparable requires go1.20 or later", V, verb)
+			}
+			return false
+		}
+		if cause != nil {
+			*cause = check.sprintf("%s does not %s comparable", V, verb)
+		}
+		return false
 	}
 
 	// V must also be in the set of types of T, if any.
 	// Constraints with empty type sets were already excluded above.
 	if !Ti.typeSet().hasTerms() {
-		return pending // nothing to do
+		return checkComparability() // nothing to do
 	}
 
 	// If V is itself an interface, each of its possible types must be in the set
@@ -252,9 +297,12 @@ func (check *Checker) implements(V, T Type) error {
 	if Vi != nil {
 		if !Vi.typeSet().subsetOf(Ti.typeSet()) {
 			// TODO(gri) report which type is missing
-			return errorf("%s does not implement %s", V, T)
+			if cause != nil {
+				*cause = check.sprintf("%s does not %s %s", V, verb, T)
+			}
+			return false
 		}
-		return pending
+		return checkComparability()
 	}
 
 	// Otherwise, V's type must be included in the iface type set.
@@ -275,12 +323,44 @@ func (check *Checker) implements(V, T Type) error {
 		}
 		return false
 	}) {
-		if alt != nil {
-			return errorf("%s does not implement %s (possibly missing ~ for %s in constraint %s)", V, T, alt, T)
-		} else {
-			return errorf("%s does not implement %s (%s missing in %s)", V, T, V, Ti.typeSet().terms)
+		if cause != nil {
+			var detail string
+			switch {
+			case alt != nil:
+				detail = check.sprintf("possibly missing ~ for %s in %s", alt, T)
+			case mentions(Ti, V):
+				detail = check.sprintf("%s mentions %s, but %s is not in the type set of %s", T, V, V, T)
+			default:
+				detail = check.sprintf("%s missing in %s", V, Ti.typeSet().terms)
+			}
+			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
 		}
+		return false
 	}
 
-	return pending
+	return checkComparability()
+}
+
+// mentions reports whether type T "mentions" typ in an (embedded) element or term
+// of T (whether typ is in the type set of T or not). For better error messages.
+func mentions(T, typ Type) bool {
+	switch T := T.(type) {
+	case *Interface:
+		for _, e := range T.embeddeds {
+			if mentions(e, typ) {
+				return true
+			}
+		}
+	case *Union:
+		for _, t := range T.terms {
+			if mentions(t.typ, typ) {
+				return true
+			}
+		}
+	default:
+		if Identical(T, typ) {
+			return true
+		}
+	}
+	return false
 }

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
@@ -19,7 +20,6 @@ import (
 	"io"
 	"net"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -36,7 +36,7 @@ type clientHandshakeState struct {
 
 var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
 
-func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
+func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 	config := c.config
 	if len(config.ServerName) == 0 && !config.InsecureSkipVerify {
 		return nil, nil, errors.New("tls: either ServerName or InsecureSkipVerify must be specified in the tls.Config")
@@ -125,7 +125,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
 	}
 
-	var params ecdheParameters
+	var key *ecdh.PrivateKey
 	if hello.supportedVersions[0] == VersionTLS13 {
 		if hasAESGCMHardwareSupport {
 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
@@ -134,17 +134,17 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, ecdheParameters, error) {
 		}
 
 		curveID := config.curvePreferences()[0]
-		if _, ok := curveForCurveID(curveID); curveID != X25519 && !ok {
+		if _, ok := curveForCurveID(curveID); !ok {
 			return nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
 		}
-		params, err = generateECDHEParameters(config.rand(), curveID)
+		key, err = generateECDHEKey(config.rand(), curveID)
 		if err != nil {
 			return nil, nil, err
 		}
-		hello.keyShares = []keyShare{{group: curveID, data: params.PublicKey()}}
+		hello.keyShares = []keyShare{{group: curveID, data: key.PublicKey().Bytes()}}
 	}
 
-	return hello, params, nil
+	return hello, key, nil
 }
 
 func (c *Conn) clientHandshake(ctx context.Context) (err error) {
@@ -156,7 +156,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	// need to be reset.
 	c.didResume = false
 
-	hello, ecdheParams, err := c.makeClientHello()
+	hello, ecdheKey, err := c.makeClientHello()
 	if err != nil {
 		return err
 	}
@@ -214,7 +214,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 			ctx:         ctx,
 			serverHello: serverHello,
 			hello:       hello,
-			ecdheParams: ecdheParams,
+			ecdheKey:    ecdheKey,
 			session:     session,
 			earlySecret: earlySecret,
 			binderKey:   binderKey,
@@ -455,7 +455,7 @@ func (hs *clientHandshakeState) handshake() error {
 	}
 
 	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random)
-	atomic.StoreUint32(&c.handshakeStatus, 1)
+	c.isHandshakeComplete.Store(true)
 
 	return nil
 }
@@ -629,7 +629,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			}
 		}
 
-		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash, hs.masterSecret)
+		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
 		signOpts := crypto.SignerOpts(sigHash)
 		if sigType == signatureRSAPSS {
 			signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
@@ -849,14 +849,16 @@ func (hs *clientHandshakeState) sendFinished(out []byte) error {
 // verifyServerCertificate parses and verifies the provided chain, setting
 // c.verifiedChains and c.peerCertificates or sending the appropriate alert.
 func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+	activeHandles := make([]*activeCert, len(certificates))
 	certs := make([]*x509.Certificate, len(certificates))
 	for i, asn1Data := range certificates {
-		cert, err := x509.ParseCertificate(asn1Data)
+		cert, err := clientCertCache.newCert(asn1Data)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
 			return errors.New("tls: failed to parse certificate from server: " + err.Error())
 		}
-		certs[i] = cert
+		activeHandles[i] = cert
+		certs[i] = cert.cert
 	}
 
 	if !c.config.InsecureSkipVerify {
@@ -874,7 +876,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 		c.verifiedChains, err = certs[0].Verify(opts)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return err
+			return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
 		}
 	}
 
@@ -886,6 +888,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 		return fmt.Errorf("tls: server's certificate contains an unsupported type of public key: %T", certs[0].PublicKey)
 	}
 
+	c.activeCertHandles = activeHandles
 	c.peerCertificates = certs
 
 	if c.config.VerifyPeerCertificate != nil {
