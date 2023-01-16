@@ -443,6 +443,7 @@ const (
 	AuxPcinline
 	AuxPcdata
 	AuxWasmImport
+	AuxSehUnwindInfo
 )
 
 func (a *Aux) Type() uint8 { return a[0] }

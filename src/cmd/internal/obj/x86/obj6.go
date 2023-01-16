@@ -628,6 +628,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.To.Offset += int64(bpsize)
 	} else {
 		bpsize = 0
+		p.From.Sym.Set(obj.AttrNoFrame, true)
 	}
 
 	textarg := int64(p.To.Val.(int32))
@@ -1526,6 +1527,7 @@ var Linkamd64 = obj.LinkArch{
 	Preprocess:     preprocess,
 	Assemble:       span6,
 	Progedit:       progedit,
+	SEH:            populateSeh,
 	UnaryDst:       unaryDst,
 	DWARFRegisters: AMD64DWARFRegisters,
 }
