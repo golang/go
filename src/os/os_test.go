@@ -2548,6 +2548,26 @@ func TestDoubleCloseError(t *testing.T) {
 	testDoubleCloseError(t, sfdir)
 }
 
+func TestUserCacheDir(t *testing.T) {
+	cacheDir, err := UserCacheDir()
+	if len(cacheDir) == 0 && err == nil {
+		t.Fatal("UserCacheDir return empty string without error")
+	}
+
+	if err != nil {
+		t.Skipf("UserCacheDir failed: %v", err)
+	}
+
+	stat, err := Stat(cacheDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !stat.IsDir() {
+		t.Fatalf("dir %s is not directory and type is %T", cacheDir, stat.Mode())
+	}
+}
+
 func TestUserHomeDir(t *testing.T) {
 	dir, err := UserHomeDir()
 	if dir == "" && err == nil {
