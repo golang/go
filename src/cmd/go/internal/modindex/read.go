@@ -515,7 +515,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		if !shouldBuild || tf.ignoreFile() {
 			if ext == ".go" {
 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
-			} else if fileListForExt((*Package)(p), ext) != nil {
+			} else if fileListForExt(p, ext) != nil {
 				p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, name)
 			}
 			continue
@@ -530,7 +530,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			Sfiles = append(Sfiles, name)
 			continue
 		default:
-			if list := fileListForExt((*Package)(p), ext); list != nil {
+			if list := fileListForExt(p, ext); list != nil {
 				*list = append(*list, name)
 			}
 			continue
@@ -585,7 +585,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			}
 		}
 		if directives := tf.cgoDirectives(); directives != "" {
-			if err := ctxt.saveCgo(name, (*Package)(p), directives); err != nil {
+			if err := ctxt.saveCgo(name, p, directives); err != nil {
 				badGoFile(name, err)
 			}
 		}
