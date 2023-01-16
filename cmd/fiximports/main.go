@@ -72,11 +72,9 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
-	"go/build"
 	"go/format"
 	"go/parser"
 	"go/token"
-	exec "golang.org/x/sys/execabs"
 	"io"
 	"io/ioutil"
 	"log"
@@ -86,6 +84,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	exec "golang.org/x/sys/execabs"
 )
 
 // flags
@@ -137,16 +137,16 @@ type canonicalName struct{ path, name string }
 // Invariant: a false result implies an error was already printed.
 func fiximports(packages ...string) bool {
 	// importedBy is the transpose of the package import graph.
-	importedBy := make(map[string]map[*build.Package]bool)
+	importedBy := make(map[string]map[*listPackage]bool)
 
 	// addEdge adds an edge to the import graph.
-	addEdge := func(from *build.Package, to string) {
+	addEdge := func(from *listPackage, to string) {
 		if to == "C" || to == "unsafe" {
 			return // fake
 		}
 		pkgs := importedBy[to]
 		if pkgs == nil {
-			pkgs = make(map[*build.Package]bool)
+			pkgs = make(map[*listPackage]bool)
 			importedBy[to] = pkgs
 		}
 		pkgs[from] = true
@@ -162,7 +162,7 @@ func fiximports(packages ...string) bool {
 	// packageName maps each package's path to its name.
 	packageName := make(map[string]string)
 	for _, p := range pkgs {
-		packageName[p.ImportPath] = p.Package.Name
+		packageName[p.ImportPath] = p.Name
 	}
 
 	// canonical maps each non-canonical package path to
@@ -207,21 +207,21 @@ func fiximports(packages ...string) bool {
 		}
 
 		for _, imp := range p.Imports {
-			addEdge(&p.Package, imp)
+			addEdge(p, imp)
 		}
 		for _, imp := range p.TestImports {
-			addEdge(&p.Package, imp)
+			addEdge(p, imp)
 		}
 		for _, imp := range p.XTestImports {
-			addEdge(&p.Package, imp)
+			addEdge(p, imp)
 		}
 
 		// Does package have an explicit import comment?
 		if p.ImportComment != "" {
 			if p.ImportComment != p.ImportPath {
 				canonical[p.ImportPath] = canonicalName{
-					path: p.Package.ImportComment,
-					name: p.Package.Name,
+					path: p.ImportComment,
+					name: p.Name,
 				}
 			}
 		} else {
@@ -273,7 +273,7 @@ func fiximports(packages ...string) bool {
 
 	// Find all clients (direct importers) of canonical packages.
 	// These are the packages that need fixing up.
-	clients := make(map[*build.Package]bool)
+	clients := make(map[*listPackage]bool)
 	for path := range canonical {
 		for client := range importedBy[path] {
 			clients[client] = true
@@ -350,7 +350,7 @@ func fiximports(packages ...string) bool {
 }
 
 // Invariant: false result => error already printed.
-func rewritePackage(client *build.Package, canonical map[string]canonicalName) bool {
+func rewritePackage(client *listPackage, canonical map[string]canonicalName) bool {
 	ok := true
 
 	used := make(map[string]bool)
@@ -450,11 +450,20 @@ func rewriteFile(filename string, canonical map[string]canonicalName, used map[s
 	return nil
 }
 
-// listPackage is a copy of cmd/go/list.Package.
-// It has more fields than build.Package and we need some of them.
+// listPackage corresponds to the output of go list -json,
+// but only the fields we need.
 type listPackage struct {
-	build.Package
-	Error *packageError // error loading package
+	Name          string
+	Dir           string
+	ImportPath    string
+	GoFiles       []string
+	TestGoFiles   []string
+	XTestGoFiles  []string
+	Imports       []string
+	TestImports   []string
+	XTestImports  []string
+	ImportComment string
+	Error         *packageError // error loading package
 }
 
 // A packageError describes an error loading information about a package.
