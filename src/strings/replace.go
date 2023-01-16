@@ -518,7 +518,6 @@ func (r *byteStringReplacer) Replace(s string) string {
 				newSize += c * (len(r.replacements[x[0]]) - 1)
 				anyChanges = true
 			}
-
 		}
 	} else {
 		for i := 0; i < len(s); i++ {
