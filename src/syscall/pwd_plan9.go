@@ -29,6 +29,8 @@ var (
 // rescheduling on a different thread (potentially with a different
 // working directory) before the syscall is executed.
 func Fixwd() {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	wdmu.Lock()
 	defer wdmu.Unlock()
 	fixwdLocked()
@@ -72,6 +74,8 @@ func getwd() (wd string, err error) {
 }
 
 func Getwd() (wd string, err error) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	wdmu.Lock()
 	defer wdmu.Unlock()
 
