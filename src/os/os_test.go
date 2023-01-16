@@ -2943,3 +2943,20 @@ func TestPipeCloseRace(t *testing.T) {
 		t.Errorf("got nils %d errs %d, want 2 2", nils, errs)
 	}
 }
+
+func TestTempDir(t *testing.T) {
+	dir := TempDir()
+
+	if dir == "" {
+		t.Fatalf("dir is empty string")
+	}
+
+	dirStat, err := Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !dirStat.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, dirStat.Mode())
+	}
+}
