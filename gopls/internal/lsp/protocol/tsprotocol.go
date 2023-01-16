@@ -1,14 +1,21 @@
-// Copyright 2019-2022 The Go Authors. All rights reserved.
+// Copyright 2022 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Code generated for LSP. DO NOT EDIT.
 
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of Fri Sep 16 13:04:31 2022)
-// Code generated; DO NOT EDIT.
+// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of 2023-01-14)
 
 import "encoding/json"
+
+// created for And
+type And_Param_workspace_configuration struct { // line 141
+	ParamConfiguration
+	PartialResultParams
+}
 
 /*
  * A special text edit with an additional change annotation.
@@ -393,6 +400,8 @@ type CodeActionContext struct { // line 9052
 	 */
 	TriggerKind CodeActionTriggerKind `json:"triggerKind,omitempty"`
 }
+
+// A set of predefined code action kinds
 type CodeActionKind string // line 13352
 // Provider options for a [CodeActionRequest](#CodeActionRequest).
 type CodeActionOptions struct { // line 9091
@@ -430,6 +439,12 @@ type CodeActionRegistrationOptions struct { // line 5495
 	TextDocumentRegistrationOptions
 	CodeActionOptions
 }
+
+/*
+ * The reason why code actions were requested.
+ *
+ * @since 3.17.0
+ */
 type CodeActionTriggerKind uint32 // line 13632
 /*
  * Structure to capture a description for an error code.
@@ -773,6 +788,8 @@ type CompletionItem struct { // line 4550
 	 */
 	Data interface{} `json:"data,omitempty"`
 }
+
+// The kind of a completion entry.
 type CompletionItemKind uint32 // line 13160
 /*
  * Additional details for a completion item label.
@@ -791,6 +808,13 @@ type CompletionItemLabelDetails struct { // line 8671
 	 */
 	Description string `json:"description,omitempty"`
 }
+
+/*
+ * Completion item tags are extra annotations that tweak the rendering of a completion
+ * item.
+ *
+ * @since 3.15.0
+ */
 type CompletionItemTag uint32 // line 13270
 /*
  * Represents a collection of [completion items](#CompletionItem) to be presented
@@ -880,6 +904,8 @@ type CompletionRegistrationOptions struct { // line 4875
 	TextDocumentRegistrationOptions
 	CompletionOptions
 }
+
+// How a completion was triggered
 type CompletionTriggerKind uint32 // line 13581
 type ConfigurationItem struct {   // line 6401
 	// The scope to get the configuration section for.
@@ -1156,8 +1182,15 @@ type DiagnosticRelatedInformation struct { // line 10067
 type DiagnosticServerCancellationData struct { // line 3863
 	RetriggerRequest bool `json:"retriggerRequest"`
 }
+
+// The diagnostic's severity.
 type DiagnosticSeverity uint32 // line 13530
-type DiagnosticTag uint32      // line 13560
+/*
+ * The diagnostic tags.
+ *
+ * @since 3.15.0
+ */
+type DiagnosticTag uint32 // line 13560
 /*
  * Workspace client capabilities specific to diagnostic pull requests.
  *
@@ -1379,18 +1412,13 @@ type DocumentDiagnosticParams struct { // line 3790
 	WorkDoneProgressParams
 	PartialResultParams
 }
-
+type DocumentDiagnosticReport = Or_DocumentDiagnosticReport // (alias) line 13909
 /*
- * The result of a document diagnostic pull request. A report can
- * either be a full report containing all diagnostics for the
- * requested document or an unchanged report indicating that nothing
- * has changed in terms of diagnostics in comparison to the last
- * pull request.
+ * The document diagnostic report kinds.
  *
  * @since 3.17.0
  */
-type DocumentDiagnosticReport = Or_DocumentDiagnosticReport // (alias) line 13909
-type DocumentDiagnosticReportKind string                    // line 12748
+type DocumentDiagnosticReportKind string // line 12748
 /*
  * A partial result for a document diagnostic report.
  *
@@ -1450,6 +1478,8 @@ type DocumentHighlightClientCapabilities struct { // line 11650
 	// Whether document highlight supports dynamic registration.
 	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 }
+
+// A document highlight kind.
 type DocumentHighlightKind uint32 // line 13327
 // Provider options for a [DocumentHighlightRequest](#DocumentHighlightRequest).
 type DocumentHighlightOptions struct { // line 8975
@@ -1701,8 +1731,10 @@ type DocumentSymbolRegistrationOptions struct { // line 5312
 	TextDocumentRegistrationOptions
 	DocumentSymbolOptions
 }
-type DocumentURI string // line 0
-type ErrorCodes int32   // line 12769
+type DocumentURI string
+
+// Predefined error codes.
+type ErrorCodes int32 // line 12769
 // The client capabilities of a [ExecuteCommandRequest](#ExecuteCommandRequest).
 type ExecuteCommandClientCapabilities struct { // line 10988
 	// Execute command supports dynamic registration.
@@ -1743,12 +1775,12 @@ type ExecutionSummary struct { // line 10188
 	Success bool `json:"success,omitempty"`
 }
 
-// created for Literal
+// created for Literal (Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0_cells_Elem)
 type FCellsPNotebookSelector struct { // line 9857
 	Language string `json:"language"`
 }
 
-// created for Literal
+// created for Literal (Lit_CodeActionClientCapabilities_codeActionLiteralSupport_codeActionKind)
 type FCodeActionKindPCodeActionLiteralSupport struct { // line 11768
 	/*
 	 * The code action kind values the client supports. When this
@@ -1759,14 +1791,14 @@ type FCodeActionKindPCodeActionLiteralSupport struct { // line 11768
 	ValueSet []CodeActionKind `json:"valueSet"`
 }
 
-// created for Literal
-type FEditRangePItemDefaults struct { // line 4797
+// created for Literal (Lit_CompletionList_itemDefaults_editRange_Item1)
+type FEditRangePItemDefaults struct { // line 4798
 	Insert  Range `json:"insert"`
 	Replace Range `json:"replace"`
 }
 
-// created for Literal
-type FFullPRequests struct { // line 12230
+// created for Literal (Lit_SemanticTokensClientCapabilities_requests_full_Item1)
+type FFullPRequests struct { // line 12231
 	/*
 	 * The client will send the `textDocument/semanticTokens/full/delta` request if
 	 * the server provides a corresponding handler.
@@ -1774,12 +1806,12 @@ type FFullPRequests struct { // line 12230
 	Delta bool `json:"delta"`
 }
 
-// created for Literal
+// created for Literal (Lit_CompletionClientCapabilities_completionItem_insertTextModeSupport)
 type FInsertTextModeSupportPCompletionItem struct { // line 11321
 	ValueSet []InsertTextMode `json:"valueSet"`
 }
 
-// created for Literal
+// created for Literal (Lit_SignatureHelpClientCapabilities_signatureInformation_parameterInformation)
 type FParameterInformationPSignatureInformation struct { // line 11487
 	/*
 	 * The client supports processing label offsets instead of a
@@ -1790,17 +1822,17 @@ type FParameterInformationPSignatureInformation struct { // line 11487
 	LabelOffsetSupport bool `json:"labelOffsetSupport"`
 }
 
-// created for Literal
-type FRangePRequests struct { // line 12210
+// created for Literal (Lit_SemanticTokensClientCapabilities_requests_range_Item1)
+type FRangePRequests struct { // line 12211
 }
 
-// created for Literal
+// created for Literal (Lit_CompletionClientCapabilities_completionItem_resolveSupport)
 type FResolveSupportPCompletionItem struct { // line 11297
 	// The properties that a client can resolve lazily.
 	Properties []string `json:"properties"`
 }
 
-// created for Literal
+// created for Literal (Lit_NotebookDocumentChangeEvent_cells_structure)
 type FStructurePCells struct { // line 7492
 	// The change to the cell array.
 	Array NotebookCellArrayChange `json:"array"`
@@ -1810,19 +1842,20 @@ type FStructurePCells struct { // line 7492
 	DidClose []TextDocumentIdentifier `json:"didClose"`
 }
 
-// created for Literal
+// created for Literal (Lit_CompletionClientCapabilities_completionItem_tagSupport)
 type FTagSupportPCompletionItem struct { // line 11263
 	// The tags supported by the client.
 	ValueSet []CompletionItemTag `json:"valueSet"`
 }
 
-// created for Literal
+// created for Literal (Lit_NotebookDocumentChangeEvent_cells_textContent_Elem)
 type FTextContentPCells struct { // line 7550
 	Document VersionedTextDocumentIdentifier  `json:"document"`
 	Changes  []TextDocumentContentChangeEvent `json:"changes"`
 }
 type FailureHandlingKind string // line 13719
-type FileChangeType uint32      // line 13480
+// The file event type
+type FileChangeType uint32 // line 13480
 /*
  * Represents information on a file/folder create.
  *
@@ -1935,6 +1968,13 @@ type FileOperationPattern struct { // line 9509
 	// Additional options used during matching.
 	Options *FileOperationPatternOptions `json:"options,omitempty"`
 }
+
+/*
+ * A pattern kind describing if a glob pattern matches a file a folder or
+ * both.
+ *
+ * @since 3.16.0
+ */
 type FileOperationPatternKind string // line 13653
 /*
  * Matching options for the file operation pattern.
@@ -2049,6 +2089,8 @@ type FoldingRangeClientCapabilities struct { // line 12004
 	 */
 	FoldingRange *PFoldingRangePFoldingRange `json:"foldingRange,omitempty"`
 }
+
+// A set of predefined range kinds.
 type FoldingRangeKind string      // line 12841
 type FoldingRangeOptions struct { // line 6486
 	WorkDoneProgressOptions
@@ -2332,6 +2374,12 @@ type InlayHintClientCapabilities struct { // line 12395
 	 */
 	ResolveSupport *PResolveSupportPInlayHint `json:"resolveSupport,omitempty"`
 }
+
+/*
+ * Inlay hint kinds.
+ *
+ * @since 3.17.0
+ */
 type InlayHintKind uint32 // line 13059
 /*
  * An inlay hint label part allows for interactive and composite labels
@@ -2575,17 +2623,21 @@ type InsertReplaceEdit struct { // line 8696
 	// The range if the replace is requested.
 	Replace Range `json:"replace"`
 }
-type InsertTextFormat uint32 // line 13286
-type InsertTextMode uint32   // line 13306
+
 /*
- * The LSP any type.
- * Please note that strictly speaking a property with the value `undefined`
- * can't be converted into JSON preserving the property name. However for
- * convenience it is allowed and assumed that all these properties are
- * optional as well.
- * @since 3.17.0
+ * Defines whether the insert text in a completion item should be interpreted as
+ * plain text or a snippet.
  */
-type LSPAny = interface{} // (alias) line 13817
+type InsertTextFormat uint32 // line 13286
+/*
+ * How whitespace and indentation is handled during completion
+ * item insertion.
+ *
+ * @since 3.16.0
+ */
+type InsertTextMode uint32 // line 13306
+type LSPAny = interface{}
+
 /*
  * LSP arrays.
  * @since 3.17.0
@@ -2642,6 +2694,64 @@ type LinkedEditingRanges struct { // line 3150
 	 * pattern will be used.
 	 */
 	WordPattern string `json:"wordPattern,omitempty"`
+}
+
+// created for Literal (Lit_NotebookDocumentFilter_Item1)
+type Lit_NotebookDocumentFilter_Item1 struct { // line 14302
+	// The type of the enclosing notebook.
+	NotebookType string `json:"notebookType,omitempty"`
+	// A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
+	Scheme string `json:"scheme"`
+	// A glob pattern.
+	Pattern string `json:"pattern,omitempty"`
+}
+
+// created for Literal (Lit_NotebookDocumentFilter_Item2)
+type Lit_NotebookDocumentFilter_Item2 struct { // line 14335
+	// The type of the enclosing notebook.
+	NotebookType string `json:"notebookType,omitempty"`
+	// A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
+	Scheme string `json:"scheme,omitempty"`
+	// A glob pattern.
+	Pattern string `json:"pattern"`
+}
+
+// created for Literal (Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1)
+type Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1 struct { // line 9878
+	/*
+	 * The notebook to be synced If a string
+	 * value is provided it matches against the
+	 * notebook type. '*' matches every notebook.
+	 */
+	Notebook *Or_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1_notebook `json:"notebook,omitempty"`
+	// The cells of the matching notebook to be synced.
+	Cells []Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1_cells_Elem `json:"cells"`
+}
+
+// created for Literal (Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1_cells_Elem)
+type Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1_cells_Elem struct { // line 9904
+	Language string `json:"language"`
+}
+
+// created for Literal (Lit_PrepareRenameResult_Item2)
+type Lit_PrepareRenameResult_Item2 struct { // line 13958
+	DefaultBehavior bool `json:"defaultBehavior"`
+}
+
+// created for Literal (Lit_TextDocumentContentChangeEvent_Item1)
+type Lit_TextDocumentContentChangeEvent_Item1 struct { // line 14066
+	// The new text of the whole document.
+	Text string `json:"text"`
+}
+
+// created for Literal (Lit_TextDocumentFilter_Item2)
+type Lit_TextDocumentFilter_Item2 struct { // line 14226
+	// A language id, like `typescript`.
+	Language string `json:"language,omitempty"`
+	// A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
+	Scheme string `json:"scheme,omitempty"`
+	// A glob pattern, like `*.{ts,js}`.
+	Pattern string `json:"pattern"`
 }
 
 /*
@@ -2743,8 +2853,7 @@ type MarkedString = Or_MarkedString // (alias) line 14084
  *    '```typescript',
  *    'someCode();',
  *    '```'
- *  ].join('\
- * ')
+ *  ].join('\n')
  * };
  * ```
  *
@@ -2757,11 +2866,21 @@ type MarkupContent struct { // line 7118
 	// The content itself
 	Value string `json:"value"`
 }
+
+/*
+ * Describes the content type that a client supports in various
+ * result literals like `Hover`, `ParameterInfo` or `CompletionItem`.
+ *
+ * Please note that `MarkupKinds` must not start with a `$`. This kinds
+ * are reserved for internal usage.
+ */
 type MarkupKind string          // line 13433
 type MessageActionItem struct { // line 4260
 	// A short title like 'Retry', 'Open Log' etc.
 	Title string `json:"title"`
 }
+
+// The message type
 type MessageType uint32 // line 13080
 /*
  * Moniker definition to match LSIF 0.5 moniker definition.
@@ -2795,6 +2914,12 @@ type MonikerClientCapabilities struct { // line 12347
 	 */
 	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 }
+
+/*
+ * The moniker kind.
+ *
+ * @since 3.16.0
+ */
 type MonikerKind string      // line 13033
 type MonikerOptions struct { // line 6931
 	WorkDoneProgressOptions
@@ -2809,14 +2934,14 @@ type MonikerRegistrationOptions struct { // line 3400
 	MonikerOptions
 }
 
-// created for Literal
-type Msg_MarkedString struct { // line 14093
+// created for Literal (Lit_MarkedString_Item1)
+type Msg_MarkedString struct { // line 14094
 	Language string `json:"language"`
 	Value    string `json:"value"`
 }
 
-// created for Literal
-type Msg_NotebookDocumentFilter struct { // line 14268
+// created for Literal (Lit_NotebookDocumentFilter_Item0)
+type Msg_NotebookDocumentFilter struct { // line 14269
 	// The type of the enclosing notebook.
 	NotebookType string `json:"notebookType"`
 	// A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
@@ -2825,14 +2950,14 @@ type Msg_NotebookDocumentFilter struct { // line 14268
 	Pattern string `json:"pattern"`
 }
 
-// created for Literal
-type Msg_PrepareRename2Gn struct { // line 13936
+// created for Literal (Lit_PrepareRenameResult_Item1)
+type Msg_PrepareRename2Gn struct { // line 13937
 	Range       Range  `json:"range"`
 	Placeholder string `json:"placeholder"`
 }
 
-// created for Literal
-type Msg_TextDocumentContentChangeEvent struct { // line 14033
+// created for Literal (Lit_TextDocumentContentChangeEvent_Item0)
+type Msg_TextDocumentContentChangeEvent struct { // line 14034
 	// The range of the document that changed.
 	Range *Range `json:"range"`
 	/*
@@ -2845,8 +2970,8 @@ type Msg_TextDocumentContentChangeEvent struct { // line 14033
 	Text string `json:"text"`
 }
 
-// created for Literal
-type Msg_TextDocumentFilter struct { // line 14159
+// created for Literal (Lit_TextDocumentFilter_Item1)
+type Msg_TextDocumentFilter struct { // line 14193
 	// A language id, like `typescript`.
 	Language string `json:"language"`
 	// A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
@@ -2855,7 +2980,7 @@ type Msg_TextDocumentFilter struct { // line 14159
 	Pattern string `json:"pattern"`
 }
 
-// created for Literal
+// created for Literal (Lit__InitializeParams_clientInfo)
 type Msg_XInitializeParams_clientInfo struct { // line 7678
 	// The name of the client as defined by the client.
 	Name string `json:"name"`
@@ -2907,6 +3032,12 @@ type NotebookCellArrayChange struct { // line 9665
 	// The new cells, if any
 	Cells []NotebookCell `json:"cells,omitempty"`
 }
+
+/*
+ * A notebook cell kind.
+ *
+ * @since 3.17.0
+ */
 type NotebookCellKind uint32 // line 13674
 /*
  * A notebook cell text document filter denotes a cell text
@@ -3070,12 +3201,12 @@ type OptionalVersionedTextDocumentIdentifier struct { // line 9363
 	TextDocumentIdentifier
 }
 
-// created for Or [Range FEditRangePItemDefaults]
+// created for Or [FEditRangePItemDefaults Range]
 type OrFEditRangePItemDefaults struct { // line 4791
 	Value interface{} `json:"value"`
 }
 
-// created for Or [string NotebookDocumentFilter]
+// created for Or [NotebookDocumentFilter string]
 type OrFNotebookPNotebookSelector struct { // line 9838
 	Value interface{} `json:"value"`
 }
@@ -3085,18 +3216,33 @@ type OrPLocation_workspace_symbol struct { // line 5540
 	Value interface{} `json:"value"`
 }
 
-// created for Or [string []string]
+// created for Or [[]string string]
 type OrPSection_workspace_didChangeConfiguration struct { // line 4186
 	Value interface{} `json:"value"`
 }
 
-// created for Or [string MarkupContent]
+// created for Or [MarkupContent string]
 type OrPTooltipPLabel struct { // line 7081
 	Value interface{} `json:"value"`
 }
 
-// created for Or [string MarkupContent]
+// created for Or [MarkupContent string]
 type OrPTooltip_textDocument_inlayHint struct { // line 3722
+	Value interface{} `json:"value"`
+}
+
+// created for Or [int32 string]
+type Or_CancelParams_id struct { // line 6204
+	Value interface{} `json:"value"`
+}
+
+// created for Or [MarkupContent string]
+type Or_CompletionItem_documentation struct { // line 4605
+	Value interface{} `json:"value"`
+}
+
+// created for Or [InsertReplaceEdit TextEdit]
+type Or_CompletionItem_textEdit struct { // line 4687
 	Value interface{} `json:"value"`
 }
 
@@ -3105,28 +3251,238 @@ type Or_Definition struct { // line 13780
 	Value interface{} `json:"value"`
 }
 
+// created for Or [int32 string]
+type Or_Diagnostic_code struct { // line 8568
+	Value interface{} `json:"value"`
+}
+
 // created for Or [RelatedFullDocumentDiagnosticReport RelatedUnchangedDocumentDiagnosticReport]
 type Or_DocumentDiagnosticReport struct { // line 13912
 	Value interface{} `json:"value"`
 }
 
-// created for Or [TextDocumentFilter NotebookCellTextDocumentFilter]
+// created for Or [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]
+type Or_DocumentDiagnosticReportPartialResult_relatedDocuments_Value struct { // line 3845
+	Value interface{} `json:"value"`
+}
+
+// created for Or [NotebookCellTextDocumentFilter TextDocumentFilter]
 type Or_DocumentFilter struct { // line 14121
 	Value interface{} `json:"value"`
 }
 
-// created for Or [InlineValueText InlineValueVariableLookup InlineValueEvaluatableExpression]
+// created for Or [MarkedString MarkupContent []MarkedString]
+type Or_Hover_contents struct { // line 4913
+	Value interface{} `json:"value"`
+}
+
+// created for Or [[]InlayHintLabelPart string]
+type Or_InlayHint_label struct { // line 3681
+	Value interface{} `json:"value"`
+}
+
+// created for Or [InlineValueEvaluatableExpression InlineValueText InlineValueVariableLookup]
 type Or_InlineValue struct { // line 13890
 	Value interface{} `json:"value"`
 }
 
-// created for Or [string Msg_MarkedString]
+// created for Or [Msg_MarkedString string]
 type Or_MarkedString struct { // line 14087
 	Value interface{} `json:"value"`
 }
 
-// created for Or [WorkspaceFolder URI]
+// created for Or [NotebookDocumentFilter string]
+type Or_NotebookCellTextDocumentFilter_notebook struct { // line 10145
+	Value interface{} `json:"value"`
+}
+
+// created for Or [NotebookDocumentFilter string]
+type Or_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1_notebook struct { // line 9884
+	Value interface{} `json:"value"`
+}
+
+// created for Or [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]
+type Or_RelatedFullDocumentDiagnosticReport_relatedDocuments_Value struct { // line 7174
+	Value interface{} `json:"value"`
+}
+
+// created for Or [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]
+type Or_RelatedUnchangedDocumentDiagnosticReport_relatedDocuments_Value struct { // line 7213
+	Value interface{} `json:"value"`
+}
+
+// created for Or [URI WorkspaceFolder]
 type Or_RelativePattern_baseUri struct { // line 10768
+	Value interface{} `json:"value"`
+}
+
+// created for Or [CodeAction Command]
+type Or_Result_textDocument_codeAction_Item0_Elem struct { // line 1380
+	Value interface{} `json:"value"`
+}
+
+// created for Or [FFullPRequests bool]
+type Or_SemanticTokensClientCapabilities_requests_full struct { // line 12224
+	Value interface{} `json:"value"`
+}
+
+// created for Or [FRangePRequests bool]
+type Or_SemanticTokensClientCapabilities_requests_range struct { // line 12204
+	Value interface{} `json:"value"`
+}
+
+// created for Or [PFullESemanticTokensOptions bool]
+type Or_SemanticTokensOptions_full struct { // line 6585
+	Value interface{} `json:"value"`
+}
+
+// created for Or [PRangeESemanticTokensOptions bool]
+type Or_SemanticTokensOptions_range struct { // line 6565
+	Value interface{} `json:"value"`
+}
+
+// created for Or [CallHierarchyOptions CallHierarchyRegistrationOptions bool]
+type Or_ServerCapabilities_callHierarchyProvider struct { // line 8248
+	Value interface{} `json:"value"`
+}
+
+// created for Or [CodeActionOptions bool]
+type Or_ServerCapabilities_codeActionProvider struct { // line 8056
+	Value interface{} `json:"value"`
+}
+
+// created for Or [DocumentColorOptions DocumentColorRegistrationOptions bool]
+type Or_ServerCapabilities_colorProvider struct { // line 8092
+	Value interface{} `json:"value"`
+}
+
+// created for Or [DeclarationOptions DeclarationRegistrationOptions bool]
+type Or_ServerCapabilities_declarationProvider struct { // line 7918
+	Value interface{} `json:"value"`
+}
+
+// created for Or [DefinitionOptions bool]
+type Or_ServerCapabilities_definitionProvider struct { // line 7940
+	Value interface{} `json:"value"`
+}
+
+// created for Or [DiagnosticOptions DiagnosticRegistrationOptions]
+type Or_ServerCapabilities_diagnosticProvider struct { // line 8405
+	Value interface{} `json:"value"`
+}
+
+// created for Or [DocumentFormattingOptions bool]
+type Or_ServerCapabilities_documentFormattingProvider struct { // line 8132
+	Value interface{} `json:"value"`
+}
+
+// created for Or [DocumentHighlightOptions bool]
+type Or_ServerCapabilities_documentHighlightProvider struct { // line 8020
+	Value interface{} `json:"value"`
+}
+
+// created for Or [DocumentRangeFormattingOptions bool]
+type Or_ServerCapabilities_documentRangeFormattingProvider struct { // line 8150
+	Value interface{} `json:"value"`
+}
+
+// created for Or [DocumentSymbolOptions bool]
+type Or_ServerCapabilities_documentSymbolProvider struct { // line 8038
+	Value interface{} `json:"value"`
+}
+
+// created for Or [FoldingRangeOptions FoldingRangeRegistrationOptions bool]
+type Or_ServerCapabilities_foldingRangeProvider struct { // line 8195
+	Value interface{} `json:"value"`
+}
+
+// created for Or [HoverOptions bool]
+type Or_ServerCapabilities_hoverProvider struct { // line 7891
+	Value interface{} `json:"value"`
+}
+
+// created for Or [ImplementationOptions ImplementationRegistrationOptions bool]
+type Or_ServerCapabilities_implementationProvider struct { // line 7980
+	Value interface{} `json:"value"`
+}
+
+// created for Or [InlayHintOptions InlayHintRegistrationOptions bool]
+type Or_ServerCapabilities_inlayHintProvider struct { // line 8382
+	Value interface{} `json:"value"`
+}
+
+// created for Or [InlineValueOptions InlineValueRegistrationOptions bool]
+type Or_ServerCapabilities_inlineValueProvider struct { // line 8359
+	Value interface{} `json:"value"`
+}
+
+// created for Or [LinkedEditingRangeOptions LinkedEditingRangeRegistrationOptions bool]
+type Or_ServerCapabilities_linkedEditingRangeProvider struct { // line 8271
+	Value interface{} `json:"value"`
+}
+
+// created for Or [MonikerOptions MonikerRegistrationOptions bool]
+type Or_ServerCapabilities_monikerProvider struct { // line 8313
+	Value interface{} `json:"value"`
+}
+
+// created for Or [NotebookDocumentSyncOptions NotebookDocumentSyncRegistrationOptions]
+type Or_ServerCapabilities_notebookDocumentSync struct { // line 7863
+	Value interface{} `json:"value"`
+}
+
+// created for Or [ReferenceOptions bool]
+type Or_ServerCapabilities_referencesProvider struct { // line 8002
+	Value interface{} `json:"value"`
+}
+
+// created for Or [RenameOptions bool]
+type Or_ServerCapabilities_renameProvider struct { // line 8177
+	Value interface{} `json:"value"`
+}
+
+// created for Or [SelectionRangeOptions SelectionRangeRegistrationOptions bool]
+type Or_ServerCapabilities_selectionRangeProvider struct { // line 8217
+	Value interface{} `json:"value"`
+}
+
+// created for Or [SemanticTokensOptions SemanticTokensRegistrationOptions]
+type Or_ServerCapabilities_semanticTokensProvider struct { // line 8294
+	Value interface{} `json:"value"`
+}
+
+// created for Or [TextDocumentSyncKind TextDocumentSyncOptions]
+type Or_ServerCapabilities_textDocumentSync struct { // line 7845
+	Value interface{} `json:"value"`
+}
+
+// created for Or [TypeDefinitionOptions TypeDefinitionRegistrationOptions bool]
+type Or_ServerCapabilities_typeDefinitionProvider struct { // line 7958
+	Value interface{} `json:"value"`
+}
+
+// created for Or [TypeHierarchyOptions TypeHierarchyRegistrationOptions bool]
+type Or_ServerCapabilities_typeHierarchyProvider struct { // line 8336
+	Value interface{} `json:"value"`
+}
+
+// created for Or [WorkspaceSymbolOptions bool]
+type Or_ServerCapabilities_workspaceSymbolProvider struct { // line 8114
+	Value interface{} `json:"value"`
+}
+
+// created for Or [MarkupContent string]
+type Or_SignatureInformation_documentation struct { // line 8862
+	Value interface{} `json:"value"`
+}
+
+// created for Or [AnnotatedTextEdit TextEdit]
+type Or_TextDocumentEdit_edits_Elem struct { // line 6698
+	Value interface{} `json:"value"`
+}
+
+// created for Or [SaveOptions bool]
+type Or_TextDocumentSyncOptions_save struct { // line 9804
 	Value interface{} `json:"value"`
 }
 
@@ -3135,12 +3491,17 @@ type Or_WorkspaceDocumentDiagnosticReport struct { // line 14013
 	Value interface{} `json:"value"`
 }
 
-// created for Or [Declaration []DeclarationLink ]
+// created for Or [CreateFile DeleteFile RenameFile TextDocumentEdit]
+type Or_WorkspaceEdit_documentChanges_Elem struct { // line 3242
+	Value interface{} `json:"value"`
+}
+
+// created for Or [Declaration []DeclarationLink]
 type Or_textDocument_declaration struct { // line 257
 	Value interface{} `json:"value"`
 }
 
-// created for Literal
+// created for Literal (Lit_NotebookDocumentChangeEvent_cells)
 type PCellsPChange struct { // line 7486
 	/*
 	 * Changes to the cell structure to add or
@@ -3156,17 +3517,17 @@ type PCellsPChange struct { // line 7486
 	TextContent []FTextContentPCells `json:"textContent"`
 }
 
-// created for Literal
+// created for Literal (Lit_WorkspaceEditClientCapabilities_changeAnnotationSupport)
 type PChangeAnnotationSupportPWorkspaceEdit struct { // line 10842
 	/*
 	 * Whether the client groups edits with equal labels into tree nodes,
-	 * for instance all edits labelled with \"Changes in Strings\" would
+	 * for instance all edits labelled with "Changes in Strings" would
 	 * be a tree node.
 	 */
 	GroupsOnLabel bool `json:"groupsOnLabel"`
 }
 
-// created for Literal
+// created for Literal (Lit_CodeActionClientCapabilities_codeActionLiteralSupport)
 type PCodeActionLiteralSupportPCodeAction struct { // line 11762
 	/*
 	 * The code action kind is support with the following value
@@ -3175,7 +3536,7 @@ type PCodeActionLiteralSupportPCodeAction struct { // line 11762
 	CodeActionKind FCodeActionKindPCodeActionLiteralSupport `json:"codeActionKind"`
 }
 
-// created for Literal
+// created for Literal (Lit_CompletionClientCapabilities_completionItemKind)
 type PCompletionItemKindPCompletion struct { // line 11360
 	/*
 	 * The completion item kind values the client supports. When this
@@ -3190,7 +3551,7 @@ type PCompletionItemKindPCompletion struct { // line 11360
 	ValueSet []CompletionItemKind `json:"valueSet"`
 }
 
-// created for Literal
+// created for Literal (Lit_CompletionClientCapabilities_completionItem)
 type PCompletionItemPCompletion struct { // line 11209
 	/*
 	 * Client supports snippets as insert text.
@@ -3253,7 +3614,7 @@ type PCompletionItemPCompletion struct { // line 11209
 	LabelDetailsSupport bool `json:"labelDetailsSupport"`
 }
 
-// created for Literal
+// created for Literal (Lit_CompletionOptions_completionItem)
 type PCompletionItemPCompletionProvider struct { // line 8767
 	/*
 	 * The server has support for completion item label
@@ -3265,7 +3626,7 @@ type PCompletionItemPCompletionProvider struct { // line 8767
 	LabelDetailsSupport bool `json:"labelDetailsSupport"`
 }
 
-// created for Literal
+// created for Literal (Lit_CompletionClientCapabilities_completionList)
 type PCompletionListPCompletion struct { // line 11402
 	/*
 	 * The client supports the following itemDefaults on
@@ -3280,7 +3641,7 @@ type PCompletionListPCompletion struct { // line 11402
 	ItemDefaults []string `json:"itemDefaults"`
 }
 
-// created for Literal
+// created for Literal (Lit_CodeAction_disabled)
 type PDisabledMsg_textDocument_codeAction struct { // line 5446
 	/*
 	 * Human readable description of why the code action is currently disabled.
@@ -3290,7 +3651,7 @@ type PDisabledMsg_textDocument_codeAction struct { // line 5446
 	Reason string `json:"reason"`
 }
 
-// created for Literal
+// created for Literal (Lit_FoldingRangeClientCapabilities_foldingRangeKind)
 type PFoldingRangeKindPFoldingRange struct { // line 12037
 	/*
 	 * The folding range kind values the client supports. When this
@@ -3301,7 +3662,7 @@ type PFoldingRangeKindPFoldingRange struct { // line 12037
 	ValueSet []FoldingRangeKind `json:"valueSet"`
 }
 
-// created for Literal
+// created for Literal (Lit_FoldingRangeClientCapabilities_foldingRange)
 type PFoldingRangePFoldingRange struct { // line 12062
 	/*
 	 * If set, the client signals that it supports setting collapsedText on
@@ -3312,13 +3673,13 @@ type PFoldingRangePFoldingRange struct { // line 12062
 	CollapsedText bool `json:"collapsedText"`
 }
 
-// created for Literal
-type PFullESemanticTokensOptions struct { // line 6591
+// created for Literal (Lit_SemanticTokensOptions_full_Item1)
+type PFullESemanticTokensOptions struct { // line 6592
 	// The server supports deltas for full documents.
 	Delta bool `json:"delta"`
 }
 
-// created for Literal
+// created for Literal (Lit_CompletionList_itemDefaults)
 type PItemDefaultsMsg_textDocument_completion struct { // line 4772
 	/*
 	 * A default commit character set.
@@ -3352,12 +3713,12 @@ type PItemDefaultsMsg_textDocument_completion struct { // line 4772
 	Data interface{} `json:"data"`
 }
 
-// created for Literal
-type PLocationMsg_workspace_symbol struct { // line 5546
+// created for Literal (Lit_WorkspaceSymbol_location_Item1)
+type PLocationMsg_workspace_symbol struct { // line 5547
 	URI DocumentURI `json:"uri"`
 }
 
-// created for Literal
+// created for Literal (Lit_ShowMessageRequestClientCapabilities_messageActionItem)
 type PMessageActionItemPShowMessage struct { // line 12490
 	/*
 	 * Whether the client supports additional attributes which
@@ -3367,8 +3728,8 @@ type PMessageActionItemPShowMessage struct { // line 12490
 	AdditionalPropertiesSupport bool `json:"additionalPropertiesSupport"`
 }
 
-// created for Literal
-type PNotebookSelectorPNotebookDocumentSync struct { // line 9831
+// created for Literal (Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0)
+type PNotebookSelectorPNotebookDocumentSync struct { // line 9832
 	/*
 	 * The notebook to be synced If a string
 	 * value is provided it matches against the
@@ -3379,11 +3740,11 @@ type PNotebookSelectorPNotebookDocumentSync struct { // line 9831
 	Cells []FCellsPNotebookSelector `json:"cells"`
 }
 
-// created for Literal
-type PRangeESemanticTokensOptions struct { // line 6571
+// created for Literal (Lit_SemanticTokensOptions_range_Item1)
+type PRangeESemanticTokensOptions struct { // line 6572
 }
 
-// created for Literal
+// created for Literal (Lit_SemanticTokensClientCapabilities_requests)
 type PRequestsPSemanticTokens struct { // line 12198
 	/*
 	 * The client will send the `textDocument/semanticTokens/range` request if
@@ -3397,19 +3758,19 @@ type PRequestsPSemanticTokens struct { // line 12198
 	Full interface{} `json:"full"`
 }
 
-// created for Literal
+// created for Literal (Lit_CodeActionClientCapabilities_resolveSupport)
 type PResolveSupportPCodeAction struct { // line 11827
 	// The properties that a client can resolve lazily.
 	Properties []string `json:"properties"`
 }
 
-// created for Literal
+// created for Literal (Lit_InlayHintClientCapabilities_resolveSupport)
 type PResolveSupportPInlayHint struct { // line 12410
 	// The properties that a client can resolve lazily.
 	Properties []string `json:"properties"`
 }
 
-// created for Literal
+// created for Literal (Lit_WorkspaceSymbolClientCapabilities_resolveSupport)
 type PResolveSupportPSymbol struct { // line 10964
 	/*
 	 * The properties that a client can resolve lazily. Usually
@@ -3418,7 +3779,7 @@ type PResolveSupportPSymbol struct { // line 10964
 	Properties []string `json:"properties"`
 }
 
-// created for Literal
+// created for Literal (Lit_InitializeResult_serverInfo)
 type PServerInfoMsg_initialize struct { // line 4118
 	// The name of the server as defined by the server.
 	Name string `json:"name"`
@@ -3426,7 +3787,7 @@ type PServerInfoMsg_initialize struct { // line 4118
 	Version string `json:"version"`
 }
 
-// created for Literal
+// created for Literal (Lit_SignatureHelpClientCapabilities_signatureInformation)
 type PSignatureInformationPSignatureHelp struct { // line 11469
 	/*
 	 * Client supports the following content formats for the documentation
@@ -3444,7 +3805,7 @@ type PSignatureInformationPSignatureHelp struct { // line 11469
 	ActiveParameterSupport bool `json:"activeParameterSupport"`
 }
 
-// created for Literal
+// created for Literal (Lit_GeneralClientCapabilities_staleRequestSupport)
 type PStaleRequestSupportPGeneral struct { // line 10696
 	// The client will actively cancel the request.
 	Cancel bool `json:"cancel"`
@@ -3456,7 +3817,7 @@ type PStaleRequestSupportPGeneral struct { // line 10696
 	RetryOnContentModified []string `json:"retryOnContentModified"`
 }
 
-// created for Literal
+// created for Literal (Lit_DocumentSymbolClientCapabilities_symbolKind)
 type PSymbolKindPDocumentSymbol struct { // line 11680
 	/*
 	 * The symbol kind values the client supports. When this
@@ -3471,7 +3832,7 @@ type PSymbolKindPDocumentSymbol struct { // line 11680
 	ValueSet []SymbolKind `json:"valueSet"`
 }
 
-// created for Literal
+// created for Literal (Lit_WorkspaceSymbolClientCapabilities_symbolKind)
 type PSymbolKindPSymbol struct { // line 10916
 	/*
 	 * The symbol kind values the client supports. When this
@@ -3486,19 +3847,19 @@ type PSymbolKindPSymbol struct { // line 10916
 	ValueSet []SymbolKind `json:"valueSet"`
 }
 
-// created for Literal
+// created for Literal (Lit_DocumentSymbolClientCapabilities_tagSupport)
 type PTagSupportPDocumentSymbol struct { // line 11713
 	// The tags supported by the client.
 	ValueSet []SymbolTag `json:"valueSet"`
 }
 
-// created for Literal
+// created for Literal (Lit_PublishDiagnosticsClientCapabilities_tagSupport)
 type PTagSupportPPublishDiagnostics struct { // line 12113
 	// The tags supported by the client.
 	ValueSet []DiagnosticTag `json:"valueSet"`
 }
 
-// created for Literal
+// created for Literal (Lit_WorkspaceSymbolClientCapabilities_tagSupport)
 type PTagSupportPSymbol struct { // line 10940
 	// The tags supported by the client.
 	ValueSet []SymbolTag `json:"valueSet"`
@@ -3580,9 +3941,7 @@ type Pattern = string // (alias) line 14372
  * usually on the server side.
  *
  * Positions are line end character agnostic. So you can not specify a position
- * that denotes `\\r|\
- * ` or `\
- * |` where `|` represents the character offset.
+ * that denotes `\r|\n` or `\n|` where `|` represents the character offset.
  *
  * @since 3.17.0 - support for negotiated position encoding.
  */
@@ -3605,6 +3964,12 @@ type Position struct { // line 6506
 	 */
 	Character uint32 `json:"character"`
 }
+
+/*
+ * A set of predefined position encoding kinds.
+ *
+ * @since 3.17.0
+ */
 type PositionEncodingKind string             // line 13453
 type PrepareRename2Gn = Msg_PrepareRename2Gn // (alias) line 13927
 type PrepareRenameParams struct {            // line 5944
@@ -3612,7 +3977,7 @@ type PrepareRenameParams struct {            // line 5944
 	WorkDoneProgressParams
 }
 type PrepareRenameResult = Msg_PrepareRename2Gn // (alias) line 13927
-type PrepareSupportDefaultBehavior interface{}  // line 13748
+type PrepareSupportDefaultBehavior uint32       // line 13748
 /*
  * A previous result id in a workspace pull request.
  *
@@ -3985,8 +4350,23 @@ type SelectionRangeRegistrationOptions struct { // line 2614
 	TextDocumentRegistrationOptions
 	StaticRegistrationOptions
 }
+
+/*
+ * A set of predefined token modifiers. This set is not fixed
+ * an clients can specify additional token types via the
+ * corresponding client capabilities.
+ *
+ * @since 3.16.0
+ */
 type SemanticTokenModifiers string // line 12696
-type SemanticTokenTypes string     // line 12589
+/*
+ * A set of predefined token types. This set is not fixed
+ * an clients can specify additional token types via the
+ * corresponding client capabilities.
+ *
+ * @since 3.16.0
+ */
+type SemanticTokenTypes string // line 12589
 // @since 3.16.0
 type SemanticTokens struct { // line 2902
 	/*
@@ -4483,6 +4863,12 @@ type SignatureHelpRegistrationOptions struct { // line 5024
 	TextDocumentRegistrationOptions
 	SignatureHelpOptions
 }
+
+/*
+ * How a signature help was triggered.
+ *
+ * @since 3.15.0
+ */
 type SignatureHelpTriggerKind uint32 // line 13606
 /*
  * Represents the signature of something callable. A signature
@@ -4529,6 +4915,7 @@ type StaticRegistrationOptions struct { // line 6348
  * interfaces etc.
  */
 type SymbolInformation struct { // line 5202
+	// extends BaseSymbolInformation
 	/*
 	 * Indicates if this symbol is deprecated.
 	 *
@@ -4565,8 +4952,15 @@ type SymbolInformation struct { // line 5202
 	 */
 	ContainerName string `json:"containerName,omitempty"`
 }
+
+// A symbol kind.
 type SymbolKind uint32 // line 12867
-type SymbolTag uint32  // line 12981
+/*
+ * Symbol tags are extra annotations that tweak the rendering of a symbol.
+ *
+ * @since 3.16
+ */
+type SymbolTag uint32 // line 12981
 // Describe options to be used when registered for text document change events.
 type TextDocumentChangeRegistrationOptions struct { // line 4334
 	// How documents are synced to the server.
@@ -4780,6 +5174,8 @@ type TextDocumentRegistrationOptions struct { // line 2390
 	 */
 	DocumentSelector DocumentSelector `json:"documentSelector"`
 }
+
+// Represents reasons why a text document is saved.
 type TextDocumentSaveReason uint32 // line 13135
 // Save registration options.
 type TextDocumentSaveRegistrationOptions struct { // line 4391
@@ -4800,6 +5196,11 @@ type TextDocumentSyncClientCapabilities struct { // line 11153
 	// The client supports did save notifications.
 	DidSave bool `json:"didSave,omitempty"`
 }
+
+/*
+ * Defines how the host (editor) should sync
+ * document changes to the language server.
+ */
 type TextDocumentSyncKind uint32      // line 13110
 type TextDocumentSyncOptions struct { // line 9762
 	/*
@@ -4968,11 +5369,12 @@ type TypeHierarchySupertypesParams struct { // line 3531
 }
 
 // created for Tuple
-type UIntCommaUInt struct { // line 10101
+type UIntCommaUInt struct { // line 10102
 	Fld0 uint32 `json:"fld0"`
 	Fld1 uint32 `json:"fld1"`
 }
-type URI = string // (alias) line 0
+type URI = string
+
 /*
  * A diagnostic report indicating that the last returned
  * report is still accurate.
@@ -4993,6 +5395,12 @@ type UnchangedDocumentDiagnosticReport struct { // line 7275
 	 */
 	ResultID string `json:"resultId"`
 }
+
+/*
+ * Moniker uniqueness level to define scope of the moniker.
+ *
+ * @since 3.16.0
+ */
 type UniquenessLevel string // line 12997
 // General parameters to unregister a request or notification.
 type Unregistration struct { // line 7633
@@ -5026,8 +5434,7 @@ type VersionedTextDocumentIdentifier struct { // line 8465
 	Version int32 `json:"version"`
 	TextDocumentIdentifier
 }
-type WatchKind = uint32 // line 13505
-// The parameters sent in a will save text document notification.
+type WatchKind = uint32                  // line 13505// The parameters sent in a will save text document notification.
 type WillSaveTextDocumentParams struct { // line 4406
 	// The document that will be saved.
 	TextDocument TextDocumentIdentifier `json:"textDocument"`
@@ -5066,7 +5473,7 @@ type WorkDoneProgressBegin struct { // line 6059
 	 * Mandatory title of the progress operation. Used to briefly inform about
 	 * the kind of operation being performed.
 	 *
-	 * Examples: \"Indexing\" or \"Linking dependencies\".
+	 * Examples: "Indexing" or "Linking dependencies".
 	 */
 	Title string `json:"title"`
 	/*
@@ -5079,7 +5486,7 @@ type WorkDoneProgressBegin struct { // line 6059
 	 * Optional, more detailed associated progress message. Contains
 	 * complementary information to the `title`.
 	 *
-	 * Examples: \"3/25 files\", \"project/src/module2\", \"node_modules/some_dep\".
+	 * Examples: "3/25 files", "project/src/module2", "node_modules/some_dep".
 	 * If unset, the previous progress message (if any) is still valid.
 	 */
 	Message string `json:"message,omitempty"`
@@ -5135,7 +5542,7 @@ type WorkDoneProgressReport struct { // line 6106
 	 * Optional, more detailed associated progress message. Contains
 	 * complementary information to the `title`.
 	 *
-	 * Examples: \"3/25 files\", \"project/src/module2\", \"node_modules/some_dep\".
+	 * Examples: "3/25 files", "project/src/module2", "node_modules/some_dep".
 	 * If unset, the previous progress message (if any) is still valid.
 	 */
 	Message string `json:"message,omitempty"`
@@ -5150,7 +5557,7 @@ type WorkDoneProgressReport struct { // line 6106
 	Percentage uint32 `json:"percentage,omitempty"`
 }
 
-// created for Literal
+// created for Literal (Lit_ServerCapabilities_workspace)
 type Workspace6Gn struct { // line 8424
 	/*
 	 * The server supports workspace folder.
@@ -5570,6 +5977,7 @@ type XInitializeParams struct { // line 7655
 	InitializationOptions interface{} `json:"initializationOptions,omitempty"`
 	// The initial trace setting. If omitted trace is disabled ('off').
 	Trace string `json:"trace,omitempty"`
+	WorkDoneProgressParams
 }
 
 // The initialize parameters
@@ -5587,7 +5995,7 @@ type _InitializeParams struct { // line 7655
 	 *
 	 * @since 3.15.0
 	 */
-	ClientInfo *Msg_XInitializeParams_clientInfo `json:"clientInfo,omitempty"`
+	ClientInfo Msg_XInitializeParams_clientInfo `json:"clientInfo,omitempty"`
 	/*
 	 * The locale the client is currently showing the user interface
 	 * in. This must not necessarily be the locale of the operating
@@ -5620,6 +6028,7 @@ type _InitializeParams struct { // line 7655
 	InitializationOptions interface{} `json:"initializationOptions,omitempty"`
 	// The initial trace setting. If omitted trace is disabled ('off').
 	Trace string `json:"trace,omitempty"`
+	WorkDoneProgressParams
 }
 
 const (
@@ -5998,6 +6407,11 @@ const (
 	 * encoding-agnostic representation of character offsets.
 	 */
 	UTF32 PositionEncodingKind = "utf-32" // line 13470
+	/*
+	 * The client's default behavior is to select the identifier
+	 * according the to language's syntax rule.
+	 */
+	Identifier PrepareSupportDefaultBehavior = 1 // line 13755
 	// Supports creating new files and folders.
 	Create ResourceOperationKind = "create" // line 13702
 	// Supports renaming existing files and folders.
