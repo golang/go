@@ -87,6 +87,10 @@ standard output, even if the test printed them to its own standard
 error. (The go command's standard error is reserved for printing
 errors building the tests.)
 
+Place GOROOT/bin at the beginning of PATH in 'go test'.
+This causes tests and generators that execute 'go' as a subprocess
+to use the same go command as the parent 'go test' command.
+
 Go test runs in two different modes:
 
 The first, called local directory mode, occurs when go test is
