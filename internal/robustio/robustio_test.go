@@ -56,8 +56,10 @@ func TestFileID(t *testing.T) {
 		if realID != symlinkID {
 			t.Errorf("realID %+v != symlinkID %+v", realID, symlinkID)
 		}
+	}
 
-		// Two hard-linked files have the same ID.
+	// Two hard-linked files have the same ID.
+	if runtime.GOOS != "plan9" && runtime.GOOS != "android" {
 		hardlink := filepath.Join(t.TempDir(), "hardlink")
 		if err := os.Link(real, hardlink); err != nil {
 			t.Fatal(err)
