@@ -200,6 +200,9 @@ func _() {
 	_ = bar.Blah
 }
 
+-- foo/foo_test.go --
+package foo
+
 -- bar/bar.go --
 package bar
 
