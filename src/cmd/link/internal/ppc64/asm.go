@@ -189,7 +189,11 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
 
 					// Turn this reloc into an R_CALLPOWER, and convert the TOC restore into a nop.
 					su.SetRelocType(i, objabi.R_CALLPOWER)
-					su.SetRelocAdd(i, r.Add()+int64(ldr.SymLocalentry(r.Sym())))
+					localEoffset := int64(ldr.SymLocalentry(r.Sym()))
+					if localEoffset == 1 {
+						ldr.Errorf(s, "Unsupported NOTOC call to %s", ldr.SymName(r.Sym()))
+					}
+					su.SetRelocAdd(i, r.Add()+localEoffset)
 					r.SetSiz(4)
 					rewritetonop(&ctxt.Target, ldr, su, int64(r.Off()+4), 0xFFFFFFFF, OP_TOCRESTORE)
 				}
@@ -435,7 +439,11 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 		// callee. Hence, we need to go to the local entry
 		// point.  (If we don't do this, the callee will try
 		// to use r12 to compute r2.)
-		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymLocalentry(targ)))
+		localEoffset := int64(ldr.SymLocalentry(targ))
+		if localEoffset == 1 {
+			ldr.Errorf(s, "Unsupported NOTOC call to %s", targ)
+		}
+		su.SetRelocAdd(rIdx, r.Add()+localEoffset)
 
 		if targType == sym.SDYNIMPORT {
 			// Should have been handled in elfsetupplt

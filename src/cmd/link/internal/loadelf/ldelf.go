@@ -639,11 +639,15 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			case 0:
 				// No local entry. R2 is preserved.
 			case 1:
-				// These require R2 be saved and restored by the caller. This isn't supported today.
-				return errorf("%s: unable to handle local entry type 1", sb.Name())
+				// This is kind of a hack, but pass the hint about this symbol's
+				// usage of R2 (R2 is a caller-save register not a TOC pointer, and
+				// this function does not have a distinct local entry) by setting
+				// its SymLocalentry to 1.
+				l.SetSymLocalentry(s, 1)
 			case 7:
 				return errorf("%s: invalid sym.other 0x%x", sb.Name(), elfsym.other)
 			default:
+				// Convert the word sized offset into bytes.
 				l.SetSymLocalentry(s, 4<<uint(flag-2))
 			}
 		}
@@ -1061,6 +1065,7 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		I386 | uint32(elf.R_386_GOTPC)<<16,
 		I386 | uint32(elf.R_386_GOT32X)<<16,
 		PPC64 | uint32(elf.R_PPC64_REL24)<<16,
+		PPC64 | uint32(elf.R_PPC64_REL24_NOTOC)<<16,
 		PPC64 | uint32(elf.R_PPC_REL32)<<16,
 		S390X | uint32(elf.R_390_32)<<16,
 		S390X | uint32(elf.R_390_PC32)<<16,
@@ -1077,6 +1082,9 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		ARM64 | uint32(elf.R_AARCH64_ABS64)<<16,
 		ARM64 | uint32(elf.R_AARCH64_PREL64)<<16,
 		PPC64 | uint32(elf.R_PPC64_ADDR64)<<16,
+		PPC64 | uint32(elf.R_PPC64_PCREL34)<<16,
+		PPC64 | uint32(elf.R_PPC64_GOT_PCREL34)<<16,
+		PPC64 | uint32(elf.R_PPC64_PLT_PCREL34_NOTOC)<<16,
 		S390X | uint32(elf.R_390_GLOB_DAT)<<16,
 		S390X | uint32(elf.R_390_RELATIVE)<<16,
 		S390X | uint32(elf.R_390_GOTOFF)<<16,

@@ -1582,6 +1582,9 @@ func (l *Loader) SetSymPkg(i Sym, pkg string) {
 }
 
 // SymLocalentry returns an offset in bytes of the "local entry" of a symbol.
+//
+// On PPC64, a value of 1 indicates the symbol does not use or preserve a TOC
+// pointer in R2, nor does it have a distinct local entry.
 func (l *Loader) SymLocalentry(i Sym) uint8 {
 	return l.localentry[i]
 }
