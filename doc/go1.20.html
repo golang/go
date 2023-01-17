@@ -289,17 +289,6 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="runtime">Runtime</h2>
 
-<p><!-- CL 423359, https://go.dev/issue/51317 -->
-  The runtime now has experimental support for memory-safe arena allocation
-  that makes it possible to eagerly free memory in bulk.
-  When used appropriately, it has the potential to improve CPU performance by
-  up to 15% in memory-allocation-heavy applications.
-  To try it out, build your Go program with <code>GOEXPERIMENT=arenas</code>,
-  which will make the <code>arena</code> package visible to your program.
-  Source files that import the <code>arena</code> package must require the
-  <code>goexperiment.arenas</code> build tag.
-</p>
-
 <p><!-- CL 422634 -->
   Some of the garbage collector's internal data structures were reorganized to
   be both more space and CPU efficient.
@@ -1240,3 +1229,4 @@ proxyHandler := &httputil.ReverseProxy{
 <!-- CL 453616 fix deprecation comment in archive/zip -->
 <!-- CL 453617 fix deprecation comment in encoding/csv -->
 <!-- https://go.dev/issue/54661 x/tools/go/analysis -->
+<!-- CL 423359, https://go.dev/issue/51317 arena -->
