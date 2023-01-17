@@ -838,7 +838,7 @@ func subst(n ir.Node, m map[*ir.Name]ir.Node) (ir.Node, bool) {
 			return x
 		}
 		x = ir.Copy(x)
-		ir.EditChildren(x, edit)
+		ir.EditChildrenWithHidden(x, edit)
 		if x, ok := x.(*ir.ConvExpr); ok && x.X.Op() == ir.OLITERAL {
 			// A conversion of variable or expression involving variables
 			// may become a conversion of constant after inlining the parameters
