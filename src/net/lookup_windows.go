@@ -10,10 +10,14 @@ import (
 	"os"
 	"runtime"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
-const _WSAHOST_NOT_FOUND = syscall.Errno(11001)
+const (
+	_WSAHOST_NOT_FOUND = syscall.Errno(11001)
+	_WSATRY_AGAIN      = syscall.Errno(11002)
+)
 
 func winError(call string, err error) error {
 	switch err {
@@ -118,7 +122,17 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 		if err != nil {
 			return nil, &DNSError{Name: name, Err: err.Error()}
 		}
-		e := syscall.GetAddrInfoW(name16p, nil, &hints, &result)
+
+		dnsConf := getSystemDNSConfig()
+		start := time.Now()
+
+		var e error
+		for i := 0; i < dnsConf.attempts; i++ {
+			e = syscall.GetAddrInfoW(name16p, nil, &hints, &result)
+			if e == nil || e != _WSATRY_AGAIN || time.Since(start) > dnsConf.timeout {
+				break
+			}
+		}
 		if e != nil {
 			err := winError("getaddrinfow", e)
 			dnsError := &DNSError{Err: err.Error(), Name: name}
