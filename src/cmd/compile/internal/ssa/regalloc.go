@@ -1561,7 +1561,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// (Not all instructions need that distinct part, but it is conservative.)
 			if opcodeTable[v.Op].needIntTemp {
 				m := s.allocatable & s.f.Config.gpRegMask
-				if m&^desired.avoid != 0 {
+				if m&^desired.avoid&^s.nospill != 0 {
 					m &^= desired.avoid
 				}
 				tmpReg = s.allocReg(m, &tmpVal)
