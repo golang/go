@@ -199,8 +199,7 @@ func TestWatchReplaceTargets(t *testing.T) {
 replace random.org => %s
 `, env.ReadWorkspaceFile("pkg/go.mod"), dir)
 		env.WriteWorkspaceFile("pkg/go.mod", goModWithReplace)
-		env.Await(
-			env.DoneWithChangeWatchedFiles(),
+		env.AfterChange(
 			UnregistrationMatching("didChangeWatchedFiles"),
 			RegistrationMatching("didChangeWatchedFiles"),
 		)
@@ -323,7 +322,8 @@ func main() {
 	WithOptions(
 		ProxyFiles(proxy),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
-		env.Await(
+		env.OnceMet(
+			InitialWorkspaceLoad,
 			Diagnostics(env.AtRegexp("main.go", "x")),
 		)
 	})
@@ -507,7 +507,7 @@ func Hello() int {
 		)
 		env.RegexpReplace("modb/go.mod", "modul", "module")
 		env.SaveBufferWithoutActions("modb/go.mod")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("modb/b/b.go", "x")),
 		)
 	})

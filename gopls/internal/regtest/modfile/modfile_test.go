@@ -101,7 +101,7 @@ func main() {
 			// Save the buffer, which will format and organize imports.
 			// Confirm that the go.mod file still does not change.
 			env.SaveBuffer("a/main.go")
-			env.Await(
+			env.AfterChange(
 				Diagnostics(env.AtRegexp("a/main.go", "\"example.com/blah\"")),
 			)
 			if got := env.ReadWorkspaceFile("a/go.mod"); got != goModContent {
@@ -124,22 +124,14 @@ func main() {
 			//
 			// If this proves insufficient, env.RemoveWorkspaceFile can be updated to
 			// retry file lock errors on windows.
-			env.Await(
-				env.DoneWithOpen(),
-				env.DoneWithSave(),
-				env.DoneWithChangeWatchedFiles(),
-			)
+			env.AfterChange()
 			env.RemoveWorkspaceFile("a/main.go")
 
 			// TODO(rfindley): awaiting here shouldn't really be necessary. We should
 			// be consistent eventually.
 			//
 			// Probably this was meant to exercise a race with the change below.
-			env.Await(
-				env.DoneWithOpen(),
-				env.DoneWithSave(),
-				env.DoneWithChangeWatchedFiles(),
-			)
+			env.AfterChange()
 
 			env.WriteWorkspaceFile("a/main.go", mainContent)
 			env.AfterChange(
@@ -595,7 +587,7 @@ func main() {
 	t.Run("bad", func(t *testing.T) {
 		runner.Run(t, unknown, func(t *testing.T, env *Env) {
 			env.OpenFile("a/go.mod")
-			env.Await(
+			env.AfterChange(
 				Diagnostics(env.AtRegexp("a/go.mod", "example.com v1.2.2")),
 			)
 			env.RegexpReplace("a/go.mod", "v1.2.2", "v1.2.3")
@@ -705,7 +697,7 @@ func main() {
 		{"nested", WithOptions(ProxyFiles(badProxy))},
 	}.Run(t, module, func(t *testing.T, env *Env) {
 		env.OpenFile("a/go.mod")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("a/go.mod", "require example.com v1.2.3")),
 		)
 	})
@@ -734,7 +726,7 @@ func main() {
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		original := env.ReadWorkspaceFile("go.mod")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("main.go", `"example.com/blah"`)),
 		)
 		got := env.ReadWorkspaceFile("go.mod")
@@ -792,8 +784,11 @@ func main() {
 	WithOptions(
 		ProxyFiles(workspaceProxy),
 	).Run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(
-			Diagnostics(env.AtRegexp("a/go.mod", "example.com v1.2.3"), WithMessage("is not used")),
+		env.AfterChange(
+			Diagnostics(
+				env.AtRegexp("a/go.mod", "example.com v1.2.3"),
+				WithMessage("is not used"),
+			),
 		)
 	})
 }
@@ -819,7 +814,8 @@ func main() {
 		ProxyFiles(workspaceProxy),
 		Settings{"buildFlags": []string{"-tags", "bob"}},
 	).Run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(
+		env.OnceMet(
+			InitialWorkspaceLoad,
 			Diagnostics(env.AtRegexp("main.go", `"example.com/blah"`)),
 		)
 	})
@@ -839,7 +835,7 @@ func main() {}
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.RegexpReplace("go.mod", "module", "modul")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("go.mod", "modul")),
 		)
 	})
@@ -1143,7 +1139,7 @@ func main() {
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		d := &protocol.PublishDiagnosticsParams{}
-		env.Await(
+		env.AfterChange(
 			Diagnostics(
 				env.AtRegexp("main.go", `"example.com/blah"`),
 				WithMessage(`could not import example.com/blah (no required module provides package "example.com/blah")`),
@@ -1151,7 +1147,7 @@ func main() {
 			ReadDiagnostics("main.go", d),
 		)
 		env.ApplyQuickFixes("main.go", d.Diagnostics)
-		env.Await(
+		env.AfterChange(
 			NoDiagnostics(ForFile("main.go")),
 			NoDiagnostics(ForFile("go.mod")),
 		)

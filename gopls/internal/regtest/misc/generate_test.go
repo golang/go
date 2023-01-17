@@ -59,7 +59,8 @@ func main() {
 `
 
 	Run(t, generatedWorkspace, func(t *testing.T, env *Env) {
-		env.Await(
+		env.OnceMet(
+			InitialWorkspaceLoad,
 			Diagnostics(env.AtRegexp("main.go", "lib1.(Answer)")),
 		)
 		env.RunGenerate("./lib1")

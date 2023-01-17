@@ -73,9 +73,7 @@ func m() {
 	log.Println()
 }
 `)
-		env.Await(
-			Diagnostics(env.AtRegexp("main.go", "log")),
-		)
+		env.AfterChange(Diagnostics(env.AtRegexp("main.go", "log")))
 		env.SaveBuffer("main.go")
 		env.AfterChange(NoDiagnostics(ForFile("main.go")))
 	})
@@ -88,7 +86,7 @@ const Foo = "abc
 `
 	Run(t, brokenFile, func(t *testing.T, env *Env) {
 		env.CreateBuffer("broken.go", brokenFile)
-		env.Await(Diagnostics(env.AtRegexp("broken.go", "\"abc")))
+		env.AfterChange(Diagnostics(env.AtRegexp("broken.go", "\"abc")))
 	})
 }
 
@@ -128,13 +126,13 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 func TestDiagnosticClearingOnDelete_Issue37049(t *testing.T) {
 	Run(t, badPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("a.go", "a = 1")),
 			Diagnostics(env.AtRegexp("b.go", "a = 2")),
 		)
 		env.RemoveWorkspaceFile("b.go")
 
-		env.Await(
+		env.AfterChange(
 			NoDiagnostics(ForFile("a.go")),
 			NoDiagnostics(ForFile("b.go")),
 		)
@@ -214,7 +212,7 @@ func TestA(t *testing.T) {
 // not break the workspace.
 func TestDeleteTestVariant(t *testing.T) {
 	Run(t, test38878, func(t *testing.T, env *Env) {
-		env.Await(Diagnostics(env.AtRegexp("a_test.go", `f\((3)\)`)))
+		env.AfterChange(Diagnostics(env.AtRegexp("a_test.go", `f\((3)\)`)))
 		env.RemoveWorkspaceFile("a_test.go")
 		env.AfterChange(NoDiagnostics(ForFile("a_test.go")))
 
@@ -231,7 +229,7 @@ func TestDeleteTestVariant(t *testing.T) {
 func TestDeleteTestVariant_DiskOnly(t *testing.T) {
 	Run(t, test38878, func(t *testing.T, env *Env) {
 		env.OpenFile("a_test.go")
-		env.Await(Diagnostics(AtPosition("a_test.go", 5, 3)))
+		env.AfterChange(Diagnostics(AtPosition("a_test.go", 5, 3)))
 		env.Sandbox.Workdir.RemoveFile(context.Background(), "a_test.go")
 		env.AfterChange(Diagnostics(AtPosition("a_test.go", 5, 3)))
 	})
@@ -281,7 +279,8 @@ func Hello() {
 	})
 	t.Run("initialized", func(t *testing.T) {
 		Run(t, noMod, func(t *testing.T, env *Env) {
-			env.Await(
+			env.OnceMet(
+				InitialWorkspaceLoad,
 				Diagnostics(env.AtRegexp("main.go", `"mod.com/bob"`)),
 			)
 			env.RunGoCommand("mod", "init", "mod.com")
@@ -296,7 +295,8 @@ func Hello() {
 		WithOptions(
 			Modes(Default),
 		).Run(t, noMod, func(t *testing.T, env *Env) {
-			env.Await(
+			env.OnceMet(
+				InitialWorkspaceLoad,
 				Diagnostics(env.AtRegexp("main.go", `"mod.com/bob"`)),
 			)
 			if err := env.Sandbox.RunGoCommand(env.Ctx, "", "mod", []string{"init", "mod.com"}, true); err != nil {
@@ -345,7 +345,7 @@ func TestHello(t *testing.T) {
 
 	Run(t, testPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("lib_test.go")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(AtPosition("lib_test.go", 10, 2)),
 			Diagnostics(AtPosition("lib_test.go", 11, 2)),
 		)
@@ -420,8 +420,12 @@ func TestResolveDiagnosticWithDownload(t *testing.T) {
 		env.OpenFile("print.go")
 		// Check that gopackages correctly loaded this dependency. We should get a
 		// diagnostic for the wrong formatting type.
-		// TODO: we should be able to easily also match the diagnostic message.
-		env.Await(Diagnostics(env.AtRegexp("print.go", "fmt.Printf")))
+		env.AfterChange(
+			Diagnostics(
+				env.AtRegexp("print.go", "fmt.Printf"),
+				WithMessage("wrong type int"),
+			),
+		)
 	})
 }
 
@@ -444,7 +448,9 @@ func Hello() {
 `
 	Run(t, adHoc, func(t *testing.T, env *Env) {
 		env.OpenFile("b/b.go")
-		env.Await(Diagnostics(env.AtRegexp("b/b.go", "x")))
+		env.AfterChange(
+			Diagnostics(env.AtRegexp("b/b.go", "x")),
+		)
 	})
 }
 
@@ -542,13 +548,13 @@ func f() {
 `
 	Run(t, noModule, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
-		env.Await(
+		env.AfterChange(
 			// Expect the adHocPackagesWarning.
 			OutstandingWork(lsp.WorkspaceLoadFailure, "outside of a module"),
 		)
 		// Deleting the import dismisses the warning.
 		env.RegexpReplace("a.go", `import "mod.com/hello"`, "")
-		env.Await(
+		env.AfterChange(
 			NoOutstandingWork(),
 		)
 	})
@@ -564,7 +570,8 @@ hi mom
 			WithOptions(
 				EnvVars{"GO111MODULE": go111module},
 			).Run(t, files, func(t *testing.T, env *Env) {
-				env.Await(
+				env.OnceMet(
+					InitialWorkspaceLoad,
 					NoOutstandingWork(),
 				)
 			})
@@ -836,7 +843,7 @@ func TestX(t *testing.T) {
 	var x int
 }
 `)
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("foo/bar_test.go", "x")),
 		)
 	})
@@ -918,7 +925,9 @@ const C = a.A
 
 		// We should still get diagnostics for files that exist.
 		env.RegexpReplace("b/b.go", `a.A`, "a.Nonexistant")
-		env.Await(Diagnostics(env.AtRegexp("b/b.go", `Nonexistant`)))
+		env.AfterChange(
+			Diagnostics(env.AtRegexp("b/b.go", `Nonexistant`)),
+		)
 	})
 }
 
@@ -964,7 +973,9 @@ func main() {
 		Run(t, mod, func(t *testing.T, env *Env) {
 			writeGoVim(env, "p/p.go", p)
 			writeGoVim(env, "main.go", main)
-			env.Await(Diagnostics(env.AtRegexp("main.go", "5")))
+			env.AfterChange(
+				Diagnostics(env.AtRegexp("main.go", "5")),
+			)
 		})
 	})
 
@@ -993,7 +1004,7 @@ func TestDoIt(t *testing.T) {
 	p.DoIt(5)
 }
 `)
-			env.Await(
+			env.AfterChange(
 				Diagnostics(env.AtRegexp("main.go", "5")),
 				Diagnostics(env.AtRegexp("p/p_test.go", "5")),
 				Diagnostics(env.AtRegexp("p/x_test.go", "5")),
@@ -1026,7 +1037,7 @@ func _() {
 		WorkspaceFolders(),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("a/a.go", "x")),
 		)
 	})
@@ -1074,9 +1085,7 @@ func main() {}
 `
 	Run(t, basic, func(t *testing.T, env *Env) {
 		env.Editor.CreateBuffer(env.Ctx, "foo.go", `package main`)
-		env.Await(
-			env.DoneWithOpen(),
-		)
+		env.AfterChange()
 		env.CloseBuffer("foo.go")
 		env.AfterChange(NoLogMatching(protocol.Info, "packages=0"))
 	})
@@ -1118,7 +1127,7 @@ func main() {
 	var x int
 }
 `))
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("main.go", "x")),
 		)
 	})
@@ -1138,8 +1147,11 @@ func main() {}
 `
 	Run(t, pkgDefault, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		env.Await(
-			Diagnostics(env.AtRegexp("main.go", "default"), WithMessage("expected 'IDENT'")),
+		env.AfterChange(
+			Diagnostics(
+				env.AtRegexp("main.go", "default"),
+				WithMessage("expected 'IDENT'"),
+			),
 		)
 	})
 }
@@ -1284,11 +1296,11 @@ func _() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("a/a.go", "x")),
 		)
 		env.OpenFile("a/a_exclude.go")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("a/a_exclude.go", "package (a)")),
 		)
 	})
@@ -1453,7 +1465,7 @@ package main
 `
 	Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		env.Await(
+		env.AfterChange(
 			OutstandingWork(lsp.WorkspaceLoadFailure, "unknown directive"),
 		)
 		env.EditBuffer("go.mod", fake.NewEdit(0, 0, 3, 0, `module mod.com
@@ -1463,12 +1475,12 @@ go 1.hello
 		// As of golang/go#42529, go.mod changes do not reload the workspace until
 		// they are saved.
 		env.SaveBufferWithoutActions("go.mod")
-		env.Await(
+		env.AfterChange(
 			OutstandingWork(lsp.WorkspaceLoadFailure, "invalid go version"),
 		)
 		env.RegexpReplace("go.mod", "go 1.hello", "go 1.12")
 		env.SaveBufferWithoutActions("go.mod")
-		env.Await(
+		env.AfterChange(
 			NoOutstandingWork(),
 		)
 	})
@@ -1541,7 +1553,8 @@ package c
 import _ "mod.com/triple/a"
 `
 	Run(t, mod, func(t *testing.T, env *Env) {
-		env.Await(
+		env.OnceMet(
+			InitialWorkspaceLoad,
 			Diagnostics(env.AtRegexp("self/self.go", `_ "mod.com/self"`), WithMessage("import cycle not allowed")),
 			Diagnostics(env.AtRegexp("double/a/a.go", `_ "mod.com/double/b"`), WithMessage("import cycle not allowed")),
 			Diagnostics(env.AtRegexp("triple/a/a.go", `_ "mod.com/triple/b"`), WithMessage("import cycle not allowed")),
@@ -1587,7 +1600,7 @@ const B = a.B
 		)
 		env.RegexpReplace("b/b.go", `const B = a\.B`, "")
 		env.SaveBuffer("b/b.go")
-		env.Await(
+		env.AfterChange(
 			NoDiagnostics(ForFile("a/a.go")),
 			NoDiagnostics(ForFile("b/b.go")),
 		)
@@ -1609,7 +1622,8 @@ import (
 `
 	t.Run("module", func(t *testing.T) {
 		Run(t, mod, func(t *testing.T, env *Env) {
-			env.Await(
+			env.OnceMet(
+				InitialWorkspaceLoad,
 				Diagnostics(env.AtRegexp("main.go", `"nosuchpkg"`), WithMessage(`could not import nosuchpkg (no required module provides package "nosuchpkg"`)),
 			)
 		})
@@ -1620,7 +1634,8 @@ import (
 			EnvVars{"GO111MODULE": "off"},
 			Modes(Default),
 		).Run(t, mod, func(t *testing.T, env *Env) {
-			env.Await(
+			env.OnceMet(
+				InitialWorkspaceLoad,
 				Diagnostics(env.AtRegexp("main.go", `"nosuchpkg"`), WithMessage(`cannot find package "nosuchpkg" in any of`)),
 			)
 		})
@@ -1749,7 +1764,7 @@ package main
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.OpenFile("other.go")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("main.go", "asdf")),
 			Diagnostics(env.AtRegexp("main.go", "fdas")),
 		)

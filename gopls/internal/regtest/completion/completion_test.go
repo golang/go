@@ -173,9 +173,7 @@ package
 			Run(t, files, func(t *testing.T, env *Env) {
 				if tc.content != nil {
 					env.WriteWorkspaceFile(tc.filename, *tc.content)
-					env.Await(
-						env.DoneWithChangeWatchedFiles(),
-					)
+					env.Await(env.DoneWithChangeWatchedFiles())
 				}
 				env.OpenFile(tc.filename)
 				completions := env.Completion(tc.filename, env.RegexpSearch(tc.filename, tc.triggerRegexp))
@@ -318,7 +316,7 @@ func _() {
 		env.AcceptCompletion("main.go", pos, item)
 
 		// Await the diagnostics to add example.com/blah to the go.mod file.
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("main.go", `"example.com/blah"`)),
 		)
 	})

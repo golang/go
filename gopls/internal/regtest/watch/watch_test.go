@@ -89,9 +89,9 @@ func _() {
 `
 	Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
-		env.Await(env.DoneWithOpen())
+		env.AfterChange()
 		env.WriteWorkspaceFile("b/b.go", `package b; func B() {};`)
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("a/a.go", "b.B")),
 		)
 	})
@@ -167,9 +167,9 @@ func _() {
 `
 	Run(t, pkg, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
-		env.Await(env.DoneWithOpen())
+		env.AfterChange()
 		env.RemoveWorkspaceFile("b/b.go")
-		env.Await(
+		env.AfterChange(
 			Diagnostics(env.AtRegexp("a/a.go", "\"mod.com/b\"")),
 		)
 	})
@@ -419,7 +419,7 @@ package a
 			env.RemoveWorkspaceFile("a/a_unneeded.go")
 			env.CloseBuffer("a/a_unneeded.go")
 			env.RegexpReplace("a/a.go", "var _ int", "fmt.Println(\"\")")
-			env.Await(
+			env.AfterChange(
 				Diagnostics(env.AtRegexp("a/a.go", "fmt")),
 			)
 			env.SaveBuffer("a/a.go")

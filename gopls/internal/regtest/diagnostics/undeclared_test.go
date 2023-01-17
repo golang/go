@@ -49,7 +49,6 @@ func _() int {
 			Diagnostics(env.AtRegexp("a/a.go", "x")),
 			ReadDiagnostics("a/a.go", &adiags),
 		)
-		env.Await()
 		if got := len(adiags.Diagnostics); got != 1 {
 			t.Errorf("len(Diagnostics) = %d, want 1", got)
 		}
