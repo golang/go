@@ -60,6 +60,10 @@ func asmb(ctxt *Link) {
 
 	writeParallel(&wg, dwarfblk, ctxt, Segdwarf.Fileoff, Segdwarf.Vaddr, Segdwarf.Filelen)
 
+	if Segpdata.Filelen > 0 {
+		writeParallel(&wg, pdatablk, ctxt, Segpdata.Fileoff, Segpdata.Vaddr, Segpdata.Filelen)
+	}
+
 	wg.Wait()
 }
 

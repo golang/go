@@ -433,6 +433,7 @@ type peFile struct {
 	dataSect       *peSection
 	bssSect        *peSection
 	ctorsSect      *peSection
+	pdataSect      *peSection
 	nextSectOffset uint32
 	nextFileOffset uint32
 	symtabOffset   int64 // offset to the start of symbol table
@@ -496,6 +497,25 @@ func (f *peFile) addDWARF() {
 			Exitf("%s.PointerToRawData = %#x, want %#x", sect.Name, h.pointerToRawData, fileoff)
 		}
 	}
+}
+
+// addSEH adds SEH information to the COFF file f.
+func (f *peFile) addSEH(ctxt *Link) {
+	if Segpdata.Length == 0 {
+		return
+	}
+	d := pefile.addSection(".pdata", int(Segpdata.Length), int(Segpdata.Length))
+	d.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
+	if ctxt.LinkMode == LinkExternal {
+		// Some gcc versions don't honor the default alignment for the .pdata section.
+		d.characteristics |= IMAGE_SCN_ALIGN_4BYTES
+	}
+	pefile.pdataSect = d
+	d.checkSegment(&Segpdata)
+	// TODO: remove extraSize once the dummy unwind info is removed from the .pdata section.
+	const extraSize = 12
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].VirtualAddress = d.virtualAddress + extraSize
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXCEPTION].Size = d.virtualSize - extraSize
 }
 
 // addInitArray adds .ctors COFF section to the file f.
@@ -593,14 +613,18 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		return int(sect.Rellen / relocLen)
 	}
 
-	sects := []struct {
+	type relsect struct {
 		peSect *peSection
 		seg    *sym.Segment
 		syms   []loader.Sym
-	}{
+	}
+	sects := []relsect{
 		{f.textSect, &Segtext, ctxt.Textp},
 		{f.rdataSect, &Segrodata, ctxt.datap},
 		{f.dataSect, &Segdata, ctxt.datap},
+	}
+	if sehp.pdata != 0 {
+		sects = append(sects, relsect{f.pdataSect, &Segpdata, []loader.Sym{sehp.pdata}})
 	}
 	for _, s := range sects {
 		s.peSect.emitRelocations(ctxt.Out, func() int {
@@ -1595,6 +1619,7 @@ func addPEBaseReloc(ctxt *Link) {
 func (ctxt *Link) dope() {
 	initdynimport(ctxt)
 	initdynexport(ctxt)
+	writeSEH(ctxt)
 }
 
 func setpersrc(ctxt *Link, syms []loader.Sym) {
@@ -1689,6 +1714,7 @@ func asmbPe(ctxt *Link) {
 		pefile.bssSect = b
 	}
 
+	pefile.addSEH(ctxt)
 	pefile.addDWARF()
 
 	if ctxt.LinkMode == LinkExternal {

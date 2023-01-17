@@ -69,6 +69,7 @@ var (
 	procModule32NextW                 = modkernel32.NewProc("Module32NextW")
 	procMoveFileExW                   = modkernel32.NewProc("MoveFileExW")
 	procMultiByteToWideChar           = modkernel32.NewProc("MultiByteToWideChar")
+	procRtlLookupFunctionEntry        = modkernel32.NewProc("RtlLookupFunctionEntry")
 	procSetFileInformationByHandle    = modkernel32.NewProc("SetFileInformationByHandle")
 	procUnlockFileEx                  = modkernel32.NewProc("UnlockFileEx")
 	procVirtualQuery                  = modkernel32.NewProc("VirtualQuery")
@@ -286,6 +287,12 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
 	if nwrite == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) {
+	r0, _, _ := syscall.Syscall(procRtlLookupFunctionEntry.Addr(), 3, uintptr(pc), uintptr(unsafe.Pointer(baseAddress)), uintptr(unsafe.Pointer(table)))
+	ret = uintptr(r0)
 	return
 }
 

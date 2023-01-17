@@ -40,6 +40,7 @@ func (c *context) lr() uintptr { return uintptr(c.x[30]) }
 func (c *context) set_ip(x uintptr) { c.pc = uint64(x) }
 func (c *context) set_sp(x uintptr) { c.xsp = uint64(x) }
 func (c *context) set_lr(x uintptr) { c.x[30] = uint64(x) }
+func (c *context) set_fp(x uintptr) { c.x[29] = uint64(x) }
 
 func prepareContextForSigResume(c *context) {
 	c.x[0] = c.xsp

@@ -126,6 +126,7 @@ const (
 
 	// SEH symbol types
 	SSEHUNWINDINFO
+	SPDATASECT
 )
 
 // AbiSymKindToSymKind maps values read from object files (which are
