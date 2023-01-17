@@ -1,0 +1,28 @@
+
+# This test is intended to verify that "go list" accepts coverage related
+# build arguments (such as -cover, -covermode). See issue #57785.
+
+[short] skip
+[!GOEXPERIMENT:coverageredesign] skip
+
+env GOBIN=$WORK/bin
+
+# Install a target and then do an ordinary staleness check on it.
+go install m/example
+! stale m/example
+
+# Run a second staleness check with "-cover" as a build flag. The
+# installed target should indeed be stale, since we didn't build it
+# with -cover.
+stale -cover m/example
+
+-- go.mod --
+module m
+
+go 1.20
+-- example/main.go --
+package main
+
+func main() {
+     println("hi mom")
+}

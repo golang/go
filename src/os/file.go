@@ -338,6 +338,7 @@ var lstat = Lstat
 // Rename renames (moves) oldpath to newpath.
 // If newpath already exists and is not a directory, Rename replaces it.
 // OS-specific restrictions may apply when oldpath and newpath are in different directories.
+// Even within the same directory, on non-Unix platforms Rename is not an atomic operation.
 // If there is an error, it will be of type *LinkError.
 func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)

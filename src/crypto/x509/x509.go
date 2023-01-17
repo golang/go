@@ -815,8 +815,10 @@ func (c *Certificate) hasSANExtension() bool {
 	return oidInExtensions(oidExtensionSubjectAltName, c.Extensions)
 }
 
-// CheckSignatureFrom verifies that the signature on c is a valid signature
-// from parent. SHA1WithRSA and ECDSAWithSHA1 signatures are not supported.
+// CheckSignatureFrom verifies that the signature on c is a valid signature from parent.
+//
+// This is a low-level API that performs very limited checks, and not a full
+// path verifier. Most users should use [Certificate.Verify] instead.
 func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
 	// RFC 5280, 4.2.1.9:
 	// "If the basic constraints extension is not present in a version 3
@@ -836,13 +838,16 @@ func (c *Certificate) CheckSignatureFrom(parent *Certificate) error {
 		return ErrUnsupportedAlgorithm
 	}
 
-	// TODO(agl): don't ignore the path length constraint.
-
 	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature, parent.PublicKey, false)
 }
 
 // CheckSignature verifies that signature is a valid signature over signed from
 // c's public key.
+//
+// This is a low-level API that performs no validity checks on the certificate.
+//
+// [MD5WithRSA] signatures are rejected, while [SHA1WithRSA] and [ECDSAWithSHA1]
+// signatures are currently accepted.
 func (c *Certificate) CheckSignature(algo SignatureAlgorithm, signed, signature []byte) error {
 	return checkSignature(algo, signed, signature, c.PublicKey, true)
 }

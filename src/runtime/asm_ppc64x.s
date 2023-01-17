@@ -339,8 +339,11 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	// the caller doesn't save LR on stack but passes it as a
 	// register (R5), and the unwinder currently doesn't understand.
 	// Make it SPWRITE to stop unwinding. (See issue 54332)
-	MOVD	R1, R1
+	// Use OR R0, R1 instead of MOVD R1, R1 as the MOVD instruction
+	// has a special affect on Power8,9,10 by lowering the thread 
+	// priority and causing a slowdown in execution time
 
+	OR	R0, R1
 	MOVD	R0, R11
 	BR	runtime·morestack(SB)
 
