@@ -10,14 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"time"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/xcontext"
 )
 
 // ModificationSource identifies the originating cause of a file modification.
@@ -220,59 +217,7 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 	}
 
 	onDisk := cause == FromDidChangeWatchedFiles
-	delay := s.session.Options().ExperimentalWatchedFileDelay
-	s.fileChangeMu.Lock()
-	defer s.fileChangeMu.Unlock()
-	if !onDisk || delay == 0 {
-		// No delay: process the modifications immediately.
-		return s.processModifications(ctx, modifications, onDisk, diagnoseDone)
-	}
-	// Debounce and batch up pending modifications from watched files.
-	pending := &pendingModificationSet{
-		diagnoseDone: diagnoseDone,
-		changes:      modifications,
-	}
-	// Invariant: changes appended to s.pendingOnDiskChanges are eventually
-	// handled in the order they arrive. This guarantee is only partially
-	// enforced here. Specifically:
-	//  1. s.fileChangesMu ensures that the append below happens in the order
-	//     notifications were received, so that the changes within each batch are
-	//     ordered properly.
-	//  2. The debounced func below holds s.fileChangesMu while processing all
-	//     changes in s.pendingOnDiskChanges, ensuring that no batches are
-	//     processed out of order.
-	//  3. Session.ExpandModificationsToDirectories and Session.DidModifyFiles
-	//     process changes in order.
-	s.pendingOnDiskChanges = append(s.pendingOnDiskChanges, pending)
-	ctx = xcontext.Detach(ctx)
-	okc := s.watchedFileDebouncer.debounce("", 0, time.After(delay))
-	go func() {
-		if ok := <-okc; !ok {
-			return
-		}
-		s.fileChangeMu.Lock()
-		var allChanges []source.FileModification
-		// For accurate progress notifications, we must notify all goroutines
-		// waiting for the diagnose pass following a didChangeWatchedFiles
-		// notification. This is necessary for regtest assertions.
-		var dones []chan struct{}
-		for _, pending := range s.pendingOnDiskChanges {
-			allChanges = append(allChanges, pending.changes...)
-			dones = append(dones, pending.diagnoseDone)
-		}
-
-		allDone := make(chan struct{})
-		if err := s.processModifications(ctx, allChanges, onDisk, allDone); err != nil {
-			event.Error(ctx, "processing delayed file changes", err)
-		}
-		s.pendingOnDiskChanges = nil
-		s.fileChangeMu.Unlock()
-		<-allDone
-		for _, done := range dones {
-			close(done)
-		}
-	}()
-	return nil
+	return s.processModifications(ctx, modifications, onDisk, diagnoseDone)
 }
 
 // processModifications update server state to reflect file changes, and

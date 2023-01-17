@@ -33,7 +33,6 @@ func NewServer(session *cache.Session, client protocol.ClientCloser) *Server {
 		diagnosticsSema:       make(chan struct{}, concurrentAnalyses),
 		progress:              progress.NewTracker(client),
 		diagDebouncer:         newDebouncer(),
-		watchedFileDebouncer:  newDebouncer(),
 	}
 }
 
@@ -106,20 +105,10 @@ type Server struct {
 	// diagDebouncer is used for debouncing diagnostics.
 	diagDebouncer *debouncer
 
-	// watchedFileDebouncer is used for batching didChangeWatchedFiles notifications.
-	watchedFileDebouncer *debouncer
-	fileChangeMu         sync.Mutex
-	pendingOnDiskChanges []*pendingModificationSet
-
 	// When the workspace fails to load, we show its status through a progress
 	// report with an error message.
 	criticalErrorStatusMu sync.Mutex
 	criticalErrorStatus   *progress.WorkDone
-}
-
-type pendingModificationSet struct {
-	diagnoseDone chan struct{}
-	changes      []source.FileModification
 }
 
 func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {

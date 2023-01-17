@@ -434,18 +434,6 @@ type DiagnosticOptions struct {
 	//
 	// This option must be set to a valid duration string, for example `"250ms"`.
 	DiagnosticsDelay time.Duration `status:"advanced"`
-
-	// ExperimentalWatchedFileDelay controls the amount of time that gopls waits
-	// for additional workspace/didChangeWatchedFiles notifications to arrive,
-	// before processing all such notifications in a single batch. This is
-	// intended for use by LSP clients that don't support their own batching of
-	// file system notifications.
-	//
-	// This option must be set to a valid duration string, for example `"100ms"`.
-	//
-	// Deprecated: this setting is deprecated and will be removed in a future
-	// version of gopls (https://go.dev/issue/55332)
-	ExperimentalWatchedFileDelay time.Duration `status:"experimental"`
 }
 
 type InlayHintOptions struct {
@@ -1120,10 +1108,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.setDuration(&o.DiagnosticsDelay)
 
 	case "experimentalWatchedFileDelay":
-		const msg = "experimentalWatchedFileDelay is deprecated, and will " +
-			"be removed in a future version of gopls (https://go.dev/issue/55332)"
-		result.softErrorf(msg)
-		result.setDuration(&o.ExperimentalWatchedFileDelay)
+		result.deprecated("")
 
 	case "experimentalPackageCacheKey":
 		result.setBool(&o.ExperimentalPackageCacheKey)

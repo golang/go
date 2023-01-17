@@ -517,14 +517,6 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "ui.diagnostic",
 			},
 			{
-				Name:      "experimentalWatchedFileDelay",
-				Type:      "time.Duration",
-				Doc:       "experimentalWatchedFileDelay controls the amount of time that gopls waits\nfor additional workspace/didChangeWatchedFiles notifications to arrive,\nbefore processing all such notifications in a single batch. This is\nintended for use by LSP clients that don't support their own batching of\nfile system notifications.\n\nThis option must be set to a valid duration string, for example `\"100ms\"`.\n\nDeprecated: this setting is deprecated and will be removed in a future\nversion of gopls (https://go.dev/issue/55332)\n",
-				Default:   "\"0s\"",
-				Status:    "experimental",
-				Hierarchy: "ui.diagnostic",
-			},
-			{
 				Name: "hints",
 				Type: "map[string]bool",
 				Doc:  "hints specify inlay hints that users want to see. A full list of hints\nthat gopls uses can be found in\n[inlayHints.md](https://github.com/golang/tools/blob/master/gopls/doc/inlayHints.md).\n",
