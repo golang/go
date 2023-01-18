@@ -762,7 +762,7 @@ again:
 	RET
 
 
-TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
+TEXT ·publicationBarrier<ABIInternal>(SB),NOSPLIT,$0-0
 	// Stores are already ordered on x86, so this is just a
 	// compile barrier.
 	RET
