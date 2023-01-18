@@ -1664,6 +1664,7 @@ var (
 		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
 		"ppc64":   {"GOPPC64", "power8", "power9"},
 		"ppc64le": {"GOPPC64", "power8", "power9"},
+		"ppc64x":  {}, // A pseudo-arch representing both ppc64 and ppc64le
 		"s390x":   {},
 		"wasm":    {},
 		"riscv64": {},
@@ -1756,15 +1757,22 @@ func (t *test) wantedAsmOpcodes(fn string) asmChecks {
 
 			// Create the build environments corresponding the above specifiers
 			envs := make([]buildEnv, 0, 4)
-			if subarch != "" {
-				envs = append(envs, buildEnv(os+"/"+arch+"/"+subarch))
-			} else {
-				subarchs := archVariants[arch]
-				if len(subarchs) == 0 {
-					envs = append(envs, buildEnv(os+"/"+arch+"/"))
+			arches := []string{arch}
+			// ppc64x is a pseudo-arch, generate tests for both endian variants.
+			if arch == "ppc64x" {
+				arches = []string{"ppc64", "ppc64le"}
+			}
+			for _, arch := range arches {
+				if subarch != "" {
+					envs = append(envs, buildEnv(os+"/"+arch+"/"+subarch))
 				} else {
-					for _, sa := range archVariants[arch][1:] {
-						envs = append(envs, buildEnv(os+"/"+arch+"/"+sa))
+					subarchs := archVariants[arch]
+					if len(subarchs) == 0 {
+						envs = append(envs, buildEnv(os+"/"+arch+"/"))
+					} else {
+						for _, sa := range archVariants[arch][1:] {
+							envs = append(envs, buildEnv(os+"/"+arch+"/"+sa))
+						}
 					}
 				}
 			}
