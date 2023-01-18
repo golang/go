@@ -3,6 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // This file exists only to drive go:generate.
-//go:generate go run generator.go
+//go:generate go test -run=Generate -write=all
 
 package types
