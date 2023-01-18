@@ -164,14 +164,6 @@ func nodeAtPos(nodes []ast.Node, pos token.Pos) (ast.Node, int) {
 	return nil, -1
 }
 
-// IsInterface returns if a types.Type is an interface
-//
-// This function accepts nil, unlike types.IsInterface.
-// TODO(adonovan): that's confusing! Eliminate this wrapper.
-func IsInterface(T types.Type) bool {
-	return T != nil && types.IsInterface(T)
-}
-
 // FormatNode returns the "pretty-print" output for an ast node.
 func FormatNode(fset *token.FileSet, n ast.Node) string {
 	var buf strings.Builder

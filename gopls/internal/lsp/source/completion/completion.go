@@ -2922,7 +2922,7 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 		return true
 	}
 
-	if !source.IsInterface(t) && typeMatches(types.NewPointer(t)) {
+	if !types.IsInterface(t) && typeMatches(types.NewPointer(t)) {
 		if c.inference.typeName.compLitType {
 			// If we are completing a composite literal type as in
 			// "foo<>{}", to make a pointer we must prepend "&".

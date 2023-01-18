@@ -605,7 +605,7 @@ func renameObj(ctx context.Context, s Snapshot, newName string, qos []qualifiedO
 	for _, ref := range refs {
 		if obj, ok := ref.obj.(*types.Func); ok {
 			recv := obj.Type().(*types.Signature).Recv()
-			if recv != nil && IsInterface(recv.Type().Underlying()) {
+			if recv != nil && types.IsInterface(recv.Type().Underlying()) {
 				r.changeMethods = true
 				break
 			}

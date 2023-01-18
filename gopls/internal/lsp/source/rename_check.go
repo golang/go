@@ -552,7 +552,7 @@ func (r *renamer) checkMethod(from *types.Func) {
 	// Check for conflict at point of declaration.
 	// Check to ensure preservation of assignability requirements.
 	R := recv(from).Type()
-	if IsInterface(R) {
+	if types.IsInterface(R) {
 		// Abstract method
 
 		// declaration
@@ -569,7 +569,7 @@ func (r *renamer) checkMethod(from *types.Func) {
 		for _, pkg := range r.packages {
 			// Start with named interface types (better errors)
 			for _, obj := range pkg.GetTypesInfo().Defs {
-				if obj, ok := obj.(*types.TypeName); ok && IsInterface(obj.Type()) {
+				if obj, ok := obj.(*types.TypeName); ok && types.IsInterface(obj.Type()) {
 					f, _, _ := types.LookupFieldOrMethod(
 						obj.Type(), false, from.Pkg(), from.Name())
 					if f == nil {
@@ -641,7 +641,7 @@ func (r *renamer) checkMethod(from *types.Func) {
 			// yields abstract method I.f.  This can make error
 			// messages less than obvious.
 			//
-			if !IsInterface(key.RHS) {
+			if !types.IsInterface(key.RHS) {
 				// The logic below was derived from checkSelections.
 
 				rtosel := rmethods.Lookup(from.Pkg(), r.to)
@@ -716,7 +716,7 @@ func (r *renamer) checkMethod(from *types.Func) {
 		//
 		for key := range r.satisfy() {
 			// key = (lhs, rhs) where lhs is always an interface.
-			if IsInterface(key.RHS) {
+			if types.IsInterface(key.RHS) {
 				continue
 			}
 			rsel := r.msets.MethodSet(key.RHS).Lookup(from.Pkg(), from.Name())

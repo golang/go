@@ -129,7 +129,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 			// Add a literal completion for a signature type that implements
 			// an interface. For example, offer "http.HandlerFunc()" when
 			// expected type is "http.Handler".
-			if source.IsInterface(expType) {
+			if expType != nil && types.IsInterface(expType) {
 				c.basicLiteral(t, snip.Clone(), typeName, float64(score), addlEdits)
 			}
 		case *types.Basic:
@@ -137,7 +137,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 			// expected interface (e.g. named string type http.Dir
 			// implements http.FileSystem), or are identical to our expected
 			// type (i.e. yielding a type conversion such as "float64()").
-			if source.IsInterface(expType) || types.Identical(expType, literalType) {
+			if expType != nil && (types.IsInterface(expType) || types.Identical(expType, literalType)) {
 				c.basicLiteral(t, snip.Clone(), typeName, float64(score), addlEdits)
 			}
 		}
@@ -159,7 +159,7 @@ func (c *completer) literal(ctx context.Context, literalType types.Type, imp *im
 	}
 
 	// If prefix matches "func", client may want a function literal.
-	if score := c.matcher.Score("func"); !cand.hasMod(reference) && score > 0 && !source.IsInterface(expType) {
+	if score := c.matcher.Score("func"); !cand.hasMod(reference) && score > 0 && (expType == nil || !types.IsInterface(expType)) {
 		switch t := literalType.Underlying().(type) {
 		case *types.Signature:
 			c.functionLiteral(t, float64(score))
