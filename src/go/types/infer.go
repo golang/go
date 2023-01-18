@@ -9,6 +9,7 @@ package types
 
 import (
 	"fmt"
+	"go/token"
 	. "internal/types/errors"
 	"strings"
 )
@@ -60,51 +61,8 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	}
 	// len(targs) < n
 
-	const enableTparamRenaming = true
-	if enableTparamRenaming {
-		// For the purpose of type inference we must differentiate type parameters
-		// occurring in explicit type or value function arguments from the type
-		// parameters we are solving for via unification, because they may be the
-		// same in self-recursive calls. For example:
-		//
-		//  func f[P *Q, Q any](p P, q Q) {
-		//    f(p)
-		//  }
-		//
-		// In this example, the fact that the P used in the instantation f[P] has
-		// the same pointer identity as the P we are trying to solve for via
-		// unification is coincidental: there is nothing special about recursive
-		// calls that should cause them to conflate the identity of type arguments
-		// with type parameters. To put it another way: any such self-recursive
-		// call is equivalent to a mutually recursive call, which does not run into
-		// any problems of type parameter identity. For example, the following code
-		// is equivalent to the code above.
-		//
-		//  func f[P interface{*Q}, Q any](p P, q Q) {
-		//    f2(p)
-		//  }
-		//
-		//  func f2[P interface{*Q}, Q any](p P, q Q) {
-		//    f(p)
-		//  }
-		//
-		// We turn the first example into the second example by renaming type
-		// parameters in the original signature to give them a new identity.
-		tparams2 := make([]*TypeParam, len(tparams))
-		for i, tparam := range tparams {
-			tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
-			tparams2[i] = NewTypeParam(tname, nil)
-			tparams2[i].index = tparam.index // == i
-		}
-
-		renameMap := makeRenameMap(tparams, tparams2)
-		for i, tparam := range tparams {
-			tparams2[i].bound = check.subst(posn.Pos(), tparam.bound, renameMap, nil, check.context())
-		}
-
-		tparams = tparams2
-		params = check.subst(posn.Pos(), params, renameMap, nil, check.context()).(*Tuple)
-	}
+	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
+	tparams, params = check.renameTParams(posn.Pos(), tparams, params)
 
 	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
 	// If that is the case, permutate params and args such that the arguments with named
@@ -310,6 +268,53 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	tpar := tparams[index]
 	check.errorf(posn, CannotInferTypeArgs, "cannot infer %s (%v)", tpar.obj.name, tpar.obj.pos)
 	return nil
+}
+
+// renameTParams renames the type parameters in a function signature described by its
+// type and ordinary parameters (tparams and params) such that each type parameter is
+// given a new identity. renameTParams returns the new type and ordinary parameters.
+func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, params *Tuple) ([]*TypeParam, *Tuple) {
+	// For the purpose of type inference we must differentiate type parameters
+	// occurring in explicit type or value function arguments from the type
+	// parameters we are solving for via unification, because they may be the
+	// same in self-recursive calls. For example:
+	//
+	//  func f[P *Q, Q any](p P, q Q) {
+	//    f(p)
+	//  }
+	//
+	// In this example, the fact that the P used in the instantation f[P] has
+	// the same pointer identity as the P we are trying to solve for via
+	// unification is coincidental: there is nothing special about recursive
+	// calls that should cause them to conflate the identity of type arguments
+	// with type parameters. To put it another way: any such self-recursive
+	// call is equivalent to a mutually recursive call, which does not run into
+	// any problems of type parameter identity. For example, the following code
+	// is equivalent to the code above.
+	//
+	//  func f[P interface{*Q}, Q any](p P, q Q) {
+	//    f2(p)
+	//  }
+	//
+	//  func f2[P interface{*Q}, Q any](p P, q Q) {
+	//    f(p)
+	//  }
+	//
+	// We turn the first example into the second example by renaming type
+	// parameters in the original signature to give them a new identity.
+	tparams2 := make([]*TypeParam, len(tparams))
+	for i, tparam := range tparams {
+		tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
+		tparams2[i] = NewTypeParam(tname, nil)
+		tparams2[i].index = tparam.index // == i
+	}
+
+	renameMap := makeRenameMap(tparams, tparams2)
+	for i, tparam := range tparams {
+		tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
+	}
+
+	return tparams2, check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
 }
 
 // typeParamsString produces a string containing all the type parameter names
