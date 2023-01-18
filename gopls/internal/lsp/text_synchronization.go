@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -208,32 +209,35 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 }
 
 func (s *Server) didModifyFiles(ctx context.Context, modifications []source.FileModification, cause ModificationSource) error {
-	diagnoseDone := make(chan struct{})
+	// wg guards two conditions:
+	//  1. didModifyFiles is complete
+	//  2. the goroutine diagnosing changes on behalf of didModifyFiles is
+	//     complete, if it was started
+	//
+	// Both conditions must be satisfied for the purpose of testing: we don't
+	// want to observe the completion of change processing until we have received
+	// all diagnostics as well as all server->client notifications done on behalf
+	// of this function.
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Done()
+
 	if s.session.Options().VerboseWorkDoneProgress {
 		work := s.progress.Start(ctx, DiagnosticWorkTitle(cause), "Calculating file diagnostics...", nil, nil)
-		defer func() {
-			go func() {
-				<-diagnoseDone
-				work.End(ctx, "Done.")
-			}()
+		go func() {
+			wg.Wait()
+			work.End(ctx, "Done.")
 		}()
 	}
 
 	onDisk := cause == FromDidChangeWatchedFiles
-	return s.processModifications(ctx, modifications, onDisk, diagnoseDone)
-}
 
-// processModifications update server state to reflect file changes, and
-// triggers diagnostics to run asynchronously. The diagnoseDone channel will be
-// closed once diagnostics complete.
-func (s *Server) processModifications(ctx context.Context, modifications []source.FileModification, onDisk bool, diagnoseDone chan struct{}) error {
 	s.stateMu.Lock()
 	if s.state >= serverShutDown {
 		// This state check does not prevent races below, and exists only to
 		// produce a better error message. The actual race to the cache should be
 		// guarded by Session.viewMu.
 		s.stateMu.Unlock()
-		close(diagnoseDone)
 		return errors.New("server is shut down")
 	}
 	s.stateMu.Unlock()
@@ -251,7 +255,6 @@ func (s *Server) processModifications(ctx context.Context, modifications []sourc
 
 	snapshots, release, err := s.session.DidModifyFiles(ctx, modifications)
 	if err != nil {
-		close(diagnoseDone)
 		return err
 	}
 
@@ -266,10 +269,11 @@ func (s *Server) processModifications(ctx context.Context, modifications []sourc
 		}
 	}
 
+	wg.Add(1)
 	go func() {
 		s.diagnoseSnapshots(snapshots, onDisk)
 		release()
-		close(diagnoseDone)
+		wg.Done()
 	}()
 
 	// After any file modifications, we need to update our watched files,
