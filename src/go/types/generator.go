@@ -90,6 +90,7 @@ var filemap = map[string]action{
 	"context_test.go":     nil,
 	"gccgosizes.go":       nil,
 	"hilbert_test.go":     nil,
+	"infer.go":            func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
 	"lookup.go":           nil,
 	"main_test.go":        nil,
@@ -178,6 +179,49 @@ func fixTokenPos(f *ast.File) {
 			if fun, _ := n.Fun.(*ast.SelectorExpr); fun != nil && fun.Sel.Name == "IsKnown" && len(n.Args) == 0 {
 				fun.Sel.Name = "IsValid"
 				return false
+			}
+		}
+		return true
+	})
+}
+
+// fixInferSig updates the Checker.infer signature to use a positioner instead of a token.Position
+// as first argument, renames the argument from "pos" to "posn", and updates a few internal uses of
+// "pos" to "posn" and "posn.Pos()" respectively.
+func fixInferSig(f *ast.File) {
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.FuncDecl:
+			if n.Name.Name == "infer" {
+				// rewrite (pos token.Pos, ...) to (posn positioner, ...)
+				par := n.Type.Params.List[0]
+				if len(par.Names) == 1 && par.Names[0].Name == "pos" {
+					par.Names[0] = newIdent(par.Names[0].Pos(), "posn")
+					par.Type = newIdent(par.Type.Pos(), "positioner")
+					return true
+				}
+			}
+		case *ast.CallExpr:
+			if selx, _ := n.Fun.(*ast.SelectorExpr); selx != nil {
+				switch selx.Sel.Name {
+				case "renameTParams":
+					// rewrite check.renameTParams(pos, ... ) to check.renameTParams(posn.Pos(), ... )
+					if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "pos" {
+						pos := n.Args[0].Pos()
+						fun := &ast.SelectorExpr{X: newIdent(pos, "posn"), Sel: newIdent(pos, "Pos")}
+						arg := &ast.CallExpr{Fun: fun, Lparen: pos, Args: nil, Ellipsis: token.NoPos, Rparen: pos}
+						n.Args[0] = arg
+						return false
+					}
+				case "errorf":
+					// rewrite check.errorf(pos, ...) to check.errorf(posn, ...)
+					if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "pos" {
+						pos := n.Args[0].Pos()
+						arg := newIdent(pos, "posn")
+						n.Args[0] = arg
+						return false
+					}
+				}
 			}
 		}
 		return true
