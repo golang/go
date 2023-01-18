@@ -303,6 +303,11 @@ func parallelSubtest(info *types.Info, call *ast.CallExpr) []ast.Stmt {
 		return nil
 	}
 
+	if len(call.Args) != 2 {
+		// Ignore calls such as t.Run(fn()).
+		return nil
+	}
+
 	lit, _ := call.Args[1].(*ast.FuncLit)
 	if lit == nil {
 		return nil

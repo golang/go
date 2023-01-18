@@ -140,6 +140,10 @@ func _(t *testing.T) {
 			t.Parallel()
 			println(test) // want "loop variable test captured by func literal"
 		})
+
+		// Check that we do not have problems when t.Run has a single argument.
+		fn := func() (string, func(t *testing.T)) { return "", nil }
+		t.Run(fn())
 	}
 }
 
