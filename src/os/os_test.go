@@ -2550,12 +2550,19 @@ func TestDoubleCloseError(t *testing.T) {
 
 func TestUserCacheDir(t *testing.T) {
 	cacheDir, err := UserCacheDir()
-	if len(cacheDir) == 0 && err == nil {
-		t.Fatal("UserCacheDir return empty string without error")
+	if err != nil {
+		t.Skipf("skipping: %v", err)
+	}
+	if cacheDir == "" {
+		t.Fatalf("UserCacheDir returned %q; want non-empty path or error", cacheDir)
 	}
 
-	if err != nil && IsNotExist(err) {
-		t.Skipf("UserCacheDir failed: %v", err)
+	d, err := os.MkdirTemp(cacheDir, "TestUserCacheDir")
+	if err != nil {
+		t.Fatalf("could not write to UserCacheDir %q: %v", cacheDir, err)
+	}
+	if err := os.Remove(d); err != nil {
+		t.Error(err)
 	}
 }
 
