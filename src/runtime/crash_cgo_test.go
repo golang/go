@@ -518,15 +518,21 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "TracebackSigpanic")
 	t.Log(got)
-	want := "runtime.sigpanic"
+	// We should see the function that calls the C function.
+	want := "main.TracebackSigpanic"
 	if !strings.Contains(got, want) {
 		if runtime.GOOS == "android" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
 			testenv.SkipFlaky(t, 58794)
 		}
 		t.Errorf("did not see %q in output", want)
 	}
+	// We shouldn't inject a sigpanic call. (see issue 57698)
+	nowant := "runtime.sigpanic"
+	if strings.Contains(got, nowant) {
+		t.Errorf("unexpectedly saw %q in output", nowant)
+	}
 	// No runtime errors like "runtime: unexpected return pc".
-	nowant := "runtime: "
+	nowant = "runtime: "
 	if strings.Contains(got, nowant) {
 		t.Errorf("unexpectedly saw %q in output", nowant)
 	}
