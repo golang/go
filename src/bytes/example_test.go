@@ -110,6 +110,19 @@ func ExampleBuffer_ReadByte() {
 	// bcde
 }
 
+func ExampleClone() {
+	b := []byte("abc")
+	clone := bytes.Clone(b)
+	fmt.Printf("%s\n", clone)
+	clone[0] = 'd'
+	fmt.Printf("%s\n", b)
+	fmt.Printf("%s\n", clone)
+	// Output:
+	// abc
+	// abc
+	// dbc
+}
+
 func ExampleCompare() {
 	// Interpret Compare's result by comparing it to zero.
 	var a, b []byte
@@ -208,6 +221,30 @@ func ExampleCut() {
 	// Cut("Gopher", "ph") = "Go", "er", true
 	// Cut("Gopher", "er") = "Goph", "", true
 	// Cut("Gopher", "Badger") = "Gopher", "", false
+}
+
+func ExampleCutPrefix() {
+	show := func(s, sep string) {
+		after, found := bytes.CutPrefix([]byte(s), []byte(sep))
+		fmt.Printf("CutPrefix(%q, %q) = %q, %v\n", s, sep, after, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "ph")
+	// Output:
+	// CutPrefix("Gopher", "Go") = "pher", true
+	// CutPrefix("Gopher", "ph") = "Gopher", false
+}
+
+func ExampleCutSuffix() {
+	show := func(s, sep string) {
+		before, found := bytes.CutSuffix([]byte(s), []byte(sep))
+		fmt.Printf("CutSuffix(%q, %q) = %q, %v\n", s, sep, before, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "er")
+	// Output:
+	// CutSuffix("Gopher", "Go") = "Gopher", false
+	// CutSuffix("Gopher", "er") = "Goph", true
 }
 
 func ExampleEqual() {
@@ -347,6 +384,21 @@ func ExampleLastIndexFunc() {
 	// -1
 }
 
+func ExampleMap() {
+	rot13 := func(r rune) rune {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			return 'A' + (r-'A'+13)%26
+		case r >= 'a' && r <= 'z':
+			return 'a' + (r-'a'+13)%26
+		}
+		return r
+	}
+	fmt.Printf("%s\n", bytes.Map(rot13, []byte("'Twas brillig and the slithy gopher...")))
+	// Output:
+	// 'Gjnf oevyyvt naq gur fyvgul tbcure...
+}
+
 func ExampleReader_Len() {
 	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
 	fmt.Println(bytes.NewReader([]byte("こんにちは!")).Len())
@@ -443,6 +495,16 @@ func ExampleToTitleSpecial() {
 	// Output:
 	// Original : ahoj vývojári golang
 	// ToTitle : AHOJ VÝVOJÁRİ GOLANG
+}
+
+func ExampleToValidUTF8() {
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("abc"), []byte("\uFFFD")))
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("a\xffb\xC0\xAFc\xff"), []byte("")))
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("\xed\xa0\x80"), []byte("abc")))
+	// Output:
+	// abc
+	// abc
+	// abc
 }
 
 func ExampleTrim() {
