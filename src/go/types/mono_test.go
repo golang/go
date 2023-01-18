@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/importer"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"strings"
@@ -18,11 +17,8 @@ import (
 
 func checkMono(t *testing.T, body string) error {
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "x.go", "package x; import `unsafe`; var _ unsafe.Pointer;\n"+body, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	files := []*ast.File{file}
+	src := "package x; import `unsafe`; var _ unsafe.Pointer;\n" + body
+	files := []*ast.File{mustParse(fset, "x.go", src)}
 
 	var buf strings.Builder
 	conf := types.Config{

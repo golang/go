@@ -56,7 +56,7 @@ func reducer(x float64, y int) float64 {
 }
 
 var reduced1 = Reduce[int, float64](input, 0, reducer)
-var reduced2 = Reduce(input, 1i /* ERROR overflows */, reducer) // using type inference
+var reduced2 = Reduce(input, 1i /* ERROR "overflows" */, reducer) // using type inference
 var reduced3 = Reduce(input, 1, reducer) // using type inference
 
 func filter(x int) bool {

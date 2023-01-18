@@ -55,9 +55,8 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
 			}
 			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", msg)
 		},
-		Importer:               &importer,
-		Sizes:                  &gcSizes{},
-		OldComparableSemantics: base.Flag.OldComparable, // default is new comparable semantics
+		Importer: &importer,
+		Sizes:    &gcSizes{},
 	}
 	info := &types2.Info{
 		StoreTypesInSyntax: true,
@@ -359,9 +358,9 @@ Outer:
 
 		// Double check for any type-checking inconsistencies. This can be
 		// removed once we're confident in IR generation results.
-		syntax.Crawl(p.file, func(n syntax.Node) bool {
+		syntax.Inspect(p.file, func(n syntax.Node) bool {
 			g.validate(n)
-			return false
+			return true
 		})
 	}
 

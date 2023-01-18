@@ -336,6 +336,9 @@ For more about modules, see https://golang.org/ref/mod.
 func init() {
 	CmdList.Run = runList // break init cycle
 	work.AddBuildFlags(CmdList, work.DefaultBuildFlags)
+	if cfg.Experiment != nil && cfg.Experiment.CoverageRedesign {
+		work.AddCoverFlags(CmdList, nil)
+	}
 	CmdList.Flag.Var(&listJsonFields, "json", "")
 }
 

@@ -4,19 +4,19 @@
 
 package p
 
-var _ interface{ m() } = struct /* ERROR m is a field, not a method */ {
+var _ interface{ m() } = struct /* ERROR "m is a field, not a method" */ {
 	m func()
 }{}
 
-var _ interface{ m() } = & /* ERROR m is a field, not a method */ struct {
+var _ interface{ m() } = & /* ERROR "m is a field, not a method" */ struct {
 	m func()
 }{}
 
-var _ interface{ M() } = struct /* ERROR missing method M */ {
+var _ interface{ M() } = struct /* ERROR "missing method M" */ {
 	m func()
 }{}
 
-var _ interface{ M() } = & /* ERROR missing method M */ struct {
+var _ interface{ M() } = & /* ERROR "missing method M" */ struct {
 	m func()
 }{}
 
@@ -33,6 +33,6 @@ func _() {
 	var i I
 
 	i = m
-	i = t // ERROR m is a field, not a method
+	i = t // ERROR "m is a field, not a method"
 	_ = i
 }

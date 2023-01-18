@@ -4,7 +4,7 @@
 
 package p
 
-type Builder /* ERROR invalid recursive type */ [T interface{ struct{ Builder[T] } }] struct{}
+type Builder /* ERROR "invalid recursive type" */ [T interface{ struct{ Builder[T] } }] struct{}
 type myBuilder struct {
 	Builder[myBuilder]
 }

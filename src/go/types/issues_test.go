@@ -21,9 +21,7 @@ import (
 )
 
 func TestIssue5770(t *testing.T) {
-	f := mustParse(fset, "", `package p; type S struct{T}`)
-	conf := Config{Importer: importer.Default()}
-	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+	_, err := typecheck("p", `package p; type S struct{T}`, nil)
 	const want = "undefined: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)
@@ -233,13 +231,8 @@ func main() {
 }
 `
 	f := func(test, src string) {
-		f := mustParse(fset, "", src)
-		cfg := Config{Importer: importer.Default()}
-		info := Info{Uses: make(map[*ast.Ident]Object)}
-		_, err := cfg.Check("main", fset, []*ast.File{f}, &info)
-		if err != nil {
-			t.Fatal(err)
-		}
+		info := &Info{Uses: make(map[*ast.Ident]Object)}
+		mustTypecheck("main", src, info)
 
 		var pkg *Package
 		count := 0
@@ -516,14 +509,14 @@ func TestIssue43088(t *testing.T) {
 	//                 _ T2
 	//         }
 	// }
-	n1 := NewTypeName(token.NoPos, nil, "T1", nil)
+	n1 := NewTypeName(nopos, nil, "T1", nil)
 	T1 := NewNamed(n1, nil, nil)
-	n2 := NewTypeName(token.NoPos, nil, "T2", nil)
+	n2 := NewTypeName(nopos, nil, "T2", nil)
 	T2 := NewNamed(n2, nil, nil)
-	s1 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
+	s1 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
 	T1.SetUnderlying(s1)
-	s2 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
-	s3 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", s2, false)}, nil)
+	s2 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
+	s3 := NewStruct([]*Var{NewField(nopos, nil, "_", s2, false)}, nil)
 	T2.SetUnderlying(s3)
 
 	// These calls must terminate (no endless recursion).
@@ -574,7 +567,7 @@ import (
 func _() {
 	// Packages should be fully qualified when there is ambiguity within the
 	// error string itself.
-	a.F(template /* ERROR cannot use.*html/template.* as .*text/template */ .Template{})
+	a.F(template /* ERRORx "cannot use.*html/template.* as .*text/template" */ .Template{})
 }
 `
 		csrc = `
@@ -587,12 +580,12 @@ import (
 )
 
 // Issue #46905: make sure template is not the first package qualified.
-var _ fmt.Stringer = 1 // ERROR cannot use 1.*as fmt\.Stringer
+var _ fmt.Stringer = 1 // ERRORx "cannot use 1.*as fmt\\.Stringer"
 
 // Packages should be fully qualified when there is ambiguity in reachable
 // packages. In this case both a (and for that matter html/template) import
 // text/template.
-func _() { a.G(template /* ERROR cannot use .*html/template.*Template */ .Template{}) }
+func _() { a.G(template /* ERRORx "cannot use .*html/template.*Template" */ .Template{}) }
 `
 
 		tsrc = `
@@ -603,7 +596,7 @@ import "text/template"
 type T int
 
 // Verify that the current package name also causes disambiguation.
-var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
+var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Template{}
 `
 	)
 
@@ -644,7 +637,7 @@ func TestIssue50646(t *testing.T) {
 func TestIssue55030(t *testing.T) {
 	// makeSig makes the signature func(typ...)
 	makeSig := func(typ Type) {
-		par := NewVar(token.NoPos, nil, "", typ)
+		par := NewVar(nopos, nil, "", typ)
 		params := NewTuple(par)
 		NewSignatureType(nil, nil, nil, params, nil, true)
 	}
@@ -658,22 +651,22 @@ func TestIssue55030(t *testing.T) {
 
 	// P where P's core type is string
 	{
-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P string]
+		P := NewTypeName(nopos, nil, "P", nil) // [P string]
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})))
 	}
 
 	// P where P's core type is an (unnamed) slice
 	{
-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P []int]
+		P := NewTypeName(nopos, nil, "P", nil) // [P []int]
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})))
 	}
 
 	// P where P's core type is bytestring (i.e., string or []byte)
 	{
-		t1 := NewTerm(true, Typ[String])             // ~string
-		t2 := NewTerm(false, NewSlice(Typ[Byte]))    // []byte
-		u := NewUnion([]*Term{t1, t2})               // ~string | []byte
-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P ~string | []byte]
+		t1 := NewTerm(true, Typ[String])          // ~string
+		t2 := NewTerm(false, NewSlice(Typ[Byte])) // []byte
+		u := NewUnion([]*Term{t1, t2})            // ~string | []byte
+		P := NewTypeName(nopos, nil, "P", nil)    // [P ~string | []byte]
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
 	}
 }

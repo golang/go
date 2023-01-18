@@ -590,9 +590,15 @@ variable and the presence of a go.mod file. See 'go help modules' for details.
 If module-aware mode is enabled, "go install" runs in the context of the main
 module.
 
-When module-aware mode is disabled, other packages are installed in the
+When module-aware mode is disabled, non-main packages are installed in the
 directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
-other packages are built and cached but not installed.
+non-main packages are built and cached but not installed.
+
+Before Go 1.20, the standard library was installed to
+$GOROOT/pkg/$GOOS_$GOARCH.
+Starting in Go 1.20, the standard library is built and cached but not installed.
+Setting GODEBUG=installgoroot=all restores the use of
+$GOROOT/pkg/$GOOS_$GOARCH.
 
 For more about the build flags, see 'go help build'.
 For more about specifying packages, see 'go help packages'.

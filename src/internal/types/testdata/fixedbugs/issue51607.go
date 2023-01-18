@@ -16,13 +16,13 @@ type (
 type (
 	// overlap errors for non-interface terms
 	// (like the interface terms, but explicitly inlined)
-	_ interface{int | int /* ERROR overlapping terms int and int */ }
-	_ interface{int | ~ /* ERROR overlapping terms ~int and int */ int}
-	_ interface{~int | int /* ERROR overlapping terms int and ~int */ }
-	_ interface{~int | ~ /* ERROR overlapping terms ~int and ~int */ int}
+	_ interface{int | int /* ERROR "overlapping terms int and int" */ }
+	_ interface{int | ~ /* ERROR "overlapping terms ~int and int" */ int}
+	_ interface{~int | int /* ERROR "overlapping terms int and ~int" */ }
+	_ interface{~int | ~ /* ERROR "overlapping terms ~int and ~int" */ int}
 
-	_ interface{T1 | bool | string | T1 | bool /* ERROR overlapping terms bool and bool */ | string /* ERROR overlapping terms string and string */ }
-	_ interface{T1 | bool | string | T2 | ~ /* ERROR overlapping terms ~bool and bool */ bool | ~ /* ERROR overlapping terms ~string and string */ string}
+	_ interface{T1 | bool | string | T1 | bool /* ERROR "overlapping terms bool and bool" */ | string /* ERROR "overlapping terms string and string" */ }
+	_ interface{T1 | bool | string | T2 | ~ /* ERROR "overlapping terms ~bool and bool" */ bool | ~ /* ERROR "overlapping terms ~string and string" */ string}
 
 	// no errors for interface terms
 	_ interface{T1 | T1}
@@ -36,10 +36,10 @@ type (
 	_ interface{T4 | T4 | float64 }
 )
 
-func _[_ T1 | bool | string | T1 | bool /* ERROR overlapping terms */ ]() {}
-func _[_ T1 | bool | string | T2 | ~ /* ERROR overlapping terms */ bool ]() {}
-func _[_ T2 | ~bool | ~string | T1 | bool /* ERROR overlapping terms */ ]() {}
-func _[_ T2 | ~bool | ~string | T2 | ~ /* ERROR overlapping terms */ bool ]() {}
+func _[_ T1 | bool | string | T1 | bool /* ERROR "overlapping terms" */ ]() {}
+func _[_ T1 | bool | string | T2 | ~ /* ERROR "overlapping terms" */ bool ]() {}
+func _[_ T2 | ~bool | ~string | T1 | bool /* ERROR "overlapping terms" */ ]() {}
+func _[_ T2 | ~bool | ~string | T2 | ~ /* ERROR "overlapping terms" */ bool ]() {}
 
 func _[_ T3 | T3 | int]() {}
 func _[_ T3 | T4 | bool]() {}

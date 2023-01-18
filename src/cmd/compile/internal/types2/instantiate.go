@@ -258,15 +258,6 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		if comparable(V, false /* strict comparability */, nil, nil) {
 			return true
 		}
-		// If check.conf.OldComparableSemantics is set (by the compiler or
-		// a test), we only consider strict comparability and we're done.
-		// TODO(gri) remove this check for Go 1.21
-		if check != nil && check.conf.OldComparableSemantics {
-			if cause != nil {
-				*cause = check.sprintf("%s does not %s comparable", V, verb)
-			}
-			return false
-		}
 		// For constraint satisfaction, use dynamic (spec) comparability
 		// so that ordinary, non-type parameter interfaces implement comparable.
 		if constraint && comparable(V, true /* spec comparability */, nil, nil) {

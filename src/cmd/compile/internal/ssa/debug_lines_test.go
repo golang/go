@@ -222,7 +222,7 @@ func testInlineStack(t *testing.T, file, function string, wantStacks [][]int) {
 	sortInlineStacks(gotStacks)
 	sortInlineStacks(wantStacks)
 	if !reflect.DeepEqual(wantStacks, gotStacks) {
-		t.Errorf("wanted inlines %+v but got %+v", wantStacks, gotStacks)
+		t.Errorf("wanted inlines %+v but got %+v\n%s", wantStacks, gotStacks, dumpBytes)
 	}
 
 }

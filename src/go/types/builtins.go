@@ -968,7 +968,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 		// Construct a suitable new type parameter for the result type.
 		// The type parameter is placed in the current package so export/import
 		// works as expected.
-		tpar := NewTypeName(token.NoPos, check.pkg, tp.obj.name, nil)
+		tpar := NewTypeName(nopos, check.pkg, tp.obj.name, nil)
 		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
 
@@ -983,13 +983,13 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 func makeSig(res Type, args ...Type) *Signature {
 	list := make([]*Var, len(args))
 	for i, param := range args {
-		list[i] = NewVar(token.NoPos, nil, "", Default(param))
+		list[i] = NewVar(nopos, nil, "", Default(param))
 	}
 	params := NewTuple(list...)
 	var result *Tuple
 	if res != nil {
 		assert(!isUntyped(res))
-		result = NewTuple(NewVar(token.NoPos, nil, "", res))
+		result = NewTuple(NewVar(nopos, nil, "", res))
 	}
 	return &Signature{params: params, results: result}
 }

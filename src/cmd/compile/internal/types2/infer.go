@@ -61,51 +61,8 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	}
 	// len(targs) < n
 
-	const enableTparamRenaming = true
-	if enableTparamRenaming {
-		// For the purpose of type inference we must differentiate type parameters
-		// occurring in explicit type or value function arguments from the type
-		// parameters we are solving for via unification, because they may be the
-		// same in self-recursive calls. For example:
-		//
-		//  func f[P *Q, Q any](p P, q Q) {
-		//    f(p)
-		//  }
-		//
-		// In this example, the fact that the P used in the instantation f[P] has
-		// the same pointer identity as the P we are trying to solve for via
-		// unification is coincidental: there is nothing special about recursive
-		// calls that should cause them to conflate the identity of type arguments
-		// with type parameters. To put it another way: any such self-recursive
-		// call is equivalent to a mutually recursive call, which does not run into
-		// any problems of type parameter identity. For example, the following code
-		// is equivalent to the code above.
-		//
-		//  func f[P interface{*Q}, Q any](p P, q Q) {
-		//    f2(p)
-		//  }
-		//
-		//  func f2[P interface{*Q}, Q any](p P, q Q) {
-		//    f(p)
-		//  }
-		//
-		// We turn the first example into the second example by renaming type
-		// parameters in the original signature to give them a new identity.
-		tparams2 := make([]*TypeParam, len(tparams))
-		for i, tparam := range tparams {
-			tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
-			tparams2[i] = NewTypeParam(tname, nil)
-			tparams2[i].index = tparam.index // == i
-		}
-
-		renameMap := makeRenameMap(tparams, tparams2)
-		for i, tparam := range tparams {
-			tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
-		}
-
-		tparams = tparams2
-		params = check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
-	}
+	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
+	tparams, params = check.renameTParams(pos, tparams, params)
 
 	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
 	// If that is the case, permutate params and args such that the arguments with named
@@ -316,6 +273,53 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	return nil
 }
 
+// renameTParams renames the type parameters in a function signature described by its
+// type and ordinary parameters (tparams and params) such that each type parameter is
+// given a new identity. renameTParams returns the new type and ordinary parameters.
+func (check *Checker) renameTParams(pos syntax.Pos, tparams []*TypeParam, params *Tuple) ([]*TypeParam, *Tuple) {
+	// For the purpose of type inference we must differentiate type parameters
+	// occurring in explicit type or value function arguments from the type
+	// parameters we are solving for via unification, because they may be the
+	// same in self-recursive calls. For example:
+	//
+	//  func f[P *Q, Q any](p P, q Q) {
+	//    f(p)
+	//  }
+	//
+	// In this example, the fact that the P used in the instantation f[P] has
+	// the same pointer identity as the P we are trying to solve for via
+	// unification is coincidental: there is nothing special about recursive
+	// calls that should cause them to conflate the identity of type arguments
+	// with type parameters. To put it another way: any such self-recursive
+	// call is equivalent to a mutually recursive call, which does not run into
+	// any problems of type parameter identity. For example, the following code
+	// is equivalent to the code above.
+	//
+	//  func f[P interface{*Q}, Q any](p P, q Q) {
+	//    f2(p)
+	//  }
+	//
+	//  func f2[P interface{*Q}, Q any](p P, q Q) {
+	//    f(p)
+	//  }
+	//
+	// We turn the first example into the second example by renaming type
+	// parameters in the original signature to give them a new identity.
+	tparams2 := make([]*TypeParam, len(tparams))
+	for i, tparam := range tparams {
+		tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
+		tparams2[i] = NewTypeParam(tname, nil)
+		tparams2[i].index = tparam.index // == i
+	}
+
+	renameMap := makeRenameMap(tparams, tparams2)
+	for i, tparam := range tparams {
+		tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
+	}
+
+	return tparams2, check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
+}
+
 // typeParamsString produces a string of the type parameter names
 // in list suitable for human consumption.
 func typeParamsString(list []*TypeParam) string {
@@ -498,6 +502,9 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 			// If there is a core term (i.e., a core type with tilde information)
 			// unify the type parameter with the core type.
 			if core, single := coreTerm(tpar); core != nil {
+				if traceInference {
+					u.tracef("core(%s) = %s (single = %v)", tpar, core, single)
+				}
 				// A type parameter can be unified with its core type in two cases.
 				tx := u.x.at(i)
 				switch {
@@ -516,18 +523,17 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 					if core.tilde && !isTypeParam(tx) {
 						tx = under(tx)
 					}
-					if !u.unify(tx, core.typ) {
-						// TODO(gri) improve error message by providing the type arguments
-						//           which we know already
-						// Don't use term.String() as it always qualifies types, even if they
-						// are in the current package.
-						tilde := ""
-						if core.tilde {
-							tilde = "~"
-						}
-						check.errorf(pos, InvalidTypeArg, "%s does not match %s%s", tx, tilde, core.typ)
-						return nil, 0
-					}
+					// Unification may fail because it operates with limited information (core type),
+					// even if a given type argument satisfies the corresponding type constraint.
+					// For instance, given [P T1|T2, ...] where the type argument for P is (named
+					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
+					// type, the core type will be the named type T0, which doesn't match T1.
+					// Yet the instantiation of P with T1 is clearly valid (see #53650).
+					// Reporting an error if unification fails would be incorrect in this case.
+					// On the other hand, it is safe to ignore failing unification during constraint
+					// type inference because if the failure is true, an error will be reported when
+					// checking instantiation.
+					u.unify(tx, core.typ)
 
 				case single && !core.tilde:
 					// The corresponding type argument tx is unknown and there's a single
@@ -544,6 +550,10 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 				nn = u.x.unknowns()
 				if nn == 0 {
 					break // all type arguments are known
+				}
+			} else {
+				if traceInference {
+					u.tracef("core(%s) = nil", tpar)
 				}
 			}
 		}

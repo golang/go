@@ -64,7 +64,7 @@ func (check *Checker) usage(scope *Scope) {
 		}
 	}
 	sort.Slice(unused, func(i, j int) bool {
-		return unused[i].pos.Cmp(unused[j].pos) < 0
+		return cmpPos(unused[i].pos, unused[j].pos) < 0
 	})
 	for _, v := range unused {
 		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", v.name)

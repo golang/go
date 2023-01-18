@@ -55,12 +55,12 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 		if len(targs) != len(tparams) {
 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
 		}
-		if i, err := (*Checker)(nil).verify(token.NoPos, tparams, targs, ctxt); err != nil {
+		if i, err := (*Checker)(nil).verify(nopos, tparams, targs, ctxt); err != nil {
 			return nil, &ArgumentError{i, err}
 		}
 	}
 
-	inst := (*Checker)(nil).instance(token.NoPos, orig, targs, nil, ctxt)
+	inst := (*Checker)(nil).instance(nopos, orig, targs, nil, ctxt)
 	return inst, nil
 }
 
@@ -257,15 +257,6 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		// If V is strictly comparable, we're done.
 		if comparable(V, false /* strict comparability */, nil, nil) {
 			return true
-		}
-		// If check.conf.OldComparableSemantics is set (by the compiler or
-		// a test), we only consider strict comparability and we're done.
-		// TODO(gri) remove this check for Go 1.21
-		if check != nil && check.conf.oldComparableSemantics {
-			if cause != nil {
-				*cause = check.sprintf("%s does not %s comparable", V, verb)
-			}
-			return false
 		}
 		// For constraint satisfaction, use dynamic (spec) comparability
 		// so that ordinary, non-type parameter interfaces implement comparable.

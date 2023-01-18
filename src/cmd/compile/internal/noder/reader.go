@@ -9,6 +9,7 @@ import (
 	"go/constant"
 	"internal/buildcfg"
 	"internal/pkgbits"
+	"path/filepath"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -268,13 +269,14 @@ func (pr *pkgReader) posBaseIdx(idx pkgbits.Index) *src.PosBase {
 	// "$GOROOT" to buildcfg.GOROOT is a close-enough approximation to
 	// satisfy this.
 	//
-	// TODO(mdempsky): De-duplicate this logic with similar logic in
-	// cmd/link/internal/ld's expandGoroot. However, this will probably
-	// require being more consistent about when we use native vs UNIX
-	// file paths.
+	// The export data format only ever uses slash paths
+	// (for cross-operating-system reproducible builds),
+	// but error messages need to use native paths (backslash on Windows)
+	// as if they had been specified on the command line.
+	// (The go command always passes native paths to the compiler.)
 	const dollarGOROOT = "$GOROOT"
 	if buildcfg.GOROOT != "" && strings.HasPrefix(filename, dollarGOROOT) {
-		filename = buildcfg.GOROOT + filename[len(dollarGOROOT):]
+		filename = filepath.FromSlash(buildcfg.GOROOT + filename[len(dollarGOROOT):])
 	}
 
 	if r.Bool() {

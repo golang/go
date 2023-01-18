@@ -156,7 +156,7 @@ func TestResolveIdents(t *testing.T) {
 					}
 					return false
 				}
-				return false
+				return true
 			}
 			return true
 		})
