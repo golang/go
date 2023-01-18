@@ -83,14 +83,15 @@ func generate(filename string, action action) {
 type action func(in *ast.File)
 
 var filemap = map[string]action{
-	"array.go":            nil,
-	"basic.go":            nil,
-	"chan.go":             nil,
-	"context.go":          nil,
-	"context_test.go":     nil,
-	"gccgosizes.go":       nil,
-	"hilbert_test.go":     nil,
-	"infer.go":            func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
+	"array.go":        nil,
+	"basic.go":        nil,
+	"chan.go":         nil,
+	"context.go":      nil,
+	"context_test.go": nil,
+	"gccgosizes.go":   nil,
+	"hilbert_test.go": nil,
+	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
+	// "initorder.go": fixErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
 	"lookup.go":           nil,
 	"main_test.go":        nil,
@@ -220,6 +221,31 @@ func fixInferSig(f *ast.File) {
 						arg := newIdent(pos, "posn")
 						n.Args[0] = arg
 						return false
+					}
+				}
+			}
+		}
+		return true
+	})
+}
+
+// fixErrorfCall updates calls of the form err.errorf(obj, ...) to err.errorf(obj.Pos(), ...).
+func fixErrorfCall(f *ast.File) {
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.CallExpr:
+			if selx, _ := n.Fun.(*ast.SelectorExpr); selx != nil {
+				if ident, _ := selx.X.(*ast.Ident); ident != nil && ident.Name == "err" {
+					switch selx.Sel.Name {
+					case "errorf":
+						// rewrite err.errorf(obj, ... ) to err.errorf(obj.Pos(), ... )
+						if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "obj" {
+							pos := n.Args[0].Pos()
+							fun := &ast.SelectorExpr{X: ident, Sel: newIdent(pos, "Pos")}
+							arg := &ast.CallExpr{Fun: fun, Lparen: pos, Args: nil, Ellipsis: token.NoPos, Rparen: pos}
+							n.Args[0] = arg
+							return false
+						}
 					}
 				}
 			}
