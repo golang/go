@@ -13,8 +13,6 @@ import (
 	"strings"
 )
 
-const useConstraintTypeInference = true
-
 // infer attempts to infer the complete set of type arguments for generic function instantiation/call
 // based on the given type parameters tparams, type arguments targs, function parameters params, and
 // function arguments args, if any. There must be at least one type parameter, no more type arguments
@@ -167,11 +165,12 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 			}
 		}
 		smap := makeSubstMap(tparams, targs)
+		// TODO(gri): pass a poser here, rather than arg.Pos().
 		inferred := check.subst(arg.Pos(), tpar, smap, nil, check.context())
-		// _CannotInferTypeArgs indicates a failure of inference, though the actual
+		// CannotInferTypeArgs indicates a failure of inference, though the actual
 		// error may be better attributed to a user-provided type argument (hence
-		// _InvalidTypeArg). We can't differentiate these cases, so fall back on
-		// the more general _CannotInferTypeArgs.
+		// InvalidTypeArg). We can't differentiate these cases, so fall back on
+		// the more general CannotInferTypeArgs.
 		if inferred != tpar {
 			check.errorf(arg, CannotInferTypeArgs, "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
 		} else {
@@ -223,11 +222,9 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// See how far we get with constraint type inference.
 	// Note that even if we don't have any type arguments, constraint type inference
 	// may produce results for constraints that explicitly specify a type.
-	if useConstraintTypeInference {
-		targs, index = check.inferB(pos, tparams, targs)
-		if targs == nil || index < 0 {
-			return targs
-		}
+	targs, index = check.inferB(pos, tparams, targs)
+	if targs == nil || index < 0 {
+		return targs
 	}
 
 	// --- 3 ---
@@ -259,11 +256,9 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 
 	// --- 4 ---
 	// Again, follow up with constraint type inference.
-	if useConstraintTypeInference {
-		targs, index = check.inferB(pos, tparams, targs)
-		if targs == nil || index < 0 {
-			return targs
-		}
+	targs, index = check.inferB(pos, tparams, targs)
+	if targs == nil || index < 0 {
+		return targs
 	}
 
 	// At least one type argument couldn't be inferred.
@@ -320,7 +315,7 @@ func (check *Checker) renameTParams(pos syntax.Pos, tparams []*TypeParam, params
 	return tparams2, check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
 }
 
-// typeParamsString produces a string of the type parameter names
+// typeParamsString produces a string containing all the type parameter names
 // in list suitable for human consumption.
 func typeParamsString(list []*TypeParam) string {
 	// common cases
@@ -580,7 +575,7 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 	}
 
 	// The data structure of each (provided or inferred) type represents a graph, where
-	// each node corresponds to a type and each (directed) vertice points to a component
+	// each node corresponds to a type and each (directed) vertex points to a component
 	// type. The substitution process described above repeatedly replaces type parameter
 	// nodes in these graphs with the graphs of the types the type parameters stand for,
 	// which creates a new (possibly bigger) graph for each type.
@@ -593,14 +588,14 @@ func (check *Checker) inferB(pos syntax.Pos, tparams []*TypeParam, targs []Type)
 	// Generally, cycles may occur across multiple type parameters and inferred types
 	// (for instance, consider [P interface{ *Q }, Q interface{ func(P) }]).
 	// We eliminate cycles by walking the graphs for all type parameters. If a cycle
-	// through a type parameter is detected, cycleFinder nils out the respectice type
+	// through a type parameter is detected, cycleFinder nils out the respective type
 	// which kills the cycle; this also means that the respective type could not be
 	// inferred.
 	//
 	// TODO(gri) If useful, we could report the respective cycle as an error. We don't
 	//           do this now because type inference will fail anyway, and furthermore,
 	//           constraints with cycles of this kind cannot currently be satisfied by
-	//           any user-suplied type. But should that change, reporting an error
+	//           any user-supplied type. But should that change, reporting an error
 	//           would be wrong.
 	w := cycleFinder{tparams, types, make(map[Type]bool)}
 	for _, t := range tparams {

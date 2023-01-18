@@ -32,7 +32,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	// check number of type arguments (got) vs number of type parameters (want)
 	sig := x.typ.(*Signature)
 	got, want := len(targs), sig.TypeParams().Len()
-	if !useConstraintTypeInference && got != want || got > want {
+	if got > want {
 		check.errorf(xlist[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
 		x.expr = inst
