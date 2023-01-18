@@ -243,9 +243,22 @@ func hashExecutable() (hash [32]byte, err error) {
 // process, possibly running a different version of gopls, possibly
 // running concurrently.
 func gc(goplsDir string) {
-	const period = 1 * time.Minute         // period between collections
-	const statDelay = 1 * time.Millisecond // delay between stats to smooth out I/O
-	const maxAge = 7 * 24 * time.Hour      // max time since last access before file is deleted
+	const period = 1 * time.Minute           // period between collections
+	const statDelay = 100 * time.Microsecond // delay between stats to smooth out I/O
+	const maxAge = 5 * 24 * time.Hour        // max time since last access before file is deleted
+
+	// The macOS filesystem is strikingly slow, at least on some machines.
+	// /usr/bin/find achieves only about 25,000 stats per second
+	// at full speed (no pause between items), meaning a large
+	// cache may take several minutes to scan.
+	// We must ensure that short-lived processes (crucially,
+	// tests) are able to make progress sweeping garbage.
+	//
+	// (gopls' caches should never actually get this big in
+	// practise: the example mentioned above resulted from a bug
+	// that caused filecache to fail to delete any files.)
+
+	const debug = false
 
 	for {
 		// Enumerate all files in the cache.
@@ -259,9 +272,21 @@ func gc(goplsDir string) {
 			// TODO(adonovan): opt: also collect empty directories,
 			// as they typically occupy around 1KB.
 			if err == nil && !stat.IsDir() {
-				files = append(files, item{path, stat})
-				total += stat.Size()
-				time.Sleep(statDelay)
+				// Unconditionally delete files we haven't used in ages.
+				// (We do this here, not in the second loop, so that we
+				// perform age-based collection even in short-lived processes.)
+				age := time.Since(stat.ModTime())
+				if age > maxAge {
+					if debug {
+						log.Printf("age: deleting stale file %s (%dB, age %v)",
+							path, stat.Size(), age)
+					}
+					os.Remove(path) // ignore error
+				} else {
+					files = append(files, item{path, stat})
+					total += stat.Size()
+					time.Sleep(statDelay)
+				}
 			}
 			return nil
 		})
@@ -272,18 +297,18 @@ func gc(goplsDir string) {
 		})
 
 		// Delete oldest files until we're under budget.
-		// Unconditionally delete files we haven't used in ages.
 		budget := atomic.LoadInt64(&budget)
 		for _, file := range files {
-			age := time.Since(file.stat.ModTime())
-			if total > budget || age > maxAge {
-				if false { // debugging
-					log.Printf("deleting stale file %s (%dB, age %v)",
-						file.path, file.stat.Size(), age)
-				}
-				os.Remove(filepath.Join(goplsDir, file.path)) // ignore error
-				total -= file.stat.Size()
+			if total < budget {
+				break
 			}
+			if debug {
+				age := time.Since(file.stat.ModTime())
+				log.Printf("budget: deleting stale file %s (%dB, age %v)",
+					file.path, file.stat.Size(), age)
+			}
+			os.Remove(file.path) // ignore error
+			total -= file.stat.Size()
 		}
 
 		time.Sleep(period)
