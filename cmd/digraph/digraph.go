@@ -351,20 +351,29 @@ func parse(rd io.Reader) (graph, error) {
 	g := make(graph)
 
 	var linenum int
-	in := bufio.NewScanner(rd)
-	for in.Scan() {
+	// We avoid bufio.Scanner as it imposes a (configurable) limit
+	// on line length, whereas Reader.ReadString does not.
+	in := bufio.NewReader(rd)
+	for {
 		linenum++
+		line, err := in.ReadString('\n')
+		eof := false
+		if err == io.EOF {
+			eof = true
+		} else if err != nil {
+			return nil, err
+		}
 		// Split into words, honoring double-quotes per Go spec.
-		words, err := split(in.Text())
+		words, err := split(line)
 		if err != nil {
 			return nil, fmt.Errorf("at line %d: %v", linenum, err)
 		}
 		if len(words) > 0 {
 			g.addEdges(words[0], words[1:]...)
 		}
-	}
-	if err := in.Err(); err != nil {
-		return nil, err
+		if eof {
+			break
+		}
 	}
 	return g, nil
 }

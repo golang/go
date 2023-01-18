@@ -45,6 +45,7 @@ e e
 		{"scss", g2, "sccs", nil, "c d\ne\n"},
 		{"scc", g2, "scc", []string{"d"}, "c\nd\n"},
 		{"succs", g2, "succs", []string{"a"}, "b\nc\n"},
+		{"succs-long-token", g2 + "x " + strings.Repeat("x", 96*1024), "succs", []string{"x"}, strings.Repeat("x", 96*1024) + "\n"},
 		{"preds", g2, "preds", []string{"c"}, "a\nd\n"},
 		{"preds multiple args", g2, "preds", []string{"c", "d"}, "a\nb\nc\nd\n"},
 	} {
