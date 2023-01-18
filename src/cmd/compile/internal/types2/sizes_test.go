@@ -20,7 +20,7 @@ func findStructType(t *testing.T, src string) *types2.Struct {
 
 func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2.Struct {
 	types := make(map[syntax.Expr]types2.TypeAndValue)
-	mustTypecheck("x", src, &types2.Info{Types: types})
+	mustTypecheck("x", src, nil, &types2.Info{Types: types})
 	for _, tv := range types {
 		if ts, ok := tv.Type.(*types2.Struct); ok {
 			return ts
@@ -84,16 +84,12 @@ import "unsafe"
 
 const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 `
-	f := mustParse("x.go", src)
 	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
 	conf := types2.Config{
 		Importer: defaultImporter(),
 		Sizes:    &types2.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
-	_, err := conf.Check("x", []*syntax.File{f}, &info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck("x", src, &conf, &info)
 	for _, tv := range info.Types {
 		_ = conf.Sizes.Sizeof(tv.Type)
 		_ = conf.Sizes.Alignof(tv.Type)

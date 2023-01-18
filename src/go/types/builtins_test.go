@@ -7,7 +7,6 @@ package types_test
 import (
 	"fmt"
 	"go/ast"
-	"go/importer"
 	"testing"
 
 	. "go/types"
@@ -174,20 +173,10 @@ func TestBuiltinSignatures(t *testing.T) {
 
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P ~[]byte]() { %s }`, src0)
-	f, err := parse(fset, "", src)
-	if err != nil {
-		t.Errorf("%s: %s", src0, err)
-		return
-	}
 
-	conf := Config{Importer: importer.Default()}
 	uses := make(map[*ast.Ident]Object)
 	types := make(map[ast.Expr]TypeAndValue)
-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Uses: uses, Types: types})
-	if err != nil {
-		t.Errorf("%s: %s", src0, err)
-		return
-	}
+	mustTypecheck("p", src, nil, &Info{Uses: uses, Types: types})
 
 	// find called function
 	n := 0

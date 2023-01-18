@@ -7,25 +7,21 @@ package types_test
 import (
 	"errors"
 	"fmt"
-	"go/ast"
 	"go/importer"
-	"go/token"
 	"go/types"
 	"strings"
 	"testing"
 )
 
 func checkMono(t *testing.T, body string) error {
-	fset := token.NewFileSet()
 	src := "package x; import `unsafe`; var _ unsafe.Pointer;\n" + body
-	files := []*ast.File{mustParse(fset, "x.go", src)}
 
 	var buf strings.Builder
 	conf := types.Config{
 		Error:    func(err error) { fmt.Fprintln(&buf, err) },
 		Importer: importer.Default(),
 	}
-	conf.Check("x", fset, files, nil)
+	typecheck("x", src, &conf, nil)
 	if buf.Len() == 0 {
 		return nil
 	}

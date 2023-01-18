@@ -173,20 +173,10 @@ func TestBuiltinSignatures(t *testing.T) {
 
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P ~[]byte]() { %s }`, src0)
-	f, err := parse("", src)
-	if err != nil {
-		t.Errorf("%s: %s", src0, err)
-		return
-	}
 
-	conf := Config{Importer: defaultImporter()}
 	uses := make(map[*syntax.Name]Object)
 	types := make(map[syntax.Expr]TypeAndValue)
-	_, err = conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Uses: uses, Types: types})
-	if err != nil {
-		t.Errorf("%s: %s", src0, err)
-		return
-	}
+	mustTypecheck("p", src, nil, &Info{Uses: uses, Types: types})
 
 	// find called function
 	n := 0

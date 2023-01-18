@@ -9,7 +9,6 @@ package types_test
 import (
 	"go/ast"
 	"go/importer"
-	"go/token"
 	"go/types"
 	"internal/testenv"
 	"testing"
@@ -22,7 +21,7 @@ func findStructType(t *testing.T, src string) *types.Struct {
 
 func findStructTypeConfig(t *testing.T, src string, conf *types.Config) *types.Struct {
 	types_ := make(map[ast.Expr]types.TypeAndValue)
-	mustTypecheck("x", src, &types.Info{Types: types_})
+	mustTypecheck("x", src, nil, &types.Info{Types: types_})
 	for _, tv := range types_ {
 		if ts, ok := tv.Type.(*types.Struct); ok {
 			return ts
@@ -86,17 +85,12 @@ import "unsafe"
 
 const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 `
-	fset := token.NewFileSet()
-	f := mustParse(fset, "x.go", src)
 	info := types.Info{Types: make(map[ast.Expr]types.TypeAndValue)}
 	conf := types.Config{
 		Importer: importer.Default(),
 		Sizes:    &types.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
-	_, err := conf.Check("x", fset, []*ast.File{f}, &info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck("x", src, &conf, &info)
 	for _, tv := range info.Types {
 		_ = conf.Sizes.Sizeof(tv.Type)
 		_ = conf.Sizes.Alignof(tv.Type)

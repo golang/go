@@ -19,7 +19,7 @@ import (
 )
 
 func TestIssue5770(t *testing.T) {
-	_, err := typecheck("p", `package p; type S struct{T}`, nil)
+	_, err := typecheck("p", `package p; type S struct{T}`, nil, nil)
 	const want = "undefined: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)
@@ -39,7 +39,7 @@ var (
 	_ = (interface{})(nil)
 )`
 	types := make(map[syntax.Expr]TypeAndValue)
-	mustTypecheck("p", src, &Info{Types: types})
+	mustTypecheck("p", src, nil, &Info{Types: types})
 
 	for x, tv := range types {
 		var want Type
@@ -78,7 +78,7 @@ func f() int {
 }
 `
 	types := make(map[syntax.Expr]TypeAndValue)
-	mustTypecheck("p", src, &Info{Types: types})
+	mustTypecheck("p", src, nil, &Info{Types: types})
 
 	want := Typ[Int]
 	n := 0
@@ -133,8 +133,6 @@ func _() {
         _, _, _ = x, y, z  // uses x, y, z
 }
 `
-	f := mustParse("", src)
-
 	const want = `L3 defs func p._()
 L4 defs const w untyped int
 L5 defs var x int
@@ -150,8 +148,8 @@ L7 uses var z int`
 	conf := Config{Error: func(err error) { t.Log(err) }}
 	defs := make(map[*syntax.Name]Object)
 	uses := make(map[*syntax.Name]Object)
-	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Defs: defs, Uses: uses})
-	if s := fmt.Sprint(err); !strings.HasSuffix(s, "cannot assign to w") {
+	_, err := typecheck("p", src, &conf, &Info{Defs: defs, Uses: uses})
+	if s := err.Error(); !strings.HasSuffix(s, "cannot assign to w") {
 		t.Errorf("Check: unexpected error: %s", s)
 	}
 
@@ -230,7 +228,7 @@ func main() {
 `
 	f := func(test, src string) {
 		info := &Info{Uses: make(map[*syntax.Name]Object)}
-		mustTypecheck("main", src, info)
+		mustTypecheck("main", src, nil, info)
 
 		var pkg *Package
 		count := 0
@@ -254,11 +252,11 @@ func main() {
 }
 
 func TestIssue22525(t *testing.T) {
-	f := mustParse("", `package p; func f() { var a, b, c, d, e int }`)
+	const src = `package p; func f() { var a, b, c, d, e int }`
 
 	got := "\n"
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
-	conf.Check(f.PkgName.Value, []*syntax.File{f}, nil) // do not crash
+	typecheck("", src, &conf, nil) // do not crash
 	want := `
 :1:27: a declared and not used
 :1:30: b declared and not used
@@ -443,14 +441,10 @@ func TestIssue34151(t *testing.T) {
 	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
 	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
 
-	a := mustTypecheck("a", asrc, nil)
+	a := mustTypecheck("a", asrc, nil, nil)
 
-	bast := mustParse("", bsrc)
 	conf := Config{Importer: importHelper{pkg: a}}
-	b, err := conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
-	if err != nil {
-		t.Errorf("package %s failed to typecheck: %v", b.Name(), err)
-	}
+	mustTypecheck("b", bsrc, &conf, nil)
 }
 
 type importHelper struct {
@@ -557,13 +551,12 @@ func TestIssue43124(t *testing.T) {
 		csrc = `package c; import ("a"; "html/template"); func _() { a.G(template.Template{}) }`
 	)
 
-	a := mustTypecheck("a", asrc, nil)
+	a := mustTypecheck("a", asrc, nil, nil)
 	conf := Config{Importer: importHelper{pkg: a, fallback: defaultImporter()}}
 
 	// Packages should be fully qualified when there is ambiguity within the
 	// error string itself.
-	bast := mustParse("", bsrc)
-	_, err := conf.Check(bast.PkgName.Value, []*syntax.File{bast}, nil)
+	_, err := typecheck("b", bsrc, &conf, nil)
 	if err == nil {
 		t.Fatal("package b had no errors")
 	}
@@ -572,8 +565,7 @@ func TestIssue43124(t *testing.T) {
 	}
 
 	// ...and also when there is any ambiguity in reachable packages.
-	cast := mustParse("", csrc)
-	_, err = conf.Check(cast.PkgName.Value, []*syntax.File{cast}, nil)
+	_, err = typecheck("c", csrc, &conf, nil)
 	if err == nil {
 		t.Fatal("package c had no errors")
 	}
@@ -671,7 +663,7 @@ func TestIssue51093(t *testing.T) {
 	for _, test := range tests {
 		src := fmt.Sprintf("package p; func _[P %s]() { _ = P(%s) }", test.typ, test.val)
 		types := make(map[syntax.Expr]TypeAndValue)
-		mustTypecheck("p", src, &Info{Types: types})
+		mustTypecheck("p", src, nil, &Info{Types: types})
 
 		var n int
 		for x, tv := range types {
@@ -801,7 +793,7 @@ func (S) M5(struct {S;t}) {}
 
 	test := func(main, b, want string) {
 		re := regexp.MustCompile(want)
-		bpkg := mustTypecheck("b", b, nil)
+		bpkg := mustTypecheck("b", b, nil, nil)
 		mast := mustParse("main.go", main)
 		conf := Config{Importer: importHelper{pkg: bpkg}}
 		_, err := conf.Check(mast.PkgName.Value, []*syntax.File{mast}, nil)

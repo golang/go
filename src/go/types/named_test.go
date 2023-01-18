@@ -32,7 +32,7 @@ func (G[P]) N() (p P) { return }
 
 type Inst = G[int]
 	`
-	pkg := mustTypecheck("p", src, nil)
+	pkg := mustTypecheck("p", src, nil, nil)
 
 	var (
 		T        = pkg.Scope().Lookup("T").Type()
