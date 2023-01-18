@@ -91,7 +91,8 @@ var filemap = map[string]action{
 	"gccgosizes.go":   nil,
 	"hilbert_test.go": nil,
 	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
-	// "initorder.go": fixErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
+	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
+	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
 	"lookup.go":           nil,
 	"main_test.go":        nil,
@@ -229,8 +230,8 @@ func fixInferSig(f *ast.File) {
 	})
 }
 
-// fixErrorfCall updates calls of the form err.errorf(obj, ...) to err.errorf(obj.Pos(), ...).
-func fixErrorfCall(f *ast.File) {
+// fixErrErrorfCall updates calls of the form err.errorf(obj, ...) to err.errorf(obj.Pos(), ...).
+func fixErrErrorfCall(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.CallExpr:
@@ -243,6 +244,31 @@ func fixErrorfCall(f *ast.File) {
 							pos := n.Args[0].Pos()
 							fun := &ast.SelectorExpr{X: ident, Sel: newIdent(pos, "Pos")}
 							arg := &ast.CallExpr{Fun: fun, Lparen: pos, Args: nil, Ellipsis: token.NoPos, Rparen: pos}
+							n.Args[0] = arg
+							return false
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+}
+
+// fixCheckErrorfCall updates calls of the form check.errorf(pos, ...) to check.errorf(atPos(pos), ...).
+func fixCheckErrorfCall(f *ast.File) {
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.CallExpr:
+			if selx, _ := n.Fun.(*ast.SelectorExpr); selx != nil {
+				if ident, _ := selx.X.(*ast.Ident); ident != nil && ident.Name == "check" {
+					switch selx.Sel.Name {
+					case "errorf":
+						// rewrite check.errorf(pos, ... ) to check.errorf(atPos(pos), ... )
+						if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "pos" {
+							pos := n.Args[0].Pos()
+							fun := newIdent(pos, "atPos")
+							arg := &ast.CallExpr{Fun: fun, Lparen: pos, Args: []ast.Expr{ident}, Ellipsis: token.NoPos, Rparen: pos}
 							n.Args[0] = arg
 							return false
 						}
