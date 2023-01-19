@@ -351,12 +351,40 @@ func chomp(s string) string {
 }
 
 // findgoversion determines the Go version to use in the version string.
+// It also parses any other metadata found in the version file.
 func findgoversion() string {
 	// The $GOROOT/VERSION file takes priority, for distributions
 	// without the source repo.
 	path := pathf("%s/VERSION", goroot)
 	if isfile(path) {
 		b := chomp(readfile(path))
+
+		// Starting in Go 1.21 the VERSION file starts with the
+		// version on a line by itself but then can contain other
+		// metadata about the release, one item per line.
+		if i := strings.Index(b, "\n"); i >= 0 {
+			rest := b[i+1:]
+			b = chomp(b[:i])
+			for _, line := range strings.Split(rest, "\n") {
+				f := strings.Fields(line)
+				if len(f) == 0 {
+					continue
+				}
+				switch f[0] {
+				default:
+					fatalf("VERSION: unexpected line: %s", line)
+				case "time":
+					if len(f) != 2 {
+						fatalf("VERSION: unexpected time line: %s", line)
+					}
+					_, err := time.Parse(time.RFC3339, f[1])
+					if err != nil {
+						fatalf("VERSION: bad time: %s", err)
+					}
+				}
+			}
+		}
+
 		// Commands such as "dist version > VERSION" will cause
 		// the shell to create an empty VERSION file and set dist's
 		// stdout to its fd. dist in turn looks at VERSION and uses
@@ -591,6 +619,7 @@ func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
 // exclude files with that prefix.
 // Note that this table applies only to the build of cmd/go,
 // after the main compiler bootstrap.
+// Files listed here should also be listed in ../distpack/pack.go's srcArch.Remove list.
 var deptab = []struct {
 	prefix string   // prefix of target
 	dep    []string // dependency tweaks for targets with that prefix
@@ -1206,6 +1235,9 @@ func clean() {
 
 		// Remove cached version info.
 		xremove(pathf("%s/VERSION.cache", goroot))
+
+		// Remove distribution packages.
+		xremoveall(pathf("%s/pkg/distpack", goroot))
 	}
 }
 
@@ -1347,9 +1379,10 @@ func cmdbootstrap() {
 	timelog("start", "dist bootstrap")
 	defer timelog("end", "dist bootstrap")
 
-	var debug, force, noBanner, noClean bool
+	var debug, distpack, force, noBanner, noClean bool
 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
 	flag.BoolVar(&debug, "d", debug, "enable debugging of bootstrap process")
+	flag.BoolVar(&distpack, "distpack", distpack, "write distribution files to pkg/distpack")
 	flag.BoolVar(&force, "force", force, "build even if the port is marked as broken")
 	flag.BoolVar(&noBanner, "no-banner", noBanner, "do not print banner")
 	flag.BoolVar(&noClean, "no-clean", noClean, "print deprecation warning")
@@ -1590,6 +1623,11 @@ func cmdbootstrap() {
 		os.Setenv("GOOS", goos)
 		os.Setenv("GOARCH", goarch)
 		os.Setenv("CC", oldcc)
+	}
+
+	if distpack {
+		xprintf("Packaging archives for %s/%s.\n", goos, goarch)
+		run("", ShowOutput|CheckExit, pathf("%s/distpack", tooldir))
 	}
 
 	// Print trailing banner unless instructed otherwise.

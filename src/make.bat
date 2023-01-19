@@ -39,6 +39,10 @@
 
 :: Keep environment variables within this script
 :: unless invoked with --no-local.
+if x%1==x-no-local goto nolocal
+if x%2==x-no-local goto nolocal
+if x%3==x-no-local goto nolocal
+if x%4==x-no-local goto nolocal
 if x%1==x--no-local goto nolocal
 if x%2==x--no-local goto nolocal
 if x%3==x--no-local goto nolocal
@@ -113,20 +117,40 @@ call .\env.bat
 del env.bat
 if x%vflag==x-v echo.
 
+if x%1==x-dist-tool goto copydist
+if x%2==x-dist-tool goto copydist
+if x%3==x-dist-tool goto copydist
+if x%4==x-dist-tool goto copydist
 if x%1==x--dist-tool goto copydist
 if x%2==x--dist-tool goto copydist
 if x%3==x--dist-tool goto copydist
 if x%4==x--dist-tool goto copydist
 
 set bootstrapflags=
-if x%1==x--no-clean set bootstrapflags=--no-clean
-if x%2==x--no-clean set bootstrapflags=--no-clean
-if x%3==x--no-clean set bootstrapflags=--no-clean
-if x%4==x--no-clean set bootstrapflags=--no-clean
-if x%1==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
-if x%2==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
-if x%3==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
-if x%4==x--no-banner set bootstrapflags=%bootstrapflags% --no-banner
+if x%1==x-no-clean set bootstrapflags=-no-clean
+if x%2==x-no-clean set bootstrapflags=-no-clean
+if x%3==x-no-clean set bootstrapflags=-no-clean
+if x%4==x-no-clean set bootstrapflags=-no-clean
+if x%1==x--no-clean set bootstrapflags=-no-clean
+if x%2==x--no-clean set bootstrapflags=-no-clean
+if x%3==x--no-clean set bootstrapflags=-no-clean
+if x%4==x--no-clean set bootstrapflags=-no-clean
+if x%1==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%2==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%3==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%4==x-no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%1==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%2==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%3==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%4==x--no-banner set bootstrapflags=%bootstrapflags% -no-banner
+if x%1==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%2==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%3==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%4==x-distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%1==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%2==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%3==x--distpack set bootstrapflags=%bootstrapflags% -distpack
+if x%4==x--distpack set bootstrapflags=%bootstrapflags% -distpack
 
 :: Run dist bootstrap to complete make.bash.
 :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
