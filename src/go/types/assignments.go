@@ -27,7 +27,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	case constant_, variable, mapindex, value, commaok, commaerr:
 		// ok
 	default:
-		// we may get here because of other problems (issue #39634, crash 12)
+		// we may get here because of other problems (go.dev/issue/39634, crash 12)
 		// TODO(gri) do we need a new "generic" error code here?
 		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
 		return

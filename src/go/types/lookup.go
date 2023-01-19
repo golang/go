@@ -54,7 +54,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// in the same package as the method.").
 	// Thus, if we have a named pointer type, proceed with the underlying
 	// pointer type but discard the result if it is a method since we would
-	// not have found it for T (see also issue 8590).
+	// not have found it for T (see also go.dev/issue/8590).
 	if t, _ := T.(*Named); t != nil {
 		if p, _ := t.Underlying().(*Pointer); p != nil {
 			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name, false)
@@ -71,7 +71,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// see if there is a matching field (but not a method, those need to be declared
 	// explicitly in the constraint). If the constraint is a named pointer type (see
 	// above), we are ok here because only fields are accepted as results.
-	const enableTParamFieldLookup = false // see issue #51576
+	const enableTParamFieldLookup = false // see go.dev/issue/51576
 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
 		if t := coreType(T); t != nil {
 			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)

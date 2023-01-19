@@ -31,7 +31,7 @@ func findStructTypeConfig(t *testing.T, src string, conf *types.Config) *types.S
 	return nil
 }
 
-// Issue 16316
+// go.dev/issue/16316
 func TestMultipleSizeUse(t *testing.T) {
 	const src = `
 package main
@@ -54,7 +54,7 @@ type S struct {
 	}
 }
 
-// Issue 16464
+// go.dev/issue/16464
 func TestAlignofNaclSlice(t *testing.T) {
 	const src = `
 package main
@@ -97,7 +97,7 @@ const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 	}
 }
 
-// Issue #53884.
+// go.dev/issue/53884.
 func TestAtomicAlign(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
 

@@ -65,7 +65,7 @@ func TestNewMethodSet(t *testing.T) {
 		"var a struct{ E1; *E2 }; type ( E1 interface{ f() }; E2 struct{ f int })":            {},
 		"var a struct{ E1; *E2 }; type ( E1 struct{ f int }; E2 struct{} ); func (E2) f() {}": {},
 
-		// recursive generic types; see golang/go#52715
+		// recursive generic types; see go.dev/issue/52715
 		"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (N[P]) m() {}": {{"m", []int{0, 0}, true}},
 		"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (T[P]) m() {}": {{"m", []int{0}, false}},
 	}
@@ -75,11 +75,11 @@ func TestNewMethodSet(t *testing.T) {
 		"type C interface{ f() }; func g[T C](a T){}":               {{"f", []int{0}, true}},
 		"type C interface{ f() }; func g[T C]() { var a T; _ = a }": {{"f", []int{0}, true}},
 
-		// Issue #43621: We don't allow this anymore. Keep this code in case we
+		// go.dev/issue/43621: We don't allow this anymore. Keep this code in case we
 		// decide to revisit this decision.
 		// "type C interface{ f() }; func g[T C]() { var a struct{T}; _ = a }": {{"f", []int{0, 0}, true}},
 
-		// Issue #45639: We also don't allow this anymore.
+		// go.dev/issue/45639: We also don't allow this anymore.
 		// "type C interface{ f() }; func g[T C]() { type Y T; var a Y; _ = a }": {},
 	}
 
@@ -125,7 +125,7 @@ func TestNewMethodSet(t *testing.T) {
 	}
 }
 
-// Test for golang/go#52715
+// Test for go.dev/issue/52715
 func TestNewMethodSet_RecursiveGeneric(t *testing.T) {
 	const src = `
 package pkg

@@ -55,7 +55,7 @@ func TestIsAlias(t *testing.T) {
 }
 
 // TestEmbeddedMethod checks that an embedded method is represented by
-// the same Func Object as the original method. See also issue #34421.
+// the same Func Object as the original method. See also go.dev/issue/34421.
 func TestEmbeddedMethod(t *testing.T) {
 	const src = `package p; type I interface { error }`
 	pkg := mustTypecheck("p", src, nil, nil)

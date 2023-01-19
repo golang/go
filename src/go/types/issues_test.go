@@ -578,7 +578,7 @@ import (
 	"html/template"
 )
 
-// Issue #46905: make sure template is not the first package qualified.
+// go.dev/issue/46905: make sure template is not the first package qualified.
 var _ fmt.Stringer = 1 // ERRORx "cannot use 1.*as fmt\\.Stringer"
 
 // Packages should be fully qualified when there is ambiguity in reachable

@@ -77,7 +77,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs 
 	inst := check.instance(pos, typ, targs, nil, check.context()).(*Signature)
 	assert(len(xlist) <= len(targs))
 
-	// verify instantiation lazily (was issue #50450)
+	// verify instantiation lazily (was go.dev/issue/50450)
 	check.later(func() {
 		tparams := typ.TypeParams().list()
 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
@@ -550,7 +550,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
 	check.exprOrType(x, e.X, false)
 	switch x.mode {
 	case typexpr:
-		// don't crash for "type T T.x" (was issue #51509)
+		// don't crash for "type T T.x" (was go.dev/issue/51509)
 		if def != nil && x.typ == def {
 			check.cycleError([]Object{def.obj})
 			goto Error
@@ -573,7 +573,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
 	// All codepaths below return a non-type expression. If we get here while
 	// expecting a type expression, it is an error.
 	//
-	// See issue #57522 for more details.
+	// See go.dev/issue/57522 for more details.
 	//
 	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
 	// x.typ is incomplete.
@@ -584,7 +584,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, want
 
 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
-		// Don't report another error if the underlying type was invalid (issue #49541).
+		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if under(x.typ) == Typ[Invalid] {
 			goto Error
 		}

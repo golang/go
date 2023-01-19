@@ -102,7 +102,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 	// addInvalid adds an embedded field of invalid type to the struct for
 	// fields with errors; this keeps the number of struct fields in sync
 	// with the source as long as the fields are _ or have different names
-	// (issue #25627).
+	// (go.dev/issue/25627).
 	addInvalid := func(ident *ast.Ident, pos token.Pos) {
 		typ = Typ[Invalid]
 		tag = ""

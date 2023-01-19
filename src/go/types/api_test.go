@@ -134,8 +134,8 @@ func TestValuesInfo(t *testing.T) {
 		{`package f6b; var _            =  1e-2000i`, `1e-2000i`, `complex128`, `(0 + 0i)`},
 		{`package f7b; var _            = -1e-2000i`, `-1e-2000i`, `complex128`, `(0 + 0i)`},
 
-		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // issue #22341
-		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // issue #48422
+		{`package g0; const (a = len([iota]int{}); b; c); const _ = c`, `c`, `int`, `2`}, // go.dev/issue/22341
+		{`package g1; var(j int32; s int; n = 1.0<<s == j)`, `1.0`, `int32`, `1`},        // go.dev/issue/48422
 	}
 
 	for _, test := range tests {
@@ -248,7 +248,7 @@ func TestTypesInfo(t *testing.T) {
 			`(string, bool)`,
 		},
 
-		// issue 6796
+		// go.dev/issue/6796
 		{`package issue6796_a; var x interface{}; var _, _ = (x.(int))`,
 			`x.(int)`,
 			`(int, bool)`,
@@ -270,7 +270,7 @@ func TestTypesInfo(t *testing.T) {
 			`(string, bool)`,
 		},
 
-		// issue 7060
+		// go.dev/issue/7060
 		{`package issue7060_a; var ( m map[int]string; x, ok = m[0] )`,
 			`m[0]`,
 			`(string, bool)`,
@@ -296,7 +296,7 @@ func TestTypesInfo(t *testing.T) {
 			`(string, bool)`,
 		},
 
-		// issue 28277
+		// go.dev/issue/28277
 		{`package issue28277_a; func f(...int)`,
 			`...int`,
 			`[]int`,
@@ -306,7 +306,7 @@ func TestTypesInfo(t *testing.T) {
 			`[][]struct{}`,
 		},
 
-		// issue 47243
+		// go.dev/issue/47243
 		{`package issue47243_a; var x int32; var _ = x << 3`, `3`, `untyped int`},
 		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `untyped float`},
 		{`package issue47243_c; var x int32; var _ = 1 << x`, `1 << x`, `int`},
@@ -344,13 +344,13 @@ func TestTypesInfo(t *testing.T) {
 		// instantiated types must be sanitized
 		{`package g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `g0.t[int]`},
 
-		// issue 45096
+		// go.dev/issue/45096
 		{`package issue45096; func _[T interface{ ~int8 | ~int16 | ~int32  }](x T) { _ = x < 0 }`, `0`, `T`},
 
-		// issue 47895
+		// go.dev/issue/47895
 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
 
-		// issue 50093
+		// go.dev/issue/50093
 		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
 		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
 		{`package u2a; func _[_ interface{int | string}]() {}`, `int | string`, `int | string`},
@@ -1188,7 +1188,7 @@ func TestInitOrderInfo(t *testing.T) {
 		}`, []string{
 			"d = 3", "b = f()", "c = f()", "a = c + b",
 		}},
-		// test case for issue 7131
+		// test case for go.dev/issue/7131
 		{`package main
 
 		var counter int
@@ -1203,7 +1203,7 @@ func TestInitOrderInfo(t *testing.T) {
 		`, []string{
 			"a = next()", "b = next()", "c = next()", "d = next()", "e = next()", "f = next()", "_ = makeOrder()",
 		}},
-		// test case for issue 10709
+		// test case for go.dev/issue/10709
 		{`package p13
 
 		var (
@@ -1223,7 +1223,7 @@ func TestInitOrderInfo(t *testing.T) {
 		}`, []string{
 			"t = makeT(0)", "v = t.m()",
 		}},
-		// test case for issue 10709: same as test before, but variable decls swapped
+		// test case for go.dev/issue/10709: same as test before, but variable decls swapped
 		{`package p14
 
 		var (
@@ -1243,7 +1243,7 @@ func TestInitOrderInfo(t *testing.T) {
 		}`, []string{
 			"t = makeT(0)", "v = t.m()",
 		}},
-		// another candidate possibly causing problems with issue 10709
+		// another candidate possibly causing problems with go.dev/issue/10709
 		{`package p15
 
 		var y1 = f1()
@@ -1623,7 +1623,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
 		// outside method set of a generic type
 		{"var x T[int]; type T[P any] struct{}; func (*T[P]) f() {}", false, nil, true},
 
-		// recursive generic types; see golang/go#52715
+		// recursive generic types; see go.dev/issue/52715
 		{"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (N[P]) f() {}", true, []int{0, 0}, true},
 		{"var a T[int]; type ( T[P any] struct { *N[P] }; N[P any] struct { *T[P] } ); func (T[P]) f() {}", true, []int{0}, false},
 	}
@@ -1656,7 +1656,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
 	}
 }
 
-// Test for golang/go#52715
+// Test for go.dev/issue/52715
 func TestLookupFieldOrMethod_RecursiveGeneric(t *testing.T) {
 	const src = `
 package pkg
@@ -1898,7 +1898,7 @@ func TestIdentical(t *testing.T) {
 		{`func X(int) string { return "" }; func Y(int) {}`, false},
 
 		// Generic functions. Type parameters should be considered identical modulo
-		// renaming. See also issue #49722.
+		// renaming. See also go.dev/issue/49722.
 		{`func X[P ~int](){}; func Y[Q ~int]() {}`, true},
 		{`func X[P1 any, P2 ~*P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, true},
 		{`func X[P1 any, P2 ~[]P1](){}; func Y[Q1 any, Q2 ~*Q1]() {}`, false},
@@ -2009,9 +2009,9 @@ func TestCompositeLitTypes(t *testing.T) {
 		lit, typ string
 	}{
 		{`[16]byte{}`, `[16]byte`},
-		{`[...]byte{}`, `[0]byte`},                // test for issue #14092
-		{`[...]int{1, 2, 3}`, `[3]int`},           // test for issue #14092
-		{`[...]int{90: 0, 98: 1, 2}`, `[100]int`}, // test for issue #14092
+		{`[...]byte{}`, `[0]byte`},                // test for go.dev/issue/14092
+		{`[...]int{1, 2, 3}`, `[3]int`},           // test for go.dev/issue/14092
+		{`[...]int{90: 0, 98: 1, 2}`, `[100]int`}, // test for go.dev/issue/14092
 		{`[]int{}`, `[]int`},
 		{`map[string]bool{"foo": true}`, `map[string]bool`},
 		{`struct{}{}`, `struct{}`},

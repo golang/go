@@ -72,7 +72,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// named and unnamed types are passed to parameters with identical type, different types
 	// (named vs underlying) may be inferred depending on the order of the arguments.
 	// By ensuring that named types are seen first, order dependence is avoided and unification
-	// succeeds where it can (issue #43056).
+	// succeeds where it can (go.dev/issue/43056).
 	const enableArgSorting = true
 	if m := len(args); m >= 2 && enableArgSorting {
 		// Determine indices of arguments with named and unnamed types.
@@ -631,7 +631,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 
 	// Once nothing changes anymore, we may still have type parameters left;
 	// e.g., a constraint with core type *P may match a type parameter Q but
-	// we don't have any type arguments to fill in for *P or Q (issue #45548).
+	// we don't have any type arguments to fill in for *P or Q (go.dev/issue/45548).
 	// Don't let such inferences escape, instead nil them out.
 	for i, typ := range types {
 		if typ != nil && isParameterized(tparams, typ) {

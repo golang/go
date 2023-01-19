@@ -357,7 +357,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 
 	// If we get here and x or y is a type parameter, they are type parameters
 	// from outside our declaration list. Try to unify their core types, if any
-	// (see issue #50755 for a test case).
+	// (see go.dev/issue/50755 for a test case).
 	if enableCoreTypeUnification && !u.exact {
 		if isTypeParam(x) && !hasName(y) {
 			// When considering the type parameter for unification

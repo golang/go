@@ -622,7 +622,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		}
 		// Even if we have an integer, if the value is a constant we
 		// still must check that it is representable as the specific
-		// int type requested (was issue #22969). Fall through here.
+		// int type requested (was go.dev/issue/22969). Fall through here.
 	}
 	if old.val != nil {
 		// If x is a constant, it must be representable as a value of typ.
@@ -760,7 +760,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 
 // If switchCase is true, the operator op is ignored.
 func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase bool) {
-	// Avoid spurious errors if any of the operands has an invalid type (issue #54405).
+	// Avoid spurious errors if any of the operands has an invalid type (go.dev/issue/54405).
 	if x.typ == Typ[Invalid] || y.typ == Typ[Invalid] {
 		x.mode = invalid
 		return
@@ -942,7 +942,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 	// or be an untyped constant representable by a value of type uint."
 
 	// Check that constants are representable by uint, but do not convert them
-	// (see also issue #47243).
+	// (see also go.dev/issue/47243).
 	var yval constant.Value
 	if y.mode == constant_ {
 		// Provide a good error message for negative shift counts.
@@ -998,7 +998,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 				return
 			}
 			// rhs must be within reasonable bounds in constant shifts
-			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
+			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see go.dev/issue/44057)
 			s, ok := constant.Uint64Val(yval)
 			if !ok || s > shiftBound {
 				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
@@ -1039,7 +1039,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 			// the same expr node still just leads to one entry for
 			// that node, and it can only be deleted once).
 			// Be cautious and check for presence of entry.
-			// Example: var e, f = int(1<<""[f]) // issue 11347
+			// Example: var e, f = int(1<<""[f]) // go.dev/issue/11347
 			if info, found := check.untyped[x.expr]; found {
 				info.isLhs = true
 				check.untyped[x.expr] = info
@@ -1190,7 +1190,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 			return
 		}
 
-		// check for divisor underflow in complex division (see issue 20227)
+		// check for divisor underflow in complex division (see go.dev/issue/20227)
 		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ) {
 			re, im := constant.Real(y.val), constant.Imag(y.val)
 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
@@ -1288,7 +1288,7 @@ func (check *Checker) nonGeneric(x *operand) {
 // Must only be called by rawExpr.
 func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKind {
 	// make sure x has a valid state in case of bailout
-	// (was issue 5770)
+	// (was go.dev/issue/5770)
 	x.mode = invalid
 	x.typ = Typ[Invalid]
 
@@ -1339,7 +1339,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			check.errorf(e, InvalidConstVal, "malformed constant: %s", e.Value)
 			goto Error
 		}
-		// Ensure that integer values don't overflow (issue #54280).
+		// Ensure that integer values don't overflow (go.dev/issue/54280).
 		x.expr = e // make sure that check.overflow below has an error position
 		check.overflow(x)
 
@@ -1476,7 +1476,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			}
 
 		case *Array:
-			// Prevent crash if the array referred to is not yet set up. Was issue #18643.
+			// Prevent crash if the array referred to is not yet set up. Was go.dev/issue/18643.
 			// This is a stop-gap solution. Should use Checker.objPath to report entire
 			// path starting with earliest declaration in the source. TODO(gri) fix this.
 			if utyp.elem == nil {
@@ -1491,7 +1491,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 			// length the same here because it makes sense to "guess" the length for
 			// the latter if we have a composite literal; e.g. for [n]int{1, 2, 3}
 			// where n is invalid for some reason, it seems fair to assume it should
-			// be 3 (see also Checked.arrayLength and issue #27346).
+			// be 3 (see also Checked.arrayLength and go.dev/issue/27346).
 			if utyp.len < 0 {
 				utyp.len = n
 				// e.Type is missing if we have a composite literal element

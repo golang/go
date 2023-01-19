@@ -887,7 +887,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	}
 
 	// Open the for-statement block scope now, after the range clause.
-	// Iteration variables declared with := need to go in this scope (was issue #51437).
+	// Iteration variables declared with := need to go in this scope (was go.dev/issue/51437).
 	check.openScope(s, "range")
 	defer check.closeScope()
 

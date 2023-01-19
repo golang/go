@@ -111,7 +111,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 // the spec) is that we cannot shift a floating-point value: 1 in 1<<s should
 // be converted to UntypedFloat because of the addition of 1.0. Fixing this
 // is tricky because we'd have to run updateExprType on the argument first.
-// (Issue #21982.)
+// (go.dev/issue/21982.)
 
 // convertibleTo reports whether T(x) is valid. In the failure case, *cause
 // may be set to the cause for the failure.

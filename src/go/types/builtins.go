@@ -711,7 +711,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// TODO(gri) Should we pass x.typ instead of base (and have indirect report if derefStructPtr indirected)?
 		check.recordSelection(selx, FieldVal, base, obj, index, false)
 
-		// record the selector expression (was bug - issue #47895)
+		// record the selector expression (was bug - go.dev/issue/47895)
 		{
 			mode := value
 			if x.mode == variable || indirect {
@@ -963,7 +963,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 		default:
 			unreachable()
 		}
-		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
+		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
 
 		// Construct a suitable new type parameter for the result type.
 		// The type parameter is placed in the current package so export/import
