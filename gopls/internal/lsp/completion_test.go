@@ -5,11 +5,13 @@
 package lsp
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/span"
 )
@@ -111,10 +113,28 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 func expected(t *testing.T, test tests.Completion, items tests.CompletionItems) []protocol.CompletionItem {
 	t.Helper()
 
+	toProtocolCompletionItem := func(item *completion.CompletionItem) protocol.CompletionItem {
+		pItem := protocol.CompletionItem{
+			Label:         item.Label,
+			Kind:          item.Kind,
+			Detail:        item.Detail,
+			Documentation: item.Documentation,
+			InsertText:    item.InsertText,
+			TextEdit: &protocol.TextEdit{
+				NewText: item.Snippet(),
+			},
+			// Negate score so best score has lowest sort text like real API.
+			SortText: fmt.Sprint(-item.Score),
+		}
+		if pItem.InsertText == "" {
+			pItem.InsertText = pItem.Label
+		}
+		return pItem
+	}
+
 	var want []protocol.CompletionItem
 	for _, pos := range test.CompletionItems {
-		item := items[pos]
-		want = append(want, tests.ToProtocolCompletionItem(*item))
+		want = append(want, toProtocolCompletionItem(items[pos]))
 	}
 	return want
 }

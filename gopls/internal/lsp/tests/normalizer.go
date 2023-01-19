@@ -41,22 +41,6 @@ func CollectNormalizers(exported *packagestest.Exported) []Normalizer {
 	return normalizers
 }
 
-// NormalizePrefix normalizes a single path at the front of the input string.
-func NormalizePrefix(s string, normalizers []Normalizer) string {
-	for _, n := range normalizers {
-		if t := strings.TrimPrefix(s, n.path); t != s {
-			return n.fragment + t
-		}
-		if t := strings.TrimPrefix(s, n.slashed); t != s {
-			return n.fragment + t
-		}
-		if t := strings.TrimPrefix(s, n.escaped); t != s {
-			return n.fragment + t
-		}
-	}
-	return s
-}
-
 // Normalize replaces all paths present in s with just the fragment portion
 // this is used to make golden files not depend on the temporary paths of the files
 func Normalize(s string, normalizers []Normalizer) string {

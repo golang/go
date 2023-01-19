@@ -30,7 +30,7 @@ import (
 
 // TestCommandLine runs the marker tests in files beneath testdata/ using
 // implementations of each of the marker operations (e.g. @hover) that
-// fork+exec the gopls command.
+// call the main function of the gopls command within this process.
 func TestCommandLine(t *testing.T, testdata string, options func(*source.Options)) {
 	// On Android, the testdata directory is not copied to the runner.
 	if runtime.GOOS == "android" {
@@ -39,7 +39,7 @@ func TestCommandLine(t *testing.T, testdata string, options func(*source.Options
 	tests.RunTests(t, testdata, false, func(t *testing.T, datum *tests.Data) {
 		ctx := tests.Context(t)
 		ts := newTestServer(ctx, options)
-		tests.Run(t, NewRunner(datum, ctx, ts.Addr, options), datum)
+		tests.Run(t, newRunner(datum, ctx, ts.Addr, options), datum)
 		cmd.CloseTestConnections(ctx)
 	})
 }
@@ -51,7 +51,29 @@ func newTestServer(ctx context.Context, options func(*source.Options)) *serverte
 	return servertest.NewTCPServer(ctx, ss, nil)
 }
 
-// runner implements tests.Tests by fork+execing the gopls command.
+// runner implements tests.Tests by invoking the gopls command.
+//
+// TODO(golang/go#54845): We don't plan to implement all the methods
+// of tests.Test.  Indeed, we'd like to delete the methods that are
+// implemented because the two problems they solve are best addressed
+// in other ways:
+//
+//  1. They provide coverage of the behavior of the server, but this
+//     coverage is almost identical to the coverage provided by
+//     executing the same tests by making LSP RPCs directly (see
+//     lsp_test), and the latter is more efficient. When they do
+//     differ, it is a pain for maintainers.
+//
+//  2. They provide coverage of the client-side code of the
+//     command-line tool, which turns arguments into an LSP request and
+//     prints the results. But this coverage could be more directly and
+//     efficiently achieved by running a small number of tests tailored
+//     to exercise the client-side code, not the server behavior.
+//
+// Once that's done, tests.Tests would have only a single
+// implementation (LSP), and we could refactor the marker tests
+// so that they more closely resemble self-contained regtests,
+// as described in #54845.
 type runner struct {
 	data        *tests.Data
 	ctx         context.Context
@@ -60,7 +82,7 @@ type runner struct {
 	remote      string
 }
 
-func NewRunner(data *tests.Data, ctx context.Context, remote string, options func(*source.Options)) *runner {
+func newRunner(data *tests.Data, ctx context.Context, remote string, options func(*source.Options)) *runner {
 	return &runner{
 		data:        data,
 		ctx:         ctx,
@@ -70,60 +92,15 @@ func NewRunner(data *tests.Data, ctx context.Context, remote string, options fun
 	}
 }
 
-func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) {
-	//TODO: add command line completions tests when it works
-}
-
-func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
-	//TODO: add command line completions tests when it works
-}
-
-func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.CompletionSnippet, placeholders bool, items tests.CompletionItems) {
-	//TODO: add command line completions tests when it works
-}
-
-func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
-	//TODO: add command line completions tests when it works
-}
-
-func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
-	//TODO: add command line completions tests when it works
-}
-
-func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
-	//TODO: add command line completions tests when it works
-}
-
-func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
-	//TODO: add command line completions tests when it works
-}
-
-func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
-	//TODO: add command line completions tests when it works
-}
-
-func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {
-	//TODO: function extraction not supported on command line
-}
-
-func (r *runner) MethodExtraction(t *testing.T, start span.Span, end span.Span) {
-	//TODO: function extraction not supported on command line
-}
-
-func (r *runner) AddImport(t *testing.T, uri span.URI, expectedImport string) {
-	//TODO: import addition not supported on command line
-}
-
-func (r *runner) Hover(t *testing.T, spn span.Span, info string) {
-	//TODO: hovering not supported on command line
-}
-
-func (r *runner) InlayHints(t *testing.T, spn span.Span) {
-	// TODO: inlayHints not supported on command line
-}
-
-func (r *runner) SelectionRanges(t *testing.T, spn span.Span) {}
-
+// runGoplsCmd returns the stdout and stderr of a gopls command.
+//
+// It does not fork+exec gopls, but in effect calls its main function,
+// and thus the subcommand's Application.Run method, within this process.
+//
+// Stdout and stderr are temporarily redirected: not concurrency-safe!
+//
+// The "exit code" is printed to stderr but not returned.
+// Invalid flags cause process exit.
 func (r *runner) runGoplsCmd(t testing.TB, args ...string) (string, string) {
 	rStdout, wStdout, err := os.Pipe()
 	if err != nil {
@@ -175,6 +152,26 @@ func (r *runner) Normalize(s string) string {
 	return tests.Normalize(s, r.normalizers)
 }
 
-func (r *runner) NormalizePrefix(s string) string {
-	return tests.NormalizePrefix(s, r.normalizers)
+// Unimplemented methods of tests.Tests (see comment at runner):
+
+func (*runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) {}
+func (*runner) Completion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 }
+func (*runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.CompletionSnippet, placeholders bool, items tests.CompletionItems) {
+}
+func (*runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+}
+func (*runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+}
+func (*runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+}
+func (*runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+}
+func (*runner) RankCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
+}
+func (*runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {}
+func (*runner) MethodExtraction(t *testing.T, start span.Span, end span.Span)   {}
+func (*runner) AddImport(t *testing.T, uri span.URI, expectedImport string)     {}
+func (*runner) Hover(t *testing.T, spn span.Span, info string)                  {}
+func (*runner) InlayHints(t *testing.T, spn span.Span)                          {}
+func (*runner) SelectionRanges(t *testing.T, spn span.Span)                     {}
