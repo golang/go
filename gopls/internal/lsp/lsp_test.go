@@ -43,17 +43,11 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// TestLSP runs the marker tests in files beneath testdata/ using
+// implementations of each of the marker operations (e.g. @hover) that
+// make LSP RPCs (e.g. textDocument/hover) to a gopls server.
 func TestLSP(t *testing.T) {
 	tests.RunTests(t, "testdata", true, testLSP)
-}
-
-type runner struct {
-	server      *Server
-	data        *tests.Data
-	diagnostics map[span.URI][]*source.Diagnostic
-	ctx         context.Context
-	normalizers []tests.Normalizer
-	editRecv    chan map[span.URI]string
 }
 
 func testLSP(t *testing.T, datum *tests.Data) {
@@ -108,6 +102,16 @@ func testLSP(t *testing.T, datum *tests.Data) {
 
 	r.server = NewServer(session, testClient{runner: r})
 	tests.Run(t, r, datum)
+}
+
+// runner implements tests.Tests by making LSP RPCs to a gopls server.
+type runner struct {
+	server      *Server
+	data        *tests.Data
+	diagnostics map[span.URI][]*source.Diagnostic
+	ctx         context.Context
+	normalizers []tests.Normalizer
+	editRecv    chan map[span.URI]string
 }
 
 // testClient stubs any client functions that may be called by LSP functions.

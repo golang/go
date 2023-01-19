@@ -28,14 +28,9 @@ import (
 	"golang.org/x/tools/internal/tool"
 )
 
-type runner struct {
-	data        *tests.Data
-	ctx         context.Context
-	options     func(*source.Options)
-	normalizers []tests.Normalizer
-	remote      string
-}
-
+// TestCommandLine runs the marker tests in files beneath testdata/ using
+// implementations of each of the marker operations (e.g. @hover) that
+// fork+exec the gopls command.
 func TestCommandLine(t *testing.T, testdata string, options func(*source.Options)) {
 	// On Android, the testdata directory is not copied to the runner.
 	if runtime.GOOS == "android" {
@@ -43,17 +38,26 @@ func TestCommandLine(t *testing.T, testdata string, options func(*source.Options
 	}
 	tests.RunTests(t, testdata, false, func(t *testing.T, datum *tests.Data) {
 		ctx := tests.Context(t)
-		ts := NewTestServer(ctx, options)
+		ts := newTestServer(ctx, options)
 		tests.Run(t, NewRunner(datum, ctx, ts.Addr, options), datum)
 		cmd.CloseTestConnections(ctx)
 	})
 }
 
-func NewTestServer(ctx context.Context, options func(*source.Options)) *servertest.TCPServer {
+func newTestServer(ctx context.Context, options func(*source.Options)) *servertest.TCPServer {
 	ctx = debug.WithInstance(ctx, "", "")
 	cache := cache.New(nil, nil)
 	ss := lsprpc.NewStreamServer(cache, false, options)
 	return servertest.NewTCPServer(ctx, ss, nil)
+}
+
+// runner implements tests.Tests by fork+execing the gopls command.
+type runner struct {
+	data        *tests.Data
+	ctx         context.Context
+	options     func(*source.Options)
+	normalizers []tests.Normalizer
+	remote      string
 }
 
 func NewRunner(data *tests.Data, ctx context.Context, remote string, options func(*source.Options)) *runner {

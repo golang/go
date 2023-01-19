@@ -33,10 +33,14 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// TestSource runs the marker tests in files beneath testdata/ using
+// implementations of each of the marker operations (e.g. @hover) that
+// make direct calls to the server logic (such as source.Hover).
 func TestSource(t *testing.T) {
 	tests.RunTests(t, "../testdata", true, testSource)
 }
 
+// runner implements tests.Tests by making direct calls to the source package.
 type runner struct {
 	session     *cache.Session
 	view        *cache.View

@@ -143,12 +143,17 @@ type Data struct {
 	mappers   map[span.URI]*protocol.Mapper
 }
 
-// TODO(adonovan): there are multiple implementations of this (undocumented)
-// interface, each of which must implement similar semantics. For example:
-// - *runner in ../cmd/test/check.go
-// - *runner in ../source/source_test.go
-// - *runner in ../lsp_test.go
-// Can we avoid this duplication?
+// The Tests interface abstracts a set of implementations of marker
+// test operators (such as @hover) appearing
+//
+// There are three implementations:
+// - *runner in ../cmd/test/check.go, which runs the command-line tool (e.g. "gopls hover")
+// - *runner in ../source/source_test.go, which makes direct calls (e.g. to source.Hover)
+// - *runner in ../lsp_test.go, which makes LSP requests (textDocument/hover) to a gopls server.
+//
+// Not all implementations implement all methods.
+//
+// TODO(adonovan): reduce duplication; see https://github.com/golang/go/issues/54845.
 type Tests interface {
 	CallHierarchy(*testing.T, span.Span, *CallHierarchyResult)
 	CodeLens(*testing.T, span.URI, []protocol.CodeLens)
