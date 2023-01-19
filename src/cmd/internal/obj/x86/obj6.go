@@ -684,37 +684,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p, regg = loadG(ctxt, cursym, p, newprog)
 	}
 
-	// Delve debugger would like the next instruction to be noted as the end of the function prologue.
-	// TODO: are there other cases (e.g., wrapper functions) that need marking?
-	markedPrologue := false
-
-	if autoffset != 0 {
-		if autoffset%int32(ctxt.Arch.RegSize) != 0 {
-			ctxt.Diag("unaligned stack size %d", autoffset)
-		}
-		p = obj.Appendp(p, newprog)
-		p.As = AADJSP
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(autoffset)
-		p.Spadj = autoffset
-		p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
-		markedPrologue = true
-	}
-
 	if bpsize > 0 {
 		// Save caller's BP
 		p = obj.Appendp(p, newprog)
 
-		p.As = AMOVQ
+		p.As = APUSHQ
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_BP
-		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = REG_SP
-		p.To.Scale = 1
-		p.To.Offset = int64(autoffset) - int64(bpsize)
-		if !markedPrologue {
-			p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
-		}
 
 		// Move current frame to BP
 		p = obj.Appendp(p, newprog)
@@ -723,9 +699,30 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_SP
 		p.From.Scale = 1
-		p.From.Offset = int64(autoffset) - int64(bpsize)
+		p.From.Offset = 0
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_BP
+	}
+
+	if autoffset%int32(ctxt.Arch.RegSize) != 0 {
+		ctxt.Diag("unaligned stack size %d", autoffset)
+	}
+
+	// localoffset is autoffset discounting the frame pointer,
+	// which has already been allocated in the stack.
+	localoffset := autoffset - int32(bpsize)
+	if localoffset != 0 {
+		p = obj.Appendp(p, newprog)
+		p.As = AADJSP
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(localoffset)
+		p.Spadj = localoffset
+	}
+
+	// Delve debugger would like the next instruction to be noted as the end of the function prologue.
+	// TODO: are there other cases (e.g., wrapper functions) that need marking?
+	if autoffset != 0 {
+		p.Pos = p.Pos.WithXlogue(src.PosPrologueEnd)
 	}
 
 	if cursym.Func().Text.From.Sym.Wrapper() {
@@ -933,24 +930,23 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if autoffset != 0 {
 			to := p.To // Keep To attached to RET for retjmp below
 			p.To = obj.Addr{}
-			if bpsize > 0 {
-				// Restore caller's BP
-				p.As = AMOVQ
-
-				p.From.Type = obj.TYPE_MEM
-				p.From.Reg = REG_SP
-				p.From.Scale = 1
-				p.From.Offset = int64(autoffset) - int64(bpsize)
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_BP
+			if localoffset != 0 {
+				p.As = AADJSP
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = int64(-localoffset)
+				p.Spadj = -localoffset
 				p = obj.Appendp(p, newprog)
 			}
 
-			p.As = AADJSP
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = int64(-autoffset)
-			p.Spadj = -autoffset
-			p = obj.Appendp(p, newprog)
+			if bpsize > 0 {
+				// Restore caller's BP
+				p.As = APOPQ
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REG_BP
+				p.Spadj = -int32(bpsize)
+				p = obj.Appendp(p, newprog)
+			}
+
 			p.As = obj.ARET
 			p.To = to
 
