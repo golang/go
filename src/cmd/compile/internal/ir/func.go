@@ -386,7 +386,7 @@ func NameClosure(clo *ClosureExpr, outerfn *Func) {
 	MarkFunc(name)
 }
 
-// UseClosure checks that the ginen function literal has been setup
+// UseClosure checks that the given function literal has been setup
 // correctly, and then returns it as an expression.
 // It must be called after clo.Func.ClosureVars has been set.
 func UseClosure(clo *ClosureExpr, pkg *Package) Node {

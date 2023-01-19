@@ -128,7 +128,7 @@ var (
 
 // GetPackage returns the IndexPackage for the package at the given path.
 // It will return ErrNotIndexed if the directory should be read without
-// using the index, for instance because the index is disabled, or the packgae
+// using the index, for instance because the index is disabled, or the package
 // is not in a module.
 func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 	mi, err := GetModule(modroot)
@@ -146,7 +146,7 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 
 // GetModule returns the Module for the given modroot.
 // It will return ErrNotIndexed if the directory should be read without
-// using the index, for instance because the index is disabled, or the packgae
+// using the index, for instance because the index is disabled, or the package
 // is not in a module.
 func GetModule(modroot string) (*Module, error) {
 	if !enabled || cache.DefaultDir() == "off" {

@@ -194,7 +194,7 @@ func (s *State) LookupEnv(key string) (string, bool) {
 	return v, ok
 }
 
-// Path returns the absolute path in the host operaating system for a
+// Path returns the absolute path in the host operating system for a
 // script-based (generally slash-separated and relative) path.
 func (s *State) Path(path string) string {
 	if filepath.IsAbs(path) {

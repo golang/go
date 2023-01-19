@@ -485,7 +485,7 @@ func makeStatDepSet(deps ...statDep) statDepSet {
 	return s
 }
 
-// differennce returns set difference of s from b as a new set.
+// difference returns set difference of s from b as a new set.
 func (s statDepSet) difference(b statDepSet) statDepSet {
 	var c statDepSet
 	for i := range s {
@@ -633,7 +633,7 @@ func nsToSec(ns int64) float64 {
 // statAggregate is the main driver of the metrics implementation.
 //
 // It contains multiple aggregates of runtime statistics, as well
-// as a set of these aggregates that it has populated. The aggergates
+// as a set of these aggregates that it has populated. The aggregates
 // are populated lazily by its ensure method.
 type statAggregate struct {
 	ensured   statDepSet

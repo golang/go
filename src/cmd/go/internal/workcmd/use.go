@@ -186,7 +186,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 // pathRel returns the absolute and canonical forms of dir for use in a
 // go.work file located in directory workDir.
 //
-// If dir is relative, it is intepreted relative to base.Cwd()
+// If dir is relative, it is interpreted relative to base.Cwd()
 // and its canonical form is relative to workDir if possible.
 // If dir is absolute or cannot be made relative to workDir,
 // its canonical form is absolute.
