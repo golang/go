@@ -262,7 +262,7 @@ func (s *snapshot) BackgroundContext() context.Context {
 }
 
 func (s *snapshot) FileSet() *token.FileSet {
-	return s.view.cache.fset
+	return s.view.fset
 }
 
 func (s *snapshot) ModFiles() []span.URI {
@@ -620,7 +620,7 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 			return
 		}
 		// TODO(rstambler): Make sure not to send overlays outside of the current view.
-		overlays[uri.Filename()] = overlay.text
+		overlays[uri.Filename()] = overlay.content
 	})
 	return overlays
 }
@@ -1205,7 +1205,7 @@ func (s *snapshot) isWorkspacePackage(id PackageID) bool {
 }
 
 func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
-	uri, _ = s.view.canonicalURI(uri, true)
+	s.view.markKnown(uri)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1220,7 +1220,7 @@ func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
 // GetFile succeeds even if the file does not exist. A non-nil error return
 // indicates some type of internal error, for example if ctx is cancelled.
 func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
-	uri, _ = s.view.canonicalURI(uri, true)
+	s.view.markKnown(uri)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1229,7 +1229,7 @@ func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle
 		return fh, nil
 	}
 
-	fh, err := s.view.cache.GetFile(ctx, uri) // read the file
+	fh, err := s.view.fs.GetFile(ctx, uri) // read the file
 	if err != nil {
 		return nil, err
 	}

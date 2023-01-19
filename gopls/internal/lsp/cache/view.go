@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"path"
@@ -38,7 +39,7 @@ import (
 type View struct {
 	id string
 
-	cache       *Cache            // shared cache
+	fset        *token.FileSet    // shared FileSet
 	gocmdRunner *gocommand.Runner // limits go command concurrency
 
 	// baseCtx is the context handed to NewView. This is the parent of all
@@ -68,14 +69,14 @@ type View struct {
 	vulnsMu sync.Mutex
 	vulns   map[span.URI]*govulncheck.Result
 
-	// filesByURI maps URIs to the canonical URI for the file it denotes.
-	// We also keep a set of candidates for a given basename
-	// to reduce the set of pairs that need to be tested for sameness.
-	//
-	// TODO(rfindley): move this file tracking to the session.
-	filesByMu   sync.Mutex
-	filesByURI  map[span.URI]span.URI     // key is noncanonical URI (alias)
-	filesByBase map[string][]canonicalURI // key is basename
+	// fs is the file source used to populate this view.
+	fs source.FileSource
+
+	// seenFiles tracks files that the view has accessed.
+	// TODO(golang/go#57558): this notion is fundamentally problematic, and
+	// should be removed.
+	knownFilesMu sync.Mutex
+	knownFiles   map[span.URI]bool
 
 	// initCancelFirstAttempt can be used to terminate the view's first
 	// attempt at initialization.
@@ -554,73 +555,20 @@ func (v *View) relevantChange(c source.FileModification) bool {
 	return v.contains(c.URI)
 }
 
+func (v *View) markKnown(uri span.URI) {
+	v.knownFilesMu.Lock()
+	defer v.knownFilesMu.Unlock()
+	if v.knownFiles == nil {
+		v.knownFiles = make(map[span.URI]bool)
+	}
+	v.knownFiles[uri] = true
+}
+
 // knownFile reports whether the specified valid URI (or an alias) is known to the view.
 func (v *View) knownFile(uri span.URI) bool {
-	_, known := v.canonicalURI(uri, false)
-	return known
-}
-
-// TODO(adonovan): opt: eliminate 'filename' optimization. I doubt the
-// cost of allocation is significant relative to the
-// stat/open/fstat/close operations that follow on Windows.
-type canonicalURI struct {
-	uri      span.URI
-	filename string // = uri.Filename(), an optimization (on Windows)
-}
-
-// canonicalURI returns the canonical URI that denotes the same file
-// as uri, which may differ due to case insensitivity, unclean paths,
-// soft or hard links, and so on.  If no previous alias was found, or
-// the file is missing, insert determines whether to make uri the
-// canonical representative of the file or to return false.
-//
-// The cache grows indefinitely without invalidation: file system
-// operations may cause two URIs that used to denote the same file to
-// no longer to do so. Also, the basename cache grows without bound.
-// TODO(adonovan): fix both bugs.
-func (v *View) canonicalURI(uri span.URI, insert bool) (span.URI, bool) {
-	v.filesByMu.Lock()
-	defer v.filesByMu.Unlock()
-
-	// Have we seen this exact URI before?
-	if canonical, ok := v.filesByURI[uri]; ok {
-		return canonical, true
-	}
-
-	// Inspect all candidates with the same lowercase basename.
-	// This heuristic is easily defeated by symbolic links to files.
-	// Files with some basenames (e.g. doc.go) are very numerous.
-	//
-	// The set of candidates grows without bound, and incurs a
-	// linear sequence of SameFile queries to the file system.
-	//
-	// It is tempting to fetch the device/inode pair that
-	// uniquely identifies a file once, and then compare those
-	// pairs, but that would cause us to cache stale file system
-	// state (in addition to the filesByURI staleness).
-	filename := uri.Filename()
-	basename := strings.ToLower(filepath.Base(filename))
-	if candidates := v.filesByBase[basename]; candidates != nil {
-		if pathStat, _ := os.Stat(filename); pathStat != nil {
-			for _, c := range candidates {
-				if cStat, _ := os.Stat(c.filename); cStat != nil {
-					// On Windows, SameFile is more expensive as it must
-					// open the file and use the equivalent of fstat(2).
-					if os.SameFile(pathStat, cStat) {
-						v.filesByURI[uri] = c.uri
-						return c.uri, true
-					}
-				}
-			}
-		}
-	}
-
-	// No candidates, stat failed, or no candidate matched.
-	if insert {
-		v.filesByURI[uri] = uri
-		v.filesByBase[basename] = append(v.filesByBase[basename], canonicalURI{uri, filename})
-	}
-	return uri, insert
+	v.knownFilesMu.Lock()
+	defer v.knownFilesMu.Unlock()
+	return v.knownFiles[uri]
 }
 
 // shutdown releases resources associated with the view, and waits for ongoing

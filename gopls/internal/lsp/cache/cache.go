@@ -11,20 +11,16 @@ import (
 	"go/token"
 	"go/types"
 	"html/template"
-	"os"
 	"reflect"
 	"sort"
 	"strconv"
-	"sync"
 	"sync/atomic"
-	"time"
 
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/memoize"
+	"golang.org/x/tools/internal/robustio"
 )
 
 // New Creates a new cache for gopls operation results, using the given file
@@ -47,124 +43,32 @@ func New(fset *token.FileSet, store *memoize.Store) *Cache {
 	}
 
 	c := &Cache{
-		id:          strconv.FormatInt(index, 10),
-		fset:        fset,
-		store:       store,
-		fileContent: map[span.URI]*DiskFile{},
+		id:         strconv.FormatInt(index, 10),
+		fset:       fset,
+		store:      store,
+		memoizedFS: &memoizedFS{filesByID: map[robustio.FileID][]*DiskFile{}},
 	}
 	return c
 }
 
+// A Cache holds caching stores that are bundled together for consistency.
+//
+// TODO(rfindley): once fset and store need not be bundled together, the Cache
+// type can be eliminated.
 type Cache struct {
 	id   string
 	fset *token.FileSet
 
 	store *memoize.Store
 
-	fileMu      sync.Mutex
-	fileContent map[span.URI]*DiskFile
-}
-
-// A DiskFile is a file on the filesystem, or a failure to read one.
-// It implements the source.FileHandle interface.
-type DiskFile struct {
-	uri     span.URI
-	modTime time.Time
-	content []byte
-	hash    source.Hash
-	err     error
-}
-
-func (h *DiskFile) URI() span.URI { return h.uri }
-
-func (h *DiskFile) FileIdentity() source.FileIdentity {
-	return source.FileIdentity{
-		URI:  h.uri,
-		Hash: h.hash,
-	}
-}
-
-func (h *DiskFile) Saved() bool    { return true }
-func (h *DiskFile) Version() int32 { return 0 }
-
-func (h *DiskFile) Read() ([]byte, error) {
-	return h.content, h.err
-}
-
-// GetFile stats and (maybe) reads the file, updates the cache, and returns it.
-func (c *Cache) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
-	fi, statErr := os.Stat(uri.Filename())
-	if statErr != nil {
-		return &DiskFile{
-			err: statErr,
-			uri: uri,
-		}, nil
-	}
-
-	// We check if the file has changed by comparing modification times. Notably,
-	// this is an imperfect heuristic as various systems have low resolution
-	// mtimes (as much as 1s on WSL or s390x builders), so we only cache
-	// filehandles if mtime is old enough to be reliable, meaning that we don't
-	// expect a subsequent write to have the same mtime.
-	//
-	// The coarsest mtime precision we've seen in practice is 1s, so consider
-	// mtime to be unreliable if it is less than 2s old. Capture this before
-	// doing anything else.
-	recentlyModified := time.Since(fi.ModTime()) < 2*time.Second
-
-	c.fileMu.Lock()
-	fh, ok := c.fileContent[uri]
-	c.fileMu.Unlock()
-
-	if ok && fh.modTime.Equal(fi.ModTime()) {
-		return fh, nil
-	}
-
-	fh, err := readFile(ctx, uri, fi) // ~25us
-	if err != nil {
-		return nil, err
-	}
-	c.fileMu.Lock()
-	if !recentlyModified {
-		c.fileContent[uri] = fh
-	} else {
-		delete(c.fileContent, uri)
-	}
-	c.fileMu.Unlock()
-	return fh, nil
-}
-
-// ioLimit limits the number of parallel file reads per process.
-var ioLimit = make(chan struct{}, 128)
-
-func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*DiskFile, error) {
-	select {
-	case ioLimit <- struct{}{}:
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-	defer func() { <-ioLimit }()
-
-	ctx, done := event.Start(ctx, "cache.readFile", tag.File.Of(uri.Filename()))
-	_ = ctx
-	defer done()
-
-	content, err := os.ReadFile(uri.Filename()) // ~20us
-	if err != nil {
-		content = nil // just in case
-	}
-	return &DiskFile{
-		modTime: fi.ModTime(),
-		uri:     uri,
-		content: content,
-		hash:    source.HashOf(content),
-		err:     err,
-	}, nil
+	*memoizedFS // implements source.FileSource
 }
 
 // NewSession creates a new gopls session with the given cache and options overrides.
 //
 // The provided optionsOverrides may be nil.
+//
+// TODO(rfindley): move this to session.go.
 func NewSession(ctx context.Context, c *Cache, optionsOverrides func(*source.Options)) *Session {
 	index := atomic.AddInt64(&sessionIndex, 1)
 	options := source.DefaultOptions().Clone()
@@ -176,7 +80,7 @@ func NewSession(ctx context.Context, c *Cache, optionsOverrides func(*source.Opt
 		cache:       c,
 		gocmdRunner: &gocommand.Runner{},
 		options:     options,
-		overlays:    make(map[span.URI]*Overlay),
+		overlayFS:   newOverlayFS(c),
 	}
 	event.Log(ctx, "New session", KeyCreateSession.Of(s))
 	return s

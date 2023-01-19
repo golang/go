@@ -184,11 +184,14 @@ func (s *snapshot) goSum(ctx context.Context, modURI span.URI) []byte {
 	// Get the go.sum file, either from the snapshot or directly from the
 	// cache. Avoid (*snapshot).GetFile here, as we don't want to add
 	// nonexistent file handles to the snapshot if the file does not exist.
+	//
+	// TODO(rfindley): but that's not right. Changes to sum files should
+	// invalidate content, even if it's nonexistent content.
 	sumURI := span.URIFromPath(sumFilename(modURI))
 	var sumFH source.FileHandle = s.FindFile(sumURI)
 	if sumFH == nil {
 		var err error
-		sumFH, err = s.view.cache.GetFile(ctx, sumURI)
+		sumFH, err = s.view.fs.GetFile(ctx, sumURI)
 		if err != nil {
 			return nil
 		}

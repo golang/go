@@ -14,6 +14,8 @@
 // but substantially reduce their rate of occurrence in practice.
 package robustio
 
+import "time"
+
 // Rename is like os.Rename, but on Windows retries errors that may occur if the
 // file is concurrently read or overwritten.
 //
@@ -54,12 +56,14 @@ func IsEphemeralError(err error) bool {
 
 // A FileID uniquely identifies a file in the file system.
 //
-// If GetFileID(name1) == GetFileID(name2), the two file names denote the same file.
+// If GetFileID(name1) returns the same ID as GetFileID(name2), the two file
+// names denote the same file.
 // A FileID is comparable, and thus suitable for use as a map key.
 type FileID struct {
 	device, inode uint64
 }
 
-// GetFileID returns the file system's identifier for the file.
+// GetFileID returns the file system's identifier for the file, and its
+// modification time.
 // Like os.Stat, it reads through symbolic links.
-func GetFileID(filename string) (FileID, error) { return getFileID(filename) }
+func GetFileID(filename string) (FileID, time.Time, error) { return getFileID(filename) }
