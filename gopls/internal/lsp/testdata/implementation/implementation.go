@@ -12,7 +12,7 @@ type ImpS struct{} //@ImpS,implementations("ImpS", Laugher, OtherLaugher)
 func (ImpS) Laugh() { //@mark(LaughS, "Laugh"),implementations("Laugh", Laugh, OtherLaugh)
 }
 
-type Laugher interface { //@Laugher,implementations("Laugher", ImpP, OtherImpP, ImpS, OtherImpS)
+type Laugher interface { //@Laugher,implementations("Laugher", ImpP, OtherImpP, ImpS, OtherImpS, embedsImpP)
 	Laugh() //@Laugh,implementations("Laugh", LaughP, OtherLaughP, LaughS, OtherLaughS)
 }
 
@@ -31,3 +31,7 @@ func (cryer) Cry(other.CryType) {} //@mark(CryImpl, "Cry"),implementations("Cry"
 type Empty interface{} //@implementations("Empty")
 
 var _ interface{ Joke() } //@implementations("Joke", ImpJoker)
+
+type embedsImpP struct { //@embedsImpP
+	ImpP //@implementations("ImpP", Laugher, OtherLaugher)
+}

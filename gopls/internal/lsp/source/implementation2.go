@@ -274,7 +274,13 @@ func typeDeclPosition(ctx context.Context, snapshot Snapshot, uri span.URI, ppos
 
 	// Is the object a type or method? Reject other kinds.
 	var methodID string
-	obj := pkg.GetTypesInfo().ObjectOf(id)
+	obj := pkg.GetTypesInfo().Uses[id]
+	if obj == nil {
+		// Check uses first (unlike ObjectOf) so that T in
+		// struct{T} is treated as a reference to a type,
+		// not a declaration of a field.
+		obj = pkg.GetTypesInfo().Defs[id]
+	}
 	switch obj := obj.(type) {
 	case *types.TypeName:
 		// ok
