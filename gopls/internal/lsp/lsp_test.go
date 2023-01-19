@@ -224,8 +224,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnost
 	// Get the diagnostics for this view if we have not done it before.
 	v := r.server.session.View(r.data.Config.Dir)
 	r.collectDiagnostics(v)
-	got := append([]*source.Diagnostic(nil), r.diagnostics[uri]...) // copy
-	tests.CompareDiagnostics(t, uri, want, got)
+	tests.CompareDiagnostics(t, uri, want, r.diagnostics[uri])
 }
 
 func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
@@ -238,41 +237,30 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 	modified := original
 	defer r.server.session.SetViewOptions(r.ctx, view, original)
 
-	// Test all folding ranges.
-	modified.LineFoldingOnly = false
-	view, err = r.server.session.SetViewOptions(r.ctx, view, modified)
-	if err != nil {
-		t.Error(err)
-		return
+	for _, test := range []struct {
+		lineFoldingOnly bool
+		prefix          string
+	}{
+		{false, "foldingRange"},
+		{true, "foldingRange-lineFolding"},
+	} {
+		modified.LineFoldingOnly = test.lineFoldingOnly
+		view, err = r.server.session.SetViewOptions(r.ctx, view, modified)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		ranges, err := r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: protocol.URIFromSpanURI(uri),
+			},
+		})
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		r.foldingRanges(t, test.prefix, uri, ranges)
 	}
-	ranges, err := r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(uri),
-		},
-	})
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	r.foldingRanges(t, "foldingRange", uri, ranges)
-
-	// Test folding ranges with lineFoldingOnly = true.
-	modified.LineFoldingOnly = true
-	view, err = r.server.session.SetViewOptions(r.ctx, view, modified)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	ranges, err = r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(uri),
-		},
-	})
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	r.foldingRanges(t, "foldingRange-lineFolding", uri, ranges)
 }
 
 func (r *runner) foldingRanges(t *testing.T, prefix string, uri span.URI, ranges []protocol.FoldingRange) {
@@ -446,6 +434,8 @@ func (r *runner) SemanticTokens(t *testing.T, spn span.Span) {
 }
 
 func (r *runner) Import(t *testing.T, spn span.Span) {
+	// Invokes textDocument/codeAction and applies all the "goimports" edits.
+
 	uri := spn.URI()
 	filename := uri.Filename()
 	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{

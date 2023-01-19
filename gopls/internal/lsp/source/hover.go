@@ -79,11 +79,11 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 		}
 		return nil, nil
 	}
-	h, err := HoverIdentifier(ctx, ident)
+	h, err := hoverIdentifier(ctx, ident)
 	if err != nil {
 		return nil, err
 	}
-	hover, err := FormatHover(h, snapshot.View().Options())
+	hover, err := formatHover(h, snapshot.View().Options())
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 	return r, rng, nil
 }
 
-func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error) {
+func hoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error) {
 	ctx, done := event.Start(ctx, "source.Hover")
 	defer done()
 
@@ -782,7 +782,7 @@ func findFieldComment(pos token.Pos, fieldList *ast.FieldList) *ast.CommentGroup
 	return nil
 }
 
-func FormatHover(h *HoverJSON, options *Options) (string, error) {
+func formatHover(h *HoverJSON, options *Options) (string, error) {
 	signature := formatSignature(h, options)
 
 	switch options.HoverKind {

@@ -144,11 +144,10 @@ type Data struct {
 }
 
 // The Tests interface abstracts a set of implementations of marker
-// test operators (such as @hover) appearing
+// test operators (such as @hover) appearing in files beneath ../testdata/.
 //
-// There are three implementations:
+// There are two implementations:
 // - *runner in ../cmd/test/check.go, which runs the command-line tool (e.g. "gopls hover")
-// - *runner in ../source/source_test.go, which makes direct calls (e.g. to source.Hover)
 // - *runner in ../lsp_test.go, which makes LSP requests (textDocument/hover) to a gopls server.
 //
 // Not all implementations implement all methods.

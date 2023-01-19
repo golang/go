@@ -275,14 +275,6 @@ func DiffCallHierarchyItems(gotCalls []protocol.CallHierarchyItem, expectedCalls
 	return ""
 }
 
-func ToProtocolCompletionItems(items []completion.CompletionItem) []protocol.CompletionItem {
-	var result []protocol.CompletionItem
-	for _, item := range items {
-		result = append(result, ToProtocolCompletionItem(item))
-	}
-	return result
-}
-
 func ToProtocolCompletionItem(item completion.CompletionItem) protocol.CompletionItem {
 	pItem := protocol.CompletionItem{
 		Label:         item.Label,
