@@ -1728,7 +1728,7 @@ func TestCutPrefix(t *testing.T) {
 
 var cutSuffixTests = []struct {
 	s, sep string
-	after  string
+	before string
 	found  bool
 }{
 	{"abc", "bc", "a", true},
@@ -1741,8 +1741,8 @@ var cutSuffixTests = []struct {
 
 func TestCutSuffix(t *testing.T) {
 	for _, tt := range cutSuffixTests {
-		if after, found := CutSuffix([]byte(tt.s), []byte(tt.sep)); string(after) != tt.after || found != tt.found {
-			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
+		if before, found := CutSuffix([]byte(tt.s), []byte(tt.sep)); string(before) != tt.before || found != tt.found {
+			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, before, found, tt.before, tt.found)
 		}
 	}
 }
