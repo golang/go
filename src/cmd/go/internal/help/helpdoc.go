@@ -32,19 +32,15 @@ var HelpPackages = &base.Command{
 	UsageLine: "packages",
 	Short:     "package lists and patterns",
 	Long: `
-Many commands apply to a set of packages:
-
-	go action [packages]
-
 Usually, [packages] is a list of import paths.
 
-An import path that is a rooted path or that begins with
-a . or .. element is interpreted as a file system path and
-denotes the package in that directory.
-
-Otherwise, the import path P denotes the package found in
-the directory DIR/src/P for some DIR listed in the GOPATH
-environment variable (For more details see: 'go help gopath').
+An import path is base on module path, for example, 
+'go mod init github.com/user/repo' creates a 'go.mod' file at the root 
+of the project. then package path start with 'github.com/user/repo/dir'.
+	
+Module paths can be changed in the 'go.mod' file. 
+All package paths must be changed from 'github.com/user/repo1/dir' 
+to 'github.com/user/repo2/dir'.
 
 If no import paths are given, the action applies to the
 package in the current directory.
@@ -66,14 +62,8 @@ Go library.
 - "cmd" expands to the Go repository's commands and their
 internal libraries.
 
-Import paths beginning with "cmd/" only match source code in
+Import paths beginning with "github.com/user/repo/cmd/" only match source code in
 the Go repository.
-
-An import path is a pattern if it includes one or more "..." wildcards,
-each of which can match any string, including the empty string and
-strings containing slashes. Such a pattern expands to all package
-directories found in the GOPATH trees with names matching the
-patterns.
 
 To make common patterns more convenient, there are two special cases.
 First, /... at the end of the pattern can match an empty string,
@@ -93,7 +83,7 @@ a remote repository. Run 'go help importpath' for details.
 Every package in a program must have a unique import path.
 By convention, this is arranged by starting each path with a
 unique prefix that belongs to you. For example, paths used
-internally at Google all begin with 'google', and paths
+internally at Google all begin with 'github.com/user/repo/google', and paths
 denoting remote repositories begin with the path to the code,
 such as 'github.com/user/repo'.
 
