@@ -17,30 +17,30 @@ import (
 	"golang.org/x/tools/internal/event"
 )
 
-func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
+func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[span.URI][]*source.Diagnostic, error) {
 	ctx, done := event.Start(ctx, "work.Diagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
 
-	reports := map[source.VersionedFileIdentity][]*source.Diagnostic{}
+	reports := map[span.URI][]*source.Diagnostic{}
 	uri := snapshot.WorkFile()
 	if uri == "" {
 		return nil, nil
 	}
-	fh, err := snapshot.GetVersionedFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	reports[fh.VersionedFileIdentity()] = []*source.Diagnostic{}
+	reports[fh.URI()] = []*source.Diagnostic{}
 	diagnostics, err := DiagnosticsForWork(ctx, snapshot, fh)
 	if err != nil {
 		return nil, err
 	}
 	for _, d := range diagnostics {
-		fh, err := snapshot.GetVersionedFile(ctx, d.URI)
+		fh, err := snapshot.GetFile(ctx, d.URI)
 		if err != nil {
 			return nil, err
 		}
-		reports[fh.VersionedFileIdentity()] = append(reports[fh.VersionedFileIdentity()], d)
+		reports[fh.URI()] = append(reports[fh.URI()], d)
 	}
 
 	return reports, nil

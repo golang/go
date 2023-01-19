@@ -37,7 +37,7 @@ func (s *snapshot) ModVuln(ctx context.Context, modURI span.URI) (*govulncheck.R
 		if err != nil {
 			return nil, err
 		}
-		if _, ok := fh.(*overlay); ok {
+		if _, ok := fh.(*Overlay); ok {
 			if info, _ := os.Stat(modURI.Filename()); info == nil {
 				return nil, source.ErrNoModOnDisk
 			}

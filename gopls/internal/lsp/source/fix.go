@@ -27,7 +27,7 @@ type (
 	// suggested fixes with their diagnostics, so we have to compute them
 	// separately. Such analyzers should provide a function with a signature of
 	// SuggestedFixFunc.
-	SuggestedFixFunc  func(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, pRng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error)
+	SuggestedFixFunc  func(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error)
 	singleFileFixFunc func(fset *token.FileSet, rng safetoken.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error)
 )
 
@@ -52,7 +52,7 @@ var suggestedFixes = map[string]SuggestedFixFunc{
 
 // singleFile calls analyzers that expect inputs for a single file
 func singleFile(sf singleFileFixFunc) SuggestedFixFunc {
-	return func(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, pRng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
+	return func(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
 		fset, rng, src, file, pkg, info, err := getAllSuggestedFixInputs(ctx, snapshot, fh, pRng)
 		if err != nil {
 			return nil, nil, err
@@ -72,7 +72,7 @@ func SuggestedFixFromCommand(cmd protocol.Command, kind protocol.CodeActionKind)
 
 // ApplyFix applies the command's suggested fix to the given file and
 // range, returning the resulting edits.
-func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFileHandle, pRng protocol.Range) ([]protocol.TextDocumentEdit, error) {
+func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh FileHandle, pRng protocol.Range) ([]protocol.TextDocumentEdit, error) {
 	handler, ok := suggestedFixes[fix]
 	if !ok {
 		return nil, fmt.Errorf("no suggested fix function for %s", fix)
@@ -94,7 +94,7 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh VersionedFi
 		if !end.IsValid() {
 			end = edit.Pos
 		}
-		fh, err := snapshot.GetVersionedFile(ctx, span.URIFromPath(tokFile.Name()))
+		fh, err := snapshot.GetFile(ctx, span.URIFromPath(tokFile.Name()))
 		if err != nil {
 			return nil, err
 		}

@@ -25,7 +25,7 @@ import (
 	"golang.org/x/tools/internal/typeparams"
 )
 
-func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, rng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
+func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh FileHandle, rng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
 	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckWorkspace, NarrowestPackage)
 	if err != nil {
 		return nil, nil, fmt.Errorf("GetTypedFile: %w", err)

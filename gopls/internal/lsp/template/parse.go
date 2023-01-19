@@ -70,7 +70,7 @@ type All struct {
 
 // New returns the Parses of the snapshot's tmpl files
 // (maybe cache these, but then avoiding import cycles needs code rearrangements)
-func New(tmpls map[span.URI]source.VersionedFileHandle) *All {
+func New(tmpls map[span.URI]source.FileHandle) *All {
 	all := make(map[span.URI]*Parsed)
 	for k, v := range tmpls {
 		buf, err := v.Read()

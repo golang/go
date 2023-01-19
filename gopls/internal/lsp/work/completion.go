@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/internal/event"
 )
 
-func Completion(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle, position protocol.Position) (*protocol.CompletionList, error) {
+func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, position protocol.Position) (*protocol.CompletionList, error) {
 	ctx, done := event.Start(ctx, "work.Completion")
 	defer done()
 

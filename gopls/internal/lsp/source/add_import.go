@@ -12,7 +12,7 @@ import (
 )
 
 // AddImport adds a single import statement to the given file
-func AddImport(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle, importPath string) ([]protocol.TextEdit, error) {
+func AddImport(ctx context.Context, snapshot Snapshot, fh FileHandle, importPath string) ([]protocol.TextEdit, error) {
 	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return nil, err

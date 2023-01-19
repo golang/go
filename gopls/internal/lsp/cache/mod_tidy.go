@@ -51,7 +51,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 		if err != nil {
 			return nil, err
 		}
-		if _, ok := fh.(*overlay); ok {
+		if _, ok := fh.(*Overlay); ok {
 			if info, _ := os.Stat(uri.Filename()); info == nil {
 				return nil, source.ErrNoModOnDisk
 			}

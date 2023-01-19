@@ -727,7 +727,6 @@ Unknown page
 {{define "serverlink"}}<a href="/server/{{.}}">Server {{.}}</a>{{end}}
 {{define "sessionlink"}}<a href="/session/{{.}}">Session {{.}}</a>{{end}}
 {{define "viewlink"}}<a href="/view/{{.}}">View {{.}}</a>{{end}}
-{{define "filelink"}}<a href="/file/{{.Session}}/{{.FileIdentity.Hash}}">{{.FileIdentity.URI}}</a>{{end}}
 `)).Funcs(template.FuncMap{
 	"fuint64":  fuint64,
 	"fuint32":  fuint32,
@@ -876,7 +875,11 @@ From: <b>{{template "cachelink" .Cache.ID}}</b><br>
 <h2>Views</h2>
 <ul>{{range .Views}}<li>{{.Name}} is {{template "viewlink" .ID}} in {{.Folder}}</li>{{end}}</ul>
 <h2>Overlays</h2>
-<ul>{{range .Overlays}}<li>{{template "filelink" .}}</li>{{end}}</ul>
+{{$session := .}}
+<ul>{{range .Overlays}}
+<li>
+<a href="/file/{{$session.ID}}/{{.FileIdentity.Hash}}">{{.FileIdentity.URI}}</a>
+</li>{{end}}</ul>
 <h2>Options</h2>
 {{range options .}}
 <p><b>{{.Name}}</b> {{.Type}}</p>
@@ -900,7 +903,6 @@ var FileTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}Overlay {{.FileIdentity.Hash}}{{end}}
 {{define "body"}}
 {{with .}}
-	From: <b>{{template "sessionlink" .Session}}</b><br>
 	URI: <b>{{.URI}}</b><br>
 	Identifier: <b>{{.FileIdentity.Hash}}</b><br>
 	Version: <b>{{.Version}}</b><br>

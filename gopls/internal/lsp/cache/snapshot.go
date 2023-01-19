@@ -268,12 +268,12 @@ func (s *snapshot) WorkFile() span.URI {
 	return s.view.effectiveGOWORK()
 }
 
-func (s *snapshot) Templates() map[span.URI]source.VersionedFileHandle {
+func (s *snapshot) Templates() map[span.URI]source.FileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	tmpls := map[span.URI]source.VersionedFileHandle{}
-	s.files.Range(func(k span.URI, fh source.VersionedFileHandle) {
+	tmpls := map[span.URI]source.FileHandle{}
+	s.files.Range(func(k span.URI, fh source.FileHandle) {
 		if s.view.FileKind(fh) == source.Tmpl {
 			tmpls[k] = fh
 		}
@@ -602,8 +602,8 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 	defer s.mu.Unlock()
 
 	overlays := make(map[string][]byte)
-	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
-		overlay, ok := fh.(*overlay)
+	s.files.Range(func(uri span.URI, fh source.FileHandle) {
+		overlay, ok := fh.(*Overlay)
 		if !ok {
 			return
 		}
@@ -879,7 +879,7 @@ func (s *snapshot) collectAllKnownSubdirs(ctx context.Context) {
 	s.knownSubdirs.Destroy()
 	s.knownSubdirs = newKnownDirsSet()
 	s.knownSubdirsPatternCache = ""
-	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
+	s.files.Range(func(uri span.URI, fh source.FileHandle) {
 		s.addKnownSubdirLocked(uri, dirs)
 	})
 }
@@ -963,7 +963,7 @@ func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
+	s.files.Range(func(uri span.URI, fh source.FileHandle) {
 		if source.InDir(dir.Filename(), uri.Filename()) {
 			files = append(files, uri)
 		}
@@ -995,9 +995,9 @@ func (s *snapshot) ActiveMetadata(ctx context.Context) ([]*source.Metadata, erro
 // Symbols extracts and returns the symbols for each file in all the snapshot's views.
 func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 	// Read the set of Go files out of the snapshot.
-	var goFiles []source.VersionedFileHandle
+	var goFiles []source.FileHandle
 	s.mu.Lock()
-	s.files.Range(func(uri span.URI, f source.VersionedFileHandle) {
+	s.files.Range(func(uri span.URI, f source.FileHandle) {
 		if s.View().FileKind(f) == source.Go {
 			goFiles = append(goFiles, f)
 		}
@@ -1153,7 +1153,7 @@ func (s *snapshot) isWorkspacePackage(id PackageID) bool {
 	return ok
 }
 
-func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
+func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
 	uri, _ = s.view.canonicalURI(uri, true)
 
 	s.mu.Lock()
@@ -1163,12 +1163,12 @@ func (s *snapshot) FindFile(uri span.URI) source.VersionedFileHandle {
 	return result
 }
 
-// GetVersionedFile returns a File for the given URI. If the file is unknown it
-// is added to the managed set.
+// GetFile returns a File for the given URI. If the file is unknown it is added
+// to the managed set.
 //
-// GetVersionedFile succeeds even if the file does not exist. A non-nil error return
+// GetFile succeeds even if the file does not exist. A non-nil error return
 // indicates some type of internal error, for example if ctx is cancelled.
-func (s *snapshot) GetVersionedFile(ctx context.Context, uri span.URI) (source.VersionedFileHandle, error) {
+func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	uri, _ = s.view.canonicalURI(uri, true)
 
 	s.mu.Lock()
@@ -1178,18 +1178,12 @@ func (s *snapshot) GetVersionedFile(ctx context.Context, uri span.URI) (source.V
 		return fh, nil
 	}
 
-	fh, err := s.view.cache.getFile(ctx, uri) // read the file
+	fh, err := s.view.cache.GetFile(ctx, uri) // read the file
 	if err != nil {
 		return nil, err
 	}
-	closed := &closedFile{fh}
-	s.files.Set(uri, closed)
-	return closed, nil
-}
-
-// GetFile implements the fileSource interface by wrapping GetVersionedFile.
-func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
-	return s.GetVersionedFile(ctx, uri)
+	s.files.Set(uri, fh)
+	return fh, nil
 }
 
 func (s *snapshot) IsOpen(uri span.URI) bool {
@@ -1199,12 +1193,12 @@ func (s *snapshot) IsOpen(uri span.URI) bool {
 
 }
 
-func (s *snapshot) openFiles() []source.VersionedFileHandle {
+func (s *snapshot) openFiles() []source.FileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var open []source.VersionedFileHandle
-	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
+	var open []source.FileHandle
+	s.files.Range(func(uri span.URI, fh source.FileHandle) {
 		if isFileOpen(fh) {
 			open = append(open, fh)
 		}
@@ -1217,8 +1211,8 @@ func (s *snapshot) isOpenLocked(uri span.URI) bool {
 	return isFileOpen(fh)
 }
 
-func isFileOpen(fh source.VersionedFileHandle) bool {
-	_, open := fh.(*overlay)
+func isFileOpen(fh source.FileHandle) bool {
+	_, open := fh.(*Overlay)
 	return open
 }
 
@@ -1479,14 +1473,14 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	return nil
 }
 
-func (s *snapshot) orphanedOpenFiles() []source.VersionedFileHandle {
+func (s *snapshot) orphanedOpenFiles() []source.FileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var files []source.VersionedFileHandle
-	s.files.Range(func(uri span.URI, fh source.VersionedFileHandle) {
+	var files []source.FileHandle
+	s.files.Range(func(uri span.URI, fh source.FileHandle) {
 		// Only consider open files, which will be represented as overlays.
-		if _, isOverlay := fh.(*overlay); !isOverlay {
+		if _, isOverlay := fh.(*Overlay); !isOverlay {
 			return
 		}
 		// Don't try to reload metadata for go.mod files.
@@ -1716,8 +1710,8 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// The original FileHandle for this URI is cached on the snapshot.
 		originalFH, _ := s.files.Get(uri)
 		var originalOpen, newOpen bool
-		_, originalOpen = originalFH.(*overlay)
-		_, newOpen = change.fileHandle.(*overlay)
+		_, originalOpen = originalFH.(*Overlay)
+		_, newOpen = change.fileHandle.(*Overlay)
 		anyFileOpenedOrClosed = anyFileOpenedOrClosed || (originalOpen != newOpen)
 		anyFileAdded = anyFileAdded || (originalFH == nil && change.fileHandle != nil)
 
@@ -1999,11 +1993,11 @@ func invalidatedPackageIDs(uri span.URI, known map[span.URI][]PackageID, package
 // are both overlays, and if the current FileHandle is saved while the original
 // FileHandle was not saved.
 func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
-	c, ok := currentFH.(*overlay)
+	c, ok := currentFH.(*Overlay)
 	if !ok || c == nil {
 		return true
 	}
-	o, ok := originalFH.(*overlay)
+	o, ok := originalFH.(*Overlay)
 	if !ok || o == nil {
 		return c.saved
 	}

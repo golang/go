@@ -188,7 +188,7 @@ func (s *snapshot) goSum(ctx context.Context, modURI span.URI) []byte {
 	var sumFH source.FileHandle = s.FindFile(sumURI)
 	if sumFH == nil {
 		var err error
-		sumFH, err = s.view.cache.getFile(ctx, sumURI)
+		sumFH, err = s.view.cache.GetFile(ctx, sumURI)
 		if err != nil {
 			return nil
 		}

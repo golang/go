@@ -335,7 +335,7 @@ https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`
 			rootMod = uri.Filename()
 		}
 		rootDir := filepath.Dir(rootMod)
-		nestedModules := make(map[string][]source.VersionedFileHandle)
+		nestedModules := make(map[string][]source.FileHandle)
 		for _, fh := range openFiles {
 			mod, err := findRootPattern(ctx, filepath.Dir(fh.URI().Filename()), "go.mod", s)
 			if err != nil {
@@ -375,7 +375,7 @@ See https://github.com/golang/tools/blob/master/gopls/doc/workspace.md for more 
 	return nil, nil
 }
 
-func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, files []source.VersionedFileHandle) []*source.Diagnostic {
+func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, files []source.FileHandle) []*source.Diagnostic {
 	var srcDiags []*source.Diagnostic
 	for _, fh := range files {
 		// Place the diagnostics on the package or module declarations.

@@ -25,7 +25,7 @@ type completer struct {
 	syms   map[string]symbol
 }
 
-func Completion(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle, pos protocol.Position, context protocol.CompletionContext) (*protocol.CompletionList, error) {
+func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, pos protocol.Position, context protocol.CompletionContext) (*protocol.CompletionList, error) {
 	all := New(snapshot.Templates())
 	var start int // the beginning of the Token (completed or not)
 	syms := make(map[string]symbol)

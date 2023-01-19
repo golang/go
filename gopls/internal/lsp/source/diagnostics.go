@@ -73,22 +73,22 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeCon
 // "gopls/diagnoseFiles" nonstandard request handler. It would be more
 // efficient to compute the set of packages and TypeCheck and
 // Analyze them all at once.
-func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (VersionedFileIdentity, []*Diagnostic, error) {
-	fh, err := snapshot.GetVersionedFile(ctx, uri)
+func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (FileHandle, []*Diagnostic, error) {
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
-		return VersionedFileIdentity{}, nil, err
+		return nil, nil, err
 	}
 	pkg, _, err := PackageForFile(ctx, snapshot, uri, TypecheckFull, NarrowestPackage)
 	if err != nil {
-		return VersionedFileIdentity{}, nil, err
+		return nil, nil, err
 	}
 	adiags, err := Analyze(ctx, snapshot, pkg.ID(), false)
 	if err != nil {
-		return VersionedFileIdentity{}, nil, err
+		return nil, nil, err
 	}
 	var fileDiags []*Diagnostic // combine load/parse/type + analysis diagnostics
 	CombineDiagnostics(pkg, fh.URI(), adiags, &fileDiags, &fileDiags)
-	return fh.VersionedFileIdentity(), fileDiags, nil
+	return fh, fileDiags, nil
 }
 
 // CombineDiagnostics combines and filters list/parse/type diagnostics

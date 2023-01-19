@@ -24,7 +24,7 @@ import (
 // all dot-free paths (standard packages) appear before dotful ones.
 //
 // It is part of the gopls.list_known_packages command.
-func KnownPackagePaths(ctx context.Context, snapshot Snapshot, fh VersionedFileHandle) ([]PackagePath, error) {
+func KnownPackagePaths(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]PackagePath, error) {
 	// This algorithm is expressed in terms of Metadata, not Packages,
 	// so it doesn't cause or wait for type checking.
 

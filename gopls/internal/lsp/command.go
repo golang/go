@@ -70,9 +70,9 @@ type commandConfig struct {
 // be populated, depending on which configuration is set. See comments in-line
 // for details.
 type commandDeps struct {
-	snapshot source.Snapshot            // present if cfg.forURI was set
-	fh       source.VersionedFileHandle // present if cfg.forURI was set
-	work     *progress.WorkDone         // present cfg.progress was set
+	snapshot source.Snapshot    // present if cfg.forURI was set
+	fh       source.FileHandle  // present if cfg.forURI was set
+	work     *progress.WorkDone // present cfg.progress was set
 }
 
 type commandFunc func(context.Context, commandDeps) error
@@ -606,7 +606,7 @@ func (s *Server) runGoModUpdateCommands(ctx context.Context, snapshot source.Sna
 }
 
 func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI, newContent []byte) ([]protocol.TextDocumentEdit, error) {
-	fh, err := snapshot.GetVersionedFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}

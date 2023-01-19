@@ -247,16 +247,16 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	}()
 
 	// common code for dispatching diagnostics
-	store := func(dsource diagnosticSource, operation string, diagsByFileID map[source.VersionedFileIdentity][]*source.Diagnostic, err error, merge bool) {
+	store := func(dsource diagnosticSource, operation string, diagsByFile map[span.URI][]*source.Diagnostic, err error, merge bool) {
 		if err != nil {
 			event.Error(ctx, "warning: while "+operation, err, source.SnapshotLabels(snapshot)...)
 		}
-		for id, diags := range diagsByFileID {
-			if id.URI == "" {
+		for uri, diags := range diagsByFile {
+			if uri == "" {
 				event.Error(ctx, "missing URI while "+operation, fmt.Errorf("empty URI"), tag.Directory.Of(snapshot.View().Folder().Filename()))
 				continue
 			}
-			s.storeDiagnostics(snapshot, id.URI, dsource, diags, merge)
+			s.storeDiagnostics(snapshot, uri, dsource, diags, merge)
 		}
 	}
 
@@ -425,14 +425,14 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, m *s
 		// results. This ensures that the toggling of GC details and clearing of
 		// diagnostics does not race with storing the results here.
 		if enableGCDetails {
-			for id, diags := range gcReports {
-				fh := snapshot.FindFile(id.URI)
+			for uri, diags := range gcReports {
+				fh := snapshot.FindFile(uri)
 				// Don't publish gc details for unsaved buffers, since the underlying
 				// logic operates on the file on disk.
 				if fh == nil || !fh.Saved() {
 					continue
 				}
-				s.storeDiagnostics(snapshot, id.URI, gcDetailsSource, diags, true)
+				s.storeDiagnostics(snapshot, uri, gcDetailsSource, diags, true)
 			}
 		}
 		s.gcOptimizationDetailsMu.Unlock()
@@ -543,7 +543,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 // checkForOrphanedFile checks that the given URIs can be mapped to packages.
 // If they cannot and the workspace is not otherwise unloaded, it also surfaces
 // a warning, suggesting that the user check the file for build tags.
-func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snapshot, fh source.VersionedFileHandle) *source.Diagnostic {
+func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) *source.Diagnostic {
 	// TODO(rfindley): this function may fail to produce a diagnostic for a
 	// variety of reasons, some of which should probably not be ignored. For
 	// example, should this function be tolerant of the case where fh does not

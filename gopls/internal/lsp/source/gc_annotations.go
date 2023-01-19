@@ -35,7 +35,7 @@ const (
 	Bounds Annotation = "bounds"
 )
 
-func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, m *Metadata) (map[VersionedFileIdentity][]*Diagnostic, error) {
+func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, m *Metadata) (map[span.URI][]*Diagnostic, error) {
 	if len(m.CompiledGoFiles) == 0 {
 		return nil, nil
 	}
@@ -74,7 +74,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, m *Metadata) 
 	if err != nil {
 		return nil, err
 	}
-	reports := make(map[VersionedFileIdentity][]*Diagnostic)
+	reports := make(map[span.URI][]*Diagnostic)
 	opts := snapshot.View().Options()
 	var parseError error
 	for _, fn := range files {
@@ -93,7 +93,7 @@ func GCOptimizationDetails(ctx context.Context, snapshot Snapshot, m *Metadata) 
 			// outside the package can never be taken back.
 			continue
 		}
-		reports[fh.VersionedFileIdentity()] = diagnostics
+		reports[fh.URI()] = diagnostics
 	}
 	return reports, parseError
 }

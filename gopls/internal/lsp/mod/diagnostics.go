@@ -26,7 +26,7 @@ import (
 // Diagnostics returns diagnostics for the modules in the workspace.
 //
 // It waits for completion of type-checking of all active packages.
-func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
+func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[span.URI][]*source.Diagnostic, error) {
 	ctx, done := event.Start(ctx, "mod.Diagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
 
@@ -35,7 +35,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.Vers
 
 // UpgradeDiagnostics returns upgrade diagnostics for the modules in the
 // workspace with known upgrades.
-func UpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
+func UpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[span.URI][]*source.Diagnostic, error) {
 	ctx, done := event.Start(ctx, "mod.UpgradeDiagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
 
@@ -44,31 +44,31 @@ func UpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[sour
 
 // VulnerabilityDiagnostics returns vulnerability diagnostics for the active modules in the
 // workspace with known vulnerabilites.
-func VulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
+func VulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[span.URI][]*source.Diagnostic, error) {
 	ctx, done := event.Start(ctx, "mod.VulnerabilityDiagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
 
 	return collectDiagnostics(ctx, snapshot, ModVulnerabilityDiagnostics)
 }
 
-func collectDiagnostics(ctx context.Context, snapshot source.Snapshot, diagFn func(context.Context, source.Snapshot, source.FileHandle) ([]*source.Diagnostic, error)) (map[source.VersionedFileIdentity][]*source.Diagnostic, error) {
-	reports := make(map[source.VersionedFileIdentity][]*source.Diagnostic)
+func collectDiagnostics(ctx context.Context, snapshot source.Snapshot, diagFn func(context.Context, source.Snapshot, source.FileHandle) ([]*source.Diagnostic, error)) (map[span.URI][]*source.Diagnostic, error) {
+	reports := make(map[span.URI][]*source.Diagnostic)
 	for _, uri := range snapshot.ModFiles() {
-		fh, err := snapshot.GetVersionedFile(ctx, uri)
+		fh, err := snapshot.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
-		reports[fh.VersionedFileIdentity()] = []*source.Diagnostic{}
+		reports[fh.URI()] = []*source.Diagnostic{}
 		diagnostics, err := diagFn(ctx, snapshot, fh)
 		if err != nil {
 			return nil, err
 		}
 		for _, d := range diagnostics {
-			fh, err := snapshot.GetVersionedFile(ctx, d.URI)
+			fh, err := snapshot.GetFile(ctx, d.URI)
 			if err != nil {
 				return nil, err
 			}
-			reports[fh.VersionedFileIdentity()] = append(reports[fh.VersionedFileIdentity()], d)
+			reports[fh.URI()] = append(reports[fh.URI()], d)
 		}
 	}
 	return reports, nil

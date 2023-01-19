@@ -39,21 +39,21 @@ func (m filesMap) Destroy() {
 	m.impl.Destroy()
 }
 
-func (m filesMap) Get(key span.URI) (source.VersionedFileHandle, bool) {
+func (m filesMap) Get(key span.URI) (source.FileHandle, bool) {
 	value, ok := m.impl.Get(key)
 	if !ok {
 		return nil, false
 	}
-	return value.(source.VersionedFileHandle), true
+	return value.(source.FileHandle), true
 }
 
-func (m filesMap) Range(do func(key span.URI, value source.VersionedFileHandle)) {
+func (m filesMap) Range(do func(key span.URI, value source.FileHandle)) {
 	m.impl.Range(func(key, value interface{}) {
-		do(key.(span.URI), value.(source.VersionedFileHandle))
+		do(key.(span.URI), value.(source.FileHandle))
 	})
 }
 
-func (m filesMap) Set(key span.URI, value source.VersionedFileHandle) {
+func (m filesMap) Set(key span.URI, value source.FileHandle) {
 	m.impl.Set(key, value, nil)
 }
 

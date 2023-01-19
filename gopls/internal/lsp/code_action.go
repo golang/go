@@ -366,7 +366,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI
 	return actions, nil
 }
 
-func documentChanges(fh source.VersionedFileHandle, edits []protocol.TextEdit) []protocol.DocumentChanges {
+func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol.DocumentChanges {
 	return []protocol.DocumentChanges{
 		{
 			TextDocumentEdit: &protocol.TextDocumentEdit{
@@ -410,7 +410,7 @@ func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd 
 	for _, fix := range sd.SuggestedFixes {
 		var changes []protocol.DocumentChanges
 		for uri, edits := range fix.Edits {
-			fh, err := snapshot.GetVersionedFile(ctx, uri)
+			fh, err := snapshot.GetFile(ctx, uri)
 			if err != nil {
 				return nil, err
 			}

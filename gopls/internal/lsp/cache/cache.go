@@ -50,7 +50,7 @@ func New(fset *token.FileSet, store *memoize.Store) *Cache {
 		id:          strconv.FormatInt(index, 10),
 		fset:        fset,
 		store:       store,
-		fileContent: map[span.URI]*fileHandle{},
+		fileContent: map[span.URI]*DiskFile{},
 	}
 	return c
 }
@@ -62,30 +62,40 @@ type Cache struct {
 	store *memoize.Store
 
 	fileMu      sync.Mutex
-	fileContent map[span.URI]*fileHandle
+	fileContent map[span.URI]*DiskFile
 }
 
-type fileHandle struct {
-	modTime time.Time
+// A DiskFile is a file on the filesystem, or a failure to read one.
+// It implements the source.FileHandle interface.
+type DiskFile struct {
 	uri     span.URI
+	modTime time.Time
 	content []byte
 	hash    source.Hash
 	err     error
 }
 
-func (h *fileHandle) Saved() bool {
-	return true
+func (h *DiskFile) URI() span.URI { return h.uri }
+
+func (h *DiskFile) FileIdentity() source.FileIdentity {
+	return source.FileIdentity{
+		URI:  h.uri,
+		Hash: h.hash,
+	}
+}
+
+func (h *DiskFile) Saved() bool    { return true }
+func (h *DiskFile) Version() int32 { return 0 }
+
+func (h *DiskFile) Read() ([]byte, error) {
+	return h.content, h.err
 }
 
 // GetFile stats and (maybe) reads the file, updates the cache, and returns it.
 func (c *Cache) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
-	return c.getFile(ctx, uri)
-}
-
-func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) {
 	fi, statErr := os.Stat(uri.Filename())
 	if statErr != nil {
-		return &fileHandle{
+		return &DiskFile{
 			err: statErr,
 			uri: uri,
 		}, nil
@@ -127,7 +137,7 @@ func (c *Cache) getFile(ctx context.Context, uri span.URI) (*fileHandle, error) 
 // ioLimit limits the number of parallel file reads per process.
 var ioLimit = make(chan struct{}, 128)
 
-func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*fileHandle, error) {
+func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*DiskFile, error) {
 	select {
 	case ioLimit <- struct{}{}:
 	case <-ctx.Done():
@@ -143,7 +153,7 @@ func readFile(ctx context.Context, uri span.URI, fi os.FileInfo) (*fileHandle, e
 	if err != nil {
 		content = nil // just in case
 	}
-	return &fileHandle{
+	return &DiskFile{
 		modTime: fi.ModTime(),
 		uri:     uri,
 		content: content,
@@ -166,25 +176,10 @@ func NewSession(ctx context.Context, c *Cache, optionsOverrides func(*source.Opt
 		cache:       c,
 		gocmdRunner: &gocommand.Runner{},
 		options:     options,
-		overlays:    make(map[span.URI]*overlay),
+		overlays:    make(map[span.URI]*Overlay),
 	}
 	event.Log(ctx, "New session", KeyCreateSession.Of(s))
 	return s
-}
-
-func (h *fileHandle) URI() span.URI {
-	return h.uri
-}
-
-func (h *fileHandle) FileIdentity() source.FileIdentity {
-	return source.FileIdentity{
-		URI:  h.uri,
-		Hash: h.hash,
-	}
-}
-
-func (h *fileHandle) Read() ([]byte, error) {
-	return h.content, h.err
 }
 
 var cacheIndex, sessionIndex, viewIndex int64

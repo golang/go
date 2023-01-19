@@ -13,7 +13,6 @@ package debug_test
 import (
 	"go/ast"
 	"html/template"
-	"log"
 	"runtime"
 	"sort"
 	"strings"
@@ -23,16 +22,12 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
-	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/gopls/internal/span"
 )
 
-type tdata struct {
+var templates = map[string]struct {
 	tmpl *template.Template
 	data interface{} // a value of the needed type
-}
-
-var templates = map[string]tdata{
+}{
 	"MainTmpl":    {debug.MainTmpl, &debug.Instance{}},
 	"DebugTmpl":   {debug.DebugTmpl, nil},
 	"RPCTmpl":     {debug.RPCTmpl, &debug.Rpcs{}},
@@ -42,45 +37,9 @@ var templates = map[string]tdata{
 	"ViewTmpl":    {debug.ViewTmpl, &cache.View{}},
 	"ClientTmpl":  {debug.ClientTmpl, &debug.Client{}},
 	"ServerTmpl":  {debug.ServerTmpl, &debug.Server{}},
-	//"FileTmpl":    {FileTmpl, source.Overlay{}}, // need to construct a source.Overlay in init
-	"InfoTmpl":   {debug.InfoTmpl, "something"},
-	"MemoryTmpl": {debug.MemoryTmpl, runtime.MemStats{}},
-}
-
-// construct a source.Overlay for fileTmpl
-type fakeOverlay struct{}
-
-func (fakeOverlay) Version() int32 {
-	return 0
-}
-func (fakeOverlay) Session() string {
-	return ""
-}
-func (fakeOverlay) VersionedFileIdentity() source.VersionedFileIdentity {
-	return source.VersionedFileIdentity{}
-}
-func (fakeOverlay) FileIdentity() source.FileIdentity {
-	return source.FileIdentity{}
-}
-func (fakeOverlay) Kind() source.FileKind {
-	return 0
-}
-func (fakeOverlay) Read() ([]byte, error) {
-	return nil, nil
-}
-func (fakeOverlay) Saved() bool {
-	return true
-}
-func (fakeOverlay) URI() span.URI {
-	return ""
-}
-
-var _ source.Overlay = fakeOverlay{}
-
-func init() {
-	log.SetFlags(log.Lshortfile)
-	var v fakeOverlay
-	templates["FileTmpl"] = tdata{debug.FileTmpl, v}
+	"FileTmpl":    {debug.FileTmpl, &cache.Overlay{}},
+	"InfoTmpl":    {debug.InfoTmpl, "something"},
+	"MemoryTmpl":  {debug.MemoryTmpl, runtime.MemStats{}},
 }
 
 func TestTemplates(t *testing.T) {
@@ -169,6 +128,7 @@ func callsOf(p *packages.Package, tree *ast.File, name string) []*ast.CallExpr {
 	ast.Inspect(tree, f)
 	return ans
 }
+
 func treeOf(p *packages.Package, fname string) *ast.File {
 	for _, tree := range p.Syntax {
 		loc := tree.Package

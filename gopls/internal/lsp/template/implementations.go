@@ -22,7 +22,7 @@ var errRe = regexp.MustCompile(`template.*:(\d+): (.*)`)
 // Diagnose returns parse errors. There is only one.
 // The errors are not always helpful. For instance { {end}}
 // will likely point to the end of the file.
-func Diagnose(f source.VersionedFileHandle) []*source.Diagnostic {
+func Diagnose(f source.FileHandle) []*source.Diagnostic {
 	// no need for skipTemplate check, as Diagnose is called on the
 	// snapshot's template files
 	buf, err := f.Read()
@@ -73,7 +73,7 @@ func Diagnose(f source.VersionedFileHandle) []*source.Diagnostic {
 // does not understand scoping (if any) in templates. This code is
 // for definitions, type definitions, and implementations.
 // Results only for variables and templates.
-func Definition(snapshot source.Snapshot, fh source.VersionedFileHandle, loc protocol.Position) ([]protocol.Location, error) {
+func Definition(snapshot source.Snapshot, fh source.FileHandle, loc protocol.Position) ([]protocol.Location, error) {
 	x, _, err := symAtPosition(fh, loc)
 	if err != nil {
 		return nil, err

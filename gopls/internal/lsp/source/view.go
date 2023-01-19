@@ -78,11 +78,7 @@ type Snapshot interface {
 
 	// FindFile returns the FileHandle for the given URI, if it is already
 	// in the given snapshot.
-	FindFile(uri span.URI) VersionedFileHandle
-
-	// GetVersionedFile returns the VersionedFileHandle for a given URI,
-	// initializing it if it is not already part of the snapshot.
-	GetVersionedFile(ctx context.Context, uri span.URI) (VersionedFileHandle, error)
+	FindFile(uri span.URI) FileHandle
 
 	// GetFile returns the FileHandle for a given URI, initializing it if it is
 	// not already part of the snapshot.
@@ -99,7 +95,7 @@ type Snapshot interface {
 	IgnoredFile(uri span.URI) bool
 
 	// Templates returns the .tmpl files
-	Templates() map[span.URI]VersionedFileHandle
+	Templates() map[span.URI]FileHandle
 
 	// ParseGo returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
@@ -513,12 +509,6 @@ func RemoveIntermediateTestVariants(metas []*Metadata) []*Metadata {
 
 var ErrViewExists = errors.New("view already exists for session")
 
-// Overlay is the type for a file held in memory on a session.
-type Overlay interface {
-	Kind() FileKind
-	VersionedFileHandle
-}
-
 // FileModification represents a modification to a file.
 type FileModification struct {
 	URI    span.URI
@@ -613,38 +603,26 @@ const (
 	TypecheckWorkspace
 )
 
-type VersionedFileHandle interface {
-	FileHandle
-	Version() int32
-	Session() string
-
-	// LSPIdentity returns the version identity of a file.
-	VersionedFileIdentity() VersionedFileIdentity
-}
-
-type VersionedFileIdentity struct {
-	URI span.URI
-
-	// SessionID is the ID of the LSP session.
-	SessionID string
-
-	// Version is the version of the file, as specified by the client. It should
-	// only be set in combination with SessionID.
-	Version int32
-}
-
-// FileHandle represents a handle to a specific version of a single file.
+// A FileHandle is an interface to files tracked by the LSP session, which may
+// be either files read from disk, or open in the editor session (overlays).
 type FileHandle interface {
+	// URI is the URI for this file handle.
+	// TODO(rfindley): this is not actually well-defined. In some cases, there
+	// may be more than one URI that resolve to the same FileHandle. Which one is
+	// this?
 	URI() span.URI
-
 	// FileIdentity returns a FileIdentity for the file, even if there was an
 	// error reading it.
 	FileIdentity() FileIdentity
+	// Saved reports whether the file has the same content on disk.
+	// For on-disk files, this is trivially true.
+	Saved() bool
+	// Version returns the file version, as defined by the LSP client.
+	// For on-disk file handles, Version returns 0.
+	Version() int32
 	// Read reads the contents of a file.
 	// If the file is not available, returns a nil slice and an error.
 	Read() ([]byte, error)
-	// Saved reports whether the file has the same content on disk.
-	Saved() bool
 }
 
 // A Hash is a cryptographic digest of the contents of a file.

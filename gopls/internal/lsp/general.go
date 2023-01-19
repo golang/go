@@ -549,7 +549,7 @@ func (s *Server) handleOptionResults(ctx context.Context, results source.OptionR
 // We don't want to return errors for benign conditions like wrong file type,
 // so callers should do if !ok { return err } rather than if err != nil.
 // The returned cleanup function is non-nil even in case of false/error result.
-func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI, expectKind source.FileKind) (source.Snapshot, source.VersionedFileHandle, bool, func(), error) {
+func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI, expectKind source.FileKind) (source.Snapshot, source.FileHandle, bool, func(), error) {
 	uri := pURI.SpanURI()
 	if !uri.IsFile() {
 		// Not a file URI. Stop processing the request, but don't return an error.
@@ -560,7 +560,7 @@ func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI
 		return nil, nil, false, func() {}, err
 	}
 	snapshot, release := view.Snapshot(ctx)
-	fh, err := snapshot.GetVersionedFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		release()
 		return nil, nil, false, func() {}, err
