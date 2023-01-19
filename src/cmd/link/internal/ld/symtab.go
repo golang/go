@@ -632,32 +632,44 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	// the definition of moduledata in runtime/symtab.go.
 	// This code uses several global variables that are set by pcln.go:pclntab.
 	moduledata := ldr.MakeSymbolUpdater(ctxt.Moduledata)
+
+	slice := func(sym loader.Sym, len uint64) {
+		moduledata.AddAddr(ctxt.Arch, sym)
+		moduledata.AddUint(ctxt.Arch, len)
+		moduledata.AddUint(ctxt.Arch, len)
+	}
+
+	sliceSym := func(sym loader.Sym) {
+		slice(sym, uint64(ldr.SymSize(sym)))
+	}
+
+	nilSlice := func() {
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0)
+		moduledata.AddUint(ctxt.Arch, 0)
+	}
+
 	// The pcHeader
 	moduledata.AddAddr(ctxt.Arch, pcln.pcheader)
+
 	// The function name slice
-	moduledata.AddAddr(ctxt.Arch, pcln.funcnametab)
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.funcnametab)))
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.funcnametab)))
+	sliceSym(pcln.funcnametab)
+
 	// The cutab slice
-	moduledata.AddAddr(ctxt.Arch, pcln.cutab)
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.cutab)))
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.cutab)))
+	sliceSym(pcln.cutab)
+
 	// The filetab slice
-	moduledata.AddAddr(ctxt.Arch, pcln.filetab)
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.filetab)))
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.filetab)))
+	sliceSym(pcln.filetab)
+
 	// The pctab slice
-	moduledata.AddAddr(ctxt.Arch, pcln.pctab)
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pctab)))
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pctab)))
+	sliceSym(pcln.pctab)
+
 	// The pclntab slice
-	moduledata.AddAddr(ctxt.Arch, pcln.pclntab)
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pclntab)))
-	moduledata.AddUint(ctxt.Arch, uint64(ldr.SymSize(pcln.pclntab)))
+	slice(pcln.pclntab, uint64(ldr.SymSize(pcln.pclntab)))
+
 	// The ftab slice
-	moduledata.AddAddr(ctxt.Arch, pcln.pclntab)
-	moduledata.AddUint(ctxt.Arch, uint64(pcln.nfunc+1))
-	moduledata.AddUint(ctxt.Arch, uint64(pcln.nfunc+1))
+	slice(pcln.pclntab, uint64(pcln.nfunc+1))
+
 	// findfunctab
 	moduledata.AddAddr(ctxt.Arch, pcln.findfunctab)
 	// minpc, maxpc
@@ -708,22 +720,18 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	}
 
 	// text section information
-	moduledata.AddAddr(ctxt.Arch, textsectionmapSym)
-	moduledata.AddUint(ctxt.Arch, uint64(nsections))
-	moduledata.AddUint(ctxt.Arch, uint64(nsections))
+	slice(textsectionmapSym, uint64(nsections))
 
 	// The typelinks slice
 	typelinkSym := ldr.Lookup("runtime.typelink", 0)
 	ntypelinks := uint64(ldr.SymSize(typelinkSym)) / 4
-	moduledata.AddAddr(ctxt.Arch, typelinkSym)
-	moduledata.AddUint(ctxt.Arch, ntypelinks)
-	moduledata.AddUint(ctxt.Arch, ntypelinks)
+	slice(typelinkSym, ntypelinks)
+
 	// The itablinks slice
 	itablinkSym := ldr.Lookup("runtime.itablink", 0)
 	nitablinks := uint64(ldr.SymSize(itablinkSym)) / uint64(ctxt.Arch.PtrSize)
-	moduledata.AddAddr(ctxt.Arch, itablinkSym)
-	moduledata.AddUint(ctxt.Arch, nitablinks)
-	moduledata.AddUint(ctxt.Arch, nitablinks)
+	slice(itablinkSym, nitablinks)
+
 	// The ptab slice
 	if ptab := ldr.Lookup("go:plugin.tabs", 0); ptab != 0 && ldr.AttrReachable(ptab) {
 		ldr.SetAttrLocal(ptab, true)
@@ -731,14 +739,11 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			panic(fmt.Sprintf("go:plugin.tabs is %v, not SRODATA", ldr.SymType(ptab)))
 		}
 		nentries := uint64(len(ldr.Data(ptab)) / 8) // sizeof(nameOff) + sizeof(typeOff)
-		moduledata.AddAddr(ctxt.Arch, ptab)
-		moduledata.AddUint(ctxt.Arch, nentries)
-		moduledata.AddUint(ctxt.Arch, nentries)
+		slice(ptab, nentries)
 	} else {
-		moduledata.AddUint(ctxt.Arch, 0)
-		moduledata.AddUint(ctxt.Arch, 0)
-		moduledata.AddUint(ctxt.Arch, 0)
+		nilSlice()
 	}
+
 	if ctxt.BuildMode == BuildModePlugin {
 		addgostring(ctxt, ldr, moduledata, "go:link.thispluginpath", objabi.PathToPrefix(*flagPluginPath))
 
@@ -755,15 +760,11 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			hash := ldr.Lookup("go:link.pkghash."+l.Pkg, 0)
 			pkghashes.AddAddr(ctxt.Arch, hash)
 		}
-		moduledata.AddAddr(ctxt.Arch, pkghashes.Sym())
-		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Library)))
-		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Library)))
+		slice(pkghashes.Sym(), uint64(len(ctxt.Library)))
 	} else {
 		moduledata.AddUint(ctxt.Arch, 0) // pluginpath
 		moduledata.AddUint(ctxt.Arch, 0)
-		moduledata.AddUint(ctxt.Arch, 0) // pkghashes slice
-		moduledata.AddUint(ctxt.Arch, 0)
-		moduledata.AddUint(ctxt.Arch, 0)
+		nilSlice() // pkghashes slice
 	}
 	// Add inittasks slice
 	t := ctxt.mainInittasks
@@ -809,15 +810,11 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			modulehashes.AddAddr(ctxt.Arch, abihash)
 		}
 
-		moduledata.AddAddr(ctxt.Arch, modulehashes.Sym())
-		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Shlibs)))
-		moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Shlibs)))
+		slice(modulehashes.Sym(), uint64(len(ctxt.Shlibs)))
 	} else {
 		moduledata.AddUint(ctxt.Arch, 0) // modulename
 		moduledata.AddUint(ctxt.Arch, 0)
-		moduledata.AddUint(ctxt.Arch, 0) // moduleshashes slice
-		moduledata.AddUint(ctxt.Arch, 0)
-		moduledata.AddUint(ctxt.Arch, 0)
+		nilSlice() // moduleshashes slice
 	}
 
 	hasmain := ctxt.BuildMode == BuildModeExe || ctxt.BuildMode == BuildModePIE
