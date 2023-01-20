@@ -34,8 +34,8 @@ type ReferenceInfo struct {
 // referencesV1 returns a list of references for a given identifier within the packages
 // containing pp. Declarations appear first in the result.
 //
-// Currently used by Server.{incomingCalls,rename}.
-// TODO(adonovan): switch each over to referencesV2 in turn.
+// Currently called only from Server.incomingCalls.
+// TODO(adonovan): switch over to referencesV2.
 func referencesV1(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]*ReferenceInfo, error) {
 	ctx, done := event.Start(ctx, "source.References")
 	defer done()

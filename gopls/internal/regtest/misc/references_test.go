@@ -50,8 +50,8 @@ func main() {
 	})
 }
 
-// This reproduces and tests golang/go#48400.
-func TestReferencesPanicOnError(t *testing.T) {
+// This is a regression test for golang/go#48400 (a panic).
+func TestReferencesOnErrorMethod(t *testing.T) {
 	// Ideally this would actually return the correct answer,
 	// instead of merely failing gracefully.
 	const files = `
@@ -81,12 +81,19 @@ func _() {
 		env.OpenFile("main.go")
 		file, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `Error`))
 		refs, err := env.Editor.References(env.Ctx, file, pos)
-		if err == nil {
-			t.Fatalf("expected error for references, instead got %v", refs)
+		if err != nil {
+			t.Fatalf("references on (*s).Error failed: %v", err)
 		}
-		wantErr := "no position for func (error).Error() string"
-		if err.Error() != wantErr {
-			t.Fatalf("expected error with message %s, instead got %s", wantErr, err.Error())
+		// TODO(adonovan): this test is crying out for marker support in regtests.
+		var buf strings.Builder
+		for _, ref := range refs {
+			fmt.Fprintf(&buf, "%s %s\n", env.Sandbox.Workdir.URIToPath(ref.URI), ref.Range)
+		}
+		got := buf.String()
+		want := "main.go 8:10-8:15\n" + // (*s).Error decl
+			"main.go 14:7-14:12\n" // s.Error() call
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("unexpected references on (*s).Error (-want +got):\n%s", diff)
 		}
 	})
 }

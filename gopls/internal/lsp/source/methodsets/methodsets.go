@@ -51,6 +51,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -72,13 +73,6 @@ func NewIndex(fset *token.FileSet, pkg *types.Package) *Index {
 //
 // Conversion to protocol (UTF-16) form is done by the caller after a
 // search, not during index construction.
-// TODO(adonovan): opt: reconsider this choice, if FileHandles, not
-// ParsedGoFiles were to provide ColumnMapper-like functionality.
-// (Column mapping is currently associated with parsing,
-// but non-parsed and even non-Go files need it too.)
-// Since type checking requires reading (but not parsing) all
-// dependencies' Go files, we could do the conversion at type-checking
-// time at little extra cost in that case.
 type Location struct {
 	Filename   string
 	Start, End int // byte offsets
@@ -93,19 +87,30 @@ type Key struct {
 // KeyOf returns the search key for the method sets of a given type.
 // It returns false if the type has no methods.
 func KeyOf(t types.Type) (Key, bool) {
-	mset := methodSetInfo(func(types.Object) (_ gobPosition) { return }, t, gobPosition{})
+	mset := methodSetInfo(t, nil)
 	if mset.Mask == 0 {
 		return Key{}, false // no methods
 	}
 	return Key{mset}, true
 }
 
+// A Result reports a matching type or method in a method-set search.
+type Result struct {
+	Location Location // location of the type or method
+
+	// methods only:
+	PkgPath    string          // path of declaring package (may differ due to embedding)
+	ObjectPath objectpath.Path // path of method within declaring package
+}
+
 // Search reports each type that implements (or is implemented by) the
 // type that produced the search key. If methodID is nonempty, only
 // that method of each type is reported.
-// The result is the location of each type or method.
-func (index *Index) Search(key Key, methodID string) []Location {
-	var locs []Location
+//
+// The result does not include the error.Error method.
+// TODO(adonovan): give this special case a more systematic treatment.
+func (index *Index) Search(key Key, methodID string) []Result {
+	var results []Result
 	for _, candidate := range index.pkg.MethodSets {
 		// Traditionally this feature doesn't report
 		// interface/interface elements of the relation.
@@ -125,19 +130,34 @@ func (index *Index) Search(key Key, methodID string) []Location {
 		}
 
 		if methodID == "" {
-			locs = append(locs, index.location(candidate.Posn))
+			results = append(results, Result{Location: index.location(candidate.Posn)})
 		} else {
 			for _, m := range candidate.Methods {
 				// Here we exploit knowledge of the shape of the fingerprint string.
 				if strings.HasPrefix(m.Fingerprint, methodID) &&
 					m.Fingerprint[len(methodID)] == '(' {
-					locs = append(locs, index.location(m.Posn))
+
+					// Don't report error.Error among the results:
+					// it has no true source location, no package,
+					// and is excluded from the xrefs index.
+					if m.PkgPath == 0 || m.ObjectPath == 0 {
+						if methodID != "Error" {
+							panic("missing info for" + methodID)
+						}
+						continue
+					}
+
+					results = append(results, Result{
+						Location:   index.location(m.Posn),
+						PkgPath:    index.pkg.Strings[m.PkgPath],
+						ObjectPath: objectpath.Path(index.pkg.Strings[m.ObjectPath]),
+					})
 					break
 				}
 			}
 		}
 	}
-	return locs
+	return results
 }
 
 // satisfies does a fast check for whether x satisfies y.
@@ -161,7 +181,7 @@ outer:
 
 func (index *Index) location(posn gobPosition) Location {
 	return Location{
-		Filename: index.pkg.Filenames[posn.File],
+		Filename: index.pkg.Strings[posn.File],
 		Start:    posn.Offset,
 		End:      posn.Offset + posn.Len,
 	}
@@ -170,54 +190,73 @@ func (index *Index) location(posn gobPosition) Location {
 // An indexBuilder builds an index for a single package.
 type indexBuilder struct {
 	gobPackage
-	filenameIndex map[string]int
+	stringIndex map[string]int
 }
 
 // build adds to the index all package-level named types of the specified package.
 func (b *indexBuilder) build(fset *token.FileSet, pkg *types.Package) *Index {
+	_ = b.string("") // 0 => ""
+
+	objectPos := func(obj types.Object) gobPosition {
+		posn := safetoken.StartPosition(fset, obj.Pos())
+		return gobPosition{b.string(posn.Filename), posn.Offset, len(obj.Name())}
+	}
+
+	// setindexInfo sets the (Posn, PkgPath, ObjectPath) fields for each method declaration.
+	setIndexInfo := func(m *gobMethod, method *types.Func) {
+		// error.Error has empty Position, PkgPath, and ObjectPath.
+		if method.Pkg() == nil {
+			return
+		}
+
+		m.Posn = objectPos(method)
+		m.PkgPath = b.string(method.Pkg().Path())
+
+		// Instantiations of generic methods don't have an
+		// object path, so we use the generic.
+		if p, err := objectpath.For(typeparams.OriginMethod(method)); err != nil {
+			panic(err) // can't happen for a method of a package-level type
+		} else {
+			m.ObjectPath = b.string(string(p))
+		}
+	}
+
 	// We ignore aliases, though in principle they could define a
 	// struct{...}  or interface{...} type, or an instantiation of
 	// a generic, that has a novel method set.
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
 		if tname, ok := scope.Lookup(name).(*types.TypeName); ok && !tname.IsAlias() {
-			b.add(fset, tname)
+			if mset := methodSetInfo(tname.Type(), setIndexInfo); mset.Mask != 0 {
+				mset.Posn = objectPos(tname)
+				// Only record types with non-trivial method sets.
+				b.MethodSets = append(b.MethodSets, mset)
+			}
 		}
 	}
 
 	return &Index{pkg: b.gobPackage}
 }
 
-func (b *indexBuilder) add(fset *token.FileSet, tname *types.TypeName) {
-	objectPos := func(obj types.Object) gobPosition {
-		posn := safetoken.StartPosition(fset, obj.Pos())
-		return gobPosition{b.fileIndex(posn.Filename), posn.Offset, len(obj.Name())}
-	}
-	if mset := methodSetInfo(objectPos, tname.Type(), objectPos(tname)); mset.Mask != 0 {
-		// Only record types with non-trivial method sets.
-		b.MethodSets = append(b.MethodSets, mset)
-	}
-}
-
-// fileIndex returns a small integer that encodes the file name.
-func (b *indexBuilder) fileIndex(filename string) int {
-	i, ok := b.filenameIndex[filename]
+// string returns a small integer that encodes the string.
+func (b *indexBuilder) string(s string) int {
+	i, ok := b.stringIndex[s]
 	if !ok {
-		i = len(b.Filenames)
-		if b.filenameIndex == nil {
-			b.filenameIndex = make(map[string]int)
+		i = len(b.Strings)
+		if b.stringIndex == nil {
+			b.stringIndex = make(map[string]int)
 		}
-		b.filenameIndex[filename] = i
-		b.Filenames = append(b.Filenames, filename)
+		b.stringIndex[s] = i
+		b.Strings = append(b.Strings, s)
 	}
 	return i
 }
 
-// methodSetInfo returns the method-set fingerprint
-// of a type and records its position (typePosn)
-// and the position of each of its methods m,
-// as provided by objectPos(m).
-func methodSetInfo(objectPos func(types.Object) gobPosition, t types.Type, typePosn gobPosition) gobMethodSet {
+// methodSetInfo returns the method-set fingerprint of a type.
+// It calls the optional setIndexInfo function for each gobMethod.
+// This is used during index construction, but not search (KeyOf),
+// to store extra information.
+func methodSetInfo(t types.Type, setIndexInfo func(*gobMethod, *types.Func)) gobMethodSet {
 	// For non-interface types, use *T
 	// (if T is not already a pointer)
 	// since it may have more methods.
@@ -234,10 +273,18 @@ func methodSetInfo(objectPos func(types.Object) gobPosition, t types.Type, typeP
 			tricky = true
 		}
 		sum := crc32.ChecksumIEEE([]byte(fp))
-		methods[i] = gobMethod{fp, sum, objectPos(m)}
+		methods[i] = gobMethod{Fingerprint: fp, Sum: sum}
+		if setIndexInfo != nil {
+			setIndexInfo(&methods[i], m) // set Position, PkgPath, ObjectPath
+		}
 		mask |= 1 << uint64(((sum>>24)^(sum>>16)^(sum>>8)^sum)&0x3f)
 	}
-	return gobMethodSet{typePosn, types.IsInterface(t), tricky, mask, methods}
+	return gobMethodSet{
+		IsInterface: types.IsInterface(t),
+		Tricky:      tricky,
+		Mask:        mask,
+		Methods:     methods,
+	}
 }
 
 // EnsurePointer wraps T in a types.Pointer if T is a named, non-interface type.
@@ -398,7 +445,7 @@ func fingerprint(method *types.Func) (string, bool) {
 
 // A gobPackage records the method set of each package-level type for a single package.
 type gobPackage struct {
-	Filenames  []string // see gobPosition.File
+	Strings    []string // index of strings used by gobPosition.File, gobMethod.{Pkg,Object}Path
 	MethodSets []gobMethodSet
 }
 
@@ -413,13 +460,17 @@ type gobMethodSet struct {
 
 // A gobMethod records the name, type, and position of a single method.
 type gobMethod struct {
-	Fingerprint string      // string of form "methodID(params...)(results)"
-	Sum         uint32      // checksum of fingerprint
-	Posn        gobPosition // location of method declaration
+	Fingerprint string // string of form "methodID(params...)(results)"
+	Sum         uint32 // checksum of fingerprint
+
+	// index records only (zero in KeyOf; also for index of error.Error).
+	Posn       gobPosition // location of method declaration
+	PkgPath    int         // path of package containing method declaration
+	ObjectPath int         // object path of method relative to PkgPath
 }
 
 // A gobPosition records the file, offset, and length of an identifier.
 type gobPosition struct {
-	File        int // index into Index.filenames
+	File        int // index into gopPackage.Strings
 	Offset, Len int // in bytes
 }

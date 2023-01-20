@@ -432,9 +432,6 @@ func typeCheckImpl(ctx context.Context, snapshot *snapshot, goFiles, compiledGoF
 	}
 	pkg.diagnostics = append(pkg.diagnostics, depsErrors...)
 
-	// Build index of outbound cross-references.
-	pkg.xrefs = xrefs.Index(pkg)
-
 	return pkg, nil
 }
 
@@ -488,8 +485,10 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 	if m.PkgPath == "unsafe" {
 		// Don't type check Unsafe: it's unnecessary, and doing so exposes a data
 		// race to Unsafe.completed.
+		// TODO(adonovan): factor (tail-merge) with the normal control path.
 		pkg.types = types.Unsafe
 		pkg.methodsets = methodsets.NewIndex(pkg.fset, pkg.types)
+		pkg.xrefs = xrefs.Index(pkg)
 		return pkg, nil
 	}
 
@@ -573,6 +572,9 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, goFiles, compiledGoFil
 
 	// Build global index of method sets for 'implementations' queries.
 	pkg.methodsets = methodsets.NewIndex(pkg.fset, pkg.types)
+
+	// Build global index of outbound cross-references.
+	pkg.xrefs = xrefs.Index(pkg)
 
 	// If the context was cancelled, we may have returned a ton of transient
 	// errors to the type checker. Swallow them.

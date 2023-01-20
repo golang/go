@@ -72,8 +72,8 @@ func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Position) ([]protocol.Location, error) {
 
 	// Type-check the query package, find the query identifier,
-	// and locate the type/method declaration it refers to.
-	declPosn, methodID, err := typeDeclPosition(ctx, snapshot, fh.URI(), pp)
+	// and locate the type or method declaration it refers to.
+	declPosn, err := typeDeclPosition(ctx, snapshot, fh.URI(), pp)
 	if err != nil {
 		return nil, err
 	}
@@ -127,6 +127,7 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 	// Is the selected identifier a type name or method?
 	// (For methods, report the corresponding method names.)
 	var queryType types.Type
+	var queryMethodID string
 	switch obj := obj.(type) {
 	case *types.TypeName:
 		queryType = obj.Type()
@@ -134,6 +135,7 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 		// For methods, use the receiver type, which may be anonymous.
 		if recv := obj.Type().(*types.Signature).Recv(); recv != nil {
 			queryType = recv.Type()
+			queryMethodID = obj.Id()
 		}
 	default:
 		return nil, fmt.Errorf("%s is not a type or method", id.Name)
@@ -184,7 +186,7 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 	for _, localPkg := range localPkgs {
 		localPkg := localPkg
 		group.Go(func() error {
-			localLocs, err := localImplementations(ctx, snapshot, localPkg, queryType, methodID)
+			localLocs, err := localImplementations(ctx, snapshot, localPkg, queryType, queryMethodID)
 			if err != nil {
 				return err
 			}
@@ -198,8 +200,8 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 	for _, globalPkg := range globalPkgs {
 		globalPkg := globalPkg
 		group.Go(func() error {
-			for _, loc := range globalPkg.MethodSetsIndex().Search(key, methodID) {
-				loc := loc
+			for _, res := range globalPkg.MethodSetsIndex().Search(key, queryMethodID) {
+				loc := res.Location
 				// Map offsets to protocol.Locations in parallel (may involve I/O).
 				group.Go(func() error {
 					ploc, err := offsetToLocation(ctx, snapshot, loc.Filename, loc.Start, loc.End)
@@ -239,18 +241,17 @@ func offsetToLocation(ctx context.Context, snapshot Snapshot, filename string, s
 }
 
 // typeDeclPosition returns the position of the declaration of the
-// type referred to at (uri, ppos).  If it refers to a method, the
-// function returns the method's receiver type and ID.
-func typeDeclPosition(ctx context.Context, snapshot Snapshot, uri span.URI, ppos protocol.Position) (token.Position, string, error) {
+// type (or one of its methods) referred to at (uri, ppos).
+func typeDeclPosition(ctx context.Context, snapshot Snapshot, uri span.URI, ppos protocol.Position) (token.Position, error) {
 	var noPosn token.Position
 
 	pkg, pgf, err := PackageForFile(ctx, snapshot, uri, TypecheckFull, WidestPackage)
 	if err != nil {
-		return noPosn, "", err
+		return noPosn, err
 	}
 	pos, err := pgf.PositionPos(ppos)
 	if err != nil {
-		return noPosn, "", err
+		return noPosn, err
 	}
 
 	// This function inherits the limitation of its predecessor in
@@ -265,15 +266,14 @@ func typeDeclPosition(ctx context.Context, snapshot Snapshot, uri span.URI, ppos
 	// TODO(adonovan): simplify: use objectsAt?
 	path := pathEnclosingObjNode(pgf.File, pos)
 	if path == nil {
-		return noPosn, "", ErrNoIdentFound
+		return noPosn, ErrNoIdentFound
 	}
 	id, ok := path[0].(*ast.Ident)
 	if !ok {
-		return noPosn, "", ErrNoIdentFound
+		return noPosn, ErrNoIdentFound
 	}
 
 	// Is the object a type or method? Reject other kinds.
-	var methodID string
 	obj := pkg.GetTypesInfo().Uses[id]
 	if obj == nil {
 		// Check uses first (unlike ObjectOf) so that T in
@@ -286,19 +286,18 @@ func typeDeclPosition(ctx context.Context, snapshot Snapshot, uri span.URI, ppos
 		// ok
 	case *types.Func:
 		if obj.Type().(*types.Signature).Recv() == nil {
-			return noPosn, "", fmt.Errorf("%s is a function, not a method", id.Name)
+			return noPosn, fmt.Errorf("%s is a function, not a method", id.Name)
 		}
-		methodID = obj.Id()
 	case nil:
-		return noPosn, "", fmt.Errorf("%s denotes unknown object", id.Name)
+		return noPosn, fmt.Errorf("%s denotes unknown object", id.Name)
 	default:
 		// e.g. *types.Var -> "var".
 		kind := strings.ToLower(strings.TrimPrefix(reflect.TypeOf(obj).String(), "*types."))
-		return noPosn, "", fmt.Errorf("%s is a %s, not a type", id.Name, kind)
+		return noPosn, fmt.Errorf("%s is a %s, not a type", id.Name, kind)
 	}
 
 	declPosn := safetoken.StartPosition(pkg.FileSet(), obj.Pos())
-	return declPosn, methodID, nil
+	return declPosn, nil
 }
 
 // localImplementations searches within pkg for declarations of all
