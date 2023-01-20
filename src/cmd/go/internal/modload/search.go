@@ -78,7 +78,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 		defer span.Done()
 
 		root = filepath.Clean(root)
-		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
+		err := fsys.Walk(root, func(pkgDir string, fi fs.FileInfo, err error) error {
 			if err != nil {
 				m.AddError(err)
 				return nil
@@ -88,30 +88,29 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 			elem := ""
 
 			// Don't use GOROOT/src but do walk down into it.
-			if path == root {
+			if pkgDir == root {
 				if importPathRoot == "" {
 					return nil
 				}
 			} else {
 				// Avoid .foo, _foo, and testdata subdirectory trees.
-				_, elem = filepath.Split(path)
+				_, elem = filepath.Split(pkgDir)
 				if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
 					want = false
 				}
 			}
 
-			name := importPathRoot + filepath.ToSlash(path[len(root):])
-			if importPathRoot == "" {
-				name = name[1:] // cut leading slash
-			}
+			rel := strings.TrimPrefix(filepath.ToSlash(pkgDir[len(root):]), "/")
+			name := path.Join(importPathRoot, rel)
+
 			if !treeCanMatch(name) {
 				want = false
 			}
 
 			if !fi.IsDir() {
 				if fi.Mode()&fs.ModeSymlink != 0 && want && strings.Contains(m.Pattern(), "...") {
-					if target, err := fsys.Stat(path); err == nil && target.IsDir() {
-						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", path)
+					if target, err := fsys.Stat(pkgDir); err == nil && target.IsDir() {
+						fmt.Fprintf(os.Stderr, "warning: ignoring symlink %s\n", pkgDir)
 					}
 				}
 				return nil
@@ -121,8 +120,8 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 				return filepath.SkipDir
 			}
 			// Stop at module boundaries.
-			if (prune&pruneGoMod != 0) && path != root {
-				if fi, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !fi.IsDir() {
+			if (prune&pruneGoMod != 0) && pkgDir != root {
+				if fi, err := os.Stat(filepath.Join(pkgDir, "go.mod")); err == nil && !fi.IsDir() {
 					return filepath.SkipDir
 				}
 			}
@@ -131,7 +130,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
 				have[name] = true
 				if isMatch(name) {
 					q.Add(func() {
-						if _, _, err := scanDir(root, path, tags); err != imports.ErrNoGo {
+						if _, _, err := scanDir(root, pkgDir, tags); err != imports.ErrNoGo {
 							addPkg(name)
 						}
 					})

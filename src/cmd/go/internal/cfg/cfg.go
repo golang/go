@@ -389,13 +389,17 @@ func CanGetenv(key string) bool {
 }
 
 var (
-	GOROOT       string
-	GOROOTbin    string
-	GOROOTpkg    string
-	GOROOTsrc    string
+	GOROOT string
+
+	// Either empty or produced by filepath.Join(GOROOT, …).
+	GOROOTbin string
+	GOROOTpkg string
+	GOROOTsrc string
+
 	GOROOT_FINAL string
-	GOBIN        = Getenv("GOBIN")
-	GOMODCACHE   = envOr("GOMODCACHE", gopathDir("pkg/mod"))
+
+	GOBIN      = Getenv("GOBIN")
+	GOMODCACHE = envOr("GOMODCACHE", gopathDir("pkg/mod"))
 
 	// Used in envcmd.MkEnv and build ID computations.
 	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))

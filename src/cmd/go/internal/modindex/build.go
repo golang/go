@@ -10,6 +10,7 @@ package modindex
 import (
 	"bytes"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/str"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -166,11 +167,7 @@ func (ctxt *Context) hasSubdir(root, dir string) (rel string, ok bool) {
 
 // hasSubdir reports if dir is within root by performing lexical analysis only.
 func hasSubdir(root, dir string) (rel string, ok bool) {
-	const sep = string(filepath.Separator)
-	root = filepath.Clean(root)
-	if !strings.HasSuffix(root, sep) {
-		root += sep
-	}
+	root = str.WithFilePathSeparator(filepath.Clean(root))
 	dir = filepath.Clean(dir)
 	if !strings.HasPrefix(dir, root) {
 		return "", false

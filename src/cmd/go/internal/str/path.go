@@ -105,6 +105,15 @@ func TrimFilePathPrefix(s, prefix string) string {
 	return trimmed
 }
 
+// WithFilePathSeparator returns s with a trailing path separator, or the empty
+// string if s is empty.
+func WithFilePathSeparator(s string) string {
+	if s == "" || os.IsPathSeparator(s[len(s)-1]) {
+		return s
+	}
+	return s + string(filepath.Separator)
+}
+
 // QuoteGlob returns s with all Glob metacharacters quoted.
 // We don't try to handle backslash here, as that can appear in a
 // file path on Windows.

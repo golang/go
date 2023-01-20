@@ -125,7 +125,7 @@ func (m *Match) MatchPackages() {
 		if (m.pattern == "std" || m.pattern == "cmd") && src != cfg.GOROOTsrc {
 			continue
 		}
-		src = filepath.Clean(src) + string(filepath.Separator)
+		src = str.WithFilePathSeparator(filepath.Clean(src))
 		root := src
 		if m.pattern == "cmd" {
 			root += "cmd" + string(filepath.Separator)

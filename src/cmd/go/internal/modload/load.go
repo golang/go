@@ -546,9 +546,9 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 	pkgNotFoundLongestPrefix := ""
 	for _, mainModule := range MainModules.Versions() {
 		modRoot := MainModules.ModRoot(mainModule)
-		if modRoot != "" && strings.HasPrefix(absDir, modRoot+string(filepath.Separator)) && !strings.Contains(absDir[len(modRoot):], "@") {
-			suffix := filepath.ToSlash(absDir[len(modRoot):])
-			if pkg, found := strings.CutPrefix(suffix, "/vendor/"); found {
+		if modRoot != "" && str.HasFilePathPrefix(absDir, modRoot) && !strings.Contains(absDir[len(modRoot):], "@") {
+			suffix := filepath.ToSlash(str.TrimFilePathPrefix(absDir, modRoot))
+			if pkg, found := strings.CutPrefix(suffix, "vendor/"); found {
 				if cfg.BuildMod != "vendor" {
 					return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
 				}
@@ -562,7 +562,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 
 			mainModulePrefix := MainModules.PathPrefix(mainModule)
 			if mainModulePrefix == "" {
-				pkg := strings.TrimPrefix(suffix, "/")
+				pkg := suffix
 				if pkg == "builtin" {
 					// "builtin" is a pseudo-package with a real source file.
 					// It's not included in "std", so it shouldn't resolve from "."
@@ -572,7 +572,7 @@ func resolveLocalPackage(ctx context.Context, dir string, rs *Requirements) (str
 				return pkg, nil
 			}
 
-			pkg := mainModulePrefix + suffix
+			pkg := pathpkg.Join(mainModulePrefix, suffix)
 			if _, ok, err := dirInModule(pkg, mainModulePrefix, modRoot, true); err != nil {
 				return "", err
 			} else if !ok {
@@ -749,17 +749,17 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 		if dir == modRoot {
 			return mms.PathPrefix(v), v
 		}
-		if strings.HasPrefix(dir, modRoot+string(filepath.Separator)) {
+		if str.HasFilePathPrefix(dir, modRoot) {
 			pathPrefix := MainModules.PathPrefix(v)
 			if pathPrefix > longestPrefix {
 				longestPrefix = pathPrefix
 				longestPrefixVersion = v
-				suffix := filepath.ToSlash(dir[len(modRoot):])
-				if strings.HasPrefix(suffix, "/vendor/") {
-					longestPrefixPath = strings.TrimPrefix(suffix, "/vendor/")
+				suffix := filepath.ToSlash(str.TrimFilePathPrefix(dir, modRoot))
+				if strings.HasPrefix(suffix, "vendor/") {
+					longestPrefixPath = strings.TrimPrefix(suffix, "vendor/")
 					continue
 				}
-				longestPrefixPath = mms.PathPrefix(v) + suffix
+				longestPrefixPath = pathpkg.Join(mms.PathPrefix(v), suffix)
 			}
 		}
 	}

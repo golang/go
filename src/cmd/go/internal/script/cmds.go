@@ -414,7 +414,7 @@ func Exec(cancel func(*exec.Cmd) error, waitDelay time.Duration) Cmd {
 				return nil, ErrUsage
 			}
 
-			// Use the script's PATH to look up the command if it contains a separator
+			// Use the script's PATH to look up the command (if it does not contain a separator)
 			// instead of the test process's PATH (see lookPath).
 			// Don't use filepath.Clean, since that changes "./foo" to "foo".
 			name := filepath.FromSlash(args[0])
@@ -497,6 +497,18 @@ func lookPath(s *State, command string) (string, error) {
 
 	pathEnv, _ := s.LookupEnv(pathEnvName())
 	for _, dir := range strings.Split(pathEnv, string(filepath.ListSeparator)) {
+		if dir == "" {
+			continue
+		}
+
+		// Determine whether dir needs a trailing path separator.
+		// Note: we avoid filepath.Join in this function because it cleans the
+		// result: we want to preserve the exact dir prefix from the environment.
+		sep := string(filepath.Separator)
+		if os.IsPathSeparator(dir[len(dir)-1]) {
+			sep = ""
+		}
+
 		if searchExt {
 			ents, err := os.ReadDir(dir)
 			if err != nil {
@@ -505,12 +517,12 @@ func lookPath(s *State, command string) (string, error) {
 			for _, ent := range ents {
 				for _, ext := range pathExt {
 					if !ent.IsDir() && strEqual(ent.Name(), command+ext) {
-						return dir + string(filepath.Separator) + ent.Name(), nil
+						return dir + sep + ent.Name(), nil
 					}
 				}
 			}
 		} else {
-			path := dir + string(filepath.Separator) + command
+			path := dir + sep + command
 			if fi, err := os.Stat(path); err == nil && isExecutable(fi) {
 				return path, nil
 			}
