@@ -30,6 +30,7 @@ import (
 	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 )
@@ -248,18 +249,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 		break
 	}
 	if obj == nil {
-		return nil, ErrNoIdentFound
-	}
-
-	// If the object is a method, we need to search for all
-	// matching implementations and/or interfaces, without
-	// type-checking everything.
-	//
-	// That will require an approach such as the one sketched in
-	// go.dev/cl/452060.  Until then, we simply fall back to the
-	// old implementation for now.  TODO(adonovan): fix.
-	if fn, ok := obj.(*types.Func); ok && fn.Type().(*types.Signature).Recv() != nil {
-		return nil, ErrFallback
+		return nil, ErrNoIdentFound // can't happen
 	}
 
 	// nil, error, iota, or other built-in?
@@ -303,6 +293,18 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	var exportedObjectPath objectpath.Path
 	if path, err := objectpath.For(obj); err == nil && obj.Exported() {
 		exportedObjectPath = path
+
+		// If the object is an exported method, we need to search for
+		// all matching implementations (using the incremental
+		// implementation of 'implementations') and then search for
+		// the set of corresponding methods (requiring the incremental
+		// implementation of 'references' to be generalized to a set
+		// of search objects).
+		// Until then, we simply fall back to the old implementation for now.
+		// TODO(adonovan): fix.
+		if fn, ok := obj.(*types.Func); ok && fn.Type().(*types.Signature).Recv() != nil {
+			return nil, ErrFallback
+		}
 	}
 
 	// If it is exported, how far need we search?
@@ -368,7 +370,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	return refs, nil
 }
 
-// localReferences reports (concurrently) each reference to the object
+// localReferences reports each reference to the object
 // declared at the specified URI/offset within its enclosing package m.
 func localReferences(ctx context.Context, snapshot Snapshot, declURI span.URI, declOffset int, m *Metadata, report func(loc protocol.Location, isDecl bool)) error {
 	pkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, m.ID)
@@ -393,15 +395,57 @@ func localReferences(ctx context.Context, snapshot Snapshot, declURI span.URI, d
 	}
 
 	// Report the locations of the declaration(s).
+	// TODO(adonovan): what about for corresponding methods? Add tests.
 	for _, node := range targets {
 		report(mustLocation(pgf, node), true)
+	}
+
+	// receiver returns the effective receiver type for method-set
+	// comparisons for obj, if it is a method, or nil otherwise.
+	receiver := func(obj types.Object) types.Type {
+		if fn, ok := obj.(*types.Func); ok {
+			if recv := fn.Type().(*types.Signature).Recv(); recv != nil {
+				return methodsets.EnsurePointer(recv.Type())
+			}
+		}
+		return nil
+	}
+
+	// If we're searching for references to a method, broaden the
+	// search to include references to corresponding methods of
+	// mutually assignable receiver types.
+	// (We use a slice, but objectsAt never returns >1 methods.)
+	var methodRecvs []types.Type
+	var methodName string // name of an arbitrary target, iff a method
+	for obj := range targets {
+		if t := receiver(obj); t != nil {
+			methodRecvs = append(methodRecvs, t)
+			methodName = obj.Name()
+		}
+	}
+
+	// matches reports whether obj either is or corresponds to a target.
+	// (Correspondence is defined as usual for interface methods.)
+	matches := func(obj types.Object) bool {
+		if targets[obj] != nil {
+			return true
+		} else if methodRecvs != nil && obj.Name() == methodName {
+			if orecv := receiver(obj); orecv != nil {
+				for _, mrecv := range methodRecvs {
+					if concreteImplementsIntf(orecv, mrecv) {
+						return true
+					}
+				}
+			}
+		}
+		return false
 	}
 
 	// Scan through syntax looking for uses of one of the target objects.
 	for _, pgf := range pkg.CompiledGoFiles() {
 		ast.Inspect(pgf.File, func(n ast.Node) bool {
 			if id, ok := n.(*ast.Ident); ok {
-				if used, ok := pkg.GetTypesInfo().Uses[id]; ok && targets[used] != nil {
+				if obj, ok := pkg.GetTypesInfo().Uses[id]; ok && matches(obj) {
 					report(mustLocation(pgf, id), false)
 				}
 			}
@@ -453,10 +497,14 @@ func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Objec
 		}
 		targets[obj] = leaf
 	}
+
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("objectAt: internal error: no targets") // can't happen
+	}
 	return targets, nil
 }
 
-// globalReferences reports (concurrently) each cross-package
+// globalReferences reports each cross-package
 // reference to the object identified by (pkgPath, objectPath).
 func globalReferences(ctx context.Context, snapshot Snapshot, m *Metadata, pkgPath PackagePath, objectPath objectpath.Path, report func(loc protocol.Location, isDecl bool)) error {
 	// TODO(adonovan): opt: don't actually type-check here,

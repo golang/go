@@ -52,6 +52,8 @@ func main() {
 
 // This reproduces and tests golang/go#48400.
 func TestReferencesPanicOnError(t *testing.T) {
+	// Ideally this would actually return the correct answer,
+	// instead of merely failing gracefully.
 	const files = `
 -- go.mod --
 module mod.com
