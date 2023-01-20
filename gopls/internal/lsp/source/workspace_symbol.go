@@ -305,7 +305,10 @@ func collectSymbols(ctx context.Context, views []View, matcherType SymbolMatcher
 	seen := make(map[span.URI]bool)
 	// TODO(adonovan): opt: parallelize this loop? How often is len > 1?
 	for _, v := range views {
-		snapshot, release := v.Snapshot(ctx)
+		snapshot, release, err := v.Snapshot()
+		if err != nil {
+			continue // view is shut down; continue with others
+		}
 		defer release()
 
 		// Use the root view URIs for determining (lexically)

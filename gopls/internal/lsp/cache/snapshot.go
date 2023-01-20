@@ -43,7 +43,16 @@ import (
 type snapshot struct {
 	sequenceID uint64
 	globalID   source.GlobalSnapshotID
-	view       *View
+
+	// TODO(rfindley): the snapshot holding a reference to the view poses
+	// lifecycle problems: a view may be shut down and waiting for work
+	// associated with this snapshot to complete. While most accesses of the view
+	// are benign (options or workspace information), this is not formalized and
+	// it is wrong for the snapshot to use a shutdown view.
+	//
+	// Fix this by passing options and workspace information to the snapshot,
+	// both of which should be immutable for the snapshot.
+	view *View
 
 	cancel        func()
 	backgroundCtx context.Context

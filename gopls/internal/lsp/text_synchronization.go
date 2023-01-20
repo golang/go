@@ -144,7 +144,10 @@ func (s *Server) warnAboutModifyingGeneratedFiles(ctx context.Context, uri span.
 	if err != nil {
 		return err
 	}
-	snapshot, release := view.Snapshot(ctx)
+	snapshot, release, err := view.Snapshot()
+	if err != nil {
+		return err
+	}
 	isGenerated := source.IsGenerated(ctx, snapshot, uri)
 	release()
 

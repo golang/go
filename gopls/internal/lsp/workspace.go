@@ -63,7 +63,10 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 			return err
 		}
 		go func() {
-			snapshot, release := view.Snapshot(ctx)
+			snapshot, release, err := view.Snapshot()
+			if err != nil {
+				return // view is shut down; no need to diagnose
+			}
 			defer release()
 			s.diagnoseDetached(snapshot)
 		}()

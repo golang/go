@@ -309,7 +309,10 @@ type View interface {
 	// Snapshot returns the current snapshot for the view, and a
 	// release function that must be called when the Snapshot is
 	// no longer needed.
-	Snapshot(ctx context.Context) (Snapshot, func())
+	//
+	// If the view is shut down, the resulting error will be non-nil, and the
+	// release function need not be called.
+	Snapshot() (Snapshot, func(), error)
 
 	// IsGoPrivatePath reports whether target is a private import path, as identified
 	// by the GOPRIVATE environment variable.

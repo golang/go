@@ -559,7 +559,10 @@ func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI
 	if err != nil {
 		return nil, nil, false, func() {}, err
 	}
-	snapshot, release := view.Snapshot(ctx)
+	snapshot, release, err := view.Snapshot()
+	if err != nil {
+		return nil, nil, false, func() {}, err
+	}
 	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		release()

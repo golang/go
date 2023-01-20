@@ -1397,7 +1397,10 @@ func (r *runner) collectDiagnostics(view *cache.View) {
 	}
 	r.diagnostics = make(map[span.URI][]*source.Diagnostic)
 
-	snapshot, release := view.Snapshot(r.ctx)
+	snapshot, release, err := view.Snapshot()
+	if err != nil {
+		panic(err)
+	}
 	defer release()
 
 	// Always run diagnostics with analysis.

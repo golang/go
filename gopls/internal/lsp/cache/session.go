@@ -593,7 +593,10 @@ func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes 
 	var snapshots []*snapshot
 	s.viewMu.Lock()
 	for _, v := range s.views {
-		snapshot, release := v.getSnapshot()
+		snapshot, release, err := v.getSnapshot()
+		if err != nil {
+			continue // view is shut down; continue with others
+		}
 		defer release()
 		snapshots = append(snapshots, snapshot)
 	}
@@ -795,7 +798,10 @@ func (s *Session) FileWatchingGlobPatterns(ctx context.Context) map[string]struc
 	defer s.viewMu.Unlock()
 	patterns := map[string]struct{}{}
 	for _, view := range s.views {
-		snapshot, release := view.getSnapshot()
+		snapshot, release, err := view.getSnapshot()
+		if err != nil {
+			continue // view is shut down; continue with others
+		}
 		for k, v := range snapshot.fileWatchingGlobPatterns(ctx) {
 			patterns[k] = v
 		}
