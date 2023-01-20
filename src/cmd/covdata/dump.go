@@ -288,6 +288,7 @@ func (d *dstate) VisitFunc(pkgIdx uint32, fnIdx uint32, fd *coverage.FuncDesc) {
 		}
 		fmt.Printf("\nFunc: %s\n", fd.Funcname)
 		fmt.Printf("Srcfile: %s\n", fd.Srcfile)
+		fmt.Printf("Literal: %v\n", fd.Lit)
 	}
 	for i := 0; i < len(fd.Units); i++ {
 		u := fd.Units[i]
