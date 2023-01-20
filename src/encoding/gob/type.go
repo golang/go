@@ -243,22 +243,22 @@ var (
 	// Primordial types, needed during initialization.
 	// Always passed as pointers so the interface{} type
 	// goes through without losing its interfaceness.
-	tBool      = bootstrapType("bool", (*bool)(nil), 1)
-	tInt       = bootstrapType("int", (*int)(nil), 2)
-	tUint      = bootstrapType("uint", (*uint)(nil), 3)
-	tFloat     = bootstrapType("float", (*float64)(nil), 4)
-	tBytes     = bootstrapType("bytes", (*[]byte)(nil), 5)
-	tString    = bootstrapType("string", (*string)(nil), 6)
-	tComplex   = bootstrapType("complex", (*complex128)(nil), 7)
-	tInterface = bootstrapType("interface", (*any)(nil), 8)
+	tBool      = bootstrapType("bool", (*bool)(nil))
+	tInt       = bootstrapType("int", (*int)(nil))
+	tUint      = bootstrapType("uint", (*uint)(nil))
+	tFloat     = bootstrapType("float", (*float64)(nil))
+	tBytes     = bootstrapType("bytes", (*[]byte)(nil))
+	tString    = bootstrapType("string", (*string)(nil))
+	tComplex   = bootstrapType("complex", (*complex128)(nil))
+	tInterface = bootstrapType("interface", (*any)(nil))
 	// Reserve some Ids for compatible expansion
-	tReserved7 = bootstrapType("_reserved1", (*struct{ r7 int })(nil), 9)
-	tReserved6 = bootstrapType("_reserved1", (*struct{ r6 int })(nil), 10)
-	tReserved5 = bootstrapType("_reserved1", (*struct{ r5 int })(nil), 11)
-	tReserved4 = bootstrapType("_reserved1", (*struct{ r4 int })(nil), 12)
-	tReserved3 = bootstrapType("_reserved1", (*struct{ r3 int })(nil), 13)
-	tReserved2 = bootstrapType("_reserved1", (*struct{ r2 int })(nil), 14)
-	tReserved1 = bootstrapType("_reserved1", (*struct{ r1 int })(nil), 15)
+	tReserved7 = bootstrapType("_reserved1", (*struct{ r7 int })(nil))
+	tReserved6 = bootstrapType("_reserved1", (*struct{ r6 int })(nil))
+	tReserved5 = bootstrapType("_reserved1", (*struct{ r5 int })(nil))
+	tReserved4 = bootstrapType("_reserved1", (*struct{ r4 int })(nil))
+	tReserved3 = bootstrapType("_reserved1", (*struct{ r3 int })(nil))
+	tReserved2 = bootstrapType("_reserved1", (*struct{ r2 int })(nil))
+	tReserved1 = bootstrapType("_reserved1", (*struct{ r1 int })(nil))
 )
 
 // Predefined because it's needed by the Decoder
@@ -275,9 +275,7 @@ func init() {
 	checkId(21, mustGetTypeInfo(reflect.TypeOf((*fieldType)(nil)).Elem()).id)
 	checkId(23, mustGetTypeInfo(reflect.TypeOf((*mapType)(nil)).Elem()).id)
 
-	for k, v := range idToType {
-		builtinIdToTypeSlice[k] = v
-	}
+	copy(builtinIdToTypeSlice[:], idToType)
 
 	// Move the id space upwards to allow for growth in the predefined world
 	// without breaking existing files.
@@ -616,7 +614,7 @@ func checkId(want, got typeId) {
 
 // used for building the basic types; called only from init().  the incoming
 // interface always refers to a pointer.
-func bootstrapType(name string, e any, expect typeId) typeId {
+func bootstrapType(name string, e any) typeId {
 	rt := reflect.TypeOf(e).Elem()
 	_, present := types[rt]
 	if present {
