@@ -762,6 +762,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(r.Xadd))
 		out.Write64(uint64(sectoff + 4))
 		out.Write64(uint64(elf.R_PPC64_GOT16_LO_DS) | uint64(elfsym)<<32)
+	case objabi.R_ADDRPOWER_GOT_PCREL34:
+		out.Write64(uint64(elf.R_PPC64_GOT_PCREL34) | uint64(elfsym)<<32)
 	case objabi.R_ADDRPOWER_PCREL:
 		out.Write64(uint64(elf.R_PPC64_REL16_HA) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
@@ -1151,7 +1153,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			if !target.IsAIX() {
 				return val, nExtReloc, false
 			}
-		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_IE_PCREL34, objabi.R_POWER_TLS_LE_TPREL34:
+		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_IE_PCREL34, objabi.R_POWER_TLS_LE_TPREL34, objabi.R_ADDRPOWER_GOT_PCREL34:
 			nExtReloc = 1
 			return val, nExtReloc, true
 		case objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
@@ -1410,6 +1412,7 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 		objabi.R_ADDRPOWER_TOCREL,
 		objabi.R_ADDRPOWER_TOCREL_DS,
 		objabi.R_ADDRPOWER_GOT,
+		objabi.R_ADDRPOWER_GOT_PCREL34,
 		objabi.R_ADDRPOWER_PCREL,
 		objabi.R_ADDRPOWER_D34,
 		objabi.R_ADDRPOWER_PCREL34:
