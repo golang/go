@@ -360,7 +360,8 @@ func (v *View) FileKind(fh source.FileHandle) source.FileKind {
 }
 
 func minorOptionsChange(a, b *source.Options) bool {
-	// Check if any of the settings that modify our understanding of files have been changed
+	// Check if any of the settings that modify our understanding of files have
+	// been changed.
 	if !reflect.DeepEqual(a.Env, b.Env) {
 		return false
 	}

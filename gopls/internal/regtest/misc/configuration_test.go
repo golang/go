@@ -51,6 +51,55 @@ var FooErr = errors.New("foo")
 	})
 }
 
+// TestMajorOptionsChange is like TestChangeConfiguration, but modifies an
+// an open buffer before making a major (but inconsequential) change that
+// causes gopls to recreate the view.
+//
+// Gopls should not get confused about buffer content when recreating the view.
+func TestMajorOptionsChange(t *testing.T) {
+	t.Skip("broken due to golang/go#57934")
+
+	testenv.NeedsGo1Point(t, 17)
+
+	const files = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- a/a.go --
+package a
+
+import "errors"
+
+var ErrFoo = errors.New("foo")
+`
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a.go")
+		// Introduce a staticcheck diagnostic. It should be detected when we enable
+		// staticcheck later.
+		env.RegexpReplace("a/a.go", "ErrFoo", "FooErr")
+		env.AfterChange(
+			NoDiagnostics(ForFile("a/a.go")),
+		)
+		cfg := env.Editor.Config()
+		// Any change to environment recreates the view, but this should not cause
+		// gopls to get confused about the content of a/a.go: we should get the
+		// staticcheck diagnostic below.
+		cfg.Env = map[string]string{
+			"AN_ARBITRARY_VAR": "FOO",
+		}
+		cfg.Settings = map[string]interface{}{
+			"staticcheck": true,
+		}
+		// TODO(rfindley): support waiting on diagnostics following a configuration
+		// change.
+		env.ChangeConfiguration(cfg)
+		env.Await(
+			Diagnostics(env.AtRegexp("a/a.go", "var (FooErr)")),
+		)
+	})
+}
+
 func TestStaticcheckWarning(t *testing.T) {
 	// Note: keep this in sync with TestChangeConfiguration.
 	testenv.SkipAfterGo1Point(t, 16)
