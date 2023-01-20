@@ -135,7 +135,7 @@ func schedule(f *Func) {
 				if b != f.Entry {
 					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
 				}
-				score[v.ID] = ScoreArg
+				score[v.ID] = ScorePhi
 			case v.Op == OpArg:
 				// We want all the args as early as possible, for better debugging.
 				score[v.ID] = ScoreArg
