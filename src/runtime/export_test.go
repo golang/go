@@ -233,10 +233,10 @@ func BenchSetType(n int, x any) {
 	t := e._type
 	var size uintptr
 	var p unsafe.Pointer
-	switch t.kind & kindMask {
+	switch t.Kind_ & kindMask {
 	case kindPtr:
 		t = (*ptrtype)(unsafe.Pointer(t)).elem
-		size = t.size
+		size = t.Size_
 		p = e.data
 	case kindSlice:
 		slice := *(*struct {
@@ -244,7 +244,7 @@ func BenchSetType(n int, x any) {
 			len, cap uintptr
 		})(e.data)
 		t = (*slicetype)(unsafe.Pointer(t)).elem
-		size = t.size * slice.len
+		size = t.Size_ * slice.len
 		p = slice.ptr
 	}
 	allocSize := roundupsize(size)
@@ -1754,7 +1754,7 @@ func NewUserArena() *UserArena {
 func (a *UserArena) New(out *any) {
 	i := efaceOf(out)
 	typ := i._type
-	if typ.kind&kindMask != kindPtr {
+	if typ.Kind_&kindMask != kindPtr {
 		panic("new result of non-ptr type")
 	}
 	typ = (*ptrtype)(unsafe.Pointer(typ)).elem

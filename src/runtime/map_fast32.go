@@ -302,16 +302,16 @@ search:
 			// Only clear key if there are pointers in it.
 			// This can only happen if pointers are 32 bit
 			// wide as 64 bit pointers do not fit into a 32 bit key.
-			if goarch.PtrSize == 4 && t.key.ptrdata != 0 {
+			if goarch.PtrSize == 4 && t.key.PtrBytes != 0 {
 				// The key must be a pointer as we checked pointers are
 				// 32 bits wide and the key is 32 bits wide also.
 				*(*unsafe.Pointer)(k) = nil
 			}
 			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.elemsize))
-			if t.elem.ptrdata != 0 {
-				memclrHasPointers(e, t.elem.size)
+			if t.elem.PtrBytes != 0 {
+				memclrHasPointers(e, t.elem.Size_)
 			} else {
-				memclrNoHeapPointers(e, t.elem.size)
+				memclrNoHeapPointers(e, t.elem.Size_)
 			}
 			b.tophash[i] = emptyOne
 			// If the bucket now ends in a bunch of emptyOne states,
@@ -428,7 +428,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 				dst.b.tophash[dst.i&(bucketCnt-1)] = top // mask dst.i as an optimization, to avoid a bounds check
 
 				// Copy key.
-				if goarch.PtrSize == 4 && t.key.ptrdata != 0 && writeBarrier.enabled {
+				if goarch.PtrSize == 4 && t.key.PtrBytes != 0 && writeBarrier.enabled {
 					// Write with a write barrier.
 					*(*unsafe.Pointer)(dst.k) = *(*unsafe.Pointer)(k)
 				} else {
@@ -446,7 +446,7 @@ func evacuate_fast32(t *maptype, h *hmap, oldbucket uintptr) {
 			}
 		}
 		// Unlink the overflow buckets & clear key/elem to help GC.
-		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
+		if h.flags&oldIterator == 0 && t.bucket.PtrBytes != 0 {
 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.

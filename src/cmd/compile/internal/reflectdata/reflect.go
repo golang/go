@@ -670,20 +670,6 @@ var kinds = []int{
 	types.TUNSAFEPTR:  objabi.KindUnsafePointer,
 }
 
-// tflag is documented in reflect/type.go.
-//
-// tflag values must be kept in sync with copies in:
-//   - cmd/compile/internal/reflectdata/reflect.go
-//   - cmd/link/internal/ld/decodesym.go
-//   - reflect/type.go
-//   - runtime/type.go
-const (
-	tflagUncommon      = 1 << 0
-	tflagExtraStar     = 1 << 1
-	tflagNamed         = 1 << 2
-	tflagRegularMemory = 1 << 3
-)
-
 var (
 	memhashvarlen  *obj.LSym
 	memequalvarlen *obj.LSym
@@ -727,15 +713,15 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	ot = objw.Uintptr(lsym, ot, uint64(ptrdata))
 	ot = objw.Uint32(lsym, ot, types.TypeHash(t))
 
-	var tflag uint8
+	var tflag abi.TFlag
 	if uncommonSize(t) != 0 {
-		tflag |= tflagUncommon
+		tflag |= abi.TFlagUncommon
 	}
 	if t.Sym() != nil && t.Sym().Name != "" {
-		tflag |= tflagNamed
+		tflag |= abi.TFlagNamed
 	}
 	if compare.IsRegularMemory(t) {
-		tflag |= tflagRegularMemory
+		tflag |= abi.TFlagRegularMemory
 	}
 
 	exported := false
@@ -747,7 +733,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 	// amount of space taken up by reflect strings.
 	if !strings.HasPrefix(p, "*") {
 		p = "*" + p
-		tflag |= tflagExtraStar
+		tflag |= abi.TFlagExtraStar
 		if t.Sym() != nil {
 			exported = types.IsExported(t.Sym().Name)
 		}
@@ -757,7 +743,11 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
 		}
 	}
 
-	ot = objw.Uint8(lsym, ot, tflag)
+	if tflag != abi.TFlag(uint8(tflag)) {
+		// this should optimize away completely
+		panic("Unexpected change in size of abi.TFlag")
+	}
+	ot = objw.Uint8(lsym, ot, uint8(tflag))
 
 	// runtime (and common sense) expects alignment to be a power of two.
 	i := int(uint8(t.Alignment()))

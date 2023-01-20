@@ -234,7 +234,7 @@ func runfinq() {
 					// confusing the write barrier.
 					*(*[2]uintptr)(frame) = [2]uintptr{}
 				}
-				switch f.fint.kind & kindMask {
+				switch f.fint.Kind_ & kindMask {
 				case kindPtr:
 					// direct use of pointer
 					*(*unsafe.Pointer)(r) = f.arg
@@ -371,7 +371,7 @@ func SetFinalizer(obj any, finalizer any) {
 	if etyp == nil {
 		throw("runtime.SetFinalizer: first argument is nil")
 	}
-	if etyp.kind&kindMask != kindPtr {
+	if etyp.Kind_&kindMask != kindPtr {
 		throw("runtime.SetFinalizer: first argument is " + etyp.string() + ", not pointer")
 	}
 	ot := (*ptrtype)(unsafe.Pointer(etyp))
@@ -415,7 +415,7 @@ func SetFinalizer(obj any, finalizer any) {
 	if uintptr(e.data) != base {
 		// As an implementation detail we allow to set finalizers for an inner byte
 		// of an object if it could come from tiny alloc (see mallocgc for details).
-		if ot.elem == nil || ot.elem.ptrdata != 0 || ot.elem.size >= maxTinySize {
+		if ot.elem == nil || ot.elem.PtrBytes != 0 || ot.elem.Size_ >= maxTinySize {
 			throw("runtime.SetFinalizer: pointer not at beginning of allocated block")
 		}
 	}
@@ -430,7 +430,7 @@ func SetFinalizer(obj any, finalizer any) {
 		return
 	}
 
-	if ftyp.kind&kindMask != kindFunc {
+	if ftyp.Kind_&kindMask != kindFunc {
 		throw("runtime.SetFinalizer: second argument is " + ftyp.string() + ", not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(ftyp))
@@ -445,13 +445,13 @@ func SetFinalizer(obj any, finalizer any) {
 	case fint == etyp:
 		// ok - same type
 		goto okarg
-	case fint.kind&kindMask == kindPtr:
+	case fint.Kind_&kindMask == kindPtr:
 		if (fint.uncommon() == nil || etyp.uncommon() == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
 			// ok - not same type, but both pointers,
 			// one or the other is unnamed, and same element type, so assignable.
 			goto okarg
 		}
-	case fint.kind&kindMask == kindInterface:
+	case fint.Kind_&kindMask == kindInterface:
 		ityp := (*interfacetype)(unsafe.Pointer(fint))
 		if len(ityp.mhdr) == 0 {
 			// ok - satisfies empty interface
@@ -466,7 +466,7 @@ okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
 	for _, t := range ft.out() {
-		nret = alignUp(nret, uintptr(t.align)) + uintptr(t.size)
+		nret = alignUp(nret, uintptr(t.Align_)) + uintptr(t.Size_)
 	}
 	nret = alignUp(nret, goarch.PtrSize)
 

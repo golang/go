@@ -258,7 +258,7 @@ func printanycustomtype(i any) {
 	eface := efaceOf(&i)
 	typestring := eface._type.string()
 
-	switch eface._type.kind {
+	switch eface._type.Kind_ {
 	case kindString:
 		print(typestring, `("`, *(*string)(eface.data), `")`)
 	case kindBool:

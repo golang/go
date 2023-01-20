@@ -93,11 +93,11 @@ const raceenabled = true
 // callerpc is a return PC of the function that calls this function,
 // pc is start PC of the function that calls this function.
 func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.kind & kindMask
+	kind := t.Kind_ & kindMask
 	if kind == kindArray || kind == kindStruct {
 		// for composite objects we have to read every address
 		// because a write might happen to any subobject.
-		racereadrangepc(addr, t.size, callerpc, pc)
+		racereadrangepc(addr, t.Size_, callerpc, pc)
 	} else {
 		// for non-composite objects we can read just the start
 		// address, as any write must write the first byte.
@@ -106,11 +106,11 @@ func raceReadObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
 }
 
 func raceWriteObjectPC(t *_type, addr unsafe.Pointer, callerpc, pc uintptr) {
-	kind := t.kind & kindMask
+	kind := t.Kind_ & kindMask
 	if kind == kindArray || kind == kindStruct {
 		// for composite objects we have to write every address
 		// because a write might happen to any subobject.
-		racewriterangepc(addr, t.size, callerpc, pc)
+		racewriterangepc(addr, t.Size_, callerpc, pc)
 	} else {
 		// for non-composite objects we can write just the start
 		// address, as any write must write the first byte.

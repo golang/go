@@ -264,7 +264,7 @@ func (h *hmap) newoverflow(t *maptype, b *bmap) *bmap {
 		ovf = (*bmap)(newobject(t.bucket))
 	}
 	h.incrnoverflow()
-	if t.bucket.ptrdata == 0 {
+	if t.bucket.PtrBytes == 0 {
 		h.createOverflow()
 		*h.extra.overflow = append(*h.extra.overflow, ovf)
 	}
@@ -303,7 +303,7 @@ func makemap_small() *hmap {
 // If h != nil, the map can be created directly in h.
 // If h.buckets != nil, bucket pointed to can be used as the first bucket.
 func makemap(t *maptype, hint int, h *hmap) *hmap {
-	mem, overflow := math.MulUintptr(uintptr(hint), t.bucket.size)
+	mem, overflow := math.MulUintptr(uintptr(hint), t.bucket.Size_)
 	if overflow || mem > maxAlloc {
 		hint = 0
 	}
@@ -353,10 +353,10 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
 		// required to insert the median number of elements
 		// used with this value of b.
 		nbuckets += bucketShift(b - 4)
-		sz := t.bucket.size * nbuckets
+		sz := t.bucket.Size_ * nbuckets
 		up := roundupsize(sz)
 		if up != sz {
-			nbuckets = up / t.bucket.size
+			nbuckets = up / t.bucket.Size_
 		}
 	}
 
@@ -367,8 +367,8 @@ func makeBucketArray(t *maptype, b uint8, dirtyalloc unsafe.Pointer) (buckets un
 		// the above newarray(t.bucket, int(nbuckets))
 		// but may not be empty.
 		buckets = dirtyalloc
-		size := t.bucket.size * nbuckets
-		if t.bucket.ptrdata != 0 {
+		size := t.bucket.Size_ * nbuckets
+		if t.bucket.PtrBytes != 0 {
 			memclrHasPointers(buckets, size)
 		} else {
 			memclrNoHeapPointers(buckets, size)
@@ -401,10 +401,10 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if msanenabled && h != nil {
-		msanread(key, t.key.size)
+		msanread(key, t.key.Size_)
 	}
 	if asanenabled && h != nil {
-		asanread(key, t.key.size)
+		asanread(key, t.key.Size_)
 	}
 	if h == nil || h.count == 0 {
 		if t.hashMightPanic() {
@@ -442,7 +442,7 @@ bucketloop:
 			if t.indirectkey() {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if t.key.equal(key, k) {
+			if t.key.Equal(key, k) {
 				e := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.elemsize))
 				if t.indirectelem() {
 					e = *((*unsafe.Pointer)(e))
@@ -462,10 +462,10 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if msanenabled && h != nil {
-		msanread(key, t.key.size)
+		msanread(key, t.key.Size_)
 	}
 	if asanenabled && h != nil {
-		asanread(key, t.key.size)
+		asanread(key, t.key.Size_)
 	}
 	if h == nil || h.count == 0 {
 		if t.hashMightPanic() {
@@ -503,7 +503,7 @@ bucketloop:
 			if t.indirectkey() {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if t.key.equal(key, k) {
+			if t.key.Equal(key, k) {
 				e := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.elemsize))
 				if t.indirectelem() {
 					e = *((*unsafe.Pointer)(e))
@@ -547,7 +547,7 @@ bucketloop:
 			if t.indirectkey() {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if t.key.equal(key, k) {
+			if t.key.Equal(key, k) {
 				e := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.elemsize))
 				if t.indirectelem() {
 					e = *((*unsafe.Pointer)(e))
@@ -587,10 +587,10 @@ func mapassign(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if msanenabled {
-		msanread(key, t.key.size)
+		msanread(key, t.key.Size_)
 	}
 	if asanenabled {
-		asanread(key, t.key.size)
+		asanread(key, t.key.Size_)
 	}
 	if h.flags&hashWriting != 0 {
 		fatal("concurrent map writes")
@@ -634,7 +634,7 @@ bucketloop:
 			if t.indirectkey() {
 				k = *((*unsafe.Pointer)(k))
 			}
-			if !t.key.equal(key, k) {
+			if !t.key.Equal(key, k) {
 				continue
 			}
 			// already have a mapping for key. Update it.
@@ -701,10 +701,10 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if msanenabled && h != nil {
-		msanread(key, t.key.size)
+		msanread(key, t.key.Size_)
 	}
 	if asanenabled && h != nil {
-		asanread(key, t.key.size)
+		asanread(key, t.key.Size_)
 	}
 	if h == nil || h.count == 0 {
 		if t.hashMightPanic() {
@@ -743,22 +743,22 @@ search:
 			if t.indirectkey() {
 				k2 = *((*unsafe.Pointer)(k2))
 			}
-			if !t.key.equal(key, k2) {
+			if !t.key.Equal(key, k2) {
 				continue
 			}
 			// Only clear key if there are pointers in it.
 			if t.indirectkey() {
 				*(*unsafe.Pointer)(k) = nil
-			} else if t.key.ptrdata != 0 {
-				memclrHasPointers(k, t.key.size)
+			} else if t.key.PtrBytes != 0 {
+				memclrHasPointers(k, t.key.Size_)
 			}
 			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.elemsize))
 			if t.indirectelem() {
 				*(*unsafe.Pointer)(e) = nil
-			} else if t.elem.ptrdata != 0 {
-				memclrHasPointers(e, t.elem.size)
+			} else if t.elem.PtrBytes != 0 {
+				memclrHasPointers(e, t.elem.Size_)
 			} else {
-				memclrNoHeapPointers(e, t.elem.size)
+				memclrNoHeapPointers(e, t.elem.Size_)
 			}
 			b.tophash[i] = emptyOne
 			// If the bucket now ends in a bunch of emptyOne states,
@@ -832,7 +832,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	// grab snapshot of bucket state
 	it.B = h.B
 	it.buckets = h.buckets
-	if t.bucket.ptrdata == 0 {
+	if t.bucket.PtrBytes == 0 {
 		// Allocate the current slice and remember pointers to both current and old.
 		// This preserves all relevant overflow buckets alive even if
 		// the table grows and/or overflow buckets are added to the table
@@ -931,7 +931,7 @@ next:
 			// through the oldbucket, skipping any keys that will go
 			// to the other new bucket (each oldbucket expands to two
 			// buckets during a grow).
-			if t.reflexivekey() || t.key.equal(k, k) {
+			if t.reflexivekey() || t.key.Equal(k, k) {
 				// If the item in the oldbucket is not destined for
 				// the current new bucket in the iteration, skip it.
 				hash := t.hasher(k, uintptr(h.hash0))
@@ -952,7 +952,7 @@ next:
 			}
 		}
 		if (b.tophash[offi] != evacuatedX && b.tophash[offi] != evacuatedY) ||
-			!(t.reflexivekey() || t.key.equal(k, k)) {
+			!(t.reflexivekey() || t.key.Equal(k, k)) {
 			// This is the golden data, we can return it.
 			// OR
 			// key!=key, so the entry can't be deleted or updated, so we can just return it.
@@ -1210,7 +1210,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 					// Compute hash to make our evacuation decision (whether we need
 					// to send this key/elem to bucket x or bucket y).
 					hash := t.hasher(k2, uintptr(h.hash0))
-					if h.flags&iterator != 0 && !t.reflexivekey() && !t.key.equal(k2, k2) {
+					if h.flags&iterator != 0 && !t.reflexivekey() && !t.key.Equal(k2, k2) {
 						// If key != key (NaNs), then the hash could be (and probably
 						// will be) entirely different from the old hash. Moreover,
 						// it isn't reproducible. Reproducibility is required in the
@@ -1265,7 +1265,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 			}
 		}
 		// Unlink the overflow buckets & clear key/elem to help GC.
-		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
+		if h.flags&oldIterator == 0 && t.bucket.PtrBytes != 0 {
 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.
@@ -1309,36 +1309,36 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
 //go:linkname reflect_makemap reflect.makemap
 func reflect_makemap(t *maptype, cap int) *hmap {
 	// Check invariants and reflects math.
-	if t.key.equal == nil {
+	if t.key.Equal == nil {
 		throw("runtime.reflect_makemap: unsupported map key type")
 	}
-	if t.key.size > maxKeySize && (!t.indirectkey() || t.keysize != uint8(goarch.PtrSize)) ||
-		t.key.size <= maxKeySize && (t.indirectkey() || t.keysize != uint8(t.key.size)) {
+	if t.key.Size_ > maxKeySize && (!t.indirectkey() || t.keysize != uint8(goarch.PtrSize)) ||
+		t.key.Size_ <= maxKeySize && (t.indirectkey() || t.keysize != uint8(t.key.Size_)) {
 		throw("key size wrong")
 	}
-	if t.elem.size > maxElemSize && (!t.indirectelem() || t.elemsize != uint8(goarch.PtrSize)) ||
-		t.elem.size <= maxElemSize && (t.indirectelem() || t.elemsize != uint8(t.elem.size)) {
+	if t.elem.Size_ > maxElemSize && (!t.indirectelem() || t.elemsize != uint8(goarch.PtrSize)) ||
+		t.elem.Size_ <= maxElemSize && (t.indirectelem() || t.elemsize != uint8(t.elem.Size_)) {
 		throw("elem size wrong")
 	}
-	if t.key.align > bucketCnt {
+	if t.key.Align_ > bucketCnt {
 		throw("key align too big")
 	}
-	if t.elem.align > bucketCnt {
+	if t.elem.Align_ > bucketCnt {
 		throw("elem align too big")
 	}
-	if t.key.size%uintptr(t.key.align) != 0 {
+	if t.key.Size_%uintptr(t.key.Align_) != 0 {
 		throw("key size not a multiple of key align")
 	}
-	if t.elem.size%uintptr(t.elem.align) != 0 {
+	if t.elem.Size_%uintptr(t.elem.Align_) != 0 {
 		throw("elem size not a multiple of elem align")
 	}
 	if bucketCnt < 8 {
 		throw("bucketsize too small for proper alignment")
 	}
-	if dataOffset%uintptr(t.key.align) != 0 {
+	if dataOffset%uintptr(t.key.Align_) != 0 {
 		throw("need padding in bucket (key)")
 	}
-	if dataOffset%uintptr(t.elem.align) != 0 {
+	if dataOffset%uintptr(t.elem.Align_) != 0 {
 		throw("need padding in bucket (elem)")
 	}
 

@@ -28,7 +28,7 @@ type itabTableType struct {
 
 func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
 	// compiler has provided some good hash codes for us.
-	return uintptr(inter.typ.hash ^ typ.hash)
+	return uintptr(inter.typ.Hash ^ typ.Hash)
 }
 
 func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
@@ -37,7 +37,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	}
 
 	// easy case
-	if typ.tflag&tflagUncommon == 0 {
+	if typ.TFlag&abi.TFlagUncommon == 0 {
 		if canfail {
 			return nil
 		}
@@ -323,12 +323,12 @@ func convT(t *_type, v unsafe.Pointer) unsafe.Pointer {
 		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convT))
 	}
 	if msanenabled {
-		msanread(v, t.size)
+		msanread(v, t.Size_)
 	}
 	if asanenabled {
-		asanread(v, t.size)
+		asanread(v, t.Size_)
 	}
-	x := mallocgc(t.size, t, true)
+	x := mallocgc(t.Size_, t, true)
 	typedmemmove(t, x, v)
 	return x
 }
@@ -338,14 +338,14 @@ func convTnoptr(t *_type, v unsafe.Pointer) unsafe.Pointer {
 		raceReadObjectPC(t, v, getcallerpc(), abi.FuncPCABIInternal(convTnoptr))
 	}
 	if msanenabled {
-		msanread(v, t.size)
+		msanread(v, t.Size_)
 	}
 	if asanenabled {
-		asanread(v, t.size)
+		asanread(v, t.Size_)
 	}
 
-	x := mallocgc(t.size, t, false)
-	memmove(x, v, t.size)
+	x := mallocgc(t.Size_, t, false)
+	memmove(x, v, t.Size_)
 	return x
 }
 

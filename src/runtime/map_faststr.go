@@ -336,10 +336,10 @@ search:
 			// Clear key's pointer.
 			k.str = nil
 			e := add(unsafe.Pointer(b), dataOffset+bucketCnt*2*goarch.PtrSize+i*uintptr(t.elemsize))
-			if t.elem.ptrdata != 0 {
-				memclrHasPointers(e, t.elem.size)
+			if t.elem.PtrBytes != 0 {
+				memclrHasPointers(e, t.elem.Size_)
 			} else {
-				memclrNoHeapPointers(e, t.elem.size)
+				memclrNoHeapPointers(e, t.elem.Size_)
 			}
 			b.tophash[i] = emptyOne
 			// If the bucket now ends in a bunch of emptyOne states,
@@ -469,7 +469,7 @@ func evacuate_faststr(t *maptype, h *hmap, oldbucket uintptr) {
 			}
 		}
 		// Unlink the overflow buckets & clear key/elem to help GC.
-		if h.flags&oldIterator == 0 && t.bucket.ptrdata != 0 {
+		if h.flags&oldIterator == 0 && t.bucket.PtrBytes != 0 {
 			b := add(h.oldbuckets, oldbucket*uintptr(t.bucketsize))
 			// Preserve b.tophash because the evacuation
 			// state is maintained there.

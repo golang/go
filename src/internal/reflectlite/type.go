@@ -3,10 +3,13 @@
 // license that can be found in the LICENSE file.
 
 // Package reflectlite implements lightweight version of reflect, not using
-// any package except for "runtime" and "unsafe".
+// any package except for "runtime", "unsafe", and "internal/abi"
 package reflectlite
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 // Type is the representation of a Go type.
 //
@@ -106,63 +109,11 @@ const (
 
 const Ptr = Pointer
 
-// tflag is used by an rtype to signal what extra type information is
-// available in the memory directly following the rtype value.
-//
-// tflag values must be kept in sync with copies in:
-//
-//	cmd/compile/internal/reflectdata/reflect.go
-//	cmd/link/internal/ld/decodesym.go
-//	runtime/type.go
-type tflag uint8
+type nameOff = abi.NameOff
+type typeOff = abi.TypeOff
+type textOff = abi.TextOff
 
-const (
-	// tflagUncommon means that there is a pointer, *uncommonType,
-	// just beyond the outer type structure.
-	//
-	// For example, if t.Kind() == Struct and t.tflag&tflagUncommon != 0,
-	// then t has uncommonType data and it can be accessed as:
-	//
-	//	type tUncommon struct {
-	//		structType
-	//		u uncommonType
-	//	}
-	//	u := &(*tUncommon)(unsafe.Pointer(t)).u
-	tflagUncommon tflag = 1 << 0
-
-	// tflagExtraStar means the name in the str field has an
-	// extraneous '*' prefix. This is because for most types T in
-	// a program, the type *T also exists and reusing the str data
-	// saves binary size.
-	tflagExtraStar tflag = 1 << 1
-
-	// tflagNamed means the type has a name.
-	tflagNamed tflag = 1 << 2
-
-	// tflagRegularMemory means that equal and hash functions can treat
-	// this type as a single region of t.size bytes.
-	tflagRegularMemory tflag = 1 << 3
-)
-
-// rtype is the common implementation of most values.
-// It is embedded in other struct types.
-//
-// rtype must be kept in sync with ../runtime/type.go:/^type._type.
-type rtype struct {
-	size       uintptr
-	ptrdata    uintptr // number of bytes in the type that can contain pointers
-	hash       uint32  // hash of type; avoids computation in hash tables
-	tflag      tflag   // extra type information flags
-	align      uint8   // alignment of variable with this type
-	fieldAlign uint8   // alignment of struct field with this type
-	kind       uint8   // enumeration for C
-	// function for comparing objects of this type
-	// (ptr to object A, ptr to object B) -> ==?
-	equal     func(unsafe.Pointer, unsafe.Pointer) bool
-	gcdata    *byte   // garbage collection data
-	str       nameOff // string form
-	ptrToThis typeOff // type for pointer to this type, may be zero
-}
+type rtype abi.Type
 
 // Method on non-interface type
 type method struct {
@@ -446,10 +397,6 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
 // Implemented in the runtime package.
 func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
-type nameOff int32 // offset to a name
-type typeOff int32 // offset to an *rtype
-type textOff int32 // offset from top of text section
-
 func (t *rtype) nameOff(off nameOff) name {
 	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
 }
@@ -459,7 +406,7 @@ func (t *rtype) typeOff(off typeOff) *rtype {
 }
 
 func (t *rtype) uncommon() *uncommonType {
-	if t.tflag&tflagUncommon == 0 {
+	if t.TFlag&abi.TFlagUncommon == 0 {
 		return nil
 	}
 	switch t.Kind() {
@@ -517,18 +464,18 @@ func (t *rtype) uncommon() *uncommonType {
 }
 
 func (t *rtype) String() string {
-	s := t.nameOff(t.str).name()
-	if t.tflag&tflagExtraStar != 0 {
+	s := t.nameOff(t.Str).name()
+	if t.TFlag&abi.TFlagExtraStar != 0 {
 		return s[1:]
 	}
 	return s
 }
 
-func (t *rtype) Size() uintptr { return t.size }
+func (t *rtype) Size() uintptr { return t.Size_ }
 
-func (t *rtype) Kind() Kind { return Kind(t.kind & kindMask) }
+func (t *rtype) Kind() Kind { return Kind(t.Kind_ & kindMask) }
 
-func (t *rtype) pointers() bool { return t.ptrdata != 0 }
+func (t *rtype) pointers() bool { return t.PtrBytes != 0 }
 
 func (t *rtype) common() *rtype { return t }
 
@@ -549,7 +496,7 @@ func (t *rtype) NumMethod() int {
 }
 
 func (t *rtype) PkgPath() string {
-	if t.tflag&tflagNamed == 0 {
+	if t.TFlag&abi.TFlagNamed == 0 {
 		return ""
 	}
 	ut := t.uncommon()
@@ -560,7 +507,7 @@ func (t *rtype) PkgPath() string {
 }
 
 func (t *rtype) hasName() bool {
-	return t.tflag&tflagNamed != 0
+	return t.TFlag&abi.TFlagNamed != 0
 }
 
 func (t *rtype) Name() string {
@@ -669,7 +616,7 @@ func (t *rtype) Out(i int) Type {
 
 func (t *funcType) in() []*rtype {
 	uadd := unsafe.Sizeof(*t)
-	if t.tflag&tflagUncommon != 0 {
+	if t.TFlag&abi.TFlagUncommon != 0 {
 		uadd += unsafe.Sizeof(uncommonType{})
 	}
 	if t.inCount == 0 {
@@ -680,7 +627,7 @@ func (t *funcType) in() []*rtype {
 
 func (t *funcType) out() []*rtype {
 	uadd := unsafe.Sizeof(*t)
-	if t.tflag&tflagUncommon != 0 {
+	if t.TFlag&abi.TFlagUncommon != 0 {
 		uadd += unsafe.Sizeof(uncommonType{})
 	}
 	outCount := t.outCount & (1<<15 - 1)
@@ -730,7 +677,7 @@ func (t *rtype) AssignableTo(u Type) bool {
 }
 
 func (t *rtype) Comparable() bool {
-	return t.equal != nil
+	return t.Equal != nil
 }
 
 // implements reports whether the type V implements the interface type T.
@@ -970,5 +917,5 @@ func toType(t *rtype) Type {
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.
 func ifaceIndir(t *rtype) bool {
-	return t.kind&kindDirectIface == 0
+	return t.Kind_&kindDirectIface == 0
 }

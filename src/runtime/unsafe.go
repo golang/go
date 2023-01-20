@@ -55,13 +55,13 @@ func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
 		panicunsafeslicelen1(getcallerpc())
 	}
 
-	if et.size == 0 {
+	if et.Size_ == 0 {
 		if ptr == nil && len > 0 {
 			panicunsafeslicenilptr1(getcallerpc())
 		}
 	}
 
-	mem, overflow := math.MulUintptr(et.size, uintptr(len))
+	mem, overflow := math.MulUintptr(et.Size_, uintptr(len))
 	if overflow || mem > -uintptr(ptr) {
 		if ptr == nil {
 			panicunsafeslicenilptr1(getcallerpc())
@@ -84,7 +84,7 @@ func unsafeslicecheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
 
 	// Check that underlying array doesn't straddle multiple heap objects.
 	// unsafeslice64 has already checked for overflow.
-	if checkptrStraddles(ptr, uintptr(len64)*et.size) {
+	if checkptrStraddles(ptr, uintptr(len64)*et.Size_) {
 		throw("checkptr: unsafe.Slice result straddles multiple allocations")
 	}
 }

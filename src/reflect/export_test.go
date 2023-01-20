@@ -57,14 +57,14 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 		inReg = append(inReg, bool2byte(abid.inRegPtrs.Get(i)))
 		outReg = append(outReg, bool2byte(abid.outRegPtrs.Get(i)))
 	}
-	if ft.kind&kindGCProg != 0 {
+	if ft.Kind_&kindGCProg != 0 {
 		panic("can't handle gc programs")
 	}
 
 	// Expand frame type's GC bitmap into byte-map.
-	ptrs = ft.ptrdata != 0
+	ptrs = ft.PtrBytes != 0
 	if ptrs {
-		nptrs := ft.ptrdata / goarch.PtrSize
+		nptrs := ft.PtrBytes / goarch.PtrSize
 		gcdata := ft.gcSlice(0, (nptrs+7)/8)
 		for i := uintptr(0); i < nptrs; i++ {
 			gc = append(gc, gcdata[i/8]>>(i%8)&1)
@@ -96,7 +96,7 @@ func MapBucketOf(x, y Type) Type {
 
 func CachedBucketOf(m Type) Type {
 	t := m.(*rtype)
-	if Kind(t.kind&kindMask) != Map {
+	if Kind(t.Kind_&kindMask) != Map {
 		panic("not map")
 	}
 	tt := (*mapType)(unsafe.Pointer(t))
@@ -135,7 +135,7 @@ type OtherPkgFields struct {
 
 func IsExported(t Type) bool {
 	typ := t.(*rtype)
-	n := typ.nameOff(typ.str)
+	n := typ.nameOff(typ.Str)
 	return n.isExported()
 }
 

@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/cpu"
 	"internal/goarch"
 	"unsafe"
@@ -100,7 +101,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 		return h
 	}
 	t := tab._type
-	if t.equal == nil {
+	if t.Equal == nil {
 		// Check hashability here. We could do this check inside
 		// typehash, but we want to report the topmost type in
 		// the error text (e.g. in a struct with a field of slice type
@@ -120,7 +121,7 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 	if t == nil {
 		return h
 	}
-	if t.equal == nil {
+	if t.Equal == nil {
 		// See comment in interhash above.
 		panic(errorString("hash of unhashable type " + t.string()))
 	}
@@ -142,18 +143,18 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 // Note: this function must match the compiler generated
 // functions exactly. See issue 37716.
 func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
-	if t.tflag&tflagRegularMemory != 0 {
+	if t.TFlag&abi.TFlagRegularMemory != 0 {
 		// Handle ptr sizes specially, see issue 37086.
-		switch t.size {
+		switch t.Size_ {
 		case 4:
 			return memhash32(p, h)
 		case 8:
 			return memhash64(p, h)
 		default:
-			return memhash(p, h, t.size)
+			return memhash(p, h, t.Size_)
 		}
 	}
-	switch t.kind & kindMask {
+	switch t.Kind_ & kindMask {
 	case kindFloat32:
 		return f32hash(p, h)
 	case kindFloat64:
@@ -173,7 +174,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 	case kindArray:
 		a := (*arraytype)(unsafe.Pointer(t))
 		for i := uintptr(0); i < a.len; i++ {
-			h = typehash(a.elem, add(p, i*a.elem.size), h)
+			h = typehash(a.elem, add(p, i*a.elem.Size_), h)
 		}
 		return h
 	case kindStruct:
@@ -244,7 +245,7 @@ func efaceeq(t *_type, x, y unsafe.Pointer) bool {
 	if t == nil {
 		return true
 	}
-	eq := t.equal
+	eq := t.Equal
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + t.string()))
 	}
@@ -261,7 +262,7 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
 		return true
 	}
 	t := tab._type
-	eq := t.equal
+	eq := t.Equal
 	if eq == nil {
 		panic(errorString("comparing uncomparable type " + t.string()))
 	}

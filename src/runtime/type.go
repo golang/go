@@ -11,59 +11,29 @@ import (
 	"unsafe"
 )
 
-// tflag is documented in reflect/type.go.
-//
-// tflag values must be kept in sync with copies in:
-//
-//	cmd/compile/internal/reflectdata/reflect.go
-//	cmd/link/internal/ld/decodesym.go
-//	reflect/type.go
-//	internal/reflectlite/type.go
-type tflag uint8
-
-const (
-	tflagUncommon      tflag = 1 << 0
-	tflagExtraStar     tflag = 1 << 1
-	tflagNamed         tflag = 1 << 2
-	tflagRegularMemory tflag = 1 << 3 // equal and hash can treat values of this type as a single region of t.size bytes
-)
+type nameOff = abi.NameOff
+type typeOff = abi.TypeOff
+type textOff = abi.TextOff
 
 // Needs to be in sync with ../cmd/link/internal/ld/decodesym.go:/^func.commonsize,
 // ../cmd/compile/internal/reflectdata/reflect.go:/^func.dcommontype and
 // ../reflect/type.go:/^type.rtype.
 // ../internal/reflectlite/type.go:/^type.rtype.
-type _type struct {
-	size       uintptr
-	ptrdata    uintptr // size of memory prefix holding all pointers
-	hash       uint32
-	tflag      tflag
-	align      uint8
-	fieldAlign uint8
-	kind       uint8
-	// function for comparing objects of this type
-	// (ptr to object A, ptr to object B) -> ==?
-	equal func(unsafe.Pointer, unsafe.Pointer) bool
-	// gcdata stores the GC type data for the garbage collector.
-	// If the KindGCProg bit is set in kind, gcdata is a GC program.
-	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
-	gcdata    *byte
-	str       nameOff
-	ptrToThis typeOff
-}
+type _type abi.Type
 
 func (t *_type) string() string {
-	s := t.nameOff(t.str).name()
-	if t.tflag&tflagExtraStar != 0 {
+	s := t.nameOff(t.Str).name()
+	if t.TFlag&abi.TFlagExtraStar != 0 {
 		return s[1:]
 	}
 	return s
 }
 
 func (t *_type) uncommon() *uncommontype {
-	if t.tflag&tflagUncommon == 0 {
+	if t.TFlag&abi.TFlagUncommon == 0 {
 		return nil
 	}
-	switch t.kind & kindMask {
+	switch t.Kind_ & kindMask {
 	case kindStruct:
 		type u struct {
 			structtype
@@ -122,7 +92,7 @@ func (t *_type) uncommon() *uncommontype {
 }
 
 func (t *_type) name() string {
-	if t.tflag&tflagNamed == 0 {
+	if t.TFlag&abi.TFlagNamed == 0 {
 		return ""
 	}
 	s := t.string()
@@ -148,7 +118,7 @@ func (t *_type) pkgpath() string {
 	if u := t.uncommon(); u != nil {
 		return t.nameOff(u.pkgpath).name()
 	}
-	switch t.kind & kindMask {
+	switch t.Kind_ & kindMask {
 	case kindStruct:
 		st := (*structtype)(unsafe.Pointer(t))
 		return st.pkgPath.name()
@@ -303,7 +273,7 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
 func (t *functype) in() []*_type {
 	// See funcType in reflect/type.go for details on data layout.
 	uadd := uintptr(unsafe.Sizeof(functype{}))
-	if t.typ.tflag&tflagUncommon != 0 {
+	if t.typ.TFlag&abi.TFlagUncommon != 0 {
 		uadd += unsafe.Sizeof(uncommontype{})
 	}
 	return (*[1 << 20]*_type)(add(unsafe.Pointer(t), uadd))[:t.inCount]
@@ -312,7 +282,7 @@ func (t *functype) in() []*_type {
 func (t *functype) out() []*_type {
 	// See funcType in reflect/type.go for details on data layout.
 	uadd := uintptr(unsafe.Sizeof(functype{}))
-	if t.typ.tflag&tflagUncommon != 0 {
+	if t.typ.TFlag&abi.TFlagUncommon != 0 {
 		uadd += unsafe.Sizeof(uncommontype{})
 	}
 	outCount := t.outCount & (1<<15 - 1)
@@ -322,10 +292,6 @@ func (t *functype) out() []*_type {
 func (t *functype) dotdotdot() bool {
 	return t.outCount&(1<<15) != 0
 }
-
-type nameOff int32
-type typeOff int32
-type textOff int32
 
 type method struct {
 	name nameOff
@@ -519,13 +485,13 @@ func typelinksinit() {
 				t = prev.typemap[typeOff(tl)]
 			}
 			// Add to typehash if not seen before.
-			tlist := typehash[t.hash]
+			tlist := typehash[t.Hash]
 			for _, tcur := range tlist {
 				if tcur == t {
 					continue collect
 				}
 			}
-			typehash[t.hash] = append(tlist, t)
+			typehash[t.Hash] = append(tlist, t)
 		}
 
 		if md.typemap == nil {
@@ -537,7 +503,7 @@ func typelinksinit() {
 			md.typemap = tm
 			for _, tl := range md.typelinks {
 				t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
-				for _, candidate := range typehash[t.hash] {
+				for _, candidate := range typehash[t.Hash] {
 					seen := map[_typePair]struct{}{}
 					if typesEqual(t, candidate, seen) {
 						t = candidate
@@ -583,8 +549,8 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 	if t == v {
 		return true
 	}
-	kind := t.kind & kindMask
-	if kind != v.kind&kindMask {
+	kind := t.Kind_ & kindMask
+	if kind != v.Kind_&kindMask {
 		return false
 	}
 	if t.string() != v.string() {
