@@ -178,13 +178,15 @@ func (p *pkg) DiagnosticsForFile(uri span.URI) []*source.Diagnostic {
 	return res
 }
 
-func (p *pkg) ReferencesTo(pkgPath PackagePath, objPath objectpath.Path) []protocol.Location {
+// ReferencesTo returns the location of each reference within package p
+// to one of the target objects denoted by the pair (package path, object path).
+func (p *pkg) ReferencesTo(targets map[PackagePath]map[objectpath.Path]struct{}) []protocol.Location {
 	// TODO(adonovan): In future, p.xrefs will be retrieved from a
 	// section of the cache file produced by type checking.
 	// (Other sections will include the package's export data,
 	// "implements" relations, exported symbols, etc.)
 	// For now we just hang it off the pkg.
-	return xrefs.Lookup(p.m, p.xrefs, pkgPath, objPath)
+	return xrefs.Lookup(p.m, p.xrefs, targets)
 }
 
 func (p *pkg) MethodSetsIndex() *methodsets.Index {

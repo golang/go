@@ -134,8 +134,9 @@ func Index(pkg source.Package) []byte {
 
 // Lookup searches a serialized index produced by an indexPackage
 // operation on m, and returns the locations of all references from m
-// to the object denoted by (pkgPath, objectPath).
-func Lookup(m *source.Metadata, data []byte, pkgPath source.PackagePath, objPath objectpath.Path) []protocol.Location {
+// to any object in the target set. Each object is denoted by a pair
+// of (package path, object path).
+func Lookup(m *source.Metadata, data []byte, targets map[source.PackagePath]map[objectpath.Path]struct{}) (locs []protocol.Location) {
 
 	// TODO(adonovan): opt: evaluate whether it would be faster to decode
 	// in two passes, first with struct { PkgPath string; Objects BLOB }
@@ -146,10 +147,9 @@ func Lookup(m *source.Metadata, data []byte, pkgPath source.PackagePath, objPath
 	mustDecode(data, &packages)
 
 	for _, gp := range packages {
-		if gp.PkgPath == pkgPath {
-			var locs []protocol.Location
+		if objectSet, ok := targets[gp.PkgPath]; ok {
 			for _, gobObj := range gp.Objects {
-				if gobObj.Path == objPath {
+				if _, ok := objectSet[gobObj.Path]; ok {
 					for _, ref := range gobObj.Refs {
 						uri := m.CompiledGoFiles[ref.FileIndex]
 						locs = append(locs, protocol.Location{
@@ -159,10 +159,10 @@ func Lookup(m *source.Metadata, data []byte, pkgPath source.PackagePath, objPath
 					}
 				}
 			}
-			return locs
 		}
 	}
-	return nil // this package does not reference that one
+
+	return locs
 }
 
 // -- serialized representation --

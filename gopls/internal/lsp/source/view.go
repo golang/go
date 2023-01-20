@@ -773,10 +773,12 @@ type Package interface {
 	ResolveImportPath(path ImportPath) (Package, error)
 	Imports() []Package // new slice of all direct dependencies, unordered
 	HasTypeErrors() bool
-	DiagnosticsForFile(uri span.URI) []*Diagnostic                 // new array of list/parse/type errors
-	ReferencesTo(PackagePath, objectpath.Path) []protocol.Location // new sorted array of xrefs
+	DiagnosticsForFile(uri span.URI) []*Diagnostic                             // new array of list/parse/type errors
+	ReferencesTo(map[PackagePath]map[objectpath.Path]unit) []protocol.Location // new sorted array of xrefs
 	MethodSetsIndex() *methodsets.Index
 }
+
+type unit = struct{}
 
 // A CriticalError is a workspace-wide error that generally prevents gopls from
 // functioning correctly. In the presence of critical errors, other diagnostics

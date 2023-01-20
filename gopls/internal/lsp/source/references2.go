@@ -290,9 +290,9 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 
 	// Is the object exported?
 	// (objectpath succeeds for lowercase names, arguably a bug.)
-	var exportedObjectPath objectpath.Path
+	var exportedObjectPaths map[objectpath.Path]unit
 	if path, err := objectpath.For(obj); err == nil && obj.Exported() {
-		exportedObjectPath = path
+		exportedObjectPaths = map[objectpath.Path]unit{path: unit{}}
 
 		// If the object is an exported method, we need to search for
 		// all matching implementations (using the incremental
@@ -342,9 +342,11 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 			return localReferences(ctx, snapshot, declURI, declPosn.Offset, m, report)
 		})
 
-		if exportedObjectPath == "" {
+		if exportedObjectPaths == nil {
 			continue // non-exported
 		}
+
+		targets := map[PackagePath]map[objectpath.Path]struct{}{m.PkgPath: exportedObjectPaths}
 
 		// global
 		group.Go(func() error {
@@ -358,7 +360,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 			for _, rdep := range rdeps {
 				rdep := rdep
 				group.Go(func() error {
-					return globalReferences(ctx, snapshot, rdep, m.PkgPath, exportedObjectPath, report)
+					return globalReferences(ctx, snapshot, rdep, targets, report)
 				})
 			}
 			return nil
@@ -504,9 +506,9 @@ func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Objec
 	return targets, nil
 }
 
-// globalReferences reports each cross-package
-// reference to the object identified by (pkgPath, objectPath).
-func globalReferences(ctx context.Context, snapshot Snapshot, m *Metadata, pkgPath PackagePath, objectPath objectpath.Path, report func(loc protocol.Location, isDecl bool)) error {
+// globalReferences reports each cross-package reference to one of the
+// target objects denoted by (package path, object path).
+func globalReferences(ctx context.Context, snapshot Snapshot, m *Metadata, targets map[PackagePath]map[objectpath.Path]unit, report func(loc protocol.Location, isDecl bool)) error {
 	// TODO(adonovan): opt: don't actually type-check here,
 	// since we quite intentionally don't look at type information.
 	// Instead, access the reference index computed during
@@ -515,7 +517,7 @@ func globalReferences(ctx context.Context, snapshot Snapshot, m *Metadata, pkgPa
 	if err != nil {
 		return err
 	}
-	for _, loc := range pkgs[0].ReferencesTo(pkgPath, objectPath) {
+	for _, loc := range pkgs[0].ReferencesTo(targets) {
 		report(loc, false)
 	}
 	return nil
