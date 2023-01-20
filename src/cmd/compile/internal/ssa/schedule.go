@@ -130,8 +130,10 @@ func schedule(f *Func) {
 				// We want all the phis first.
 				score[v.ID] = ScorePhi
 			case v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
-				// In-register args must be scheduled as early as possible to ensure that the
-				// context register is not stomped. They should only appear in the entry block.
+				// In-register args must be scheduled as early as possible to ensure that they
+				// are not stomped (similar to the closure pointer above).
+				// In particular, they need to come before regular OpArg operations because
+				// of how regalloc places spill code (see regalloc.go:placeSpills:mustBeFirst).
 				if b != f.Entry {
 					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
 				}
