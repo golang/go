@@ -59,9 +59,6 @@ func pow(x, y float64) float64 {
 			}
 			return Inf(1)
 		case y > 0:
-			if isOddInt(y) {
-				return x
-			}
 			return 0
 		}
 	case IsInf(y, 0):
