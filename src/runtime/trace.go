@@ -1117,9 +1117,7 @@ func (tab *traceStackTable) put(pcs []uintptr) uint32 {
 		id = stk.id
 		stk.n = len(pcs)
 		stkpc := stk.stack()
-		for i, pc := range pcs {
-			stkpc[i] = pc
-		}
+		copy(stkpc, pcs)
 		part := int(hash % uintptr(len(tab.tab)))
 		stk.link = tab.tab[part]
 		atomicstorep(unsafe.Pointer(&tab.tab[part]), unsafe.Pointer(stk))
