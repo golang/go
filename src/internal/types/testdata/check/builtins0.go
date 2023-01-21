@@ -144,7 +144,7 @@ func clear1() {
 	var m map[float64]string
 	var s []byte
 	clear(a /* ERROR "cannot clear a" */)
-	clear(&a)
+	clear(&/* ERROR "cannot clear &a" */a)
 	clear(m)
 	clear(s)
 	clear([]int{})

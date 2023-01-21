@@ -14,7 +14,7 @@ func _[T any](x T) {
 	clear(x /* ERROR "cannot clear x" */)
 }
 
-func _[T ~map[int]string | ~[]byte | ~*[10]int](x T) {
+func _[T ~map[int]string | ~[]byte](x T) {
 	clear(x)
 }
 

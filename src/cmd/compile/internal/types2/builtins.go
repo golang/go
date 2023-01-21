@@ -240,15 +240,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 
 		if !underIs(x.typ, func(u Type) bool {
-			switch u := u.(type) {
+			switch u.(type) {
 			case *Map, *Slice:
 				return true
-			case *Pointer:
-				if _, ok := under(u.base).(*Array); ok {
-					return true
-				}
 			}
-			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map, slice, or array pointer", x)
+			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map or slice", x)
 			return false
 		}) {
 			return
