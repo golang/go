@@ -255,6 +255,20 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 	if !ok {
 		return nil, fmt.Errorf("expected %v to be an interface but got %T", iface, ifaceObj.Type().Underlying())
 	}
+
+	// The built-in error interface is special.
+	if ifaceObj.Pkg() == nil && ifaceObj.Name() == "error" {
+		var missingInterfaces []*missingInterface
+		if concMS.Lookup(nil, "Error") == nil {
+			errorMethod, _, _ := types.LookupFieldOrMethod(iface, false, nil, "Error")
+			missingInterfaces = append(missingInterfaces, &missingInterface{
+				iface:   ifaceObj,
+				missing: []*types.Func{errorMethod.(*types.Func)},
+			})
+		}
+		return missingInterfaces, nil
+	}
+
 	// Parse the imports from the file that declares the interface.
 	ifaceFilename := safetoken.StartPosition(snapshot.FileSet(), ifaceObj.Pos()).Filename
 	ifaceFH, err := snapshot.GetFile(ctx, span.URIFromPath(ifaceFilename))
@@ -266,18 +280,15 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 		return nil, fmt.Errorf("error parsing imports from interface file: %w", err)
 	}
 
-	mi := &missingInterface{
-		iface:   ifaceObj,
-		imports: ifaceFile.File.Imports,
-	}
+	var missing []*types.Func
 
-	// Add all the interface methods not defined by the concrete type to mi.missing.
+	// Add all the interface methods not defined by the concrete type to missing.
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		method := iface.ExplicitMethod(i)
 		if sel := concMS.Lookup(concPkg, method.Name()); sel == nil {
 			// Concrete type does not have the interface method.
 			if _, ok := visited[method.Name()]; !ok {
-				mi.missing = append(mi.missing, method)
+				missing = append(missing, method)
 				visited[method.Name()] = struct{}{}
 			}
 		} else {
@@ -297,27 +308,31 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 	// sets of the interface and concrete types. Once the set
 	// difference (missing methods) is computed, the imports
 	// from the declaring file(s) could be loaded as needed.
-	var missing []*missingInterface
+	var missingInterfaces []*missingInterface
 	for i := 0; i < iface.NumEmbeddeds(); i++ {
 		eiface := iface.Embedded(i).Obj()
 		em, err := missingMethods(ctx, snapshot, concMS, concPkg, eiface, visited)
 		if err != nil {
 			return nil, err
 		}
-		missing = append(missing, em...)
+		missingInterfaces = append(missingInterfaces, em...)
 	}
 	// The type checker is deterministic, but its choice of
 	// ordering of embedded interfaces varies with Go version
 	// (e.g. go1.17 was sorted, go1.18 was lexical order).
 	// Sort to ensure test portability.
-	sort.Slice(missing, func(i, j int) bool {
-		return missing[i].iface.Id() < missing[j].iface.Id()
+	sort.Slice(missingInterfaces, func(i, j int) bool {
+		return missingInterfaces[i].iface.Id() < missingInterfaces[j].iface.Id()
 	})
 
-	if len(mi.missing) > 0 {
-		missing = append(missing, mi)
+	if len(missing) > 0 {
+		missingInterfaces = append(missingInterfaces, &missingInterface{
+			iface:   ifaceObj,
+			imports: ifaceFile.File.Imports,
+			missing: missing,
+		})
 	}
-	return missing, nil
+	return missingInterfaces, nil
 }
 
 // missingInterface represents an interface

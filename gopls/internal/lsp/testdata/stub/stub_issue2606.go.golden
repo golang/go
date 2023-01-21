@@ -1,0 +1,14 @@
+-- suggestedfix_stub_issue2606_7_11 --
+package stub
+
+type I interface{ error }
+
+type C int
+
+// Error implements I
+func (C) Error() string {
+	panic("unimplemented")
+}
+
+var _ I = C(0) //@suggestedfix("C", "refactor.rewrite", "")
+
