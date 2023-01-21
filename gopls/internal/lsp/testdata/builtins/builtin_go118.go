@@ -1,5 +1,5 @@
-//go:build go1.18
-// +build go1.18
+//go:build go1.18 && !go1.21
+// +build go1.18,!go1.21
 
 package builtins
 

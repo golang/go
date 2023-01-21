@@ -8,6 +8,7 @@ package builtins
 /* bool */ //@item(bool, "bool", "", "type")
 /* byte */ //@item(byte, "byte", "", "type")
 /* cap(v Type) int */ //@item(cap, "cap", "func(v Type) int", "func")
+/* clear[T interface{ ~[]Type | ~map[Type]Type1 }](t T) */ //@item(clear, "clear", "func(t T)", "func")
 /* close(c chan<- Type) */ //@item(close, "close", "func(c chan<- Type)", "func")
 /* comparable */ //@item(comparable, "comparable", "", "interface")
 /* complex(r float64, i float64) */ //@item(complex, "complex", "func(r float64, i float64) complex128", "func")
