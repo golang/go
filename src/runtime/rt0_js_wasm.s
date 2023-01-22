@@ -98,7 +98,6 @@ TEXT runtime·pause(SB), NOSPLIT, $0-8
 TEXT runtime·exit(SB), NOSPLIT, $0-4
 	I32Const $0
 	Call runtime·wasmExit(SB)
-	Drop
 	I32Const $1
 	Set PAUSE
 	RETUNWIND

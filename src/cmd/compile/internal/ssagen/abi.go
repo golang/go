@@ -11,11 +11,14 @@ import (
 	"os"
 	"strings"
 
+	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/obj/wasm"
 )
 
 // SymABIs records information provided by the assembler about symbol
@@ -335,4 +338,89 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	base.Pos = savepos
 	typecheck.DeclContext = savedclcontext
 	ir.CurFunc = savedcurfn
+}
+
+// CreateWasmImportWrapper creates a wrapper for imported WASM functions to
+// adapt them to the Go calling convention. The body for this function is
+// generated in cmd/internal/obj/wasm/wasmobj.go
+func CreateWasmImportWrapper(fn *ir.Func) bool {
+	if fn.WasmImport == nil {
+		return false
+	}
+	if buildcfg.GOARCH != "wasm" {
+		base.FatalfAt(fn.Pos(), "CreateWasmImportWrapper call not supported on %s: func was %v", buildcfg.GOARCH, fn)
+	}
+
+	ir.InitLSym(fn, true)
+
+	setupWasmABI(fn)
+
+	pp := objw.NewProgs(fn, 0)
+	defer pp.Free()
+	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+	pp.Text.To.Val = int32(types.RoundUp(fn.Type().ArgWidth(), int64(types.RegSize)))
+	// Wrapper functions never need their own stack frame
+	pp.Text.To.Offset = 0
+	pp.Flush()
+
+	return true
+}
+
+func toWasmFields(result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
+	wfs := make([]obj.WasmField, len(abiParams))
+	for i, p := range abiParams {
+		t := p.Type
+		switch {
+		case t.IsInteger() && t.Size() == 4:
+			wfs[i].Type = obj.WasmI32
+		case t.IsInteger() && t.Size() == 8:
+			wfs[i].Type = obj.WasmI64
+		case t.IsFloat() && t.Size() == 4:
+			wfs[i].Type = obj.WasmF32
+		case t.IsFloat() && t.Size() == 8:
+			wfs[i].Type = obj.WasmF64
+		case t.IsPtr():
+			wfs[i].Type = obj.WasmPtr
+		default:
+			base.Fatalf("wasm import has bad function signature")
+		}
+		wfs[i].Offset = p.FrameOffset(result)
+	}
+	return wfs
+}
+
+// setupTextLSym initializes the LSym for a with-body text symbol.
+func setupWasmABI(f *ir.Func) {
+	wi := obj.WasmImport{
+		Module: f.WasmImport.Module,
+		Name:   f.WasmImport.Name,
+	}
+	if wi.Module == wasm.GojsModule {
+		// Functions that are imported from the "gojs" module use a special
+		// ABI that just accepts the stack pointer.
+		// Example:
+		//
+		// 	//go:wasmimport gojs add
+		// 	func importedAdd(a, b uint) uint
+		//
+		// will roughly become
+		//
+		// 	(import "gojs" "add" (func (param i32)))
+		wi.Params = []obj.WasmField{{Type: obj.WasmI32}}
+	} else {
+		// All other imported functions use the normal WASM ABI.
+		// Example:
+		//
+		// 	//go:wasmimport a_module add
+		// 	func importedAdd(a, b uint) uint
+		//
+		// will roughly become
+		//
+		// 	(import "a_module" "add" (func (param i32 i32) (result i32)))
+		abiConfig := AbiForBodylessFuncStackMap(f)
+		abiInfo := abiConfig.ABIAnalyzeFuncType(f.Type().FuncType())
+		wi.Params = toWasmFields(abiInfo, abiInfo.InParams())
+		wi.Results = toWasmFields(abiInfo, abiInfo.OutParams())
+	}
+	f.LSym.Func().WasmImport = &wi
 }

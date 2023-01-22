@@ -6,9 +6,7 @@
 
 package runtime
 
-import (
-	_ "unsafe"
-)
+import _ "unsafe" // for go:linkname
 
 // js/wasm has no support for threads yet. There is no preemption.
 
@@ -232,9 +230,13 @@ func pause(newsp uintptr)
 
 // scheduleTimeoutEvent tells the WebAssembly environment to trigger an event after ms milliseconds.
 // It returns a timer id that can be used with clearTimeoutEvent.
+//
+//go:wasmimport gojs runtime.scheduleTimeoutEvent
 func scheduleTimeoutEvent(ms int64) int32
 
 // clearTimeoutEvent clears a timeout event scheduled by scheduleTimeoutEvent.
+//
+//go:wasmimport gojs runtime.clearTimeoutEvent
 func clearTimeoutEvent(id int32)
 
 // handleEvent gets invoked on a call from JavaScript into Go. It calls the event handler of the syscall/js package

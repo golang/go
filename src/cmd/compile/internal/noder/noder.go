@@ -7,6 +7,7 @@ package noder
 import (
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -166,9 +167,17 @@ var allowedStdPragmas = map[string]bool{
 
 // *pragmas is the value stored in a syntax.pragmas during parsing.
 type pragmas struct {
-	Flag   ir.PragmaFlag // collected bits
-	Pos    []pragmaPos   // position of each individual flag
-	Embeds []pragmaEmbed
+	Flag       ir.PragmaFlag // collected bits
+	Pos        []pragmaPos   // position of each individual flag
+	Embeds     []pragmaEmbed
+	WasmImport *WasmImport
+}
+
+// WasmImport stores metadata associated with the //go:wasmimport pragma
+type WasmImport struct {
+	Pos    syntax.Pos
+	Module string
+	Name   string
 }
 
 type pragmaPos struct {
@@ -191,6 +200,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
 		for _, e := range pragma.Embeds {
 			p.error(syntax.Error{Pos: e.Pos, Msg: "misplaced go:embed directive"})
 		}
+	}
+	if pragma.WasmImport != nil {
+		p.error(syntax.Error{Pos: pragma.WasmImport.Pos, Msg: "misplaced go:wasmimport directive"})
 	}
 }
 
@@ -219,6 +231,25 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
 	}
 
 	switch {
+	case strings.HasPrefix(text, "go:wasmimport "):
+		f := strings.Fields(text)
+		if len(f) != 3 {
+			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:wasmimport importmodule importname"})
+			break
+		}
+		if !base.Flag.CompilingRuntime && base.Ctxt.Pkgpath != "syscall/js" && base.Ctxt.Pkgpath != "syscall/js_test" {
+			p.error(syntax.Error{Pos: pos, Msg: "//go:wasmimport directive cannot be used outside of runtime or syscall/js"})
+			break
+		}
+
+		if buildcfg.GOARCH == "wasm" {
+			// Only actually use them if we're compiling to WASM though.
+			pragma.WasmImport = &WasmImport{
+				Pos:    pos,
+				Module: f[1],
+				Name:   f[2],
+			}
+		}
 	case strings.HasPrefix(text, "go:linkname "):
 		f := strings.Fields(text)
 		if !(2 <= len(f) && len(f) <= 3) {

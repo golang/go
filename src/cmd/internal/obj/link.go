@@ -37,6 +37,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -499,7 +500,9 @@ type FuncInfo struct {
 	WrapInfo           *LSym // for wrapper, info of wrapped function
 	JumpTables         []JumpTable
 
-	FuncInfoSym *LSym
+	FuncInfoSym   *LSym
+	WasmImportSym *LSym
+	WasmImport    *WasmImport
 }
 
 // JumpTable represents a table used for implementing multi-way
@@ -557,6 +560,75 @@ func (s *LSym) File() *FileInfo {
 	f, _ := (*s.Extra).(*FileInfo)
 	return f
 }
+
+// WasmImport represents a WebAssembly (WASM) imported function with
+// parameters and results translated into WASM types based on the Go function
+// declaration.
+type WasmImport struct {
+	// Module holds the WASM module name specified by the //go:wasmimport
+	// directive.
+	Module string
+	// Name holds the WASM imported function name specified by the
+	// //go:wasmimport directive.
+	Name string
+	// Params holds the imported function parameter fields.
+	Params []WasmField
+	// Results holds the imported function result fields.
+	Results []WasmField
+}
+
+func (wi *WasmImport) CreateSym(ctxt *Link) *LSym {
+	var sym LSym
+
+	var b [8]byte
+	writeByte := func(x byte) {
+		sym.WriteBytes(ctxt, sym.Size, []byte{x})
+	}
+	writeUint32 := func(x uint32) {
+		binary.LittleEndian.PutUint32(b[:], x)
+		sym.WriteBytes(ctxt, sym.Size, b[:4])
+	}
+	writeInt64 := func(x int64) {
+		binary.LittleEndian.PutUint64(b[:], uint64(x))
+		sym.WriteBytes(ctxt, sym.Size, b[:])
+	}
+	writeString := func(s string) {
+		writeUint32(uint32(len(s)))
+		sym.WriteString(ctxt, sym.Size, len(s), s)
+	}
+	writeString(wi.Module)
+	writeString(wi.Name)
+	writeUint32(uint32(len(wi.Params)))
+	for _, f := range wi.Params {
+		writeByte(byte(f.Type))
+		writeInt64(f.Offset)
+	}
+	writeUint32(uint32(len(wi.Results)))
+	for _, f := range wi.Results {
+		writeByte(byte(f.Type))
+		writeInt64(f.Offset)
+	}
+
+	return &sym
+}
+
+type WasmField struct {
+	Type WasmFieldType
+	// Offset holds the frame-pointer-relative locations for Go's stack-based
+	// ABI. This is used by the src/cmd/internal/wasm package to map WASM
+	// import parameters to the Go stack in a wrapper function.
+	Offset int64
+}
+
+type WasmFieldType byte
+
+const (
+	WasmI32 WasmFieldType = iota
+	WasmI64
+	WasmF32
+	WasmF64
+	WasmPtr
+)
 
 type InlMark struct {
 	// When unwinding from an instruction in an inlined body, mark

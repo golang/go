@@ -442,6 +442,7 @@ const (
 	AuxPcline
 	AuxPcinline
 	AuxPcdata
+	AuxWasmImport
 )
 
 func (a *Aux) Type() uint8 { return a[0] }
