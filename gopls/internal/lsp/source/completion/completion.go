@@ -1287,12 +1287,10 @@ func (c *completer) lexical(ctx context.Context) error {
 	var (
 		builtinIota = types.Universe.Lookup("iota")
 		builtinNil  = types.Universe.Lookup("nil")
-		// comparable is an interface that exists on the dev.typeparams Go branch.
-		// Filter it out from completion results to stabilize tests.
-		// TODO(rFindley) update (or remove) our handling for comparable once the
-		//                type parameter API has stabilized.
-		builtinAny        = types.Universe.Lookup("any")
-		builtinComparable = types.Universe.Lookup("comparable")
+
+		// TODO(rfindley): only allow "comparable" where it is valid (in constraint
+		// position or embedded in interface declarations).
+		// builtinComparable = types.Universe.Lookup("comparable")
 	)
 
 	// Track seen variables to avoid showing completions for shadowed variables.
@@ -1310,9 +1308,6 @@ func (c *completer) lexical(ctx context.Context) error {
 			declScope, obj := scope.LookupParent(name, c.pos)
 			if declScope != scope {
 				continue // Name was declared in some enclosing scope, or not at all.
-			}
-			if obj == builtinComparable || obj == builtinAny {
-				continue
 			}
 
 			// If obj's type is invalid, find the AST node that defines the lexical block

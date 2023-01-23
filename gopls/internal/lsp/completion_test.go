@@ -28,7 +28,7 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if diff := tests.DiffCompletionItems(want, got); diff != "" {
-		t.Errorf("%s", diff)
+		t.Errorf("mismatching completion items (-want +got):\n%s", diff)
 	}
 }
 
@@ -66,8 +66,8 @@ func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completi
 	})
 	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
-	if msg := tests.DiffCompletionItems(want, got); msg != "" {
-		t.Errorf("%s", msg)
+	if diff := tests.DiffCompletionItems(want, got); diff != "" {
+		t.Errorf("mismatching completion items (-want +got):\n%s", diff)
 	}
 }
 
@@ -79,8 +79,8 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	})
 	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
-	if msg := tests.DiffCompletionItems(want, got); msg != "" {
-		t.Errorf("%s", msg)
+	if diff := tests.DiffCompletionItems(want, got); diff != "" {
+		t.Errorf("mismatching completion items (-want +got):\n%s", diff)
 	}
 }
 
@@ -91,8 +91,8 @@ func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests
 	})
 	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
-	if msg := tests.DiffCompletionItems(want, got); msg != "" {
-		t.Errorf("%s", msg)
+	if diff := tests.DiffCompletionItems(want, got); diff != "" {
+		t.Errorf("mismatching completion items (-want +got):\n%s", diff)
 	}
 }
 

@@ -17,12 +17,37 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/completion"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/gopls/internal/span"
 )
+
+var builtins = map[string]bool{
+	"append":  true,
+	"cap":     true,
+	"close":   true,
+	"complex": true,
+	"copy":    true,
+	"delete":  true,
+	"error":   true,
+	"false":   true,
+	"imag":    true,
+	"iota":    true,
+	"len":     true,
+	"make":    true,
+	"new":     true,
+	"nil":     true,
+	"panic":   true,
+	"print":   true,
+	"println": true,
+	"real":    true,
+	"recover": true,
+	"true":    true,
+}
 
 // DiffLinks takes the links we got and checks if they are located within the source or a Note.
 // If the link is within a Note, the link is removed.
@@ -304,13 +329,7 @@ func isBuiltin(label, detail string, kind protocol.CompletionItemKind) bool {
 	if i := strings.Index(trimmed, "("); i >= 0 {
 		trimmed = trimmed[:i]
 	}
-	switch trimmed {
-	case "append", "cap", "close", "complex", "copy", "delete",
-		"error", "false", "imag", "iota", "len", "make", "new",
-		"nil", "panic", "print", "println", "real", "recover", "true":
-		return true
-	}
-	return false
+	return builtins[trimmed]
 }
 
 func CheckCompletionOrder(want, got []protocol.CompletionItem, strictScores bool) string {
@@ -390,28 +409,26 @@ func FindItem(list []protocol.CompletionItem, want completion.CompletionItem) *p
 
 // DiffCompletionItems prints the diff between expected and actual completion
 // test results.
+//
+// The diff will be formatted using '-' and '+' for want and got, respectively.
 func DiffCompletionItems(want, got []protocol.CompletionItem) string {
-	if len(got) != len(want) {
-		return summarizeCompletionItems(-1, want, got, "different lengths got %v want %v", len(got), len(want))
+	// Many fields are not set in the "want" slice.
+	irrelevantFields := []string{
+		"AdditionalTextEdits",
+		"Documentation",
+		"TextEdit",
+		"SortText",
+		"Preselect",
+		"FilterText",
+		"InsertText",
+		"InsertTextFormat",
 	}
-	for i, w := range want {
-		g := got[i]
-		if w.Label != g.Label {
-			return summarizeCompletionItems(i, want, got, "incorrect Label got %v want %v", g.Label, w.Label)
-		}
-		if NormalizeAny(w.Detail) != NormalizeAny(g.Detail) {
-			return summarizeCompletionItems(i, want, got, "incorrect Detail got %v want %v", g.Detail, w.Detail)
-		}
-		if w.Documentation != "" && !strings.HasPrefix(w.Documentation, "@") {
-			if w.Documentation != g.Documentation {
-				return summarizeCompletionItems(i, want, got, "incorrect Documentation got %v want %v", g.Documentation, w.Documentation)
-			}
-		}
-		if w.Kind != g.Kind {
-			return summarizeCompletionItems(i, want, got, "incorrect Kind got %v want %v", g.Kind, w.Kind)
-		}
-	}
-	return ""
+	ignore := cmpopts.IgnoreFields(protocol.CompletionItem{}, irrelevantFields...)
+	normalizeAny := cmpopts.AcyclicTransformer("NormalizeAny", func(item protocol.CompletionItem) protocol.CompletionItem {
+		item.Detail = NormalizeAny(item.Detail)
+		return item
+	})
+	return cmp.Diff(want, got, ignore, normalizeAny)
 }
 
 func summarizeCompletionItems(i int, want, got []protocol.CompletionItem, reason string, args ...interface{}) string {
