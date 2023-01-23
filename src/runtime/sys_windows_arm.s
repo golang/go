@@ -76,30 +76,6 @@ loadregs:
 
 	MOVM.IA.W (R13), [R4, R5, R15]
 
-TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$0
-	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
-	MOVW	R13, R4			// save original stack pointer
-	SUB	$8, R13			// space for 2 variables
-	BIC	$0x7, R13		// alignment for ABI
-
-	// stderr
-	MOVW	runtime·_GetStdHandle(SB), R1
-	MOVW	$-12, R0
-	BL	(R1)
-
-	MOVW	$runtime·badsignalmsg(SB), R1	// lpBuffer
-	MOVW	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
-	MOVW	(R2), R2
-	ADD	$0x4, R13, R3		// lpNumberOfBytesWritten
-	MOVW	$0, R12			// lpOverlapped
-	MOVW	R12, (R13)
-
-	MOVW	runtime·_WriteFile(SB), R12
-	BL	(R12)
-
-	// Does not return.
-	B	runtime·abort(SB)
-
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MRC	15, 0, R0, C13, C0, 2
 	MOVW	0x34(R0), R0

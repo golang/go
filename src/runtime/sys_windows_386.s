@@ -44,28 +44,6 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
 
 	RET
 
-TEXT	runtime·badsignal2(SB),NOSPLIT,$24
-	// stderr
-	MOVL	$-12, 0(SP)
-	MOVL	SP, BP
-	CALL	*runtime·_GetStdHandle(SB)
-	MOVL	BP, SP
-
-	MOVL	AX, 0(SP)	// handle
-	MOVL	$runtime·badsignalmsg(SB), DX // pointer
-	MOVL	DX, 4(SP)
-	MOVL	runtime·badsignallen(SB), DX // count
-	MOVL	DX, 8(SP)
-	LEAL	20(SP), DX  // written count
-	MOVL	$0, 0(DX)
-	MOVL	DX, 12(SP)
-	MOVL	$0, 16(SP) // overlapped
-	CALL	*runtime·_WriteFile(SB)
-
-	// Does not return.
-	CALL	runtime·abort(SB)
-	RET
-
 // faster get/set last error
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVL	0x34(FS), AX

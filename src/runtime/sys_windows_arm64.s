@@ -99,32 +99,6 @@ _0args:
 	LDP.P	32(RSP), (R29, R30)
 	RET
 
-TEXT runtime·badsignal2(SB),NOSPLIT,$16-0
-	NO_LOCAL_POINTERS
-
-	// stderr
-	MOVD	runtime·_GetStdHandle(SB), R1
-	MOVD	$-12, R0
-	SUB	$16, RSP	// skip over saved frame pointer below RSP
-	BL	(R1)
-	ADD	$16, RSP
-
-	// handle in R0 already
-	MOVD	$runtime·badsignalmsg(SB), R1	// lpBuffer
-	MOVD	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
-	MOVD	(R2), R2
-	// point R3 to stack local that will receive number of bytes written
-	ADD	$16, RSP, R3		// lpNumberOfBytesWritten
-	MOVD	$0, R4			// lpOverlapped
-	MOVD	runtime·_WriteFile(SB), R12
-	SUB	$16, RSP	// skip over saved frame pointer below RSP
-	BL	(R12)
-
-	// Does not return.
-	B	runtime·abort(SB)
-
-	RET
-
 TEXT runtime·getlasterror(SB),NOSPLIT|NOFRAME,$0
 	MOVD	TEB_error(R18_PLATFORM), R0
 	MOVD	R0, ret+0(FP)

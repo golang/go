@@ -375,19 +375,6 @@ func sigpanic() {
 	throw("fault")
 }
 
-var (
-	badsignalmsg [100]byte
-	badsignallen int32
-)
-
-func setBadSignalMsg() {
-	const msg = "runtime: signal received on thread not created by Go.\n"
-	for i, c := range msg {
-		badsignalmsg[i] = byte(c)
-		badsignallen++
-	}
-}
-
 // Following are not implemented.
 
 func initsig(preinit bool) {
@@ -400,12 +387,6 @@ func sigdisable(sig uint32) {
 }
 
 func sigignore(sig uint32) {
-}
-
-func badsignal2()
-
-func raisebadsignal(sig uint32) {
-	badsignal2()
 }
 
 func signame(sig uint32) string {

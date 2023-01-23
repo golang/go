@@ -75,30 +75,6 @@ loadregs:
 
 	RET
 
-TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$48
-	// stderr
-	MOVQ	$-12, CX // stderr
-	MOVQ	CX, 0(SP)
-	MOVQ	runtime·_GetStdHandle(SB), AX
-	CALL	AX
-
-	MOVQ	AX, CX	// handle
-	MOVQ	CX, 0(SP)
-	MOVQ	$runtime·badsignalmsg(SB), DX // pointer
-	MOVQ	DX, 8(SP)
-	MOVL	$runtime·badsignallen(SB), R8 // count
-	MOVQ	R8, 16(SP)
-	LEAQ	40(SP), R9  // written count
-	MOVQ	$0, 0(R9)
-	MOVQ	R9, 24(SP)
-	MOVQ	$0, 32(SP)	// overlapped
-	MOVQ	runtime·_WriteFile(SB), AX
-	CALL	AX
-
-	// Does not return.
-	CALL	runtime·abort(SB)
-	RET
-
 // faster get/set last error
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVQ	0x30(GS), AX
