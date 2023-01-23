@@ -48,9 +48,8 @@ fi
 cd zoneinfo
 ../mkzip ../../zoneinfo.zip
 cd ../..
-go generate time/tzdata
 
-files="update.bash zoneinfo.zip ../../src/time/tzdata/zipdata.go"
+files="update.bash zoneinfo.zip"
 modified=true
 if git diff --quiet $files; then
 	modified=false

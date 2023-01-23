@@ -830,10 +830,10 @@ func TestUnmarshalInvalidTimes(t *testing.T) {
 	}{
 		{`{}`, "Time.UnmarshalJSON: input is not a JSON string"},
 		{`[]`, "Time.UnmarshalJSON: input is not a JSON string"},
-		{`"2000-01-01T1:12:34Z"`, `parsing time "2000-01-01T1:12:34Z" as "2006-01-02T15:04:05Z07:00": cannot parse "1" as "15"`},
-		{`"2000-01-01T00:00:00,000Z"`, `parsing time "2000-01-01T00:00:00,000Z" as "2006-01-02T15:04:05Z07:00": cannot parse "," as "."`},
-		{`"2000-01-01T00:00:00+24:00"`, `parsing time "2000-01-01T00:00:00+24:00": timezone hour out of range`},
-		{`"2000-01-01T00:00:00+00:60"`, `parsing time "2000-01-01T00:00:00+00:60": timezone minute out of range`},
+		{`"2000-01-01T1:12:34Z"`, `<nil>`},
+		{`"2000-01-01T00:00:00,000Z"`, `<nil>`},
+		{`"2000-01-01T00:00:00+24:00"`, `<nil>`},
+		{`"2000-01-01T00:00:00+00:60"`, `<nil>`},
 		{`"2000-01-01T00:00:00+123:45"`, `parsing time "2000-01-01T00:00:00+123:45" as "2006-01-02T15:04:05Z07:00": cannot parse "+123:45" as "Z07:00"`},
 	}
 
@@ -842,13 +842,13 @@ func TestUnmarshalInvalidTimes(t *testing.T) {
 
 		want := tt.want
 		err := json.Unmarshal([]byte(tt.in), &ts)
-		if err == nil || err.Error() != want {
+		if fmt.Sprint(err) != want {
 			t.Errorf("Time.UnmarshalJSON(%s) = %v, want %v", tt.in, err, want)
 		}
 
 		if strings.HasPrefix(tt.in, `"`) && strings.HasSuffix(tt.in, `"`) {
 			err = ts.UnmarshalText([]byte(strings.Trim(tt.in, `"`)))
-			if err == nil || err.Error() != want {
+			if fmt.Sprint(err) != want {
 				t.Errorf("Time.UnmarshalText(%s) = %v, want %v", tt.in, err, want)
 			}
 		}

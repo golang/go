@@ -4,7 +4,7 @@
 
 package importdecl1
 
-import . /* ERROR .unsafe. imported and not used */ "unsafe"
+import . /* ERRORx ".unsafe. imported and not used" */ "unsafe"
 
 type B interface {
 	A

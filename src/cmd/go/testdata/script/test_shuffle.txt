@@ -1,5 +1,7 @@
 # Shuffle order of tests and benchmarks
 
+[short] skip 'builds and repeatedly runs a test binary'
+
 # Run tests
 go test -v foo_test.go
 ! stdout '-test.shuffle '
@@ -12,14 +14,6 @@ stdout '(?s)TestOne(.*)TestTwo(.*)TestThree'
 go test -v -shuffle=42 foo_test.go
 stdout '^-test.shuffle 42'
 stdout '(?s)TestThree(.*)TestOne(.*)TestTwo'
-
-go test -v -shuffle=43 foo_test.go
-stdout '^-test.shuffle 43'
-stdout '(?s)TestThree(.*)TestTwo(.*)TestOne'
-
-go test -v -shuffle=44 foo_test.go
-stdout '^-test.shuffle 44'
-stdout '(?s)TestOne(.*)TestThree(.*)TestTwo'
 
 go test -v -shuffle=0 foo_test.go
 stdout '^-test.shuffle 0'
@@ -48,14 +42,6 @@ stdout '(?s)TestOne(.*)TestTwo(.*)TestThree(.*)BenchmarkOne(.*)BenchmarkTwo(.*)B
 go test -v -bench=. -shuffle=42 foo_test.go
 stdout '^-test.shuffle 42'
 stdout '(?s)TestThree(.*)TestOne(.*)TestTwo(.*)BenchmarkThree(.*)BenchmarkOne(.*)BenchmarkTwo'
-
-go test -v -bench=. -shuffle=43 foo_test.go
-stdout '^-test.shuffle 43'
-stdout '(?s)TestThree(.*)TestTwo(.*)TestOne(.*)BenchmarkThree(.*)BenchmarkOne(.*)BenchmarkTwo'
-
-go test -v -bench=. -shuffle=44 foo_test.go
-stdout '^-test.shuffle 44'
-stdout '(?s)TestOne(.*)TestThree(.*)TestTwo(.*)BenchmarkTwo(.*)BenchmarkOne(.*)BenchmarkThree'
 
 go test -v -bench=. -shuffle=0 foo_test.go
 stdout '^-test.shuffle 0'

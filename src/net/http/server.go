@@ -3319,7 +3319,11 @@ var http2server = godebug.New("http2server")
 // configured otherwise. (by setting srv.TLSNextProto non-nil)
 // It must only be called via srv.nextProtoOnce (use srv.setupHTTP2_*).
 func (srv *Server) onceSetNextProtoDefaults() {
-	if omitBundledHTTP2 || http2server.Value() == "0" {
+	if omitBundledHTTP2 {
+		return
+	}
+	if http2server.Value() == "0" {
+		http2server.IncNonDefault()
 		return
 	}
 	// Enable HTTP/2 by default if the user hasn't otherwise

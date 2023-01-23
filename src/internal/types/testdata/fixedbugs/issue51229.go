@@ -105,11 +105,11 @@ func ch5[P chan int | chan<- int]()      { return } // core(P) == chan<- int   (
 
 func _() {
 	// P can be inferred as there's a single specific type and no tilde.
-	var _ chan int = ch1 /* ERROR cannot use ch1.*value of type chan<- int */ ()
+	var _ chan int = ch1 /* ERRORx `cannot use ch1.*value of type chan<- int` */ ()
 	var _ chan<- int = ch1()
 
 	// P cannot be inferred as there's a tilde.
-	ch2 /* ERROR cannot infer P */ ()
+	ch2 /* ERROR "cannot infer P" */ ()
 	type myChan chan int
 	ch2[myChan]()
 
@@ -118,11 +118,11 @@ func _() {
 	ch3(e)
 
 	// P cannot be inferred as there's more than one specific type and a tilde.
-	ch4 /* ERROR cannot infer P */ (e)
+	ch4 /* ERROR "cannot infer P" */ (e)
 	_ = ch4[chan int]
 
 	// P cannot be inferred as there's more than one specific type.
-	ch5 /* ERROR cannot infer P */ ()
+	ch5 /* ERROR "cannot infer P" */ ()
 	ch5[chan<- int]()
 }
 

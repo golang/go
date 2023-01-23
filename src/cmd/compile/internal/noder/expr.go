@@ -167,7 +167,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
 	}
 }
 
-// substType does a normal type substition, but tparams is in the form of a field
+// substType does a normal type substitution, but tparams is in the form of a field
 // list, and targs is in terms of a slice of type nodes. substType records any newly
 // instantiated types into g.instTypeList.
 func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Ntype) *types.Type {

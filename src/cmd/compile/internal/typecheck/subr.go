@@ -1524,7 +1524,7 @@ func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
 		// have these other shape types embedded in them. This may lead to
 		// generating extra shape instantiations, and a mismatch between the
 		// instantiations that we used in generating dictionaries and the
-		// instantations that are actually called. (#51303).
+		// instantiations that are actually called. (#51303).
 		list := []*types.Type{}
 		getShapes(t, &list)
 		list2 := make([]*types.Type, len(list))

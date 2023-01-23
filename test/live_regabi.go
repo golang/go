@@ -11,6 +11,8 @@
 
 package main
 
+import "runtime"
+
 func printnl()
 
 //go:noescape
@@ -693,7 +695,7 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	defer func() {
 		recover()
 	}()
-	printint(0) // ERROR "live at call to printint: q .autotmp_[0-9]+ r$"
+	printint(0) // ERROR "live at call to printint: .autotmp_[0-9]+ q r$"
 	r = q
 	return // ERROR "live at call to f41.func1: .autotmp_[0-9]+ r$"
 }
@@ -717,4 +719,24 @@ func f44(f func() [2]*int) interface{} { // ERROR "live at entry to f44: f"
 	ret := T{} // ERROR "stack object ret T"
 	ret.s[0] = f()
 	return ret
+}
+
+func f45(a, b, c, d, e, f, g, h, i, j, k, l *byte) { // ERROR "live at entry to f45: a b c d e f g h i j k l"
+	f46(a, b, c, d, e, f, g, h, i, j, k, l) // ERROR "live at call to f46: a b c d e f g h i j k l"
+	runtime.KeepAlive(a)
+	runtime.KeepAlive(b)
+	runtime.KeepAlive(c)
+	runtime.KeepAlive(d)
+	runtime.KeepAlive(e)
+	runtime.KeepAlive(f)
+	runtime.KeepAlive(g)
+	runtime.KeepAlive(h)
+	runtime.KeepAlive(i)
+	runtime.KeepAlive(j)
+	runtime.KeepAlive(k)
+	runtime.KeepAlive(l)
+}
+
+//go:noinline
+func f46(a, b, c, d, e, f, g, h, i, j, k, l *byte) {
 }

@@ -353,7 +353,7 @@ func (w *writer) Sym(s *LSym) {
 		align = uint32(fn.Align)
 	}
 	if s.ContentAddressable() && s.Size != 0 {
-		// We generally assume data symbols are natually aligned
+		// We generally assume data symbols are naturally aligned
 		// (e.g. integer constants), except for strings and a few
 		// compiler-emitted funcdata. If we dedup a string symbol and
 		// a non-string symbol with the same content, we should keep
@@ -421,7 +421,7 @@ func (w *writer) Hash(s *LSym) {
 // contentHashSection only distinguishes between sets of sections for which this matters.
 // Allowing flexibility increases the effectiveness of content-addressibility.
 // But in some cases, such as doing addressing based on a base symbol,
-// we need to ensure that a symbol is always in a prticular section.
+// we need to ensure that a symbol is always in a particular section.
 // Some of these conditions are duplicated in cmd/link/internal/ld.(*Link).symtab.
 // TODO: instead of duplicating them, have the compiler decide where symbols go.
 func contentHashSection(s *LSym) byte {

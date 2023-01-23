@@ -369,6 +369,7 @@ var http2client = godebug.New("http2client")
 func (t *Transport) onceSetNextProtoDefaults() {
 	t.tlsNextProtoWasNil = (t.TLSNextProto == nil)
 	if http2client.Value() == "0" {
+		http2client.IncNonDefault()
 		return
 	}
 
@@ -620,6 +621,12 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 			}
 			if e, ok := err.(transportReadFromServerError); ok {
 				err = e.err
+			}
+			if b, ok := req.Body.(*readTrackingBody); ok && !b.didClose {
+				// Issue 49621: Close the request body if pconn.roundTrip
+				// didn't do so already. This can happen if the pconn
+				// write loop exits without reading the write request.
+				req.closeBody()
 			}
 			return nil, err
 		}

@@ -7,7 +7,6 @@ package types
 import (
 	"fmt"
 	"go/ast"
-	"go/token"
 	. "internal/types/errors"
 )
 
@@ -180,7 +179,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
 	// declarations and then squash that scope into the parent scope (and report any redeclarations at
 	// that time).
-	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
+	scope := NewScope(check.scope, nopos, nopos, "function body (temp. scope)")
 	recvList, _ := check.collectParams(scope, recvPar, false)
 	params, variadic := check.collectParams(scope, ftyp.Params, true)
 	results, _ := check.collectParams(scope, ftyp.Results, false)
@@ -197,7 +196,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		switch len(recvList) {
 		case 0:
 			// error reported by resolver
-			recv = NewParam(token.NoPos, nil, "", Typ[Invalid]) // ignore recv below
+			recv = NewParam(nopos, nil, "", Typ[Invalid]) // ignore recv below
 		default:
 			// more than one receiver
 			check.error(recvList[len(recvList)-1], InvalidRecv, "method has multiple receivers")

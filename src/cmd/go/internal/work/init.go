@@ -86,7 +86,7 @@ func BuildInit() {
 	}
 }
 
-// fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
+// fuzzInstrumentFlags returns compiler flags that enable fuzzing instrumentation
 // on supported platforms.
 //
 // On unsupported platforms, fuzzInstrumentFlags returns nil, meaning no

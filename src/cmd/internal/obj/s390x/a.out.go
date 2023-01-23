@@ -994,6 +994,9 @@ const (
 	AWORD
 	ADWORD
 
+	// Breakpoint
+	ABRRK
+
 	// end marker
 	ALAST
 

@@ -123,6 +123,9 @@ func TestIntendedInlining(t *testing.T) {
 			"AppendRune",
 			"ValidRune",
 		},
+		"unicode/utf16": {
+			"Decode",
+		},
 		"reflect": {
 			"Value.Bool",
 			"Value.Bytes",

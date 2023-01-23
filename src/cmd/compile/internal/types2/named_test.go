@@ -31,7 +31,7 @@ func (G[P]) N() (p P) { return }
 
 type Inst = G[int]
 	`
-	pkg := mustTypecheck("p", src, nil)
+	pkg := mustTypecheck("p", src, nil, nil)
 
 	var (
 		T        = pkg.Scope().Lookup("T").Type()
@@ -72,7 +72,7 @@ func mustInstantiate(tb testing.TB, orig Type, targs ...Type) Type {
 	return inst
 }
 
-// Test that types do not expand infinitely, as in golang/go#52715.
+// Test that types do not expand infinitely, as in go.dev/issue/52715.
 func TestFiniteTypeExpansion(t *testing.T) {
 	const src = `
 package p

@@ -128,7 +128,7 @@ var (
 
 // GetPackage returns the IndexPackage for the package at the given path.
 // It will return ErrNotIndexed if the directory should be read without
-// using the index, for instance because the index is disabled, or the packgae
+// using the index, for instance because the index is disabled, or the package
 // is not in a module.
 func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 	mi, err := GetModule(modroot)
@@ -146,7 +146,7 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 
 // GetModule returns the Module for the given modroot.
 // It will return ErrNotIndexed if the directory should be read without
-// using the index, for instance because the index is disabled, or the packgae
+// using the index, for instance because the index is disabled, or the package
 // is not in a module.
 func GetModule(modroot string) (*Module, error) {
 	if !enabled || cache.DefaultDir() == "off" {
@@ -515,7 +515,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		if !shouldBuild || tf.ignoreFile() {
 			if ext == ".go" {
 				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
-			} else if fileListForExt((*Package)(p), ext) != nil {
+			} else if fileListForExt(p, ext) != nil {
 				p.IgnoredOtherFiles = append(p.IgnoredOtherFiles, name)
 			}
 			continue
@@ -530,7 +530,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			Sfiles = append(Sfiles, name)
 			continue
 		default:
-			if list := fileListForExt((*Package)(p), ext); list != nil {
+			if list := fileListForExt(p, ext); list != nil {
 				*list = append(*list, name)
 			}
 			continue
@@ -585,7 +585,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 			}
 		}
 		if directives := tf.cgoDirectives(); directives != "" {
-			if err := ctxt.saveCgo(name, (*Package)(p), directives); err != nil {
+			if err := ctxt.saveCgo(name, p, directives); err != nil {
 				badGoFile(name, err)
 			}
 		}
@@ -819,7 +819,7 @@ func (m *Module) Package(path string) *IndexPackage {
 	return m.pkg(i)
 }
 
-// pkgAt returns the i'th IndexPackage in m.
+// pkg returns the i'th IndexPackage in m.
 func (m *Module) pkg(i int) *IndexPackage {
 	r := m.d.readAt(m.pkgOff(i))
 	p := new(IndexPackage)
@@ -966,7 +966,7 @@ func (d *decoder) boolAt(off int) bool {
 	return d.intAt(off) != 0
 }
 
-// stringTableAt returns the string pointed at by the int at the given offset in d.data.
+// stringAt returns the string pointed at by the int at the given offset in d.data.
 func (d *decoder) stringAt(off int) string {
 	return d.stringTableAt(d.intAt(off))
 }

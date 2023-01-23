@@ -15,6 +15,7 @@ import (
 	"internal/coverage/pods"
 	"io"
 	"os"
+	"strings"
 )
 
 // processCoverTestDir is called (via a linknamed reference) from
@@ -80,7 +81,15 @@ func processCoverTestDirInternal(dir string, cfile string, cm string, cpkg strin
 		cf:    cformat.NewFormatter(cmode),
 		cmode: cmode,
 	}
+	// Generate the expected hash string based on the final meta-data
+	// hash for this test, then look only for pods that refer to that
+	// hash (just in case there are multiple instrumented executables
+	// in play). See issue #57924 for more on this.
+	hashstring := fmt.Sprintf("%x", finalHash)
 	for _, p := range podlist {
+		if !strings.Contains(p.MetaFile, hashstring) {
+			continue
+		}
 		if err := ts.processPod(p); err != nil {
 			return err
 		}

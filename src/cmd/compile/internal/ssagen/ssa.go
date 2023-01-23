@@ -3304,7 +3304,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.OGETCALLERSP:
 		n := n.(*ir.CallExpr)
-		return s.newValue0(ssa.OpGetCallerSP, n.Type())
+		return s.newValue1(ssa.OpGetCallerSP, n.Type(), s.mem())
 
 	case ir.OAPPEND:
 		return s.append(n.(*ir.CallExpr), false)
@@ -3989,7 +3989,7 @@ func InitTables() {
 
 	add("runtime", "getcallersp",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue0(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr)
+			return s.newValue1(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem())
 		},
 		all...)
 
@@ -6928,7 +6928,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 	// debuggers may attribute it to previous function in program.
 	firstPos := src.NoXPos
 	for _, v := range f.Entry.Values {
-		if v.Pos.IsStmt() == src.PosIsStmt {
+		if v.Pos.IsStmt() == src.PosIsStmt && v.Op != ssa.OpArg && v.Op != ssa.OpArgIntReg && v.Op != ssa.OpArgFloatReg && v.Op != ssa.OpLoadReg && v.Op != ssa.OpStoreReg {
 			firstPos = v.Pos
 			v.Pos = firstPos.WithDefaultStmt()
 			break
@@ -7009,6 +7009,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 				inlMarkList = append(inlMarkList, p)
 				pos := v.Pos.AtColumn1()
 				inlMarksByPos[pos] = append(inlMarksByPos[pos], p)
+				firstPos = src.NoXPos
 
 			default:
 				// Special case for first line in function; move it to the start (which cannot be a register-valued instruction)

@@ -1106,10 +1106,17 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
 		s += "indirect call:"
 	}
 
+	// Sort variable names for display. Variables aren't in any particular order, and
+	// the order can change by architecture, particularly with differences in regabi.
+	var names []string
 	for j, n := range lv.vars {
 		if live.Get(int32(j)) {
-			s += fmt.Sprintf(" %v", n)
+			names = append(names, n.Sym().Name)
 		}
+	}
+	sort.Strings(names)
+	for _, v := range names {
+		s += " " + v
 	}
 
 	base.WarnfAt(pos, s)

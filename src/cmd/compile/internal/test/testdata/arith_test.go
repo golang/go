@@ -223,7 +223,7 @@ func testArithConstShift(t *testing.T) {
 	}
 }
 
-// overflowConstShift_ssa verifes that constant folding for shift
+// overflowConstShift_ssa verifies that constant folding for shift
 // doesn't wrap (i.e. x << MAX_INT << 1 doesn't get folded to x << 0).
 //
 //go:noinline

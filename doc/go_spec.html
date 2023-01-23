@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of December 15, 2022",
+	"Subtitle": "Version of January 19, 2022",
 	"Path": "/ref/spec"
 }-->
 
@@ -7574,19 +7574,13 @@ execution terminates by returning to its caller.
 </p>
 
 <p>
-The return value of <code>recover</code> is <code>nil</code> if any of the following conditions holds:
+The return value of <code>recover</code> is <code>nil</code> when the
+goroutine is not panicking or <code>recover</code> was not called directly by a deferred function.
+Conversely, if a goroutine is panicking and <code>recover</code> was called directly by a deferred function,
+the return value of <code>recover</code> is guaranteed not to be <code>nil</code>.
+To ensure this, calling <code>panic</code> with a <code>nil</code> interface value (or an untyped <code>nil</code>)
+causes a <a href="#Run_time_panics">run-time panic</a>.
 </p>
-<ul>
-<li>
-<code>panic</code>'s argument was <code>nil</code>;
-</li>
-<li>
-the goroutine is not panicking;
-</li>
-<li>
-<code>recover</code> was not called directly by a deferred function.
-</li>
-</ul>
 
 <p>
 The <code>protect</code> function in the example below invokes

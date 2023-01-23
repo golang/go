@@ -328,7 +328,7 @@ commas. For example:
 		switch flag {
 		case "on":
 			checkEnabled = val != 0
-			debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
+			debugPoset = checkEnabled // also turn on advanced self-checking in prove's data structure
 			return ""
 		case "off":
 			checkEnabled = val == 0

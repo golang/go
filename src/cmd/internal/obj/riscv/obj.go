@@ -2146,6 +2146,16 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		// FNEGD rs, rd -> FSGNJND rs, rs, rd
 		ins.as = AFSGNJND
 		ins.rs1 = uint32(p.From.Reg)
+
+	case ASLLI, ASRLI, ASRAI:
+		if ins.imm < 0 || ins.imm > 63 {
+			p.Ctxt.Diag("%v: shift amount out of range 0 to 63", p)
+		}
+
+	case ASLLIW, ASRLIW, ASRAIW:
+		if ins.imm < 0 || ins.imm > 31 {
+			p.Ctxt.Diag("%v: shift amount out of range 0 to 31", p)
+		}
 	}
 	return inss
 }

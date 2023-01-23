@@ -547,7 +547,8 @@
 (ConstBool [val]) => (MOVDconst [int64(b2i(val))])
 
 (Addr {sym} base) => (MOVaddr {sym} [0] base)
-(LocalAddr {sym} base _) => (MOVaddr {sym} base)
+(LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (MOVaddr {sym} (SPanchored base mem))
+(LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (MOVaddr {sym} base)
 
 // Calls
 (StaticCall  ...) => (CALLstatic  ...)

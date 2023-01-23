@@ -152,6 +152,7 @@ const (
 
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."
+// See IMAGE_DOS_HEADER in the Windows SDK for the format of the header used here.
 var dosstub = []uint8{
 	0x4d,
 	0x5a,
@@ -159,9 +160,9 @@ var dosstub = []uint8{
 	0x00,
 	0x03,
 	0x00,
+	0x00,
+	0x00,
 	0x04,
-	0x00,
-	0x00,
 	0x00,
 	0x00,
 	0x00,

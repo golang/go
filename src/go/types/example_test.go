@@ -180,6 +180,8 @@ func fib(x int) int {
 	}
 	return fib(x-1) - fib(x-2)
 }`
+	// We need a specific fileset in this test below for positions.
+	// Cannot use typecheck helper.
 	fset := token.NewFileSet()
 	f := mustParse(fset, "fib.go", input)
 

@@ -123,8 +123,6 @@ func (d *CoverageMetaDataDecoder) ReadFunc(fidx uint32, f *coverage.FuncDesc) er
 			})
 	}
 	lit := d.r.ReadULEB128()
-	if lit != 0 {
-		f.Lit = true
-	}
+	f.Lit = lit != 0
 	return nil
 }

@@ -57,7 +57,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	// a cycle which needs to be reported). Otherwise we can skip the
 	// call and avoid a possible cycle error in favor of the more
 	// informative "not a type/value" error that this function's caller
-	// will issue (see issue #25790).
+	// will issue (see go.dev/issue/25790).
 	typ := obj.Type()
 	if _, gotType := obj.(*TypeName); typ == nil || gotType && wantType {
 		check.objDecl(obj, def)
@@ -97,7 +97,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 
 	case *TypeName:
 		if check.isBrokenAlias(obj) {
-			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see issue #50729)", obj.name)
+			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
 			return
 		}
 		x.mode = typexpr
@@ -214,7 +214,7 @@ func goTypeName(typ Type) string {
 // typInternal drives type checking of types.
 // Must only be called by definedType or genericType.
 func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
-	if trace {
+	if check.conf._Trace {
 		check.trace(e0.Pos(), "-- type %s", e0)
 		check.indent++
 		defer func() {
@@ -256,7 +256,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 
 	case *ast.SelectorExpr:
 		var x operand
-		check.selector(&x, e, def)
+		check.selector(&x, e, def, true)
 
 		switch x.mode {
 		case typexpr:
@@ -350,7 +350,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 		// function, map, or slice."
 		//
 		// Delay this check because it requires fully setup types;
-		// it is safe to continue in any case (was issue 6667).
+		// it is safe to continue in any case (was go.dev/issue/6667).
 		check.later(func() {
 			if !Comparable(typ.key) {
 				var why string
@@ -395,7 +395,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 }
 
 func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (res Type) {
-	if trace {
+	if check.conf._Trace {
 		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.X, ix.Indices)
 		check.indent++
 		defer func() {

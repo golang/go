@@ -2199,6 +2199,9 @@ var goLookupIPCNAMEOrderDNSFilesModeTests = []struct {
 }
 
 func TestGoLookupIPCNAMEOrderHostsAliasesDNSFilesMode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Makes assumptions about local networks and (re)naming that aren't always true")
+	}
 	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
 	testHookHostsPath = "testdata/aliases"
 	mode := hostLookupDNSFiles

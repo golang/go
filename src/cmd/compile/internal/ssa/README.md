@@ -214,8 +214,8 @@ To read more on rewrite rules, have a look at the top comments in
 
 Similarly, the code to manage operators is also code generated from
 `_gen/*Ops.go`, as it is easier to maintain a few tables than a lot of code.
-After changing the rules or operators, see [_gen/README](_gen/README) for
-instructions on how to generate the Go code again.
+After changing the rules or operators, run `go generate cmd/compile/internal/ssa`
+to generate the Go code again.
 
 <!---
 TODO: more tips and info could likely go here

@@ -204,7 +204,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 	// the method m in an interface that embeds interface I. On the other hand,
 	// if a method is embedded via multiple overlapping embedded interfaces, we
 	// don't provide a guarantee which "original m" got chosen for the embedding
-	// interface. See also issue #34421.
+	// interface. See also go.dev/issue/34421.
 	//
 	// If we don't care to provide this identity guarantee anymore, instead of
 	// reusing the original method in embeddings, we can clone the method's Func
@@ -233,7 +233,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			check.report(&err)
 		default:
 			// We have a duplicate method name in an embedded (not explicitly declared) method.
-			// Check method signatures after all types are computed (issue #33656).
+			// Check method signatures after all types are computed (go.dev/issue/33656).
 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
 			// error here as well (even though we could do it eagerly) because it's the same
 			// error message.

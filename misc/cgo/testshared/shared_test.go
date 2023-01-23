@@ -1100,7 +1100,7 @@ func TestIssue44031(t *testing.T) {
 
 // Test that we use a variable from shared libraries (which implement an
 // interface in shared libraries.). A weak reference is used in the itab
-// in main process. It can cause unreacheble panic. See issue 47873.
+// in main process. It can cause unreachable panic. See issue 47873.
 func TestIssue47873(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue47837/a")
 	goCmd(t, "run", "-linkshared", "./issue47837/main")

@@ -786,6 +786,9 @@ Found:
 
 			// Set the install target if applicable.
 			if !p.Goroot || (installgoroot.Value() == "all" && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+				if p.Goroot {
+					installgoroot.IncNonDefault()
+				}
 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
 			}
 		}

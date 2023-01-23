@@ -19,7 +19,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		panic("function body not ignored")
 	}
 
-	if trace {
+	if check.conf._Trace {
 		check.trace(body.Pos(), "-- %s: %s", name, sig)
 	}
 
@@ -65,7 +65,7 @@ func (check *Checker) usage(scope *Scope) {
 		}
 	}
 	sort.Slice(unused, func(i, j int) bool {
-		return unused[i].pos < unused[j].pos
+		return cmpPos(unused[i].pos, unused[j].pos) < 0
 	})
 	for _, v := range unused {
 		check.softErrorf(v, UnusedVar, "%s declared and not used", v.name)
@@ -862,7 +862,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 		// Open the for-statement block scope now, after the range clause.
-		// Iteration variables declared with := need to go in this scope (was issue #51437).
+		// Iteration variables declared with := need to go in this scope (was go.dev/issue/51437).
 		check.openScope(s, "range")
 		defer check.closeScope()
 

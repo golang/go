@@ -32,7 +32,7 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	// check number of type arguments (got) vs number of type parameters (want)
 	sig := x.typ.(*Signature)
 	got, want := len(targs), sig.TypeParams().Len()
-	if !useConstraintTypeInference && got != want || got > want {
+	if got > want {
 		check.errorf(xlist[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
 		x.expr = inst
@@ -76,7 +76,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
 	inst := check.instance(pos, typ, targs, nil, check.context()).(*Signature)
 	assert(len(xlist) <= len(targs))
 
-	// verify instantiation lazily (was issue #50450)
+	// verify instantiation lazily (was go.dev/issue/50450)
 	check.later(func() {
 		tparams := typ.TypeParams().list()
 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
@@ -447,7 +447,7 @@ var cgoPrefixes = [...]string{
 	"_Cmacro_", // function to evaluate the expanded expression
 }
 
-func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
+func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named, wantType bool) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -547,7 +547,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 	check.exprOrType(x, e.X, false)
 	switch x.mode {
 	case typexpr:
-		// don't crash for "type T T.x" (was issue #51509)
+		// don't crash for "type T T.x" (was go.dev/issue/51509)
 		if def != nil && x.typ == def {
 			check.cycleError([]Object{def.obj})
 			goto Error
@@ -559,9 +559,28 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named) {
 		goto Error
 	}
 
+	// Avoid crashing when checking an invalid selector in a method declaration
+	// (i.e., where def is not set):
+	//
+	//   type S[T any] struct{}
+	//   type V = S[any]
+	//   func (fs *S[T]) M(x V.M) {}
+	//
+	// All codepaths below return a non-type expression. If we get here while
+	// expecting a type expression, it is an error.
+	//
+	// See go.dev/issue/57522 for more details.
+	//
+	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
+	// x.typ is incomplete.
+	if wantType {
+		check.errorf(e.Sel, NotAType, "%s is not a type", syntax.Expr(e))
+		goto Error
+	}
+
 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
-		// Don't report another error if the underlying type was invalid (issue #49541).
+		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if under(x.typ) == Typ[Invalid] {
 			goto Error
 		}

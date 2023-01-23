@@ -65,7 +65,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs 
 	assert(check != nil)
 	assert(len(targs) == typ.TypeParams().Len())
 
-	if trace {
+	if check.conf._Trace {
 		check.trace(pos, "-- instantiating signature %s with %s", typ, targs)
 		check.indent++
 		defer func() {
@@ -77,7 +77,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs 
 	inst := check.instance(pos, typ, targs, nil, check.context()).(*Signature)
 	assert(len(xlist) <= len(targs))
 
-	// verify instantiation lazily (was issue #50450)
+	// verify instantiation lazily (was go.dev/issue/50450)
 	check.later(func() {
 		tparams := typ.TypeParams().list()
 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
@@ -391,8 +391,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 			params = sig.params.vars
 		}
 		err := newErrorf(at, WrongArgCount, "%s arguments in call to %s", qualifier, call.Fun)
-		err.errorf(token.NoPos, "have %s", check.typesSummary(operandTypes(args), false))
-		err.errorf(token.NoPos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+		err.errorf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
+		err.errorf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
 		check.report(err)
 		return
 	}
@@ -450,7 +450,7 @@ var cgoPrefixes = [...]string{
 	"_Cmacro_", // function to evaluate the expanded expression
 }
 
-func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
+func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named, wantType bool) {
 	// these must be declared before the "goto Error" statements
 	var (
 		obj      Object
@@ -550,7 +550,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
 	check.exprOrType(x, e.X, false)
 	switch x.mode {
 	case typexpr:
-		// don't crash for "type T T.x" (was issue #51509)
+		// don't crash for "type T T.x" (was go.dev/issue/51509)
 		if def != nil && x.typ == def {
 			check.cycleError([]Object{def.obj})
 			goto Error
@@ -563,9 +563,28 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *Named) {
 		goto Error
 	}
 
+	// Avoid crashing when checking an invalid selector in a method declaration
+	// (i.e., where def is not set):
+	//
+	//   type S[T any] struct{}
+	//   type V = S[any]
+	//   func (fs *S[T]) M(x V.M) {}
+	//
+	// All codepaths below return a non-type expression. If we get here while
+	// expecting a type expression, it is an error.
+	//
+	// See go.dev/issue/57522 for more details.
+	//
+	// TODO(rfindley): We should do better by refusing to check selectors in all cases where
+	// x.typ is incomplete.
+	if wantType {
+		check.errorf(e.Sel, NotAType, "%s is not a type", ast.Expr(e))
+		goto Error
+	}
+
 	obj, index, indirect = LookupFieldOrMethod(x.typ, x.mode == variable, check.pkg, sel)
 	if obj == nil {
-		// Don't report another error if the underlying type was invalid (issue #49541).
+		// Don't report another error if the underlying type was invalid (go.dev/issue/49541).
 		if under(x.typ) == Typ[Invalid] {
 			goto Error
 		}
@@ -780,7 +799,7 @@ func (check *Checker) useLHS(arg ...ast.Expr) {
 			if ident.Name == "_" {
 				continue
 			}
-			if _, obj := check.scope.LookupParent(ident.Name, token.NoPos); obj != nil {
+			if _, obj := check.scope.LookupParent(ident.Name, nopos); obj != nil {
 				// It's ok to mark non-local variables, but ignore variables
 				// from other packages to avoid potential race conditions with
 				// dot-imported variables.

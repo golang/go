@@ -23,7 +23,7 @@ type T1 struct {
         _ E1[T1]
 }
 
-type T2 /* ERROR invalid recursive type */ struct {
+type T2 /* ERROR "invalid recursive type" */ struct {
         _ E2[T2]
 }
 
@@ -31,7 +31,7 @@ type T3 struct {
         _ E3[T3]
 }
 
-type T4 /* ERROR invalid recursive type */ [10]E5[T4]
+type T4 /* ERROR "invalid recursive type" */ [10]E5[T4]
 
 type T5 struct {
 	_ E0[E2[T5]]
@@ -49,6 +49,6 @@ type T8 struct {
 	_ E0[[]E2[E0[E2[E2[T8]]]]]
 }
 
-type T9 /* ERROR invalid recursive type */ [10]E2[E5[E2[T9]]]
+type T9 /* ERROR "invalid recursive type" */ [10]E2[E5[E2[T9]]]
 
 type T10 [10]E2[E5[E2[func(T10)]]]

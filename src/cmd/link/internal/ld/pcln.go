@@ -297,11 +297,7 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[lo
 		if i < 0 {
 			return name, "", ""
 		}
-		// TODO: use LastIndexByte once the bootstrap compiler is >= Go 1.5.
-		j := len(name) - 1
-		for j > i && name[j] != ']' {
-			j--
-		}
+		j := strings.LastIndexByte(name, ']')
 		if j <= i {
 			return name, "", ""
 		}

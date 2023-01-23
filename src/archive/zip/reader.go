@@ -87,6 +87,14 @@ func OpenReader(name string) (*ReadCloser, error) {
 
 // NewReader returns a new Reader reading from r, which is assumed to
 // have the given size in bytes.
+//
+// If any file inside the archive uses a non-local name
+// (as defined by [filepath.IsLocal]) or a name containing backslashes
+// and the GODEBUG environment variable contains `zipinsecurepath=0`,
+// NewReader returns the reader with an ErrInsecurePath error.
+// A future version of Go may introduce this behavior by default.
+// Programs that want to accept non-local names can ignore
+// the ErrInsecurePath error and use the returned reader.
 func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	if size < 0 {
 		return nil, errors.New("zip: size cannot be negative")
@@ -100,12 +108,13 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 			// Zip permits an empty file name field.
 			continue
 		}
-		if zipinsecurepath.Value() != "0" {
-			continue
-		}
 		// The zip specification states that names must use forward slashes,
 		// so consider any backslashes in the name insecure.
 		if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
+			if zipinsecurepath.Value() != "0" {
+				continue
+			}
+			zipinsecurepath.IncNonDefault()
 			return zr, ErrInsecurePath
 		}
 	}
@@ -142,20 +151,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	for {
 		f := &File{zip: z, zipr: r}
 		err = readDirectoryHeader(f, buf)
-
-		// For compatibility with other zip programs,
-		// if we have a non-zero base offset and can't read
-		// the first directory header, try again with a zero
-		// base offset.
-		if err == ErrFormat && z.baseOffset != 0 && len(z.File) == 0 {
-			z.baseOffset = 0
-			if _, err = rs.Seek(int64(end.directoryOffset), io.SeekStart); err != nil {
-				return err
-			}
-			buf.Reset(rs)
-			continue
-		}
-
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
 		}
@@ -618,6 +613,20 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, baseOffset 
 	if o := baseOffset + int64(d.directoryOffset); o < 0 || o >= size {
 		return nil, 0, ErrFormat
 	}
+
+	// If the directory end data tells us to use a non-zero baseOffset,
+	// but we would find a valid directory entry if we assume that the
+	// baseOffset is 0, then just use a baseOffset of 0.
+	// We've seen files in which the directory end data gives us
+	// an incorrect baseOffset.
+	if baseOffset > 0 {
+		off := int64(d.directoryOffset)
+		rs := io.NewSectionReader(r, off, size-off)
+		if readDirectoryHeader(&File{}, rs) == nil {
+			baseOffset = 0
+		}
+	}
+
 	return d, baseOffset, nil
 }
 

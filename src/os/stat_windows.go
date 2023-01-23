@@ -20,7 +20,7 @@ func (file *File) Stat() (FileInfo, error) {
 }
 
 // stat implements both Stat and Lstat of a file.
-func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
+func stat(funcname, name string, followSymlinks bool) (FileInfo, error) {
 	if len(name) == 0 {
 		return nil, &PathError{Op: funcname, Path: name, Err: syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
 	}
@@ -33,8 +33,29 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 	// See https://golang.org/issues/19922#issuecomment-300031421 for details.
 	var fa syscall.Win32FileAttributeData
 	err = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
+
+	// GetFileAttributesEx fails with ERROR_SHARING_VIOLATION error for
+	// files like c:\pagefile.sys. Use FindFirstFile for such files.
+	if err == windows.ERROR_SHARING_VIOLATION {
+		var fd syscall.Win32finddata
+		sh, err := syscall.FindFirstFile(namep, &fd)
+		if err != nil {
+			return nil, &PathError{Op: "FindFirstFile", Path: name, Err: err}
+		}
+		syscall.FindClose(sh)
+		if fd.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+			// Not a symlink or mount point. FindFirstFile is good enough.
+			fs := newFileStatFromWin32finddata(&fd)
+			if err := fs.saveInfoFromPath(name); err != nil {
+				return nil, err
+			}
+			return fs, nil
+		}
+	}
+
 	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
-		// Not a symlink.
+		// The file is definitely not a symlink, because it isn't any kind of reparse point.
+		// The information we got from GetFileAttributesEx is good enough for now.
 		fs := &fileStat{
 			FileAttributes: fa.FileAttributes,
 			CreationTime:   fa.CreationTime,
@@ -48,30 +69,34 @@ func stat(funcname, name string, createFileAttrs uint32) (FileInfo, error) {
 		}
 		return fs, nil
 	}
-	// GetFileAttributesEx fails with ERROR_SHARING_VIOLATION error for
-	// files, like c:\pagefile.sys. Use FindFirstFile for such files.
-	if err == windows.ERROR_SHARING_VIOLATION {
-		var fd syscall.Win32finddata
-		sh, err := syscall.FindFirstFile(namep, &fd)
-		if err != nil {
-			return nil, &PathError{Op: "FindFirstFile", Path: name, Err: err}
-		}
-		syscall.FindClose(sh)
-		fs := newFileStatFromWin32finddata(&fd)
-		if err := fs.saveInfoFromPath(name); err != nil {
-			return nil, err
-		}
-		return fs, nil
-	}
 
-	// Finally use CreateFile.
-	h, err := syscall.CreateFile(namep, 0, 0, nil,
-		syscall.OPEN_EXISTING, createFileAttrs, 0)
+	// Use CreateFile to determine whether the file is a symlink and, if so,
+	// save information about the link target.
+	// Set FILE_FLAG_BACKUP_SEMANTICS so that CreateFile will create the handle
+	// even if name refers to a directory.
+	h, err := syscall.CreateFile(namep, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS|syscall.FILE_FLAG_OPEN_REPARSE_POINT, 0)
 	if err != nil {
+		// Since CreateFile failed, we can't determine whether name refers to a
+		// symlink, or some other kind of reparse point. Since we can't return a
+		// FileInfo with a known-accurate Mode, we must return an error.
 		return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
 	}
-	defer syscall.CloseHandle(h)
-	return statHandle(name, h)
+
+	fi, err := statHandle(name, h)
+	syscall.CloseHandle(h)
+	if err == nil && followSymlinks && fi.(*fileStat).isSymlink() {
+		// To obtain information about the link target, we reopen the file without
+		// FILE_FLAG_OPEN_REPARSE_POINT and examine the resulting handle.
+		// (See https://devblogs.microsoft.com/oldnewthing/20100212-00/?p=14963.)
+		h, err = syscall.CreateFile(namep, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
+		if err != nil {
+			// name refers to a symlink, but we couldn't resolve the symlink target.
+			return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
+		}
+		defer syscall.CloseHandle(h)
+		return statHandle(name, h)
+	}
+	return fi, err
 }
 
 func statHandle(name string, h syscall.Handle) (FileInfo, error) {
@@ -93,14 +118,10 @@ func statHandle(name string, h syscall.Handle) (FileInfo, error) {
 
 // statNolog implements Stat for Windows.
 func statNolog(name string) (FileInfo, error) {
-	return stat("Stat", name, syscall.FILE_FLAG_BACKUP_SEMANTICS)
+	return stat("Stat", name, true)
 }
 
 // lstatNolog implements Lstat for Windows.
 func lstatNolog(name string) (FileInfo, error) {
-	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
-	// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
-	// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
-	attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
-	return stat("Lstat", name, attrs)
+	return stat("Lstat", name, false)
 }

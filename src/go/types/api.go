@@ -143,6 +143,9 @@ type Config struct {
 	// It is an error to set both FakeImportC and go115UsesCgo.
 	go115UsesCgo bool
 
+	// If _Trace is set, a debug trace is printed to stdout.
+	_Trace bool
+
 	// If Error != nil, it is called with each error found
 	// during type checking; err has dynamic type Error.
 	// Secondary errors (for instance, to enumerate all types
@@ -167,11 +170,6 @@ type Config struct {
 	// If DisableUnusedImportCheck is set, packages are not checked
 	// for unused imports.
 	DisableUnusedImportCheck bool
-
-	// If oldComparableSemantics is set, ordinary (non-type parameter)
-	// interfaces do not satisfy the comparable constraint.
-	// TODO(gri) remove this flag for Go 1.21
-	oldComparableSemantics bool
 }
 
 func srcimporter_setUsesCgo(conf *Config) {

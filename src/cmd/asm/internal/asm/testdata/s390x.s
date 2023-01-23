@@ -410,6 +410,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	TCDB	F15, $4095             // edf00fff0011
 
 	UNDEF                          // 00000000
+	BRRK			       // 0001
 	NOPH                           // 0700
 
 	SYNC                           // 07e0

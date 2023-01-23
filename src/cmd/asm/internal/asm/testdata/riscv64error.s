@@ -26,5 +26,17 @@ TEXT errors(SB),$0
 	MOVD	F0, F1, F2			// ERROR "illegal MOV instruction"
 	MOV	X10, X11, X12			// ERROR "illegal MOV instruction"
 	MOVW	X10, X11, X12			// ERROR "illegal MOV instruction"
+	SLLI	$64, X5, X6			// ERROR "shift amount out of range 0 to 63"
+	SRLI	$64, X5, X6			// ERROR "shift amount out of range 0 to 63"
+	SRAI	$64, X5, X6			// ERROR "shift amount out of range 0 to 63"
+	SLLI	$-1, X5, X6			// ERROR "shift amount out of range 0 to 63"
+	SRLI	$-1, X5, X6			// ERROR "shift amount out of range 0 to 63"
+	SRAI	$-1, X5, X6			// ERROR "shift amount out of range 0 to 63"
+	SLLIW	$32, X5, X6			// ERROR "shift amount out of range 0 to 31"
+	SRLIW	$32, X5, X6			// ERROR "shift amount out of range 0 to 31"
+	SRAIW	$32, X5, X6			// ERROR "shift amount out of range 0 to 31"
+	SLLIW	$-1, X5, X6			// ERROR "shift amount out of range 0 to 31"
+	SRLIW	$-1, X5, X6			// ERROR "shift amount out of range 0 to 31"
+	SRAIW	$-1, X5, X6			// ERROR "shift amount out of range 0 to 31"
 
 	RET

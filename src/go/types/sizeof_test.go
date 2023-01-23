@@ -46,7 +46,7 @@ func TestSizeof(t *testing.T) {
 
 		// Misc
 		{Scope{}, 44, 88},
-		{Package{}, 40, 80},
+		{Package{}, 36, 72},
 		{_TypeSet{}, 28, 56},
 	}
 	for _, test := range tests {

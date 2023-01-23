@@ -875,7 +875,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
 				break
 			}
 			var elemId typeId
-			if tt, ok := builtinIdToType[wireId]; ok {
+			if tt := builtinIdToType(wireId); tt != nil {
 				elemId = tt.(*sliceType).Elem
 			} else {
 				elemId = dec.wireType[wireId].SliceT.Elem
@@ -1068,7 +1068,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
 		}
 		// Extract and compare element types.
 		var sw *sliceType
-		if tt, ok := builtinIdToType[fw]; ok {
+		if tt := builtinIdToType(fw); tt != nil {
 			sw, _ = tt.(*sliceType)
 		} else if wire != nil {
 			sw = wire.SliceT
@@ -1136,7 +1136,7 @@ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEn
 	var wireStruct *structType
 	// Builtin types can come from global pool; the rest must be defined by the decoder.
 	// Also we know we're decoding a struct now, so the client must have sent one.
-	if t, ok := builtinIdToType[remoteId]; ok {
+	if t := builtinIdToType(remoteId); t != nil {
 		wireStruct, _ = t.(*structType)
 	} else {
 		wire := dec.wireType[remoteId]
@@ -1199,7 +1199,7 @@ func (dec *Decoder) getDecEnginePtr(remoteId typeId, ut *userTypeInfo) (enginePt
 // emptyStruct is the type we compile into when ignoring a struct value.
 type emptyStruct struct{}
 
-var emptyStructType = reflect.TypeOf(emptyStruct{})
+var emptyStructType = reflect.TypeOf((*emptyStruct)(nil)).Elem()
 
 // getIgnoreEnginePtr returns the engine for the specified type when the value is to be discarded.
 func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, err error) {

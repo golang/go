@@ -59,15 +59,6 @@ func main() {
 	case "aix":
 		// uname -m doesn't work under AIX
 		gohostarch = "ppc64"
-	case "darwin":
-		// macOS 10.9 and later require clang
-		defaultclang = true
-	case "freebsd":
-		// Since FreeBSD 10 gcc is no longer part of the base system.
-		defaultclang = true
-	case "openbsd":
-		// OpenBSD ships with GCC 4.2, which is now quite old.
-		defaultclang = true
 	case "plan9":
 		gohostarch = os.Getenv("objtype")
 		if gohostarch == "" {

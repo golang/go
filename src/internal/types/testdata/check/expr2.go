@@ -9,8 +9,8 @@ package expr2
 func _bool() {
 	const t = true == true
 	const f = true == false
-	_ = t /* ERROR operator .* not defined */ < f
-	_ = 0 == t /* ERROR mismatched types untyped int and untyped bool */
+	_ = t /* ERRORx `operator .* not defined` */ < f
+	_ = 0 == t /* ERROR "mismatched types untyped int and untyped bool" */
 	var b bool
 	var x, y float32
 	b = x < y
@@ -20,7 +20,7 @@ func _bool() {
 
 // corner cases
 var (
-	v0 = nil == nil // ERROR operator == not defined on untyped nil
+	v0 = nil == nil // ERROR "operator == not defined on untyped nil"
 )
 
 func arrays() {
@@ -28,8 +28,8 @@ func arrays() {
 	var a, b [10]int
 	_ = a == b
 	_ = a != b
-	_ = a /* ERROR < not defined */ < b
-	_ = a == nil /* ERROR mismatched types */
+	_ = a /* ERROR "< not defined" */ < b
+	_ = a == nil /* ERROR "mismatched types" */
 
 	type C [10]int
 	var c C
@@ -37,10 +37,10 @@ func arrays() {
 
 	type D [10]int
 	var d D
-	_ = c == d /* ERROR mismatched types */
+	_ = c == d /* ERROR "mismatched types" */
 
 	var e [10]func() int
-	_ = e /* ERROR \[10\]func\(\) int cannot be compared */ == e
+	_ = e /* ERROR "[10]func() int cannot be compared" */ == e
 }
 
 func structs() {
@@ -52,8 +52,8 @@ func structs() {
 	}
 	_ = s == t
 	_ = s != t
-	_ = s /* ERROR < not defined */ < t
-	_ = s == nil /* ERROR mismatched types */
+	_ = s /* ERROR "< not defined" */ < t
+	_ = s == nil /* ERROR "mismatched types" */
 
 	type S struct {
 		x int
@@ -68,23 +68,23 @@ func structs() {
 	var ss S
 	var tt T
 	_ = s == ss
-	_ = ss == tt /* ERROR mismatched types */
+	_ = ss == tt /* ERROR "mismatched types" */
 
 	var u struct {
 		x int
 		a [10]map[string]int
 	}
-	_ = u /* ERROR cannot be compared */ == u
+	_ = u /* ERROR "cannot be compared" */ == u
 }
 
 func pointers() {
 	// nil
-	_ = nil == nil // ERROR operator == not defined on untyped nil
-	_ = nil != nil // ERROR operator != not defined on untyped nil
-	_ = nil /* ERROR < not defined */ < nil
-	_ = nil /* ERROR <= not defined */ <= nil
-	_ = nil /* ERROR > not defined */ > nil
-	_ = nil /* ERROR >= not defined */ >= nil
+	_ = nil == nil // ERROR "operator == not defined on untyped nil"
+	_ = nil != nil // ERROR "operator != not defined on untyped nil"
+	_ = nil /* ERROR "< not defined" */ < nil
+	_ = nil /* ERROR "<= not defined" */ <= nil
+	_ = nil /* ERROR "> not defined" */ > nil
+	_ = nil /* ERROR ">= not defined" */ >= nil
 
 	// basics
 	var p, q *int
@@ -96,10 +96,10 @@ func pointers() {
 	_ = nil == q
 	_ = nil != q
 
-	_ = p /* ERROR < not defined */ < q
-	_ = p /* ERROR <= not defined */ <= q
-	_ = p /* ERROR > not defined */ > q
-	_ = p /* ERROR >= not defined */ >= q
+	_ = p /* ERROR "< not defined" */ < q
+	_ = p /* ERROR "<= not defined" */ <= q
+	_ = p /* ERROR "> not defined" */ > q
+	_ = p /* ERROR ">= not defined" */ >= q
 
 	// various element types
 	type (
@@ -115,11 +115,11 @@ func pointers() {
 		p2 P2
 	)
 	_ = ps1 == ps1
-	_ = ps1 == ps2 /* ERROR mismatched types */
-	_ = ps2 == ps1 /* ERROR mismatched types */
+	_ = ps1 == ps2 /* ERROR "mismatched types" */
+	_ = ps2 == ps1 /* ERROR "mismatched types" */
 
 	_ = p1 == p1
-	_ = p1 == p2 /* ERROR mismatched types */
+	_ = p1 == p2 /* ERROR "mismatched types" */
 
 	_ = p1 == ps1
 }
@@ -130,7 +130,7 @@ func channels() {
 	_ = c == d
 	_ = c != d
 	_ = c == nil
-	_ = c /* ERROR < not defined */ < d
+	_ = c /* ERROR "< not defined" */ < d
 
 	// various element types (named types)
 	type (
@@ -147,13 +147,13 @@ func channels() {
 		c2 C2
 	)
 	_ = c1 == c1
-	_ = c1 == c1r /* ERROR mismatched types */
-	_ = c1 == c1s /* ERROR mismatched types */
-	_ = c1r == c1s /* ERROR mismatched types */
+	_ = c1 == c1r /* ERROR "mismatched types" */
+	_ = c1 == c1s /* ERROR "mismatched types" */
+	_ = c1r == c1s /* ERROR "mismatched types" */
 	_ = c1 == c1a
 	_ = c1a == c1
-	_ = c1 == c2 /* ERROR mismatched types */
-	_ = c1a == c2 /* ERROR mismatched types */
+	_ = c1 == c2 /* ERROR "mismatched types" */
+	_ = c1a == c2 /* ERROR "mismatched types" */
 
 	// various element types (unnamed types)
 	var (
@@ -166,11 +166,11 @@ func channels() {
 	_ = d1 == d1
 	_ = d1 == d1r
 	_ = d1 == d1s
-	_ = d1r == d1s /* ERROR mismatched types */
+	_ = d1r == d1s /* ERROR "mismatched types" */
 	_ = d1 == d1a
 	_ = d1a == d1
-	_ = d1 == d2 /* ERROR mismatched types */
-	_ = d1a == d2 /* ERROR mismatched types */
+	_ = d1 == d2 /* ERROR "mismatched types" */
+	_ = d1a == d2 /* ERROR "mismatched types" */
 }
 
 // for interfaces test
@@ -188,39 +188,39 @@ func interfaces() {
 	_ = i == j
 	_ = i != j
 	_ = i == nil
-	_ = i /* ERROR < not defined */ < j
+	_ = i /* ERROR "< not defined" */ < j
 
 	// various interfaces
 	var ii interface { m() int; n() }
 	var k interface { m() float32 }
 	_ = i == ii
-	_ = i == k /* ERROR mismatched types */
+	_ = i == k /* ERROR "mismatched types" */
 
 	// interfaces vs values
 	var s1 S1
 	var s11 S11
 	var s2 S2
 
-	_ = i == 0 /* ERROR cannot convert */
-	_ = i == s1 /* ERROR mismatched types */
+	_ = i == 0 /* ERROR "cannot convert" */
+	_ = i == s1 /* ERROR "mismatched types" */
 	_ = i == &s1
 	_ = i == &s11
 
-	_ = i == s2 /* ERROR mismatched types */
-	_ = i == & /* ERROR mismatched types */ s2
+	_ = i == s2 /* ERROR "mismatched types" */
+	_ = i == & /* ERROR "mismatched types" */ s2
 
 	// issue #28164
 	// testcase from issue
-	_ = interface{}(nil) == [ /* ERROR slice can only be compared to nil */ ]int(nil)
+	_ = interface{}(nil) == [ /* ERROR "slice can only be compared to nil" */ ]int(nil)
 
 	// related cases
 	var e interface{}
 	var s []int
 	var x int
-	_ = e == s // ERROR slice can only be compared to nil
-	_ = s /* ERROR slice can only be compared to nil */ == e
-	_ = e /* ERROR operator < not defined on interface */ < x
-	_ = x < e // ERROR operator < not defined on interface
+	_ = e == s // ERROR "slice can only be compared to nil"
+	_ = s /* ERROR "slice can only be compared to nil" */ == e
+	_ = e /* ERROR "operator < not defined on interface" */ < x
+	_ = x < e // ERROR "operator < not defined on interface"
 }
 
 func slices() {
@@ -228,11 +228,11 @@ func slices() {
 	var s []int
 	_ = s == nil
 	_ = s != nil
-	_ = s /* ERROR < not defined */ < nil
+	_ = s /* ERROR "< not defined" */ < nil
 
 	// slices are not otherwise comparable
-	_ = s /* ERROR slice can only be compared to nil */ == s
-	_ = s /* ERROR < not defined */ < s
+	_ = s /* ERROR "slice can only be compared to nil" */ == s
+	_ = s /* ERROR "< not defined" */ < s
 }
 
 func maps() {
@@ -240,11 +240,11 @@ func maps() {
 	var m map[string]int
 	_ = m == nil
 	_ = m != nil
-	_ = m /* ERROR < not defined */ < nil
+	_ = m /* ERROR "< not defined" */ < nil
 
 	// maps are not otherwise comparable
-	_ = m /* ERROR map can only be compared to nil */ == m
-	_ = m /* ERROR < not defined */ < m
+	_ = m /* ERROR "map can only be compared to nil" */ == m
+	_ = m /* ERROR "< not defined" */ < m
 }
 
 func funcs() {
@@ -252,9 +252,9 @@ func funcs() {
 	var f func(int) float32
 	_ = f == nil
 	_ = f != nil
-	_ = f /* ERROR < not defined */ < nil
+	_ = f /* ERROR "< not defined" */ < nil
 
 	// funcs are not otherwise comparable
-	_ = f /* ERROR func can only be compared to nil */ == f
-	_ = f /* ERROR < not defined */ < f
+	_ = f /* ERROR "func can only be compared to nil" */ == f
+	_ = f /* ERROR "< not defined" */ < f
 }

@@ -21,8 +21,7 @@ type pageCache struct {
 	scav  uint64  // 64-bit bitmap representing scavenged pages (1 means scavenged)
 }
 
-// empty returns true if the pageCache has any free pages, and false
-// otherwise.
+// empty reports whether the page cache has no free pages.
 func (c *pageCache) empty() bool {
 	return c.cache == 0
 }

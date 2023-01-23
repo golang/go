@@ -25,6 +25,7 @@ func TestNonpollableDeadline(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
+	t.Parallel()
 
 	f, err := os.CreateTemp("", "ostest")
 	if err != nil {

@@ -134,7 +134,7 @@ import (
 // - If PkgIdx is PkgIdxHashed, SymIdx is the index of the symbol in the
 //   HashedDefs array.
 // - If PkgIdx is PkgIdxNone, SymIdx is the index of the symbol in the
-//   NonPkgDefs array (could natually overflow to NonPkgRefs array).
+//   NonPkgDefs array (could naturally overflow to NonPkgRefs array).
 // - Otherwise, SymIdx is the index of the symbol in some other package's
 //   SymbolDefs array.
 //

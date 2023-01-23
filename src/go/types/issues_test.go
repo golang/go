@@ -21,9 +21,7 @@ import (
 )
 
 func TestIssue5770(t *testing.T) {
-	f := mustParse(fset, "", `package p; type S struct{T}`)
-	conf := Config{Importer: importer.Default()}
-	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+	_, err := typecheck("p", `package p; type S struct{T}`, nil, nil)
 	const want = "undefined: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)
@@ -43,7 +41,7 @@ var (
 	_ = (interface{})(nil)
 )`
 	types := make(map[ast.Expr]TypeAndValue)
-	mustTypecheck("p", src, &Info{Types: types})
+	mustTypecheck("p", src, nil, &Info{Types: types})
 
 	for x, tv := range types {
 		var want Type
@@ -82,7 +80,7 @@ func f() int {
 }
 `
 	types := make(map[ast.Expr]TypeAndValue)
-	mustTypecheck("p", src, &Info{Types: types})
+	mustTypecheck("p", src, nil, &Info{Types: types})
 
 	want := Typ[Int]
 	n := 0
@@ -137,6 +135,9 @@ func _() {
         _, _, _ = x, y, z  // uses x, y, z
 }
 `
+	// We need a specific fileset in this test below for positions.
+	// Cannot use typecheck helper.
+	fset := token.NewFileSet()
 	f := mustParse(fset, "", src)
 
 	const want = `L3 defs func p._()
@@ -155,7 +156,7 @@ L7 uses var z int`
 	defs := make(map[*ast.Ident]Object)
 	uses := make(map[*ast.Ident]Object)
 	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Defs: defs, Uses: uses})
-	if s := fmt.Sprint(err); !strings.HasSuffix(s, "cannot assign to w") {
+	if s := err.Error(); !strings.HasSuffix(s, "cannot assign to w") {
 		t.Errorf("Check: unexpected error: %s", s)
 	}
 
@@ -233,13 +234,8 @@ func main() {
 }
 `
 	f := func(test, src string) {
-		f := mustParse(fset, "", src)
-		cfg := Config{Importer: importer.Default()}
-		info := Info{Uses: make(map[*ast.Ident]Object)}
-		_, err := cfg.Check("main", fset, []*ast.File{f}, &info)
-		if err != nil {
-			t.Fatal(err)
-		}
+		info := &Info{Uses: make(map[*ast.Ident]Object)}
+		mustTypecheck("main", src, nil, info)
 
 		var pkg *Package
 		count := 0
@@ -263,11 +259,11 @@ func main() {
 }
 
 func TestIssue22525(t *testing.T) {
-	f := mustParse(fset, "", `package p; func f() { var a, b, c, d, e int }`)
+	const src = `package p; func f() { var a, b, c, d, e int }`
 
 	got := "\n"
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
-	conf.Check(f.Name.Name, fset, []*ast.File{f}, nil) // do not crash
+	typecheck("", src, &conf, nil) // do not crash
 	want := `
 1:27: a declared and not used
 1:30: b declared and not used
@@ -451,14 +447,10 @@ func TestIssue34151(t *testing.T) {
 	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
 	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
 
-	a := mustTypecheck("a", asrc, nil)
+	a := mustTypecheck("a", asrc, nil, nil)
 
-	bast := mustParse(fset, "", bsrc)
 	conf := Config{Importer: importHelper{pkg: a}}
-	b, err := conf.Check(bast.Name.Name, fset, []*ast.File{bast}, nil)
-	if err != nil {
-		t.Errorf("package %s failed to typecheck: %v", b.Name(), err)
-	}
+	mustTypecheck("b", bsrc, &conf, nil)
 }
 
 type importHelper struct {
@@ -516,14 +508,14 @@ func TestIssue43088(t *testing.T) {
 	//                 _ T2
 	//         }
 	// }
-	n1 := NewTypeName(token.NoPos, nil, "T1", nil)
+	n1 := NewTypeName(nopos, nil, "T1", nil)
 	T1 := NewNamed(n1, nil, nil)
-	n2 := NewTypeName(token.NoPos, nil, "T2", nil)
+	n2 := NewTypeName(nopos, nil, "T2", nil)
 	T2 := NewNamed(n2, nil, nil)
-	s1 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
+	s1 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
 	T1.SetUnderlying(s1)
-	s2 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", T2, false)}, nil)
-	s3 := NewStruct([]*Var{NewField(token.NoPos, nil, "_", s2, false)}, nil)
+	s2 := NewStruct([]*Var{NewField(nopos, nil, "_", T2, false)}, nil)
+	s3 := NewStruct([]*Var{NewField(nopos, nil, "_", s2, false)}, nil)
 	T2.SetUnderlying(s3)
 
 	// These calls must terminate (no endless recursion).
@@ -574,7 +566,7 @@ import (
 func _() {
 	// Packages should be fully qualified when there is ambiguity within the
 	// error string itself.
-	a.F(template /* ERROR cannot use.*html/template.* as .*text/template */ .Template{})
+	a.F(template /* ERRORx "cannot use.*html/template.* as .*text/template" */ .Template{})
 }
 `
 		csrc = `
@@ -586,13 +578,13 @@ import (
 	"html/template"
 )
 
-// Issue #46905: make sure template is not the first package qualified.
-var _ fmt.Stringer = 1 // ERROR cannot use 1.*as fmt\.Stringer
+// go.dev/issue/46905: make sure template is not the first package qualified.
+var _ fmt.Stringer = 1 // ERRORx "cannot use 1.*as fmt\\.Stringer"
 
 // Packages should be fully qualified when there is ambiguity in reachable
 // packages. In this case both a (and for that matter html/template) import
 // text/template.
-func _() { a.G(template /* ERROR cannot use .*html/template.*Template */ .Template{}) }
+func _() { a.G(template /* ERRORx "cannot use .*html/template.*Template" */ .Template{}) }
 `
 
 		tsrc = `
@@ -603,11 +595,11 @@ import "text/template"
 type T int
 
 // Verify that the current package name also causes disambiguation.
-var _ T = template /* ERROR cannot use.*text/template.* as T value */.Template{}
+var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Template{}
 `
 	)
 
-	a := mustTypecheck("a", asrc, nil)
+	a := mustTypecheck("a", asrc, nil, nil)
 	imp := importHelper{pkg: a, fallback: importer.Default()}
 
 	testFiles(t, nil, []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
@@ -644,7 +636,7 @@ func TestIssue50646(t *testing.T) {
 func TestIssue55030(t *testing.T) {
 	// makeSig makes the signature func(typ...)
 	makeSig := func(typ Type) {
-		par := NewVar(token.NoPos, nil, "", typ)
+		par := NewVar(nopos, nil, "", typ)
 		params := NewTuple(par)
 		NewSignatureType(nil, nil, nil, params, nil, true)
 	}
@@ -658,22 +650,22 @@ func TestIssue55030(t *testing.T) {
 
 	// P where P's core type is string
 	{
-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P string]
+		P := NewTypeName(nopos, nil, "P", nil) // [P string]
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{Typ[String]})))
 	}
 
 	// P where P's core type is an (unnamed) slice
 	{
-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P []int]
+		P := NewTypeName(nopos, nil, "P", nil) // [P []int]
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{NewSlice(Typ[Int])})))
 	}
 
 	// P where P's core type is bytestring (i.e., string or []byte)
 	{
-		t1 := NewTerm(true, Typ[String])             // ~string
-		t2 := NewTerm(false, NewSlice(Typ[Byte]))    // []byte
-		u := NewUnion([]*Term{t1, t2})               // ~string | []byte
-		P := NewTypeName(token.NoPos, nil, "P", nil) // [P ~string | []byte]
+		t1 := NewTerm(true, Typ[String])          // ~string
+		t2 := NewTerm(false, NewSlice(Typ[Byte])) // []byte
+		u := NewUnion([]*Term{t1, t2})            // ~string | []byte
+		P := NewTypeName(nopos, nil, "P", nil)    // [P ~string | []byte]
 		makeSig(NewTypeParam(P, NewInterfaceType(nil, []Type{u})))
 	}
 }
@@ -704,7 +696,7 @@ func TestIssue51093(t *testing.T) {
 	for _, test := range tests {
 		src := fmt.Sprintf("package p; func _[P %s]() { _ = P(%s) }", test.typ, test.val)
 		types := make(map[ast.Expr]TypeAndValue)
-		mustTypecheck("p", src, &Info{Types: types})
+		mustTypecheck("p", src, nil, &Info{Types: types})
 
 		var n int
 		for x, tv := range types {
@@ -836,7 +828,7 @@ func (S) M5(struct {S;t}) {}
 	fset := token.NewFileSet()
 	test := func(main, b, want string) {
 		re := regexp.MustCompile(want)
-		bpkg := mustTypecheck("b", b, nil)
+		bpkg := mustTypecheck("b", b, nil, nil)
 		mast := mustParse(fset, "main.go", main)
 		conf := Config{Importer: importHelper{pkg: bpkg}}
 		_, err := conf.Check(mast.Name.Name, fset, []*ast.File{mast}, nil)

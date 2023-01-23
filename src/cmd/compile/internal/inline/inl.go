@@ -1442,7 +1442,7 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
 	return m
 }
 
-// closure does the necessary substitions for a ClosureExpr n and returns the new
+// closure does the necessary substitutions for a ClosureExpr n and returns the new
 // closure node.
 func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
 	// Prior to the subst edit, set a flag in the inlsubst to indicate

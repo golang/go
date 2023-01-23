@@ -337,6 +337,12 @@ func SliceMakeCopyNoMemmoveDifferentLen(s []int) []int {
 	return a
 }
 
+func SliceMakeEmptyPointerToZerobase() []int {
+	// amd64:`LEAQ.+runtime\.zerobase`
+	// amd64:-`.*runtime\.makeslice`
+	return make([]int, 0)
+}
+
 // ---------------------- //
 //   Nil check of &s[0]   //
 // ---------------------- //

@@ -20,7 +20,7 @@ func findStructType(t *testing.T, src string) *types2.Struct {
 
 func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2.Struct {
 	types := make(map[syntax.Expr]types2.TypeAndValue)
-	mustTypecheck("x", src, &types2.Info{Types: types})
+	mustTypecheck("x", src, nil, &types2.Info{Types: types})
 	for _, tv := range types {
 		if ts, ok := tv.Type.(*types2.Struct); ok {
 			return ts
@@ -30,7 +30,7 @@ func findStructTypeConfig(t *testing.T, src string, conf *types2.Config) *types2
 	return nil
 }
 
-// Issue 16316
+// go.dev/issue/16316
 func TestMultipleSizeUse(t *testing.T) {
 	const src = `
 package main
@@ -53,7 +53,7 @@ type S struct {
 	}
 }
 
-// Issue 16464
+// go.dev/issue/16464
 func TestAlignofNaclSlice(t *testing.T) {
 	const src = `
 package main
@@ -84,23 +84,19 @@ import "unsafe"
 
 const _ = unsafe.Offsetof(struct{ x int64 }{}.x)
 `
-	f := mustParse("x.go", src)
 	info := types2.Info{Types: make(map[syntax.Expr]types2.TypeAndValue)}
 	conf := types2.Config{
 		Importer: defaultImporter(),
 		Sizes:    &types2.StdSizes{WordSize: 8, MaxAlign: 8},
 	}
-	_, err := conf.Check("x", []*syntax.File{f}, &info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck("x", src, &conf, &info)
 	for _, tv := range info.Types {
 		_ = conf.Sizes.Sizeof(tv.Type)
 		_ = conf.Sizes.Alignof(tv.Type)
 	}
 }
 
-// Issue #53884.
+// go.dev/issue/53884.
 func TestAtomicAlign(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
 

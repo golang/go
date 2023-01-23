@@ -45,15 +45,15 @@ func _() *int {
 
 // A type parameter may not be embedded in an interface;
 // so it can also not be used as a constraint.
-func _[A any, B A /* ERROR cannot use a type parameter as constraint */]()    {}
-func _[A any, B, C A /* ERROR cannot use a type parameter as constraint */]() {}
+func _[A any, B A /* ERROR "cannot use a type parameter as constraint" */]()    {}
+func _[A any, B, C A /* ERROR "cannot use a type parameter as constraint" */]() {}
 
 // Error messages refer to the type constraint as it appears in the source.
 // (No implicit interface should be exposed.)
 func _[T string](x T) T {
-	return x /* ERROR constrained by string */ * x
+	return x /* ERROR "constrained by string" */ * x
 }
 
 func _[T int | string](x T) T {
-	return x /* ERROR constrained by int|string */ * x
+	return x /* ERROR "constrained by int | string" */ * x
 }
