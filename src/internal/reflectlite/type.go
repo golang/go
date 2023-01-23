@@ -115,25 +115,11 @@ type textOff = abi.TextOff
 
 type rtype abi.Type
 
-// Method on non-interface type
-type method struct {
-	name nameOff // name of method
-	mtyp typeOff // method type (without receiver)
-	ifn  textOff // fn used in interface call (one-word receiver)
-	tfn  textOff // fn used for normal method call
-}
-
 // uncommonType is present only for defined types or types with methods
 // (if T is a defined type, the uncommonTypes for T and *T have methods).
 // Using a pointer to this struct reduces the overall size required
 // to describe a non-defined type with no methods.
-type uncommonType struct {
-	pkgPath nameOff // import path; empty for built-in types like int, string
-	mcount  uint16  // number of methods
-	xcount  uint16  // number of exported methods
-	moff    uint32  // offset from this uncommontype to [mcount]method
-	_       uint32  // unused
-}
+type uncommonType = abi.UncommonType
 
 // chanDir represents a channel type's direction.
 type chanDir int
@@ -176,17 +162,11 @@ type funcType struct {
 	outCount uint16 // top bit is set if last input parameter is ...
 }
 
-// imethod represents a method on an interface type
-type imethod struct {
-	name nameOff // name of method
-	typ  typeOff // .(*FuncType) underneath
-}
-
 // interfaceType represents an interface type.
 type interfaceType struct {
 	rtype
-	pkgPath name      // import path
-	methods []imethod // sorted by hash
+	pkgPath name          // import path
+	methods []abi.Imethod // sorted by hash
 }
 
 // mapType represents a map type.
@@ -373,20 +353,6 @@ var kindNames = []string{
 	UnsafePointer: "unsafe.Pointer",
 }
 
-func (t *uncommonType) methods() []method {
-	if t.mcount == 0 {
-		return nil
-	}
-	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.mcount > 0"))[:t.mcount:t.mcount]
-}
-
-func (t *uncommonType) exportedMethods() []method {
-	if t.xcount == 0 {
-		return nil
-	}
-	return (*[1 << 16]method)(add(unsafe.Pointer(t), uintptr(t.moff), "t.xcount > 0"))[:t.xcount:t.xcount]
-}
-
 // resolveNameOff resolves a name offset from a base pointer.
 // The (*rtype).nameOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
@@ -479,12 +445,12 @@ func (t *rtype) pointers() bool { return t.PtrBytes != 0 }
 
 func (t *rtype) common() *rtype { return t }
 
-func (t *rtype) exportedMethods() []method {
+func (t *rtype) exportedMethods() []abi.Method {
 	ut := t.uncommon()
 	if ut == nil {
 		return nil
 	}
-	return ut.exportedMethods()
+	return ut.ExportedMethods()
 }
 
 func (t *rtype) NumMethod() int {
@@ -503,7 +469,7 @@ func (t *rtype) PkgPath() string {
 	if ut == nil {
 		return ""
 	}
-	return t.nameOff(ut.pkgPath).name()
+	return t.nameOff(ut.PkgPath).name()
 }
 
 func (t *rtype) hasName() bool {
@@ -707,10 +673,10 @@ func implements(T, V *rtype) bool {
 		i := 0
 		for j := 0; j < len(v.methods); j++ {
 			tm := &t.methods[i]
-			tmName := t.nameOff(tm.name)
+			tmName := t.nameOff(tm.Name)
 			vm := &v.methods[j]
-			vmName := V.nameOff(vm.name)
-			if vmName.name() == tmName.name() && V.typeOff(vm.typ) == t.typeOff(tm.typ) {
+			vmName := V.nameOff(vm.Name)
+			if vmName.name() == tmName.name() && V.typeOff(vm.Typ) == t.typeOff(tm.Typ) {
 				if !tmName.isExported() {
 					tmPkgPath := tmName.pkgPath()
 					if tmPkgPath == "" {
@@ -737,13 +703,13 @@ func implements(T, V *rtype) bool {
 		return false
 	}
 	i := 0
-	vmethods := v.methods()
-	for j := 0; j < int(v.mcount); j++ {
+	vmethods := v.Methods()
+	for j := 0; j < int(v.Mcount); j++ {
 		tm := &t.methods[i]
-		tmName := t.nameOff(tm.name)
+		tmName := t.nameOff(tm.Name)
 		vm := vmethods[j]
-		vmName := V.nameOff(vm.name)
-		if vmName.name() == tmName.name() && V.typeOff(vm.mtyp) == t.typeOff(tm.typ) {
+		vmName := V.nameOff(vm.Name)
+		if vmName.name() == tmName.name() && V.typeOff(vm.Mtyp) == t.typeOff(tm.Typ) {
 			if !tmName.isExported() {
 				tmPkgPath := tmName.pkgPath()
 				if tmPkgPath == "" {
@@ -751,7 +717,7 @@ func implements(T, V *rtype) bool {
 				}
 				vmPkgPath := vmName.pkgPath()
 				if vmPkgPath == "" {
-					vmPkgPath = V.nameOff(v.pkgPath).name()
+					vmPkgPath = V.nameOff(v.PkgPath).name()
 				}
 				if tmPkgPath != vmPkgPath {
 					continue

@@ -116,7 +116,7 @@ func (t *_type) name() string {
 // types, not just named types.
 func (t *_type) pkgpath() string {
 	if u := t.uncommon(); u != nil {
-		return t.nameOff(u.pkgpath).name()
+		return t.nameOff(u.PkgPath).name()
 	}
 	switch t.Kind_ & kindMask {
 	case kindStruct:
@@ -293,30 +293,12 @@ func (t *functype) dotdotdot() bool {
 	return t.outCount&(1<<15) != 0
 }
 
-type method struct {
-	name nameOff
-	mtyp typeOff
-	ifn  textOff
-	tfn  textOff
-}
-
-type uncommontype struct {
-	pkgpath nameOff
-	mcount  uint16 // number of methods
-	xcount  uint16 // number of exported methods
-	moff    uint32 // offset from this uncommontype to [mcount]method
-	_       uint32 // unused
-}
-
-type imethod struct {
-	name nameOff
-	ityp typeOff
-}
+type uncommontype = abi.UncommonType
 
 type interfacetype struct {
 	typ     _type
 	pkgpath name
-	mhdr    []imethod
+	mhdr    []abi.Imethod
 }
 
 type maptype struct {
@@ -562,8 +544,8 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 		if ut == nil || uv == nil {
 			return false
 		}
-		pkgpatht := t.nameOff(ut.pkgpath).name()
-		pkgpathv := v.nameOff(uv.pkgpath).name()
+		pkgpatht := t.nameOff(ut.PkgPath).name()
+		pkgpathv := v.nameOff(uv.PkgPath).name()
 		if pkgpatht != pkgpathv {
 			return false
 		}
@@ -615,16 +597,16 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 			vm := &iv.mhdr[i]
 			// Note the mhdr array can be relocated from
 			// another module. See #17724.
-			tname := resolveNameOff(unsafe.Pointer(tm), tm.name)
-			vname := resolveNameOff(unsafe.Pointer(vm), vm.name)
+			tname := resolveNameOff(unsafe.Pointer(tm), tm.Name)
+			vname := resolveNameOff(unsafe.Pointer(vm), vm.Name)
 			if tname.name() != vname.name() {
 				return false
 			}
 			if tname.pkgPath() != vname.pkgPath() {
 				return false
 			}
-			tityp := resolveTypeOff(unsafe.Pointer(tm), tm.ityp)
-			vityp := resolveTypeOff(unsafe.Pointer(vm), vm.ityp)
+			tityp := resolveTypeOff(unsafe.Pointer(tm), tm.Typ)
+			vityp := resolveTypeOff(unsafe.Pointer(vm), vm.Typ)
 			if !typesEqual(tityp, vityp, seen) {
 				return false
 			}

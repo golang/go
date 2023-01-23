@@ -882,7 +882,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.methods[i]
-		if !tt.nameOff(m.name).isExported() {
+		if !tt.nameOff(m.Name).isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		iface := (*nonEmptyInterface)(v.ptr)
@@ -891,7 +891,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
 		}
 		rcvrtype = iface.itab.typ
 		fn = unsafe.Pointer(&iface.itab.fun[i])
-		t = (*funcType)(unsafe.Pointer(tt.typeOff(m.typ)))
+		t = (*funcType)(unsafe.Pointer(tt.typeOff(m.Typ)))
 	} else {
 		rcvrtype = v.typ
 		ms := v.typ.exportedMethods()
@@ -899,12 +899,12 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
 			panic("reflect: internal error: invalid method index")
 		}
 		m := ms[i]
-		if !v.typ.nameOff(m.name).isExported() {
+		if !v.typ.nameOff(m.Name).isExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
-		ifn := v.typ.textOff(m.ifn)
+		ifn := v.typ.textOff(m.Ifn)
 		fn = unsafe.Pointer(&ifn)
-		t = (*funcType)(unsafe.Pointer(v.typ.typeOff(m.mtyp)))
+		t = (*funcType)(unsafe.Pointer(v.typ.typeOff(m.Mtyp)))
 	}
 	return
 }
@@ -2623,7 +2623,7 @@ func (v Value) typeSlow() Type {
 			panic("reflect: internal error: invalid method index")
 		}
 		m := &tt.methods[i]
-		return v.typ.typeOff(m.typ)
+		return v.typ.typeOff(m.Typ)
 	}
 	// Method on concrete type.
 	ms := v.typ.exportedMethods()
@@ -2631,7 +2631,7 @@ func (v Value) typeSlow() Type {
 		panic("reflect: internal error: invalid method index")
 	}
 	m := ms[i]
-	return v.typ.typeOff(m.mtyp)
+	return v.typ.typeOff(m.Mtyp)
 }
 
 // CanUint reports whether Uint can be used without panicking.
