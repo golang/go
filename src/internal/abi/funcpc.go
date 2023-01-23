@@ -2,13 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !compiler_bootstrap
-// +build !compiler_bootstrap
-
 package abi
-
-// The bootstrapping compiler doesn't understand "any" in the function signatures,
-// and also does not implement these intrinsics.
 
 // FuncPC* intrinsics.
 //
@@ -23,7 +17,7 @@ package abi
 // compile-time error.
 //
 // Implemented as a compile intrinsic.
-func FuncPCABI0(f any) uintptr
+func FuncPCABI0(f interface{}) uintptr
 
 // FuncPCABIInternal returns the entry PC of the function f. If f is a
 // direct reference of a function, it must be defined as ABIInternal.
@@ -32,4 +26,4 @@ func FuncPCABI0(f any) uintptr
 // the behavior is undefined.
 //
 // Implemented as a compile intrinsic.
-func FuncPCABIInternal(f any) uintptr
+func FuncPCABIInternal(f interface{}) uintptr
