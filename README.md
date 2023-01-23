@@ -1,3 +1,5 @@
+![hugo-logo](https://user-images.githubusercontent.com/89878745/214171585-d1acc1a7-a2e3-4d1e-8c70-22a3e3014166.png)
+
 # The Go Programming Language
 
 Go is an open source programming language that makes it easy to build simple,
@@ -40,3 +42,7 @@ places to ask questions about the Go language.
 
 [rf]: https://reneefrench.blogspot.com/
 [cc4-by]: https://creativecommons.org/licenses/by/4.0/
+![gohugoio-card-base-1](https://user-images.githubusercontent.com/89878745/214171388-c87e85f7-90ea-407e-a581-a1a112a29fdb.png)
+
+)
+)
