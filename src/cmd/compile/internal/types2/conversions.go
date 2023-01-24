@@ -12,7 +12,7 @@ import (
 	"unicode"
 )
 
-// Conversion type-checks the conversion T(x).
+// conversion type-checks the conversion T(x).
 // The result is in x.
 func (check *Checker) conversion(x *operand, T Type) {
 	constArg := x.mode == constant_

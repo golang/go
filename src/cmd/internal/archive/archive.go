@@ -189,7 +189,7 @@ func (r *objReader) readByte() byte {
 	return b
 }
 
-// read reads exactly len(b) bytes from the input file.
+// readFull reads exactly len(b) bytes from the input file.
 // If an error occurs, read returns the error but also
 // records it, so it is safe for callers to ignore the result
 // as long as delaying the report is not a problem.

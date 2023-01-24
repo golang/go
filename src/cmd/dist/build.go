@@ -1107,7 +1107,7 @@ func shouldbuild(file, pkg string) bool {
 	return true
 }
 
-// copy copies the file src to dst, via memory (so only good for small files).
+// copyfile copies the file src to dst, via memory (so only good for small files).
 func copyfile(dst, src string, flag int) {
 	if vflag > 1 {
 		errprintf("cp %s %s\n", src, dst)

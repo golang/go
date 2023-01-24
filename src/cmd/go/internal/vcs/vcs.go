@@ -759,7 +759,7 @@ func (v *Cmd) Tags(dir string) ([]string, error) {
 	return tags, nil
 }
 
-// tagSync syncs the repo in dir to the named tag,
+// TagSync syncs the repo in dir to the named tag,
 // which either is a tag returned by tags or is v.tagDefault.
 func (v *Cmd) TagSync(dir, tag string) error {
 	if v.TagSyncCmd == nil {

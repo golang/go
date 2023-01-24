@@ -1469,7 +1469,7 @@ func sigrepr(t *types.Type, isddd bool) string {
 	return t.String()
 }
 
-// sigerr returns the signature of the types at the call or return.
+// fmtSignature returns the signature of the types at the call or return.
 func fmtSignature(nl ir.Nodes, isddd bool) string {
 	if len(nl) < 1 {
 		return "()"

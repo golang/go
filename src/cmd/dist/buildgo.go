@@ -91,7 +91,7 @@ func defaultCCFunc(name string, defaultcc map[string]string) string {
 	return buf.String()
 }
 
-// mkzcgo writes zosarch.go for cmd/go.
+// mkzosarch writes zosarch.go for cmd/go.
 func mkzosarch(dir, file string) {
 	// sort for deterministic zosarch.go file
 	var list []string

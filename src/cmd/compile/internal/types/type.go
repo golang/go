@@ -579,7 +579,7 @@ func (f *Fields) Append(s ...*Field) {
 	*f.s = append(*f.s, s...)
 }
 
-// New returns a new Type of the specified kind.
+// newType returns a new Type of the specified kind.
 func newType(et Kind) *Type {
 	t := &Type{
 		kind:  et,
