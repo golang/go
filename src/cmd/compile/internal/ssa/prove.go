@@ -856,9 +856,6 @@ func prove(f *Func) {
 			case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
 				ft.update(b, v, v.Args[1], unsigned, lt|eq)
 				ft.update(b, v, v.Args[0], unsigned, lt|eq)
-			case OpOr64, OpOr32, OpOr16, OpOr8:
-				ft.update(b, v, v.Args[1], unsigned, gt|eq)
-				ft.update(b, v, v.Args[0], unsigned, gt|eq)
 			case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
 				OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
 				OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
