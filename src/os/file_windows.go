@@ -9,6 +9,7 @@ import (
 	"internal/poll"
 	"internal/syscall/windows"
 	"runtime"
+	"sync"
 	"syscall"
 	"unicode/utf16"
 	"unsafe"
@@ -230,11 +231,23 @@ func Pipe() (r *File, w *File, err error) {
 	return newFile(p[0], "|0", "pipe"), newFile(p[1], "|1", "pipe"), nil
 }
 
+var (
+	useGetTempPath2Once sync.Once
+	useGetTempPath2     bool
+)
+
 func tempDir() string {
+	useGetTempPath2Once.Do(func() {
+		useGetTempPath2 = (windows.ErrorLoadingGetTempPath2() == nil)
+	})
+	getTempPath := syscall.GetTempPath
+	if useGetTempPath2 {
+		getTempPath = windows.GetTempPath2
+	}
 	n := uint32(syscall.MAX_PATH)
 	for {
 		b := make([]uint16, n)
-		n, _ = syscall.GetTempPath(uint32(len(b)), &b[0])
+		n, _ = getTempPath(uint32(len(b)), &b[0])
 		if n > uint32(len(b)) {
 			continue
 		}

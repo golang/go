@@ -151,6 +151,7 @@ const (
 //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
 //sys	SetFileInformationByHandle(handle syscall.Handle, fileInformationClass uint32, buf uintptr, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
 //sys	VirtualQuery(address uintptr, buffer *MemoryBasicInformation, length uintptr) (err error) = kernel32.VirtualQuery
+//sys	GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) = GetTempPath2W
 
 const (
 	// flags for CreateToolhelp32Snapshot
@@ -361,6 +362,10 @@ const (
 
 func LoadGetFinalPathNameByHandle() error {
 	return procGetFinalPathNameByHandleW.Find()
+}
+
+func ErrorLoadingGetTempPath2() error {
+	return procGetTempPath2W.Find()
 }
 
 //sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
