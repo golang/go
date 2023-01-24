@@ -43,8 +43,8 @@ var x [256]byte
 func moveDisjointStack32() {
 	var s [32]byte
 	// ppc64x:-".*memmove"
-	// ppc64le/power8:"LXVD2X",-"ADD",-"BC"
-	// ppc64le/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
+	// ppc64x/power8:"LXVD2X",-"ADD",-"BC"
+	// ppc64x/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
 	copy(s[:], x[:32])
 	runtime.KeepAlive(&s)
 }
@@ -52,8 +52,8 @@ func moveDisjointStack32() {
 func moveDisjointStack64() {
 	var s [96]byte
 	// ppc64x:-".*memmove"
-	// ppc64le/power8:"LXVD2X","ADD","BC"
-	// ppc64le/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
+	// ppc64x/power8:"LXVD2X","ADD","BC"
+	// ppc64x/power9:"LXV",-"LXVD2X",-"ADD",-"BC"
 	copy(s[:], x[:96])
 	runtime.KeepAlive(&s)
 }
@@ -63,8 +63,8 @@ func moveDisjointStack() {
 	// s390x:-".*memmove"
 	// amd64:-".*memmove"
 	// ppc64x:-".*memmove"
-	// ppc64le/power8:"LXVD2X"
-	// ppc64le/power9:"LXV",-"LXVD2X"
+	// ppc64x/power8:"LXVD2X"
+	// ppc64x/power9:"LXV",-"LXVD2X"
 	copy(s[:], x[:])
 	runtime.KeepAlive(&s)
 }
@@ -74,8 +74,8 @@ func moveDisjointArg(b *[256]byte) {
 	// s390x:-".*memmove"
 	// amd64:-".*memmove"
 	// ppc64x:-".*memmove"
-	// ppc64le/power8:"LXVD2X"
-	// ppc64le/power9:"LXV",-"LXVD2X"
+	// ppc64x/power8:"LXVD2X"
+	// ppc64x/power9:"LXV",-"LXVD2X"
 	copy(s[:], b[:])
 	runtime.KeepAlive(&s)
 }
@@ -84,8 +84,8 @@ func moveDisjointNoOverlap(a *[256]byte) {
 	// s390x:-".*memmove"
 	// amd64:-".*memmove"
 	// ppc64x:-".*memmove"
-	// ppc64le/power8:"LXVD2X"
-	// ppc64le/power9:"LXV",-"LXVD2X"
+	// ppc64x/power8:"LXVD2X"
+	// ppc64x/power9:"LXV",-"LXVD2X"
 	copy(a[:], a[128:])
 }
 

@@ -162,8 +162,8 @@ func MergeMuls1(n int) int {
 func MergeMuls2(n int) int {
 	// amd64:"IMUL3Q\t[$]23","(ADDQ\t[$]29)|(LEAQ\t29)"
 	// 386:"IMUL3L\t[$]23","ADDL\t[$]29"
-	// ppc64le/power9:"MADDLD",-"MULLD\t[$]23",-"ADD\t[$]29"
-	// ppc64le/power8:"MULLD\t[$]23","ADD\t[$]29"
+	// ppc64x/power9:"MADDLD",-"MULLD\t[$]23",-"ADD\t[$]29"
+	// ppc64x/power8:"MULLD\t[$]23","ADD\t[$]29"
 	return 5*n + 7*(n+1) + 11*(n+2) // 23n + 29
 }
 

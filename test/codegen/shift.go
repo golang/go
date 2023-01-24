@@ -86,8 +86,7 @@ func rshMask64Ux64(v uint64, s uint64) uint64 {
 
 func rshMask64x64(v int64, s uint64) int64 {
 	// arm64:"ASR",-"AND",-"CSEL"
-	// ppc64:"ANDCC",-"ORN",-"ISEL"
-	// ppc64le:"ANDCC",-ORN",-"ISEL"
+	// ppc64x:"ANDCC",-"ORN",-"ISEL"
 	// riscv64:"SRA",-"OR",-"SLTIU"
 	// s390x:-"RISBGZ",-"AND",-"LOCGR"
 	return v >> (s & 63)
@@ -353,23 +352,23 @@ func checkCombinedShifts(v8 uint8, v16 uint16, v32 uint32, x32 int32, v64 uint64
 
 func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
 
-	// ppc64le:-".*MOVW"
+	// ppc64x:-".*MOVW"
 	f := int32(v >> 32)
-	// ppc64le:".*MOVW"
+	// ppc64x:".*MOVW"
 	f += int32(v >> 31)
-	// ppc64le:-".*MOVH"
+	// ppc64x:-".*MOVH"
 	g := int16(v >> 48)
-	// ppc64le:".*MOVH"
+	// ppc64x:".*MOVH"
 	g += int16(v >> 30)
-	// ppc64le:-".*MOVH"
+	// ppc64x:-".*MOVH"
 	g += int16(f >> 16)
-	// ppc64le:-".*MOVB"
+	// ppc64x:-".*MOVB"
 	h := int8(v >> 56)
-	// ppc64le:".*MOVB"
+	// ppc64x:".*MOVB"
 	h += int8(v >> 28)
-	// ppc64le:-".*MOVB"
+	// ppc64x:-".*MOVB"
 	h += int8(f >> 24)
-	// ppc64le:".*MOVB"
+	// ppc64x:".*MOVB"
 	h += int8(f >> 16)
 	return int64(h), uint64(g)
 }

@@ -308,8 +308,8 @@ func TrailingZeros64(n uint64) int {
 }
 
 func TrailingZeros64Subtract(n uint64) int {
-	// ppc64le/power8:"NEG","SUBC","ANDN","POPCNTD"
-	// ppc64le/power9:"SUBC","CNTTZD"
+	// ppc64x/power8:"NEG","SUBC","ANDN","POPCNTD"
+	// ppc64x/power9:"SUBC","CNTTZD"
 	return bits.TrailingZeros64(1 - n)
 }
 
