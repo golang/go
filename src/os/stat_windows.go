@@ -123,5 +123,14 @@ func statNolog(name string) (FileInfo, error) {
 
 // lstatNolog implements Lstat for Windows.
 func lstatNolog(name string) (FileInfo, error) {
-	return stat("Lstat", name, false)
+	followSymlinks := false
+	if name != "" && IsPathSeparator(name[len(name)-1]) {
+		// We try to implement POSIX semantics for Lstat path resolution
+		// (per https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12):
+		// symlinks before the last separator in the path must be resolved. Since
+		// the last separator in this case follows the last path element, we should
+		// follow symlinks in the last path element.
+		followSymlinks = true
+	}
+	return stat("Lstat", name, followSymlinks)
 }

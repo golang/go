@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -279,11 +278,7 @@ func TestSymlinkWithTrailingSlash(t *testing.T) {
 	}
 	dirlinkWithSlash := dirlink + string(os.PathSeparator)
 
-	if runtime.GOOS == "windows" {
-		testSymlinkStats(t, dirlinkWithSlash, true)
-	} else {
-		testDirStats(t, dirlinkWithSlash)
-	}
+	testDirStats(t, dirlinkWithSlash)
 
 	fi1, err := os.Stat(dir)
 	if err != nil {

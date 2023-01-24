@@ -45,10 +45,8 @@ stdout $WORK${/}lib${/}goroot
 exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' encoding/binary
 stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
 
-	# BUG(#50807): This doesn't work on Windows for some reason — perhaps
-	# a bug in the Windows Lstat implementation with trailing separators?
-[!GOOS:windows] exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' std
-[!GOOS:windows] stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
+exec $WORK/lib/goroot/bin/go list -f '{{.ImportPath}}: {{.Dir}}' std
+stdout '^encoding/binary: '$WORK${/}lib${/}goroot${/}src${/}encoding${/}binary'$'
 
 # Most path lookups in GOROOT are not sensitive to symlinks. However, patterns
 # involving '...' wildcards must use Walk to check the GOROOT tree, which makes
