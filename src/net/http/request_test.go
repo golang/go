@@ -1097,7 +1097,7 @@ func testMissingFile(t *testing.T, req *Request) {
 		t.Errorf("FormFile file = %v, want nil", f)
 	}
 	if fh != nil {
-		t.Errorf("FormFile file header = %q, want nil", fh)
+		t.Errorf("FormFile file header = %v, want nil", fh)
 	}
 	if err != ErrMissingFile {
 		t.Errorf("FormFile err = %q, want ErrMissingFile", err)

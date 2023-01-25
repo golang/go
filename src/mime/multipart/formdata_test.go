@@ -5,8 +5,11 @@
 package multipart
 
 import (
+	"bytes"
+	"fmt"
 	"io"
 	"math"
+	"net/textproto"
 	"os"
 	"strings"
 	"testing"
@@ -207,8 +210,8 @@ Content-Disposition: form-data; name="largetext"
 		maxMemory int64
 		err       error
 	}{
-		{"smaller", 50, nil},
-		{"exact-fit", 25, nil},
+		{"smaller", 50 + int64(len("largetext")) + 100, nil},
+		{"exact-fit", 25 + int64(len("largetext")) + 100, nil},
 		{"too-large", 0, ErrMessageTooLarge},
 	}
 	for _, tc := range testCases {
@@ -223,7 +226,7 @@ Content-Disposition: form-data; name="largetext"
 				defer f.RemoveAll()
 			}
 			if tc.err != err {
-				t.Fatalf("ReadForm error - got: %v; expected: %v", tc.err, err)
+				t.Fatalf("ReadForm error - got: %v; expected: %v", err, tc.err)
 			}
 			if err == nil {
 				if g := f.Value["largetext"][0]; g != largeTextValue {
@@ -231,5 +234,137 @@ Content-Disposition: form-data; name="largetext"
 				}
 			}
 		})
+	}
+}
+
+// TestReadForm_MetadataTooLarge verifies that we account for the size of field names,
+// MIME headers, and map entry overhead while limiting the memory consumption of parsed forms.
+func TestReadForm_MetadataTooLarge(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		f    func(*Writer)
+	}{{
+		name: "large name",
+		f: func(fw *Writer) {
+			name := strings.Repeat("a", 10<<20)
+			w, _ := fw.CreateFormField(name)
+			w.Write([]byte("value"))
+		},
+	}, {
+		name: "large MIME header",
+		f: func(fw *Writer) {
+			h := make(textproto.MIMEHeader)
+			h.Set("Content-Disposition", `form-data; name="a"`)
+			h.Set("X-Foo", strings.Repeat("a", 10<<20))
+			w, _ := fw.CreatePart(h)
+			w.Write([]byte("value"))
+		},
+	}, {
+		name: "many parts",
+		f: func(fw *Writer) {
+			for i := 0; i < 110000; i++ {
+				w, _ := fw.CreateFormField("f")
+				w.Write([]byte("v"))
+			}
+		},
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			fw := NewWriter(&buf)
+			test.f(fw)
+			if err := fw.Close(); err != nil {
+				t.Fatal(err)
+			}
+			fr := NewReader(&buf, fw.Boundary())
+			_, err := fr.ReadForm(0)
+			if err != ErrMessageTooLarge {
+				t.Errorf("fr.ReadForm() = %v, want ErrMessageTooLarge", err)
+			}
+		})
+	}
+}
+
+// TestReadForm_ManyFiles_Combined tests that a multipart form containing many files only
+// results in a single on-disk file.
+func TestReadForm_ManyFiles_Combined(t *testing.T) {
+	const distinct = false
+	testReadFormManyFiles(t, distinct)
+}
+
+// TestReadForm_ManyFiles_Distinct tests that setting GODEBUG=multipartfiles=distinct
+// results in every file in a multipart form being placed in a distinct on-disk file.
+func TestReadForm_ManyFiles_Distinct(t *testing.T) {
+	t.Setenv("GODEBUG", "multipartfiles=distinct")
+	const distinct = true
+	testReadFormManyFiles(t, distinct)
+}
+
+func testReadFormManyFiles(t *testing.T, distinct bool) {
+	var buf bytes.Buffer
+	fw := NewWriter(&buf)
+	const numFiles = 10
+	for i := 0; i < numFiles; i++ {
+		name := fmt.Sprint(i)
+		w, err := fw.CreateFormFile(name, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.Write([]byte(name))
+	}
+	if err := fw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	fr := NewReader(&buf, fw.Boundary())
+	fr.tempDir = t.TempDir()
+	form, err := fr.ReadForm(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < numFiles; i++ {
+		name := fmt.Sprint(i)
+		if got := len(form.File[name]); got != 1 {
+			t.Fatalf("form.File[%q] has %v entries, want 1", name, got)
+		}
+		fh := form.File[name][0]
+		file, err := fh.Open()
+		if err != nil {
+			t.Fatalf("form.File[%q].Open() = %v", name, err)
+		}
+		if distinct {
+			if _, ok := file.(*os.File); !ok {
+				t.Fatalf("form.File[%q].Open: %T, want *os.File", name, file)
+			}
+		}
+		got, err := io.ReadAll(file)
+		file.Close()
+		if string(got) != name || err != nil {
+			t.Fatalf("read form.File[%q]: %q, %v; want %q, nil", name, string(got), err, name)
+		}
+	}
+	dir, err := os.Open(fr.tempDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dir.Close()
+	names, err := dir.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantNames := 1
+	if distinct {
+		wantNames = numFiles
+	}
+	if len(names) != wantNames {
+		t.Fatalf("temp dir contains %v files; want 1", len(names))
+	}
+	if err := form.RemoveAll(); err != nil {
+		t.Fatalf("form.RemoveAll() = %v", err)
+	}
+	names, err = dir.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 0 {
+		t.Fatalf("temp dir contains %v files; want 0", len(names))
 	}
 }

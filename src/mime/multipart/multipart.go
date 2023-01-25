@@ -128,12 +128,12 @@ func (r *stickyErrorReader) Read(p []byte) (n int, _ error) {
 	return n, r.err
 }
 
-func newPart(mr *Reader, rawPart bool) (*Part, error) {
+func newPart(mr *Reader, rawPart bool, maxMIMEHeaderSize int64) (*Part, error) {
 	bp := &Part{
 		Header: make(map[string][]string),
 		mr:     mr,
 	}
-	if err := bp.populateHeaders(); err != nil {
+	if err := bp.populateHeaders(maxMIMEHeaderSize); err != nil {
 		return nil, err
 	}
 	bp.r = partReader{bp}
@@ -149,11 +149,15 @@ func newPart(mr *Reader, rawPart bool) (*Part, error) {
 	return bp, nil
 }
 
-func (p *Part) populateHeaders() error {
+func (p *Part) populateHeaders(maxMIMEHeaderSize int64) error {
 	r := textproto.NewReader(p.mr.bufReader)
-	header, err := r.ReadMIMEHeader()
+	header, err := readMIMEHeader(r, maxMIMEHeaderSize)
 	if err == nil {
 		p.Header = header
+	}
+	// TODO: Add a distinguishable error to net/textproto.
+	if err != nil && err.Error() == "message too large" {
+		err = ErrMessageTooLarge
 	}
 	return err
 }
@@ -311,6 +315,7 @@ func (p *Part) Close() error {
 // isn't supported.
 type Reader struct {
 	bufReader *bufio.Reader
+	tempDir   string // used in tests
 
 	currentPart *Part
 	partsRead   int
@@ -321,6 +326,10 @@ type Reader struct {
 	dashBoundary     []byte // "--boundary"
 }
 
+// maxMIMEHeaderSize is the maximum size of a MIME header we will parse,
+// including header keys, values, and map overhead.
+const maxMIMEHeaderSize = 10 << 20
+
 // NextPart returns the next part in the multipart or an error.
 // When there are no more parts, the error io.EOF is returned.
 //
@@ -328,7 +337,7 @@ type Reader struct {
 // has a value of "quoted-printable", that header is instead
 // hidden and the body is transparently decoded during Read calls.
 func (r *Reader) NextPart() (*Part, error) {
-	return r.nextPart(false)
+	return r.nextPart(false, maxMIMEHeaderSize)
 }
 
 // NextRawPart returns the next part in the multipart or an error.
@@ -337,10 +346,10 @@ func (r *Reader) NextPart() (*Part, error) {
 // Unlike NextPart, it does not have special handling for
 // "Content-Transfer-Encoding: quoted-printable".
 func (r *Reader) NextRawPart() (*Part, error) {
-	return r.nextPart(true)
+	return r.nextPart(true, maxMIMEHeaderSize)
 }
 
-func (r *Reader) nextPart(rawPart bool) (*Part, error) {
+func (r *Reader) nextPart(rawPart bool, maxMIMEHeaderSize int64) (*Part, error) {
 	if r.currentPart != nil {
 		r.currentPart.Close()
 	}
@@ -365,7 +374,7 @@ func (r *Reader) nextPart(rawPart bool) (*Part, error) {
 
 		if r.isBoundaryDelimiterLine(line) {
 			r.partsRead++
-			bp, err := newPart(r, rawPart)
+			bp, err := newPart(r, rawPart, maxMIMEHeaderSize)
 			if err != nil {
 				return nil, err
 			}
