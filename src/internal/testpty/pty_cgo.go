@@ -18,14 +18,14 @@ import "os"
 
 func open() (pty *os.File, processTTY string, err error) {
 	m, err := C.posix_openpt(C.O_RDWR)
-	if err != nil {
+	if m < 0 {
 		return nil, "", ptyError("posix_openpt", err)
 	}
-	if _, err := C.grantpt(m); err != nil {
+	if res, err := C.grantpt(m); res < 0 {
 		C.close(m)
 		return nil, "", ptyError("grantpt", err)
 	}
-	if _, err := C.unlockpt(m); err != nil {
+	if res, err := C.unlockpt(m); res < 0 {
 		C.close(m)
 		return nil, "", ptyError("unlockpt", err)
 	}
