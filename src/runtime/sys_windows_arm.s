@@ -131,8 +131,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$const_callbackLastVCH, R1
 	B	sigtramp<>(SB)
 
-GLOBL runtime·cbctxts(SB), NOPTR, $4
-
 TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
 	// On entry, the trampoline in zcallback_windows_arm.s left
 	// the callback index in R12 (which is volatile in the C ABI).

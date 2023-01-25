@@ -140,8 +140,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	$const_callbackLastVCH, DX
 	JMP	sigtramp<>(SB)
 
-GLOBL runtime·cbctxts(SB), NOPTR, $8
-
 TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
 	// Construct args vector for cgocallback().
 	// By windows/amd64 calling convention first 4 args are in CX, DX, R8, R9

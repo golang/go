@@ -155,8 +155,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$const_callbackLastVCH, R1
 	B	sigtramp<>(SB)
 
-GLOBL runtime·cbctxts(SB), NOPTR, $4
-
 TEXT runtime·callbackasm1(SB),NOSPLIT,$208-0
 	NO_LOCAL_POINTERS
 

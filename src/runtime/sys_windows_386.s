@@ -111,8 +111,6 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
 	MOVL	$const_callbackLastVCH, CX
 	JMP	sigtramp<>(SB)
 
-GLOBL runtime·cbctxts(SB), NOPTR, $4
-
 TEXT runtime·callbackasm1(SB),NOSPLIT,$0
   	MOVL	0(SP), AX	// will use to find our callback context
 
