@@ -129,13 +129,12 @@ func callItemPrintString(ctx context.Context, conn *connection, item protocol.Ca
 	}
 	var callRanges []string
 	for _, rng := range calls {
-		callSpan, err := callsFile.mapper.LocationSpan(protocol.Location{URI: item.URI, Range: rng})
+		call, err := callsFile.mapper.RangeSpan(rng)
 		if err != nil {
 			return "", err
 		}
-
-		spn := fmt.Sprint(callSpan)
-		callRanges = append(callRanges, fmt.Sprint(spn[strings.Index(spn, ":")+1:]))
+		callRange := fmt.Sprintf("%d:%d-%d", call.Start().Line(), call.Start().Column(), call.End().Column())
+		callRanges = append(callRanges, callRange)
 	}
 
 	printString := fmt.Sprintf("function %s in %v", item.Name, itemSpan)

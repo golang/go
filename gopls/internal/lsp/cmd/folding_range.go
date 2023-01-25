@@ -65,7 +65,7 @@ func (r *foldingRanges) Run(ctx context.Context, args ...string) error {
 			r.StartLine+1,
 			r.StartCharacter+1,
 			r.EndLine+1,
-			r.EndCharacter,
+			r.EndCharacter+1,
 		)
 	}
 
