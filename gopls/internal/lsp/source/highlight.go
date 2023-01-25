@@ -23,7 +23,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 
 	// We always want fully parsed files for highlight, regardless
 	// of whether the file belongs to a workspace package.
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, WidestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
 	if err != nil {
 		return nil, fmt.Errorf("getting package for Highlight: %w", err)
 	}

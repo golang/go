@@ -131,6 +131,9 @@ func (e *Env) RegexpRange(name, re string) protocol.Range {
 // RegexpSearch returns the starting position of the first match for re in the
 // buffer specified by name, calling t.Fatal on any error. It first searches
 // for the position in open buffers, then in workspace files.
+//
+// TODO(rfindley): RegexpSearch should return a protocol.Location (but that is
+// a large change).
 func (e *Env) RegexpSearch(name, re string) protocol.Position {
 	e.T.Helper()
 	pos, err := e.Editor.RegexpSearch(name, re)

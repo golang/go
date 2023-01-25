@@ -53,12 +53,16 @@ var suggestedFixes = map[string]SuggestedFixFunc{
 // singleFile calls analyzers that expect inputs for a single file
 func singleFile(sf singleFileFixFunc) SuggestedFixFunc {
 	return func(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
-		fset, rng, src, file, pkg, info, err := getAllSuggestedFixInputs(ctx, snapshot, fh, pRng)
+		pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
 		if err != nil {
 			return nil, nil, err
 		}
-		fix, err := sf(fset, rng, src, file, pkg, info)
-		return fset, fix, err
+		rng, err := pgf.RangeToTokenRange(pRng)
+		if err != nil {
+			return nil, nil, err
+		}
+		fix, err := sf(pkg.FileSet(), rng, pgf.Src, pgf.File, pkg.GetTypes(), pkg.GetTypesInfo())
+		return pkg.FileSet(), fix, err
 	}
 }
 
@@ -129,18 +133,4 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh FileHandle,
 		edits = append(edits, *edit)
 	}
 	return edits, nil
-}
-
-// getAllSuggestedFixInputs is a helper function to collect all possible needed
-// inputs for an AppliesFunc or SuggestedFixFunc.
-func getAllSuggestedFixInputs(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, safetoken.Range, []byte, *ast.File, *types.Package, *types.Info, error) {
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckWorkspace, NarrowestPackage)
-	if err != nil {
-		return nil, safetoken.Range{}, nil, nil, nil, nil, fmt.Errorf("getting file for Identifier: %w", err)
-	}
-	rng, err := pgf.RangeToTokenRange(pRng)
-	if err != nil {
-		return nil, safetoken.Range{}, nil, nil, nil, nil, err
-	}
-	return pkg.FileSet(), rng, pgf.Src, pgf.File, pkg.GetTypes(), pkg.GetTypesInfo(), nil
 }

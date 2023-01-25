@@ -20,7 +20,9 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, positi
 	ctx, done := event.Start(ctx, "source.SignatureHelp")
 	defer done()
 
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckWorkspace, NarrowestPackage)
+	// We need full type-checking here, as we must type-check function bodies in
+	// order to provide signature help at the requested position.
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
 	if err != nil {
 		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
 	}
