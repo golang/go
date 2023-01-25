@@ -113,6 +113,53 @@ func Add[T int](target T, l []T) []T {
 
 }
 
+// fix inconsistency in TypeParameters
+// https://github.com/golang/go/issues/57619
+func TestSemantic_57619(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("type parameters are needed for this test")
+	}
+	src := `
+-- go.mod --
+module example.com
+
+go 1.19
+-- main.go --
+package foo
+type Smap[K int, V any] struct {
+	Store map[K]V
+}
+func (s *Smap[K, V]) Get(k K) (V, bool) {
+	v, ok := s.Store[k]
+	return v, ok
+}
+func New[K int, V any]() Smap[K, V] {
+	return Smap[K, V]{Store: make(map[K]V)}
+}
+`
+	WithOptions(
+		Modes(Default),
+		Settings{"semanticTokens": true},
+	).Run(t, src, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		p := &protocol.SemanticTokensParams{
+			TextDocument: protocol.TextDocumentIdentifier{
+				URI: env.Sandbox.Workdir.URI("main.go"),
+			},
+		}
+		v, err := env.Editor.Server.SemanticTokensFull(env.Ctx, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen := interpret(v.Data, env.BufferText("main.go"))
+		for i, s := range seen {
+			if (s.Token == "K" || s.Token == "V") && s.TokenType != "typeParameter" {
+				t.Errorf("%d: expected K and V to be type parameters, but got %v", i, s)
+			}
+		}
+	})
+}
+
 type result struct {
 	Token     string
 	TokenType string

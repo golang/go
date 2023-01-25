@@ -743,7 +743,11 @@ func (e *encoded) definitionFor(x *ast.Ident, def types.Object) (tokenType, []st
 				return tokFunction, mods
 			}
 			// if x < ... < FieldList < FuncDecl, this is the receiver, a variable
+			// PJW: maybe not. it might be a typeparameter in the type of the receiver
 			if _, ok := e.stack[i+1].(*ast.FieldList); ok {
+				if _, ok := def.(*types.TypeName); ok {
+					return tokTypeParam, mods
+				}
 				return tokVariable, nil
 			}
 			// if x < ... < FieldList < FuncType < FuncDecl, this is a param
