@@ -38,11 +38,12 @@ func cheapComputableIndex(width int64) bool {
 // Node n may also be modified in place, and may also be
 // the returned node.
 func walkRange(nrange *ir.RangeStmt) ir.Node {
+	base.Assert(!nrange.DistinctVars) // Should all be rewritten before escape analysis
 	if isMapClear(nrange) {
 		return mapRangeClear(nrange)
 	}
 
-	nfor := ir.NewForStmt(nrange.Pos(), nil, nil, nil, nil)
+	nfor := ir.NewForStmt(nrange.Pos(), nil, nil, nil, nil, nrange.DistinctVars)
 	nfor.SetInit(nrange.Init())
 	nfor.Label = nrange.Label
 

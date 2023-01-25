@@ -21,10 +21,14 @@ import (
 // subject to this change, that may (once transformed) be heap allocated in the
 // process. (This allows checking after escape analysis to call out any such
 // variables, in case it causes allocation/performance problems).
-
-// For this code, the meaningful debug and hash flag settings
 //
-// base.Debug.LoopVar <= 0 => do not transform
+// The decision to transform loops is normally encoded in the For/Range loop node
+// field DistinctVars but is also dependent on base.LoopVarHash, and some values
+// of base.Debug.LoopVar (which is set per-package).  Decisions encoded in DistinctVars
+// are preserved across inlining, so if package a calls b.F and loops in b.F are
+// transformed, then they are always transformed, whether b.F is inlined or not.
+//
+// Per-package, the debug flag settings that affect this transformer:
 //
 // base.LoopVarHash != nil => use hash setting to govern transformation.
 // note that LoopVarHash != nil sets base.Debug.LoopVar to 1 (unless it is >= 11, for testing/debugging).
@@ -32,13 +36,7 @@ import (
 // base.Debug.LoopVar == 11 => transform ALL loops ignoring syntactic/potential escape. Do not log, can be in addition to GOEXPERIMENT.
 //
 // The effect of GOEXPERIMENT=loopvar is to change the default value (0) of base.Debug.LoopVar to 1 for all packages.
-
 func ForCapture(fn *ir.Func) []*ir.Name {
-	if base.Debug.LoopVar <= 0 { // code in base:flags.go ensures >= 1 if loopvarhash != ""
-		// TODO remove this when the transformation is made sensitive to inlining; this is least-risk for 1.21
-		return nil
-	}
-
 	// if a loop variable is transformed it is appended to this slice for later logging
 	var transformed []*ir.Name
 
@@ -86,7 +84,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 		}
 
 		// scanChildrenThenTransform processes node x to:
-		//  1. if x is a for/range, note declared iteration variables possiblyLeaked (PL)
+		//  1. if x is a for/range w/ DistinctVars, note declared iteration variables possiblyLeaked (PL)
 		//  2. search all of x's children for syntactically escaping references to v in PL,
 		//     meaning either address-of-v or v-captured-by-a-closure
 		//  3. for all v in PL that had a syntactically escaping reference, transform the declaration
@@ -122,7 +120,9 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 				}
 
 			case *ir.RangeStmt:
-				if !x.Def {
+				if !(x.Def && x.DistinctVars) {
+					// range loop must define its iteration variables AND have distinctVars.
+					x.DistinctVars = false
 					break
 				}
 				noteMayLeak(x.Key)
@@ -130,9 +130,13 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 				ir.DoChildren(n, scanChildrenThenTransform)
 				x.Key = maybeReplaceVar(x.Key, x)
 				x.Value = maybeReplaceVar(x.Value, x)
+				x.DistinctVars = false
 				return false
 
 			case *ir.ForStmt:
+				if !x.DistinctVars {
+					break
+				}
 				forAllDefInInit(x, noteMayLeak)
 				ir.DoChildren(n, scanChildrenThenTransform)
 				var leaked []*ir.Name
@@ -335,6 +339,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 					// (11) post' = {}
 					x.Post = nil
 				}
+				x.DistinctVars = false
 
 				return false
 			}

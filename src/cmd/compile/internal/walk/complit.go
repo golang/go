@@ -484,7 +484,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		body = typecheck.Stmt(body)
 		body = orderStmtInPlace(body, map[string][]*ir.Name{})
 
-		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
+		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil, false)
 		loop.Body = []ir.Node{body}
 		loop.SetInit([]ir.Node{zero})
 

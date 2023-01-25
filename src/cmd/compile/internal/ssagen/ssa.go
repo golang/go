@@ -1796,6 +1796,7 @@ func (s *state) stmt(n ir.Node) {
 		// OFOR: for Ninit; Left; Right { Nbody }
 		// cond (Left); body (Nbody); incr (Right)
 		n := n.(*ir.ForStmt)
+		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
 		bCond := s.f.NewBlock(ssa.BlockPlain)
 		bBody := s.f.NewBlock(ssa.BlockPlain)
 		bIncr := s.f.NewBlock(ssa.BlockPlain)

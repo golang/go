@@ -80,6 +80,7 @@ func (e *escape) stmt(n ir.Node) {
 
 	case ir.OFOR:
 		n := n.(*ir.ForStmt)
+		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
 		e.loopDepth++
 		e.discard(n.Cond)
 		e.stmt(n.Post)
@@ -89,6 +90,7 @@ func (e *escape) stmt(n ir.Node) {
 	case ir.ORANGE:
 		// for Key, Value = range X { Body }
 		n := n.(*ir.RangeStmt)
+		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
 
 		// X is evaluated outside the loop.
 		tmp := e.newLoc(nil, false)

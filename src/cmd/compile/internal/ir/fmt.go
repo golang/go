@@ -417,6 +417,9 @@ func stmtFmt(n Node, s fmt.State) {
 		}
 
 		fmt.Fprint(s, "for")
+		if n.DistinctVars {
+			fmt.Fprint(s, " /* distinct */")
+		}
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init()[0])
 		} else if n.Post != nil {
@@ -451,6 +454,9 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprint(s, " =")
 		}
 		fmt.Fprintf(s, " range %v { %v }", n.X, n.Body)
+		if n.DistinctVars {
+			fmt.Fprint(s, " /* distinct vars */")
+		}
 
 	case OSELECT:
 		n := n.(*SelectStmt)

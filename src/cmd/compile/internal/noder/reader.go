@@ -1857,7 +1857,7 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 
 	if r.Bool() {
 		pos := r.pos()
-		rang := ir.NewRangeStmt(pos, nil, nil, nil, nil)
+		rang := ir.NewRangeStmt(pos, nil, nil, nil, nil, false)
 		rang.Label = label
 
 		names, lhs := r.assignList()
@@ -1881,6 +1881,7 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 		}
 
 		rang.Body = r.blockStmt()
+		rang.DistinctVars = r.Bool()
 		r.closeAnotherScope()
 
 		return rang
@@ -1891,9 +1892,10 @@ func (r *reader) forStmt(label *types.Sym) ir.Node {
 	cond := r.optExpr()
 	post := r.stmt()
 	body := r.blockStmt()
+	dv := r.Bool()
 	r.closeAnotherScope()
 
-	stmt := ir.NewForStmt(pos, init, cond, post, body)
+	stmt := ir.NewForStmt(pos, init, cond, post, body, dv)
 	stmt.Label = label
 	return stmt
 }

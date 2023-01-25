@@ -102,6 +102,63 @@ func TestLoopVar(t *testing.T) {
 	}
 }
 
+func TestLoopVarInlines(t *testing.T) {
+	switch runtime.GOOS {
+	case "linux", "darwin":
+	default:
+		t.Skipf("Slow test, usually avoid it, os=%s not linux or darwin", runtime.GOOS)
+	}
+	switch runtime.GOARCH {
+	case "amd64", "arm64":
+	default:
+		t.Skipf("Slow test, usually avoid it, arch=%s not amd64 or arm64", runtime.GOARCH)
+	}
+
+	testenv.MustHaveGoBuild(t)
+	gocmd := testenv.GoToolPath(t)
+	tmpdir := t.TempDir()
+
+	root := "cmd/compile/internal/loopvar/testdata/inlines"
+
+	f := func(pkg string) string {
+		// This disables the loopvar change, except for the specified package.
+		// The effect should follow the package, even though everything (except "c")
+		// is inlined.
+		cmd := testenv.Command(t, gocmd, "run", "-gcflags="+pkg+"=-d=loopvar=1", root)
+		cmd.Env = append(cmd.Env, "GOEXPERIMENT=noloopvar", "HOME="+tmpdir)
+		cmd.Dir = filepath.Join("testdata", "inlines")
+
+		b, e := cmd.CombinedOutput()
+		if e != nil {
+			t.Error(e)
+		}
+		return string(b)
+	}
+
+	a := f(root + "/a")
+	b := f(root + "/b")
+	c := f(root + "/c")
+	m := f(root)
+
+	t.Logf(a)
+	t.Logf(b)
+	t.Logf(c)
+	t.Logf(m)
+
+	if !strings.Contains(a, "f, af, bf, abf, cf sums = 100, 45, 100, 100, 100") {
+		t.Errorf("Did not see expected value of a")
+	}
+	if !strings.Contains(b, "f, af, bf, abf, cf sums = 100, 100, 45, 45, 100") {
+		t.Errorf("Did not see expected value of b")
+	}
+	if !strings.Contains(c, "f, af, bf, abf, cf sums = 100, 100, 100, 100, 45") {
+		t.Errorf("Did not see expected value of c")
+	}
+	if !strings.Contains(m, "f, af, bf, abf, cf sums = 45, 100, 100, 100, 100") {
+		t.Errorf("Did not see expected value of m")
+	}
+}
+
 func TestLoopVarHashes(t *testing.T) {
 	switch runtime.GOOS {
 	case "linux", "darwin":
@@ -148,5 +205,4 @@ func TestLoopVarHashes(t *testing.T) {
 	if !strings.Contains(m, ", 100, 100, 100, 100") {
 		t.Errorf("Did not see expected value of m run")
 	}
-
 }

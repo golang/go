@@ -1445,6 +1445,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 	}
 
 	w.blockStmt(stmt.Body)
+	w.Bool(base.Debug.LoopVar > 0)
 	w.closeAnotherScope()
 }
 
