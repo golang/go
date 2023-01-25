@@ -48,28 +48,28 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 			}
 		}
 	}
-	result, err := highlightPath(pkg, path)
+	result, err := highlightPath(path, pgf.File, pkg.GetTypesInfo())
 	if err != nil {
 		return nil, err
 	}
 	var ranges []protocol.Range
 	for rng := range result {
-		mRng, err := posToMappedRange(ctx, snapshot, pkg, rng.start, rng.end)
+		rng, err := pgf.PosRange(rng.start, rng.end)
 		if err != nil {
 			return nil, err
 		}
-		ranges = append(ranges, mRng.Range())
+		ranges = append(ranges, rng)
 	}
 	return ranges, nil
 }
 
-func highlightPath(pkg Package, path []ast.Node) (map[posRange]struct{}, error) {
+func highlightPath(path []ast.Node, file *ast.File, info *types.Info) (map[posRange]struct{}, error) {
 	result := make(map[posRange]struct{})
 	switch node := path[0].(type) {
 	case *ast.BasicLit:
 		if len(path) > 1 {
 			if _, ok := path[1].(*ast.ImportSpec); ok {
-				err := highlightImportUses(pkg, path, result)
+				err := highlightImportUses(path, info, result)
 				return result, err
 			}
 		}
@@ -77,7 +77,9 @@ func highlightPath(pkg Package, path []ast.Node) (map[posRange]struct{}, error) 
 	case *ast.ReturnStmt, *ast.FuncDecl, *ast.FuncType:
 		highlightFuncControlFlow(path, result)
 	case *ast.Ident:
-		highlightIdentifiers(pkg, path, result)
+		// Check if ident is inside return or func decl.
+		highlightFuncControlFlow(path, result)
+		highlightIdentifier(node, file, info, result)
 	case *ast.ForStmt, *ast.RangeStmt:
 		highlightLoopControlFlow(path, result)
 	case *ast.SwitchStmt:
@@ -426,7 +428,7 @@ func labelDecl(n *ast.Ident) *ast.Ident {
 	return stmt.Label
 }
 
-func highlightImportUses(pkg Package, path []ast.Node, result map[posRange]struct{}) error {
+func highlightImportUses(path []ast.Node, info *types.Info, result map[posRange]struct{}) error {
 	basicLit, ok := path[0].(*ast.BasicLit)
 	if !ok {
 		return fmt.Errorf("highlightImportUses called with an ast.Node of type %T", basicLit)
@@ -440,7 +442,7 @@ func highlightImportUses(pkg Package, path []ast.Node, result map[posRange]struc
 		if !ok {
 			return true
 		}
-		obj, ok := pkg.GetTypesInfo().ObjectOf(n).(*types.PkgName)
+		obj, ok := info.ObjectOf(n).(*types.PkgName)
 		if !ok {
 			return true
 		}
@@ -453,19 +455,16 @@ func highlightImportUses(pkg Package, path []ast.Node, result map[posRange]struc
 	return nil
 }
 
-func highlightIdentifiers(pkg Package, path []ast.Node, result map[posRange]struct{}) error {
-	id, ok := path[0].(*ast.Ident)
-	if !ok {
-		return fmt.Errorf("highlightIdentifiers called with an ast.Node of type %T", id)
-	}
-	// Check if ident is inside return or func decl.
-	highlightFuncControlFlow(path, result)
-
-	// TODO: maybe check if ident is a reserved word, if true then don't continue and return results.
-
-	idObj := pkg.GetTypesInfo().ObjectOf(id)
+func highlightIdentifier(id *ast.Ident, file *ast.File, info *types.Info, result map[posRange]struct{}) {
+	// TODO(rfindley): idObj may be nil. Note that returning early in this case
+	// causes tests to fail (because the nObj == idObj check below was succeeded
+	// for nil == nil!)
+	//
+	// Revisit this. If ObjectOf is nil, there are type errors, and it seems
+	// reasonable for identifier highlighting not to work.
+	idObj := info.ObjectOf(id)
 	pkgObj, isImported := idObj.(*types.PkgName)
-	ast.Inspect(path[len(path)-1], func(node ast.Node) bool {
+	ast.Inspect(file, func(node ast.Node) bool {
 		if imp, ok := node.(*ast.ImportSpec); ok && isImported {
 			highlightImport(pkgObj, imp, result)
 		}
@@ -476,12 +475,11 @@ func highlightIdentifiers(pkg Package, path []ast.Node, result map[posRange]stru
 		if n.Name != id.Name {
 			return false
 		}
-		if nObj := pkg.GetTypesInfo().ObjectOf(n); nObj == idObj {
+		if nObj := info.ObjectOf(n); nObj == idObj {
 			result[posRange{start: n.Pos(), end: n.End()}] = struct{}{}
 		}
 		return false
 	})
-	return nil
 }
 
 func highlightImport(obj *types.PkgName, imp *ast.ImportSpec, result map[posRange]struct{}) {

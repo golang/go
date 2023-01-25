@@ -771,45 +771,56 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, wantSpans []span.Sp
 	}
 }
 
-func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
+func (r *runner) Highlight(t *testing.T, src span.Span, spans []span.Span) {
 	m, err := r.data.Mapper(src.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
 	loc, err := m.SpanLocation(src)
 	if err != nil {
-		t.Fatalf("failed for %v: %v", locations[0], err)
+		t.Fatal(err)
 	}
 	tdpp := protocol.TextDocumentPositionParams{
-		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-		Position:     loc.Range.Start,
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: loc.URI,
+		},
+		Position: loc.Range.Start,
+	}
+	if err != nil {
+		t.Fatalf("Mapper.SpanDocumentPosition(%v) failed: %v", src, err)
 	}
 	params := &protocol.DocumentHighlightParams{
 		TextDocumentPositionParams: tdpp,
 	}
 	highlights, err := r.server.DocumentHighlight(r.ctx, params)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("DocumentHighlight(%v) failed: %v", params, err)
 	}
-	if len(highlights) != len(locations) {
-		t.Fatalf("got %d highlights for highlight at %v:%v:%v, expected %d", len(highlights), src.URI().Filename(), src.Start().Line(), src.Start().Column(), len(locations))
+	var got []protocol.Range
+	for _, h := range highlights {
+		got = append(got, h.Range)
 	}
-	// Check to make sure highlights have a valid range.
-	var results []span.Span
-	for i := range highlights {
-		h, err := m.RangeSpan(highlights[i].Range)
+
+	var want []protocol.Range
+	for _, s := range spans {
+		rng, err := m.SpanRange(s)
 		if err != nil {
-			t.Fatalf("failed for %v: %v", highlights[i], err)
+			t.Fatalf("Mapper.SpanRange(%v) failed: %v", s, err)
 		}
-		results = append(results, h)
+		want = append(want, rng)
 	}
-	// Sort results to make tests deterministic since DocumentHighlight uses a map.
-	span.SortSpans(results)
-	// Check to make sure all the expected highlights are found.
-	for i := range results {
-		if results[i] != locations[i] {
-			t.Errorf("want %v, got %v\n", locations[i], results[i])
-		}
+
+	sortRanges := func(s []protocol.Range) {
+		sort.Slice(s, func(i, j int) bool {
+			return protocol.CompareRange(s[i], s[j]) < 0
+		})
+	}
+
+	sortRanges(got)
+	sortRanges(want)
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("DocumentHighlight(%v) mismatch (-want +got):\n%s", src, diff)
 	}
 }
 

@@ -141,7 +141,12 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 					continue
 				}
 				seen[key] = true
-				rng, err := posToMappedRange(ctx, snapshot, pkg, ident.Pos(), ident.End())
+				filename := pkg.FileSet().File(ident.Pos()).Name()
+				pgf, err := pkg.File(span.URIFromPath(filename))
+				if err != nil {
+					return nil, err
+				}
+				rng, err := pgf.PosMappedRange(ident.Pos(), ident.End())
 				if err != nil {
 					return nil, err
 				}
