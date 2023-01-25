@@ -1184,6 +1184,23 @@ func (e *Editor) Implementations(ctx context.Context, loc protocol.Location) ([]
 	return e.Server.Implementation(ctx, params)
 }
 
+func (e *Editor) SignatureHelp(ctx context.Context, loc protocol.Location) (*protocol.SignatureHelp, error) {
+	if e.Server == nil {
+		return nil, nil
+	}
+	path := e.sandbox.Workdir.URIToPath(loc.URI)
+	e.mu.Lock()
+	_, ok := e.buffers[path]
+	e.mu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("buffer %q is not open", path)
+	}
+	params := &protocol.SignatureHelpParams{
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
+	}
+	return e.Server.SignatureHelp(ctx, params)
+}
+
 func (e *Editor) RenameFile(ctx context.Context, oldPath, newPath string) error {
 	closed, opened, err := e.renameBuffers(ctx, oldPath, newPath)
 	if err != nil {

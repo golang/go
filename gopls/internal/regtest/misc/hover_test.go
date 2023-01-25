@@ -10,7 +10,9 @@ import (
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/fake"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestHoverUnexported(t *testing.T) {
@@ -268,5 +270,64 @@ go 1.16
 	Run(t, source, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.Hover(env.RegexpSearch("go.mod", "go")) // no panic
+	})
+}
+
+func TestHoverCompletionMarkdown(t *testing.T) {
+	testenv.NeedsGo1Point(t, 19)
+	const source = `
+-- go.mod --
+module mod.com
+go 1.19
+-- main.go --
+package main
+// Just says [hello].
+//
+// [hello]: https://en.wikipedia.org/wiki/Hello
+func Hello() string {
+	Hello() //Here
+    return "hello"
+}
+`
+	Run(t, source, func(t *testing.T, env *Env) {
+		// Hover, Completion, and SignatureHelp should all produce markdown
+		// check that the markdown for SignatureHelp and Completion are
+		// the same, and contained in that for Hover (up to trailing \n)
+		env.OpenFile("main.go")
+		loc := env.RegexpSearch("main.go", "func (Hello)")
+		hover, _ := env.Hover(loc)
+		hoverContent := hover.Value
+
+		loc = env.RegexpSearch("main.go", "//Here")
+		loc.Range.Start.Character -= 3 // Hello(_) //Here
+		completions := env.Completion(loc)
+		signatures := env.SignatureHelp(loc)
+
+		if len(completions.Items) != 1 {
+			t.Errorf("got %d completions, expected 1", len(completions.Items))
+		}
+		if len(signatures.Signatures) != 1 {
+			t.Errorf("got %d signatures, expected 1", len(signatures.Signatures))
+		}
+		item := completions.Items[0].Documentation.Value
+		var itemContent string
+		if x, ok := item.(protocol.MarkupContent); !ok || x.Kind != protocol.Markdown {
+			t.Fatalf("%#v is not markdown", item)
+		} else {
+			itemContent = strings.Trim(x.Value, "\n")
+		}
+		sig := signatures.Signatures[0].Documentation.Value
+		var sigContent string
+		if x, ok := sig.(protocol.MarkupContent); !ok || x.Kind != protocol.Markdown {
+			t.Fatalf("%#v is not markdown", item)
+		} else {
+			sigContent = x.Value
+		}
+		if itemContent != sigContent {
+			t.Errorf("item:%q not sig:%q", itemContent, sigContent)
+		}
+		if !strings.Contains(hoverContent, itemContent) {
+			t.Errorf("hover:%q does not containt sig;%q", hoverContent, sigContent)
+		}
 	})
 }

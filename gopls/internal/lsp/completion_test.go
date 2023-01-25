@@ -115,11 +115,13 @@ func expected(t *testing.T, test tests.Completion, items tests.CompletionItems) 
 
 	toProtocolCompletionItem := func(item *completion.CompletionItem) protocol.CompletionItem {
 		pItem := protocol.CompletionItem{
-			Label:         item.Label,
-			Kind:          item.Kind,
-			Detail:        item.Detail,
-			Documentation: item.Documentation,
-			InsertText:    item.InsertText,
+			Label:  item.Label,
+			Kind:   item.Kind,
+			Detail: item.Detail,
+			Documentation: &protocol.Or_CompletionItem_documentation{
+				Value: item.Documentation,
+			},
+			InsertText: item.InsertText,
 			TextEdit: &protocol.TextEdit{
 				NewText: item.Snippet(),
 			},

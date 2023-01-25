@@ -7,7 +7,7 @@
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of 2023-01-14)
+// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of 2023-01-23)
 
 import (
 	"context"

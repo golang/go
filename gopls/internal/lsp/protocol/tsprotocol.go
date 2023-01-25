@@ -7,7 +7,7 @@
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of 2023-01-14)
+// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of 2023-01-23)
 
 import "encoding/json"
 
@@ -667,7 +667,7 @@ type CompletionItem struct { // line 4550
 	 */
 	Detail string `json:"detail,omitempty"`
 	// A human-readable string that represents a doc-comment.
-	Documentation string `json:"documentation,omitempty"`
+	Documentation *Or_CompletionItem_documentation `json:"documentation,omitempty"`
 	/*
 	 * Indicates if this item is deprecated.
 	 * @deprecated Use `tags` instead.
@@ -2970,8 +2970,8 @@ type Msg_TextDocumentContentChangeEvent struct { // line 14034
 	Text string `json:"text"`
 }
 
-// created for Literal (Lit_TextDocumentFilter_Item1)
-type Msg_TextDocumentFilter struct { // line 14193
+// created for Literal (Lit_TextDocumentFilter_Item0)
+type Msg_TextDocumentFilter struct { // line 14160
 	// A language id, like `typescript`.
 	Language string `json:"language"`
 	// A Uri [scheme](#Uri.scheme), like `file` or `untitled`.
@@ -4885,7 +4885,7 @@ type SignatureInformation struct { // line 8848
 	 * The human-readable doc-comment of this signature. Will be shown
 	 * in the UI but can be omitted.
 	 */
-	Documentation string `json:"documentation,omitempty"`
+	Documentation *Or_SignatureInformation_documentation `json:"documentation,omitempty"`
 	// The parameters of this signature.
 	Parameters []ParameterInformation `json:"parameters,omitempty"`
 	/*

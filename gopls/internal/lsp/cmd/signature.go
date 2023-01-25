@@ -73,8 +73,15 @@ func (r *signature) Run(ctx context.Context, args ...string) error {
 	// see toProtocolSignatureHelp in lsp/signature_help.go
 	signature := s.Signatures[0]
 	fmt.Printf("%s\n", signature.Label)
-	if signature.Documentation != "" {
-		fmt.Printf("\n%s\n", signature.Documentation)
+	switch x := signature.Documentation.Value.(type) {
+	case string:
+		if x != "" {
+			fmt.Printf("\n%s\n", x)
+		}
+	case protocol.MarkupContent:
+		if x.Value != "" {
+			fmt.Printf("\n%s\n", x.Value)
+		}
 	}
 
 	return nil

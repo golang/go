@@ -417,6 +417,16 @@ func (e *Env) RenameFile(oldPath, newPath string) {
 	}
 }
 
+// SignatureHelp wraps Editor.SignatureHelp, calling t.Fatal on error
+func (e *Env) SignatureHelp(loc protocol.Location) *protocol.SignatureHelp {
+	e.T.Helper()
+	sighelp, err := e.Editor.SignatureHelp(e.Ctx, loc)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return sighelp
+}
+
 // Completion executes a completion request on the server.
 func (e *Env) Completion(loc protocol.Location) *protocol.CompletionList {
 	e.T.Helper()

@@ -101,6 +101,15 @@ func toProtocolCompletionItems(candidates []completion.CompletionItem, rng proto
 			continue
 		}
 
+		doc := &protocol.Or_CompletionItem_documentation{
+			Value: protocol.MarkupContent{
+				Kind:  protocol.Markdown,
+				Value: source.CommentToMarkdown(candidate.Documentation),
+			},
+		}
+		if options.PreferredContentFormat != protocol.Markdown {
+			doc.Value = candidate.Documentation
+		}
 		item := protocol.CompletionItem{
 			Label:  candidate.Label,
 			Detail: candidate.Detail,
@@ -121,7 +130,7 @@ func toProtocolCompletionItems(candidates []completion.CompletionItem, rng proto
 			FilterText: strings.TrimLeft(candidate.InsertText, "&*"),
 
 			Preselect:     i == 0,
-			Documentation: candidate.Documentation,
+			Documentation: doc,
 			Tags:          candidate.Tags,
 			Deprecated:    candidate.Deprecated,
 		}

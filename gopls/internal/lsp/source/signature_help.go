@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -117,7 +118,7 @@ FindCall:
 	}
 	return &protocol.SignatureInformation{
 		Label:         name + s.Format(),
-		Documentation: s.doc,
+		Documentation: stringToSigInfoDocumentation(s.doc, snapshot.View().Options()),
 		Parameters:    paramInfo,
 	}, activeParam, nil
 }
@@ -134,7 +135,7 @@ func builtinSignature(ctx context.Context, snapshot Snapshot, callExpr *ast.Call
 	activeParam := activeParameter(callExpr, len(sig.params), sig.variadic, pos)
 	return &protocol.SignatureInformation{
 		Label:         sig.name + sig.Format(),
-		Documentation: sig.doc,
+		Documentation: stringToSigInfoDocumentation(sig.doc, snapshot.View().Options()),
 		Parameters:    paramInfo,
 	}, activeParam, nil
 
@@ -164,4 +165,22 @@ func activeParameter(callExpr *ast.CallExpr, numParams int, variadic bool, pos t
 		start = expr.Pos() + 1 // to account for commas
 	}
 	return activeParam
+}
+
+func stringToSigInfoDocumentation(s string, options *Options) *protocol.Or_SignatureInformation_documentation {
+	v := s
+	k := protocol.PlainText
+	if options.PreferredContentFormat == protocol.Markdown {
+		v = CommentToMarkdown(s)
+		// whether or not content is newline terminated may not matter for LSP clients,
+		// but our tests expect trailing newlines to be stripped.
+		v = strings.TrimSuffix(v, "\n") // TODO(pjw): change the golden files
+		k = protocol.Markdown
+	}
+	return &protocol.Or_SignatureInformation_documentation{
+		Value: protocol.MarkupContent{
+			Kind:  k,
+			Value: v,
+		},
+	}
 }
