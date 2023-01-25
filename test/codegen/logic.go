@@ -21,8 +21,7 @@ func andWithUse(x, y int) int {
 
 // Verify (OR x (NOT y)) rewrites to (ORN x y) where supported
 func ornot(x, y int) int {
-	// ppc64:"ORN"
-	// ppc64le:"ORN"
+	// ppc64x:"ORN"
 	z := x | ^y
 	return z
 }

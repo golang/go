@@ -36,8 +36,7 @@ func CompareString2(s string) bool {
 func CompareString3(s string) bool {
 	// amd64:`CMPQ\t\(.*\), [A-Z]`
 	// arm64:-`CMPW\t`
-	// ppc64:-`CMPW\t`
-	// ppc64le:-`CMPW\t`
+	// ppc64x:-`CMPW\t`
 	// s390x:-`CMPW\t`
 	return s == "xxxxxxxx"
 }
@@ -264,35 +263,30 @@ func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
 
 func CmpLogicalToZero(a, b, c uint32, d, e uint64) uint64 {
 
-	// ppc64:"ANDCC",-"CMPW"
-	// ppc64le:"ANDCC",-"CMPW"
+	// ppc64x:"ANDCC",-"CMPW"
 	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if a&63 == 0 {
 		return 1
 	}
 
-	// ppc64:"ANDCC",-"CMP"
-	// ppc64le:"ANDCC",-"CMP"
+	// ppc64x:"ANDCC",-"CMP"
 	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if d&255 == 0 {
 		return 1
 	}
 
-	// ppc64:"ANDCC",-"CMP"
-	// ppc64le:"ANDCC",-"CMP"
+	// ppc64x:"ANDCC",-"CMP"
 	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if d&e == 0 {
 		return 1
 	}
-	// ppc64:"ORCC",-"CMP"
-	// ppc64le:"ORCC",-"CMP"
+	// ppc64x:"ORCC",-"CMP"
 	// wasm:"I64Eqz",-"I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if d|e == 0 {
 		return 1
 	}
 
-	// ppc64:"XORCC",-"CMP"
-	// ppc64le:"XORCC",-"CMP"
+	// ppc64x:"XORCC",-"CMP"
 	// wasm:"I64Eqz","I32Eqz",-"I64ExtendI32U",-"I32WrapI64"
 	if e^d == 0 {
 		return 1
@@ -595,8 +589,7 @@ func equalConstString1() bool {
 	b := string("Z")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
-	// ppc64:-".*memequal"
-	// ppc64le:-".*memequal"
+	// ppc64x:-".*memequal"
 	return a == b
 }
 
@@ -604,8 +597,7 @@ func equalVarString1(a string) bool {
 	b := string("Z")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
-	// ppc64:-".*memequal"
-	// ppc64le:-".*memequal"
+	// ppc64x:-".*memequal"
 	return a[:1] == b
 }
 
@@ -614,8 +606,7 @@ func equalConstString2() bool {
 	b := string("ZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
-	// ppc64:-".*memequal"
-	// ppc64le:-".*memequal"
+	// ppc64x:-".*memequal"
 	return a == b
 }
 
@@ -623,8 +614,7 @@ func equalVarString2(a string) bool {
 	b := string("ZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
-	// ppc64:-".*memequal"
-	// ppc64le:-".*memequal"
+	// ppc64x:-".*memequal"
 	return a[:2] == b
 }
 
@@ -633,8 +623,7 @@ func equalConstString4() bool {
 	b := string("ZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
-	// ppc64:-".*memequal"
-	// ppc64le:-".*memequal"
+	// ppc64x:-".*memequal"
 	return a == b
 }
 
@@ -642,8 +631,7 @@ func equalVarString4(a string) bool {
 	b := string("ZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
-	// ppc64:-".*memequal"
-	// ppc64le:-".*memequal"
+	// ppc64x:-".*memequal"
 	return a[:4] == b
 }
 
@@ -652,8 +640,7 @@ func equalConstString8() bool {
 	b := string("ZZZZZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
-	// ppc64:-".*memequal"
-	// ppc64le:-".*memequal"
+	// ppc64x:-".*memequal"
 	return a == b
 }
 
@@ -661,8 +648,7 @@ func equalVarString8(a string) bool {
 	b := string("ZZZZZZZZ")
 	// amd64:-".*memequal"
 	// arm64:-".*memequal"
-	// ppc64:-".*memequal"
-	// ppc64le:-".*memequal"
+	// ppc64x:-".*memequal"
 	return a[:8] == b
 }
 
