@@ -840,11 +840,15 @@ func pathEnclosingInterval(ctx context.Context, s Snapshot, pkg Package, start, 
 			if importPath == "" {
 				continue
 			}
-			imported, err := ResolveImportPath(ctx, s, pkg.Metadata().ID, importPath)
+			depID, ok := pkg.Metadata().DepsByImpPath[importPath]
+			if !ok {
+				return nil, nil, nil, false
+			}
+			depPkgs, err := s.TypeCheck(ctx, TypecheckWorkspace, depID)
 			if err != nil {
 				return nil, nil, nil, false
 			}
-			pkgs = append(pkgs, imported)
+			pkgs = append(pkgs, depPkgs[0])
 		}
 	}
 	for _, p := range pkgs {

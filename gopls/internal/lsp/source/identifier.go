@@ -463,10 +463,7 @@ func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Parsed
 	if err != nil {
 		return nil, fmt.Errorf("import path not quoted: %s (%v)", imp.Path.Value, err)
 	}
-	imported, err := ResolveImportPath(ctx, snapshot, pkg.Metadata().ID, ImportPath(importPath))
-	if err != nil {
-		return nil, err
-	}
+
 	result := &IdentifierInfo{
 		Snapshot: snapshot,
 		Name:     importPath, // should this perhaps be imported.PkgPath()?
@@ -475,10 +472,31 @@ func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Parsed
 	if result.MappedRange, err = posToMappedRange(ctx, snapshot, pkg, imp.Path.Pos(), imp.Path.End()); err != nil {
 		return nil, err
 	}
-	// Consider the "declaration" of an import spec to be the imported package.
-	// Return all of the files in the package as the definition of the import spec.
-	for _, dst := range imported.GetSyntax() {
-		rng, err := posToMappedRange(ctx, snapshot, pkg, dst.Pos(), dst.End())
+
+	impID := pkg.Metadata().DepsByImpPath[ImportPath(importPath)]
+	if impID == "" {
+		return nil, fmt.Errorf("failed to resolve import %q", importPath)
+	}
+	impMetadata := snapshot.Metadata(impID)
+	if impMetadata == nil {
+		return nil, fmt.Errorf("failed to resolve import ID %q", impID)
+	}
+	for _, f := range impMetadata.CompiledGoFiles {
+		fh, err := snapshot.GetFile(ctx, f)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			continue
+		}
+		pgf, err := snapshot.ParseGo(ctx, fh, ParseHeader)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			continue
+		}
+		rng, err := pgf.PosMappedRange(pgf.File.Pos(), pgf.File.End())
 		if err != nil {
 			return nil, err
 		}

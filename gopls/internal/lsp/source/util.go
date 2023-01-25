@@ -223,6 +223,8 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 }
 
 // findFileInDeps finds uri in pkg or its dependencies.
+//
+// TODO(rfindley): eliminate this function.
 func findFileInDeps(ctx context.Context, snapshot Snapshot, pkg Package, uri span.URI) (*ParsedGoFile, Package, error) {
 	pkgs := []Package{pkg}
 	deps := recursiveDeps(snapshot, pkg.Metadata())[1:]
@@ -489,24 +491,4 @@ func embeddedIdent(x ast.Expr) *ast.Ident {
 		}
 	}
 	return nil
-}
-
-// ResolveImportPath returns the directly imported dependency of the package with id fromID,
-// given its ImportPath, type-checked in its workspace parse mode.
-//
-// TODO(rfindley): eliminate this function, in favor of inlining where it is used.
-func ResolveImportPath(ctx context.Context, snapshot Snapshot, fromID PackageID, importPath ImportPath) (Package, error) {
-	meta := snapshot.Metadata(fromID)
-	if meta == nil {
-		return nil, fmt.Errorf("unknown package %s", fromID)
-	}
-	depID, ok := meta.DepsByImpPath[importPath]
-	if !ok {
-		return nil, fmt.Errorf("package does not import %s", importPath)
-	}
-	pkgs, err := snapshot.TypeCheck(ctx, TypecheckWorkspace, depID)
-	if err != nil {
-		return nil, fmt.Errorf("type checking dep: %v", err)
-	}
-	return pkgs[0], nil
 }

@@ -534,27 +534,38 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 		}
 	case *ast.ImportSpec:
 		// Try to find the package documentation for an imported package.
-		importPath, err := strconv.Unquote(node.Path.Value)
-		if err != nil {
-			return nil, err
+		importPath := UnquoteImportPath(node)
+		impID := pkg.Metadata().DepsByImpPath[importPath]
+		if impID == "" {
+			return nil, fmt.Errorf("failed to resolve import %q", importPath)
 		}
-		// TODO(rfindley): avoid type-checking here, by re-parsing the package with
-		// ParseHeader.
-		imp, err := ResolveImportPath(ctx, s, pkg.Metadata().ID, ImportPath(importPath))
-		if err != nil {
-			return nil, err
+		impMetadata := s.Metadata(impID)
+		if impMetadata == nil {
+			return nil, fmt.Errorf("failed to resolve import ID %q", impID)
 		}
-		// Assume that only one file will contain package documentation,
-		// so pick the first file that has a doc comment.
-		for _, file := range imp.GetSyntax() {
-			if file.Doc != nil {
-				info = &HoverContext{Comment: file.Doc}
-				if file.Name != nil {
-					info.signatureSource = "package " + file.Name.Name
+		for _, f := range impMetadata.CompiledGoFiles {
+			fh, err := s.GetFile(ctx, f)
+			if err != nil {
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
 				}
-				break
+				continue
+			}
+			pgf, err := s.ParseGo(ctx, fh, ParseHeader)
+			if err != nil {
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
+				}
+				continue
+			}
+			if pgf.File.Doc != nil {
+				return &HoverContext{
+					Comment:         pgf.File.Doc,
+					signatureSource: "package " + impMetadata.Name,
+				}, nil
 			}
 		}
+
 	case *ast.GenDecl:
 		switch obj := obj.(type) {
 		case *types.TypeName, *types.Var, *types.Const, *types.Func:
