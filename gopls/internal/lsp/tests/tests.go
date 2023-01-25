@@ -143,16 +143,12 @@ type Data struct {
 	mappers   map[span.URI]*protocol.Mapper
 }
 
-// The Tests interface abstracts a set of implementations of marker
+// The Tests interface abstracts the LSP-based implementation of the marker
 // test operators (such as @hover) appearing in files beneath ../testdata/.
 //
-// There are two implementations:
-// - *runner in ../cmd/test/check.go, which runs the command-line tool (e.g. "gopls hover")
-// - *runner in ../lsp_test.go, which makes LSP requests (textDocument/hover) to a gopls server.
-//
-// Not all implementations implement all methods.
-//
 // TODO(adonovan): reduce duplication; see https://github.com/golang/go/issues/54845.
+// There is only one implementation (*runner in ../lsp_test.go), so
+// we can abolish the interface now.
 type Tests interface {
 	CallHierarchy(*testing.T, span.Span, *CallHierarchyResult)
 	CodeLens(*testing.T, span.URI, []protocol.CodeLens)
