@@ -100,6 +100,7 @@ var (
 	FlagRound         = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr      = flag.Int64("T", -1, "set text segment `address`")
 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
+	flagPruneWeakMap  = flag.Bool("pruneweakmap", true, "prune weak mapinit refs")
 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")

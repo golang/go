@@ -240,10 +240,6 @@ func RegisterMapInitLsym(s *obj.LSym) {
 // outlined global map initializer functions; if it finds any such
 // relocs, it flags them as R_WEAK.
 func weakenGlobalMapInitRelocs(fn *ir.Func) {
-	// Disabled until next patch.
-	if true {
-		return
-	}
 	if globalMapInitLsyms == nil {
 		return
 	}
