@@ -299,68 +299,40 @@ func TestCloseWithBlockingReadByFd(t *testing.T) {
 
 // Test that we don't let a blocking read prevent a close.
 func testCloseWithBlockingRead(t *testing.T, r, w *os.File) {
-	defer r.Close()
-	defer w.Close()
-
-	c1, c2 := make(chan bool), make(chan bool)
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func(c chan bool) {
-		defer wg.Done()
-		// Give the other goroutine a chance to enter the Read
-		// or Write call. This is sloppy but the test will
-		// pass even if we close before the read/write.
-		time.Sleep(20 * time.Millisecond)
-
-		if err := r.Close(); err != nil {
-			t.Error(err)
-		}
-		close(c)
-	}(c1)
-
-	wg.Add(1)
-	go func(c chan bool) {
-		defer wg.Done()
+	var (
+		enteringRead = make(chan struct{})
+		done         = make(chan struct{})
+	)
+	go func() {
 		var b [1]byte
+		close(enteringRead)
 		_, err := r.Read(b[:])
-		close(c)
 		if err == nil {
 			t.Error("I/O on closed pipe unexpectedly succeeded")
 		}
+
 		if pe, ok := err.(*fs.PathError); ok {
 			err = pe.Err
 		}
 		if err != io.EOF && err != fs.ErrClosed {
 			t.Errorf("got %v, expected EOF or closed", err)
 		}
-	}(c2)
+		close(done)
+	}()
 
-	for c1 != nil || c2 != nil {
-		select {
-		case <-c1:
-			c1 = nil
-			// r.Close has completed, but the blocking Read
-			// is hanging. Close the writer to unblock it.
-			w.Close()
-		case <-c2:
-			c2 = nil
-		case <-time.After(1 * time.Second):
-			switch {
-			case c1 != nil && c2 != nil:
-				t.Error("timed out waiting for Read and Close")
-				w.Close()
-			case c1 != nil:
-				t.Error("timed out waiting for Close")
-			case c2 != nil:
-				t.Error("timed out waiting for Read")
-			default:
-				t.Error("impossible case")
-			}
-		}
+	// Give the goroutine a chance to enter the Read
+	// or Write call. This is sloppy but the test will
+	// pass even if we close before the read/write.
+	<-enteringRead
+	time.Sleep(20 * time.Millisecond)
+
+	if err := r.Close(); err != nil {
+		t.Error(err)
 	}
-
-	wg.Wait()
+	// r.Close has completed, but since we assume r is in blocking mode that
+	// probably didn't unblock the call to r.Read. Close w to unblock it.
+	w.Close()
+	<-done
 }
 
 func TestPipeEOF(t *testing.T) {
