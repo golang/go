@@ -42,9 +42,9 @@ func (s SyncMap[XX,string]) g(v UU) {}
 		env.OpenFile("main.go")
 		env.Await(env.DoneWithOpen())
 		for _, tst := range tests {
-			pos := env.RegexpSearch("main.go", tst.pat)
-			pos.Character += uint32(protocol.UTF16Len([]byte(tst.pat)))
-			completions := env.Completion("main.go", pos)
+			loc := env.RegexpSearch("main.go", tst.pat)
+			loc.Range.Start.Character += uint32(protocol.UTF16Len([]byte(tst.pat)))
+			completions := env.Completion(loc)
 			result := compareCompletionLabels(tst.want, completions.Items)
 			if result != "" {
 				t.Errorf("%s: wanted %v", result, tst.want)
@@ -109,9 +109,9 @@ func FuzzHex(f *testing.F) {
 		for _, test := range tests {
 			env.OpenFile(test.file)
 			env.Await(env.DoneWithOpen())
-			pos := env.RegexpSearch(test.file, test.pat)
-			pos.Character += test.offset // character user just typed? will type?
-			completions := env.Completion(test.file, pos)
+			loc := env.RegexpSearch(test.file, test.pat)
+			loc.Range.Start.Character += test.offset // character user just typed? will type?
+			completions := env.Completion(loc)
 			result := compareCompletionLabels(test.want, completions.Items)
 			if result != "" {
 				t.Errorf("pat %q %q", test.pat, result)

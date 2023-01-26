@@ -172,7 +172,8 @@ func Hello() int {
 		// Now, to satisfy a definition request, gopls will try to reload moda. But
 		// without access to the proxy (because this is no longer a
 		// reinitialization), this loading will fail.
-		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		loc := env.GoToDefinition(env.RegexpSearch("moda/a/a.go", "Hello"))
+		got := env.Sandbox.Workdir.URIToPath(loc.URI)
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, got)
 		}

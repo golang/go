@@ -28,11 +28,8 @@ func Foo() int {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-
-		start := env.RegexpSearch("main.go", "a := 5")
-		end := env.RegexpSearch("main.go", "return a")
-
-		actions, err := env.Editor.CodeAction(env.Ctx, "main.go", &protocol.Range{Start: start, End: end}, nil)
+		loc := env.RegexpSearch("main.go", `a := 5\n.*return a`)
+		actions, err := env.Editor.CodeAction(env.Ctx, loc, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -53,8 +50,7 @@ func Foo() int {
 		want := `package main
 
 func Foo() int {
-	a := newFunction()
-	return a
+	return newFunction()
 }
 
 func newFunction() int {

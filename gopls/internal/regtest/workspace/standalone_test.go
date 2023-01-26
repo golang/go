@@ -83,10 +83,10 @@ func main() {
 		env.RegexpReplace("lib/lib.go", "D", "C")
 		env.AfterChange(NoDiagnostics())
 
-		refs := env.References("lib/lib.go", env.RegexpSearch("lib/lib.go", "C"))
+		refs := env.References(env.RegexpSearch("lib/lib.go", "C"))
 		checkLocations("References", refs, "lib/lib.go")
 
-		impls := env.Implementations("lib/lib.go", env.RegexpSearch("lib/lib.go", "I"))
+		impls := env.Implementations(env.RegexpSearch("lib/lib.go", "I"))
 		checkLocations("Implementations", impls) // no implementations
 
 		// Opening the standalone file should not result in any diagnostics.
@@ -113,19 +113,17 @@ func main() {
 		}
 
 		// We should resolve workspace definitions in the standalone file.
-		file, _ := env.GoToDefinition("lib/ignore.go", env.RegexpSearch("lib/ignore.go", "lib.(C)"))
+		fileLoc := env.GoToDefinition(env.RegexpSearch("lib/ignore.go", "lib.(C)"))
+		file := env.Sandbox.Workdir.URIToPath(fileLoc.URI)
 		if got, want := file, "lib/lib.go"; got != want {
 			t.Errorf("GoToDefinition(lib.C) = %v, want %v", got, want)
 		}
 
 		// ...as well as intra-file definitions
-		file, pos := env.GoToDefinition("lib/ignore.go", env.RegexpSearch("lib/ignore.go", "\\+ (C)"))
-		if got, want := file, "lib/ignore.go"; got != want {
-			t.Errorf("GoToDefinition(C) = %v, want %v", got, want)
-		}
-		wantPos := env.RegexpSearch("lib/ignore.go", "const (C)")
-		if pos != wantPos {
-			t.Errorf("GoToDefinition(C) = %v, want %v", pos, wantPos)
+		loc := env.GoToDefinition(env.RegexpSearch("lib/ignore.go", "\\+ (C)"))
+		wantLoc := env.RegexpSearch("lib/ignore.go", "const (C)")
+		if loc != wantLoc {
+			t.Errorf("GoToDefinition(C) = %v, want %v", loc, wantLoc)
 		}
 
 		// Renaming "lib.C" to "lib.D" should cause a diagnostic in the standalone
@@ -139,14 +137,14 @@ func main() {
 
 		// Now that our workspace has no errors, we should be able to find
 		// references and rename.
-		refs = env.References("lib/lib.go", env.RegexpSearch("lib/lib.go", "C"))
+		refs = env.References(env.RegexpSearch("lib/lib.go", "C"))
 		checkLocations("References", refs, "lib/lib.go", "lib/ignore.go")
 
-		impls = env.Implementations("lib/lib.go", env.RegexpSearch("lib/lib.go", "I"))
+		impls = env.Implementations(env.RegexpSearch("lib/lib.go", "I"))
 		checkLocations("Implementations", impls, "lib/ignore.go")
 
 		// Renaming should rename in the standalone package.
-		env.Rename("lib/lib.go", env.RegexpSearch("lib/lib.go", "C"), "D")
+		env.Rename(env.RegexpSearch("lib/lib.go", "C"), "D")
 		env.RegexpSearch("lib/ignore.go", "lib.D")
 	})
 }

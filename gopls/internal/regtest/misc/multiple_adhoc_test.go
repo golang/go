@@ -30,14 +30,14 @@ func main() () {
 }
 `, func(t *testing.T, env *Env) {
 		env.OpenFile("a/a.go")
-		if list := env.Completion("a/a.go", env.RegexpSearch("a/a.go", "Println")); list == nil || len(list.Items) == 0 {
+		if list := env.Completion(env.RegexpSearch("a/a.go", "Println")); list == nil || len(list.Items) == 0 {
 			t.Fatal("expected completions, got none")
 		}
 		env.OpenFile("a/b.go")
-		if list := env.Completion("a/b.go", env.RegexpSearch("a/b.go", "Println")); list == nil || len(list.Items) == 0 {
+		if list := env.Completion(env.RegexpSearch("a/b.go", "Println")); list == nil || len(list.Items) == 0 {
 			t.Fatal("expected completions, got none")
 		}
-		if list := env.Completion("a/a.go", env.RegexpSearch("a/a.go", "Println")); list == nil || len(list.Items) == 0 {
+		if list := env.Completion(env.RegexpSearch("a/a.go", "Println")); list == nil || len(list.Items) == 0 {
 			t.Fatal("expected completions, got none")
 		}
 	})

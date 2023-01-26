@@ -712,11 +712,11 @@ func FromSource(source string) DiagnosticFilter {
 // TODO(rfindley): pass in the editor to expectations, so that they may depend
 // on editor state and AtRegexp can be a function rather than a method.
 func (e *Env) AtRegexp(name, pattern string) DiagnosticFilter {
-	pos := e.RegexpSearch(name, pattern)
+	loc := e.RegexpSearch(name, pattern)
 	return DiagnosticFilter{
 		desc: fmt.Sprintf("at the first position matching %#q in %q", pattern, name),
 		check: func(diagName string, d protocol.Diagnostic) bool {
-			return diagName == name && d.Range.Start == pos
+			return diagName == name && d.Range.Start == loc.Range.Start
 		},
 	}
 }

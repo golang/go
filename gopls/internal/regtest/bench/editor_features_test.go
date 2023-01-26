@@ -13,14 +13,14 @@ func BenchmarkGoToDefinition(b *testing.B) {
 	env := benchmarkEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
-	pos := env.RegexpSearch("internal/imports/mod.go", "ModuleJSON")
-	env.GoToDefinition("internal/imports/mod.go", pos)
+	loc := env.RegexpSearch("internal/imports/mod.go", "ModuleJSON")
+	env.GoToDefinition(loc)
 	env.Await(env.DoneWithOpen())
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		env.GoToDefinition("internal/imports/mod.go", pos)
+		env.GoToDefinition(loc)
 	}
 }
 
@@ -28,14 +28,14 @@ func BenchmarkFindAllReferences(b *testing.B) {
 	env := benchmarkEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
-	pos := env.RegexpSearch("internal/imports/mod.go", "gopathwalk")
-	env.References("internal/imports/mod.go", pos)
+	loc := env.RegexpSearch("internal/imports/mod.go", "gopathwalk")
+	env.References(loc)
 	env.Await(env.DoneWithOpen())
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		env.References("internal/imports/mod.go", pos)
+		env.References(loc)
 	}
 }
 
@@ -48,9 +48,9 @@ func BenchmarkRename(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 1; i < b.N; i++ {
-		pos := env.RegexpSearch("internal/imports/mod.go", "gopathwalk")
+		loc := env.RegexpSearch("internal/imports/mod.go", "gopathwalk")
 		newName := fmt.Sprintf("%s%d", "gopathwalk", i)
-		env.Rename("internal/imports/mod.go", pos, newName)
+		env.Rename(loc, newName)
 	}
 }
 
@@ -58,13 +58,13 @@ func BenchmarkFindAllImplementations(b *testing.B) {
 	env := benchmarkEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
-	pos := env.RegexpSearch("internal/imports/mod.go", "initAllMods")
+	loc := env.RegexpSearch("internal/imports/mod.go", "initAllMods")
 	env.Await(env.DoneWithOpen())
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		env.Implementations("internal/imports/mod.go", pos)
+		env.Implementations(loc)
 	}
 }
 
@@ -72,12 +72,12 @@ func BenchmarkHover(b *testing.B) {
 	env := benchmarkEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
-	pos := env.RegexpSearch("internal/imports/mod.go", "bytes")
+	loc := env.RegexpSearch("internal/imports/mod.go", "bytes")
 	env.Await(env.DoneWithOpen())
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		env.Hover("internal/imports/mod.go", pos)
+		env.Hover(loc)
 	}
 }

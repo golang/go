@@ -113,7 +113,7 @@ const CompleteMe = 222
 		env.Await(NoOutstandingWork())
 
 		// Check that definitions in package1 go to the copy vendored in package2.
-		location, _ := env.GoToDefinition("package1/main.go", env.RegexpSearch("package1/main.go", "CompleteMe"))
+		location := env.GoToDefinition(env.RegexpSearch("package1/main.go", "CompleteMe")).URI.SpanURI().Filename()
 		const wantLocation = "package2/vendor/example.com/foo/foo.go"
 		if !strings.HasSuffix(location, wantLocation) {
 			t.Errorf("got definition of CompleteMe at %q, want %q", location, wantLocation)

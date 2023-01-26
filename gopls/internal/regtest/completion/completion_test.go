@@ -176,7 +176,7 @@ package
 					env.Await(env.DoneWithChangeWatchedFiles())
 				}
 				env.OpenFile(tc.filename)
-				completions := env.Completion(tc.filename, env.RegexpSearch(tc.filename, tc.triggerRegexp))
+				completions := env.Completion(env.RegexpSearch(tc.filename, tc.triggerRegexp))
 
 				// Check that the completion item suggestions are in the range
 				// of the file. {Start,End}.Line are zero-based.
@@ -191,12 +191,12 @@ package
 				}
 
 				if tc.want != nil {
-					expectedRng := env.RegexpRange(tc.filename, tc.editRegexp)
+					expectedLoc := env.RegexpSearch(tc.filename, tc.editRegexp)
 					for _, item := range completions.Items {
 						gotRng := item.TextEdit.Range
-						if expectedRng != gotRng {
+						if expectedLoc.Range != gotRng {
 							t.Errorf("unexpected completion range for completion item %s: got %v, want %v",
-								item.Label, gotRng, expectedRng)
+								item.Label, gotRng, expectedLoc.Range)
 						}
 					}
 				}
@@ -223,7 +223,7 @@ package ma
 	want := []string{"ma", "ma_test", "main", "math", "math_test"}
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("math/add.go")
-		completions := env.Completion("math/add.go", env.RegexpSearch("math/add.go", "package ma()"))
+		completions := env.Completion(env.RegexpSearch("math/add.go", "package ma()"))
 
 		diff := compareCompletionLabels(want, completions.Items)
 		if diff != "" {
@@ -293,19 +293,19 @@ func _() {
 		// Trigger unimported completions for the example.com/blah package.
 		env.OpenFile("main.go")
 		env.Await(env.DoneWithOpen())
-		pos := env.RegexpSearch("main.go", "ah")
-		completions := env.Completion("main.go", pos)
+		loc := env.RegexpSearch("main.go", "ah")
+		completions := env.Completion(loc)
 		if len(completions.Items) == 0 {
 			t.Fatalf("no completion items")
 		}
-		env.AcceptCompletion("main.go", pos, completions.Items[0])
+		env.AcceptCompletion(loc, completions.Items[0])
 		env.Await(env.DoneWithChange())
 
 		// Trigger completions once again for the blah.<> selector.
 		env.RegexpReplace("main.go", "_ = blah", "_ = blah.")
 		env.Await(env.DoneWithChange())
-		pos = env.RegexpSearch("main.go", "\n}")
-		completions = env.Completion("main.go", pos)
+		loc = env.RegexpSearch("main.go", "\n}")
+		completions = env.Completion(loc)
 		if len(completions.Items) != 1 {
 			t.Fatalf("expected 1 completion item, got %v", len(completions.Items))
 		}
@@ -313,7 +313,7 @@ func _() {
 		if item.Label != "Name" {
 			t.Fatalf("expected completion item blah.Name, got %v", item.Label)
 		}
-		env.AcceptCompletion("main.go", pos, item)
+		env.AcceptCompletion(loc, item)
 
 		// Await the diagnostics to add example.com/blah to the go.mod file.
 		env.AfterChange(
@@ -381,7 +381,7 @@ type S struct {
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo.go")
-		completions := env.Completion("foo.go", env.RegexpSearch("foo.go", `if s\.()`))
+		completions := env.Completion(env.RegexpSearch("foo.go", `if s\.()`))
 		diff := compareCompletionLabels([]string{"i"}, completions.Items)
 		if diff != "" {
 			t.Fatal(diff)
@@ -441,7 +441,7 @@ func _() {
 			{`var _ e = xxxx()`, []string{"xxxxc", "xxxxd", "xxxxe"}},
 		}
 		for _, tt := range tests {
-			completions := env.Completion("main.go", env.RegexpSearch("main.go", tt.re))
+			completions := env.Completion(env.RegexpSearch("main.go", tt.re))
 			diff := compareCompletionLabels(tt.want, completions.Items)
 			if diff != "" {
 				t.Errorf("%s: %s", tt.re, diff)
@@ -474,9 +474,9 @@ func doit() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("prog.go")
-		pos := env.RegexpSearch("prog.go", "if fooF")
-		pos.Character += uint32(protocol.UTF16Len([]byte("if fooF")))
-		completions := env.Completion("prog.go", pos)
+		loc := env.RegexpSearch("prog.go", "if fooF")
+		loc.Range.Start.Character += uint32(protocol.UTF16Len([]byte("if fooF")))
+		completions := env.Completion(loc)
 		diff := compareCompletionLabels([]string{"fooFunc"}, completions.Items)
 		if diff != "" {
 			t.Error(diff)
@@ -484,9 +484,9 @@ func doit() {
 		if completions.Items[0].Tags == nil {
 			t.Errorf("expected Tags to show deprecation %#v", diff[0])
 		}
-		pos = env.RegexpSearch("prog.go", "= badP")
-		pos.Character += uint32(protocol.UTF16Len([]byte("= badP")))
-		completions = env.Completion("prog.go", pos)
+		loc = env.RegexpSearch("prog.go", "= badP")
+		loc.Range.Start.Character += uint32(protocol.UTF16Len([]byte("= badP")))
+		completions = env.Completion(loc)
 		diff = compareCompletionLabels([]string{"badPi"}, completions.Items)
 		if diff != "" {
 			t.Error(diff)
@@ -520,12 +520,12 @@ func main() {
 		// Trigger unimported completions for the example.com/blah package.
 		env.OpenFile("main.go")
 		env.Await(env.DoneWithOpen())
-		pos := env.RegexpSearch("main.go", "Sqr()")
-		completions := env.Completion("main.go", pos)
+		loc := env.RegexpSearch("main.go", "Sqr()")
+		completions := env.Completion(loc)
 		if len(completions.Items) == 0 {
 			t.Fatalf("no completion items")
 		}
-		env.AcceptCompletion("main.go", pos, completions.Items[0])
+		env.AcceptCompletion(loc, completions.Items[0])
 		env.Await(env.DoneWithChange())
 		got := env.BufferText("main.go")
 		want := "package main\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"math\"\r\n)\r\n\r\nfunc main() {\r\n\tfmt.Println(\"a\")\r\n\tmath.Sqrt(${1:})\r\n}\r\n"
@@ -574,9 +574,9 @@ package foo
 		env.Await(env.DoneWithOpen())
 		for _, tst := range tests {
 			env.SetBufferContent(fname, "package foo\n"+tst.line)
-			pos := env.RegexpSearch(fname, tst.pat)
-			pos.Character += uint32(protocol.UTF16Len([]byte(tst.pat)))
-			completions := env.Completion(fname, pos)
+			loc := env.RegexpSearch(fname, tst.pat)
+			loc.Range.Start.Character += uint32(protocol.UTF16Len([]byte(tst.pat)))
+			completions := env.Completion(loc)
 			result := compareCompletionLabels(tst.want, completions.Items)
 			if result != "" {
 				t.Errorf("\npat:%q line:%q failed: %s:%q", tst.pat, tst.line, result, tst.want)
@@ -656,14 +656,14 @@ func Benchmark${1:Xxx}(b *testing.B) {
 			tst.after = strings.Trim(tst.after, "\n")
 			env.SetBufferContent("foo_test.go", tst.before)
 
-			pos := env.RegexpSearch("foo_test.go", tst.name)
-			pos.Character = uint32(protocol.UTF16Len([]byte(tst.name)))
-			completions := env.Completion("foo_test.go", pos)
+			loc := env.RegexpSearch("foo_test.go", tst.name)
+			loc.Range.Start.Character = uint32(protocol.UTF16Len([]byte(tst.name)))
+			completions := env.Completion(loc)
 			if len(completions.Items) == 0 {
 				t.Fatalf("no completion items")
 			}
 
-			env.AcceptCompletion("foo_test.go", pos, completions.Items[0])
+			env.AcceptCompletion(loc, completions.Items[0])
 			env.Await(env.DoneWithChange())
 			if buf := env.BufferText("foo_test.go"); buf != tst.after {
 				t.Errorf("%s:incorrect completion: got %q, want %q", tst.name, buf, tst.after)
@@ -708,7 +708,7 @@ use ./dir/foobar/
 			{`use ./dir/foobar/()`, []string{}},
 		}
 		for _, tt := range tests {
-			completions := env.Completion("go.work", env.RegexpSearch("go.work", tt.re))
+			completions := env.Completion(env.RegexpSearch("go.work", tt.re))
 			diff := compareCompletionLabels(tt.want, completions.Items)
 			if diff != "" {
 				t.Errorf("%s: %s", tt.re, diff)

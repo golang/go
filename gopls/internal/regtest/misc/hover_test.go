@@ -59,21 +59,22 @@ func main() {
 		ProxyFiles(proxy),
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		mixedPos := env.RegexpSearch("main.go", "Mixed")
-		got, _ := env.Hover("main.go", mixedPos)
+		mixedLoc := env.RegexpSearch("main.go", "Mixed")
+		got, _ := env.Hover(mixedLoc)
 		if !strings.Contains(got.Value, "unexported") {
 			t.Errorf("Workspace hover: missing expected field 'unexported'. Got:\n%q", got.Value)
 		}
 
-		cacheFile, _ := env.GoToDefinition("main.go", mixedPos)
-		argPos := env.RegexpSearch(cacheFile, "printMixed.*(Mixed)")
-		got, _ = env.Hover(cacheFile, argPos)
+		cacheLoc := env.GoToDefinition(mixedLoc)
+		cacheFile := env.Sandbox.Workdir.URIToPath(cacheLoc.URI)
+		argLoc := env.RegexpSearch(cacheFile, "printMixed.*(Mixed)")
+		got, _ = env.Hover(argLoc)
 		if !strings.Contains(got.Value, "unexported") {
 			t.Errorf("Non-workspace hover: missing expected field 'unexported'. Got:\n%q", got.Value)
 		}
 
-		exportedFieldPos := env.RegexpSearch("main.go", "Exported")
-		got, _ = env.Hover("main.go", exportedFieldPos)
+		exportedFieldLoc := env.RegexpSearch("main.go", "Exported")
+		got, _ = env.Hover(exportedFieldLoc)
 		if !strings.Contains(got.Value, "comment") {
 			t.Errorf("Workspace hover: missing comment for field 'Exported'. Got:\n%q", got.Value)
 		}
@@ -97,13 +98,13 @@ func main() {
 	Run(t, source, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		hexExpected := "58190"
-		got, _ := env.Hover("main.go", env.RegexpSearch("main.go", "hex"))
+		got, _ := env.Hover(env.RegexpSearch("main.go", "hex"))
 		if got != nil && !strings.Contains(got.Value, hexExpected) {
 			t.Errorf("Hover: missing expected field '%s'. Got:\n%q", hexExpected, got.Value)
 		}
 
 		binExpected := "73"
-		got, _ = env.Hover("main.go", env.RegexpSearch("main.go", "bigBin"))
+		got, _ = env.Hover(env.RegexpSearch("main.go", "bigBin"))
 		if got != nil && !strings.Contains(got.Value, binExpected) {
 			t.Errorf("Hover: missing expected field '%s'. Got:\n%q", binExpected, got.Value)
 		}
@@ -119,7 +120,7 @@ package main
 type Example struct`
 	Run(t, source, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		env.Editor.Hover(env.Ctx, "main.go", env.RegexpSearch("main.go", "Example"))
+		env.Editor.Hover(env.Ctx, env.RegexpSearch("main.go", "Example"))
 	})
 }
 
@@ -135,7 +136,7 @@ package main
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.EditBuffer("main.go", fake.NewEdit(0, 0, 1, 0, "package main\nfunc main() {\nconst x = `\nfoo\n`\n}"))
-		env.Editor.Hover(env.Ctx, "main.go", env.RegexpSearch("main.go", "foo"))
+		env.Editor.Hover(env.Ctx, env.RegexpSearch("main.go", "foo"))
 	})
 }
 
@@ -203,7 +204,7 @@ func main() {
 	Run(t, source, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		for _, test := range tests {
-			got, _ := env.Hover("main.go", env.RegexpSearch("main.go", test.hoverPackage))
+			got, _ := env.Hover(env.RegexpSearch("main.go", test.hoverPackage))
 			if got == nil {
 				t.Error("nil hover for", test.hoverPackage)
 				continue
@@ -213,7 +214,7 @@ func main() {
 			}
 		}
 
-		got, _ := env.Hover("main.go", env.RegexpSearch("main.go", "mod.com/lib4"))
+		got, _ := env.Hover(env.RegexpSearch("main.go", "mod.com/lib4"))
 		if got != nil {
 			t.Errorf("Hover: got:\n%q\nwant:\n%v", got.Value, nil)
 		}
@@ -250,7 +251,7 @@ package lib
 			env.OpenFile("a.go")
 			z := env.RegexpSearch("a.go", "lib")
 			t.Logf("%#v", z)
-			got, _ := env.Hover("a.go", env.RegexpSearch("a.go", "lib"))
+			got, _ := env.Hover(env.RegexpSearch("a.go", "lib"))
 			if strings.Contains(got.Value, "{#hdr-") {
 				t.Errorf("Hover: got {#hdr- tag:\n%q", got)
 			}
@@ -266,6 +267,6 @@ go 1.16
 `
 	Run(t, source, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
-		env.Hover("go.mod", env.RegexpSearch("go.mod", "go")) // no panic
+		env.Hover(env.RegexpSearch("go.mod", "go")) // no panic
 	})
 }

@@ -131,7 +131,7 @@ func TestReferences(t *testing.T) {
 			WithOptions(opts...).Run(t, workspaceModule, func(t *testing.T, env *Env) {
 				f := "pkg/inner/inner.go"
 				env.OpenFile(f)
-				locations := env.References(f, env.RegexpSearch(f, `SaySomething`))
+				locations := env.References(env.RegexpSearch(f, `SaySomething`))
 				want := 3
 				if got := len(locations); got != want {
 					t.Fatalf("expected %v locations, got %v", want, got)
@@ -378,7 +378,8 @@ func Hello() int {
 		env.OpenFile("moda/a/a.go")
 		env.Await(env.DoneWithOpen())
 
-		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		originalLoc := env.GoToDefinition(env.RegexpSearch("moda/a/a.go", "Hello"))
+		original := env.Sandbox.Workdir.URIToPath(originalLoc.URI)
 		if want := "modb/b/b.go"; !strings.HasSuffix(original, want) {
 			t.Errorf("expected %s, got %v", want, original)
 		}
@@ -390,7 +391,8 @@ func Hello() int {
 		env.WriteWorkspaceFile("go.work", "go 1.18\nuse moda/a")
 		env.AfterChange()
 
-		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		gotLoc := env.GoToDefinition(env.RegexpSearch("moda/a/a.go", "Hello"))
+		got := env.Sandbox.Workdir.URIToPath(gotLoc.URI)
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, got)
 		}
@@ -431,7 +433,8 @@ func main() {
 		ProxyFiles(workspaceModuleProxy),
 	).Run(t, multiModule, func(t *testing.T, env *Env) {
 		env.OpenFile("moda/a/a.go")
-		original, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		loc := env.GoToDefinition(env.RegexpSearch("moda/a/a.go", "Hello"))
+		original := env.Sandbox.Workdir.URIToPath(loc.URI)
 		if want := "b.com@v1.2.3/b/b.go"; !strings.HasSuffix(original, want) {
 			t.Errorf("expected %s, got %v", want, original)
 		}
@@ -453,7 +456,8 @@ func Hello() int {
 `,
 		})
 		env.AfterChange(Diagnostics(env.AtRegexp("modb/b/b.go", "x")))
-		got, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		gotLoc := env.GoToDefinition(env.RegexpSearch("moda/a/a.go", "Hello"))
+		got := env.Sandbox.Workdir.URIToPath(gotLoc.URI)
 		if want := "modb/b/b.go"; !strings.HasSuffix(got, want) {
 			t.Errorf("expected %s, got %v", want, original)
 		}
@@ -581,9 +585,10 @@ use (
 		// To verify which modules are loaded, we'll jump to the definition of
 		// b.Hello.
 		checkHelloLocation := func(want string) error {
-			location, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
-			if !strings.HasSuffix(location, want) {
-				return fmt.Errorf("expected %s, got %v", want, location)
+			loc := env.GoToDefinition(env.RegexpSearch("moda/a/a.go", "Hello"))
+			file := env.Sandbox.Workdir.URIToPath(loc.URI)
+			if !strings.HasSuffix(file, want) {
+				return fmt.Errorf("expected %s, got %v", want, file)
 			}
 			return nil
 		}
@@ -749,8 +754,7 @@ module example.com/bar/baz
 		}
 
 		for hoverRE, want := range tcs {
-			pos := env.RegexpSearch("go.work", hoverRE)
-			got, _ := env.Hover("go.work", pos)
+			got, _ := env.Hover(env.RegexpSearch("go.work", hoverRE))
 			if got.Value != want {
 				t.Errorf(`hover on %q: got %q, want %q`, hoverRE, got, want)
 			}
@@ -799,21 +803,22 @@ use (
 	).Run(t, workspace, func(t *testing.T, env *Env) {
 		env.OpenFile("moda/a/a.go")
 		env.Await(env.DoneWithOpen())
-		location, _ := env.GoToDefinition("moda/a/a.go", env.RegexpSearch("moda/a/a.go", "Hello"))
+		loc := env.GoToDefinition(env.RegexpSearch("moda/a/a.go", "Hello"))
+		file := env.Sandbox.Workdir.URIToPath(loc.URI)
 		want := "modb/b/b.go"
-		if !strings.HasSuffix(location, want) {
-			t.Errorf("expected %s, got %v", want, location)
+		if !strings.HasSuffix(file, want) {
+			t.Errorf("expected %s, got %v", want, file)
 		}
 	})
 }
 
 func TestNonWorkspaceFileCreation(t *testing.T) {
 	const files = `
--- go.mod --
+-- work/go.mod --
 module mod.com
 
 go 1.12
--- x.go --
+-- work/x.go --
 package x
 `
 
@@ -822,10 +827,12 @@ package foo
 import "fmt"
 var _ = fmt.Printf
 `
-	Run(t, files, func(t *testing.T, env *Env) {
-		env.CreateBuffer("/tmp/foo.go", "")
-		env.EditBuffer("/tmp/foo.go", fake.NewEdit(0, 0, 0, 0, code))
-		env.GoToDefinition("/tmp/foo.go", env.RegexpSearch("/tmp/foo.go", `Printf`))
+	WithOptions(
+		WorkspaceFolders("work"), // so that outside/... is outside the workspace
+	).Run(t, files, func(t *testing.T, env *Env) {
+		env.CreateBuffer("outside/foo.go", "")
+		env.EditBuffer("outside/foo.go", fake.NewEdit(0, 0, 0, 0, code))
+		env.GoToDefinition(env.RegexpSearch("outside/foo.go", `Printf`))
 	})
 }
 
@@ -1124,7 +1131,7 @@ func (Server) Foo() {}
 		)
 
 		// This will cause a test failure if other_test.go is not in any package.
-		_, _ = env.GoToDefinition("other_test.go", env.RegexpSearch("other_test.go", "Server"))
+		_ = env.GoToDefinition(env.RegexpSearch("other_test.go", "Server"))
 	})
 }
 

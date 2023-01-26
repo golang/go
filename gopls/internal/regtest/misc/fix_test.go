@@ -34,11 +34,7 @@ func Foo() {
 `
 	Run(t, basic, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		pos := env.RegexpSearch("main.go", "Info{}")
-		if err := env.Editor.RefactorRewrite(env.Ctx, "main.go", &protocol.Range{
-			Start: pos,
-			End:   pos,
-		}); err != nil {
+		if err := env.Editor.RefactorRewrite(env.Ctx, env.RegexpSearch("main.go", "Info{}")); err != nil {
 			t.Fatal(err)
 		}
 		want := `package main

@@ -191,8 +191,8 @@ go 1.12
 	).Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a.tmpl")
 		x := env.RegexpSearch("a.tmpl", `A`)
-		file, pos := env.GoToDefinition("a.tmpl", x)
-		refs := env.References(file, pos)
+		loc := env.GoToDefinition(x)
+		refs := env.References(loc)
 		if len(refs) != 2 {
 			t.Fatalf("got %v reference(s), want 2", len(refs))
 		}
@@ -205,9 +205,9 @@ go 1.12
 			}
 		}
 
-		content, npos := env.Hover(file, pos)
-		if pos != npos {
-			t.Errorf("pos? got %v, wanted %v", npos, pos)
+		content, nloc := env.Hover(loc)
+		if loc != nloc {
+			t.Errorf("loc? got %v, wanted %v", nloc, loc)
 		}
 		if content.Value != "template A defined" {
 			t.Errorf("got %s, wanted 'template A defined", content.Value)

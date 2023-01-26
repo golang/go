@@ -34,8 +34,8 @@ func main() {
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		file, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `fmt.(Print)`))
-		refs, err := env.Editor.References(env.Ctx, file, pos)
+		loc := env.GoToDefinition(env.RegexpSearch("main.go", `fmt.(Print)`))
+		refs, err := env.Editor.References(env.Ctx, loc)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -79,8 +79,8 @@ func _() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		file, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `Error`))
-		refs, err := env.Editor.References(env.Ctx, file, pos)
+		loc := env.GoToDefinition(env.RegexpSearch("main.go", `Error`))
+		refs, err := env.Editor.References(env.Ctx, loc)
 		if err != nil {
 			t.Fatalf("references on (*s).Error failed: %v", err)
 		}
@@ -157,10 +157,10 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		for _, test := range tests {
-			f := fmt.Sprintf("%s/a.go", test.packageName)
-			env.OpenFile(f)
-			pos := env.RegexpSearch(f, test.packageName)
-			refs := env.References(fmt.Sprintf("%s/a.go", test.packageName), pos)
+			file := fmt.Sprintf("%s/a.go", test.packageName)
+			env.OpenFile(file)
+			loc := env.RegexpSearch(file, test.packageName)
+			refs := env.References(loc)
 			if len(refs) != test.wantRefCount {
 				// TODO(adonovan): make this assertion less maintainer-hostile.
 				t.Fatalf("got %v reference(s), want %d", len(refs), test.wantRefCount)
@@ -277,8 +277,8 @@ func _() {
 		}
 
 		for _, test := range refTests {
-			pos := env.RegexpSearch("foo/foo.go", test.re)
-			refs := env.References("foo/foo.go", pos)
+			loc := env.RegexpSearch("foo/foo.go", test.re)
+			refs := env.References(loc)
 
 			got := fileLocations(refs)
 			if diff := cmp.Diff(test.wantRefs, got); diff != "" {
@@ -301,8 +301,8 @@ func _() {
 		}
 
 		for _, test := range implTests {
-			pos := env.RegexpSearch("foo/foo.go", test.re)
-			impls := env.Implementations("foo/foo.go", pos)
+			loc := env.RegexpSearch("foo/foo.go", test.re)
+			impls := env.Implementations(loc)
 
 			got := fileLocations(impls)
 			if diff := cmp.Diff(test.wantImpls, got); diff != "" {
@@ -364,11 +364,11 @@ var _ b.B
 		}
 
 		env.OpenFile("a.go")
-		refPos := env.RegexpSearch("a.go", "I") // find "I" reference
+		refLoc := env.RegexpSearch("a.go", "I") // find "I" reference
 
 		// Initially, a.I has one implementation b.B in
 		// the module cache, not the vendor tree.
-		checkVendor(env.Implementations("a.go", refPos), false)
+		checkVendor(env.Implementations(refLoc), false)
 
 		// Run 'go mod vendor' outside the editor.
 		if err := env.Sandbox.RunGoCommand(env.Ctx, ".", "mod", []string{"vendor"}, true); err != nil {
@@ -379,7 +379,7 @@ var _ b.B
 		env.Await(env.DoneWithChangeWatchedFiles())
 
 		// Now, b.B is found in the vendor tree.
-		checkVendor(env.Implementations("a.go", refPos), true)
+		checkVendor(env.Implementations(refLoc), true)
 
 		// Delete the vendor tree.
 		if err := os.RemoveAll(env.Sandbox.Workdir.AbsPath("vendor")); err != nil {
@@ -394,6 +394,6 @@ var _ b.B
 		env.Await(env.DoneWithChangeWatchedFiles())
 
 		// b.B is once again defined in the module cache.
-		checkVendor(env.Implementations("a.go", refPos), false)
+		checkVendor(env.Implementations(refLoc), false)
 	})
 }

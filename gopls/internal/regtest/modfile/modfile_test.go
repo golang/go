@@ -913,13 +913,13 @@ func hello() {}
 		env.RegexpReplace("go.mod", "module", "modul")
 		// Confirm that we still have metadata with only on-disk edits.
 		env.OpenFile("main.go")
-		file, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", "hello"))
-		if filepath.Base(file) != "hello.go" {
-			t.Fatalf("expected definition in hello.go, got %s", file)
+		loc := env.GoToDefinition(env.RegexpSearch("main.go", "hello"))
+		if filepath.Base(string(loc.URI)) != "hello.go" {
+			t.Fatalf("expected definition in hello.go, got %s", loc.URI)
 		}
 		// Confirm that we no longer have metadata when the file is saved.
 		env.SaveBufferWithoutActions("go.mod")
-		_, _, err := env.Editor.GoToDefinition(env.Ctx, "main.go", env.RegexpSearch("main.go", "hello"))
+		_, err := env.Editor.GoToDefinition(env.Ctx, env.RegexpSearch("main.go", "hello"))
 		if err == nil {
 			t.Fatalf("expected error, got none")
 		}
@@ -1017,7 +1017,7 @@ func main() {}
 		).Run(t, mod, func(t *testing.T, env *Env) {
 			d := &protocol.PublishDiagnosticsParams{}
 			env.OpenFile("go.mod")
-			pos := env.RegexpSearch("go.mod", "require hasdep.com v1.2.3")
+			pos := env.RegexpSearch("go.mod", "require hasdep.com v1.2.3").Range.Start
 			env.AfterChange(
 				Diagnostics(AtPosition("go.mod", pos.Line, pos.Character)),
 				ReadDiagnostics("go.mod", d),

@@ -34,10 +34,11 @@ func main() {
 	const wantErr = "can't rename package \"main\""
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		pos := env.RegexpSearch("main.go", `main`)
+		loc := env.RegexpSearch("main.go", `main`)
+		// TODO(adonovan): define a helper from Location to TextDocumentPositionParams.
 		tdpp := protocol.TextDocumentPositionParams{
 			TextDocument: env.Editor.TextDocumentIdentifier("main.go"),
-			Position:     pos,
+			Position:     loc.Range.Start,
 		}
 		params := &protocol.PrepareRenameParams{
 			TextDocumentPositionParams: tdpp,
@@ -79,7 +80,7 @@ func _() {
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("p.go")
-		env.Rename("p.go", env.RegexpSearch("p.go", "M"), "N") // must not panic
+		env.Rename(env.RegexpSearch("p.go", "M"), "N") // must not panic
 	})
 }
 
@@ -107,9 +108,7 @@ func main() {
 	const wantErr = "no object found"
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "fmt")
-
-		err := env.Editor.Rename(env.Ctx, "lib/a.go", pos, "fmt1")
+		err := env.Editor.Rename(env.Ctx, env.RegexpSearch("lib/a.go", "fmt"), "fmt1")
 		if err == nil {
 			t.Errorf("missing no object found from Rename")
 		}
@@ -142,10 +141,10 @@ func main() {
 `
 	const wantErr = "can't rename package: missing module information for package"
 	Run(t, files, func(t *testing.T, env *Env) {
-		pos := env.RegexpSearch("lib/a.go", "lib")
+		loc := env.RegexpSearch("lib/a.go", "lib")
 		tdpp := protocol.TextDocumentPositionParams{
 			TextDocument: env.Editor.TextDocumentIdentifier("lib/a.go"),
-			Position:     pos,
+			Position:     loc.Range.Start,
 		}
 		params := &protocol.PrepareRenameParams{
 			TextDocumentPositionParams: tdpp,
@@ -194,8 +193,7 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "lib")
-		env.Rename("lib/a.go", pos, "nested")
+		env.Rename(env.RegexpSearch("lib/a.go", "lib"), "nested")
 
 		// Check if the new package name exists.
 		env.RegexpSearch("nested/a.go", "package nested")
@@ -236,8 +234,7 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "lib")
-		env.Rename("lib/a.go", pos, "nested")
+		env.Rename(env.RegexpSearch("lib/a.go", "lib"), "nested")
 
 		// Check if the new package name exists.
 		env.RegexpSearch("nested/a.go", "package nested")
@@ -277,8 +274,7 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "lib")
-		env.Rename("lib/a.go", pos, "nested")
+		env.Rename(env.RegexpSearch("lib/a.go", "lib"), "nested")
 
 		// Check if the new package name exists.
 		env.RegexpSearch("nested/a.go", "package nested")
@@ -323,8 +319,7 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "lib")
-		env.Rename("lib/a.go", pos, "lib1")
+		env.Rename(env.RegexpSearch("lib/a.go", "lib"), "lib1")
 
 		// Check if the new package name exists.
 		env.RegexpSearch("lib1/a.go", "package lib1")
@@ -371,8 +366,7 @@ func main() {
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		pos := env.RegexpSearch("main.go", `stringutil\.(Identity)`)
-		env.Rename("main.go", pos, "Identityx")
+		env.Rename(env.RegexpSearch("main.go", `stringutil\.(Identity)`), "Identityx")
 		text := env.BufferText("stringutil/stringutil_test.go")
 		if !strings.Contains(text, "Identityx") {
 			t.Errorf("stringutil/stringutil_test.go: missing expected token `Identityx` after rename:\n%s", text)
@@ -495,8 +489,7 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "lib")
-		env.Rename("lib/a.go", pos, "lib1")
+		env.Rename(env.RegexpSearch("lib/a.go", "lib"), "lib1")
 
 		// Check if the new package name exists.
 		env.RegexpSearch("lib1/a.go", "package lib1")
@@ -577,8 +570,7 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/foo.go")
-		pos := env.RegexpSearch("foo/foo.go", "foo")
-		env.Rename("foo/foo.go", pos, "foox")
+		env.Rename(env.RegexpSearch("foo/foo.go", "foo"), "foox")
 
 		env.RegexpSearch("foox/foo.go", "package foox")
 		env.OpenFile("foox/bar/bar.go")
@@ -625,8 +617,7 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "lib")
-		env.Rename("lib/a.go", pos, "nested")
+		env.Rename(env.RegexpSearch("lib/a.go", "lib"), "nested")
 
 		// Check if the new package name exists.
 		env.RegexpSearch("nested/a.go", "package nested")
@@ -668,8 +659,7 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "lib")
-		env.Rename("lib/a.go", pos, "nested")
+		env.Rename(env.RegexpSearch("lib/a.go", "lib"), "nested")
 
 		// Check if the new package name exists.
 		env.RegexpSearch("nested/a.go", "package nested")
@@ -716,7 +706,7 @@ const Baz = foox.Foo
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/foo.go")
-		env.Rename("foo/foo.go", env.RegexpSearch("foo/foo.go", "package (foo)"), "foox")
+		env.Rename(env.RegexpSearch("foo/foo.go", "package (foo)"), "foox")
 
 		checkTestdata(t, env)
 	})
@@ -796,7 +786,7 @@ const _ = bar.Bar + baz.Baz + foox.Foo
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/foo.go")
-		env.Rename("foo/foo.go", env.RegexpSearch("foo/foo.go", "package (foo)"), "foox")
+		env.Rename(env.RegexpSearch("foo/foo.go", "package (foo)"), "foox")
 
 		checkTestdata(t, env)
 	})
@@ -846,8 +836,7 @@ const C = libx.A + nested.B
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "package (lib)")
-		env.Rename("lib/a.go", pos, "libx")
+		env.Rename(env.RegexpSearch("lib/a.go", "package (lib)"), "libx")
 
 		checkTestdata(t, env)
 	})
@@ -870,10 +859,10 @@ const A = 1 + nested.B
 
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
-		pos := env.RegexpSearch("lib/a.go", "package (lib)")
+		loc := env.RegexpSearch("lib/a.go", "package (lib)")
 
 		for _, badName := range []string{"$$$", "lib_test"} {
-			if err := env.Editor.Rename(env.Ctx, "lib/a.go", pos, badName); err == nil {
+			if err := env.Editor.Rename(env.Ctx, loc, badName); err == nil {
 				t.Errorf("Rename(lib, libx) succeeded, want non-nil error")
 			}
 		}
@@ -917,8 +906,7 @@ func main() {
 `
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/internal/x/a.go")
-		pos := env.RegexpSearch("lib/internal/x/a.go", "x")
-		env.Rename("lib/internal/x/a.go", pos, "utils")
+		env.Rename(env.RegexpSearch("lib/internal/x/a.go", "x"), "utils")
 
 		// Check if the new package name exists.
 		env.RegexpSearch("lib/a.go", "mod.com/lib/internal/utils")
@@ -928,8 +916,7 @@ func main() {
 		env.RegexpSearch("lib/internal/utils/a.go", "package utils")
 
 		env.OpenFile("lib/a.go")
-		pos = env.RegexpSearch("lib/a.go", "lib")
-		env.Rename("lib/a.go", pos, "lib1")
+		env.Rename(env.RegexpSearch("lib/a.go", "lib"), "lib1")
 
 		// Check if the new package name exists.
 		env.RegexpSearch("lib1/a.go", "package lib1")

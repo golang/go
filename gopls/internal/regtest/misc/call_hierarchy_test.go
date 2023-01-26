@@ -23,11 +23,11 @@ package pkg
 	// TODO(rfindley): this could probably just be a marker test.
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("p.go")
-		pos := env.RegexpSearch("p.go", "pkg")
+		loc := env.RegexpSearch("p.go", "pkg")
 
 		var params protocol.CallHierarchyPrepareParams
-		params.TextDocument.URI = env.Sandbox.Workdir.URI("p.go")
-		params.Position = pos
+		params.TextDocument.URI = loc.URI
+		params.Position = loc.Range.Start
 
 		// Check that this doesn't panic.
 		env.Editor.Server.PrepareCallHierarchy(env.Ctx, &params)

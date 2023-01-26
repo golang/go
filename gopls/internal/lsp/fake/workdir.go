@@ -196,25 +196,15 @@ func (w *Workdir) ReadFile(path string) ([]byte, error) {
 	}
 }
 
-func (w *Workdir) RegexpRange(path, re string) (protocol.Range, error) {
-	content, err := w.ReadFile(path)
-	if err != nil {
-		return protocol.Range{}, err
-	}
-	mapper := protocol.NewMapper(w.URI(path).SpanURI(), content)
-	return regexpRange(mapper, re)
-}
-
 // RegexpSearch searches the file corresponding to path for the first position
 // matching re.
-func (w *Workdir) RegexpSearch(path string, re string) (protocol.Position, error) {
+func (w *Workdir) RegexpSearch(path string, re string) (protocol.Location, error) {
 	content, err := w.ReadFile(path)
 	if err != nil {
-		return protocol.Position{}, err
+		return protocol.Location{}, err
 	}
 	mapper := protocol.NewMapper(w.URI(path).SpanURI(), content)
-	rng, err := regexpRange(mapper, re)
-	return rng.Start, err
+	return regexpLocation(mapper, re)
 }
 
 // RemoveFile removes a workdir-relative file path and notifies watchers of the

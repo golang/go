@@ -39,6 +39,7 @@ type Editor struct {
 	sandbox    *Sandbox
 	defaultEnv map[string]string
 
+	// TODO(adonovan): buffers should be keyed by protocol.DocumentURI.
 	mu                 sync.Mutex
 	config             EditorConfig                // editor configuration
 	buffers            map[string]buffer           // open buffers (relative path -> buffer content)
@@ -597,17 +598,17 @@ var (
 	ErrUnknownBuffer = errors.New("unknown buffer")
 )
 
-// regexpRange returns the start and end of the first occurrence of either re
+// regexpLocation returns the location of the first occurrence of either re
 // or its singular subgroup. It returns ErrNoMatch if the regexp doesn't match.
-func regexpRange(mapper *protocol.Mapper, re string) (protocol.Range, error) {
+func regexpLocation(mapper *protocol.Mapper, re string) (protocol.Location, error) {
 	var start, end int
 	rec, err := regexp.Compile(re)
 	if err != nil {
-		return protocol.Range{}, err
+		return protocol.Location{}, err
 	}
 	indexes := rec.FindSubmatchIndex(mapper.Content)
 	if indexes == nil {
-		return protocol.Range{}, ErrNoMatch
+		return protocol.Location{}, ErrNoMatch
 	}
 	switch len(indexes) {
 	case 2:
@@ -617,33 +618,26 @@ func regexpRange(mapper *protocol.Mapper, re string) (protocol.Range, error) {
 		// one subgroup: return its range
 		start, end = indexes[2], indexes[3]
 	default:
-		return protocol.Range{}, fmt.Errorf("invalid search regexp %q: expect either 0 or 1 subgroups, got %d", re, len(indexes)/2-1)
+		return protocol.Location{}, fmt.Errorf("invalid search regexp %q: expect either 0 or 1 subgroups, got %d", re, len(indexes)/2-1)
 	}
-	return mapper.OffsetRange(start, end)
+	return mapper.OffsetLocation(start, end)
 }
 
-// RegexpRange returns the first range in the buffer bufName matching re. See
-// RegexpSearch for more information on matching.
-func (e *Editor) RegexpRange(bufName, re string) (protocol.Range, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	buf, ok := e.buffers[bufName]
-	if !ok {
-		return protocol.Range{}, ErrUnknownBuffer
-	}
-	return regexpRange(buf.mapper, re)
-}
-
-// RegexpSearch returns the position of the first match for re in the buffer
+// RegexpSearch returns the Location of the first match for re in the buffer
 // bufName. For convenience, RegexpSearch supports the following two modes:
 //  1. If re has no subgroups, return the position of the match for re itself.
 //  2. If re has one subgroup, return the position of the first subgroup.
 //
 // It returns an error re is invalid, has more than one subgroup, or doesn't
 // match the buffer.
-func (e *Editor) RegexpSearch(bufName, re string) (protocol.Position, error) {
-	rng, err := e.RegexpRange(bufName, re)
-	return rng.Start, err
+func (e *Editor) RegexpSearch(bufName, re string) (protocol.Location, error) {
+	e.mu.Lock()
+	buf, ok := e.buffers[bufName]
+	e.mu.Unlock()
+	if !ok {
+		return protocol.Location{}, ErrUnknownBuffer
+	}
+	return regexpLocation(buf.mapper, re)
 }
 
 // RegexpReplace edits the buffer corresponding to path by replacing the first
@@ -658,12 +652,12 @@ func (e *Editor) RegexpReplace(ctx context.Context, path, re, replace string) er
 	if !ok {
 		return ErrUnknownBuffer
 	}
-	rng, err := regexpRange(buf.mapper, re)
+	loc, err := regexpLocation(buf.mapper, re)
 	if err != nil {
 		return err
 	}
 	edits := []protocol.TextEdit{{
-		Range:   rng,
+		Range:   loc.Range,
 		NewText: replace,
 	}}
 	patched, err := applyEdits(buf.mapper, edits, e.config.WindowsLineEndings)
@@ -765,53 +759,53 @@ func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty 
 }
 
 // GoToDefinition jumps to the definition of the symbol at the given position
-// in an open buffer. It returns the path and position of the resulting jump.
-func (e *Editor) GoToDefinition(ctx context.Context, path string, pos protocol.Position) (string, protocol.Position, error) {
-	if err := e.checkBufferPosition(path, pos); err != nil {
-		return "", protocol.Position{}, err
+// in an open buffer. It returns the location of the resulting jump.
+func (e *Editor) GoToDefinition(ctx context.Context, loc protocol.Location) (protocol.Location, error) {
+	if err := e.checkBufferLocation(loc); err != nil {
+		return protocol.Location{}, err
 	}
 	params := &protocol.DefinitionParams{}
-	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
-	params.Position = pos
+	params.TextDocument.URI = loc.URI
+	params.Position = loc.Range.Start
 
 	resp, err := e.Server.Definition(ctx, params)
 	if err != nil {
-		return "", protocol.Position{}, fmt.Errorf("definition: %w", err)
+		return protocol.Location{}, fmt.Errorf("definition: %w", err)
 	}
-	return e.extractFirstPathAndPos(ctx, resp)
+	return e.extractFirstLocation(ctx, resp)
 }
 
-// GoToTypeDefinition jumps to the type definition of the symbol at the given position
+// GoToTypeDefinition jumps to the type definition of the symbol at the given location
 // in an open buffer.
-func (e *Editor) GoToTypeDefinition(ctx context.Context, path string, pos protocol.Position) (string, protocol.Position, error) {
-	if err := e.checkBufferPosition(path, pos); err != nil {
-		return "", protocol.Position{}, err
+func (e *Editor) GoToTypeDefinition(ctx context.Context, loc protocol.Location) (protocol.Location, error) {
+	if err := e.checkBufferLocation(loc); err != nil {
+		return protocol.Location{}, err
 	}
 	params := &protocol.TypeDefinitionParams{}
-	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
-	params.Position = pos
+	params.TextDocument.URI = loc.URI
+	params.Position = loc.Range.Start
 
 	resp, err := e.Server.TypeDefinition(ctx, params)
 	if err != nil {
-		return "", protocol.Position{}, fmt.Errorf("type definition: %w", err)
+		return protocol.Location{}, fmt.Errorf("type definition: %w", err)
 	}
-	return e.extractFirstPathAndPos(ctx, resp)
+	return e.extractFirstLocation(ctx, resp)
 }
 
-// extractFirstPathAndPos returns the path and the position of the first location.
+// extractFirstPathAndPos returns the first location.
 // It opens the file if needed.
-func (e *Editor) extractFirstPathAndPos(ctx context.Context, locs []protocol.Location) (string, protocol.Position, error) {
+func (e *Editor) extractFirstLocation(ctx context.Context, locs []protocol.Location) (protocol.Location, error) {
 	if len(locs) == 0 {
-		return "", protocol.Position{}, nil
+		return protocol.Location{}, nil
 	}
 
 	newPath := e.sandbox.Workdir.URIToPath(locs[0].URI)
 	if !e.HasBuffer(newPath) {
 		if err := e.OpenFile(ctx, newPath); err != nil {
-			return "", protocol.Position{}, fmt.Errorf("OpenFile: %w", err)
+			return protocol.Location{}, fmt.Errorf("OpenFile: %w", err)
 		}
 	}
-	return newPath, locs[0].Range.Start, nil
+	return locs[0], nil
 }
 
 // Symbol performs a workspace symbol search using query
@@ -822,13 +816,14 @@ func (e *Editor) Symbol(ctx context.Context, query string) ([]protocol.SymbolInf
 
 // OrganizeImports requests and performs the source.organizeImports codeAction.
 func (e *Editor) OrganizeImports(ctx context.Context, path string) error {
-	_, err := e.applyCodeActions(ctx, path, nil, nil, protocol.SourceOrganizeImports)
+	loc := protocol.Location{URI: e.sandbox.Workdir.URI(path)} // zero Range => whole file
+	_, err := e.applyCodeActions(ctx, loc, nil, protocol.SourceOrganizeImports)
 	return err
 }
 
 // RefactorRewrite requests and performs the source.refactorRewrite codeAction.
-func (e *Editor) RefactorRewrite(ctx context.Context, path string, rng *protocol.Range) error {
-	applied, err := e.applyCodeActions(ctx, path, rng, nil, protocol.RefactorRewrite)
+func (e *Editor) RefactorRewrite(ctx context.Context, loc protocol.Location) error {
+	applied, err := e.applyCodeActions(ctx, loc, nil, protocol.RefactorRewrite)
 	if err != nil {
 		return err
 	}
@@ -839,8 +834,8 @@ func (e *Editor) RefactorRewrite(ctx context.Context, path string, rng *protocol
 }
 
 // ApplyQuickFixes requests and performs the quickfix codeAction.
-func (e *Editor) ApplyQuickFixes(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic) error {
-	applied, err := e.applyCodeActions(ctx, path, rng, diagnostics, protocol.SourceFixAll, protocol.QuickFix)
+func (e *Editor) ApplyQuickFixes(ctx context.Context, loc protocol.Location, diagnostics []protocol.Diagnostic) error {
+	applied, err := e.applyCodeActions(ctx, loc, diagnostics, protocol.SourceFixAll, protocol.QuickFix)
 	if applied == 0 {
 		return fmt.Errorf("no quick fixes were applied")
 	}
@@ -876,12 +871,12 @@ func (e *Editor) ApplyCodeAction(ctx context.Context, action protocol.CodeAction
 }
 
 // GetQuickFixes returns the available quick fix code actions.
-func (e *Editor) GetQuickFixes(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
-	return e.getCodeActions(ctx, path, rng, diagnostics, protocol.QuickFix, protocol.SourceFixAll)
+func (e *Editor) GetQuickFixes(ctx context.Context, loc protocol.Location, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+	return e.getCodeActions(ctx, loc, diagnostics, protocol.QuickFix, protocol.SourceFixAll)
 }
 
-func (e *Editor) applyCodeActions(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic, only ...protocol.CodeActionKind) (int, error) {
-	actions, err := e.getCodeActions(ctx, path, rng, diagnostics, only...)
+func (e *Editor) applyCodeActions(ctx context.Context, loc protocol.Location, diagnostics []protocol.Diagnostic, only ...protocol.CodeActionKind) (int, error) {
+	actions, err := e.getCodeActions(ctx, loc, diagnostics, only...)
 	if err != nil {
 		return 0, err
 	}
@@ -908,18 +903,16 @@ func (e *Editor) applyCodeActions(ctx context.Context, path string, rng *protoco
 	return applied, nil
 }
 
-func (e *Editor) getCodeActions(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic, only ...protocol.CodeActionKind) ([]protocol.CodeAction, error) {
+func (e *Editor) getCodeActions(ctx context.Context, loc protocol.Location, diagnostics []protocol.Diagnostic, only ...protocol.CodeActionKind) ([]protocol.CodeAction, error) {
 	if e.Server == nil {
 		return nil, nil
 	}
 	params := &protocol.CodeActionParams{}
-	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
+	params.TextDocument.URI = loc.URI
 	params.Context.Only = only
+	params.Range = loc.Range // may be zero => whole file
 	if diagnostics != nil {
 		params.Context.Diagnostics = diagnostics
-	}
-	if rng != nil {
-		params.Range = *rng
 	}
 	return e.Server.CodeAction(ctx, params)
 }
@@ -976,15 +969,16 @@ func (e *Editor) FormatBuffer(ctx context.Context, path string) error {
 	return e.editBufferLocked(ctx, path, edits)
 }
 
-func (e *Editor) checkBufferPosition(path string, pos protocol.Position) error {
+func (e *Editor) checkBufferLocation(loc protocol.Location) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	path := e.sandbox.Workdir.URIToPath(loc.URI)
 	buf, ok := e.buffers[path]
 	if !ok {
 		return fmt.Errorf("buffer %q is not open", path)
 	}
 
-	_, err := buf.mapper.PositionOffset(pos)
+	_, _, err := buf.mapper.RangeOffsets(loc.Range)
 	return err
 }
 
@@ -1041,10 +1035,11 @@ func (e *Editor) CodeLens(ctx context.Context, path string) ([]protocol.CodeLens
 }
 
 // Completion executes a completion request on the server.
-func (e *Editor) Completion(ctx context.Context, path string, pos protocol.Position) (*protocol.CompletionList, error) {
+func (e *Editor) Completion(ctx context.Context, loc protocol.Location) (*protocol.CompletionList, error) {
 	if e.Server == nil {
 		return nil, nil
 	}
+	path := e.sandbox.Workdir.URIToPath(loc.URI)
 	e.mu.Lock()
 	_, ok := e.buffers[path]
 	e.mu.Unlock()
@@ -1054,7 +1049,7 @@ func (e *Editor) Completion(ctx context.Context, path string, pos protocol.Posit
 	params := &protocol.CompletionParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: e.TextDocumentIdentifier(path),
-			Position:     pos,
+			Position:     loc.Range.Start,
 		},
 	}
 	completions, err := e.Server.Completion(ctx, params)
@@ -1066,12 +1061,13 @@ func (e *Editor) Completion(ctx context.Context, path string, pos protocol.Posit
 
 // AcceptCompletion accepts a completion for the given item at the given
 // position.
-func (e *Editor) AcceptCompletion(ctx context.Context, path string, pos protocol.Position, item protocol.CompletionItem) error {
+func (e *Editor) AcceptCompletion(ctx context.Context, loc protocol.Location, item protocol.CompletionItem) error {
 	if e.Server == nil {
 		return nil
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	path := e.sandbox.Workdir.URIToPath(loc.URI)
 	_, ok := e.buffers[path]
 	if !ok {
 		return fmt.Errorf("buffer %q is not open", path)
@@ -1112,12 +1108,13 @@ func (e *Editor) InlayHint(ctx context.Context, path string) ([]protocol.InlayHi
 	return hints, nil
 }
 
-// References returns references to the object at (path, pos), as returned by
+// References returns references to the object at loc, as returned by
 // the connected LSP server. If no server is connected, it returns (nil, nil).
-func (e *Editor) References(ctx context.Context, path string, pos protocol.Position) ([]protocol.Location, error) {
+func (e *Editor) References(ctx context.Context, loc protocol.Location) ([]protocol.Location, error) {
 	if e.Server == nil {
 		return nil, nil
 	}
+	path := e.sandbox.Workdir.URIToPath(loc.URI)
 	e.mu.Lock()
 	_, ok := e.buffers[path]
 	e.mu.Unlock()
@@ -1127,7 +1124,7 @@ func (e *Editor) References(ctx context.Context, path string, pos protocol.Posit
 	params := &protocol.ReferenceParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: e.TextDocumentIdentifier(path),
-			Position:     pos,
+			Position:     loc.Range.Start,
 		},
 		Context: protocol.ReferenceContext{
 			IncludeDeclaration: true,
@@ -1140,24 +1137,25 @@ func (e *Editor) References(ctx context.Context, path string, pos protocol.Posit
 	return locations, nil
 }
 
-// Rename performs a rename of the object at (path, pos) to newName, using the
+// Rename performs a rename of the object at loc to newName, using the
 // connected LSP server. If no server is connected, it returns nil.
-func (e *Editor) Rename(ctx context.Context, path string, pos protocol.Position, newName string) error {
+func (e *Editor) Rename(ctx context.Context, loc protocol.Location, newName string) error {
 	if e.Server == nil {
 		return nil
 	}
+	path := e.sandbox.Workdir.URIToPath(loc.URI)
 
 	// Verify that PrepareRename succeeds.
 	prepareParams := &protocol.PrepareRenameParams{}
 	prepareParams.TextDocument = e.TextDocumentIdentifier(path)
-	prepareParams.Position = pos
+	prepareParams.Position = loc.Range.Start
 	if _, err := e.Server.PrepareRename(ctx, prepareParams); err != nil {
 		return fmt.Errorf("preparing rename: %v", err)
 	}
 
 	params := &protocol.RenameParams{
 		TextDocument: e.TextDocumentIdentifier(path),
-		Position:     pos,
+		Position:     loc.Range.Start,
 		NewName:      newName,
 	}
 	wsEdits, err := e.Server.Rename(ctx, params)
@@ -1172,13 +1170,14 @@ func (e *Editor) Rename(ctx context.Context, path string, pos protocol.Position,
 	return nil
 }
 
-// Implementations returns implementations for the object at (path, pos), as
+// Implementations returns implementations for the object at loc, as
 // returned by the connected LSP server. If no server is connected, it returns
 // (nil, nil).
-func (e *Editor) Implementations(ctx context.Context, path string, pos protocol.Position) ([]protocol.Location, error) {
+func (e *Editor) Implementations(ctx context.Context, loc protocol.Location) ([]protocol.Location, error) {
 	if e.Server == nil {
 		return nil, nil
 	}
+	path := e.sandbox.Workdir.URIToPath(loc.URI)
 	e.mu.Lock()
 	_, ok := e.buffers[path]
 	e.mu.Unlock()
@@ -1188,7 +1187,7 @@ func (e *Editor) Implementations(ctx context.Context, path string, pos protocol.
 	params := &protocol.ImplementationParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: e.TextDocumentIdentifier(path),
-			Position:     pos,
+			Position:     loc.Range.Start,
 		},
 	}
 	return e.Server.Implementation(ctx, params)
@@ -1368,10 +1367,12 @@ func (e *Editor) ChangeWorkspaceFolders(ctx context.Context, folders []string) e
 }
 
 // CodeAction executes a codeAction request on the server.
-func (e *Editor) CodeAction(ctx context.Context, path string, rng *protocol.Range, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+// If loc.Range is zero, the whole file is implied.
+func (e *Editor) CodeAction(ctx context.Context, loc protocol.Location, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	if e.Server == nil {
 		return nil, nil
 	}
+	path := e.sandbox.Workdir.URIToPath(loc.URI)
 	e.mu.Lock()
 	_, ok := e.buffers[path]
 	e.mu.Unlock()
@@ -1383,9 +1384,7 @@ func (e *Editor) CodeAction(ctx context.Context, path string, rng *protocol.Rang
 		Context: protocol.CodeActionContext{
 			Diagnostics: diagnostics,
 		},
-	}
-	if rng != nil {
-		params.Range = *rng
+		Range: loc.Range, // may be zero
 	}
 	lens, err := e.Server.CodeAction(ctx, params)
 	if err != nil {
@@ -1395,22 +1394,22 @@ func (e *Editor) CodeAction(ctx context.Context, path string, rng *protocol.Rang
 }
 
 // Hover triggers a hover at the given position in an open buffer.
-func (e *Editor) Hover(ctx context.Context, path string, pos protocol.Position) (*protocol.MarkupContent, protocol.Position, error) {
-	if err := e.checkBufferPosition(path, pos); err != nil {
-		return nil, protocol.Position{}, err
+func (e *Editor) Hover(ctx context.Context, loc protocol.Location) (*protocol.MarkupContent, protocol.Location, error) {
+	if err := e.checkBufferLocation(loc); err != nil {
+		return nil, protocol.Location{}, err
 	}
 	params := &protocol.HoverParams{}
-	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
-	params.Position = pos
+	params.TextDocument.URI = loc.URI
+	params.Position = loc.Range.Start
 
 	resp, err := e.Server.Hover(ctx, params)
 	if err != nil {
-		return nil, protocol.Position{}, fmt.Errorf("hover: %w", err)
+		return nil, protocol.Location{}, fmt.Errorf("hover: %w", err)
 	}
 	if resp == nil {
-		return nil, protocol.Position{}, nil
+		return nil, protocol.Location{}, nil
 	}
-	return &resp.Contents, resp.Range.Start, nil
+	return &resp.Contents, protocol.Location{URI: loc.URI, Range: resp.Range}, nil
 }
 
 func (e *Editor) DocumentLink(ctx context.Context, path string) ([]protocol.DocumentLink, error) {
@@ -1422,16 +1421,16 @@ func (e *Editor) DocumentLink(ctx context.Context, path string) ([]protocol.Docu
 	return e.Server.DocumentLink(ctx, params)
 }
 
-func (e *Editor) DocumentHighlight(ctx context.Context, path string, pos protocol.Position) ([]protocol.DocumentHighlight, error) {
+func (e *Editor) DocumentHighlight(ctx context.Context, loc protocol.Location) ([]protocol.DocumentHighlight, error) {
 	if e.Server == nil {
 		return nil, nil
 	}
-	if err := e.checkBufferPosition(path, pos); err != nil {
+	if err := e.checkBufferLocation(loc); err != nil {
 		return nil, err
 	}
 	params := &protocol.DocumentHighlightParams{}
-	params.TextDocument.URI = e.sandbox.Workdir.URI(path)
-	params.Position = pos
+	params.TextDocument.URI = loc.URI
+	params.Position = loc.Range.Start
 
 	return e.Server.DocumentHighlight(ctx, params)
 }

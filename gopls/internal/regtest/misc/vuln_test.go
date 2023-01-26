@@ -644,9 +644,9 @@ func TestRunVulncheckWarning(t *testing.T) {
 			"go.mod": {IDs: []string{"GO-2022-01", "GO-2022-02", "GO-2022-03"}, Mode: govulncheck.ModeGovulncheck},
 		})
 		env.OpenFile("x/x.go")
-		lineX := env.RegexpSearch("x/x.go", `c\.C1\(\)\.Vuln1\(\)`)
+		lineX := env.RegexpSearch("x/x.go", `c\.C1\(\)\.Vuln1\(\)`).Range.Start
 		env.OpenFile("y/y.go")
-		lineY := env.RegexpSearch("y/y.go", `c\.C2\(\)\(\)`)
+		lineY := env.RegexpSearch("y/y.go", `c\.C2\(\)\(\)`).Range.Start
 		wantDiagnostics := map[string]vulnDiagExpectation{
 			"golang.org/amod": {
 				applyAction: "Upgrade to v1.0.6",
@@ -862,14 +862,14 @@ func TestGovulncheckInfo(t *testing.T) {
 // and runs checks if diagnostics and code actions associated with the line match expectation.
 func testVulnDiagnostics(t *testing.T, env *Env, pattern string, want vulnDiagExpectation, got *protocol.PublishDiagnosticsParams) []protocol.Diagnostic {
 	t.Helper()
-	pos := env.RegexpSearch("go.mod", pattern)
+	loc := env.RegexpSearch("go.mod", pattern)
 	var modPathDiagnostics []protocol.Diagnostic
 	for _, w := range want.diagnostics {
-		// Find the diagnostics at pos.
+		// Find the diagnostics at loc.start.
 		var diag *protocol.Diagnostic
 		for _, g := range got.Diagnostics {
 			g := g
-			if g.Range.Start == pos && w.msg == g.Message {
+			if g.Range.Start == loc.Range.Start && w.msg == g.Message {
 				modPathDiagnostics = append(modPathDiagnostics, g)
 				diag = &g
 				break
@@ -895,7 +895,7 @@ func testVulnDiagnostics(t *testing.T, env *Env, pattern string, want vulnDiagEx
 	}
 	// Check that useful info is supplemented as hover.
 	if len(want.hover) > 0 {
-		hover, _ := env.Hover("go.mod", pos)
+		hover, _ := env.Hover(loc)
 		for _, part := range want.hover {
 			if !strings.Contains(hover.Value, part) {
 				t.Errorf("hover contents for %q do not match, want %v, got %v\n", pattern, strings.Join(want.hover, ","), hover.Value)

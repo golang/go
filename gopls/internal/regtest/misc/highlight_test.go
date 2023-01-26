@@ -30,9 +30,9 @@ func main() {
 	Run(t, mod, func(t *testing.T, env *Env) {
 		const file = "main.go"
 		env.OpenFile(file)
-		_, pos := env.GoToDefinition(file, env.RegexpSearch(file, `var (A) string`))
+		loc := env.GoToDefinition(env.RegexpSearch(file, `var (A) string`))
 
-		checkHighlights(env, file, pos, 3)
+		checkHighlights(env, loc, 3)
 	})
 }
 
@@ -53,10 +53,11 @@ func main() {
 
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		file, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `fmt\.(Printf)`))
-		pos := env.RegexpSearch(file, `func Printf\((format) string`)
+		defLoc := env.GoToDefinition(env.RegexpSearch("main.go", `fmt\.(Printf)`))
+		file := env.Sandbox.Workdir.URIToPath(defLoc.URI)
+		loc := env.RegexpSearch(file, `func Printf\((format) string`)
 
-		checkHighlights(env, file, pos, 2)
+		checkHighlights(env, loc, 2)
 	})
 }
 
@@ -112,26 +113,28 @@ func main() {}`
 	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 
-		file, _ := env.GoToDefinition("main.go", env.RegexpSearch("main.go", `"example.com/global"`))
-		pos := env.RegexpSearch(file, `const (A)`)
-		checkHighlights(env, file, pos, 4)
+		defLoc := env.GoToDefinition(env.RegexpSearch("main.go", `"example.com/global"`))
+		file := env.Sandbox.Workdir.URIToPath(defLoc.URI)
+		loc := env.RegexpSearch(file, `const (A)`)
+		checkHighlights(env, loc, 4)
 
-		file, _ = env.GoToDefinition("main.go", env.RegexpSearch("main.go", `"example.com/local"`))
-		pos = env.RegexpSearch(file, `const (b)`)
-		checkHighlights(env, file, pos, 5)
+		defLoc = env.GoToDefinition(env.RegexpSearch("main.go", `"example.com/local"`))
+		file = env.Sandbox.Workdir.URIToPath(defLoc.URI)
+		loc = env.RegexpSearch(file, `const (b)`)
+		checkHighlights(env, loc, 5)
 	})
 }
 
-func checkHighlights(env *Env, file string, pos protocol.Position, highlightCount int) {
+func checkHighlights(env *Env, loc protocol.Location, highlightCount int) {
 	t := env.T
 	t.Helper()
 
-	highlights := env.DocumentHighlight(file, pos)
+	highlights := env.DocumentHighlight(loc)
 	if len(highlights) != highlightCount {
 		t.Fatalf("expected %v highlight(s), got %v", highlightCount, len(highlights))
 	}
 
-	references := env.References(file, pos)
+	references := env.References(loc)
 	if len(highlights) != len(references) {
 		t.Fatalf("number of highlights and references is expected to be equal: %v != %v", len(highlights), len(references))
 	}

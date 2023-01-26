@@ -113,37 +113,19 @@ func (e *Env) SetBufferContent(name string, content string) {
 	}
 }
 
-// RegexpRange returns the range of the first match for re in the buffer
-// specified by name, calling t.Fatal on any error. It first searches for the
-// position in open buffers, then in workspace files.
-func (e *Env) RegexpRange(name, re string) protocol.Range {
-	e.T.Helper()
-	rng, err := e.Editor.RegexpRange(name, re)
-	if err == fake.ErrUnknownBuffer {
-		rng, err = e.Sandbox.Workdir.RegexpRange(name, re)
-	}
-	if err != nil {
-		e.T.Fatalf("RegexpRange: %v, %v", name, err)
-	}
-	return rng
-}
-
 // RegexpSearch returns the starting position of the first match for re in the
 // buffer specified by name, calling t.Fatal on any error. It first searches
 // for the position in open buffers, then in workspace files.
-//
-// TODO(rfindley): RegexpSearch should return a protocol.Location (but that is
-// a large change).
-func (e *Env) RegexpSearch(name, re string) protocol.Position {
+func (e *Env) RegexpSearch(name, re string) protocol.Location {
 	e.T.Helper()
-	pos, err := e.Editor.RegexpSearch(name, re)
+	loc, err := e.Editor.RegexpSearch(name, re)
 	if err == fake.ErrUnknownBuffer {
-		pos, err = e.Sandbox.Workdir.RegexpSearch(name, re)
+		loc, err = e.Sandbox.Workdir.RegexpSearch(name, re)
 	}
 	if err != nil {
 		e.T.Fatalf("RegexpSearch: %v, %v for %q", name, err, re)
 	}
-	return pos
+	return loc
 }
 
 // RegexpReplace replaces the first group in the first match of regexpStr with
@@ -172,13 +154,13 @@ func (e *Env) SaveBufferWithoutActions(name string) {
 
 // GoToDefinition goes to definition in the editor, calling t.Fatal on any
 // error. It returns the path and position of the resulting jump.
-func (e *Env) GoToDefinition(name string, pos protocol.Position) (string, protocol.Position) {
+func (e *Env) GoToDefinition(loc protocol.Location) protocol.Location {
 	e.T.Helper()
-	n, p, err := e.Editor.GoToDefinition(e.Ctx, name, pos)
+	loc, err := e.Editor.GoToDefinition(e.Ctx, loc)
 	if err != nil {
 		e.T.Fatal(err)
 	}
-	return n, p
+	return loc
 }
 
 // FormatBuffer formats the editor buffer, calling t.Fatal on any error.
@@ -201,7 +183,8 @@ func (e *Env) OrganizeImports(name string) {
 // ApplyQuickFixes processes the quickfix codeAction, calling t.Fatal on any error.
 func (e *Env) ApplyQuickFixes(path string, diagnostics []protocol.Diagnostic) {
 	e.T.Helper()
-	if err := e.Editor.ApplyQuickFixes(e.Ctx, path, nil, diagnostics); err != nil {
+	loc := protocol.Location{URI: e.Sandbox.Workdir.URI(path)} // zero Range => whole file
+	if err := e.Editor.ApplyQuickFixes(e.Ctx, loc, diagnostics); err != nil {
 		e.T.Fatal(err)
 	}
 }
@@ -217,7 +200,8 @@ func (e *Env) ApplyCodeAction(action protocol.CodeAction) {
 // GetQuickFixes returns the available quick fix code actions.
 func (e *Env) GetQuickFixes(path string, diagnostics []protocol.Diagnostic) []protocol.CodeAction {
 	e.T.Helper()
-	actions, err := e.Editor.GetQuickFixes(e.Ctx, path, nil, diagnostics)
+	loc := protocol.Location{URI: e.Sandbox.Workdir.URI(path)} // zero Range => whole file
+	actions, err := e.Editor.GetQuickFixes(e.Ctx, loc, diagnostics)
 	if err != nil {
 		e.T.Fatal(err)
 	}
@@ -225,13 +209,13 @@ func (e *Env) GetQuickFixes(path string, diagnostics []protocol.Diagnostic) []pr
 }
 
 // Hover in the editor, calling t.Fatal on any error.
-func (e *Env) Hover(name string, pos protocol.Position) (*protocol.MarkupContent, protocol.Position) {
+func (e *Env) Hover(loc protocol.Location) (*protocol.MarkupContent, protocol.Location) {
 	e.T.Helper()
-	c, p, err := e.Editor.Hover(e.Ctx, name, pos)
+	c, loc, err := e.Editor.Hover(e.Ctx, loc)
 	if err != nil {
 		e.T.Fatal(err)
 	}
-	return c, p
+	return c, loc
 }
 
 func (e *Env) DocumentLink(name string) []protocol.DocumentLink {
@@ -243,9 +227,9 @@ func (e *Env) DocumentLink(name string) []protocol.DocumentLink {
 	return links
 }
 
-func (e *Env) DocumentHighlight(name string, pos protocol.Position) []protocol.DocumentHighlight {
+func (e *Env) DocumentHighlight(loc protocol.Location) []protocol.DocumentHighlight {
 	e.T.Helper()
-	highlights, err := e.Editor.DocumentHighlight(e.Ctx, name, pos)
+	highlights, err := e.Editor.DocumentHighlight(e.Ctx, loc)
 	if err != nil {
 		e.T.Fatal(err)
 	}
@@ -398,9 +382,9 @@ func (e *Env) Symbol(query string) []protocol.SymbolInformation {
 }
 
 // References wraps Editor.References, calling t.Fatal on any error.
-func (e *Env) References(path string, pos protocol.Position) []protocol.Location {
+func (e *Env) References(loc protocol.Location) []protocol.Location {
 	e.T.Helper()
-	locations, err := e.Editor.References(e.Ctx, path, pos)
+	locations, err := e.Editor.References(e.Ctx, loc)
 	if err != nil {
 		e.T.Fatal(err)
 	}
@@ -408,17 +392,17 @@ func (e *Env) References(path string, pos protocol.Position) []protocol.Location
 }
 
 // Rename wraps Editor.Rename, calling t.Fatal on any error.
-func (e *Env) Rename(path string, pos protocol.Position, newName string) {
+func (e *Env) Rename(loc protocol.Location, newName string) {
 	e.T.Helper()
-	if err := e.Editor.Rename(e.Ctx, path, pos, newName); err != nil {
+	if err := e.Editor.Rename(e.Ctx, loc, newName); err != nil {
 		e.T.Fatal(err)
 	}
 }
 
 // Implementations wraps Editor.Implementations, calling t.Fatal on any error.
-func (e *Env) Implementations(path string, pos protocol.Position) []protocol.Location {
+func (e *Env) Implementations(loc protocol.Location) []protocol.Location {
 	e.T.Helper()
-	locations, err := e.Editor.Implementations(e.Ctx, path, pos)
+	locations, err := e.Editor.Implementations(e.Ctx, loc)
 	if err != nil {
 		e.T.Fatal(err)
 	}
@@ -434,9 +418,9 @@ func (e *Env) RenameFile(oldPath, newPath string) {
 }
 
 // Completion executes a completion request on the server.
-func (e *Env) Completion(path string, pos protocol.Position) *protocol.CompletionList {
+func (e *Env) Completion(loc protocol.Location) *protocol.CompletionList {
 	e.T.Helper()
-	completions, err := e.Editor.Completion(e.Ctx, path, pos)
+	completions, err := e.Editor.Completion(e.Ctx, loc)
 	if err != nil {
 		e.T.Fatal(err)
 	}
@@ -445,9 +429,9 @@ func (e *Env) Completion(path string, pos protocol.Position) *protocol.Completio
 
 // AcceptCompletion accepts a completion for the given item at the given
 // position.
-func (e *Env) AcceptCompletion(path string, pos protocol.Position, item protocol.CompletionItem) {
+func (e *Env) AcceptCompletion(loc protocol.Location, item protocol.CompletionItem) {
 	e.T.Helper()
-	if err := e.Editor.AcceptCompletion(e.Ctx, path, pos, item); err != nil {
+	if err := e.Editor.AcceptCompletion(e.Ctx, loc, item); err != nil {
 		e.T.Fatal(err)
 	}
 }
@@ -456,7 +440,8 @@ func (e *Env) AcceptCompletion(path string, pos protocol.Position, item protocol
 // t.Fatal if there are errors.
 func (e *Env) CodeAction(path string, diagnostics []protocol.Diagnostic) []protocol.CodeAction {
 	e.T.Helper()
-	actions, err := e.Editor.CodeAction(e.Ctx, path, nil, diagnostics)
+	loc := protocol.Location{URI: e.Sandbox.Workdir.URI(path)} // no Range => whole file
+	actions, err := e.Editor.CodeAction(e.Ctx, loc, diagnostics)
 	if err != nil {
 		e.T.Fatal(err)
 	}

@@ -34,7 +34,7 @@ func main() {
 }`
 	Run(t, mod, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
-		content, _ := env.Hover("main.go", env.RegexpSearch("main.go", "Error"))
+		content, _ := env.Hover(env.RegexpSearch("main.go", "Error"))
 		if content == nil {
 			t.Fatalf("Hover('Error') returned nil")
 		}

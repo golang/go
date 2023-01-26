@@ -447,13 +447,13 @@ func foo() string {
 
 				env.SetBufferContent("foo.go", c.before)
 
-				pos := env.RegexpSearch("foo.go", "\n}")
-				completions := env.Completion("foo.go", pos)
+				loc := env.RegexpSearch("foo.go", "\n}")
+				completions := env.Completion(loc)
 				if len(completions.Items) != 1 {
 					t.Fatalf("expected one completion, got %v", completions.Items)
 				}
 
-				env.AcceptCompletion("foo.go", pos, completions.Items[0])
+				env.AcceptCompletion(loc, completions.Items[0])
 
 				if buf := env.BufferText("foo.go"); buf != c.after {
 					t.Errorf("\nGOT:\n%s\nEXPECTED:\n%s", buf, c.after)

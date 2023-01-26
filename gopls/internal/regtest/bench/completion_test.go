@@ -57,8 +57,8 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 	}
 
 	// Run a completion to make sure the system is warm.
-	pos := env.RegexpSearch(options.file, options.locationRegexp)
-	completions := env.Completion(options.file, pos)
+	loc := env.RegexpSearch(options.file, options.locationRegexp)
+	completions := env.Completion(loc)
 
 	if testing.Verbose() {
 		fmt.Println("Results:")
@@ -77,7 +77,7 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 			if options.beforeCompletion != nil {
 				options.beforeCompletion(env)
 			}
-			env.Completion(options.file, pos)
+			env.Completion(loc)
 		}
 	})
 }

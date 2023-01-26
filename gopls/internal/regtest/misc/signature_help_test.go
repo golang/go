@@ -49,10 +49,10 @@ func _() {
 		env.OpenFile("a/a/a.go")
 		env.OpenFile("b/b/b.go")
 		signatureHelp := func(filename string) *protocol.SignatureHelp {
-			pos := env.RegexpSearch(filename, `DoSomething\(()\)`)
+			loc := env.RegexpSearch(filename, `DoSomething\(()\)`)
 			var params protocol.SignatureHelpParams
-			params.Position = pos
-			params.TextDocument.URI = env.Sandbox.Workdir.URI(filename)
+			params.TextDocument.URI = loc.URI
+			params.Position = loc.Range.Start
 			help, err := env.Editor.Server.SignatureHelp(env.Ctx, &params)
 			if err != nil {
 				t.Fatal(err)
