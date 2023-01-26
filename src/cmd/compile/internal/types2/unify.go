@@ -17,15 +17,7 @@ import (
 // provided to the unify call. For unidirectional unification, only
 // one of these sets (say x) is provided, and then type parameters are
 // only resolved for the x argument passed to unify, not the y argument
-// (even if that also contains possibly the same type parameters). This
-// is crucial to infer the type parameters of self-recursive calls:
-//
-//	func f[P any](a P) { f(a) }
-//
-// For the call f(a) we want to infer that the type argument for P is P.
-// During unification, the parameter type P must be resolved to the type
-// parameter P ("x" side), but the argument type P must be left alone so
-// that unification resolves the type parameter P to P.
+// (even if that also contains possibly the same type parameters).
 //
 // For bidirectional unification, both sets are provided. This enables
 // unification to go from argument to parameter type and vice versa.
