@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -24,6 +25,11 @@ func (s *Server) definition(ctx context.Context, params *protocol.DefinitionPara
 	case source.Tmpl:
 		return template.Definition(snapshot, fh, params.Position)
 	case source.Go:
+		// Partial support for jumping from linkname directive (position at 2nd argument).
+		locations, err := source.LinknameDefinition(ctx, snapshot, fh, params.Position)
+		if !errors.Is(err, source.ErrNoLinkname) {
+			return locations, err
+		}
 		return source.Definition(ctx, snapshot, fh, params.Position)
 	default:
 		return nil, fmt.Errorf("can't find definitions for file type %s", kind)

@@ -49,6 +49,104 @@ func TestGoToInternalDefinition(t *testing.T) {
 	})
 }
 
+const linknameDefinition = `
+-- go.mod --
+module mod.com
+
+-- upper/upper.go --
+package upper
+
+import (
+	_ "unsafe"
+
+	_ "mod.com/middle"
+)
+
+//go:linkname foo mod.com/lower.bar
+func foo() string
+
+-- middle/middle.go --
+package middle
+
+import (
+	_ "mod.com/lower"
+)
+
+-- lower/lower.s --
+
+-- lower/lower.go --
+package lower
+
+func bar() string {
+	return "bar as foo"
+}`
+
+func TestGoToLinknameDefinition(t *testing.T) {
+	Run(t, linknameDefinition, func(t *testing.T, env *Env) {
+		env.OpenFile("upper/upper.go")
+
+		// Jump from directives 2nd arg.
+		start := env.RegexpSearch("upper/upper.go", `lower.bar`)
+		loc := env.GoToDefinition(start)
+		name := env.Sandbox.Workdir.URIToPath(loc.URI)
+		if want := "lower/lower.go"; name != want {
+			t.Errorf("GoToDefinition: got file %q, want %q", name, want)
+		}
+		if want := env.RegexpSearch("lower/lower.go", `bar`); loc != want {
+			t.Errorf("GoToDefinition: got position %v, want %v", loc, want)
+		}
+	})
+}
+
+const linknameDefinitionReverse = `
+-- go.mod --
+module mod.com
+
+-- upper/upper.s --
+
+-- upper/upper.go --
+package upper
+
+import (
+	_ "mod.com/middle"
+)
+
+func foo() string
+
+-- middle/middle.go --
+package middle
+
+import (
+	_ "mod.com/lower"
+)
+
+-- lower/lower.go --
+package lower
+
+import _ "unsafe"
+
+//go:linkname bar mod.com/upper.foo
+func bar() string {
+	return "bar as foo"
+}`
+
+func TestGoToLinknameDefinitionInReverseDep(t *testing.T) {
+	Run(t, linknameDefinitionReverse, func(t *testing.T, env *Env) {
+		env.OpenFile("lower/lower.go")
+
+		// Jump from directives 2nd arg.
+		start := env.RegexpSearch("lower/lower.go", `upper.foo`)
+		loc := env.GoToDefinition(start)
+		name := env.Sandbox.Workdir.URIToPath(loc.URI)
+		if want := "upper/upper.go"; name != want {
+			t.Errorf("GoToDefinition: got file %q, want %q", name, want)
+		}
+		if want := env.RegexpSearch("upper/upper.go", `foo`); loc != want {
+			t.Errorf("GoToDefinition: got position %v, want %v", loc, want)
+		}
+	})
+}
+
 const stdlibDefinition = `
 -- go.mod --
 module mod.com
