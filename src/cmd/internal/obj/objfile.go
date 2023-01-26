@@ -344,6 +344,9 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(s.Name, w.ctxt.Pkgpath) && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath):], ".") && strings.HasPrefix(s.Name[len(w.ctxt.Pkgpath)+1:], objabi.GlobalDictPrefix) {
 		flag2 |= goobj.SymFlagDict
 	}
+	if s.IsPkgInit() {
+		flag2 |= goobj.SymFlagPkgInit
+	}
 	name := s.Name
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)

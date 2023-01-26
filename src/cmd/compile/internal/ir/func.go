@@ -204,6 +204,7 @@ const (
 	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
 	funcClosureCalled            // closure is only immediately called; used by escape analysis
+	funcPackageInit              // compiler emitted .init func for package
 )
 
 type SymAndPos struct {
@@ -225,6 +226,7 @@ func (f *Func) ExportInline() bool             { return f.flags&funcExportInline
 func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
 func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
 func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalled != 0 }
+func (f *Func) IsPackageInit() bool            { return f.flags&funcPackageInit != 0 }
 
 func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
@@ -240,6 +242,7 @@ func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInlin
 func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
 func (f *Func) SetClosureCalled(b bool)            { f.flags.set(funcClosureCalled, b) }
+func (f *Func) SetIsPackageInit(b bool)            { f.flags.set(funcPackageInit, b) }
 
 func (f *Func) SetWBPos(pos src.XPos) {
 	if base.Debug.WB != 0 {

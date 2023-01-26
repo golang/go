@@ -1190,6 +1190,15 @@ func (l *Loader) IsDict(i Sym) bool {
 	return r.Sym(li).IsDict()
 }
 
+// Returns whether this symbol is a compiler-generated package init func.
+func (l *Loader) IsPkgInit(i Sym) bool {
+	if l.IsExternal(i) {
+		return false
+	}
+	r, li := l.toLocal(i)
+	return r.Sym(li).IsPkgInit()
+}
+
 // Return whether this is a trampoline of a deferreturn call.
 func (l *Loader) IsDeferReturnTramp(i Sym) bool {
 	return l.deferReturnTramp[i]

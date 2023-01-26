@@ -303,6 +303,7 @@ const (
 	SymFlagUsedInIface = 1 << iota
 	SymFlagItab
 	SymFlagDict
+	SymFlagPkgInit
 )
 
 // Returns the length of the name of the symbol.
@@ -333,6 +334,7 @@ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
 func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
+func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))

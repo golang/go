@@ -36,6 +36,7 @@ func MakeInit() {
 	}
 	fn.Dcl = append(fn.Dcl, typecheck.InitTodoFunc.Dcl...)
 	typecheck.InitTodoFunc.Dcl = nil
+	fn.SetIsPackageInit(true)
 
 	// Suppress useless "can inline" diagnostics.
 	// Init functions are only called dynamically.

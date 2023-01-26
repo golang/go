@@ -724,6 +724,9 @@ const (
 	// IsPcdata indicates this is a pcdata symbol.
 	AttrPcdata
 
+	// PkgInit indicates this is a compiler-generated package init func.
+	AttrPkgInit
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -752,6 +755,7 @@ func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface 
 func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
 func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
 func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 }
+func (a *Attribute) IsPkgInit() bool          { return a.load()&AttrPkgInit != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	for {
@@ -800,6 +804,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrIndexed, s: ""},
 	{bit: AttrContentAddressable, s: ""},
 	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
+	{bit: AttrPkgInit, s: "PKGINIT"},
 }
 
 // String formats a for printing in as part of a TEXT prog.
