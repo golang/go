@@ -140,7 +140,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// Set the type arguments which we know already.
 	for i, targ := range targs {
 		if targ != nil {
-			u.set(i, targ)
+			u.set(tparams[i], targ)
 		}
 	}
 
@@ -467,7 +467,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 	// Set the type arguments which we know already.
 	for i, targ := range targs {
 		if targ != nil {
-			u.set(i, targ)
+			u.set(tparams[i], targ)
 		}
 	}
 
@@ -489,7 +489,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 	for n := u.unknowns(); n > 0; {
 		nn := n
 
-		for i, tpar := range tparams {
+		for _, tpar := range tparams {
 			// If there is a core term (i.e., a core type with tilde information)
 			// unify the type parameter with the core type.
 			if core, single := coreTerm(tpar); core != nil {
@@ -497,7 +497,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 					u.tracef("core(%s) = %s (single = %v)", tpar, core, single)
 				}
 				// A type parameter can be unified with its core type in two cases.
-				tx := u.at(i)
+				tx := u.at(tpar)
 				switch {
 				case tx != nil:
 					// The corresponding type argument tx is known.
@@ -530,7 +530,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 					// The corresponding type argument tx is unknown and there's a single
 					// specific type and no tilde.
 					// In this case the type argument must be that single type; set it.
-					u.set(i, core.typ)
+					u.set(tpar, core.typ)
 
 				default:
 					// Unification is not possible and no progress was made.
