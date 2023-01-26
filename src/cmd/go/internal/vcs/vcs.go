@@ -1270,7 +1270,7 @@ func urlForImportPath(importPath string) (*urlpkg.URL, error) {
 }
 
 // repoRootForImportDynamic finds a *RepoRoot for a custom domain that's not
-// statically known by repoRootForImportPathStatic.
+// statically known by repoRootFromVCSPaths.
 //
 // This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
 func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {
