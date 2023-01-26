@@ -9,9 +9,12 @@ import (
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestGoListErrors(t *testing.T) {
+	testenv.NeedsTool(t, "cgo")
+
 	const src = `
 -- go.mod --
 module a.com
