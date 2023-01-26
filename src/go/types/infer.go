@@ -137,19 +137,18 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// Unify parameter and argument types for generic parameters with typed arguments
 	// and collect the indices of generic parameters with untyped arguments.
 	// Terminology: generic parameter = function parameter with a type-parameterized type
-	u := newUnifier(false)
-	u.x.init(tparams)
+	u := newUnifier(tparams)
 
 	// Set the type arguments which we know already.
 	for i, targ := range targs {
 		if targ != nil {
-			u.x.set(i, targ)
+			u.set(i, targ)
 		}
 	}
 
 	errorf := func(kind string, tpar, targ Type, arg *operand) {
 		// provide a better error message if we can
-		targs, index := u.x.types()
+		targs, index := u.inferred()
 		if index == 0 {
 			// The first type parameter couldn't be inferred.
 			// If none of them could be inferred, don't try
@@ -215,7 +214,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 
 	// If we've got all type arguments, we're done.
 	var index int
-	targs, index = u.x.types()
+	targs, index = u.inferred()
 	if index < 0 {
 		return targs
 	}
@@ -251,7 +250,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	}
 
 	// If we've got all type arguments, we're done.
-	targs, index = u.x.types()
+	targs, index = u.inferred()
 	if index < 0 {
 		return targs
 	}
@@ -464,16 +463,13 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 		}()
 	}
 
-	// Setup bidirectional unification between constraints
-	// and the corresponding type arguments (which may be nil!).
-	u := newUnifier(false)
-	u.x.init(tparams)
-	u.y = u.x // type parameters between LHS and RHS of unification are identical
+	// Unify type parameters with their constraints.
+	u := newUnifier(tparams)
 
 	// Set the type arguments which we know already.
 	for i, targ := range targs {
 		if targ != nil {
-			u.x.set(i, targ)
+			u.set(i, targ)
 		}
 	}
 
@@ -492,7 +488,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 	// here could handle the respective type parameters only,
 	// but that will come at a cost of extra complexity which
 	// may not be worth it.)
-	for n := u.x.unknowns(); n > 0; {
+	for n := u.unknowns(); n > 0; {
 		nn := n
 
 		for i, tpar := range tparams {
@@ -503,7 +499,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 					u.tracef("core(%s) = %s (single = %v)", tpar, core, single)
 				}
 				// A type parameter can be unified with its core type in two cases.
-				tx := u.x.at(i)
+				tx := u.at(i)
 				switch {
 				case tx != nil:
 					// The corresponding type argument tx is known.
@@ -536,7 +532,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 					// The corresponding type argument tx is unknown and there's a single
 					// specific type and no tilde.
 					// In this case the type argument must be that single type; set it.
-					u.x.set(i, core.typ)
+					u.set(i, core.typ)
 
 				default:
 					// Unification is not possible and no progress was made.
@@ -544,7 +540,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 				}
 
 				// The number of known type arguments may have changed.
-				nn = u.x.unknowns()
+				nn = u.unknowns()
 				if nn == 0 {
 					break // all type arguments are known
 				}
@@ -562,14 +558,14 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 		n = nn
 	}
 
-	// u.x.types() now contains the incoming type arguments plus any additional type
+	// u.inferred() now contains the incoming type arguments plus any additional type
 	// arguments which were inferred from core terms. The newly inferred non-nil
 	// entries may still contain references to other type parameters.
 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
 	// remaining type parameters by substituting the type parameters in this type list
 	// until nothing changes anymore.
-	types, _ = u.x.types()
+	types, _ = u.inferred()
 	if debug {
 		for i, targ := range targs {
 			assert(targ == nil || types[i] == targ)
