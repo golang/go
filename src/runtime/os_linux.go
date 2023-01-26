@@ -558,9 +558,6 @@ func signalM(mp *m, sig int) {
 	tgkill(getpid(), int(mp.procid), sig)
 }
 
-// go118UseTimerCreateProfiler enables the per-thread CPU profiler.
-const go118UseTimerCreateProfiler = true
-
 // validSIGPROF compares this signal delivery's code against the signal sources
 // that the profiler uses, returning whether the delivery should be processed.
 // To be processed, a signal delivery from a known profiling mechanism should
@@ -618,10 +615,6 @@ func setProcessCPUProfiler(hz int32) {
 func setThreadCPUProfiler(hz int32) {
 	mp := getg().m
 	mp.profilehz = hz
-
-	if !go118UseTimerCreateProfiler {
-		return
-	}
 
 	// destroy any active timer
 	if mp.profileTimerValid.Load() {
