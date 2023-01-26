@@ -63,10 +63,7 @@ func (r *references) Run(ctx context.Context, args ...string) error {
 		Context: protocol.ReferenceContext{
 			IncludeDeclaration: r.IncludeDeclaration,
 		},
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 	locations, err := conn.References(ctx, &p)
 	if err != nil {

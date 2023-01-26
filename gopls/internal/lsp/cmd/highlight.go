@@ -57,10 +57,7 @@ func (r *highlight) Run(ctx context.Context, args ...string) error {
 	}
 
 	p := protocol.DocumentHighlightParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 	highlights, err := conn.DocumentHighlight(ctx, &p)
 	if err != nil {

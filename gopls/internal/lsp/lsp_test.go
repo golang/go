@@ -154,10 +154,7 @@ func (r *runner) CallHierarchy(t *testing.T, spn span.Span, expectedCalls *tests
 	}
 
 	params := &protocol.CallHierarchyPrepareParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 
 	items, err := r.server.PrepareCallHierarchy(r.ctx, params)
@@ -678,10 +675,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
-	tdpp := protocol.TextDocumentPositionParams{
-		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-		Position:     loc.Range.Start,
-	}
+	tdpp := protocol.LocationTextDocumentPositionParams(loc)
 	var locs []protocol.Location
 	var hover *protocol.Hover
 	if d.IsType {
@@ -749,10 +743,7 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, wantSpans []span.Sp
 		t.Fatal(err)
 	}
 	gotImpls, err := r.server.Implementation(r.ctx, &protocol.ImplementationParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	})
 	if err != nil {
 		t.Fatalf("Server.Implementation(%s): %v", spn, err)
@@ -780,17 +771,8 @@ func (r *runner) Highlight(t *testing.T, src span.Span, spans []span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tdpp := protocol.TextDocumentPositionParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: loc.URI,
-		},
-		Position: loc.Range.Start,
-	}
-	if err != nil {
-		t.Fatalf("Mapper.SpanDocumentPosition(%v) failed: %v", src, err)
-	}
 	params := &protocol.DocumentHighlightParams{
-		TextDocumentPositionParams: tdpp,
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 	highlights, err := r.server.DocumentHighlight(r.ctx, params)
 	if err != nil {
@@ -833,12 +815,8 @@ func (r *runner) Hover(t *testing.T, src span.Span, text string) {
 	if err != nil {
 		t.Fatalf("failed for %v", err)
 	}
-	tdpp := protocol.TextDocumentPositionParams{
-		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-		Position:     loc.Range.Start,
-	}
 	params := &protocol.HoverParams{
-		TextDocumentPositionParams: tdpp,
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 	hover, err := r.server.Hover(r.ctx, params)
 	if err != nil {
@@ -894,10 +872,7 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 				want[loc] = true
 			}
 			params := &protocol.ReferenceParams{
-				TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-					TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-					Position:     loc.Range.Start,
-				},
+				TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 				Context: protocol.ReferenceContext{
 					IncludeDeclaration: includeDeclaration,
 				},
@@ -1065,12 +1040,8 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	if err != nil {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
-	tdpp := protocol.TextDocumentPositionParams{
-		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-		Position:     loc.Range.Start,
-	}
 	params := &protocol.PrepareRenameParams{
-		TextDocumentPositionParams: tdpp,
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 	got, err := r.server.PrepareRename(context.Background(), params)
 	if err != nil {
@@ -1206,14 +1177,8 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.Signa
 	if err != nil {
 		t.Fatalf("failed for %v: %v", loc, err)
 	}
-	tdpp := protocol.TextDocumentPositionParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(spn.URI()),
-		},
-		Position: loc.Range.Start,
-	}
 	params := &protocol.SignatureHelpParams{
-		TextDocumentPositionParams: tdpp,
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 	got, err := r.server.SignatureHelp(r.ctx, params)
 	if err != nil {

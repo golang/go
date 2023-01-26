@@ -60,10 +60,7 @@ func (r *prepareRename) Run(ctx context.Context, args ...string) error {
 		return err
 	}
 	p := protocol.PrepareRenameParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 	result, err := conn.PrepareRename(ctx, &p)
 	if err != nil {

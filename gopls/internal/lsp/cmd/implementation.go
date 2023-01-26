@@ -58,12 +58,8 @@ func (i *implementation) Run(ctx context.Context, args ...string) error {
 	}
 
 	p := protocol.ImplementationParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
-
 	implementations, err := conn.Implementation(ctx, &p)
 	if err != nil {
 		return err

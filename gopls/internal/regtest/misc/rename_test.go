@@ -35,13 +35,8 @@ func main() {
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		loc := env.RegexpSearch("main.go", `main`)
-		// TODO(adonovan): define a helper from Location to TextDocumentPositionParams.
-		tdpp := protocol.TextDocumentPositionParams{
-			TextDocument: env.Editor.TextDocumentIdentifier("main.go"),
-			Position:     loc.Range.Start,
-		}
 		params := &protocol.PrepareRenameParams{
-			TextDocumentPositionParams: tdpp,
+			TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 		}
 		_, err := env.Editor.Server.PrepareRename(env.Ctx, params)
 		if err == nil {
@@ -142,12 +137,8 @@ func main() {
 	const wantErr = "can't rename package: missing module information for package"
 	Run(t, files, func(t *testing.T, env *Env) {
 		loc := env.RegexpSearch("lib/a.go", "lib")
-		tdpp := protocol.TextDocumentPositionParams{
-			TextDocument: env.Editor.TextDocumentIdentifier("lib/a.go"),
-			Position:     loc.Range.Start,
-		}
 		params := &protocol.PrepareRenameParams{
-			TextDocumentPositionParams: tdpp,
+			TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 		}
 		_, err := env.Editor.Server.PrepareRename(env.Ctx, params)
 		if err == nil || !strings.Contains(err.Error(), wantErr) {

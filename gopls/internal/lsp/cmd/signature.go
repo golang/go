@@ -56,14 +56,8 @@ func (r *signature) Run(ctx context.Context, args ...string) error {
 		return err
 	}
 
-	tdpp := protocol.TextDocumentPositionParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(from.URI()),
-		},
-		Position: loc.Range.Start,
-	}
 	p := protocol.SignatureHelpParams{
-		TextDocumentPositionParams: tdpp,
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 
 	s, err := conn.SignatureHelp(ctx, &p)

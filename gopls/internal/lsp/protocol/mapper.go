@@ -502,3 +502,11 @@ func (mr MappedRange) Span() span.Span {
 func (mr MappedRange) String() string {
 	return fmt.Sprint(mr.Span())
 }
+
+// LocationTextDocumentPositionParams converts its argument to its result.
+func LocationTextDocumentPositionParams(loc Location) TextDocumentPositionParams {
+	return TextDocumentPositionParams{
+		TextDocument: TextDocumentIdentifier{URI: loc.URI},
+		Position:     loc.Range.Start,
+	}
+}

@@ -1047,10 +1047,7 @@ func (e *Editor) Completion(ctx context.Context, loc protocol.Location) (*protoc
 		return nil, fmt.Errorf("buffer %q is not open", path)
 	}
 	params := &protocol.CompletionParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: e.TextDocumentIdentifier(path),
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 	completions, err := e.Server.Completion(ctx, params)
 	if err != nil {
@@ -1122,10 +1119,7 @@ func (e *Editor) References(ctx context.Context, loc protocol.Location) ([]proto
 		return nil, fmt.Errorf("buffer %q is not open", path)
 	}
 	params := &protocol.ReferenceParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: e.TextDocumentIdentifier(path),
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 		Context: protocol.ReferenceContext{
 			IncludeDeclaration: true,
 		},
@@ -1185,10 +1179,7 @@ func (e *Editor) Implementations(ctx context.Context, loc protocol.Location) ([]
 		return nil, fmt.Errorf("buffer %q is not open", path)
 	}
 	params := &protocol.ImplementationParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: e.TextDocumentIdentifier(path),
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 	return e.Server.Implementation(ctx, params)
 }

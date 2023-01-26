@@ -58,10 +58,7 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 	}
 
 	p := protocol.CallHierarchyPrepareParams{
-		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
-			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-			Position:     loc.Range.Start,
-		},
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
 	}
 
 	callItems, err := conn.PrepareCallHierarchy(ctx, &p)
