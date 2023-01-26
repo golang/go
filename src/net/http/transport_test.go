@@ -3700,13 +3700,8 @@ func testTransportClosesBodyOnError(t *testing.T, mode testMode) {
 	if err == nil || !strings.Contains(err.Error(), fakeErr.Error()) {
 		t.Fatalf("Do error = %v; want something containing %q", err, fakeErr.Error())
 	}
-	select {
-	case err := <-readBody:
-		if err == nil {
-			t.Errorf("Unexpected success reading request body from handler; want 'unexpected EOF reading trailer'")
-		}
-	case <-time.After(5 * time.Second):
-		t.Error("timeout waiting for server handler to complete")
+	if err := <-readBody; err == nil {
+		t.Errorf("Unexpected success reading request body from handler; want 'unexpected EOF reading trailer'")
 	}
 	select {
 	case <-didClose:
