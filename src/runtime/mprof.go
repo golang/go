@@ -844,18 +844,13 @@ func runtime_goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer
 	return goroutineProfileWithLabels(p, labels)
 }
 
-const go119ConcurrentGoroutineProfile = true
-
 // labels may be nil. If labels is non-nil, it must have the same length as p.
 func goroutineProfileWithLabels(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
 	if labels != nil && len(labels) != len(p) {
 		labels = nil
 	}
 
-	if go119ConcurrentGoroutineProfile {
-		return goroutineProfileWithLabelsConcurrent(p, labels)
-	}
-	return goroutineProfileWithLabelsSync(p, labels)
+	return goroutineProfileWithLabelsConcurrent(p, labels)
 }
 
 var goroutineProfile = struct {
