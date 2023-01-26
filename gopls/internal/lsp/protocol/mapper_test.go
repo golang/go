@@ -401,4 +401,41 @@ func TestRange(t *testing.T) {
 	}
 }
 
+func TestBytesOffset(t *testing.T) {
+	tests := []struct {
+		text string
+		pos  protocol.Position
+		want int
+	}{
+		// U+10400 encodes as [F0 90 90 80] in UTF-8 and [D801 DC00] in UTF-16.
+		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 0}, want: 0},
+		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 1}, want: 1},
+		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 2}, want: 1},
+		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 3}, want: 5},
+		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 4}, want: 6},
+		{text: `a𐐀b`, pos: protocol.Position{Line: 0, Character: 5}, want: -1},
+		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 0, Character: 3}, want: 3},
+		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 0, Character: 4}, want: -1},
+		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 1, Character: 0}, want: 4},
+		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 1, Character: 3}, want: 7},
+		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 1, Character: 4}, want: -1},
+		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 2, Character: 0}, want: 8},
+		{text: "aaa\nbbb\n", pos: protocol.Position{Line: 2, Character: 1}, want: -1},
+		{text: "aaa\nbbb\n\n", pos: protocol.Position{Line: 2, Character: 0}, want: 8},
+	}
+
+	for i, test := range tests {
+		fname := fmt.Sprintf("test %d", i)
+		uri := span.URIFromPath(fname)
+		mapper := protocol.NewMapper(uri, []byte(test.text))
+		got, err := mapper.PositionPoint(test.pos)
+		if err != nil && test.want != -1 {
+			t.Errorf("%d: unexpected error: %v", i, err)
+		}
+		if err == nil && got.Offset() != test.want {
+			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got.Offset())
+		}
+	}
+}
+
 // -- end --
