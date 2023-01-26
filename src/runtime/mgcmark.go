@@ -414,7 +414,7 @@ func gcAssistAlloc(gp *g) {
 
 	traced := false
 retry:
-	if go119MemoryLimitSupport && gcCPULimiter.limiting() {
+	if gcCPULimiter.limiting() {
 		// If the CPU limiter is enabled, intentionally don't
 		// assist to reduce the amount of CPU time spent in the GC.
 		if traced {

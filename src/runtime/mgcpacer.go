@@ -11,12 +11,6 @@ import (
 	_ "unsafe" // for go:linkname
 )
 
-// go119MemoryLimitSupport is a feature flag for a number of changes
-// related to the memory limit feature (#48409). Disabling this flag
-// disables those features, as well as the memory limit mechanism,
-// which becomes a no-op.
-const go119MemoryLimitSupport = true
-
 const (
 	// gcGoalUtilization is the goal CPU utilization for
 	// marking as a fraction of GOMAXPROCS.
@@ -899,7 +893,7 @@ func (c *gcControllerState) heapGoalInternal() (goal, minTrigger uint64) {
 	goal = c.gcPercentHeapGoal.Load()
 
 	// Check if the memory-limit-based goal is smaller, and if so, pick that.
-	if newGoal := c.memoryLimitHeapGoal(); go119MemoryLimitSupport && newGoal < goal {
+	if newGoal := c.memoryLimitHeapGoal(); newGoal < goal {
 		goal = newGoal
 	} else {
 		// We're not limited by the memory limit goal, so perform a series of

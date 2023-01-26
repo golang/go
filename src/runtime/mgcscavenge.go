@@ -379,8 +379,7 @@ func (s *scavengerState) init() {
 		s.shouldStop = func() bool {
 			// If background scavenging is disabled or if there's no work to do just stop.
 			return heapRetained() <= scavenge.gcPercentGoal.Load() &&
-				(!go119MemoryLimitSupport ||
-					gcController.mappedReady.Load() <= scavenge.memoryLimitGoal.Load())
+				gcController.mappedReady.Load() <= scavenge.memoryLimitGoal.Load()
 		}
 	}
 	if s.gomaxprocs == nil {
