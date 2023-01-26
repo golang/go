@@ -6,7 +6,6 @@ package source
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -20,7 +19,6 @@ import (
 
 // ReferenceInfo holds information about reference to an identifier in Go source.
 type ReferenceInfo struct {
-	Name          string
 	MappedRange   protocol.MappedRange
 	ident         *ast.Ident
 	obj           types.Object
@@ -49,7 +47,7 @@ func parsePackageNameDecl(ctx context.Context, snapshot Snapshot, fh FileHandle,
 // (Arguably it should accept a smaller data type.)
 //
 // This implementation serves Server.rename. TODO(adonovan): obviate it.
-func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, includeDeclaration, includeInterfaceRefs, includeEmbeddedRefs bool) ([]*ReferenceInfo, error) {
+func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject) ([]*ReferenceInfo, error) {
 	var (
 		references []*ReferenceInfo
 		seen       = make(map[positionKey]bool)
@@ -71,16 +69,13 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 		return nil, err
 	}
 	// Make sure declaration is the first item in the response.
-	if includeDeclaration {
-		references = append(references, &ReferenceInfo{
-			MappedRange:   declIdent.MappedRange,
-			Name:          qos[0].obj.Name(),
-			ident:         declIdent.ident,
-			obj:           qos[0].obj,
-			pkg:           declIdent.pkg,
-			isDeclaration: true,
-		})
-	}
+	references = append(references, &ReferenceInfo{
+		MappedRange:   declIdent.MappedRange,
+		ident:         declIdent.ident,
+		obj:           qos[0].obj,
+		pkg:           declIdent.pkg,
+		isDeclaration: true,
+	})
 
 	for _, qo := range qos {
 		var searchPkgs []Package
@@ -120,9 +115,6 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 					// If ident is not a use of qo.obj, skip it, with one exception:
 					// uses of an embedded field can be considered references of the
 					// embedded type name
-					if !includeEmbeddedRefs {
-						continue
-					}
 					v, ok := obj.(*types.Var)
 					if !ok || !v.Embedded() {
 						continue
@@ -151,7 +143,6 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 					return nil, err
 				}
 				references = append(references, &ReferenceInfo{
-					Name:        ident.Name,
 					ident:       ident,
 					pkg:         pkg,
 					obj:         obj,
@@ -159,25 +150,6 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 				})
 			}
 		}
-	}
-
-	// When searching on type name, don't include interface references -- they
-	// would be things like all references to Stringer for any type that
-	// happened to have a String method.
-	_, isType := declIdent.Declaration.obj.(*types.TypeName)
-	if includeInterfaceRefs && !isType {
-		// TODO(adonovan): opt: don't go back into the position domain:
-		// we have complete type information already.
-		declRange := declIdent.MappedRange.Range()
-		fh, err := snapshot.GetFile(ctx, declIdent.MappedRange.URI())
-		if err != nil {
-			return nil, err
-		}
-		interfaceRefs, err := interfaceReferences(ctx, snapshot, fh, declRange.Start)
-		if err != nil {
-			return nil, err
-		}
-		references = append(references, interfaceRefs...)
 	}
 
 	return references, nil
@@ -188,28 +160,4 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject, i
 // instantiated.
 func equalOrigin(obj1, obj2 types.Object) bool {
 	return obj1.Pkg() == obj2.Pkg() && obj1.Pos() == obj2.Pos() && obj1.Name() == obj2.Name()
-}
-
-// interfaceReferences returns the references to the interfaces implemented by
-// the type or method at the given position.
-func interfaceReferences(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]*ReferenceInfo, error) {
-	implementations, err := implementations(ctx, s, f, pp)
-	if err != nil {
-		if errors.Is(err, ErrNotAType) {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	// Make a separate call to references() for each element
-	// since it treats the first qualifiedObject as a definition.
-	var refs []*ReferenceInfo
-	for _, impl := range implementations {
-		implRefs, err := references(ctx, s, []qualifiedObject{impl}, false, false, false)
-		if err != nil {
-			return nil, err
-		}
-		refs = append(refs, implRefs...)
-	}
-	return refs, nil
 }

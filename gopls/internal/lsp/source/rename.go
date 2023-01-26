@@ -548,6 +548,17 @@ func renameImports(ctx context.Context, snapshot Snapshot, m *Metadata, newPath 
 					try++
 					localName = fmt.Sprintf("%s%d", newName, try)
 				}
+
+				// renameObj detects various conflicts, including:
+				// - new name conflicts with a package-level decl in this file;
+				// - new name hides a package-level decl in another file that
+				//   is actually referenced in this file;
+				// - new name hides a built-in that is actually referenced
+				//   in this file;
+				// - a reference in this file to the old package name would
+				//   become shadowed by an intervening declaration that
+				//   uses the new name.
+				// It returns the edits if no conflict was detected.
 				changes, err := renameObj(ctx, snapshot, localName, qos)
 				if err != nil {
 					return err
@@ -587,7 +598,7 @@ func renameObj(ctx context.Context, s Snapshot, newName string, qos []qualifiedO
 	if !isValidIdentifier(newName) {
 		return nil, fmt.Errorf("invalid identifier to rename: %q", newName)
 	}
-	refs, err := references(ctx, s, qos, true, false, true)
+	refs, err := references(ctx, s, qos)
 	if err != nil {
 		return nil, err
 	}
