@@ -40,6 +40,8 @@ var parseIPTests = []struct {
 	{"", nil},
 	//6 zeroes in one group
 	{"0:0:0:0:000000:ffff:127.1.2.3", nil},
+	//5 zeroes in one group edge case
+	{"0:0:0:0:00000:ffff:127.1.2.3", nil},
 	{"a1:a2:a3:a4::b1:b2:b3:b4", nil}, // Issue 6628
 	{"127.001.002.003", nil},
 	{"::ffff:127.001.002.003", nil},
