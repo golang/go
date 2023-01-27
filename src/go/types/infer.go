@@ -777,3 +777,18 @@ func (w *cycleFinder) varList(list []*Var) {
 		w.typ(v.typ)
 	}
 }
+
+// If tpar is a type parameter in list, tparamIndex returns the type parameter index.
+// Otherwise, the result is < 0. tpar must not be nil.
+func tparamIndex(list []*TypeParam, tpar *TypeParam) int {
+	// Once a type parameter is bound its index is >= 0. However, there are some
+	// code paths (namely tracing and type hashing) by which it is possible to
+	// arrive here with a type parameter that has not been bound, hence the check
+	// for 0 <= i below.
+	// TODO(rfindley): investigate a better approach for guarding against using
+	// unbound type parameters.
+	if i := tpar.index; 0 <= i && i < len(list) && list[i] == tpar {
+		return i
+	}
+	return -1
+}
