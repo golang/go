@@ -62,6 +62,7 @@ var (
 	procGetFinalPathNameByHandleW     = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetModuleFileNameW            = modkernel32.NewProc("GetModuleFileNameW")
 	procGetVolumeInformationByHandleW = modkernel32.NewProc("GetVolumeInformationByHandleW")
+	procGetTempPath2W                 = modkernel32.NewProc("GetTempPath2W")
 	procLockFileEx                    = modkernel32.NewProc("LockFileEx")
 	procModule32FirstW                = modkernel32.NewProc("Module32FirstW")
 	procModule32NextW                 = modkernel32.NewProc("Module32NextW")
@@ -213,6 +214,15 @@ func GetFinalPathNameByHandle(file syscall.Handle, filePath *uint16, filePathSiz
 
 func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) {
 	r0, _, e1 := syscall.Syscall(procGetModuleFileNameW.Addr(), 3, uintptr(module), uintptr(unsafe.Pointer(fn)), uintptr(len))
+	n = uint32(r0)
+	if n == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func GetTempPath2(buflen uint32, buf *uint16) (n uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetTempPath2W.Addr(), 2, uintptr(buflen), uintptr(unsafe.Pointer(buf)), 0)
 	n = uint32(r0)
 	if n == 0 {
 		err = errnoErr(e1)
