@@ -149,7 +149,7 @@ func (t *tester) run() {
 	if t.rebuild {
 		t.out("Building packages and commands.")
 		// Force rebuild the whole toolchain.
-		goInstall(toolenv, gorootBinGo, append([]string{"-a"}, toolchain...)...)
+		goInstall(toolenv(), gorootBinGo, append([]string{"-a"}, toolchain...)...)
 	}
 
 	if !t.listMode {
@@ -166,9 +166,9 @@ func (t *tester) run() {
 			// and virtualization we usually start with a clean GOCACHE, so we would
 			// end up rebuilding large parts of the standard library that aren't
 			// otherwise relevant to the actual set of packages under test.
-			goInstall(toolenv, gorootBinGo, toolchain...)
-			goInstall(toolenv, gorootBinGo, toolchain...)
-			goInstall(toolenv, gorootBinGo, "cmd")
+			goInstall(toolenv(), gorootBinGo, toolchain...)
+			goInstall(toolenv(), gorootBinGo, toolchain...)
+			goInstall(toolenv(), gorootBinGo, "cmd")
 		}
 	}
 

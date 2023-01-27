@@ -55,6 +55,7 @@ var (
 
 	rebuildall bool
 	noOpt      bool
+	isRelease  bool
 
 	vflag int // verbosity
 )
@@ -256,6 +257,9 @@ func xinit() {
 	xatexit(rmworkdir)
 
 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
+
+	goversion := findgoversion()
+	isRelease = strings.HasPrefix(goversion, "release.") || strings.HasPrefix(goversion, "go")
 }
 
 // compilerEnv returns a map from "goos/goarch" to the
@@ -301,7 +305,7 @@ func compilerEnv(envName, def string) map[string]string {
 
 // clangos lists the operating systems where we prefer clang to gcc.
 var clangos = []string{
-	"darwin",  // macOS 10.9 and later require clang
+	"darwin", "ios", // macOS 10.9 and later require clang
 	"freebsd", // FreeBSD 10 and later do not ship gcc
 	"openbsd", // OpenBSD ships with GCC 4.2, which is now quite old.
 }
@@ -518,8 +522,6 @@ func setup() {
 	}
 
 	// Special release-specific setup.
-	goversion := findgoversion()
-	isRelease := strings.HasPrefix(goversion, "release.") || (strings.HasPrefix(goversion, "go") && !strings.Contains(goversion, "beta"))
 	if isRelease {
 		// Make sure release-excluded things are excluded.
 		for _, dir := range unreleased {
@@ -528,19 +530,28 @@ func setup() {
 			}
 		}
 	}
-	if isRelease || os.Getenv("GO_BUILDER_NAME") != "" {
-		// Add -trimpath for reproducible builds of releases.
-		// Include builders so that -trimpath is well-tested ahead of releases.
-		// Do not include local development, so that people working in the
-		// main branch for day-to-day work on the Go toolchain itself can
-		// still have full paths for stack traces for compiler crashes and the like.
-		// toolenv = append(toolenv, "GOFLAGS=-trimpath")
-	}
 }
 
 /*
  * Tool building
  */
+
+// mustLinkExternal is a copy of internal/platform.MustLinkExternal,
+// duplicated here to avoid version skew in the MustLinkExternal function
+// during bootstrapping.
+func mustLinkExternal(goos, goarch string) bool {
+	switch goos {
+	case "android":
+		if goarch != "arm64" {
+			return true
+		}
+	case "ios":
+		if goarch == "arm64" {
+			return true
+		}
+	}
+	return false
+}
 
 // deptab lists changes to the default dependencies for a given prefix.
 // deps ending in /* read the whole directory; deps beginning with -
@@ -1265,14 +1276,33 @@ func timelog(op, name string) {
 	fmt.Fprintf(timeLogFile, "%s %+.1fs %s %s\n", t.Format(time.UnixDate), t.Sub(timeLogStart).Seconds(), op, name)
 }
 
-// toolenv is the environment to use when building cmd.
-// We disable cgo to get static binaries for cmd/go and cmd/pprof,
-// so that they work on systems without the same dynamic libraries
-// as the original build system.
-// In release branches, we add -trimpath for reproducible builds.
-// In the main branch we leave it off, so that compiler crashes and
-// the like have full path names for easier navigation to source files.
-var toolenv = []string{"CGO_ENABLED=0"}
+// toolenv returns the environment to use when building commands in cmd.
+//
+// This is a function instead of a variable because the exact toolenv depends
+// on the GOOS and GOARCH, and (at least for now) those are modified in place
+// to switch between the host and target configurations when cross-compiling.
+func toolenv() []string {
+	var env []string
+	if !mustLinkExternal(goos, goarch) {
+		// Unless the platform requires external linking,
+		// we disable cgo to get static binaries for cmd/go and cmd/pprof,
+		// so that they work on systems without the same dynamic libraries
+		// as the original build system.
+		env = append(env, "CGO_ENABLED=0")
+	}
+	if isRelease || os.Getenv("GO_BUILDER_NAME") != "" {
+		// Add -trimpath for reproducible builds of releases.
+		// Include builders so that -trimpath is well-tested ahead of releases.
+		// Do not include local development, so that people working in the
+		// main branch for day-to-day work on the Go toolchain itself can
+		// still have full paths for stack traces for compiler crashes and the like.
+		//
+		// TODO(bcmills): This was added but commented out in CL 454836.
+		// Uncomment or delete it.
+		// env = append(env, "GOFLAGS=-trimpath")
+	}
+	return env
+}
 
 var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link"}
 
@@ -1413,7 +1443,7 @@ func cmdbootstrap() {
 	os.Setenv("CC", compilerEnvLookup("CC", defaultcc, goos, goarch))
 	// Now that cmd/go is in charge of the build process, enable GOEXPERIMENT.
 	os.Setenv("GOEXPERIMENT", goexperiment)
-	goInstall(toolenv, goBootstrap, toolchain...)
+	goInstall(toolenv(), goBootstrap, toolchain...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		copyfile(pathf("%s/compile2", tooldir), pathf("%s/compile", tooldir), writeExec)
@@ -1440,7 +1470,7 @@ func cmdbootstrap() {
 		xprintf("\n")
 	}
 	xprintf("Building Go toolchain3 using go_bootstrap and Go toolchain2.\n")
-	goInstall(toolenv, goBootstrap, append([]string{"-a"}, toolchain...)...)
+	goInstall(toolenv(), goBootstrap, append([]string{"-a"}, toolchain...)...)
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
 		copyfile(pathf("%s/compile3", tooldir), pathf("%s/compile", tooldir), writeExec)
@@ -1469,9 +1499,9 @@ func cmdbootstrap() {
 			xprintf("\n")
 		}
 		xprintf("Building commands for host, %s/%s.\n", goos, goarch)
-		goInstall(toolenv, goBootstrap, "cmd")
-		checkNotStale(toolenv, goBootstrap, "cmd")
-		checkNotStale(toolenv, gorootBinGo, "cmd")
+		goInstall(toolenv(), goBootstrap, "cmd")
+		checkNotStale(toolenv(), goBootstrap, "cmd")
+		checkNotStale(toolenv(), gorootBinGo, "cmd")
 
 		timelog("build", "target toolchain")
 		if vflag > 0 {
@@ -1485,15 +1515,15 @@ func cmdbootstrap() {
 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
 	}
 	goInstall(nil, goBootstrap, "std")
-	goInstall(toolenv, goBootstrap, "cmd")
-	checkNotStale(toolenv, goBootstrap, append(toolchain, "runtime/internal/sys")...)
+	goInstall(toolenv(), goBootstrap, "cmd")
+	checkNotStale(toolenv(), goBootstrap, append(toolchain, "runtime/internal/sys")...)
 	checkNotStale(nil, goBootstrap, "std")
-	checkNotStale(toolenv, goBootstrap, "cmd")
+	checkNotStale(toolenv(), goBootstrap, "cmd")
 	checkNotStale(nil, gorootBinGo, "std")
-	checkNotStale(toolenv, gorootBinGo, "cmd")
+	checkNotStale(toolenv(), gorootBinGo, "cmd")
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
-		checkNotStale(toolenv, goBootstrap, append(toolchain, "runtime/internal/sys")...)
+		checkNotStale(toolenv(), goBootstrap, append(toolchain, "runtime/internal/sys")...)
 		copyfile(pathf("%s/compile4", tooldir), pathf("%s/compile", tooldir), writeExec)
 	}
 
