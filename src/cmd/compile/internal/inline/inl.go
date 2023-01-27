@@ -195,7 +195,7 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
 				// across more than one function.
 				CanInline(n, p)
 			} else {
-				if base.Flag.LowerM > 1 {
+				if base.Flag.LowerM > 1 && n.OClosure == nil {
 					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
 				}
 			}
