@@ -140,7 +140,7 @@ func DefaultOptions() *Options {
 						LinksInHover: true,
 					},
 					NavigationOptions: NavigationOptions{
-						ImportShortcut: Both,
+						ImportShortcut: BothShortcuts,
 						SymbolMatcher:  SymbolFastFuzzy,
 						SymbolStyle:    DynamicSymbols,
 					},
@@ -596,17 +596,17 @@ type InternalOptions struct {
 type ImportShortcut string
 
 const (
-	Both       ImportShortcut = "Both"
-	Link       ImportShortcut = "Link"
-	Definition ImportShortcut = "Definition"
+	BothShortcuts      ImportShortcut = "Both"
+	LinkShortcut       ImportShortcut = "Link"
+	DefinitionShortcut ImportShortcut = "Definition"
 )
 
 func (s ImportShortcut) ShowLinks() bool {
-	return s == Both || s == Link
+	return s == BothShortcuts || s == LinkShortcut
 }
 
 func (s ImportShortcut) ShowDefinition() bool {
-	return s == Both || s == Definition
+	return s == BothShortcuts || s == DefinitionShortcut
 }
 
 type Matcher string
@@ -985,7 +985,7 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 		result.setBool(&o.LinksInHover)
 
 	case "importShortcut":
-		if s, ok := result.asOneOf(string(Both), string(Link), string(Definition)); ok {
+		if s, ok := result.asOneOf(string(BothShortcuts), string(LinkShortcut), string(DefinitionShortcut)); ok {
 			o.ImportShortcut = ImportShortcut(s)
 		}
 

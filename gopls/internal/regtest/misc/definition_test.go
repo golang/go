@@ -155,12 +155,11 @@ func main() {}
 `
 	for _, tt := range []struct {
 		wantLinks      int
-		wantDef        bool
 		importShortcut string
 	}{
-		{1, false, "Link"},
-		{0, true, "Definition"},
-		{1, true, "Both"},
+		{1, "Link"},
+		{0, "Definition"},
+		{1, "Both"},
 	} {
 		t.Run(tt.importShortcut, func(t *testing.T) {
 			WithOptions(
@@ -168,9 +167,7 @@ func main() {}
 			).Run(t, mod, func(t *testing.T, env *Env) {
 				env.OpenFile("main.go")
 				loc := env.GoToDefinition(env.RegexpSearch("main.go", `"fmt"`))
-				if !tt.wantDef && (loc != (protocol.Location{})) {
-					t.Fatalf("expected no definition, got one: %v", loc)
-				} else if tt.wantDef && loc == (protocol.Location{}) {
+				if loc == (protocol.Location{}) {
 					t.Fatalf("expected definition, got none")
 				}
 				links := env.DocumentLink("main.go")

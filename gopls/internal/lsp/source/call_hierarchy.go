@@ -15,44 +15,48 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 )
 
 // PrepareCallHierarchy returns an array of CallHierarchyItem for a file and the position within the file.
-func PrepareCallHierarchy(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]protocol.CallHierarchyItem, error) {
+func PrepareCallHierarchy(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Position) ([]protocol.CallHierarchyItem, error) {
 	ctx, done := event.Start(ctx, "source.PrepareCallHierarchy")
 	defer done()
 
-	identifier, err := Identifier(ctx, snapshot, fh, pos)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
 	if err != nil {
-		if errors.Is(err, ErrNoIdentFound) || errors.Is(err, errNoObjectFound) {
-			return nil, nil
-		}
+		return nil, err
+	}
+	pos, err := pgf.PositionPos(pp)
+	if err != nil {
 		return nil, err
 	}
 
-	// The identifier can be nil if it is an import spec.
-	if identifier == nil || identifier.Declaration.obj == nil {
+	obj := referencedObject(pkg, pgf, pos)
+	if obj == nil {
 		return nil, nil
 	}
 
-	if _, ok := identifier.Declaration.obj.Type().Underlying().(*types.Signature); !ok {
+	if _, ok := obj.Type().Underlying().(*types.Signature); !ok {
 		return nil, nil
 	}
 
-	if len(identifier.Declaration.MappedRange) == 0 {
-		return nil, nil
+	declLoc, err := mapPosition(ctx, pkg.FileSet(), snapshot, obj.Pos(), adjustedObjEnd(obj))
+	if err != nil {
+		return nil, err
 	}
-	declMappedRange := identifier.Declaration.MappedRange[0]
-	rng := declMappedRange.Range()
+	rng := declLoc.Range
 
 	callHierarchyItem := protocol.CallHierarchyItem{
-		Name:           identifier.Name,
+		Name:           obj.Name(),
 		Kind:           protocol.Function,
 		Tags:           []protocol.SymbolTag{},
-		Detail:         fmt.Sprintf("%s • %s", identifier.Declaration.obj.Pkg().Path(), filepath.Base(declMappedRange.URI().Filename())),
-		URI:            protocol.DocumentURI(declMappedRange.URI()),
+		Detail:         fmt.Sprintf("%s • %s", obj.Pkg().Path(), filepath.Base(declLoc.URI.SpanURI().Filename())),
+		URI:            declLoc.URI,
 		Range:          rng,
 		SelectionRange: rng,
 	}
@@ -174,41 +178,71 @@ outer:
 }
 
 // OutgoingCalls returns an array of CallHierarchyOutgoingCall for a file and the position within the file.
-func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]protocol.CallHierarchyOutgoingCall, error) {
+func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Position) ([]protocol.CallHierarchyOutgoingCall, error) {
 	ctx, done := event.Start(ctx, "source.OutgoingCalls")
 	defer done()
 
-	identifier, err := Identifier(ctx, snapshot, fh, pos)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
 	if err != nil {
-		if errors.Is(err, ErrNoIdentFound) || errors.Is(err, errNoObjectFound) {
-			return nil, nil
-		}
 		return nil, err
 	}
-
-	if _, ok := identifier.Declaration.obj.Type().Underlying().(*types.Signature); !ok {
-		return nil, nil
-	}
-	node := identifier.Declaration.node
-	if node == nil {
-		return nil, nil
-	}
-	callExprs, err := collectCallExpressions(identifier.Declaration.nodeFile, node)
+	pos, err := pgf.PositionPos(pp)
 	if err != nil {
 		return nil, err
 	}
 
-	return toProtocolOutgoingCalls(ctx, snapshot, fh, callExprs)
-}
+	obj := referencedObject(pkg, pgf, pos)
+	if obj == nil {
+		return nil, nil
+	}
 
-// collectCallExpressions collects call expression ranges inside a function.
-func collectCallExpressions(pgf *ParsedGoFile, node ast.Node) ([]protocol.Range, error) {
-	type callPos struct {
+	if _, ok := obj.Type().Underlying().(*types.Signature); !ok {
+		return nil, nil
+	}
+
+	// Skip builtins.
+	if obj.Pkg() == nil {
+		return nil, nil
+	}
+
+	if !obj.Pos().IsValid() {
+		return nil, bug.Errorf("internal error: object %s.%s missing position", obj.Pkg().Path(), obj.Name())
+	}
+
+	declFile := pkg.FileSet().File(obj.Pos())
+	if declFile == nil {
+		return nil, bug.Errorf("file not found for %d", obj.Pos())
+	}
+
+	uri := span.URIFromPath(declFile.Name())
+	offset, err := safetoken.Offset(declFile, obj.Pos())
+	if err != nil {
+		return nil, err
+	}
+
+	// Use TypecheckFull as we want to inspect the body of the function declaration.
+	declPkg, declPGF, err := PackageForFile(ctx, snapshot, uri, TypecheckFull, NarrowestPackage)
+	if err != nil {
+		return nil, err
+	}
+
+	declPos, err := safetoken.Pos(declPGF.Tok, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	declNode, _ := FindDeclAndField([]*ast.File{declPGF.File}, declPos)
+	if declNode == nil {
+		// TODO(rfindley): why don't we return an error here, or even bug.Errorf?
+		return nil, nil
+		// return nil, bug.Errorf("failed to find declaration for object %s.%s", obj.Pkg().Path(), obj.Name())
+	}
+
+	type callRange struct {
 		start, end token.Pos
 	}
-	callPositions := []callPos{}
-
-	ast.Inspect(node, func(n ast.Node) bool {
+	callRanges := []callRange{}
+	ast.Inspect(declNode, func(n ast.Node) bool {
 		if call, ok := n.(*ast.CallExpr); ok {
 			var start, end token.Pos
 			switch n := call.Fun.(type) {
@@ -225,70 +259,48 @@ func collectCallExpressions(pgf *ParsedGoFile, node ast.Node) ([]protocol.Range,
 				// for ex: direct function literal calls since that's not an 'outgoing' call
 				return false
 			}
-			callPositions = append(callPositions, callPos{start: start, end: end})
+			callRanges = append(callRanges, callRange{start: start, end: end})
 		}
 		return true
 	})
 
-	callRanges := []protocol.Range{}
-	for _, call := range callPositions {
-		callRange, err := pgf.PosRange(call.start, call.end)
-		if err != nil {
-			return nil, err
-		}
-		callRanges = append(callRanges, callRange)
-	}
-	return callRanges, nil
-}
-
-// toProtocolOutgoingCalls returns an array of protocol.CallHierarchyOutgoingCall for ast call expressions.
-// Calls to the same function are assigned to the same declaration.
-func toProtocolOutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, callRanges []protocol.Range) ([]protocol.CallHierarchyOutgoingCall, error) {
-	// Multiple calls could be made to the same function, defined by "same declaration
-	// AST node & same identifier name" to provide a unique identifier key even when
-	// the func is declared in a struct or interface.
-	type key struct {
-		decl ast.Node
-		name string
-	}
-	outgoingCalls := map[key]*protocol.CallHierarchyOutgoingCall{}
+	outgoingCalls := map[token.Pos]*protocol.CallHierarchyOutgoingCall{}
 	for _, callRange := range callRanges {
-		identifier, err := Identifier(ctx, snapshot, fh, callRange.Start)
-		if err != nil {
-			if errors.Is(err, ErrNoIdentFound) || errors.Is(err, errNoObjectFound) {
-				continue
-			}
-			return nil, err
+		obj := referencedObject(declPkg, declPGF, callRange.start)
+		if obj == nil {
+			continue
 		}
 
 		// ignore calls to builtin functions
-		if identifier.Declaration.obj.Pkg() == nil {
+		if obj.Pkg() == nil {
 			continue
 		}
 
-		if outgoingCall, ok := outgoingCalls[key{identifier.Declaration.node, identifier.Name}]; ok {
-			outgoingCall.FromRanges = append(outgoingCall.FromRanges, callRange)
-			continue
+		outgoingCall, ok := outgoingCalls[obj.Pos()]
+		if !ok {
+			loc, err := mapPosition(ctx, declPkg.FileSet(), snapshot, obj.Pos(), obj.Pos()+token.Pos(len(obj.Name())))
+			if err != nil {
+				return nil, err
+			}
+			outgoingCall = &protocol.CallHierarchyOutgoingCall{
+				To: protocol.CallHierarchyItem{
+					Name:           obj.Name(),
+					Kind:           protocol.Function,
+					Tags:           []protocol.SymbolTag{},
+					Detail:         fmt.Sprintf("%s • %s", obj.Pkg().Path(), filepath.Base(loc.URI.SpanURI().Filename())),
+					URI:            loc.URI,
+					Range:          loc.Range,
+					SelectionRange: loc.Range,
+				},
+			}
+			outgoingCalls[obj.Pos()] = outgoingCall
 		}
 
-		if len(identifier.Declaration.MappedRange) == 0 {
-			continue
+		rng, err := declPGF.PosRange(callRange.start, callRange.end)
+		if err != nil {
+			return nil, err
 		}
-		declMappedRange := identifier.Declaration.MappedRange[0]
-		rng := declMappedRange.Range()
-
-		outgoingCalls[key{identifier.Declaration.node, identifier.Name}] = &protocol.CallHierarchyOutgoingCall{
-			To: protocol.CallHierarchyItem{
-				Name:           identifier.Name,
-				Kind:           protocol.Function,
-				Tags:           []protocol.SymbolTag{},
-				Detail:         fmt.Sprintf("%s • %s", identifier.Declaration.obj.Pkg().Path(), filepath.Base(declMappedRange.URI().Filename())),
-				URI:            protocol.DocumentURI(declMappedRange.URI()),
-				Range:          rng,
-				SelectionRange: rng,
-			},
-			FromRanges: []protocol.Range{callRange},
-		}
+		outgoingCall.FromRanges = append(outgoingCall.FromRanges, rng)
 	}
 
 	outgoingCallItems := make([]protocol.CallHierarchyOutgoingCall, 0, len(outgoingCalls))

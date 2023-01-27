@@ -51,7 +51,12 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	return false
 }
 
-func objToMappedRange(ctx context.Context, snapshot Snapshot, pkg Package, obj types.Object) (protocol.MappedRange, error) {
+// adjustedObjEnd returns the end position of obj, possibly modified for
+// package names.
+//
+// TODO(rfindley): eliminate this function, by inlining it at callsites where
+// it makes sense.
+func adjustedObjEnd(obj types.Object) token.Pos {
 	nameLen := len(obj.Name())
 	if pkgName, ok := obj.(*types.PkgName); ok {
 		// An imported Go package has a package-local, unqualified name.
@@ -68,7 +73,7 @@ func objToMappedRange(ctx context.Context, snapshot Snapshot, pkg Package, obj t
 			nameLen = len(pkgName.Imported().Path()) + len(`""`)
 		}
 	}
-	return posToMappedRange(ctx, snapshot, pkg, obj.Pos(), obj.Pos()+token.Pos(nameLen))
+	return obj.Pos() + token.Pos(nameLen)
 }
 
 // posToMappedRange returns the MappedRange for the given [start, end) span,
@@ -130,23 +135,6 @@ func FileKindForLang(langID string) FileKind {
 		return Work
 	default:
 		return UnknownKind
-	}
-}
-
-func (k FileKind) String() string {
-	switch k {
-	case Go:
-		return "go"
-	case Mod:
-		return "go.mod"
-	case Sum:
-		return "go.sum"
-	case Tmpl:
-		return "tmpl"
-	case Work:
-		return "go.work"
-	default:
-		return fmt.Sprintf("unk%d", k)
 	}
 }
 

@@ -30,7 +30,7 @@ type IdentifierInfo struct {
 
 	Type struct {
 		MappedRange protocol.MappedRange
-		Object      types.Object
+		Object      *types.TypeName
 	}
 
 	Inferred *types.Signature
@@ -46,11 +46,6 @@ type IdentifierInfo struct {
 
 	pkg Package
 	qf  types.Qualifier
-}
-
-func (i *IdentifierInfo) IsImport() bool {
-	_, ok := i.Declaration.node.(*ast.ImportSpec)
-	return ok
 }
 
 type Declaration struct {
@@ -266,7 +261,8 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	// findFileInDeps, which is also called below.  Refactor
 	// objToMappedRange to separate the find-file from the
 	// lookup-position steps to avoid the redundancy.
-	rng, err := objToMappedRange(ctx, snapshot, pkg, result.Declaration.obj)
+	obj := result.Declaration.obj
+	rng, err := posToMappedRange(ctx, snapshot, pkg, obj.Pos(), adjustedObjEnd(obj))
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +297,9 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 		if hasErrorType(result.Type.Object) {
 			return result, nil
 		}
-		if result.Type.MappedRange, err = objToMappedRange(ctx, snapshot, pkg, result.Type.Object); err != nil {
+		obj := result.Type.Object
+		// TODO(rfindley): no need to use an adjusted end here.
+		if result.Type.MappedRange, err = posToMappedRange(ctx, snapshot, pkg, obj.Pos(), adjustedObjEnd(obj)); err != nil {
 			return nil, err
 		}
 	}
@@ -407,7 +405,10 @@ func searchForEnclosing(info *types.Info, path []ast.Node) *types.TypeName {
 	return nil
 }
 
-func typeToObject(typ types.Type) types.Object {
+// typeToObject returns the relevant type name for the given type, after
+// unwrapping pointers, arrays, slices, channels, and function signatures with
+// a single non-error result.
+func typeToObject(typ types.Type) *types.TypeName {
 	switch typ := typ.(type) {
 	case *types.Named:
 		return typ.Obj()
@@ -422,7 +423,7 @@ func typeToObject(typ types.Type) types.Object {
 	case *types.Signature:
 		// Try to find a return value of a named type. If there's only one
 		// such value, jump to its type definition.
-		var res types.Object
+		var res *types.TypeName
 
 		results := typ.Results()
 		for i := 0; i < results.Len(); i++ {

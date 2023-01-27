@@ -666,7 +666,9 @@ func (r *runner) MethodExtraction(t *testing.T, start span.Span, end span.Span) 
 	}
 }
 
-func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
+// TODO(rfindley): This handler needs more work. The output is still a bit hard
+// to read (range diffs do not format nicely), and it is too entangled with hover.
+func (r *runner) Definition(t *testing.T, _ span.Span, d tests.Definition) {
 	sm, err := r.data.Mapper(d.Src.URI())
 	if err != nil {
 		t.Fatal(err)
@@ -676,18 +678,18 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
 	tdpp := protocol.LocationTextDocumentPositionParams(loc)
-	var locs []protocol.Location
+	var got []protocol.Location
 	var hover *protocol.Hover
 	if d.IsType {
 		params := &protocol.TypeDefinitionParams{
 			TextDocumentPositionParams: tdpp,
 		}
-		locs, err = r.server.TypeDefinition(r.ctx, params)
+		got, err = r.server.TypeDefinition(r.ctx, params)
 	} else {
 		params := &protocol.DefinitionParams{
 			TextDocumentPositionParams: tdpp,
 		}
-		locs, err = r.server.Definition(r.ctx, params)
+		got, err = r.server.Definition(r.ctx, params)
 		if err != nil {
 			t.Fatalf("failed for %v: %+v", d.Src, err)
 		}
@@ -699,8 +701,19 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
-	if len(locs) != 1 {
-		t.Errorf("got %d locations for definition, expected 1", len(locs))
+	dm, err := r.data.Mapper(d.Def.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	def, err := dm.SpanLocation(d.Def)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !d.OnlyHover {
+		want := []protocol.Location{def}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("Definition(%s) mismatch (-want +got):\n%s", d.Src, diff)
+		}
 	}
 	didSomething := false
 	if hover != nil {
@@ -717,13 +730,13 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	}
 	if !d.OnlyHover {
 		didSomething = true
-		locURI := locs[0].URI.SpanURI()
+		locURI := got[0].URI.SpanURI()
 		lm, err := r.data.Mapper(locURI)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if def, err := lm.LocationSpan(locs[0]); err != nil {
-			t.Fatalf("failed for %v: %v", locs[0], err)
+		if def, err := lm.LocationSpan(got[0]); err != nil {
+			t.Fatalf("failed for %v: %v", got[0], err)
 		} else if def != d.Def {
 			t.Errorf("for %v got %v want %v", d.Src, def, d.Def)
 		}
