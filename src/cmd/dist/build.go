@@ -355,26 +355,6 @@ func findgoversion() string {
 		// its content if available, which is empty at this point.
 		// Only use the VERSION file if it is non-empty.
 		if b != "" {
-			// Some builders cross-compile the toolchain on linux-amd64
-			// and then copy the toolchain to the target builder (say, linux-arm)
-			// for use there. But on non-release (devel) branches, the compiler
-			// used on linux-amd64 will be an amd64 binary, and the compiler
-			// shipped to linux-arm will be an arm binary, so they will have different
-			// content IDs (they are binaries for different architectures) and so the
-			// packages compiled by the running-on-amd64 compiler will appear
-			// stale relative to the running-on-arm compiler. Avoid this by setting
-			// the version string to something that doesn't begin with devel.
-			// Then the version string will be used in place of the content ID,
-			// and the packages will look up-to-date.
-			// TODO(rsc): Really the builders could be writing out a better VERSION file instead,
-			// but it is easier to change cmd/dist than to try to make changes to
-			// the builder while Brad is away.
-			if strings.HasPrefix(b, "devel") {
-				if hostType := os.Getenv("META_BUILDLET_HOST_TYPE"); strings.Contains(hostType, "-cross") {
-					fmt.Fprintf(os.Stderr, "warning: changing VERSION from %q to %q\n", b, "builder "+hostType)
-					b = "builder " + hostType
-				}
-			}
 			return b
 		}
 	}
