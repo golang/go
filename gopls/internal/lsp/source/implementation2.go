@@ -137,11 +137,9 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 			queryType = recv.Type()
 			queryMethodID = obj.Id()
 		}
-	default:
-		return nil, fmt.Errorf("%s is not a type or method", id.Name)
 	}
 	if queryType == nil {
-		return nil, ErrNotAType
+		return nil, fmt.Errorf("%s is not a type or method", id.Name)
 	}
 
 	// Compute the method-set fingerprint used as a key to the global search.

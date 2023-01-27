@@ -5,20 +5,13 @@
 package source
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
-
-	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/lsp/safetoken"
-	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/event"
 )
 
-var ErrNotAType = errors.New("not a type name or method")
+// TODO(adonovan): move these declarations elsewhere.
 
 // concreteImplementsIntf returns true if a is an interface type implemented by
 // concrete type b, or vice versa.
@@ -44,233 +37,13 @@ func concreteImplementsIntf(a, b types.Type) bool {
 	return types.AssignableTo(a, b)
 }
 
-// A qualifiedObject is the result of resolving a reference from an
-// identifier to an object.
-type qualifiedObject struct {
-	// definition
-	obj types.Object // the referenced object
-	pkg Package      // the Package that defines the object (nil => universe)
-
-	// reference (optional)
-	node      ast.Node // the reference (*ast.Ident or *ast.ImportSpec) to the object
-	sourcePkg Package  // the Package containing node
-}
-
 var (
-	errBuiltin       = errors.New("builtin object")
+	// TODO(adonovan): why do various RPC handlers related to
+	// IncomingCalls return (nil, nil) on the protocol in response
+	// to this error? That seems like a violation of the protocol.
+	// Is it perhaps a workaround for VSCode behavior?
 	errNoObjectFound = errors.New("no object found")
 )
-
-// qualifiedObjsAtProtocolPos returns info for all the types.Objects referenced
-// at the given position, for the following selection of packages:
-//
-// 1. all packages (including all test variants), in their workspace parse mode
-// 2. if not included above, at least one package containing uri in full parse mode
-//
-// Finding objects in (1) ensures that we locate references within all
-// workspace packages, including in x_test packages. Including (2) ensures that
-// we find local references in the current package, for non-workspace packages
-// that may be open.
-func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, pp protocol.Position) ([]qualifiedObject, error) {
-	fh, err := s.GetFile(ctx, uri)
-	if err != nil {
-		return nil, err
-	}
-	content, err := fh.Read()
-	if err != nil {
-		return nil, err
-	}
-	m := protocol.NewMapper(uri, content)
-	offset, err := m.PositionOffset(pp)
-	if err != nil {
-		return nil, err
-	}
-	return qualifiedObjsAtLocation(ctx, s, positionKey{uri, offset}, map[positionKey]bool{})
-}
-
-// A positionKey identifies a byte offset within a file (URI).
-//
-// When a file has been parsed multiple times in the same FileSet,
-// there may be multiple token.Pos values denoting the same logical
-// position. In such situations, a positionKey may be used for
-// de-duplication.
-type positionKey struct {
-	uri    span.URI
-	offset int
-}
-
-// qualifiedObjsAtLocation finds all objects referenced at offset in uri,
-// across all packages in the snapshot.
-func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, seen map[positionKey]bool) ([]qualifiedObject, error) {
-	if seen[key] {
-		return nil, nil
-	}
-	seen[key] = true
-
-	// We search for referenced objects starting with all packages containing the
-	// current location, and then repeating the search for every distinct object
-	// location discovered.
-	//
-	// In the common case, there should be at most one additional location to
-	// consider: the definition of the object referenced by the location. But we
-	// try to be comprehensive in case we ever support variations on build
-	// constraints.
-	metas, err := s.MetadataForFile(ctx, key.uri)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]PackageID, len(metas))
-	for i, m := range metas {
-		ids[i] = m.ID
-	}
-	pkgs, err := s.TypeCheck(ctx, TypecheckWorkspace, ids...)
-	if err != nil {
-		return nil, err
-	}
-
-	// In order to allow basic references/rename/implementations to function when
-	// non-workspace packages are open, ensure that we have at least one fully
-	// parsed package for the current file. This allows us to find references
-	// inside the open package. Use WidestPackage to capture references in test
-	// files.
-	hasFullPackage := false
-	for _, pkg := range pkgs {
-		if pkg.ParseMode() == ParseFull {
-			hasFullPackage = true
-			break
-		}
-	}
-	if !hasFullPackage {
-		pkg, _, err := PackageForFile(ctx, s, key.uri, TypecheckFull, WidestPackage)
-		if err != nil {
-			return nil, err
-		}
-		pkgs = append(pkgs, pkg)
-	}
-
-	// report objects in the order we encounter them. This ensures that the first
-	// result is at the cursor...
-	var qualifiedObjs []qualifiedObject
-	// ...but avoid duplicates.
-	seenObjs := map[types.Object]bool{}
-
-	for _, searchpkg := range pkgs {
-		pgf, err := searchpkg.File(key.uri)
-		if err != nil {
-			return nil, err
-		}
-		pos := pgf.Tok.Pos(key.offset)
-
-		// TODO(adonovan): replace this section with a call to objectsAt().
-		path := pathEnclosingObjNode(pgf.File, pos)
-		if path == nil {
-			continue
-		}
-		var objs []types.Object
-		switch leaf := path[0].(type) {
-		case *ast.Ident:
-			// If leaf represents an implicit type switch object or the type
-			// switch "assign" variable, expand to all of the type switch's
-			// implicit objects.
-			if implicits, _ := typeSwitchImplicits(searchpkg.GetTypesInfo(), path); len(implicits) > 0 {
-				objs = append(objs, implicits...)
-			} else {
-				obj := searchpkg.GetTypesInfo().ObjectOf(leaf)
-				if obj == nil {
-					return nil, fmt.Errorf("%w for %q", errNoObjectFound, leaf.Name)
-				}
-				objs = append(objs, obj)
-			}
-		case *ast.ImportSpec:
-			// Look up the implicit *types.PkgName.
-			obj := searchpkg.GetTypesInfo().Implicits[leaf]
-			if obj == nil {
-				return nil, fmt.Errorf("%w for import %s", errNoObjectFound, UnquoteImportPath(leaf))
-			}
-			objs = append(objs, obj)
-		}
-
-		// Get all of the transitive dependencies of the search package.
-		pkgSet := map[*types.Package]Package{
-			searchpkg.GetTypes(): searchpkg,
-		}
-		deps := recursiveDeps(s, searchpkg.Metadata())[1:]
-		// Ignore the error from type checking, but check if the context was
-		// canceled (which would have caused TypeCheck to exit early).
-		depPkgs, _ := s.TypeCheck(ctx, TypecheckWorkspace, deps...)
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		for _, dep := range depPkgs {
-			// Since we ignored the error from type checking, pkg may be nil.
-			if dep != nil {
-				pkgSet[dep.GetTypes()] = dep
-			}
-		}
-
-		for _, obj := range objs {
-			if obj.Parent() == types.Universe {
-				return nil, fmt.Errorf("%q: %w", obj.Name(), errBuiltin)
-			}
-			pkg, ok := pkgSet[obj.Pkg()]
-			if !ok {
-				event.Error(ctx, fmt.Sprintf("no package for obj %s: %v", obj, obj.Pkg()), err)
-				continue
-			}
-			qualifiedObjs = append(qualifiedObjs, qualifiedObject{
-				obj:       obj,
-				pkg:       pkg,
-				sourcePkg: searchpkg,
-				node:      path[0],
-			})
-			seenObjs[obj] = true
-
-			// If the qualified object is in another file (or more likely, another
-			// package), it's possible that there is another copy of it in a package
-			// that we haven't searched, e.g. a test variant. See golang/go#47564.
-			//
-			// In order to be sure we've considered all packages, call
-			// qualifiedObjsAtLocation recursively for all locations we encounter. We
-			// could probably be more precise here, only continuing the search if obj
-			// is in another package, but this should be good enough to find all
-			// uses.
-
-			if key, found := packagePositionKey(pkg, obj.Pos()); found {
-				otherObjs, err := qualifiedObjsAtLocation(ctx, s, key, seen)
-				if err != nil {
-					return nil, err
-				}
-				for _, other := range otherObjs {
-					if !seenObjs[other.obj] {
-						qualifiedObjs = append(qualifiedObjs, other)
-						seenObjs[other.obj] = true
-					}
-				}
-			} else {
-				return nil, fmt.Errorf("missing file for position of %q in %q", obj.Name(), obj.Pkg().Name())
-			}
-		}
-	}
-	// Return an error if no objects were found since callers will assume that
-	// the slice has at least 1 element.
-	if len(qualifiedObjs) == 0 {
-		return nil, errNoObjectFound
-	}
-	return qualifiedObjs, nil
-}
-
-// packagePositionKey finds the positionKey for the given pos.
-//
-// The second result reports whether the position was found.
-func packagePositionKey(pkg Package, pos token.Pos) (positionKey, bool) {
-	for _, pgf := range pkg.CompiledGoFiles() {
-		offset, err := safetoken.Offset(pgf.Tok, pos)
-		if err == nil {
-			return positionKey{pgf.URI, offset}, true
-		}
-	}
-	return positionKey{}, false
-}
 
 // pathEnclosingObjNode returns the AST path to the object-defining
 // node associated with pos. "Object-defining" means either an

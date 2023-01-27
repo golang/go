@@ -460,6 +460,10 @@ func (m *Mapper) OffsetMappedRange(start, end int) (MappedRange, error) {
 // Construct one by calling Mapper.OffsetMappedRange with start/end offsets.
 // From the go/token domain, call safetoken.Offsets first,
 // or use a helper such as ParsedGoFile.MappedPosRange.
+//
+// Two MappedRanges produced the same Mapper are equal if and only if they
+// denote the same range.  Two MappedRanges produced by different Mappers
+// are unequal even when they represent the same range of the same file.
 type MappedRange struct {
 	Mapper     *Mapper
 	start, end int // valid byte offsets:  0 <= start <= end <= len(Mapper.Content)
