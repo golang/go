@@ -29,6 +29,9 @@ func (eai addrinfoErrno) Error() string   { return _C_gai_strerror(_C_int(eai)) 
 func (eai addrinfoErrno) Temporary() bool { return eai == _C_EAI_AGAIN }
 func (eai addrinfoErrno) Timeout() bool   { return false }
 
+// doBlockingWithCtx executes a blocking function in a separate goroutine when the provided
+// context is cancellable. It is intented for use with calls that don't support context
+// cancellation (cgo, syscalls). blocking func may still be running after this function finishes.
 func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (T, error) {
 	if ctx.Done() == nil {
 		return blocking()
@@ -50,7 +53,8 @@ func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (
 	case r := <-res:
 		return r.res, r.err
 	case <-ctx.Done():
-		return *new(T), mapErr(ctx.Err())
+		var zero T
+		return zero, mapErr(ctx.Err())
 	}
 }
 
