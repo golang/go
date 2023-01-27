@@ -114,8 +114,8 @@ func EncodeToString(src []byte) string {
 
 // DecodeString returns the bytes represented by the hexadecimal string s.
 //
-// DecodeString expects that src contains only hexadecimal
-// characters and that src has even length.
+// DecodeString expects that s contains only hexadecimal
+// characters and that s has even length.
 // If the input is malformed, DecodeString returns
 // the bytes decoded before the error.
 func DecodeString(s string) ([]byte, error) {
