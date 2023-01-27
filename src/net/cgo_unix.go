@@ -29,7 +29,7 @@ func (eai addrinfoErrno) Error() string   { return _C_gai_strerror(_C_int(eai)) 
 func (eai addrinfoErrno) Temporary() bool { return eai == _C_EAI_AGAIN }
 func (eai addrinfoErrno) Timeout() bool   { return false }
 
-func doBlockingWithCTX[T any](ctx context.Context, blocking func() (T, error)) (T, error) {
+func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (T, error) {
 	if ctx.Done() == nil {
 		return blocking()
 	}
@@ -82,7 +82,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 		*_C_ai_family(&hints) = _C_AF_INET6
 	}
 
-	port, err = doBlockingWithCTX(ctx, func() (int, error) {
+	port, err = doBlockingWithCtx(ctx, func() (int, error) {
 		return cgoLookupServicePort(&hints, network, service)
 	})
 
@@ -208,7 +208,7 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
 }
 
 func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
-	addrs, err = doBlockingWithCTX(ctx, func() ([]IPAddr, error) {
+	addrs, err = doBlockingWithCtx(ctx, func() ([]IPAddr, error) {
 		addrs, _, err = cgoLookupIPCNAME(network, name)
 		return addrs, err
 	})
@@ -242,7 +242,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, 
 		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}, true
 	}
 
-	names, err = doBlockingWithCTX(ctx, func() ([]string, error) {
+	names, err = doBlockingWithCtx(ctx, func() ([]string, error) {
 		return cgoLookupAddrPTR(addr, sa, salen)
 	})
 	return names, err, true
@@ -308,7 +308,7 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 // resSearch will make a call to the 'res_nsearch' routine in the C library
 // and parse the output as a slice of DNS resources.
 func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
-	return doBlockingWithCTX(ctx, func() ([]dnsmessage.Resource, error) {
+	return doBlockingWithCtx(ctx, func() ([]dnsmessage.Resource, error) {
 		return cgoResSearch(hostname, rtype, class)
 	})
 }
