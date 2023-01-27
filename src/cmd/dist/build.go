@@ -1296,10 +1296,7 @@ func toolenv() []string {
 		// Do not include local development, so that people working in the
 		// main branch for day-to-day work on the Go toolchain itself can
 		// still have full paths for stack traces for compiler crashes and the like.
-		//
-		// TODO(bcmills): This was added but commented out in CL 454836.
-		// Uncomment or delete it.
-		// env = append(env, "GOFLAGS=-trimpath")
+		env = append(env, "GOFLAGS=-trimpath")
 	}
 	return env
 }
