@@ -1141,7 +1141,6 @@ func TestIs4In6(t *testing.T) {
 		{mustIP("::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("::ffff:7f01:0203"), true, mustIP("127.1.2.3")},
 		{mustIP("0:0:0:0:0000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
-		{mustIP("0:0:0:0:0000:ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("0:0:0:0::ffff:127.1.2.3"), true, mustIP("127.1.2.3")},
 		{mustIP("::1"), false, mustIP("::1")},
 		{mustIP("1.2.3.4"), false, mustIP("1.2.3.4")},
