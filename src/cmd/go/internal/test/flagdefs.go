@@ -19,6 +19,7 @@ var passFlagToTest = map[string]bool{
 	"cpu":                  true,
 	"cpuprofile":           true,
 	"failfast":             true,
+	"fullpath":             true,
 	"fuzz":                 true,
 	"fuzzminimizetime":     true,
 	"fuzztime":             true,

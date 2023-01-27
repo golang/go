@@ -2987,6 +2987,9 @@
 //	-failfast
 //	    Do not start new tests after the first test failure.
 //
+//	-fullpath
+//	    Show full file names in the error messages.
+//
 //	-fuzz regexp
 //	    Run the fuzz test matching the regular expression. When specified,
 //	    the command line argument must match exactly one package within the

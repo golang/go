@@ -441,6 +441,7 @@ func Init() {
 	parallel = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "run at most `n` tests in parallel")
 	testlog = flag.String("test.testlogfile", "", "write test action log to `file` (for use only by cmd/go)")
 	shuffle = flag.String("test.shuffle", "off", "randomize the execution order of tests and benchmarks")
+	fullPath = flag.Bool("test.fullpath", false, "show full file names in error messages")
 
 	initBenchmarkFlags()
 	initFuzzFlags()
@@ -472,6 +473,7 @@ var (
 	parallel             *int
 	shuffle              *string
 	testlog              *string
+	fullPath             *bool
 
 	haveExamples bool // are there examples?
 
@@ -751,8 +753,9 @@ func (c *common) decorate(s string, skip int) string {
 	file := frame.File
 	line := frame.Line
 	if file != "" {
-		// Truncate file name at last file name separator.
-		if index := strings.LastIndex(file, "/"); index >= 0 {
+		if *fullPath {
+			// If relative path, truncate file name at last file name separator.
+		} else if index := strings.LastIndex(file, "/"); index >= 0 {
 			file = file[index+1:]
 		} else if index = strings.LastIndex(file, "\\"); index >= 0 {
 			file = file[index+1:]

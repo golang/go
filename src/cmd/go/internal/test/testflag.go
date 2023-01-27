@@ -50,6 +50,7 @@ func init() {
 	cf.StringVar(&testCPUProfile, "cpuprofile", "", "")
 	cf.Bool("failfast", false, "")
 	cf.StringVar(&testFuzz, "fuzz", "", "")
+	cf.Bool("fullpath", false, "")
 	cf.StringVar(&testList, "list", "", "")
 	cf.StringVar(&testMemProfile, "memprofile", "", "")
 	cf.String("memprofilerate", "", "")

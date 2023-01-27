@@ -1,0 +1,21 @@
+[short] skip
+
+# test with -fullpath
+! go test ./x/... -fullpath
+stdout '^ +.+/gopath/src/x/fullpath/fullpath_test.go:8: test failed'
+# test without -fullpath
+! go test ./x/...
+stdout '^ +fullpath_test.go:8: test failed'
+
+-- go.mod --
+module example
+-- x/fullpath/fullpath_test.go --
+package fullpath_test
+
+import (
+	"testing"
+)
+
+func TestFullPath(t *testing.T) {
+	t.Error("test failed")
+}
