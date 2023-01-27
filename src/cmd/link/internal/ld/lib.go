@@ -181,15 +181,6 @@ type Arch struct {
 	// We leave some room for extra stuff like PLT stubs.
 	TrampLimit uint64
 
-	Androiddynld   string
-	Linuxdynld     string
-	LinuxdynldMusl string
-	Freebsddynld   string
-	Netbsddynld    string
-	Openbsddynld   string
-	Dragonflydynld string
-	Solarisdynld   string
-
 	// Empty spaces between codeblocks will be padded with this value.
 	// For example an architecture might want to pad with a trap instruction to
 	// catch wayward programs. Architectures that do not define a padding value
@@ -244,9 +235,6 @@ type Arch struct {
 	// needed.
 	Extreloc func(*Target, *loader.Loader, loader.Reloc, loader.Sym) (loader.ExtReloc, bool)
 
-	Elfreloc1      func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
-	ElfrelocSize   uint32 // size of an ELF relocation record, must match Elfreloc1.
-	Elfsetupplt    func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 	Gentext        func(*Link, *loader.Loader) // Generate text before addressing has been performed.
 	Machoreloc1    func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool
 	MachorelocSize uint32 // size of an Mach-O relocation record, must match Machoreloc1.
@@ -267,6 +255,9 @@ type Arch struct {
 
 	// optional override for assignAddress
 	AssignAddress func(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64)
+
+	// ELF specific information.
+	ELF ELFArch
 }
 
 var (

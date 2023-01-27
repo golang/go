@@ -55,19 +55,22 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
 		Extreloc:         extreloc,
-		Elfreloc1:        elfreloc1,
-		ElfrelocSize:     24,
-		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
 
-		Linuxdynld:     "/lib64/ld64.so.1",
-		LinuxdynldMusl: musl,
-		Freebsddynld:   "XXX",
-		Openbsddynld:   "/usr/libexec/ld.so",
-		Netbsddynld:    "XXX",
-		Dragonflydynld: "XXX",
-		Solarisdynld:   "XXX",
+		ELF: ld.ELFArch{
+			Linuxdynld:     "/lib64/ld64.so.1",
+			LinuxdynldMusl: musl,
+			Freebsddynld:   "XXX",
+			Openbsddynld:   "/usr/libexec/ld.so",
+			Netbsddynld:    "XXX",
+			Dragonflydynld: "XXX",
+			Solarisdynld:   "XXX",
+
+			Elfreloc1:    elfreloc1,
+			ElfrelocSize: 24,
+			Elfsetupplt:  elfsetupplt,
+		},
 	}
 
 	return arch, theArch
