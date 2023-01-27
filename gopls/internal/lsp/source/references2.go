@@ -223,7 +223,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	if err != nil {
 		return nil, err
 	}
-	candidates, err := objectsAt(pkg.GetTypesInfo(), pgf.File, pos)
+	candidates, _, err := objectsAt(pkg.GetTypesInfo(), pgf.File, pos)
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +446,7 @@ func localReferences(ctx context.Context, snapshot Snapshot, declURI span.URI, d
 	if err != nil {
 		return err
 	}
-	targets, err := objectsAt(pkg.GetTypesInfo(), pgf.File, pos)
+	targets, _, err := objectsAt(pkg.GetTypesInfo(), pgf.File, pos)
 	if err != nil {
 		return err // unreachable? (probably caught earlier)
 	}
@@ -521,11 +521,12 @@ func effectiveReceiver(obj types.Object) types.Type {
 // position.
 //
 // Each object is mapped to the syntax node that was treated as an
-// identifier, which is not always an ast.Ident.
-func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Object]ast.Node, error) {
+// identifier, which is not always an ast.Ident. The second component
+// of the result is the innermost node enclosing pos.
+func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Object]ast.Node, ast.Node, error) {
 	path := pathEnclosingObjNode(file, pos)
 	if path == nil {
-		return nil, ErrNoIdentFound
+		return nil, nil, ErrNoIdentFound
 	}
 
 	targets := make(map[types.Object]ast.Node)
@@ -542,7 +543,7 @@ func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Objec
 		} else {
 			obj := info.ObjectOf(leaf)
 			if obj == nil {
-				return nil, fmt.Errorf("%w for %q", errNoObjectFound, leaf.Name)
+				return nil, nil, fmt.Errorf("%w for %q", errNoObjectFound, leaf.Name)
 			}
 			targets[obj] = leaf
 		}
@@ -550,15 +551,15 @@ func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Objec
 		// Look up the implicit *types.PkgName.
 		obj := info.Implicits[leaf]
 		if obj == nil {
-			return nil, fmt.Errorf("%w for import %s", errNoObjectFound, UnquoteImportPath(leaf))
+			return nil, nil, fmt.Errorf("%w for import %s", errNoObjectFound, UnquoteImportPath(leaf))
 		}
 		targets[obj] = leaf
 	}
 
 	if len(targets) == 0 {
-		return nil, fmt.Errorf("objectAt: internal error: no targets") // can't happen
+		return nil, nil, fmt.Errorf("objectAt: internal error: no targets") // can't happen
 	}
-	return targets, nil
+	return targets, path[0], nil
 }
 
 // globalReferences reports each cross-package reference to one of the

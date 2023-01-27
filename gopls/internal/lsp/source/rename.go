@@ -59,94 +59,98 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 	defer done()
 
 	// Is the cursor within the package name declaration?
-	pgf, inPackageName, err := parsePackageNameDecl(ctx, snapshot, f, pp)
-	if err != nil {
+	if pgf, inPackageName, err := parsePackageNameDecl(ctx, snapshot, f, pp); err != nil {
 		return nil, err, err
-	}
-	if inPackageName {
-		// Does the client support file renaming?
-		fileRenameSupported := false
-		for _, op := range snapshot.View().Options().SupportedResourceOperations {
-			if op == protocol.Rename {
-				fileRenameSupported = true
-				break
-			}
-		}
-		if !fileRenameSupported {
-			err := errors.New("can't rename package: LSP client does not support file renaming")
-			return nil, err, err
-		}
-
-		// Check validity of the metadata for the file's containing package.
-		fileMeta, err := snapshot.MetadataForFile(ctx, f.URI())
-		if err != nil {
-			return nil, err, err
-		}
-
-		if len(fileMeta) == 0 {
-			err := fmt.Errorf("no packages found for file %q", f.URI())
-			return nil, err, err
-		}
-		meta := fileMeta[0]
-		if meta.Name == "main" {
-			err := errors.New("can't rename package \"main\"")
-			return nil, err, err
-		}
-		if strings.HasSuffix(string(meta.Name), "_test") {
-			err := errors.New("can't rename x_test packages")
-			return nil, err, err
-		}
-		if meta.Module == nil {
-			err := fmt.Errorf("can't rename package: missing module information for package %q", meta.PkgPath)
-			return nil, err, err
-		}
-		if meta.Module.Path == string(meta.PkgPath) {
-			err := fmt.Errorf("can't rename package: package path %q is the same as module path %q", meta.PkgPath, meta.Module.Path)
-			return nil, err, err
-		}
-
-		// Return the location of the package declaration.
-		rng, err := pgf.NodeRange(pgf.File.Name)
-		if err != nil {
-			return nil, err, err
-		}
-		return &PrepareItem{
-			Range: rng,
-			Text:  string(meta.Name),
-		}, nil, nil
+	} else if inPackageName {
+		item, err := prepareRenamePackageName(ctx, snapshot, pgf)
+		return item, err, err
 	}
 
-	// Prepare for ordinary (non-package) renaming.
-
-	qos, err := qualifiedObjsAtProtocolPos(ctx, snapshot, f.URI(), pp)
+	// Ordinary (non-package) renaming.
+	//
+	// Type-check the current package, locate the reference at the position,
+	// validate the object, and report its name and range.
+	//
+	// TODO(adonovan): in all cases below, we return usererr=nil,
+	// which means we return (nil, nil) at the protocol
+	// layer. This seems like a bug, or at best an exploitation of
+	// knowledge of VSCode-specific behavior. Can we avoid that?
+	pkg, pgf, err := PackageForFile(ctx, snapshot, f.URI(), TypecheckFull, NarrowestPackage)
 	if err != nil {
-		return nil, nil, err // => suppress error to user
+		return nil, nil, err
 	}
-	node, obj, pkg := qos[0].node, qos[0].obj, qos[0].sourcePkg
+	pos, err := pgf.PositionPos(pp)
+	if err != nil {
+		return nil, nil, err
+	}
+	targets, node, err := objectsAt(pkg.GetTypesInfo(), pgf.File, pos)
+	if err != nil {
+		return nil, nil, err
+	}
+	var obj types.Object
+	for obj = range targets {
+		break // pick one arbitrarily
+	}
 	if err := checkRenamable(obj); err != nil {
-		return nil, nil, err // => suppress error to user
+		return nil, nil, err
 	}
-
-	result, err := computePrepareRenameResp(ctx, snapshot, pkg, node, obj.Name())
+	rng, err := pgf.NodeRange(node)
 	if err != nil {
-		return nil, nil, err // -> suppress error to user
+		return nil, nil, err
 	}
-	return result, nil, nil
-}
-
-func computePrepareRenameResp(ctx context.Context, snapshot Snapshot, pkg Package, node ast.Node, text string) (*PrepareItem, error) {
-	mr, err := posToMappedRange(ctx, snapshot, pkg, node.Pos(), node.End())
-	if err != nil {
-		return nil, err
-	}
-	rng := mr.Range()
 	if _, isImport := node.(*ast.ImportSpec); isImport {
 		// We're not really renaming the import path.
 		rng.End = rng.Start
 	}
 	return &PrepareItem{
 		Range: rng,
-		Text:  text,
+		Text:  obj.Name(),
+	}, nil, nil
+}
+
+func prepareRenamePackageName(ctx context.Context, snapshot Snapshot, pgf *ParsedGoFile) (*PrepareItem, error) {
+	// Does the client support file renaming?
+	fileRenameSupported := false
+	for _, op := range snapshot.View().Options().SupportedResourceOperations {
+		if op == protocol.Rename {
+			fileRenameSupported = true
+			break
+		}
+	}
+	if !fileRenameSupported {
+		return nil, errors.New("can't rename package: LSP client does not support file renaming")
+	}
+
+	// Check validity of the metadata for the file's containing package.
+	fileMeta, err := snapshot.MetadataForFile(ctx, pgf.URI)
+	if err != nil {
+		return nil, err
+	}
+	if len(fileMeta) == 0 {
+		return nil, fmt.Errorf("no packages found for file %q", pgf.URI)
+	}
+	meta := fileMeta[0]
+	if meta.Name == "main" {
+		return nil, fmt.Errorf("can't rename package \"main\"")
+	}
+	if strings.HasSuffix(string(meta.Name), "_test") {
+		return nil, fmt.Errorf("can't rename x_test packages")
+	}
+	if meta.Module == nil {
+		return nil, fmt.Errorf("can't rename package: missing module information for package %q", meta.PkgPath)
+	}
+	if meta.Module.Path == string(meta.PkgPath) {
+		return nil, fmt.Errorf("can't rename package: package path %q is the same as module path %q", meta.PkgPath, meta.Module.Path)
+	}
+
+	// Return the location of the package declaration.
+	rng, err := pgf.NodeRange(pgf.File.Name)
+	if err != nil {
+		return nil, err
+	}
+	return &PrepareItem{
+		Range: rng,
+		Text:  string(meta.Name),
 	}, nil
 }
 
@@ -871,13 +875,8 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, uri span.URI, p
 // A qualifiedObject is the result of resolving a reference from an
 // identifier to an object.
 type qualifiedObject struct {
-	// definition
 	obj types.Object // the referenced object
 	pkg Package      // the Package that defines the object (nil => universe)
-
-	// reference (optional)
-	node      ast.Node // the reference (*ast.Ident or *ast.ImportSpec) to the object
-	sourcePkg Package  // the Package containing node
 }
 
 // A positionKey identifies a byte offset within a file (URI).
@@ -1009,12 +1008,7 @@ func qualifiedObjsAtLocation(ctx context.Context, s Snapshot, key positionKey, s
 				event.Error(ctx, fmt.Sprintf("no package for obj %s: %v", obj, obj.Pkg()), err)
 				continue
 			}
-			qualifiedObjs = append(qualifiedObjs, qualifiedObject{
-				obj:       obj,
-				pkg:       pkg,
-				sourcePkg: searchpkg,
-				node:      path[0],
-			})
+			qualifiedObjs = append(qualifiedObjs, qualifiedObject{obj: obj, pkg: pkg})
 			seenObjs[obj] = true
 
 			// If the qualified object is in another file (or more likely, another
