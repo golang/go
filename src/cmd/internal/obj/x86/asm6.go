@@ -4070,6 +4070,16 @@ func (ab *AsmBuf) asmevex(ctxt *obj.Link, p *obj.Prog, rm, v, r, k *obj.Addr) {
 		if !evex.ZeroingEnabled() {
 			ctxt.Diag("unsupported zeroing: %v", p)
 		}
+		if k == nil {
+			// When you request zeroing you must specify a mask register.
+			// See issue 57952.
+			ctxt.Diag("mask register must be specified for .Z instructions: %v", p)
+		} else if k.Reg == REG_K0 {
+			// The mask register must not be K0. That restriction is already
+			// handled by the Yknot0 restriction in the opcode tables, so we
+			// won't ever reach here. But put something sensible here just in case.
+			ctxt.Diag("mask register must not be K0 for .Z instructions: %v", p)
+		}
 		evexZ = 1
 	}
 	switch {
