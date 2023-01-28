@@ -89,12 +89,6 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 	port, err = doBlockingWithCtx(ctx, func() (int, error) {
 		return cgoLookupServicePort(&hints, network, service)
 	})
-
-	if err == errCanceled || err == errTimeout {
-		// Let the lookup fallback to the go resolver.
-		return 0, err, false
-	}
-
 	return port, err, true
 }
 
