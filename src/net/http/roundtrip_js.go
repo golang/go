@@ -191,7 +191,22 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	failure = js.FuncOf(func(this js.Value, args []js.Value) any {
 		success.Release()
 		failure.Release()
-		errCh <- fmt.Errorf("net/http: fetch() failed: %s", args[0].Get("message").String())
+		err := args[0]
+		// The error is a JS Error type
+		// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
+		// We can use the toString() method to get a string representation of the error.
+		errMsg := err.Call("toString").String()
+		// Errors can optionally contain a cause.
+		if cause := err.Get("cause"); !cause.IsUndefined() {
+			// The exact type of the cause is not defined,
+			// but if it's another error, we can call toString() on it too.
+			if !cause.Get("toString").IsUndefined() {
+				errMsg += ": " + cause.Call("toString").String()
+			} else if cause.Type() == js.TypeString {
+				errMsg += ": " + cause.String()
+			}
+		}
+		errCh <- fmt.Errorf("net/http: fetch() failed: %s", errMsg)
 		return nil
 	})
 
