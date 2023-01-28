@@ -7,6 +7,7 @@
 package net
 
 /*
+#cgo CFLAGS: -fno-stack-protector
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

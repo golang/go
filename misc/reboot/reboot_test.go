@@ -36,14 +36,22 @@ func TestRepeatBootstrap(t *testing.T) {
 	if err := os.Mkdir(dotGit, 000); err != nil {
 		t.Fatal(err)
 	}
+
+	overlayStart := time.Now()
+
 	goroot := filepath.Join(parent, "goroot")
 
 	gorootSrc := filepath.Join(goroot, "src")
-	overlayStart := time.Now()
 	if err := overlayDir(gorootSrc, filepath.Join(realGoroot, "src")); err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("GOROOT/src overlay set up in %s", time.Since(overlayStart))
+
+	gorootLib := filepath.Join(goroot, "lib")
+	if err := overlayDir(gorootLib, filepath.Join(realGoroot, "lib")); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("GOROOT overlay set up in %s", time.Since(overlayStart))
 
 	if err := os.WriteFile(filepath.Join(goroot, "VERSION"), []byte(runtime.Version()), 0666); err != nil {
 		t.Fatal(err)

@@ -29,7 +29,7 @@ func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.F
 		recv1 = declareParam(ir.PPARAM, -1, recv)
 	}
 
-	typ := types.NewSignature(types.LocalPkg, recv1, nil, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
+	typ := types.NewSignature(recv1, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
 	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
 	fn.Nname.SetType(typ)
 	fn.Nname.SetTypecheck(1)
@@ -59,6 +59,7 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
 		}
 		Target.Externs = append(Target.Externs, n)
+		s.Def = n
 	} else {
 		if ir.CurFunc == nil && ctxt == ir.PAUTO {
 			base.Pos = n.Pos()
@@ -67,7 +68,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
 			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
 		}
-		types.Pushdcl(s)
 		n.Curfn = ir.CurFunc
 	}
 
@@ -75,7 +75,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		n.SetFrameOffset(0)
 	}
 
-	s.Def = n
 	n.Class = ctxt
 	if ctxt == ir.PFUNC {
 		n.Sym().SetFunc(true)
@@ -107,8 +106,6 @@ func StartFuncBody(fn *ir.Func) {
 	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
 	ir.CurFunc = fn
 	DeclContext = ir.PAUTO
-
-	types.Markdcl()
 }
 
 // finish the body.
@@ -116,7 +113,6 @@ func StartFuncBody(fn *ir.Func) {
 // returns in extern-declaration context.
 func FinishFuncBody() {
 	// change the declaration context from auto to previous context
-	types.Popdcl()
 	var e funcStackEnt
 	funcStack, e = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
 	ir.CurFunc, DeclContext = e.curfn, e.dclcontext
@@ -305,12 +301,6 @@ func autotmpname(n int) string {
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
 func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
-	if sig.HasTParam() {
-		base.Fatalf("NewMethodType with type parameters in signature %+v", sig)
-	}
-	if recv != nil && recv.HasTParam() {
-		base.Fatalf("NewMethodType with type parameters in receiver %+v", recv)
-	}
 	nrecvs := 0
 	if recv != nil {
 		nrecvs++
@@ -334,5 +324,5 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
 		results[i] = types.NewField(base.Pos, nil, t.Type)
 	}
 
-	return types.NewSignature(types.LocalPkg, nil, nil, params, results)
+	return types.NewSignature(nil, params, results)
 }

@@ -27,9 +27,11 @@ import (
 // In the terminology of the Go memory model, Map arranges that a write operation
 // “synchronizes before” any read operation that observes the effect of the write, where
 // read and write operations are defined as follows.
-// Load, LoadAndDelete, LoadOrStore are read operations;
-// Delete, LoadAndDelete, and Store are write operations;
-// and LoadOrStore is a write operation when it returns loaded set to false.
+// Load, LoadAndDelete, LoadOrStore, Swap, CompareAndSwap, and CompareAndDelete
+// are read operations; Delete, LoadAndDelete, Store, and Swap are write operations;
+// LoadOrStore is a write operation when it returns loaded set to false;
+// CompareAndSwap is a write operation when it returns swapped set to true;
+// and CompareAndDelete is a write operation when it returns deleted set to true.
 type Map struct {
 	mu Mutex
 

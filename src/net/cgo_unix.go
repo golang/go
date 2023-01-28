@@ -222,7 +222,7 @@ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err
 	case r := <-result:
 		return r.addrs, r.err, true
 	case <-ctx.Done():
-		return nil, mapErr(ctx.Err()), false
+		return nil, mapErr(ctx.Err()), true
 	}
 }
 
@@ -262,7 +262,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, 
 	case r := <-result:
 		return r.names, r.err, true
 	case <-ctx.Done():
-		return nil, mapErr(ctx.Err()), false
+		return nil, mapErr(ctx.Err()), true
 	}
 }
 
@@ -383,8 +383,9 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	s := _C_CString(hostname)
 	defer _C_FreeCString(s)
 
+	var size int
 	for {
-		size, _ := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
+		size, _ = _C_res_nsearch(state, s, class, rtype, buf, bufSize)
 		if size <= 0 || size > 0xffff {
 			return nil, errors.New("res_nsearch failure")
 		}
@@ -399,7 +400,7 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	}
 
 	var p dnsmessage.Parser
-	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), bufSize)); err != nil {
+	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), size)); err != nil {
 		return nil, err
 	}
 	p.SkipAllQuestions()

@@ -73,7 +73,7 @@ if not exist ..\bin\tool mkdir ..\bin\tool
 if not "x%GOROOT_BOOTSTRAP%"=="x" goto bootstrapset
 for /f "tokens=*" %%g in ('where go 2^>nul') do (
 	if "x%GOROOT_BOOTSTRAP%"=="x" (
-		for /f "tokens=*" %%i in ('%%g env GOROOT 2^>nul') do (
+		for /f "tokens=*" %%i in ('"%%g" env GOROOT 2^>nul') do (
 			if /I not "%%i"=="%GOROOT_TEMP%" (
 				set GOROOT_BOOTSTRAP=%%i
 			)

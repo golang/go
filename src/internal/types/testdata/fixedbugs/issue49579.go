@@ -9,7 +9,7 @@ type I[F any] interface {
 }
 
 func G[F any]() I[any] {
-	return g /* ERROR cannot use g\[F\]{} .* as I\[any\] value in return statement: g\[F\] does not implement I\[any\] \(method Q has pointer receiver\) */ [F]{}
+	return g /* ERRORx `cannot use g\[F\]{} .* as I\[any\] value in return statement: g\[F\] does not implement I\[any\] \(method Q has pointer receiver\)` */ [F]{}
 }
 
 type g[F any] struct{}

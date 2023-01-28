@@ -223,7 +223,7 @@ func _() {
 	_ = S2{}.D /* ERROR "no field or method" */
 	_ = S3{}.S1 /* ERROR "ambiguous selector S3{}.S1" */
 	_ = S3{}.A
-	_ = S3{}.B /* ERROR "ambiguous selector" S3{}.B */
+	_ = S3{}.B /* ERROR "ambiguous selector S3{}.B" */
 	_ = S3{}.D
 	_ = S3{}.E
 	_ = S4{}.A

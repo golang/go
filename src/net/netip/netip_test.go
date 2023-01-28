@@ -1869,7 +1869,7 @@ func TestNoAllocs(t *testing.T) {
 		})
 	}
 
-	// IP constructors
+	// Addr constructors
 	test("IPv4", func() { sinkIP = IPv4(1, 2, 3, 4) })
 	test("AddrFrom4", func() { sinkIP = AddrFrom4([4]byte{1, 2, 3, 4}) })
 	test("AddrFrom16", func() { sinkIP = AddrFrom16([16]byte{}) })
@@ -1881,41 +1881,41 @@ func TestNoAllocs(t *testing.T) {
 	test("IPv6Loopback", func() { sinkIP = IPv6Loopback() })
 	test("IPv6Unspecified", func() { sinkIP = IPv6Unspecified() })
 
-	// IP methods
-	test("IP.IsZero", func() { sinkBool = MustParseAddr("1.2.3.4").IsZero() })
-	test("IP.BitLen", func() { sinkBool = MustParseAddr("1.2.3.4").BitLen() == 8 })
-	test("IP.Zone/4", func() { sinkBool = MustParseAddr("1.2.3.4").Zone() == "" })
-	test("IP.Zone/6", func() { sinkBool = MustParseAddr("fe80::1").Zone() == "" })
-	test("IP.Zone/6zone", func() { sinkBool = MustParseAddr("fe80::1%zone").Zone() == "" })
-	test("IP.Compare", func() {
+	// Addr methods
+	test("Addr.IsZero", func() { sinkBool = MustParseAddr("1.2.3.4").IsZero() })
+	test("Addr.BitLen", func() { sinkBool = MustParseAddr("1.2.3.4").BitLen() == 8 })
+	test("Addr.Zone/4", func() { sinkBool = MustParseAddr("1.2.3.4").Zone() == "" })
+	test("Addr.Zone/6", func() { sinkBool = MustParseAddr("fe80::1").Zone() == "" })
+	test("Addr.Zone/6zone", func() { sinkBool = MustParseAddr("fe80::1%zone").Zone() == "" })
+	test("Addr.Compare", func() {
 		a := MustParseAddr("1.2.3.4")
 		b := MustParseAddr("2.3.4.5")
 		sinkBool = a.Compare(b) == 0
 	})
-	test("IP.Less", func() {
+	test("Addr.Less", func() {
 		a := MustParseAddr("1.2.3.4")
 		b := MustParseAddr("2.3.4.5")
 		sinkBool = a.Less(b)
 	})
-	test("IP.Is4", func() { sinkBool = MustParseAddr("1.2.3.4").Is4() })
-	test("IP.Is6", func() { sinkBool = MustParseAddr("fe80::1").Is6() })
-	test("IP.Is4In6", func() { sinkBool = MustParseAddr("fe80::1").Is4In6() })
-	test("IP.Unmap", func() { sinkIP = MustParseAddr("ffff::2.3.4.5").Unmap() })
-	test("IP.WithZone", func() { sinkIP = MustParseAddr("fe80::1").WithZone("") })
-	test("IP.IsGlobalUnicast", func() { sinkBool = MustParseAddr("2001:db8::1").IsGlobalUnicast() })
-	test("IP.IsInterfaceLocalMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsInterfaceLocalMulticast() })
-	test("IP.IsLinkLocalMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsLinkLocalMulticast() })
-	test("IP.IsLinkLocalUnicast", func() { sinkBool = MustParseAddr("fe80::1").IsLinkLocalUnicast() })
-	test("IP.IsLoopback", func() { sinkBool = MustParseAddr("fe80::1").IsLoopback() })
-	test("IP.IsMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsMulticast() })
-	test("IP.IsPrivate", func() { sinkBool = MustParseAddr("fd00::1").IsPrivate() })
-	test("IP.IsUnspecified", func() { sinkBool = IPv6Unspecified().IsUnspecified() })
-	test("IP.Prefix/4", func() { sinkPrefix = panicPfx(MustParseAddr("1.2.3.4").Prefix(20)) })
-	test("IP.Prefix/6", func() { sinkPrefix = panicPfx(MustParseAddr("fe80::1").Prefix(64)) })
-	test("IP.As16", func() { sinkIP16 = MustParseAddr("1.2.3.4").As16() })
-	test("IP.As4", func() { sinkIP4 = MustParseAddr("1.2.3.4").As4() })
-	test("IP.Next", func() { sinkIP = MustParseAddr("1.2.3.4").Next() })
-	test("IP.Prev", func() { sinkIP = MustParseAddr("1.2.3.4").Prev() })
+	test("Addr.Is4", func() { sinkBool = MustParseAddr("1.2.3.4").Is4() })
+	test("Addr.Is6", func() { sinkBool = MustParseAddr("fe80::1").Is6() })
+	test("Addr.Is4In6", func() { sinkBool = MustParseAddr("fe80::1").Is4In6() })
+	test("Addr.Unmap", func() { sinkIP = MustParseAddr("ffff::2.3.4.5").Unmap() })
+	test("Addr.WithZone", func() { sinkIP = MustParseAddr("fe80::1").WithZone("") })
+	test("Addr.IsGlobalUnicast", func() { sinkBool = MustParseAddr("2001:db8::1").IsGlobalUnicast() })
+	test("Addr.IsInterfaceLocalMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsInterfaceLocalMulticast() })
+	test("Addr.IsLinkLocalMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsLinkLocalMulticast() })
+	test("Addr.IsLinkLocalUnicast", func() { sinkBool = MustParseAddr("fe80::1").IsLinkLocalUnicast() })
+	test("Addr.IsLoopback", func() { sinkBool = MustParseAddr("fe80::1").IsLoopback() })
+	test("Addr.IsMulticast", func() { sinkBool = MustParseAddr("fe80::1").IsMulticast() })
+	test("Addr.IsPrivate", func() { sinkBool = MustParseAddr("fd00::1").IsPrivate() })
+	test("Addr.IsUnspecified", func() { sinkBool = IPv6Unspecified().IsUnspecified() })
+	test("Addr.Prefix/4", func() { sinkPrefix = panicPfx(MustParseAddr("1.2.3.4").Prefix(20)) })
+	test("Addr.Prefix/6", func() { sinkPrefix = panicPfx(MustParseAddr("fe80::1").Prefix(64)) })
+	test("Addr.As16", func() { sinkIP16 = MustParseAddr("1.2.3.4").As16() })
+	test("Addr.As4", func() { sinkIP4 = MustParseAddr("1.2.3.4").As4() })
+	test("Addr.Next", func() { sinkIP = MustParseAddr("1.2.3.4").Next() })
+	test("Addr.Prev", func() { sinkIP = MustParseAddr("1.2.3.4").Prev() })
 
 	// AddrPort constructors
 	test("AddrPortFrom", func() { sinkAddrPort = AddrPortFrom(IPv4(1, 2, 3, 4), 22) })
@@ -1936,7 +1936,7 @@ func TestNoAllocs(t *testing.T) {
 	})
 	test("Prefix.IsZero", func() { sinkBool = MustParsePrefix("1.2.0.0/16").IsZero() })
 	test("Prefix.IsSingleIP", func() { sinkBool = MustParsePrefix("1.2.3.4/32").IsSingleIP() })
-	test("IPPRefix.Masked", func() { sinkPrefix = MustParsePrefix("1.2.3.4/16").Masked() })
+	test("Prefix.Masked", func() { sinkPrefix = MustParsePrefix("1.2.3.4/16").Masked() })
 }
 
 func TestAddrStringAllocs(t *testing.T) {

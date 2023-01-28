@@ -304,7 +304,8 @@
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 (Addr {sym} base) => (LoweredAddr {sym} [0] base)
-(LocalAddr {sym} base _) => (LoweredAddr {sym} base)
+(LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (LoweredAddr {sym} (SPanchored base mem))
+(LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (LoweredAddr {sym} base)
 
 // Write barrier.
 (WB ...) => (LoweredWB ...)

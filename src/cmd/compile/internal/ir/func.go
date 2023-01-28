@@ -147,9 +147,10 @@ func NewFunc(pos src.XPos) *Func {
 
 func (f *Func) isStmt() {}
 
-func (n *Func) copy() Node                         { panic(n.no("copy")) }
-func (n *Func) doChildren(do func(Node) bool) bool { return doNodes(n.Body, do) }
-func (n *Func) editChildren(edit func(Node) Node)  { editNodes(n.Body, edit) }
+func (n *Func) copy() Node                                  { panic(n.no("copy")) }
+func (n *Func) doChildren(do func(Node) bool) bool          { return doNodes(n.Body, do) }
+func (n *Func) editChildren(edit func(Node) Node)           { editNodes(n.Body, edit) }
+func (n *Func) editChildrenWithHidden(edit func(Node) Node) { editNodes(n.Body, edit) }
 
 func (f *Func) Type() *types.Type                { return f.Nname.Type() }
 func (f *Func) Sym() *types.Sym                  { return f.Nname.Sym() }
@@ -385,7 +386,7 @@ func NameClosure(clo *ClosureExpr, outerfn *Func) {
 	MarkFunc(name)
 }
 
-// UseClosure checks that the ginen function literal has been setup
+// UseClosure checks that the given function literal has been setup
 // correctly, and then returns it as an expression.
 // It must be called after clo.Func.ClosureVars has been set.
 func UseClosure(clo *ClosureExpr, pkg *Package) Node {

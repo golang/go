@@ -125,7 +125,7 @@ func readHosts() {
 	file.close()
 }
 
-// lookupStaticHost looks up the addresses and the cannonical name for the given host from /etc/hosts.
+// lookupStaticHost looks up the addresses and the canonical name for the given host from /etc/hosts.
 func lookupStaticHost(host string) ([]string, string) {
 	hosts.Lock()
 	defer hosts.Unlock()

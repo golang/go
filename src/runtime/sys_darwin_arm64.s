@@ -461,7 +461,7 @@ TEXT runtime·pthread_setspecific_trampoline(SB),NOSPLIT,$0
 TEXT runtime·osinit_hack_trampoline(SB),NOSPLIT,$0
 	MOVD	$0, R0	// arg 1 val
 	BL	libc_notify_is_valid_token(SB)
-	BL	libc_xpc_atfork_child(SB)
+	BL	libc_xpc_date_create_from_current(SB)
 	RET
 
 // syscall calls a function in libc on behalf of the syscall package.

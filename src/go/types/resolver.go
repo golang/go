@@ -118,7 +118,7 @@ func (check *Checker) declarePkgObj(ident *ast.Ident, obj Object, d *declInfo) {
 		return
 	}
 
-	check.declare(check.pkg.scope, ident, obj, token.NoPos)
+	check.declare(check.pkg.scope, ident, obj, nopos)
 	check.objMap[obj] = d
 	obj.setOrder(uint32(len(check.objMap)))
 }
@@ -325,7 +325,7 @@ func (check *Checker) collectObjects() {
 							// (Do not use check.declare because it modifies the object
 							// via Object.setScopePos, which leads to a race condition;
 							// the object may be imported into more than one file scope
-							// concurrently. See issue #32154.)
+							// concurrently. See go.dev/issue/32154.)
 							if alt := fileScope.Lookup(name); alt != nil {
 								check.errorf(d.spec.Name, DuplicateDecl, "%s redeclared in this block", alt.Name())
 								check.reportAltDecl(alt)
@@ -338,7 +338,7 @@ func (check *Checker) collectObjects() {
 				} else {
 					// declare imported package object in file scope
 					// (no need to provide s.Name since we called check.recordDef earlier)
-					check.declare(fileScope, nil, pkgName, token.NoPos)
+					check.declare(fileScope, nil, pkgName, nopos)
 				}
 			case constDecl:
 				// declare all constants
@@ -425,7 +425,7 @@ func (check *Checker) collectObjects() {
 							check.softErrorf(obj, MissingInitBody, "missing function body")
 						}
 					} else {
-						check.declare(pkg.scope, d.decl.Name, obj, token.NoPos)
+						check.declare(pkg.scope, d.decl.Name, obj, nopos)
 					}
 				} else {
 					// method
@@ -637,7 +637,7 @@ func (check *Checker) packageObjects() {
 	// We process non-alias type declarations first, followed by alias declarations,
 	// and then everything else. This appears to avoid most situations where the type
 	// of an alias is needed before it is available.
-	// There may still be cases where this is not good enough (see also issue #25838).
+	// There may still be cases where this is not good enough (see also go.dev/issue/25838).
 	// In those cases Checker.ident will report an error ("invalid use of type alias").
 	var aliasList []*TypeName
 	var othersList []Object // everything that's not a type

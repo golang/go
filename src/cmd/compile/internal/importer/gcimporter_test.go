@@ -9,7 +9,6 @@ import (
 	"cmd/compile/internal/types2"
 	"fmt"
 	"go/build"
-	"internal/goexperiment"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -98,7 +97,7 @@ func TestImportTestdata(t *testing.T) {
 		"exports.go":  {"go/ast", "go/token"},
 		"generics.go": nil,
 	}
-	if goexperiment.Unified {
+	if true /* was goexperiment.Unified */ {
 		// TODO(mdempsky): Fix test below to flatten the transitive
 		// Package.Imports graph. Unified IR is more precise about
 		// recreating the package import graph.
@@ -343,8 +342,12 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types2.Named, level int) {
 	// The unified IR importer always sets interface method receiver
 	// parameters to point to the Interface type, rather than the Named.
 	// See #49906.
+	//
+	// TODO(mdempsky): This is only true for the types2 importer. For
+	// the go/types importer, we duplicate the Interface and rewrite its
+	// receiver methods to match historical behavior.
 	var want types2.Type = named
-	if goexperiment.Unified {
+	if true /* was goexperiment.Unified */ {
 		want = iface
 	}
 

@@ -27,7 +27,7 @@ type cacheEntry struct {
 // to the certificate in the cache is decremented. Once the number of references
 // reaches zero, the entry is evicted from the cache.
 //
-// The main difference between this implmentation and CRYPTO_BUFFER_POOL is that
+// The main difference between this implementation and CRYPTO_BUFFER_POOL is that
 // CRYPTO_BUFFER_POOL is a more  generic structure which supports blobs of data,
 // rather than specific structures. Since we only care about x509.Certificates,
 // certCache is implemented as a specific cache, rather than a generic one.

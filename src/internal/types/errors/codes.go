@@ -1432,7 +1432,7 @@ const (
 	_ // not used anymore
 
 	// InvalidClear occurs when clear is called with an argument
-	// that is not of map, slice, or pointer-to-array type.
+	// that is not of map or slice type.
 	//
 	// Example:
 	//  func _(x int) {

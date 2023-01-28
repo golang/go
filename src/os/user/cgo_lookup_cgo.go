@@ -12,6 +12,7 @@ import (
 
 /*
 #cgo solaris CFLAGS: -D_POSIX_PTHREAD_SEMANTICS
+#cgo CFLAGS: -fno-stack-protector
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>

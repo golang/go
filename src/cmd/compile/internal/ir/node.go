@@ -30,6 +30,7 @@ type Node interface {
 
 	doChildren(func(Node) bool) bool
 	editChildren(func(Node) Node)
+	editChildrenWithHidden(func(Node) Node)
 
 	// Abstract graph structure, for generic traversals.
 	Op() Op

@@ -144,7 +144,7 @@ func parseTilde(check *Checker, tx ast.Expr) *Term {
 		tilde = true
 	}
 	typ := check.typ(x)
-	// Embedding stand-alone type parameters is not permitted (issue #47127).
+	// Embedding stand-alone type parameters is not permitted (go.dev/issue/47127).
 	// We don't need this restriction anymore if we make the underlying type of a type
 	// parameter its constraint interface: if we embed a lone type parameter, we will
 	// simply use its underlying type (like we do for other named, embedded interfaces),

@@ -47,16 +47,6 @@ func Callee(n ir.Node) ir.Node {
 
 var importlist []*ir.Func
 
-// AllImportedBodies reads in the bodies of all imported functions and typechecks
-// them, if needed.
-func AllImportedBodies() {
-	for _, n := range importlist {
-		if n.Inl != nil {
-			ImportedBody(n)
-		}
-	}
-}
-
 var traceIndent []byte
 
 func tracePrint(title string, n ir.Node) func(np *ir.Node) {
@@ -126,21 +116,8 @@ func Resolve(n ir.Node) (res ir.Node) {
 		return n
 	}
 
-	// only trace if there's work to do
-	if base.EnableTrace && base.Flag.LowerT {
-		defer tracePrint("resolve", n)(&res)
-	}
-
-	if sym := n.Sym(); sym.Pkg != types.LocalPkg {
-		return expandDecl(n)
-	}
-
-	r := ir.AsNode(n.Sym().Def)
-	if r == nil {
-		return n
-	}
-
-	return r
+	base.Fatalf("unexpected NONAME node: %+v", n)
+	panic("unreachable")
 }
 
 func typecheckslice(l []ir.Node, top int) {
@@ -1469,7 +1446,7 @@ func sigrepr(t *types.Type, isddd bool) string {
 	return t.String()
 }
 
-// sigerr returns the signature of the types at the call or return.
+// fmtSignature returns the signature of the types at the call or return.
 func fmtSignature(nl ir.Nodes, isddd bool) string {
 	if len(nl) < 1 {
 		return "()"

@@ -63,6 +63,30 @@ func f5(a [10]int) int {
 	return x
 }
 
+func f5_int32(a [10]int) int {
+	x := 0
+	for i := int32(-10); i < int32(len(a)); i += 2 { // ERROR "Induction variable: limits \[-10,8\], increment 2$"
+		x += a[i]
+	}
+	return x
+}
+
+func f5_int16(a [10]int) int {
+	x := 0
+	for i := int16(-10); i < int16(len(a)); i += 2 { // ERROR "Induction variable: limits \[-10,8\], increment 2$"
+		x += a[i]
+	}
+	return x
+}
+
+func f5_int8(a [10]int) int {
+	x := 0
+	for i := int8(-10); i < int8(len(a)); i += 2 { // ERROR "Induction variable: limits \[-10,8\], increment 2$"
+		x += a[i]
+	}
+	return x
+}
+
 func f6(a []int) {
 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
 		b := a[0:i] // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"

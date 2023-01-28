@@ -274,3 +274,58 @@ func TestMetaDataWriterReader(t *testing.T) {
 		inf.Close()
 	}
 }
+
+func TestMetaDataDecodeLitFlagIssue57942(t *testing.T) {
+
+	// Encode a package with a few functions. The funcs alternate
+	// between regular functions and function literals.
+	pp := "foo/bar/pkg"
+	pn := "pkg"
+	mp := "barmod"
+	b, err := encodemeta.NewCoverageMetaDataBuilder(pp, pn, mp)
+	if err != nil {
+		t.Fatalf("making builder: %v", err)
+	}
+	const NF = 6
+	const NCU = 1
+	ln := uint32(10)
+	wantfds := []coverage.FuncDesc{}
+	for fi := uint32(0); fi < NF; fi++ {
+		fis := fmt.Sprintf("%d", fi)
+		fd := coverage.FuncDesc{
+			Funcname: "func" + fis,
+			Srcfile:  "foo" + fis + ".go",
+			Units: []coverage.CoverableUnit{
+				coverage.CoverableUnit{StLine: ln + 1, StCol: 2, EnLine: ln + 3, EnCol: 4, NxStmts: fi + 2},
+			},
+			Lit: (fi % 2) == 0,
+		}
+		wantfds = append(wantfds, fd)
+		b.AddFunc(fd)
+	}
+
+	// Emit into a writer.
+	drws := &slicewriter.WriteSeeker{}
+	b.Emit(drws)
+
+	// Decode the result.
+	drws.Seek(0, io.SeekStart)
+	dec, err := decodemeta.NewCoverageMetaDataDecoder(drws.BytesWritten(), false)
+	if err != nil {
+		t.Fatalf("making decoder: %v", err)
+	}
+	nf := dec.NumFuncs()
+	if nf != NF {
+		t.Fatalf("decoder number of functions: got %d want %d", nf, NF)
+	}
+	var fn coverage.FuncDesc
+	for i := uint32(0); i < uint32(NF); i++ {
+		if err := dec.ReadFunc(i, &fn); err != nil {
+			t.Fatalf("err reading function %d: %v", i, err)
+		}
+		res := cmpFuncDesc(wantfds[i], fn)
+		if res != "" {
+			t.Errorf("ReadFunc(%d): %s", i, res)
+		}
+	}
+}

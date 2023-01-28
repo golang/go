@@ -652,7 +652,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	return walkStmt(typecheck.Stmt(r))
 }
 
-// walkRecover walks an ORECOVERFP node.
+// walkRecoverFP walks an ORECOVERFP node.
 func walkRecoverFP(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	return mkcall("gorecover", nn.Type(), init, walkExpr(nn.Args[0], init))
 }

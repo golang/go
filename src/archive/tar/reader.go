@@ -43,25 +43,25 @@ func NewReader(r io.Reader) *Reader {
 // Next advances to the next entry in the tar archive.
 // The Header.Size determines how many bytes can be read for the next file.
 // Any remaining data in the current file is automatically discarded.
+// At the end of the archive, Next returns the error io.EOF.
 //
-// io.EOF is returned at the end of the input.
-//
-// ErrInsecurePath and a valid *Header are returned if the next file's name is:
-//
-//   - absolute;
-//   - a relative path escaping the current directory, such as "../a"; or
-//   - on Windows, a reserved file name such as "NUL".
-//
-// The caller may ignore the ErrInsecurePath error,
-// but is then responsible for sanitizing paths as appropriate.
+// If Next encounters a non-local name (as defined by [filepath.IsLocal])
+// and the GODEBUG environment variable contains `tarinsecurepath=0`,
+// Next returns the header with an ErrInsecurePath error.
+// A future version of Go may introduce this behavior by default.
+// Programs that want to accept non-local names can ignore
+// the ErrInsecurePath error and use the returned header.
 func (tr *Reader) Next() (*Header, error) {
 	if tr.err != nil {
 		return nil, tr.err
 	}
 	hdr, err := tr.next()
 	tr.err = err
-	if err == nil && tarinsecurepath.Value() == "0" && !filepath.IsLocal(hdr.Name) {
-		err = ErrInsecurePath
+	if err == nil && !filepath.IsLocal(hdr.Name) {
+		if tarinsecurepath.Value() == "0" {
+			tarinsecurepath.IncNonDefault()
+			err = ErrInsecurePath
+		}
 	}
 	return hdr, err
 }

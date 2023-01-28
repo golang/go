@@ -181,7 +181,7 @@ func importRaw(modroot, reldir string) *rawPackage {
 	// We still haven't checked
 	// that p.dir directory exists. This is the right time to do that check.
 	// We can't do it earlier, because we want to gather partial information for the
-	// non-nil *Package returned when an error occurs.
+	// non-nil *build.Package returned when an error occurs.
 	// We need to do this before we return early on FindOnly flag.
 	if !isDir(absdir) {
 		// package was not found

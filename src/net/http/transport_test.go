@@ -4092,6 +4092,45 @@ func testTransportDialCancelRace(t *testing.T, mode testMode) {
 	}
 }
 
+// https://go.dev/issue/49621
+func TestConnClosedBeforeRequestIsWritten(t *testing.T) {
+	run(t, testConnClosedBeforeRequestIsWritten, testNotParallel, []testMode{http1Mode})
+}
+func testConnClosedBeforeRequestIsWritten(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}),
+		func(tr *Transport) {
+			tr.DialContext = func(_ context.Context, network, addr string) (net.Conn, error) {
+				// Connection immediately returns errors.
+				return &funcConn{
+					read: func([]byte) (int, error) {
+						return 0, errors.New("error")
+					},
+					write: func([]byte) (int, error) {
+						return 0, errors.New("error")
+					},
+				}, nil
+			}
+		},
+	).ts
+	// Set a short delay in RoundTrip to give the persistConn time to notice
+	// the connection is broken. We want to exercise the path where writeLoop exits
+	// before it reads the request to send. If this delay is too short, we may instead
+	// exercise the path where writeLoop accepts the request and then fails to write it.
+	// That's fine, so long as we get the desired path often enough.
+	SetEnterRoundTripHook(func() {
+		time.Sleep(1 * time.Millisecond)
+	})
+	defer SetEnterRoundTripHook(nil)
+	var closes int
+	_, err := ts.Client().Post(ts.URL, "text/plain", countCloseReader{&closes, strings.NewReader("hello")})
+	if err == nil {
+		t.Fatalf("expected request to fail, but it did not")
+	}
+	if closes != 1 {
+		t.Errorf("after RoundTrip, request body was closed %v times; want 1", closes)
+	}
+}
+
 // logWritesConn is a net.Conn that logs each Write call to writes
 // and then proxies to w.
 // It proxies Read calls to a reader it receives from rch.
@@ -6565,7 +6604,8 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 	var wg sync.WaitGroup
 
 	wg.Add(1)
-	putidlec := make(chan chan struct{})
+	putidlec := make(chan chan struct{}, 1)
+	reqerrc := make(chan error, 1)
 	go func() {
 		defer wg.Done()
 		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
@@ -6574,16 +6614,15 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 				// and wait for the order to proceed.
 				ch := make(chan struct{})
 				putidlec <- ch
+				close(putidlec) // panic if PutIdleConn runs twice for some reason
 				<-ch
 			},
 		})
 		req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 		res, err := client.Do(req)
+		reqerrc <- err
 		if err == nil {
 			res.Body.Close()
-		}
-		if err != nil {
-			t.Errorf("request 1: got err %v, want nil", err)
 		}
 	}()
 
@@ -6591,7 +6630,15 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 	// connection to the idle pool.
 	r1c := <-reqc
 	close(r1c)
-	idlec := <-putidlec
+	var idlec chan struct{}
+	select {
+	case err := <-reqerrc:
+		if err != nil {
+			t.Fatalf("request 1: got err %v, want nil", err)
+		}
+		idlec = <-putidlec
+	case idlec = <-putidlec:
+	}
 
 	wg.Add(1)
 	cancelctx, cancel := context.WithCancel(context.Background())

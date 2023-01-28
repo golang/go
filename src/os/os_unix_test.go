@@ -40,6 +40,8 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
 }
 
 func TestChown(t *testing.T) {
+	t.Parallel()
+
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file. On NFS, the Getgroups groups are
@@ -83,6 +85,8 @@ func TestChown(t *testing.T) {
 }
 
 func TestFileChown(t *testing.T) {
+	t.Parallel()
+
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file. On NFS, the Getgroups groups are
@@ -126,6 +130,8 @@ func TestFileChown(t *testing.T) {
 }
 
 func TestLchown(t *testing.T) {
+	t.Parallel()
+
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
 	// on the file. On NFS, the Getgroups groups are
@@ -214,6 +220,8 @@ func TestReaddirRemoveRace(t *testing.T) {
 
 // Issue 23120: respect umask when doing Mkdir with the sticky bit
 func TestMkdirStickyUmask(t *testing.T) {
+	t.Parallel()
+
 	const umask = 0077
 	dir := newDir("TestMkdirStickyUmask", t)
 	defer RemoveAll(dir)

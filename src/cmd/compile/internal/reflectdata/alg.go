@@ -224,10 +224,6 @@ func genhash(t *types.Type) *obj.LSym {
 	typecheck.Stmts(fn.Body)
 	ir.CurFunc = nil
 
-	if base.Debug.DclStack != 0 {
-		types.CheckDclstack()
-	}
-
 	fn.SetNilCheckDisabled(true)
 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
 
@@ -268,7 +264,7 @@ func hashfor(t *types.Type) ir.Node {
 	// TODO(austin): This creates an ir.Name with a nil Func.
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
-	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+	n.SetType(types.NewSignature(nil, []*types.Field{
 		types.NewField(base.Pos, nil, types.NewPtr(t)),
 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
 	}, []*types.Field{
@@ -552,10 +548,6 @@ func geneq(t *types.Type) *obj.LSym {
 	typecheck.Stmts(fn.Body)
 	ir.CurFunc = nil
 
-	if base.Debug.DclStack != 0 {
-		types.CheckDclstack()
-	}
-
 	// Disable checknils while compiling this code.
 	// We are comparing a struct or an array,
 	// neither of which can be nil, and our comparisons
@@ -583,7 +575,7 @@ func hashmem(t *types.Type) ir.Node {
 	// TODO(austin): This creates an ir.Name with a nil Func.
 	n := typecheck.NewName(sym)
 	ir.MarkFunc(n)
-	n.SetType(types.NewSignature(types.NoPkg, nil, nil, []*types.Field{
+	n.SetType(types.NewSignature(nil, []*types.Field{
 		types.NewField(base.Pos, nil, types.NewPtr(t)),
 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),
 		types.NewField(base.Pos, nil, types.Types[types.TUINTPTR]),

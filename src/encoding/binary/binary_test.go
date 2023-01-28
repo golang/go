@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unsafe"
 )
 
 type Struct struct {
@@ -829,5 +830,14 @@ func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		Write(w, BigEndian, slice)
+	}
+}
+
+func TestNativeEndian(t *testing.T) {
+	const val = 0x12345678
+	i := uint32(val)
+	s := unsafe.Slice((*byte)(unsafe.Pointer(&i)), unsafe.Sizeof(i))
+	if v := NativeEndian.Uint32(s); v != val {
+		t.Errorf("NativeEndian.Uint32 returned %#x, expected %#x", v, val)
 	}
 }

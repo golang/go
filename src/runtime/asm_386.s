@@ -171,8 +171,12 @@ nocpuinfo:
 	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
 #else
 	MOVL	$0, BX
-	MOVL	BX, 12(SP)	// arg 3,4: not used when using platform's TLS
-	MOVL	BX, 8(SP)
+	MOVL	BX, 12(SP)	// arg 4: not used when using platform's TLS
+#ifdef GOOS_windows
+	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
+#else
+	MOVL	BX, 8(SP)	// arg 3: not used when using platform's TLS
+#endif
 #endif
 	MOVL	$setg_gcc<>(SB), BX
 	MOVL	BX, 4(SP)	// arg 2: setg_gcc
@@ -795,14 +799,15 @@ havem:
 TEXT runtime·setg(SB), NOSPLIT, $0-4
 	MOVL	gg+0(FP), BX
 #ifdef GOOS_windows
+	MOVL	runtime·tls_g(SB), CX
 	CMPL	BX, $0
 	JNE	settls
-	MOVL	$0, 0x14(FS)
+	MOVL	$0, 0(CX)(FS)
 	RET
 settls:
 	MOVL	g_m(BX), AX
 	LEAL	m_tls(AX), AX
-	MOVL	AX, 0x14(FS)
+	MOVL	AX, 0(CX)(FS)
 #endif
 	get_tls(CX)
 	MOVL	BX, g(CX)
@@ -867,6 +872,9 @@ rdtsc:
 	JMP done
 
 TEXT ldt0setup<>(SB),NOSPLIT,$16-0
+#ifdef GOOS_windows
+	CALL	runtime·wintls(SB)
+#endif
 	// set up ldt 7 to point at m0.tls
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
 	// the entry number is just a hint.  setldt will set up GS with what it used.
@@ -1575,5 +1583,8 @@ TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
 // Use the free TLS_SLOT_APP slot #2 on Android Q.
 // Earlier androids are set up in gcc_android.c.
 DATA runtime·tls_g+0(SB)/4, $8
+GLOBL runtime·tls_g+0(SB), NOPTR, $4
+#endif
+#ifdef GOOS_windows
 GLOBL runtime·tls_g+0(SB), NOPTR, $4
 #endif

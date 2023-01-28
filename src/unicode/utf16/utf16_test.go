@@ -5,6 +5,7 @@
 package utf16_test
 
 import (
+	"internal/testenv"
 	"reflect"
 	"testing"
 	"unicode"
@@ -101,6 +102,22 @@ var decodeTests = []decodeTest{
 		[]rune{0xffff, 0x10000, 0x10001, 0x12345, 0x10ffff}},
 	{[]uint16{0xd800, 'a'}, []rune{0xfffd, 'a'}},
 	{[]uint16{0xdfff}, []rune{0xfffd}},
+}
+
+func TestAllocationsDecode(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+
+	for _, tt := range decodeTests {
+		allocs := testing.AllocsPerRun(10, func() {
+			out := Decode(tt.in)
+			if out == nil {
+				t.Errorf("Decode(%x) = nil", tt.in)
+			}
+		})
+		if allocs > 0 {
+			t.Errorf("Decode allocated %v times", allocs)
+		}
+	}
 }
 
 func TestDecode(t *testing.T) {

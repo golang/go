@@ -476,23 +476,19 @@ func IsDirWithGoFiles(dir string) (bool, error) {
 
 // walk recursively descends path, calling walkFn. Copied, with some
 // modifications from path/filepath.walk.
-// Walk follows the root if it's a symlink, but reports the original paths,
-// so it calls walk with both the resolvedPath (which is the path with the root resolved)
-// and path (which is the path reported to the walkFn).
-func walk(path, resolvedPath string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
+func walk(path string, info fs.FileInfo, walkFn filepath.WalkFunc) error {
 	if err := walkFn(path, info, nil); err != nil || !info.IsDir() {
 		return err
 	}
 
-	fis, err := ReadDir(resolvedPath)
+	fis, err := ReadDir(path)
 	if err != nil {
 		return walkFn(path, info, err)
 	}
 
 	for _, fi := range fis {
 		filename := filepath.Join(path, fi.Name())
-		resolvedFilename := filepath.Join(resolvedPath, fi.Name())
-		if err := walk(filename, resolvedFilename, fi, walkFn); err != nil {
+		if err := walk(filename, fi, walkFn); err != nil {
 			if !fi.IsDir() || err != filepath.SkipDir {
 				return err
 			}
@@ -509,23 +505,7 @@ func Walk(root string, walkFn filepath.WalkFunc) error {
 	if err != nil {
 		err = walkFn(root, nil, err)
 	} else {
-		resolved := root
-		if info.Mode()&os.ModeSymlink != 0 {
-			// Walk follows root if it's a symlink (but does not follow other symlinks).
-			if op, ok := OverlayPath(root); ok {
-				resolved = op
-			}
-			resolved, err = os.Readlink(resolved)
-			if err != nil {
-				return err
-			}
-			// Re-stat to get the info for the resolved file.
-			info, err = Lstat(resolved)
-			if err != nil {
-				return err
-			}
-		}
-		err = walk(root, resolved, info, walkFn)
+		err = walk(root, info, walkFn)
 	}
 	if err == filepath.SkipDir {
 		return nil

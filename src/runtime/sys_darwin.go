@@ -203,17 +203,11 @@ func pthread_kill_trampoline()
 // whatever thread the child is waiting for is in the parent process and
 // is not going to finish anything in the child process. There is no
 // public source code for these routines, so it is unclear exactly what
-// the problem is. However, xpc_atfork_child turns out to be exported
-// (for use by libSystem_atfork_child, which is in a different library,
-// so xpc_atfork_child is unlikely to be unexported any time soon).
-// It also stands to reason that since xpc_atfork_child is called at the
-// start of any forked child process, it can't be too harmful to call at
-// the start of an ordinary Go process. And whatever caches it needs for
-// a non-deadlocking fast path during exec empirically do get initialized
-// by calling it at startup.
+// the problem is. An Apple engineer suggests using xpc_date_create_from_current,
+// which empirically does fix the problem.
 //
 // So osinit_hack_trampoline (in sys_darwin_$GOARCH.s) calls
-// notify_is_valid_token(0) and xpc_atfork_child(), which makes the
+// notify_is_valid_token(0) and xpc_date_create_from_current(), which makes the
 // fork+exec hangs stop happening. If Apple fixes the libc bug in
 // some future version of macOS, then we can remove this awful code.
 //
@@ -595,4 +589,4 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_notify_is_valid_token notify_is_valid_token "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_xpc_atfork_child xpc_atfork_child "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_xpc_date_create_from_current xpc_date_create_from_current "/usr/lib/libSystem.B.dylib"

@@ -333,7 +333,8 @@
 (GetCallerPC ...) => (LoweredGetCallerPC ...)
 (GetCallerSP ...) => (LoweredGetCallerSP ...)
 (Addr {sym} base) => (LEAL {sym} base)
-(LocalAddr {sym} base _) => (LEAL {sym} base)
+(LocalAddr <t> {sym} base mem) && t.Elem().HasPointers() => (LEAL {sym} (SPanchored base mem))
+(LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (LEAL {sym} base)
 
 // block rewrites
 (If (SETL  cmp) yes no) => (LT  cmp yes no)

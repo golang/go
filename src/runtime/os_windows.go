@@ -546,8 +546,6 @@ func initLongPathSupport() {
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(abi.FuncPCABI0(asmstdcall))
 
-	setBadSignalMsg()
-
 	loadOptionalSyscalls()
 
 	disableWER()

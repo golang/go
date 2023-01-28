@@ -1046,16 +1046,50 @@ func and(p []byte) ([]byte, []byte) { // issue #52563
 	return blk, rem
 }
 
+func rshu(x, y uint) int {
+	z := x >> y
+	if z <= x { // ERROR "Proved Leq64U$"
+		return 1
+	}
+	return 0
+}
+
+func divu(x, y uint) int {
+	z := x / y
+	if z <= x { // ERROR "Proved Leq64U$"
+		return 1
+	}
+	return 0
+}
+
+func modu1(x, y uint) int {
+	z := x % y
+	if z < y { // ERROR "Proved Less64U$"
+		return 1
+	}
+	return 0
+}
+
+func modu2(x, y uint) int {
+	z := x % y
+	if z <= x { // ERROR "Proved Leq64U$"
+		return 1
+	}
+	return 0
+}
+
+func issue57077(s []int) (left, right []int) {
+	middle := len(s) / 2
+	left = s[:middle] // ERROR "Proved IsSliceInBounds$"
+	right = s[middle:] // ERROR "Proved IsSliceInBounds$"
+	return
+}
+
 func issue51622(b []byte) int {
 	if len(b) >= 3 && b[len(b)-3] == '#' { // ERROR "Proved IsInBounds$"
 		return len(b)
 	}
 	return 0
-}
-
-func issue45928(x int) {
-	combinedFrac := (x) / (x | (1 << 31)) // ERROR "Proved Neq64$"
-	useInt(combinedFrac)
 }
 
 //go:noinline

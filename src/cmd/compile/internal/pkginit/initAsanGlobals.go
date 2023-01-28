@@ -161,7 +161,7 @@ func createtypes() (*types.Type, *types.Type, *types.Type) {
 	fname := typecheck.Lookup
 	nxp := src.NoXPos
 	nfield := types.NewField
-	asanGlobal := types.NewStruct(types.NoPkg, []*types.Field{
+	asanGlobal := types.NewStruct([]*types.Field{
 		nfield(nxp, fname("beg"), up),
 		nfield(nxp, fname("size"), up),
 		nfield(nxp, fname("sizeWithRedzone"), up),
@@ -173,14 +173,14 @@ func createtypes() (*types.Type, *types.Type, *types.Type) {
 	})
 	types.CalcSize(asanGlobal)
 
-	asanLocation := types.NewStruct(types.NoPkg, []*types.Field{
+	asanLocation := types.NewStruct([]*types.Field{
 		nfield(nxp, fname("filename"), up),
 		nfield(nxp, fname("line"), i32),
 		nfield(nxp, fname("column"), i32),
 	})
 	types.CalcSize(asanLocation)
 
-	defString := types.NewStruct(types.NoPkg, []*types.Field{
+	defString := types.NewStruct([]*types.Field{
 		types.NewField(nxp, fname("data"), up),
 		types.NewField(nxp, fname("len"), up),
 	})

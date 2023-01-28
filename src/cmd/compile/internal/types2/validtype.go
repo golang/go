@@ -198,7 +198,7 @@ func makeObjList(tlist []*Named) []Object {
 //         nest = A[A[string]]->B[P]
 //         path = A[A[string]]->B[P]
 //
-// Eventutally we reach the type parameter P of type B (P₂):
+// Eventually we reach the type parameter P of type B (P₂):
 //
 //   P₂
 //         nest = A[A[string]]->B[P]

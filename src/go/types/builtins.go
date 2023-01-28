@@ -241,15 +241,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		if !underIs(x.typ, func(u Type) bool {
-			switch u := u.(type) {
+			switch u.(type) {
 			case *Map, *Slice:
 				return true
-			case *Pointer:
-				if _, ok := under(u.base).(*Array); ok {
-					return true
-				}
 			}
-			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map, slice, or array pointer", x)
+			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map or slice", x)
 			return false
 		}) {
 			return
@@ -711,7 +707,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// TODO(gri) Should we pass x.typ instead of base (and have indirect report if derefStructPtr indirected)?
 		check.recordSelection(selx, FieldVal, base, obj, index, false)
 
-		// record the selector expression (was bug - issue #47895)
+		// record the selector expression (was bug - go.dev/issue/47895)
 		{
 			mode := value
 			if x.mode == variable || indirect {
@@ -963,12 +959,12 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 		default:
 			unreachable()
 		}
-		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see issue #50937)", x, predeclaredFuncs[id].name)
+		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
 
 		// Construct a suitable new type parameter for the result type.
 		// The type parameter is placed in the current package so export/import
 		// works as expected.
-		tpar := NewTypeName(token.NoPos, check.pkg, tp.obj.name, nil)
+		tpar := NewTypeName(nopos, check.pkg, tp.obj.name, nil)
 		ptyp := check.newTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
 		ptyp.index = tp.index
 
@@ -983,13 +979,13 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 func makeSig(res Type, args ...Type) *Signature {
 	list := make([]*Var, len(args))
 	for i, param := range args {
-		list[i] = NewVar(token.NoPos, nil, "", Default(param))
+		list[i] = NewVar(nopos, nil, "", Default(param))
 	}
 	params := NewTuple(list...)
 	var result *Tuple
 	if res != nil {
 		assert(!isUntyped(res))
-		result = NewTuple(NewVar(token.NoPos, nil, "", res))
+		result = NewTuple(NewVar(nopos, nil, "", res))
 	}
 	return &Signature{params: params, results: result}
 }

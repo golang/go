@@ -25,39 +25,39 @@ var _ = f /* ERROR "used as value" */ ()
 // Identifier and expression arity must match.
 var _, _ = 1, 2
 var _ = 1, 2 /* ERROR "extra init expr 2" */
-var _, _ = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
+var _, _ = 1 /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */
 var _, _, _ /* ERROR "missing init expr for _" */ = 1, 2
 
 var _ = g /* ERROR "multiple-value g" */ ()
 var _, _ = g()
-var _, _, _ = g /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ()
+var _, _, _ = g /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ ()
 
 var _ = m["foo"]
 var _, _ = m["foo"]
-var _, _, _ = m  /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ["foo"]
+var _, _, _ = m  /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ ["foo"]
 
 var _, _ int = 1, 2
 var _ int = 1, 2 /* ERROR "extra init expr 2" */
-var _, _ int = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
+var _, _ int = 1 /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */
 var _, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
 
 var (
 	_, _ = 1, 2
 	_ = 1, 2 /* ERROR "extra init expr 2" */
-	_, _ = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
+	_, _ = 1 /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */
 	_, _, _ /* ERROR "missing init expr for _" */ = 1, 2
 
 	_ = g /* ERROR "multiple-value g" */ ()
 	_, _ = g()
-	_, _, _ = g /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ()
+	_, _, _ = g /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ ()
 
 	_ = m["foo"]
 	_, _ = m["foo"]
-	_, _, _ = m /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ ["foo"]
+	_, _, _ = m /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ ["foo"]
 
 	_, _ int = 1, 2
 	_ int = 1, 2 /* ERROR "extra init expr 2" */
-	_, _ int = 1 /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */
+	_, _ int = 1 /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */
 	_, _, _ /* ERROR "missing init expr for _" */ int = 1, 2
 )
 
@@ -151,7 +151,7 @@ func (r T) _(a, b, c int) (u, v, w int) {
 // Unused variables in function literals must lead to only one error (issue #22524).
 func _() {
 	_ = func() {
-		var x /* ERROR declared and not used */ int
+		var x /* ERROR "declared and not used" */ int
 	}
 }
 
@@ -171,36 +171,36 @@ func _() {
 func _() {
 	var a, b, c int
 	var x, y int
-	x, y = a /* ERROR "assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?" */ , b, c
+	x, y = a /* ERRORx `assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?` */ , b, c
 	_ = x
 	_ = y
 }
 
 func _() {
 	var x int
-	return x /* ERROR too many return values */
-	return math /* ERROR too many return values */ .Sin(0)
+	return x /* ERROR "too many return values" */
+	return math /* ERROR "too many return values" */ .Sin(0)
 }
 
 func _() int {
 	var x, y int
-	return x, y /* ERROR too many return values */
+	return x, y /* ERROR "too many return values" */
 }
 
 // Short variable declarations must declare at least one new non-blank variable.
 func _() {
-	_ := /* ERROR no new variables */ 0
+	_ := /* ERROR "no new variables" */ 0
 	_, a := 0, 1
-	_, a := /* ERROR no new variables */ 0, 1
+	_, a := /* ERROR "no new variables" */ 0, 1
 	_, a, b := 0, 1, 2
-	_, _, _ := /* ERROR no new variables */ 0, 1, 2
+	_, _, _ := /* ERROR "no new variables" */ 0, 1, 2
 
 	_ = a
 	_ = b
 }
 
 // Test case for variables depending on function literals (see also #22992).
-var A /* ERROR initialization cycle */ = func() int { return A }()
+var A /* ERROR "initialization cycle" */ = func() int { return A }()
 
 func _() {
 	// The function literal below must not see a.

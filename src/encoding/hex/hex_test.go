@@ -55,6 +55,15 @@ func TestDecode(t *testing.T) {
 	}
 }
 
+func TestDecode_tooFewDstBytes(t *testing.T) {
+	dst := make([]byte, 1)
+	src := []byte{'0', '1', '2', '3'}
+	_, err := Decode(dst, src)
+	if err == nil {
+		t.Errorf("expected Decode to return an error, but it returned none")
+	}
+}
+
 func TestEncodeToString(t *testing.T) {
 	for i, test := range encDecTests {
 		s := EncodeToString(test.dec)

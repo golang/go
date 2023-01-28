@@ -250,12 +250,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 	typecheck.IncrementalAddrtaken = true
 
-	if base.Debug.TypecheckInl != 0 {
-		// Typecheck imported function bodies if Debug.l > 1,
-		// otherwise lazily when used or re-exported.
-		typecheck.AllImportedBodies()
-	}
-
 	// Read profile file and build profile-graph and weighted-call-graph.
 	base.Timer.Start("fe", "pgoprofile")
 	var profile *pgo.Profile

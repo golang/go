@@ -1449,9 +1449,6 @@ func gcMark(startTime int64) {
 		// Gs, so only do it if checkmark is also enabled.
 		gcMarkRootCheck()
 	}
-	if work.full != 0 {
-		throw("work.full != 0")
-	}
 
 	// Drop allg snapshot. allgs may have grown, in which case
 	// this is the only reference to the old backing store and

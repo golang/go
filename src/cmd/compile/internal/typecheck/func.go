@@ -76,6 +76,15 @@ func FixMethodCall(call *ir.CallExpr) {
 	call.Args = args
 }
 
+func AssertFixedCall(call *ir.CallExpr) {
+	if call.X.Type().IsVariadic() && !call.IsDDD {
+		base.FatalfAt(call.Pos(), "missed FixVariadicCall")
+	}
+	if call.Op() == ir.OCALLMETH {
+		base.FatalfAt(call.Pos(), "missed FixMethodCall")
+	}
+}
+
 // ClosureType returns the struct type used to hold all the information
 // needed in the closure for clo (clo must be a OCLOSURE node).
 // The address of a variable of the returned type can be cast to a func.
@@ -120,7 +129,7 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 		}
 		fields = append(fields, types.NewField(base.Pos, v.Sym(), typ))
 	}
-	typ := types.NewStruct(types.NoPkg, fields)
+	typ := types.NewStruct(fields)
 	typ.SetNoalg(true)
 	return typ
 }
@@ -129,60 +138,12 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 // needed in the closure for a OMETHVALUE node. The address of a variable of
 // the returned type can be cast to a func.
 func MethodValueType(n *ir.SelectorExpr) *types.Type {
-	t := types.NewStruct(types.NoPkg, []*types.Field{
+	t := types.NewStruct([]*types.Field{
 		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
 		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
 	})
 	t.SetNoalg(true)
 	return t
-}
-
-// ImportedBody returns immediately if the inlining information for fn is
-// populated. Otherwise, fn must be an imported function. If so, ImportedBody
-// loads in the dcls and body for fn, and typechecks as needed.
-func ImportedBody(fn *ir.Func) {
-	if fn.Inl.Body != nil {
-		return
-	}
-	lno := ir.SetPos(fn.Nname)
-
-	// When we load an inlined body, we need to allow OADDR
-	// operations on untyped expressions. We will fix the
-	// addrtaken flags on all the arguments of the OADDR with the
-	// computeAddrtaken call below (after we typecheck the body).
-	// TODO: export/import types and addrtaken marks along with inlined bodies,
-	// so this will be unnecessary.
-	IncrementalAddrtaken = false
-	defer func() {
-		if DirtyAddrtaken {
-			// We do ComputeAddrTaken on function instantiations, but not
-			// generic functions (since we may not yet know if x in &x[i]
-			// is an array or a slice).
-			if !fn.Type().HasTParam() {
-				ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
-			}
-			DirtyAddrtaken = false
-		}
-		IncrementalAddrtaken = true
-	}()
-
-	ImportBody(fn)
-
-	// Stmts(fn.Inl.Body) below is only for imported functions;
-	// their bodies may refer to unsafe as long as the package
-	// was marked safe during import (which was checked then).
-	// the ->inl of a local function has been typechecked before CanInline copied it.
-	pkg := fnpkg(fn.Nname)
-
-	if pkg == types.LocalPkg || pkg == nil {
-		return // ImportedBody on local function
-	}
-
-	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
-		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.Nodes(fn.Inl.Body))
-	}
-
-	base.Pos = lno
 }
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
@@ -387,6 +348,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	}
 
 	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.X) })
+	FixVariadicCall(n)
 	FixMethodCall(n)
 	if t.NumResults() == 0 {
 		return n

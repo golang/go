@@ -21,10 +21,10 @@ type numericAbs[T Numeric] interface {
 
 // AbsDifference computes the absolute value of the difference of
 // a and b, where the absolute value is determined by the Abs method.
-func absDifference[T numericAbs[T /* ERROR T does not implement Numeric */]](a, b T) T {
+func absDifference[T numericAbs[T /* ERROR "T does not satisfy Numeric" */]](a, b T) T {
 	// Field accesses are not permitted for now. Keep an error so
 	// we can find and fix this code once the situation changes.
-	return a.Value // ERROR a\.Value undefined
+	return a.Value // ERROR "a.Value undefined"
 	// TODO: The error below should probably be positioned on the '-'.
 	// d := a /* ERROR "invalid operation: operator - not defined" */ .Value - b.Value
 	// return d.Abs()
@@ -33,15 +33,15 @@ func absDifference[T numericAbs[T /* ERROR T does not implement Numeric */]](a, 
 // The second example from the issue.
 type T[P int] struct{ f P }
 
-func _[P T[P /* ERROR "P does not implement int" */ ]]() {}
+func _[P T[P /* ERROR "P does not satisfy int" */ ]]() {}
 
 // Additional tests
-func _[P T[T /* ERROR "T\[P\] does not implement int" */ [P /* ERROR "P does not implement int" */ ]]]() {}
-func _[P T[Q /* ERROR "Q does not implement int" */ ], Q T[P /* ERROR "P does not implement int" */ ]]() {}
+func _[P T[T /* ERROR "T[P] does not satisfy int" */ [P /* ERROR "P does not satisfy int" */ ]]]() {}
+func _[P T[Q /* ERROR "Q does not satisfy int" */ ], Q T[P /* ERROR "P does not satisfy int" */ ]]() {}
 func _[P T[Q], Q int]() {}
 
 type C[P comparable] struct{ f P }
 func _[P C[C[P]]]() {}
-func _[P C[C /* ERROR "C\[Q\] does not implement comparable" */ [Q /* ERROR "Q does not implement comparable" */]], Q func()]() {}
+func _[P C[C /* ERROR "C[Q] does not satisfy comparable" */ [Q /* ERROR "Q does not satisfy comparable" */]], Q func()]() {}
 func _[P [10]C[P]]() {}
 func _[P struct{ f C[C[P]]}]() {}

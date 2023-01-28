@@ -13,10 +13,10 @@ var x = 0
 const c0 = x /* ERROR "not constant" */
 
 // typed constants must have constant types
-const _ interface /* ERROR invalid constant type */ {} = 0
+const _ interface /* ERROR "invalid constant type" */ {} = 0
 
 func _ () {
-	const _ interface /* ERROR invalid constant type */ {} = 0
+	const _ interface /* ERROR "invalid constant type" */ {} = 0
 	for i := 0; i < 10; i++ {} // don't crash with non-nil iota here
 }
 
@@ -372,11 +372,11 @@ func _() {
 const prec = 512 // internal maximum precision for integers
 const maxInt = (1<<(prec/2) - 1) * (1<<(prec/2) + 1) // == 1<<prec - 1
 
-const _ = maxInt + /* ERROR constant addition overflow */ 1
-const _ = -maxInt - /* ERROR constant subtraction overflow */ 1
-const _ = maxInt ^ /* ERROR constant bitwise XOR overflow */ -1
-const _ = maxInt * /* ERROR constant multiplication overflow */ 2
-const _ = maxInt << /* ERROR constant shift overflow */ 2
-const _ = 1 << /* ERROR constant shift overflow */ prec
+const _ = maxInt + /* ERROR "constant addition overflow" */ 1
+const _ = -maxInt - /* ERROR "constant subtraction overflow" */ 1
+const _ = maxInt ^ /* ERROR "constant bitwise XOR overflow" */ -1
+const _ = maxInt * /* ERROR "constant multiplication overflow" */ 2
+const _ = maxInt << /* ERROR "constant shift overflow" */ 2
+const _ = 1 << /* ERROR "constant shift overflow" */ prec
 
-const _ = ^ /* ERROR constant bitwise complement overflow */ maxInt
+const _ = ^ /* ERROR "constant bitwise complement overflow" */ maxInt
