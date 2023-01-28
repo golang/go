@@ -14,12 +14,7 @@ globalThis.fs = require("fs");
 globalThis.TextEncoder = require("util").TextEncoder;
 globalThis.TextDecoder = require("util").TextDecoder;
 
-globalThis.performance = {
-	now() {
-		const [sec, nsec] = process.hrtime();
-		return sec * 1000 + nsec / 1000000;
-	},
-};
+globalThis.performance ??= require("performance");
 
 const crypto = require("crypto");
 globalThis.crypto = {
