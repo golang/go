@@ -4,9 +4,7 @@
 
 package cgo
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
 // These utility functions are available to be called from code
 // compiled with gcc via crosscall2.
