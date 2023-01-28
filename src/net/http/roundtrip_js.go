@@ -44,6 +44,12 @@ const jsFetchRedirect = "js.fetch:redirect"
 // the browser globals.
 var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
 
+// jsFetchDisabled will be true if the "process" global is present.
+// We use this as an indicator that we're running in Node.js. We
+// want to disable the Fetch API in Node.js because it breaks
+// our wasm tests. See https://go.dev/issue/57613 for more information.
+var jsFetchDisabled = !js.Global().Get("process").IsUndefined()
+
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	// The Transport has a documented contract that states that if the DialContext or
@@ -52,7 +58,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	// though they are deprecated. Therefore, if any of these are set, we should obey
 	// the contract and dial using the regular round-trip instead. Otherwise, we'll try
 	// to fall back on the Fetch API, unless it's not available.
-	if t.Dial != nil || t.DialContext != nil || t.DialTLS != nil || t.DialTLSContext != nil || jsFetchMissing {
+	if t.Dial != nil || t.DialContext != nil || t.DialTLS != nil || t.DialTLSContext != nil || jsFetchMissing || jsFetchDisabled {
 		return t.roundTrip(req)
 	}
 
