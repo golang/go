@@ -16,12 +16,7 @@ globalThis.TextDecoder = require("util").TextDecoder;
 
 globalThis.performance ??= require("performance");
 
-const crypto = require("crypto");
-globalThis.crypto = {
-	getRandomValues(b) {
-		crypto.randomFillSync(b);
-	},
-};
+globalThis.crypto ??= require("crypto");
 
 require("./wasm_exec");
 
