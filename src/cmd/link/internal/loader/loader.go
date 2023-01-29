@@ -1281,7 +1281,7 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 	l.align[i] = uint8(bits.Len32(uint32(align)))
 }
 
-// SymValue returns the section of the i-th symbol. i is global index.
+// SymSect returns the section of the i-th symbol. i is global index.
 func (l *Loader) SymSect(i Sym) *sym.Section {
 	if int(i) >= len(l.symSects) {
 		// symSects is extended lazily -- it the sym in question is
@@ -1320,7 +1320,7 @@ func (l *Loader) NewSection() *sym.Section {
 	return sect
 }
 
-// SymDynImplib returns the "dynimplib" attribute for the specified
+// SymDynimplib returns the "dynimplib" attribute for the specified
 // symbol, making up a portion of the info for a symbol specified
 // on a "cgo_import_dynamic" compiler directive.
 func (l *Loader) SymDynimplib(i Sym) string {
@@ -1503,7 +1503,7 @@ func (l *Loader) SetSymDynid(i Sym, val int32) {
 	}
 }
 
-// DynIdSyms returns the set of symbols for which dynID is set to an
+// DynidSyms returns the set of symbols for which dynID is set to an
 // interesting (non-default) value. This is expected to be a fairly
 // small set.
 func (l *Loader) DynidSyms() []Sym {
@@ -1836,7 +1836,7 @@ func (l *Loader) Relocs(i Sym) Relocs {
 	return l.relocs(r, li)
 }
 
-// Relocs returns a Relocs object given a local sym index and reader.
+// relocs returns a Relocs object given a local sym index and reader.
 func (l *Loader) relocs(r *oReader, li uint32) Relocs {
 	var rs []goobj.Reloc
 	if l.isExtReader(r) {

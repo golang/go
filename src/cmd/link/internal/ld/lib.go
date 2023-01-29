@@ -127,7 +127,7 @@ func (ctxt *Link) mkArchSym(name string, ver int, ls *loader.Sym) {
 	ctxt.loader.SetAttrReachable(*ls, true)
 }
 
-// mkArchVecSym is similar to  setArchSyms, but operates on elements within
+// mkArchSymVec is similar to  setArchSyms, but operates on elements within
 // a slice, where each element corresponds to some symbol version.
 func (ctxt *Link) mkArchSymVec(name string, ver int, ls []loader.Sym) {
 	ls[ver] = ctxt.loader.LookupOrCreateSym(name, ver)

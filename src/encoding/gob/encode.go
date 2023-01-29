@@ -465,7 +465,7 @@ func isZero(val reflect.Value) bool {
 	panic("unknown type in isZero " + val.Type().String())
 }
 
-// encGobEncoder encodes a value that implements the GobEncoder interface.
+// encodeGobEncoder encodes a value that implements the GobEncoder interface.
 // The data is sent as a byte array.
 func (enc *Encoder) encodeGobEncoder(b *encBuffer, ut *userTypeInfo, v reflect.Value) {
 	// TODO: should we catch panics from the called method?

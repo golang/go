@@ -803,7 +803,7 @@ func (s *ss) convertFloat(str string, n int) float64 {
 	return f
 }
 
-// convertComplex converts the next token to a complex128 value.
+// scanComplex converts the next token to a complex128 value.
 // The atof argument is a type-specific reader for the underlying type.
 // If we're reading complex64, atof will parse float32s and convert them
 // to float64's to avoid reproducing this code for each complex type.

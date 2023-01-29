@@ -434,7 +434,7 @@ func (x lico) withIsStmt() lico {
 	return x.withStmt(PosIsStmt)
 }
 
-// withLogue attaches a prologue/epilogue attribute to a lico
+// withXlogue attaches a prologue/epilogue attribute to a lico
 func (x lico) withXlogue(xlogue PosXlogue) lico {
 	if x == 0 {
 		if xlogue == 0 {
