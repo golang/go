@@ -100,9 +100,28 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 		return true
 
 	case "c-archive":
-		// TODO(bcmills): This seems dubious.
-		// Do we really support c-archive mode on js/wasm‽
-		return platform != "linux/ppc64"
+		switch goos {
+		case "aix", "darwin", "ios", "windows":
+			return true
+		case "linux":
+			switch goarch {
+			case "386", "amd64", "arm", "armbe", "arm64", "arm64be", "ppc64le", "riscv64", "s390x":
+				// linux/ppc64 not supported because it does
+				// not support external linking mode yet.
+				return true
+			default:
+				// Other targets do not support -shared,
+				// per ParseFlags in
+				// cmd/compile/internal/base/flag.go.
+				// For c-archive the Go tool passes -shared,
+				// so that the result is suitable for inclusion
+				// in a PIE or shared library.
+				return false
+			}
+		case "freebsd":
+			return goarch == "amd64"
+		}
+		return false
 
 	case "c-shared":
 		switch platform {

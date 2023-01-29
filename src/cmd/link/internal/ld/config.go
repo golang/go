@@ -27,6 +27,8 @@ const (
 	BuildModePlugin
 )
 
+// Set implements flag.Value to set the build mode based on the argument
+// to the -buildmode flag.
 func (mode *BuildMode) Set(s string) error {
 	badmode := func() error {
 		return fmt.Errorf("buildmode %s not supported on %s/%s", s, buildcfg.GOOS, buildcfg.GOARCH)

@@ -1141,6 +1141,7 @@ func (t *tester) internalLinkPIE() bool {
 	return false
 }
 
+// supportedBuildMode reports whether the given build mode is supported.
 func (t *tester) supportedBuildmode(mode string) bool {
 	pair := goos + "-" + goarch
 	switch mode {
@@ -1148,13 +1149,24 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		if !t.extLink() {
 			return false
 		}
-		switch pair {
-		case "aix-ppc64",
-			"darwin-amd64", "darwin-arm64", "ios-arm64",
-			"linux-amd64", "linux-386", "linux-ppc64le", "linux-riscv64", "linux-s390x",
-			"freebsd-amd64",
-			"windows-amd64", "windows-386":
+		switch goos {
+		case "aix", "darwin", "ios", "windows":
 			return true
+		case "linux":
+			switch goarch {
+			case "386", "amd64", "arm", "armbe", "arm64", "arm64be", "ppc64", "ppc64le", "riscv64", "s390x":
+				return true
+			default:
+				// Other targets do not support -shared,
+				// per ParseFlags in
+				// cmd/compile/internal/base/flag.go.
+				// For c-archive the Go tool passes -shared,
+				// so that the result is suitable for inclusion
+				// in a PIE or shared library.
+				return false
+			}
+		case "freebsd":
+			return goarch == "amd64"
 		}
 		return false
 	case "c-shared":
