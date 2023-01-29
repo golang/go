@@ -209,6 +209,11 @@ type ELFArch struct {
 	Elfreloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
 	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1.
 	Elfsetupplt  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
+
+	// DynamicReadOnly can be set to true to make the .dynamic
+	// section read-only. By default it is writable.
+	// This is used by MIPS targets.
+	DynamicReadOnly bool
 }
 
 type Elfstring struct {
@@ -1563,7 +1568,11 @@ func (ctxt *Link) doelf() {
 
 		/* define dynamic elf table */
 		dynamic := ldr.CreateSymForUpdate(".dynamic", 0)
-		dynamic.SetType(sym.SELFSECT) // writable
+		if thearch.ELF.DynamicReadOnly {
+			dynamic.SetType(sym.SELFROSECT)
+		} else {
+			dynamic.SetType(sym.SELFSECT)
+		}
 
 		if ctxt.IsS390X() {
 			// S390X uses .got instead of .got.plt

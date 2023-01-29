@@ -70,6 +70,10 @@ func Init() (*sys.Arch, ld.Arch) {
 			Elfreloc1:    elfreloc1,
 			ElfrelocSize: 24,
 			Elfsetupplt:  elfsetupplt,
+
+			// Historically GNU ld creates a read-only
+			// .dynamic section.
+			DynamicReadOnly: true,
 		},
 	}
 
