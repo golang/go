@@ -14,10 +14,33 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"internal/testenv"
+	"log"
 	"os"
 	"strings"
 	"testing"
 )
+
+func Example_ed25519ctx() {
+	pub, priv, err := GenerateKey(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	msg := []byte("The quick brown fox jumps over the lazy dog")
+
+	sig, err := priv.Sign(nil, msg, &Options{
+		Context: "Example_ed25519ctx",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := VerifyWithOptions(pub, msg, sig, &Options{
+		Context: "Example_ed25519ctx",
+	}); err != nil {
+		log.Fatal("invalid signature")
+	}
+}
 
 type zeroReader struct{}
 
@@ -71,6 +94,10 @@ func TestSignVerifyHashed(t *testing.T) {
 		t.Errorf("valid signature rejected: %v", err)
 	}
 
+	if err := VerifyWithOptions(public, hash[:], sig, &Options{Hash: crypto.SHA256}); err == nil {
+		t.Errorf("expected error for wrong hash")
+	}
+
 	wrongHash := sha512.Sum512([]byte("wrong message"))
 	if VerifyWithOptions(public, wrongHash[:], sig, &Options{Hash: crypto.SHA512}) == nil {
 		t.Errorf("signature of different message accepted")
@@ -83,6 +110,60 @@ func TestSignVerifyHashed(t *testing.T) {
 	sig[0] ^= 0xff
 	sig[SignatureSize-1] ^= 0xff
 	if VerifyWithOptions(public, hash[:], sig, &Options{Hash: crypto.SHA512}) == nil {
+		t.Errorf("invalid signature accepted")
+	}
+
+	// The RFC provides no test vectors for Ed25519ph with context, so just sign
+	// and verify something.
+	sig, err = private.Sign(nil, hash[:], &Options{Hash: crypto.SHA512, Context: "123"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyWithOptions(public, hash[:], sig, &Options{Hash: crypto.SHA512, Context: "123"}); err != nil {
+		t.Errorf("valid signature rejected: %v", err)
+	}
+	if err := VerifyWithOptions(public, hash[:], sig, &Options{Hash: crypto.SHA512, Context: "321"}); err == nil {
+		t.Errorf("expected error for wrong context")
+	}
+	if err := VerifyWithOptions(public, hash[:], sig, &Options{Hash: crypto.SHA256, Context: "123"}); err == nil {
+		t.Errorf("expected error for wrong hash")
+	}
+}
+
+func TestSignVerifyContext(t *testing.T) {
+	// From RFC 8032, Section 7.2
+	key, _ := hex.DecodeString("0305334e381af78f141cb666f6199f57bc3495335a256a95bd2a55bf546663f6dfc9425e4f968f7f0c29f0259cf5f9aed6851c2bb4ad8bfb860cfee0ab248292")
+	expectedSig, _ := hex.DecodeString("55a4cc2f70a54e04288c5f4cd1e45a7bb520b36292911876cada7323198dd87a8b36950b95130022907a7fb7c4e9b2d5f6cca685a587b4b21f4b888e4e7edb0d")
+	message, _ := hex.DecodeString("f726936d19c800494e3fdaff20b276a8")
+	context := "foo"
+
+	private := PrivateKey(key)
+	public := private.Public().(PublicKey)
+	sig, err := private.Sign(nil, message, &Options{Context: context})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(sig, expectedSig) {
+		t.Error("signature doesn't match test vector")
+	}
+	if err := VerifyWithOptions(public, message, sig, &Options{Context: context}); err != nil {
+		t.Errorf("valid signature rejected: %v", err)
+	}
+
+	if VerifyWithOptions(public, []byte("bar"), sig, &Options{Context: context}) == nil {
+		t.Errorf("signature of different message accepted")
+	}
+	if VerifyWithOptions(public, message, sig, &Options{Context: "bar"}) == nil {
+		t.Errorf("signature with different context accepted")
+	}
+
+	sig[0] ^= 0xff
+	if VerifyWithOptions(public, message, sig, &Options{Context: context}) == nil {
+		t.Errorf("invalid signature accepted")
+	}
+	sig[0] ^= 0xff
+	sig[SignatureSize-1] ^= 0xff
+	if VerifyWithOptions(public, message, sig, &Options{Context: context}) == nil {
 		t.Errorf("invalid signature accepted")
 	}
 }

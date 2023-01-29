@@ -44,7 +44,7 @@ var impatientInsecureHTTPClient = &http.Client{
 
 var securityPreservingDefaultClient = securityPreservingHTTPClient(http.DefaultClient)
 
-// securityPreservingDefaultClient returns a client that is like the original
+// securityPreservingHTTPClient returns a client that is like the original
 // but rejects redirects to plain-HTTP URLs if the original URL was secure.
 func securityPreservingHTTPClient(original *http.Client) *http.Client {
 	c := new(http.Client)

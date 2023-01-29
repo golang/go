@@ -19,7 +19,6 @@ type DebugFlags struct {
 	Append                int    `help:"print information about append compilation"`
 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
 	Closure               int    `help:"print information about closure compilation"`
-	DclStack              int    `help:"run internal dclstack check"`
 	Defer                 int    `help:"print information about defer compilation"`
 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
@@ -31,6 +30,8 @@ type DebugFlags struct {
 	GCProg                int    `help:"print dump of GC programs"`
 	Gossahash             string `help:"hash value for use in debugging the compiler"`
 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
+	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
+	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
 	LocationLists         int    `help:"print information about DWARF location list creation"`
 	Nil                   int    `help:"print information about nil checks"`
@@ -44,8 +45,6 @@ type DebugFlags struct {
 	SoftFloat             int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
 	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
 	TypeAssert            int    `help:"print information about type assertion inlining"`
-	TypecheckInl          int    `help:"eager typechecking of inline function bodies" concurrent:"ok"`
-	Unified               int    `help:"enable unified IR construction"`
 	WB                    int    `help:"print information about write barriers"`
 	ABIWrap               int    `help:"print information about ABI wrapper generation"`
 	MayMoreStack          string `help:"call named function before all stack growth checks" concurrent:"ok"`

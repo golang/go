@@ -75,7 +75,7 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
 		return boring.EncryptRSANoPadding(bkey, em)
 	}
 
-	return encrypt(pub, em), nil
+	return encrypt(pub, em)
 }
 
 // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
@@ -333,7 +333,10 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 		return ErrVerification
 	}
 
-	em := encrypt(pub, sig)
+	em, err := encrypt(pub, sig)
+	if err != nil {
+		return ErrVerification
+	}
 	// EM = 0x00 || 0x01 || PS || 0x00 || T
 
 	ok := subtle.ConstantTimeByteEq(em[0], 0)

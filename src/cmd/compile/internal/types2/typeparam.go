@@ -24,9 +24,6 @@ type TypeParam struct {
 	bound Type      // any type, but underlying is eventually *Interface for correct programs (see TypeParam.iface)
 }
 
-// Obj returns the type name for the type parameter t.
-func (t *TypeParam) Obj() *TypeName { return t.obj }
-
 // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
 // or Signature type by calling SetTypeParams. Setting a type parameter on more
 // than one type will result in a panic.
@@ -58,6 +55,9 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
 	}
 	return typ
 }
+
+// Obj returns the type name for the type parameter t.
+func (t *TypeParam) Obj() *TypeName { return t.obj }
 
 // Index returns the index of the type param within its param list, or -1 if
 // the type parameter has not yet been bound to a type.

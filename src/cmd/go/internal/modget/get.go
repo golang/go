@@ -547,7 +547,7 @@ func (r *resolver) queryModule(ctx context.Context, mPath, query string, selecte
 	return module.Version{Path: mPath, Version: rev.Version}, nil
 }
 
-// queryPackage wraps modload.QueryPackage, substituting r.checkAllowedOr to
+// queryPackages wraps modload.QueryPackage, substituting r.checkAllowedOr to
 // decide allowed versions.
 func (r *resolver) queryPackages(ctx context.Context, pattern, query string, selected func(string) string) (pkgMods []module.Version, err error) {
 	results, err := modload.QueryPackages(ctx, pattern, query, selected, r.checkAllowedOr(query, selected))

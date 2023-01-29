@@ -159,14 +159,7 @@ func defaultContext() build.Context {
 		if ctxt.CgoEnabled {
 			if os.Getenv("CC") == "" {
 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
-				if filepath.IsAbs(cc) {
-					if _, err := os.Stat(cc); os.IsNotExist(err) {
-						// The default CC is an absolute path that doesn't exist.
-						// (Perhaps make.bash was run on a system with a C compiler
-						// installed, and the current system doesn't have it there.)
-						ctxt.CgoEnabled = false
-					}
-				} else if _, err := exec.LookPath(cc); err != nil {
+				if _, err := exec.LookPath(cc); err != nil {
 					ctxt.CgoEnabled = false
 				}
 			}
@@ -186,7 +179,7 @@ func defaultContext() build.Context {
 }
 
 func init() {
-	SetGOROOT(findGOROOT(), false)
+	SetGOROOT(Getenv("GOROOT"), false)
 	BuildToolchainCompiler = func() string { return "missing-compiler" }
 	BuildToolchainLinker = func() string { return "missing-linker" }
 }
@@ -310,7 +303,22 @@ func EnvFile() (string, error) {
 
 func initEnvCache() {
 	envCache.m = make(map[string]string)
-	file, _ := EnvFile()
+	if file, _ := EnvFile(); file != "" {
+		readEnvFile(file, "user")
+	}
+	goroot := findGOROOT(envCache.m["GOROOT"])
+	if goroot != "" {
+		readEnvFile(filepath.Join(goroot, "go.env"), "GOROOT")
+	}
+
+	// Save the goroot for func init calling SetGOROOT,
+	// and also overwrite anything that might have been in go.env.
+	// It makes no sense for GOROOT/go.env to specify
+	// a different GOROOT.
+	envCache.m["GOROOT"] = goroot
+}
+
+func readEnvFile(file string, source string) {
 	if file == "" {
 		return
 	}
@@ -332,13 +340,21 @@ func initEnvCache() {
 		i = bytes.IndexByte(line, '=')
 		if i < 0 || line[0] < 'A' || 'Z' < line[0] {
 			// Line is missing = (or empty) or a comment or not a valid env name. Ignore.
-			// (This should not happen, since the file should be maintained almost
+			// This should not happen in the user file, since the file should be maintained almost
 			// exclusively by "go env -w", but better to silently ignore than to make
 			// the go command unusable just because somehow the env file has
-			// gotten corrupted.)
+			// gotten corrupted.
+			// In the GOROOT/go.env file, we expect comments.
 			continue
 		}
 		key, val := line[:i], line[i+1:]
+
+		if source == "GOROOT" {
+			// In the GOROOT/go.env file, do not overwrite fields loaded from the user's go/env file.
+			if _, ok := envCache.m[string(key)]; ok {
+				continue
+			}
+		}
 		envCache.m[string(key)] = string(val)
 	}
 }
@@ -390,8 +406,8 @@ var (
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
 	GOWASM   = envOr("GOWASM", fmt.Sprint(buildcfg.GOWASM))
 
-	GOPROXY    = envOr("GOPROXY", "https://proxy.golang.org,direct")
-	GOSUMDB    = envOr("GOSUMDB", "sum.golang.org")
+	GOPROXY    = envOr("GOPROXY", "")
+	GOSUMDB    = envOr("GOSUMDB", "")
 	GOPRIVATE  = Getenv("GOPRIVATE")
 	GONOPROXY  = envOr("GONOPROXY", GOPRIVATE)
 	GONOSUMDB  = envOr("GONOSUMDB", GOPRIVATE)
@@ -444,8 +460,14 @@ func envOr(key, def string) string {
 // with from runtime.GOROOT().
 //
 // There is a copy of this code in x/tools/cmd/godoc/goroot.go.
-func findGOROOT() string {
-	if env := Getenv("GOROOT"); env != "" {
+func findGOROOT(env string) string {
+	if env == "" {
+		// Not using Getenv because findGOROOT is called
+		// to find the GOROOT/go.env file. initEnvCache
+		// has passed in the setting from the user go/env file.
+		env = os.Getenv("GOROOT")
+	}
+	if env != "" {
 		return filepath.Clean(env)
 	}
 	def := ""

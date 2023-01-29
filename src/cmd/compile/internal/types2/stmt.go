@@ -64,7 +64,7 @@ func (check *Checker) usage(scope *Scope) {
 		}
 	}
 	sort.Slice(unused, func(i, j int) bool {
-		return unused[i].pos.Cmp(unused[j].pos) < 0
+		return cmpPos(unused[i].pos, unused[j].pos) < 0
 	})
 	for _, v := range unused {
 		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", v.name)
@@ -887,7 +887,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
 	}
 
 	// Open the for-statement block scope now, after the range clause.
-	// Iteration variables declared with := need to go in this scope (was issue #51437).
+	// Iteration variables declared with := need to go in this scope (was go.dev/issue/51437).
 	check.openScope(s, "range")
 	defer check.closeScope()
 

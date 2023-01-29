@@ -182,7 +182,7 @@ func permuteInitialBlock(block uint64) uint64 {
 	return block
 }
 
-// permuteInitialBlock is equivalent to the permutation defined
+// permuteFinalBlock is equivalent to the permutation defined
 // by finalPermutation.
 func permuteFinalBlock(block uint64) uint64 {
 	// Perform the same bit exchanges as permuteInitialBlock

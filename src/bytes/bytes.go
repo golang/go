@@ -86,6 +86,11 @@ func ContainsRune(b []byte, r rune) bool {
 	return IndexRune(b, r) >= 0
 }
 
+// ContainsFunc reports whether any of the UTF-8-encoded code points r within b satisfy f(r).
+func ContainsFunc(b []byte, f func(rune) bool) bool {
+	return IndexFunc(b, f) >= 0
+}
+
 // IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
 func IndexByte(b []byte, c byte) int {
 	return bytealg.IndexByte(b, c)

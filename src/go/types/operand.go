@@ -59,11 +59,11 @@ type operand struct {
 }
 
 // Pos returns the position of the expression corresponding to x.
-// If x is invalid the position is token.NoPos.
+// If x is invalid the position is nopos.
 func (x *operand) Pos() token.Pos {
 	// x.expr may not be set if x is invalid
 	if x.expr == nil {
-		return token.NoPos
+		return nopos
 	}
 	return x.expr.Pos()
 }
@@ -171,6 +171,10 @@ func operandString(x *operand, qf Qualifier) string {
 			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
 				buf.WriteString(" constrained by ")
 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+				// If we have the type set and it's empty, say so for better error messages.
+				if hasEmptyTypeset(tpar) {
+					buf.WriteString(" with empty type set")
+				}
 			}
 		} else {
 			buf.WriteString(" with invalid type")

@@ -602,7 +602,7 @@ TEXT runtime·osinit_hack_trampoline(SB),NOSPLIT,$0
 	MOVQ	SP, BP
 	MOVQ	$0, DI	// arg 1 val
 	CALL	libc_notify_is_valid_token(SB)
-	CALL	libc_xpc_atfork_child(SB)
+	CALL	libc_xpc_date_create_from_current(SB)
 	POPQ	BP
 	RET
 

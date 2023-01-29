@@ -26,7 +26,7 @@ env GOCOVERDIR=$SAVEGOCOVERDIR
 # Check to make sure we instrumented just the main package, not
 # any dependencies.
 go tool covdata pkglist -i=$WORK/covdata
-stdout main
+stdout cmd/nm
 ! stdout cmd/internal/goobj pkglist.txt
 
 # ... now collect a coverage profile from a Go file
@@ -41,7 +41,7 @@ env GOCOVERDIR=$SAVEGOCOVERDIR
 
 # Check to make sure we instrumented just the main package.
 go tool covdata pkglist -i=$WORK/covdata2
-stdout main
+stdout command-line-arguments
 ! stdout fmt
 
 -- go.mod --

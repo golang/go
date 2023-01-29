@@ -57,6 +57,11 @@ type systeminfo struct {
 	wprocessorrevision          uint16
 }
 
+type exceptionpointers struct {
+	record  *exceptionrecord
+	context *context
+}
+
 type exceptionrecord struct {
 	exceptioncode        uint32
 	exceptionflags       uint32

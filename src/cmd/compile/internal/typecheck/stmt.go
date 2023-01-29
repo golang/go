@@ -604,8 +604,8 @@ func tcSwitchType(n *ir.SwitchStmt) {
 			}
 			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) {
 				if have != nil {
-					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v %s", guard.X, n1.Type(),
-						wrongTypeFor(have.Sym, have.Type, missing.Sym, missing.Type))
+					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
+						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", guard.X, n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
 				} else if ptr != 0 {
 					base.ErrorfAt(ncase.Pos(), "impossible type switch case: %L cannot have dynamic type %v"+
 						" (%v method has pointer receiver)", guard.X, n1.Type(), missing.Sym)

@@ -367,6 +367,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	IsWindowUnicode(hwnd HWND) (isUnicode bool) = user32.IsWindowUnicode
 //sys	IsWindowVisible(hwnd HWND) (isVisible bool) = user32.IsWindowVisible
 //sys	GetGUIThreadInfo(thread uint32, info *GUIThreadInfo) (err error) = user32.GetGUIThreadInfo
+//sys	GetLargePageMinimum() (size uintptr)
 
 // Volume Management Functions
 //sys	DefineDosDevice(flags uint32, deviceName *uint16, targetPath *uint16) (err error) = DefineDosDeviceW

@@ -184,6 +184,10 @@ func operandString(x *operand, qf Qualifier) string {
 			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
 				buf.WriteString(" constrained by ")
 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+				// If we have the type set and it's empty, say so for better error messages.
+				if hasEmptyTypeset(tpar) {
+					buf.WriteString(" with empty type set")
+				}
 			}
 		} else {
 			buf.WriteString(" with invalid type")

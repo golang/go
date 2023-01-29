@@ -131,17 +131,17 @@ type ReverseProxy struct {
 	// Director must not access the provided Request
 	// after returning.
 	//
-	// By default, the X-Forwarded-For, X-Forwarded-Host, and
-	// X-Forwarded-Proto headers of the ourgoing request are
-	// set as by the ProxyRequest.SetXForwarded function.
+	// By default, the X-Forwarded-For header is set to the
+	// value of the client IP address. If an X-Forwarded-For
+	// header already exists, the client IP is appended to the
+	// existing values. As a special case, if the header
+	// exists in the Request.Header map but has a nil value
+	// (such as when set by the Director func), the X-Forwarded-For
+	// header is not modified.
 	//
-	// If an X-Forwarded-For header already exists, the client IP is
-	// appended to the existing values. To prevent IP spoofing, be
-	// sure to delete any pre-existing X-Forwarded-For header
-	// coming from the client or an untrusted proxy.
-	//
-	// If a header exists in the Request.Header map but has a nil value
-	// (such as when set by the Director func), it is not modified.
+	// To prevent IP spoofing, be sure to delete any pre-existing
+	// X-Forwarded-For header coming from the client or
+	// an untrusted proxy.
 	//
 	// Hop-by-hop headers are removed from the request after
 	// Director returns, which can remove headers added by
@@ -444,16 +444,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			}
 			if !omit {
 				outreq.Header.Set("X-Forwarded-For", clientIP)
-			}
-		}
-		if prior, ok := outreq.Header["X-Forwarded-Host"]; !(ok && prior == nil) {
-			outreq.Header.Set("X-Forwarded-Host", req.Host)
-		}
-		if prior, ok := outreq.Header["X-Forwarded-Proto"]; !(ok && prior == nil) {
-			if req.TLS == nil {
-				outreq.Header.Set("X-Forwarded-Proto", "http")
-			} else {
-				outreq.Header.Set("X-Forwarded-Proto", "https")
 			}
 		}
 	}
@@ -816,9 +806,34 @@ func (c switchProtocolCopier) copyToBackend(errc chan<- error) {
 }
 
 func cleanQueryParams(s string) string {
-	if strings.Contains(s, ";") {
+	reencode := func(s string) string {
 		v, _ := url.ParseQuery(s)
 		return v.Encode()
 	}
+	for i := 0; i < len(s); {
+		switch s[i] {
+		case ';':
+			return reencode(s)
+		case '%':
+			if i+2 >= len(s) || !ishex(s[i+1]) || !ishex(s[i+2]) {
+				return reencode(s)
+			}
+			i += 3
+		default:
+			i++
+		}
+	}
 	return s
+}
+
+func ishex(c byte) bool {
+	switch {
+	case '0' <= c && c <= '9':
+		return true
+	case 'a' <= c && c <= 'f':
+		return true
+	case 'A' <= c && c <= 'F':
+		return true
+	}
+	return false
 }

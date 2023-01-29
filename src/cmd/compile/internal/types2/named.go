@@ -539,7 +539,7 @@ loop:
 	for n := range seen {
 		// We should never have to update the underlying type of an imported type;
 		// those underlying types should have been resolved during the import.
-		// Also, doing so would lead to a race condition (was issue #31749).
+		// Also, doing so would lead to a race condition (was go.dev/issue/31749).
 		// Do this check always, not just in debug mode (it's cheap).
 		if n.obj.pkg != check.pkg {
 			panic("imported type with unresolved underlying type")

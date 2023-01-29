@@ -479,8 +479,11 @@ func (ctxt *Link) domacho() {
 			var version uint32
 			switch ctxt.Arch.Family {
 			case sys.AMD64:
-				// The version must be at least 10.9; see golang.org/issues/30488.
-				version = 10<<16 | 9<<8 | 0<<0 // 10.9.0
+				// This must be fairly recent for Apple signing (go.dev/issue/30488).
+				// Having too old a version here was also implicated in some problems
+				// calling into macOS libraries (go.dev/issue/56784).
+				// In general this can be the most recent supported macOS version.
+				version = 10<<16 | 13<<8 | 0<<0 // 10.13.0
 			case sys.ARM64:
 				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
 			}

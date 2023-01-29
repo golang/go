@@ -131,7 +131,7 @@ func init() {
 
 		{name: "LoweredGetClosurePtr", reg: gp01},                                                                          // returns wasm.REG_CTXT, the closure pointer
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},                                                   // returns the PC of the caller of the current function
-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},                                                   // returns the SP of the caller of the current function
+		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},                                     // returns the SP of the caller of the current function. arg0=mem.
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil. arg1=mem
 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Sym", symEffect: "None"},          // invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 

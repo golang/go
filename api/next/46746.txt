@@ -1,2 +1,0 @@
-pkg reflect, method (Value) Comparable() bool #46746
-pkg reflect, method (Value) Equal(Value) bool #46746

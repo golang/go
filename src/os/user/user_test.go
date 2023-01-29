@@ -16,6 +16,11 @@ func checkUser(t *testing.T) {
 }
 
 func TestCurrent(t *testing.T) {
+	old := userBuffer
+	defer func() {
+		userBuffer = old
+	}()
+	userBuffer = 1 // force use of retry code
 	u, err := Current()
 	if err != nil {
 		t.Fatalf("Current: %v (got %#v)", err, u)
@@ -91,6 +96,11 @@ func checkGroup(t *testing.T) {
 }
 
 func TestLookupGroup(t *testing.T) {
+	old := groupBuffer
+	defer func() {
+		groupBuffer = old
+	}()
+	groupBuffer = 1 // force use of retry code
 	checkGroup(t)
 	user, err := Current()
 	if err != nil {

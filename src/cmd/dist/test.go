@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -35,7 +36,7 @@ func cmdtest() {
 	flag.BoolVar(&t.race, "race", false, "run in race builder mode (different set of tests)")
 	flag.BoolVar(&t.compileOnly, "compile-only", false, "compile tests, but don't run them. This is for some builders. Not all dist tests respect this flag, but most do.")
 	flag.StringVar(&t.banner, "banner", "##### ", "banner prefix; blank means no section banners")
-	flag.StringVar(&t.runRxStr, "run", os.Getenv("GOTESTONLY"),
+	flag.StringVar(&t.runRxStr, "run", "",
 		"run only those tests matching the regular expression; empty means to run all. "+
 			"Special exception: if the string begins with '!', the match is inverted.")
 	flag.BoolVar(&t.msan, "msan", false, "run in memory sanitizer builder mode")
@@ -101,12 +102,6 @@ func (t *tester) run() {
 
 	os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
 
-	// Default to running tests in "short" mode, unless the environment variable
-	// GO_TEST_SHORT is set to a non-empty, false-ish string.
-	//
-	// This environment variable is meant to be an internal detail between the
-	// Go build system and cmd/dist for the purpose of longtest builders, and is
-	// not intended for use by users. See golang.org/issue/12508.
 	t.short = true
 	if v := os.Getenv("GO_TEST_SHORT"); v != "" {
 		short, err := strconv.ParseBool(v)
@@ -154,11 +149,11 @@ func (t *tester) run() {
 	if t.rebuild {
 		t.out("Building packages and commands.")
 		// Force rebuild the whole toolchain.
-		goInstall("go", append([]string{"-a"}, toolchain...)...)
+		goInstall(toolenv, gorootBinGo, append([]string{"-a"}, toolchain...)...)
 	}
 
 	if !t.listMode {
-		if os.Getenv("GO_BUILDER_NAME") == "" {
+		if builder := os.Getenv("GO_BUILDER_NAME"); builder == "" {
 			// Complete rebuild bootstrap, even with -no-rebuild.
 			// If everything is up-to-date, this is a no-op.
 			// If everything is not up-to-date, the first checkNotStale
@@ -171,9 +166,10 @@ func (t *tester) run() {
 			// to break if we don't automatically refresh things here.
 			// Rebuilding is a shortened bootstrap.
 			// See cmdbootstrap for a description of the overall process.
-			goInstall("go", toolchain...)
-			goInstall("go", toolchain...)
-			goInstall("go", "std", "cmd")
+			goInstall(toolenv, gorootBinGo, toolchain...)
+			goInstall(toolenv, gorootBinGo, toolchain...)
+			goInstall(toolenv, gorootBinGo, "cmd")
+			goInstall(nil, gorootBinGo, "std")
 		} else {
 			// The Go builder infrastructure should always begin running tests from a
 			// clean, non-stale state, so there is no need to rebuild the world.
@@ -183,18 +179,20 @@ func (t *tester) run() {
 			// The cache used by dist when building is different from that used when
 			// running dist test, so rebuild (but don't install) std and cmd to make
 			// sure packages without install targets are cached so they are not stale.
-			goCmd("go", "build", "std", "cmd") // make sure dependencies of targets are cached
-			checkNotStale("go", "std", "cmd")
+			goCmd(toolenv, gorootBinGo, "build", "cmd") // make sure dependencies of targets are cached
+			goCmd(nil, gorootBinGo, "build", "std")
+			checkNotStale(nil, gorootBinGo, "std")
+			if builder != "aix-ppc64" {
+				// The aix-ppc64 builder for some reason does not have deterministic cgo
+				// builds, so "cmd" is stale. Fortunately, most of the tests don't care.
+				// TODO(#56896): remove this special case once the builder supports
+				// determistic cgo builds.
+				checkNotStale(toolenv, gorootBinGo, "cmd")
+			}
 		}
 	}
 
 	t.timeoutScale = 1
-	switch goarch {
-	case "arm":
-		t.timeoutScale = 2
-	case "mips", "mipsle", "mips64", "mips64le":
-		t.timeoutScale = 4
-	}
 	if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
 		t.timeoutScale, err = strconv.Atoi(s)
 		if err != nil {
@@ -267,12 +265,6 @@ func (t *tester) run() {
 	if t.failed {
 		fmt.Println("\nFAILED")
 		xexit(1)
-	} else if incomplete[goos+"/"+goarch] {
-		// The test succeeded, but consider it as failed so we don't
-		// forget to remove the port from the incomplete map once the
-		// port is complete.
-		fmt.Println("\nFAILED (incomplete port)")
-		xexit(1)
 	} else if t.partial {
 		fmt.Println("\nALL TESTS PASSED (some were excluded)")
 	} else {
@@ -308,7 +300,7 @@ func (t *tester) maybeLogMetadata() error {
 	//
 	// TODO(prattmic): If we split dist bootstrap and dist test then this
 	// could be simplified to directly use internal/sysinfo here.
-	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), "go", []string{"run", "main.go"}).Run()
+	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), gorootBinGo, []string{"run", "main.go"}).Run()
 }
 
 // goTest represents all options to a "go test" command. The final command will
@@ -781,7 +773,6 @@ func (t *tester) registerTests() {
 					pkg:    "fmt",
 				}).command(t)
 				unsetEnv(cmd, "GOROOT")
-				unsetEnv(cmd, "GOCACHE") // TODO(bcmills): ...why‽
 				err := cmd.Run()
 
 				if rerr := os.Rename(moved, goroot); rerr != nil {
@@ -948,20 +939,9 @@ func (t *tester) registerTests() {
 	// Every platform checks the API on every GOOS/GOARCH/CGO_ENABLED combination anyway,
 	// so we really only need to run this check once anywhere to get adequate coverage.
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
-	// which is darwin/linux/windows and amd64/arm64.
-	if (goos == "darwin" || goos == "linux" || goos == "windows") && (goarch == "amd64" || goarch == "arm64") {
-		t.tests = append(t.tests, distTest{
-			name:    "api",
-			heading: "API check",
-			fn: func(dt *distTest) error {
-				if t.compileOnly {
-					t.addCmd(dt, "src", "go", "build", "-o", os.DevNull, filepath.Join(goroot, "src/cmd/api/run.go"))
-					return nil
-				}
-				t.addCmd(dt, "src", "go", "run", filepath.Join(goroot, "src/cmd/api/run.go"))
-				return nil
-			},
-		})
+	// which is darwin,linux,windows/amd64 and darwin/arm64.
+	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
+		t.registerTest("api", "", &goTest{dir: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
 	}
 
 	// Ensure that the toolchain can bootstrap itself.
@@ -1096,8 +1076,8 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
 	}
 
 	bin = list[0]
-	if bin == "go" {
-		bin = gorootBinGo
+	if !filepath.IsAbs(bin) {
+		panic("command is not absolute: " + bin)
 	}
 	return bin, list[1:]
 }
@@ -1322,15 +1302,23 @@ func (t *tester) registerCgoTests() {
 		default:
 			// Check for static linking support
 			var staticCheck rtPreFunc
-			cmd := t.dirCmd("misc/cgo/test",
-				compilerEnvLookup(defaultcc, goos, goarch), "-xc", "-o", "/dev/null", "-static", "-")
-			cmd.Stdin = strings.NewReader("int main() {}")
-			cmd.Stdout, cmd.Stderr = nil, nil // Discard output
-			if err := cmd.Run(); err != nil {
-				// Skip these tests
+			ccName := compilerEnvLookup("CC", defaultcc, goos, goarch)
+			cc, err := exec.LookPath(ccName)
+			if err != nil {
 				staticCheck.pre = func(*distTest) bool {
-					fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
+					fmt.Printf("$CC (%q) not found, skip cgo static linking test.\n", ccName)
 					return false
+				}
+			} else {
+				cmd := t.dirCmd("misc/cgo/test", cc, "-xc", "-o", "/dev/null", "-static", "-")
+				cmd.Stdin = strings.NewReader("int main() {}")
+				cmd.Stdout, cmd.Stderr = nil, nil // Discard output
+				if err := cmd.Run(); err != nil {
+					// Skip these tests
+					staticCheck.pre = func(*distTest) bool {
+						fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
+						return false
+					}
 				}
 			}
 
@@ -1373,7 +1361,7 @@ func (t *tester) registerCgoTests() {
 // running in parallel with earlier tests, or if it has some other reason
 // for needing the earlier tests to be done.
 func (t *tester) runPending(nextTest *distTest) {
-	checkNotStale("go", "std")
+	checkNotStale(nil, gorootBinGo, "std")
 	worklist := t.worklist
 	t.worklist = nil
 	for _, w := range worklist {
@@ -1431,7 +1419,7 @@ func (t *tester) runPending(nextTest *distTest) {
 			log.Printf("Failed: %v", w.err)
 			t.failed = true
 		}
-		checkNotStale("go", "std")
+		checkNotStale(nil, gorootBinGo, "std")
 	}
 	if t.failed && !t.keepGoing {
 		fatalf("FAILED")
@@ -1457,7 +1445,7 @@ func (t *tester) hasBash() bool {
 }
 
 func (t *tester) hasCxx() bool {
-	cxx, _ := exec.LookPath(compilerEnvLookup(defaultcxx, goos, goarch))
+	cxx, _ := exec.LookPath(compilerEnvLookup("CXX", defaultcxx, goos, goarch))
 	return cxx != ""
 }
 
@@ -1593,6 +1581,13 @@ func (t *tester) registerRaceTests() {
 		// t.registerTest("race:misc/cgo/test", hdr, &goTest{dir: "../misc/cgo/test", race: true, env: []string{"GOTRACEBACK=2"}})
 	}
 	if t.extLink() {
+		var oldWindows rtPreFunc
+		if strings.HasPrefix(os.Getenv("GO_BUILDER_NAME"), "windows-amd64-2008") {
+			oldWindows.pre = func(*distTest) bool {
+				fmt.Println("skipping -race with external linkage on older windows builder, see https://github.com/golang/go/issues/56904 for details")
+				return false
+			}
+		}
 		// Test with external linking; see issue 9133.
 		t.registerTest("race:external", hdr,
 			&goTest{
@@ -1600,7 +1595,7 @@ func (t *tester) registerRaceTests() {
 				ldflags:  "-linkmode=external",
 				runTests: "TestParse|TestEcho|TestStdinCloseRace",
 				pkgs:     []string{"flag", "os/exec"},
-			})
+			}, oldWindows)
 	}
 }
 
@@ -1624,7 +1619,7 @@ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 			os.Remove(runtest.exe)
 		})
 
-		cmd := t.dirCmd("test", "go", "build", "-o", runtest.exe, "run.go")
+		cmd := t.dirCmd("test", gorootBinGo, "build", "-o", runtest.exe, "run.go")
 		setEnv(cmd, "GOOS", gohostos)
 		setEnv(cmd, "GOARCH", gohostarch)
 		runtest.err = cmd.Run()
@@ -1703,19 +1698,8 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 		}
 	}
 
-	gocache := os.Getenv("GOCACHE")
-	if gocache == "" {
-		panic("GOCACHE not set")
-	}
-	gocacheSubdir, _ := filepath.Rel(dir, gocache)
-
-	// Note: Can't use WalkDir here, because this has to compile with Go 1.4.
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if suffix := strings.TrimPrefix(path, dir+string(filepath.Separator)); suffix != "" {
-			if suffix == gocacheSubdir {
-				// Leave GOCACHE writable: we may need to write test binaries into it.
-				return filepath.SkipDir
-			}
 			if suffix == ".git" {
 				// Leave Git metadata in whatever state it was in. It may contain a lot
 				// of files, and it is highly unlikely that a test will try to modify
@@ -1723,11 +1707,18 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 				return filepath.SkipDir
 			}
 		}
-		if err == nil {
-			mode := info.Mode()
-			if mode&0222 != 0 && (mode.IsDir() || mode.IsRegular()) {
-				dirs = append(dirs, pathMode{path, mode})
-			}
+		if err != nil {
+			return nil
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+
+		mode := info.Mode()
+		if mode&0222 != 0 && (mode.IsDir() || mode.IsRegular()) {
+			dirs = append(dirs, pathMode{path, mode})
 		}
 		return nil
 	})
@@ -1747,7 +1738,7 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 
 // raceDetectorSupported is a copy of the function
 // internal/platform.RaceDetectorSupported, which can't be used here
-// because cmd/dist has to be buildable by Go 1.4.
+// because cmd/dist can not import internal packages during bootstrap.
 // The race detector only supports 48-bit VMA on arm64. But we don't have
 // a good solution to check VMA size(See https://golang.org/issue/29948)
 // raceDetectorSupported will always return true for arm64. But race

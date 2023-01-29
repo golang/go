@@ -40,7 +40,7 @@ var (
 
 // fuzzWorkerExitCode is used as an exit code by fuzz worker processes after an
 // internal error. This distinguishes internal errors from uncontrolled panics
-// and other failiures. Keep in sync with internal/fuzz.workerExitCode.
+// and other failures. Keep in sync with internal/fuzz.workerExitCode.
 const fuzzWorkerExitCode = 70
 
 // InternalFuzzTarget is an internal type but exported because it is

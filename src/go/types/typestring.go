@@ -153,7 +153,7 @@ func (w *typeWriter) typ(typ Type) {
 			// If disambiguating one struct for another, look for the first unexported field.
 			// Do this first in case of nested structs; tag the first-outermost field.
 			pkgAnnotate := false
-			if w.qf == nil && w.pkgInfo && !isExported(f.name) {
+			if w.qf == nil && w.pkgInfo && !token.IsExported(f.name) {
 				// note for embedded types, type name is field name, and "string" etc are lower case hence unexported.
 				pkgAnnotate = true
 				w.pkgInfo = false // only tag once
@@ -161,7 +161,7 @@ func (w *typeWriter) typ(typ Type) {
 
 			// This doesn't do the right thing for embedded type
 			// aliases where we should print the alias name, not
-			// the aliased type (see issue #44410).
+			// the aliased type (see go.dev/issue/44410).
 			if !f.embedded {
 				w.string(f.name)
 				w.byte(' ')

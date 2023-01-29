@@ -1,4 +1,4 @@
-// Code generated from _gen/*Ops.go; DO NOT EDIT.
+// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.
 
 package ssa
 
@@ -3008,6 +3008,7 @@ const (
 	OpLocalAddr
 	OpSP
 	OpSB
+	OpSPanchored
 	OpLoad
 	OpDereference
 	OpStore
@@ -6295,7 +6296,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -13500,7 +13501,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -13979,29 +13980,29 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:         "BLSRQ",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABLSRQ,
+		name:   "BLSRQ",
+		argLen: 1,
+		asm:    x86.ABLSRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
+				{1, 0},
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},
 	{
-		name:         "BLSRL",
-		argLen:       1,
-		clobberFlags: true,
-		asm:          x86.ABLSRL,
+		name:   "BLSRL",
+		argLen: 1,
+		asm:    x86.ABLSRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
+				{1, 0},
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
@@ -18362,7 +18363,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -22328,7 +22329,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -24506,7 +24507,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -25986,7 +25987,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -27661,7 +27662,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -30188,7 +30189,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -31046,7 +31047,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxSymOff,
 		argLen:            1,
 		rematerializeable: true,
-		symEffect:         SymRdWr,
+		symEffect:         SymAddr,
 		asm:               riscv.AMOV,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -31995,7 +31996,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -34770,7 +34771,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxSymOff,
 		argLen:            1,
 		rematerializeable: true,
-		symEffect:         SymRead,
+		symEffect:         SymAddr,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295000064}, // SP SB
@@ -34784,7 +34785,7 @@ var opcodeTable = [...]opInfo{
 		name:      "MOVDaddridx",
 		auxType:   auxSymOff,
 		argLen:    2,
-		symEffect: SymRead,
+		symEffect: SymAddr,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295000064}, // SP SB
@@ -35510,7 +35511,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -36219,7 +36220,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "LoweredGetCallerSP",
-		argLen:            0,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -38819,6 +38820,12 @@ var opcodeTable = [...]opInfo{
 		generic:   true,
 	},
 	{
+		name:      "SPanchored",
+		argLen:    2,
+		zeroWidth: true,
+		generic:   true,
+	},
+	{
 		name:    "Load",
 		argLen:  2,
 		generic: true,
@@ -39141,7 +39148,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "GetCallerSP",
-		argLen:  0,
+		argLen:  1,
 		generic: true,
 	},
 	{

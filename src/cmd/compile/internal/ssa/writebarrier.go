@@ -27,7 +27,7 @@ type ZeroRegion struct {
 // needwb reports whether we need write barrier for store op v.
 // v must be Store/Move/Zero.
 // zeroes provides known zero information (keyed by ID of memory-type values).
-func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
+func needwb(v *Value, zeroes map[ID]ZeroRegion, select1 []*Value) bool {
 	t, ok := v.Aux.(*types.Type)
 	if !ok {
 		v.Fatalf("store aux is not a type: %s", v.LongString())
@@ -39,7 +39,7 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
 		return false // write on stack doesn't need write barrier
 	}
 	if v.Op == OpMove && IsReadOnlyGlobalAddr(v.Args[1]) {
-		if mem, ok := IsNewObject(v.Args[0]); ok && mem == v.MemoryArg() {
+		if mem, ok := IsNewObject(v.Args[0], select1); ok && mem == v.MemoryArg() {
 			// Copying data from readonly memory into a fresh object doesn't need a write barrier.
 			return false
 		}
@@ -99,7 +99,22 @@ func writebarrier(f *Func) {
 	var sset *sparseSet
 	var storeNumber []int32
 
-	zeroes := f.computeZeroMap()
+	// Compute map from a value to the SelectN [1] value that uses it.
+	select1 := f.Cache.allocValueSlice(f.NumValues())
+	defer func() { f.Cache.freeValueSlice(select1) }()
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op != OpSelectN {
+				continue
+			}
+			if v.AuxInt != 1 {
+				continue
+			}
+			select1[v.Args[0].ID] = v
+		}
+	}
+
+	zeroes := f.computeZeroMap(select1)
 	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no stores to expand
 		// first, identify all the stores that need to insert a write barrier.
 		// mark them with WB ops temporarily. record presence of WB ops.
@@ -107,7 +122,7 @@ func writebarrier(f *Func) {
 		for _, v := range b.Values {
 			switch v.Op {
 			case OpStore, OpMove, OpZero:
-				if needwb(v, zeroes) {
+				if needwb(v, zeroes, select1) {
 					switch v.Op {
 					case OpStore:
 						v.Op = OpStoreWB
@@ -376,7 +391,8 @@ func writebarrier(f *Func) {
 
 // computeZeroMap returns a map from an ID of a memory value to
 // a set of locations that are known to be zeroed at that memory value.
-func (f *Func) computeZeroMap() map[ID]ZeroRegion {
+func (f *Func) computeZeroMap(select1 []*Value) map[ID]ZeroRegion {
+
 	ptrSize := f.Config.PtrSize
 	// Keep track of which parts of memory are known to be zero.
 	// This helps with removing write barriers for various initialization patterns.
@@ -386,7 +402,7 @@ func (f *Func) computeZeroMap() map[ID]ZeroRegion {
 	// Find new objects.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if mem, ok := IsNewObject(v); ok {
+			if mem, ok := IsNewObject(v, select1); ok {
 				// While compiling package runtime itself, we might see user
 				// calls to newobject, which will have result type
 				// unsafe.Pointer instead. We can't easily infer how large the
@@ -584,20 +600,14 @@ func IsReadOnlyGlobalAddr(v *Value) bool {
 
 // IsNewObject reports whether v is a pointer to a freshly allocated & zeroed object,
 // if so, also returns the memory state mem at which v is zero.
-func IsNewObject(v *Value) (mem *Value, ok bool) {
+func IsNewObject(v *Value, select1 []*Value) (mem *Value, ok bool) {
 	f := v.Block.Func
 	c := f.Config
 	if f.ABIDefault == f.ABI1 && len(c.intParamRegs) >= 1 {
 		if v.Op != OpSelectN || v.AuxInt != 0 {
 			return nil, false
 		}
-		// Find the memory
-		for _, w := range v.Block.Values {
-			if w.Op == OpSelectN && w.AuxInt == 1 && w.Args[0] == v.Args[0] {
-				mem = w
-				break
-			}
-		}
+		mem = select1[v.Args[0].ID]
 		if mem == nil {
 			return nil, false
 		}

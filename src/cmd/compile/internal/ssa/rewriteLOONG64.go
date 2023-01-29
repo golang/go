@@ -1,5 +1,4 @@
-// Code generated from _gen/LOONG64.rules; DO NOT EDIT.
-// generated with: cd _gen; go run .
+// Code generated from _gen/LOONG64.rules using 'go generate'; DO NOT EDIT.
 
 package ssa
 
@@ -52,8 +51,7 @@ func rewriteValueLOONG64(v *Value) bool {
 		v.Op = OpLOONG64LoweredAtomicAdd64
 		return true
 	case OpAtomicCompareAndSwap32:
-		v.Op = OpLOONG64LoweredAtomicCas32
-		return true
+		return rewriteValueLOONG64_OpAtomicCompareAndSwap32(v)
 	case OpAtomicCompareAndSwap64:
 		v.Op = OpLOONG64LoweredAtomicCas64
 		return true
@@ -702,6 +700,27 @@ func rewriteValueLOONG64_OpAddr(v *Value) bool {
 		v.reset(OpLOONG64MOVVaddr)
 		v.Aux = symToAux(sym)
 		v.AddArg(base)
+		return true
+	}
+}
+func rewriteValueLOONG64_OpAtomicCompareAndSwap32(v *Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicCompareAndSwap32 ptr old new mem)
+	// result: (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
+	for {
+		ptr := v_0
+		old := v_1
+		new := v_2
+		mem := v_3
+		v.reset(OpLOONG64LoweredAtomicCas32)
+		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
+		v0.AddArg(old)
+		v.AddArg4(ptr, v0, new, mem)
 		return true
 	}
 }
@@ -4609,17 +4628,44 @@ func rewriteValueLOONG64_OpLoad(v *Value) bool {
 	return false
 }
 func rewriteValueLOONG64_OpLocalAddr(v *Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (LocalAddr {sym} base _)
-	// result: (MOVVaddr {sym} base)
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (LocalAddr <t> {sym} base mem)
+	// cond: t.Elem().HasPointers()
+	// result: (MOVVaddr {sym} (SPanchored base mem))
 	for {
+		t := v.Type
 		sym := auxToSym(v.Aux)
 		base := v_0
+		mem := v_1
+		if !(t.Elem().HasPointers()) {
+			break
+		}
+		v.reset(OpLOONG64MOVVaddr)
+		v.Aux = symToAux(sym)
+		v0 := b.NewValue0(v.Pos, OpSPanchored, typ.Uintptr)
+		v0.AddArg2(base, mem)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LocalAddr <t> {sym} base _)
+	// cond: !t.Elem().HasPointers()
+	// result: (MOVVaddr {sym} base)
+	for {
+		t := v.Type
+		sym := auxToSym(v.Aux)
+		base := v_0
+		if !(!t.Elem().HasPointers()) {
+			break
+		}
 		v.reset(OpLOONG64MOVVaddr)
 		v.Aux = symToAux(sym)
 		v.AddArg(base)
 		return true
 	}
+	return false
 }
 func rewriteValueLOONG64_OpLsh16x16(v *Value) bool {
 	v_1 := v.Args[1]

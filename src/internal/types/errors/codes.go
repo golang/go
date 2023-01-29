@@ -882,7 +882,7 @@ const (
 	// context in which it is used.
 	//
 	// Example:
-	//  var _ = 1 + new(int)
+	//  var _ = 1 + []int{}
 	InvalidUntypedConversion
 
 	// BadOffsetofSyntax occurs when unsafe.Offsetof is called with an argument
@@ -1432,7 +1432,7 @@ const (
 	_ // not used anymore
 
 	// InvalidClear occurs when clear is called with an argument
-	// that is not of map, slice, or pointer-to-array type.
+	// that is not of map or slice type.
 	//
 	// Example:
 	//  func _(x int) {

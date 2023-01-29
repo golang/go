@@ -381,6 +381,10 @@ func TestGoBuildErrors(t *testing.T) {
 	testErrors(t, "amd64", "buildtagerror")
 }
 
+func TestGenericErrors(t *testing.T) {
+	testErrors(t, "amd64", "duperror")
+}
+
 func TestARMErrors(t *testing.T) {
 	testErrors(t, "arm", "armerror")
 }

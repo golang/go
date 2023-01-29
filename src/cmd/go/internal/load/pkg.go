@@ -2662,19 +2662,19 @@ func (p *Package) InternalXGoFiles() []string {
 	return p.mkAbs(p.XTestGoFiles)
 }
 
-// InternalGoFiles returns the list of all Go files possibly relevant for the package,
+// InternalAllGoFiles returns the list of all Go files possibly relevant for the package,
 // using absolute paths. "Possibly relevant" means that files are not excluded
 // due to build tags, but files with names beginning with . or _ are still excluded.
 func (p *Package) InternalAllGoFiles() []string {
 	return p.mkAbs(str.StringList(p.IgnoredGoFiles, p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles))
 }
 
-// usesSwig reports whether the package needs to run SWIG.
+// UsesSwig reports whether the package needs to run SWIG.
 func (p *Package) UsesSwig() bool {
 	return len(p.SwigFiles) > 0 || len(p.SwigCXXFiles) > 0
 }
 
-// usesCgo reports whether the package needs to run cgo
+// UsesCgo reports whether the package needs to run cgo
 func (p *Package) UsesCgo() bool {
 	return len(p.CgoFiles) > 0
 }
@@ -3433,7 +3433,7 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
 	return covered
 }
 
-// declareCoverVars attaches the required cover variables names
+// DeclareCoverVars attaches the required cover variables names
 // to the files, to be used when annotating the files. This
 // function only called when using legacy coverage test/build
 // (e.g. GOEXPERIMENT=coverageredesign is off).

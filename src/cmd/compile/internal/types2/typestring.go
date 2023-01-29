@@ -160,7 +160,7 @@ func (w *typeWriter) typ(typ Type) {
 
 			// This doesn't do the right thing for embedded type
 			// aliases where we should print the alias name, not
-			// the aliased type (see issue #44410).
+			// the aliased type (see go.dev/issue/44410).
 			if !f.embedded {
 				w.string(f.name)
 				w.byte(' ')

@@ -42,6 +42,7 @@ package os
 import (
 	"errors"
 	"internal/poll"
+	"internal/safefilepath"
 	"internal/testlog"
 	"io"
 	"io/fs"
@@ -337,6 +338,7 @@ var lstat = Lstat
 // Rename renames (moves) oldpath to newpath.
 // If newpath already exists and is not a directory, Rename replaces it.
 // OS-specific restrictions may apply when oldpath and newpath are in different directories.
+// Even within the same directory, on non-Unix platforms Rename is not an atomic operation.
 // If there is an error, it will be of type *LinkError.
 func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)
@@ -595,6 +597,8 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
 // a general substitute for a chroot-style security mechanism when the directory tree
 // contains arbitrary content.
 //
+// The directory dir must not be "".
+//
 // The result implements fs.StatFS.
 func DirFS(dir string) fs.FS {
 	return dirFS(dir)
@@ -615,10 +619,11 @@ func containsAny(s, chars string) bool {
 type dirFS string
 
 func (dir dirFS) Open(name string) (fs.File, error) {
-	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
-		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "stat", Path: name, Err: err}
 	}
-	f, err := Open(dir.join(name))
+	f, err := Open(fullname)
 	if err != nil {
 		// DirFS takes a string appropriate for GOOS,
 		// while the name argument here is always slash separated.
@@ -631,10 +636,11 @@ func (dir dirFS) Open(name string) (fs.File, error) {
 }
 
 func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
-	if !fs.ValidPath(name) || runtime.GOOS == "windows" && containsAny(name, `\:`) {
-		return nil, &PathError{Op: "stat", Path: name, Err: ErrInvalid}
+	fullname, err := dir.join(name)
+	if err != nil {
+		return nil, &PathError{Op: "stat", Path: name, Err: err}
 	}
-	f, err := Stat(dir.join(name))
+	f, err := Stat(fullname)
 	if err != nil {
 		// See comment in dirFS.Open.
 		err.(*PathError).Path = name
@@ -643,19 +649,22 @@ func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
 	return f, nil
 }
 
-// join returns the path for name in dir. We can't always use "/"
-// because that fails on Windows for UNC paths.
-func (dir dirFS) join(name string) string {
-	if runtime.GOOS == "windows" && containsAny(name, "/") {
-		buf := []byte(name)
-		for i, b := range buf {
-			if b == '/' {
-				buf[i] = '\\'
-			}
-		}
-		name = string(buf)
+// join returns the path for name in dir.
+func (dir dirFS) join(name string) (string, error) {
+	if dir == "" {
+		return "", errors.New("os: DirFS with empty root")
 	}
-	return string(dir) + string(PathSeparator) + name
+	if !fs.ValidPath(name) {
+		return "", ErrInvalid
+	}
+	name, err := safefilepath.FromFS(name)
+	if err != nil {
+		return "", ErrInvalid
+	}
+	if IsPathSeparator(dir[len(dir)-1]) {
+		return string(dir) + name, nil
+	}
+	return string(dir) + string(PathSeparator) + name, nil
 }
 
 // ReadFile reads the named file and returns the contents.

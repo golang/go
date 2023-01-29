@@ -249,6 +249,10 @@ func close(c chan<- Type)
 // that point, the program is terminated with a non-zero exit code. This
 // termination sequence is called panicking and can be controlled by the
 // built-in function recover.
+//
+// Starting in Go 1.21, calling panic with a nil interface value or an
+// untyped nil causes a run-time error (a different panic).
+// The GODEBUG setting panicnil=1 disables the run-time error.
 func panic(v any)
 
 // The recover built-in function allows a program to manage behavior of a

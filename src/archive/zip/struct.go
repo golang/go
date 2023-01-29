@@ -5,7 +5,7 @@
 /*
 Package zip provides support for reading and writing ZIP archives.
 
-See: https://www.pkware.com/appnote
+See the [ZIP specification] for details.
 
 This package does not support disk spanning.
 
@@ -16,6 +16,8 @@ fields. The 64 bit fields will always contain the correct value and
 for normal archives both fields will be the same. For files requiring
 the ZIP64 format the 32 bit fields will be 0xffffffff and the 64 bit
 fields must be used instead.
+
+[ZIP specification]: https://www.pkware.com/appnote
 */
 package zip
 
@@ -77,8 +79,10 @@ const (
 	infoZipUnixExtraID = 0x5855 // Info-ZIP Unix extension
 )
 
-// FileHeader describes a file within a zip file.
-// See the zip spec for details.
+// FileHeader describes a file within a ZIP file.
+// See the [ZIP specification] for details.
+//
+// [ZIP specification]: https://www.pkware.com/appnote
 type FileHeader struct {
 	// Name is the name of the file.
 	//
@@ -117,17 +121,43 @@ type FileHeader struct {
 	// When writing, an extended timestamp (which is timezone-agnostic) is
 	// always emitted. The legacy MS-DOS date field is encoded according to the
 	// location of the Modified time.
-	Modified     time.Time
-	ModifiedTime uint16 // Deprecated: Legacy MS-DOS date; use Modified instead.
-	ModifiedDate uint16 // Deprecated: Legacy MS-DOS time; use Modified instead.
+	Modified time.Time
 
-	CRC32              uint32
-	CompressedSize     uint32 // Deprecated: Use CompressedSize64 instead.
-	UncompressedSize   uint32 // Deprecated: Use UncompressedSize64 instead.
-	CompressedSize64   uint64
+	// ModifiedTime is an MS-DOS-encoded time.
+	//
+	// Deprecated: Use Modified instead.
+	ModifiedTime uint16
+
+	// ModifiedDate is an MS-DOS-encoded date.
+	//
+	// Deprecated: Use Modified instead.
+	ModifiedDate uint16
+
+	// CRC32 is the CRC32 checksum of the file content.
+	CRC32 uint32
+
+	// CompressedSize is the compressed size of the file in bytes.
+	// If either the uncompressed or compressed size of the file
+	// does not fit in 32 bits, CompressedSize is set to ^uint32(0).
+	//
+	// Deprecated: Use CompressedSize64 instead.
+	CompressedSize uint32
+
+	// UncompressedSize is the compressed size of the file in bytes.
+	// If either the uncompressed or compressed size of the file
+	// does not fit in 32 bits, CompressedSize is set to ^uint32(0).
+	//
+	// Deprecated: Use UncompressedSize64 instead.
+	UncompressedSize uint32
+
+	// CompressedSize64 is the compressed size of the file in bytes.
+	CompressedSize64 uint64
+
+	// UncompressedSize64 is the uncompressed size of the file in bytes.
 	UncompressedSize64 uint64
-	Extra              []byte
-	ExternalAttrs      uint32 // Meaning depends on CreatorVersion
+
+	Extra         []byte
+	ExternalAttrs uint32 // Meaning depends on CreatorVersion
 }
 
 // FileInfo returns an fs.FileInfo for the FileHeader.

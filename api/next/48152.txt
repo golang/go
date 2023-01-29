@@ -1,5 +1,0 @@
-pkg crypto/tls, type CertificateVerificationError struct #48152
-pkg crypto/tls, type CertificateVerificationError struct, UnverifiedCertificates []*x509.Certificate #48152
-pkg crypto/tls, type CertificateVerificationError struct, Err error #48152
-pkg crypto/tls, method (*CertificateVerificationError) Error() string #48152
-pkg crypto/tls, method (*CertificateVerificationError) Unwrap() error #48152

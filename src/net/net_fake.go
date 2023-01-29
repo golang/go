@@ -194,7 +194,7 @@ func (p *bufferedPipe) Read(b []byte) (int, error) {
 		if !p.rDeadline.IsZero() {
 			d := time.Until(p.rDeadline)
 			if d <= 0 {
-				return 0, syscall.EAGAIN
+				return 0, os.ErrDeadlineExceeded
 			}
 			time.AfterFunc(d, p.rCond.Broadcast)
 		}
@@ -221,7 +221,7 @@ func (p *bufferedPipe) Write(b []byte) (int, error) {
 		if !p.wDeadline.IsZero() {
 			d := time.Until(p.wDeadline)
 			if d <= 0 {
-				return 0, syscall.EAGAIN
+				return 0, os.ErrDeadlineExceeded
 			}
 			time.AfterFunc(d, p.wCond.Broadcast)
 		}

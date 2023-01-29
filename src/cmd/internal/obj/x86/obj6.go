@@ -158,11 +158,11 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		}
 	}
 
-	// Android and Win64 use a tls offset determined at runtime. Rewrite
+	// Android and Windows use a tls offset determined at runtime. Rewrite
 	//	MOVQ TLS, BX
 	// to
 	//	MOVQ runtime.tls_g(SB), BX
-	if (isAndroid || (ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64)) &&
+	if (isAndroid || ctxt.Headtype == objabi.Hwindows) &&
 		(p.As == AMOVQ || p.As == AMOVL) && p.From.Type == obj.TYPE_REG && p.From.Reg == REG_TLS && p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_R15 {
 		p.From.Type = obj.TYPE_MEM
 		p.From.Name = obj.NAME_EXTERN
@@ -170,17 +170,23 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.From.Sym = ctxt.Lookup("runtime.tls_g")
 		p.From.Index = REG_NONE
 		if ctxt.Headtype == objabi.Hwindows {
-			// Win64 requires an additional indirection
+			// Windows requires an additional indirection
 			// to retrieve the TLS pointer,
-			// as runtime.tls_g contains the TLS offset from GS.
-			// add
+			// as runtime.tls_g contains the TLS offset from GS or FS.
+			// on AMD64 add
 			//	MOVQ 0(BX)(GS*1), BX
+			// on 386 add
+			//	MOVQ 0(BX)(FS*1), BX4
 			q := obj.Appendp(p, newprog)
 			q.As = p.As
 			q.From = obj.Addr{}
 			q.From.Type = obj.TYPE_MEM
 			q.From.Reg = p.To.Reg
-			q.From.Index = REG_GS
+			if ctxt.Arch.Family == sys.AMD64 {
+				q.From.Index = REG_GS
+			} else {
+				q.From.Index = REG_FS
+			}
 			q.From.Scale = 1
 			q.From.Offset = 0
 			q.To = p.To
@@ -608,13 +614,14 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	var bpsize int
 	if ctxt.Arch.Family == sys.AMD64 &&
 		!p.From.Sym.NoFrame() && // (1) below
-		!(autoffset == 0 && p.From.Sym.NoSplit()) && // (2) below
+		!(autoffset == 0 && p.From.Sym.NoSplit() && ctxt.Headtype != objabi.Hwindows) && // (2) below
 		!(autoffset == 0 && !hasCall) { // (3) below
 		// Make room to save a base pointer.
 		// There are 2 cases we must avoid:
 		// 1) If noframe is set (which we do for functions which tail call).
 		// 2) Scary runtime internals which would be all messed up by frame pointers.
 		//    We detect these using a heuristic: frameless nosplit functions.
+		//    Windows does not use this heuristic anymore.
 		//    TODO: Maybe someday we label them all with NOFRAME and get rid of this heuristic.
 		// For performance, we also want to avoid:
 		// 3) Frameless leaf functions

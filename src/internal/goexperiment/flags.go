@@ -60,10 +60,6 @@ type Flags struct {
 	StaticLockRanking bool
 	BoringCrypto      bool
 
-	// Unified enables the compiler's unified IR construction
-	// experiment.
-	Unified bool
-
 	// Regabi is split into several sub-experiments that can be
 	// enabled individually. Not all combinations work.
 	// The "regabi" GOEXPERIMENT is an alias for all "working"

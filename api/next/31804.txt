@@ -1,4 +1,0 @@
-pkg crypto/ed25519, func VerifyWithOptions(PublicKey, []uint8, []uint8, *Options) error #31804
-pkg crypto/ed25519, method (*Options) HashFunc() crypto.Hash #31804
-pkg crypto/ed25519, type Options struct #31804
-pkg crypto/ed25519, type Options struct, Hash crypto.Hash #31804

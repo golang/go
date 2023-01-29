@@ -222,7 +222,7 @@ func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err
 	case r := <-result:
 		return r.addrs, r.err, true
 	case <-ctx.Done():
-		return nil, mapErr(ctx.Err()), false
+		return nil, mapErr(ctx.Err()), true
 	}
 }
 
@@ -262,7 +262,7 @@ func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, 
 	case r := <-result:
 		return r.names, r.err, true
 	case <-ctx.Done():
-		return nil, mapErr(ctx.Err()), false
+		return nil, mapErr(ctx.Err()), true
 	}
 }
 
@@ -331,6 +331,36 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 // resSearch will make a call to the 'res_nsearch' routine in the C library
 // and parse the output as a slice of DNS resources.
 func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
+	if ctx.Done() == nil {
+		return cgoResSearch(hostname, rtype, class)
+	}
+
+	type result struct {
+		res []dnsmessage.Resource
+		err error
+	}
+
+	res := make(chan result, 1)
+	go func() {
+		r, err := cgoResSearch(hostname, rtype, class)
+		res <- result{
+			res: r,
+			err: err,
+		}
+	}()
+
+	select {
+	case res := <-res:
+		return res.res, res.err
+	case <-ctx.Done():
+		return nil, mapErr(ctx.Err())
+	}
+}
+
+func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, error) {
+	acquireThread()
+	defer releaseThread()
+
 	state := (*_C_struct___res_state)(_C_malloc(unsafe.Sizeof(_C_struct___res_state{})))
 	defer _C_free(unsafe.Pointer(state))
 	if err := _C_res_ninit(state); err != nil {
@@ -346,15 +376,29 @@ func resSearch(ctx context.Context, hostname string, rtype, class int) ([]dnsmes
 	// giving us no way to find out how big the packet is.
 	// For now, we are willing to take res_search's word that there's nothing
 	// useful in the response, even though there *is* a response.
-	const bufSize = 1500
-	buf := (*_C_uchar)(_C_malloc(bufSize))
+	bufSize := maxDNSPacketSize
+	buf := (*_C_uchar)(_C_malloc(uintptr(bufSize)))
 	defer _C_free(unsafe.Pointer(buf))
+
 	s := _C_CString(hostname)
 	defer _C_FreeCString(s)
-	size, err := _C_res_nsearch(state, s, class, rtype, buf, bufSize)
-	if size <= 0 || size > bufSize {
-		return nil, errors.New("res_nsearch failure")
+
+	var size int
+	for {
+		size, _ = _C_res_nsearch(state, s, class, rtype, buf, bufSize)
+		if size <= 0 || size > 0xffff {
+			return nil, errors.New("res_nsearch failure")
+		}
+		if size <= bufSize {
+			break
+		}
+
+		// Allocate a bigger buffer to fit the entire msg.
+		_C_free(unsafe.Pointer(buf))
+		bufSize = size
+		buf = (*_C_uchar)(_C_malloc(uintptr(bufSize)))
 	}
+
 	var p dnsmessage.Parser
 	if _, err := p.Start(unsafe.Slice((*byte)(unsafe.Pointer(buf)), size)); err != nil {
 		return nil, err

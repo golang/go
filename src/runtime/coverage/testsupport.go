@@ -15,6 +15,7 @@ import (
 	"internal/coverage/pods"
 	"io"
 	"os"
+	"strings"
 )
 
 // processCoverTestDir is called (via a linknamed reference) from
@@ -80,7 +81,15 @@ func processCoverTestDirInternal(dir string, cfile string, cm string, cpkg strin
 		cf:    cformat.NewFormatter(cmode),
 		cmode: cmode,
 	}
+	// Generate the expected hash string based on the final meta-data
+	// hash for this test, then look only for pods that refer to that
+	// hash (just in case there are multiple instrumented executables
+	// in play). See issue #57924 for more on this.
+	hashstring := fmt.Sprintf("%x", finalHash)
 	for _, p := range podlist {
+		if !strings.Contains(p.MetaFile, hashstring) {
+			continue
+		}
 		if err := ts.processPod(p); err != nil {
 			return err
 		}
@@ -136,13 +145,16 @@ func (ts *tstate) processPod(p pods.Pod) error {
 		return err
 	}
 
-	// Read counter data files.
+	// A map to store counter data, indexed by pkgid/fnid tuple.
 	pmm := make(map[pkfunc][]uint32)
-	for _, cdf := range p.CounterDataFiles {
+
+	// Helper to read a single counter data file.
+	readcdf := func(cdf string) error {
 		cf, err := os.Open(cdf)
 		if err != nil {
 			return fmt.Errorf("opening counter data file %s: %s", cdf, err)
 		}
+		defer cf.Close()
 		var cdr *decodecounter.CounterDataReader
 		cdr, err = decodecounter.NewCounterDataReader(cdf, cf)
 		if err != nil {
@@ -169,6 +181,14 @@ func (ts *tstate) processPod(p pods.Pod) error {
 			c := ts.AllocateCounters(len(data.Counters))
 			copy(c, data.Counters)
 			pmm[key] = c
+		}
+		return nil
+	}
+
+	// Read counter data files.
+	for _, cdf := range p.CounterDataFiles {
+		if err := readcdf(cdf); err != nil {
+			return err
 		}
 	}
 

@@ -423,7 +423,7 @@ func canLoadUnaligned(c *Config) bool {
 	return c.ctxt.Arch.Alignment == 1
 }
 
-// nlz returns the number of leading zeros.
+// nlzX returns the number of leading zeros.
 func nlz64(x int64) int { return bits.LeadingZeros64(uint64(x)) }
 func nlz32(x int32) int { return bits.LeadingZeros32(uint32(x)) }
 func nlz16(x int16) int { return bits.LeadingZeros16(uint16(x)) }
@@ -467,7 +467,7 @@ func log2uint32(n int64) int64 {
 	return int64(bits.Len32(uint32(n))) - 1
 }
 
-// isPowerOfTwo functions report whether n is a power of 2.
+// isPowerOfTwoX functions report whether n is a power of 2.
 func isPowerOfTwo8(n int8) bool {
 	return n > 0 && n&(n-1) == 0
 }
@@ -729,6 +729,13 @@ type Aux interface {
 	CanBeAnSSAAux()
 }
 
+// for now only used to mark moves that need to avoid clobbering flags
+type auxMark bool
+
+func (auxMark) CanBeAnSSAAux() {}
+
+var AuxMark auxMark
+
 // stringAux wraps string values for use in Aux.
 type stringAux string
 
@@ -839,9 +846,7 @@ func isSamePtr(p1, p2 *Value) bool {
 	case OpOffPtr:
 		return p1.AuxInt == p2.AuxInt && isSamePtr(p1.Args[0], p2.Args[0])
 	case OpAddr, OpLocalAddr:
-		// OpAddr's 0th arg is either OpSP or OpSB, which means that it is uniquely identified by its Op.
-		// Checking for value equality only works after [z]cse has run.
-		return p1.Aux == p2.Aux && p1.Args[0].Op == p2.Args[0].Op
+		return p1.Aux == p2.Aux
 	case OpAddPtr:
 		return p1.Args[1] == p2.Args[1] && isSamePtr(p1.Args[0], p2.Args[0])
 	}

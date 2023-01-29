@@ -4,5 +4,5 @@
 
 package p
 
-var _ = new(- /* ERROR not a type */ 1)
-var _ = new(1 /* ERROR not a type */ + 1)
+var _ = new(- /* ERROR "not a type" */ 1)
+var _ = new(1 /* ERROR "not a type" */ + 1)

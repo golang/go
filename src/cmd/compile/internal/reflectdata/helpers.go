@@ -21,7 +21,7 @@ func hasRType(n, rtype ir.Node, fieldName string) bool {
 	// gets confused by implicit conversions. Also, because
 	// package-scope statements can never be generic, so they'll never
 	// require dictionary lookups.
-	if base.Debug.Unified != 0 && ir.CurFunc.Nname.Sym().Name != "init" {
+	if ir.CurFunc.Nname.Sym().Name != "init" {
 		ir.Dump("CurFunc", ir.CurFunc)
 		base.FatalfAt(n.Pos(), "missing %s in %v: %+v", fieldName, ir.CurFunc, n)
 	}

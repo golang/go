@@ -5,6 +5,7 @@
 package context
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"runtime"
@@ -792,8 +793,11 @@ func XTestCustomContextGoroutines(t testingT) {
 
 func XTestCause(t testingT) {
 	var (
-		parentCause = fmt.Errorf("parentCause")
-		childCause  = fmt.Errorf("childCause")
+		forever       = 1e6 * time.Second
+		parentCause   = fmt.Errorf("parentCause")
+		childCause    = fmt.Errorf("childCause")
+		tooSlow       = fmt.Errorf("tooSlow")
+		finishedEarly = fmt.Errorf("finishedEarly")
 	)
 	for _, test := range []struct {
 		name  string
@@ -925,6 +929,58 @@ func XTestCause(t testingT) {
 			err:   DeadlineExceeded,
 			cause: DeadlineExceeded,
 		},
+		{
+			name: "WithTimeout canceled",
+			ctx: func() Context {
+				ctx, cancel := WithTimeout(Background(), forever)
+				cancel()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithTimeoutCause",
+			ctx: func() Context {
+				ctx, cancel := WithTimeoutCause(Background(), 0, tooSlow)
+				cancel()
+				return ctx
+			}(),
+			err:   DeadlineExceeded,
+			cause: tooSlow,
+		},
+		{
+			name: "WithTimeoutCause canceled",
+			ctx: func() Context {
+				ctx, cancel := WithTimeoutCause(Background(), forever, tooSlow)
+				cancel()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithTimeoutCause stacked",
+			ctx: func() Context {
+				ctx, cancel := WithCancelCause(Background())
+				ctx, _ = WithTimeoutCause(ctx, 0, tooSlow)
+				cancel(finishedEarly)
+				return ctx
+			}(),
+			err:   DeadlineExceeded,
+			cause: tooSlow,
+		},
+		{
+			name: "WithTimeoutCause stacked canceled",
+			ctx: func() Context {
+				ctx, cancel := WithCancelCause(Background())
+				ctx, _ = WithTimeoutCause(ctx, forever, tooSlow)
+				cancel(finishedEarly)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: finishedEarly,
+		},
 	} {
 		if got, want := test.ctx.Err(), test.err; want != got {
 			t.Errorf("%s: ctx.Err() = %v want %v", test.name, got, want)
@@ -932,5 +988,24 @@ func XTestCause(t testingT) {
 		if got, want := Cause(test.ctx), test.cause; want != got {
 			t.Errorf("%s: Cause(ctx) = %v want %v", test.name, got, want)
 		}
+	}
+}
+
+func XTestCauseRace(t testingT) {
+	cause := errors.New("TestCauseRace")
+	ctx, cancel := WithCancelCause(Background())
+	go func() {
+		cancel(cause)
+	}()
+	for {
+		// Poll Cause, rather than waiting for Done, to test that
+		// access to the underlying cause is synchronized properly.
+		if err := Cause(ctx); err != nil {
+			if err != cause {
+				t.Errorf("Cause returned %v, want %v", err, cause)
+			}
+			break
+		}
+		runtime.Gosched()
 	}
 }

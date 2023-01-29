@@ -192,13 +192,14 @@ func TestStdFixed(t *testing.T) {
 		"issue22200b.go", // go/types does not have constraints on stack size
 		"issue25507.go",  // go/types does not have constraints on stack size
 		"issue20780.go",  // go/types does not have constraints on stack size
-		"bug251.go",      // issue #34333 which was exposed with fix for #34151
+		"bug251.go",      // go.dev/issue/34333 which was exposed with fix for #34151
 		"issue42058a.go", // go/types does not have constraints on channel element size
 		"issue42058b.go", // go/types does not have constraints on channel element size
 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue49767.go",  // go/types does not have constraints on channel element size
 		"issue49814.go",  // go/types does not have constraints on array size
+		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
 
 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
 		// However, go/types does not know about build constraints.
@@ -225,6 +226,7 @@ var excluded = map[string]bool{
 
 	// See #46027: some imports are missing for this submodule.
 	"crypto/internal/edwards25519/field/_asm": true,
+	"crypto/internal/bigmod/_asm":             true,
 }
 
 // typecheckFiles typechecks the given package files.

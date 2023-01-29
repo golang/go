@@ -30,3 +30,4 @@ func TestInvalidDerivedFail(t *testing.T)              { XTestInvalidDerivedFail
 func TestDeadlineExceededSupportsTimeout(t *testing.T) { XTestDeadlineExceededSupportsTimeout(t) }
 func TestCustomContextGoroutines(t *testing.T)         { XTestCustomContextGoroutines(t) }
 func TestCause(t *testing.T)                           { XTestCause(t) }
+func TestCauseRace(t *testing.T)                       { XTestCauseRace(t) }

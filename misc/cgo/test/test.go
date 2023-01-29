@@ -2295,3 +2295,9 @@ func test45451(t *testing.T) {
 	_ = reflect.New(typ)
 	t.Errorf("reflect.New(%v) should have panicked", typ)
 }
+
+// issue 52542
+
+func func52542[T ~[]C.int]() {}
+
+type type52542[T ~*C.float] struct{}

@@ -23,7 +23,7 @@
 // control-flow paths.
 //
 // The WithCancelCause function returns a CancelCauseFunc, which
-// takes an error and records it as the cancelation cause. Calling
+// takes an error and records it as the cancellation cause. Calling
 // Cause on the canceled context or any of its children retrieves
 // the cause. If no cause is specified, Cause(ctx) returns the same
 // value as ctx.Err().
@@ -240,7 +240,7 @@ func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
 	return c, func() { c.cancel(true, Canceled, nil) }
 }
 
-// A CancelCauseFunc behaves like a CancelFunc but additionally sets the cancelation cause.
+// A CancelCauseFunc behaves like a CancelFunc but additionally sets the cancellation cause.
 // This cause can be retrieved by calling Cause on the canceled Context or on
 // any of its derived Contexts.
 //
@@ -278,13 +278,15 @@ func withCancel(parent Context) *cancelCtx {
 }
 
 // Cause returns a non-nil error explaining why c was canceled.
-// The first cancelation of c or one of its parents sets the cause.
-// If that cancelation happened via a call to CancelCauseFunc(err),
+// The first cancellation of c or one of its parents sets the cause.
+// If that cancellation happened via a call to CancelCauseFunc(err),
 // then Cause returns err.
 // Otherwise Cause(c) returns the same value as c.Err().
 // Cause returns nil if c has not been canceled yet.
 func Cause(c Context) error {
 	if cc, ok := c.Value(&cancelCtxKey).(*cancelCtx); ok {
+		cc.mu.Lock()
+		defer cc.mu.Unlock()
 		return cc.cause
 	}
 	return nil
@@ -490,6 +492,13 @@ func (c *cancelCtx) cancel(removeFromParent bool, err, cause error) {
 // Canceling this context releases resources associated with it, so code should
 // call cancel as soon as the operations running in this Context complete.
 func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
+	return WithDeadlineCause(parent, d, nil)
+}
+
+// WithDeadlineCause behaves like WithDeadline but also sets the cause of the
+// returned Context when the deadline is exceeded. The returned CancelFunc does
+// not set the cause.
+func WithDeadlineCause(parent Context, d time.Time, cause error) (Context, CancelFunc) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
@@ -504,14 +513,14 @@ func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
 	propagateCancel(parent, c)
 	dur := time.Until(d)
 	if dur <= 0 {
-		c.cancel(true, DeadlineExceeded, nil) // deadline has already passed
+		c.cancel(true, DeadlineExceeded, cause) // deadline has already passed
 		return c, func() { c.cancel(false, Canceled, nil) }
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.err == nil {
 		c.timer = time.AfterFunc(dur, func() {
-			c.cancel(true, DeadlineExceeded, nil)
+			c.cancel(true, DeadlineExceeded, cause)
 		})
 	}
 	return c, func() { c.cancel(true, Canceled, nil) }
@@ -563,6 +572,13 @@ func (c *timerCtx) cancel(removeFromParent bool, err, cause error) {
 //	}
 func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 	return WithDeadline(parent, time.Now().Add(timeout))
+}
+
+// WithTimeoutCause behaves like WithTimeout but also sets the cause of the
+// returned Context when the timout expires. The returned CancelFunc does
+// not set the cause.
+func WithTimeoutCause(parent Context, timeout time.Duration, cause error) (Context, CancelFunc) {
+	return WithDeadlineCause(parent, time.Now().Add(timeout), cause)
 }
 
 // WithValue returns a copy of parent in which the value associated with key is

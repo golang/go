@@ -119,8 +119,6 @@ func fib(x int) int {
 	}
 	return fib(x-1) - fib(x-2)
 }`
-	f := mustParse("fib.go", input)
-
 	// Type-check the package.
 	// We create an empty map for each kind of input
 	// we're interested in, and Check populates them.
@@ -129,11 +127,7 @@ func fib(x int) int {
 		Defs:  make(map[*syntax.Name]types2.Object),
 		Uses:  make(map[*syntax.Name]types2.Object),
 	}
-	var conf types2.Config
-	pkg, err := conf.Check("fib", []*syntax.File{f}, &info)
-	if err != nil {
-		log.Fatal(err)
-	}
+	pkg := mustTypecheck("fib.go", input, nil, &info)
 
 	// Print package-level variables in initialization order.
 	fmt.Printf("InitOrder: %v\n\n", info.InitOrder)

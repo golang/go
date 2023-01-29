@@ -1,5 +1,4 @@
-// Code generated from _gen/ARM64.rules; DO NOT EDIT.
-// generated with: cd _gen; go run .
+// Code generated from _gen/ARM64.rules using 'go generate'; DO NOT EDIT.
 
 package ssa
 
@@ -23561,7 +23560,7 @@ func rewriteValueARM64_OpCondSelect(v *Value) bool {
 	}
 	// match: (CondSelect x y boolval)
 	// cond: flagArg(boolval) == nil
-	// result: (CSEL [OpARM64NotEqual] x y (CMPWconst [0] boolval))
+	// result: (CSEL [OpARM64NotEqual] x y (TSTWconst [1] boolval))
 	for {
 		x := v_0
 		y := v_1
@@ -23571,8 +23570,8 @@ func rewriteValueARM64_OpCondSelect(v *Value) bool {
 		}
 		v.reset(OpARM64CSEL)
 		v.AuxInt = opToAuxInt(OpARM64NotEqual)
-		v0 := b.NewValue0(v.Pos, OpARM64CMPWconst, types.TypeFlags)
-		v0.AuxInt = int32ToAuxInt(0)
+		v0 := b.NewValue0(v.Pos, OpARM64TSTWconst, types.TypeFlags)
+		v0.AuxInt = int32ToAuxInt(1)
 		v0.AddArg(boolval)
 		v.AddArg3(x, y, v0)
 		return true
@@ -24791,17 +24790,44 @@ func rewriteValueARM64_OpLoad(v *Value) bool {
 	return false
 }
 func rewriteValueARM64_OpLocalAddr(v *Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (LocalAddr {sym} base _)
-	// result: (MOVDaddr {sym} base)
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (LocalAddr <t> {sym} base mem)
+	// cond: t.Elem().HasPointers()
+	// result: (MOVDaddr {sym} (SPanchored base mem))
 	for {
+		t := v.Type
 		sym := auxToSym(v.Aux)
 		base := v_0
+		mem := v_1
+		if !(t.Elem().HasPointers()) {
+			break
+		}
+		v.reset(OpARM64MOVDaddr)
+		v.Aux = symToAux(sym)
+		v0 := b.NewValue0(v.Pos, OpSPanchored, typ.Uintptr)
+		v0.AddArg2(base, mem)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LocalAddr <t> {sym} base _)
+	// cond: !t.Elem().HasPointers()
+	// result: (MOVDaddr {sym} base)
+	for {
+		t := v.Type
+		sym := auxToSym(v.Aux)
+		base := v_0
+		if !(!t.Elem().HasPointers()) {
+			break
+		}
 		v.reset(OpARM64MOVDaddr)
 		v.Aux = symToAux(sym)
 		v.AddArg(base)
 		return true
 	}
+	return false
 }
 func rewriteValueARM64_OpLsh16x16(v *Value) bool {
 	v_1 := v.Args[1]

@@ -13,6 +13,7 @@ package tar
 import (
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io/fs"
 	"math"
 	"path"
@@ -25,6 +26,8 @@ import (
 // BUG: Use of the Uid and Gid fields in Header could overflow on 32-bit
 // architectures. If a large value is encountered when decoding, the result
 // stored in Header will be the truncated version.
+
+var tarinsecurepath = godebug.New("tarinsecurepath")
 
 var (
 	ErrHeader          = errors.New("archive/tar: invalid tar header")
@@ -56,8 +59,10 @@ func (he headerError) Error() string {
 // Type flags for Header.Typeflag.
 const (
 	// Type '0' indicates a regular file.
-	TypeReg  = '0'
-	TypeRegA = '\x00' // Deprecated: Use TypeReg instead.
+	TypeReg = '0'
+
+	// Deprecated: Use TypeReg instead.
+	TypeRegA = '\x00'
 
 	// Type '1' to '6' are header-only flags and may not have a data body.
 	TypeLink    = '1' // Hard link

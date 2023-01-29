@@ -759,7 +759,7 @@ func (v *Cmd) Tags(dir string) ([]string, error) {
 	return tags, nil
 }
 
-// tagSync syncs the repo in dir to the named tag,
+// TagSync syncs the repo in dir to the named tag,
 // which either is a tag returned by tags or is v.tagDefault.
 func (v *Cmd) TagSync(dir, tag string) error {
 	if v.TagSyncCmd == nil {
@@ -1270,7 +1270,7 @@ func urlForImportPath(importPath string) (*urlpkg.URL, error) {
 }
 
 // repoRootForImportDynamic finds a *RepoRoot for a custom domain that's not
-// statically known by repoRootForImportPathStatic.
+// statically known by repoRootFromVCSPaths.
 //
 // This handles custom import paths like "name.tld/pkg/foo" or just "name.tld".
 func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {

@@ -64,7 +64,7 @@ func actionList(root *Action) []*Action {
 	return all
 }
 
-// do runs the action graph rooted at root.
+// Do runs the action graph rooted at root.
 func (b *Builder) Do(ctx context.Context, root *Action) {
 	ctx, span := trace.StartSpan(ctx, "exec.Builder.Do ("+root.Mode+" "+root.Target+")")
 	defer span.Done()
@@ -153,11 +153,15 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 		defer b.exec.Unlock()
 
 		if err != nil {
-			if b.AllowErrors {
+			if b.AllowErrors && a.Package != nil {
 				if a.Package.Error == nil {
 					a.Package.Error = &load.PackageError{Err: err}
 				}
 			} else {
+				var ipe load.ImportPathError
+				if a.Package != nil && (!errors.As(err, &ipe) || ipe.ImportPath() != a.Package.ImportPath) {
+					err = fmt.Errorf("%s: %v", a.Package.ImportPath, err)
+				}
 				base.Errorf("%s", err)
 			}
 			a.Failed = true
@@ -278,13 +282,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
 		// Include the C compiler tool ID so that if the C
 		// compiler changes we rebuild the package.
-		// But don't do that for standard library packages like net,
-		// so that the prebuilt .a files from a Go binary install
-		// don't need to be rebuilt with the local compiler.
-		if !p.Standard {
-			if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
-				fmt.Fprintf(h, "CC ID=%q\n", ccID)
-			}
+		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
+			fmt.Fprintf(h, "CC ID=%q\n", ccID)
 		}
 		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
 			cxxExe := b.cxxExe()
@@ -500,9 +499,6 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	}
 
 	defer func() {
-		if err != nil {
-			err = fmt.Errorf("go build %s: %v", p.ImportPath, err)
-		}
 		if err != nil && b.IsCmdList && b.NeedError && p.Error == nil {
 			p.Error = &load.PackageError{Err: err}
 		}
@@ -851,8 +847,7 @@ OverlayLoop:
 		}
 
 		if err != nil {
-			prefix, suffix := formatOutput(b.WorkDir, p.Dir, p.Desc(), output)
-			return errors.New(prefix + suffix)
+			return formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), output)
 		} else {
 			b.showOutput(a, p.Dir, p.Desc(), output)
 		}
@@ -1535,8 +1530,8 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 		var out []byte
 		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--cflags", pcflags, "--", pkgs)
 		if err != nil {
-			prefix, suffix := formatOutput(b.WorkDir, p.Dir, b.PkgconfigCmd()+" --cflags "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out))
-			return nil, nil, errors.New(fmt.Sprint(prefix, suffix+err.Error()))
+			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, b.PkgconfigCmd()+" --cflags "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out)+err.Error())
+			return nil, nil, err
 		}
 		if len(out) > 0 {
 			cflags, err = splitPkgConfigOutput(out)
@@ -1549,8 +1544,8 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 		}
 		out, err = b.runOut(nil, p.Dir, nil, b.PkgconfigCmd(), "--libs", pcflags, "--", pkgs)
 		if err != nil {
-			prefix, suffix := formatOutput(b.WorkDir, p.Dir, b.PkgconfigCmd()+" --libs "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out))
-			return nil, nil, errors.New(fmt.Sprint(prefix, suffix+err.Error()))
+			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, b.PkgconfigCmd()+" --libs "+strings.Join(pcflags, " ")+" -- "+strings.Join(pkgs, " "), string(out)+err.Error())
+			return nil, nil, err
 		}
 		if len(out) > 0 {
 			// NOTE: we don't attempt to parse quotes and unescapes here. pkg-config
@@ -2065,7 +2060,7 @@ func (b *Builder) fmtcmd(dir string, format string, args ...any) string {
 	return cmd
 }
 
-// showcmd prints the given command to standard output
+// Showcmd prints the given command to standard output
 // for the implementation of -n or -x.
 func (b *Builder) Showcmd(dir string, format string, args ...any) {
 	b.output.Lock()
@@ -2098,16 +2093,37 @@ func (b *Builder) Showcmd(dir string, format string, args ...any) {
 // If a is not nil and a.output is not nil, showOutput appends to that slice instead of
 // printing to b.Print.
 func (b *Builder) showOutput(a *Action, dir, desc, out string) {
-	prefix, suffix := formatOutput(b.WorkDir, dir, desc, out)
+	importPath := ""
+	if a != nil && a.Package != nil {
+		importPath = a.Package.ImportPath
+	}
+	psErr := formatOutput(b.WorkDir, dir, importPath, desc, out)
 	if a != nil && a.output != nil {
-		a.output = append(a.output, prefix...)
-		a.output = append(a.output, suffix...)
+		a.output = append(a.output, psErr.prefix...)
+		a.output = append(a.output, psErr.suffix...)
 		return
 	}
 
 	b.output.Lock()
 	defer b.output.Unlock()
-	b.Print(prefix, suffix)
+	b.Print(psErr.prefix, psErr.suffix)
+}
+
+// A prefixSuffixError is an error formatted by formatOutput.
+type prefixSuffixError struct {
+	importPath     string
+	prefix, suffix string
+}
+
+func (e *prefixSuffixError) Error() string {
+	if e.importPath != "" && !strings.HasPrefix(strings.TrimPrefix(e.prefix, "# "), e.importPath) {
+		return fmt.Sprintf("go build %s:\n%s%s", e.importPath, e.prefix, e.suffix)
+	}
+	return e.prefix + e.suffix
+}
+
+func (e *prefixSuffixError) ImportPath() string {
+	return e.importPath
 }
 
 // formatOutput prints "# desc" followed by the given output.
@@ -2133,9 +2149,9 @@ func (b *Builder) showOutput(a *Action, dir, desc, out string) {
 // formatOutput also replaces references to the work directory with $WORK.
 // formatOutput returns the output in a prefix with the description and a
 // suffix with the actual output.
-func formatOutput(workDir, dir, desc, out string) (prefix, suffix string) {
-	prefix = "# " + desc
-	suffix = "\n" + out
+func formatOutput(workDir, dir, importPath, desc, out string) *prefixSuffixError {
+	prefix := "# " + desc
+	suffix := "\n" + out
 	if reldir := base.ShortPath(dir); reldir != dir {
 		suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
 		suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
@@ -2143,7 +2159,7 @@ func formatOutput(workDir, dir, desc, out string) (prefix, suffix string) {
 	}
 	suffix = strings.ReplaceAll(suffix, " "+workDir, " $WORK")
 
-	return prefix, suffix
+	return &prefixSuffixError{importPath: importPath, prefix: prefix, suffix: suffix}
 }
 
 var cgoLine = lazyregexp.New(`\[[^\[\]]+\.(cgo1|cover)\.go:[0-9]+(:[0-9]+)?\]`)
@@ -2159,8 +2175,7 @@ func (b *Builder) run(a *Action, dir string, desc string, env []string, cmdargs 
 			desc = b.fmtcmd(dir, "%s", strings.Join(str.StringList(cmdargs...), " "))
 		}
 		if err != nil {
-			prefix, suffix := formatOutput(b.WorkDir, dir, desc, b.processOutput(out))
-			err = errors.New(prefix + suffix)
+			err = formatOutput(b.WorkDir, dir, a.Package.ImportPath, desc, b.processOutput(out))
 		} else {
 			b.showOutput(a, dir, desc, b.processOutput(out))
 		}
@@ -2296,7 +2311,7 @@ func (b *Builder) cCompilerEnv() []string {
 	return []string{"TERM=dumb"}
 }
 
-// mkdir makes the named directory.
+// Mkdir makes the named directory.
 func (b *Builder) Mkdir(dir string) error {
 	// Make Mkdir(a.Objdir) a no-op instead of an error when a.Objdir == "".
 	if dir == "" {
@@ -2325,7 +2340,7 @@ func (b *Builder) Mkdir(dir string) error {
 	return nil
 }
 
-// symlink creates a symlink newname -> oldname.
+// Symlink creates a symlink newname -> oldname.
 func (b *Builder) Symlink(oldname, newname string) error {
 	// It's not an error to try to recreate an existing symlink.
 	if link, err := os.Readlink(newname); err == nil && link == oldname {
@@ -2446,7 +2461,6 @@ func (b *Builder) gfortran(a *Action, p *load.Package, workdir, out string, flag
 // ccompile runs the given C or C++ compiler and creates an object from a single source file.
 func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []string, file string, compiler []string) error {
 	file = mkAbs(p.Dir, file)
-	desc := p.ImportPath
 	outfile = mkAbs(p.Dir, outfile)
 
 	// Elide source directory paths if -trimpath or GOROOT_FINAL is set.
@@ -2507,10 +2521,9 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 		}
 
 		if err != nil || os.Getenv("GO_BUILDER_NAME") != "" {
-			prefix, suffix := formatOutput(b.WorkDir, p.Dir, desc, b.processOutput(output))
-			err = errors.New(prefix + suffix)
+			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(output))
 		} else {
-			b.showOutput(a, p.Dir, desc, b.processOutput(output))
+			b.showOutput(a, p.Dir, p.Desc(), b.processOutput(output))
 		}
 	}
 	return err
@@ -2570,13 +2583,13 @@ func (b *Builder) gccld(a *Action, p *load.Package, objdir, outfile string, flag
 	return err
 }
 
-// gccCmd returns a gcc command line prefix
+// GccCmd returns a gcc command line prefix
 // defaultCC is defined in zdefaultcc.go, written by cmd/dist.
 func (b *Builder) GccCmd(incdir, workdir string) []string {
 	return b.compilerCmd(b.ccExe(), incdir, workdir)
 }
 
-// gxxCmd returns a g++ command line prefix
+// GxxCmd returns a g++ command line prefix
 // defaultCXX is defined in zdefaultcc.go, written by cmd/dist.
 func (b *Builder) GxxCmd(incdir, workdir string) []string {
 	return b.compilerCmd(b.cxxExe(), incdir, workdir)
@@ -3084,8 +3097,6 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		cgoflags = append(cgoflags, "-exportheader="+objdir+"_cgo_install.h")
 	}
 
-	execdir := p.Dir
-
 	// Rewrite overlaid paths in cgo files.
 	// cgo adds //line and #line pragmas in generated files with these paths.
 	var trimpath []string
@@ -3100,7 +3111,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		cgoflags = append(cgoflags, "-trimpath", strings.Join(trimpath, ";"))
 	}
 
-	if err := b.run(a, execdir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
+	if err := b.run(a, p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
 		return nil, nil, err
 	}
 	outGo = append(outGo, gofiles...)
@@ -3558,8 +3569,7 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 				return "", "", errors.New("must have SWIG version >= 3.0.6")
 			}
 			// swig error
-			prefix, suffix := formatOutput(b.WorkDir, p.Dir, p.Desc(), b.processOutput(out))
-			return "", "", errors.New(prefix + suffix)
+			err = formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), b.processOutput(out))
 		}
 		return "", "", err
 	}

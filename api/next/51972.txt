@@ -1,3 +1,0 @@
-pkg sync, method (*Map) Swap(interface{}, interface{}) (interface{}, bool) #51972
-pkg sync, method (*Map) CompareAndSwap(interface{}, interface{}, interface{}) bool #51972
-pkg sync, method (*Map) CompareAndDelete(interface{}, interface{}) bool #51972

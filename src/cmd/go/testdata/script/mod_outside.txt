@@ -203,12 +203,6 @@ stderr '^go: ''go install'' requires a version when current directory is not in 
 ! go install ./needmod/needmod.go
 stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 
-# 'go install' for a package in GOROOT should succeed.
-# (It must be non-stale here so that the test does not write to GOROOT).
-! stale cmd/addr2line
-go install cmd/addr2line
-! stderr .
-
 # 'go run' should fail if a package argument must be resolved to a module.
 ! go run example.com/printversion
 stderr '^no required module provides package example.com/printversion: go.mod file not found in current directory or any parent directory; see ''go help modules''$'

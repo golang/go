@@ -1,5 +1,0 @@
-pkg io, type OffsetWriter struct #45899
-pkg io, func NewOffsetWriter(WriterAt, int64) *OffsetWriter #45899
-pkg io, method (*OffsetWriter) Write([]uint8) (int, error) #45899
-pkg io, method (*OffsetWriter) WriteAt([]uint8, int64) (int, error) #45899
-pkg io, method (*OffsetWriter) Seek(int64, int) (int64, error) #45899

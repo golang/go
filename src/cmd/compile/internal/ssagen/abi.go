@@ -324,9 +324,6 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	fn.Body.Append(tail)
 
 	typecheck.FinishFuncBody()
-	if base.Debug.DclStack != 0 {
-		types.CheckDclstack()
-	}
 
 	typecheck.Func(fn)
 	ir.CurFunc = fn

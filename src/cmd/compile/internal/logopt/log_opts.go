@@ -270,7 +270,7 @@ func parseLogFlag(flag, value string) (version int, directory string) {
 	return
 }
 
-// isWindowsDriveURI returns true if the file URI is of the format used by
+// isWindowsDriveURIPath returns true if the file URI is of the format used by
 // Windows URIs. The url.Parse package does not specially handle Windows paths
 // (see golang/go#6027), so we check if the URI path has a drive prefix (e.g. "/C:").
 // (copied from tools/internal/span/uri.go)

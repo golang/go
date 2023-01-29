@@ -3,7 +3,6 @@
 
 [short] skip
 [!cgo] skip
-[GOOS:windows] skip  # The Go Windows builders have an extremely out-of-date gcc that does not support reproducible builds; see https://go.dev/issue/50824.
 
 # This test is sensitive to cache invalidation,
 # so use a separate build cache that we can control.

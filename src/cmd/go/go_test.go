@@ -914,7 +914,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		"src/internal/coverage/rtcov",
 		"src/math/bits",
 		"src/unsafe",
-		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
 		filepath.Join("pkg/tool", goHostOS+"_"+goHostArch),
 		"pkg/include",
 	} {
@@ -2136,7 +2135,7 @@ func TestBuildmodePIE(t *testing.T) {
 	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/riscv64", "linux/s390x",
 		"android/amd64", "android/arm", "android/arm64", "android/386",
 		"freebsd/amd64",
-		"windows/386", "windows/amd64", "windows/arm":
+		"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
 	case "darwin/amd64":
 	default:
 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
@@ -2917,36 +2916,4 @@ func TestExecInDeletedDir(t *testing.T) {
 
 	// `go version` should not fail
 	tg.run("version")
-}
-
-// A missing C compiler should not force the net package to be stale.
-// Issue 47215.
-func TestMissingCC(t *testing.T) {
-	if !canCgo {
-		t.Skip("test is only meaningful on systems with cgo")
-	}
-	cc := os.Getenv("CC")
-	if cc == "" {
-		cc = "gcc"
-	}
-	if filepath.IsAbs(cc) {
-		t.Skipf(`"CC" (%s) is an absolute path`, cc)
-	}
-	_, err := exec.LookPath(cc)
-	if err != nil {
-		t.Skipf(`"CC" (%s) not on PATH`, cc)
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	netStale, _ := tg.isStale("net")
-	if netStale {
-		t.Skip(`skipping test because "net" package is currently stale`)
-	}
-
-	tg.setenv("PATH", "") // No C compiler on PATH.
-	netStale, _ = tg.isStale("net")
-	if netStale {
-		t.Error(`clearing "PATH" causes "net" to be stale`)
-	}
 }

@@ -3837,6 +3837,19 @@ type http2Server struct {
 	// the HTTP/2 spec's recommendations.
 	MaxConcurrentStreams uint32
 
+	// MaxDecoderHeaderTableSize optionally specifies the http2
+	// SETTINGS_HEADER_TABLE_SIZE to send in the initial settings frame. It
+	// informs the remote endpoint of the maximum size of the header compression
+	// table used to decode header blocks, in octets. If zero, the default value
+	// of 4096 is used.
+	MaxDecoderHeaderTableSize uint32
+
+	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
+	// header compression table used for encoding request headers. Received
+	// SETTINGS_HEADER_TABLE_SIZE settings are capped at this limit. If zero,
+	// the default value of 4096 is used.
+	MaxEncoderHeaderTableSize uint32
+
 	// MaxReadFrameSize optionally specifies the largest frame
 	// this server is willing to read. A valid value is between
 	// 16k and 16M, inclusive. If zero or otherwise invalid, a
@@ -3907,6 +3920,20 @@ func (s *http2Server) maxConcurrentStreams() uint32 {
 		return v
 	}
 	return http2defaultMaxStreams
+}
+
+func (s *http2Server) maxDecoderHeaderTableSize() uint32 {
+	if v := s.MaxDecoderHeaderTableSize; v > 0 {
+		return v
+	}
+	return http2initialHeaderTableSize
+}
+
+func (s *http2Server) maxEncoderHeaderTableSize() uint32 {
+	if v := s.MaxEncoderHeaderTableSize; v > 0 {
+		return v
+	}
+	return http2initialHeaderTableSize
 }
 
 // maxQueuedControlFrames is the maximum number of control frames like
@@ -4133,7 +4160,6 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 		advMaxStreams:               s.maxConcurrentStreams(),
 		initialStreamSendWindowSize: http2initialWindowSize,
 		maxFrameSize:                http2initialMaxFrameSize,
-		headerTableSize:             http2initialHeaderTableSize,
 		serveG:                      http2newGoroutineLock(),
 		pushEnabled:                 true,
 		sawClientPreface:            opts.SawClientPreface,
@@ -4163,12 +4189,13 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 	sc.flow.add(http2initialWindowSize)
 	sc.inflow.add(http2initialWindowSize)
 	sc.hpackEncoder = hpack.NewEncoder(&sc.headerWriteBuf)
+	sc.hpackEncoder.SetMaxDynamicTableSizeLimit(s.maxEncoderHeaderTableSize())
 
 	fr := http2NewFramer(sc.bw, c)
 	if s.CountError != nil {
 		fr.countError = s.CountError
 	}
-	fr.ReadMetaHeaders = hpack.NewDecoder(http2initialHeaderTableSize, nil)
+	fr.ReadMetaHeaders = hpack.NewDecoder(s.maxDecoderHeaderTableSize(), nil)
 	fr.MaxHeaderListSize = sc.maxHeaderListSize()
 	fr.SetMaxReadFrameSize(s.maxReadFrameSize())
 	sc.framer = fr
@@ -4298,9 +4325,9 @@ type http2serverConn struct {
 	streams                     map[uint32]*http2stream
 	initialStreamSendWindowSize int32
 	maxFrameSize                int32
-	headerTableSize             uint32
 	peerMaxHeaderListSize       uint32            // zero means unknown (default)
 	canonHeader                 map[string]string // http2-lower-case -> Go-Canonical-Case
+	canonHeaderKeysSize         int               // canonHeader keys size in bytes
 	writingFrame                bool              // started writing a frame (on serve goroutine or separate)
 	writingFrameAsync           bool              // started a frame on its own goroutine but haven't heard back on wroteFrameCh
 	needsFrameFlush             bool              // last frame write wasn't a flush
@@ -4482,6 +4509,13 @@ func (sc *http2serverConn) condlogf(err error, format string, args ...interface{
 	}
 }
 
+// maxCachedCanonicalHeadersKeysSize is an arbitrarily-chosen limit on the size
+// of the entries in the canonHeader cache.
+// This should be larger than the size of unique, uncommon header keys likely to
+// be sent by the peer, while not so high as to permit unreasonable memory usage
+// if the peer sends an unbounded number of unique header keys.
+const http2maxCachedCanonicalHeadersKeysSize = 2048
+
 func (sc *http2serverConn) canonicalHeader(v string) string {
 	sc.serveG.check()
 	http2buildCommonHeaderMapsOnce()
@@ -4497,14 +4531,10 @@ func (sc *http2serverConn) canonicalHeader(v string) string {
 		sc.canonHeader = make(map[string]string)
 	}
 	cv = CanonicalHeaderKey(v)
-	// maxCachedCanonicalHeaders is an arbitrarily-chosen limit on the number of
-	// entries in the canonHeader cache. This should be larger than the number
-	// of unique, uncommon header keys likely to be sent by the peer, while not
-	// so high as to permit unreasonable memory usage if the peer sends an unbounded
-	// number of unique header keys.
-	const maxCachedCanonicalHeaders = 32
-	if len(sc.canonHeader) < maxCachedCanonicalHeaders {
+	size := 100 + len(v)*2 // 100 bytes of map overhead + key + value
+	if sc.canonHeaderKeysSize+size <= http2maxCachedCanonicalHeadersKeysSize {
 		sc.canonHeader[v] = cv
+		sc.canonHeaderKeysSize += size
 	}
 	return cv
 }
@@ -4606,6 +4636,7 @@ func (sc *http2serverConn) serve() {
 			{http2SettingMaxFrameSize, sc.srv.maxReadFrameSize()},
 			{http2SettingMaxConcurrentStreams, sc.advMaxStreams},
 			{http2SettingMaxHeaderListSize, sc.maxHeaderListSize()},
+			{http2SettingHeaderTableSize, sc.srv.maxDecoderHeaderTableSize()},
 			{http2SettingInitialWindowSize, uint32(sc.srv.initialStreamRecvWindowSize())},
 		},
 	})
@@ -5405,7 +5436,6 @@ func (sc *http2serverConn) processSetting(s http2Setting) error {
 	}
 	switch s.ID {
 	case http2SettingHeaderTableSize:
-		sc.headerTableSize = s.Val
 		sc.hpackEncoder.SetMaxDynamicTableSize(s.Val)
 	case http2SettingEnablePush:
 		sc.pushEnabled = s.Val != 0
@@ -7045,6 +7075,28 @@ type http2Transport struct {
 	// to mean no limit.
 	MaxHeaderListSize uint32
 
+	// MaxReadFrameSize is the http2 SETTINGS_MAX_FRAME_SIZE to send in the
+	// initial settings frame. It is the size in bytes of the largest frame
+	// payload that the sender is willing to receive. If 0, no setting is
+	// sent, and the value is provided by the peer, which should be 16384
+	// according to the spec:
+	// https://datatracker.ietf.org/doc/html/rfc7540#section-6.5.2.
+	// Values are bounded in the range 16k to 16M.
+	MaxReadFrameSize uint32
+
+	// MaxDecoderHeaderTableSize optionally specifies the http2
+	// SETTINGS_HEADER_TABLE_SIZE to send in the initial settings frame. It
+	// informs the remote endpoint of the maximum size of the header compression
+	// table used to decode header blocks, in octets. If zero, the default value
+	// of 4096 is used.
+	MaxDecoderHeaderTableSize uint32
+
+	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
+	// header compression table used for encoding request headers. Received
+	// SETTINGS_HEADER_TABLE_SIZE settings are capped at this limit. If zero,
+	// the default value of 4096 is used.
+	MaxEncoderHeaderTableSize uint32
+
 	// StrictMaxConcurrentStreams controls whether the server's
 	// SETTINGS_MAX_CONCURRENT_STREAMS should be respected
 	// globally. If false, new TCP connections are created to the
@@ -7096,6 +7148,19 @@ func (t *http2Transport) maxHeaderListSize() uint32 {
 		return 0
 	}
 	return t.MaxHeaderListSize
+}
+
+func (t *http2Transport) maxFrameReadSize() uint32 {
+	if t.MaxReadFrameSize == 0 {
+		return 0 // use the default provided by the peer
+	}
+	if t.MaxReadFrameSize < http2minMaxFrameSize {
+		return http2minMaxFrameSize
+	}
+	if t.MaxReadFrameSize > http2maxFrameSize {
+		return http2maxFrameSize
+	}
+	return t.MaxReadFrameSize
 }
 
 func (t *http2Transport) disableCompression() bool {
@@ -7220,10 +7285,11 @@ type http2ClientConn struct {
 	lastActive      time.Time
 	lastIdle        time.Time // time last idle
 	// Settings from peer: (also guarded by wmu)
-	maxFrameSize          uint32
-	maxConcurrentStreams  uint32
-	peerMaxHeaderListSize uint64
-	initialWindowSize     uint32
+	maxFrameSize           uint32
+	maxConcurrentStreams   uint32
+	peerMaxHeaderListSize  uint64
+	peerMaxHeaderTableSize uint32
+	initialWindowSize      uint32
 
 	// reqHeaderMu is a 1-element semaphore channel controlling access to sending new requests.
 	// Write to reqHeaderMu to lock it, read from it to unlock.
@@ -7609,6 +7675,20 @@ func (t *http2Transport) expectContinueTimeout() time.Duration {
 	return t.t1.ExpectContinueTimeout
 }
 
+func (t *http2Transport) maxDecoderHeaderTableSize() uint32 {
+	if v := t.MaxDecoderHeaderTableSize; v > 0 {
+		return v
+	}
+	return http2initialHeaderTableSize
+}
+
+func (t *http2Transport) maxEncoderHeaderTableSize() uint32 {
+	if v := t.MaxEncoderHeaderTableSize; v > 0 {
+		return v
+	}
+	return http2initialHeaderTableSize
+}
+
 func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
 	return t.newClientConn(c, t.disableKeepAlives())
 }
@@ -7649,15 +7729,19 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 	})
 	cc.br = bufio.NewReader(c)
 	cc.fr = http2NewFramer(cc.bw, cc.br)
+	if t.maxFrameReadSize() != 0 {
+		cc.fr.SetMaxReadFrameSize(t.maxFrameReadSize())
+	}
 	if t.CountError != nil {
 		cc.fr.countError = t.CountError
 	}
-	cc.fr.ReadMetaHeaders = hpack.NewDecoder(http2initialHeaderTableSize, nil)
+	maxHeaderTableSize := t.maxDecoderHeaderTableSize()
+	cc.fr.ReadMetaHeaders = hpack.NewDecoder(maxHeaderTableSize, nil)
 	cc.fr.MaxHeaderListSize = t.maxHeaderListSize()
 
-	// TODO: SetMaxDynamicTableSize, SetMaxDynamicTableSizeLimit on
-	// henc in response to SETTINGS frames?
 	cc.henc = hpack.NewEncoder(&cc.hbuf)
+	cc.henc.SetMaxDynamicTableSizeLimit(t.maxEncoderHeaderTableSize())
+	cc.peerMaxHeaderTableSize = http2initialHeaderTableSize
 
 	if t.AllowHTTP {
 		cc.nextStreamID = 3
@@ -7672,8 +7756,14 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
 		{ID: http2SettingEnablePush, Val: 0},
 		{ID: http2SettingInitialWindowSize, Val: http2transportDefaultStreamFlow},
 	}
+	if max := t.maxFrameReadSize(); max != 0 {
+		initialSettings = append(initialSettings, http2Setting{ID: http2SettingMaxFrameSize, Val: max})
+	}
 	if max := t.maxHeaderListSize(); max != 0 {
 		initialSettings = append(initialSettings, http2Setting{ID: http2SettingMaxHeaderListSize, Val: max})
+	}
+	if maxHeaderTableSize != http2initialHeaderTableSize {
+		initialSettings = append(initialSettings, http2Setting{ID: http2SettingHeaderTableSize, Val: maxHeaderTableSize})
 	}
 
 	cc.bw.Write(http2clientPreface)
@@ -9701,8 +9791,10 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
 			cc.cond.Broadcast()
 
 			cc.initialWindowSize = s.Val
+		case http2SettingHeaderTableSize:
+			cc.henc.SetMaxDynamicTableSize(s.Val)
+			cc.peerMaxHeaderTableSize = s.Val
 		default:
-			// TODO(bradfitz): handle more settings? SETTINGS_HEADER_TABLE_SIZE probably.
 			cc.vlogf("Unhandled Setting: %v", s)
 		}
 		return nil

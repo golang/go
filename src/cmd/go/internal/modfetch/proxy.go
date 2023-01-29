@@ -262,7 +262,7 @@ func (p *proxyRepo) getBytes(path string) ([]byte, error) {
 	if err != nil {
 		// net/http doesn't add context to Body errors, so add it here.
 		// (See https://go.dev/issue/52727.)
-		return b, &url.Error{Op: "read", URL: pathpkg.Join(p.redactedURL, path), Err: err}
+		return b, &url.Error{Op: "read", URL: strings.TrimSuffix(p.redactedURL, "/") + "/" + path, Err: err}
 	}
 	return b, nil
 }

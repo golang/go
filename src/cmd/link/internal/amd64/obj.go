@@ -65,7 +65,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		TLSIEtoLE:        tlsIEtoLE,
 
 		Linuxdynld:     "/lib64/ld-linux-x86-64.so.2",
-		LinuxdynldMusl: "/lib/ld-musl-x84_64.so.1",
+		LinuxdynldMusl: "/lib/ld-musl-x86_64.so.1",
 		Freebsddynld:   "/libexec/ld-elf.so.1",
 		Openbsddynld:   "/usr/libexec/ld.so",
 		Netbsddynld:    "/libexec/ld.elf_so",

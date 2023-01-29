@@ -97,6 +97,10 @@ func addLabelNodes(p *profile.Profile, rootKeys, leafKeys []string, outputUnit s
 			leafm = true
 		}
 
+		if len(leavesToAdd)+len(rootsToAdd) == 0 {
+			continue
+		}
+
 		var newLocs []*profile.Location
 		newLocs = append(newLocs, leavesToAdd...)
 		newLocs = append(newLocs, s.Location...)

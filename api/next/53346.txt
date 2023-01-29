@@ -1,1 +1,0 @@
-pkg encoding/xml, method (*Encoder) Close() error #53346

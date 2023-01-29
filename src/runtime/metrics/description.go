@@ -278,6 +278,76 @@ var allDesc = []Description{
 		Cumulative:  false,
 	},
 	{
+		Name: "/godebug/non-default-behavior/execerrdot:events",
+		Description: "The number of non-default behaviors executed by the os/exec package " +
+			"due to a non-default GODEBUG=execerrdot=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/http2client:events",
+		Description: "The number of non-default behaviors executed by the net/http package " +
+			"due to a non-default GODEBUG=http2client=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/http2server:events",
+		Description: "The number of non-default behaviors executed by the net/http package " +
+			"due to a non-default GODEBUG=http2server=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/installgoroot:events",
+		Description: "The number of non-default behaviors executed by the go/build package " +
+			"due to a non-default GODEBUG=installgoroot=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/panicnil:events",
+		Description: "The number of non-default behaviors executed by the runtime package " +
+			"due to a non-default GODEBUG=panicnil=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/randautoseed:events",
+		Description: "The number of non-default behaviors executed by the math/rand package " +
+			"due to a non-default GODEBUG=randautoseed=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/tarinsecurepath:events",
+		Description: "The number of non-default behaviors executed by the archive/tar package " +
+			"due to a non-default GODEBUG=tarinsecurepath=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/x509sha1:events",
+		Description: "The number of non-default behaviors executed by the crypto/x509 package " +
+			"due to a non-default GODEBUG=x509sha1=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/x509usefallbackroots:events",
+		Description: "The number of non-default behaviors executed by the crypto/x509 package " +
+			"due to a non-default GODEBUG=x509usefallbackroots=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/zipinsecurepath:events",
+		Description: "The number of non-default behaviors executed by the archive/zip package " +
+			"due to a non-default GODEBUG=zipinsecurepath=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
 		Name: "/memory/classes/heap/free:bytes",
 		Description: "Memory that is completely free and eligible to be returned to the underlying system, " +
 			"but has not been. This metric is the runtime's estimate of free address space that is backed by " +

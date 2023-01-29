@@ -1,2 +1,0 @@
-pkg regexp/syntax, const ErrLarge = "expression too large" #56041
-pkg regexp/syntax, const ErrLarge ErrorCode #56041

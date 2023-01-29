@@ -18,8 +18,7 @@ import "runtime"
 // arm:"TEXT\t.*, [$]-4-"
 // arm64:"TEXT\t.*, [$]0-"
 // mips:"TEXT\t.*, [$]-4-"
-// ppc64:"TEXT\t.*, [$]0-"
-// ppc64le:"TEXT\t.*, [$]0-"
+// ppc64x:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 func StackStore() int {
 	var x int
@@ -38,8 +37,7 @@ type T struct {
 // arm:"TEXT\t.*, [$]0-" (spills return address)
 // arm64:"TEXT\t.*, [$]0-"
 // mips:"TEXT\t.*, [$]-4-"
-// ppc64:"TEXT\t.*, [$]0-"
-// ppc64le:"TEXT\t.*, [$]0-"
+// ppc64x:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 func ZeroLargeStruct(x *T) {
 	t := T{}
@@ -53,8 +51,7 @@ func ZeroLargeStruct(x *T) {
 // amd64:"TEXT\t.*, [$]0-"
 // arm:"TEXT\t.*, [$]0-" (spills return address)
 // arm64:"TEXT\t.*, [$]0-"
-// ppc64:"TEXT\t.*, [$]0-"
-// ppc64le:"TEXT\t.*, [$]0-"
+// ppc64x:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 // Note: that 386 currently has to spill a register.
 func KeepWanted(t *T) {
@@ -68,8 +65,7 @@ func KeepWanted(t *T) {
 // - arm & mips fail due to softfloat calls
 // amd64:"TEXT\t.*, [$]0-"
 // arm64:"TEXT\t.*, [$]0-"
-// ppc64:"TEXT\t.*, [$]0-"
-// ppc64le:"TEXT\t.*, [$]0-"
+// ppc64x:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 func ArrayAdd64(a, b [4]float64) [4]float64 {
 	return [4]float64{a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3]}
@@ -82,8 +78,7 @@ func ArrayAdd64(a, b [4]float64) [4]float64 {
 // arm:"TEXT\t.*, [$]0-" (spills return address)
 // arm64:"TEXT\t.*, [$]0-"
 // mips:"TEXT\t.*, [$]-4-"
-// ppc64:"TEXT\t.*, [$]0-"
-// ppc64le:"TEXT\t.*, [$]0-"
+// ppc64x:"TEXT\t.*, [$]0-"
 // s390x:"TEXT\t.*, [$]0-"
 func ArrayInit(i, j int) [4]int {
 	return [4]int{i, 0, j, 0}

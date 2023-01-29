@@ -409,6 +409,9 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 	case *ast.StructType:
 		f.walk(n.Fields, ctxField, visit)
 	case *ast.FuncType:
+		if tparams := funcTypeTypeParams(n); tparams != nil {
+			f.walk(tparams, ctxParam, visit)
+		}
 		f.walk(n.Params, ctxParam, visit)
 		if n.Results != nil {
 			f.walk(n.Results, ctxParam, visit)
@@ -496,6 +499,9 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 			f.walk(n.Values, ctxExpr, visit)
 		}
 	case *ast.TypeSpec:
+		if tparams := typeSpecTypeParams(n); tparams != nil {
+			f.walk(tparams, ctxParam, visit)
+		}
 		f.walk(&n.Type, ctxType, visit)
 
 	case *ast.BadDecl:

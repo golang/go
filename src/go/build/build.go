@@ -786,6 +786,9 @@ Found:
 
 			// Set the install target if applicable.
 			if !p.Goroot || (installgoroot.Value() == "all" && p.ImportPath != "unsafe" && p.ImportPath != "builtin") {
+				if p.Goroot {
+					installgoroot.IncNonDefault()
+				}
 				p.PkgObj = ctxt.joinPath(p.Root, pkga)
 			}
 		}
@@ -1001,12 +1004,6 @@ Found:
 				embedMap[emb.pattern] = append(embedMap[emb.pattern], emb.pos)
 			}
 		}
-	}
-
-	// Now that p.CgoFiles has been set, use it to determine whether
-	// a package in GOROOT gets an install target:
-	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
-		p.PkgObj = ctxt.joinPath(p.Root, pkga)
 	}
 
 	for tag := range allTags {

@@ -1,6 +1,0 @@
-pkg time, const DateOnly = "2006-01-02" #52746
-pkg time, const DateOnly ideal-string #52746
-pkg time, const DateTime = "2006-01-02 15:04:05" #52746
-pkg time, const DateTime ideal-string #52746
-pkg time, const TimeOnly = "15:04:05" #52746
-pkg time, const TimeOnly ideal-string #52746

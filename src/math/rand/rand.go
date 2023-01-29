@@ -416,6 +416,7 @@ func (r *lockedSource) source() *rngSource {
 	if r.s == nil {
 		var seed int64
 		if randautoseed.Value() == "0" {
+			randautoseed.IncNonDefault()
 			seed = 1
 		} else {
 			seed = int64(fastrand64())

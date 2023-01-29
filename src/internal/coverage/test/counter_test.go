@@ -9,6 +9,7 @@ import (
 	"internal/coverage"
 	"internal/coverage/decodecounter"
 	"internal/coverage/encodecounter"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -208,8 +209,7 @@ func TestCounterDataAppendSegment(t *testing.T) {
 	}
 
 	for sidx := 0; sidx < int(ns); sidx++ {
-
-		if off, err := inf.Seek(0, os.SEEK_CUR); err != nil {
+		if off, err := inf.Seek(0, io.SeekCurrent); err != nil {
 			t.Fatalf("Seek failed: %v", err)
 		} else {
 			t.Logf("sidx=%d off=%d\n", sidx, off)

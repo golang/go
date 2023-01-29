@@ -8,8 +8,8 @@ import "strings"
 
 // Notes:
 //  - Less-than-64-bit integer types live in the low portion of registers.
-//    For now, the upper portion is junk; sign/zero-extension might be optimized in the future, but not yet.
-//  - Boolean types are zero or 1; stored in a byte, but loaded with AMOVBZ so the upper bytes of a register are zero.
+//    The upper portion is junk.
+//  - Boolean types are zero or 1; stored in a byte, with upper bytes of the register containing junk.
 //  - *const instructions may use a constant larger than the instruction can encode.
 //    In this case the assembler expands to multiple instructions and uses tmp
 //    register (R31).
@@ -430,8 +430,8 @@ func init() {
 		// use of the closure pointer.
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{ctxt}}, zeroWidth: true},
 
-		// LoweredGetCallerSP returns the SP of the caller of the current function.
-		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+		// LoweredGetCallerSP returns the SP of the caller of the current function. arg0=mem.
+		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
 
 		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
 		// I.e., if f calls g "calls" getcallerpc,

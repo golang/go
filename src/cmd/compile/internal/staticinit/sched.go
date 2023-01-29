@@ -333,6 +333,11 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 			return val.Op() == ir.ONIL
 		}
 
+		if val.Type().HasShape() {
+			// See comment in cmd/compile/internal/walk/convert.go:walkConvInterface
+			return false
+		}
+
 		reflectdata.MarkTypeUsedInInterface(val.Type(), l.Linksym())
 
 		var itab *ir.AddrExpr
@@ -451,6 +456,10 @@ func (s *Schedule) addvalue(p *Plan, xoffset int64, n ir.Node) {
 }
 
 func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.InlinedCallExpr, typ *types.Type) bool {
+	if base.Debug.InlStaticInit == 0 {
+		return false
+	}
+
 	// Handle the special case of an inlined call of
 	// a function body with a single return statement,
 	// which turns into a single assignment plus a goto.
@@ -829,7 +838,7 @@ func subst(n ir.Node, m map[*ir.Name]ir.Node) (ir.Node, bool) {
 			return x
 		}
 		x = ir.Copy(x)
-		ir.EditChildren(x, edit)
+		ir.EditChildrenWithHidden(x, edit)
 		if x, ok := x.(*ir.ConvExpr); ok && x.X.Op() == ir.OLITERAL {
 			// A conversion of variable or expression involving variables
 			// may become a conversion of constant after inlining the parameters

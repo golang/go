@@ -252,6 +252,7 @@ var (
 	procGetFileType                                          = modkernel32.NewProc("GetFileType")
 	procGetFinalPathNameByHandleW                            = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetFullPathNameW                                     = modkernel32.NewProc("GetFullPathNameW")
+	procGetLargePageMinimum                                  = modkernel32.NewProc("GetLargePageMinimum")
 	procGetLastError                                         = modkernel32.NewProc("GetLastError")
 	procGetLogicalDriveStringsW                              = modkernel32.NewProc("GetLogicalDriveStringsW")
 	procGetLogicalDrives                                     = modkernel32.NewProc("GetLogicalDrives")
@@ -2177,6 +2178,12 @@ func GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (
 	if n == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func GetLargePageMinimum() (size uintptr) {
+	r0, _, _ := syscall.Syscall(procGetLargePageMinimum.Addr(), 0, 0, 0, 0)
+	size = uintptr(r0)
 	return
 }
 

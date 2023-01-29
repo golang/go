@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"internal/lazyregexp"
 	. "internal/types/errors"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -80,4 +80,4 @@ func parseGoVersion(s string) (v version, err error) {
 }
 
 // goVersionRx matches a Go version string, e.g. "go1.12".
-var goVersionRx = regexp.MustCompile(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)
+var goVersionRx = lazyregexp.New(`^go([1-9]\d*)\.(0|[1-9]\d*)$`)

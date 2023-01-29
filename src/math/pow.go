@@ -5,6 +5,15 @@
 package math
 
 func isOddInt(x float64) bool {
+	if Abs(x) >= (1 << 53) {
+		// 1 << 53 is the largest exact integer in the float64 format.
+		// Any number outside this range will be truncated before the decimal point and therefore will always be
+		// an even integer.
+		// Without this check and if x overflows int64 the int64(xi) conversion below may produce incorrect results
+		// on some architectures (and does so on arm64). See issue #57465.
+		return false
+	}
+
 	xi, xf := Modf(x)
 	return xf == 0 && int64(xi)&1 == 1
 }
@@ -54,12 +63,12 @@ func pow(x, y float64) float64 {
 	case x == 0:
 		switch {
 		case y < 0:
-			if isOddInt(y) {
-				return Copysign(Inf(1), x)
+			if Signbit(x) && isOddInt(y) {
+				return Inf(-1)
 			}
 			return Inf(1)
 		case y > 0:
-			if isOddInt(y) {
+			if Signbit(x) && isOddInt(y) {
 				return x
 			}
 			return 0

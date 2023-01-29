@@ -353,6 +353,9 @@ func configure(sanitizer string) *config {
 		// Set the debug mode to print the C stack trace.
 		c.cFlags = append(c.cFlags, "-g")
 
+	case "fuzzer":
+		c.goFlags = append(c.goFlags, "-tags=libfuzzer", "-gcflags=-d=libfuzzer")
+
 	default:
 		panic(fmt.Sprintf("unrecognized sanitizer: %q", sanitizer))
 	}
@@ -405,6 +408,13 @@ int main() {
 }
 `)
 
+var cLibFuzzerInput = []byte(`
+#include <stddef.h>
+int LLVMFuzzerTestOneInput(char *data, size_t size) {
+	return 0;
+}
+`)
+
 func (c *config) checkCSanitizer() (skip bool, err error) {
 	dir, err := os.MkdirTemp("", c.sanitizer)
 	if err != nil {
@@ -413,7 +423,12 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
 	defer os.RemoveAll(dir)
 
 	src := filepath.Join(dir, "return0.c")
-	if err := os.WriteFile(src, cMain, 0600); err != nil {
+	cInput := cMain
+	if c.sanitizer == "fuzzer" {
+		// libFuzzer generates the main function itself, and uses a different input.
+		cInput = cLibFuzzerInput
+	}
+	if err := os.WriteFile(src, cInput, 0600); err != nil {
 		return false, fmt.Errorf("failed to write C source file: %v", err)
 	}
 
@@ -432,6 +447,11 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
 			return true, errors.New(string(out))
 		}
 		return true, fmt.Errorf("%#q failed: %v\n%s", strings.Join(cmd.Args, " "), err, out)
+	}
+
+	if c.sanitizer == "fuzzer" {
+		// For fuzzer, don't try running the test binary. It never finishes.
+		return false, nil
 	}
 
 	if out, err := exec.Command(dst).CombinedOutput(); err != nil {
@@ -505,6 +525,10 @@ func (d *tempDir) RemoveAll(t *testing.T) {
 	}
 }
 
+func (d *tempDir) Base() string {
+	return d.base
+}
+
 func (d *tempDir) Join(name string) string {
 	return filepath.Join(d.base, name)
 }
@@ -535,7 +559,7 @@ func hangProneCmd(name string, arg ...string) *exec.Cmd {
 }
 
 // mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
-// because the internal pacakage can't be used here.
+// because the internal package can't be used here.
 func mSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
@@ -548,7 +572,7 @@ func mSanSupported(goos, goarch string) bool {
 }
 
 // aSanSupported is a copy of the function cmd/internal/sys.ASanSupported,
-// because the internal pacakage can't be used here.
+// because the internal package can't be used here.
 func aSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":

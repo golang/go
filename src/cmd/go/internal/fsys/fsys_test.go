@@ -844,8 +844,8 @@ func TestWalkSymlink(t *testing.T) {
 		{"control", "dir", []string{"dir", "dir" + string(filepath.Separator) + "file"}},
 		// ensure Walk doesn't walk into the directory pointed to by the symlink
 		// (because it's supposed to use Lstat instead of Stat).
-		{"symlink_to_dir", "symlink", []string{"symlink", "symlink" + string(filepath.Separator) + "file"}},
-		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink", "overlay_symlink" + string(filepath.Separator) + "file"}},
+		{"symlink_to_dir", "symlink", []string{"symlink"}},
+		{"overlay_to_symlink_to_dir", "overlay_symlink", []string{"overlay_symlink"}},
 	}
 
 	for _, tc := range testCases {

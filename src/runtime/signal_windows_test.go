@@ -21,7 +21,7 @@ func TestVectoredHandlerExceptionInNonGoThread(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
-	if testenv.Builder() == "windows-amd64-2012" {
+	if strings.HasPrefix(testenv.Builder(), "windows-amd64-2012") {
 		testenv.SkipFlaky(t, 49681)
 	}
 	testenv.MustHaveGoBuild(t)
@@ -79,8 +79,11 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 	if *flagQuick {
 		t.Skip("-quick")
 	}
-	if runtime.GOARCH != "amd64" {
-		t.Skip("this test can only run on windows/amd64")
+	if runtime.GOARCH == "arm" {
+		//TODO: remove this skip and update testwinlib/main.c
+		// once windows/arm supports c-shared buildmode.
+		// See go.dev/issues/43800.
+		t.Skip("this test can't run on windows/arm")
 	}
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)

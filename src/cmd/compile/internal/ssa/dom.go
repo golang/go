@@ -144,7 +144,7 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
 	return idom
 }
 
-// dfs performs a depth first search over the blocks starting at entry block
+// dfsOrig performs a depth first search over the blocks starting at entry block
 // (in arbitrary order).  This is a de-recursed version of dfs from the
 // original Tarjan-Lengauer TOPLAS article.  It's important to return the
 // same values for parent as the original algorithm.
@@ -203,7 +203,7 @@ func linkOrig(v, w ID, ancestor []ID) {
 	ancestor[w] = v
 }
 
-// dominators computes the dominator tree for f. It returns a slice
+// dominatorsSimple computes the dominator tree for f. It returns a slice
 // which maps block ID to the immediate dominator of that block.
 // Unreachable blocks map to nil. The entry block maps to nil.
 func dominatorsSimple(f *Func) []*Block {

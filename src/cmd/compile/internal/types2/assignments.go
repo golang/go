@@ -27,7 +27,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	case constant_, variable, mapindex, value, nilvalue, commaok, commaerr:
 		// ok
 	default:
-		// we may get here because of other problems (issue #39634, crash 12)
+		// we may get here because of other problems (go.dev/issue/39634, crash 12)
 		// TODO(gri) do we need a new "generic" error code here?
 		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
 		return
@@ -427,7 +427,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	}
 }
 
-// unpack unpacks a *syntax.ListExpr into a list of syntax.Expr.
+// unpackExpr unpacks a *syntax.ListExpr into a list of syntax.Expr.
 // Helper introduced for the go/types -> types2 port.
 // TODO(gri) Should find a more efficient solution that doesn't
 // require introduction of a new slice for simple

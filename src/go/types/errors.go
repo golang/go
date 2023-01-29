@@ -54,7 +54,7 @@ func (err *error_) empty() bool {
 
 func (err *error_) pos() token.Pos {
 	if err.empty() {
-		return token.NoPos
+		return nopos
 	}
 	return err.desc[0].posn.Pos()
 }
@@ -266,7 +266,7 @@ func (check *Checker) report(errp *error_) {
 		check.firstErr = err
 	}
 
-	if trace {
+	if check.conf._Trace {
 		pos := e.Pos
 		msg := e.Msg
 		check.trace(pos, "ERROR: %s", msg)
@@ -367,7 +367,7 @@ func spanOf(at positioner) posSpan {
 			pos := x.Pos()
 			return posSpan{pos, pos, x.expr.End()}
 		}
-		return posSpan{token.NoPos, token.NoPos, token.NoPos}
+		return posSpan{nopos, nopos, nopos}
 	default:
 		pos := at.Pos()
 		return posSpan{pos, pos, pos}

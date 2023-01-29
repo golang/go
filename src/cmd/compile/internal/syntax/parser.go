@@ -217,7 +217,7 @@ func (p *parser) posAt(line, col uint) Pos {
 	return MakePos(p.base, line, col)
 }
 
-// error reports an error at the given position.
+// errorAt reports an error at the given position.
 func (p *parser) errorAt(pos Pos, msg string) {
 	err := Error{pos, msg}
 	if p.first == nil {
@@ -314,7 +314,7 @@ const stopset uint64 = 1<<_Break |
 	1<<_Type |
 	1<<_Var
 
-// Advance consumes tokens until it finds a token of the stopset or followlist.
+// advance consumes tokens until it finds a token of the stopset or followlist.
 // The stopset is only considered if we are inside a function (p.fnest > 0).
 // The followlist is the list of valid tokens that can follow a production;
 // if it is empty, exactly one (non-EOF) token is consumed to ensure progress.

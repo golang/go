@@ -163,13 +163,13 @@ type _ interface {
 
 // Type sets may contain each type at most once.
 type _ interface {
-	~int|~ /* ERROR overlapping terms ~int */ int
-	~int|int /* ERROR overlapping terms int */
-	int|int /* ERROR overlapping terms int */
+	~int|~ /* ERROR "overlapping terms ~int" */ int
+	~int|int /* ERROR "overlapping terms int" */
+	int|int /* ERROR "overlapping terms int" */
 }
 
 type _ interface {
-	~struct{f int} | ~struct{g int} | ~ /* ERROR overlapping terms */ struct{f int}
+	~struct{f int} | ~struct{g int} | ~ /* ERROR "overlapping terms" */ struct{f int}
 }
 
 // Interface term lists can contain any type, incl. *Named types.
@@ -210,7 +210,7 @@ func f0[T I0]() {}
 var _ = f0[int]
 var _ = f0[bool]
 var _ = f0[string]
-var _ = f0[float64 /* ERROR does not implement I0 */ ]
+var _ = f0[float64 /* ERROR "does not satisfy I0" */ ]
 
 type I01 interface {
 	E0
@@ -219,9 +219,9 @@ type I01 interface {
 
 func f01[T I01]() {}
 var _ = f01[int]
-var _ = f01[bool /* ERROR does not implement I0 */ ]
+var _ = f01[bool /* ERROR "does not satisfy I0" */ ]
 var _ = f01[string]
-var _ = f01[float64 /* ERROR does not implement I0 */ ]
+var _ = f01[float64 /* ERROR "does not satisfy I0" */ ]
 
 type I012 interface {
 	E0
@@ -230,10 +230,10 @@ type I012 interface {
 }
 
 func f012[T I012]() {}
-var _ = f012[int /* ERROR cannot implement I012.*empty type set */ ]
-var _ = f012[bool /* ERROR cannot implement I012.*empty type set */ ]
-var _ = f012[string /* ERROR cannot implement I012.*empty type set */ ]
-var _ = f012[float64 /* ERROR cannot implement I012.*empty type set */ ]
+var _ = f012[int /* ERRORx `cannot satisfy I012.*empty type set` */ ]
+var _ = f012[bool /* ERRORx `cannot satisfy I012.*empty type set` */ ]
+var _ = f012[string /* ERRORx `cannot satisfy I012.*empty type set` */ ]
+var _ = f012[float64 /* ERRORx `cannot satisfy I012.*empty type set` */ ]
 
 type I12 interface {
 	E1
@@ -241,9 +241,9 @@ type I12 interface {
 }
 
 func f12[T I12]() {}
-var _ = f12[int /* ERROR does not implement I12 */ ]
-var _ = f12[bool /* ERROR does not implement I12 */ ]
-var _ = f12[string /* ERROR does not implement I12 */ ]
+var _ = f12[int /* ERROR "does not satisfy I12" */ ]
+var _ = f12[bool /* ERROR "does not satisfy I12" */ ]
+var _ = f12[string /* ERROR "does not satisfy I12" */ ]
 var _ = f12[float64]
 
 type I0_ interface {
@@ -253,13 +253,13 @@ type I0_ interface {
 
 func f0_[T I0_]() {}
 var _ = f0_[int]
-var _ = f0_[bool /* ERROR does not implement I0_ */ ]
-var _ = f0_[string /* ERROR does not implement I0_ */ ]
-var _ = f0_[float64 /* ERROR does not implement I0_ */ ]
+var _ = f0_[bool /* ERROR "does not satisfy I0_" */ ]
+var _ = f0_[string /* ERROR "does not satisfy I0_" */ ]
+var _ = f0_[float64 /* ERROR "does not satisfy I0_" */ ]
 
 // Using a function instance as a type is an error.
-var _ f0 // ERROR not a type
-var _ f0 /* ERROR not a type */ [int]
+var _ f0 // ERROR "not a type"
+var _ f0 /* ERROR "not a type" */ [int]
 
 // Empty type sets can only be satisfied by empty type sets.
 type none interface {
@@ -273,7 +273,7 @@ func gg[T any]() {}
 func hh[T ~int]() {}
 
 func _[T none]() {
-	_ = ff[int /* ERROR cannot implement none \(empty type set\) */ ]
+	_ = ff[int /* ERROR "cannot satisfy none (empty type set)" */ ]
 	_ = ff[T]  // pathological but ok because T's type set is empty, too
 	_ = gg[int]
 	_ = gg[T]

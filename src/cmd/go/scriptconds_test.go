@@ -62,7 +62,7 @@ func defaultCCIsAbsolute(s *script.State) (bool, error) {
 	GOARCH, _ := s.LookupEnv("GOARCH")
 	defaultCC := cfg.DefaultCC(GOOS, GOARCH)
 	if filepath.IsAbs(defaultCC) {
-		if _, err := os.Stat(defaultCC); err == nil {
+		if _, err := exec.LookPath(defaultCC); err == nil {
 			return true, nil
 		}
 	}

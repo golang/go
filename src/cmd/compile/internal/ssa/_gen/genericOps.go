@@ -349,9 +349,10 @@ var genericOps = []opData{
 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"},      // Address of a variable.  Arg0=SB.  Aux identifies the variable.
 	{name: "LocalAddr", argLength: 2, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP. Arg1=mem. Aux identifies the variable.
 
-	{name: "SP", zeroWidth: true},                 // stack pointer
-	{name: "SB", typ: "Uintptr", zeroWidth: true}, // static base pointer (a.k.a. globals pointer)
-	{name: "Invalid"},                             // unused value
+	{name: "SP", zeroWidth: true},                                       // stack pointer
+	{name: "SB", typ: "Uintptr", zeroWidth: true},                       // static base pointer (a.k.a. globals pointer)
+	{name: "Invalid"},                                                   // unused value
+	{name: "SPanchored", typ: "Uintptr", argLength: 2, zeroWidth: true}, // arg0 = SP, arg1 = mem. Result is identical to arg0, but cannot be scheduled before memory state arg1.
 
 	// Memory operations
 	{name: "Load", argLength: 2},                          // Load from arg0.  arg1=memory
@@ -474,7 +475,7 @@ var genericOps = []opData{
 	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
 	{name: "GetClosurePtr"},                       // get closure pointer from dedicated register
 	{name: "GetCallerPC"},                         // for getcallerpc intrinsic
-	{name: "GetCallerSP"},                         // for getcallersp intrinsic
+	{name: "GetCallerSP", argLength: 1},           // for getcallersp intrinsic. arg0=mem.
 
 	// Indexing operations
 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type

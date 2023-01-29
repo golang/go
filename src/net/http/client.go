@@ -990,8 +990,8 @@ func shouldCopyHeaderOnRedirect(headerKey string, initial, dest *url.URL) bool {
 		// directly, we don't know their scope, so we assume
 		// it's for *.domain.com.
 
-		ihost := canonicalAddr(initial)
-		dhost := canonicalAddr(dest)
+		ihost := idnaASCIIFromURL(initial)
+		dhost := idnaASCIIFromURL(dest)
 		return isDomainOrSubdomain(dhost, ihost)
 	}
 	// All other headers are copied:

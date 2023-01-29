@@ -2743,7 +2743,7 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 // it references will not be garbage collected, so programs must keep
 // a separate, correctly typed pointer to the underlying data.
 //
-// Deprecated: Use unsafe.String or unsafe.StringData instead.
+// In new code, use unsafe.String or unsafe.StringData instead.
 type StringHeader struct {
 	Data uintptr
 	Len  int
@@ -2756,7 +2756,7 @@ type StringHeader struct {
 // it references will not be garbage collected, so programs must keep
 // a separate, correctly typed pointer to the underlying data.
 //
-// Deprecated: Use unsafe.Slice or unsafe.SliceData instead.
+// In new code, use unsafe.Slice or unsafe.SliceData instead.
 type SliceHeader struct {
 	Data uintptr
 	Len  int
@@ -3284,7 +3284,8 @@ func (v Value) CanConvert(t Type) bool {
 
 // Comparable reports whether the value v is comparable.
 // If the type of v is an interface, this checks the dynamic type.
-// If this reports true then v.Interface() == x will not panic for any x.
+// If this reports true then v.Interface() == x will not panic for any x,
+// nor will v.Equal(u) for any Value u.
 func (v Value) Comparable() bool {
 	k := v.Kind()
 	switch k {
@@ -3343,7 +3344,7 @@ func (v Value) Equal(u Value) bool {
 		return false
 	}
 
-	// Handle ach Kind directly rather than calling valueInterface
+	// Handle each Kind directly rather than calling valueInterface
 	// to avoid allocating.
 	switch v.Kind() {
 	default:

@@ -218,7 +218,9 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
 }
 
 func TestCgoPprofCallback(t *testing.T) {
-	t.Parallel()
+	if testing.Short() {
+		t.Skip("skipping in short mode") // takes a full second
+	}
 	switch runtime.GOOS {
 	case "windows", "plan9":
 		t.Skipf("skipping cgo pprof callback test on %s", runtime.GOOS)

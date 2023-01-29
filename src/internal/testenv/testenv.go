@@ -357,7 +357,7 @@ func WriteImportcfg(t testing.TB, dstPath string, additionalPackageFiles map[str
 	if err != nil {
 		t.Fatalf("preparing the importcfg failed: %s", err)
 	}
-	os.WriteFile(dstPath, []byte(importcfg), 0655)
+	err = os.WriteFile(dstPath, []byte(importcfg), 0655)
 	if err != nil {
 		t.Fatalf("writing the importcfg failed: %s", err)
 	}

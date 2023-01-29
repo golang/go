@@ -166,7 +166,7 @@ func (b *block) toSTAR() *headerSTAR   { return (*headerSTAR)(b) }
 func (b *block) toUSTAR() *headerUSTAR { return (*headerUSTAR)(b) }
 func (b *block) toSparse() sparseArray { return sparseArray(b[:]) }
 
-// GetFormat checks that the block is a valid tar header based on the checksum.
+// getFormat checks that the block is a valid tar header based on the checksum.
 // It then attempts to guess the specific format based on magic values.
 // If the checksum fails, then FormatUnknown is returned.
 func (b *block) getFormat() Format {
@@ -239,7 +239,7 @@ func (b *block) computeChecksum() (unsigned, signed int64) {
 	return unsigned, signed
 }
 
-// Reset clears the block with all zeros.
+// reset clears the block with all zeros.
 func (b *block) reset() {
 	*b = block{}
 }
