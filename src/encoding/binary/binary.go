@@ -210,6 +210,10 @@ func (bigEndian) String() string { return "BigEndian" }
 
 func (bigEndian) GoString() string { return "binary.BigEndian" }
 
+func (nativeEndian) String() string { return "NativeEndian" }
+
+func (nativeEndian) GoString() string { return "binary.NativeEndian" }
+
 // Read reads structured binary data from r into data.
 // Data must be a pointer to a fixed-size value or a slice
 // of fixed-size values.
