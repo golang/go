@@ -30,6 +30,8 @@ func newOverlayFS(delegate source.FileSource) *overlayFS {
 
 // Overlays returns a new unordered array of overlays.
 func (fs *overlayFS) Overlays() []*Overlay {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
 	overlays := make([]*Overlay, 0, len(fs.overlays))
 	for _, overlay := range fs.overlays {
 		overlays = append(overlays, overlay)
