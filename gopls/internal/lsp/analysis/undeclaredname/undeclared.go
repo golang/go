@@ -121,8 +121,8 @@ func runForError(pass *analysis.Pass, err types.Error) {
 	})
 }
 
-func SuggestedFix(fset *token.FileSet, rng safetoken.Range, content []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
-	pos := rng.Start // don't use the end
+func SuggestedFix(fset *token.FileSet, start, end token.Pos, content []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+	pos := start // don't use the end
 	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
 	if len(path) < 2 {
 		return nil, fmt.Errorf("no expression found")

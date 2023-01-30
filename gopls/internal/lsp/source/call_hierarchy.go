@@ -119,7 +119,7 @@ func enclosingNodeCallItem(ctx context.Context, snapshot Snapshot, pkgPath Packa
 	if err != nil {
 		return protocol.CallHierarchyItem{}, err
 	}
-	srcRng, err := pgf.RangeToTokenRange(loc.Range)
+	start, end, err := pgf.RangePos(loc.Range)
 	if err != nil {
 		return protocol.CallHierarchyItem{}, err
 	}
@@ -128,7 +128,7 @@ func enclosingNodeCallItem(ctx context.Context, snapshot Snapshot, pkgPath Packa
 	var funcDecl *ast.FuncDecl
 	var funcLit *ast.FuncLit // innermost function literal
 	var litCount int
-	path, _ := astutil.PathEnclosingInterval(pgf.File, srcRng.Start, srcRng.End)
+	path, _ := astutil.PathEnclosingInterval(pgf.File, start, end)
 outer:
 	for _, node := range path {
 		switch n := node.(type) {

@@ -419,13 +419,13 @@ func (pgf *ParsedGoFile) NodeLocation(node ast.Node) (protocol.Location, error) 
 	return pgf.Mapper.PosLocation(pgf.Tok, node.Pos(), node.End())
 }
 
-// RangeToTokenRange parses a protocol Range back into the go/token domain.
-func (pgf *ParsedGoFile) RangeToTokenRange(r protocol.Range) (safetoken.Range, error) {
+// RangePos parses a protocol Range back into the go/token domain.
+func (pgf *ParsedGoFile) RangePos(r protocol.Range) (token.Pos, token.Pos, error) {
 	start, end, err := pgf.Mapper.RangeOffsets(r)
 	if err != nil {
-		return safetoken.Range{}, err
+		return token.NoPos, token.NoPos, err
 	}
-	return safetoken.NewRange(pgf.Tok, pgf.Tok.Pos(start), pgf.Tok.Pos(end)), nil
+	return pgf.Tok.Pos(start), pgf.Tok.Pos(end), nil
 }
 
 // A ParsedModule contains the results of parsing a go.mod file.

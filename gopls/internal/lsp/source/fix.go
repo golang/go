@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/analysis/fillstruct"
 	"golang.org/x/tools/gopls/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 )
@@ -28,7 +27,7 @@ type (
 	// separately. Such analyzers should provide a function with a signature of
 	// SuggestedFixFunc.
 	SuggestedFixFunc  func(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error)
-	singleFileFixFunc func(fset *token.FileSet, rng safetoken.Range, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error)
+	singleFileFixFunc func(fset *token.FileSet, start, end token.Pos, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error)
 )
 
 const (
@@ -57,11 +56,11 @@ func singleFile(sf singleFileFixFunc) SuggestedFixFunc {
 		if err != nil {
 			return nil, nil, err
 		}
-		rng, err := pgf.RangeToTokenRange(pRng)
+		start, end, err := pgf.RangePos(pRng)
 		if err != nil {
 			return nil, nil, err
 		}
-		fix, err := sf(pkg.FileSet(), rng, pgf.Src, pgf.File, pkg.GetTypes(), pkg.GetTypesInfo())
+		fix, err := sf(pkg.FileSet(), start, end, pgf.Src, pgf.File, pkg.GetTypes(), pkg.GetTypesInfo())
 		return pkg.FileSet(), fix, err
 	}
 }

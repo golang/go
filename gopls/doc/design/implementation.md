@@ -29,7 +29,7 @@ Package | Description
 [internal/lsp/cache] | the cache layer
 [internal/lsp/cmd] | the gopls command line layer
 [internal/lsp/debug] | features to aid in debugging gopls
-[internal/lsp/protocol] | the lsp protocol layer and wire format
+[internal/lsp/protocol] | the types of LSP request and response messages
 [internal/lsp/source] | the core feature implementations
 [internal/span] | a package for dealing with source file locations
 [internal/memoize] | a function invocation cache used to reduce the work done

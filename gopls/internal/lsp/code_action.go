@@ -320,13 +320,13 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Identifier: %w", err)
 	}
-	srng, err := pgf.RangeToTokenRange(rng)
+	start, end, err := pgf.RangePos(rng)
 	if err != nil {
 		return nil, err
 	}
 	puri := protocol.URIFromSpanURI(uri)
 	var commands []protocol.Command
-	if _, ok, methodOk, _ := source.CanExtractFunction(pgf.Tok, srng, pgf.Src, pgf.File); ok {
+	if _, ok, methodOk, _ := source.CanExtractFunction(pgf.Tok, start, end, pgf.Src, pgf.File); ok {
 		cmd, err := command.NewApplyFixCommand("Extract function", command.ApplyFixArgs{
 			URI:   puri,
 			Fix:   source.ExtractFunction,
@@ -348,7 +348,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI
 			commands = append(commands, cmd)
 		}
 	}
-	if _, _, ok, _ := source.CanExtractVariable(srng, pgf.File); ok {
+	if _, _, ok, _ := source.CanExtractVariable(start, end, pgf.File); ok {
 		cmd, err := command.NewApplyFixCommand("Extract variable", command.ApplyFixArgs{
 			URI:   puri,
 			Fix:   source.ExtractVariable,

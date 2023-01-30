@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package protocol contains the structs that map directly to the wire format
-// of the "Language Server Protocol".
+// Package protocol contains the structs that map directly to the
+// request and response messages of the Language Server Protocol.
 //
 // It is a literal transcription, with unmodified comments, and only the changes
 // required to make it go code.

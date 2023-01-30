@@ -18,14 +18,13 @@ package protocol
 // 	token.Pos
 // 	token.FileSet
 // 	token.File
-// 	safetoken.Range = (file token.File, start, end token.Pos)
 //
 //    Because File.Offset and File.Pos panic on invalid inputs,
 //    we do not call them directly and instead use the safetoken package
 //    for these conversions. This is enforced by a static check.
 //
 //    Beware also that the methods of token.File have two bugs for which
-//    safetoken contain workarounds:
+//    safetoken contains workarounds:
 //    - #57490, whereby the parser may create ast.Nodes during error
 //      recovery whose computed positions are out of bounds (EOF+1).
 //    - #41029, whereby the wrong line number is returned for the EOF position.
@@ -45,7 +44,7 @@ package protocol
 //    they are also useful for parsing user-provided positions (e.g. in
 //    the CLI) before we have access to file contents.
 //
-// 4. protocol, the LSP wire format.
+// 4. protocol, the LSP RPC message format.
 //
 //    protocol.Position = (Line, Character uint32)
 //    protocol.Range = (start, end Position)

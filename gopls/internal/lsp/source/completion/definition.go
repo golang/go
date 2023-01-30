@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
-	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 )
@@ -40,7 +39,9 @@ func definition(path []ast.Node, obj types.Object, pgf *source.ParsedGoFile) ([]
 	sel := &Selection{
 		content: "",
 		cursor:  start,
-		rng:     safetoken.NewRange(pgf.Tok, start, end),
+		tokFile: pgf.Tok,
+		start:   start,
+		end:     end,
 		mapper:  pgf.Mapper,
 	}
 	var ans []CompletionItem
