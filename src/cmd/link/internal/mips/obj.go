@@ -69,9 +69,9 @@ func Init() (*sys.Arch, ld.Arch) {
 			Dragonflydynld: "XXX",
 			Solarisdynld:   "XXX",
 
-			Elfreloc1:    elfreloc1,
-			ElfrelocSize: 8,
-			Elfsetupplt:  elfsetupplt,
+			Reloc1:    elfreloc1,
+			RelocSize: 8,
+			SetupPLT:  elfsetupplt,
 
 			// Historically GNU ld creates a read-only
 			// .dynamic section.

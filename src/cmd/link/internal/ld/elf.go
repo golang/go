@@ -206,9 +206,9 @@ type ELFArch struct {
 	Dragonflydynld string
 	Solarisdynld   string
 
-	Elfreloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
-	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1.
-	Elfsetupplt  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
+	Reloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
+	RelocSize uint32 // size of an ELF relocation record, must match Reloc1.
+	SetupPLT  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 
 	// DynamicReadOnly can be set to true to make the .dynamic
 	// section read-only. By default it is writable.
@@ -1289,8 +1289,8 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
 			break
 		}
 
-		// Compute external relocations on the go, and pass to Elfreloc1
-		// to stream out.
+		// Compute external relocations on the go, and pass to
+		// ELF.Reloc1 to stream out.
 		relocs := ldr.Relocs(s)
 		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At(ri)
@@ -1309,7 +1309,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
 			if !ldr.AttrReachable(rr.Xsym) {
 				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(rr.Xsym))
 			}
-			if !thearch.ELF.Elfreloc1(ctxt, out, ldr, s, rr, ri, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+			if !thearch.ELF.Reloc1(ctxt, out, ldr, s, rr, ri, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
 			}
 		}
@@ -1326,7 +1326,7 @@ func elfEmitReloc(ctxt *Link) {
 		ctxt.Out.Write8(0)
 	}
 
-	sizeExtRelocs(ctxt, thearch.ELF.ElfrelocSize)
+	sizeExtRelocs(ctxt, thearch.ELF.RelocSize)
 	relocSect, wg := relocSectFn(ctxt, elfrelocsect)
 
 	for _, sect := range Segtext.Sections {
@@ -1578,7 +1578,7 @@ func (ctxt *Link) doelf() {
 			// S390X uses .got instead of .got.plt
 			gotplt = got
 		}
-		thearch.ELF.Elfsetupplt(ctxt, plt, gotplt, dynamic.Sym())
+		thearch.ELF.SetupPLT(ctxt, plt, gotplt, dynamic.Sym())
 
 		/*
 		 * .dynamic table

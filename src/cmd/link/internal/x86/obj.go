@@ -66,9 +66,9 @@ func Init() (*sys.Arch, ld.Arch) {
 			Netbsddynld:    "/usr/libexec/ld.elf_so",
 			Solarisdynld:   "/lib/ld.so.1",
 
-			Elfreloc1:    elfreloc1,
-			ElfrelocSize: 8,
-			Elfsetupplt:  elfsetupplt,
+			Reloc1:    elfreloc1,
+			RelocSize: 8,
+			SetupPLT:  elfsetupplt,
 		},
 	}
 

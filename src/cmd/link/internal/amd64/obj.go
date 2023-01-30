@@ -70,9 +70,9 @@ func Init() (*sys.Arch, ld.Arch) {
 			Dragonflydynld: "/usr/libexec/ld-elf.so.2",
 			Solarisdynld:   "/lib/amd64/ld.so.1",
 
-			Elfreloc1:    elfreloc1,
-			ElfrelocSize: 24,
-			Elfsetupplt:  elfsetupplt,
+			Reloc1:    elfreloc1,
+			RelocSize: 24,
+			SetupPLT:  elfsetupplt,
 		},
 	}
 

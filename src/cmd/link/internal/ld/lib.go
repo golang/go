@@ -200,7 +200,7 @@ type Arch struct {
 	// is the contents of the to-be-relocated data item (from sym.P). Return
 	// value is the appropriately relocated value (to be written back to the
 	// same spot in sym.P), number of external _host_ relocations needed (i.e.
-	// ELF/Mach-O/etc. relocations, not Go relocations, this must match Elfreloc1,
+	// ELF/Mach-O/etc. relocations, not Go relocations, this must match ELF.Reloc1,
 	// etc.), and a boolean indicating success/failure (a failing value indicates
 	// a fatal error).
 	Archreloc func(*Target, *loader.Loader, *ArchSyms, loader.Reloc, loader.Sym,
