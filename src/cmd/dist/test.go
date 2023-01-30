@@ -1086,21 +1086,14 @@ func (t *tester) out(v string) {
 	fmt.Println("\n" + t.banner + v)
 }
 
+// extLink reports whether the current goos/goarch supports
+// external linking. This should match the test in determineLinkMode
+// in cmd/link/internal/ld/config.go.
 func (t *tester) extLink() bool {
-	pair := goos + "-" + goarch
-	switch pair {
-	case "aix-ppc64",
-		"android-arm", "android-arm64",
-		"darwin-amd64", "darwin-arm64",
-		"dragonfly-amd64",
-		"freebsd-386", "freebsd-amd64", "freebsd-arm", "freebsd-riscv64",
-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-loong64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-riscv64", "linux-s390x",
-		"netbsd-386", "netbsd-amd64",
-		"openbsd-386", "openbsd-amd64",
-		"windows-386", "windows-amd64":
-		return true
+	if goarch == "ppc64" && goos != "aix" {
+		return false
 	}
-	return false
+	return true
 }
 
 func (t *tester) internalLink() bool {
@@ -1174,7 +1167,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
 			"darwin-amd64", "darwin-arm64",
 			"freebsd-amd64",
-			"android-arm", "android-arm64", "android-386",
+			"android-arm", "android-arm64", "android-386", "android-amd64",
 			"windows-amd64", "windows-386", "windows-arm64":
 			return true
 		}
@@ -1189,6 +1182,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-s390x", "linux-ppc64le":
 			return true
+		case "android-386", "android-amd64", "android-arm", "android-arm64":
+			return true
 		case "darwin-amd64", "darwin-arm64":
 			return true
 		case "freebsd-amd64":
@@ -1197,13 +1192,15 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		return false
 	case "pie":
 		switch pair {
-		case "aix/ppc64",
+		case "aix-ppc64",
 			"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-riscv64", "linux-s390x",
 			"android-amd64", "android-arm", "android-arm64", "android-386":
 			return true
-		case "darwin-amd64", "darwin-arm64":
+		case "darwin-amd64", "darwin-arm64", "ios-amd64", "ios-arm64":
 			return true
-		case "windows-amd64", "windows-386", "windows-arm":
+		case "windows-amd64", "windows-386", "windows-arm", "windows-arm64":
+			return true
+		case "freebsd-amd64":
 			return true
 		}
 		return false
