@@ -30,9 +30,6 @@ const (
 // Set implements flag.Value to set the build mode based on the argument
 // to the -buildmode flag.
 func (mode *BuildMode) Set(s string) error {
-	badmode := func() error {
-		return fmt.Errorf("buildmode %s not supported on %s/%s", s, buildcfg.GOOS, buildcfg.GOARCH)
-	}
 	switch s {
 	default:
 		return fmt.Errorf("invalid buildmode: %q", s)
@@ -44,81 +41,21 @@ func (mode *BuildMode) Set(s string) error {
 			*mode = BuildModeExe
 		}
 	case "pie":
-		switch buildcfg.GOOS {
-		case "aix", "android", "linux", "windows", "darwin", "ios":
-		case "freebsd":
-			switch buildcfg.GOARCH {
-			case "amd64":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
 		*mode = BuildModePIE
 	case "c-archive":
-		switch buildcfg.GOOS {
-		case "aix", "darwin", "ios", "linux":
-		case "freebsd":
-			switch buildcfg.GOARCH {
-			case "amd64":
-			default:
-				return badmode()
-			}
-		case "windows":
-			switch buildcfg.GOARCH {
-			case "amd64", "386", "arm", "arm64":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
 		*mode = BuildModeCArchive
 	case "c-shared":
-		switch buildcfg.GOARCH {
-		case "386", "amd64", "arm", "arm64", "ppc64le", "riscv64", "s390x":
-		default:
-			return badmode()
-		}
 		*mode = BuildModeCShared
 	case "shared":
-		switch buildcfg.GOOS {
-		case "linux":
-			switch buildcfg.GOARCH {
-			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
 		*mode = BuildModeShared
 	case "plugin":
-		switch buildcfg.GOOS {
-		case "linux":
-			switch buildcfg.GOARCH {
-			case "386", "amd64", "arm", "arm64", "s390x", "ppc64le":
-			default:
-				return badmode()
-			}
-		case "darwin":
-			switch buildcfg.GOARCH {
-			case "amd64", "arm64":
-			default:
-				return badmode()
-			}
-		case "freebsd":
-			switch buildcfg.GOARCH {
-			case "amd64":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
 		*mode = BuildModePlugin
 	}
+
+	if !platform.BuildModeSupported("gc", s, buildcfg.GOOS, buildcfg.GOARCH) {
+		return fmt.Errorf("buildmode %s not supported on %s/%s", s, buildcfg.GOOS, buildcfg.GOARCH)
+	}
+
 	return nil
 }
 
