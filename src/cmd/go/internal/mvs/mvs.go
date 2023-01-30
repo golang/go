@@ -110,12 +110,11 @@ func buildList(targets []module.Version, reqs Reqs, upgrade func(module.Version)
 
 	// Explore work graph in parallel in case reqs.Required
 	// does high-latency network operations.
-	var work par.Work
+	var work par.Work[module.Version]
 	for _, target := range targets {
 		work.Add(target)
 	}
-	work.Do(10, func(item any) {
-		m := item.(module.Version)
+	work.Do(10, func(m module.Version) {
 
 		var required []module.Version
 		var err error

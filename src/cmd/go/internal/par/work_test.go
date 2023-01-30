@@ -11,14 +11,13 @@ import (
 )
 
 func TestWork(t *testing.T) {
-	var w Work
+	var w Work[int]
 
 	const N = 10000
 	n := int32(0)
 	w.Add(N)
-	w.Do(100, func(x any) {
+	w.Do(100, func(i int) {
 		atomic.AddInt32(&n, 1)
-		i := x.(int)
 		if i >= 2 {
 			w.Add(i - 1)
 			w.Add(i - 2)
@@ -33,14 +32,14 @@ func TestWork(t *testing.T) {
 
 func TestWorkParallel(t *testing.T) {
 	for tries := 0; tries < 10; tries++ {
-		var w Work
+		var w Work[int]
 		const N = 100
 		for i := 0; i < N; i++ {
 			w.Add(i)
 		}
 		start := time.Now()
 		var n int32
-		w.Do(N, func(x any) {
+		w.Do(N, func(x int) {
 			time.Sleep(1 * time.Millisecond)
 			atomic.AddInt32(&n, +1)
 		})
