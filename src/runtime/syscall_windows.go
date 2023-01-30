@@ -413,36 +413,23 @@ func callbackWrap(a *callbackArgs) {
 
 const _LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
-// When available, this function will use LoadLibraryEx with the filename
-// parameter and the important SEARCH_SYSTEM32 argument. But on systems that
-// do not have that option, absoluteFilepath should contain a fallback
-// to the full path inside of system32 for use with vanilla LoadLibrary.
-//
 //go:linkname syscall_loadsystemlibrary syscall.loadsystemlibrary
 //go:nosplit
 //go:cgo_unsafe_args
-func syscall_loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (handle, err uintptr) {
+func syscall_loadsystemlibrary(filename *uint16) (handle, err uintptr) {
 	lockOSThread()
 	c := &getg().m.syscall
-
-	if useLoadLibraryEx {
-		c.fn = getLoadLibraryEx()
-		c.n = 3
-		args := struct {
-			lpFileName *uint16
-			hFile      uintptr // always 0
-			flags      uint32
-		}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
-		c.args = uintptr(noescape(unsafe.Pointer(&args)))
-	} else {
-		c.fn = getLoadLibrary()
-		c.n = 1
-		c.args = uintptr(noescape(unsafe.Pointer(&absoluteFilepath)))
-	}
+	c.fn = getLoadLibraryEx()
+	c.n = 3
+	args := struct {
+		lpFileName *uint16
+		hFile      uintptr // always 0
+		flags      uint32
+	}{filename, 0, _LOAD_LIBRARY_SEARCH_SYSTEM32}
+	c.args = uintptr(noescape(unsafe.Pointer(&args)))
 
 	cgocall(asmstdcallAddr, unsafe.Pointer(c))
 	KeepAlive(filename)
-	KeepAlive(absoluteFilepath)
 	handle = c.r1
 	if handle == 0 {
 		err = c.err

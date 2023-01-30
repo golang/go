@@ -44,33 +44,13 @@ func Syscall18(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a
 
 func SyscallN(trap uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)
 func loadlibrary(filename *uint16) (handle uintptr, err Errno)
-func loadsystemlibrary(filename *uint16, absoluteFilepath *uint16) (handle uintptr, err Errno)
+func loadsystemlibrary(filename *uint16) (handle uintptr, err Errno)
 func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err Errno)
 
 // A DLL implements access to a single DLL.
 type DLL struct {
 	Name   string
 	Handle Handle
-}
-
-// We use this for computing the absolute path for system DLLs on systems
-// where SEARCH_SYSTEM32 is not available.
-var systemDirectoryPrefix string
-
-func init() {
-	n := uint32(MAX_PATH)
-	for {
-		b := make([]uint16, n)
-		l, e := getSystemDirectory(&b[0], n)
-		if e != nil {
-			panic("Unable to determine system directory: " + e.Error())
-		}
-		if l <= n {
-			systemDirectoryPrefix = UTF16ToString(b[:l]) + "\\"
-			break
-		}
-		n = l
-	}
 }
 
 // LoadDLL loads the named DLL file into memory.
@@ -89,11 +69,7 @@ func LoadDLL(name string) (*DLL, error) {
 	var h uintptr
 	var e Errno
 	if sysdll.IsSystemDLL[name] {
-		absoluteFilepathp, err := UTF16PtrFromString(systemDirectoryPrefix + name)
-		if err != nil {
-			return nil, err
-		}
-		h, e = loadsystemlibrary(namep, absoluteFilepathp)
+		h, e = loadsystemlibrary(namep)
 	} else {
 		h, e = loadlibrary(namep)
 	}

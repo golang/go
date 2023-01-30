@@ -1164,10 +1164,7 @@ uintptr_t cfunc(void) {
 	dll, err = syscall.LoadDLL(name)
 	if err == nil {
 		dll.Release()
-		if wantLoadLibraryEx() {
-			t.Fatalf("Bad: insecure load of DLL by base name %q before sysdll registration: %v", name, err)
-		}
-		t.Skip("insecure load of DLL, but expected")
+		t.Fatalf("Bad: insecure load of DLL by base name %q before sysdll registration: %v", name, err)
 	}
 }
 
@@ -1211,24 +1208,6 @@ func TestBigStackCallbackSyscall(t *testing.T) {
 	if !ok {
 		t.Fatalf("callback not called")
 	}
-}
-
-// wantLoadLibraryEx reports whether we expect LoadLibraryEx to work for tests.
-func wantLoadLibraryEx() bool {
-	return testenv.Builder() != "" && (runtime.GOARCH == "amd64" || runtime.GOARCH == "386")
-}
-
-func TestLoadLibraryEx(t *testing.T) {
-	use, have, flags := runtime.LoadLibraryExStatus()
-	if use {
-		return // success.
-	}
-	if wantLoadLibraryEx() {
-		t.Fatalf("Expected LoadLibraryEx+flags to be available. (LoadLibraryEx=%v; flags=%v)",
-			have, flags)
-	}
-	t.Skipf("LoadLibraryEx not usable, but not expected. (LoadLibraryEx=%v; flags=%v)",
-		have, flags)
 }
 
 var (

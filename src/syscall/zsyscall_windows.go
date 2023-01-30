@@ -866,15 +866,6 @@ func GetStdHandle(stdhandle int) (handle Handle, err error) {
 	return
 }
 
-func getSystemDirectory(dir *uint16, dirLen uint32) (len uint32, err error) {
-	r0, _, e1 := Syscall(procGetSystemDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(dirLen), 0)
-	len = uint32(r0)
-	if len == 0 {
-		err = errnoErr(e1)
-	}
-	return
-}
-
 func GetSystemTimeAsFileTime(time *Filetime) {
 	Syscall(procGetSystemTimeAsFileTime.Addr(), 1, uintptr(unsafe.Pointer(time)), 0, 0)
 	return
