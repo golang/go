@@ -772,7 +772,7 @@ func (mms *MainModuleSet) DirImportPath(ctx context.Context, dir string) (path s
 
 // PackageModule returns the module providing the package named by the import path.
 func PackageModule(path string) module.Version {
-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	pkg, ok := loaded.pkgCache.Get(path)
 	if !ok {
 		return module.Version{}
 	}
@@ -791,7 +791,7 @@ func Lookup(parentPath string, parentIsStd bool, path string) (dir, realPath str
 	if parentIsStd {
 		path = loaded.stdVendor(parentPath, path)
 	}
-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	pkg, ok := loaded.pkgCache.Get(path)
 	if !ok {
 		// The loader should have found all the relevant paths.
 		// There are a few exceptions, though:
@@ -827,7 +827,7 @@ type loader struct {
 
 	// reset on each iteration
 	roots    []*loadPkg
-	pkgCache *par.Cache // package path (string) → *loadPkg
+	pkgCache *par.Cache[string, *loadPkg]
 	pkgs     []*loadPkg // transitive closure of loaded packages and tests; populated in buildStacks
 }
 
@@ -850,7 +850,7 @@ func (ld *loader) reset() {
 	}
 
 	ld.roots = nil
-	ld.pkgCache = new(par.Cache)
+	ld.pkgCache = new(par.Cache[string, *loadPkg])
 	ld.pkgs = nil
 }
 
@@ -1504,7 +1504,7 @@ func (ld *loader) pkg(ctx context.Context, path string, flags loadPkgFlags) *loa
 		panic("internal error: (*loader).pkg called with pkgImportsLoaded flag set")
 	}
 
-	pkg := ld.pkgCache.Do(path, func() any {
+	pkg := ld.pkgCache.Do(path, func() *loadPkg {
 		pkg := &loadPkg{
 			path: path,
 		}
@@ -1512,7 +1512,7 @@ func (ld *loader) pkg(ctx context.Context, path string, flags loadPkgFlags) *loa
 
 		ld.work.Add(func() { ld.load(ctx, pkg) })
 		return pkg
-	}).(*loadPkg)
+	})
 
 	ld.applyPkgFlags(ctx, pkg, flags)
 	return pkg
@@ -2214,7 +2214,7 @@ func (pkg *loadPkg) why() string {
 // If there is no reason for the package to be in the current build,
 // Why returns an empty string.
 func Why(path string) string {
-	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+	pkg, ok := loaded.pkgCache.Get(path)
 	if !ok {
 		return ""
 	}
@@ -2226,7 +2226,7 @@ func Why(path string) string {
 // WhyDepth returns 0.
 func WhyDepth(path string) int {
 	n := 0
-	pkg, _ := loaded.pkgCache.Get(path).(*loadPkg)
+	pkg, _ := loaded.pkgCache.Get(path)
 	for p := pkg; p != nil; p = p.stack {
 		n++
 	}

@@ -185,7 +185,7 @@ type RevInfo struct {
 // To avoid version control access except when absolutely necessary,
 // Lookup does not attempt to connect to the repository itself.
 
-var lookupCache par.Cache
+var lookupCache par.Cache[lookupCacheKey, Repo]
 
 type lookupCacheKey struct {
 	proxy, path string
@@ -208,21 +208,15 @@ func Lookup(proxy, path string) Repo {
 		defer logCall("Lookup(%q, %q)", proxy, path)()
 	}
 
-	type cached struct {
-		r Repo
-	}
-	c := lookupCache.Do(lookupCacheKey{proxy, path}, func() any {
-		r := newCachingRepo(path, func() (Repo, error) {
+	return lookupCache.Do(lookupCacheKey{proxy, path}, func() Repo {
+		return newCachingRepo(path, func() (Repo, error) {
 			r, err := lookup(proxy, path)
 			if err == nil && traceRepo {
 				r = newLoggingRepo(r)
 			}
 			return r, err
 		})
-		return cached{r}
-	}).(cached)
-
-	return c.r
+	})
 }
 
 // lookup returns the module with the given module path.

@@ -54,22 +54,22 @@ func TestWorkParallel(t *testing.T) {
 }
 
 func TestCache(t *testing.T) {
-	var cache Cache
+	var cache Cache[int, int]
 
 	n := 1
-	v := cache.Do(1, func() any { n++; return n })
+	v := cache.Do(1, func() int { n++; return n })
 	if v != 2 {
 		t.Fatalf("cache.Do(1) did not run f")
 	}
-	v = cache.Do(1, func() any { n++; return n })
+	v = cache.Do(1, func() int { n++; return n })
 	if v != 2 {
 		t.Fatalf("cache.Do(1) ran f again!")
 	}
-	v = cache.Do(2, func() any { n++; return n })
+	v = cache.Do(2, func() int { n++; return n })
 	if v != 3 {
 		t.Fatalf("cache.Do(2) did not run f")
 	}
-	v = cache.Do(1, func() any { n++; return n })
+	v = cache.Do(1, func() int { n++; return n })
 	if v != 2 {
 		t.Fatalf("cache.Do(1) did not returned saved value from original cache.Do(1)")
 	}

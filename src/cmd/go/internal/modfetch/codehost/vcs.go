@@ -44,27 +44,22 @@ func vcsErrorf(format string, a ...any) error {
 	return &VCSError{Err: fmt.Errorf(format, a...)}
 }
 
-func NewRepo(vcs, remote string) (Repo, error) {
-	type key struct {
-		vcs    string
-		remote string
-	}
-	type cached struct {
-		repo Repo
-		err  error
-	}
-	c := vcsRepoCache.Do(key{vcs, remote}, func() any {
-		repo, err := newVCSRepo(vcs, remote)
-		if err != nil {
-			err = &VCSError{err}
-		}
-		return cached{repo, err}
-	}).(cached)
-
-	return c.repo, c.err
+type vcsCacheKey struct {
+	vcs    string
+	remote string
 }
 
-var vcsRepoCache par.Cache
+func NewRepo(vcs, remote string) (Repo, error) {
+	return vcsRepoCache.Do(vcsCacheKey{vcs, remote}, func() (Repo, error) {
+		repo, err := newVCSRepo(vcs, remote)
+		if err != nil {
+			return nil, &VCSError{err}
+		}
+		return repo, nil
+	})
+}
+
+var vcsRepoCache par.ErrCache[vcsCacheKey, Repo]
 
 type vcsRepo struct {
 	mu lockedfile.Mutex // protects all commands, so we don't have to decide which are safe on a per-VCS basis

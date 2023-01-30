@@ -417,7 +417,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 // If the package was loaded, its containing module and true are returned.
 // Otherwise, module.Version{} and false are returned.
 func findModule(ld *loader, path string) (module.Version, bool) {
-	if pkg, ok := ld.pkgCache.Get(path).(*loadPkg); ok {
+	if pkg, ok := ld.pkgCache.Get(path); ok {
 		return pkg.mod, pkg.mod != module.Version{}
 	}
 	return module.Version{}, false

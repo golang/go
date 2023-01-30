@@ -612,11 +612,11 @@ func ClearPackageCachePartial(args []string) {
 			delete(packageCache, arg)
 		}
 	}
-	resolvedImportCache.DeleteIf(func(key any) bool {
-		return shouldDelete[key.(importSpec).path]
+	resolvedImportCache.DeleteIf(func(key importSpec) bool {
+		return shouldDelete[key.path]
 	})
-	packageDataCache.DeleteIf(func(key any) bool {
-		return shouldDelete[key.(string)]
+	packageDataCache.DeleteIf(func(key string) bool {
+		return shouldDelete[key]
 	})
 }
 
@@ -628,8 +628,8 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 	p := packageCache[arg]
 	if p != nil {
 		delete(packageCache, arg)
-		resolvedImportCache.DeleteIf(func(key any) bool {
-			return key.(importSpec).path == p.ImportPath
+		resolvedImportCache.DeleteIf(func(key importSpec) bool {
+			return key.path == p.ImportPath
 		})
 		packageDataCache.Delete(p.ImportPath)
 	}
@@ -846,7 +846,7 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 		parentIsStd: parentIsStd,
 		mode:        mode,
 	}
-	r := resolvedImportCache.Do(importKey, func() any {
+	r := resolvedImportCache.Do(importKey, func() resolvedImport {
 		var r resolvedImport
 		if cfg.ModulesEnabled {
 			r.dir, r.path, r.err = modload.Lookup(parentPath, parentIsStd, path)
@@ -866,16 +866,19 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 			r.path = path
 		}
 		return r
-	}).(resolvedImport)
+	})
 	// Invariant: r.path is set to the resolved import path. If the path cannot
 	// be resolved, r.path is set to path, the source import path.
 	// r.path is never empty.
 
 	// Load the package from its directory. If we already found the package's
 	// directory when resolving its import path, use that.
-	data := packageDataCache.Do(r.path, func() any {
+	p, err := packageDataCache.Do(r.path, func() (*build.Package, error) {
 		loaded = true
-		var data packageData
+		var data struct {
+			p   *build.Package
+			err error
+		}
 		if r.dir != "" {
 			var buildMode build.ImportMode
 			buildContext := cfg.BuildContext
@@ -961,10 +964,10 @@ func loadPackageData(ctx context.Context, path, parentPath, parentDir, parentRoo
 			!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
 			data.err = fmt.Errorf("code in directory %s expects import %q", data.p.Dir, data.p.ImportComment)
 		}
-		return data
-	}).(packageData)
+		return data.p, data.err
+	})
 
-	return data.p, loaded, data.err
+	return p, loaded, err
 }
 
 // importSpec describes an import declaration in source code. It is used as a
@@ -984,20 +987,11 @@ type resolvedImport struct {
 	err       error
 }
 
-// packageData holds information loaded from a package. It is the value type
-// in packageDataCache.
-type packageData struct {
-	p   *build.Package
-	err error
-}
+// resolvedImportCache maps import strings to canonical package names.
+var resolvedImportCache par.Cache[importSpec, resolvedImport]
 
-// resolvedImportCache maps import strings (importSpec) to canonical package names
-// (resolvedImport).
-var resolvedImportCache par.Cache
-
-// packageDataCache maps canonical package names (string) to package metadata
-// (packageData).
-var packageDataCache par.Cache
+// packageDataCache maps canonical package names (string) to package metadata.
+var packageDataCache par.ErrCache[string, *build.Package]
 
 // preloadWorkerCount is the number of concurrent goroutines that can load
 // packages. Experimentally, there are diminishing returns with more than
@@ -1109,13 +1103,13 @@ func cleanImport(path string) string {
 	return path
 }
 
-var isDirCache par.Cache
+var isDirCache par.Cache[string, bool]
 
 func isDir(path string) bool {
-	return isDirCache.Do(path, func() any {
+	return isDirCache.Do(path, func() bool {
 		fi, err := fsys.Stat(path)
 		return err == nil && fi.IsDir()
-	}).(bool)
+	})
 }
 
 // ResolveImportPath returns the true meaning of path when it appears in parent.
@@ -1236,12 +1230,12 @@ func vendoredImportPath(path, parentPath, parentDir, parentRoot string) (found s
 
 var (
 	modulePrefix   = []byte("\nmodule ")
-	goModPathCache par.Cache
+	goModPathCache par.Cache[string, string]
 )
 
 // goModPath returns the module path in the go.mod in dir, if any.
 func goModPath(dir string) (path string) {
-	return goModPathCache.Do(dir, func() any {
+	return goModPathCache.Do(dir, func() string {
 		data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 		if err != nil {
 			return ""
@@ -1277,7 +1271,7 @@ func goModPath(dir string) (path string) {
 			path = s
 		}
 		return path
-	}).(string)
+	})
 }
 
 // findVersionElement returns the slice indices of the final version element /vN in path.
@@ -2264,8 +2258,8 @@ func (p *Package) collectDeps() {
 }
 
 // vcsStatusCache maps repository directories (string)
-// to their VCS information (vcsStatusError).
-var vcsStatusCache par.Cache
+// to their VCS information.
+var vcsStatusCache par.ErrCache[string, vcs.Status]
 
 // setBuildInfo gathers build information, formats it as a string to be
 // embedded in the binary, then sets p.Internal.BuildInfo to that string.
@@ -2517,19 +2511,13 @@ func (p *Package) setBuildInfo(autoVCS bool) {
 			goto omitVCS
 		}
 
-		type vcsStatusError struct {
-			Status vcs.Status
-			Err    error
-		}
-		cached := vcsStatusCache.Do(repoDir, func() any {
-			st, err := vcsCmd.Status(vcsCmd, repoDir)
-			return vcsStatusError{st, err}
-		}).(vcsStatusError)
-		if err := cached.Err; err != nil {
+		st, err := vcsStatusCache.Do(repoDir, func() (vcs.Status, error) {
+			return vcsCmd.Status(vcsCmd, repoDir)
+		})
+		if err != nil {
 			setVCSError(err)
 			return
 		}
-		st := cached.Status
 
 		appendSetting("vcs", vcsCmd.Cmd)
 		if st.Revision != "" {

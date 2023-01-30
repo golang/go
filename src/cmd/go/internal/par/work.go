@@ -6,6 +6,7 @@
 package par
 
 import (
+	"errors"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -102,26 +103,57 @@ func (w *Work[T]) runner() {
 	}
 }
 
+// ErrCache is like Cache except that it also stores
+// an error value alongside the cached value V.
+type ErrCache[K comparable, V any] struct {
+	Cache[K, errValue[V]]
+}
+
+type errValue[V any] struct {
+	v   V
+	err error
+}
+
+func (c *ErrCache[K, V]) Do(key K, f func() (V, error)) (V, error) {
+	v := c.Cache.Do(key, func() errValue[V] {
+		v, err := f()
+		return errValue[V]{v, err}
+	})
+	return v.v, v.err
+}
+
+var ErrCacheEntryNotFound = errors.New("cache entry not found")
+
+// Get returns the cached result associated with key.
+// It returns ErrCacheEntryNotFound if there is no such result.
+func (c *ErrCache[K, V]) Get(key K) (V, error) {
+	v, ok := c.Cache.Get(key)
+	if !ok {
+		v.err = ErrCacheEntryNotFound
+	}
+	return v.v, v.err
+}
+
 // Cache runs an action once per key and caches the result.
-type Cache struct {
+type Cache[K comparable, V any] struct {
 	m sync.Map
 }
 
-type cacheEntry struct {
+type cacheEntry[V any] struct {
 	done   atomic.Bool
 	mu     sync.Mutex
-	result any
+	result V
 }
 
 // Do calls the function f if and only if Do is being called for the first time with this key.
 // No call to Do with a given key returns until the one call to f returns.
 // Do returns the value returned by the one call to f.
-func (c *Cache) Do(key any, f func() any) any {
+func (c *Cache[K, V]) Do(key K, f func() V) V {
 	entryIface, ok := c.m.Load(key)
 	if !ok {
-		entryIface, _ = c.m.LoadOrStore(key, new(cacheEntry))
+		entryIface, _ = c.m.LoadOrStore(key, new(cacheEntry[V]))
 	}
-	e := entryIface.(*cacheEntry)
+	e := entryIface.(*cacheEntry[V])
 	if !e.done.Load() {
 		e.mu.Lock()
 		if !e.done.Load() {
@@ -133,19 +165,20 @@ func (c *Cache) Do(key any, f func() any) any {
 	return e.result
 }
 
-// Get returns the cached result associated with key.
-// It returns nil if there is no such result.
+// Get returns the cached result associated with key
+// and reports whether there is such a result.
+//
 // If the result for key is being computed, Get does not wait for the computation to finish.
-func (c *Cache) Get(key any) any {
+func (c *Cache[K, V]) Get(key K) (V, bool) {
 	entryIface, ok := c.m.Load(key)
 	if !ok {
-		return nil
+		return *new(V), false
 	}
-	e := entryIface.(*cacheEntry)
+	e := entryIface.(*cacheEntry[V])
 	if !e.done.Load() {
-		return nil
+		return *new(V), false
 	}
-	return e.result
+	return e.result, true
 }
 
 // Clear removes all entries in the cache.
@@ -155,7 +188,7 @@ func (c *Cache) Get(key any) any {
 //
 // TODO(jayconrod): Delete this after the package cache clearing functions
 // in internal/load have been removed.
-func (c *Cache) Clear() {
+func (c *Cache[K, V]) Clear() {
 	c.m.Range(func(key, value any) bool {
 		c.m.Delete(key)
 		return true
@@ -169,7 +202,7 @@ func (c *Cache) Clear() {
 //
 // TODO(jayconrod): Delete this after the package cache clearing functions
 // in internal/load have been removed.
-func (c *Cache) Delete(key any) {
+func (c *Cache[K, V]) Delete(key K) {
 	c.m.Delete(key)
 }
 
@@ -180,9 +213,9 @@ func (c *Cache) Delete(key any) {
 //
 // TODO(jayconrod): Delete this after the package cache clearing functions
 // in internal/load have been removed.
-func (c *Cache) DeleteIf(pred func(key any) bool) {
+func (c *Cache[K, V]) DeleteIf(pred func(key K) bool) {
 	c.m.Range(func(key, _ any) bool {
-		if pred(key) {
+		if key := key.(K); pred(key) {
 			c.Delete(key)
 		}
 		return true

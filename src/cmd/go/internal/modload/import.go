@@ -614,14 +614,9 @@ func maybeInModule(path, mpath string) bool {
 }
 
 var (
-	haveGoModCache   par.Cache // dir → bool
-	haveGoFilesCache par.Cache // dir → goFilesEntry
+	haveGoModCache   par.Cache[string, bool]    // dir → bool
+	haveGoFilesCache par.ErrCache[string, bool] // dir → haveGoFiles
 )
-
-type goFilesEntry struct {
-	haveGoFiles bool
-	err         error
-}
 
 // dirInModule locates the directory that would hold the package named by the given path,
 // if it were in the module with module path mpath and root mdir.
@@ -655,10 +650,10 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// (the main module, and any directory trees pointed at by replace directives).
 	if isLocal {
 		for d := dir; d != mdir && len(d) > len(mdir); {
-			haveGoMod := haveGoModCache.Do(d, func() any {
+			haveGoMod := haveGoModCache.Do(d, func() bool {
 				fi, err := fsys.Stat(filepath.Join(d, "go.mod"))
 				return err == nil && !fi.IsDir()
-			}).(bool)
+			})
 
 			if haveGoMod {
 				return "", false, nil
@@ -678,21 +673,19 @@ func dirInModule(path, mpath, mdir string, isLocal bool) (dir string, haveGoFile
 	// Are there Go source files in the directory?
 	// We don't care about build tags, not even "+build ignore".
 	// We're just looking for a plausible directory.
-	res := haveGoFilesCache.Do(dir, func() any {
+	haveGoFiles, err = haveGoFilesCache.Do(dir, func() (bool, error) {
 		// modindex.GetPackage will return ErrNotIndexed for any directories which
 		// are reached through a symlink, so that they will be handled by
 		// fsys.IsDirWithGoFiles below.
 		if ip, err := modindex.GetPackage(mdir, dir); err == nil {
-			isDirWithGoFiles, err := ip.IsDirWithGoFiles()
-			return goFilesEntry{isDirWithGoFiles, err}
+			return ip.IsDirWithGoFiles()
 		} else if !errors.Is(err, modindex.ErrNotIndexed) {
-			return goFilesEntry{err: err}
+			return false, err
 		}
-		ok, err := fsys.IsDirWithGoFiles(dir)
-		return goFilesEntry{haveGoFiles: ok, err: err}
-	}).(goFilesEntry)
+		return fsys.IsDirWithGoFiles(dir)
+	})
 
-	return dir, res.haveGoFiles, res.err
+	return dir, haveGoFiles, err
 }
 
 // fetch downloads the given module (or its replacement)

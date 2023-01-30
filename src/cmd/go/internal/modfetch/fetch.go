@@ -34,7 +34,7 @@ import (
 	modzip "golang.org/x/mod/zip"
 )
 
-var downloadCache par.Cache
+var downloadCache par.ErrCache[module.Version, string] // version → directory
 
 // Download downloads the specific module version to the
 // local download cache and returns the name of the directory
@@ -45,19 +45,14 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 	}
 
 	// The par.Cache here avoids duplicate work.
-	type cached struct {
-		dir string
-		err error
-	}
-	c := downloadCache.Do(mod, func() any {
+	return downloadCache.Do(mod, func() (string, error) {
 		dir, err := download(ctx, mod)
 		if err != nil {
-			return cached{"", err}
+			return "", err
 		}
 		checkMod(mod)
-		return cached{dir, nil}
-	}).(cached)
-	return c.dir, c.err
+		return dir, nil
+	})
 }
 
 func download(ctx context.Context, mod module.Version) (dir string, err error) {
@@ -156,27 +151,23 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	return dir, nil
 }
 
-var downloadZipCache par.Cache
+var downloadZipCache par.ErrCache[module.Version, string]
 
 // DownloadZip downloads the specific module version to the
 // local zip cache and returns the name of the zip file.
 func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
 	// The par.Cache here avoids duplicate work.
-	type cached struct {
-		zipfile string
-		err     error
-	}
-	c := downloadZipCache.Do(mod, func() any {
+	return downloadZipCache.Do(mod, func() (string, error) {
 		zipfile, err := CachePath(mod, "zip")
 		if err != nil {
-			return cached{"", err}
+			return "", err
 		}
 		ziphashfile := zipfile + "hash"
 
 		// Return without locking if the zip and ziphash files exist.
 		if _, err := os.Stat(zipfile); err == nil {
 			if _, err := os.Stat(ziphashfile); err == nil {
-				return cached{zipfile, nil}
+				return zipfile, nil
 			}
 		}
 
@@ -186,16 +177,15 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 		}
 		unlock, err := lockVersion(mod)
 		if err != nil {
-			return cached{"", err}
+			return "", err
 		}
 		defer unlock()
 
 		if err := downloadZip(ctx, mod, zipfile); err != nil {
-			return cached{"", err}
+			return "", err
 		}
-		return cached{zipfile, nil}
-	}).(cached)
-	return c.zipfile, c.err
+		return zipfile, nil
+	})
 }
 
 func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err error) {
@@ -416,8 +406,8 @@ func Reset() {
 	// Uses of lookupCache and downloadCache both can call checkModSum,
 	// which in turn sets the used bit on goSum.status for modules.
 	// Reset them so used can be computed properly.
-	lookupCache = par.Cache{}
-	downloadCache = par.Cache{}
+	lookupCache = par.Cache[lookupCacheKey, Repo]{}
+	downloadCache = par.ErrCache[module.Version, string]{}
 
 	// Clear all fields on goSum. It will be initialized later
 	goSum.mu.Lock()

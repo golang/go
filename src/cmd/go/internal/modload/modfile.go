@@ -659,23 +659,15 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 	if m.Path == "" && MainModules.Contains(m.Path) {
 		panic("internal error: rawGoModSummary called on the Target module")
 	}
-
-	type key struct {
-		m module.Version
-	}
-	type cached struct {
-		summary *modFileSummary
-		err     error
-	}
-	c := rawGoModSummaryCache.Do(key{m}, func() any {
+	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
 		summary := new(modFileSummary)
 		name, data, err := rawGoModData(m)
 		if err != nil {
-			return cached{nil, err}
+			return nil, err
 		}
 		f, err := modfile.ParseLax(name, data, nil)
 		if err != nil {
-			return cached{nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(name), err))}
+			return nil, module.VersionError(m, fmt.Errorf("parsing %s: %v", base.ShortPath(name), err))
 		}
 		if f.Module != nil {
 			summary.module = f.Module.Mod
@@ -704,13 +696,11 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 			}
 		}
 
-		return cached{summary, nil}
-	}).(cached)
-
-	return c.summary, c.err
+		return summary, nil
+	})
 }
 
-var rawGoModSummaryCache par.Cache // module.Version → rawGoModSummary result
+var rawGoModSummaryCache par.ErrCache[module.Version, *modFileSummary]
 
 // rawGoModData returns the content of the go.mod file for module m, ignoring
 // all replacements that may apply to m.
@@ -765,18 +755,14 @@ func rawGoModData(m module.Version) (name string, data []byte, err error) {
 // If the queried latest version is replaced,
 // queryLatestVersionIgnoringRetractions returns the replacement.
 func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (latest module.Version, err error) {
-	type entry struct {
-		latest module.Version
-		err    error
-	}
-	e := latestVersionIgnoringRetractionsCache.Do(path, func() any {
+	return latestVersionIgnoringRetractionsCache.Do(path, func() (module.Version, error) {
 		ctx, span := trace.StartSpan(ctx, "queryLatestVersionIgnoringRetractions "+path)
 		defer span.Done()
 
 		if repl := Replacement(module.Version{Path: path}); repl.Path != "" {
 			// All versions of the module were replaced.
 			// No need to query.
-			return &entry{latest: repl}
+			return repl, nil
 		}
 
 		// Find the latest version of the module.
@@ -785,18 +771,17 @@ func queryLatestVersionIgnoringRetractions(ctx context.Context, path string) (la
 		var allowAll AllowedFunc
 		rev, err := Query(ctx, path, "latest", ignoreSelected, allowAll)
 		if err != nil {
-			return &entry{err: err}
+			return module.Version{}, err
 		}
 		latest := module.Version{Path: path, Version: rev.Version}
 		if repl := resolveReplacement(latest); repl.Path != "" {
 			latest = repl
 		}
-		return &entry{latest: latest}
-	}).(*entry)
-	return e.latest, e.err
+		return latest, nil
+	})
 }
 
-var latestVersionIgnoringRetractionsCache par.Cache // path → queryLatestVersionIgnoringRetractions result
+var latestVersionIgnoringRetractionsCache par.ErrCache[string, module.Version] // path → queryLatestVersionIgnoringRetractions result
 
 // ToDirectoryPath adds a prefix if necessary so that path in unambiguously
 // an absolute path or a relative path starting with a '.' or '..'

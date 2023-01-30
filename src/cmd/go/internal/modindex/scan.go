@@ -7,7 +7,6 @@ package modindex
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/fsys"
-	"cmd/go/internal/par"
 	"cmd/go/internal/str"
 	"encoding/json"
 	"errors"
@@ -171,8 +170,6 @@ type embed struct {
 	pattern  string
 	position token.Position
 }
-
-var pkgcache par.Cache // for packages not in modcache
 
 // importRaw fills the rawPackage from the package files in srcDir.
 // dir is the package's path relative to the modroot.

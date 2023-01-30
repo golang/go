@@ -447,12 +447,17 @@ type resolver struct {
 
 	work *par.Queue
 
-	matchInModuleCache par.Cache
+	matchInModuleCache par.ErrCache[matchInModuleKey, []string]
 }
 
 type versionReason struct {
 	version string
 	reason  *query
+}
+
+type matchInModuleKey struct {
+	pattern string
+	m       module.Version
 }
 
 func newResolver(ctx context.Context, queries []*query) *resolver {
@@ -592,24 +597,13 @@ func (r *resolver) checkAllowedOr(requested string, selected func(string) string
 
 // matchInModule is a caching wrapper around modload.MatchInModule.
 func (r *resolver) matchInModule(ctx context.Context, pattern string, m module.Version) (packages []string, err error) {
-	type key struct {
-		pattern string
-		m       module.Version
-	}
-	type entry struct {
-		packages []string
-		err      error
-	}
-
-	e := r.matchInModuleCache.Do(key{pattern, m}, func() any {
+	return r.matchInModuleCache.Do(matchInModuleKey{pattern, m}, func() ([]string, error) {
 		match := modload.MatchInModule(ctx, pattern, m, imports.AnyTags())
 		if len(match.Errs) > 0 {
-			return entry{match.Pkgs, match.Errs[0]}
+			return match.Pkgs, match.Errs[0]
 		}
-		return entry{match.Pkgs, nil}
-	}).(entry)
-
-	return e.packages, e.err
+		return match.Pkgs, nil
+	})
 }
 
 // queryNone adds a candidate set to q for each module matching q.pattern.

@@ -117,8 +117,6 @@ func dirHash(modroot, pkgdir string) (cache.ActionID, error) {
 	return h.Sum(), nil
 }
 
-var modrootCache par.Cache
-
 var ErrNotIndexed = errors.New("not in module index")
 
 var (
@@ -168,21 +166,17 @@ func GetModule(modroot string) (*Module, error) {
 	return openIndexModule(modroot, true)
 }
 
-var mcache par.Cache
+var mcache par.ErrCache[string, *Module]
 
 // openIndexModule returns the module index for modPath.
 // It will return ErrNotIndexed if the module can not be read
 // using the index because it contains symlinks.
 func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
-	type result struct {
-		mi  *Module
-		err error
-	}
-	r := mcache.Do(modroot, func() any {
+	return mcache.Do(modroot, func() (*Module, error) {
 		fsys.Trace("openIndexModule", modroot)
 		id, err := moduleHash(modroot, ismodcache)
 		if err != nil {
-			return result{nil, err}
+			return nil, err
 		}
 		data, _, err := cache.Default().GetMmap(id)
 		if err != nil {
@@ -190,33 +184,28 @@ func openIndexModule(modroot string, ismodcache bool) (*Module, error) {
 			// the index because the module hasn't been indexed yet.
 			data, err = indexModule(modroot)
 			if err != nil {
-				return result{nil, err}
+				return nil, err
 			}
 			if err = cache.Default().PutBytes(id, data); err != nil {
-				return result{nil, err}
+				return nil, err
 			}
 		}
 		mi, err := fromBytes(modroot, data)
 		if err != nil {
-			return result{nil, err}
+			return nil, err
 		}
-		return result{mi, nil}
-	}).(result)
-	return r.mi, r.err
+		return mi, nil
+	})
 }
 
-var pcache par.Cache
+var pcache par.ErrCache[[2]string, *IndexPackage]
 
 func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
-	type result struct {
-		pkg *IndexPackage
-		err error
-	}
-	r := pcache.Do([2]string{modroot, pkgdir}, func() any {
+	return pcache.Do([2]string{modroot, pkgdir}, func() (*IndexPackage, error) {
 		fsys.Trace("openIndexPackage", pkgdir)
 		id, err := dirHash(modroot, pkgdir)
 		if err != nil {
-			return result{nil, err}
+			return nil, err
 		}
 		data, _, err := cache.Default().GetMmap(id)
 		if err != nil {
@@ -224,16 +213,15 @@ func openIndexPackage(modroot, pkgdir string) (*IndexPackage, error) {
 			// the index because the package hasn't been indexed yet.
 			data = indexPackage(modroot, pkgdir)
 			if err = cache.Default().PutBytes(id, data); err != nil {
-				return result{nil, err}
+				return nil, err
 			}
 		}
 		pkg, err := packageFromBytes(modroot, data)
 		if err != nil {
-			return result{nil, err}
+			return nil, err
 		}
-		return result{pkg, nil}
-	}).(result)
-	return r.pkg, r.err
+		return pkg, nil
+	})
 }
 
 var errCorrupt = errors.New("corrupt index")
