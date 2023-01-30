@@ -63,15 +63,23 @@ type unifier struct {
 	depth   int // recursion depth during unification
 }
 
-// newUnifier returns a new unifier initialized with the given type parameter list.
-func newUnifier(tparams []*TypeParam) *unifier {
+// newUnifier returns a new unifier initialized with the given type parameter
+// and corresponding type argument lists. The type argument list may be shorter
+// than the type parameter list, and it may contain nil types. Matching type
+// parameters and arguments must have the same index.
+func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
+	assert(len(tparams) >= len(targs))
 	handles := make(map[*TypeParam]*Type, len(tparams))
 	// Allocate all handles up-front: in a correct program, all type parameters
 	// must be resolved and thus eventually will get a handle.
 	// Also, sharing of handles caused by unified type parameters is rare and
 	// so it's ok to not optimize for that case (and delay handle allocation).
-	for _, x := range tparams {
-		handles[x] = new(Type)
+	for i, x := range tparams {
+		var t Type
+		if i < len(targs) {
+			t = targs[i]
+		}
+		handles[x] = &t
 	}
 	return &unifier{tparams, handles, 0}
 }

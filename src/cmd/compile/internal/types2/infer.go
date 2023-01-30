@@ -135,14 +135,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// Unify parameter and argument types for generic parameters with typed arguments
 	// and collect the indices of generic parameters with untyped arguments.
 	// Terminology: generic parameter = function parameter with a type-parameterized type
-	u := newUnifier(tparams)
-
-	// Set the type arguments which we know already.
-	for i, targ := range targs {
-		if targ != nil {
-			u.set(tparams[i], targ)
-		}
-	}
+	u := newUnifier(tparams, targs)
 
 	errorf := func(kind string, tpar, targ Type, arg *operand) {
 		// provide a better error message if we can
@@ -462,14 +455,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 	}
 
 	// Unify type parameters with their constraints.
-	u := newUnifier(tparams)
-
-	// Set the type arguments which we know already.
-	for i, targ := range targs {
-		if targ != nil {
-			u.set(tparams[i], targ)
-		}
-	}
+	u := newUnifier(tparams, targs)
 
 	// Repeatedly apply constraint type inference as long as
 	// there are still unknown type arguments and progress is
