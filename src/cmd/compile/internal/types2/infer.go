@@ -29,6 +29,10 @@ import (
 //
 // The process stops as soon as all type arguments are known or an error occurs.
 func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (result []Type) {
+	if useNewTypeInference {
+		return check.infer2(pos, tparams, targs, params, args)
+	}
+
 	if debug {
 		defer func() {
 			assert(result == nil || len(result) == len(tparams))
