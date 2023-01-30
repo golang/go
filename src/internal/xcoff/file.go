@@ -173,7 +173,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 	var nscns uint16
 	var symptr uint64
-	var nsyms int32
+	var nsyms uint32
 	var opthdr uint16
 	var hdrsz int
 	switch f.TargetMachine {
@@ -283,9 +283,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				return nil, err
 			}
 			numaux = int(se.Nnumaux)
-			if numaux < 0 {
-				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
-			}
 			sym.SectionNumber = int(se.Nscnum)
 			sym.StorageClass = int(se.Nsclass)
 			sym.Value = uint64(se.Nvalue)
@@ -306,9 +303,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				return nil, err
 			}
 			numaux = int(se.Nnumaux)
-			if numaux < 0 {
-				return nil, fmt.Errorf("malformed symbol table, invalid number of aux symbols")
-			}
 			sym.SectionNumber = int(se.Nscnum)
 			sym.StorageClass = int(se.Nsclass)
 			sym.Value = se.Nvalue
@@ -517,7 +511,7 @@ func (f *File) readImportIDs(s *Section) ([]string, error) {
 		return nil, err
 	}
 	var istlen uint32
-	var nimpid int32
+	var nimpid uint32
 	var impoff uint64
 	switch f.TargetMachine {
 	case U802TOCMAGIC:
@@ -587,7 +581,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 	}
 	var stlen uint32
 	var stoff uint64
-	var nsyms int32
+	var nsyms uint32
 	var symoff uint64
 	switch f.TargetMachine {
 	case U802TOCMAGIC:
@@ -632,7 +626,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 	all := make([]ImportedSymbol, 0)
 	for i := 0; i < int(nsyms); i++ {
 		var name string
-		var ifile int32
+		var ifile uint32
 		var ok bool
 		switch f.TargetMachine {
 		case U802TOCMAGIC:
