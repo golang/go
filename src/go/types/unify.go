@@ -66,8 +66,12 @@ type unifier struct {
 // newUnifier returns a new unifier initialized with the given type parameter list.
 func newUnifier(tparams []*TypeParam) *unifier {
 	handles := make(map[*TypeParam]*Type, len(tparams))
+	// Allocate all handles up-front: in a correct program, all type parameters
+	// must be resolved and thus eventually will get a handle.
+	// Also, sharing of handles caused by unified type parameters is rare and
+	// so it's ok to not optimize for that case (and delay handle allocation).
 	for _, x := range tparams {
-		handles[x] = nil
+		handles[x] = new(Type)
 	}
 	return &unifier{tparams, handles, 0}
 }
@@ -108,20 +112,6 @@ func (u *unifier) join(x, y *TypeParam) bool {
 		u.tracef("%s ⇄ %s", x, y)
 	}
 	switch hx, hy := u.handles[x], u.handles[y]; {
-	case hx == nil && hy == nil:
-		// Neither type parameter has a handle associated with them.
-		// Allocate a new shared (joined) handle.
-		h := new(Type)
-		u.handles[x] = h
-		u.handles[y] = h
-	case hx == nil:
-		// Type parameter x has no handle yet. Use handle of y.
-		u.handles[x] = hy
-	case hy == nil:
-		// Type parameter y has no handle yet. Use handle of x.
-		u.handles[y] = hx
-
-	// Both type parameters have a handle: hx != nil && hy != nil.
 	case hx == hy:
 		// Both type parameters already share the same handle. Nothing to do.
 	case *hx != nil && *hy != nil:
@@ -154,7 +144,6 @@ func (u *unifier) asTypeParam(x Type) *TypeParam {
 
 // setHandle sets the handle for type parameter x
 // (and all its joined type parameters) to h.
-// The type parameter must have a non-nil handle.
 func (u *unifier) setHandle(x *TypeParam, h *Type) {
 	hx := u.handles[x]
 	assert(hx != nil)
@@ -165,12 +154,9 @@ func (u *unifier) setHandle(x *TypeParam, h *Type) {
 	}
 }
 
-// at returns the type for type parameter x; or nil.
+// at returns the (possibly nil) type for type parameter x.
 func (u *unifier) at(x *TypeParam) Type {
-	if h := u.handles[x]; h != nil {
-		return *h // possibly nil
-	}
-	return nil
+	return *u.handles[x]
 }
 
 // set sets the type t for type parameter x;
@@ -181,10 +167,6 @@ func (u *unifier) set(x *TypeParam, t Type) {
 		u.tracef("%s ➞ %s", x, t)
 	}
 	h := u.handles[x]
-	if h == nil {
-		h = new(Type)
-		u.handles[x] = h
-	}
 	assert(*h == nil)
 	*h = t
 }
@@ -193,7 +175,7 @@ func (u *unifier) set(x *TypeParam, t Type) {
 func (u *unifier) unknowns() int {
 	n := 0
 	for _, h := range u.handles {
-		if h == nil || *h == nil {
+		if *h == nil {
 			n++
 		}
 	}
