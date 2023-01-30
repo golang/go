@@ -92,3 +92,22 @@ func min(x, y float64) float64 {
 	}
 	return y
 }
+
+// Clamp returns the Number closest to `a`, but in range <min, max>
+//
+// Restrictions:
+//
+//	if min > max, Clamp will return NaN
+func Clamp(a, min, max float64) float64 {
+	if min > max {
+		return NaN
+	}
+	a = Min(a, max)
+	a = Max(a, min)
+	return a
+}
+
+// Clamp01 is a special variant of Clamp, where min=0 and max=1
+func Clamp01(a float64) float64 {
+	return Clamp(a, 0, 1)
+}
