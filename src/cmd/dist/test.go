@@ -1087,7 +1087,7 @@ func (t *tester) out(v string) {
 }
 
 func (t *tester) extLink() bool {
-	pair := gohostos + "-" + goarch
+	pair := goos + "-" + goarch
 	switch pair {
 	case "aix-ppc64",
 		"android-arm", "android-arm64",
