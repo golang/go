@@ -525,8 +525,8 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
 	m := CIDRMask(n, ipAddr.BitLen())
-	ip := IP(ipAddr.AsSlice()).To16()
-	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
+	addr16 := ipAddr.As16()
+	return IP(addr16[:]), &IPNet{IP: IP(addr16[:]).Mask(m), Mask: m}, nil
 }
 
 func copyIP(x IP) IP {
