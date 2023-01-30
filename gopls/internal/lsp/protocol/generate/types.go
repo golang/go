@@ -85,6 +85,7 @@ type Enumeration struct {
 // A TypeAlias is the parsed version of an LSP type alias from the spec
 type TypeAlias struct {
 	Documentation string `json:"documentation"`
+	Deprecated    string `json:"deprecated"`
 	Name          string `json:"name"`
 	Proposed      bool   `json:"proposed"`
 	Since         string `json:"since"`
@@ -125,6 +126,7 @@ type NameType struct {
 	Type          *Type  `json:"type"`
 	Optional      bool   `json:"optional"`
 	Documentation string `json:"documentation"`
+	Deprecated    string `json:"deprecated"`
 	Since         string `json:"since"`
 	Proposed      bool   `json:"proposed"`
 	Line          int    `json:"line"`

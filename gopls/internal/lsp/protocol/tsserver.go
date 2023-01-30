@@ -7,7 +7,7 @@
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of 2023-01-23)
+// git hash 9b742021fb04ad081aa3676a9eecf4fa612084b4 (as of 2023-01-30)
 
 import (
 	"context"
@@ -76,7 +76,6 @@ type Server interface {
 	Supertypes(context.Context, *TypeHierarchySupertypesParams) ([]TypeHierarchyItem, error)               // typeHierarchy/supertypes
 	WorkDoneProgressCancel(context.Context, *WorkDoneProgressCancelParams) error                           // window/workDoneProgress/cancel
 	DiagnosticWorkspace(context.Context, *WorkspaceDiagnosticParams) (*WorkspaceDiagnosticReport, error)   // workspace/diagnostic
-	DiagnosticRefresh(context.Context) error                                                               // workspace/diagnostic/refresh
 	DidChangeConfiguration(context.Context, *DidChangeConfigurationParams) error                           // workspace/didChangeConfiguration
 	DidChangeWatchedFiles(context.Context, *DidChangeWatchedFilesParams) error                             // workspace/didChangeWatchedFiles
 	DidChangeWorkspaceFolders(context.Context, *DidChangeWorkspaceFoldersParams) error                     // workspace/didChangeWorkspaceFolders
@@ -84,9 +83,6 @@ type Server interface {
 	DidDeleteFiles(context.Context, *DeleteFilesParams) error                                              // workspace/didDeleteFiles
 	DidRenameFiles(context.Context, *RenameFilesParams) error                                              // workspace/didRenameFiles
 	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{}, error)                            // workspace/executeCommand
-	InlayHintRefresh(context.Context) error                                                                // workspace/inlayHint/refresh
-	InlineValueRefresh(context.Context) error                                                              // workspace/inlineValue/refresh
-	SemanticTokensRefresh(context.Context) error                                                           // workspace/semanticTokens/refresh
 	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation, error)                           // workspace/symbol
 	WillCreateFiles(context.Context, *CreateFilesParams) (*WorkspaceEdit, error)                           // workspace/willCreateFiles
 	WillDeleteFiles(context.Context, *DeleteFilesParams) (*WorkspaceEdit, error)                           // workspace/willDeleteFiles
@@ -634,9 +630,6 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 			return true, reply(ctx, nil, err)
 		}
 		return true, reply(ctx, resp, nil)
-	case "workspace/diagnostic/refresh":
-		err := server.DiagnosticRefresh(ctx)
-		return true, reply(ctx, nil, err)
 	case "workspace/didChangeConfiguration":
 		var params DidChangeConfigurationParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -689,15 +682,6 @@ func serverDispatch(ctx context.Context, server Server, reply jsonrpc2.Replier, 
 			return true, reply(ctx, nil, err)
 		}
 		return true, reply(ctx, resp, nil)
-	case "workspace/inlayHint/refresh":
-		err := server.InlayHintRefresh(ctx)
-		return true, reply(ctx, nil, err)
-	case "workspace/inlineValue/refresh":
-		err := server.InlineValueRefresh(ctx)
-		return true, reply(ctx, nil, err)
-	case "workspace/semanticTokens/refresh":
-		err := server.SemanticTokensRefresh(ctx)
-		return true, reply(ctx, nil, err)
 	case "workspace/symbol":
 		var params WorkspaceSymbolParams
 		if err := json.Unmarshal(r.Params(), &params); err != nil {
@@ -1106,9 +1090,6 @@ func (s *serverDispatcher) DiagnosticWorkspace(ctx context.Context, params *Work
 	}
 	return result, nil
 }
-func (s *serverDispatcher) DiagnosticRefresh(ctx context.Context) error {
-	return s.sender.Call(ctx, "workspace/diagnostic/refresh", nil, nil)
-}
 func (s *serverDispatcher) DidChangeConfiguration(ctx context.Context, params *DidChangeConfigurationParams) error {
 	return s.sender.Notify(ctx, "workspace/didChangeConfiguration", params)
 }
@@ -1133,15 +1114,6 @@ func (s *serverDispatcher) ExecuteCommand(ctx context.Context, params *ExecuteCo
 		return nil, err
 	}
 	return result, nil
-}
-func (s *serverDispatcher) InlayHintRefresh(ctx context.Context) error {
-	return s.sender.Call(ctx, "workspace/inlayHint/refresh", nil, nil)
-}
-func (s *serverDispatcher) InlineValueRefresh(ctx context.Context) error {
-	return s.sender.Call(ctx, "workspace/inlineValue/refresh", nil, nil)
-}
-func (s *serverDispatcher) SemanticTokensRefresh(ctx context.Context) error {
-	return s.sender.Call(ctx, "workspace/semanticTokens/refresh", nil, nil)
 }
 func (s *serverDispatcher) Symbol(ctx context.Context, params *WorkspaceSymbolParams) ([]SymbolInformation, error) {
 	var result []SymbolInformation

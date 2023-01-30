@@ -528,6 +528,22 @@ func (c *cmdClient) WorkDoneProgressCreate(context.Context, *protocol.WorkDonePr
 	return nil
 }
 
+func (c *cmdClient) DiagnosticRefresh(context.Context) error {
+	return nil
+}
+
+func (c *cmdClient) InlayHintRefresh(context.Context) error {
+	return nil
+}
+
+func (c *cmdClient) SemanticTokensRefresh(context.Context) error {
+	return nil
+}
+
+func (c *cmdClient) InlineValueRefresh(context.Context) error {
+	return nil
+}
+
 func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 	file, found := c.files[uri]
 	if !found || file.err != nil {

@@ -40,10 +40,6 @@ func (s *Server) Diagnostic(context.Context, *string) (*string, error) {
 	return nil, notImplemented("Diagnostic")
 }
 
-func (s *Server) DiagnosticRefresh(context.Context) error {
-	return notImplemented("DiagnosticRefresh")
-}
-
 func (s *Server) DiagnosticWorkspace(context.Context, *protocol.WorkspaceDiagnosticParams) (*protocol.WorkspaceDiagnosticReport, error) {
 	return nil, notImplemented("DiagnosticWorkspace")
 }
@@ -160,16 +156,8 @@ func (s *Server) InlayHint(ctx context.Context, params *protocol.InlayHintParams
 	return s.inlayHint(ctx, params)
 }
 
-func (s *Server) InlayHintRefresh(context.Context) error {
-	return notImplemented("InlayHintRefresh")
-}
-
 func (s *Server) InlineValue(context.Context, *protocol.InlineValueParams) ([]protocol.InlineValue, error) {
 	return nil, notImplemented("InlineValue")
-}
-
-func (s *Server) InlineValueRefresh(context.Context) error {
-	return notImplemented("InlineValueRefresh")
 }
 
 func (s *Server) LinkedEditingRange(context.Context, *protocol.LinkedEditingRangeParams) (*protocol.LinkedEditingRanges, error) {
@@ -258,10 +246,6 @@ func (s *Server) SemanticTokensFullDelta(ctx context.Context, p *protocol.Semant
 
 func (s *Server) SemanticTokensRange(ctx context.Context, p *protocol.SemanticTokensRangeParams) (*protocol.SemanticTokens, error) {
 	return s.semanticTokensRange(ctx, p)
-}
-
-func (s *Server) SemanticTokensRefresh(ctx context.Context) error {
-	return s.semanticTokensRefresh(ctx)
 }
 
 func (s *Server) SetTrace(context.Context, *protocol.SetTraceParams) error {

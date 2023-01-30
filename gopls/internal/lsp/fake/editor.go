@@ -279,7 +279,8 @@ func (e *Editor) initialize(ctx context.Context) error {
 		},
 	}
 
-	params.Trace = "messages"
+	trace := protocol.TraceValues("messages")
+	params.Trace = &trace
 	// TODO: support workspace folders.
 	if e.Server != nil {
 		resp, err := e.Server.Initialize(ctx, params)

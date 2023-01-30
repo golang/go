@@ -7,14 +7,14 @@
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 8de18faed635819dd2bc631d2c26ce4a18f7cf4a (as of 2023-01-23)
+// git hash 9b742021fb04ad081aa3676a9eecf4fa612084b4 (as of 2023-01-30)
 
 import "encoding/json"
 
 import "errors"
 import "fmt"
 
-// from line 4790
+// from line 4768
 func (t OrFEditRangePItemDefaults) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case FEditRangePItemDefaults:
@@ -45,7 +45,7 @@ func (t *OrFEditRangePItemDefaults) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [FEditRangePItemDefaults Range]")
 }
 
-// from line 9837
+// from line 9810
 func (t OrFNotebookPNotebookSelector) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case NotebookDocumentFilter:
@@ -76,7 +76,7 @@ func (t *OrFNotebookPNotebookSelector) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [NotebookDocumentFilter string]")
 }
 
-// from line 5539
+// from line 5519
 func (t OrPLocation_workspace_symbol) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case Location:
@@ -107,7 +107,7 @@ func (t *OrPLocation_workspace_symbol) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [Location PLocationMsg_workspace_symbol]")
 }
 
-// from line 4185
+// from line 4162
 func (t OrPSection_workspace_didChangeConfiguration) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case []string:
@@ -138,7 +138,7 @@ func (t *OrPSection_workspace_didChangeConfiguration) UnmarshalJSON(x []byte) er
 	return errors.New("unmarshal failed to match one of [[]string string]")
 }
 
-// from line 7080
+// from line 7074
 func (t OrPTooltipPLabel) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case MarkupContent:
@@ -169,7 +169,7 @@ func (t *OrPTooltipPLabel) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [MarkupContent string]")
 }
 
-// from line 3721
+// from line 3698
 func (t OrPTooltip_textDocument_inlayHint) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case MarkupContent:
@@ -200,7 +200,7 @@ func (t *OrPTooltip_textDocument_inlayHint) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [MarkupContent string]")
 }
 
-// from line 6203
+// from line 6183
 func (t Or_CancelParams_id) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case int32:
@@ -231,7 +231,7 @@ func (t *Or_CancelParams_id) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [int32 string]")
 }
 
-// from line 4604
+// from line 4581
 func (t Or_CompletionItem_documentation) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case MarkupContent:
@@ -262,7 +262,7 @@ func (t *Or_CompletionItem_documentation) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [MarkupContent string]")
 }
 
-// from line 4686
+// from line 4664
 func (t Or_CompletionItem_textEdit) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case InsertReplaceEdit:
@@ -293,7 +293,7 @@ func (t *Or_CompletionItem_textEdit) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [InsertReplaceEdit TextEdit]")
 }
 
-// from line 13779
+// from line 13752
 func (t Or_Definition) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case Location:
@@ -324,7 +324,7 @@ func (t *Or_Definition) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [Location []Location]")
 }
 
-// from line 8567
+// from line 8546
 func (t Or_Diagnostic_code) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case int32:
@@ -355,7 +355,7 @@ func (t *Or_Diagnostic_code) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [int32 string]")
 }
 
-// from line 13911
+// from line 13884
 func (t Or_DocumentDiagnosticReport) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case RelatedFullDocumentDiagnosticReport:
@@ -386,7 +386,7 @@ func (t *Or_DocumentDiagnosticReport) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [RelatedFullDocumentDiagnosticReport RelatedUnchangedDocumentDiagnosticReport]")
 }
 
-// from line 3844
+// from line 3821
 func (t Or_DocumentDiagnosticReportPartialResult_relatedDocuments_Value) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case FullDocumentDiagnosticReport:
@@ -417,7 +417,7 @@ func (t *Or_DocumentDiagnosticReportPartialResult_relatedDocuments_Value) Unmars
 	return errors.New("unmarshal failed to match one of [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]")
 }
 
-// from line 14120
+// from line 14094
 func (t Or_DocumentFilter) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case NotebookCellTextDocumentFilter:
@@ -448,7 +448,7 @@ func (t *Or_DocumentFilter) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [NotebookCellTextDocumentFilter TextDocumentFilter]")
 }
 
-// from line 4912
+// from line 4890
 func (t Or_Hover_contents) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case MarkedString:
@@ -486,7 +486,7 @@ func (t *Or_Hover_contents) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [MarkedString MarkupContent []MarkedString]")
 }
 
-// from line 3680
+// from line 3657
 func (t Or_InlayHint_label) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case []InlayHintLabelPart:
@@ -517,7 +517,7 @@ func (t *Or_InlayHint_label) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [[]InlayHintLabelPart string]")
 }
 
-// from line 13889
+// from line 13862
 func (t Or_InlineValue) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case InlineValueEvaluatableExpression:
@@ -555,7 +555,7 @@ func (t *Or_InlineValue) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [InlineValueEvaluatableExpression InlineValueText InlineValueVariableLookup]")
 }
 
-// from line 14086
+// from line 14059
 func (t Or_MarkedString) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case Msg_MarkedString:
@@ -586,7 +586,7 @@ func (t *Or_MarkedString) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [Msg_MarkedString string]")
 }
 
-// from line 10144
+// from line 10117
 func (t Or_NotebookCellTextDocumentFilter_notebook) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case NotebookDocumentFilter:
@@ -617,7 +617,7 @@ func (t *Or_NotebookCellTextDocumentFilter_notebook) UnmarshalJSON(x []byte) err
 	return errors.New("unmarshal failed to match one of [NotebookDocumentFilter string]")
 }
 
-// from line 9883
+// from line 9856
 func (t Or_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1_notebook) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case NotebookDocumentFilter:
@@ -648,7 +648,7 @@ func (t *Or_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1_notebook) Un
 	return errors.New("unmarshal failed to match one of [NotebookDocumentFilter string]")
 }
 
-// from line 7173
+// from line 7167
 func (t Or_RelatedFullDocumentDiagnosticReport_relatedDocuments_Value) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case FullDocumentDiagnosticReport:
@@ -679,7 +679,7 @@ func (t *Or_RelatedFullDocumentDiagnosticReport_relatedDocuments_Value) Unmarsha
 	return errors.New("unmarshal failed to match one of [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]")
 }
 
-// from line 7212
+// from line 7206
 func (t Or_RelatedUnchangedDocumentDiagnosticReport_relatedDocuments_Value) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case FullDocumentDiagnosticReport:
@@ -710,7 +710,7 @@ func (t *Or_RelatedUnchangedDocumentDiagnosticReport_relatedDocuments_Value) Unm
 	return errors.New("unmarshal failed to match one of [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]")
 }
 
-// from line 10767
+// from line 10740
 func (t Or_RelativePattern_baseUri) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case URI:
@@ -741,7 +741,7 @@ func (t *Or_RelativePattern_baseUri) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [URI WorkspaceFolder]")
 }
 
-// from line 1379
+// from line 1370
 func (t Or_Result_textDocument_codeAction_Item0_Elem) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case CodeAction:
@@ -772,7 +772,7 @@ func (t *Or_Result_textDocument_codeAction_Item0_Elem) UnmarshalJSON(x []byte) e
 	return errors.New("unmarshal failed to match one of [CodeAction Command]")
 }
 
-// from line 12223
+// from line 12196
 func (t Or_SemanticTokensClientCapabilities_requests_full) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case FFullPRequests:
@@ -803,7 +803,7 @@ func (t *Or_SemanticTokensClientCapabilities_requests_full) UnmarshalJSON(x []by
 	return errors.New("unmarshal failed to match one of [FFullPRequests bool]")
 }
 
-// from line 12203
+// from line 12176
 func (t Or_SemanticTokensClientCapabilities_requests_range) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case FRangePRequests:
@@ -834,7 +834,7 @@ func (t *Or_SemanticTokensClientCapabilities_requests_range) UnmarshalJSON(x []b
 	return errors.New("unmarshal failed to match one of [FRangePRequests bool]")
 }
 
-// from line 6584
+// from line 6578
 func (t Or_SemanticTokensOptions_full) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case PFullESemanticTokensOptions:
@@ -865,7 +865,7 @@ func (t *Or_SemanticTokensOptions_full) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [PFullESemanticTokensOptions bool]")
 }
 
-// from line 6564
+// from line 6558
 func (t Or_SemanticTokensOptions_range) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case PRangeESemanticTokensOptions:
@@ -896,7 +896,7 @@ func (t *Or_SemanticTokensOptions_range) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [PRangeESemanticTokensOptions bool]")
 }
 
-// from line 8247
+// from line 8226
 func (t Or_ServerCapabilities_callHierarchyProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case CallHierarchyOptions:
@@ -934,7 +934,7 @@ func (t *Or_ServerCapabilities_callHierarchyProvider) UnmarshalJSON(x []byte) er
 	return errors.New("unmarshal failed to match one of [CallHierarchyOptions CallHierarchyRegistrationOptions bool]")
 }
 
-// from line 8055
+// from line 8034
 func (t Or_ServerCapabilities_codeActionProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case CodeActionOptions:
@@ -965,7 +965,7 @@ func (t *Or_ServerCapabilities_codeActionProvider) UnmarshalJSON(x []byte) error
 	return errors.New("unmarshal failed to match one of [CodeActionOptions bool]")
 }
 
-// from line 8091
+// from line 8070
 func (t Or_ServerCapabilities_colorProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case DocumentColorOptions:
@@ -1003,7 +1003,7 @@ func (t *Or_ServerCapabilities_colorProvider) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [DocumentColorOptions DocumentColorRegistrationOptions bool]")
 }
 
-// from line 7917
+// from line 7896
 func (t Or_ServerCapabilities_declarationProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case DeclarationOptions:
@@ -1041,7 +1041,7 @@ func (t *Or_ServerCapabilities_declarationProvider) UnmarshalJSON(x []byte) erro
 	return errors.New("unmarshal failed to match one of [DeclarationOptions DeclarationRegistrationOptions bool]")
 }
 
-// from line 7939
+// from line 7918
 func (t Or_ServerCapabilities_definitionProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case DefinitionOptions:
@@ -1072,7 +1072,7 @@ func (t *Or_ServerCapabilities_definitionProvider) UnmarshalJSON(x []byte) error
 	return errors.New("unmarshal failed to match one of [DefinitionOptions bool]")
 }
 
-// from line 8404
+// from line 8383
 func (t Or_ServerCapabilities_diagnosticProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case DiagnosticOptions:
@@ -1103,7 +1103,7 @@ func (t *Or_ServerCapabilities_diagnosticProvider) UnmarshalJSON(x []byte) error
 	return errors.New("unmarshal failed to match one of [DiagnosticOptions DiagnosticRegistrationOptions]")
 }
 
-// from line 8131
+// from line 8110
 func (t Or_ServerCapabilities_documentFormattingProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case DocumentFormattingOptions:
@@ -1134,7 +1134,7 @@ func (t *Or_ServerCapabilities_documentFormattingProvider) UnmarshalJSON(x []byt
 	return errors.New("unmarshal failed to match one of [DocumentFormattingOptions bool]")
 }
 
-// from line 8019
+// from line 7998
 func (t Or_ServerCapabilities_documentHighlightProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case DocumentHighlightOptions:
@@ -1165,7 +1165,7 @@ func (t *Or_ServerCapabilities_documentHighlightProvider) UnmarshalJSON(x []byte
 	return errors.New("unmarshal failed to match one of [DocumentHighlightOptions bool]")
 }
 
-// from line 8149
+// from line 8128
 func (t Or_ServerCapabilities_documentRangeFormattingProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case DocumentRangeFormattingOptions:
@@ -1196,7 +1196,7 @@ func (t *Or_ServerCapabilities_documentRangeFormattingProvider) UnmarshalJSON(x 
 	return errors.New("unmarshal failed to match one of [DocumentRangeFormattingOptions bool]")
 }
 
-// from line 8037
+// from line 8016
 func (t Or_ServerCapabilities_documentSymbolProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case DocumentSymbolOptions:
@@ -1227,7 +1227,7 @@ func (t *Or_ServerCapabilities_documentSymbolProvider) UnmarshalJSON(x []byte) e
 	return errors.New("unmarshal failed to match one of [DocumentSymbolOptions bool]")
 }
 
-// from line 8194
+// from line 8173
 func (t Or_ServerCapabilities_foldingRangeProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case FoldingRangeOptions:
@@ -1265,7 +1265,7 @@ func (t *Or_ServerCapabilities_foldingRangeProvider) UnmarshalJSON(x []byte) err
 	return errors.New("unmarshal failed to match one of [FoldingRangeOptions FoldingRangeRegistrationOptions bool]")
 }
 
-// from line 7890
+// from line 7869
 func (t Or_ServerCapabilities_hoverProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case HoverOptions:
@@ -1296,7 +1296,7 @@ func (t *Or_ServerCapabilities_hoverProvider) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [HoverOptions bool]")
 }
 
-// from line 7979
+// from line 7958
 func (t Or_ServerCapabilities_implementationProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case ImplementationOptions:
@@ -1334,7 +1334,7 @@ func (t *Or_ServerCapabilities_implementationProvider) UnmarshalJSON(x []byte) e
 	return errors.New("unmarshal failed to match one of [ImplementationOptions ImplementationRegistrationOptions bool]")
 }
 
-// from line 8381
+// from line 8360
 func (t Or_ServerCapabilities_inlayHintProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case InlayHintOptions:
@@ -1372,7 +1372,7 @@ func (t *Or_ServerCapabilities_inlayHintProvider) UnmarshalJSON(x []byte) error 
 	return errors.New("unmarshal failed to match one of [InlayHintOptions InlayHintRegistrationOptions bool]")
 }
 
-// from line 8358
+// from line 8337
 func (t Or_ServerCapabilities_inlineValueProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case InlineValueOptions:
@@ -1410,7 +1410,7 @@ func (t *Or_ServerCapabilities_inlineValueProvider) UnmarshalJSON(x []byte) erro
 	return errors.New("unmarshal failed to match one of [InlineValueOptions InlineValueRegistrationOptions bool]")
 }
 
-// from line 8270
+// from line 8249
 func (t Or_ServerCapabilities_linkedEditingRangeProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case LinkedEditingRangeOptions:
@@ -1448,7 +1448,7 @@ func (t *Or_ServerCapabilities_linkedEditingRangeProvider) UnmarshalJSON(x []byt
 	return errors.New("unmarshal failed to match one of [LinkedEditingRangeOptions LinkedEditingRangeRegistrationOptions bool]")
 }
 
-// from line 8312
+// from line 8291
 func (t Or_ServerCapabilities_monikerProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case MonikerOptions:
@@ -1486,7 +1486,7 @@ func (t *Or_ServerCapabilities_monikerProvider) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [MonikerOptions MonikerRegistrationOptions bool]")
 }
 
-// from line 7862
+// from line 7841
 func (t Or_ServerCapabilities_notebookDocumentSync) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case NotebookDocumentSyncOptions:
@@ -1517,7 +1517,7 @@ func (t *Or_ServerCapabilities_notebookDocumentSync) UnmarshalJSON(x []byte) err
 	return errors.New("unmarshal failed to match one of [NotebookDocumentSyncOptions NotebookDocumentSyncRegistrationOptions]")
 }
 
-// from line 8001
+// from line 7980
 func (t Or_ServerCapabilities_referencesProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case ReferenceOptions:
@@ -1548,7 +1548,7 @@ func (t *Or_ServerCapabilities_referencesProvider) UnmarshalJSON(x []byte) error
 	return errors.New("unmarshal failed to match one of [ReferenceOptions bool]")
 }
 
-// from line 8176
+// from line 8155
 func (t Or_ServerCapabilities_renameProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case RenameOptions:
@@ -1579,7 +1579,7 @@ func (t *Or_ServerCapabilities_renameProvider) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [RenameOptions bool]")
 }
 
-// from line 8216
+// from line 8195
 func (t Or_ServerCapabilities_selectionRangeProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case SelectionRangeOptions:
@@ -1617,7 +1617,7 @@ func (t *Or_ServerCapabilities_selectionRangeProvider) UnmarshalJSON(x []byte) e
 	return errors.New("unmarshal failed to match one of [SelectionRangeOptions SelectionRangeRegistrationOptions bool]")
 }
 
-// from line 8293
+// from line 8272
 func (t Or_ServerCapabilities_semanticTokensProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case SemanticTokensOptions:
@@ -1648,7 +1648,7 @@ func (t *Or_ServerCapabilities_semanticTokensProvider) UnmarshalJSON(x []byte) e
 	return errors.New("unmarshal failed to match one of [SemanticTokensOptions SemanticTokensRegistrationOptions]")
 }
 
-// from line 7844
+// from line 7823
 func (t Or_ServerCapabilities_textDocumentSync) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case TextDocumentSyncKind:
@@ -1679,7 +1679,7 @@ func (t *Or_ServerCapabilities_textDocumentSync) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [TextDocumentSyncKind TextDocumentSyncOptions]")
 }
 
-// from line 7957
+// from line 7936
 func (t Or_ServerCapabilities_typeDefinitionProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case TypeDefinitionOptions:
@@ -1717,7 +1717,7 @@ func (t *Or_ServerCapabilities_typeDefinitionProvider) UnmarshalJSON(x []byte) e
 	return errors.New("unmarshal failed to match one of [TypeDefinitionOptions TypeDefinitionRegistrationOptions bool]")
 }
 
-// from line 8335
+// from line 8314
 func (t Or_ServerCapabilities_typeHierarchyProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case TypeHierarchyOptions:
@@ -1755,7 +1755,7 @@ func (t *Or_ServerCapabilities_typeHierarchyProvider) UnmarshalJSON(x []byte) er
 	return errors.New("unmarshal failed to match one of [TypeHierarchyOptions TypeHierarchyRegistrationOptions bool]")
 }
 
-// from line 8113
+// from line 8092
 func (t Or_ServerCapabilities_workspaceSymbolProvider) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case WorkspaceSymbolOptions:
@@ -1786,7 +1786,7 @@ func (t *Or_ServerCapabilities_workspaceSymbolProvider) UnmarshalJSON(x []byte) 
 	return errors.New("unmarshal failed to match one of [WorkspaceSymbolOptions bool]")
 }
 
-// from line 8861
+// from line 8840
 func (t Or_SignatureInformation_documentation) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case MarkupContent:
@@ -1817,7 +1817,7 @@ func (t *Or_SignatureInformation_documentation) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [MarkupContent string]")
 }
 
-// from line 6697
+// from line 6691
 func (t Or_TextDocumentEdit_edits_Elem) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case AnnotatedTextEdit:
@@ -1848,7 +1848,7 @@ func (t *Or_TextDocumentEdit_edits_Elem) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [AnnotatedTextEdit TextEdit]")
 }
 
-// from line 9803
+// from line 9776
 func (t Or_TextDocumentSyncOptions_save) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case SaveOptions:
@@ -1879,7 +1879,7 @@ func (t *Or_TextDocumentSyncOptions_save) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [SaveOptions bool]")
 }
 
-// from line 14012
+// from line 13985
 func (t Or_WorkspaceDocumentDiagnosticReport) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case WorkspaceFullDocumentDiagnosticReport:
@@ -1910,7 +1910,7 @@ func (t *Or_WorkspaceDocumentDiagnosticReport) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [WorkspaceFullDocumentDiagnosticReport WorkspaceUnchangedDocumentDiagnosticReport]")
 }
 
-// from line 3241
+// from line 3218
 func (t Or_WorkspaceEdit_documentChanges_Elem) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case CreateFile:
@@ -1955,7 +1955,7 @@ func (t *Or_WorkspaceEdit_documentChanges_Elem) UnmarshalJSON(x []byte) error {
 	return errors.New("unmarshal failed to match one of [CreateFile DeleteFile RenameFile TextDocumentEdit]")
 }
 
-// from line 256
+// from line 247
 func (t Or_textDocument_declaration) MarshalJSON() ([]byte, error) {
 	switch x := t.Value.(type) {
 	case Declaration:
