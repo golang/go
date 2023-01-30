@@ -5,6 +5,7 @@
 package mvs
 
 import (
+	"cmd/go/internal/slices"
 	"fmt"
 
 	"golang.org/x/mod/module"
@@ -30,7 +31,7 @@ type Graph struct {
 func NewGraph(cmp func(v1, v2 string) int, roots []module.Version) *Graph {
 	g := &Graph{
 		cmp:      cmp,
-		roots:    roots[:len(roots):len(roots)],
+		roots:    slices.Clip(roots),
 		required: make(map[module.Version][]module.Version),
 		isRoot:   make(map[module.Version]bool),
 		selected: make(map[string]string),
@@ -64,7 +65,7 @@ func (g *Graph) Require(m module.Version, reqs []module.Version) {
 
 	// Truncate reqs to its capacity to avoid aliasing bugs if it is later
 	// returned from RequiredBy and appended to.
-	reqs = reqs[:len(reqs):len(reqs)]
+	reqs = slices.Clip(reqs)
 
 	if _, dup := g.required[m]; dup {
 		panic(fmt.Sprintf("requirements of %v have already been set", m))

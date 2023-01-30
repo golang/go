@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/modconv"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/search"
+	"cmd/go/internal/slices"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -990,7 +991,7 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
 	}
 	modRootContainingCWD := findModuleRoot(base.Cwd())
 	mainModules := &MainModuleSet{
-		versions:           ms[:len(ms):len(ms)],
+		versions:           slices.Clip(ms),
 		inGorootSrc:        map[module.Version]bool{},
 		pathPrefix:         map[module.Version]string{},
 		modRoot:            map[module.Version]string{},

@@ -36,6 +36,7 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/load"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/slices"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/quoted"
@@ -2490,7 +2491,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 			} else {
 				to = filepath.Join("/_", toPath)
 			}
-			flags = append(flags[:len(flags):len(flags)], "-fdebug-prefix-map="+from+"="+to)
+			flags = append(slices.Clip(flags), "-fdebug-prefix-map="+from+"="+to)
 		}
 	}
 

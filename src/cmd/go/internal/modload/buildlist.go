@@ -9,6 +9,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
+	"cmd/go/internal/slices"
 	"context"
 	"fmt"
 	"os"
@@ -22,11 +23,6 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
-
-// capVersionSlice returns s with its cap reduced to its length.
-func capVersionSlice(s []module.Version) []module.Version {
-	return s[:len(s):len(s)]
-}
 
 // A Requirements represents a logically-immutable set of root module requirements.
 type Requirements struct {
@@ -108,7 +104,7 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
 	if pruning == workspace {
 		return &Requirements{
 			pruning:        pruning,
-			rootModules:    capVersionSlice(rootModules),
+			rootModules:    slices.Clip(rootModules),
 			maxRootVersion: nil,
 			direct:         direct,
 		}
@@ -135,7 +131,7 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
 
 	rs := &Requirements{
 		pruning:        pruning,
-		rootModules:    capVersionSlice(rootModules),
+		rootModules:    slices.Clip(rootModules),
 		maxRootVersion: make(map[string]string, len(rootModules)),
 		direct:         direct,
 	}
@@ -470,7 +466,7 @@ func (mg *ModuleGraph) WalkBreadthFirst(f func(m module.Version)) {
 // and may rely on it not to be modified.
 func (mg *ModuleGraph) BuildList() []module.Version {
 	mg.buildListOnce.Do(func() {
-		mg.buildList = capVersionSlice(mg.g.BuildList())
+		mg.buildList = slices.Clip(mg.g.BuildList())
 	})
 	return mg.buildList
 }

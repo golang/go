@@ -28,6 +28,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
+	"cmd/go/internal/slices"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/go/internal/work"
@@ -1284,7 +1285,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = a.Package.Dir
 
-	env := cfg.OrigEnv[:len(cfg.OrigEnv):len(cfg.OrigEnv)]
+	env := slices.Clip(cfg.OrigEnv)
 	env = base.AppendPATH(env)
 	env = base.AppendPWD(env, cmd.Dir)
 	cmd.Env = env

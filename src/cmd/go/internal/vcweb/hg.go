@@ -6,6 +6,7 @@ package vcweb
 
 import (
 	"bufio"
+	"cmd/go/internal/slices"
 	"context"
 	"errors"
 	"io"
@@ -54,7 +55,7 @@ func (h *hgHandler) Handler(dir string, env []string, logger *log.Logger) (http.
 
 		cmd := exec.CommandContext(ctx, h.hgPath, "serve", "--port", "0", "--address", "localhost", "--accesslog", os.DevNull, "--name", "vcweb", "--print-url")
 		cmd.Dir = dir
-		cmd.Env = append(env[:len(env):len(env)], "PWD="+dir)
+		cmd.Env = append(slices.Clip(env), "PWD="+dir)
 
 		cmd.Cancel = func() error {
 			err := cmd.Process.Signal(os.Interrupt)
