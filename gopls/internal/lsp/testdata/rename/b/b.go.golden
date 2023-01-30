@@ -75,4 +75,4 @@ Hello description
 func Hello() {} //@rename("Hello", "Goodbye")
 
 -- uint-rename --
-"int": builtin object
+int is built in and cannot be renamed

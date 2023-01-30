@@ -447,10 +447,11 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, inputs typeCheckInputs
 	defer done()
 
 	pkg := &syntaxPackage{
-		id:    inputs.id,
-		mode:  inputs.mode,
-		fset:  snapshot.FileSet(), // must match parse call below (snapshot.ParseGo for now)
-		types: types.NewPackage(string(inputs.pkgPath), string(inputs.name)),
+		id:        inputs.id,
+		mode:      inputs.mode,
+		fset:      snapshot.FileSet(), // must match parse call below (snapshot.ParseGo for now)
+		types:     types.NewPackage(string(inputs.pkgPath), string(inputs.name)),
+		importMap: new(importMap),
 		typesInfo: &types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
 			Defs:       make(map[*ast.Ident]types.Object),
@@ -461,6 +462,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, inputs typeCheckInputs
 		},
 	}
 	typeparams.InitInstanceInfo(pkg.typesInfo)
+	defer func() { pkg.importMap.types = pkg.types }() // simplifies early return in "unsafe"
 
 	// Parse the non-compiled GoFiles. (These aren't presented to
 	// the type checker but are part of the returned pkg.)
@@ -533,6 +535,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, inputs typeCheckInputs
 			if err != nil {
 				return nil, err
 			}
+			pkg.importMap.union(depPkg.importMap)
 			return depPkg.types, nil
 		}),
 	}

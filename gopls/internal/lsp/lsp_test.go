@@ -965,11 +965,9 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	}
 
 	wedit, err := r.server.Rename(r.ctx, &protocol.RenameParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(uri),
-		},
-		Position: loc.Range.Start,
-		NewName:  newText,
+		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
+		Position:     loc.Range.Start,
+		NewName:      newText,
 	})
 	if err != nil {
 		renamed := string(r.data.Golden(t, tag, filename, func() ([]byte, error) {
@@ -990,6 +988,8 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	}
 	sort.Strings(orderedURIs)
 
+	// Print the name and content of each modified file,
+	// concatenated, and compare against the golden.
 	var got string
 	for i := 0; i < len(res); i++ {
 		if i != 0 {

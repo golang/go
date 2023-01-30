@@ -199,6 +199,8 @@ type Snapshot interface {
 
 	// TypeCheck parses and type-checks the specified packages,
 	// and returns them in the same order as the ids.
+	// The resulting packages' types may belong to different importers,
+	// so types from different packages are incommensurable.
 	TypeCheck(ctx context.Context, mode TypecheckMode, ids ...PackageID) ([]Package, error)
 
 	// GetCriticalError returns any critical errors in the workspace.
@@ -476,6 +478,8 @@ type Metadata struct {
 	DepsErrors      []*packagesinternal.PackageError
 	LoadDir         string // directory from which go/packages was run
 }
+
+func (m *Metadata) String() string { return string(m.ID) }
 
 // IsIntermediateTestVariant reports whether the given package is an
 // intermediate test variant, e.g. "net/http [net/url.test]".
@@ -777,7 +781,15 @@ type (
 )
 
 // Package represents a Go package that has been parsed and type-checked.
-// It maintains only the relevant fields of a *go/packages.Package.
+//
+// By design, there is no way to reach from a Package to the Package
+// representing one of its dependencies.
+//
+// Callers must not assume that two Packages share the same
+// token.FileSet or types.Importer and thus have commensurable
+// token.Pos values or types.Objects. Instead, use stable naming
+// schemes, such as (URI, byte offset) for positions, or (PackagePath,
+// objectpath.Path) for exported declarations.
 type Package interface {
 	Metadata() *Metadata
 
@@ -792,6 +804,7 @@ type Package interface {
 	// Results of type checking:
 	GetTypes() *types.Package
 	GetTypesInfo() *types.Info
+	DependencyTypes(PackagePath) *types.Package // nil for indirect dependency of no consequence
 	HasTypeErrors() bool
 	DiagnosticsForFile(ctx context.Context, s Snapshot, uri span.URI) ([]*Diagnostic, error)
 	ReferencesTo(map[PackagePath]map[objectpath.Path]unit) []protocol.Location

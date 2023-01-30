@@ -104,6 +104,7 @@ type syntaxPackage struct {
 	typeErrors      []types.Error
 	types           *types.Package
 	typesInfo       *types.Info
+	importMap       *importMap        // required for DependencyTypes (until we have shallow export data)
 	hasFixedFiles   bool              // if true, AST was sufficiently mangled that we should hide type errors
 	xrefs           []byte            // serializable index of outbound cross-references
 	analyses        memoize.Store     // maps analyzer.Name to Promise[actionResult]
@@ -112,8 +113,42 @@ type syntaxPackage struct {
 
 func (p *Package) String() string { return string(p.m.ID) }
 
-func (p *Package) Metadata() *source.Metadata {
-	return p.m
+func (p *Package) Metadata() *source.Metadata { return p.m }
+
+// An importMap is an mapping from source.PackagePath to types.Package
+// of the dependencies of a syntaxPackage. Once constructed (by calls
+// to union) it is never subsequently modified.
+type importMap struct {
+	// Concretely, it is a node that contains one element of the
+	// mapping and whose deps are edges in DAG that comprises the
+	// rest of the mapping. This design optimizes union over get.
+	//
+	// TODO(adonovan): simplify when we use shallow export data.
+	// At that point it becomes a simple lookup in the importers
+	// map, which should be retained in syntaxPackage.
+	// (Otherwise this implementation could expose types.Packages
+	// that represent an old state that has since changed, but
+	// not in a way that is consequential to a downstream package.)
+
+	types *types.Package // map entry for types.Path => types
+	deps  []*importMap   // all other entries
+}
+
+func (m *importMap) union(dep *importMap) { m.deps = append(m.deps, dep) }
+
+func (m *importMap) get(path source.PackagePath, seen map[*importMap]bool) *types.Package {
+	if !seen[m] {
+		seen[m] = true
+		if source.PackagePath(m.types.Path()) == path {
+			return m.types
+		}
+		for _, dep := range m.deps {
+			if pkg := dep.get(path, seen); pkg != nil {
+				return pkg
+			}
+		}
+	}
+	return nil
 }
 
 // A loadScope defines a package loading scope for use with go/packages.
@@ -180,6 +215,14 @@ func (p *Package) GetTypes() *types.Package {
 
 func (p *Package) GetTypesInfo() *types.Info {
 	return p.pkg.typesInfo
+}
+
+// DependencyTypes returns the type checker's symbol for the specified
+// package. It returns nil if path is not among the transitive
+// dependencies of p, or if no symbols from that package were
+// referenced during the type-checking of p.
+func (p *Package) DependencyTypes(path source.PackagePath) *types.Package {
+	return p.pkg.importMap.get(path, make(map[*importMap]bool))
 }
 
 func (p *Package) HasParseErrors() bool {

@@ -10,7 +10,6 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
-	"golang.org/x/tools/gopls/internal/span"
 )
 
 func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*protocol.WorkspaceEdit, error) {
@@ -36,8 +35,8 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 		docChanges = append(docChanges, documentChanges(fh, e)...)
 	}
 	if isPkgRenaming {
-		uri := params.TextDocument.URI.SpanURI()
-		oldBase := filepath.Dir(span.URI.Filename(uri))
+		// Update the last component of the file's enclosing directory.
+		oldBase := filepath.Dir(fh.URI().Filename())
 		newURI := filepath.Join(filepath.Dir(oldBase), params.NewName)
 		docChanges = append(docChanges, protocol.DocumentChanges{
 			RenameFile: &protocol.RenameFile{

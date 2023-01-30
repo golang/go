@@ -6,8 +6,33 @@
 
 package source
 
+// This file defines the conflict-checking portion of the rename operation.
+//
+// The renamer works on a single package of type-checked syntax, and
+// is called in parallel for all necessary packages in the workspace,
+// possibly up to the transitive reverse dependencies of the
+// declaration. Finally the union of all edits and errors is computed.
+//
+// Renaming one object may entail renaming of others. For example:
+//
+// - An embedded field couples a Var (field) and a TypeName.
+//   So, renaming either one requires renaming the other.
+//   If the initial object is an embedded field, we must add its
+//   TypeName (and its enclosing package) to the renaming set;
+//   this is easily discovered at the outset.
+//
+//   Conversely, if the initial object is a TypeName, we must observe
+//   whether any of its references (from directly importing packages)
+//   is coincident with an embedded field Var and, if so, initiate a
+//   renaming of it.
+//
+// - A method of an interface type is coupled to all corresponding
+//   methods of types that are assigned to the interface (as
+//   discovered by the 'satisfy' pass). As a matter of usability, we
+//   require that such renamings be initiated from the interface
+//   method, not the concrete method.
+
 import (
-	"context"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -41,25 +66,18 @@ func (r *renamer) errorf(pos token.Pos, format string, args ...interface{}) {
 
 	// Add prefix of (truncated) position.
 	if pos != token.NoPos {
-		var fset *token.FileSet
-		for _, pkg := range r.packages {
-			fset = pkg.FileSet()
-			break
+		// TODO(adonovan): skip position of first error if it is
+		// on the same line as the renaming itself.
+		posn := safetoken.StartPosition(r.pkg.FileSet(), pos).String()
+		segments := strings.Split(filepath.ToSlash(posn), "/")
+		if n := len(segments); n > 2 {
+			segments = segments[n-2:]
 		}
-		if fset != nil {
-			// TODO(adonovan): skip position of first error if it is
-			// on the same line as the renaming itself.
-			posn := safetoken.StartPosition(fset, pos).String()
-			segments := strings.Split(filepath.ToSlash(posn), "/")
-			if n := len(segments); n > 2 {
-				segments = segments[n-2:]
-			}
-			posn = strings.Join(segments, "/")
-			fmt.Fprintf(&conflict, "%s:", posn)
+		posn = strings.Join(segments, "/")
+		fmt.Fprintf(&conflict, "%s:", posn)
 
-			if !strings.HasPrefix(format, "\t") {
-				conflict.WriteByte(' ')
-			}
+		if !strings.HasPrefix(format, "\t") {
+			conflict.WriteByte(' ')
 		}
 	}
 
@@ -86,7 +104,7 @@ func (r *renamer) check(from types.Object) {
 	} else if f, ok := from.(*types.Func); ok && recv(f) != nil {
 		r.checkMethod(f)
 	} else if isLocal(from) {
-		r.checkInLocalScope(from)
+		r.checkInLexicalScope(from)
 	} else {
 		r.errorf(from.Pos(), "unexpected %s object %q (please report a bug)\n",
 			objectKind(from), from)
@@ -111,7 +129,7 @@ func (r *renamer) checkInFileBlock(from *types.PkgName) {
 	}
 
 	// Check for conflicts in lexical scope.
-	r.checkInLexicalScope(from, r.packages[from.Pkg()])
+	r.checkInLexicalScope(from)
 }
 
 // checkInPackageBlock performs safety checks for renames of
@@ -119,21 +137,10 @@ func (r *renamer) checkInFileBlock(from *types.PkgName) {
 func (r *renamer) checkInPackageBlock(from types.Object) {
 	// Check that there are no references to the name from another
 	// package if the renaming would make it unexported.
-	if ast.IsExported(from.Name()) && !ast.IsExported(r.to) {
-		for typ, pkg := range r.packages {
-			if typ == from.Pkg() {
-				continue
-			}
-			if id := someUse(pkg.GetTypesInfo(), from); id != nil &&
-				!r.checkExport(id, typ, from) {
-				break
-			}
+	if typ := r.pkg.GetTypes(); typ != from.Pkg() && ast.IsExported(r.from) && !ast.IsExported(r.to) {
+		if id := someUse(r.pkg.GetTypesInfo(), from); id != nil {
+			r.checkExport(id, typ, from)
 		}
-	}
-
-	pkg := r.packages[from.Pkg()]
-	if pkg == nil {
-		return
 	}
 
 	// Check that in the package block, "init" is a function, and never referenced.
@@ -141,7 +148,7 @@ func (r *renamer) checkInPackageBlock(from types.Object) {
 		kind := objectKind(from)
 		if kind == "func" {
 			// Reject if intra-package references to it exist.
-			for id, obj := range pkg.GetTypesInfo().Uses {
+			for id, obj := range r.pkg.GetTypesInfo().Uses {
 				if obj == from {
 					r.errorf(from.Pos(),
 						"renaming this func %q to %q would make it a package initializer",
@@ -157,8 +164,8 @@ func (r *renamer) checkInPackageBlock(from types.Object) {
 	}
 
 	// Check for conflicts between package block and all file blocks.
-	for _, f := range pkg.GetSyntax() {
-		fileScope := pkg.GetTypesInfo().Scopes[f]
+	for _, f := range r.pkg.GetSyntax() {
+		fileScope := r.pkg.GetTypesInfo().Scopes[f]
 		b, prev := fileScope.LookupParent(r.to, token.NoPos)
 		if b == fileScope {
 			r.errorf(from.Pos(), "renaming this %s %q to %q would conflict", objectKind(from), from.Name(), r.to)
@@ -172,18 +179,7 @@ func (r *renamer) checkInPackageBlock(from types.Object) {
 	}
 
 	// Check for conflicts in lexical scope.
-	if from.Exported() {
-		for _, pkg := range r.packages {
-			r.checkInLexicalScope(from, pkg)
-		}
-	} else {
-		r.checkInLexicalScope(from, pkg)
-	}
-}
-
-func (r *renamer) checkInLocalScope(from types.Object) {
-	pkg := r.packages[from.Pkg()]
-	r.checkInLexicalScope(from, pkg)
+	r.checkInLexicalScope(from)
 }
 
 // checkInLexicalScope performs safety checks that a renaming does not
@@ -201,25 +197,24 @@ func (r *renamer) checkInLocalScope(from types.Object) {
 //		print(y)
 //	}
 //
-// Renaming x to z encounters a SAME-BLOCK CONFLICT, because an object
+// Renaming x to z encounters a "same-block conflict", because an object
 // with the new name already exists, defined in the same lexical block
 // as the old object.
 //
-// Renaming x to y encounters a SUB-BLOCK CONFLICT, because there exists
+// Renaming x to y encounters a "sub-block conflict", because there exists
 // a reference to x from within (what would become) a hole in its scope.
 // The definition of y in an (inner) sub-block would cast a shadow in
 // the scope of the renamed variable.
 //
-// Renaming y to x encounters a SUPER-BLOCK CONFLICT.  This is the
+// Renaming y to x encounters a "super-block conflict".  This is the
 // converse situation: there is an existing definition of the new name
 // (x) in an (enclosing) super-block, and the renaming would create a
 // hole in its scope, within which there exist references to it.  The
-// new name casts a shadow in scope of the existing definition of x in
-// the super-block.
+// new name shadows the existing definition of x in the super-block.
 //
 // Removing the old name (and all references to it) is always safe, and
 // requires no checks.
-func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
+func (r *renamer) checkInLexicalScope(from types.Object) {
 	b := from.Parent() // the block defining the 'from' object
 	if b != nil {
 		toBlock, to := b.LookupParent(r.to, from.Parent().End())
@@ -234,7 +229,7 @@ func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
 			// Check for super-block conflict.
 			// The name r.to is defined in a superblock.
 			// Is that name referenced from within this block?
-			forEachLexicalRef(pkg, to, func(id *ast.Ident, block *types.Scope) bool {
+			forEachLexicalRef(r.pkg, to, func(id *ast.Ident, block *types.Scope) bool {
 				_, obj := block.LookupParent(from.Name(), id.Pos())
 				if obj == from {
 					// super-block conflict
@@ -252,7 +247,7 @@ func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
 	// Check for sub-block conflict.
 	// Is there an intervening definition of r.to between
 	// the block defining 'from' and some reference to it?
-	forEachLexicalRef(pkg, from, func(id *ast.Ident, block *types.Scope) bool {
+	forEachLexicalRef(r.pkg, from, func(id *ast.Ident, block *types.Scope) bool {
 		// Find the block that defines the found reference.
 		// It may be an ancestor.
 		fromBlock, _ := block.LookupParent(from.Name(), id.Pos())
@@ -278,9 +273,9 @@ func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
 	// 	var s struct {T}
 	// 	print(s.T) // ...this must change too
 	if _, ok := from.(*types.TypeName); ok {
-		for id, obj := range pkg.GetTypesInfo().Uses {
+		for id, obj := range r.pkg.GetTypesInfo().Uses {
 			if obj == from {
-				if field := pkg.GetTypesInfo().Defs[id]; field != nil {
+				if field := r.pkg.GetTypesInfo().Defs[id]; field != nil {
 					r.check(field)
 				}
 			}
@@ -409,14 +404,11 @@ func (r *renamer) checkStructField(from *types.Var) {
 	// go/types offers no easy way to get from a field (or interface
 	// method) to its declaring struct (or interface), so we must
 	// ascend the AST.
-	fromPkg, ok := r.packages[from.Pkg()]
+	pgf, ok := enclosingFile(r.pkg, from.Pos())
 	if !ok {
-		return
+		return // not declared by syntax of this package
 	}
-	pkg, _, path, _ := pathEnclosingInterval(r.ctx, r.snapshot, fromPkg, from.Pos(), from.Pos())
-	if pkg == nil || path == nil {
-		return
-	}
+	path, _ := astutil.PathEnclosingInterval(pgf.File, from.Pos(), from.Pos())
 	// path matches this pattern:
 	// [Ident SelectorExpr? StarExpr? Field FieldList StructType ParenExpr* ... File]
 
@@ -443,8 +435,8 @@ func (r *renamer) checkStructField(from *types.Var) {
 		// This struct is also a named type.
 		// We must check for direct (non-promoted) field/field
 		// and method/field conflicts.
-		named := pkg.GetTypesInfo().Defs[spec.Name].Type()
-		prev, indices, _ := types.LookupFieldOrMethod(named, true, pkg.GetTypes(), r.to)
+		named := r.pkg.GetTypesInfo().Defs[spec.Name].Type()
+		prev, indices, _ := types.LookupFieldOrMethod(named, true, r.pkg.GetTypes(), r.to)
 		if len(indices) == 1 {
 			r.errorf(from.Pos(), "renaming this field %q to %q",
 				from.Name(), r.to)
@@ -455,7 +447,7 @@ func (r *renamer) checkStructField(from *types.Var) {
 	} else {
 		// This struct is not a named type.
 		// We need only check for direct (non-promoted) field/field conflicts.
-		T := pkg.GetTypesInfo().Types[tStruct].Type.Underlying().(*types.Struct)
+		T := r.pkg.GetTypesInfo().Types[tStruct].Type.Underlying().(*types.Struct)
 		for i := 0; i < T.NumFields(); i++ {
 			if prev := T.Field(i); prev.Name() == r.to {
 				r.errorf(from.Pos(), "renaming this field %q to %q",
@@ -485,7 +477,9 @@ func (r *renamer) checkStructField(from *types.Var) {
 // checkSelections checks that all uses and selections that resolve to
 // the specified object would continue to do so after the renaming.
 func (r *renamer) checkSelections(from types.Object) {
-	for typ, pkg := range r.packages {
+	pkg := r.pkg
+	typ := pkg.GetTypes()
+	{
 		if id := someUse(pkg.GetTypesInfo(), from); id != nil {
 			if !r.checkExport(id, typ, from) {
 				return
@@ -608,9 +602,9 @@ func (r *renamer) checkMethod(from *types.Func) {
 
 		// Check all interfaces that embed this one for
 		// declaration conflicts too.
-		for _, pkg := range r.packages {
+		{
 			// Start with named interface types (better errors)
-			for _, obj := range pkg.GetTypesInfo().Defs {
+			for _, obj := range r.pkg.GetTypesInfo().Defs {
 				if obj, ok := obj.(*types.TypeName); ok && types.IsInterface(obj.Type()) {
 					f, _, _ := types.LookupFieldOrMethod(
 						obj.Type(), false, from.Pkg(), from.Name())
@@ -630,7 +624,7 @@ func (r *renamer) checkMethod(from *types.Func) {
 			}
 
 			// Now look at all literal interface types (includes named ones again).
-			for e, tv := range pkg.GetTypesInfo().Types {
+			for e, tv := range r.pkg.GetTypesInfo().Types {
 				if e, ok := e.(*ast.InterfaceType); ok {
 					_ = e
 					_ = tv.Type.(*types.Interface)
@@ -824,7 +818,8 @@ func (r *renamer) satisfy() map[satisfy.Constraint]bool {
 	if r.satisfyConstraints == nil {
 		// Compute on demand: it's expensive.
 		var f satisfy.Finder
-		for _, pkg := range r.packages {
+		pkg := r.pkg
+		{
 			// From satisfy.Finder documentation:
 			//
 			// The package must be free of type errors, and
@@ -860,63 +855,6 @@ func someUse(info *types.Info, obj types.Object) *ast.Ident {
 		}
 	}
 	return nil
-}
-
-// pathEnclosingInterval returns the Package, token.File, and ast.Node that
-// contain source interval [start, end), and all the node's ancestors
-// up to the AST root.  It searches all ast.Files of all packages.
-// exact is defined as for astutil.PathEnclosingInterval.
-//
-// The zero value is returned if not found.
-//
-// TODO(rfindley): this has some redundancy with FindPackageFromPos, etc. Refactor.
-func pathEnclosingInterval(ctx context.Context, s Snapshot, pkg Package, start, end token.Pos) (resPkg Package, tokFile *token.File, path []ast.Node, exact bool) {
-	pkgs := []Package{pkg}
-	for _, f := range pkg.GetSyntax() {
-		for _, imp := range f.Imports {
-			if imp == nil {
-				continue
-			}
-			importPath := UnquoteImportPath(imp)
-			if importPath == "" {
-				continue
-			}
-			depID, ok := pkg.Metadata().DepsByImpPath[importPath]
-			if !ok {
-				return nil, nil, nil, false
-			}
-			depPkgs, err := s.TypeCheck(ctx, TypecheckWorkspace, depID)
-			if err != nil {
-				return nil, nil, nil, false
-			}
-			pkgs = append(pkgs, depPkgs[0])
-		}
-	}
-	for _, p := range pkgs {
-		for _, f := range p.GetSyntax() {
-			if !f.Pos().IsValid() {
-				// This can happen if the parser saw
-				// too many errors and bailed out.
-				// (Use parser.AllErrors to prevent that.)
-				continue
-			}
-			tokFile := p.FileSet().File(f.Pos())
-			if !tokenFileContainsPos(tokFile, start) {
-				continue
-			}
-			if path, exact := astutil.PathEnclosingInterval(f, start, end); path != nil {
-				return pkg, tokFile, path, exact
-			}
-		}
-	}
-	return nil, nil, nil, false
-}
-
-// TODO(adonovan): make this a method: func (*token.File) Contains(token.Pos)
-func tokenFileContainsPos(tf *token.File, pos token.Pos) bool {
-	p := int(pos)
-	base := tf.Base()
-	return base <= p && p <= base+tf.Size()
 }
 
 func objectKind(obj types.Object) string {

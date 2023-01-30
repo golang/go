@@ -592,7 +592,7 @@ func oldname() {}
 	{
 		res := gopls(t, tree, "rename", "a.go:1:3", "newname")
 		res.checkExit(false)
-		res.checkStderr("no object found")
+		res.checkStderr("no identifier found")
 	}
 	// in 'package' identifier
 	{

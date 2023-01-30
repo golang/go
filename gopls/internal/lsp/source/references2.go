@@ -523,6 +523,8 @@ func effectiveReceiver(obj types.Object) types.Type {
 // Each object is mapped to the syntax node that was treated as an
 // identifier, which is not always an ast.Ident. The second component
 // of the result is the innermost node enclosing pos.
+//
+// TODO(adonovan): factor in common with referencedObject.
 func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Object]ast.Node, ast.Node, error) {
 	path := pathEnclosingObjNode(file, pos)
 	if path == nil {

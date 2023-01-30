@@ -5,6 +5,7 @@
 package misc
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -100,16 +101,11 @@ func main() {
 	fmt.Println("Hello")
 }
 `
-	const wantErr = "no object found"
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("lib/a.go")
 		err := env.Editor.Rename(env.Ctx, env.RegexpSearch("lib/a.go", "fmt"), "fmt1")
-		if err == nil {
-			t.Errorf("missing no object found from Rename")
-		}
-
-		if err.Error() != wantErr {
-			t.Errorf("got %v, want %v", err.Error(), wantErr)
+		if got, want := fmt.Sprint(err), "no identifier found"; got != want {
+			t.Errorf("Rename: got error %v, want %v", got, want)
 		}
 	})
 }
@@ -147,6 +143,8 @@ func main() {
 	})
 }
 
+// This test ensures that each import of a renamed package
+// is also renamed if it would otherwise create a conflict.
 func TestRenamePackageWithConflicts(t *testing.T) {
 	testenv.NeedsGo1Point(t, 17)
 	const files = `
@@ -358,6 +356,7 @@ func main() {
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		env.Rename(env.RegexpSearch("main.go", `stringutil\.(Identity)`), "Identityx")
+		env.OpenFile("stringutil/stringutil_test.go")
 		text := env.BufferText("stringutil/stringutil_test.go")
 		if !strings.Contains(text, "Identityx") {
 			t.Errorf("stringutil/stringutil_test.go: missing expected token `Identityx` after rename:\n%s", text)
