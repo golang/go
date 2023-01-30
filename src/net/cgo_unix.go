@@ -14,6 +14,7 @@ package net
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"syscall"
 	"unsafe"
 
@@ -240,15 +241,11 @@ const (
 )
 
 func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, completed bool) {
-	var zone string
-	ip := parseIPv4(addr)
-	if ip == nil {
-		ip, zone = parseIPv6Zone(addr)
-	}
-	if ip == nil {
+	ip, err := netip.ParseAddr(addr)
+	if err != nil {
 		return nil, &DNSError{Err: "invalid address", Name: addr}, true
 	}
-	sa, salen := cgoSockaddr(ip, zone)
+	sa, salen := cgoSockaddr(IP(ip.AsSlice()), ip.Zone())
 	if sa == nil {
 		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}, true
 	}

@@ -185,7 +185,7 @@ func (r *Resolver) LookupHost(ctx context.Context, host string) (addrs []string,
 	if host == "" {
 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}
-	if ip, _ := parseIPZone(host); ip != nil {
+	if _, err := netip.ParseAddr(host); err == nil {
 		return []string{host}, nil
 	}
 	return r.lookupHost(ctx, host)
@@ -298,8 +298,8 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 	if host == "" {
 		return nil, &DNSError{Err: errNoSuchHost.Error(), Name: host, IsNotFound: true}
 	}
-	if ip, zone := parseIPZone(host); ip != nil {
-		return []IPAddr{{IP: ip, Zone: zone}}, nil
+	if ip, err := netip.ParseAddr(host); err == nil {
+		return []IPAddr{{IP: IP(ip.AsSlice()).To16(), Zone: ip.Zone()}}, nil
 	}
 	trace, _ := ctx.Value(nettrace.TraceKey{}).(*nettrace.Trace)
 	if trace != nil && trace.DNSStart != nil {
