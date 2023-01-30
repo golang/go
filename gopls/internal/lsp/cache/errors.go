@@ -364,7 +364,7 @@ func parseGoListImportCycleError(e packages.Error, pkg *syntaxPackage) (*source.
 		// Search file imports for the import that is causing the import cycle.
 		for _, imp := range pgf.File.Imports {
 			if imp.Path.Value == circImp {
-				rng, err := pgf.PosMappedRange(imp.Pos(), imp.End())
+				rng, err := pgf.NodeMappedRange(imp)
 				if err != nil {
 					return nil, false
 				}

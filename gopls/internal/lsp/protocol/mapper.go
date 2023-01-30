@@ -311,6 +311,15 @@ func (m *Mapper) OffsetPoint(offset int) (span.Point, error) {
 	return span.NewPoint(line+1, col8+1, offset), nil
 }
 
+// OffsetMappedRange returns a MappedRange for the given byte offsets.
+// A MappedRange can be converted to any other form.
+func (m *Mapper) OffsetMappedRange(start, end int) (MappedRange, error) {
+	if !(0 <= start && start <= end && end <= len(m.Content)) {
+		return MappedRange{}, fmt.Errorf("invalid offsets (%d, %d) (file %s has size %d)", start, end, m.URI, len(m.Content))
+	}
+	return MappedRange{m, start, end}, nil
+}
+
 // -- conversions from protocol (UTF-16) domain --
 
 // LocationSpan converts a protocol (UTF-16) Location to a (UTF-8) span.
@@ -432,7 +441,7 @@ func (m *Mapper) PosRange(tf *token.File, start, end token.Pos) (Range, error) {
 	return m.OffsetRange(startOffset, endOffset)
 }
 
-// PosPosition converts a syntax node range to a protocol (UTF-16) range.
+// NodeRange converts a syntax node range to a protocol (UTF-16) range.
 func (m *Mapper) NodeRange(tf *token.File, node ast.Node) (Range, error) {
 	return m.PosRange(tf, node.Pos(), node.End())
 }
@@ -442,16 +451,21 @@ func (m *Mapper) RangeLocation(rng Range) Location {
 	return Location{URI: URIFromSpanURI(m.URI), Range: rng}
 }
 
-// -- MappedRange --
-
-// OffsetMappedRange returns a MappedRange for the given byte offsets.
-// A MappedRange can be converted to any other form.
-func (m *Mapper) OffsetMappedRange(start, end int) (MappedRange, error) {
-	if !(0 <= start && start <= end && end <= len(m.Content)) {
-		return MappedRange{}, fmt.Errorf("invalid offsets (%d, %d) (file %s has size %d)", start, end, m.URI, len(m.Content))
+// PosMappedRange returns a MappedRange for the given token.Pos range.
+func (m *Mapper) PosMappedRange(tf *token.File, start, end token.Pos) (MappedRange, error) {
+	startOffset, endOffset, err := safetoken.Offsets(tf, start, end)
+	if err != nil {
+		return MappedRange{}, nil
 	}
-	return MappedRange{m, start, end}, nil
+	return m.OffsetMappedRange(startOffset, endOffset)
 }
+
+// NodeMappedRange returns a MappedRange for the given node range.
+func (m *Mapper) NodeMappedRange(tf *token.File, node ast.Node) (MappedRange, error) {
+	return m.PosMappedRange(tf, node.Pos(), node.End())
+}
+
+// -- MappedRange --
 
 // A MappedRange represents a valid byte-offset range of a file.
 // Through its Mapper it can be converted into other forms such

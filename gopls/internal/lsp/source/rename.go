@@ -1165,7 +1165,7 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject) (
 				if err != nil {
 					return nil, err
 				}
-				rng, err := pgf.PosMappedRange(ident.Pos(), ident.End())
+				rng, err := pgf.NodeMappedRange(ident)
 				if err != nil {
 					return nil, err
 				}

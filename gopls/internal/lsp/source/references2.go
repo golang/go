@@ -584,7 +584,7 @@ func globalReferences(ctx context.Context, snapshot Snapshot, m *Metadata, targe
 //
 // Safe for use only by references2 and implementations2.
 func mustLocation(pgf *ParsedGoFile, n ast.Node) protocol.Location {
-	loc, err := pgf.PosLocation(n.Pos(), n.End())
+	loc, err := pgf.NodeLocation(n)
 	if err != nil {
 		panic(err) // can't happen in references2 or implementations2
 	}

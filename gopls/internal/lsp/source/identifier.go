@@ -122,11 +122,11 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 				decl = pgf
 			}
 		}
-		pkgRng, err := pgf.PosMappedRange(file.Name.Pos(), file.Name.End())
+		pkgRng, err := pgf.NodeMappedRange(file.Name)
 		if err != nil {
 			return nil, err
 		}
-		declRng, err := decl.PosMappedRange(decl.File.Name.Pos(), decl.File.Name.End())
+		declRng, err := decl.NodeMappedRange(decl.File.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +496,7 @@ func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Parsed
 			}
 			continue
 		}
-		rng, err := pgf.PosMappedRange(pgf.File.Pos(), pgf.File.End())
+		rng, err := pgf.NodeMappedRange(pgf.File)
 		if err != nil {
 			return nil, err
 		}
