@@ -208,7 +208,10 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Uintptr).Load",
 			"(*Uintptr).Store",
 			"(*Uintptr).Swap",
-			// (*Pointer[T])'s methods' handled below.
+			"(*Pointer[go.shape.int]).CompareAndSwap",
+			"(*Pointer[go.shape.int]).Load",
+			"(*Pointer[go.shape.int]).Store",
+			"(*Pointer[go.shape.int]).Swap",
 		},
 	}
 
@@ -233,14 +236,6 @@ func TestIntendedInlining(t *testing.T) {
 		want["runtime"] = append(want["runtime"], "mix")
 		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
 		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
-	}
-	if true /* was buildcfg.Experiment.Unified */ {
-		// Non-unified IR does not report "inlining call ..." for atomic.Pointer[T]'s methods.
-		// TODO(cuonglm): remove once non-unified IR frontend gone.
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).CompareAndSwap")
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Load")
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Store")
-		want["sync/atomic"] = append(want["sync/atomic"], "(*Pointer[go.shape.int]).Swap")
 	}
 
 	switch runtime.GOARCH {
