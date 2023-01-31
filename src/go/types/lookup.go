@@ -401,7 +401,8 @@ func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
 
 		altS, mS := check.funcString(alt, false), check.funcString(m, false)
 		if altS == mS {
-			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.  See #54258.
+			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.
+			// See go.dev/issue/54258.
 			altS, mS = check.funcString(alt, true), check.funcString(m, true)
 		}
 

@@ -192,7 +192,7 @@ func TestStdFixed(t *testing.T) {
 		"issue22200b.go", // go/types does not have constraints on stack size
 		"issue25507.go",  // go/types does not have constraints on stack size
 		"issue20780.go",  // go/types does not have constraints on stack size
-		"bug251.go",      // go.dev/issue/34333 which was exposed with fix for #34151
+		"bug251.go",      // go.dev/issue/34333 which was exposed with fix for go.dev/issue/34151
 		"issue42058a.go", // go/types does not have constraints on channel element size
 		"issue42058b.go", // go/types does not have constraints on channel element size
 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
@@ -224,7 +224,7 @@ func TestStdKen(t *testing.T) {
 var excluded = map[string]bool{
 	"builtin": true,
 
-	// See #46027: some imports are missing for this submodule.
+	// See go.dev/issue/46027: some imports are missing for this submodule.
 	"crypto/internal/edwards25519/field/_asm": true,
 	"crypto/internal/bigmod/_asm":             true,
 }

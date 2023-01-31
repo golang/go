@@ -16,7 +16,7 @@ import (
 
 const (
 	// Upper limit for recursion depth. Used to catch infinite recursions
-	// due to implementation issues (e.g., see issues #48619, #48656).
+	// due to implementation issues (e.g., see issues go.dev/issue/48619, go.dev/issue/48656).
 	unificationDepthLimit = 50
 
 	// Whether to panic when unificationDepthLimit is reached.

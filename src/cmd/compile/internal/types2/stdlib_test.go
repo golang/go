@@ -222,7 +222,7 @@ func TestStdKen(t *testing.T) {
 var excluded = map[string]bool{
 	"builtin": true,
 
-	// See #46027: some imports are missing for this submodule.
+	// go.dev/issue/46027: some imports are missing for this submodule.
 	"crypto/internal/edwards25519/field/_asm": true,
 	"crypto/internal/bigmod/_asm":             true,
 }

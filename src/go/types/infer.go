@@ -507,7 +507,7 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 					// For instance, given [P T1|T2, ...] where the type argument for P is (named
 					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
 					// type, the core type will be the named type T0, which doesn't match T1.
-					// Yet the instantiation of P with T1 is clearly valid (see #53650).
+					// Yet the instantiation of P with T1 is clearly valid (see go.dev/issue/53650).
 					// Reporting an error if unification fails would be incorrect in this case.
 					// On the other hand, it is safe to ignore failing unification during constraint
 					// type inference because if the failure is true, an error will be reported when

@@ -796,7 +796,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 			}
 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
 			// TODO(mdempsky): Just use clause.Colon? Why did I even suggest
-			// "at the end of the TypeSwitchCase" in #16794 instead?
+			// "at the end of the TypeSwitchCase" in go.dev/issue/16794 instead?
 			scopePos := clause.Pos() // for default clause (len(List) == 0)
 			if n := len(cases); n > 0 {
 				scopePos = syntax.EndPos(cases[n-1])

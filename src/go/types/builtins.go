@@ -946,7 +946,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 
 		// We can type-check this fine but we're introducing a synthetic
 		// type parameter for the result. It's not clear what the API
-		// implications are here. Report an error for 1.18 (see #50912),
+		// implications are here. Report an error for 1.18 (see go.dev/issue/50912),
 		// but continue type-checking.
 		var code Code
 		switch id {

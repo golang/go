@@ -960,7 +960,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 
 		if isUntyped(y.typ) {
 			// Caution: Check for representability here, rather than in the switch
-			// below, because isInteger includes untyped integers (was bug #43697).
+			// below, because isInteger includes untyped integers (was bug go.dev/issue/43697).
 			check.representable(y, Typ[Uint])
 			if y.mode == invalid {
 				x.mode = invalid
@@ -978,7 +978,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 			}
 		case isUntyped(y.typ):
 			// This is incorrect, but preserves pre-existing behavior.
-			// See also bug #47410.
+			// See also go.dev/issue/47410.
 			check.convertUntyped(y, Typ[Uint])
 			if y.mode == invalid {
 				x.mode = invalid
@@ -1355,11 +1355,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 				// init expression/func declaration which contains
 				// them: use existing package-level declaration info.
 				decl := check.decl // capture for use in closure below
-				iota := check.iota // capture for use in closure below (#22345)
+				iota := check.iota // capture for use in closure below (go.dev/issue/22345)
 				// Don't type-check right away because the function may
 				// be part of a type definition to which the function
 				// body refers. Instead, type-check as soon as possible,
-				// but before the enclosing scope contents changes (#22992).
+				// but before the enclosing scope contents changes (go.dev/issue/22992).
 				check.later(func() {
 					check.funcBody(decl, "<function literal>", sig, e.Body, iota)
 				}).describef(e, "func literal")
