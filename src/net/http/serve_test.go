@@ -4562,7 +4562,11 @@ func testServerEmptyBodyRace(t *testing.T, mode testMode) {
 			if err != nil {
 				// Try to deflake spurious "connection reset by peer" under load.
 				// See golang.org/issue/22540.
-				time.Sleep(10 * time.Millisecond)
+				deflake := 10 * time.Millisecond
+				if runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+					deflake = 100 * time.Millisecond
+				}
+				time.Sleep(deflake)
 				res, err = cst.c.Get(cst.ts.URL)
 				if err != nil {
 					t.Error(err)
