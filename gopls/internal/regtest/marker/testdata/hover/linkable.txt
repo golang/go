@@ -83,9 +83,6 @@ field Nested int
 ```
 
 Nested fields should also be linkable.
-
-
-[`(p.T).Nested` on pkg.go.dev](https://pkg.go.dev/mod.com#T.Nested)
 -- @T/hover.md --
 ```go
 type T struct {

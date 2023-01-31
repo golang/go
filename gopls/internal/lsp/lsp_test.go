@@ -976,7 +976,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 			return []byte(err.Error()), nil
 		}))
 		if err.Error() != renamed {
-			t.Errorf("rename failed for %s, expected:\n%v\ngot:\n%v\n", newText, renamed, err)
+			t.Errorf("%s: rename failed for %s, expected:\n%v\ngot:\n%v\n", spn, newText, renamed, err)
 		}
 		return
 	}

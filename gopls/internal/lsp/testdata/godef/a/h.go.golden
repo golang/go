@@ -51,6 +51,9 @@ X key field
 ```go
 field y string
 ```
+
+Y key field
+
 -- mapStructValueX-hoverdef --
 ```go
 field x string

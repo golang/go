@@ -59,7 +59,7 @@ func Definition(ctx context.Context, snapshot Snapshot, fh FileHandle, position 
 	}
 
 	// The general case: the cursor is on an identifier.
-	obj := referencedObject(pkg, pgf, pos)
+	_, obj, _ := referencedObject(pkg, pgf, pos)
 	if obj == nil {
 		return nil, nil
 	}
@@ -102,38 +102,46 @@ func Definition(ctx context.Context, snapshot Snapshot, fh FileHandle, position 
 	return locs, nil
 }
 
-// referencedObject returns the object referenced at the specified position,
-// which must be within the file pgf, for the purposes of definition/hover/call
-// hierarchy operations. It may return nil if no object was found at the given
-// position.
+// referencedObject returns the identifier and object referenced at the
+// specified position, which must be within the file pgf, for the purposes of
+// definition/hover/call hierarchy operations. It returns a nil object if no
+// object was found at the given position.
 //
-// It differs from types.Info.ObjectOf in several ways:
-//   - It adjusts positions to do a better job of finding associated
-//     identifiers. For example it finds 'foo' from the cursor position _*foo
-//   - It handles type switch implicits, choosing the first one.
-//   - For embedded fields, it returns the type name object rather than the var
-//     (field) object.
+// If the returned identifier is a type-switch implicit (i.e. the x in x :=
+// e.(type)), the third result will be the type of the expression being
+// switched on (the type of e in the example). This facilitates workarounds for
+// limitations of the go/types API, which does not report an object for the
+// identifier x.
+//
+// For embedded fields, referencedObject returns the type name object rather
+// than the var (field) object.
 //
 // TODO(rfindley): this function exists to preserve the pre-existing behavior
 // of source.Identifier. Eliminate this helper in favor of sharing
 // functionality with objectsAt, after choosing suitable primitives.
-func referencedObject(pkg Package, pgf *ParsedGoFile, pos token.Pos) types.Object {
+func referencedObject(pkg Package, pgf *ParsedGoFile, pos token.Pos) (*ast.Ident, types.Object, types.Type) {
 	path := pathEnclosingObjNode(pgf.File, pos)
 	if len(path) == 0 {
-		return nil
+		return nil, nil, nil
 	}
 	var obj types.Object
 	info := pkg.GetTypesInfo()
 	switch n := path[0].(type) {
 	case *ast.Ident:
-		// If leaf represents an implicit type switch object or the type
-		// switch "assign" variable, expand to all of the type switch's
-		// implicit objects.
-		if implicits, _ := typeSwitchImplicits(info, path); len(implicits) > 0 {
-			obj = implicits[0]
-		} else {
-			obj = info.ObjectOf(n)
+		obj = info.ObjectOf(n)
+		// If n is the var's declaring ident in a type switch
+		// [i.e. the x in x := foo.(type)], it will not have an object. In this
+		// case, set obj to the first implicit object (if any), and return the type
+		// of the expression being switched on.
+		//
+		// The type switch may have no case clauses and thus no
+		// implicit objects; this is a type error ("unused x"),
+		if obj == nil {
+			if implicits, typ := typeSwitchImplicits(info, path); len(implicits) > 0 {
+				return n, implicits[0], typ
+			}
 		}
+
 		// If the original position was an embedded field, we want to jump
 		// to the field's type definition, not the field's definition.
 		if v, ok := obj.(*types.Var); ok && v.Embedded() {
@@ -142,8 +150,9 @@ func referencedObject(pkg Package, pgf *ParsedGoFile, pos token.Pos) types.Objec
 				obj = typeName
 			}
 		}
+		return n, obj, nil
 	}
-	return obj
+	return nil, nil, nil
 }
 
 // importDefinition returns locations defining a package referenced by the

@@ -7,7 +7,6 @@ package source
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -21,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/text/unicode/runenames"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
@@ -29,20 +29,6 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/typeparams"
 )
-
-// HoverContext contains context extracted from the syntax and type information
-// of a given node, for use in various summaries (hover, autocomplete,
-// signature help).
-type HoverContext struct {
-	// signatureSource is the object or node use to derive the hover signature.
-	//
-	// It may also hold a precomputed string.
-	// TODO(rfindley): pre-compute all signatures to avoid this indirection.
-	signatureSource interface{}
-
-	// comment is the most relevant comment group associated with the hovered object.
-	Comment *ast.CommentGroup
-}
 
 // HoverJSON contains information used by hover. It is also the JSON returned
 // for the "structured" hover format
@@ -60,7 +46,7 @@ type HoverJSON struct {
 	// This is recommended only for use in clients that show a single line for hover.
 	SingleLine string `json:"singleLine"`
 
-	// SymbolName is the types.Object.Name for the given symbol.
+	// SymbolName is the human-readable name to use for the symbol in links.
 	SymbolName string `json:"symbolName"`
 
 	// LinkPath is the pkg.go.dev link for the given symbol.
@@ -72,17 +58,17 @@ type HoverJSON struct {
 	LinkAnchor string `json:"linkAnchor"`
 }
 
+// Hover implements the "textDocument/hover" RPC for Go files.
 func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*protocol.Hover, error) {
-	ident, err := Identifier(ctx, snapshot, fh, position)
-	if err != nil {
-		if hover, innerErr := hoverRune(ctx, snapshot, fh, position); innerErr == nil {
-			return hover, nil
-		}
-		return nil, nil
-	}
-	h, err := hoverIdentifier(ctx, ident)
+	ctx, done := event.Start(ctx, "source.Hover")
+	defer done()
+
+	rng, h, err := hover(ctx, snapshot, fh, position)
 	if err != nil {
 		return nil, err
+	}
+	if h == nil {
+		return nil, nil
 	}
 	hover, err := formatHover(h, snapshot.View().Options())
 	if err != nil {
@@ -93,17 +79,483 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 			Kind:  snapshot.View().Options().PreferredContentFormat,
 			Value: hover,
 		},
-		Range: ident.MappedRange.Range(),
+		Range: rng,
 	}, nil
 }
 
-func hoverRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*protocol.Hover, error) {
-	ctx, done := event.Start(ctx, "source.hoverRune")
-	defer done()
+// hover computes hover information at the given position. If we do not support
+// hovering at the position, it returns _, nil, nil: an error is only returned
+// if the position is valid but we fail to compute hover information.
+func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Position) (protocol.Range, *HoverJSON, error) {
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
+	if err != nil {
+		return protocol.Range{}, nil, err
+	}
+	pos, err := pgf.PositionPos(pp)
+	if err != nil {
+		return protocol.Range{}, nil, err
+	}
 
-	r, rng, err := findRune(ctx, snapshot, fh, position)
+	// Handle hovering over import paths, which do not have an associated
+	// identifier.
+	for _, spec := range pgf.File.Imports {
+		// We are inclusive of the end point here to allow hovering when the cursor
+		// is just after the import path.
+		if spec.Path.Pos() <= pos && pos <= spec.Path.End() {
+			return hoverImport(ctx, snapshot, pkg, pgf, spec)
+		}
+	}
+
+	// Handle hovering over the package name, which does not have an associated
+	// object.
+	// As with import paths, we allow hovering just after the package name.
+	if pgf.File.Name != nil && pgf.File.Name.Pos() <= pos && pos <= pgf.File.Name.Pos() {
+		return hoverPackageName(pkg, pgf)
+	}
+
+	// Handle hovering over (non-import-path) literals.
+	if path, _ := astutil.PathEnclosingInterval(pgf.File, pos, pos); len(path) > 0 {
+		if lit, _ := path[0].(*ast.BasicLit); lit != nil {
+			return hoverLit(pgf, lit, pos)
+		}
+	}
+
+	// The general case: compute hover information for the object referenced by
+	// the identifier at pos.
+	ident, obj, selectedType := referencedObject(pkg, pgf, pos)
+	if obj == nil || ident == nil {
+		return protocol.Range{}, nil, nil // no object to hover
+	}
+
+	rng, err := pgf.NodeRange(ident)
+	if err != nil {
+		return protocol.Range{}, nil, err
+	}
+
+	// By convention, we qualify hover information relative to the package
+	// from which the request originated.
+	qf := Qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo())
+
+	// Handle type switch identifiers as a special case, since they don't have an
+	// object.
+	//
+	// There's not much useful information to provide.
+	if selectedType != nil {
+		fakeObj := types.NewVar(obj.Pos(), obj.Pkg(), obj.Name(), selectedType)
+		signature := objectString(fakeObj, qf, nil)
+		return rng, &HoverJSON{
+			Signature:  signature,
+			SingleLine: signature,
+			SymbolName: fakeObj.Name(),
+		}, nil
+	}
+
+	// Handle builtins, which don't have a package or position.
+	if obj.Pkg() == nil {
+		h, err := hoverBuiltin(ctx, snapshot, obj)
+		return rng, h, err
+	}
+
+	// For all other objects, consider the full syntax of their declaration in
+	// order to correctly compute their documentation, signature, and link.
+	declPGF, declPos, err := parseFull(ctx, snapshot, pkg, obj.Pos())
+	if err != nil {
+		return protocol.Range{}, nil, fmt.Errorf("re-parsing declaration of %s: %v", obj.Name(), err)
+	}
+	decl, spec, field := findDeclInfo([]*ast.File{declPGF.File}, declPos)
+	comment := chooseDocComment(decl, spec, field)
+	docText := comment.Text()
+
+	// By default, types.ObjectString provides a reasonable signature.
+	signature := objectString(obj, qf, nil)
+	// TODO(rfindley): we could do much better for inferred signatures.
+	if inferred := inferredSignature(pkg.GetTypesInfo(), ident); inferred != nil {
+		signature = objectString(obj, qf, inferred)
+	}
+
+	// For "objects defined by a type spec", the signature produced by
+	// objectString is insufficient:
+	//  (1) large structs are formatted poorly, with no newlines
+	//  (2) we lose inline comments
+	//
+	// Furthermore, we include a summary of their method set.
+	//
+	// TODO(rfindley): this should use FormatVarType to get proper qualification
+	// of identifiers, and we should revisit the formatting of method set.
+	_, isTypeName := obj.(*types.TypeName)
+	_, isTypeParam := obj.Type().(*typeparams.TypeParam)
+	if isTypeName && !isTypeParam {
+		spec, ok := spec.(*ast.TypeSpec)
+		if !ok {
+			return protocol.Range{}, nil, bug.Errorf("type name %q without type spec", obj.Name())
+		}
+		spec2 := *spec
+		// Don't duplicate comments when formatting type specs.
+		spec2.Doc = nil
+		spec2.Comment = nil
+		var b strings.Builder
+		b.WriteString("type ")
+		fset := SingletonFileSet(declPGF.Tok)
+		if err := format.Node(&b, fset, &spec2); err != nil {
+			return protocol.Range{}, nil, err
+		}
+
+		// Display the declared methods accessible from the identifier.
+		//
+		// (The format.Node call above displays any struct fields, public
+		// or private, in syntactic form. We choose not to recursively
+		// enumerate any fields and methods promoted from them.)
+		if !types.IsInterface(obj.Type()) {
+			sep := "\n\n"
+			for _, m := range typeutil.IntuitiveMethodSet(obj.Type(), nil) {
+				// Show direct methods that are either exported, or defined in the
+				// current package.
+				if (m.Obj().Exported() || m.Obj().Pkg() == pkg.GetTypes()) && len(m.Index()) == 1 {
+					b.WriteString(sep)
+					sep = "\n"
+					b.WriteString(objectString(m.Obj(), qf, nil))
+				}
+			}
+		}
+		signature = b.String()
+	}
+
+	// Compute link data (on pkg.go.dev or other documentation host).
+	//
+	// If linkPath is empty, the symbol is not linkable.
+	var (
+		linkName string    // => link title, always non-empty
+		linkPath string    // => link path
+		anchor   string    // link anchor
+		linkMeta *Metadata // metadata for the linked package
+	)
+	{
+		linkMeta = findFileInDeps(snapshot, pkg.Metadata(), declPGF.URI)
+		if linkMeta == nil {
+			return protocol.Range{}, nil, bug.Errorf("no metadata for %s", declPGF.URI)
+		}
+
+		// For package names, we simply link to their imported package.
+		if pkgName, ok := obj.(*types.PkgName); ok {
+			linkName = pkgName.Name()
+			linkPath = pkgName.Imported().Path()
+			impID := linkMeta.DepsByPkgPath[PackagePath(pkgName.Imported().Path())]
+			linkMeta = snapshot.Metadata(impID)
+			if linkMeta == nil {
+				return protocol.Range{}, nil, bug.Errorf("no metadata for %s", declPGF.URI)
+			}
+		} else {
+			// For all others, check whether the object is in the package scope, or
+			// an exported field or method of an object in the package scope.
+			//
+			// We try to match pkgsite's heuristics for what is linkable, and what is
+			// not.
+			var recv types.Object
+			switch obj := obj.(type) {
+			case *types.Func:
+				sig := obj.Type().(*types.Signature)
+				if sig.Recv() != nil {
+					tname := typeToObject(sig.Recv().Type())
+					if tname != nil { // beware typed nil
+						recv = tname
+					}
+				}
+			case *types.Var:
+				if obj.IsField() {
+					if spec, ok := spec.(*ast.TypeSpec); ok {
+						typeName := spec.Name
+						scopeObj, _ := obj.Pkg().Scope().Lookup(typeName.Name).(*types.TypeName)
+						if scopeObj != nil {
+							if st, _ := scopeObj.Type().Underlying().(*types.Struct); st != nil {
+								for i := 0; i < st.NumFields(); i++ {
+									if obj == st.Field(i) {
+										recv = scopeObj
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Even if the object is not available in package documentation, it may
+			// be embedded in a documented receiver. Detect this by searching
+			// enclosing selector expressions.
+			//
+			// TODO(rfindley): pkgsite doesn't document fields from embedding, just
+			// methods.
+			if recv == nil || !recv.Exported() {
+				path := pathEnclosingObjNode(pgf.File, pos)
+				if enclosing := searchForEnclosing(pkg.GetTypesInfo(), path); enclosing != nil {
+					recv = enclosing
+				} else {
+					recv = nil // note: just recv = ... could result in a typed nil.
+				}
+			}
+
+			pkg := obj.Pkg()
+			if recv != nil {
+				linkName = fmt.Sprintf("(%s.%s).%s", pkg.Name(), recv.Name(), obj.Name())
+				if obj.Exported() && recv.Exported() && pkg.Scope().Lookup(recv.Name()) == recv {
+					linkPath = pkg.Path()
+					anchor = fmt.Sprintf("%s.%s", recv.Name(), obj.Name())
+				}
+			} else {
+				linkName = fmt.Sprintf("%s.%s", pkg.Name(), obj.Name())
+				if obj.Exported() && pkg.Scope().Lookup(obj.Name()) == obj {
+					linkPath = pkg.Path()
+					anchor = obj.Name()
+				}
+			}
+		}
+	}
+
+	if snapshot.View().IsGoPrivatePath(linkPath) || linkMeta.ForTest != "" {
+		linkPath = ""
+	} else if linkMeta.Module != nil && linkMeta.Module.Version != "" {
+		mod := linkMeta.Module
+		linkPath = strings.Replace(linkPath, mod.Path, mod.Path+"@"+mod.Version, 1)
+	}
+
+	return rng, &HoverJSON{
+		Synopsis:          doc.Synopsis(docText),
+		FullDocumentation: docText,
+		SingleLine:        objectString(obj, qf, nil),
+		SymbolName:        linkName,
+		Signature:         signature,
+		LinkPath:          linkPath,
+		LinkAnchor:        anchor,
+	}, nil
+}
+
+// hoverBuiltin computes hover information when hovering over a builtin
+// identifier.
+func hoverBuiltin(ctx context.Context, snapshot Snapshot, obj types.Object) (*HoverJSON, error) {
+	// TODO(rfindley): link to the correct version of Go documentation.
+	builtin, err := snapshot.BuiltinFile(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	// TODO(rfindley): add a test for jump to definition of error.Error (which is
+	// probably failing, considering it lacks special handling).
+	if obj.Name() == "Error" {
+		signature := obj.String()
+		return &HoverJSON{
+			Signature:  signature,
+			SingleLine: signature,
+			// TODO(rfindley): these are better than the current behavior.
+			// SymbolName: "(error).Error",
+			// LinkPath:   "builtin",
+			// LinkAnchor: "error.Error",
+		}, nil
+	}
+
+	builtinObj := builtin.File.Scope.Lookup(obj.Name())
+	if builtinObj == nil {
+		// All builtins should have a declaration in the builtin file.
+		return nil, bug.Errorf("no builtin object for %s", obj.Name())
+	}
+	node, _ := builtinObj.Decl.(ast.Node)
+	if node == nil {
+		return nil, bug.Errorf("no declaration for %s", obj.Name())
+	}
+
+	var comment *ast.CommentGroup
+	path, _ := astutil.PathEnclosingInterval(builtin.File, node.Pos(), node.End())
+	for _, n := range path {
+		switch n := n.(type) {
+		case *ast.GenDecl:
+			// Separate documentation and signature.
+			comment = n.Doc
+			node2 := *n
+			node2.Doc = nil
+			node = &node2
+		case *ast.FuncDecl:
+			// Ditto.
+			comment = n.Doc
+			node2 := *n
+			node2.Doc = nil
+			node = &node2
+		}
+	}
+
+	signature := FormatNodeFile(builtin.Tok, node)
+	// Replace fake types with their common equivalent.
+	// TODO(rfindley): we should instead use obj.Type(), which would have the
+	// *actual* types of the builtin call.
+	signature = replacer.Replace(signature)
+
+	docText := comment.Text()
+	return &HoverJSON{
+		Synopsis:          doc.Synopsis(docText),
+		FullDocumentation: docText,
+		Signature:         signature,
+		SingleLine:        obj.String(),
+		SymbolName:        obj.Name(),
+		LinkPath:          "builtin",
+		LinkAnchor:        obj.Name(),
+	}, nil
+}
+
+// hoverImport computes hover information when hovering over the import path of
+// imp in the file pgf of pkg.
+//
+// If we do not have metadata for the hovered import, it returns _
+func hoverImport(ctx context.Context, snapshot Snapshot, pkg Package, pgf *ParsedGoFile, imp *ast.ImportSpec) (protocol.Range, *HoverJSON, error) {
+	rng, err := pgf.NodeRange(imp.Path)
+	if err != nil {
+		return protocol.Range{}, nil, err
+	}
+
+	importPath := UnquoteImportPath(imp)
+	if importPath == "" {
+		return protocol.Range{}, nil, fmt.Errorf("invalid import path")
+	}
+	impID := pkg.Metadata().DepsByImpPath[importPath]
+	if impID == "" {
+		return protocol.Range{}, nil, fmt.Errorf("no package data for import %q", importPath)
+	}
+	impMetadata := snapshot.Metadata(impID)
+	if impMetadata == nil {
+		return protocol.Range{}, nil, bug.Errorf("failed to resolve import ID %q", impID)
+	}
+
+	// Find the first file with a package doc comment.
+	var comment *ast.CommentGroup
+	for _, f := range impMetadata.CompiledGoFiles {
+		fh, err := snapshot.GetFile(ctx, f)
+		if err != nil {
+			if ctx.Err() != nil {
+				return protocol.Range{}, nil, ctx.Err()
+			}
+			continue
+		}
+		pgf, err := snapshot.ParseGo(ctx, fh, ParseHeader)
+		if err != nil {
+			if ctx.Err() != nil {
+				return protocol.Range{}, nil, ctx.Err()
+			}
+			continue
+		}
+		if pgf.File.Doc != nil {
+			comment = pgf.File.Doc
+			break
+		}
+	}
+
+	docText := comment.Text()
+	return rng, &HoverJSON{
+		Synopsis:          doc.Synopsis(docText),
+		FullDocumentation: docText,
+	}, nil
+}
+
+// hoverPackageName computes hover information for the package name of the file
+// pgf in pkg.
+func hoverPackageName(pkg Package, pgf *ParsedGoFile) (protocol.Range, *HoverJSON, error) {
+	var comment *ast.CommentGroup
+	for _, pgf := range pkg.CompiledGoFiles() {
+		if pgf.File.Doc != nil {
+			comment = pgf.File.Doc
+			break
+		}
+	}
+	rng, err := pgf.NodeRange(pgf.File.Name)
+	if err != nil {
+		return protocol.Range{}, nil, err
+	}
+	docText := comment.Text()
+	return rng, &HoverJSON{
+		Synopsis:          doc.Synopsis(docText),
+		FullDocumentation: docText,
+		// Note: including a signature is redundant, since the cursor is already on the
+		// package name.
+	}, nil
+}
+
+// hoverLit computes hover information when hovering over the basic literal lit
+// in the file pgf. The provided pos must be the exact position of the cursor,
+// as it is used to extract the hovered rune in strings.
+//
+// For example, hovering over "\u2211" in "foo \u2211 bar" yields:
+//
+//	'∑', U+2211, N-ARY SUMMATION
+func hoverLit(pgf *ParsedGoFile, lit *ast.BasicLit, pos token.Pos) (protocol.Range, *HoverJSON, error) {
+	var r rune
+	var start, end token.Pos
+	// Extract a rune from the current position.
+	// 'Ω', "...Ω...", or 0x03A9 => 'Ω', U+03A9, GREEK CAPITAL LETTER OMEGA
+	switch lit.Kind {
+	case token.CHAR:
+		s, err := strconv.Unquote(lit.Value)
+		if err != nil {
+			// If the conversion fails, it's because of an invalid syntax, therefore
+			// there is no rune to be found.
+			return protocol.Range{}, nil, nil
+		}
+		r, _ = utf8.DecodeRuneInString(s)
+		if r == utf8.RuneError {
+			return protocol.Range{}, nil, fmt.Errorf("rune error")
+		}
+		start, end = lit.Pos(), lit.End()
+	case token.INT:
+		// TODO(rfindley): add support for hex/octal/binary->int conversion here.
+
+		// It's an integer, scan only if it is a hex literal whose bitsize in
+		// ranging from 8 to 32.
+		if !(strings.HasPrefix(lit.Value, "0x") && len(lit.Value[2:]) >= 2 && len(lit.Value[2:]) <= 8) {
+			return protocol.Range{}, nil, nil
+		}
+		v, err := strconv.ParseUint(lit.Value[2:], 16, 32)
+		if err != nil {
+			return protocol.Range{}, nil, fmt.Errorf("parsing int: %v", err)
+		}
+		r = rune(v)
+		if r == utf8.RuneError {
+			return protocol.Range{}, nil, fmt.Errorf("rune error")
+		}
+		start, end = lit.Pos(), lit.End()
+	case token.STRING:
+		// It's a string, scan only if it contains a unicode escape sequence under or before the
+		// current cursor position.
+		litOffset, err := safetoken.Offset(pgf.Tok, lit.Pos())
+		if err != nil {
+			return protocol.Range{}, nil, err
+		}
+		offset, err := safetoken.Offset(pgf.Tok, pos)
+		if err != nil {
+			return protocol.Range{}, nil, err
+		}
+		for i := offset - litOffset; i > 0; i-- {
+			// Start at the cursor position and search backward for the beginning of a rune escape sequence.
+			rr, _ := utf8.DecodeRuneInString(lit.Value[i:])
+			if rr == utf8.RuneError {
+				return protocol.Range{}, nil, fmt.Errorf("rune error")
+			}
+			if rr == '\\' {
+				// Got the beginning, decode it.
+				var tail string
+				r, _, tail, err = strconv.UnquoteChar(lit.Value[i:], '"')
+				if err != nil {
+					// If the conversion fails, it's because of an invalid syntax,
+					// therefore is no rune to be found.
+					return protocol.Range{}, nil, nil
+				}
+				// Only the rune escape sequence part of the string has to be highlighted, recompute the range.
+				runeLen := len(lit.Value) - (int(i) + len(tail))
+				start = token.Pos(int(lit.Pos()) + int(i))
+				end = token.Pos(int(start) + runeLen)
+				break
+			}
+		}
+	}
+	if r == 0 {
+		return protocol.Range{}, nil, nil
+	}
+	rng, err := pgf.PosRange(start, end)
+	if err != nil {
+		return protocol.Range{}, nil, err
 	}
 
 	var desc string
@@ -118,354 +570,19 @@ func hoverRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position p
 	} else {
 		desc = fmt.Sprintf("U+%04X, %s", uint32(r), runeName)
 	}
-	return &protocol.Hover{
-		Contents: protocol.MarkupContent{
-			Kind:  snapshot.View().Options().PreferredContentFormat,
-			Value: desc,
-		},
-		Range: rng,
+	return rng, &HoverJSON{
+		Synopsis:          desc,
+		FullDocumentation: desc,
 	}, nil
-}
-
-// ErrNoRuneFound is the error returned when no rune is found at a particular position.
-var ErrNoRuneFound = errors.New("no rune found")
-
-// findRune returns rune information for a position in a file.
-func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (rune, protocol.Range, error) {
-	fh, err := snapshot.GetFile(ctx, fh.URI())
-	if err != nil {
-		return 0, protocol.Range{}, err
-	}
-	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
-	if err != nil {
-		return 0, protocol.Range{}, err
-	}
-	pos, err := pgf.PositionPos(position)
-	if err != nil {
-		return 0, protocol.Range{}, err
-	}
-
-	// Find the basic literal enclosing the given position, if there is one.
-	var lit *ast.BasicLit
-	ast.Inspect(pgf.File, func(n ast.Node) bool {
-		if n == nil || // pop
-			lit != nil || // found: terminate the search
-			!(n.Pos() <= pos && pos < n.End()) { // subtree does not contain pos: skip
-			return false
-		}
-		if n, ok := n.(*ast.BasicLit); ok {
-			lit = n // found!
-		}
-		return lit == nil // descend unless target is found
-	})
-	if lit == nil {
-		return 0, protocol.Range{}, ErrNoRuneFound
-	}
-
-	var r rune
-	var start, end token.Pos
-	switch lit.Kind {
-	case token.CHAR:
-		s, err := strconv.Unquote(lit.Value)
-		if err != nil {
-			// If the conversion fails, it's because of an invalid syntax, therefore
-			// there is no rune to be found.
-			return 0, protocol.Range{}, ErrNoRuneFound
-		}
-		r, _ = utf8.DecodeRuneInString(s)
-		if r == utf8.RuneError {
-			return 0, protocol.Range{}, fmt.Errorf("rune error")
-		}
-		start, end = lit.Pos(), lit.End()
-	case token.INT:
-		// It's an integer, scan only if it is a hex literal whose bitsize in
-		// ranging from 8 to 32.
-		if !(strings.HasPrefix(lit.Value, "0x") && len(lit.Value[2:]) >= 2 && len(lit.Value[2:]) <= 8) {
-			return 0, protocol.Range{}, ErrNoRuneFound
-		}
-		v, err := strconv.ParseUint(lit.Value[2:], 16, 32)
-		if err != nil {
-			return 0, protocol.Range{}, err
-		}
-		r = rune(v)
-		if r == utf8.RuneError {
-			return 0, protocol.Range{}, fmt.Errorf("rune error")
-		}
-		start, end = lit.Pos(), lit.End()
-	case token.STRING:
-		// It's a string, scan only if it contains a unicode escape sequence under or before the
-		// current cursor position.
-		var found bool
-		litOffset, err := safetoken.Offset(pgf.Tok, lit.Pos())
-		if err != nil {
-			return 0, protocol.Range{}, err
-		}
-		offset, err := safetoken.Offset(pgf.Tok, pos)
-		if err != nil {
-			return 0, protocol.Range{}, err
-		}
-		for i := offset - litOffset; i > 0; i-- {
-			// Start at the cursor position and search backward for the beginning of a rune escape sequence.
-			rr, _ := utf8.DecodeRuneInString(lit.Value[i:])
-			if rr == utf8.RuneError {
-				return 0, protocol.Range{}, fmt.Errorf("rune error")
-			}
-			if rr == '\\' {
-				// Got the beginning, decode it.
-				var tail string
-				r, _, tail, err = strconv.UnquoteChar(lit.Value[i:], '"')
-				if err != nil {
-					// If the conversion fails, it's because of an invalid syntax, therefore is no rune to be found.
-					return 0, protocol.Range{}, ErrNoRuneFound
-				}
-				// Only the rune escape sequence part of the string has to be highlighted, recompute the range.
-				runeLen := len(lit.Value) - (int(i) + len(tail))
-				start = token.Pos(int(lit.Pos()) + int(i))
-				end = token.Pos(int(start) + runeLen)
-				found = true
-				break
-			}
-		}
-		if !found {
-			// No escape sequence found
-			return 0, protocol.Range{}, ErrNoRuneFound
-		}
-	default:
-		return 0, protocol.Range{}, ErrNoRuneFound
-	}
-	rng, err := pgf.PosRange(start, end)
-	if err != nil {
-		return 0, protocol.Range{}, err
-	}
-	return r, rng, nil
-}
-
-func hoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverJSON, error) {
-	ctx, done := event.Start(ctx, "source.Hover")
-	defer done()
-
-	hoverCtx, err := FindHoverContext(ctx, i.Snapshot, i.pkg, i.Declaration.obj, i.Declaration.node, i.Declaration.fullDecl)
-	if err != nil {
-		return nil, err
-	}
-
-	h := &HoverJSON{
-		FullDocumentation: hoverCtx.Comment.Text(),
-		Synopsis:          doc.Synopsis(hoverCtx.Comment.Text()),
-	}
-
-	fset := i.pkg.FileSet()
-	// Determine the symbol's signature.
-	switch x := hoverCtx.signatureSource.(type) {
-	case string:
-		h.Signature = x // a pre-computed signature
-
-	case *ast.TypeSpec:
-		x2 := *x
-		// Don't duplicate comments when formatting type specs.
-		x2.Doc = nil
-		x2.Comment = nil
-		var b strings.Builder
-		b.WriteString("type ")
-		if err := format.Node(&b, fset, &x2); err != nil {
-			return nil, err
-		}
-
-		// Display the declared methods accessible from the identifier.
-		//
-		// (The format.Node call above displays any struct fields, public
-		// or private, in syntactic form. We choose not to recursively
-		// enumerate any fields and methods promoted from them.)
-		obj := i.Type.Object
-		if obj != nil && !types.IsInterface(obj.Type()) {
-			sep := "\n\n"
-			for _, m := range typeutil.IntuitiveMethodSet(obj.Type(), nil) {
-				if (m.Obj().Exported() || m.Obj().Pkg() == i.pkg.GetTypes()) && len(m.Index()) == 1 {
-					b.WriteString(sep)
-					sep = "\n"
-					b.WriteString(objectString(m.Obj(), i.qf, nil))
-				}
-			}
-		}
-
-		h.Signature = b.String()
-
-	case ast.Node:
-		var b strings.Builder
-		if err := format.Node(&b, fset, x); err != nil {
-			return nil, err
-		}
-		h.Signature = b.String()
-
-		// Check if the variable is an integer whose value we can present in a more
-		// user-friendly way, i.e. `var hex = 0xe34e` becomes `var hex = 58190`
-		if spec, ok := x.(*ast.ValueSpec); ok && len(spec.Values) > 0 {
-			if lit, ok := spec.Values[0].(*ast.BasicLit); ok && len(spec.Names) > 0 {
-				val := constant.MakeFromLiteral(types.ExprString(lit), lit.Kind, 0)
-				h.Signature = fmt.Sprintf("var %s = %s", spec.Names[0], val)
-			}
-		}
-
-	case types.Object:
-		// If the variable is implicitly declared in a type switch, we need to
-		// manually generate its object string.
-		if typ := i.Declaration.typeSwitchImplicit; typ != nil {
-			if v, ok := x.(*types.Var); ok {
-				h.Signature = fmt.Sprintf("var %s %s", v.Name(), types.TypeString(typ, i.qf))
-				break
-			}
-		}
-		h.Signature = objectString(x, i.qf, i.Inferred)
-	}
-	if obj := i.Declaration.obj; obj != nil {
-		h.SingleLine = objectString(obj, i.qf, nil)
-	}
-	obj := i.Declaration.obj
-	if obj == nil {
-		return h, nil
-	}
-
-	// Check if the identifier is test-only (and is therefore not part of a
-	// package's API). This is true if the request originated in a test package,
-	// and if the declaration is also found in the same test package.
-	if i.pkg != nil && obj.Pkg() != nil && i.pkg.Metadata().ForTest != "" {
-		if _, err := i.pkg.File(i.Declaration.MappedRange[0].URI()); err == nil {
-			return h, nil
-		}
-	}
-
-	h.SymbolName, h.LinkPath, h.LinkAnchor = linkData(obj, i.enclosing)
-
-	// See golang/go#36998: don't link to modules matching GOPRIVATE.
-	//
-	// The path returned by linkData is a package path.
-	if i.Snapshot.View().IsGoPrivatePath(h.LinkPath) {
-		h.LinkPath = ""
-	} else if mod, version, ok := moduleAtVersion(h.LinkPath, i); ok {
-		h.LinkPath = strings.Replace(h.LinkPath, mod, mod+"@"+version, 1)
-	}
-
-	return h, nil
-}
-
-// linkData returns the name, package path, and anchor to use in building links
-// to obj.
-//
-// If obj is not visible in documentation, the returned name will be empty.
-func linkData(obj types.Object, enclosing *types.TypeName) (name, packagePath, anchor string) {
-	// Package names simply link to the package.
-	if obj, ok := obj.(*types.PkgName); ok {
-		return obj.Name(), obj.Imported().Path(), ""
-	}
-
-	// Builtins link to the special builtin package.
-	if obj.Parent() == types.Universe {
-		return obj.Name(), "builtin", obj.Name()
-	}
-
-	// In all other cases, the object must be exported.
-	if !obj.Exported() {
-		return "", "", ""
-	}
-
-	var recv types.Object // If non-nil, the field or method receiver base.
-
-	switch obj := obj.(type) {
-	case *types.Var:
-		// If the object is a field, and we have an associated selector
-		// composite literal, or struct, we can determine the link.
-		if obj.IsField() && enclosing != nil {
-			recv = enclosing
-		}
-	case *types.Func:
-		typ, ok := obj.Type().(*types.Signature)
-		if !ok {
-			// Note: this should never happen. go/types guarantees that the type of
-			// *Funcs are Signatures.
-			//
-			// TODO(rfindley): given a 'debug' mode, we should panic here.
-			return "", "", ""
-		}
-		if r := typ.Recv(); r != nil {
-			if rtyp, _ := Deref(r.Type()).(*types.Named); rtyp != nil {
-				// If we have an unexported type, see if the enclosing type is
-				// exported (we may have an interface or struct we can link
-				// to). If not, don't show any link.
-				if !rtyp.Obj().Exported() {
-					if enclosing != nil {
-						recv = enclosing
-					} else {
-						return "", "", ""
-					}
-				} else {
-					recv = rtyp.Obj()
-				}
-			}
-		}
-	}
-
-	if recv != nil && !recv.Exported() {
-		return "", "", ""
-	}
-
-	// Either the object or its receiver must be in the package scope.
-	scopeObj := obj
-	if recv != nil {
-		scopeObj = recv
-	}
-	if scopeObj.Pkg() == nil || scopeObj.Pkg().Scope().Lookup(scopeObj.Name()) != scopeObj {
-		return "", "", ""
-	}
-
-	// golang/go#52211: somehow we get here with a nil obj.Pkg
-	if obj.Pkg() == nil {
-		bug.Report("object with nil pkg", bug.Data{
-			"name": obj.Name(),
-			"type": fmt.Sprintf("%T", obj),
-		})
-		return "", "", ""
-	}
-
-	packagePath = obj.Pkg().Path()
-	if recv != nil {
-		anchor = fmt.Sprintf("%s.%s", recv.Name(), obj.Name())
-		name = fmt.Sprintf("(%s.%s).%s", obj.Pkg().Name(), recv.Name(), obj.Name())
-	} else {
-		// For most cases, the link is "package/path#symbol".
-		anchor = obj.Name()
-		name = fmt.Sprintf("%s.%s", obj.Pkg().Name(), obj.Name())
-	}
-	return name, packagePath, anchor
-}
-
-func moduleAtVersion(path string, i *IdentifierInfo) (string, string, bool) {
-	// TODO(rfindley): moduleAtVersion should not be responsible for deciding
-	// whether or not the link target supports module version links.
-	if strings.ToLower(i.Snapshot.View().Options().LinkTarget) != "pkg.go.dev" {
-		return "", "", false
-	}
-	impID, ok := i.pkg.Metadata().DepsByPkgPath[PackagePath(path)]
-	if !ok {
-		return "", "", false
-	}
-	impMeta := i.Snapshot.Metadata(impID)
-	if impMeta == nil {
-		return "", "", false
-	}
-	module := impMeta.Module
-	if module == nil {
-		return "", "", false
-	}
-	if module.Path == "" || module.Version == "" {
-		return "", "", false
-	}
-	return module.Path, module.Version, true
 }
 
 // objectString is a wrapper around the types.ObjectString function.
 // It handles adding more information to the object string.
+//
+// TODO(rfindley): this function does too much. We should lift the special
+// handling to callsites.
 func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signature) string {
-	// If the signature type was inferred, prefer the preferred signature with a
+	// If the signature type was inferred, prefer the inferred signature with a
 	// comment showing the generic signature.
 	if sig, _ := obj.Type().(*types.Signature); sig != nil && typeparams.ForSignature(sig).Len() > 0 && inferred != nil {
 		obj2 := types.NewFunc(obj.Pos(), obj.Pkg(), obj.Name(), inferred)
@@ -514,34 +631,44 @@ func HoverDocForObject(ctx context.Context, snapshot Snapshot, srcpkg Package, o
 		return nil, fmt.Errorf("re-parsing: %v", err)
 	}
 
-	decl, spec, field := FindDeclInfo([]*ast.File{pgf.File}, pos)
-	if field != nil && field.Doc != nil {
-		return field.Doc, nil
+	decl, spec, field := findDeclInfo([]*ast.File{pgf.File}, pos)
+	return chooseDocComment(decl, spec, field), nil
+}
+
+func chooseDocComment(decl ast.Decl, spec ast.Spec, field *ast.Field) *ast.CommentGroup {
+	if field != nil {
+		if field.Doc != nil {
+			return field.Doc
+		}
+		if field.Comment != nil {
+			return field.Comment
+		}
+		return nil
 	}
 	switch decl := decl.(type) {
 	case *ast.FuncDecl:
-		return decl.Doc, nil
+		return decl.Doc
 	case *ast.GenDecl:
 		switch spec := spec.(type) {
 		case *ast.ValueSpec:
 			if spec.Doc != nil {
-				return spec.Doc, nil
+				return spec.Doc
 			}
 			if decl.Doc != nil {
-				return decl.Doc, nil
+				return decl.Doc
 			}
-			return spec.Comment, nil
+			return spec.Comment
 		case *ast.TypeSpec:
 			if spec.Doc != nil {
-				return spec.Doc, nil
+				return spec.Doc
 			}
 			if decl.Doc != nil {
-				return decl.Doc, nil
+				return decl.Doc
 			}
-			return spec.Comment, nil
+			return spec.Comment
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 // parseFull fully parses the file corresponding to position pos, referenced
@@ -579,264 +706,6 @@ func parseFull(ctx context.Context, snapshot Snapshot, srcpkg Package, pos token
 	return pgf, fullPos, nil
 }
 
-// FindHoverContext returns a HoverContext struct for an AST node and its
-// declaration object. node should be the actual node used in type checking,
-// while fullNode could be a separate node with more complete syntactic
-// information.
-func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Object, pkgNode ast.Node, fullDecl ast.Decl) (*HoverContext, error) {
-	var info *HoverContext
-
-	// Type parameters get their signature from their declaration object.
-	if _, isTypeName := obj.(*types.TypeName); isTypeName {
-		if _, isTypeParam := obj.Type().(*typeparams.TypeParam); isTypeParam {
-			return &HoverContext{signatureSource: obj}, nil
-		}
-	}
-
-	// This is problematic for a number of reasons. We really need to have a more
-	// general mechanism to validate the coherency of AST with type information,
-	// but absent that we must do our best to ensure that we don't use fullNode
-	// when we actually need the node that was type checked.
-	//
-	// pkgNode may be nil, if it was eliminated from the type-checked syntax. In
-	// that case, use fullDecl if available.
-	node := pkgNode
-	if node == nil && fullDecl != nil {
-		node = fullDecl
-	}
-
-	switch node := node.(type) {
-	case *ast.Ident:
-		// The package declaration.
-		for _, f := range pkg.GetSyntax() {
-			if f.Name == pkgNode {
-				info = &HoverContext{Comment: f.Doc}
-			}
-		}
-	case *ast.ImportSpec:
-		// Try to find the package documentation for an imported package.
-		importPath := UnquoteImportPath(node)
-		impID := pkg.Metadata().DepsByImpPath[importPath]
-		if impID == "" {
-			return nil, fmt.Errorf("failed to resolve import %q", importPath)
-		}
-		impMetadata := s.Metadata(impID)
-		if impMetadata == nil {
-			return nil, fmt.Errorf("failed to resolve import ID %q", impID)
-		}
-		for _, f := range impMetadata.CompiledGoFiles {
-			fh, err := s.GetFile(ctx, f)
-			if err != nil {
-				if ctx.Err() != nil {
-					return nil, ctx.Err()
-				}
-				continue
-			}
-			pgf, err := s.ParseGo(ctx, fh, ParseHeader)
-			if err != nil {
-				if ctx.Err() != nil {
-					return nil, ctx.Err()
-				}
-				continue
-			}
-			if pgf.File.Doc != nil {
-				return &HoverContext{
-					Comment:         pgf.File.Doc,
-					signatureSource: "package " + impMetadata.Name,
-				}, nil
-			}
-		}
-
-	case *ast.GenDecl:
-		switch obj := obj.(type) {
-		case *types.TypeName, *types.Var, *types.Const, *types.Func:
-			// Always use the full declaration here if we have it, because the
-			// dependent code doesn't rely on pointer identity. This is fragile.
-			if d, _ := fullDecl.(*ast.GenDecl); d != nil {
-				node = d
-			}
-			// obj may not have been produced by type checking the AST containing
-			// node, so we need to be careful about using token.Pos.
-			tok := pkg.FileSet().File(obj.Pos())
-			offset, err := safetoken.Offset(tok, obj.Pos())
-			if err != nil {
-				return nil, err
-			}
-
-			// fullTok and fullPos are the *token.File and object position in for the
-			// full AST.
-			fullTok := pkg.FileSet().File(node.Pos())
-			fullPos, err := safetoken.Pos(fullTok, offset)
-			if err != nil {
-				return nil, err
-			}
-
-			var spec ast.Spec
-			for _, s := range node.Specs {
-				// Avoid panics by guarding the calls to token.Offset (golang/go#48249).
-				start, end, err := safetoken.Offsets(fullTok, s.Pos(), s.End())
-				if err != nil {
-					return nil, err
-				}
-				if start <= offset && offset <= end {
-					spec = s
-					break
-				}
-			}
-
-			info, err = hoverGenDecl(node, spec, fullPos, obj)
-			if err != nil {
-				return nil, err
-			}
-		}
-	case *ast.TypeSpec:
-		if obj.Parent() == types.Universe {
-			if genDecl, ok := fullDecl.(*ast.GenDecl); ok {
-				info = hoverTypeSpec(node, genDecl)
-			}
-		}
-	case *ast.FuncDecl:
-		switch obj.(type) {
-		case *types.Func:
-			info = &HoverContext{signatureSource: obj, Comment: node.Doc}
-		case *types.Builtin:
-			info = &HoverContext{Comment: node.Doc}
-			if sig, err := NewBuiltinSignature(ctx, s, obj.Name()); err == nil {
-				info.signatureSource = "func " + sig.name + sig.Format()
-			} else {
-				// Fall back on the object as a signature source.
-				bug.Report("invalid builtin hover", bug.Data{
-					"err": err.Error(),
-				})
-				info.signatureSource = obj
-			}
-		case *types.Var:
-			// Object is a function param or the field of an anonymous struct
-			// declared with ':='. Skip the first one because only fields
-			// can have docs.
-			if isFunctionParam(obj, node) {
-				break
-			}
-
-			_, _, field := FindDeclInfo(pkg.GetSyntax(), obj.Pos())
-			if field != nil {
-				comment := field.Doc
-				if comment.Text() == "" {
-					comment = field.Comment
-				}
-				info = &HoverContext{signatureSource: obj, Comment: comment}
-			}
-		}
-	}
-
-	if info == nil {
-		info = &HoverContext{signatureSource: obj}
-	}
-
-	return info, nil
-}
-
-// isFunctionParam returns true if the passed object is either an incoming
-// or an outgoing function param
-func isFunctionParam(obj types.Object, node *ast.FuncDecl) bool {
-	for _, f := range node.Type.Params.List {
-		if f.Pos() == obj.Pos() {
-			return true
-		}
-	}
-	if node.Type.Results != nil {
-		for _, f := range node.Type.Results.List {
-			if f.Pos() == obj.Pos() {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// hoverGenDecl returns hover information an object declared via spec inside
-// of the GenDecl node. obj is the type-checked object corresponding to the
-// declaration, but may have been type-checked using a different AST than the
-// given nodes; fullPos is the position of obj in node's AST.
-func hoverGenDecl(node *ast.GenDecl, spec ast.Spec, fullPos token.Pos, obj types.Object) (*HoverContext, error) {
-	if spec == nil {
-		return nil, fmt.Errorf("no spec for node %v at position %v", node, fullPos)
-	}
-
-	// If we have a field or method.
-	switch obj.(type) {
-	case *types.Var, *types.Const, *types.Func:
-		return hoverVar(spec, fullPos, obj, node), nil
-	}
-	// Handle types.
-	switch spec := spec.(type) {
-	case *ast.TypeSpec:
-		return hoverTypeSpec(spec, node), nil
-	case *ast.ValueSpec:
-		return &HoverContext{signatureSource: spec, Comment: spec.Doc}, nil
-	case *ast.ImportSpec:
-		return &HoverContext{signatureSource: spec, Comment: spec.Doc}, nil
-	}
-	return nil, fmt.Errorf("unable to format spec %v (%T)", spec, spec)
-}
-
-// TODO(rfindley): rename this function.
-func hoverTypeSpec(spec *ast.TypeSpec, decl *ast.GenDecl) *HoverContext {
-	comment := spec.Doc
-	if comment == nil && decl != nil {
-		comment = decl.Doc
-	}
-	if comment == nil {
-		comment = spec.Comment
-	}
-	return &HoverContext{
-		signatureSource: spec,
-		Comment:         comment,
-	}
-}
-
-func hoverVar(node ast.Spec, fullPos token.Pos, obj types.Object, decl *ast.GenDecl) *HoverContext {
-	var fieldList *ast.FieldList
-	switch spec := node.(type) {
-	case *ast.TypeSpec:
-		switch t := spec.Type.(type) {
-		case *ast.StructType:
-			fieldList = t.Fields
-		case *ast.InterfaceType:
-			fieldList = t.Methods
-		}
-	case *ast.ValueSpec:
-		// Try to extract the field list of an anonymous struct
-		if fieldList = extractFieldList(spec.Type); fieldList != nil {
-			break
-		}
-
-		comment := spec.Doc
-		if comment == nil {
-			comment = decl.Doc
-		}
-		if comment == nil {
-			comment = spec.Comment
-		}
-
-		// We need the AST nodes for variable declarations of basic literals with
-		// associated values so that we can augment their hover with more information.
-		if _, ok := obj.(*types.Var); ok && spec.Type == nil && len(spec.Values) > 0 {
-			if _, ok := spec.Values[0].(*ast.BasicLit); ok {
-				return &HoverContext{signatureSource: spec, Comment: comment}
-			}
-		}
-
-		return &HoverContext{signatureSource: obj, Comment: comment}
-	}
-
-	if fieldList != nil {
-		comment := findFieldComment(fullPos, fieldList)
-		return &HoverContext{signatureSource: obj, Comment: comment}
-	}
-	return &HoverContext{signatureSource: obj, Comment: decl.Doc}
-}
-
 // extractFieldList recursively tries to extract a field list.
 // If it is not found, nil is returned.
 func extractFieldList(specType ast.Expr) *ast.FieldList {
@@ -855,27 +724,6 @@ func extractFieldList(specType ast.Expr) *ast.FieldList {
 		return extractFieldList(t.Key)
 	case *ast.ChanType:
 		return extractFieldList(t.Value)
-	}
-	return nil
-}
-
-// findFieldComment visits all fields in depth-first order and returns
-// the comment of a field with passed position. If no comment is found,
-// nil is returned.
-func findFieldComment(pos token.Pos, fieldList *ast.FieldList) *ast.CommentGroup {
-	for _, field := range fieldList.List {
-		if field.Pos() == pos {
-			if field.Doc.Text() != "" {
-				return field.Doc
-			}
-			return field.Comment
-		}
-
-		if nestedFieldList := extractFieldList(field.Type); nestedFieldList != nil {
-			if c := findFieldComment(pos, nestedFieldList); c != nil {
-				return c
-			}
-		}
 	}
 	return nil
 }
@@ -974,7 +822,7 @@ func anyNonEmpty(x []string) bool {
 	return false
 }
 
-// FindDeclInfo returns the syntax nodes involved in the declaration of the
+// findDeclInfo returns the syntax nodes involved in the declaration of the
 // types.Object with position pos, searching the given list of file syntax
 // trees.
 //
@@ -985,8 +833,16 @@ func anyNonEmpty(x []string) bool {
 // If found, the resulting decl, spec, and field will be the inner-most
 // instance of each node type surrounding pos.
 //
+// If field is non-nil, pos is the position of a field Var. If field is nil and
+// spec is non-nil, pos is the position of a Var, Const, or TypeName object. If
+// both field and spec are nil and decl is non-nil, pos is the position of a
+// Func object.
+//
 // It returns a nil decl if no object-defining node is found at pos.
-func FindDeclInfo(files []*ast.File, pos token.Pos) (decl ast.Decl, spec ast.Spec, field *ast.Field) {
+//
+// TODO(rfindley): this function has tricky semantics, and may be worth unit
+// testing and/or refactoring.
+func findDeclInfo(files []*ast.File, pos token.Pos) (decl ast.Decl, spec ast.Spec, field *ast.Field) {
 	// panic(found{}) breaks off the traversal and
 	// causes the function to return normally.
 	type found struct{}

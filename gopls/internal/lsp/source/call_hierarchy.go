@@ -36,7 +36,7 @@ func PrepareCallHierarchy(ctx context.Context, snapshot Snapshot, fh FileHandle,
 		return nil, err
 	}
 
-	obj := referencedObject(pkg, pgf, pos)
+	_, obj, _ := referencedObject(pkg, pgf, pos)
 	if obj == nil {
 		return nil, nil
 	}
@@ -191,7 +191,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pp pro
 		return nil, err
 	}
 
-	obj := referencedObject(pkg, pgf, pos)
+	_, obj, _ := referencedObject(pkg, pgf, pos)
 	if obj == nil {
 		return nil, nil
 	}
@@ -231,7 +231,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pp pro
 		return nil, err
 	}
 
-	declNode, _, _ := FindDeclInfo([]*ast.File{declPGF.File}, declPos)
+	declNode, _, _ := findDeclInfo([]*ast.File{declPGF.File}, declPos)
 	if declNode == nil {
 		// TODO(rfindley): why don't we return an error here, or even bug.Errorf?
 		return nil, nil
@@ -266,7 +266,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pp pro
 
 	outgoingCalls := map[token.Pos]*protocol.CallHierarchyOutgoingCall{}
 	for _, callRange := range callRanges {
-		obj := referencedObject(declPkg, declPGF, callRange.start)
+		_, obj, _ := referencedObject(declPkg, declPGF, callRange.start)
 		if obj == nil {
 			continue
 		}

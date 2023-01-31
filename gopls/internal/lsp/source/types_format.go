@@ -130,6 +130,8 @@ func NewBuiltinSignature(ctx context.Context, s Snapshot, name string) (*signatu
 	}, nil
 }
 
+// replacer replaces some synthetic "type classes" used in the builtin file
+// with their most common constituent type.
 var replacer = strings.NewReplacer(
 	`ComplexType`, `complex128`,
 	`FloatType`, `float64`,
@@ -291,14 +293,14 @@ func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, srcFi
 		return "", err // e.g. ctx cancelled
 	}
 
-	targetMeta := findFileInDepsMetadata(snapshot, srcpkg.Metadata(), targetpgf.URI)
+	targetMeta := findFileInDeps(snapshot, srcpkg.Metadata(), targetpgf.URI)
 	if targetMeta == nil {
 		// If we have an object from type-checking, it should exist in a file in
 		// the forward transitive closure.
 		return "", bug.Errorf("failed to find file %q in deps of %q", targetpgf.URI, srcpkg.Metadata().ID)
 	}
 
-	decl, spec, field := FindDeclInfo([]*ast.File{targetpgf.File}, pos)
+	decl, spec, field := findDeclInfo([]*ast.File{targetpgf.File}, pos)
 
 	// We can't handle type parameters correctly, so we fall back on TypeString
 	// for parameterized decls.

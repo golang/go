@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
@@ -1091,16 +1092,43 @@ func references(ctx context.Context, snapshot Snapshot, qos []qualifiedObject) (
 	if err != nil {
 		return nil, err
 	}
-	declIdent, err := findIdentifier(ctx, snapshot, qos[0].pkg, pgf, qos[0].obj.Pos())
-	if err != nil {
-		return nil, err
+
+	var mr protocol.MappedRange
+	var ident *ast.Ident
+	found := false
+	path, _ := astutil.PathEnclosingInterval(pgf.File, qos[0].obj.Pos(), qos[0].obj.Pos())
+
+findRange:
+	for _, n := range path {
+		switch n := n.(type) {
+		case *ast.Ident:
+			ident = n
+			mr, err = pgf.NodeMappedRange(ident)
+			if err != nil {
+				return nil, err
+			}
+			found = true
+			break findRange
+		case *ast.ImportSpec:
+			mr, err = pgf.NodeMappedRange(n.Path)
+			if err != nil {
+				return nil, err
+			}
+			found = true
+			break findRange
+		}
 	}
+
+	if !found {
+		return nil, ErrNoIdentFound // TODO(adonovan): remove special error values
+	}
+
 	// Make sure declaration is the first item in the response.
 	references = append(references, &ReferenceInfo{
-		MappedRange:   declIdent.MappedRange,
-		ident:         declIdent.ident,
+		MappedRange:   mr,
+		ident:         ident,
 		obj:           qos[0].obj,
-		pkg:           declIdent.pkg,
+		pkg:           qos[0].pkg,
 		isDeclaration: true,
 	})
 

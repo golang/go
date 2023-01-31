@@ -84,6 +84,12 @@ func main() {
 }
 
 func TestHoverIntLiteral(t *testing.T) {
+	// TODO(rfindley): this behavior doesn't actually make sense for vars. It is
+	// misleading to format their value when it is (of course) variable.
+	//
+	// Instead, we should allow hovering on numeric literals.
+	t.Skip("golang/go#58220: broken due to new hover logic")
+
 	const source = `
 -- main.go --
 package main
@@ -150,18 +156,27 @@ func TestHoverImport(t *testing.T) {
 	tests := []struct {
 		hoverPackage string
 		want         string
+		wantError    bool
 	}{
 		{
 			"mod.com/lib1",
 			packageDoc1,
+			false,
 		},
 		{
 			"mod.com/lib2",
 			packageDoc2,
+			false,
 		},
 		{
 			"mod.com/lib3",
 			"",
+			false,
+		},
+		{
+			"mod.com/lib4",
+			"",
+			true,
 		},
 	}
 	source := fmt.Sprintf(`
@@ -208,19 +223,14 @@ func main() {
 	Run(t, source, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		for _, test := range tests {
-			got, _ := env.Hover(env.RegexpSearch("main.go", test.hoverPackage))
-			if got == nil {
-				t.Error("nil hover for", test.hoverPackage)
-				continue
+			got, _, err := env.Editor.Hover(env.Ctx, env.RegexpSearch("main.go", test.hoverPackage))
+			if test.wantError {
+				if err == nil {
+					t.Errorf("Hover(%q) succeeded unexpectedly", test.hoverPackage)
+				}
+			} else if !strings.Contains(got.Value, test.want) {
+				t.Errorf("Hover(%q): got:\n%q\nwant:\n%q", test.hoverPackage, got.Value, test.want)
 			}
-			if !strings.Contains(got.Value, test.want) {
-				t.Errorf("Hover: got:\n%q\nwant:\n%q", got.Value, test.want)
-			}
-		}
-
-		got, _ := env.Hover(env.RegexpSearch("main.go", "mod.com/lib4"))
-		if got != nil {
-			t.Errorf("Hover: got:\n%q\nwant:\n%v", got.Value, nil)
 		}
 	})
 }

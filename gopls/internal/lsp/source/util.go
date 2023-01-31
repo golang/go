@@ -6,7 +6,6 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"go/ast"
 	"go/printer"
 	"go/token"
@@ -76,28 +75,6 @@ func adjustedObjEnd(obj types.Object) token.Pos {
 		}
 	}
 	return obj.Pos() + token.Pos(nameLen)
-}
-
-// posToMappedRange returns the MappedRange for the given [start, end) span,
-// which must be among the transitive dependencies of pkg.
-//
-// TODO(adonovan): many of the callers need only the ParsedGoFile so
-// that they can call pgf.PosRange(pos, end) to get a Range; they
-// don't actually need a MappedRange.
-func posToMappedRange(ctx context.Context, snapshot Snapshot, pkg Package, pos, end token.Pos) (protocol.MappedRange, error) {
-	if !pos.IsValid() {
-		return protocol.MappedRange{}, fmt.Errorf("invalid start position")
-	}
-	if !end.IsValid() {
-		return protocol.MappedRange{}, fmt.Errorf("invalid end position")
-	}
-
-	logicalFilename := pkg.FileSet().File(pos).Name() // ignore line directives
-	pgf, _, err := findFileInDeps(ctx, snapshot, pkg, span.URIFromPath(logicalFilename))
-	if err != nil {
-		return protocol.MappedRange{}, err
-	}
-	return pgf.PosMappedRange(pos, end)
 }
 
 // Matches cgo generated comment as well as the proposed standard:
@@ -214,38 +191,11 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 	return 0
 }
 
-// findFileInDeps finds uri in pkg or its dependencies.
-//
-// TODO(rfindley): eliminate this function.
-func findFileInDeps(ctx context.Context, snapshot Snapshot, pkg Package, uri span.URI) (*ParsedGoFile, Package, error) {
-	pkgs := []Package{pkg}
-	deps := recursiveDeps(snapshot, pkg.Metadata())[1:]
-	// Ignore the error from type checking, but check if the context was
-	// canceled (which would have caused TypeCheck to exit early).
-	depPkgs, _ := snapshot.TypeCheck(ctx, TypecheckWorkspace, deps...)
-	if ctx.Err() != nil {
-		return nil, nil, ctx.Err()
-	}
-	for _, dep := range depPkgs {
-		// Since we ignored the error from type checking, pkg may be nil.
-		if dep != nil {
-			pkgs = append(pkgs, dep)
-		}
-	}
-	for _, pkg := range pkgs {
-		if pgf, err := pkg.File(uri); err == nil {
-			return pgf, pkg, nil
-		}
-	}
-	return nil, nil, fmt.Errorf("no file for %s in deps of package %s", uri, pkg.Metadata().ID)
-}
-
-// findFileInDepsMetadata finds package metadata containing URI in the
-// transitive dependencies of m. When using the Go command, the answer is
-// unique.
+// findFileInDeps finds package metadata containing URI in the transitive
+// dependencies of m. When using the Go command, the answer is unique.
 //
 // TODO(rfindley): refactor to share logic with findPackageInDeps?
-func findFileInDepsMetadata(s MetadataSource, m *Metadata, uri span.URI) *Metadata {
+func findFileInDeps(s MetadataSource, m *Metadata, uri span.URI) *Metadata {
 	seen := make(map[PackageID]bool)
 	var search func(*Metadata) *Metadata
 	search = func(m *Metadata) *Metadata {

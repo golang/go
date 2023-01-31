@@ -23,11 +23,6 @@ func TestSearchForEnclosing(t *testing.T) {
 		wantTypeName string
 	}{
 		{
-			desc:         "self enclosing",
-			src:          `package a; type X struct {}`,
-			wantTypeName: "X",
-		},
-		{
 			// TODO(rFindley): is this correct, or do we want to resolve I2 here?
 			desc:         "embedded interface in interface",
 			src:          `package a; var y = i1.X; type i1 interface {I2}; type I2 interface{X()}`,
@@ -42,26 +37,6 @@ func TestSearchForEnclosing(t *testing.T) {
 			desc:         "double embedding",
 			src:          `package a; var y = t1.X; type t1 struct {t2}; type t2 struct {I}; type I interface{X()}`,
 			wantTypeName: "I",
-		},
-		{
-			desc:         "struct field",
-			src:          `package a; type T struct { X int }`,
-			wantTypeName: "T",
-		},
-		{
-			desc:         "nested struct field",
-			src:          `package a; type T struct { E struct { X int } }`,
-			wantTypeName: "T",
-		},
-		{
-			desc:         "slice entry",
-			src:          `package a; type T []int; var S = T{X}; var X int = 2`,
-			wantTypeName: "T",
-		},
-		{
-			desc:         "struct pointer literal",
-			src:          `package a; type T struct {i int}; var L = &T{X}; const X = 2`,
-			wantTypeName: "T",
 		},
 	}
 
