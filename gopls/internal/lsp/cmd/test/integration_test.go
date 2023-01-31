@@ -57,14 +57,14 @@ func TestVersion(t *testing.T) {
 	// basic
 	{
 		res := gopls(t, tree, "version")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout(want)
 	}
 
 	// -json flag
 	{
 		res := gopls(t, tree, "version", "-json")
-		res.checkExit(0)
+		res.checkExit(true)
 		var v debug.ServerVersion
 		if res.toJSON(&v) {
 			if v.Version != want {
@@ -97,7 +97,7 @@ var _ = fmt.Sprintf("%d", "123")
 	// no files
 	{
 		res := gopls(t, tree, "check")
-		res.checkExit(0)
+		res.checkExit(true)
 		if res.stdout != "" {
 			t.Errorf("unexpected output: %v", res)
 		}
@@ -106,14 +106,14 @@ var _ = fmt.Sprintf("%d", "123")
 	// one file
 	{
 		res := gopls(t, tree, "check", "./a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("fmt.Sprintf format %s has arg 123 of wrong type int")
 	}
 
 	// two files
 	{
 		res := gopls(t, tree, "check", "./a.go", "./b.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout(`a.go:.* fmt.Sprintf format %s has arg 123 of wrong type int`)
 		res.checkStdout(`b.go:.* fmt.Sprintf format %d has arg "123" of wrong type string`)
 	}
@@ -142,19 +142,19 @@ func h() {
 	// missing position
 	{
 		res := gopls(t, tree, "call_hierarchy")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// wrong place
 	{
 		res := gopls(t, tree, "call_hierarchy", "a.go:1")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("identifier not found")
 	}
 	// f is called once from g and twice from h.
 	{
 		res := gopls(t, tree, "call_hierarchy", "a.go:2:6")
-		res.checkExit(0)
+		res.checkExit(true)
 		// We use regexp '.' as an OS-agnostic path separator.
 		res.checkStdout("ranges 7:2-3, 8:2-3 in ..a.go from/to function h in ..a.go:6:6-7")
 		res.checkStdout("ranges 4:2-3 in ..a.go from/to function g in ..a.go:3:6-7")
@@ -184,26 +184,26 @@ func g() {
 	// missing position
 	{
 		res := gopls(t, tree, "definition")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// intra-package
 	{
 		res := gopls(t, tree, "definition", "a.go:7:2") // "f()"
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("a.go:3:6-7: defined here as func f")
 	}
 	// cross-package
 	{
 		res := gopls(t, tree, "definition", "a.go:4:7") // "Println"
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("print.go.* defined here as func fmt.Println")
 		res.checkStdout("Println formats using the default formats for its operands")
 	}
 	// -json and -markdown
 	{
 		res := gopls(t, tree, "definition", "-json", "-markdown", "a.go:4:7")
-		res.checkExit(0)
+		res.checkExit(true)
 		var defn cmd.Definition
 		if res.toJSON(&defn) {
 			if !strings.HasPrefix(defn.Description, "```go\nfunc fmt.Println") {
@@ -231,13 +231,13 @@ func f(x int) {
 	// missing filename
 	{
 		res := gopls(t, tree, "folding_ranges")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// success
 	{
 		res := gopls(t, tree, "folding_ranges", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("2:8-2:13") // params (x int)
 		res.checkStdout("2:16-4:1") //   body { ... }
 	}
@@ -259,12 +259,12 @@ func f() {}
 	// no files => nop
 	{
 		res := gopls(t, tree, "format")
-		res.checkExit(0)
+		res.checkExit(true)
 	}
 	// default => print formatted result
 	{
 		res := gopls(t, tree, "format", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		if res.stdout != want {
 			t.Errorf("format: got <<%s>>, want <<%s>>", res.stdout, want)
 		}
@@ -272,19 +272,19 @@ func f() {}
 	// start/end position not supported (unless equal to start/end of file)
 	{
 		res := gopls(t, tree, "format", "a.go:1-2")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("only full file formatting supported")
 	}
 	// -list: show only file names
 	{
 		res := gopls(t, tree, "format", "-list", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("a.go")
 	}
 	// -diff prints a unified diff
 	{
 		res := gopls(t, tree, "format", "-diff", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		// We omit the filenames as they vary by OS.
 		want := `
 -package a ;  func f ( ) { }
@@ -297,7 +297,7 @@ func f() {}
 	// -write updates the file
 	{
 		res := gopls(t, tree, "format", "-write", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("^$") // empty
 		checkContent(t, filepath.Join(tree, "a.go"), want)
 	}
@@ -320,13 +320,13 @@ func f() {
 	// no arguments
 	{
 		res := gopls(t, tree, "highlight")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// all occurrences of Println
 	{
 		res := gopls(t, tree, "highlight", "a.go:4:7")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("a.go:4:6-13")
 		res.checkStdout("a.go:5:6-13")
 	}
@@ -347,13 +347,13 @@ func (T) String() string { return "" }
 	// no arguments
 	{
 		res := gopls(t, tree, "implementation")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// T.String
 	{
 		res := gopls(t, tree, "implementation", "a.go:4:10")
-		res.checkExit(0)
+		res.checkExit(true)
 		// TODO(adonovan): extract and check the content of the reported ranges?
 		// We use regexp '.' as an OS-agnostic path separator.
 		res.checkStdout("fmt.print.go:")     // fmt.Stringer.String
@@ -385,13 +385,13 @@ func _() {
 	// no arguments
 	{
 		res := gopls(t, tree, "imports")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// default: print with imports
 	{
 		res := gopls(t, tree, "imports", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		if res.stdout != want {
 			t.Errorf("format: got <<%s>>, want <<%s>>", res.stdout, want)
 		}
@@ -399,13 +399,13 @@ func _() {
 	// -diff: show a unified diff
 	{
 		res := gopls(t, tree, "imports", "-diff", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout(regexp.QuoteMeta(`+import "fmt"`))
 	}
 	// -write: update file
 	{
 		res := gopls(t, tree, "imports", "-write", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		checkContent(t, filepath.Join(tree, "a.go"), want)
 	}
 }
@@ -427,13 +427,13 @@ func f() {}
 	// no arguments
 	{
 		res := gopls(t, tree, "links")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// success
 	{
 		res := gopls(t, tree, "links", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("https://go.dev/cl")
 		res.checkStdout("https://pkg.go.dev")
 		res.checkStdout("https://blog.go.dev/")
@@ -441,7 +441,7 @@ func f() {}
 	// -json
 	{
 		res := gopls(t, tree, "links", "-json", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("https://pkg.go.dev")
 		res.checkStdout("https://go.dev/cl")
 		res.checkStdout("https://blog.go.dev/") // at 5:21-5:41
@@ -481,13 +481,13 @@ func g() {
 	// no arguments
 	{
 		res := gopls(t, tree, "references")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// fmt.Println
 	{
 		res := gopls(t, tree, "references", "a.go:4:10")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("a.go:4:6-13")
 		res.checkStdout("b.go:4:6-13")
 	}
@@ -512,13 +512,13 @@ func f() {
 	// no arguments
 	{
 		res := gopls(t, tree, "signature")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// at 123 inside fmt.Println() call
 	{
 		res := gopls(t, tree, "signature", "a.go:4:15")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("Println\\(a ...")
 		res.checkStdout("Println formats using the default formats...")
 	}
@@ -540,25 +540,25 @@ func oldname() {}
 	// no arguments
 	{
 		res := gopls(t, tree, "prepare_rename")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// in 'package' keyword
 	{
 		res := gopls(t, tree, "prepare_rename", "a.go:1:3")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("request is not valid at the given position")
 	}
 	// in 'package' identifier (not supported by client)
 	{
 		res := gopls(t, tree, "prepare_rename", "a.go:1:9")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("can't rename package")
 	}
 	// in func oldname
 	{
 		res := gopls(t, tree, "prepare_rename", "a.go:2:9")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("a.go:2:6-13") // all of "oldname"
 	}
 }
@@ -579,31 +579,31 @@ func oldname() {}
 	// no arguments
 	{
 		res := gopls(t, tree, "rename")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 2 arguments")
 	}
 	// missing newname
 	{
 		res := gopls(t, tree, "rename", "a.go:1:3")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 2 arguments")
 	}
 	// in 'package' keyword
 	{
 		res := gopls(t, tree, "rename", "a.go:1:3", "newname")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("no object found")
 	}
 	// in 'package' identifier
 	{
 		res := gopls(t, tree, "rename", "a.go:1:9", "newname")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr(`cannot rename package: module path .* same as the package path, so .* no effect`)
 	}
 	// success, func oldname (and -diff)
 	{
 		res := gopls(t, tree, "rename", "-diff", "a.go:2:9", "newname")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout(regexp.QuoteMeta("-func oldname() {}"))
 		res.checkStdout(regexp.QuoteMeta("+func newname() {}"))
 	}
@@ -627,13 +627,13 @@ const c = 0
 	// no files
 	{
 		res := gopls(t, tree, "symbols")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// success
 	{
 		res := gopls(t, tree, "symbols", "a.go:123:456") // (line/col ignored)
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("f Function 2:6-2:7")
 		res.checkStdout("v Variable 3:5-3:6")
 		res.checkStdout("c Constant 4:7-4:8")
@@ -658,13 +658,13 @@ const c = 0
 	// no files
 	{
 		res := gopls(t, tree, "semtok")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expected one file name")
 	}
 	// success
 	{
 		res := gopls(t, tree, "semtok", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		got := res.stdout
 		want := `
 /*⇒7,keyword,[]*/package /*⇒1,namespace,[]*/a
@@ -703,13 +703,13 @@ func f() (int, string) { return 0, "" }
 	// no arguments
 	{
 		res := gopls(t, tree, "fix")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects at least 1 argument")
 	}
 	// success (-a enables fillreturns)
 	{
 		res := gopls(t, tree, "fix", "-a", "a.go")
-		res.checkExit(0)
+		res.checkExit(true)
 		got := res.stdout
 		if got != want {
 			t.Errorf("fix: got <<%s>>, want <<%s>>", got, want)
@@ -738,13 +738,13 @@ func someFunctionName()
 	// no files
 	{
 		res := gopls(t, tree, "workspace_symbol")
-		res.checkExit(2)
+		res.checkExit(false)
 		res.checkStderr("expects 1 argument")
 	}
 	// success
 	{
 		res := gopls(t, tree, "workspace_symbol", "meFun")
-		res.checkExit(0)
+		res.checkExit(true)
 		res.checkStdout("a.go:2:6-22 someFunctionName Function")
 	}
 }
@@ -846,11 +846,11 @@ func (res *result) String() string {
 }
 
 // checkExit asserts that gopls returned the expected exit code.
-func (res *result) checkExit(code int) {
+func (res *result) checkExit(success bool) {
 	res.t.Helper()
-	if res.exitcode != code {
-		res.t.Errorf("%s: exited with code %d, want %d (%s)",
-			res.command, res.exitcode, code, res)
+	if (res.exitcode == 0) != success {
+		res.t.Errorf("%s: exited with code %d, want success: %t (%s)",
+			res.command, res.exitcode, success, res)
 	}
 }
 

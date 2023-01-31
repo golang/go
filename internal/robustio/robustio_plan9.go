@@ -10,16 +10,17 @@ package robustio
 import (
 	"os"
 	"syscall"
+	"time"
 )
 
-func getFileID(filename string) (FileID, error) {
+func getFileID(filename string) (FileID, time.Time, error) {
 	fi, err := os.Stat(filename)
 	if err != nil {
-		return FileID{}, err
+		return FileID{}, time.Time{}, err
 	}
 	dir := fi.Sys().(*syscall.Dir)
 	return FileID{
 		device: uint64(dir.Type)<<32 | uint64(dir.Dev),
 		inode:  dir.Qid.Path,
-	}, nil
+	}, fi.ModTime(), nil
 }
