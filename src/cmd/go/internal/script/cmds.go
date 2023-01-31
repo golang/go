@@ -432,21 +432,37 @@ func Exec(cancel func(*exec.Cmd) error, waitDelay time.Duration) Cmd {
 }
 
 func startCommand(s *State, name, path string, args []string, cancel func(*exec.Cmd) error, waitDelay time.Duration) (WaitFunc, error) {
-	var stdoutBuf, stderrBuf strings.Builder
-	cmd := exec.CommandContext(s.Context(), path, args...)
-	if cancel == nil {
-		cmd.Cancel = nil
-	} else {
-		cmd.Cancel = func() error { return cancel(cmd) }
-	}
-	cmd.WaitDelay = waitDelay
-	cmd.Args[0] = name
-	cmd.Dir = s.Getwd()
-	cmd.Env = s.env
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-	if err := cmd.Start(); err != nil {
-		return nil, err
+	var (
+		cmd                  *exec.Cmd
+		stdoutBuf, stderrBuf strings.Builder
+	)
+	for {
+		cmd = exec.CommandContext(s.Context(), path, args...)
+		if cancel == nil {
+			cmd.Cancel = nil
+		} else {
+			cmd.Cancel = func() error { return cancel(cmd) }
+		}
+		cmd.WaitDelay = waitDelay
+		cmd.Args[0] = name
+		cmd.Dir = s.Getwd()
+		cmd.Env = s.env
+		cmd.Stdout = &stdoutBuf
+		cmd.Stderr = &stderrBuf
+		err := cmd.Start()
+		if err == nil {
+			break
+		}
+		if isETXTBSY(err) {
+			// If the script (or its host process) just wrote the executable we're
+			// trying to run, a fork+exec in another thread may be holding open the FD
+			// that we used to write the executable (see https://go.dev/issue/22315).
+			// Since the descriptor should have CLOEXEC set, the problem should
+			// resolve as soon as the forked child reaches its exec call.
+			// Keep retrying until that happens.
+		} else {
+			return nil, err
+		}
 	}
 
 	wait := func(s *State) (stdout, stderr string, err error) {
