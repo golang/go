@@ -10,6 +10,7 @@ import (
 	"crypto"
 	"crypto/internal/boring"
 	"crypto/subtle"
+	"errors"
 	"io"
 	"sync"
 )
@@ -109,7 +110,8 @@ type PrivateKey struct {
 	publicKeyOnce sync.Once
 }
 
-// ECDH performs a ECDH exchange and returns the shared secret.
+// ECDH performs a ECDH exchange and returns the shared secret. The PrivateKey
+// and PublicKey must use the same curve.
 //
 // For NIST curves, this performs ECDH as specified in SEC 1, Version 2.0,
 // Section 3.3.1, and returns the x-coordinate encoded according to SEC 1,
@@ -118,6 +120,9 @@ type PrivateKey struct {
 // For X25519, this performs ECDH as specified in RFC 7748, Section 6.1. If
 // the result is the all-zero value, ECDH returns an error.
 func (k *PrivateKey) ECDH(remote *PublicKey) ([]byte, error) {
+	if k.curve != remote.curve {
+		return nil, errors.New("crypto/ecdh: private key and public key curves do not match")
+	}
 	return k.curve.ecdh(k, remote)
 }
 
