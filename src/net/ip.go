@@ -492,12 +492,18 @@ func (n *IPNet) String() string {
 // If s is not a valid textual representation of an IP address,
 // ParseIP returns nil.
 func ParseIP(s string) IP {
+	if addr, valid := parseIP(s); valid {
+		return IP(addr[:])
+	}
+	return nil
+}
+
+func parseIP(s string) ([16]byte, bool) {
 	ip, err := netip.ParseAddr(s)
 	if err != nil || ip.Zone() != "" {
-		return nil
+		return [16]byte{}, false
 	}
-	var addr = ip.As16()
-	return IP(addr[:])
+	return ip.As16(), true
 }
 
 // ParseCIDR parses s as a CIDR notation IP address and prefix length,
