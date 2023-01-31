@@ -231,7 +231,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pp pro
 		return nil, err
 	}
 
-	declNode, _ := FindDeclAndField([]*ast.File{declPGF.File}, declPos)
+	declNode, _, _ := FindDeclInfo([]*ast.File{declPGF.File}, declPos)
 	if declNode == nil {
 		// TODO(rfindley): why don't we return an error here, or even bug.Errorf?
 		return nil, nil

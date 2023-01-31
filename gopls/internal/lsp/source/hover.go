@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/typeparams"
@@ -498,6 +499,41 @@ func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signatur
 	return str
 }
 
+// parseFull fully parses the file corresponding to position pos, referenced
+// from the given srcpkg.
+//
+// It returns the resulting ParsedGoFile as well as new pos contained in the
+// parsed file.
+func parseFull(ctx context.Context, snapshot Snapshot, srcpkg Package, pos token.Pos) (*ParsedGoFile, token.Pos, error) {
+	f := srcpkg.FileSet().File(pos)
+	if f == nil {
+		return nil, 0, bug.Errorf("internal error: no file for position %d in %s", pos, srcpkg.Metadata().ID)
+	}
+
+	uri := span.URIFromPath(f.Name())
+	fh, err := snapshot.GetFile(ctx, uri)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	offset, err := safetoken.Offset(f, pos)
+	if err != nil {
+		return nil, 0, bug.Errorf("offset out of bounds in %q", uri)
+	}
+
+	fullPos, err := safetoken.Pos(pgf.Tok, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return pgf, fullPos, nil
+}
+
 // FindHoverContext returns a HoverContext struct for an AST node and its
 // declaration object. node should be the actual node used in type checking,
 // while fullNode could be a separate node with more complete syntactic
@@ -637,7 +673,7 @@ func FindHoverContext(ctx context.Context, s Snapshot, pkg Package, obj types.Ob
 				break
 			}
 
-			_, field := FindDeclAndField(pkg.GetSyntax(), obj.Pos())
+			_, _, field := FindDeclInfo(pkg.GetSyntax(), obj.Pos())
 			if field != nil {
 				comment := field.Doc
 				if comment.Text() == "" {
@@ -893,16 +929,19 @@ func anyNonEmpty(x []string) bool {
 	return false
 }
 
-// FindDeclAndField returns the var/func/type/const Decl that declares
-// the identifier at pos, searching the given list of file syntax
-// trees. If pos is the position of an ast.Field or one of its Names
-// or Ellipsis.Elt, the field is returned, along with the innermost
-// enclosing Decl, which could be only loosely related---consider:
+// FindDeclInfo returns the syntax nodes involved in the declaration of the
+// types.Object with position pos, searching the given list of file syntax
+// trees.
 //
-//	var decl = f(  func(field int) {}  )
+// Pos may be the position of the name-defining identifier in a FuncDecl,
+// ValueSpec, TypeSpec, Field, or as a special case the position of
+// Ellipsis.Elt in an ellipsis field.
 //
-// It returns (nil, nil) if no Field or Decl is found at pos.
-func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *ast.Field) {
+// If found, the resulting decl, spec, and field will be the inner-most
+// instance of each node type surrounding pos.
+//
+// It returns a nil decl if no object-defining node is found at pos.
+func FindDeclInfo(files []*ast.File, pos token.Pos) (decl ast.Decl, spec ast.Spec, field *ast.Field) {
 	// panic(found{}) breaks off the traversal and
 	// causes the function to return normally.
 	type found struct{}
@@ -933,33 +972,45 @@ func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *a
 
 		switch n := n.(type) {
 		case *ast.Field:
-			checkField := func(f ast.Node) {
-				if f.Pos() == pos {
-					field = n
-					for i := len(stack) - 1; i >= 0; i-- {
-						if d, ok := stack[i].(ast.Decl); ok {
-							decl = d // innermost enclosing decl
-							break
-						}
+			findEnclosingDeclAndSpec := func() {
+				for i := len(stack) - 1; i >= 0; i-- {
+					switch n := stack[i].(type) {
+					case ast.Spec:
+						spec = n
+					case ast.Decl:
+						decl = n
+						return
 					}
+				}
+			}
+
+			// Check each field name since you can have
+			// multiple names for the same type expression.
+			for _, id := range n.Names {
+				if id.Pos() == pos {
+					field = n
+					findEnclosingDeclAndSpec()
 					panic(found{})
 				}
 			}
 
 			// Check *ast.Field itself. This handles embedded
 			// fields which have no associated *ast.Ident name.
-			checkField(n)
-
-			// Check each field name since you can have
-			// multiple names for the same type expression.
-			for _, name := range n.Names {
-				checkField(name)
+			if n.Pos() == pos {
+				field = n
+				findEnclosingDeclAndSpec()
+				panic(found{})
 			}
 
-			// Also check "X" in "...X". This makes it easy
-			// to format variadic signature params properly.
-			if ell, ok := n.Type.(*ast.Ellipsis); ok && ell.Elt != nil {
-				checkField(ell.Elt)
+			// Also check "X" in "...X". This makes it easy to format variadic
+			// signature params properly.
+			//
+			// TODO(rfindley): I don't understand this comment. How does finding the
+			// field in this case make it easier to format variadic signature params?
+			if ell, ok := n.Type.(*ast.Ellipsis); ok && ell.Elt != nil && ell.Elt.Pos() == pos {
+				field = n
+				findEnclosingDeclAndSpec()
+				panic(found{})
 			}
 
 		case *ast.FuncDecl:
@@ -969,17 +1020,19 @@ func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *a
 			}
 
 		case *ast.GenDecl:
-			for _, spec := range n.Specs {
-				switch spec := spec.(type) {
+			for _, s := range n.Specs {
+				switch s := s.(type) {
 				case *ast.TypeSpec:
-					if spec.Name.Pos() == pos {
+					if s.Name.Pos() == pos {
 						decl = n
+						spec = s
 						panic(found{})
 					}
 				case *ast.ValueSpec:
-					for _, id := range spec.Names {
+					for _, id := range s.Names {
 						if id.Pos() == pos {
 							decl = n
+							spec = s
 							panic(found{})
 						}
 					}
@@ -992,5 +1045,5 @@ func FindDeclAndField(files []*ast.File, pos token.Pos) (decl ast.Decl, field *a
 		ast.Inspect(file, f)
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }

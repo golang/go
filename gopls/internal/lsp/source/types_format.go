@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/typeparams"
@@ -193,7 +194,7 @@ func FormatTypeParams(tparams *typeparams.TypeParamList) string {
 }
 
 // NewSignature returns formatted signature for a types.Signature struct.
-func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signature, comment *ast.CommentGroup, qf types.Qualifier) *signature {
+func NewSignature(ctx context.Context, s Snapshot, pkg Package, srcFile *ast.File, sig *types.Signature, comment *ast.CommentGroup, qf types.Qualifier, mq MetadataQualifier) (*signature, error) {
 	var tparams []string
 	tpList := typeparams.ForSignature(sig)
 	for i := 0; i < tpList.Len(); i++ {
@@ -206,7 +207,10 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 	params := make([]string, 0, sig.Params().Len())
 	for i := 0; i < sig.Params().Len(); i++ {
 		el := sig.Params().At(i)
-		typ := FormatVarType(ctx, s, pkg, el, qf)
+		typ, err := FormatVarType(ctx, s, pkg, srcFile, el, qf, mq)
+		if err != nil {
+			return nil, err
+		}
 		p := typ
 		if el.Name() != "" {
 			p = el.Name() + " " + typ
@@ -221,7 +225,10 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 			needResultParens = true
 		}
 		el := sig.Results().At(i)
-		typ := FormatVarType(ctx, s, pkg, el, qf)
+		typ, err := FormatVarType(ctx, s, pkg, srcFile, el, qf, mq)
+		if err != nil {
+			return nil, err
+		}
 		if el.Name() == "" {
 			results = append(results, typ)
 		} else {
@@ -248,170 +255,239 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 		results:          results,
 		variadic:         sig.Variadic(),
 		needResultParens: needResultParens,
-	}
+	}, nil
 }
 
 // FormatVarType formats a *types.Var, accounting for type aliases.
 // To do this, it looks in the AST of the file in which the object is declared.
 // On any errors, it always falls back to types.TypeString.
-func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, obj *types.Var, qf types.Qualifier) string {
-	pkg, err := FindPackageFromPos(ctx, snapshot, srcpkg, obj.Pos())
-	if err != nil {
-		return types.TypeString(obj.Type(), qf)
+//
+// TODO(rfindley): this function could return the actual name used in syntax,
+// for better parameter names.
+func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, srcFile *ast.File, obj *types.Var, qf types.Qualifier, mq MetadataQualifier) (string, error) {
+	// TODO(rfindley): This looks wrong. The previous comment said:
+	// "If the given expr refers to a type parameter, then use the
+	// object's Type instead of the type parameter declaration. This helps
+	// format the instantiated type as opposed to the original undeclared
+	// generic type".
+	//
+	// But of course, if obj is a type param, we are formatting a generic type
+	// and not an instantiated type. Handling for instantiated types must be done
+	// at a higher level.
+	//
+	// Left this during refactoring in order to preserve pre-existing logic.
+	if typeparams.IsTypeParam(obj.Type()) {
+		return types.TypeString(obj.Type(), qf), nil
 	}
 
-	_, field := FindDeclAndField(pkg.GetSyntax(), obj.Pos())
+	if obj.Pkg() == nil || !obj.Pos().IsValid() {
+		// This is defensive, though it is extremely unlikely we'll ever have a
+		// builtin var.
+		return types.TypeString(obj.Type(), qf), nil
+	}
+
+	targetpgf, pos, err := parseFull(ctx, snapshot, srcpkg, obj.Pos())
+	if err != nil {
+		return "", err // e.g. ctx cancelled
+	}
+
+	targetMeta := findFileInDepsMetadata(snapshot, srcpkg.Metadata(), targetpgf.URI)
+	if targetMeta == nil {
+		// If we have an object from type-checking, it should exist in a file in
+		// the forward transitive closure.
+		return "", bug.Errorf("failed to find file %q in deps of %q", targetpgf.URI, srcpkg.Metadata().ID)
+	}
+
+	decl, spec, field := FindDeclInfo([]*ast.File{targetpgf.File}, pos)
+
+	// We can't handle type parameters correctly, so we fall back on TypeString
+	// for parameterized decls.
+	if decl, _ := decl.(*ast.FuncDecl); decl != nil {
+		if typeparams.ForFuncType(decl.Type).NumFields() > 0 {
+			return types.TypeString(obj.Type(), qf), nil // in generic function
+		}
+		if decl.Recv != nil && len(decl.Recv.List) > 0 {
+			if x, _, _, _ := typeparams.UnpackIndexExpr(decl.Recv.List[0].Type); x != nil {
+				return types.TypeString(obj.Type(), qf), nil // in method of generic type
+			}
+		}
+	}
+	if spec, _ := spec.(*ast.TypeSpec); spec != nil && typeparams.ForTypeSpec(spec).NumFields() > 0 {
+		return types.TypeString(obj.Type(), qf), nil // in generic type decl
+	}
+
 	if field == nil {
-		return types.TypeString(obj.Type(), qf)
+		// TODO(rfindley): we should never reach here from an ordinary var, so
+		// should probably return an error here.
+		return types.TypeString(obj.Type(), qf), nil
 	}
 	expr := field.Type
 
-	// If the given expr refers to a type parameter, then use the
-	// object's Type instead of the type parameter declaration. This helps
-	// format the instantiated type as opposed to the original undeclared
-	// generic type.
-	if typeparams.IsTypeParam(pkg.GetTypesInfo().Types[expr].Type) {
-		return types.TypeString(obj.Type(), qf)
-	}
+	rq := requalifier(snapshot, targetpgf.File, targetMeta, mq)
 
 	// The type names in the AST may not be correctly qualified.
 	// Determine the package name to use based on the package that originated
 	// the query and the package in which the type is declared.
 	// We then qualify the value by cloning the AST node and editing it.
-	clonedInfo := make(map[token.Pos]*types.PkgName)
-	qualified := cloneExpr(expr, pkg.GetTypesInfo(), clonedInfo)
+	expr = qualifyTypeExpr(expr, rq)
 
 	// If the request came from a different package than the one in which the
 	// types are defined, we may need to modify the qualifiers.
-	qualified = qualifyExpr(qualified, srcpkg, pkg, clonedInfo, qf)
-	fmted := FormatNode(srcpkg.FileSet(), qualified)
-	return fmted
+	return FormatNodeFile(targetpgf.Tok, expr), nil
 }
 
-// qualifyExpr applies the "pkgName." prefix to any *ast.Ident in the expr.
-func qualifyExpr(expr ast.Expr, srcpkg, pkg Package, clonedInfo map[token.Pos]*types.PkgName, qf types.Qualifier) ast.Expr {
-	ast.Inspect(expr, func(n ast.Node) bool {
-		switch n := n.(type) {
-		case *ast.ArrayType, *ast.ChanType, *ast.Ellipsis,
-			*ast.FuncType, *ast.MapType, *ast.ParenExpr,
-			*ast.StarExpr, *ast.StructType, *ast.FieldList, *ast.Field:
-			// These are the only types that are cloned by cloneExpr below,
-			// so these are the only types that we can traverse and potentially
-			// modify. This is not an ideal approach, but it works for now.
-
-			// TODO(rFindley): can we eliminate this filtering entirely? This caused
-			// bugs in the past (golang/go#50539)
-			return true
-		case *ast.SelectorExpr:
-			// We may need to change any selectors in which the X is a package
-			// name and the Sel is exported.
-			x, ok := n.X.(*ast.Ident)
-			if !ok {
-				return false
-			}
-			obj, ok := clonedInfo[x.Pos()]
-			if !ok {
-				return false
-			}
-			x.Name = qf(obj.Imported())
-			return false
-		case *ast.Ident:
-			if srcpkg == pkg {
-				return false
-			}
-			// Only add the qualifier if the identifier is exported.
-			if ast.IsExported(n.Name) {
-				pkgName := qf(pkg.GetTypes())
-				n.Name = pkgName + "." + n.Name
-			}
-		}
-		return false
-	})
-	return expr
-}
-
-// cloneExpr only clones expressions that appear in the parameters or return
-// values of a function declaration. The original expression may be returned
-// to the caller in 2 cases:
+// qualifyTypeExpr clones the type expression expr after re-qualifying type
+// names using the given function, which accepts the current syntactic
+// qualifier (possibly "" for unqualified idents), and returns a new qualifier
+// (again, possibly "" if the identifier should be unqualified).
 //
-//  1. The expression has no pointer fields.
-//  2. The expression cannot appear in an *ast.FuncType, making it
-//     unnecessary to clone.
+// The resulting expression may be inaccurate: without type-checking we don't
+// properly account for "." imported identifiers or builtins.
 //
-// This function also keeps track of selector expressions in which the X is a
-// package name and marks them in a map along with their type information, so
-// that this information can be used when rewriting the expression.
-//
-// NOTE: This function is tailored to the use case of qualifyExpr, and should
-// be used with caution.
-func cloneExpr(expr ast.Expr, info *types.Info, clonedInfo map[token.Pos]*types.PkgName) ast.Expr {
+// TODO(rfindley): add many more tests for this function.
+func qualifyTypeExpr(expr ast.Expr, qf func(string) string) ast.Expr {
 	switch expr := expr.(type) {
 	case *ast.ArrayType:
 		return &ast.ArrayType{
 			Lbrack: expr.Lbrack,
-			Elt:    cloneExpr(expr.Elt, info, clonedInfo),
+			Elt:    qualifyTypeExpr(expr.Elt, qf),
 			Len:    expr.Len,
 		}
+
+	case *ast.BinaryExpr:
+		if expr.Op != token.OR {
+			return expr
+		}
+		return &ast.BinaryExpr{
+			X:     qualifyTypeExpr(expr.X, qf),
+			OpPos: expr.OpPos,
+			Op:    expr.Op,
+			Y:     qualifyTypeExpr(expr.Y, qf),
+		}
+
 	case *ast.ChanType:
 		return &ast.ChanType{
 			Arrow: expr.Arrow,
 			Begin: expr.Begin,
 			Dir:   expr.Dir,
-			Value: cloneExpr(expr.Value, info, clonedInfo),
+			Value: qualifyTypeExpr(expr.Value, qf),
 		}
+
 	case *ast.Ellipsis:
 		return &ast.Ellipsis{
 			Ellipsis: expr.Ellipsis,
-			Elt:      cloneExpr(expr.Elt, info, clonedInfo),
+			Elt:      qualifyTypeExpr(expr.Elt, qf),
 		}
+
 	case *ast.FuncType:
 		return &ast.FuncType{
 			Func:    expr.Func,
-			Params:  cloneFieldList(expr.Params, info, clonedInfo),
-			Results: cloneFieldList(expr.Results, info, clonedInfo),
+			Params:  qualifyFieldList(expr.Params, qf),
+			Results: qualifyFieldList(expr.Results, qf),
 		}
+
 	case *ast.Ident:
-		return cloneIdent(expr)
+		// Unqualified type (builtin, package local, or dot-imported).
+
+		// Don't qualify names that look like builtins.
+		//
+		// Without type-checking this may be inaccurate. It could be made accurate
+		// by doing syntactic object resolution for the entire package, but that
+		// does not seem worthwhile and we generally want to avoid using
+		// ast.Object, which may be inaccurate.
+		if obj := types.Universe.Lookup(expr.Name); obj != nil {
+			return expr
+		}
+
+		newName := qf("")
+		if newName != "" {
+			return &ast.SelectorExpr{
+				X: &ast.Ident{
+					NamePos: expr.Pos(),
+					Name:    newName,
+				},
+				Sel: expr,
+			}
+		}
+		return expr
+
+	case *ast.IndexExpr:
+		return &ast.IndexExpr{
+			X:      qualifyTypeExpr(expr.X, qf),
+			Lbrack: expr.Lbrack,
+			Index:  qualifyTypeExpr(expr.Index, qf),
+			Rbrack: expr.Rbrack,
+		}
+
+	case *typeparams.IndexListExpr:
+		indices := make([]ast.Expr, len(expr.Indices))
+		for i, idx := range expr.Indices {
+			indices[i] = qualifyTypeExpr(idx, qf)
+		}
+		return &typeparams.IndexListExpr{
+			X:       qualifyTypeExpr(expr.X, qf),
+			Lbrack:  expr.Lbrack,
+			Indices: indices,
+			Rbrack:  expr.Rbrack,
+		}
+
+	case *ast.InterfaceType:
+		return &ast.InterfaceType{
+			Interface:  expr.Interface,
+			Methods:    qualifyFieldList(expr.Methods, qf),
+			Incomplete: expr.Incomplete,
+		}
+
 	case *ast.MapType:
 		return &ast.MapType{
 			Map:   expr.Map,
-			Key:   cloneExpr(expr.Key, info, clonedInfo),
-			Value: cloneExpr(expr.Value, info, clonedInfo),
+			Key:   qualifyTypeExpr(expr.Key, qf),
+			Value: qualifyTypeExpr(expr.Value, qf),
 		}
+
 	case *ast.ParenExpr:
 		return &ast.ParenExpr{
 			Lparen: expr.Lparen,
 			Rparen: expr.Rparen,
-			X:      cloneExpr(expr.X, info, clonedInfo),
+			X:      qualifyTypeExpr(expr.X, qf),
 		}
+
 	case *ast.SelectorExpr:
-		s := &ast.SelectorExpr{
-			Sel: cloneIdent(expr.Sel),
-			X:   cloneExpr(expr.X, info, clonedInfo),
-		}
-		if x, ok := expr.X.(*ast.Ident); ok && ast.IsExported(expr.Sel.Name) {
-			if obj, ok := info.ObjectOf(x).(*types.PkgName); ok {
-				clonedInfo[s.X.Pos()] = obj
+		if id, ok := expr.X.(*ast.Ident); ok {
+			// qualified type
+			newName := qf(id.Name)
+			if newName == "" {
+				return expr.Sel
+			}
+			return &ast.SelectorExpr{
+				X: &ast.Ident{
+					NamePos: id.NamePos,
+					Name:    newName,
+				},
+				Sel: expr.Sel,
 			}
 		}
-		return s
+		return expr
+
 	case *ast.StarExpr:
 		return &ast.StarExpr{
 			Star: expr.Star,
-			X:    cloneExpr(expr.X, info, clonedInfo),
+			X:    qualifyTypeExpr(expr.X, qf),
 		}
+
 	case *ast.StructType:
 		return &ast.StructType{
 			Struct:     expr.Struct,
-			Fields:     cloneFieldList(expr.Fields, info, clonedInfo),
+			Fields:     qualifyFieldList(expr.Fields, qf),
 			Incomplete: expr.Incomplete,
 		}
+
 	default:
 		return expr
 	}
 }
 
-func cloneFieldList(fl *ast.FieldList, info *types.Info, clonedInfo map[token.Pos]*types.PkgName) *ast.FieldList {
+func qualifyFieldList(fl *ast.FieldList, qf func(string) string) *ast.FieldList {
 	if fl == nil {
 		return nil
 	}
@@ -423,29 +499,17 @@ func cloneFieldList(fl *ast.FieldList, info *types.Info, clonedInfo map[token.Po
 	}
 	list := make([]*ast.Field, 0, len(fl.List))
 	for _, f := range fl.List {
-		var names []*ast.Ident
-		for _, n := range f.Names {
-			names = append(names, cloneIdent(n))
-		}
 		list = append(list, &ast.Field{
 			Comment: f.Comment,
 			Doc:     f.Doc,
-			Names:   names,
+			Names:   f.Names,
 			Tag:     f.Tag,
-			Type:    cloneExpr(f.Type, info, clonedInfo),
+			Type:    qualifyTypeExpr(f.Type, qf),
 		})
 	}
 	return &ast.FieldList{
 		Closing: fl.Closing,
 		Opening: fl.Opening,
 		List:    list,
-	}
-}
-
-func cloneIdent(ident *ast.Ident) *ast.Ident {
-	return &ast.Ident{
-		NamePos: ident.NamePos,
-		Name:    ident.Name,
-		Obj:     ident.Obj,
 	}
 }

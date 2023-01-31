@@ -202,10 +202,18 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 			// If the param has no name in the signature, guess a name based
 			// on the type. Use an empty qualifier to ignore the package.
 			// For example, we want to name "http.Request" "r", not "hr".
-			name = source.FormatVarType(ctx, c.snapshot, c.pkg, p, func(p *types.Package) string {
-				return ""
-			})
-			name = abbreviateTypeName(name)
+			typeName, err := source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, p,
+				func(p *types.Package) string { return "" },
+				func(source.PackageName, source.ImportPath, source.PackagePath) string { return "" })
+			if err != nil {
+				// In general, the only error we should encounter while formatting is
+				// context cancellation.
+				if ctx.Err() == nil {
+					event.Error(ctx, "formatting var type", err)
+				}
+				return
+			}
+			name = abbreviateTypeName(typeName)
 		}
 		paramNames[i] = name
 		if name != "_" {
@@ -264,7 +272,15 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 		// of "i int, j int".
 		if i == sig.Params().Len()-1 || !types.Identical(p.Type(), sig.Params().At(i+1).Type()) {
 			snip.WriteText(" ")
-			typeStr := source.FormatVarType(ctx, c.snapshot, c.pkg, p, c.qf)
+			typeStr, err := source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, p, c.qf, c.mq)
+			if err != nil {
+				// In general, the only error we should encounter while formatting is
+				// context cancellation.
+				if ctx.Err() == nil {
+					event.Error(ctx, "formatting var type", err)
+				}
+				return
+			}
 			if sig.Variadic() && i == sig.Params().Len()-1 {
 				typeStr = strings.Replace(typeStr, "[]", "...", 1)
 			}
@@ -314,7 +330,15 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 			snip.WriteText(name + " ")
 		}
 
-		text := source.FormatVarType(ctx, c.snapshot, c.pkg, r, c.qf)
+		text, err := source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, r, c.qf, c.mq)
+		if err != nil {
+			// In general, the only error we should encounter while formatting is
+			// context cancellation.
+			if ctx.Err() == nil {
+				event.Error(ctx, "formatting var type", err)
+			}
+			return
+		}
 		if tp, _ := r.Type().(*typeparams.TypeParam); tp != nil && !c.typeParamInScope(tp) {
 			snip.WritePlaceholder(func(snip *snippet.Builder) {
 				snip.WriteText(text)

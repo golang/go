@@ -156,7 +156,8 @@ func (ipm insensitivePrefixMatcher) Score(candidateLabel string) float32 {
 type completer struct {
 	snapshot source.Snapshot
 	pkg      source.Package
-	qf       types.Qualifier
+	qf       types.Qualifier          // for qualifying typed expressions
+	mq       source.MetadataQualifier // for syntactic qualifying
 	opts     *completionOptions
 
 	// completionContext contains information about the trigger for this
@@ -509,6 +510,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 		pkg:      pkg,
 		snapshot: snapshot,
 		qf:       source.Qualifier(pgf.File, pkg.GetTypes(), pkg.GetTypesInfo()),
+		mq:       source.MetadataQualifierForFile(snapshot, pgf.File, pkg.Metadata()),
 		completionContext: completionContext{
 			triggerCharacter: protoContext.TriggerCharacter,
 			triggerKind:      protoContext.TriggerKind,

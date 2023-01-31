@@ -482,7 +482,7 @@ func doit() {
 			t.Error(diff)
 		}
 		if completions.Items[0].Tags == nil {
-			t.Errorf("expected Tags to show deprecation %#v", diff[0])
+			t.Errorf("expected Tags to show deprecation %#v", completions.Items[0].Tags)
 		}
 		loc = env.RegexpSearch("prog.go", "= badP")
 		loc.Range.Start.Character += uint32(protocol.UTF16Len([]byte("= badP")))
@@ -492,7 +492,7 @@ func doit() {
 			t.Error(diff)
 		}
 		if completions.Items[0].Tags == nil {
-			t.Errorf("expected Tags to show deprecation %#v", diff[0])
+			t.Errorf("expected Tags to show deprecation %#v", completions.Items[0].Tags)
 		}
 	})
 }

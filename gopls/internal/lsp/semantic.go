@@ -220,9 +220,7 @@ type encoded struct {
 
 	ctx context.Context
 	// metadataSource is used to resolve imports
-	metadataSource interface {
-		Metadata(source.PackageID) *source.Metadata
-	}
+	metadataSource    source.MetadataSource
 	tokTypes, tokMods []string
 	pgf               *source.ParsedGoFile
 	rng               *protocol.Range

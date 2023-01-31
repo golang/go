@@ -21,9 +21,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
-	"unsafe"
 
+	"golang.org/x/tools/internal/tokeninternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -210,7 +209,7 @@ func (p *iexporter) encodeFile(w *intWriter, file *token.File, needed []uint64) 
 	// Sort the set of needed offsets. Duplicates are harmless.
 	sort.Slice(needed, func(i, j int) bool { return needed[i] < needed[j] })
 
-	lines := getLines(file) // byte offset of each line start
+	lines := tokeninternal.GetLines(file) // byte offset of each line start
 	w.uint64(uint64(len(lines)))
 
 	// Rather than record the entire array of line start offsets,
@@ -1178,51 +1177,4 @@ func (q *objQueue) popHead() types.Object {
 	obj := q.ring[q.head%len(q.ring)]
 	q.head++
 	return obj
-}
-
-// getLines returns the table of line-start offsets from a token.File.
-func getLines(file *token.File) []int {
-	// Use this variant once proposal #57708 is implemented:
-	//
-	// if file, ok := file.(interface{ Lines() []int }); ok {
-	// 	return file.Lines()
-	// }
-
-	// This declaration must match that of token.File.
-	// This creates a risk of dependency skew.
-	// For now we check that the size of the two
-	// declarations is the same, on the (fragile) assumption
-	// that future changes would add fields.
-	type tokenFile119 struct {
-		_     string
-		_     int
-		_     int
-		mu    sync.Mutex // we're not complete monsters
-		lines []int
-		_     []struct{}
-	}
-	type tokenFile118 struct {
-		_ *token.FileSet // deleted in go1.19
-		tokenFile119
-	}
-
-	type uP = unsafe.Pointer
-	switch unsafe.Sizeof(*file) {
-	case unsafe.Sizeof(tokenFile118{}):
-		var ptr *tokenFile118
-		*(*uP)(uP(&ptr)) = uP(file)
-		ptr.mu.Lock()
-		defer ptr.mu.Unlock()
-		return ptr.lines
-
-	case unsafe.Sizeof(tokenFile119{}):
-		var ptr *tokenFile119
-		*(*uP)(uP(&ptr)) = uP(file)
-		ptr.mu.Lock()
-		defer ptr.mu.Unlock()
-		return ptr.lines
-
-	default:
-		panic("unexpected token.File size")
-	}
 }

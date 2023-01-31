@@ -274,9 +274,7 @@ func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Pa
 	if err != nil {
 		return nil, err
 	}
-	// TODO(adonovan): there's no need to inspect the entire GetSyntax() slice:
-	// we already know it's declFile.File.
-	result.Declaration.node, _ = FindDeclAndField(declPkg.GetSyntax(), declPos) // may be nil
+	result.Declaration.node, _, _ = FindDeclInfo([]*ast.File{declFile.File}, declPos) // may be nil
 	result.Declaration.nodeFile = declFile
 
 	// Ensure that we have the full declaration, in case the declaration was

@@ -354,12 +354,20 @@ type View interface {
 	GoVersionString() string
 }
 
-// A FileSource maps uris to FileHandles. This abstraction exists both for
-// testability, and so that algorithms can be run equally on session and
-// snapshot files.
+// A FileSource maps uris to FileHandles.
 type FileSource interface {
 	// GetFile returns the FileHandle for a given URI.
 	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
+}
+
+// A MetadataSource maps package IDs to metadata.
+//
+// TODO(rfindley): replace this with a concrete metadata graph, once it is
+// exposed from the snapshot.
+type MetadataSource interface {
+	// Metadata returns Metadata for the given package ID, or nil if it does not
+	// exist.
+	Metadata(PackageID) *Metadata
 }
 
 // A ParsedGoFile contains the results of parsing a Go file.

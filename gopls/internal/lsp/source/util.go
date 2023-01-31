@@ -20,6 +20,8 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/tokeninternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -161,6 +163,24 @@ func FormatNode(fset *token.FileSet, n ast.Node) string {
 	return buf.String()
 }
 
+// FormatNodeFile is like FormatNode, but requires only the token.File for the
+// syntax containing the given ast node.
+func FormatNodeFile(file *token.File, n ast.Node) string {
+	fset := SingletonFileSet(file)
+	return FormatNode(fset, n)
+}
+
+// SingletonFileSet creates a new token.FileSet containing a file that is
+// identical to f (same base, size, and line), for use in APIs that require a
+// FileSet.
+func SingletonFileSet(f *token.File) *token.FileSet {
+	fset := token.NewFileSet()
+	f2 := fset.AddFile(f.Name(), f.Base(), f.Size())
+	lines := tokeninternal.GetLines(f)
+	f2.SetLines(lines)
+	return fset
+}
+
 // Deref returns a pointer's element type, traversing as many levels as needed.
 // Otherwise it returns typ.
 //
@@ -236,13 +256,46 @@ func findFileInDeps(ctx context.Context, snapshot Snapshot, pkg Package, uri spa
 	return nil, nil, fmt.Errorf("no file for %s in deps of package %s", uri, pkg.Metadata().ID)
 }
 
+// findFileInDepsMetadata finds package metadata containing URI in the
+// transitive dependencies of m. When using the Go command, the answer is
+// unique.
+//
+// TODO(rfindley): refactor to share logic with findPackageInDeps?
+func findFileInDepsMetadata(s MetadataSource, m *Metadata, uri span.URI) *Metadata {
+	seen := make(map[PackageID]bool)
+	var search func(*Metadata) *Metadata
+	search = func(m *Metadata) *Metadata {
+		if seen[m.ID] {
+			return nil
+		}
+		seen[m.ID] = true
+		for _, cgf := range m.CompiledGoFiles {
+			if cgf == uri {
+				return m
+			}
+		}
+		for _, dep := range m.DepsByPkgPath {
+			m := s.Metadata(dep)
+			if m == nil {
+				bug.Reportf("nil metadata for %q", dep)
+				continue
+			}
+			if found := search(m); found != nil {
+				return found
+			}
+		}
+		return nil
+	}
+	return search(m)
+}
+
 // recursiveDeps finds unique transitive dependencies of m, including m itself.
 //
 // Invariant: for the resulting slice res, res[0] == m.ID.
 //
 // TODO(rfindley): consider replacing this with a snapshot.ForwardDependencies
 // method, or exposing the metadata graph itself.
-func recursiveDeps(s interface{ Metadata(PackageID) *Metadata }, m *Metadata) []PackageID {
+func recursiveDeps(s MetadataSource, m *Metadata) []PackageID {
 	seen := make(map[PackageID]bool)
 	var ids []PackageID
 	var add func(*Metadata)
@@ -254,6 +307,10 @@ func recursiveDeps(s interface{ Metadata(PackageID) *Metadata }, m *Metadata) []
 		ids = append(ids, m.ID)
 		for _, dep := range m.DepsByPkgPath {
 			m := s.Metadata(dep)
+			if m == nil {
+				bug.Reportf("nil metadata for %q", dep)
+				continue
+			}
 			add(m)
 		}
 	}
@@ -327,6 +384,134 @@ func Qualifier(f *ast.File, pkg *types.Package, info *types.Info) types.Qualifie
 		}
 		return p.Name()
 	}
+}
+
+// requalifier returns a function that re-qualifies identifiers and qualified
+// identifiers contained in targetFile using the given metadata qualifier.
+func requalifier(s MetadataSource, targetFile *ast.File, targetMeta *Metadata, mq MetadataQualifier) func(string) string {
+	qm := map[string]string{
+		"": mq(targetMeta.Name, "", targetMeta.PkgPath),
+	}
+
+	// Construct mapping of import paths to their defined or implicit names.
+	for _, imp := range targetFile.Imports {
+		name, pkgName, impPath, pkgPath := importInfo(s, imp, targetMeta)
+
+		// Re-map the target name for the source file.
+		qm[name] = mq(pkgName, impPath, pkgPath)
+	}
+
+	return func(name string) string {
+		if newName, ok := qm[name]; ok {
+			return newName
+		}
+		return name
+	}
+}
+
+// A MetadataQualifier is a function that qualifies an identifier declared in a
+// package with the given package name, import path, and package path.
+//
+// In scenarios where metadata is missing the provided PackageName and
+// PackagePath may be empty, but ImportPath must always be non-empty.
+type MetadataQualifier func(PackageName, ImportPath, PackagePath) string
+
+// MetadataQualifierForFile returns a metadata qualifier that chooses the best
+// qualification of an imported package relative to the file f in package with
+// metadata m.
+func MetadataQualifierForFile(s MetadataSource, f *ast.File, m *Metadata) MetadataQualifier {
+	// Record local names for import paths.
+	localNames := make(map[ImportPath]string) // local names for imports in f
+	for _, imp := range f.Imports {
+		name, _, impPath, _ := importInfo(s, imp, m)
+		localNames[impPath] = name
+	}
+
+	// Record a package path -> import path mapping.
+	inverseDeps := make(map[PackageID]PackagePath)
+	for path, id := range m.DepsByPkgPath {
+		inverseDeps[id] = path
+	}
+	importsByPkgPath := make(map[PackagePath]ImportPath) // best import paths by pkgPath
+	for impPath, id := range m.DepsByImpPath {
+		if id == "" {
+			continue
+		}
+		pkgPath := inverseDeps[id]
+		_, hasPath := importsByPkgPath[pkgPath]
+		_, hasImp := localNames[impPath]
+		// In rare cases, there may be multiple import paths with the same package
+		// path. In such scenarios, prefer an import path that already exists in
+		// the file.
+		if !hasPath || hasImp {
+			importsByPkgPath[pkgPath] = impPath
+		}
+	}
+
+	return func(pkgName PackageName, impPath ImportPath, pkgPath PackagePath) string {
+		// If supplied, translate the package path to an import path in the source
+		// package.
+		if pkgPath != "" {
+			if srcImp := importsByPkgPath[pkgPath]; srcImp != "" {
+				impPath = srcImp
+			}
+			if pkgPath == m.PkgPath {
+				return ""
+			}
+		}
+		if localName, ok := localNames[impPath]; ok && impPath != "" {
+			return string(localName)
+		}
+		if pkgName != "" {
+			return string(pkgName)
+		}
+		idx := strings.LastIndexByte(string(impPath), '/')
+		return string(impPath[idx+1:])
+	}
+}
+
+// importInfo collects information about the import specified by imp,
+// extracting its file-local name, package name, import path, and package path.
+//
+// If metadata is missing for the import, the resulting package name and
+// package path may be empty, and the file local name may be guessed based on
+// the import path.
+//
+// Note: previous versions of this helper used a PackageID->PackagePath map
+// extracted from m, for extracting package path even in the case where
+// metadata for a dep was missing. This should not be necessary, as we should
+// always have metadata for IDs contained in DepsByPkgPath.
+func importInfo(s MetadataSource, imp *ast.ImportSpec, m *Metadata) (string, PackageName, ImportPath, PackagePath) {
+	var (
+		name    string // local name
+		pkgName PackageName
+		impPath = UnquoteImportPath(imp)
+		pkgPath PackagePath
+	)
+
+	// If the import has a local name, use it.
+	if imp.Name != nil {
+		name = imp.Name.Name
+	}
+
+	// Try to find metadata for the import. If successful and there is no local
+	// name, the package name is the local name.
+	if depID := m.DepsByImpPath[impPath]; depID != "" {
+		if depm := s.Metadata(depID); depm != nil {
+			if name == "" {
+				name = string(depm.Name)
+			}
+			pkgName = depm.Name
+			pkgPath = depm.PkgPath
+		}
+	}
+
+	// If the local name is still unknown, guess it based on the import path.
+	if name == "" {
+		idx := strings.LastIndexByte(string(impPath), '/')
+		name = string(impPath[idx+1:])
+	}
+	return name, pkgName, impPath, pkgPath
 }
 
 // isDirective reports whether c is a comment directive.

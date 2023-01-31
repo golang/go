@@ -81,7 +81,11 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
-			detail = source.FormatVarType(ctx, c.snapshot, c.pkg, obj, c.qf)
+			var err error
+			detail, err = source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, obj, c.qf, c.mq)
+			if err != nil {
+				return CompletionItem{}, err
+			}
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
@@ -130,7 +134,10 @@ Suffixes:
 		switch mod {
 		case invoke:
 			if sig, ok := funcType.Underlying().(*types.Signature); ok {
-				s := source.NewSignature(ctx, c.snapshot, c.pkg, sig, nil, c.qf)
+				s, err := source.NewSignature(ctx, c.snapshot, c.pkg, c.file, sig, nil, c.qf, c.mq)
+				if err != nil {
+					return CompletionItem{}, err
+				}
 				c.functionCallSnippet("", s.TypeParams(), s.Params(), &snip)
 				if sig.Results().Len() == 1 {
 					funcType = sig.Results().At(0).Type()
@@ -243,7 +250,7 @@ Suffixes:
 		return item, nil
 	}
 
-	decl, _ := source.FindDeclAndField(pkg.GetSyntax(), obj.Pos()) // may be nil
+	decl, _, _ := source.FindDeclInfo(pkg.GetSyntax(), obj.Pos()) // may be nil
 	hover, err := source.FindHoverContext(ctx, c.snapshot, pkg, obj, decl, nil)
 	if err != nil {
 		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))
