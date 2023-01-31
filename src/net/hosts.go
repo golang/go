@@ -6,6 +6,7 @@ package net
 
 import (
 	"internal/bytealg"
+	"net/netip"
 	"sync"
 	"time"
 )
@@ -13,19 +14,11 @@ import (
 const cacheMaxAge = 5 * time.Second
 
 func parseLiteralIP(addr string) string {
-	var ip IP
-	var zone string
-	ip = parseIPv4(addr)
-	if ip == nil {
-		ip, zone = parseIPv6Zone(addr)
-	}
-	if ip == nil {
+	ip, err := netip.ParseAddr(addr)
+	if err != nil {
 		return ""
 	}
-	if zone == "" {
-		return ip.String()
-	}
-	return ip.String() + "%" + zone
+	return ip.String()
 }
 
 type byName struct {

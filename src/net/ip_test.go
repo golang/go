@@ -116,6 +116,22 @@ func BenchmarkParseIP(b *testing.B) {
 	}
 }
 
+func BenchmarkParseIPValidIPv4(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
+	for i := 0; i < b.N; i++ {
+		ParseIP("192.0.2.1")
+	}
+}
+
+func BenchmarkParseIPValidIPv6(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
+	for i := 0; i < b.N; i++ {
+		ParseIP("2001:DB8::1")
+	}
+}
+
 // Issue 6339
 func TestMarshalEmptyIP(t *testing.T) {
 	for _, in := range [][]byte{nil, []byte("")} {
