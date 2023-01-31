@@ -260,17 +260,21 @@ func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (
 		}
 	}
 	if gerrno != 0 {
+		isErrorNoSuchHost := false
 		isTemporary := false
 		switch gerrno {
 		case _C_EAI_SYSTEM:
 			if err == nil { // see golang.org/issue/6232
 				err = syscall.EMFILE
 			}
+		case _C_EAI_NONAME:
+			err = errNoSuchHost
+			isErrorNoSuchHost = true
 		default:
 			err = addrinfoErrno(gerrno)
 			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
-		return nil, &DNSError{Err: err.Error(), Name: addr, IsTemporary: isTemporary}
+		return nil, &DNSError{Err: err.Error(), Name: addr, IsTemporary: isTemporary, IsNotFound: isErrorNoSuchHost}
 	}
 	for i := 0; i < len(b); i++ {
 		if b[i] == 0 {
