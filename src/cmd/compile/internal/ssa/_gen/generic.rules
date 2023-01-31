@@ -2077,15 +2077,9 @@
   => (Zero {types.Types[types.TUINT8]} [int64(c)] sptr mem)
 
 // Recognise make([]T, 0) and replace it with a pointer to the zerobase
-(SelectN [0] call:(StaticLECall _ (Const(64|32) [0]) (Const(64|32) [0]) _))
-	&& isSameCall(call.Aux, "runtime.makeslice")
-	&& clobberIfDead(call)
-	=> (Addr {ir.Syms.Zerobase} (SB))
-
-(SelectN [1] call:(StaticLECall _ (Const(64|32) [0]) (Const(64|32) [0]) mem))
-	&& isSameCall(call.Aux, "runtime.makeslice")
-	&& clobberIfDead(call)
-	=> mem
+(StaticLECall {callAux} _ (Const(64|32) [0]) (Const(64|32) [0]) mem)
+	&& isSameCall(callAux, "runtime.makeslice")
+	=> (MakeResult (Addr <v.Type.FieldType(0)> {ir.Syms.Zerobase} (SB)) mem)
 
 // Evaluate constant address comparisons.
 (EqPtr  x x) => (ConstBool [true])
