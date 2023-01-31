@@ -1143,7 +1143,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			return false
 		}
 		switch goos {
-		case "aix", "darwin", "ios", "windows":
+		case "aix", "darwin", "windows":
 			return true
 		case "linux":
 			switch goarch {
@@ -1182,7 +1182,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-s390x", "linux-ppc64le":
 			return true
-		case "android-386", "android-amd64", "android-arm", "android-arm64":
+		case "android-386", "android-amd64":
 			return true
 		case "darwin-amd64", "darwin-arm64":
 			return true
