@@ -274,7 +274,7 @@ func (m *moduleErrorMap) Error() string {
 	return buf.String()
 }
 
-// workspaceLayoutErrors returns an error decribing a misconfiguration of the
+// workspaceLayoutError returns an error describing a misconfiguration of the
 // workspace, along with related diagnostic.
 //
 // The unusual argument ordering of results is intentional: if the resulting

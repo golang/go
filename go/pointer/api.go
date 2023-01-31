@@ -97,7 +97,7 @@ func (c *Config) AddQuery(v ssa.Value) {
 	c.Queries[v] = struct{}{}
 }
 
-// AddQuery adds v to Config.IndirectQueries.
+// AddIndirectQuery adds v to Config.IndirectQueries.
 // Precondition: CanPoint(v.Type().Underlying().(*types.Pointer).Elem()).
 func (c *Config) AddIndirectQuery(v ssa.Value) {
 	if c.IndirectQueries == nil {

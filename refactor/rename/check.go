@@ -478,7 +478,7 @@ func (r *renamer) checkStructField(from *types.Var) {
 	r.checkSelections(from)
 }
 
-// checkSelection checks that all uses and selections that resolve to
+// checkSelections checks that all uses and selections that resolve to
 // the specified object would continue to do so after the renaming.
 func (r *renamer) checkSelections(from types.Object) {
 	for pkg, info := range r.packages {

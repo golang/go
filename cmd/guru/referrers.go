@@ -703,7 +703,7 @@ type referrersPackageResult struct {
 	refs  []*ast.Ident // set of all other references to it
 }
 
-// forEachRef calls f(id, text) for id in r.refs, in order.
+// foreachRef calls f(id, text) for id in r.refs, in order.
 // Text is the text of the line on which id appears.
 func (r *referrersPackageResult) foreachRef(f func(id *ast.Ident, text string)) {
 	// Show referring lines, like grep.

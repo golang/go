@@ -929,7 +929,7 @@ func factType(fact analysis.Fact) reflect.Type {
 	return t
 }
 
-// allObjectFacts implements Pass.AllObjectFacts.
+// allPackageFacts implements Pass.AllPackageFacts.
 func (act *action) allPackageFacts() []analysis.PackageFact {
 	facts := make([]analysis.PackageFact, 0, len(act.packageFacts))
 	for k := range act.packageFacts {

@@ -419,7 +419,7 @@ func (m *Mapper) PosPosition(tf *token.File, pos token.Pos) (Position, error) {
 	return m.OffsetPosition(offset)
 }
 
-// PosPosition converts a token range to a protocol (UTF-16) location.
+// PosLocation converts a token range to a protocol (UTF-16) location.
 func (m *Mapper) PosLocation(tf *token.File, start, end token.Pos) (Location, error) {
 	startOffset, endOffset, err := safetoken.Offsets(tf, start, end)
 	if err != nil {
@@ -432,7 +432,7 @@ func (m *Mapper) PosLocation(tf *token.File, start, end token.Pos) (Location, er
 	return m.RangeLocation(rng), nil
 }
 
-// PosPosition converts a token range to a protocol (UTF-16) range.
+// PosRange converts a token range to a protocol (UTF-16) range.
 func (m *Mapper) PosRange(tf *token.File, start, end token.Pos) (Range, error) {
 	startOffset, endOffset, err := safetoken.Offsets(tf, start, end)
 	if err != nil {

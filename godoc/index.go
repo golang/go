@@ -1422,7 +1422,7 @@ func (x *Index) LookupRegexp(r *regexp.Regexp, n int) (found int, result []FileL
 	return
 }
 
-// InvalidateIndex should be called whenever any of the file systems
+// invalidateIndex should be called whenever any of the file systems
 // under godoc's observation change so that the indexer is kicked on.
 func (c *Corpus) invalidateIndex() {
 	c.fsModified.Set(nil)

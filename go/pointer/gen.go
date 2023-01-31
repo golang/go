@@ -206,7 +206,7 @@ func (a *analysis) makeRtype(T types.Type) nodeid {
 	return id
 }
 
-// rtypeValue returns the type of the *reflect.rtype-tagged object obj.
+// rtypeTaggedValue returns the type of the *reflect.rtype-tagged object obj.
 func (a *analysis) rtypeTaggedValue(obj nodeid) types.Type {
 	tDyn, t, _ := a.taggedValue(obj)
 	if tDyn != a.reflectRtypePtr {

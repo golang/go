@@ -369,7 +369,7 @@ func (p *iexporter) stringOff(s string) uint64 {
 	return off
 }
 
-// fileIndex returns the index of the token.File and the byte offset of pos within it.
+// fileIndexAndOffset returns the index of the token.File and the byte offset of pos within it.
 func (p *iexporter) fileIndexAndOffset(file *token.File, pos token.Pos) (uint64, uint64) {
 	index, ok := p.fileInfo[file]
 	if !ok {

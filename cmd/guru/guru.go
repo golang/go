@@ -55,12 +55,12 @@ type queryPos struct {
 	info       *loader.PackageInfo // type info for the queried package (nil for fastQueryPos)
 }
 
-// TypeString prints type T relative to the query position.
+// typeString prints type T relative to the query position.
 func (qpos *queryPos) typeString(T types.Type) string {
 	return types.TypeString(T, types.RelativeTo(qpos.info.Pkg))
 }
 
-// ObjectString prints object obj relative to the query position.
+// objectString prints object obj relative to the query position.
 func (qpos *queryPos) objectString(obj types.Object) string {
 	return types.ObjectString(obj, types.RelativeTo(qpos.info.Pkg))
 }

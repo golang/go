@@ -60,7 +60,7 @@ func extractMetadata(b []byte) (meta Metadata, tail []byte, err error) {
 	return
 }
 
-// UpdateMetadata scans $GOROOT/doc for HTML and Markdown files, reads their metadata,
+// updateMetadata scans $GOROOT/doc for HTML and Markdown files, reads their metadata,
 // and updates the DocMetadata map.
 func (c *Corpus) updateMetadata() {
 	metadata := make(map[string]*Metadata)
@@ -147,7 +147,7 @@ func (c *Corpus) refreshMetadata() {
 	}
 }
 
-// RefreshMetadataLoop runs forever, updating DocMetadata when the underlying
+// refreshMetadataLoop runs forever, updating DocMetadata when the underlying
 // file system changes. It should be launched in a goroutine.
 func (c *Corpus) refreshMetadataLoop() {
 	for {

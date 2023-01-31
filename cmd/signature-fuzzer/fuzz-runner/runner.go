@@ -107,7 +107,7 @@ func docmd(cmd []string, dir string) int {
 	return st
 }
 
-// docodmout forks and execs command 'cmd' in dir 'dir', redirecting
+// docmdout forks and execs command 'cmd' in dir 'dir', redirecting
 // stderr and stdout from the execution to file 'outfile'.
 func docmdout(cmd []string, dir string, outfile string) int {
 	of, err := os.OpenFile(outfile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)

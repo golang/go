@@ -1167,7 +1167,7 @@ func (p *parser) maybeCreatePackage() {
 	}
 }
 
-// parseInitDateDirective parses an InitDataDirective:
+// parseInitDataDirective parses an InitDataDirective:
 //
 //	InitDataDirective = ( "v1" | "v2" | "v3" ) ";" |
 //		"priority" int ";" |

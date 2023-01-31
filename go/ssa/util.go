@@ -83,7 +83,7 @@ func isRuneSlice(t types.Type) bool {
 	return false
 }
 
-// isBasicConvType returns true when a type set can be
+// isBasicConvTypes returns true when a type set can be
 // one side of a Convert operation. This is when:
 // - All are basic, []byte, or []rune.
 // - At least 1 is basic.

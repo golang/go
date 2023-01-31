@@ -192,14 +192,14 @@ type Server struct {
 	ClientID     string
 }
 
-// AddClient adds a client to the set being served.
+// addClient adds a client to the set being served.
 func (st *State) addClient(session *cache.Session) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	st.clients = append(st.clients, &Client{Session: session})
 }
 
-// DropClient removes a client from the set being served.
+// dropClient removes a client from the set being served.
 func (st *State) dropClient(session *cache.Session) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -213,7 +213,7 @@ func (st *State) dropClient(session *cache.Session) {
 	}
 }
 
-// AddServer adds a server to the set being queried. In practice, there should
+// updateServer updates a server to the set being queried. In practice, there should
 // be at most one remote server.
 func (st *State) updateServer(server *Server) {
 	st.mu.Lock()
@@ -232,7 +232,7 @@ func (st *State) updateServer(server *Server) {
 	st.servers = append(st.servers, server)
 }
 
-// DropServer drops a server from the set being queried.
+// dropServer drops a server from the set being queried.
 func (st *State) dropServer(id string) {
 	st.mu.Lock()
 	defer st.mu.Unlock()

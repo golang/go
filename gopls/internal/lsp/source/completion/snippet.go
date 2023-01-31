@@ -11,7 +11,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 )
 
-// structFieldSnippets calculates the snippet for struct literal field names.
+// structFieldSnippet calculates the snippet for struct literal field names.
 func (c *completer) structFieldSnippet(cand candidate, detail string, snip *snippet.Builder) {
 	if !c.wantStructFieldCompletions() {
 		return
@@ -49,7 +49,7 @@ func (c *completer) structFieldSnippet(cand candidate, detail string, snip *snip
 	}
 }
 
-// functionCallSnippets calculates the snippet for function calls.
+// functionCallSnippet calculates the snippet for function calls.
 func (c *completer) functionCallSnippet(name string, tparams, params []string, snip *snippet.Builder) {
 	// If there is no suffix then we need to reuse existing call parens
 	// "()" if present. If there is an identifier suffix then we always

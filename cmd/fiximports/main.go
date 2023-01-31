@@ -389,7 +389,7 @@ func rewritePackage(client *listPackage, canonical map[string]canonicalName) boo
 	return ok
 }
 
-// rewrite reads, modifies, and writes filename, replacing all imports
+// rewriteFile reads, modifies, and writes filename, replacing all imports
 // of packages P in canonical by canonical[P].
 // It records in used which canonical packages were imported.
 // used[P]=="" indicates that P was imported but its canonical path is unknown.

@@ -793,7 +793,7 @@ func (e *Editor) GoToTypeDefinition(ctx context.Context, loc protocol.Location) 
 	return e.extractFirstLocation(ctx, resp)
 }
 
-// extractFirstPathAndPos returns the first location.
+// extractFirstLocation returns the first location.
 // It opens the file if needed.
 func (e *Editor) extractFirstLocation(ctx context.Context, locs []protocol.Location) (protocol.Location, error) {
 	if len(locs) == 0 {

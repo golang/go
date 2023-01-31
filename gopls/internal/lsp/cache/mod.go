@@ -285,7 +285,7 @@ func modWhyImpl(ctx context.Context, snapshot *snapshot, fh source.FileHandle) (
 	return why, nil
 }
 
-// extractGoCommandError tries to parse errors that come from the go command
+// extractGoCommandErrors tries to parse errors that come from the go command
 // and shape them into go.mod diagnostics.
 // TODO: rename this to 'load errors'
 func (s *snapshot) extractGoCommandErrors(ctx context.Context, goCmdError error) []*source.Diagnostic {

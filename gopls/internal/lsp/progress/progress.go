@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
-	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/xcontext"
 )
 
@@ -167,7 +167,7 @@ func (wd *WorkDone) doCancel() {
 	}
 }
 
-// report reports an update on WorkDone report back to the client.
+// Report reports an update on WorkDone report back to the client.
 func (wd *WorkDone) Report(ctx context.Context, message string, percentage float64) {
 	ctx = xcontext.Detach(ctx) // progress messages should not be cancelled
 	if wd == nil {
@@ -202,7 +202,7 @@ func (wd *WorkDone) Report(ctx context.Context, message string, percentage float
 	}
 }
 
-// end reports a workdone completion back to the client.
+// End reports a workdone completion back to the client.
 func (wd *WorkDone) End(ctx context.Context, message string) {
 	ctx = xcontext.Detach(ctx) // progress messages should not be cancelled
 	if wd == nil {

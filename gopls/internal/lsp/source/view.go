@@ -419,7 +419,7 @@ func (pgf *ParsedGoFile) NodeLocation(node ast.Node) (protocol.Location, error) 
 	return pgf.Mapper.PosLocation(pgf.Tok, node.Pos(), node.End())
 }
 
-// RangeToSpanRange parses a protocol Range back into the go/token domain.
+// RangeToTokenRange parses a protocol Range back into the go/token domain.
 func (pgf *ParsedGoFile) RangeToTokenRange(r protocol.Range) (safetoken.Range, error) {
 	start, end, err := pgf.Mapper.RangeOffsets(r)
 	if err != nil {
