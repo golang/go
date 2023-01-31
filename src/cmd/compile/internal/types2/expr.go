@@ -178,7 +178,8 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		return
 	}
 
-	switch e.Op {
+	op := e.Op
+	switch op {
 	case syntax.And:
 		// spec: "As an exception to the addressability
 		// requirement x may also be a composite literal."
@@ -215,13 +216,17 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		return
 
 	case syntax.Tilde:
-		// Provide a better error position and message than what check.op below could do.
-		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
-		x.mode = invalid
-		return
+		// Provide a better error position and message than what check.op below would do.
+		if !allInteger(x.typ) {
+			check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint")
+			x.mode = invalid
+			return
+		}
+		check.error(e, UndefinedOp, "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)")
+		op = syntax.Xor
 	}
 
-	if !check.op(unaryOpPredicates, x, e.Op) {
+	if !check.op(unaryOpPredicates, x, op) {
 		x.mode = invalid
 		return
 	}
@@ -235,7 +240,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		if isUnsigned(x.typ) {
 			prec = uint(check.conf.sizeof(x.typ) * 8)
 		}
-		x.val = constant.UnaryOp(op2tok[e.Op], x.val, prec)
+		x.val = constant.UnaryOp(op2tok[op], x.val, prec)
 		x.expr = e
 		check.overflow(x)
 		return
