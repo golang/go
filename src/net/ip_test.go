@@ -116,7 +116,7 @@ func BenchmarkParseIP(b *testing.B) {
 	}
 }
 
-func BenchmarkParseValidIPv4(b *testing.B) {
+func BenchmarkParseIPValidIPv4(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
 	for i := 0; i < b.N; i++ {
@@ -124,7 +124,7 @@ func BenchmarkParseValidIPv4(b *testing.B) {
 	}
 }
 
-func BenchmarkParseValidIPv6(b *testing.B) {
+func BenchmarkParseIPValidIPv6(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
 	for i := 0; i < b.N; i++ {
