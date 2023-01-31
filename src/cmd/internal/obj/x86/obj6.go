@@ -695,11 +695,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		// Move current frame to BP
 		p = obj.Appendp(p, newprog)
 
-		p.As = ALEAQ
-		p.From.Type = obj.TYPE_MEM
+		p.As = AMOVQ
+		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REG_SP
-		p.From.Scale = 1
-		p.From.Offset = 0
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_BP
 	}
