@@ -1365,10 +1365,16 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 	return false
 }
 
-func isInlinableMemclr(c *Config) bool {
+func isInlinableMemclr(c *Config, sz int64) bool {
 	// TODO: expand this check to allow other architectures
 	// see CL 454255 and issue 56997
-	return c.arch == "amd64" || c.arch == "arm64"
+	switch c.arch {
+	case "amd64", "arm64":
+		return true
+	case "ppc64le", "ppc64":
+		return sz < 512
+	}
+	return false
 }
 
 // isInlinableMemmove reports whether the given arch performs a Move of the given size
