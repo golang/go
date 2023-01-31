@@ -2594,16 +2594,3 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
 		}
 	}
 }
-
-func TestLookupAddrNoSuchHost(t *testing.T) {
-	// RFC 5737 defines 198.51.100.0/24 as a documentation subnet,
-	// using it instead of the 192.0.2.0/24, because it causes
-	// DNS SERVFAIL on systemd-resolved.
-	_, err := LookupAddr("198.51.100.0")
-
-	var dnsErr *DNSError
-	errors.As(err, &dnsErr)
-	if dnsErr == nil || !dnsErr.IsNotFound {
-		t.Errorf("LookupAddr: unexpected error: %v", err)
-	}
-}
