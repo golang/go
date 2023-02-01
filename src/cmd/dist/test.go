@@ -1143,7 +1143,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			return false
 		}
 		switch goos {
-		case "aix", "darwin", "windows":
+		case "aix", "darwin", "ios", "windows":
 			return true
 		case "linux":
 			switch goarch {

@@ -101,7 +101,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 	case "c-archive":
 		switch goos {
-		case "aix", "darwin", "windows":
+		case "aix", "darwin", "ios", "windows":
 			return true
 		case "linux":
 			switch goarch {

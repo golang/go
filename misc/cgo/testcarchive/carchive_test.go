@@ -132,6 +132,15 @@ func testMain(m *testing.M) int {
 		// in .text section.
 		cc = append(cc, "-Wl,-bnoobjreorder")
 	}
+	if GOOS == "ios" {
+		// Linking runtime/cgo on ios requires the CoreFoundation framework because
+		// x_cgo_init uses CoreFoundation APIs to switch directory to the app root.
+		//
+		// TODO(#58225): This special case probably should not be needed.
+		// runtime/cgo is a very low-level package, and should not provide
+		// high-level behaviors like changing the current working directory at init.
+		cc = append(cc, "-framework", "CoreFoundation")
+	}
 	libbase := GOOS + "_" + GOARCH
 	if runtime.Compiler == "gccgo" {
 		libbase = "gccgo_" + libgodir + "_fPIC"
