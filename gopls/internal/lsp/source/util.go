@@ -100,22 +100,6 @@ func posToMappedRange(ctx context.Context, snapshot Snapshot, pkg Package, pos, 
 	return pgf.PosMappedRange(pos, end)
 }
 
-// FindPackageFromPos returns the Package for the given position, which must be
-// among the transitive dependencies of pkg.
-//
-// TODO(rfindley): is this the best factoring of this API? This function is
-// really a trivial wrapper around findFileInDeps, which may be a more useful
-// function to expose.
-func FindPackageFromPos(ctx context.Context, snapshot Snapshot, pkg Package, pos token.Pos) (Package, error) {
-	if !pos.IsValid() {
-		return nil, fmt.Errorf("invalid position")
-	}
-	fileName := pkg.FileSet().File(pos).Name()
-	uri := span.URIFromPath(fileName)
-	_, pkg, err := findFileInDeps(ctx, snapshot, pkg, uri)
-	return pkg, err
-}
-
 // Matches cgo generated comment as well as the proposed standard:
 //
 //	https://golang.org/s/generatedcode

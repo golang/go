@@ -97,17 +97,12 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		declPkg, err := FindPackageFromPos(ctx, snapshot, pkg, obj.Pos())
-		if err != nil {
-			return nil, 0, err
-		}
-		node, _, _ := FindDeclInfo(declPkg.GetSyntax(), obj.Pos()) // may be nil
-		d, err := FindHoverContext(ctx, snapshot, pkg, obj, node, nil)
+		d, err := HoverDocForObject(ctx, snapshot, pkg, obj)
 		if err != nil {
 			return nil, 0, err
 		}
 		name = obj.Name()
-		comment = d.Comment
+		comment = d
 	} else {
 		name = "func"
 	}

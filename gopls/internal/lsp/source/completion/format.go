@@ -19,7 +19,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -242,27 +241,21 @@ Suffixes:
 	if !pos.IsValid() {
 		return item, nil
 	}
-	uri := span.URIFromPath(pos.Filename)
 
-	// Find the source file of the candidate.
-	pkg, err := source.FindPackageFromPos(ctx, c.snapshot, c.pkg, obj.Pos())
+	comment, err := source.HoverDocForObject(ctx, c.snapshot, c.pkg, obj)
 	if err != nil {
-		return item, nil
-	}
-
-	decl, _, _ := source.FindDeclInfo(pkg.GetSyntax(), obj.Pos()) // may be nil
-	hover, err := source.FindHoverContext(ctx, c.snapshot, pkg, obj, decl, nil)
-	if err != nil {
-		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))
+		event.Error(ctx, fmt.Sprintf("failed to find Hover for %q", obj.Name()), err)
 		return item, nil
 	}
 	if c.opts.fullDocumentation {
-		item.Documentation = hover.Comment.Text()
+		item.Documentation = comment.Text()
 	} else {
-		item.Documentation = doc.Synopsis(hover.Comment.Text())
+		item.Documentation = doc.Synopsis(comment.Text())
 	}
 	// The desired pattern is `^// Deprecated`, but the prefix has been removed
-	if strings.HasPrefix(hover.Comment.Text(), "Deprecated") {
+	// TODO(rfindley): It doesn't look like this does the right thing for
+	// multi-line comments.
+	if strings.HasPrefix(comment.Text(), "Deprecated") {
 		if c.snapshot.View().Options().CompletionTags {
 			item.Tags = []protocol.CompletionItemTag{protocol.ComplDeprecated}
 		} else if c.snapshot.View().Options().CompletionDeprecated {

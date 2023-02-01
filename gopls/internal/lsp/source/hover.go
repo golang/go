@@ -499,6 +499,51 @@ func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signatur
 	return str
 }
 
+// HoverDocForObject returns the best doc comment for obj, referenced by srcpkg.
+//
+// TODO(rfindley): there appears to be zero(!) tests for this functionality.
+func HoverDocForObject(ctx context.Context, snapshot Snapshot, srcpkg Package, obj types.Object) (*ast.CommentGroup, error) {
+	if _, isTypeName := obj.(*types.TypeName); isTypeName {
+		if _, isTypeParam := obj.Type().(*typeparams.TypeParam); isTypeParam {
+			return nil, nil
+		}
+	}
+
+	pgf, pos, err := parseFull(ctx, snapshot, srcpkg, obj.Pos())
+	if err != nil {
+		return nil, fmt.Errorf("re-parsing: %v", err)
+	}
+
+	decl, spec, field := FindDeclInfo([]*ast.File{pgf.File}, pos)
+	if field != nil && field.Doc != nil {
+		return field.Doc, nil
+	}
+	switch decl := decl.(type) {
+	case *ast.FuncDecl:
+		return decl.Doc, nil
+	case *ast.GenDecl:
+		switch spec := spec.(type) {
+		case *ast.ValueSpec:
+			if spec.Doc != nil {
+				return spec.Doc, nil
+			}
+			if decl.Doc != nil {
+				return decl.Doc, nil
+			}
+			return spec.Comment, nil
+		case *ast.TypeSpec:
+			if spec.Doc != nil {
+				return spec.Doc, nil
+			}
+			if decl.Doc != nil {
+				return decl.Doc, nil
+			}
+			return spec.Comment, nil
+		}
+	}
+	return nil, nil
+}
+
 // parseFull fully parses the file corresponding to position pos, referenced
 // from the given srcpkg.
 //
