@@ -25,8 +25,9 @@ const (
 )
 
 type ValHeap struct {
-	a     []*Value
-	score []int8
+	a           []*Value
+	score       []int8
+	inBlockUses []bool
 }
 
 func (h ValHeap) Len() int      { return len(h.a) }
@@ -55,6 +56,12 @@ func (h ValHeap) Less(i, j int) bool {
 	}
 	// Note: only scores are required for correct scheduling.
 	// Everything else is just heuristics.
+
+	ix := h.inBlockUses[x.ID]
+	iy := h.inBlockUses[y.ID]
+	if ix != iy {
+		return ix // values with in-block uses come earlier
+	}
 
 	if x.Pos != y.Pos { // Favor in-order line stepping
 		if x.Block == x.Block.Func.Entry && x.Pos.IsStmt() != y.Pos.IsStmt() {
@@ -109,6 +116,23 @@ func schedule(f *Func) {
 	// maps mem values to the next live memory value
 	nextMem := f.Cache.allocValueSlice(f.NumValues())
 	defer f.Cache.freeValueSlice(nextMem)
+
+	// inBlockUses records whether a value is used in the block
+	// in which it lives. (block control values don't count as uses.)
+	inBlockUses := f.Cache.allocBoolSlice(f.NumValues())
+	defer f.Cache.freeBoolSlice(inBlockUses)
+	if f.Config.optimize {
+		for _, b := range f.Blocks {
+			for _, v := range b.Values {
+				for _, a := range v.Args {
+					if a.Block == b {
+						inBlockUses[a.ID] = true
+					}
+				}
+			}
+		}
+	}
+	priq.inBlockUses = inBlockUses
 
 	for _, b := range f.Blocks {
 		// Compute score. Larger numbers are scheduled closer to the end of the block.
