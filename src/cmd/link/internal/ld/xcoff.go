@@ -1093,11 +1093,6 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 	}
 
 	shouldBeInSymbolTable := func(s loader.Sym, name string) bool {
-		if name == ".go.buildinfo" {
-			// On AIX, .go.buildinfo must be in the symbol table as
-			// it has relocations.
-			return true
-		}
 		if ldr.AttrNotInSymbolTable(s) {
 			return false
 		}

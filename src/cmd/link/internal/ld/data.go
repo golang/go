@@ -2246,14 +2246,6 @@ func (ctxt *Link) textbuildid() {
 }
 
 func (ctxt *Link) buildinfo() {
-	if ctxt.linkShared || ctxt.BuildMode == BuildModePlugin {
-		// -linkshared and -buildmode=plugin get confused
-		// about the relocations in go.buildinfo
-		// pointing at the other data sections.
-		// The version information is only available in executables.
-		return
-	}
-
 	// Write the buildinfo symbol, which go version looks for.
 	// The code reading this data is in package debug/buildinfo.
 	ldr := ctxt.loader
