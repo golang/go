@@ -182,7 +182,7 @@ func testPath(prog *loader.Program, test pathTest) error {
 		return fmt.Errorf("Object(%s, %q) returned error %q, want %q", pkg.Path(), test.path, err, test.wantErr)
 	}
 	if test.wantErr != "" {
-		if got := stripSubscripts(err.Error()); got != test.wantErr {
+		if got := err.Error(); got != test.wantErr {
 			return fmt.Errorf("Object(%s, %q) error was %q, want %q",
 				pkg.Path(), test.path, got, test.wantErr)
 		}
@@ -190,7 +190,7 @@ func testPath(prog *loader.Program, test pathTest) error {
 	}
 	// Inv: err == nil
 
-	if objString := stripSubscripts(obj.String()); objString != test.wantobj {
+	if objString := obj.String(); objString != test.wantobj {
 		return fmt.Errorf("Object(%s, %q) = %s, want %s", pkg.Path(), test.path, objString, test.wantobj)
 	}
 	if obj.Pkg() != pkg {
@@ -213,25 +213,6 @@ func testPath(prog *loader.Program, test pathTest) error {
 		return fmt.Errorf("Object(%s, For(obj)) != obj: got %s, obj is %s (path1=%q, path2=%q)", pkg.Path(), obj2, obj, test.path, path2)
 	}
 	return nil
-}
-
-// stripSubscripts removes type parameter id subscripts.
-//
-// TODO(rfindley): remove this function once subscripts are removed from the
-// type parameter type string.
-func stripSubscripts(s string) string {
-	var runes []rune
-	for _, r := range s {
-		// For debugging/uniqueness purposes, TypeString on a type parameter adds a
-		// subscript corresponding to the type parameter's unique id. This is going
-		// to be removed, but in the meantime we skip the subscript runes to get a
-		// deterministic output.
-		if '₀' <= r && r < '₀'+10 {
-			continue // trim type parameter subscripts
-		}
-		runes = append(runes, r)
-	}
-	return string(runes)
 }
 
 // TestSourceAndExportData uses objectpath to compute a correspondence

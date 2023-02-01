@@ -237,14 +237,12 @@ func TestImportTypeparamTests(t *testing.T) {
 
 				importedObj := imported.Scope().Lookup(name)
 				got := types.ObjectString(importedObj, types.RelativeTo(imported))
-				got = sanitizeObjectString(got)
 
 				checkedObj := checked.Scope().Lookup(name)
 				if checkedObj == nil {
 					t.Fatalf("imported object %q was not type-checked", name)
 				}
 				want := types.ObjectString(checkedObj, types.RelativeTo(checked))
-				want = sanitizeObjectString(want)
 
 				if got != want {
 					t.Errorf("imported %q as %q, want %q", name, got, want)
@@ -259,20 +257,6 @@ func TestImportTypeparamTests(t *testing.T) {
 			}
 		})
 	}
-}
-
-// sanitizeObjectString removes type parameter debugging markers from an object
-// string, to normalize it for comparison.
-// TODO(rfindley): this should not be necessary.
-func sanitizeObjectString(s string) string {
-	var runes []rune
-	for _, r := range s {
-		if '₀' <= r && r < '₀'+10 {
-			continue // trim type parameter subscripts
-		}
-		runes = append(runes, r)
-	}
-	return string(runes)
 }
 
 func checkFile(t *testing.T, filename string, src []byte) *types.Package {

@@ -722,8 +722,7 @@ func (r *runner) Definition(t *testing.T, _ span.Span, d tests.Definition) {
 		expectHover := string(r.data.Golden(t, tag, d.Src.URI().Filename(), func() ([]byte, error) {
 			return []byte(hover.Contents.Value), nil
 		}))
-		got := tests.StripSubscripts(hover.Contents.Value)
-		expectHover = tests.StripSubscripts(expectHover)
+		got := hover.Contents.Value
 		if got != expectHover {
 			tests.CheckSameMarkdown(t, got, expectHover)
 		}
