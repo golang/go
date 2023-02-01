@@ -1,7 +1,7 @@
 # Regression test for https://go.dev/issue/24050:
 # a test that exits with an I/O stream held open
 # should fail after a reasonable delay, not wait forever.
-# (As of the time of writing, that delay is 5 seconds,
+# (As of the time of writing, that delay is 10% of the timeout,
 # but this test does not depend on its specific value.)
 
 [short] skip 'runs a test that hangs until its WaitDelay expires'
@@ -18,7 +18,7 @@
 	# exit due to a failed write to that pipe.
 
 stdout '^--- PASS: TestOrphanCmd .*\nPASS\nstdin closed'
-stdout '^exec: WaitDelay expired before I/O complete\nFAIL\s+example\s+\d+(\.\d+)?s'
+stdout '^\*\*\* Test I/O incomplete \d+.* after exiting\.\nexec: WaitDelay expired before I/O complete\nFAIL\s+example\s+\d+(\.\d+)?s'
 
 -- go.mod --
 module example
