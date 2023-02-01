@@ -1601,6 +1601,9 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
 func (state *dodataState) allocateDataSectionForSym(seg *sym.Segment, s loader.Sym, rwx int) *sym.Section {
 	ldr := state.ctxt.loader
 	sname := ldr.SymName(s)
+	if sname == "go.buildinfo" { // clumsy hack for Go 1.19 builders
+		sname = ".go.buildinfo"
+	}
 	sect := addsection(ldr, state.ctxt.Arch, seg, sname, rwx)
 	sect.Align = symalign(ldr, s)
 	state.datsize = Rnd(state.datsize, int64(sect.Align))
@@ -2177,7 +2180,7 @@ func (ctxt *Link) buildinfo() {
 	// Write the buildinfo symbol, which go version looks for.
 	// The code reading this data is in package debug/buildinfo.
 	ldr := ctxt.loader
-	s := ldr.CreateSymForUpdate(".go.buildinfo", 0)
+	s := ldr.CreateSymForUpdate("go.buildinfo", 0)
 	s.SetType(sym.SBUILDINFO)
 	s.SetAlign(16)
 	// The \xff is invalid UTF-8, meant to make it less likely
@@ -2199,6 +2202,14 @@ func (ctxt *Link) buildinfo() {
 	}
 	s.SetData(data)
 	s.SetSize(int64(len(data)))
+
+	// Add reference to go:buildinfo from the rodata section,
+	// so that external linking with -Wl,--gc-sections does not
+	// delete the build info.
+	sr := ldr.CreateSymForUpdate("go.buildinfo.ref", 0)
+	sr.SetType(sym.SRODATA)
+	sr.SetAlign(int32(ctxt.Arch.PtrSize))
+	sr.AddAddr(ctxt.Arch, s.Sym())
 }
 
 // appendString appends s to data, prefixed by its varint-encoded length.
