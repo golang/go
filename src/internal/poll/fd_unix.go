@@ -688,13 +688,12 @@ func (fd *FD) Fstat(s *syscall.Stat_t) error {
 	})
 }
 
-// tryDupCloexec indicates whether F_DUPFD_CLOEXEC should be used.
-// If the kernel doesn't support it, this is set to 0.
-var tryDupCloexec = int32(1)
+// dupCloexecUnsupported indicates whether F_DUPFD_CLOEXEC is supported by the kernel.
+var dupCloexecUnsupported atomic.Bool
 
 // DupCloseOnExec dups fd and marks it close-on-exec.
 func DupCloseOnExec(fd int) (int, string, error) {
-	if syscall.F_DUPFD_CLOEXEC != 0 && atomic.LoadInt32(&tryDupCloexec) == 1 {
+	if syscall.F_DUPFD_CLOEXEC != 0 && !dupCloexecUnsupported.Load() {
 		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
 		if e1 == nil {
 			return r0, "", nil
@@ -704,7 +703,7 @@ func DupCloseOnExec(fd int) (int, string, error) {
 			// Old kernel, or js/wasm (which returns
 			// ENOSYS). Fall back to the portable way from
 			// now on.
-			atomic.StoreInt32(&tryDupCloexec, 0)
+			dupCloexecUnsupported.Store(true)
 		default:
 			return -1, "fcntl", e1
 		}
