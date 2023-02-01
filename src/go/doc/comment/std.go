@@ -23,6 +23,7 @@ var stdPkgs = []string{
 	"image",
 	"io",
 	"log",
+	"maps",
 	"math",
 	"mime",
 	"net",

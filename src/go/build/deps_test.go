@@ -45,7 +45,7 @@ var depsRules = `
 	  internal/cpu, internal/goarch,
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace, internal/platform,
-	  unicode/utf8, unicode/utf16, unicode,
+	  maps, unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
 	# These packages depend only on internal/goarch and unsafe.
