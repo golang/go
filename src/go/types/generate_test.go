@@ -207,7 +207,7 @@ func fixInferSig(f *ast.File) {
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.FuncDecl:
-			if n.Name.Name == "infer" || n.Name.Name == "infer2" {
+			if n.Name.Name == "infer" || n.Name.Name == "infer1" || n.Name.Name == "infer2" {
 				// rewrite (pos token.Pos, ...) to (posn positioner, ...)
 				par := n.Type.Params.List[0]
 				if len(par.Names) == 1 && par.Names[0].Name == "pos" {
@@ -228,8 +228,9 @@ func fixInferSig(f *ast.File) {
 						n.Args[0] = arg
 						return false
 					}
-				case "errorf", "infer2":
+				case "errorf", "infer1", "infer2":
 					// rewrite check.errorf(pos, ...) to check.errorf(posn, ...)
+					// rewrite check.infer1(pos, ...) to check.infer1(posn, ...)
 					// rewrite check.infer2(pos, ...) to check.infer2(posn, ...)
 					if ident, _ := n.Args[0].(*ast.Ident); ident != nil && ident.Name == "pos" {
 						pos := n.Args[0].Pos()

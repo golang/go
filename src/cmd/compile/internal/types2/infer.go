@@ -13,13 +13,7 @@ import (
 	"strings"
 )
 
-// infer attempts to infer the complete set of type arguments for generic function instantiation/call
-// based on the given type parameters tparams, type arguments targs, function parameters params, and
-// function arguments args, if any. There must be at least one type parameter, no more type arguments
-// than type parameters, and params and args must match in number (incl. zero).
-// If successful, infer returns the complete list of type arguments, one for each type parameter.
-// Otherwise the result is nil and appropriate errors will be reported.
-//
+// infer1 is an implementation of infer.
 // Inference proceeds as follows. Starting with given type arguments:
 //
 //  1. apply FTI (function type inference) with typed arguments,
@@ -28,11 +22,7 @@ import (
 //  4. apply CTI.
 //
 // The process stops as soon as all type arguments are known or an error occurs.
-func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (result []Type) {
-	if useNewTypeInference {
-		return check.infer2(pos, tparams, targs, params, args)
-	}
-
+func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, silent bool) (result []Type) {
 	if debug {
 		defer func() {
 			assert(result == nil || len(result) == len(tparams))
@@ -142,6 +132,9 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	u := newUnifier(tparams, targs)
 
 	errorf := func(kind string, tpar, targ Type, arg *operand) {
+		if silent {
+			return
+		}
 		// provide a better error message if we can
 		targs, index := u.inferred()
 		if index == 0 {
@@ -260,7 +253,9 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// At least one type argument couldn't be inferred.
 	assert(targs != nil && index >= 0 && targs[index] == nil)
 	tpar := tparams[index]
-	check.errorf(pos, CannotInferTypeArgs, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
+	if !silent {
+		check.errorf(pos, CannotInferTypeArgs, "cannot infer %s (%s)", tpar.obj.name, tpar.obj.pos)
+	}
 	return nil
 }
 

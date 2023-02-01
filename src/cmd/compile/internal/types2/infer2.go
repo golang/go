@@ -11,14 +11,30 @@ import (
 	. "internal/types/errors"
 )
 
-const useNewTypeInference = false
-
-// infer2 attempts to infer the complete set of type arguments for generic function instantiation/call
+// infer attempts to infer the complete set of type arguments for generic function instantiation/call
 // based on the given type parameters tparams, type arguments targs, function parameters params, and
 // function arguments args, if any. There must be at least one type parameter, no more type arguments
 // than type parameters, and params and args must match in number (incl. zero).
 // If successful, infer returns the complete list of given and inferred type arguments, one for each
 // type parameter. Otherwise the result is nil and appropriate errors will be reported.
+func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) []Type {
+	r2 := check.infer2(pos, tparams, targs, params, args)
+	r1 := check.infer1(pos, tparams, targs, params, args, r2 == nil) // be silent on errors if infer2 failed
+	assert(len(r2) == len(r1))
+	for i, targ2 := range r2 {
+		targ1 := r1[i]
+		var c comparer
+		c.ignoreInvalids = true
+		if !c.identical(targ2, targ1, nil) {
+			tpar := tparams[i]
+			check.dump("%v: type argument for %s: infer1: %s, infer2: %s", tpar.Obj().Pos(), tpar, targ1, targ2)
+			panic("inconsistent type inference")
+		}
+	}
+	return r2
+}
+
+// infer2 is an implementation of infer.
 func (check *Checker) infer2(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (inferred []Type) {
 	if debug {
 		defer func() {

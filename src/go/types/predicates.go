@@ -203,12 +203,17 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 
 // A comparer is used to compare types.
 type comparer struct {
-	ignoreTags bool // if set, identical ignores struct tags
+	ignoreTags     bool // if set, identical ignores struct tags
+	ignoreInvalids bool // if set, identical treats an invalid type as identical to any type
 }
 
 // For changes to this code the corresponding changes should be made to unifier.nify.
 func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 	if x == y {
+		return true
+	}
+
+	if c.ignoreInvalids && (x == Typ[Invalid] || y == Typ[Invalid]) {
 		return true
 	}
 
