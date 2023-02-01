@@ -54,12 +54,12 @@ const (
 // the Writer's Write method. A Logger can be used simultaneously from
 // multiple goroutines; it guarantees to serialize access to the Writer.
 type Logger struct {
-	mu        sync.Mutex  // ensures atomic writes; protects the following fields
-	prefix    string      // prefix on each line to identify the logger (but see Lmsgprefix)
-	flag      int         // properties
-	out       io.Writer   // destination for output
-	buf       []byte      // for accumulating text to write
-	isDiscard atomic.Bool // whether out == io.Discard
+	outMu sync.Mutex
+	out   io.Writer // destination for output
+
+	prefix    atomic.Pointer[string] // prefix on each line to identify the logger (but see Lmsgprefix)
+	flag      atomic.Int32           // properties
+	isDiscard atomic.Bool
 }
 
 // New creates a new Logger. The out variable sets the
@@ -68,17 +68,17 @@ type Logger struct {
 // after the log header if the Lmsgprefix flag is provided.
 // The flag argument defines the logging properties.
 func New(out io.Writer, prefix string, flag int) *Logger {
-	l := &Logger{out: out, prefix: prefix, flag: flag}
-	if out == io.Discard {
-		l.isDiscard.Store(true)
-	}
+	l := new(Logger)
+	l.SetOutput(out)
+	l.SetPrefix(prefix)
+	l.SetFlags(flag)
 	return l
 }
 
 // SetOutput sets the output destination for the logger.
 func (l *Logger) SetOutput(w io.Writer) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.outMu.Lock()
+	defer l.outMu.Unlock()
 	l.out = w
 	l.isDiscard.Store(w == io.Discard)
 }
@@ -110,15 +110,15 @@ func itoa(buf *[]byte, i int, wid int) {
 //   - date and/or time (if corresponding flags are provided),
 //   - file and line number (if corresponding flags are provided),
 //   - l.prefix (if it's not blank and Lmsgprefix is set).
-func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
-	if l.flag&Lmsgprefix == 0 {
-		*buf = append(*buf, l.prefix...)
+func formatHeader(buf *[]byte, t time.Time, prefix string, flag int, file string, line int) {
+	if flag&Lmsgprefix == 0 {
+		*buf = append(*buf, prefix...)
 	}
-	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
-		if l.flag&LUTC != 0 {
+	if flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+		if flag&LUTC != 0 {
 			t = t.UTC()
 		}
-		if l.flag&Ldate != 0 {
+		if flag&Ldate != 0 {
 			year, month, day := t.Date()
 			itoa(buf, year, 4)
 			*buf = append(*buf, '/')
@@ -127,22 +127,22 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 			itoa(buf, day, 2)
 			*buf = append(*buf, ' ')
 		}
-		if l.flag&(Ltime|Lmicroseconds) != 0 {
+		if flag&(Ltime|Lmicroseconds) != 0 {
 			hour, min, sec := t.Clock()
 			itoa(buf, hour, 2)
 			*buf = append(*buf, ':')
 			itoa(buf, min, 2)
 			*buf = append(*buf, ':')
 			itoa(buf, sec, 2)
-			if l.flag&Lmicroseconds != 0 {
+			if flag&Lmicroseconds != 0 {
 				*buf = append(*buf, '.')
 				itoa(buf, t.Nanosecond()/1e3, 6)
 			}
 			*buf = append(*buf, ' ')
 		}
 	}
-	if l.flag&(Lshortfile|Llongfile) != 0 {
-		if l.flag&Lshortfile != 0 {
+	if flag&(Lshortfile|Llongfile) != 0 {
+		if flag&Lshortfile != 0 {
 			short := file
 			for i := len(file) - 1; i > 0; i-- {
 				if file[i] == '/' {
@@ -157,9 +157,30 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 		itoa(buf, line, -1)
 		*buf = append(*buf, ": "...)
 	}
-	if l.flag&Lmsgprefix != 0 {
-		*buf = append(*buf, l.prefix...)
+	if flag&Lmsgprefix != 0 {
+		*buf = append(*buf, prefix...)
 	}
+}
+
+var bufferPool = sync.Pool{New: func() any { return new([]byte) }}
+
+func getBuffer() *[]byte {
+	p := bufferPool.Get().(*[]byte)
+	*p = (*p)[:0]
+	return p
+}
+
+func putBuffer(p *[]byte) {
+	// Proper usage of a sync.Pool requires each entry to have approximately
+	// the same memory cost. To obtain this property when the stored type
+	// contains a variably-sized buffer, we add a hard limit on the maximum buffer
+	// to place back in the pool.
+	//
+	// See https://go.dev/issue/23199
+	if cap(*p) > 64<<10 {
+		*p = nil
+	}
+	bufferPool.Put(p)
 }
 
 // Output writes the output for a logging event. The string s contains
@@ -170,28 +191,34 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
 // paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) error {
 	now := time.Now() // get this early.
+
+	// Load prefix and flag once so that their value is consistent within
+	// this call regardless of any concurrent changes to their value.
+	prefix := l.Prefix()
+	flag := l.Flags()
+
 	var file string
 	var line int
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.flag&(Lshortfile|Llongfile) != 0 {
-		// Release lock while getting caller info - it's expensive.
-		l.mu.Unlock()
+	if flag&(Lshortfile|Llongfile) != 0 {
 		var ok bool
 		_, file, line, ok = runtime.Caller(calldepth)
 		if !ok {
 			file = "???"
 			line = 0
 		}
-		l.mu.Lock()
 	}
-	l.buf = l.buf[:0]
-	l.formatHeader(&l.buf, now, file, line)
-	l.buf = append(l.buf, s...)
+
+	buf := getBuffer()
+	defer putBuffer(buf)
+	formatHeader(buf, now, prefix, flag, file, line)
+	*buf = append(*buf, s...)
 	if len(s) == 0 || s[len(s)-1] != '\n' {
-		l.buf = append(l.buf, '\n')
+		*buf = append(*buf, '\n')
 	}
-	_, err := l.out.Write(l.buf)
+
+	l.outMu.Lock()
+	defer l.outMu.Unlock()
+	_, err := l.out.Write(*buf)
 	return err
 }
 
@@ -264,37 +291,32 @@ func (l *Logger) Panicln(v ...any) {
 // Flags returns the output flags for the logger.
 // The flag bits are Ldate, Ltime, and so on.
 func (l *Logger) Flags() int {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.flag
+	return int(l.flag.Load())
 }
 
 // SetFlags sets the output flags for the logger.
 // The flag bits are Ldate, Ltime, and so on.
 func (l *Logger) SetFlags(flag int) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.flag = flag
+	l.flag.Store(int32(flag))
 }
 
 // Prefix returns the output prefix for the logger.
 func (l *Logger) Prefix() string {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.prefix
+	if p := l.prefix.Load(); p != nil {
+		return *p
+	}
+	return ""
 }
 
 // SetPrefix sets the output prefix for the logger.
 func (l *Logger) SetPrefix(prefix string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.prefix = prefix
+	l.prefix.Store(&prefix)
 }
 
 // Writer returns the output destination for the logger.
 func (l *Logger) Writer() io.Writer {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.outMu.Lock()
+	defer l.outMu.Unlock()
 	return l.out
 }
 
