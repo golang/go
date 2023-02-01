@@ -128,7 +128,6 @@ var (
 	procGetShortPathNameW                  = modkernel32.NewProc("GetShortPathNameW")
 	procGetStartupInfoW                    = modkernel32.NewProc("GetStartupInfoW")
 	procGetStdHandle                       = modkernel32.NewProc("GetStdHandle")
-	procGetSystemDirectoryW                = modkernel32.NewProc("GetSystemDirectoryW")
 	procGetSystemTimeAsFileTime            = modkernel32.NewProc("GetSystemTimeAsFileTime")
 	procGetTempPathW                       = modkernel32.NewProc("GetTempPathW")
 	procGetTimeZoneInformation             = modkernel32.NewProc("GetTimeZoneInformation")
