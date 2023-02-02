@@ -217,6 +217,7 @@ func BenchmarkPrintln(b *testing.B) {
 	const testString = "test"
 	var buf bytes.Buffer
 	l := New(&buf, "", LstdFlags)
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		l.Println(testString)
@@ -227,6 +228,7 @@ func BenchmarkPrintlnNoFlags(b *testing.B) {
 	const testString = "test"
 	var buf bytes.Buffer
 	l := New(&buf, "", 0)
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		l.Println(testString)
@@ -254,4 +256,12 @@ func BenchmarkConcurrent(b *testing.B) {
 		}()
 	}
 	group.Wait()
+}
+
+func BenchmarkDiscard(b *testing.B) {
+	l := New(io.Discard, "", LstdFlags|Lshortfile)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		l.Printf("processing %d objects from bucket %q", 1234, "fizzbuzz")
+	}
 }
