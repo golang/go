@@ -11108,5 +11108,8 @@ var stdlib = map[string][]string{
 		"Pointer",
 		"Sizeof",
 		"Slice",
+		"SliceData",
+		"String",
+		"StringData",
 	},
 }
