@@ -242,12 +242,16 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		if traceInference {
 			u.tracef("under %s ≡ %s", nx, y)
 		}
-		return u.nify(nx.under(), y, p)
+		x = nx.under()
+		// Per the spec, a defined type cannot have an underlying type
+		// that is a type parameter.
+		assert(!isTypeParam(x))
 	} else if ny, _ := y.(*Named); ny != nil && !hasName(x) {
 		if traceInference {
 			u.tracef("%s ≡ under %s", x, ny)
 		}
-		return u.nify(x, ny.under(), p)
+		y = ny.under()
+		assert(!isTypeParam(y))
 	}
 
 	// Cases where at least one of x or y is a type parameter recorded with u.
