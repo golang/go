@@ -49,14 +49,15 @@ func main() {}
 `
 
 	tmpdir := t.TempDir()
+	main := filepath.Join(tmpdir, "main.go")
 
-	importcfgfile := filepath.Join(tmpdir, "importcfg")
-	testenv.WriteImportcfg(t, importcfgfile, nil)
-
-	err := os.WriteFile(filepath.Join(tmpdir, "main.go"), []byte(source), 0666)
+	err := os.WriteFile(main, []byte(source), 0666)
 	if err != nil {
 		t.Fatalf("failed to write main.go: %v\n", err)
 	}
+
+	importcfgfile := filepath.Join(tmpdir, "importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, nil, main)
 
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-p=main", "main.go")
 	cmd.Dir = tmpdir
@@ -101,11 +102,10 @@ func TestIssue28429(t *testing.T) {
 		}
 	}
 
-	importcfgfile := filepath.Join(tmpdir, "importcfg")
-	testenv.WriteImportcfg(t, importcfgfile, nil)
-
 	// Compile a main package.
 	write("main.go", "package main; func main() {}")
+	importcfgfile := filepath.Join(tmpdir, "importcfg")
+	testenv.WriteImportcfg(t, importcfgfile, nil, filepath.Join(tmpdir, "main.go"))
 	runGo("tool", "compile", "-importcfg="+importcfgfile, "-p=main", "main.go")
 	runGo("tool", "pack", "c", "main.a", "main.o")
 
@@ -243,7 +243,7 @@ void foo() {
 	cflags := strings.Fields(runGo("env", "GOGCCFLAGS"))
 
 	importcfgfile := filepath.Join(tmpdir, "importcfg")
-	testenv.WriteImportcfg(t, importcfgfile, nil)
+	testenv.WriteImportcfg(t, importcfgfile, nil, "runtime")
 
 	// Compile, assemble and pack the Go and C code.
 	runGo("tool", "asm", "-p=main", "-gensymabis", "-o", "symabis", "x.s")
@@ -787,10 +787,10 @@ func TestIndexMismatch(t *testing.T) {
 	mObj := filepath.Join(tmpdir, "main.o")
 	exe := filepath.Join(tmpdir, "main.exe")
 
-	importcfgFile := filepath.Join(tmpdir, "stdlib.importcfg")
-	testenv.WriteImportcfg(t, importcfgFile, nil)
+	importcfgFile := filepath.Join(tmpdir, "runtime.importcfg")
+	testenv.WriteImportcfg(t, importcfgFile, nil, "runtime")
 	importcfgWithAFile := filepath.Join(tmpdir, "witha.importcfg")
-	testenv.WriteImportcfg(t, importcfgWithAFile, map[string]string{"a": aObj})
+	testenv.WriteImportcfg(t, importcfgWithAFile, map[string]string{"a": aObj}, "runtime")
 
 	// Build a program with main package importing package a.
 	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgFile, "-p=a", "-o", aObj, aSrc)

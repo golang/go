@@ -210,7 +210,7 @@ func TestHello(t *testing.T) {
 	}
 
 	importcfgfile := filepath.Join(dir, "hello.importcfg")
-	testenv.WriteImportcfg(t, importcfgfile, nil)
+	testenv.WriteImportcfg(t, importcfgfile, nil, hello)
 
 	goBin := testenv.GoToolPath(t)
 	run(goBin, "tool", "compile", "-importcfg="+importcfgfile, "-p=main", "hello.go")
@@ -284,7 +284,7 @@ func TestLargeDefs(t *testing.T) {
 	goBin := testenv.GoToolPath(t)
 	run(goBin, "tool", "compile", "-importcfg="+importcfgfile, "-p=large", "large.go")
 	run(packPath(t), "grc", "large.a", "large.o")
-	testenv.WriteImportcfg(t, importcfgfile, map[string]string{"large": filepath.Join(dir, "large.o")})
+	testenv.WriteImportcfg(t, importcfgfile, map[string]string{"large": filepath.Join(dir, "large.o")}, "runtime")
 	run(goBin, "tool", "compile", "-importcfg="+importcfgfile, "-p=main", "main.go")
 	run(goBin, "tool", "link", "-importcfg="+importcfgfile, "-L", ".", "-o", "a.out", "main.o")
 	out := run("./a.out")

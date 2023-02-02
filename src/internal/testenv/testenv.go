@@ -11,11 +11,11 @@
 package testenv
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
 	"internal/cfg"
-	"internal/goroot"
 	"internal/platform"
 	"os"
 	"os/exec"
@@ -347,18 +347,45 @@ func SkipIfOptimizationOff(t testing.TB) {
 }
 
 // WriteImportcfg writes an importcfg file used by the compiler or linker to
-// dstPath containing entries for the packages in std and cmd in addition
-// to the package to package file mappings in additionalPackageFiles.
-func WriteImportcfg(t testing.TB, dstPath string, additionalPackageFiles map[string]string) {
-	importcfg, err := goroot.Importcfg()
-	for k, v := range additionalPackageFiles {
-		importcfg += fmt.Sprintf("\npackagefile %s=%s", k, v)
+// dstPath containing entries for the file mappings in packageFiles, as well
+// as for the packages transitively imported by the package(s) in pkgs.
+//
+// pkgs may include any package pattern that is valid to pass to 'go list',
+// so it may also be a list of Go source files all in the same directory.
+func WriteImportcfg(t testing.TB, dstPath string, packageFiles map[string]string, pkgs ...string) {
+	t.Helper()
+
+	icfg := new(bytes.Buffer)
+	icfg.WriteString("# import config\n")
+	for k, v := range packageFiles {
+		fmt.Fprintf(icfg, "packagefile %s=%s\n", k, v)
 	}
-	if err != nil {
-		t.Fatalf("preparing the importcfg failed: %s", err)
+
+	if len(pkgs) > 0 {
+		// Use 'go list' to resolve any missing packages and rewrite the import map.
+		cmd := Command(t, GoToolPath(t), "list", "-export", "-deps", "-f", `{{if ne .ImportPath "command-line-arguments"}}{{if .Export}}{{.ImportPath}}={{.Export}}{{end}}{{end}}`)
+		cmd.Args = append(cmd.Args, pkgs...)
+		cmd.Stderr = new(strings.Builder)
+		out, err := cmd.Output()
+		if err != nil {
+			t.Fatalf("%v: %v\n%s", cmd, err, cmd.Stderr)
+		}
+
+		for _, line := range strings.Split(string(out), "\n") {
+			if line == "" {
+				continue
+			}
+			importPath, export, ok := strings.Cut(line, "=")
+			if !ok {
+				t.Fatalf("invalid line in output from %v:\n%s", cmd, line)
+			}
+			if packageFiles[importPath] == "" {
+				fmt.Fprintf(icfg, "packagefile %s=%s\n", importPath, export)
+			}
+		}
 	}
-	err = os.WriteFile(dstPath, []byte(importcfg), 0655)
-	if err != nil {
-		t.Fatalf("writing the importcfg failed: %s", err)
+
+	if err := os.WriteFile(dstPath, icfg.Bytes(), 0666); err != nil {
+		t.Fatal(err)
 	}
 }

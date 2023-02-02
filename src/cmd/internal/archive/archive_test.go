@@ -113,7 +113,7 @@ func buildGoobj(t *testing.T) goobjPaths {
 			go2src := filepath.Join("testdata", "go2.go")
 
 			importcfgfile := filepath.Join(buildDir, "importcfg")
-			testenv.WriteImportcfg(t, importcfgfile, nil)
+			testenv.WriteImportcfg(t, importcfgfile, nil, go1src, go2src)
 
 			out, err := testenv.Command(t, gotool, "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", go1obj, go1src).CombinedOutput()
 			if err != nil {

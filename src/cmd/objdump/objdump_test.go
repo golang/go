@@ -299,7 +299,7 @@ func TestDisasmGoobj(t *testing.T) {
 	tmp := t.TempDir()
 
 	importcfgfile := filepath.Join(tmp, "hello.importcfg")
-	testenv.WriteImportcfg(t, importcfgfile, nil)
+	testenv.WriteImportcfg(t, importcfgfile, nil, "testdata/fmthello.go")
 
 	hello := filepath.Join(tmp, "hello.o")
 	args := []string{"tool", "compile", "-p=main", "-importcfg=" + importcfgfile, "-o", hello}
