@@ -15,6 +15,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"go/token"
 	"io"
 	"io/ioutil"
 	"log"
@@ -25,7 +26,7 @@ import (
 	"sort"
 	"strings"
 
-	exec "golang.org/x/sys/execabs"
+	"golang.org/x/tools/go/packages"
 )
 
 func mustOpen(name string) io.Reader {
@@ -41,8 +42,6 @@ func api(base string) string {
 }
 
 var sym = regexp.MustCompile(`^pkg (\S+).*?, (?:var|func|type|const) ([A-Z]\w*)`)
-
-var unsafeSyms = map[string]bool{"Alignof": true, "ArbitraryType": true, "Offsetof": true, "Pointer": true, "Sizeof": true}
 
 func main() {
 	var buf bytes.Buffer
@@ -60,10 +59,13 @@ func main() {
 	f := readAPI()
 	sc := bufio.NewScanner(f)
 
+	// The APIs of the syscall/js and unsafe packages need to be computed explicitly,
+	// because they're not included in the GOROOT/api/go1.*.txt files at this time.
 	pkgs := map[string]map[string]bool{
-		"unsafe": unsafeSyms,
+		"syscall/js": syms("syscall/js", "GOOS=js", "GOARCH=wasm"),
+		"unsafe":     syms("unsafe"),
 	}
-	paths := []string{"unsafe"}
+	paths := []string{"syscall/js", "unsafe"}
 
 	for sc.Scan() {
 		l := sc.Text()
@@ -118,23 +120,26 @@ func readAPI() io.Reader {
 			readers = append(readers, mustOpen(api(name)))
 		}
 	}
-	// The API of the syscall/js package needs to be computed explicitly,
-	// because it's not included in the GOROOT/api/go1.*.txt files at this time.
-	readers = append(readers, syscallJSAPI())
 	return io.MultiReader(readers...)
 }
 
-// syscallJSAPI returns the API of the syscall/js package.
-// It's computed from the contents of $(go env GOROOT)/src/syscall/js.
-func syscallJSAPI() io.Reader {
-	var exeSuffix string
-	if runtime.GOOS == "windows" {
-		exeSuffix = ".exe"
+// syms computes the exported symbols in the specified package.
+func syms(pkg string, extraEnv ...string) map[string]bool {
+	var env []string
+	if len(extraEnv) != 0 {
+		env = append(os.Environ(), extraEnv...)
 	}
-	cmd := exec.Command("go"+exeSuffix, "run", "cmd/api", "-contexts", "js-wasm", "syscall/js")
-	out, err := cmd.Output()
+	pkgs, err := packages.Load(&packages.Config{Mode: packages.NeedTypes, Env: env}, pkg)
 	if err != nil {
 		log.Fatalln(err)
+	} else if len(pkgs) != 1 {
+		log.Fatalf("got %d packages, want one package %q", len(pkgs), pkg)
 	}
-	return bytes.NewReader(out)
+	syms := make(map[string]bool)
+	for _, name := range pkgs[0].Types.Scope().Names() {
+		if token.IsExported(name) {
+			syms[name] = true
+		}
+	}
+	return syms
 }

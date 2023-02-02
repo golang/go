@@ -11102,10 +11102,11 @@ var stdlib = map[string][]string{
 		"ValidString",
 	},
 	"unsafe": {
+		"Add",
 		"Alignof",
-		"ArbitraryType",
 		"Offsetof",
 		"Pointer",
 		"Sizeof",
+		"Slice",
 	},
 }
