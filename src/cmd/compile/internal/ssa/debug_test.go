@@ -222,15 +222,11 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 
 	// Use a temporary directory unless -f is specified
 	if !*force {
-		tmpdir, err := os.MkdirTemp("", "debug_test")
-		if err != nil {
-			panic(fmt.Sprintf("Problem creating TempDir, error %v\n", err))
-		}
+		tmpdir := t.TempDir()
 		tmpbase = filepath.Join(tmpdir, "test-"+base+"."+tag)
 		if *verbose {
 			fmt.Printf("Tempdir is %s\n", tmpdir)
 		}
-		defer os.RemoveAll(tmpdir)
 	}
 	exe := tmpbase
 

@@ -22,11 +22,7 @@ func TestInvalidLang(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	dir, err := os.MkdirTemp("", "TestInvalidLang")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	src := filepath.Join(dir, "alias.go")
 	if err := os.WriteFile(src, []byte(aliasSrc), 0644); err != nil {

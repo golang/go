@@ -33,14 +33,8 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
 	}
 	// Write stdout into a temporary file
-	tmpdir, ok := os.MkdirTemp("", tmpname)
-	if ok != nil {
-		t.Fatalf("Failed to create temporary directory")
-	}
-	defer os.RemoveAll(tmpdir)
-
-	rungo := filepath.Join(tmpdir, "run.go")
-	ok = os.WriteFile(rungo, stdout.Bytes(), 0600)
+	rungo := filepath.Join(t.TempDir(), "run.go")
+	ok := os.WriteFile(rungo, stdout.Bytes(), 0600)
 	if ok != nil {
 		t.Fatalf("Failed to create temporary file " + rungo)
 	}
@@ -79,11 +73,7 @@ func TestCode(t *testing.T) {
 	gotool := testenv.GoToolPath(t)
 
 	// Make a temporary directory to work in.
-	tmpdir, err := os.MkdirTemp("", "TestCode")
-	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Find all the test functions (and the files containing them).
 	var srcs []string // files containing Test functions

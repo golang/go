@@ -74,12 +74,8 @@ func testPath(t *testing.T, path, srcDir string) *types2.Package {
 }
 
 func mktmpdir(t *testing.T) string {
-	tmpdir, err := os.MkdirTemp("", "gcimporter_test")
-	if err != nil {
-		t.Fatal("mktmpdir:", err)
-	}
+	tmpdir := t.TempDir()
 	if err := os.Mkdir(filepath.Join(tmpdir, "testdata"), 0700); err != nil {
-		os.RemoveAll(tmpdir)
 		t.Fatal("mktmpdir:", err)
 	}
 	return tmpdir
@@ -106,7 +102,6 @@ func TestImportTestdata(t *testing.T) {
 
 	for testfile, wantImports := range testfiles {
 		tmpdir := mktmpdir(t)
-		defer os.RemoveAll(tmpdir)
 
 		importMap := map[string]string{}
 		for _, pkg := range wantImports {
@@ -149,7 +144,6 @@ func TestVersionHandling(t *testing.T) {
 	}
 
 	tmpdir := mktmpdir(t)
-	defer os.RemoveAll(tmpdir)
 	corruptdir := filepath.Join(tmpdir, "testdata", "versions")
 	if err := os.Mkdir(corruptdir, 0700); err != nil {
 		t.Fatal(err)
@@ -439,7 +433,6 @@ func TestIssue13566(t *testing.T) {
 	}
 
 	tmpdir := mktmpdir(t)
-	defer os.RemoveAll(tmpdir)
 	testoutdir := filepath.Join(tmpdir, "testdata")
 
 	// b.go needs to be compiled from the output directory so that the compiler can
@@ -530,7 +523,6 @@ func TestIssue15517(t *testing.T) {
 	}
 
 	tmpdir := mktmpdir(t)
-	defer os.RemoveAll(tmpdir)
 
 	compile(t, "testdata", "p.go", filepath.Join(tmpdir, "testdata"), nil)
 
@@ -638,7 +630,6 @@ func importPkg(t *testing.T, path, srcDir string) *types2.Package {
 func compileAndImportPkg(t *testing.T, name string) *types2.Package {
 	t.Helper()
 	tmpdir := mktmpdir(t)
-	defer os.RemoveAll(tmpdir)
 	compile(t, "testdata", name+".go", filepath.Join(tmpdir, "testdata"), nil)
 	return importPkg(t, "./testdata/"+name, tmpdir)
 }
