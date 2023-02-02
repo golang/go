@@ -6,7 +6,6 @@ package ssa_test
 
 import (
 	"internal/testenv"
-	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -31,11 +30,7 @@ func TestFmaHash(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 	gocmd := testenv.GoToolPath(t)
-	tmpdir, err := os.MkdirTemp("", "x")
-	if err != nil {
-		t.Error(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 	source := filepath.Join("testdata", "fma.go")
 	output := filepath.Join(tmpdir, "fma.exe")
 	cmd := testenv.Command(t, gocmd, "build", "-o", output, source)
