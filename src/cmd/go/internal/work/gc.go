@@ -169,7 +169,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 	// Add -c=N to use concurrent backend compilation, if possible.
 	if c := gcBackendConcurrency(gcflags); c > 1 {
-		gcflags = append(gcflags, fmt.Sprintf("-c=%d", c))
+		defaultGcFlags = append(defaultGcFlags, fmt.Sprintf("-c=%d", c))
 	}
 
 	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}

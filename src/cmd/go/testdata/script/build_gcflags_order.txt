@@ -4,6 +4,8 @@
 cd m
 go build -n -gcflags=-lang=go1.17
 stderr ' -lang=go1.16.* -lang=go1.17'
+! go build -gcflags='-c 0'
+stderr 'compile: -c must be at least 1, got 0'
 
 -- m/go.mod --
 module example.com
