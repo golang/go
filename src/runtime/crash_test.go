@@ -49,6 +49,7 @@ func runTestProg(t *testing.T, binary, name string, env ...string) string {
 	}
 
 	testenv.MustHaveGoBuild(t)
+	t.Helper()
 
 	exe, err := buildTestProg(t, binary)
 	if err != nil {
@@ -135,13 +136,15 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
 
 		exe := filepath.Join(dir, name+".exe")
 
-		t.Logf("running go build -o %s %s", exe, strings.Join(flags, " "))
+		start := time.Now()
 		cmd := exec.Command(testenv.GoToolPath(t), append([]string{"build", "-o", exe}, flags...)...)
+		t.Logf("running %v", cmd)
 		cmd.Dir = "testdata/" + binary
 		out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
 		if err != nil {
 			target.err = fmt.Errorf("building %s %v: %v\n%s", binary, flags, err, out)
 		} else {
+			t.Logf("built %v in %v", name, time.Since(start))
 			target.exe = exe
 			target.err = nil
 		}

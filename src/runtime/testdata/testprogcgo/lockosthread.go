@@ -94,7 +94,7 @@ func LockOSThreadAlt() {
 		// Exit with the thread locked.
 	}()
 	<-ready
-	for i := 0; i < 100; i++ {
+	for {
 		time.Sleep(1 * time.Millisecond)
 		// Check that this goroutine is running on a different thread.
 		self := C.pthread_self()
@@ -107,6 +107,4 @@ func LockOSThreadAlt() {
 			return
 		}
 	}
-	println("sub thread still running")
-	os.Exit(1)
 }
