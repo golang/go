@@ -457,6 +457,8 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			}
 			return
 		}
+		// (gp != nil) means is the extra m running extra C code, not Go code,
+		// so setting g to nil, to keep its not running Go code state.
 		if gp != nil {
 			setg(nil)
 		}
