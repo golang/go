@@ -161,15 +161,13 @@ func (u *unifier) at(x *TypeParam) Type {
 }
 
 // set sets the type t for type parameter x;
-// t must not be nil and it must not have been set before.
+// t must not be nil.
 func (u *unifier) set(x *TypeParam, t Type) {
 	assert(t != nil)
 	if traceInference {
 		u.tracef("%s ➞ %s", x, t)
 	}
-	h := u.handles[x]
-	assert(*h == nil)
-	*h = t
+	*u.handles[x] = t
 }
 
 // unknowns returns the number of type parameters for which no type has been set yet.
@@ -259,7 +257,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 	}
 
 	// Cases where at least one of x or y is a type parameter recorded with u.
-	// If we have ar least one type parameter, there is one in x.
+	// If we have at least one type parameter, there is one in x.
 	switch px, py := u.asTypeParam(x), u.asTypeParam(y); {
 	case px != nil && py != nil:
 		// both x and y are type parameters
@@ -271,8 +269,19 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 
 	case px != nil:
 		// x is a type parameter, y is not
-		if tx := u.at(px); tx != nil {
-			return u.nifyEq(tx, y, p)
+		if x := u.at(px); x != nil {
+			// x has an inferred type which must match y
+			if u.nifyEq(x, y, p) {
+				// If we have a match, possibly through underlying types,
+				// and y is a defined type, make sure we record that type
+				// for type parameter x, which may have until now only
+				// recorded an underlying type (go.dev/issue/43056).
+				if _, ok := y.(*Named); ok {
+					u.set(px, y)
+				}
+				return true
+			}
+			return false
 		}
 		// otherwise, infer type from y
 		u.set(px, y)

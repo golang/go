@@ -58,51 +58,6 @@ func (check *Checker) infer1(posn positioner, tparams []*TypeParam, targs []Type
 	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
 	tparams, params = check.renameTParams(posn.Pos(), tparams, params)
 
-	// If we have more than 2 arguments, we may have arguments with named and unnamed types.
-	// If that is the case, permutate params and args such that the arguments with named
-	// types are first in the list. This doesn't affect type inference if all types are taken
-	// as is. But when we have inexact unification enabled (as is the case for function type
-	// inference), when a named type is unified with an unnamed type, unification proceeds
-	// with the underlying type of the named type because otherwise unification would fail
-	// right away. This leads to an asymmetry in type inference: in cases where arguments of
-	// named and unnamed types are passed to parameters with identical type, different types
-	// (named vs underlying) may be inferred depending on the order of the arguments.
-	// By ensuring that named types are seen first, order dependence is avoided and unification
-	// succeeds where it can (go.dev/issue/43056).
-	const enableArgSorting = true
-	if m := len(args); m >= 2 && enableArgSorting {
-		// Determine indices of arguments with named and unnamed types.
-		var named, unnamed []int
-		for i, arg := range args {
-			if hasName(arg.typ) {
-				named = append(named, i)
-			} else {
-				unnamed = append(unnamed, i)
-			}
-		}
-
-		// If we have named and unnamed types, move the arguments with
-		// named types first. Update the parameter list accordingly.
-		// Make copies so as not to clobber the incoming slices.
-		if len(named) != 0 && len(unnamed) != 0 {
-			params2 := make([]*Var, m)
-			args2 := make([]*operand, m)
-			i := 0
-			for _, j := range named {
-				params2[i] = params.At(j)
-				args2[i] = args[j]
-				i++
-			}
-			for _, j := range unnamed {
-				params2[i] = params.At(j)
-				args2[i] = args[j]
-				i++
-			}
-			params = NewTuple(params2...)
-			args = args2
-		}
-	}
-
 	// --- 1 ---
 	// Continue with the type arguments we have. Avoid matching generic
 	// parameters that already have type arguments against function arguments:

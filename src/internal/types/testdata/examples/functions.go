@@ -174,15 +174,15 @@ func g2[T any]([]T, T) {}
 func g3[T any](*T, ...T) {}
 
 func _() {
-	type intSlize []int
+	type intSlice []int
 	g1([]int{})
-	g1(intSlize{})
+	g1(intSlice{})
 	g2(nil, 0)
 
 	type myString string
 	var s1 string
 	g3(nil, "1", myString("2"), "3")
-	g3(& /* ERROR "does not match" */ s1, "1", myString("2"), "3")
+	g3(&s1, "1", myString /* ERROR `type myString of myString("2") does not match inferred type string for T` */ ("2"), "3")
 	_ = s1
 
 	type myStruct struct{x int}
