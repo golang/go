@@ -272,7 +272,7 @@ func withCancel(parent Context) *cancelCtx {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	c := newCancelCtx(parent)
+	c := &cancelCtx{Context: parent}
 	propagateCancel(parent, c)
 	return c
 }
@@ -290,11 +290,6 @@ func Cause(c Context) error {
 		return cc.cause
 	}
 	return nil
-}
-
-// newCancelCtx returns an initialized cancelCtx.
-func newCancelCtx(parent Context) *cancelCtx {
-	return &cancelCtx{Context: parent}
 }
 
 // goroutines counts the number of goroutines ever created; for testing.
@@ -507,7 +502,7 @@ func WithDeadlineCause(parent Context, d time.Time, cause error) (Context, Cance
 		return WithCancel(parent)
 	}
 	c := &timerCtx{
-		cancelCtx: newCancelCtx(parent),
+		cancelCtx: cancelCtx{Context: parent},
 		deadline:  d,
 	}
 	propagateCancel(parent, c)
@@ -530,7 +525,7 @@ func WithDeadlineCause(parent Context, d time.Time, cause error) (Context, Cance
 // implement Done and Err. It implements cancel by stopping its timer then
 // delegating to cancelCtx.cancel.
 type timerCtx struct {
-	*cancelCtx
+	cancelCtx
 	timer *time.Timer // Under cancelCtx.mu.
 
 	deadline time.Time
@@ -655,7 +650,7 @@ func value(c Context, key any) any {
 			c = ctx.Context
 		case *timerCtx:
 			if key == &cancelCtxKey {
-				return ctx.cancelCtx
+				return &ctx.cancelCtx
 			}
 			c = ctx.Context
 		case *emptyCtx:
