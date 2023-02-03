@@ -257,7 +257,7 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
 //		Rewrite: func(r *ProxyRequest) {
 //			r.SetURL(target)
 //			r.Out.Host = r.In.Host // if desired
-//		}
+//		},
 //	}
 func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 	director := func(req *http.Request) {
