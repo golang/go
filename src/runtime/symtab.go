@@ -733,6 +733,14 @@ func (md *moduledata) textOff(pc uintptr) (uint32, bool) {
 	return res, true
 }
 
+// funcName returns the string at nameOff in the function name table.
+func (md *moduledata) funcName(nameOff int32) string {
+	if nameOff == 0 {
+		return ""
+	}
+	return gostringnocopy(&md.funcnametab[nameOff])
+}
+
 // FuncForPC returns a *Func describing the function that contains the
 // given program counter address, or else nil.
 //
@@ -1004,15 +1012,11 @@ func pcvalue(f funcInfo, off uint32, targetpc uintptr, cache *pcvalueCache, stri
 	return -1, 0
 }
 
-func cfuncname(f funcInfo) *byte {
-	if !f.valid() || f.nameOff == 0 {
-		return nil
-	}
-	return &f.datap.funcnametab[f.nameOff]
-}
-
 func funcname(f funcInfo) string {
-	return gostringnocopy(cfuncname(f))
+	if !f.valid() {
+		return ""
+	}
+	return f.datap.funcName(f.nameOff)
 }
 
 func funcpkgpath(f funcInfo) string {
@@ -1031,15 +1035,11 @@ func funcpkgpath(f funcInfo) string {
 	return name[:i]
 }
 
-func cfuncnameFromNameOff(f funcInfo, nameOff int32) *byte {
-	if !f.valid() {
-		return nil
-	}
-	return &f.datap.funcnametab[nameOff]
-}
-
 func funcnameFromNameOff(f funcInfo, nameOff int32) string {
-	return gostringnocopy(cfuncnameFromNameOff(f, nameOff))
+	if !f.valid() {
+		return ""
+	}
+	return f.datap.funcName(nameOff)
 }
 
 func funcfile(f funcInfo, fileno int32) string {
