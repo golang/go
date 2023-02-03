@@ -1,0 +1,71 @@
+This file contains tests for hovering over generic Go code.
+-- flags --
+-min_go=go1.18
+-- generics.go --
+package generics
+
+type value[T any] struct { //hover("lue", "value", value),hover("T", "T", valueT)
+	val T   //@hover("T", "T", valuevalT)
+	Q   int //@hover("Q", "Q", valueQ)
+}
+
+type Value[T any] struct { //@hover("T", "T", ValueT)
+	val T   //@hover("T", "T", ValuevalT)
+	Q   int //@hover("Q", "Q", ValueQ)
+}
+
+// disabled - see issue #54822
+func F[P interface{ ~int | string }]() { // hover("P","P",Ptparam)
+	// disabled - see issue #54822
+	var _ P // hover("P","P",Pvar)
+}
+-- go.mod --
+// A go.mod is require for correct pkgsite links.
+// TODO(rfindley): don't link to ad-hoc or command-line-arguments packages!
+module mod.com
+
+go 1.18
+-- inferred.go --
+package generics
+
+func app[S interface{ ~[]E }, E interface{}](s S, e E) S {
+	return append(s, e)
+}
+
+func _() {
+	_ = app[[]int]             //@hover("app", "app", appint)
+	_ = app[[]int, int]        //@hover("app", "app", appint)
+	_ = app[[]int]([]int{}, 0) //@hover("app", "app", appint)
+	_ = app([]int{}, 0)        //@hover("app", "app", appint)
+}
+-- @ValueQ/hover.md --
+```go
+field Q int
+```
+
+@hover("Q", "Q", ValueQ)
+
+
+[`(generics.Value).Q` on pkg.go.dev](https://pkg.go.dev/mod.com#Value.Q)
+-- @ValueT/hover.md --
+```go
+type parameter T any
+```
+-- @ValuevalT/hover.md --
+```go
+type parameter T any
+```
+-- @appint/hover.md --
+```go
+func app(s []int, e int) []int // func[S interface{~[]E}, E interface{}](s S, e E) S
+```
+-- @valueQ/hover.md --
+```go
+field Q int
+```
+
+@hover("Q", "Q", valueQ)
+-- @valuevalT/hover.md --
+```go
+type parameter T any
+```

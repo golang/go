@@ -8,19 +8,15 @@
 package tests
 
 import (
-	"testing"
-
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 )
 
-// The markdown in the golden files matches the converter in comment.go,
-// but for go1.19 and later the conversion is done using go/doc/comment.
-// Compared to the newer version, the older version
-// has extra escapes, and treats code blocks slightly differently.
-func CheckSameMarkdown(t *testing.T, got, want string) {
-	t.Helper()
-
-	if diff := compare.Text(want, got); diff != "" {
-		t.Errorf("normalized markdown differs:\n%s", diff)
-	}
+// DiffMarkdown compares two markdown strings produced by parsing go doc
+// comments.
+//
+// For go1.19 and later, markdown conversion is done using go/doc/comment.
+// Compared to the newer version, the older version has extra escapes, and
+// treats code blocks slightly differently.
+func DiffMarkdown(want, got string) string {
+	return compare.Text(want, got)
 }

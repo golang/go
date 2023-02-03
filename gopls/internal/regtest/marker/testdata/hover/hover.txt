@@ -1,0 +1,29 @@
+This test demonstrates some features of the new marker test runner.
+-- a.go --
+package a
+
+const abc = 0x2a //@hover("b", "abc", abc),hover(" =", "abc", abc)
+-- typeswitch.go --
+package a
+
+func _() {
+	var y interface{}
+	switch x := y.(type) { //@hover("x", "x", x)
+	case int:
+		println(x) //@hover("x", "x", xint),hover(")", "x", xint)
+	}
+}
+-- @abc/hover.md --
+```go
+const abc untyped int = 42
+```
+
+@hover("b", "abc", abc),hover(" =", "abc", abc)
+-- @x/hover.md --
+```go
+var x interface{}
+```
+-- @xint/hover.md --
+```go
+var x int
+```

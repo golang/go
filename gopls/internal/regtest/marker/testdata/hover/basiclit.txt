@@ -1,0 +1,60 @@
+This test checks gopls behavior when hovering over basic literals.
+-- basiclit.go --
+package basiclit
+
+func _() {
+	_ = 'a' //@hover("'a'", "'a'", latinA)
+	_ = 0x61 //@hover("0x61", "0x61", latinA)
+
+	_ = '\u2211' //@hover("'\\u2211'", "'\\u2211'", summation)
+	_ = 0x2211 //@hover("0x2211", "0x2211", summation)
+	_ = "foo \u2211 bar" //@hover("\\u2211", "\\u2211", summation)
+
+	_ = '\a' //@hover("'\\a'", "'\\a'", control)
+	_ = "foo \a bar" //@hover("\\a", "\\a", control)
+
+	_ = '\U0001F30A' //@hover("'\\U0001F30A'", "'\\U0001F30A'", waterWave)
+	_ = 0x0001F30A //@hover("0x0001F30A", "0x0001F30A", waterWave)
+	_ = "foo \U0001F30A bar" //@hover("\\U0001F30A", "\\U0001F30A", waterWave)
+
+	_ = '\x7E' //@hover("'\\x7E'", `'\x7E'`, tilde)
+	_ = "foo \x7E bar" //@hover("\\x7E", "\\x7E", tilde)
+	_ = "foo \a bar" //@hover("\\a", "\\a", control)
+
+	_ = '\173' //@hover("'\\173'", "'\\173'", leftCurly)
+	_ = "foo \173 bar" //@hover("\\173","\\173", leftCurly)
+	_ = "foo \173 bar \u2211 baz" //@hover("\\173","\\173", leftCurly)
+	_ = "foo \173 bar \u2211 baz" //@hover("\\u2211","\\u2211", summation)
+	_ = "foo\173bar\u2211baz" //@hover("\\173","\\173", leftCurly)
+	_ = "foo\173bar\u2211baz" //@hover("\\u2211","\\u2211", summation)
+
+	// search for runes in string only if there is an escaped sequence
+	_ = "hello" //@hover("\"hello\"", _, _)
+
+	// incorrect escaped rune sequences
+	_ = '\0' //@hover("'\\0'", _, _)
+	_ = '\u22111' //@hover("'\\u22111'", _, _)
+	_ = '\U00110000' //@hover("'\\U00110000'", _, _)
+	_ = '\u12e45'//@hover("'\\u12e45'", _, _)
+	_ = '\xa' //@hover("'\\xa'", _, _)
+	_ = 'aa' //@hover("'aa'", _, _)
+
+	// other basic lits
+	_ = 1 //@hover("1", _, _)
+	_ = 1.2 //@hover("1.2", _, _)
+	_ = 1.2i //@hover("1.2i", _, _)
+	_ = 0123 //@hover("0123", _, _)
+	_ = 0x1234567890 //@hover("0x1234567890", _, _)
+)
+-- @control/hover.md --
+U+0007, control
+-- @latinA/hover.md --
+'a', U+0061, LATIN SMALL LETTER A
+-- @leftCurly/hover.md --
+'{', U+007B, LEFT CURLY BRACKET
+-- @summation/hover.md --
+'∑', U+2211, N-ARY SUMMATION
+-- @tilde/hover.md --
+'~', U+007E, TILDE
+-- @waterWave/hover.md --
+'🌊', U+1F30A, WATER WAVE

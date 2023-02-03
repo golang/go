@@ -115,6 +115,8 @@ func main() {
 
 // Tests that hovering does not trigger the panic in golang/go#48249.
 func TestPanicInHoverBrokenCode(t *testing.T) {
+	// Note: this test can not be expressed as a marker test, as it must use
+	// content without a trailing newline.
 	const source = `
 -- main.go --
 package main

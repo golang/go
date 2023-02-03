@@ -93,7 +93,6 @@ type WorkspaceSymbols = map[WorkspaceSymbolsTestType]map[span.URI][]string
 type Signatures = map[span.Span]*protocol.SignatureHelp
 type Links = map[span.URI][]Link
 type AddImport = map[span.URI]string
-type Hovers = map[span.Span]string
 type SelectionRanges = []span.Span
 
 type Data struct {
@@ -129,7 +128,6 @@ type Data struct {
 	Signatures               Signatures
 	Links                    Links
 	AddImport                AddImport
-	Hovers                   Hovers
 	SelectionRanges          SelectionRanges
 
 	fragments map[string]string
@@ -144,7 +142,7 @@ type Data struct {
 }
 
 // The Tests interface abstracts the LSP-based implementation of the marker
-// test operators (such as @hover) appearing in files beneath ../testdata/.
+// test operators (such as @codelens) appearing in files beneath ../testdata/.
 //
 // TODO(adonovan): reduce duplication; see https://github.com/golang/go/issues/54845.
 // There is only one implementation (*runner in ../lsp_test.go), so
@@ -179,7 +177,6 @@ type Tests interface {
 	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
 	AddImport(*testing.T, span.URI, string)
-	Hover(*testing.T, span.Span, string)
 	SelectionRanges(*testing.T, span.Span)
 }
 
@@ -332,7 +329,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		Signatures:               make(Signatures),
 		Links:                    make(Links),
 		AddImport:                make(AddImport),
-		Hovers:                   make(Hovers),
 
 		dir:       dir,
 		fragments: map[string]string{},
@@ -483,7 +479,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"implementations": datum.collectImplementations,
 		"typdef":          datum.collectTypeDefinitions,
 		"hoverdef":        datum.collectHoverDefinitions,
-		"hover":           datum.collectHovers,
 		"highlight":       datum.collectHighlights,
 		"inlayHint":       datum.collectInlayHints,
 		"refs":            datum.collectReferences,
@@ -778,16 +773,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			t.Run(SpanName(pos), func(t *testing.T) {
 				t.Helper()
 				tests.Highlight(t, pos, locations)
-			})
-		}
-	})
-
-	t.Run("Hover", func(t *testing.T) {
-		t.Helper()
-		for pos, info := range data.Hovers {
-			t.Run(SpanName(pos), func(t *testing.T) {
-				t.Helper()
-				tests.Hover(t, pos, info)
 			})
 		}
 	})
@@ -1292,10 +1277,6 @@ func (data *Data) collectHoverDefinitions(src, target span.Span) {
 		Def:       target,
 		OnlyHover: true,
 	}
-}
-
-func (data *Data) collectHovers(src span.Span, expected string) {
-	data.Hovers[src] = expected
 }
 
 func (data *Data) collectTypeDefinitions(src, target span.Span) {

@@ -44,8 +44,8 @@ func TestMain(m *testing.M) {
 }
 
 // TestLSP runs the marker tests in files beneath testdata/ using
-// implementations of each of the marker operations (e.g. @hover) that
-// make LSP RPCs (e.g. textDocument/hover) to a gopls server.
+// implementations of each of the marker operations (e.g. @codelens) that
+// make LSP RPCs (e.g. textDocument/codeLens) to a gopls server.
 func TestLSP(t *testing.T) {
 	tests.RunTests(t, "testdata", true, testLSP)
 }
@@ -719,12 +719,12 @@ func (r *runner) Definition(t *testing.T, _ span.Span, d tests.Definition) {
 	if hover != nil {
 		didSomething = true
 		tag := fmt.Sprintf("%s-hoverdef", d.Name)
-		expectHover := string(r.data.Golden(t, tag, d.Src.URI().Filename(), func() ([]byte, error) {
+		want := string(r.data.Golden(t, tag, d.Src.URI().Filename(), func() ([]byte, error) {
 			return []byte(hover.Contents.Value), nil
 		}))
 		got := hover.Contents.Value
-		if got != expectHover {
-			tests.CheckSameMarkdown(t, got, expectHover)
+		if diff := tests.DiffMarkdown(want, got); diff != "" {
+			t.Errorf("%s: markdown mismatch:\n%s", d.Src, diff)
 		}
 	}
 	if !d.OnlyHover {
@@ -815,39 +815,6 @@ func (r *runner) Highlight(t *testing.T, src span.Span, spans []span.Span) {
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("DocumentHighlight(%v) mismatch (-want +got):\n%s", src, diff)
-	}
-}
-
-func (r *runner) Hover(t *testing.T, src span.Span, text string) {
-	m, err := r.data.Mapper(src.URI())
-	if err != nil {
-		t.Fatal(err)
-	}
-	loc, err := m.SpanLocation(src)
-	if err != nil {
-		t.Fatalf("failed for %v", err)
-	}
-	params := &protocol.HoverParams{
-		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
-	}
-	hover, err := r.server.Hover(r.ctx, params)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if text == "" {
-		if hover != nil {
-			t.Errorf("want nil, got %v\n", hover)
-		}
-	} else {
-		if hover == nil {
-			t.Fatalf("want hover result to include %s, but got nil", text)
-		}
-		if got := hover.Contents.Value; got != text {
-			t.Errorf("want %v, got %v\n", text, got)
-		}
-		if want, got := loc.Range, hover.Range; want != got {
-			t.Errorf("want range %v, got %v instead", want, got)
-		}
 	}
 }
 
