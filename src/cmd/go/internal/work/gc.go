@@ -673,6 +673,9 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	if err != nil {
 		return err
 	}
+	if cfg.BuildX {
+		ldflags = append(ldflags, "-v=2")
+	}
 
 	// On OS X when using external linking to build a shared library,
 	// the argument passed here to -o ends up recorded in the final
