@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"io"
 
 	"golang.org/x/crypto/cryptobyte"
@@ -133,7 +134,7 @@ func (c *Conn) encryptTicket(state []byte) ([]byte, error) {
 	copy(keyName, key.keyName[:])
 	block, err := aes.NewCipher(key.aesKey[:])
 	if err != nil {
-		return nil, errors.New("tls: failed to create cipher while encrypting ticket: " + err.Error())
+		return nil, fmt.Errorf("tls: failed to create cipher while encrypting ticket: %w", err)
 	}
 	cipher.NewCTR(block, iv).XORKeyStream(encrypted[ticketKeyNameLen+aes.BlockSize:], state)
 

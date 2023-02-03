@@ -535,7 +535,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 			case dnsTag:
 				domain := string(value)
 				if err := isIA5String(domain); err != nil {
-					return nil, nil, nil, nil, errors.New("x509: invalid constraint value: " + err.Error())
+					return nil, nil, nil, nil, fmt.Errorf("x509: invalid constraint value: %w", err)
 				}
 
 				trimmedDomain := domain
@@ -577,7 +577,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 			case emailTag:
 				constraint := string(value)
 				if err := isIA5String(constraint); err != nil {
-					return nil, nil, nil, nil, errors.New("x509: invalid constraint value: " + err.Error())
+					return nil, nil, nil, nil, fmt.Errorf("x509: invalid constraint value: %w", err)
 				}
 
 				// If the constraint contains an @ then
@@ -601,7 +601,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 			case uriTag:
 				domain := string(value)
 				if err := isIA5String(domain); err != nil {
-					return nil, nil, nil, nil, errors.New("x509: invalid constraint value: " + err.Error())
+					return nil, nil, nil, nil, fmt.Errorf("x509: invalid constraint value: %w", err)
 				}
 
 				if net.ParseIP(domain) != nil {

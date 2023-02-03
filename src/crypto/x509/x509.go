@@ -2023,7 +2023,7 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 
 		b, err := asn1.Marshal(attr)
 		if err != nil {
-			return nil, errors.New("x509: failed to serialise extensions attribute: " + err.Error())
+			return nil, fmt.Errorf("x509: failed to serialise extensions attribute: %w", err)
 		}
 
 		var rawValue asn1.RawValue

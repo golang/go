@@ -108,14 +108,14 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
 
 	_, err := io.ReadFull(config.rand(), hello.random)
 	if err != nil {
-		return nil, nil, errors.New("tls: short read from Rand: " + err.Error())
+		return nil, nil, fmt.Errorf("tls: short read from Rand: %w", err)
 	}
 
 	// A random session ID is used to detect when the server accepted a ticket
 	// and is resuming a session (see RFC 5077). In TLS 1.3, it's always set as
 	// a compatibility measure (see RFC 8446, Section 4.1.2).
 	if _, err := io.ReadFull(config.rand(), hello.sessionId); err != nil {
-		return nil, nil, errors.New("tls: short read from Rand: " + err.Error())
+		return nil, nil, fmt.Errorf("tls: short read from Rand: %w", err)
 	}
 
 	if hello.vers >= VersionTLS12 {
@@ -649,7 +649,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.hello.random, hs.serverHello.random)
 	if err := c.config.writeKeyLog(keyLogLabelTLS12, hs.hello.random, hs.masterSecret); err != nil {
 		c.sendAlert(alertInternalError)
-		return errors.New("tls: failed to write to key log: " + err.Error())
+		return fmt.Errorf("tls: failed to write to key log: %w", err)
 	}
 
 	hs.finishedHash.discardHandshakeBuffer()
@@ -855,7 +855,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 		cert, err := clientCertCache.newCert(asn1Data)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
-			return errors.New("tls: failed to parse certificate from server: " + err.Error())
+			return fmt.Errorf("tls: failed to parse certificate from server: %w", err)
 		}
 		activeHandles[i] = cert
 		certs[i] = cert.cert

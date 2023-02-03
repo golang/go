@@ -670,7 +670,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		signed := hs.finishedHash.hashForClientCertificate(sigType, sigHash)
 		if err := verifyHandshakeSignature(sigType, pub, sigHash, signed, certVerify.signature); err != nil {
 			c.sendAlert(alertDecryptError)
-			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
+			return fmt.Errorf("tls: invalid signature by the client certificate: %w", err)
 		}
 
 		hs.finishedHash.Write(certVerify.marshal())
@@ -807,7 +807,7 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	for i, asn1Data := range certificates {
 		if certs[i], err = x509.ParseCertificate(asn1Data); err != nil {
 			c.sendAlert(alertBadCertificate)
-			return errors.New("tls: failed to parse client certificate: " + err.Error())
+			return fmt.Errorf("tls: failed to parse client certificate: %w", err)
 		}
 	}
 
