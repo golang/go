@@ -319,7 +319,7 @@ var globalRand = New(new(lockedSource))
 // of results from the global random source (using functions such as Int)
 // can be broken when a dependency changes how much it consumes
 // from the global random source. To avoid such breakages, programs
-// that need a specific result sequence should use NewRand(NewSource(seed))
+// that need a specific result sequence should use New(NewSource(seed))
 // to obtain a random generator that other packages cannot access.
 func Seed(seed int64) { globalRand.Seed(seed) }
 
