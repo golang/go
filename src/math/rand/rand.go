@@ -20,6 +20,7 @@ package rand
 import (
 	"internal/godebug"
 	"sync"
+	"sync/atomic"
 	_ "unsafe" // for go:linkname
 )
 
@@ -269,8 +270,11 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
 // always returns len(p) and a nil error.
 // Read should not be called concurrently with any other Rand method.
 func (r *Rand) Read(p []byte) (n int, err error) {
-	if lk, ok := r.src.(*lockedSource); ok {
-		return lk.read(p, &r.readVal, &r.readPos)
+	switch src := r.src.(type) {
+	case *lockedSource:
+		return src.read(p, &r.readVal, &r.readPos)
+	case *fastSource:
+		return src.read(p, &r.readVal, &r.readPos)
 	}
 	return read(p, r.src, &r.readVal, &r.readPos)
 }
@@ -301,7 +305,75 @@ func read(p []byte, src Source, readVal *int64, readPos *int8) (n int, err error
  * Top-level convenience functions
  */
 
-var globalRand = New(new(lockedSource))
+// globalRandGenerator is the source of random numbers for the top-level
+// convenience functions. When possible it uses the runtime fastrand64
+// function to avoid locking. This is not possible if the user called Seed,
+// either explicitly or implicitly via GODEBUG=randautoseed=0.
+var globalRandGenerator atomic.Pointer[Rand]
+
+var randautoseed = godebug.New("randautoseed")
+
+// globalRand returns the generator to use for the top-level convenience
+// functions.
+func globalRand() *Rand {
+	if r := globalRandGenerator.Load(); r != nil {
+		return r
+	}
+
+	// This is the first call. Initialize based on GODEBUG.
+	var r *Rand
+	if randautoseed.Value() == "0" {
+		randautoseed.IncNonDefault()
+		r = New(new(lockedSource))
+		r.Seed(1)
+	} else {
+		r = &Rand{
+			src: &fastSource{},
+			s64: &fastSource{},
+		}
+	}
+
+	if !globalRandGenerator.CompareAndSwap(nil, r) {
+		// Two different goroutines called some top-level
+		// function at the same time. While the results in
+		// that case are unpredictable, if we just use r here,
+		// and we are using a seed, we will most likely return
+		// the same value for both calls. That doesn't seem ideal.
+		// Just use the first one to get in.
+		return globalRandGenerator.Load()
+	}
+
+	return r
+}
+
+//go:linkname fastrand64
+func fastrand64() uint64
+
+// fastSource is an implementation of Source64 that uses the runtime
+// fastrand functions.
+type fastSource struct {
+	// The mutex is used to avoid race conditions in Read.
+	mu sync.Mutex
+}
+
+func (*fastSource) Int63() int64 {
+	return int64(fastrand64() & rngMask)
+}
+
+func (*fastSource) Seed(int64) {
+	panic("internal error: call to fastSource.Seed")
+}
+
+func (*fastSource) Uint64() uint64 {
+	return fastrand64()
+}
+
+func (fs *fastSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
+	fs.mu.Lock()
+	n, err = read(p, fs, readVal, readPos)
+	fs.mu.Unlock()
+	return
+}
 
 // Seed uses the provided seed value to initialize the default Source to a
 // deterministic state. Seed values that have the same remainder when
@@ -321,65 +393,90 @@ var globalRand = New(new(lockedSource))
 // from the global random source. To avoid such breakages, programs
 // that need a specific result sequence should use NewRand(NewSource(seed))
 // to obtain a random generator that other packages cannot access.
-func Seed(seed int64) { globalRand.Seed(seed) }
+func Seed(seed int64) {
+	orig := globalRandGenerator.Load()
+
+	// If we are already using a lockedSource, we can just re-seed it.
+	if orig != nil {
+		if _, ok := orig.src.(*lockedSource); ok {
+			orig.Seed(seed)
+			return
+		}
+	}
+
+	// Otherwise either
+	// 1) orig == nil, which is the normal case when Seed is the first
+	// top-level function to be called, or
+	// 2) orig is already a fastSource, in which case we need to change
+	// to a lockedSource.
+	// Either way we do the same thing.
+
+	r := New(new(lockedSource))
+	r.Seed(seed)
+
+	if !globalRandGenerator.CompareAndSwap(orig, r) {
+		// Something changed underfoot. Retry to be safe.
+		Seed(seed)
+	}
+}
 
 // Int63 returns a non-negative pseudo-random 63-bit integer as an int64
 // from the default Source.
-func Int63() int64 { return globalRand.Int63() }
+func Int63() int64 { return globalRand().Int63() }
 
 // Uint32 returns a pseudo-random 32-bit value as a uint32
 // from the default Source.
-func Uint32() uint32 { return globalRand.Uint32() }
+func Uint32() uint32 { return globalRand().Uint32() }
 
 // Uint64 returns a pseudo-random 64-bit value as a uint64
 // from the default Source.
-func Uint64() uint64 { return globalRand.Uint64() }
+func Uint64() uint64 { return globalRand().Uint64() }
 
 // Int31 returns a non-negative pseudo-random 31-bit integer as an int32
 // from the default Source.
-func Int31() int32 { return globalRand.Int31() }
+func Int31() int32 { return globalRand().Int31() }
 
 // Int returns a non-negative pseudo-random int from the default Source.
-func Int() int { return globalRand.Int() }
+func Int() int { return globalRand().Int() }
 
 // Int63n returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
-func Int63n(n int64) int64 { return globalRand.Int63n(n) }
+func Int63n(n int64) int64 { return globalRand().Int63n(n) }
 
 // Int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
-func Int31n(n int32) int32 { return globalRand.Int31n(n) }
+func Int31n(n int32) int32 { return globalRand().Int31n(n) }
 
 // Intn returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n)
 // from the default Source.
 // It panics if n <= 0.
-func Intn(n int) int { return globalRand.Intn(n) }
+func Intn(n int) int { return globalRand().Intn(n) }
 
 // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0)
 // from the default Source.
-func Float64() float64 { return globalRand.Float64() }
+func Float64() float64 { return globalRand().Float64() }
 
 // Float32 returns, as a float32, a pseudo-random number in the half-open interval [0.0,1.0)
 // from the default Source.
-func Float32() float32 { return globalRand.Float32() }
+func Float32() float32 { return globalRand().Float32() }
 
 // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers
 // in the half-open interval [0,n) from the default Source.
-func Perm(n int) []int { return globalRand.Perm(n) }
+func Perm(n int) []int { return globalRand().Perm(n) }
 
 // Shuffle pseudo-randomizes the order of elements using the default Source.
 // n is the number of elements. Shuffle panics if n < 0.
 // swap swaps the elements with indexes i and j.
-func Shuffle(n int, swap func(i, j int)) { globalRand.Shuffle(n, swap) }
+func Shuffle(n int, swap func(i, j int)) { globalRand().Shuffle(n, swap) }
 
 // Read generates len(p) random bytes from the default Source and
 // writes them into p. It always returns len(p) and a nil error.
 // Read, unlike the Rand.Read method, is safe for concurrent use.
 //
 // Deprecated: For almost all use cases, crypto/rand.Read is more appropriate.
-func Read(p []byte) (n int, err error) { return globalRand.Read(p) }
+func Read(p []byte) (n int, err error) { return globalRand().Read(p) }
 
 // NormFloat64 returns a normally distributed float64 in the range
 // [-math.MaxFloat64, +math.MaxFloat64] with
@@ -389,7 +486,7 @@ func Read(p []byte) (n int, err error) { return globalRand.Read(p) }
 // adjust the output using:
 //
 //	sample = NormFloat64() * desiredStdDev + desiredMean
-func NormFloat64() float64 { return globalRand.NormFloat64() }
+func NormFloat64() float64 { return globalRand().NormFloat64() }
 
 // ExpFloat64 returns an exponentially distributed float64 in the range
 // (0, +math.MaxFloat64] with an exponential distribution whose rate parameter
@@ -398,44 +495,23 @@ func NormFloat64() float64 { return globalRand.NormFloat64() }
 // callers can adjust the output using:
 //
 //	sample = ExpFloat64() / desiredRateParameter
-func ExpFloat64() float64 { return globalRand.ExpFloat64() }
+func ExpFloat64() float64 { return globalRand().ExpFloat64() }
 
 type lockedSource struct {
 	lk sync.Mutex
-	s  *rngSource // nil if not yet allocated
-}
-
-//go:linkname fastrand64
-func fastrand64() uint64
-
-var randautoseed = godebug.New("randautoseed")
-
-// source returns r.s, allocating and seeding it if needed.
-// The caller must have locked r.
-func (r *lockedSource) source() *rngSource {
-	if r.s == nil {
-		var seed int64
-		if randautoseed.Value() == "0" {
-			randautoseed.IncNonDefault()
-			seed = 1
-		} else {
-			seed = int64(fastrand64())
-		}
-		r.s = newSource(seed)
-	}
-	return r.s
+	s  *rngSource
 }
 
 func (r *lockedSource) Int63() (n int64) {
 	r.lk.Lock()
-	n = r.source().Int63()
+	n = r.s.Int63()
 	r.lk.Unlock()
 	return
 }
 
 func (r *lockedSource) Uint64() (n uint64) {
 	r.lk.Lock()
-	n = r.source().Uint64()
+	n = r.s.Uint64()
 	r.lk.Unlock()
 	return
 }
@@ -467,7 +543,7 @@ func (r *lockedSource) seed(seed int64) {
 // read implements Read for a lockedSource without a race condition.
 func (r *lockedSource) read(p []byte, readVal *int64, readPos *int8) (n int, err error) {
 	r.lk.Lock()
-	n, err = read(p, r.source(), readVal, readPos)
+	n, err = read(p, r.s, readVal, readPos)
 	r.lk.Unlock()
 	return
 }
