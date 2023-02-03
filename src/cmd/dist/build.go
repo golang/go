@@ -1513,14 +1513,14 @@ func cmdbootstrap() {
 	}
 	goInstall(nil, goBootstrap, "std")
 	goInstall(toolenv(), goBootstrap, "cmd")
-	checkNotStale(toolenv(), goBootstrap, append(toolchain, "runtime/internal/sys")...)
+	checkNotStale(toolenv(), goBootstrap, toolchain...)
 	checkNotStale(nil, goBootstrap, "std")
 	checkNotStale(toolenv(), goBootstrap, "cmd")
 	checkNotStale(nil, gorootBinGo, "std")
 	checkNotStale(toolenv(), gorootBinGo, "cmd")
 	if debug {
 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
-		checkNotStale(toolenv(), goBootstrap, append(toolchain, "runtime/internal/sys")...)
+		checkNotStale(toolenv(), goBootstrap, toolchain...)
 		copyfile(pathf("%s/compile4", tooldir), pathf("%s/compile", tooldir), writeExec)
 	}
 
