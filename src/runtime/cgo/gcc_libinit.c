@@ -19,8 +19,9 @@ static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
 static int runtime_init_done;
 
-// Just need a dump pthread key & value, since only the destructor is usefull,
-// do not really care about the pthread values.
+// dump_key and dump_value are pthread specific key and value, for registering a destructor,
+// which runs when the thread exits.
+// Currently we don't care about the content of key and value.
 static pthread_key_t dump_key;
 static void *dump_value;
 static void pthread_key_destructor(void *value);
