@@ -3201,17 +3201,11 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 
 	// TODO: make cgo not depend on $GOARCH?
 
+	isRuntimeCgo := false
 	cgoflags := []string{}
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
-		// Ignore the undefined reference error, since we invoke crosscall2 in gcc_libinit.c,
-		// but crosscall2 is in asm_ARCH.s, won't link with the object compiled from gcc_libinit.c,
-		// while compling runtime/cgo.
-		if runtime.GOOS == "darwin" {
-			cgoLDFLAGS = append(cgoLDFLAGS, "-Wl,-undefined,dynamic_lookup")
-		} else if runtime.GOOS != "windows" {
-			cgoLDFLAGS = append(cgoLDFLAGS, "-Wl,--unresolved-symbols=ignore-in-object-files")
-		}
+		isRuntimeCgo = true
 	}
 	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/msan" || p.ImportPath == "runtime/cgo" || p.ImportPath == "runtime/asan") {
 		cgoflags = append(cgoflags, "-import_syscall=false")
@@ -3295,12 +3289,18 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		outObj = append(outObj, ofile)
 	}
 
+	// gcc_dummy_crosscall2.c only contains the dummy function for dynimport.
+	dummyObj := ""
 	for _, file := range gccfiles {
 		ofile := nextOfile()
 		if err := b.gcc(a, p, a.Objdir, ofile, cflags, file); err != nil {
 			return nil, nil, err
 		}
-		outObj = append(outObj, ofile)
+		if isRuntimeCgo && file == "gcc_dummy_crosscall2.c" {
+			dummyObj = ofile
+		} else {
+			outObj = append(outObj, ofile)
+		}
 	}
 
 	cxxflags := str.StringList(cgoCPPFLAGS, cgoCXXFLAGS)
@@ -3332,7 +3332,11 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	switch cfg.BuildToolchainName {
 	case "gc":
 		importGo := objdir + "_cgo_import.go"
-		dynOutGo, dynOutObj, err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, outObj)
+		obj := outObj
+		if dummyObj != "" {
+			obj = append(obj, dummyObj)
+		}
+		dynOutGo, dynOutObj, err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, obj)
 		if err != nil {
 			return nil, nil, err
 		}
