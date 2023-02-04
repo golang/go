@@ -457,16 +457,8 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			}
 			return
 		}
-		// (gp != nil) means is the extra m running extra C code, not Go code,
-		// so setting g to nil, to keep its not running Go code state.
-		if gp != nil {
-			setg(nil)
-		}
 		c.fixsigcode(sig)
-		badsignal(uintptr(sig), c)
-		if gp != nil {
-			setg(gp)
-		}
+		badsignal(uintptr(sig), c, gp == nil)
 		return
 	}
 
@@ -1047,12 +1039,12 @@ func signalDuringFork(sig uint32) {
 	throw("signal received during fork")
 }
 
-// This runs on a foreign stack, without an m or a g. No stack split.
+// This runs on a foreign stack. No stack split.
 //
 //go:nosplit
 //go:norace
 //go:nowritebarrierrec
-func badsignal(sig uintptr, c *sigctxt) {
+func badsignal(sig uintptr, c *sigctxt, no_g bool) {
 	if !iscgo && !cgoHasExtraM {
 		// There is no extra M. needm will not be able to grab
 		// an M. Instead of hanging, just crash.
@@ -1061,13 +1053,18 @@ func badsignal(sig uintptr, c *sigctxt) {
 		exit(2)
 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
 	}
-	needm()
+	// Only needm when there is no g.
+	if no_g {
+		needm()
+	}
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
 		// Go code does not want to handle it.
 		raisebadsignal(uint32(sig), c)
 	}
-	dropm()
+	if no_g {
+		dropm()
+	}
 }
 
 //go:noescape
