@@ -451,12 +451,7 @@ func (i Token) String() string {
 func TestGolden(t *testing.T) {
 	testenv.NeedsTool(t, "go")
 
-	dir, err := os.MkdirTemp("", "stringer")
-	if err != nil {
-		t.Error(err)
-	}
-	defer os.RemoveAll(dir)
-
+	dir := t.TempDir()
 	for _, test := range golden {
 		g := Generator{
 			trimPrefix:  test.trimPrefix,
