@@ -10,7 +10,7 @@ import "syscall/js"
 
 // The maximum buffer size for crypto.getRandomValues is 65536 bytes.
 // https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues#exceptions
-const maxGetRandomRead = 1 << 16
+const maxGetRandomRead = 64 << 10
 
 var batchedGetRandom func([]byte) error
 
