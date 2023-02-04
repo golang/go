@@ -458,7 +458,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			return
 		}
 		c.fixsigcode(sig)
-		badsignal(uintptr(sig), c, gp == nil)
+		badsignal(uintptr(sig), c, gp != nil)
 		return
 	}
 
@@ -1044,7 +1044,7 @@ func signalDuringFork(sig uint32) {
 //go:nosplit
 //go:norace
 //go:nowritebarrierrec
-func badsignal(sig uintptr, c *sigctxt, no_g bool) {
+func badsignal(sig uintptr, c *sigctxt, hasG bool) {
 	if !iscgo && !cgoHasExtraM {
 		// There is no extra M. needm will not be able to grab
 		// an M. Instead of hanging, just crash.
@@ -1054,7 +1054,7 @@ func badsignal(sig uintptr, c *sigctxt, no_g bool) {
 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
 	}
 	// Only needm when there is no g.
-	if no_g {
+	if !hasG {
 		needm()
 	}
 	if !sigsend(uint32(sig)) {
@@ -1062,7 +1062,7 @@ func badsignal(sig uintptr, c *sigctxt, no_g bool) {
 		// Go code does not want to handle it.
 		raisebadsignal(uint32(sig), c)
 	}
-	if no_g {
+	if !hasG {
 		dropm()
 	}
 }

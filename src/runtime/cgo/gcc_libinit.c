@@ -19,11 +19,11 @@ static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
 static int runtime_init_done;
 
-// dump_key and dump_value are pthread specific key and value, for registering a destructor,
+// dummy_key and dummy_value are pthread specific key and value, for registering a destructor,
 // which runs when the thread exits.
 // Currently we don't care about the content of key and value.
-static pthread_key_t dump_key;
-static void *dump_value;
+static pthread_key_t dummy_key;
+static void *dummy_value;
 static void pthread_key_destructor(void *value);
 uintptr_t x_cgo_pthread_key_created;
 
@@ -49,11 +49,11 @@ _cgo_wait_runtime_init_done(void) {
 		pthread_cond_wait(&runtime_init_cond, &runtime_init_mu);
 	}
 
-	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&dump_key, pthread_key_destructor) == 0) {
+	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&dummy_key, pthread_key_destructor) == 0) {
 	    x_cgo_pthread_key_created = 1;
 	}
-	if (x_cgo_pthread_key_created == 1 && pthread_getspecific(dump_key) == NULL) {
-	    pthread_setspecific(dump_key, &dump_value);
+	if (x_cgo_pthread_key_created == 1 && pthread_getspecific(dummy_key) == NULL) {
+	    pthread_setspecific(dummy_key, &dummy_value);
 	}
 
 	// TODO(iant): For the case of a new C thread calling into Go, such
