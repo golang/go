@@ -148,6 +148,15 @@ func TestFlagAndPrefixSetting(t *testing.T) {
 	if !matched {
 		t.Error("message did not match pattern")
 	}
+
+	// Ensure that a newline is added only if the buffer lacks a newline suffix.
+	b.Reset()
+	l.SetFlags(0)
+	l.SetPrefix("\n")
+	l.Output(0, "")
+	if got := b.String(); got != "\n" {
+		t.Errorf("message mismatch:\ngot  %q\nwant %q", got, "\n")
+	}
 }
 
 func TestUTCFlag(t *testing.T) {

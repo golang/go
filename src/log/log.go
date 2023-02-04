@@ -222,10 +222,8 @@ func (l *Logger) output(calldepth int, appendOutput func([]byte) []byte) error {
 	buf := getBuffer()
 	defer putBuffer(buf)
 	formatHeader(buf, now, prefix, flag, file, line)
-	headerLen := len(*buf)
 	*buf = appendOutput(*buf)
-	s := (*buf)[headerLen:]
-	if len(s) == 0 || s[len(s)-1] != '\n' {
+	if len(*buf) == 0 || (*buf)[len(*buf)-1] != '\n' {
 		*buf = append(*buf, '\n')
 	}
 
