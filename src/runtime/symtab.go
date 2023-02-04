@@ -230,7 +230,11 @@ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
 	}
 
 	// N.B. we want to keep the last parentPC which is not inline.
-	stk = append(stk, pc)
+	if f.funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
+		// Ignore wrapper functions (except when they trigger panics).
+	} else {
+		stk = append(stk, pc)
+	}
 
 	return stk
 }
