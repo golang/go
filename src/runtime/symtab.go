@@ -898,6 +898,30 @@ func findfunc(pc uintptr) funcInfo {
 	return funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[funcoff])), datap}
 }
 
+// A srcFunc represents a logical function in the source code. This may
+// correspond to an actual symbol in the binary text, or it may correspond to a
+// source function that has been inlined.
+type srcFunc struct {
+	datap     *moduledata
+	nameOff   int32
+	startLine int32
+	funcID    funcID
+}
+
+func (f funcInfo) srcFunc() srcFunc {
+	if !f.valid() {
+		return srcFunc{}
+	}
+	return srcFunc{f.datap, f.nameOff, f.startLine, f.funcID}
+}
+
+func (s srcFunc) name() string {
+	if s.datap == nil {
+		return ""
+	}
+	return s.datap.funcName(s.nameOff)
+}
+
 type pcvalueCache struct {
 	entries [2][8]pcvalueCacheEnt
 }
@@ -1206,13 +1230,4 @@ func stackmapdata(stkmap *stackmap, n int32) bitvector {
 		throw("stackmapdata: index out of range")
 	}
 	return bitvector{stkmap.nbit, addb(&stkmap.bytedata[0], uintptr(n*((stkmap.nbit+7)>>3)))}
-}
-
-// inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
-type inlinedCall struct {
-	funcID    funcID // type of the called function
-	_         [3]byte
-	nameOff   int32 // offset into pclntab for name of called function
-	parentPc  int32 // position of an instruction whose source position is the call site (offset from entry)
-	startLine int32 // line number of start of function (func keyword/TEXT directive)
 }

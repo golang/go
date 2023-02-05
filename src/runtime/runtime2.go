@@ -924,6 +924,8 @@ type _func struct {
 // Pseudo-Func that is returned for PCs that occur in inlined code.
 // A *Func can be either a *_func or a *funcinl, and they are distinguished
 // by the first uintptr.
+//
+// TODO(austin): Can we merge this with inlinedCall?
 type funcinl struct {
 	ones      uint32  // set to ^0 to distinguish from _func
 	entry     uintptr // entry of the real (the "outermost") frame
