@@ -639,6 +639,9 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
 	// Build tree with args substituted for params and try it.
 	args := make(map[*ir.Name]ir.Node)
 	for i, v := range as2init.Lhs {
+		if ir.IsBlank(v) {
+			continue
+		}
 		args[v.(*ir.Name)] = as2init.Rhs[i]
 	}
 	r, ok := subst(as2body.Rhs[0], args)
