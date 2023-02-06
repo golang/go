@@ -330,7 +330,6 @@ func (b *Block) removeEdge(i int) {
 			continue
 		}
 		c.removePhiArg(v, j)
-		phielimValue(v)
 		// Note: this is trickier than it looks. Replacing
 		// a Phi with a Copy can in general cause problems because
 		// Phi and Copy don't have exactly the same semantics.
