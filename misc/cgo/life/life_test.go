@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -44,20 +43,22 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
+// TestTestRun runs a test case for cgo //export.
 func TestTestRun(t *testing.T) {
 	if os.Getenv("GOOS") == "android" {
 		t.Skip("the go tool runs with CGO_ENABLED=0 on the android device")
 	}
-	out, err := exec.Command("go", "env", "GOROOT").Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	GOROOT := string(bytes.TrimSpace(out))
 
-	cmd := exec.Command("go", "run", filepath.Join(GOROOT, "test", "run.go"), "-", ".")
-	out, err = cmd.CombinedOutput()
+	cmd := exec.Command("go", "run", "main.go")
+	got, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+		t.Fatalf("%v: %s\n%s", cmd, err, got)
 	}
-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+	want, err := os.ReadFile("main.out")
+	if err != nil {
+		t.Fatal("reading golden output:", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("'%v' output does not match expected in main.out. Instead saw:\n%s", cmd, got)
+	}
 }
