@@ -76,7 +76,7 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 		// If we're doing real work, take time at the end to trim the cache.
 		c := cache.Default()
 		defer func() {
-			if err := c.Trim(); err != nil {
+			if err := c.Close(); err != nil {
 				base.Fatalf("go: failed to trim cache: %v", err)
 			}
 		}()
@@ -993,7 +993,7 @@ func (b *Builder) checkDirectives(a *Action) error {
 	return nil
 }
 
-func (b *Builder) cacheObjdirFile(a *Action, c *cache.Cache, name string) error {
+func (b *Builder) cacheObjdirFile(a *Action, c cache.Cache, name string) error {
 	f, err := os.Open(a.Objdir + name)
 	if err != nil {
 		return err
@@ -1003,15 +1003,15 @@ func (b *Builder) cacheObjdirFile(a *Action, c *cache.Cache, name string) error 
 	return err
 }
 
-func (b *Builder) findCachedObjdirFile(a *Action, c *cache.Cache, name string) (string, error) {
-	file, _, err := c.GetFile(cache.Subkey(a.actionID, name))
+func (b *Builder) findCachedObjdirFile(a *Action, c cache.Cache, name string) (string, error) {
+	file, _, err := cache.GetFile(c, cache.Subkey(a.actionID, name))
 	if err != nil {
 		return "", fmt.Errorf("loading cached file %s: %w", name, err)
 	}
 	return file, nil
 }
 
-func (b *Builder) loadCachedObjdirFile(a *Action, c *cache.Cache, name string) error {
+func (b *Builder) loadCachedObjdirFile(a *Action, c cache.Cache, name string) error {
 	cached, err := b.findCachedObjdirFile(a, c, name)
 	if err != nil {
 		return err
@@ -1047,12 +1047,12 @@ func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
 			return
 		}
 	}
-	c.PutBytes(cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
+	cache.PutBytes(c, cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
 }
 
 func (b *Builder) loadCachedVet(a *Action) error {
 	c := cache.Default()
-	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
+	list, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
 		return fmt.Errorf("reading srcfiles list: %w", err)
 	}
@@ -1076,7 +1076,7 @@ func (b *Builder) loadCachedVet(a *Action) error {
 
 func (b *Builder) loadCachedCompiledGoFiles(a *Action) error {
 	c := cache.Default()
-	list, _, err := c.GetBytes(cache.Subkey(a.actionID, "srcfiles"))
+	list, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
 		return fmt.Errorf("reading srcfiles list: %w", err)
 	}
@@ -1279,7 +1279,7 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 
 	if vcfg.VetxOnly && !cfg.BuildA {
 		c := cache.Default()
-		if file, _, err := c.GetFile(key); err == nil {
+		if file, _, err := cache.GetFile(c, key); err == nil {
 			a.built = file
 			return nil
 		}
@@ -2918,7 +2918,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	var flagID cache.ActionID
 	if cacheOK {
 		flagID = cache.Subkey(compilerID, "gccSupportsFlag "+flag)
-		if data, _, err := cache.Default().GetBytes(flagID); err == nil {
+		if data, _, err := cache.GetBytes(cache.Default(), flagID); err == nil {
 			supported := string(data) == "true"
 			b.flagCache[key] = supported
 			return supported
@@ -2950,7 +2950,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 		if supported {
 			s = "true"
 		}
-		cache.Default().PutBytes(flagID, []byte(s))
+		cache.PutBytes(cache.Default(), flagID, []byte(s))
 	}
 
 	b.flagCache[key] = supported
@@ -3002,7 +3002,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	h := cache.NewHash("gccCompilerID")
 	fmt.Fprintf(h, "gccCompilerID %q", exe)
 	key := h.Sum()
-	data, _, err := cache.Default().GetBytes(key)
+	data, _, err := cache.GetBytes(cache.Default(), key)
 	if err == nil && len(data) > len(id) {
 		stats := strings.Split(string(data[:len(data)-len(id)]), "\x00")
 		if len(stats)%2 != 0 {
@@ -3050,7 +3050,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	}
 	buf.Write(id[:])
 
-	cache.Default().PutBytes(key, buf.Bytes())
+	cache.PutBytes(cache.Default(), key, buf.Bytes())
 	if b.gccCompilerIDCache == nil {
 		b.gccCompilerIDCache = make(map[string]cache.ActionID)
 	}

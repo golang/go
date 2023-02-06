@@ -1580,7 +1580,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 
 	// Load list of referenced environment variables and files
 	// from last run of testID, and compute hash of that content.
-	data, entry, err := cache.Default().GetBytes(testID)
+	data, entry, err := cache.GetBytes(cache.Default(), testID)
 	if !bytes.HasPrefix(data, testlogMagic) || data[len(data)-1] != '\n' {
 		if cache.DebugTest {
 			if err != nil {
@@ -1601,7 +1601,7 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 
 	// Parse cached result in preparation for changing run time to "(cached)".
 	// If we can't parse the cached result, don't use it.
-	data, entry, err = cache.Default().GetBytes(testAndInputKey(testID, testInputsID))
+	data, entry, err = cache.GetBytes(cache.Default(), testAndInputKey(testID, testInputsID))
 	if len(data) == 0 || data[len(data)-1] != '\n' {
 		if cache.DebugTest {
 			if err != nil {
@@ -1813,15 +1813,15 @@ func (c *runCache) saveOutput(a *work.Action) {
 		if cache.DebugTest {
 			fmt.Fprintf(os.Stderr, "testcache: %s: save test ID %x => input ID %x => %x\n", a.Package.ImportPath, c.id1, testInputsID, testAndInputKey(c.id1, testInputsID))
 		}
-		cache.Default().PutNoVerify(c.id1, bytes.NewReader(testlog))
-		cache.Default().PutNoVerify(testAndInputKey(c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
+		cache.PutNoVerify(cache.Default(), c.id1, bytes.NewReader(testlog))
+		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id1, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
 	}
 	if c.id2 != (cache.ActionID{}) {
 		if cache.DebugTest {
 			fmt.Fprintf(os.Stderr, "testcache: %s: save test ID %x => input ID %x => %x\n", a.Package.ImportPath, c.id2, testInputsID, testAndInputKey(c.id2, testInputsID))
 		}
-		cache.Default().PutNoVerify(c.id2, bytes.NewReader(testlog))
-		cache.Default().PutNoVerify(testAndInputKey(c.id2, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
+		cache.PutNoVerify(cache.Default(), c.id2, bytes.NewReader(testlog))
+		cache.PutNoVerify(cache.Default(), testAndInputKey(c.id2, testInputsID), bytes.NewReader(a.TestOutput.Bytes()))
 	}
 }
 
