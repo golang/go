@@ -75,9 +75,6 @@ func DecodedLen(x int) int { return x / 2 }
 // If the input is malformed, Decode returns the number
 // of bytes decoded before the error.
 func Decode(dst, src []byte) (int, error) {
-	if len(dst) < DecodedLen(len(src)) {
-		return 0, errors.New("encoding/hex: output buffer too small")
-	}
 	i, j := 0, 1
 	for ; j < len(src); j += 2 {
 		p := src[j-1]
@@ -90,6 +87,9 @@ func Decode(dst, src []byte) (int, error) {
 		}
 		if b > 0x0f {
 			return i, InvalidByteError(q)
+		}
+		if i >= len(dst) {
+			return i, errors.New("encoding/hex: output buffer too small")
 		}
 		dst[i] = (a << 4) | b
 		i++
