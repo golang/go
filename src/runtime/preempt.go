@@ -413,14 +413,9 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		// except the ones that have funcFlag_SPWRITE set in f.flag.
 		return false, 0
 	}
-	name := funcname(f)
-	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
-		inltree := (*[1 << 20]inlinedCall)(inldata)
-		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
-		if ix >= 0 {
-			name = funcnameFromNameOff(f, inltree[ix].nameOff)
-		}
-	}
+	// Check the inner-most name
+	u, uf := newInlineUnwinder(f, pc, nil)
+	name := u.srcFunc(uf).name()
 	if hasPrefix(name, "runtime.") ||
 		hasPrefix(name, "runtime/internal/") ||
 		hasPrefix(name, "reflect.") {

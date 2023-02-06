@@ -306,9 +306,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 
 		if pcbuf != nil {
-			pc := frame.pc
 			// backup to CALL instruction to read inlining info (same logic as below)
-			tracepc := pc
+			tracepc := frame.pc
 			// Normally, pc is a return address. In that case, we want to look up
 			// file/line information using pc-1, because that is the pc of the
 			// call instruction (more precisely, the last byte of the call instruction).
@@ -320,42 +319,24 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// See issue 34123.
 			// The pc can be at function entry when the frame is initialized without
 			// actually running code, like runtime.mstart.
-			if (n == 0 && flags&_TraceTrap != 0) || calleeFuncID == funcID_sigpanic || pc == f.entry() {
-				pc++
-			} else {
+			if !((n == 0 && flags&_TraceTrap != 0) || calleeFuncID == funcID_sigpanic || tracepc == f.entry()) {
 				tracepc--
 			}
-
-			// If there is inlining info, record the inner frames.
-			if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
-				inltree := (*[1 << 20]inlinedCall)(inldata)
-				for {
-					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
-					if ix < 0 {
-						break
-					}
-					if inltree[ix].funcID == funcID_wrapper && elideWrapperCalling(calleeFuncID) {
-						// ignore wrappers
-					} else if skip > 0 {
-						skip--
-					} else if n < max {
-						(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
-						n++
-					}
-					calleeFuncID = inltree[ix].funcID
-					// Back up to an instruction in the "caller".
-					tracepc = frame.fn.entry() + uintptr(inltree[ix].parentPc)
-					pc = tracepc + 1
+			// TODO: Why does cache escape? (Same below)
+			for iu, uf := newInlineUnwinder(f, tracepc, noEscapePtr(&cache)); uf.valid(); uf = iu.next(uf) {
+				sf := iu.srcFunc(uf)
+				if sf.funcID == funcID_wrapper && elideWrapperCalling(calleeFuncID) {
+					// ignore wrappers
+				} else if skip > 0 {
+					skip--
+				} else if n < max {
+					// Callers expect the pc buffer to contain return addresses
+					// and do the -1 themselves, so we add 1 to the call PC to
+					// create a return PC.
+					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = uf.pc + 1
+					n++
 				}
-			}
-			// Record the main frame.
-			if f.funcID == funcID_wrapper && elideWrapperCalling(calleeFuncID) {
-				// Ignore wrapper functions (except when they trigger panics).
-			} else if skip > 0 {
-				skip--
-			} else if n < max {
-				(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
-				n++
+				calleeFuncID = sf.funcID
 			}
 			n-- // offset n++ below
 		}
@@ -373,52 +354,38 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry() && calleeFuncID != funcID_sigpanic {
 				tracepc--
 			}
-			// If there is inlining info, print the inner frames.
-			if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
-				inltree := (*[1 << 20]inlinedCall)(inldata)
-				for {
-					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
-					if ix < 0 {
-						break
+			for iu, uf := newInlineUnwinder(f, tracepc, noEscapePtr(&cache)); uf.valid(); uf = iu.next(uf) {
+				sf := iu.srcFunc(uf)
+				if (flags&_TraceRuntimeFrames) != 0 || showframe(sf, gp, nprint == 0, calleeFuncID) {
+					name := sf.name()
+					file, line := iu.fileLine(uf)
+					if name == "runtime.gopanic" {
+						name = "panic"
 					}
-
-					sf := srcFunc{f.datap, inltree[ix].nameOff, inltree[ix].startLine, inltree[ix].funcID}
-
-					if (flags&_TraceRuntimeFrames) != 0 || showframe(sf, gp, nprint == 0, calleeFuncID) {
-						name := sf.name()
-						file, line := funcline(f, tracepc)
-						print(name, "(...)\n")
-						print("\t", file, ":", line, "\n")
-						nprint++
+					// Print during crash.
+					//	main(0x1, 0x2, 0x3)
+					//		/home/rsc/go/src/runtime/x.go:23 +0xf
+					//
+					print(name, "(")
+					if iu.isInlined(uf) {
+						print("...")
+					} else {
+						argp := unsafe.Pointer(frame.argp)
+						printArgs(f, argp, tracepc)
 					}
-					calleeFuncID = inltree[ix].funcID
-					// Back up to an instruction in the "caller".
-					tracepc = frame.fn.entry() + uintptr(inltree[ix].parentPc)
+					print(")\n")
+					print("\t", file, ":", line)
+					if !iu.isInlined(uf) {
+						if frame.pc > f.entry() {
+							print(" +", hex(frame.pc-f.entry()))
+						}
+						if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
+							print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
+						}
+					}
+					print("\n")
+					nprint++
 				}
-			}
-			if (flags&_TraceRuntimeFrames) != 0 || showframe(f.srcFunc(), gp, nprint == 0, calleeFuncID) {
-				// Print during crash.
-				//	main(0x1, 0x2, 0x3)
-				//		/home/rsc/go/src/runtime/x.go:23 +0xf
-				//
-				name := funcname(f)
-				file, line := funcline(f, tracepc)
-				if name == "runtime.gopanic" {
-					name = "panic"
-				}
-				print(name, "(")
-				argp := unsafe.Pointer(frame.argp)
-				printArgs(f, argp, tracepc)
-				print(")\n")
-				print("\t", file, ":", line)
-				if frame.pc > f.entry() {
-					print(" +", hex(frame.pc-f.entry()))
-				}
-				if gp.m != nil && gp.m.throwing >= throwTypeRuntime && gp == gp.m.curg || level >= 2 {
-					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp), " pc=", hex(frame.pc))
-				}
-				print("\n")
-				nprint++
 			}
 		}
 		n++
@@ -807,15 +774,9 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 // due to only have access to the pcs at the time of the caller
 // goroutine being created.
 func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
-	name := funcname(f)
-	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
-		inltree := (*[1 << 20]inlinedCall)(inldata)
-		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
-		if ix >= 0 {
-			name = funcnameFromNameOff(f, inltree[ix].nameOff)
-		}
-	}
-	file, line := funcline(f, pc)
+	u, uf := newInlineUnwinder(f, pc, nil)
+	name := u.srcFunc(uf).name()
+	file, line := u.fileLine(uf)
 	if name == "runtime.gopanic" {
 		name = "panic"
 	}

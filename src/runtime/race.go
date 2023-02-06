@@ -171,39 +171,32 @@ func racecallback(cmd uintptr, ctx unsafe.Pointer) {
 func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 	pc := ctx.pc
 	fi := findfunc(pc)
-	f := fi._Func()
-	if f != nil {
-		file, line := f.FileLine(pc)
-		if line != 0 {
-			if inldata := funcdata(fi, _FUNCDATA_InlTree); inldata != nil {
-				inltree := (*[1 << 20]inlinedCall)(inldata)
-				for {
-					ix := pcdatavalue(fi, _PCDATA_InlTreeIndex, pc, nil)
-					if ix >= 0 {
-						if inltree[ix].funcID == funcID_wrapper {
-							// ignore wrappers
-							// Back up to an instruction in the "caller".
-							pc = f.Entry() + uintptr(inltree[ix].parentPc)
-							continue
-						}
-						ctx.pc = f.Entry() + uintptr(inltree[ix].parentPc) // "caller" pc
-						name := funcnameFromNameOff(fi, inltree[ix].nameOff)
-						ctx.fn = &bytes(name)[0] // assume NUL-terminated
-						ctx.line = uintptr(line)
-						ctx.file = &bytes(file)[0] // assume NUL-terminated
-						ctx.off = pc - f.Entry()
-						ctx.res = 1
-						return
-					}
-					break
-				}
+	if fi.valid() {
+		u, uf := newInlineUnwinder(fi, pc, nil)
+		for ; uf.valid(); uf = u.next(uf) {
+			sf := u.srcFunc(uf)
+			if sf.funcID == funcID_wrapper {
+				// ignore wrappers
+				continue
 			}
-			name := funcname(fi)
+
+			name := sf.name()
+			file, line := u.fileLine(uf)
+			if line == 0 {
+				// Failure to symbolize
+				continue
+			}
 			ctx.fn = &bytes(name)[0] // assume NUL-terminated
 			ctx.line = uintptr(line)
 			ctx.file = &bytes(file)[0] // assume NUL-terminated
-			ctx.off = pc - f.Entry()
+			ctx.off = pc - fi.entry()
 			ctx.res = 1
+			if u.isInlined(uf) {
+				// Set ctx.pc to the "caller" so the race detector calls this again
+				// to further unwind.
+				uf = u.next(uf)
+				ctx.pc = uf.pc
+			}
 			return
 		}
 	}
