@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"unicode"
 )
 
@@ -35,6 +36,18 @@ func ExampleBuffer_Bytes() {
 	buf.Write([]byte{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'})
 	os.Stdout.Write(buf.Bytes())
 	// Output: hello world
+}
+
+func ExampleBuffer_AvailableBuffer() {
+	var buf bytes.Buffer
+	for i := 0; i < 4; i++ {
+		b := buf.AvailableBuffer()
+		b = strconv.AppendInt(b, int64(i), 10)
+		b = append(b, ' ')
+		buf.Write(b)
+	}
+	os.Stdout.Write(buf.Bytes())
+	// Output: 0 1 2 3
 }
 
 func ExampleBuffer_Cap() {
