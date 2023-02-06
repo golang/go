@@ -10,10 +10,142 @@ import (
 	"internal/abi"
 	"internal/testenv"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"testing"
+	_ "unsafe"
 )
+
+// Test traceback printing of inlined frames.
+func TestTracebackInlined(t *testing.T) {
+	check := func(t *testing.T, r *ttiResult, funcs ...string) {
+		t.Helper()
+
+		// Check the printed traceback.
+		frames := parseTraceback1(t, r.printed).frames
+		t.Log(r.printed)
+		// Find ttiLeaf
+		for len(frames) > 0 && frames[0].funcName != "runtime_test.ttiLeaf" {
+			frames = frames[1:]
+		}
+		if len(frames) == 0 {
+			t.Errorf("missing runtime_test.ttiLeaf")
+			return
+		}
+		frames = frames[1:]
+		// Check the function sequence.
+		for i, want := range funcs {
+			got := "<end>"
+			if i < len(frames) {
+				got = frames[i].funcName
+				if strings.HasSuffix(want, ")") {
+					got += "(" + frames[i].args + ")"
+				}
+			}
+			if got != want {
+				t.Errorf("got %s, want %s", got, want)
+				return
+			}
+		}
+	}
+
+	t.Run("simple", func(t *testing.T) {
+		// Check a simple case of inlining
+		r := ttiSimple1()
+		check(t, r, "runtime_test.ttiSimple3(...)", "runtime_test.ttiSimple2(...)", "runtime_test.ttiSimple1()")
+	})
+
+	t.Run("sigpanic", func(t *testing.T) {
+		// Check that sigpanic from an inlined function prints correctly
+		r := ttiSigpanic1()
+		check(t, r, "runtime_test.ttiSigpanic1.func1()", "panic", "runtime_test.ttiSigpanic3(...)", "runtime_test.ttiSigpanic2(...)", "runtime_test.ttiSigpanic1()")
+	})
+
+	t.Run("wrapper", func(t *testing.T) {
+		// Check that a method inlined into a wrapper prints correctly
+		r := ttiWrapper1()
+		check(t, r, "runtime_test.ttiWrapper.m1(...)", "runtime_test.ttiWrapper1()")
+	})
+
+	t.Run("excluded", func(t *testing.T) {
+		// Check that when F -> G is inlined and F is excluded from stack
+		// traces, G still appears.
+		r := ttiExcluded1()
+		check(t, r, "runtime_test.ttiExcluded3(...)", "runtime_test.ttiExcluded1()")
+	})
+}
+
+type ttiResult struct {
+	printed string
+}
+
+//go:noinline
+func ttiLeaf() *ttiResult {
+	// Get a printed stack trace.
+	printed := string(debug.Stack())
+	return &ttiResult{printed}
+}
+
+//go:noinline
+func ttiSimple1() *ttiResult {
+	return ttiSimple2()
+}
+func ttiSimple2() *ttiResult {
+	return ttiSimple3()
+}
+func ttiSimple3() *ttiResult {
+	return ttiLeaf()
+}
+
+//go:noinline
+func ttiSigpanic1() (res *ttiResult) {
+	defer func() {
+		res = ttiLeaf()
+		recover()
+	}()
+	ttiSigpanic2()
+	panic("did not panic")
+}
+func ttiSigpanic2() {
+	ttiSigpanic3()
+}
+func ttiSigpanic3() {
+	var p *int
+	*p = 3
+}
+
+//go:noinline
+func ttiWrapper1() *ttiResult {
+	var w ttiWrapper
+	m := (*ttiWrapper).m1
+	return m(&w)
+}
+
+type ttiWrapper struct{}
+
+func (w ttiWrapper) m1() *ttiResult {
+	return ttiLeaf()
+}
+
+//go:noinline
+func ttiExcluded1() *ttiResult {
+	return ttiExcluded2()
+}
+
+// ttiExcluded2 should be excluded from tracebacks. There are
+// various ways this could come up. Linking it to a "runtime." name is
+// rather synthetic, but it's easy and reliable. See issue #42754 for
+// one way this happened in real code.
+//
+//go:linkname ttiExcluded2 runtime.ttiExcluded2
+//go:noinline
+func ttiExcluded2() *ttiResult {
+	return ttiExcluded3()
+}
+func ttiExcluded3() *ttiResult {
+	return ttiLeaf()
+}
 
 var testTracebackArgsBuf [1000]byte
 
@@ -442,4 +574,73 @@ func TestTracebackParentChildGoroutines(t *testing.T) {
 		}
 	}()
 	wg.Wait()
+}
+
+type traceback struct {
+	frames    []*tbFrame
+	createdBy *tbFrame // no args
+}
+
+type tbFrame struct {
+	funcName string
+	args     string
+	inlined  bool
+}
+
+// parseTraceback parses a printed traceback to make it easier for tests to
+// check the result.
+func parseTraceback(t *testing.T, tb string) []*traceback {
+	lines := strings.Split(tb, "\n")
+	nLines := len(lines)
+	fatal := func(f string, args ...any) {
+		lineNo := nLines - len(lines) + 1
+		msg := fmt.Sprintf(f, args...)
+		t.Fatalf("%s (line %d):\n%s", msg, lineNo, tb)
+	}
+	parseFrame := func(funcName, args string) *tbFrame {
+		// Consume file/line/etc
+		if len(lines) == 0 || !strings.HasPrefix(lines[0], "\t") {
+			fatal("missing source line")
+		}
+		lines = lines[1:]
+		inlined := args == "..."
+		return &tbFrame{funcName, args, inlined}
+	}
+	var tbs []*traceback
+	var cur *traceback
+	for len(lines) > 0 {
+		line := lines[0]
+		lines = lines[1:]
+		switch {
+		case strings.HasPrefix(line, "goroutine "):
+			cur = &traceback{}
+			tbs = append(tbs, cur)
+		case line == "":
+			cur = nil
+		case line[0] == '\t':
+			fatal("unexpected indent")
+		case strings.HasPrefix(line, "created by "):
+			funcName := line[len("created by "):]
+			cur.createdBy = parseFrame(funcName, "")
+		case strings.HasSuffix(line, ")"):
+			line = line[:len(line)-1] // Trim trailing ")"
+			funcName, args, found := strings.Cut(line, "(")
+			if !found {
+				fatal("missing (")
+			}
+			frame := parseFrame(funcName, args)
+			cur.frames = append(cur.frames, frame)
+		}
+	}
+	return tbs
+}
+
+// parseTraceback1 is like parseTraceback, but expects tb to contain exactly one
+// goroutine.
+func parseTraceback1(t *testing.T, tb string) *traceback {
+	tbs := parseTraceback(t, tb)
+	if len(tbs) != 1 {
+		t.Fatalf("want 1 goroutine, got %d:\n%s", len(tbs), tb)
+	}
+	return tbs[0]
 }
