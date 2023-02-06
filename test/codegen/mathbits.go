@@ -189,6 +189,7 @@ func OnesCount8(n uint8) int {
 
 func ReverseBytes(n uint) uint {
 	// amd64:"BSWAPQ"
+	// 386:"BSWAPL"
 	// s390x:"MOVDBR"
 	// arm64:"REV"
 	return bits.ReverseBytes(n)
@@ -196,6 +197,7 @@ func ReverseBytes(n uint) uint {
 
 func ReverseBytes64(n uint64) uint64 {
 	// amd64:"BSWAPQ"
+	// 386:"BSWAPL"
 	// s390x:"MOVDBR"
 	// arm64:"REV"
 	// ppc64x/power10: "BRD"
@@ -204,6 +206,7 @@ func ReverseBytes64(n uint64) uint64 {
 
 func ReverseBytes32(n uint32) uint32 {
 	// amd64:"BSWAPL"
+	// 386:"BSWAPL"
 	// s390x:"MOVWBR"
 	// arm64:"REVW"
 	// ppc64x/power10: "BRW"
