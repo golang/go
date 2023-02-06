@@ -548,7 +548,7 @@ package foo
 	tests := []struct {
 		line string   // the sole line in the buffer after the package statement
 		pat  string   // the pattern to search for
-		want []string // expected competions
+		want []string // expected completions
 	}{
 		{"func T", "T", []string{"TestXxx(t *testing.T)", "TestMain(m *testing.M)"}},
 		{"func T()", "T", []string{"TestMain", "Test"}},

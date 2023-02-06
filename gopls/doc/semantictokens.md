@@ -57,7 +57,7 @@ different runes by their Unicode language assignment, or some other Unicode prop
 being [confusable](http://www.unicode.org/Public/security/10.0.0/confusables.txt).
 
 Gopls does not come close to either of these principles.  Semantic tokens are returned for
-identifiers, keywords, operators, comments, and literals. (Sematic tokens do not
+identifiers, keywords, operators, comments, and literals. (Semantic tokens do not
 cover the file. They are not returned for
 white space or punctuation, and there is no semantic token for labels.)
 The following describes more precisely what gopls

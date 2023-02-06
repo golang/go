@@ -447,7 +447,7 @@ func NoErrorLogs() Expectation {
 // of type typ matching the regexp re a certain number of times.
 //
 // The count argument specifies the expected number of matching logs. If
-// atLeast is set, this is a lower bound, otherwise there must be exactly cound
+// atLeast is set, this is a lower bound, otherwise there must be exactly count
 // matching logs.
 func LogMatching(typ protocol.MessageType, re string, count int, atLeast bool) Expectation {
 	rec, err := regexp.Compile(re)

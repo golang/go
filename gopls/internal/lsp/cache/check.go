@@ -261,7 +261,7 @@ func computePackageKey(s *snapshot, inputs typeCheckInputs) packageHandleKey {
 
 	// In principle, a key must be the hash of an
 	// unambiguous encoding of all the relevant data.
-	// If it's ambiguous, we risk collisons.
+	// If it's ambiguous, we risk collisions.
 
 	// package identifiers
 	fmt.Fprintf(hasher, "package: %s %s %s\n", inputs.id, inputs.name, inputs.pkgPath)

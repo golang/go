@@ -85,7 +85,7 @@ func SortSpans(spans []Span) {
 
 // compare implements a three-valued ordered comparison of Spans.
 func compare(a, b Span) int {
-	// This is a textual comparison. It does not peform path
+	// This is a textual comparison. It does not perform path
 	// cleaning, case folding, resolution of symbolic links,
 	// testing for existence, or any I/O.
 	if cmp := strings.Compare(string(a.URI()), string(b.URI())); cmp != 0 {

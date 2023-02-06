@@ -328,12 +328,12 @@ type View interface {
 	// ClearModuleUpgrades clears all upgrades for the modules in modfile.
 	ClearModuleUpgrades(modfile span.URI)
 
-	// Vulnerabilites returns known vulnerabilities for the given modfile.
+	// Vulnerabilities returns known vulnerabilities for the given modfile.
 	// TODO(suzmue): replace command.Vuln with a different type, maybe
 	// https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck/govulnchecklib#Summary?
 	Vulnerabilities(modfile ...span.URI) map[span.URI]*govulncheck.Result
 
-	// SetVulnerabilities resets the list of vulnerabilites that exists for the given modules
+	// SetVulnerabilities resets the list of vulnerabilities that exists for the given modules
 	// required by modfile.
 	SetVulnerabilities(modfile span.URI, vulncheckResult *govulncheck.Result)
 

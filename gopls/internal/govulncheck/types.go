@@ -14,7 +14,7 @@ type Result struct {
 
 	// Mode contains the source of the vulnerability info.
 	// Clients of the gopls.fetch_vulncheck_result command may need
-	// to interprete the vulnerabilities differently based on the
+	// to interpret the vulnerabilities differently based on the
 	// analysis mode. For example, Vuln without callstack traces
 	// indicate a vulnerability that is not used if the result was
 	// from 'govulncheck' analysis mode. On the other hand, Vuln

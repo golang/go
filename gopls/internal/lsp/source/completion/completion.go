@@ -1428,7 +1428,7 @@ func (c *completer) lexical(ctx context.Context) error {
 	return nil
 }
 
-// injectType manufacters candidates based on the given type. This is
+// injectType manufactures candidates based on the given type. This is
 // intended for types not discoverable via lexical search, such as
 // composite and/or generic types. For example, if the type is "[]int",
 // this method makes sure you get candidates "[]int{}" and "[]int"

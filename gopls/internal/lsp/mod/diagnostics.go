@@ -43,7 +43,7 @@ func UpgradeDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[span
 }
 
 // VulnerabilityDiagnostics returns vulnerability diagnostics for the active modules in the
-// workspace with known vulnerabilites.
+// workspace with known vulnerabilities.
 func VulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[span.URI][]*source.Diagnostic, error) {
 	ctx, done := event.Start(ctx, "mod.VulnerabilityDiagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
@@ -252,7 +252,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 			// user from quickly locating the next module to fix.
 			// Ideally we should rerun the analysis with the updated module
 			// dependencies or any other code changes, but we are not yet
-			// in the position of automatically triggerring the analysis
+			// in the position of automatically triggering the analysis
 			// (govulncheck can take a while). We also don't know exactly what
 			// part of source code was changed since `vulns` was computed.
 			// As a heuristic, we assume that a user upgrades the affecting

@@ -51,7 +51,7 @@ func TestSemantic_2527(t *testing.T) {
 	if !typeparams.Enabled {
 		t.Skip("type parameters are needed for this test")
 	}
-	// these are the expected types of identfiers in textt order
+	// these are the expected types of identifiers in text order
 	want := []result{
 		{"package", "keyword", ""},
 		{"foo", "namespace", ""},

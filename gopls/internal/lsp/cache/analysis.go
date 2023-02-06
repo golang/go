@@ -501,7 +501,7 @@ func analysisCacheKey(analyzers []*analysis.Analyzer, m *source.Metadata, compil
 
 	// In principle, a key must be the hash of an
 	// unambiguous encoding of all the relevant data.
-	// If it's ambiguous, we risk collisons.
+	// If it's ambiguous, we risk collisions.
 
 	// analyzers
 	fmt.Fprintf(hasher, "analyzers: %d\n", len(analyzers))

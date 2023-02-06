@@ -16,7 +16,7 @@ func _() {
 	type _ str //@rank(" //", struct, string)
 
 	switch test {
-	case 1: // TODO: trying to complete case here will break because the parser wont return *ast.Ident
+	case 1: // TODO: trying to complete case here will break because the parser won't return *ast.Ident
 		b //@complete(" //", break)
 	case 2:
 		f //@complete(" //", fallthrough, for)

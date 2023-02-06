@@ -6,7 +6,7 @@ package debug_test
 
 // Provide 'static type checking' of the templates. This guards against changes is various
 // gopls datastructures causing template execution to fail. The checking is done by
-// the github.com/jba/templatecheck pacakge. Before that is run, the test checks that
+// the github.com/jba/templatecheck package. Before that is run, the test checks that
 // its list of templates and their arguments corresponds to the arguments in
 // calls to render(). The test assumes that all uses of templates are done through render().
 

@@ -191,7 +191,7 @@ func lookupVulns(vulns *govulncheck.Result, modpath, version string) (affecting,
 			// user from quickly locating the next module to fix.
 			// Ideally we should rerun the analysis with the updated module
 			// dependencies or any other code changes, but we are not yet
-			// in the position of automatically triggerring the analysis
+			// in the position of automatically triggering the analysis
 			// (govulncheck can take a while). We also don't know exactly what
 			// part of source code was changed since `vulns` was computed.
 			// As a heuristic, we assume that a user upgrades the affecting

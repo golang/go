@@ -178,7 +178,7 @@ func findRune(ctx context.Context, snapshot Snapshot, fh FileHandle, position pr
 		}
 		start, end = lit.Pos(), lit.End()
 	case token.INT:
-		// It's an integer, scan only if it is a hex litteral whose bitsize in
+		// It's an integer, scan only if it is a hex literal whose bitsize in
 		// ranging from 8 to 32.
 		if !(strings.HasPrefix(lit.Value, "0x") && len(lit.Value[2:]) >= 2 && len(lit.Value[2:]) <= 8) {
 			return 0, protocol.Range{}, ErrNoRuneFound

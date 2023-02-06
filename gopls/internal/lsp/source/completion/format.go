@@ -39,7 +39,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	}
 	cand.score *= float64(matchScore)
 
-	// Ignore deep candidates that wont be in the MaxDeepCompletions anyway.
+	// Ignore deep candidates that won't be in the MaxDeepCompletions anyway.
 	if len(cand.path) != 0 && !c.deepState.isHighScore(cand.score) {
 		return CompletionItem{}, errLowScore
 	}

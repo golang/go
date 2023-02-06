@@ -39,7 +39,7 @@ import (
 //    0-based: the first line is line 0, the first character of a line
 //      is character 0, and characters are counted as UTF-16 code points
 // gopls (and Go error messages):
-//    1-based: the first line is line1, the first chararcter of a line
+//    1-based: the first line is line1, the first character of a line
 //      is character 0, and characters are counted as bytes
 // internal (as used in marks, and lines:=bytes.Split(buf, '\n'))
 //    0-based: lines and character positions are 1 less than in

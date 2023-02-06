@@ -242,7 +242,7 @@ func (f *Forwarder) ServeStream(ctx context.Context, clientConn jsonrpc2.Conn) e
 
 // TODO(rfindley): remove this handshaking in favor of middleware.
 func (f *Forwarder) handshake(ctx context.Context) {
-	// This call to os.Execuable is redundant, and will be eliminated by the
+	// This call to os.Executable is redundant, and will be eliminated by the
 	// transition to the V2 API.
 	goplsPath, err := os.Executable()
 	if err != nil {

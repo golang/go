@@ -167,7 +167,7 @@ func writeprotocol() {
 	types["PrepareRenameResult"] = "type PrepareRenameResult = Msg_PrepareRename2Gn // (alias) line 13927\n"
 	for _, k := range types.keys() {
 		if k == "WatchKind" {
-			types[k] = "type WatchKind = uint32 // line 13505" // strict gopls compatibility neads the '='
+			types[k] = "type WatchKind = uint32 // line 13505" // strict gopls compatibility needs the '='
 		}
 		out.WriteString(types[k])
 	}
