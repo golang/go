@@ -376,22 +376,16 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			// If there is inlining info, print the inner frames.
 			if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
 				inltree := (*[1 << 20]inlinedCall)(inldata)
-				var inlFunc _func
-				inlFuncInfo := funcInfo{&inlFunc, f.datap}
 				for {
 					ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, nil)
 					if ix < 0 {
 						break
 					}
 
-					// Create a fake _func for the
-					// inlined function.
-					inlFunc.nameOff = inltree[ix].nameOff
-					inlFunc.funcID = inltree[ix].funcID
-					inlFunc.startLine = inltree[ix].startLine
+					sf := srcFunc{f.datap, inltree[ix].nameOff, inltree[ix].startLine, inltree[ix].funcID}
 
-					if (flags&_TraceRuntimeFrames) != 0 || showframe(inlFuncInfo, gp, nprint == 0, inlFuncInfo.funcID, calleeFuncID) {
-						name := funcname(inlFuncInfo)
+					if (flags&_TraceRuntimeFrames) != 0 || showframe(sf, gp, nprint == 0, calleeFuncID) {
+						name := sf.name()
 						file, line := funcline(f, tracepc)
 						print(name, "(...)\n")
 						print("\t", file, ":", line, "\n")
@@ -402,7 +396,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					tracepc = frame.fn.entry() + uintptr(inltree[ix].parentPc)
 				}
 			}
-			if (flags&_TraceRuntimeFrames) != 0 || showframe(f, gp, nprint == 0, f.funcID, calleeFuncID) {
+			if (flags&_TraceRuntimeFrames) != 0 || showframe(f.srcFunc(), gp, nprint == 0, calleeFuncID) {
 				// Print during crash.
 				//	main(0x1, 0x2, 0x3)
 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
@@ -692,7 +686,7 @@ func printcreatedby(gp *g) {
 	// Show what created goroutine, except main goroutine (goid 1).
 	pc := gp.gopc
 	f := findfunc(pc)
-	if f.valid() && showframe(f, gp, false, funcID_normal, funcID_normal) && gp.goid != 1 {
+	if f.valid() && showframe(f.srcFunc(), gp, false, funcID_normal) && gp.goid != 1 {
 		printcreatedby1(f, pc, gp.parentGoid)
 	}
 }
@@ -792,7 +786,7 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 	print("[originating from goroutine ", ancestor.goid, "]:\n")
 	for fidx, pc := range ancestor.pcs {
 		f := findfunc(pc) // f previously validated
-		if showfuncinfo(f, fidx == 0, funcID_normal, funcID_normal) {
+		if showfuncinfo(f.srcFunc(), fidx == 0, funcID_normal) {
 			printAncestorTracebackFuncInfo(f, pc)
 		}
 	}
@@ -801,7 +795,7 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 	}
 	// Show what created goroutine, except main goroutine (goid 1).
 	f := findfunc(ancestor.gopc)
-	if f.valid() && showfuncinfo(f, false, funcID_normal, funcID_normal) && ancestor.goid != 1 {
+	if f.valid() && showfuncinfo(f.srcFunc(), false, funcID_normal) && ancestor.goid != 1 {
 		// In ancestor mode, we'll already print the goroutine ancestor.
 		// Pass 0 for the goid parameter so we don't print it again.
 		printcreatedby1(f, ancestor.gopc, 0)
@@ -850,35 +844,28 @@ func gcallers(gp *g, skip int, pcbuf []uintptr) int {
 
 // showframe reports whether the frame with the given characteristics should
 // be printed during a traceback.
-func showframe(f funcInfo, gp *g, firstFrame bool, funcID, childID funcID) bool {
+func showframe(sf srcFunc, gp *g, firstFrame bool, calleeID funcID) bool {
 	mp := getg().m
 	if mp.throwing >= throwTypeRuntime && gp != nil && (gp == mp.curg || gp == mp.caughtsig.ptr()) {
 		return true
 	}
-	return showfuncinfo(f, firstFrame, funcID, childID)
+	return showfuncinfo(sf, firstFrame, calleeID)
 }
 
 // showfuncinfo reports whether a function with the given characteristics should
 // be printed during a traceback.
-func showfuncinfo(f funcInfo, firstFrame bool, funcID, childID funcID) bool {
-	// Note that f may be a synthesized funcInfo for an inlined
-	// function, in which case only nameOff and funcID are set.
-
+func showfuncinfo(sf srcFunc, firstFrame bool, calleeID funcID) bool {
 	level, _, _ := gotraceback()
 	if level > 1 {
 		// Show all frames.
 		return true
 	}
 
-	if !f.valid() {
+	if sf.funcID == funcID_wrapper && elideWrapperCalling(calleeID) {
 		return false
 	}
 
-	if funcID == funcID_wrapper && elideWrapperCalling(childID) {
-		return false
-	}
-
-	name := funcname(f)
+	name := sf.name()
 
 	// Special case: always show runtime.gopanic frame
 	// in the middle of a stack trace, so that we can
