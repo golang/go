@@ -92,31 +92,23 @@ func findLinknameOnLine(pgf *ParsedGoFile, line int) (string, int) {
 // findLinkname searches dependencies of packages containing fh for an object
 // with linker name matching the given package path and name.
 func findLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position, pkgPath PackagePath, name string) ([]protocol.Location, error) {
-	metas, err := snapshot.MetadataForFile(ctx, fh.URI())
+	// Typically the linkname refers to a forward dependency
+	// or a reverse dependency, but in general it may refer
+	// to any package in the workspace.
+	var pkgMeta *Metadata
+	metas, err := snapshot.AllMetadata(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if len(metas) == 0 {
-		return nil, fmt.Errorf("no package found for file %q", fh.URI())
+	metas = RemoveIntermediateTestVariants(metas)
+	for _, meta := range metas {
+		if meta.PkgPath == pkgPath {
+			pkgMeta = meta
+			break
+		}
 	}
-
-	// Find package starting from narrowest package metadata.
-	pkgMeta := findPackageInDeps(snapshot, metas[0], pkgPath)
 	if pkgMeta == nil {
-		// Fall back to searching reverse dependencies.
-		reverse, err := snapshot.ReverseDependencies(ctx, metas[0].ID, true /* transitive */)
-		if err != nil {
-			return nil, err
-		}
-		for _, dep := range reverse {
-			if dep.PkgPath == pkgPath {
-				pkgMeta = dep
-				break
-			}
-		}
-		if pkgMeta == nil {
-			return nil, fmt.Errorf("cannot find package %q", pkgPath)
-		}
+		return nil, fmt.Errorf("cannot find package %q", pkgPath)
 	}
 
 	// When found, type check the desired package (snapshot.TypeCheck in TypecheckFull mode),
@@ -141,25 +133,4 @@ func findLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pro
 		return nil, err
 	}
 	return []protocol.Location{loc}, nil
-}
-
-// findPackageInDeps returns the dependency of meta of the specified package path, if any.
-func findPackageInDeps(snapshot Snapshot, meta *Metadata, pkgPath PackagePath) *Metadata {
-	seen := make(map[*Metadata]bool)
-	var visit func(*Metadata) *Metadata
-	visit = func(meta *Metadata) *Metadata {
-		if !seen[meta] {
-			seen[meta] = true
-			if meta.PkgPath == pkgPath {
-				return meta
-			}
-			for _, id := range meta.DepsByPkgPath {
-				if m := visit(snapshot.Metadata(id)); m != nil {
-					return m
-				}
-			}
-		}
-		return nil
-	}
-	return visit(meta)
 }

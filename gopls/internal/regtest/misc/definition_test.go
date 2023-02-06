@@ -147,6 +147,45 @@ func TestGoToLinknameDefinitionInReverseDep(t *testing.T) {
 	})
 }
 
+// The linkname directive connects two packages not related in the import graph.
+const linknameDefinitionDisconnected = `
+-- go.mod --
+module mod.com
+
+-- a/a.go --
+package a
+
+import (
+	_ "unsafe"
+)
+
+//go:linkname foo mod.com/b.bar
+func foo() string
+
+-- b/b.go --
+package b
+
+func bar() string {
+	return "bar as foo"
+}`
+
+func TestGoToLinknameDefinitionDisconnected(t *testing.T) {
+	Run(t, linknameDefinitionDisconnected, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a.go")
+
+		// Jump from directives 2nd arg.
+		start := env.RegexpSearch("a/a.go", `b.bar`)
+		loc := env.GoToDefinition(start)
+		name := env.Sandbox.Workdir.URIToPath(loc.URI)
+		if want := "b/b.go"; name != want {
+			t.Errorf("GoToDefinition: got file %q, want %q", name, want)
+		}
+		if want := env.RegexpSearch("b/b.go", `bar`); loc != want {
+			t.Errorf("GoToDefinition: got position %v, want %v", loc, want)
+		}
+	})
+}
+
 const stdlibDefinition = `
 -- go.mod --
 module mod.com
