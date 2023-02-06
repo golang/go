@@ -774,6 +774,9 @@ func (e *Editor) setBufferContentLocked(ctx context.Context, path string, dirty 
 
 // GoToDefinition jumps to the definition of the symbol at the given position
 // in an open buffer. It returns the location of the resulting jump.
+//
+// TODO(rfindley): rename to "Definition", to be consistent with LSP
+// terminology.
 func (e *Editor) GoToDefinition(ctx context.Context, loc protocol.Location) (protocol.Location, error) {
 	if err := e.checkBufferLocation(loc); err != nil {
 		return protocol.Location{}, err

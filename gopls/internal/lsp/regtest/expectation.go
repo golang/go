@@ -171,6 +171,26 @@ func ReadDiagnostics(fileName string, into *protocol.PublishDiagnosticsParams) E
 	}
 }
 
+// ReadAllDiagnostics is an expectation that stores all published diagnostics
+// into the provided map, whenever it is evaluated.
+//
+// It can be used in combination with OnceMet or AfterChange to capture the
+// state of diagnostics when other expectations are satisfied.
+func ReadAllDiagnostics(into *map[string]*protocol.PublishDiagnosticsParams) Expectation {
+	check := func(s State) Verdict {
+		allDiags := make(map[string]*protocol.PublishDiagnosticsParams)
+		for name, diags := range s.diagnostics {
+			allDiags[name] = diags
+		}
+		*into = allDiags
+		return Met
+	}
+	return Expectation{
+		Check:       check,
+		Description: "read all diagnostics",
+	}
+}
+
 // NoOutstandingWork asserts that there is no work initiated using the LSP
 // $/progress API that has not completed.
 func NoOutstandingWork() Expectation {

@@ -1,0 +1,226 @@
+This test checks definition and hover operations over embedded fields and methods.
+-- go.mod --
+module mod.com
+
+go 1.18
+-- a/a.go --
+package a
+
+type A string //@loc(AString, "A")
+
+func (_ A) Hi() {} //@loc(AHi, "Hi")
+
+type S struct {
+	Field int //@loc(SField, "Field")
+	R         // embed a struct
+	H         // embed an interface
+}
+
+type R struct {
+	Field2 int //@loc(RField2, "Field2")
+}
+
+func (_ R) Hey() {} //@loc(RHey, "Hey")
+
+type H interface { //@loc(H, "H")
+	Goodbye() //@loc(HGoodbye, "Goodbye")
+}
+
+type I interface { //@loc(I, "I")
+	B() //@loc(IB, "B")
+	J
+}
+
+type J interface { //@loc(J, "J")
+	Hello() //@loc(JHello, "Hello")
+}
+
+-- b/b.go --
+package b
+
+import "mod.com/a" //@loc(AImport, re"\".*\"")
+
+type Embed struct {
+	*a.A
+	a.I
+	a.S
+}
+
+func _() {
+	e := Embed{}
+	e.Hi()      //@def("Hi", AHi),hover("Hi", "Hi", AHi)
+	e.B()       //@def("B", IB),hover("B", "B", IB)
+	_ = e.Field     //@def("Field", SField),hover("Field", "Field", SField)
+	_ = e.Field2    //@def("Field2", RField2),hover("Field2", "Field2", RField2)
+	e.Hello()   //@def("Hello", JHello),hover("Hello", "Hello",JHello)
+	e.Hey()     //@def("Hey", RHey), hover("Hey", "Hey", RHey)
+	e.Goodbye() //@def("Goodbye", HGoodbye), hover("Goodbye", "Goodbye", HGoodbye)
+}
+
+type aAlias = a.A //@loc(aAlias, "aAlias")
+
+type S1 struct { //@loc(S1, "S1")
+	F1     int //@loc(S1F1, "F1")
+	S2         //@loc(S1S2, "S2"),def("S2", S2),hover("S2", "S2", S2)
+	a.A        //@def("A", AString),hover("A", "A", aA)
+	aAlias     //@def("a", aAlias),hover("a", "aAlias", aAlias)
+}
+
+type S2 struct { //@loc(S2, "S2")
+	F1   string //@loc(S2F1, "F1")
+	F2   int    //@loc(S2F2, "F2")
+	*a.A        //@def("A", AString),def("a",AImport)
+}
+
+type S3 struct {
+	F1 struct {
+		a.A //@def("A", AString)
+	}
+}
+
+func Bar() {
+	var x S1    //@def("S1", S1),hover("S1", "S1", S1)
+	_ = x.S2    //@def("S2", S1S2),hover("S2", "S2", S1S2)
+	_ = x.F1    //@def("F1", S1F1),hover("F1", "F1", S1F1)
+	_ = x.F2    //@def("F2", S2F2),hover("F2", "F2", S2F2)
+	_ = x.S2.F1 //@def("F1", S2F1),hover("F1", "F1", S2F1)
+}
+-- b/c.go --
+package b
+
+var _ = S1{ //@def("S1", S1),hover("S1", "S1", S1)
+	F1: 99, //@def("F1", S1F1),hover("F1", "F1", S1F1)
+}
+-- @AHi/hover.md --
+```go
+func (a.A).Hi()
+```
+
+[`(a.A).Hi` on pkg.go.dev](https://pkg.go.dev/mod.com/a#A.Hi)
+-- @HGoodbye/hover.md --
+```go
+func (a.H).Goodbye()
+```
+
+@loc(HGoodbye, "Goodbye")
+
+
+[`(a.H).Goodbye` on pkg.go.dev](https://pkg.go.dev/mod.com/a#H.Goodbye)
+-- @IB/hover.md --
+```go
+func (a.I).B()
+```
+
+@loc(IB, "B")
+
+
+[`(a.I).B` on pkg.go.dev](https://pkg.go.dev/mod.com/a#I.B)
+-- @JHello/hover.md --
+```go
+func (a.J).Hello()
+```
+
+@loc(JHello, "Hello")
+
+
+[`(a.J).Hello` on pkg.go.dev](https://pkg.go.dev/mod.com/a#J.Hello)
+-- @RField2/hover.md --
+```go
+field Field2 int
+```
+
+@loc(RField2, "Field2")
+
+
+[`(a.R).Field2` on pkg.go.dev](https://pkg.go.dev/mod.com/a#R.Field2)
+-- @RHey/hover.md --
+```go
+func (a.R).Hey()
+```
+
+[`(a.R).Hey` on pkg.go.dev](https://pkg.go.dev/mod.com/a#R.Hey)
+-- @S1/hover.md --
+```go
+type S1 struct {
+	F1     int //@loc(S1F1, "F1")
+	S2         //@loc(S1S2, "S2"),def("S2", S2),hover("S2", "S2", S2)
+	a.A        //@def("A", AString),hover("A", "A", aA)
+	aAlias     //@def("a", aAlias),hover("a", "aAlias", aAlias)
+}
+```
+
+[`b.S1` on pkg.go.dev](https://pkg.go.dev/mod.com/b#S1)
+-- @S1F1/hover.md --
+```go
+field F1 int
+```
+
+@loc(S1F1, "F1")
+
+
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/mod.com/b#S1.F1)
+-- @S1S2/hover.md --
+```go
+field S2 S2
+```
+
+@loc(S1S2, "S2"),def("S2", S2),hover("S2", "S2", S2)
+
+
+[`(b.S1).S2` on pkg.go.dev](https://pkg.go.dev/mod.com/b#S1.S2)
+-- @S2/hover.md --
+```go
+type S2 struct {
+	F1   string //@loc(S2F1, "F1")
+	F2   int    //@loc(S2F2, "F2")
+	*a.A        //@def("A", AString),def("a",AImport)
+}
+```
+
+[`b.S2` on pkg.go.dev](https://pkg.go.dev/mod.com/b#S2)
+-- @S2F1/hover.md --
+```go
+field F1 string
+```
+
+@loc(S2F1, "F1")
+
+
+[`(b.S2).F1` on pkg.go.dev](https://pkg.go.dev/mod.com/b#S2.F1)
+-- @S2F2/hover.md --
+```go
+field F2 int
+```
+
+@loc(S2F2, "F2")
+
+
+[`(b.S2).F2` on pkg.go.dev](https://pkg.go.dev/mod.com/b#S2.F2)
+-- @SField/hover.md --
+```go
+field Field int
+```
+
+@loc(SField, "Field")
+
+
+[`(a.S).Field` on pkg.go.dev](https://pkg.go.dev/mod.com/a#S.Field)
+-- @aA/hover.md --
+```go
+type A string
+
+func (a.A).Hi()
+```
+
+@loc(AString, "A")
+
+
+[`a.A` on pkg.go.dev](https://pkg.go.dev/mod.com/a#A)
+-- @aAlias/hover.md --
+```go
+type aAlias = a.A
+
+func (a.A).Hi()
+```
+
+@loc(aAlias, "aAlias")

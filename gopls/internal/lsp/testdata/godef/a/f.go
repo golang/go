@@ -1,3 +1,4 @@
+// Package a is a package for testing go to definition.
 package a
 
 import "fmt"

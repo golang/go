@@ -1,7 +1,0 @@
-package b
-
-// This is the on-disk version of c.go, which represents
-// the in-editor version of the file.
-
-}
-

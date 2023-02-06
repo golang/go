@@ -1,0 +1,80 @@
+This test checks hover results for built-in or standard library symbols.
+
+It uses synopsis documentation as full documentation for some of these
+built-ins varies across Go versions, where as it just so happens that the
+synopsis does not.
+
+In the future we may need to limit this test to the latest Go version to avoid
+documentation churn.
+-- settings.json --
+{
+	"hoverKind": "SynopsisDocumentation"
+}
+-- go.mod --
+module mod.com
+
+go 1.18
+-- std.go --
+package std
+
+import (
+	"fmt"
+	"go/types"
+	"sync"
+)
+
+func _() {
+	var err error         //@loc(err, "err")
+	fmt.Printf("%v", err) //@def("err", err)
+
+	var _ string       //@hover("string", "string", hoverstring)
+	_ = make([]int, 0) //@hover("make", "make", hovermake)
+
+	var mu sync.Mutex
+	mu.Lock() //@hover("Lock", "Lock", hoverLock)
+
+	var typ *types.Named //@hover("types", "types", hoverTypes)
+	typ.Obj().Name()     //@hover("Name", "Name", hoverName)
+}
+-- @hoverLock/hover.md --
+```go
+func (*sync.Mutex).Lock()
+```
+
+Lock locks m.
+
+
+[`(sync.Mutex).Lock` on pkg.go.dev](https://pkg.go.dev/sync#Mutex.Lock)
+-- @hoverName/hover.md --
+```go
+func (*types.object).Name() string
+```
+
+Name returns the object's (package-local, unqualified) name.
+
+
+[`(types.TypeName).Name` on pkg.go.dev](https://pkg.go.dev/go/types#TypeName.Name)
+-- @hoverTypes/hover.md --
+```go
+package types ("go/types")
+```
+
+[`types` on pkg.go.dev](https://pkg.go.dev/go/types)
+-- @hovermake/hover.md --
+```go
+func make(t Type, size ...int) Type
+```
+
+The make built-in function allocates and initializes an object of type slice, map, or chan (only).
+
+
+[`make` on pkg.go.dev](https://pkg.go.dev/builtin#make)
+-- @hoverstring/hover.md --
+```go
+type string string
+```
+
+string is the set of all strings of 8-bit bytes, conventionally but not necessarily representing UTF-8-encoded text.
+
+
+[`string` on pkg.go.dev](https://pkg.go.dev/builtin#string)

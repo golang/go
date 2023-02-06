@@ -1,0 +1,18 @@
+This test checks hovering over constants.
+-- go.mod --
+module mod.com
+
+go 1.18
+-- c.go --
+package c
+
+const X = 0 //@hover("X", "X", bX)
+-- @bX/hover.md --
+```go
+const X untyped int = 0
+```
+
+@hover("X", "X", bX)
+
+
+[`c.X` on pkg.go.dev](https://pkg.go.dev/mod.com#X)

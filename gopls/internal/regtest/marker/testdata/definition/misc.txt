@@ -1,0 +1,230 @@
+This test exercises miscellaneous definition and hover requests.
+-- go.mod --
+module mod.com
+
+go 1.16
+-- a.go --
+package a //@loc(aPackage, re"package (a)"),hover(aPackage, aPackage, aPackage)
+
+var (
+	// x is a variable.
+	x string //@loc(x, "x"),hover(x, x, hoverx)
+)
+
+// Constant block. When I hover on h, I should see this comment.
+const (
+	// When I hover on g, I should see this comment.
+	g = 1 //@hover("g", "g", hoverg)
+
+	h = 2 //@hover("h", "h", hoverh)
+)
+
+// z is a variable too.
+var z string //@loc(z, "z"),hover(z, z, hoverz)
+
+func AStuff() { //@loc(AStuff, "AStuff")
+	x := 5
+	Random2(x) //@def("dom2", Random2)
+	Random()   //@def("()", Random)
+}
+
+type H interface { //@loc(H, "H")
+	Goodbye()
+}
+
+type I interface { //@loc(I, "I")
+	B()
+	J
+}
+
+type J interface { //@loc(J, "J")
+	Hello()
+}
+
+func _() {
+	// 1st type declaration block
+	type (
+		a struct { //@hover("a", "a", hoverDeclBlocka)
+			x string
+		}
+	)
+
+	// 2nd type declaration block
+	type (
+		// b has a comment
+		b struct{} //@hover("b", "b", hoverDeclBlockb)
+	)
+
+	// 3rd type declaration block
+	type (
+		// c is a struct
+		c struct { //@hover("c", "c", hoverDeclBlockc)
+			f string
+		}
+
+		d string //@hover("d", "d", hoverDeclBlockd)
+	)
+
+	type (
+		e struct { //@hover("e", "e", hoverDeclBlocke)
+			f float64
+		} // e has a comment
+	)
+}
+
+var (
+	hh H //@hover("H", "H", hoverH)
+	ii I //@hover("I", "I", hoverI)
+	jj J //@hover("J", "J", hoverJ)
+)
+-- a_test.go --
+package a
+
+import (
+	"testing"
+)
+
+func TestA(t *testing.T) { //@hover("TestA", "TestA", hoverTestA)
+}
+-- random.go --
+package a
+
+func Random() int { //@loc(Random, "Random")
+	y := 6 + 7
+	return y
+}
+
+func Random2(y int) int { //@loc(Random2, "Random2"),loc(RandomParamY, "y")
+	return y //@def("y", RandomParamY),hover("y", "y", hovery)
+}
+
+type Pos struct {
+	x, y int //@loc(PosX, "x"),loc(PosY, "y")
+}
+
+// Typ has a comment. Its fields do not.
+type Typ struct{ field string } //@loc(TypField, "field")
+
+func _() {
+	x := &Typ{}
+	_ = x.field //@def("field", TypField),hover("field", "field", hoverfield)
+}
+
+func (p *Pos) Sum() int { //@loc(PosSum, "Sum")
+	return p.x + p.y //@hover("x", "x", hoverpx)
+}
+
+func _() {
+	var p Pos
+	_ = p.Sum() //@def("()", PosSum),hover("()", `Sum`, hoverSum)
+}
+-- @aPackage/hover.md --
+-- @hoverDeclBlocka/hover.md --
+```go
+type a struct {
+	x string
+}
+```
+
+1st type declaration block
+-- @hoverDeclBlockb/hover.md --
+```go
+type b struct{}
+```
+
+b has a comment
+-- @hoverDeclBlockc/hover.md --
+```go
+type c struct {
+	f string
+}
+```
+
+c is a struct
+-- @hoverDeclBlockd/hover.md --
+```go
+type d string
+```
+
+3rd type declaration block
+-- @hoverDeclBlocke/hover.md --
+```go
+type e struct {
+	f float64
+}
+```
+
+e has a comment
+-- @hoverH/hover.md --
+```go
+type H interface {
+	Goodbye()
+}
+```
+
+[`a.H` on pkg.go.dev](https://pkg.go.dev/mod.com#H)
+-- @hoverI/hover.md --
+```go
+type I interface {
+	B()
+	J
+}
+```
+
+[`a.I` on pkg.go.dev](https://pkg.go.dev/mod.com#I)
+-- @hoverJ/hover.md --
+```go
+type J interface {
+	Hello()
+}
+```
+
+[`a.J` on pkg.go.dev](https://pkg.go.dev/mod.com#J)
+-- @hoverSum/hover.md --
+```go
+func (*Pos).Sum() int
+```
+
+[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/mod.com#Pos.Sum)
+-- @hoverTestA/hover.md --
+```go
+func TestA(t *testing.T)
+```
+-- @hoverfield/hover.md --
+```go
+field field string
+```
+-- @hoverg/hover.md --
+```go
+const g untyped int = 1
+```
+
+When I hover on g, I should see this comment.
+-- @hoverh/hover.md --
+```go
+const h untyped int = 2
+```
+
+Constant block. When I hover on h, I should see this comment.
+-- @hoverpx/hover.md --
+```go
+field x int
+```
+
+@loc(PosX, "x"),loc(PosY, "y")
+-- @hoverx/hover.md --
+```go
+var x string
+```
+
+x is a variable.
+-- @hovery/hover.md --
+```go
+var y int
+```
+-- @hoverz/hover.md --
+```go
+var z string
+```
+
+z is a variable too.

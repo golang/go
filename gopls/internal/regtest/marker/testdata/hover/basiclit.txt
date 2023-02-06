@@ -17,7 +17,7 @@ func _() {
 	_ = 0x0001F30A //@hover("0x0001F30A", "0x0001F30A", waterWave)
 	_ = "foo \U0001F30A bar" //@hover("\\U0001F30A", "\\U0001F30A", waterWave)
 
-	_ = '\x7E' //@hover("'\\x7E'", `'\x7E'`, tilde)
+	_ = '\x7E' //@hover("'\\x7E'", "'\\x7E'", tilde)
 	_ = "foo \x7E bar" //@hover("\\x7E", "\\x7E", tilde)
 	_ = "foo \a bar" //@hover("\\a", "\\a", control)
 
@@ -29,10 +29,10 @@ func _() {
 	_ = "foo\173bar\u2211baz" //@hover("\\u2211","\\u2211", summation)
 
 	// search for runes in string only if there is an escaped sequence
-	_ = "hello" //@hover("\"hello\"", _, _)
+	_ = "hello" //@hover(`"hello"`, _, _)
 
 	// incorrect escaped rune sequences
-	_ = '\0' //@hover("'\\0'", _, _)
+	_ = '\0' //@hover("'\\0'", _, _),diag(re`\\0()'`, re"illegal character")
 	_ = '\u22111' //@hover("'\\u22111'", _, _)
 	_ = '\U00110000' //@hover("'\\U00110000'", _, _)
 	_ = '\u12e45'//@hover("'\\u12e45'", _, _)

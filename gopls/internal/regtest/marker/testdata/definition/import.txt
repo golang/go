@@ -1,0 +1,52 @@
+This test checks definition and hover over imports.
+-- go.mod --
+module mod.com
+
+go 1.18
+-- foo/foo.go --
+package foo
+
+type Foo struct{}
+
+// DoFoo does foo.
+func DoFoo() {} //@loc(DoFoo, "DoFoo")
+-- bar/bar.go --
+package bar
+
+import (
+	myFoo "mod.com/foo" //@loc(myFoo, "myFoo")
+)
+
+var _ *myFoo.Foo //@def("myFoo", myFoo),hover("myFoo", "myFoo", myFoo)
+-- bar/dotimport.go --
+package bar
+
+import . "mod.com/foo"
+
+func _() {
+	// variable of type foo.Foo
+	var _ Foo //@hover("_", "_", FooVar)
+
+	DoFoo() //@hover("DoFoo", "DoFoo", DoFoo)
+}
+-- @DoFoo/hover.md --
+```go
+func DoFoo()
+```
+
+DoFoo does foo.
+
+
+[`foo.DoFoo` on pkg.go.dev](https://pkg.go.dev/mod.com/foo#DoFoo)
+-- @FooVar/hover.md --
+```go
+var _ Foo
+```
+
+variable of type foo.Foo
+-- @myFoo/hover.md --
+```go
+package myFoo ("mod.com/foo")
+```
+
+[`myFoo` on pkg.go.dev](https://pkg.go.dev/mod.com/foo)
