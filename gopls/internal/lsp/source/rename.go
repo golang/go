@@ -35,8 +35,7 @@ type renamer struct {
 	snapshot           Snapshot
 	refs               []*ReferenceInfo
 	objsToUpdate       map[types.Object]bool
-	hadConflicts       bool
-	errors             string
+	conflicts          []string
 	from, to           string
 	satisfyConstraints map[satisfy.Constraint]bool
 	packages           map[*types.Package]Package // may include additional packages that are a dep of pkg.
@@ -647,12 +646,10 @@ func renameObj(ctx context.Context, s Snapshot, newName string, qos []qualifiedO
 	// Check that the renaming of the identifier is ok.
 	for _, ref := range refs {
 		r.check(ref.obj)
-		if r.hadConflicts { // one error is enough.
-			break
+		if len(r.conflicts) > 0 {
+			// Stop at first error.
+			return nil, fmt.Errorf("%s", strings.Join(r.conflicts, "\n"))
 		}
-	}
-	if r.hadConflicts {
-		return nil, fmt.Errorf("%s", r.errors)
 	}
 
 	changes, err := r.update()

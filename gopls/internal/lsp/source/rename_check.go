@@ -12,18 +12,59 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/refactor/satisfy"
 )
 
 // errorf reports an error (e.g. conflict) and prevents file modification.
 func (r *renamer) errorf(pos token.Pos, format string, args ...interface{}) {
-	r.hadConflicts = true
-	r.errors += fmt.Sprintf(format, args...)
+	// Conflict error messages in the old gorename tool (whence this
+	// logic originated) contain rich information associated with
+	// multiple source lines, such as:
+	//
+	//   p/a.go:1:2: renaming "x" to "y" here
+	//   p/b.go:3:4: \t would cause this reference to "y"
+	//   p/c.go:5:5: \t to become shadowed by this intervening declaration.
+	//
+	// Unfortunately LSP provides no means to transmit the
+	// structure of this error, so we format the positions briefly
+	// using dir/file.go where dir is the base name of the parent
+	// directory.
+
+	var conflict strings.Builder
+
+	// Add prefix of (truncated) position.
+	if pos != token.NoPos {
+		var fset *token.FileSet
+		for _, pkg := range r.packages {
+			fset = pkg.FileSet()
+			break
+		}
+		if fset != nil {
+			// TODO(adonovan): skip position of first error if it is
+			// on the same line as the renaming itself.
+			posn := safetoken.StartPosition(fset, pos).String()
+			segments := strings.Split(filepath.ToSlash(posn), "/")
+			if n := len(segments); n > 2 {
+				segments = segments[n-2:]
+			}
+			posn = strings.Join(segments, "/")
+			fmt.Fprintf(&conflict, "%s:", posn)
+
+			if !strings.HasPrefix(format, "\t") {
+				conflict.WriteByte(' ')
+			}
+		}
+	}
+
+	fmt.Fprintf(&conflict, format, args...)
+	r.conflicts = append(r.conflicts, conflict.String())
 }
 
 // check performs safety checks of the renaming of the 'from' object to r.to.

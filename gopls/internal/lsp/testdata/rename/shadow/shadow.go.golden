@@ -1,5 +1,7 @@
 -- a-rename --
-renaming this func "A" to "a"	would cause this reference to become shadowed	by this intervening var definition
+shadow/shadow.go:10:6: renaming this func "A" to "a"
+shadow/shadow.go:5:13:	would cause this reference to become shadowed
+shadow/shadow.go:4:2:	by this intervening var definition
 -- b-rename --
 package shadow
 
@@ -23,7 +25,8 @@ func D() int {
 }
 
 -- c-rename --
-renaming this var "b" to "c"	conflicts with var in same block
+shadow/shadow.go:5:2: renaming this var "b" to "c"
+shadow/shadow.go:5:5:	conflicts with var in same block
 -- d-rename --
 package shadow
 
