@@ -26,7 +26,7 @@
 // The implementation works in layers. At the bottom, arenas are managed in chunks.
 // Each chunk must be a multiple of the heap arena size, or the heap arena size must
 // be divisible by the arena chunks. The address space for each chunk, and each
-// corresponding heapArena for that addres space, are eternelly reserved for use as
+// corresponding heapArena for that address space, are eternally reserved for use as
 // arena chunks. That is, they can never be used for the general heap. Each chunk
 // is also represented by a single mspan, and is modeled as a single large heap
 // allocation. It must be, because each chunk contains ordinary Go values that may
@@ -202,10 +202,10 @@ const (
 
 func init() {
 	if userArenaChunkPages*pageSize != userArenaChunkBytes {
-		throw("user arena chunk size is not a mutliple of the page size")
+		throw("user arena chunk size is not a multiple of the page size")
 	}
 	if userArenaChunkBytes%physPageSize != 0 {
-		throw("user arena chunk size is not a mutliple of the physical page size")
+		throw("user arena chunk size is not a multiple of the physical page size")
 	}
 	if userArenaChunkBytes < heapArenaBytes {
 		if heapArenaBytes%userArenaChunkBytes != 0 {

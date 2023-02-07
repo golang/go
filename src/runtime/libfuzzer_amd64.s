@@ -100,7 +100,7 @@ call:
 	PUSHQ   BX
 	// Load the starting address of the return sled into BX.
 	MOVQ    $ret_sled<>(SB), BX
-	// Load the address of the i'th return instruction fron the return sled.
+	// Load the address of the i'th return instruction from the return sled.
 	// The index is given in the fakePC argument.
 	ADDQ    R8, BX
 	PUSHQ   BX
@@ -108,7 +108,7 @@ call:
 	// Function arguments arg0 and arg1 are passed in the registers specified
 	// by the x64 calling convention.
 	JMP     AX
-// This code will not be executed and is only there to statisfy assembler
+// This code will not be executed and is only there to satisfy assembler
 // check of a balanced stack.
 not_reachable:
 	POPQ    BX

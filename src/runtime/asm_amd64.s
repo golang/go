@@ -279,7 +279,7 @@ ok:
 
 	CLD				// convention is D is always left cleared
 
-	// Check GOAMD64 reqirements
+	// Check GOAMD64 requirements
 	// We need to do this after setting up TLS, so that
 	// we can report an error if there is a failure. See issue 49586.
 #ifdef NEED_FEATURES_CX

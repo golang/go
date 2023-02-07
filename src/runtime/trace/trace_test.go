@@ -708,7 +708,7 @@ func TestTraceCPUProfile(t *testing.T) {
 	// of CPU samples, so we'll call that success.
 	overflowed := totalTraceSamples >= 1900
 	if traceSamples < pprofSamples {
-		t.Logf("exectution trace did not include all CPU profile samples; %d in profile, %d in trace", pprofSamples, traceSamples)
+		t.Logf("execution trace did not include all CPU profile samples; %d in profile, %d in trace", pprofSamples, traceSamples)
 		if !overflowed {
 			t.Fail()
 		}

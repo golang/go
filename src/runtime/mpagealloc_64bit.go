@@ -131,7 +131,7 @@ func (p *pageAlloc) sysGrow(base, limit uintptr) {
 		}
 	}
 
-	// addrRangeToSumAddrRange is a convienience function that converts
+	// addrRangeToSumAddrRange is a convenience function that converts
 	// an address range r to the address range of the given summary level
 	// that stores the summaries for r.
 	addrRangeToSumAddrRange := func(level int, r addrRange) addrRange {

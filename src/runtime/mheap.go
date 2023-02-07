@@ -1303,7 +1303,7 @@ HaveSpan:
 			}
 		}
 	}
-	// There are a few very limited cirumstances where we won't have a P here.
+	// There are a few very limited circumstances where we won't have a P here.
 	// It's OK to simply skip scavenging in these cases. Something else will notice
 	// and pick up the tab.
 	var now int64

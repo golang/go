@@ -38,7 +38,7 @@ func translateCPUProfile(data []uint64, count int) (*profile.Profile, error) {
 }
 
 // fmtJSON returns a pretty-printed JSON form for x.
-// It works reasonbly well for printing protocol-buffer
+// It works reasonably well for printing protocol-buffer
 // data structures like profile.Profile.
 func fmtJSON(x any) string {
 	js, _ := json.MarshalIndent(x, "", "\t")

@@ -187,7 +187,7 @@ outer:
 		}
 
 		// Strategy: shrink all runs of zeros by max. If any runs of zero
-		// remain, then we've identified a larger maxiumum zero run.
+		// remain, then we've identified a larger maximum zero run.
 		p := max     // number of zeros we still need to shrink by.
 		k := uint(1) // current minimum length of runs of ones in x.
 		for {
