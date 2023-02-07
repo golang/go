@@ -331,7 +331,7 @@ func (v Value) Len() int {
 	switch k {
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(v.typ))
-		return int(tt.len)
+		return int(tt.Len)
 	case Chan:
 		return chanlen(v.pointer())
 	case Map:

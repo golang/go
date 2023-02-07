@@ -297,12 +297,7 @@ const (
 )
 
 // arrayType represents a fixed array type.
-type arrayType struct {
-	rtype
-	elem  *rtype // array element type
-	slice *rtype // slice type
-	len   uintptr
-}
+type arrayType = abi.ArrayType
 
 // chanType represents a channel type.
 type chanType struct {
@@ -875,7 +870,7 @@ func (t *rtype) Elem() Type {
 	switch t.Kind() {
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))
-		return toType(tt.elem)
+		return toType((*rtype)(tt.Elem))
 	case Chan:
 		tt := (*chanType)(unsafe.Pointer(t))
 		return toType(tt.elem)
@@ -945,7 +940,7 @@ func (t *rtype) Len() int {
 		panic("reflect: Len of non-array type " + t.String())
 	}
 	tt := (*arrayType)(unsafe.Pointer(t))
-	return int(tt.len)
+	return int(tt.Len)
 }
 
 func (t *rtype) NumField() int {
@@ -2071,7 +2066,7 @@ func isReflexive(t *rtype) bool {
 		return false
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))
-		return isReflexive(tt.elem)
+		return isReflexive((*rtype)(tt.Elem))
 	case Struct:
 		tt := (*structType)(unsafe.Pointer(t))
 		for _, f := range tt.fields {
@@ -2098,7 +2093,7 @@ func needKeyUpdate(t *rtype) bool {
 		return true
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))
-		return needKeyUpdate(tt.elem)
+		return needKeyUpdate((*rtype)(tt.Elem))
 	case Struct:
 		tt := (*structType)(unsafe.Pointer(t))
 		for _, f := range tt.fields {
@@ -2120,7 +2115,7 @@ func hashMightPanic(t *rtype) bool {
 		return true
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))
-		return hashMightPanic(tt.elem)
+		return hashMightPanic((*rtype)(tt.Elem))
 	case Struct:
 		tt := (*structType)(unsafe.Pointer(t))
 		for _, f := range tt.fields {
@@ -2826,7 +2821,7 @@ func ArrayOf(length int, elem Type) Type {
 	s := "[" + strconv.Itoa(length) + "]" + typ.String()
 	for _, tt := range typesByString(s) {
 		array := (*arrayType)(unsafe.Pointer(tt))
-		if array.elem == typ {
+		if (*rtype)(array.Elem) == typ {
 			ti, _ := lookupCache.LoadOrStore(ckey, tt)
 			return ti.(Type)
 		}
@@ -2843,7 +2838,7 @@ func ArrayOf(length int, elem Type) Type {
 		array.Hash = fnv1(array.Hash, byte(n))
 	}
 	array.Hash = fnv1(array.Hash, ']')
-	array.elem = typ
+	array.Elem = (*abi.Type)(typ)
 	array.PtrToThis = 0
 	if typ.Size_ > 0 {
 		max := ^uintptr(0) / typ.Size_
@@ -2857,8 +2852,8 @@ func ArrayOf(length int, elem Type) Type {
 	}
 	array.Align_ = typ.Align_
 	array.FieldAlign_ = typ.FieldAlign_
-	array.len = uintptr(length)
-	array.slice = SliceOf(elem).(*rtype)
+	array.Len = uintptr(length)
+	array.Slice = (*abi.Type)(SliceOf(elem).(*rtype))
 
 	switch {
 	case typ.PtrBytes == 0 || array.Size_ == 0:
@@ -2880,7 +2875,7 @@ func ArrayOf(length int, elem Type) Type {
 		// Runtime needs pointer masks to be a multiple of uintptr in size.
 		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
 		mask := make([]byte, n)
-		emitGCMask(mask, 0, typ, array.len)
+		emitGCMask(mask, 0, typ, array.Len)
 		array.GCData = &mask[0]
 
 	default:
@@ -2940,7 +2935,7 @@ func ArrayOf(length int, elem Type) Type {
 		array.Kind_ &^= kindDirectIface
 	}
 
-	ti, _ := lookupCache.LoadOrStore(ckey, &array.rtype)
+	ti, _ := lookupCache.LoadOrStore(ckey, (*rtype)(&array.Type))
 	return ti.(Type)
 }
 
@@ -3084,8 +3079,8 @@ func addTypeBits(bv *bitVector, offset uintptr, t *rtype) {
 	case Array:
 		// repeat inner type
 		tt := (*arrayType)(unsafe.Pointer(t))
-		for i := 0; i < int(tt.len); i++ {
-			addTypeBits(bv, offset+uintptr(i)*tt.elem.Size_, tt.elem)
+		for i := 0; i < int(tt.Len); i++ {
+			addTypeBits(bv, offset+uintptr(i)*tt.Elem.Size_, (*rtype)(tt.Elem))
 		}
 
 	case Struct:

@@ -222,14 +222,14 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 		return a.assignIntN(offset, goarch.PtrSize, 3, 0b001)
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))
-		switch tt.len {
+		switch tt.Len {
 		case 0:
 			// There's nothing to assign, so don't modify
 			// a.steps but succeed so the caller doesn't
 			// try to stack-assign this value.
 			return true
 		case 1:
-			return a.regAssign(tt.elem, offset)
+			return a.regAssign((*rtype)(tt.Elem), offset)
 		default:
 			return false
 		}

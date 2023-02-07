@@ -247,16 +247,16 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
 		throw("can't happen")
 	case kindArray:
 		at := (*arraytype)(unsafe.Pointer(typ))
-		for i := uintptr(0); i < at.len; i++ {
-			if off < at.elem.Size_ {
-				cgoCheckUsingType(at.elem, src, off, size)
+		for i := uintptr(0); i < at.Len; i++ {
+			if off < at.Elem.Size_ {
+				cgoCheckUsingType((*_type)(at.Elem), src, off, size)
 			}
-			src = add(src, at.elem.Size_)
+			src = add(src, at.Elem.Size_)
 			skipped := off
-			if skipped > at.elem.Size_ {
-				skipped = at.elem.Size_
+			if skipped > at.Elem.Size_ {
+				skipped = at.Elem.Size_
 			}
-			checked := at.elem.Size_ - skipped
+			checked := at.Elem.Size_ - skipped
 			off -= skipped
 			if size <= checked {
 				return

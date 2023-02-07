@@ -321,7 +321,7 @@ func (v Value) bytesSlow() []byte {
 			panic("reflect.Value.Bytes of unaddressable byte array")
 		}
 		p := (*byte)(v.ptr)
-		n := int((*arrayType)(unsafe.Pointer(v.typ)).len)
+		n := int((*arrayType)(unsafe.Pointer(v.typ)).Len)
 		return unsafe.Slice(p, n)
 	}
 	panic(&ValueError{"reflect.Value.Bytes", v.kind()})
@@ -1391,10 +1391,10 @@ func (v Value) Index(i int) Value {
 	switch v.kind() {
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(v.typ))
-		if uint(i) >= uint(tt.len) {
+		if uint(i) >= uint(tt.Len) {
 			panic("reflect: array index out of range")
 		}
-		typ := tt.elem
+		typ := (*rtype)(tt.Elem)
 		offset := uintptr(i) * typ.Size_
 
 		// Either flagIndir is set and v.ptr points at array,
@@ -1697,7 +1697,7 @@ func (v Value) lenNonSlice() int {
 	switch k := v.kind(); k {
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(v.typ))
-		return int(tt.len)
+		return int(tt.Len)
 	case Chan:
 		return chanlen(v.pointer())
 	case Map:
@@ -2457,8 +2457,8 @@ func (v Value) Slice(i, j int) Value {
 			panic("reflect.Value.Slice: slice of unaddressable array")
 		}
 		tt := (*arrayType)(unsafe.Pointer(v.typ))
-		cap = int(tt.len)
-		typ = (*sliceType)(unsafe.Pointer(tt.slice))
+		cap = int(tt.Len)
+		typ = (*sliceType)(unsafe.Pointer(tt.Slice))
 		base = v.ptr
 
 	case Slice:
@@ -2519,8 +2519,8 @@ func (v Value) Slice3(i, j, k int) Value {
 			panic("reflect.Value.Slice3: slice of unaddressable array")
 		}
 		tt := (*arrayType)(unsafe.Pointer(v.typ))
-		cap = int(tt.len)
-		typ = (*sliceType)(unsafe.Pointer(tt.slice))
+		cap = int(tt.Len)
+		typ = (*sliceType)(unsafe.Pointer(tt.Slice))
 		base = v.ptr
 
 	case Slice:

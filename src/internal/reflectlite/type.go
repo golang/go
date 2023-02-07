@@ -131,12 +131,7 @@ const (
 )
 
 // arrayType represents a fixed array type.
-type arrayType struct {
-	rtype
-	elem  *rtype // array element type
-	slice *rtype // slice type
-	len   uintptr
-}
+type arrayType = abi.ArrayType
 
 // chanType represents a channel type.
 type chanType struct {
@@ -507,7 +502,7 @@ func (t *rtype) Elem() Type {
 	switch t.Kind() {
 	case Array:
 		tt := (*arrayType)(unsafe.Pointer(t))
-		return toType(tt.elem)
+		return toType((*rtype)(tt.Elem))
 	case Chan:
 		tt := (*chanType)(unsafe.Pointer(t))
 		return toType(tt.elem)
@@ -545,7 +540,7 @@ func (t *rtype) Len() int {
 		panic("reflect: Len of non-array type")
 	}
 	tt := (*arrayType)(unsafe.Pointer(t))
-	return int(tt.len)
+	return int(tt.Len)
 }
 
 func (t *rtype) NumField() int {
