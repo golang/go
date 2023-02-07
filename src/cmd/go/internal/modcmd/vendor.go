@@ -211,7 +211,7 @@ func moduleLine(m, r module.Version) string {
 		b.WriteString(m.Version)
 	}
 	if r.Path != "" {
-		if strings.HasPrefix(r.Path, "./vendor") || strings.HasPrefix(r.Path, ".\vendor") {
+		if str.HasFilePathPrefix(filepath.Clean(r.Path), "vendor") {
 			base.Fatalf("go: replacement path %s inside vendor directory", r.Path)
 		}
 		b.WriteString(" => ")
