@@ -95,6 +95,8 @@ var updateGolden = flag.Bool("update", false, "if set, update test data during m
 //     for the test.
 //   - "settings.json": this file is parsed as JSON, and used as the
 //     session configuration (see gopls/doc/settings.md)
+//   - "env": this file is parsed as a list of VAR=VALUE fields specifying the
+//     editor environment.
 //   - Golden files: Within the archive, file names starting with '@' are
 //     treated as "golden" content, and are not written to disk, but instead are
 //     made available to test methods expecting an argument of type *Golden,
@@ -189,7 +191,6 @@ var updateGolden = flag.Bool("update", false, "if set, update test data during m
 //
 // Remaining TODO:
 //   - parallelize/optimize test execution
-//   - add support for per-test environment?
 //   - reorganize regtest packages (and rename to just 'test'?)
 //
 // Existing marker tests to port:
@@ -246,9 +247,13 @@ func RunMarkerTests(t *testing.T, dir string) {
 				testenv.NeedsGo1Point(t, 18)
 			}
 			test.executed = true
+			config := fake.EditorConfig{
+				Settings: test.settings,
+				Env:      test.env,
+			}
 			c := &markerContext{
 				test: test,
-				env:  newEnv(t, cache, test.files, test.settings),
+				env:  newEnv(t, cache, test.files, config),
 
 				locations: make(map[expect.Identifier]protocol.Location),
 				diags:     make(map[protocol.Location][]protocol.Diagnostic),
@@ -380,6 +385,7 @@ type MarkerTest struct {
 	fset     *token.FileSet         // fileset used for parsing notes
 	archive  *txtar.Archive         // original test archive
 	settings map[string]interface{} // gopls settings
+	env      map[string]string      // editor environment
 	files    map[string][]byte      // data files from the archive (excluding special files)
 	notes    []*expect.Note         // extracted notes from data files
 	golden   map[string]*Golden     // extracted golden content, by identifier name
@@ -490,6 +496,19 @@ func loadMarkerTest(name string, archive *txtar.Archive) (*MarkerTest, error) {
 			}
 			continue
 		}
+		if file.Name == "env" {
+			test.env = make(map[string]string)
+			fields := strings.Fields(string(file.Data))
+			for _, field := range fields {
+				// TODO: use strings.Cut once we are on 1.18+.
+				idx := strings.IndexByte(field, '=')
+				if idx < 0 {
+					return nil, fmt.Errorf("env vars must be formatted as var=value, got %q", field)
+				}
+				test.env[field[:idx]] = field[idx+1:]
+			}
+			continue
+		}
 		if strings.HasPrefix(file.Name, "@") { // golden content
 			// TODO: use strings.Cut once we are on 1.18+.
 			idx := strings.IndexByte(file.Name, '/')
@@ -541,6 +560,15 @@ func writeMarkerTests(dir string, tests []*MarkerTest) error {
 			}
 			arch.Files = append(arch.Files, txtar.File{Name: "settings.json", Data: data})
 		}
+		if len(test.env) > 0 {
+			var vars []string
+			for k, v := range test.env {
+				vars = append(vars, fmt.Sprintf("%s=%s", k, v))
+			}
+			sort.Strings(vars)
+			data := []byte(strings.Join(vars, "\n"))
+			arch.Files = append(arch.Files, txtar.File{Name: "env", Data: data})
+		}
 
 		// ...followed by ordinary files. Preserve the order they appeared in the
 		// original archive.
@@ -578,7 +606,7 @@ func writeMarkerTests(dir string, tests []*MarkerTest) error {
 //
 // TODO(rfindley): simplify and refactor the construction of testing
 // environments across regtests, marker tests, and benchmarks.
-func newEnv(t *testing.T, cache *cache.Cache, files map[string][]byte, settings map[string]interface{}) *Env {
+func newEnv(t *testing.T, cache *cache.Cache, files map[string][]byte, config fake.EditorConfig) *Env {
 	sandbox, err := fake.NewSandbox(&fake.SandboxConfig{
 		RootDir: t.TempDir(),
 		GOPROXY: "https://proxy.golang.org",
@@ -596,9 +624,6 @@ func newEnv(t *testing.T, cache *cache.Cache, files map[string][]byte, settings 
 	awaiter := NewAwaiter(sandbox.Workdir)
 	ss := lsprpc.NewStreamServer(cache, false, hooks.Options)
 	server := servertest.NewPipeServer(ss, jsonrpc2.NewRawStream)
-	config := fake.EditorConfig{
-		Settings: settings,
-	}
 	editor, err := fake.NewEditor(sandbox, config).Connect(ctx, server, awaiter.Hooks())
 	if err != nil {
 		sandbox.Close() // ignore error
