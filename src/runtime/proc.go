@@ -829,7 +829,7 @@ func mcommoninit(mp *m, id int64) {
 		hi = 1
 	}
 	// Same behavior as for 1.17.
-	// TODO: Simplify ths.
+	// TODO: Simplify this.
 	if goarch.BigEndian {
 		mp.fastrand = uint64(lo)<<32 | uint64(hi)
 	} else {
@@ -4348,7 +4348,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 }
 
 // saveAncestors copies previous ancestors of the given caller g and
-// includes infor for the current caller into a new set of tracebacks for
+// includes info for the current caller into a new set of tracebacks for
 // a g being created.
 func saveAncestors(callergp *g) *[]ancestorInfo {
 	// Copy all prior info, except for the root goroutine (goid 0).

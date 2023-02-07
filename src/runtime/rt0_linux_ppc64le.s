@@ -155,7 +155,7 @@ TEXT _main<>(SB),NOSPLIT,$-8
 	//
 	// When loading via glibc, the first doubleword on the stack points
 	// to NULL a value. (that is *(uintptr)(R1) == 0). This is used to
-	// differentiate static vs dynamicly linked binaries.
+	// differentiate static vs dynamically linked binaries.
 	//
 	// If loading with the musl loader, it doesn't follow the ELFv2 ABI. It
 	// passes argc/argv similar to the linux kernel, R13 (TLS) is

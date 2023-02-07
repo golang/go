@@ -279,7 +279,7 @@ type pageAlloc struct {
 	}
 
 	// mheap_.lock. This level of indirection makes it possible
-	// to test pageAlloc indepedently of the runtime allocator.
+	// to test pageAlloc independently of the runtime allocator.
 	mheapLock *mutex
 
 	// sysStat is the runtime memstat to update when new system
