@@ -23,6 +23,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -844,6 +845,60 @@ func TestIssue57729(t *testing.T) {
 	hasObj2 := pkg2.Scope().Lookup("Foo") != nil
 	if hasObj1 != hasObj2 {
 		t.Errorf("export+import changed Lookup('Foo')!=nil: was %t, became %t", hasObj1, hasObj2)
+	}
+}
+
+func TestIssue58296(t *testing.T) {
+	// Compiles packages c, b, and a where c imports b and b imports a,
+	// then imports c with stub *types.Packages for b and a, and checks that
+	// both a and b are in the Imports() of c.
+	//
+	// This is how go/packages can read the exportdata when NeedDeps is off.
+
+	// This package only handles gc export data.
+	needsCompiler(t, "gc")
+	testenv.NeedsGoBuild(t) // to find stdlib export data in the build cache
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	tmpdir := mktmpdir(t)
+	defer os.RemoveAll(tmpdir)
+	testoutdir := filepath.Join(tmpdir, "testdata")
+
+	apkg := filepath.Join(testoutdir, "a")
+	bpkg := filepath.Join(testoutdir, "b")
+	cpkg := filepath.Join(testoutdir, "c")
+
+	srcdir := filepath.Join("testdata", "issue58296")
+	compilePkg(t, filepath.Join(srcdir, "a"), "a.go", testoutdir, nil, apkg)
+	compilePkg(t, filepath.Join(srcdir, "b"), "b.go", testoutdir, map[string]string{apkg: filepath.Join(testoutdir, "a.o")}, bpkg)
+	compilePkg(t, filepath.Join(srcdir, "c"), "c.go", testoutdir, map[string]string{bpkg: filepath.Join(testoutdir, "b.o")}, cpkg)
+
+	// The export data reader for c cannot rely on Package.Imports
+	// being populated for a or b. (For the imports {a,b} it is unset.)
+	imports := map[string]*types.Package{
+		apkg: types.NewPackage(apkg, "a"),
+		bpkg: types.NewPackage(bpkg, "b"),
+	}
+
+	// make sure a and b are both imported by c.
+	pkg, err := Import(imports, "./c", testoutdir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var names []string
+	for _, imp := range pkg.Imports() {
+		names = append(names, imp.Name())
+	}
+	sort.Strings(names)
+
+	if got, want := strings.Join(names, ","), "a,b"; got != want {
+		t.Errorf("got imports %v for package c. wanted %v", names, want)
 	}
 }
 
