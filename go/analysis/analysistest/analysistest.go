@@ -184,7 +184,7 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 					for _, vf := range ar.Files {
 						if vf.Name == sf {
 							found = true
-							out, err := diff.Apply(string(orig), edits)
+							out, err := diff.ApplyBytes(orig, edits)
 							if err != nil {
 								t.Errorf("%s: error applying fixes: %v", file.Name(), err)
 								continue
@@ -194,7 +194,7 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 							// between files in the archive. normalize
 							// this to a single newline.
 							want := string(bytes.TrimRight(vf.Data, "\n")) + "\n"
-							formatted, err := format.Source([]byte(out))
+							formatted, err := format.Source(out)
 							if err != nil {
 								t.Errorf("%s: error formatting edited source: %v\n%s", file.Name(), err, out)
 								continue
@@ -218,14 +218,14 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 					catchallEdits = append(catchallEdits, edits...)
 				}
 
-				out, err := diff.Apply(string(orig), catchallEdits)
+				out, err := diff.ApplyBytes(orig, catchallEdits)
 				if err != nil {
 					t.Errorf("%s: error applying fixes: %v", file.Name(), err)
 					continue
 				}
 				want := string(ar.Comment)
 
-				formatted, err := format.Source([]byte(out))
+				formatted, err := format.Source(out)
 				if err != nil {
 					t.Errorf("%s: error formatting resulting source: %v\n%s", file.Name(), err, out)
 					continue

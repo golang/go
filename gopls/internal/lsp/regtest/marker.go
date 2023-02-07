@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -28,6 +29,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/lsprpc"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -119,6 +121,11 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     content matching "hover.md" in the golden data g.
 //   - loc(name, location): specifies the name for a location in the source. These
 //     locations may be referenced by other markers.
+//   - rename(location, new, golden): specifies a renaming of the
+//     identifier at the specified location to the new name.
+//     The golden directory contains the transformed files.
+//   - renameerr(location, new, wantError): specifies a renaming that
+//     fails with an error that matches the expectation.
 //
 // # Argument conversion
 //
@@ -143,6 +150,11 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - name->location: the argument is replaced by the named location.
 //   - name->Golden: the argument is used to look up golden content prefixed by
 //     @<argument>.
+//   - {string,regexp,identifier}->wantError: a wantError type specifies
+//     an expected error message, either in the form of a substring that
+//     must be present, a regular expression that it must match, or an
+//     identifier (e.g. foo) such that the archive entry @foo
+//     exists and contains the exact expected error.
 //
 // # Example
 //
@@ -202,6 +214,7 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 // Remaining TODO:
 //   - parallelize/optimize test execution
 //   - reorganize regtest packages (and rename to just 'test'?)
+//   - Rename the files .txtar.
 //
 // Existing marker tests to port:
 //   - CallHierarchy
@@ -409,10 +422,12 @@ func (mark marker) execute() {
 // Marker funcs should not mutate the test environment (e.g. via opening files
 // or applying edits in the editor).
 var markerFuncs = map[string]markerFunc{
-	"def":   makeMarkerFunc(defMarker),
-	"diag":  makeMarkerFunc(diagMarker),
-	"hover": makeMarkerFunc(hoverMarker),
-	"loc":   makeMarkerFunc(locMarker),
+	"def":       makeMarkerFunc(defMarker),
+	"diag":      makeMarkerFunc(diagMarker),
+	"hover":     makeMarkerFunc(hoverMarker),
+	"loc":       makeMarkerFunc(locMarker),
+	"rename":    makeMarkerFunc(renameMarker),
+	"renameerr": makeMarkerFunc(renameErrMarker),
 }
 
 // markerTest holds all the test data extracted from a test txtar archive.
@@ -444,13 +459,30 @@ func (t *markerTest) flagSet() *flag.FlagSet {
 	return flags
 }
 
-// Golden holds extracted golden content for a single @<name> prefix. The
+func (t *markerTest) getGolden(id string) *Golden {
+	golden, ok := t.golden[id]
+	// If there was no golden content for this identifier, we must create one
+	// to handle the case where -update is set: we need a place to store
+	// the updated content.
+	if !ok {
+		golden = &Golden{id: id}
+
+		// TODO(adonovan): the separation of markerTest (the
+		// static aspects) from markerTestRun (the dynamic
+		// ones) is evidently bogus because here we modify
+		// markerTest during execution. Let's merge the two.
+		t.golden[id] = golden
+	}
+	return golden
+}
+
+// Golden holds extracted golden content for a single @<name> prefix.
 //
 // When -update is set, golden captures the updated golden contents for later
 // writing.
 type Golden struct {
 	id      string
-	data    map[string][]byte
+	data    map[string][]byte // key "" => @id itself
 	updated map[string][]byte
 }
 
@@ -462,9 +494,12 @@ type Golden struct {
 // If -update is set, the given update function will be called to get the
 // updated golden content that should be written back to testdata.
 //
+// Marker functions must use this method instead of accessing data entries
+// directly otherwise the -update operation will delete those entries.
+//
 // TODO(rfindley): rethink the logic here. We may want to separate Get and Set,
 // and not delete golden content that isn't set.
-func (g *Golden) Get(t testing.TB, name string, updated []byte) []byte {
+func (g *Golden) Get(t testing.TB, name string, updated []byte) ([]byte, bool) {
 	if existing, ok := g.updated[name]; ok {
 		// Multiple tests may reference the same golden data, but if they do they
 		// must agree about its expected content.
@@ -477,9 +512,11 @@ func (g *Golden) Get(t testing.TB, name string, updated []byte) []byte {
 	}
 	g.updated[name] = updated
 	if *update {
-		return updated
+		return updated, true
 	}
-	return g.data[name]
+
+	res, ok := g.data[name]
+	return res, ok
 }
 
 // loadMarkerTests walks the given dir looking for .txt files, which it
@@ -546,10 +583,8 @@ func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 			}
 
 		case strings.HasPrefix(file.Name, "@"): // golden content
-			id, name, ok := cut(file.Name[len("@"):], "/")
-			if !ok {
-				return nil, fmt.Errorf("golden file path %q must contain '/'", file.Name)
-			}
+			id, name, _ := cut(file.Name[len("@"):], "/")
+			// Note that a file.Name of just "@id" gives (id, name) = ("id", "").
 			if _, ok := test.golden[id]; !ok {
 				test.golden[id] = &Golden{
 					id:   id,
@@ -590,7 +625,7 @@ func formatTest(test *markerTest) ([]byte, error) {
 	updatedGolden := make(map[string][]byte)
 	for id, g := range test.golden {
 		for name, data := range g.updated {
-			filename := fmt.Sprintf("@%s/%s", id, name)
+			filename := "@" + path.Join(id, name) // name may be ""
 			updatedGolden[filename] = data
 		}
 	}
@@ -692,9 +727,9 @@ func (run *markerTestRun) fmtPos(pos token.Pos) string {
 		run.env.T.Errorf("position %d not in test fileset", pos)
 		return "<invalid location>"
 	}
-	m := run.env.Editor.Mapper(file.Name())
-	if m == nil {
-		run.env.T.Errorf("%s is not open", file.Name())
+	m, err := run.env.Editor.Mapper(file.Name())
+	if err != nil {
+		run.env.T.Errorf("%s", err)
 		return "<invalid location>"
 	}
 	loc, err := m.PosLocation(file, pos, pos)
@@ -726,7 +761,11 @@ func (run *markerTestRun) fmtLoc(loc protocol.Location) string {
 		run.env.T.Errorf("unable to find %s in test archive", loc)
 		return "<invalid location>"
 	}
-	m := run.env.Editor.Mapper(name)
+	m, err := run.env.Editor.Mapper(name)
+	if err != nil {
+		run.env.T.Errorf("internal error: %v", err)
+		return "<invalid location>"
+	}
 	s, err := m.LocationSpan(loc)
 	if err != nil {
 		run.env.T.Errorf("error formatting location %s: %v", loc, err)
@@ -747,10 +786,6 @@ func (run *markerTestRun) fmtLoc(loc protocol.Location) string {
 
 	return fmt.Sprintf("%s:%s (%s:%s)", name, innerSpan, run.test.name, outerSpan)
 }
-
-// converter is the signature of argument converters.
-// A converter should return an error rather than calling marker.errorf().
-type converter func(marker, interface{}) (interface{}, error)
 
 // makeMarkerFunc uses reflection to create a markerFunc for the given func value.
 func makeMarkerFunc(fn interface{}) markerFunc {
@@ -773,12 +808,19 @@ func makeMarkerFunc(fn interface{}) markerFunc {
 	return mi
 }
 
+// ---- converters ----
+
+// converter is the signature of argument converters.
+// A converter should return an error rather than calling marker.errorf().
+type converter func(marker, interface{}) (interface{}, error)
+
 // Types with special conversions.
 var (
-	goldenType   = reflect.TypeOf(&Golden{})
-	locationType = reflect.TypeOf(protocol.Location{})
-	markerType   = reflect.TypeOf(marker{})
-	regexpType   = reflect.TypeOf(&regexp.Regexp{})
+	goldenType    = reflect.TypeOf(&Golden{})
+	locationType  = reflect.TypeOf(protocol.Location{})
+	markerType    = reflect.TypeOf(marker{})
+	regexpType    = reflect.TypeOf(&regexp.Regexp{})
+	wantErrorType = reflect.TypeOf(wantError{})
 )
 
 func makeConverter(paramType reflect.Type) converter {
@@ -787,6 +829,8 @@ func makeConverter(paramType reflect.Type) converter {
 		return goldenConverter
 	case locationType:
 		return locationConverter
+	case wantErrorType:
+		return wantErrorConverter
 	default:
 		return func(_ marker, arg interface{}) (interface{}, error) {
 			if argType := reflect.TypeOf(arg); argType != paramType {
@@ -863,28 +907,125 @@ func linePreceding(run *markerTestRun, pos token.Pos) (int, []byte, *protocol.Ma
 	if err != nil {
 		return 0, nil, nil, err
 	}
-	m := run.env.Editor.Mapper(file.Name())
+	m, err := run.env.Editor.Mapper(file.Name())
+	if err != nil {
+		return 0, nil, nil, err
+	}
 	return startOff, m.Content[startOff:endOff], m, nil
 }
 
-// goldenConverter convers an identifier into the Golden directory of content
+// wantErrorConverter converts a string, regexp, or identifier
+// argument into a wantError. The string is a substring of the
+// expected error, the regexp is a pattern than matches the expected
+// error, and the identifier is a golden file containing the expected
+// error.
+func wantErrorConverter(mark marker, arg interface{}) (interface{}, error) {
+	switch arg := arg.(type) {
+	case string:
+		return wantError{substr: arg}, nil
+	case *regexp.Regexp:
+		return wantError{pattern: arg}, nil
+	case expect.Identifier:
+		golden := mark.run.test.getGolden(string(arg))
+		return wantError{golden: golden}, nil
+	default:
+		return nil, fmt.Errorf("cannot convert %T to wantError (want: string, regexp, or identifier)", arg)
+	}
+}
+
+// A wantError represents an expectation of a specific error message.
+//
+// It may be indicated in one of three ways, in 'expect' notation:
+// - an identifier 'foo', to compare with the contents of the golden section @foo;
+// - a pattern expression re"ab.*c", to match against a regular expression;
+// - a string literal "abc", to check for a substring.
+type wantError struct {
+	golden  *Golden
+	pattern *regexp.Regexp
+	substr  string
+}
+
+func (we wantError) String() string {
+	if we.golden != nil {
+		return fmt.Sprintf("error from @%s entry", we.golden.id)
+	} else if we.pattern != nil {
+		return fmt.Sprintf("error matching %#q", we.pattern)
+	} else {
+		return fmt.Sprintf("error with substring %q", we.substr)
+	}
+}
+
+// check asserts that 'err' matches the wantError's expectations.
+func (we wantError) check(mark marker, err error) {
+	if err == nil {
+		mark.errorf("@%s succeeded unexpectedly, want %v", mark.note.Name, we)
+		return
+	}
+	got := err.Error()
+
+	if we.golden != nil {
+		// Error message must match @id golden file.
+		wantBytes, ok := we.golden.Get(mark.run.env.T, "", []byte(got))
+		if !ok {
+			mark.errorf("@%s: missing @%s entry", mark.note.Name, we.golden.id)
+			return
+		}
+		want := strings.TrimSpace(string(wantBytes))
+		if got != want {
+			// (ignore leading/trailing space)
+			mark.errorf("@%s failed with wrong error: got:\n%s\nwant:\n%s\ndiff:\n%s",
+				mark.note.Name, got, want, compare.Text(want, got))
+		}
+
+	} else if we.pattern != nil {
+		// Error message must match regular expression pattern.
+		if !we.pattern.MatchString(got) {
+			mark.errorf("got error %q, does not match pattern %#q", got, we.pattern)
+		}
+
+	} else if !strings.Contains(got, we.substr) {
+		// Error message must contain expected substring.
+		mark.errorf("got error %q, want substring %q", got, we.substr)
+	}
+}
+
+// goldenConverter converts an identifier into the Golden directory of content
 // prefixed by @<ident> in the test archive file.
 func goldenConverter(mark marker, arg interface{}) (interface{}, error) {
 	switch arg := arg.(type) {
 	case expect.Identifier:
-		golden := mark.run.test.golden[string(arg)]
-		// If there was no golden content for this identifier, we must create one
-		// to handle the case where -update is set: we need a place to store
-		// the updated content.
-		if golden == nil {
-			golden = new(Golden)
-			mark.run.test.golden[string(arg)] = golden
-		}
-		return golden, nil
+		return mark.run.test.getGolden(string(arg)), nil
 	default:
 		return nil, fmt.Errorf("invalid input type %T: golden key must be an identifier", arg)
 	}
 }
+
+// checkChangedFiles compares the files changed by an operation with their expected (golden) state.
+func checkChangedFiles(mark marker, changed map[string][]byte, golden *Golden) {
+	// Check changed files match expectations.
+	for filename, got := range changed {
+		if want, ok := golden.Get(mark.run.env.T, filename, got); !ok {
+			mark.errorf("%s: unexpected change to file %s; got:\n%s",
+				mark.note.Name, filename, got)
+
+		} else if string(got) != string(want) {
+			mark.errorf("%s: wrong file content for %s: got:\n%s\nwant:\n%s\ndiff:\n%s",
+				mark.note.Name, filename, got, want,
+				compare.Bytes(want, got))
+		}
+	}
+
+	// Report unmet expectations.
+	for filename := range golden.data {
+		if _, ok := changed[filename]; !ok {
+			want, _ := golden.Get(mark.run.env.T, filename, nil)
+			mark.errorf("%s: missing change to file %s; want:\n%s",
+				mark.note.Name, filename, want)
+		}
+	}
+}
+
+// ---- marker functions ----
 
 // defMarker implements the @godef marker, running textDocument/definition at
 // the given src location and asserting that there is exactly one resulting
@@ -914,7 +1055,8 @@ func hoverMarker(mark marker, src, dst protocol.Location, golden *Golden) {
 	}
 	wantMD := ""
 	if golden != nil {
-		wantMD = string(golden.Get(mark.run.env.T, "hover.md", []byte(gotMD)))
+		wantBytes, _ := golden.Get(mark.run.env.T, "hover.md", []byte(gotMD))
+		wantMD = string(wantBytes)
 	}
 	// Normalize newline termination: archive files can't express non-newline
 	// terminated files.
@@ -926,14 +1068,14 @@ func hoverMarker(mark marker, src, dst protocol.Location, golden *Golden) {
 	}
 }
 
-// locMarker implements the @loc hover marker. It is executed before other
+// locMarker implements the @loc marker. It is executed before other
 // markers, so that locations are available.
 func locMarker(mark marker, name expect.Identifier, loc protocol.Location) {
 	mark.run.locations[name] = loc
 }
 
 // diagMarker implements the @diag hover marker. It eliminates diagnostics from
-// the observed set in the m.file.
+// the observed set in mark.test.
 func diagMarker(mark marker, loc protocol.Location, re *regexp.Regexp) {
 	idx := -1
 	diags := mark.run.diags[loc]
@@ -948,4 +1090,70 @@ func diagMarker(mark marker, loc protocol.Location, re *regexp.Regexp) {
 	} else {
 		mark.errorf("no diagnostic matches %q", re)
 	}
+}
+
+// renameMarker implements the @rename(location, new, golden) marker.
+func renameMarker(mark marker, loc protocol.Location, newName expect.Identifier, golden *Golden) {
+	changed, err := rename(mark.run.env, loc, string(newName))
+	if err != nil {
+		mark.errorf("rename failed: %v. (Use @renameerr for expected errors.)", err)
+		return
+	}
+	checkChangedFiles(mark, changed, golden)
+}
+
+// renameErrMarker implements the @renamererr(location, new, error) marker.
+func renameErrMarker(mark marker, loc protocol.Location, newName expect.Identifier, wantErr wantError) {
+	_, err := rename(mark.run.env, loc, string(newName))
+	wantErr.check(mark, err)
+}
+
+// rename returns the new contents of the files that would be modified
+// by renaming the identifier at loc to newName.
+func rename(env *Env, loc protocol.Location, newName string) (map[string][]byte, error) {
+	// We call Server.Rename directly, instead of
+	//   env.Editor.Rename(env.Ctx, loc, newName)
+	// to isolate Rename from PrepareRename, and because we don't
+	// want to modify the file system in a scenario with multiple
+	// @rename markers.
+
+	editMap, err := env.Editor.Server.Rename(env.Ctx, &protocol.RenameParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
+		Position:     loc.Range.Start,
+		NewName:      string(newName),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply the edits to the Editor buffers
+	// and return the contents of the changed files.
+	result := make(map[string][]byte)
+	for _, change := range editMap.DocumentChanges {
+		if change.RenameFile != nil {
+			// rename
+			oldFile := env.Sandbox.Workdir.URIToPath(change.RenameFile.OldURI)
+			newFile := env.Sandbox.Workdir.URIToPath(change.RenameFile.NewURI)
+			mapper, err := env.Editor.Mapper(oldFile)
+			if err != nil {
+				return nil, err
+			}
+			result[newFile] = mapper.Content
+
+		} else {
+			// edit
+			filename := env.Sandbox.Workdir.URIToPath(change.TextDocumentEdit.TextDocument.URI)
+			mapper, err := env.Editor.Mapper(filename)
+			if err != nil {
+				return nil, err
+			}
+			patched, _, err := source.ApplyProtocolEdits(mapper, change.TextDocumentEdit.Edits)
+			if err != nil {
+				return nil, err
+			}
+			result[filename] = patched
+		}
+	}
+
+	return result, nil
 }

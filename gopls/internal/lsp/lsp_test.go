@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -97,7 +98,7 @@ func testLSP(t *testing.T, datum *tests.Data) {
 		data:        datum,
 		ctx:         ctx,
 		normalizers: tests.CollectNormalizers(datum.Exported),
-		editRecv:    make(chan map[span.URI]string, 1),
+		editRecv:    make(chan map[span.URI][]byte, 1),
 	}
 
 	r.server = NewServer(session, testClient{runner: r})
@@ -111,7 +112,7 @@ type runner struct {
 	diagnostics map[span.URI][]*source.Diagnostic
 	ctx         context.Context
 	normalizers []tests.Normalizer
-	editRecv    chan map[span.URI]string
+	editRecv    chan map[span.URI][]byte
 }
 
 // testClient stubs any client functions that may be called by LSP functions.
@@ -367,11 +368,11 @@ func foldRanges(m *protocol.Mapper, contents string, ranges []protocol.FoldingRa
 func (r *runner) Format(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
-	gofmted := string(r.data.Golden(t, "gofmt", filename, func() ([]byte, error) {
+	gofmted := r.data.Golden(t, "gofmt", filename, func() ([]byte, error) {
 		cmd := exec.Command("gofmt", filename)
 		out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
 		return out, nil
-	}))
+	})
 
 	edits, err := r.server.Formatting(r.ctx, &protocol.DocumentFormattingParams{
 		TextDocument: protocol.TextDocumentIdentifier{
@@ -379,7 +380,7 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 		},
 	})
 	if err != nil {
-		if gofmted != "" {
+		if len(gofmted) > 0 {
 			t.Error(err)
 		}
 		return
@@ -392,7 +393,7 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Error(err)
 	}
-	if diff := compare.Text(gofmted, got); diff != "" {
+	if diff := compare.Bytes(gofmted, got); diff != "" {
 		t.Errorf("format failed for %s (-want +got):\n%s", filename, diff)
 	}
 }
@@ -447,7 +448,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := string(m.Content)
+	got := m.Content
 	if len(actions) > 0 {
 		res, err := applyTextDocumentEdits(r, actions[0].Edit.DocumentChanges)
 		if err != nil {
@@ -455,12 +456,11 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		}
 		got = res[uri]
 	}
-	want := string(r.data.Golden(t, "goimports", filename, func() ([]byte, error) {
-		return []byte(got), nil
-	}))
-
-	if d := compare.Text(want, got); d != "" {
-		t.Errorf("import failed for %s:\n%s", filename, d)
+	want := r.data.Golden(t, "goimports", filename, func() ([]byte, error) {
+		return got, nil
+	})
+	if diff := compare.Bytes(want, got); diff != "" {
+		t.Errorf("import failed for %s:\n%s", filename, diff)
 	}
 }
 
@@ -536,7 +536,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.S
 	if !match {
 		t.Fatalf("unexpected kind for code action %s, got %v, want one of %v", action.Title, action.Kind, codeActionKinds)
 	}
-	var res map[span.URI]string
+	var res map[span.URI][]byte
 	if cmd := action.Command; cmd != nil {
 		_, err := r.server.ExecuteCommand(r.ctx, &protocol.ExecuteCommandParams{
 			Command:   action.Command.Command,
@@ -553,11 +553,11 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.S
 		}
 	}
 	for u, got := range res {
-		want := string(r.data.Golden(t, "suggestedfix_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
-			return []byte(got), nil
-		}))
-		if want != got {
-			t.Errorf("suggested fixes failed for %s:\n%s", u.Filename(), compare.Text(want, got))
+		want := r.data.Golden(t, "suggestedfix_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
+			return got, nil
+		})
+		if diff := compare.Bytes(want, got); diff != "" {
+			t.Errorf("suggested fixes failed for %s:\n%s", u.Filename(), diff)
 		}
 	}
 }
@@ -605,11 +605,11 @@ func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span
 	}
 	res := <-r.editRecv
 	for u, got := range res {
-		want := string(r.data.Golden(t, "functionextraction_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
-			return []byte(got), nil
-		}))
-		if want != got {
-			t.Errorf("function extraction failed for %s:\n%s", u.Filename(), compare.Text(want, got))
+		want := r.data.Golden(t, "functionextraction_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
+			return got, nil
+		})
+		if diff := compare.Bytes(want, got); diff != "" {
+			t.Errorf("function extraction failed for %s:\n%s", u.Filename(), diff)
 		}
 	}
 }
@@ -657,11 +657,11 @@ func (r *runner) MethodExtraction(t *testing.T, start span.Span, end span.Span) 
 	}
 	res := <-r.editRecv
 	for u, got := range res {
-		want := string(r.data.Golden(t, "methodextraction_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
-			return []byte(got), nil
-		}))
-		if want != got {
-			t.Errorf("method extraction failed for %s:\n%s", u.Filename(), compare.Text(want, got))
+		want := r.data.Golden(t, "methodextraction_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
+			return got, nil
+		})
+		if diff := compare.Bytes(want, got); diff != "" {
+			t.Errorf("method extraction failed for %s:\n%s", u.Filename(), diff)
 		}
 	}
 }
@@ -941,12 +941,12 @@ func (r *runner) InlayHints(t *testing.T, spn span.Span) {
 		t.Error(err)
 	}
 
-	withinlayHints := string(r.data.Golden(t, "inlayHint", filename, func() ([]byte, error) {
-		return []byte(got), nil
-	}))
+	withinlayHints := r.data.Golden(t, "inlayHint", filename, func() ([]byte, error) {
+		return got, nil
+	})
 
-	if withinlayHints != got {
-		t.Errorf("inlay hints failed for %s, expected:\n%v\ngot:\n%v", filename, withinlayHints, got)
+	if !bytes.Equal(withinlayHints, got) {
+		t.Errorf("inlay hints failed for %s, expected:\n%s\ngot:\n%s", filename, withinlayHints, got)
 	}
 }
 
@@ -990,23 +990,24 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 
 	// Print the name and content of each modified file,
 	// concatenated, and compare against the golden.
-	var got string
+	var buf bytes.Buffer
 	for i := 0; i < len(res); i++ {
 		if i != 0 {
-			got += "\n"
+			buf.WriteByte('\n')
 		}
 		uri := span.URIFromURI(orderedURIs[i])
 		if len(res) > 1 {
-			got += filepath.Base(uri.Filename()) + ":\n"
+			buf.WriteString(filepath.Base(uri.Filename()))
+			buf.WriteString(":\n")
 		}
-		val := res[uri]
-		got += val
+		buf.Write(res[uri])
 	}
-	want := string(r.data.Golden(t, tag, filename, func() ([]byte, error) {
-		return []byte(got), nil
-	}))
-	if want != got {
-		t.Errorf("rename failed for %s:\n%s", newText, compare.Text(want, got))
+	got := buf.Bytes()
+	want := r.data.Golden(t, tag, filename, func() ([]byte, error) {
+		return got, nil
+	})
+	if diff := compare.Bytes(want, got); diff != "" {
+		t.Errorf("rename failed for %s:\n%s", newText, diff)
 	}
 }
 
@@ -1055,8 +1056,8 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	}
 }
 
-func applyTextDocumentEdits(r *runner, edits []protocol.DocumentChanges) (map[span.URI]string, error) {
-	res := map[span.URI]string{}
+func applyTextDocumentEdits(r *runner, edits []protocol.DocumentChanges) (map[span.URI][]byte, error) {
+	res := make(map[span.URI][]byte)
 	for _, docEdits := range edits {
 		if docEdits.TextDocumentEdit != nil {
 			uri := docEdits.TextDocumentEdit.TextDocument.URI.SpanURI()
@@ -1064,7 +1065,7 @@ func applyTextDocumentEdits(r *runner, edits []protocol.DocumentChanges) (map[sp
 			// If we have already edited this file, we use the edited version (rather than the
 			// file in its original state) so that we preserve our initial changes.
 			if content, ok := res[uri]; ok {
-				m = protocol.NewMapper(uri, []byte(content))
+				m = protocol.NewMapper(uri, content)
 			} else {
 				var err error
 				if m, err = r.data.Mapper(uri); err != nil {
@@ -1245,7 +1246,7 @@ func (r *runner) AddImport(t *testing.T, uri span.URI, expectedImport string) {
 	if want == nil {
 		t.Fatalf("golden file %q not found", uri.Filename())
 	}
-	if diff := compare.Text(got, string(want)); diff != "" {
+	if diff := compare.Bytes(want, got); diff != "" {
 		t.Errorf("%s mismatch\n%s", command.AddImport, diff)
 	}
 }

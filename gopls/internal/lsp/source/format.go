@@ -381,11 +381,11 @@ func FromProtocolEdits(m *protocol.Mapper, edits []protocol.TextEdit) ([]diff.Ed
 
 // ApplyProtocolEdits applies the patch (edits) to m.Content and returns the result.
 // It also returns the edits converted to diff-package form.
-func ApplyProtocolEdits(m *protocol.Mapper, edits []protocol.TextEdit) (string, []diff.Edit, error) {
+func ApplyProtocolEdits(m *protocol.Mapper, edits []protocol.TextEdit) ([]byte, []diff.Edit, error) {
 	diffEdits, err := FromProtocolEdits(m, edits)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
-	out, err := diff.Apply(string(m.Content), diffEdits)
+	out, err := diff.ApplyBytes(m.Content, diffEdits)
 	return out, diffEdits, err
 }

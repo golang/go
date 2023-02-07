@@ -5,6 +5,8 @@
 package compare
 
 import (
+	"bytes"
+
 	"golang.org/x/tools/internal/diff"
 )
 
@@ -36,4 +38,12 @@ func NamedText(wantName, gotName, want, got string) string {
 	}
 
 	return unified
+}
+
+// Bytes is like Text but using byte slices.
+func Bytes(want, got []byte) string {
+	if bytes.Equal(want, got) {
+		return "" // common case
+	}
+	return Text(string(want), string(got))
 }

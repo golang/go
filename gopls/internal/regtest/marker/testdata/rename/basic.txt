@@ -1,0 +1,22 @@
+This test performs basic coverage of 'rename' within a single package.
+
+-- basic.go --
+package p
+
+func f(x int) { println(x) } //@rename("x", y, param_x)
+
+-- @param_x/basic.go --
+package p
+
+func f(y int) { println(y) } //@rename("x", y, param_x)
+
+-- errors.go --
+package p
+
+func _(x []int) { //@renameerr("_", blank, `can't rename "_"`)
+	x = append(x, 1) //@renameerr("append", blank, "built in and cannot be renamed")
+	x = nil //@renameerr("nil", blank, "built in and cannot be renamed")
+	x = nil //@renameerr("x", x, "old and new names are the same: x")
+	_ = 1 //@renameerr("1", x, "no identifier found")
+}
+

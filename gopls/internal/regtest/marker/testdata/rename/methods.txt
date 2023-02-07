@@ -1,0 +1,67 @@
+This test exercises renaming of interface methods.
+
+The golden is currently wrong due to https://github.com/golang/go/issues/58506:
+the reference to B.F in package b should be renamed too.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+type A int
+
+func (A) F() {} //@renameerr("F", G, errAfToG)
+
+-- b/b.go --
+package b
+
+import "example.com/a"
+import "example.com/c"
+
+type B interface { F() } //@rename("F", G, BfToG)
+
+var _ B = a.A(0)
+var _ B = c.C(0)
+
+-- c/c.go --
+package c
+
+type C int
+
+func (C) F() {} //@renameerr("F", G, errCfToG)
+
+-- d/d.go --
+package d
+
+import "example.com/b"
+
+var _ = b.B.F
+
+-- @errAfToG --
+a/a.go:5:10: renaming this method "F" to "G"
+b/b.go:6:6:	would make example.com/a.A no longer assignable to interface B
+b/b.go:6:20:	(rename example.com/b.B.F if you intend to change both types)
+-- @BfToG/b/b.go --
+package b
+
+import "example.com/a"
+import "example.com/c"
+
+type B interface { G() } //@rename("F", G, BfToG)
+
+var _ B = a.A(0)
+var _ B = c.C(0)
+
+-- @BfToG/d/d.go --
+package d
+
+import "example.com/b"
+
+var _ = b.B.G
+
+-- @errCfToG --
+c/c.go:5:10: renaming this method "F" to "G"
+b/b.go:6:6:	would make example.com/c.C no longer assignable to interface B
+b/b.go:6:20:	(rename example.com/b.B.F if you intend to change both types)

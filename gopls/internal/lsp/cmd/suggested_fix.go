@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -151,7 +152,7 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	switch {
 	case s.Write:
 		if len(edits) > 0 {
-			ioutil.WriteFile(filename, []byte(newContent), 0644)
+			ioutil.WriteFile(filename, newContent, 0644)
 		}
 	case s.Diff:
 		diffs, err := diff.ToUnified(filename+".orig", filename, string(file.mapper.Content), sedits)
@@ -160,7 +161,7 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 		}
 		fmt.Print(diffs)
 	default:
-		fmt.Print(string(newContent))
+		os.Stdout.Write(newContent)
 	}
 	return nil
 }

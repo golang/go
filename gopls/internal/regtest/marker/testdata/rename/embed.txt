@@ -1,0 +1,36 @@
+This test exercises renaming of types used as embedded fields.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+type A int //@rename("A", A2, type)
+
+-- b/b.go --
+package b
+
+import "example.com/a"
+
+type B struct { a.A } //@renameerr("A", A3, errAnonField)
+
+var _ = new(B).A //@renameerr("A", A4, errAnonField)
+
+-- @errAnonField --
+can't rename embedded fields: rename the type directly or name the field
+-- @type/a/a.go --
+package a
+
+type A2 int //@rename("A", A2, type)
+
+-- @type/b/b.go --
+package b
+
+import "example.com/a"
+
+type B struct { a.A2 } //@renameerr("A", A3, errAnonField)
+
+var _ = new(B).A2 //@renameerr("A", A4, errAnonField)
+

@@ -702,17 +702,15 @@ func (e *Editor) BufferText(name string) (string, bool) {
 	return buf.text(), true
 }
 
-// Mapper returns the protocol.Mapper for the given buffer name.
-//
-// If there is no open buffer with that name, it returns nil.
-func (e *Editor) Mapper(name string) *protocol.Mapper {
+// Mapper returns the protocol.Mapper for the given buffer name, if it is open.
+func (e *Editor) Mapper(name string) (*protocol.Mapper, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	buf, ok := e.buffers[name]
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("no mapper for %q", name)
 	}
-	return buf.mapper
+	return buf.mapper, nil
 }
 
 // BufferVersion returns the current version of the buffer corresponding to

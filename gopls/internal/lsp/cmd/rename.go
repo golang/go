@@ -108,7 +108,7 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 					return fmt.Errorf("%v: %v", edits, err)
 				}
 			}
-			ioutil.WriteFile(filename, []byte(newContent), 0644)
+			ioutil.WriteFile(filename, newContent, 0644)
 		case r.Diff:
 			unified, err := diff.ToUnified(filename+".orig", filename, string(cmdFile.mapper.Content), renameEdits)
 			if err != nil {
@@ -119,7 +119,7 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 			if len(orderedURIs) > 1 {
 				fmt.Printf("%s:\n", filepath.Base(filename))
 			}
-			fmt.Print(string(newContent))
+			os.Stdout.Write(newContent)
 			if changeCount > 1 { // if this wasn't last change, print newline
 				fmt.Println()
 			}

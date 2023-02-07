@@ -6,6 +6,7 @@ package fake
 
 import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/diff"
 )
 
@@ -35,25 +36,14 @@ func EditToChangeEvent(e protocol.TextEdit) protocol.TextDocumentContentChangeEv
 // and returns a new slice containing the lines of the patched file.
 // It is a wrapper around diff.Apply; see that function for preconditions.
 func applyEdits(mapper *protocol.Mapper, edits []protocol.TextEdit, windowsLineEndings bool) ([]byte, error) {
-	// Convert fake.Edits to diff.Edits
-	diffEdits := make([]diff.Edit, len(edits))
-	for i, edit := range edits {
-		start, end, err := mapper.RangeOffsets(edit.Range)
-		if err != nil {
-			return nil, err
-		}
-		diffEdits[i] = diff.Edit{
-			Start: start,
-			End:   end,
-			New:   edit.NewText,
-		}
-	}
-
-	patchedString, err := diff.Apply(string(mapper.Content), diffEdits)
+	diffEdits, err := source.FromProtocolEdits(mapper, edits)
 	if err != nil {
 		return nil, err
 	}
-	patched := []byte(patchedString)
+	patched, err := diff.ApplyBytes(mapper.Content, diffEdits)
+	if err != nil {
+		return nil, err
+	}
 	if windowsLineEndings {
 		patched = toWindowsLineEndings(patched)
 	}

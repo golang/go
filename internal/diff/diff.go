@@ -52,6 +52,13 @@ func Apply(src string, edits []Edit) (string, error) {
 	return string(out), nil
 }
 
+// ApplyBytes is like Apply, but it accepts a byte slice.
+// The result is always a new array.
+func ApplyBytes(src []byte, edits []Edit) ([]byte, error) {
+	res, err := Apply(string(src), edits)
+	return []byte(res), err
+}
+
 // validate checks that edits are consistent with src,
 // and returns the size of the patched output.
 // It may return a different slice.

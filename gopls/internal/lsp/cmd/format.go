@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -90,7 +91,7 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 		if c.Write {
 			printIt = false
 			if len(edits) > 0 {
-				ioutil.WriteFile(filename, []byte(formatted), 0644)
+				ioutil.WriteFile(filename, formatted, 0644)
 			}
 		}
 		if c.Diff {
@@ -102,7 +103,7 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 			fmt.Print(unified)
 		}
 		if printIt {
-			fmt.Print(formatted)
+			os.Stdout.Write(formatted)
 		}
 	}
 	return nil

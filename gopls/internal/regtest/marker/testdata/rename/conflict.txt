@@ -1,0 +1,59 @@
+This test exercises some renaming conflict scenarios
+and ensures that the errors are informative.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- super/p.go --
+package super
+
+var x int
+
+func f(y int) {
+	println(x)
+	println(y) //@renameerr("y", x, errSuperBlockConflict)
+}
+
+-- @errSuperBlockConflict --
+super/p.go:5:8: renaming this var "y" to "x"
+super/p.go:6:10:	would shadow this reference
+super/p.go:3:5:	to the var declared here
+-- sub/p.go --
+package sub
+
+var a int
+
+func f2(b int) {
+	println(a) //@renameerr("a", b, errSubBlockConflict)
+	println(b)
+}
+
+-- @errSubBlockConflict --
+sub/p.go:3:5: renaming this var "a" to "b"
+sub/p.go:6:10:	would cause this reference to become shadowed
+sub/p.go:5:9:	by this intervening var definition
+-- pkgname/p.go --
+package pkgname
+
+import e1 "errors" //@renameerr("e1", errors, errImportConflict)
+import "errors"
+
+var _ = errors.New
+var _ = e1.New
+
+-- @errImportConflict --
+pkgname/p.go:3:8: renaming this imported package name "e1" to "errors"
+pkgname/p.go:4:8:	conflicts with imported package name in same block
+-- pkgname2/p1.go --
+package pkgname2
+var x int
+
+-- pkgname2/p2.go --
+package pkgname2
+import "errors" //@renameerr("errors", x, errImportConflict2)
+var _ = errors.New
+
+-- @errImportConflict2 --
+pkgname2/p2.go:2:8: renaming this imported package name "errors" to "x" would conflict
+pkgname2/p1.go:2:5:	with this package member var
