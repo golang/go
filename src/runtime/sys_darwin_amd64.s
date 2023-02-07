@@ -582,7 +582,7 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	DI, BX		// BX is caller-save
+	MOVQ	DI, BX		// BX is callee-saved
 	CALL	libc_pthread_self(SB)
 	MOVQ	AX, 0(BX)	// return value
 	POPQ	BP

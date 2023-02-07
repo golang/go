@@ -178,7 +178,7 @@ TEXT runtime·exit_trampoline(SB),NOSPLIT,$0
 TEXT runtime·getthrid_trampoline(SB),NOSPLIT,$0
 	PUSHQ	BP
 	MOVQ	SP, BP
-	MOVQ	DI, BX			// BX is caller-save
+	MOVQ	DI, BX			// BX is callee-saved
 	CALL	libc_getthrid(SB)
 	MOVL	AX, 0(BX)		// return value
 	POPQ	BP
