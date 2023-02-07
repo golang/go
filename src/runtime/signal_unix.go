@@ -458,12 +458,15 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			return
 		}
 		c.fixsigcode(sig)
-		// (gp != nil) means is the extra m running extra C code, not Go code,
-		// so setting g to nil, to keep its not running Go code state.
+		// Set g to nil here and badsignal will use g0 by needm.
+		// TODO: reuse the current m here by using the gsignal and adjustSignalStack,
+		// since the current g maybe a normal goroutine and actually running on the signal stack,
+		// it may hit stack split that is not expected here.
 		if gp != nil {
 			setg(nil)
 		}
 		badsignal(uintptr(sig), c)
+		// Restore g
 		if gp != nil {
 			setg(gp)
 		}
