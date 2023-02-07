@@ -36,7 +36,7 @@ import (
 	"golang.org/x/tools/txtar"
 )
 
-var updateGolden = flag.Bool("update", false, "if set, update test data during marker tests")
+var update = flag.Bool("update", false, "if set, update test data during marker tests")
 
 // RunMarkerTests runs "marker" tests in the given test data directory.
 //
@@ -90,9 +90,10 @@ var updateGolden = flag.Bool("update", false, "if set, update test data during m
 //
 // There are three types of file within the test archive that are given special
 // treatment by the test runner:
-//   - "flags": this file is parsed as flags configuring the MarkerTest
-//     instance. For example, -min_go=go1.18 sets the minimum required Go version
-//     for the test.
+//   - "flags": this file is treated as a whitespace-separated list of flags
+//     that configure the MarkerTest instance. For example, -min_go=go1.18 sets
+//     the minimum required Go version for the test.
+//     TODO(rfindley): support flag values containing whitespace.
 //   - "settings.json": this file is parsed as JSON, and used as the
 //     session configuration (see gopls/doc/settings.md)
 //   - "env": this file is parsed as a list of VAR=VALUE fields specifying the
@@ -116,23 +117,32 @@ var updateGolden = flag.Bool("update", false, "if set, update test data during m
 //   - hover(src, dst location, g Golden): perform a textDocument/hover at the
 //     src location, and checks that the result is the dst location, with hover
 //     content matching "hover.md" in the golden data g.
-//   - loc(name, location): specifies the name of a location in the source. These
+//   - loc(name, location): specifies the name for a location in the source. These
 //     locations may be referenced by other markers.
 //
 // # Argument conversion
 //
-// In additon to the types supported by go/expect, the marker test runner
-// applies the following argument conversions from argument type to parameter
-// type:
-//   - string->regexp: the argument parsed as a regular expressions
-//   - string->location: the location of the first instance of the
-//     argument in the partial line preceding the note
-//   - regexp->location: the location of the first match for the argument in
-//     the partial line preceding the note If the regular expression contains
-//     exactly one subgroup, the position of the subgroup is used rather than the
-//     position of the submatch.
-//   - name->location: the named location corresponding to the argument
-//   - name->Golden: the golden content prefixed by @<argument>
+// Marker arguments are first parsed by the go/expect package, which accepts
+// the following tokens as defined by the Go spec:
+//   - string, int64, float64, and rune literals
+//   - true and false
+//   - nil
+//   - identifiers (type expect.Identifier)
+//   - regular expressions, denoted the two tokens re"abc" (type *regexp.Regexp)
+//
+// These values are passed as arguments to the corresponding parameter of the
+// test function. Additional value conversions may occur for these argument ->
+// parameter type pairs:
+//   - string->regexp: the argument is parsed as a regular expressions.
+//   - string->location: the argument is converted to the location of the first
+//     instance of the argument in the partial line preceding the note.
+//   - regexp->location: the argument is converted to the location of the first
+//     match for the argument in the partial line preceding the note. If the
+//     regular expression contains exactly one subgroup, the position of the
+//     subgroup is used rather than the position of the submatch.
+//   - name->location: the argument is replaced by the named location.
+//   - name->Golden: the argument is used to look up golden content prefixed by
+//     @<argument>.
 //
 // # Example
 //
@@ -152,10 +162,10 @@ var updateGolden = flag.Bool("update", false, "if set, update test data during m
 // In this example, the @hover annotation tells the test runner to run the
 // hoverMarker function, which has parameters:
 //
-//	(env *Env, src, dsc protocol.Location, g *Golden).
+//	(c *markerContext, src, dsc protocol.Location, g *Golden).
 //
-// The env argument holds the implicit test environment, including fake editor
-// with open files, and sandboxed directory.
+// The first argument holds the test context, including fake editor with open
+// files, and sandboxed directory.
 //
 // Argument converters translate the "b" and "abc" arguments into locations by
 // interpreting each one as a regular expression and finding the location of
@@ -182,7 +192,7 @@ var updateGolden = flag.Bool("update", false, "if set, update test data during m
 // at Go tip. Each test function can normalize golden content for older Go
 // versions.
 //
-// -update does not cause missing @diag markers to be added.
+// Note that -update does not cause missing @diag or @loc markers to be added.
 //
 // # TODO
 //
@@ -304,8 +314,7 @@ func RunMarkerTests(t *testing.T, dir string) {
 			for _, note := range notes {
 				mi, ok := markers[note.Name]
 				if !ok {
-					posn := safetoken.StartPosition(test.fset, note.Pos)
-					t.Errorf("%s: no marker function named %s", posn, note.Name)
+					t.Errorf("%s: no marker function named %s", c.fmtPos(note.Pos), note.Name)
 					continue
 				}
 				if err := runMarker(c, mi, note); err != nil {
@@ -326,7 +335,7 @@ func RunMarkerTests(t *testing.T, dir string) {
 	// so we can now update the test data.
 	// TODO(rfindley): even when -update is not set, compare updated content with
 	// actual content.
-	if *updateGolden {
+	if *update {
 		if err := writeMarkerTests(dir, tests); err != nil {
 			t.Fatalf("failed to -update: %v", err)
 		}
@@ -335,11 +344,10 @@ func RunMarkerTests(t *testing.T, dir string) {
 
 // runMarker calls mi.fn with the arguments coerced from note.
 func runMarker(c *markerContext, mi markerInfo, note *expect.Note) error {
-	posn := safetoken.StartPosition(c.test.fset, note.Pos)
 	// The first converter corresponds to the *Env argument. All others
 	// must be coerced from the marker syntax.
 	if got, want := len(note.Args), len(mi.converters); got != want {
-		return fmt.Errorf("%s: got %d arguments to %s, expect %d", posn, got, note.Name, want)
+		return fmt.Errorf("%s: got %d arguments to %s, expect %d", c.fmtPos(note.Pos), got, note.Name, want)
 	}
 
 	args := []reflect.Value{reflect.ValueOf(c)}
@@ -353,7 +361,7 @@ func runMarker(c *markerContext, mi markerInfo, note *expect.Note) error {
 		}
 		out, err := mi.converters[i](c, note, in)
 		if err != nil {
-			return fmt.Errorf("%s: converting argument #%d of %s (%v): %v", posn, i, note.Name, in, err)
+			return fmt.Errorf("%s: converting argument #%d of %s (%v): %v", c.fmtPos(note.Pos), i, note.Name, in, err)
 		}
 		args = append(args, reflect.ValueOf(out))
 	}
@@ -426,9 +434,9 @@ type Golden struct {
 //
 // If -update is set, the given update function will be called to get the
 // updated golden content that should be written back to testdata.
-func (g *Golden) Get(t testing.TB, name string, update func() []byte) []byte {
-	if *updateGolden {
-		d := update()
+func (g *Golden) Get(t testing.TB, name string, getUpdate func() []byte) []byte {
+	if *update {
+		d := getUpdate()
 		if existing, ok := g.updated[name]; ok {
 			// Multiple tests may reference the same golden data, but if they do they
 			// must agree about its expected content.
@@ -483,59 +491,65 @@ func loadMarkerTest(name string, archive *txtar.Archive) (*MarkerTest, error) {
 		golden:  make(map[string]*Golden),
 	}
 	for _, file := range archive.Files {
-		if file.Name == "flags" {
+		switch {
+		case file.Name == "flags":
 			test.flags = strings.Fields(string(file.Data))
 			if err := test.flagSet().Parse(test.flags); err != nil {
 				return nil, fmt.Errorf("parsing flags: %v", err)
 			}
-			continue
-		}
-		if file.Name == "settings.json" {
+
+		case file.Name == "settings.json":
 			if err := json.Unmarshal(file.Data, &test.settings); err != nil {
 				return nil, err
 			}
-			continue
-		}
-		if file.Name == "env" {
+
+		case file.Name == "env":
 			test.env = make(map[string]string)
 			fields := strings.Fields(string(file.Data))
 			for _, field := range fields {
 				// TODO: use strings.Cut once we are on 1.18+.
-				idx := strings.IndexByte(field, '=')
-				if idx < 0 {
+				key, value, ok := cut(field, "=")
+				if !ok {
 					return nil, fmt.Errorf("env vars must be formatted as var=value, got %q", field)
 				}
-				test.env[field[:idx]] = field[idx+1:]
+				test.env[key] = value
 			}
-			continue
-		}
-		if strings.HasPrefix(file.Name, "@") { // golden content
-			// TODO: use strings.Cut once we are on 1.18+.
-			idx := strings.IndexByte(file.Name, '/')
-			if idx < 0 {
+
+		case strings.HasPrefix(file.Name, "@"): // golden content
+			prefix, name, ok := cut(file.Name, "/")
+			if !ok {
 				return nil, fmt.Errorf("golden file path %q must contain '/'", file.Name)
 			}
-			goldenID := file.Name[len("@"):idx]
+			goldenID := prefix[len("@"):]
 			if _, ok := test.golden[goldenID]; !ok {
 				test.golden[goldenID] = &Golden{
 					id:   goldenID,
 					data: make(map[string][]byte),
 				}
 			}
-			test.golden[goldenID].data[file.Name[idx+len("/"):]] = file.Data
-			continue
-		}
+			test.golden[goldenID].data[name] = file.Data
 
-		// ordinary file content
-		notes, err := expect.Parse(test.fset, file.Name, file.Data)
-		if err != nil {
-			return nil, fmt.Errorf("parsing notes in %q: %v", file.Name, err)
+		default: // ordinary file content
+			notes, err := expect.Parse(test.fset, file.Name, file.Data)
+			if err != nil {
+				return nil, fmt.Errorf("parsing notes in %q: %v", file.Name, err)
+			}
+			test.notes = append(test.notes, notes...)
+			test.files[file.Name] = file.Data
 		}
-		test.notes = append(test.notes, notes...)
-		test.files[file.Name] = file.Data
 	}
 
 	return test, nil
+}
+
+// cut is a copy of strings.Cut.
+//
+// TODO: once we only support Go 1.18+, just use strings.Cut.
+func cut(s, sep string) (before, after string, found bool) {
+	if i := strings.Index(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, "", false
 }
 
 // writeMarkerTests writes the updated golden content to the test data files.
@@ -657,8 +671,29 @@ type markerContext struct {
 	diags     map[protocol.Location][]protocol.Diagnostic
 }
 
+// fmtLoc formats the given pos in the context of the test, using
+// archive-relative paths for files and including the line number in the full
+// archive file.
+func (c markerContext) fmtPos(pos token.Pos) string {
+	file := c.test.fset.File(pos)
+	if file == nil {
+		c.env.T.Errorf("position %d not in test fileset", pos)
+		return "<invalid location>"
+	}
+	m := c.env.Editor.Mapper(file.Name())
+	if m == nil {
+		c.env.T.Errorf("%s is not open", file.Name())
+		return "<invalid location>"
+	}
+	loc, err := m.PosLocation(file, pos, pos)
+	if err != nil {
+		c.env.T.Errorf("Mapper(%s).PosLocation failed: %v", file.Name(), err)
+	}
+	return c.fmtLoc(loc)
+}
+
 // fmtLoc formats the given location in the context of the test, using
-// archive-relative paths for files, and including the line number in the full
+// archive-relative paths for files and including the line number in the full
 // archive file.
 func (c markerContext) fmtLoc(loc protocol.Location) string {
 	if loc == (protocol.Location{}) {
@@ -688,12 +723,14 @@ func (c markerContext) fmtLoc(loc protocol.Location) string {
 
 	innerSpan := fmt.Sprintf("%d:%d", s.Start().Line(), s.Start().Column())       // relative to the embedded file
 	outerSpan := fmt.Sprintf("%d:%d", lines+s.Start().Line(), s.Start().Column()) // relative to the archive file
-	if s.End().Line() == s.Start().Line() {
-		innerSpan += fmt.Sprintf("-%d", s.End().Column())
-		outerSpan += fmt.Sprintf("-%d", s.End().Column())
-	} else {
-		innerSpan += fmt.Sprintf("-%d:%d", s.End().Line(), s.End().Column())
-		innerSpan += fmt.Sprintf("-%d:%d", lines+s.End().Line(), s.End().Column())
+	if s.Start() != s.End() {
+		if s.End().Line() == s.Start().Line() {
+			innerSpan += fmt.Sprintf("-%d", s.End().Column())
+			outerSpan += fmt.Sprintf("-%d", s.End().Column())
+		} else {
+			innerSpan += fmt.Sprintf("-%d:%d", s.End().Line(), s.End().Column())
+			innerSpan += fmt.Sprintf("-%d:%d", lines+s.End().Line(), s.End().Column())
+		}
 	}
 
 	return fmt.Sprintf("%s:%s (%s:%s)", name, innerSpan, c.test.name, outerSpan)
