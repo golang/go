@@ -126,6 +126,9 @@ func TestCoverWithToolExec(t *testing.T) {
 	t.Run("FuncWithDuplicateLines", func(t *testing.T) {
 		testFuncWithDuplicateLines(t, toolexecArg)
 	})
+	t.Run("MissingTrailingNewlineIssue58370", func(t *testing.T) {
+		testMissingTrailingNewlineIssue58370(t, toolexecArg)
+	})
 }
 
 // Execute this command sequence:
@@ -573,4 +576,43 @@ func runExpectingError(c *exec.Cmd, t *testing.T) string {
 		return fmt.Sprintf("unexpected pass for %+v", c.Args)
 	}
 	return string(out)
+}
+
+// Test instrumentation of package that ends before an expected
+// trailing newline following package clause. Issue #58370.
+func testMissingTrailingNewlineIssue58370(t *testing.T, toolexecArg string) {
+	testenv.MustHaveGoBuild(t)
+	dir := tempDir(t)
+
+	t.Parallel()
+
+	noeolDir := filepath.Join(dir, "issue58370")
+	noeolGo := filepath.Join(noeolDir, "noeol.go")
+	noeolTestGo := filepath.Join(noeolDir, "noeol_test.go")
+
+	if err := os.Mkdir(noeolDir, 0777); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(noeolDir, "go.mod"), []byte("module noeol\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+	const noeolContents = `package noeol`
+	if err := os.WriteFile(noeolGo, []byte(noeolContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+	const noeolTestContents = `
+package noeol
+import "testing"
+func TestCoverage(t *testing.T) { }
+`
+	if err := os.WriteFile(noeolTestGo, []byte(noeolTestContents), 0444); err != nil {
+		t.Fatal(err)
+	}
+
+	// go test -covermode atomic
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "test", toolexecArg, "-covermode", "atomic")
+	cmd.Env = append(cmd.Environ(), "CMDCOVER_TOOLEXEC=true")
+	cmd.Dir = noeolDir
+	run(cmd, t)
 }
