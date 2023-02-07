@@ -259,7 +259,6 @@ func RunMarkerTests(t *testing.T, dir string) {
 				}
 				testenv.NeedsGo1Point(t, 18)
 			}
-			test.executed = true
 			config := fake.EditorConfig{
 				Settings: test.settings,
 				Env:      test.env,
@@ -331,17 +330,31 @@ func RunMarkerTests(t *testing.T, dir string) {
 					t.Errorf("%s: unexpected diagnostic: %q", c.fmtLoc(loc), diag.Message)
 				}
 			}
-		})
-	}
 
-	// If updateGolden is set, golden content was updated during text execution,
-	// so we can now update the test data.
-	// TODO(rfindley): even when -update is not set, compare updated content with
-	// actual content.
-	if *update {
-		if err := writeMarkerTests(dir, tests); err != nil {
-			t.Fatalf("failed to -update: %v", err)
-		}
+			formatted, err := formatTest(test)
+			if err != nil {
+				t.Errorf("formatTest: %v", err)
+			} else if *update {
+				filename := filepath.Join(dir, test.name)
+				if err := os.WriteFile(filename, formatted, 0644); err != nil {
+					t.Error(err)
+				}
+			} else {
+				// On go 1.19 and later, verify that the testdata has not changed.
+				//
+				// On earlier Go versions, the golden test data varies due to different
+				// markdown escaping.
+				//
+				// Only check this if the test hasn't already failed, otherwise we'd
+				// report duplicate mismatches of golden data.
+				if testenv.Go1Point() >= 19 && !t.Failed() {
+					// Otherwise, verify that formatted content matches.
+					if diff := compare.NamedText("formatted", "on-disk", string(formatted), string(test.content)); diff != "" {
+						t.Errorf("formatted test does not match on-disk content:\n%s", diff)
+					}
+				}
+			}
+		})
 	}
 }
 
@@ -394,17 +407,13 @@ var markers = map[string]markerInfo{
 type MarkerTest struct {
 	name     string                 // relative path to the txtar file in the testdata dir
 	fset     *token.FileSet         // fileset used for parsing notes
+	content  []byte                 // raw test content
 	archive  *txtar.Archive         // original test archive
 	settings map[string]interface{} // gopls settings
 	env      map[string]string      // editor environment
 	files    map[string][]byte      // data files from the archive (excluding special files)
 	notes    []*expect.Note         // extracted notes from data files
 	golden   map[string]*Golden     // extracted golden content, by identifier name
-
-	// executed tracks whether the test was executed.
-	//
-	// When -update is set, only tests that were actually executed are written.
-	executed bool
 
 	// flags holds flags extracted from the special "flags" archive file.
 	flags []string
@@ -437,21 +446,23 @@ type Golden struct {
 //
 // If -update is set, the given update function will be called to get the
 // updated golden content that should be written back to testdata.
-func (g *Golden) Get(t testing.TB, name string, getUpdate func() []byte) []byte {
+//
+// TODO(rfindley): rethink the logic here. We may want to separate Get and Set,
+// and not delete golden content that isn't set.
+func (g *Golden) Get(t testing.TB, name string, updated []byte) []byte {
+	if existing, ok := g.updated[name]; ok {
+		// Multiple tests may reference the same golden data, but if they do they
+		// must agree about its expected content.
+		if diff := compare.NamedText("existing", "updated", string(existing), string(updated)); diff != "" {
+			t.Errorf("conflicting updates for golden data %s/%s:\n%s", g.id, name, diff)
+		}
+	}
+	if g.updated == nil {
+		g.updated = make(map[string][]byte)
+	}
+	g.updated[name] = updated
 	if *update {
-		d := getUpdate()
-		if existing, ok := g.updated[name]; ok {
-			// Multiple tests may reference the same golden data, but if they do they
-			// must agree about its expected content.
-			if diff := compare.Text(string(existing), string(d)); diff != "" {
-				t.Errorf("conflicting updates for golden data %s/%s:\n%s", g.id, name, diff)
-			}
-		}
-		if g.updated == nil {
-			g.updated = make(map[string][]byte)
-		}
-		g.updated[name] = d
-		return d
+		return updated
 	}
 	return g.data[name]
 }
@@ -472,9 +483,8 @@ func loadMarkerTests(dir string) ([]*MarkerTest, error) {
 			if err != nil {
 				return err
 			}
-			archive := txtar.Parse(content)
 			name := strings.TrimPrefix(path, dir+string(filepath.Separator))
-			test, err := loadMarkerTest(name, archive)
+			test, err := loadMarkerTest(name, content)
 			if err != nil {
 				return fmt.Errorf("%s: %v", path, err)
 			}
@@ -485,10 +495,12 @@ func loadMarkerTests(dir string) ([]*MarkerTest, error) {
 	return tests, err
 }
 
-func loadMarkerTest(name string, archive *txtar.Archive) (*MarkerTest, error) {
+func loadMarkerTest(name string, content []byte) (*MarkerTest, error) {
+	archive := txtar.Parse(content)
 	test := &MarkerTest{
 		name:    name,
 		fset:    token.NewFileSet(),
+		content: content,
 		archive: archive,
 		files:   make(map[string][]byte),
 		golden:  make(map[string]*Golden),
@@ -519,18 +531,17 @@ func loadMarkerTest(name string, archive *txtar.Archive) (*MarkerTest, error) {
 			}
 
 		case strings.HasPrefix(file.Name, "@"): // golden content
-			prefix, name, ok := cut(file.Name, "/")
+			id, name, ok := cut(file.Name[len("@"):], "/")
 			if !ok {
 				return nil, fmt.Errorf("golden file path %q must contain '/'", file.Name)
 			}
-			goldenID := prefix[len("@"):]
-			if _, ok := test.golden[goldenID]; !ok {
-				test.golden[goldenID] = &Golden{
-					id:   goldenID,
+			if _, ok := test.golden[id]; !ok {
+				test.golden[id] = &Golden{
+					id:   id,
 					data: make(map[string][]byte),
 				}
 			}
-			test.golden[goldenID].data[name] = file.Data
+			test.golden[id].data[name] = file.Data
 
 		default: // ordinary file content
 			notes, err := expect.Parse(test.fset, file.Name, file.Data)
@@ -555,68 +566,49 @@ func cut(s, sep string) (before, after string, found bool) {
 	return s, "", false
 }
 
-// writeMarkerTests writes the updated golden content to the test data files.
-func writeMarkerTests(dir string, tests []*MarkerTest) error {
-	for _, test := range tests {
-		if !test.executed {
-			continue
-		}
-		arch := &txtar.Archive{
-			Comment: test.archive.Comment,
-		}
+// formatTest formats the test as a txtar archive.
+func formatTest(test *MarkerTest) ([]byte, error) {
+	arch := &txtar.Archive{
+		Comment: test.archive.Comment,
+	}
 
-		// Special configuration files go first.
-		if len(test.flags) > 0 {
-			flags := strings.Join(test.flags, " ")
-			arch.Files = append(arch.Files, txtar.File{Name: "flags", Data: []byte(flags)})
-		}
-		if len(test.settings) > 0 {
-			data, err := json.MarshalIndent(test.settings, "", "\t")
-			if err != nil {
-				return err
-			}
-			arch.Files = append(arch.Files, txtar.File{Name: "settings.json", Data: data})
-		}
-		if len(test.env) > 0 {
-			var vars []string
-			for k, v := range test.env {
-				vars = append(vars, fmt.Sprintf("%s=%s", k, v))
-			}
-			sort.Strings(vars)
-			data := []byte(strings.Join(vars, "\n"))
-			arch.Files = append(arch.Files, txtar.File{Name: "env", Data: data})
-		}
-
-		// ...followed by ordinary files. Preserve the order they appeared in the
-		// original archive.
-		for _, file := range test.archive.Files {
-			if _, ok := test.files[file.Name]; ok { // ordinary file
-				arch.Files = append(arch.Files, file)
-			}
-		}
-
-		// ...followed by golden files.
-		var goldenFiles []txtar.File
-		for id, golden := range test.golden {
-			for name, data := range golden.updated {
-				fullName := "@" + id + "/" + name
-				goldenFiles = append(goldenFiles, txtar.File{Name: fullName, Data: data})
-			}
-		}
-		// Unlike ordinary files, golden content is usually not manually edited, so
-		// we sort lexically.
-		sort.Slice(goldenFiles, func(i, j int) bool {
-			return goldenFiles[i].Name < goldenFiles[j].Name
-		})
-		arch.Files = append(arch.Files, goldenFiles...)
-
-		data := txtar.Format(arch)
-		filename := filepath.Join(dir, test.name)
-		if err := os.WriteFile(filename, data, 0644); err != nil {
-			return err
+	updatedGolden := make(map[string][]byte)
+	for id, g := range test.golden {
+		for name, data := range g.updated {
+			filename := fmt.Sprintf("@%s/%s", id, name)
+			updatedGolden[filename] = data
 		}
 	}
-	return nil
+
+	// Preserve the original ordering of archive files.
+	for _, file := range test.archive.Files {
+		switch file.Name {
+		// Preserve configuration files exactly as they were. They must have parsed
+		// if we got this far.
+		case "flags", "settings.json", "env":
+			arch.Files = append(arch.Files, file)
+		default:
+			if _, ok := test.files[file.Name]; ok { // ordinary file
+				arch.Files = append(arch.Files, file)
+			} else if data, ok := updatedGolden[file.Name]; ok { // golden file
+				arch.Files = append(arch.Files, txtar.File{Name: file.Name, Data: data})
+				delete(updatedGolden, file.Name)
+			}
+		}
+	}
+
+	// ...followed by any new golden files.
+	var newGoldenFiles []txtar.File
+	for filename, data := range updatedGolden {
+		newGoldenFiles = append(newGoldenFiles, txtar.File{Name: filename, Data: data})
+	}
+	// Sort new golden files lexically.
+	sort.Slice(newGoldenFiles, func(i, j int) bool {
+		return newGoldenFiles[i].Name < newGoldenFiles[j].Name
+	})
+	arch.Files = append(arch.Files, newGoldenFiles...)
+
+	return txtar.Format(arch), nil
 }
 
 // newEnv creates a new environment for a marker test.
@@ -903,7 +895,7 @@ func hoverMarker(c *markerContext, src, dst protocol.Location, golden *Golden) {
 	}
 	wantMD := ""
 	if golden != nil {
-		wantMD = string(golden.Get(c.env.T, "hover.md", func() []byte { return []byte(gotMD) }))
+		wantMD = string(golden.Get(c.env.T, "hover.md", []byte(gotMD)))
 	}
 	// Normalize newline termination: archive files can't express non-newline
 	// terminated files.
