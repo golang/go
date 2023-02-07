@@ -19,7 +19,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
 	var init ir.Nodes
 	e.callCommon(ks, call, &init, nil)
 	if len(init) != 0 {
-		call.(*ir.CallExpr).PtrInit().Append(init...)
+		call.(ir.InitNode).PtrInit().Append(init...)
 	}
 }
 
@@ -36,6 +36,18 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 
 	argument := func(k hole, argp *ir.Node) {
 		argumentFunc(nil, k, argp)
+	}
+
+	argumentRType := func(rtypep *ir.Node) {
+		rtype := *rtypep
+		if rtype == nil {
+			return
+		}
+		// common case: static rtype/itab argument, which can be evaluated within the wrapper instead.
+		if addr, ok := rtype.(*ir.AddrExpr); ok && addr.Op() == ir.OADDR && addr.X.Op() == ir.OLINKSYMOFFSET {
+			return
+		}
+		e.wrapExpr(rtype.Pos(), rtypep, init, call, wrapper)
 	}
 
 	switch call.Op() {
@@ -153,6 +165,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 				argument(e.heapHole(), &args[i])
 			}
 		}
+		argumentRType(&call.RType)
 
 	case ir.OCOPY:
 		call := call.(*ir.BinaryExpr)
@@ -163,6 +176,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 			copiedK = e.heapHole().deref(call, "copied slice")
 		}
 		argument(copiedK, &call.Y)
+		argumentRType(&call.RType)
 
 	case ir.OPANIC:
 		call := call.(*ir.UnaryExpr)
@@ -179,6 +193,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		for i := range call.Args {
 			argument(e.discardHole(), &call.Args[i])
 		}
+		argumentRType(&call.RType)
 
 	case ir.OLEN, ir.OCAP, ir.OREAL, ir.OIMAG, ir.OCLOSE:
 		call := call.(*ir.UnaryExpr)
@@ -192,6 +207,7 @@ func (e *escape) callCommon(ks []hole, call ir.Node, init *ir.Nodes, wrapper *ir
 		call := call.(*ir.BinaryExpr)
 		argument(ks[0], &call.X)
 		argument(e.discardHole(), &call.Y)
+		argumentRType(&call.RType)
 	}
 }
 
