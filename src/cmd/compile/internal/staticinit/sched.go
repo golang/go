@@ -864,13 +864,7 @@ func subst(n ir.Node, m map[*ir.Name]ir.Node) (ir.Node, bool) {
 		x = ir.Copy(x)
 		ir.EditChildrenWithHidden(x, edit)
 		if x, ok := x.(*ir.ConvExpr); ok && x.X.Op() == ir.OLITERAL {
-			// A conversion of variable or expression involving variables
-			// may become a conversion of constant after inlining the parameters
-			// and doing constant evaluation. Truncations that were valid
-			// on variables are not valid on constants, so we might have
-			// generated invalid code that will trip up the rest of the compiler.
-			// Fix those by truncating the constants.
-			if x, ok := truncate(x.X.(*ir.ConstExpr), x.Type()); ok {
+			if x, ok := truncate(x.X, x.Type()); ok {
 				return x
 			}
 			valid = false
@@ -885,7 +879,7 @@ func subst(n ir.Node, m map[*ir.Name]ir.Node) (ir.Node, bool) {
 // truncate returns the result of force converting c to type t,
 // truncating its value as needed, like a conversion of a variable.
 // If the conversion is too difficult, truncate returns nil, false.
-func truncate(c *ir.ConstExpr, t *types.Type) (*ir.ConstExpr, bool) {
+func truncate(c ir.Node, t *types.Type) (ir.Node, bool) {
 	ct := c.Type()
 	cv := c.Val()
 	if ct.Kind() != t.Kind() {
@@ -907,7 +901,7 @@ func truncate(c *ir.ConstExpr, t *types.Type) (*ir.ConstExpr, bool) {
 			}
 		}
 	}
-	c = ir.NewConstExpr(cv, c).(*ir.ConstExpr)
+	c = ir.NewConstExpr(cv, c)
 	c.SetType(t)
 	return c, true
 }
