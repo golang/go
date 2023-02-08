@@ -55,7 +55,6 @@ func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
 func _C_free(p unsafe.Pointer)           { C.free(p) }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.ai_addr }
-func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.ai_canonname }
 func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.ai_family }
 func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.ai_flags }
 func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.ai_next }

@@ -59,7 +59,6 @@ func _C_malloc(n uintptr) unsafe.Pointer {
 }
 
 func _C_ai_addr(ai *_C_struct_addrinfo) **_C_struct_sockaddr { return &ai.Addr }
-func _C_ai_canonname(ai *_C_struct_addrinfo) **_C_char       { return &ai.Canonname }
 func _C_ai_family(ai *_C_struct_addrinfo) *_C_int            { return &ai.Family }
 func _C_ai_flags(ai *_C_struct_addrinfo) *_C_int             { return &ai.Flags }
 func _C_ai_next(ai *_C_struct_addrinfo) **_C_struct_addrinfo { return &ai.Next }

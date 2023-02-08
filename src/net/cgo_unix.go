@@ -37,7 +37,6 @@ type portLookupResult struct {
 
 type ipLookupResult struct {
 	addrs []IPAddr
-	cname string
 	err   error
 }
 
@@ -133,7 +132,7 @@ func cgoPortLookup(result chan<- portLookupResult, hints *_C_struct_addrinfo, ne
 	result <- portLookupResult{port, err}
 }
 
-func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err error) {
+func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 	acquireThread()
 	defer releaseThread()
 
@@ -175,19 +174,10 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
 			isTemporary = addrinfoErrno(gerrno).Temporary()
 		}
 
-		return nil, "", &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
+		return nil, &DNSError{Err: err.Error(), Name: name, IsNotFound: isErrorNoSuchHost, IsTemporary: isTemporary}
 	}
 	defer _C_freeaddrinfo(res)
 
-	if res != nil {
-		cname = _C_GoString(*_C_ai_canonname(res))
-		if cname == "" {
-			cname = name
-		}
-		if len(cname) > 0 && cname[len(cname)-1] != '.' {
-			cname += "."
-		}
-	}
 	for r := res; r != nil; r = *_C_ai_next(r) {
 		// We only asked for SOCK_STREAM, but check anyhow.
 		if *_C_ai_socktype(r) != _C_SOCK_STREAM {
@@ -204,17 +194,17 @@ func cgoLookupIPCNAME(network, name string) (addrs []IPAddr, cname string, err e
 			addrs = append(addrs, addr)
 		}
 	}
-	return addrs, cname, nil
+	return addrs, nil
 }
 
 func cgoIPLookup(result chan<- ipLookupResult, network, name string) {
-	addrs, cname, err := cgoLookupIPCNAME(network, name)
-	result <- ipLookupResult{addrs, cname, err}
+	addrs, err := cgoLookupHostIP(network, name)
+	result <- ipLookupResult{addrs, err}
 }
 
 func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
 	if ctx.Done() == nil {
-		addrs, _, err = cgoLookupIPCNAME(network, name)
+		addrs, err = cgoLookupHostIP(network, name)
 		return addrs, err, true
 	}
 	result := make(chan ipLookupResult, 1)
