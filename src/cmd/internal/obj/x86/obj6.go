@@ -614,27 +614,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	var usefpheuristic bool
-	switch ctxt.Headtype {
-	case objabi.Hwindows, objabi.Hdarwin, objabi.Hlinux, objabi.Hdragonfly,
-		objabi.Hfreebsd, objabi.Hnetbsd, objabi.Hopenbsd, objabi.Hsolaris, objabi.Hplan9:
-	default:
-		usefpheuristic = true
-	}
-
 	var bpsize int
 	if ctxt.Arch.Family == sys.AMD64 &&
 		!p.From.Sym.NoFrame() && // (1) below
-		!(autoffset == 0 && p.From.Sym.NoSplit() && usefpheuristic) && // (2) below
-		!(autoffset == 0 && !hasCall) { // (3) below
+		!(autoffset == 0 && !hasCall) { // (2) below
 		// Make room to save a base pointer.
 		// There are 2 cases we must avoid:
 		// 1) If noframe is set (which we do for functions which tail call).
-		// 2) Scary runtime internals which would be all messed up by frame pointers.
-		//    We detect these using a heuristic: frameless nosplit functions.
-		//    TODO: Maybe someday we label them all with NOFRAME and get rid of this heuristic.
 		// For performance, we also want to avoid:
-		// 3) Frameless leaf functions
+		// 2) Frameless leaf functions
 		bpsize = ctxt.Arch.PtrSize
 		autoffset += int32(bpsize)
 		p.To.Offset += int64(bpsize)
