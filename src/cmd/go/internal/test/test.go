@@ -587,6 +587,8 @@ var (
 	testCacheExpire time.Time                    // ignore cached test results before this time
 
 	testBlockProfile, testCPUProfile, testMemProfile, testMutexProfile, testTrace string // profiling flag that limits test to one package
+
+	testODir = false
 )
 
 // testProfile returns the name of an arbitrary single-package profiling flag
@@ -694,12 +696,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("no packages to test")
 	}
 
-	if testC && len(pkgs) != 1 {
-		base.Fatalf("cannot use -c flag with multiple packages")
-	}
-	if testO != "" && len(pkgs) != 1 {
-		base.Fatalf("cannot use -o flag with multiple packages")
-	}
 	if testFuzz != "" {
 		if !platform.FuzzSupported(cfg.Goos, cfg.Goarch) {
 			base.Fatalf("-fuzz flag is not supported on %s/%s", cfg.Goos, cfg.Goarch)
@@ -749,6 +745,42 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	if testProfile() != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use %s flag with multiple packages", testProfile())
 	}
+
+	if testO != "" {
+		if strings.HasSuffix(testO, "/") || strings.HasSuffix(testO, string(os.PathSeparator)) {
+			testODir = true
+		} else if fi, err := os.Stat(testO); err == nil && fi.IsDir() {
+			testODir = true
+		}
+	}
+
+	if len(pkgs) > 1 && (testC || testO != "") && !base.IsNull(testO) {
+		if testO != "" && !testODir {
+			base.Fatalf("with multiple packages, -o must refer to a directory or %s", os.DevNull)
+		}
+
+		pkgsForBinary := map[string][]*load.Package{}
+
+		for _, p := range pkgs {
+			testBinary := testBinaryName(p)
+			pkgsForBinary[testBinary] = append(pkgsForBinary[testBinary], p)
+		}
+
+		for testBinary, pkgs := range pkgsForBinary {
+			if len(pkgs) > 1 {
+				var buf strings.Builder
+				for _, pkg := range pkgs {
+					buf.WriteString(pkg.ImportPath)
+					buf.WriteString("\n")
+				}
+
+				base.Errorf("cannot write test binary %s for multiple packages:\n%s", testBinary, buf.String())
+			}
+		}
+
+		base.ExitIfErrors()
+	}
+
 	initCoverProfile()
 	defer closeCoverProfile()
 
@@ -978,17 +1010,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		buildTest.Deps = append(buildTest.Deps, buildP)
 	}
 
-	// Use last element of import path, not package name.
-	// They differ when package name is "main".
-	// But if the import path is "command-line-arguments",
-	// like it is during 'go run', use the package name.
-	var elem string
-	if p.ImportPath == "command-line-arguments" {
-		elem = p.Name
-	} else {
-		elem = p.DefaultExecName()
-	}
-	testBinary := elem + ".test"
+	testBinary := testBinaryName(p)
 
 	testDir := b.NewObjdir()
 	if err := b.Mkdir(testDir); err != nil {
@@ -1048,14 +1070,25 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 		// -c or profiling flag: create action to copy binary to ./test.out.
 		target := filepath.Join(base.Cwd(), testBinary+cfg.ExeSuffix)
 		isNull := false
+
 		if testO != "" {
 			target = testO
-			if base.IsNull(target) {
-				isNull = true
-			} else if !filepath.IsAbs(target) {
-				target = filepath.Join(base.Cwd(), target)
+
+			if testODir {
+				if filepath.IsAbs(target) {
+					target = filepath.Join(target, testBinary+cfg.ExeSuffix)
+				} else {
+					target = filepath.Join(base.Cwd(), target, testBinary+cfg.ExeSuffix)
+				}
+			} else {
+				if base.IsNull(target) {
+					isNull = true
+				} else if !filepath.IsAbs(target) {
+					target = filepath.Join(base.Cwd(), target)
+				}
 			}
 		}
+
 		if isNull {
 			runAction = buildAction
 		} else {
@@ -1861,4 +1894,20 @@ func printExitStatus(b *work.Builder, ctx context.Context, a *work.Action) error
 		}
 	}
 	return nil
+}
+
+// testBinaryName can be used to create name for test binary executable.
+// Use last element of import path, not package name.
+// They differ when package name is "main".
+// But if the import path is "command-line-arguments",
+// like it is during 'go run', use the package name.
+func testBinaryName(p *load.Package) string {
+	var elem string
+	if p.ImportPath == "command-line-arguments" {
+		elem = p.Name
+	} else {
+		elem = p.DefaultExecName()
+	}
+
+	return elem + ".test"
 }
