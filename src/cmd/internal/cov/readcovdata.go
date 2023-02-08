@@ -186,6 +186,7 @@ func (r *CovDataReader) visitPod(p pods.Pod) error {
 	if err != nil {
 		return r.fatal("unable to open meta-file %s", p.MetaFile)
 	}
+	defer f.Close()
 	br := bio.NewReader(f)
 	fi, err := f.Stat()
 	if err != nil {
@@ -209,6 +210,9 @@ func (r *CovDataReader) visitPod(p pods.Pod) error {
 		if err != nil {
 			return r.fatal("opening counter data file %s: %s", cdf, err)
 		}
+		defer func(f *os.File) {
+			f.Close()
+		}(cf)
 		var mr *MReader
 		mr, err = NewMreader(cf)
 		if err != nil {
