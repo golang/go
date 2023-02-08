@@ -66,6 +66,7 @@ var passAnalyzersToVet = map[string]bool{
 	"structtag":        true,
 	"testinggoroutine": true,
 	"tests":            true,
+	"timeformat":       true,
 	"unmarshal":        true,
 	"unreachable":      true,
 	"unsafeptr":        true,
