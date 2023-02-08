@@ -1,11 +1,9 @@
-// skip
-
 // Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Run runs tests in the test directory.
-package main
+// Package testdir_test runs tests in the GOROOT/test directory.
+package testdir_test
 
 import (
 	"bytes"
@@ -30,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 	"unicode"
 )
@@ -37,10 +36,7 @@ import (
 var (
 	verbose        = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
 	keep           = flag.Bool("k", false, "keep. keep temporary directory.")
-	numParallel    = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
-	summary        = flag.Bool("summary", false, "show summary of results")
 	allCodegen     = flag.Bool("all_codegen", defaultAllCodeGen(), "run all goos/goarch for codegen")
-	showSkips      = flag.Bool("show_skips", false, "show skipped tests")
 	runSkips       = flag.Bool("run_skips", false, "run skipped tests (ignore skip and build tags)")
 	linkshared     = flag.Bool("linkshared", false, "")
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
@@ -93,113 +89,44 @@ var (
 	// TODO(bradfitz): just use all directories?
 	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky"}
 
-	// ratec controls the max number of tests running at a time.
-	ratec chan bool
-
-	// toRun is the channel of tests to run.
-	// It is nil until the first test is started.
-	toRun chan *test
-
 	// rungatec controls the max number of runoutput tests
 	// executed in parallel as they can each consume a lot of memory.
 	rungatec chan bool
 )
 
-// maxTests is an upper bound on the total number of tests.
-// It is used as a channel buffer size to make sure sends don't block.
-const maxTests = 5000
-
-func main() {
-	flag.Parse()
-
-	findExecCmd()
-
-	// Disable parallelism if printing or if using a simulator.
-	if *verbose || len(findExecCmd()) > 0 {
-		*numParallel = 1
-		*runoutputLimit = 1
+// Test is the main entrypoint that runs tests in the GOROOT/test directory.
+// Each .go file test case in GOROOT/test is registered as a subtest.
+func Test(t *testing.T) {
+	// TODO(go.dev/issue/56844): There's only a few subprocesses started, so it might be viable/safe enough to set cmd.Dir of subprocessess instead of doing it globally here.
+	err := os.Chdir("../../../test")
+	if err != nil {
+		t.Fatal(err)
 	}
+	t.Cleanup(func() { os.Chdir("../src/internal/testdir") })
 
-	ratec = make(chan bool, *numParallel)
 	rungatec = make(chan bool, *runoutputLimit)
 
-	var tests []*test
-	if flag.NArg() > 0 {
-		for _, arg := range flag.Args() {
-			if arg == "-" || arg == "--" {
-				// Permit running:
-				// $ go run run.go - env.go
-				// $ go run run.go -- env.go
-				// $ go run run.go - ./fixedbugs
-				// $ go run run.go -- ./fixedbugs
-				continue
-			}
-			if fi, err := os.Stat(arg); err == nil && fi.IsDir() {
-				for _, baseGoFile := range goFiles(arg) {
-					tests = append(tests, startTest(arg, baseGoFile))
+	for _, dir := range dirs {
+		for _, goFile := range goFiles(dir) {
+			test := test{dir: dir, gofile: goFile}
+			t.Run(path.Join(test.dir, test.gofile), func(t *testing.T) {
+				t.Parallel()
+				test.T = t
+				test.run()
+				if e, isSkip := test.err.(skipError); isSkip {
+					t.Fatal("unexpected skip:", e)
 				}
-			} else if strings.HasSuffix(arg, ".go") {
-				dir, file := filepath.Split(arg)
-				tests = append(tests, startTest(dir, file))
-			} else {
-				log.Fatalf("can't yet deal with non-directory and non-go file %q", arg)
-			}
+				if test.err != nil {
+					if test.expectFail {
+						t.Log(test.err.Error() + " (expected)")
+					} else {
+						t.Fatal(test.err)
+					}
+				} else if test.expectFail {
+					t.Fatal("unexpected success")
+				}
+			})
 		}
-	} else {
-		for _, dir := range dirs {
-			for _, baseGoFile := range goFiles(dir) {
-				tests = append(tests, startTest(dir, baseGoFile))
-			}
-		}
-	}
-
-	failed := false
-	resCount := map[string]int{}
-	for _, test := range tests {
-		<-test.donec
-		status := "ok  "
-		errStr := ""
-		if e, isSkip := test.err.(skipError); isSkip {
-			test.err = nil
-			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + string(e)
-			status = "FAIL"
-		}
-		if test.err != nil {
-			errStr = test.err.Error()
-			if test.expectFail {
-				errStr += " (expected)"
-			} else {
-				status = "FAIL"
-			}
-		} else if test.expectFail {
-			status = "FAIL"
-			errStr = "unexpected success"
-		}
-		if status == "FAIL" {
-			failed = true
-		}
-		resCount[status]++
-		dt := fmt.Sprintf("%.3fs", test.dt.Seconds())
-		if status == "FAIL" {
-			fmt.Printf("# go run run.go -- %s\n%s\nFAIL\t%s\t%s\n",
-				path.Join(test.dir, test.gofile),
-				errStr, test.goFileName(), dt)
-			continue
-		}
-		if !*verbose {
-			continue
-		}
-		fmt.Printf("%s\t%s\t%s\n", status, test.goFileName(), dt)
-	}
-
-	if *summary {
-		for k, v := range resCount {
-			fmt.Printf("%5d %s\n", v, k)
-		}
-	}
-
-	if failed {
-		os.Exit(1)
 	}
 }
 
@@ -220,7 +147,7 @@ func goTool() string {
 }
 
 func shardMatch(name string) bool {
-	if *shards == 0 {
+	if *shards <= 1 {
 		return true
 	}
 	h := fnv.New32()
@@ -334,11 +261,9 @@ func (s skipError) Error() string { return string(s) }
 
 // test holds the state of a test.
 type test struct {
-	dir, gofile string
-	donec       chan bool // closed when done
-	dt          time.Duration
+	*testing.T
 
-	src string
+	dir, gofile string
 
 	tempDir string
 	err     error
@@ -374,39 +299,6 @@ func (t *test) initExpectFail() {
 		}
 	}
 }
-
-func startTest(dir, gofile string) *test {
-	t := &test{
-		dir:    dir,
-		gofile: gofile,
-		donec:  make(chan bool, 1),
-	}
-	if toRun == nil {
-		toRun = make(chan *test, maxTests)
-		go runTests()
-	}
-	select {
-	case toRun <- t:
-	default:
-		panic("toRun buffer size (maxTests) is too small")
-	}
-	return t
-}
-
-// runTests runs tests in parallel, but respecting the order they
-// were enqueued on the toRun channel.
-func runTests() {
-	for {
-		ratec <- true
-		t := <-toRun
-		go func() {
-			t.run()
-			<-ratec
-		}()
-	}
-}
-
-var cwd, _ = os.Getwd()
 
 func (t *test) goFileName() string {
 	return filepath.Join(t.dir, t.gofile)
@@ -550,10 +442,6 @@ func (ctxt *context) match(name string) bool {
 	return false
 }
 
-func init() {
-	checkShouldTest()
-}
-
 // goGcflags returns the -gcflags argument to use with go build / go run.
 // This must match the flags used for building the standard library,
 // or else the commands will rebuild any needed packages (like runtime)
@@ -570,25 +458,18 @@ var errTimeout = errors.New("command exceeded time limit")
 
 // run runs a test.
 func (t *test) run() {
-	start := time.Now()
-	defer func() {
-		t.dt = time.Since(start)
-		close(t.donec)
-	}()
-
 	srcBytes, err := ioutil.ReadFile(t.goFileName())
 	if err != nil {
 		t.err = err
 		return
-	}
-	t.src = string(srcBytes)
-	if t.src[0] == '\n' {
+	} else if bytes.HasPrefix(srcBytes, []byte{'\n'}) {
 		t.err = skipError("starts with newline")
 		return
 	}
+	src := string(srcBytes)
 
 	// Execution recipe stops at first blank line.
-	action, _, ok := strings.Cut(t.src, "\n\n")
+	action, _, ok := strings.Cut(src, "\n\n")
 	if !ok {
 		t.err = fmt.Errorf("double newline ending execution recipe not found in %s", t.goFileName())
 		return
@@ -600,15 +481,12 @@ func (t *test) run() {
 	action = strings.TrimPrefix(action, "//")
 
 	// Check for build constraints only up to the actual code.
-	header, _, ok := strings.Cut(t.src, "\npackage")
+	header, _, ok := strings.Cut(src, "\npackage")
 	if !ok {
 		header = action // some files are intentionally malformed
 	}
 	if ok, why := shouldTest(header, goos, goarch); !ok {
-		if *showSkips {
-			fmt.Printf("%-20s %-20s: %s\n", "skip", t.goFileName(), why)
-		}
-		return
+		t.Skip(why)
 	}
 
 	var args, flags, runenv []string
@@ -642,7 +520,7 @@ func (t *test) run() {
 		if *runSkips {
 			break
 		}
-		return
+		t.Skip("skip")
 	default:
 		t.err = skipError("skipped; unknown pattern: " + action)
 		return
@@ -806,6 +684,10 @@ func (t *test) run() {
 		return filename
 	}
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 	long := filepath.Join(cwd, t.goFileName())
 	switch action {
 	default:
@@ -1284,20 +1166,17 @@ func (t *test) run() {
 	}
 }
 
+var execCmdOnce sync.Once
 var execCmd []string
 
 func findExecCmd() []string {
-	if execCmd != nil {
-		return execCmd
-	}
-	execCmd = []string{} // avoid work the second time
-	if goos == runtime.GOOS && goarch == runtime.GOARCH {
-		return execCmd
-	}
-	path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", goos, goarch))
-	if err == nil {
-		execCmd = []string{path}
-	}
+	execCmdOnce.Do(func() {
+		if goos == runtime.GOOS && goarch == runtime.GOARCH {
+			// Do nothing.
+		} else if path, err := exec.LookPath(fmt.Sprintf("go_%s_%s_exec", goos, goarch)); err == nil {
+			execCmd = []string{path}
+		}
+	})
 	return execCmd
 }
 
@@ -1904,14 +1783,18 @@ func defaultRunOutputLimit() int {
 	return cpu
 }
 
-// checkShouldTest runs sanity checks on the shouldTest function.
-func checkShouldTest() {
+func TestShouldTest(t *testing.T) {
+	if *shard != 0 {
+		t.Skipf("nothing to test on shard index %d", *shard)
+	}
+
 	assert := func(ok bool, _ string) {
+		t.Helper()
 		if !ok {
-			panic("fail")
+			t.Error("test case failed")
 		}
 	}
-	assertNot := func(ok bool, _ string) { assert(!ok, "") }
+	assertNot := func(ok bool, _ string) { t.Helper(); assert(!ok, "") }
 
 	// Simple tests.
 	assert(shouldTest("// +build linux", "linux", "arm"))

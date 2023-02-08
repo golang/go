@@ -18,7 +18,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -594,6 +593,12 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 }
 
 func (t *tester) registerTests() {
+	// registerStdTestSpecially tracks import paths in the standard library
+	// whose test registration happens in a special way.
+	registerStdTestSpecially := map[string]bool{
+		"internal/testdir": true, // Registered at the bottom with sharding.
+	}
+
 	// Fast path to avoid the ~1 second of `go list std cmd` when
 	// the caller lists specific tests to run. (as the continuous
 	// build coordinator does).
@@ -621,10 +626,16 @@ func (t *tester) registerTests() {
 		}
 		pkgs := strings.Fields(string(all))
 		for _, pkg := range pkgs {
+			if registerStdTestSpecially[pkg] {
+				continue
+			}
 			t.registerStdTest(pkg)
 		}
 		if t.race {
 			for _, pkg := range pkgs {
+				if registerStdTestSpecially[pkg] {
+					continue
+				}
 				if t.packageHasBenchmarks(pkg) {
 					t.registerRaceBenchTest(pkg)
 				}
@@ -907,12 +918,15 @@ func (t *tester) registerTests() {
 			nShards = n
 		}
 		for shard := 0; shard < nShards; shard++ {
-			shard := shard
-			t.tests = append(t.tests, distTest{
-				name:    fmt.Sprintf("test:%d_%d", shard, nShards),
-				heading: "../test",
-				fn:      func(dt *distTest) error { return t.testDirTest(dt, shard, nShards) },
-			})
+			t.registerTest(
+				fmt.Sprintf("test:%d_%d", shard, nShards),
+				"../test",
+				&goTest{
+					dir:       "internal/testdir",
+					testFlags: []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
+				},
+				rtHostTest{},
+			)
 		}
 	}
 	// Only run the API check on fast development platforms.
@@ -1512,44 +1526,6 @@ func (t *tester) registerRaceTests() {
 				pkgs:     []string{"flag", "os/exec"},
 			})
 	}
-}
-
-var runtest struct {
-	sync.Once
-	exe string
-	err error
-}
-
-func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
-	runtest.Do(func() {
-		f, err := os.CreateTemp("", "runtest-*.exe") // named exe for Windows, but harmless elsewhere
-		if err != nil {
-			runtest.err = err
-			return
-		}
-		f.Close()
-
-		runtest.exe = f.Name()
-		xatexit(func() {
-			os.Remove(runtest.exe)
-		})
-
-		cmd := t.dirCmd("test", gorootBinGo, "build", "-o", runtest.exe, "run.go")
-		setEnv(cmd, "GOOS", gohostos)
-		setEnv(cmd, "GOARCH", gohostarch)
-		runtest.err = cmd.Run()
-	})
-	if runtest.err != nil {
-		return runtest.err
-	}
-	if t.compileOnly {
-		return nil
-	}
-	t.addCmd(dt, "test", runtest.exe,
-		fmt.Sprintf("--shard=%d", shard),
-		fmt.Sprintf("--shards=%d", shards),
-	)
-	return nil
 }
 
 // cgoPackages is the standard packages that use cgo.
