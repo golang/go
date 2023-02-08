@@ -9,6 +9,7 @@ import (
 	"cmd/go/internal/test/internal/genflags"
 	"flag"
 	"internal/testenv"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ import (
 
 func TestMain(m *testing.M) {
 	cfg.SetGOROOT(testenv.GOROOT(nil), false)
+	os.Exit(m.Run())
 }
 
 func TestPassFlagToTestIncludesAllTestFlags(t *testing.T) {
