@@ -613,7 +613,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	var usefpheuristic bool
 	switch ctxt.Headtype {
-	case objabi.Hwindows, objabi.Hdarwin, objabi.Hlinux:
+	case objabi.Hwindows, objabi.Hdarwin, objabi.Hlinux, objabi.Hdragonfly:
 	default:
 		usefpheuristic = true
 	}
