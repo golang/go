@@ -140,9 +140,25 @@ func New(profileFile string) *Profile {
 		return nil
 	}
 
+	samplesCountIndex := -1
+	for i, s := range profile.SampleType {
+		// Samples count is the raw data collected, and CPU nanoseconds is just
+		// a scaled version of it, so either one we can find is fine.
+		if (s.Type == "samples" && s.Unit == "count") ||
+			(s.Type == "cpu" && s.Unit == "nanoseconds") {
+			samplesCountIndex = i
+			break
+		}
+	}
+
+	if samplesCountIndex == -1 {
+		log.Fatal("failed to find CPU samples count or CPU nanoseconds value-types in profile.")
+		return nil
+	}
+
 	g := newGraph(profile, &Options{
 		CallTree:    false,
-		SampleValue: func(v []int64) int64 { return v[1] },
+		SampleValue: func(v []int64) int64 { return v[samplesCountIndex] },
 	})
 
 	p := &Profile{
