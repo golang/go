@@ -9,6 +9,7 @@ import (
 	"go/constant"
 	"go/token"
 	"os"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -866,14 +867,22 @@ func subst(n ir.Node, m map[*ir.Name]ir.Node) (ir.Node, bool) {
 		}
 		x = ir.Copy(x)
 		ir.EditChildrenWithHidden(x, edit)
-		if x, ok := x.(*ir.ConvExpr); ok && x.X.Op() == ir.OLITERAL {
-			if x, ok := truncate(x.X, x.Type()); ok {
+
+		// TODO: handle more operations, see details discussion in go.dev/cl/466277.
+		switch x.Op() {
+		case ir.OCONV:
+			x := x.(*ir.ConvExpr)
+			if x.X.Op() == ir.OLITERAL {
+				if x, ok := truncate(x.X, x.Type()); ok {
+					return x
+				}
+				valid = false
 				return x
 			}
-			valid = false
-			return x
+		case ir.OADDSTR:
+			return addStr(x.(*ir.AddStringExpr))
 		}
-		return typecheck.EvalConst(x)
+		return x
 	}
 	n = edit(n)
 	return n, valid
@@ -907,6 +916,51 @@ func truncate(c ir.Node, t *types.Type) (ir.Node, bool) {
 	c = ir.NewConstExpr(cv, c)
 	c.SetType(t)
 	return c, true
+}
+
+func addStr(n *ir.AddStringExpr) ir.Node {
+	// Merge adjacent constants in the argument list.
+	s := n.List
+	need := 0
+	for i := 0; i < len(s); i++ {
+		if i == 0 || !ir.IsConst(s[i-1], constant.String) || !ir.IsConst(s[i], constant.String) {
+			// Can't merge s[i] into s[i-1]; need a slot in the list.
+			need++
+		}
+	}
+	if need == len(s) {
+		return n
+	}
+	if need == 1 {
+		var strs []string
+		for _, c := range s {
+			strs = append(strs, ir.StringVal(c))
+		}
+		return typecheck.OrigConst(n, constant.MakeString(strings.Join(strs, "")))
+	}
+	newList := make([]ir.Node, 0, need)
+	for i := 0; i < len(s); i++ {
+		if ir.IsConst(s[i], constant.String) && i+1 < len(s) && ir.IsConst(s[i+1], constant.String) {
+			// merge from i up to but not including i2
+			var strs []string
+			i2 := i
+			for i2 < len(s) && ir.IsConst(s[i2], constant.String) {
+				strs = append(strs, ir.StringVal(s[i2]))
+				i2++
+			}
+
+			nl := ir.Copy(n).(*ir.AddStringExpr)
+			nl.List = s[i:i2]
+			newList = append(newList, typecheck.OrigConst(nl, constant.MakeString(strings.Join(strs, ""))))
+			i = i2 - 1
+		} else {
+			newList = append(newList, s[i])
+		}
+	}
+
+	nn := ir.Copy(n).(*ir.AddStringExpr)
+	nn.List = newList
+	return nn
 }
 
 const wrapGlobalMapInitSizeThreshold = 20
