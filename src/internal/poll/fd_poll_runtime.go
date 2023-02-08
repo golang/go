@@ -23,7 +23,7 @@ func runtime_pollServerInit()
 func runtime_pollOpen(fd uintptr) (uintptr, int)
 func runtime_pollClose(ctx uintptr)
 func runtime_pollWait(ctx uintptr, mode int) int
-func runtime_pollWaitCanceled(ctx uintptr, mode int) int
+func runtime_pollWaitCanceled(ctx uintptr, mode int)
 func runtime_pollReset(ctx uintptr, mode int) int
 func runtime_pollSetDeadline(ctx uintptr, d int64, mode int)
 func runtime_pollUnblock(ctx uintptr)
