@@ -166,7 +166,7 @@ TEXT runtime·settls(SB),NOSPLIT,$0
 	RET
 
 // void sigtramp(void *ureg, int8 *note)
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
 	get_tls(AX)
 
 	// check that g exists
