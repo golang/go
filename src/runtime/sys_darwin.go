@@ -213,7 +213,9 @@ func pthread_kill_trampoline()
 //
 //go:nosplit
 func osinit_hack() {
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(osinit_hack_trampoline)), nil)
+	if GOOS == "darwin" { // not ios
+		libcCall(unsafe.Pointer(abi.FuncPCABI0(osinit_hack_trampoline)), nil)
+	}
 	return
 }
 func osinit_hack_trampoline()
