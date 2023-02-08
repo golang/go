@@ -236,6 +236,9 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - AddImport
 //   - SelectionRanges
 func RunMarkerTests(t *testing.T, dir string) {
+	// The marker tests must be able to run go/packages.Load.
+	testenv.NeedsGoPackages(t)
+
 	tests, err := loadMarkerTests(dir)
 	if err != nil {
 		t.Fatal(err)
