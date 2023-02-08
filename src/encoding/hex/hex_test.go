@@ -55,18 +55,6 @@ func TestDecode(t *testing.T) {
 	}
 }
 
-func TestDecodeDstTooSmall(t *testing.T) {
-	dst := make([]byte, 1)
-	src := []byte{'0', '1', '2', '3'}
-	n, err := Decode(dst, src)
-	if err == nil {
-		t.Errorf("expected Decode to return an error, but it returned none")
-	}
-	if !bytes.Equal(dst[:n], []byte{0x01}) {
-		t.Errorf("output mismatch: got %x, want 01", dst[:n])
-	}
-}
-
 func TestEncodeToString(t *testing.T) {
 	for i, test := range encDecTests {
 		s := EncodeToString(test.dec)

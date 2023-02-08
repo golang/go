@@ -88,9 +88,6 @@ func Decode(dst, src []byte) (int, error) {
 		if b > 0x0f {
 			return i, InvalidByteError(q)
 		}
-		if i >= len(dst) {
-			return i, errors.New("encoding/hex: output buffer too small")
-		}
 		dst[i] = (a << 4) | b
 		i++
 	}
