@@ -293,11 +293,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "escapes")
 	escape.Funcs(typecheck.Target.Decls)
 
-	// TODO(mdempsky): This is a hack. We need a proper, global work
-	// queue for scheduling function compilation so components don't
-	// need to adjust their behavior depending on when they're called.
-	reflectdata.AfterGlobalEscapeAnalysis = true
-
 	// Collect information for go:nowritebarrierrec
 	// checking. This must happen before transforming closures during Walk
 	// We'll do the final check after write barriers are

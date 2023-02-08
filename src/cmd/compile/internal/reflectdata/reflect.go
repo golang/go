@@ -1869,12 +1869,6 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
 	return lsym
 }
 
-// AfterGlobalEscapeAnalysis tracks whether package gc has already
-// performed the main, global escape analysis pass. If so,
-// methodWrapper takes responsibility for escape analyzing any
-// generated wrappers.
-var AfterGlobalEscapeAnalysis bool
-
 var ZeroSize int64
 
 // MarkTypeUsedInInterface marks that type t is converted to an interface.
