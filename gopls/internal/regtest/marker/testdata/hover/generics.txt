@@ -1,6 +1,15 @@
 This file contains tests for hovering over generic Go code.
+
 -- flags --
 -min_go=go1.18
+
+-- go.mod --
+// A go.mod is require for correct pkgsite links.
+// TODO(rfindley): don't link to ad-hoc or command-line-arguments packages!
+module mod.com
+
+go 1.18
+
 -- generics.go --
 package generics
 
@@ -19,12 +28,7 @@ func F[P interface{ ~int | string }]() { // hover("P","P",Ptparam)
 	// disabled - see issue #54822
 	var _ P // hover("P","P",Pvar)
 }
--- go.mod --
-// A go.mod is require for correct pkgsite links.
-// TODO(rfindley): don't link to ad-hoc or command-line-arguments packages!
-module mod.com
 
-go 1.18
 -- inferred.go --
 package generics
 
@@ -39,6 +43,7 @@ func _() {
 	_ = app[[]int]([]int{}, 0) //@hover("app", "app", appint),diag("[[]int]", re"unnecessary type arguments")
 	_ = app([]int{}, 0)        //@hover("app", "app", appint)
 }
+
 -- @ValueQ/hover.md --
 ```go
 field Q int

@@ -1,0 +1,137 @@
+This file contains tests for documentation links to generic code in hover.
+
+-- flags --
+-min_go=go1.18
+
+-- go.mod --
+module mod.com
+
+go 1.19
+
+-- a.go --
+package a
+
+import "mod.com/generic"
+
+func _() {
+	// Hovering over instantiated object should produce accurate type
+	// information, but link to the generic declarations.
+	var x generic.GT[int] //@hover("GT", "GT", xGT)
+	_ = x.F //@hover("x", "x", x),hover("F", "F", xF)
+
+	f := generic.GF[int] //@hover("GF", "GF", fGF)
+	_ = f //@hover("f", "f", f)
+}
+
+-- generic/generic.go --
+package generic
+
+// Hovering over type parameters should does link to documentation.
+// TODO(rfindley): should it? We should probably link to the type.
+type GT[P any] struct{ //@hover("GT", "GT", GT),hover("P", "P", GTP)
+	F P //@hover("F", "F", F),hover("P", "P", FP)
+}
+
+func (GT[P]) M(p P) { //@hover("GT", "GT", GTrecv),hover("M","M", M),hover(re"p (P)", re"p (P)", pP)
+}
+
+func GF[P any] (p P) { //@hover("GF", "GF", GF)
+}
+
+-- @F/hover.md --
+```go
+field F P
+```
+
+@hover("F", "F", F),hover("P", "P", FP)
+
+
+[`(generic.GT).F` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GT.F)
+-- @FP/hover.md --
+```go
+type parameter P any
+```
+-- @GF/hover.md --
+```go
+func GF[P any](p P)
+```
+
+[`generic.GF` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GF)
+-- @GT/hover.md --
+```go
+type GT[P any] struct {
+	F P //@hover("F", "F", F),hover("P", "P", FP)
+}
+
+func (GT[P]).M(p P)
+```
+
+Hovering over type parameters should does link to documentation. TODO(rfindley): should it? We should probably link to the type.
+
+
+[`generic.GT` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GT)
+-- @GTP/hover.md --
+```go
+type parameter P any
+```
+-- @GTrecv/hover.md --
+```go
+type GT[P any] struct {
+	F P //@hover("F", "F", F),hover("P", "P", FP)
+}
+
+func (GT[P]).M(p P)
+```
+
+Hovering over type parameters should does link to documentation. TODO(rfindley): should it? We should probably link to the type.
+
+
+[`generic.GT` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GT)
+-- @M/hover.md --
+```go
+func (GT[P]).M(p P)
+```
+
+[`(generic.GT).M` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GT.M)
+-- @f/hover.md --
+```go
+var f func(p int)
+```
+-- @fGF/hover.md --
+```go
+func generic.GF(p int) // func[P any](p P)
+```
+
+[`generic.GF` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GF)
+-- @pP/hover.md --
+```go
+type parameter P any
+```
+-- @x/hover.md --
+```go
+var x generic.GT[int]
+```
+
+Hovering over instantiated object should produce accurate type information, but link to the generic declarations.
+-- @xF/hover.md --
+```go
+field F int
+```
+
+@hover("F", "F", F),hover("P", "P", FP)
+
+
+[`(generic.GT).F` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GT.F)
+-- @xGT/hover.md --
+```go
+type GT[P any] struct {
+	F P //@hover("F", "F", F),hover("P", "P", FP)
+}
+
+func (generic.GT[P]).M(p P)
+```
+
+Hovering over type parameters should does link to documentation. TODO(rfindley): should it? We should probably link to the type.
+
+
+[`generic.GT` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GT)

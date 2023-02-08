@@ -1,8 +1,10 @@
 This test checks definition and hover operations over embedded fields and methods.
+
 -- go.mod --
 module mod.com
 
 go 1.18
+
 -- a/a.go --
 package a
 
@@ -40,7 +42,14 @@ package b
 
 import "mod.com/a" //@loc(AImport, re"\".*\"")
 
+type embed struct {
+	F int //@loc(F, "F")
+}
+
+func (embed) M() //@loc(M, "M")
+
 type Embed struct {
+	embed
 	*a.A
 	a.I
 	a.S
@@ -53,8 +62,10 @@ func _() {
 	_ = e.Field     //@def("Field", SField),hover("Field", "Field", SField)
 	_ = e.Field2    //@def("Field2", RField2),hover("Field2", "Field2", RField2)
 	e.Hello()   //@def("Hello", JHello),hover("Hello", "Hello",JHello)
-	e.Hey()     //@def("Hey", RHey), hover("Hey", "Hey", RHey)
-	e.Goodbye() //@def("Goodbye", HGoodbye), hover("Goodbye", "Goodbye", HGoodbye)
+	e.Hey()     //@def("Hey", RHey),hover("Hey", "Hey", RHey)
+	e.Goodbye() //@def("Goodbye", HGoodbye),hover("Goodbye", "Goodbye", HGoodbye)
+	e.M() //@def("M", M),hover("M", "M", M)
+	_ = e.F //@def("F", F),hover("F", "F", F)
 }
 
 type aAlias = a.A //@loc(aAlias, "aAlias")
@@ -85,18 +96,29 @@ func Bar() {
 	_ = x.F2    //@def("F2", S2F2),hover("F2", "F2", S2F2)
 	_ = x.S2.F1 //@def("F1", S2F1),hover("F1", "F1", S2F1)
 }
+
 -- b/c.go --
 package b
 
 var _ = S1{ //@def("S1", S1),hover("S1", "S1", S1)
 	F1: 99, //@def("F1", S1F1),hover("F1", "F1", S1F1)
 }
+
 -- @AHi/hover.md --
 ```go
 func (a.A).Hi()
 ```
 
 [`(a.A).Hi` on pkg.go.dev](https://pkg.go.dev/mod.com/a#A.Hi)
+-- @F/hover.md --
+```go
+field F int
+```
+
+@loc(F, "F")
+
+
+[`(b.Embed).F` on pkg.go.dev](https://pkg.go.dev/mod.com/b#Embed.F)
 -- @HGoodbye/hover.md --
 ```go
 func (a.H).Goodbye()
@@ -124,6 +146,12 @@ func (a.J).Hello()
 
 
 [`(a.J).Hello` on pkg.go.dev](https://pkg.go.dev/mod.com/a#J.Hello)
+-- @M/hover.md --
+```go
+func (embed).M()
+```
+
+[`(b.Embed).M` on pkg.go.dev](https://pkg.go.dev/mod.com/b#Embed.M)
 -- @RField2/hover.md --
 ```go
 field Field2 int
