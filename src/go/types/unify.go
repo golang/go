@@ -43,7 +43,7 @@ const (
 // A unifier is created by calling newUnifier.
 type unifier struct {
 	// tparams is the initial list of type parameters provided.
-	// Only used to print/return types in reproducible order.
+	// Only used to print types in reproducible order.
 	tparams []*TypeParam
 	// handles maps each type parameter to its inferred type through
 	// an indirection *Type called (inferred type) "handle".
@@ -183,21 +183,16 @@ func (u *unifier) unknowns() int {
 	return n
 }
 
-// inferred returns the list of inferred types (via unification) for the type parameters
-// recorded with u, and an index. If all types were inferred, the returned index is < 0.
-// Otherwise, it is the index of the first type parameter which couldn't be inferred;
-// i.e., for which list[index] is nil.
-func (u *unifier) inferred() (list []Type, index int) {
-	list = make([]Type, len(u.tparams))
-	index = -1
-	for i, x := range u.tparams {
-		t := u.at(x)
-		list[i] = t
-		if index < 0 && t == nil {
-			index = i
-		}
+// inferred returns the list of inferred types for the given type parameter list.
+// The result is never nil and has the same length as tparams; result types that
+// could not be inferred are nil. Corresponding type parameters and result types
+// have identical indices.
+func (u *unifier) inferred(tparams []*TypeParam) []Type {
+	list := make([]Type, len(tparams))
+	for i, x := range tparams {
+		list[i] = u.at(x)
 	}
-	return
+	return list
 }
 
 func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {

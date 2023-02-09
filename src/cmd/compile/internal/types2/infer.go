@@ -91,8 +91,8 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 			return
 		}
 		// provide a better error message if we can
-		targs, index := u.inferred()
-		if index == 0 {
+		targs := u.inferred(tparams)
+		if targs[0] == nil {
 			// The first type parameter couldn't be inferred.
 			// If none of them could be inferred, don't try
 			// to provide the inferred type in the error msg.
@@ -156,9 +156,8 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 	}
 
 	// If we've got all type arguments, we're done.
-	var index int
-	targs, index = u.inferred()
-	if index < 0 {
+	targs = u.inferred(tparams)
+	if u.unknowns() == 0 {
 		return targs
 	}
 
@@ -166,7 +165,7 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 	// See how far we get with constraint type inference.
 	// Note that even if we don't have any type arguments, constraint type inference
 	// may produce results for constraints that explicitly specify a type.
-	targs, index = check.inferB(tparams, targs)
+	targs, index := check.inferB(tparams, targs)
 	if targs == nil || index < 0 {
 		return targs
 	}
@@ -193,8 +192,8 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 	}
 
 	// If we've got all type arguments, we're done.
-	targs, index = u.inferred()
-	if index < 0 {
+	targs = u.inferred(tparams)
+	if u.unknowns() == 0 {
 		return targs
 	}
 
@@ -496,14 +495,14 @@ func (check *Checker) inferB(tparams []*TypeParam, targs []Type) (types []Type, 
 		n = nn
 	}
 
-	// u.inferred() now contains the incoming type arguments plus any additional type
+	// u.inferred(tparams) now contains the incoming type arguments plus any additional type
 	// arguments which were inferred from core terms. The newly inferred non-nil
 	// entries may still contain references to other type parameters.
 	// For instance, for [A any, B interface{ []C }, C interface{ *A }], if A == int
 	// was given, unification produced the type list [int, []C, *A]. We eliminate the
 	// remaining type parameters by substituting the type parameters in this type list
 	// until nothing changes anymore.
-	types, _ = u.inferred()
+	types = u.inferred(tparams)
 	if debug {
 		for i, targ := range targs {
 			assert(targ == nil || types[i] == targ)
