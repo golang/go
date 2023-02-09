@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loader"
 	"internal/buildcfg"
 )
 
@@ -52,6 +53,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Dwarfregsp: DWARFREGSP,
 		Dwarfreglr: DWARFREGLR,
 
+		Adddynrel:        adddynrel,
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
@@ -96,4 +98,10 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 	}
+}
+
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
+	ld.Exitf("adddynrel currently unimplemented for MIPS")
+	return false
+
 }
