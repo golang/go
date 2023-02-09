@@ -232,12 +232,12 @@ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)
 
 // never called (this is a GOARM=7 platform)
-TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·read_tls_fallback(SB),NOSPLIT,$0
 	MOVW	$0xabcd, R0
 	MOVW	R0, (R0)
 	RET
 
-TEXT runtime·nanotime1(SB),NOSPLIT|NOFRAME,$0-8
+TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
 	MOVW	$0, R0
 	MOVB	runtime·useQPCTime(SB), R0
 	CMP	$0, R0
@@ -262,7 +262,7 @@ loop:
 	MOVW	R4, ret_hi+4(FP)
 	RET
 useQPC:
-	B	runtime·nanotimeQPC(SB)		// tail call
+	RET	runtime·nanotimeQPC(SB)		// tail call
 
 // save_g saves the g register (R10) into thread local memory
 // so that we can call externally compiled
@@ -273,7 +273,7 @@ useQPC:
 // Save the value in the _TEB->TlsSlots array.
 // Effectively implements TlsSetValue().
 // tls_g stores the TLS slot allocated TlsAlloc().
-TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·save_g(SB),NOSPLIT,$0
 	MRC	15, 0, R0, C13, C0, 2
 	ADD	$0xe10, R0
 	MOVW 	$runtime·tls_g(SB), R11
@@ -287,7 +287,7 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
 // ARM code that overwrote those registers.
 // Get the value from the _TEB->TlsSlots array.
 // Effectively implements TlsGetValue().
-TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·load_g(SB),NOSPLIT,$0
 	MRC	15, 0, R0, C13, C0, 2
 	ADD	$0xe10, R0
 	MOVW 	$runtime·tls_g(SB), g

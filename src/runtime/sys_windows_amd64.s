@@ -12,9 +12,12 @@
 #define TEB_TlsSlots 0x1480
 
 // void runtime·asmstdcall(void *c);
-TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
-	// asmcgocall will put first argument into CX.
-	PUSHQ	CX			// save for later
+TEXT runtime·asmstdcall(SB),NOSPLIT,$16
+	MOVQ	SP, AX
+	ANDQ	$~15, SP	// alignment as per Windows requirement
+	MOVQ	AX, 8(SP)
+	MOVQ	CX, 0(SP)	// asmcgocall will put first argument into CX.
+
 	MOVQ	libcall_fn(CX), AX
 	MOVQ	libcall_args(CX), SI
 	MOVQ	libcall_n(CX), CX
@@ -61,7 +64,8 @@ loadregs:
 	ADDQ	$(const_maxArgs*8), SP
 
 	// Return result.
-	POPQ	CX
+	MOVQ	0(SP), CX
+	MOVQ	8(SP), SP
 	MOVQ	AX, libcall_r1(CX)
 	// Floating point return values are returned in XMM0. Setting r2 to this
 	// value in case this call returned a floating point value. For details,
@@ -233,7 +237,7 @@ TEXT runtime·settls(SB),NOSPLIT,$0
 // g may be nil.
 // The function leaves room for 4 syscall parameters
 // (as per windows amd64 calling convention).
-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48-4
+TEXT runtime·usleep2(SB),NOSPLIT,$48-4
 	MOVLQSX	dt+0(FP), BX
 	MOVQ	SP, AX
 	ANDQ	$~15, SP	// alignment as per Windows requirement
@@ -249,7 +253,7 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48-4
 
 // Runs on OS stack. duration (in -100ns units) is in dt+0(FP).
 // g is valid.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72-4
+TEXT runtime·usleep2HighRes(SB),NOSPLIT,$72-4
 	MOVLQSX	dt+0(FP), BX
 	get_tls(CX)
 
@@ -281,7 +285,7 @@ TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72-4
 	RET
 
 // Runs on OS stack.
-TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·switchtothread(SB),NOSPLIT,$0
 	MOVQ	SP, AX
 	ANDQ	$~15, SP	// alignment as per Windows requirement
 	SUBQ	$(48), SP	// room for SP and 4 args as per Windows requirement
@@ -306,7 +310,7 @@ useQPC:
 
 // func osSetupTLS(mp *m)
 // Setup TLS. for use by needm on Windows.
-TEXT runtime·osSetupTLS(SB),NOSPLIT|NOFRAME,$0-8
+TEXT runtime·osSetupTLS(SB),NOSPLIT,$0-8
 	MOVQ	mp+0(FP), AX
 	LEAQ	m_tls(AX), DI
 	CALL	runtime·settls(SB)
@@ -314,7 +318,7 @@ TEXT runtime·osSetupTLS(SB),NOSPLIT|NOFRAME,$0-8
 
 // This is called from rt0_go, which runs on the system stack
 // using the initial stack allocated by the OS.
-TEXT runtime·wintls(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·wintls(SB),NOSPLIT,$0
 	// Allocate a TLS slot to hold g across calls to external code
 	MOVQ	SP, AX
 	ANDQ	$~15, SP	// alignment as per Windows requirement

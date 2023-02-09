@@ -50,7 +50,7 @@ TEXT runtime·getlasterror(SB),NOSPLIT,$0
 	MOVL	AX, ret+0(FP)
 	RET
 
-TEXT runtime·sigFetchGSafe<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·sigFetchGSafe<ABIInternal>(SB),NOSPLIT,$0
 	get_tls(AX)
 	CMPL	AX, $0
 	JE	2(PC)
@@ -93,7 +93,7 @@ TEXT sigtramp<>(SB),NOSPLIT,$0-0
 // It switches stacks and jumps to the continuation address.
 // DX and CX are set above at the end of sigtrampgo
 // in the context that starts executing at sigresume.
-TEXT runtime·sigresume(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·sigresume(SB),NOSPLIT,$0
 	MOVL	DX, SP
 	JMP	CX
 
@@ -311,7 +311,7 @@ useQPC:
 
 // This is called from rt0_go, which runs on the system stack
 // using the initial stack allocated by the OS.
-TEXT runtime·wintls(SB),NOSPLIT|NOFRAME,$0
+TEXT runtime·wintls(SB),NOSPLIT,$0
 	// Allocate a TLS slot to hold g across calls to external code
 	MOVL	SP, BP
 	MOVL	runtime·_TlsAlloc(SB), AX
