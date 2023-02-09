@@ -1814,6 +1814,7 @@ const (
 	MADV_DONTDUMP                               = 0x10
 	MADV_DONTFORK                               = 0xa
 	MADV_DONTNEED                               = 0x4
+	MADV_DONTNEED_LOCKED                        = 0x18
 	MADV_FREE                                   = 0x8
 	MADV_HUGEPAGE                               = 0xe
 	MADV_HWPOISON                               = 0x64

@@ -20,11 +20,13 @@ import (
 )
 
 var (
-	stackOnce          sync.Once
-	ipv4Enabled        bool
-	ipv6Enabled        bool
-	unStrmDgramEnabled bool
-	rawSocketSess      bool
+	stackOnce               sync.Once
+	ipv4Enabled             bool
+	canListenTCP4OnLoopback bool
+	ipv6Enabled             bool
+	canListenTCP6OnLoopback bool
+	unStrmDgramEnabled      bool
+	rawSocketSess           bool
 
 	aLongTimeAgo = time.Unix(233431200, 0)
 	neverTimeout = time.Time{}
@@ -34,13 +36,19 @@ var (
 )
 
 func probeStack() {
+	if _, err := RoutedInterface("ip4", net.FlagUp); err == nil {
+		ipv4Enabled = true
+	}
 	if ln, err := net.Listen("tcp4", "127.0.0.1:0"); err == nil {
 		ln.Close()
-		ipv4Enabled = true
+		canListenTCP4OnLoopback = true
+	}
+	if _, err := RoutedInterface("ip6", net.FlagUp); err == nil {
+		ipv6Enabled = true
 	}
 	if ln, err := net.Listen("tcp6", "[::1]:0"); err == nil {
 		ln.Close()
-		ipv6Enabled = true
+		canListenTCP6OnLoopback = true
 	}
 	rawSocketSess = supportsRawSocket()
 	switch runtime.GOOS {
@@ -154,22 +162,23 @@ func TestableAddress(network, address string) bool {
 // The provided network must be "tcp", "tcp4", "tcp6", "unix" or
 // "unixpacket".
 func NewLocalListener(network string) (net.Listener, error) {
+	stackOnce.Do(probeStack)
 	switch network {
 	case "tcp":
-		if SupportsIPv4() {
+		if canListenTCP4OnLoopback {
 			if ln, err := net.Listen("tcp4", "127.0.0.1:0"); err == nil {
 				return ln, nil
 			}
 		}
-		if SupportsIPv6() {
+		if canListenTCP6OnLoopback {
 			return net.Listen("tcp6", "[::1]:0")
 		}
 	case "tcp4":
-		if SupportsIPv4() {
+		if canListenTCP4OnLoopback {
 			return net.Listen("tcp4", "127.0.0.1:0")
 		}
 	case "tcp6":
-		if SupportsIPv6() {
+		if canListenTCP6OnLoopback {
 			return net.Listen("tcp6", "[::1]:0")
 		}
 	case "unix", "unixpacket":
@@ -187,22 +196,23 @@ func NewLocalListener(network string) (net.Listener, error) {
 //
 // The provided network must be "udp", "udp4", "udp6" or "unixgram".
 func NewLocalPacketListener(network string) (net.PacketConn, error) {
+	stackOnce.Do(probeStack)
 	switch network {
 	case "udp":
-		if SupportsIPv4() {
+		if canListenTCP4OnLoopback {
 			if c, err := net.ListenPacket("udp4", "127.0.0.1:0"); err == nil {
 				return c, nil
 			}
 		}
-		if SupportsIPv6() {
+		if canListenTCP6OnLoopback {
 			return net.ListenPacket("udp6", "[::1]:0")
 		}
 	case "udp4":
-		if SupportsIPv4() {
+		if canListenTCP4OnLoopback {
 			return net.ListenPacket("udp4", "127.0.0.1:0")
 		}
 	case "udp6":
-		if SupportsIPv6() {
+		if canListenTCP6OnLoopback {
 			return net.ListenPacket("udp6", "[::1]:0")
 		}
 	case "unixgram":

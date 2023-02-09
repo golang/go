@@ -578,7 +578,7 @@ func Lutimes(path string, tv []Timeval) error {
 	return UtimesNanoAt(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW)
 }
 
-// emptyIovec reports whether there are no bytes in the slice of Iovec.
+// emptyIovecs reports whether there are no bytes in the slice of Iovec.
 func emptyIovecs(iov []Iovec) bool {
 	for i := range iov {
 		if iov[i].Len > 0 {

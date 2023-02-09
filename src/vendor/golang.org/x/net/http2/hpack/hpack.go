@@ -211,7 +211,7 @@ func (d *Decoder) at(i uint64) (hf HeaderField, ok bool) {
 	return dt.ents[dt.len()-(int(i)-staticTable.len())], true
 }
 
-// Decode decodes an entire block.
+// DecodeFull decodes an entire block.
 //
 // TODO: remove this method and make it incremental later? This is
 // easier for debugging now.

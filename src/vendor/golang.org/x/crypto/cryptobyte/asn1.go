@@ -559,7 +559,7 @@ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
 	return true
 }
 
-// ReadASN1BitString decodes an ASN.1 BIT STRING into out and advances. It is
+// ReadASN1BitStringAsBytes decodes an ASN.1 BIT STRING into out and advances. It is
 // an error if the BIT STRING is not a whole number of bytes. It reports
 // whether the read was successful.
 func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {

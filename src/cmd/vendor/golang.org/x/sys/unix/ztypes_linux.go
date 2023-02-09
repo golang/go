@@ -30,6 +30,41 @@ type Itimerval struct {
 }
 
 const (
+	ADJ_OFFSET            = 0x1
+	ADJ_FREQUENCY         = 0x2
+	ADJ_MAXERROR          = 0x4
+	ADJ_ESTERROR          = 0x8
+	ADJ_STATUS            = 0x10
+	ADJ_TIMECONST         = 0x20
+	ADJ_TAI               = 0x80
+	ADJ_SETOFFSET         = 0x100
+	ADJ_MICRO             = 0x1000
+	ADJ_NANO              = 0x2000
+	ADJ_TICK              = 0x4000
+	ADJ_OFFSET_SINGLESHOT = 0x8001
+	ADJ_OFFSET_SS_READ    = 0xa001
+)
+
+const (
+	STA_PLL       = 0x1
+	STA_PPSFREQ   = 0x2
+	STA_PPSTIME   = 0x4
+	STA_FLL       = 0x8
+	STA_INS       = 0x10
+	STA_DEL       = 0x20
+	STA_UNSYNC    = 0x40
+	STA_FREQHOLD  = 0x80
+	STA_PPSSIGNAL = 0x100
+	STA_PPSJITTER = 0x200
+	STA_PPSWANDER = 0x400
+	STA_PPSERROR  = 0x800
+	STA_CLOCKERR  = 0x1000
+	STA_NANO      = 0x2000
+	STA_MODE      = 0x4000
+	STA_CLK       = 0x8000
+)
+
+const (
 	TIME_OK    = 0x0
 	TIME_INS   = 0x1
 	TIME_DEL   = 0x2

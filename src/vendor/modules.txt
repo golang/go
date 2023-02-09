@@ -1,4 +1,4 @@
-# golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a
+# golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4
 ## explicit; go 1.17
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/chacha20poly1305
@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
-# golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10
+# golang.org/x/net v0.5.1-0.20230208184008-87ce33ecb484
 ## explicit; go 1.17
 golang.org/x/net/dns/dnsmessage
 golang.org/x/net/http/httpguts
@@ -17,10 +17,10 @@ golang.org/x/net/idna
 golang.org/x/net/lif
 golang.org/x/net/nettest
 golang.org/x/net/route
-# golang.org/x/sys v0.4.1-0.20230127010248-17fce3ac51c7
+# golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339
 ## explicit; go 1.17
 golang.org/x/sys/cpu
-# golang.org/x/text v0.5.0
+# golang.org/x/text v0.7.1-0.20230207171107-30dadde3188b
 ## explicit; go 1.17
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform

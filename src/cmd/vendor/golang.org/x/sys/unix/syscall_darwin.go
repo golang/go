@@ -230,6 +230,7 @@ func direntNamlen(buf []byte) (uint64, bool) {
 
 func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
 func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
+func PtraceDenyAttach() (err error)    { return ptrace(PT_DENY_ATTACH, 0, 0, 0) }
 
 //sysnb	pipe(p *[2]int32) (err error)
 

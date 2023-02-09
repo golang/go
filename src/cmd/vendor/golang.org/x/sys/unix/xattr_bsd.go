@@ -36,9 +36,14 @@ func xattrnamespace(fullattr string) (ns int, attr string, err error) {
 func initxattrdest(dest []byte, idx int) (d unsafe.Pointer) {
 	if len(dest) > idx {
 		return unsafe.Pointer(&dest[idx])
-	} else {
-		return unsafe.Pointer(_zero)
 	}
+	if dest != nil {
+		// extattr_get_file and extattr_list_file treat NULL differently from
+		// a non-NULL pointer of length zero. Preserve the property of nilness,
+		// even if we can't use dest directly.
+		return unsafe.Pointer(&_zero)
+	}
+	return nil
 }
 
 // FreeBSD and NetBSD implement their own syscalls to handle extended attributes
