@@ -9,6 +9,7 @@ package types2
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -40,9 +41,6 @@ const (
 // corresponding types inferred for each type parameter.
 // A unifier is created by calling newUnifier.
 type unifier struct {
-	// tparams is the initial list of type parameters provided.
-	// Only used to print types in reproducible order.
-	tparams []*TypeParam
 	// handles maps each type parameter to its inferred type through
 	// an indirection *Type called (inferred type) "handle".
 	// Initially, each type parameter has its own, separate handle,
@@ -74,7 +72,7 @@ func newUnifier(tparams []*TypeParam, targs []Type) *unifier {
 		}
 		handles[x] = &t
 	}
-	return &unifier{tparams, handles, 0}
+	return &unifier{handles, 0}
 }
 
 // unify attempts to unify x and y and reports whether it succeeded.
@@ -90,10 +88,19 @@ func (u *unifier) tracef(format string, args ...interface{}) {
 // String returns a string representation of the current mapping
 // from type parameters to types.
 func (u *unifier) String() string {
+	// sort type parameters for reproducible strings
+	tparams := make(typeParamsById, len(u.handles))
+	i := 0
+	for tpar := range u.handles {
+		tparams[i] = tpar
+		i++
+	}
+	sort.Sort(tparams)
+
 	var buf bytes.Buffer
 	w := newTypeWriter(&buf, nil)
 	w.byte('[')
-	for i, x := range u.tparams {
+	for i, x := range tparams {
 		if i > 0 {
 			w.string(", ")
 		}
@@ -104,6 +111,12 @@ func (u *unifier) String() string {
 	w.byte(']')
 	return buf.String()
 }
+
+type typeParamsById []*TypeParam
+
+func (s typeParamsById) Len() int           { return len(s) }
+func (s typeParamsById) Less(i, j int) bool { return s[i].id < s[j].id }
+func (s typeParamsById) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // join unifies the given type parameters x and y.
 // If both type parameters already have a type associated with them
@@ -504,7 +517,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		// avoid a crash in case of nil type
 
 	default:
-		panic(sprintf(nil, true, "u.nify(%s, %s), u.tparams = %s", x, y, u.tparams))
+		panic(sprintf(nil, true, "u.nify(%s, %s)", x, y))
 	}
 
 	return false
