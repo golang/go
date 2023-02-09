@@ -457,37 +457,36 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
 func (p *Profile) RedirectEdges(cur *IRNode, inlinedCallSites map[CallSiteInfo]struct{}) {
 	g := p.WeightedCG
 
-	for i, outEdge := range g.OutEdges[cur] {
-		if _, found := inlinedCallSites[CallSiteInfo{LineOffset: outEdge.CallSiteOffset, Caller: cur.AST}]; !found {
+	i := 0
+	outs := g.OutEdges[cur]
+	for i < len(outs) {
+		outEdge := outs[i]
+		redirected := false
+		_, found := inlinedCallSites[CallSiteInfo{LineOffset: outEdge.CallSiteOffset, Caller: cur.AST}]
+		if !found {
 			for _, InEdge := range g.InEdges[cur] {
 				if _, ok := inlinedCallSites[CallSiteInfo{LineOffset: InEdge.CallSiteOffset, Caller: InEdge.Src.AST}]; ok {
 					weight := g.calculateWeight(InEdge.Src, cur)
-					g.redirectEdge(InEdge.Src, cur, outEdge, weight, i)
+					g.redirectEdge(InEdge.Src, outEdge, weight)
+					redirected = true
 				}
 			}
-		} else {
-			g.remove(cur, i)
 		}
+		if found || redirected {
+			g.remove(cur, i)
+			outs = g.OutEdges[cur]
+			continue
+		}
+		i++
 	}
 }
 
-// redirectEdges deletes the cur node out-edges and redirect them so now these
-// edges are the parent node out-edges.
-func (g *IRGraph) redirectEdges(parent *IRNode, cur *IRNode) {
-	for _, outEdge := range g.OutEdges[cur] {
-		outEdge.Src = parent
-		g.OutEdges[parent] = append(g.OutEdges[parent], outEdge)
-	}
-	delete(g.OutEdges, cur)
-}
-
-// redirectEdge deletes the cur-node's out-edges and redirect them so now these
-// edges are the parent node out-edges.
-func (g *IRGraph) redirectEdge(parent *IRNode, cur *IRNode, outEdge *IREdge, weight int64, idx int) {
-	outEdge.Src = parent
-	outEdge.Weight = weight * outEdge.Weight
-	g.OutEdges[parent] = append(g.OutEdges[parent], outEdge)
-	g.remove(cur, idx)
+// redirectEdge redirects a node's out-edge to one of its parent nodes, cloning is
+// required as the node might be inlined in multiple call-sites.
+// TODO: adjust the in-edges of outEdge.Dst if necessary
+func (g *IRGraph) redirectEdge(parent *IRNode, outEdge *IREdge, weight int64) {
+	edge := &IREdge{Src: parent, Dst: outEdge.Dst, Weight: weight * outEdge.Weight, CallSiteOffset: outEdge.CallSiteOffset}
+	g.OutEdges[parent] = append(g.OutEdges[parent], edge)
 }
 
 // remove deletes the cur-node's out-edges at index idx.
