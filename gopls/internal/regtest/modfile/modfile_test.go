@@ -1186,3 +1186,78 @@ package main
 		env.SaveBuffer("go.work") // doesn't fail
 	})
 }
+
+func TestInconsistentMod(t *testing.T) {
+	const proxy = `
+-- golang.org/x/mod@v0.7.0/go.mod --
+go 1.20
+module golang.org/x/mod
+-- golang.org/x/mod@v0.7.0/a.go --
+package mod
+func AutoQuote(string) string { return ""}
+-- golang.org/x/mod@v0.9.0/go.mod --
+go 1.20
+module golang.org/x/mod
+-- golang.org/x/mod@v0.9.0/a.go --
+package mod
+func AutoQuote(string) string { return ""}
+`
+	const files = `
+-- go.work --
+go 1.20
+use (
+	./a
+	./b
+)
+
+-- a/go.mod --
+module a.mod.com
+go 1.20
+require golang.org/x/mod v0.6.0 // yyy
+replace golang.org/x/mod v0.6.0 => golang.org/x/mod v0.7.0
+-- a/main.go --
+package main
+import "golang.org/x/mod"
+import "fmt"
+func main() {fmt.Println(mod.AutoQuote(""))}
+
+-- b/go.mod --
+module b.mod.com
+go 1.20
+require golang.org/x/mod v0.9.0 // xxx
+-- b/main.go --
+package aaa
+import "golang.org/x/mod"
+import "fmt"
+func main() {fmt.Println(mod.AutoQuote(""))}
+var A int
+
+-- b/c/go.mod --
+module c.b.mod.com
+go 1.20
+require b.mod.com v0.4.2
+replace b.mod.com => ../
+-- b/c/main.go --
+package main
+import "b.mod.com/aaa"
+import "fmt"
+func main() {fmt.Println(aaa.A)}
+`
+	testenv.NeedsGo1Point(t, 18)
+	WithOptions(
+		ProxyFiles(proxy),
+		Modes(Default),
+	).Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("a/go.mod")
+		ahints := env.InlayHints("a/go.mod")
+		if len(ahints) != 1 {
+			t.Errorf("expected exactly one hint, got %d: %#v", len(ahints), ahints)
+		}
+		env.OpenFile("b/c/go.mod")
+		bhints := env.InlayHints("b/c/go.mod")
+		if len(bhints) != 0 {
+			t.Errorf("expected no hints, got %d: %#v", len(bhints), bhints)
+		}
+	})
+
+}

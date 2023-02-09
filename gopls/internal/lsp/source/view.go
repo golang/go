@@ -857,6 +857,7 @@ const (
 	Govulncheck              DiagnosticSource = "govulncheck"
 	TemplateError            DiagnosticSource = "template"
 	WorkFileError            DiagnosticSource = "go.work file"
+	ConsistencyInfo          DiagnosticSource = "consistency"
 )
 
 func AnalyzerErrorKind(name string) DiagnosticSource {
