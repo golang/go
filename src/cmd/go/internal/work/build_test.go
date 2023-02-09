@@ -41,19 +41,20 @@ func TestSplitPkgConfigOutput(t *testing.T) {
 	}{
 		{[]byte(`-r:foo -L/usr/white\ space/lib -lfoo\ bar -lbar\ baz`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
 		{[]byte(`-lextra\ fun\ arg\\`), []string{`-lextra fun arg\`}},
-		{[]byte("\textra     whitespace\r\n"), []string{"extra", "whitespace"}},
-		{[]byte("     \r\n      "), nil},
+		{[]byte("\textra     whitespace\r\n"), []string{"extra", "whitespace\r"}},
+		{[]byte("     \r\n      "), []string{"\r"}},
 		{[]byte(`"-r:foo" "-L/usr/white space/lib" "-lfoo bar" "-lbar baz"`), []string{"-r:foo", "-L/usr/white space/lib", "-lfoo bar", "-lbar baz"}},
 		{[]byte(`"-lextra fun arg\\"`), []string{`-lextra fun arg\`}},
 		{[]byte(`"     \r\n\      "`), []string{`     \r\n\      `}},
-		{[]byte(`""`), nil},
+		{[]byte(`""`), []string{""}},
 		{[]byte(``), nil},
 		{[]byte(`"\\"`), []string{`\`}},
 		{[]byte(`"\x"`), []string{`\x`}},
 		{[]byte(`"\\x"`), []string{`\x`}},
-		{[]byte(`'\\'`), []string{`\`}},
+		{[]byte(`'\\'`), []string{`\\`}},
 		{[]byte(`'\x'`), []string{`\x`}},
 		{[]byte(`"\\x"`), []string{`\x`}},
+		{[]byte("\\\n"), nil},
 		{[]byte(`-fPIC -I/test/include/foo -DQUOTED='"/test/share/doc"'`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
 		{[]byte(`-fPIC -I/test/include/foo -DQUOTED="/test/share/doc"`), []string{"-fPIC", "-I/test/include/foo", "-DQUOTED=/test/share/doc"}},
 		{[]byte(`-fPIC -I/test/include/foo -DQUOTED=\"/test/share/doc\"`), []string{"-fPIC", "-I/test/include/foo", `-DQUOTED="/test/share/doc"`}},
@@ -64,11 +65,11 @@ func TestSplitPkgConfigOutput(t *testing.T) {
 	} {
 		got, err := splitPkgConfigOutput(test.in)
 		if err != nil {
-			t.Errorf("splitPkgConfigOutput on %v failed with error %v", test.in, err)
+			t.Errorf("splitPkgConfigOutput on %#q failed with error %v", test.in, err)
 			continue
 		}
 		if !reflect.DeepEqual(got, test.want) {
-			t.Errorf("splitPkgConfigOutput(%v) = %v; want %v", test.in, got, test.want)
+			t.Errorf("splitPkgConfigOutput(%#q) = %#q; want %#q", test.in, got, test.want)
 		}
 	}
 
