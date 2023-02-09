@@ -1549,9 +1549,12 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 			return nil, nil, err
 		}
 		if len(out) > 0 {
-			// NOTE: we don't attempt to parse quotes and unescapes here. pkg-config
-			// is typically used within shell backticks, which treats quotes literally.
-			ldflags = strings.Fields(string(out))
+			// We need to handle path with spaces so that C:/Program\ Files can pass
+			// checkLinkerFlags. Use splitPkgConfigOutput here just like we treat cflags.
+			ldflags, err = splitPkgConfigOutput(out)
+			if err != nil {
+				return nil, nil, err
+			}
 			if err := checkLinkerFlags("LDFLAGS", "pkg-config --libs", ldflags); err != nil {
 				return nil, nil, err
 			}

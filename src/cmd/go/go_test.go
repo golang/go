@@ -1616,6 +1616,22 @@ func main() {
 `)
 	tg.setenv("PKG_CONFIG_PATH", tg.path("."))
 	tg.run("run", tg.path("foo.go"))
+
+	// test for ldflags
+	tg.tempFile("bar.pc", `
+Name: bar
+Description: The bar library
+Version: 1.0.0
+Libs: -Wl,-rpath=/path\ with\ spaces/bin
+`)
+	tg.tempFile("bar.go", `package main
+/*
+#cgo pkg-config: bar
+*/
+import "C"
+func main() {}
+`)
+	tg.run("run", tg.path("bar.go"))
 }
 
 func TestListTemplateContextFunction(t *testing.T) {
