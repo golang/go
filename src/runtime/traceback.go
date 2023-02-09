@@ -76,7 +76,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	if usesLR {
 		frame.lr = lr0
 	}
-	cgoCtxt := gp.cgoCtxt
+	cgoCtxt := len(gp.cgoCtxt) - 1 // Index into gp.cgoCtxt
 	printing := pcbuf == nil && callback == nil
 
 	// If the PC is zero, it's likely a nil function call.
@@ -175,7 +175,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					flag = f.flag
 					frame.lr = gp.sched.lr
 					frame.sp = gp.sched.sp
-					cgoCtxt = gp.cgoCtxt
+					cgoCtxt = len(gp.cgoCtxt) - 1
 				case funcID_systemstack:
 					// systemstack returns normally, so just follow the
 					// stack transition.
@@ -192,7 +192,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					}
 					gp = gp.m.curg
 					frame.sp = gp.sched.sp
-					cgoCtxt = gp.cgoCtxt
+					cgoCtxt = len(gp.cgoCtxt) - 1
 					flag &^= funcFlag_SPWRITE
 				}
 			}
@@ -390,9 +390,9 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		}
 		n++
 
-		if f.funcID == funcID_cgocallback && len(cgoCtxt) > 0 {
-			ctxt := cgoCtxt[len(cgoCtxt)-1]
-			cgoCtxt = cgoCtxt[:len(cgoCtxt)-1]
+		if f.funcID == funcID_cgocallback && cgoCtxt >= 0 {
+			ctxt := gp.cgoCtxt[cgoCtxt]
+			cgoCtxt--
 
 			// skip only applies to Go frames.
 			// callback != nil only used when we only care
