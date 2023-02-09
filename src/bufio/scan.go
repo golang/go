@@ -53,11 +53,13 @@ type Scanner struct {
 // Otherwise, the Scanner advances the input. If the token is not nil,
 // the Scanner returns it to the user. If the token is nil, the
 // Scanner reads more data and continues scanning; if there is no more
-// data--if atEOF was true--the Scanner returns. If the data does not
-// yet hold a complete token, for instance if it has no newline while
-// scanning lines, a SplitFunc can return (0, nil, nil) to signal the
-// Scanner to read more data into the slice and try again with a
-// longer slice starting at the same point in the input.
+// data--if atEOF was true--the Scanner returns; if there is no more data
+// -- if atEOF was false -- SplitFunc returns an error of ErrFinalToken,
+// and the scanner returns. If the data does not yet hold a complete token,
+// for instance if it has no newline while scanning lines, a SplitFunc can
+// return (0, nil, nil) to signal the Scanner to read more data into the
+// slice and try again with a longer slice starting at the same point in the
+// input.
 //
 // The function is never called with an empty data slice unless atEOF
 // is true. If atEOF is true, however, data may be non-empty and,
