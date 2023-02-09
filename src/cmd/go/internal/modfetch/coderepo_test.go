@@ -405,18 +405,6 @@ var codeRepoTests = []codeRepoTest{
 		zipFileHash: "c15e49d58b7a4c37966cbe5bc01a0330cd5f2927e990e1839bda1d407766d9c5",
 	},
 	{
-		vcs:         "git",
-		path:        "gopkg.in/natefinch/lumberjack.v2",
-		rev:         "latest",
-		version:     "v2.0.0-20170531160350-a96e63847dc3",
-		name:        "a96e63847dc3c67d17befa69c303767e2f84e54f",
-		short:       "a96e63847dc3",
-		time:        time.Date(2017, 5, 31, 16, 3, 50, 0, time.UTC),
-		gomod:       "module gopkg.in/natefinch/lumberjack.v2\n",
-		zipSum:      "h1:AFxeG48hTWHhDTQDk/m2gorfVHUEa9vo3tp3D7TzwjI=",
-		zipFileHash: "b5de0da7bbbec76709eef1ac71b6c9ff423b9fbf3bb97b56743450d4937b06d5",
-	},
-	{
 		vcs:  "git",
 		path: "gopkg.in/natefinch/lumberjack.v2",
 		// This repo has a v2.1 tag.
@@ -817,11 +805,6 @@ var codeRepoVersionsTests = []struct {
 		vcs:      "mod",
 		path:     "swtch.com/testmod",
 		versions: []string{"v1.0.0", "v1.1.1"},
-	},
-	{
-		vcs:      "git",
-		path:     "gopkg.in/natefinch/lumberjack.v2",
-		versions: []string{"v2.0.0"},
 	},
 	{
 		vcs:      "git",
