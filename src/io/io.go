@@ -14,6 +14,7 @@ package io
 
 import (
 	"errors"
+	"internal/race"
 	"sync"
 )
 
@@ -427,6 +428,14 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			nw, ew := dst.Write(buf[0:nr])
+			if race.Enabled {
+				// Write over the buffer to help the race detector
+				// detect Write calls that access the buffer after returning.
+				// Use something other than zeros to make errors more obvious.
+				for i := range buf[:nr] {
+					buf[i] = 0xdd
+				}
+			}
 			if nw < 0 || nr < nw {
 				nw = 0
 				if ew == nil {
