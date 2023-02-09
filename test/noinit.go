@@ -1,4 +1,4 @@
-// run
+// run -gcflags=-d=inlstaticinit=1
 //go:build !gcflags_noopt
 
 // Copyright 2010 The Go Authors. All rights reserved.
