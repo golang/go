@@ -338,7 +338,7 @@ func stackFrameEncodedSize(id uint, f traceviewer.Frame) int {
 	// The parent is omitted if 0. The trailing comma is omitted from the
 	// last entry, but we don't need that much precision.
 	const (
-		baseSize = len(`"`) + len (`":{"name":"`) + len(`"},`)
+		baseSize = len(`"`) + len(`":{"name":"`) + len(`"},`)
 
 		// Don't count the trailing quote on the name, as that is
 		// counted in baseSize.
@@ -647,7 +647,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			oldState = info.state
 		}
 		if info.state != oldState && setGStateErr == nil {
-			setGStateErr = fmt.Errorf("expected G %d to be in state %d, but got state %d", g, oldState, newState)
+			setGStateErr = fmt.Errorf("expected G %d to be in state %d, but got state %d", g, oldState, info.state)
 		}
 		ctx.gstates[info.state]--
 		ctx.gstates[newState]++
