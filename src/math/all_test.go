@@ -2094,33 +2094,6 @@ var sqrt32 = []float32{
 	-5.0106036182710749e+00,
 }
 
-type compareTest[F float32 | float64] struct {
-	x, y F
-	want int
-}
-
-func compareCases[F float32 | float64]() []compareTest[F] {
-	zero, nan, inf := F(0.0), F(NaN()), F(Inf(0))
-	return []compareTest[F]{
-		{-nan, -inf, -1},
-		{-inf, -nan, 1},
-		{-inf, -Pi, -1},
-		{-Pi, -inf, 1},
-		{-Pi, -zero, -1},
-		{-zero, -Pi, 1},
-		{-zero, 0, -1},
-		{0, -zero, 1},
-		{0, Pi, -1},
-		{Pi, 0, 1},
-		{Pi, inf, -1},
-		{inf, Pi, 1},
-		{inf, nan, -1},
-		{nan, inf, 1},
-		{Pi, Pi, 0},
-		{-nan, -nan, 0},
-	}
-}
-
 func tolerance(a, b, e float64) bool {
 	// Multiplying by e here can underflow denormal values to zero.
 	// Check a==b so that at least if a and b are small and identical
@@ -2284,22 +2257,6 @@ func TestCeil(t *testing.T) {
 	for i := 0; i < len(vfceilSC); i++ {
 		if f := Ceil(vfceilSC[i]); !alike(ceilSC[i], f) {
 			t.Errorf("Ceil(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
-		}
-	}
-}
-
-func TestCompare(t *testing.T) {
-	// -NaN < -∞ < -3.14 < -0 < 0 < 3.14 < ∞ < NaN
-	for _, c := range compareCases[float64]() {
-		cmp := Compare(c.x, c.y)
-		if cmp != c.want {
-			t.Errorf("Compare(%v, %v) = %d, want %v", c.x, c.y, cmp, c.want)
-		}
-	}
-	for _, c := range compareCases[float32]() {
-		cmp := Compare32(c.x, c.y)
-		if cmp != c.want {
-			t.Errorf("Compare32(%v, %v) = %d, want %v", c.x, c.y, cmp, c.want)
 		}
 	}
 }
@@ -3361,22 +3318,6 @@ func BenchmarkCeil(b *testing.B) {
 		x = Ceil(.5)
 	}
 	GlobalF = x
-}
-
-func BenchmarkCompare(b *testing.B) {
-	x := 0
-	for i := 0; i < b.N; i++ {
-		x = Compare(1.5, 2.5)
-	}
-	GlobalI = x
-}
-
-func BenchmarkCompare32(b *testing.B) {
-	x := 0
-	for i := 0; i < b.N; i++ {
-		x = Compare32(1.5, 2.5)
-	}
-	GlobalI = x
 }
 
 var copysignNeg = -1.0

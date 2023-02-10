@@ -1,2 +1,0 @@
-pkg math, func Compare(float64, float64) int #56491
-pkg math, func Compare32(float32, float32) int #56491
