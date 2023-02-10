@@ -33,6 +33,7 @@ var stdPkgs = []string{
 	"reflect",
 	"regexp",
 	"runtime",
+	"slices",
 	"sort",
 	"strconv",
 	"strings",
