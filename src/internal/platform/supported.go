@@ -88,6 +88,7 @@ func MustLinkExternal(goos, goarch string) bool {
 
 // BuildModeSupported reports whether goos/goarch supports the given build mode
 // using the given compiler.
+// There is a copy of this function in cmd/dist/test.go.
 func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 	if compiler == "gccgo" {
 		return true
