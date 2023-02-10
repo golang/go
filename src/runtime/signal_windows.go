@@ -76,6 +76,7 @@ func isgoexception(info *exceptionrecord, r *context) bool {
 	default:
 		return false
 	case _EXCEPTION_ACCESS_VIOLATION:
+	case _EXCEPTION_IN_PAGE_ERROR:
 	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
 	case _EXCEPTION_INT_OVERFLOW:
 	case _EXCEPTION_FLT_DENORMAL_OPERAND:
@@ -345,7 +346,7 @@ func sigpanic() {
 	}
 
 	switch gp.sig {
-	case _EXCEPTION_ACCESS_VIOLATION:
+	case _EXCEPTION_ACCESS_VIOLATION, _EXCEPTION_IN_PAGE_ERROR:
 		if gp.sigcode1 < 0x1000 {
 			panicmem()
 		}
