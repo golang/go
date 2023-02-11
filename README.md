@@ -20,6 +20,8 @@ Go is a compiled high-level programming language designed by Google. It's syntac
 * CRM Fiber
 * Website
 
+For new users, since this a programming language, you have to check if your downloading version and the envirionment matched in case of unexpetced errors.
+
 ### Download and Install
 
 #### Binary Distributions
@@ -37,7 +39,7 @@ https://go.dev/doc/install/source
 for source installation instructions.
 
 ### Getting started
-This simple example will bring you to go through the basic usage of Go if you are new to use Go.
+This simple example will bring you to go through the basic usage of Go if you are new to use Go. For more tutorials and documentations, please visit https://go.dev/doc/.
 #### Install Go
 From the link provided above, you could choose the one that best fits your computer and environment.
 After the download is complete, you'd be able to write some codes.
@@ -76,7 +78,7 @@ func main() {
 }
 ```
 4. Run the code by using the same run command with the hello world message.
-5. Open a new broswer with the link http://localhost:8080, you will se the messages there.
+5. Open a new broswer with the link http://localhost:8080, you will see the messages there.
 
 ### Contributing
 
