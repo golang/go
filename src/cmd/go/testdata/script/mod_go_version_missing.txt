@@ -27,8 +27,7 @@ cmp go.mod go.mod.orig
 
 ! go list -mod=vendor all
 ! stderr '^go: inconsistent vendoring'
-stderr 'go: finding module for package example.com/badedit'
-stderr 'cannot query module due to -mod=vendor'
+stderr 'cannot find module providing package example.com/badedit: import lookup disabled by -mod=vendor'
 
 # When we set -mod=mod, the go version should be updated immediately,
 # to the current version, converting the requirements from eager to lazy.
