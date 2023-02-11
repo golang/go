@@ -338,8 +338,8 @@ func (h *FileHeader) isZip64() bool {
 	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
 }
 
-func (f *FileHeader) hasDataDescriptor() bool {
-	return f.Flags&0x8 != 0
+func (h *FileHeader) hasDataDescriptor() bool {
+	return h.Flags&0x8 != 0
 }
 
 func msdosModeToFileMode(m uint32) (mode fs.FileMode) {
