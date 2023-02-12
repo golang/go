@@ -114,7 +114,7 @@ func hashDiagnostics(diags ...*source.Diagnostic) string {
 			fmt.Fprintf(h, "%s", t)
 		}
 		for _, r := range d.Related {
-			fmt.Fprintf(h, "%s%s%s", r.URI, r.Message, r.Range)
+			fmt.Fprintf(h, "%s%s%s", r.Location.URI.SpanURI(), r.Message, r.Location.Range)
 		}
 		fmt.Fprintf(h, "%s%s%s%s", d.Message, d.Range, d.Severity, d.Source)
 	}
@@ -696,16 +696,6 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnostic {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
-		related := make([]protocol.DiagnosticRelatedInformation, 0, len(diag.Related))
-		for _, rel := range diag.Related {
-			related = append(related, protocol.DiagnosticRelatedInformation{
-				Location: protocol.Location{
-					URI:   protocol.URIFromSpanURI(rel.URI),
-					Range: rel.Range,
-				},
-				Message: rel.Message,
-			})
-		}
 		pdiag := protocol.Diagnostic{
 			// diag.Message might start with \n or \t
 			Message:            strings.TrimSpace(diag.Message),
@@ -713,7 +703,7 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 			Severity:           diag.Severity,
 			Source:             string(diag.Source),
 			Tags:               diag.Tags,
-			RelatedInformation: related,
+			RelatedInformation: diag.Related,
 		}
 		if diag.Code != "" {
 			pdiag.Code = diag.Code
@@ -774,7 +764,7 @@ func auxStr(v *source.Diagnostic, d diagnosticReport, typ diagnosticSource) stri
 	msg := fmt.Sprintf("(%s)%q(source:%q,code:%q,severity:%s,snapshot:%d,type:%s)",
 		v.Range, v.Message, v.Source, v.Code, v.Severity, d.snapshotID, typ)
 	for _, r := range v.Related {
-		msg += fmt.Sprintf(" [%s:%s,%q]", r.URI.Filename(), r.Range, r.Message)
+		msg += fmt.Sprintf(" [%s:%s,%q]", r.Location.URI.SpanURI().Filename(), r.Location.Range, r.Message)
 	}
 	return msg
 }

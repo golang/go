@@ -136,11 +136,18 @@ func parseDetailsFile(filename string, options *Options) (span.URI, []*Diagnosti
 		if !showDiagnostic(msg, d.Source, options) {
 			continue
 		}
-		var related []RelatedInformation
+		var related []protocol.DiagnosticRelatedInformation
 		for _, ri := range d.RelatedInformation {
-			related = append(related, RelatedInformation{
-				URI:     ri.Location.URI.SpanURI(),
-				Range:   zeroIndexedRange(ri.Location.Range),
+			// TODO(rfindley): The compiler uses LSP-like JSON to encode gc details,
+			// however the positions it uses are 1-based UTF-8:
+			// https://github.com/golang/go/blob/master/src/cmd/compile/internal/logopt/log_opts.go
+			//
+			// Here, we adjust for 0-based positions, but do not translate UTF-8 to UTF-16.
+			related = append(related, protocol.DiagnosticRelatedInformation{
+				Location: protocol.Location{
+					URI:   ri.Location.URI,
+					Range: zeroIndexedRange(ri.Location.Range),
+				},
 				Message: ri.Message,
 			})
 		}

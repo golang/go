@@ -18,13 +18,6 @@ type SuggestedFix struct {
 	ActionKind protocol.CodeActionKind
 }
 
-type RelatedInformation struct {
-	// TODO(adonovan): replace these two fields by a protocol.Location.
-	URI     span.URI
-	Range   protocol.Range
-	Message string
-}
-
 // Analyze reports go/analysis-framework diagnostics in the specified package.
 func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeConvenience bool) (map[span.URI][]*Diagnostic, error) {
 	// Exit early if the context has been canceled. This also protects us

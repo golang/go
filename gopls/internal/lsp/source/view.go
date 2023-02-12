@@ -827,7 +827,7 @@ type Diagnostic struct {
 	Message string
 
 	Tags    []protocol.DiagnosticTag
-	Related []RelatedInformation
+	Related []protocol.DiagnosticRelatedInformation
 
 	// Fields below are used internally to generate quick fixes. They aren't
 	// part of the LSP spec and don't leave the server.

@@ -241,7 +241,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 		// Fixes will include only the upgrades for warning level diagnostics.
 		var warningFixes, infoFixes []source.SuggestedFix
 		var warning, info []string
-		var relatedInfo []source.RelatedInformation
+		var relatedInfo []protocol.DiagnosticRelatedInformation
 		for _, mv := range vulns {
 			mod, vuln := mv.mod, mv.vuln
 			// It is possible that the source code was changed since the last
@@ -348,7 +348,7 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 
 		stdlib := stdlibVulns[0].mod.FoundVersion
 		var warning, info []string
-		var relatedInfo []source.RelatedInformation
+		var relatedInfo []protocol.DiagnosticRelatedInformation
 		for _, mv := range stdlibVulns {
 			vuln := mv.vuln
 			stdlib = mv.mod.FoundVersion
@@ -442,8 +442,8 @@ func getVulnMessage(mod string, vulns []string, used, fromGovulncheck bool) stri
 	return b.String()
 }
 
-func listRelatedInfo(ctx context.Context, snapshot source.Snapshot, vuln *govulncheck.Vuln) []source.RelatedInformation {
-	var ri []source.RelatedInformation
+func listRelatedInfo(ctx context.Context, snapshot source.Snapshot, vuln *govulncheck.Vuln) []protocol.DiagnosticRelatedInformation {
+	var ri []protocol.DiagnosticRelatedInformation
 	for _, m := range vuln.Modules {
 		for _, p := range m.Packages {
 			for _, c := range p.CallStacks {
@@ -469,11 +469,13 @@ func listRelatedInfo(ctx context.Context, snapshot source.Snapshot, vuln *govuln
 					// position computation.
 					Character: 0,
 				}
-				ri = append(ri, source.RelatedInformation{
-					URI: uri,
-					Range: protocol.Range{
-						Start: startPos,
-						End:   startPos,
+				ri = append(ri, protocol.DiagnosticRelatedInformation{
+					Location: protocol.Location{
+						URI: protocol.URIFromSpanURI(uri),
+						Range: protocol.Range{
+							Start: startPos,
+							End:   startPos,
+						},
 					},
 					Message: fmt.Sprintf("[%v] %v -> %v.%v", vuln.OSV.ID, entry.Name(), p.Path, c.Symbol),
 				})

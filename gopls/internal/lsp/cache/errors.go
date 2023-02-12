@@ -129,10 +129,9 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, e extendedErro
 		if err != nil {
 			return nil, err
 		}
-		diag.Related = append(diag.Related, source.RelatedInformation{
-			URI:     secondaryLoc.URI.SpanURI(),
-			Range:   secondaryLoc.Range,
-			Message: secondary.Msg,
+		diag.Related = append(diag.Related, protocol.DiagnosticRelatedInformation{
+			Location: secondaryLoc,
+			Message:  secondary.Msg,
 		})
 	}
 
@@ -186,6 +185,11 @@ func editGoDirectiveQuickFix(snapshot *snapshot, uri span.URI, version string) (
 
 // toSourceDiagnostic converts a gobDiagnostic to "source" form.
 func toSourceDiagnostic(srcAnalyzer *source.Analyzer, gobDiag *gobDiagnostic) *source.Diagnostic {
+	var related []protocol.DiagnosticRelatedInformation
+	for _, gobRelated := range gobDiag.Related {
+		related = append(related, protocol.DiagnosticRelatedInformation(gobRelated))
+	}
+
 	kinds := srcAnalyzer.ActionKind
 	if len(srcAnalyzer.ActionKind) == 0 {
 		kinds = append(kinds, protocol.QuickFix)
@@ -210,6 +214,7 @@ func toSourceDiagnostic(srcAnalyzer *source.Analyzer, gobDiag *gobDiagnostic) *s
 	if severity == 0 {
 		severity = protocol.SeverityWarning
 	}
+
 	diag := &source.Diagnostic{
 		// TODO(adonovan): is this sound? See dual conversion in posToLocation.
 		URI:            span.URI(gobDiag.Location.URI),
@@ -217,7 +222,7 @@ func toSourceDiagnostic(srcAnalyzer *source.Analyzer, gobDiag *gobDiagnostic) *s
 		Severity:       severity,
 		Source:         source.AnalyzerErrorKind(gobDiag.Category),
 		Message:        gobDiag.Message,
-		Related:        relatedInformation(gobDiag),
+		Related:        related,
 		SuggestedFixes: fixes,
 	}
 	// If the fixes only delete code, assume that the diagnostic is reporting dead code.
@@ -273,18 +278,6 @@ func suggestedAnalysisFixes(diag *gobDiagnostic, kinds []protocol.CodeActionKind
 
 	}
 	return fixes
-}
-
-func relatedInformation(diag *gobDiagnostic) []source.RelatedInformation {
-	var out []source.RelatedInformation
-	for _, related := range diag.Related {
-		out = append(out, source.RelatedInformation{
-			URI:     span.URI(related.Location.URI),
-			Range:   related.Location.Range,
-			Message: related.Message,
-		})
-	}
-	return out
 }
 
 func typeErrorData(pkg *syntaxPackage, terr types.Error) (typesinternal.ErrorCode, protocol.Location, error) {
