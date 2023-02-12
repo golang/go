@@ -446,7 +446,7 @@ func appendInt(b []byte, x int, width int) []byte {
 }
 
 // Never printed, just needs to be non-nil for return by atoi.
-var atoiError = errors.New("time: invalid number")
+var errAtoi = errors.New("time: invalid number")
 
 // Duplicates functionality in strconv, but avoids dependency.
 func atoi[bytes []byte | string](s bytes) (x int, err error) {
@@ -458,7 +458,7 @@ func atoi[bytes []byte | string](s bytes) (x int, err error) {
 	q, rem, err := leadingInt(s)
 	x = int(q)
 	if err != nil || len(rem) > 0 {
-		return 0, atoiError
+		return 0, errAtoi
 	}
 	if neg {
 		x = -x
