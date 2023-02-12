@@ -121,25 +121,25 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 	return zr, nil
 }
 
-func (z *Reader) init(r io.ReaderAt, size int64) error {
-	end, baseOffset, err := readDirectoryEnd(r, size)
+func (r *Reader) init(rdr io.ReaderAt, size int64) error {
+	end, baseOffset, err := readDirectoryEnd(rdr, size)
 	if err != nil {
 		return err
 	}
-	z.r = r
-	z.baseOffset = baseOffset
+	r.r = rdr
+	r.baseOffset = baseOffset
 	// Since the number of directory records is not validated, it is not
-	// safe to preallocate z.File without first checking that the specified
+	// safe to preallocate r.File without first checking that the specified
 	// number of files is reasonable, since a malformed archive may
 	// indicate it contains up to 1 << 128 - 1 files. Since each file has a
 	// header which will be _at least_ 30 bytes we can safely preallocate
 	// if (data size / 30) >= end.directoryRecords.
 	if end.directorySize < uint64(size) && (uint64(size)-end.directorySize)/30 >= end.directoryRecords {
-		z.File = make([]*File, 0, end.directoryRecords)
+		r.File = make([]*File, 0, end.directoryRecords)
 	}
-	z.Comment = end.comment
-	rs := io.NewSectionReader(r, 0, size)
-	if _, err = rs.Seek(z.baseOffset+int64(end.directoryOffset), io.SeekStart); err != nil {
+	r.Comment = end.comment
+	rs := io.NewSectionReader(rdr, 0, size)
+	if _, err = rs.Seek(r.baseOffset+int64(end.directoryOffset), io.SeekStart); err != nil {
 		return err
 	}
 	buf := bufio.NewReader(rs)
@@ -149,7 +149,7 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 	// a bad one, and then only report an ErrFormat or UnexpectedEOF if
 	// the file count modulo 65536 is incorrect.
 	for {
-		f := &File{zip: z, zipr: r}
+		f := &File{zip: r, zipr: rdr}
 		err = readDirectoryHeader(f, buf)
 		if err == ErrFormat || err == io.ErrUnexpectedEOF {
 			break
@@ -157,10 +157,10 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 		if err != nil {
 			return err
 		}
-		f.headerOffset += z.baseOffset
-		z.File = append(z.File, f)
+		f.headerOffset += r.baseOffset
+		r.File = append(r.File, f)
 	}
-	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
+	if uint16(len(r.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
 		// Return the readDirectoryHeader error if we read
 		// the wrong number of directory entries.
 		return err
@@ -171,15 +171,15 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 // RegisterDecompressor registers or overrides a custom decompressor for a
 // specific method ID. If a decompressor for a given method is not found,
 // Reader will default to looking up the decompressor at the package level.
-func (z *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
-	if z.decompressors == nil {
-		z.decompressors = make(map[uint16]Decompressor)
+func (r *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
+	if r.decompressors == nil {
+		r.decompressors = make(map[uint16]Decompressor)
 	}
-	z.decompressors[method] = dcomp
+	r.decompressors[method] = dcomp
 }
 
-func (z *Reader) decompressor(method uint16) Decompressor {
-	dcomp := z.decompressors[method]
+func (r *Reader) decompressor(method uint16) Decompressor {
+	dcomp := r.decompressors[method]
 	if dcomp == nil {
 		dcomp = decompressor(method)
 	}
@@ -740,14 +740,14 @@ type fileInfoDirEntry interface {
 	fs.DirEntry
 }
 
-func (e *fileListEntry) stat() (fileInfoDirEntry, error) {
-	if e.isDup {
-		return nil, errors.New(e.name + ": duplicate entries in zip file")
+func (f *fileListEntry) stat() (fileInfoDirEntry, error) {
+	if f.isDup {
+		return nil, errors.New(f.name + ": duplicate entries in zip file")
 	}
-	if !e.isDir {
-		return headerFileInfo{&e.file.FileHeader}, nil
+	if !f.isDir {
+		return headerFileInfo{&f.file.FileHeader}, nil
 	}
-	return e, nil
+	return f, nil
 }
 
 // Only used for directories.
