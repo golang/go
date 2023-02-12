@@ -1065,7 +1065,7 @@ func TestIssue7113(t *testing.T) {
 	}
 
 	type D struct {
-		XMLName Name `xml:"D"`
+		XMLName Name `xml:"d"`
 	}
 
 	type A struct {
@@ -1076,7 +1076,7 @@ func TestIssue7113(t *testing.T) {
 
 	var a A
 	structSpace := "b"
-	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns=""></C><D></D></A>`
+	xmlTest := `<A xmlns="` + structSpace + `"><C xmlns=""></C><d></d></A>`
 	t.Log(xmlTest)
 	err := Unmarshal([]byte(xmlTest), &a)
 	if err != nil {
