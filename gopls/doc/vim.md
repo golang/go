@@ -168,8 +168,8 @@ EOF
 
 ### <a href="#neovim-imports" id="neovim-imports">Imports</a>
 
-To get your imports ordered on save, like `goimports` does. notice this requires your neovim verison
-to be above 0.7
+Use the following configuration to have your imports organized on save using
+the logic of `goimports`. Note: this requires Neovim v0.7.0 or later.
 
 ```lua
 vim.api.nvim_create_autocmd('BufWritePre', {
@@ -182,9 +182,9 @@ vim.api.nvim_create_autocmd('BufWritePre', {
 
 ### <a href="#neovim-omnifunc" id="neovim-omnifunc">Omnifunc</a>
 
-in neovim 0.8.1 version if you don't set the option `omnifunc`, it will auto set to
-
-`v:lua.vim.lsp.omnifunc`. if you are using a lowLevel version, you can config it by manual
+In Neovim v0.8.1 and later if you don't set the option `omnifunc`, it will auto
+set to `v:lua.vim.lsp.omnifunc`. If you are using an earlier version, you can
+configure it manually:
 
 ```lua
 local on_attach = function(client, bufnr)
