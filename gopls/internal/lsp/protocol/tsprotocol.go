@@ -7,7 +7,7 @@
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 9b742021fb04ad081aa3676a9eecf4fa612084b4 (as of 2023-01-30)
+// git hash 9b742021fb04ad081aa3676a9eecf4fa612084b4 (as of 2023-02-13)
 
 import "encoding/json"
 
@@ -1769,11 +1769,6 @@ type ExecutionSummary struct { // line 10161
 	Success bool `json:"success,omitempty"`
 }
 
-// created for Literal (Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0_cells_Elem)
-type FCellsPNotebookSelector struct { // line 9830
-	Language string `json:"language"`
-}
-
 // created for Literal (Lit_CodeActionClientCapabilities_codeActionLiteralSupport_codeActionKind)
 type FCodeActionKindPCodeActionLiteralSupport struct { // line 11741
 	/*
@@ -1840,12 +1835,6 @@ type FStructurePCells struct { // line 7486
 type FTagSupportPCompletionItem struct { // line 11236
 	// The tags supported by the client.
 	ValueSet []CompletionItemTag `json:"valueSet"`
-}
-
-// created for Literal (Lit_NotebookDocumentChangeEvent_cells_textContent_Elem)
-type FTextContentPCells struct { // line 7544
-	Document VersionedTextDocumentIdentifier  `json:"document"`
-	Changes  []TextDocumentContentChangeEvent `json:"changes"`
 }
 type FailureHandlingKind string // line 13692
 // The file event type
@@ -2688,6 +2677,12 @@ type LinkedEditingRanges struct { // line 3127
 	WordPattern string `json:"wordPattern,omitempty"`
 }
 
+// created for Literal (Lit_NotebookDocumentChangeEvent_cells_textContent_Elem)
+type Lit_NotebookDocumentChangeEvent_cells_textContent_Elem struct { // line 7544
+	Document VersionedTextDocumentIdentifier  `json:"document"`
+	Changes  []TextDocumentContentChangeEvent `json:"changes"`
+}
+
 // created for Literal (Lit_NotebookDocumentFilter_Item1)
 type Lit_NotebookDocumentFilter_Item1 struct { // line 14292
 	// The type of the enclosing notebook.
@@ -2706,6 +2701,11 @@ type Lit_NotebookDocumentFilter_Item2 struct { // line 14325
 	Scheme string `json:"scheme,omitempty"`
 	// A glob pattern.
 	Pattern string `json:"pattern"`
+}
+
+// created for Literal (Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0_cells_Elem)
+type Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0_cells_Elem struct { // line 9830
+	Language string `json:"language"`
 }
 
 // created for Literal (Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1)
@@ -2962,8 +2962,8 @@ type Msg_TextDocumentContentChangeEvent struct { // line 14007
 	Text string `json:"text"`
 }
 
-// created for Literal (Lit_TextDocumentFilter_Item0)
-type Msg_TextDocumentFilter struct { // line 14150
+// created for Literal (Lit_TextDocumentFilter_Item1)
+type Msg_TextDocumentFilter struct { // line 14183
 	// A language id, like `typescript`.
 	Language string `json:"language"`
 	// A Uri {@link Uri.scheme scheme}, like `file` or `untitled`.
@@ -3506,7 +3506,7 @@ type PCellsPChange struct { // line 7480
 	 */
 	Data []NotebookCell `json:"data"`
 	// Changes to the text content of notebook cells.
-	TextContent []FTextContentPCells `json:"textContent"`
+	TextContent []Lit_NotebookDocumentChangeEvent_cells_textContent_Elem `json:"textContent"`
 }
 
 // created for Literal (Lit_WorkspaceEditClientCapabilities_changeAnnotationSupport)
@@ -3729,7 +3729,7 @@ type PNotebookSelectorPNotebookDocumentSync struct { // line 9805
 	 */
 	Notebook OrFNotebookPNotebookSelector `json:"notebook"`
 	// The cells of the matching notebook to be synced.
-	Cells []FCellsPNotebookSelector `json:"cells"`
+	Cells []Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0_cells_Elem `json:"cells"`
 }
 
 // created for Literal (Lit_SemanticTokensOptions_range_Item1)
@@ -4396,7 +4396,7 @@ type SemanticTokensClientCapabilities struct { // line 12156
 	// The token modifiers that the client supports.
 	TokenModifiers []string `json:"tokenModifiers"`
 	// The token formats the clients supports.
-	Formats []string `json:"formats"`
+	Formats []TokenFormat `json:"formats"`
 	// Whether the client supports tokens that can overlap each other.
 	OverlappingTokenSupport bool `json:"overlappingTokenSupport,omitempty"`
 	// Whether the client supports tokens that can span multiple lines.

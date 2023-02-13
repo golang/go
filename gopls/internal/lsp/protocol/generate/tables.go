@@ -140,18 +140,19 @@ var renameProp = map[prop]string{
 	{"Hover", "contents"}:                 "MarkupContent",
 	{"InlayHint", "label"}:                "[]InlayHintLabelPart",
 
-	{"Lit_NotebookDocumentChangeEvent_cells", "textContent"}:                 "[]FTextContentPCells",
-	{"Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0", "cells"}: "[]FCellsPNotebookSelector",
-
+	// removing this causes the test in json_test.go to fail
+	// First, the custom unmarshaler returns the 'wrong' error type
+	// Second, cmp.Diff reports too many errors.
+	// TODO(pjw): fix json_test.go and maybe the generated code
 	{"Lit_SemanticTokensClientCapabilities_requests", "full"}:        "interface{}",
 	{"Lit_SemanticTokensClientCapabilities_requests", "range"}:       "bool",
 	{"NotebookCellTextDocumentFilter", "notebook"}:                   "NotebookDocumentFilter",
 	{"RelatedFullDocumentDiagnosticReport", "relatedDocuments"}:      "map[DocumentURI]interface{}",
 	{"RelatedUnchangedDocumentDiagnosticReport", "relatedDocuments"}: "map[DocumentURI]interface{}",
 
+	// this one also has the json_test.go problem
 	{"RenameClientCapabilities", "prepareSupportDefaultBehavior"}: "interface{}",
 
-	{"SemanticTokensClientCapabilities", "formats"}:           "[]string",
 	{"SemanticTokensOptions", "full"}:                         "bool",
 	{"SemanticTokensOptions", "range"}:                        "interface{}",
 	{"ServerCapabilities", "callHierarchyProvider"}:           "interface{}",
@@ -235,27 +236,25 @@ var goplsType = map[string]string{
 	"Lit_CompletionClientCapabilities_completionItem_resolveSupport": "FResolveSupportPCompletionItem",
 	"Lit_CompletionClientCapabilities_completionItem_tagSupport":     "FTagSupportPCompletionItem",
 
-	"Lit_CompletionClientCapabilities_completionList":        "PCompletionListPCompletion",
-	"Lit_CompletionList_itemDefaults":                        "PItemDefaultsMsg_textDocument_completion",
-	"Lit_CompletionList_itemDefaults_editRange_Item1":        "FEditRangePItemDefaults",
-	"Lit_CompletionOptions_completionItem":                   "PCompletionItemPCompletionProvider",
-	"Lit_DocumentSymbolClientCapabilities_symbolKind":        "PSymbolKindPDocumentSymbol",
-	"Lit_DocumentSymbolClientCapabilities_tagSupport":        "PTagSupportPDocumentSymbol",
-	"Lit_FoldingRangeClientCapabilities_foldingRange":        "PFoldingRangePFoldingRange",
-	"Lit_FoldingRangeClientCapabilities_foldingRangeKind":    "PFoldingRangeKindPFoldingRange",
-	"Lit_GeneralClientCapabilities_staleRequestSupport":      "PStaleRequestSupportPGeneral",
-	"Lit_InitializeResult_serverInfo":                        "PServerInfoMsg_initialize",
-	"Lit_InlayHintClientCapabilities_resolveSupport":         "PResolveSupportPInlayHint",
-	"Lit_MarkedString_Item1":                                 "Msg_MarkedString",
-	"Lit_NotebookDocumentChangeEvent_cells":                  "PCellsPChange",
-	"Lit_NotebookDocumentChangeEvent_cells_structure":        "FStructurePCells",
-	"Lit_NotebookDocumentChangeEvent_cells_textContent_Elem": "FTextContentPCells",
-	"Lit_NotebookDocumentFilter_Item0":                       "Msg_NotebookDocumentFilter",
+	"Lit_CompletionClientCapabilities_completionList":     "PCompletionListPCompletion",
+	"Lit_CompletionList_itemDefaults":                     "PItemDefaultsMsg_textDocument_completion",
+	"Lit_CompletionList_itemDefaults_editRange_Item1":     "FEditRangePItemDefaults",
+	"Lit_CompletionOptions_completionItem":                "PCompletionItemPCompletionProvider",
+	"Lit_DocumentSymbolClientCapabilities_symbolKind":     "PSymbolKindPDocumentSymbol",
+	"Lit_DocumentSymbolClientCapabilities_tagSupport":     "PTagSupportPDocumentSymbol",
+	"Lit_FoldingRangeClientCapabilities_foldingRange":     "PFoldingRangePFoldingRange",
+	"Lit_FoldingRangeClientCapabilities_foldingRangeKind": "PFoldingRangeKindPFoldingRange",
+	"Lit_GeneralClientCapabilities_staleRequestSupport":   "PStaleRequestSupportPGeneral",
+	"Lit_InitializeResult_serverInfo":                     "PServerInfoMsg_initialize",
+	"Lit_InlayHintClientCapabilities_resolveSupport":      "PResolveSupportPInlayHint",
+	"Lit_MarkedString_Item1":                              "Msg_MarkedString",
+	"Lit_NotebookDocumentChangeEvent_cells":               "PCellsPChange",
+	"Lit_NotebookDocumentChangeEvent_cells_structure":     "FStructurePCells",
+	"Lit_NotebookDocumentFilter_Item0":                    "Msg_NotebookDocumentFilter",
 
 	"Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0": "PNotebookSelectorPNotebookDocumentSync",
 
-	"Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0_cells_Elem": "FCellsPNotebookSelector",
-	"Lit_PrepareRenameResult_Item1":                                          "Msg_PrepareRename2Gn",
+	"Lit_PrepareRenameResult_Item1": "Msg_PrepareRename2Gn",
 
 	"Lit_PublishDiagnosticsClientCapabilities_tagSupport":       "PTagSupportPPublishDiagnostics",
 	"Lit_SemanticTokensClientCapabilities_requests":             "PRequestsPSemanticTokens",
