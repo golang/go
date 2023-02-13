@@ -19,7 +19,7 @@ func TestAllocations(t *testing.T) {
 	testenv.SkipIfOptimizationOff(t)
 
 	t.Run("P224", func(t *testing.T) {
-		if allocs := testing.AllocsPerRun(100, func() {
+		if allocs := testing.AllocsPerRun(10, func() {
 			p := nistec.NewP224Point().SetGenerator()
 			scalar := make([]byte, 28)
 			rand.Read(scalar)
@@ -38,7 +38,7 @@ func TestAllocations(t *testing.T) {
 		}
 	})
 	t.Run("P256", func(t *testing.T) {
-		if allocs := testing.AllocsPerRun(100, func() {
+		if allocs := testing.AllocsPerRun(10, func() {
 			p := nistec.NewP256Point().SetGenerator()
 			scalar := make([]byte, 32)
 			rand.Read(scalar)
@@ -57,7 +57,7 @@ func TestAllocations(t *testing.T) {
 		}
 	})
 	t.Run("P384", func(t *testing.T) {
-		if allocs := testing.AllocsPerRun(100, func() {
+		if allocs := testing.AllocsPerRun(10, func() {
 			p := nistec.NewP384Point().SetGenerator()
 			scalar := make([]byte, 48)
 			rand.Read(scalar)
@@ -76,7 +76,7 @@ func TestAllocations(t *testing.T) {
 		}
 	})
 	t.Run("P521", func(t *testing.T) {
-		if allocs := testing.AllocsPerRun(100, func() {
+		if allocs := testing.AllocsPerRun(10, func() {
 			p := nistec.NewP521Point().SetGenerator()
 			scalar := make([]byte, 66)
 			rand.Read(scalar)
@@ -133,21 +133,13 @@ func testEquivalents[P nistPoint[P]](t *testing.T, newPoint func() P, c elliptic
 	p1 := newPoint().Double(p)
 	p2 := newPoint().Add(p, p)
 	p3, err := newPoint().ScalarMult(p, two)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIfErr(t, err)
 	p4, err := newPoint().ScalarBaseMult(two)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIfErr(t, err)
 	p5, err := newPoint().ScalarMult(p, nPlusTwo)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIfErr(t, err)
 	p6, err := newPoint().ScalarBaseMult(nPlusTwo)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fatalIfErr(t, err)
 
 	if !bytes.Equal(p1.Bytes(), p2.Bytes()) {
 		t.Error("P+P != 2*P")
@@ -230,10 +222,10 @@ func testScalarMult[P nistPoint[P]](t *testing.T, newPoint func() P, c elliptic.
 			checkScalar(t, s.FillBytes(make([]byte, byteLen)))
 		})
 	}
-	// Test N+1...N+32 since they risk overlapping with precomputed table values
+	// Test N-32...N+32 since they risk overlapping with precomputed table values
 	// in the final additions.
-	for i := int64(2); i <= 32; i++ {
-		t.Run(fmt.Sprintf("N+%d", i), func(t *testing.T) {
+	for i := int64(-32); i <= 32; i++ {
+		t.Run(fmt.Sprintf("N%+d", i), func(t *testing.T) {
 			checkScalar(t, new(big.Int).Add(c.Params().N, big.NewInt(i)).Bytes())
 		})
 	}
