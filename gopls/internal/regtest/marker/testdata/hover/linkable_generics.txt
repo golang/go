@@ -16,6 +16,7 @@ import "mod.com/generic"
 func _() {
 	// Hovering over instantiated object should produce accurate type
 	// information, but link to the generic declarations.
+
 	var x generic.GT[int] //@hover("GT", "GT", xGT)
 	_ = x.F //@hover("x", "x", x),hover("F", "F", xF)
 
@@ -26,7 +27,8 @@ func _() {
 -- generic/generic.go --
 package generic
 
-// Hovering over type parameters should does link to documentation.
+// Hovering over type parameters should link to documentation.
+//
 // TODO(rfindley): should it? We should probably link to the type.
 type GT[P any] struct{ //@hover("GT", "GT", GT),hover("P", "P", GTP)
 	F P //@hover("F", "F", F),hover("P", "P", FP)
@@ -66,7 +68,9 @@ type GT[P any] struct {
 func (GT[P]).M(p P)
 ```
 
-Hovering over type parameters should does link to documentation. TODO(rfindley): should it? We should probably link to the type.
+Hovering over type parameters should link to documentation.
+
+TODO(rfindley): should it? We should probably link to the type.
 
 
 [`generic.GT` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GT)
@@ -83,7 +87,9 @@ type GT[P any] struct {
 func (GT[P]).M(p P)
 ```
 
-Hovering over type parameters should does link to documentation. TODO(rfindley): should it? We should probably link to the type.
+Hovering over type parameters should link to documentation.
+
+TODO(rfindley): should it? We should probably link to the type.
 
 
 [`generic.GT` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GT)
@@ -112,7 +118,7 @@ type parameter P any
 var x generic.GT[int]
 ```
 
-Hovering over instantiated object should produce accurate type information, but link to the generic declarations.
+@hover("GT", "GT", xGT)
 -- @xF/hover.md --
 ```go
 field F int
@@ -131,7 +137,9 @@ type GT[P any] struct {
 func (generic.GT[P]).M(p P)
 ```
 
-Hovering over type parameters should does link to documentation. TODO(rfindley): should it? We should probably link to the type.
+Hovering over type parameters should link to documentation.
+
+TODO(rfindley): should it? We should probably link to the type.
 
 
 [`generic.GT` on pkg.go.dev](https://pkg.go.dev/mod.com/generic#GT)

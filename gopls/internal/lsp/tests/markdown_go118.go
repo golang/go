@@ -33,6 +33,9 @@ func DiffMarkdown(want, got string) string {
 //
 // This function may need to be adjusted as we encounter more differences in
 // the generated text.
+//
+// TODO(rfindley): this function doesn't correctly handle the case of
+// multi-line docstrings.
 func normalizeMarkdown(input string) string {
 	input = strings.TrimSpace(input)
 
@@ -57,6 +60,8 @@ func normalizeMarkdown(input string) string {
 		`\+`, `+`,
 		`\~`, `~`,
 		`\=`, `=`,
+		`\:`, `:`,
+		`\?`, `?`,
 		`\n\n\n`, `\n\n`, // Note that these are *escaped* newlines.
 	).Replace(input)
 
