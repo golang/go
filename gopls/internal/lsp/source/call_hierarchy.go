@@ -68,7 +68,7 @@ func IncomingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	ctx, done := event.Start(ctx, "source.IncomingCalls")
 	defer done()
 
-	refs, err := referencesV2(ctx, snapshot, fh, pos, false)
+	refs, err := references(ctx, snapshot, fh, pos, false)
 	if err != nil {
 		if errors.Is(err, ErrNoIdentFound) || errors.Is(err, errNoObjectFound) {
 			return nil, nil
@@ -79,9 +79,9 @@ func IncomingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	// Group references by their enclosing function declaration.
 	incomingCalls := make(map[protocol.Location]*protocol.CallHierarchyIncomingCall)
 	for _, ref := range refs {
-		callItem, err := enclosingNodeCallItem(ctx, snapshot, ref.PkgPath, ref.Location)
+		callItem, err := enclosingNodeCallItem(ctx, snapshot, ref.pkgPath, ref.location)
 		if err != nil {
-			event.Error(ctx, "error getting enclosing node", err, tag.Method.Of(ref.Name))
+			event.Error(ctx, "error getting enclosing node", err, tag.Method.Of(string(ref.pkgPath)))
 			continue
 		}
 		loc := protocol.Location{
@@ -93,7 +93,7 @@ func IncomingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 			call = &protocol.CallHierarchyIncomingCall{From: callItem}
 			incomingCalls[loc] = call
 		}
-		call.FromRanges = append(call.FromRanges, ref.Location.Range)
+		call.FromRanges = append(call.FromRanges, ref.location.Range)
 	}
 
 	// Flatten the map of pointers into a slice of values.
