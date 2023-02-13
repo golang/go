@@ -77,15 +77,15 @@ const (
 	MAXELEMSIZE = abi.MapMaxElemBytes
 )
 
-func structfieldSize() int { return 3 * types.PtrSize }       // Sizeof(runtime.structfield{})
-func imethodSize() int     { return 4 + 4 }                   // Sizeof(runtime.imethod{})
-func commonSize() int      { return 4*types.PtrSize + 8 + 8 } // Sizeof(runtime._type{})
+func structfieldSize() int { return abi.StructFieldSize(types.PtrSize) } // Sizeof(runtime.structfield{})
+func imethodSize() int     { return abi.IMethodSize(types.PtrSize) }     // Sizeof(runtime.imethod{})
+func commonSize() int      { return abi.CommonSize(types.PtrSize) }      // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
 	if t.Sym() == nil && len(methods(t)) == 0 {
 		return 0
 	}
-	return 4 + 2 + 2 + 4 + 4
+	return int(abi.UncommonSize())
 }
 
 func makefield(name string, t *types.Type) *types.Field {
@@ -149,13 +149,13 @@ func MapBucketType(t *types.Type) *types.Type {
 		base.Fatalf("unsupported map key type for %v", t)
 	}
 	if BUCKETSIZE < 8 {
-		base.Fatalf("bucket size too small for proper alignment")
+		base.Fatalf("bucket size %d too small for proper alignment %d", BUCKETSIZE, 8)
 	}
 	if uint8(keytype.Alignment()) > BUCKETSIZE {
 		base.Fatalf("key align too big for %v", t)
 	}
 	if uint8(elemtype.Alignment()) > BUCKETSIZE {
-		base.Fatalf("elem align too big for %v", t)
+		base.Fatalf("elem align %d too big for %v, BUCKETSIZE=%d", elemtype.Alignment(), t, BUCKETSIZE)
 	}
 	if keytype.Size() > MAXKEYSIZE {
 		base.Fatalf("key size to large for %v", t)
@@ -191,7 +191,8 @@ func MapBucketType(t *types.Type) *types.Type {
 	// Double-check that overflow field is final memory in struct,
 	// with no padding at end.
 	if overflow.Offset != bucket.Size()-int64(types.PtrSize) {
-		base.Fatalf("bad offset of overflow in bmap for %v", t)
+		base.Fatalf("bad offset of overflow in bmap for %v, overflow.Offset=%d, bucket.Size()-int64(types.PtrSize)=%d",
+			t, overflow.Offset, bucket.Size()-int64(types.PtrSize))
 	}
 
 	t.MapType().Bucket = bucket
