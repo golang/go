@@ -127,6 +127,8 @@ func TestCgoOption(t *testing.T) {
 	// or the std library is incomplete (Android).
 	case "android", "plan9", "solaris", "windows":
 		t.Skipf("no cgo or incomplete std lib on %s", runtime.GOOS)
+	case "darwin":
+		t.Skipf("golang/go#58493: file locations in this test are stale on darwin")
 	}
 	// In nocgo builds (e.g. linux-amd64-nocgo),
 	// there is no "runtime/cgo" package,
