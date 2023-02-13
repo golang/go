@@ -130,10 +130,10 @@ type gcControllerState struct {
 	// Updated at the end of each GC cycle, in endCycle.
 	consMark float64
 
-	// lastConsMark is the computed cons/mark value for the previous GC
-	// cycle. Note that this is *not* the last value of cons/mark, but the
-	// actual computed value. See endCycle for details.
-	lastConsMark float64
+	// lastConsMark is the computed cons/mark value for the previous 4 GC
+	// cycles. Note that this is *not* the last value of consMark, but the
+	// measured cons/mark value in endCycle.
+	lastConsMark [4]float64
 
 	// gcPercentHeapGoal is the goal heapLive for when next GC ends derived
 	// from gcPercent.
@@ -652,12 +652,19 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 	currentConsMark := (float64(c.heapLive.Load()-c.triggered) * (utilization + idleUtilization)) /
 		(float64(scanWork) * (1 - utilization))
 
-	// Update our cons/mark estimate. This is the raw value above, but averaged over 2 GC cycles
-	// because it tends to be jittery, even in the steady-state. The smoothing helps the GC to
-	// maintain much more stable cycle-by-cycle behavior.
+	// Update our cons/mark estimate. This is the maximum of the value we just computed and the last
+	// 4 cons/mark values we measured. The reason we take the maximum here is to bias a noisy
+	// cons/mark measurement toward fewer assists at the expense of additional GC cycles (starting
+	// earlier).
 	oldConsMark := c.consMark
-	c.consMark = (currentConsMark + c.lastConsMark) / 2
-	c.lastConsMark = currentConsMark
+	c.consMark = currentConsMark
+	for i := range c.lastConsMark {
+		if c.lastConsMark[i] > c.consMark {
+			c.consMark = c.lastConsMark[i]
+		}
+	}
+	copy(c.lastConsMark[:], c.lastConsMark[1:])
+	c.lastConsMark[len(c.lastConsMark)-1] = currentConsMark
 
 	if debug.gcpacertrace > 0 {
 		printlock()

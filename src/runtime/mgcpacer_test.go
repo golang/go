@@ -255,8 +255,8 @@ func TestGcPacer(t *testing.T) {
 					// After the 12th GC, the heap will stop growing. Now, just make sure that:
 					// 1. Utilization isn't varying _too_ much, and
 					// 2. The pacer is mostly keeping up with the goal.
-					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.05)
-					assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.3)
+					assertInRange(t, "goal ratio", c[n-1].goalRatio(), 0.95, 1.025)
+					assertInRange(t, "GC utilization", c[n-1].gcUtilization, 0.25, 0.275)
 				}
 			},
 		},
