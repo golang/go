@@ -249,8 +249,7 @@ func dumpbv(cbv *bitvector, offset uintptr) {
 	}
 }
 
-func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
-	child := (*childInfo)(arg)
+func dumpframe(s *stkframe, child *childInfo) {
 	f := s.fn
 
 	// Figure out what we can about our stack map
@@ -333,7 +332,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	} else {
 		child.args.n = -1
 	}
-	return true
+	return
 }
 
 func dumpgoroutine(gp *g) {
@@ -369,7 +368,10 @@ func dumpgoroutine(gp *g) {
 	child.arglen = 0
 	child.sp = nil
 	child.depth = 0
-	gentraceback(pc, sp, lr, gp, 0, nil, 0x7fffffff, dumpframe, noescape(unsafe.Pointer(&child)), 0)
+	var u unwinder
+	for u.initAt(pc, sp, lr, gp, 0); u.valid(); u.next() {
+		dumpframe(&u.frame, &child)
+	}
 
 	// dump defer & panic records
 	for d := gp._defer; d != nil; d = d.link {

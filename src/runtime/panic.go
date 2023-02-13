@@ -642,77 +642,78 @@ func addOneOpenDeferFrame(gp *g, pc uintptr, sp unsafe.Pointer) {
 		sp = unsafe.Pointer(prevDefer.sp)
 	}
 	systemstack(func() {
-		gentraceback(pc, uintptr(sp), 0, gp, 0, nil, 0x7fffffff,
-			func(frame *stkframe, unused unsafe.Pointer) bool {
-				if prevDefer != nil && prevDefer.sp == frame.sp {
-					// Skip the frame for the previous defer that
-					// we just finished (and was used to set
-					// where we restarted the stack scan)
-					return true
+		var u unwinder
+	frames:
+		for u.initAt(pc, uintptr(sp), 0, gp, 0); u.valid(); u.next() {
+			frame := &u.frame
+			if prevDefer != nil && prevDefer.sp == frame.sp {
+				// Skip the frame for the previous defer that
+				// we just finished (and was used to set
+				// where we restarted the stack scan)
+				continue
+			}
+			f := frame.fn
+			fd := funcdata(f, _FUNCDATA_OpenCodedDeferInfo)
+			if fd == nil {
+				continue
+			}
+			// Insert the open defer record in the
+			// chain, in order sorted by sp.
+			d := gp._defer
+			var prev *_defer
+			for d != nil {
+				dsp := d.sp
+				if frame.sp < dsp {
+					break
 				}
-				f := frame.fn
-				fd := funcdata(f, _FUNCDATA_OpenCodedDeferInfo)
-				if fd == nil {
-					return true
-				}
-				// Insert the open defer record in the
-				// chain, in order sorted by sp.
-				d := gp._defer
-				var prev *_defer
-				for d != nil {
-					dsp := d.sp
-					if frame.sp < dsp {
-						break
+				if frame.sp == dsp {
+					if !d.openDefer {
+						throw("duplicated defer entry")
 					}
-					if frame.sp == dsp {
-						if !d.openDefer {
-							throw("duplicated defer entry")
-						}
-						// Don't add any record past an
-						// in-progress defer entry. We don't
-						// need it, and more importantly, we
-						// want to keep the invariant that
-						// there is no open defer entry
-						// passed an in-progress entry (see
-						// header comment).
-						if d.started {
-							return false
-						}
-						return true
+					// Don't add any record past an
+					// in-progress defer entry. We don't
+					// need it, and more importantly, we
+					// want to keep the invariant that
+					// there is no open defer entry
+					// passed an in-progress entry (see
+					// header comment).
+					if d.started {
+						break frames
 					}
-					prev = d
-					d = d.link
+					continue frames
 				}
-				if frame.fn.deferreturn == 0 {
-					throw("missing deferreturn")
-				}
+				prev = d
+				d = d.link
+			}
+			if frame.fn.deferreturn == 0 {
+				throw("missing deferreturn")
+			}
 
-				d1 := newdefer()
-				d1.openDefer = true
-				d1._panic = nil
-				// These are the pc/sp to set after we've
-				// run a defer in this frame that did a
-				// recover. We return to a special
-				// deferreturn that runs any remaining
-				// defers and then returns from the
-				// function.
-				d1.pc = frame.fn.entry() + uintptr(frame.fn.deferreturn)
-				d1.varp = frame.varp
-				d1.fd = fd
-				// Save the SP/PC associated with current frame,
-				// so we can continue stack trace later if needed.
-				d1.framepc = frame.pc
-				d1.sp = frame.sp
-				d1.link = d
-				if prev == nil {
-					gp._defer = d1
-				} else {
-					prev.link = d1
-				}
-				// Stop stack scanning after adding one open defer record
-				return false
-			},
-			nil, 0)
+			d1 := newdefer()
+			d1.openDefer = true
+			d1._panic = nil
+			// These are the pc/sp to set after we've
+			// run a defer in this frame that did a
+			// recover. We return to a special
+			// deferreturn that runs any remaining
+			// defers and then returns from the
+			// function.
+			d1.pc = frame.fn.entry() + uintptr(frame.fn.deferreturn)
+			d1.varp = frame.varp
+			d1.fd = fd
+			// Save the SP/PC associated with current frame,
+			// so we can continue stack trace later if needed.
+			d1.framepc = frame.pc
+			d1.sp = frame.sp
+			d1.link = d
+			if prev == nil {
+				gp._defer = d1
+			} else {
+				prev.link = d1
+			}
+			// Stop stack scanning after adding one open defer record
+			break
+		}
 	})
 }
 

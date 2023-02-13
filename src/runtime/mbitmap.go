@@ -1397,15 +1397,6 @@ func dumpGCProg(p *byte) {
 
 // Testing.
 
-func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
-	target := (*stkframe)(ctxt)
-	if frame.sp <= target.sp && target.sp < frame.varp {
-		*target = *frame
-		return false
-	}
-	return true
-}
-
 // reflect_gcbits returns the GC type info for x, for testing.
 // The result is the bitmap entries (0 or 1), one entry per byte.
 //
@@ -1472,11 +1463,16 @@ func getgcmask(ep any) (mask []byte) {
 
 	// stack
 	if gp := getg(); gp.m.curg.stack.lo <= uintptr(p) && uintptr(p) < gp.m.curg.stack.hi {
-		var frame stkframe
-		frame.sp = uintptr(p)
-		gentraceback(gp.m.curg.sched.pc, gp.m.curg.sched.sp, 0, gp.m.curg, 0, nil, 1000, getgcmaskcb, noescape(unsafe.Pointer(&frame)), 0)
-		if frame.fn.valid() {
-			locals, _, _ := frame.getStackMap(nil, false)
+		found := false
+		var u unwinder
+		for u.initAt(gp.m.curg.sched.pc, gp.m.curg.sched.sp, 0, gp.m.curg, 0); u.valid(); u.next() {
+			if u.frame.sp <= uintptr(p) && uintptr(p) < u.frame.varp {
+				found = true
+				break
+			}
+		}
+		if found {
+			locals, _, _ := u.frame.getStackMap(nil, false)
 			if locals.n == 0 {
 				return
 			}
@@ -1484,7 +1480,7 @@ func getgcmask(ep any) (mask []byte) {
 			n := (*ptrtype)(unsafe.Pointer(t)).elem.size
 			mask = make([]byte, n/goarch.PtrSize)
 			for i := uintptr(0); i < n; i += goarch.PtrSize {
-				off := (uintptr(p) + i - frame.varp + size) / goarch.PtrSize
+				off := (uintptr(p) + i - u.frame.varp + size) / goarch.PtrSize
 				mask[i/goarch.PtrSize] = locals.ptrbit(off)
 			}
 		}

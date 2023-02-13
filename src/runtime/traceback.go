@@ -542,16 +542,16 @@ func (u *unwinder) finishInternal() {
 }
 
 // Generic traceback. Handles runtime stack prints (pcbuf == nil),
-// the runtime.Callers function (pcbuf != nil), as well as the garbage
-// collector (callback != nil).  A little clunky to merge these, but avoids
+// and the runtime.Callers function (pcbuf != nil).
+// A little clunky to merge these, but avoids
 // duplicating the code and all its subtlety.
 //
 // The skip argument is only valid with pcbuf != nil and counts the number
 // of logical frames to skip rather than physical frames (with inlining, a
 // PC in pcbuf can represent multiple calls).
 func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
-	if skip > 0 && callback != nil {
-		throw("gentraceback callback cannot be used with non-zero skip")
+	if callback != nil {
+		throw("callback argument no longer supported")
 	}
 
 	// Translate flags
@@ -559,7 +559,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	printing := pcbuf == nil && callback == nil
 	if printing {
 		uflags |= unwindPrintErrors
-	} else if callback == nil {
+	} else {
 		uflags |= unwindSilentErrors
 	}
 	if flags&_TraceTrap != 0 {
@@ -580,12 +580,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	for ; n < max && u.valid(); u.next() {
 		frame := &u.frame
 		f := frame.fn
-
-		if callback != nil {
-			if !callback((*stkframe)(noescape(unsafe.Pointer(frame))), v) {
-				return n
-			}
-		}
 
 		// Backup to the CALL instruction to read inlining info
 		//
@@ -670,9 +664,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			u.cgoCtxt--
 
 			// skip only applies to Go frames.
-			// callback != nil only used when we only care
-			// about Go frames.
-			if skip == 0 && callback == nil {
+			if skip == 0 {
 				n = tracebackCgoContext(pcbuf, printing, ctxt, n, max)
 			}
 		}
