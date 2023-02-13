@@ -2063,6 +2063,15 @@ func (f *http2Framer) WriteData(streamID uint32, endStream bool, data []byte) er
 // It is the caller's responsibility not to violate the maximum frame size
 // and to not call other Write methods concurrently.
 func (f *http2Framer) WriteDataPadded(streamID uint32, endStream bool, data, pad []byte) error {
+	if err := f.startWriteDataPadded(streamID, endStream, data, pad); err != nil {
+		return err
+	}
+	return f.endWrite()
+}
+
+// startWriteDataPadded is WriteDataPadded, but only writes the frame to the Framer's internal buffer.
+// The caller should call endWrite to flush the frame to the underlying writer.
+func (f *http2Framer) startWriteDataPadded(streamID uint32, endStream bool, data, pad []byte) error {
 	if !http2validStreamID(streamID) && !f.AllowIllegalWrites {
 		return http2errStreamID
 	}
@@ -2092,7 +2101,7 @@ func (f *http2Framer) WriteDataPadded(streamID uint32, endStream bool, data, pad
 	}
 	f.wbuf = append(f.wbuf, data...)
 	f.wbuf = append(f.wbuf, pad...)
-	return f.endWrite()
+	return nil
 }
 
 // A SettingsFrame conveys configuration parameters that affect how
@@ -4653,8 +4662,13 @@ type http2frameWriteResult struct {
 // and then reports when it's done.
 // At most one goroutine can be running writeFrameAsync at a time per
 // serverConn.
-func (sc *http2serverConn) writeFrameAsync(wr http2FrameWriteRequest) {
-	err := wr.write.writeFrame(sc)
+func (sc *http2serverConn) writeFrameAsync(wr http2FrameWriteRequest, wd *http2writeData) {
+	var err error
+	if wd == nil {
+		err = wr.write.writeFrame(sc)
+	} else {
+		err = sc.framer.endWrite()
+	}
 	sc.wroteFrameCh <- http2frameWriteResult{wr: wr, err: err}
 }
 
@@ -5063,9 +5077,16 @@ func (sc *http2serverConn) startFrameWrite(wr http2FrameWriteRequest) {
 		sc.writingFrameAsync = false
 		err := wr.write.writeFrame(sc)
 		sc.wroteFrame(http2frameWriteResult{wr: wr, err: err})
+	} else if wd, ok := wr.write.(*http2writeData); ok {
+		// Encode the frame in the serve goroutine, to ensure we don't have
+		// any lingering asynchronous references to data passed to Write.
+		// See https://go.dev/issue/58446.
+		sc.framer.startWriteDataPadded(wd.streamID, wd.endStream, wd.p, nil)
+		sc.writingFrameAsync = true
+		go sc.writeFrameAsync(wr, wd)
 	} else {
 		sc.writingFrameAsync = true
-		go sc.writeFrameAsync(wr)
+		go sc.writeFrameAsync(wr, nil)
 	}
 }
 
