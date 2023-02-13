@@ -32,15 +32,22 @@ var HelpPackages = &base.Command{
 	UsageLine: "packages",
 	Short:     "package lists and patterns",
 	Long: `
+Many commands apply to a set of packages:
+
+	go action [packages]
+
 Usually, [packages] is a list of import paths.
 
-An import path is base on module path, for example, 
-'go mod init github.com/user/repo' creates a 'go.mod' file at the root 
-of the project. then package path start with 'github.com/user/repo/dir'.
-	
-Module paths can be changed in the 'go.mod' file. 
-All package paths must be changed from 'github.com/user/repo1/dir' 
-to 'github.com/user/repo2/dir'.
+An import path is a slash-separated string that uniquely
+identifies a package. The import path for a package within
+a module consists of the module path of the module followed
+by the subdirectory within the module at which the source code
+for the package is found.
+
+An import path that is a rooted path is interpreted as a
+file system path and denotes the package in that directory.
+An import path that begins with a . or .. element refers to
+the package in that directory, which must be in the main module.
 
 If no import paths are given, the action applies to the
 package in the current directory.
@@ -61,10 +68,12 @@ Go library.
 
 - "cmd" expands to the Go repository's commands and their
 internal libraries.
-
-Import paths beginning with "github.com/user/repo/cmd/" only match source code in
-the Go repository.
-
+	
+An import path is a pattern if it includes one or more "..." wildcards,
+each of which can match any string, including the empty string and
+strings containing slashes. Such a pattern expands to all packages found in
+module dependencies trees with names matching the patterns.
+	
 To make common patterns more convenient, there are two special cases.
 First, /... at the end of the pattern can match an empty string,
 so that net/... matches both net and packages in its subdirectories, like net/http.
