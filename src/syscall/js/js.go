@@ -362,7 +362,7 @@ func makeArgs(args []any) ([]Value, []ref) {
 // It panics if v is not a JavaScript object.
 func (v Value) Length() int {
 	if vType := v.Type(); !vType.isObject() {
-		panic(&ValueError{"Value.SetIndex", vType})
+		panic(&ValueError{"Value.Length", vType})
 	}
 	r := valueLength(v.ref)
 	runtime.KeepAlive(v)
