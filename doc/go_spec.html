@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of February 14, 2023",
+	"Subtitle": "Version of February 20, 2023",
 	"Path": "/ref/spec"
 }-->
 
@@ -1644,8 +1644,10 @@ built-in function <a href="#Length_and_capacity"><code>len</code></a>
 and may change during execution. Elements may be added during execution
 using <a href="#Assignment_statements">assignments</a> and retrieved with
 <a href="#Index_expressions">index expressions</a>; they may be removed with the
-<a href="#Deletion_of_map_elements"><code>delete</code></a> built-in function.
+<a href="#Deletion_of_map_elements"><code>delete</code></a> and
+<a href="#Clear"><code>clear</code></a> built-in function.
 </p>
+
 <p>
 A new, empty map value is made using the built-in
 function <a href="#Making_slices_maps_and_channels"><code>make</code></a>,
@@ -2316,7 +2318,7 @@ Zero value:
 	nil
 
 Functions:
-	append cap close complex copy delete imag len
+	append cap clear close complex copy delete imag len
 	make new panic print println real recover
 </pre>
 
@@ -7179,6 +7181,36 @@ accept a type instead of an expression as the first argument.
 The built-in functions do not have standard Go types,
 so they can only appear in <a href="#Calls">call expressions</a>;
 they cannot be used as function values.
+</p>
+
+<h3 id="Clear">Clear</h3>
+
+<p>
+The built-in function <code>clear</code> takes an argument of <a href="#Map_types">map</a>,
+<a href="#Slice_types">slice</a>, or <a href="#Type_parameter_declarations">type parameter</a> type,
+and deletes or zeroes out all elements.
+</p>
+
+<pre class="grammar">
+Call        Argument type     Result
+
+clear(m)    map[K]T           deletes all entries, resulting in an
+                              empty map (len(m) == 0)
+
+clear(s)    []T               sets all elements up to the length of
+                              <code>s</code> to the zero value of T
+
+clear(t)    type parameter    see below
+</pre>
+
+<p>
+If the argument type is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must be maps or slices, and <code>clear</code>
+performs the operation corresponding to the actual type argument.
+</p>
+
+<p>
+If the map or slice is <code>nil</code>, <code>clear</code> is a no-op.
 </p>
 
 <h3 id="Close">Close</h3>
