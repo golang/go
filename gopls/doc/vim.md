@@ -168,40 +168,32 @@ EOF
 
 ### <a href="#neovim-imports" id="neovim-imports">Imports</a>
 
-To get your imports ordered on save, like `goimports` does, you can define
-a helper function in Lua:
+To get your imports ordered on save, like `goimports` does. notice this requires your neovim verison
+to be above 0.7
 
-```vim
-lua <<EOF
-  -- …
-
-  function go_org_imports(wait_ms)
-    local params = vim.lsp.util.make_range_params()
-    params.context = {only = {"source.organizeImports"}}
-    local result = vim.lsp.buf_request_sync(0, "textDocument/codeAction", params, wait_ms)
-    for cid, res in pairs(result or {}) do
-      for _, r in pairs(res.result or {}) do
-        if r.edit then
-          local enc = (vim.lsp.get_client_by_id(cid) or {}).offset_encoding or "utf-16"
-          vim.lsp.util.apply_workspace_edit(r.edit, enc)
-        end
-      end
-    end
+```lua
+vim.api.nvim_create_autocmd('BufWritePre', {
+  pattern = '*.go',
+  callback = function()
+    vim.lsp.buf.code_action({ context = { only = { 'source.organizeImports' } }, apply = true })
   end
-EOF
-
-autocmd BufWritePre *.go lua go_org_imports()
+})
 ```
-
-(Taken from the [discussion][nvim-lspconfig-imports] on Neovim issue tracker.)
 
 ### <a href="#neovim-omnifunc" id="neovim-omnifunc">Omnifunc</a>
 
-To make your <kbd>Ctrl</kbd>+<kbd>x</kbd>,<kbd>Ctrl</kbd>+<kbd>o</kbd> work, add
-this to your `init.vim`:
+in neovim 0.8.1 version if you don't set the option `omnifunc`, it will auto set to
 
-```vim
-autocmd FileType go setlocal omnifunc=v:lua.vim.lsp.omnifunc
+`v:lua.vim.lsp.omnifunc`. if you are using a lowLevel version, you can config it by manual
+
+```lua
+local on_attach = function(client, bufnr)
+  -- Enable completion triggered by <c-x><c-o>
+  vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+end
+require('lspconfig').gopls.setup({
+   on_attach = on_attach
+})
 ```
 
 ### <a href="#neovim-links" id="neovim-links">Additional Links</a>
