@@ -7171,7 +7171,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			// This ensures that runtime.FuncForPC(uintptr(reflect.ValueOf(fn).Pointer())).Name()
 			// returns the right answer. See issue 58300.
 			for p := pp.Text; p != nil; p = p.Link {
-				if p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT {
+				if p.As == obj.AFUNCDATA || p.As == obj.APCDATA || p.As == obj.ATEXT || p.As == obj.ANOP {
 					continue
 				}
 				if base.Ctxt.PosTable.Pos(p.Pos).Base().InliningIndex() >= 0 {
