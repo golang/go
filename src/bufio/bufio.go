@@ -320,7 +320,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 	return r, size, nil
 }
 
-// UnreadRune marks the last rune as unread. If the most recent method called on
+// UnreadRune didn't read the last rune. If the most recent method called on
 // the Reader was not a ReadRune, UnreadRune returns an error. (In this
 // regard it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)
