@@ -1002,7 +1002,7 @@ func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
 	return z
 }
 
-// modSqrt5Mod8 uses Atkin's observation that 2 is not a square mod p
+// modSqrt5Mod8Prime uses Atkin's observation that 2 is not a square mod p
 //
 //	alpha ==  (2*a)^((p-5)/8)    mod p
 //	beta  ==  2*a*alpha^2        mod p  is a square root of -1
