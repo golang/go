@@ -60,7 +60,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			endPos = analysisinternal.TypeErrorEndPos(pass.Fset, buf.Bytes(), err.Pos)
 		}
 		path, _ := astutil.PathEnclosingInterval(file, err.Pos, endPos)
-		si := GetStubInfo(pass.TypesInfo, path, err.Pos)
+		si := GetStubInfo(pass.Fset, pass.TypesInfo, path, err.Pos)
 		if si == nil {
 			continue
 		}
@@ -84,6 +84,7 @@ type StubInfo struct {
 	// in the case where the concrete type file requires a new import that happens to be renamed
 	// in the interface file.
 	// TODO(marwan-at-work): implement interface literals.
+	Fset      *token.FileSet // the FileSet used to type-check the types below
 	Interface *types.TypeName
 	Concrete  *types.Named
 	Pointer   bool
@@ -91,26 +92,26 @@ type StubInfo struct {
 
 // GetStubInfo determines whether the "missing method error"
 // can be used to deduced what the concrete and interface types are.
-func GetStubInfo(ti *types.Info, path []ast.Node, pos token.Pos) *StubInfo {
+func GetStubInfo(fset *token.FileSet, ti *types.Info, path []ast.Node, pos token.Pos) *StubInfo {
 	for _, n := range path {
 		switch n := n.(type) {
 		case *ast.ValueSpec:
-			return fromValueSpec(ti, n, pos)
+			return fromValueSpec(fset, ti, n, pos)
 		case *ast.ReturnStmt:
 			// An error here may not indicate a real error the user should know about, but it may.
 			// Therefore, it would be best to log it out for debugging/reporting purposes instead of ignoring
 			// it. However, event.Log takes a context which is not passed via the analysis package.
 			// TODO(marwan-at-work): properly log this error.
-			si, _ := fromReturnStmt(ti, pos, path, n)
+			si, _ := fromReturnStmt(fset, ti, pos, path, n)
 			return si
 		case *ast.AssignStmt:
-			return fromAssignStmt(ti, n, pos)
+			return fromAssignStmt(fset, ti, n, pos)
 		case *ast.CallExpr:
 			// Note that some call expressions don't carry the interface type
 			// because they don't point to a function or method declaration elsewhere.
 			// For eaxmple, "var Interface = (*Concrete)(nil)". In that case, continue
 			// this loop to encounter other possibilities such as *ast.ValueSpec or others.
-			si := fromCallExpr(ti, pos, n)
+			si := fromCallExpr(fset, ti, pos, n)
 			if si != nil {
 				return si
 			}
@@ -122,7 +123,7 @@ func GetStubInfo(ti *types.Info, path []ast.Node, pos token.Pos) *StubInfo {
 // fromCallExpr tries to find an *ast.CallExpr's function declaration and
 // analyzes a function call's signature against the passed in parameter to deduce
 // the concrete and interface types.
-func fromCallExpr(ti *types.Info, pos token.Pos, ce *ast.CallExpr) *StubInfo {
+func fromCallExpr(fset *token.FileSet, ti *types.Info, pos token.Pos, ce *ast.CallExpr) *StubInfo {
 	paramIdx := -1
 	for i, p := range ce.Args {
 		if pos >= p.Pos() && pos <= p.End() {
@@ -152,6 +153,7 @@ func fromCallExpr(ti *types.Info, pos token.Pos, ce *ast.CallExpr) *StubInfo {
 		return nil
 	}
 	return &StubInfo{
+		Fset:      fset,
 		Concrete:  concObj,
 		Pointer:   pointer,
 		Interface: iface,
@@ -163,7 +165,7 @@ func fromCallExpr(ti *types.Info, pos token.Pos, ce *ast.CallExpr) *StubInfo {
 //
 // For example, func() io.Writer { return myType{} }
 // would return StubInfo with the interface being io.Writer and the concrete type being myType{}.
-func fromReturnStmt(ti *types.Info, pos token.Pos, path []ast.Node, rs *ast.ReturnStmt) (*StubInfo, error) {
+func fromReturnStmt(fset *token.FileSet, ti *types.Info, pos token.Pos, path []ast.Node, rs *ast.ReturnStmt) (*StubInfo, error) {
 	returnIdx := -1
 	for i, r := range rs.Results {
 		if pos >= r.Pos() && pos <= r.End() {
@@ -186,6 +188,7 @@ func fromReturnStmt(ti *types.Info, pos token.Pos, path []ast.Node, rs *ast.Retu
 		return nil, nil
 	}
 	return &StubInfo{
+		Fset:      fset,
 		Concrete:  concObj,
 		Pointer:   pointer,
 		Interface: iface,
@@ -194,7 +197,7 @@ func fromReturnStmt(ti *types.Info, pos token.Pos, path []ast.Node, rs *ast.Retu
 
 // fromValueSpec returns *StubInfo from a variable declaration such as
 // var x io.Writer = &T{}
-func fromValueSpec(ti *types.Info, vs *ast.ValueSpec, pos token.Pos) *StubInfo {
+func fromValueSpec(fset *token.FileSet, ti *types.Info, vs *ast.ValueSpec, pos token.Pos) *StubInfo {
 	var idx int
 	for i, vs := range vs.Values {
 		if pos >= vs.Pos() && pos <= vs.End() {
@@ -221,6 +224,7 @@ func fromValueSpec(ti *types.Info, vs *ast.ValueSpec, pos token.Pos) *StubInfo {
 		return nil
 	}
 	return &StubInfo{
+		Fset:      fset,
 		Concrete:  concObj,
 		Interface: ifaceObj,
 		Pointer:   pointer,
@@ -230,7 +234,7 @@ func fromValueSpec(ti *types.Info, vs *ast.ValueSpec, pos token.Pos) *StubInfo {
 // fromAssignStmt returns *StubInfo from a variable re-assignment such as
 // var x io.Writer
 // x = &T{}
-func fromAssignStmt(ti *types.Info, as *ast.AssignStmt, pos token.Pos) *StubInfo {
+func fromAssignStmt(fset *token.FileSet, ti *types.Info, as *ast.AssignStmt, pos token.Pos) *StubInfo {
 	idx := -1
 	var lhs, rhs ast.Expr
 	// Given a re-assignment interface conversion error,
@@ -263,6 +267,7 @@ func fromAssignStmt(ti *types.Info, as *ast.AssignStmt, pos token.Pos) *StubInfo
 		return nil
 	}
 	return &StubInfo{
+		Fset:      fset,
 		Concrete:  concType,
 		Interface: ifaceObj,
 		Pointer:   pointer,
@@ -283,6 +288,8 @@ func fromAssignStmt(ti *types.Info, as *ast.AssignStmt, pos token.Pos) *StubInfo
 // is presented with a package that is not imported. This is useful so that as types.TypeString is
 // formatting a function signature, it is identifying packages that will need to be imported when
 // stubbing an interface.
+//
+// TODO(rfindley): investigate if this can be merged with source.Qualifier.
 func RelativeToFiles(concPkg *types.Package, concFile *ast.File, ifaceImports []*ast.ImportSpec, missingImport func(name, path string)) types.Qualifier {
 	return func(other *types.Package) string {
 		if other == concPkg {

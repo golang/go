@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -34,7 +35,7 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh FileHandle,
 	if err != nil {
 		return nil, nil, fmt.Errorf("getNodes: %w", err)
 	}
-	si := stubmethods.GetStubInfo(pkg.GetTypesInfo(), nodes, pos)
+	si := stubmethods.GetStubInfo(pkg.FileSet(), pkg.GetTypesInfo(), nodes, pos)
 	if si == nil {
 		return nil, nil, fmt.Errorf("nil interface request")
 	}
@@ -47,14 +48,14 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh FileHandle,
 	}
 
 	// Parse the file defining the concrete type.
-	concreteFilename := safetoken.StartPosition(snapshot.FileSet(), si.Concrete.Obj().Pos()).Filename
+	concreteFilename := safetoken.StartPosition(si.Fset, si.Concrete.Obj().Pos()).Filename
 	concreteFH, err := snapshot.GetFile(ctx, span.URIFromPath(concreteFilename))
 	if err != nil {
 		return nil, nil, err
 	}
 	parsedConcreteFile, err := snapshot.ParseGo(ctx, concreteFH, ParseFull)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse file declaring implementation type: %w", err)
+		return nil, nil, fmt.Errorf("failed to parse file %q declaring implementation type: %w", concreteFH.URI(), err)
 	}
 	var (
 		methodsSrc  []byte
@@ -72,20 +73,27 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh FileHandle,
 	// Splice the methods into the file.
 	// The insertion point is after the top-level declaration
 	// enclosing the (package-level) type object.
-	insertPos := parsedConcreteFile.File.End()
+	insertOffset, err := safetoken.Offset(parsedConcreteFile.Tok, parsedConcreteFile.File.End())
+	if err != nil {
+		return nil, nil, bug.Errorf("internal error: end position outside file bounds: %v", err)
+	}
+	concOffset, err := safetoken.Offset(pkg.FileSet().File(conc.Pos()), conc.Pos())
+	if err != nil {
+		return nil, nil, bug.Errorf("internal error: finding type decl offset: %v", err)
+	}
 	for _, decl := range parsedConcreteFile.File.Decls {
-		if decl.End() > conc.Pos() {
-			insertPos = decl.End()
+		declEndOffset, err := safetoken.Offset(parsedConcreteFile.Tok, decl.End())
+		if err != nil {
+			return nil, nil, bug.Errorf("internal error: finding decl offset: %v", err)
+		}
+		if declEndOffset > concOffset {
+			insertOffset = declEndOffset
 			break
 		}
 	}
 	concreteSrc, err := concreteFH.Read()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error reading concrete file source: %w", err)
-	}
-	insertOffset, err := safetoken.Offset(parsedConcreteFile.Tok, insertPos)
-	if err != nil || insertOffset >= len(concreteSrc) {
-		return nil, nil, fmt.Errorf("insertion position is past the end of the file")
 	}
 	var buf bytes.Buffer
 	buf.Write(concreteSrc[:insertOffset])
@@ -126,7 +134,7 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh FileHandle,
 // that implement the given interface
 func stubMethods(ctx context.Context, concreteFile *ast.File, si *stubmethods.StubInfo, snapshot Snapshot) ([]byte, []*stubImport, error) {
 	concMS := types.NewMethodSet(types.NewPointer(si.Concrete.Obj().Type()))
-	missing, err := missingMethods(ctx, snapshot, concMS, si.Concrete.Obj().Pkg(), si.Interface, map[string]struct{}{})
+	missing, err := missingMethods(ctx, si.Fset, snapshot, concMS, si.Concrete.Obj().Pkg(), si.Interface, map[string]struct{}{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("missingMethods: %w", err)
 	}
@@ -249,8 +257,10 @@ returns
 			missing: []*types.Func{Hello}
 		},
 	}
+
+The provided FileSet must be the FileSet used when type-checking concPkg.
 */
-func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.MethodSet, concPkg *types.Package, ifaceObj *types.TypeName, visited map[string]struct{}) ([]*missingInterface, error) {
+func missingMethods(ctx context.Context, fset *token.FileSet, snapshot Snapshot, concMS *types.MethodSet, concPkg *types.Package, ifaceObj *types.TypeName, visited map[string]struct{}) ([]*missingInterface, error) {
 	iface, ok := ifaceObj.Type().Underlying().(*types.Interface)
 	if !ok {
 		return nil, fmt.Errorf("expected %v to be an interface but got %T", iface, ifaceObj.Type().Underlying())
@@ -270,7 +280,7 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 	}
 
 	// Parse the imports from the file that declares the interface.
-	ifaceFilename := safetoken.StartPosition(snapshot.FileSet(), ifaceObj.Pos()).Filename
+	ifaceFilename := safetoken.StartPosition(fset, ifaceObj.Pos()).Filename
 	ifaceFH, err := snapshot.GetFile(ctx, span.URIFromPath(ifaceFilename))
 	if err != nil {
 		return nil, err
@@ -311,7 +321,7 @@ func missingMethods(ctx context.Context, snapshot Snapshot, concMS *types.Method
 	var missingInterfaces []*missingInterface
 	for i := 0; i < iface.NumEmbeddeds(); i++ {
 		eiface := iface.Embedded(i).Obj()
-		em, err := missingMethods(ctx, snapshot, concMS, concPkg, eiface, visited)
+		em, err := missingMethods(ctx, fset, snapshot, concMS, concPkg, eiface, visited)
 		if err != nil {
 			return nil, err
 		}
