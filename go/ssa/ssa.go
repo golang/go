@@ -36,7 +36,7 @@ type Program struct {
 	bounds        map[boundsKey]*Function    // bounds for curried x.Method closures
 	thunks        map[selectionKey]*Function // thunks for T.Method expressions
 	instances     map[*Function]*instanceSet // instances of generic functions
-	parameterized tpWalker                   // determines whether a type is parameterized.
+	parameterized tpWalker                   // determines whether a type reaches a type parameter.
 }
 
 // A Package is a single analyzed Go package containing Members for

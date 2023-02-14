@@ -148,7 +148,8 @@ func (insts *instanceSet) lookupOrCreate(targs []types.Type, parameterized *tpWa
 
 	if prog.mode&InstantiateGenerics != 0 && concrete {
 		synthetic = fmt.Sprintf("instance of %s", fn.Name())
-		subst = makeSubster(prog.ctxt, fn.typeparams, targs, false)
+		scope := typeparams.OriginMethod(obj).Scope()
+		subst = makeSubster(prog.ctxt, scope, fn.typeparams, targs, false)
 	} else {
 		synthetic = fmt.Sprintf("instantiation wrapper of %s", fn.Name())
 	}

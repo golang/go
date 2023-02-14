@@ -894,3 +894,114 @@ func TestGenericFunctionSelector(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue58491(t *testing.T) {
+	// Test that a local type reaches type param in instantiation.
+	testenv.NeedsGo1Point(t, 18)
+	src := `
+		package p
+
+		func foo[T any](blocking func() (T, error)) error {
+			type result struct {
+				res T
+				error // ensure the method set of result is non-empty
+			}
+
+			res := make(chan result, 1)
+			go func() {
+				var r result
+				r.res, r.error = blocking()
+				res <- r
+			}()
+			r := <-res
+			err := r // require the rtype for result when instantiated
+			return err
+		}
+		var Inst = foo[int]
+	`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "p.go", src, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	files := []*ast.File{f}
+
+	pkg := types.NewPackage("p", "")
+	conf := &types.Config{}
+	p, _, err := ssautil.BuildPackage(conf, fset, pkg, files, ssa.SanityCheckFunctions|ssa.InstantiateGenerics)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Find the local type result instantiated with int.
+	var found bool
+	for _, rt := range p.Prog.RuntimeTypes() {
+		if n, ok := rt.(*types.Named); ok {
+			if u, ok := n.Underlying().(*types.Struct); ok {
+				found = true
+				if got, want := n.String(), "p.result"; got != want {
+					t.Errorf("Expected the name %s got: %s", want, got)
+				}
+				if got, want := u.String(), "struct{res int; error}"; got != want {
+					t.Errorf("Expected the underlying type of %s to be %s. got %s", n, want, got)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("Failed to find any Named to struct types")
+	}
+}
+
+func TestIssue58491Rec(t *testing.T) {
+	// Roughly the same as TestIssue58491 but with a recursive type.
+	testenv.NeedsGo1Point(t, 18)
+	src := `
+		package p
+
+		func foo[T any]() error {
+			type result struct {
+				res T
+				next *result
+				error // ensure the method set of result is non-empty
+			}
+
+			r := &result{}
+			err := r // require the rtype for result when instantiated
+			return err
+		}
+		var Inst = foo[int]
+	`
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "p.go", src, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	files := []*ast.File{f}
+
+	pkg := types.NewPackage("p", "")
+	conf := &types.Config{}
+	p, _, err := ssautil.BuildPackage(conf, fset, pkg, files, ssa.SanityCheckFunctions|ssa.InstantiateGenerics)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Find the local type result instantiated with int.
+	var found bool
+	for _, rt := range p.Prog.RuntimeTypes() {
+		if n, ok := rt.(*types.Named); ok {
+			if u, ok := n.Underlying().(*types.Struct); ok {
+				found = true
+				if got, want := n.String(), "p.result"; got != want {
+					t.Errorf("Expected the name %s got: %s", want, got)
+				}
+				if got, want := u.String(), "struct{res int; next *p.result; error}"; got != want {
+					t.Errorf("Expected the underlying type of %s to be %s. got %s", n, want, got)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("Failed to find any Named to struct types")
+	}
+}

@@ -85,7 +85,7 @@ func TestBuildPackageGo120(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			fset := token.NewFileSet()
-			f, err := parser.ParseFile(fset, "p.go", tc.src, parser.ParseComments)
+			f, err := parser.ParseFile(fset, "p.go", tc.src, 0)
 			if err != nil {
 				t.Error(err)
 			}
