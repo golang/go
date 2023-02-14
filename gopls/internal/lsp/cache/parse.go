@@ -64,7 +64,7 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 	// cache miss?
 	if !hit {
 		promise, release := s.store.Promise(key, func(ctx context.Context, arg interface{}) interface{} {
-			parsed, err := parseGoImpl(ctx, arg.(*snapshot).FileSet(), fh, mode)
+			parsed, err := parseGoImpl(ctx, arg.(*snapshot).view.fset, fh, mode)
 			return parseGoResult{parsed, err}
 		})
 

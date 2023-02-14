@@ -26,6 +26,9 @@ type (
 	// suggested fixes with their diagnostics, so we have to compute them
 	// separately. Such analyzers should provide a function with a signature of
 	// SuggestedFixFunc.
+	//
+	// The returned FileSet must map all token.Pos found in the suggested text
+	// edits.
 	SuggestedFixFunc  func(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error)
 	singleFileFixFunc func(fset *token.FileSet, start, end token.Pos, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error)
 )

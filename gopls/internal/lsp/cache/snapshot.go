@@ -261,10 +261,6 @@ func (s *snapshot) BackgroundContext() context.Context {
 	return s.backgroundCtx
 }
 
-func (s *snapshot) FileSet() *token.FileSet {
-	return s.view.fset
-}
-
 func (s *snapshot) ModFiles() []span.URI {
 	var uris []span.URI
 	for modURI := range s.workspaceModFiles {

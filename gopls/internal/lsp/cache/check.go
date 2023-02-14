@@ -449,7 +449,7 @@ func doTypeCheck(ctx context.Context, snapshot *snapshot, inputs typeCheckInputs
 	pkg := &syntaxPackage{
 		id:        inputs.id,
 		mode:      inputs.mode,
-		fset:      snapshot.FileSet(), // must match parse call below (snapshot.ParseGo for now)
+		fset:      snapshot.view.fset, // must match parse call below (snapshot.ParseGo for now)
 		types:     types.NewPackage(string(inputs.pkgPath), string(inputs.name)),
 		importMap: new(importMap),
 		typesInfo: &types.Info{

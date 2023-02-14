@@ -33,7 +33,6 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 		return nil, fmt.Errorf("can't format %q: file is generated", fh.URI().Filename())
 	}
 
-	fset := snapshot.FileSet()
 	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return nil, err
@@ -54,6 +53,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 	// This should be acceptable for all users, who likely be prompted to rebuild
 	// the LSP server on each Go release.
 	buf := &bytes.Buffer{}
+	fset := SingletonFileSet(pgf.Tok)
 	if err := format.Node(buf, fset, pgf.File); err != nil {
 		return nil, err
 	}

@@ -62,14 +62,6 @@ type Snapshot interface {
 	// on behalf of this snapshot.
 	BackgroundContext() context.Context
 
-	// Fileset returns the Fileset used to parse all the Go files in this snapshot.
-	//
-	// If the files are known to belong to a specific Package, use
-	// Package.FileSet instead. (We plan to eliminate the
-	// Snapshot's cache of parsed files, and thus the need for a
-	// snapshot-wide FileSet.)
-	FileSet() *token.FileSet
-
 	// ValidBuildConfiguration returns true if there is some error in the
 	// user's workspace. In particular, if they are both outside of a module
 	// and their GOPATH.

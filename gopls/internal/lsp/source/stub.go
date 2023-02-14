@@ -125,7 +125,7 @@ func stubSuggestedFixFunc(ctx context.Context, snapshot Snapshot, fh FileHandle,
 			NewText: []byte(edit.New),
 		})
 	}
-	return snapshot.FileSet(), // to match snapshot.ParseGo above
+	return SingletonFileSet(parsedConcreteFile.Tok), // edits use parsedConcreteFile.Tok
 		&analysis.SuggestedFix{TextEdits: edits},
 		nil
 }
