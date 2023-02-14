@@ -1085,7 +1085,6 @@ func TestChromiumDomain(t *testing.T) {
 	for _, test := range chromiumDomainTests {
 		test.run(t, jar)
 	}
-
 }
 
 // chromiumDeletionTests must be performed all on the same Jar.

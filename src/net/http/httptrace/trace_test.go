@@ -85,5 +85,4 @@ func TestCompose(t *testing.T) {
 			t.Errorf("%d. got = %q; want %q", i, got, tt.want)
 		}
 	}
-
 }

@@ -1617,7 +1617,6 @@ func testBidiStreamReverseProxy(t *testing.T, mode testMode) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout")
 	}
-
 }
 
 // Always use HTTP/1.1 for WebSocket upgrades.

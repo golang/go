@@ -859,7 +859,6 @@ func testClientInsecureTransport(t *testing.T, mode testMode) {
 	case <-time.After(5 * time.Second):
 		t.Errorf("timeout waiting for logged error")
 	}
-
 }
 
 func TestClientErrorWithRequestURI(t *testing.T) {
@@ -1135,7 +1134,6 @@ func TestBasicAuthHeadersPreserved(t *testing.T) {
 	} else {
 		t.Errorf("Invalid auth %q", auth)
 	}
-
 }
 
 func TestStripPasswordFromError(t *testing.T) {
