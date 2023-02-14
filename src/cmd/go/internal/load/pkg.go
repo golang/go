@@ -1919,12 +1919,14 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		p.Module = modload.PackageModuleInfo(ctx, pkgPath)
 	}
 
-	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
-	if err != nil {
-		p.Incomplete = true
-		setError(err)
-		embedErr := err.(*EmbedError)
-		p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
+	if !opts.SuppressEmbedFiles {
+		p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
+		if err != nil {
+			p.Incomplete = true
+			setError(err)
+			embedErr := err.(*EmbedError)
+			p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
+		}
 	}
 
 	// Check for case-insensitive collision of input files.
@@ -2774,6 +2776,10 @@ type PackageOpts struct {
 	// SuppressBuildInfo is true if the caller does not need p.Stale, p.StaleReason, or p.Internal.BuildInfo
 	// to be populated on the package.
 	SuppressBuildInfo bool
+
+	// SuppressEmbedFiles is true if the caller does not need any embed files to be populated on the
+	// package.
+	SuppressEmbedFiles bool
 }
 
 // PackagesAndErrors returns the packages named by the command line arguments
