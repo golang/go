@@ -7,6 +7,7 @@ package main
 import (
 	"html/template"
 	"io"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -65,9 +66,9 @@ var (
 	contentTemplate map[string]*template.Template
 )
 
-func initTemplates(base string) error {
+func initTemplates(fsys fs.FS) error {
 	// Locate the template file.
-	actionTmpl := filepath.Join(base, "templates/action.tmpl")
+	actionTmpl := "templates/action.tmpl"
 
 	contentTemplate = make(map[string]*template.Template)
 
@@ -75,19 +76,19 @@ func initTemplates(base string) error {
 		".slide":   "slides.tmpl",
 		".article": "article.tmpl",
 	} {
-		contentTmpl = filepath.Join(base, "templates", contentTmpl)
+		contentTmpl = "templates/" + contentTmpl
 
 		// Read and parse the input.
 		tmpl := present.Template()
 		tmpl = tmpl.Funcs(template.FuncMap{"playable": playable})
-		if _, err := tmpl.ParseFiles(actionTmpl, contentTmpl); err != nil {
+		if _, err := tmpl.ParseFS(fsys, actionTmpl, contentTmpl); err != nil {
 			return err
 		}
 		contentTemplate[ext] = tmpl
 	}
 
 	var err error
-	dirListTemplate, err = template.ParseFiles(filepath.Join(base, "templates/dir.tmpl"))
+	dirListTemplate, err = template.ParseFS(fsys, "templates/dir.tmpl")
 	return err
 }
 

@@ -7,11 +7,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"net/http"
 	"net/url"
-	"path/filepath"
-	"runtime"
 	"time"
 
 	"golang.org/x/tools/godoc/static"
@@ -31,7 +29,7 @@ var scripts = []string{"jquery.js", "jquery-ui.js", "playground.js", "play.js"}
 // playScript registers an HTTP handler at /play.js that serves all the
 // scripts specified by the variable above, and appends a line that
 // initializes the playground with the specified transport.
-func playScript(root, transport string) {
+func playScript(fsys fs.FS, transport string) {
 	modTime := time.Now()
 	var buf bytes.Buffer
 	for _, p := range scripts {
@@ -39,7 +37,7 @@ func playScript(root, transport string) {
 			buf.WriteString(s)
 			continue
 		}
-		b, err := ioutil.ReadFile(filepath.Join(root, "static", p))
+		b, err := fs.ReadFile(fsys, "static/"+p)
 		if err != nil {
 			panic(err)
 		}
@@ -53,27 +51,16 @@ func playScript(root, transport string) {
 	})
 }
 
-func initPlayground(basepath string, origin *url.URL) {
+func initPlayground(fsys fs.FS, origin *url.URL) {
 	if !present.PlayEnabled {
 		return
 	}
 	if *usePlayground {
-		playScript(basepath, "HTTPTransport")
+		playScript(fsys, "HTTPTransport")
 		return
 	}
 
-	if *nativeClient {
-		// When specifying nativeClient, non-Go code cannot be executed
-		// because the NaCl setup doesn't support doing so.
-		socket.RunScripts = false
-		socket.Environ = func() []string {
-			if runtime.GOARCH == "amd64" {
-				return environ("GOOS=nacl", "GOARCH=amd64p32")
-			}
-			return environ("GOOS=nacl")
-		}
-	}
-	playScript(basepath, "SocketTransport")
+	playScript(fsys, "SocketTransport")
 	http.Handle("/socket", socket.NewHandler(origin))
 }
 
