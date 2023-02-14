@@ -6,6 +6,7 @@ package slices
 
 import (
 	"internal/race"
+	"internal/testenv"
 	"math"
 	"strings"
 	"testing"
@@ -455,7 +456,7 @@ func TestGrow(t *testing.T) {
 	}
 	if n := testing.AllocsPerRun(100, func() { Grow(s2, cap(s2)-len(s2)+1) }); n != 1 {
 		errorf := t.Errorf
-		if race.Enabled {
+		if race.Enabled || testenv.OptimizationOff() {
 			errorf = t.Logf // this allocates multiple times in race detector mode
 		}
 		errorf("Grow should allocate once when given insufficient capacity; allocated %v times", n)
