@@ -569,6 +569,28 @@ func (u *unwinder) symPC() uintptr {
 	return u.frame.pc
 }
 
+// cgoCallers populates pcBuf with the cgo callers of the current frame using
+// the registered cgo unwinder. It returns the number of PCs written to pcBuf.
+// If the current frame is not a cgo frame or if there's no registered cgo
+// unwinder, it returns 0.
+func (u *unwinder) cgoCallers(pcBuf []uintptr) int {
+	if cgoTraceback == nil || u.frame.fn.funcID != funcID_cgocallback || u.cgoCtxt < 0 {
+		// We don't have a cgo unwinder (typical case), or we do but we're not
+		// in a cgo frame or we're out of cgo context.
+		return 0
+	}
+
+	ctxt := u.g.ptr().cgoCtxt[u.cgoCtxt]
+	u.cgoCtxt--
+	cgoContextPCs(ctxt, pcBuf)
+	for i, pc := range pcBuf {
+		if pc == 0 {
+			return i
+		}
+	}
+	return len(pcBuf)
+}
+
 // Generic traceback. Handles runtime stack prints (pcbuf == nil),
 // and the runtime.Callers function (pcbuf != nil).
 // A little clunky to merge these, but avoids
@@ -605,9 +627,12 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 
 	nprint := 0
 	n := 0
+	var cgoBuf [32]uintptr
 	for ; n < max && u.valid(); u.next() {
 		frame := &u.frame
 		f := frame.fn
+
+		cgoN := u.cgoCallers(cgoBuf[:])
 
 		if pcbuf != nil {
 			// TODO: Why does cache escape? (Same below)
@@ -625,6 +650,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					n++
 				}
 				u.calleeFuncID = sf.funcID
+			}
+			// Add cgo frames
+			if skip == 0 { // skip only applies to Go frames
+				for i := 0; i < cgoN && n < max; i++ {
+					(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = cgoBuf[i]
+					n++
+				}
 			}
 			n-- // offset n++ below
 		}
@@ -669,18 +701,31 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 					nprint++
 				}
 			}
-		}
-		n++
-
-		if f.funcID == funcID_cgocallback && u.cgoCtxt >= 0 {
-			ctxt := gp.cgoCtxt[u.cgoCtxt]
-			u.cgoCtxt--
-
-			// skip only applies to Go frames.
-			if skip == 0 {
-				n = tracebackCgoContext(pcbuf, printing, ctxt, n, max)
+			// Print cgo frames.
+			if cgoN > 0 {
+				var arg cgoSymbolizerArg
+				anySymbolized := false
+				for _, pc := range cgoBuf[:cgoN] {
+					if n >= max {
+						break
+					}
+					if cgoSymbolizer == nil {
+						print("non-Go function at pc=", hex(pc), "\n")
+					} else {
+						c := printOneCgoTraceback(pc, max-n, &arg)
+						n += c - 1 // +1 a few lines down
+						anySymbolized = true
+					}
+					nprint++
+				}
+				if anySymbolized {
+					// Free symbolization state.
+					arg.pc = 0
+					callCgoSymbolizer(&arg)
+				}
 			}
 		}
+		n++
 	}
 
 	if printing {
@@ -789,39 +834,6 @@ printloop:
 		}
 		start = false
 	}
-}
-
-// tracebackCgoContext handles tracing back a cgo context value, from
-// the context argument to setCgoTraceback, for the gentraceback
-// function. It returns the new value of n.
-func tracebackCgoContext(pcbuf *uintptr, printing bool, ctxt uintptr, n, max int) int {
-	var cgoPCs [32]uintptr
-	cgoContextPCs(ctxt, cgoPCs[:])
-	var arg cgoSymbolizerArg
-	anySymbolized := false
-	for _, pc := range cgoPCs {
-		if pc == 0 || n >= max {
-			break
-		}
-		if pcbuf != nil {
-			(*[1 << 20]uintptr)(unsafe.Pointer(pcbuf))[n] = pc
-		}
-		if printing {
-			if cgoSymbolizer == nil {
-				print("non-Go function at pc=", hex(pc), "\n")
-			} else {
-				c := printOneCgoTraceback(pc, max-n, &arg)
-				n += c - 1 // +1 a few lines down
-				anySymbolized = true
-			}
-		}
-		n++
-	}
-	if anySymbolized {
-		arg.pc = 0
-		callCgoSymbolizer(&arg)
-	}
-	return n
 }
 
 func printcreatedby(gp *g) {
