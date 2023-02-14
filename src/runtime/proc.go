@@ -4687,6 +4687,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// See golang.org/issue/17165.
 	getg().m.mallocing++
 
+	var u unwinder
 	var stk [maxCPUProfStack]uintptr
 	n := 0
 	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
@@ -4700,26 +4701,24 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			for cgoOff < len(mp.cgoCallers) && mp.cgoCallers[cgoOff] != 0 {
 				cgoOff++
 			}
-			copy(stk[:], mp.cgoCallers[:cgoOff])
+			n += copy(stk[:], mp.cgoCallers[:cgoOff])
 			mp.cgoCallers[0] = 0
 		}
 
 		// Collect Go stack that leads to the cgo call.
-		n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[cgoOff], len(stk)-cgoOff, nil, nil, 0)
-		if n > 0 {
-			n += cgoOff
-		}
+		u.initAt(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, unwindSilentErrors)
 	} else if usesLibcall() && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
 		// Libcall, i.e. runtime syscall on windows.
 		// Collect Go stack that leads to the call.
-		n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[n], len(stk[n:]), nil, nil, 0)
+		u.initAt(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), unwindSilentErrors)
 	} else if mp != nil && mp.vdsoSP != 0 {
 		// VDSO call, e.g. nanotime1 on Linux.
 		// Collect Go stack that leads to the call.
-		n = gentraceback(mp.vdsoPC, mp.vdsoSP, 0, gp, 0, &stk[n], len(stk[n:]), nil, nil, _TraceJumpStack)
+		u.initAt(mp.vdsoPC, mp.vdsoSP, 0, gp, unwindSilentErrors|unwindJumpStack)
 	} else {
-		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
+		u.initAt(pc, sp, lr, gp, unwindSilentErrors|unwindTrap|unwindJumpStack)
 	}
+	n += tracebackPCs(&u, 0, stk[n:])
 
 	if n <= 0 {
 		// Normal traceback is impossible or has failed.
