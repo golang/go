@@ -162,7 +162,7 @@ func schedule(f *Func) {
 					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
 				}
 				score[v.ID] = ScorePhi
-			case v.Op == OpArg:
+			case v.Op == OpArg || v.Op == OpSP || v.Op == OpSB || v.Op == OpInitMem:
 				// We want all the args as early as possible, for better debugging.
 				score[v.ID] = ScoreArg
 			case v.Type.IsMemory():
