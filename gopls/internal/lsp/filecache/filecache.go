@@ -246,10 +246,13 @@ func gc(goplsDir string) {
 	// tests) are able to make progress sweeping garbage.
 	//
 	// (gopls' caches should never actually get this big in
-	// practise: the example mentioned above resulted from a bug
+	// practice: the example mentioned above resulted from a bug
 	// that caused filecache to fail to delete any files.)
 
 	const debug = false
+
+	// Names of all directories found in first pass; nil thereafter.
+	dirs := make(map[string]bool)
 
 	for {
 		// Enumerate all files in the cache.
@@ -260,9 +263,15 @@ func gc(goplsDir string) {
 		var files []item
 		var total int64 // bytes
 		_ = filepath.Walk(goplsDir, func(path string, stat os.FileInfo, err error) error {
-			// TODO(adonovan): opt: also collect empty directories,
-			// as they typically occupy around 1KB.
-			if err == nil && !stat.IsDir() {
+			if err != nil {
+				return nil // ignore errors
+			}
+			if stat.IsDir() {
+				// Collect (potentially empty) directories.
+				if dirs != nil {
+					dirs[path] = true
+				}
+			} else {
 				// Unconditionally delete files we haven't used in ages.
 				// (We do this here, not in the second loop, so that we
 				// perform age-based collection even in short-lived processes.)
@@ -303,5 +312,40 @@ func gc(goplsDir string) {
 		}
 
 		time.Sleep(period)
+
+		// Once only, delete all directories.
+		// This will succeed only for the empty ones,
+		// and ensures that stale directories (whose
+		// files have been deleted) are removed eventually.
+		// They don't take up much space but they do slow
+		// down the traversal.
+		//
+		// We do this after the sleep to minimize the
+		// race against Set, which may create a directory
+		// that is momentarily empty.
+		//
+		// (Test processes don't live that long, so
+		// this may not be reached on the CI builders.)
+		if dirs != nil {
+			dirnames := make([]string, 0, len(dirs))
+			for dir := range dirs {
+				dirnames = append(dirnames, dir)
+			}
+			dirs = nil
+
+			// Descending length order => children before parents.
+			sort.Slice(dirnames, func(i, j int) bool {
+				return len(dirnames[i]) > len(dirnames[j])
+			})
+			var deleted int
+			for _, dir := range dirnames {
+				if os.Remove(dir) == nil { // ignore error
+					deleted++
+				}
+			}
+			if debug {
+				log.Printf("deleted %d empty directories", deleted)
+			}
+		}
 	}
 }
