@@ -632,7 +632,7 @@
 (BRC {c} (CMPWUconst x [y]) yes no) && y == int32( int8(y)) && (c == s390x.Equal || c == s390x.LessOrGreater) => (CIJ   {c} x [ int8(y)] yes no)
 
 // Fold constants into instructions.
-(ADD x (MOVDconst [c])) && is32Bit(c) => (ADDconst [int32(c)] x)
+(ADD x (MOVDconst <t> [c])) && is32Bit(c) && !t.IsPtr() => (ADDconst [int32(c)] x)
 (ADDW x (MOVDconst [c])) => (ADDWconst [int32(c)] x)
 
 (SUB x (MOVDconst [c])) && is32Bit(c) => (SUBconst x [int32(c)])

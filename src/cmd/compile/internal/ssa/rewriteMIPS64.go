@@ -2298,8 +2298,8 @@ func rewriteValueMIPS64_OpLsh8x8(v *Value) bool {
 func rewriteValueMIPS64_OpMIPS64ADDV(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADDV x (MOVVconst [c]))
-	// cond: is32Bit(c)
+	// match: (ADDV x (MOVVconst <t> [c]))
+	// cond: is32Bit(c) && !t.IsPtr()
 	// result: (ADDVconst [c] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -2307,8 +2307,9 @@ func rewriteValueMIPS64_OpMIPS64ADDV(v *Value) bool {
 			if v_1.Op != OpMIPS64MOVVconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(is32Bit(c)) {
+			if !(is32Bit(c) && !t.IsPtr()) {
 				continue
 			}
 			v.reset(OpMIPS64ADDVconst)

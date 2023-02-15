@@ -1241,7 +1241,7 @@
 (MOVDnop (MOVDconst [c])) => (MOVDconst [c])
 
 // fold constant into arithmetic ops
-(ADD x (MOVDconst [c])) => (ADDconst [c] x)
+(ADD x (MOVDconst <t> [c])) && !t.IsPtr() => (ADDconst [c] x)
 (SUB x (MOVDconst [c])) => (SUBconst [c] x)
 (AND x (MOVDconst [c])) => (ANDconst [c] x)
 (OR  x (MOVDconst [c])) => (ORconst  [c] x)

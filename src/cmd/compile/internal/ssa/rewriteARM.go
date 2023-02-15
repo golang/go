@@ -1315,7 +1315,8 @@ func rewriteValueARM_OpARMADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (ADD x (MOVWconst [c]))
+	// match: (ADD x (MOVWconst <t> [c]))
+	// cond: !t.IsPtr()
 	// result: (ADDconst [c] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1323,7 +1324,11 @@ func rewriteValueARM_OpARMADD(v *Value) bool {
 			if v_1.Op != OpARMMOVWconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt32(v_1.AuxInt)
+			if !(!t.IsPtr()) {
+				continue
+			}
 			v.reset(OpARMADDconst)
 			v.AuxInt = int32ToAuxInt(c)
 			v.AddArg(x)

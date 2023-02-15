@@ -1178,7 +1178,8 @@ func rewriteValueARM64_OpARM64ADCSflags(v *Value) bool {
 func rewriteValueARM64_OpARM64ADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADD x (MOVDconst [c]))
+	// match: (ADD x (MOVDconst <t> [c]))
+	// cond: !t.IsPtr()
 	// result: (ADDconst [c] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1186,7 +1187,11 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
 			if v_1.Op != OpARM64MOVDconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt64(v_1.AuxInt)
+			if !(!t.IsPtr()) {
+				continue
+			}
 			v.reset(OpARM64ADDconst)
 			v.AuxInt = int64ToAuxInt(c)
 			v.AddArg(x)

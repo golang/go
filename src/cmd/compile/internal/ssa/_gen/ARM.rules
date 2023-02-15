@@ -481,7 +481,7 @@
 (MOVHloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && isSamePtr(ptr, ptr2) => (MOVHreg x)
 
 // fold constant into arithmetic ops
-(ADD x (MOVWconst [c])) => (ADDconst [c] x)
+(ADD x (MOVWconst <t> [c])) && !t.IsPtr() => (ADDconst [c] x)
 (SUB (MOVWconst [c]) x) => (RSBconst [c] x)
 (SUB x (MOVWconst [c])) => (SUBconst [c] x)
 (RSB (MOVWconst [c]) x) => (SUBconst [c] x)

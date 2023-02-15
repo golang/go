@@ -670,7 +670,7 @@
 
 // Arithmetic constant ops
 
-(ADD x (MOVDconst [c])) && is32Bit(c) => (ADDconst [c] x)
+(ADD x (MOVDconst <t> [c])) && is32Bit(c) && !t.IsPtr() => (ADDconst [c] x)
 (ADDconst [c] (ADDconst [d] x)) && is32Bit(c+d) => (ADDconst [c+d] x)
 (ADDconst [0] x) => x
 (SUB x (MOVDconst [c])) && is32Bit(-c) => (ADDconst [-c] x)

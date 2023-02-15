@@ -757,7 +757,7 @@
 (MOVDnop (MOVDconst [c])) => (MOVDconst [c])
 
 // Fold constant into immediate instructions where possible.
-(ADD (MOVDconst [val]) x) && is32Bit(val) => (ADDI [val] x)
+(ADD (MOVDconst <t> [val]) x) && is32Bit(val) && !t.IsPtr() => (ADDI [val] x)
 (AND (MOVDconst [val]) x) && is32Bit(val) => (ANDI [val] x)
 (OR  (MOVDconst [val]) x) && is32Bit(val) => (ORI  [val] x)
 (XOR (MOVDconst [val]) x) && is32Bit(val) => (XORI [val] x)

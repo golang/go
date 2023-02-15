@@ -3150,17 +3150,18 @@ func rewriteValueRISCV64_OpPanicBounds(v *Value) bool {
 func rewriteValueRISCV64_OpRISCV64ADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADD (MOVDconst [val]) x)
-	// cond: is32Bit(val)
+	// match: (ADD (MOVDconst <t> [val]) x)
+	// cond: is32Bit(val) && !t.IsPtr()
 	// result: (ADDI [val] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			if v_0.Op != OpRISCV64MOVDconst {
 				continue
 			}
+			t := v_0.Type
 			val := auxIntToInt64(v_0.AuxInt)
 			x := v_1
-			if !(is32Bit(val)) {
+			if !(is32Bit(val) && !t.IsPtr()) {
 				continue
 			}
 			v.reset(OpRISCV64ADDI)

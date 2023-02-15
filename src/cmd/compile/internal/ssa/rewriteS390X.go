@@ -5286,8 +5286,8 @@ func rewriteValueS390X_OpRsh8x8(v *Value) bool {
 func rewriteValueS390X_OpS390XADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADD x (MOVDconst [c]))
-	// cond: is32Bit(c)
+	// match: (ADD x (MOVDconst <t> [c]))
+	// cond: is32Bit(c) && !t.IsPtr()
 	// result: (ADDconst [int32(c)] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -5295,8 +5295,9 @@ func rewriteValueS390X_OpS390XADD(v *Value) bool {
 			if v_1.Op != OpS390XMOVDconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(is32Bit(c)) {
+			if !(is32Bit(c) && !t.IsPtr()) {
 				continue
 			}
 			v.reset(OpS390XADDconst)

@@ -2025,7 +2025,8 @@ func rewriteValueMIPS_OpLsh8x8(v *Value) bool {
 func rewriteValueMIPS_OpMIPSADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADD x (MOVWconst [c]))
+	// match: (ADD x (MOVWconst <t> [c]))
+	// cond: !t.IsPtr()
 	// result: (ADDconst [c] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -2033,7 +2034,11 @@ func rewriteValueMIPS_OpMIPSADD(v *Value) bool {
 			if v_1.Op != OpMIPSMOVWconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt32(v_1.AuxInt)
+			if !(!t.IsPtr()) {
+				continue
+			}
 			v.reset(OpMIPSADDconst)
 			v.AuxInt = int32ToAuxInt(c)
 			v.AddArg(x)

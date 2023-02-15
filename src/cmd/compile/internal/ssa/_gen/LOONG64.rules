@@ -571,7 +571,7 @@
 (MOVVreg x) && x.Uses == 1 => (MOVVnop x)
 
 // fold constant into arithmetic ops
-(ADDV x (MOVVconst [c])) && is32Bit(c) => (ADDVconst [c] x)
+(ADDV x (MOVVconst <t> [c])) && is32Bit(c) && !t.IsPtr() => (ADDVconst [c] x)
 (SUBV x (MOVVconst [c])) && is32Bit(c) => (SUBVconst [c] x)
 (AND x (MOVVconst [c])) && is32Bit(c) => (ANDconst [c] x)
 (OR  x (MOVVconst [c])) && is32Bit(c) => (ORconst  [c] x)

@@ -726,7 +726,8 @@ func rewriteValue386_Op386ADCL(v *Value) bool {
 func rewriteValue386_Op386ADDL(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADDL x (MOVLconst [c]))
+	// match: (ADDL x (MOVLconst <t> [c]))
+	// cond: !t.IsPtr()
 	// result: (ADDLconst [c] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -734,7 +735,11 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 			if v_1.Op != Op386MOVLconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt32(v_1.AuxInt)
+			if !(!t.IsPtr()) {
+				continue
+			}
 			v.reset(Op386ADDLconst)
 			v.AuxInt = int32ToAuxInt(c)
 			v.AddArg(x)

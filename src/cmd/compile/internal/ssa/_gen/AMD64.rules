@@ -746,7 +746,7 @@
 // (SETEQF x) => (ANDQ (SETEQ <typ.Int8> x) (SETORD <typ.Int8> x))
 
 // fold constants into instructions
-(ADDQ x (MOVQconst [c])) && is32Bit(c) => (ADDQconst [int32(c)] x)
+(ADDQ x (MOVQconst <t> [c])) && is32Bit(c) && !t.IsPtr() => (ADDQconst [int32(c)] x)
 (ADDQ x (MOVLconst [c])) => (ADDQconst [c] x)
 (ADDL x (MOVLconst [c])) => (ADDLconst [c] x)
 

@@ -1792,8 +1792,8 @@ func rewriteValueAMD64_OpAMD64ADDLmodify(v *Value) bool {
 func rewriteValueAMD64_OpAMD64ADDQ(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADDQ x (MOVQconst [c]))
-	// cond: is32Bit(c)
+	// match: (ADDQ x (MOVQconst <t> [c]))
+	// cond: is32Bit(c) && !t.IsPtr()
 	// result: (ADDQconst [int32(c)] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1801,8 +1801,9 @@ func rewriteValueAMD64_OpAMD64ADDQ(v *Value) bool {
 			if v_1.Op != OpAMD64MOVQconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(is32Bit(c)) {
+			if !(is32Bit(c) && !t.IsPtr()) {
 				continue
 			}
 			v.reset(OpAMD64ADDQconst)

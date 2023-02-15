@@ -3620,14 +3620,19 @@ func rewriteValueWasm_OpWasmI64Add(v *Value) bool {
 		v.AddArg2(y, v0)
 		return true
 	}
-	// match: (I64Add x (I64Const [y]))
+	// match: (I64Add x (I64Const <t> [y]))
+	// cond: !t.IsPtr()
 	// result: (I64AddConst [y] x)
 	for {
 		x := v_0
 		if v_1.Op != OpWasmI64Const {
 			break
 		}
+		t := v_1.Type
 		y := auxIntToInt64(v_1.AuxInt)
+		if !(!t.IsPtr()) {
+			break
+		}
 		v.reset(OpWasmI64AddConst)
 		v.AuxInt = int64ToAuxInt(y)
 		v.AddArg(x)
