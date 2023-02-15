@@ -102,29 +102,33 @@ div#footer {
 
 div.code,
 div.output {
+  margin: 0;
+}
+
+pre {
   margin: 20px 20px 20px 40px;
   -webkit-border-radius: 5px;
   -moz-border-radius: 5px;
   border-radius: 5px;
 }
 
-div.output {
+div.output pre {
   padding: 10px;
 }
 
-div.code {
+pre {
   background: white;
 }
-div.output {
+div.output pre {
   background: black;
 }
-div.output .stdout {
+div.output .stdout pre {
   color: #e6e6e6;
 }
-div.output .stderr {
+div.output .stderr pre {
   color: rgb(244, 74, 63);
 }
-div.output .system {
+div.output .system pre {
   color: rgb(255, 209, 77);
 }
 

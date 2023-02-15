@@ -242,7 +242,7 @@
     margin-bottom: 100px !important;
   }
 
-  div.code {
+  pre {
     background: rgb(240, 240, 240);
   }
 
@@ -359,7 +359,12 @@ li {
   margin: 0 0 0.5em 0;
 }
 
-div.code {
+div.code, div.output {
+  margin: 0;
+  padding: 0;
+}
+
+pre {
   padding: 5px 10px;
   margin-top: 20px;
   margin-bottom: 20px;
@@ -367,10 +372,6 @@ div.code {
 
   background: rgb(240, 240, 240);
   border: 1px solid rgb(224, 224, 224);
-}
-pre {
-  margin: 0;
-  padding: 0;
 
   font-family: 'Droid Sans Mono', 'Courier New', monospace;
   font-size: 18px;
@@ -391,6 +392,10 @@ code {
   font-family: 'Droid Sans Mono', 'Courier New', monospace;
 
   color: black;
+}
+
+pre code {
+  font-size: 100%;
 }
 
 article > .image,
@@ -433,7 +438,7 @@ p.link {
 }
 
 /* Code */
-div.code {
+pre {
   outline: 0px solid transparent;
 }
 div.playground {
