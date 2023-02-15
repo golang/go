@@ -2586,7 +2586,7 @@ func TestCreateRevocationList(t *testing.T) {
 				SubjectKeyId: []byte{1, 2, 3},
 			},
 			template: &RevocationList{
-				RevokedCertificates: []pkix.RevokedCertificate{
+				RevokedCertificateEntries: []RevocationListEntry{
 					{
 						SerialNumber:   big.NewInt(2),
 						RevocationTime: time.Time{}.Add(time.Hour),
@@ -2598,7 +2598,131 @@ func TestCreateRevocationList(t *testing.T) {
 			},
 		},
 		{
+			name: "valid, reason code",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+						ReasonCode:     1,
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
 			name: "valid, extra entry extension",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+						ExtraExtensions: []pkix.Extension{
+							{
+								Id:    []int{2, 5, 29, 99},
+								Value: []byte{5, 0},
+							},
+						},
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, Ed25519 key",
+			key:  ed25519Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, non-default signature algorithm",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				SignatureAlgorithm: ECDSAWithSHA512,
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, extra extension",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificateEntries: []RevocationListEntry{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+				ExtraExtensions: []pkix.Extension{
+					{
+						Id:    []int{2, 5, 29, 99},
+						Value: []byte{5, 0},
+					},
+				},
+			},
+		},
+		{
+			name: "valid, deprecated entries with extension",
 			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
@@ -2623,79 +2747,6 @@ func TestCreateRevocationList(t *testing.T) {
 				Number:     big.NewInt(5),
 				ThisUpdate: time.Time{}.Add(time.Hour * 24),
 				NextUpdate: time.Time{}.Add(time.Hour * 48),
-			},
-		},
-		{
-			name: "valid, Ed25519 key",
-			key:  ed25519Priv,
-			issuer: &Certificate{
-				KeyUsage: KeyUsageCRLSign,
-				Subject: pkix.Name{
-					CommonName: "testing",
-				},
-				SubjectKeyId: []byte{1, 2, 3},
-			},
-			template: &RevocationList{
-				RevokedCertificates: []pkix.RevokedCertificate{
-					{
-						SerialNumber:   big.NewInt(2),
-						RevocationTime: time.Time{}.Add(time.Hour),
-					},
-				},
-				Number:     big.NewInt(5),
-				ThisUpdate: time.Time{}.Add(time.Hour * 24),
-				NextUpdate: time.Time{}.Add(time.Hour * 48),
-			},
-		},
-		{
-			name: "valid, non-default signature algorithm",
-			key:  ec256Priv,
-			issuer: &Certificate{
-				KeyUsage: KeyUsageCRLSign,
-				Subject: pkix.Name{
-					CommonName: "testing",
-				},
-				SubjectKeyId: []byte{1, 2, 3},
-			},
-			template: &RevocationList{
-				SignatureAlgorithm: ECDSAWithSHA512,
-				RevokedCertificates: []pkix.RevokedCertificate{
-					{
-						SerialNumber:   big.NewInt(2),
-						RevocationTime: time.Time{}.Add(time.Hour),
-					},
-				},
-				Number:     big.NewInt(5),
-				ThisUpdate: time.Time{}.Add(time.Hour * 24),
-				NextUpdate: time.Time{}.Add(time.Hour * 48),
-			},
-		},
-		{
-			name: "valid, extra extension",
-			key:  ec256Priv,
-			issuer: &Certificate{
-				KeyUsage: KeyUsageCRLSign,
-				Subject: pkix.Name{
-					CommonName: "testing",
-				},
-				SubjectKeyId: []byte{1, 2, 3},
-			},
-			template: &RevocationList{
-				RevokedCertificates: []pkix.RevokedCertificate{
-					{
-						SerialNumber:   big.NewInt(2),
-						RevocationTime: time.Time{}.Add(time.Hour),
-					},
-				},
-				Number:     big.NewInt(5),
-				ThisUpdate: time.Time{}.Add(time.Hour * 24),
-				NextUpdate: time.Time{}.Add(time.Hour * 48),
-				ExtraExtensions: []pkix.Extension{
-					{
-						Id:    []int{2, 5, 29, 99},
-						Value: []byte{5, 0},
-					},
-				},
 			},
 		},
 		{
@@ -2751,9 +2802,32 @@ func TestCreateRevocationList(t *testing.T) {
 					tc.template.SignatureAlgorithm)
 			}
 
-			if !reflect.DeepEqual(parsedCRL.RevokedCertificates, tc.template.RevokedCertificates) {
-				t.Fatalf("RevokedCertificates mismatch: got %v; want %v.",
-					parsedCRL.RevokedCertificates, tc.template.RevokedCertificates)
+			if len(tc.template.RevokedCertificates) > 0 {
+				if !reflect.DeepEqual(parsedCRL.RevokedCertificates, tc.template.RevokedCertificates) {
+					t.Fatalf("RevokedCertificates mismatch: got %v; want %v.",
+						parsedCRL.RevokedCertificates, tc.template.RevokedCertificates)
+				}
+			} else {
+				if len(parsedCRL.RevokedCertificateEntries) != len(tc.template.RevokedCertificateEntries) {
+					t.Fatalf("RevokedCertificateEntries length mismatch: got %d; want %d.",
+						len(parsedCRL.RevokedCertificateEntries),
+						len(tc.template.RevokedCertificateEntries))
+				}
+				for i, rce := range parsedCRL.RevokedCertificateEntries {
+					expected := tc.template.RevokedCertificateEntries[i]
+					if rce.SerialNumber.Cmp(expected.SerialNumber) != 0 {
+						t.Fatalf("RevocationListEntry serial mismatch: got %d; want %d.",
+							rce.SerialNumber, expected.SerialNumber)
+					}
+					if !rce.RevocationTime.Equal(expected.RevocationTime) {
+						t.Fatalf("RevocationListEntry revocation time mismatch: got %v; want %v.",
+							rce.RevocationTime, expected.RevocationTime)
+					}
+					if rce.ReasonCode != expected.ReasonCode {
+						t.Fatalf("RevocationListEntry reason code mismatch: got %d; want %d.",
+							rce.ReasonCode, expected.ReasonCode)
+					}
+				}
 			}
 
 			if len(parsedCRL.Extensions) != 2+len(tc.template.ExtraExtensions) {
@@ -3599,9 +3673,10 @@ func TestParseRevocationList(t *testing.T) {
 		t.Errorf("error parsing: %s", err)
 		return
 	}
-	numCerts := len(certList.RevokedCertificates)
+	numCerts := len(certList.RevokedCertificateEntries)
+	numCertsDeprecated := len(certList.RevokedCertificateEntries)
 	expected := 88
-	if numCerts != expected {
+	if numCerts != expected || numCertsDeprecated != expected {
 		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
 	}
 }
