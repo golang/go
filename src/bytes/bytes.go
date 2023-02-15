@@ -618,7 +618,7 @@ func Repeat(b []byte, count int) []byte {
 			chunkMax = len(b)
 		}
 	}
-	nb := make([]byte, n)
+	nb := make([]byte, len(b))
 	bp := copy(nb, b)
 	for bp < len(nb) {
 		chunk := bp
