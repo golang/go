@@ -729,8 +729,8 @@ func TestTypeparamTest(t *testing.T) {
 	}
 
 	for _, entry := range list {
-		if entry.Name() == "issue376214.go" {
-			continue // investigate variadic + New signature.
+		if entry.Name() == "issue58513.go" {
+			continue // uses runtime.Caller; unimplemented by go/ssa/interp
 		}
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
 			continue // Consider standalone go files.
