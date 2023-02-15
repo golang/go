@@ -1551,15 +1551,12 @@ func (ctxt *Link) hostlink() {
 			altLinker = "lld"
 		}
 
-		if ctxt.Arch.InFamily(sys.ARM, sys.ARM64) && buildcfg.GOOS == "linux" {
-			// On ARM, the GNU linker will generate COPY relocations
-			// even with -znocopyreloc set.
+		if ctxt.Arch.InFamily(sys.ARM64) && buildcfg.GOOS == "linux" {
+			// On ARM64, the GNU linker will fail with
+			// -znocopyreloc if it thinks a COPY relocation is
+			// required. Switch to gold.
 			// https://sourceware.org/bugzilla/show_bug.cgi?id=19962
-			//
-			// On ARM64, the GNU linker will fail instead of
-			// generating COPY relocations.
-			//
-			// In both cases, switch to gold.
+			// https://go.dev/issue/22040
 			altLinker = "gold"
 
 			// If gold is not installed, gcc will silently switch
@@ -1570,7 +1567,7 @@ func (ctxt *Link) hostlink() {
 			cmd := exec.Command(name, args...)
 			if out, err := cmd.CombinedOutput(); err == nil {
 				if !bytes.Contains(out, []byte("GNU gold")) {
-					log.Fatalf("ARM external linker must be gold (issue #15696), but is not: %s", out)
+					log.Fatalf("ARM64 external linker must be gold (issue #15696, 22040), but is not: %s", out)
 				}
 			}
 		}
