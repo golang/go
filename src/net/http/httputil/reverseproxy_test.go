@@ -478,6 +478,62 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	}
 }
 
+type mockFlusher struct {
+	http.ResponseWriter
+	flushed bool
+}
+
+func (m *mockFlusher) Flush() {
+	m.flushed = true
+}
+
+type wrappedRW struct {
+	http.ResponseWriter
+}
+
+func (w *wrappedRW) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
+func TestReverseProxyResponseControllerFlushInterval(t *testing.T) {
+	const expected = "hi"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(expected))
+	}))
+	defer backend.Close()
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mf := &mockFlusher{}
+	proxyHandler := NewSingleHostReverseProxy(backendURL)
+	proxyHandler.FlushInterval = -1 // flush immediately
+	proxyWithMiddleware := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mf.ResponseWriter = w
+		w = &wrappedRW{mf}
+		proxyHandler.ServeHTTP(w, r)
+	})
+
+	frontend := httptest.NewServer(proxyWithMiddleware)
+	defer frontend.Close()
+
+	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req.Close = true
+	res, err := frontend.Client().Do(req)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close()
+	if bodyBytes, _ := io.ReadAll(res.Body); string(bodyBytes) != expected {
+		t.Errorf("got body %q; expected %q", bodyBytes, expected)
+	}
+	if !mf.flushed {
+		t.Errorf("response writer was not flushed")
+	}
+}
+
 func TestReverseProxyFlushIntervalHeaders(t *testing.T) {
 	const expected = "hi"
 	stopCh := make(chan struct{})
