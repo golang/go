@@ -462,33 +462,6 @@ func finishCompare(n *ir.BinaryExpr, r ir.Node, init *ir.Nodes) ir.Node {
 	return r
 }
 
-func eqFor(t *types.Type) (n ir.Node, needsize bool) {
-	// Should only arrive here with large memory or
-	// a struct/array containing a non-memory field/element.
-	// Small memory is handled inline, and single non-memory
-	// is handled by walkCompare.
-	switch a, _ := types.AlgType(t); a {
-	case types.AMEM:
-		n := typecheck.LookupRuntime("memequal")
-		n = typecheck.SubstArgTypes(n, t, t)
-		return n, true
-	case types.ASPECIAL:
-		sym := reflectdata.TypeSymPrefix(".eq", t)
-		// TODO(austin): This creates an ir.Name with a nil Func.
-		n := typecheck.NewName(sym)
-		ir.MarkFunc(n)
-		n.SetType(types.NewSignature(nil, []*types.Field{
-			types.NewField(base.Pos, nil, types.NewPtr(t)),
-			types.NewField(base.Pos, nil, types.NewPtr(t)),
-		}, []*types.Field{
-			types.NewField(base.Pos, nil, types.Types[types.TBOOL]),
-		}))
-		return n, false
-	}
-	base.Fatalf("eqFor %v", t)
-	return nil, false
-}
-
 // brcom returns !(op).
 // For example, brcom(==) is !=.
 func brcom(op ir.Op) ir.Op {
