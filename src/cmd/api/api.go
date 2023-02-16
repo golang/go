@@ -612,12 +612,12 @@ var importing apiPackage
 
 // Import implements types.Importer.
 func (w *Walker) Import(name string) (*types.Package, error) {
-	return w.ImportFrom(name, "", 0)
+	return w.ImportFrom(name, "")
 }
 
 // ImportFrom implements types.ImporterFrom.
-func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*types.Package, error) {
-	pkg, err := w.importFrom(fromPath, fromDir, mode)
+func (w *Walker) ImportFrom(fromPath, fromDir string) (*types.Package, error) {
+	pkg, err := w.importFrom(fromPath, fromDir)
 	if err != nil {
 		return nil, err
 	}
@@ -625,10 +625,10 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 }
 
 func (w *Walker) import_(name string) (*apiPackage, error) {
-	return w.importFrom(name, "", 0)
+	return w.importFrom(name, "")
 }
 
-func (w *Walker) importFrom(fromPath, fromDir string, mode types.ImportMode) (*apiPackage, error) {
+func (w *Walker) importFrom(fromPath, fromDir string) (*apiPackage, error) {
 	name := fromPath
 	if canonical, ok := w.importMap[fromDir][fromPath]; ok {
 		name = canonical

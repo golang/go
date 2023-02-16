@@ -233,7 +233,7 @@ func TestIssue29837(t *testing.T) {
 	}
 	for _, context := range contexts {
 		w := NewWalker(context, "testdata/src/issue29837")
-		_, err := w.ImportFrom("p", "", 0)
+		_, err := w.ImportFrom("p", "")
 		if _, nogo := err.(*build.NoGoError); !nogo {
 			t.Errorf("expected *build.NoGoError, got %T", err)
 		}
