@@ -903,6 +903,7 @@ type Link struct {
 	Flag_shared        bool
 	Flag_dynlink       bool
 	Flag_linkshared    bool
+	Flag_ptabs         bool
 	Flag_optimize      bool
 	Flag_locationlists bool
 	Flag_noRefName     bool   // do not include referenced symbol names in object file

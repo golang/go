@@ -105,7 +105,8 @@ type CmdFlags struct {
 	JSON               string       "help:\"version,file for JSON compiler/optimizer detail output\""
 	Lang               string       "help:\"Go language version source code expects\""
 	LinkObj            string       "help:\"write linker-specific object to `file`\""
-	LinkShared         *bool        "help:\"generate code that will be linked against Go shared libraries\"" // &Ctxt.Flag_linkshared, set below
+	LinkShared         *bool        "help:\"generate code that will be linked against Go shared libraries\""          // &Ctxt.Flag_linkshared, set below
+	Ptabs              *bool        "help:\"generate and ptabs to encode type information for all exported symbols\"" // &Ctxt.Flag_emitptabs, set below
 	Live               CountFlag    "help:\"debug liveness analysis\""
 	MSan               bool         "help:\"build code compatible with C/C++ memory sanitizer\""
 	MemProfile         string       "help:\"write memory profile to `file`\""
@@ -162,6 +163,7 @@ func ParseFlags() {
 	Flag.ImportCfg = readImportCfg
 	Flag.CoverageCfg = readCoverageCfg
 	Flag.LinkShared = &Ctxt.Flag_linkshared
+	Flag.Ptabs = &Ctxt.Flag_ptabs
 	Flag.Shared = &Ctxt.Flag_shared
 	Flag.WB = true
 	Flag.WrapGlobalMapInit = true

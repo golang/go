@@ -816,7 +816,7 @@ func TypeSymPrefix(prefix string, t *types.Type) *types.Sym {
 	NeedRuntimeType(t)
 	signatmu.Unlock()
 
-	//print("algsym: %s -> %+S\n", p, s);
+	// print("algsym: %s -> %+S\n", p, s);
 
 	return s
 }
@@ -1356,7 +1356,7 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 
 func WriteTabs() {
 	// process ptabs
-	if types.LocalPkg.Name == "main" && len(ptabs) > 0 {
+	if (types.LocalPkg.Name == "main" || base.Ctxt.Flag_ptabs) && len(ptabs) > 0 {
 		ot := 0
 		s := base.Ctxt.Lookup("go:plugin.tabs")
 		for _, p := range ptabs {
@@ -1757,7 +1757,7 @@ func ZeroAddr(size int64) ir.Node {
 }
 
 func CollectPTabs() {
-	if !base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main" {
+	if (!base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main") && !base.Ctxt.Flag_ptabs {
 		return
 	}
 	for _, exportn := range typecheck.Target.Exports {
@@ -1773,7 +1773,7 @@ func CollectPTabs() {
 		if !types.IsExported(s.Name) {
 			continue
 		}
-		if s.Pkg.Name != "main" {
+		if s.Pkg.Name != "main" && !base.Ctxt.Flag_ptabs {
 			continue
 		}
 		ptabs = append(ptabs, n)
