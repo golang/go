@@ -30,6 +30,7 @@ const (
 	GoGetPackage          Command = "go_get_package"
 	ListImports           Command = "list_imports"
 	ListKnownPackages     Command = "list_known_packages"
+	MemStats              Command = "mem_stats"
 	RegenerateCgo         Command = "regenerate_cgo"
 	RemoveDependency      Command = "remove_dependency"
 	ResetGoModDiagnostics Command = "reset_go_mod_diagnostics"
@@ -56,6 +57,7 @@ var Commands = []Command{
 	GoGetPackage,
 	ListImports,
 	ListKnownPackages,
+	MemStats,
 	RegenerateCgo,
 	RemoveDependency,
 	ResetGoModDiagnostics,
@@ -138,6 +140,8 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return s.ListKnownPackages(ctx, a0)
+	case "gopls.mem_stats":
+		return s.MemStats(ctx)
 	case "gopls.regenerate_cgo":
 		var a0 URIArg
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -344,6 +348,18 @@ func NewListKnownPackagesCommand(title string, a0 URIArg) (protocol.Command, err
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.list_known_packages",
+		Arguments: args,
+	}, nil
+}
+
+func NewMemStatsCommand(title string) (protocol.Command, error) {
+	args, err := MarshalArgs()
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.mem_stats",
 		Arguments: args,
 	}, nil
 }

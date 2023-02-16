@@ -18,7 +18,7 @@ import (
 //
 // Uses -workdir and -file to control where the edits occur.
 func BenchmarkDidChange(b *testing.B) {
-	env := benchmarkEnv(b)
+	env := sharedEnv(b)
 	env.OpenFile(*file)
 	env.Await(env.DoneWithOpen())
 

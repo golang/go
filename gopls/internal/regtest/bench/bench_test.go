@@ -19,6 +19,7 @@ import (
 
 	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
+	"golang.org/x/tools/gopls/internal/lsp/cmd"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/bug"
@@ -26,6 +27,7 @@ import (
 	"golang.org/x/tools/internal/fakenet"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
+	"golang.org/x/tools/internal/tool"
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
@@ -40,8 +42,15 @@ import (
 //   - eliminate flags, and just run benchmarks on with a predefined set of
 //     arguments
 
+// if runAsGopls is "true", run the gopls command instead of the testing.M.
+const runAsGopls = "_GOPLS_BENCH_RUN_AS_GOPLS"
+
 func TestMain(m *testing.M) {
 	bug.PanicOnBugs = true
+	if os.Getenv(runAsGopls) == "true" {
+		tool.Main(context.Background(), cmd.New("gopls", "", nil, hooks.Options), os.Args[1:])
+		os.Exit(0)
+	}
 	event.SetExporter(nil) // don't log to stderr
 	code := doMain(m)
 	os.Exit(code)
@@ -154,13 +163,17 @@ func shallowClone(dir, repo, commitish string) error {
 	return nil
 }
 
-// benchmarkEnv returns a shared benchmark environment
-func benchmarkEnv(tb testing.TB) *Env {
+// sharedEnv returns a shared benchmark environment.
+//
+// Every call to sharedEnv uses the same editor and sandbox. If -gopls_path and
+// -gopls_commit are unset, this environment will run gopls in-process.
+func sharedEnv(tb testing.TB) *Env {
 	setupEditorOnce.Do(func() {
 		dir := benchmarkDir()
 
 		var err error
-		sandbox, editor, awaiter, err = connectEditor(dir, fake.EditorConfig{})
+		ts := getServer()
+		sandbox, editor, awaiter, err = connectEditor(dir, fake.EditorConfig{}, ts)
 		if err != nil {
 			log.Fatalf("connecting editor: %v", err)
 		}
@@ -179,9 +192,44 @@ func benchmarkEnv(tb testing.TB) *Env {
 	}
 }
 
+// newEnv returns a new Env connected to separate gopls process communicating
+// over stdin/stdout.
+//
+// Every call to newEnv returns a different Env connected to a distinct gopls
+// process.
+//
+// TODO(rfindley): consolidate gopls server construction: always use a sidecar,
+// and make it easy to collect profiles.
+func newEnv(dir string, tb testing.TB) *Env {
+	goplsPath := getGoplsPath()
+	if goplsPath == "" {
+		var err error
+		goplsPath, err = os.Executable()
+		if err != nil {
+			tb.Fatal(err)
+		}
+	}
+	ts := &SidecarServer{
+		goplsPath: goplsPath,
+		env:       []string{fmt.Sprintf("%s=true", runAsGopls)},
+	}
+	server, editor, awaiter, err := connectEditor(dir, fake.EditorConfig{}, ts)
+	if err != nil {
+		tb.Fatalf("connecting editor: %v", err)
+	}
+
+	return &Env{
+		T:       tb,
+		Ctx:     context.Background(),
+		Editor:  editor,
+		Sandbox: server,
+		Awaiter: awaiter,
+	}
+}
+
 // connectEditor connects a fake editor session in the given dir, using the
 // given editor config.
-func connectEditor(dir string, config fake.EditorConfig) (*fake.Sandbox, *fake.Editor, *Awaiter, error) {
+func connectEditor(dir string, config fake.EditorConfig, ts servertest.Connector) (*fake.Sandbox, *fake.Editor, *Awaiter, error) {
 	s, err := fake.NewSandbox(&fake.SandboxConfig{
 		Workdir: dir,
 		GOPROXY: "https://proxy.golang.org",
@@ -191,7 +239,6 @@ func connectEditor(dir string, config fake.EditorConfig) (*fake.Sandbox, *fake.E
 	}
 
 	a := NewAwaiter(s.Workdir)
-	ts := getServer()
 	e, err := fake.NewEditor(s, config).Connect(context.Background(), ts, a.Hooks())
 	if err != nil {
 		return nil, nil, nil, err
@@ -205,15 +252,24 @@ func getServer() servertest.Connector {
 	if *goplsPath != "" && *goplsCommit != "" {
 		panic("can't set both -gopls_path and -gopls_commit")
 	}
-	if *goplsPath != "" {
-		return &SidecarServer{*goplsPath}
-	}
-	if *goplsCommit != "" {
-		path := getInstalledGopls()
-		return &SidecarServer{path}
+	if path := getGoplsPath(); path != "" {
+		return &SidecarServer{goplsPath: *goplsPath}
 	}
 	server := lsprpc.NewStreamServer(cache.New(nil, nil), false, hooks.Options)
 	return servertest.NewPipeServer(server, jsonrpc2.NewRawStream)
+}
+
+// getGoplsPath returns the path to the external gopls binary to use for
+// benchmarks, or the empty string if no external gopls is configured via
+// -gopls_path or -gopls_commit.
+func getGoplsPath() string {
+	if *goplsPath != "" {
+		return *goplsPath
+	}
+	if *goplsCommit != "" {
+		return getInstalledGopls()
+	}
+	return ""
 }
 
 // getInstalledGopls builds gopls at the given -gopls_commit, returning the
@@ -250,6 +306,7 @@ func getInstalledGopls() string {
 // given path.
 type SidecarServer struct {
 	goplsPath string
+	env       []string // additional environment bindings
 }
 
 // Connect creates new io.Pipes and binds them to the underlying StreamServer.
@@ -265,6 +322,7 @@ func (s *SidecarServer) Connect(ctx context.Context) jsonrpc2.Conn {
 		log.Fatal(err)
 	}
 	cmd.Stderr = os.Stdout
+	cmd.Env = append(os.Environ(), s.env...)
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("starting gopls: %v", err)
 	}

@@ -15,7 +15,7 @@ var symbolQuery = flag.String("symbol_query", "test", "symbol query to use in be
 // BenchmarkWorkspaceSymbols benchmarks the time to execute a workspace symbols
 // request (controlled by the -symbol_query flag).
 func BenchmarkWorkspaceSymbols(b *testing.B) {
-	env := benchmarkEnv(b)
+	env := sharedEnv(b)
 
 	// Make an initial symbol query to warm the cache.
 	symbols := env.Symbol(*symbolQuery)

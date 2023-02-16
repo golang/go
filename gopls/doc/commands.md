@@ -222,6 +222,23 @@ Result:
 }
 ```
 
+### **fetch memory statistics**
+Identifier: `gopls.mem_stats`
+
+Call runtime.GC multiple times and return memory statistics as reported by
+runtime.MemStats.
+
+This command is used for benchmarking, and may change in the future.
+
+Result:
+
+```
+{
+	"HeapAlloc": uint64,
+	"HeapInUse": uint64,
+}
+```
+
 ### **Regenerate cgo**
 Identifier: `gopls.regenerate_cgo`
 

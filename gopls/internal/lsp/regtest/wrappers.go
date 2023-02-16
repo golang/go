@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/xcontext"
 )
 
 // RemoveWorkspaceFile deletes a file on disk but does nothing in the
@@ -472,5 +473,17 @@ func (e *Env) ChangeWorkspaceFolders(newFolders ...string) {
 	e.T.Helper()
 	if err := e.Editor.ChangeWorkspaceFolders(e.Ctx, newFolders); err != nil {
 		e.T.Fatal(err)
+	}
+}
+
+// Close shuts down the editor session and cleans up the sandbox directory,
+// calling t.Error on any error.
+func (e *Env) Close() {
+	ctx := xcontext.Detach(e.Ctx)
+	if err := e.Editor.Close(ctx); err != nil {
+		e.T.Errorf("closing editor: %v", err)
+	}
+	if err := e.Sandbox.Close(); err != nil {
+		e.T.Errorf("cleaning up sandbox: %v", err)
 	}
 }

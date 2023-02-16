@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -943,4 +944,19 @@ func (c *commandHandler) RunGovulncheck(ctx context.Context, args command.Vulnch
 	case token := <-tokenChan:
 		return command.RunVulncheckResult{Token: token}, nil
 	}
+}
+
+// MemStats implements the MemStats command. It returns an error as a
+// future-proof API, but the resulting error is currently always nil.
+func (c *commandHandler) MemStats(ctx context.Context) (command.MemStatsResult, error) {
+	// GC a few times for stable results.
+	runtime.GC()
+	runtime.GC()
+	runtime.GC()
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	return command.MemStatsResult{
+		HeapAlloc: m.HeapAlloc,
+		HeapInUse: m.HeapInuse,
+	}, nil
 }

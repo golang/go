@@ -728,6 +728,12 @@ var GeneratedAPIJSON = &APIJSON{
 			ResultDoc: "{\n\t// Packages is a list of packages relative\n\t// to the URIArg passed by the command request.\n\t// In other words, it omits paths that are already\n\t// imported or cannot be imported due to compiler\n\t// restrictions.\n\t\"Packages\": []string,\n}",
 		},
 		{
+			Command:   "gopls.mem_stats",
+			Title:     "fetch memory statistics",
+			Doc:       "Call runtime.GC multiple times and return memory statistics as reported by\nruntime.MemStats.\n\nThis command is used for benchmarking, and may change in the future.",
+			ResultDoc: "{\n\t\"HeapAlloc\": uint64,\n\t\"HeapInUse\": uint64,\n}",
+		},
+		{
 			Command: "gopls.regenerate_cgo",
 			Title:   "Regenerate cgo",
 			Doc:     "Regenerates cgo definitions.",

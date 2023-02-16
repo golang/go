@@ -32,7 +32,7 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 		Settings: map[string]interface{}{
 			"completionBudget": "1m", // arbitrary long completion budget
 		},
-	})
+	}, getServer())
 	if err != nil {
 		b.Fatal(err)
 	}

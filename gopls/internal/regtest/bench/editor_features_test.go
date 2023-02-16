@@ -10,7 +10,7 @@ import (
 )
 
 func BenchmarkGoToDefinition(b *testing.B) {
-	env := benchmarkEnv(b)
+	env := sharedEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
 	loc := env.RegexpSearch("internal/imports/mod.go", "ModuleJSON")
@@ -25,7 +25,7 @@ func BenchmarkGoToDefinition(b *testing.B) {
 }
 
 func BenchmarkFindAllReferences(b *testing.B) {
-	env := benchmarkEnv(b)
+	env := sharedEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
 	loc := env.RegexpSearch("internal/imports/mod.go", "gopathwalk")
@@ -40,7 +40,7 @@ func BenchmarkFindAllReferences(b *testing.B) {
 }
 
 func BenchmarkRename(b *testing.B) {
-	env := benchmarkEnv(b)
+	env := sharedEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
 	env.Await(env.DoneWithOpen())
@@ -55,7 +55,7 @@ func BenchmarkRename(b *testing.B) {
 }
 
 func BenchmarkFindAllImplementations(b *testing.B) {
-	env := benchmarkEnv(b)
+	env := sharedEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
 	loc := env.RegexpSearch("internal/imports/mod.go", "initAllMods")
@@ -69,7 +69,7 @@ func BenchmarkFindAllImplementations(b *testing.B) {
 }
 
 func BenchmarkHover(b *testing.B) {
-	env := benchmarkEnv(b)
+	env := sharedEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
 	loc := env.RegexpSearch("internal/imports/mod.go", "bytes")

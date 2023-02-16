@@ -5,10 +5,10 @@
 package bench
 
 import (
-	"context"
 	"testing"
 
-	"golang.org/x/tools/gopls/internal/lsp/fake"
+	"golang.org/x/tools/gopls/internal/lsp/command"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
 
@@ -18,19 +18,20 @@ func BenchmarkInitialWorkspaceLoad(b *testing.B) {
 	dir := benchmarkDir()
 	b.ResetTimer()
 
-	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
-		_, editor, awaiter, err := connectEditor(dir, fake.EditorConfig{})
-		if err != nil {
-			b.Fatal(err)
-		}
-		if err := awaiter.Await(ctx, InitialWorkspaceLoad); err != nil {
-			b.Fatal(err)
-		}
+		env := newEnv(dir, b)
+		// TODO(rfindley): this depends on the repository being x/tools. Fix this.
+		env.OpenFile("internal/lsp/diagnostics.go")
+		env.Await(InitialWorkspaceLoad)
 		b.StopTimer()
-		if err := editor.Close(ctx); err != nil {
-			b.Fatal(err)
+		params := &protocol.ExecuteCommandParams{
+			Command: command.MemStats.ID(),
 		}
+		var memstats command.MemStatsResult
+		env.ExecuteCommand(params, &memstats)
+		b.ReportMetric(float64(memstats.HeapAlloc), "alloc_bytes")
+		b.ReportMetric(float64(memstats.HeapInUse), "in_use_bytes")
+		env.Close()
 		b.StartTimer()
 	}
 }

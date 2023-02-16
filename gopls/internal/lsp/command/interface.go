@@ -154,6 +154,14 @@ type Interface interface {
 	//
 	// Fetch the result of latest vulnerability check (`govulncheck`).
 	FetchVulncheckResult(context.Context, URIArg) (map[protocol.DocumentURI]*govulncheck.Result, error)
+
+	// MemStats: fetch memory statistics
+	//
+	// Call runtime.GC multiple times and return memory statistics as reported by
+	// runtime.MemStats.
+	//
+	// This command is used for benchmarking, and may change in the future.
+	MemStats(context.Context) (MemStatsResult, error)
 }
 
 type RunTestsArgs struct {
@@ -393,4 +401,10 @@ type Vuln struct {
 	CallStackSummaries []string `json:",omitempty"`
 
 	// TODO: import graph & module graph.
+}
+
+// MemStatsResult holds selected fields from runtime.MemStats.
+type MemStatsResult struct {
+	HeapAlloc uint64
+	HeapInUse uint64
 }
