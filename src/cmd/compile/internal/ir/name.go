@@ -40,7 +40,7 @@ type Name struct {
 	flags     bitset16
 	DictIndex uint16 // index of the dictionary entry describing the type of this variable declaration plus 1
 	sym       *types.Sym
-	Func      *Func // TODO(austin): nil for I.M, eqFor, hashfor, and hashmem
+	Func      *Func // TODO(austin): nil for I.M
 	Offset_   int64
 	val       constant.Value
 	Opt       interface{} // for use by escape analysis
