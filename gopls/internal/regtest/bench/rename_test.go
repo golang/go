@@ -10,7 +10,7 @@ import (
 )
 
 func BenchmarkRename(b *testing.B) {
-	env := sharedEnv(b)
+	env := repos["tools"].sharedEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
 	env.Await(env.DoneWithOpen())

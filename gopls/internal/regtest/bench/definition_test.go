@@ -4,10 +4,12 @@
 
 package bench
 
-import "testing"
+import (
+	"testing"
+)
 
-func BenchmarkGoToDefinition(b *testing.B) {
-	env := sharedEnv(b)
+func BenchmarkDefinition(b *testing.B) {
+	env := repos["tools"].sharedEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
 	loc := env.RegexpSearch("internal/imports/mod.go", "ModuleJSON")

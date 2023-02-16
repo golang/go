@@ -6,8 +6,8 @@ package bench
 
 import "testing"
 
-func BenchmarkFindAllImplementations(b *testing.B) {
-	env := sharedEnv(b)
+func BenchmarkImplementations(b *testing.B) {
+	env := repos["tools"].sharedEnv(b)
 
 	env.OpenFile("internal/imports/mod.go")
 	loc := env.RegexpSearch("internal/imports/mod.go", "initAllMods")

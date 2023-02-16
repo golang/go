@@ -18,10 +18,8 @@ import (
 	"time"
 
 	"golang.org/x/tools/gopls/internal/hooks"
-	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/cmd"
 	"golang.org/x/tools/gopls/internal/lsp/fake"
-	"golang.org/x/tools/gopls/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/fakenet"
@@ -32,15 +30,21 @@ import (
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
 
-// This package implements benchmarks that share a common editor session.
-//
-// It is a work-in-progress.
-//
-// Remaining TODO(rfindley):
-//   - add detailed documentation for how to write a benchmark, as a package doc
-//   - add benchmarks for more features
-//   - eliminate flags, and just run benchmarks on with a predefined set of
-//     arguments
+var (
+	goplsPath = flag.String("gopls_path", "", "if set, use this gopls for testing; incompatible with -gopls_commit")
+
+	installGoplsOnce sync.Once // guards installing gopls at -gopls_commit
+	goplsCommit      = flag.String("gopls_commit", "", "if set, install and use gopls at this commit for testing; incompatible with -gopls_path")
+
+	cpuProfile = flag.String("gopls_cpuprofile", "", "if set, the cpu profile file suffix; see \"Profiling\" in the package doc")
+	memProfile = flag.String("gopls_memprofile", "", "if set, the mem profile file suffix; see \"Profiling\" in the package doc")
+	trace      = flag.String("gopls_trace", "", "if set, the trace file suffix; see \"Profiling\" in the package doc")
+
+	// If non-empty, tempDir is a temporary working dir that was created by this
+	// test suite.
+	makeTempDirOnce sync.Once // guards creation of the temp dir
+	tempDir         string
+)
 
 // if runAsGopls is "true", run the gopls command instead of the testing.M.
 const runAsGopls = "_GOPLS_BENCH_RUN_AS_GOPLS"
@@ -52,55 +56,15 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	event.SetExporter(nil) // don't log to stderr
-	code := doMain(m)
+	code := m.Run()
+	if err := cleanup(); err != nil {
+		fmt.Fprintf(os.Stderr, "cleaning up after benchmarks: %v\n", err)
+		if code == 0 {
+			code = 1
+		}
+	}
 	os.Exit(code)
 }
-
-func doMain(m *testing.M) (code int) {
-	defer func() {
-		if editor != nil {
-			if err := editor.Close(context.Background()); err != nil {
-				fmt.Fprintf(os.Stderr, "closing editor: %v", err)
-				if code == 0 {
-					code = 1
-				}
-			}
-		}
-		if tempDir != "" {
-			if err := os.RemoveAll(tempDir); err != nil {
-				fmt.Fprintf(os.Stderr, "cleaning temp dir: %v", err)
-				if code == 0 {
-					code = 1
-				}
-			}
-		}
-	}()
-	return m.Run()
-}
-
-var (
-	workdir   = flag.String("workdir", "", "if set, working directory to use for benchmarks; overrides -repo and -commit")
-	repo      = flag.String("repo", "https://go.googlesource.com/tools", "if set (and -workdir is unset), run benchmarks in this repo")
-	file      = flag.String("file", "go/ast/astutil/util.go", "active file, for benchmarks that operate on a file")
-	commitish = flag.String("commit", "gopls/v0.9.0", "if set (and -workdir is unset), run benchmarks at this commit")
-
-	goplsPath   = flag.String("gopls_path", "", "if set, use this gopls for testing; incompatible with -gopls_commit")
-	goplsCommit = flag.String("gopls_commit", "", "if set, install and use gopls at this commit for testing; incompatible with -gopls_path")
-
-	// If non-empty, tempDir is a temporary working dir that was created by this
-	// test suite.
-	//
-	// The sync.Once variables guard various modifications of the temp directory.
-	makeTempDirOnce  sync.Once
-	checkoutRepoOnce sync.Once
-	installGoplsOnce sync.Once
-	tempDir          string
-
-	setupEditorOnce sync.Once
-	sandbox         *fake.Sandbox
-	editor          *fake.Editor
-	awaiter         *Awaiter
-)
 
 // getTempDir returns the temporary directory to use for benchmark files,
 // creating it if necessary.
@@ -113,31 +77,6 @@ func getTempDir() string {
 		}
 	})
 	return tempDir
-}
-
-// benchmarkDir returns the directory to use for benchmarks.
-//
-// If -workdir is set, just use that directory. Otherwise, check out a shallow
-// copy of -repo at the given -commit, and clean up when the test suite exits.
-func benchmarkDir() string {
-	if *workdir != "" {
-		return *workdir
-	}
-	if *repo == "" {
-		log.Fatal("-repo must be provided if -workdir is unset")
-	}
-	if *commitish == "" {
-		log.Fatal("-commit must be provided if -workdir is unset")
-	}
-
-	dir := filepath.Join(getTempDir(), "repo")
-	checkoutRepoOnce.Do(func() {
-		log.Printf("creating working dir: checking out %s@%s to %s\n", *repo, *commitish, dir)
-		if err := shallowClone(dir, *repo, *commitish); err != nil {
-			log.Fatal(err)
-		}
-	})
-	return dir
 }
 
 // shallowClone performs a shallow clone of repo into dir at the given
@@ -163,70 +102,6 @@ func shallowClone(dir, repo, commitish string) error {
 	return nil
 }
 
-// sharedEnv returns a shared benchmark environment.
-//
-// Every call to sharedEnv uses the same editor and sandbox. If -gopls_path and
-// -gopls_commit are unset, this environment will run gopls in-process.
-func sharedEnv(tb testing.TB) *Env {
-	setupEditorOnce.Do(func() {
-		dir := benchmarkDir()
-
-		var err error
-		ts := getServer()
-		sandbox, editor, awaiter, err = connectEditor(dir, fake.EditorConfig{}, ts)
-		if err != nil {
-			log.Fatalf("connecting editor: %v", err)
-		}
-
-		if err := awaiter.Await(context.Background(), InitialWorkspaceLoad); err != nil {
-			panic(err)
-		}
-	})
-
-	return &Env{
-		T:       tb,
-		Ctx:     context.Background(),
-		Editor:  editor,
-		Sandbox: sandbox,
-		Awaiter: awaiter,
-	}
-}
-
-// newEnv returns a new Env connected to separate gopls process communicating
-// over stdin/stdout.
-//
-// Every call to newEnv returns a different Env connected to a distinct gopls
-// process.
-//
-// TODO(rfindley): consolidate gopls server construction: always use a sidecar,
-// and make it easy to collect profiles.
-func newEnv(dir string, tb testing.TB) *Env {
-	goplsPath := getGoplsPath()
-	if goplsPath == "" {
-		var err error
-		goplsPath, err = os.Executable()
-		if err != nil {
-			tb.Fatal(err)
-		}
-	}
-	ts := &SidecarServer{
-		goplsPath: goplsPath,
-		env:       []string{fmt.Sprintf("%s=true", runAsGopls)},
-	}
-	server, editor, awaiter, err := connectEditor(dir, fake.EditorConfig{}, ts)
-	if err != nil {
-		tb.Fatalf("connecting editor: %v", err)
-	}
-
-	return &Env{
-		T:       tb,
-		Ctx:     context.Background(),
-		Editor:  editor,
-		Sandbox: server,
-		Awaiter: awaiter,
-	}
-}
-
 // connectEditor connects a fake editor session in the given dir, using the
 // given editor config.
 func connectEditor(dir string, config fake.EditorConfig, ts servertest.Connector) (*fake.Sandbox, *fake.Editor, *Awaiter, error) {
@@ -246,30 +121,41 @@ func connectEditor(dir string, config fake.EditorConfig, ts servertest.Connector
 	return s, e, a, nil
 }
 
-// getServer returns a server connector that either starts a new in-process
-// server, or starts a separate gopls process.
-func getServer() servertest.Connector {
+// newGoplsServer returns a connector that connects to a new gopls process.
+func newGoplsServer(name string) (servertest.Connector, error) {
 	if *goplsPath != "" && *goplsCommit != "" {
 		panic("can't set both -gopls_path and -gopls_commit")
 	}
-	if path := getGoplsPath(); path != "" {
-		return &SidecarServer{goplsPath: *goplsPath}
-	}
-	server := lsprpc.NewStreamServer(cache.New(nil, nil), false, hooks.Options)
-	return servertest.NewPipeServer(server, jsonrpc2.NewRawStream)
-}
-
-// getGoplsPath returns the path to the external gopls binary to use for
-// benchmarks, or the empty string if no external gopls is configured via
-// -gopls_path or -gopls_commit.
-func getGoplsPath() string {
-	if *goplsPath != "" {
-		return *goplsPath
-	}
+	var (
+		goplsPath = *goplsPath
+		env       []string
+	)
 	if *goplsCommit != "" {
-		return getInstalledGopls()
+		goplsPath = getInstalledGopls()
 	}
-	return ""
+	if goplsPath == "" {
+		var err error
+		goplsPath, err = os.Executable()
+		if err != nil {
+			return nil, err
+		}
+		env = []string{fmt.Sprintf("%s=true", runAsGopls)}
+	}
+	var args []string
+	if *cpuProfile != "" {
+		args = append(args, fmt.Sprintf("-profile.cpu=%s", name+"."+*cpuProfile))
+	}
+	if *memProfile != "" {
+		args = append(args, fmt.Sprintf("-profile.mem=%s", name+"."+*memProfile))
+	}
+	if *trace != "" {
+		args = append(args, fmt.Sprintf("-profile.trace=%s", name+"."+*trace))
+	}
+	return &SidecarServer{
+		goplsPath: goplsPath,
+		env:       env,
+		args:      args,
+	}, nil
 }
 
 // getInstalledGopls builds gopls at the given -gopls_commit, returning the
@@ -307,11 +193,18 @@ func getInstalledGopls() string {
 type SidecarServer struct {
 	goplsPath string
 	env       []string // additional environment bindings
+	args      []string // command-line arguments
 }
 
 // Connect creates new io.Pipes and binds them to the underlying StreamServer.
+//
+// It implements the servertest.Connector interface.
 func (s *SidecarServer) Connect(ctx context.Context) jsonrpc2.Conn {
-	cmd := exec.CommandContext(ctx, s.goplsPath, "serve")
+	// Note: don't use CommandContext here, as we want gopls to exit gracefully
+	// in order to write out profile data.
+	//
+	// We close the connection on context cancelation below.
+	cmd := exec.Command(s.goplsPath, s.args...)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -321,15 +214,34 @@ func (s *SidecarServer) Connect(ctx context.Context) jsonrpc2.Conn {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cmd.Stderr = os.Stdout
+	cmd.Stderr = os.Stderr
 	cmd.Env = append(os.Environ(), s.env...)
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("starting gopls: %v", err)
 	}
 
-	go cmd.Wait() // to free resources; error is ignored
+	go func() {
+		// If we don't log.Fatal here, benchmarks may hang indefinitely if gopls
+		// exits abnormally.
+		//
+		// TODO(rfindley): ideally we would shut down the connection gracefully,
+		// but that doesn't currently work.
+		if err := cmd.Wait(); err != nil {
+			log.Fatalf("gopls invocation failed with error: %v", err)
+		}
+	}()
 
 	clientStream := jsonrpc2.NewHeaderStream(fakenet.NewConn("stdio", stdout, stdin))
 	clientConn := jsonrpc2.NewConn(clientStream)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			clientConn.Close()
+			clientStream.Close()
+		case <-clientConn.Done():
+		}
+	}()
+
 	return clientConn
 }

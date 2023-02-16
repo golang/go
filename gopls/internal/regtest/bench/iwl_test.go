@@ -15,12 +15,16 @@ import (
 // BenchmarkInitialWorkspaceLoad benchmarks the initial workspace load time for
 // a new editing session.
 func BenchmarkInitialWorkspaceLoad(b *testing.B) {
-	dir := benchmarkDir()
+	repo := repos["tools"]
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		env := newEnv(dir, b)
-		// TODO(rfindley): this depends on the repository being x/tools. Fix this.
+		// Exclude the time to set up the env from the benchmark time, as this may
+		// involve installing gopls and/or checking out the repo dir.
+		b.StopTimer()
+		env := repo.newEnv(b)
+		b.StartTimer()
+
 		env.OpenFile("internal/lsp/diagnostics.go")
 		env.Await(InitialWorkspaceLoad)
 		b.StopTimer()

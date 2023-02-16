@@ -18,16 +18,17 @@ import (
 //
 // Uses -workdir and -file to control where the edits occur.
 func BenchmarkDidChange(b *testing.B) {
-	env := sharedEnv(b)
-	env.OpenFile(*file)
-	env.Await(env.DoneWithOpen())
+	env := repos["tools"].sharedEnv(b)
+	const filename = "go/ast/astutil/util.go"
+	env.OpenFile(filename)
+	env.AfterChange()
 
 	// Insert the text we'll be modifying at the top of the file.
-	env.EditBuffer(*file, protocol.TextEdit{NewText: "// __REGTEST_PLACEHOLDER_0__\n"})
+	env.EditBuffer(filename, protocol.TextEdit{NewText: "// __REGTEST_PLACEHOLDER_0__\n"})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		env.EditBuffer(*file, protocol.TextEdit{
+		env.EditBuffer(filename, protocol.TextEdit{
 			Range: protocol.Range{
 				Start: protocol.Position{Line: 0, Character: 0},
 				End:   protocol.Position{Line: 1, Character: 0},

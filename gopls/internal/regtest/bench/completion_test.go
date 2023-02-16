@@ -5,14 +5,11 @@
 package bench
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
-
-	"golang.org/x/tools/gopls/internal/lsp/fake"
 )
 
 type completionBenchOptions struct {
@@ -24,32 +21,9 @@ type completionBenchOptions struct {
 }
 
 func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
-	dir := benchmarkDir()
-
-	// Use a new environment for each test, to avoid any existing state from the
-	// previous session.
-	sandbox, editor, awaiter, err := connectEditor(dir, fake.EditorConfig{
-		Settings: map[string]interface{}{
-			"completionBudget": "1m", // arbitrary long completion budget
-		},
-	}, getServer())
-	if err != nil {
-		b.Fatal(err)
-	}
-	ctx := context.Background()
-	defer func() {
-		if err := editor.Close(ctx); err != nil {
-			b.Errorf("closing editor: %v", err)
-		}
-	}()
-
-	env := &Env{
-		T:       b,
-		Ctx:     ctx,
-		Editor:  editor,
-		Sandbox: sandbox,
-		Awaiter: awaiter,
-	}
+	repo := repos["tools"]
+	env := repo.newEnv(b)
+	defer env.Close()
 
 	// Run edits required for this completion.
 	if options.setup != nil {
