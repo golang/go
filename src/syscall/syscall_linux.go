@@ -138,6 +138,16 @@ func isGroupMember(gid int) bool {
 	return false
 }
 
+func isCapDacOverrideSet() bool {
+	const _CAP_DAC_OVERRIDE = 1
+	var c caps
+	c.hdr.version = _LINUX_CAPABILITY_VERSION_3
+
+	_, _, err := RawSyscall(SYS_CAPGET, uintptr(unsafe.Pointer(&c.hdr)), uintptr(unsafe.Pointer(&c.data[0])), 0)
+
+	return err == 0 && c.data[0].effective&capToMask(_CAP_DAC_OVERRIDE) != 0
+}
+
 //sys	faccessat(dirfd int, path string, mode uint32) (err error)
 //sys	faccessat2(dirfd int, path string, mode uint32, flags int) (err error) = _SYS_faccessat2
 
@@ -179,9 +189,16 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 		return nil
 	}
 
+	// Fallback to checking permission bits.
 	var uid int
 	if flags&_AT_EACCESS != 0 {
 		uid = Geteuid()
+		if uid != 0 && isCapDacOverrideSet() {
+			// If CAP_DAC_OVERRIDE is set, file access check is
+			// done by the kernel in the same way as for root
+			// (see generic_permission() in the Linux sources).
+			uid = 0
+		}
 	} else {
 		uid = Getuid()
 	}
