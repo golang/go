@@ -669,7 +669,7 @@ func (s *snapshot) TypeCheck(ctx context.Context, mode source.TypecheckMode, ids
 			}
 			continue
 		}
-		pkgs[i] = newPackage(ph.m, p)
+		pkgs[i] = &Package{ph.m, p}
 	}
 
 	return pkgs, firstErr
@@ -1144,6 +1144,20 @@ func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 	return match
 }
 
+// nearestModFile finds the nearest go.mod file contained in the directory
+// containing uri, or a parent of that directory.
+//
+// The given uri must be a file, not a directory.
+func nearestModFile(ctx context.Context, uri span.URI, fs source.FileSource) (span.URI, error) {
+	// TODO(rfindley)
+	dir := filepath.Dir(uri.Filename())
+	mod, err := findRootPattern(ctx, dir, "go.mod", fs)
+	if err != nil {
+		return "", err
+	}
+	return span.URIFromPath(mod), nil
+}
+
 func (s *snapshot) Metadata(id PackageID) *source.Metadata {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1216,20 +1230,27 @@ func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
 // GetFile succeeds even if the file does not exist. A non-nil error return
 // indicates some type of internal error, for example if ctx is cancelled.
 func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
-	s.view.markKnown(uri)
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if fh, ok := s.files.Get(uri); ok {
+	return lockedSnapshot{s}.GetFile(ctx, uri)
+}
+
+// A lockedSnapshot implements the source.FileSource interface while holding
+// the lock for the wrapped snapshot.
+type lockedSnapshot struct{ wrapped *snapshot }
+
+func (s lockedSnapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+	s.wrapped.view.markKnown(uri)
+	if fh, ok := s.wrapped.files.Get(uri); ok {
 		return fh, nil
 	}
 
-	fh, err := s.view.fs.GetFile(ctx, uri) // read the file
+	fh, err := s.wrapped.view.fs.GetFile(ctx, uri) // read the file
 	if err != nil {
 		return nil, err
 	}
-	s.files.Set(uri, fh)
+	s.wrapped.files.Set(uri, fh)
 	return fh, nil
 }
 

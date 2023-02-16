@@ -229,10 +229,20 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 
 	event.Log(ctx, fmt.Sprintf("%s: updating metadata for %d packages", eventName, len(updates)))
 
-	s.meta = s.meta.Clone(updates)
-	s.resetIsActivePackageLocked()
+	// Before mutating the snapshot, ensure that we compute load diagnostics
+	// successfully. This could fail if the context is cancelled, and we don't
+	// want to leave the snapshot metadata in a partial state.
+	meta := s.meta.Clone(updates)
+	workspacePackages := computeWorkspacePackagesLocked(s, meta)
+	for _, update := range updates {
+		if err := computeLoadDiagnostics(ctx, update, meta, lockedSnapshot{s}, workspacePackages); err != nil {
+			return err
+		}
+	}
+	s.meta = meta
+	s.workspacePackages = workspacePackages
 
-	s.workspacePackages = computeWorkspacePackagesLocked(s, s.meta)
+	s.resetIsActivePackageLocked()
 	s.dumpWorkspace("load")
 	s.mu.Unlock()
 
@@ -549,6 +559,46 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 	m.DepsByImpPath = depsByImpPath
 	m.DepsByPkgPath = depsByPkgPath
 
+	// m.Diagnostics is set later in the loading pass, using
+	// computeLoadDiagnostics.
+
+	return nil
+}
+
+// computeLoadDiagnostics computes and sets m.Diagnostics for the given metadata m.
+//
+// It should only be called during metadata construction in snapshot.load.
+func computeLoadDiagnostics(ctx context.Context, m *source.Metadata, meta *metadataGraph, fs source.FileSource, workspacePackages map[PackageID]PackagePath) error {
+	for _, packagesErr := range m.Errors {
+		// Filter out parse errors from go list. We'll get them when we
+		// actually parse, and buggy overlay support may generate spurious
+		// errors. (See TestNewModule_Issue38207.)
+		if strings.Contains(packagesErr.Msg, "expected '") {
+			continue
+		}
+		pkgDiags, err := goPackagesErrorDiagnostics(ctx, packagesErr, m, fs)
+		if err != nil {
+			// There are certain cases where the go command returns invalid
+			// positions, so we cannot panic or even bug.Reportf here.
+			event.Error(ctx, "unable to compute positions for list errors", err, tag.Package.Of(string(m.ID)))
+			continue
+		}
+		m.Diagnostics = append(m.Diagnostics, pkgDiags...)
+	}
+
+	// TODO(rfindley): this is buggy: an insignificant change to a modfile
+	// (or an unsaved modfile) could affect the position of deps errors,
+	// without invalidating the package.
+	depsDiags, err := depsErrors(ctx, m, meta, fs, workspacePackages)
+	if err != nil {
+		if ctx.Err() == nil {
+			// TODO(rfindley): consider making this a bug.Reportf. depsErrors should
+			// not normally fail.
+			event.Error(ctx, "unable to compute deps errors", err, tag.Package.Of(string(m.ID)))
+		}
+		return nil
+	}
+	m.Diagnostics = append(m.Diagnostics, depsDiags...)
 	return nil
 }
 

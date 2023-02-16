@@ -11,7 +11,6 @@ import (
 	"go/scanner"
 	"go/token"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -19,8 +18,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
 	"golang.org/x/tools/gopls/internal/lsp/source/xrefs"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/event"
-	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/memoize"
 )
 
@@ -39,54 +36,8 @@ type (
 // loadDiagnostics, because the value of the snapshot.packages map  is just the
 // package handle. Fix this.
 type Package struct {
-	m               *source.Metadata
-	pkg             *syntaxPackage
-	loadDiagnostics *memoize.Promise // post-processed errors from loading
-}
-
-func newPackage(m *source.Metadata, pkg *syntaxPackage) *Package {
-	p := &Package{
-		m:   m,
-		pkg: pkg,
-	}
-	if len(m.Errors) > 0 || len(m.DepsErrors) > 0 {
-		p.loadDiagnostics = memoize.NewPromise(fmt.Sprintf("loadDiagnostics(%s)", m.ID), func(ctx context.Context, arg interface{}) interface{} {
-			s := arg.(*snapshot)
-			var diags []*source.Diagnostic
-			for _, packagesErr := range p.m.Errors {
-				// Filter out parse errors from go list. We'll get them when we
-				// actually parse, and buggy overlay support may generate spurious
-				// errors. (See TestNewModule_Issue38207.)
-				if strings.Contains(packagesErr.Msg, "expected '") {
-					continue
-				}
-				pkgDiags, err := goPackagesErrorDiagnostics(packagesErr, p.pkg, p.m.LoadDir)
-				if err != nil {
-					// There are certain cases where the go command returns invalid
-					// positions, so we cannot panic or even bug.Reportf here.
-					event.Error(ctx, "unable to compute positions for list errors", err, tag.Package.Of(string(p.m.ID)))
-					continue
-				}
-				diags = append(diags, pkgDiags...)
-			}
-
-			// TODO(rfindley): this is buggy: an insignificant change to a modfile
-			// (or an unsaved modfile) could affect the position of deps errors,
-			// without invalidating the package.
-			depsDiags, err := s.depsErrors(ctx, p.pkg, p.m.DepsErrors)
-			if err != nil {
-				if ctx.Err() == nil {
-					// TODO(rfindley): consider making this a bug.Reportf. depsErrors should
-					// not normally fail.
-					event.Error(ctx, "unable to compute deps errors", err, tag.Package.Of(string(p.m.ID)))
-				}
-				return nil
-			}
-			diags = append(diags, depsDiags...)
-			return diags
-		})
-	}
-	return p
+	m   *source.Metadata
+	pkg *syntaxPackage
 }
 
 // syntaxPackage contains parse trees and type information for a package.
@@ -235,21 +186,14 @@ func (p *Package) HasTypeErrors() bool {
 
 func (p *Package) DiagnosticsForFile(ctx context.Context, s source.Snapshot, uri span.URI) ([]*source.Diagnostic, error) {
 	var diags []*source.Diagnostic
-	for _, diag := range p.pkg.diagnostics {
+	for _, diag := range p.m.Diagnostics {
 		if diag.URI == uri {
 			diags = append(diags, diag)
 		}
 	}
-
-	if p.loadDiagnostics != nil {
-		res, err := p.loadDiagnostics.Get(ctx, s)
-		if err != nil {
-			return nil, err
-		}
-		for _, diag := range res.([]*source.Diagnostic) {
-			if diag.URI == uri {
-				diags = append(diags, diag)
-			}
+	for _, diag := range p.pkg.diagnostics {
+		if diag.URI == uri {
+			diags = append(diags, diag)
 		}
 	}
 

@@ -30,6 +30,8 @@ func debugf(format string, args ...interface{}) {
 
 // If debugEnabled is true, dumpWorkspace prints a summary of workspace
 // packages to stderr. If debugEnabled is false, it is a no-op.
+//
+// TODO(rfindley): this has served its purpose. Delete.
 func (s *snapshot) dumpWorkspace(context string) {
 	if !debugEnabled {
 		return

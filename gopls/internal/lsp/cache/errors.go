@@ -9,8 +9,10 @@ package cache
 // source.Diagnostic form, and suggesting quick fixes.
 
 import (
+	"context"
 	"fmt"
 	"go/scanner"
+	"go/token"
 	"go/types"
 	"log"
 	"regexp"
@@ -28,20 +30,26 @@ import (
 	"golang.org/x/tools/internal/typesinternal"
 )
 
-func goPackagesErrorDiagnostics(e packages.Error, pkg *syntaxPackage, fromDir string) (diags []*source.Diagnostic, rerr error) {
-	if diag, ok := parseGoListImportCycleError(e, pkg); ok {
+// goPackagesErrorDiagnostics translates the given go/packages Error into a
+// diagnostic, using the provided metadata and filesource.
+//
+// The slice of diagnostics may be empty.
+func goPackagesErrorDiagnostics(ctx context.Context, e packages.Error, m *source.Metadata, fs source.FileSource) ([]*source.Diagnostic, error) {
+	if diag, err := parseGoListImportCycleError(ctx, e, m, fs); err != nil {
+		return nil, err
+	} else if diag != nil {
 		return []*source.Diagnostic{diag}, nil
 	}
 
 	var spn span.Span
 	if e.Pos == "" {
-		spn = parseGoListError(e.Msg, fromDir)
+		spn = parseGoListError(e.Msg, m.LoadDir)
 		// We may not have been able to parse a valid span. Apply the errors to all files.
-		if _, err := spanToRange(pkg, spn); err != nil {
+		if _, err := spanToRange(ctx, fs, spn); err != nil {
 			var diags []*source.Diagnostic
-			for _, pgf := range pkg.compiledGoFiles {
+			for _, uri := range m.CompiledGoFiles {
 				diags = append(diags, &source.Diagnostic{
-					URI:      pgf.URI,
+					URI:      uri,
 					Severity: protocol.SeverityError,
 					Source:   source.ListError,
 					Message:  e.Msg,
@@ -50,7 +58,7 @@ func goPackagesErrorDiagnostics(e packages.Error, pkg *syntaxPackage, fromDir st
 			return diags, nil
 		}
 	} else {
-		spn = span.ParseInDir(e.Pos, fromDir)
+		spn = span.ParseInDir(e.Pos, m.LoadDir)
 	}
 
 	// TODO(rfindley): in some cases the go command outputs invalid spans, for
@@ -64,7 +72,7 @@ func goPackagesErrorDiagnostics(e packages.Error, pkg *syntaxPackage, fromDir st
 	// likely because *token.File lacks information about newline termination.
 	//
 	// We could do better here by handling that case.
-	rng, err := spanToRange(pkg, spn)
+	rng, err := spanToRange(ctx, fs, spn)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +144,7 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, e extendedErro
 	}
 
 	if match := importErrorRe.FindStringSubmatch(e.primary.Msg); match != nil {
-		diag.SuggestedFixes, err = goGetQuickFixes(snapshot, loc.URI.SpanURI(), match[1])
+		diag.SuggestedFixes, err = goGetQuickFixes(snapshot.moduleMode(), loc.URI.SpanURI(), match[1])
 		if err != nil {
 			return nil, err
 		}
@@ -150,9 +158,8 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, e extendedErro
 	return []*source.Diagnostic{diag}, nil
 }
 
-func goGetQuickFixes(snapshot *snapshot, uri span.URI, pkg string) ([]source.SuggestedFix, error) {
-	// Go get only supports module mode for now.
-	if snapshot.workspaceMode()&moduleMode == 0 {
+func goGetQuickFixes(moduleMode bool, uri span.URI, pkg string) ([]source.SuggestedFix, error) {
+	if !moduleMode {
 		return nil, nil
 	}
 	title := fmt.Sprintf("go get package %v", pkg)
@@ -312,14 +319,20 @@ func typeErrorData(pkg *syntaxPackage, terr types.Error) (typesinternal.ErrorCod
 	return ecode, loc, err
 }
 
-// spanToRange converts a span.Span to a protocol.Range,
-// assuming that the span belongs to the package whose diagnostics are being computed.
-func spanToRange(pkg *syntaxPackage, spn span.Span) (protocol.Range, error) {
-	pgf, err := pkg.File(spn.URI())
+// spanToRange converts a span.Span to a protocol.Range, by mapping content
+// contained in the provided FileSource.
+func spanToRange(ctx context.Context, fs source.FileSource, spn span.Span) (protocol.Range, error) {
+	uri := spn.URI()
+	fh, err := fs.GetFile(ctx, uri)
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	return pgf.Mapper.SpanRange(spn)
+	content, err := fh.Read()
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	mapper := protocol.NewMapper(uri, content)
+	return mapper.SpanRange(spn)
 }
 
 // parseGoListError attempts to parse a standard `go list` error message
@@ -338,28 +351,36 @@ func parseGoListError(input, wd string) span.Span {
 	return span.ParseInDir(input[:msgIndex], wd)
 }
 
-func parseGoListImportCycleError(e packages.Error, pkg *syntaxPackage) (*source.Diagnostic, bool) {
+// parseGoListImportCycleError attempts to parse the given go/packages error as
+// an import cycle, returning a diagnostic if successful.
+//
+// If the error is not detected as an import cycle error, it returns nil, nil.
+func parseGoListImportCycleError(ctx context.Context, e packages.Error, m *source.Metadata, fs source.FileSource) (*source.Diagnostic, error) {
 	re := regexp.MustCompile(`(.*): import stack: \[(.+)\]`)
 	matches := re.FindStringSubmatch(strings.TrimSpace(e.Msg))
 	if len(matches) < 3 {
-		return nil, false
+		return nil, nil
 	}
 	msg := matches[1]
 	importList := strings.Split(matches[2], " ")
 	// Since the error is relative to the current package. The import that is causing
 	// the import cycle error is the second one in the list.
 	if len(importList) < 2 {
-		return nil, false
+		return nil, nil
 	}
 	// Imports have quotation marks around them.
 	circImp := strconv.Quote(importList[1])
-	for _, pgf := range pkg.compiledGoFiles {
+	for _, uri := range m.CompiledGoFiles {
+		pgf, err := parseGoURI(ctx, fs, uri, source.ParseHeader)
+		if err != nil {
+			return nil, err
+		}
 		// Search file imports for the import that is causing the import cycle.
 		for _, imp := range pgf.File.Imports {
 			if imp.Path.Value == circImp {
 				rng, err := pgf.NodeMappedRange(imp)
 				if err != nil {
-					return nil, false
+					return nil, nil
 				}
 
 				return &source.Diagnostic{
@@ -368,9 +389,35 @@ func parseGoListImportCycleError(e packages.Error, pkg *syntaxPackage) (*source.
 					Severity: protocol.SeverityError,
 					Source:   source.ListError,
 					Message:  msg,
-				}, true
+				}, nil
 			}
 		}
 	}
-	return nil, false
+	return nil, nil
+}
+
+// parseGoURI is a helper to parse the Go file at the given URI from the file
+// source fs. The resulting syntax and token.File belong to an ephemeral,
+// encapsulated FileSet, so this file stands only on its own: it's not suitable
+// to use in a list of file of a package, for example.
+//
+// It returns an error if the file could not be read.
+func parseGoURI(ctx context.Context, fs source.FileSource, uri span.URI, mode source.ParseMode) (*source.ParsedGoFile, error) {
+	fh, err := fs.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	return parseGoImpl(ctx, token.NewFileSet(), fh, source.ParseHeader)
+}
+
+// parseModURI is a helper to parse the Mod file at the given URI from the file
+// source fs.
+//
+// It returns an error if the file could not be read.
+func parseModURI(ctx context.Context, fs source.FileSource, uri span.URI) (*source.ParsedModule, error) {
+	fh, err := fs.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	return parseModImpl(ctx, fh)
 }

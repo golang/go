@@ -636,12 +636,12 @@ func parseCompiledGoFiles(ctx context.Context, compiledGoFiles []source.FileHand
 // These may be attached to import declarations in the transitive source files
 // of pkg, or to 'requires' declarations in the package's go.mod file.
 //
-// TODO(rfindley): move this to errors.go
-func (s *snapshot) depsErrors(ctx context.Context, pkg *syntaxPackage, depsErrors []*packagesinternal.PackageError) ([]*source.Diagnostic, error) {
+// TODO(rfindley): move this to load.go
+func depsErrors(ctx context.Context, m *source.Metadata, meta *metadataGraph, fs source.FileSource, workspacePackages map[PackageID]PackagePath) ([]*source.Diagnostic, error) {
 	// Select packages that can't be found, and were imported in non-workspace packages.
 	// Workspace packages already show their own errors.
 	var relevantErrors []*packagesinternal.PackageError
-	for _, depsError := range depsErrors {
+	for _, depsError := range m.DepsErrors {
 		// Up to Go 1.15, the missing package was included in the stack, which
 		// was presumably a bug. We want the next one up.
 		directImporterIdx := len(depsError.ImportStack) - 1
@@ -650,7 +650,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *syntaxPackage, depsError
 		}
 
 		directImporter := depsError.ImportStack[directImporterIdx]
-		if s.isWorkspacePackage(PackageID(directImporter)) {
+		if _, ok := workspacePackages[PackageID(directImporter)]; ok {
 			continue
 		}
 		relevantErrors = append(relevantErrors, depsError)
@@ -661,21 +661,31 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *syntaxPackage, depsError
 		return nil, nil
 	}
 
+	// Subsequent checks require Go files.
+	if len(m.CompiledGoFiles) == 0 {
+		return nil, nil
+	}
+
 	// Build an index of all imports in the package.
 	type fileImport struct {
 		cgf *source.ParsedGoFile
 		imp *ast.ImportSpec
 	}
 	allImports := map[string][]fileImport{}
-	for _, cgf := range pkg.compiledGoFiles {
+	for _, uri := range m.CompiledGoFiles {
+		pgf, err := parseGoURI(ctx, fs, uri, source.ParseHeader)
+		if err != nil {
+			return nil, err
+		}
+		fset := source.SingletonFileSet(pgf.Tok)
 		// TODO(adonovan): modify Imports() to accept a single token.File (cgf.Tok).
-		for _, group := range astutil.Imports(pkg.fset, cgf.File) {
+		for _, group := range astutil.Imports(fset, pgf.File) {
 			for _, imp := range group {
 				if imp.Path == nil {
 					continue
 				}
 				path := strings.Trim(imp.Path.Value, `"`)
-				allImports[path] = append(allImports[path], fileImport{cgf, imp})
+				allImports[path] = append(allImports[path], fileImport{pgf, imp})
 			}
 		}
 	}
@@ -686,7 +696,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *syntaxPackage, depsError
 	for _, depErr := range relevantErrors {
 		for i := len(depErr.ImportStack) - 1; i >= 0; i-- {
 			item := depErr.ImportStack[i]
-			if s.isWorkspacePackage(PackageID(item)) {
+			if _, ok := workspacePackages[PackageID(item)]; ok {
 				break
 			}
 
@@ -695,7 +705,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *syntaxPackage, depsError
 				if err != nil {
 					return nil, err
 				}
-				fixes, err := goGetQuickFixes(s, imp.cgf.URI, item)
+				fixes, err := goGetQuickFixes(m.Module != nil, imp.cgf.URI, item)
 				if err != nil {
 					return nil, err
 				}
@@ -711,18 +721,11 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *syntaxPackage, depsError
 		}
 	}
 
-	if len(pkg.compiledGoFiles) == 0 {
-		return errors, nil
-	}
-	mod := s.GoModForFile(pkg.compiledGoFiles[0].URI)
-	if mod == "" {
-		return errors, nil
-	}
-	fh, err := s.GetFile(ctx, mod)
+	modFile, err := nearestModFile(ctx, m.CompiledGoFiles[0], fs)
 	if err != nil {
 		return nil, err
 	}
-	pm, err := s.ParseMod(ctx, fh)
+	pm, err := parseModURI(ctx, fs, modFile)
 	if err != nil {
 		return nil, err
 	}
@@ -732,7 +735,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *syntaxPackage, depsError
 	for _, depErr := range relevantErrors {
 		for i := len(depErr.ImportStack) - 1; i >= 0; i-- {
 			item := depErr.ImportStack[i]
-			m := s.Metadata(PackageID(item))
+			m := meta.metadata[PackageID(item)]
 			if m == nil || m.Module == nil {
 				continue
 			}
@@ -745,7 +748,7 @@ func (s *snapshot) depsErrors(ctx context.Context, pkg *syntaxPackage, depsError
 			if err != nil {
 				return nil, err
 			}
-			fixes, err := goGetQuickFixes(s, pm.URI, item)
+			fixes, err := goGetQuickFixes(true, pm.URI, item)
 			if err != nil {
 				return nil, err
 			}
