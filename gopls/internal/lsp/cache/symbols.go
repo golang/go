@@ -14,12 +14,12 @@ import (
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/memoize"
 )
 
-// symbolize returns the result of symbolizing the file identified by fh, using a cache.
-func (s *snapshot) symbolize(ctx context.Context, fh source.FileHandle) ([]source.Symbol, error) {
-	uri := fh.URI()
+// symbolize returns the result of symbolizing the file identified by uri, using a cache.
+func (s *snapshot) symbolize(ctx context.Context, uri span.URI) ([]source.Symbol, error) {
 
 	s.mu.Lock()
 	entry, hit := s.symbolizeHandles.Get(uri)
@@ -32,6 +32,10 @@ func (s *snapshot) symbolize(ctx context.Context, fh source.FileHandle) ([]sourc
 
 	// Cache miss?
 	if !hit {
+		fh, err := s.GetFile(ctx, uri)
+		if err != nil {
+			return nil, err
+		}
 		type symbolHandleKey source.Hash
 		key := symbolHandleKey(fh.FileIdentity().Hash)
 		promise, release := s.store.Promise(key, func(_ context.Context, arg interface{}) interface{} {

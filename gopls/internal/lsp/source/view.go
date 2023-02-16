@@ -175,7 +175,7 @@ type Snapshot interface {
 	AllMetadata(ctx context.Context) ([]*Metadata, error)
 
 	// Symbols returns all symbols in the snapshot.
-	Symbols(ctx context.Context) map[span.URI][]Symbol
+	Symbols(ctx context.Context) (map[span.URI][]Symbol, error)
 
 	// Metadata returns the metadata for the specified package,
 	// or nil if it was not found.

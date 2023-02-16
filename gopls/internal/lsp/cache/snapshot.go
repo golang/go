@@ -1022,17 +1022,29 @@ func (s *snapshot) ActiveMetadata(ctx context.Context) ([]*source.Metadata, erro
 	return active, nil
 }
 
-// Symbols extracts and returns the symbols for each file in all the snapshot's views.
-func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
-	// Read the set of Go files out of the snapshot.
-	var goFiles []source.FileHandle
+// Symbols extracts and returns symbol information for every file contained in
+// a loaded package. It awaits snapshot loading.
+//
+// TODO(rfindley): move this to the top of cache/symbols.go
+func (s *snapshot) Symbols(ctx context.Context) (map[span.URI][]source.Symbol, error) {
+	if err := s.awaitLoaded(ctx); err != nil {
+		return nil, err
+	}
+
+	// Build symbols for all loaded Go files.
 	s.mu.Lock()
-	s.files.Range(func(uri span.URI, f source.FileHandle) {
-		if s.View().FileKind(f) == source.Go {
-			goFiles = append(goFiles, f)
-		}
-	})
+	meta := s.meta
 	s.mu.Unlock()
+
+	goFiles := make(map[span.URI]struct{})
+	for _, m := range meta.metadata {
+		for _, uri := range m.GoFiles {
+			goFiles[uri] = struct{}{}
+		}
+		for _, uri := range m.CompiledGoFiles {
+			goFiles[uri] = struct{}{}
+		}
+	}
 
 	// Symbolize them in parallel.
 	var (
@@ -1042,15 +1054,15 @@ func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 		result   = make(map[span.URI][]source.Symbol)
 	)
 	group.SetLimit(nprocs)
-	for _, f := range goFiles {
-		f := f
+	for uri := range goFiles {
+		uri := uri
 		group.Go(func() error {
-			symbols, err := s.symbolize(ctx, f)
+			symbols, err := s.symbolize(ctx, uri)
 			if err != nil {
 				return err
 			}
 			resultMu.Lock()
-			result[f.URI()] = symbols
+			result[uri] = symbols
 			resultMu.Unlock()
 			return nil
 		})
@@ -1060,7 +1072,7 @@ func (s *snapshot) Symbols(ctx context.Context) map[span.URI][]source.Symbol {
 	if err := group.Wait(); err != nil {
 		event.Error(ctx, "getting snapshot symbols", err)
 	}
-	return result
+	return result, nil
 }
 
 func (s *snapshot) AllMetadata(ctx context.Context) ([]*source.Metadata, error) {

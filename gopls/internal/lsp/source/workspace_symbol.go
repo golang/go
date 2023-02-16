@@ -298,7 +298,6 @@ func (c comboMatcher) match(chunks []string) (int, float64) {
 //   - A symbolizer determines how we extract the symbol for an object. This
 //     enables the 'symbolStyle' configuration option.
 func collectSymbols(ctx context.Context, views []View, matcherType SymbolMatcher, symbolizer symbolizer, query string) ([]protocol.SymbolInformation, error) {
-
 	// Extract symbols from all files.
 	var work []symbolFile
 	var roots []string
@@ -318,7 +317,11 @@ func collectSymbols(ctx context.Context, views []View, matcherType SymbolMatcher
 		filters := v.Options().DirectoryFilters
 		filterer := NewFilterer(filters)
 		folder := filepath.ToSlash(v.Folder().Filename())
-		for uri, syms := range snapshot.Symbols(ctx) {
+		symbols, err := snapshot.Symbols(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for uri, syms := range symbols {
 			norm := filepath.ToSlash(uri.Filename())
 			nm := strings.TrimPrefix(norm, folder)
 			if filterer.Disallow(nm) {
