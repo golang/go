@@ -623,6 +623,34 @@ func TestClip(t *testing.T) {
 	}
 }
 
+func TestReverse(t *testing.T) {
+	even := []int{3, 1, 4, 1, 5, 9} // len = 6
+	Reverse(even)
+	if want := []int{9, 5, 1, 4, 1, 3}; !Equal(even, want) {
+		t.Errorf("Reverse(even) = %v, want %v", even, want)
+	}
+
+	odd := []int{3, 1, 4, 1, 5, 9, 2} // len = 7
+	Reverse(odd)
+	if want := []int{2, 9, 5, 1, 4, 1, 3}; !Equal(odd, want) {
+		t.Errorf("Reverse(odd) = %v, want %v", odd, want)
+	}
+
+	words := strings.Fields("one two three")
+	Reverse(words)
+	if want := strings.Fields("three two one"); !Equal(words, want) {
+		t.Errorf("Reverse(words) = %v, want %v", words, want)
+	}
+
+	singleton := []string{"one"}
+	Reverse(singleton)
+	if want := []string{"one"}; !Equal(singleton, want) {
+		t.Errorf("Reverse(singeleton) = %v, want %v", singleton, want)
+	}
+
+	Reverse[string](nil)
+}
+
 // naiveReplace is a baseline implementation to the Replace function.
 func naiveReplace[S ~[]E, E any](s S, i, j int, v ...E) S {
 	s = Delete(s, i, j)

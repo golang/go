@@ -445,3 +445,10 @@ func startIdx[S ~[]E, E any](haystack, needle S) int {
 	// TODO: what if the overlap is by a non-integral number of Es?
 	panic("needle not found")
 }
+
+// Reverse reverses the elements of the slice in place.
+func Reverse[E any](s []E) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+}
