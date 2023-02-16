@@ -15,6 +15,7 @@ import (
 const (
 	ScorePhi       = iota // towards top of block
 	ScoreArg              // must occur at the top of the entry block
+	ScoreInitMem          // after the args - used as mark by debug info generation
 	ScoreReadTuple        // must occur immediately after tuple-generating insn (or call)
 	ScoreNilCheck
 	ScoreMemory
@@ -162,9 +163,12 @@ func schedule(f *Func) {
 					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
 				}
 				score[v.ID] = ScorePhi
-			case v.Op == OpArg || v.Op == OpSP || v.Op == OpSB || v.Op == OpInitMem:
+			case v.Op == OpArg || v.Op == OpSP || v.Op == OpSB:
 				// We want all the args as early as possible, for better debugging.
 				score[v.ID] = ScoreArg
+			case v.Op == OpInitMem:
+				// Early, but after args. See debug.go:buildLocationLists
+				score[v.ID] = ScoreInitMem
 			case v.Type.IsMemory():
 				// Schedule stores as early as possible. This tends to
 				// reduce register pressure.
