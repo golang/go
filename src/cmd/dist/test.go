@@ -655,6 +655,12 @@ func (t *tester) registerTests() {
 				tags:    []string{"osusergo"},
 				pkg:     "os/user",
 			})
+		t.registerTest("purego:hash/maphash", "hash/maphash purego implementation",
+			&goTest{
+				timeout: 300 * time.Second,
+				tags:    []string{"purego"},
+				pkg:     "hash/maphash",
+			})
 	}
 
 	// Test ios/amd64 for the iOS simulator.
