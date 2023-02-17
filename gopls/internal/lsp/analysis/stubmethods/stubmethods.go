@@ -92,6 +92,13 @@ type StubInfo struct {
 
 // GetStubInfo determines whether the "missing method error"
 // can be used to deduced what the concrete and interface types are.
+//
+// TODO(adonovan): this function (and its following 5 helpers) tries
+// to deduce a pair of (concrete, interface) types that are related by
+// an assignment, either explictly or through a return statement or
+// function call. This is essentially what the refactor/satisfy does,
+// more generally. Refactor to share logic, after auditing 'satisfy'
+// for safety on ill-typed code.
 func GetStubInfo(fset *token.FileSet, ti *types.Info, path []ast.Node, pos token.Pos) *StubInfo {
 	for _, n := range path {
 		switch n := n.(type) {

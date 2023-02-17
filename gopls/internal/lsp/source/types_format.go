@@ -288,7 +288,7 @@ func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, srcFi
 		return types.TypeString(obj.Type(), qf), nil
 	}
 
-	targetpgf, pos, err := parseFull(ctx, snapshot, srcpkg, obj.Pos())
+	targetpgf, pos, err := parseFull(ctx, snapshot, srcpkg.FileSet(), obj.Pos())
 	if err != nil {
 		return "", err // e.g. ctx cancelled
 	}

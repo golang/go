@@ -242,7 +242,7 @@ Suffixes:
 		return item, nil
 	}
 
-	comment, err := source.HoverDocForObject(ctx, c.snapshot, c.pkg, obj)
+	comment, err := source.HoverDocForObject(ctx, c.snapshot, c.pkg.FileSet(), obj)
 	if err != nil {
 		event.Error(ctx, fmt.Sprintf("failed to find Hover for %q", obj.Name()), err)
 		return item, nil

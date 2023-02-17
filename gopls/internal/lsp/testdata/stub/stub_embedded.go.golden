@@ -20,13 +20,13 @@ func (*embeddedConcrete) Less(i int, j int) bool {
 	panic("unimplemented")
 }
 
-// Swap implements embeddedInterface
-func (*embeddedConcrete) Swap(i int, j int) {
+// Read implements embeddedInterface
+func (*embeddedConcrete) Read(p []byte) (n int, err error) {
 	panic("unimplemented")
 }
 
-// Read implements embeddedInterface
-func (*embeddedConcrete) Read(p []byte) (n int, err error) {
+// Swap implements embeddedInterface
+func (*embeddedConcrete) Swap(i int, j int) {
 	panic("unimplemented")
 }
 

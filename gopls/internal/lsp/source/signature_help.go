@@ -97,7 +97,7 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		d, err := HoverDocForObject(ctx, snapshot, pkg, obj)
+		d, err := HoverDocForObject(ctx, snapshot, pkg.FileSet(), obj)
 		if err != nil {
 			return nil, 0, err
 		}

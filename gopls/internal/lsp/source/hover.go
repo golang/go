@@ -158,7 +158,7 @@ func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Po
 
 	// For all other objects, consider the full syntax of their declaration in
 	// order to correctly compute their documentation, signature, and link.
-	declPGF, declPos, err := parseFull(ctx, snapshot, pkg, obj.Pos())
+	declPGF, declPos, err := parseFull(ctx, snapshot, pkg.FileSet(), obj.Pos())
 	if err != nil {
 		return protocol.Range{}, nil, fmt.Errorf("re-parsing declaration of %s: %v", obj.Name(), err)
 	}
@@ -616,17 +616,18 @@ func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signatur
 	return str
 }
 
-// HoverDocForObject returns the best doc comment for obj, referenced by srcpkg.
+// HoverDocForObject returns the best doc comment for obj (for which
+// fset provides file/line information).
 //
 // TODO(rfindley): there appears to be zero(!) tests for this functionality.
-func HoverDocForObject(ctx context.Context, snapshot Snapshot, srcpkg Package, obj types.Object) (*ast.CommentGroup, error) {
+func HoverDocForObject(ctx context.Context, snapshot Snapshot, fset *token.FileSet, obj types.Object) (*ast.CommentGroup, error) {
 	if _, isTypeName := obj.(*types.TypeName); isTypeName {
 		if _, isTypeParam := obj.Type().(*typeparams.TypeParam); isTypeParam {
 			return nil, nil
 		}
 	}
 
-	pgf, pos, err := parseFull(ctx, snapshot, srcpkg, obj.Pos())
+	pgf, pos, err := parseFull(ctx, snapshot, fset, obj.Pos())
 	if err != nil {
 		return nil, fmt.Errorf("re-parsing: %v", err)
 	}
@@ -671,15 +672,15 @@ func chooseDocComment(decl ast.Decl, spec ast.Spec, field *ast.Field) *ast.Comme
 	return nil
 }
 
-// parseFull fully parses the file corresponding to position pos, referenced
-// from the given srcpkg.
+// parseFull fully parses the file corresponding to position pos (for
+// which fset provides file/line information).
 //
 // It returns the resulting ParsedGoFile as well as new pos contained in the
 // parsed file.
-func parseFull(ctx context.Context, snapshot Snapshot, srcpkg Package, pos token.Pos) (*ParsedGoFile, token.Pos, error) {
-	f := srcpkg.FileSet().File(pos)
+func parseFull(ctx context.Context, snapshot Snapshot, fset *token.FileSet, pos token.Pos) (*ParsedGoFile, token.Pos, error) {
+	f := fset.File(pos)
 	if f == nil {
-		return nil, 0, bug.Errorf("internal error: no file for position %d in %s", pos, srcpkg.Metadata().ID)
+		return nil, 0, bug.Errorf("internal error: no file for position %d", pos)
 	}
 
 	uri := span.URIFromPath(f.Name())

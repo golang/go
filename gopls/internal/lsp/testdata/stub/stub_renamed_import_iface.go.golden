@@ -3,7 +3,7 @@ package stub
 
 import (
 	"bytes"
-	renamed_context "context"
+	"context"
 	"golang.org/lsptests/stub/other"
 )
 
@@ -16,7 +16,7 @@ var _ other.Interface = &otherInterfaceImpl{} //@suggestedfix("&otherInterfaceIm
 type otherInterfaceImpl struct{}
 
 // Get implements other.Interface
-func (*otherInterfaceImpl) Get(renamed_context.Context) *bytes.Buffer {
+func (*otherInterfaceImpl) Get(context.Context) *bytes.Buffer {
 	panic("unimplemented")
 }
 

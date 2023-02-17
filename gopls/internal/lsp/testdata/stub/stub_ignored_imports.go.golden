@@ -3,7 +3,6 @@ package stub
 
 import (
 	"compress/zlib"
-	"io"
 	. "io"
 	_ "io"
 )
@@ -20,7 +19,7 @@ var (
 type ignoredResetter struct{}
 
 // Reset implements zlib.Resetter
-func (*ignoredResetter) Reset(r io.Reader, dict []byte) error {
+func (*ignoredResetter) Reset(r Reader, dict []byte) error {
 	panic("unimplemented")
 }
 
