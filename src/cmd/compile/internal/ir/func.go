@@ -275,6 +275,14 @@ func PkgFuncName(f *Func) string {
 	return pkg.Path + "." + s.Name
 }
 
+// IsEqOrHashFunc reports whether f is type eq/hash function.
+func IsEqOrHashFunc(f *Func) bool {
+	if f == nil || f.Nname == nil {
+		return false
+	}
+	return types.IsTypePkg(f.Sym().Pkg)
+}
+
 var CurFunc *Func
 
 // WithFunc invokes do with CurFunc and base.Pos set to curfn and

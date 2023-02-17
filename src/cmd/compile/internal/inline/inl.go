@@ -290,6 +290,13 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		return
 	}
 
+	// If fn is synthetic hash or eq function, cannot inline it.
+	// The function is not generated in Unified IR frontend at this moment.
+	if ir.IsEqOrHashFunc(fn) {
+		reason = "type eq/hash function"
+		return
+	}
+
 	if fn.Typecheck() == 0 {
 		base.Fatalf("CanInline on non-typechecked function %v", fn)
 	}
