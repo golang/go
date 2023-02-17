@@ -6209,7 +6209,7 @@ x = []int{3, 5, 7}
 for i, x[i] = range x {  // set i, x[2] = 0, x[0]
 	break
 }
-// after this loop, i == 0 and x == []int{3, 5, 3}
+// after this loop, i == 0 and x is []int{3, 5, 3}
 </pre>
 
 <p>
@@ -7389,16 +7389,16 @@ Otherwise, <code>append</code> re-uses the underlying array.
 
 <pre>
 s0 := []int{0, 0}
-s1 := append(s0, 2)                // append a single element     s1 == []int{0, 0, 2}
-s2 := append(s1, 3, 5, 7)          // append multiple elements    s2 == []int{0, 0, 2, 3, 5, 7}
-s3 := append(s2, s0...)            // append a slice              s3 == []int{0, 0, 2, 3, 5, 7, 0, 0}
-s4 := append(s3[3:6], s3[2:]...)   // append overlapping slice    s4 == []int{3, 5, 7, 2, 3, 5, 7, 0, 0}
+s1 := append(s0, 2)                // append a single element     s1 is []int{0, 0, 2}
+s2 := append(s1, 3, 5, 7)          // append multiple elements    s2 is []int{0, 0, 2, 3, 5, 7}
+s3 := append(s2, s0...)            // append a slice              s3 is []int{0, 0, 2, 3, 5, 7, 0, 0}
+s4 := append(s3[3:6], s3[2:]...)   // append overlapping slice    s4 is []int{3, 5, 7, 2, 3, 5, 7, 0, 0}
 
 var t []interface{}
-t = append(t, 42, 3.1415, "foo")   //                             t == []interface{}{42, 3.1415, "foo"}
+t = append(t, 42, 3.1415, "foo")   //                             t is []interface{}{42, 3.1415, "foo"}
 
 var b []byte
-b = append(b, "bar"...)            // append string contents      b == []byte{'b', 'a', 'r' }
+b = append(b, "bar"...)            // append string contents      b is []byte{'b', 'a', 'r' }
 </pre>
 
 <p>
@@ -7428,9 +7428,9 @@ Examples:
 var a = [...]int{0, 1, 2, 3, 4, 5, 6, 7}
 var s = make([]int, 6)
 var b = make([]byte, 5)
-n1 := copy(s, a[0:])            // n1 == 6, s == []int{0, 1, 2, 3, 4, 5}
-n2 := copy(s, s[2:])            // n2 == 4, s == []int{2, 3, 4, 5, 4, 5}
-n3 := copy(b, "Hello, World!")  // n3 == 5, b == []byte("Hello")
+n1 := copy(s, a[0:])            // n1 == 6, s is []int{0, 1, 2, 3, 4, 5}
+n2 := copy(s, s[2:])            // n2 == 4, s is []int{2, 3, 4, 5, 4, 5}
+n3 := copy(b, "Hello, World!")  // n3 == 5, b is []byte("Hello")
 </pre>
 
 
