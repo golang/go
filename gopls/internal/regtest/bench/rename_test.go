@@ -10,16 +10,35 @@ import (
 )
 
 func BenchmarkRename(b *testing.B) {
-	env := repos["tools"].sharedEnv(b)
+	tests := []struct {
+		repo     string
+		file     string
+		regexp   string
+		baseName string
+	}{
+		{"kubernetes", "pkg/controller/lookup_cache.go", `hashutil\.(DeepHashObject)`, "DeepHashObject"},
+		{"kuma", "pkg/events/interfaces.go", `Delete`, "Delete"},
+		{"istio", "pkg/config/model.go", `(Namespace) string`, "Namespace"},
+		{"pkgsite", "internal/log/log.go", `func (Infof)`, "Infof"},
+		{"starlark", "starlark/eval.go", `Program\) (Filename)`, "Filename"},
+		{"tools", "internal/lsp/cache/snapshot.go", `meta \*(metadataGraph)`, "metadataGraph"},
+	}
 
-	env.OpenFile("internal/imports/mod.go")
-	env.Await(env.DoneWithOpen())
+	for _, test := range tests {
+		names := 0 // bench function may execute multiple times
+		b.Run(test.repo, func(b *testing.B) {
+			env := getRepo(b, test.repo).sharedEnv(b)
+			env.OpenFile(test.file)
+			loc := env.RegexpSearch(test.file, test.regexp)
+			env.Await(env.DoneWithOpen())
+			env.Rename(loc, test.baseName+"X") // pre-warm the query
+			b.ResetTimer()
 
-	b.ResetTimer()
-
-	for i := 1; i < b.N; i++ {
-		loc := env.RegexpSearch("internal/imports/mod.go", "gopathwalk")
-		newName := fmt.Sprintf("%s%d", "gopathwalk", i)
-		env.Rename(loc, newName)
+			for i := 0; i < b.N; i++ {
+				names++
+				newName := fmt.Sprintf("%s%d", test.baseName, names)
+				env.Rename(loc, newName)
+			}
+		})
 	}
 }

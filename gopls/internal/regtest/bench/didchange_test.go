@@ -15,27 +15,42 @@ import (
 // synthetic modifications in a comment. It controls pacing by waiting for the
 // server to actually start processing the didChange notification before
 // proceeding. Notably it does not wait for diagnostics to complete.
-//
-// Uses -workdir and -file to control where the edits occur.
 func BenchmarkDidChange(b *testing.B) {
-	env := repos["tools"].sharedEnv(b)
-	const filename = "go/ast/astutil/util.go"
-	env.OpenFile(filename)
-	env.AfterChange()
+	tests := []struct {
+		repo string
+		file string
+	}{
+		{"istio", "pkg/fuzz/util.go"},
+		{"kubernetes", "pkg/controller/lookup_cache.go"},
+		{"kuma", "api/generic/insights.go"},
+		{"pkgsite", "internal/frontend/server.go"},
+		{"starlark", "starlark/eval.go"},
+		{"tools", "internal/lsp/cache/snapshot.go"},
+	}
 
-	// Insert the text we'll be modifying at the top of the file.
-	env.EditBuffer(filename, protocol.TextEdit{NewText: "// __REGTEST_PLACEHOLDER_0__\n"})
+	for _, test := range tests {
+		edits := 0 // bench function may execute multiple times
+		b.Run(test.repo, func(b *testing.B) {
+			env := getRepo(b, test.repo).sharedEnv(b)
+			env.OpenFile(test.file)
+			env.AfterChange()
+			// Insert the text we'll be modifying at the top of the file.
+			env.EditBuffer(test.file, protocol.TextEdit{NewText: "// __REGTEST_PLACEHOLDER_0__\n"})
+			env.AfterChange()
+			b.ResetTimer()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		env.EditBuffer(filename, protocol.TextEdit{
-			Range: protocol.Range{
-				Start: protocol.Position{Line: 0, Character: 0},
-				End:   protocol.Position{Line: 1, Character: 0},
-			},
-			// Increment the placeholder text, to ensure cache misses.
-			NewText: fmt.Sprintf("// __REGTEST_PLACEHOLDER_%d__\n", i+1),
+			for i := 0; i < b.N; i++ {
+				edits++
+				env.EditBuffer(test.file, protocol.TextEdit{
+					Range: protocol.Range{
+						Start: protocol.Position{Line: 0, Character: 0},
+						End:   protocol.Position{Line: 1, Character: 0},
+					},
+					// Increment the placeholder text, to ensure cache misses.
+					NewText: fmt.Sprintf("// __REGTEST_PLACEHOLDER_%d__\n", edits),
+				})
+				env.Await(env.StartedChange())
+			}
 		})
-		env.Await(env.StartedChange())
 	}
 }

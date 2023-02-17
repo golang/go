@@ -8,7 +8,6 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"sort"
 	"sync"
 	"testing"
 
@@ -37,8 +36,8 @@ func newWorkdir(t *testing.T, txt string) (*Workdir, *eventBuffer, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wd := NewWorkdir(tmpdir)
-	if err := wd.writeInitialFiles(UnpackTxt(txt)); err != nil {
+	wd, err := NewWorkdir(tmpdir, UnpackTxt(txt))
+	if err != nil {
 		t.Fatal(err)
 	}
 	cleanup := func() {
@@ -160,35 +159,6 @@ func TestWorkdir_FileWatching(t *testing.T) {
 
 	must(wd.RemoveFile(ctx, "bar.go"))
 	checkEvent(changeMap{"bar.go": protocol.Deleted})
-}
-
-func TestWorkdir_ListFiles(t *testing.T) {
-	wd, _, cleanup := newWorkdir(t, sharedData)
-	defer cleanup()
-
-	checkFiles := func(dir string, want []string) {
-		files, err := wd.listFiles(dir)
-		if err != nil {
-			t.Fatal(err)
-		}
-		sort.Strings(want)
-		var got []string
-		for p := range files {
-			got = append(got, p)
-		}
-		sort.Strings(got)
-		if len(got) != len(want) {
-			t.Fatalf("ListFiles(): len = %d, want %d; got=%v; want=%v", len(got), len(want), got, want)
-		}
-		for i, f := range got {
-			if f != want[i] {
-				t.Errorf("ListFiles()[%d] = %s, want %s", i, f, want[i])
-			}
-		}
-	}
-
-	checkFiles(".", []string{"go.mod", "nested/README.md"})
-	checkFiles("nested", []string{"nested/README.md"})
 }
 
 func TestWorkdir_CheckForFileChanges(t *testing.T) {

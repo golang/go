@@ -164,18 +164,18 @@ func getInstalledGopls() string {
 	if *goplsCommit == "" {
 		panic("must provide -gopls_commit")
 	}
-	toolsDir := filepath.Join(getTempDir(), "tools")
+	toolsDir := filepath.Join(getTempDir(), "gopls_build")
 	goplsPath := filepath.Join(toolsDir, "gopls", "gopls")
 
 	installGoplsOnce.Do(func() {
-		log.Printf("installing gopls: checking out x/tools@%s\n", *goplsCommit)
+		log.Printf("installing gopls: checking out x/tools@%s into %s\n", *goplsCommit, toolsDir)
 		if err := shallowClone(toolsDir, "https://go.googlesource.com/tools", *goplsCommit); err != nil {
 			log.Fatal(err)
 		}
 
 		log.Println("installing gopls: building...")
 		bld := exec.Command("go", "build", ".")
-		bld.Dir = filepath.Join(getTempDir(), "tools", "gopls")
+		bld.Dir = filepath.Join(toolsDir, "gopls")
 		if output, err := bld.CombinedOutput(); err != nil {
 			log.Fatalf("building gopls: %v\n%s", err, output)
 		}

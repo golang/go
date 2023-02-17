@@ -9,15 +9,31 @@ import (
 )
 
 func BenchmarkHover(b *testing.B) {
-	env := repos["tools"].sharedEnv(b)
+	tests := []struct {
+		repo   string
+		file   string
+		regexp string
+	}{
+		{"istio", "pkg/config/model.go", `gogotypes\.(MarshalAny)`},
+		{"kubernetes", "pkg/apis/core/types.go", "type (Pod)"},
+		{"kuma", "api/generic/insights.go", `proto\.(Message)`},
+		{"pkgsite", "internal/log/log.go", `derrors\.(Wrap)`},
+		{"starlark", "starlark/eval.go", "prog.compiled.(Encode)"},
+		{"tools", "internal/lsp/cache/check.go", `(snapshot)\) buildKey`},
+	}
 
-	env.OpenFile("internal/imports/mod.go")
-	loc := env.RegexpSearch("internal/imports/mod.go", "bytes")
-	env.Await(env.DoneWithOpen())
+	for _, test := range tests {
+		b.Run(test.repo, func(b *testing.B) {
+			env := getRepo(b, test.repo).sharedEnv(b)
+			env.OpenFile(test.file)
+			loc := env.RegexpSearch(test.file, test.regexp)
+			env.Await(env.DoneWithOpen())
+			env.Hover(loc) // pre-warm the query
+			b.ResetTimer()
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		env.Hover(loc)
+			for i := 0; i < b.N; i++ {
+				env.Hover(loc) // pre-warm the query
+			}
+		})
 	}
 }

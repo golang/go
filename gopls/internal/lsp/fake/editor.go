@@ -106,7 +106,7 @@ type EditorConfig struct {
 	Settings map[string]interface{}
 }
 
-// NewEditor Creates a new Editor.
+// NewEditor creates a new Editor.
 func NewEditor(sandbox *Sandbox, config EditorConfig) *Editor {
 	return &Editor{
 		buffers:    make(map[string]buffer),
@@ -959,7 +959,7 @@ func (e *Editor) ExecuteCommand(ctx context.Context, params *protocol.ExecuteCom
 	// Some commands use the go command, which writes directly to disk.
 	// For convenience, check for those changes.
 	if err := e.sandbox.Workdir.CheckForFileChanges(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("checking for file changes: %v", err)
 	}
 	return result, nil
 }

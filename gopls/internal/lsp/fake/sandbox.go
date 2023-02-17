@@ -118,7 +118,10 @@ func NewSandbox(config *SandboxConfig) (_ *Sandbox, err error) {
 	// this is used for running in an existing directory.
 	// TODO(findleyr): refactor this to be less of a workaround.
 	if filepath.IsAbs(config.Workdir) {
-		sb.Workdir = NewWorkdir(config.Workdir)
+		sb.Workdir, err = NewWorkdir(config.Workdir, nil)
+		if err != nil {
+			return nil, err
+		}
 		return sb, nil
 	}
 	var workdir string
@@ -136,8 +139,8 @@ func NewSandbox(config *SandboxConfig) (_ *Sandbox, err error) {
 	if err := os.MkdirAll(workdir, 0755); err != nil {
 		return nil, err
 	}
-	sb.Workdir = NewWorkdir(workdir)
-	if err := sb.Workdir.writeInitialFiles(config.Files); err != nil {
+	sb.Workdir, err = NewWorkdir(workdir, config.Files)
+	if err != nil {
 		return nil, err
 	}
 	return sb, nil

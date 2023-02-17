@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"testing"
 
+	"golang.org/x/tools/gopls/internal/lsp/fake"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 )
+
+// TODO(rfindley): update these completion tests to run on multiple repos.
 
 type completionBenchOptions struct {
 	file, locationRegexp string
@@ -21,8 +24,8 @@ type completionBenchOptions struct {
 }
 
 func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
-	repo := repos["tools"]
-	env := repo.newEnv(b)
+	repo := getRepo(b, "tools")
+	env := repo.newEnv(b, "completion.tools", fake.EditorConfig{})
 	defer env.Close()
 
 	// Run edits required for this completion.
@@ -41,12 +44,7 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-
-	// Use a subtest to ensure that benchmarkCompletion does not itself get
-	// executed multiple times (as it is doing expensive environment
-	// initialization).
-	b.Run("completion", func(b *testing.B) {
+	b.Run("tools", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if options.beforeCompletion != nil {
 				options.beforeCompletion(env)
@@ -56,7 +54,7 @@ func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 	})
 }
 
-// endPosInBuffer returns the position for last character in the buffer for
+// endRangeInBuffer returns the position for last character in the buffer for
 // the given file.
 func endRangeInBuffer(env *Env, name string) protocol.Range {
 	buffer := env.BufferText(name)

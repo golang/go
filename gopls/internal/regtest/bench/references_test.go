@@ -7,16 +7,31 @@ package bench
 import "testing"
 
 func BenchmarkReferences(b *testing.B) {
-	env := repos["tools"].sharedEnv(b)
+	tests := []struct {
+		repo   string
+		file   string
+		regexp string
+	}{
+		{"istio", "pkg/config/model.go", "type (Meta)"},
+		{"kubernetes", "pkg/controller/lookup_cache.go", "type (objectWithMeta)"},
+		{"kuma", "pkg/events/interfaces.go", "type (Event)"},
+		{"pkgsite", "internal/log/log.go", "func (Infof)"},
+		{"starlark", "syntax/syntax.go", "type (Ident)"},
+		{"tools", "internal/lsp/source/view.go", "type (Snapshot)"},
+	}
 
-	env.OpenFile("internal/imports/mod.go")
-	loc := env.RegexpSearch("internal/imports/mod.go", "gopathwalk")
-	env.References(loc)
-	env.Await(env.DoneWithOpen())
+	for _, test := range tests {
+		b.Run(test.repo, func(b *testing.B) {
+			env := getRepo(b, test.repo).sharedEnv(b)
+			env.OpenFile(test.file)
+			loc := env.RegexpSearch(test.file, test.regexp)
+			env.Await(env.DoneWithOpen())
+			env.References(loc) // pre-warm the query
+			b.ResetTimer()
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		env.References(loc)
+			for i := 0; i < b.N; i++ {
+				env.References(loc)
+			}
+		})
 	}
 }

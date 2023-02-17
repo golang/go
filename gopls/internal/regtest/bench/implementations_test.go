@@ -7,15 +7,31 @@ package bench
 import "testing"
 
 func BenchmarkImplementations(b *testing.B) {
-	env := repos["tools"].sharedEnv(b)
+	tests := []struct {
+		repo   string
+		file   string
+		regexp string
+	}{
+		{"istio", "pkg/config/mesh/watcher.go", `type (Watcher)`},
+		{"kubernetes", "pkg/controller/lookup_cache.go", `objectWithMeta`},
+		{"kuma", "api/generic/insights.go", `type (Insight)`},
+		{"pkgsite", "internal/datasource.go", `type (DataSource)`},
+		{"starlark", "syntax/syntax.go", `type (Expr)`},
+		{"tools", "internal/lsp/source/view.go", `type (Snapshot)`},
+	}
 
-	env.OpenFile("internal/imports/mod.go")
-	loc := env.RegexpSearch("internal/imports/mod.go", "initAllMods")
-	env.Await(env.DoneWithOpen())
+	for _, test := range tests {
+		b.Run(test.repo, func(b *testing.B) {
+			env := getRepo(b, test.repo).sharedEnv(b)
+			env.OpenFile(test.file)
+			loc := env.RegexpSearch(test.file, test.regexp)
+			env.Await(env.DoneWithOpen())
+			env.Implementations(loc) // pre-warm the query
+			b.ResetTimer()
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		env.Implementations(loc)
+			for i := 0; i < b.N; i++ {
+				env.Implementations(loc)
+			}
+		})
 	}
 }

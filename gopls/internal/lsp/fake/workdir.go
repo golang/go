@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -103,49 +104,27 @@ type Workdir struct {
 	files map[string]fileID
 }
 
-// fileID is a file identity for the purposes of detecting on-disk
-// modifications.
-type fileID struct {
-	hash  string
-	mtime time.Time
-}
-
 // NewWorkdir writes the txtar-encoded file data in txt to dir, and returns a
 // Workir for operating on these files using
-func NewWorkdir(dir string) *Workdir {
-	return &Workdir{RelativeTo: RelativeTo(dir)}
+func NewWorkdir(dir string, files map[string][]byte) (*Workdir, error) {
+	w := &Workdir{RelativeTo: RelativeTo(dir)}
+	for name, data := range files {
+		if err := writeFileData(name, data, w.RelativeTo); err != nil {
+			return nil, fmt.Errorf("writing to workdir: %w", err)
+		}
+	}
+	_, err := w.pollFiles() // poll files to populate the files map.
+	return w, err
+}
+
+// fileID identifies a file version on disk.
+type fileID struct {
+	mtime time.Time
+	hash  string // empty if mtime is old enough to be reliabe; otherwise a file digest
 }
 
 func hashFile(data []byte) string {
 	return fmt.Sprintf("%x", sha256.Sum256(data))
-}
-
-func (w *Workdir) writeInitialFiles(files map[string][]byte) error {
-	w.files = map[string]fileID{}
-	for name, data := range files {
-		if err := writeFileData(name, data, w.RelativeTo); err != nil {
-			return fmt.Errorf("writing to workdir: %w", err)
-		}
-		fp := w.AbsPath(name)
-
-		// We need the mtime of the file just written for the purposes of tracking
-		// file identity. Calling Stat here could theoretically return an mtime
-		// that is inconsistent with the file contents represented by the hash, but
-		// since we "own" this file we assume that the mtime is correct.
-		//
-		// Furthermore, see the documentation for Workdir.files for why mismatches
-		// between identifiers are considered to be benign.
-		fi, err := os.Stat(fp)
-		if err != nil {
-			return fmt.Errorf("reading file info: %v", err)
-		}
-
-		w.files[name] = fileID{
-			hash:  hashFile(data),
-			mtime: fi.ModTime(),
-		}
-	}
-	return nil
 }
 
 // RootURI returns the root URI for this working directory of this scratch
@@ -335,49 +314,21 @@ func (w *Workdir) RenameFile(ctx context.Context, oldPath, newPath string) error
 // ListFiles returns a new sorted list of the relative paths of files in dir,
 // recursively.
 func (w *Workdir) ListFiles(dir string) ([]string, error) {
-	m, err := w.listFiles(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	var paths []string
-	for p := range m {
-		paths = append(paths, p)
-	}
-	sort.Strings(paths)
-	return paths, nil
-}
-
-// listFiles lists files in the given directory, returning a map of relative
-// path to contents and modification time.
-func (w *Workdir) listFiles(dir string) (map[string]fileID, error) {
-	files := make(map[string]fileID)
 	absDir := w.AbsPath(dir)
+	var paths []string
 	if err := filepath.Walk(absDir, func(fp string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
-			return nil
-		}
-		path := w.RelPath(fp)
-
-		data, err := ioutil.ReadFile(fp)
-		if err != nil {
-			return err
-		}
-		// The content returned by ioutil.ReadFile could be inconsistent with
-		// info.ModTime(), due to a subsequent modification. See the documentation
-		// for w.files for why we consider this to be benign.
-		files[path] = fileID{
-			hash:  hashFile(data),
-			mtime: info.ModTime(),
+		if info.Mode()&(fs.ModeDir|fs.ModeSymlink) == 0 {
+			paths = append(paths, w.RelPath(fp))
 		}
 		return nil
 	}); err != nil {
 		return nil, err
 	}
-	return files, nil
+	sort.Strings(paths)
+	return paths, nil
 }
 
 // CheckForFileChanges walks the working directory and checks for any files
@@ -406,29 +357,75 @@ func (w *Workdir) pollFiles() ([]protocol.FileEvent, error) {
 	w.fileMu.Lock()
 	defer w.fileMu.Unlock()
 
-	files, err := w.listFiles(".")
-	if err != nil {
+	newFiles := make(map[string]fileID)
+	var evts []protocol.FileEvent
+	if err := filepath.Walk(string(w.RelativeTo), func(fp string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// Skip directories and symbolic links (which may be links to directories).
+		//
+		// The latter matters for repos like Kubernetes, which use symlinks.
+		if info.Mode()&(fs.ModeDir|fs.ModeSymlink) != 0 {
+			return nil
+		}
+
+		// Opt: avoid reading the file if mtime is sufficently old to be reliable.
+		//
+		// If mtime is recent, it may not sufficiently identify the file contents:
+		// a subsequent write could result in the same mtime. For these cases, we
+		// must read the file contents.
+		id := fileID{mtime: info.ModTime()}
+		if time.Since(info.ModTime()) < 2*time.Second {
+			data, err := ioutil.ReadFile(fp)
+			if err != nil {
+				return err
+			}
+			id.hash = hashFile(data)
+		}
+		path := w.RelPath(fp)
+		newFiles[path] = id
+
+		if w.files != nil {
+			oldID, ok := w.files[path]
+			delete(w.files, path)
+			switch {
+			case !ok:
+				evts = append(evts, protocol.FileEvent{
+					URI:  w.URI(path),
+					Type: protocol.Created,
+				})
+			case oldID != id:
+				changed := true
+
+				// Check whether oldID and id do not match because oldID was polled at
+				// a recent enough to time such as to require hashing.
+				//
+				// In this case, read the content to check whether the file actually
+				// changed.
+				if oldID.mtime.Equal(id.mtime) && oldID.hash != "" && id.hash == "" {
+					data, err := ioutil.ReadFile(fp)
+					if err != nil {
+						return err
+					}
+					if hashFile(data) == oldID.hash {
+						changed = false
+					}
+				}
+				if changed {
+					evts = append(evts, protocol.FileEvent{
+						URI:  w.URI(path),
+						Type: protocol.Changed,
+					})
+				}
+			}
+		}
+
+		return nil
+	}); err != nil {
 		return nil, err
 	}
-	var evts []protocol.FileEvent
-	// Check which files have been added or modified.
-	for path, id := range files {
-		oldID, ok := w.files[path]
-		delete(w.files, path)
-		var typ protocol.FileChangeType
-		switch {
-		case !ok:
-			typ = protocol.Created
-		case oldID != id:
-			typ = protocol.Changed
-		default:
-			continue
-		}
-		evts = append(evts, protocol.FileEvent{
-			URI:  w.URI(path),
-			Type: typ,
-		})
-	}
+
 	// Any remaining files must have been deleted.
 	for path := range w.files {
 		evts = append(evts, protocol.FileEvent{
@@ -436,6 +433,6 @@ func (w *Workdir) pollFiles() ([]protocol.FileEvent, error) {
 			Type: protocol.Deleted,
 		})
 	}
-	w.files = files
+	w.files = newFiles
 	return evts, nil
 }
