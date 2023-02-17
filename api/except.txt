@@ -575,3 +575,25 @@ pkg syscall (freebsd-arm-cgo), const SYS_MKNODAT = 498
 pkg syscall (freebsd-arm-cgo), const SYS_STAT = 188
 pkg syscall (freebsd-arm-cgo), const SYS_STAT ideal-int
 pkg syscall (freebsd-arm-cgo), const SYS_STATFS = 396
+pkg syscall (freebsd-arm64), const SYS_FSTAT = 189
+pkg syscall (freebsd-arm64), const SYS_FSTATAT = 493
+pkg syscall (freebsd-arm64), const SYS_FSTATFS = 397
+pkg syscall (freebsd-arm64), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-arm64), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-arm64), const SYS_LSTAT = 190
+pkg syscall (freebsd-arm64), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-arm64), const SYS_MKNODAT = 498
+pkg syscall (freebsd-arm64), const SYS_STAT = 188
+pkg syscall (freebsd-arm64), const SYS_STAT ideal-int
+pkg syscall (freebsd-arm64), const SYS_STATFS = 396
+pkg syscall (freebsd-arm64-cgo), const SYS_FSTAT = 189
+pkg syscall (freebsd-arm64-cgo), const SYS_FSTATAT = 493
+pkg syscall (freebsd-arm64-cgo), const SYS_FSTATFS = 397
+pkg syscall (freebsd-arm64-cgo), const SYS_GETDIRENTRIES = 196
+pkg syscall (freebsd-arm64-cgo), const SYS_GETFSSTAT = 395
+pkg syscall (freebsd-arm64-cgo), const SYS_LSTAT = 190
+pkg syscall (freebsd-arm64-cgo), const SYS_LSTAT ideal-int
+pkg syscall (freebsd-arm64-cgo), const SYS_MKNODAT = 498
+pkg syscall (freebsd-arm64-cgo), const SYS_STAT = 188
+pkg syscall (freebsd-arm64-cgo), const SYS_STAT ideal-int
+pkg syscall (freebsd-arm64-cgo), const SYS_STATFS = 396

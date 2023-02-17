@@ -93,6 +93,12 @@ pkg math (freebsd-arm), const MinInt = -2147483648
 pkg math (freebsd-arm-cgo), const MaxInt = 2147483647
 pkg math (freebsd-arm-cgo), const MaxUint = 4294967295
 pkg math (freebsd-arm-cgo), const MinInt = -2147483648
+pkg math (freebsd-arm64), const MaxInt = 9223372036854775807
+pkg math (freebsd-arm64), const MaxUint = 18446744073709551615
+pkg math (freebsd-arm64), const MinInt = -9223372036854775808
+pkg math (freebsd-arm64-cgo), const MaxInt = 9223372036854775807
+pkg math (freebsd-arm64-cgo), const MaxUint = 18446744073709551615
+pkg math (freebsd-arm64-cgo), const MinInt = -9223372036854775808
 pkg math (linux-386), const MaxInt = 2147483647
 pkg math (linux-386), const MaxUint = 4294967295
 pkg math (linux-386), const MinInt = -2147483648
@@ -189,6 +195,10 @@ pkg runtime/cgo (freebsd-arm-cgo), func NewHandle(interface{}) Handle
 pkg runtime/cgo (freebsd-arm-cgo), method (Handle) Delete()
 pkg runtime/cgo (freebsd-arm-cgo), method (Handle) Value() interface{}
 pkg runtime/cgo (freebsd-arm-cgo), type Handle uintptr
+pkg runtime/cgo (freebsd-arm64-cgo), func NewHandle(interface{}) Handle
+pkg runtime/cgo (freebsd-arm64-cgo), method (Handle) Delete()
+pkg runtime/cgo (freebsd-arm64-cgo), method (Handle) Value() interface{}
+pkg runtime/cgo (freebsd-arm64-cgo), type Handle uintptr
 pkg runtime/cgo (linux-386-cgo), func NewHandle(interface{}) Handle
 pkg runtime/cgo (linux-386-cgo), method (Handle) Delete()
 pkg runtime/cgo (linux-386-cgo), method (Handle) Value() interface{}

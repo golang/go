@@ -284,6 +284,7 @@ pkg runtime/cgo (darwin-arm64-cgo), type Incomplete struct #46731
 pkg runtime/cgo (freebsd-386-cgo), type Incomplete struct #46731
 pkg runtime/cgo (freebsd-amd64-cgo), type Incomplete struct #46731
 pkg runtime/cgo (freebsd-arm-cgo), type Incomplete struct #46731
+pkg runtime/cgo (freebsd-arm64-cgo), type Incomplete struct #46731
 pkg runtime/cgo (linux-386-cgo), type Incomplete struct #46731
 pkg runtime/cgo (linux-amd64-cgo), type Incomplete struct #46731
 pkg runtime/cgo (linux-arm-cgo), type Incomplete struct #46731
@@ -345,6 +346,20 @@ pkg syscall (freebsd-arm), const SYS_GETDIRENTRIES = 554 #53280
 pkg syscall (freebsd-arm), const SYS_GETFSSTAT = 557 #53280
 pkg syscall (freebsd-arm), const SYS_MKNODAT = 559 #53280
 pkg syscall (freebsd-arm), const SYS_STATFS = 555 #53280
+pkg syscall (freebsd-arm64), const SYS_FSTAT = 551 #53280
+pkg syscall (freebsd-arm64), const SYS_FSTATAT = 552 #53280
+pkg syscall (freebsd-arm64), const SYS_FSTATFS = 556 #53280
+pkg syscall (freebsd-arm64), const SYS_GETDIRENTRIES = 554 #53280
+pkg syscall (freebsd-arm64), const SYS_GETFSSTAT = 557 #53280
+pkg syscall (freebsd-arm64), const SYS_MKNODAT = 559 #53280
+pkg syscall (freebsd-arm64), const SYS_STATFS = 555 #53280
+pkg syscall (freebsd-arm64-cgo), const SYS_FSTAT = 551 #53280
+pkg syscall (freebsd-arm64-cgo), const SYS_FSTATAT = 552 #53280
+pkg syscall (freebsd-arm64-cgo), const SYS_FSTATFS = 556 #53280
+pkg syscall (freebsd-arm64-cgo), const SYS_GETDIRENTRIES = 554 #53280
+pkg syscall (freebsd-arm64-cgo), const SYS_GETFSSTAT = 557 #53280
+pkg syscall (freebsd-arm64-cgo), const SYS_MKNODAT = 559 #53280
+pkg syscall (freebsd-arm64-cgo), const SYS_STATFS = 555 #53280
 pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
 pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
 pkg syscall (linux-386-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
