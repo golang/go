@@ -88,8 +88,8 @@ func semanticTokenRegistration(tokenTypes, tokenModifiers []string) protocol.Reg
 				TokenTypes:     tokenTypes,
 				TokenModifiers: tokenModifiers,
 			},
-			Full:  true,
-			Range: true,
+			Full:  &protocol.Or_SemanticTokensOptions_full{Value: true},
+			Range: &protocol.Or_SemanticTokensOptions_range{Value: true},
 		},
 	}
 }

@@ -140,50 +140,22 @@ var renameProp = map[prop]string{
 	{"Hover", "contents"}:                 "MarkupContent",
 	{"InlayHint", "label"}:                "[]InlayHintLabelPart",
 
-	// removing this causes the test in json_test.go to fail
-	// First, the custom unmarshaler returns the 'wrong' error type
-	// Second, cmp.Diff reports too many errors.
-	// TODO(pjw): fix json_test.go and maybe the generated code
-	{"Lit_SemanticTokensClientCapabilities_requests", "full"}:        "interface{}",
-	{"Lit_SemanticTokensClientCapabilities_requests", "range"}:       "bool",
-	{"NotebookCellTextDocumentFilter", "notebook"}:                   "NotebookDocumentFilter",
 	{"RelatedFullDocumentDiagnosticReport", "relatedDocuments"}:      "map[DocumentURI]interface{}",
 	{"RelatedUnchangedDocumentDiagnosticReport", "relatedDocuments"}: "map[DocumentURI]interface{}",
 
-	// this one also has the json_test.go problem
-	{"RenameClientCapabilities", "prepareSupportDefaultBehavior"}: "interface{}",
+	// PJW: this one is tricky.
+	{"ServerCapabilities", "codeActionProvider"}: "interface{}",
 
-	{"SemanticTokensOptions", "full"}:                         "bool",
-	{"SemanticTokensOptions", "range"}:                        "interface{}",
-	{"ServerCapabilities", "callHierarchyProvider"}:           "interface{}",
-	{"ServerCapabilities", "codeActionProvider"}:              "interface{}",
-	{"ServerCapabilities", "colorProvider"}:                   "interface{}",
-	{"ServerCapabilities", "declarationProvider"}:             "bool",
-	{"ServerCapabilities", "definitionProvider"}:              "bool",
-	{"ServerCapabilities", "diagnosticProvider"}:              "interface{}",
-	{"ServerCapabilities", "documentFormattingProvider"}:      "bool",
-	{"ServerCapabilities", "documentHighlightProvider"}:       "bool",
-	{"ServerCapabilities", "documentRangeFormattingProvider"}: "bool",
-	{"ServerCapabilities", "documentSymbolProvider"}:          "bool",
-	{"ServerCapabilities", "foldingRangeProvider"}:            "interface{}",
-	{"ServerCapabilities", "hoverProvider"}:                   "bool",
-	{"ServerCapabilities", "implementationProvider"}:          "interface{}",
-	{"ServerCapabilities", "inlayHintProvider"}:               "interface{}",
-	{"ServerCapabilities", "inlineValueProvider"}:             "interface{}",
-	{"ServerCapabilities", "linkedEditingRangeProvider"}:      "interface{}",
-	{"ServerCapabilities", "monikerProvider"}:                 "interface{}",
-	{"ServerCapabilities", "notebookDocumentSync"}:            "interface{}",
-	{"ServerCapabilities", "referencesProvider"}:              "bool",
-	{"ServerCapabilities", "renameProvider"}:                  "interface{}",
-	{"ServerCapabilities", "selectionRangeProvider"}:          "interface{}",
-	{"ServerCapabilities", "semanticTokensProvider"}:          "interface{}",
-	{"ServerCapabilities", "textDocumentSync"}:                "interface{}",
-	{"ServerCapabilities", "typeDefinitionProvider"}:          "interface{}",
-	{"ServerCapabilities", "typeHierarchyProvider"}:           "interface{}",
-	{"ServerCapabilities", "workspaceSymbolProvider"}:         "bool",
-	{"TextDocumentEdit", "edits"}:                             "[]TextEdit",
-	{"TextDocumentSyncOptions", "save"}:                       "SaveOptions",
-	{"WorkspaceEdit", "documentChanges"}:                      "[]DocumentChanges",
+	{"ServerCapabilities", "inlayHintProvider"}: "interface{}",
+	// slightly tricky
+	{"ServerCapabilities", "renameProvider"}: "interface{}",
+	// slightly tricky
+	{"ServerCapabilities", "semanticTokensProvider"}: "interface{}",
+	// slightly tricky
+	{"ServerCapabilities", "textDocumentSync"}: "interface{}",
+	{"TextDocumentEdit", "edits"}:              "[]TextEdit",
+	{"TextDocumentSyncOptions", "save"}:        "SaveOptions",
+	{"WorkspaceEdit", "documentChanges"}:       "[]DocumentChanges",
 }
 
 // which entries of renameProp were used

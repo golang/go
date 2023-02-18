@@ -7,12 +7,19 @@
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 9b742021fb04ad081aa3676a9eecf4fa612084b4 (as of 2023-02-13)
+// git hash 9b742021fb04ad081aa3676a9eecf4fa612084b4 (as of 2023-02-18)
 
 import "encoding/json"
 
-import "errors"
 import "fmt"
+
+type UnmarshalError struct {
+	msg string
+}
+
+func (e UnmarshalError) Error() string {
+	return e.msg
+}
 
 // from line 4768
 func (t OrFEditRangePItemDefaults) MarshalJSON() ([]byte, error) {
@@ -42,7 +49,7 @@ func (t *OrFEditRangePItemDefaults) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [FEditRangePItemDefaults Range]")
+	return &UnmarshalError{"unmarshal failed to match one of [FEditRangePItemDefaults Range]"}
 }
 
 // from line 9810
@@ -73,7 +80,7 @@ func (t *OrFNotebookPNotebookSelector) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [NotebookDocumentFilter string]")
+	return &UnmarshalError{"unmarshal failed to match one of [NotebookDocumentFilter string]"}
 }
 
 // from line 5519
@@ -104,7 +111,7 @@ func (t *OrPLocation_workspace_symbol) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [Location PLocationMsg_workspace_symbol]")
+	return &UnmarshalError{"unmarshal failed to match one of [Location PLocationMsg_workspace_symbol]"}
 }
 
 // from line 4162
@@ -135,7 +142,7 @@ func (t *OrPSection_workspace_didChangeConfiguration) UnmarshalJSON(x []byte) er
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [[]string string]")
+	return &UnmarshalError{"unmarshal failed to match one of [[]string string]"}
 }
 
 // from line 7074
@@ -166,7 +173,7 @@ func (t *OrPTooltipPLabel) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [MarkupContent string]")
+	return &UnmarshalError{"unmarshal failed to match one of [MarkupContent string]"}
 }
 
 // from line 3698
@@ -197,7 +204,7 @@ func (t *OrPTooltip_textDocument_inlayHint) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [MarkupContent string]")
+	return &UnmarshalError{"unmarshal failed to match one of [MarkupContent string]"}
 }
 
 // from line 6183
@@ -228,7 +235,7 @@ func (t *Or_CancelParams_id) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [int32 string]")
+	return &UnmarshalError{"unmarshal failed to match one of [int32 string]"}
 }
 
 // from line 4581
@@ -259,7 +266,7 @@ func (t *Or_CompletionItem_documentation) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [MarkupContent string]")
+	return &UnmarshalError{"unmarshal failed to match one of [MarkupContent string]"}
 }
 
 // from line 4664
@@ -290,7 +297,7 @@ func (t *Or_CompletionItem_textEdit) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [InsertReplaceEdit TextEdit]")
+	return &UnmarshalError{"unmarshal failed to match one of [InsertReplaceEdit TextEdit]"}
 }
 
 // from line 13752
@@ -321,7 +328,7 @@ func (t *Or_Definition) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [Location []Location]")
+	return &UnmarshalError{"unmarshal failed to match one of [Location []Location]"}
 }
 
 // from line 8546
@@ -352,7 +359,7 @@ func (t *Or_Diagnostic_code) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [int32 string]")
+	return &UnmarshalError{"unmarshal failed to match one of [int32 string]"}
 }
 
 // from line 13884
@@ -383,7 +390,7 @@ func (t *Or_DocumentDiagnosticReport) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [RelatedFullDocumentDiagnosticReport RelatedUnchangedDocumentDiagnosticReport]")
+	return &UnmarshalError{"unmarshal failed to match one of [RelatedFullDocumentDiagnosticReport RelatedUnchangedDocumentDiagnosticReport]"}
 }
 
 // from line 3821
@@ -414,7 +421,7 @@ func (t *Or_DocumentDiagnosticReportPartialResult_relatedDocuments_Value) Unmars
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]")
+	return &UnmarshalError{"unmarshal failed to match one of [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]"}
 }
 
 // from line 14094
@@ -445,7 +452,7 @@ func (t *Or_DocumentFilter) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [NotebookCellTextDocumentFilter TextDocumentFilter]")
+	return &UnmarshalError{"unmarshal failed to match one of [NotebookCellTextDocumentFilter TextDocumentFilter]"}
 }
 
 // from line 4890
@@ -483,7 +490,7 @@ func (t *Or_Hover_contents) UnmarshalJSON(x []byte) error {
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [MarkedString MarkupContent []MarkedString]")
+	return &UnmarshalError{"unmarshal failed to match one of [MarkedString MarkupContent []MarkedString]"}
 }
 
 // from line 3657
@@ -514,7 +521,7 @@ func (t *Or_InlayHint_label) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [[]InlayHintLabelPart string]")
+	return &UnmarshalError{"unmarshal failed to match one of [[]InlayHintLabelPart string]"}
 }
 
 // from line 13862
@@ -552,7 +559,7 @@ func (t *Or_InlineValue) UnmarshalJSON(x []byte) error {
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [InlineValueEvaluatableExpression InlineValueText InlineValueVariableLookup]")
+	return &UnmarshalError{"unmarshal failed to match one of [InlineValueEvaluatableExpression InlineValueText InlineValueVariableLookup]"}
 }
 
 // from line 14059
@@ -583,7 +590,7 @@ func (t *Or_MarkedString) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [Msg_MarkedString string]")
+	return &UnmarshalError{"unmarshal failed to match one of [Msg_MarkedString string]"}
 }
 
 // from line 10117
@@ -614,7 +621,7 @@ func (t *Or_NotebookCellTextDocumentFilter_notebook) UnmarshalJSON(x []byte) err
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [NotebookDocumentFilter string]")
+	return &UnmarshalError{"unmarshal failed to match one of [NotebookDocumentFilter string]"}
 }
 
 // from line 9856
@@ -645,7 +652,7 @@ func (t *Or_NotebookDocumentSyncOptions_notebookSelector_Elem_Item1_notebook) Un
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [NotebookDocumentFilter string]")
+	return &UnmarshalError{"unmarshal failed to match one of [NotebookDocumentFilter string]"}
 }
 
 // from line 7167
@@ -676,7 +683,7 @@ func (t *Or_RelatedFullDocumentDiagnosticReport_relatedDocuments_Value) Unmarsha
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]")
+	return &UnmarshalError{"unmarshal failed to match one of [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]"}
 }
 
 // from line 7206
@@ -707,7 +714,7 @@ func (t *Or_RelatedUnchangedDocumentDiagnosticReport_relatedDocuments_Value) Unm
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]")
+	return &UnmarshalError{"unmarshal failed to match one of [FullDocumentDiagnosticReport UnchangedDocumentDiagnosticReport]"}
 }
 
 // from line 10740
@@ -738,7 +745,7 @@ func (t *Or_RelativePattern_baseUri) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [URI WorkspaceFolder]")
+	return &UnmarshalError{"unmarshal failed to match one of [URI WorkspaceFolder]"}
 }
 
 // from line 1370
@@ -769,7 +776,7 @@ func (t *Or_Result_textDocument_codeAction_Item0_Elem) UnmarshalJSON(x []byte) e
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [CodeAction Command]")
+	return &UnmarshalError{"unmarshal failed to match one of [CodeAction Command]"}
 }
 
 // from line 12196
@@ -800,7 +807,7 @@ func (t *Or_SemanticTokensClientCapabilities_requests_full) UnmarshalJSON(x []by
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [FFullPRequests bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [FFullPRequests bool]"}
 }
 
 // from line 12176
@@ -831,7 +838,7 @@ func (t *Or_SemanticTokensClientCapabilities_requests_range) UnmarshalJSON(x []b
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [FRangePRequests bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [FRangePRequests bool]"}
 }
 
 // from line 6578
@@ -862,7 +869,7 @@ func (t *Or_SemanticTokensOptions_full) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [PFullESemanticTokensOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [PFullESemanticTokensOptions bool]"}
 }
 
 // from line 6558
@@ -893,7 +900,7 @@ func (t *Or_SemanticTokensOptions_range) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [PRangeESemanticTokensOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [PRangeESemanticTokensOptions bool]"}
 }
 
 // from line 8226
@@ -931,7 +938,7 @@ func (t *Or_ServerCapabilities_callHierarchyProvider) UnmarshalJSON(x []byte) er
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [CallHierarchyOptions CallHierarchyRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [CallHierarchyOptions CallHierarchyRegistrationOptions bool]"}
 }
 
 // from line 8034
@@ -962,7 +969,7 @@ func (t *Or_ServerCapabilities_codeActionProvider) UnmarshalJSON(x []byte) error
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [CodeActionOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [CodeActionOptions bool]"}
 }
 
 // from line 8070
@@ -1000,7 +1007,7 @@ func (t *Or_ServerCapabilities_colorProvider) UnmarshalJSON(x []byte) error {
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [DocumentColorOptions DocumentColorRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [DocumentColorOptions DocumentColorRegistrationOptions bool]"}
 }
 
 // from line 7896
@@ -1038,7 +1045,7 @@ func (t *Or_ServerCapabilities_declarationProvider) UnmarshalJSON(x []byte) erro
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [DeclarationOptions DeclarationRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [DeclarationOptions DeclarationRegistrationOptions bool]"}
 }
 
 // from line 7918
@@ -1069,7 +1076,7 @@ func (t *Or_ServerCapabilities_definitionProvider) UnmarshalJSON(x []byte) error
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [DefinitionOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [DefinitionOptions bool]"}
 }
 
 // from line 8383
@@ -1100,7 +1107,7 @@ func (t *Or_ServerCapabilities_diagnosticProvider) UnmarshalJSON(x []byte) error
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [DiagnosticOptions DiagnosticRegistrationOptions]")
+	return &UnmarshalError{"unmarshal failed to match one of [DiagnosticOptions DiagnosticRegistrationOptions]"}
 }
 
 // from line 8110
@@ -1131,7 +1138,7 @@ func (t *Or_ServerCapabilities_documentFormattingProvider) UnmarshalJSON(x []byt
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [DocumentFormattingOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [DocumentFormattingOptions bool]"}
 }
 
 // from line 7998
@@ -1162,7 +1169,7 @@ func (t *Or_ServerCapabilities_documentHighlightProvider) UnmarshalJSON(x []byte
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [DocumentHighlightOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [DocumentHighlightOptions bool]"}
 }
 
 // from line 8128
@@ -1193,7 +1200,7 @@ func (t *Or_ServerCapabilities_documentRangeFormattingProvider) UnmarshalJSON(x 
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [DocumentRangeFormattingOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [DocumentRangeFormattingOptions bool]"}
 }
 
 // from line 8016
@@ -1224,7 +1231,7 @@ func (t *Or_ServerCapabilities_documentSymbolProvider) UnmarshalJSON(x []byte) e
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [DocumentSymbolOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [DocumentSymbolOptions bool]"}
 }
 
 // from line 8173
@@ -1262,7 +1269,7 @@ func (t *Or_ServerCapabilities_foldingRangeProvider) UnmarshalJSON(x []byte) err
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [FoldingRangeOptions FoldingRangeRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [FoldingRangeOptions FoldingRangeRegistrationOptions bool]"}
 }
 
 // from line 7869
@@ -1293,7 +1300,7 @@ func (t *Or_ServerCapabilities_hoverProvider) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [HoverOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [HoverOptions bool]"}
 }
 
 // from line 7958
@@ -1331,7 +1338,7 @@ func (t *Or_ServerCapabilities_implementationProvider) UnmarshalJSON(x []byte) e
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [ImplementationOptions ImplementationRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [ImplementationOptions ImplementationRegistrationOptions bool]"}
 }
 
 // from line 8360
@@ -1369,7 +1376,7 @@ func (t *Or_ServerCapabilities_inlayHintProvider) UnmarshalJSON(x []byte) error 
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [InlayHintOptions InlayHintRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [InlayHintOptions InlayHintRegistrationOptions bool]"}
 }
 
 // from line 8337
@@ -1407,7 +1414,7 @@ func (t *Or_ServerCapabilities_inlineValueProvider) UnmarshalJSON(x []byte) erro
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [InlineValueOptions InlineValueRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [InlineValueOptions InlineValueRegistrationOptions bool]"}
 }
 
 // from line 8249
@@ -1445,7 +1452,7 @@ func (t *Or_ServerCapabilities_linkedEditingRangeProvider) UnmarshalJSON(x []byt
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [LinkedEditingRangeOptions LinkedEditingRangeRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [LinkedEditingRangeOptions LinkedEditingRangeRegistrationOptions bool]"}
 }
 
 // from line 8291
@@ -1483,7 +1490,7 @@ func (t *Or_ServerCapabilities_monikerProvider) UnmarshalJSON(x []byte) error {
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [MonikerOptions MonikerRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [MonikerOptions MonikerRegistrationOptions bool]"}
 }
 
 // from line 7841
@@ -1514,7 +1521,7 @@ func (t *Or_ServerCapabilities_notebookDocumentSync) UnmarshalJSON(x []byte) err
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [NotebookDocumentSyncOptions NotebookDocumentSyncRegistrationOptions]")
+	return &UnmarshalError{"unmarshal failed to match one of [NotebookDocumentSyncOptions NotebookDocumentSyncRegistrationOptions]"}
 }
 
 // from line 7980
@@ -1545,7 +1552,7 @@ func (t *Or_ServerCapabilities_referencesProvider) UnmarshalJSON(x []byte) error
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [ReferenceOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [ReferenceOptions bool]"}
 }
 
 // from line 8155
@@ -1576,7 +1583,7 @@ func (t *Or_ServerCapabilities_renameProvider) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [RenameOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [RenameOptions bool]"}
 }
 
 // from line 8195
@@ -1614,7 +1621,7 @@ func (t *Or_ServerCapabilities_selectionRangeProvider) UnmarshalJSON(x []byte) e
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [SelectionRangeOptions SelectionRangeRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [SelectionRangeOptions SelectionRangeRegistrationOptions bool]"}
 }
 
 // from line 8272
@@ -1645,7 +1652,7 @@ func (t *Or_ServerCapabilities_semanticTokensProvider) UnmarshalJSON(x []byte) e
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [SemanticTokensOptions SemanticTokensRegistrationOptions]")
+	return &UnmarshalError{"unmarshal failed to match one of [SemanticTokensOptions SemanticTokensRegistrationOptions]"}
 }
 
 // from line 7823
@@ -1676,7 +1683,7 @@ func (t *Or_ServerCapabilities_textDocumentSync) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [TextDocumentSyncKind TextDocumentSyncOptions]")
+	return &UnmarshalError{"unmarshal failed to match one of [TextDocumentSyncKind TextDocumentSyncOptions]"}
 }
 
 // from line 7936
@@ -1714,7 +1721,7 @@ func (t *Or_ServerCapabilities_typeDefinitionProvider) UnmarshalJSON(x []byte) e
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [TypeDefinitionOptions TypeDefinitionRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [TypeDefinitionOptions TypeDefinitionRegistrationOptions bool]"}
 }
 
 // from line 8314
@@ -1752,7 +1759,7 @@ func (t *Or_ServerCapabilities_typeHierarchyProvider) UnmarshalJSON(x []byte) er
 		t.Value = h2
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [TypeHierarchyOptions TypeHierarchyRegistrationOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [TypeHierarchyOptions TypeHierarchyRegistrationOptions bool]"}
 }
 
 // from line 8092
@@ -1783,7 +1790,7 @@ func (t *Or_ServerCapabilities_workspaceSymbolProvider) UnmarshalJSON(x []byte) 
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [WorkspaceSymbolOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [WorkspaceSymbolOptions bool]"}
 }
 
 // from line 8840
@@ -1814,7 +1821,7 @@ func (t *Or_SignatureInformation_documentation) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [MarkupContent string]")
+	return &UnmarshalError{"unmarshal failed to match one of [MarkupContent string]"}
 }
 
 // from line 6691
@@ -1845,7 +1852,7 @@ func (t *Or_TextDocumentEdit_edits_Elem) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [AnnotatedTextEdit TextEdit]")
+	return &UnmarshalError{"unmarshal failed to match one of [AnnotatedTextEdit TextEdit]"}
 }
 
 // from line 9776
@@ -1876,7 +1883,7 @@ func (t *Or_TextDocumentSyncOptions_save) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [SaveOptions bool]")
+	return &UnmarshalError{"unmarshal failed to match one of [SaveOptions bool]"}
 }
 
 // from line 13985
@@ -1907,7 +1914,7 @@ func (t *Or_WorkspaceDocumentDiagnosticReport) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [WorkspaceFullDocumentDiagnosticReport WorkspaceUnchangedDocumentDiagnosticReport]")
+	return &UnmarshalError{"unmarshal failed to match one of [WorkspaceFullDocumentDiagnosticReport WorkspaceUnchangedDocumentDiagnosticReport]"}
 }
 
 // from line 3218
@@ -1952,7 +1959,7 @@ func (t *Or_WorkspaceEdit_documentChanges_Elem) UnmarshalJSON(x []byte) error {
 		t.Value = h3
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [CreateFile DeleteFile RenameFile TextDocumentEdit]")
+	return &UnmarshalError{"unmarshal failed to match one of [CreateFile DeleteFile RenameFile TextDocumentEdit]"}
 }
 
 // from line 247
@@ -1983,5 +1990,5 @@ func (t *Or_textDocument_declaration) UnmarshalJSON(x []byte) error {
 		t.Value = h1
 		return nil
 	}
-	return errors.New("unmarshal failed to match one of [Declaration []DeclarationLink]")
+	return &UnmarshalError{"unmarshal failed to match one of [Declaration []DeclarationLink]"}
 }

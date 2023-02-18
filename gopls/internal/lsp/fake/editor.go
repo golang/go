@@ -255,7 +255,7 @@ func (e *Editor) initialize(ctx context.Context) error {
 	params.Capabilities.TextDocument.Completion.CompletionItem.TagSupport.ValueSet = []protocol.CompletionItemTag{protocol.ComplDeprecated}
 
 	params.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport = true
-	params.Capabilities.TextDocument.SemanticTokens.Requests.Full = true
+	params.Capabilities.TextDocument.SemanticTokens.Requests.Full.Value = true
 	// copied from lsp/semantic.go to avoid import cycle in tests
 	params.Capabilities.TextDocument.SemanticTokens.TokenTypes = []string{
 		"namespace", "type", "class", "enum", "interface",

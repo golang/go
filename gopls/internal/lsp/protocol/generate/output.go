@@ -387,7 +387,7 @@ func genMarshal() {
 			fmt.Fprintf(&buf, "\tvar h%d %s\n", i, nmx)
 			fmt.Fprintf(&buf, "\tif err := json.Unmarshal(x, &h%d); err == nil {\n\t\tt.Value = h%d\n\t\t\treturn nil\n\t\t}\n", i, i)
 		}
-		fmt.Fprintf(&buf, "return errors.New(\"unmarshal failed to match one of %v\")\n", names)
+		fmt.Fprintf(&buf, "return &UnmarshalError{\"unmarshal failed to match one of %v\"}", names)
 		buf.WriteString("}\n\n")
 		jsons[nm] = buf.String()
 	}

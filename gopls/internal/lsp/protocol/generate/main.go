@@ -191,8 +191,19 @@ func writejsons() {
 	out := new(bytes.Buffer)
 	fmt.Fprintln(out, fileHdr)
 	out.WriteString("import \"encoding/json\"\n\n")
-	out.WriteString("import \"errors\"\n")
 	out.WriteString("import \"fmt\"\n")
+
+	out.WriteString(`
+// UnmarshalError indicates that a JSON value did not conform to
+// one of the expected cases of an LSP union type.
+type UnmarshalError struct {
+	msg string
+}
+
+func (e UnmarshalError) Error() string {
+	return e.msg
+}
+`)
 
 	for _, k := range jsons.keys() {
 		out.WriteString(jsons[k])

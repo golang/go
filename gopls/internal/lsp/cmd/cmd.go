@@ -360,8 +360,8 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 	params.Capabilities.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport = opts.HierarchicalDocumentSymbolSupport
 	params.Capabilities.TextDocument.SemanticTokens = protocol.SemanticTokensClientCapabilities{}
 	params.Capabilities.TextDocument.SemanticTokens.Formats = []protocol.TokenFormat{"relative"}
-	params.Capabilities.TextDocument.SemanticTokens.Requests.Range = true
-	params.Capabilities.TextDocument.SemanticTokens.Requests.Full = true
+	params.Capabilities.TextDocument.SemanticTokens.Requests.Range.Value = true
+	params.Capabilities.TextDocument.SemanticTokens.Requests.Full.Value = true
 	params.Capabilities.TextDocument.SemanticTokens.TokenTypes = lsp.SemanticTypes()
 	params.Capabilities.TextDocument.SemanticTokens.TokenModifiers = lsp.SemanticModifiers()
 	params.InitializationOptions = map[string]interface{}{

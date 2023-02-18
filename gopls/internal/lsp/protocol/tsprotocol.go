@@ -7,7 +7,7 @@
 package protocol
 
 // Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 9b742021fb04ad081aa3676a9eecf4fa612084b4 (as of 2023-02-13)
+// git hash 9b742021fb04ad081aa3676a9eecf4fa612084b4 (as of 2023-02-18)
 
 import "encoding/json"
 
@@ -3044,7 +3044,7 @@ type NotebookCellTextDocumentFilter struct { // line 10112
 	 * value is provided it matches against the
 	 * notebook type. '*' matches every notebook.
 	 */
-	Notebook NotebookDocumentFilter `json:"notebook"`
+	Notebook Or_NotebookCellTextDocumentFilter_notebook `json:"notebook"`
 	/*
 	 * A language id like `python`.
 	 *
@@ -3742,12 +3742,12 @@ type PRequestsPSemanticTokens struct { // line 12171
 	 * The client will send the `textDocument/semanticTokens/range` request if
 	 * the server provides a corresponding handler.
 	 */
-	Range bool `json:"range"`
+	Range Or_SemanticTokensClientCapabilities_requests_range `json:"range"`
 	/*
 	 * The client will send the `textDocument/semanticTokens/full` request if
 	 * the server provides a corresponding handler.
 	 */
-	Full interface{} `json:"full"`
+	Full Or_SemanticTokensClientCapabilities_requests_full `json:"full"`
 }
 
 // created for Literal (Lit_CodeActionClientCapabilities_resolveSupport)
@@ -4208,7 +4208,7 @@ type RenameClientCapabilities struct { // line 11933
 	 *
 	 * @since 3.16.0
 	 */
-	PrepareSupportDefaultBehavior interface{} `json:"prepareSupportDefaultBehavior,omitempty"`
+	PrepareSupportDefaultBehavior *PrepareSupportDefaultBehavior `json:"prepareSupportDefaultBehavior,omitempty"`
 	/*
 	 * Whether the client honors the change annotations in
 	 * text edits and resource operations returned via the
@@ -4476,9 +4476,9 @@ type SemanticTokensOptions struct { // line 6545
 	 * Server supports providing semantic tokens for a specific range
 	 * of a document.
 	 */
-	Range interface{} `json:"range,omitempty"`
+	Range *Or_SemanticTokensOptions_range `json:"range,omitempty"`
 	// Server supports providing semantic tokens for a full document.
-	Full bool `json:"full,omitempty"`
+	Full *Or_SemanticTokensOptions_full `json:"full,omitempty"`
 	WorkDoneProgressOptions
 }
 
@@ -4554,27 +4554,27 @@ type ServerCapabilities struct { // line 7808
 	 *
 	 * @since 3.17.0
 	 */
-	NotebookDocumentSync interface{} `json:"notebookDocumentSync,omitempty"`
+	NotebookDocumentSync *Or_ServerCapabilities_notebookDocumentSync `json:"notebookDocumentSync,omitempty"`
 	// The server provides completion support.
 	CompletionProvider CompletionOptions `json:"completionProvider,omitempty"`
 	// The server provides hover support.
-	HoverProvider bool `json:"hoverProvider,omitempty"`
+	HoverProvider *Or_ServerCapabilities_hoverProvider `json:"hoverProvider,omitempty"`
 	// The server provides signature help support.
 	SignatureHelpProvider SignatureHelpOptions `json:"signatureHelpProvider,omitempty"`
 	// The server provides Goto Declaration support.
-	DeclarationProvider bool `json:"declarationProvider,omitempty"`
+	DeclarationProvider *Or_ServerCapabilities_declarationProvider `json:"declarationProvider,omitempty"`
 	// The server provides goto definition support.
-	DefinitionProvider bool `json:"definitionProvider,omitempty"`
+	DefinitionProvider *Or_ServerCapabilities_definitionProvider `json:"definitionProvider,omitempty"`
 	// The server provides Goto Type Definition support.
-	TypeDefinitionProvider interface{} `json:"typeDefinitionProvider,omitempty"`
+	TypeDefinitionProvider *Or_ServerCapabilities_typeDefinitionProvider `json:"typeDefinitionProvider,omitempty"`
 	// The server provides Goto Implementation support.
-	ImplementationProvider interface{} `json:"implementationProvider,omitempty"`
+	ImplementationProvider *Or_ServerCapabilities_implementationProvider `json:"implementationProvider,omitempty"`
 	// The server provides find references support.
-	ReferencesProvider bool `json:"referencesProvider,omitempty"`
+	ReferencesProvider *Or_ServerCapabilities_referencesProvider `json:"referencesProvider,omitempty"`
 	// The server provides document highlight support.
-	DocumentHighlightProvider bool `json:"documentHighlightProvider,omitempty"`
+	DocumentHighlightProvider *Or_ServerCapabilities_documentHighlightProvider `json:"documentHighlightProvider,omitempty"`
 	// The server provides document symbol support.
-	DocumentSymbolProvider bool `json:"documentSymbolProvider,omitempty"`
+	DocumentSymbolProvider *Or_ServerCapabilities_documentSymbolProvider `json:"documentSymbolProvider,omitempty"`
 	/*
 	 * The server provides code actions. CodeActionOptions may only be
 	 * specified if the client states that it supports
@@ -4586,13 +4586,13 @@ type ServerCapabilities struct { // line 7808
 	// The server provides document link support.
 	DocumentLinkProvider DocumentLinkOptions `json:"documentLinkProvider,omitempty"`
 	// The server provides color provider support.
-	ColorProvider interface{} `json:"colorProvider,omitempty"`
+	ColorProvider *Or_ServerCapabilities_colorProvider `json:"colorProvider,omitempty"`
 	// The server provides workspace symbol support.
-	WorkspaceSymbolProvider bool `json:"workspaceSymbolProvider,omitempty"`
+	WorkspaceSymbolProvider *Or_ServerCapabilities_workspaceSymbolProvider `json:"workspaceSymbolProvider,omitempty"`
 	// The server provides document formatting.
-	DocumentFormattingProvider bool `json:"documentFormattingProvider,omitempty"`
+	DocumentFormattingProvider *Or_ServerCapabilities_documentFormattingProvider `json:"documentFormattingProvider,omitempty"`
 	// The server provides document range formatting.
-	DocumentRangeFormattingProvider bool `json:"documentRangeFormattingProvider,omitempty"`
+	DocumentRangeFormattingProvider *Or_ServerCapabilities_documentRangeFormattingProvider `json:"documentRangeFormattingProvider,omitempty"`
 	// The server provides document formatting on typing.
 	DocumentOnTypeFormattingProvider *DocumentOnTypeFormattingOptions `json:"documentOnTypeFormattingProvider,omitempty"`
 	/*
@@ -4602,9 +4602,9 @@ type ServerCapabilities struct { // line 7808
 	 */
 	RenameProvider interface{} `json:"renameProvider,omitempty"`
 	// The server provides folding provider support.
-	FoldingRangeProvider interface{} `json:"foldingRangeProvider,omitempty"`
+	FoldingRangeProvider *Or_ServerCapabilities_foldingRangeProvider `json:"foldingRangeProvider,omitempty"`
 	// The server provides selection range support.
-	SelectionRangeProvider interface{} `json:"selectionRangeProvider,omitempty"`
+	SelectionRangeProvider *Or_ServerCapabilities_selectionRangeProvider `json:"selectionRangeProvider,omitempty"`
 	// The server provides execute command support.
 	ExecuteCommandProvider ExecuteCommandOptions `json:"executeCommandProvider,omitempty"`
 	/*
@@ -4612,13 +4612,13 @@ type ServerCapabilities struct { // line 7808
 	 *
 	 * @since 3.16.0
 	 */
-	CallHierarchyProvider interface{} `json:"callHierarchyProvider,omitempty"`
+	CallHierarchyProvider *Or_ServerCapabilities_callHierarchyProvider `json:"callHierarchyProvider,omitempty"`
 	/*
 	 * The server provides linked editing range support.
 	 *
 	 * @since 3.16.0
 	 */
-	LinkedEditingRangeProvider interface{} `json:"linkedEditingRangeProvider,omitempty"`
+	LinkedEditingRangeProvider *Or_ServerCapabilities_linkedEditingRangeProvider `json:"linkedEditingRangeProvider,omitempty"`
 	/*
 	 * The server provides semantic tokens support.
 	 *
@@ -4630,19 +4630,19 @@ type ServerCapabilities struct { // line 7808
 	 *
 	 * @since 3.16.0
 	 */
-	MonikerProvider interface{} `json:"monikerProvider,omitempty"`
+	MonikerProvider *Or_ServerCapabilities_monikerProvider `json:"monikerProvider,omitempty"`
 	/*
 	 * The server provides type hierarchy support.
 	 *
 	 * @since 3.17.0
 	 */
-	TypeHierarchyProvider interface{} `json:"typeHierarchyProvider,omitempty"`
+	TypeHierarchyProvider *Or_ServerCapabilities_typeHierarchyProvider `json:"typeHierarchyProvider,omitempty"`
 	/*
 	 * The server provides inline values.
 	 *
 	 * @since 3.17.0
 	 */
-	InlineValueProvider interface{} `json:"inlineValueProvider,omitempty"`
+	InlineValueProvider *Or_ServerCapabilities_inlineValueProvider `json:"inlineValueProvider,omitempty"`
 	/*
 	 * The server provides inlay hints.
 	 *
@@ -4654,7 +4654,7 @@ type ServerCapabilities struct { // line 7808
 	 *
 	 * @since 3.17.0
 	 */
-	DiagnosticProvider interface{} `json:"diagnosticProvider,omitempty"`
+	DiagnosticProvider *Or_ServerCapabilities_diagnosticProvider `json:"diagnosticProvider,omitempty"`
 	// Workspace specific server capabilities.
 	Workspace Workspace6Gn `json:"workspace,omitempty"`
 	// Experimental server capabilities.
