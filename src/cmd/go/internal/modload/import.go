@@ -546,10 +546,12 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 		return module.Version{}, &ImportMissingError{Path: path, isStd: true}
 	}
 
-	if cfg.BuildMod == "readonly" && !allowMissingModuleImports {
+	if (cfg.BuildMod == "readonly" || cfg.BuildMod == "vendor") && !allowMissingModuleImports {
 		// In readonly mode, we can't write go.mod, so we shouldn't try to look up
 		// the module. If readonly mode was enabled explicitly, include that in
 		// the error message.
+		// In vendor mode, we cannot use the network or module cache, so we
+		// shouldn't try to look up the module
 		var queryErr error
 		if cfg.BuildModExplicit {
 			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
