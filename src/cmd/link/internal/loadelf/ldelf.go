@@ -1018,7 +1018,8 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
 		MIPS64 | uint32(elf.R_MIPS_CALL16)<<16,
 		MIPS64 | uint32(elf.R_MIPS_GPREL32)<<16,
 		MIPS64 | uint32(elf.R_MIPS_64)<<16,
-		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16:
+		MIPS64 | uint32(elf.R_MIPS_GOT_DISP)<<16,
+		MIPS64 | uint32(elf.R_MIPS_PC32)<<16:
 		return 4, 4, nil
 
 	case LOONG64 | uint32(elf.R_LARCH_SOP_PUSH_PCREL)<<16,

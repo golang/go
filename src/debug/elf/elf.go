@@ -2216,6 +2216,8 @@ const (
 	R_MIPS_TLS_TPREL64     R_MIPS = 48 /* TP-relative offset, 64 bit */
 	R_MIPS_TLS_TPREL_HI16  R_MIPS = 49 /* TP-relative offset, high 16 bits */
 	R_MIPS_TLS_TPREL_LO16  R_MIPS = 50 /* TP-relative offset, low 16 bits */
+
+	R_MIPS_PC32 R_MIPS = 248 /* 32 bit PC relative reference */
 )
 
 var rmipsStrings = []intName{
@@ -2267,6 +2269,7 @@ var rmipsStrings = []intName{
 	{48, "R_MIPS_TLS_TPREL64"},
 	{49, "R_MIPS_TLS_TPREL_HI16"},
 	{50, "R_MIPS_TLS_TPREL_LO16"},
+	{248, "R_MIPS_PC32"},
 }
 
 func (i R_MIPS) String() string   { return stringName(uint32(i), rmipsStrings, false) }
