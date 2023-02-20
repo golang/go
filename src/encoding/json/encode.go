@@ -295,6 +295,10 @@ type encodeState struct {
 	ptrSeen  map[any]struct{}
 }
 
+func (e *encodeState) AvailableBuffer() []byte {
+	return availableBuffer(&e.Buffer)
+}
+
 const startDetectingCyclesAfter = 1000
 
 var encodeStatePool sync.Pool
@@ -519,7 +523,7 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalText"})
 	}
-	e.stringBytes(b, opts.escapeHTML)
+	e.Write(appendString(e.AvailableBuffer(), b, opts.escapeHTML))
 }
 
 func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
@@ -533,7 +537,7 @@ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalText"})
 	}
-	e.stringBytes(b, opts.escapeHTML)
+	e.Write(appendString(e.AvailableBuffer(), b, opts.escapeHTML))
 }
 
 func boolEncoder(e *encodeState, v reflect.Value, opts encOpts) {
@@ -639,14 +643,10 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		return
 	}
 	if opts.quoted {
-		e2 := newEncodeState()
-		// Since we encode the string twice, we only need to escape HTML
-		// the first time.
-		e2.string(v.String(), opts.escapeHTML)
-		e.stringBytes(e2.Bytes(), false)
-		encodeStatePool.Put(e2)
+		b := appendString(nil, v.String(), opts.escapeHTML)
+		e.Write(appendString(e.AvailableBuffer(), b, false)) // no need to escape again since it is already escaped
 	} else {
-		e.string(v.String(), opts.escapeHTML)
+		e.Write(appendString(e.AvailableBuffer(), v.String(), opts.escapeHTML))
 	}
 }
 
@@ -811,7 +811,7 @@ func (me mapEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 		if i > 0 {
 			e.WriteByte(',')
 		}
-		e.string(kv.ks, opts.escapeHTML)
+		e.Write(appendString(e.AvailableBuffer(), kv.ks, opts.escapeHTML))
 		e.WriteByte(':')
 		me.elemEnc(e, kv.v, opts)
 	}
@@ -1029,49 +1029,49 @@ func (w *reflectWithString) resolve() error {
 	panic("unexpected map key type")
 }
 
-// NOTE: keep in sync with stringBytes below.
-func (e *encodeState) string(s string, escapeHTML bool) {
-	e.WriteByte('"')
+func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool) []byte {
+	dst = append(dst, '"')
 	start := 0
-	for i := 0; i < len(s); {
-		if b := s[i]; b < utf8.RuneSelf {
+	for i := 0; i < len(src); {
+		if b := src[i]; b < utf8.RuneSelf {
 			if htmlSafeSet[b] || (!escapeHTML && safeSet[b]) {
 				i++
 				continue
 			}
-			if start < i {
-				e.WriteString(s[start:i])
-			}
-			e.WriteByte('\\')
+			dst = append(dst, src[start:i]...)
 			switch b {
 			case '\\', '"':
-				e.WriteByte(b)
+				dst = append(dst, '\\', b)
 			case '\n':
-				e.WriteByte('n')
+				dst = append(dst, '\\', 'n')
 			case '\r':
-				e.WriteByte('r')
+				dst = append(dst, '\\', 'r')
 			case '\t':
-				e.WriteByte('t')
+				dst = append(dst, '\\', 't')
 			default:
 				// This encodes bytes < 0x20 except for \t, \n and \r.
 				// If escapeHTML is set, it also escapes <, >, and &
 				// because they can lead to security holes when
 				// user-controlled strings are rendered into JSON
 				// and served to some browsers.
-				e.WriteString(`u00`)
-				e.WriteByte(hex[b>>4])
-				e.WriteByte(hex[b&0xF])
+				dst = append(dst, '\\', 'u', '0', '0', hex[b>>4], hex[b&0xF])
 			}
 			i++
 			start = i
 			continue
 		}
-		c, size := utf8.DecodeRuneInString(s[i:])
+		// TODO(https://go.dev/issue/56948): Use generic utf8 functionality.
+		// For now, cast only a small portion of byte slices to a string
+		// so that it can be stack allocated. This slows down []byte slightly
+		// due to the extra copy, but keeps string performance roughly the same.
+		n := len(src) - i
+		if n > utf8.UTFMax {
+			n = utf8.UTFMax
+		}
+		c, size := utf8.DecodeRuneInString(string(src[i : i+n]))
 		if c == utf8.RuneError && size == 1 {
-			if start < i {
-				e.WriteString(s[start:i])
-			}
-			e.WriteString(`\ufffd`)
+			dst = append(dst, src[start:i]...)
+			dst = append(dst, `\ufffd`...)
 			i += size
 			start = i
 			continue
@@ -1084,93 +1084,17 @@ func (e *encodeState) string(s string, escapeHTML bool) {
 		// escape them, so we do so unconditionally.
 		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
 		if c == '\u2028' || c == '\u2029' {
-			if start < i {
-				e.WriteString(s[start:i])
-			}
-			e.WriteString(`\u202`)
-			e.WriteByte(hex[c&0xF])
+			dst = append(dst, src[start:i]...)
+			dst = append(dst, '\\', 'u', '2', '0', '2', hex[c&0xF])
 			i += size
 			start = i
 			continue
 		}
 		i += size
 	}
-	if start < len(s) {
-		e.WriteString(s[start:])
-	}
-	e.WriteByte('"')
-}
-
-// NOTE: keep in sync with string above.
-func (e *encodeState) stringBytes(s []byte, escapeHTML bool) {
-	e.WriteByte('"')
-	start := 0
-	for i := 0; i < len(s); {
-		if b := s[i]; b < utf8.RuneSelf {
-			if htmlSafeSet[b] || (!escapeHTML && safeSet[b]) {
-				i++
-				continue
-			}
-			if start < i {
-				e.Write(s[start:i])
-			}
-			e.WriteByte('\\')
-			switch b {
-			case '\\', '"':
-				e.WriteByte(b)
-			case '\n':
-				e.WriteByte('n')
-			case '\r':
-				e.WriteByte('r')
-			case '\t':
-				e.WriteByte('t')
-			default:
-				// This encodes bytes < 0x20 except for \t, \n and \r.
-				// If escapeHTML is set, it also escapes <, >, and &
-				// because they can lead to security holes when
-				// user-controlled strings are rendered into JSON
-				// and served to some browsers.
-				e.WriteString(`u00`)
-				e.WriteByte(hex[b>>4])
-				e.WriteByte(hex[b&0xF])
-			}
-			i++
-			start = i
-			continue
-		}
-		c, size := utf8.DecodeRune(s[i:])
-		if c == utf8.RuneError && size == 1 {
-			if start < i {
-				e.Write(s[start:i])
-			}
-			e.WriteString(`\ufffd`)
-			i += size
-			start = i
-			continue
-		}
-		// U+2028 is LINE SEPARATOR.
-		// U+2029 is PARAGRAPH SEPARATOR.
-		// They are both technically valid characters in JSON strings,
-		// but don't work in JSONP, which has to be evaluated as JavaScript,
-		// and can lead to security holes there. It is valid JSON to
-		// escape them, so we do so unconditionally.
-		// See http://timelessrepo.com/json-isnt-a-javascript-subset for discussion.
-		if c == '\u2028' || c == '\u2029' {
-			if start < i {
-				e.Write(s[start:i])
-			}
-			e.WriteString(`\u202`)
-			e.WriteByte(hex[c&0xF])
-			i += size
-			start = i
-			continue
-		}
-		i += size
-	}
-	if start < len(s) {
-		e.Write(s[start:])
-	}
-	e.WriteByte('"')
+	dst = append(dst, src[start:]...)
+	dst = append(dst, '"')
+	return dst
 }
 
 // A field represents a single field found in a struct.
