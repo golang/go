@@ -8,6 +8,7 @@ package base64
 import (
 	"encoding/binary"
 	"io"
+	"slices"
 	"strconv"
 )
 
@@ -189,6 +190,15 @@ func (enc *Encoding) Encode(dst, src []byte) {
 			dst[di+3] = byte(enc.padChar)
 		}
 	}
+}
+
+// AppendEncode appends the base64 encoded src to dst
+// and returns the extended buffer.
+func (enc *Encoding) AppendEncode(dst, src []byte) []byte {
+	n := enc.EncodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	enc.Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
 }
 
 // EncodeToString returns the base64 encoding of src.
@@ -393,6 +403,16 @@ func (enc *Encoding) decodeQuantum(dst, src []byte, si int) (nsi, n int, err err
 	}
 
 	return si, dlen - 1, err
+}
+
+// AppendDecode appends the base64 decoded src to dst
+// and returns the extended buffer.
+// If the input is malformed, it returns the partially decoded src and an error.
+func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
+	n := enc.DecodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	n, err := enc.Decode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n], err
 }
 
 // DecodeString returns the bytes represented by the base64 string s.

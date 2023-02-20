@@ -113,8 +113,9 @@ func TestEncode(t *testing.T) {
 	for _, p := range pairs {
 		for _, tt := range encodingTests {
 			got := tt.enc.EncodeToString([]byte(p.decoded))
-			testEqual(t, "Encode(%q) = %q, want %q", p.decoded,
-				got, tt.conv(p.encoded))
+			testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, tt.conv(p.encoded))
+			dst := tt.enc.AppendEncode([]byte("lead"), []byte(p.decoded))
+			testEqual(t, `AppendEncode("lead", %q) = %q, want %q`, p.decoded, string(dst), "lead"+tt.conv(p.encoded))
 		}
 	}
 }
@@ -162,6 +163,10 @@ func TestDecode(t *testing.T) {
 			dbuf, err = tt.enc.DecodeString(encoded)
 			testEqual(t, "DecodeString(%q) = error %v, want %v", encoded, err, error(nil))
 			testEqual(t, "DecodeString(%q) = %q, want %q", encoded, string(dbuf), p.decoded)
+
+			dst, err := tt.enc.AppendDecode([]byte("lead"), []byte(encoded))
+			testEqual(t, "AppendDecode(%q) = error %v, want %v", p.encoded, err, error(nil))
+			testEqual(t, `AppendDecode("lead", %q) = %q, want %q`, p.encoded, string(dst), "lead"+p.decoded)
 		}
 	}
 }

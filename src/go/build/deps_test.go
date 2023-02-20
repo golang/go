@@ -210,7 +210,7 @@ var depsRules = `
 
 	# encodings
 	# core ones do not use fmt.
-	io, strconv
+	io, strconv, slices
 	< encoding;
 
 	encoding, reflect

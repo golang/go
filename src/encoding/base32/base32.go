@@ -7,6 +7,7 @@ package base32
 
 import (
 	"io"
+	"slices"
 	"strconv"
 )
 
@@ -174,6 +175,15 @@ func (enc *Encoding) Encode(dst, src []byte) {
 			dst[di+i] = byte(enc.padChar)
 		}
 	}
+}
+
+// AppendEncode appends the base32 encoded src to dst
+// and returns the extended buffer.
+func (enc *Encoding) AppendEncode(dst, src []byte) []byte {
+	n := enc.EncodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	enc.Encode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n]
 }
 
 // EncodeToString returns the base32 encoding of src.
@@ -376,6 +386,16 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
 	l := stripNewlines(buf, src)
 	n, _, err = enc.decode(dst, buf[:l])
 	return
+}
+
+// AppendDecode appends the base32 decoded src to dst
+// and returns the extended buffer.
+// If the input is malformed, it returns the partially decoded src and an error.
+func (enc *Encoding) AppendDecode(dst, src []byte) ([]byte, error) {
+	n := enc.DecodedLen(len(src))
+	dst = slices.Grow(dst, n)
+	n, err := enc.Decode(dst[len(dst):][:n], src)
+	return dst[:len(dst)+n], err
 }
 
 // DecodeString returns the bytes represented by the base32 string s.
