@@ -284,7 +284,6 @@ var hex = "0123456789abcdef"
 // An encodeState encodes JSON into a bytes.Buffer.
 type encodeState struct {
 	bytes.Buffer // accumulated output
-	scratch      [64]byte
 
 	// Keep track of what pointers we've seen in the current recursive call
 	// path, to avoid cycles that could lead to a stack overflow. Only do
@@ -345,7 +344,7 @@ func isEmptyValue(v reflect.Value) bool {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
 	case reflect.Bool:
-		return !v.Bool()
+		return v.Bool() == false
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return v.Int() == 0
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
@@ -541,39 +540,27 @@ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 }
 
 func boolEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	if opts.quoted {
-		e.WriteByte('"')
-	}
-	if v.Bool() {
-		e.WriteString("true")
-	} else {
-		e.WriteString("false")
-	}
-	if opts.quoted {
-		e.WriteByte('"')
-	}
+	b := e.AvailableBuffer()
+	b = mayAppendQuote(b, opts.quoted)
+	b = strconv.AppendBool(b, v.Bool())
+	b = mayAppendQuote(b, opts.quoted)
+	e.Write(b)
 }
 
 func intEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	b := strconv.AppendInt(e.scratch[:0], v.Int(), 10)
-	if opts.quoted {
-		e.WriteByte('"')
-	}
+	b := e.AvailableBuffer()
+	b = mayAppendQuote(b, opts.quoted)
+	b = strconv.AppendInt(b, v.Int(), 10)
+	b = mayAppendQuote(b, opts.quoted)
 	e.Write(b)
-	if opts.quoted {
-		e.WriteByte('"')
-	}
 }
 
 func uintEncoder(e *encodeState, v reflect.Value, opts encOpts) {
-	b := strconv.AppendUint(e.scratch[:0], v.Uint(), 10)
-	if opts.quoted {
-		e.WriteByte('"')
-	}
+	b := e.AvailableBuffer()
+	b = mayAppendQuote(b, opts.quoted)
+	b = strconv.AppendUint(b, v.Uint(), 10)
+	b = mayAppendQuote(b, opts.quoted)
 	e.Write(b)
-	if opts.quoted {
-		e.WriteByte('"')
-	}
 }
 
 type floatEncoder int // number of bits
@@ -589,7 +576,8 @@ func (bits floatEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 	// See golang.org/issue/6384 and golang.org/issue/14135.
 	// Like fmt %g, but the exponent cutoffs are different
 	// and exponents themselves are not padded to two digits.
-	b := e.scratch[:0]
+	b := e.AvailableBuffer()
+	b = mayAppendQuote(b, opts.quoted)
 	abs := math.Abs(f)
 	fmt := byte('f')
 	// Note: Must use float32 comparisons for underlying float32 value to get precise cutoffs right.
@@ -607,14 +595,8 @@ func (bits floatEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
 			b = b[:n-1]
 		}
 	}
-
-	if opts.quoted {
-		e.WriteByte('"')
-	}
+	b = mayAppendQuote(b, opts.quoted)
 	e.Write(b)
-	if opts.quoted {
-		e.WriteByte('"')
-	}
 }
 
 var (
@@ -633,13 +615,11 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 		if !isValidNumber(numStr) {
 			e.error(fmt.Errorf("json: invalid number literal %q", numStr))
 		}
-		if opts.quoted {
-			e.WriteByte('"')
-		}
-		e.WriteString(numStr)
-		if opts.quoted {
-			e.WriteByte('"')
-		}
+		b := e.AvailableBuffer()
+		b = mayAppendQuote(b, opts.quoted)
+		b = append(b, numStr...)
+		b = mayAppendQuote(b, opts.quoted)
+		e.Write(b)
 		return
 	}
 	if opts.quoted {
@@ -839,28 +819,16 @@ func encodeByteSlice(e *encodeState, v reflect.Value, _ encOpts) {
 		return
 	}
 	s := v.Bytes()
-	e.WriteByte('"')
 	encodedLen := base64.StdEncoding.EncodedLen(len(s))
-	if encodedLen <= len(e.scratch) {
-		// If the encoded bytes fit in e.scratch, avoid an extra
-		// allocation and use the cheaper Encoding.Encode.
-		dst := e.scratch[:encodedLen]
-		base64.StdEncoding.Encode(dst, s)
-		e.Write(dst)
-	} else if encodedLen <= 1024 {
-		// The encoded bytes are short enough to allocate for, and
-		// Encoding.Encode is still cheaper.
-		dst := make([]byte, encodedLen)
-		base64.StdEncoding.Encode(dst, s)
-		e.Write(dst)
-	} else {
-		// The encoded bytes are too long to cheaply allocate, and
-		// Encoding.Encode is no longer noticeably cheaper.
-		enc := base64.NewEncoder(base64.StdEncoding, e)
-		enc.Write(s)
-		enc.Close()
-	}
-	e.WriteByte('"')
+	e.Grow(len(`"`) + encodedLen + len(`"`))
+
+	// TODO(https://go.dev/issue/53693): Use base64.Encoding.AppendEncode.
+	b := e.AvailableBuffer()
+	b = append(b, '"')
+	base64.StdEncoding.Encode(b[len(b):][:encodedLen], s)
+	b = b[:len(b)+encodedLen]
+	b = append(b, '"')
+	e.Write(b)
 }
 
 // sliceEncoder just wraps an arrayEncoder, checking to make sure the value isn't nil.
@@ -1342,4 +1310,11 @@ func cachedTypeFields(t reflect.Type) structFields {
 	}
 	f, _ := fieldCache.LoadOrStore(t, typeFields(t))
 	return f.(structFields)
+}
+
+func mayAppendQuote(b []byte, quoted bool) []byte {
+	if quoted {
+		b = append(b, '"')
+	}
+	return b
 }
