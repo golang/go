@@ -89,6 +89,8 @@ type snapshot struct {
 	// It may invalidated when a file's content changes.
 	files filesMap
 
+	// parseCache holds an LRU cache of recently parsed files.
+	parseCache *parseCache
 	// parsedGoFiles maps a parseKey to the handle of the future result of parsing it.
 	parsedGoFiles *persistent.Map // from parseKey to *memoize.Promise[parseGoResult]
 
@@ -1667,6 +1669,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		isActivePackageCache: s.isActivePackageCache.Clone(),
 		analyses:             s.analyses.Clone(),
 		files:                s.files.Clone(),
+		parseCache:           s.parseCache,
 		parsedGoFiles:        s.parsedGoFiles.Clone(),
 		parseKeysByURI:       s.parseKeysByURI.Clone(),
 		symbolizeHandles:     s.symbolizeHandles.Clone(),
@@ -2084,18 +2087,21 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 	}
 
 	// Parse headers to compare package names and imports.
-	oldHead, oldErr := peekOrParse(ctx, lockedSnapshot, oldFH, source.ParseHeader)
-	newHead, newErr := peekOrParse(ctx, lockedSnapshot, newFH, source.ParseHeader)
+	oldHeads, _, oldErr := lockedSnapshot.parseCache.parseFiles(ctx, source.ParseHeader, oldFH)
+	newHeads, _, newErr := lockedSnapshot.parseCache.parseFiles(ctx, source.ParseHeader, newFH)
 
 	if oldErr != nil || newErr != nil {
-		// TODO(rfindley): we can get here if newFH does not exists. There is
-		// asymmetry here, in that newFH may be non-nil even if the underlying file
-		// does not exist.
+		// TODO(rfindley): we can get here if newFH does not exist. There is
+		// asymmetry, in that newFH may be non-nil even if the underlying file does
+		// not exist.
 		//
 		// We should not produce a non-nil filehandle for a file that does not exist.
 		errChanged := (oldErr == nil) != (newErr == nil)
 		return errChanged, errChanged, (newErr != nil) // we don't know if an import was deleted
 	}
+
+	oldHead := oldHeads[0]
+	newHead := newHeads[0]
 
 	// `go list` fails completely if the file header cannot be parsed. If we go
 	// from a non-parsing state to a parsing state, we should reload.
@@ -2133,10 +2139,10 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 	// Note: if this affects performance we can probably avoid parsing in the
 	// common case by first scanning the source for potential comments.
 	if !invalidate {
-		origFull, oldErr := peekOrParse(ctx, lockedSnapshot, oldFH, source.ParseFull)
-		currFull, newErr := peekOrParse(ctx, lockedSnapshot, newFH, source.ParseFull)
+		origFulls, _, oldErr := lockedSnapshot.parseCache.parseFiles(ctx, source.ParseFull, oldFH)
+		newFulls, _, newErr := lockedSnapshot.parseCache.parseFiles(ctx, source.ParseFull, newFH)
 		if oldErr == nil && newErr == nil {
-			invalidate = magicCommentsChanged(origFull.File, currFull.File)
+			invalidate = magicCommentsChanged(origFulls[0].File, newFulls[0].File)
 		} else {
 			// At this point, we shouldn't ever fail to produce a ParsedGoFile, as
 			// we're already past header parsing.
@@ -2145,22 +2151,6 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 	}
 
 	return invalidate, pkgFileChanged, importDeleted
-}
-
-// peekOrParse returns the cached ParsedGoFile if it exists,
-// otherwise parses without populating the cache.
-//
-// It returns an error if the file could not be read (note that parsing errors
-// are stored in ParsedGoFile.ParseErr).
-//
-// lockedSnapshot must be locked.
-func peekOrParse(ctx context.Context, lockedSnapshot *snapshot, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
-	// Peek in the cache without populating it.
-	// We do this to reduce retained heap, not work.
-	if parsed, _ := lockedSnapshot.peekParseGoLocked(fh, mode); parsed != nil {
-		return parsed, nil // cache hit
-	}
-	return parseGoImpl(ctx, token.NewFileSet(), fh, mode)
 }
 
 func magicCommentsChanged(original *ast.File, current *ast.File) bool {

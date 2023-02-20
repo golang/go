@@ -7,7 +7,6 @@ package cache
 import (
 	"context"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"strings"
@@ -38,8 +37,8 @@ func (s *snapshot) symbolize(ctx context.Context, uri span.URI) ([]source.Symbol
 		}
 		type symbolHandleKey source.Hash
 		key := symbolHandleKey(fh.FileIdentity().Hash)
-		promise, release := s.store.Promise(key, func(_ context.Context, arg interface{}) interface{} {
-			symbols, err := symbolizeImpl(arg.(*snapshot), fh)
+		promise, release := s.store.Promise(key, func(ctx context.Context, arg interface{}) interface{} {
+			symbols, err := symbolizeImpl(ctx, arg.(*snapshot), fh)
 			return symbolizeResult{symbols, err}
 		})
 
@@ -62,50 +61,17 @@ func (s *snapshot) symbolize(ctx context.Context, uri span.URI) ([]source.Symbol
 // symbolizeImpl reads and parses a file and extracts symbols from it.
 // It may use a parsed file already present in the cache but
 // otherwise does not populate the cache.
-func symbolizeImpl(snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, error) {
-	src, err := fh.Read()
+func symbolizeImpl(ctx context.Context, snapshot *snapshot, fh source.FileHandle) ([]source.Symbol, error) {
+	pgfs, _, err := snapshot.parseCache.parseFiles(ctx, source.ParseFull, fh)
 	if err != nil {
 		return nil, err
 	}
 
-	var (
-		file    *ast.File
-		tokFile *token.File
-		mapper  *protocol.Mapper
-	)
-
-	// If the file has already been fully parsed through the
-	// cache, we can just use the result. But we don't want to
-	// populate the cache after a miss.
-	snapshot.mu.Lock()
-	pgf, _ := snapshot.peekParseGoLocked(fh, source.ParseFull)
-	snapshot.mu.Unlock()
-	if pgf != nil {
-		file = pgf.File
-		tokFile = pgf.Tok
-		mapper = pgf.Mapper
-	}
-
-	// Otherwise, we parse the file ourselves. Notably we don't use parseGo here,
-	// so that we can avoid parsing comments and can skip object resolution,
-	// which has a meaningful impact on performance. Neither comments nor objects
-	// are necessary for symbol construction.
-	if file == nil {
-		fset := token.NewFileSet()
-		file, err = parser.ParseFile(fset, fh.URI().Filename(), src, skipObjectResolution)
-		if file == nil {
-			return nil, err
-		}
-		tokFile = fset.File(file.Package)
-		mapper = protocol.NewMapper(fh.URI(), src)
-	}
-
 	w := &symbolWalker{
-		tokFile: tokFile,
-		mapper:  mapper,
+		tokFile: pgfs[0].Tok,
+		mapper:  pgfs[0].Mapper,
 	}
-
-	w.fileDecls(file.Decls)
+	w.fileDecls(pgfs[0].File.Decls)
 
 	return w.symbols, w.firstError
 }

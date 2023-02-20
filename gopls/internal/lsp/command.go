@@ -744,7 +744,7 @@ func (c *commandHandler) ListImports(ctx context.Context, args command.URIArg) (
 		if err != nil {
 			return err
 		}
-		fset := source.SingletonFileSet(pgf.Tok)
+		fset := source.FileSetFor(pgf.Tok)
 		for _, group := range astutil.Imports(fset, pgf.File) {
 			for _, imp := range group {
 				if imp.Path == nil {

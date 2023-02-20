@@ -677,7 +677,7 @@ func depsErrors(ctx context.Context, m *source.Metadata, meta *metadataGraph, fs
 		if err != nil {
 			return nil, err
 		}
-		fset := source.SingletonFileSet(pgf.Tok)
+		fset := source.FileSetFor(pgf.Tok)
 		// TODO(adonovan): modify Imports() to accept a single token.File (cgf.Tok).
 		for _, group := range astutil.Imports(fset, pgf.File) {
 			for _, imp := range group {

@@ -203,7 +203,11 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 		// If -mod=readonly is not set we may have successfully imported
 		// packages from missing modules. Otherwise they'll be in
 		// MissingDependencies. Combine both.
-		for imp := range parseImports(ctx, snapshot, goFiles) {
+		imps, err := parseImports(ctx, snapshot, goFiles)
+		if err != nil {
+			return nil, err
+		}
+		for imp := range imps {
 			if req, ok := missing[imp]; ok {
 				missingImports[imp] = req
 				break
@@ -446,19 +450,20 @@ func missingModuleForImport(pgf *source.ParsedGoFile, imp *ast.ImportSpec, req *
 //
 // (We can't simply use Metadata.Imports because it is based on
 // CompiledGoFiles, after cgo processing.)
-func parseImports(ctx context.Context, s *snapshot, files []source.FileHandle) map[string]bool {
-	s.mu.Lock() // peekOrParse requires a locked snapshot (!)
-	defer s.mu.Unlock()
+//
+// TODO(rfindley): this should key off source.ImportPath.
+func parseImports(ctx context.Context, s *snapshot, files []source.FileHandle) (map[string]bool, error) {
+	pgfs, _, err := s.parseCache.parseFiles(ctx, source.ParseHeader, files...)
+	if err != nil { // e.g. context cancellation
+		return nil, err
+	}
+
 	seen := make(map[string]bool)
-	for _, file := range files {
-		f, err := peekOrParse(ctx, s, file, source.ParseHeader)
-		if err != nil {
-			continue
-		}
-		for _, spec := range f.File.Imports {
+	for _, pgf := range pgfs {
+		for _, spec := range pgf.File.Imports {
 			path, _ := strconv.Unquote(spec.Path.Value)
 			seen[path] = true
 		}
 	}
-	return seen
+	return seen, nil
 }

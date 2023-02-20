@@ -110,7 +110,7 @@ func NewBuiltinSignature(ctx context.Context, s Snapshot, name string) (*signatu
 			variadic = true
 		}
 	}
-	fset := SingletonFileSet(builtin.Tok)
+	fset := FileSetFor(builtin.Tok)
 	params, _ := formatFieldList(ctx, fset, decl.Type.Params, variadic)
 	results, needResultParens := formatFieldList(ctx, fset, decl.Type.Results, false)
 	d := decl.Doc.Text()

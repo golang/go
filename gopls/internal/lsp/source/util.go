@@ -127,18 +127,23 @@ func FormatNode(fset *token.FileSet, n ast.Node) string {
 // FormatNodeFile is like FormatNode, but requires only the token.File for the
 // syntax containing the given ast node.
 func FormatNodeFile(file *token.File, n ast.Node) string {
-	fset := SingletonFileSet(file)
+	fset := FileSetFor(file)
 	return FormatNode(fset, n)
 }
 
-// SingletonFileSet creates a new token.FileSet containing a file that is
-// identical to f (same base, size, and line), for use in APIs that require a
-// FileSet.
-func SingletonFileSet(f *token.File) *token.FileSet {
+// FileSetFor returns a new FileSet containing a sequence of new Files with
+// the same base, size, and line as the input files, for use in APIs that
+// require a FileSet.
+//
+// Precondition: the input files must be non-overlapping, and sorted in order
+// of their Base.
+func FileSetFor(files ...*token.File) *token.FileSet {
 	fset := token.NewFileSet()
-	f2 := fset.AddFile(f.Name(), f.Base(), f.Size())
-	lines := tokeninternal.GetLines(f)
-	f2.SetLines(lines)
+	for _, f := range files {
+		f2 := fset.AddFile(f.Name(), f.Base(), f.Size())
+		lines := tokeninternal.GetLines(f)
+		f2.SetLines(lines)
+	}
 	return fset
 }
 

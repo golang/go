@@ -195,7 +195,7 @@ func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Po
 		spec2.Comment = nil
 		var b strings.Builder
 		b.WriteString("type ")
-		fset := SingletonFileSet(declPGF.Tok)
+		fset := FileSetFor(declPGF.Tok)
 		if err := format.Node(&b, fset, &spec2); err != nil {
 			return protocol.Range{}, nil, err
 		}

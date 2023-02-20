@@ -232,7 +232,7 @@ func (%s%s%s) %s%s {
 			NewText: []byte(edit.New),
 		})
 	}
-	return SingletonFileSet(declPGF.Tok), // edits use declPGF.Tok
+	return FileSetFor(declPGF.Tok), // edits use declPGF.Tok
 		&analysis.SuggestedFix{TextEdits: edits},
 		nil
 }

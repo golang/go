@@ -21,17 +21,12 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/memoize"
 )
-
-// parseKey uniquely identifies a parsed Go file.
-type parseKey struct {
-	file source.FileIdentity
-	mode source.ParseMode
-}
 
 // ParseGo parses the file whose contents are provided by fh, using a cache.
 // The resulting tree may have be fixed up.
@@ -111,22 +106,6 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 	return res.parsed, res.err
 }
 
-// peekParseGoLocked peeks at the cache used by ParseGo but does not
-// populate it or wait for other threads to do so. On cache hit, it returns
-// the cache result of parseGoImpl; otherwise it returns (nil, nil).
-func (s *snapshot) peekParseGoLocked(fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
-	entry, hit := s.parsedGoFiles.Get(parseKey{fh.FileIdentity(), mode})
-	if !hit {
-		return nil, nil // no-one has requested this file
-	}
-	v := entry.(*memoize.Promise).Cached()
-	if v == nil {
-		return nil, nil // parsing is still in progress
-	}
-	res := v.(parseGoResult)
-	return res.parsed, res.err
-}
-
 // parseGoResult holds the result of a call to parseGoImpl.
 type parseGoResult struct {
 	parsed *source.ParsedGoFile
@@ -146,13 +125,17 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 	if err != nil {
 		return nil, err
 	}
+	return parseGoSrc(ctx, fset, fh.URI(), src, mode), nil
+}
 
+// parseGoSrc parses a buffer of Go source, repairing the tree if necessary.
+func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []byte, mode source.ParseMode) (res *source.ParsedGoFile) {
 	parserMode := parser.AllErrors | parser.ParseComments
 	if mode == source.ParseHeader {
 		parserMode = parser.ImportsOnly | parser.ParseComments
 	}
 
-	file, err := parser.ParseFile(fset, fh.URI().Filename(), src, parserMode)
+	file, err := parser.ParseFile(fset, uri.Filename(), src, parserMode)
 	var parseErr scanner.ErrorList
 	if err != nil {
 		// We passed a byte slice, so the only possible error is a parse error.
@@ -164,7 +147,7 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 		// file.Pos is the location of the package declaration (issue #53202). If there was
 		// none, we can't find the token.File that ParseFile created, and we
 		// have no choice but to recreate it.
-		tok = fset.AddFile(fh.URI().Filename(), -1, len(src))
+		tok = fset.AddFile(uri.Filename(), -1, len(src))
 		tok.SetLinesForContent(src)
 	}
 
@@ -189,7 +172,7 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 				event.Log(ctx, fmt.Sprintf("fixSrc loop - last diff:\n%v", unified), tag.File.Of(tok.Name()))
 			}
 
-			newFile, _ := parser.ParseFile(fset, fh.URI().Filename(), newSrc, parserMode)
+			newFile, _ := parser.ParseFile(fset, uri.Filename(), newSrc, parserMode)
 			if newFile != nil {
 				// Maintain the original parseError so we don't try formatting the doctored file.
 				file = newFile
@@ -202,15 +185,15 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 	}
 
 	return &source.ParsedGoFile{
-		URI:      fh.URI(),
+		URI:      uri,
 		Mode:     mode,
 		Src:      src,
 		Fixed:    fixed,
 		File:     file,
 		Tok:      tok,
-		Mapper:   protocol.NewMapper(fh.URI(), src),
+		Mapper:   protocol.NewMapper(uri, src),
 		ParseErr: parseErr,
-	}, nil
+	}
 }
 
 // An unexportedFilter removes as much unexported AST from a set of Files as possible.
