@@ -11,7 +11,6 @@ import (
 	"internal/types/errors"
 	"math"
 	"math/big"
-	"strings"
 	"unicode"
 
 	"cmd/compile/internal/base"
@@ -349,178 +348,6 @@ var tokenForOp = [...]token.Token{
 	ir.ORSH: token.SHR,
 }
 
-// EvalConst returns a constant-evaluated expression equivalent to n.
-// If n is not a constant, EvalConst returns n.
-// Otherwise, EvalConst returns a new OLITERAL with the same value as n,
-// and with .Orig pointing back to n.
-func EvalConst(n ir.Node) ir.Node {
-	// Pick off just the opcodes that can be constant evaluated.
-	switch n.Op() {
-	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT:
-		n := n.(*ir.UnaryExpr)
-		nl := n.X
-		if nl.Op() == ir.OLITERAL {
-			var prec uint
-			if n.Type().IsUnsigned() {
-				prec = uint(n.Type().Size() * 8)
-			}
-			return OrigConst(n, constant.UnaryOp(tokenForOp[n.Op()], nl.Val(), prec))
-		}
-
-	case ir.OADD, ir.OSUB, ir.OMUL, ir.ODIV, ir.OMOD, ir.OOR, ir.OXOR, ir.OAND, ir.OANDNOT:
-		n := n.(*ir.BinaryExpr)
-		nl, nr := n.X, n.Y
-		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			rval := nr.Val()
-
-			// check for divisor underflow in complex division (see issue 20227)
-			if n.Op() == ir.ODIV && n.Type().IsComplex() && constant.Sign(square(constant.Real(rval))) == 0 && constant.Sign(square(constant.Imag(rval))) == 0 {
-				base.Errorf("complex division by zero")
-				n.SetType(nil)
-				return n
-			}
-			if (n.Op() == ir.ODIV || n.Op() == ir.OMOD) && constant.Sign(rval) == 0 {
-				base.Errorf("division by zero")
-				n.SetType(nil)
-				return n
-			}
-
-			tok := tokenForOp[n.Op()]
-			if n.Op() == ir.ODIV && n.Type().IsInteger() {
-				tok = token.QUO_ASSIGN // integer division
-			}
-			return OrigConst(n, constant.BinaryOp(nl.Val(), tok, rval))
-		}
-
-	case ir.OOROR, ir.OANDAND:
-		n := n.(*ir.LogicalExpr)
-		nl, nr := n.X, n.Y
-		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			return OrigConst(n, constant.BinaryOp(nl.Val(), tokenForOp[n.Op()], nr.Val()))
-		}
-
-	case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
-		n := n.(*ir.BinaryExpr)
-		nl, nr := n.X, n.Y
-		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			return OrigBool(n, constant.Compare(nl.Val(), tokenForOp[n.Op()], nr.Val()))
-		}
-
-	case ir.OLSH, ir.ORSH:
-		n := n.(*ir.BinaryExpr)
-		nl, nr := n.X, n.Y
-		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			// shiftBound from go/types; "so we can express smallestFloat64" (see issue #44057)
-			const shiftBound = 1023 - 1 + 52
-			s, ok := constant.Uint64Val(nr.Val())
-			if !ok || s > shiftBound {
-				base.Errorf("invalid shift count %v", nr)
-				n.SetType(nil)
-				break
-			}
-			return OrigConst(n, constant.Shift(toint(nl.Val()), tokenForOp[n.Op()], uint(s)))
-		}
-
-	case ir.OCONV, ir.ORUNESTR:
-		n := n.(*ir.ConvExpr)
-		nl := n.X
-		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
-			return OrigConst(n, convertVal(nl.Val(), n.Type(), true))
-		}
-
-	case ir.OCONVNOP:
-		n := n.(*ir.ConvExpr)
-		nl := n.X
-		if ir.OKForConst[n.Type().Kind()] && nl.Op() == ir.OLITERAL {
-			// set so n.Orig gets OCONV instead of OCONVNOP
-			n.SetOp(ir.OCONV)
-			return OrigConst(n, nl.Val())
-		}
-
-	case ir.OADDSTR:
-		// Merge adjacent constants in the argument list.
-		n := n.(*ir.AddStringExpr)
-		s := n.List
-		need := 0
-		for i := 0; i < len(s); i++ {
-			if i == 0 || !ir.IsConst(s[i-1], constant.String) || !ir.IsConst(s[i], constant.String) {
-				// Can't merge s[i] into s[i-1]; need a slot in the list.
-				need++
-			}
-		}
-		if need == len(s) {
-			return n
-		}
-		if need == 1 {
-			var strs []string
-			for _, c := range s {
-				strs = append(strs, ir.StringVal(c))
-			}
-			return OrigConst(n, constant.MakeString(strings.Join(strs, "")))
-		}
-		newList := make([]ir.Node, 0, need)
-		for i := 0; i < len(s); i++ {
-			if ir.IsConst(s[i], constant.String) && i+1 < len(s) && ir.IsConst(s[i+1], constant.String) {
-				// merge from i up to but not including i2
-				var strs []string
-				i2 := i
-				for i2 < len(s) && ir.IsConst(s[i2], constant.String) {
-					strs = append(strs, ir.StringVal(s[i2]))
-					i2++
-				}
-
-				nl := ir.Copy(n).(*ir.AddStringExpr)
-				nl.List = s[i:i2]
-				newList = append(newList, OrigConst(nl, constant.MakeString(strings.Join(strs, ""))))
-				i = i2 - 1
-			} else {
-				newList = append(newList, s[i])
-			}
-		}
-
-		nn := ir.Copy(n).(*ir.AddStringExpr)
-		nn.List = newList
-		return nn
-
-	case ir.OCAP, ir.OLEN:
-		n := n.(*ir.UnaryExpr)
-		nl := n.X
-		switch nl.Type().Kind() {
-		case types.TSTRING:
-			if ir.IsConst(nl, constant.String) {
-				return OrigInt(n, int64(len(ir.StringVal(nl))))
-			}
-		case types.TARRAY:
-			if !anyCallOrChan(nl) {
-				return OrigInt(n, nl.Type().NumElem())
-			}
-		}
-
-	case ir.OREAL:
-		n := n.(*ir.UnaryExpr)
-		nl := n.X
-		if nl.Op() == ir.OLITERAL {
-			return OrigConst(n, constant.Real(nl.Val()))
-		}
-
-	case ir.OIMAG:
-		n := n.(*ir.UnaryExpr)
-		nl := n.X
-		if nl.Op() == ir.OLITERAL {
-			return OrigConst(n, constant.Imag(nl.Val()))
-		}
-
-	case ir.OCOMPLEX:
-		n := n.(*ir.BinaryExpr)
-		nl, nr := n.X, n.Y
-		if nl.Op() == ir.OLITERAL && nr.Op() == ir.OLITERAL {
-			return OrigConst(n, makeComplex(nl.Val(), nr.Val()))
-		}
-	}
-
-	return n
-}
-
 func makeFloat64(f float64) constant.Value {
 	if math.IsInf(f, 0) {
 		base.Fatalf("infinity is not a valid constant")
@@ -530,10 +357,6 @@ func makeFloat64(f float64) constant.Value {
 
 func makeComplex(real, imag constant.Value) constant.Value {
 	return constant.BinaryOp(constant.ToFloat(real), token.ADD, constant.MakeImag(constant.ToFloat(imag)))
-}
-
-func square(x constant.Value) constant.Value {
-	return constant.BinaryOp(x, token.MUL, x)
 }
 
 // For matching historical "constant OP overflow" error messages.
@@ -731,13 +554,6 @@ func callOrChan(n ir.Node) bool {
 		return true
 	}
 	return false
-}
-
-// anyCallOrChan reports whether n contains any calls or channel operations.
-func anyCallOrChan(n ir.Node) bool {
-	return ir.Any(n, func(n ir.Node) bool {
-		return callOrChan(n)
-	})
 }
 
 // evalunsafe evaluates a package unsafe operation and returns the result.
