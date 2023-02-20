@@ -690,20 +690,9 @@ func (d *decodeState) object(v reflect.Value) error {
 			}
 			subv = mapElem
 		} else {
-			var f *field
-			if i, ok := fields.nameIndex[string(key)]; ok {
-				// Found an exact name match.
-				f = &fields.list[i]
-			} else {
-				// Fall back to the expensive case-insensitive
-				// linear search.
-				for i := range fields.list {
-					ff := &fields.list[i]
-					if ff.equalFold(ff.nameBytes, key) {
-						f = ff
-						break
-					}
-				}
+			f := fields.byExactName[string(key)]
+			if f == nil {
+				f = fields.byFoldedName[string(foldName(key))]
 			}
 			if f != nil {
 				subv = v

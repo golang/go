@@ -672,8 +672,9 @@ type structEncoder struct {
 }
 
 type structFields struct {
-	list      []field
-	nameIndex map[string]int
+	list         []field
+	byExactName  map[string]*field
+	byFoldedName map[string]*field
 }
 
 func (se structEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
@@ -1033,8 +1034,7 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 // A field represents a single field found in a struct.
 type field struct {
 	name      string
-	nameBytes []byte                 // []byte(name)
-	equalFold func(s, t []byte) bool // bytes.EqualFold or equivalent
+	nameBytes []byte // []byte(name)
 
 	nameNonEsc  string // `"` + name + `":`
 	nameEscHTML string // `"` + HTMLEscape(name) + `":`
@@ -1161,7 +1161,6 @@ func typeFields(t reflect.Type) structFields {
 						quoted:    quoted,
 					}
 					field.nameBytes = []byte(field.name)
-					field.equalFold = foldFunc(field.nameBytes)
 
 					// Build nameEscHTML and nameNonEsc ahead of time.
 					nameEscBuf = appendHTMLEscape(nameEscBuf[:0], field.nameBytes)
@@ -1240,11 +1239,16 @@ func typeFields(t reflect.Type) structFields {
 		f := &fields[i]
 		f.encoder = typeEncoder(typeByIndex(t, f.index))
 	}
-	nameIndex := make(map[string]int, len(fields))
+	exactNameIndex := make(map[string]*field, len(fields))
+	foldedNameIndex := make(map[string]*field, len(fields))
 	for i, field := range fields {
-		nameIndex[field.name] = i
+		exactNameIndex[field.name] = &fields[i]
+		// For historical reasons, first folded match takes precedence.
+		if _, ok := foldedNameIndex[string(foldName(field.nameBytes))]; !ok {
+			foldedNameIndex[string(foldName(field.nameBytes))] = &fields[i]
+		}
 	}
-	return structFields{fields, nameIndex}
+	return structFields{fields, exactNameIndex, foldedNameIndex}
 }
 
 // dominantField looks through the fields, all of which are known to
