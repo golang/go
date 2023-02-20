@@ -397,7 +397,7 @@ func selectPotentiallyImportedModules(ctx context.Context, limiter *versionLimit
 		return nil, false, err
 	}
 	mods = make([]module.Version, 0, len(limiter.selected))
-	for path, _ := range limiter.selected {
+	for path := range limiter.selected {
 		if !MainModules.Contains(path) {
 			if v := mg.Selected(path); v != "none" {
 				mods = append(mods, module.Version{Path: path, Version: v})
