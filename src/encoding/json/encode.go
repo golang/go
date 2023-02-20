@@ -183,41 +183,6 @@ func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	return b2, nil
 }
 
-// HTMLEscape appends to dst the JSON-encoded src with <, >, &, U+2028 and U+2029
-// characters inside string literals changed to \u003c, \u003e, \u0026, \u2028, \u2029
-// so that the JSON will be safe to embed inside HTML <script> tags.
-// For historical reasons, web browsers don't honor standard HTML
-// escaping within <script> tags, so an alternative JSON encoding must
-// be used.
-func HTMLEscape(dst *bytes.Buffer, src []byte) {
-	// The characters can only appear in string literals,
-	// so just scan the string one byte at a time.
-	start := 0
-	for i, c := range src {
-		if c == '<' || c == '>' || c == '&' {
-			if start < i {
-				dst.Write(src[start:i])
-			}
-			dst.WriteString(`\u00`)
-			dst.WriteByte(hex[c>>4])
-			dst.WriteByte(hex[c&0xF])
-			start = i + 1
-		}
-		// Convert U+2028 and U+2029 (E2 80 A8 and E2 80 A9).
-		if c == 0xE2 && i+2 < len(src) && src[i+1] == 0x80 && src[i+2]&^1 == 0xA8 {
-			if start < i {
-				dst.Write(src[start:i])
-			}
-			dst.WriteString(`\u202`)
-			dst.WriteByte(hex[src[i+2]&0xF])
-			start = i + 3
-		}
-	}
-	if start < len(src) {
-		dst.Write(src[start:])
-	}
-}
-
 // Marshaler is the interface implemented by types that
 // can marshal themselves into valid JSON.
 type Marshaler interface {
@@ -1119,8 +1084,8 @@ func typeFields(t reflect.Type) structFields {
 	// Fields found.
 	var fields []field
 
-	// Buffer to run HTMLEscape on field names.
-	var nameEscBuf bytes.Buffer
+	// Buffer to run appendHTMLEscape on field names.
+	var nameEscBuf []byte
 
 	for len(next) > 0 {
 		current, next = next, current[:0]
@@ -1199,11 +1164,8 @@ func typeFields(t reflect.Type) structFields {
 					field.equalFold = foldFunc(field.nameBytes)
 
 					// Build nameEscHTML and nameNonEsc ahead of time.
-					nameEscBuf.Reset()
-					nameEscBuf.WriteString(`"`)
-					HTMLEscape(&nameEscBuf, field.nameBytes)
-					nameEscBuf.WriteString(`":`)
-					field.nameEscHTML = nameEscBuf.String()
+					nameEscBuf = appendHTMLEscape(nameEscBuf[:0], field.nameBytes)
+					field.nameEscHTML = `"` + string(nameEscBuf) + `":`
 					field.nameNonEsc = `"` + field.name + `":`
 
 					fields = append(fields, field)
