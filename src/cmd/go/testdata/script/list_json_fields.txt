@@ -26,6 +26,21 @@ go list -json=Deps
 stdout '"Deps": \['
 stdout '"errors",'
 
+# Test -json=<field> with *EmbedPatterns outputs embed patterns.
+cd embed
+go list -json=EmbedPatterns,TestEmbedPatterns,XTestEmbedPatterns
+stdout '"EmbedPatterns": \['
+stdout '"TestEmbedPatterns": \['
+stdout '"XTestEmbedPatterns": \['
+# Test -json=<field> with *EmbedFiles fails due to broken file reference.
+! go list -json=EmbedFiles
+stderr 'no matching files found'
+! go list -json=TestEmbedFiles
+stderr 'no matching files found'
+! go list -json=XTestEmbedFiles
+stderr 'no matching files found'
+cd ..
+
 [!git] skip
 
 # Test -json=<field> without Stale skips computing buildinfo
@@ -73,3 +88,26 @@ module example.com/repo
 package main
 
 func main() {}
+-- embed/go.mod --
+module example.com/embed
+-- embed/embed.go --
+package embed
+
+import _ "embed"
+
+//go:embed non-existing-file.txt
+var s string
+-- embed/embed_test.go --
+package embed
+
+import _ "embed"
+
+//go:embed non-existing-file.txt
+var s string
+-- embed/embed_xtest_test.go --
+package embed_test
+
+import _ "embed"
+
+//go:embed non-existing-file.txt
+var s string
