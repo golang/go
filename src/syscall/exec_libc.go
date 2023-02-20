@@ -305,3 +305,7 @@ childerror:
 		exit(253)
 	}
 }
+
+func ioctlPtr(fd, req uintptr, arg unsafe.Pointer) (err Errno) {
+	return ioctl(fd, req, uintptr(arg))
+}

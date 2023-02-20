@@ -6,7 +6,9 @@
 
 package syscall
 
-func Ioctl(fd, req, arg uintptr) (err Errno) {
-	_, _, err = Syscall(SYS_IOCTL, fd, req, arg)
+import "unsafe"
+
+func IoctlPtr(fd, req uintptr, arg unsafe.Pointer) (err Errno) {
+	_, _, err = Syscall(SYS_IOCTL, fd, req, uintptr(arg))
 	return err
 }
