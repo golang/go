@@ -175,12 +175,12 @@ func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var buf bytes.Buffer
-	err = Indent(&buf, b, prefix, indent)
+	b2 := make([]byte, 0, indentGrowthFactor*len(b))
+	b2, err = appendIndent(b2, b, prefix, indent)
 	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return b2, nil
 }
 
 // HTMLEscape appends to dst the JSON-encoded src with <, >, &, U+2028 and U+2029
@@ -476,8 +476,10 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	}
 	b, err := m.MarshalJSON()
 	if err == nil {
-		// copy JSON into buffer, checking validity.
-		err = compact(&e.Buffer, b, opts.escapeHTML)
+		e.Grow(len(b))
+		out := availableBuffer(&e.Buffer)
+		out, err = appendCompact(out, b, opts.escapeHTML)
+		e.Buffer.Write(out)
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalJSON"})
@@ -493,8 +495,10 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	m := va.Interface().(Marshaler)
 	b, err := m.MarshalJSON()
 	if err == nil {
-		// copy JSON into buffer, checking validity.
-		err = compact(&e.Buffer, b, opts.escapeHTML)
+		e.Grow(len(b))
+		out := availableBuffer(&e.Buffer)
+		out, err = appendCompact(out, b, opts.escapeHTML)
+		e.Buffer.Write(out)
 	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err, "MarshalJSON"})

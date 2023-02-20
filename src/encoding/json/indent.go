@@ -4,68 +4,72 @@
 
 package json
 
-import (
-	"bytes"
-)
+import "bytes"
+
+// TODO(https://go.dev/issue/53685): Use bytes.Buffer.AvailableBuffer instead.
+func availableBuffer(b *bytes.Buffer) []byte {
+	return b.Bytes()[b.Len():]
+}
 
 // Compact appends to dst the JSON-encoded src with
 // insignificant space characters elided.
 func Compact(dst *bytes.Buffer, src []byte) error {
-	return compact(dst, src, false)
+	dst.Grow(len(src))
+	b := availableBuffer(dst)
+	b, err := appendCompact(b, src, false)
+	dst.Write(b)
+	return err
 }
 
-func compact(dst *bytes.Buffer, src []byte, escape bool) error {
-	origLen := dst.Len()
+func appendCompact(dst, src []byte, escape bool) ([]byte, error) {
+	origLen := len(dst)
 	scan := newScanner()
 	defer freeScanner(scan)
 	start := 0
 	for i, c := range src {
 		if escape && (c == '<' || c == '>' || c == '&') {
-			if start < i {
-				dst.Write(src[start:i])
-			}
-			dst.WriteString(`\u00`)
-			dst.WriteByte(hex[c>>4])
-			dst.WriteByte(hex[c&0xF])
+			dst = append(dst, src[start:i]...)
+			dst = append(dst, '\\', 'u', '0', '0', hex[c>>4], hex[c&0xF])
 			start = i + 1
 		}
 		// Convert U+2028 and U+2029 (E2 80 A8 and E2 80 A9).
 		if escape && c == 0xE2 && i+2 < len(src) && src[i+1] == 0x80 && src[i+2]&^1 == 0xA8 {
-			if start < i {
-				dst.Write(src[start:i])
-			}
-			dst.WriteString(`\u202`)
-			dst.WriteByte(hex[src[i+2]&0xF])
-			start = i + 3
+			dst = append(dst, src[start:i]...)
+			dst = append(dst, '\\', 'u', '2', '0', '2', hex[src[i+2]&0xF])
+			start = i + len("\u2029")
 		}
 		v := scan.step(scan, c)
 		if v >= scanSkipSpace {
 			if v == scanError {
 				break
 			}
-			if start < i {
-				dst.Write(src[start:i])
-			}
+			dst = append(dst, src[start:i]...)
 			start = i + 1
 		}
 	}
 	if scan.eof() == scanError {
-		dst.Truncate(origLen)
-		return scan.err
+		return dst[:origLen], scan.err
 	}
-	if start < len(src) {
-		dst.Write(src[start:])
-	}
-	return nil
+	dst = append(dst, src[start:]...)
+	return dst, nil
 }
 
-func newline(dst *bytes.Buffer, prefix, indent string, depth int) {
-	dst.WriteByte('\n')
-	dst.WriteString(prefix)
+func appendNewline(dst []byte, prefix, indent string, depth int) []byte {
+	dst = append(dst, '\n')
+	dst = append(dst, prefix...)
 	for i := 0; i < depth; i++ {
-		dst.WriteString(indent)
+		dst = append(dst, indent...)
 	}
+	return dst
 }
+
+// indentGrowthFactor specifies the growth factor of indenting JSON input.
+// Empirically, the growth factor was measured to be between 1.4x to 1.8x
+// for some set of compacted JSON with the indent being a single tab.
+// Specify a growth factor slightly larger than what is observed
+// to reduce probability of allocation in appendIndent.
+// A factor no higher than 2 ensures that wasted space never exceeds 50%.
+const indentGrowthFactor = 2
 
 // Indent appends to dst an indented form of the JSON-encoded src.
 // Each element in a JSON object or array begins on a new,
@@ -79,7 +83,15 @@ func newline(dst *bytes.Buffer, prefix, indent string, depth int) {
 // For example, if src has no trailing spaces, neither will dst;
 // if src ends in a trailing newline, so will dst.
 func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
-	origLen := dst.Len()
+	dst.Grow(indentGrowthFactor * len(src))
+	b := availableBuffer(dst)
+	b, err := appendIndent(b, src, prefix, indent)
+	dst.Write(b)
+	return err
+}
+
+func appendIndent(dst, src []byte, prefix, indent string) ([]byte, error) {
+	origLen := len(dst)
 	scan := newScanner()
 	defer freeScanner(scan)
 	needIndent := false
@@ -96,13 +108,13 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 		if needIndent && v != scanEndObject && v != scanEndArray {
 			needIndent = false
 			depth++
-			newline(dst, prefix, indent, depth)
+			dst = appendNewline(dst, prefix, indent, depth)
 		}
 
 		// Emit semantically uninteresting bytes
 		// (in particular, punctuation in strings) unmodified.
 		if v == scanContinue {
-			dst.WriteByte(c)
+			dst = append(dst, c)
 			continue
 		}
 
@@ -111,33 +123,27 @@ func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 		case '{', '[':
 			// delay indent so that empty object and array are formatted as {} and [].
 			needIndent = true
-			dst.WriteByte(c)
-
+			dst = append(dst, c)
 		case ',':
-			dst.WriteByte(c)
-			newline(dst, prefix, indent, depth)
-
+			dst = append(dst, c)
+			dst = appendNewline(dst, prefix, indent, depth)
 		case ':':
-			dst.WriteByte(c)
-			dst.WriteByte(' ')
-
+			dst = append(dst, c, ' ')
 		case '}', ']':
 			if needIndent {
 				// suppress indent in empty object/array
 				needIndent = false
 			} else {
 				depth--
-				newline(dst, prefix, indent, depth)
+				dst = appendNewline(dst, prefix, indent, depth)
 			}
-			dst.WriteByte(c)
-
+			dst = append(dst, c)
 		default:
-			dst.WriteByte(c)
+			dst = append(dst, c)
 		}
 	}
 	if scan.eof() == scanError {
-		dst.Truncate(origLen)
-		return scan.err
+		return dst[:origLen], scan.err
 	}
-	return nil
+	return dst, nil
 }
