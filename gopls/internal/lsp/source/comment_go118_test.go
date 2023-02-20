@@ -364,7 +364,7 @@ F declaration\.
 		tt.in = strings.TrimPrefix(tt.in, "\n")
 		tt.out = strings.TrimPrefix(tt.out, "\n")
 
-		if out := CommentToMarkdown(tt.in); out != tt.out {
+		if out := CommentToMarkdown(tt.in, nil); out != tt.out {
 			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
 		}
 	}

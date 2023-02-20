@@ -21,14 +21,17 @@ package source
 // be replaced by this file, the golden test files should be updated.
 // (and checkSameMarkdown() could be replaced by a simple comparison.)
 
-import "go/doc/comment"
+import (
+	"fmt"
+	"go/doc/comment"
+)
 
 // CommentToMarkdown converts comment text to formatted markdown.
 // The comment was prepared by DocReader,
 // so it is known not to have leading, trailing blank lines
 // nor to have trailing spaces at the end of lines.
 // The comment markers have already been removed.
-func CommentToMarkdown(text string) string {
+func CommentToMarkdown(text string, options *Options) string {
 	var p comment.Parser
 	doc := p.Parse(text)
 	var pr comment.Printer
@@ -37,6 +40,17 @@ func CommentToMarkdown(text string) string {
 	// The godoc for comment.Printer says the tags
 	// avoid a security problem.
 	pr.HeadingID = func(*comment.Heading) string { return "" }
+	pr.DocLinkURL = func(link *comment.DocLink) string {
+		msg := fmt.Sprintf("https://%s/%s", options.LinkTarget, link.ImportPath)
+		if link.Name != "" {
+			msg += "#"
+			if link.Recv != "" {
+				msg += link.Recv + "."
+			}
+			msg += link.Name
+		}
+		return msg
+	}
 	easy := pr.Markdown(doc)
 	return string(easy)
 }

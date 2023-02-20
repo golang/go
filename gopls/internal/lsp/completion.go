@@ -104,7 +104,7 @@ func toProtocolCompletionItems(candidates []completion.CompletionItem, rng proto
 		doc := &protocol.Or_CompletionItem_documentation{
 			Value: protocol.MarkupContent{
 				Kind:  protocol.Markdown,
-				Value: source.CommentToMarkdown(candidate.Documentation),
+				Value: source.CommentToMarkdown(candidate.Documentation, options),
 			},
 		}
 		if options.PreferredContentFormat != protocol.Markdown {

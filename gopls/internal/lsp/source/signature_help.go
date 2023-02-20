@@ -170,7 +170,7 @@ func stringToSigInfoDocumentation(s string, options *Options) *protocol.Or_Signa
 	v := s
 	k := protocol.PlainText
 	if options.PreferredContentFormat == protocol.Markdown {
-		v = CommentToMarkdown(s)
+		v = CommentToMarkdown(s, options)
 		// whether or not content is newline terminated may not matter for LSP clients,
 		// but our tests expect trailing newlines to be stripped.
 		v = strings.TrimSuffix(v, "\n") // TODO(pjw): change the golden files

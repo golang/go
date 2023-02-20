@@ -808,7 +808,7 @@ func formatDoc(h *HoverJSON, options *Options) string {
 		doc = h.FullDocumentation
 	}
 	if options.PreferredContentFormat == protocol.Markdown {
-		return CommentToMarkdown(doc)
+		return CommentToMarkdown(doc, options)
 	}
 	return doc
 }

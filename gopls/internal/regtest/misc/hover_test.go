@@ -343,3 +343,42 @@ func Hello() string {
 		}
 	})
 }
+
+// Test that the generated markdown contains links for Go references.
+// https://github.com/golang/go/issues/58352
+func TestHoverLinks(t *testing.T) {
+	testenv.NeedsGo1Point(t, 19)
+	const input = `
+-- go.mod --
+go 1.19
+module mod.com
+-- main.go --
+package main
+// [fmt]
+var A int
+// [fmt.Println]
+var B int
+// [golang.org/x/tools/go/packages.Package.String]
+var C int
+`
+	var tests = []struct {
+		pat string
+		ans string
+	}{
+		{"A", "fmt"},
+		{"B", "fmt#Println"},
+		{"C", "golang.org/x/tools/go/packages#Package.String"},
+	}
+	for _, test := range tests {
+		Run(t, input, func(t *testing.T, env *Env) {
+			env.OpenFile("main.go")
+			loc := env.RegexpSearch("main.go", test.pat)
+			hover, _ := env.Hover(loc)
+			hoverContent := hover.Value
+			want := fmt.Sprintf("%s/%s", "https://pkg.go.dev", test.ans)
+			if !strings.Contains(hoverContent, want) {
+				t.Errorf("hover:%q does not contain link %q", hoverContent, want)
+			}
+		})
+	}
+}
