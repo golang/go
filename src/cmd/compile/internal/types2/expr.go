@@ -1613,6 +1613,11 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		if x.mode == invalid {
 			goto Error
 		}
+		// x.(type) expressions are encoded via TypeSwitchGuards
+		if e.Type == nil {
+			check.error(e, InvalidSyntaxTree, "invalid use of AssertExpr")
+			goto Error
+		}
 		// TODO(gri) we may want to permit type assertions on type parameter values at some point
 		if isTypeParam(x.typ) {
 			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
@@ -1620,11 +1625,6 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 		}
 		if _, ok := under(x.typ).(*Interface); !ok {
 			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
-			goto Error
-		}
-		// x.(type) expressions are encoded via TypeSwitchGuards
-		if e.Type == nil {
-			check.error(e, InvalidSyntaxTree, "invalid use of AssertExpr")
 			goto Error
 		}
 		T := check.varType(e.Type)
@@ -1638,6 +1638,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
 	case *syntax.TypeSwitchGuard:
 		// x.(type) expressions are handled explicitly in type switches
 		check.error(e, InvalidSyntaxTree, "use of .(type) outside type switch")
+		check.use(e.X)
 		goto Error
 
 	case *syntax.CallExpr:

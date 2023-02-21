@@ -1596,6 +1596,13 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		if x.mode == invalid {
 			goto Error
 		}
+		// x.(type) expressions are handled explicitly in type switches
+		if e.Type == nil {
+			// Don't use invalidAST because this can occur in the AST produced by
+			// go/parser.
+			check.error(e, BadTypeKeyword, "use of .(type) outside type switch")
+			goto Error
+		}
 		// TODO(gri) we may want to permit type assertions on type parameter values at some point
 		if isTypeParam(x.typ) {
 			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
@@ -1603,13 +1610,6 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 		if _, ok := under(x.typ).(*Interface); !ok {
 			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
-			goto Error
-		}
-		// x.(type) expressions are handled explicitly in type switches
-		if e.Type == nil {
-			// Don't use invalidAST because this can occur in the AST produced by
-			// go/parser.
-			check.error(e, BadTypeKeyword, "use of .(type) outside type switch")
 			goto Error
 		}
 		T := check.varType(e.Type)
