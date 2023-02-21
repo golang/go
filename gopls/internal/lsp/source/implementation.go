@@ -95,7 +95,7 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 	for i, m := range declMetas {
 		ids[i] = m.ID
 	}
-	localPkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, ids...)
+	localPkgs, err := snapshot.TypeCheck(ctx, ids...)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 		}
 		globalIDs = append(globalIDs, m.ID)
 	}
-	globalPkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, globalIDs...)
+	indexes, err := snapshot.MethodSets(ctx, globalIDs...)
 	if err != nil {
 		return nil, err
 	}
@@ -196,10 +196,10 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 		})
 	}
 	// global search
-	for _, globalPkg := range globalPkgs {
-		globalPkg := globalPkg
+	for _, index := range indexes {
+		index := index
 		group.Go(func() error {
-			for _, res := range globalPkg.MethodSetsIndex().Search(key, queryMethodID) {
+			for _, res := range index.Search(key, queryMethodID) {
 				loc := res.Location
 				// Map offsets to protocol.Locations in parallel (may involve I/O).
 				group.Go(func() error {
@@ -244,7 +244,7 @@ func offsetToLocation(ctx context.Context, snapshot Snapshot, filename string, s
 func typeDeclPosition(ctx context.Context, snapshot Snapshot, uri span.URI, ppos protocol.Position) (token.Position, error) {
 	var noPosn token.Position
 
-	pkg, pgf, err := PackageForFile(ctx, snapshot, uri, TypecheckFull, WidestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, uri, WidestPackage)
 	if err != nil {
 		return noPosn, err
 	}

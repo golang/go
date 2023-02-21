@@ -27,7 +27,7 @@ func PrepareCallHierarchy(ctx context.Context, snapshot Snapshot, fh FileHandle,
 	ctx, done := event.Start(ctx, "source.PrepareCallHierarchy")
 	defer done()
 
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +182,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pp pro
 	ctx, done := event.Start(ctx, "source.OutgoingCalls")
 	defer done()
 
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func OutgoingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pp pro
 	}
 
 	// Use TypecheckFull as we want to inspect the body of the function declaration.
-	declPkg, declPGF, err := PackageForFile(ctx, snapshot, uri, TypecheckFull, NarrowestPackage)
+	declPkg, declPGF, err := PackageForFile(ctx, snapshot, uri, NarrowestPackage)
 	if err != nil {
 		return nil, err
 	}

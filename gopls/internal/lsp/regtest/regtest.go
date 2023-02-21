@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"go/token"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -118,7 +117,6 @@ func Main(m *testing.M, hook func(*source.Options)) {
 		PrintGoroutinesOnFailure: *printGoroutinesOnFailure,
 		SkipCleanup:              *skipCleanup,
 		OptionsHook:              hook,
-		fset:                     token.NewFileSet(),
 		store:                    memoize.NewStore(memoize.NeverEvict),
 	}
 

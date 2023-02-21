@@ -54,7 +54,7 @@ func TestLSP(t *testing.T) {
 func testLSP(t *testing.T, datum *tests.Data) {
 	ctx := tests.Context(t)
 
-	session := cache.NewSession(ctx, cache.New(nil, nil), nil)
+	session := cache.NewSession(ctx, cache.New(nil), nil)
 	options := source.DefaultOptions().Clone()
 	tests.DefaultOptions(options)
 	session.SetOptions(options)
@@ -78,7 +78,31 @@ func testLSP(t *testing.T, datum *tests.Data) {
 	datum.ModfileFlagAvailable = len(snapshot.ModFiles()) > 0 && testenv.Go1Point() >= 14
 	release()
 
+	// Open all files for performance reasons. This is done because gopls only
+	// keeps active packages in memory for open files.
+	//
+	// In practice clients will only send document-oriented requests for open
+	// files.
 	var modifications []source.FileModification
+	for _, module := range datum.Exported.Modules {
+		for name := range module.Files {
+			filename := datum.Exported.File(module.Name, name)
+			if filepath.Ext(filename) != ".go" {
+				continue
+			}
+			content, err := datum.Exported.FileContents(filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			modifications = append(modifications, source.FileModification{
+				URI:        span.URIFromPath(filename),
+				Action:     source.Open,
+				Version:    -1,
+				Text:       content,
+				LanguageID: "go",
+			})
+		}
+	}
 	for filename, content := range datum.Config.Overlay {
 		if filepath.Ext(filename) != ".go" {
 			continue

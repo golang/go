@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/token"
 	"io/ioutil"
 	"os"
 	"path"
@@ -39,7 +38,6 @@ import (
 type View struct {
 	id string
 
-	fset        *token.FileSet    // shared FileSet
 	gocmdRunner *gocommand.Runner // limits go command concurrency
 
 	// baseCtx is the context handed to NewView. This is the parent of all

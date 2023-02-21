@@ -258,8 +258,8 @@ func RunMarkerTests(t *testing.T, dir string) {
 	}
 
 	// Opt: use a shared cache.
-	// TODO: opt: use a memoize store with no eviction.
-	cache := cache.New(nil, nil)
+	// TODO(rfindley): opt: use a memoize store with no eviction.
+	cache := cache.New(nil)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

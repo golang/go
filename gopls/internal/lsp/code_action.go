@@ -158,7 +158,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 
 		// Type-check the package and also run analysis,
 		// then combine their diagnostics.
-		pkg, _, err := source.PackageForFile(ctx, snapshot, fh.URI(), source.TypecheckFull, source.NarrowestPackage)
+		pkg, _, err := source.PackageForFile(ctx, snapshot, fh.URI(), source.NarrowestPackage)
 		if err != nil {
 			return nil, err
 		}

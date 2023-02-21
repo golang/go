@@ -202,7 +202,7 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 			// If the param has no name in the signature, guess a name based
 			// on the type. Use an empty qualifier to ignore the package.
 			// For example, we want to name "http.Request" "r", not "hr".
-			typeName, err := source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, p,
+			typeName, err := source.FormatVarType(ctx, c.snapshot, c.pkg, p,
 				func(p *types.Package) string { return "" },
 				func(source.PackageName, source.ImportPath, source.PackagePath) string { return "" })
 			if err != nil {
@@ -272,7 +272,7 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 		// of "i int, j int".
 		if i == sig.Params().Len()-1 || !types.Identical(p.Type(), sig.Params().At(i+1).Type()) {
 			snip.WriteText(" ")
-			typeStr, err := source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, p, c.qf, c.mq)
+			typeStr, err := source.FormatVarType(ctx, c.snapshot, c.pkg, p, c.qf, c.mq)
 			if err != nil {
 				// In general, the only error we should encounter while formatting is
 				// context cancellation.
@@ -330,7 +330,7 @@ func (c *completer) functionLiteral(ctx context.Context, sig *types.Signature, m
 			snip.WriteText(name + " ")
 		}
 
-		text, err := source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, r, c.qf, c.mq)
+		text, err := source.FormatVarType(ctx, c.snapshot, c.pkg, r, c.qf, c.mq)
 		if err != nil {
 			// In general, the only error we should encounter while formatting is
 			// context cancellation.

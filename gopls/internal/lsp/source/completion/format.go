@@ -81,7 +81,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
 			var err error
-			detail, err = source.FormatVarType(ctx, c.snapshot, c.pkg, c.file, obj, c.qf, c.mq)
+			detail, err = source.FormatVarType(ctx, c.snapshot, c.pkg, obj, c.qf, c.mq)
 			if err != nil {
 				return CompletionItem{}, err
 			}
@@ -133,7 +133,7 @@ Suffixes:
 		switch mod {
 		case invoke:
 			if sig, ok := funcType.Underlying().(*types.Signature); ok {
-				s, err := source.NewSignature(ctx, c.snapshot, c.pkg, c.file, sig, nil, c.qf, c.mq)
+				s, err := source.NewSignature(ctx, c.snapshot, c.pkg, sig, nil, c.qf, c.mq)
 				if err != nil {
 					return CompletionItem{}, err
 				}

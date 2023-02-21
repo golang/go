@@ -96,7 +96,7 @@ module fg
 		rel := fake.RelativeTo(dir)
 		folderURI := span.URIFromPath(rel.AbsPath(test.folder))
 		excludeNothing := func(string) bool { return false }
-		got, err := findWorkspaceModFile(ctx, folderURI, New(nil, nil), excludeNothing)
+		got, err := findWorkspaceModFile(ctx, folderURI, New(nil), excludeNothing)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -193,12 +193,35 @@ type Snapshot interface {
 	// and returns them in the same order as the ids.
 	// The resulting packages' types may belong to different importers,
 	// so types from different packages are incommensurable.
-	TypeCheck(ctx context.Context, mode TypecheckMode, ids ...PackageID) ([]Package, error)
+	TypeCheck(ctx context.Context, ids ...PackageID) ([]Package, error)
+
+	// PackageDiagnostics returns diagnostics for files contained in specified
+	// packages.
+	//
+	// If these diagnostics cannot be loaded from cache, the requested packages
+	// may be type-checked.
+	PackageDiagnostics(ctx context.Context, ids ...PackageID) (map[span.URI][]*Diagnostic, error)
+
+	// References returns cross-references indexes for the specified packages.
+	//
+	// If these indexes cannot be loaded from cache, the requested packages may
+	// be type-checked.
+	References(ctx context.Context, ids ...PackageID) ([]XrefIndex, error)
+
+	// MethodSets returns method-set indexes for the specified packages.
+	//
+	// If these indexes cannot be loaded from cache, the requested packages may
+	// be type-checked.
+	MethodSets(ctx context.Context, ids ...PackageID) ([]*methodsets.Index, error)
 
 	// GetCriticalError returns any critical errors in the workspace.
 	//
 	// A nil result may mean success, or context cancellation.
 	GetCriticalError(ctx context.Context) *CriticalError
+}
+
+type XrefIndex interface {
+	Lookup(targets map[PackagePath]map[objectpath.Path]struct{}) (locs []protocol.Location)
 }
 
 // SnapshotLabels returns a new slice of labels that should be used for events
@@ -214,7 +237,7 @@ func SnapshotLabels(snapshot Snapshot) []label.Label {
 //
 // Type-checking is expensive. Call snapshot.ParseGo if all you need
 // is a parse tree, or snapshot.MetadataForFile if you only need metadata.
-func PackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, mode TypecheckMode, pkgSel PackageSelector) (Package, *ParsedGoFile, error) {
+func PackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, pkgSel PackageSelector) (Package, *ParsedGoFile, error) {
 	metas, err := snapshot.MetadataForFile(ctx, uri)
 	if err != nil {
 		return nil, nil, err
@@ -228,7 +251,7 @@ func PackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, mode T
 	case WidestPackage:
 		metas = metas[len(metas)-1:]
 	}
-	pkgs, err := snapshot.TypeCheck(ctx, mode, metas[0].ID)
+	pkgs, err := snapshot.TypeCheck(ctx, metas[0].ID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -588,31 +611,10 @@ const (
 	// This is the mode used when attempting to examine the package graph structure.
 	ParseHeader ParseMode = iota
 
-	// ParseExported specifies that the package is used only as a dependency,
-	// and only its exported declarations are needed. More may be included if
-	// necessary to avoid type errors.
-	ParseExported
-
 	// ParseFull specifies the full AST is needed.
 	// This is used for files of direct interest where the entire contents must
 	// be considered.
 	ParseFull
-)
-
-// AllParseModes contains all possible values of ParseMode.
-// It is used for cache invalidation on a file content change.
-var AllParseModes = []ParseMode{ParseHeader, ParseExported, ParseFull}
-
-// TypecheckMode controls what kind of parsing should be done (see ParseMode)
-// while type checking a package.
-type TypecheckMode int
-
-const (
-	// TypecheckFull means to use ParseFull.
-	TypecheckFull TypecheckMode = iota
-	// TypecheckWorkspace means to use ParseFull for workspace packages, and
-	// ParseExported for others.
-	TypecheckWorkspace
 )
 
 // A FileHandle is an interface to files tracked by the LSP session, which may
@@ -800,8 +802,6 @@ type Package interface {
 	DependencyTypes(PackagePath) *types.Package // nil for indirect dependency of no consequence
 	HasTypeErrors() bool
 	DiagnosticsForFile(ctx context.Context, s Snapshot, uri span.URI) ([]*Diagnostic, error)
-	ReferencesTo(map[PackagePath]map[objectpath.Path]unit) []protocol.Location
-	MethodSetsIndex() *methodsets.Index
 }
 
 type unit = struct{}

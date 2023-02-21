@@ -204,7 +204,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	// declaration (e.g. because the _test.go files can change the
 	// meaning of a field or method selection), but the narrower
 	// package reports the more broadly referenced object.
-	pkg, pgf, err := PackageForFile(ctx, snapshot, uri, TypecheckFull, NarrowestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, uri, NarrowestPackage)
 	if err != nil {
 		return nil, err
 	}
@@ -346,12 +346,22 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	}
 
 	// Compute global references for selected reverse dependencies.
-	for _, m := range globalScope {
-		m := m
-		group.Go(func() error {
-			return globalReferences(ctx, snapshot, m, globalTargets, report)
-		})
-	}
+	group.Go(func() error {
+		var globalIDs []PackageID
+		for id := range globalScope {
+			globalIDs = append(globalIDs, id)
+		}
+		indexes, err := snapshot.References(ctx, globalIDs...)
+		if err != nil {
+			return err
+		}
+		for _, index := range indexes {
+			for _, loc := range index.Lookup(globalTargets) {
+				report(loc, false)
+			}
+		}
+		return nil
+	})
 
 	if err := group.Wait(); err != nil {
 		return nil, err
@@ -379,20 +389,21 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 		allIDs = append(allIDs, m.ID)
 	}
 	// Search the methodset index of each package in the workspace.
-	allPkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, allIDs...)
+	indexes, err := snapshot.MethodSets(ctx, allIDs...)
 	if err != nil {
 		return err
 	}
 	var group errgroup.Group
-	for _, pkg := range allPkgs {
-		pkg := pkg
+	for i, index := range indexes {
+		i := i
+		index := index
 		group.Go(func() error {
 			// Consult index for matching methods.
-			results := pkg.MethodSetsIndex().Search(key, method.Name())
+			results := index.Search(key, method.Name())
 
 			// Expand global search scope to include rdeps of this pkg.
 			if len(results) > 0 {
-				rdeps, err := snapshot.ReverseDependencies(ctx, pkg.Metadata().ID, true)
+				rdeps, err := snapshot.ReverseDependencies(ctx, allIDs[i], true)
 				if err != nil {
 					return err
 				}
@@ -420,7 +431,7 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 // localReferences reports each reference to the object
 // declared at the specified URI/offset within its enclosing package m.
 func localReferences(ctx context.Context, snapshot Snapshot, declURI span.URI, declOffset int, m *Metadata, report func(loc protocol.Location, isDecl bool)) error {
-	pkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, m.ID)
+	pkgs, err := snapshot.TypeCheck(ctx, m.ID)
 	if err != nil {
 		return err
 	}
@@ -552,23 +563,6 @@ func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Objec
 		return nil, nil, fmt.Errorf("objectAt: internal error: no targets") // can't happen
 	}
 	return targets, path[0], nil
-}
-
-// globalReferences reports each cross-package reference to one of the
-// target objects denoted by (package path, object path).
-func globalReferences(ctx context.Context, snapshot Snapshot, m *Metadata, targets map[PackagePath]map[objectpath.Path]unit, report func(loc protocol.Location, isDecl bool)) error {
-	// TODO(adonovan): opt: don't actually type-check here,
-	// since we quite intentionally don't look at type information.
-	// Instead, access the reference index computed during
-	// type checking that will in due course be a file-based cache.
-	pkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, m.ID)
-	if err != nil {
-		return err
-	}
-	for _, loc := range pkgs[0].ReferencesTo(targets) {
-		report(loc, false)
-	}
-	return nil
 }
 
 // mustLocation reports the location interval a syntax node,

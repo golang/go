@@ -284,7 +284,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	switch {
 	case app.Remote == "":
 		connection := newConnection(app)
-		connection.Server = lsp.NewServer(cache.NewSession(ctx, cache.New(nil, nil), app.options), connection.Client)
+		connection.Server = lsp.NewServer(cache.NewSession(ctx, cache.New(nil), app.options), connection.Client)
 		ctx = protocol.WithClient(ctx, connection.Client)
 		return connection, connection.initialize(ctx, app.options)
 	case strings.HasPrefix(app.Remote, "internal@"):

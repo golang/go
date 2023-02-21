@@ -28,7 +28,11 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/types/objectpath"
+	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
+	"golang.org/x/tools/gopls/internal/lsp/source/xrefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
@@ -91,14 +95,6 @@ type snapshot struct {
 
 	// parseCache holds an LRU cache of recently parsed files.
 	parseCache *parseCache
-	// parsedGoFiles maps a parseKey to the handle of the future result of parsing it.
-	parsedGoFiles *persistent.Map // from parseKey to *memoize.Promise[parseGoResult]
-
-	// parseKeysByURI records the set of keys of parsedGoFiles that
-	// need to be invalidated for each URI.
-	// TODO(adonovan): opt: parseKey = ParseMode + URI, so this could
-	// be just a set of ParseModes, or we could loop over AllParseModes.
-	parseKeysByURI parseKeysByURIMap
 
 	// symbolizeHandles maps each file URI to a handle for the future
 	// result of computing the symbols declared in that file.
@@ -111,11 +107,13 @@ type snapshot struct {
 	//  - packages.Get(id).meta == meta.metadata[id] for all ids
 	//  - if a package is in packages, then all of its dependencies should also
 	//    be in packages, unless there is a missing import
-	packages *persistent.Map // from packageKey to *packageHandle
+	packages *persistent.Map // from packageID to *packageHandle
 
-	// isActivePackageCache maps package ID to the cached value if it is active or not.
-	// It may be invalidated when metadata changes or a new file is opened or closed.
-	isActivePackageCache isActivePackageCacheMap
+	// activePackages maps a package ID to a memoized active package, or nil if
+	// the package is known not to be open.
+	//
+	// IDs not contained in the map are not known to be open or not open.
+	activePackages *persistent.Map // from packageID to *Package
 
 	// analyses maps an analysisKey (which identifies a package
 	// and a set of analyzers) to the handle for the future result
@@ -135,6 +133,9 @@ type snapshot struct {
 
 	// unloadableFiles keeps track of files that we've failed to load.
 	unloadableFiles map[span.URI]struct{}
+
+	// TODO(rfindley): rename the handles below to "promises". A promise is
+	// different from a handle (we mutate the package handle.)
 
 	// parseModHandles keeps track of any parseModHandles for the snapshot.
 	// The handles need not refer to only the view's go.mod file.
@@ -233,11 +234,9 @@ func (s *snapshot) destroy(destroyedBy string) {
 	}
 
 	s.packages.Destroy()
-	s.isActivePackageCache.Destroy()
+	s.activePackages.Destroy()
 	s.analyses.Destroy()
 	s.files.Destroy()
-	s.parsedGoFiles.Destroy()
-	s.parseKeysByURI.Destroy()
 	s.knownSubdirs.Destroy()
 	s.symbolizeHandles.Destroy()
 	s.parseModHandles.Destroy()
@@ -624,58 +623,72 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-// TypeCheck type-checks the specified packages in the given mode.
-//
-// The resulting packages slice always contains len(ids) entries, though some
-// of them may be nil if (and only if) the resulting error is non-nil.
-//
-// An error is returned if any of the packages fail to type-check. This is
-// different from having type-checking errors: a failure to type-check
-// indicates context cancellation or otherwise significant failure to perform
-// the type-checking operation.
-func (s *snapshot) TypeCheck(ctx context.Context, mode source.TypecheckMode, ids ...PackageID) ([]source.Package, error) {
-	// Build all the handles...
-	phs := make([]*packageHandle, len(ids))
-	pkgs := make([]source.Package, len(ids))
-	var firstErr error
-	for i, id := range ids {
-		parseMode := source.ParseFull
-		if mode == source.TypecheckWorkspace {
-			parseMode = s.workspaceParseMode(id)
-		}
+// Package data kinds, identifying various package data that may be stored in
+// the file cache.
+const (
+	xrefsKind       = "xrefs"
+	methodSetsKind  = "methodsets"
+	exportDataKind  = "export"
+	diagnosticsKind = "diagnostics"
+)
 
-		ph, err := s.buildPackageHandle(ctx, id, parseMode)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
+func (s *snapshot) PackageDiagnostics(ctx context.Context, ids ...PackageID) (map[span.URI][]*source.Diagnostic, error) {
+	// TODO(rfindley): opt: avoid unnecessary encode->decode after type-checking.
+	data, err := s.getPackageData(ctx, diagnosticsKind, ids, func(p *syntaxPackage) []byte {
+		return encodeDiagnostics(p.diagnostics)
+	})
+	perFile := make(map[span.URI][]*source.Diagnostic)
+	for _, data := range data {
+		if data != nil {
+			for _, diag := range data.m.Diagnostics {
+				perFile[diag.URI] = append(perFile[diag.URI], diag)
 			}
-			if ctx.Err() != nil {
-				return pkgs, firstErr
+			diags := decodeDiagnostics(data.data)
+			for _, diag := range diags {
+				perFile[diag.URI] = append(perFile[diag.URI], diag)
 			}
-			continue
 		}
-		phs[i] = ph
 	}
+	return perFile, err
+}
 
-	// ...then await them all.
-	for i, ph := range phs {
-		if ph == nil {
-			continue
+func (s *snapshot) References(ctx context.Context, ids ...PackageID) ([]source.XrefIndex, error) {
+	data, err := s.getPackageData(ctx, xrefsKind, ids, func(p *syntaxPackage) []byte { return p.xrefs })
+	indexes := make([]source.XrefIndex, len(ids))
+	for i, data := range data {
+		if data != nil {
+			indexes[i] = XrefIndex{m: data.m, data: data.data}
 		}
-		p, err := ph.await(ctx, s)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			if ctx.Err() != nil {
-				return pkgs, firstErr
-			}
-			continue
-		}
-		pkgs[i] = &Package{ph.m, p}
 	}
+	return indexes, err
+}
 
-	return pkgs, firstErr
+// An XrefIndex is a helper for looking up a package in a given package.
+type XrefIndex struct {
+	m    *source.Metadata
+	data []byte
+}
+
+func (index XrefIndex) Lookup(targets map[PackagePath]map[objectpath.Path]struct{}) []protocol.Location {
+	return xrefs.Lookup(index.m, index.data, targets)
+}
+
+func (s *snapshot) MethodSets(ctx context.Context, ids ...PackageID) ([]*methodsets.Index, error) {
+	// TODO(rfindley): opt: avoid unnecessary encode->decode after type-checking.
+	data, err := s.getPackageData(ctx, methodSetsKind, ids, func(p *syntaxPackage) []byte {
+		return p.methodsets.Encode()
+	})
+	indexes := make([]*methodsets.Index, len(ids))
+	for i, data := range data {
+		if data != nil {
+			indexes[i] = methodsets.Decode(data.data)
+		} else if ids[i] == "unsafe" {
+			indexes[i] = &methodsets.Index{}
+		} else {
+			panic(fmt.Sprintf("nil data for %s", ids[i]))
+		}
+	}
+	return indexes, err
 }
 
 func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source.Metadata, error) {
@@ -793,35 +806,55 @@ func (s *snapshot) workspaceMetadata() (meta []*source.Metadata) {
 	return meta
 }
 
-func (s *snapshot) isActiveLocked(id PackageID) (active bool) {
-	if seen, ok := s.isActivePackageCache.Get(id); ok {
-		return seen
+// -- Active package tracking --
+//
+// We say a package is "active" if any of its files are open. After
+// type-checking we keep active packages in memory. The activePackages
+// peristent map does bookkeeping for the set of active packages.
+
+// getActivePackage returns a the memoized active package for id, if it exists.
+// If id is not active or has not yet been type-checked, it returns nil.
+func (s *snapshot) getActivePackage(id PackageID) *Package {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if value, ok := s.activePackages.Get(id); ok {
+		return value.(*Package) // possibly nil, if we have already checked this id.
 	}
-	defer func() {
-		s.isActivePackageCache.Set(id, active)
-	}()
-	m, ok := s.meta.metadata[id]
-	if !ok {
-		return false
-	}
-	for _, cgf := range m.CompiledGoFiles {
-		if s.isOpenLocked(cgf) {
-			return true
-		}
-	}
-	// TODO(rfindley): it looks incorrect that we don't also check GoFiles here.
-	// If a CGo file is open, we want to consider the package active.
-	for _, dep := range m.DepsByPkgPath {
-		if s.isActiveLocked(dep) {
-			return true
-		}
-	}
-	return false
+	return nil
 }
 
-func (s *snapshot) resetIsActivePackageLocked() {
-	s.isActivePackageCache.Destroy()
-	s.isActivePackageCache = newIsActivePackageCacheMap()
+// memoizeActivePackage checks if pkg is active, and if so either records it in
+// the active packages map or returns the existing memoized active package for id.
+//
+// The resulting package is non-nil if and only if the specified package is open.
+func (s *snapshot) memoizeActivePackage(id PackageID, pkg *Package) (active *Package) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if value, ok := s.activePackages.Get(id); ok {
+		return value.(*Package) // possibly nil, if we have already checked this id.
+	}
+
+	defer func() {
+		s.activePackages.Set(id, active, nil) // store the result either way: remember that pkg is not open
+	}()
+	for _, cgf := range pkg.Metadata().GoFiles {
+		if s.isOpenLocked(cgf) {
+			return pkg
+		}
+	}
+	for _, cgf := range pkg.Metadata().CompiledGoFiles {
+		if s.isOpenLocked(cgf) {
+			return pkg
+		}
+	}
+	return nil
+}
+
+func (s *snapshot) resetActivePackagesLocked() {
+	s.activePackages.Destroy()
+	s.activePackages = persistent.NewMap(packageIDLessInterface)
 }
 
 const fileExtensions = "go,mod,sum,work"
@@ -1008,21 +1041,7 @@ func (s *snapshot) ActiveMetadata(ctx context.Context) ([]*source.Metadata, erro
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-
-	if s.view.Options().MemoryMode == source.ModeNormal {
-		return s.workspaceMetadata(), nil
-	}
-
-	// ModeDegradeClosed
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var active []*source.Metadata
-	for id := range s.workspacePackages {
-		if s.isActiveLocked(id) {
-			active = append(active, s.Metadata(id))
-		}
-	}
-	return active, nil
+	return s.workspaceMetadata(), nil
 }
 
 // Symbols extracts and returns symbol information for every file contained in
@@ -1095,22 +1114,11 @@ func (s *snapshot) AllMetadata(ctx context.Context) ([]*source.Metadata, error) 
 }
 
 func (s *snapshot) CachedPackages(ctx context.Context) []source.Package {
-	// Don't reload workspace package metadata.
-	// This function is meant to only return currently cached information.
-	s.AwaitInitialized(ctx)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var pkgs []source.Package
-	s.packages.Range(func(_, v interface{}) {
-		ph := v.(*packageHandle)
-		pkg, err := ph.cached()
-		if err == nil {
-			pkgs = append(pkgs, &Package{ph.m, pkg})
-		}
-	})
-	return pkgs
+	// Cached packages do not make sense with incremental gopls.
+	//
+	// TODO(golang/go#58663): re-implement unimported completions to not depend
+	// on cached import paths.
+	return nil
 }
 
 // TODO(rfindley): clarify that this is only active modules. Or update to just
@@ -1666,12 +1674,10 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		initialized:          s.initialized,
 		initializedErr:       s.initializedErr,
 		packages:             s.packages.Clone(),
-		isActivePackageCache: s.isActivePackageCache.Clone(),
+		activePackages:       s.activePackages.Clone(),
 		analyses:             s.analyses.Clone(),
 		files:                s.files.Clone(),
 		parseCache:           s.parseCache,
-		parsedGoFiles:        s.parsedGoFiles.Clone(),
-		parseKeysByURI:       s.parseKeysByURI.Clone(),
 		symbolizeHandles:     s.symbolizeHandles.Clone(),
 		workspacePackages:    make(map[PackageID]PackagePath, len(s.workspacePackages)),
 		unloadableFiles:      make(map[span.URI]struct{}, len(s.unloadableFiles)),
@@ -1707,37 +1713,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		result.unloadableFiles[k] = v
 	}
 
-	// TODO(adonovan): merge loops over "changes".
-	for uri, change := range changes {
-		// Optimization: if the content did not change, we don't need to evict the
-		// parsed file. This is not the case for e.g. the files map, which may
-		// switch from on-disk state to overlay. Parsed files depend only on
-		// content and parse mode (which is captured in the parse key).
-		//
-		// NOTE: This also makes it less likely that we re-parse a file due to a
-		// cache-miss but get a cache-hit for the corresponding package. In the
-		// past, there was code that relied on ParseGo returning the type-checked
-		// syntax tree. That code was wrong, but avoiding invalidation here limits
-		// the blast radius of these types of bugs.
-		if !change.isUnchanged {
-			keys, ok := result.parseKeysByURI.Get(uri)
-			if ok {
-				for _, key := range keys {
-					result.parsedGoFiles.Delete(key)
-				}
-				result.parseKeysByURI.Delete(uri)
-			}
-		}
-
-		// Invalidate go.mod-related handles.
-		result.modTidyHandles.Delete(uri)
-		result.modWhyHandles.Delete(uri)
-		result.modVulnHandles.Delete(uri)
-
-		// Invalidate handles for cached symbols.
-		result.symbolizeHandles.Delete(uri)
-	}
-
 	// Add all of the known subdirectories, but don't update them for the
 	// changed files. We need to rebuild the workspace module to know the
 	// true set of known subdirectories, but we don't want to do that in clone.
@@ -1764,6 +1739,14 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	anyFileAdded := false          // adding a file can resolve missing dependencies
 
 	for uri, change := range changes {
+		// Invalidate go.mod-related handles.
+		result.modTidyHandles.Delete(uri)
+		result.modWhyHandles.Delete(uri)
+		result.modVulnHandles.Delete(uri)
+
+		// Invalidate handles for cached symbols.
+		result.symbolizeHandles.Delete(uri)
+
 		// The original FileHandle for this URI is cached on the snapshot.
 		originalFH, _ := s.files.Get(uri)
 		var originalOpen, newOpen bool
@@ -1877,10 +1860,8 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 
 	// Delete invalidated package type information.
 	for id := range idsToInvalidate {
-		for _, mode := range source.AllParseModes {
-			key := packageKey{mode, id}
-			result.packages.Delete(key)
-		}
+		result.packages.Delete(id)
+		result.activePackages.Delete(id)
 	}
 
 	// Delete invalidated analysis actions.
@@ -1962,7 +1943,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	// Update workspace and active packages, if necessary.
 	if result.meta != s.meta || anyFileOpenedOrClosed {
 		result.workspacePackages = computeWorkspacePackagesLocked(result, result.meta)
-		result.resetIsActivePackageLocked()
+		result.resetActivePackagesLocked()
 	} else {
 		result.workspacePackages = s.workspacePackages
 	}

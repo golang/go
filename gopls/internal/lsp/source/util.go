@@ -228,35 +228,6 @@ func findFileInDeps(s MetadataSource, m *Metadata, uri span.URI) *Metadata {
 	return search(m)
 }
 
-// recursiveDeps finds unique transitive dependencies of m, including m itself.
-//
-// Invariant: for the resulting slice res, res[0] == m.ID.
-//
-// TODO(rfindley): consider replacing this with a snapshot.ForwardDependencies
-// method, or exposing the metadata graph itself.
-func recursiveDeps(s MetadataSource, m *Metadata) []PackageID {
-	seen := make(map[PackageID]bool)
-	var ids []PackageID
-	var add func(*Metadata)
-	add = func(m *Metadata) {
-		if seen[m.ID] {
-			return
-		}
-		seen[m.ID] = true
-		ids = append(ids, m.ID)
-		for _, dep := range m.DepsByPkgPath {
-			m := s.Metadata(dep)
-			if m == nil {
-				bug.Reportf("nil metadata for %q", dep)
-				continue
-			}
-			add(m)
-		}
-	}
-	add(m)
-	return ids
-}
-
 // UnquoteImportPath returns the unquoted import path of s,
 // or "" if the path is not properly quoted.
 func UnquoteImportPath(s *ast.ImportSpec) ImportPath {
@@ -555,28 +526,6 @@ func IsValidImport(pkgPath, importPkgPath PackagePath) bool {
 // should not check that a value equals "command-line-arguments" directly.
 func IsCommandLineArguments(id PackageID) bool {
 	return strings.Contains(string(id), "command-line-arguments")
-}
-
-// RecvIdent returns the type identifier of a method receiver.
-// e.g. A for all of A, *A, A[T], *A[T], etc.
-func RecvIdent(recv *ast.FieldList) *ast.Ident {
-	if recv == nil || len(recv.List) == 0 {
-		return nil
-	}
-	x := recv.List[0].Type
-	if star, ok := x.(*ast.StarExpr); ok {
-		x = star.X
-	}
-	switch ix := x.(type) { // check for instantiated receivers
-	case *ast.IndexExpr:
-		x = ix.X
-	case *typeparams.IndexListExpr:
-		x = ix.X
-	}
-	if ident, ok := x.(*ast.Ident); ok {
-		return ident
-	}
-	return nil
 }
 
 // embeddedIdent returns the type name identifier for an embedding x, if x in a

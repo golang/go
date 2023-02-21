@@ -22,7 +22,7 @@ func Definition(ctx context.Context, snapshot Snapshot, fh FileHandle, position 
 	ctx, done := event.Start(ctx, "source.Definition")
 	defer done()
 
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
 	if err != nil {
 		return nil, err
 	}

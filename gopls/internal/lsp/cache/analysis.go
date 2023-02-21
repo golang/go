@@ -11,6 +11,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -1155,14 +1156,18 @@ func mustDecode(data []byte, ptr interface{}) {
 	}
 }
 
-// -- data types for serialization of analysis.Diagnostic --
+// -- data types for serialization of analysis.Diagnostic and source.Diagnostic --
 
 type gobDiagnostic struct {
 	Location       protocol.Location
-	Category       string
+	Severity       protocol.DiagnosticSeverity
+	Code           string
+	CodeHref       string
+	Source         string
 	Message        string
 	SuggestedFixes []gobSuggestedFix
 	Related        []gobRelatedInformation
+	Tags           []protocol.DiagnosticTag
 }
 
 type gobRelatedInformation struct {
@@ -1171,8 +1176,16 @@ type gobRelatedInformation struct {
 }
 
 type gobSuggestedFix struct {
-	Message   string
-	TextEdits []gobTextEdit
+	Message    string
+	TextEdits  []gobTextEdit
+	Command    *gobCommand
+	ActionKind protocol.CodeActionKind
+}
+
+type gobCommand struct {
+	Title     string
+	Command   string
+	Arguments []json.RawMessage
 }
 
 type gobTextEdit struct {
@@ -1218,11 +1231,17 @@ func toGobDiagnostic(posToLocation func(start, end token.Pos) (protocol.Location
 	if err != nil {
 		return gobDiagnostic{}, err
 	}
+
 	return gobDiagnostic{
-		Location:       loc,
-		Category:       diag.Category,
+		Location: loc,
+		// Severity for analysis diagnostics is dynamic, based on user
+		// configuration per analyzer.
+		// Code and CodeHref are unset for Analysis diagnostics,
+		// TODO(rfindley): set Code fields if/when golang/go#57906 is accepted.
+		Source:         diag.Category,
 		Message:        diag.Message,
-		Related:        related,
 		SuggestedFixes: fixes,
+		Related:        related,
+		// Analysis diagnostics do not contain tags.
 	}, nil
 }

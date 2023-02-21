@@ -435,7 +435,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 
 	startTime := time.Now()
 
-	pkg, pgf, err := source.PackageForFile(ctx, snapshot, fh.URI(), source.TypecheckFull, source.NarrowestPackage)
+	pkg, pgf, err := source.PackageForFile(ctx, snapshot, fh.URI(), source.NarrowestPackage)
 	if err != nil || pgf.File.Package == token.NoPos {
 		// If we can't parse this file or find position for the package
 		// keyword, it may be missing a package declaration. Try offering

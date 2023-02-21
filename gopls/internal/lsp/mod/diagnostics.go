@@ -95,24 +95,18 @@ func ModDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.Fil
 		event.Error(ctx, fmt.Sprintf("workspace packages: diagnosing %s", pm.URI), err)
 	}
 	if err == nil {
-		// Type-check packages in parallel and gather list/parse/type errors.
-		// (This may be the first operation after the initial metadata load
-		// to demand type-checking of all active packages.)
+		// Note: the call to PackageDiagnostics below may be the first operation
+		// after the initial metadata load, and therefore result in type-checking
+		// or loading many packages.
 		ids := make([]source.PackageID, len(active))
 		for i, meta := range active {
 			ids[i] = meta.ID
 		}
-		pkgs, err := snapshot.TypeCheck(ctx, source.TypecheckFull, ids...)
+		diags, err := snapshot.PackageDiagnostics(ctx, ids...)
 		if err != nil {
 			return nil, err
 		}
-		for _, pkg := range pkgs {
-			pkgDiags, err := pkg.DiagnosticsForFile(ctx, snapshot, fh.URI())
-			if err != nil {
-				return nil, err
-			}
-			diagnostics = append(diagnostics, pkgDiags...)
-		}
+		diagnostics = append(diagnostics, diags[fh.URI()]...)
 	}
 
 	tidied, err := snapshot.ModTidy(ctx, pm)

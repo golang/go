@@ -220,8 +220,8 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	}
 	// Assert the invariant.
 	s.packages.Range(func(k, v interface{}) {
-		pk, ph := k.(packageKey), v.(*packageHandle)
-		if s.meta.metadata[pk.id] != ph.m {
+		id, ph := k.(PackageID), v.(*packageHandle)
+		if s.meta.metadata[id] != ph.m {
 			// TODO(adonovan): upgrade to unconditional panic after Jan 2023.
 			bug.Reportf("inconsistent metadata")
 		}
@@ -241,18 +241,24 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	}
 	s.meta = meta
 	s.workspacePackages = workspacePackages
+	s.resetActivePackagesLocked()
 
-	s.resetIsActivePackageLocked()
 	s.dumpWorkspace("load")
 	s.mu.Unlock()
 
 	// Recompute the workspace package handle for any packages we invalidated.
 	//
-	// This is (putatively) an optimization since handle
-	// construction prefetches the content of all Go source files.
-	// It is safe to ignore errors, or omit this step entirely.
+	// This is (putatively) an optimization since handle construction prefetches
+	// the content of all Go source files.
+	//
+	// However, one necessary side effect of this operation is that we are
+	// guaranteed to visit all package files during load. This is required for
+	// e.g. determining the set of directories to watch.
+	//
+	// TODO(rfindley, golang/go#57558): determine the set of directories based on
+	// loaded packages, and skip this precomputation.
 	for _, m := range updates {
-		s.buildPackageHandle(ctx, m.ID, s.workspaceParseMode(m.ID)) // ignore error
+		s.buildPackageHandle(ctx, m.ID) // ignore error
 	}
 
 	if len(moduleErrs) > 0 {

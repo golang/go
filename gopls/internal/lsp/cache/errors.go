@@ -85,7 +85,7 @@ func goPackagesErrorDiagnostics(ctx context.Context, e packages.Error, m *source
 	}}, nil
 }
 
-func parseErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, errList scanner.ErrorList) ([]*source.Diagnostic, error) {
+func parseErrorDiagnostics(pkg *syntaxPackage, errList scanner.ErrorList) ([]*source.Diagnostic, error) {
 	// The first parser error is likely the root cause of the problem.
 	if errList.Len() <= 0 {
 		return nil, fmt.Errorf("no errors in %v", errList)
@@ -111,7 +111,7 @@ func parseErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, errList scann
 var importErrorRe = regexp.MustCompile(`could not import ([^\s]+)`)
 var unsupportedFeatureRe = regexp.MustCompile(`.*require.* go(\d+\.\d+) or later`)
 
-func typeErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, e extendedError) ([]*source.Diagnostic, error) {
+func typeErrorDiagnostics(moduleMode bool, linkTarget string, pkg *syntaxPackage, e extendedError) ([]*source.Diagnostic, error) {
 	code, loc, err := typeErrorData(pkg, e.primary)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, e extendedErro
 	}
 	if code != 0 {
 		diag.Code = code.String()
-		diag.CodeHref = typesCodeHref(snapshot, code)
+		diag.CodeHref = typesCodeHref(linkTarget, code)
 	}
 	switch code {
 	case typesinternal.UnusedVar, typesinternal.UnusedImport:
@@ -144,13 +144,13 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, e extendedErro
 	}
 
 	if match := importErrorRe.FindStringSubmatch(e.primary.Msg); match != nil {
-		diag.SuggestedFixes, err = goGetQuickFixes(snapshot.moduleMode(), loc.URI.SpanURI(), match[1])
+		diag.SuggestedFixes, err = goGetQuickFixes(moduleMode, loc.URI.SpanURI(), match[1])
 		if err != nil {
 			return nil, err
 		}
 	}
 	if match := unsupportedFeatureRe.FindStringSubmatch(e.primary.Msg); match != nil {
-		diag.SuggestedFixes, err = editGoDirectiveQuickFix(snapshot, loc.URI.SpanURI(), match[1])
+		diag.SuggestedFixes, err = editGoDirectiveQuickFix(moduleMode, loc.URI.SpanURI(), match[1])
 		if err != nil {
 			return nil, err
 		}
@@ -159,6 +159,7 @@ func typeErrorDiagnostics(snapshot *snapshot, pkg *syntaxPackage, e extendedErro
 }
 
 func goGetQuickFixes(moduleMode bool, uri span.URI, pkg string) ([]source.SuggestedFix, error) {
+	// Go get only supports module mode for now.
 	if !moduleMode {
 		return nil, nil
 	}
@@ -174,9 +175,9 @@ func goGetQuickFixes(moduleMode bool, uri span.URI, pkg string) ([]source.Sugges
 	return []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)}, nil
 }
 
-func editGoDirectiveQuickFix(snapshot *snapshot, uri span.URI, version string) ([]source.SuggestedFix, error) {
+func editGoDirectiveQuickFix(moduleMode bool, uri span.URI, version string) ([]source.SuggestedFix, error) {
 	// Go mod edit only supports module mode.
-	if snapshot.workspaceMode()&moduleMode == 0 {
+	if !moduleMode {
 		return nil, nil
 	}
 	title := fmt.Sprintf("go mod edit -go=%s", version)
@@ -188,6 +189,112 @@ func editGoDirectiveQuickFix(snapshot *snapshot, uri span.URI, version string) (
 		return nil, err
 	}
 	return []source.SuggestedFix{source.SuggestedFixFromCommand(cmd, protocol.QuickFix)}, nil
+}
+
+// encodeDiagnostics gob-encodes the given diagnostics.
+func encodeDiagnostics(srcDiags []*source.Diagnostic) []byte {
+	var gobDiags []gobDiagnostic
+	for _, srcDiag := range srcDiags {
+		var gobFixes []gobSuggestedFix
+		for _, srcFix := range srcDiag.SuggestedFixes {
+			gobFix := gobSuggestedFix{
+				Message:    srcFix.Title,
+				ActionKind: srcFix.ActionKind,
+			}
+			for uri, srcEdits := range srcFix.Edits {
+				for _, srcEdit := range srcEdits {
+					gobFix.TextEdits = append(gobFix.TextEdits, gobTextEdit{
+						Location: protocol.Location{
+							URI:   protocol.URIFromSpanURI(uri),
+							Range: srcEdit.Range,
+						},
+						NewText: []byte(srcEdit.NewText),
+					})
+				}
+			}
+			if srcCmd := srcFix.Command; srcCmd != nil {
+				gobFix.Command = &gobCommand{
+					Title:     srcCmd.Title,
+					Command:   srcCmd.Command,
+					Arguments: srcCmd.Arguments,
+				}
+			}
+			gobFixes = append(gobFixes, gobFix)
+		}
+		var gobRelated []gobRelatedInformation
+		for _, srcRel := range srcDiag.Related {
+			gobRel := gobRelatedInformation(srcRel)
+			gobRelated = append(gobRelated, gobRel)
+		}
+		gobDiag := gobDiagnostic{
+			Location: protocol.Location{
+				URI:   protocol.URIFromSpanURI(srcDiag.URI),
+				Range: srcDiag.Range,
+			},
+			Severity:       srcDiag.Severity,
+			Code:           srcDiag.Code,
+			CodeHref:       srcDiag.CodeHref,
+			Source:         string(srcDiag.Source),
+			Message:        srcDiag.Message,
+			SuggestedFixes: gobFixes,
+			Related:        gobRelated,
+			Tags:           srcDiag.Tags,
+		}
+		gobDiags = append(gobDiags, gobDiag)
+	}
+	return mustEncode(gobDiags)
+}
+
+// decodeDiagnostics decodes the given gob-encoded diagnostics.
+func decodeDiagnostics(data []byte) []*source.Diagnostic {
+	var gobDiags []gobDiagnostic
+	mustDecode(data, &gobDiags)
+	var srcDiags []*source.Diagnostic
+	for _, gobDiag := range gobDiags {
+		var srcFixes []source.SuggestedFix
+		for _, gobFix := range gobDiag.SuggestedFixes {
+			srcFix := source.SuggestedFix{
+				Title:      gobFix.Message,
+				ActionKind: gobFix.ActionKind,
+			}
+			for _, gobEdit := range gobFix.TextEdits {
+				if srcFix.Edits == nil {
+					srcFix.Edits = make(map[span.URI][]protocol.TextEdit)
+				}
+				srcEdit := protocol.TextEdit{
+					Range:   gobEdit.Location.Range,
+					NewText: string(gobEdit.NewText),
+				}
+				uri := gobEdit.Location.URI.SpanURI()
+				srcFix.Edits[uri] = append(srcFix.Edits[uri], srcEdit)
+			}
+			if gobCmd := gobFix.Command; gobCmd != nil {
+				gobFix.Command = &gobCommand{
+					Title:     gobCmd.Title,
+					Command:   gobCmd.Command,
+					Arguments: gobCmd.Arguments,
+				}
+			}
+			srcFixes = append(srcFixes, srcFix)
+		}
+		var srcRelated []protocol.DiagnosticRelatedInformation
+		for _, gobRel := range gobDiag.Related {
+			srcRel := protocol.DiagnosticRelatedInformation(gobRel)
+			srcRelated = append(srcRelated, srcRel)
+		}
+		srcDiag := &source.Diagnostic{
+			URI:            gobDiag.Location.URI.SpanURI(),
+			Range:          gobDiag.Location.Range,
+			Severity:       gobDiag.Severity,
+			Source:         source.AnalyzerErrorKind(gobDiag.Source),
+			Message:        gobDiag.Message,
+			Tags:           gobDiag.Tags,
+			Related:        srcRelated,
+			SuggestedFixes: srcFixes,
+		}
+		srcDiags = append(srcDiags, srcDiag)
+	}
+	return srcDiags
 }
 
 // toSourceDiagnostic converts a gobDiagnostic to "source" form.
@@ -223,11 +330,10 @@ func toSourceDiagnostic(srcAnalyzer *source.Analyzer, gobDiag *gobDiagnostic) *s
 	}
 
 	diag := &source.Diagnostic{
-		// TODO(adonovan): is this sound? See dual conversion in posToLocation.
-		URI:            span.URI(gobDiag.Location.URI),
+		URI:            gobDiag.Location.URI.SpanURI(),
 		Range:          gobDiag.Location.Range,
 		Severity:       severity,
-		Source:         source.AnalyzerErrorKind(gobDiag.Category),
+		Source:         source.AnalyzerErrorKind(gobDiag.Source),
 		Message:        gobDiag.Message,
 		Related:        related,
 		SuggestedFixes: fixes,
@@ -259,9 +365,8 @@ func onlyDeletions(fixes []source.SuggestedFix) bool {
 	return len(fixes) > 0
 }
 
-func typesCodeHref(snapshot *snapshot, code typesinternal.ErrorCode) string {
-	target := snapshot.View().Options().LinkTarget
-	return source.BuildLink(target, "golang.org/x/tools/internal/typesinternal", code.String())
+func typesCodeHref(linkTarget string, code typesinternal.ErrorCode) string {
+	return source.BuildLink(linkTarget, "golang.org/x/tools/internal/typesinternal", code.String())
 }
 
 func suggestedAnalysisFixes(diag *gobDiagnostic, kinds []protocol.CodeActionKind) []source.SuggestedFix {

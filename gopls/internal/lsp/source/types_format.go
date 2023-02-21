@@ -196,7 +196,7 @@ func FormatTypeParams(tparams *typeparams.TypeParamList) string {
 }
 
 // NewSignature returns formatted signature for a types.Signature struct.
-func NewSignature(ctx context.Context, s Snapshot, pkg Package, srcFile *ast.File, sig *types.Signature, comment *ast.CommentGroup, qf types.Qualifier, mq MetadataQualifier) (*signature, error) {
+func NewSignature(ctx context.Context, s Snapshot, pkg Package, sig *types.Signature, comment *ast.CommentGroup, qf types.Qualifier, mq MetadataQualifier) (*signature, error) {
 	var tparams []string
 	tpList := typeparams.ForSignature(sig)
 	for i := 0; i < tpList.Len(); i++ {
@@ -209,7 +209,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, srcFile *ast.Fil
 	params := make([]string, 0, sig.Params().Len())
 	for i := 0; i < sig.Params().Len(); i++ {
 		el := sig.Params().At(i)
-		typ, err := FormatVarType(ctx, s, pkg, srcFile, el, qf, mq)
+		typ, err := FormatVarType(ctx, s, pkg, el, qf, mq)
 		if err != nil {
 			return nil, err
 		}
@@ -227,7 +227,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, srcFile *ast.Fil
 			needResultParens = true
 		}
 		el := sig.Results().At(i)
-		typ, err := FormatVarType(ctx, s, pkg, srcFile, el, qf, mq)
+		typ, err := FormatVarType(ctx, s, pkg, el, qf, mq)
 		if err != nil {
 			return nil, err
 		}
@@ -266,7 +266,7 @@ func NewSignature(ctx context.Context, s Snapshot, pkg Package, srcFile *ast.Fil
 //
 // TODO(rfindley): this function could return the actual name used in syntax,
 // for better parameter names.
-func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, srcFile *ast.File, obj *types.Var, qf types.Qualifier, mq MetadataQualifier) (string, error) {
+func FormatVarType(ctx context.Context, snapshot Snapshot, srcpkg Package, obj *types.Var, qf types.Qualifier, mq MetadataQualifier) (string, error) {
 	// TODO(rfindley): This looks wrong. The previous comment said:
 	// "If the given expr refers to a type parameter, then use the
 	// object's Type instead of the type parameter declaration. This helps

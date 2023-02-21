@@ -611,6 +611,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 	t.Run("UnimportedCompletion", func(t *testing.T) {
 		t.Helper()
+		t.Skip("golang/go#58663: currently broken with incremental gopls")
 		eachCompletion(t, data.UnimportedCompletions, tests.UnimportedCompletion)
 	})
 

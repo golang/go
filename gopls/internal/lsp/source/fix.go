@@ -55,7 +55,7 @@ var suggestedFixes = map[string]SuggestedFixFunc{
 // singleFile calls analyzers that expect inputs for a single file
 func singleFile(sf singleFileFixFunc) SuggestedFixFunc {
 	return func(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng protocol.Range) (*token.FileSet, *analysis.SuggestedFix, error) {
-		pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
+		pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
 		if err != nil {
 			return nil, nil, err
 		}

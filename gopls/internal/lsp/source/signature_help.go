@@ -23,7 +23,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, positi
 
 	// We need full type-checking here, as we must type-check function bodies in
 	// order to provide signature help at the requested position.
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), TypecheckFull, NarrowestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
 	if err != nil {
 		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
 	}
@@ -107,7 +107,7 @@ FindCall:
 		name = "func"
 	}
 	mq := MetadataQualifierForFile(snapshot, pgf.File, pkg.Metadata())
-	s, err := NewSignature(ctx, snapshot, pkg, pgf.File, sig, comment, qf, mq)
+	s, err := NewSignature(ctx, snapshot, pkg, sig, comment, qf, mq)
 	if err != nil {
 		return nil, 0, err
 	}

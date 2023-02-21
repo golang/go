@@ -25,6 +25,11 @@ type metadataGraph struct {
 	ids map[span.URI][]PackageID
 }
 
+// Metadata implements the source.MetadataSource interface.
+func (g *metadataGraph) Metadata(id PackageID) *source.Metadata {
+	return g.metadata[id]
+}
+
 // Clone creates a new metadataGraph, applying the given updates to the
 // receiver.
 func (g *metadataGraph) Clone(updates map[PackageID]*source.Metadata) *metadataGraph {
@@ -49,6 +54,8 @@ func (g *metadataGraph) Clone(updates map[PackageID]*source.Metadata) *metadataG
 }
 
 // build constructs g.importedBy and g.uris from g.metadata.
+//
+// TODO(rfindley): we should enforce that the graph is acyclic here.
 func (g *metadataGraph) build() {
 	// Build the import graph.
 	g.importedBy = make(map[PackageID][]PackageID)

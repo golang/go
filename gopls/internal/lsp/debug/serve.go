@@ -461,6 +461,13 @@ func (i *Instance) Serve(ctx context.Context, addr string) (string, error) {
 		mux.HandleFunc("/info", render(InfoTmpl, i.getInfo))
 		mux.HandleFunc("/memory", render(MemoryTmpl, getMemory))
 
+		// Internal debugging helpers.
+		mux.HandleFunc("/_dogc", func(w http.ResponseWriter, r *http.Request) {
+			runtime.GC()
+			runtime.GC()
+			runtime.GC()
+			http.Error(w, "OK", 200)
+		})
 		mux.HandleFunc("/_makeabug", func(w http.ResponseWriter, r *http.Request) {
 			bug.Report("bug here", nil)
 			http.Error(w, "made a bug", http.StatusOK)
@@ -538,16 +545,6 @@ func (i *Instance) writeMemoryDebug(threshold uint64, withNames bool) error {
 	}
 	if err := rpprof.Lookup("goroutine").WriteTo(f, 1); err != nil {
 		return err
-	}
-
-	for _, cache := range i.State.Caches() {
-		cf, err := zipw.Create(fmt.Sprintf("cache-%v.html", cache.ID()))
-		if err != nil {
-			return err
-		}
-		if _, err := cf.Write([]byte(cache.PackageStats(withNames))); err != nil {
-			return err
-		}
 	}
 
 	if err := zipw.Close(); err != nil {
@@ -821,8 +818,6 @@ var CacheTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "body"}}
 <h2>memoize.Store entries</h2>
 <ul>{{range $k,$v := .MemStats}}<li>{{$k}} - {{$v}}</li>{{end}}</ul>
-<h2>Per-package usage - not accurate, for guidance only</h2>
-{{.PackageStats true}}
 {{end}}
 `))
 

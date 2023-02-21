@@ -116,7 +116,7 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 	// which means we return (nil, nil) at the protocol
 	// layer. This seems like a bug, or at best an exploitation of
 	// knowledge of VSCode-specific behavior. Can we avoid that?
-	pkg, pgf, err := PackageForFile(ctx, snapshot, f.URI(), TypecheckFull, NarrowestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, f.URI(), NarrowestPackage)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -295,7 +295,7 @@ func renameOrdinary(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 	// Type-check the referring package and locate the object(s).
 	// We choose the widest variant as, for non-exported
 	// identifiers, it is the only package we need.
-	pkg, pgf, err := PackageForFile(ctx, snapshot, f.URI(), TypecheckFull, WidestPackage)
+	pkg, pgf, err := PackageForFile(ctx, snapshot, f.URI(), WidestPackage)
 	if err != nil {
 		return nil, err
 	}
@@ -463,6 +463,10 @@ func typeCheckReverseDependencies(ctx context.Context, snapshot Snapshot, declUR
 		ids = append(ids, id)
 	}
 
+	// Sort the packages into some topological order of the
+	// (unfiltered) metadata graph.
+	SortPostOrder(snapshot, ids)
+
 	// Dependencies must be visited first since they can expand
 	// the search set. Ideally we would process the (filtered) set
 	// of packages in the parallel postorder of the snapshot's
@@ -474,34 +478,32 @@ func typeCheckReverseDependencies(ctx context.Context, snapshot Snapshot, declUR
 	//
 	// Type checking is by far the dominant cost, so
 	// overlapping it with renaming may not be worthwhile.
-	pkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, ids...)
-	if err != nil {
-		return nil, err
-	}
+	return snapshot.TypeCheck(ctx, ids...)
+}
 
-	// Sort the packages into some topological order of the
-	// (unfiltered) metadata graph.
+// SortPostOrder sorts the IDs so that if x depends on y, then y appears before x.
+func SortPostOrder(meta MetadataSource, ids []PackageID) {
 	postorder := make(map[PackageID]int)
+	order := 0
 	var visit func(PackageID)
 	visit = func(id PackageID) {
 		if _, ok := postorder[id]; !ok {
 			postorder[id] = -1 // break recursion
-			if m := snapshot.Metadata(id); m != nil {
+			if m := meta.Metadata(id); m != nil {
 				for _, depID := range m.DepsByPkgPath {
 					visit(depID)
 				}
 			}
-			postorder[id] = len(postorder)
+			order++
+			postorder[id] = order
 		}
 	}
 	for _, id := range ids {
 		visit(id)
 	}
-	sort.Slice(pkgs, func(i, j int) bool {
-		return postorder[pkgs[i].Metadata().ID] < postorder[pkgs[j].Metadata().ID]
+	sort.Slice(ids, func(i, j int) bool {
+		return postorder[ids[i]] < postorder[ids[j]]
 	})
-
-	return pkgs, err
 }
 
 // renameExported renames the object denoted by (pkgPath, objPath)
@@ -881,7 +883,7 @@ func renameImports(ctx context.Context, snapshot Snapshot, m *Metadata, newPath 
 	for id := range needsTypeCheck {
 		ids = append(ids, id)
 	}
-	pkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, ids...)
+	pkgs, err := snapshot.TypeCheck(ctx, ids...)
 	if err != nil {
 		return err
 	}

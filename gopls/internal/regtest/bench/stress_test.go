@@ -45,7 +45,7 @@ func TestPilosaStress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := lsprpc.NewStreamServer(cache.New(nil, nil), false, hooks.Options)
+	server := lsprpc.NewStreamServer(cache.New(nil), false, hooks.Options)
 	ts := servertest.NewPipeServer(server, jsonrpc2.NewRawStream)
 	ctx := context.Background()
 

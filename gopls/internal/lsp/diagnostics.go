@@ -375,12 +375,11 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, m *s
 		return
 	}
 
-	pkgs, err := snapshot.TypeCheck(ctx, source.TypecheckFull, m.ID)
+	diags, err := snapshot.PackageDiagnostics(ctx, m.ID)
 	if err != nil {
-		event.Error(ctx, "warning: typecheck failed", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
+		event.Error(ctx, "warning: diagnostics failed", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
 		return
 	}
-	pkg := pkgs[0]
 
 	// Get diagnostics from analysis framework.
 	// This includes type-error analyzers, which suggest fixes to compiler errors.
@@ -395,23 +394,18 @@ func (s *Server) diagnosePkg(ctx context.Context, snapshot source.Snapshot, m *s
 	}
 
 	// For each file, update the server's diagnostics state.
-	for _, cgf := range pkg.CompiledGoFiles() {
+	for _, uri := range m.CompiledGoFiles {
 		// builtin.go exists only for documentation purposes and
 		// is not valid Go code. Don't report distracting errors.
-		if snapshot.IsBuiltin(ctx, cgf.URI) {
+		if snapshot.IsBuiltin(ctx, uri) {
 			continue
 		}
 
-		pkgDiags, err := pkg.DiagnosticsForFile(ctx, snapshot, cgf.URI)
-		if err != nil {
-			event.Error(ctx, "warning: getting package diagnostics", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
-			return
-		}
-
+		pkgDiags := diags[uri]
 		var tdiags, adiags []*source.Diagnostic
-		source.CombineDiagnostics(pkgDiags, analysisDiags[cgf.URI], &tdiags, &adiags)
-		s.storeDiagnostics(snapshot, cgf.URI, typeCheckSource, tdiags, true)
-		s.storeDiagnostics(snapshot, cgf.URI, analysisSource, adiags, true)
+		source.CombineDiagnostics(pkgDiags, analysisDiags[uri], &tdiags, &adiags)
+		s.storeDiagnostics(snapshot, uri, typeCheckSource, tdiags, true)
+		s.storeDiagnostics(snapshot, uri, analysisSource, adiags, true)
 	}
 
 	// If gc optimization details are requested, add them to the

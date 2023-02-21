@@ -44,10 +44,13 @@ package methodsets
 // single 64-bit mask is quite effective. See CL 452060 for details.
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"go/token"
 	"go/types"
 	"hash/crc32"
+	"log"
 	"strconv"
 	"strings"
 
@@ -62,6 +65,32 @@ import (
 // without the type checker.
 type Index struct {
 	pkg gobPackage
+}
+
+// Decode decodes the given gob-encoded data as an Index.
+func Decode(data []byte) *Index {
+	var pkg gobPackage
+	mustDecode(data, &pkg)
+	return &Index{pkg}
+}
+
+// Encode encodes the receiver as gob-encoded data.
+func (index *Index) Encode() []byte {
+	return mustEncode(index.pkg)
+}
+
+func mustEncode(x interface{}) []byte {
+	var buf bytes.Buffer
+	if err := gob.NewEncoder(&buf).Encode(x); err != nil {
+		log.Fatalf("internal error encoding %T: %v", x, err)
+	}
+	return buf.Bytes()
+}
+
+func mustDecode(data []byte, ptr interface{}) {
+	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(ptr); err != nil {
+		log.Fatalf("internal error decoding %T: %v", ptr, err)
+	}
 }
 
 // NewIndex returns a new index of method-set information for all
@@ -474,6 +503,6 @@ type gobMethod struct {
 
 // A gobPosition records the file, offset, and length of an identifier.
 type gobPosition struct {
-	File        int // index into gopPackage.Strings
+	File        int // index into gobPackage.Strings
 	Offset, Len int // in bytes
 }

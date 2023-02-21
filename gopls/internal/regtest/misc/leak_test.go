@@ -31,7 +31,7 @@ func _() {
 	println("1")
 }
 `
-	c := cache.New(nil, nil)
+	c := cache.New(nil)
 	env := setupEnv(t, files, c)
 	env.Await(InitialWorkspaceLoad)
 	env.OpenFile("a.go")

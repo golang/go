@@ -1637,7 +1637,7 @@ import (
 		).Run(t, mod, func(t *testing.T, env *Env) {
 			env.OnceMet(
 				InitialWorkspaceLoad,
-				Diagnostics(env.AtRegexp("main.go", `"nosuchpkg"`), WithMessage(`cannot find package "nosuchpkg" in any of`)),
+				Diagnostics(env.AtRegexp("main.go", `"nosuchpkg"`), WithMessage(`cannot find package "nosuchpkg"`)),
 			)
 		})
 	})

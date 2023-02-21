@@ -112,7 +112,7 @@ func findLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pro
 	}
 
 	// When found, type check the desired package (snapshot.TypeCheck in TypecheckFull mode),
-	pkgs, err := snapshot.TypeCheck(ctx, TypecheckFull, pkgMeta.ID)
+	pkgs, err := snapshot.TypeCheck(ctx, pkgMeta.ID)
 	if err != nil {
 		return nil, err
 	}

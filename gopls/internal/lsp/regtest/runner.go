@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"go/token"
 	"io"
 	"io/ioutil"
 	"net"
@@ -118,7 +117,6 @@ type Runner struct {
 	// Immutable state shared across test invocations
 	goplsPath string         // path to the gopls executable (for SeparateProcess mode)
 	tempDir   string         // shared parent temp directory
-	fset      *token.FileSet // shared FileSet
 	store     *memoize.Store // shared store
 
 	// Lazily allocated resources
@@ -336,7 +334,7 @@ func (s *loggingFramer) printBuffers(testname string, w io.Writer) {
 
 // defaultServer handles the Default execution mode.
 func (r *Runner) defaultServer(optsHook func(*source.Options)) jsonrpc2.StreamServer {
-	return lsprpc.NewStreamServer(cache.New(r.fset, r.store), false, optsHook)
+	return lsprpc.NewStreamServer(cache.New(r.store), false, optsHook)
 }
 
 // experimentalServer handles the Experimental execution mode.
@@ -345,7 +343,7 @@ func (r *Runner) experimentalServer(optsHook func(*source.Options)) jsonrpc2.Str
 		optsHook(o)
 		o.EnableAllExperiments()
 	}
-	return lsprpc.NewStreamServer(cache.New(nil, nil), false, options)
+	return lsprpc.NewStreamServer(cache.New(nil), false, options)
 }
 
 // forwardedServer handles the Forwarded execution mode.
@@ -353,7 +351,7 @@ func (r *Runner) forwardedServer(optsHook func(*source.Options)) jsonrpc2.Stream
 	r.tsOnce.Do(func() {
 		ctx := context.Background()
 		ctx = debug.WithInstance(ctx, "", "off")
-		ss := lsprpc.NewStreamServer(cache.New(nil, nil), false, optsHook)
+		ss := lsprpc.NewStreamServer(cache.New(nil), false, optsHook)
 		r.ts = servertest.NewTCPServer(ctx, ss, nil)
 	})
 	return newForwarder("tcp", r.ts.Addr)
