@@ -2066,128 +2066,155 @@ func BenchmarkPathUnescape(b *testing.B) {
 
 func TestJoinPath(t *testing.T) {
 	tests := []struct {
-		base string
-		elem []string
-		out  string
+		base        string
+		elem        []string
+		out         string
+		wantPath    string
+		wantRawPath string
 	}{
 		{
-			base: "https://go.googlesource.com",
-			elem: []string{"go"},
-			out:  "https://go.googlesource.com/go",
+			base:     "https://go.googlesource.com",
+			elem:     []string{"go"},
+			out:      "https://go.googlesource.com/go",
+			wantPath: "/go",
 		},
 		{
-			base: "https://go.googlesource.com/a/b/c",
-			elem: []string{"../../../go"},
-			out:  "https://go.googlesource.com/go",
+			base:     "https://go.googlesource.com/a/b/c",
+			elem:     []string{"../../../go"},
+			out:      "https://go.googlesource.com/go",
+			wantPath: "/go",
 		},
 		{
-			base: "https://go.googlesource.com/",
-			elem: []string{"../go"},
-			out:  "https://go.googlesource.com/go",
+			base:     "https://go.googlesource.com/",
+			elem:     []string{"../go"},
+			out:      "https://go.googlesource.com/go",
+			wantPath: "/go",
 		},
 		{
-			base: "https://go.googlesource.com",
-			elem: []string{"../go"},
-			out:  "https://go.googlesource.com/go",
+			base:     "https://go.googlesource.com",
+			elem:     []string{"../go"},
+			out:      "https://go.googlesource.com/go",
+			wantPath: "/go",
 		},
 		{
-			base: "https://go.googlesource.com",
-			elem: []string{"../go", "../../go", "../../../go"},
-			out:  "https://go.googlesource.com/go",
+			base:     "https://go.googlesource.com",
+			elem:     []string{"../go", "../../go", "../../../go"},
+			out:      "https://go.googlesource.com/go",
+			wantPath: "/go",
 		},
 		{
-			base: "https://go.googlesource.com/../go",
-			elem: nil,
-			out:  "https://go.googlesource.com/go",
+			base:     "https://go.googlesource.com/../go",
+			elem:     nil,
+			out:      "https://go.googlesource.com/go",
+			wantPath: "/go",
 		},
 		{
-			base: "https://go.googlesource.com/",
-			elem: []string{"./go"},
-			out:  "https://go.googlesource.com/go",
+			base:     "https://go.googlesource.com/",
+			elem:     []string{"./go"},
+			out:      "https://go.googlesource.com/go",
+			wantPath: "/go",
 		},
 		{
-			base: "https://go.googlesource.com//",
-			elem: []string{"/go"},
-			out:  "https://go.googlesource.com/go",
+			base:     "https://go.googlesource.com//",
+			elem:     []string{"/go"},
+			out:      "https://go.googlesource.com/go",
+			wantPath: "/go",
 		},
 		{
-			base: "https://go.googlesource.com//",
-			elem: []string{"/go", "a", "b", "c"},
-			out:  "https://go.googlesource.com/go/a/b/c",
+			base:     "https://go.googlesource.com//",
+			elem:     []string{"/go", "a", "b", "c"},
+			out:      "https://go.googlesource.com/go/a/b/c",
+			wantPath: "/go/a/b/c",
 		},
 		{
 			base: "http://[fe80::1%en0]:8080/",
 			elem: []string{"/go"},
 		},
 		{
-			base: "https://go.googlesource.com",
-			elem: []string{"go/"},
-			out:  "https://go.googlesource.com/go/",
+			base:     "https://go.googlesource.com",
+			elem:     []string{"go/"},
+			out:      "https://go.googlesource.com/go/",
+			wantPath: "/go/",
 		},
 		{
-			base: "https://go.googlesource.com",
-			elem: []string{"go//"},
-			out:  "https://go.googlesource.com/go/",
+			base:     "https://go.googlesource.com",
+			elem:     []string{"go//"},
+			out:      "https://go.googlesource.com/go/",
+			wantPath: "/go/",
 		},
 		{
-			base: "https://go.googlesource.com",
-			elem: nil,
-			out:  "https://go.googlesource.com/",
+			base:     "https://go.googlesource.com",
+			elem:     nil,
+			out:      "https://go.googlesource.com/",
+			wantPath: "/",
 		},
 		{
-			base: "https://go.googlesource.com/",
-			elem: nil,
-			out:  "https://go.googlesource.com/",
+			base:     "https://go.googlesource.com/",
+			elem:     nil,
+			out:      "https://go.googlesource.com/",
+			wantPath: "/",
 		},
 		{
-			base: "https://go.googlesource.com/a%2fb",
-			elem: []string{"c"},
-			out:  "https://go.googlesource.com/a%2fb/c",
+			base:        "https://go.googlesource.com/a%2fb",
+			elem:        []string{"c"},
+			out:         "https://go.googlesource.com/a%2fb/c",
+			wantPath:    "/a/b/c",
+			wantRawPath: "/a%2fb/c",
 		},
 		{
-			base: "https://go.googlesource.com/a%2fb",
-			elem: []string{"c%2fd"},
-			out:  "https://go.googlesource.com/a%2fb/c%2fd",
+			base:        "https://go.googlesource.com/a%2fb",
+			elem:        []string{"c%2fd"},
+			out:         "https://go.googlesource.com/a%2fb/c%2fd",
+			wantPath:    "/a/b/c/d",
+			wantRawPath: "/a%2fb/c%2fd",
 		},
 		{
-			base: "https://go.googlesource.com/a/b",
-			elem: []string{"/go"},
-			out:  "https://go.googlesource.com/a/b/go",
+			base:     "https://go.googlesource.com/a/b",
+			elem:     []string{"/go"},
+			out:      "https://go.googlesource.com/a/b/go",
+			wantPath: "/a/b/go",
 		},
 		{
-			base: "/",
-			elem: nil,
-			out:  "/",
+			base:     "/",
+			elem:     nil,
+			out:      "/",
+			wantPath: "/",
 		},
 		{
-			base: "a",
-			elem: nil,
-			out:  "a",
+			base:     "a",
+			elem:     nil,
+			out:      "a",
+			wantPath: "a",
 		},
 		{
-			base: "a",
-			elem: []string{"b"},
-			out:  "a/b",
+			base:     "a",
+			elem:     []string{"b"},
+			out:      "a/b",
+			wantPath: "a/b",
 		},
 		{
-			base: "a",
-			elem: []string{"../b"},
-			out:  "b",
+			base:     "a",
+			elem:     []string{"../b"},
+			out:      "b",
+			wantPath: "b",
 		},
 		{
-			base: "a",
-			elem: []string{"../../b"},
-			out:  "b",
+			base:     "a",
+			elem:     []string{"../../b"},
+			out:      "b",
+			wantPath: "b",
 		},
 		{
-			base: "",
-			elem: []string{"a"},
-			out:  "a",
+			base:     "",
+			elem:     []string{"a"},
+			out:      "/a",
+			wantPath: "/a",
 		},
 		{
-			base: "",
-			elem: []string{"../a"},
-			out:  "a",
+			base:     "",
+			elem:     []string{"../a"},
+			out:      "/a",
+			wantPath: "/a",
 		},
 	}
 	for _, tt := range tests {
@@ -2206,6 +2233,15 @@ func TestJoinPath(t *testing.T) {
 		}
 		if out != tt.out || (err == nil) != (tt.out != "") {
 			t.Errorf("Parse(%q).JoinPath(%q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
+		}
+		if u == nil {
+			continue
+		}
+		if got, want := u.Path, tt.wantPath; got != want {
+			t.Errorf("Parse(%q).JoinPath(%q).Path = %q, want %q", tt.base, tt.elem, got, want)
+		}
+		if got, want := u.RawPath, tt.wantRawPath; got != want {
+			t.Errorf("Parse(%q).JoinPath(%q).RawPath = %q, want %q", tt.base, tt.elem, got, want)
 		}
 	}
 }
