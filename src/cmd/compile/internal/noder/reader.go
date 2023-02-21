@@ -2184,7 +2184,18 @@ func (r *reader) expr() (res ir.Node) {
 			}
 
 			n := typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, recv, wrapperFn.Sel)).(*ir.SelectorExpr)
-			assert(n.Selection == wrapperFn.Selection)
+
+			// As a consistency check here, we make sure "n" selected the
+			// same method (represented by a types.Field) that wrapperFn
+			// selected. However, for anonymous receiver types, there can be
+			// multiple such types.Field instances (#58563). So we may need
+			// to fallback to making sure Sym and Type (including the
+			// receiver parameter's type) match.
+			if n.Selection != wrapperFn.Selection {
+				assert(n.Selection.Sym == wrapperFn.Selection.Sym)
+				assert(types.Identical(n.Selection.Type, wrapperFn.Selection.Type))
+				assert(types.Identical(n.Selection.Type.Recv().Type, wrapperFn.Selection.Type.Recv().Type))
+			}
 
 			wrapper := methodValueWrapper{
 				rcvr:   n.X.Type(),
