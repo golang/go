@@ -353,6 +353,10 @@ func fixCount(n int, err error) (int, error) {
 	return n, err
 }
 
+// checkWrapErr is the test hook to enable checking unexpected wrapped errors of poll.ErrFileClosing.
+// It is set to true in the export_test.go for tests (including fuzz tests).
+var checkWrapErr = false
+
 // wrapErr wraps an error that occurred during an operation on an open file.
 // It passes io.EOF through unchanged, otherwise converts
 // poll.ErrFileClosing to ErrClosed and wraps the error in a PathError.
@@ -362,6 +366,8 @@ func (f *File) wrapErr(op string, err error) error {
 	}
 	if err == poll.ErrFileClosing {
 		err = ErrClosed
+	} else if checkWrapErr && errors.Is(err, poll.ErrFileClosing) {
+		panic("unexpected error wrapping poll.ErrFileClosing: " + err.Error())
 	}
 	return &PathError{Op: op, Path: f.name, Err: err}
 }

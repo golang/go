@@ -51,7 +51,7 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
 		lr.N = remain - written
 	}
 
-	return written, handled, NewSyscallError(syscallName, err)
+	return written, handled, wrapSyscallError(syscallName, err)
 }
 
 // getPollFD tries to get the poll.FD from the given io.Reader by expecting
@@ -102,7 +102,7 @@ func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err erro
 	if lr != nil {
 		lr.N -= written
 	}
-	return written, handled, NewSyscallError("copy_file_range", err)
+	return written, handled, wrapSyscallError("copy_file_range", err)
 }
 
 // tryLimitedReader tries to assert the io.Reader to io.LimitedReader, it returns the io.LimitedReader,
