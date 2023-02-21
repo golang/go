@@ -317,6 +317,13 @@ func (w *typeWriter) typ(typ Type) {
 			if w.tpSubscripts || w.ctxt != nil {
 				w.string(subscript(t.id))
 			}
+			// If the type parameter name is the same as a predeclared object
+			// (say int), point out where it is declared to avoid confusing
+			// error messages. This doesn't need to be super-elegant; we just
+			// need a clear indication that this is not a predeclared name.
+			if w.ctxt == nil && Universe.Lookup(t.obj.name) != nil {
+				w.string(sprintf(nil, false, " /* with %s declared at %s */", t.obj.name, t.obj.Pos()))
+			}
 		}
 
 	default:
