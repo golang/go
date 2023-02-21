@@ -323,8 +323,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			if err := binary.Read(b, bo, &hdr); err != nil {
 				return nil, err
 			}
-			strtab := make([]byte, hdr.Strsize)
-			if _, err := r.ReadAt(strtab, int64(hdr.Stroff)); err != nil {
+			strtab, err := saferio.ReadDataAt(r, uint64(hdr.Strsize), int64(hdr.Stroff))
+			if err != nil {
 				return nil, err
 			}
 			var symsz int
