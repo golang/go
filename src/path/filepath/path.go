@@ -84,6 +84,10 @@ const (
 // If the result of this process is an empty string, Clean
 // returns the string ".".
 //
+// On Windows, Clean does not modify the volume name other than to replace
+// occurrences of "/" with `\`.
+// For example, Clean("//host/share/../x") returns `\\host\share\x`.
+//
 // See also Rob Pike, “Lexical File Names in Plan 9 or
 // Getting Dot-Dot Right,”
 // https://9p.io/sys/doc/lexnames.html
