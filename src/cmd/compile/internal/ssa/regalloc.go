@@ -272,6 +272,9 @@ type regAllocState struct {
 	// mask of registers currently in use
 	used regMask
 
+	// mask of registers used since the start of the current block
+	usedSinceBlockStart regMask
+
 	// mask of registers used in the current instruction
 	tmpused regMask
 
@@ -288,6 +291,11 @@ type regAllocState struct {
 	// startRegs[blockid] is the register state at the start of merge blocks.
 	// saved state does not include the state of phi ops in the block.
 	startRegs [][]startReg
+
+	// startRegsMask is a mask of the registers in startRegs[curBlock.ID].
+	// Registers dropped from startRegsMask are later synchronoized back to
+	// startRegs by dropping from there as well.
+	startRegsMask regMask
 
 	// spillLive[blockid] is the set of live spills at the end of each block
 	spillLive [][]ID
@@ -406,7 +414,9 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 
 	// Pick an unused register if one is available.
 	if mask&^s.used != 0 {
-		return pickReg(mask &^ s.used)
+		r := pickReg(mask &^ s.used)
+		s.usedSinceBlockStart |= regMask(1) << r
+		return r
 	}
 
 	// Pick a value to spill. Spill the value with the
@@ -450,6 +460,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	v2 := s.regs[r].v
 	m := s.compatRegs(v2.Type) &^ s.used &^ s.tmpused &^ (regMask(1) << r)
 	if m != 0 && !s.values[v2.ID].rematerializeable && countRegs(s.values[v2.ID].regs) == 1 {
+		s.usedSinceBlockStart |= regMask(1) << r
 		r2 := pickReg(m)
 		c := s.curBlock.NewValue1(v2.Pos, OpCopy, v2.Type, s.regs[r].c)
 		s.copies[c] = false
@@ -459,7 +470,21 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 		s.setOrig(c, v2)
 		s.assignReg(r2, v2, c)
 	}
+
+	// If the evicted register isn't used between the start of the block
+	// and now then there is no reason to even request it on entry. We can
+	// drop from startRegs in that case.
+	if s.usedSinceBlockStart&(regMask(1) << r) == 0 {
+		if s.startRegsMask&(regMask(1) << r) == 1 {
+			if s.f.pass.debug > regDebug {
+				fmt.Printf("dropped from startRegs: %s\n", &s.registers[r])
+			}
+			s.startRegsMask &^= regMask(1) << r
+		}
+	}
+
 	s.freeReg(r)
+	s.usedSinceBlockStart |= regMask(1) << r
 	return r
 }
 
@@ -513,6 +538,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 		if nospill {
 			s.nospill |= regMask(1) << r
 		}
+		s.usedSinceBlockStart |= regMask(1) << r
 		return s.regs[r].c
 	}
 
@@ -532,6 +558,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 		if s.regs[r2].v != v {
 			panic("bad register state")
 		}
+		s.usedSinceBlockStart |= regMask(1) << r2
 		c = s.curBlock.NewValue1(pos, OpCopy, v.Type, s.regs[r2].c)
 	} else if v.rematerializeable() {
 		// Rematerialize instead of loading from the spill location.
@@ -882,6 +909,8 @@ func (s *regAllocState) regalloc(f *Func) {
 			fmt.Printf("Begin processing block %v\n", b)
 		}
 		s.curBlock = b
+		s.startRegsMask = 0
+		s.usedSinceBlockStart = 0
 
 		// Initialize regValLiveSet and uses fields for this block.
 		// Walk backwards through the block doing liveness analysis.
@@ -1173,6 +1202,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				regList = append(regList, startReg{r, v, s.regs[r].c, s.values[v.ID].uses.pos})
+				s.startRegsMask |= regMask(1) << r
 			}
 			s.startRegs[b.ID] = make([]startReg, len(regList))
 			copy(s.startRegs[b.ID], regList)
@@ -1877,6 +1907,23 @@ func (s *regAllocState) regalloc(f *Func) {
 			s.values[e.ID].uses = nil
 			u.next = s.freeUseRecords
 			s.freeUseRecords = u
+		}
+
+		// allocReg may have dropped registers from startRegsMask that
+		// aren't actually needed in startRegs. Synchronize back to
+		// startRegs.
+		//
+		// This must be done before placing spills, which will look at
+		// startRegs to decide if a block is a valid block for a spill.
+		if c := countRegs(s.startRegsMask); c != len(s.startRegs[b.ID]) {
+			regs := make([]startReg, 0, c)
+			for _, sr := range s.startRegs[b.ID] {
+				if s.startRegsMask&(regMask(1) << sr.r) == 0 {
+					continue
+				}
+				regs = append(regs, sr)
+			}
+			s.startRegs[b.ID] = regs
 		}
 	}
 
