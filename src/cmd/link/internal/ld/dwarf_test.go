@@ -505,7 +505,121 @@ func main() {
 	}
 }
 
-func TestInlinedRoutineRecords(t *testing.T) {
+// TestInlinedRoutineCallFileLine tests the call file and line records for an
+// inlined subroutine.
+func TestInlinedRoutineCallFileLine(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	t.Parallel()
+
+	const prog = `
+package main
+
+var G int
+
+//go:noinline
+func notinlined() int {
+	return 42
+}
+
+func inlined() int {
+	return notinlined()
+}
+
+func main() {
+	x := inlined()
+	G = x
+}
+`
+	// Note: this is a build with "-l=4", as opposed to "-l -N". The
+	// test is intended to verify DWARF that is only generated when
+	// the inliner is active. We're only going to look at the DWARF for
+	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
+	// to "-gcflags=all=-l=4".
+	d, ex := gobuildAndExamine(t, prog, OptInl4)
+
+	const (
+		callFile = "test.go" // basename
+		callLine = 16
+	)
+
+	maindie := findSubprogramDIE(t, ex, "main.main")
+
+	// Walk main's children and pick out the inlined subroutines
+	mainIdx := ex.IdxFromOffset(maindie.Offset)
+	childDies := ex.Children(mainIdx)
+	found := false
+	for _, child := range childDies {
+		if child.Tag != dwarf.TagInlinedSubroutine {
+			continue
+		}
+
+		// Found an inlined subroutine.
+		if found {
+			t.Fatalf("Found multiple inlined subroutines, expect only one")
+		}
+		found = true
+
+		// Locate abstract origin.
+		ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+		if !originOK {
+			t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
+		}
+		originDIE := ex.EntryFromOffset(ooff)
+		if originDIE == nil {
+			t.Fatalf("can't locate origin DIE at off %v", ooff)
+		}
+
+		// Name should check out.
+		name, ok := originDIE.Val(dwarf.AttrName).(string)
+		if !ok {
+			t.Fatalf("no name attr for inlined subroutine at offset %v", child.Offset)
+		}
+		if name != "main.inlined" {
+			t.Fatalf("expected inlined routine %s got %s", "main.cand", name)
+		}
+
+		// Verify that the call_file attribute for the inlined
+		// instance is ok. In this case it should match the file
+		// for the main routine. To do this we need to locate the
+		// compilation unit DIE that encloses what we're looking
+		// at; this can be done with the examiner.
+		cf, cfOK := child.Val(dwarf.AttrCallFile).(int64)
+		if !cfOK {
+			t.Fatalf("no call_file attr for inlined subroutine at offset %v", child.Offset)
+		}
+		file, err := ex.FileRef(d, mainIdx, cf)
+		if err != nil {
+			t.Errorf("FileRef: %v", err)
+			continue
+		}
+		base := filepath.Base(file)
+		if base != callFile {
+			t.Errorf("bad call_file attribute, found '%s', want '%s'",
+			file, callFile)
+		}
+
+		// Verify that the call_line attribute for the inlined
+		// instance is ok.
+		cl, clOK := child.Val(dwarf.AttrCallLine).(int64)
+		if !clOK {
+			t.Fatalf("no call_line attr for inlined subroutine at offset %v", child.Offset)
+		}
+		if cl != callLine {
+			t.Errorf("bad call_line attribute, found %d, want %d", cl, callLine)
+		}
+	}
+	if !found {
+		t.Fatalf("not enough inlined subroutines found in main.main")
+	}
+}
+
+// TestInlinedRoutineArgsVars tests the argument and variable records for an inlined subroutine.
+func TestInlinedRoutineArgsVars(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	if runtime.GOOS == "plan9" {
@@ -529,8 +643,8 @@ func cand(x, y int) int {
 }
 
 func main() {
-    x := cand(G*G,G|7%G)
-    G = x
+	x := cand(G*G,G|7%G)
+	G = x
 }
 `
 	// Note: this is a build with "-l=4", as opposed to "-l -N". The
@@ -538,103 +652,84 @@ func main() {
 	// the inliner is active. We're only going to look at the DWARF for
 	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
 	// to "-gcflags=all=-l=4".
-	d, ex := gobuildAndExamine(t, prog, OptInl4)
-
-	// The inlined subroutines we expect to visit
-	expectedInl := []string{"main.cand"}
+	_, ex := gobuildAndExamine(t, prog, OptInl4)
 
 	maindie := findSubprogramDIE(t, ex, "main.main")
 
 	// Walk main's children and pick out the inlined subroutines
 	mainIdx := ex.IdxFromOffset(maindie.Offset)
 	childDies := ex.Children(mainIdx)
-	exCount := 0
+	found := false
 	for _, child := range childDies {
-		if child.Tag == dwarf.TagInlinedSubroutine {
-			// Found an inlined subroutine, locate abstract origin.
-			ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
-			if !originOK {
-				t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
-			}
-			originDIE := ex.EntryFromOffset(ooff)
-			if originDIE == nil {
-				t.Fatalf("can't locate origin DIE at off %v", ooff)
-			}
+		if child.Tag != dwarf.TagInlinedSubroutine {
+			continue
+		}
 
-			// Walk the children of the abstract subroutine. We expect
-			// to see child variables there, even if (perhaps due to
-			// optimization) there are no references to them from the
-			// inlined subroutine DIE.
-			absFcnIdx := ex.IdxFromOffset(ooff)
-			absFcnChildDies := ex.Children(absFcnIdx)
-			if len(absFcnChildDies) != 2 {
-				t.Fatalf("expected abstract function: expected 2 children, got %d children", len(absFcnChildDies))
-			}
-			formalCount := 0
-			for _, absChild := range absFcnChildDies {
-				if absChild.Tag == dwarf.TagFormalParameter {
-					formalCount += 1
-					continue
-				}
-				t.Fatalf("abstract function child DIE: expected formal, got %v", absChild.Tag)
-			}
-			if formalCount != 2 {
-				t.Fatalf("abstract function DIE: expected 2 formals, got %d", formalCount)
-			}
+		// Found an inlined subroutine.
+		if found {
+			t.Fatalf("Found multiple inlined subroutines, expect only one")
+		}
+		found = true
 
-			if exCount >= len(expectedInl) {
-				t.Fatalf("too many inlined subroutines found in main.main")
-			}
+		// Locate abstract origin.
+		ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+		if !originOK {
+			t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
+		}
+		originDIE := ex.EntryFromOffset(ooff)
+		if originDIE == nil {
+			t.Fatalf("can't locate origin DIE at off %v", ooff)
+		}
 
-			// Name should check out.
-			expected := expectedInl[exCount]
-			if name, ok := originDIE.Val(dwarf.AttrName).(string); ok {
-				if name != expected {
-					t.Fatalf("expected inlined routine %s got %s", name, expected)
-				}
-			}
-			exCount++
+		// Name should check out.
+		name, ok := originDIE.Val(dwarf.AttrName).(string)
+		if !ok {
+			t.Fatalf("no name attr for inlined subroutine at offset %v", child.Offset)
+		}
+		if name != "main.cand" {
+			t.Fatalf("expected inlined routine %s got %s", "main.cand", name)
+		}
 
-			// Verify that the call_file attribute for the inlined
-			// instance is ok. In this case it should match the file
-			// for the main routine. To do this we need to locate the
-			// compilation unit DIE that encloses what we're looking
-			// at; this can be done with the examiner.
-			cf, cfOK := child.Val(dwarf.AttrCallFile).(int64)
-			if !cfOK {
-				t.Fatalf("no call_file attr for inlined subroutine at offset %v", child.Offset)
-			}
-			file, err := ex.FileRef(d, mainIdx, cf)
-			if err != nil {
-				t.Errorf("FileRef: %v", err)
+		// Walk the children of the abstract subroutine. We expect
+		// to see child variables there, even if (perhaps due to
+		// optimization) there are no references to them from the
+		// inlined subroutine DIE.
+		absFcnIdx := ex.IdxFromOffset(ooff)
+		absFcnChildDies := ex.Children(absFcnIdx)
+		if len(absFcnChildDies) != 2 {
+			t.Fatalf("expected abstract function: expected 2 children, got %d children", len(absFcnChildDies))
+		}
+		formalCount := 0
+		for _, absChild := range absFcnChildDies {
+			if absChild.Tag == dwarf.TagFormalParameter {
+				formalCount += 1
 				continue
 			}
-			base := filepath.Base(file)
-			if base != "test.go" {
-				t.Errorf("bad call_file attribute, found '%s', want '%s'",
-					file, "test.go")
-			}
+			t.Fatalf("abstract function child DIE: expected formal, got %v", absChild.Tag)
+		}
+		if formalCount != 2 {
+			t.Fatalf("abstract function DIE: expected 2 formals, got %d", formalCount)
+		}
 
-			omap := make(map[dwarf.Offset]bool)
+		omap := make(map[dwarf.Offset]bool)
 
-			// Walk the child variables of the inlined routine. Each
-			// of them should have a distinct abstract origin-- if two
-			// vars point to the same origin things are definitely broken.
-			inlIdx := ex.IdxFromOffset(child.Offset)
-			inlChildDies := ex.Children(inlIdx)
-			for _, k := range inlChildDies {
-				ooff, originOK := k.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
-				if !originOK {
-					t.Fatalf("no abstract origin attr for child of inlined subroutine at offset %v", k.Offset)
-				}
-				if _, found := omap[ooff]; found {
-					t.Fatalf("duplicate abstract origin at child of inlined subroutine at offset %v", k.Offset)
-				}
-				omap[ooff] = true
+		// Walk the child variables of the inlined routine. Each
+		// of them should have a distinct abstract origin-- if two
+		// vars point to the same origin things are definitely broken.
+		inlIdx := ex.IdxFromOffset(child.Offset)
+		inlChildDies := ex.Children(inlIdx)
+		for _, k := range inlChildDies {
+			ooff, originOK := k.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+			if !originOK {
+				t.Fatalf("no abstract origin attr for child of inlined subroutine at offset %v", k.Offset)
 			}
+			if _, found := omap[ooff]; found {
+				t.Fatalf("duplicate abstract origin at child of inlined subroutine at offset %v", k.Offset)
+			}
+			omap[ooff] = true
 		}
 	}
-	if exCount != len(expectedInl) {
+	if !found {
 		t.Fatalf("not enough inlined subroutines found in main.main")
 	}
 }
