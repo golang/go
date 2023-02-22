@@ -350,7 +350,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			if err := binary.Read(b, bo, &hdr); err != nil {
 				return nil, err
 			}
-			if hdr.Iundefsym > uint32(len(f.Symtab.Syms)) {
+			if f.Symtab == nil {
+				return nil, &FormatError{offset, "dynamic symbol table seen before any ordinary symbol table", nil}
+			} else if hdr.Iundefsym > uint32(len(f.Symtab.Syms)) {
 				return nil, &FormatError{offset, fmt.Sprintf(
 					"undefined symbols index in dynamic symbol table command is greater than symbol table length (%d > %d)",
 					hdr.Iundefsym, len(f.Symtab.Syms)), nil}
