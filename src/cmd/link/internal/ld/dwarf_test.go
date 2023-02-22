@@ -530,91 +530,113 @@ func inlined() int {
 	return notinlined()
 }
 
+%s
 func main() {
 	x := inlined()
 	G = x
 }
 `
-	// Note: this is a build with "-l=4", as opposed to "-l -N". The
-	// test is intended to verify DWARF that is only generated when
-	// the inliner is active. We're only going to look at the DWARF for
-	// main.main, however, hence we build with "-gcflags=-l=4" as opposed
-	// to "-gcflags=all=-l=4".
-	d, ex := gobuildAndExamine(t, prog, OptInl4)
-
-	const (
-		callFile = "test.go" // basename
-		callLine = 16
-	)
-
-	maindie := findSubprogramDIE(t, ex, "main.main")
-
-	// Walk main's children and pick out the inlined subroutines
-	mainIdx := ex.IdxFromOffset(maindie.Offset)
-	childDies := ex.Children(mainIdx)
-	found := false
-	for _, child := range childDies {
-		if child.Tag != dwarf.TagInlinedSubroutine {
-			continue
-		}
-
-		// Found an inlined subroutine.
-		if found {
-			t.Fatalf("Found multiple inlined subroutines, expect only one")
-		}
-		found = true
-
-		// Locate abstract origin.
-		ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
-		if !originOK {
-			t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
-		}
-		originDIE := ex.EntryFromOffset(ooff)
-		if originDIE == nil {
-			t.Fatalf("can't locate origin DIE at off %v", ooff)
-		}
-
-		// Name should check out.
-		name, ok := originDIE.Val(dwarf.AttrName).(string)
-		if !ok {
-			t.Fatalf("no name attr for inlined subroutine at offset %v", child.Offset)
-		}
-		if name != "main.inlined" {
-			t.Fatalf("expected inlined routine %s got %s", "main.cand", name)
-		}
-
-		// Verify that the call_file attribute for the inlined
-		// instance is ok. In this case it should match the file
-		// for the main routine. To do this we need to locate the
-		// compilation unit DIE that encloses what we're looking
-		// at; this can be done with the examiner.
-		cf, cfOK := child.Val(dwarf.AttrCallFile).(int64)
-		if !cfOK {
-			t.Fatalf("no call_file attr for inlined subroutine at offset %v", child.Offset)
-		}
-		file, err := ex.FileRef(d, mainIdx, cf)
-		if err != nil {
-			t.Errorf("FileRef: %v", err)
-			continue
-		}
-		base := filepath.Base(file)
-		if base != callFile {
-			t.Errorf("bad call_file attribute, found '%s', want '%s'",
-			file, callFile)
-		}
-
-		// Verify that the call_line attribute for the inlined
-		// instance is ok.
-		cl, clOK := child.Val(dwarf.AttrCallLine).(int64)
-		if !clOK {
-			t.Fatalf("no call_line attr for inlined subroutine at offset %v", child.Offset)
-		}
-		if cl != callLine {
-			t.Errorf("bad call_line attribute, found %d, want %d", cl, callLine)
-		}
+	tests := []struct {
+		name string
+		prog string
+		file string // basename
+		line int64
+	}{
+		{
+			name: "normal",
+			prog: fmt.Sprintf(prog, ""),
+			file: "test.go",
+			line: 17,
+		},
+		{
+			name: "line-directive",
+			prog: fmt.Sprintf(prog, "//line /foobar.go:200"),
+			file: "foobar.go",
+			line: 201,
+		},
 	}
-	if !found {
-		t.Fatalf("not enough inlined subroutines found in main.main")
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Note: this is a build with "-l=4", as opposed to "-l -N". The
+			// test is intended to verify DWARF that is only generated when
+			// the inliner is active. We're only going to look at the DWARF for
+			// main.main, however, hence we build with "-gcflags=-l=4" as opposed
+			// to "-gcflags=all=-l=4".
+			d, ex := gobuildAndExamine(t, tc.prog, OptInl4)
+
+			maindie := findSubprogramDIE(t, ex, "main.main")
+
+			// Walk main's children and pick out the inlined subroutines
+			mainIdx := ex.IdxFromOffset(maindie.Offset)
+			childDies := ex.Children(mainIdx)
+			found := false
+			for _, child := range childDies {
+				if child.Tag != dwarf.TagInlinedSubroutine {
+					continue
+				}
+
+				// Found an inlined subroutine.
+				if found {
+					t.Fatalf("Found multiple inlined subroutines, expect only one")
+				}
+				found = true
+
+				// Locate abstract origin.
+				ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
+				if !originOK {
+					t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
+				}
+				originDIE := ex.EntryFromOffset(ooff)
+				if originDIE == nil {
+					t.Fatalf("can't locate origin DIE at off %v", ooff)
+				}
+
+				// Name should check out.
+				name, ok := originDIE.Val(dwarf.AttrName).(string)
+				if !ok {
+					t.Fatalf("no name attr for inlined subroutine at offset %v", child.Offset)
+				}
+				if name != "main.inlined" {
+					t.Fatalf("expected inlined routine %s got %s", "main.cand", name)
+				}
+
+				// Verify that the call_file attribute for the inlined
+				// instance is ok. In this case it should match the file
+				// for the main routine. To do this we need to locate the
+				// compilation unit DIE that encloses what we're looking
+				// at; this can be done with the examiner.
+				cf, cfOK := child.Val(dwarf.AttrCallFile).(int64)
+				if !cfOK {
+					t.Fatalf("no call_file attr for inlined subroutine at offset %v", child.Offset)
+				}
+				file, err := ex.FileRef(d, mainIdx, cf)
+				if err != nil {
+					t.Errorf("FileRef: %v", err)
+					continue
+				}
+				base := filepath.Base(file)
+				if base != tc.file {
+					t.Errorf("bad call_file attribute, found '%s', want '%s'",
+						file, tc.file)
+				}
+
+				// Verify that the call_line attribute for the inlined
+				// instance is ok.
+				cl, clOK := child.Val(dwarf.AttrCallLine).(int64)
+				if !clOK {
+					t.Fatalf("no call_line attr for inlined subroutine at offset %v", child.Offset)
+				}
+				if cl != tc.line {
+					t.Errorf("bad call_line attribute, found %d, want %d", cl, tc.line)
+				}
+			}
+			if !found {
+				t.Fatalf("not enough inlined subroutines found in main.main")
+			}
+		})
 	}
 }
 
