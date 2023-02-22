@@ -6558,10 +6558,10 @@ func TestQuerySemicolon(t *testing.T) {
 	t.Cleanup(func() { afterTest(t) })
 
 	tests := []struct {
-		query           string
-		xNoSemicolons   string
-		xWithSemicolons string
-		warning         bool
+		query              string
+		xNoSemicolons      string
+		xWithSemicolons    string
+		expectParseFormErr bool
 	}{
 		{"?a=1;x=bad&x=good", "good", "bad", true},
 		{"?a=1;b=bad&x=good", "good", "good", true},
@@ -6573,20 +6573,20 @@ func TestQuerySemicolon(t *testing.T) {
 		for _, tt := range tests {
 			t.Run(tt.query+"/allow=false", func(t *testing.T) {
 				allowSemicolons := false
-				testQuerySemicolon(t, mode, tt.query, tt.xNoSemicolons, allowSemicolons, tt.warning)
+				testQuerySemicolon(t, mode, tt.query, tt.xNoSemicolons, allowSemicolons, tt.expectParseFormErr)
 			})
 			t.Run(tt.query+"/allow=true", func(t *testing.T) {
-				allowSemicolons, expectWarning := true, false
-				testQuerySemicolon(t, mode, tt.query, tt.xWithSemicolons, allowSemicolons, expectWarning)
+				allowSemicolons, expectParseFormErr := true, false
+				testQuerySemicolon(t, mode, tt.query, tt.xWithSemicolons, allowSemicolons, expectParseFormErr)
 			})
 		}
 	})
 }
 
-func testQuerySemicolon(t *testing.T, mode testMode, query string, wantX string, allowSemicolons, expectWarning bool) {
+func testQuerySemicolon(t *testing.T, mode testMode, query string, wantX string, allowSemicolons, expectParseFormErr bool) {
 	writeBackX := func(w ResponseWriter, r *Request) {
 		x := r.URL.Query().Get("x")
-		if expectWarning {
+		if expectParseFormErr {
 			if err := r.ParseForm(); err == nil || !strings.Contains(err.Error(), "semicolon") {
 				t.Errorf("expected error mentioning semicolons from ParseForm, got %v", err)
 			}
@@ -6623,16 +6623,6 @@ func testQuerySemicolon(t *testing.T, mode testMode, query string, wantX string,
 	}
 	if got, want := string(slurp), wantX; got != want {
 		t.Errorf("Body = %q; want = %q", got, want)
-	}
-
-	if expectWarning {
-		if !strings.Contains(logBuf.String(), "semicolon") {
-			t.Errorf("got %q from ErrorLog, expected a mention of semicolons", logBuf.String())
-		}
-	} else {
-		if strings.Contains(logBuf.String(), "semicolon") {
-			t.Errorf("got %q from ErrorLog, expected no mention of semicolons", logBuf.String())
-		}
 	}
 }
 
