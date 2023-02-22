@@ -385,6 +385,7 @@ func (s *snapshot) config(ctx context.Context, inv *gocommand.Invocation) *packa
 			packages.NeedDeps |
 			packages.NeedTypesSizes |
 			packages.NeedModule |
+			packages.NeedEmbedFiles |
 			packages.LoadMode(packagesinternal.DepsErrors) |
 			packages.LoadMode(packagesinternal.ForTest),
 		Fset:    nil, // we do our own parsing
