@@ -122,48 +122,54 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	if mode == 'r' || mode == 'r'+'w' {
 		fd.rmu.Lock()
 		defer fd.rmu.Unlock()
+		if fd.rtimer != nil {
+			fd.rtimer.Stop()
+			fd.rtimer = nil
+		}
 		fd.rtimedout.Store(false)
 	}
 	if mode == 'w' || mode == 'r'+'w' {
 		fd.wmu.Lock()
 		defer fd.wmu.Unlock()
-		fd.wtimedout.Store(false)
-	}
-	if t.IsZero() || d < 0 {
-		// Stop timer
-		if mode == 'r' || mode == 'r'+'w' {
-			if fd.rtimer != nil {
-				fd.rtimer.Stop()
-			}
-			fd.rtimer = nil
-		}
-		if mode == 'w' || mode == 'r'+'w' {
-			if fd.wtimer != nil {
-				fd.wtimer.Stop()
-			}
+		if fd.wtimer != nil {
+			fd.wtimer.Stop()
 			fd.wtimer = nil
 		}
-	} else {
+		fd.wtimedout.Store(false)
+	}
+	if !t.IsZero() && d > 0 {
 		// Interrupt I/O operation once timer has expired
 		if mode == 'r' || mode == 'r'+'w' {
-			fd.rtimer = time.AfterFunc(d, func() {
+			var timer *time.Timer
+			timer = time.AfterFunc(d, func() {
 				fd.rmu.Lock()
+				defer fd.rmu.Unlock()
+				if fd.rtimer != timer {
+					// deadline was changed
+					return
+				}
 				fd.rtimedout.Store(true)
 				if fd.raio != nil {
 					fd.raio.Cancel()
 				}
-				fd.rmu.Unlock()
 			})
+			fd.rtimer = timer
 		}
 		if mode == 'w' || mode == 'r'+'w' {
-			fd.wtimer = time.AfterFunc(d, func() {
+			var timer *time.Timer
+			timer = time.AfterFunc(d, func() {
 				fd.wmu.Lock()
+				defer fd.wmu.Unlock()
+				if fd.wtimer != timer {
+					// deadline was changed
+					return
+				}
 				fd.wtimedout.Store(true)
 				if fd.waio != nil {
 					fd.waio.Cancel()
 				}
-				fd.wmu.Unlock()
 			})
+			fd.wtimer = timer
 		}
 	}
 	if !t.IsZero() && d < 0 {
