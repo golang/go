@@ -182,7 +182,7 @@ func _() {
 	type myString string
 	var s1 string
 	g3(nil, "1", myString("2"), "3")
-	g3(&s1, "1", myString /* ERROR `type myString of myString("2") does not match inferred type string for T` */ ("2"), "3")
+	g3(& /* ERROR "cannot use &s1 (value of type *string) as *myString value in argument to g3" */ s1, "1", myString("2"), "3")
 	_ = s1
 
 	type myStruct struct{x int}

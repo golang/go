@@ -9,5 +9,5 @@ func app[S interface{ ~[]T }, T any](s S, e T) S {
 }
 
 func _() {
-	_ = app /* ERROR "cannot infer T" */ [int]
+	_ = app /* ERROR "S does not match []T" */ [int] // TODO(gri) better error message
 }

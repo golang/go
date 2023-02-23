@@ -15,7 +15,7 @@ import (
 
 // If compareWithInfer1, infer2 results must match infer1 results.
 // Disable before releasing Go 1.21.
-const compareWithInfer1 = true
+const compareWithInfer1 = false
 
 // infer attempts to infer the complete set of type arguments for generic function instantiation/call
 // based on the given type parameters tparams, type arguments targs, function parameters params, and
@@ -77,6 +77,10 @@ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type
 
 	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
 	tparams, params = check.renameTParams(posn.Pos(), tparams, params)
+
+	if traceInference {
+		check.dump("after rename: %s%s ➞ %s\n", tparams, params, targs)
+	}
 
 	// Make sure we have a "full" list of type arguments, some of which may
 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
@@ -224,39 +228,21 @@ func (check *Checker) infer2(posn positioner, tparams []*TypeParam, targs []Type
 					// In this case, if the core type has a tilde, the type argument's underlying
 					// type must match the core type, otherwise the type argument and the core type
 					// must match.
-					// If tx is an external type parameter, don't consider its underlying type
-					// (which is an interface). Core type unification will attempt to unify against
-					// core.typ.
-					// Note also that even with inexact unification we cannot leave away the under
-					// call here because it's possible that both tx and core.typ are named types,
-					// with under(tx) being a (named) basic type matching core.typ. Such cases do
-					// not match with inexact unification.
+					// If tx is an (external) type parameter, don't consider its underlying type
+					// (which is an interface). The unifier will use the type parameter's core
+					// type automatically.
 					if core.tilde && !isTypeParam(tx) {
 						tx = under(tx)
 					}
-					// Unification may fail because it operates with limited information (core type),
-					// even if a given type argument satisfies the corresponding type constraint.
-					// For instance, given [P T1|T2, ...] where the type argument for P is (named
-					// type) T1, and T1 and T2 have the same built-in (named) type T0 as underlying
-					// type, the core type will be the named type T0, which doesn't match T1.
-					// Yet the instantiation of P with T1 is clearly valid (see go.dev/issue/53650).
-					// Reporting an error if unification fails would be incorrect in this case.
-					// On the other hand, it is safe to ignore failing unification during constraint
-					// type inference because if the failure is true, an error will be reported when
-					// checking instantiation.
-					// TODO(gri) we should be able to report an error here and fix the issue in
-					// unification
-					u.unify(tx, core.typ)
-
+					if !u.unify(tx, core.typ) {
+						check.errorf(posn, CannotInferTypeArgs, "%s does not match %s", tpar, core.typ)
+						return nil
+					}
 				case single && !core.tilde:
 					// The corresponding type argument tx is unknown and there's a single
 					// specific type and no tilde.
 					// In this case the type argument must be that single type; set it.
 					u.set(tpar, core.typ)
-
-				default:
-					// Unification is not possible and no progress was made.
-					continue
 				}
 			} else {
 				if traceInference {

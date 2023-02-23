@@ -11,5 +11,5 @@ func _() {
         _ = f[[ /* ERROR "[]int does not satisfy int" */ ]int]
 
         f(0)
-        f/* ERROR "[]int does not satisfy int" */ ([]int{})
+        f /* ERROR "P does not match int" */ ([]int{}) // TODO(gri) better error message
 }
