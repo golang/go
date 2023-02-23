@@ -577,13 +577,11 @@ func (d *decodeState) array(v reflect.Value) error {
 
 	if i < v.Len() {
 		if v.Kind() == reflect.Array {
-			// Array. Zero the rest.
-			z := reflect.Zero(v.Type().Elem())
 			for ; i < v.Len(); i++ {
-				v.Index(i).Set(z)
+				v.Index(i).SetZero() // zero remainder of array
 			}
 		} else {
-			v.SetLen(i)
+			v.SetLen(i) // truncate the slice
 		}
 	}
 	if i == 0 && v.Kind() == reflect.Slice {
@@ -688,7 +686,7 @@ func (d *decodeState) object(v reflect.Value) error {
 			if !mapElem.IsValid() {
 				mapElem = reflect.New(elemType).Elem()
 			} else {
-				mapElem.Set(reflect.Zero(elemType))
+				mapElem.SetZero()
 			}
 			subv = mapElem
 		} else {
@@ -902,7 +900,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		}
 		switch v.Kind() {
 		case reflect.Interface, reflect.Pointer, reflect.Map, reflect.Slice:
-			v.Set(reflect.Zero(v.Type()))
+			v.SetZero()
 			// otherwise, ignore null for primitives/string
 		}
 	case 't', 'f': // true, false
