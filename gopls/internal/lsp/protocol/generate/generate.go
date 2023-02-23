@@ -34,11 +34,25 @@ func generateDoc(out *bytes.Buffer, doc string) {
 		fmt.Fprintf(out, "// %s\n", doc)
 		return
 	}
-	out.WriteString("/*\n")
+	var list bool
 	for _, line := range strings.Split(doc, "\n") {
-		fmt.Fprintf(out, " * %s\n", line)
+		// Lists in metaModel.json start with a dash.
+		// To make a go doc list they have to be preceded
+		// by a blank line, and indented.
+		// (see type TextDccumentFilter in protocol.go)
+		if len(line) > 0 && line[0] == '-' {
+			if !list {
+				list = true
+				fmt.Fprintf(out, "//\n")
+			}
+			fmt.Fprintf(out, "//  %s\n", line)
+		} else {
+			if len(line) == 0 {
+				list = false
+			}
+			fmt.Fprintf(out, "// %s\n", line)
+		}
 	}
-	out.WriteString(" */\n")
 }
 
 // decide if a property is optional, and if it needs a *
