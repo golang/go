@@ -883,10 +883,11 @@ type Values map[string][]string
 // the empty string. To access multiple values, use the map
 // directly.
 func (v Values) Get(key string) string {
-	if vs := v[key]; len(vs) != 0 {
-		return vs[0]
+	vs := v[key]
+	if len(vs) == 0 {
+		return ""
 	}
-	return ""
+	return vs[0]
 }
 
 // Set sets the key to value. It replaces any existing
