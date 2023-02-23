@@ -57,7 +57,6 @@ import (
 	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/typeparams"
-	"golang.org/x/tools/internal/typesinternal"
 )
 
 // An Index records the non-empty method sets of all package-level
@@ -232,7 +231,7 @@ func (b *indexBuilder) build(fset *token.FileSet, pkg *types.Package) *Index {
 		return gobPosition{b.string(posn.Filename), posn.Offset, len(obj.Name())}
 	}
 
-	objectpathFor := typesinternal.NewObjectpathFunc()
+	objectpathFor := new(objectpath.Encoder).For
 
 	// setindexInfo sets the (Posn, PkgPath, ObjectPath) fields for each method declaration.
 	setIndexInfo := func(m *gobMethod, method *types.Func) {
