@@ -13,7 +13,10 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 )
 
-// ClientHooks are called to handle the corresponding client LSP method.
+// ClientHooks are a set of optional hooks called during handling of
+// the corresponding client method (see protocol.Client for the the
+// LSP server-to-client RPCs) in order to make test expectations
+// awaitable.
 type ClientHooks struct {
 	OnLogMessage             func(context.Context, *protocol.LogMessageParams) error
 	OnDiagnostics            func(context.Context, *protocol.PublishDiagnosticsParams) error
@@ -21,15 +24,17 @@ type ClientHooks struct {
 	OnProgress               func(context.Context, *protocol.ProgressParams) error
 	OnShowMessage            func(context.Context, *protocol.ShowMessageParams) error
 	OnShowMessageRequest     func(context.Context, *protocol.ShowMessageRequestParams) error
-	OnRegistration           func(context.Context, *protocol.RegistrationParams) error
-	OnUnregistration         func(context.Context, *protocol.UnregistrationParams) error
+	OnRegisterCapability     func(context.Context, *protocol.RegistrationParams) error
+	OnUnregisterCapability   func(context.Context, *protocol.UnregistrationParams) error
+	OnApplyEdit              func(context.Context, *protocol.ApplyWorkspaceEditParams) error
 }
 
-// Client is an adapter that converts an *Editor into an LSP Client. It mosly
+// Client is an adapter that converts an *Editor into an LSP Client. It mostly
 // delegates functionality to hooks that can be configured by tests.
 type Client struct {
-	editor *Editor
-	hooks  ClientHooks
+	editor         *Editor
+	hooks          ClientHooks
+	skipApplyEdits bool // don't apply edits from ApplyEdit downcalls to Editor
 }
 
 func (c *Client) CodeLensRefresh(context.Context) error { return nil }
@@ -98,8 +103,8 @@ func (c *Client) Configuration(_ context.Context, p *protocol.ParamConfiguration
 }
 
 func (c *Client) RegisterCapability(ctx context.Context, params *protocol.RegistrationParams) error {
-	if c.hooks.OnRegistration != nil {
-		if err := c.hooks.OnRegistration(ctx, params); err != nil {
+	if c.hooks.OnRegisterCapability != nil {
+		if err := c.hooks.OnRegisterCapability(ctx, params); err != nil {
 			return err
 		}
 	}
@@ -138,8 +143,8 @@ func (c *Client) RegisterCapability(ctx context.Context, params *protocol.Regist
 }
 
 func (c *Client) UnregisterCapability(ctx context.Context, params *protocol.UnregistrationParams) error {
-	if c.hooks.OnUnregistration != nil {
-		return c.hooks.OnUnregistration(ctx, params)
+	if c.hooks.OnUnregisterCapability != nil {
+		return c.hooks.OnUnregisterCapability(ctx, params)
 	}
 	return nil
 }
@@ -162,14 +167,20 @@ func (c *Client) ShowDocument(context.Context, *protocol.ShowDocumentParams) (*p
 	return nil, nil
 }
 
-// ApplyEdit applies edits sent from the server.
 func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResult, error) {
 	if len(params.Edit.Changes) != 0 {
 		return &protocol.ApplyWorkspaceEditResult{FailureReason: "Edit.Changes is unsupported"}, nil
 	}
-	for _, change := range params.Edit.DocumentChanges {
-		if err := c.editor.applyDocumentChange(ctx, change); err != nil {
+	if c.hooks.OnApplyEdit != nil {
+		if err := c.hooks.OnApplyEdit(ctx, params); err != nil {
 			return nil, err
+		}
+	}
+	if !c.skipApplyEdits {
+		for _, change := range params.Edit.DocumentChanges {
+			if err := c.editor.applyDocumentChange(ctx, change); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return &protocol.ApplyWorkspaceEditResult{Applied: true}, nil

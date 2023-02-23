@@ -73,12 +73,16 @@ func setupEnv(t *testing.T, files string, c *cache.Cache) *Env {
 	}
 
 	a := NewAwaiter(s.Workdir)
-	e, err := fake.NewEditor(s, fake.EditorConfig{}).Connect(ctx, ts, a.Hooks())
+	const skipApplyEdits = false
+	editor, err := fake.NewEditor(s, fake.EditorConfig{}).Connect(ctx, ts, a.Hooks(), skipApplyEdits)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	return &Env{
 		T:       t,
 		Ctx:     ctx,
-		Editor:  e,
+		Editor:  editor,
 		Sandbox: s,
 		Awaiter: a,
 	}

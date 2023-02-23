@@ -157,6 +157,7 @@ func (c *commandHandler) ApplyFix(ctx context.Context, args command.ApplyFixArgs
 		}
 		var changes []protocol.DocumentChanges
 		for _, edit := range edits {
+			edit := edit
 			changes = append(changes, protocol.DocumentChanges{
 				TextDocumentEdit: &edit,
 			})
@@ -588,6 +589,7 @@ func (s *Server) runGoModUpdateCommands(ctx context.Context, snapshot source.Sna
 	}
 	var documentChanges []protocol.DocumentChanges
 	for _, change := range changes {
+		change := change
 		documentChanges = append(documentChanges, protocol.DocumentChanges{
 			TextDocumentEdit: &change,
 		})

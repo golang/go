@@ -49,7 +49,8 @@ func TestPilosaStress(t *testing.T) {
 	ts := servertest.NewPipeServer(server, jsonrpc2.NewRawStream)
 	ctx := context.Background()
 
-	editor, err := fake.NewEditor(sandbox, fake.EditorConfig{}).Connect(ctx, ts, fake.ClientHooks{})
+	const skipApplyEdits = false
+	editor, err := fake.NewEditor(sandbox, fake.EditorConfig{}).Connect(ctx, ts, fake.ClientHooks{}, skipApplyEdits)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -418,17 +418,7 @@ func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd 
 			if err != nil {
 				return nil, err
 			}
-			changes = append(changes, protocol.DocumentChanges{
-				TextDocumentEdit: &protocol.TextDocumentEdit{
-					TextDocument: protocol.OptionalVersionedTextDocumentIdentifier{
-						Version: fh.Version(),
-						TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-							URI: protocol.URIFromSpanURI(fh.URI()),
-						},
-					},
-					Edits: edits,
-				},
-			})
+			changes = append(changes, documentChanges(fh, edits)...)
 		}
 		action := protocol.CodeAction{
 			Title: fix.Title,

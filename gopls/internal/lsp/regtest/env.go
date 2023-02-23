@@ -62,6 +62,7 @@ func NewAwaiter(workdir *fake.Workdir) *Awaiter {
 	}
 }
 
+// Hooks returns LSP client hooks required for awaiting asynchronous expectations.
 func (a *Awaiter) Hooks() fake.ClientHooks {
 	return fake.ClientHooks{
 		OnDiagnostics:            a.onDiagnostics,
@@ -70,8 +71,9 @@ func (a *Awaiter) Hooks() fake.ClientHooks {
 		OnProgress:               a.onProgress,
 		OnShowMessage:            a.onShowMessage,
 		OnShowMessageRequest:     a.onShowMessageRequest,
-		OnRegistration:           a.onRegistration,
-		OnUnregistration:         a.onUnregistration,
+		OnRegisterCapability:     a.onRegisterCapability,
+		OnUnregisterCapability:   a.onUnregisterCapability,
+		OnApplyEdit:              a.onApplyEdit,
 	}
 }
 
@@ -86,6 +88,7 @@ type State struct {
 	registrations          []*protocol.RegistrationParams
 	registeredCapabilities map[string]protocol.Registration
 	unregistrations        []*protocol.UnregistrationParams
+	documentChanges        []protocol.DocumentChanges // collected from ApplyEdit downcalls
 
 	// outstandingWork is a map of token->work summary. All tokens are assumed to
 	// be string, though the spec allows for numeric tokens as well.  When work
@@ -179,6 +182,15 @@ type condition struct {
 	verdict      chan Verdict
 }
 
+func (a *Awaiter) onApplyEdit(_ context.Context, params *protocol.ApplyWorkspaceEditParams) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.state.documentChanges = append(a.state.documentChanges, params.Edit.DocumentChanges...)
+	a.checkConditionsLocked()
+	return nil
+}
+
 func (a *Awaiter) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsParams) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -255,7 +267,7 @@ func (a *Awaiter) onProgress(_ context.Context, m *protocol.ProgressParams) erro
 	return nil
 }
 
-func (a *Awaiter) onRegistration(_ context.Context, m *protocol.RegistrationParams) error {
+func (a *Awaiter) onRegisterCapability(_ context.Context, m *protocol.RegistrationParams) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -270,7 +282,7 @@ func (a *Awaiter) onRegistration(_ context.Context, m *protocol.RegistrationPara
 	return nil
 }
 
-func (a *Awaiter) onUnregistration(_ context.Context, m *protocol.UnregistrationParams) error {
+func (a *Awaiter) onUnregisterCapability(_ context.Context, m *protocol.UnregistrationParams) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -286,6 +298,17 @@ func (a *Awaiter) checkConditionsLocked() {
 			condition.verdict <- v
 		}
 	}
+}
+
+// takeDocumentChanges returns any accumulated document changes (from
+// server ApplyEdit RPC downcalls) and resets the list.
+func (a *Awaiter) takeDocumentChanges() []protocol.DocumentChanges {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	res := a.state.documentChanges
+	a.state.documentChanges = nil
+	return res
 }
 
 // checkExpectations reports whether s meets all expectations.

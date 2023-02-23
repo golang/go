@@ -114,11 +114,13 @@ func connectEditor(dir string, config fake.EditorConfig, ts servertest.Connector
 	}
 
 	a := NewAwaiter(s.Workdir)
-	e, err := fake.NewEditor(s, config).Connect(context.Background(), ts, a.Hooks())
+	const skipApplyEdits = false
+	editor, err := fake.NewEditor(s, config).Connect(context.Background(), ts, a.Hooks(), skipApplyEdits)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return s, e, a, nil
+
+	return s, editor, a, nil
 }
 
 // newGoplsServer returns a connector that connects to a new gopls process.

@@ -123,14 +123,14 @@ func NewEditor(sandbox *Sandbox, config EditorConfig) *Editor {
 // It returns the editor, so that it may be called as follows:
 //
 //	editor, err := NewEditor(s).Connect(ctx, conn, hooks)
-func (e *Editor) Connect(ctx context.Context, connector servertest.Connector, hooks ClientHooks) (*Editor, error) {
+func (e *Editor) Connect(ctx context.Context, connector servertest.Connector, hooks ClientHooks, skipApplyEdits bool) (*Editor, error) {
 	bgCtx, cancelConn := context.WithCancel(xcontext.Detach(ctx))
 	conn := connector.Connect(bgCtx)
 	e.cancelConn = cancelConn
 
 	e.serverConn = conn
 	e.Server = protocol.ServerDispatcher(conn)
-	e.client = &Client{editor: e, hooks: hooks}
+	e.client = &Client{editor: e, hooks: hooks, skipApplyEdits: skipApplyEdits}
 	conn.Go(bgCtx,
 		protocol.Handlers(
 			protocol.ClientHandler(e.client,

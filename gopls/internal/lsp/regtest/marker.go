@@ -111,21 +111,33 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 // # Marker types
 //
 // The following markers are supported within marker tests:
+//
 //   - diag(location, regexp): specifies an expected diagnostic matching the
 //     given regexp at the given location. The test runner requires
 //     a 1:1 correspondence between observed diagnostics and diag annotations
+//
 //   - def(src, dst location): perform a textDocument/definition request at
 //     the src location, and check the the result points to the dst location.
+//
 //   - hover(src, dst location, g Golden): perform a textDocument/hover at the
 //     src location, and checks that the result is the dst location, with hover
 //     content matching "hover.md" in the golden data g.
+//
 //   - loc(name, location): specifies the name for a location in the source. These
 //     locations may be referenced by other markers.
+//
 //   - rename(location, new, golden): specifies a renaming of the
 //     identifier at the specified location to the new name.
 //     The golden directory contains the transformed files.
+//
 //   - renameerr(location, new, wantError): specifies a renaming that
 //     fails with an error that matches the expectation.
+//
+//   - suggestedfix(location, regexp, kind, golden): like diag, the location and
+//     regexp identify an expected diagnostic. This diagnostic must
+//     to have exactly one associated code action of the specified kind.
+//     This action is executed for its editing effects on the source files.
+//     Like rename, the golden directory contains the expected transformed files.
 //
 // # Argument conversion
 //
@@ -422,12 +434,13 @@ func (mark marker) execute() {
 // Marker funcs should not mutate the test environment (e.g. via opening files
 // or applying edits in the editor).
 var markerFuncs = map[string]markerFunc{
-	"def":       makeMarkerFunc(defMarker),
-	"diag":      makeMarkerFunc(diagMarker),
-	"hover":     makeMarkerFunc(hoverMarker),
-	"loc":       makeMarkerFunc(locMarker),
-	"rename":    makeMarkerFunc(renameMarker),
-	"renameerr": makeMarkerFunc(renameErrMarker),
+	"def":          makeMarkerFunc(defMarker),
+	"diag":         makeMarkerFunc(diagMarker),
+	"hover":        makeMarkerFunc(hoverMarker),
+	"loc":          makeMarkerFunc(locMarker),
+	"rename":       makeMarkerFunc(renameMarker),
+	"renameerr":    makeMarkerFunc(renameErrMarker),
+	"suggestedfix": makeMarkerFunc(suggestedfixMarker),
 }
 
 // markerTest holds all the test data extracted from a test txtar archive.
@@ -683,7 +696,8 @@ func newEnv(t *testing.T, cache *cache.Cache, files map[string][]byte, config fa
 	awaiter := NewAwaiter(sandbox.Workdir)
 	ss := lsprpc.NewStreamServer(cache, false, hooks.Options)
 	server := servertest.NewPipeServer(ss, jsonrpc2.NewRawStream)
-	editor, err := fake.NewEditor(sandbox, config).Connect(ctx, server, awaiter.Hooks())
+	const skipApplyEdits = true // capture edits but don't apply them
+	editor, err := fake.NewEditor(sandbox, config).Connect(ctx, server, awaiter.Hooks(), skipApplyEdits)
 	if err != nil {
 		sandbox.Close() // ignore error
 		t.Fatal(err)
@@ -714,6 +728,7 @@ type markerTestRun struct {
 	env  *Env
 
 	// Collected information.
+	// Each @diag/@suggestedfix marker eliminates an entry from diags.
 	locations map[expect.Identifier]protocol.Location
 	diags     map[protocol.Location][]protocol.Diagnostic
 }
@@ -1074,22 +1089,23 @@ func locMarker(mark marker, name expect.Identifier, loc protocol.Location) {
 	mark.run.locations[name] = loc
 }
 
-// diagMarker implements the @diag hover marker. It eliminates diagnostics from
+// diagMarker implements the @diag marker. It eliminates diagnostics from
 // the observed set in mark.test.
 func diagMarker(mark marker, loc protocol.Location, re *regexp.Regexp) {
-	idx := -1
+	if _, err := removeDiagnostic(mark, loc, re); err != nil {
+		mark.errorf("%v", err)
+	}
+}
+
+func removeDiagnostic(mark marker, loc protocol.Location, re *regexp.Regexp) (protocol.Diagnostic, error) {
 	diags := mark.run.diags[loc]
 	for i, diag := range diags {
 		if re.MatchString(diag.Message) {
-			idx = i
-			break
+			mark.run.diags[loc] = append(diags[:i], diags[i+1:]...)
+			return diag, nil
 		}
 	}
-	if idx >= 0 {
-		mark.run.diags[loc] = append(diags[:idx], diags[idx+1:]...)
-	} else {
-		mark.errorf("no diagnostic matches %q", re)
-	}
+	return protocol.Diagnostic{}, fmt.Errorf("no diagnostic matches %q", re)
 }
 
 // renameMarker implements the @rename(location, new, golden) marker.
@@ -1126,10 +1142,15 @@ func rename(env *Env, loc protocol.Location, newName string) (map[string][]byte,
 		return nil, err
 	}
 
-	// Apply the edits to the Editor buffers
-	// and return the contents of the changed files.
+	return applyDocumentChanges(env, editMap.DocumentChanges)
+}
+
+// applyDocumentChanges returns the effect of applying the document
+// changes to the contents of the Editor buffers. The actual editor
+// buffers are unchanged.
+func applyDocumentChanges(env *Env, changes []protocol.DocumentChanges) (map[string][]byte, error) {
 	result := make(map[string][]byte)
-	for _, change := range editMap.DocumentChanges {
+	for _, change := range changes {
 		if change.RenameFile != nil {
 			// rename
 			oldFile := env.Sandbox.Workdir.URIToPath(change.RenameFile.OldURI)
@@ -1157,3 +1178,96 @@ func rename(env *Env, loc protocol.Location, newName string) (map[string][]byte,
 
 	return result, nil
 }
+
+// suggestedfixMarker implements the @suggestedfix(location, regexp,
+// kind, golden) marker. It acts like @diag(location, regexp), to set
+// the expectation of a diagnostic, but then it applies the first code
+// action of the specified kind suggested by the matched diagnostic.
+func suggestedfixMarker(mark marker, loc protocol.Location, re *regexp.Regexp, actionKind string, golden *Golden) {
+	// Find and remove the matching diagnostic.
+	diag, err := removeDiagnostic(mark, loc, re)
+	if err != nil {
+		mark.errorf("%v", err)
+		return
+	}
+
+	// Apply the fix it suggests.
+	changed, err := suggestedfix(mark.run.env, loc, diag, actionKind)
+	if err != nil {
+		mark.errorf("suggestedfix failed: %v. (Use @suggestedfixerr for expected errors.)", err)
+		return
+	}
+
+	// Check the file state.
+	checkChangedFiles(mark, changed, golden)
+}
+
+func suggestedfix(env *Env, loc protocol.Location, diag protocol.Diagnostic, actionKind string) (map[string][]byte, error) {
+
+	// Request all code actions that apply to the diagnostic.
+	// (The protocol supports filtering using Context.Only={actionKind}
+	// but we can give a better error if we don't filter.)
+	actions, err := env.Editor.Server.CodeAction(env.Ctx, &protocol.CodeActionParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
+		Range:        diag.Range,
+		Context: protocol.CodeActionContext{
+			Only:        nil, // => all kinds
+			Diagnostics: []protocol.Diagnostic{diag},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the sole candidates CodeAction of the specified kind (e.g. refactor.rewrite).
+	var candidates []protocol.CodeAction
+	for _, act := range actions {
+		if act.Kind == protocol.CodeActionKind(actionKind) {
+			candidates = append(candidates, act)
+		}
+	}
+	if len(candidates) != 1 {
+		for _, act := range actions {
+			env.T.Logf("found CodeAction Kind=%s Title=%q", act.Kind, act.Title)
+		}
+		return nil, fmt.Errorf("found %d CodeActions of kind %s for this diagnostic, want 1", len(candidates), actionKind)
+	}
+	action := candidates[0]
+
+	// An action may specify an edit and/or a command, to be
+	// applied in that order. But since applyDocumentChanges(env,
+	// action.Edit.DocumentChanges) doesn't compose, for now we
+	// assert that all commands used in the @suggestedfix tests
+	// return only a command.
+	if action.Edit.DocumentChanges != nil {
+		env.T.Errorf("internal error: discarding unexpected CodeAction{Kind=%s, Title=%q}.Edit.DocumentChanges", action.Kind, action.Title)
+	}
+	if action.Command == nil {
+		return nil, fmt.Errorf("missing CodeAction{Kind=%s, Title=%q}.Command", action.Kind, action.Title)
+	}
+
+	// This is a typical CodeAction command:
+	//
+	//   Title:     "Implement error"
+	//   Command:   gopls.apply_fix
+	//   Arguments: [{"Fix":"stub_methods","URI":".../a.go","Range":...}}]
+	//
+	// The client makes an ExecuteCommand RPC to the server,
+	// which dispatches it to the ApplyFix handler.
+	// ApplyFix dispatches to the "stub_methods" suggestedfix hook (the meat).
+	// The server then makes an ApplyEdit RPC to the client,
+	// whose Awaiter hook gathers the edits instead of applying them.
+
+	_ = env.Awaiter.takeDocumentChanges() // reset (assuming Env is confined to this thread)
+
+	if _, err := env.Editor.Server.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
+		Command:   action.Command.Command,
+		Arguments: action.Command.Arguments,
+	}); err != nil {
+		env.T.Fatalf("error converting command %q to edits: %v", action.Command.Command, err)
+	}
+
+	return applyDocumentChanges(env, env.Awaiter.takeDocumentChanges())
+}
+
+// TODO(adonovan): suggestedfixerr
