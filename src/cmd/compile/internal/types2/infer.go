@@ -219,32 +219,31 @@ func (check *Checker) infer1(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 func (check *Checker) renameTParams(pos syntax.Pos, tparams []*TypeParam, params *Tuple) ([]*TypeParam, *Tuple) {
 	// For the purpose of type inference we must differentiate type parameters
 	// occurring in explicit type or value function arguments from the type
-	// parameters we are solving for via unification, because they may be the
-	// same in self-recursive calls. For example:
+	// parameters we are solving for via unification because they may be the
+	// same in self-recursive calls:
 	//
-	//  func f[P *Q, Q any](p P, q Q) {
-	//    f(p)
-	//  }
+	//   func f[P constraint](x P) {
+	//           f(x)
+	//   }
 	//
-	// In this example, the fact that the P used in the instantation f[P] has
-	// the same pointer identity as the P we are trying to solve for via
-	// unification is coincidental: there is nothing special about recursive
-	// calls that should cause them to conflate the identity of type arguments
-	// with type parameters. To put it another way: any such self-recursive
-	// call is equivalent to a mutually recursive call, which does not run into
-	// any problems of type parameter identity. For example, the following code
-	// is equivalent to the code above.
+	// In this example, without type parameter renaming, the P used in the
+	// instantation f[P] has the same pointer identity as the P we are trying
+	// to solve for through type inference. This causes problems for type
+	// unification. Because any such self-recursive call is equivalent to
+	// a mutually recursive call, type parameter renaming can be used to
+	// create separate, disentangled type parameters. The above example
+	// can be rewritten into the following equivalent code:
 	//
-	//  func f[P interface{*Q}, Q any](p P, q Q) {
-	//    f2(p)
-	//  }
+	//   func f[P constraint](x P) {
+	//           f2(x)
+	//   }
 	//
-	//  func f2[P interface{*Q}, Q any](p P, q Q) {
-	//    f(p)
-	//  }
+	//   func f2[P2 constraint](x P2) {
+	//           f(x)
+	//   }
 	//
-	// We turn the first example into the second example by renaming type
-	// parameters in the original signature to give them a new identity.
+	// Type parameter renaming turns the first example into the second
+	// example by renaming the type parameter P into P2.
 	tparams2 := make([]*TypeParam, len(tparams))
 	for i, tparam := range tparams {
 		tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
