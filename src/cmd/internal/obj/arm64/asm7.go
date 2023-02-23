@@ -1267,7 +1267,7 @@ func (c *ctxt7) flushpool(p *obj.Prog) {
 		q := c.newprog()
 		if p.Link == nil {
 			// If p is the last instruction of the function, insert an UNDEF instruction in case the
-			// exection fall through to the pool.
+			// execution fall through to the pool.
 			q.As = obj.AUNDEF
 		} else {
 			// Else insert a branch to the next instruction of p.
