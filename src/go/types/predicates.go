@@ -66,6 +66,17 @@ func hasName(t Type) bool {
 	return false
 }
 
+// isTypeLit reports whether t is a type literal.
+// This includes all non-defined types, but also basic types.
+// isTypeLit may be called with types that are not fully set up.
+func isTypeLit(t Type) bool {
+	switch t.(type) {
+	case *Named, *TypeParam:
+		return false
+	}
+	return true
+}
+
 // isTyped reports whether t is typed; i.e., not an untyped
 // constant or boolean. isTyped may be called with types that
 // are not fully set up.
