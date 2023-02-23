@@ -54,6 +54,7 @@ import (
 	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 // An Index records the non-empty method sets of all package-level
@@ -202,6 +203,8 @@ func (b *indexBuilder) build(fset *token.FileSet, pkg *types.Package) *Index {
 		return gobPosition{b.string(posn.Filename), posn.Offset, len(obj.Name())}
 	}
 
+	objectpathFor := typesinternal.NewObjectpathFunc()
+
 	// setindexInfo sets the (Posn, PkgPath, ObjectPath) fields for each method declaration.
 	setIndexInfo := func(m *gobMethod, method *types.Func) {
 		// error.Error has empty Position, PkgPath, and ObjectPath.
@@ -214,7 +217,7 @@ func (b *indexBuilder) build(fset *token.FileSet, pkg *types.Package) *Index {
 
 		// Instantiations of generic methods don't have an
 		// object path, so we use the generic.
-		if p, err := objectpath.For(typeparams.OriginMethod(method)); err != nil {
+		if p, err := objectpathFor(typeparams.OriginMethod(method)); err != nil {
 			panic(err) // can't happen for a method of a package-level type
 		} else {
 			m.ObjectPath = b.string(string(p))

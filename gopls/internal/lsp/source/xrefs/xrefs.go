@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 // Index constructs a serializable index of outbound cross-references
@@ -40,6 +41,8 @@ func Index(files []*source.ParsedGoFile, pkg *types.Package, info *types.Info) [
 		}
 		return objects
 	}
+
+	objectpathFor := typesinternal.NewObjectpathFunc()
 
 	for fileIndex, pgf := range files {
 
@@ -65,7 +68,7 @@ func Index(files []*source.ParsedGoFile, pkg *types.Package, info *types.Info) [
 						objects := getObjects(obj.Pkg())
 						gobObj, ok := objects[obj]
 						if !ok {
-							path, err := objectpath.For(obj)
+							path, err := objectpathFor(obj)
 							if err != nil {
 								// Capitalized but not exported
 								// (e.g. local const/var/type).
