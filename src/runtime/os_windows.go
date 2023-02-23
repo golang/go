@@ -28,6 +28,7 @@ const (
 //go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetConsoleMode GetConsoleMode%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetCurrentThreadId GetCurrentThreadId%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
@@ -78,6 +79,7 @@ var (
 	_ExitProcess,
 	_FreeEnvironmentStringsW,
 	_GetConsoleMode,
+	_GetCurrentThreadId,
 	_GetEnvironmentStringsW,
 	_GetProcAddress,
 	_GetProcessAffinityMask,
@@ -957,6 +959,7 @@ func minit() {
 	mp := getg().m
 	lock(&mp.threadLock)
 	mp.thread = thandle
+	mp.procid = uint64(stdcall0(_GetCurrentThreadId))
 
 	// Configure usleep timer, if possible.
 	if mp.highResTimer == 0 && haveHighResTimer {
