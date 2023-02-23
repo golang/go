@@ -540,17 +540,10 @@ func (d *decodeState) array(v reflect.Value) error {
 			break
 		}
 
-		// Get element of array, growing if necessary.
+		// Expand slice length, growing the slice if necessary.
 		if v.Kind() == reflect.Slice {
-			// Grow slice if necessary
 			if i >= v.Cap() {
-				newcap := v.Cap() + v.Cap()/2
-				if newcap < 4 {
-					newcap = 4
-				}
-				newv := reflect.MakeSlice(v.Type(), v.Len(), newcap)
-				reflect.Copy(newv, v)
-				v.Set(newv)
+				v.Grow(1)
 			}
 			if i >= v.Len() {
 				v.SetLen(i + 1)
