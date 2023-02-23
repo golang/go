@@ -908,7 +908,7 @@ func prove(f *Func) {
 				}
 				// One might be tempted to create a v >= ft.zero relation for
 				// all OpPhi's composed of only provably-positive values
-				// but that bloats up the facts table for a very neglible gain.
+				// but that bloats up the facts table for a very negligible gain.
 				// In Go itself, very few functions get improved (< 5) at a cost of 5-7% total increase
 				// of compile time.
 			}

@@ -4969,7 +4969,7 @@ func testTLSHandshakeTrace(t *testing.T, mode testMode) {
 		t.Fatal("Expected TLSHandshakeStart to be called, but wasn't")
 	}
 	if !done {
-		t.Fatal("Expected TLSHandshakeDone to be called, but wasnt't")
+		t.Fatal("Expected TLSHandshakeDone to be called, but wasn't")
 	}
 }
 
