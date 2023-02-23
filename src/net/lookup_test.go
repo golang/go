@@ -74,7 +74,7 @@ func TestLookupGoogleSRV(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -123,7 +123,7 @@ func TestLookupGmailMX(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -169,7 +169,7 @@ func TestLookupGmailNS(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -218,7 +218,7 @@ func TestLookupGmailTXT(t *testing.T) {
 	t.Parallel()
 	mustHaveExternalNetwork(t)
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 
@@ -643,7 +643,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
 		t.Skip("IPv4 is required")
 	}
 
-	if iOS() {
+	if runtime.GOOS == "ios" {
 		t.Skip("no resolv.conf on iOS")
 	}
 

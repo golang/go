@@ -48,14 +48,10 @@ func testableNetwork(network string) bool {
 		}
 	case "unix", "unixgram":
 		switch runtime.GOOS {
-		case "android", "plan9", "windows":
+		case "android", "ios", "plan9", "windows":
 			return false
 		case "aix":
 			return unixEnabledOnAIX
-		}
-		// iOS does not support unix, unixgram.
-		if iOS() {
-			return false
 		}
 	case "unixpacket":
 		switch runtime.GOOS {
@@ -79,10 +75,6 @@ func testableNetwork(network string) bool {
 		}
 	}
 	return true
-}
-
-func iOS() bool {
-	return runtime.GOOS == "ios"
 }
 
 // testableAddress reports whether address of network is testable on
