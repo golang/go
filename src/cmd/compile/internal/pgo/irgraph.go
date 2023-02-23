@@ -380,7 +380,7 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
 
 	// Determine nodes of DOT.
 	nodes := make(map[string]*ir.Func)
-	for name, _ := range funcs {
+	for name := range funcs {
 		if n, ok := p.WeightedCG.IRNodes[name]; ok {
 			for _, e := range p.WeightedCG.OutEdges[n] {
 				if _, ok := nodes[ir.PkgFuncName(e.Src.AST)]; !ok {
