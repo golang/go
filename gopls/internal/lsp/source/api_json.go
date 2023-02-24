@@ -363,7 +363,7 @@ var GeneratedAPIJSON = &APIJSON{
 						},
 						{
 							Name:    "\"tests\"",
-							Doc:     "check for common mistaken usages of tests and examples\n\nThe tests checker walks Test, Benchmark and Example functions checking\nmalformed names, wrong signatures and examples documenting non-existent\nidentifiers.\n\nPlease see the documentation for package testing in golang.org/pkg/testing\nfor the conventions that are enforced for Tests, Benchmarks, and Examples.",
+							Doc:     "check for common mistaken usages of tests and examples\n\nThe tests checker walks Test, Benchmark, Fuzzing and Example functions checking\nmalformed names, wrong signatures and examples documenting non-existent\nidentifiers.\n\nPlease see the documentation for package testing in golang.org/pkg/testing\nfor the conventions that are enforced for Tests, Benchmarks, and Examples.",
 							Default: "true",
 						},
 						{
@@ -1037,7 +1037,7 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 		{
 			Name:    "tests",
-			Doc:     "check for common mistaken usages of tests and examples\n\nThe tests checker walks Test, Benchmark and Example functions checking\nmalformed names, wrong signatures and examples documenting non-existent\nidentifiers.\n\nPlease see the documentation for package testing in golang.org/pkg/testing\nfor the conventions that are enforced for Tests, Benchmarks, and Examples.",
+			Doc:     "check for common mistaken usages of tests and examples\n\nThe tests checker walks Test, Benchmark, Fuzzing and Example functions checking\nmalformed names, wrong signatures and examples documenting non-existent\nidentifiers.\n\nPlease see the documentation for package testing in golang.org/pkg/testing\nfor the conventions that are enforced for Tests, Benchmarks, and Examples.",
 			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/tests",
 			Default: true,
 		},

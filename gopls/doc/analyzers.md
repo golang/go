@@ -554,7 +554,7 @@ started by the test. For example:
 
 check for common mistaken usages of tests and examples
 
-The tests checker walks Test, Benchmark and Example functions checking
+The tests checker walks Test, Benchmark, Fuzzing and Example functions checking
 malformed names, wrong signatures and examples documenting non-existent
 identifiers.
 

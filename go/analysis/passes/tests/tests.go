@@ -17,7 +17,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
-	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -68,9 +67,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				checkTest(pass, fn, "Test")
 			case strings.HasPrefix(fn.Name.Name, "Benchmark"):
 				checkTest(pass, fn, "Benchmark")
-			}
-			// run fuzz tests diagnostics only for 1.18 i.e. when analysisinternal.DiagnoseFuzzTests is turned on.
-			if strings.HasPrefix(fn.Name.Name, "Fuzz") && analysisinternal.DiagnoseFuzzTests {
+			case strings.HasPrefix(fn.Name.Name, "Fuzz"):
 				checkTest(pass, fn, "Fuzz")
 				checkFuzz(pass, fn)
 			}

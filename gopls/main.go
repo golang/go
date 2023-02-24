@@ -19,15 +19,10 @@ import (
 
 	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/gopls/internal/lsp/cmd"
-	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/tool"
 )
 
 func main() {
-	// In 1.18, diagnostics for Fuzz tests must not be used by cmd/vet.
-	// So the code for Fuzz tests diagnostics is guarded behind flag analysisinternal.DiagnoseFuzzTests
-	// Turn on analysisinternal.DiagnoseFuzzTests for gopls
-	analysisinternal.DiagnoseFuzzTests = true
 	ctx := context.Background()
 	tool.Main(ctx, cmd.New("gopls", "", nil, hooks.Options), os.Args[1:])
 }

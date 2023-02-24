@@ -15,10 +15,6 @@ import (
 	"strconv"
 )
 
-// DiagnoseFuzzTests controls whether the 'tests' analyzer diagnoses fuzz tests
-// in Go 1.18+.
-var DiagnoseFuzzTests bool = false
-
 func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos {
 	// Get the end position for the type error.
 	offset, end := fset.PositionFor(start, false).Offset, start
