@@ -203,7 +203,7 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
 	// If we're at the end of the known zone transitions,
 	// try the extend string.
 	if lo == len(tx)-1 && l.extend != "" {
-		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, end, sec); ok {
+		if ename, eoffset, estart, eend, eisDST, ok := tzset(l.extend, start, sec); ok {
 			return ename, eoffset, estart, eend, eisDST
 		}
 	}
