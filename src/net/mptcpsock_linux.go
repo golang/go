@@ -51,3 +51,12 @@ func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCP
 
 	return sd.doDialTCPProto(ctx, laddr, raddr, _IPPROTO_MPTCP)
 }
+
+func (sl *sysListener) listenMPTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
+	// Fallback to listenTCP if Multipath TCP isn't supported on this operating system.
+	if !supportsMultipathTCP() {
+		return sl.listenTCP(ctx, laddr)
+	}
+
+	return sl.listenTCPProto(ctx, laddr, _IPPROTO_MPTCP)
+}
