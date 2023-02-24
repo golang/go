@@ -242,43 +242,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20-4
 	RET
 
 // Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g is valid.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36-4
-	MOVL	dt+0(FP), BX
-	MOVL	$-1, hi-4(SP)
-	MOVL	BX, lo-8(SP)
-
-	get_tls(CX)
-	MOVL	g(CX), CX
-	MOVL	g_m(CX), CX
-	MOVL	(m_mOS+mOS_highResTimer)(CX), CX
-	MOVL	CX, saved_timer-12(SP)
-
-	MOVL	$0, fResume-16(SP)
-	MOVL	$0, lpArgToCompletionRoutine-20(SP)
-	MOVL	$0, pfnCompletionRoutine-24(SP)
-	MOVL	$0, lPeriod-28(SP)
-	LEAL	lo-8(SP), BX
-	MOVL	BX, lpDueTime-32(SP)
-	MOVL	CX, hTimer-36(SP)
-	MOVL	SP, BP
-	MOVL	runtime·_SetWaitableTimer(SB), AX
-	CALL	AX
-	MOVL	BP, SP
-
-	MOVL	$0, ptime-28(SP)
-	MOVL	$0, alertable-32(SP)
-	MOVL	saved_timer-12(SP), CX
-	MOVL	CX, handle-36(SP)
-	MOVL	SP, BP
-	MOVL	runtime·_NtWaitForSingleObject(SB), AX
-	CALL	AX
-	MOVL	BP, SP
-
-	RET
-
-// Runs on OS stack.
 TEXT runtime·switchtothread(SB),NOSPLIT,$0
 	MOVL	SP, BP
 	MOVL	runtime·_SwitchToThread(SB), AX

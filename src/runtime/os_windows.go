@@ -440,13 +440,7 @@ func createHighResTimer() uintptr {
 		_SYNCHRONIZE|_TIMER_QUERY_STATE|_TIMER_MODIFY_STATE)
 }
 
-const highResTimerSupported = GOARCH == "386" || GOARCH == "amd64"
-
 func initHighResTimer() {
-	if !highResTimerSupported {
-		// TODO: Not yet implemented.
-		return
-	}
 	h := createHighResTimer()
 	if h != 0 {
 		haveHighResTimer = true
@@ -1130,7 +1124,6 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
 
 // These must run on the system stack only.
 func usleep2(dt int32)
-func usleep2HighRes(dt int32)
 func switchtothread()
 
 //go:nosplit
@@ -1152,13 +1145,15 @@ func usleep_no_g(us uint32) {
 //go:nosplit
 func usleep(us uint32) {
 	systemstack(func() {
-		dt := -10 * int32(us) // relative sleep (negative), 100ns units
+		dt := -10 * int64(us) // relative sleep (negative), 100ns units
 		// If the high-res timer is available and its handle has been allocated for this m, use it.
 		// Otherwise fall back to the low-res one, which doesn't need a handle.
 		if haveHighResTimer && getg().m.highResTimer != 0 {
-			usleep2HighRes(dt)
+			h := getg().m.highResTimer
+			stdcall6(_SetWaitableTimer, h, uintptr(unsafe.Pointer(&dt)), 0, 0, 0, 0)
+			stdcall3(_NtWaitForSingleObject, h, 0, 0)
 		} else {
-			usleep2(dt)
+			usleep2(int32(dt))
 		}
 	})
 }

@@ -240,13 +240,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$32-4
 	RET
 
 // Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g is valid.
-// TODO: needs to be implemented properly.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
-	B	runtime·abort(SB)
-
-// Runs on OS stack.
 TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
 	MOVD	runtime·_SwitchToThread(SB), R0
 	SUB	$16, RSP	// skip over saved frame pointer below RSP

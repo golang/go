@@ -212,13 +212,6 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
 
 // Runs on OS stack.
-// duration (in -100ns units) is in dt+0(FP).
-// g is valid.
-// TODO: needs to be implemented properly.
-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
-	B	runtime·abort(SB)
-
-// Runs on OS stack.
 TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
 	MOVM.DB.W [R4, R14], (R13)  	// push {R4, lr}
 	MOVW    R13, R4
