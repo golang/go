@@ -5,6 +5,10 @@
 //go:build go1.19
 // +build go1.19
 
+// The generate command generates Go declarations from VSCode's
+// description of the Language Server Protocol.
+//
+// To run it, type 'go generate' in the parent (protocol) directory.
 package main
 
 import (
@@ -15,15 +19,23 @@ import (
 	"go/format"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
+const vscodeRepo = "https://github.com/microsoft/vscode-languageserver-node"
+
+// lspGitRef names a branch or tag in vscodeRepo.
+// It implicitly determines the protocol version of the LSP used by gopls.
+// For example, tag release/protocol/3.17.3 of the repo defines protocol version 3.17.0.
+// (Point releases are reflected in the git tag version even when they are cosmetic
+// and don't change the protocol.)
+var lspGitRef = "release/protocol/3.17.3-next.6"
+
 var (
-	// git clone https://github.com/microsoft/vscode-languageserver-node.git
-	repodir   = flag.String("d", "", "directory of vscode-languageserver-node")
-	outputdir = flag.String("o", "gen", "output directory")
+	repodir   = flag.String("d", "", "directory containing clone of "+vscodeRepo)
+	outputdir = flag.String("o", ".", "output directory")
 	// PJW: not for real code
 	cmpdir = flag.String("c", "", "directory of earlier code")
 	doboth = flag.String("b", "", "generate and compare")
@@ -37,8 +49,26 @@ func main() {
 }
 
 func processinline() {
+	// A local repository may be specified during debugging.
+	// The default behavior is to download the canonical version.
 	if *repodir == "" {
-		*repodir = filepath.Join(os.Getenv("HOME"), "vscode-languageserver-node")
+		tmpdir, err := os.MkdirTemp("", "")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer os.RemoveAll(tmpdir) // ignore error
+
+		// Clone the repository.
+		cmd := exec.Command("git", "clone", "--quiet", "--depth=1", "-c", "advice.detachedHead=false", vscodeRepo, "--branch="+lspGitRef, "--single-branch", tmpdir)
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			log.Fatal(err)
+		}
+
+		*repodir = tmpdir
+	} else {
+		lspGitRef = fmt.Sprintf("(not git, local dir %s)", *repodir)
 	}
 
 	model := parse(filepath.Join(*repodir, "protocol/metaModel.json"))
@@ -240,7 +270,7 @@ func fileHeader(model Model) string {
 		log.Fatalf("githash cannot be recovered from %s", fname)
 	}
 
-	format := `// Copyright 2022 The Go Authors. All rights reserved.
+	format := `// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -248,13 +278,17 @@ func fileHeader(model Model) string {
 
 package protocol
 
-// Code generated from version %s of protocol/metaModel.json.
-// git hash %s (as of %s)
-
+// Code generated from %[1]s at ref %[2]s (hash %[3]s).
+// %[4]s/blob/%[2]s/%[1]s
+// LSP metaData.version = %[5]s.
 
 `
-	now := time.Now().Format("2006-01-02")
-	return fmt.Sprintf(format, model.Version.Version, githash, now)
+	return fmt.Sprintf(format,
+		"protocol/metaModel.json", // 1
+		lspGitRef,                 // 2
+		githash,                   // 3
+		vscodeRepo,                // 4
+		model.Version.Version)     // 5
 }
 
 func parse(fname string) Model {

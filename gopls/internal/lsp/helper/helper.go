@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Invoke with //go:generate helper/helper -t Server -d protocol/tsserver.go -u lsp -o server_gen.go
-// invoke in internal/lsp
+// The helper command generates the declaration of the concrete
+// 'server' type that implements the abstract Server interface defined
+// in protocol/tsserver.go (which is itself generated from the LSP
+// protocol).
+//
+// To run, invoke "go generate" in the parent (lsp) directory.
+//
+// TODO(adonovan): merge this into the main LSP generator.
 package main
 
 import (
@@ -33,7 +39,7 @@ func main() {
 	flag.Parse()
 	if *typ == "" || *def == "" || *use == "" || *out == "" {
 		flag.PrintDefaults()
-		return
+		os.Exit(1)
 	}
 	// read the type definition and see what methods we're looking for
 	doTypes()

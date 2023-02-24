@@ -25,7 +25,7 @@ import (
 )
 
 // IsGenerated gets and reads the file denoted by uri and reports
-// whether it contains a "go:generated" directive as described at
+// whether it contains a "generated file" comment as described at
 // https://golang.org/s/generatedcode.
 //
 // TODO(adonovan): opt: this function does too much.

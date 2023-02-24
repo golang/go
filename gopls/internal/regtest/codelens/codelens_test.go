@@ -40,7 +40,7 @@ const (
 	Two
 )
 
-//go:generate stringer -type=Number
+//` + `go:generate stringer -type=Number
 `
 	tests := []struct {
 		label        string

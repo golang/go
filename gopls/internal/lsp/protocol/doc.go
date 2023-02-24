@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run ./generate
+
 // Package protocol contains the structs that map directly to the
 // request and response messages of the Language Server Protocol.
 //

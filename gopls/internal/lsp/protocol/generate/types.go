@@ -142,8 +142,7 @@ func addLineNumbers(buf []byte) []byte {
 	// always followed by a newline. There are other {s embedded in strings.
 	// json.Token does not return \n, or :, or , so using it would
 	// require parsing the json to reconstruct the missing information.
-	// TODO(pjw): should linecnt start at 1 (editor) or 0 (compatibility)?
-	for linecnt, i := 0, 0; i < len(buf); i++ {
+	for linecnt, i := 1, 0; i < len(buf); i++ {
 		ans = append(ans, buf[i])
 		switch buf[i] {
 		case '{':

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run -tags=generate generate.go
+
 // Package command defines the interface provided by gopls for the
 // workspace/executeCommand LSP request.
 //
@@ -11,8 +13,6 @@
 // Bindings for server-side command dispatch and client-side serialization are
 // also provided by this package, via code generation.
 package command
-
-//go:generate go run -tags=generate generate.go
 
 import (
 	"context"

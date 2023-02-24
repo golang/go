@@ -237,7 +237,7 @@ func (e *Env) DocumentHighlight(loc protocol.Location) []protocol.DocumentHighli
 	return highlights
 }
 
-// RunGenerate runs go:generate on the given dir, calling t.Fatal on any error.
+// RunGenerate runs "go generate" in the given dir, calling t.Fatal on any error.
 // It waits for the generate command to complete and checks for file changes
 // before returning.
 func (e *Env) RunGenerate(dir string) {

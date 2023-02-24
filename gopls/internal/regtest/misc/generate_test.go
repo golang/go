@@ -38,12 +38,12 @@ func main() {
 -- lib1/lib.go --
 package lib1
 
-//go:generate go run ../generate.go lib1
+//` + `go:generate go run ../generate.go lib1
 
 -- lib2/lib.go --
 package lib2
 
-//go:generate go run ../generate.go lib2
+//` + `go:generate go run ../generate.go lib2
 
 -- main.go --
 package main

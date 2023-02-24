@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate go run ./helper -d protocol/tsserver.go -o server_gen.go -u .
+
 // Package lsp implements LSP for gopls.
 package lsp
 
@@ -154,5 +156,3 @@ func (s *Server) nonstandardRequest(ctx context.Context, method string, params i
 func notImplemented(method string) error {
 	return fmt.Errorf("%w: %q not yet implemented", jsonrpc2.ErrMethodNotFound, method)
 }
-
-//go:generate helper/helper -d protocol/tsserver.go -o server_gen.go -u .

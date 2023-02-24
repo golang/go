@@ -1,4 +1,4 @@
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,8 +6,9 @@
 
 package protocol
 
-// Code generated from version 3.17.0 of protocol/metaModel.json.
-// git hash 9b742021fb04ad081aa3676a9eecf4fa612084b4 (as of 2023-02-23)
+// Code generated from protocol/metaModel.json at ref release/protocol/3.17.3-next.6 (hash 56c23c557e3568a9f56f42435fd5a80f9458957f).
+// https://github.com/microsoft/vscode-languageserver-node/blob/release/protocol/3.17.3-next.6/protocol/metaModel.json
+// LSP metaData.version = 3.17.0.
 
 import (
 	"context"

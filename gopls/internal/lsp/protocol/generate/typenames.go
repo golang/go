@@ -14,7 +14,7 @@ import (
 )
 
 var typeNames = make(map[*Type]string)
-var genTypes = make(map[*Type]*newType)
+var genTypes []*newType
 
 func findTypeNames(model Model) {
 	for _, s := range model.Structures {
@@ -75,13 +75,13 @@ func nameType(t *Type, path []string) string {
 		for _, it := range t.Items {
 			nameType(it, append(path, "Item"))
 		}
-		genTypes[t] = &newType{
+		genTypes = append(genTypes, &newType{
 			name:  nm,
 			typ:   t,
 			kind:  "and",
 			items: t.Items,
 			line:  t.Line,
-		}
+		})
 		return nm
 	case "literal":
 		nm := nameFromPath("Lit", path)
@@ -89,13 +89,13 @@ func nameType(t *Type, path []string) string {
 		for _, p := range t.Value.(ParseLiteral).Properties {
 			nameType(p.Type, append(path, p.Name))
 		}
-		genTypes[t] = &newType{
+		genTypes = append(genTypes, &newType{
 			name:       nm,
 			typ:        t,
 			kind:       "literal",
 			properties: t.Value.(ParseLiteral).Properties,
 			line:       t.Line,
-		}
+		})
 		return nm
 	case "tuple":
 		nm := nameFromPath("Tuple", path)
@@ -103,13 +103,13 @@ func nameType(t *Type, path []string) string {
 		for _, it := range t.Items {
 			nameType(it, append(path, "Item"))
 		}
-		genTypes[t] = &newType{
+		genTypes = append(genTypes, &newType{
 			name:  nm,
 			typ:   t,
 			kind:  "tuple",
 			items: t.Items,
 			line:  t.Line,
-		}
+		})
 		return nm
 	case "or":
 		nm := nameFromPath("Or", path)
@@ -159,13 +159,13 @@ func nameType(t *Type, path []string) string {
 				return newNm
 			}
 		}
-		genTypes[t] = &newType{
+		genTypes = append(genTypes, &newType{
 			name:  nm,
 			typ:   t,
 			kind:  "or",
 			items: t.Items,
 			line:  t.Line,
-		}
+		})
 		return nm
 	case "stringLiteral": // a single type, like 'kind' or 'rename'
 		typeNames[t] = "string"

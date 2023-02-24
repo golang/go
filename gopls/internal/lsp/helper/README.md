@@ -1,12 +1,14 @@
 # Generate server_gen.go
 
-`helper` generates boilerplate code for server.go by processing the
-generated code in `protocol/tsserver.go`.
+`helper` generates the file `../server_gen.go` (in package
+`internal/lsp`) which contains stub declarations of server methods.
 
-First, build `helper` in this directory (`go build .`).
+To invoke it, run `go generate` in the `gopls/internal/lsp` directory.
 
-In directory `lsp`, executing `go generate server.go` generates the stylized file
-`server_gen.go` that contains stubs for type `Server`.
+It is derived from `gopls/internal/lsp/protocol/tsserver.go`, which
+itself is generated from the protocol downloaded from VSCode, so be
+sure to run `go generate` in the protocol first. Or run `go generate
+./...` twice in the gopls directory.
 
 It decides what stubs are needed and their signatures
 by looking at the `Server` interface (`-t` flag). These all look somewhat like

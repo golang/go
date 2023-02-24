@@ -10,9 +10,7 @@ The protocol is described in a
 [web page](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/specification/),
 in words, and in a json file (metaModel.json) available either linked towards the bottom of the
 web page, or in the vscode-languageserver-node repository. This code uses the latter so the
-exact version can be tied to a githash. Download the repository with
-
-`git clone https://github.com/microsoft/vscode-languageserver-node.git`
+exact version can be tied to a githash. By default, the command will download the `github.com/microsoft/vscode-languageserver-node` repository to a temporary directory.
 
 The specification has five sections
 1. Requests, which describe the Request and Response types for request methods (e.g., *textDocument/didChange*),

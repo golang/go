@@ -8,8 +8,7 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
+	"log"
 	"os"
 
 	"golang.org/x/tools/gopls/internal/lsp/command/gen"
@@ -18,8 +17,9 @@ import (
 func main() {
 	content, err := gen.Generate()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
-	ioutil.WriteFile("command_gen.go", content, 0644)
+	if err := os.WriteFile("command_gen.go", content, 0644); err != nil {
+		log.Fatal(err)
+	}
 }
