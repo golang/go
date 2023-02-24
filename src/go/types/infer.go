@@ -75,8 +75,25 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 
 	// Substitute type arguments for their respective type parameters in params,
 	// if any. Note that nil targs entries are ignored by check.subst.
-	// TODO(gri) Can we avoid this (we're setting known type arguments below,
-	//           but that doesn't impact the isParameterized check for now).
+	// We do this for better error messages; it's not needed for correctness.
+	// For instance, given:
+	//
+	//   func f[P, Q any](P, Q) {}
+	//
+	//   func _(s string) {
+	//           f[int](s, s) // ERROR
+	//   }
+	//
+	// With substitution, we get the error:
+	//   "cannot use s (variable of type string) as int value in argument to f[int]"
+	//
+	// Without substitution we get the (worse) error:
+	//   "type string of s does not match inferred type int for P"
+	// even though the type int was provided (not inferred) for P.
+	//
+	// TODO(gri) We might be able to finesse this in the error message reporting
+	//           (which only happens in case of an error) and then avoid doing
+	//           the substitution (which always happens).
 	if params.Len() > 0 {
 		smap := makeSubstMap(tparams, targs)
 		params = check.subst(nopos, params, smap, nil, check.context()).(*Tuple)
