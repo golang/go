@@ -1118,6 +1118,9 @@ var hostobj []Hostobj
 var internalpkg = []string{
 	"crypto/internal/boring",
 	"crypto/internal/boring/syso",
+	"crypto/x509",
+	"net",
+	"os/user",
 	"runtime/cgo",
 	"runtime/race",
 	"runtime/race/internal/amd64v1",

@@ -23,6 +23,7 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/slices"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 )
@@ -205,6 +206,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		ptest.Internal.Embed = testEmbed
 		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
 		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath
+		ptest.Internal.Build.Directives = append(slices.Clip(p.Internal.Build.Directives), p.Internal.Build.TestDirectives...)
 		ptest.collectDeps()
 	} else {
 		ptest = p
@@ -229,7 +231,8 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 			Internal: PackageInternal{
 				LocalPrefix: p.Internal.LocalPrefix,
 				Build: &build.Package{
-					ImportPos: p.Internal.Build.XTestImportPos,
+					ImportPos:  p.Internal.Build.XTestImportPos,
+					Directives: p.Internal.Build.XTestDirectives,
 				},
 				Imports:    ximports,
 				RawImports: rawXTestImports,
@@ -269,6 +272,9 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 			OrigImportPath: p.Internal.OrigImportPath,
 		},
 	}
+
+	pb := p.Internal.Build
+	pmain.DefaultGODEBUG = defaultGODEBUG(pmain, pb.Directives, pb.TestDirectives, pb.XTestDirectives)
 
 	// The generated main also imports testing, regexp, and os.
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.

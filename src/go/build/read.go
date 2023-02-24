@@ -471,6 +471,18 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 		}
 	}
 
+	// Extract directives.
+	for _, group := range info.parsed.Comments {
+		if group.Pos() >= info.parsed.Package {
+			break
+		}
+		for _, c := range group.List {
+			if strings.HasPrefix(c.Text, "//go:") {
+				info.directives = append(info.directives, Directive{c.Text, info.fset.Position(c.Slash)})
+			}
+		}
+	}
+
 	// If the file imports "embed",
 	// we have to look for //go:embed comments
 	// in the remainder of the file.

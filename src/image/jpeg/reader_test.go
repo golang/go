@@ -490,6 +490,20 @@ func TestExtraneousData(t *testing.T) {
 	}
 }
 
+func TestIssue56724(t *testing.T) {
+	b, err := os.ReadFile("../testdata/video-001.jpeg")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b = b[:24] // truncate image data
+
+	_, err = Decode(bytes.NewReader(b))
+	if err != io.ErrUnexpectedEOF {
+		t.Errorf("got: %v, want: %v", err, io.ErrUnexpectedEOF)
+	}
+}
+
 func benchmarkDecode(b *testing.B, filename string) {
 	data, err := os.ReadFile(filename)
 	if err != nil {

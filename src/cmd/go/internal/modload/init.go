@@ -221,15 +221,19 @@ func (mms *MainModuleSet) HighestReplaced() map[string]string {
 // GoVersion returns the go version set on the single module, in module mode,
 // or the go.work file in workspace mode.
 func (mms *MainModuleSet) GoVersion() string {
-	if !inWorkspaceMode() {
+	switch {
+	case inWorkspaceMode():
+		v := mms.workFileGoVersion
+		if v == "" {
+			// Fall back to 1.18 for go.work files.
+			v = "1.18"
+		}
+		return v
+	case mms == nil || len(mms.versions) == 0:
+		return "1.18"
+	default:
 		return modFileGoVersion(mms.ModFile(mms.mustGetSingleMainModule()))
 	}
-	v := mms.workFileGoVersion
-	if v == "" {
-		// Fall back to 1.18 for go.work files.
-		v = "1.18"
-	}
-	return v
 }
 
 func (mms *MainModuleSet) WorkFileReplaceMap() map[module.Version]module.Version {
@@ -726,7 +730,7 @@ func LoadModFile(ctx context.Context) *Requirements {
 		data, f, err := ReadModFile(gomod, fixVersion(ctx, &fixed))
 		if err != nil {
 			if inWorkspaceMode() {
-				base.Fatalf("go: cannot load module listed in go.work file: %v", err)
+				base.Fatalf("go: cannot load module %s listed in go.work file: %v", base.ShortPath(gomod), err)
 			} else {
 				base.Fatalf("go: %v", err)
 			}

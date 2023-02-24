@@ -934,9 +934,10 @@ func init() {
 		{name: "LoweredGetCallerSP", argLength: 1, reg: gp01, rematerializeable: true},
 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		// LoweredWB invokes runtime.gcWriteBarrier{auxint}. arg0=mem, auxint=# of buffer entries needed.
 		// It saves all GP registers if necessary, but may clobber others.
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), buildReg("AX CX DX BX BP SI R8 R9")}, clobbers: callerSave &^ (gp | g)}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		// Returns a pointer to a write barrier buffer in R11.
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave &^ (gp | g), outputs: []regMask{buildReg("R11")}}, clobberFlags: true, aux: "Int64"},
 
 		{name: "LoweredHasCPUFeature", argLength: 0, reg: gp01, rematerializeable: true, typ: "UInt64", aux: "Sym", symEffect: "None"},
 

@@ -404,12 +404,15 @@ TEXT runtime·goexit(SB), NOSPLIT|TOPFRAME, $0-0
 TEXT runtime·cgocallback(SB), NOSPLIT, $0-24
 	UNDEF
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It has two WebAssembly parameters:
-// R0: the destination of the write (i64)
-// R1: the value being written (i64)
-TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed as a wasm argument
+// (put on the TOS by the caller, lives in local R0 in this body)
+// and returns a pointer to the buffer space as a wasm result
+// (left on the TOS in this body, appears on the wasm stack
+// in the caller).
+TEXT gcWriteBarrier<>(SB), NOSPLIT, $0
 	Loop
 		// R3 = g.m
 		MOVD g_m(g), R3
@@ -420,7 +423,7 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
 
 		// Increment wbBuf.next
 		Get R5
-		I64Const $16
+		Get R0
 		I64Add
 		Set R5
 
@@ -432,27 +435,50 @@ TEXT runtime·gcWriteBarrier(SB), NOSPLIT, $16
 			// Commit to the larger buffer.
 			MOVD R5, p_wbBuf+wbBuf_next(R4)
 
-			// Back up to write position (wasm stores can't use negative offsets)
+			// Make return value (the original next position)
 			Get R5
-			I64Const $16
+			Get R0
 			I64Sub
-			Set R5
 
-			// Record value
-			MOVD R1, 0(R5)
-			// Record *slot
-			MOVD (R0), 8(R5)
-
-			RET
+			Return
 		End
 
 		// Flush
-		MOVD R0, 0(SP)
-		MOVD R1, 8(SP)
 		CALLNORESUME runtime·wbBufFlush(SB)
-		MOVD 0(SP), R0
-		MOVD 8(SP), R1
 
 		// Retry
 		Br $0
 	End
+
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $8
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $16
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $24
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $32
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $40
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $48
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $56
+	Call	gcWriteBarrier<>(SB)
+	Return
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	I64Const $64
+	Call	gcWriteBarrier<>(SB)
+	Return

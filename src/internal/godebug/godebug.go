@@ -45,7 +45,7 @@ type Setting struct {
 type setting struct {
 	value          atomic.Pointer[string]
 	nonDefaultOnce sync.Once
-	nonDefault     atomic.Int64
+	nonDefault     atomic.Uint64
 }
 
 // New returns a new Setting for the $GODEBUG setting with the given name.
@@ -145,7 +145,7 @@ func setUpdate(update func(string, string))
 // It forwards registrations to runtime/metrics.
 //
 //go:linkname registerMetric
-func registerMetric(name string, read func() int64)
+func registerMetric(name string, read func() uint64)
 
 // setNewNonDefaultInc is provided by package runtime.
 // The runtime can do

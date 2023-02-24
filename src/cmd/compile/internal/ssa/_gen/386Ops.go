@@ -516,9 +516,10 @@ func init() {
 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
 
-		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of write barrier slots
 		// It saves all GP registers if necessary, but may clobber others.
-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), ax}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+		// Returns a pointer to a write barrier buffer in DI.
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave &^ gp, outputs: []regMask{buildReg("DI")}}, clobberFlags: true, aux: "Int64"},
 
 		// There are three of these functions so that they can have three different register inputs.
 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the

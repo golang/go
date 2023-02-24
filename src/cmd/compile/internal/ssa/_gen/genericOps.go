@@ -381,11 +381,11 @@ var genericOps = []opData{
 	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 	{name: "WBend", argLength: 1, typ: "Mem"},                  // Write barrier code is done, interrupting is now allowed.
 
-	// WB invokes runtime.gcWriteBarrier. This is not a normal
+	// WB invokes runtime.gcWriteBarrier.  This is not a normal
 	// call: it takes arguments in registers, doesn't clobber
 	// general-purpose registers (the exact clobber set is
 	// arch-dependent), and is not a safe-point.
-	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+	{name: "WB", argLength: 1, typ: "(BytePtr,Mem)", aux: "Int64"}, // arg0=mem, auxint=# of buffer entries needed. Returns buffer pointer and memory.
 
 	{name: "HasCPUFeature", argLength: 0, typ: "bool", aux: "Sym", symEffect: "None"}, // aux=place that this feature flag can be loaded from
 

@@ -1188,37 +1188,33 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVB	R3, ret+0(FP)
 	RET
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - R2 is the destination of the write
-// - R3 is the value being written at R2
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in R25, and returns a pointer
+// to the buffer space in R25.
 // It clobbers condition codes.
 // It does not clobber any general-purpose registers except R27,
 // but may clobber others (e.g., floating point registers)
 // The act of CALLing gcWriteBarrier will clobber R30 (LR).
-//
-// Defined as ABIInternal since the compiler generates ABIInternal
-// calls to it directly and it does not use the stack-based Go ABI.
-TEXT runtime·gcWriteBarrier<ABIInternal>(SB),NOSPLIT,$200
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$200
 	// Save the registers clobbered by the fast path.
 	STP	(R0, R1), 184(RSP)
 retry:
 	MOVD	g_m(g), R0
 	MOVD	m_p(R0), R0
-        MOVD	(p_wbBuf+wbBuf_next)(R0), R1
-        MOVD	(p_wbBuf+wbBuf_end)(R0), R27
+	MOVD	(p_wbBuf+wbBuf_next)(R0), R1
+	MOVD	(p_wbBuf+wbBuf_end)(R0), R27
 	// Increment wbBuf.next position.
-	ADD	$16, R1
+	ADD	R25, R1
 	// Is the buffer full?
 	CMP	R27, R1
 	BHI	flush
 	// Commit to the larger buffer.
 	MOVD	R1, (p_wbBuf+wbBuf_next)(R0)
-	// Record the write.
-	MOVD	R3, -16(R1)	// Record value
-	MOVD	(R2), R0	// TODO: This turns bad writes into bad reads.
-	MOVD	R0, -8(R1)	// Record *slot
+	// Make return value (the original next position)
+	SUB	R25, R1, R25
+	// Restore registers.
 	LDP	184(RSP), (R0, R1)
 	RET
 
@@ -1258,6 +1254,31 @@ flush:
 	LDP	19*8(RSP), (R23, R24)
 	LDP	21*8(RSP), (R25, R26)
 	JMP	retry
+
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$8, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$16, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$24, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$32, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$40, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$48, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$56, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$64, R25
+	JMP	gcWriteBarrier<>(SB)
 
 DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
 GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below

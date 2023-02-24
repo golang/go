@@ -58,7 +58,7 @@ type Package struct {
 type PackagePublic struct {
 	// Note: These fields are part of the go command's public API.
 	// See list.go. It is okay to add fields, but not to change or
-	// remove existing ones. Keep in sync with list.go
+	// remove existing ones. Keep in sync with ../list/list.go
 	Dir           string                `json:",omitempty"` // directory containing package sources
 	ImportPath    string                `json:",omitempty"` // import path of package in dir
 	ImportComment string                `json:",omitempty"` // path in import comment on package statement
@@ -78,6 +78,8 @@ type PackagePublic struct {
 	DepOnly       bool                  `json:",omitempty"` // package is only as a dependency, not explicitly listed
 	BinaryOnly    bool                  `json:",omitempty"` // package cannot be recompiled
 	Incomplete    bool                  `json:",omitempty"` // was there an error loading this package or dependencies?
+
+	DefaultGODEBUG string `json:",omitempty"` // default GODEBUG setting (only for Name=="main")
 
 	// Stale and StaleReason remain here *only* for the list command.
 	// They are only initialized in preparation for list execution.
@@ -1918,13 +1920,16 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	if cfg.ModulesEnabled {
 		p.Module = modload.PackageModuleInfo(ctx, pkgPath)
 	}
+	p.DefaultGODEBUG = defaultGODEBUG(p, nil, nil, nil)
 
-	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
-	if err != nil {
-		p.Incomplete = true
-		setError(err)
-		embedErr := err.(*EmbedError)
-		p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
+	if !opts.SuppressEmbedFiles {
+		p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
+		if err != nil {
+			p.Incomplete = true
+			setError(err)
+			embedErr := err.(*EmbedError)
+			p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
+		}
 	}
 
 	// Check for case-insensitive collision of input files.
@@ -2399,6 +2404,9 @@ func (p *Package) setBuildInfo(autoVCS bool) {
 	if cfg.BuildTrimpath {
 		appendSetting("-trimpath", "true")
 	}
+	if p.DefaultGODEBUG != "" {
+		appendSetting("DefaultGODEBUG", p.DefaultGODEBUG)
+	}
 	cgo := "0"
 	if cfg.BuildContext.CgoEnabled {
 		cgo = "1"
@@ -2774,6 +2782,10 @@ type PackageOpts struct {
 	// SuppressBuildInfo is true if the caller does not need p.Stale, p.StaleReason, or p.Internal.BuildInfo
 	// to be populated on the package.
 	SuppressBuildInfo bool
+
+	// SuppressEmbedFiles is true if the caller does not need any embed files to be populated on the
+	// package.
+	SuppressEmbedFiles bool
 }
 
 // PackagesAndErrors returns the packages named by the command line arguments

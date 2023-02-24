@@ -615,16 +615,16 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVB	R19, ret+0(FP)
 	RET
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - R27 is the destination of the write
-// - R28 is the value being written at R27.
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in R29, and returns a pointer
+// to the buffer space in R29.
 // It clobbers R30 (the linker temp register).
 // The act of CALLing gcWriteBarrier will clobber R1 (LR).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$216
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$216
 	// Save the registers clobbered by the fast path.
 	MOVV	R19, 208(R3)
 	MOVV	R13, 216(R3)
@@ -634,15 +634,14 @@ retry:
 	MOVV	(p_wbBuf+wbBuf_next)(R19), R13
 	MOVV	(p_wbBuf+wbBuf_end)(R19), R30 // R30 is linker temp register
 	// Increment wbBuf.next position.
-	ADDV	$16, R13
+	ADDV	R29, R13
 	// Is the buffer full?
 	BLTU	R30, R13, flush
 	// Commit to the larger buffer.
 	MOVV	R13, (p_wbBuf+wbBuf_next)(R19)
-	// Record the write.
-	MOVV	R28, -16(R13)	// Record value
-	MOVV	(R27), R19	// TODO: This turns bad writes into bad reads.
-	MOVV	R19, -8(R13)	// Record *slot
+	// Make return value (the original next position)
+	SUBV	R29, R13, R29
+	// Restore registers.
 	MOVV	208(R3), R19
 	MOVV	216(R3), R13
 	RET
@@ -712,6 +711,31 @@ flush:
 	MOVV	192(R3), R29
 	MOVV	200(R3), R31
 	JMP	retry
+
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$8, R29
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$16, R29
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$24, R29
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$32, R29
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$40, R29
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$48, R29
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$56, R29
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$64, R29
+	JMP	gcWriteBarrier<>(SB)
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated

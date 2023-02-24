@@ -172,61 +172,60 @@
 // Lower bounded shifts first. No need to check shift value.
 (Lsh64x(64|32|16|8)  x y) && shiftIsBounded(v) => (SLD x y)
 (Lsh32x(64|32|16|8)  x y) && shiftIsBounded(v) => (SLW x y)
-(Lsh16x(64|32|16|8)  x y) && shiftIsBounded(v) => (SLW x y)
-(Lsh8x(64|32|16|8)   x y) && shiftIsBounded(v) => (SLW x y)
+(Lsh16x(64|32|16|8)  x y) && shiftIsBounded(v) => (SLD x y)
+(Lsh8x(64|32|16|8)   x y) && shiftIsBounded(v) => (SLD x y)
 (Rsh64Ux(64|32|16|8) x y) && shiftIsBounded(v) => (SRD x y)
 (Rsh32Ux(64|32|16|8) x y) && shiftIsBounded(v) => (SRW x y)
-(Rsh16Ux(64|32|16|8) x y) && shiftIsBounded(v) => (SRW (MOVHZreg x) y)
-(Rsh8Ux(64|32|16|8)  x y) && shiftIsBounded(v) => (SRW (MOVBZreg x) y)
+(Rsh16Ux(64|32|16|8) x y) && shiftIsBounded(v) => (SRD (MOVHZreg x) y)
+(Rsh8Ux(64|32|16|8)  x y) && shiftIsBounded(v) => (SRD (MOVBZreg x) y)
 (Rsh64x(64|32|16|8)  x y) && shiftIsBounded(v) => (SRAD x y)
 (Rsh32x(64|32|16|8)  x y) && shiftIsBounded(v) => (SRAW x y)
-(Rsh16x(64|32|16|8)  x y) && shiftIsBounded(v) => (SRAW (MOVHreg x) y)
-(Rsh8x(64|32|16|8)   x y) && shiftIsBounded(v) => (SRAW (MOVBreg x) y)
+(Rsh16x(64|32|16|8)  x y) && shiftIsBounded(v) => (SRAD (MOVHreg x) y)
+(Rsh8x(64|32|16|8)   x y) && shiftIsBounded(v) => (SRAD (MOVBreg x) y)
 
-// non-constant rotates
-// If shift > 64 then use -1 as shift count to shift all bits.
-((Lsh64|Rsh64|Rsh64U)x64 x y)  => (S(L|RA|R)D  x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [64]))))
-((Rsh32|Rsh32U|Lsh32)x64 x y)  => (S(RA|R|L)W x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [32]))))
+// Unbounded shifts. Go shifts saturate to 0 or -1 when shifting beyond the number of
+// bits in a type, PPC64 shifts do not (see the ISA for details).
+//
+// Note, y is always non-negative.
+//
+// Note, ISELZ is intentionally not used in lower. Where possible, ISEL is converted to ISELZ in late lower
+// after all the ISEL folding rules have been exercised.
 
-(Rsh(16|16U)x64 x y)  => (SR(AW|W) ((Sign|Zero)Ext16to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [16]))))
-(Lsh16x64 x y)  => (SLW  x                 (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [16]))))
+((Rsh64U|Lsh64)x64 <t> x y)  => (ISEL [0] (S(R|L)D <t> x y) (MOVDconst [0])        (CMPUconst y [64]))
+((Rsh64U|Lsh64)x32 <t> x y)  => (ISEL [0] (S(R|L)D <t> x y) (MOVDconst [0])        (CMPWUconst y [64]))
+((Rsh64U|Lsh64)x16 <t> x y)  => (ISEL [2] (S(R|L)D <t> x y) (MOVDconst [0])        (Select1 <types.TypeFlags> (ANDCCconst [0xFFC0] y)))
+((Rsh64U|Lsh64)x8  <t> x y)  => (ISEL [2] (S(R|L)D <t> x y) (MOVDconst [0])        (Select1 <types.TypeFlags> (ANDCCconst [0x00C0] y)))
+(Rsh64x(64|32)     <t> x y)  => (ISEL [0] (SRAD    <t> x y) (SRADconst <t> x [63]) (CMP(U|WU)const y [64]))
+(Rsh64x16          <t> x y)  => (ISEL [2] (SRAD    <t> x y) (SRADconst <t> x [63]) (Select1 <types.TypeFlags> (ANDCCconst [0xFFC0] y)))
+(Rsh64x8           <t> x y)  => (ISEL [2] (SRAD    <t> x y) (SRADconst <t> x [63]) (Select1 <types.TypeFlags> (ANDCCconst [0x00C0] y)))
 
-(Rsh(8|8U)x64 x y)  => (SR(AW|W) ((Sign|Zero)Ext8to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [8]))))
-(Lsh8x64 x y)  => (SLW  x                (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [8]))))
+((Rsh32U|Lsh32)x64 <t> x y)  => (ISEL [0] (S(R|L)W <t> x y) (MOVDconst [0])        (CMPUconst y [32]))
+((Rsh32U|Lsh32)x32 <t> x y)  => (ISEL [0] (S(R|L)W <t> x y) (MOVDconst [0])        (CMPWUconst y [32]))
+((Rsh32U|Lsh32)x16 <t> x y)  => (ISEL [2] (S(R|L)W <t> x y) (MOVDconst [0])        (Select1 <types.TypeFlags> (ANDCCconst [0xFFE0] y)))
+((Rsh32U|Lsh32)x8  <t> x y)  => (ISEL [2] (S(R|L)W <t> x y) (MOVDconst [0])        (Select1 <types.TypeFlags> (ANDCCconst [0x00E0] y)))
+(Rsh32x(64|32)     <t> x y)  => (ISEL [0] (SRAW    <t> x y) (SRAWconst <t> x [31]) (CMP(U|WU)const y [32]))
+(Rsh32x16          <t> x y)  => (ISEL [2] (SRAW    <t> x y) (SRAWconst <t> x [31]) (Select1 <types.TypeFlags> (ANDCCconst [0xFFE0] y)))
+(Rsh32x8           <t> x y)  => (ISEL [2] (SRAW    <t> x y) (SRAWconst <t> x [31]) (Select1 <types.TypeFlags> (ANDCCconst [0x00E0] y)))
 
-((Rsh64|Rsh64U|Lsh64)x32 x y)  => (S(RA|R|L)D x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [64]))))
-((Rsh32|Rsh32U|Lsh32)x32 x y)  => (S(RA|R|L)W x (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [32]))))
+((Rsh16U|Lsh16)x64 <t> x y) => (ISEL [0] (S(R|L)D  <t> (MOVHZreg x) y) (MOVDconst [0])                   (CMPUconst  y [16]))
+((Rsh16U|Lsh16)x32 <t> x y) => (ISEL [0] (S(R|L)D  <t> (MOVHZreg x) y) (MOVDconst [0])                   (CMPWUconst y [16]))
+((Rsh16U|Lsh16)x16 <t> x y) => (ISEL [2] (S(R|L)D  <t> (MOVHZreg x) y) (MOVDconst [0])                   (Select1 <types.TypeFlags> (ANDCCconst [0xFFF0] y)))
+((Rsh16U|Lsh16)x8  <t> x y) => (ISEL [2] (S(R|L)D  <t> (MOVHZreg x) y) (MOVDconst [0])                   (Select1 <types.TypeFlags> (ANDCCconst [0x00F0] y)))
+(Rsh16x(64|32)     <t> x y) => (ISEL [0] (SRAD     <t> (MOVHreg  x) y) (SRADconst <t>  (MOVHreg x) [15]) (CMP(U|WU)const  y [16]))
+(Rsh16x16          <t> x y) => (ISEL [2] (SRAD     <t> (MOVHreg  x) y) (SRADconst <t>  (MOVHreg x) [15]) (Select1 <types.TypeFlags> (ANDCCconst [0xFFF0] y)))
+(Rsh16x8           <t> x y) => (ISEL [2] (SRAD     <t> (MOVHreg  x) y) (SRADconst <t>  (MOVHreg x) [15]) (Select1 <types.TypeFlags> (ANDCCconst [0x00F0] y)))
 
-(Rsh(16|16U)x32 x y)  => (SR(AW|W) ((Sign|Zero)Ext16to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [16]))))
-(Lsh16x32 x y)  => (SLW  x                 (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [16]))))
+((Rsh8U|Lsh8)x64 <t> x y) => (ISEL [0] (S(R|L)D  <t> (MOVBZreg x) y) (MOVDconst [0])                  (CMPUconst  y [8]))
+((Rsh8U|Lsh8)x32 <t> x y) => (ISEL [0] (S(R|L)D  <t> (MOVBZreg x) y) (MOVDconst [0])                  (CMPWUconst y [8]))
+((Rsh8U|Lsh8)x16 <t> x y) => (ISEL [2] (S(R|L)D  <t> (MOVBZreg x) y) (MOVDconst [0])                  (Select1 <types.TypeFlags> (ANDCCconst [0xFFF8] y)))
+((Rsh8U|Lsh8)x8  <t> x y) => (ISEL [2] (S(R|L)D  <t> (MOVBZreg x) y) (MOVDconst [0])                  (Select1 <types.TypeFlags> (ANDCCconst [0x00F8] y)))
+(Rsh8x(64|32)    <t> x y) => (ISEL [0] (SRAD     <t> (MOVBreg  x) y) (SRADconst <t>  (MOVBreg x) [7]) (CMP(U|WU)const  y [8]))
+(Rsh8x16         <t> x y) => (ISEL [2] (SRAD     <t> (MOVBreg  x) y) (SRADconst <t>  (MOVBreg x) [7]) (Select1 <types.TypeFlags> (ANDCCconst [0xFFF8] y)))
+(Rsh8x8          <t> x y) => (ISEL [2] (SRAD     <t> (MOVBreg  x) y) (SRADconst <t>  (MOVBreg x) [7]) (Select1 <types.TypeFlags> (ANDCCconst [0x00F8] y)))
 
-(Rsh(8|8U)x32 x y)  => (SR(AW|W) ((Sign|Zero)Ext8to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [8]))))
-(Lsh8x32 x y)  => (SLW  x                (ISEL [0] y (MOVDconst [-1]) (CMPU y (MOVDconst [8]))))
+// Catch bounded shifts in situations like foo<<uint(shift&63) which might not be caught by the prove pass.
+(CMP(U|WU)const [d] (Select0 (ANDCCconst z [c]))) && uint64(d) > uint64(c) => (FlagLT)
 
-((Rsh64|Rsh64U|Lsh64)x16 x y)  => (S(RA|R|L)D x (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt16to64 y) (MOVDconst [64]))))
-
-((Rsh32|Rsh32U|Lsh32)x16 x y)  => (S(RA|R|L)W x (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt16to64 y) (MOVDconst [32]))))
-
-(Rsh(16|16U)x16 x y)  => (S(RA|R)W ((Sign|Zero)Ext16to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt16to64 y) (MOVDconst [16]))))
-(Lsh16x16 x y)  => (SLW  x                 (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt16to64 y) (MOVDconst [16]))))
-
-(Rsh(8|8U)x16 x y)  => (SR(AW|W) ((Sign|Zero)Ext8to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt16to64 y) (MOVDconst [8]))))
-(Lsh8x16 x y)  => (SLW  x                (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt16to64 y) (MOVDconst [8]))))
-
-
-((Rsh64|Rsh64U|Lsh64)x8 x y)  => (S(RA|R|L)D x (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [64]))))
-
-((Rsh32|Rsh32U|Lsh32)x8 x y)  => (S(RA|R|L)W x (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [32]))))
-
-(Rsh(16|16U)x8 x y)  => (S(RA|R)W ((Sign|Zero)Ext16to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [16]))))
-(Lsh16x8 x y)  => (SLW  x                 (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [16]))))
-
-(Rsh(8|8U)x8 x y)  => (S(RA|R)W ((Sign|Zero)Ext8to32 x) (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [8]))))
-(Lsh8x8 x y)  => (SLW  x                (ISEL [0] y (MOVDconst [-1]) (CMPU (ZeroExt8to64 y) (MOVDconst [8]))))
-
-// Cleaning up shift ops
-(ISEL [0] (Select0 (ANDCCconst [d] y)) (MOVDconst [-1]) (CMPU (Select0 (ANDCCconst [d] y)) (MOVDconst [c]))) && c >= d => (Select0 (ANDCCconst [d] y))
-(ISEL [0] (Select0 (ANDCCconst [d] y)) (MOVDconst [-1]) (CMPUconst [c] (Select0 (ANDCCconst [d] y)))) && c >= d => (Select0 (ANDCCconst [d] y))
 (ORN x (MOVDconst [-1])) => x
 
 (S(RAD|RD|LD) x (MOVDconst [c])) => (S(RAD|RD|LD)const [c&63 | (c>>6&1*63)] x)
@@ -563,11 +562,12 @@
 (OR x (MOVDconst [c])) && isU32Bit(c) => (ORconst [c] x)
 
 // Simplify consts
-(Select0 (ANDCCconst [c] (Select0 (ANDCCconst [d] x)))) => (Select0 (ANDCCconst [c&d] x))
+(ANDCCconst [c] (Select0 (ANDCCconst [d] x))) => (ANDCCconst [c&d] x)
 (ORconst [c] (ORconst [d] x)) => (ORconst [c|d] x)
 (XORconst [c] (XORconst [d] x)) => (XORconst [c^d] x)
 (Select0 (ANDCCconst [-1] x)) => x
 (Select0 (ANDCCconst [0] _)) => (MOVDconst [0])
+(Select1 (ANDCCconst [0] _)) => (FlagEQ)
 (XORconst [0] x) => x
 (ORconst [-1] _) => (MOVDconst [-1])
 (ORconst [0] x) => x

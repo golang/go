@@ -505,6 +505,7 @@ func (w WaitStatus) TrapCause() int { return -1 }
 
 //sys	Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
 //sys	ptrace64(request int, id int64, addr int64, data int, buff uintptr) (err error)
+//sys	ptrace64Ptr(request int, id int64, addr int64, data int, buff unsafe.Pointer) (err error) = ptrace64
 
 func raw_ptrace(request int, pid int, addr *byte, data *byte) Errno {
 	if request == PTRACE_TRACEME {
@@ -525,7 +526,7 @@ func ptracePeek(pid int, addr uintptr, out []byte) (count int, err error) {
 		if bsize > 1024 {
 			bsize = 1024
 		}
-		err = ptrace64(PT_READ_BLOCK, int64(pid), int64(addr), bsize, uintptr(unsafe.Pointer(&out[0])))
+		err = ptrace64Ptr(PT_READ_BLOCK, int64(pid), int64(addr), bsize, unsafe.Pointer(&out[0]))
 		if err != nil {
 			return 0, err
 		}
@@ -551,7 +552,7 @@ func ptracePoke(pid int, addr uintptr, data []byte) (count int, err error) {
 		if bsize > 1024 {
 			bsize = 1024
 		}
-		err = ptrace64(PT_WRITE_BLOCK, int64(pid), int64(addr), bsize, uintptr(unsafe.Pointer(&data[0])))
+		err = ptrace64Ptr(PT_WRITE_BLOCK, int64(pid), int64(addr), bsize, unsafe.Pointer(&data[0]))
 		if err != nil {
 			return 0, err
 		}
