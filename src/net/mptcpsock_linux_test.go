@@ -40,9 +40,26 @@ func postAcceptMPTCP(ls *localServer, ch chan<- error) {
 
 	c := ls.cl[0]
 
-	_, ok := c.(*TCPConn)
+	tcp, ok := c.(*TCPConn)
 	if !ok {
 		ch <- errors.New("struct is not a TCPConn")
+		return
+	}
+
+	mptcp, err := tcp.MultipathTCP()
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	if !mptcp {
+		ch <- errors.New("incoming connection is not with MPTCP")
+		return
+	}
+
+	// Also check the method for the older kernels if not tested before
+	if hasSOLMPTCP && !isUsingMPTCPProto(tcp.fd) {
+		ch <- errors.New("incoming connection is not an MPTCP proto")
 		return
 	}
 }
@@ -64,7 +81,7 @@ func dialerMPTCP(t *testing.T, addr string) {
 	}
 	defer c.Close()
 
-	_, ok := c.(*TCPConn)
+	tcp, ok := c.(*TCPConn)
 	if !ok {
 		t.Fatal("struct is not a TCPConn")
 	}
@@ -82,7 +99,21 @@ func dialerMPTCP(t *testing.T, addr string) {
 		t.Errorf("sent bytes (%s) are different from received ones (%s)", snt, b)
 	}
 
-	t.Logf("outgoing connection from %s with mptcp", addr)
+	mptcp, err := tcp.MultipathTCP()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("outgoing connection from %s with mptcp: %t", addr, mptcp)
+
+	if !mptcp {
+		t.Error("outgoing connection is not with MPTCP")
+	}
+
+	// Also check the method for the older kernels if not tested before
+	if hasSOLMPTCP && !isUsingMPTCPProto(tcp.fd) {
+		t.Error("outgoing connection is not an MPTCP proto")
+	}
 }
 
 func canCreateMPTCPSocket() bool {
