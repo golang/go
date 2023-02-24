@@ -2135,25 +2135,15 @@ func asmbElf(ctxt *Link) {
 		}
 	}
 
-	if ctxt.HeadType == objabi.Hlinux {
+	if ctxt.HeadType == objabi.Hlinux || ctxt.HeadType == objabi.Hfreebsd {
 		ph := newElfPhdr()
 		ph.Type = elf.PT_GNU_STACK
 		ph.Flags = elf.PF_W + elf.PF_R
-		ph.Align = uint64(ctxt.Arch.RegSize)
-
-		ph = newElfPhdr()
-		ph.Type = elf.PT_PAX_FLAGS
-		ph.Flags = 0x2a00 // mprotect, randexec, emutramp disabled
 		ph.Align = uint64(ctxt.Arch.RegSize)
 	} else if ctxt.HeadType == objabi.Hsolaris {
 		ph := newElfPhdr()
 		ph.Type = elf.PT_SUNWSTACK
 		ph.Flags = elf.PF_W + elf.PF_R
-	} else if ctxt.HeadType == objabi.Hfreebsd {
-		ph := newElfPhdr()
-		ph.Type = elf.PT_GNU_STACK
-		ph.Flags = elf.PF_W + elf.PF_R
-		ph.Align = uint64(ctxt.Arch.RegSize)
 	}
 
 elfobj:
