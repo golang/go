@@ -200,16 +200,16 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 				tx := u.at(tpar)
 				switch {
 				case tx != nil:
-					// The corresponding type argument tx is known.
-					// In this case, if the core type has a tilde, the type argument's underlying
-					// type must match the core type, otherwise the type argument and the core type
-					// must match.
-					// If tx is an (external) type parameter, don't consider its underlying type
-					// (which is an interface). The unifier will use the type parameter's core
-					// type automatically.
-					if core.tilde && !isTypeParam(tx) {
-						tx = under(tx)
-					}
+					// The corresponding type argument tx is known. There are 2 cases:
+					// 1) If the core type has a tilde, per spec requirement for tilde
+					//    elements, the core type is an underlying (literal) type.
+					//    And because of the tilde, the underlying type of tx must match
+					//    against the core type.
+					//    But because unify automatically matches a defined type against
+					//    an underlying literal type, we can simply unify tx with the
+					//    core type.
+					// 2) If the core type doesn't have a tilde, we also must unify tx
+					//    with the core type.
 					if !u.unify(tx, core.typ) {
 						check.errorf(posn, CannotInferTypeArgs, "%s does not match %s", tpar, core.typ)
 						return nil
