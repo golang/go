@@ -103,7 +103,6 @@ var filemap = map[string]action{
 	"gccgosizes.go":   nil,
 	"hilbert_test.go": nil,
 	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
-	"infer2.go":       func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"`, `"go/types"`) },
