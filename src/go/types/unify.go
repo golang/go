@@ -233,10 +233,6 @@ func (u *unifier) inferred(tparams []*TypeParam) []Type {
 	return list
 }
 
-func (u *unifier) nifyEq(x, y Type, p *ifacePair) bool {
-	return x == y || u.nify(x, y, p)
-}
-
 // nify implements the core unification algorithm which is an
 // adapted version of Checker.identical. For changes to that
 // code the corresponding changes should be made here.
@@ -252,6 +248,11 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 		u.depth--
 	}()
+
+	// nothing to do if x == y
+	if x == y {
+		return true
+	}
 
 	// Stop gap for cases where unification fails.
 	if u.depth > unificationDepthLimit {
@@ -300,6 +301,10 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		// Per the spec, a defined type cannot have an underlying type
 		// that is a type parameter.
 		assert(!isTypeParam(y))
+		// x and y may be identical now
+		if x == y {
+			return true
+		}
 	}
 
 	// Cases where at least one of x or y is a type parameter recorded with u.
@@ -315,13 +320,13 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 			return true
 		}
 		// both x and y have an inferred type - they must match
-		return u.nifyEq(u.at(px), u.at(py), p)
+		return u.nify(u.at(px), u.at(py), p)
 
 	case px != nil:
 		// x is a type parameter, y is not
 		if x := u.at(px); x != nil {
 			// x has an inferred type which must match y
-			if u.nifyEq(x, y, p) {
+			if u.nify(x, y, p) {
 				// If we have a match, possibly through underlying types,
 				// and y is a defined type, make sure we record that type
 				// for type parameter x, which may have until now only
@@ -379,10 +384,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 	}
 
-	// For type unification, do not shortcut (x == y) for identical
-	// types. Instead keep comparing them element-wise to unify the
-	// matching (and equal type parameter types). A simple test case
-	// where this matters is: func f[P any](a P) { f(a) } .
+	// x != y if we reach here
+	assert(x != y)
 
 	switch x := x.(type) {
 	case *Basic:
@@ -558,10 +561,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *TypeParam:
-		// Two type parameters (which are not part of the type parameters of the
-		// enclosing type as those are handled in the beginning of this function)
-		// are identical if they originate in the same declaration.
-		return x == y
+		// nothing to do - we know x != y
 
 	case nil:
 		// avoid a crash in case of nil type
