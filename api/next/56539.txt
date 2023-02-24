@@ -1,0 +1,2 @@
+pkg net, method (*Dialer) MultipathTCP() bool #56539
+pkg net, method (*Dialer) SetMultipathTCP(bool) #56539
