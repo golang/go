@@ -421,6 +421,7 @@ func (s *String) ReadASN1Enum(out *int) bool {
 func (s *String) readBase128Int(out *int) bool {
 	ret := 0
 	for i := 0; len(*s) > 0; i++ {
+		var b byte
 		if i == 5 {
 			return false
 		}
@@ -430,7 +431,10 @@ func (s *String) readBase128Int(out *int) bool {
 			return false
 		}
 		ret <<= 7
-		b := s.read(1)[0]
+		c, ok := s.read(1)
+		if ok {
+			b = c[0]
+		}
 		ret |= int(b & 0x7f)
 		if b&0x80 == 0 {
 			*out = ret

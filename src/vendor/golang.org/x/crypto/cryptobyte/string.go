@@ -23,25 +23,26 @@ type String []byte
 
 // read advances a String by n bytes and returns them. If less than n bytes
 // remain, it returns nil.
-func (s *String) read(n int) []byte {
+func (s *String) read(n int) ([]byte, bool) {
 	if len(*s) < n || n < 0 {
-		return nil
+		return nil, false
 	}
 	v := (*s)[:n]
 	*s = (*s)[n:]
-	return v
+	return v, true
 }
 
 // Skip advances the String by n byte and reports whether it was successful.
 func (s *String) Skip(n int) bool {
-	return s.read(n) != nil
+	_, ok := s.read(n)
+	return ok
 }
 
 // ReadUint8 decodes an 8-bit value into out and advances over it.
 // It reports whether the read was successful.
 func (s *String) ReadUint8(out *uint8) bool {
-	v := s.read(1)
-	if v == nil {
+	v, ok := s.read(1)
+	if !ok {
 		return false
 	}
 	*out = uint8(v[0])
@@ -51,8 +52,8 @@ func (s *String) ReadUint8(out *uint8) bool {
 // ReadUint16 decodes a big-endian, 16-bit value into out and advances over it.
 // It reports whether the read was successful.
 func (s *String) ReadUint16(out *uint16) bool {
-	v := s.read(2)
-	if v == nil {
+	v, ok := s.read(2)
+	if !ok {
 		return false
 	}
 	*out = uint16(v[0])<<8 | uint16(v[1])
@@ -62,8 +63,8 @@ func (s *String) ReadUint16(out *uint16) bool {
 // ReadUint24 decodes a big-endian, 24-bit value into out and advances over it.
 // It reports whether the read was successful.
 func (s *String) ReadUint24(out *uint32) bool {
-	v := s.read(3)
-	if v == nil {
+	v, ok := s.read(3)
+	if !ok {
 		return false
 	}
 	*out = uint32(v[0])<<16 | uint32(v[1])<<8 | uint32(v[2])
@@ -73,8 +74,8 @@ func (s *String) ReadUint24(out *uint32) bool {
 // ReadUint32 decodes a big-endian, 32-bit value into out and advances over it.
 // It reports whether the read was successful.
 func (s *String) ReadUint32(out *uint32) bool {
-	v := s.read(4)
-	if v == nil {
+	v, ok := s.read(4)
+	if !ok {
 		return false
 	}
 	*out = uint32(v[0])<<24 | uint32(v[1])<<16 | uint32(v[2])<<8 | uint32(v[3])
@@ -84,8 +85,8 @@ func (s *String) ReadUint32(out *uint32) bool {
 // ReadUint64 decodes a big-endian, 64-bit value into out and advances over it.
 // It reports whether the read was successful.
 func (s *String) ReadUint64(out *uint64) bool {
-	v := s.read(8)
-	if v == nil {
+	v, ok := s.read(8)
+	if !ok {
 		return false
 	}
 	*out = uint64(v[0])<<56 | uint64(v[1])<<48 | uint64(v[2])<<40 | uint64(v[3])<<32 | uint64(v[4])<<24 | uint64(v[5])<<16 | uint64(v[6])<<8 | uint64(v[7])
@@ -93,8 +94,8 @@ func (s *String) ReadUint64(out *uint64) bool {
 }
 
 func (s *String) readUnsigned(out *uint32, length int) bool {
-	v := s.read(length)
-	if v == nil {
+	v, ok := s.read(length)
+	if !ok {
 		return false
 	}
 	var result uint32
@@ -107,8 +108,8 @@ func (s *String) readUnsigned(out *uint32, length int) bool {
 }
 
 func (s *String) readLengthPrefixed(lenLen int, outChild *String) bool {
-	lenBytes := s.read(lenLen)
-	if lenBytes == nil {
+	lenBytes, ok := s.read(lenLen)
+	if !ok {
 		return false
 	}
 	var length uint32
@@ -116,8 +117,8 @@ func (s *String) readLengthPrefixed(lenLen int, outChild *String) bool {
 		length = length << 8
 		length = length | uint32(b)
 	}
-	v := s.read(int(length))
-	if v == nil {
+	v, ok := s.read(int(length))
+	if !ok {
 		return false
 	}
 	*outChild = v
@@ -147,8 +148,8 @@ func (s *String) ReadUint24LengthPrefixed(out *String) bool {
 // ReadBytes reads n bytes into out and advances over them. It reports
 // whether the read was successful.
 func (s *String) ReadBytes(out *[]byte, n int) bool {
-	v := s.read(n)
-	if v == nil {
+	v, ok := s.read(n)
+	if !ok {
 		return false
 	}
 	*out = v
@@ -159,8 +160,8 @@ func (s *String) ReadBytes(out *[]byte, n int) bool {
 // whether the copy operation was successful
 func (s *String) CopyBytes(out []byte) bool {
 	n := len(out)
-	v := s.read(n)
-	if v == nil {
+	v, ok := s.read(n)
+	if !ok {
 		return false
 	}
 	return copy(out, v) == n
