@@ -5,15 +5,12 @@
 // The standard Linux sigset type on big-endian 64-bit machines.
 
 //go:build linux && (ppc64 || s390x)
-// +build linux
-// +build ppc64 s390x
 
 package runtime
 
 const (
 	_SS_DISABLE  = 2
 	_NSIG        = 65
-	_SI_USER     = 0
 	_SIG_BLOCK   = 0
 	_SIG_UNBLOCK = 1
 	_SIG_SETMASK = 2

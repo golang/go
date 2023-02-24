@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"internal/bytealg"
 	"runtime"
 	"sync"
 	"unicode/utf16"
@@ -19,11 +20,11 @@ var ForkLock sync.RWMutex
 // in https://msdn.microsoft.com/en-us/library/ms880421.
 // This function returns "" (2 double quotes) if s is empty.
 // Alternatively, these transformations are done:
-// - every back slash (\) is doubled, but only if immediately
-//   followed by double quote (");
-// - every double quote (") is escaped by back slash (\);
-// - finally, s is wrapped with double quotes (arg -> "arg"),
-//   but only if there is space or tab inside s.
+//   - every back slash (\) is doubled, but only if immediately
+//     followed by double quote (");
+//   - every double quote (") is escaped by back slash (\);
+//   - finally, s is wrapped with double quotes (arg -> "arg"),
+//     but only if there is space or tab inside s.
 func EscapeArg(s string) string {
 	if len(s) == 0 {
 		return `""`
@@ -115,12 +116,16 @@ func makeCmdLine(args []string) string {
 // the representation required by CreateProcess: a sequence of NUL
 // terminated strings followed by a nil.
 // Last bytes are two UCS-2 NULs, or four NUL bytes.
-func createEnvBlock(envv []string) *uint16 {
+// If any string contains a NUL, it returns (nil, EINVAL).
+func createEnvBlock(envv []string) (*uint16, error) {
 	if len(envv) == 0 {
-		return &utf16.Encode([]rune("\x00\x00"))[0]
+		return &utf16.Encode([]rune("\x00\x00"))[0], nil
 	}
 	length := 0
 	for _, s := range envv {
+		if bytealg.IndexByteString(s, 0) != -1 {
+			return nil, EINVAL
+		}
 		length += len(s) + 1
 	}
 	length += 1
@@ -135,7 +140,7 @@ func createEnvBlock(envv []string) *uint16 {
 	}
 	copy(b[i:i+1], []byte{0})
 
-	return &utf16.Encode([]rune(string(b)))[0]
+	return &utf16.Encode([]rune(string(b)))[0], nil
 }
 
 func CloseOnExec(fd Handle) {
@@ -390,20 +395,27 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	}
 	fd = fd[:j]
 
+	willInheritHandles := len(fd) > 0 && !sys.NoInheritHandles
+
 	// Do not accidentally inherit more than these handles.
-	if len(fd) > 0 {
+	if willInheritHandles {
 		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]), nil, nil)
 		if err != nil {
 			return 0, 0, err
 		}
 	}
 
+	envBlock, err := createEnvBlock(attr.Env)
+	if err != nil {
+		return 0, 0, err
+	}
+
 	pi := new(ProcessInformation)
 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
 	if sys.Token != 0 {
-		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, len(fd) > 0 && !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+		err = CreateProcessAsUser(sys.Token, argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, envBlock, dirp, &si.StartupInfo, pi)
 	} else {
-		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, len(fd) > 0 && !sys.NoInheritHandles, flags, createEnvBlock(attr.Env), dirp, &si.StartupInfo, pi)
+		err = CreateProcess(argv0p, argvp, sys.ProcessAttributes, sys.ThreadAttributes, willInheritHandles, flags, envBlock, dirp, &si.StartupInfo, pi)
 	}
 	if err != nil {
 		return 0, 0, err

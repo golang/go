@@ -207,6 +207,11 @@ var parseTests = []parseTest{
 	// Valid repetitions.
 	{`((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}))`, ``},
 	{`((((((((((x{1}){2}){2}){2}){2}){2}){2}){2}){2}){2})`, ``},
+
+	// Valid nesting.
+	{strings.Repeat("(", 999) + strings.Repeat(")", 999), ``},
+	{strings.Repeat("(?:", 999) + strings.Repeat(")*", 999), ``},
+	{"(" + strings.Repeat("|", 12345) + ")", ``}, // not nested at all
 }
 
 const testFlags = MatchNL | PerlX | UnicodeGroups
@@ -479,10 +484,15 @@ var invalidRegexps = []string{
 	`(?P<>a)`,
 	`[a-Z]`,
 	`(?i)[a-Z]`,
-	`a{100000}`,
-	`a{100000,}`,
-	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
 	`\Q\E*`,
+	`a{100000}`,  // too much repetition
+	`a{100000,}`, // too much repetition
+	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",    // too much repetition
+	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),    // too deep
+	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000), // too deep
+	"(" + strings.Repeat("(xx?)", 1000) + "){1000}",          // too long
+	strings.Repeat("(xx?){1000}", 1000),                      // too long
+	strings.Repeat(`\pL`, 27000),                             // too many runes
 }
 
 var onlyPerl = []string{

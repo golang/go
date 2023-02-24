@@ -4,7 +4,10 @@
 
 package abi
 
-import "unsafe"
+import (
+	"internal/goarch"
+	"unsafe"
+)
 
 // RegArgs is a struct that has space for each argument
 // and return value register on the current architecture.
@@ -16,6 +19,14 @@ import "unsafe"
 // when it may not be safe to keep them only in the integer
 // register space otherwise.
 type RegArgs struct {
+	// Values in these slots should be precisely the bit-by-bit
+	// representation of how they would appear in a register.
+	//
+	// This means that on big endian arches, integer values should
+	// be in the top bits of the slot. Floats are usually just
+	// directly represented, but some architectures treat narrow
+	// width floating point values specially (e.g. they're promoted
+	// first, or they need to be NaN-boxed).
 	Ints   [IntArgRegs]uintptr  // untyped integer registers
 	Floats [FloatArgRegs]uint64 // untyped float registers
 
@@ -31,6 +42,44 @@ type RegArgs struct {
 	// a reflectcall. The i'th bit indicates whether the i'th
 	// register contains or will contain a valid Go pointer.
 	ReturnIsPtr IntArgRegBitmap
+}
+
+func (r *RegArgs) Dump() {
+	print("Ints:")
+	for _, x := range r.Ints {
+		print(" ", x)
+	}
+	println()
+	print("Floats:")
+	for _, x := range r.Floats {
+		print(" ", x)
+	}
+	println()
+	print("Ptrs:")
+	for _, x := range r.Ptrs {
+		print(" ", x)
+	}
+	println()
+}
+
+// IntRegArgAddr returns a pointer inside of r.Ints[reg] that is appropriately
+// offset for an argument of size argSize.
+//
+// argSize must be non-zero, fit in a register, and a power-of-two.
+//
+// This method is a helper for dealing with the endianness of different CPU
+// architectures, since sub-word-sized arguments in big endian architectures
+// need to be "aligned" to the upper edge of the register to be interpreted
+// by the CPU correctly.
+func (r *RegArgs) IntRegArgAddr(reg int, argSize uintptr) unsafe.Pointer {
+	if argSize > goarch.PtrSize || argSize == 0 || argSize&(argSize-1) != 0 {
+		panic("invalid argSize")
+	}
+	offset := uintptr(0)
+	if goarch.BigEndian {
+		offset = goarch.PtrSize - argSize
+	}
+	return unsafe.Pointer(uintptr(unsafe.Pointer(&r.Ints[reg])) + offset)
 }
 
 // IntArgRegBitmap is a bitmap large enough to hold one bit per
@@ -51,27 +100,3 @@ func (b *IntArgRegBitmap) Set(i int) {
 func (b *IntArgRegBitmap) Get(i int) bool {
 	return b[i/8]&(uint8(1)<<(i%8)) != 0
 }
-
-// FuncPC* intrinsics.
-//
-// CAREFUL: In programs with plugins, FuncPC* can return different values
-// for the same function (because there are actually multiple copies of
-// the same function in the address space). To be safe, don't use the
-// results of this function in any == expression. It is only safe to
-// use the result as an address at which to start executing code.
-
-// FuncPCABI0 returns the entry PC of the function f, which must be a
-// direct reference of a function defined as ABI0. Otherwise it is a
-// compile-time error.
-//
-// Implemented as a compile intrinsic.
-func FuncPCABI0(f interface{}) uintptr
-
-// FuncPCABIInternal returns the entry PC of the function f. If f is a
-// direct reference of a function, it must be defined as ABIInternal.
-// Otherwise it is a compile-time error. If f is not a direct reference
-// of a defined function, it assumes that f is a func value. Otherwise
-// the behavior is undefined.
-//
-// Implemented as a compile intrinsic.
-func FuncPCABIInternal(f interface{}) uintptr

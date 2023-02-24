@@ -12,6 +12,8 @@ import (
 
 const shortDuration = 1 * time.Millisecond // a reasonable duration to block in an example
 
+var neverReady = make(chan struct{}) // never closed
+
 // This example demonstrates the use of a cancelable context to prevent a
 // goroutine leak. By the end of the example function, the goroutine started
 // by gen will return without leaking.
@@ -66,8 +68,8 @@ func ExampleWithDeadline() {
 	defer cancel()
 
 	select {
-	case <-time.After(1 * time.Second):
-		fmt.Println("overslept")
+	case <-neverReady:
+		fmt.Println("ready")
 	case <-ctx.Done():
 		fmt.Println(ctx.Err())
 	}
@@ -85,8 +87,8 @@ func ExampleWithTimeout() {
 	defer cancel()
 
 	select {
-	case <-time.After(1 * time.Second):
-		fmt.Println("overslept")
+	case <-neverReady:
+		fmt.Println("ready")
 	case <-ctx.Done():
 		fmt.Println(ctx.Err()) // prints "context deadline exceeded"
 	}

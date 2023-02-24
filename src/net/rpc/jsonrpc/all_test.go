@@ -5,7 +5,6 @@
 package jsonrpc
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,9 +27,9 @@ type Reply struct {
 type Arith int
 
 type ArithAddResp struct {
-	Id     interface{} `json:"id"`
-	Result Reply       `json:"result"`
-	Error  interface{} `json:"error"`
+	Id     any   `json:"id"`
+	Result Reply `json:"result"`
+	Error  any   `json:"error"`
 }
 
 func (t *Arith) Add(args *Args, reply *Reply) error {
@@ -262,7 +261,7 @@ func TestMalformedOutput(t *testing.T) {
 }
 
 func TestServerErrorHasNullResult(t *testing.T) {
-	var out bytes.Buffer
+	var out strings.Builder
 	sc := NewServerCodec(struct {
 		io.Reader
 		io.Writer

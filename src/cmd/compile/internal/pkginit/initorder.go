@@ -5,13 +5,12 @@
 package pkginit
 
 import (
-	"bytes"
 	"container/heap"
 	"fmt"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/staticinit"
 )
 
 // Package initialization
@@ -78,10 +77,7 @@ type InitOrder struct {
 // corresponding list of statements to include in the init() function
 // body.
 func initOrder(l []ir.Node) []ir.Node {
-	s := staticinit.Schedule{
-		Plans: make(map[ir.Node]*staticinit.Plan),
-		Temps: make(map[ir.Node]*ir.Name),
-	}
+	var res ir.Nodes
 	o := InitOrder{
 		blocking: make(map[ir.Node][]ir.Node),
 		order:    make(map[ir.Node]int),
@@ -92,7 +88,7 @@ func initOrder(l []ir.Node) []ir.Node {
 		switch n.Op() {
 		case ir.OAS, ir.OAS2DOTTYPE, ir.OAS2FUNC, ir.OAS2MAPR, ir.OAS2RECV:
 			o.processAssign(n)
-			o.flushReady(s.StaticInit)
+			o.flushReady(func(n ir.Node) { res.Append(n) })
 		case ir.ODCLCONST, ir.ODCLFUNC, ir.ODCLTYPE:
 			// nop
 		default:
@@ -125,7 +121,7 @@ func initOrder(l []ir.Node) []ir.Node {
 		base.Fatalf("expected empty map: %v", o.blocking)
 	}
 
-	return s.Out
+	return res
 }
 
 func (o *InitOrder) processAssign(n ir.Node) {
@@ -240,7 +236,7 @@ func reportInitLoopAndExit(l []*ir.Name) {
 	// TODO(mdempsky): Method values are printed as "T.m-fm"
 	// rather than "T.m". Figure out how to avoid that.
 
-	var msg bytes.Buffer
+	var msg strings.Builder
 	fmt.Fprintf(&msg, "initialization loop:\n")
 	for _, n := range l {
 		fmt.Fprintf(&msg, "\t%v: %v refers to\n", ir.Line(n), n)
@@ -304,7 +300,7 @@ func (d *initDeps) visit(n ir.Node) {
 		n := n.(*ir.ClosureExpr)
 		d.inspectList(n.Func.Body)
 
-	case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+	case ir.ODOTMETH, ir.OMETHVALUE, ir.OMETHEXPR:
 		d.foundDep(ir.MethodExprName(n))
 	}
 }
@@ -321,6 +317,15 @@ func (d *initDeps) foundDep(n *ir.Name) {
 	// Names without definitions aren't interesting as far as
 	// initialization ordering goes.
 	if n.Defn == nil {
+		return
+	}
+
+	// Treat coverage counter variables effectively as invisible with
+	// respect to init order. If we don't do this, then the
+	// instrumentation vars can perturb the order of initialization
+	// away from the order of the original uninstrumented program.
+	// See issue #56293 for more details.
+	if n.CoverageCounter() || n.CoverageAuxVar() {
 		return
 	}
 

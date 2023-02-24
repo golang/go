@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build linux && (mips || mipsle)
-// +build linux
-// +build mips mipsle
 
 package runtime
 
@@ -23,7 +21,6 @@ func cputicks() int64 {
 const (
 	_SS_DISABLE  = 2
 	_NSIG        = 128 + 1
-	_SI_USER     = 0
 	_SIG_BLOCK   = 1
 	_SIG_UNBLOCK = 2
 	_SIG_SETMASK = 3

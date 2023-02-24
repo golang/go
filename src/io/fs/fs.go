@@ -86,7 +86,7 @@ type File interface {
 type DirEntry interface {
 	// Name returns the name of the file (or subdirectory) described by the entry.
 	// This name is only the final element of the path (the base name), not the entire path.
-	// For example, Name would return "hello.go" not "/home/gopher/hello.go".
+	// For example, Name would return "hello.go" not "home/gopher/hello.go".
 	Name() string
 
 	// IsDir reports whether the entry describes a directory.
@@ -120,6 +120,7 @@ type ReadDirFile interface {
 	// In this case, if ReadDir returns an empty slice, it will return
 	// a non-nil error explaining why.
 	// At the end of a directory, the error is io.EOF.
+	// (ReadDir must return io.EOF itself, not an error wrapping io.EOF.)
 	//
 	// If n <= 0, ReadDir returns all the DirEntry values from the directory
 	// in a single slice. In this case, if ReadDir succeeds (reads all the way
@@ -153,7 +154,7 @@ type FileInfo interface {
 	Mode() FileMode     // file mode bits
 	ModTime() time.Time // modification time
 	IsDir() bool        // abbreviation for Mode().IsDir()
-	Sys() interface{}   // underlying data source (can return nil)
+	Sys() any           // underlying data source (can return nil)
 }
 
 // A FileMode represents a file's mode and permission bits.

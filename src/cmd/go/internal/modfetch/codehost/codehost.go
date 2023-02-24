@@ -10,10 +10,10 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	exec "internal/execabs"
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -22,6 +22,9 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/str"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // Downloaded size limits.
@@ -34,10 +37,19 @@ const (
 // A Repo represents a code hosting source.
 // Typical implementations include local version control repositories,
 // remote version control servers, and code hosting sites.
-// A Repo must be safe for simultaneous use by multiple goroutines.
+//
+// A Repo must be safe for simultaneous use by multiple goroutines,
+// and callers must not modify returned values, which may be cached and shared.
 type Repo interface {
+	// CheckReuse checks whether the old origin information
+	// remains up to date. If so, whatever cached object it was
+	// taken from can be reused.
+	// The subdir gives subdirectory name where the module root is expected to be found,
+	// "" for the root or "sub/dir" for a subdirectory (no trailing slash).
+	CheckReuse(old *Origin, subdir string) error
+
 	// List lists all tags with the given prefix.
-	Tags(prefix string) (tags []string, err error)
+	Tags(prefix string) (*Tags, error)
 
 	// Stat returns information about the revision rev.
 	// A revision can be any identifier known to the underlying service:
@@ -55,21 +67,6 @@ type Repo interface {
 	// os.IsNotExist(err) returns true.
 	ReadFile(rev, file string, maxSize int64) (data []byte, err error)
 
-	// ReadFileRevs reads a single file at multiple versions.
-	// It should refuse to read more than maxSize bytes.
-	// The result is a map from each requested rev strings
-	// to the associated FileRev. The map must have a non-nil
-	// entry for every requested rev (unless ReadFileRevs returned an error).
-	// A file simply being missing or even corrupted in revs[i]
-	// should be reported only in files[revs[i]].Err, not in the error result
-	// from ReadFileRevs.
-	// The overall call should return an error (and no map) only
-	// in the case of a problem with obtaining the data, such as
-	// a network failure.
-	// Implementations may assume that revs only contain tags,
-	// not direct commit hashes.
-	ReadFileRevs(revs []string, file string, maxSize int64) (files map[string]*FileRev, err error)
-
 	// ReadZip downloads a zip file for the subdir subdirectory
 	// of the given revision to a new file in a given temporary directory.
 	// It should refuse to read more than maxSize bytes.
@@ -80,7 +77,7 @@ type Repo interface {
 
 	// RecentTag returns the most recent tag on rev or one of its predecessors
 	// with the given prefix. allowed may be used to filter out unwanted versions.
-	RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error)
+	RecentTag(rev, prefix string, allowed func(tag string) bool) (tag string, err error)
 
 	// DescendsFrom reports whether rev or any of its ancestors has the given tag.
 	//
@@ -89,20 +86,93 @@ type Repo interface {
 	DescendsFrom(rev, tag string) (bool, error)
 }
 
-// A Rev describes a single revision in a source code repository.
+// An Origin describes the provenance of a given repo method result.
+// It can be passed to CheckReuse (usually in a different go command invocation)
+// to see whether the result remains up-to-date.
+type Origin struct {
+	VCS    string `json:",omitempty"` // "git" etc
+	URL    string `json:",omitempty"` // URL of repository
+	Subdir string `json:",omitempty"` // subdirectory in repo
+
+	// If TagSum is non-empty, then the resolution of this module version
+	// depends on the set of tags present in the repo, specifically the tags
+	// of the form TagPrefix + a valid semver version.
+	// If the matching repo tags and their commit hashes still hash to TagSum,
+	// the Origin is still valid (at least as far as the tags are concerned).
+	// The exact checksum is up to the Repo implementation; see (*gitRepo).Tags.
+	TagPrefix string `json:",omitempty"`
+	TagSum    string `json:",omitempty"`
+
+	// If Ref is non-empty, then the resolution of this module version
+	// depends on Ref resolving to the revision identified by Hash.
+	// If Ref still resolves to Hash, the Origin is still valid (at least as far as Ref is concerned).
+	// For Git, the Ref is a full ref like "refs/heads/main" or "refs/tags/v1.2.3",
+	// and the Hash is the Git object hash the ref maps to.
+	// Other VCS might choose differently, but the idea is that Ref is the name
+	// with a mutable meaning while Hash is a name with an immutable meaning.
+	Ref  string `json:",omitempty"`
+	Hash string `json:",omitempty"`
+
+	// If RepoSum is non-empty, then the resolution of this module version
+	// failed due to the repo being available but the version not being present.
+	// This depends on the entire state of the repo, which RepoSum summarizes.
+	// For Git, this is a hash of all the refs and their hashes.
+	RepoSum string `json:",omitempty"`
+}
+
+// Checkable reports whether the Origin contains anything that can be checked.
+// If not, the Origin is purely informational and should fail a CheckReuse call.
+func (o *Origin) Checkable() bool {
+	return o.TagSum != "" || o.Ref != "" || o.Hash != "" || o.RepoSum != ""
+}
+
+// ClearCheckable clears the Origin enough to make Checkable return false.
+func (o *Origin) ClearCheckable() {
+	o.TagSum = ""
+	o.TagPrefix = ""
+	o.Ref = ""
+	o.Hash = ""
+	o.RepoSum = ""
+}
+
+// A Tags describes the available tags in a code repository.
+type Tags struct {
+	Origin *Origin
+	List   []Tag
+}
+
+// A Tag describes a single tag in a code repository.
+type Tag struct {
+	Name string
+	Hash string // content hash identifying tag's content, if available
+}
+
+// isOriginTag reports whether tag should be preserved
+// in the Tags method's Origin calculation.
+// We can safely ignore tags that are not look like pseudo-versions,
+// because ../coderepo.go's (*codeRepo).Versions ignores them too.
+// We can also ignore non-semver tags, but we have to include semver
+// tags with extra suffixes, because the pseudo-version base finder uses them.
+func isOriginTag(tag string) bool {
+	// modfetch.(*codeRepo).Versions uses Canonical == tag,
+	// but pseudo-version calculation has a weaker condition that
+	// the canonical is a prefix of the tag.
+	// Include those too, so that if any new one appears, we'll invalidate the cache entry.
+	// This will lead to spurious invalidation of version list results,
+	// but tags of this form being created should be fairly rare
+	// (and invalidate pseudo-version results anyway).
+	c := semver.Canonical(tag)
+	return c != "" && strings.HasPrefix(tag, c) && !module.IsPseudoVersion(tag)
+}
+
+// A RevInfo describes a single revision in a source code repository.
 type RevInfo struct {
+	Origin  *Origin
 	Name    string    // complete ID in underlying repository
 	Short   string    // shortened ID, for use in pseudo-version
 	Version string    // version used in lookup
 	Time    time.Time // commit time
 	Tags    []string  // known tags for commit
-}
-
-// A FileRev describes the result of reading a file at a given revision.
-type FileRev struct {
-	Rev  string // requested revision
-	Data []byte // file data
-	Err  error  // error if any; os.IsNotExist(Err)==true if rev exists but file does not exist in that rev
 }
 
 // UnknownRevisionError is an error equivalent to fs.ErrNotExist, but for a
@@ -129,6 +199,19 @@ func (noCommitsError) Error() string {
 }
 func (noCommitsError) Is(err error) bool {
 	return err == fs.ErrNotExist
+}
+
+// ErrUnsupported indicates that a requested operation cannot be performed,
+// because it is unsupported. This error indicates that there is no alternative
+// way to perform the operation.
+//
+// TODO(#41198): Remove this declaration and use errors.ErrUnsupported instead.
+var ErrUnsupported = unsupportedOperationError{}
+
+type unsupportedOperationError struct{}
+
+func (unsupportedOperationError) Error() string {
+	return "unsupported operation"
 }
 
 // AllHex reports whether the revision rev is entirely lower-case hexadecimal digits.
@@ -179,7 +262,7 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
 
 	lockfile = dir + ".lock"
 	if cfg.BuildX {
-		fmt.Fprintf(os.Stderr, "# lock %s", lockfile)
+		fmt.Fprintf(os.Stderr, "# lock %s\n", lockfile)
 	}
 
 	unlock, err := lockedfile.MutexAt(lockfile).Lock()
@@ -243,7 +326,7 @@ var dirLock sync.Map
 // It returns the standard output and, for a non-zero exit,
 // a *RunError indicating the command, exit status, and standard error.
 // Standard error is unavailable for commands that exit successfully.
-func Run(dir string, cmdline ...interface{}) ([]byte, error) {
+func Run(dir string, cmdline ...any) ([]byte, error) {
 	return RunWithStdin(dir, nil, cmdline...)
 }
 
@@ -251,7 +334,7 @@ func Run(dir string, cmdline ...interface{}) ([]byte, error) {
 // See https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html.
 var bashQuoter = strings.NewReplacer(`"`, `\"`, `$`, `\$`, "`", "\\`", `\`, `\\`)
 
-func RunWithStdin(dir string, stdin io.Reader, cmdline ...interface{}) ([]byte, error) {
+func RunWithStdin(dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
 	if dir != "" {
 		muIface, ok := dirLock.Load(dir)
 		if !ok {

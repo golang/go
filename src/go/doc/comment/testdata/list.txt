@@ -1,0 +1,48 @@
+-- input --
+Text.
+- Not a list.
+ - Here is the list.
+     • Using multiple bullets.
+          * Indentation does not matter.
+     + Lots of bullets.
+More text.
+
+-- gofmt --
+Text.
+- Not a list.
+  - Here is the list.
+  - Using multiple bullets.
+  - Indentation does not matter.
+  - Lots of bullets.
+
+More text.
+
+-- text --
+Text. - Not a list.
+  - Here is the list.
+  - Using multiple bullets.
+  - Indentation does not matter.
+  - Lots of bullets.
+
+More text.
+
+-- markdown --
+Text. - Not a list.
+
+  - Here is the list.
+  - Using multiple bullets.
+  - Indentation does not matter.
+  - Lots of bullets.
+
+More text.
+
+-- html --
+<p>Text.
+- Not a list.
+<ul>
+<li>Here is the list.
+<li>Using multiple bullets.
+<li>Indentation does not matter.
+<li>Lots of bullets.
+</ul>
+<p>More text.

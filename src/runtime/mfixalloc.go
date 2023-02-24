@@ -8,7 +8,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // FixAlloc is a simple free-list allocator for fixed size objects.
 // Malloc uses a FixAlloc wrapped around sysAlloc to manage its
@@ -23,14 +26,16 @@ import "unsafe"
 // Callers can keep state in the object but the first word is
 // smashed by freeing and reallocating.
 //
-// Consider marking fixalloc'd types go:notinheap.
+// Consider marking fixalloc'd types not in heap by embedding
+// runtime/internal/sys.NotInHeap.
 type fixalloc struct {
 	size   uintptr
 	first  func(arg, p unsafe.Pointer) // called first time p is returned
 	arg    unsafe.Pointer
 	list   *mlink
 	chunk  uintptr // use uintptr instead of unsafe.Pointer to avoid write barriers
-	nchunk uint32
+	nchunk uint32  // bytes remaining in current chunk
+	nalloc uint32  // size of new chunks in bytes
 	inuse  uintptr // in-use bytes now
 	stat   *sysMemStat
 	zero   bool // zero allocations
@@ -41,21 +46,28 @@ type fixalloc struct {
 // this cannot be used by some of the internal GC structures. For example when
 // the sweeper is placing an unmarked object on the free list it does not want the
 // write barrier to be called since that could result in the object being reachable.
-//
-//go:notinheap
 type mlink struct {
+	_    sys.NotInHeap
 	next *mlink
 }
 
 // Initialize f to allocate objects of the given size,
 // using the allocator to obtain chunks of memory.
 func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *sysMemStat) {
+	if size > _FixAllocChunk {
+		throw("runtime: fixalloc size too large")
+	}
+	if min := unsafe.Sizeof(mlink{}); size < min {
+		size = min
+	}
+
 	f.size = size
 	f.first = first
 	f.arg = arg
 	f.list = nil
 	f.chunk = 0
 	f.nchunk = 0
+	f.nalloc = uint32(_FixAllocChunk / size * size) // Round _FixAllocChunk down to an exact multiple of size to eliminate tail waste
 	f.inuse = 0
 	f.stat = stat
 	f.zero = true
@@ -77,8 +89,8 @@ func (f *fixalloc) alloc() unsafe.Pointer {
 		return v
 	}
 	if uintptr(f.nchunk) < f.size {
-		f.chunk = uintptr(persistentalloc(_FixAllocChunk, 0, f.stat))
-		f.nchunk = _FixAllocChunk
+		f.chunk = uintptr(persistentalloc(uintptr(f.nalloc), 0, f.stat))
+		f.nchunk = f.nalloc
 	}
 
 	v := unsafe.Pointer(f.chunk)

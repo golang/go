@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !plan9,!windows
+//go:build unix
+// +build unix
 
 package main
 
+// #include <unistd.h>
 // static void nop() {}
 import "C"
 
-import (
-	"syscall"
-	"time"
-)
+import "syscall"
 
 func init() {
 	register("Segv", Segv)
@@ -34,8 +33,8 @@ func Segv() {
 
 	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
 
-	// Give the OS time to deliver the signal.
-	time.Sleep(time.Second)
+	// Wait for the OS to deliver the signal.
+	C.pause()
 }
 
 func SegvInCgo() {
@@ -51,6 +50,6 @@ func SegvInCgo() {
 
 	syscall.Kill(syscall.Getpid(), syscall.SIGSEGV)
 
-	// Give the OS time to deliver the signal.
-	time.Sleep(time.Second)
+	// Wait for the OS to deliver the signal.
+	C.pause()
 }

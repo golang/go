@@ -1,0 +1,62 @@
+# Test go build -pgo flag.
+# Specifically, the build cache handles profile content correctly.
+
+# this test rebuild runtime with different flags, skip in short mode
+[short] skip
+
+# build without PGO
+go build triv.go
+
+# build with PGO, should trigger rebuild
+# starting with an empty profile (the compiler accepts it)
+go build -x -pgo=prof triv.go
+stderr 'compile.*-pgoprofile=.*prof.*triv.go'
+
+# store the build ID
+go list -export -json=BuildID -pgo=prof triv.go
+stdout '"BuildID":' # check that output actually contains a build ID
+cp stdout list.out
+
+# build again with the same profile, should be cached
+go build -x -pgo=prof triv.go
+! stderr 'compile.*triv.go'
+
+# check that the build ID is the same
+go list -export -json=BuildID -pgo=prof triv.go
+cmp stdout list.out
+
+# overwrite the prof
+go run overwrite.go
+
+# build again, profile content changed, should trigger rebuild
+go build -n -pgo=prof triv.go
+stderr 'compile.*-pgoprofile=.*prof.*p.go'
+
+# check that the build ID is different
+go list -export -json=BuildID -pgo=prof triv.go
+! cmp stdout list.out
+
+-- prof --
+-- triv.go --
+package main
+func main() {}
+-- overwrite.go --
+package main
+
+import (
+	"os"
+	"runtime/pprof"
+)
+
+func main() {
+	f, err := os.Create("prof")
+	if err != nil {
+		panic(err)
+	}
+	err = pprof.StartCPUProfile(f)
+	if err != nil {
+		panic(err)
+	}
+	pprof.StopCPUProfile()
+	f.Close()
+}

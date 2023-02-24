@@ -48,7 +48,7 @@ func FreeBSDNumCPU() {
 		fmt.Printf("fail to launch '%s', error: %s, output: %s\n", strings.Join(cmd.Args, " "), err, output)
 		return
 	}
-	if bytes.Equal(output, []byte("1\n")) == false {
+	if !bytes.Equal(output, []byte("1\n")) {
 		// SMP mode deactivated in kernel.
 		fmt.Println("OK")
 		return
@@ -85,19 +85,18 @@ func getList() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to execute '%s': %s", cmdline, err)
 	}
-	pos := bytes.IndexRune(output, '\n')
-	if pos == -1 {
+	output, _, ok := bytes.Cut(output, []byte("\n"))
+	if !ok {
 		return nil, fmt.Errorf("invalid output from '%s', '\\n' not found: %s", cmdline, output)
 	}
-	output = output[0:pos]
 
-	pos = bytes.IndexRune(output, ':')
-	if pos == -1 {
+	_, cpus, ok := bytes.Cut(output, []byte(":"))
+	if !ok {
 		return nil, fmt.Errorf("invalid output from '%s', ':' not found: %s", cmdline, output)
 	}
 
 	var list []string
-	for _, val := range bytes.Split(output[pos+1:], []byte(",")) {
+	for _, val := range bytes.Split(cpus, []byte(",")) {
 		index := string(bytes.TrimSpace(val))
 		if len(index) == 0 {
 			continue

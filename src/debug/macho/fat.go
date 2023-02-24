@@ -7,6 +7,7 @@ package macho
 import (
 	"encoding/binary"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"os"
 )
@@ -79,15 +80,19 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 
 	// Combine the Cpu and SubCpu (both uint32) into a uint64 to make sure
 	// there are not duplicate architectures.
-	seenArches := make(map[uint64]bool, narch)
+	seenArches := make(map[uint64]bool)
 	// Make sure that all images are for the same MH_ type.
 	var machoType Type
 
 	// Following the fat_header comes narch fat_arch structs that index
 	// Mach-O images further in the file.
-	ff.Arches = make([]FatArch, narch)
+	c := saferio.SliceCap((*FatArch)(nil), uint64(narch))
+	if c < 0 {
+		return nil, &FormatError{offset, "too many images", nil}
+	}
+	ff.Arches = make([]FatArch, 0, c)
 	for i := uint32(0); i < narch; i++ {
-		fa := &ff.Arches[i]
+		var fa FatArch
 		err = binary.Read(sr, binary.BigEndian, &fa.FatArchHeader)
 		if err != nil {
 			return nil, &FormatError{offset, "invalid fat_arch header", nil}
@@ -115,6 +120,8 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 				return nil, &FormatError{offset, fmt.Sprintf("Mach-O type for architecture #%d (type=%#x) does not match first (type=%#x)", i, fa.Type, machoType), nil}
 			}
 		}
+
+		ff.Arches = append(ff.Arches, fa)
 	}
 
 	return &ff, nil

@@ -14,6 +14,7 @@ import (
 	. "math/rand"
 	"os"
 	"runtime"
+	"sync"
 	"testing"
 	"testing/iotest"
 )
@@ -682,4 +683,19 @@ func BenchmarkRead1000(b *testing.B) {
 	for n := b.N; n > 0; n-- {
 		r.Read(buf)
 	}
+}
+
+func BenchmarkConcurrent(b *testing.B) {
+	const goroutines = 4
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			for n := b.N; n > 0; n-- {
+				Int63()
+			}
+		}()
+	}
+	wg.Wait()
 }

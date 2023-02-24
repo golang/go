@@ -23,13 +23,7 @@ x_cgo_init(G *g, void (*setg)(void*))
 void
 _cgo_sys_thread_start(ThreadStart *ts)
 {
-	uintptr_t thandle;
-
-	thandle = _beginthread(threadentry, 0, ts);
-	if(thandle == -1) {
-		fprintf(stderr, "runtime: failed to create new OS thread (%d)\n", errno);
-		abort();
-	}
+	_cgo_beginthread(threadentry, ts);
 }
 
 extern void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);

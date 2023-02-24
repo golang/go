@@ -1,0 +1,71 @@
+# This test makes checks against a regression of a bug in the Go command
+# where the module loader hung forever because all main module dependencies
+# kept workspace pruning instead of adopting the pruning in their go.mod
+# files, and the loader kept adding dependencies on the queue until they
+# were either pruned or unpruned, never breaking a module dependency cycle.
+#
+# This is the module graph in the test:
+#
+#                               /-------------------------\
+#                              |                          |
+#                              V                          |
+#  example.com/a -> example.com/b v1.0.0 -> example.com/c v1.1.0
+
+go list -m -f '{{.Version}}' example.com/c
+
+-- go.work --
+go 1.16
+
+use (
+	./a
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.18
+
+require example.com/b v1.0.0
+
+replace example.com/b v1.0.0 => ../b
+replace example.com/c v1.0.0 => ../c
+-- a/foo.go --
+package main
+
+import "example.com/b"
+
+func main() {
+	b.B()
+}
+-- b/go.mod --
+module example.com/b
+
+go 1.18
+
+require example.com/c v1.0.0
+-- b/b.go --
+package b
+
+func B() {
+}
+-- b/cmd/main.go --
+package main
+
+import "example.com/c"
+
+func main() {
+	c.C()
+}
+-- c/go.mod --
+module example.com/c
+
+go 1.18
+
+require example.com/b v1.0.0
+-- c/c.go --
+package c
+
+import "example.com/b"
+
+func C() {
+	b.B()
+}

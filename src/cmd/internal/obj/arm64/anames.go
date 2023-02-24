@@ -530,6 +530,7 @@ var Anames = []string{
 	"VBSL",
 	"VBIT",
 	"VTBL",
+	"VTBX",
 	"VXAR",
 	"VZIP1",
 	"VZIP2",
@@ -537,5 +538,7 @@ var Anames = []string{
 	"VUADDW2",
 	"VUADDW",
 	"VUSRA",
+	"VTRN1",
+	"VTRN2",
 	"LAST",
 }

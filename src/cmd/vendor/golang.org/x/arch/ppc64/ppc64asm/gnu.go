@@ -297,12 +297,17 @@ func GNUSyntax(inst Inst, pc uint64) string {
 				gnuArg(&inst, 0, inst.Args[0], PC),
 				gnuArg(&inst, 2, inst.Args[2], PC))
 			startArg = 4
-		} else if r == 0 {
+		} else {
 			str = fmt.Sprintf("%s %s,%s,%s", opName,
 				gnuArg(&inst, 0, inst.Args[0], PC),
 				gnuArg(&inst, 1, inst.Args[1], PC),
 				gnuArg(&inst, 2, inst.Args[2], PC))
 			startArg = 4
+			if r == 1 {
+				// This is an illegal encoding (ra != 0 && r == 1) on ISA 3.1.
+				v := uint64(inst.Enc)<<32 | uint64(inst.SuffixEnc)
+				return fmt.Sprintf(".quad 0x%x", v)
+			}
 		}
 		buf.WriteString(str)
 
@@ -317,11 +322,16 @@ func GNUSyntax(inst Inst, pc uint64) string {
 				str := fmt.Sprintf("%s %s,%d", opName, gnuArg(&inst, 0, inst.Args[0], PC), d)
 				buf.WriteString(str)
 				startArg = 4
-			} else if r == 0 {
+			} else {
 				str := fmt.Sprintf("%s %s,%d(%s)", opName,
 					gnuArg(&inst, 0, inst.Args[0], PC),
 					d,
 					gnuArg(&inst, 2, inst.Args[2], PC))
+				if r == 1 {
+					// This is an invalid encoding (ra != 0 && r == 1) on ISA 3.1.
+					v := uint64(inst.Enc)<<32 | uint64(inst.SuffixEnc)
+					return fmt.Sprintf(".quad 0x%x", v)
+				}
 				buf.WriteString(str)
 				startArg = 4
 			}

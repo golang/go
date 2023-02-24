@@ -13,23 +13,23 @@ var x32 [2]uint32
 var x64 [2]uint64
 
 func compMem1() int {
-	// amd64:`CMPB\t"".x\+1\(SB\), [$]0`
+	// amd64:`CMPB\tcommand-line-arguments.x\+1\(SB\), [$]0`
 	if x[1] {
 		return 1
 	}
-	// amd64:`CMPB\t"".x8\+1\(SB\), [$]7`
+	// amd64:`CMPB\tcommand-line-arguments.x8\+1\(SB\), [$]7`
 	if x8[1] == 7 {
 		return 1
 	}
-	// amd64:`CMPW\t"".x16\+2\(SB\), [$]7`
+	// amd64:`CMPW\tcommand-line-arguments.x16\+2\(SB\), [$]7`
 	if x16[1] == 7 {
 		return 1
 	}
-	// amd64:`CMPL\t"".x32\+4\(SB\), [$]7`
+	// amd64:`CMPL\tcommand-line-arguments.x32\+4\(SB\), [$]7`
 	if x32[1] == 7 {
 		return 1
 	}
-	// amd64:`CMPQ\t"".x64\+8\(SB\), [$]7`
+	// amd64:`CMPQ\tcommand-line-arguments.x64\+8\(SB\), [$]7`
 	if x64[1] == 7 {
 		return 1
 	}

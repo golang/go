@@ -36,9 +36,9 @@ type (
 
 // Methods can be declared on the original named type and the alias.
 func (T0) m1()  {} // GCCGO_ERROR "previous"
-func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|T0\.m1 redeclared in this block|redefinition of .m1."
-func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
-func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
+func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|T0\.m1 already declared|redefinition of .m1."
+func (A0) m1()  {} // ERROR "T0\.m1 already declared|redefinition of .m1."
+func (A0) m1()  {} // ERROR "T0\.m1 already declared|redefinition of .m1."
 func (A0) m2()  {}
 
 // Type aliases and the original type name can be used interchangeably.
@@ -46,8 +46,8 @@ var _ A0 = T0{}
 var _ T0 = A0{}
 
 // But aliases and original types cannot be used with new types based on them.
-var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
-var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
+var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
+var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type T0\) as N0 value in variable declaration"
 
 var _ A5 = Value{}
 
@@ -82,10 +82,10 @@ func _() {
 	var _ A0 = T0{}
 	var _ T0 = A0{}
 
-	var _ N0 = T0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
-	var _ N0 = A0{} // ERROR "cannot use T0{} \(type T0\) as type N0 in assignment|incompatible type"
+	var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
+	var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type T0\) as N0 value in variable declaration"
 
-	var _ A5 = Value{} // ERROR "cannot use reflect\.Value{} \(type reflect.Value\) as type A5 in assignment|incompatible type"
+	var _ A5 = Value{} // ERROR "cannot use Value{} \(value of type reflect\.Value\) as A5 value in variable declaration"
 }
 
 // Invalid type alias declarations.

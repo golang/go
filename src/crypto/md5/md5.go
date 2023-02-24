@@ -59,13 +59,13 @@ const (
 func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
-	b = appendUint32(b, d.s[0])
-	b = appendUint32(b, d.s[1])
-	b = appendUint32(b, d.s[2])
-	b = appendUint32(b, d.s[3])
+	b = binary.BigEndian.AppendUint32(b, d.s[0])
+	b = binary.BigEndian.AppendUint32(b, d.s[1])
+	b = binary.BigEndian.AppendUint32(b, d.s[2])
+	b = binary.BigEndian.AppendUint32(b, d.s[3])
 	b = append(b, d.x[:d.nx]...)
 	b = b[:len(b)+len(d.x)-d.nx] // already zero
-	b = appendUint64(b, d.len)
+	b = binary.BigEndian.AppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -85,18 +85,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.len = consumeUint64(b)
 	d.nx = int(d.len % BlockSize)
 	return nil
-}
-
-func appendUint64(b []byte, x uint64) []byte {
-	var a [8]byte
-	binary.BigEndian.PutUint64(a[:], x)
-	return append(b, a[:]...)
-}
-
-func appendUint32(b []byte, x uint32) []byte {
-	var a [4]byte
-	binary.BigEndian.PutUint32(a[:], x)
-	return append(b, a[:]...)
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {

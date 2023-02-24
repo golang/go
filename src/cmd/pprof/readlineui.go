@@ -6,9 +6,6 @@
 // that provides the readline functionality if possible.
 
 //go:build (darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || windows) && !appengine && !android
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
-// +build !appengine
-// +build !android
 
 package main
 
@@ -54,7 +51,7 @@ func newReadlineUI() driver.UI {
 	return &readlineUI{term: term.NewTerminal(rw, "")}
 }
 
-// Read returns a line of text (a command) read from the user.
+// ReadLine returns a line of text (a command) read from the user.
 // prompt is printed before reading the command.
 func (r *readlineUI) ReadLine(prompt string) (string, error) {
 	r.term.SetPrompt(prompt)
@@ -72,18 +69,18 @@ func (r *readlineUI) ReadLine(prompt string) (string, error) {
 // It formats the text as fmt.Print would and adds a final \n if not already present.
 // For line-based UI, Print writes to standard error.
 // (Standard output is reserved for report data.)
-func (r *readlineUI) Print(args ...interface{}) {
+func (r *readlineUI) Print(args ...any) {
 	r.print(false, args...)
 }
 
 // PrintErr shows an error message to the user.
 // It formats the text as fmt.Print would and adds a final \n if not already present.
 // For line-based UI, PrintErr writes to standard error.
-func (r *readlineUI) PrintErr(args ...interface{}) {
+func (r *readlineUI) PrintErr(args ...any) {
 	r.print(true, args...)
 }
 
-func (r *readlineUI) print(withColor bool, args ...interface{}) {
+func (r *readlineUI) print(withColor bool, args ...any) {
 	text := fmt.Sprint(args...)
 	if !strings.HasSuffix(text, "\n") {
 		text += "\n"

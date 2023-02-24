@@ -5,6 +5,7 @@
 package cshared_test
 
 import (
+	"bufio"
 	"bytes"
 	"debug/elf"
 	"debug/pe"
@@ -30,7 +31,7 @@ var exeSuffix string
 
 var GOOS, GOARCH, GOROOT string
 var installdir, androiddir string
-var libSuffix, libgoname string
+var libgoname string
 
 func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
@@ -42,6 +43,12 @@ func testMain(m *testing.M) int {
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
 		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
 		os.Exit(0)
+	}
+	if runtime.GOOS == "linux" {
+		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+			fmt.Printf("SKIP - skipping failing test on alpine - go.dev/issue/19938\n")
+			os.Exit(0)
+		}
 	}
 
 	GOOS = goEnv("GOOS")
@@ -117,6 +124,9 @@ func testMain(m *testing.M) int {
 	}
 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
 
+	// Force reallocation (and avoid aliasing bugs) for parallel tests that append to cc.
+	cc = cc[:len(cc):len(cc)]
+
 	if GOOS == "windows" {
 		exeSuffix = ".exe"
 	}
@@ -143,20 +153,14 @@ func testMain(m *testing.M) int {
 		log.Panic(err)
 	}
 
-	// Directory where cgo headers and outputs will be installed.
-	// The installation directory format varies depending on the platform.
-	output, err := exec.Command("go", "list",
-		"-buildmode=c-shared",
-		"-installsuffix", "testcshared",
-		"-f", "{{.Target}}",
-		"./libgo").CombinedOutput()
-	if err != nil {
-		log.Panicf("go list failed: %v\n%s", err, output)
-	}
-	target := string(bytes.TrimSpace(output))
-	libgoname = filepath.Base(target)
-	installdir = filepath.Dir(target)
-	libSuffix = strings.TrimPrefix(filepath.Ext(target), ".")
+	defer func() {
+		if installdir != "" {
+			err := os.RemoveAll(installdir)
+			if err != nil {
+				log.Panic(err)
+			}
+		}
+	}()
 
 	return m.Run()
 }
@@ -200,7 +204,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	args := append(adbCmd(), "exec-out")
 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
 	for _, e := range env {
-		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
+		if strings.Contains(e, "LD_LIBRARY_PATH=") {
 			adbargs = append([]string{e}, adbargs...)
 			break
 		}
@@ -280,8 +284,13 @@ func createHeaders() error {
 	}
 
 	// Generate a C header file for libgo itself.
-	args = []string{"go", "install", "-buildmode=c-shared",
-		"-installsuffix", "testcshared", "./libgo"}
+	installdir, err = os.MkdirTemp("", "testcshared")
+	if err != nil {
+		return err
+	}
+	libgoname = "libgo.a"
+
+	args = []string{"go", "build", "-buildmode=c-shared", "-o", filepath.Join(installdir, libgoname), "./libgo"}
 	cmd = exec.Command(args[0], args[1:]...)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -314,30 +323,46 @@ func createHeaders() error {
 		if err != nil {
 			return fmt.Errorf("unable to find dlltool path: %v\n%s\n", err, out)
 		}
-		args := []string{strings.TrimSpace(string(out)), "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
-
-		// This is an unfortunate workaround for https://github.com/mstorsjo/llvm-mingw/issues/205 in which
-		// we basically reimplement the contents of the dlltool.sh wrapper: https://git.io/JZFlU
-		dlltoolContents, err := os.ReadFile(args[0])
-		if err != nil {
-			return fmt.Errorf("unable to read dlltool: %v\n", err)
-		}
-		if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
-			base, name := filepath.Split(args[0])
-			args[0] = filepath.Join(base, "llvm-dlltool")
-			var machine string
-			switch strings.SplitN(name, "-", 2)[0] {
-			case "i686":
-				machine = "i386"
-			case "x86_64":
-				machine = "i386:x86-64"
-			case "armv7":
-				machine = "arm"
-			case "aarch64":
-				machine = "arm64"
+		dlltoolpath := strings.TrimSpace(string(out))
+		if filepath.Ext(dlltoolpath) == "" {
+			// Some compilers report slash-separated paths without extensions
+			// instead of ordinary Windows paths.
+			// Try to find the canonical name for the path.
+			if lp, err := exec.LookPath(dlltoolpath); err == nil {
+				dlltoolpath = lp
 			}
-			if len(machine) > 0 {
-				args = append(args, "-m", machine)
+		}
+
+		args := []string{dlltoolpath, "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
+
+		if filepath.Ext(dlltoolpath) == "" {
+			// This is an unfortunate workaround for
+			// https://github.com/mstorsjo/llvm-mingw/issues/205 in which
+			// we basically reimplement the contents of the dlltool.sh
+			// wrapper: https://git.io/JZFlU.
+			// TODO(thanm): remove this workaround once we can upgrade
+			// the compilers on the windows-arm64 builder.
+			dlltoolContents, err := os.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("unable to read dlltool: %v\n", err)
+			}
+			if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
+				base, name := filepath.Split(args[0])
+				args[0] = filepath.Join(base, "llvm-dlltool")
+				var machine string
+				switch prefix, _, _ := strings.Cut(name, "-"); prefix {
+				case "i686":
+					machine = "i386"
+				case "x86_64":
+					machine = "i386:x86-64"
+				case "armv7":
+					machine = "arm"
+				case "aarch64":
+					machine = "arm64"
+				}
+				if len(machine) > 0 {
+					args = append(args, "-m", machine)
+				}
 			}
 		}
 
@@ -369,6 +394,7 @@ func createHeadersOnce(t *testing.T) {
 		headersErr = createHeaders()
 	})
 	if headersErr != nil {
+		t.Helper()
 		t.Fatal(headersErr)
 	}
 }
@@ -540,7 +566,7 @@ func TestUnexportedSymbols(t *testing.T) {
 
 	cmd := "testp2"
 	bin := cmdToRun(cmd)
-	libname := "libgo2." + libSuffix
+	libname := "libgo2.a"
 
 	run(t,
 		nil,
@@ -598,7 +624,7 @@ func TestMainExportedOnAndroid(t *testing.T) {
 }
 
 func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
-	libname := pkgname + "." + libSuffix
+	libname := pkgname + ".a"
 	run(t,
 		nil,
 		"go", "build",
@@ -701,12 +727,15 @@ func TestCachedInstall(t *testing.T) {
 	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "libgo", "libgo.go"), filepath.Join("libgo", "libgo.go"))
 	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "p", "p.go"), filepath.Join("p", "p.go"))
 
-	env := append(os.Environ(), "GOPATH="+tmpdir, "GOBIN="+filepath.Join(tmpdir, "bin"))
-
 	buildcmd := []string{"go", "install", "-x", "-buildmode=c-shared", "-installsuffix", "testcshared", "./libgo"}
 
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
 	cmd.Dir = filepath.Join(tmpdir, "src", "testcshared")
+	env := append(cmd.Environ(),
+		"GOPATH="+tmpdir,
+		"GOBIN="+filepath.Join(tmpdir, "bin"),
+		"GO111MODULE=off", // 'go install' only works in GOPATH mode
+	)
 	cmd.Env = env
 	t.Log(buildcmd)
 	out, err := cmd.CombinedOutput()
@@ -781,10 +810,10 @@ func copyFile(t *testing.T, dst, src string) {
 
 func TestGo2C2Go(t *testing.T) {
 	switch GOOS {
-	case "darwin", "ios":
-		// Darwin shared libraries don't support the multiple
+	case "darwin", "ios", "windows":
+		// Non-ELF shared libraries don't support the multiple
 		// copies of the runtime package implied by this test.
-		t.Skip("linking c-shared into Go programs not supported on Darwin; issue 29061")
+		t.Skipf("linking c-shared into Go programs not supported on %s; issue 29061, 49457", GOOS)
 	case "android":
 		t.Skip("test fails on android; issue 29087")
 	}
@@ -797,7 +826,7 @@ func TestGo2C2Go(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	lib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
+	lib := filepath.Join(tmpdir, "libtestgo2c2go.a")
 	var env []string
 	if GOOS == "windows" && strings.HasSuffix(lib, ".a") {
 		env = append(env, "CGO_LDFLAGS=-Wl,--out-implib,"+lib, "CGO_LDFLAGS_ALLOW=.*")
@@ -834,4 +863,52 @@ func TestGo2C2Go(t *testing.T) {
 	bin = filepath.Join(tmpdir, "m2") + exeSuffix
 	run(t, goenv, "go", "build", "-o", bin, "./go2c2go/m2")
 	runExe(t, runenv, bin)
+}
+
+func TestIssue36233(t *testing.T) {
+	t.Parallel()
+
+	// Test that the export header uses GoComplex64 and GoComplex128
+	// for complex types.
+
+	tmpdir, err := os.MkdirTemp("", "cshared-TestIssue36233")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	const exportHeader = "issue36233.h"
+
+	run(t, nil, "go", "tool", "cgo", "-exportheader", exportHeader, "-objdir", tmpdir, "./issue36233/issue36233.go")
+	data, err := os.ReadFile(exportHeader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	funcs := []struct{ name, signature string }{
+		{"exportComplex64", "GoComplex64 exportComplex64(GoComplex64 v)"},
+		{"exportComplex128", "GoComplex128 exportComplex128(GoComplex128 v)"},
+		{"exportComplexfloat", "GoComplex64 exportComplexfloat(GoComplex64 v)"},
+		{"exportComplexdouble", "GoComplex128 exportComplexdouble(GoComplex128 v)"},
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	var found int
+	for scanner.Scan() {
+		b := scanner.Bytes()
+		for _, fn := range funcs {
+			if bytes.Contains(b, []byte(fn.name)) {
+				found++
+				if !bytes.Contains(b, []byte(fn.signature)) {
+					t.Errorf("function signature mismatch; got %q, want %q", b, fn.signature)
+				}
+			}
+		}
+	}
+	if err = scanner.Err(); err != nil {
+		t.Errorf("scanner encountered error: %v", err)
+	}
+	if found != len(funcs) {
+		t.Error("missing functions")
+	}
 }

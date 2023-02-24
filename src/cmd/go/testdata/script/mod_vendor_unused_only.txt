@@ -12,6 +12,8 @@ module example.com/m
 go 1.14
 
 require example.com v1.0.0 // indirect
+-- go.sum --
+example.com v1.0.0/go.mod h1:WRiieAqDBb1hVdDXLLdxNtCDWNfehn7FWyPC5Oz2vB4=
 -- go1.14-modules.txt --
 # example.com v1.0.0
 ## explicit

@@ -87,7 +87,7 @@ func TFooI() {
 	FooI(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "... argument does not escape"
 }
 
-func FooJ(args ...interface{}) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
+func FooJ(args ...interface{}) *int32 { // ERROR "leaking param: args to result ~r0 level=1"
 	for i := 0; i < len(args); i++ {
 		switch x := args[i].(type) {
 		case nil:
@@ -123,7 +123,7 @@ type fakeSlice struct {
 	a *[4]interface{}
 }
 
-func FooK(args fakeSlice) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
+func FooK(args fakeSlice) *int32 { // ERROR "leaking param: args to result ~r0 level=1"
 	for i := 0; i < args.l; i++ {
 		switch x := (*args.a)[i].(type) {
 		case nil:
@@ -148,7 +148,7 @@ func TFooK2() {
 	isink = FooK(fs)
 }
 
-func FooL(args []interface{}) *int32 { // ERROR "leaking param: args to result ~r1 level=1"
+func FooL(args []interface{}) *int32 { // ERROR "leaking param: args to result ~r0 level=1"
 	for i := 0; i < len(args); i++ {
 		switch x := args[i].(type) {
 		case nil:

@@ -3,11 +3,11 @@
 // license that can be found in the LICENSE file.
 
 /*
-Asm, typically invoked as ``go tool asm'', assembles the source file into an object
+Asm, typically invoked as “go tool asm”, assembles the source file into an object
 file named for the basename of the argument source file with a .o suffix. The
 object file can then be combined with other objects into a package archive.
 
-Command Line
+# Command Line
 
 Usage:
 
@@ -37,6 +37,8 @@ Flags:
 		Write symbol ABI information to output file. Don't assemble.
 	-o file
 		Write output to file. The default is foo.o for /a/b/c/foo.s.
+	-p pkgpath
+		Set expected package import to pkgpath.
 	-shared
 		Generate code that can be linked into a shared library.
 	-spectre list

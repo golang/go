@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-var sink interface{}
+var sink any
 
 func BenchmarkAtomicLoad64(b *testing.B) {
 	var x uint64

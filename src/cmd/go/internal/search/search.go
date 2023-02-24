@@ -8,13 +8,14 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/str"
+	"cmd/internal/pkgpattern"
 	"fmt"
 	"go/build"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
@@ -45,20 +46,20 @@ func (m *Match) AddError(err error) {
 	m.Errs = append(m.Errs, &MatchError{Match: m, Err: err})
 }
 
-// Literal reports whether the pattern is free of wildcards and meta-patterns.
+// IsLiteral reports whether the pattern is free of wildcards and meta-patterns.
 //
 // A literal pattern must match at most one package.
 func (m *Match) IsLiteral() bool {
 	return !strings.Contains(m.pattern, "...") && !m.IsMeta()
 }
 
-// Local reports whether the pattern must be resolved from a specific root or
+// IsLocal reports whether the pattern must be resolved from a specific root or
 // directory, such as a filesystem path or a single module.
 func (m *Match) IsLocal() bool {
 	return build.IsLocalImport(m.pattern) || filepath.IsAbs(m.pattern)
 }
 
-// Meta reports whether the pattern is a “meta-package” keyword that represents
+// IsMeta reports whether the pattern is a “meta-package” keyword that represents
 // multiple packages, such as "std", "cmd", or "all".
 func (m *Match) IsMeta() bool {
 	return IsMetaPackage(m.pattern)
@@ -109,8 +110,8 @@ func (m *Match) MatchPackages() {
 	match := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
 	if !m.IsMeta() {
-		match = MatchPattern(m.pattern)
-		treeCanMatch = TreeCanMatchPattern(m.pattern)
+		match = pkgpattern.MatchPattern(m.pattern)
+		treeCanMatch = pkgpattern.TreeCanMatchPattern(m.pattern)
 	}
 
 	have := map[string]bool{
@@ -124,11 +125,16 @@ func (m *Match) MatchPackages() {
 		if (m.pattern == "std" || m.pattern == "cmd") && src != cfg.GOROOTsrc {
 			continue
 		}
-		src = filepath.Clean(src) + string(filepath.Separator)
+
+		// If the root itself is a symlink to a directory,
+		// we want to follow it (see https://go.dev/issue/50807).
+		// Add a trailing separator to force that to happen.
+		src = str.WithFilePathSeparator(filepath.Clean(src))
 		root := src
 		if m.pattern == "cmd" {
 			root += "cmd" + string(filepath.Separator)
 		}
+
 		err := fsys.Walk(root, func(path string, fi fs.FileInfo, err error) error {
 			if err != nil {
 				return err // Likely a permission error, which could interfere with matching.
@@ -202,12 +208,6 @@ func (m *Match) MatchPackages() {
 	}
 }
 
-var modRoot string
-
-func SetModRoot(dir string) {
-	modRoot = dir
-}
-
 // MatchDirs sets m.Dirs to a non-nil slice containing all directories that
 // potentially match a local pattern. The pattern must begin with an absolute
 // path, or "./", or "../". On Windows, the pattern may use slash or backslash
@@ -215,7 +215,7 @@ func SetModRoot(dir string) {
 //
 // If any errors may have caused the set of directories to be incomplete,
 // MatchDirs appends those errors to m.Errs.
-func (m *Match) MatchDirs() {
+func (m *Match) MatchDirs(modRoots []string) {
 	m.Dirs = []string{}
 	if !m.IsLocal() {
 		m.AddError(fmt.Errorf("internal error: MatchDirs: %s is not a valid filesystem pattern", m.pattern))
@@ -239,7 +239,7 @@ func (m *Match) MatchDirs() {
 		cleanPattern = "." + string(os.PathSeparator) + cleanPattern
 	}
 	slashPattern := filepath.ToSlash(cleanPattern)
-	match := MatchPattern(slashPattern)
+	match := pkgpattern.MatchPattern(slashPattern)
 
 	// Find directory to begin the scan.
 	// Could be smarter but this one optimization
@@ -253,18 +253,31 @@ func (m *Match) MatchDirs() {
 	// We need to preserve the ./ for pattern matching
 	// and in the returned import paths.
 
-	if modRoot != "" {
+	if len(modRoots) > 1 {
 		abs, err := filepath.Abs(dir)
 		if err != nil {
 			m.AddError(err)
 			return
 		}
-		if !hasFilepathPrefix(abs, modRoot) {
-			m.AddError(fmt.Errorf("directory %s is outside module root (%s)", abs, modRoot))
-			return
+		var found bool
+		for _, modRoot := range modRoots {
+			if modRoot != "" && str.HasFilePathPrefix(abs, modRoot) {
+				found = true
+			}
+		}
+		if !found {
+			plural := ""
+			if len(modRoots) > 1 {
+				plural = "s"
+			}
+			m.AddError(fmt.Errorf("directory %s is outside module root%s (%s)", abs, plural, strings.Join(modRoots, ", ")))
 		}
 	}
 
+	// If dir is actually a symlink to a directory,
+	// we want to follow it (see https://go.dev/issue/50807).
+	// Add a trailing separator to force that to happen.
+	dir = str.WithFilePathSeparator(dir)
 	err := fsys.Walk(dir, func(path string, fi fs.FileInfo, err error) error {
 		if err != nil {
 			return err // Likely a permission error, which could interfere with matching.
@@ -329,90 +342,6 @@ func (m *Match) MatchDirs() {
 	}
 }
 
-// TreeCanMatchPattern(pattern)(name) reports whether
-// name or children of name can possibly match pattern.
-// Pattern is the same limited glob accepted by matchPattern.
-func TreeCanMatchPattern(pattern string) func(name string) bool {
-	wildCard := false
-	if i := strings.Index(pattern, "..."); i >= 0 {
-		wildCard = true
-		pattern = pattern[:i]
-	}
-	return func(name string) bool {
-		return len(name) <= len(pattern) && hasPathPrefix(pattern, name) ||
-			wildCard && strings.HasPrefix(name, pattern)
-	}
-}
-
-// MatchPattern(pattern)(name) reports whether
-// name matches pattern. Pattern is a limited glob
-// pattern in which '...' means 'any string' and there
-// is no other special syntax.
-// Unfortunately, there are two special cases. Quoting "go help packages":
-//
-// First, /... at the end of the pattern can match an empty string,
-// so that net/... matches both net and packages in its subdirectories, like net/http.
-// Second, any slash-separated pattern element containing a wildcard never
-// participates in a match of the "vendor" element in the path of a vendored
-// package, so that ./... does not match packages in subdirectories of
-// ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
-// Note, however, that a directory named vendor that itself contains code
-// is not a vendored package: cmd/vendor would be a command named vendor,
-// and the pattern cmd/... matches it.
-func MatchPattern(pattern string) func(name string) bool {
-	// Convert pattern to regular expression.
-	// The strategy for the trailing /... is to nest it in an explicit ? expression.
-	// The strategy for the vendor exclusion is to change the unmatchable
-	// vendor strings to a disallowed code point (vendorChar) and to use
-	// "(anything but that codepoint)*" as the implementation of the ... wildcard.
-	// This is a bit complicated but the obvious alternative,
-	// namely a hand-written search like in most shell glob matchers,
-	// is too easy to make accidentally exponential.
-	// Using package regexp guarantees linear-time matching.
-
-	const vendorChar = "\x00"
-
-	if strings.Contains(pattern, vendorChar) {
-		return func(name string) bool { return false }
-	}
-
-	re := regexp.QuoteMeta(pattern)
-	re = replaceVendor(re, vendorChar)
-	switch {
-	case strings.HasSuffix(re, `/`+vendorChar+`/\.\.\.`):
-		re = strings.TrimSuffix(re, `/`+vendorChar+`/\.\.\.`) + `(/vendor|/` + vendorChar + `/\.\.\.)`
-	case re == vendorChar+`/\.\.\.`:
-		re = `(/vendor|/` + vendorChar + `/\.\.\.)`
-	case strings.HasSuffix(re, `/\.\.\.`):
-		re = strings.TrimSuffix(re, `/\.\.\.`) + `(/\.\.\.)?`
-	}
-	re = strings.ReplaceAll(re, `\.\.\.`, `[^`+vendorChar+`]*`)
-
-	reg := regexp.MustCompile(`^` + re + `$`)
-
-	return func(name string) bool {
-		if strings.Contains(name, vendorChar) {
-			return false
-		}
-		return reg.MatchString(replaceVendor(name, vendorChar))
-	}
-}
-
-// replaceVendor returns the result of replacing
-// non-trailing vendor path elements in x with repl.
-func replaceVendor(x, repl string) string {
-	if !strings.Contains(x, "vendor") {
-		return x
-	}
-	elem := strings.Split(x, "/")
-	for i := 0; i < len(elem)-1; i++ {
-		if elem[i] == "vendor" {
-			elem[i] = repl
-		}
-	}
-	return strings.Join(elem, "/")
-}
-
 // WarnUnmatched warns about patterns that didn't match any packages.
 func WarnUnmatched(matches []*Match) {
 	for _, m := range matches {
@@ -424,19 +353,19 @@ func WarnUnmatched(matches []*Match) {
 
 // ImportPaths returns the matching paths to use for the given command line.
 // It calls ImportPathsQuiet and then WarnUnmatched.
-func ImportPaths(patterns []string) []*Match {
-	matches := ImportPathsQuiet(patterns)
+func ImportPaths(patterns, modRoots []string) []*Match {
+	matches := ImportPathsQuiet(patterns, modRoots)
 	WarnUnmatched(matches)
 	return matches
 }
 
 // ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
-func ImportPathsQuiet(patterns []string) []*Match {
+func ImportPathsQuiet(patterns, modRoots []string) []*Match {
 	var out []*Match
 	for _, a := range CleanPatterns(patterns) {
 		m := NewMatch(a)
 		if m.IsLocal() {
-			m.MatchDirs()
+			m.MatchDirs(modRoots)
 
 			// Change the file import path to a regular import path if the package
 			// is in GOPATH or GOROOT. We don't report errors here; LoadImport
@@ -509,38 +438,6 @@ func CleanPatterns(patterns []string) []string {
 	return out
 }
 
-// hasPathPrefix reports whether the path s begins with the
-// elements in prefix.
-func hasPathPrefix(s, prefix string) bool {
-	switch {
-	default:
-		return false
-	case len(s) == len(prefix):
-		return s == prefix
-	case len(s) > len(prefix):
-		if prefix != "" && prefix[len(prefix)-1] == '/' {
-			return strings.HasPrefix(s, prefix)
-		}
-		return s[len(prefix)] == '/' && s[:len(prefix)] == prefix
-	}
-}
-
-// hasFilepathPrefix reports whether the path s begins with the
-// elements in prefix.
-func hasFilepathPrefix(s, prefix string) bool {
-	switch {
-	default:
-		return false
-	case len(s) == len(prefix):
-		return s == prefix
-	case len(s) > len(prefix):
-		if prefix != "" && prefix[len(prefix)-1] == filepath.Separator {
-			return strings.HasPrefix(s, prefix)
-		}
-		return s[len(prefix)] == filepath.Separator && s[:len(prefix)] == prefix
-	}
-}
-
 // IsStandardImportPath reports whether $GOROOT/src/path should be considered
 // part of the standard distribution. For historical reasons we allow people to add
 // their own code to $GOROOT instead of using $GOPATH, but we assume that
@@ -572,67 +469,44 @@ func IsRelativePath(pattern string) bool {
 // If not, InDir returns an empty string.
 // InDir makes some effort to succeed even in the presence of symbolic links.
 func InDir(path, dir string) string {
-	if rel := inDirLex(path, dir); rel != "" {
+	// inDirLex reports whether path is lexically in dir,
+	// without considering symbolic or hard links.
+	inDirLex := func(path, dir string) (string, bool) {
+		if dir == "" {
+			return path, true
+		}
+		rel := str.TrimFilePathPrefix(path, dir)
+		if rel == path {
+			return "", false
+		}
+		if rel == "" {
+			return ".", true
+		}
+		return rel, true
+	}
+
+	if rel, ok := inDirLex(path, dir); ok {
 		return rel
 	}
 	xpath, err := filepath.EvalSymlinks(path)
 	if err != nil || xpath == path {
 		xpath = ""
 	} else {
-		if rel := inDirLex(xpath, dir); rel != "" {
+		if rel, ok := inDirLex(xpath, dir); ok {
 			return rel
 		}
 	}
 
 	xdir, err := filepath.EvalSymlinks(dir)
 	if err == nil && xdir != dir {
-		if rel := inDirLex(path, xdir); rel != "" {
+		if rel, ok := inDirLex(path, xdir); ok {
 			return rel
 		}
 		if xpath != "" {
-			if rel := inDirLex(xpath, xdir); rel != "" {
+			if rel, ok := inDirLex(xpath, xdir); ok {
 				return rel
 			}
 		}
 	}
 	return ""
-}
-
-// inDirLex is like inDir but only checks the lexical form of the file names.
-// It does not consider symbolic links.
-// TODO(rsc): This is a copy of str.HasFilePathPrefix, modified to
-// return the suffix. Most uses of str.HasFilePathPrefix should probably
-// be calling InDir instead.
-func inDirLex(path, dir string) string {
-	pv := strings.ToUpper(filepath.VolumeName(path))
-	dv := strings.ToUpper(filepath.VolumeName(dir))
-	path = path[len(pv):]
-	dir = dir[len(dv):]
-	switch {
-	default:
-		return ""
-	case pv != dv:
-		return ""
-	case len(path) == len(dir):
-		if path == dir {
-			return "."
-		}
-		return ""
-	case dir == "":
-		return path
-	case len(path) > len(dir):
-		if dir[len(dir)-1] == filepath.Separator {
-			if path[:len(dir)] == dir {
-				return path[len(dir):]
-			}
-			return ""
-		}
-		if path[len(dir)] == filepath.Separator && path[:len(dir)] == dir {
-			if len(path) == len(dir)+1 {
-				return "."
-			}
-			return path[len(dir)+1:]
-		}
-		return ""
-	}
 }

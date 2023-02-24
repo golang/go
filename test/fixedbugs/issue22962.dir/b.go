@@ -4,6 +4,6 @@
 
 package b
 
-import "a"
+import "./a"
 
 var V = func() { a.F() }

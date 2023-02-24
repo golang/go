@@ -15,6 +15,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
+	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
 )
@@ -137,13 +138,9 @@ func errSet(err error) pathSet { return pathSet{err: err} }
 // newQuery returns a new query parsed from the raw argument,
 // which must be either path or path@version.
 func newQuery(raw string) (*query, error) {
-	pattern := raw
-	rawVers := ""
-	if i := strings.Index(raw, "@"); i >= 0 {
-		pattern, rawVers = raw[:i], raw[i+1:]
-		if strings.Contains(rawVers, "@") || rawVers == "" {
-			return nil, fmt.Errorf("invalid module version syntax %q", raw)
-		}
+	pattern, rawVers, found := strings.Cut(raw, "@")
+	if found && (strings.Contains(rawVers, "@") || rawVers == "") {
+		return nil, fmt.Errorf("invalid module version syntax %q", raw)
 	}
 
 	// If no version suffix is specified, assume @upgrade.
@@ -165,8 +162,8 @@ func newQuery(raw string) (*query, error) {
 		version:        version,
 	}
 	if strings.Contains(q.pattern, "...") {
-		q.matchWildcard = search.MatchPattern(q.pattern)
-		q.canMatchWildcardInModule = search.TreeCanMatchPattern(q.pattern)
+		q.matchWildcard = pkgpattern.MatchPattern(q.pattern)
+		q.canMatchWildcardInModule = pkgpattern.TreeCanMatchPattern(q.pattern)
 	}
 	if err := q.validate(); err != nil {
 		return q, err
@@ -192,9 +189,9 @@ func (q *query) validate() error {
 			// TODO(bcmills): "all@none" seems like a totally reasonable way to
 			// request that we remove all module requirements, leaving only the main
 			// module and standard library. Perhaps we should implement that someday.
-			return &modload.QueryMatchesMainModuleError{
-				Pattern: q.pattern,
-				Query:   q.version,
+			return &modload.QueryUpgradesAllError{
+				MainModules: modload.MainModules.Versions(),
+				Query:       q.version,
 			}
 		}
 	}
@@ -284,21 +281,21 @@ func reportError(q *query, err error) {
 	patternRE := regexp.MustCompile("(?m)(?:[ \t(\"`]|^)" + regexp.QuoteMeta(q.pattern) + "(?:[ @:;)\"`]|$)")
 	if patternRE.MatchString(errStr) {
 		if q.rawVersion == "" {
-			base.Errorf("go get: %s", errStr)
+			base.Errorf("go: %s", errStr)
 			return
 		}
 
 		versionRE := regexp.MustCompile("(?m)(?:[ @(\"`]|^)" + regexp.QuoteMeta(q.version) + "(?:[ :;)\"`]|$)")
 		if versionRE.MatchString(errStr) {
-			base.Errorf("go get: %s", errStr)
+			base.Errorf("go: %s", errStr)
 			return
 		}
 	}
 
 	if qs := q.String(); qs != "" {
-		base.Errorf("go get %s: %s", qs, errStr)
+		base.Errorf("go: %s: %s", qs, errStr)
 	} else {
-		base.Errorf("go get: %s", errStr)
+		base.Errorf("go: %s", errStr)
 	}
 }
 

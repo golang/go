@@ -5,12 +5,11 @@
 package ssagen
 
 import (
+	"fmt"
 	"internal/buildcfg"
-	"internal/race"
-	"math/rand"
+	"os"
 	"sort"
 	"sync"
-	"time"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -57,14 +56,14 @@ func cmpstackvarlt(a, b *ir.Name) bool {
 		return ap
 	}
 
-	if a.Type().Width != b.Type().Width {
-		return a.Type().Width > b.Type().Width
+	if a.Type().Size() != b.Type().Size() {
+		return a.Type().Size() > b.Type().Size()
 	}
 
 	return a.Sym().Name < b.Sym().Name
 }
 
-// byStackvar implements sort.Interface for []*Node using cmpstackvarlt.
+// byStackVar implements sort.Interface for []*Node using cmpstackvarlt.
 type byStackVar []*ir.Name
 
 func (s byStackVar) Len() int           { return len(s) }
@@ -75,12 +74,28 @@ func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 // allocate space. In particular, it excludes arguments and results, which are in
 // the callers frame.
 func needAlloc(n *ir.Name) bool {
-	return n.Class == ir.PAUTO || n.Class == ir.PPARAMOUT && n.IsOutputParamInRegisters()
+	if n.Op() != ir.ONAME {
+		base.FatalfAt(n.Pos(), "%v has unexpected Op %v", n, n.Op())
+	}
+
+	switch n.Class {
+	case ir.PAUTO:
+		return true
+	case ir.PPARAM:
+		return false
+	case ir.PPARAMOUT:
+		return n.IsOutputParamInRegisters()
+
+	default:
+		base.FatalfAt(n.Pos(), "%v has unexpected Class %v", n, n.Class)
+		return false
+	}
 }
 
 func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stksize = 0
 	s.stkptrsize = 0
+	s.stkalign = int64(types.RegSize)
 	fn := s.curfn
 
 	// Mark the PAUTO's unused.
@@ -114,7 +129,10 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		}
 	}
 
-	sort.Sort(byStackVar(fn.Dcl))
+	// Use sort.Stable instead of sort.Sort so stack layout (and thus
+	// compiler output) is less sensitive to frontend changes that
+	// introduce or remove unused variables.
+	sort.Stable(byStackVar(fn.Dcl))
 
 	// Reassign stack offsets of the locals that are used.
 	lastHasPtr := false
@@ -124,12 +142,13 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			continue
 		}
 		if !n.Used() {
+			fn.DebugInfo.(*ssa.FuncDebug).OptDcl = fn.Dcl[i:]
 			fn.Dcl = fn.Dcl[:i]
 			break
 		}
 
 		types.CalcSize(n.Type())
-		w := n.Type().Width
+		w := n.Type().Size()
 		if w >= types.MaxWidth || w < 0 {
 			base.Fatalf("bad width")
 		}
@@ -141,7 +160,10 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			w = 1
 		}
 		s.stksize += w
-		s.stksize = types.Rnd(s.stksize, int64(n.Type().Align))
+		s.stksize = types.RoundUp(s.stksize, n.Type().Alignment())
+		if n.Type().Alignment() > int64(types.RegSize) {
+			s.stkalign = n.Type().Alignment()
+		}
 		if n.Type().HasPointers() {
 			s.stkptrsize = s.stksize
 			lastHasPtr = true
@@ -151,8 +173,8 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 		n.SetFrameOffset(-s.stksize)
 	}
 
-	s.stksize = types.Rnd(s.stksize, int64(types.RegSize))
-	s.stkptrsize = types.Rnd(s.stkptrsize, int64(types.RegSize))
+	s.stksize = types.RoundUp(s.stksize, s.stkalign)
+	s.stkptrsize = types.RoundUp(s.stkptrsize, s.stkalign)
 }
 
 const maxStackSize = 1 << 30
@@ -188,13 +210,53 @@ func Compile(fn *ir.Func, worker int) {
 	}
 
 	pp.Flush() // assemble, fill in boilerplate, etc.
+
+	// If we're compiling the package init function, search for any
+	// relocations that target global map init outline functions and
+	// turn them into weak relocs.
+	if base.Flag.WrapGlobalMapInit && fn.IsPackageInit() {
+		weakenGlobalMapInitRelocs(fn)
+	}
+
 	// fieldtrack must be called after pp.Flush. See issue 20014.
 	fieldtrack(pp.Text.From.Sym, fn.FieldTrack)
 }
 
-func init() {
-	if race.Enabled {
-		rand.Seed(time.Now().UnixNano())
+// globalMapInitLsyms records the LSym of each map.init.NNN outlined
+// map initializer function created by the compiler.
+var globalMapInitLsyms map[*obj.LSym]struct{}
+
+// RegisterMapInitLsym records "s" in the set of outlined map initializer
+// functions.
+func RegisterMapInitLsym(s *obj.LSym) {
+	if globalMapInitLsyms == nil {
+		globalMapInitLsyms = make(map[*obj.LSym]struct{})
+	}
+	globalMapInitLsyms[s] = struct{}{}
+}
+
+// weakenGlobalMapInitRelocs walks through all of the relocations on a
+// given a package init function "fn" and looks for relocs that target
+// outlined global map initializer functions; if it finds any such
+// relocs, it flags them as R_WEAK.
+func weakenGlobalMapInitRelocs(fn *ir.Func) {
+	if globalMapInitLsyms == nil {
+		return
+	}
+	for i := range fn.LSym.R {
+		tgt := fn.LSym.R[i].Sym
+		if tgt == nil {
+			continue
+		}
+		if _, ok := globalMapInitLsyms[tgt]; !ok {
+			continue
+		}
+		if base.Debug.WrapGlobalMapDbg > 1 {
+			fmt.Fprintf(os.Stderr, "=-= weakify fn %v reloc %d %+v\n", fn, i,
+				fn.LSym.R[i])
+		}
+		// set the R_WEAK bit, leave rest of reloc type intact
+		fn.LSym.R[i].Type |= objabi.R_WEAK
 	}
 }
 
@@ -207,13 +269,13 @@ func StackOffset(slot ssa.LocalSlot) int32 {
 	switch n.Class {
 	case ir.PPARAM, ir.PPARAMOUT:
 		if !n.IsOutputParamInRegisters() {
-			off = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+			off = n.FrameOffset() + base.Ctxt.Arch.FixedFrameSize
 			break
 		}
 		fallthrough // PPARAMOUT in registers allocates like an AUTO
 	case ir.PAUTO:
 		off = n.FrameOffset()
-		if base.Ctxt.FixedFrameSize() == 0 {
+		if base.Ctxt.Arch.FixedFrameSize == 0 {
 			off -= int64(types.PtrSize)
 		}
 		if buildcfg.FramePointerEnabled {

@@ -142,9 +142,7 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 	}
 
 	// Trailing fringe.
-	for i := 0; i < len(p); i++ {
-		e.buf[i] = p[i]
-	}
+	copy(e.buf[:], p)
 	e.nbuf = len(p)
 	n += len(p)
 	return
@@ -185,7 +183,6 @@ func (e CorruptInputError) Error() string {
 // than wait for the completion of another 32-bit block.
 //
 // NewDecoder wraps an io.Reader interface around Decode.
-//
 func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err error) {
 	var v uint32
 	var nb int

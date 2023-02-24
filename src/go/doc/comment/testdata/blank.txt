@@ -1,0 +1,12 @@
+-- input --
+	$
+	Blank line at start and end.
+	$
+-- gofmt --
+Blank line at start and end.
+-- text --
+Blank line at start and end.
+-- markdown --
+Blank line at start and end.
+-- html --
+<p>Blank line at start and end.

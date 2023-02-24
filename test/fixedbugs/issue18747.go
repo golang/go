@@ -23,6 +23,6 @@ func _ () {
 
 	if ; foo {}
 
-	if foo // ERROR "unexpected newline, expecting { after if clause"
+	if foo // ERROR "unexpected newline, expected { after if clause"
 	{}
 }

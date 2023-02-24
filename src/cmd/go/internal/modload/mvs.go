@@ -11,6 +11,7 @@ import (
 	"sort"
 
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modfetch/codehost"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -42,7 +43,7 @@ type mvsReqs struct {
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
-	if mod == Target {
+	if mod.Version == "" && MainModules.Contains(mod.Path) {
 		// Use the build list as it existed when r was constructed, not the current
 		// global build list.
 		return r.roots, nil
@@ -78,11 +79,10 @@ func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
 	return m, nil
 }
 
-func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, error) {
+func versions(ctx context.Context, path string, allowed AllowedFunc) (versions []string, origin *codehost.Origin, err error) {
 	// Note: modfetch.Lookup and repo.Versions are cached,
 	// so there's no need for us to add extra caching here.
-	var versions []string
-	err := modfetch.TryProxies(func(proxy string) error {
+	err = modfetch.TryProxies(func(proxy string) error {
 		repo, err := lookupRepo(proxy, path)
 		if err != nil {
 			return err
@@ -91,8 +91,8 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 		if err != nil {
 			return err
 		}
-		allowedVersions := make([]string, 0, len(allVersions))
-		for _, v := range allVersions {
+		allowedVersions := make([]string, 0, len(allVersions.List))
+		for _, v := range allVersions.List {
 			if err := allowed(ctx, module.Version{Path: path, Version: v}); err == nil {
 				allowedVersions = append(allowedVersions, v)
 			} else if !errors.Is(err, ErrDisallowed) {
@@ -100,24 +100,25 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, 
 			}
 		}
 		versions = allowedVersions
+		origin = allVersions.Origin
 		return nil
 	})
-	return versions, err
+	return versions, origin, err
 }
 
 // previousVersion returns the tagged version of m.Path immediately prior to
 // m.Version, or version "none" if no prior version is tagged.
 //
-// Since the version of Target is not found in the version list,
+// Since the version of a main module is not found in the version list,
 // it has no previous version.
 func previousVersion(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
 
-	if m == Target {
+	if m.Version == "" && MainModules.Contains(m.Path) {
 		return module.Version{Path: m.Path, Version: "none"}, nil
 	}
 
-	list, err := versions(context.TODO(), m.Path, CheckAllowed)
+	list, _, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return module.Version{Path: m.Path, Version: "none"}, nil

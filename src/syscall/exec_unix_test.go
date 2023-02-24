@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build unix
 
 package syscall_test
 
@@ -14,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -179,7 +177,7 @@ func TestForeground(t *testing.T) {
 	// equivalent.
 	fpgrp := int32(0)
 
-	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+	errno := syscall.IoctlPtr(tty.Fd(), syscall.TIOCGPGRP, unsafe.Pointer(&fpgrp))
 	if errno != 0 {
 		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
 	}
@@ -216,7 +214,7 @@ func TestForeground(t *testing.T) {
 
 	// This call fails on darwin/arm64. The failure doesn't matter, though.
 	// This is just best effort.
-	syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+	syscall.IoctlPtr(tty.Fd(), syscall.TIOCSPGRP, unsafe.Pointer(&fpgrp))
 }
 
 func TestForegroundSignal(t *testing.T) {
@@ -230,7 +228,7 @@ func TestForegroundSignal(t *testing.T) {
 	// equivalent.
 	fpgrp := int32(0)
 
-	errno := syscall.Ioctl(tty.Fd(), syscall.TIOCGPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+	errno := syscall.IoctlPtr(tty.Fd(), syscall.TIOCGPGRP, unsafe.Pointer(&fpgrp))
 	if errno != 0 {
 		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
 	}
@@ -241,7 +239,7 @@ func TestForegroundSignal(t *testing.T) {
 
 	defer func() {
 		signal.Ignore(syscall.SIGTTIN, syscall.SIGTTOU)
-		syscall.Ioctl(tty.Fd(), syscall.TIOCSPGRP, uintptr(unsafe.Pointer(&fpgrp)))
+		syscall.IoctlPtr(tty.Fd(), syscall.TIOCSPGRP, unsafe.Pointer(&fpgrp))
 		signal.Reset()
 	}()
 
@@ -328,7 +326,6 @@ func TestExecHelper(t *testing.T) {
 	// We don't have to worry about restoring these values.
 	// We are in a child process that only runs this test,
 	// and we are going to call syscall.Exec anyhow.
-	runtime.GOMAXPROCS(50)
 	os.Setenv("GO_WANT_HELPER_PROCESS", "3")
 
 	stop := time.Now().Add(time.Second)

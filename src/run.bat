@@ -18,32 +18,22 @@ setlocal
 
 set GOBUILDFAIL=0
 
-set GOPATH=c:\nonexist-gopath
-:: Issue 14340: ignore GOBIN during all.bat.
-set GOBIN=
-set GOFLAGS=
-set GO111MODULE=
+set GOENV=off
+..\bin\go tool dist env > env.bat
+if errorlevel 1 goto fail
+call .\env.bat
+del env.bat
 
-rem TODO avoid rebuild if possible
+set GOPATH=c:\nonexist-gopath
 
 if x%1==x--no-rebuild goto norebuild
-echo ##### Building packages and commands.
-..\bin\go install -a -v std cmd
+..\bin\go tool dist test --rebuild
 if errorlevel 1 goto fail
-echo.
+goto end
+
 :norebuild
-
-:: get CGO_ENABLED
-..\bin\go env > env.bat
-if errorlevel 1 goto fail
-call env.bat
-del env.bat
-echo.
-
 ..\bin\go tool dist test
 if errorlevel 1 goto fail
-echo.
-
 goto end
 
 :fail

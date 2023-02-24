@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build race
-// +build race
 
 #include "go_asm.h"
 #include "go_tls.h"
@@ -46,11 +45,7 @@
 // Defined as ABIInternal so as to avoid introducing a wrapper,
 // which would render runtime.getcallerpc ineffective.
 TEXT	runtime·raceread<ABIInternal>(SB), NOSPLIT, $0-8
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	AX, RARG1
-#else
-	MOVQ	addr+0(FP), RARG1
-#endif
 	MOVQ	(SP), RARG2
 	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
 	MOVQ	$__tsan_read(SB), AX
@@ -76,11 +71,7 @@ TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
 // Defined as ABIInternal so as to avoid introducing a wrapper,
 // which would render runtime.getcallerpc ineffective.
 TEXT	runtime·racewrite<ABIInternal>(SB), NOSPLIT, $0-8
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	AX, RARG1
-#else
-	MOVQ	addr+0(FP), RARG1
-#endif
 	MOVQ	(SP), RARG2
 	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
 	MOVQ	$__tsan_write(SB), AX
@@ -103,9 +94,11 @@ TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
 
 // func runtime·racereadrange(addr, size uintptr)
 // Called from instrumented code.
-TEXT	runtime·racereadrange(SB), NOSPLIT, $0-16
-	MOVQ	addr+0(FP), RARG1
-	MOVQ	size+8(FP), RARG2
+// Defined as ABIInternal so as to avoid introducing a wrapper,
+// which would render runtime.getcallerpc ineffective.
+TEXT	runtime·racereadrange<ABIInternal>(SB), NOSPLIT, $0-16
+	MOVQ	AX, RARG1
+	MOVQ	BX, RARG2
 	MOVQ	(SP), RARG3
 	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVQ	$__tsan_read_range(SB), AX
@@ -131,13 +124,8 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 // Defined as ABIInternal so as to avoid introducing a wrapper,
 // which would render runtime.getcallerpc ineffective.
 TEXT	runtime·racewriterange<ABIInternal>(SB), NOSPLIT, $0-16
-#ifdef GOEXPERIMENT_regabiargs
 	MOVQ	AX, RARG1
 	MOVQ	BX, RARG2
-#else
-	MOVQ	addr+0(FP), RARG1
-	MOVQ	size+8(FP), RARG2
-#endif
 	MOVQ	(SP), RARG3
 	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
 	MOVQ	$__tsan_write_range(SB), AX
@@ -161,10 +149,6 @@ TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
 // If addr (RARG1) is out of range, do nothing.
 // Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
 TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
-#ifndef GOEXPERIMENT_regabig
-	get_tls(R12)
-	MOVQ	g(R12), R14
-#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
 	CMPQ	RARG1, runtime·racearenastart(SB)
@@ -190,12 +174,8 @@ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
 
 // Common code for racefuncenter
 // R11 = caller's return address
-TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+TEXT	racefuncenter<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVQ	DX, BX		// save function entry context (for closures)
-#ifndef GOEXPERIMENT_regabig
-	get_tls(R12)
-	MOVQ	g(R12), R14
-#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	R11, RARG1
 	// void __tsan_func_enter(ThreadState *thr, void *pc);
@@ -208,10 +188,6 @@ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
 // func runtime·racefuncexit()
 // Called from instrumented code.
 TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
-#ifndef GOEXPERIMENT_regabig
-	get_tls(R12)
-	MOVQ	g(R12), R14
-#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	// void __tsan_func_exit(ThreadState *thr);
 	MOVQ	$__tsan_func_exit(SB), AX
@@ -220,13 +196,13 @@ TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
 // Atomic operations for sync/atomic package.
 
 // Load
-TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0-12
+TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT|NOFRAME, $0-12
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_load(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0-16
+TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT|NOFRAME, $0-16
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_load(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -249,13 +225,13 @@ TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0-16
 	JMP	sync∕atomic·LoadInt64(SB)
 
 // Store
-TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0-12
+TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT|NOFRAME, $0-12
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_store(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0-16
+TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT|NOFRAME, $0-16
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_store(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -274,13 +250,13 @@ TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0-16
 	JMP	sync∕atomic·StoreInt64(SB)
 
 // Swap
-TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0-20
+TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT|NOFRAME, $0-20
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0-24
+TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT|NOFRAME, $0-24
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -299,7 +275,7 @@ TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0-24
 	JMP	sync∕atomic·SwapInt64(SB)
 
 // Add
-TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
+TEXT	sync∕atomic·AddInt32(SB), NOSPLIT|NOFRAME, $0-20
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_fetch_add(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -307,7 +283,7 @@ TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0-20
 	ADDL	AX, ret+16(FP)
 	RET
 
-TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0-24
+TEXT	sync∕atomic·AddInt64(SB), NOSPLIT|NOFRAME, $0-24
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_fetch_add(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -328,13 +304,13 @@ TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0-24
 	JMP	sync∕atomic·AddInt64(SB)
 
 // CompareAndSwap
-TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0-17
+TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT|NOFRAME, $0-17
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic32_compare_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
 	RET
 
-TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0-25
+TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT|NOFRAME, $0-25
 	GO_ARGS
 	MOVQ	$__tsan_go_atomic64_compare_exchange(SB), AX
 	CALL	racecallatomic<>(SB)
@@ -354,7 +330,7 @@ TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0-25
 
 // Generic atomic operation implementation.
 // AX already contains target function.
-TEXT	racecallatomic<>(SB), NOSPLIT, $0-0
+TEXT	racecallatomic<>(SB), NOSPLIT|NOFRAME, $0-0
 	// Trigger SIGSEGV early.
 	MOVQ	16(SP), R12
 	MOVL	(R12), R13
@@ -370,10 +346,6 @@ racecallatomic_data:
 	JAE	racecallatomic_ignore
 racecallatomic_ok:
 	// Addr is within the good range, call the atomic function.
-#ifndef GOEXPERIMENT_regabig
-	get_tls(R12)
-	MOVQ	g(R12), R14
-#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	MOVQ	8(SP), RARG1	// caller pc
 	MOVQ	(SP), RARG2	// pc
@@ -385,10 +357,6 @@ racecallatomic_ignore:
 	// An attempt to synchronize on the address would cause crash.
 	MOVQ	AX, BX	// remember the original function
 	MOVQ	$__tsan_go_ignore_sync_begin(SB), AX
-#ifndef GOEXPERIMENT_regabig
-	get_tls(R12)
-	MOVQ	g(R12), R14
-#endif
 	MOVQ	g_racectx(R14), RARG0	// goroutine context
 	CALL	racecall<>(SB)
 	MOVQ	BX, AX	// restore the original function
@@ -415,11 +383,7 @@ TEXT	runtime·racecall(SB), NOSPLIT, $0-0
 	JMP	racecall<>(SB)
 
 // Switches SP to g0 stack and calls (AX). Arguments already set.
-TEXT	racecall<>(SB), NOSPLIT, $0-0
-#ifndef GOEXPERIMENT_regabig
-	get_tls(R12)
-	MOVQ	g(R12), R14
-#endif
+TEXT	racecall<>(SB), NOSPLIT|NOFRAME, $0-0
 	MOVQ	g_m(R14), R13
 	// Switch to g0 stack.
 	MOVQ	SP, R12		// callee-saved, preserved across the CALL
@@ -441,9 +405,7 @@ call:
 // The overall effect of Go->C->Go call chain is similar to that of mcall.
 // RARG0 contains command code. RARG1 contains command-specific context.
 // See racecallback for command codes.
-// Defined as ABIInternal so as to avoid introducing a wrapper,
-// because its address is passed to C via funcPC.
-TEXT	runtime·racecallbackthunk<ABIInternal>(SB), NOSPLIT, $0-0
+TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0-0
 	// Handle command raceGetProcCmd (0) here.
 	// First, code below assumes that we are on curg, while raceGetProcCmd
 	// can be executed on g0. Second, it is called frequently, so will

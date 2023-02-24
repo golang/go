@@ -6,9 +6,9 @@ go mod download rsc.io/quote@latest
 # 'go mod download' will not download @upgrade or @patch, since they always
 # resolve to the main module.
 go mod download rsc.io/quote@upgrade
-stderr '^go mod download: skipping argument rsc.io/quote@upgrade that resolves to the main module$'
+stderr '^go: skipping download of rsc.io/quote@upgrade that resolves to the main module$'
 go mod download rsc.io/quote@patch
-stderr '^go mod download: skipping argument rsc.io/quote@patch that resolves to the main module$'
+stderr '^go: skipping download of rsc.io/quote@patch that resolves to the main module$'
 
 # 'go list -m' can show a version of the main module.
 go list -m rsc.io/quote@5d9f230b
@@ -31,11 +31,11 @@ stdout '^rsc.io/quote$'
 # 'go get' will not attempt to upgrade the main module to any specific version.
 # See also: mod_get_main.txt.
 ! go get rsc.io/quote@5d9f230b
-stderr '^go get: can''t request version "5d9f230b" of the main module \(rsc.io/quote\)$'
+stderr '^go: can''t request version "5d9f230b" of the main module \(rsc.io/quote\)$'
 ! go get rsc.io/quote@v1.5.2
-stderr '^go get: can''t request version "v1.5.2" of the main module \(rsc.io/quote\)$'
+stderr '^go: can''t request version "v1.5.2" of the main module \(rsc.io/quote\)$'
 ! go get rsc.io/quote@latest
-stderr '^go get: can''t request version "latest" of the main module \(rsc.io/quote\)$'
+stderr '^go: can''t request version "latest" of the main module \(rsc.io/quote\)$'
 
 -- go.mod --
 module rsc.io/quote

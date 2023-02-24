@@ -125,13 +125,13 @@ const (
 	REG_A7   = REG_X17
 	REG_S2   = REG_X18
 	REG_S3   = REG_X19
-	REG_S4   = REG_X20 // aka REG_CTXT
+	REG_S4   = REG_X20
 	REG_S5   = REG_X21
 	REG_S6   = REG_X22
 	REG_S7   = REG_X23
 	REG_S8   = REG_X24
 	REG_S9   = REG_X25
-	REG_S10  = REG_X26
+	REG_S10  = REG_X26 // aka REG_CTXT
 	REG_S11  = REG_X27 // aka REG_G
 	REG_T3   = REG_X28
 	REG_T4   = REG_X29
@@ -139,8 +139,8 @@ const (
 	REG_T6   = REG_X31 // aka REG_TMP
 
 	// Go runtime register names.
+	REG_CTXT = REG_S10 // Context for closures.
 	REG_G    = REG_S11 // G pointer.
-	REG_CTXT = REG_S4  // Context for closures.
 	REG_LR   = REG_RA  // Link register.
 	REG_TMP  = REG_T6  // Reserved for assembler use.
 
@@ -183,7 +183,7 @@ const (
 	REGG  = REG_G
 )
 
-// https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md#dwarf-register-numbers
+// https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-dwarf.adoc#dwarf-register-numbers
 var RISCV64DWARFRegisters = map[int16]int16{
 	// Integer Registers.
 	REG_X0:  0,
@@ -256,27 +256,31 @@ var RISCV64DWARFRegisters = map[int16]int16{
 
 // Prog.Mark flags.
 const (
+	// USES_REG_TMP indicates that a machine instruction generated from the
+	// corresponding *obj.Prog uses the temporary register.
+	USES_REG_TMP = 1 << iota
+
+	// NEED_CALL_RELOC is set on JAL instructions to indicate that a
+	// R_RISCV_CALL relocation is needed.
+	NEED_CALL_RELOC
+
 	// NEED_PCREL_ITYPE_RELOC is set on AUIPC instructions to indicate that
 	// it is the first instruction in an AUIPC + I-type pair that needs a
 	// R_RISCV_PCREL_ITYPE relocation.
-	NEED_PCREL_ITYPE_RELOC = 1 << 0
+	NEED_PCREL_ITYPE_RELOC
 
 	// NEED_PCREL_STYPE_RELOC is set on AUIPC instructions to indicate that
 	// it is the first instruction in an AUIPC + S-type pair that needs a
 	// R_RISCV_PCREL_STYPE relocation.
-	NEED_PCREL_STYPE_RELOC = 1 << 1
+	NEED_PCREL_STYPE_RELOC
 )
 
 // RISC-V mnemonics, as defined in the "opcodes" and "opcodes-pseudo" files
-// from:
-//
-//    https://github.com/riscv/riscv-opcodes
+// at https://github.com/riscv/riscv-opcodes.
 //
 // As well as some pseudo-mnemonics (e.g. MOV) used only in the assembler.
 //
-// See also "The RISC-V Instruction Set Manual" at:
-//
-//    https://riscv.org/specifications/
+// See also "The RISC-V Instruction Set Manual" at https://riscv.org/specifications/.
 //
 // If you modify this table, you MUST run 'go generate' to regenerate anames.go!
 const (
@@ -586,6 +590,8 @@ const (
 	ABLEZ
 	ABLTZ
 	ABNEZ
+	AFABSD
+	AFABSS
 	AFNEGD
 	AFNEGS
 	AFNED
@@ -626,6 +632,10 @@ var unaryDst = map[obj.As]bool{
 
 // Instruction encoding masks.
 const (
+	// JTypeImmMask is a mask including only the immediate portion of
+	// J-type instructions.
+	JTypeImmMask = 0xfffff000
+
 	// ITypeImmMask is a mask including only the immediate portion of
 	// I-type instructions.
 	ITypeImmMask = 0xfff00000
@@ -637,8 +647,4 @@ const (
 	// UTypeImmMask is a mask including only the immediate portion of
 	// U-type instructions.
 	UTypeImmMask = 0xfffff000
-
-	// UJTypeImmMask is a mask including only the immediate portion of
-	// UJ-type instructions.
-	UJTypeImmMask = UTypeImmMask
 )

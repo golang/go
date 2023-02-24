@@ -12,7 +12,7 @@ env CGO_ENABLED=1
 env GOFLAGS=-tags=netcgo  # Force net to use cgo even on Windows.
 
 
-# "runtime/cgo [runtime.test]" appears in the the test dependencies of "runtime",
+# "runtime/cgo [runtime.test]" appears in the test dependencies of "runtime",
 # because "runtime/cgo" itself depends on "runtime"
 
 go list -deps -test -compiled -f '{{if eq .ImportPath "net [runtime.test]"}}{{printf "%q" .Imports}}{{end}}' runtime

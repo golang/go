@@ -1,18 +1,16 @@
-//go:build cgo
-// +build cgo
-
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+//go:build cgo
+// +build cgo
 
 package ld
 
 import (
 	"debug/elf"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -34,12 +32,12 @@ func main() {
 }
 `
 	src := filepath.Join(dir, "issue33358.go")
-	if err := ioutil.WriteFile(src, []byte(prog), 0666); err != nil {
+	if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
 		t.Fatal(err)
 	}
 
 	binFile := filepath.Join(dir, "issue33358")
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", binFile, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", binFile, src)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 	}
@@ -86,7 +84,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
 	// across the board given the nature of the test).
 	pair := runtime.GOOS + "-" + runtime.GOARCH
 	switch pair {
-	case "linux-amd64", "freebsd-amd64", "openbsd-amd64":
+	case "linux-amd64", "linux-arm64", "freebsd-amd64", "openbsd-amd64":
 	default:
 		t.Skip("no need for test on " + pair)
 	}
@@ -102,7 +100,7 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
 
 	path := filepath.Join(dir, "x")
 	argv := []string{"build", "-o", path, filepath.Join(wd, "testdata", "issue39256")}
-	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), argv...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("Build failure: %s\n%s\n", err, string(out))
 	}

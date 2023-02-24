@@ -106,7 +106,7 @@ func testCGOLTO(t *testing.T, cc string, test int) {
 		t.Fatalf("bad case %d", test)
 	}
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build")
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),
 		"CC="+cc,

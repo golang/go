@@ -1,0 +1,33 @@
+# Test that coverage instrumentation is working. Without the instrumentation
+# it is _extremely_ unlikely that the fuzzer would produce this particular
+# input in any reasonable amount of time.
+
+[short] skip
+[!fuzz-instrumented] skip
+
+! go test -fuzz=FuzzCov
+! stderr 'cov instrumentation working'
+
+-- go.mod --
+module test
+
+-- cov_test.go --
+package cov
+
+import "testing"
+
+func FuzzCov(f *testing.F) {
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if len(b) == 8 &&
+			b[0] == 'h' &&
+			b[1] == 'e' &&
+			b[2] == 'l' &&
+			b[3] == 'l' &&
+			b[4] == 'o' &&
+			b[5] == ' ' &&
+			b[6] == ':' &&
+			b[7] == ')' {
+			panic("cov instrumentation working")
+		}
+	})
+}

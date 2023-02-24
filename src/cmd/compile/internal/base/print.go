@@ -36,7 +36,7 @@ func Errors() int {
 	return numErrors
 }
 
-// SyntaxErrors returns the number of syntax errors reported
+// SyntaxErrors returns the number of syntax errors reported.
 func SyntaxErrors() int {
 	return numSyntaxErrors
 }
@@ -161,7 +161,7 @@ func UpdateErrorDot(line string, name, expr string) {
 	}
 }
 
-// Warnf reports a formatted warning at the current line.
+// Warn reports a formatted warning at the current line.
 // In general the Go compiler does NOT generate warnings,
 // so this should be used only when the user has opted in
 // to additional output by setting a particular flag.
@@ -217,10 +217,10 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 		fmt.Printf("\n")
 
 		// If this is a released compiler version, ask for a bug report.
-		if strings.HasPrefix(buildcfg.Version, "go") {
+		if Debug.Panic == 0 && strings.HasPrefix(buildcfg.Version, "go") {
 			fmt.Printf("\n")
 			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
-			fmt.Printf("https://golang.org/issue/new\n")
+			fmt.Printf("https://go.dev/issue/new\n")
 		} else {
 			// Not a release; dump a stack trace, too.
 			fmt.Println()
@@ -231,6 +231,27 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
 
 	hcrash()
 	ErrorExit()
+}
+
+// Assert reports "assertion failed" with Fatalf, unless b is true.
+func Assert(b bool) {
+	if !b {
+		Fatalf("assertion failed")
+	}
+}
+
+// Assertf reports a fatal error with Fatalf, unless b is true.
+func Assertf(b bool, format string, args ...interface{}) {
+	if !b {
+		Fatalf(format, args...)
+	}
+}
+
+// AssertfAt reports a fatal error with FatalfAt, unless b is true.
+func AssertfAt(b bool, pos src.XPos, format string, args ...interface{}) {
+	if !b {
+		FatalfAt(pos, format, args...)
+	}
 }
 
 // hcrash crashes the compiler when -h is set, to find out where a message is generated.

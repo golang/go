@@ -12,7 +12,7 @@ func StartPos(n Node) Pos {
 	for m := n; ; {
 		switch n := m.(type) {
 		case nil:
-			panic("internal error: nil")
+			panic("nil node")
 
 		// packages
 		case *File:
@@ -124,7 +124,7 @@ func EndPos(n Node) Pos {
 	for m := n; ; {
 		switch n := m.(type) {
 		case nil:
-			panic("internal error: nil")
+			panic("nil node")
 
 		// packages
 		case *File:

@@ -12,12 +12,12 @@ package codegen
 
 func zeroSize() {
 	c := make(chan struct{})
-	// amd64:`MOVQ\t\$0, ""\.s\+56\(SP\)`
+	// amd64:`MOVQ\t\$0, command-line-arguments\.s\+56\(SP\)`
 	var s *int
 	// force s to be a stack object, also use some (fixed) stack space
 	g(&s, 1, 2, 3, 4, 5)
 
-	// amd64:`LEAQ\t""\..*\+55\(SP\)`
+	// amd64:`LEAQ\tcommand-line-arguments\..*\+55\(SP\)`
 	c <- struct{}{}
 }
 

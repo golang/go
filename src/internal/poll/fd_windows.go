@@ -268,7 +268,6 @@ const (
 	kindNet fileKind = iota
 	kindFile
 	kindConsole
-	kindDir
 	kindPipe
 )
 
@@ -286,12 +285,10 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 	}
 
 	switch net {
-	case "file":
+	case "file", "dir":
 		fd.kind = kindFile
 	case "console":
 		fd.kind = kindConsole
-	case "dir":
-		fd.kind = kindDir
 	case "pipe":
 		fd.kind = kindPipe
 	case "tcp", "tcp4", "tcp6",
@@ -328,9 +325,9 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 	if pollable && useSetFileCompletionNotificationModes {
 		// We do not use events, so we can skip them always.
 		flags := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
-		// It's not safe to skip completion notifications for UDP:
-		// https://docs.microsoft.com/en-us/archive/blogs/winserverperformance/designing-applications-for-high-performance-part-iii
-		if net == "tcp" {
+		switch net {
+		case "tcp", "tcp4", "tcp6",
+			"udp", "udp4", "udp6":
 			flags |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
 		}
 		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd, flags)
@@ -371,8 +368,6 @@ func (fd *FD) destroy() error {
 	case kindNet:
 		// The net package uses the CloseFunc variable for testing.
 		err = CloseFunc(fd.Sysfd)
-	case kindDir:
-		err = syscall.FindClose(fd.Sysfd)
 	default:
 		err = syscall.CloseHandle(fd.Sysfd)
 	}
@@ -500,8 +495,7 @@ func (fd *FD) readConsole(b []byte) (int, error) {
 					}
 				}
 			}
-			n := utf8.EncodeRune(buf[len(buf):cap(buf)], r)
-			buf = buf[:len(buf)+n]
+			buf = utf8.AppendRune(buf, r)
 		}
 		fd.readbyte = buf
 		fd.readbyteOffset = 0
@@ -591,6 +585,64 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
 	}
 	sa, _ := o.rsa.Sockaddr()
 	return n, sa, nil
+}
+
+// ReadFromInet4 wraps the recvfrom network call for IPv4.
+func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error) {
+	if len(buf) == 0 {
+		return 0, nil
+	}
+	if len(buf) > maxRW {
+		buf = buf[:maxRW]
+	}
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	o := &fd.rop
+	o.InitBuf(buf)
+	n, err := execIO(o, func(o *operation) error {
+		if o.rsa == nil {
+			o.rsa = new(syscall.RawSockaddrAny)
+		}
+		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+		return syscall.WSARecvFrom(o.fd.Sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
+	})
+	err = fd.eofError(n, err)
+	if err != nil {
+		return n, err
+	}
+	rawToSockaddrInet4(o.rsa, sa4)
+	return n, err
+}
+
+// ReadFromInet6 wraps the recvfrom network call for IPv6.
+func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) {
+	if len(buf) == 0 {
+		return 0, nil
+	}
+	if len(buf) > maxRW {
+		buf = buf[:maxRW]
+	}
+	if err := fd.readLock(); err != nil {
+		return 0, err
+	}
+	defer fd.readUnlock()
+	o := &fd.rop
+	o.InitBuf(buf)
+	n, err := execIO(o, func(o *operation) error {
+		if o.rsa == nil {
+			o.rsa = new(syscall.RawSockaddrAny)
+		}
+		o.rsan = int32(unsafe.Sizeof(*o.rsa))
+		return syscall.WSARecvFrom(o.fd.Sysfd, &o.buf, 1, &o.qty, &o.flags, o.rsa, &o.rsan, &o.o, nil)
+	})
+	err = fd.eofError(n, err)
+	if err != nil {
+		return n, err
+	}
+	rawToSockaddrInet6(o.rsa, sa6)
+	return n, err
 }
 
 // Write implements io.Writer.
@@ -791,6 +843,80 @@ func (fd *FD) WriteTo(buf []byte, sa syscall.Sockaddr) (int, error) {
 	return ntotal, nil
 }
 
+// WriteToInet4 is WriteTo, specialized for syscall.SockaddrInet4.
+func (fd *FD) WriteToInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+
+	if len(buf) == 0 {
+		// handle zero-byte payload
+		o := &fd.wop
+		o.InitBuf(buf)
+		n, err := execIO(o, func(o *operation) error {
+			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa4, &o.o, nil)
+		})
+		return n, err
+	}
+
+	ntotal := 0
+	for len(buf) > 0 {
+		b := buf
+		if len(b) > maxRW {
+			b = b[:maxRW]
+		}
+		o := &fd.wop
+		o.InitBuf(b)
+		n, err := execIO(o, func(o *operation) error {
+			return windows.WSASendtoInet4(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa4, &o.o, nil)
+		})
+		ntotal += int(n)
+		if err != nil {
+			return ntotal, err
+		}
+		buf = buf[n:]
+	}
+	return ntotal, nil
+}
+
+// WriteToInet6 is WriteTo, specialized for syscall.SockaddrInet6.
+func (fd *FD) WriteToInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) {
+	if err := fd.writeLock(); err != nil {
+		return 0, err
+	}
+	defer fd.writeUnlock()
+
+	if len(buf) == 0 {
+		// handle zero-byte payload
+		o := &fd.wop
+		o.InitBuf(buf)
+		n, err := execIO(o, func(o *operation) error {
+			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa6, &o.o, nil)
+		})
+		return n, err
+	}
+
+	ntotal := 0
+	for len(buf) > 0 {
+		b := buf
+		if len(b) > maxRW {
+			b = b[:maxRW]
+		}
+		o := &fd.wop
+		o.InitBuf(b)
+		n, err := execIO(o, func(o *operation) error {
+			return windows.WSASendtoInet6(o.fd.Sysfd, &o.buf, 1, &o.qty, 0, sa6, &o.o, nil)
+		})
+		ntotal += int(n)
+		if err != nil {
+			return ntotal, err
+		}
+		buf = buf[n:]
+	}
+	return ntotal, nil
+}
+
 // Call ConnectEx. This doesn't need any locking, since it is only
 // called when the descriptor is first created. This is here rather
 // than in the net package so that it can use fd.wop.
@@ -875,15 +1001,6 @@ func (fd *FD) Seek(offset int64, whence int) (int64, error) {
 	defer fd.l.Unlock()
 
 	return syscall.Seek(fd.Sysfd, offset, whence)
-}
-
-// FindNextFile wraps syscall.FindNextFile.
-func (fd *FD) FindNextFile(data *syscall.Win32finddata) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return syscall.FindNextFile(fd.Sysfd, data)
 }
 
 // Fchmod updates syscall.ByHandleFileInformation.Fileattributes when needed.
@@ -984,31 +1101,54 @@ func (fd *FD) RawWrite(f func(uintptr) bool) error {
 	return syscall.EWINDOWS
 }
 
-func sockaddrToRaw(sa syscall.Sockaddr) (unsafe.Pointer, int32, error) {
+func sockaddrInet4ToRaw(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet4) int32 {
+	*rsa = syscall.RawSockaddrAny{}
+	raw := (*syscall.RawSockaddrInet4)(unsafe.Pointer(rsa))
+	raw.Family = syscall.AF_INET
+	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
+	p[0] = byte(sa.Port >> 8)
+	p[1] = byte(sa.Port)
+	raw.Addr = sa.Addr
+	return int32(unsafe.Sizeof(*raw))
+}
+
+func sockaddrInet6ToRaw(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet6) int32 {
+	*rsa = syscall.RawSockaddrAny{}
+	raw := (*syscall.RawSockaddrInet6)(unsafe.Pointer(rsa))
+	raw.Family = syscall.AF_INET6
+	p := (*[2]byte)(unsafe.Pointer(&raw.Port))
+	p[0] = byte(sa.Port >> 8)
+	p[1] = byte(sa.Port)
+	raw.Scope_id = sa.ZoneId
+	raw.Addr = sa.Addr
+	return int32(unsafe.Sizeof(*raw))
+}
+
+func rawToSockaddrInet4(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet4) {
+	pp := (*syscall.RawSockaddrInet4)(unsafe.Pointer(rsa))
+	p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+	sa.Port = int(p[0])<<8 + int(p[1])
+	sa.Addr = pp.Addr
+}
+
+func rawToSockaddrInet6(rsa *syscall.RawSockaddrAny, sa *syscall.SockaddrInet6) {
+	pp := (*syscall.RawSockaddrInet6)(unsafe.Pointer(rsa))
+	p := (*[2]byte)(unsafe.Pointer(&pp.Port))
+	sa.Port = int(p[0])<<8 + int(p[1])
+	sa.ZoneId = pp.Scope_id
+	sa.Addr = pp.Addr
+}
+
+func sockaddrToRaw(rsa *syscall.RawSockaddrAny, sa syscall.Sockaddr) (int32, error) {
 	switch sa := sa.(type) {
 	case *syscall.SockaddrInet4:
-		var raw syscall.RawSockaddrInet4
-		raw.Family = syscall.AF_INET
-		p := (*[2]byte)(unsafe.Pointer(&raw.Port))
-		p[0] = byte(sa.Port >> 8)
-		p[1] = byte(sa.Port)
-		for i := 0; i < len(sa.Addr); i++ {
-			raw.Addr[i] = sa.Addr[i]
-		}
-		return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw)), nil
+		sz := sockaddrInet4ToRaw(rsa, sa)
+		return sz, nil
 	case *syscall.SockaddrInet6:
-		var raw syscall.RawSockaddrInet6
-		raw.Family = syscall.AF_INET6
-		p := (*[2]byte)(unsafe.Pointer(&raw.Port))
-		p[0] = byte(sa.Port >> 8)
-		p[1] = byte(sa.Port)
-		raw.Scope_id = sa.ZoneId
-		for i := 0; i < len(sa.Addr); i++ {
-			raw.Addr[i] = sa.Addr[i]
-		}
-		return unsafe.Pointer(&raw), int32(unsafe.Sizeof(raw)), nil
+		sz := sockaddrInet6ToRaw(rsa, sa)
+		return sz, nil
 	default:
-		return nil, 0, syscall.EWINDOWS
+		return 0, syscall.EWINDOWS
 	}
 }
 
@@ -1025,7 +1165,9 @@ func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.S
 
 	o := &fd.rop
 	o.InitMsg(p, oob)
-	o.rsa = new(syscall.RawSockaddrAny)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
 	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
 	o.msg.Flags = uint32(flags)
@@ -1038,6 +1180,64 @@ func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.S
 		sa, err = o.rsa.Sockaddr()
 	}
 	return n, int(o.msg.Control.Len), int(o.msg.Flags), sa, err
+}
+
+// ReadMsgInet4 is ReadMsg, but specialized to return a syscall.SockaddrInet4.
+func (fd *FD) ReadMsgInet4(p []byte, oob []byte, flags int, sa4 *syscall.SockaddrInet4) (int, int, int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, 0, 0, err
+	}
+	defer fd.readUnlock()
+
+	if len(p) > maxRW {
+		p = p[:maxRW]
+	}
+
+	o := &fd.rop
+	o.InitMsg(p, oob)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
+	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
+	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
+	o.msg.Flags = uint32(flags)
+	n, err := execIO(o, func(o *operation) error {
+		return windows.WSARecvMsg(o.fd.Sysfd, &o.msg, &o.qty, &o.o, nil)
+	})
+	err = fd.eofError(n, err)
+	if err == nil {
+		rawToSockaddrInet4(o.rsa, sa4)
+	}
+	return n, int(o.msg.Control.Len), int(o.msg.Flags), err
+}
+
+// ReadMsgInet6 is ReadMsg, but specialized to return a syscall.SockaddrInet6.
+func (fd *FD) ReadMsgInet6(p []byte, oob []byte, flags int, sa6 *syscall.SockaddrInet6) (int, int, int, error) {
+	if err := fd.readLock(); err != nil {
+		return 0, 0, 0, err
+	}
+	defer fd.readUnlock()
+
+	if len(p) > maxRW {
+		p = p[:maxRW]
+	}
+
+	o := &fd.rop
+	o.InitMsg(p, oob)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
+	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
+	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
+	o.msg.Flags = uint32(flags)
+	n, err := execIO(o, func(o *operation) error {
+		return windows.WSARecvMsg(o.fd.Sysfd, &o.msg, &o.qty, &o.o, nil)
+	})
+	err = fd.eofError(n, err)
+	if err == nil {
+		rawToSockaddrInet6(o.rsa, sa6)
+	}
+	return n, int(o.msg.Control.Len), int(o.msg.Flags), err
 }
 
 // WriteMsg wraps the WSASendMsg network call.
@@ -1054,13 +1254,66 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 	o := &fd.wop
 	o.InitMsg(p, oob)
 	if sa != nil {
-		rsa, len, err := sockaddrToRaw(sa)
+		if o.rsa == nil {
+			o.rsa = new(syscall.RawSockaddrAny)
+		}
+		len, err := sockaddrToRaw(o.rsa, sa)
 		if err != nil {
 			return 0, 0, err
 		}
-		o.msg.Name = (syscall.Pointer)(rsa)
+		o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 		o.msg.Namelen = len
 	}
+	n, err := execIO(o, func(o *operation) error {
+		return windows.WSASendMsg(o.fd.Sysfd, &o.msg, 0, &o.qty, &o.o, nil)
+	})
+	return n, int(o.msg.Control.Len), err
+}
+
+// WriteMsgInet4 is WriteMsg specialized for syscall.SockaddrInet4.
+func (fd *FD) WriteMsgInet4(p []byte, oob []byte, sa *syscall.SockaddrInet4) (int, int, error) {
+	if len(p) > maxRW {
+		return 0, 0, errors.New("packet is too large (only 1GB is allowed)")
+	}
+
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+
+	o := &fd.wop
+	o.InitMsg(p, oob)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
+	len := sockaddrInet4ToRaw(o.rsa, sa)
+	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
+	o.msg.Namelen = len
+	n, err := execIO(o, func(o *operation) error {
+		return windows.WSASendMsg(o.fd.Sysfd, &o.msg, 0, &o.qty, &o.o, nil)
+	})
+	return n, int(o.msg.Control.Len), err
+}
+
+// WriteMsgInet6 is WriteMsg specialized for syscall.SockaddrInet6.
+func (fd *FD) WriteMsgInet6(p []byte, oob []byte, sa *syscall.SockaddrInet6) (int, int, error) {
+	if len(p) > maxRW {
+		return 0, 0, errors.New("packet is too large (only 1GB is allowed)")
+	}
+
+	if err := fd.writeLock(); err != nil {
+		return 0, 0, err
+	}
+	defer fd.writeUnlock()
+
+	o := &fd.wop
+	o.InitMsg(p, oob)
+	if o.rsa == nil {
+		o.rsa = new(syscall.RawSockaddrAny)
+	}
+	len := sockaddrInet6ToRaw(o.rsa, sa)
+	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
+	o.msg.Namelen = len
 	n, err := execIO(o, func(o *operation) error {
 		return windows.WSASendMsg(o.fd.Sysfd, &o.msg, 0, &o.qty, &o.o, nil)
 	})

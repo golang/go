@@ -6,15 +6,24 @@ package runtime_test
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	. "runtime"
 	"runtime/debug"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 	"unsafe"
 )
 
-var flagQuick = flag.Bool("quick", false, "skip slow tests, for second run in all.bash")
+// flagQuick is set by the -quick option to skip some relatively slow tests.
+// This is used by the cmd/dist test runtime:cpu124.
+// The cmd/dist test passes both -test.short and -quick;
+// there are tests that only check testing.Short, and those tests will
+// not be skipped if only -quick is used.
+var flagQuick = flag.Bool("quick", false, "skip slow tests, for cmd/dist test runtime:cpu124")
 
 func init() {
 	// We're testing the runtime, so make tracebacks show things
@@ -53,8 +62,8 @@ func BenchmarkIfaceCmpNil100(b *testing.B) {
 	}
 }
 
-var efaceCmp1 interface{}
-var efaceCmp2 interface{}
+var efaceCmp1 any
+var efaceCmp2 any
 
 func BenchmarkEfaceCmpDiff(b *testing.B) {
 	x := 5
@@ -195,6 +204,7 @@ func TestSetPanicOnFault(t *testing.T) {
 // testSetPanicOnFault tests one potentially faulting address.
 // It deliberately constructs and uses an invalid pointer,
 // so mark it as nocheckptr.
+//
 //go:nocheckptr
 func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
 	if GOOS == "js" {
@@ -355,10 +365,179 @@ func TestGoroutineProfileTrivial(t *testing.T) {
 	}
 }
 
+func BenchmarkGoroutineProfile(b *testing.B) {
+	run := func(fn func() bool) func(b *testing.B) {
+		runOne := func(b *testing.B) {
+			latencies := make([]time.Duration, 0, b.N)
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				start := time.Now()
+				ok := fn()
+				if !ok {
+					b.Fatal("goroutine profile failed")
+				}
+				latencies = append(latencies, time.Since(start))
+			}
+			b.StopTimer()
+
+			// Sort latencies then report percentiles.
+			sort.Slice(latencies, func(i, j int) bool {
+				return latencies[i] < latencies[j]
+			})
+			b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
+			b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
+			b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
+		}
+		return func(b *testing.B) {
+			b.Run("idle", runOne)
+
+			b.Run("loaded", func(b *testing.B) {
+				stop := applyGCLoad(b)
+				runOne(b)
+				// Make sure to stop the timer before we wait! The load created above
+				// is very heavy-weight and not easy to stop, so we could end up
+				// confusing the benchmarking framework for small b.N.
+				b.StopTimer()
+				stop()
+			})
+		}
+	}
+
+	// Measure the cost of counting goroutines
+	b.Run("small-nil", run(func() bool {
+		GoroutineProfile(nil)
+		return true
+	}))
+
+	// Measure the cost with a small set of goroutines
+	n := NumGoroutine()
+	p := make([]StackRecord, 2*n+2*GOMAXPROCS(0))
+	b.Run("small", run(func() bool {
+		_, ok := GoroutineProfile(p)
+		return ok
+	}))
+
+	// Measure the cost with a large set of goroutines
+	ch := make(chan int)
+	var ready, done sync.WaitGroup
+	for i := 0; i < 5000; i++ {
+		ready.Add(1)
+		done.Add(1)
+		go func() { ready.Done(); <-ch; done.Done() }()
+	}
+	ready.Wait()
+
+	// Count goroutines with a large allgs list
+	b.Run("large-nil", run(func() bool {
+		GoroutineProfile(nil)
+		return true
+	}))
+
+	n = NumGoroutine()
+	p = make([]StackRecord, 2*n+2*GOMAXPROCS(0))
+	b.Run("large", run(func() bool {
+		_, ok := GoroutineProfile(p)
+		return ok
+	}))
+
+	close(ch)
+	done.Wait()
+
+	// Count goroutines with a large (but unused) allgs list
+	b.Run("sparse-nil", run(func() bool {
+		GoroutineProfile(nil)
+		return true
+	}))
+
+	// Measure the cost of a large (but unused) allgs list
+	n = NumGoroutine()
+	p = make([]StackRecord, 2*n+2*GOMAXPROCS(0))
+	b.Run("sparse", run(func() bool {
+		_, ok := GoroutineProfile(p)
+		return ok
+	}))
+}
+
 func TestVersion(t *testing.T) {
 	// Test that version does not contain \r or \n.
 	vers := Version()
 	if strings.Contains(vers, "\r") || strings.Contains(vers, "\n") {
 		t.Fatalf("cr/nl in version: %q", vers)
+	}
+}
+
+func TestTimediv(t *testing.T) {
+	for _, tc := range []struct {
+		num int64
+		div int32
+		ret int32
+		rem int32
+	}{
+		{
+			num: 8,
+			div: 2,
+			ret: 4,
+			rem: 0,
+		},
+		{
+			num: 9,
+			div: 2,
+			ret: 4,
+			rem: 1,
+		},
+		{
+			// Used by runtime.check.
+			num: 12345*1000000000 + 54321,
+			div: 1000000000,
+			ret: 12345,
+			rem: 54321,
+		},
+		{
+			num: 1<<32 - 1,
+			div: 2,
+			ret: 1<<31 - 1, // no overflow.
+			rem: 1,
+		},
+		{
+			num: 1 << 32,
+			div: 2,
+			ret: 1<<31 - 1, // overflow.
+			rem: 0,
+		},
+		{
+			num: 1 << 40,
+			div: 2,
+			ret: 1<<31 - 1, // overflow.
+			rem: 0,
+		},
+		{
+			num: 1<<40 + 1,
+			div: 1 << 10,
+			ret: 1 << 30,
+			rem: 1,
+		},
+	} {
+		name := fmt.Sprintf("%d div %d", tc.num, tc.div)
+		t.Run(name, func(t *testing.T) {
+			// Double check that the inputs make sense using
+			// standard 64-bit division.
+			ret64 := tc.num / int64(tc.div)
+			rem64 := tc.num % int64(tc.div)
+			if ret64 != int64(int32(ret64)) {
+				// Simulate timediv overflow value.
+				ret64 = 1<<31 - 1
+				rem64 = 0
+			}
+			if ret64 != int64(tc.ret) {
+				t.Errorf("%d / %d got ret %d rem %d want ret %d rem %d", tc.num, tc.div, ret64, rem64, tc.ret, tc.rem)
+			}
+
+			var rem int32
+			ret := Timediv(tc.num, tc.div, &rem)
+			if ret != tc.ret || rem != tc.rem {
+				t.Errorf("timediv %d / %d got ret %d rem %d want ret %d rem %d", tc.num, tc.div, ret, rem, tc.ret, tc.rem)
+			}
+		})
 	}
 }

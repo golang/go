@@ -47,9 +47,10 @@ func (m *bvecSet) grow() {
 	m.index = newIndex
 }
 
-// add adds bv to the set and returns its index in m.extractUnique.
-// The caller must not modify bv after this.
-func (m *bvecSet) add(bv bitvec.BitVec) int {
+// add adds bv to the set and returns its index in m.extractUnique,
+// and whether it is newly added.
+// If it is newly added, the caller must not modify bv after this.
+func (m *bvecSet) add(bv bitvec.BitVec) (int, bool) {
 	if len(m.uniq)*4 >= len(m.index) {
 		m.grow()
 	}
@@ -62,12 +63,12 @@ func (m *bvecSet) add(bv bitvec.BitVec) int {
 			// New bvec.
 			index[h] = len(m.uniq)
 			m.uniq = append(m.uniq, bv)
-			return len(m.uniq) - 1
+			return len(m.uniq) - 1, true
 		}
 		jlive := m.uniq[j]
 		if bv.Eq(jlive) {
 			// Existing bvec.
-			return j
+			return j, false
 		}
 
 		h++

@@ -42,6 +42,7 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
 	interactiveMode = true
 	shortcuts := profileShortcuts(p)
 
+	copier := makeProfileCopier(p)
 	greetings(p, o.UI)
 	for {
 		input, err := o.UI.ReadLine("(pprof) ")
@@ -110,7 +111,7 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
 
 			args, cfg, err := parseCommandLine(tokens)
 			if err == nil {
-				err = generateReportWrapper(p, args, cfg, o)
+				err = generateReportWrapper(copier.newCopy(), args, cfg, o)
 			}
 
 			if err != nil {

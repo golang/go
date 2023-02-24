@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || freebsd || linux || netbsd
-// +build aix freebsd linux netbsd
 
 package net
 

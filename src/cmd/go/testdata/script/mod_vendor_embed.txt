@@ -6,11 +6,11 @@ cmp vendor/example.com/a/subdir/test/xtest/embed.txt a/subdir/test/xtest/embed.t
 
 cd broken_no_matching_files
 ! go mod vendor
-stderr 'go mod vendor: pattern foo.txt: no matching files found'
+stderr 'go: pattern foo.txt: no matching files found'
 
 cd ../broken_bad_pattern
 ! go mod vendor
-stderr 'go mod vendor: pattern ../foo.txt: invalid pattern syntax'
+stderr 'go: pattern ../foo.txt: invalid pattern syntax'
 
 # matchPotentialSourceFile prunes out tests and unbuilt code.
 # Make sure that they are vendored if they are embedded files.

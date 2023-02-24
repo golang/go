@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build msan
-// +build msan
 
 #include "go_asm.h"
 #include "go_tls.h"

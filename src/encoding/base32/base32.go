@@ -25,8 +25,25 @@ type Encoding struct {
 }
 
 const (
-	StdPadding rune = '=' // Standard padding character
-	NoPadding  rune = -1  // No padding
+	StdPadding          rune = '=' // Standard padding character
+	NoPadding           rune = -1  // No padding
+	decodeMapInitialize      = "" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
 )
 
 const encodeStd = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
@@ -40,12 +57,10 @@ func NewEncoding(encoder string) *Encoding {
 	}
 
 	e := new(Encoding)
-	copy(e.encode[:], encoder)
 	e.padChar = StdPadding
+	copy(e.encode[:], encoder)
+	copy(e.decodeMap[:], decodeMapInitialize)
 
-	for i := 0; i < len(e.decodeMap); i++ {
-		e.decodeMap[i] = 0xFF
-	}
 	for i := 0; i < len(encoder); i++ {
 		e.decodeMap[encoder[i]] = byte(i)
 	}
@@ -56,7 +71,7 @@ func NewEncoding(encoder string) *Encoding {
 // RFC 4648.
 var StdEncoding = NewEncoding(encodeStd)
 
-// HexEncoding is the ``Extended Hex Alphabet'' defined in RFC 4648.
+// HexEncoding is the “Extended Hex Alphabet” defined in RFC 4648.
 // It is typically used in DNS.
 var HexEncoding = NewEncoding(encodeHex)
 
@@ -221,9 +236,7 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 	}
 
 	// Trailing fringe.
-	for i := 0; i < len(p); i++ {
-		e.buf[i] = p[i]
-	}
+	copy(e.buf[:], p)
 	e.nbuf = len(p)
 	n += len(p)
 	return
@@ -446,6 +459,9 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 	d.nbuf += nn
 	if d.nbuf < min {
 		return 0, d.err
+	}
+	if nn > 0 && d.end {
+		return 0, CorruptInputError(0)
 	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.

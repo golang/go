@@ -16,6 +16,22 @@ go test -vet=off p1.go
 ! stderr '[\\/]vet.*-shift'
 stdout '\[no test files\]'
 
+# ensure all runs non-default vet
+! go test -vet=all ./vetall/...
+stderr 'using resp before checking for errors'
+
+# Test issue #47309
+! go test -vet=bools,xyz ./vetall/...
+stderr '-vet argument must be a supported analyzer'
+
+# Test with a single analyzer
+! go test -vet=httpresponse ./vetall/...
+stderr 'using resp before checking for errors'
+
+# Test with a list of analyzers
+go test -vet=atomic,bools,nilfunc ./vetall/...
+stdout 'm/vetall.*\[no tests to run\]'
+
 # Test issue #22890
 go test m/vetcycle
 stdout 'm/vetcycle.*\[no test files\]'
@@ -51,6 +67,21 @@ import "fmt"
 func F() {
 	fmt.Printf("%d") // oops
 }
+-- vetall/p.go --
+package p
+
+import "net/http"
+
+func F() {
+	resp, err := http.Head("example.com")
+	defer resp.Body.Close()
+	if err != nil {
+		panic(err)
+	}
+	// (defer statement belongs here)
+}
+-- vetall/p_test.go --
+package p
 -- vetcycle/p.go --
 package p
 

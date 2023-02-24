@@ -5,12 +5,12 @@
 package ast_test
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
+	"strings"
 )
 
 // This example demonstrates how to inspect the AST of a Go program.
@@ -126,15 +126,17 @@ func main() {
 	//     47  .  .  .  }
 	//     48  .  .  }
 	//     49  .  }
-	//     50  .  Scope: *ast.Scope {
-	//     51  .  .  Objects: map[string]*ast.Object (len = 1) {
-	//     52  .  .  .  "main": *(obj @ 11)
-	//     53  .  .  }
-	//     54  .  }
-	//     55  .  Unresolved: []*ast.Ident (len = 1) {
-	//     56  .  .  0: *(obj @ 29)
-	//     57  .  }
-	//     58  }
+	//     50  .  FileStart: 1:1
+	//     51  .  FileEnd: 5:3
+	//     52  .  Scope: *ast.Scope {
+	//     53  .  .  Objects: map[string]*ast.Object (len = 1) {
+	//     54  .  .  .  "main": *(obj @ 11)
+	//     55  .  .  }
+	//     56  .  }
+	//     57  .  Unresolved: []*ast.Ident (len = 1) {
+	//     58  .  .  0: *(obj @ 29)
+	//     59  .  }
+	//     60  }
 }
 
 // This example illustrates how to remove a variable declaration
@@ -186,11 +188,11 @@ func main() {
 	f.Comments = cmap.Filter(f).Comments()
 
 	// Print the modified AST.
-	var buf bytes.Buffer
+	var buf strings.Builder
 	if err := format.Node(&buf, fset, f); err != nil {
 		panic(err)
 	}
-	fmt.Printf("%s", buf.Bytes())
+	fmt.Printf("%s", buf.String())
 
 	// Output:
 	// // This is the package comment.

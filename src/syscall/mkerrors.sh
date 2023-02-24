@@ -131,6 +131,7 @@ includes_Linux='
 #include <linux/rtnetlink.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/serial.h>
 #include <linux/wait.h>
 #include <linux/icmpv6.h>
 #include <net/route.h>
@@ -269,6 +270,7 @@ ccflags="$@"
 		$2 ~ /^(SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))/ {next}
 		$2 ~ /^(SCM_SRCRT)$/ {next}
 		$2 ~ /^(MAP_FAILED)$/ {next}
+		$2 ~ /^CLONE_[A-Z_]+/ {next} # These are defined in exec_linux.go.
 		$2 ~ /^ELF_.*$/ {next}	# <asm/elf.h> contains ELF_ARCH, etc.
 
 		$2 !~ /^ETH_/ &&
@@ -316,7 +318,6 @@ ccflags="$@"
 		$2 ~ /^RUSAGE_(SELF|CHILDREN|THREAD)/ ||
 		$2 ~ /^RLIMIT_(AS|CORE|CPU|DATA|FSIZE|NOFILE|STACK)|RLIM_INFINITY/ ||
 		$2 ~ /^PRIO_(PROCESS|PGRP|USER)/ ||
-		$2 ~ /^CLONE_[A-Z_]+/ ||
 		$2 !~ /^(BPF_TIMEVAL)$/ &&
 		$2 ~ /^(BPF|DLT)_/ ||
 		$2 !~ "WMESGLEN" &&
@@ -341,7 +342,7 @@ errors=$(
 signals=$(
 	echo '#include <signal.h>' | $CC -x c - -E -dM $ccflags |
 	awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print $2 }' |
-	egrep -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT)' |
+	grep -v 'SIGSTKSIZE\|SIGSTKSZ\|SIGRT' |
 	sort
 )
 
@@ -351,7 +352,7 @@ echo '#include <errno.h>' | $CC -x c - -E -dM $ccflags |
 	sort >_error.grep
 echo '#include <signal.h>' | $CC -x c - -E -dM $ccflags |
 	awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print "^\t" $2 "[ \t]*=" }' |
-	egrep -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT)' |
+	grep -v 'SIGSTKSIZE\|SIGSTKSZ\|SIGRT' |
 	sort >_signal.grep
 
 echo '// mkerrors.sh' "$@"

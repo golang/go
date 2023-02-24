@@ -9,6 +9,7 @@ import (
 	"internal/race"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -89,10 +90,23 @@ var headerWriteTests = []struct {
 			"k4: 4a\r\nk4: 4b\r\nk6: 6a\r\nk6: 6b\r\n" +
 			"k7: 7a\r\nk7: 7b\r\nk8: 8a\r\nk8: 8b\r\nk9: 9a\r\nk9: 9b\r\n",
 	},
+	// Tests invalid characters in headers.
+	{
+		Header{
+			"Content-Type":             {"text/html; charset=UTF-8"},
+			"NewlineInValue":           {"1\r\nBar: 2"},
+			"NewlineInKey\r\n":         {"1"},
+			"Colon:InKey":              {"1"},
+			"Evil: 1\r\nSmuggledValue": {"1"},
+		},
+		nil,
+		"Content-Type: text/html; charset=UTF-8\r\n" +
+			"NewlineInValue: 1  Bar: 2\r\n",
+	},
 }
 
 func TestHeaderWrite(t *testing.T) {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for i, test := range headerWriteTests {
 		test.h.WriteSubset(&buf, test.exclude)
 		if buf.String() != test.expected {
@@ -234,6 +248,11 @@ func TestCloneOrMakeHeader(t *testing.T) {
 			name: "non-empty",
 			in:   Header{"foo": {"bar"}},
 			want: Header{"foo": {"bar"}},
+		},
+		{
+			name: "nil value",
+			in:   Header{"foo": nil},
+			want: Header{"foo": nil},
 		},
 	}
 

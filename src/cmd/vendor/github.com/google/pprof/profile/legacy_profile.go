@@ -295,11 +295,12 @@ func get64b(b []byte) (uint64, []byte) {
 //
 // The general format for profilez samples is a sequence of words in
 // binary format. The first words are a header with the following data:
-//   1st word -- 0
-//   2nd word -- 3
-//   3rd word -- 0 if a c++ application, 1 if a java application.
-//   4th word -- Sampling period (in microseconds).
-//   5th word -- Padding.
+//
+//	1st word -- 0
+//	2nd word -- 3
+//	3rd word -- 0 if a c++ application, 1 if a java application.
+//	4th word -- Sampling period (in microseconds).
+//	5th word -- Padding.
 func parseCPU(b []byte) (*Profile, error) {
 	var parse func([]byte) (uint64, []byte)
 	var n1, n2, n3, n4, n5 uint64
@@ -403,15 +404,18 @@ func cleanupDuplicateLocations(p *Profile) {
 //
 // profilez samples are a repeated sequence of stack frames of the
 // form:
-//    1st word -- The number of times this stack was encountered.
-//    2nd word -- The size of the stack (StackSize).
-//    3rd word -- The first address on the stack.
-//    ...
-//    StackSize + 2 -- The last address on the stack
+//
+//	1st word -- The number of times this stack was encountered.
+//	2nd word -- The size of the stack (StackSize).
+//	3rd word -- The first address on the stack.
+//	...
+//	StackSize + 2 -- The last address on the stack
+//
 // The last stack trace is of the form:
-//   1st word -- 0
-//   2nd word -- 1
-//   3rd word -- 0
+//
+//	1st word -- 0
+//	2nd word -- 1
+//	3rd word -- 0
 //
 // Addresses from stack traces may point to the next instruction after
 // each call. Optionally adjust by -1 to land somewhere on the actual
@@ -861,7 +865,6 @@ func parseThread(b []byte) (*Profile, error) {
 	// Recognize each thread and populate profile samples.
 	for !isMemoryMapSentinel(line) {
 		if strings.HasPrefix(line, "---- no stack trace for") {
-			line = ""
 			break
 		}
 		if t := threadStartRE.FindStringSubmatch(line); len(t) != 4 {

@@ -8,28 +8,29 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 
 	"fmt"
 	"go/constant"
 	"go/token"
 )
 
-// package all the arguments that match a ... T parameter into a []T.
-func MakeDotArgs(typ *types.Type, args []ir.Node) ir.Node {
+// MakeDotArgs package all the arguments that match a ... T parameter into a []T.
+func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
 	var n ir.Node
 	if len(args) == 0 {
-		n = NodNil()
+		n = ir.NewNilExpr(pos)
 		n.SetType(typ)
 	} else {
-		lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
-		lit.List.Append(args...)
+		args = append([]ir.Node(nil), args...)
+		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, typ, args)
 		lit.SetImplicit(true)
 		n = lit
 	}
 
 	n = Expr(n)
 	if n.Type() == nil {
-		base.Fatalf("mkdotargslice: typecheck failed")
+		base.FatalfAt(pos, "mkdotargslice: typecheck failed")
 	}
 	return n
 }
@@ -47,13 +48,41 @@ func FixVariadicCall(call *ir.CallExpr) {
 
 	args := call.Args
 	extra := args[vi:]
-	slice := MakeDotArgs(vt, extra)
+	slice := MakeDotArgs(call.Pos(), vt, extra)
 	for i := range extra {
 		extra[i] = nil // allow GC
 	}
 
 	call.Args = append(args[:vi], slice)
 	call.IsDDD = true
+}
+
+// FixMethodCall rewrites a method call t.M(...) into a function call T.M(t, ...).
+func FixMethodCall(call *ir.CallExpr) {
+	if call.X.Op() != ir.ODOTMETH {
+		return
+	}
+
+	dot := call.X.(*ir.SelectorExpr)
+
+	fn := Expr(ir.NewSelectorExpr(dot.Pos(), ir.OXDOT, ir.TypeNode(dot.X.Type()), dot.Selection.Sym))
+
+	args := make([]ir.Node, 1+len(call.Args))
+	args[0] = dot.X
+	copy(args[1:], call.Args)
+
+	call.SetOp(ir.OCALLFUNC)
+	call.X = fn
+	call.Args = args
+}
+
+func AssertFixedCall(call *ir.CallExpr) {
+	if call.X.Type().IsVariadic() && !call.IsDDD {
+		base.FatalfAt(call.Pos(), "missed FixVariadicCall")
+	}
+	if call.Op() == ir.OCALLMETH {
+		base.FatalfAt(call.Pos(), "missed FixMethodCall")
+	}
 }
 
 // ClosureType returns the struct type used to hold all the information
@@ -73,8 +102,25 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 	// The information appears in the binary in the form of type descriptors;
 	// the struct is unnamed so that closures in multiple packages with the
 	// same struct type can share the descriptor.
+
+	// Make sure the .F field is in the same package as the rest of the
+	// fields. This deals with closures in instantiated functions, which are
+	// compiled as if from the source package of the generic function.
+	var pkg *types.Pkg
+	if len(clo.Func.ClosureVars) == 0 {
+		pkg = types.LocalPkg
+	} else {
+		for _, v := range clo.Func.ClosureVars {
+			if pkg == nil {
+				pkg = v.Sym().Pkg
+			} else if pkg != v.Sym().Pkg {
+				base.Fatalf("Closure variables from multiple packages: %+v", clo)
+			}
+		}
+	}
+
 	fields := []*types.Field{
-		types.NewField(base.Pos, Lookup(".F"), types.Types[types.TUINTPTR]),
+		types.NewField(base.Pos, pkg.Lookup(".F"), types.Types[types.TUINTPTR]),
 	}
 	for _, v := range clo.Func.ClosureVars {
 		typ := v.Type()
@@ -83,82 +129,21 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
 		}
 		fields = append(fields, types.NewField(base.Pos, v.Sym(), typ))
 	}
-	typ := types.NewStruct(types.NoPkg, fields)
+	typ := types.NewStruct(fields)
 	typ.SetNoalg(true)
 	return typ
 }
 
-// PartialCallType returns the struct type used to hold all the information
-// needed in the closure for n (n must be a OCALLPART node).
-// The address of a variable of the returned type can be cast to a func.
-func PartialCallType(n *ir.SelectorExpr) *types.Type {
-	t := types.NewStruct(types.NoPkg, []*types.Field{
+// MethodValueType returns the struct type used to hold all the information
+// needed in the closure for a OMETHVALUE node. The address of a variable of
+// the returned type can be cast to a func.
+func MethodValueType(n *ir.SelectorExpr) *types.Type {
+	t := types.NewStruct([]*types.Field{
 		types.NewField(base.Pos, Lookup("F"), types.Types[types.TUINTPTR]),
 		types.NewField(base.Pos, Lookup("R"), n.X.Type()),
 	})
 	t.SetNoalg(true)
 	return t
-}
-
-// True if we are typechecking an inline body in ImportedBody below. We use this
-// flag to not create a new closure function in tcClosure when we are just
-// typechecking an inline body, as opposed to the body of a real function.
-var inTypeCheckInl bool
-
-// ImportedBody returns immediately if the inlining information for fn is
-// populated. Otherwise, fn must be an imported function. If so, ImportedBody
-// loads in the dcls and body for fn, and typechecks as needed.
-func ImportedBody(fn *ir.Func) {
-	if fn.Inl.Body != nil {
-		return
-	}
-	lno := ir.SetPos(fn.Nname)
-
-	// When we load an inlined body, we need to allow OADDR
-	// operations on untyped expressions. We will fix the
-	// addrtaken flags on all the arguments of the OADDR with the
-	// computeAddrtaken call below (after we typecheck the body).
-	// TODO: export/import types and addrtaken marks along with inlined bodies,
-	// so this will be unnecessary.
-	IncrementalAddrtaken = false
-	defer func() {
-		if DirtyAddrtaken {
-			ComputeAddrtaken(fn.Inl.Body) // compute addrtaken marks once types are available
-			DirtyAddrtaken = false
-		}
-		IncrementalAddrtaken = true
-	}()
-
-	ImportBody(fn)
-
-	// Stmts(fn.Inl.Body) below is only for imported functions;
-	// their bodies may refer to unsafe as long as the package
-	// was marked safe during import (which was checked then).
-	// the ->inl of a local function has been typechecked before CanInline copied it.
-	pkg := fnpkg(fn.Nname)
-
-	if pkg == types.LocalPkg || pkg == nil {
-		return // ImportedBody on local function
-	}
-
-	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
-		fmt.Printf("typecheck import [%v] %L { %v }\n", fn.Sym(), fn, ir.Nodes(fn.Inl.Body))
-	}
-
-	if !go117ExportTypes {
-		// If we didn't export & import types, typecheck the code here.
-		savefn := ir.CurFunc
-		ir.CurFunc = fn
-		if inTypeCheckInl {
-			base.Fatalf("inTypeCheckInl should not be set recursively")
-		}
-		inTypeCheckInl = true
-		Stmts(fn.Inl.Body)
-		inTypeCheckInl = false
-		ir.CurFunc = savefn
-	}
-
-	base.Pos = lno
 }
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
@@ -181,153 +166,32 @@ func fnpkg(fn *ir.Name) *types.Pkg {
 	return fn.Sym().Pkg
 }
 
-// ClosureName generates a new unique name for a closure within
-// outerfunc.
-func ClosureName(outerfunc *ir.Func) *types.Sym {
-	outer := "glob."
-	prefix := "func"
-	gen := &globClosgen
-
-	if outerfunc != nil {
-		if outerfunc.OClosure != nil {
-			prefix = ""
-		}
-
-		outer = ir.FuncName(outerfunc)
-
-		// There may be multiple functions named "_". In those
-		// cases, we can't use their individual Closgens as it
-		// would lead to name clashes.
-		if !ir.IsBlank(outerfunc.Nname) {
-			gen = &outerfunc.Closgen
-		}
-	}
-
-	*gen++
-	return Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
-}
-
-// globClosgen is like Func.Closgen, but for the global scope.
-var globClosgen int32
-
-// MethodValueWrapper returns the DCLFUNC node representing the
-// wrapper function (*-fm) needed for the given method value. If the
-// wrapper function hasn't already been created yet, it's created and
-// added to Target.Decls.
-//
-// TODO(mdempsky): Move into walk. This isn't part of type checking.
-func MethodValueWrapper(dot *ir.SelectorExpr) *ir.Func {
-	if dot.Op() != ir.OCALLPART {
-		base.Fatalf("MethodValueWrapper: unexpected %v (%v)", dot, dot.Op())
-	}
-
-	t0 := dot.Type()
-	meth := dot.Sel
-	rcvrtype := dot.X.Type()
-	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
-
-	if sym.Uniq() {
-		return sym.Def.(*ir.Func)
-	}
-	sym.SetUniq(true)
-
-	savecurfn := ir.CurFunc
-	saveLineNo := base.Pos
-	ir.CurFunc = nil
-
-	// Set line number equal to the line number where the method is declared.
-	if pos := dot.Selection.Pos; pos.IsKnown() {
-		base.Pos = pos
-	}
-	// Note: !dot.Selection.Pos.IsKnown() happens for method expressions where
-	// the method is implicitly declared. The Error method of the
-	// built-in error type is one such method.  We leave the line
-	// number at the use of the method expression in this
-	// case. See issue 29389.
-
-	tfn := ir.NewFuncType(base.Pos, nil,
-		NewFuncParams(t0.Params(), true),
-		NewFuncParams(t0.Results(), false))
-
-	fn := DeclFunc(sym, tfn)
-	fn.SetDupok(true)
-	fn.SetNeedctxt(true)
-	fn.SetWrapper(true)
-
-	// Declare and initialize variable holding receiver.
-	ptr := ir.NewNameAt(base.Pos, Lookup(".this"))
-	ptr.Class = ir.PAUTOHEAP
-	ptr.SetType(rcvrtype)
-	ptr.Curfn = fn
-	ptr.SetIsClosureVar(true)
-	ptr.SetByval(true)
-	fn.ClosureVars = append(fn.ClosureVars, ptr)
-
-	call := ir.NewCallExpr(base.Pos, ir.OCALL, ir.NewSelectorExpr(base.Pos, ir.OXDOT, ptr, meth), nil)
-	call.Args = ir.ParamNames(tfn.Type())
-	call.IsDDD = tfn.Type().IsVariadic()
-
-	var body ir.Node = call
-	if t0.NumResults() != 0 {
-		ret := ir.NewReturnStmt(base.Pos, nil)
-		ret.Results = []ir.Node{call}
-		body = ret
-	}
-
-	fn.Body = []ir.Node{body}
-	FinishFuncBody()
-
-	Func(fn)
-	// Need to typecheck the body of the just-generated wrapper.
-	// typecheckslice() requires that Curfn is set when processing an ORETURN.
-	ir.CurFunc = fn
-	Stmts(fn.Body)
-	sym.Def = fn
-	Target.Decls = append(Target.Decls, fn)
-	ir.CurFunc = savecurfn
-	base.Pos = saveLineNo
-
-	return fn
-}
-
 // tcClosure typechecks an OCLOSURE node. It also creates the named
 // function associated with the closure.
 // TODO: This creation of the named function should probably really be done in a
 // separate pass from type-checking.
-func tcClosure(clo *ir.ClosureExpr, top int) {
+func tcClosure(clo *ir.ClosureExpr, top int) ir.Node {
 	fn := clo.Func
-	// Set current associated iota value, so iota can be used inside
-	// function in ConstSpec, see issue #22344
-	if x := getIotaValue(); x >= 0 {
-		fn.Iota = x
-	}
 
-	fn.SetClosureCalled(top&ctxCallee != 0)
-
-	// Do not typecheck fn twice, otherwise, we will end up pushing
-	// fn to Target.Decls multiple times, causing InitLSym called twice.
-	// See #30709
+	// We used to allow IR builders to typecheck the underlying Func
+	// themselves, but that led to too much variety and inconsistency
+	// around who's responsible for naming the function, typechecking
+	// it, or adding it to Target.Decls.
+	//
+	// It's now all or nothing. Callers are still allowed to do these
+	// themselves, but then they assume responsibility for all of them.
 	if fn.Typecheck() == 1 {
-		clo.SetType(fn.Type())
-		return
+		base.FatalfAt(fn.Pos(), "underlying closure func already typechecked: %v", fn)
 	}
 
-	// Don't give a name and add to Target.Decls if we are typechecking an inlined
-	// body in ImportedBody(), since we only want to create the named function
-	// when the closure is actually inlined (and then we force a typecheck
-	// explicitly in (*inlsubst).node()).
-	if !inTypeCheckInl {
-		fn.Nname.SetSym(ClosureName(ir.CurFunc))
-		ir.MarkFunc(fn.Nname)
-	}
+	ir.NameClosure(clo, ir.CurFunc)
 	Func(fn)
-	clo.SetType(fn.Type())
 
 	// Type check the body now, but only if we're inside a function.
 	// At top level (in a variable initialization: curfn==nil) we're not
 	// ready to type check code yet; we'll check it later, because the
 	// underlying closure function we create is added to Target.Decls.
-	if ir.CurFunc != nil && clo.Type() != nil {
+	if ir.CurFunc != nil {
 		oldfn := ir.CurFunc
 		ir.CurFunc = fn
 		Stmts(fn.Body)
@@ -353,14 +217,9 @@ func tcClosure(clo *ir.ClosureExpr, top int) {
 	}
 	fn.ClosureVars = fn.ClosureVars[:out]
 
-	if base.Flag.W > 1 {
-		s := fmt.Sprintf("New closure func: %s", ir.FuncName(fn))
-		ir.Dump(s, fn)
-	}
-	if !inTypeCheckInl {
-		// Add function to Target.Decls once only when we give it a name
-		Target.Decls = append(Target.Decls, fn)
-	}
+	clo.SetType(fn.Type())
+
+	return ir.UseClosure(clo, Target)
 }
 
 // type check function definition
@@ -371,34 +230,16 @@ func tcFunc(n *ir.Func) {
 		defer tracePrint("tcFunc", n)(nil)
 	}
 
-	n.Nname = AssignExpr(n.Nname).(*ir.Name)
-	t := n.Nname.Type()
-	if t == nil {
-		return
-	}
-	rcvr := t.Recv()
-	if rcvr != nil && n.Shortname != nil {
-		m := addmethod(n, n.Shortname, t, true, n.Pragma&ir.Nointerface != 0)
-		if m == nil {
-			return
-		}
-
-		n.Nname.SetSym(ir.MethodSym(rcvr.Type, n.Shortname))
-		Declare(n.Nname, ir.PFUNC)
+	if name := n.Nname; name.Typecheck() == 0 {
+		base.AssertfAt(name.Type() != nil, n.Pos(), "missing type: %v", name)
+		name.SetTypecheck(1)
 	}
 }
 
 // tcCall typechecks an OCALL node.
 func tcCall(n *ir.CallExpr, top int) ir.Node {
-	n.Use = ir.CallUseExpr
-	if top == ctxStmt {
-		n.Use = ir.CallUseStmt
-	}
 	Stmts(n.Init()) // imported rewritten f(g()) calls (#30907)
 	n.X = typecheck(n.X, ctxExpr|ctxType|ctxCallee)
-	if n.X.Diag() {
-		n.SetDiag(true)
-	}
 
 	l := n.X
 
@@ -419,7 +260,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 			n.SetTypecheck(0) // re-typechecking new op is OK, not a loop
 			return typecheck(n, top)
 
-		case ir.OCAP, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL:
+		case ir.OCAP, ir.OCLEAR, ir.OCLOSE, ir.OIMAG, ir.OLEN, ir.OPANIC, ir.OREAL, ir.OUNSAFESTRINGDATA, ir.OUNSAFESLICEDATA:
 			typecheckargs(n)
 			fallthrough
 		case ir.ONEW, ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
@@ -431,7 +272,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 			u := ir.NewUnaryExpr(n.Pos(), l.BuiltinOp, arg)
 			return typecheck(ir.InitExpr(n.Init(), u), top) // typecheckargs can add to old.Init
 
-		case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE:
+		case ir.OCOMPLEX, ir.OCOPY, ir.OUNSAFEADD, ir.OUNSAFESLICE, ir.OUNSAFESTRING:
 			typecheckargs(n)
 			arg1, arg2, ok := needTwoArgs(n)
 			if !ok {
@@ -448,10 +289,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	l = n.X
 	if l.Op() == ir.OTYPE {
 		if n.IsDDD {
-			if !l.Type().Broke() {
-				base.Errorf("invalid use of ... in type conversion to %v", l.Type())
-			}
-			n.SetDiag(true)
+			base.Fatalf("invalid use of ... in type conversion to %v", l.Type())
 		}
 
 		// pick off before type-checking arguments
@@ -466,6 +304,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 		return tcConv(n)
 	}
 
+	RewriteNonNameCall(n)
 	typecheckargs(n)
 	t := l.Type()
 	if t == nil {
@@ -509,6 +348,8 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
 	}
 
 	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, func() string { return fmt.Sprintf("argument to %v", n.X) })
+	FixVariadicCall(n)
+	FixMethodCall(n)
 	if t.NumResults() == 0 {
 		return n
 	}
@@ -581,12 +422,11 @@ func tcAppend(n *ir.CallExpr) ir.Node {
 			return n
 		}
 
-		if t.Elem().IsKind(types.TUINT8) && args[1].Type().IsString() {
-			args[1] = DefaultLit(args[1], types.Types[types.TSTRING])
-			return n
-		}
-
-		args[1] = AssignConv(args[1], t.Underlying(), "append")
+		// AssignConv is of args[1] not required here, as the
+		// types of args[0] and args[1] don't need to match
+		// (They will both have an underlying type which are
+		// slices of identical base types, or be []byte and string.)
+		// See issue 53888.
 		return n
 	}
 
@@ -598,6 +438,28 @@ func tcAppend(n *ir.CallExpr) ir.Node {
 		as[i] = AssignConv(n, t.Elem(), "append")
 		types.CheckSize(as[i].Type()) // ensure width is calculated for backend
 	}
+	return n
+}
+
+// tcClear typechecks an OCLEAR node.
+func tcClear(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	n.X = DefaultLit(n.X, nil)
+	l := n.X
+	t := l.Type()
+	if t == nil {
+		n.SetType(nil)
+		return n
+	}
+
+	switch {
+	case t.IsMap(), t.IsSlice():
+	default:
+		base.Errorf("invalid operation: %v (argument must be a map or slice)", n)
+		n.SetType(nil)
+		return n
+	}
+
 	return n
 }
 
@@ -979,14 +841,23 @@ func tcRecover(n *ir.CallExpr) ir.Node {
 	return n
 }
 
-// tcUnsafeAdd typechecks an OUNSAFEADD node.
-func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
-	if !types.AllowsGoVersion(curpkg(), 1, 17) {
-		base.ErrorfVers("go1.17", "unsafe.Add")
-		n.SetType(nil)
-		return n
+// tcRecoverFP typechecks an ORECOVERFP node.
+func tcRecoverFP(n *ir.CallExpr) ir.Node {
+	if len(n.Args) != 1 {
+		base.FatalfAt(n.Pos(), "wrong number of arguments: %v", n)
 	}
 
+	n.Args[0] = Expr(n.Args[0])
+	if !n.Args[0].Type().IsPtrShaped() {
+		base.FatalfAt(n.Pos(), "%L is not pointer shaped", n.Args[0])
+	}
+
+	n.SetType(types.Types[types.TINTER])
+	return n
+}
+
+// tcUnsafeAdd typechecks an OUNSAFEADD node.
+func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
 	n.X = AssignConv(Expr(n.X), types.Types[types.TUNSAFEPTR], "argument to unsafe.Add")
 	n.Y = DefaultLit(Expr(n.Y), types.Types[types.TINT])
 	if n.X.Type() == nil || n.Y.Type() == nil {
@@ -1003,12 +874,6 @@ func tcUnsafeAdd(n *ir.BinaryExpr) *ir.BinaryExpr {
 
 // tcUnsafeSlice typechecks an OUNSAFESLICE node.
 func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
-	if !types.AllowsGoVersion(curpkg(), 1, 17) {
-		base.ErrorfVers("go1.17", "unsafe.Slice")
-		n.SetType(nil)
-		return n
-	}
-
 	n.X = Expr(n.X)
 	n.Y = Expr(n.Y)
 	if n.X.Type() == nil || n.Y.Type() == nil {
@@ -1018,11 +883,39 @@ func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
 	t := n.X.Type()
 	if !t.IsPtr() {
 		base.Errorf("first argument to unsafe.Slice must be pointer; have %L", t)
+	} else if t.Elem().NotInHeap() {
+		// TODO(mdempsky): This can be relaxed, but should only affect the
+		// Go runtime itself. End users should only see not-in-heap
+		// types due to incomplete C structs in cgo, and those types don't
+		// have a meaningful size anyway.
+		base.Errorf("unsafe.Slice of incomplete (or unallocatable) type not allowed")
 	}
-	if !checkunsafeslice(&n.Y) {
+
+	if !checkunsafesliceorstring(n.Op(), &n.Y) {
 		n.SetType(nil)
 		return n
 	}
 	n.SetType(types.NewSlice(t.Elem()))
+	return n
+}
+
+// tcUnsafeString typechecks an OUNSAFESTRING node.
+func tcUnsafeString(n *ir.BinaryExpr) *ir.BinaryExpr {
+	n.X = Expr(n.X)
+	n.Y = Expr(n.Y)
+	if n.X.Type() == nil || n.Y.Type() == nil {
+		n.SetType(nil)
+		return n
+	}
+	t := n.X.Type()
+	if !t.IsPtr() || !types.Identical(t.Elem(), types.Types[types.TUINT8]) {
+		base.Errorf("first argument to unsafe.String must be *byte; have %L", t)
+	}
+
+	if !checkunsafesliceorstring(n.Op(), &n.Y) {
+		n.SetType(nil)
+		return n
+	}
+	n.SetType(types.Types[types.TSTRING])
 	return n
 }

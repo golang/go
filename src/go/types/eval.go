@@ -35,9 +35,10 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ Type
 	return info.Types[node], err
 }
 
-// CheckExpr type checks the expression expr as if it had appeared at
-// position pos of package pkg. Type information about the expression
-// is recorded in info.
+// CheckExpr type checks the expression expr as if it had appeared at position
+// pos of package pkg. Type information about the expression is recorded in
+// info. The expression may be an identifier denoting an uninstantiated generic
+// function or type.
 //
 // If pkg == nil, the Universe scope is used and the provided
 // position pos is ignored. If pkg != nil, and pos is invalid,
@@ -52,13 +53,12 @@ func Eval(fset *token.FileSet, pkg *Package, pos token.Pos, expr string) (_ Type
 // functions ignore the context in which an expression is used (e.g., an
 // assignment). Thus, top-level untyped constants will return an
 // untyped type rather then the respective context-specific type.
-//
 func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, info *Info) (err error) {
 	// determine scope
 	var scope *Scope
 	if pkg == nil {
 		scope = Universe
-		pos = token.NoPos
+		pos = nopos
 	} else if !pos.IsValid() {
 		scope = pkg.scope
 	} else {
@@ -91,8 +91,8 @@ func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, 
 
 	// evaluate node
 	var x operand
-	check.rawExpr(&x, expr, nil)
-	check.processDelayed(0) // incl. all functions
+	check.rawExpr(&x, expr, nil, true) // allow generic expressions
+	check.processDelayed(0)            // incl. all functions
 	check.recordUntyped()
 
 	return nil

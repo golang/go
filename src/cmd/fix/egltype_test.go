@@ -17,6 +17,7 @@ func eglTestsFor(tname string) []testCase {
 			Name: "egl.localVariable",
 			In: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 func f() {
@@ -27,6 +28,7 @@ func f() {
 `,
 			Out: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 func f() {
@@ -40,6 +42,7 @@ func f() {
 			Name: "egl.globalVariable",
 			In: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x C.$EGLTYPE = nil
@@ -50,6 +53,7 @@ func f() {
 `,
 			Out: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x C.$EGLTYPE = 0
@@ -63,6 +67,7 @@ func f() {
 			Name: "egl.EqualArgument",
 			In: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x C.$EGLTYPE
@@ -71,6 +76,7 @@ var z = x != nil
 `,
 			Out: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x C.$EGLTYPE
@@ -82,6 +88,7 @@ var z = x != 0
 			Name: "egl.StructField",
 			In: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 type T struct {
@@ -92,6 +99,7 @@ var t = T{x: nil}
 `,
 			Out: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 type T struct {
@@ -105,6 +113,7 @@ var t = T{x: 0}
 			Name: "egl.FunctionArgument",
 			In: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 func f(x C.$EGLTYPE) {
@@ -116,6 +125,7 @@ func g() {
 `,
 			Out: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 func f(x C.$EGLTYPE) {
@@ -130,12 +140,14 @@ func g() {
 			Name: "egl.ArrayElement",
 			In: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x = [3]C.$EGLTYPE{nil, nil, nil}
 `,
 			Out: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x = [3]C.$EGLTYPE{0, 0, 0}
@@ -145,12 +157,14 @@ var x = [3]C.$EGLTYPE{0, 0, 0}
 			Name: "egl.SliceElement",
 			In: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x = []C.$EGLTYPE{nil, nil, nil}
 `,
 			Out: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x = []C.$EGLTYPE{0, 0, 0}
@@ -160,12 +174,14 @@ var x = []C.$EGLTYPE{0, 0, 0}
 			Name: "egl.MapKey",
 			In: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x = map[C.$EGLTYPE]int{nil: 0}
 `,
 			Out: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x = map[C.$EGLTYPE]int{0: 0}
@@ -175,12 +191,14 @@ var x = map[C.$EGLTYPE]int{0: 0}
 			Name: "egl.MapValue",
 			In: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x = map[int]C.$EGLTYPE{0: nil}
 `,
 			Out: `package main
 
+// typedef void *$EGLTYPE;
 import "C"
 
 var x = map[int]C.$EGLTYPE{0: 0}

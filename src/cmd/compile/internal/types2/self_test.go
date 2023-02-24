@@ -6,6 +6,7 @@ package types2_test
 
 import (
 	"cmd/compile/internal/syntax"
+	"internal/testenv"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -16,6 +17,8 @@ import (
 )
 
 func TestSelf(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+
 	files, err := pkgFiles(".")
 	if err != nil {
 		t.Fatal(err)
@@ -24,20 +27,18 @@ func TestSelf(t *testing.T) {
 	conf := Config{Importer: defaultImporter()}
 	_, err = conf.Check("cmd/compile/internal/types2", files, nil)
 	if err != nil {
-		// Importing go/constant doesn't work in the
-		// build dashboard environment. Don't report an error
-		// for now so that the build remains green.
-		// TODO(gri) fix this
-		t.Log(err) // replace w/ t.Fatal eventually
-		return
+		t.Fatal(err)
 	}
 }
 
 func BenchmarkCheck(b *testing.B) {
+	testenv.MustHaveGoBuild(b) // The Go command is needed for the importer to determine the locations of stdlib .a files.
+
 	for _, p := range []string{
 		filepath.Join("src", "net", "http"),
 		filepath.Join("src", "go", "parser"),
 		filepath.Join("src", "go", "constant"),
+		filepath.Join("src", "runtime"),
 		filepath.Join("src", "go", "internal", "gcimporter"),
 	} {
 		b.Run(path.Base(p), func(b *testing.B) {

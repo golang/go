@@ -155,7 +155,7 @@ func TestTempDir_BadDir(t *testing.T) {
 	badDir := filepath.Join(dir, "not-exist")
 	_, err = TempDir(badDir, "foo")
 	if pe, ok := err.(*fs.PathError); !ok || !os.IsNotExist(err) || pe.Path != badDir {
-		t.Errorf("TempDir error = %#v; want PathError for path %q satisifying os.IsNotExist", err, badDir)
+		t.Errorf("TempDir error = %#v; want PathError for path %q satisfying os.IsNotExist", err, badDir)
 	}
 }
 

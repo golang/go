@@ -31,6 +31,16 @@ type GlobFS interface {
 // Otherwise, Glob uses ReadDir to traverse the directory tree
 // and look for matches for the pattern.
 func Glob(fsys FS, pattern string) (matches []string, err error) {
+	return globWithLimit(fsys, pattern, 0)
+}
+
+func globWithLimit(fsys FS, pattern string, depth int) (matches []string, err error) {
+	// This limit is added to prevent stack exhaustion issues. See
+	// CVE-2022-30630.
+	const pathSeparatorsLimit = 10000
+	if depth > pathSeparatorsLimit {
+		return nil, path.ErrBadPattern
+	}
 	if fsys, ok := fsys.(GlobFS); ok {
 		return fsys.Glob(pattern)
 	}
@@ -59,9 +69,9 @@ func Glob(fsys FS, pattern string) (matches []string, err error) {
 	}
 
 	var m []string
-	m, err = Glob(fsys, dir)
+	m, err = globWithLimit(fsys, dir, depth+1)
 	if err != nil {
-		return
+		return nil, err
 	}
 	for _, d := range m {
 		matches, err = glob(fsys, d, file, matches)

@@ -10,20 +10,26 @@
 // The handled paths all begin with /debug/pprof/.
 //
 // To use pprof, link this package into your program:
+//
 //	import _ "net/http/pprof"
 //
 // If your application is not already running an http server, you
 // need to start one. Add "net/http" and "log" to your imports and
 // the following code to your main function:
 //
-// 	go func() {
-// 		log.Println(http.ListenAndServe("localhost:6060", nil))
-// 	}()
+//	go func() {
+//		log.Println(http.ListenAndServe("localhost:6060", nil))
+//	}()
 //
+// By default, all the profiles listed in [runtime/pprof.Profile] are
+// available (via [Handler]), in addition to the [Cmdline], [Profile], [Symbol],
+// and [Trace] profiles defined in this package.
 // If you are not using DefaultServeMux, you will have to register handlers
 // with the mux you are using.
 //
-// Then use the pprof tool to look at the heap profile:
+// # Usage examples
+//
+// Use the pprof tool to look at the heap profile:
 //
 //	go tool pprof http://localhost:6060/debug/pprof/heap
 //
@@ -44,7 +50,7 @@
 // The package also exports a handler that serves execution trace data
 // for the "go tool trace" command. To collect a 5-second execution trace:
 //
-//	wget -O trace.out http://localhost:6060/debug/pprof/trace?seconds=5
+//	curl -o trace.out http://localhost:6060/debug/pprof/trace?seconds=5
 //	go tool trace trace.out
 //
 // To view all available profiles, open http://localhost:6060/debug/pprof/
@@ -53,7 +59,6 @@
 // For a study of the facility in action, visit
 //
 //	https://blog.golang.org/2011/06/profiling-go-programs.html
-//
 package pprof
 
 import (
@@ -222,6 +227,7 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 }
 
 // Handler returns an HTTP handler that serves the named profile.
+// Available profiles can be found in [runtime/pprof.Profile].
 func Handler(name string) http.Handler {
 	return handler(name)
 }
@@ -345,7 +351,7 @@ var profileDescriptions = map[string]string{
 	"allocs":       "A sampling of all past memory allocations",
 	"block":        "Stack traces that led to blocking on synchronization primitives",
 	"cmdline":      "The command line invocation of the current program",
-	"goroutine":    "Stack traces of all current goroutines",
+	"goroutine":    "Stack traces of all current goroutines. Use debug=2 as a query parameter to export in the same format as an unrecovered panic.",
 	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
 	"mutex":        "Stack traces of holders of contended mutexes",
 	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
@@ -365,8 +371,7 @@ type profileEntry struct {
 // Index responds to a request for "/debug/pprof/" with an HTML page
 // listing the available profiles.
 func Index(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
-		name := strings.TrimPrefix(r.URL.Path, "/debug/pprof/")
+	if name, found := strings.CutPrefix(r.URL.Path, "/debug/pprof/"); found {
 		if name != "" {
 			handler(name).ServeHTTP(w, r)
 			return
@@ -417,7 +422,9 @@ func indexTmplExecute(w io.Writer, profiles []profileEntry) error {
 </style>
 </head>
 <body>
-/debug/pprof/<br>
+/debug/pprof/
+<br>
+<p>Set debug=1 as a query parameter to export in legacy text format</p>
 <br>
 Types of profiles available:
 <table>

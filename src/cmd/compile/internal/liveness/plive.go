@@ -15,8 +15,6 @@
 package liveness
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
 	"fmt"
 	"os"
 	"sort"
@@ -31,6 +29,7 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/types"
+	"cmd/internal/notsha256"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -81,15 +80,6 @@ import (
 // the liveness analysis work on single-word values as well, although
 // there are complications around interface values, slices, and strings,
 // all of which cannot be treated as individual words.
-//
-// OpVarKill is the opposite of OpVarDef: it marks a value as no longer needed,
-// even if its address has been taken. That is, an OpVarKill annotation asserts
-// that its argument is certainly dead, for use when the liveness analysis
-// would not otherwise be able to deduce that fact.
-
-// TODO: get rid of OpVarKill here. It's useful for stack frame allocation
-// so the compiler can allocate two temps to the same location. Here it's now
-// useless, since the implementation of stack objects.
 
 // blockEffects summarizes the liveness effects on an SSA block.
 type blockEffects struct {
@@ -245,8 +235,10 @@ func (lv *liveness) initcache() {
 // liveness effects on a variable.
 //
 // The possible flags are:
+//
 //	uevar - used by the instruction
 //	varkill - killed by the instruction (set)
+//
 // A kill happens after the use (for an instruction that updates a value, for example).
 type liveEffect int
 
@@ -268,13 +260,13 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	// OpVarFoo pseudo-ops. Ignore them to prevent "lost track of
 	// variable" ICEs (issue 19632).
 	switch v.Op {
-	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
+	case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
 		if !n.Used() {
 			return -1, 0
 		}
 	}
 
-	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Width > int64(types.PtrSize) {
+	if n.Class == ir.PPARAM && !n.Addrtaken() && n.Type().Size() > int64(types.PtrSize) {
 		// Only aggregate-typed arguments that are not address-taken can be
 		// partially live.
 		lv.partLiveArgs[n] = true
@@ -304,7 +296,7 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	return -1, 0
 }
 
-// affectedVar returns the *ir.Name node affected by v
+// affectedVar returns the *ir.Name node affected by v.
 func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
 	// Special cases.
 	switch v.Op {
@@ -333,7 +325,7 @@ func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
 
 	case ssa.OpVarLive:
 		return v.Aux.(*ir.Name), ssa.SymRead
-	case ssa.OpVarDef, ssa.OpVarKill:
+	case ssa.OpVarDef:
 		return v.Aux.(*ir.Name), ssa.SymWrite
 	case ssa.OpKeepAlive:
 		n, _ := ssa.AutoVar(v.Args[0])
@@ -433,7 +425,7 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
 				if node.FrameOffset() < 0 {
 					lv.f.Fatalf("Node %v has frameoffset %d\n", node.Sym().Name, node.FrameOffset())
 				}
-				typebits.Set(node.Type(), node.FrameOffset(), args)
+				typebits.SetNoCheck(node.Type(), node.FrameOffset(), args)
 				break
 			}
 			fallthrough // PPARAMOUT in registers acts memory-allocates like an AUTO
@@ -477,81 +469,123 @@ func (lv *liveness) markUnsafePoints() {
 		}
 	}
 
-	// Mark write barrier unsafe points.
-	for _, wbBlock := range lv.f.WBLoads {
-		if wbBlock.Kind == ssa.BlockPlain && len(wbBlock.Values) == 0 {
-			// The write barrier block was optimized away
-			// but we haven't done dead block elimination.
-			// (This can happen in -N mode.)
-			continue
-		}
-		// Check that we have the expected diamond shape.
-		if len(wbBlock.Succs) != 2 {
-			lv.f.Fatalf("expected branch at write barrier block %v", wbBlock)
-		}
-		s0, s1 := wbBlock.Succs[0].Block(), wbBlock.Succs[1].Block()
-		if s0 == s1 {
-			// There's no difference between write barrier on and off.
-			// Thus there's no unsafe locations. See issue 26024.
-			continue
-		}
-		if s0.Kind != ssa.BlockPlain || s1.Kind != ssa.BlockPlain {
-			lv.f.Fatalf("expected successors of write barrier block %v to be plain", wbBlock)
-		}
-		if s0.Succs[0].Block() != s1.Succs[0].Block() {
-			lv.f.Fatalf("expected successors of write barrier block %v to converge", wbBlock)
-		}
-
-		// Flow backwards from the control value to find the
-		// flag load. We don't know what lowered ops we're
-		// looking for, but all current arches produce a
-		// single op that does the memory load from the flag
-		// address, so we look for that.
-		var load *ssa.Value
-		v := wbBlock.Controls[0]
-		for {
-			if sym, ok := v.Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
-				load = v
-				break
+	for _, b := range lv.f.Blocks {
+		for _, v := range b.Values {
+			if v.Op != ssa.OpWBend {
+				continue
 			}
-			switch v.Op {
-			case ssa.Op386TESTL:
-				// 386 lowers Neq32 to (TESTL cond cond),
-				if v.Args[0] == v.Args[1] {
+			// WBend appears at the start of a block, like this:
+			//    ...
+			//    if wbEnabled: goto C else D
+			// C:
+			//    ... some write barrier enabled code ...
+			//    goto B
+			// D:
+			//    ... some write barrier disabled code ...
+			//    goto B
+			// B:
+			//    m1 = Phi mem_C mem_D
+			//    m2 = store operation ... m1
+			//    m3 = store operation ... m2
+			//    m4 = WBend m3
+			//
+			// (For now m2 and m3 won't be present.)
+
+			// Find first memory op in the block, which should be a Phi.
+			m := v
+			for {
+				m = m.MemoryArg()
+				if m.Block != b {
+					lv.f.Fatalf("can't find Phi before write barrier end mark %v", v)
+				}
+				if m.Op == ssa.OpPhi {
+					break
+				}
+			}
+			// Find the two predecessor blocks (write barrier on and write barrier off)
+			if len(m.Args) != 2 {
+				lv.f.Fatalf("phi before write barrier end mark has %d args, want 2", len(m.Args))
+			}
+			c := b.Preds[0].Block()
+			d := b.Preds[1].Block()
+
+			// Find their common predecessor block (the one that branches based on wb on/off).
+			// It might be a diamond pattern, or one of the blocks in the diamond pattern might
+			// be missing.
+			var decisionBlock *ssa.Block
+			if len(c.Preds) == 1 && c.Preds[0].Block() == d {
+				decisionBlock = d
+			} else if len(d.Preds) == 1 && d.Preds[0].Block() == c {
+				decisionBlock = c
+			} else if len(c.Preds) == 1 && len(d.Preds) == 1 && c.Preds[0].Block() == d.Preds[0].Block() {
+				decisionBlock = c.Preds[0].Block()
+			} else {
+				lv.f.Fatalf("can't find write barrier pattern %v", v)
+			}
+			if len(decisionBlock.Succs) != 2 {
+				lv.f.Fatalf("common predecessor block the wrong type %s", decisionBlock.Kind)
+			}
+
+			// Flow backwards from the control value to find the
+			// flag load. We don't know what lowered ops we're
+			// looking for, but all current arches produce a
+			// single op that does the memory load from the flag
+			// address, so we look for that.
+			var load *ssa.Value
+			v := decisionBlock.Controls[0]
+			for {
+				if sym, ok := v.Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
+					load = v
+					break
+				}
+				switch v.Op {
+				case ssa.Op386TESTL:
+					// 386 lowers Neq32 to (TESTL cond cond),
+					if v.Args[0] == v.Args[1] {
+						v = v.Args[0]
+						continue
+					}
+				case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpPPC64MOVWZload, ssa.OpWasmI64Load32U:
+					// Args[0] is the address of the write
+					// barrier control. Ignore Args[1],
+					// which is the mem operand.
+					// TODO: Just ignore mem operands?
 					v = v.Args[0]
 					continue
 				}
-			case ssa.Op386MOVLload, ssa.OpARM64MOVWUload, ssa.OpPPC64MOVWZload, ssa.OpWasmI64Load32U:
-				// Args[0] is the address of the write
-				// barrier control. Ignore Args[1],
-				// which is the mem operand.
-				// TODO: Just ignore mem operands?
+				// Common case: just flow backwards.
+				if len(v.Args) != 1 {
+					v.Fatalf("write barrier control value has more than one argument: %s", v.LongString())
+				}
 				v = v.Args[0]
-				continue
 			}
-			// Common case: just flow backwards.
-			if len(v.Args) != 1 {
-				v.Fatalf("write barrier control value has more than one argument: %s", v.LongString())
-			}
-			v = v.Args[0]
-		}
 
-		// Mark everything after the load unsafe.
-		found := false
-		for _, v := range wbBlock.Values {
-			found = found || v == load
-			if found {
-				lv.unsafePoints.Set(int32(v.ID))
+			// Mark everything after the load unsafe.
+			found := false
+			for _, v := range decisionBlock.Values {
+				found = found || v == load
+				if found {
+					lv.unsafePoints.Set(int32(v.ID))
+				}
 			}
-		}
 
-		// Mark the two successor blocks unsafe. These come
-		// back together immediately after the direct write in
-		// one successor and the last write barrier call in
-		// the other, so there's no need to be more precise.
-		for _, succ := range wbBlock.Succs {
-			for _, v := range succ.Block().Values {
+			// Mark the write barrier on/off blocks as unsafe.
+			for _, e := range decisionBlock.Succs {
+				x := e.Block()
+				if x == b {
+					continue
+				}
+				for _, v := range x.Values {
+					lv.unsafePoints.Set(int32(v.ID))
+				}
+			}
+
+			// Mark from the join point up to the WBend as unsafe.
+			for _, v := range b.Values {
 				lv.unsafePoints.Set(int32(v.ID))
+				if v.Op == ssa.OpWBend {
+					break
+				}
 			}
 		}
 	}
@@ -626,10 +660,10 @@ func (lv *liveness) hasStackMap(v *ssa.Value) bool {
 	if !v.Op.IsCall() {
 		return false
 	}
-	// typedmemclr and typedmemmove are write barriers and
+	// wbZero and wbCopy are write barriers and
 	// deeply non-preemptible. They are unsafe points and
 	// hence should not have liveness maps.
-	if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == ir.Syms.Typedmemclr || sym.Fn == ir.Syms.Typedmemmove) {
+	if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == ir.Syms.WBZero || sym.Fn == ir.Syms.WBMove) {
 		return false
 	}
 	return true
@@ -855,8 +889,9 @@ func (lv *liveness) epilogue() {
 	if lv.fn.OpenCodedDeferDisallowed() {
 		lv.livenessMap.DeferReturn = objw.LivenessDontCare
 	} else {
+		idx, _ := lv.stackMapSet.add(livedefer)
 		lv.livenessMap.DeferReturn = objw.LivenessIndex{
-			StackMapIndex: lv.stackMapSet.add(livedefer),
+			StackMapIndex: idx,
 			IsUnsafePoint: false,
 		}
 	}
@@ -903,7 +938,7 @@ func (lv *liveness) compact(b *ssa.Block) {
 		isUnsafePoint := lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID))
 		idx := objw.LivenessIndex{StackMapIndex: objw.StackMapDontCare, IsUnsafePoint: isUnsafePoint}
 		if hasStackMap {
-			idx.StackMapIndex = lv.stackMapSet.add(lv.livevars[pos])
+			idx.StackMapIndex, _ = lv.stackMapSet.add(lv.livevars[pos])
 			pos++
 		}
 		if hasStackMap || isUnsafePoint {
@@ -957,7 +992,7 @@ func (lv *liveness) enableClobber() {
 		// Clobber only functions where the hash of the function name matches a pattern.
 		// Useful for binary searching for a miscompiled function.
 		hstr := ""
-		for _, b := range sha1.Sum([]byte(lv.f.Name)) {
+		for _, b := range notsha256.Sum256([]byte(lv.f.Name)) {
 			hstr += fmt.Sprintf("%08b", b)
 		}
 		if !strings.HasSuffix(hstr, h) {
@@ -1082,6 +1117,10 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
 	if base.Flag.Live == 0 || ir.FuncName(lv.fn) == "init" || strings.HasPrefix(ir.FuncName(lv.fn), ".") {
 		return
 	}
+	if lv.fn.Wrapper() || lv.fn.Dupok() {
+		// Skip reporting liveness information for compiler-generated wrappers.
+		return
+	}
 	if !(v == nil || v.Op.IsCall()) {
 		// Historically we only printed this information at
 		// calls. Keep doing so.
@@ -1109,10 +1148,17 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
 		s += "indirect call:"
 	}
 
+	// Sort variable names for display. Variables aren't in any particular order, and
+	// the order can change by architecture, particularly with differences in regabi.
+	var names []string
 	for j, n := range lv.vars {
 		if live.Get(int32(j)) {
-			s += fmt.Sprintf(" %v", n)
+			names = append(names, n.Sym().Name)
 		}
+	}
+	sort.Strings(names)
+	for _, v := range names {
+		s += " " + v
 	}
 
 	base.WarnfAt(pos, s)
@@ -1322,19 +1368,9 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
 		loff = objw.BitVec(&liveSymTmp, loff, locals)
 	}
 
-	// Give these LSyms content-addressable names,
-	// so that they can be de-duplicated.
-	// This provides significant binary size savings.
-	//
 	// These symbols will be added to Ctxt.Data by addGCLocals
 	// after parallel compilation is done.
-	makeSym := func(tmpSym *obj.LSym) *obj.LSym {
-		return base.Ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(tmpSym.P)), func(lsym *obj.LSym) {
-			lsym.P = tmpSym.P
-			lsym.Set(obj.AttrContentAddressable, true)
-		})
-	}
-	return makeSym(&argsSymTmp), makeSym(&liveSymTmp)
+	return base.Ctxt.GCLocalsSym(argsSymTmp.P), base.Ctxt.GCLocalsSym(liveSymTmp.P)
 }
 
 // Entry pointer for Compute analysis. Solves for the Compute of
@@ -1424,6 +1460,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 	// Populate the stack object data.
 	// Format must match runtime/stack.go:stackObjectRecord.
 	x := base.Ctxt.Lookup(lv.fn.LSym.Name + ".stkobj")
+	x.Set(obj.AttrContentAddressable, true)
 	lv.fn.LSym.Func().StackObjects = x
 	off := 0
 	off = objw.Uintptr(x, off, uint64(len(vars)))
@@ -1440,7 +1477,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 		off = objw.Uint32(x, off, uint32(frameOffset))
 
 		t := v.Type()
-		sz := t.Width
+		sz := t.Size()
 		if sz != int64(int32(sz)) {
 			base.Fatalf("stack object too big: %v of type %v, size %d", v, t, sz)
 		}
@@ -1450,7 +1487,7 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 		}
 		off = objw.Uint32(x, off, uint32(sz))
 		off = objw.Uint32(x, off, uint32(ptrdata))
-		off = objw.SymPtr(x, off, lsym, 0)
+		off = objw.SymPtrOff(x, off, lsym)
 	}
 
 	if base.Flag.Live != 0 {
@@ -1465,14 +1502,14 @@ func (lv *liveness) emitStackObjects() *obj.LSym {
 // isfat reports whether a variable of type t needs multiple assignments to initialize.
 // For example:
 //
-// 	type T struct { x, y int }
-// 	x := T{x: 0, y: 1}
+//	type T struct { x, y int }
+//	x := T{x: 0, y: 1}
 //
 // Then we need:
 //
-// 	var t T
-// 	t.x = 0
-// 	t.y = 1
+//	var t T
+//	t.x = 0
+//	t.y = 1
 //
 // to fully initialize t.
 func isfat(t *types.Type) bool {
@@ -1510,7 +1547,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 	bv := bitvec.New(int32(nptr) * 2)
 
 	for _, p := range abiInfo.InParams() {
-		typebits.Set(p.Type, p.FrameOffset(abiInfo), bv)
+		typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)
 	}
 
 	nbitmap := 1
@@ -1525,7 +1562,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
 	if fn.Type().NumResults() > 0 {
 		for _, p := range abiInfo.OutParams() {
 			if len(p.Registers) == 0 {
-				typebits.Set(p.Type, p.FrameOffset(abiInfo), bv)
+				typebits.SetNoCheck(p.Type, p.FrameOffset(abiInfo), bv)
 			}
 		}
 		off = objw.BitVec(lsym, off, bv)

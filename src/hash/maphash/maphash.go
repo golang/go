@@ -10,11 +10,9 @@
 //
 // The hash functions are not cryptographically secure.
 // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
-//
 package maphash
 
 import (
-	"internal/unsafeheader"
 	"unsafe"
 )
 
@@ -33,6 +31,54 @@ type Seed struct {
 	s uint64
 }
 
+// Bytes returns the hash of b with the given seed.
+//
+// Bytes is equivalent to, but more convenient and efficient than:
+//
+//	var h Hash
+//	h.SetSeed(seed)
+//	h.Write(b)
+//	return h.Sum64()
+func Bytes(seed Seed, b []byte) uint64 {
+	state := seed.s
+	if state == 0 {
+		panic("maphash: use of uninitialized Seed")
+	}
+	if len(b) == 0 {
+		return rthash(nil, 0, state) // avoid &b[0] index panic below
+	}
+	if len(b) > bufSize {
+		b = b[:len(b):len(b)] // merge len and cap calculations when reslicing
+		for len(b) > bufSize {
+			state = rthash(&b[0], bufSize, state)
+			b = b[bufSize:]
+		}
+	}
+	return rthash(&b[0], len(b), state)
+}
+
+// String returns the hash of s with the given seed.
+//
+// String is equivalent to, but more convenient and efficient than:
+//
+//	var h Hash
+//	h.SetSeed(seed)
+//	h.WriteString(s)
+//	return h.Sum64()
+func String(seed Seed, s string) uint64 {
+	state := seed.s
+	if state == 0 {
+		panic("maphash: use of uninitialized Seed")
+	}
+	for len(s) > bufSize {
+		p := (*byte)(unsafe.StringData(s))
+		state = rthash(p, bufSize, state)
+		s = s[bufSize:]
+	}
+	p := (*byte)(unsafe.StringData(s))
+	return rthash(p, len(s), state)
+}
+
 // A Hash computes a seeded hash of a byte sequence.
 //
 // The zero Hash is a valid Hash ready to use.
@@ -44,9 +90,9 @@ type Seed struct {
 // the sequence of bytes provided to the Hash object, not on the way
 // in which the bytes are provided. For example, the three sequences
 //
-//     h.Write([]byte{'f','o','o'})
-//     h.WriteByte('f'); h.WriteByte('o'); h.WriteByte('o')
-//     h.WriteString("foo")
+//	h.Write([]byte{'f','o','o'})
+//	h.WriteByte('f'); h.WriteByte('o'); h.WriteByte('o')
+//	h.WriteString("foo")
 //
 // all have the same effect.
 //
@@ -143,7 +189,7 @@ func (h *Hash) WriteString(s string) (int, error) {
 	if len(s) > bufSize {
 		h.initSeed()
 		for len(s) > bufSize {
-			ptr := (*byte)((*unsafeheader.String)(unsafe.Pointer(&s)).Data)
+			ptr := (*byte)(unsafe.StringData(s))
 			h.state.s = rthash(ptr, bufSize, h.state.s)
 			s = s[bufSize:]
 		}
@@ -205,21 +251,20 @@ func (h *Hash) Sum64() uint64 {
 
 // MakeSeed returns a new random seed.
 func MakeSeed() Seed {
-	var s1, s2 uint64
+	var s uint64
 	for {
-		s1 = uint64(runtime_fastrand())
-		s2 = uint64(runtime_fastrand())
+		s = runtime_fastrand64()
 		// We use seed 0 to indicate an uninitialized seed/hash,
 		// so keep trying until we get a non-zero seed.
-		if s1|s2 != 0 {
+		if s != 0 {
 			break
 		}
 	}
-	return Seed{s: s1<<32 + s2}
+	return Seed{s: s}
 }
 
-//go:linkname runtime_fastrand runtime.fastrand
-func runtime_fastrand() uint32
+//go:linkname runtime_fastrand64 runtime.fastrand64
+func runtime_fastrand64() uint64
 
 func rthash(ptr *byte, len int, seed uint64) uint64 {
 	if len == 0 {

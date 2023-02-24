@@ -25,7 +25,6 @@ type MethodSetCache struct {
 // If cache is nil, this function is equivalent to types.NewMethodSet(T).
 // Utility functions can thus expose an optional *MethodSetCache
 // parameter to clients that care about performance.
-//
 func (cache *MethodSetCache) MethodSet(T types.Type) *types.MethodSet {
 	if cache == nil {
 		return types.NewMethodSet(T)

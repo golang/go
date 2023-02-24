@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (linux && cgo) || (darwin && cgo) || (freebsd && cgo)
-// +build linux,cgo darwin,cgo freebsd,cgo
 
 package plugin
 
@@ -103,7 +102,7 @@ func open(name string) (*Plugin, error) {
 	}
 
 	// Fill out the value of each plugin symbol.
-	updatedSyms := map[string]interface{}{}
+	updatedSyms := map[string]any{}
 	for symName, sym := range syms {
 		isFunc := symName[0] == '.'
 		if isFunc {
@@ -147,9 +146,10 @@ var (
 	plugins   map[string]*Plugin
 )
 
-// lastmoduleinit is defined in package runtime
-func lastmoduleinit() (pluginpath string, syms map[string]interface{}, errstr string)
+// lastmoduleinit is defined in package runtime.
+func lastmoduleinit() (pluginpath string, syms map[string]any, errstr string)
 
-// doInit is defined in package runtime
+// doInit is defined in package runtime.
+//
 //go:linkname doInit runtime.doInit
 func doInit(t unsafe.Pointer) // t should be a *runtime.initTask

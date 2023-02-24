@@ -1,4 +1,4 @@
-// run -gcflags=-d=softfloat -goexperiment noregabiargs
+// run -gcflags=-d=softfloat
 
 // Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style

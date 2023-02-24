@@ -2,7 +2,7 @@
 # obtain retractions from the replacement.
 
 # Populate go.sum.
-go get -d
+go get
 
 # The latest version, v1.9.0, is not available on the proxy.
 go list -m -retracted example.com/retract/missingmod

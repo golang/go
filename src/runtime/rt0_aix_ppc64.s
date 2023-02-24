@@ -12,7 +12,7 @@ GLOBL	_rt0_ppc64_aix(SB), NOPTR, $16
 
 
 // The starting function must return in the loader to
-// initialise some librairies, especially libthread which
+// initialise some libraries, especially libthread which
 // creates the main thread and adds the TLS in R13
 // R19 contains a function descriptor to the loader function
 // which needs to be called.

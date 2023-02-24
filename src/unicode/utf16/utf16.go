@@ -83,26 +83,51 @@ func Encode(s []rune) []uint16 {
 	return a[:n]
 }
 
+// AppendRune appends the UTF-16 encoding of the Unicode code point r
+// to the end of p and returns the extended buffer. If the rune is not
+// a valid Unicode code point, it appends the encoding of U+FFFD.
+func AppendRune(a []uint16, r rune) []uint16 {
+	// This function is inlineable for fast handling of ASCII.
+	switch {
+	case 0 <= r && r < surr1, surr3 <= r && r < surrSelf:
+		// normal rune
+		return append(a, uint16(r))
+	case surrSelf <= r && r <= maxRune:
+		// needs surrogate sequence
+		r1, r2 := EncodeRune(r)
+		return append(a, uint16(r1), uint16(r2))
+	}
+	return append(a, replacementChar)
+}
+
 // Decode returns the Unicode code point sequence represented
 // by the UTF-16 encoding s.
 func Decode(s []uint16) []rune {
-	a := make([]rune, len(s))
-	n := 0
+	// Preallocate capacity to hold up to 64 runes.
+	// Decode inlines, so the allocation can live on the stack.
+	buf := make([]rune, 0, 64)
+	return decode(s, buf)
+}
+
+// decode appends to buf the Unicode code point sequence represented
+// by the UTF-16 encoding s and return the extended buffer.
+func decode(s []uint16, buf []rune) []rune {
 	for i := 0; i < len(s); i++ {
+		var ar rune
 		switch r := s[i]; {
 		case r < surr1, surr3 <= r:
 			// normal rune
-			a[n] = rune(r)
+			ar = rune(r)
 		case surr1 <= r && r < surr2 && i+1 < len(s) &&
 			surr2 <= s[i+1] && s[i+1] < surr3:
 			// valid surrogate sequence
-			a[n] = DecodeRune(rune(r), rune(s[i+1]))
+			ar = DecodeRune(rune(r), rune(s[i+1]))
 			i++
 		default:
 			// invalid surrogate sequence
-			a[n] = replacementChar
+			ar = replacementChar
 		}
-		n++
+		buf = append(buf, ar)
 	}
-	return a[:n]
+	return buf
 }

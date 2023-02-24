@@ -5,32 +5,32 @@
 package context
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 type testingT interface {
 	Deadline() (time.Time, bool)
-	Error(args ...interface{})
-	Errorf(format string, args ...interface{})
+	Error(args ...any)
+	Errorf(format string, args ...any)
 	Fail()
 	FailNow()
 	Failed() bool
-	Fatal(args ...interface{})
-	Fatalf(format string, args ...interface{})
+	Fatal(args ...any)
+	Fatalf(format string, args ...any)
 	Helper()
-	Log(args ...interface{})
-	Logf(format string, args ...interface{})
+	Log(args ...any)
+	Logf(format string, args ...any)
 	Name() string
 	Parallel()
-	Skip(args ...interface{})
+	Skip(args ...any)
 	SkipNow()
-	Skipf(format string, args ...interface{})
+	Skipf(format string, args ...any)
 	Skipped() bool
 }
 
@@ -553,7 +553,7 @@ func testLayers(t testingT, seed int64, testTimeout bool) {
 	t.Parallel()
 
 	r := rand.New(rand.NewSource(seed))
-	errorf := func(format string, a ...interface{}) {
+	errorf := func(format string, a ...any) {
 		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)
 	}
 	const (
@@ -651,8 +651,9 @@ func XTestCancelRemoves(t testingT) {
 }
 
 func XTestWithCancelCanceledParent(t testingT) {
-	parent, pcancel := WithCancel(Background())
-	pcancel()
+	parent, pcancel := WithCancelCause(Background())
+	cause := fmt.Errorf("Because!")
+	pcancel(cause)
 
 	c, _ := WithCancel(parent)
 	select {
@@ -662,6 +663,9 @@ func XTestWithCancelCanceledParent(t testingT) {
 	}
 	if got, want := c.Err(), Canceled; got != want {
 		t.Errorf("child not canceled; got = %v, want = %v", got, want)
+	}
+	if got, want := Cause(c), cause; got != want {
+		t.Errorf("child has wrong cause; got = %v, want = %v", got, want)
 	}
 }
 
@@ -691,7 +695,7 @@ func XTestInvalidDerivedFail(t testingT) {
 	}
 }
 
-func recoveredValue(fn func()) (v interface{}) {
+func recoveredValue(fn func()) (v any) {
 	defer func() { v = recover() }()
 	fn()
 	return
@@ -723,17 +727,17 @@ func (d *myDoneCtx) Done() <-chan struct{} {
 }
 
 func XTestCustomContextGoroutines(t testingT) {
-	g := atomic.LoadInt32(&goroutines)
+	g := goroutines.Load()
 	checkNoGoroutine := func() {
 		t.Helper()
-		now := atomic.LoadInt32(&goroutines)
+		now := goroutines.Load()
 		if now != g {
 			t.Fatalf("%d goroutines created", now-g)
 		}
 	}
 	checkCreatedGoroutine := func() {
 		t.Helper()
-		now := atomic.LoadInt32(&goroutines)
+		now := goroutines.Load()
 		if now != g+1 {
 			t.Fatalf("%d goroutines created, want 1", now-g)
 		}
@@ -785,4 +789,223 @@ func XTestCustomContextGoroutines(t testingT) {
 	_, cancel7 := WithCancel(ctx5)
 	defer cancel7()
 	checkNoGoroutine()
+}
+
+func XTestCause(t testingT) {
+	var (
+		forever       = 1e6 * time.Second
+		parentCause   = fmt.Errorf("parentCause")
+		childCause    = fmt.Errorf("childCause")
+		tooSlow       = fmt.Errorf("tooSlow")
+		finishedEarly = fmt.Errorf("finishedEarly")
+	)
+	for _, test := range []struct {
+		name  string
+		ctx   Context
+		err   error
+		cause error
+	}{
+		{
+			name:  "Background",
+			ctx:   Background(),
+			err:   nil,
+			cause: nil,
+		},
+		{
+			name:  "TODO",
+			ctx:   TODO(),
+			err:   nil,
+			cause: nil,
+		},
+		{
+			name: "WithCancel",
+			ctx: func() Context {
+				ctx, cancel := WithCancel(Background())
+				cancel()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithCancelCause",
+			ctx: func() Context {
+				ctx, cancel := WithCancelCause(Background())
+				cancel(parentCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: parentCause,
+		},
+		{
+			name: "WithCancelCause nil",
+			ctx: func() Context {
+				ctx, cancel := WithCancelCause(Background())
+				cancel(nil)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithCancelCause: parent cause before child",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancelCause(Background())
+				ctx, cancelChild := WithCancelCause(ctx)
+				cancelParent(parentCause)
+				cancelChild(childCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: parentCause,
+		},
+		{
+			name: "WithCancelCause: parent cause after child",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancelCause(Background())
+				ctx, cancelChild := WithCancelCause(ctx)
+				cancelChild(childCause)
+				cancelParent(parentCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: childCause,
+		},
+		{
+			name: "WithCancelCause: parent cause before nil",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancelCause(Background())
+				ctx, cancelChild := WithCancel(ctx)
+				cancelParent(parentCause)
+				cancelChild()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: parentCause,
+		},
+		{
+			name: "WithCancelCause: parent cause after nil",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancelCause(Background())
+				ctx, cancelChild := WithCancel(ctx)
+				cancelChild()
+				cancelParent(parentCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithCancelCause: child cause after nil",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancel(Background())
+				ctx, cancelChild := WithCancelCause(ctx)
+				cancelParent()
+				cancelChild(childCause)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithCancelCause: child cause before nil",
+			ctx: func() Context {
+				ctx, cancelParent := WithCancel(Background())
+				ctx, cancelChild := WithCancelCause(ctx)
+				cancelChild(childCause)
+				cancelParent()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: childCause,
+		},
+		{
+			name: "WithTimeout",
+			ctx: func() Context {
+				ctx, cancel := WithTimeout(Background(), 0)
+				cancel()
+				return ctx
+			}(),
+			err:   DeadlineExceeded,
+			cause: DeadlineExceeded,
+		},
+		{
+			name: "WithTimeout canceled",
+			ctx: func() Context {
+				ctx, cancel := WithTimeout(Background(), forever)
+				cancel()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithTimeoutCause",
+			ctx: func() Context {
+				ctx, cancel := WithTimeoutCause(Background(), 0, tooSlow)
+				cancel()
+				return ctx
+			}(),
+			err:   DeadlineExceeded,
+			cause: tooSlow,
+		},
+		{
+			name: "WithTimeoutCause canceled",
+			ctx: func() Context {
+				ctx, cancel := WithTimeoutCause(Background(), forever, tooSlow)
+				cancel()
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: Canceled,
+		},
+		{
+			name: "WithTimeoutCause stacked",
+			ctx: func() Context {
+				ctx, cancel := WithCancelCause(Background())
+				ctx, _ = WithTimeoutCause(ctx, 0, tooSlow)
+				cancel(finishedEarly)
+				return ctx
+			}(),
+			err:   DeadlineExceeded,
+			cause: tooSlow,
+		},
+		{
+			name: "WithTimeoutCause stacked canceled",
+			ctx: func() Context {
+				ctx, cancel := WithCancelCause(Background())
+				ctx, _ = WithTimeoutCause(ctx, forever, tooSlow)
+				cancel(finishedEarly)
+				return ctx
+			}(),
+			err:   Canceled,
+			cause: finishedEarly,
+		},
+	} {
+		if got, want := test.ctx.Err(), test.err; want != got {
+			t.Errorf("%s: ctx.Err() = %v want %v", test.name, got, want)
+		}
+		if got, want := Cause(test.ctx), test.cause; want != got {
+			t.Errorf("%s: Cause(ctx) = %v want %v", test.name, got, want)
+		}
+	}
+}
+
+func XTestCauseRace(t testingT) {
+	cause := errors.New("TestCauseRace")
+	ctx, cancel := WithCancelCause(Background())
+	go func() {
+		cancel(cause)
+	}()
+	for {
+		// Poll Cause, rather than waiting for Done, to test that
+		// access to the underlying cause is synchronized properly.
+		if err := Cause(ctx); err != nil {
+			if err != cause {
+				t.Errorf("Cause returned %v, want %v", err, cause)
+			}
+			break
+		}
+		runtime.Gosched()
+	}
 }

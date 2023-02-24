@@ -35,6 +35,15 @@ func ExampleEncoding_EncodeToString() {
 	// YW55ICsgb2xkICYgZGF0YQ==
 }
 
+func ExampleEncoding_Encode() {
+	data := []byte("Hello, world!")
+	dst := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
+	base64.StdEncoding.Encode(dst, data)
+	fmt.Println(string(dst))
+	// Output:
+	// SGVsbG8sIHdvcmxkIQ==
+}
+
 func ExampleEncoding_DecodeString() {
 	str := "c29tZSBkYXRhIHdpdGggACBhbmQg77u/"
 	data, err := base64.StdEncoding.DecodeString(str)
@@ -45,6 +54,20 @@ func ExampleEncoding_DecodeString() {
 	fmt.Printf("%q\n", data)
 	// Output:
 	// "some data with \x00 and \ufeff"
+}
+
+func ExampleEncoding_Decode() {
+	str := "SGVsbG8sIHdvcmxkIQ=="
+	dst := make([]byte, base64.StdEncoding.DecodedLen(len(str)))
+	n, err := base64.StdEncoding.Decode(dst, []byte(str))
+	if err != nil {
+		fmt.Println("decode error:", err)
+		return
+	}
+	dst = dst[:n]
+	fmt.Printf("%q\n", dst)
+	// Output:
+	// "Hello, world!"
 }
 
 func ExampleNewEncoder() {

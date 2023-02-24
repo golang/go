@@ -1,5 +1,6 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
-// +build amd64,goexperiment.regabidefer,goexperiment.regabiargs
+//go:build (amd64 && goexperiment.regabiargs) || (arm64 && goexperiment.regabiargs)
+// +build amd64,goexperiment.regabiargs arm64,goexperiment.regabiargs
 
 // Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -9,6 +10,8 @@
 // see also live2.go.
 
 package main
+
+import "runtime"
 
 func printnl()
 
@@ -139,8 +142,8 @@ var i9 interface{}
 func f9() bool {
 	g8()
 	x := i9
-	y := interface{}(g18()) // ERROR "live at call to convT2E: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
-	i9 = y                  // make y escape so the line above has to call convT2E
+	y := interface{}(g18()) // ERROR "live at call to convT: x.data$" "live at call to g18: x.data$" "stack object .autotmp_[0-9]+ \[2\]string$"
+	i9 = y                  // make y escape so the line above has to call convT
 	return x != y
 }
 
@@ -498,7 +501,7 @@ func f31(b1, b2, b3 bool) {
 		g31(g18()) // ERROR "stack object .autotmp_[0-9]+ \[2\]string$"
 	}
 	if b2 {
-		h31(g18()) // ERROR "live at call to convT2E: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
+		h31(g18()) // ERROR "live at call to convT: .autotmp_[0-9]+$" "live at call to newobject: .autotmp_[0-9]+$"
 	}
 	if b3 {
 		panic(g18())
@@ -601,7 +604,7 @@ func f38(b bool) {
 			printnl()
 		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ string$"
 			printnl()
-		case *fi38(3), *fb38() = <-fc38(): // ERROR "stack object .autotmp_[0-9]+ string$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
+		case *fi38(3), *fb38() = <-fc38(): // ERROR "stack object .autotmp_[0-9]+ string$" "live at call to f[ibc]38:( .autotmp_[0-9]+)+$"
 			printnl()
 		}
 		printnl()
@@ -683,7 +686,7 @@ type T struct{}
 
 func (*T) Foo(ptr *int) {}
 
-type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "live at entry to R\.Foo: \.this ptr"
+type R struct{ *T }
 
 // issue 18860: output arguments must be live all the time if there is a defer.
 // In particular, at printint r must be live.
@@ -692,7 +695,7 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	defer func() {
 		recover()
 	}()
-	printint(0) // ERROR "live at call to printint: q .autotmp_[0-9]+ r$"
+	printint(0) // ERROR "live at call to printint: .autotmp_[0-9]+ q r$"
 	r = q
 	return // ERROR "live at call to f41.func1: .autotmp_[0-9]+ r$"
 }
@@ -713,7 +716,27 @@ func f44(f func() [2]*int) interface{} { // ERROR "live at entry to f44: f"
 	type T struct {
 		s [1][2]*int
 	}
-	ret := T{}
+	ret := T{} // ERROR "stack object ret T"
 	ret.s[0] = f()
-	return ret // ERROR "stack object .autotmp_[0-9]+ T"
+	return ret
+}
+
+func f45(a, b, c, d, e, f, g, h, i, j, k, l *byte) { // ERROR "live at entry to f45: a b c d e f g h i j k l"
+	f46(a, b, c, d, e, f, g, h, i, j, k, l) // ERROR "live at call to f46: a b c d e f g h i j k l"
+	runtime.KeepAlive(a)
+	runtime.KeepAlive(b)
+	runtime.KeepAlive(c)
+	runtime.KeepAlive(d)
+	runtime.KeepAlive(e)
+	runtime.KeepAlive(f)
+	runtime.KeepAlive(g)
+	runtime.KeepAlive(h)
+	runtime.KeepAlive(i)
+	runtime.KeepAlive(j)
+	runtime.KeepAlive(k)
+	runtime.KeepAlive(l)
+}
+
+//go:noinline
+func f46(a, b, c, d, e, f, g, h, i, j, k, l *byte) {
 }

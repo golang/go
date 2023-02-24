@@ -25,6 +25,17 @@ func (s *gcSizes) Alignof(T types2.Type) int64 {
 		// is the same as unsafe.Alignof(x[0]), but at least 1."
 		return s.Alignof(t.Elem())
 	case *types2.Struct:
+		if t.NumFields() == 0 && types2.IsSyncAtomicAlign64(T) {
+			// Special case: sync/atomic.align64 is an
+			// empty struct we recognize as a signal that
+			// the struct it contains must be
+			// 64-bit-aligned.
+			//
+			// This logic is equivalent to the logic in
+			// cmd/compile/internal/types/size.go:calcStructOffset
+			return 8
+		}
+
 		// spec: "For a variable x of struct type: unsafe.Alignof(x)
 		// is the largest of the values unsafe.Alignof(x.f) for each
 		// field f of x, but at least 1."
@@ -71,7 +82,7 @@ func (s *gcSizes) Offsetsof(fields []*types2.Var) []int64 {
 	for i, f := range fields {
 		typ := f.Type()
 		a := s.Alignof(typ)
-		o = types.Rnd(o, a)
+		o = types.RoundUp(o, a)
 		offsets[i] = o
 		o += s.Sizeof(typ)
 	}
@@ -123,7 +134,7 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
 		}
 
 		// gc: Size includes alignment padding.
-		return types.Rnd(offsets[n-1]+last, s.Alignof(t))
+		return types.RoundUp(offsets[n-1]+last, s.Alignof(t))
 	case *types2.Interface:
 		return int64(types.PtrSize) * 2
 	case *types2.Chan, *types2.Map, *types2.Pointer, *types2.Signature:
@@ -134,6 +145,7 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
 }
 
 var basicSizes = [...]byte{
+	types2.Invalid:    1,
 	types2.Bool:       1,
 	types2.Int8:       1,
 	types2.Int16:      2,

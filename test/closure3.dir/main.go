@@ -94,10 +94,10 @@ func main() {
 			return x + 2
 		}
 		y, sink = func() (func(int) int, int) { // ERROR "can inline main.func12"
-			return func(x int) int { // ERROR "func literal does not escape" "can inline main.func12"
+			return func(x int) int { // ERROR "can inline main.func12"
 				return x + 1
 			}, 42
-		}() // ERROR "inlining call to main.func12"
+		}() // ERROR "func literal does not escape" "inlining call to main.func12"
 		if y(40) != 41 {
 			ppanic("y(40) != 41")
 		}
@@ -109,10 +109,10 @@ func main() {
 				return x + 2
 			}
 			y, sink = func() (func(int) int, int) { // ERROR "can inline main.func13.2"
-				return func(x int) int { // ERROR  "func literal does not escape" "can inline main.func13.2"
+				return func(x int) int { // ERROR   "can inline main.func13.2"
 					return x + 1
 				}, 42
-			}() // ERROR "inlining call to main.func13.2"
+			}() // ERROR "func literal does not escape" "inlining call to main.func13.2"
 			if y(40) != 41 {
 				ppanic("y(40) != 41")
 			}
@@ -252,10 +252,10 @@ func main() {
 			b := 3
 			return func(y int) int { // ERROR "can inline main.func27.1"
 				c := 5
-				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.2"
+				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.(func)?2"
 					return a*x + b*y + c*z
 				}(10) // ERROR "inlining call to main.func27.1.1"
-			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.2"
+			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.(func)?2"
 		}(1000); r != 2350 {
 			ppanic("r != 2350")
 		}
@@ -267,13 +267,13 @@ func main() {
 			b := 3
 			return func(y int) int { // ERROR "can inline main.func28.1"
 				c := 5
-				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.2"
+				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.(func)?2"
 					a = a * x
 					b = b * y
 					c = c * z
 				}(10) // ERROR "inlining call to main.func28.1.1"
 				return a + c
-			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.2"
+			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.(func)?2"
 		}(1000); r != 2350 {
 			ppanic("r != 2350")
 		}

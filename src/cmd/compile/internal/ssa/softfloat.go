@@ -63,6 +63,7 @@ func softfloat(f *Func) {
 					v.Aux = f.Config.Types.UInt32
 				case 8:
 					v.Aux = f.Config.Types.UInt64
+					newInt64 = true
 				default:
 					v.Fatalf("bad float type with size %d", size)
 				}

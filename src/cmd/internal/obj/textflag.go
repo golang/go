@@ -49,10 +49,13 @@ const (
 	// Function can call reflect.Type.Method or reflect.Type.MethodByName.
 	REFLECTMETHOD = 1024
 
-	// Function is the top of the call stack. Call stack unwinders should stop
-	// at this function.
+	// Function is the outermost frame of the call stack. Call stack unwinders
+	// should stop at this function.
 	TOPFRAME = 2048
 
 	// Function is an ABI wrapper.
 	ABIWRAPPER = 4096
+
+	// Function is a compiler-generated package init function.
+	PKGINIT = 8192
 )

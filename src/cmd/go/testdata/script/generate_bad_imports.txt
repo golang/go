@@ -1,4 +1,4 @@
-[windows] skip # skip because windows has no echo command
+[GOOS:windows] skip # skip because windows has no echo command
 
 go generate gencycle
 stdout 'hello world' # check go generate gencycle ran the generator

@@ -51,7 +51,8 @@ var tests = `
 start 0
 
 # Large frame marked nosplit is always wrong.
-start 10000 nosplit
+# Frame is so large it overflows cmd/link's int16.
+start 100000 nosplit
 REJECT
 
 # Calling a large frame is okay.
@@ -68,6 +69,18 @@ start 0 call start
 
 # Recursive nosplit runs out of space.
 start 0 nosplit call start
+REJECT
+
+# Non-trivial recursion runs out of space.
+start 0 call f1
+f1 0 nosplit call f2
+f2 0 nosplit call f1
+REJECT
+# Same but cycle starts below nosplit entry.
+start 0 call f1
+f1 0 nosplit call f2
+f2 0 nosplit call f3
+f3 0 nosplit call f2
 REJECT
 
 # Chains of ordinary functions okay.
@@ -103,6 +116,14 @@ f6 16 nosplit call f7
 f7 16 nosplit call f8
 f8 16 nosplit call end
 end 1000
+REJECT
+
+# Two paths both go over the stack limit.
+start 0 call f1
+f1 80 nosplit call f2 call f3
+f2 40 nosplit call f4
+f3 96 nosplit
+f4 40 nosplit
 REJECT
 
 # Test cases near the 128-byte limit.
@@ -263,6 +284,9 @@ TestCases:
 		case "mips64", "mips64le":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define REGISTER (R0)\n")
+		case "loong64":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define REGISTER (R0)\n")
 		case "ppc64", "ppc64le":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define REGISTER (CTR)\n")
@@ -292,12 +316,13 @@ TestCases:
 		fmt.Fprintf(&gobuf, "func main() { main0() }\n")
 		fmt.Fprintf(&buf, "TEXT ·main0(SB),0,$0-0\n\tCALL ·start(SB)\n")
 
+		adjusted := false
 		for _, line := range strings.Split(lines, "\n") {
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
 			}
-			for i, subline := range strings.Split(line, ";") {
+			for _, subline := range strings.Split(line, ";") {
 				subline = strings.TrimSpace(subline)
 				if subline == "" {
 					continue
@@ -311,10 +336,19 @@ TestCases:
 				name := m[1]
 				size, _ := strconv.Atoi(m[2])
 
+				if size%ptrSize == 4 {
+					continue TestCases
+				}
+				nosplit := m[3]
+				body := m[4]
+
 				// The limit was originally 128 but is now 800 (928-128).
 				// Instead of rewriting the test cases above, adjust
-				// the first stack frame to use up the extra bytes.
-				if i == 0 {
+				// the first nosplit frame to use up the extra bytes.
+				// This isn't exactly right because we could have
+				// nosplit -> split -> nosplit, but it's good enough.
+				if !adjusted && nosplit != "" {
+					adjusted = true
 					size += (928 - 128) - 128
 					// Noopt builds have a larger stackguard.
 					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
@@ -325,12 +359,6 @@ TestCases:
 						}
 					}
 				}
-
-				if size%ptrSize == 4 {
-					continue TestCases
-				}
-				nosplit := m[3]
-				body := m[4]
 
 				if nosplit != "" {
 					nosplit = ",7"

@@ -370,7 +370,7 @@ func (task *taskDesc) String() string {
 	if task == nil {
 		return "task <nil>"
 	}
-	wb := new(bytes.Buffer)
+	wb := new(strings.Builder)
 	fmt.Fprintf(wb, "task %d:\t%s\n", task.id, task.name)
 	fmt.Fprintf(wb, "\tstart: %v end: %v complete: %t\n", task.firstTimestamp(), task.endTimestamp(), task.complete())
 	fmt.Fprintf(wb, "\t%d goroutines\n", len(task.goroutines))
@@ -407,10 +407,7 @@ func (tasks allTasks) task(taskID uint64) *taskDesc {
 		return t
 	}
 
-	t = &taskDesc{
-		id:         taskID,
-		goroutines: make(map[uint64]struct{}),
-	}
+	t = newTaskDesc(taskID)
 	tasks[taskID] = t
 	return t
 }
@@ -449,9 +446,7 @@ func (task *taskDesc) descendants() []*taskDesc {
 	res := []*taskDesc{task}
 	for i := 0; len(res[i:]) > 0; i++ {
 		t := res[i]
-		for _, c := range t.children {
-			res = append(res, c)
-		}
+		res = append(res, t.children...)
 	}
 	return res
 }
@@ -875,7 +870,7 @@ func (h *durationHistogram) ToHTML(urlmaker func(min, max time.Duration) string)
 		}
 	}
 
-	w := new(bytes.Buffer)
+	w := new(strings.Builder)
 	fmt.Fprintf(w, `<table>`)
 	for i := h.MinBucket; i <= h.MaxBucket; i++ {
 		// Tick label.
@@ -917,7 +912,7 @@ func (h *durationHistogram) String() string {
 		}
 	}
 
-	w := new(bytes.Buffer)
+	w := new(strings.Builder)
 	for i := h.MinBucket; i <= h.MaxBucket; i++ {
 		count := h.Buckets[i]
 		bar := count * barWidth / maxCount
@@ -1100,7 +1095,7 @@ Search log text: <form onsubmit="window.location.search+='&logtext='+window.logt
 `))
 
 func elapsed(d time.Duration) string {
-	b := []byte(fmt.Sprintf("%.9f", d.Seconds()))
+	b := fmt.Appendf(nil, "%.9f", d.Seconds())
 
 	// For subsecond durations, blank all zeros before decimal point,
 	// and all zeros between the decimal point and the first non-zero digit.

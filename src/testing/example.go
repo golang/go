@@ -64,7 +64,7 @@ func sortLines(output string) string {
 // If recovered is non-nil, it'll panic with that value.
 // If the test panicked with nil, or invoked runtime.Goexit, it'll be
 // made to fail and panic with errNilPanicOrGoexit
-func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Duration, finished bool, recovered interface{}) (passed bool) {
+func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Duration, finished bool, recovered any) (passed bool) {
 	passed = true
 	dstr := fmtDuration(timeSpent)
 	var fail string
@@ -80,10 +80,14 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
 		}
 	}
 	if fail != "" || !finished || recovered != nil {
-		fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
+		fmt.Printf("%s--- FAIL: %s (%s)\n%s", chatty.prefix(), eg.Name, dstr, fail)
 		passed = false
-	} else if *chatty {
-		fmt.Printf("--- PASS: %s (%s)\n", eg.Name, dstr)
+	} else if chatty.on {
+		fmt.Printf("%s--- PASS: %s (%s)\n", chatty.prefix(), eg.Name, dstr)
+	}
+
+	if chatty.on && chatty.json {
+		fmt.Printf("%s=== NAME   %s\n", chatty.prefix(), "")
 	}
 
 	if recovered != nil {

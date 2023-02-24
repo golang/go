@@ -14,7 +14,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	 * registers. Note that at procedure entry the first argument is at
 	 * 8(X2).
 	 */
-	ADD	$(-8*31), X2
+	ADD	$(-8*29), X2
 	MOV	X10, (8*1)(X2) // fn unsafe.Pointer
 	MOV	X11, (8*2)(X2) // a unsafe.Pointer
 	MOV	X13, (8*3)(X2) // ctxt uintptr
@@ -30,21 +30,19 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	MOV	X25, (8*13)(X2)
 	MOV	X26, (8*14)(X2)
 	MOV	g, (8*15)(X2)
-	MOV	X3, (8*16)(X2)
-	MOV	X4, (8*17)(X2)
-	MOV	X1, (8*18)(X2)
-	MOVD	F8, (8*19)(X2)
-	MOVD	F9, (8*20)(X2)
-	MOVD	F18, (8*21)(X2)
-	MOVD	F19, (8*22)(X2)
-	MOVD	F20, (8*23)(X2)
-	MOVD	F21, (8*24)(X2)
-	MOVD	F22, (8*25)(X2)
-	MOVD	F23, (8*26)(X2)
-	MOVD	F24, (8*27)(X2)
-	MOVD	F25, (8*28)(X2)
-	MOVD	F26, (8*29)(X2)
-	MOVD	F27, (8*30)(X2)
+	MOV	X1, (8*16)(X2)
+	MOVD	F8, (8*17)(X2)
+	MOVD	F9, (8*18)(X2)
+	MOVD	F18, (8*19)(X2)
+	MOVD	F19, (8*20)(X2)
+	MOVD	F20, (8*21)(X2)
+	MOVD	F21, (8*22)(X2)
+	MOVD	F22, (8*23)(X2)
+	MOVD	F23, (8*24)(X2)
+	MOVD	F24, (8*25)(X2)
+	MOVD	F25, (8*26)(X2)
+	MOVD	F26, (8*27)(X2)
+	MOVD	F27, (8*28)(X2)
 
 	// Initialize Go ABI environment
 	CALL	runtime·load_g(SB)
@@ -62,21 +60,19 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	MOV	(8*13)(X2), X25
 	MOV	(8*14)(X2), X26
 	MOV	(8*15)(X2), g
-	MOV	(8*16)(X2), X3
-	MOV	(8*17)(X2), X4
-	MOV	(8*18)(X2), X1
-	MOVD	(8*19)(X2), F8
-	MOVD	(8*20)(X2), F9
-	MOVD	(8*21)(X2), F18
-	MOVD	(8*22)(X2), F19
-	MOVD	(8*23)(X2), F20
-	MOVD	(8*24)(X2), F21
-	MOVD	(8*25)(X2), F22
-	MOVD	(8*26)(X2), F23
-	MOVD	(8*27)(X2), F24
-	MOVD	(8*28)(X2), F25
-	MOVD	(8*29)(X2), F26
-	MOVD	(8*30)(X2), F27
-	ADD	$(8*31), X2
+	MOV	(8*16)(X2), X1
+	MOVD	(8*17)(X2), F8
+	MOVD	(8*18)(X2), F9
+	MOVD	(8*19)(X2), F18
+	MOVD	(8*20)(X2), F19
+	MOVD	(8*21)(X2), F20
+	MOVD	(8*22)(X2), F21
+	MOVD	(8*23)(X2), F22
+	MOVD	(8*24)(X2), F23
+	MOVD	(8*25)(X2), F24
+	MOVD	(8*26)(X2), F25
+	MOVD	(8*27)(X2), F26
+	MOVD	(8*28)(X2), F27
+	ADD	$(8*29), X2
 
 	RET

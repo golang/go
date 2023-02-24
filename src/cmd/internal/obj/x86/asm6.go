@@ -43,7 +43,6 @@ import (
 
 var (
 	plan9privates *obj.LSym
-	deferreturn   *obj.LSym
 )
 
 // Instruction layout.
@@ -60,7 +59,6 @@ var (
 // is very slight but negative, so the alignment is disabled by
 // setting MaxLoopPad = 0. The code is here for reference and
 // for future experiments.
-//
 const (
 	loopAlign  = 16
 	maxLoopPad = 0
@@ -874,9 +872,9 @@ var ysha1rnds4 = []ytab{
 // up in instinit.  For example, oclass distinguishes the constants 0 and 1
 // from the more general 8-bit constants, but instinit says
 //
-//        ycover[Yi0*Ymax+Ys32] = 1
-//        ycover[Yi1*Ymax+Ys32] = 1
-//        ycover[Yi8*Ymax+Ys32] = 1
+//	ycover[Yi0*Ymax+Ys32] = 1
+//	ycover[Yi1*Ymax+Ys32] = 1
+//	ycover[Yi8*Ymax+Ys32] = 1
 //
 // which means that Yi0, Yi1, and Yi8 all count as Ys32 (signed 32)
 // if that's what an instruction can handle.
@@ -890,26 +888,28 @@ var ysha1rnds4 = []ytab{
 // is, the Ztype) and the z bytes.
 //
 // For example, let's look at AADDL.  The optab line says:
-//        {AADDL, yaddl, Px, opBytes{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
+//
+//	{AADDL, yaddl, Px, opBytes{0x83, 00, 0x05, 0x81, 00, 0x01, 0x03}},
 //
 // and yaddl says
-//        var yaddl = []ytab{
-//                {Yi8, Ynone, Yml, Zibo_m, 2},
-//                {Yi32, Ynone, Yax, Zil_, 1},
-//                {Yi32, Ynone, Yml, Zilo_m, 2},
-//                {Yrl, Ynone, Yml, Zr_m, 1},
-//                {Yml, Ynone, Yrl, Zm_r, 1},
-//        }
+//
+//	var yaddl = []ytab{
+//	        {Yi8, Ynone, Yml, Zibo_m, 2},
+//	        {Yi32, Ynone, Yax, Zil_, 1},
+//	        {Yi32, Ynone, Yml, Zilo_m, 2},
+//	        {Yrl, Ynone, Yml, Zr_m, 1},
+//	        {Yml, Ynone, Yrl, Zm_r, 1},
+//	}
 //
 // so there are 5 possible types of ADDL instruction that can be laid down, and
 // possible states used to lay them down (Ztype and z pointer, assuming z
 // points at opBytes{0x83, 00, 0x05,0x81, 00, 0x01, 0x03}) are:
 //
-//        Yi8, Yml -> Zibo_m, z (0x83, 00)
-//        Yi32, Yax -> Zil_, z+2 (0x05)
-//        Yi32, Yml -> Zilo_m, z+2+1 (0x81, 0x00)
-//        Yrl, Yml -> Zr_m, z+2+1+2 (0x01)
-//        Yml, Yrl -> Zm_r, z+2+1+2+1 (0x03)
+//	Yi8, Yml -> Zibo_m, z (0x83, 00)
+//	Yi32, Yax -> Zil_, z+2 (0x05)
+//	Yi32, Yml -> Zilo_m, z+2+1 (0x81, 0x00)
+//	Yrl, Yml -> Zr_m, z+2+1+2 (0x01)
+//	Yml, Yrl -> Zm_r, z+2+1+2+1 (0x03)
 //
 // The Pconstant in the optab line controls the prefix bytes to emit.  That's
 // relatively straightforward as this program goes.
@@ -919,7 +919,7 @@ var ysha1rnds4 = []ytab{
 // encoded addressing mode for the Yml arg), and then a single immediate byte.
 // Zilo_m is the same but a long (32-bit) immediate.
 var optab =
-//	as, ytab, andproto, opcode
+// as, ytab, andproto, opcode
 [...]Optab{
 	{obj.AXXX, nil, 0, opBytes{}},
 	{AAAA, ynone, P32, opBytes{0x37}},
@@ -1736,9 +1736,9 @@ var optab =
 	{ASTRL, yincq, Px, opBytes{0x0f, 0x00, 01}},
 	{ASTRQ, yincq, Pw, opBytes{0x0f, 0x00, 01}},
 	{AXSETBV, ynone, Pm, opBytes{0x01, 0xd1, 0}},
-	{AMOVBEWW, ymovbe, Pq, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
-	{AMOVBELL, ymovbe, Pm, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
-	{AMOVBEQQ, ymovbe, Pw, opBytes{0x0f, 0x38, 0xf0, 0, 0x0f, 0x38, 0xf1, 0}},
+	{AMOVBEW, ymovbe, Pq, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+	{AMOVBEL, ymovbe, Pm, opBytes{0x38, 0xf0, 0, 0x38, 0xf1, 0}},
+	{AMOVBEQ, ymovbe, Pw, opBytes{0x0f, 0x38, 0xf0, 0, 0x0f, 0x38, 0xf1, 0}},
 	{ANOPW, ydivl, Pe, opBytes{0x0f, 0x1f, 00}},
 	{ANOPL, ydivl, Px, opBytes{0x0f, 0x1f, 00}},
 	{ASLDTW, yincq, Pe, opBytes{0x0f, 0x00, 00}},
@@ -2036,6 +2036,11 @@ type nopPad struct {
 }
 
 func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline && ctxt.Arch.Family == sys.I386 {
+		ctxt.Diag("-spectre=ret not supported on 386")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	pjc := makePjcCtx(ctxt)
 
 	if s.P != nil {
@@ -2170,7 +2175,7 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		n++
-		if n > 20 {
+		if n > 1000 {
 			ctxt.Diag("span must be looping")
 			log.Fatalf("loop")
 		}
@@ -2224,6 +2229,16 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			return p.From.Index == REG_TLS
 		}
 		obj.MarkUnsafePoints(ctxt, s.Func().Text, newprog, useTLS, nil)
+	}
+
+	// Now that we know byte offsets, we can generate jump table entries.
+	// TODO: could this live in obj instead of obj/$ARCH?
+	for _, jt := range s.Func().JumpTables {
+		for i, p := range jt.Targets {
+			// The ith jumptable entry points to the p.Pc'th
+			// byte in the function symbol s.
+			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, s, p.Pc)
+		}
 	}
 }
 
@@ -2536,22 +2551,6 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 		}
 	}
 
-	if ctxt.Arch.Family == sys.I386 {
-		if a.Index == REG_TLS && ctxt.Flag_shared {
-			// When building for inclusion into a shared library, an instruction of the form
-			//     MOVL off(CX)(TLS*1), AX
-			// becomes
-			//     mov %gs:off(%ecx), %eax
-			// which assumes that the correct TLS offset has been loaded into %ecx (today
-			// there is only one TLS variable -- g -- so this is OK). When not building for
-			// a shared library the instruction it becomes
-			//     mov 0x0(%ecx), %eax
-			// and a R_TLS_LE relocation, and so does not require a prefix.
-			return 0x65 // GS
-		}
-		return 0
-	}
-
 	switch a.Index {
 	case REG_CS:
 		return 0x2e
@@ -2567,11 +2566,18 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 			// When building for inclusion into a shared library, an instruction of the form
 			//     MOV off(CX)(TLS*1), AX
 			// becomes
-			//     mov %fs:off(%rcx), %rax
-			// which assumes that the correct TLS offset has been loaded into %rcx (today
+			//     mov %gs:off(%ecx), %eax // on i386
+			//     mov %fs:off(%rcx), %rax // on amd64
+			// which assumes that the correct TLS offset has been loaded into CX (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
-			// a shared library the instruction does not require a prefix.
-			return 0x64
+			// a shared library the instruction it becomes
+			//     mov 0x0(%ecx), %eax // on i386
+			//     mov 0x0(%rcx), %rax // on amd64
+			// and a R_TLS_LE relocation, and so does not require a prefix.
+			if ctxt.Arch.Family == sys.I386 {
+				return 0x65 // GS
+			}
+			return 0x64 // FS
 		}
 
 	case REG_FS:
@@ -3597,7 +3603,7 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 		goto bad
 	}
 
-	if a.Index != REG_NONE && a.Index != REG_TLS {
+	if a.Index != REG_NONE && a.Index != REG_TLS && !(REG_CS <= a.Index && a.Index <= REG_GS) {
 		base := int(a.Reg)
 		switch a.Name {
 		case obj.NAME_EXTERN,
@@ -3709,7 +3715,8 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 	}
 
 	if REG_AX <= base && base <= REG_R15 {
-		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid {
+		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid &&
+			ctxt.Headtype != objabi.Hwindows {
 			rel = obj.Reloc{}
 			rel.Type = objabi.R_TLS_LE
 			rel.Siz = 4
@@ -3936,10 +3943,7 @@ func isax(a *obj.Addr) bool {
 		return true
 	}
 
-	if a.Index == REG_AX {
-		return true
-	}
-	return false
+	return a.Index == REG_AX
 }
 
 func subreg(p *obj.Prog, from int, to int) {
@@ -4066,6 +4070,16 @@ func (ab *AsmBuf) asmevex(ctxt *obj.Link, p *obj.Prog, rm, v, r, k *obj.Addr) {
 		if !evex.ZeroingEnabled() {
 			ctxt.Diag("unsupported zeroing: %v", p)
 		}
+		if k == nil {
+			// When you request zeroing you must specify a mask register.
+			// See issue 57952.
+			ctxt.Diag("mask register must be specified for .Z instructions: %v", p)
+		} else if k.Reg == REG_K0 {
+			// The mask register must not be K0. That restriction is already
+			// handled by the Yknot0 restriction in the opcode tables, so we
+			// won't ever reach here. But put something sensible here just in case.
+			ctxt.Diag("mask register must not be K0 for .Z instructions: %v", p)
+		}
 		evexZ = 1
 	}
 	switch {
@@ -4159,11 +4173,11 @@ func (ab *AsmBuf) asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uint8) 
 //	EVEX.R    : 1 bit | EVEX extension bit      | RxrEvex
 //
 // Examples:
+//
 //	REG_Z30 => 30
 //	REG_X15 => 15
 //	REG_R9  => 9
 //	REG_AX  => 0
-//
 func regIndex(r int16) int {
 	lower3bits := reg[r]
 	high4bit := regrex[r] & Rxr << 1
@@ -5124,19 +5138,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 							pp.From.Index = REG_NONE
 							ab.Put1(0x8B)
 							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
-
-						case objabi.Hwindows:
-							// Windows TLS base is always 0x14(FS).
-							pp.From = p.From
-
-							pp.From.Type = obj.TYPE_MEM
-							pp.From.Reg = REG_FS
-							pp.From.Offset = 0x14
-							pp.From.Index = REG_NONE
-							pp.From.Scale = 0
-							ab.Put2(0x64, // FS
-								0x8B)
-							ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
 						}
 						break
 					}
@@ -5191,21 +5192,6 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						pp.From.Scale = 0
 						ab.rexflag |= Pw
 						ab.Put2(0x64, // FS
-							0x8B)
-						ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
-
-					case objabi.Hwindows:
-						// Windows TLS base is always 0x28(GS).
-						pp.From = p.From
-
-						pp.From.Type = obj.TYPE_MEM
-						pp.From.Name = obj.NAME_NONE
-						pp.From.Reg = REG_GS
-						pp.From.Offset = 0x28
-						pp.From.Index = REG_NONE
-						pp.From.Scale = 0
-						ab.rexflag |= Pw
-						ab.Put2(0x65, // GS
 							0x8B)
 						ab.asmand(ctxt, cursym, p, &pp.From, &p.To)
 					}

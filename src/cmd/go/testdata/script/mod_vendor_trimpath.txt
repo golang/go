@@ -29,8 +29,12 @@ stdout '^example.com/stack@v1.0.0/stack.go$'
 -- go.mod --
 module example.com/main
 
-require example.com/stack v1.0.0
+go 1.17
 
+require example.com/stack v1.0.0
+-- go.sum --
+example.com/stack v1.0.0 h1:IEDLeew5NytZ8vrgCF/QVem3H3SR3QMttdu9HfJvk9I=
+example.com/stack v1.0.0/go.mod h1:7wFEbaV5e5O7wJ8aBdqQOR//UXppm/pwnwziMKViuI4=
 -- main.go --
 package main
 

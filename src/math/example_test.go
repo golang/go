@@ -162,6 +162,11 @@ func ExampleLog10() {
 	// Output: 2.0
 }
 
+func ExampleRemainder() {
+	fmt.Printf("%.1f", math.Remainder(100, 30))
+	// Output: 10.0
+}
+
 func ExampleMod() {
 	c := math.Mod(7, 4)
 	fmt.Printf("%.1f", c)

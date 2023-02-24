@@ -3,7 +3,7 @@
 # "go test -c" should also appear to write a new binary every time,
 # even if it's really just updating the mtime on an existing up-to-date binary.
 
-[gccgo] skip
+[compiler:gccgo] skip
 [short] skip
 
 # Install some commands to compare mtimes

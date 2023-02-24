@@ -13,7 +13,7 @@
 // The syslog package is frozen and is not accepting new features.
 // Some external packages provide more functionality. See:
 //
-//   https://godoc.org/?q=syslog
+//	https://godoc.org/?q=syslog
 package syslog
 
 // BUG(brainman): This package is not implemented on Windows. As the

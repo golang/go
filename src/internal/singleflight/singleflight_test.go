@@ -15,7 +15,7 @@ import (
 
 func TestDo(t *testing.T) {
 	var g Group
-	v, err, _ := g.Do("key", func() (interface{}, error) {
+	v, err, _ := g.Do("key", func() (any, error) {
 		return "bar", nil
 	})
 	if got, want := fmt.Sprintf("%v (%T)", v, v), "bar (string)"; got != want {
@@ -29,7 +29,7 @@ func TestDo(t *testing.T) {
 func TestDoErr(t *testing.T) {
 	var g Group
 	someErr := errors.New("some error")
-	v, err, _ := g.Do("key", func() (interface{}, error) {
+	v, err, _ := g.Do("key", func() (any, error) {
 		return nil, someErr
 	})
 	if err != someErr {
@@ -44,9 +44,9 @@ func TestDoDupSuppress(t *testing.T) {
 	var g Group
 	var wg1, wg2 sync.WaitGroup
 	c := make(chan string, 1)
-	var calls int32
-	fn := func() (interface{}, error) {
-		if atomic.AddInt32(&calls, 1) == 1 {
+	var calls atomic.Int32
+	fn := func() (any, error) {
+		if calls.Add(1) == 1 {
 			// First invocation.
 			wg1.Done()
 		}
@@ -81,7 +81,106 @@ func TestDoDupSuppress(t *testing.T) {
 	// least reached the line before the Do.
 	c <- "bar"
 	wg2.Wait()
-	if got := atomic.LoadInt32(&calls); got <= 0 || got >= n {
+	if got := calls.Load(); got <= 0 || got >= n {
 		t.Errorf("number of calls = %d; want over 0 and less than %d", got, n)
+	}
+}
+
+func TestForgetUnshared(t *testing.T) {
+	var g Group
+
+	var firstStarted, firstFinished sync.WaitGroup
+
+	firstStarted.Add(1)
+	firstFinished.Add(1)
+
+	key := "key"
+	firstCh := make(chan struct{})
+	go func() {
+		g.Do(key, func() (i interface{}, e error) {
+			firstStarted.Done()
+			<-firstCh
+			firstFinished.Done()
+			return
+		})
+	}()
+
+	firstStarted.Wait()
+	g.ForgetUnshared(key) // from this point no two function using same key should be executed concurrently
+
+	secondCh := make(chan struct{})
+	go func() {
+		g.Do(key, func() (i interface{}, e error) {
+			// Notify that we started
+			secondCh <- struct{}{}
+			<-secondCh
+			return 2, nil
+		})
+	}()
+
+	<-secondCh
+
+	resultCh := g.DoChan(key, func() (i interface{}, e error) {
+		panic("third must not be started")
+	})
+
+	if g.ForgetUnshared(key) {
+		t.Errorf("Before first goroutine finished, key %q is shared, should return false", key)
+	}
+
+	close(firstCh)
+	firstFinished.Wait()
+
+	if g.ForgetUnshared(key) {
+		t.Errorf("After first goroutine finished, key %q is still shared, should return false", key)
+	}
+
+	secondCh <- struct{}{}
+
+	if result := <-resultCh; result.Val != 2 {
+		t.Errorf("We should receive result produced by second call, expected: 2, got %d", result.Val)
+	}
+}
+
+func TestDoAndForgetUnsharedRace(t *testing.T) {
+	t.Parallel()
+
+	var g Group
+	key := "key"
+	d := time.Millisecond
+	for {
+		var calls, shared atomic.Int64
+		const n = 1000
+		var wg sync.WaitGroup
+		wg.Add(n)
+		for i := 0; i < n; i++ {
+			go func() {
+				g.Do(key, func() (interface{}, error) {
+					time.Sleep(d)
+					return calls.Add(1), nil
+				})
+				if !g.ForgetUnshared(key) {
+					shared.Add(1)
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+
+		if calls.Load() != 1 {
+			// The goroutines didn't park in g.Do in time,
+			// so the key was re-added and may have been shared after the call.
+			// Try again with more time to park.
+			d *= 2
+			continue
+		}
+
+		// All of the Do calls ended up sharing the first
+		// invocation, so the key should have been unused
+		// (and therefore unshared) when they returned.
+		if shared.Load() > 0 {
+			t.Errorf("after a single shared Do, ForgetUnshared returned false %d times", shared.Load())
+		}
+		break
 	}
 }

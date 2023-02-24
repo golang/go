@@ -137,9 +137,6 @@ has_cpuid:
 	CMPL	AX, $0
 	JE	nocpuinfo
 
-	// Figure out how to serialize RDTSC.
-	// On Intel processors LFENCE is enough. AMD requires MFENCE.
-	// Don't know about the rest, so let's do MFENCE.
 	CMPL	BX, $0x756E6547  // "Genu"
 	JNE	notintel
 	CMPL	DX, $0x49656E69  // "ineI"
@@ -147,7 +144,6 @@ has_cpuid:
 	CMPL	CX, $0x6C65746E  // "ntel"
 	JNE	notintel
 	MOVB	$1, runtime·isIntel(SB)
-	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
 notintel:
 
 	// Load EAX=1 cpuid flags
@@ -175,8 +171,12 @@ nocpuinfo:
 	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
 #else
 	MOVL	$0, BX
-	MOVL	BX, 12(SP)	// arg 3,4: not used when using platform's TLS
-	MOVL	BX, 8(SP)
+	MOVL	BX, 12(SP)	// arg 4: not used when using platform's TLS
+#ifdef GOOS_windows
+	MOVL	$runtime·tls_g(SB), 8(SP)	// arg 3: &tls_g
+#else
+	MOVL	BX, 8(SP)	// arg 3: not used when using platform's TLS
+#endif
 #endif
 	MOVL	$setg_gcc<>(SB), BX
 	MOVL	BX, 4(SP)	// arg 2: setg_gcc
@@ -244,9 +244,7 @@ ok:
 
 	// create a new goroutine to start program
 	PUSHL	$runtime·mainPC(SB)	// entry
-	PUSHL	$0	// arg size
 	CALL	runtime·newproc(SB)
-	POPL	AX
 	POPL	AX
 
 	// start this M
@@ -584,26 +582,6 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
 	// compile barrier.
 	RET
 
-// void jmpdefer(fn, sp);
-// called from deferreturn.
-// 1. pop the caller
-// 2. sub 5 bytes (the length of CALL & a 32 bit displacement) from the callers
-//    return (when building for shared libraries, subtract 16 bytes -- 5 bytes
-//    for CALL & displacement to call __x86.get_pc_thunk.cx, 6 bytes for the
-//    LEAL to load the offset into BX, and finally 5 for the call & displacement)
-// 3. jmp to the argument
-TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
-	MOVL	fv+0(FP), DX	// fn
-	MOVL	argp+4(FP), BX	// caller sp
-	LEAL	-4(BX), SP	// caller sp after CALL
-#ifdef GOBUILDMODE_shared
-	SUBL	$16, (SP)	// return to CALL again
-#else
-	SUBL	$5, (SP)	// return to CALL again
-#endif
-	MOVL	0(DX), BX
-	JMP	BX	// but first run the deferred function
-
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)
@@ -655,17 +633,17 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-12
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	get_tls(CX)
-	MOVL	g(CX), BP
-	CMPL	BP, $0
-	JEQ	nosave	// Don't even have a G yet.
-	MOVL	g_m(BP), BP
-	MOVL	m_g0(BP), SI
 	MOVL	g(CX), DI
-	CMPL	SI, DI
-	JEQ	noswitch
+	CMPL	DI, $0
+	JEQ	nosave	// Don't even have a G yet.
+	MOVL	g_m(DI), BP
 	CMPL	DI, m_gsignal(BP)
+	JEQ	noswitch
+	MOVL	m_g0(BP), SI
+	CMPL	DI, SI
 	JEQ	noswitch
 	CALL	gosave_systemstack_switch<>(SB)
 	get_tls(CX)
@@ -821,14 +799,15 @@ havem:
 TEXT runtime·setg(SB), NOSPLIT, $0-4
 	MOVL	gg+0(FP), BX
 #ifdef GOOS_windows
+	MOVL	runtime·tls_g(SB), CX
 	CMPL	BX, $0
 	JNE	settls
-	MOVL	$0, 0x14(FS)
+	MOVL	$0, 0(CX)(FS)
 	RET
 settls:
 	MOVL	g_m(BX), AX
 	LEAL	m_tls(AX), AX
-	MOVL	AX, 0x14(FS)
+	MOVL	AX, 0(CX)(FS)
 #endif
 	get_tls(CX)
 	MOVL	BX, g(CX)
@@ -860,21 +839,42 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8
-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
-	JNE	done
-	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
-	JNE	mfence
-	LFENCE
-	JMP	done
-mfence:
-	MFENCE
+	// LFENCE/MFENCE instruction support is dependent on SSE2.
+	// When no SSE2 support is present do not enforce any serialization
+	// since using CPUID to serialize the instruction stream is
+	// very costly.
+#ifdef GO386_softfloat
+	JMP	rdtsc  // no fence instructions available
+#endif
+	CMPB	internal∕cpu·X86+const_offsetX86HasRDTSCP(SB), $1
+	JNE	fences
+	// Instruction stream serializing RDTSCP is supported.
+	// RDTSCP is supported by Intel Nehalem (2008) and
+	// AMD K8 Rev. F (2006) and newer.
+	RDTSCP
 done:
-	RDTSC
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
 	RET
+fences:
+	// MFENCE is instruction stream serializing and flushes the
+	// store buffers on AMD. The serialization semantics of LFENCE on AMD
+	// are dependent on MSR C001_1029 and CPU generation.
+	// LFENCE on Intel does wait for all previous instructions to have executed.
+	// Intel recommends MFENCE;LFENCE in its manuals before RDTSC to have all
+	// previous instructions executed and all previous loads and stores to globally visible.
+	// Using MFENCE;LFENCE here aligns the serializing properties without
+	// runtime detection of CPU manufacturer.
+	MFENCE
+	LFENCE
+rdtsc:
+	RDTSC
+	JMP done
 
 TEXT ldt0setup<>(SB),NOSPLIT,$16-0
+#ifdef GOOS_windows
+	CALL	runtime·wintls(SB)
+#endif
 	// set up ldt 7 to point at m0.tls
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
 	// the entry number is just a hint.  setldt will set up GS with what it used.
@@ -945,8 +945,9 @@ aes0to15:
 	PAND	masks<>(SB)(BX*8), X1
 
 final1:
-	AESENC	X0, X1  // scramble input, xor in seed
-	AESENC	X1, X1  // scramble combo 2 times
+	PXOR	X0, X1	// xor data with seed
+	AESENC	X1, X1  // scramble combo 3 times
+	AESENC	X1, X1
 	AESENC	X1, X1
 	MOVL	X1, (DX)
 	RET
@@ -979,9 +980,13 @@ aes17to32:
 	MOVOU	(AX), X2
 	MOVOU	-16(AX)(BX*1), X3
 
+	// xor with seed
+	PXOR	X0, X2
+	PXOR	X1, X3
+
 	// scramble 3 times
-	AESENC	X0, X2
-	AESENC	X1, X3
+	AESENC	X2, X2
+	AESENC	X3, X3
 	AESENC	X2, X2
 	AESENC	X3, X3
 	AESENC	X2, X2
@@ -1008,10 +1013,15 @@ aes33to64:
 	MOVOU	-32(AX)(BX*1), X6
 	MOVOU	-16(AX)(BX*1), X7
 
-	AESENC	X0, X4
-	AESENC	X1, X5
-	AESENC	X2, X6
-	AESENC	X3, X7
+	PXOR	X0, X4
+	PXOR	X1, X5
+	PXOR	X2, X6
+	PXOR	X3, X7
+
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
 
 	AESENC	X4, X4
 	AESENC	X5, X5
@@ -1077,7 +1087,12 @@ aesloop:
 	DECL	BX
 	JNE	aesloop
 
-	// 2 more scrambles to finish
+	// 3 more scrambles to finish
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
+
 	AESENC	X4, X4
 	AESENC	X5, X5
 	AESENC	X6, X6
@@ -1350,47 +1365,57 @@ TEXT runtime·float64touint32(SB),NOSPLIT,$12-12
 	MOVL	AX, ret+8(FP)
 	RET
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - DI is the destination of the write
-// - AX is the value being written at DI
+// gcWriteBarrier returns space in a write barrier buffer which
+// should be filled in by the caller.
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in DI, and returns a pointer
+// to the buffer space in DI.
 // It clobbers FLAGS. It does not clobber any general-purpose registers,
 // but may clobber others (e.g., SSE registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$28
+// Typical use would be, when doing *(CX+88) = AX
+//     CMPL    $0, runtime.writeBarrier(SB)
+//     JEQ     dowrite
+//     CALL    runtime.gcBatchBarrier2(SB)
+//     MOVL    AX, (DI)
+//     MOVL    88(CX), DX
+//     MOVL    DX, 4(DI)
+// dowrite:
+//     MOVL    AX, 88(CX)
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$28
 	// Save the registers clobbered by the fast path. This is slightly
 	// faster than having the caller spill these.
 	MOVL	CX, 20(SP)
 	MOVL	BX, 24(SP)
+retry:
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
 	get_tls(BX)
 	MOVL	g(BX), BX
 	MOVL	g_m(BX), BX
 	MOVL	m_p(BX), BX
-	MOVL	(p_wbBuf+wbBuf_next)(BX), CX
-	// Increment wbBuf.next position.
-	LEAL	8(CX), CX
-	MOVL	CX, (p_wbBuf+wbBuf_next)(BX)
+	// Get current buffer write position.
+	MOVL	(p_wbBuf+wbBuf_next)(BX), CX	// original next position
+	ADDL	DI, CX				// new next position
+	// Is the buffer full?
 	CMPL	CX, (p_wbBuf+wbBuf_end)(BX)
-	// Record the write.
-	MOVL	AX, -8(CX)	// Record value
-	MOVL	(DI), BX	// TODO: This turns bad writes into bad reads.
-	MOVL	BX, -4(CX)	// Record *slot
-	// Is the buffer full? (flags set in CMPL above)
-	JEQ	flush
-ret:
+	JA	flush
+	// Commit to the larger buffer.
+	MOVL	CX, (p_wbBuf+wbBuf_next)(BX)
+	// Make return value (the original next position)
+	SUBL	DI, CX
+	MOVL	CX, DI
+	// Restore registers.
 	MOVL	20(SP), CX
 	MOVL	24(SP), BX
-	// Do the write.
-	MOVL	AX, (DI)
 	RET
 
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	MOVL	DI, 0(SP)	// Also first argument to wbBufFlush
-	MOVL	AX, 4(SP)	// Also second argument to wbBufFlush
+	MOVL	DI, 0(SP)
+	MOVL	AX, 4(SP)
 	// BX already saved
 	// CX already saved
 	MOVL	DX, 8(SP)
@@ -1398,7 +1423,6 @@ flush:
 	MOVL	SI, 16(SP)
 	// DI already saved
 
-	// This takes arguments DI and AX
 	CALL	runtime·wbBufFlush(SB)
 
 	MOVL	0(SP), DI
@@ -1406,7 +1430,32 @@ flush:
 	MOVL	8(SP), DX
 	MOVL	12(SP), BP
 	MOVL	16(SP), SI
-	JMP	ret
+	JMP	retry
+
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	MOVL	$4, DI
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	MOVL	$8, DI
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	MOVL	$12, DI
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	MOVL	$16, DI
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	MOVL	$20, DI
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	MOVL	$24, DI
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	MOVL	$28, DI
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	MOVL	$32, DI
+	JMP	gcWriteBarrier<>(SB)
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated
@@ -1568,5 +1617,8 @@ TEXT runtime·panicExtendSlice3CU(SB),NOSPLIT,$0-12
 // Use the free TLS_SLOT_APP slot #2 on Android Q.
 // Earlier androids are set up in gcc_android.c.
 DATA runtime·tls_g+0(SB)/4, $8
+GLOBL runtime·tls_g+0(SB), NOPTR, $4
+#endif
+#ifdef GOOS_windows
 GLOBL runtime·tls_g+0(SB), NOPTR, $4
 #endif

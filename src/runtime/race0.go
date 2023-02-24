@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !race
-// +build !race
 
 // Dummy race detection API, used when not built with -race.
 

@@ -398,10 +398,14 @@ func checkForTimeoutError(t *testing.T, err error) {
 	t.Helper()
 	if nerr, ok := err.(net.Error); ok {
 		if !nerr.Timeout() {
-			t.Errorf("err.Timeout() = false, want true")
+			if runtime.GOOS == "windows" && runtime.GOARCH == "arm64" && t.Name() == "TestTestConn/TCP/RacyRead" {
+				t.Logf("ignoring known failure mode on windows/arm64; see https://go.dev/issue/52893")
+			} else {
+				t.Errorf("got error: %v, want err.Timeout() = true", nerr)
+			}
 		}
 	} else {
-		t.Errorf("got %T, want net.Error", err)
+		t.Errorf("got %T: %v, want net.Error", err, err)
 	}
 }
 

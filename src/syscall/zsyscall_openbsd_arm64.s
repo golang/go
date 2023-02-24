@@ -69,6 +69,8 @@ TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_dup(SB)
 TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_dup2(SB)
+TEXT ·libc_dup3_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_dup3(SB)
 TEXT ·libc_fchdir_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_fchdir(SB)
 TEXT ·libc_fchflags_trampoline(SB),NOSPLIT,$0-0
@@ -199,6 +201,8 @@ TEXT ·libc_unmount_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_unmount(SB)
 TEXT ·libc_write_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_write(SB)
+TEXT ·libc_writev_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_writev(SB)
 TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_mmap(SB)
 TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0

@@ -37,6 +37,7 @@ type SymKind uint8
 // These are used to index into cmd/link/internal/sym/AbiSymKindToSymKind
 //
 // TODO(rsc): Give idiomatic Go names.
+//
 //go:generate stringer -type=SymKind
 const (
 	// An otherwise invalid zero value for the type
@@ -65,15 +66,11 @@ const (
 	SDWARFRANGE
 	SDWARFLOC
 	SDWARFLINES
-	// ABI alias. An ABI alias symbol is an empty symbol with a
-	// single relocation with 0 size that references the native
-	// function implementation symbol.
-	//
-	// TODO(austin): Remove this and all uses once the compiler
-	// generates real ABI wrappers rather than symbol aliases.
-	SABIALIAS
 	// Coverage instrumentation counter for libfuzzer.
-	SLIBFUZZER_EXTRA_COUNTER
-	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
+	SLIBFUZZER_8BIT_COUNTER
+	// Coverage instrumentation counter, aux variable for cmd/cover
+	SCOVERAGE_COUNTER
+	SCOVERAGE_AUXVAR
 
+	// Update cmd/link/internal/sym/AbiSymKindToSymKind for new SymKind values.
 )

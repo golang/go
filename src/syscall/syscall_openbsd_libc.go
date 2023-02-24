@@ -3,13 +3,14 @@
 // license that can be found in the LICENSE file.
 
 //go:build openbsd && !mips64
-// +build openbsd,!mips64
 
 package syscall
 
 import (
 	"internal/abi"
 )
+
+var dupTrampoline = abi.FuncPCABI0(libc_dup3_trampoline)
 
 func init() {
 	execveOpenBSD = execve
@@ -66,6 +67,7 @@ func syscall9X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, 
 //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
 //sysnb exit(res int) (err error)
 //sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
+//sys   ptracePtr(request int, pid int, addr unsafe.Pointer, data uintptr) (err error) = SYS_ptrace
 //sysnb getentropy(p []byte) (err error)
 //sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
 //sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_fcntl

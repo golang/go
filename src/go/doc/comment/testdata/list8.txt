@@ -1,0 +1,56 @@
+-- input --
+Loose lists.
+  - A
+
+    B
+  - C
+    D
+  - E
+  - F
+-- gofmt --
+Loose lists.
+
+  - A
+
+    B
+
+  - C
+    D
+
+  - E
+
+  - F
+-- text --
+Loose lists.
+
+  - A
+
+    B
+
+  - C D
+
+  - E
+
+  - F
+-- markdown --
+Loose lists.
+
+  - A
+
+    B
+
+  - C D
+
+  - E
+
+  - F
+-- html --
+<p>Loose lists.
+<ul>
+<li><p>A
+<p>B
+<li><p>C
+D
+<li><p>E
+<li><p>F
+</ul>

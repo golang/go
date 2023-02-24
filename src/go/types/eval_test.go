@@ -59,14 +59,14 @@ func testEval(t *testing.T, fset *token.FileSet, pkg *Package, pos token.Pos, ex
 func TestEvalBasic(t *testing.T) {
 	fset := token.NewFileSet()
 	for _, typ := range Typ[Bool : String+1] {
-		testEval(t, fset, nil, token.NoPos, typ.Name(), typ, "", "")
+		testEval(t, fset, nil, nopos, typ.Name(), typ, "", "")
 	}
 }
 
 func TestEvalComposite(t *testing.T) {
 	fset := token.NewFileSet()
 	for _, test := range independentTestTypes {
-		testEval(t, fset, nil, token.NoPos, test.src, nil, test.str, "")
+		testEval(t, fset, nil, nopos, test.src, nil, test.str, "")
 	}
 }
 
@@ -83,7 +83,7 @@ func TestEvalArith(t *testing.T) {
 	}
 	fset := token.NewFileSet()
 	for _, test := range tests {
-		testEval(t, fset, nil, token.NoPos, test, Typ[UntypedBool], "", "true")
+		testEval(t, fset, nil, nopos, test, Typ[UntypedBool], "", "true")
 	}
 }
 
@@ -111,7 +111,7 @@ func TestEvalPos(t *testing.T) {
 			x = a + len(s)
 			return float64(x)
 			/* true => true, untyped bool */
-			/* fmt.Println => , func(a ...interface{}) (n int, err error) */
+			/* fmt.Println => , func(a ...any) (n int, err error) */
 			/* c => 3, untyped float */
 			/* T => , p.T */
 			/* a => , int */
@@ -195,10 +195,10 @@ func TestEvalPos(t *testing.T) {
 	}
 }
 
-// split splits string s at the first occurrence of s.
+// split splits string s at the first occurrence of s, trimming spaces.
 func split(s, sep string) (string, string) {
-	i := strings.Index(s, sep)
-	return strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+len(sep):])
+	before, after, _ := strings.Cut(s, sep)
+	return strings.TrimSpace(before), strings.TrimSpace(after)
 }
 
 func TestCheckExpr(t *testing.T) {
@@ -218,7 +218,7 @@ type T []int
 type S struct{ X int }
 
 func f(a int, s string) S {
-	/* fmt.Println => func fmt.Println(a ...interface{}) (n int, err error) */
+	/* fmt.Println => func fmt.Println(a ...any) (n int, err error) */
 	/* fmt.Stringer.String => func (fmt.Stringer).String() string */
 	fmt.Println("calling f")
 

@@ -12,10 +12,10 @@ package main
 type T struct{}
 
 func (t *T) M(int, string)  // GCCGO_ERROR "previous"
-func (t *T) M(int, float64) {} // ERROR "redeclared|redefinition"
+func (t *T) M(int, float64) {} // ERROR "already declared|redefinition"
 
 func (t T) H()  // GCCGO_ERROR "previous"
-func (t *T) H() {} // ERROR "redeclared|redefinition"
+func (t *T) H() {} // ERROR "already declared|redefinition"
 
 func f(int, string)  // GCCGO_ERROR "previous"
 func f(int, float64) {} // ERROR "redeclared|redefinition"

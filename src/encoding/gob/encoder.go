@@ -172,7 +172,7 @@ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Typ
 // Encode transmits the data item represented by the empty interface value,
 // guaranteeing that all necessary type information has been transmitted first.
 // Passing a nil pointer to Encoder will panic, as they cannot be transmitted by gob.
-func (enc *Encoder) Encode(e interface{}) error {
+func (enc *Encoder) Encode(e any) error {
 	return enc.EncodeValue(reflect.ValueOf(e))
 }
 
@@ -219,7 +219,7 @@ func (enc *Encoder) EncodeValue(value reflect.Value) error {
 	if value.Kind() == reflect.Invalid {
 		return errors.New("gob: cannot encode nil value")
 	}
-	if value.Kind() == reflect.Ptr && value.IsNil() {
+	if value.Kind() == reflect.Pointer && value.IsNil() {
 		panic("gob: cannot encode nil pointer of type " + value.Type().String())
 	}
 

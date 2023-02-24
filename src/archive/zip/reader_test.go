@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -73,6 +74,60 @@ var tests = []ZipTest{
 	},
 	{
 		Name:    "test-trailing-junk.zip",
+		Comment: "This is a zipfile comment.",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte("This is a test text file.\n"),
+				Modified: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+			{
+				Name:     "gophercolor16x16.png",
+				File:     "gophercolor16x16.png",
+				Modified: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+		},
+	},
+	{
+		Name:    "test-prefix.zip",
+		Comment: "This is a zipfile comment.",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte("This is a test text file.\n"),
+				Modified: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+			{
+				Name:     "gophercolor16x16.png",
+				File:     "gophercolor16x16.png",
+				Modified: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+		},
+	},
+	{
+		Name:    "test-baddirsz.zip",
+		Comment: "This is a zipfile comment.",
+		File: []ZipTestFile{
+			{
+				Name:     "test.txt",
+				Content:  []byte("This is a test text file.\n"),
+				Modified: time.Date(2010, 9, 5, 12, 12, 1, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+			{
+				Name:     "gophercolor16x16.png",
+				File:     "gophercolor16x16.png",
+				Modified: time.Date(2010, 9, 5, 15, 52, 58, 0, timeZone(+10*time.Hour)),
+				Mode:     0644,
+			},
+		},
+	},
+	{
+		Name:    "test-badbase.zip",
 		Comment: "This is a zipfile comment.",
 		File: []ZipTestFile{
 			{
@@ -486,6 +541,35 @@ var tests = []ZipTest{
 			},
 		},
 	},
+	{
+		Name: "dupdir.zip",
+		File: []ZipTestFile{
+			{
+				Name:     "a/",
+				Content:  []byte{},
+				Mode:     fs.ModeDir | 0666,
+				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
+			},
+			{
+				Name:     "a/b",
+				Content:  []byte{},
+				Mode:     0666,
+				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
+			},
+			{
+				Name:     "a/b/",
+				Content:  []byte{},
+				Mode:     fs.ModeDir | 0666,
+				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
+			},
+			{
+				Name:     "a/b/c",
+				Content:  []byte{},
+				Mode:     0666,
+				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
+			},
+		},
+	},
 }
 
 func TestReader(t *testing.T) {
@@ -864,7 +948,6 @@ func returnRecursiveZip() (r io.ReaderAt, size int64) {
 //
 // It's here in hex for the same reason as rZipBytes above: to avoid
 // problems with on-disk virus scanners or other zip processors.
-//
 func biggestZipBytes() []byte {
 	s := `
 0000000 50 4b 03 04 14 00 08 00 08 00 00 00 00 00 00 00
@@ -1011,7 +1094,7 @@ func TestIssue10957(t *testing.T) {
 		"\x00\x00\x00\x00\x0000000000\x00\x00\x00\x00000" +
 		"00000000PK\x01\x0200000000" +
 		"0000000000000000\v\x00\x00\x00" +
-		"\x00\x0000PK\x05\x06000000\x05\x000000" +
+		"\x00\x0000PK\x05\x06000000\x05\x00\xfd\x00\x00\x00" +
 		"\v\x00\x00\x00\x00\x00")
 	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
@@ -1056,7 +1139,7 @@ func TestIssue11146(t *testing.T) {
 		"0000000000000000PK\x01\x02" +
 		"0000\b0\b\x00000000000000" +
 		"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x000000PK\x05\x06\x00\x00" +
-		"\x00\x0000\x01\x0000008\x00\x00\x00\x00\x00")
+		"\x00\x0000\x01\x00\x26\x00\x00\x008\x00\x00\x00\x00\x00")
 	z, err := NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		t.Fatal(err)
@@ -1123,6 +1206,7 @@ func TestFS(t *testing.T) {
 			[]string{"a/b/c"},
 		},
 	} {
+		test := test
 		t.Run(test.file, func(t *testing.T) {
 			t.Parallel()
 			z, err := OpenReader(test.file)
@@ -1132,6 +1216,60 @@ func TestFS(t *testing.T) {
 			defer z.Close()
 			if err := fstest.TestFS(z, test.want...); err != nil {
 				t.Error(err)
+			}
+		})
+	}
+}
+
+func TestFSWalk(t *testing.T) {
+	for _, test := range []struct {
+		file    string
+		want    []string
+		wantErr bool
+	}{
+		{
+			file: "testdata/unix.zip",
+			want: []string{".", "dir", "dir/bar", "dir/empty", "hello", "readonly"},
+		},
+		{
+			file: "testdata/subdir.zip",
+			want: []string{".", "a", "a/b", "a/b/c"},
+		},
+		{
+			file:    "testdata/dupdir.zip",
+			wantErr: true,
+		},
+	} {
+		test := test
+		t.Run(test.file, func(t *testing.T) {
+			t.Parallel()
+			z, err := OpenReader(test.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var files []string
+			sawErr := false
+			err = fs.WalkDir(z, ".", func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					if !test.wantErr {
+						t.Errorf("%s: %v", path, err)
+					}
+					sawErr = true
+					return nil
+				}
+				files = append(files, path)
+				return nil
+			})
+			if err != nil {
+				t.Errorf("fs.WalkDir error: %v", err)
+			}
+			if test.wantErr && !sawErr {
+				t.Error("succeeded but want error")
+			} else if !test.wantErr && sawErr {
+				t.Error("unexpected error")
+			}
+			if test.want != nil && !reflect.DeepEqual(files, test.want) {
+				t.Errorf("got %v want %v", files, test.want)
 			}
 		})
 	}
@@ -1170,6 +1308,7 @@ func TestFSModTime(t *testing.T) {
 }
 
 func TestCVE202127919(t *testing.T) {
+	t.Setenv("GODEBUG", "zipinsecurepath=0")
 	// Archive containing only the file "../test.txt"
 	data := []byte{
 		0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x08, 0x00,
@@ -1195,134 +1334,21 @@ func TestCVE202127919(t *testing.T) {
 		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
 	}
 	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
-	if err != nil {
+	if err != ErrInsecurePath {
 		t.Fatalf("Error reading the archive: %v", err)
 	}
 	_, err = r.Open("test.txt")
 	if err != nil {
 		t.Errorf("Error reading file: %v", err)
 	}
-}
-
-func TestReadDataDescriptor(t *testing.T) {
-	tests := []struct {
-		desc    string
-		in      []byte
-		zip64   bool
-		want    *dataDescriptor
-		wantErr error
-	}{{
-		desc: "valid 32 bit with signature",
-		in: []byte{
-			0x50, 0x4b, 0x07, 0x08, // signature
-			0x00, 0x01, 0x02, 0x03, // crc32
-			0x04, 0x05, 0x06, 0x07, // compressed size
-			0x08, 0x09, 0x0a, 0x0b, // uncompressed size
-		},
-		want: &dataDescriptor{
-			crc32:            0x03020100,
-			compressedSize:   0x07060504,
-			uncompressedSize: 0x0b0a0908,
-		},
-	}, {
-		desc: "valid 32 bit without signature",
-		in: []byte{
-			0x00, 0x01, 0x02, 0x03, // crc32
-			0x04, 0x05, 0x06, 0x07, // compressed size
-			0x08, 0x09, 0x0a, 0x0b, // uncompressed size
-		},
-		want: &dataDescriptor{
-			crc32:            0x03020100,
-			compressedSize:   0x07060504,
-			uncompressedSize: 0x0b0a0908,
-		},
-	}, {
-		desc: "valid 64 bit with signature",
-		in: []byte{
-			0x50, 0x4b, 0x07, 0x08, // signature
-			0x00, 0x01, 0x02, 0x03, // crc32
-			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
-			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, // uncompressed size
-		},
-		zip64: true,
-		want: &dataDescriptor{
-			crc32:            0x03020100,
-			compressedSize:   0x0b0a090807060504,
-			uncompressedSize: 0x131211100f0e0d0c,
-		},
-	}, {
-		desc: "valid 64 bit without signature",
-		in: []byte{
-			0x00, 0x01, 0x02, 0x03, // crc32
-			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
-			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, // uncompressed size
-		},
-		zip64: true,
-		want: &dataDescriptor{
-			crc32:            0x03020100,
-			compressedSize:   0x0b0a090807060504,
-			uncompressedSize: 0x131211100f0e0d0c,
-		},
-	}, {
-		desc: "invalid 32 bit with signature",
-		in: []byte{
-			0x50, 0x4b, 0x07, 0x08, // signature
-			0x00, 0x01, 0x02, 0x03, // crc32
-			0x04, 0x05, // unexpected end
-		},
-		wantErr: io.ErrUnexpectedEOF,
-	}, {
-		desc: "invalid 32 bit without signature",
-		in: []byte{
-			0x00, 0x01, 0x02, 0x03, // crc32
-			0x04, 0x05, // unexpected end
-		},
-		wantErr: io.ErrUnexpectedEOF,
-	}, {
-		desc: "invalid 64 bit with signature",
-		in: []byte{
-			0x50, 0x4b, 0x07, 0x08, // signature
-			0x00, 0x01, 0x02, 0x03, // crc32
-			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
-			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, // unexpected end
-		},
-		zip64:   true,
-		wantErr: io.ErrUnexpectedEOF,
-	}, {
-		desc: "invalid 64 bit without signature",
-		in: []byte{
-			0x00, 0x01, 0x02, 0x03, // crc32
-			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
-			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, // unexpected end
-		},
-		zip64:   true,
-		wantErr: io.ErrUnexpectedEOF,
-	}}
-
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			r := bytes.NewReader(test.in)
-
-			desc, err := readDataDescriptor(r, test.zip64)
-			if err != test.wantErr {
-				t.Fatalf("got err %v; want nil", err)
-			}
-			if test.want == nil {
-				return
-			}
-			if desc == nil {
-				t.Fatalf("got nil DataDescriptor; want non-nil")
-			}
-			if desc.crc32 != test.want.crc32 {
-				t.Errorf("got CRC32 %#x; want %#x", desc.crc32, test.want.crc32)
-			}
-			if desc.compressedSize != test.want.compressedSize {
-				t.Errorf("got CompressedSize %#x; want %#x", desc.compressedSize, test.want.compressedSize)
-			}
-			if desc.uncompressedSize != test.want.uncompressedSize {
-				t.Errorf("got UncompressedSize %#x; want %#x", desc.uncompressedSize, test.want.uncompressedSize)
-			}
-		})
+	if len(r.File) != 1 {
+		t.Fatalf("No entries in the file list")
+	}
+	if r.File[0].Name != "../test.txt" {
+		t.Errorf("Unexpected entry name: %s", r.File[0].Name)
+	}
+	if _, err := r.File[0].Open(); err != nil {
+		t.Errorf("Error opening file: %v", err)
 	}
 }
 
@@ -1382,5 +1408,324 @@ func TestCVE202133196(t *testing.T) {
 	}
 	if len(r.File) != 5 {
 		t.Errorf("Archive has unexpected number of files, got %d, want 5", len(r.File))
+	}
+}
+
+func TestCVE202139293(t *testing.T) {
+	// directory size is so large, that the check in Reader.init
+	// overflows when subtracting from the archive size, causing
+	// the pre-allocation check to be bypassed.
+	data := []byte{
+		0x50, 0x4b, 0x06, 0x06, 0x05, 0x06, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0x4b,
+		0x06, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x50, 0x4b, 0x05, 0x06, 0x00, 0x1a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0x4b,
+		0x06, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+		0x00, 0x00, 0x00, 0x50, 0x4b, 0x05, 0x06, 0x00, 0x31, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,
+		0xff, 0x50, 0xfe, 0x00, 0xff, 0x00, 0x3a, 0x00, 0x00, 0x00, 0xff,
+	}
+	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != ErrFormat {
+		t.Fatalf("unexpected error, got: %v, want: %v", err, ErrFormat)
+	}
+}
+
+func TestCVE202141772(t *testing.T) {
+	t.Setenv("GODEBUG", "zipinsecurepath=0")
+	// Archive contains a file whose name is exclusively made up of '/', '\'
+	// characters, or "../", "..\" paths, which would previously cause a panic.
+	//
+	//  Length   Method    Size  Cmpr    Date    Time   CRC-32   Name
+	// --------  ------  ------- ---- ---------- ----- --------  ----
+	//        0  Stored        0   0% 08-05-2021 18:32 00000000  /
+	//        0  Stored        0   0% 09-14-2021 12:59 00000000  //
+	//        0  Stored        0   0% 09-14-2021 12:59 00000000  \
+	//       11  Stored       11   0% 09-14-2021 13:04 0d4a1185  /test.txt
+	// --------          -------  ---                            -------
+	//       11               11   0%                            4 files
+	data := []byte{
+		0x50, 0x4b, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x08,
+		0x00, 0x00, 0x06, 0x94, 0x05, 0x53, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x2f, 0x50,
+		0x4b, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x78, 0x67, 0x2e, 0x53, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x02, 0x00, 0x00, 0x00, 0x2f, 0x2f, 0x50,
+		0x4b, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x78, 0x67, 0x2e, 0x53, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x01, 0x00, 0x00, 0x00, 0x5c, 0x50, 0x4b,
+		0x03, 0x04, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x91, 0x68, 0x2e, 0x53, 0x85, 0x11, 0x4a, 0x0d,
+		0x0b, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00,
+		0x09, 0x00, 0x00, 0x00, 0x2f, 0x74, 0x65, 0x73,
+		0x74, 0x2e, 0x74, 0x78, 0x74, 0x68, 0x65, 0x6c,
+		0x6c, 0x6f, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64,
+		0x50, 0x4b, 0x01, 0x02, 0x14, 0x03, 0x0a, 0x00,
+		0x00, 0x08, 0x00, 0x00, 0x06, 0x94, 0x05, 0x53,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+		0xed, 0x41, 0x00, 0x00, 0x00, 0x00, 0x2f, 0x50,
+		0x4b, 0x01, 0x02, 0x3f, 0x00, 0x0a, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x78, 0x67, 0x2e, 0x53, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x02, 0x00, 0x24, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00,
+		0x00, 0x1f, 0x00, 0x00, 0x00, 0x2f, 0x2f, 0x0a,
+		0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+		0x00, 0x18, 0x00, 0x93, 0x98, 0x25, 0x57, 0x25,
+		0xa9, 0xd7, 0x01, 0x93, 0x98, 0x25, 0x57, 0x25,
+		0xa9, 0xd7, 0x01, 0x93, 0x98, 0x25, 0x57, 0x25,
+		0xa9, 0xd7, 0x01, 0x50, 0x4b, 0x01, 0x02, 0x3f,
+		0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x78,
+		0x67, 0x2e, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+		0x00, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x20, 0x00, 0x00, 0x00, 0x3f, 0x00, 0x00,
+		0x00, 0x5c, 0x0a, 0x00, 0x20, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x93, 0x98,
+		0x25, 0x57, 0x25, 0xa9, 0xd7, 0x01, 0x93, 0x98,
+		0x25, 0x57, 0x25, 0xa9, 0xd7, 0x01, 0x93, 0x98,
+		0x25, 0x57, 0x25, 0xa9, 0xd7, 0x01, 0x50, 0x4b,
+		0x01, 0x02, 0x3f, 0x00, 0x0a, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x91, 0x68, 0x2e, 0x53, 0x85, 0x11,
+		0x4a, 0x0d, 0x0b, 0x00, 0x00, 0x00, 0x0b, 0x00,
+		0x00, 0x00, 0x09, 0x00, 0x24, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00,
+		0x5e, 0x00, 0x00, 0x00, 0x2f, 0x74, 0x65, 0x73,
+		0x74, 0x2e, 0x74, 0x78, 0x74, 0x0a, 0x00, 0x20,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x18,
+		0x00, 0xa9, 0x80, 0x51, 0x01, 0x26, 0xa9, 0xd7,
+		0x01, 0x31, 0xd1, 0x57, 0x01, 0x26, 0xa9, 0xd7,
+		0x01, 0xdf, 0x48, 0x85, 0xf9, 0x25, 0xa9, 0xd7,
+		0x01, 0x50, 0x4b, 0x05, 0x06, 0x00, 0x00, 0x00,
+		0x00, 0x04, 0x00, 0x04, 0x00, 0x31, 0x01, 0x00,
+		0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
+	if err != ErrInsecurePath {
+		t.Fatalf("Error reading the archive: %v", err)
+	}
+	entryNames := []string{`/`, `//`, `\`, `/test.txt`}
+	var names []string
+	for _, f := range r.File {
+		names = append(names, f.Name)
+		if _, err := f.Open(); err != nil {
+			t.Errorf("Error opening %q: %v", f.Name, err)
+		}
+		if _, err := r.Open(f.Name); err == nil {
+			t.Errorf("Opening %q with fs.FS API succeeded", f.Name)
+		}
+	}
+	if !reflect.DeepEqual(names, entryNames) {
+		t.Errorf("Unexpected file entries: %q", names)
+	}
+	if _, err := r.Open(""); err == nil {
+		t.Errorf("Opening %q with fs.FS API succeeded", "")
+	}
+	if _, err := r.Open("test.txt"); err != nil {
+		t.Errorf("Error opening %q with fs.FS API: %v", "test.txt", err)
+	}
+	dirEntries, err := fs.ReadDir(r, ".")
+	if err != nil {
+		t.Fatalf("Error reading the root directory: %v", err)
+	}
+	if len(dirEntries) != 1 || dirEntries[0].Name() != "test.txt" {
+		t.Errorf("Unexpected directory entries")
+		for _, dirEntry := range dirEntries {
+			_, err := r.Open(dirEntry.Name())
+			t.Logf("%q (Open error: %v)", dirEntry.Name(), err)
+		}
+		t.FailNow()
+	}
+	info, err := dirEntries[0].Info()
+	if err != nil {
+		t.Fatalf("Error reading info entry: %v", err)
+	}
+	if name := info.Name(); name != "test.txt" {
+		t.Errorf("Inconsistent name in info entry: %v", name)
+	}
+}
+
+func TestUnderSize(t *testing.T) {
+	z, err := OpenReader("testdata/readme.zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer z.Close()
+
+	for _, f := range z.File {
+		f.UncompressedSize64 = 1
+	}
+
+	for _, f := range z.File {
+		t.Run(f.Name, func(t *testing.T) {
+			rd, err := f.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer rd.Close()
+
+			_, err = io.Copy(io.Discard, rd)
+			if err != ErrFormat {
+				t.Fatalf("Error mismatch\n\tGot:  %v\n\tWant: %v", err, ErrFormat)
+			}
+		})
+	}
+}
+
+func TestIssue54801(t *testing.T) {
+	for _, input := range []string{"testdata/readme.zip", "testdata/dd.zip"} {
+		z, err := OpenReader(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer z.Close()
+
+		for _, f := range z.File {
+			// Make file a directory
+			f.Name += "/"
+
+			t.Run(f.Name, func(t *testing.T) {
+				t.Logf("CompressedSize64: %d, Flags: %#x", f.CompressedSize64, f.Flags)
+
+				rd, err := f.Open()
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer rd.Close()
+
+				n, got := io.Copy(io.Discard, rd)
+				if n != 0 || got != ErrFormat {
+					t.Fatalf("Error mismatch, got: %d, %v, want: %v", n, got, ErrFormat)
+				}
+			})
+		}
+	}
+}
+
+func TestInsecurePaths(t *testing.T) {
+	t.Setenv("GODEBUG", "zipinsecurepath=0")
+	for _, path := range []string{
+		"../foo",
+		"/foo",
+		"a/b/../../../c",
+		`a\b`,
+	} {
+		var buf bytes.Buffer
+		zw := NewWriter(&buf)
+		_, err := zw.Create(path)
+		if err != nil {
+			t.Errorf("zw.Create(%q) = %v", path, err)
+			continue
+		}
+		zw.Close()
+
+		zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+		if err != ErrInsecurePath {
+			t.Errorf("NewReader for archive with file %q: got err %v, want ErrInsecurePath", path, err)
+			continue
+		}
+		var gotPaths []string
+		for _, f := range zr.File {
+			gotPaths = append(gotPaths, f.Name)
+		}
+		if !reflect.DeepEqual(gotPaths, []string{path}) {
+			t.Errorf("NewReader for archive with file %q: got files %q", path, gotPaths)
+			continue
+		}
+	}
+}
+
+func TestDisableInsecurePathCheck(t *testing.T) {
+	t.Setenv("GODEBUG", "zipinsecurepath=1")
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+	const name = "/foo"
+	_, err := zw.Create(name)
+	if err != nil {
+		t.Fatalf("zw.Create(%q) = %v", name, err)
+	}
+	zw.Close()
+	zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatalf("NewReader with zipinsecurepath=1: got err %v, want nil", err)
+	}
+	var gotPaths []string
+	for _, f := range zr.File {
+		gotPaths = append(gotPaths, f.Name)
+	}
+	if want := []string{name}; !reflect.DeepEqual(gotPaths, want) {
+		t.Errorf("NewReader with zipinsecurepath=1: got files %q, want %q", gotPaths, want)
+	}
+}
+
+func TestCompressedDirectory(t *testing.T) {
+	// Empty Java JAR, with a compressed directory with uncompressed size 0
+	// which should not fail.
+	//
+	// Length   Method    Size  Cmpr    Date    Time   CRC-32   Name
+	// --------  ------  ------- ---- ---------- ----- --------  ----
+	//        0  Defl:N        2   0% 12-01-2022 16:50 00000000  META-INF/
+	//       60  Defl:N       59   2% 12-01-2022 16:50 af937e93  META-INF/MANIFEST.MF
+	// --------          -------  ---                            -------
+	//       60               61  -2%                            2 files
+	data := []byte{
+		0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x08, 0x08,
+		0x08, 0x00, 0x49, 0x86, 0x81, 0x55, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x09, 0x00, 0x04, 0x00, 0x4d, 0x45,
+		0x54, 0x41, 0x2d, 0x49, 0x4e, 0x46, 0x2f, 0xfe,
+		0xca, 0x00, 0x00, 0x03, 0x00, 0x50, 0x4b, 0x07,
+		0x08, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x50, 0x4b, 0x03,
+		0x04, 0x14, 0x00, 0x08, 0x08, 0x08, 0x00, 0x49,
+		0x86, 0x81, 0x55, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14,
+		0x00, 0x00, 0x00, 0x4d, 0x45, 0x54, 0x41, 0x2d,
+		0x49, 0x4e, 0x46, 0x2f, 0x4d, 0x41, 0x4e, 0x49,
+		0x46, 0x45, 0x53, 0x54, 0x2e, 0x4d, 0x46, 0xf3,
+		0x4d, 0xcc, 0xcb, 0x4c, 0x4b, 0x2d, 0x2e, 0xd1,
+		0x0d, 0x4b, 0x2d, 0x2a, 0xce, 0xcc, 0xcf, 0xb3,
+		0x52, 0x30, 0xd4, 0x33, 0xe0, 0xe5, 0x72, 0x2e,
+		0x4a, 0x4d, 0x2c, 0x49, 0x4d, 0xd1, 0x75, 0xaa,
+		0x04, 0x0a, 0x00, 0x45, 0xf4, 0x0c, 0x8d, 0x15,
+		0x34, 0xdc, 0xf3, 0xf3, 0xd3, 0x73, 0x52, 0x15,
+		0x3c, 0xf3, 0x92, 0xf5, 0x34, 0x79, 0xb9, 0x78,
+		0xb9, 0x00, 0x50, 0x4b, 0x07, 0x08, 0x93, 0x7e,
+		0x93, 0xaf, 0x3b, 0x00, 0x00, 0x00, 0x3c, 0x00,
+		0x00, 0x00, 0x50, 0x4b, 0x01, 0x02, 0x14, 0x00,
+		0x14, 0x00, 0x08, 0x08, 0x08, 0x00, 0x49, 0x86,
+		0x81, 0x55, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00,
+		0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x4d, 0x45, 0x54, 0x41, 0x2d, 0x49, 0x4e, 0x46,
+		0x2f, 0xfe, 0xca, 0x00, 0x00, 0x50, 0x4b, 0x01,
+		0x02, 0x14, 0x00, 0x14, 0x00, 0x08, 0x08, 0x08,
+		0x00, 0x49, 0x86, 0x81, 0x55, 0x93, 0x7e, 0x93,
+		0xaf, 0x3b, 0x00, 0x00, 0x00, 0x3c, 0x00, 0x00,
+		0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3d,
+		0x00, 0x00, 0x00, 0x4d, 0x45, 0x54, 0x41, 0x2d,
+		0x49, 0x4e, 0x46, 0x2f, 0x4d, 0x41, 0x4e, 0x49,
+		0x46, 0x45, 0x53, 0x54, 0x2e, 0x4d, 0x46, 0x50,
+		0x4b, 0x05, 0x06, 0x00, 0x00, 0x00, 0x00, 0x02,
+		0x00, 0x02, 0x00, 0x7d, 0x00, 0x00, 0x00, 0xba,
+		0x00, 0x00, 0x00, 0x00, 0x00,
+	}
+	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, f := range r.File {
+		r, err := f.Open()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := io.Copy(io.Discard, r); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 	}
 }

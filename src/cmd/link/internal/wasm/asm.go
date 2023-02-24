@@ -55,21 +55,27 @@ type wasmFuncType struct {
 }
 
 var wasmFuncTypes = map[string]*wasmFuncType{
-	"_rt0_wasm_js":           {Params: []byte{}},                                         //
-	"wasm_export_run":        {Params: []byte{I32, I32}},                                 // argc, argv
-	"wasm_export_resume":     {Params: []byte{}},                                         //
-	"wasm_export_getsp":      {Results: []byte{I32}},                                     // sp
-	"wasm_pc_f_loop":         {Params: []byte{}},                                         //
-	"runtime.wasmMove":       {Params: []byte{I32, I32, I32}},                            // dst, src, len
-	"runtime.wasmZero":       {Params: []byte{I32, I32}},                                 // ptr, len
-	"runtime.wasmDiv":        {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
-	"runtime.wasmTruncS":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
-	"runtime.wasmTruncU":     {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
-	"runtime.gcWriteBarrier": {Params: []byte{I64, I64}},                                 // ptr, val
-	"cmpbody":                {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
-	"memeqbody":              {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
-	"memcmp":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
-	"memchr":                 {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
+	"_rt0_wasm_js":            {Params: []byte{}},                                         //
+	"wasm_export_run":         {Params: []byte{I32, I32}},                                 // argc, argv
+	"wasm_export_resume":      {Params: []byte{}},                                         //
+	"wasm_export_getsp":       {Results: []byte{I32}},                                     // sp
+	"wasm_pc_f_loop":          {Params: []byte{}},                                         //
+	"runtime.wasmDiv":         {Params: []byte{I64, I64}, Results: []byte{I64}},           // x, y -> x/y
+	"runtime.wasmTruncS":      {Params: []byte{F64}, Results: []byte{I64}},                // x -> int(x)
+	"runtime.wasmTruncU":      {Params: []byte{F64}, Results: []byte{I64}},                // x -> uint(x)
+	"gcWriteBarrier":          {Params: []byte{I64}, Results: []byte{I64}},                // #bytes -> bufptr
+	"runtime.gcWriteBarrier1": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier2": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier3": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier4": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier5": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier6": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier7": {Results: []byte{I64}},                                     // -> bufptr
+	"runtime.gcWriteBarrier8": {Results: []byte{I64}},                                     // -> bufptr
+	"cmpbody":                 {Params: []byte{I64, I64, I64, I64}, Results: []byte{I64}}, // a, alen, b, blen -> -1/0/1
+	"memeqbody":               {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
+	"memcmp":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
+	"memchr":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
 }
 
 func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64) {
@@ -156,7 +162,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 	fns := make([]*wasmFunc, len(ctxt.Textp))
 	for i, fn := range ctxt.Textp {
 		wfn := new(bytes.Buffer)
-		if ldr.SymName(fn) == "go.buildid" {
+		if ldr.SymName(fn) == "go:buildid" {
 			writeUleb128(wfn, 0) // number of sets of locals
 			writeI32Const(wfn, 0)
 			wfn.WriteByte(0x0b) // end
@@ -173,7 +179,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 				}
 				wfn.Write(P[off:r.Off()])
 				off = r.Off()
-				rs := ldr.ResolveABIAlias(r.Sym())
+				rs := r.Sym()
 				switch r.Type() {
 				case objabi.R_ADDR:
 					writeSleb128(wfn, ldr.SymValue(rs)+r.Add())
@@ -248,7 +254,7 @@ func writeSecSize(ctxt *ld.Link, sizeOffset int64) {
 
 func writeBuildID(ctxt *ld.Link, buildid []byte) {
 	sizeOffset := writeSecHeader(ctxt, sectionCustom)
-	writeName(ctxt.Out, "go.buildid")
+	writeName(ctxt.Out, "go:buildid")
 	ctxt.Out.Write(buildid)
 	writeSecSize(ctxt, sizeOffset)
 }
@@ -412,7 +418,7 @@ func writeElementSec(ctxt *ld.Link, numImports, numFns uint64) {
 	writeSecSize(ctxt, sizeOffset)
 }
 
-// writeElementSec writes the section that provides the function bodies for the functions
+// writeCodeSec writes the section that provides the function bodies for the functions
 // declared by the "func" section.
 func writeCodeSec(ctxt *ld.Link, fns []*wasmFunc) {
 	sizeOffset := writeSecHeader(ctxt, sectionCode)
@@ -520,7 +526,7 @@ func writeProducerSec(ctxt *ld.Link) {
 	writeSecSize(ctxt, sizeOffset)
 }
 
-var nameRegexp = regexp.MustCompile(`[^\w\.]`)
+var nameRegexp = regexp.MustCompile(`[^\w.]`)
 
 // writeNameSec writes an optional section that assigns names to the functions declared by the "func" section.
 // The names are only used by WebAssembly stack traces, debuggers and decompilers.

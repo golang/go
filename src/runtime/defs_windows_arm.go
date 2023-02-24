@@ -58,6 +58,11 @@ func (c *context) set_ip(x uintptr) { c.pc = uint32(x) }
 func (c *context) set_sp(x uintptr) { c.spr = uint32(x) }
 func (c *context) set_lr(x uintptr) { c.lrr = uint32(x) }
 
+func prepareContextForSigResume(c *context) {
+	c.r0 = c.spr
+	c.r1 = c.pc
+}
+
 func dumpregs(r *context) {
 	print("r0   ", hex(r.r0), "\n")
 	print("r1   ", hex(r.r1), "\n")

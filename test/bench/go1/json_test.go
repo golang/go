@@ -15,11 +15,6 @@ import (
 	"testing"
 )
 
-var (
-	jsonbytes = makeJsonBytes()
-	jsondata  = makeJsonData()
-)
-
 func makeJsonBytes() []byte {
 	var r io.Reader
 	r = bytes.NewReader(bytes.Replace(jsonbz2_base64, []byte{'\n'}, nil, -1))
@@ -32,12 +27,12 @@ func makeJsonBytes() []byte {
 	return b
 }
 
-func makeJsonData() JSONResponse {
+func makeJsonData(jsonbytes []byte) *JSONResponse {
 	var v JSONResponse
 	if err := json.Unmarshal(jsonbytes, &v); err != nil {
 		panic(err)
 	}
-	return v
+	return &v
 }
 
 type JSONResponse struct {
@@ -55,16 +50,16 @@ type JSONNode struct {
 	MeanT    int64       `json:"mean_t"`
 }
 
-func jsondec() {
+func jsondec(bytes []byte) {
 	var r JSONResponse
-	if err := json.Unmarshal(jsonbytes, &r); err != nil {
+	if err := json.Unmarshal(bytes, &r); err != nil {
 		panic(err)
 	}
 	_ = r
 }
 
-func jsonenc() {
-	buf, err := json.Marshal(&jsondata)
+func jsonenc(data *JSONResponse) {
+	buf, err := json.Marshal(data)
 	if err != nil {
 		panic(err)
 	}
@@ -72,15 +67,20 @@ func jsonenc() {
 }
 
 func BenchmarkJSONEncode(b *testing.B) {
+	jsonbytes := makeJsonBytes()
+	jsondata := makeJsonData(jsonbytes)
+	b.ResetTimer()
 	b.SetBytes(int64(len(jsonbytes)))
 	for i := 0; i < b.N; i++ {
-		jsonenc()
+		jsonenc(jsondata)
 	}
 }
 
 func BenchmarkJSONDecode(b *testing.B) {
+	jsonbytes := makeJsonBytes()
+	b.ResetTimer()
 	b.SetBytes(int64(len(jsonbytes)))
 	for i := 0; i < b.N; i++ {
-		jsondec()
+		jsondec(jsonbytes)
 	}
 }

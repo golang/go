@@ -1,4 +1,4 @@
-// run -gcflags=-G=3
+// run
 
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -183,7 +183,7 @@ func _Ranger[Elem any]() (*_Sender[Elem], *_Receiver[Elem]) {
 		values: c,
 		done:   d,
 	}
-	r := &_Receiver[Elem] {
+	r := &_Receiver[Elem]{
 		values: c,
 		done:   d,
 	}

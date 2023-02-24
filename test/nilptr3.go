@@ -241,3 +241,10 @@ func f9() []int {
 	y := x[:] // ERROR "removed nil check"
 	return y
 }
+
+// See issue 42673.
+func f10(p **int) int {
+	return * // ERROR "removed nil check"
+	/* */
+	*p // ERROR "removed nil check"
+}

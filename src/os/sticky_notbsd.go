@@ -3,14 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !aix && !darwin && !dragonfly && !freebsd && (!js || !wasm) && !netbsd && !openbsd && !solaris
-// +build !aix
-// +build !darwin
-// +build !dragonfly
-// +build !freebsd
-// +build !js !wasm
-// +build !netbsd
-// +build !openbsd
-// +build !solaris
 
 package os
 

@@ -13,6 +13,7 @@ func cmovint(c int) int {
 	}
 	// amd64:"CMOVQLT"
 	// arm64:"CSEL\tLT"
+	// ppc64x:"ISEL\t[$]0"
 	// wasm:"Select"
 	return x
 }
@@ -23,6 +24,7 @@ func cmovchan(x, y chan int) chan int {
 	}
 	// amd64:"CMOVQNE"
 	// arm64:"CSEL\tNE"
+	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
 	return x
 }
@@ -33,6 +35,7 @@ func cmovuintptr(x, y uintptr) uintptr {
 	}
 	// amd64:"CMOVQ(HI|CS)"
 	// arm64:"CSNEG\tLS"
+	// ppc64x:"ISEL\t[$]1"
 	// wasm:"Select"
 	return x
 }
@@ -43,6 +46,7 @@ func cmov32bit(x, y uint32) uint32 {
 	}
 	// amd64:"CMOVL(HI|CS)"
 	// arm64:"CSNEG\t(LS|HS)"
+	// ppc64x:"ISEL\t[$]1"
 	// wasm:"Select"
 	return x
 }
@@ -53,6 +57,7 @@ func cmov16bit(x, y uint16) uint16 {
 	}
 	// amd64:"CMOVW(HI|CS)"
 	// arm64:"CSNEG\t(LS|HS)"
+	// ppc64x:"ISEL\t[$]0"
 	// wasm:"Select"
 	return x
 }
@@ -66,6 +71,7 @@ func cmovfloateq(x, y float64) int {
 	}
 	// amd64:"CMOVQNE","CMOVQPC"
 	// arm64:"CSEL\tEQ"
+	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
 	return a
 }
@@ -77,6 +83,7 @@ func cmovfloatne(x, y float64) int {
 	}
 	// amd64:"CMOVQNE","CMOVQPS"
 	// arm64:"CSEL\tNE"
+	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
 	return a
 }
@@ -103,6 +110,7 @@ func cmovfloatint2(x, y float64) float64 {
 		}
 		// amd64:"CMOVQHI"
 		// arm64:"CSEL\tMI"
+		// ppc64x:"ISEL\t[$]0"
 		// wasm:"Select"
 		r = r - ldexp(y, rexp-yexp)
 	}
@@ -117,6 +125,7 @@ func cmovloaded(x [4]int, y int) int {
 	}
 	// amd64:"CMOVQNE"
 	// arm64:"CSEL\tNE"
+	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
 	return y
 }
@@ -128,11 +137,12 @@ func cmovuintptr2(x, y uintptr) uintptr {
 	}
 	// amd64:"CMOVQEQ"
 	// arm64:"CSEL\tEQ"
+	// ppc64x:"ISEL\t[$]2"
 	// wasm:"Select"
 	return a
 }
 
-// Floating point CMOVs are not supported by amd64/arm64
+// Floating point CMOVs are not supported by amd64/arm64/ppc64x
 func cmovfloatmove(x, y int) float64 {
 	a := 1.0
 	if x <= y {
@@ -140,6 +150,7 @@ func cmovfloatmove(x, y int) float64 {
 	}
 	// amd64:-"CMOV"
 	// arm64:-"CSEL"
+	// ppc64x:-"ISEL"
 	// wasm:-"Select"
 	return a
 }
@@ -399,4 +410,44 @@ func cmovFcmp1(s, t float64, a, b int) {
 	}
 	// arm64:"CSINC\tEQ", -"CSEL"
 	r5 = x5
+}
+
+func cmovzero1(c bool) int {
+	var x int
+	if c {
+		x = 182
+	}
+	// loong64:"MASKEQZ", -"MASKNEZ"
+	return x
+}
+
+func cmovzero2(c bool) int {
+	var x int
+	if !c {
+		x = 182
+	}
+	// loong64:"MASKNEZ", -"MASKEQZ"
+	return x
+}
+
+// Conditionally selecting between a value or 0 can be done without
+// an extra load of 0 to a register on PPC64 by using R0 (which always
+// holds the value $0) instead. Verify both cases where either arg1
+// or arg2 is zero.
+func cmovzeroreg0(a, b int) int {
+	x := 0
+	if a == b {
+		x = a
+	}
+	// ppc64x:"ISEL\t[$]2, R[0-9]+, R0, R[0-9]+"
+	return x
+}
+
+func cmovzeroreg1(a, b int) int {
+	x := a
+	if a == b {
+		x = 0
+	}
+	// ppc64x:"ISEL\t[$]2, R0, R[0-9]+, R[0-9]+"
+	return x
 }

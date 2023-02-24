@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !faketime
-// +build !faketime
 
 package runtime
 
@@ -20,9 +19,14 @@ func nanotime() int64 {
 	return nanotime1()
 }
 
+var overrideWrite func(fd uintptr, p unsafe.Pointer, n int32) int32
+
 // write must be nosplit on Windows (see write1)
 //
 //go:nosplit
 func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+	if overrideWrite != nil {
+		return overrideWrite(fd, noescape(p), n)
+	}
 	return write1(fd, p, n)
 }

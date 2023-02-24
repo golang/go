@@ -1,0 +1,230 @@
+[short] skip
+[!fuzz-instrumented] skip
+
+# Test that when an interesting value is discovered (one that expands coverage),
+# the fuzzing engine minimizes it before writing it to the cache.
+#
+# The program below starts with a seed value of length 100, but more coverage
+# will be found for any value other than the seed. We should end with a value
+# in the cache of length 1 (the minimizer currently does not produce empty
+# strings). check_cache.go confirms that.
+#
+# We would like to verify that ALL values in the cache were minimized to a
+# length of 1, but this isn't always possible when new coverage is found in
+# functions called by testing or internal/fuzz in the background.
+
+go test -c -fuzz=.  # Build using shared build cache for speed.
+env GOCACHE=$WORK/gocache
+exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinCache -test.fuzztime=1000x
+go run check_cache/check_cache.go $GOCACHE/fuzz/FuzzMinCache
+
+# Test that minimization occurs for a crash that appears while minimizing a
+# newly found interesting input. There must be only one worker for this test to
+# be flaky like we want.
+! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerCrashInMinimization -test.run=XXX -test.fuzztime=10000x -test.parallel=1
+! stdout '^ok'
+stdout -count=1 'got the minimum size!'
+stdout -count=1 'bad input'
+stdout FAIL
+# Check that the input written to testdata will reproduce the error, and is the
+# smallest possible.
+go run check_testdata/check_testdata.go FuzzMinimizerCrashInMinimization 1
+
+# Test that a nonrecoverable error that occurs while minimizing an interesting
+# input is reported correctly.
+! exec ./fuzz.test$GOEXE -test.fuzzcachedir=$GOCACHE/fuzz -test.fuzz=FuzzMinimizerNonrecoverableCrashInMinimization -test.run=XXX -test.fuzztime=10000x -test.parallel=1
+! stdout '^ok'
+stdout -count=1 'fuzzing process hung or terminated unexpectedly while minimizing'
+stdout -count=1 'EOF'
+stdout FAIL
+# Check that the input written to testdata will reproduce the error.
+go run check_testdata/check_testdata.go FuzzMinimizerNonrecoverableCrashInMinimization 1
+
+-- go.mod --
+module fuzz
+
+go 1.17
+-- y.go --
+package fuzz
+
+import (
+	"bytes"
+	"io"
+)
+
+func Y(w io.Writer, s string) {
+	if !bytes.Equal([]byte(s), []byte("y")) {
+		w.Write([]byte("not equal"))
+	}
+}
+-- fuzz_test.go --
+package fuzz
+
+import (
+	"bytes"
+	"os"
+	"testing"
+)
+
+func FuzzMinimizerCrashInMinimization(f *testing.F) {
+	seed := bytes.Repeat([]byte{255}, 100)
+	f.Add(seed)
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if bytes.Equal(seed, b) {
+			return
+		}
+		t.Error("bad input")
+		if len(b) == 1 {
+			t.Error("got the minimum size!")
+		}
+	})
+}
+
+var fuzzing bool
+
+func FuzzMinimizerNonrecoverableCrashInMinimization(f *testing.F) {
+	seed := bytes.Repeat([]byte{255}, 100)
+	f.Add(seed)
+	f.Fuzz(func(t *testing.T, b []byte) {
+		if bytes.Equal(seed, b) {
+			return
+		} else if len(b) == 1 {
+			os.Exit(1)
+		}
+	})
+}
+
+func FuzzMinCache(f *testing.F) {
+	seed := bytes.Repeat([]byte("a"), 20)
+	f.Add(seed)
+	f.Fuzz(func(t *testing.T, buf []byte) {
+		if bytes.Equal(buf, seed) {
+			return
+		}
+	})
+}
+-- check_testdata/check_testdata.go --
+//go:build ignore
+// +build ignore
+
+// check_testdata.go checks that the string written
+// is not longer than the provided length.
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+)
+
+func main() {
+	wantLen, err := strconv.Atoi(os.Args[2])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	testName := os.Args[1]
+	dir := filepath.Join("testdata/fuzz", testName)
+
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if len(files) == 0 {
+		fmt.Fprintf(os.Stderr, "expect at least one failure to be written to testdata\n")
+		os.Exit(1)
+	}
+
+	for _, f := range files {
+		data, err := ioutil.ReadFile(filepath.Join(dir, f.Name()))
+		if err != nil {
+			panic(err)
+		}
+		var containsVal bool
+		for _, line := range bytes.Split(data, []byte("\n")) {
+			m := valRe.FindSubmatch(line)
+			if m == nil {
+				continue
+			}
+			containsVal = true
+			s, err := strconv.Unquote(string(m[1]))
+			if err != nil {
+				panic(err)
+			}
+			if len(s) != wantLen {
+				fmt.Fprintf(os.Stderr, "expect length %d, got %d (%q)\n", wantLen, len(s), line)
+				os.Exit(1)
+			}
+		}
+		if !containsVal {
+			fmt.Fprintln(os.Stderr, "corpus file contained no values")
+			os.Exit(1)
+		}
+	}
+}
+
+var valRe = regexp.MustCompile(`^\[\]byte\(([^)]+)\)$`)
+
+-- check_cache/check_cache.go --
+//go:build ignore
+// +build ignore
+
+// check_cache.go checks that each file in the cached corpus has a []byte
+// of length at most 1. This verifies that at least one cached input is minimized.
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+)
+
+func main() {
+	dir := os.Args[1]
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	for _, ent := range ents {
+		name := filepath.Join(dir, ent.Name())
+		if good, err := checkCacheFile(name); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		} else if good {
+			os.Exit(0)
+		}
+	}
+	fmt.Fprintln(os.Stderr, "no cached inputs were minimized")
+	os.Exit(1)
+}
+
+func checkCacheFile(name string) (good bool, err error) {
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return false, err
+	}
+	for _, line := range bytes.Split(data, []byte("\n")) {
+		m := valRe.FindSubmatch(line)
+		if m == nil {
+			continue
+		}
+		if s, err := strconv.Unquote(string(m[1])); err != nil {
+			return false, err
+		} else if len(s) <= 1 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+var valRe = regexp.MustCompile(`^\[\]byte\(([^)]+)\)$`)

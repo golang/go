@@ -12,6 +12,7 @@ package math
 // unnecessary overflow and underflow.
 //
 // Special cases are:
+//
 //	Hypot(±Inf, q) = +Inf
 //	Hypot(p, ±Inf) = +Inf
 //	Hypot(NaN, q) = NaN
@@ -24,14 +25,14 @@ func Hypot(p, q float64) float64 {
 }
 
 func hypot(p, q float64) float64 {
+	p, q = Abs(p), Abs(q)
 	// special cases
 	switch {
-	case IsInf(p, 0) || IsInf(q, 0):
+	case IsInf(p, 1) || IsInf(q, 1):
 		return Inf(1)
 	case IsNaN(p) || IsNaN(q):
 		return NaN()
 	}
-	p, q = Abs(p), Abs(q)
 	if p < q {
 		p, q = q, p
 	}

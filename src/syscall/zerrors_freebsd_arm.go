@@ -5,7 +5,6 @@
 // cgo -godefs -- _const.go
 
 //go:build arm && freebsd
-// +build arm,freebsd
 
 package syscall
 

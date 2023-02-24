@@ -8,9 +8,7 @@ import (
 	"debug/dwarf"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -221,13 +219,7 @@ func TestScopeRanges(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	dir, err := ioutil.TempDir("", "TestScopeRanges")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
-
-	src, f := gobuild(t, dir, false, testfile)
+	src, f := gobuild(t, t.TempDir(), false, testfile)
 	defer f.Close()
 
 	// the compiler uses forward slashes for paths even on windows
@@ -475,7 +467,7 @@ func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (str
 	}
 	args = append(args, "-o", dst, src)
 
-	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", string(b))
 		t.Fatal(err)
@@ -498,13 +490,7 @@ func TestEmptyDwarfRanges(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	dir, err := ioutil.TempDir("", "TestEmptyDwarfRanges")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
-
-	_, f := gobuild(t, dir, true, []testline{{line: "package main"}, {line: "func main(){ println(\"hello\") }"}})
+	_, f := gobuild(t, t.TempDir(), true, []testline{{line: "package main"}, {line: "func main(){ println(\"hello\") }"}})
 	defer f.Close()
 
 	dwarfData, err := f.DWARF()

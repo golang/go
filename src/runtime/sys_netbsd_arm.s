@@ -56,7 +56,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW.CS R8, (R8)
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVW wait+0(FP), R0
 	// We're done using the stack.
@@ -94,22 +94,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	SWI $SYS_read
 	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	SWI $0xa0002a
-	BCC pipeok
-	MOVW $-1,R2
-	MOVW R2, r+0(FP)
-	MOVW R2, w+4(FP)
-	MOVW R0, errno+8(FP)
-	RET
-pipeok:
-	MOVW $0, R2
-	MOVW R0, r+0(FP)
-	MOVW R1, w+4(FP)
-	MOVW R2, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -304,7 +288,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R4, R13
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
 	// Reserve space for callee-save registers and arguments.
 	MOVM.DB.W [R4-R11], (R13)
 	SUB	$16, R13
@@ -420,18 +404,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW $F_SETFD, R1	// F_SETFD
 	MOVW $FD_CLOEXEC, R2	// FD_CLOEXEC
 	SWI $SYS_fcntl
-	RET
-
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
-	MOVW fd+0(FP), R0	// fd
-	MOVW $3, R1	// F_GETFL
-	MOVW $0, R2
-	SWI $0xa0005c	// sys_fcntl
-	ORR $0x4, R0, R2	// O_NONBLOCK
-	MOVW fd+0(FP), R0	// fd
-	MOVW $4, R1	// F_SETFL
-	SWI $0xa0005c	// sys_fcntl
 	RET
 
 // TODO: this is only valid for ARMv7+

@@ -127,10 +127,7 @@ var Linkwasm = obj.LinkArch{
 var (
 	morestack       *obj.LSym
 	morestackNoCtxt *obj.LSym
-	gcWriteBarrier  *obj.LSym
 	sigpanic        *obj.LSym
-	deferreturn     *obj.LSym
-	jmpdefer        *obj.LSym
 )
 
 const (
@@ -141,12 +138,7 @@ const (
 func instinit(ctxt *obj.Link) {
 	morestack = ctxt.Lookup("runtime.morestack")
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
-	gcWriteBarrier = ctxt.LookupABI("runtime.gcWriteBarrier", obj.ABIInternal)
 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
-	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
-	// jmpdefer is defined in assembly as ABI0. The compiler will
-	// generate a direct ABI0 call from Go, so look for that.
-	jmpdefer = ctxt.LookupABI(`"".jmpdefer`, obj.ABI0)
 }
 
 func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -249,6 +241,51 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		p.Spadj = int32(framesize)
 	}
 
+	needMoreStack := !s.Func().Text.From.Sym.NoSplit()
+
+	// If the maymorestack debug option is enabled, insert the
+	// call to maymorestack *before* processing resume points so
+	// we can construct a resume point after maymorestack for
+	// morestack to resume at.
+	var pMorestack = s.Func().Text
+	if needMoreStack && ctxt.Flag_maymorestack != "" {
+		p := pMorestack
+
+		// Save REGCTXT on the stack.
+		const tempFrame = 8
+		p = appendp(p, AGet, regAddr(REG_SP))
+		p = appendp(p, AI32Const, constAddr(tempFrame))
+		p = appendp(p, AI32Sub)
+		p = appendp(p, ASet, regAddr(REG_SP))
+		p.Spadj = tempFrame
+		ctxtp := obj.Addr{
+			Type:   obj.TYPE_MEM,
+			Reg:    REG_SP,
+			Offset: 0,
+		}
+		p = appendp(p, AMOVD, regAddr(REGCTXT), ctxtp)
+
+		// maymorestack must not itself preempt because we
+		// don't have full stack information, so this can be
+		// ACALLNORESUME.
+		p = appendp(p, ACALLNORESUME, constAddr(0))
+		// See ../x86/obj6.go
+		sym := ctxt.LookupABI(ctxt.Flag_maymorestack, s.ABI())
+		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: sym}
+
+		// Restore REGCTXT.
+		p = appendp(p, AMOVD, ctxtp, regAddr(REGCTXT))
+		p = appendp(p, AGet, regAddr(REG_SP))
+		p = appendp(p, AI32Const, constAddr(tempFrame))
+		p = appendp(p, AI32Add)
+		p = appendp(p, ASet, regAddr(REG_SP))
+		p.Spadj = -tempFrame
+
+		// Add an explicit ARESUMEPOINT after maymorestack for
+		// morestack to resume at.
+		pMorestack = appendp(p, ARESUMEPOINT)
+	}
+
 	// Introduce resume points for CALL instructions
 	// and collect other explicit resume points.
 	numResumePoints := 0
@@ -309,8 +346,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	tableIdxs = append(tableIdxs, uint64(numResumePoints))
 	s.Size = pc + 1
 
-	if !s.Func().Text.From.Sym.NoSplit() {
-		p := s.Func().Text
+	if needMoreStack {
+		p := pMorestack
 
 		if framesize <= objabi.StackSmall {
 			// small stack: SP <= stackguard
@@ -340,13 +377,20 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			p = appendp(p, AGet, regAddr(REGG))
 			p = appendp(p, AI32WrapI64)
 			p = appendp(p, AI32Load, constAddr(2*int64(ctxt.Arch.PtrSize))) // G.stackguard0
-			p = appendp(p, AI32Const, constAddr(int64(framesize)-objabi.StackSmall))
+			p = appendp(p, AI32Const, constAddr(framesize-objabi.StackSmall))
 			p = appendp(p, AI32Add)
 			p = appendp(p, AI32LeU)
 		}
 		// TODO(neelance): handle wraparound case
 
 		p = appendp(p, AIf)
+		// This CALL does *not* have a resume point after it
+		// (we already inserted all of the resume points). As
+		// a result, morestack will resume at the *previous*
+		// resume point (typically, the beginning of the
+		// function) and perform the morestack check again.
+		// This is why we don't need an explicit loop like
+		// other architectures.
 		p = appendp(p, obj.ACALL, constAddr(0))
 		if s.Func().Text.From.Sym.NeedCtxt() {
 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: morestack}
@@ -423,12 +467,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				pcAfterCall-- // sigpanic expects to be called without advancing the pc
 			}
 
-			// jmpdefer manipulates the return address on the stack so deferreturn gets called repeatedly.
-			// Model this in WebAssembly with a loop.
-			if call.To.Sym == deferreturn {
-				p = appendp(p, ALoop)
-			}
-
 			// SP -= 8
 			p = appendp(p, AGet, regAddr(REG_SP))
 			p = appendp(p, AI32Const, constAddr(8))
@@ -474,20 +512,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				panic("bad target for CALL")
 			}
 
-			// gcWriteBarrier has no return value, it never unwinds the stack
-			if call.To.Sym == gcWriteBarrier {
-				break
-			}
-
-			// jmpdefer removes the frame of deferreturn from the Go stack.
-			// However, its WebAssembly function still returns normally,
-			// so we need to return from deferreturn without removing its
-			// stack frame (no RET), because the frame is already gone.
-			if call.To.Sym == jmpdefer {
-				p = appendp(p, AReturn)
-				break
-			}
-
 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
 			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
@@ -498,21 +522,6 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				// unwinding WebAssembly stack to switch goroutine, return 1
 				p = appendp(p, ABrIf)
 				unwindExitBranches = append(unwindExitBranches, p)
-			}
-
-			// jump to before the call if jmpdefer has reset the return address to the call's PC
-			if call.To.Sym == deferreturn {
-				// get PC_B from -8(SP)
-				p = appendp(p, AGet, regAddr(REG_SP))
-				p = appendp(p, AI32Const, constAddr(8))
-				p = appendp(p, AI32Sub)
-				p = appendp(p, AI32Load16U, constAddr(0))
-				p = appendp(p, ATee, regAddr(REG_PC_B))
-
-				p = appendp(p, AI32Const, constAddr(call.Pc))
-				p = appendp(p, AI32Eq)
-				p = appendp(p, ABrIf, constAddr(0))
-				p = appendp(p, AEnd) // end of Loop
 			}
 
 		case obj.ARET, ARETUNWIND:
@@ -561,18 +570,18 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.From.Name {
 		case obj.NAME_AUTO:
-			p.From.Offset += int64(framesize)
+			p.From.Offset += framesize
 		case obj.NAME_PARAM:
 			p.From.Reg = REG_SP
-			p.From.Offset += int64(framesize) + 8 // parameters are after the frame and the 8-byte return address
+			p.From.Offset += framesize + 8 // parameters are after the frame and the 8-byte return address
 		}
 
 		switch p.To.Name {
 		case obj.NAME_AUTO:
-			p.To.Offset += int64(framesize)
+			p.To.Offset += framesize
 		case obj.NAME_PARAM:
 			p.To.Reg = REG_SP
-			p.To.Offset += int64(framesize) + 8 // parameters are after the frame and the 8-byte return address
+			p.To.Offset += framesize + 8 // parameters are after the frame and the 8-byte return address
 		}
 
 		switch p.As {
@@ -778,21 +787,27 @@ func regAddr(reg int16) obj.Addr {
 // Most of the Go functions has a single parameter (PC_B) in
 // Wasm ABI. This is a list of exceptions.
 var notUsePC_B = map[string]bool{
-	"_rt0_wasm_js":           true,
-	"wasm_export_run":        true,
-	"wasm_export_resume":     true,
-	"wasm_export_getsp":      true,
-	"wasm_pc_f_loop":         true,
-	"runtime.wasmMove":       true,
-	"runtime.wasmZero":       true,
-	"runtime.wasmDiv":        true,
-	"runtime.wasmTruncS":     true,
-	"runtime.wasmTruncU":     true,
-	"runtime.gcWriteBarrier": true,
-	"cmpbody":                true,
-	"memeqbody":              true,
-	"memcmp":                 true,
-	"memchr":                 true,
+	"_rt0_wasm_js":            true,
+	"wasm_export_run":         true,
+	"wasm_export_resume":      true,
+	"wasm_export_getsp":       true,
+	"wasm_pc_f_loop":          true,
+	"gcWriteBarrier":          true,
+	"runtime.gcWriteBarrier1": true,
+	"runtime.gcWriteBarrier2": true,
+	"runtime.gcWriteBarrier3": true,
+	"runtime.gcWriteBarrier4": true,
+	"runtime.gcWriteBarrier5": true,
+	"runtime.gcWriteBarrier6": true,
+	"runtime.gcWriteBarrier7": true,
+	"runtime.gcWriteBarrier8": true,
+	"runtime.wasmDiv":         true,
+	"runtime.wasmTruncS":      true,
+	"runtime.wasmTruncU":      true,
+	"cmpbody":                 true,
+	"memeqbody":               true,
+	"memcmp":                  true,
+	"memchr":                  true,
 }
 
 func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -828,7 +843,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	// Some functions use a special calling convention.
 	switch s.Name {
 	case "_rt0_wasm_js", "wasm_export_run", "wasm_export_resume", "wasm_export_getsp", "wasm_pc_f_loop",
-		"runtime.wasmMove", "runtime.wasmZero", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
+		"runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
 		varDecls = []*varDecl{}
 		useAssemblyRegMap()
 	case "memchr", "memcmp":
@@ -837,8 +852,18 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	case "cmpbody":
 		varDecls = []*varDecl{{count: 2, typ: i64}}
 		useAssemblyRegMap()
-	case "runtime.gcWriteBarrier":
-		varDecls = []*varDecl{{count: 4, typ: i64}}
+	case "gcWriteBarrier":
+		varDecls = []*varDecl{{count: 5, typ: i64}}
+		useAssemblyRegMap()
+	case "runtime.gcWriteBarrier1",
+		"runtime.gcWriteBarrier2",
+		"runtime.gcWriteBarrier3",
+		"runtime.gcWriteBarrier4",
+		"runtime.gcWriteBarrier5",
+		"runtime.gcWriteBarrier6",
+		"runtime.gcWriteBarrier7",
+		"runtime.gcWriteBarrier8":
+		// no locals
 		useAssemblyRegMap()
 	default:
 		// Normal calling convention: PC_B as WebAssembly parameter. First local variable is local SP cache.
@@ -1072,7 +1097,11 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			writeUleb128(w, align(p.As))
 			writeUleb128(w, uint64(p.To.Offset))
 
-		case ACurrentMemory, AGrowMemory:
+		case ACurrentMemory, AGrowMemory, AMemoryFill:
+			w.WriteByte(0x00)
+
+		case AMemoryCopy:
+			w.WriteByte(0x00)
 			w.WriteByte(0x00)
 
 		}

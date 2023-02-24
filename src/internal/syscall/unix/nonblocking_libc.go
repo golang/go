@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || solaris
-// +build aix darwin solaris
+//go:build aix || darwin || (openbsd && !mips64) || solaris
 
 package unix
 
@@ -21,5 +20,6 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
 }
 
 // Implemented in the syscall package.
+//
 //go:linkname fcntl syscall.fcntl
 func fcntl(fd int, cmd int, arg int) (int, error)

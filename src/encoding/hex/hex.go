@@ -12,7 +12,26 @@ import (
 	"strings"
 )
 
-const hextable = "0123456789abcdef"
+const (
+	hextable        = "0123456789abcdef"
+	reverseHexTable = "" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\xff\xff\xff\xff\xff\xff" +
+		"\xff\x0a\x0b\x0c\x0d\x0e\x0f\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\x0a\x0b\x0c\x0d\x0e\x0f\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff" +
+		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+)
 
 // EncodedLen returns the length of an encoding of n source bytes.
 // Specifically, it returns n * 2.
@@ -58,13 +77,16 @@ func DecodedLen(x int) int { return x / 2 }
 func Decode(dst, src []byte) (int, error) {
 	i, j := 0, 1
 	for ; j < len(src); j += 2 {
-		a, ok := fromHexChar(src[j-1])
-		if !ok {
-			return i, InvalidByteError(src[j-1])
+		p := src[j-1]
+		q := src[j]
+
+		a := reverseHexTable[p]
+		b := reverseHexTable[q]
+		if a > 0x0f {
+			return i, InvalidByteError(p)
 		}
-		b, ok := fromHexChar(src[j])
-		if !ok {
-			return i, InvalidByteError(src[j])
+		if b > 0x0f {
+			return i, InvalidByteError(q)
 		}
 		dst[i] = (a << 4) | b
 		i++
@@ -72,26 +94,12 @@ func Decode(dst, src []byte) (int, error) {
 	if len(src)%2 == 1 {
 		// Check for invalid char before reporting bad length,
 		// since the invalid char (if present) is an earlier problem.
-		if _, ok := fromHexChar(src[j-1]); !ok {
+		if reverseHexTable[src[j-1]] > 0x0f {
 			return i, InvalidByteError(src[j-1])
 		}
 		return i, ErrLength
 	}
 	return i, nil
-}
-
-// fromHexChar converts a hex character into its value and a success flag.
-func fromHexChar(c byte) (byte, bool) {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0', true
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10, true
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10, true
-	}
-
-	return 0, false
 }
 
 // EncodeToString returns the hexadecimal encoding of src.
@@ -185,7 +193,8 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		numRead, d.err = d.r.Read(d.arr[numCopy:])
 		d.in = d.arr[:numCopy+numRead]
 		if d.err == io.EOF && len(d.in)%2 != 0 {
-			if _, ok := fromHexChar(d.in[len(d.in)-1]); !ok {
+
+			if a := reverseHexTable[d.in[len(d.in)-1]]; a > 0x0f {
 				d.err = InvalidByteError(d.in[len(d.in)-1])
 			} else {
 				d.err = io.ErrUnexpectedEOF

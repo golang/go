@@ -8,6 +8,7 @@ import (
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"encoding/binary"
+	"fmt"
 	"log"
 )
 
@@ -26,7 +27,7 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym, 
 	dst := []byte{}
 	sym := &LSym{
 		Type:      objabi.SRODATA,
-		Attribute: AttrContentAddressable,
+		Attribute: AttrContentAddressable | AttrPcdata,
 	}
 
 	if dbg {
@@ -141,7 +142,7 @@ func pctofileline(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg
 	if p.As == ATEXT || p.As == ANOP || p.Pos.Line() == 0 || phase == 1 {
 		return oldval
 	}
-	f, l := getFileIndexAndLine(ctxt, p.Pos)
+	f, l := ctxt.getFileIndexAndLine(p.Pos)
 	if arg == nil {
 		return l
 	}
@@ -280,8 +281,6 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 
 	pcln.Pcdata = make([]*LSym, npcdata)
 	pcln.Funcdata = make([]*LSym, nfuncdata)
-	pcln.Funcdataoff = make([]int64, nfuncdata)
-	pcln.Funcdataoff = pcln.Funcdataoff[:nfuncdata]
 
 	pcln.Pcsp = funcpctab(ctxt, cursym, "pctospadj", pctospadj, nil)
 	pcln.Pcfile = funcpctab(ctxt, cursym, "pctofile", pctofileline, pcln)
@@ -295,9 +294,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 		inlMarkProgs[inlMark.p] = struct{}{}
 	}
 	for p := fn.Text; p != nil; p = p.Link {
-		if _, ok := inlMarkProgs[p]; ok {
-			delete(inlMarkProgs, p)
-		}
+		delete(inlMarkProgs, p)
 	}
 	if len(inlMarkProgs) > 0 {
 		ctxt.Diag("one or more instructions used as inline markers are no longer reachable")
@@ -337,7 +334,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 			// use an empty symbol.
 			pcln.Pcdata[i] = &LSym{
 				Type:      objabi.SRODATA,
-				Attribute: AttrContentAddressable,
+				Attribute: AttrContentAddressable | AttrPcdata,
 			}
 		} else {
 			pcln.Pcdata[i] = funcpctab(ctxt, cursym, "pctopcdata", pctopcdata, interface{}(uint32(i)))
@@ -351,12 +348,10 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 				continue
 			}
 			i := int(p.From.Offset)
-			pcln.Funcdataoff[i] = p.To.Offset
-			if p.To.Type != TYPE_CONST {
-				// TODO: Dedup.
-				//funcdata_bytes += p->to.sym->size;
-				pcln.Funcdata[i] = p.To.Sym
+			if p.To.Type != TYPE_MEM || p.To.Offset != 0 {
+				panic(fmt.Sprintf("bad funcdata: %v", p))
 			}
+			pcln.Funcdata[i] = p.To.Sym
 		}
 	}
 }
@@ -372,7 +367,7 @@ type PCIter struct {
 	Done    bool
 }
 
-// newPCIter creates a PCIter with a scale factor for the PC step size.
+// NewPCIter creates a PCIter with a scale factor for the PC step size.
 func NewPCIter(pcScale uint32) *PCIter {
 	it := new(PCIter)
 	it.PCScale = pcScale

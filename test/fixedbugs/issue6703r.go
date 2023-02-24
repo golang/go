@@ -24,5 +24,5 @@ type E struct{ T }
 
 var (
 	e E
-	x = g().m() // ERROR "initialization loop|depends upon itself" 
+	x = g().m() // ERROR "initialization cycle|depends upon itself" 
 )

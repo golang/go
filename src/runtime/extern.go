@@ -8,7 +8,7 @@ such as functions to control goroutines. It also includes the low-level type inf
 used by the reflect package; see reflect's documentation for the programmable
 interface to the run-time type system.
 
-Environment Variables
+# Environment Variables
 
 The following environment variables ($name or %name%, depending on the host
 operating system) control the run-time behavior of Go programs. The meanings
@@ -18,8 +18,19 @@ The GOGC variable sets the initial garbage collection target percentage.
 A collection is triggered when the ratio of freshly allocated data to live data
 remaining after the previous collection reaches this percentage. The default
 is GOGC=100. Setting GOGC=off disables the garbage collector entirely.
-The runtime/debug package's SetGCPercent function allows changing this
-percentage at run time. See https://golang.org/pkg/runtime/debug/#SetGCPercent.
+[runtime/debug.SetGCPercent] allows changing this percentage at run time.
+
+The GOMEMLIMIT variable sets a soft memory limit for the runtime. This memory limit
+includes the Go heap and all other memory managed by the runtime, and excludes
+external memory sources such as mappings of the binary itself, memory managed in
+other languages, and memory held by the operating system on behalf of the Go
+program. GOMEMLIMIT is a numeric value in bytes with an optional unit suffix.
+The supported suffixes include B, KiB, MiB, GiB, and TiB. These suffixes
+represent quantities of bytes as defined by the IEC 80000-13 standard. That is,
+they are based on powers of two: KiB means 2^10 bytes, MiB means 2^20 bytes,
+and so on. The default setting is math.MaxInt64, which effectively disables the
+memory limit. [runtime/debug.SetMemoryLimit] allows changing this limit at run
+time.
 
 The GODEBUG variable controls debugging variables within the runtime.
 It is a comma-separated list of name=val pairs setting these named variables:
@@ -31,12 +42,18 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	clobber the memory content of an object with bad content when it frees
 	the object.
 
+	cpu.*: cpu.all=off disables the use of all optional instruction set extensions.
+	cpu.extension=off disables use of instructions from the specified instruction set extension.
+	extension is the lower case name for the instruction set extension such as sse41 or avx
+	as listed in internal/cpu package. As an example cpu.avx=off disables runtime detection
+	and thereby use of AVX instructions.
+
 	cgocheck: setting cgocheck=0 disables all checks for packages
 	using cgo to incorrectly pass Go pointers to non-Go code.
 	Setting cgocheck=1 (the default) enables relatively cheap
-	checks that may miss some errors.  Setting cgocheck=2 enables
-	expensive checks that should not miss any errors, but will
-	cause your program to run slower.
+	checks that may miss some errors. A more complete, but slow,
+	cgocheck mode can be enabled using GOEXPERIMENT (which
+	requires a rebuild), see https://pkg.go.dev/internal/goexperiment for details.
 
 	efence: setting efence=1 causes the allocator to run in a mode
 	where each object is allocated on a unique page and addresses are
@@ -62,21 +79,28 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	error at each collection, summarizing the amount of memory collected and the
 	length of the pause. The format of this line is subject to change.
 	Currently, it is:
-		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # P
+		gc # @#s #%: #+#+# ms clock, #+#/#/#+# ms cpu, #->#-># MB, # MB goal, # MB stacks, #MB globals, # P
 	where the fields are as follows:
-		gc #        the GC number, incremented at each GC
-		@#s         time in seconds since program start
-		#%          percentage of time spent in GC since program start
-		#+...+#     wall-clock/CPU times for the phases of the GC
-		#->#-># MB  heap size at GC start, at GC end, and live heap
-		# MB goal   goal heap size
-		# P         number of processors used
+		gc #         the GC number, incremented at each GC
+		@#s          time in seconds since program start
+		#%           percentage of time spent in GC since program start
+		#+...+#      wall-clock/CPU times for the phases of the GC
+		#->#-># MB   heap size at GC start, at GC end, and live heap
+		# MB goal    goal heap size
+		# MB stacks  estimated scannable stack size
+		# MB globals scannable global size
+		# P          number of processors used
 	The phases are stop-the-world (STW) sweep termination, concurrent
 	mark and scan, and STW mark termination. The CPU times
 	for mark/scan are broken down in to assist time (GC performed in
 	line with allocation), background GC time, and idle GC time.
 	If the line ends with "(forced)", this GC was forced by a
 	runtime.GC() call.
+
+	harddecommit: setting harddecommit=1 causes memory that is returned to the OS to
+	also have protections removed on it. This is the only mode of operation on Windows,
+	but is helpful in debugging scavenger-related issues on other platforms. Currently,
+	only supported on Linux.
 
 	inittrace: setting inittrace=1 causes the runtime to emit a single line to standard
 	error for each package with init work, summarizing the execution time and memory
@@ -94,11 +118,21 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	madvdontneed: setting madvdontneed=0 will use MADV_FREE
 	instead of MADV_DONTNEED on Linux when returning memory to the
 	kernel. This is more efficient, but means RSS numbers will
-	drop only when the OS is under memory pressure.
+	drop only when the OS is under memory pressure. On the BSDs and
+	Illumos/Solaris, setting madvdontneed=1 will use MADV_DONTNEED instead
+	of MADV_FREE. This is less efficient, but causes RSS numbers to drop
+	more quickly.
 
 	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
 	When set to 0 memory profiling is disabled.  Refer to the description of
 	MemProfileRate for the default value.
+
+	pagetrace: setting pagetrace=/path/to/file will write out a trace of page events
+	that can be viewed, analyzed, and visualized using the x/debug/cmd/pagetrace tool.
+	Build your program with GOEXPERIMENT=pagetrace to enable this functionality. Do not
+	enable this functionality if your program is a setuid binary as it introduces a security
+	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
+	option for some applications can produce large traces, so use with care.
 
 	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
 	copier to crash the program if an invalid pointer value (for example, 1)
@@ -115,9 +149,8 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	scavenger as well as the total amount of memory returned to the operating system
 	and an estimate of physical memory utilization. The format of this line is subject
 	to change, but currently it is:
-		scav # # KiB work, # KiB total, #% util
+		scav # KiB work, # KiB total, #% util
 	where the fields are as follows:
-		scav #       the scavenge cycle number
 		# KiB work   the amount of memory returned to the OS since the last line
 		# KiB total  the total amount of memory returned to the OS
 		#% util      the fraction of all unscavenged memory which is in-use
@@ -144,7 +177,7 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	because it also disables the conservative stack scanning used
 	for asynchronously preempted goroutines.
 
-The net, net/http, and crypto/tls packages also refer to debugging variables in GODEBUG.
+The net and net/http packages also refer to debugging variables in GODEBUG.
 See the documentation for those packages for details.
 
 The GOMAXPROCS variable limits the number of operating system threads that
@@ -165,9 +198,9 @@ or the failure is internal to the run-time.
 GOTRACEBACK=none omits the goroutine stack traces entirely.
 GOTRACEBACK=single (the default) behaves as described above.
 GOTRACEBACK=all adds stack traces for all user-created goroutines.
-GOTRACEBACK=system is like ``all'' but adds stack frames for run-time functions
+GOTRACEBACK=system is like “all” but adds stack frames for run-time functions
 and shows goroutines created internally by the run-time.
-GOTRACEBACK=crash is like ``system'' but crashes in an operating system-specific
+GOTRACEBACK=crash is like “system” but crashes in an operating system-specific
 manner instead of exiting. For example, on Unix systems, the crash raises
 SIGABRT to trigger a core dump.
 For historical reasons, the GOTRACEBACK settings 0, 1, and 2 are synonyms for
@@ -186,7 +219,10 @@ of the run-time system.
 */
 package runtime
 
-import "runtime/internal/sys"
+import (
+	"internal/goarch"
+	"internal/goos"
+)
 
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack. The argument skip is the number of stack frames
@@ -260,8 +296,8 @@ func Version() string {
 // GOOS is the running program's operating system target:
 // one of darwin, freebsd, linux, and so on.
 // To view possible combinations of GOOS and GOARCH, run "go tool dist list".
-const GOOS string = sys.GOOS
+const GOOS string = goos.GOOS
 
 // GOARCH is the running program's architecture target:
 // one of 386, amd64, arm, s390x, and so on.
-const GOARCH string = sys.GOARCH
+const GOARCH string = goarch.GOARCH

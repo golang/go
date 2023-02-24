@@ -2,9 +2,9 @@ env GO111MODULE=off
 
 # Test that the user can override default code generation flags.
 
-[gccgo] skip  # gccgo does not use -gcflags
+[compiler:gccgo] skip  # gccgo does not use -gcflags
 [!cgo] skip
-[!linux] skip  # test only works if c-archive implies -shared
+[!GOOS:linux] skip  # test only works if c-archive implies -shared
 [short] skip
 
 env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.

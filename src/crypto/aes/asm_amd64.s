@@ -15,7 +15,7 @@ TEXT ·encryptBlockAsm(SB),NOSPLIT,$0
 	ADDQ $16, AX
 	PXOR X1, X0
 	SUBQ $12, CX
-	JE Lenc196
+	JE Lenc192
 	JB Lenc128
 Lenc256:
 	MOVUPS 0(AX), X1
@@ -23,7 +23,7 @@ Lenc256:
 	MOVUPS 16(AX), X1
 	AESENC X1, X0
 	ADDQ $32, AX
-Lenc196:
+Lenc192:
 	MOVUPS 0(AX), X1
 	AESENC X1, X0
 	MOVUPS 16(AX), X1
@@ -64,7 +64,7 @@ TEXT ·decryptBlockAsm(SB),NOSPLIT,$0
 	ADDQ $16, AX
 	PXOR X1, X0
 	SUBQ $12, CX
-	JE Ldec196
+	JE Ldec192
 	JB Ldec128
 Ldec256:
 	MOVUPS 0(AX), X1
@@ -72,7 +72,7 @@ Ldec256:
 	MOVUPS 16(AX), X1
 	AESDEC X1, X0
 	ADDQ $32, AX
-Ldec196:
+Ldec192:
 	MOVUPS 0(AX), X1
 	AESDEC X1, X0
 	MOVUPS 16(AX), X1
@@ -115,7 +115,7 @@ TEXT ·expandKeyAsm(SB),NOSPLIT,$0
 	ADDQ $16, BX
 	PXOR X4, X4 // _expand_key_* expect X4 to be zero
 	CMPL CX, $12
-	JE Lexp_enc196
+	JE Lexp_enc192
 	JB Lexp_enc128
 Lexp_enc256:
 	MOVUPS 16(AX), X2
@@ -148,7 +148,7 @@ Lexp_enc256:
 	AESKEYGENASSIST $0x40, X2, X1
 	CALL _expand_key_256a<>(SB)
 	JMP Lexp_dec
-Lexp_enc196:
+Lexp_enc192:
 	MOVQ 16(AX), X2
 	AESKEYGENASSIST $0x01, X2, X1
 	CALL _expand_key_192a<>(SB)

@@ -7,7 +7,7 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	"fmt"
-	"regexp"
+	"internal/lazyregexp"
 	"strconv"
 	"strings"
 )
@@ -21,7 +21,7 @@ func (check *Checker) langCompat(lit *syntax.BasicLit) {
 	}
 	// len(s) > 2
 	if strings.Contains(s, "_") {
-		check.error(lit, "underscores in numeric literals requires go1.13 or later")
+		check.versionErrorf(lit, "go1.13", "underscores in numeric literals")
 		return
 	}
 	if s[0] != '0' {
@@ -29,15 +29,15 @@ func (check *Checker) langCompat(lit *syntax.BasicLit) {
 	}
 	radix := s[1]
 	if radix == 'b' || radix == 'B' {
-		check.error(lit, "binary literals requires go1.13 or later")
+		check.versionErrorf(lit, "go1.13", "binary literals")
 		return
 	}
 	if radix == 'o' || radix == 'O' {
-		check.error(lit, "0o/0O-style octal literals requires go1.13 or later")
+		check.versionErrorf(lit, "go1.13", "0o/0O-style octal literals")
 		return
 	}
 	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
-		check.error(lit, "hexadecimal floating-point literals requires go1.13 or later")
+		check.versionErrorf(lit, "go1.13", "hexadecimal floating-point literals")
 	}
 }
 
@@ -78,4 +78,4 @@ func parseGoVersion(s string) (v version, err error) {
 }
 
 // goVersionRx matches a Go version string, e.g. "go1.12".
-var goVersionRx = regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)
+var goVersionRx = lazyregexp.New(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`)

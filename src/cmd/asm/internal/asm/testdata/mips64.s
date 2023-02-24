@@ -21,9 +21,9 @@ label0:
 	BEQ	R1, 2(PC)
 	JMP	label0+0	// JMP 3	// 1000fffd
 	BEQ	R1, 2(PC)
-	JAL	1(PC)		// CALL 1(PC)	// 0c00000e
+	JAL	1(PC)		// CALL 1(PC)	// 0c00000f
 	BEQ	R1, 2(PC)
-	JAL	label0+0	// CALL 3	// 0c000006
+	JAL	label0+0	// CALL 3	// 0c000007
 
 //	LBRA addr
 //	{
@@ -32,11 +32,11 @@ label0:
 	BEQ	R1, 2(PC)
 	JMP	0(R1)		// JMP (R1)	// 00200008
 	BEQ	R1, 2(PC)
-	JMP	foo+0(SB)	// JMP foo(SB)	// 08000018
+	JMP	foo+0(SB)	// JMP foo(SB)	// 08000019
 	BEQ	R1, 2(PC)
 	JAL	0(R1)		// CALL (R1)	// 0020f809
 	BEQ	R1, 2(PC)
-	JAL	foo+0(SB)	// CALL foo(SB)	// 0c000020
+	JAL	foo+0(SB)	// CALL foo(SB)	// 0c000021
 
 //
 // BEQ/BNE

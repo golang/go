@@ -46,7 +46,7 @@ func CreateTemp(dir, pattern string) (*File, error) {
 			if try++; try < 10000 {
 				continue
 			}
-			return nil, &PathError{Op: "createtemp", Path: dir + string(PathSeparator) + prefix + "*" + suffix, Err: ErrExist}
+			return nil, &PathError{Op: "createtemp", Path: prefix + "*" + suffix, Err: ErrExist}
 		}
 		return f, err
 	}
@@ -117,7 +117,7 @@ func joinPath(dir, name string) string {
 	return dir + string(PathSeparator) + name
 }
 
-// LastIndexByte from the strings package.
+// lastIndex from the strings package.
 func lastIndex(s string, sep byte) int {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == sep {

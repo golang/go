@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
+//go:build !js
 
 package net
 
 import (
 	"internal/bytealg"
+	"internal/godebug"
 	"os"
 	"runtime"
 	"sync"
@@ -21,16 +21,13 @@ type conf struct {
 	forceCgoLookupHost bool
 
 	netGo  bool // go DNS resolution forced
-	netCgo bool // cgo DNS resolution forced
+	netCgo bool // non-go DNS resolution forced (cgo, or win32)
 
 	// machine has an /etc/mdns.allow file
 	hasMDNSAllow bool
 
 	goos          string // the runtime.GOOS, to ease testing
 	dnsDebugLevel int
-
-	nss    *nssConf
-	resolv *dnsConfig
 }
 
 var (
@@ -49,9 +46,23 @@ func initConfVal() {
 	confVal.dnsDebugLevel = debugLevel
 	confVal.netGo = netGo || dnsMode == "go"
 	confVal.netCgo = netCgo || dnsMode == "cgo"
+	if !confVal.netGo && !confVal.netCgo && (runtime.GOOS == "windows" || runtime.GOOS == "plan9") {
+		// Neither of these platforms actually use cgo.
+		//
+		// The meaning of "cgo" mode in the net package is
+		// really "the native OS way", which for libc meant
+		// cgo on the original platforms that motivated
+		// PreferGo support before Windows and Plan9 got support,
+		// at which time the GODEBUG=netdns=go and GODEBUG=netdns=cgo
+		// names were already kinda locked in.
+		confVal.netCgo = true
+	}
 
 	if confVal.dnsDebugLevel > 0 {
 		defer func() {
+			if confVal.dnsDebugLevel > 1 {
+				println("go package net: confVal.netCgo =", confVal.netCgo, " netGo =", confVal.netGo)
+			}
 			switch {
 			case confVal.netGo:
 				if netGo {
@@ -75,6 +86,10 @@ func initConfVal() {
 		return
 	}
 
+	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+		return
+	}
+
 	// If any environment-specified resolver options are specified,
 	// force cgo. Note that LOCALDOMAIN can change behavior merely
 	// by being specified with the empty string.
@@ -94,20 +109,6 @@ func initConfVal() {
 		return
 	}
 
-	if runtime.GOOS != "openbsd" {
-		confVal.nss = parseNSSConfFile("/etc/nsswitch.conf")
-	}
-
-	confVal.resolv = dnsReadConfig("/etc/resolv.conf")
-	if confVal.resolv.err != nil && !os.IsNotExist(confVal.resolv.err) &&
-		!os.IsPermission(confVal.resolv.err) {
-		// If we can't read the resolv.conf file, assume it
-		// had something important in it and defer to cgo.
-		// libc's resolver might then fail too, but at least
-		// it wasn't our fault.
-		confVal.forceCgoLookupHost = true
-	}
-
 	if _, err := os.Stat("/etc/mdns.allow"); err == nil {
 		confVal.hasMDNSAllow = true
 	}
@@ -116,12 +117,14 @@ func initConfVal() {
 // canUseCgo reports whether calling cgo functions is allowed
 // for non-hostname lookups.
 func (c *conf) canUseCgo() bool {
-	return c.hostLookupOrder(nil, "") == hostLookupCgo
+	ret, _ := c.hostLookupOrder(nil, "")
+	return ret == hostLookupCgo
 }
 
 // hostLookupOrder determines which strategy to use to resolve hostname.
 // The provided Resolver is optional. nil means to not consider its options.
-func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrder) {
+// It also returns dnsConfig when it was used to determine the lookup order.
+func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, dnsConfig *dnsConfig) {
 	if c.dnsDebugLevel > 1 {
 		defer func() {
 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
@@ -129,15 +132,37 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	}
 	fallbackOrder := hostLookupCgo
 	if c.netGo || r.preferGo() {
-		fallbackOrder = hostLookupFilesDNS
+		switch c.goos {
+		case "windows":
+			// TODO(bradfitz): implement files-based
+			// lookup on Windows too? I guess /etc/hosts
+			// kinda exists on Windows. But for now, only
+			// do DNS.
+			fallbackOrder = hostLookupDNS
+		default:
+			fallbackOrder = hostLookupFilesDNS
+		}
 	}
-	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
-		return fallbackOrder
+	if c.forceCgoLookupHost || c.goos == "android" || c.goos == "windows" || c.goos == "plan9" {
+		return fallbackOrder, nil
 	}
 	if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
 		// Don't deal with special form hostnames with backslashes
 		// or '%'.
-		return fallbackOrder
+		return fallbackOrder, nil
+	}
+
+	conf := getSystemDNSConfig()
+	if conf.err != nil && !os.IsNotExist(conf.err) && !os.IsPermission(conf.err) {
+		// If we can't read the resolv.conf file, assume it
+		// had something important in it and defer to cgo.
+		// libc's resolver might then fail too, but at least
+		// it wasn't our fault.
+		return fallbackOrder, conf
+	}
+
+	if conf.unknownOpt {
+		return fallbackOrder, conf
 	}
 
 	// OpenBSD is unique and doesn't use nsswitch.conf.
@@ -146,39 +171,40 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		// OpenBSD's resolv.conf manpage says that a non-existent
 		// resolv.conf means "lookup" defaults to only "files",
 		// without DNS lookups.
-		if os.IsNotExist(c.resolv.err) {
-			return hostLookupFiles
+		if os.IsNotExist(conf.err) {
+			return hostLookupFiles, conf
 		}
-		lookup := c.resolv.lookup
+
+		lookup := conf.lookup
 		if len(lookup) == 0 {
 			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
 			// "If the lookup keyword is not used in the
 			// system's resolv.conf file then the assumed
 			// order is 'bind file'"
-			return hostLookupDNSFiles
+			return hostLookupDNSFiles, conf
 		}
 		if len(lookup) < 1 || len(lookup) > 2 {
-			return fallbackOrder
+			return fallbackOrder, conf
 		}
 		switch lookup[0] {
 		case "bind":
 			if len(lookup) == 2 {
 				if lookup[1] == "file" {
-					return hostLookupDNSFiles
+					return hostLookupDNSFiles, conf
 				}
-				return fallbackOrder
+				return fallbackOrder, conf
 			}
-			return hostLookupDNS
+			return hostLookupDNS, conf
 		case "file":
 			if len(lookup) == 2 {
 				if lookup[1] == "bind" {
-					return hostLookupFilesDNS
+					return hostLookupFilesDNS, conf
 				}
-				return fallbackOrder
+				return fallbackOrder, conf
 			}
-			return hostLookupFiles
+			return hostLookupFiles, conf
 		default:
-			return fallbackOrder
+			return fallbackOrder, conf
 		}
 	}
 
@@ -191,43 +217,44 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		// because Go's native resolver doesn't do mDNS or
 		// similar local resolution mechanisms, assume that
 		// libc might (via Avahi, etc) and use cgo.
-		return fallbackOrder
+		return fallbackOrder, conf
 	}
 
-	nss := c.nss
+	nss := getSystemNSS()
 	srcs := nss.sources["hosts"]
 	// If /etc/nsswitch.conf doesn't exist or doesn't specify any
 	// sources for "hosts", assume Go's DNS will work fine.
 	if os.IsNotExist(nss.err) || (nss.err == nil && len(srcs) == 0) {
 		if c.goos == "solaris" {
 			// illumos defaults to "nis [NOTFOUND=return] files"
-			return fallbackOrder
+			return fallbackOrder, conf
 		}
-		return hostLookupFilesDNS
+
+		return hostLookupFilesDNS, conf
 	}
 	if nss.err != nil {
 		// We failed to parse or open nsswitch.conf, so
 		// conservatively assume we should use cgo if it's
 		// available.
-		return fallbackOrder
+		return fallbackOrder, conf
 	}
 
 	var mdnsSource, filesSource, dnsSource bool
 	var first string
 	for _, src := range srcs {
 		if src.source == "myhostname" {
-			if isLocalhost(hostname) || isGateway(hostname) {
-				return fallbackOrder
+			if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
+				return fallbackOrder, conf
 			}
 			hn, err := getHostname()
 			if err != nil || stringsEqualFold(hostname, hn) {
-				return fallbackOrder
+				return fallbackOrder, conf
 			}
 			continue
 		}
 		if src.source == "files" || src.source == "dns" {
 			if !src.standardCriteria() {
-				return fallbackOrder // non-standard; let libc deal with it.
+				return fallbackOrder, conf // non-standard; let libc deal with it.
 			}
 			if src.source == "files" {
 				filesSource = true
@@ -247,14 +274,14 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			continue
 		}
 		// Some source we don't know how to deal with.
-		return fallbackOrder
+		return fallbackOrder, conf
 	}
 
 	// We don't parse mdns.allow files. They're rare. If one
 	// exists, it might list other TLDs (besides .local) or even
 	// '*', so just let libc deal with it.
 	if mdnsSource && c.hasMDNSAllow {
-		return fallbackOrder
+		return fallbackOrder, conf
 	}
 
 	// Cases where Go can handle it without cgo and C thread
@@ -262,32 +289,36 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	switch {
 	case filesSource && dnsSource:
 		if first == "files" {
-			return hostLookupFilesDNS
+			return hostLookupFilesDNS, conf
 		} else {
-			return hostLookupDNSFiles
+			return hostLookupDNSFiles, conf
 		}
 	case filesSource:
-		return hostLookupFiles
+		return hostLookupFiles, conf
 	case dnsSource:
-		return hostLookupDNS
+		return hostLookupDNS, conf
 	}
 
 	// Something weird. Let libc deal with it.
-	return fallbackOrder
+	return fallbackOrder, conf
 }
+
+var netdns = godebug.New("netdns")
 
 // goDebugNetDNS parses the value of the GODEBUG "netdns" value.
 // The netdns value can be of the form:
-//    1       // debug level 1
-//    2       // debug level 2
-//    cgo     // use cgo for DNS lookups
-//    go      // use go for DNS lookups
-//    cgo+1   // use cgo for DNS lookups + debug level 1
-//    1+cgo   // same
-//    cgo+2   // same, but debug level 2
+//
+//	1       // debug level 1
+//	2       // debug level 2
+//	cgo     // use cgo for DNS lookups
+//	go      // use go for DNS lookups
+//	cgo+1   // use cgo for DNS lookups + debug level 1
+//	1+cgo   // same
+//	cgo+2   // same, but debug level 2
+//
 // etc.
 func goDebugNetDNS() (dnsMode string, debugLevel int) {
-	goDebug := goDebugString("netdns")
+	goDebug := netdns.Value()
 	parsePart := func(s string) {
 		if s == "" {
 			return
@@ -316,5 +347,11 @@ func isLocalhost(h string) bool {
 // isGateway reports whether h should be considered a "gateway"
 // name for the myhostname NSS module.
 func isGateway(h string) bool {
-	return stringsEqualFold(h, "gateway")
+	return stringsEqualFold(h, "_gateway")
+}
+
+// isOutbound reports whether h should be considered a "outbound"
+// name for the myhostname NSS module.
+func isOutbound(h string) bool {
+	return stringsEqualFold(h, "_outbound")
 }

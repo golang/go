@@ -8,9 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -33,12 +31,12 @@ func main() {
 `
 
 func objdumpOutput(t *testing.T, mname, source string) []byte {
-	tmpdir, err := ioutil.TempDir("", mname)
+	tmpdir, err := os.MkdirTemp("", mname)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-	err = ioutil.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
+	err = os.WriteFile(filepath.Join(tmpdir, "go.mod"), []byte(fmt.Sprintf("module %s\n", mname)), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +59,7 @@ func objdumpOutput(t *testing.T, mname, source string) []byte {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(
+	cmd := testenv.Command(t,
 		testenv.GoToolPath(t), "build", "-o",
 		filepath.Join(tmpdir, "output"))
 
@@ -73,7 +71,7 @@ func objdumpOutput(t *testing.T, mname, source string) []byte {
 	if err != nil {
 		t.Fatalf("error %s output %s", err, out)
 	}
-	cmd2 := exec.Command(
+	cmd2 := testenv.Command(t,
 		testenv.GoToolPath(t), "tool", "objdump", "-s", "testASM",
 		filepath.Join(tmpdir, "output"))
 	cmd2.Env = cmd.Env

@@ -61,7 +61,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R9, R13
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
 	// Reserve space for callee-save registers and arguments.
 	MOVM.DB.W [R4-R11], (R13)
 	SUB	$16, R13
@@ -407,9 +407,11 @@ TEXT runtime·clock_gettime_trampoline(SB),NOSPLIT,$0
 	MOVW	0(R0), R0		// arg 1 clock_id
 	BL	libc_clock_gettime(SB)
 	CMP	$-1, R0
-	BNE	3(PC)
-	MOVW	$0, R8			// crash on failure
-	MOVW	R8, (R8)
+	BNE	noerr
+	BL	libc_errno(SB)
+	MOVW	(R0), R0		// errno
+	RSB.CS	$0, R0			// caller expects negative errno
+noerr:
 	MOVW	R9, R13
 	RET
 

@@ -355,11 +355,10 @@ var oprange [ALAST & obj.AMask][]Optab
 var xcmp [C_GOK + 1][C_GOK + 1]bool
 
 var (
-	deferreturn *obj.LSym
-	symdiv      *obj.LSym
-	symdivu     *obj.LSym
-	symmod      *obj.LSym
-	symmodu     *obj.LSym
+	symdiv  *obj.LSym
+	symdivu *obj.LSym
+	symmod  *obj.LSym
+	symmodu *obj.LSym
 )
 
 // Note about encoding: Prog.scond holds the condition encoding,
@@ -1218,8 +1217,6 @@ func buildop(ctxt *obj.Link) {
 		// each of which re-initializes the arch.
 		return
 	}
-
-	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
 
 	symdiv = ctxt.Lookup("runtime._div")
 	symdivu = ctxt.Lookup("runtime._divu")

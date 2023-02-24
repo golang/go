@@ -25,71 +25,74 @@ import (
 // Op
 
 var OpNames = []string{
-	OADDR:        "&",
-	OADD:         "+",
-	OADDSTR:      "+",
-	OALIGNOF:     "unsafe.Alignof",
-	OANDAND:      "&&",
-	OANDNOT:      "&^",
-	OAND:         "&",
-	OAPPEND:      "append",
-	OAS:          "=",
-	OAS2:         "=",
-	OBREAK:       "break",
-	OCALL:        "function call", // not actual syntax
-	OCAP:         "cap",
-	OCASE:        "case",
-	OCLOSE:       "close",
-	OCOMPLEX:     "complex",
-	OBITNOT:      "^",
-	OCONTINUE:    "continue",
-	OCOPY:        "copy",
-	ODELETE:      "delete",
-	ODEFER:       "defer",
-	ODIV:         "/",
-	OEQ:          "==",
-	OFALL:        "fallthrough",
-	OFOR:         "for",
-	OFORUNTIL:    "foruntil", // not actual syntax; used to avoid off-end pointer live on backedge.892
-	OGE:          ">=",
-	OGOTO:        "goto",
-	OGT:          ">",
-	OIF:          "if",
-	OIMAG:        "imag",
-	OINLMARK:     "inlmark",
-	ODEREF:       "*",
-	OLEN:         "len",
-	OLE:          "<=",
-	OLSH:         "<<",
-	OLT:          "<",
-	OMAKE:        "make",
-	ONEG:         "-",
-	OMOD:         "%",
-	OMUL:         "*",
-	ONEW:         "new",
-	ONE:          "!=",
-	ONOT:         "!",
-	OOFFSETOF:    "unsafe.Offsetof",
-	OOROR:        "||",
-	OOR:          "|",
-	OPANIC:       "panic",
-	OPLUS:        "+",
-	OPRINTN:      "println",
-	OPRINT:       "print",
-	ORANGE:       "range",
-	OREAL:        "real",
-	ORECV:        "<-",
-	ORECOVER:     "recover",
-	ORETURN:      "return",
-	ORSH:         ">>",
-	OSELECT:      "select",
-	OSEND:        "<-",
-	OSIZEOF:      "unsafe.Sizeof",
-	OSUB:         "-",
-	OSWITCH:      "switch",
-	OUNSAFEADD:   "unsafe.Add",
-	OUNSAFESLICE: "unsafe.Slice",
-	OXOR:         "^",
+	OADDR:             "&",
+	OADD:              "+",
+	OADDSTR:           "+",
+	OALIGNOF:          "unsafe.Alignof",
+	OANDAND:           "&&",
+	OANDNOT:           "&^",
+	OAND:              "&",
+	OAPPEND:           "append",
+	OAS:               "=",
+	OAS2:              "=",
+	OBREAK:            "break",
+	OCALL:             "function call", // not actual syntax
+	OCAP:              "cap",
+	OCASE:             "case",
+	OCLEAR:            "clear",
+	OCLOSE:            "close",
+	OCOMPLEX:          "complex",
+	OBITNOT:           "^",
+	OCONTINUE:         "continue",
+	OCOPY:             "copy",
+	ODELETE:           "delete",
+	ODEFER:            "defer",
+	ODIV:              "/",
+	OEQ:               "==",
+	OFALL:             "fallthrough",
+	OFOR:              "for",
+	OGE:               ">=",
+	OGOTO:             "goto",
+	OGT:               ">",
+	OIF:               "if",
+	OIMAG:             "imag",
+	OINLMARK:          "inlmark",
+	ODEREF:            "*",
+	OLEN:              "len",
+	OLE:               "<=",
+	OLSH:              "<<",
+	OLT:               "<",
+	OMAKE:             "make",
+	ONEG:              "-",
+	OMOD:              "%",
+	OMUL:              "*",
+	ONEW:              "new",
+	ONE:               "!=",
+	ONOT:              "!",
+	OOFFSETOF:         "unsafe.Offsetof",
+	OOROR:             "||",
+	OOR:               "|",
+	OPANIC:            "panic",
+	OPLUS:             "+",
+	OPRINTN:           "println",
+	OPRINT:            "print",
+	ORANGE:            "range",
+	OREAL:             "real",
+	ORECV:             "<-",
+	ORECOVER:          "recover",
+	ORETURN:           "return",
+	ORSH:              ">>",
+	OSELECT:           "select",
+	OSEND:             "<-",
+	OSIZEOF:           "unsafe.Sizeof",
+	OSUB:              "-",
+	OSWITCH:           "switch",
+	OUNSAFEADD:        "unsafe.Add",
+	OUNSAFESLICE:      "unsafe.Slice",
+	OUNSAFESLICEDATA:  "unsafe.SliceData",
+	OUNSAFESTRING:     "unsafe.String",
+	OUNSAFESTRINGDATA: "unsafe.StringData",
+	OXOR:              "^",
 }
 
 // GoString returns the Go syntax for the Op, or else its name.
@@ -105,7 +108,6 @@ func (o Op) GoString() string {
 //
 //	%v	Go syntax ("+", "<-", "print")
 //	%+v	Debug syntax ("ADD", "RECV", "PRINT")
-//
 func (o Op) Format(s fmt.State, verb rune) {
 	switch verb {
 	default:
@@ -122,14 +124,13 @@ func (o Op) Format(s fmt.State, verb rune) {
 
 // Node
 
-// FmtNode implements formatting for a Node n.
-// Every Node implementation must define a Format method that calls FmtNode.
+// fmtNode implements formatting for a Node n.
+// Every Node implementation must define a Format method that calls fmtNode.
 // The valid formats are:
 //
 //	%v	Go syntax
 //	%L	Go syntax followed by " (type T)" if type is known.
 //	%+v	Debug syntax, as in Dump.
-//
 func fmtNode(n Node, s fmt.State, verb rune) {
 	// %+v prints Dump.
 	// Otherwise we print Go syntax.
@@ -171,101 +172,100 @@ func fmtNode(n Node, s fmt.State, verb rune) {
 }
 
 var OpPrec = []int{
-	OALIGNOF:       8,
-	OAPPEND:        8,
-	OBYTES2STR:     8,
-	OARRAYLIT:      8,
-	OSLICELIT:      8,
-	ORUNES2STR:     8,
-	OCALLFUNC:      8,
-	OCALLINTER:     8,
-	OCALLMETH:      8,
-	OCALL:          8,
-	OCAP:           8,
-	OCLOSE:         8,
-	OCOMPLIT:       8,
-	OCONVIFACE:     8,
-	OCONVNOP:       8,
-	OCONV:          8,
-	OCOPY:          8,
-	ODELETE:        8,
-	OGETG:          8,
-	OLEN:           8,
-	OLITERAL:       8,
-	OMAKESLICE:     8,
-	OMAKESLICECOPY: 8,
-	OMAKE:          8,
-	OMAPLIT:        8,
-	ONAME:          8,
-	ONEW:           8,
-	ONIL:           8,
-	ONONAME:        8,
-	OOFFSETOF:      8,
-	OPACK:          8,
-	OPANIC:         8,
-	OPAREN:         8,
-	OPRINTN:        8,
-	OPRINT:         8,
-	ORUNESTR:       8,
-	OSIZEOF:        8,
-	OSLICE2ARRPTR:  8,
-	OSTR2BYTES:     8,
-	OSTR2RUNES:     8,
-	OSTRUCTLIT:     8,
-	OTARRAY:        8,
-	OTSLICE:        8,
-	OTCHAN:         8,
-	OTFUNC:         8,
-	OTINTER:        8,
-	OTMAP:          8,
-	OTSTRUCT:       8,
-	OTYPE:          8,
-	OUNSAFEADD:     8,
-	OUNSAFESLICE:   8,
-	OINDEXMAP:      8,
-	OINDEX:         8,
-	OSLICE:         8,
-	OSLICESTR:      8,
-	OSLICEARR:      8,
-	OSLICE3:        8,
-	OSLICE3ARR:     8,
-	OSLICEHEADER:   8,
-	ODOTINTER:      8,
-	ODOTMETH:       8,
-	ODOTPTR:        8,
-	ODOTTYPE2:      8,
-	ODOTTYPE:       8,
-	ODOT:           8,
-	OXDOT:          8,
-	OCALLPART:      8,
-	OMETHEXPR:      8,
-	OPLUS:          7,
-	ONOT:           7,
-	OBITNOT:        7,
-	ONEG:           7,
-	OADDR:          7,
-	ODEREF:         7,
-	ORECV:          7,
-	OMUL:           6,
-	ODIV:           6,
-	OMOD:           6,
-	OLSH:           6,
-	ORSH:           6,
-	OAND:           6,
-	OANDNOT:        6,
-	OADD:           5,
-	OSUB:           5,
-	OOR:            5,
-	OXOR:           5,
-	OEQ:            4,
-	OLT:            4,
-	OLE:            4,
-	OGE:            4,
-	OGT:            4,
-	ONE:            4,
-	OSEND:          3,
-	OANDAND:        2,
-	OOROR:          1,
+	OALIGNOF:          8,
+	OAPPEND:           8,
+	OBYTES2STR:        8,
+	OARRAYLIT:         8,
+	OSLICELIT:         8,
+	ORUNES2STR:        8,
+	OCALLFUNC:         8,
+	OCALLINTER:        8,
+	OCALLMETH:         8,
+	OCALL:             8,
+	OCAP:              8,
+	OCLEAR:            8,
+	OCLOSE:            8,
+	OCOMPLIT:          8,
+	OCONVIFACE:        8,
+	OCONVIDATA:        8,
+	OCONVNOP:          8,
+	OCONV:             8,
+	OCOPY:             8,
+	ODELETE:           8,
+	OGETG:             8,
+	OLEN:              8,
+	OLITERAL:          8,
+	OMAKESLICE:        8,
+	OMAKESLICECOPY:    8,
+	OMAKE:             8,
+	OMAPLIT:           8,
+	ONAME:             8,
+	ONEW:              8,
+	ONIL:              8,
+	ONONAME:           8,
+	OOFFSETOF:         8,
+	OPANIC:            8,
+	OPAREN:            8,
+	OPRINTN:           8,
+	OPRINT:            8,
+	ORUNESTR:          8,
+	OSIZEOF:           8,
+	OSLICE2ARR:        8,
+	OSLICE2ARRPTR:     8,
+	OSTR2BYTES:        8,
+	OSTR2RUNES:        8,
+	OSTRUCTLIT:        8,
+	OTYPE:             8,
+	OUNSAFEADD:        8,
+	OUNSAFESLICE:      8,
+	OUNSAFESLICEDATA:  8,
+	OUNSAFESTRING:     8,
+	OUNSAFESTRINGDATA: 8,
+	OINDEXMAP:         8,
+	OINDEX:            8,
+	OSLICE:            8,
+	OSLICESTR:         8,
+	OSLICEARR:         8,
+	OSLICE3:           8,
+	OSLICE3ARR:        8,
+	OSLICEHEADER:      8,
+	OSTRINGHEADER:     8,
+	ODOTINTER:         8,
+	ODOTMETH:          8,
+	ODOTPTR:           8,
+	ODOTTYPE2:         8,
+	ODOTTYPE:          8,
+	ODOT:              8,
+	OXDOT:             8,
+	OMETHVALUE:        8,
+	OMETHEXPR:         8,
+	OPLUS:             7,
+	ONOT:              7,
+	OBITNOT:           7,
+	ONEG:              7,
+	OADDR:             7,
+	ODEREF:            7,
+	ORECV:             7,
+	OMUL:              6,
+	ODIV:              6,
+	OMOD:              6,
+	OLSH:              6,
+	ORSH:              6,
+	OAND:              6,
+	OANDNOT:           6,
+	OADD:              5,
+	OSUB:              5,
+	OOR:               5,
+	OXOR:              5,
+	OEQ:               4,
+	OLT:               4,
+	OLE:               4,
+	OGE:               4,
+	OGT:               4,
+	ONE:               4,
+	OSEND:             3,
+	OANDAND:           2,
+	OOROR:             1,
 
 	// Statements handled by stmtfmt
 	OAS:         -1,
@@ -283,7 +283,6 @@ var OpPrec = []int{
 	ODEFER:      -1,
 	OFALL:       -1,
 	OFOR:        -1,
-	OFORUNTIL:   -1,
 	OGOTO:       -1,
 	OIF:         -1,
 	OLABEL:      -1,
@@ -299,7 +298,7 @@ var OpPrec = []int{
 // StmtWithInit reports whether op is a statement with an explicit init list.
 func StmtWithInit(op Op) bool {
 	switch op {
-	case OIF, OFOR, OFORUNTIL, OSWITCH:
+	case OIF, OFOR, OSWITCH:
 		return true
 	}
 	return false
@@ -385,7 +384,7 @@ func stmtFmt(n Node, s fmt.State) {
 
 	case OTAILCALL:
 		n := n.(*TailCallStmt)
-		fmt.Fprintf(s, "tailcall %v", n.Target)
+		fmt.Fprintf(s, "tailcall %v", n.Call)
 
 	case OINLMARK:
 		n := n.(*InlineMarkStmt)
@@ -410,18 +409,14 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprintf(s, " else { %v }", n.Else)
 		}
 
-	case OFOR, OFORUNTIL:
+	case OFOR:
 		n := n.(*ForStmt)
-		opname := "for"
-		if n.Op() == OFORUNTIL {
-			opname = "foruntil"
-		}
 		if !exportFormat { // TODO maybe only if FmtShort, same below
-			fmt.Fprintf(s, "%s loop", opname)
+			fmt.Fprintf(s, "for loop")
 			break
 		}
 
-		fmt.Fprint(s, opname)
+		fmt.Fprint(s, "for")
 		if simpleinit {
 			fmt.Fprintf(s, " %v;", n.Init()[0])
 		} else if n.Post != nil {
@@ -436,10 +431,6 @@ func stmtFmt(n Node, s fmt.State) {
 			fmt.Fprintf(s, "; %v", n.Post)
 		} else if simpleinit {
 			fmt.Fprint(s, ";")
-		}
-
-		if n.Op() == OFORUNTIL && len(n.Late) != 0 {
-			fmt.Fprintf(s, "; %v", n.Late)
 		}
 
 		fmt.Fprintf(s, " { %v }", n.Body)
@@ -546,7 +537,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 				n = nn.X
 				continue
 			}
-		case OCONV, OCONVNOP, OCONVIFACE:
+		case OCONV, OCONVNOP, OCONVIFACE, OCONVIDATA:
 			nn := nn.(*ConvExpr)
 			if nn.Implicit() {
 				n = nn.X
@@ -558,12 +549,17 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	}
 
 	nprec := OpPrec[n.Op()]
-	if n.Op() == OTYPE && n.Type().IsPtr() {
+	if n.Op() == OTYPE && n.Type() != nil && n.Type().IsPtr() {
 		nprec = OpPrec[ODEREF]
 	}
 
 	if prec > nprec {
 		fmt.Fprintf(s, "(%v)", n)
+		return
+	}
+
+	if n, ok := n.(*RawOrigExpr); ok {
+		fmt.Fprint(s, n.Raw)
 		return
 	}
 
@@ -634,7 +630,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			return
 		}
 		fallthrough
-	case OPACK, ONONAME:
+	case ONONAME:
 		fmt.Fprint(s, n.Sym())
 
 	case OLINKSYMOFFSET:
@@ -647,52 +643,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "%v", n.Type())
-
-	case OTSLICE:
-		n := n.(*SliceType)
-		if n.DDD {
-			fmt.Fprintf(s, "...%v", n.Elem)
-		} else {
-			fmt.Fprintf(s, "[]%v", n.Elem) // happens before typecheck
-		}
-
-	case OTARRAY:
-		n := n.(*ArrayType)
-		if n.Len == nil {
-			fmt.Fprintf(s, "[...]%v", n.Elem)
-		} else {
-			fmt.Fprintf(s, "[%v]%v", n.Len, n.Elem)
-		}
-
-	case OTMAP:
-		n := n.(*MapType)
-		fmt.Fprintf(s, "map[%v]%v", n.Key, n.Elem)
-
-	case OTCHAN:
-		n := n.(*ChanType)
-		switch n.Dir {
-		case types.Crecv:
-			fmt.Fprintf(s, "<-chan %v", n.Elem)
-
-		case types.Csend:
-			fmt.Fprintf(s, "chan<- %v", n.Elem)
-
-		default:
-			if n.Elem != nil && n.Elem.Op() == OTCHAN && n.Elem.(*ChanType).Dir == types.Crecv {
-				fmt.Fprintf(s, "chan (%v)", n.Elem)
-			} else {
-				fmt.Fprintf(s, "chan %v", n.Elem)
-			}
-		}
-
-	case OTSTRUCT:
-		fmt.Fprint(s, "<struct>")
-
-	case OTINTER:
-		fmt.Fprint(s, "<inter>")
-
-	case OTFUNC:
-		fmt.Fprint(s, "<func>")
 
 	case OCLOSURE:
 		n := n.(*ClosureExpr)
@@ -709,15 +659,14 @@ func exprFmt(n Node, s fmt.State, prec int) {
 				fmt.Fprintf(s, "... argument")
 				return
 			}
-			if n.Ntype != nil {
-				fmt.Fprintf(s, "%v{%s}", n.Ntype, ellipsisIf(len(n.List) != 0))
+			if typ := n.Type(); typ != nil {
+				fmt.Fprintf(s, "%v{%s}", typ, ellipsisIf(len(n.List) != 0))
 				return
 			}
-
 			fmt.Fprint(s, "composite literal")
 			return
 		}
-		fmt.Fprintf(s, "(%v{ %.v })", n.Ntype, n.List)
+		fmt.Fprintf(s, "(%v{ %.v })", n.Type(), n.List)
 
 	case OPTRLIT:
 		n := n.(*AddrExpr)
@@ -752,7 +701,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 		n := n.(*StructKeyExpr)
 		fmt.Fprintf(s, "%v:%v", n.Field, n.Value)
 
-	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH, OCALLPART, OMETHEXPR:
+	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH, OMETHVALUE, OMETHEXPR:
 		n := n.(*SelectorExpr)
 		exprFmt(n.X, s, nprec)
 		if n.Sel == nil {
@@ -764,10 +713,6 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case ODOTTYPE, ODOTTYPE2:
 		n := n.(*TypeAssertExpr)
 		exprFmt(n.X, s, nprec)
-		if n.Ntype != nil {
-			fmt.Fprintf(s, ".(%v)", n.Ntype)
-			return
-		}
 		fmt.Fprintf(s, ".(%v)", n.Type())
 
 	case OINDEX, OINDEXMAP:
@@ -804,12 +749,14 @@ func exprFmt(n Node, s fmt.State, prec int) {
 
 	case OCONV,
 		OCONVIFACE,
+		OCONVIDATA,
 		OCONVNOP,
 		OBYTES2STR,
 		ORUNES2STR,
 		OSTR2BYTES,
 		OSTR2RUNES,
 		ORUNESTR,
+		OSLICE2ARR,
 		OSLICE2ARRPTR:
 		n := n.(*ConvExpr)
 		if n.Type() == nil || n.Type().Sym() == nil {
@@ -822,6 +769,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
 	case OREAL,
 		OIMAG,
 		OCAP,
+		OCLEAR,
 		OCLOSE,
 		OLEN,
 		ONEW,
@@ -853,6 +801,15 @@ func exprFmt(n Node, s fmt.State, prec int) {
 			return
 		}
 		fmt.Fprintf(s, "(%.v)", n.Args)
+
+	case OINLCALL:
+		n := n.(*InlinedCallExpr)
+		// TODO(mdempsky): Print Init and/or Body?
+		if len(n.ReturnVars) == 1 {
+			fmt.Fprintf(s, "%v", n.ReturnVars[0])
+			return
+		}
+		fmt.Fprintf(s, "(.%v)", n.ReturnVars)
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		n := n.(*MakeExpr)
@@ -956,7 +913,6 @@ func ellipsisIf(b bool) string {
 //	%v	Go syntax, semicolon-separated
 //	%.v	Go syntax, comma-separated
 //	%+v	Debug syntax, as in DumpList.
-//
 func (l Nodes) Format(s fmt.State, verb rune) {
 	if s.Flag('+') && verb == 'v' {
 		// %+v is DumpList output
@@ -986,7 +942,7 @@ func (l Nodes) Format(s fmt.State, verb rune) {
 
 // Dump prints the message s followed by a debug dump of n.
 func Dump(s string, n Node) {
-	fmt.Printf("%s [%p]%+v\n", s, n, n)
+	fmt.Printf("%s%+v\n", s, n)
 }
 
 // DumpList prints the message s followed by a debug dump of each node in the list.
@@ -1041,8 +997,8 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		}
 	}
 
-	if n.Typecheck() != 0 {
-		fmt.Fprintf(w, " tc(%d)", n.Typecheck())
+	if n.Sym() != nil && n.Op() != ONAME && n.Op() != ONONAME && n.Op() != OTYPE {
+		fmt.Fprintf(w, " %+v", n.Sym())
 	}
 
 	// Print Node-specific fields of basic type in header line.
@@ -1112,18 +1068,27 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		}
 		fmt.Fprintf(w, " %+v", n.Type())
 	}
+	if n.Typecheck() != 0 {
+		fmt.Fprintf(w, " tc(%d)", n.Typecheck())
+	}
 
 	if n.Pos().IsKnown() {
-		pfx := ""
+		fmt.Fprint(w, " # ")
 		switch n.Pos().IsStmt() {
 		case src.PosNotStmt:
-			pfx = "_" // "-" would be confusing
+			fmt.Fprint(w, "_") // "-" would be confusing
 		case src.PosIsStmt:
-			pfx = "+"
+			fmt.Fprint(w, "+")
 		}
-		pos := base.Ctxt.PosTable.Pos(n.Pos())
-		file := filepath.Base(pos.Filename())
-		fmt.Fprintf(w, " # %s%s:%d", pfx, file, pos.Line())
+		for i, pos := range base.Ctxt.AllPos(n.Pos(), nil) {
+			if i > 0 {
+				fmt.Fprint(w, ",")
+			}
+			// TODO(mdempsky): Print line pragma details too.
+			file := filepath.Base(pos.Filename())
+			// Note: this output will be parsed by ssa/html.go:(*HTMLWriter).WriteAST. Keep in sync.
+			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
+		}
 	}
 }
 
@@ -1162,12 +1127,16 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			fmt.Fprintf(w, "%+v", n.Op())
 		}
 		dumpNodeHeader(w, n)
-		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
-			indent(w, depth)
-			fmt.Fprintf(w, "%+v-ntype", n.Op())
-			dumpNode(w, n.Name().Ntype, depth+1)
-		}
 		return
+
+	case OLINKSYMOFFSET:
+		n := n.(*LinksymOffsetExpr)
+		fmt.Fprintf(w, "%+v-%v", n.Op(), n.Linksym)
+		// Offset is almost always 0, so only print when it's interesting.
+		if n.Offset_ != 0 {
+			fmt.Fprintf(w, "%+v", n.Offset_)
+		}
+		dumpNodeHeader(w, n)
 
 	case OASOP:
 		n := n.(*AssignOpStmt)
@@ -1177,11 +1146,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 	case OTYPE:
 		fmt.Fprintf(w, "%+v %+v", n.Op(), n.Sym())
 		dumpNodeHeader(w, n)
-		if n.Type() == nil && n.Name() != nil && n.Name().Ntype != nil {
-			indent(w, depth)
-			fmt.Fprintf(w, "%+v-ntype", n.Op())
-			dumpNode(w, n.Name().Ntype, depth+1)
-		}
 		return
 
 	case OCLOSURE:
@@ -1220,13 +1184,6 @@ func dumpNode(w io.Writer, n Node, depth int) {
 			dumpNodes(w, fn.Body, depth+1)
 		}
 		return
-	}
-
-	if n.Sym() != nil {
-		fmt.Fprintf(w, " %+v", n.Sym())
-	}
-	if n.Type() != nil {
-		fmt.Fprintf(w, " %+v", n.Type())
 	}
 
 	v := reflect.ValueOf(n).Elem()

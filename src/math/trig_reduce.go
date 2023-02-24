@@ -14,7 +14,9 @@ import (
 // where y is given by y = floor(x * (4 / Pi)) and C is the leading partial
 // terms of 4/Pi. Since the leading terms (PI4A and PI4B in sin.go) have 30
 // and 32 trailing zero bits, y should have less than 30 significant bits.
+//
 //	y < 1<<30  -> floor(x*4/Pi) < 1<<30 -> x < (1<<30 - 1) * Pi/4
+//
 // So, conservatively we can take x < 1<<29.
 // Above this threshold Payne-Hanek range reduction must be used.
 const reduceThreshold = 1 << 29

@@ -98,7 +98,7 @@ func parseFlags(o *plugin.Options) (*source, []string, error) {
 	// Recognize first argument as an executable or buildid override.
 	if len(args) > 1 {
 		arg0 := args[0]
-		if file, err := o.Obj.Open(arg0, 0, ^uint64(0), 0); err == nil {
+		if file, err := o.Obj.Open(arg0, 0, ^uint64(0), 0, ""); err == nil {
 			file.Close()
 			execName = arg0
 			args = args[1:]
@@ -363,5 +363,6 @@ var usageMsgVars = "\n\n" +
 	"   PPROF_TOOLS        Search path for object-level tools\n" +
 	"   PPROF_BINARY_PATH  Search path for local binary files\n" +
 	"                      default: $HOME/pprof/binaries\n" +
-	"                      searches $name, $path, $buildid/$name, $path/$buildid\n" +
+	"                      searches $buildid/$name, $buildid/*, $path/$buildid,\n" +
+	"                      ${buildid:0:2}/${buildid:2}.debug, $name, $path\n" +
 	"   * On Windows, %USERPROFILE% is used instead of $HOME"

@@ -94,10 +94,10 @@ type Statfs_t struct {
 	F_namemax     uint32
 	F_owner       uint32
 	F_ctime       uint64
-	F_fstypename  [16]int8
-	F_mntonname   [90]int8
-	F_mntfromname [90]int8
-	F_mntfromspec [90]int8
+	F_fstypename  [16]byte
+	F_mntonname   [90]byte
+	F_mntfromname [90]byte
+	F_mntfromspec [90]byte
 	_             [2]byte
 	Mount_info    [160]byte
 }
@@ -368,14 +368,12 @@ type RtMetrics struct {
 	Pad      uint32
 }
 
-type Mclpool struct{}
-
 const (
 	SizeofBpfVersion = 0x4
 	SizeofBpfStat    = 0x8
 	SizeofBpfProgram = 0x10
 	SizeofBpfInsn    = 0x8
-	SizeofBpfHdr     = 0x14
+	SizeofBpfHdr     = 0x18
 )
 
 type BpfVersion struct {
@@ -405,7 +403,10 @@ type BpfHdr struct {
 	Caplen  uint32
 	Datalen uint32
 	Hdrlen  uint16
-	_       [2]byte
+	Ifidx   uint16
+	Flowid  uint16
+	Flags   uint8
+	Drops   uint8
 }
 
 type BpfTimeval struct {
@@ -432,8 +433,10 @@ type Winsize struct {
 
 const (
 	AT_FDCWD            = -0x64
-	AT_SYMLINK_FOLLOW   = 0x4
+	AT_EACCESS          = 0x1
 	AT_SYMLINK_NOFOLLOW = 0x2
+	AT_SYMLINK_FOLLOW   = 0x4
+	AT_REMOVEDIR        = 0x8
 )
 
 type PollFd struct {
@@ -556,12 +559,11 @@ type Uvmexp struct {
 	Kmapent            int32
 }
 
-const SizeofClockinfo = 0x14
+const SizeofClockinfo = 0x10
 
 type Clockinfo struct {
-	Hz      int32
-	Tick    int32
-	Tickadj int32
-	Stathz  int32
-	Profhz  int32
+	Hz     int32
+	Tick   int32
+	Stathz int32
+	Profhz int32
 }

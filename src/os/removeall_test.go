@@ -15,6 +15,8 @@ import (
 )
 
 func TestRemoveAll(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	if err := RemoveAll(""); err != nil {
 		t.Errorf("RemoveAll(\"\"): %v; want nil", err)
@@ -122,6 +124,7 @@ func TestRemoveAllLarge(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
+	t.Parallel()
 
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "_TestRemoveAllLarge_")
@@ -382,6 +385,7 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
+	t.Parallel()
 
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "_TestRemoveAllWithMoreErrorThanReqSize_")

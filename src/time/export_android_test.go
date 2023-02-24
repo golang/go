@@ -4,9 +4,13 @@
 
 package time
 
-func ForceAndroidTzdataForTest(tzdata bool) {
-	forceZipFileForTesting(false)
-	if tzdata {
-		zoneSources = zoneSources[:len(zoneSources)-1]
+func ForceAndroidTzdataForTest() (undo func()) {
+	allowGorootSource = false
+	origLoadFromEmbeddedTZData := loadFromEmbeddedTZData
+	loadFromEmbeddedTZData = nil
+
+	return func() {
+		allowGorootSource = true
+		loadFromEmbeddedTZData = origLoadFromEmbeddedTZData
 	}
 }

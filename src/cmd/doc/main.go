@@ -5,20 +5,25 @@
 // Doc (usually run as go doc) accepts zero, one or two arguments.
 //
 // Zero arguments:
+//
 //	go doc
+//
 // Show the documentation for the package in the current directory.
 //
 // One argument:
+//
 //	go doc <pkg>
 //	go doc <sym>[.<methodOrField>]
 //	go doc [<pkg>.]<sym>[.<methodOrField>]
 //	go doc [<pkg>.][<sym>.]<methodOrField>
+//
 // The first item in this list that succeeds is the one whose documentation
 // is printed. If there is a symbol but no package, the package in the current
 // directory is chosen. However, if the argument begins with a capital
 // letter it is always assumed to be a symbol in the current directory.
 //
 // Two arguments:
+//
 //	go doc <pkg> <sym>[.<methodOrField>]
 //
 // Show the documentation for the package, symbol, and method or field. The
@@ -52,12 +57,13 @@ import (
 )
 
 var (
-	unexported bool // -u flag
-	matchCase  bool // -c flag
-	showAll    bool // -all flag
-	showCmd    bool // -cmd flag
-	showSrc    bool // -src flag
-	short      bool // -short flag
+	unexported bool   // -u flag
+	matchCase  bool   // -c flag
+	chdir      string // -C flag
+	showAll    bool   // -all flag
+	showCmd    bool   // -cmd flag
+	showSrc    bool   // -src flag
+	short      bool   // -short flag
 )
 
 // usage is a replacement usage function for the flags package.
@@ -91,6 +97,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	flagSet.Usage = usage
 	unexported = false
 	matchCase = false
+	flagSet.StringVar(&chdir, "C", "", "change to `dir` before running command")
 	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
 	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
 	flagSet.BoolVar(&showAll, "all", false, "show all documentation for package")
@@ -98,6 +105,11 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
 	flagSet.BoolVar(&short, "short", false, "one-line representation for each symbol")
 	flagSet.Parse(args)
+	if chdir != "" {
+		if err := os.Chdir(chdir); err != nil {
+			return err
+		}
+	}
 	var paths []string
 	var symbol, method string
 	// Loop until something is printed.
@@ -110,6 +122,13 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		if buildPackage == nil {
 			return fmt.Errorf("no such package: %s", userPath)
 		}
+
+		// The builtin package needs special treatment: its symbols are lower
+		// case but we want to see them, always.
+		if buildPackage.ImportPath == "builtin" {
+			unexported = true
+		}
+
 		symbol, method = parseSymbol(sym)
 		pkg := parsePackage(writer, buildPackage, userPath)
 		paths = append(paths, pkg.prettyPath())
@@ -127,12 +146,6 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 			}
 			panic(e)
 		}()
-
-		// The builtin package needs special treatment: its symbols are lower
-		// case but we want to see them, always.
-		if pkg.build.ImportPath == "builtin" {
-			unexported = true
-		}
 
 		// We have a package.
 		if showAll && symbol == "" {

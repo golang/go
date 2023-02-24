@@ -20,11 +20,11 @@ type gobError struct {
 
 // errorf is like error_ but takes Printf-style arguments to construct an error.
 // It always prefixes the message with "gob: ".
-func errorf(format string, args ...interface{}) {
+func errorf(format string, args ...any) {
 	error_(fmt.Errorf("gob: "+format, args...))
 }
 
-// error wraps the argument error and uses it as the argument to panic.
+// error_ wraps the argument error and uses it as the argument to panic.
 func error_(err error) {
 	panic(gobError{err})
 }

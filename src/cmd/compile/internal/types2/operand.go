@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // An operandMode specifies the (addressing) mode of an operand.
@@ -52,7 +53,6 @@ var operandModeString = [...]string{
 // the operand, the operand's type, a value for constants, and an id
 // for built-in functions.
 // The zero value of operand is a ready to use invalid operand.
-//
 type operand struct {
 	mode operandMode
 	expr syntax.Expr
@@ -63,7 +63,6 @@ type operand struct {
 
 // Pos returns the position of the expression corresponding to x.
 // If x is invalid the position is nopos.
-//
 func (x *operand) Pos() syntax.Pos {
 	// x.expr may not be set if x is invalid
 	if x.expr == nil {
@@ -108,7 +107,6 @@ func (x *operand) Pos() syntax.Pos {
 //
 // cgofunc    <expr> (<untyped kind> <mode>                    )
 // cgofunc    <expr> (               <mode>       of type <typ>)
-//
 func operandString(x *operand, qf Qualifier) string {
 	// special-case nil
 	if x.mode == nilvalue {
@@ -116,7 +114,7 @@ func operandString(x *operand, qf Qualifier) string {
 		case nil, Typ[Invalid]:
 			return "nil (with invalid type)"
 		case Typ[UntypedNil]:
-			return "untyped nil"
+			return "nil"
 		default:
 			return fmt.Sprintf("nil (of type %s)", TypeString(x.typ, qf))
 		}
@@ -176,16 +174,21 @@ func operandString(x *operand, qf Qualifier) string {
 	if hasType {
 		if x.typ != Typ[Invalid] {
 			var intro string
-			switch {
-			case isGeneric(x.typ):
+			if isGeneric(x.typ) {
 				intro = " of generic type "
-			case asTypeParam(x.typ) != nil:
-				intro = " of type parameter type "
-			default:
+			} else {
 				intro = " of type "
 			}
 			buf.WriteString(intro)
 			WriteType(&buf, x.typ, qf)
+			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
+				buf.WriteString(" constrained by ")
+				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+				// If we have the type set and it's empty, say so for better error messages.
+				if hasEmptyTypeset(tpar) {
+					buf.WriteString(" with empty type set")
+				}
+			}
 		} else {
 			buf.WriteString(" with invalid type")
 		}
@@ -236,12 +239,12 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 func (x *operand) isNil() bool { return x.mode == nilvalue }
 
 // assignableTo reports whether x is assignable to a variable of type T. If the
-// result is false and a non-nil reason is provided, it may be set to a more
+// result is false and a non-nil cause is provided, it may be set to a more
 // detailed explanation of the failure (result != ""). The returned error code
 // is only valid if the (first) result is false. The check parameter may be nil
 // if assignableTo is invoked through an exported API call, i.e., when all
 // methods have been type-checked.
-func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, errorCode) {
+func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Code) {
 	if x.mode == invalid || T == Typ[Invalid] {
 		return true, 0 // avoid spurious errors
 	}
@@ -249,63 +252,130 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
 	V := x.typ
 
 	// x's type is identical to T
-	if check.identical(V, T) {
+	if Identical(V, T) {
 		return true, 0
 	}
 
-	Vu := optype(V)
-	Tu := optype(T)
+	Vu := under(V)
+	Tu := under(T)
+	Vp, _ := V.(*TypeParam)
+	Tp, _ := T.(*TypeParam)
 
 	// x is an untyped value representable by a value of type T.
 	if isUntyped(Vu) {
-		if t, ok := Tu.(*Sum); ok {
-			return t.is(func(t Type) bool {
-				// TODO(gri) this could probably be more efficient
-				ok, _ := x.assignableTo(check, t, reason)
-				return ok
-			}), _IncompatibleAssign
+		assert(Vp == nil)
+		if Tp != nil {
+			// T is a type parameter: x is assignable to T if it is
+			// representable by each specific type in the type set of T.
+			return Tp.is(func(t *term) bool {
+				if t == nil {
+					return false
+				}
+				// A term may be a tilde term but the underlying
+				// type of an untyped value doesn't change so we
+				// don't need to do anything special.
+				newType, _, _ := check.implicitTypeAndValue(x, t.typ)
+				return newType != nil
+			}), IncompatibleAssign
 		}
-		newType, _, _ := check.implicitTypeAndValue(x, Tu)
-		return newType != nil, _IncompatibleAssign
+		newType, _, _ := check.implicitTypeAndValue(x, T)
+		return newType != nil, IncompatibleAssign
 	}
 	// Vu is typed
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
-	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+	// and neither V nor T is a type parameter.
+	if Identical(Vu, Tu) && (!hasName(V) || !hasName(T)) && Vp == nil && Tp == nil {
 		return true, 0
 	}
 
-	// T is an interface type and x implements T
-	if Ti, ok := Tu.(*Interface); ok {
-		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
-			if reason != nil {
-				if wrongType != nil {
-					if check.identical(m.typ, wrongType.typ) {
-						*reason = fmt.Sprintf("missing method %s (%s has pointer receiver)", m.name, m.name)
-					} else {
-						*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
-					}
-
-				} else {
-					*reason = "missing method " + m.Name()
-				}
-			}
-			return false, _InvalidIfaceAssign
+	// T is an interface type and x implements T and T is not a type parameter.
+	// Also handle the case where T is a pointer to an interface.
+	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+		if !check.implements(V, T, false, cause) {
+			return false, InvalidIfaceAssign
 		}
 		return true, 0
+	}
+
+	// If V is an interface, check if a missing type assertion is the problem.
+	if Vi, _ := Vu.(*Interface); Vi != nil && Vp == nil {
+		if check.implements(T, V, false, nil) {
+			// T implements V, so give hint about type assertion.
+			if cause != nil {
+				*cause = "need type assertion"
+			}
+			return false, IncompatibleAssign
+		}
 	}
 
 	// x is a bidirectional channel value, T is a channel
 	// type, x's type V and T have identical element types,
-	// and at least one of V or T is not a named type
+	// and at least one of V or T is not a named type.
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
-		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
-			return !isNamed(V) || !isNamed(T), _InvalidChanAssign
+		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
+			return !hasName(V) || !hasName(T), InvalidChanAssign
 		}
 	}
 
-	return false, _IncompatibleAssign
+	// optimization: if we don't have type parameters, we're done
+	if Vp == nil && Tp == nil {
+		return false, IncompatibleAssign
+	}
+
+	errorf := func(format string, args ...interface{}) {
+		if check != nil && cause != nil {
+			msg := check.sprintf(format, args...)
+			if *cause != "" {
+				msg += "\n\t" + *cause
+			}
+			*cause = msg
+		}
+	}
+
+	// x's type V is not a named type and T is a type parameter, and
+	// x is assignable to each specific type in T's type set.
+	if !hasName(V) && Tp != nil {
+		ok := false
+		code := IncompatibleAssign
+		Tp.is(func(T *term) bool {
+			if T == nil {
+				return false // no specific types
+			}
+			ok, code = x.assignableTo(check, T.typ, cause)
+			if !ok {
+				errorf("cannot assign %s to %s (in %s)", x.typ, T.typ, Tp)
+				return false
+			}
+			return true
+		})
+		return ok, code
+	}
+
+	// x's type V is a type parameter and T is not a named type,
+	// and values x' of each specific type in V's type set are
+	// assignable to T.
+	if Vp != nil && !hasName(T) {
+		x := *x // don't clobber outer x
+		ok := false
+		code := IncompatibleAssign
+		Vp.is(func(V *term) bool {
+			if V == nil {
+				return false // no specific types
+			}
+			x.typ = V.typ
+			ok, code = x.assignableTo(check, T, cause)
+			if !ok {
+				errorf("cannot assign %s (in %s) to %s", V.typ, Vp, T)
+				return false
+			}
+			return true
+		})
+		return ok, code
+	}
+
+	return false, IncompatibleAssign
 }
 
 // kind2tok translates syntax.LitKinds into token.Tokens.

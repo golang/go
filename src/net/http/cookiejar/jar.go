@@ -19,9 +19,9 @@ import (
 )
 
 // PublicSuffixList provides the public suffix of a domain. For example:
-//      - the public suffix of "example.com" is "com",
-//      - the public suffix of "foo1.foo2.foo3.co.uk" is "co.uk", and
-//      - the public suffix of "bar.pvt.k12.ma.us" is "pvt.k12.ma.us".
+//   - the public suffix of "example.com" is "com",
+//   - the public suffix of "foo1.foo2.foo3.co.uk" is "co.uk", and
+//   - the public suffix of "bar.pvt.k12.ma.us" is "pvt.k12.ma.us".
 //
 // Implementations of PublicSuffixList must be safe for concurrent use by
 // multiple goroutines.
@@ -121,7 +121,9 @@ func (e *entry) shouldSend(https bool, host, path string) bool {
 	return e.domainMatch(host) && e.pathMatch(path) && (https || !e.Secure)
 }
 
-// domainMatch implements "domain-match" of RFC 6265 section 5.1.3.
+// domainMatch checks whether e's Domain allows sending e back to host.
+// It differs from "domain-match" of RFC 6265 section 5.1.3 because we treat
+// a cookie with an IP address in the Domain always as a host cookie.
 func (e *entry) domainMatch(host string) bool {
 	if e.Domain == host {
 		return true
@@ -212,8 +214,8 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
 		if len(s[i].Path) != len(s[j].Path) {
 			return len(s[i].Path) > len(s[j].Path)
 		}
-		if !s[i].Creation.Equal(s[j].Creation) {
-			return s[i].Creation.Before(s[j].Creation)
+		if ret := s[i].Creation.Compare(s[j].Creation); ret != 0 {
+			return ret < 0
 		}
 		return s[i].seqNum < s[j].seqNum
 	})
@@ -303,10 +305,8 @@ func canonicalHost(host string) (string, error) {
 			return "", err
 		}
 	}
-	if strings.HasSuffix(host, ".") {
-		// Strip trailing dot from fully qualified domain names.
-		host = host[:len(host)-1]
-	}
+	// Strip trailing dot from fully qualified domain names.
+	host = strings.TrimSuffix(host, ".")
 	encoded, err := toASCII(host)
 	if err != nil {
 		return "", err
@@ -457,10 +457,36 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 	}
 
 	if isIP(host) {
-		// According to RFC 6265 domain-matching includes not being
-		// an IP address.
-		// TODO: This might be relaxed as in common browsers.
-		return "", false, errNoHostname
+		// RFC 6265 is not super clear here, a sensible interpretation
+		// is that cookies with an IP address in the domain-attribute
+		// are allowed.
+
+		// RFC 6265 section 5.2.3 mandates to strip an optional leading
+		// dot in the domain-attribute before processing the cookie.
+		//
+		// Most browsers don't do that for IP addresses, only curl
+		// version 7.54) and IE (version 11) do not reject a
+		//     Set-Cookie: a=1; domain=.127.0.0.1
+		// This leading dot is optional and serves only as hint for
+		// humans to indicate that a cookie with "domain=.bbc.co.uk"
+		// would be sent to every subdomain of bbc.co.uk.
+		// It just doesn't make sense on IP addresses.
+		// The other processing and validation steps in RFC 6265 just
+		// collaps to:
+		if host != domain {
+			return "", false, errIllegalDomain
+		}
+
+		// According to RFC 6265 such cookies should be treated as
+		// domain cookies.
+		// As there are no subdomains of an IP address the treatment
+		// according to RFC 6265 would be exactly the same as that of
+		// a host-only cookie. Contemporary browsers (and curl) do
+		// allows such cookies but treat them as host-only cookies.
+		// So do we as it just doesn't make sense to label them as
+		// domain cookies when there is no domain; the whole notion of
+		// domain cookies requires a domain name to be well defined.
+		return host, true, nil
 	}
 
 	// From here on: If the cookie is valid, it is a domain cookie (with

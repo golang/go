@@ -9,9 +9,9 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"html"
-	exec "internal/execabs"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -848,7 +848,7 @@ func (w *HTMLWriter) WriteSources(phase string, all []*FuncLines) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fmt.Fprint(&buf, "<div class=\"lines\" style=\"width: 8%\">")
 	filename := ""
 	for _, fl := range all {
@@ -890,7 +890,7 @@ func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
 		return // avoid generating HTML just to discard it
 	}
 	lines := strings.Split(buf.String(), "\n")
-	var out bytes.Buffer
+	var out strings.Builder
 
 	fmt.Fprint(&out, "<div>")
 	for _, l := range lines {
@@ -903,15 +903,12 @@ func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
 			if strings.HasPrefix(l, "buildssa") {
 				escaped = fmt.Sprintf("<b>%v</b>", l)
 			} else {
-				// Parse the line number from the format l(123).
-				idx := strings.Index(l, " l(")
-				if idx != -1 {
-					subl := l[idx+3:]
-					idxEnd := strings.Index(subl, ")")
-					if idxEnd != -1 {
-						if _, err := strconv.Atoi(subl[:idxEnd]); err == nil {
-							lineNo = subl[:idxEnd]
-						}
+				// Parse the line number from the format file:line:col.
+				// See the implementation in ir/fmt.go:dumpNodeHeader.
+				sl := strings.Split(l, ":")
+				if len(sl) >= 3 {
+					if _, err := strconv.Atoi(sl[len(sl)-2]); err == nil {
+						lineNo = sl[len(sl)-2]
 					}
 				}
 				escaped = html.EscapeString(l)
@@ -997,6 +994,9 @@ func (v *Value) LongHTML() string {
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + html.EscapeString(r[v.ID].String())
 	}
+	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
+		s += " tmp=" + reg.String()
+	}
 	var names []string
 	for name, values := range v.Block.Func.NamedValues {
 		for _, value := range values {
@@ -1056,7 +1056,7 @@ func (b *Block) LongHTML() string {
 }
 
 func (f *Func) HTML(phase string, dot *dotWriter) string {
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	if dot != nil {
 		dot.writeFuncSVG(buf, phase, f)
 	}
@@ -1085,7 +1085,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	}
 	buf := new(bytes.Buffer)
 	cmd.Stdout = buf
-	bufErr := new(bytes.Buffer)
+	bufErr := new(strings.Builder)
 	cmd.Stderr = bufErr
 	err = cmd.Start()
 	if err != nil {
@@ -1221,7 +1221,7 @@ func (p htmlFuncPrinter) startBlock(b *Block, reachable bool) {
 	}
 }
 
-func (p htmlFuncPrinter) endBlock(b *Block) {
+func (p htmlFuncPrinter) endBlock(b *Block, reachable bool) {
 	if len(b.Values) > 0 { // end list of values
 		io.WriteString(p.w, "</ul>")
 		io.WriteString(p.w, "</li>")

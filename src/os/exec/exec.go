@@ -18,12 +18,83 @@
 // Note that the examples in this package assume a Unix system.
 // They may not run on Windows, and they do not run in the Go Playground
 // used by golang.org and godoc.org.
+//
+// # Executables in the current directory
+//
+// The functions Command and LookPath look for a program
+// in the directories listed in the current path, following the
+// conventions of the host operating system.
+// Operating systems have for decades included the current
+// directory in this search, sometimes implicitly and sometimes
+// configured explicitly that way by default.
+// Modern practice is that including the current directory
+// is usually unexpected and often leads to security problems.
+//
+// To avoid those security problems, as of Go 1.19, this package will not resolve a program
+// using an implicit or explicit path entry relative to the current directory.
+// That is, if you run exec.LookPath("go"), it will not successfully return
+// ./go on Unix nor .\go.exe on Windows, no matter how the path is configured.
+// Instead, if the usual path algorithms would result in that answer,
+// these functions return an error err satisfying errors.Is(err, ErrDot).
+//
+// For example, consider these two program snippets:
+//
+//	path, err := exec.LookPath("prog")
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	use(path)
+//
+// and
+//
+//	cmd := exec.Command("prog")
+//	if err := cmd.Run(); err != nil {
+//		log.Fatal(err)
+//	}
+//
+// These will not find and run ./prog or .\prog.exe,
+// no matter how the current path is configured.
+//
+// Code that always wants to run a program from the current directory
+// can be rewritten to say "./prog" instead of "prog".
+//
+// Code that insists on including results from relative path entries
+// can instead override the error using an errors.Is check:
+//
+//	path, err := exec.LookPath("prog")
+//	if errors.Is(err, exec.ErrDot) {
+//		err = nil
+//	}
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//	use(path)
+//
+// and
+//
+//	cmd := exec.Command("prog")
+//	if errors.Is(cmd.Err, exec.ErrDot) {
+//		cmd.Err = nil
+//	}
+//	if err := cmd.Run(); err != nil {
+//		log.Fatal(err)
+//	}
+//
+// Setting the environment variable GODEBUG=execerrdot=0
+// disables generation of ErrDot entirely, temporarily restoring the pre-Go 1.19
+// behavior for programs that are unable to apply more targeted fixes.
+// A future version of Go may remove support for this variable.
+//
+// Before adding such overrides, make sure you understand the
+// security implications of doing so.
+// See https://go.dev/blog/path-security for more information.
 package exec
 
 import (
 	"bytes"
 	"context"
 	"errors"
+	"internal/godebug"
 	"internal/syscall/execenv"
 	"io"
 	"os"
@@ -31,8 +102,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
+	"time"
 )
 
 // Error is returned by LookPath when it fails to classify a file as an
@@ -49,6 +120,25 @@ func (e *Error) Error() string {
 }
 
 func (e *Error) Unwrap() error { return e.Err }
+
+// ErrWaitDelay is returned by (*Cmd).Wait if the process exits with a
+// successful status code but its output pipes are not closed before the
+// command's WaitDelay expires.
+var ErrWaitDelay = errors.New("exec: WaitDelay expired before I/O complete")
+
+// wrappedError wraps an error without relying on fmt.Errorf.
+type wrappedError struct {
+	prefix string
+	err    error
+}
+
+func (w wrappedError) Error() string {
+	return w.prefix + ": " + w.err.Error()
+}
+
+func (w wrappedError) Unwrap() error {
+	return w.err
+}
 
 // Cmd represents an external command being prepared or run.
 //
@@ -94,7 +184,8 @@ type Cmd struct {
 	// goroutine reads from Stdin and delivers that data to the command
 	// over a pipe. In this case, Wait does not complete until the goroutine
 	// stops copying, either because it has reached the end of Stdin
-	// (EOF or a read error) or because writing to the pipe returned an error.
+	// (EOF or a read error), or because writing to the pipe returned an error,
+	// or because a nonzero WaitDelay was set and expired.
 	Stdin io.Reader
 
 	// Stdout and Stderr specify the process's standard output and error.
@@ -108,7 +199,8 @@ type Cmd struct {
 	// Otherwise, during the execution of the command a separate goroutine
 	// reads from the process over a pipe and delivers that data to the
 	// corresponding Writer. In this case, Wait does not complete until the
-	// goroutine reaches EOF or encounters an error.
+	// goroutine reaches EOF or encounters an error or a nonzero WaitDelay
+	// expires.
 	//
 	// If Stdout and Stderr are the same writer, and have a type that can
 	// be compared with ==, at most one goroutine at a time will call Write.
@@ -129,20 +221,135 @@ type Cmd struct {
 	// Process is the underlying process, once started.
 	Process *os.Process
 
-	// ProcessState contains information about an exited process,
-	// available after a call to Wait or Run.
+	// ProcessState contains information about an exited process.
+	// If the process was started successfully, Wait or Run will
+	// populate its ProcessState when the command completes.
 	ProcessState *os.ProcessState
 
-	ctx             context.Context // nil means none
-	lookPathErr     error           // LookPath error, if any.
-	finished        bool            // when Wait was called
-	childFiles      []*os.File
-	closeAfterStart []io.Closer
-	closeAfterWait  []io.Closer
-	goroutine       []func() error
-	errch           chan error // one send per goroutine
-	waitDone        chan struct{}
+	// ctx is the context passed to CommandContext, if any.
+	ctx context.Context
+
+	Err error // LookPath error, if any.
+
+	// If Cancel is non-nil, the command must have been created with
+	// CommandContext and Cancel will be called when the command's
+	// Context is done. By default, CommandContext sets Cancel to
+	// call the Kill method on the command's Process.
+	//
+	// Typically a custom Cancel will send a signal to the command's
+	// Process, but it may instead take other actions to initiate cancellation,
+	// such as closing a stdin or stdout pipe or sending a shutdown request on a
+	// network socket.
+	//
+	// If the command exits with a success status after Cancel is
+	// called, and Cancel does not return an error equivalent to
+	// os.ErrProcessDone, then Wait and similar methods will return a non-nil
+	// error: either an error wrapping the one returned by Cancel,
+	// or the error from the Context.
+	// (If the command exits with a non-success status, or Cancel
+	// returns an error that wraps os.ErrProcessDone, Wait and similar methods
+	// continue to return the command's usual exit status.)
+	//
+	// If Cancel is set to nil, nothing will happen immediately when the command's
+	// Context is done, but a nonzero WaitDelay will still take effect. That may
+	// be useful, for example, to work around deadlocks in commands that do not
+	// support shutdown signals but are expected to always finish quickly.
+	//
+	// Cancel will not be called if Start returns a non-nil error.
+	Cancel func() error
+
+	// If WaitDelay is non-zero, it bounds the time spent waiting on two sources
+	// of unexpected delay in Wait: a child process that fails to exit after the
+	// associated Context is canceled, and a child process that exits but leaves
+	// its I/O pipes unclosed.
+	//
+	// The WaitDelay timer starts when either the associated Context is done or a
+	// call to Wait observes that the child process has exited, whichever occurs
+	// first. When the delay has elapsed, the command shuts down the child process
+	// and/or its I/O pipes.
+	//
+	// If the child process has failed to exit — perhaps because it ignored or
+	// failed to receive a shutdown signal from a Cancel function, or because no
+	// Cancel function was set — then it will be terminated using os.Process.Kill.
+	//
+	// Then, if the I/O pipes communicating with the child process are still open,
+	// those pipes are closed in order to unblock any goroutines currently blocked
+	// on Read or Write calls.
+	//
+	// If pipes are closed due to WaitDelay, no Cancel call has occurred,
+	// and the command has otherwise exited with a successful status, Wait and
+	// similar methods will return ErrWaitDelay instead of nil.
+	//
+	// If WaitDelay is zero (the default), I/O pipes will be read until EOF,
+	// which might not occur until orphaned subprocesses of the command have
+	// also closed their descriptors for the pipes.
+	WaitDelay time.Duration
+
+	// childIOFiles holds closers for any of the child process's
+	// stdin, stdout, and/or stderr files that were opened by the Cmd itself
+	// (not supplied by the caller). These should be closed as soon as they
+	// are inherited by the child process.
+	childIOFiles []io.Closer
+
+	// parentIOPipes holds closers for the parent's end of any pipes
+	// connected to the child's stdin, stdout, and/or stderr streams
+	// that were opened by the Cmd itself (not supplied by the caller).
+	// These should be closed after Wait sees the command and copying
+	// goroutines exit, or after WaitDelay has expired.
+	parentIOPipes []io.Closer
+
+	// goroutine holds a set of closures to execute to copy data
+	// to and/or from the command's I/O pipes.
+	goroutine []func() error
+
+	// If goroutineErr is non-nil, it receives the first error from a copying
+	// goroutine once all such goroutines have completed.
+	// goroutineErr is set to nil once its error has been received.
+	goroutineErr <-chan error
+
+	// If ctxResult is non-nil, it receives the result of watchCtx exactly once.
+	ctxResult <-chan ctxResult
+
+	// The stack saved when the Command was created, if GODEBUG contains
+	// execwait=2. Used for debugging leaks.
+	createdByStack []byte
+
+	// For a security release long ago, we created x/sys/execabs,
+	// which manipulated the unexported lookPathErr error field
+	// in this struct. For Go 1.19 we exported the field as Err error,
+	// above, but we have to keep lookPathErr around for use by
+	// old programs building against new toolchains.
+	// The String and Start methods look for an error in lookPathErr
+	// in preference to Err, to preserve the errors that execabs sets.
+	//
+	// In general we don't guarantee misuse of reflect like this,
+	// but the misuse of reflect was by us, the best of various bad
+	// options to fix the security problem, and people depend on
+	// those old copies of execabs continuing to work.
+	// The result is that we have to leave this variable around for the
+	// rest of time, a compatibility scar.
+	//
+	// See https://go.dev/blog/path-security
+	// and https://go.dev/issue/43724 for more context.
+	lookPathErr error
 }
+
+// A ctxResult reports the result of watching the Context associated with a
+// running command (and sending corresponding signals if needed).
+type ctxResult struct {
+	err error
+
+	// If timer is non-nil, it expires after WaitDelay has elapsed after
+	// the Context is done.
+	//
+	// (If timer is nil, that means that the Context was not done before the
+	// command completed, or no WaitDelay was set, or the WaitDelay already
+	// expired and its effect was already applied.)
+	timer *time.Timer
+}
+
+var execwait = godebug.New("execwait")
+var execerrdot = godebug.New("execerrdot")
 
 // Command returns the Cmd struct to execute the named program with
 // the given arguments.
@@ -171,11 +378,53 @@ func Command(name string, arg ...string) *Cmd {
 		Path: name,
 		Args: append([]string{name}, arg...),
 	}
+
+	if v := execwait.Value(); v != "" {
+		if v == "2" {
+			// Obtain the caller stack. (This is equivalent to runtime/debug.Stack,
+			// copied to avoid importing the whole package.)
+			stack := make([]byte, 1024)
+			for {
+				n := runtime.Stack(stack, false)
+				if n < len(stack) {
+					stack = stack[:n]
+					break
+				}
+				stack = make([]byte, 2*len(stack))
+			}
+
+			if i := bytes.Index(stack, []byte("\nos/exec.Command(")); i >= 0 {
+				stack = stack[i+1:]
+			}
+			cmd.createdByStack = stack
+		}
+
+		runtime.SetFinalizer(cmd, func(c *Cmd) {
+			if c.Process != nil && c.ProcessState == nil {
+				debugHint := ""
+				if c.createdByStack == nil {
+					debugHint = " (set GODEBUG=execwait=2 to capture stacks for debugging)"
+				} else {
+					os.Stderr.WriteString("GODEBUG=execwait=2 detected a leaked exec.Cmd created by:\n")
+					os.Stderr.Write(c.createdByStack)
+					os.Stderr.WriteString("\n")
+					debugHint = ""
+				}
+				panic("exec: Cmd started a Process but leaked without a call to Wait" + debugHint)
+			}
+		})
+	}
+
 	if filepath.Base(name) == name {
-		if lp, err := LookPath(name); err != nil {
-			cmd.lookPathErr = err
-		} else {
+		lp, err := LookPath(name)
+		if lp != "" {
+			// Update cmd.Path even if err is non-nil.
+			// If err is ErrDot (especially on Windows), lp may include a resolved
+			// extension (like .exe or .bat) that should be preserved.
 			cmd.Path = lp
+		}
+		if err != nil {
+			cmd.Err = err
 		}
 	}
 	return cmd
@@ -183,15 +432,22 @@ func Command(name string, arg ...string) *Cmd {
 
 // CommandContext is like Command but includes a context.
 //
-// The provided context is used to kill the process (by calling
-// os.Process.Kill) if the context becomes done before the command
-// completes on its own.
+// The provided context is used to interrupt the process
+// (by calling cmd.Cancel or os.Process.Kill)
+// if the context becomes done before the command completes on its own.
+//
+// CommandContext sets the command's Cancel function to invoke the Kill method
+// on its Process, and leaves its WaitDelay unset. The caller may change the
+// cancellation behavior by modifying those fields before starting the command.
 func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 	if ctx == nil {
 		panic("nil Context")
 	}
 	cmd := Command(name, arg...)
 	cmd.ctx = ctx
+	cmd.Cancel = func() error {
+		return cmd.Process.Kill()
+	}
 	return cmd
 }
 
@@ -200,7 +456,7 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 // In particular, it is not suitable for use as input to a shell.
 // The output of String may vary across Go releases.
 func (c *Cmd) String() string {
-	if c.lookPathErr != nil {
+	if c.Err != nil || c.lookPathErr != nil {
 		// failed to resolve path; report the original requested path (plus args)
 		return strings.Join(c.Args, " ")
 	}
@@ -216,18 +472,11 @@ func (c *Cmd) String() string {
 
 // interfaceEqual protects against panics from doing equality tests on
 // two interfaces with non-comparable underlying types.
-func interfaceEqual(a, b interface{}) bool {
+func interfaceEqual(a, b any) bool {
 	defer func() {
 		recover()
 	}()
 	return a == b
-}
-
-func (c *Cmd) envv() ([]string, error) {
-	if c.Env != nil {
-		return c.Env, nil
-	}
-	return execenv.Default(c.SysProcAttr)
 }
 
 func (c *Cmd) argv() []string {
@@ -237,18 +486,14 @@ func (c *Cmd) argv() []string {
 	return []string{c.Path}
 }
 
-// skipStdinCopyError optionally specifies a function which reports
-// whether the provided stdin copy error should be ignored.
-var skipStdinCopyError func(error) bool
-
-func (c *Cmd) stdin() (f *os.File, err error) {
+func (c *Cmd) childStdin() (*os.File, error) {
 	if c.Stdin == nil {
-		f, err = os.Open(os.DevNull)
+		f, err := os.Open(os.DevNull)
 		if err != nil {
-			return
+			return nil, err
 		}
-		c.closeAfterStart = append(c.closeAfterStart, f)
-		return
+		c.childIOFiles = append(c.childIOFiles, f)
+		return f, nil
 	}
 
 	if f, ok := c.Stdin.(*os.File); ok {
@@ -257,14 +502,14 @@ func (c *Cmd) stdin() (f *os.File, err error) {
 
 	pr, pw, err := os.Pipe()
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	c.closeAfterStart = append(c.closeAfterStart, pr)
-	c.closeAfterWait = append(c.closeAfterWait, pw)
+	c.childIOFiles = append(c.childIOFiles, pr)
+	c.parentIOPipes = append(c.parentIOPipes, pw)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(pw, c.Stdin)
-		if skip := skipStdinCopyError; skip != nil && skip(err) {
+		if skipStdinCopyError(err) {
 			err = nil
 		}
 		if err1 := pw.Close(); err == nil {
@@ -275,25 +520,29 @@ func (c *Cmd) stdin() (f *os.File, err error) {
 	return pr, nil
 }
 
-func (c *Cmd) stdout() (f *os.File, err error) {
+func (c *Cmd) childStdout() (*os.File, error) {
 	return c.writerDescriptor(c.Stdout)
 }
 
-func (c *Cmd) stderr() (f *os.File, err error) {
+func (c *Cmd) childStderr(childStdout *os.File) (*os.File, error) {
 	if c.Stderr != nil && interfaceEqual(c.Stderr, c.Stdout) {
-		return c.childFiles[1], nil
+		return childStdout, nil
 	}
 	return c.writerDescriptor(c.Stderr)
 }
 
-func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err error) {
+// writerDescriptor returns an os.File to which the child process
+// can write to send data to w.
+//
+// If w is nil, writerDescriptor returns a File that writes to os.DevNull.
+func (c *Cmd) writerDescriptor(w io.Writer) (*os.File, error) {
 	if w == nil {
-		f, err = os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+		f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 		if err != nil {
-			return
+			return nil, err
 		}
-		c.closeAfterStart = append(c.closeAfterStart, f)
-		return
+		c.childIOFiles = append(c.childIOFiles, f)
+		return f, nil
 	}
 
 	if f, ok := w.(*os.File); ok {
@@ -302,11 +551,11 @@ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err error) {
 
 	pr, pw, err := os.Pipe()
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	c.closeAfterStart = append(c.closeAfterStart, pw)
-	c.closeAfterWait = append(c.closeAfterWait, pr)
+	c.childIOFiles = append(c.childIOFiles, pw)
+	c.parentIOPipes = append(c.parentIOPipes, pr)
 	c.goroutine = append(c.goroutine, func() error {
 		_, err := io.Copy(w, pr)
 		pr.Close() // in case io.Copy stopped due to write error
@@ -315,7 +564,7 @@ func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err error) {
 	return pw, nil
 }
 
-func (c *Cmd) closeDescriptors(closers []io.Closer) {
+func closeDescriptors(closers []io.Closer) {
 	for _, fd := range closers {
 		fd.Close()
 	}
@@ -346,7 +595,7 @@ func (c *Cmd) Run() error {
 // lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
 func lookExtensions(path, dir string) (string, error) {
 	if filepath.Base(path) == path {
-		path = filepath.Join(".", path)
+		path = "." + string(filepath.Separator) + path
 	}
 	if dir == "" {
 		return LookPath(path)
@@ -371,90 +620,225 @@ func lookExtensions(path, dir string) (string, error) {
 //
 // If Start returns successfully, the c.Process field will be set.
 //
-// The Wait method will return the exit code and release associated resources
-// once the command exits.
+// After a successful call to Start the Wait method must be called in
+// order to release associated system resources.
 func (c *Cmd) Start() error {
-	if c.lookPathErr != nil {
-		c.closeDescriptors(c.closeAfterStart)
-		c.closeDescriptors(c.closeAfterWait)
-		return c.lookPathErr
+	// Check for doubled Start calls before we defer failure cleanup. If the prior
+	// call to Start succeeded, we don't want to spuriously close its pipes.
+	if c.Process != nil {
+		return errors.New("exec: already started")
+	}
+
+	started := false
+	defer func() {
+		closeDescriptors(c.childIOFiles)
+		c.childIOFiles = nil
+
+		if !started {
+			closeDescriptors(c.parentIOPipes)
+			c.parentIOPipes = nil
+		}
+	}()
+
+	if c.Path == "" && c.Err == nil && c.lookPathErr == nil {
+		c.Err = errors.New("exec: no command")
+	}
+	if c.Err != nil || c.lookPathErr != nil {
+		if c.lookPathErr != nil {
+			return c.lookPathErr
+		}
+		return c.Err
 	}
 	if runtime.GOOS == "windows" {
 		lp, err := lookExtensions(c.Path, c.Dir)
 		if err != nil {
-			c.closeDescriptors(c.closeAfterStart)
-			c.closeDescriptors(c.closeAfterWait)
 			return err
 		}
 		c.Path = lp
 	}
-	if c.Process != nil {
-		return errors.New("exec: already started")
+	if c.Cancel != nil && c.ctx == nil {
+		return errors.New("exec: command with a non-nil Cancel was not created with CommandContext")
 	}
 	if c.ctx != nil {
 		select {
 		case <-c.ctx.Done():
-			c.closeDescriptors(c.closeAfterStart)
-			c.closeDescriptors(c.closeAfterWait)
 			return c.ctx.Err()
 		default:
 		}
 	}
 
-	c.childFiles = make([]*os.File, 0, 3+len(c.ExtraFiles))
-	type F func(*Cmd) (*os.File, error)
-	for _, setupFd := range []F{(*Cmd).stdin, (*Cmd).stdout, (*Cmd).stderr} {
-		fd, err := setupFd(c)
-		if err != nil {
-			c.closeDescriptors(c.closeAfterStart)
-			c.closeDescriptors(c.closeAfterWait)
-			return err
-		}
-		c.childFiles = append(c.childFiles, fd)
+	childFiles := make([]*os.File, 0, 3+len(c.ExtraFiles))
+	stdin, err := c.childStdin()
+	if err != nil {
+		return err
 	}
-	c.childFiles = append(c.childFiles, c.ExtraFiles...)
+	childFiles = append(childFiles, stdin)
+	stdout, err := c.childStdout()
+	if err != nil {
+		return err
+	}
+	childFiles = append(childFiles, stdout)
+	stderr, err := c.childStderr(stdout)
+	if err != nil {
+		return err
+	}
+	childFiles = append(childFiles, stderr)
+	childFiles = append(childFiles, c.ExtraFiles...)
 
-	envv, err := c.envv()
+	env, err := c.environ()
 	if err != nil {
 		return err
 	}
 
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
-		Files: c.childFiles,
-		Env:   addCriticalEnv(dedupEnv(envv)),
+		Files: childFiles,
+		Env:   env,
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {
-		c.closeDescriptors(c.closeAfterStart)
-		c.closeDescriptors(c.closeAfterWait)
 		return err
 	}
+	started = true
 
-	c.closeDescriptors(c.closeAfterStart)
-
-	// Don't allocate the channel unless there are goroutines to fire.
+	// Don't allocate the goroutineErr channel unless there are goroutines to start.
 	if len(c.goroutine) > 0 {
-		c.errch = make(chan error, len(c.goroutine))
+		goroutineErr := make(chan error, 1)
+		c.goroutineErr = goroutineErr
+
+		type goroutineStatus struct {
+			running  int
+			firstErr error
+		}
+		statusc := make(chan goroutineStatus, 1)
+		statusc <- goroutineStatus{running: len(c.goroutine)}
 		for _, fn := range c.goroutine {
 			go func(fn func() error) {
-				c.errch <- fn()
+				err := fn()
+
+				status := <-statusc
+				if status.firstErr == nil {
+					status.firstErr = err
+				}
+				status.running--
+				if status.running == 0 {
+					goroutineErr <- status.firstErr
+				} else {
+					statusc <- status
+				}
 			}(fn)
 		}
+		c.goroutine = nil // Allow the goroutines' closures to be GC'd when they complete.
 	}
 
-	if c.ctx != nil {
-		c.waitDone = make(chan struct{})
-		go func() {
-			select {
-			case <-c.ctx.Done():
-				c.Process.Kill()
-			case <-c.waitDone:
-			}
-		}()
+	// If we have anything to do when the command's Context expires,
+	// start a goroutine to watch for cancellation.
+	//
+	// (Even if the command was created by CommandContext, a helper library may
+	// have explicitly set its Cancel field back to nil, indicating that it should
+	// be allowed to continue running after cancellation after all.)
+	if (c.Cancel != nil || c.WaitDelay != 0) && c.ctx != nil && c.ctx.Done() != nil {
+		resultc := make(chan ctxResult)
+		c.ctxResult = resultc
+		go c.watchCtx(resultc)
 	}
 
 	return nil
+}
+
+// watchCtx watches c.ctx until it is able to send a result to resultc.
+//
+// If c.ctx is done before a result can be sent, watchCtx calls c.Cancel,
+// and/or kills cmd.Process it after c.WaitDelay has elapsed.
+//
+// watchCtx manipulates c.goroutineErr, so its result must be received before
+// c.awaitGoroutines is called.
+func (c *Cmd) watchCtx(resultc chan<- ctxResult) {
+	select {
+	case resultc <- ctxResult{}:
+		return
+	case <-c.ctx.Done():
+	}
+
+	var err error
+	if c.Cancel != nil {
+		if interruptErr := c.Cancel(); interruptErr == nil {
+			// We appear to have successfully interrupted the command, so any
+			// program behavior from this point may be due to ctx even if the
+			// command exits with code 0.
+			err = c.ctx.Err()
+		} else if errors.Is(interruptErr, os.ErrProcessDone) {
+			// The process already finished: we just didn't notice it yet.
+			// (Perhaps c.Wait hadn't been called, or perhaps it happened to race with
+			// c.ctx being cancelled.) Don't inject a needless error.
+		} else {
+			err = wrappedError{
+				prefix: "exec: canceling Cmd",
+				err:    interruptErr,
+			}
+		}
+	}
+	if c.WaitDelay == 0 {
+		resultc <- ctxResult{err: err}
+		return
+	}
+
+	timer := time.NewTimer(c.WaitDelay)
+	select {
+	case resultc <- ctxResult{err: err, timer: timer}:
+		// c.Process.Wait returned and we've handed the timer off to c.Wait.
+		// It will take care of goroutine shutdown from here.
+		return
+	case <-timer.C:
+	}
+
+	killed := false
+	if killErr := c.Process.Kill(); killErr == nil {
+		// We appear to have killed the process. c.Process.Wait should return a
+		// non-nil error to c.Wait unless the Kill signal races with a successful
+		// exit, and if that does happen we shouldn't report a spurious error,
+		// so don't set err to anything here.
+		killed = true
+	} else if !errors.Is(killErr, os.ErrProcessDone) {
+		err = wrappedError{
+			prefix: "exec: killing Cmd",
+			err:    killErr,
+		}
+	}
+
+	if c.goroutineErr != nil {
+		select {
+		case goroutineErr := <-c.goroutineErr:
+			// Forward goroutineErr only if we don't have reason to believe it was
+			// caused by a call to Cancel or Kill above.
+			if err == nil && !killed {
+				err = goroutineErr
+			}
+		default:
+			// Close the child process's I/O pipes, in case it abandoned some
+			// subprocess that inherited them and is still holding them open
+			// (see https://go.dev/issue/23019).
+			//
+			// We close the goroutine pipes only after we have sent any signals we're
+			// going to send to the process (via Signal or Kill above): if we send
+			// SIGKILL to the process, we would prefer for it to die of SIGKILL, not
+			// SIGPIPE. (However, this may still cause any orphaned subprocesses to
+			// terminate with SIGPIPE.)
+			closeDescriptors(c.parentIOPipes)
+			// Wait for the copying goroutines to finish, but report ErrWaitDelay for
+			// the error: any other error here could result from closing the pipes.
+			_ = <-c.goroutineErr
+			if err == nil {
+				err = ErrWaitDelay
+			}
+		}
+
+		// Since we have already received the only result from c.goroutineErr,
+		// set it to nil to prevent awaitGoroutines from blocking on it.
+		c.goroutineErr = nil
+	}
+
+	resultc <- ctxResult{err: err}
 }
 
 // An ExitError reports an unsuccessful exit by a command.
@@ -499,33 +883,87 @@ func (c *Cmd) Wait() error {
 	if c.Process == nil {
 		return errors.New("exec: not started")
 	}
-	if c.finished {
+	if c.ProcessState != nil {
 		return errors.New("exec: Wait was already called")
 	}
-	c.finished = true
 
 	state, err := c.Process.Wait()
-	if c.waitDone != nil {
-		close(c.waitDone)
+	if err == nil && !state.Success() {
+		err = &ExitError{ProcessState: state}
 	}
 	c.ProcessState = state
 
-	var copyError error
-	for range c.goroutine {
-		if err := <-c.errch; err != nil && copyError == nil {
-			copyError = err
+	var timer *time.Timer
+	if c.ctxResult != nil {
+		watch := <-c.ctxResult
+		timer = watch.timer
+		// If c.Process.Wait returned an error, prefer that.
+		// Otherwise, report any error from the watchCtx goroutine,
+		// such as a Context cancellation or a WaitDelay overrun.
+		if err == nil && watch.err != nil {
+			err = watch.err
 		}
 	}
 
-	c.closeDescriptors(c.closeAfterWait)
+	if goroutineErr := c.awaitGoroutines(timer); err == nil {
+		// Report an error from the copying goroutines only if the program otherwise
+		// exited normally on its own. Otherwise, the copying error may be due to the
+		// abnormal termination.
+		err = goroutineErr
+	}
+	closeDescriptors(c.parentIOPipes)
+	c.parentIOPipes = nil
 
-	if err != nil {
-		return err
-	} else if !state.Success() {
-		return &ExitError{ProcessState: state}
+	return err
+}
+
+// awaitGoroutines waits for the results of the goroutines copying data to or
+// from the command's I/O pipes.
+//
+// If c.WaitDelay elapses before the goroutines complete, awaitGoroutines
+// forcibly closes their pipes and returns ErrWaitDelay.
+//
+// If timer is non-nil, it must send to timer.C at the end of c.WaitDelay.
+func (c *Cmd) awaitGoroutines(timer *time.Timer) error {
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+		c.goroutineErr = nil
+	}()
+
+	if c.goroutineErr == nil {
+		return nil // No running goroutines to await.
 	}
 
-	return copyError
+	if timer == nil {
+		if c.WaitDelay == 0 {
+			return <-c.goroutineErr
+		}
+
+		select {
+		case err := <-c.goroutineErr:
+			// Avoid the overhead of starting a timer.
+			return err
+		default:
+		}
+
+		// No existing timer was started: either there is no Context associated with
+		// the command, or c.Process.Wait completed before the Context was done.
+		timer = time.NewTimer(c.WaitDelay)
+	}
+
+	select {
+	case <-timer.C:
+		closeDescriptors(c.parentIOPipes)
+		// Wait for the copying goroutines to finish, but ignore any error
+		// (since it was probably caused by closing the pipes).
+		_ = <-c.goroutineErr
+		return ErrWaitDelay
+
+	case err := <-c.goroutineErr:
+		return err
+	}
 }
 
 // Output runs the command and returns its standard output.
@@ -586,26 +1024,9 @@ func (c *Cmd) StdinPipe() (io.WriteCloser, error) {
 		return nil, err
 	}
 	c.Stdin = pr
-	c.closeAfterStart = append(c.closeAfterStart, pr)
-	wc := &closeOnce{File: pw}
-	c.closeAfterWait = append(c.closeAfterWait, wc)
-	return wc, nil
-}
-
-type closeOnce struct {
-	*os.File
-
-	once sync.Once
-	err  error
-}
-
-func (c *closeOnce) Close() error {
-	c.once.Do(c.close)
-	return c.err
-}
-
-func (c *closeOnce) close() {
-	c.err = c.File.Close()
+	c.childIOFiles = append(c.childIOFiles, pr)
+	c.parentIOPipes = append(c.parentIOPipes, pw)
+	return pw, nil
 }
 
 // StdoutPipe returns a pipe that will be connected to the command's
@@ -628,8 +1049,8 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
 		return nil, err
 	}
 	c.Stdout = pw
-	c.closeAfterStart = append(c.closeAfterStart, pw)
-	c.closeAfterWait = append(c.closeAfterWait, pr)
+	c.childIOFiles = append(c.childIOFiles, pw)
+	c.parentIOPipes = append(c.parentIOPipes, pr)
 	return pr, nil
 }
 
@@ -653,8 +1074,8 @@ func (c *Cmd) StderrPipe() (io.ReadCloser, error) {
 		return nil, err
 	}
 	c.Stderr = pw
-	c.closeAfterStart = append(c.closeAfterStart, pw)
-	c.closeAfterWait = append(c.closeAfterWait, pr)
+	c.childIOFiles = append(c.childIOFiles, pw)
+	c.parentIOPipes = append(c.parentIOPipes, pr)
 	return pr, nil
 }
 
@@ -735,36 +1156,121 @@ func minInt(a, b int) int {
 	return b
 }
 
+// environ returns a best-effort copy of the environment in which the command
+// would be run as it is currently configured. If an error occurs in computing
+// the environment, it is returned alongside the best-effort copy.
+func (c *Cmd) environ() ([]string, error) {
+	var err error
+
+	env := c.Env
+	if env == nil {
+		env, err = execenv.Default(c.SysProcAttr)
+		if err != nil {
+			env = os.Environ()
+			// Note that the non-nil err is preserved despite env being overridden.
+		}
+
+		if c.Dir != "" {
+			switch runtime.GOOS {
+			case "windows", "plan9":
+				// Windows and Plan 9 do not use the PWD variable, so we don't need to
+				// keep it accurate.
+			default:
+				// On POSIX platforms, PWD represents “an absolute pathname of the
+				// current working directory.” Since we are changing the working
+				// directory for the command, we should also update PWD to reflect that.
+				//
+				// Unfortunately, we didn't always do that, so (as proposed in
+				// https://go.dev/issue/50599) to avoid unintended collateral damage we
+				// only implicitly update PWD when Env is nil. That way, we're much
+				// less likely to override an intentional change to the variable.
+				if pwd, absErr := filepath.Abs(c.Dir); absErr == nil {
+					env = append(env, "PWD="+pwd)
+				} else if err == nil {
+					err = absErr
+				}
+			}
+		}
+	}
+
+	env, dedupErr := dedupEnv(env)
+	if err == nil {
+		err = dedupErr
+	}
+	return addCriticalEnv(env), err
+}
+
+// Environ returns a copy of the environment in which the command would be run
+// as it is currently configured.
+func (c *Cmd) Environ() []string {
+	//  Intentionally ignore errors: environ returns a best-effort environment no matter what.
+	env, _ := c.environ()
+	return env
+}
+
 // dedupEnv returns a copy of env with any duplicates removed, in favor of
 // later values.
 // Items not of the normal environment "key=value" form are preserved unchanged.
-func dedupEnv(env []string) []string {
-	return dedupEnvCase(runtime.GOOS == "windows", env)
+// Except on Plan 9, items containing NUL characters are removed, and
+// an error is returned along with the remaining values.
+func dedupEnv(env []string) ([]string, error) {
+	return dedupEnvCase(runtime.GOOS == "windows", runtime.GOOS == "plan9", env)
 }
 
 // dedupEnvCase is dedupEnv with a case option for testing.
 // If caseInsensitive is true, the case of keys is ignored.
-func dedupEnvCase(caseInsensitive bool, env []string) []string {
+// If nulOK is false, items containing NUL characters are allowed.
+func dedupEnvCase(caseInsensitive, nulOK bool, env []string) ([]string, error) {
+	// Construct the output in reverse order, to preserve the
+	// last occurrence of each key.
+	var err error
 	out := make([]string, 0, len(env))
-	saw := make(map[string]int, len(env)) // key => index into out
-	for _, kv := range env {
-		eq := strings.Index(kv, "=")
-		if eq < 0 {
-			out = append(out, kv)
+	saw := make(map[string]bool, len(env))
+	for n := len(env); n > 0; n-- {
+		kv := env[n-1]
+
+		// Reject NUL in environment variables to prevent security issues (#56284);
+		// except on Plan 9, which uses NUL as os.PathListSeparator (#56544).
+		if !nulOK && strings.IndexByte(kv, 0) != -1 {
+			err = errors.New("exec: environment variable contains NUL")
 			continue
 		}
-		k := kv[:eq]
+
+		i := strings.Index(kv, "=")
+		if i == 0 {
+			// We observe in practice keys with a single leading "=" on Windows.
+			// TODO(#49886): Should we consume only the first leading "=" as part
+			// of the key, or parse through arbitrarily many of them until a non-"="?
+			i = strings.Index(kv[1:], "=") + 1
+		}
+		if i < 0 {
+			if kv != "" {
+				// The entry is not of the form "key=value" (as it is required to be).
+				// Leave it as-is for now.
+				// TODO(#52436): should we strip or reject these bogus entries?
+				out = append(out, kv)
+			}
+			continue
+		}
+		k := kv[:i]
 		if caseInsensitive {
 			k = strings.ToLower(k)
 		}
-		if dupIdx, isDup := saw[k]; isDup {
-			out[dupIdx] = kv
+		if saw[k] {
 			continue
 		}
-		saw[k] = len(out)
+
+		saw[k] = true
 		out = append(out, kv)
 	}
-	return out
+
+	// Now reverse the slice to restore the original order.
+	for i := 0; i < len(out)/2; i++ {
+		j := len(out) - i - 1
+		out[i], out[j] = out[j], out[i]
+	}
+
+	return out, err
 }
 
 // addCriticalEnv adds any critical environment variables that are required
@@ -775,11 +1281,10 @@ func addCriticalEnv(env []string) []string {
 		return env
 	}
 	for _, kv := range env {
-		eq := strings.Index(kv, "=")
-		if eq < 0 {
+		k, _, ok := strings.Cut(kv, "=")
+		if !ok {
 			continue
 		}
-		k := kv[:eq]
 		if strings.EqualFold(k, "SYSTEMROOT") {
 			// We already have it.
 			return env
@@ -787,3 +1292,12 @@ func addCriticalEnv(env []string) []string {
 	}
 	return append(env, "SYSTEMROOT="+os.Getenv("SYSTEMROOT"))
 }
+
+// ErrDot indicates that a path lookup resolved to an executable
+// in the current directory due to ‘.’ being in the path, either
+// implicitly or explicitly. See the package documentation for details.
+//
+// Note that functions in this package do not return ErrDot directly.
+// Code should use errors.Is(err, ErrDot), not err == ErrDot,
+// to test whether a returned error err is due to this condition.
+var ErrDot = errors.New("cannot run executable found relative to current directory")

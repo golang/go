@@ -37,14 +37,6 @@ func directClosureCall(n *ir.CallExpr) {
 		return // leave for walkClosure to handle
 	}
 
-	// If wrapGoDefer() in the order phase has flagged this call,
-	// avoid eliminating the closure even if there is a direct call to
-	// (the closure is needed to simplify the register ABI). See
-	// wrapGoDefer for more details.
-	if n.PreserveClosure {
-		return
-	}
-
 	// We are going to insert captured variables before input args.
 	var params []*types.Field
 	var decls []*ir.Name
@@ -76,7 +68,7 @@ func directClosureCall(n *ir.CallExpr) {
 
 	// Create new function type with parameters prepended, and
 	// then update type and declarations.
-	typ = types.NewSignature(typ.Pkg(), nil, nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
+	typ = types.NewSignature(nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
 	f.SetType(typ)
 	clofn.Dcl = append(decls, clofn.Dcl...)
 
@@ -115,13 +107,25 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
 	// The closure is not trivial or directly called, so it's going to stay a closure.
 	ir.ClosureDebugRuntimeCheck(clo)
 	clofn.SetNeedctxt(true)
-	ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
+
+	// The closure expression may be walked more than once if it appeared in composite
+	// literal initialization (e.g, see issue #49029).
+	//
+	// Don't add the closure function to compilation queue more than once, since when
+	// compiling a function twice would lead to an ICE.
+	if !clofn.Walked() {
+		clofn.SetWalked(true)
+		ir.CurFunc.Closures = append(ir.CurFunc.Closures, clofn)
+	}
 
 	typ := typecheck.ClosureType(clo)
 
-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, typ, nil)
 	clos.SetEsc(clo.Esc())
 	clos.List = append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, clofn.Nname)}, closureArgs(clo)...)
+	for i, value := range clos.List {
+		clos.List[i] = ir.NewStructKeyExpr(base.Pos, typ.Field(i), value)
+	}
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(clo.Esc())
@@ -161,7 +165,7 @@ func closureArgs(clo *ir.ClosureExpr) []ir.Node {
 	return args
 }
 
-func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+func walkMethodValue(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
@@ -175,18 +179,16 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 		n.X = cheapExpr(n.X, init)
 		n.X = walkExpr(n.X, nil)
 
-		tab := typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X))
-
-		c := ir.NewUnaryExpr(base.Pos, ir.OCHECKNIL, tab)
-		c.SetTypecheck(1)
-		init.Append(c)
+		tab := ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X)
+		check := ir.NewUnaryExpr(base.Pos, ir.OCHECKNIL, tab)
+		init.Append(typecheck.Stmt(check))
 	}
 
-	typ := typecheck.PartialCallType(n)
+	typ := typecheck.MethodValueType(n)
 
-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, typ, nil)
 	clos.SetEsc(n.Esc())
-	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, typecheck.MethodValueWrapper(n).Nname), n.X}
+	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, methodValueWrapper(n)), n.X}
 
 	addr := typecheck.NodAddr(clos)
 	addr.SetEsc(n.Esc())
@@ -204,4 +206,26 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
 	}
 
 	return walkExpr(cfn, init)
+}
+
+// methodValueWrapper returns the ONAME node representing the
+// wrapper function (*-fm) needed for the given method value. If the
+// wrapper function hasn't already been created yet, it's created and
+// added to typecheck.Target.Decls.
+func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
+	if dot.Op() != ir.OMETHVALUE {
+		base.Fatalf("methodValueWrapper: unexpected %v (%v)", dot, dot.Op())
+	}
+
+	meth := dot.Sel
+	rcvrtype := dot.X.Type()
+	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
+
+	if sym.Uniq() {
+		return sym.Def.(*ir.Name)
+	}
+	sym.SetUniq(true)
+
+	base.FatalfAt(dot.Pos(), "missing wrapper for %v", meth)
+	panic("unreachable")
 }

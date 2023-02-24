@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build (linux && amd64) || (freebsd && amd64) || (linux && arm64) || (linux && ppc64le)
-// +build linux,amd64 freebsd,amd64 linux,arm64 linux,ppc64le
 
 package cgo
 

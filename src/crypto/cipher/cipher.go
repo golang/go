@@ -59,11 +59,3 @@ type BlockMode interface {
 	// maintains state and does not reset at each CryptBlocks call.
 	CryptBlocks(dst, src []byte)
 }
-
-// Utility routines
-
-func dup(p []byte) []byte {
-	q := make([]byte, len(p))
-	copy(q, p)
-	return q
-}

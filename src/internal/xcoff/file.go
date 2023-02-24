@@ -9,6 +9,7 @@ import (
 	"debug/dwarf"
 	"encoding/binary"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"os"
 	"strings"
@@ -167,12 +168,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	f.TargetMachine = magic
 
 	// Read XCOFF file header
-	if _, err := sr.Seek(0, os.SEEK_SET); err != nil {
+	if _, err := sr.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	var nscns uint16
 	var symptr uint64
-	var nsyms int32
+	var nsyms uint32
 	var opthdr uint16
 	var hdrsz int
 	switch f.TargetMachine {
@@ -204,7 +205,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 	// Read string table (located right after symbol table).
 	offset := symptr + uint64(nsyms)*SYMESZ
-	if _, err := sr.Seek(int64(offset), os.SEEK_SET); err != nil {
+	if _, err := sr.Seek(int64(offset), io.SeekStart); err != nil {
 		return nil, err
 	}
 	// The first 4 bytes contain the length (in bytes).
@@ -213,17 +214,15 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, err
 	}
 	if l > 4 {
-		if _, err := sr.Seek(int64(offset), os.SEEK_SET); err != nil {
+		st, err := saferio.ReadDataAt(sr, uint64(l), int64(offset))
+		if err != nil {
 			return nil, err
 		}
-		f.StringTable = make([]byte, l)
-		if _, err := io.ReadFull(sr, f.StringTable); err != nil {
-			return nil, err
-		}
+		f.StringTable = st
 	}
 
 	// Read section headers
-	if _, err := sr.Seek(int64(hdrsz)+int64(opthdr), os.SEEK_SET); err != nil {
+	if _, err := sr.Seek(int64(hdrsz)+int64(opthdr), io.SeekStart); err != nil {
 		return nil, err
 	}
 	f.Sections = make([]*Section, nscns)
@@ -269,7 +268,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	var idxToSym = make(map[int]*Symbol)
 
 	// Read symbol table
-	if _, err := sr.Seek(int64(symptr), os.SEEK_SET); err != nil {
+	if _, err := sr.Seek(int64(symptr), io.SeekStart); err != nil {
 		return nil, err
 	}
 	f.Symbols = make([]*Symbol, 0)
@@ -355,7 +354,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 		// Read csect auxiliary entry (by convention, it is the last).
 		if !needAuxFcn {
-			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, os.SEEK_CUR); err != nil {
+			if _, err := sr.Seek(int64(numaux-1)*SYMESZ, io.SeekCurrent); err != nil {
 				return nil, err
 			}
 		}
@@ -382,7 +381,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		f.Symbols = append(f.Symbols, sym)
 	skip:
 		i += numaux // Skip auxiliary entries
-		if _, err := sr.Seek(int64(numaux)*SYMESZ, os.SEEK_CUR); err != nil {
+		if _, err := sr.Seek(int64(numaux)*SYMESZ, io.SeekCurrent); err != nil {
 			return nil, err
 		}
 	}
@@ -397,7 +396,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		if sect.Relptr == 0 {
 			continue
 		}
-		if _, err := sr.Seek(int64(sect.Relptr), os.SEEK_SET); err != nil {
+		if _, err := sr.Seek(int64(sect.Relptr), io.SeekStart); err != nil {
 			return nil, err
 		}
 		for i := uint32(0); i < sect.Nreloc; i++ {
@@ -508,11 +507,11 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 // Library name pattern is either path/base/member or base/member
 func (f *File) readImportIDs(s *Section) ([]string, error) {
 	// Read loader header
-	if _, err := s.sr.Seek(0, os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	var istlen uint32
-	var nimpid int32
+	var nimpid uint32
 	var impoff uint64
 	switch f.TargetMachine {
 	case U802TOCMAGIC:
@@ -534,7 +533,7 @@ func (f *File) readImportIDs(s *Section) ([]string, error) {
 	}
 
 	// Read loader import file ID table
-	if _, err := s.sr.Seek(int64(impoff), os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(int64(impoff), io.SeekStart); err != nil {
 		return nil, err
 	}
 	table := make([]byte, istlen)
@@ -577,12 +576,12 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 		return nil, nil
 	}
 	// Read loader header
-	if _, err := s.sr.Seek(0, os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	var stlen uint32
 	var stoff uint64
-	var nsyms int32
+	var nsyms uint32
 	var symoff uint64
 	switch f.TargetMachine {
 	case U802TOCMAGIC:
@@ -606,7 +605,7 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 	}
 
 	// Read loader section string table
-	if _, err := s.sr.Seek(int64(stoff), os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(int64(stoff), io.SeekStart); err != nil {
 		return nil, err
 	}
 	st := make([]byte, stlen)
@@ -621,13 +620,13 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
 	}
 
 	// Read loader symbol table
-	if _, err := s.sr.Seek(int64(symoff), os.SEEK_SET); err != nil {
+	if _, err := s.sr.Seek(int64(symoff), io.SeekStart); err != nil {
 		return nil, err
 	}
 	all := make([]ImportedSymbol, 0)
 	for i := 0; i < int(nsyms); i++ {
 		var name string
-		var ifile int32
+		var ifile uint32
 		var ok bool
 		switch f.TargetMachine {
 		case U802TOCMAGIC:

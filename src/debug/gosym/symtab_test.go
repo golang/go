@@ -33,6 +33,25 @@ func TestStandardLibPathPackage(t *testing.T) {
 	assertString(t, fmt.Sprintf("receiver of %q", s2.Name), s2.ReceiverName(), "")
 }
 
+func TestGenericNames(t *testing.T) {
+	s1 := Sym{Name: "main.set[int]"}
+	s2 := Sym{Name: "main.(*value[int]).get"}
+	s3 := Sym{Name: "a/b.absDifference[c/d.orderedAbs[float64]]"}
+	s4 := Sym{Name: "main.testfunction[.shape.int]"}
+	assertString(t, fmt.Sprintf("package of %q", s1.Name), s1.PackageName(), "main")
+	assertString(t, fmt.Sprintf("package of %q", s2.Name), s2.PackageName(), "main")
+	assertString(t, fmt.Sprintf("package of %q", s3.Name), s3.PackageName(), "a/b")
+	assertString(t, fmt.Sprintf("package of %q", s4.Name), s4.PackageName(), "main")
+	assertString(t, fmt.Sprintf("receiver of %q", s1.Name), s1.ReceiverName(), "")
+	assertString(t, fmt.Sprintf("receiver of %q", s2.Name), s2.ReceiverName(), "(*value[int])")
+	assertString(t, fmt.Sprintf("receiver of %q", s3.Name), s3.ReceiverName(), "")
+	assertString(t, fmt.Sprintf("receiver of %q", s4.Name), s4.ReceiverName(), "")
+	assertString(t, fmt.Sprintf("base of %q", s1.Name), s1.BaseName(), "set[int]")
+	assertString(t, fmt.Sprintf("base of %q", s2.Name), s2.BaseName(), "get")
+	assertString(t, fmt.Sprintf("base of %q", s3.Name), s3.BaseName(), "absDifference[c/d.orderedAbs[float64]]")
+	assertString(t, fmt.Sprintf("base of %q", s4.Name), s4.BaseName(), "testfunction[.shape.int]")
+}
+
 func TestRemotePackage(t *testing.T) {
 	s1 := Sym{Name: "github.com/docker/doc.ker/pkg/mflag.(*FlagSet).PrintDefaults"}
 	s2 := Sym{Name: "github.com/docker/doc.ker/pkg/mflag.PrintDefaults"}
@@ -43,16 +62,26 @@ func TestRemotePackage(t *testing.T) {
 }
 
 func TestIssue29551(t *testing.T) {
-	symNames := []string{
-		"type..eq.[9]debug/elf.intName",
-		"type..hash.debug/elf.ProgHeader",
-		"type..eq.runtime._panic",
-		"type..hash.struct { runtime.gList; runtime.n int32 }",
-		"go.(*struct { sync.Mutex; math/big.table [64]math/big",
+	tests := []struct {
+		sym     Sym
+		pkgName string
+	}{
+		{Sym{goVersion: ver120, Name: "type:.eq.[9]debug/elf.intName"}, ""},
+		{Sym{goVersion: ver120, Name: "type:.hash.debug/elf.ProgHeader"}, ""},
+		{Sym{goVersion: ver120, Name: "type:.eq.runtime._panic"}, ""},
+		{Sym{goVersion: ver120, Name: "type:.hash.struct { runtime.gList; runtime.n int32 }"}, ""},
+		{Sym{goVersion: ver120, Name: "go:(*struct { sync.Mutex; math/big.table [64]math/big"}, ""},
+		{Sym{goVersion: ver120, Name: "go.uber.org/zap/buffer.(*Buffer).AppendString"}, "go.uber.org/zap/buffer"},
+		{Sym{goVersion: ver118, Name: "type..eq.[9]debug/elf.intName"}, ""},
+		{Sym{goVersion: ver118, Name: "type..hash.debug/elf.ProgHeader"}, ""},
+		{Sym{goVersion: ver118, Name: "type..eq.runtime._panic"}, ""},
+		{Sym{goVersion: ver118, Name: "type..hash.struct { runtime.gList; runtime.n int32 }"}, ""},
+		{Sym{goVersion: ver118, Name: "go.(*struct { sync.Mutex; math/big.table [64]math/big"}, ""},
+		// unfortunate
+		{Sym{goVersion: ver118, Name: "go.uber.org/zap/buffer.(*Buffer).AppendString"}, ""},
 	}
 
-	for _, symName := range symNames {
-		s := Sym{Name: symName}
-		assertString(t, fmt.Sprintf("package of %q", s.Name), s.PackageName(), "")
+	for _, tc := range tests {
+		assertString(t, fmt.Sprintf("package of %q", tc.sym.Name), tc.sym.PackageName(), tc.pkgName)
 	}
 }

@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !msan
-// +build !msan
 
 // Dummy MSan support API, used when not built with -msan.
 

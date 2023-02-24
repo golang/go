@@ -1,6 +1,6 @@
 # go list -e -deps should list imports from any file it can read, even if
 # other files in the same package cause go/build.Import to return an error.
-# Verfifies golang.org/issue/38568
+# Verifies golang.org/issue/38568
 
 go list -e -deps ./scan
 stdout m/want

@@ -14,7 +14,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	osexec "os/exec"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -49,11 +49,7 @@ func chdir(t *testing.T, dir string) {
 }
 
 func TestSameWindowsFile(t *testing.T) {
-	temp, err := os.MkdirTemp("", "TestSameWindowsFile")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(temp)
+	temp := t.TempDir()
 	chdir(t, temp)
 
 	f, err := os.Create("a")
@@ -99,15 +95,11 @@ type dirLinkTest struct {
 }
 
 func testDirLinks(t *testing.T, tests []dirLinkTest) {
-	tmpdir, err := os.MkdirTemp("", "testDirLinks")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 	chdir(t, tmpdir)
 
 	dir := filepath.Join(tmpdir, "dir")
-	err = os.Mkdir(dir, 0777)
+	err := os.Mkdir(dir, 0777)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,14 +290,14 @@ func TestDirectoryJunction(t *testing.T) {
 			},
 		},
 	}
-	output, _ := osexec.Command("cmd", "/c", "mklink", "/?").Output()
+	output, _ := testenv.Command(t, "cmd", "/c", "mklink", "/?").Output()
 	mklinkSupportsJunctionLinks := strings.Contains(string(output), " /J ")
 	if mklinkSupportsJunctionLinks {
 		tests = append(tests,
 			dirLinkTest{
 				name: "use_mklink_cmd",
 				mklink: func(link, target string) error {
-					output, err := osexec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
+					output, err := testenv.Command(t, "cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
 					if err != nil {
 						t.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
 					}
@@ -371,14 +363,14 @@ func createSymbolicLink(link string, target *reparseData, isrelative bool) error
 
 func TestDirectorySymbolicLink(t *testing.T) {
 	var tests []dirLinkTest
-	output, _ := osexec.Command("cmd", "/c", "mklink", "/?").Output()
+	output, _ := testenv.Command(t, "cmd", "/c", "mklink", "/?").Output()
 	mklinkSupportsDirectorySymbolicLinks := strings.Contains(string(output), " /D ")
 	if mklinkSupportsDirectorySymbolicLinks {
 		tests = append(tests,
 			dirLinkTest{
 				name: "use_mklink_cmd",
 				mklink: func(link, target string) error {
-					output, err := osexec.Command("cmd", "/c", "mklink", "/D", link, target).CombinedOutput()
+					output, err := testenv.Command(t, "cmd", "/c", "mklink", "/D", link, target).CombinedOutput()
 					if err != nil {
 						t.Errorf("failed to run mklink %v %v: %v %q", link, target, err, output)
 					}
@@ -439,19 +431,14 @@ func TestNetworkSymbolicLink(t *testing.T) {
 
 	const _NERR_ServerNotStarted = syscall.Errno(2114)
 
-	dir, err := os.MkdirTemp("", "TestNetworkSymbolicLink")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
+	dir := t.TempDir()
 	chdir(t, dir)
 
 	shareName := "GoSymbolicLinkTestShare" // hope no conflictions
 	sharePath := filepath.Join(dir, shareName)
 	testDir := "TestDir"
 
-	err = os.MkdirAll(filepath.Join(sharePath, testDir), 0777)
+	err := os.MkdirAll(filepath.Join(sharePath, testDir), 0777)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,6 +521,8 @@ func TestNetworkSymbolicLink(t *testing.T) {
 }
 
 func TestStartProcessAttr(t *testing.T) {
+	t.Parallel()
+
 	p, err := os.StartProcess(os.Getenv("COMSPEC"), []string{"/c", "cd"}, new(os.ProcAttr))
 	if err != nil {
 		return
@@ -546,6 +535,8 @@ func TestShareNotExistError(t *testing.T) {
 	if testing.Short() {
 		t.Skip("slow test that uses network; skipping")
 	}
+	t.Parallel()
+
 	_, err := os.Stat(`\\no_such_server\no_such_share\no_such_file`)
 	if err == nil {
 		t.Fatal("stat succeeded, but expected to fail")
@@ -592,11 +583,7 @@ func TestStatDir(t *testing.T) {
 }
 
 func TestOpenVolumeName(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "TestOpenVolumeName")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 	chdir(t, tmpdir)
 
 	want := []string{"file1", "file2", "file3", "gopher.txt"}
@@ -626,6 +613,8 @@ func TestOpenVolumeName(t *testing.T) {
 }
 
 func TestDeleteReadOnly(t *testing.T) {
+	t.Parallel()
+
 	tmpdir := t.TempDir()
 	p := filepath.Join(tmpdir, "a")
 	// This sets FILE_ATTRIBUTE_READONLY.
@@ -640,29 +629,6 @@ func TestDeleteReadOnly(t *testing.T) {
 	}
 	if err = os.Remove(p); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestStatSymlinkLoop(t *testing.T) {
-	testenv.MustHaveSymlink(t)
-
-	defer chtmpdir(t)()
-
-	err := os.Symlink("x", "y")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove("y")
-
-	err = os.Symlink("y", "x")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove("x")
-
-	_, err = os.Stat("x")
-	if _, ok := err.(*fs.PathError); !ok {
-		t.Errorf("expected *PathError, got %T: %v\n", err, err)
 	}
 }
 
@@ -746,11 +712,15 @@ func TestReadStdin(t *testing.T) {
 }
 
 func TestStatPagefile(t *testing.T) {
-	fi, err := os.Stat(`c:\pagefile.sys`)
+	t.Parallel()
+
+	const path = `c:\pagefile.sys`
+	fi, err := os.Stat(path)
 	if err == nil {
 		if fi.Name() == "" {
-			t.Fatal(`FileInfo of c:\pagefile.sys has empty name`)
+			t.Fatalf("Stat(%q).Name() is empty", path)
 		}
+		t.Logf("Stat(%q).Size() = %v", path, fi.Size())
 		return
 	}
 	if os.IsNotExist(err) {
@@ -792,6 +762,11 @@ func compareCommandLineToArgvWithSyscall(t *testing.T, cmd string) {
 }
 
 func TestCmdArgs(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("in short mode; skipping test that builds a binary")
+	}
+	t.Parallel()
+
 	tmpdir := t.TempDir()
 
 	const prog = `
@@ -812,7 +787,7 @@ func main() {
 	}
 
 	exe := filepath.Join(tmpdir, "main.exe")
-	cmd := osexec.Command(testenv.GoToolPath(t), "build", "-o", exe, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -877,7 +852,7 @@ func main() {
 
 		// test both syscall.EscapeArg and os.commandLineToArgv
 		args := os.CommandLineToArgv(exe + cmd)
-		out, err := osexec.Command(args[0], args[1:]...).CombinedOutput()
+		out, err := testenv.Command(t, args[0], args[1:]...).CombinedOutput()
 		if err != nil {
 			t.Fatalf("running %q failed: %v\n%v", args, err, string(out))
 		}
@@ -897,15 +872,26 @@ func findOneDriveDir() (string, error) {
 	}
 	defer k.Close()
 
-	path, _, err := k.GetStringValue("UserFolder")
+	path, valtype, err := k.GetStringValue("UserFolder")
 	if err != nil {
 		return "", fmt.Errorf("reading UserFolder failed: %v", err)
 	}
+
+	if valtype == registry.EXPAND_SZ {
+		expanded, err := registry.ExpandString(path)
+		if err != nil {
+			return "", fmt.Errorf("expanding UserFolder failed: %v", err)
+		}
+		path = expanded
+	}
+
 	return path, nil
 }
 
 // TestOneDrive verifies that OneDrive folder is a directory and not a symlink.
 func TestOneDrive(t *testing.T) {
+	t.Parallel()
+
 	dir, err := findOneDriveDir()
 	if err != nil {
 		t.Skipf("Skipping, because we did not find OneDrive directory: %v", err)
@@ -914,9 +900,7 @@ func TestOneDrive(t *testing.T) {
 }
 
 func TestWindowsDevNullFile(t *testing.T) {
-	testDevNullFile(t, "NUL", true)
-	testDevNullFile(t, "nul", true)
-	testDevNullFile(t, "Nul", true)
+	t.Parallel()
 
 	f1, err := os.Open("NUL")
 	if err != nil {
@@ -942,6 +926,34 @@ func TestWindowsDevNullFile(t *testing.T) {
 
 	if !os.SameFile(fi1, fi2) {
 		t.Errorf(`"NUL" and "nul" are not the same file`)
+	}
+}
+
+func TestFileStatNUL(t *testing.T) {
+	t.Parallel()
+
+	f, err := os.Open("NUL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fi.Mode(), os.ModeDevice|os.ModeCharDevice|0666; got != want {
+		t.Errorf("Open(%q).Stat().Mode() = %v, want %v", "NUL", got, want)
+	}
+}
+
+func TestStatNUL(t *testing.T) {
+	t.Parallel()
+
+	fi, err := os.Stat("NUL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := fi.Mode(), os.ModeDevice|os.ModeCharDevice|0666; got != want {
+		t.Errorf("Stat(%q).Mode() = %v, want %v", "NUL", got, want)
 	}
 }
 
@@ -1101,6 +1113,8 @@ func TestWorkingDirectoryRelativeSymlink(t *testing.T) {
 
 // TestStatOfInvalidName is regression test for issue #24999.
 func TestStatOfInvalidName(t *testing.T) {
+	t.Parallel()
+
 	_, err := os.Stat("*.go")
 	if err == nil {
 		t.Fatal(`os.Stat("*.go") unexpectedly succeeded`)
@@ -1124,20 +1138,26 @@ func findUnusedDriveLetter() (string, error) {
 }
 
 func TestRootDirAsTemp(t *testing.T) {
-	testenv.MustHaveExec(t)
-
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		fmt.Print(os.TempDir())
 		os.Exit(0)
 	}
 
-	newtmp, err := findUnusedDriveLetter()
+	testenv.MustHaveExec(t)
+	t.Parallel()
+
+	exe, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cmd := osexec.Command(os.Args[0], "-test.run=TestRootDirAsTemp")
-	cmd.Env = os.Environ()
+	newtmp, err := findUnusedDriveLetter()
+	if err != nil {
+		t.Skip(err)
+	}
+
+	cmd := testenv.Command(t, exe, "-test.run=TestRootDirAsTemp")
+	cmd.Env = cmd.Environ()
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	cmd.Env = append(cmd.Env, "TMP="+newtmp)
 	cmd.Env = append(cmd.Env, "TEMP="+newtmp)
@@ -1162,21 +1182,21 @@ func testReadlink(t *testing.T, path, want string) {
 }
 
 func mklink(t *testing.T, link, target string) {
-	output, err := osexec.Command("cmd", "/c", "mklink", link, target).CombinedOutput()
+	output, err := testenv.Command(t, "cmd", "/c", "mklink", link, target).CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
 	}
 }
 
 func mklinkj(t *testing.T, link, target string) {
-	output, err := osexec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
+	output, err := testenv.Command(t, "cmd", "/c", "mklink", "/J", link, target).CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
 	}
 }
 
 func mklinkd(t *testing.T, link, target string) {
-	output, err := osexec.Command("cmd", "/c", "mklink", "/D", link, target).CombinedOutput()
+	output, err := testenv.Command(t, "cmd", "/c", "mklink", "/D", link, target).CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run mklink %v %v: %v %q", link, target, err, output)
 	}
@@ -1197,7 +1217,7 @@ func TestWindowsReadlink(t *testing.T) {
 	chdir(t, tmpdir)
 
 	vol := filepath.VolumeName(tmpdir)
-	output, err := osexec.Command("cmd", "/c", "mountvol", vol, "/L").CombinedOutput()
+	output, err := testenv.Command(t, "cmd", "/c", "mountvol", vol, "/L").CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to run mountvol %v /L: %v %q", vol, err, output)
 	}
@@ -1256,18 +1276,104 @@ func TestWindowsReadlink(t *testing.T) {
 	testReadlink(t, "relfilelink", "file")
 }
 
-// os.Mkdir(os.DevNull) fails.
-func TestMkdirDevNull(t *testing.T) {
-	err := os.Mkdir(os.DevNull, 777)
-	oserr, ok := err.(*fs.PathError)
-	if !ok {
-		t.Fatalf("error (%T) is not *fs.PathError", err)
+func TestOpenDirTOCTOU(t *testing.T) {
+	t.Parallel()
+
+	// Check opened directories can't be renamed until the handle is closed.
+	// See issue 52747.
+	tmpdir := t.TempDir()
+	dir := filepath.Join(tmpdir, "dir")
+	if err := os.Mkdir(dir, 0777); err != nil {
+		t.Fatal(err)
 	}
-	errno, ok := oserr.Err.(syscall.Errno)
-	if !ok {
-		t.Fatalf("error (%T) is not syscall.Errno", oserr)
+	f, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if errno != syscall.ENOTDIR {
-		t.Fatalf("error %d is not syscall.ENOTDIR", errno)
+	newpath := filepath.Join(tmpdir, "dir1")
+	err = os.Rename(dir, newpath)
+	if err == nil || !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+		f.Close()
+		t.Fatalf("Rename(%q, %q) = %v; want windows.ERROR_SHARING_VIOLATION", dir, newpath, err)
+	}
+	f.Close()
+	err = os.Rename(dir, newpath)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAppExecLinkStat(t *testing.T) {
+	// We expect executables installed to %LOCALAPPDATA%\Microsoft\WindowsApps to
+	// be reparse points with tag IO_REPARSE_TAG_APPEXECLINK. Here we check that
+	// such reparse points are treated as irregular (but executable) files, not
+	// broken symlinks.
+	appdata := os.Getenv("LOCALAPPDATA")
+	if appdata == "" {
+		t.Skipf("skipping: LOCALAPPDATA not set")
+	}
+
+	pythonExeName := "python3.exe"
+	pythonPath := filepath.Join(appdata, `Microsoft\WindowsApps`, pythonExeName)
+
+	lfi, err := os.Lstat(pythonPath)
+	if err != nil {
+		t.Skip("skipping test, because Python 3 is not installed via the Windows App Store on this system; see https://golang.org/issue/42919")
+	}
+
+	// An APPEXECLINK reparse point is not a symlink, so os.Readlink should return
+	// a non-nil error for it, and Stat should return results identical to Lstat.
+	linkName, err := os.Readlink(pythonPath)
+	if err == nil {
+		t.Errorf("os.Readlink(%q) = %q, but expected an error\n(should be an APPEXECLINK reparse point, not a symlink)", pythonPath, linkName)
+	}
+
+	sfi, err := os.Stat(pythonPath)
+	if err != nil {
+		t.Fatalf("Stat %s: %v", pythonPath, err)
+	}
+
+	if lfi.Name() != sfi.Name() {
+		t.Logf("os.Lstat(%q) = %+v", pythonPath, lfi)
+		t.Logf("os.Stat(%q)  = %+v", pythonPath, sfi)
+		t.Errorf("files should be same")
+	}
+
+	if lfi.Name() != pythonExeName {
+		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, lfi.Name(), pythonExeName)
+	}
+	if m := lfi.Mode(); m&fs.ModeSymlink != 0 {
+		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := lfi.Mode(); m&fs.ModeDir != 0 {
+		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := lfi.Mode(); m&fs.ModeIrregular == 0 {
+		// A reparse point is not a regular file, but we don't have a more appropriate
+		// ModeType bit for it, so it should be marked as irregular.
+		t.Errorf("%q should not be a regular file (mode=0x%x)", pythonPath, uint32(m))
+	}
+
+	if sfi.Name() != pythonExeName {
+		t.Errorf("Stat %s: got %q, but wanted %q", pythonPath, sfi.Name(), pythonExeName)
+	}
+	if m := sfi.Mode(); m&fs.ModeSymlink != 0 {
+		t.Errorf("%q should be a file, not a link (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := sfi.Mode(); m&fs.ModeDir != 0 {
+		t.Errorf("%q should be a file, not a directory (mode=0x%x)", pythonPath, uint32(m))
+	}
+	if m := sfi.Mode(); m&fs.ModeIrregular == 0 {
+		// A reparse point is not a regular file, but we don't have a more appropriate
+		// ModeType bit for it, so it should be marked as irregular.
+		t.Errorf("%q should not be a regular file (mode=0x%x)", pythonPath, uint32(m))
+	}
+
+	p, err := exec.LookPath(pythonPath)
+	if err != nil {
+		t.Errorf("exec.LookPath(%q): %v", pythonPath, err)
+	}
+	if p != pythonPath {
+		t.Errorf("exec.LookPath(%q) = %q; want %q", pythonPath, p, pythonPath)
 	}
 }

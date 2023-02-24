@@ -14,3 +14,10 @@ func save_g()
 func asmcgocall_no_g(fn, arg unsafe.Pointer)
 
 func emptyfunc()
+
+// Used by reflectcall and the reflect package.
+//
+// Spills/loads arguments in registers to/from an internal/abi.RegArgs
+// respectively. Does not follow the Go ABI.
+func spillArgs()
+func unspillArgs()

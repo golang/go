@@ -5,14 +5,14 @@
 package ld
 
 import (
-	"cmd/internal/objabi"
 	"internal/testenv"
-	"io/ioutil"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"testing"
+
+	"cmd/internal/objabi"
 )
 
 func TestDedupLibraries(t *testing.T) {
@@ -99,18 +99,18 @@ import (
 //go:cgo_import_dynamic _ _ "libc.so"
 
 func main() {}`
-	if err := ioutil.WriteFile(srcFile, []byte(src), 0644); err != nil {
+	if err := os.WriteFile(srcFile, []byte(src), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	exe := filepath.Join(dir, "deduped.exe")
-	out, err := exec.Command(testenv.GoToolPath(t), "build", "-o", exe, srcFile).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, srcFile).CombinedOutput()
 	if err != nil {
 		t.Fatalf("build failure: %s\n%s\n", err, string(out))
 	}
 
 	// Result should be runnable.
-	if _, err = exec.Command(exe).CombinedOutput(); err != nil {
+	if _, err = testenv.Command(t, exe).CombinedOutput(); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -14,8 +14,9 @@ import (
 )
 
 // Assembling the binary is broken into two steps:
-//  - writing out the code/data/dwarf Segments, applying relocations on the fly
-//  - writing out the architecture specific pieces.
+//   - writing out the code/data/dwarf Segments, applying relocations on the fly
+//   - writing out the architecture specific pieces.
+//
 // This function handles the first part.
 func asmb(ctxt *Link) {
 	// TODO(jfaller): delete me.
@@ -63,8 +64,9 @@ func asmb(ctxt *Link) {
 }
 
 // Assembling the binary is broken into two steps:
-//  - writing out the code/data/dwarf Segments
-//  - writing out the architecture specific pieces.
+//   - writing out the code/data/dwarf Segments
+//   - writing out the architecture specific pieces.
+//
 // This function handles the second part.
 func asmb2(ctxt *Link) {
 	if thearch.Asmb2 != nil {

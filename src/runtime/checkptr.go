@@ -7,6 +7,11 @@ package runtime
 import "unsafe"
 
 func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
+	// nil pointer is always suitably aligned (#47430).
+	if p == nil {
+		return
+	}
+
 	// Check that (*[n]elem)(p) is appropriately aligned.
 	// Note that we allow unaligned pointers if the types they point to contain
 	// no pointers themselves. See issue 37298.
@@ -16,9 +21,30 @@ func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
 	}
 
 	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
-	if size := n * elem.size; size > 1 && checkptrBase(p) != checkptrBase(add(p, size-1)) {
+	// TODO(mdempsky): Fix #46938 so we don't need to worry about overflow here.
+	if checkptrStraddles(p, n*elem.size) {
 		throw("checkptr: converted pointer straddles multiple allocations")
 	}
+}
+
+// checkptrStraddles reports whether the first size-bytes of memory
+// addressed by ptr is known to straddle more than one Go allocation.
+func checkptrStraddles(ptr unsafe.Pointer, size uintptr) bool {
+	if size <= 1 {
+		return false
+	}
+
+	// Check that add(ptr, size-1) won't overflow. This avoids the risk
+	// of producing an illegal pointer value (assuming ptr is legal).
+	if uintptr(ptr) >= -(size - 1) {
+		return true
+	}
+	end := add(ptr, size-1)
+
+	// TODO(mdempsky): Detect when [ptr, end] contains Go allocations,
+	// but neither ptr nor end point into one themselves.
+
+	return checkptrBase(ptr) != checkptrBase(end)
 }
 
 func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {

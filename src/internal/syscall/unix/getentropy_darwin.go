@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build darwin && !ios
+
 package unix
 
 import (
 	"internal/abi"
-	"syscall"
 	"unsafe"
 )
 
@@ -25,6 +26,3 @@ func GetEntropy(p []byte) error {
 	}
 	return nil
 }
-
-//go:linkname syscall_syscall syscall.syscall
-func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)

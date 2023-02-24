@@ -37,6 +37,16 @@ func ExampleBuffer_Bytes() {
 	// Output: hello world
 }
 
+func ExampleBuffer_Cap() {
+	buf1 := bytes.NewBuffer(make([]byte, 10))
+	buf2 := bytes.NewBuffer(make([]byte, 0, 10))
+	fmt.Println(buf1.Cap())
+	fmt.Println(buf2.Cap())
+	// Output:
+	// 10
+	// 10
+}
+
 func ExampleBuffer_Grow() {
 	var b bytes.Buffer
 	b.Grow(64)
@@ -52,6 +62,65 @@ func ExampleBuffer_Len() {
 	b.Write([]byte("abcde"))
 	fmt.Printf("%d", b.Len())
 	// Output: 5
+}
+
+func ExampleBuffer_Next() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	fmt.Printf("%s\n", string(b.Next(2)))
+	fmt.Printf("%s\n", string(b.Next(2)))
+	fmt.Printf("%s", string(b.Next(2)))
+	// Output:
+	// ab
+	// cd
+	// e
+}
+
+func ExampleBuffer_Read() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	rdbuf := make([]byte, 1)
+	n, err := b.Read(rdbuf)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(n)
+	fmt.Println(b.String())
+	fmt.Println(string(rdbuf))
+	// Output
+	// 1
+	// bcde
+	// a
+}
+
+func ExampleBuffer_ReadByte() {
+	var b bytes.Buffer
+	b.Grow(64)
+	b.Write([]byte("abcde"))
+	c, err := b.ReadByte()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(c)
+	fmt.Println(b.String())
+	// Output
+	// 97
+	// bcde
+}
+
+func ExampleClone() {
+	b := []byte("abc")
+	clone := bytes.Clone(b)
+	fmt.Printf("%s\n", clone)
+	clone[0] = 'd'
+	fmt.Printf("%s\n", b)
+	fmt.Printf("%s\n", clone)
+	// Output:
+	// abc
+	// abc
+	// dbc
 }
 
 func ExampleCompare() {
@@ -90,36 +159,6 @@ func ExampleCompare_search() {
 	if i < len(haystack) && bytes.Equal(haystack[i], needle) {
 		// Found it!
 	}
-}
-
-func ExampleTrimSuffix() {
-	var b = []byte("Hello, goodbye, etc!")
-	b = bytes.TrimSuffix(b, []byte("goodbye, etc!"))
-	b = bytes.TrimSuffix(b, []byte("gopher"))
-	b = append(b, bytes.TrimSuffix([]byte("world!"), []byte("x!"))...)
-	os.Stdout.Write(b)
-	// Output: Hello, world!
-}
-
-func ExampleTrimPrefix() {
-	var b = []byte("Goodbye,, world!")
-	b = bytes.TrimPrefix(b, []byte("Goodbye,"))
-	b = bytes.TrimPrefix(b, []byte("See ya,"))
-	fmt.Printf("Hello%s", b)
-	// Output: Hello, world!
-}
-
-func ExampleFields() {
-	fmt.Printf("Fields are: %q", bytes.Fields([]byte("  foo bar  baz   ")))
-	// Output: Fields are: ["foo" "bar" "baz"]
-}
-
-func ExampleFieldsFunc() {
-	f := func(c rune) bool {
-		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
-	}
-	fmt.Printf("Fields are: %q", bytes.FieldsFunc([]byte("  foo1;bar2,baz3..."), f))
-	// Output: Fields are: ["foo1" "bar2" "baz3"]
 }
 
 func ExampleContains() {
@@ -168,6 +207,46 @@ func ExampleCount() {
 	// 5
 }
 
+func ExampleCut() {
+	show := func(s, sep string) {
+		before, after, found := bytes.Cut([]byte(s), []byte(sep))
+		fmt.Printf("Cut(%q, %q) = %q, %q, %v\n", s, sep, before, after, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "ph")
+	show("Gopher", "er")
+	show("Gopher", "Badger")
+	// Output:
+	// Cut("Gopher", "Go") = "", "pher", true
+	// Cut("Gopher", "ph") = "Go", "er", true
+	// Cut("Gopher", "er") = "Goph", "", true
+	// Cut("Gopher", "Badger") = "Gopher", "", false
+}
+
+func ExampleCutPrefix() {
+	show := func(s, sep string) {
+		after, found := bytes.CutPrefix([]byte(s), []byte(sep))
+		fmt.Printf("CutPrefix(%q, %q) = %q, %v\n", s, sep, after, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "ph")
+	// Output:
+	// CutPrefix("Gopher", "Go") = "pher", true
+	// CutPrefix("Gopher", "ph") = "Gopher", false
+}
+
+func ExampleCutSuffix() {
+	show := func(s, sep string) {
+		before, found := bytes.CutSuffix([]byte(s), []byte(sep))
+		fmt.Printf("CutSuffix(%q, %q) = %q, %v\n", s, sep, before, found)
+	}
+	show("Gopher", "Go")
+	show("Gopher", "er")
+	// Output:
+	// CutSuffix("Gopher", "Go") = "Gopher", false
+	// CutSuffix("Gopher", "er") = "Goph", true
+}
+
 func ExampleEqual() {
 	fmt.Println(bytes.Equal([]byte("Go"), []byte("Go")))
 	fmt.Println(bytes.Equal([]byte("Go"), []byte("C++")))
@@ -179,6 +258,19 @@ func ExampleEqual() {
 func ExampleEqualFold() {
 	fmt.Println(bytes.EqualFold([]byte("Go"), []byte("go")))
 	// Output: true
+}
+
+func ExampleFields() {
+	fmt.Printf("Fields are: %q", bytes.Fields([]byte("  foo bar  baz   ")))
+	// Output: Fields are: ["foo" "bar" "baz"]
+}
+
+func ExampleFieldsFunc() {
+	f := func(c rune) bool {
+		return !unicode.IsLetter(c) && !unicode.IsNumber(c)
+	}
+	fmt.Printf("Fields are: %q", bytes.FieldsFunc([]byte("  foo1;bar2,baz3..."), f))
+	// Output: Fields are: ["foo1" "bar2" "baz3"]
 }
 
 func ExampleHasPrefix() {
@@ -246,6 +338,12 @@ func ExampleIndexRune() {
 	// -1
 }
 
+func ExampleJoin() {
+	s := [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}
+	fmt.Printf("%s", bytes.Join(s, []byte(", ")))
+	// Output: foo, bar, baz
+}
+
 func ExampleLastIndex() {
 	fmt.Println(bytes.Index([]byte("go gopher"), []byte("go")))
 	fmt.Println(bytes.LastIndex([]byte("go gopher"), []byte("go")))
@@ -286,10 +384,27 @@ func ExampleLastIndexFunc() {
 	// -1
 }
 
-func ExampleJoin() {
-	s := [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}
-	fmt.Printf("%s", bytes.Join(s, []byte(", ")))
-	// Output: foo, bar, baz
+func ExampleMap() {
+	rot13 := func(r rune) rune {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			return 'A' + (r-'A'+13)%26
+		case r >= 'a' && r <= 'z':
+			return 'a' + (r-'a'+13)%26
+		}
+		return r
+	}
+	fmt.Printf("%s\n", bytes.Map(rot13, []byte("'Twas brillig and the slithy gopher...")))
+	// Output:
+	// 'Gjnf oevyyvt naq gur fyvgul tbcure...
+}
+
+func ExampleReader_Len() {
+	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
+	fmt.Println(bytes.NewReader([]byte("こんにちは!")).Len())
+	// Output:
+	// 3
+	// 16
 }
 
 func ExampleRepeat() {
@@ -382,6 +497,16 @@ func ExampleToTitleSpecial() {
 	// ToTitle : AHOJ VÝVOJÁRİ GOLANG
 }
 
+func ExampleToValidUTF8() {
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("abc"), []byte("\uFFFD")))
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("a\xffb\xC0\xAFc\xff"), []byte("")))
+	fmt.Printf("%s\n", bytes.ToValidUTF8([]byte("\xed\xa0\x80"), []byte("abc")))
+	// Output:
+	// abc
+	// abc
+	// abc
+}
+
 func ExampleTrim() {
 	fmt.Printf("[%q]", bytes.Trim([]byte(" !!! Achtung! Achtung! !!! "), "! "))
 	// Output: ["Achtung! Achtung"]
@@ -397,20 +522,6 @@ func ExampleTrimFunc() {
 	// "go-gopher!"
 	// go-gopher
 	// go-gopher!
-}
-
-func ExampleMap() {
-	rot13 := func(r rune) rune {
-		switch {
-		case r >= 'A' && r <= 'Z':
-			return 'A' + (r-'A'+13)%26
-		case r >= 'a' && r <= 'z':
-			return 'a' + (r-'a'+13)%26
-		}
-		return r
-	}
-	fmt.Printf("%s", bytes.Map(rot13, []byte("'Twas brillig and the slithy gopher...")))
-	// Output: 'Gjnf oevyyvt naq gur fyvgul tbcure...
 }
 
 func ExampleTrimLeft() {
@@ -429,9 +540,26 @@ func ExampleTrimLeftFunc() {
 	// go-gopher!567
 }
 
+func ExampleTrimPrefix() {
+	var b = []byte("Goodbye,, world!")
+	b = bytes.TrimPrefix(b, []byte("Goodbye,"))
+	b = bytes.TrimPrefix(b, []byte("See ya,"))
+	fmt.Printf("Hello%s", b)
+	// Output: Hello, world!
+}
+
 func ExampleTrimSpace() {
 	fmt.Printf("%s", bytes.TrimSpace([]byte(" \t\n a lone gopher \n\t\r\n")))
 	// Output: a lone gopher
+}
+
+func ExampleTrimSuffix() {
+	var b = []byte("Hello, goodbye, etc!")
+	b = bytes.TrimSuffix(b, []byte("goodbye, etc!"))
+	b = bytes.TrimSuffix(b, []byte("gopher"))
+	b = append(b, bytes.TrimSuffix([]byte("world!"), []byte("x!"))...)
+	os.Stdout.Write(b)
+	// Output: Hello, world!
 }
 
 func ExampleTrimRight() {
@@ -450,21 +578,6 @@ func ExampleTrimRightFunc() {
 	// 1234go-gopher!
 }
 
-func ExampleToUpper() {
-	fmt.Printf("%s", bytes.ToUpper([]byte("Gopher")))
-	// Output: GOPHER
-}
-
-func ExampleToUpperSpecial() {
-	str := []byte("ahoj vývojári golang")
-	totitle := bytes.ToUpperSpecial(unicode.AzeriCase, str)
-	fmt.Println("Original : " + string(str))
-	fmt.Println("ToUpper : " + string(totitle))
-	// Output:
-	// Original : ahoj vývojári golang
-	// ToUpper : AHOJ VÝVOJÁRİ GOLANG
-}
-
 func ExampleToLower() {
 	fmt.Printf("%s", bytes.ToLower([]byte("Gopher")))
 	// Output: gopher
@@ -480,10 +593,17 @@ func ExampleToLowerSpecial() {
 	// ToLower : ahoj vývojári golang
 }
 
-func ExampleReader_Len() {
-	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
-	fmt.Println(bytes.NewReader([]byte("こんにちは!")).Len())
+func ExampleToUpper() {
+	fmt.Printf("%s", bytes.ToUpper([]byte("Gopher")))
+	// Output: GOPHER
+}
+
+func ExampleToUpperSpecial() {
+	str := []byte("ahoj vývojári golang")
+	totitle := bytes.ToUpperSpecial(unicode.AzeriCase, str)
+	fmt.Println("Original : " + string(str))
+	fmt.Println("ToUpper : " + string(totitle))
 	// Output:
-	// 3
-	// 16
+	// Original : ahoj vývojári golang
+	// ToUpper : AHOJ VÝVOJÁRİ GOLANG
 }

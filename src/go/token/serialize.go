@@ -19,7 +19,7 @@ type serializedFileSet struct {
 }
 
 // Read calls decode to deserialize a file set into s; s must not be nil.
-func (s *FileSet) Read(decode func(interface{}) error) error {
+func (s *FileSet) Read(decode func(any) error) error {
 	var ss serializedFileSet
 	if err := decode(&ss); err != nil {
 		return err
@@ -31,7 +31,6 @@ func (s *FileSet) Read(decode func(interface{}) error) error {
 	for i := 0; i < len(ss.Files); i++ {
 		f := &ss.Files[i]
 		files[i] = &File{
-			set:   s,
 			name:  f.Name,
 			base:  f.Base,
 			size:  f.Size,
@@ -40,14 +39,14 @@ func (s *FileSet) Read(decode func(interface{}) error) error {
 		}
 	}
 	s.files = files
-	s.last = nil
+	s.last.Store(nil)
 	s.mutex.Unlock()
 
 	return nil
 }
 
 // Write calls encode to serialize the file set s.
-func (s *FileSet) Write(encode func(interface{}) error) error {
+func (s *FileSet) Write(encode func(any) error) error {
 	var ss serializedFileSet
 
 	s.mutex.Lock()

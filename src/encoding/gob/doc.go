@@ -12,7 +12,7 @@ The implementation compiles a custom codec for each data type in the stream and
 is most efficient when a single Encoder is used to transmit a stream of values,
 amortizing the cost of compilation.
 
-Basics
+# Basics
 
 A stream of gobs is self-describing. Each data item in the stream is preceded by
 a specification of its type, expressed in terms of a small set of predefined
@@ -27,7 +27,7 @@ all type information is sent before it is needed. At the receive side, a
 Decoder retrieves values from the encoded stream and unpacks them into local
 variables.
 
-Types and Values
+# Types and Values
 
 The source and destination values/types need not correspond exactly. For structs,
 fields (identified by name) that are in the source but absent from the receiving
@@ -101,7 +101,7 @@ Gob can decode a value of any type implementing the GobDecoder or
 encoding.BinaryUnmarshaler interfaces by calling the corresponding method,
 again in that order of preference.
 
-Encoding Details
+# Encoding Details
 
 This section documents the encoding, details that are not important for most
 users. Details are presented bottom-up.
@@ -276,6 +276,14 @@ document for background: https://golang.org/doc/go1compat
 
 See "Gobs of data" for a design discussion of the gob wire format:
 https://blog.golang.org/gobs-of-data
+
+# Security
+
+This package is not designed to be hardened against adversarial inputs, and is
+outside the scope of https://go.dev/security/policy. In particular, the Decoder
+does only basic sanity checking on decoded input sizes, and its limits are not
+configurable. Care should be taken when decoding gob data from untrusted
+sources, which may consume significant resources.
 */
 package gob
 

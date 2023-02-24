@@ -1,0 +1,41 @@
+# https://go.dev/issue/51473: to avoid the need for tests to rely on
+# runtime.GOROOT, 'go test' should run the test with its own GOROOT/bin
+# at the beginning of $PATH.
+
+[short] skip
+
+[!GOOS:plan9] env PATH=
+[GOOS:plan9] env path=
+go test .
+
+[!GOOS:plan9] env PATH=$WORK${/}bin
+[GOOS:plan9] env path=$WORK${/}bin
+go test .
+
+-- go.mod --
+module example
+
+go 1.19
+-- example_test.go --
+package example
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+)
+
+func TestGoCommandExists(t *testing.T) {
+	got, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := filepath.Join(os.Getenv("GOROOT"), "bin", "go" + os.Getenv("GOEXE"))
+	if got != want {
+		t.Fatalf(`exec.LookPath("go") = %q; want %q`, got, want)
+	}
+}
+-- $WORK/bin/README.txt --
+This directory contains no executables.

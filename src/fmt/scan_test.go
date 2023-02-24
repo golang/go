@@ -21,22 +21,22 @@ import (
 
 type ScanTest struct {
 	text string
-	in   interface{}
-	out  interface{}
+	in   any
+	out  any
 }
 
 type ScanfTest struct {
 	format string
 	text   string
-	in     interface{}
-	out    interface{}
+	in     any
+	out    any
 }
 
 type ScanfMultiTest struct {
 	format string
 	text   string
-	in     []interface{}
-	out    []interface{}
+	in     []any
+	out    []any
 	err    string
 }
 
@@ -52,6 +52,7 @@ var (
 	uint16Val            uint16
 	uint32Val            uint32
 	uint64Val            uint64
+	uintptrVal           uintptr
 	float32Val           float32
 	float64Val           float64
 	stringVal            string
@@ -162,6 +163,7 @@ var scanTests = []ScanTest{
 	{"28\n", &uint16Val, uint16(28)},
 	{"29\n", &uint32Val, uint32(29)},
 	{"30\n", &uint64Val, uint64(30)},
+	{"31\n", &uintptrVal, uintptr(31)},
 	{"255\n", &uint8Val, uint8(255)},
 	{"32767\n", &int16Val, int16(32767)},
 	{"2.3\n", &float64Val, 2.3},
@@ -247,6 +249,7 @@ var scanfTests = []ScanfTest{
 	{"%d", "74\n", &uint16Val, uint16(74)},
 	{"%d", "75\n", &uint32Val, uint32(75)},
 	{"%d", "76\n", &uint64Val, uint64(76)},
+	{"%d", "77\n", &uintptrVal, uintptr(77)},
 	{"%b", "1001001\n", &uintVal, uint(73)},
 	{"%b", "100_1001\n", &uintVal, uint(4)},
 	{"%o", "075\n", &uintVal, uint(075)},
@@ -444,7 +447,7 @@ var z IntString
 var r1, r2, r3 rune
 
 var multiTests = []ScanfMultiTest{
-	{"", "", []interface{}{}, []interface{}{}, ""},
+	{"", "", []any{}, []any{}, ""},
 	{"%d", "23", args(&i), args(23), ""},
 	{"%2s%3s", "22333", args(&s, &t), args("22", "333"), ""},
 	{"%2d%3d", "44555", args(&i, &j), args(44, 555), ""},
@@ -498,7 +501,7 @@ var readers = []struct {
 	}},
 }
 
-func testScan(t *testing.T, f func(string) io.Reader, scan func(r io.Reader, a ...interface{}) (int, error)) {
+func testScan(t *testing.T, f func(string) io.Reader, scan func(r io.Reader, a ...any) (int, error)) {
 	for _, test := range scanTests {
 		r := f(test.text)
 		n, err := scan(r, test.in)
@@ -516,7 +519,7 @@ func testScan(t *testing.T, f func(string) io.Reader, scan func(r io.Reader, a .
 		}
 		// The incoming value may be a pointer
 		v := reflect.ValueOf(test.in)
-		if p := v; p.Kind() == reflect.Ptr {
+		if p := v; p.Kind() == reflect.Pointer {
 			v = p.Elem()
 		}
 		val := v.Interface()
@@ -561,7 +564,7 @@ func TestScanf(t *testing.T) {
 		}
 		// The incoming value may be a pointer
 		v := reflect.ValueOf(test.in)
-		if p := v; p.Kind() == reflect.Ptr {
+		if p := v; p.Kind() == reflect.Pointer {
 			v = p.Elem()
 		}
 		val := v.Interface()
@@ -637,7 +640,7 @@ func TestInf(t *testing.T) {
 }
 
 func testScanfMulti(t *testing.T, f func(string) io.Reader) {
-	sliceType := reflect.TypeOf(make([]interface{}, 1))
+	sliceType := reflect.TypeOf(make([]any, 1))
 	for _, test := range multiTests {
 		r := f(test.text)
 		n, err := Fscanf(r, test.format, test.in...)
@@ -836,7 +839,7 @@ func TestEOFAtEndOfInput(t *testing.T) {
 
 var eofTests = []struct {
 	format string
-	v      interface{}
+	v      any
 }{
 	{"%s", &stringVal},
 	{"%q", &stringVal},

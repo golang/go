@@ -13,8 +13,8 @@ import (
 	"unsafe"
 )
 
-// BAD: should always be "leaking param: addr to result ~r1 level=1$".
-func Loadp(addr unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr( to result ~r1 level=1)?$"
+// BAD: should always be "leaking param: addr to result ~r0 level=1$".
+func Loadp(addr unsafe.Pointer) unsafe.Pointer { // ERROR "leaking param: addr( to result ~r0 level=1)?$"
 	return atomic.Loadp(addr)
 }
 

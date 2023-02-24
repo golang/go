@@ -1,7 +1,7 @@
 # Issue 14450: go get -u .../ tried to import not downloaded package
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 env GO111MODULE=off
 
 go get github.com/tmwh/go-get-issue-14450/a

@@ -47,9 +47,9 @@ func f() {
 	<-(<-chan (<-chan (<-chan (<-chan int))))(nil)
 	<-(<-chan (<-chan (<-chan (<-chan (<-chan int)))))(nil)
 
-	type _ <-<-chan int // ERROR "unexpected <-, expecting chan|expected .*chan.*"
-	<-<-chan int // ERROR "unexpected <-, expecting chan|expecting {" (new parser: same error as for type decl)
+	type _ <-<-chan int // ERROR "unexpected <-, expected chan|expected .*chan.*"
+	<-<-chan int // ERROR "unexpected <-, expected chan|expecting {" (new parser: same error as for type decl)
 
-	type _ <-chan<-int // ERROR "unexpected int, expecting chan|expected .*chan.*|expecting chan|expected .*;.* or .*}.* or newline"
-	<-chan<-int // ERROR "unexpected int, expecting chan|expecting {" (new parser: same error as for type decl)
+	type _ <-chan<-int // ERROR "unexpected int, expected chan|expected .*chan.*|expected chan|expected .*;.* or .*}.* or newline"
+	<-chan<-int // ERROR "unexpected int, expected chan|expecting {" (new parser: same error as for type decl)
 }

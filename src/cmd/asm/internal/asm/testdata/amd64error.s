@@ -140,4 +140,8 @@ TEXT errors(SB),$0
 	TPAUSE (BX)                      // ERROR "invalid instruction"
 	UMONITOR (BX)                    // ERROR "invalid instruction"
 	UMWAIT (BX)                      // ERROR "invalid instruction"
+	// .Z instructions
+	VMOVDQA32.Z Z0, Z1               // ERROR "mask register must be specified for .Z instructions"
+	VMOVDQA32.Z Z0, K0, Z1           // ERROR "invalid instruction"
+	VMOVDQA32.Z Z0, K1, Z1           // ok
 	RET

@@ -135,15 +135,17 @@ const (
 	IMAGE_REL_ARM64_REL32            = 0x0011
 )
 
-// TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld, ideally in debug/pe.
 const (
-	IMAGE_SCN_CNT_CODE               = 0x00000020
-	IMAGE_SCN_CNT_INITIALIZED_DATA   = 0x00000040
-	IMAGE_SCN_CNT_UNINITIALIZED_DATA = 0x00000080
-	IMAGE_SCN_MEM_DISCARDABLE        = 0x02000000
-	IMAGE_SCN_MEM_EXECUTE            = 0x20000000
-	IMAGE_SCN_MEM_READ               = 0x40000000
-	IMAGE_SCN_MEM_WRITE              = 0x80000000
+	// When stored into the PLT value for a symbol, this token tells
+	// windynrelocsym to redirect direct references to this symbol to a stub
+	// that loads from the corresponding import symbol and then does
+	// a jump to the loaded value.
+	CreateImportStubPltToken = -2
+
+	// When stored into the GOT value for a import symbol __imp_X this
+	// token tells windynrelocsym to redirect references to the
+	// underlying DYNIMPORT symbol X.
+	RedirectToDynImportGotToken = -2
 )
 
 // TODO(brainman): maybe just add ReadAt method to bio.Reader instead of creating peBiobuf
@@ -173,14 +175,68 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
 	return bld
 }
 
+// peImportSymsState tracks the set of DLL import symbols we've seen
+// while reading host objects. We create a singleton instance of this
+// type, which will persist across multiple host objects.
+type peImportSymsState struct {
+
+	// Text and non-text sections read in by the host object loader.
+	secSyms []loader.Sym
+
+	// SDYNIMPORT symbols encountered along the way
+	dynimports map[loader.Sym]struct{}
+
+	// Loader and arch, for use in postprocessing.
+	l    *loader.Loader
+	arch *sys.Arch
+}
+
+var importSymsState *peImportSymsState
+
+func createImportSymsState(l *loader.Loader, arch *sys.Arch) {
+	if importSymsState != nil {
+		return
+	}
+	importSymsState = &peImportSymsState{
+		dynimports: make(map[loader.Sym]struct{}),
+		l:          l,
+		arch:       arch,
+	}
+}
+
+// peLoaderState holds various bits of useful state information needed
+// while loading a single PE object file.
+type peLoaderState struct {
+	l               *loader.Loader
+	arch            *sys.Arch
+	f               *pe.File
+	pn              string
+	sectsyms        map[*pe.Section]loader.Sym
+	comdats         map[uint16]int64 // key is section index, val is size
+	sectdata        map[*pe.Section][]byte
+	localSymVersion int
+}
+
+// comdatDefinitions records the names of symbols for which we've
+// previously seen a definition in COMDAT. Key is symbol name, value
+// is symbol size (or -1 if we're using the "any" strategy).
+var comdatDefinitions = make(map[string]int64)
+
 // Load loads the PE file pn from input.
-// Symbols are written into syms, and a slice of the text symbols is returned.
+// Symbols from the object file are created via the loader 'l', and
+// and a slice of the text symbols is returned.
 // If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
 // returned as rsrc.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc []loader.Sym, err error) {
-	lookup := l.LookupOrCreateCgoExport
-	sectsyms := make(map[*pe.Section]loader.Sym)
-	sectdata := make(map[*pe.Section][]byte)
+	state := &peLoaderState{
+		l:               l,
+		arch:            arch,
+		sectsyms:        make(map[*pe.Section]loader.Sym),
+		sectdata:        make(map[*pe.Section][]byte),
+		localSymVersion: localSymVersion,
+		pn:              pn,
+	}
+	createImportSymsState(state.l, state.arch)
 
 	// Some input files are archives containing multiple of
 	// object files, and pe.NewFile seeks to the start of
@@ -194,36 +250,37 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		return nil, nil, err
 	}
 	defer f.Close()
+	state.f = f
 
 	// TODO return error if found .cormeta
 
 	// create symbols for mapped sections
 	for _, sect := range f.Sections {
-		if sect.Characteristics&IMAGE_SCN_MEM_DISCARDABLE != 0 {
+		if sect.Characteristics&pe.IMAGE_SCN_MEM_DISCARDABLE != 0 {
 			continue
 		}
 
-		if sect.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
+		if sect.Characteristics&(pe.IMAGE_SCN_CNT_CODE|pe.IMAGE_SCN_CNT_INITIALIZED_DATA|pe.IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
 			// want to ignore. See issues 5106 and 5273.
 			continue
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.Name)
-		s := lookup(name, localSymVersion)
+		s := state.l.LookupOrCreateCgoExport(name, localSymVersion)
 		bld := l.MakeSymbolUpdater(s)
 
-		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
-		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
+		switch sect.Characteristics & (pe.IMAGE_SCN_CNT_UNINITIALIZED_DATA | pe.IMAGE_SCN_CNT_INITIALIZED_DATA | pe.IMAGE_SCN_MEM_READ | pe.IMAGE_SCN_MEM_WRITE | pe.IMAGE_SCN_CNT_CODE | pe.IMAGE_SCN_MEM_EXECUTE) {
+		case pe.IMAGE_SCN_CNT_INITIALIZED_DATA | pe.IMAGE_SCN_MEM_READ: //.rdata
 			bld.SetType(sym.SRODATA)
 
-		case IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.bss
+		case pe.IMAGE_SCN_CNT_UNINITIALIZED_DATA | pe.IMAGE_SCN_MEM_READ | pe.IMAGE_SCN_MEM_WRITE: //.bss
 			bld.SetType(sym.SNOPTRBSS)
 
-		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE: //.data
+		case pe.IMAGE_SCN_CNT_INITIALIZED_DATA | pe.IMAGE_SCN_MEM_READ | pe.IMAGE_SCN_MEM_WRITE: //.data
 			bld.SetType(sym.SNOPTRDATA)
 
-		case IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ: //.text
+		case pe.IMAGE_SCN_CNT_CODE | pe.IMAGE_SCN_MEM_EXECUTE | pe.IMAGE_SCN_MEM_READ: //.text
 			bld.SetType(sym.STEXT)
 
 		default:
@@ -235,41 +292,46 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			if err != nil {
 				return nil, nil, err
 			}
-			sectdata[sect] = data
+			state.sectdata[sect] = data
 			bld.SetData(data)
 		}
 		bld.SetSize(int64(sect.Size))
-		sectsyms[sect] = s
+		state.sectsyms[sect] = s
 		if sect.Name == ".rsrc" || strings.HasPrefix(sect.Name, ".rsrc$") {
 			rsrc = append(rsrc, s)
 		}
 	}
 
+	// Make a prepass over the symbols to collect info about COMDAT symbols.
+	if err := state.preprocessSymbols(); err != nil {
+		return nil, nil, err
+	}
+
 	// load relocations
 	for _, rsect := range f.Sections {
-		if _, found := sectsyms[rsect]; !found {
+		if _, found := state.sectsyms[rsect]; !found {
 			continue
 		}
 		if rsect.NumberOfRelocations == 0 {
 			continue
 		}
-		if rsect.Characteristics&IMAGE_SCN_MEM_DISCARDABLE != 0 {
+		if rsect.Characteristics&pe.IMAGE_SCN_MEM_DISCARDABLE != 0 {
 			continue
 		}
-		if rsect.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
+		if rsect.Characteristics&(pe.IMAGE_SCN_CNT_CODE|pe.IMAGE_SCN_CNT_INITIALIZED_DATA|pe.IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
 			// want to ignore. See issues 5106 and 5273.
 			continue
 		}
 
 		splitResources := strings.HasPrefix(rsect.Name, ".rsrc$")
-		sb := l.MakeSymbolUpdater(sectsyms[rsect])
+		sb := l.MakeSymbolUpdater(state.sectsyms[rsect])
 		for j, r := range rsect.Relocs {
 			if int(r.SymbolTableIndex) >= len(f.COFFSymbols) {
 				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
-			_, gosym, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
+			_, gosym, err := state.readpesym(pesym)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -292,20 +354,20 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			case sys.I386, sys.AMD64:
 				switch r.Type {
 				default:
-					return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
+					return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, state.sectsyms[rsect], r.Type)
 
 				case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
 					IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
 					IMAGE_REL_AMD64_ADDR32NB:
 					rType = objabi.R_PCREL
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
 					rType = objabi.R_ADDR
 
 					// load addend from image
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
 					rSize = 8
@@ -313,39 +375,39 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 					rType = objabi.R_ADDR
 
 					// load addend from image
-					rAdd = int64(binary.LittleEndian.Uint64(sectdata[rsect][rOff:]))
+					rAdd = int64(binary.LittleEndian.Uint64(state.sectdata[rsect][rOff:]))
 				}
 
 			case sys.ARM:
 				switch r.Type {
 				default:
-					return nil, nil, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, sectsyms[rsect], r.Type)
+					return nil, nil, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, state.sectsyms[rsect], r.Type)
 
 				case IMAGE_REL_ARM_SECREL:
 					rType = objabi.R_PCREL
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_ARM_ADDR32, IMAGE_REL_ARM_ADDR32NB:
 					rType = objabi.R_ADDR
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 
 				case IMAGE_REL_ARM_BRANCH24:
 					rType = objabi.R_CALLARM
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 				}
 
 			case sys.ARM64:
 				switch r.Type {
 				default:
-					return nil, nil, fmt.Errorf("%s: %v: unknown ARM64 relocation type %v", pn, sectsyms[rsect], r.Type)
+					return nil, nil, fmt.Errorf("%s: %v: unknown ARM64 relocation type %v", pn, state.sectsyms[rsect], r.Type)
 
 				case IMAGE_REL_ARM64_ADDR32, IMAGE_REL_ARM64_ADDR32NB:
 					rType = objabi.R_ADDR
 
-					rAdd = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rOff:])))
+					rAdd = int64(int32(binary.LittleEndian.Uint32(state.sectdata[rsect][rOff:])))
 				}
 			}
 
@@ -406,21 +468,17 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		var sect *pe.Section
 		if pesym.SectionNumber > 0 {
 			sect = f.Sections[pesym.SectionNumber-1]
-			if _, found := sectsyms[sect]; !found {
+			if _, found := state.sectsyms[sect]; !found {
 				continue
 			}
 		}
 
-		bld, s, err := readpesym(l, arch, lookup, f, pesym, sectsyms, localSymVersion)
+		bld, s, err := state.readpesym(pesym)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		if pesym.SectionNumber == 0 { // extern
-			if l.SymType(s) == sym.SDYNIMPORT {
-				bld = makeUpdater(l, bld, s)
-				bld.SetPlt(-2) // flag for dynimport in PE object files.
-			}
 			if l.SymType(s) == sym.SXREF && pesym.Value > 0 { // global data
 				bld = makeUpdater(l, bld, s)
 				bld.SetType(sym.SNOPTRDATA)
@@ -430,7 +488,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			continue
 		} else if pesym.SectionNumber > 0 && int(pesym.SectionNumber) <= len(f.Sections) {
 			sect = f.Sections[pesym.SectionNumber-1]
-			if _, found := sectsyms[sect]; !found {
+			if _, found := state.sectsyms[sect]; !found {
 				return nil, nil, fmt.Errorf("%s: %v: missing sect.sym", pn, s)
 			}
 		} else {
@@ -441,17 +499,27 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			return nil, nil, nil
 		}
 
+		// Check for COMDAT symbol.
+		if sz, ok1 := state.comdats[uint16(pesym.SectionNumber-1)]; ok1 {
+			if psz, ok2 := comdatDefinitions[l.SymName(s)]; ok2 {
+				if sz == psz {
+					//  OK to discard, we've seen an instance
+					// already.
+					continue
+				}
+			}
+		}
 		if l.OuterSym(s) != 0 {
 			if l.AttrDuplicateOK(s) {
 				continue
 			}
 			outerName := l.SymName(l.OuterSym(s))
-			sectName := l.SymName(sectsyms[sect])
+			sectName := l.SymName(state.sectsyms[sect])
 			return nil, nil, fmt.Errorf("%s: duplicate symbol reference: %s in both %s and %s", pn, l.SymName(s), outerName, sectName)
 		}
 
 		bld = makeUpdater(l, bld, s)
-		sectsym := sectsyms[sect]
+		sectsym := state.sectsyms[sect]
 		bld.SetType(l.SymType(sectsym))
 		l.AddInteriorSym(sectsym, s)
 		bld.SetValue(int64(pesym.Value))
@@ -462,16 +530,25 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			}
 			bld.SetExternal(true)
 		}
+		if sz, ok := state.comdats[uint16(pesym.SectionNumber-1)]; ok {
+			// This is a COMDAT definition. Record that we're picking
+			// this instance so that we can ignore future defs.
+			if _, ok := comdatDefinitions[l.SymName(s)]; ok {
+				return nil, nil, fmt.Errorf("internal error: preexisting COMDAT definition for %q", name)
+			}
+			comdatDefinitions[l.SymName(s)] = sz
+		}
 	}
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
 	for _, sect := range f.Sections {
-		s := sectsyms[sect]
+		s := state.sectsyms[sect]
 		if s == 0 {
 			continue
 		}
 		l.SortSub(s)
+		importSymsState.secSyms = append(importSymsState.secSyms, s)
 		if l.SymType(s) == sym.STEXT {
 			for ; s != 0; s = l.SubSym(s) {
 				if l.AttrOnList(s) {
@@ -486,40 +563,106 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 	return textp, rsrc, nil
 }
 
+// PostProcessImports works to resolve inconsistencies with DLL import
+// symbols; it is needed when building with more "modern" C compilers
+// with internal linkage.
+//
+// Background: DLL import symbols are data (SNOPTRDATA) symbols whose
+// name is of the form "__imp_XXX", which contain a pointer/reference
+// to symbol XXX. It's possible to have import symbols for both data
+// symbols ("__imp__fmode") and text symbols ("__imp_CreateEventA").
+// In some case import symbols are just references to some external
+// thing, and in other cases we see actual definitions of import
+// symbols when reading host objects.
+//
+// Previous versions of the linker would in most cases immediately
+// "forward" import symbol references, e.g. treat a references to
+// "__imp_XXX" a references to "XXX", however this doesn't work well
+// with more modern compilers, where you can sometimes see import
+// symbols that are defs (as opposed to external refs).
+//
+// The main actions taken below are to search for references to
+// SDYNIMPORT symbols in host object text/data sections and flag the
+// symbols for later fixup. When we see a reference to an import
+// symbol __imp_XYZ where XYZ corresponds to some SDYNIMPORT symbol,
+// we flag the symbol (via GOT setting) so that it can be redirected
+// to XYZ later in windynrelocsym. When we see a direct reference to
+// an SDYNIMPORT symbol XYZ, we also flag the symbol (via PLT setting)
+// to indicated that the reference will need to be redirected to a
+// stub.
+func PostProcessImports() error {
+	ldr := importSymsState.l
+	arch := importSymsState.arch
+	keeprelocneeded := make(map[loader.Sym]loader.Sym)
+	for _, s := range importSymsState.secSyms {
+		isText := ldr.SymType(s) == sym.STEXT
+		relocs := ldr.Relocs(s)
+		for i := 0; i < relocs.Count(); i++ {
+			r := relocs.At(i)
+			rs := r.Sym()
+			if ldr.SymType(rs) == sym.SDYNIMPORT {
+				// Tag the symbol for later stub generation.
+				ldr.SetPlt(rs, CreateImportStubPltToken)
+				continue
+			}
+			isym, err := LookupBaseFromImport(rs, ldr, arch)
+			if err != nil {
+				return err
+			}
+			if isym == 0 {
+				continue
+			}
+			if ldr.SymType(isym) != sym.SDYNIMPORT {
+				continue
+			}
+			// For non-text symbols, forward the reference from __imp_X to
+			// X immediately.
+			if !isText {
+				r.SetSym(isym)
+				continue
+			}
+			// Flag this imp symbol to be processed later in windynrelocsym.
+			ldr.SetGot(rs, RedirectToDynImportGotToken)
+			// Consistency check: should be no PLT token here.
+			splt := ldr.SymPlt(rs)
+			if splt != -1 {
+				return fmt.Errorf("internal error: import symbol %q has invalid PLT setting %d", ldr.SymName(rs), splt)
+			}
+			// Flag for dummy relocation.
+			keeprelocneeded[rs] = isym
+		}
+	}
+	for k, v := range keeprelocneeded {
+		sb := ldr.MakeSymbolUpdater(k)
+		r, _ := sb.AddRel(objabi.R_KEEP)
+		r.SetSym(v)
+	}
+	importSymsState = nil
+	return nil
+}
+
 func issect(s *pe.COFFSymbol) bool {
 	return s.StorageClass == IMAGE_SYM_CLASS_STATIC && s.Type == 0 && s.Name[0] == '.'
 }
 
-func readpesym(l *loader.Loader, arch *sys.Arch, lookup func(string, int) loader.Sym, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Section]loader.Sym, localSymVersion int) (*loader.SymbolBuilder, loader.Sym, error) {
-	symname, err := pesym.FullName(f.StringTable)
+func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuilder, loader.Sym, error) {
+	symname, err := pesym.FullName(state.f.StringTable)
 	if err != nil {
 		return nil, 0, err
 	}
 	var name string
 	if issect(pesym) {
-		name = l.SymName(sectsyms[f.Sections[pesym.SectionNumber-1]])
+		name = state.l.SymName(state.sectsyms[state.f.Sections[pesym.SectionNumber-1]])
 	} else {
 		name = symname
-		switch arch.Family {
-		case sys.AMD64:
-			if name == "__imp___acrt_iob_func" {
-				// Do not rename __imp___acrt_iob_func into __acrt_iob_func,
-				// because __imp___acrt_iob_func symbol is real
-				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
-			} else {
-				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
-			}
-		case sys.I386:
-			if name == "__imp____acrt_iob_func" {
-				// Do not rename __imp____acrt_iob_func into ___acrt_iob_func,
-				// because __imp____acrt_iob_func symbol is real
-				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
-			} else {
-				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
-			}
-			if name[0] == '_' {
-				name = name[1:] // _Name => Name
-			}
+		// A note on the "_main" exclusion below: the main routine
+		// defined by the Go runtime is named "_main", not "main", so
+		// when reading references to _main from a host object we want
+		// to avoid rewriting "_main" to "main" in this specific
+		// instance. See #issuecomment-1143698749 on #35006 for more
+		// details on this problem.
+		if state.arch.Family == sys.I386 && name[0] == '_' && name != "_main" && !strings.HasPrefix(name, "__imp_") {
+			name = name[1:] // _Name => Name
 		}
 	}
 
@@ -537,11 +680,11 @@ func readpesym(l *loader.Loader, arch *sys.Arch, lookup func(string, int) loader
 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
 		switch pesym.StorageClass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
-			s = lookup(name, 0)
+			s = state.l.LookupOrCreateCgoExport(name, 0)
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
-			s = lookup(name, localSymVersion)
-			bld = makeUpdater(l, bld, s)
+			s = state.l.LookupOrCreateCgoExport(name, state.localSymVersion)
+			bld = makeUpdater(state.l, bld, s)
 			bld.SetDuplicateOK(true)
 
 		default:
@@ -549,14 +692,86 @@ func readpesym(l *loader.Loader, arch *sys.Arch, lookup func(string, int) loader
 		}
 	}
 
-	if s != 0 && l.SymType(s) == 0 && (pesym.StorageClass != IMAGE_SYM_CLASS_STATIC || pesym.Value != 0) {
-		bld = makeUpdater(l, bld, s)
+	if s != 0 && state.l.SymType(s) == 0 && (pesym.StorageClass != IMAGE_SYM_CLASS_STATIC || pesym.Value != 0) {
+		bld = makeUpdater(state.l, bld, s)
 		bld.SetType(sym.SXREF)
-	}
-	if strings.HasPrefix(symname, "__imp_") {
-		bld = makeUpdater(l, bld, s)
-		bld.SetGot(-2) // flag for __imp_
 	}
 
 	return bld, s, nil
+}
+
+// preprocessSymbols walks the COFF symbols for the PE file we're
+// reading and looks for cases where we have both a symbol definition
+// for "XXX" and an "__imp_XXX" symbol, recording these cases in a map
+// in the state struct. This information will be used in readpesym()
+// above to give such symbols special treatment. This function also
+// gathers information about COMDAT sections/symbols for later use
+// in readpesym().
+func (state *peLoaderState) preprocessSymbols() error {
+
+	// Locate comdat sections.
+	state.comdats = make(map[uint16]int64)
+	for i, s := range state.f.Sections {
+		if s.Characteristics&uint32(pe.IMAGE_SCN_LNK_COMDAT) != 0 {
+			state.comdats[uint16(i)] = int64(s.Size)
+		}
+	}
+
+	// Examine symbol defs.
+	for i, numaux := 0, 0; i < len(state.f.COFFSymbols); i += numaux + 1 {
+		pesym := &state.f.COFFSymbols[i]
+		numaux = int(pesym.NumberOfAuxSymbols)
+		if pesym.SectionNumber == 0 { // extern
+			continue
+		}
+		symname, err := pesym.FullName(state.f.StringTable)
+		if err != nil {
+			return err
+		}
+		if _, isc := state.comdats[uint16(pesym.SectionNumber-1)]; !isc {
+			continue
+		}
+		if pesym.StorageClass != uint8(IMAGE_SYM_CLASS_STATIC) {
+			continue
+		}
+		// This symbol corresponds to a COMDAT section. Read the
+		// aux data for it.
+		auxsymp, err := state.f.COFFSymbolReadSectionDefAux(i)
+		if err != nil {
+			return fmt.Errorf("unable to read aux info for section def symbol %d %s: pe.COFFSymbolReadComdatInfo returns %v", i, symname, err)
+		}
+		if auxsymp.Selection == pe.IMAGE_COMDAT_SELECT_SAME_SIZE {
+			// This is supported.
+		} else if auxsymp.Selection == pe.IMAGE_COMDAT_SELECT_ANY {
+			// Also supported.
+			state.comdats[uint16(pesym.SectionNumber-1)] = int64(-1)
+		} else {
+			// We don't support any of the other strategies at the
+			// moment. I suspect that we may need to also support
+			// "associative", we'll see.
+			return fmt.Errorf("internal error: unsupported COMDAT selection strategy found in path=%s sec=%d strategy=%d idx=%d, please file a bug", state.pn, auxsymp.SecNum, auxsymp.Selection, i)
+		}
+	}
+	return nil
+}
+
+// LookupBaseFromImport examines the symbol "s" to see if it
+// corresponds to an import symbol (name of the form "__imp_XYZ") and
+// if so, it looks up the underlying target of the import symbol and
+// returns it. An error is returned if the symbol is of the form
+// "__imp_XYZ" but no XYZ can be found.
+func LookupBaseFromImport(s loader.Sym, ldr *loader.Loader, arch *sys.Arch) (loader.Sym, error) {
+	sname := ldr.SymName(s)
+	if !strings.HasPrefix(sname, "__imp_") {
+		return 0, nil
+	}
+	basename := sname[len("__imp_"):]
+	if arch.Family == sys.I386 && basename[0] == '_' {
+		basename = basename[1:] // _Name => Name
+	}
+	isym := ldr.Lookup(basename, 0)
+	if isym == 0 {
+		return 0, fmt.Errorf("internal error: import symbol %q with no underlying sym", sname)
+	}
+	return isym, nil
 }

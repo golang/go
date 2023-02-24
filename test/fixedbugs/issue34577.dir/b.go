@@ -4,7 +4,7 @@
 
 package b
 
-import "a"
+import "./a"
 
 type B struct {
 	s string

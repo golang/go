@@ -39,8 +39,8 @@ stdout '^module nonexist: not a known dependency$'
 stdout '^module rsc.io/quote/buggy: not a known dependency$'
 
 ! go list -m nonexist rsc.io/quote/buggy
-stderr '^go list -m: module nonexist: not a known dependency'
-stderr '^go list -m: module rsc.io/quote/buggy: not a known dependency'
+stderr '^go: module nonexist: not a known dependency'
+stderr '^go: module rsc.io/quote/buggy: not a known dependency'
 
 # Module loader does not interfere with list -e (golang.org/issue/24149).
 go list -e -f '{{.Error.Err}}' database

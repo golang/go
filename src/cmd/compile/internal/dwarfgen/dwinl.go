@@ -244,7 +244,7 @@ func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
 			DeclName: unversion(n.Sym().Name),
 			DeclFile: pos.RelFilename(),
 			DeclLine: pos.RelLine(),
-			DeclCol:  pos.Col(),
+			DeclCol:  pos.RelCol(),
 		}
 		if _, found := m[vp]; found {
 			// We can see collisions (variables with the same name/file/line/col) in obfuscated or machine-generated code -- see issue 44378 for an example. Skip duplicates in such cases, since it is unlikely that a human will be debugging such code.
@@ -273,13 +273,13 @@ func insertInlCall(dwcalls *dwarf.InlCalls, inlIdx int, imap map[int]int) int {
 	// Create new entry for this inline
 	inlinedFn := base.Ctxt.InlTree.InlinedFunction(inlIdx)
 	callXPos := base.Ctxt.InlTree.CallPos(inlIdx)
+	callPos := base.Ctxt.PosTable.Pos(callXPos)
+	callFileSym := base.Ctxt.Lookup(callPos.Base().SymFilename())
 	absFnSym := base.Ctxt.DwFixups.AbsFuncDwarfSym(inlinedFn)
-	pb := base.Ctxt.PosTable.Pos(callXPos).Base()
-	callFileSym := base.Ctxt.Lookup(pb.SymFilename())
 	ic := dwarf.InlCall{
 		InlIndex:  inlIdx,
 		CallFile:  callFileSym,
-		CallLine:  uint32(callXPos.Line()),
+		CallLine:  uint32(callPos.RelLine()),
 		AbsFunSym: absFnSym,
 		Root:      parCallIdx == -1,
 	}

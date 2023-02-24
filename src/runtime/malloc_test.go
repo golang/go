@@ -33,14 +33,14 @@ func TestMemStats(t *testing.T) {
 	st := new(MemStats)
 	ReadMemStats(st)
 
-	nz := func(x interface{}) error {
+	nz := func(x any) error {
 		if x != reflect.Zero(reflect.TypeOf(x)).Interface() {
 			return nil
 		}
 		return fmt.Errorf("zero value")
 	}
-	le := func(thresh float64) func(interface{}) error {
-		return func(x interface{}) error {
+	le := func(thresh float64) func(any) error {
+		return func(x any) error {
 			// These sanity tests aren't necessarily valid
 			// with high -test.count values, so only run
 			// them once.
@@ -54,8 +54,8 @@ func TestMemStats(t *testing.T) {
 			return fmt.Errorf("insanely high value (overflow?); want <= %v", thresh)
 		}
 	}
-	eq := func(x interface{}) func(interface{}) error {
-		return func(y interface{}) error {
+	eq := func(x any) func(any) error {
+		return func(y any) error {
 			if x == y {
 				return nil
 			}
@@ -64,7 +64,7 @@ func TestMemStats(t *testing.T) {
 	}
 	// Of the uint fields, HeapReleased, HeapIdle can be 0.
 	// PauseTotalNs can be 0 if timer resolution is poor.
-	fields := map[string][]func(interface{}) error{
+	fields := map[string][]func(any) error{
 		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
 		"Lookups": {eq(uint64(0))}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
 		"HeapAlloc": {nz, le(1e10)}, "HeapSys": {nz, le(1e10)}, "HeapIdle": {le(1e10)},
@@ -173,12 +173,6 @@ func TestTinyAlloc(t *testing.T) {
 	}
 }
 
-var (
-	tinyByteSink   *byte
-	tinyUint32Sink *uint32
-	tinyObj12Sink  *obj12
-)
-
 type obj12 struct {
 	a uint64
 	b uint32
@@ -198,37 +192,39 @@ func TestTinyAllocIssue37262(t *testing.T) {
 	runtime.GC()
 	runtime.GC()
 
+	// Disable preemption so we stay on one P's tiny allocator and
+	// nothing else allocates from it.
+	runtime.Acquirem()
+
 	// Make 1-byte allocations until we get a fresh tiny slot.
 	aligned := false
 	for i := 0; i < 16; i++ {
-		tinyByteSink = new(byte)
-		if uintptr(unsafe.Pointer(tinyByteSink))&0xf == 0xf {
+		x := runtime.Escape(new(byte))
+		if uintptr(unsafe.Pointer(x))&0xf == 0xf {
 			aligned = true
 			break
 		}
 	}
 	if !aligned {
+		runtime.Releasem()
 		t.Fatal("unable to get a fresh tiny slot")
 	}
 
 	// Create a 4-byte object so that the current
 	// tiny slot is partially filled.
-	tinyUint32Sink = new(uint32)
+	runtime.Escape(new(uint32))
 
 	// Create a 12-byte object, which fits into the
 	// tiny slot. If it actually gets place there,
 	// then the field "a" will be improperly aligned
 	// for atomic access on 32-bit architectures.
 	// This won't be true if issue 36606 gets resolved.
-	tinyObj12Sink = new(obj12)
+	tinyObj12 := runtime.Escape(new(obj12))
 
 	// Try to atomically access "x.a".
-	atomic.StoreUint64(&tinyObj12Sink.a, 10)
+	atomic.StoreUint64(&tinyObj12.a, 10)
 
-	// Clear the sinks.
-	tinyByteSink = nil
-	tinyUint32Sink = nil
-	tinyObj12Sink = nil
+	runtime.Releasem()
 }
 
 func TestPageCacheLeak(t *testing.T) {
@@ -298,7 +294,11 @@ func TestArenaCollision(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		// Reserve memory at the next hint so it can't be used
 		// for the heap.
-		start, end := MapNextArenaHint()
+		start, end, ok := MapNextArenaHint()
+		if !ok {
+			t.Skipf("failed to reserve memory at next arena hint [%#x, %#x)", start, end)
+		}
+		t.Logf("reserved [%#x, %#x)", start, end)
 		disallowed = append(disallowed, [2]uintptr{start, end})
 		// Allocate until the runtime tries to use the hint we
 		// just mapped over.
@@ -318,46 +318,36 @@ func TestArenaCollision(t *testing.T) {
 	}
 }
 
-var mallocSink uintptr
-
 func BenchmarkMalloc8(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(int64)
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMalloc16(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new([2]int64)
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMallocTypeInfo8(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
 			p [8 / unsafe.Sizeof(uintptr(0))]*int
 		})
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 func BenchmarkMallocTypeInfo16(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := new(struct {
 			p [16 / unsafe.Sizeof(uintptr(0))]*int
 		})
-		x ^= uintptr(unsafe.Pointer(p))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 type LargeStruct struct {
@@ -365,12 +355,10 @@ type LargeStruct struct {
 }
 
 func BenchmarkMallocLargeStruct(b *testing.B) {
-	var x uintptr
 	for i := 0; i < b.N; i++ {
 		p := make([]LargeStruct, 2)
-		x ^= uintptr(unsafe.Pointer(&p[0]))
+		Escape(p)
 	}
-	mallocSink = x
 }
 
 var n = flag.Int("n", 1000, "number of goroutines")

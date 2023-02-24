@@ -135,7 +135,7 @@ func decomposeBuiltInPhi(v *Value) {
 	case v.Type.IsFloat():
 		// floats are never decomposed, even ones bigger than RegSize
 	case v.Type.Size() > v.Block.Func.Config.RegSize:
-		v.Fatalf("undecomposed type %s", v.Type)
+		v.Fatalf("%v undecomposed type %v", v, v.Type)
 	}
 }
 

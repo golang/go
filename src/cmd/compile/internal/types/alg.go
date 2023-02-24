@@ -13,7 +13,6 @@ type AlgKind int
 //go:generate stringer -type AlgKind -trimprefix A alg.go
 
 const (
-	// These values are known by runtime.
 	ANOEQ AlgKind = iota
 	AMEM0
 	AMEM8
@@ -40,9 +39,6 @@ const (
 // If it returns ANOEQ, it also returns the component type of t that
 // makes it incomparable.
 func AlgType(t *Type) (AlgKind, *Type) {
-	if t.Broke() {
-		return AMEM, nil
-	}
 	if t.Noalg() {
 		return ANOEQ, t
 	}
@@ -165,7 +161,7 @@ func IsPaddedField(t *Type, i int) bool {
 	if !t.IsStruct() {
 		base.Fatalf("IsPaddedField called non-struct %v", t)
 	}
-	end := t.Width
+	end := t.width
 	if i+1 < t.NumFields() {
 		end = t.Field(i + 1).Offset
 	}

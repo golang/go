@@ -15,30 +15,25 @@
 # Only changes that have been committed to Git (at least locally,
 # not necessary reviewed and submitted to master) are included in the tree.
 #
-# As a special case for Go's internal use only, if the
-# BOOTSTRAP_FORMAT environment variable is set to "mintgz", the
-# resulting archive is intended for use by the Go build system and
-# differs in that the mintgz file:
-#   * is a tar.gz file instead of bz2
-#   * has many unnecessary files deleted to reduce its size
-#   * does not have a shared directory component for each tar entry
-# Do not depend on the mintgz format.
+# See also golang.org/x/build/cmd/genbootstrap, which is used
+# to generate bootstrap tgz files for builders.
 
 set -e
 
 if [ "$GOOS" = "" -o "$GOARCH" = "" ]; then
-	echo "usage: GOOS=os GOARCH=arch ./bootstrap.bash" >&2
+	echo "usage: GOOS=os GOARCH=arch ./bootstrap.bash [-force]" >&2
 	exit 2
+fi
+
+forceflag=""
+if [ "$1" = "-force" ]; then
+	forceflag=-force
+	shift
 fi
 
 targ="../../go-${GOOS}-${GOARCH}-bootstrap"
 if [ -e $targ ]; then
 	echo "$targ already exists; remove before continuing"
-	exit 2
-fi
-
-if [ "$BOOTSTRAP_FORMAT" != "mintgz" -a "$BOOTSTRAP_FORMAT" != "" ]; then
-	echo "unknown BOOTSTRAP_FORMAT format"
 	exit 2
 fi
 
@@ -58,7 +53,7 @@ echo
 echo "#### Building $targ"
 echo
 cd src
-./make.bash --no-banner
+./make.bash --no-banner $forceflag
 gohostos="$(../bin/go env GOHOSTOS)"
 gohostarch="$(../bin/go env GOHOSTARCH)"
 goos="$(../bin/go env GOOS)"
@@ -79,38 +74,7 @@ else
 	rm -rf "pkg/${gohostos}_${gohostarch}" "pkg/tool/${gohostos}_${gohostarch}"
 fi
 
-if [ "$BOOTSTRAP_FORMAT" = "mintgz" ]; then
-	# Fetch git revision before rm -rf .git.
-	GITREV=$(git rev-parse --short HEAD)
-fi
-
 rm -rf pkg/bootstrap pkg/obj .git
-
-# Support for building minimal tar.gz for the builders.
-# The build system doesn't support bzip2, and by deleting more stuff,
-# they start faster, especially on machines without fast filesystems
-# and things like tmpfs configures.
-# Do not depend on this format. It's for internal use only.
-if [ "$BOOTSTRAP_FORMAT" = "mintgz" ]; then
-	OUTGZ="gobootstrap-${GOOS}-${GOARCH}-${GITREV}.tar.gz"
-	echo "Preparing to generate build system's ${OUTGZ}; cleaning ..."
-	rm -rf bin/gofmt
-	rm -rf src/runtime/race/race_*.syso
-	rm -rf api test doc misc/cgo/test misc/trace
-	rm -rf pkg/tool/*_*/{addr2line,api,cgo,cover,doc,fix,nm,objdump,pack,pprof,test2json,trace,vet}
-	rm -rf pkg/*_*/{image,database,cmd}
-	rm -rf $(find . -type d -name testdata)
-	find . -type f -name '*_test.go' -exec rm {} \;
-	# git clean doesn't clean symlinks apparently, and the buildlet
-	# rejects them, so:
-	find . -type l -exec rm {} \;
-
-	echo "Writing ${OUTGZ} ..."
-	tar cf - . | gzip -9 > ../$OUTGZ
-	cd ..
-	ls -l "$(pwd)/$OUTGZ"
-	exit 0
-fi
 
 echo ----
 echo Bootstrap toolchain for "$GOOS/$GOARCH" installed in "$(pwd)".

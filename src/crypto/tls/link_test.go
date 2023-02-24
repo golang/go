@@ -36,8 +36,8 @@ func main() {}
 `,
 			bad: []string{
 				"tls.(*Conn)",
-				"type.crypto/tls.clientHandshakeState",
-				"type.crypto/tls.serverHandshakeState",
+				"type:crypto/tls.clientHandshakeState",
+				"type:crypto/tls.serverHandshakeState",
 			},
 		},
 		{

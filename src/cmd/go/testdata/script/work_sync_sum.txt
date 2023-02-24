@@ -1,0 +1,40 @@
+# Test that the sum file data state is properly reset between modules in
+# go work sync so that the sum file that's written is correct.
+# Exercises the fix to #50038.
+
+cp b/go.sum b/go.sum.want
+
+# As a sanity check, verify b/go.sum is tidy.
+cd b
+go mod tidy
+cd ..
+cmp b/go.sum b/go.sum.want
+
+# Run go work sync and verify it doesn't change b/go.sum.
+go work sync
+cmp b/go.sum b/go.sum.want
+
+-- b/go.sum --
+rsc.io/quote v1.0.0 h1:kQ3IZQzPTiDJxSZI98YaWgxFEhlNdYASHvh+MplbViw=
+rsc.io/quote v1.0.0/go.mod h1:v83Ri/njykPcgJltBc/gEkJTmjTsNgtO1Y7vyIK1CQA=
+-- go.work --
+go 1.18
+use (
+    ./a
+    ./b
+)
+replace example.com/c => ./c
+-- a/go.mod --
+module example.com/a
+go 1.18
+require rsc.io/fortune v1.0.0
+-- a/a.go --
+package a
+import "rsc.io/fortune"
+-- b/go.mod --
+module example.com/b
+go 1.18
+require rsc.io/quote v1.0.0
+-- b/b.go --
+package b
+import _ "rsc.io/quote"

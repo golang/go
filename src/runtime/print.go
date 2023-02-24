@@ -5,8 +5,7 @@
 package runtime
 
 import (
-	"runtime/internal/atomic"
-	"runtime/internal/sys"
+	"internal/goarch"
 	"unsafe"
 )
 
@@ -36,11 +35,11 @@ var (
 //
 // The text written during a process crash (following "panic" or "fatal
 // error") is not saved, since the goroutine stacks will generally be readable
-// from the runtime datastructures in the core file.
+// from the runtime data structures in the core file.
 func recordForPanic(b []byte) {
 	printlock()
 
-	if atomic.Load(&panicking) == 0 {
+	if panicking.Load() == 0 {
 		// Not actively crashing: maintain circular buffer of print output.
 		for i := 0; i < len(b); {
 			n := copy(printBacklog[printBacklogIndex:], b[i:])
@@ -271,7 +270,7 @@ func hexdumpWords(p, end uintptr, mark func(uintptr) byte) {
 	var markbuf [1]byte
 	markbuf[0] = ' '
 	minhexdigits = int(unsafe.Sizeof(uintptr(0)) * 2)
-	for i := uintptr(0); p+i < end; i += sys.PtrSize {
+	for i := uintptr(0); p+i < end; i += goarch.PtrSize {
 		if i%16 == 0 {
 			if i != 0 {
 				println()
@@ -293,7 +292,7 @@ func hexdumpWords(p, end uintptr, mark func(uintptr) byte) {
 		// Can we symbolize val?
 		fn := findfunc(val)
 		if fn.valid() {
-			print("<", funcname(fn), "+", hex(val-fn.entry), "> ")
+			print("<", funcname(fn), "+", hex(val-fn.entry()), "> ")
 		}
 	}
 	minhexdigits = 0

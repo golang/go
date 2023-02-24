@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build ppc64 || ppc64le
-// +build ppc64 ppc64le
 
 #include "textflag.h"
 
@@ -107,7 +106,7 @@ cas_fail:
 
 // bool	·Cas64(uint64 *ptr, uint64 old, uint64 new)
 // Atomically:
-//	if(*val == *old){
+//	if(*val == old){
 //		*val = new;
 //		return 1;
 //	} else {

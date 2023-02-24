@@ -270,7 +270,7 @@ func parseLogFlag(flag, value string) (version int, directory string) {
 	return
 }
 
-// isWindowsDriveURI returns true if the file URI is of the format used by
+// isWindowsDriveURIPath returns true if the file URI is of the format used by
 // Windows URIs. The url.Parse package does not specially handle Windows paths
 // (see golang/go#6027), so we check if the URI path has a drive prefix (e.g. "/C:").
 // (copied from tools/internal/span/uri.go)
@@ -304,7 +304,7 @@ func parseLogPath(destination string) (string, string) {
 
 // checkLogPath does superficial early checking of the string specifying
 // the directory to which optimizer logging is directed, and if
-// it passes the test, stores the string in LO_dir
+// it passes the test, stores the string in LO_dir.
 func checkLogPath(destination string) string {
 	path, complaint := parseLogPath(destination)
 	if complaint != "" {
@@ -329,9 +329,9 @@ func NewLoggedOpt(pos src.XPos, what, pass, funcName string, args ...interface{}
 	return &LoggedOpt{pos, pass, funcName, what, args}
 }
 
-// Logopt logs information about a (usually missed) optimization performed by the compiler.
+// LogOpt logs information about a (usually missed) optimization performed by the compiler.
 // Pos is the source position (including inlining), what is the message, pass is which pass created the message,
-// funcName is the name of the function
+// funcName is the name of the function.
 func LogOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) {
 	if Format == None {
 		return
@@ -376,7 +376,7 @@ func writerForLSP(subdirpath, file string) io.WriteCloser {
 	if lastdot != -1 {
 		basename = basename[:lastdot]
 	}
-	basename = pathEscape(basename)
+	basename = url.PathEscape(basename)
 
 	// Assume a directory, make a file
 	p := filepath.Join(subdirpath, basename+".json")
@@ -405,7 +405,10 @@ func uriIfy(f string) DocumentURI {
 // Return filename, replacing a first occurrence of $GOROOT with the
 // actual value of the GOROOT (because LSP does not speak "$GOROOT").
 func uprootedPath(filename string) string {
-	if !strings.HasPrefix(filename, "$GOROOT/") {
+	if filename == "" {
+		return "__unnamed__"
+	}
+	if buildcfg.GOROOT == "" || !strings.HasPrefix(filename, "$GOROOT/") {
 		return filename
 	}
 	return buildcfg.GOROOT + filename[len("$GOROOT"):]
@@ -428,7 +431,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 		if slashPkgPath == "" {
 			slashPkgPath = "\000"
 		}
-		subdirpath := filepath.Join(dest, pathEscape(slashPkgPath))
+		subdirpath := filepath.Join(dest, url.PathEscape(slashPkgPath))
 		err := os.MkdirAll(subdirpath, 0755)
 		if err != nil {
 			log.Fatalf("Could not create directory %s for logging optimizer actions, %v", subdirpath, err)
@@ -496,13 +499,13 @@ func newPointRange(p src.Pos) Range {
 		End: Position{p.Line(), p.Col()}}
 }
 
-// newLocation returns the Location for the compiler source location p
+// newLocation returns the Location for the compiler source location p.
 func newLocation(p src.Pos) Location {
 	loc := Location{URI: uriIfy(uprootedPath(p.Filename())), Range: newPointRange(p)}
 	return loc
 }
 
-// appendInlinedPos extracts inlining information from posTmp and append it to diagnostic
+// appendInlinedPos extracts inlining information from posTmp and append it to diagnostic.
 func appendInlinedPos(posTmp []src.Pos, diagnostic *Diagnostic) {
 	for i := 1; i < len(posTmp); i++ {
 		p := posTmp[i]

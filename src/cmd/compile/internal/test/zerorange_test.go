@@ -170,7 +170,6 @@ func triggerZerorangeSmall(f, g, h uint64) (rv0 uint64) {
 // depending on the size of the thing that needs to be zeroed out
 // (I've verified at the time of the writing of this test that it
 // exercises the various cases).
-//
 func TestZerorange45372(t *testing.T) {
 	if r := triggerZerorangeLarge(101, 303, 505); r != 1010 {
 		t.Errorf("large: wanted %d got %d", 1010, r)

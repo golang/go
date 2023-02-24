@@ -1,0 +1,42 @@
+# This test checks that "go mod tidy -e" do not panic when
+# using a file goproxy that is missing some modules.
+# Verifies golang.org/issue/51589
+
+# download the modules first
+env GO111MODULE=on
+env GOPATH=$WORK/gopath
+cd $WORK/x
+go mod tidy
+
+# Use download cache as file:/// proxy.
+[GOOS:windows] env GOPROXY=file:///$WORK/gopath/pkg/mod/cache/download
+[!GOOS:windows] env GOPROXY=file://$WORK/gopath/pkg/mod/cache/download
+rm $WORK/gopath/pkg/mod/cache/download/golang.org/x/text/
+go mod tidy -e
+stderr '^go: rsc.io/sampler@v1.3.0 requires\n\tgolang.org/x/text@.*: reading file://.*/pkg/mod/cache/download/golang.org/x/text/.*'
+! stderr 'signal SIGSEGV: segmentation violation'
+
+-- $WORK/x/go.mod --
+module example.com/mod
+
+go 1.17
+
+require rsc.io/quote v1.5.2
+
+require (
+	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+	rsc.io/sampler v1.3.0 // indirect
+)
+
+-- $WORK/x/x.go --
+package mod
+
+import (
+	"fmt"
+
+	"rsc.io/quote"
+)
+
+func Echo() {
+	fmt.Println(quote.Hello())
+}

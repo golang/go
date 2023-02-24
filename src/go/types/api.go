@@ -23,7 +23,6 @@
 // Use Info.Types[expr].Type for the results of type inference.
 //
 // For a tutorial, see https://golang.org/s/types-tutorial.
-//
 package types
 
 import (
@@ -32,6 +31,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // An Error describes a type-checking error; it implements the error interface.
@@ -49,7 +49,7 @@ type Error struct {
 	// to preview this feature may read go116code using reflection (see
 	// errorcodes_test.go), but beware that there is no guarantee of future
 	// compatibility.
-	go116code  errorCode
+	go116code  Code
 	go116start token.Pos
 	go116end   token.Pos
 }
@@ -59,6 +59,15 @@ type Error struct {
 func (err Error) Error() string {
 	return fmt.Sprintf("%s: %s", err.Fset.Position(err.Pos), err.Msg)
 }
+
+// An ArgumentError holds an error associated with an argument index.
+type ArgumentError struct {
+	Index int
+	Err   error
+}
+
+func (e *ArgumentError) Error() string { return e.Err.Error() }
+func (e *ArgumentError) Unwrap() error { return e.Err }
 
 // An Importer resolves import paths to Packages.
 //
@@ -101,12 +110,16 @@ type ImporterFrom interface {
 // A Config specifies the configuration for type checking.
 // The zero value for Config is a ready-to-use default configuration.
 type Config struct {
-	// goVersion describes the accepted Go language version. The string
+	// Context is the context used for resolving global identifiers. If nil, the
+	// type checker will initialize this field with a newly created context.
+	Context *Context
+
+	// GoVersion describes the accepted Go language version. The string
 	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
 	// empty; an empty string indicates the latest language version.
 	// If the format is invalid, invoking the type checker will cause a
 	// panic.
-	goVersion string
+	GoVersion string
 
 	// If IgnoreFuncBodies is set, function bodies are not
 	// type-checked.
@@ -129,6 +142,9 @@ type Config struct {
 	//
 	// It is an error to set both FakeImportC and go115UsesCgo.
 	go115UsesCgo bool
+
+	// If _Trace is set, a debug trace is printed to stdout.
+	_Trace bool
 
 	// If Error != nil, it is called with each error found
 	// during type checking; err has dynamic type Error.
@@ -160,11 +176,113 @@ func srcimporter_setUsesCgo(conf *Config) {
 	conf.go115UsesCgo = true
 }
 
-// The Info struct is found in api_notypeparams.go and api_typeparams.go.
+// Info holds result type information for a type-checked package.
+// Only the information for which a map is provided is collected.
+// If the package has type errors, the collected information may
+// be incomplete.
+type Info struct {
+	// Types maps expressions to their types, and for constant
+	// expressions, also their values. Invalid expressions are
+	// omitted.
+	//
+	// For (possibly parenthesized) identifiers denoting built-in
+	// functions, the recorded signatures are call-site specific:
+	// if the call result is not a constant, the recorded type is
+	// an argument-specific signature. Otherwise, the recorded type
+	// is invalid.
+	//
+	// The Types map does not record the type of every identifier,
+	// only those that appear where an arbitrary expression is
+	// permitted. For instance, the identifier f in a selector
+	// expression x.f is found only in the Selections map, the
+	// identifier z in a variable declaration 'var z int' is found
+	// only in the Defs map, and identifiers denoting packages in
+	// qualified identifiers are collected in the Uses map.
+	Types map[ast.Expr]TypeAndValue
+
+	// Instances maps identifiers denoting generic types or functions to their
+	// type arguments and instantiated type.
+	//
+	// For example, Instances will map the identifier for 'T' in the type
+	// instantiation T[int, string] to the type arguments [int, string] and
+	// resulting instantiated *Named type. Given a generic function
+	// func F[A any](A), Instances will map the identifier for 'F' in the call
+	// expression F(int(1)) to the inferred type arguments [int], and resulting
+	// instantiated *Signature.
+	//
+	// Invariant: Instantiating Uses[id].Type() with Instances[id].TypeArgs
+	// results in an equivalent of Instances[id].Type.
+	Instances map[*ast.Ident]Instance
+
+	// Defs maps identifiers to the objects they define (including
+	// package names, dots "." of dot-imports, and blank "_" identifiers).
+	// For identifiers that do not denote objects (e.g., the package name
+	// in package clauses, or symbolic variables t in t := x.(type) of
+	// type switch headers), the corresponding objects are nil.
+	//
+	// For an embedded field, Defs returns the field *Var it defines.
+	//
+	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
+	Defs map[*ast.Ident]Object
+
+	// Uses maps identifiers to the objects they denote.
+	//
+	// For an embedded field, Uses returns the *TypeName it denotes.
+	//
+	// Invariant: Uses[id].Pos() != id.Pos()
+	Uses map[*ast.Ident]Object
+
+	// Implicits maps nodes to their implicitly declared objects, if any.
+	// The following node and object types may appear:
+	//
+	//     node               declared object
+	//
+	//     *ast.ImportSpec    *PkgName for imports without renames
+	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
+	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
+	//
+	Implicits map[ast.Node]Object
+
+	// Selections maps selector expressions (excluding qualified identifiers)
+	// to their corresponding selections.
+	Selections map[*ast.SelectorExpr]*Selection
+
+	// Scopes maps ast.Nodes to the scopes they define. Package scopes are not
+	// associated with a specific node but with all files belonging to a package.
+	// Thus, the package scope can be found in the type-checked Package object.
+	// Scopes nest, with the Universe scope being the outermost scope, enclosing
+	// the package scope, which contains (one or more) files scopes, which enclose
+	// function scopes which in turn enclose statement and function literal scopes.
+	// Note that even though package-level functions are declared in the package
+	// scope, the function scopes are embedded in the file scope of the file
+	// containing the function declaration.
+	//
+	// The following node types may appear in Scopes:
+	//
+	//     *ast.File
+	//     *ast.FuncType
+	//     *ast.TypeSpec
+	//     *ast.BlockStmt
+	//     *ast.IfStmt
+	//     *ast.SwitchStmt
+	//     *ast.TypeSwitchStmt
+	//     *ast.CaseClause
+	//     *ast.CommClause
+	//     *ast.ForStmt
+	//     *ast.RangeStmt
+	//
+	Scopes map[ast.Node]*Scope
+
+	// InitOrder is the list of package-level initializers in the order in which
+	// they must be executed. Initializers referring to variables related by an
+	// initialization dependency appear in topological order, the others appear
+	// in source order. Variables without an initialization expression do not
+	// appear in this list.
+	InitOrder []*Initializer
+}
 
 // TypeOf returns the type of expression e, or nil if not found.
 // Precondition: the Types, Uses and Defs maps are populated.
-//
 func (info *Info) TypeOf(e ast.Expr) Type {
 	if t, ok := info.Types[e]; ok {
 		return t.Type
@@ -184,7 +302,6 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // it defines, not the type (*TypeName) it uses.
 //
 // Precondition: the Uses and Defs maps are populated.
-//
 func (info *Info) ObjectOf(id *ast.Ident) Object {
 	if obj := info.Defs[id]; obj != nil {
 		return obj
@@ -252,11 +369,13 @@ func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }
 
-// _Inferred reports the _Inferred type arguments and signature
-// for a parameterized function call that uses type inference.
-type _Inferred struct {
-	Targs []Type
-	Sig   *Signature
+// Instance reports the type arguments and instantiated type for type and
+// function instantiations. For type instantiations, Type will be of dynamic
+// type *Named. For function instantiations, Type will be of dynamic type
+// *Signature.
+type Instance struct {
+	TypeArgs *TypeList
+	Type     Type
 }
 
 // An Initializer describes a package-level variable, or a list of variables in case
@@ -297,38 +416,78 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 }
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
+//
+// The behavior of AssertableTo is unspecified in three cases:
+//   - if T is Typ[Invalid]
+//   - if V is a generalized interface; i.e., an interface that may only be used
+//     as a type constraint in Go code
+//   - if T is an uninstantiated generic type
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := (*Checker)(nil).assertableTo(V, T)
-	return m == nil
+	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
+	// handling here.
+	if T.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).newAssertableTo(V, T)
 }
 
-// AssignableTo reports whether a value of type V is assignable to a variable of type T.
+// AssignableTo reports whether a value of type V is assignable to a variable
+// of type T.
+//
+// The behavior of AssignableTo is unspecified if V or T is Typ[Invalid] or an
+// uninstantiated generic type.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
 	return ok
 }
 
-// ConvertibleTo reports whether a value of type V is convertible to a value of type T.
+// ConvertibleTo reports whether a value of type V is convertible to a value of
+// type T.
+//
+// The behavior of ConvertibleTo is unspecified if V or T is Typ[Invalid] or an
+// uninstantiated generic type.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
 }
 
 // Implements reports whether type V implements interface T.
+//
+// The behavior of Implements is unspecified if V is Typ[Invalid] or an uninstantiated
+// generic type.
 func Implements(V Type, T *Interface) bool {
-	f, _ := MissingMethod(V, T, true)
-	return f == nil
+	if T.Empty() {
+		// All types (even Typ[Invalid]) implement the empty interface.
+		return true
+	}
+	// Checker.implements suppresses errors for invalid types, so we need special
+	// handling here.
+	if V.Underlying() == Typ[Invalid] {
+		return false
+	}
+	return (*Checker)(nil).implements(V, T, false, nil)
+}
+
+// Satisfies reports whether type V satisfies the constraint T.
+//
+// The behavior of Satisfies is unspecified if V is Typ[Invalid] or an uninstantiated
+// generic type.
+func Satisfies(V Type, T *Interface) bool {
+	return (*Checker)(nil).implements(V, T, true, nil)
 }
 
 // Identical reports whether x and y are identical types.
 // Receivers of Signature types are ignored.
 func Identical(x, y Type) bool {
-	return (*Checker)(nil).identical(x, y)
+	var c comparer
+	return c.identical(x, y, nil)
 }
 
 // IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
 // Receivers of Signature types are ignored.
 func IdenticalIgnoreTags(x, y Type) bool {
-	return (*Checker)(nil).identicalIgnoreTags(x, y)
+	var c comparer
+	c.ignoreTags = true
+	return c.identical(x, y, nil)
 }

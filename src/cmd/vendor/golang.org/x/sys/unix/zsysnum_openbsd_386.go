@@ -6,6 +6,7 @@
 
 package unix
 
+// Deprecated: Use libc wrappers instead of direct syscalls.
 const (
 	SYS_EXIT           = 1   // { void sys_exit(int rval); }
 	SYS_FORK           = 2   // { int sys_fork(void); }

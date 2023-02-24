@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !plan9
-// +build !plan9
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -30,8 +29,9 @@ tail:
 	JBE	_5through8
 	CMPL	BX, $16
 	JBE	_9through16
-	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
-	JNE	nosse2
+#ifdef GO386_softfloat
+	JMP	nosse2
+#endif
 	PXOR	X0, X0
 	CMPL	BX, $32
 	JBE	_17through32

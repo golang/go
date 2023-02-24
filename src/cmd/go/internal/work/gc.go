@@ -8,7 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"internal/buildcfg"
+	"internal/platform"
 	"io"
 	"log"
 	"os"
@@ -22,12 +22,26 @@ import (
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/objabi"
-	"cmd/internal/sys"
+	"cmd/internal/quoted"
 	"crypto/sha1"
 )
 
 // The 'path' used for GOROOT_FINAL when -trimpath is specified
-const trimPathGoRootFinal = "go"
+const trimPathGoRootFinal string = "$GOROOT"
+
+var runtimePackages = map[string]struct{}{
+	"internal/abi":             struct{}{},
+	"internal/bytealg":         struct{}{},
+	"internal/coverage/rtcov":  struct{}{},
+	"internal/cpu":             struct{}{},
+	"internal/goarch":          struct{}{},
+	"internal/goos":            struct{}{},
+	"runtime":                  struct{}{},
+	"runtime/internal/atomic":  struct{}{},
+	"runtime/internal/math":    struct{}{},
+	"runtime/internal/sys":     struct{}{},
+	"runtime/internal/syscall": struct{}{},
+}
 
 // The Go toolchain.
 
@@ -63,7 +77,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 
 	pkgpath := pkgPath(a)
-	gcargs := []string{"-p", pkgpath}
+	defaultGcFlags := []string{"-p", pkgpath}
 	if p.Module != nil {
 		v := p.Module.GoVersion
 		if v == "" {
@@ -82,22 +96,19 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 			v = "1.16"
 		}
 		if allowedVersion(v) {
-			gcargs = append(gcargs, "-lang=go"+v)
+			defaultGcFlags = append(defaultGcFlags, "-lang=go"+v)
 		}
 	}
 	if p.Standard {
-		gcargs = append(gcargs, "-std")
+		defaultGcFlags = append(defaultGcFlags, "-std")
 	}
-	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
-	// The runtime package imports a couple of general internal packages.
-	if p.Standard && (p.ImportPath == "internal/cpu" || p.ImportPath == "internal/bytealg" || p.ImportPath == "internal/abi") {
-		compilingRuntime = true
-	}
+	_, compilingRuntime := runtimePackages[p.ImportPath]
+	compilingRuntime = compilingRuntime && p.Standard
 	if compilingRuntime {
 		// runtime compiles with a special gc flag to check for
 		// memory allocations that are invalid in the runtime package,
 		// and to implement some special compiler pragmas.
-		gcargs = append(gcargs, "-+")
+		defaultGcFlags = append(defaultGcFlags, "-+")
 	}
 
 	// If we're giving the compiler the entire package (no C etc files), tell it that,
@@ -116,25 +127,34 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		}
 	}
 	if extFiles == 0 {
-		gcargs = append(gcargs, "-complete")
+		defaultGcFlags = append(defaultGcFlags, "-complete")
 	}
 	if cfg.BuildContext.InstallSuffix != "" {
-		gcargs = append(gcargs, "-installsuffix", cfg.BuildContext.InstallSuffix)
+		defaultGcFlags = append(defaultGcFlags, "-installsuffix", cfg.BuildContext.InstallSuffix)
 	}
 	if a.buildID != "" {
-		gcargs = append(gcargs, "-buildid", a.buildID)
+		defaultGcFlags = append(defaultGcFlags, "-buildid", a.buildID)
 	}
 	if p.Internal.OmitDebug || cfg.Goos == "plan9" || cfg.Goarch == "wasm" {
-		gcargs = append(gcargs, "-dwarf=false")
+		defaultGcFlags = append(defaultGcFlags, "-dwarf=false")
 	}
-	if strings.HasPrefix(runtimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
-		gcargs = append(gcargs, "-goversion", runtimeVersion)
+	if strings.HasPrefix(RuntimeVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+		defaultGcFlags = append(defaultGcFlags, "-goversion", RuntimeVersion)
+	}
+	if p.Internal.CoverageCfg != "" {
+		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.CoverageCfg)
+	}
+	if cfg.BuildPGOFile != "" {
+		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+cfg.BuildPGOFile)
 	}
 	if symabis != "" {
-		gcargs = append(gcargs, "-symabis", symabis)
+		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
 	}
 
 	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
+	if p.Internal.FuzzInstrument {
+		gcflags = append(gcflags, fuzzInstrumentFlags()...)
+	}
 	if compilingRuntime {
 		// Remove -N, if present.
 		// It is not possible to build the runtime with no optimizations,
@@ -147,10 +167,15 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 			}
 		}
 	}
+	// Add -c=N to use concurrent backend compilation, if possible.
+	if c := gcBackendConcurrency(gcflags); c > 1 {
+		defaultGcFlags = append(defaultGcFlags, fmt.Sprintf("-c=%d", c))
+	}
 
-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), gcflags, gcargs}
-	if p.Internal.LocalPrefix != "" {
-		// Workaround #43883.
+	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+	if p.Internal.LocalPrefix == "" {
+		args = append(args, "-nolocalimports")
+	} else {
 		args = append(args, "-D", p.Internal.LocalPrefix)
 	}
 	if importcfg != nil {
@@ -170,11 +195,6 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	}
 	if asmhdr {
 		args = append(args, "-asmhdr", objdir+"go_asm.h")
-	}
-
-	// Add -c=N to use concurrent backend compilation, if possible.
-	if c := gcBackendConcurrency(gcflags); c > 1 {
-		args = append(args, fmt.Sprintf("-c=%d", c))
 	}
 
 	for _, f := range gofiles {
@@ -217,22 +237,8 @@ func gcBackendConcurrency(gcflags []string) int {
 		log.Fatalf("GO19CONCURRENTCOMPILATION must be 0, 1, or unset, got %q", e)
 	}
 
-CheckFlags:
-	for _, flag := range gcflags {
-		// Concurrent compilation is presumed incompatible with any gcflags,
-		// except for known commonly used flags.
-		// If the user knows better, they can manually add their own -c to the gcflags.
-		switch flag {
-		case "-N", "-l", "-S", "-B", "-C", "-I":
-			// OK
-		default:
-			canDashC = false
-			break CheckFlags
-		}
-	}
-
 	// TODO: Test and delete these conditions.
-	if buildcfg.Experiment.FieldTrack || buildcfg.Experiment.PreemptibleLoops {
+	if cfg.ExperimentErr != nil || cfg.Experiment.FieldTrack || cfg.Experiment.PreemptibleLoops {
 		canDashC = false
 	}
 
@@ -349,11 +355,11 @@ func (a *Action) trimpath() string {
 	return rewrite
 }
 
-func asmArgs(a *Action, p *load.Package) []interface{} {
+func asmArgs(a *Action, p *load.Package) []any {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
 	pkgpath := pkgPath(a)
-	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-p", pkgpath, "-trimpath", a.trimpath(), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
+	args := []any{cfg.BuildToolexec, base.Tool("asm"), "-p", pkgpath, "-trimpath", a.trimpath(), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
 	if p.ImportPath == "runtime" && cfg.Goarch == "386" {
 		for _, arg := range forcedAsmflags {
 			if arg == "-dynlink" {
@@ -365,6 +371,16 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 		args = append(args, "-compiling-runtime")
 	}
 
+	if cfg.Goarch == "386" {
+		// Define GO386_value from cfg.GO386.
+		args = append(args, "-D", "GO386_"+cfg.GO386)
+	}
+
+	if cfg.Goarch == "amd64" {
+		// Define GOAMD64_value from cfg.GOAMD64.
+		args = append(args, "-D", "GOAMD64_"+cfg.GOAMD64)
+	}
+
 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
 		// Define GOMIPS_value from cfg.GOMIPS.
 		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
@@ -373,6 +389,21 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
 	if cfg.Goarch == "mips64" || cfg.Goarch == "mips64le" {
 		// Define GOMIPS64_value from cfg.GOMIPS64.
 		args = append(args, "-D", "GOMIPS64_"+cfg.GOMIPS64)
+	}
+
+	if cfg.Goarch == "ppc64" || cfg.Goarch == "ppc64le" {
+		// Define GOPPC64_power8..N from cfg.PPC64.
+		// We treat each powerpc version as a superset of functionality.
+		switch cfg.GOPPC64 {
+		case "power10":
+			args = append(args, "-D", "GOPPC64_power10")
+			fallthrough
+		case "power9":
+			args = append(args, "-D", "GOPPC64_power9")
+			fallthrough
+		default: // This should always be power8.
+			args = append(args, "-D", "GOPPC64_power8")
+		}
 	}
 
 	return args
@@ -432,8 +463,8 @@ func (gcToolchain) symabis(b *Builder, a *Action, sfiles []string) (string, erro
 // toolVerify checks that the command line args writes the same output file
 // if run using newTool instead.
 // Unused now but kept around for future use.
-func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile string, args []interface{}) error {
-	newArgs := make([]interface{}, len(args))
+func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile string, args []any) error {
+	newArgs := make([]any, len(args))
 	copy(newArgs, args)
 	newArgs[1] = base.Tool(newTool)
 	newArgs[3] = ofile + ".new" // x.6 becomes x.6.new
@@ -479,8 +510,7 @@ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) er
 		return nil
 	}
 	if err := packInternal(absAfile, absOfiles); err != nil {
-		b.showOutput(a, p.Dir, p.Desc(), err.Error()+"\n")
-		return errPrintedOutput
+		return formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), err.Error()+"\n")
 	}
 	return nil
 }
@@ -536,33 +566,18 @@ func packInternal(afile string, ofiles []string) error {
 }
 
 // setextld sets the appropriate linker flags for the specified compiler.
-func setextld(ldflags []string, compiler []string) []string {
+func setextld(ldflags []string, compiler []string) ([]string, error) {
 	for _, f := range ldflags {
 		if f == "-extld" || strings.HasPrefix(f, "-extld=") {
 			// don't override -extld if supplied
-			return ldflags
+			return ldflags, nil
 		}
 	}
-	ldflags = append(ldflags, "-extld="+compiler[0])
-	if len(compiler) > 1 {
-		extldflags := false
-		add := strings.Join(compiler[1:], " ")
-		for i, f := range ldflags {
-			if f == "-extldflags" && i+1 < len(ldflags) {
-				ldflags[i+1] = add + " " + ldflags[i+1]
-				extldflags = true
-				break
-			} else if strings.HasPrefix(f, "-extldflags=") {
-				ldflags[i] = "-extldflags=" + add + " " + ldflags[i][len("-extldflags="):]
-				extldflags = true
-				break
-			}
-		}
-		if !extldflags {
-			ldflags = append(ldflags, "-extldflags="+add)
-		}
+	joined, err := quoted.Join(compiler)
+	if err != nil {
+		return nil, err
 	}
-	return ldflags
+	return append(ldflags, "-extld="+joined), nil
 }
 
 // pluginPath computes the package path for a plugin main package.
@@ -628,9 +643,14 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 		// linker's build id, which will cause our build id to not
 		// match the next time the tool is built.
 		// Rely on the external build id instead.
-		if !sys.MustLinkExternal(cfg.Goos, cfg.Goarch) {
+		if !platform.MustLinkExternal(cfg.Goos, cfg.Goarch) {
 			ldflags = append(ldflags, "-X=cmd/internal/objabi.buildID="+root.buildID)
 		}
+	}
+
+	// Store default GODEBUG in binaries.
+	if root.Package.DefaultGODEBUG != "" {
+		ldflags = append(ldflags, "-X=runtime.godebugDefault="+root.Package.DefaultGODEBUG)
 	}
 
 	// If the user has not specified the -extld option, then specify the
@@ -649,7 +669,10 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	}
 	ldflags = append(ldflags, forcedLdflags...)
 	ldflags = append(ldflags, root.Package.Internal.Ldflags...)
-	ldflags = setextld(ldflags, compiler)
+	ldflags, err := setextld(ldflags, compiler)
+	if err != nil {
+		return err
+	}
 
 	// On OS X when using external linking to build a shared library,
 	// the argument passed here to -o ends up recorded in the final
@@ -693,7 +716,10 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
 	} else {
 		compiler = envList("CC", cfg.DefaultCC(cfg.Goos, cfg.Goarch))
 	}
-	ldflags = setextld(ldflags, compiler)
+	ldflags, err := setextld(ldflags, compiler)
+	if err != nil {
+		return err
+	}
 	for _, d := range toplevelactions {
 		if !strings.HasSuffix(d.Target, ".a") { // omit unsafe etc and actions for other shared libraries
 			continue

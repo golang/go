@@ -2,7 +2,6 @@
 // cgo -godefs types_linux.go
 
 //go:build 386 && linux
-// +build 386,linux
 
 package syscall
 

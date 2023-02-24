@@ -3,14 +3,9 @@
 // license that can be found in the LICENSE file.
 
 //go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
-// +build dragonfly freebsd linux netbsd openbsd solaris
 
 package runtime
 
 func Pipe() (r, w int32, errno int32) {
-	r, w, errno = pipe2(0)
-	if errno == _ENOSYS {
-		return pipe()
-	}
-	return r, w, errno
+	return pipe2(0)
 }

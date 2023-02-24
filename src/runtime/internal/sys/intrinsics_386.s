@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-TEXT runtime∕internal∕sys·Ctz64(SB), NOSPLIT, $0-12
+TEXT runtime∕internal∕sys·TrailingZeros64(SB), NOSPLIT, $0-12
 	// Try low 32 bits.
 	MOVL	x_lo+0(FP), AX
 	BSFL	AX, AX
@@ -26,7 +26,7 @@ none:
 	MOVL	$64, ret+8(FP)
 	RET
 
-TEXT runtime∕internal∕sys·Ctz32(SB), NOSPLIT, $0-8
+TEXT runtime∕internal∕sys·TrailingZeros32(SB), NOSPLIT, $0-8
 	MOVL	x+0(FP), AX
 	BSFL	AX, AX
 	JNZ	2(PC)
@@ -34,25 +34,10 @@ TEXT runtime∕internal∕sys·Ctz32(SB), NOSPLIT, $0-8
 	MOVL	AX, ret+4(FP)
 	RET
 
-TEXT runtime∕internal∕sys·Ctz8(SB), NOSPLIT, $0-8
+TEXT runtime∕internal∕sys·TrailingZeros8(SB), NOSPLIT, $0-8
 	MOVBLZX	x+0(FP), AX
 	BSFL	AX, AX
 	JNZ	2(PC)
 	MOVL	$8, AX
-	MOVL	AX, ret+4(FP)
-	RET
-
-TEXT runtime∕internal∕sys·Bswap64(SB), NOSPLIT, $0-16
-	MOVL	x_lo+0(FP), AX
-	MOVL	x_hi+4(FP), BX
-	BSWAPL	AX
-	BSWAPL	BX
-	MOVL	BX, ret_lo+8(FP)
-	MOVL	AX, ret_hi+12(FP)
-	RET
-
-TEXT runtime∕internal∕sys·Bswap32(SB), NOSPLIT, $0-8
-	MOVL	x+0(FP), AX
-	BSWAPL	AX
 	MOVL	AX, ret+4(FP)
 	RET

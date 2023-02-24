@@ -4,6 +4,6 @@
 
 package p
 
-import "fmt" // ERROR "fmt redeclared|imported"
+import "fmt" // GCCGO_ERROR "fmt redeclared|imported"
 
 var _ = fmt.Printf

@@ -1,0 +1,17 @@
+-- input --
+The Go home page is https://go.dev/.
+It used to be https://golang.org.
+
+-- gofmt --
+The Go home page is https://go.dev/.
+It used to be https://golang.org.
+
+-- text --
+The Go home page is https://go.dev/. It used to be https://golang.org.
+
+-- markdown --
+The Go home page is [https://go.dev/](https://go.dev/). It used to be [https://golang.org](https://golang.org).
+
+-- html --
+<p>The Go home page is <a href="https://go.dev/">https://go.dev/</a>.
+It used to be <a href="https://golang.org">https://golang.org</a>.

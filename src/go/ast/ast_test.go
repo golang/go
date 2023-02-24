@@ -68,6 +68,9 @@ var isDirectiveTests = []struct {
 	{"go:", false},
 	{"go:*", false},
 	{"go:x*", true},
+	{"export foo", true},
+	{"extern foo", true},
+	{"expert foo", false},
 }
 
 func TestIsDirective(t *testing.T) {

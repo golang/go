@@ -5,7 +5,6 @@
 package gccgoimporter
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/constant"
@@ -80,7 +79,7 @@ func (e importError) Error() string {
 	return fmt.Sprintf("import error %s (byte offset = %d): %s", e.pos, e.pos.Offset, e.err)
 }
 
-func (p *parser) error(err interface{}) {
+func (p *parser) error(err any) {
 	if s, ok := err.(string); ok {
 		err = errors.New(s)
 	}
@@ -88,7 +87,7 @@ func (p *parser) error(err interface{}) {
 	panic(importError{p.scanner.Pos(), err.(error)})
 }
 
-func (p *parser) errorf(format string, args ...interface{}) {
+func (p *parser) errorf(format string, args ...any) {
 	p.error(fmt.Errorf(format, args...))
 }
 
@@ -129,16 +128,16 @@ func (p *parser) parseUnquotedString() string {
 	if p.tok == scanner.EOF {
 		p.error("unexpected EOF")
 	}
-	var buf bytes.Buffer
-	buf.WriteString(p.scanner.TokenText())
+	var b strings.Builder
+	b.WriteString(p.scanner.TokenText())
 	// This loop needs to examine each character before deciding whether to consume it. If we see a semicolon,
 	// we need to let it be consumed by p.next().
 	for ch := p.scanner.Peek(); ch != '\n' && ch != ';' && ch != scanner.EOF && p.scanner.Whitespace&(1<<uint(ch)) == 0; ch = p.scanner.Peek() {
-		buf.WriteRune(ch)
+		b.WriteRune(ch)
 		p.scanner.Next()
 	}
 	p.next()
-	return buf.String()
+	return b.String()
 }
 
 func (p *parser) next() {
@@ -187,7 +186,6 @@ func (p *parser) parseQualifiedNameStr(unquotedName string) (pkgpath, name strin
 // getPkg returns the package for a given path. If the package is
 // not found but we have a package name, create the package and
 // add it to the p.imports map.
-//
 func (p *parser) getPkg(pkgpath, name string) *types.Package {
 	// package unsafe is not in the imports map - handle explicitly
 	if pkgpath == "unsafe" {
@@ -474,7 +472,7 @@ func (p *parser) reserve(n int) {
 // used to resolve named types, or it can be a *types.Pointer,
 // used to resolve pointers to named types in case they are referenced
 // by embedded fields.
-func (p *parser) update(t types.Type, nlist []interface{}) {
+func (p *parser) update(t types.Type, nlist []any) {
 	if t == reserved {
 		p.errorf("internal error: update(%v) invoked on reserved", nlist)
 	}
@@ -509,7 +507,7 @@ func (p *parser) update(t types.Type, nlist []interface{}) {
 // NamedType = TypeName [ "=" ] Type { Method } .
 // TypeName  = ExportedName .
 // Method    = "func" "(" Param ")" Name ParamList ResultList [InlineBody] ";" .
-func (p *parser) parseNamedType(nlist []interface{}) types.Type {
+func (p *parser) parseNamedType(nlist []any) types.Type {
 	pkg, name := p.parseExportedName()
 	scope := pkg.Scope()
 	obj := scope.Lookup(name)
@@ -599,7 +597,7 @@ func (p *parser) parseNamedType(nlist []interface{}) types.Type {
 			p.skipInlineBody()
 			p.expectEOL()
 
-			sig := types.NewSignature(receiver, params, results, isVariadic)
+			sig := types.NewSignatureType(receiver, nil, nil, params, results, isVariadic)
 			nt.AddMethod(types.NewFunc(token.NoPos, pkg, name, sig))
 		}
 	}
@@ -626,7 +624,7 @@ func (p *parser) parseInt() int {
 }
 
 // ArrayOrSliceType = "[" [ int ] "]" Type .
-func (p *parser) parseArrayOrSliceType(pkg *types.Package, nlist []interface{}) types.Type {
+func (p *parser) parseArrayOrSliceType(pkg *types.Package, nlist []any) types.Type {
 	p.expect('[')
 	if p.tok == ']' {
 		p.next()
@@ -649,7 +647,7 @@ func (p *parser) parseArrayOrSliceType(pkg *types.Package, nlist []interface{}) 
 }
 
 // MapType = "map" "[" Type "]" Type .
-func (p *parser) parseMapType(pkg *types.Package, nlist []interface{}) types.Type {
+func (p *parser) parseMapType(pkg *types.Package, nlist []any) types.Type {
 	p.expectKeyword("map")
 
 	t := new(types.Map)
@@ -665,7 +663,7 @@ func (p *parser) parseMapType(pkg *types.Package, nlist []interface{}) types.Typ
 }
 
 // ChanType = "chan" ["<-" | "-<"] Type .
-func (p *parser) parseChanType(pkg *types.Package, nlist []interface{}) types.Type {
+func (p *parser) parseChanType(pkg *types.Package, nlist []any) types.Type {
 	p.expectKeyword("chan")
 
 	t := new(types.Chan)
@@ -692,7 +690,7 @@ func (p *parser) parseChanType(pkg *types.Package, nlist []interface{}) types.Ty
 }
 
 // StructType = "struct" "{" { Field } "}" .
-func (p *parser) parseStructType(pkg *types.Package, nlist []interface{}) types.Type {
+func (p *parser) parseStructType(pkg *types.Package, nlist []any) types.Type {
 	p.expectKeyword("struct")
 
 	t := new(types.Struct)
@@ -759,14 +757,14 @@ func (p *parser) parseResultList(pkg *types.Package) *types.Tuple {
 }
 
 // FunctionType = ParamList ResultList .
-func (p *parser) parseFunctionType(pkg *types.Package, nlist []interface{}) *types.Signature {
+func (p *parser) parseFunctionType(pkg *types.Package, nlist []any) *types.Signature {
 	t := new(types.Signature)
 	p.update(t, nlist)
 
 	params, isVariadic := p.parseParamList(pkg)
 	results := p.parseResultList(pkg)
 
-	*t = *types.NewSignature(nil, params, results, isVariadic)
+	*t = *types.NewSignatureType(nil, nil, nil, params, results, isVariadic)
 	return t
 }
 
@@ -799,7 +797,7 @@ func (p *parser) parseFunc(pkg *types.Package) *types.Func {
 }
 
 // InterfaceType = "interface" "{" { ("?" Type | Func) ";" } "}" .
-func (p *parser) parseInterfaceType(pkg *types.Package, nlist []interface{}) types.Type {
+func (p *parser) parseInterfaceType(pkg *types.Package, nlist []any) types.Type {
 	p.expectKeyword("interface")
 
 	t := new(types.Interface)
@@ -828,7 +826,7 @@ func (p *parser) parseInterfaceType(pkg *types.Package, nlist []interface{}) typ
 }
 
 // PointerType = "*" ("any" | Type) .
-func (p *parser) parsePointerType(pkg *types.Package, nlist []interface{}) types.Type {
+func (p *parser) parsePointerType(pkg *types.Package, nlist []any) types.Type {
 	p.expect('*')
 	if p.tok == scanner.Ident {
 		p.expectKeyword("any")
@@ -846,7 +844,7 @@ func (p *parser) parsePointerType(pkg *types.Package, nlist []interface{}) types
 }
 
 // TypeSpec = NamedType | MapType | ChanType | StructType | InterfaceType | PointerType | ArrayOrSliceType | FunctionType .
-func (p *parser) parseTypeSpec(pkg *types.Package, nlist []interface{}) types.Type {
+func (p *parser) parseTypeSpec(pkg *types.Package, nlist []any) types.Type {
 	switch p.tok {
 	case scanner.String:
 		return p.parseNamedType(nlist)
@@ -934,15 +932,14 @@ func lookupBuiltinType(typ int) types.Type {
 // Type = "<" "type" ( "-" int | int [ TypeSpec ] ) ">" .
 //
 // parseType updates the type map to t for all type numbers n.
-//
-func (p *parser) parseType(pkg *types.Package, n ...interface{}) types.Type {
+func (p *parser) parseType(pkg *types.Package, n ...any) types.Type {
 	p.expect('<')
 	t, _ := p.parseTypeAfterAngle(pkg, n...)
 	return t
 }
 
 // (*parser).Type after reading the "<".
-func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...interface{}) (t types.Type, n1 int) {
+func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...any) (t types.Type, n1 int) {
 	p.expectKeyword("type")
 
 	n1 = 0
@@ -985,7 +982,7 @@ func (p *parser) parseTypeAfterAngle(pkg *types.Package, n ...interface{}) (t ty
 // parseTypeExtended is identical to parseType, but if the type in
 // question is a saved type, returns the index as well as the type
 // pointer (index returned is zero if we parsed a builtin).
-func (p *parser) parseTypeExtended(pkg *types.Package, n ...interface{}) (t types.Type, n1 int) {
+func (p *parser) parseTypeExtended(pkg *types.Package, n ...any) (t types.Type, n1 int) {
 	p.expect('<')
 	t, n1 = p.parseTypeAfterAngle(pkg, n...)
 	return
@@ -1072,7 +1069,7 @@ func (p *parser) parseTypes(pkg *types.Package) {
 }
 
 // parseSavedType parses one saved type definition.
-func (p *parser) parseSavedType(pkg *types.Package, i int, nlist []interface{}) {
+func (p *parser) parseSavedType(pkg *types.Package, i int, nlist []any) {
 	defer func(s *scanner.Scanner, tok rune, lit string) {
 		p.scanner = s
 		p.tok = tok
@@ -1117,9 +1114,10 @@ func (p *parser) maybeCreatePackage() {
 }
 
 // InitDataDirective = ( "v1" | "v2" | "v3" ) ";" |
-//                     "priority" int ";" |
-//                     "init" { PackageInit } ";" |
-//                     "checksum" unquotedString ";" .
+//
+//	"priority" int ";" |
+//	"init" { PackageInit } ";" |
+//	"checksum" unquotedString ";" .
 func (p *parser) parseInitDataDirective() {
 	if p.tok != scanner.Ident {
 		// unexpected token kind; panic
@@ -1170,15 +1168,16 @@ func (p *parser) parseInitDataDirective() {
 }
 
 // Directive = InitDataDirective |
-//             "package" unquotedString [ unquotedString ] [ unquotedString ] ";" |
-//             "pkgpath" unquotedString ";" |
-//             "prefix" unquotedString ";" |
-//             "import" unquotedString unquotedString string ";" |
-//             "indirectimport" unquotedString unquotedstring ";" |
-//             "func" Func ";" |
-//             "type" Type ";" |
-//             "var" Var ";" |
-//             "const" Const ";" .
+//
+//	"package" unquotedString [ unquotedString ] [ unquotedString ] ";" |
+//	"pkgpath" unquotedString ";" |
+//	"prefix" unquotedString ";" |
+//	"import" unquotedString unquotedString string ";" |
+//	"indirectimport" unquotedString unquotedstring ";" |
+//	"func" Func ";" |
+//	"type" Type ";" |
+//	"var" Var ";" |
+//	"const" Const ";" .
 func (p *parser) parseDirective() {
 	if p.tok != scanner.Ident {
 		// unexpected token kind; panic

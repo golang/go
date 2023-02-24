@@ -500,6 +500,19 @@ package big
 
 import "math/bits"
 
+// rem returns r such that r = u%v.
+// It uses z as the storage for r.
+func (z nat) rem(u, v nat) (r nat) {
+	if alias(z, u) {
+		z = nil
+	}
+	qp := getNat(0)
+	q, r := qp.div(z, u, v)
+	*qp = q
+	putNat(qp)
+	return r
+}
+
 // div returns q, r such that q = ⌊u/v⌋ and r = u%v = u - q·v.
 // It uses z and z2 as the storage for q and r.
 func (z nat) div(z2, u, v nat) (q, r nat) {

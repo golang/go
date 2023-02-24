@@ -9,7 +9,7 @@
 
 package p
 
-func _() {
+func f1() {
 	goto L1
 	const x = 0
 L1:
@@ -18,7 +18,7 @@ L1:
 L2:
 }
 
-func _() {
+func f2() {
 	{
 		goto L1
 	}
@@ -31,7 +31,7 @@ L1:
 L2:
 }
 
-func _(d int) {
+func f3(d int) {
 	if d > 0 {
 		goto L1
 	} else {

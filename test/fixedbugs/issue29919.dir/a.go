@@ -51,14 +51,14 @@ func f() int {
 	}
 	iter := runtime.CallersFrames(pcs[:n])
 	f, more := iter.Next()
-	if f.Function != "a.f" || !strings.HasSuffix(f.File, "a.go") || f.Line != 22 {
+	if f.Function != "test/a.f" || !strings.HasSuffix(f.File, "a.go") || f.Line != 22 {
 		panic(fmt.Sprintf("bad f %v\n", f))
 	}
 	if !more {
 		panic("traceback truncated after f")
 	}
 	f, more = iter.Next()
-	if f.Function != "a.init" || !strings.HasSuffix(f.File, "a.go") || f.Line != 15 {
+	if f.Function != "test/a.init" || !strings.HasSuffix(f.File, "a.go") || f.Line != 15 {
 		panic(fmt.Sprintf("bad init %v\n", f))
 	}
 	if !more {

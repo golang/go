@@ -64,6 +64,7 @@ func (t *Template) Templates() []*Template {
 //
 // missingkey: Control the behavior during execution if a map is
 // indexed with a key that is not present in the map.
+//
 //	"missingkey=default" or "missingkey=invalid"
 //		The default behavior: Do nothing and continue execution.
 //		If printed, the result of the index operation is the string
@@ -72,7 +73,6 @@ func (t *Template) Templates() []*Template {
 //		The operation returns the zero value for the map type's element.
 //	"missingkey=error"
 //		Execution stops immediately with an error.
-//
 func (t *Template) Option(opt ...string) *Template {
 	t.text.Option(opt...)
 	return t
@@ -117,7 +117,7 @@ func (t *Template) escape() error {
 // the output writer.
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
-func (t *Template) Execute(wr io.Writer, data interface{}) error {
+func (t *Template) Execute(wr io.Writer, data any) error {
 	if err := t.escape(); err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) error {
 // the output writer.
 // A template may be executed safely in parallel, although if parallel
 // executions share a Writer the output may be interleaved.
-func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
+func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 	tmpl, err := t.lookupAndEscapeTemplate(name)
 	if err != nil {
 		return err
@@ -328,14 +328,7 @@ func (t *Template) Name() string {
 	return t.text.Name()
 }
 
-// FuncMap is the type of the map defining the mapping from names to
-// functions. Each function must have either a single return value, or two
-// return values of which the second has type error. In that case, if the
-// second (error) argument evaluates to non-nil during execution, execution
-// terminates and Execute returns that error. FuncMap has the same base type
-// as FuncMap in "text/template", copied here so clients need not import
-// "text/template".
-type FuncMap map[string]interface{}
+type FuncMap = template.FuncMap
 
 // Funcs adds the elements of the argument map to the template's function map.
 // It must be called before the template is parsed.
@@ -368,6 +361,7 @@ func (t *Template) Lookup(name string) *Template {
 // Must is a helper that wraps a call to a function returning (*Template, error)
 // and panics if the error is non-nil. It is intended for use in variable initializations
 // such as
+//
 //	var t = template.Must(template.New("name").Parse("html"))
 func Must(t *Template, err error) *Template {
 	if err != nil {
@@ -486,7 +480,7 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 // IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
 // and whether the value has a meaningful truth value. This is the definition of
 // truth used by if and other such actions.
-func IsTrue(val interface{}) (truth, ok bool) {
+func IsTrue(val any) (truth, ok bool) {
 	return template.IsTrue(val)
 }
 

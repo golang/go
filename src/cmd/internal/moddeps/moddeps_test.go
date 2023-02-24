@@ -11,11 +11,8 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -55,8 +52,8 @@ func TestAllDependencies(t *testing.T) {
 				// Load all of the packages in the module to ensure that their
 				// dependencies are vendored. If any imported package is missing,
 				// 'go list -deps' will fail when attempting to load it.
-				cmd := exec.Command(goBin, "list", "-mod=vendor", "-deps", "./...")
-				cmd.Env = append(os.Environ(), "GO111MODULE=on")
+				cmd := testenv.Command(t, goBin, "list", "-mod=vendor", "-deps", "./...")
+				cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 				cmd.Dir = m.Dir
 				cmd.Stderr = new(strings.Builder)
 				_, err := cmd.Output()
@@ -69,8 +66,8 @@ func TestAllDependencies(t *testing.T) {
 
 			// There is no vendor directory, so the module must have no dependencies.
 			// Check that the list of active modules contains only the main module.
-			cmd := exec.Command(goBin, "list", "-mod=readonly", "-m", "all")
-			cmd.Env = append(os.Environ(), "GO111MODULE=on")
+			cmd := testenv.Command(t, goBin, "list", "-mod=readonly", "-m", "all")
+			cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 			cmd.Dir = m.Dir
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()
@@ -107,11 +104,11 @@ func TestAllDependencies(t *testing.T) {
 
 	testenv.MustHaveExternalNetwork(t)
 	if haveDiff := func() bool {
-		diff, err := exec.Command("diff", "--recursive", "--unified", ".", ".").CombinedOutput()
+		diff, err := testenv.Command(t, "diff", "--recursive", "--unified", ".", ".").CombinedOutput()
 		if err != nil || len(diff) != 0 {
 			return false
 		}
-		diff, err = exec.Command("diff", "--recursive", "--unified", ".", "..").CombinedOutput()
+		diff, err = testenv.Command(t, "diff", "--recursive", "--unified", ".", "..").CombinedOutput()
 		if err == nil || len(diff) == 0 {
 			return false
 		}
@@ -131,7 +128,7 @@ func TestAllDependencies(t *testing.T) {
 	// GO_TEST_SHORT=0 causes it to run this portion of the test.)
 	var modcacheEnv []string
 	{
-		out, err := exec.Command(goBin, "env", "GOMODCACHE").Output()
+		out, err := testenv.Command(t, goBin, "env", "GOMODCACHE").Output()
 		if err != nil {
 			t.Fatalf("%s env GOMODCACHE: %v", goBin, err)
 		}
@@ -153,7 +150,7 @@ func TestAllDependencies(t *testing.T) {
 	// module version specified in GOROOT/src/cmd/go.mod.
 	bundleDir := t.TempDir()
 	r := runner{
-		Dir: filepath.Join(runtime.GOROOT(), "src/cmd"),
+		Dir: filepath.Join(testenv.GOROOT(t), "src/cmd"),
 		Env: append(os.Environ(), modcacheEnv...),
 	}
 	r.run(t, goBin, "build", "-mod=readonly", "-o", bundleDir, "golang.org/x/tools/cmd/bundle")
@@ -183,9 +180,9 @@ func TestAllDependencies(t *testing.T) {
 				}
 			}()
 
-			rel, err := filepath.Rel(runtime.GOROOT(), m.Dir)
+			rel, err := filepath.Rel(testenv.GOROOT(t), m.Dir)
 			if err != nil {
-				t.Fatalf("filepath.Rel(%q, %q): %v", runtime.GOROOT(), m.Dir, err)
+				t.Fatalf("filepath.Rel(%q, %q): %v", testenv.GOROOT(t), m.Dir, err)
 			}
 			r := runner{
 				Dir: filepath.Join(gorootCopyDir, rel),
@@ -198,6 +195,7 @@ func TestAllDependencies(t *testing.T) {
 					// Add GOROOTcopy/bin and bundleDir to front of PATH.
 					"PATH="+filepath.Join(gorootCopyDir, "bin")+string(filepath.ListSeparator)+
 						bundleDir+string(filepath.ListSeparator)+os.Getenv("PATH"),
+					"GOWORK=off",
 				),
 			}
 			goBinCopy := filepath.Join(gorootCopyDir, "bin", "go")
@@ -216,7 +214,7 @@ func TestAllDependencies(t *testing.T) {
 			}
 			// TODO(golang.org/issue/43440): Check anything else influenced by dependency versions.
 
-			diff, err := exec.Command("diff", "--recursive", "--unified", r.Dir, m.Dir).CombinedOutput()
+			diff, err := testenv.Command(t, "diff", "--recursive", "--unified", r.Dir, m.Dir).CombinedOutput()
 			if err != nil || len(diff) != 0 {
 				t.Errorf(`Module %s in %s is not tidy (-want +got):
 
@@ -252,22 +250,22 @@ func packagePattern(modulePath string) string {
 func makeGOROOTCopy(t *testing.T) string {
 	t.Helper()
 	gorootCopyDir := t.TempDir()
-	err := filepath.Walk(runtime.GOROOT(), func(src string, info os.FileInfo, err error) error {
+	err := filepath.Walk(testenv.GOROOT(t), func(src string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() && src == filepath.Join(runtime.GOROOT(), ".git") {
+		if info.IsDir() && src == filepath.Join(testenv.GOROOT(t), ".git") {
 			return filepath.SkipDir
 		}
 
-		rel, err := filepath.Rel(runtime.GOROOT(), src)
+		rel, err := filepath.Rel(testenv.GOROOT(t), src)
 		if err != nil {
-			return fmt.Errorf("filepath.Rel(%q, %q): %v", runtime.GOROOT(), src, err)
+			return fmt.Errorf("filepath.Rel(%q, %q): %v", testenv.GOROOT(t), src, err)
 		}
 		dst := filepath.Join(gorootCopyDir, rel)
 
-		if info.IsDir() && (src == filepath.Join(runtime.GOROOT(), "bin") ||
-			src == filepath.Join(runtime.GOROOT(), "pkg")) {
+		if info.IsDir() && (src == filepath.Join(testenv.GOROOT(t), "bin") ||
+			src == filepath.Join(testenv.GOROOT(t), "pkg")) {
 			// If the OS supports symlinks, use them instead
 			// of copying the bin and pkg directories.
 			if err := os.Symlink(src, dst); err == nil {
@@ -322,7 +320,7 @@ type runner struct {
 // run runs the command and requires that it succeeds.
 func (r runner) run(t *testing.T, args ...string) {
 	t.Helper()
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := testenv.Command(t, args[0], args[1:]...)
 	cmd.Dir = r.Dir
 	cmd.Env = r.Env
 	out, err := cmd.CombinedOutput()
@@ -361,7 +359,7 @@ func TestDependencyVersionsConsistent(t *testing.T) {
 		// It's ok if there are undetected differences in modules that do not
 		// provide imported packages: we will not have to pull in any backports of
 		// fixes to those modules anyway.
-		vendor, err := ioutil.ReadFile(filepath.Join(m.Dir, "vendor", "modules.txt"))
+		vendor, err := os.ReadFile(filepath.Join(m.Dir, "vendor", "modules.txt"))
 		if err != nil {
 			t.Error(err)
 			continue
@@ -435,14 +433,14 @@ func findGorootModules(t *testing.T) []gorootModule {
 	goBin := testenv.GoToolPath(t)
 
 	goroot.once.Do(func() {
-		goroot.err = filepath.WalkDir(runtime.GOROOT(), func(path string, info fs.DirEntry, err error) error {
+		goroot.err = filepath.WalkDir(testenv.GOROOT(t), func(path string, info fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 			if info.IsDir() && (info.Name() == "vendor" || info.Name() == "testdata") {
 				return filepath.SkipDir
 			}
-			if info.IsDir() && path == filepath.Join(runtime.GOROOT(), "pkg") {
+			if info.IsDir() && path == filepath.Join(testenv.GOROOT(t), "pkg") {
 				// GOROOT/pkg contains generated artifacts, not source code.
 				//
 				// In https://golang.org/issue/37929 it was observed to somehow contain
@@ -463,8 +461,8 @@ func findGorootModules(t *testing.T) []gorootModule {
 
 			// Use 'go list' to describe the module contained in this directory (but
 			// not its dependencies).
-			cmd := exec.Command(goBin, "list", "-json", "-m")
-			cmd.Env = append(os.Environ(), "GO111MODULE=on")
+			cmd := testenv.Command(t, goBin, "list", "-json", "-m")
+			cmd.Env = append(os.Environ(), "GO111MODULE=on", "GOWORK=off")
 			cmd.Dir = dir
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()

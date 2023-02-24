@@ -2,12 +2,12 @@
 
 ## Supported Versions
 
-We support the past two Go releases (for example, Go 1.12.x and Go 1.13.x).
+We support the past two Go releases (for example, Go 1.17.x and Go 1.18.x when Go 1.18.x is the latest stable release).
 
-See https://golang.org/wiki/Go-Release-Cycle and in particular the
-[Release Maintenance](https://github.com/golang/go/wiki/Go-Release-Cycle#release-maintenance)
+See https://go.dev/wiki/Go-Release-Cycle and in particular the
+[Release Maintenance](https://go.dev/wiki/Go-Release-Cycle#release-maintenance)
 part of that page.
 
 ## Reporting a Vulnerability
 
-See https://golang.org/security for how to report a vulnerability.
+See https://go.dev/security for how to report a vulnerability.

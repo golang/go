@@ -8,6 +8,7 @@ package arm64
 var cnames7 = []string{
 	"NONE",
 	"REG",
+	"ZREG",
 	"RSP",
 	"FREG",
 	"VREG",
@@ -15,6 +16,7 @@ var cnames7 = []string{
 	"SHIFT",
 	"EXTREG",
 	"SPR",
+	"SPOP",
 	"COND",
 	"ARNG",
 	"ELEM",

@@ -7,9 +7,7 @@ package test
 import (
 	"bytes"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -22,11 +20,7 @@ func TestScanfRemoval(t *testing.T) {
 	t.Parallel()
 
 	// Make a directory to work in.
-	dir, err := ioutil.TempDir("", "issue6853a-")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Create source.
 	src := filepath.Join(dir, "test.go")
@@ -47,14 +41,14 @@ func main() {
 	dst := filepath.Join(dir, "test")
 
 	// Compile source.
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", dst, src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", dst, src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("could not build target: %v\n%s", err, out)
 	}
 
 	// Check destination to see if scanf code was included.
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "nm", dst)
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", dst)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("could not read target: %v", err)
@@ -70,11 +64,7 @@ func TestDashS(t *testing.T) {
 	t.Parallel()
 
 	// Make a directory to work in.
-	dir, err := ioutil.TempDir("", "issue14515-")
-	if err != nil {
-		t.Fatalf("could not create directory: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	// Create source.
 	src := filepath.Join(dir, "test.go")
@@ -92,7 +82,7 @@ func main() {
 	f.Close()
 
 	// Compile source.
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("could not build target: %v\n%s", err, out)

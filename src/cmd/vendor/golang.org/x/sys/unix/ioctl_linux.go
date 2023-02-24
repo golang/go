@@ -4,10 +4,7 @@
 
 package unix
 
-import (
-	"runtime"
-	"unsafe"
-)
+import "unsafe"
 
 // IoctlRetInt performs an ioctl operation specified by req on a device
 // associated with opened file descriptor fd, and returns a non-negative
@@ -22,56 +19,42 @@ func IoctlRetInt(fd int, req uint) (int, error) {
 
 func IoctlGetUint32(fd int, req uint) (uint32, error) {
 	var value uint32
-	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	err := ioctlPtr(fd, req, unsafe.Pointer(&value))
 	return value, err
 }
 
 func IoctlGetRTCTime(fd int) (*RTCTime, error) {
 	var value RTCTime
-	err := ioctl(fd, RTC_RD_TIME, uintptr(unsafe.Pointer(&value)))
+	err := ioctlPtr(fd, RTC_RD_TIME, unsafe.Pointer(&value))
 	return &value, err
 }
 
 func IoctlSetRTCTime(fd int, value *RTCTime) error {
-	err := ioctl(fd, RTC_SET_TIME, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
-	return err
+	return ioctlPtr(fd, RTC_SET_TIME, unsafe.Pointer(value))
 }
 
 func IoctlGetRTCWkAlrm(fd int) (*RTCWkAlrm, error) {
 	var value RTCWkAlrm
-	err := ioctl(fd, RTC_WKALM_RD, uintptr(unsafe.Pointer(&value)))
+	err := ioctlPtr(fd, RTC_WKALM_RD, unsafe.Pointer(&value))
 	return &value, err
 }
 
 func IoctlSetRTCWkAlrm(fd int, value *RTCWkAlrm) error {
-	err := ioctl(fd, RTC_WKALM_SET, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
-	return err
-}
-
-type ifreqEthtool struct {
-	name [IFNAMSIZ]byte
-	data unsafe.Pointer
+	return ioctlPtr(fd, RTC_WKALM_SET, unsafe.Pointer(value))
 }
 
 // IoctlGetEthtoolDrvinfo fetches ethtool driver information for the network
 // device specified by ifname.
 func IoctlGetEthtoolDrvinfo(fd int, ifname string) (*EthtoolDrvinfo, error) {
-	// Leave room for terminating NULL byte.
-	if len(ifname) >= IFNAMSIZ {
-		return nil, EINVAL
+	ifr, err := NewIfreq(ifname)
+	if err != nil {
+		return nil, err
 	}
 
-	value := EthtoolDrvinfo{
-		Cmd: ETHTOOL_GDRVINFO,
-	}
-	ifreq := ifreqEthtool{
-		data: unsafe.Pointer(&value),
-	}
-	copy(ifreq.name[:], ifname)
-	err := ioctl(fd, SIOCETHTOOL, uintptr(unsafe.Pointer(&ifreq)))
-	runtime.KeepAlive(ifreq)
+	value := EthtoolDrvinfo{Cmd: ETHTOOL_GDRVINFO}
+	ifrd := ifr.withData(unsafe.Pointer(&value))
+
+	err = ioctlIfreqData(fd, SIOCETHTOOL, &ifrd)
 	return &value, err
 }
 
@@ -80,7 +63,7 @@ func IoctlGetEthtoolDrvinfo(fd int, ifname string) (*EthtoolDrvinfo, error) {
 // https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
 func IoctlGetWatchdogInfo(fd int) (*WatchdogInfo, error) {
 	var value WatchdogInfo
-	err := ioctl(fd, WDIOC_GETSUPPORT, uintptr(unsafe.Pointer(&value)))
+	err := ioctlPtr(fd, WDIOC_GETSUPPORT, unsafe.Pointer(&value))
 	return &value, err
 }
 
@@ -88,6 +71,7 @@ func IoctlGetWatchdogInfo(fd int) (*WatchdogInfo, error) {
 // more information, see:
 // https://www.kernel.org/doc/html/latest/watchdog/watchdog-api.html.
 func IoctlWatchdogKeepalive(fd int) error {
+	// arg is ignored and not a pointer, so ioctl is fine instead of ioctlPtr.
 	return ioctl(fd, WDIOC_KEEPALIVE, 0)
 }
 
@@ -95,9 +79,7 @@ func IoctlWatchdogKeepalive(fd int) error {
 // range of data conveyed in value to the file associated with the file
 // descriptor destFd. See the ioctl_ficlonerange(2) man page for details.
 func IoctlFileCloneRange(destFd int, value *FileCloneRange) error {
-	err := ioctl(destFd, FICLONERANGE, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
-	return err
+	return ioctlPtr(destFd, FICLONERANGE, unsafe.Pointer(value))
 }
 
 // IoctlFileClone performs an FICLONE ioctl operation to clone the entire file
@@ -148,7 +130,7 @@ func IoctlFileDedupeRange(srcFd int, value *FileDedupeRange) error {
 		rawinfo.Reserved = value.Info[i].Reserved
 	}
 
-	err := ioctl(srcFd, FIDEDUPERANGE, uintptr(unsafe.Pointer(&buf[0])))
+	err := ioctlPtr(srcFd, FIDEDUPERANGE, unsafe.Pointer(&buf[0]))
 
 	// Output
 	for i := range value.Info {
@@ -166,31 +148,86 @@ func IoctlFileDedupeRange(srcFd int, value *FileDedupeRange) error {
 }
 
 func IoctlHIDGetDesc(fd int, value *HIDRawReportDescriptor) error {
-	err := ioctl(fd, HIDIOCGRDESC, uintptr(unsafe.Pointer(value)))
-	runtime.KeepAlive(value)
-	return err
+	return ioctlPtr(fd, HIDIOCGRDESC, unsafe.Pointer(value))
 }
 
 func IoctlHIDGetRawInfo(fd int) (*HIDRawDevInfo, error) {
 	var value HIDRawDevInfo
-	err := ioctl(fd, HIDIOCGRAWINFO, uintptr(unsafe.Pointer(&value)))
+	err := ioctlPtr(fd, HIDIOCGRAWINFO, unsafe.Pointer(&value))
 	return &value, err
 }
 
 func IoctlHIDGetRawName(fd int) (string, error) {
 	var value [_HIDIOCGRAWNAME_LEN]byte
-	err := ioctl(fd, _HIDIOCGRAWNAME, uintptr(unsafe.Pointer(&value[0])))
+	err := ioctlPtr(fd, _HIDIOCGRAWNAME, unsafe.Pointer(&value[0]))
 	return ByteSliceToString(value[:]), err
 }
 
 func IoctlHIDGetRawPhys(fd int) (string, error) {
 	var value [_HIDIOCGRAWPHYS_LEN]byte
-	err := ioctl(fd, _HIDIOCGRAWPHYS, uintptr(unsafe.Pointer(&value[0])))
+	err := ioctlPtr(fd, _HIDIOCGRAWPHYS, unsafe.Pointer(&value[0]))
 	return ByteSliceToString(value[:]), err
 }
 
 func IoctlHIDGetRawUniq(fd int) (string, error) {
 	var value [_HIDIOCGRAWUNIQ_LEN]byte
-	err := ioctl(fd, _HIDIOCGRAWUNIQ, uintptr(unsafe.Pointer(&value[0])))
+	err := ioctlPtr(fd, _HIDIOCGRAWUNIQ, unsafe.Pointer(&value[0]))
 	return ByteSliceToString(value[:]), err
+}
+
+// IoctlIfreq performs an ioctl using an Ifreq structure for input and/or
+// output. See the netdevice(7) man page for details.
+func IoctlIfreq(fd int, req uint, value *Ifreq) error {
+	// It is possible we will add more fields to *Ifreq itself later to prevent
+	// misuse, so pass the raw *ifreq directly.
+	return ioctlPtr(fd, req, unsafe.Pointer(&value.raw))
+}
+
+// TODO(mdlayher): export if and when IfreqData is exported.
+
+// ioctlIfreqData performs an ioctl using an ifreqData structure for input
+// and/or output. See the netdevice(7) man page for details.
+func ioctlIfreqData(fd int, req uint, value *ifreqData) error {
+	// The memory layout of IfreqData (type-safe) and ifreq (not type-safe) are
+	// identical so pass *IfreqData directly.
+	return ioctlPtr(fd, req, unsafe.Pointer(value))
+}
+
+// IoctlKCMClone attaches a new file descriptor to a multiplexor by cloning an
+// existing KCM socket, returning a structure containing the file descriptor of
+// the new socket.
+func IoctlKCMClone(fd int) (*KCMClone, error) {
+	var info KCMClone
+	if err := ioctlPtr(fd, SIOCKCMCLONE, unsafe.Pointer(&info)); err != nil {
+		return nil, err
+	}
+
+	return &info, nil
+}
+
+// IoctlKCMAttach attaches a TCP socket and associated BPF program file
+// descriptor to a multiplexor.
+func IoctlKCMAttach(fd int, info KCMAttach) error {
+	return ioctlPtr(fd, SIOCKCMATTACH, unsafe.Pointer(&info))
+}
+
+// IoctlKCMUnattach unattaches a TCP socket file descriptor from a multiplexor.
+func IoctlKCMUnattach(fd int, info KCMUnattach) error {
+	return ioctlPtr(fd, SIOCKCMUNATTACH, unsafe.Pointer(&info))
+}
+
+// IoctlLoopGetStatus64 gets the status of the loop device associated with the
+// file descriptor fd using the LOOP_GET_STATUS64 operation.
+func IoctlLoopGetStatus64(fd int) (*LoopInfo64, error) {
+	var value LoopInfo64
+	if err := ioctlPtr(fd, LOOP_GET_STATUS64, unsafe.Pointer(&value)); err != nil {
+		return nil, err
+	}
+	return &value, nil
+}
+
+// IoctlLoopSetStatus64 sets the status of the loop device associated with the
+// file descriptor fd using the LOOP_SET_STATUS64 operation.
+func IoctlLoopSetStatus64(fd int, value *LoopInfo64) error {
+	return ioctlPtr(fd, LOOP_SET_STATUS64, unsafe.Pointer(value))
 }

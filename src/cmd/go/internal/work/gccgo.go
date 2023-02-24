@@ -6,8 +6,8 @@ package work
 
 import (
 	"fmt"
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -157,10 +157,7 @@ func buildImportcfgSymlinks(b *Builder, root string, importcfg []byte) error {
 		} else {
 			verb, args = line[:i], strings.TrimSpace(line[i+1:])
 		}
-		var before, after string
-		if i := strings.Index(args, "="); i >= 0 {
-			before, after = args[:i], args[i+1:]
-		}
+		before, after, _ := strings.Cut(args, "=")
 		switch verb {
 		default:
 			base.Fatalf("importcfg:%d: unknown directive %q", lineNum, verb)
@@ -605,7 +602,11 @@ var gccgoToSymbolFunc func(string) string
 
 func (tools gccgoToolchain) gccgoCleanPkgpath(b *Builder, p *load.Package) string {
 	gccgoToSymbolFuncOnce.Do(func() {
-		fn, err := pkgpath.ToSymbolFunc(tools.compiler(), b.WorkDir)
+		tmpdir := b.WorkDir
+		if cfg.BuildN {
+			tmpdir = os.TempDir()
+		}
+		fn, err := pkgpath.ToSymbolFunc(tools.compiler(), tmpdir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
 			base.SetExitStatus(2)
@@ -615,4 +616,64 @@ func (tools gccgoToolchain) gccgoCleanPkgpath(b *Builder, p *load.Package) strin
 	})
 
 	return gccgoToSymbolFunc(gccgoPkgpath(p))
+}
+
+var (
+	gccgoSupportsCgoIncompleteOnce sync.Once
+	gccgoSupportsCgoIncomplete     bool
+)
+
+const gccgoSupportsCgoIncompleteCode = `
+package p
+
+import "runtime/cgo"
+
+type I cgo.Incomplete
+`
+
+// supportsCgoIncomplete reports whether the gccgo/GoLLVM compiler
+// being used supports cgo.Incomplete, which was added in GCC 13.
+func (tools gccgoToolchain) supportsCgoIncomplete(b *Builder) bool {
+	gccgoSupportsCgoIncompleteOnce.Do(func() {
+		fail := func(err error) {
+			fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
+			base.SetExitStatus(2)
+			base.Exit()
+		}
+
+		tmpdir := b.WorkDir
+		if cfg.BuildN {
+			tmpdir = os.TempDir()
+		}
+		f, err := os.CreateTemp(tmpdir, "*_gccgo_cgoincomplete.go")
+		if err != nil {
+			fail(err)
+		}
+		fn := f.Name()
+		f.Close()
+		defer os.Remove(fn)
+
+		if err := os.WriteFile(fn, []byte(gccgoSupportsCgoIncompleteCode), 0644); err != nil {
+			fail(err)
+		}
+
+		on := strings.TrimSuffix(fn, ".go") + ".o"
+		if cfg.BuildN || cfg.BuildX {
+			b.Showcmd(tmpdir, "%s -c -o %s %s || true", tools.compiler(), on, fn)
+			// Since this function affects later builds,
+			// and only generates temporary files,
+			// we run the command even with -n.
+		}
+		cmd := exec.Command(tools.compiler(), "-c", "-o", on, fn)
+		cmd.Dir = tmpdir
+		var buf strings.Builder
+		cmd.Stdout = &buf
+		cmd.Stderr = &buf
+		err = cmd.Run()
+		if out := buf.String(); len(out) > 0 {
+			b.showOutput(nil, tmpdir, b.fmtcmd(tmpdir, "%s -c -o %s %s", tools.compiler(), on, fn), buf.String())
+		}
+		gccgoSupportsCgoIncomplete = err == nil
+	})
+	return gccgoSupportsCgoIncomplete
 }

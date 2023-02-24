@@ -8,6 +8,8 @@ package runtime
 
 import "unsafe"
 
+const MaxArgs = maxArgs
+
 var (
 	TestingWER              = &testingWER
 	OsYield                 = osyield
@@ -18,8 +20,4 @@ func NumberOfProcessors() int32 {
 	var info systeminfo
 	stdcall1(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
 	return int32(info.dwnumberofprocessors)
-}
-
-func LoadLibraryExStatus() (useEx, haveEx, haveFlags bool) {
-	return useLoadLibraryEx, _LoadLibraryExW != nil, _AddDllDirectory != nil
 }

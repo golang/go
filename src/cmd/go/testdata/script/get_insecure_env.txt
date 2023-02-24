@@ -1,5 +1,5 @@
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 # GOPATH: Set up
 env GO111MODULE=off

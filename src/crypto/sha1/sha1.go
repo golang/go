@@ -50,14 +50,14 @@ const (
 func (d *digest) MarshalBinary() ([]byte, error) {
 	b := make([]byte, 0, marshaledSize)
 	b = append(b, magic...)
-	b = appendUint32(b, d.h[0])
-	b = appendUint32(b, d.h[1])
-	b = appendUint32(b, d.h[2])
-	b = appendUint32(b, d.h[3])
-	b = appendUint32(b, d.h[4])
+	b = binary.BigEndian.AppendUint32(b, d.h[0])
+	b = binary.BigEndian.AppendUint32(b, d.h[1])
+	b = binary.BigEndian.AppendUint32(b, d.h[2])
+	b = binary.BigEndian.AppendUint32(b, d.h[3])
+	b = binary.BigEndian.AppendUint32(b, d.h[4])
 	b = append(b, d.x[:d.nx]...)
-	b = b[:len(b)+len(d.x)-int(d.nx)] // already zero
-	b = appendUint64(b, d.len)
+	b = b[:len(b)+len(d.x)-d.nx] // already zero
+	b = binary.BigEndian.AppendUint64(b, d.len)
 	return b, nil
 }
 
@@ -78,18 +78,6 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.len = consumeUint64(b)
 	d.nx = int(d.len % chunk)
 	return nil
-}
-
-func appendUint64(b []byte, x uint64) []byte {
-	var a [8]byte
-	binary.BigEndian.PutUint64(a[:], x)
-	return append(b, a[:]...)
-}
-
-func appendUint32(b []byte, x uint32) []byte {
-	var a [4]byte
-	binary.BigEndian.PutUint32(a[:], x)
-	return append(b, a[:]...)
 }
 
 func consumeUint64(b []byte) ([]byte, uint64) {
@@ -119,6 +107,9 @@ func (d *digest) Reset() {
 // implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
 // marshal and unmarshal the internal state of the hash.
 func New() hash.Hash {
+	if boringEnabled {
+		return boringNewSHA1()
+	}
 	d := new(digest)
 	d.Reset()
 	return d
@@ -129,6 +120,7 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
+	boringUnreachable()
 	nn = len(p)
 	d.len += uint64(nn)
 	if d.nx > 0 {
@@ -152,6 +144,7 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 }
 
 func (d *digest) Sum(in []byte) []byte {
+	boringUnreachable()
 	// Make a copy of d so that caller can keep writing and summing.
 	d0 := *d
 	hash := d0.checkSum()
@@ -161,18 +154,20 @@ func (d *digest) Sum(in []byte) []byte {
 func (d *digest) checkSum() [Size]byte {
 	len := d.len
 	// Padding.  Add a 1 bit and 0 bits until 56 bytes mod 64.
-	var tmp [64]byte
+	var tmp [64 + 8]byte // padding + length buffer
 	tmp[0] = 0x80
+	var t uint64
 	if len%64 < 56 {
-		d.Write(tmp[0 : 56-len%64])
+		t = 56 - len%64
 	} else {
-		d.Write(tmp[0 : 64+56-len%64])
+		t = 64 + 56 - len%64
 	}
 
 	// Length in bits.
 	len <<= 3
-	binary.BigEndian.PutUint64(tmp[:], len)
-	d.Write(tmp[0:8])
+	padlen := tmp[:t+8]
+	binary.BigEndian.PutUint64(padlen[t:], len)
+	d.Write(padlen)
 
 	if d.nx != 0 {
 		panic("d.nx != 0")
@@ -259,6 +254,9 @@ func (d *digest) constSum() [Size]byte {
 
 // Sum returns the SHA-1 checksum of the data.
 func Sum(data []byte) [Size]byte {
+	if boringEnabled {
+		return boringSHA1(data)
+	}
 	var d digest
 	d.Reset()
 	d.Write(data)

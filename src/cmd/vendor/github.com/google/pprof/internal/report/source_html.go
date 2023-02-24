@@ -72,5 +72,4 @@ function pprof_toggle_asm(e) {
 
 const weblistPageClosing = `
 </body>
-</html>
-`
+</html>`

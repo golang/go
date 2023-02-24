@@ -23,8 +23,9 @@
 // That is also where updates required by new systems or versions
 // should be applied. See https://golang.org/s/go1.4-syscall for more
 // information.
-//
 package syscall
+
+import "internal/bytealg"
 
 //go:generate go run ./mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
 
@@ -45,10 +46,8 @@ func StringByteSlice(s string) []byte {
 // containing the text of s. If s contains a NUL byte at any
 // location, it returns (nil, EINVAL).
 func ByteSliceFromString(s string) ([]byte, error) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == 0 {
-			return nil, EINVAL
-		}
+	if bytealg.IndexByteString(s, 0) != -1 {
+		return nil, EINVAL
 	}
 	a := make([]byte, len(s)+1)
 	copy(a, s)
@@ -101,3 +100,7 @@ func (tv *Timeval) Nano() int64 {
 
 func Getpagesize() int
 func Exit(code int)
+
+// runtimeSetenv and runtimeUnsetenv are provided by the runtime.
+func runtimeSetenv(k, v string)
+func runtimeUnsetenv(k string)

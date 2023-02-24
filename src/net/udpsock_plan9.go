@@ -7,6 +7,7 @@ package net
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"os"
 	"syscall"
 )
@@ -28,8 +29,27 @@ func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
 	return n, addr, nil
 }
 
-func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
-	return 0, 0, 0, nil, syscall.EPLAN9
+func (c *UDPConn) readFromAddrPort(b []byte) (int, netip.AddrPort, error) {
+	// TODO: optimize. The equivalent code on posix is alloc-free.
+	buf := make([]byte, udpHeaderSize+len(b))
+	m, err := c.fd.Read(buf)
+	if err != nil {
+		return 0, netip.AddrPort{}, err
+	}
+	if m < udpHeaderSize {
+		return 0, netip.AddrPort{}, errors.New("short read reading UDP header")
+	}
+	buf = buf[:m]
+
+	h, buf := unmarshalUDPHeader(buf)
+	n := copy(b, buf)
+	ip, _ := netip.AddrFromSlice(h.raddr)
+	addr := netip.AddrPortFrom(ip, h.rport)
+	return n, addr, nil
+}
+
+func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
+	return 0, 0, 0, netip.AddrPort{}, syscall.EPLAN9
 }
 
 func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
@@ -52,7 +72,15 @@ func (c *UDPConn) writeTo(b []byte, addr *UDPAddr) (int, error) {
 	return len(b), nil
 }
 
+func (c *UDPConn) writeToAddrPort(b []byte, addr netip.AddrPort) (int, error) {
+	return c.writeTo(b, UDPAddrFromAddrPort(addr)) // TODO: optimize instead of allocating
+}
+
 func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
+	return 0, 0, syscall.EPLAN9
+}
+
+func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
 	return 0, 0, syscall.EPLAN9
 }
 

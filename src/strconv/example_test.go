@@ -134,9 +134,14 @@ func ExampleFormatFloat() {
 	s64 := strconv.FormatFloat(v, 'E', -1, 64)
 	fmt.Printf("%T, %v\n", s64, s64)
 
+	// fmt.Println uses these arguments to print floats
+	fmt64 := strconv.FormatFloat(v, 'g', -1, 64)
+	fmt.Printf("%T, %v\n", fmt64, fmt64)
+
 	// Output:
 	// string, 3.1415927E+00
 	// string, 3.1415926535E+00
+	// string, 3.1415926535
 }
 
 func ExampleFormatInt() {

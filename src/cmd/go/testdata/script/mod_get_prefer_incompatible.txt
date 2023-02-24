@@ -8,7 +8,7 @@ cmp go.mod.orig go.mod
 grep '^example.com/incompatiblewithsub v2\.0\.0\+incompatible' go.sum
 ! grep '^example.com/incompatiblewithsub v1.0.0' go.sum
 
-go get -d example.com/incompatiblewithsub/sub
+go get example.com/incompatiblewithsub/sub
 cmp go.mod.orig go.mod
 ! grep '^example.com/incompatiblewithsub v1.0.0' go.sum
 

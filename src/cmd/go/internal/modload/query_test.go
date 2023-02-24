@@ -6,6 +6,7 @@ package modload
 
 import (
 	"context"
+	"flag"
 	"internal/testenv"
 	"log"
 	"os"
@@ -15,27 +16,47 @@ import (
 	"testing"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/vcweb/vcstest"
 
 	"golang.org/x/mod/module"
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
+	flag.Parse()
+	if err := testMain(m); err != nil {
+		log.Fatal(err)
+	}
 }
 
-func testMain(m *testing.M) int {
+func testMain(m *testing.M) (err error) {
 	cfg.GOPROXY = "direct"
+	cfg.ModCacheRW = true
+
+	srv, err := vcstest.NewServer()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := srv.Close(); err == nil {
+			err = closeErr
+		}
+	}()
 
 	dir, err := os.MkdirTemp("", "modload-test-")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	defer os.RemoveAll(dir)
+	defer func() {
+		if rmErr := os.RemoveAll(dir); err == nil {
+			err = rmErr
+		}
+	}()
 
 	os.Setenv("GOPATH", dir)
 	cfg.BuildContext.GOPATH = dir
 	cfg.GOMODCACHE = filepath.Join(dir, "pkg/mod")
-	return m.Run()
+	m.Run()
+	return nil
 }
 
 var (
@@ -55,42 +76,6 @@ var queryTests = []struct {
 	vers    string
 	err     string
 }{
-	/*
-		git init
-		echo module vcs-test.golang.org/git/querytest.git >go.mod
-		git add go.mod
-		git commit -m v1 go.mod
-		git tag start
-		for i in v0.0.0-pre1 v0.0.0 v0.0.1 v0.0.2 v0.0.3 v0.1.0 v0.1.1 v0.1.2 v0.3.0 v1.0.0 v1.1.0 v1.9.0 v1.9.9 v1.9.10-pre1 v1.9.10-pre2+metadata unversioned; do
-			echo before $i >status
-			git add status
-			git commit -m "before $i" status
-			echo at $i >status
-			git commit -m "at $i" status
-			git tag $i
-		done
-		git tag favorite v0.0.3
-
-		git branch v2 start
-		git checkout v2
-		echo module vcs-test.golang.org/git/querytest.git/v2 >go.mod
-		git commit -m v2 go.mod
-		for i in v2.0.0 v2.1.0 v2.2.0 v2.5.5 v2.6.0-pre1; do
-			echo before $i >status
-			git add status
-			git commit -m "before $i" status
-			echo at $i >status
-			git commit -m "at $i" status
-			git tag $i
-		done
-		git checkout v2.5.5
-		echo after v2.5.5 >status
-		git commit -m 'after v2.5.5' status
-		git checkout master
-		zip -r ../querytest.zip
-		gsutil cp ../querytest.zip gs://vcs-test/git/querytest.zip
-		curl 'https://vcs-test.golang.org/git/querytest?go-get=1'
-	*/
 	{path: queryRepo, query: "<v0.0.0", vers: "v0.0.0-pre1"},
 	{path: queryRepo, query: "<v0.0.0-pre1", err: `no matching versions for query "<v0.0.0-pre1"`},
 	{path: queryRepo, query: "<=v0.0.0", vers: "v0.0.0"},

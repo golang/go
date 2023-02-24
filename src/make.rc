@@ -47,17 +47,29 @@ if(~ $1 -v) {
 	shift
 }
 
-GOENV=off
-GOFLAGS=()
-GO111MODULE=()
+fn nogoenv {
+	GO111MODULE=off GOENV=off GOOS=() GOARCH=() GOEXPERIMENT=() GOFLAGS=() $*
+}
+
+bootgo = 1.17.13
 GOROOT = `{cd .. && pwd}
-if(! ~ $#GOROOT_BOOTSTRAP 1)
+goroot_bootstrap_set = 'true'
+if(! ~ $#GOROOT_BOOTSTRAP 1){
+	goroot_bootstrap_set = 'false'
 	GOROOT_BOOTSTRAP = $home/go1.4
+	for(d in sdk/go$bootgo go$bootgo)
+		if(test -d $home/$d)
+			GOROOT_BOOTSTRAP = $home/$d
+}
 for(p in $path){
 	if(! test -x $GOROOT_BOOTSTRAP/bin/go){
 		if(go_exe = `{path=$p whatis go}){
-			goroot = `{GOROOT='' $go_exe env GOROOT}
+			goroot = `{GOROOT=() nogoenv $go_exe env GOROOT}
 			if(! ~ $goroot $GOROOT){
+				if(~ $goroot_bootstrap_set 'true'){
+					echo 'WARNING: '$GOROOT_BOOTSTRAP'/bin/go does not exist, found '$go_exe' from env' >[1=2]
+					echo 'WARNING: set '$goroot' as GOROOT_BOOTSTRAP' >[1=2]
+				}
 				GOROOT_BOOTSTRAP = $goroot
 			}
 		}
@@ -65,19 +77,23 @@ for(p in $path){
 }
 if(! test -x $GOROOT_BOOTSTRAP/bin/go){
 	echo 'ERROR: Cannot find '$GOROOT_BOOTSTRAP'/bin/go.' >[1=2]
-	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
+	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go '$bootgo'.' >[1=2]
 	exit bootstrap
 }
 if(~ $GOROOT_BOOTSTRAP $GOROOT){
 	echo 'ERROR: $GOROOT_BOOTSTRAP must not be set to $GOROOT' >[1=2]
-	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4.' >[1=2]
+	echo 'Set $GOROOT_BOOTSTRAP to a working Go tree >= Go '$bootgo'.' >[1=2]
 	exit bootstrap
 }
 
-echo 'Building Go cmd/dist using '^$GOROOT_BOOTSTRAP
+# Get the exact bootstrap toolchain version to help with debugging.
+# We clear GOOS and GOARCH to avoid an ominous but harmless warning if
+# the bootstrap doesn't support them.
+GOROOT_BOOTSTRAP_VERSION=`{nogoenv $GOROOT_BOOTSTRAP/bin/go version | sed 's/go version //'}
+echo 'Building Go cmd/dist using '$GOROOT_BOOTSTRAP'. ('$"GOROOT_BOOTSTRAP_VERSION')'
 if(~ $#vflag 1)
 	echo cmd/dist
-GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' GO111MODULE=off $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
+GOROOT=$GOROOT_BOOTSTRAP nogoenv $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
 
 eval `{./cmd/dist/dist env -9}
 if(~ $#vflag 1)
@@ -92,15 +108,10 @@ if(~ $1 --dist-tool){
 	exit
 }
 
-buildall = -a
-if(~ $1 --no-clean) {
-	buildall = ()
-	shift
-}
 # Run dist bootstrap to complete make.bash.
 # Bootstrap installs a proper cmd/dist, built with the new toolchain.
-# Throw ours, built with Go 1.4, away after bootstrap.
-./cmd/dist/dist bootstrap $vflag $buildall $*
+# Throw ours, built with the bootstrap toolchain, away after bootstrap.
+./cmd/dist/dist bootstrap -a $vflag $*
 rm -f ./cmd/dist/dist
 
 # DO NOT ADD ANY NEW CODE HERE.

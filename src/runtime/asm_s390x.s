@@ -147,12 +147,11 @@ nocgo:
 
 	// create a new goroutine to start program
 	MOVD	$runtime·mainPC(SB), R2		// entry
-	SUB     $24, R15
-	MOVD 	R2, 16(R15)
-	MOVD 	$0, 8(R15)
+	SUB     $16, R15
+	MOVD 	R2, 8(R15)
 	MOVD 	$0, 0(R15)
 	BL	runtime·newproc(SB)
-	ADD	$24, R15
+	ADD	$16, R15
 
 	// start this M
 	BL	runtime·mstart(SB)
@@ -164,7 +163,7 @@ DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
 TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
-	MOVD	$0, 2(R0)
+	BRRK
 	RET
 
 TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
@@ -347,6 +346,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	UNDEF
 
 TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+	// Force SPWRITE. This function doesn't actually write SP,
+	// but it is called with a special calling convention where
+	// the caller doesn't save LR on stack but passes it as a
+	// register (R5), and the unwinder currently doesn't understand.
+	// Make it SPWRITE to stop unwinding. (See issue 54332)
+	MOVD	R15, R15
+
 	MOVD	$0, R12
 	BR	runtime·morestack(SB)
 
@@ -481,21 +487,6 @@ TEXT callfnMVC<>(SB),NOSPLIT|NOFRAME,$0-0
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	RET
 
-// void jmpdefer(fv, sp);
-// called from deferreturn.
-// 1. grab stored LR for caller
-// 2. sub 6 bytes to get back to BL deferreturn (size of BRASL instruction)
-// 3. BR to fn
-TEXT runtime·jmpdefer(SB),NOSPLIT|NOFRAME,$0-16
-	MOVD	0(R15), R1
-	SUB	$6, R1, LR
-
-	MOVD	fv+0(FP), R12
-	MOVD	argp+8(FP), R15
-	SUB	$8, R15
-	MOVD	0(R12), R3
-	BR	(R3)
-
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
 // Must only be called from functions with no locals ($0)
@@ -529,12 +520,15 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
-	// come in on the m->g0 stack already.
+	// come in on the m->g0 stack already. Or we might already
+	// be on the m->gsignal stack.
 	MOVD	g_m(g), R6
-	MOVD	m_g0(R6), R6
-	CMPBEQ	R6, g, g0
+	MOVD	m_gsignal(R6), R7
+	CMPBEQ	R7, g, g0
+	MOVD	m_g0(R6), R7
+	CMPBEQ	R7, g, g0
 	BL	gosave_systemstack_switch<>(SB)
-	MOVD	R6, g
+	MOVD	R7, g
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R15
 
@@ -785,42 +779,38 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVB	$1, ret+0(FP)
 	RET
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - R2 is the destination of the write
-// - R3 is the value being written at R2.
-// It clobbers R10 (the temp register).
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in R9, and returns a pointer
+// to the buffer space in R9.
+// It clobbers R10 (the temp register) and R1 (used by PLT stub).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$96
 	// Save the registers clobbered by the fast path.
-	MOVD	R1, 96(R15)
-	MOVD	R4, 104(R15)
+	MOVD	R4, 96(R15)
+retry:
 	MOVD	g_m(g), R1
 	MOVD	m_p(R1), R1
 	// Increment wbBuf.next position.
-	MOVD	$16, R4
+	MOVD	R9, R4
 	ADD	(p_wbBuf+wbBuf_next)(R1), R4
-	MOVD	R4, (p_wbBuf+wbBuf_next)(R1)
-	MOVD	(p_wbBuf+wbBuf_end)(R1), R1
-	// Record the write.
-	MOVD	R3, -16(R4) // Record value
-	MOVD	(R2), R10   // TODO: This turns bad writes into bad reads.
-	MOVD	R10, -8(R4) // Record *slot
 	// Is the buffer full?
-	CMPBEQ	R4, R1, flush
-ret:
-	MOVD	96(R15), R1
-	MOVD	104(R15), R4
-	// Do the write.
-	MOVD	R3, (R2)
+	MOVD	(p_wbBuf+wbBuf_end)(R1), R10
+	CMPUBGT	R4, R10, flush
+	// Commit to the larger buffer.
+	MOVD	R4, (p_wbBuf+wbBuf_next)(R1)
+	// Make return value (the original next position)
+	SUB	R9, R4, R9
+	// Restore registers.
+	MOVD	96(R15), R4
 	RET
 
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	STMG	R2, R3, 8(R15)   // set R2 and R3 as arguments for wbBufFlush
+	STMG	R2, R3, 8(R15)
 	MOVD	R0, 24(R15)
 	// R1 already saved.
 	// R4 already saved.
@@ -829,13 +819,37 @@ flush:
 	// R14 is LR.
 	// R15 is SP.
 
-	// This takes arguments R2 and R3.
 	CALL	runtime·wbBufFlush(SB)
 
 	LMG	8(R15), R2, R3   // restore R2 - R3
 	MOVD	24(R15), R0      // restore R0
 	LMG	32(R15), R5, R12 // restore R5 - R12
-	JMP	ret
+	JMP	retry
+
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$8, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$16, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$24, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$32, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$40, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$48, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$56, R9
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	MOVD	$64, R9
+	JMP	gcWriteBarrier<>(SB)
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated

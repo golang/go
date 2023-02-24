@@ -7,13 +7,10 @@
 package time
 
 import (
-	"runtime"
 	"syscall"
 )
 
-var zoneSources = []string{
-	runtime.GOROOT() + "/lib/time/zoneinfo.zip",
-}
+var platformZoneSources []string // none on Plan 9
 
 func isSpace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\n'
@@ -59,7 +56,7 @@ func loadZoneDataPlan9(s string) (l *Location, err error) {
 		if len(f) == 2 && f[0] == "GMT" {
 			return UTC, nil
 		}
-		return nil, badData
+		return nil, errBadData
 	}
 
 	var zones [2]zone
@@ -67,14 +64,14 @@ func loadZoneDataPlan9(s string) (l *Location, err error) {
 	// standard timezone offset
 	o, err := atoi(f[1])
 	if err != nil {
-		return nil, badData
+		return nil, errBadData
 	}
 	zones[0] = zone{name: f[0], offset: o, isDST: false}
 
 	// alternate timezone offset
 	o, err = atoi(f[3])
 	if err != nil {
-		return nil, badData
+		return nil, errBadData
 	}
 	zones[1] = zone{name: f[2], offset: o, isDST: true}
 
@@ -88,7 +85,7 @@ func loadZoneDataPlan9(s string) (l *Location, err error) {
 		}
 		t, err := atoi(f[i])
 		if err != nil {
-			return nil, badData
+			return nil, errBadData
 		}
 		t -= zones[0].offset
 		tx = append(tx, zoneTrans{when: int64(t), index: uint8(zi)})

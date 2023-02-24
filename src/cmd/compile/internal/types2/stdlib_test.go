@@ -15,7 +15,6 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -29,8 +28,8 @@ func TestStdlib(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	pkgCount := 0
-	duration := walkPkgDirs(filepath.Join(runtime.GOROOT(), "src"), func(dir string, filenames []string) {
-		typecheck(t, dir, filenames)
+	duration := walkPkgDirs(filepath.Join(testenv.GOROOT(t), "src"), func(dir string, filenames []string) {
+		typecheckFiles(t, dir, filenames)
 		pkgCount++
 	}, t.Error)
 
@@ -162,12 +161,14 @@ func TestStdTest(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test"),
 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
 		"directive.go",   // tests compiler rejection of bad directive placement - ignore
+		"directive2.go",  // tests compiler rejection of bad directive placement - ignore
 		"embedfunc.go",   // tests //go:embed
 		"embedvers.go",   // tests //go:embed
 		"linkname2.go",   // types2 doesn't check validity of //go:xxx directives
+		"linkname3.go",   // types2 doesn't check validity of //go:xxx directives
 	)
 }
 
@@ -178,7 +179,7 @@ func TestStdFixed(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
+	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
 		"issue6889.go",   // gc-specific test
 		"issue11362.go",  // canonical import path check
@@ -192,25 +193,42 @@ func TestStdFixed(t *testing.T) {
 		"issue20780.go",  // types2 does not have constraints on stack size
 		"issue42058a.go", // types2 does not have constraints on channel element size
 		"issue42058b.go", // types2 does not have constraints on channel element size
+		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
+		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
+		"issue49767.go",  // go/types does not have constraints on channel element size
+		"issue49814.go",  // go/types does not have constraints on array size
+		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+
+		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+		// However, types2 does not know about build constraints.
+		"bug514.go",
+		"issue40954.go",
+		"issue42032.go",
+		"issue42076.go",
+		"issue46903.go",
+		"issue51733.go",
+		"notinheap2.go",
+		"notinheap3.go",
 	)
 }
 
 func TestStdKen(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "ken"))
+	testTestDir(t, filepath.Join(testenv.GOROOT(t), "test", "ken"))
 }
 
 // Package paths of excluded packages.
 var excluded = map[string]bool{
 	"builtin": true,
 
-	// See #46027: some imports are missing for this submodule.
-	"crypto/ed25519/internal/edwards25519/field/_asm": true,
+	// go.dev/issue/46027: some imports are missing for this submodule.
+	"crypto/internal/edwards25519/field/_asm": true,
+	"crypto/internal/bigmod/_asm":             true,
 }
 
-// typecheck typechecks the given package files.
-func typecheck(t *testing.T, path string, filenames []string) {
+// typecheckFiles typechecks the given package files.
+func typecheckFiles(t *testing.T, path string, filenames []string) {
 	// parse package files
 	var files []*syntax.File
 	for _, filename := range filenames {
@@ -305,16 +323,13 @@ func (w *walker) walk(dir string) {
 	}
 
 	// apply pkgh to the files in directory dir
-	// but ignore files directly under $GOROOT/src (might be temporary test files).
-	if dir != filepath.Join(runtime.GOROOT(), "src") {
-		files, err := pkgFilenames(dir)
-		if err != nil {
-			w.errh(err)
-			return
-		}
-		if files != nil {
-			w.pkgh(dir, files)
-		}
+	pkgFiles, err := pkgFilenames(dir)
+	if err != nil {
+		w.errh(err)
+		return
+	}
+	if pkgFiles != nil {
+		w.pkgh(dir, pkgFiles)
 	}
 
 	// traverse subdirectories, but don't walk into testdata

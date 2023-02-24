@@ -53,7 +53,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVL	wait+0(FP), AX
 	// We're done using the stack.
@@ -85,21 +85,6 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 	JAE	2(PC)
 	NEGL	AX			// caller expects negative errno
 	MOVL	AX, ret+12(FP)
-	RET
-
-// func pipe() (r, w int32, errno int32)
-TEXT runtime·pipe(SB),NOSPLIT,$0-12
-	MOVL	$42, AX
-	INT	$0x80
-	JCC	pipeok
-	MOVL	$-1, r+0(FP)
-	MOVL	$-1, w+4(FP)
-	MOVL	AX, errno+8(FP)
-	RET
-pipeok:
-	MOVL	AX, r+0(FP)
-	MOVL	DX, w+4(FP)
-	MOVL	$0, errno+8(FP)
 	RET
 
 // func pipe2(flags int32) (r, w int32, errno int32)
@@ -305,7 +290,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	RET
 
 // Called by OS using C ABI.
-TEXT runtime·sigtramp(SB),NOSPLIT,$28
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$28
 	NOP	SP	// tell vet SP changed - stop checking offsets
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVL	BX, bx-4(SP)
@@ -483,21 +468,4 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
-	RET
-
-// func runtime·setNonblock(fd int32)
-TEXT runtime·setNonblock(SB),NOSPLIT,$16-4
-	MOVL	$92, AX // fcntl
-	MOVL	fd+0(FP), BX // fd
-	MOVL	BX, 4(SP)
-	MOVL	$3, 8(SP) // F_GETFL
-	MOVL	$0, 12(SP)
-	INT	$0x80
-	MOVL	fd+0(FP), BX // fd
-	MOVL	BX, 4(SP)
-	MOVL	$4, 8(SP) // F_SETFL
-	ORL	$4, AX // O_NONBLOCK
-	MOVL	AX, 12(SP)
-	MOVL	$92, AX // fcntl
-	INT	$0x80
 	RET

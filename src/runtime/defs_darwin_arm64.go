@@ -101,7 +101,10 @@ const (
 	_F_SETFL    = 0x4
 	_FD_CLOEXEC = 0x1
 
-	_O_NONBLOCK = 4
+	_O_WRONLY   = 0x1
+	_O_NONBLOCK = 0x4
+	_O_CREAT    = 0x200
+	_O_TRUNC    = 0x400
 )
 
 type stackt struct {

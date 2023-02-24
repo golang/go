@@ -22,7 +22,6 @@ import "go/types"
 // this function is intended only for user interfaces.
 //
 // The order of the result is as for types.MethodSet(T).
-//
 func IntuitiveMethodSet(T types.Type, msets *MethodSetCache) []*types.Selection {
 	isPointerToConcrete := func(T types.Type) bool {
 		ptr, ok := T.(*types.Pointer)

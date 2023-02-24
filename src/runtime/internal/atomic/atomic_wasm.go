@@ -6,6 +6,7 @@
 // See https://github.com/WebAssembly/design/issues/1073
 
 // Export some functions via linkname to assembly in sync/atomic.
+//
 //go:linkname Load
 //go:linkname Loadp
 //go:linkname Load64

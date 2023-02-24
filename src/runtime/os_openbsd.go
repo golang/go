@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -50,6 +51,21 @@ func sysctlInt(mib []uint32) (int32, bool) {
 	return out, true
 }
 
+func sysctlUint64(mib []uint32) (uint64, bool) {
+	var out uint64
+	nout := unsafe.Sizeof(out)
+	ret := sysctl(&mib[0], uint32(len(mib)), (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+	if ret < 0 {
+		return 0, false
+	}
+	return out, true
+}
+
+//go:linkname internal_cpu_sysctlUint64 internal/cpu.sysctlUint64
+func internal_cpu_sysctlUint64(mib []uint32) (uint64, bool) {
+	return sysctlUint64(mib)
+}
+
 func getncpu() int32 {
 	// Try hw.ncpuonline first because hw.ncpu would report a number twice as
 	// high as the actual CPUs running on OpenBSD 6.4 with hyperthreading
@@ -83,7 +99,7 @@ func semacreate(mp *m) {
 
 //go:nosplit
 func semasleep(ns int64) int32 {
-	_g_ := getg()
+	gp := getg()
 
 	// Compute sleep deadline.
 	var tsp *timespec
@@ -94,9 +110,9 @@ func semasleep(ns int64) int32 {
 	}
 
 	for {
-		v := atomic.Load(&_g_.m.waitsemacount)
+		v := atomic.Load(&gp.m.waitsemacount)
 		if v > 0 {
-			if atomic.Cas(&_g_.m.waitsemacount, v, v-1) {
+			if atomic.Cas(&gp.m.waitsemacount, v, v-1) {
 				return 0 // semaphore acquired
 			}
 			continue
@@ -109,7 +125,7 @@ func semasleep(ns int64) int32 {
 		// be examined [...] immediately before blocking. If that int
 		// is non-zero then __thrsleep() will immediately return EINTR
 		// without blocking."
-		ret := thrsleep(uintptr(unsafe.Pointer(&_g_.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, 0, &_g_.m.waitsemacount)
+		ret := thrsleep(uintptr(unsafe.Pointer(&gp.m.waitsemacount)), _CLOCK_MONOTONIC, tsp, 0, &gp.m.waitsemacount)
 		if ret == _EWOULDBLOCK {
 			return -1
 		}
@@ -167,6 +183,7 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//
 //go:nosplit
 func unminit() {
 	unminitSignals()
@@ -191,8 +208,8 @@ func setsig(i uint32, fn uintptr) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
 	sa.sa_mask = uint32(sigset_all)
-	if fn == funcPC(sighandler) {
-		fn = funcPC(sigtramp)
+	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
+		fn = abi.FuncPCABI0(sigtramp)
 	}
 	sa.sa_sigaction = fn
 	sigaction(i, &sa, nil)
@@ -212,7 +229,8 @@ func getsig(i uint32) uintptr {
 	return sa.sa_sigaction
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
+//
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
 	s.ss_sp = sp
@@ -230,6 +248,19 @@ func sigdelset(mask *sigset, i int) {
 
 //go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func setProcessCPUProfiler(hz int32) {
+	setProcessCPUProfilerTimer(hz)
+}
+
+func setThreadCPUProfiler(hz int32) {
+	setThreadCPUProfilerHz(hz)
+}
+
+//go:nosplit
+func validSIGPROF(mp *m, c *sigctxt) bool {
+	return true
 }
 
 var haveMapStack = false
@@ -271,4 +302,13 @@ func raise(sig uint32) {
 
 func signalM(mp *m, sig int) {
 	thrkill(int32(mp.procid), sig)
+}
+
+// sigPerThreadSyscall is only used on linux, so we assign a bogus signal
+// number.
+const sigPerThreadSyscall = 1 << 31
+
+//go:nosplit
+func runPerThreadSyscall() {
+	throw("runPerThreadSyscall only valid on linux")
 }

@@ -116,6 +116,13 @@ var findTests = []FindTest{
 	{"\\`", "`", build(1, 0, 1)},
 	{"[\\`]+", "`", build(1, 0, 1)},
 
+	{"\ufffd", "\xff", build(1, 0, 1)},
+	{"\ufffd", "hello\xffworld", build(1, 5, 6)},
+	{`.*`, "hello\xffworld", build(1, 0, 11)},
+	{`\x{fffd}`, "\xc2\x00", build(1, 0, 1)},
+	{"[\ufffd]", "\xff", build(1, 0, 1)},
+	{`[\x{fffd}]`, "\xc2\x00", build(1, 0, 1)},
+
 	// long set of matches (longer than startSize)
 	{
 		".",

@@ -2,7 +2,7 @@
 
 env GO111MODULE=on
 ! go build
-stderr 'type aliases only supported as of'
+stderr ' type aliases requires'
 go mod edit -go=1.9
 grep 'go 1.9' go.mod
 go build
@@ -11,7 +11,7 @@ go build
 # the cached 1.9 build. (https://golang.org/issue/37804)
 go mod edit -go=1.8
 ! go build
-stderr 'type aliases only supported as of'
+stderr 'type aliases requires'
 
 
 -- go.mod --

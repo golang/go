@@ -19,8 +19,7 @@ func Mul2(f float64) float64 {
 	// amd64:"ADDSD",-"MULSD"
 	// arm/7:"ADDD",-"MULD"
 	// arm64:"FADDD",-"FMULD"
-	// ppc64:"FADD",-"FMUL"
-	// ppc64le:"FADD",-"FMUL"
+	// ppc64x:"FADD",-"FMUL"
 	return f * 2.0
 }
 
@@ -29,24 +28,21 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
 	// amd64:"MULSD",-"DIVSD"
 	// arm/7:"MULD",-"DIVD"
 	// arm64:"FMULD",-"FDIVD"
-	// ppc64:"FMUL",-"FDIV"
-	// ppc64le:"FMUL",-"FDIV"
+	// ppc64x:"FMUL",-"FDIV"
 	x := f1 / 16.0
 
 	// 386/sse2:"MULSD",-"DIVSD"
 	// amd64:"MULSD",-"DIVSD"
 	// arm/7:"MULD",-"DIVD"
 	// arm64:"FMULD",-"FDIVD"
-	// ppc64:"FMUL",-"FDIVD"
-	// ppc64le:"FMUL",-"FDIVD"
+	// ppc64x:"FMUL",-"FDIVD"
 	y := f2 / 0.125
 
 	// 386/sse2:"ADDSD",-"DIVSD",-"MULSD"
 	// amd64:"ADDSD",-"DIVSD",-"MULSD"
 	// arm/7:"ADDD",-"MULD",-"DIVD"
 	// arm64:"FADDD",-"FMULD",-"FDIVD"
-	// ppc64:"FADD",-"FMUL",-"FDIV"
-	// ppc64le:"FADD",-"FMUL",-"FDIV"
+	// ppc64x:"FADD",-"FMUL",-"FDIV"
 	z := f3 / 0.5
 
 	return x, y, z
@@ -68,16 +64,14 @@ func indexStore(b0 []float64, b1 float64, idx int) {
 
 func FusedAdd32(x, y, z float32) float32 {
 	// s390x:"FMADDS\t"
-	// ppc64:"FMADDS\t"
-	// ppc64le:"FMADDS\t"
+	// ppc64x:"FMADDS\t"
 	// arm64:"FMADDS"
 	return x*y + z
 }
 
 func FusedSub32_a(x, y, z float32) float32 {
 	// s390x:"FMSUBS\t"
-	// ppc64:"FMSUBS\t"
-	// ppc64le:"FMSUBS\t"
+	// ppc64x:"FMSUBS\t"
 	return x*y - z
 }
 
@@ -88,16 +82,14 @@ func FusedSub32_b(x, y, z float32) float32 {
 
 func FusedAdd64(x, y, z float64) float64 {
 	// s390x:"FMADD\t"
-	// ppc64:"FMADD\t"
-	// ppc64le:"FMADD\t"
+	// ppc64x:"FMADD\t"
 	// arm64:"FMADDD"
 	return x*y + z
 }
 
 func FusedSub64_a(x, y, z float64) float64 {
 	// s390x:"FMSUB\t"
-	// ppc64:"FMSUB\t"
-	// ppc64le:"FMSUB\t"
+	// ppc64x:"FMSUB\t"
 	return x*y - z
 }
 

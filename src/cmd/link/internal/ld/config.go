@@ -8,6 +8,7 @@ import (
 	"cmd/internal/sys"
 	"fmt"
 	"internal/buildcfg"
+	"internal/platform"
 )
 
 // A BuildMode indicates the sort of object we are building.
@@ -26,10 +27,9 @@ const (
 	BuildModePlugin
 )
 
+// Set implements flag.Value to set the build mode based on the argument
+// to the -buildmode flag.
 func (mode *BuildMode) Set(s string) error {
-	badmode := func() error {
-		return fmt.Errorf("buildmode %s not supported on %s/%s", s, buildcfg.GOOS, buildcfg.GOARCH)
-	}
 	switch s {
 	default:
 		return fmt.Errorf("invalid buildmode: %q", s)
@@ -41,81 +41,21 @@ func (mode *BuildMode) Set(s string) error {
 			*mode = BuildModeExe
 		}
 	case "pie":
-		switch buildcfg.GOOS {
-		case "aix", "android", "linux", "windows", "darwin", "ios":
-		case "freebsd":
-			switch buildcfg.GOARCH {
-			case "amd64":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
 		*mode = BuildModePIE
 	case "c-archive":
-		switch buildcfg.GOOS {
-		case "aix", "darwin", "ios", "linux":
-		case "freebsd":
-			switch buildcfg.GOARCH {
-			case "amd64":
-			default:
-				return badmode()
-			}
-		case "windows":
-			switch buildcfg.GOARCH {
-			case "amd64", "386", "arm", "arm64":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
 		*mode = BuildModeCArchive
 	case "c-shared":
-		switch buildcfg.GOARCH {
-		case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
-		default:
-			return badmode()
-		}
 		*mode = BuildModeCShared
 	case "shared":
-		switch buildcfg.GOOS {
-		case "linux":
-			switch buildcfg.GOARCH {
-			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
 		*mode = BuildModeShared
 	case "plugin":
-		switch buildcfg.GOOS {
-		case "linux":
-			switch buildcfg.GOARCH {
-			case "386", "amd64", "arm", "arm64", "s390x", "ppc64le":
-			default:
-				return badmode()
-			}
-		case "darwin":
-			switch buildcfg.GOARCH {
-			case "amd64", "arm64":
-			default:
-				return badmode()
-			}
-		case "freebsd":
-			switch buildcfg.GOARCH {
-			case "amd64":
-			default:
-				return badmode()
-			}
-		default:
-			return badmode()
-		}
 		*mode = BuildModePlugin
 	}
+
+	if !platform.BuildModeSupported("gc", s, buildcfg.GOOS, buildcfg.GOARCH) {
+		return fmt.Errorf("buildmode %s not supported on %s/%s", s, buildcfg.GOOS, buildcfg.GOARCH)
+	}
+
 	return nil
 }
 
@@ -185,7 +125,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		}()
 	}
 
-	if sys.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH) {
+	if platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH) {
 		return true, fmt.Sprintf("%s/%s requires external linking", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 
@@ -193,10 +133,13 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "msan"
 	}
 
+	if *flagAsan {
+		return true, "asan"
+	}
+
 	// Internally linking cgo is incomplete on some architectures.
 	// https://golang.org/issue/14449
-	// https://golang.org/issue/21961
-	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64, sys.RISCV64) {
+	if iscgo && ctxt.Arch.InFamily(sys.Loong64, sys.MIPS64, sys.MIPS, sys.RISCV64) {
 		return true, buildcfg.GOARCH + " does not support internal cgo"
 	}
 	if iscgo && (buildcfg.GOOS == "android" || buildcfg.GOOS == "dragonfly") {
@@ -209,12 +152,9 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		// windows/arm64 internal linking is not implemented.
 		return true, buildcfg.GOOS + "/" + buildcfg.GOARCH + " does not support internal cgo"
 	}
-
-	// When the race flag is set, the LLVM tsan relocatable file is linked
-	// into the final binary, which means external linking is required because
-	// internal linking does not support it.
-	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
-		return true, "race on " + buildcfg.GOARCH
+	if iscgo && ctxt.Arch == sys.ArchPPC64 {
+		// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
+		return true, buildcfg.GOOS + " does not support internal cgo"
 	}
 
 	// Some build modes require work the internal linker cannot do (yet).
@@ -225,7 +165,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "buildmode=c-shared"
 	case BuildModePIE:
 		switch buildcfg.GOOS + "/" + buildcfg.GOARCH {
-		case "linux/amd64", "linux/arm64", "android/arm64":
+		case "android/arm64":
+		case "linux/amd64", "linux/arm64", "linux/ppc64le":
 		case "windows/386", "windows/amd64", "windows/arm", "windows/arm64":
 		case "darwin/amd64", "darwin/arm64":
 		default:
@@ -243,6 +184,15 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 
 	if unknownObjFormat {
 		return true, "some input objects have an unrecognized file format"
+	}
+
+	if len(dynimportfail) > 0 {
+		// This error means that we were unable to generate
+		// the _cgo_import.go file for some packages.
+		// This typically means that there are some dependencies
+		// that the cgo tool could not figure out.
+		// See issue #52863.
+		return true, fmt.Sprintf("some packages could not be built to support internal linking (%v)", dynimportfail)
 	}
 
 	return false, ""

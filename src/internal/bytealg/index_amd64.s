@@ -233,8 +233,10 @@ success_avx2:
 	VZEROUPPER
 	JMP success
 sse42:
+#ifndef hasSSE42
 	CMPB internal∕cpu·X86+const_offsetX86HasSSE42(SB), $1
 	JNE no_sse42
+#endif
 	CMPQ AX, $12
 	// PCMPESTRI is slower than normal compare,
 	// so using it makes sense only if we advance 4+ bytes per compare

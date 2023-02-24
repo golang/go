@@ -91,9 +91,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		if targType == sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected R_AARCH64_PREL32 relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
-		// sense and should be removed when someone has thought about it properly.
-		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
+		if targType == 0 || targType == sym.SXREF {
 			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
 		}
 		su := ldr.MakeSymbolUpdater(s)
@@ -121,7 +119,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			su.SetRelocSym(rIdx, syms.PLT)
 			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
 		}
-		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
+		if targType == 0 || targType == sym.SXREF {
 			ldr.Errorf(s, "unknown symbol %s in callarm64", ldr.SymName(targ))
 		}
 		su := ldr.MakeSymbolUpdater(s)
@@ -469,6 +467,28 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(r.Xadd))
 		out.Write64(uint64(sectoff + 4))
 		out.Write64(uint64(elf.R_AARCH64_ADD_ABS_LO12_NC) | uint64(elfsym)<<32)
+
+	case objabi.R_ARM64_PCREL_LDST8,
+		objabi.R_ARM64_PCREL_LDST16,
+		objabi.R_ARM64_PCREL_LDST32,
+		objabi.R_ARM64_PCREL_LDST64:
+		// two relocations: R_AARCH64_ADR_PREL_PG_HI21 and R_AARCH64_LDST{64/32/16/8}_ABS_LO12_NC
+		out.Write64(uint64(elf.R_AARCH64_ADR_PREL_PG_HI21) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		var ldstType elf.R_AARCH64
+		switch r.Type {
+		case objabi.R_ARM64_PCREL_LDST8:
+			ldstType = elf.R_AARCH64_LDST8_ABS_LO12_NC
+		case objabi.R_ARM64_PCREL_LDST16:
+			ldstType = elf.R_AARCH64_LDST16_ABS_LO12_NC
+		case objabi.R_ARM64_PCREL_LDST32:
+			ldstType = elf.R_AARCH64_LDST32_ABS_LO12_NC
+		case objabi.R_ARM64_PCREL_LDST64:
+			ldstType = elf.R_AARCH64_LDST64_ABS_LO12_NC
+		}
+		out.Write64(uint64(ldstType) | uint64(elfsym)<<32)
+
 	case objabi.R_ARM64_TLS_LE:
 		out.Write64(uint64(elf.R_AARCH64_TLSLE_MOVW_TPREL_G0) | uint64(elfsym)<<32)
 	case objabi.R_ARM64_TLS_IE:
@@ -518,7 +538,10 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		}
 	}
 
-	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 || rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL {
+	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 ||
+		rt == objabi.R_ARM64_PCREL_LDST8 || rt == objabi.R_ARM64_PCREL_LDST16 ||
+		rt == objabi.R_ARM64_PCREL_LDST32 || rt == objabi.R_ARM64_PCREL_LDST64 ||
+		rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL {
 		if ldr.SymDynid(rs) < 0 {
 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
 			return false
@@ -541,12 +564,17 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		v |= ld.MACHO_ARM64_RELOC_UNSIGNED << 28
 	case objabi.R_CALLARM64:
 		if xadd != 0 {
-			ldr.Errorf(s, "ld64 doesn't allow BR26 reloc with non-zero addend: %s+%d", ldr.SymName(rs), xadd)
+			out.Write32(uint32(sectoff))
+			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(xadd&0xffffff))
 		}
 
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_BRANCH26 << 28
-	case objabi.R_ADDRARM64:
+	case objabi.R_ADDRARM64,
+		objabi.R_ARM64_PCREL_LDST8,
+		objabi.R_ARM64_PCREL_LDST16,
+		objabi.R_ARM64_PCREL_LDST32,
+		objabi.R_ARM64_PCREL_LDST64:
 		siz = 4
 		// Two relocation entries: MACHO_ARM64_RELOC_PAGEOFF12 MACHO_ARM64_RELOC_PAGE21
 		// if r.Xadd is non-zero, add two MACHO_ARM64_RELOC_ADDEND.
@@ -602,7 +630,8 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	rs := r.Xsym
 	rt := r.Type
 
-	if r.Xadd != signext21(r.Xadd) {
+	if (rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_PCREL_LDST8 || rt == objabi.R_ARM64_PCREL_LDST16 ||
+		rt == objabi.R_ARM64_PCREL_LDST32 || rt == objabi.R_ARM64_PCREL_LDST64) && r.Xadd != signext21(r.Xadd) {
 		// If the relocation target would overflow the addend, then target
 		// a linker-manufactured label symbol with a smaller addend instead.
 		label := ldr.Lookup(offsetLabelName(ldr, rs, r.Xadd/peRelocLimit*peRelocLimit), ldr.SymVersion(rs))
@@ -654,6 +683,19 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write32(uint32(symdynid))
 		out.Write16(ld.IMAGE_REL_ARM64_PAGEOFFSET_12A)
 
+	case objabi.R_ARM64_PCREL_LDST8,
+		objabi.R_ARM64_PCREL_LDST16,
+		objabi.R_ARM64_PCREL_LDST32,
+		objabi.R_ARM64_PCREL_LDST64:
+		// Note: r.Xadd has been taken care of below, in archreloc.
+		out.Write32(uint32(sectoff))
+		out.Write32(uint32(symdynid))
+		out.Write16(ld.IMAGE_REL_ARM64_PAGEBASE_REL21)
+
+		out.Write32(uint32(sectoff + 4))
+		out.Write32(uint32(symdynid))
+		out.Write16(ld.IMAGE_REL_ARM64_PAGEOFFSET_12L)
+
 	case objabi.R_CALLARM64:
 		// Note: r.Xadd has been taken care of above, by using a label pointing into the middle of the function.
 		out.Write32(uint32(sectoff))
@@ -668,13 +710,17 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 	const noExtReloc = 0
 	const isOk = true
 
-	rs := ldr.ResolveABIAlias(r.Sym())
+	rs := r.Sym()
 
 	if target.IsExternal() {
 		nExtReloc := 0
 		switch rt := r.Type(); rt {
 		default:
 		case objabi.R_ARM64_GOTPCREL,
+			objabi.R_ARM64_PCREL_LDST8,
+			objabi.R_ARM64_PCREL_LDST16,
+			objabi.R_ARM64_PCREL_LDST32,
+			objabi.R_ARM64_PCREL_LDST64,
 			objabi.R_ADDRARM64:
 
 			// set up addend for eventual relocation via outer symbol.
@@ -701,17 +747,35 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 				}
 
 				// The first instruction (ADRP) has a 21-bit immediate field,
-				// and the second (ADD) has a 12-bit immediate field.
+				// and the second (ADD or LD/ST) has a 12-bit immediate field.
 				// The first instruction is only for high bits, but to get the carry bits right we have
 				// to put the full addend, including the bottom 12 bits again.
 				// That limits the distance of any addend to only 21 bits.
-				// But we assume that LDRP's top bit will be interpreted as a sign bit,
+				// But we assume that ADRP's top bit will be interpreted as a sign bit,
 				// so we only use 20 bits.
 				// pereloc takes care of introducing new symbol labels
 				// every megabyte for longer relocations.
 				xadd := uint32(xadd)
 				o0 |= (xadd&3)<<29 | (xadd&0xffffc)<<3
-				o1 |= (xadd & 0xfff) << 10
+				switch rt {
+				case objabi.R_ARM64_PCREL_LDST8, objabi.R_ADDRARM64:
+					o1 |= (xadd & 0xfff) << 10
+				case objabi.R_ARM64_PCREL_LDST16:
+					if xadd&0x1 != 0 {
+						ldr.Errorf(s, "offset for 16-bit load/store has unaligned value %d", xadd&0xfff)
+					}
+					o1 |= ((xadd & 0xfff) >> 1) << 10
+				case objabi.R_ARM64_PCREL_LDST32:
+					if xadd&0x3 != 0 {
+						ldr.Errorf(s, "offset for 32-bit load/store has unaligned value %d", xadd&0xfff)
+					}
+					o1 |= ((xadd & 0xfff) >> 2) << 10
+				case objabi.R_ARM64_PCREL_LDST64:
+					if xadd&0x7 != 0 {
+						ldr.Errorf(s, "offset for 64-bit load/store has unaligned value %d", xadd&0xfff)
+					}
+					o1 |= ((xadd & 0xfff) >> 3) << 10
+				}
 
 				if target.IsBigEndian() {
 					val = int64(o0)<<32 | int64(o1)
@@ -721,13 +785,20 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			}
 
 			return val, nExtReloc, isOk
-		case objabi.R_CALLARM64,
-			objabi.R_ARM64_TLS_LE,
-			objabi.R_ARM64_TLS_IE:
+
+		case objabi.R_CALLARM64:
 			nExtReloc = 1
-			if rt == objabi.R_ARM64_TLS_IE {
-				nExtReloc = 2 // need two ELF relocations. see elfreloc1
+			if target.IsDarwin() && r.Add() != 0 {
+				nExtReloc = 2 // need another relocation for addend
 			}
+			return val, nExtReloc, isOk
+
+		case objabi.R_ARM64_TLS_LE:
+			nExtReloc = 1
+			return val, nExtReloc, isOk
+
+		case objabi.R_ARM64_TLS_IE:
+			nExtReloc = 2 // need two ELF relocations. see elfreloc1
 			return val, nExtReloc, isOk
 
 		case objabi.R_ADDR:
@@ -744,8 +815,12 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		}
 	}
 
-	switch r.Type() {
-	case objabi.R_ADDRARM64:
+	switch rt := r.Type(); rt {
+	case objabi.R_ADDRARM64,
+		objabi.R_ARM64_PCREL_LDST8,
+		objabi.R_ARM64_PCREL_LDST16,
+		objabi.R_ARM64_PCREL_LDST32,
+		objabi.R_ARM64_PCREL_LDST64:
 		t := ldr.SymAddr(rs) + r.Add() - ((ldr.SymValue(s) + int64(r.Off())) &^ 0xfff)
 		if t >= 1<<32 || t < -1<<32 {
 			ldr.Errorf(s, "program too large, address relocation distance = %d", t)
@@ -762,7 +837,25 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		}
 
 		o0 |= (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
-		o1 |= uint32(t&0xfff) << 10
+		switch rt {
+		case objabi.R_ARM64_PCREL_LDST8, objabi.R_ADDRARM64:
+			o1 |= uint32(t&0xfff) << 10
+		case objabi.R_ARM64_PCREL_LDST16:
+			if t&0x1 != 0 {
+				ldr.Errorf(s, "offset for 16-bit load/store has unaligned value %d", t&0xfff)
+			}
+			o1 |= (uint32(t&0xfff) >> 1) << 10
+		case objabi.R_ARM64_PCREL_LDST32:
+			if t&0x3 != 0 {
+				ldr.Errorf(s, "offset for 32-bit load/store has unaligned value %d", t&0xfff)
+			}
+			o1 |= (uint32(t&0xfff) >> 2) << 10
+		case objabi.R_ARM64_PCREL_LDST64:
+			if t&0x7 != 0 {
+				ldr.Errorf(s, "offset for 64-bit load/store has unaligned value %d", t&0xfff)
+			}
+			o1 |= (uint32(t&0xfff) >> 3) << 10
+		}
 
 		// when laid out, the instruction order must always be o1, o2.
 		if target.IsBigEndian() {
@@ -946,22 +1039,12 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
 func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (loader.ExtReloc, bool) {
 	switch rt := r.Type(); rt {
 	case objabi.R_ARM64_GOTPCREL,
+		objabi.R_ARM64_PCREL_LDST8,
+		objabi.R_ARM64_PCREL_LDST16,
+		objabi.R_ARM64_PCREL_LDST32,
+		objabi.R_ARM64_PCREL_LDST64,
 		objabi.R_ADDRARM64:
 		rr := ld.ExtrelocViaOuterSym(ldr, r, s)
-
-		// Note: ld64 currently has a bug that any non-zero addend for BR26 relocation
-		// will make the linking fail because it thinks the code is not PIC even though
-		// the BR26 relocation should be fully resolved at link time.
-		// That is the reason why the next if block is disabled. When the bug in ld64
-		// is fixed, we can enable this block and also enable duff's device in cmd/7g.
-		if false && target.IsDarwin() {
-			// Mach-O wants the addend to be encoded in the instruction
-			// Note that although Mach-O supports ARM64_RELOC_ADDEND, it
-			// can only encode 24-bit of signed addend, but the instructions
-			// supports 33-bit of signed addend, so we always encode the
-			// addend in place.
-			rr.Xadd = 0
-		}
 		return rr, true
 	case objabi.R_CALLARM64,
 		objabi.R_ARM64_TLS_LE,
@@ -1146,7 +1229,8 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 		if !ldr.AttrReachable(s) {
 			continue
 		}
-		if ldr.SymType(s) == sym.STEXT {
+		t := ldr.SymType(s)
+		if t == sym.STEXT {
 			if ctxt.IsDarwin() || ctxt.IsWindows() {
 				// Cannot relocate into middle of function.
 				// Generate symbol names for every offset we need in duffcopy/duffzero (only 64 each).
@@ -1158,6 +1242,9 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 				}
 			}
 			continue // we don't target the middle of other functions
+		}
+		if t >= sym.SDWARFSECT {
+			continue // no need to add label for DWARF symbols
 		}
 		sz := ldr.SymSize(s)
 		if sz <= limit {
@@ -1184,7 +1271,7 @@ func offsetLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
 	return fmt.Sprintf("%s+%d", ldr.SymExtname(s), off)
 }
 
-// Convert the direct jump relocation r to refer to a trampoline if the target is too far
+// Convert the direct jump relocation r to refer to a trampoline if the target is too far.
 func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)

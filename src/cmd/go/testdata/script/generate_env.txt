@@ -1,8 +1,8 @@
 # Install an env command because Windows and plan9 don't have it.
 env GOBIN=$WORK/tmp/bin
 go install env.go
-[plan9] env path=$GOBIN${:}$path
-[!plan9] env PATH=$GOBIN${:}$PATH
+[GOOS:plan9] env path=$GOBIN${:}$path
+[!GOOS:plan9] env PATH=$GOBIN${:}$PATH
 
 # Test generators have access to the environment
 go generate ./printenv.go

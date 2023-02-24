@@ -2,11 +2,10 @@
 [short] skip
 
 # This test could fail if the testing package does not wait until
-# a panicking test does the panic. Turn off multithreading, GC, and
-# async preemption to increase the probability of such a failure.
+# a panicking test does the panic. Turn off multithreading and GC
+# to increase the probability of such a failure.
 env GOMAXPROCS=1
 env GOGC=off
-env GODEBUG=asyncpreempt=off
 
 # If the test exits with 'no tests to run', it means the testing package
 # implementation is incorrect and does not wait until a test panic.

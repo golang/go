@@ -1,8 +1,8 @@
-[gccgo] skip 'gccgo has no standard packages'
+[compiler:gccgo] skip 'gccgo has no standard packages'
 [short] skip
 
-[!windows] env NONEXE='.exe'
-[windows] env NONEXE=''
+[!GOOS:windows] env NONEXE='.exe'
+[GOOS:windows] env NONEXE=''
 
 env GOBIN=$WORK/tmp/bin
 go install m/isarchive &
@@ -28,15 +28,15 @@ go build -o bin/ x.go
 exists -exec bin/x$GOEXE
 rm bin
 
-[windows] ! exists bin
-[windows] go build -o bin\x x.go
-[windows] exists -exec bin\x
-[windows] rm bin
+[GOOS:windows] ! exists bin
+[GOOS:windows] go build -o bin\x x.go
+[GOOS:windows] exists -exec bin\x
+[GOOS:windows] rm bin
 
-[windows] ! exists bin
-[windows] go build -o bin\ x.go
-[windows] exists -exec bin\x.exe
-[windows] rm bin
+[GOOS:windows] ! exists bin
+[GOOS:windows] go build -o bin\ x.go
+[GOOS:windows] exists -exec bin\x.exe
+[GOOS:windows] rm bin
 
 ! exists bin
 mkdir bin

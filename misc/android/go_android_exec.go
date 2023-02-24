@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // This program can be used as go_android_GOARCH_exec by the Go tool.
@@ -9,7 +10,6 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/build"
@@ -27,7 +27,7 @@ import (
 
 func run(args ...string) (string, error) {
 	cmd := adbCmd(args...)
-	buf := new(bytes.Buffer)
+	buf := new(strings.Builder)
 	cmd.Stdout = io.MultiWriter(os.Stdout, buf)
 	// If the adb subprocess somehow hangs, go test will kill this wrapper
 	// and wait for our os.Stderr (and os.Stdout) to close as a result.

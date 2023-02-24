@@ -5,10 +5,12 @@
 package runtime_test
 
 import (
+	"reflect"
 	"runtime"
 	"runtime/metrics"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unsafe"
@@ -45,6 +47,8 @@ func TestReadMetrics(t *testing.T) {
 	var mallocs, frees uint64
 	for i := range samples {
 		switch name := samples[i].Name; name {
+		case "/cgo/go-to-c-calls:calls":
+			checkUint64(t, name, samples[i].Value.Uint64(), uint64(runtime.NumCgoCall()))
 		case "/memory/classes/heap/free:bytes":
 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapIdle-mstats.HeapReleased)
 		case "/memory/classes/heap/released:bytes":
@@ -153,12 +157,18 @@ func TestReadMetricsConsistency(t *testing.T) {
 	// Tests whether readMetrics produces consistent, sensible values.
 	// The values are read concurrently with the runtime doing other
 	// things (e.g. allocating) so what we read can't reasonably compared
-	// to runtime values.
+	// to other runtime values (e.g. MemStats).
 
 	// Run a few GC cycles to get some of the stats to be non-zero.
 	runtime.GC()
 	runtime.GC()
 	runtime.GC()
+
+	// Set GOMAXPROCS high then sleep briefly to ensure we generate
+	// some idle time.
+	oldmaxprocs := runtime.GOMAXPROCS(10)
+	time.Sleep(time.Millisecond)
+	runtime.GOMAXPROCS(oldmaxprocs)
 
 	// Read all the supported metrics through the metrics package.
 	descs, samples := prepareAllMetricsSamples()
@@ -178,6 +188,22 @@ func TestReadMetricsConsistency(t *testing.T) {
 		numGC  uint64
 		pauses uint64
 	}
+	var cpu struct {
+		gcAssist    float64
+		gcDedicated float64
+		gcIdle      float64
+		gcPause     float64
+		gcTotal     float64
+
+		idle float64
+		user float64
+
+		scavengeAssist float64
+		scavengeBg     float64
+		scavengeTotal  float64
+
+		total float64
+	}
 	for i := range samples {
 		kind := samples[i].Value.Kind()
 		if want := descs[samples[i].Name].Kind; kind != want {
@@ -196,6 +222,28 @@ func TestReadMetricsConsistency(t *testing.T) {
 			}
 		}
 		switch samples[i].Name {
+		case "/cpu/classes/gc/mark/assist:cpu-seconds":
+			cpu.gcAssist = samples[i].Value.Float64()
+		case "/cpu/classes/gc/mark/dedicated:cpu-seconds":
+			cpu.gcDedicated = samples[i].Value.Float64()
+		case "/cpu/classes/gc/mark/idle:cpu-seconds":
+			cpu.gcIdle = samples[i].Value.Float64()
+		case "/cpu/classes/gc/pause:cpu-seconds":
+			cpu.gcPause = samples[i].Value.Float64()
+		case "/cpu/classes/gc/total:cpu-seconds":
+			cpu.gcTotal = samples[i].Value.Float64()
+		case "/cpu/classes/idle:cpu-seconds":
+			cpu.idle = samples[i].Value.Float64()
+		case "/cpu/classes/scavenge/assist:cpu-seconds":
+			cpu.scavengeAssist = samples[i].Value.Float64()
+		case "/cpu/classes/scavenge/background:cpu-seconds":
+			cpu.scavengeBg = samples[i].Value.Float64()
+		case "/cpu/classes/scavenge/total:cpu-seconds":
+			cpu.scavengeTotal = samples[i].Value.Float64()
+		case "/cpu/classes/total:cpu-seconds":
+			cpu.total = samples[i].Value.Float64()
+		case "/cpu/classes/user:cpu-seconds":
+			cpu.user = samples[i].Value.Float64()
 		case "/memory/classes/total:bytes":
 			totalVirtual.got = samples[i].Value.Uint64()
 		case "/memory/classes/heap/objects:bytes":
@@ -222,10 +270,41 @@ func TestReadMetricsConsistency(t *testing.T) {
 			for i := range h.Counts {
 				gc.pauses += h.Counts[i]
 			}
+		case "/sched/gomaxprocs:threads":
+			if got, want := samples[i].Value.Uint64(), uint64(runtime.GOMAXPROCS(-1)); got != want {
+				t.Errorf("gomaxprocs doesn't match runtime.GOMAXPROCS: got %d, want %d", got, want)
+			}
 		case "/sched/goroutines:goroutines":
 			if samples[i].Value.Uint64() < 1 {
 				t.Error("number of goroutines is less than one")
 			}
+		}
+	}
+	// Only check this on Linux where we can be reasonably sure we have a high-resolution timer.
+	if runtime.GOOS == "linux" {
+		if cpu.gcDedicated <= 0 && cpu.gcAssist <= 0 && cpu.gcIdle <= 0 {
+			t.Errorf("found no time spent on GC work: %#v", cpu)
+		}
+		if cpu.gcPause <= 0 {
+			t.Errorf("found no GC pauses: %f", cpu.gcPause)
+		}
+		if cpu.idle <= 0 {
+			t.Errorf("found no idle time: %f", cpu.idle)
+		}
+		if total := cpu.gcDedicated + cpu.gcAssist + cpu.gcIdle + cpu.gcPause; !withinEpsilon(cpu.gcTotal, total, 0.01) {
+			t.Errorf("calculated total GC CPU not within 1%% of sampled total: %f vs. %f", total, cpu.gcTotal)
+		}
+		if total := cpu.scavengeAssist + cpu.scavengeBg; !withinEpsilon(cpu.scavengeTotal, total, 0.01) {
+			t.Errorf("calculated total scavenge CPU not within 1%% of sampled total: %f vs. %f", total, cpu.scavengeTotal)
+		}
+		if cpu.total <= 0 {
+			t.Errorf("found no total CPU time passed")
+		}
+		if cpu.user <= 0 {
+			t.Errorf("found no user time passed")
+		}
+		if total := cpu.gcTotal + cpu.scavengeTotal + cpu.user + cpu.idle; !withinEpsilon(cpu.total, total, 0.02) {
+			t.Errorf("calculated total CPU not within 2%% of sampled total: %f vs. %f", total, cpu.total)
 		}
 	}
 	if totalVirtual.got != totalVirtual.want {
@@ -296,7 +375,7 @@ func BenchmarkReadMetricsLatency(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		start := time.Now()
 		metrics.Read(samples)
-		latencies = append(latencies, time.Now().Sub(start))
+		latencies = append(latencies, time.Since(start))
 	}
 	// Make sure to stop the timer before we wait! The load created above
 	// is very heavy-weight and not easy to stop, so we could end up
@@ -318,4 +397,217 @@ func BenchmarkReadMetricsLatency(b *testing.B) {
 	b.ReportMetric(float64(latencies[len(latencies)*50/100]), "p50-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*90/100]), "p90-ns")
 	b.ReportMetric(float64(latencies[len(latencies)*99/100]), "p99-ns")
+}
+
+var readMetricsSink [1024]interface{}
+
+func TestReadMetricsCumulative(t *testing.T) {
+	// Set up the set of metrics marked cumulative.
+	descs := metrics.All()
+	var samples [2][]metrics.Sample
+	samples[0] = make([]metrics.Sample, len(descs))
+	samples[1] = make([]metrics.Sample, len(descs))
+	total := 0
+	for i := range samples[0] {
+		if !descs[i].Cumulative {
+			continue
+		}
+		samples[0][total].Name = descs[i].Name
+		total++
+	}
+	samples[0] = samples[0][:total]
+	samples[1] = samples[1][:total]
+	copy(samples[1], samples[0])
+
+	// Start some noise in the background.
+	var wg sync.WaitGroup
+	wg.Add(1)
+	done := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		for {
+			// Add more things here that could influence metrics.
+			for i := 0; i < len(readMetricsSink); i++ {
+				readMetricsSink[i] = make([]byte, 1024)
+				select {
+				case <-done:
+					return
+				default:
+				}
+			}
+			runtime.GC()
+		}
+	}()
+
+	sum := func(us []uint64) uint64 {
+		total := uint64(0)
+		for _, u := range us {
+			total += u
+		}
+		return total
+	}
+
+	// Populate the first generation.
+	metrics.Read(samples[0])
+
+	// Check to make sure that these metrics only grow monotonically.
+	for gen := 1; gen < 10; gen++ {
+		metrics.Read(samples[gen%2])
+		for i := range samples[gen%2] {
+			name := samples[gen%2][i].Name
+			vNew, vOld := samples[gen%2][i].Value, samples[1-(gen%2)][i].Value
+
+			switch vNew.Kind() {
+			case metrics.KindUint64:
+				new := vNew.Uint64()
+				old := vOld.Uint64()
+				if new < old {
+					t.Errorf("%s decreased: %d < %d", name, new, old)
+				}
+			case metrics.KindFloat64:
+				new := vNew.Float64()
+				old := vOld.Float64()
+				if new < old {
+					t.Errorf("%s decreased: %f < %f", name, new, old)
+				}
+			case metrics.KindFloat64Histogram:
+				new := sum(vNew.Float64Histogram().Counts)
+				old := sum(vOld.Float64Histogram().Counts)
+				if new < old {
+					t.Errorf("%s counts decreased: %d < %d", name, new, old)
+				}
+			}
+		}
+	}
+	close(done)
+
+	wg.Wait()
+}
+
+func withinEpsilon(v1, v2, e float64) bool {
+	return v2-v2*e <= v1 && v1 <= v2+v2*e
+}
+
+func TestMutexWaitTimeMetric(t *testing.T) {
+	var sample [1]metrics.Sample
+	sample[0].Name = "/sync/mutex/wait/total:seconds"
+
+	locks := []locker2{
+		new(mutex),
+		new(rwmutexWrite),
+		new(rwmutexReadWrite),
+		new(rwmutexWriteRead),
+	}
+	for _, lock := range locks {
+		t.Run(reflect.TypeOf(lock).Elem().Name(), func(t *testing.T) {
+			metrics.Read(sample[:])
+			before := time.Duration(sample[0].Value.Float64() * 1e9)
+
+			minMutexWaitTime := generateMutexWaitTime(lock)
+
+			metrics.Read(sample[:])
+			after := time.Duration(sample[0].Value.Float64() * 1e9)
+
+			if wt := after - before; wt < minMutexWaitTime {
+				t.Errorf("too little mutex wait time: got %s, want %s", wt, minMutexWaitTime)
+			}
+		})
+	}
+}
+
+// locker2 represents an API surface of two concurrent goroutines
+// locking the same resource, but through different APIs. It's intended
+// to abstract over the relationship of two Lock calls or an RLock
+// and a Lock call.
+type locker2 interface {
+	Lock1()
+	Unlock1()
+	Lock2()
+	Unlock2()
+}
+
+type mutex struct {
+	mu sync.Mutex
+}
+
+func (m *mutex) Lock1()   { m.mu.Lock() }
+func (m *mutex) Unlock1() { m.mu.Unlock() }
+func (m *mutex) Lock2()   { m.mu.Lock() }
+func (m *mutex) Unlock2() { m.mu.Unlock() }
+
+type rwmutexWrite struct {
+	mu sync.RWMutex
+}
+
+func (m *rwmutexWrite) Lock1()   { m.mu.Lock() }
+func (m *rwmutexWrite) Unlock1() { m.mu.Unlock() }
+func (m *rwmutexWrite) Lock2()   { m.mu.Lock() }
+func (m *rwmutexWrite) Unlock2() { m.mu.Unlock() }
+
+type rwmutexReadWrite struct {
+	mu sync.RWMutex
+}
+
+func (m *rwmutexReadWrite) Lock1()   { m.mu.RLock() }
+func (m *rwmutexReadWrite) Unlock1() { m.mu.RUnlock() }
+func (m *rwmutexReadWrite) Lock2()   { m.mu.Lock() }
+func (m *rwmutexReadWrite) Unlock2() { m.mu.Unlock() }
+
+type rwmutexWriteRead struct {
+	mu sync.RWMutex
+}
+
+func (m *rwmutexWriteRead) Lock1()   { m.mu.Lock() }
+func (m *rwmutexWriteRead) Unlock1() { m.mu.Unlock() }
+func (m *rwmutexWriteRead) Lock2()   { m.mu.RLock() }
+func (m *rwmutexWriteRead) Unlock2() { m.mu.RUnlock() }
+
+// generateMutexWaitTime causes a couple of goroutines
+// to block a whole bunch of times on a sync.Mutex, returning
+// the minimum amount of time that should be visible in the
+// /sync/mutex-wait:seconds metric.
+func generateMutexWaitTime(mu locker2) time.Duration {
+	// Set up the runtime to always track casgstatus transitions for metrics.
+	*runtime.CasGStatusAlwaysTrack = true
+
+	mu.Lock1()
+
+	// Start up a goroutine to wait on the lock.
+	gc := make(chan *runtime.G)
+	done := make(chan bool)
+	go func() {
+		gc <- runtime.Getg()
+
+		for {
+			mu.Lock2()
+			mu.Unlock2()
+			if <-done {
+				return
+			}
+		}
+	}()
+	gp := <-gc
+
+	// Set the block time high enough so that it will always show up, even
+	// on systems with coarse timer granularity.
+	const blockTime = 100 * time.Millisecond
+
+	// Make sure the goroutine spawned above actually blocks on the lock.
+	for {
+		if runtime.GIsWaitingOnMutex(gp) {
+			break
+		}
+		runtime.Gosched()
+	}
+
+	// Let some amount of time pass.
+	time.Sleep(blockTime)
+
+	// Let the other goroutine acquire the lock.
+	mu.Unlock1()
+	done <- true
+
+	// Reset flag.
+	*runtime.CasGStatusAlwaysTrack = false
+	return blockTime
 }

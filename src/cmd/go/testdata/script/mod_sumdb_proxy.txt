@@ -5,14 +5,14 @@ env GOPROXY GONOPROXY GOSUMDB GONOSUMDB
 
 # basic fetch (through proxy) works
 cp go.mod.orig go.mod
-go get -d rsc.io/fortune@v1.0.0 # note: must use test proxy, does not exist in real world
+go get rsc.io/fortune@v1.0.0 # note: must use test proxy, does not exist in real world
 rm $GOPATH/pkg/mod/cache/download/sumdb # rm sumdb cache but NOT package download cache
 rm go.sum
 
 # can fetch by explicit URL
 cp go.mod.orig go.mod
 env GOSUMDB=$sumdb' '$proxy/sumdb-direct
-go get -d rsc.io/fortune@v1.0.0
+go get rsc.io/fortune@v1.0.0
 rm $GOPATH/pkg/mod/cache/download/sumdb
 rm go.sum
 
@@ -21,7 +21,7 @@ rm go.sum
 cp go.mod.orig go.mod
 env GOSUMDB=$sumdb
 env GOPROXY=direct
-! go get -d rsc.io/fortune@v1.0.0
+! go get rsc.io/fortune@v1.0.0
 stderr 'verifying module: rsc.io/fortune@v1.0.0: .*: no such host localhost.localdev'
 rm $GOPATH/pkg/mod/cache/download/sumdb
 rm go.sum
@@ -30,7 +30,7 @@ rm go.sum
 cp go.mod.orig go.mod
 env GOSUMDB=$sumdb
 env GOPROXY=$proxy/sumdb-404
-! go get -d rsc.io/fortune@v1.0.0
+! go get rsc.io/fortune@v1.0.0
 stderr 'verifying.*localhost.localdev'
 rm $GOPATH/pkg/mod/cache/download/sumdb
 rm go.sum
@@ -39,7 +39,7 @@ rm go.sum
 cp go.mod.orig go.mod
 env GOSUMDB=$sumdb
 env GOPROXY=$proxy/sumdb-503
-! go get -d rsc.io/fortune@v1.0.0
+! go get rsc.io/fortune@v1.0.0
 stderr '503 Service Unavailable'
 rm $GOPATH/pkg/mod/cache/download/sumdb
 rm go.sum
@@ -48,7 +48,7 @@ rm go.sum
 cp go.mod.orig go.mod
 env GOSUMDB=$sumdb
 env GOPROXY=$proxy/sumdb-404,$proxy/sumdb-503
-! go get -d rsc.io/fortune@v1.0.0
+! go get rsc.io/fortune@v1.0.0
 stderr '503 Service Unavailable'
 rm $GOPATH/pkg/mod/cache/download/sumdb
 rm go.sum
@@ -57,7 +57,7 @@ rm go.sum
 cp go.mod.orig go.mod
 env GOSUMDB=$sumdb
 env GOPROXY=$proxy/sumdb-503|https://0.0.0.0|$proxy
-go get -d rsc.io/fortune@v1.0.0
+go get rsc.io/fortune@v1.0.0
 rm $GOPATH/pkg/mod/cache/download/sumdb
 rm go.sum
 

@@ -4,6 +4,11 @@
 
 package syscall
 
+const (
+	_SYS_DUP3         = SYS_DUP3
+	_F_DUP2FD_CLOEXEC = 0
+)
+
 func setTimespec(sec, nsec int64) Timespec {
 	return Timespec{Sec: sec, Nsec: nsec}
 }

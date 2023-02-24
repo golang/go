@@ -30,6 +30,7 @@ type option struct {
 //
 // missingkey: Control the behavior during execution if a map is
 // indexed with a key that is not present in the map.
+//
 //	"missingkey=default" or "missingkey=invalid"
 //		The default behavior: Do nothing and continue execution.
 //		If printed, the result of the index operation is the string
@@ -38,7 +39,6 @@ type option struct {
 //		The operation returns the zero value for the map type's element.
 //	"missingkey=error"
 //		Execution stops immediately with an error.
-//
 func (t *Template) Option(opt ...string) *Template {
 	t.init()
 	for _, s := range opt {
@@ -51,13 +51,11 @@ func (t *Template) setOption(opt string) {
 	if opt == "" {
 		panic("empty option string")
 	}
-	elems := strings.Split(opt, "=")
-	switch len(elems) {
-	case 2:
-		// key=value
-		switch elems[0] {
+	// key=value
+	if key, value, ok := strings.Cut(opt, "="); ok {
+		switch key {
 		case "missingkey":
-			switch elems[1] {
+			switch value {
 			case "invalid", "default":
 				t.option.missingKey = mapInvalid
 				return

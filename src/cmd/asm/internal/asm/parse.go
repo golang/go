@@ -19,6 +19,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/x86"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -48,7 +49,7 @@ type Parser struct {
 }
 
 type Patch struct {
-	prog  *obj.Prog
+	addr  *obj.Addr
 	label string
 }
 
@@ -161,7 +162,7 @@ func (p *Parser) nextToken() lex.ScanToken {
 
 // line consumes a single assembly line from p.lex of the form
 //
-//   {label:} WORD[.cond] [ arg {, arg} ] (';' | '\n')
+//	{label:} WORD[.cond] [ arg {, arg} ] (';' | '\n')
 //
 // It adds any labels to p.pendingLabels and returns the word, cond,
 // operand list, and true. If there is an error or EOF, it returns
@@ -389,8 +390,19 @@ func (p *Parser) operand(a *obj.Addr) {
 	tok := p.next()
 	name := tok.String()
 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
-		// We have a symbol. Parse $sym±offset(symkind)
-		p.symbolReference(a, name, prefix)
+		switch p.arch.Family {
+		case sys.ARM64:
+			// arm64 special operands.
+			if opd := arch.GetARM64SpecialOperand(name); opd != arm64.SPOP_END {
+				a.Type = obj.TYPE_SPECIAL
+				a.Offset = int64(opd)
+				break
+			}
+			fallthrough
+		default:
+			// We have a symbol. Parse $sym±offset(symkind)
+			p.symbolReference(a, name, prefix)
+		}
 		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, a))
 		if p.peek() == scanner.EOF {
 			return
@@ -555,10 +567,7 @@ func (p *Parser) atRegisterExtension() bool {
 		return false
 	}
 	// R1.xxx
-	if p.peek() == '.' {
-		return true
-	}
-	return false
+	return p.peek() == '.'
 }
 
 // registerReference parses a register given either the name, R10, or a parenthesized form, SPR(10).
@@ -843,7 +852,6 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 //
 // Anything else beginning with "<" logs an error if issueError is
 // true, otherwise returns (false, obj.ABI0).
-//
 func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
 	abi := obj.ABI0
 	isStatic := false
@@ -880,7 +888,7 @@ func (p *Parser) symRefAttrs(name string, issueError bool) (bool, obj.ABI) {
 // constrained form of the operand syntax that's always SB-based,
 // non-static, and has at most a simple integer offset:
 //
-//    [$|*]sym[<abi>][+Int](SB)
+//	[$|*]sym[<abi>][+Int](SB)
 func (p *Parser) funcAddress() (string, obj.ABI, bool) {
 	switch p.peek() {
 	case '$', '*':
@@ -964,13 +972,13 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			return
 		}
 		if p.arch.Family == sys.PPC64 {
-			// Special form for PPC64: (R1+R2); alias for (R1)(R2*1).
+			// Special form for PPC64: (R1+R2); alias for (R1)(R2).
 			if prefix != 0 || scale != 0 {
 				p.errorf("illegal address mode for register+register")
 				return
 			}
 			a.Type = obj.TYPE_MEM
-			a.Scale = 1
+			a.Scale = 0
 			a.Index = r2
 			// Nothing may follow.
 			return
@@ -1003,9 +1011,10 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 				p.errorf("unimplemented two-register form")
 			}
 			a.Index = r1
-			if scale != 0 && scale != 1 && p.arch.Family == sys.ARM64 {
+			if scale != 0 && scale != 1 && (p.arch.Family == sys.ARM64 ||
+				p.arch.Family == sys.PPC64) {
 				// Support (R1)(R2) (no scaling) and (R1)(R2*1).
-				p.errorf("arm64 doesn't support scaled register format")
+				p.errorf("%s doesn't support scaled register format", p.arch.Name)
 			} else {
 				a.Scale = int16(scale)
 			}
@@ -1030,9 +1039,13 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 //
 // For 386/AMD64 register list specifies 4VNNIW-style multi-source operand.
 // For range of 4 elements, Intel manual uses "+3" notation, for example:
+//
 //	VP4DPWSSDS zmm1{k1}{z}, zmm2+3, m128
+//
 // Given asm line:
+//
 //	VP4DPWSSDS Z5, [Z10-Z13], (AX)
+//
 // zmm2 is Z10, and Z13 is the only valid value for it (Z10+3).
 // Only simple ranges are accepted, like [Z0-Z3].
 //

@@ -1,5 +1,5 @@
 # Populate go.sum.
-go get -d
+go get
 
 # 'go list -m -retracted' should load retractions, even if the version
 # containing retractions has a different module path.
@@ -9,11 +9,11 @@ go list -m -retracted -f '{{with .Retracted}}retracted{{end}}' example.com/retra
 go list -m -u -f '{{with .Retracted}}retracted{{end}}' example.com/retract/rename
 
 # 'go get' should warn about the retracted version.
-go get -d
+go get
 stderr '^go: warning: example.com/retract/rename@v1.0.0-bad: retracted by module author: bad$'
 
 # We can't upgrade, since this latest version has a different module path.
-! go get -d example.com/retract/rename
+! go get example.com/retract/rename
 stderr 'module declares its path as: example.com/retract/newname'
 
 -- go.mod --

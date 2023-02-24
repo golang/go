@@ -5,7 +5,6 @@
 package parser
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -298,7 +297,7 @@ type s3b struct { a, b *s3b; c []float }
 		"float " // s3a
 
 	// collect unresolved identifiers
-	var buf bytes.Buffer
+	var buf strings.Builder
 	for _, u := range f.Unresolved {
 		buf.WriteString(u.Name)
 		buf.WriteByte(' ')
@@ -307,51 +306,6 @@ type s3b struct { a, b *s3b; c []float }
 
 	if got != want {
 		t.Errorf("\ngot:  %s\nwant: %s", got, want)
-	}
-}
-
-var imports = map[string]bool{
-	`"a"`:        true,
-	"`a`":        true,
-	`"a/b"`:      true,
-	`"a.b"`:      true,
-	`"m\x61th"`:  true,
-	`"greek/αβ"`: true,
-	`""`:         false,
-
-	// Each of these pairs tests both `` vs "" strings
-	// and also use of invalid characters spelled out as
-	// escape sequences and written directly.
-	// For example `"\x00"` tests import "\x00"
-	// while "`\x00`" tests import `<actual-NUL-byte>`.
-	`"\x00"`:     false,
-	"`\x00`":     false,
-	`"\x7f"`:     false,
-	"`\x7f`":     false,
-	`"a!"`:       false,
-	"`a!`":       false,
-	`"a b"`:      false,
-	"`a b`":      false,
-	`"a\\b"`:     false,
-	"`a\\b`":     false,
-	"\"`a`\"":    false,
-	"`\"a\"`":    false,
-	`"\x80\x80"`: false,
-	"`\x80\x80`": false,
-	`"\xFFFD"`:   false,
-	"`\xFFFD`":   false,
-}
-
-func TestImports(t *testing.T) {
-	for path, isValid := range imports {
-		src := fmt.Sprintf("package p; import %s", path)
-		_, err := ParseFile(token.NewFileSet(), "", src, 0)
-		switch {
-		case err != nil && isValid:
-			t.Errorf("ParseFile(%s): got %v; expected no error", src, err)
-		case err == nil && !isValid:
-			t.Errorf("ParseFile(%s): got no error; expected one", src)
-		}
 	}
 }
 
@@ -427,7 +381,7 @@ func getField(file *ast.File, fieldname string) *ast.Field {
 
 // Don't use ast.CommentGroup.Text() - we want to see exact comment text.
 func commentText(c *ast.CommentGroup) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	if c != nil {
 		for _, c := range c.List {
 			buf.WriteString(c.Text)
@@ -461,6 +415,11 @@ type T struct {
 	F2 int  // F2 line comment
 	// f3 lead comment
 	f3 int  // f3 line comment
+
+	f4 int   /* not a line comment */ ;
+        f5 int ; // f5 line comment
+	f6 int ; /* f6 line comment */
+	f7 int ; /*f7a*/ /*f7b*/ //f7c
 }
 `, ParseComments)
 	if err != nil {
@@ -469,6 +428,11 @@ type T struct {
 	checkFieldComments(t, f, "T.F1", "/* F1 lead comment *///", "/* F1 */// line comment")
 	checkFieldComments(t, f, "T.F2", "// F2 lead// comment", "// F2 line comment")
 	checkFieldComments(t, f, "T.f3", "// f3 lead comment", "// f3 line comment")
+	checkFieldComments(t, f, "T.f4", "", "")
+	checkFieldComments(t, f, "T.f5", "", "// f5 line comment")
+	checkFieldComments(t, f, "T.f6", "", "/* f6 line comment */")
+	checkFieldComments(t, f, "T.f7", "", "/*f7a*//*f7b*///f7c")
+
 	ast.FileExports(f)
 	checkFieldComments(t, f, "T.F1", "/* F1 lead comment *///", "/* F1 */// line comment")
 	checkFieldComments(t, f, "T.F2", "// F2 lead// comment", "// F2 line comment")
@@ -524,6 +488,34 @@ func TestIssue9979(t *testing.T) {
 	}
 }
 
+func TestFileStartEndPos(t *testing.T) {
+	const src = `// Copyright
+
+//+build tag
+
+// Package p doc comment.
+package p
+
+var lastDecl int
+
+/* end of file */
+`
+	fset := token.NewFileSet()
+	f, err := ParseFile(fset, "file.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// File{Start,End} spans the entire file, not just the declarations.
+	if got, want := fset.Position(f.FileStart).String(), "file.go:1:1"; got != want {
+		t.Errorf("for File.FileStart, got %s, want %s", got, want)
+	}
+	// The end position is the newline at the end of the /* end of file */ line.
+	if got, want := fset.Position(f.FileEnd).String(), "file.go:10:19"; got != want {
+		t.Errorf("for File.FileEnd, got %s, want %s", got, want)
+	}
+}
+
 // TestIncompleteSelection ensures that an incomplete selector
 // expression is parsed as a (blank) *ast.SelectorExpr, not a
 // *ast.BadExpr.
@@ -575,5 +567,200 @@ type x int // comment
 	comment := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Comment.List[0].Text
 	if comment != "// comment" {
 		t.Errorf("got %q, want %q", comment, "// comment")
+	}
+}
+
+var parseDepthTests = []struct {
+	name   string
+	format string
+	// multipler is used when a single statement may result in more than one
+	// change in the depth level, for instance "1+(..." produces a BinaryExpr
+	// followed by a UnaryExpr, which increments the depth twice. The test
+	// case comment explains which nodes are triggering the multiple depth
+	// changes.
+	parseMultiplier int
+	// scope is true if we should also test the statement for the resolver scope
+	// depth limit.
+	scope bool
+	// scopeMultiplier does the same as parseMultiplier, but for the scope
+	// depths.
+	scopeMultiplier int
+}{
+	// The format expands the part inside « » many times.
+	// A second set of brackets nested inside the first stops the repetition,
+	// so that for example «(«1»)» expands to (((...((((1))))...))).
+	{name: "array", format: "package main; var x «[1]»int"},
+	{name: "slice", format: "package main; var x «[]»int"},
+	{name: "struct", format: "package main; var x «struct { X «int» }»", scope: true},
+	{name: "pointer", format: "package main; var x «*»int"},
+	{name: "func", format: "package main; var x «func()»int", scope: true},
+	{name: "chan", format: "package main; var x «chan »int"},
+	{name: "chan2", format: "package main; var x «<-chan »int"},
+	{name: "interface", format: "package main; var x «interface { M() «int» }»", scope: true, scopeMultiplier: 2}, // Scopes: InterfaceType, FuncType
+	{name: "map", format: "package main; var x «map[int]»int"},
+	{name: "slicelit", format: "package main; var x = «[]any{«»}»", parseMultiplier: 2},             // Parser nodes: UnaryExpr, CompositeLit
+	{name: "arraylit", format: "package main; var x = «[1]any{«nil»}»", parseMultiplier: 2},         // Parser nodes: UnaryExpr, CompositeLit
+	{name: "structlit", format: "package main; var x = «struct{x any}{«nil»}»", parseMultiplier: 2}, // Parser nodes: UnaryExpr, CompositeLit
+	{name: "maplit", format: "package main; var x = «map[int]any{1:«nil»}»", parseMultiplier: 2},    // Parser nodes: CompositeLit, KeyValueExpr
+	{name: "dot", format: "package main; var x = «x.»x"},
+	{name: "index", format: "package main; var x = x«[1]»"},
+	{name: "slice", format: "package main; var x = x«[1:2]»"},
+	{name: "slice3", format: "package main; var x = x«[1:2:3]»"},
+	{name: "dottype", format: "package main; var x = x«.(any)»"},
+	{name: "callseq", format: "package main; var x = x«()»"},
+	{name: "methseq", format: "package main; var x = x«.m()»", parseMultiplier: 2}, // Parser nodes: SelectorExpr, CallExpr
+	{name: "binary", format: "package main; var x = «1+»1"},
+	{name: "binaryparen", format: "package main; var x = «1+(«1»)»", parseMultiplier: 2}, // Parser nodes: BinaryExpr, ParenExpr
+	{name: "unary", format: "package main; var x = «^»1"},
+	{name: "addr", format: "package main; var x = «& »x"},
+	{name: "star", format: "package main; var x = «*»x"},
+	{name: "recv", format: "package main; var x = «<-»x"},
+	{name: "call", format: "package main; var x = «f(«1»)»", parseMultiplier: 2},    // Parser nodes: Ident, CallExpr
+	{name: "conv", format: "package main; var x = «(*T)(«1»)»", parseMultiplier: 2}, // Parser nodes: ParenExpr, CallExpr
+	{name: "label", format: "package main; func main() { «Label:» }"},
+	{name: "if", format: "package main; func main() { «if true { «» }»}", parseMultiplier: 2, scope: true, scopeMultiplier: 2}, // Parser nodes: IfStmt, BlockStmt. Scopes: IfStmt, BlockStmt
+	{name: "ifelse", format: "package main; func main() { «if true {} else » {} }", scope: true},
+	{name: "switch", format: "package main; func main() { «switch { default: «» }»}", scope: true, scopeMultiplier: 2},               // Scopes: TypeSwitchStmt, CaseClause
+	{name: "typeswitch", format: "package main; func main() { «switch x.(type) { default: «» }» }", scope: true, scopeMultiplier: 2}, // Scopes: TypeSwitchStmt, CaseClause
+	{name: "for0", format: "package main; func main() { «for { «» }» }", scope: true, scopeMultiplier: 2},                            // Scopes: ForStmt, BlockStmt
+	{name: "for1", format: "package main; func main() { «for x { «» }» }", scope: true, scopeMultiplier: 2},                          // Scopes: ForStmt, BlockStmt
+	{name: "for3", format: "package main; func main() { «for f(); g(); h() { «» }» }", scope: true, scopeMultiplier: 2},              // Scopes: ForStmt, BlockStmt
+	{name: "forrange0", format: "package main; func main() { «for range x { «» }» }", scope: true, scopeMultiplier: 2},               // Scopes: RangeStmt, BlockStmt
+	{name: "forrange1", format: "package main; func main() { «for x = range z { «» }» }", scope: true, scopeMultiplier: 2},           // Scopes: RangeStmt, BlockStmt
+	{name: "forrange2", format: "package main; func main() { «for x, y = range z { «» }» }", scope: true, scopeMultiplier: 2},        // Scopes: RangeStmt, BlockStmt
+	{name: "go", format: "package main; func main() { «go func() { «» }()» }", parseMultiplier: 2, scope: true},                      // Parser nodes: GoStmt, FuncLit
+	{name: "defer", format: "package main; func main() { «defer func() { «» }()» }", parseMultiplier: 2, scope: true},                // Parser nodes: DeferStmt, FuncLit
+	{name: "select", format: "package main; func main() { «select { default: «» }» }", scope: true},
+}
+
+// split splits pre«mid»post into pre, mid, post.
+// If the string does not have that form, split returns x, "", "".
+func split(x string) (pre, mid, post string) {
+	start, end := strings.Index(x, "«"), strings.LastIndex(x, "»")
+	if start < 0 || end < 0 {
+		return x, "", ""
+	}
+	return x[:start], x[start+len("«") : end], x[end+len("»"):]
+}
+
+func TestParseDepthLimit(t *testing.T) {
+	if testing.Short() {
+		t.Skip("test requires significant memory")
+	}
+	for _, tt := range parseDepthTests {
+		for _, size := range []string{"small", "big"} {
+			t.Run(tt.name+"/"+size, func(t *testing.T) {
+				n := maxNestLev + 1
+				if tt.parseMultiplier > 0 {
+					n /= tt.parseMultiplier
+				}
+				if size == "small" {
+					// Decrease the number of statements by 10, in order to check
+					// that we do not fail when under the limit. 10 is used to
+					// provide some wiggle room for cases where the surrounding
+					// scaffolding syntax adds some noise to the depth that changes
+					// on a per testcase basis.
+					n -= 10
+				}
+
+				pre, mid, post := split(tt.format)
+				if strings.Contains(mid, "«") {
+					left, base, right := split(mid)
+					mid = strings.Repeat(left, n) + base + strings.Repeat(right, n)
+				} else {
+					mid = strings.Repeat(mid, n)
+				}
+				input := pre + mid + post
+
+				fset := token.NewFileSet()
+				_, err := ParseFile(fset, "", input, ParseComments|SkipObjectResolution)
+				if size == "small" {
+					if err != nil {
+						t.Errorf("ParseFile(...): %v (want success)", err)
+					}
+				} else {
+					expected := "exceeded max nesting depth"
+					if err == nil || !strings.HasSuffix(err.Error(), expected) {
+						t.Errorf("ParseFile(...) = _, %v, want %q", err, expected)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestScopeDepthLimit(t *testing.T) {
+	for _, tt := range parseDepthTests {
+		if !tt.scope {
+			continue
+		}
+		for _, size := range []string{"small", "big"} {
+			t.Run(tt.name+"/"+size, func(t *testing.T) {
+				n := maxScopeDepth + 1
+				if tt.scopeMultiplier > 0 {
+					n /= tt.scopeMultiplier
+				}
+				if size == "small" {
+					// Decrease the number of statements by 10, in order to check
+					// that we do not fail when under the limit. 10 is used to
+					// provide some wiggle room for cases where the surrounding
+					// scaffolding syntax adds some noise to the depth that changes
+					// on a per testcase basis.
+					n -= 10
+				}
+
+				pre, mid, post := split(tt.format)
+				if strings.Contains(mid, "«") {
+					left, base, right := split(mid)
+					mid = strings.Repeat(left, n) + base + strings.Repeat(right, n)
+				} else {
+					mid = strings.Repeat(mid, n)
+				}
+				input := pre + mid + post
+
+				fset := token.NewFileSet()
+				_, err := ParseFile(fset, "", input, DeclarationErrors)
+				if size == "small" {
+					if err != nil {
+						t.Errorf("ParseFile(...): %v (want success)", err)
+					}
+				} else {
+					expected := "exceeded max scope depth during object resolution"
+					if err == nil || !strings.HasSuffix(err.Error(), expected) {
+						t.Errorf("ParseFile(...) = _, %v, want %q", err, expected)
+					}
+				}
+			})
+		}
+	}
+}
+
+// proposal #50429
+func TestRangePos(t *testing.T) {
+	testcases := []string{
+		"package p; func _() { for range x {} }",
+		"package p; func _() { for i = range x {} }",
+		"package p; func _() { for i := range x {} }",
+		"package p; func _() { for k, v = range x {} }",
+		"package p; func _() { for k, v := range x {} }",
+	}
+
+	for _, src := range testcases {
+		fset := token.NewFileSet()
+		f, err := ParseFile(fset, src, src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		ast.Inspect(f, func(x ast.Node) bool {
+			switch s := x.(type) {
+			case *ast.RangeStmt:
+				pos := fset.Position(s.Range)
+				if pos.Offset != strings.Index(src, "range") {
+					t.Errorf("%s: got offset %v, want %v", src, pos.Offset, strings.Index(src, "range"))
+				}
+			}
+			return true
+		})
 	}
 }

@@ -49,6 +49,12 @@ func RunGoroutines() {
 	}
 }
 
+// Block blocks the current thread while running Go code.
+//export Block
+func Block() {
+	select {}
+}
+
 var P *byte
 
 // TestSEGV makes sure that an invalid address turns into a run-time Go panic.

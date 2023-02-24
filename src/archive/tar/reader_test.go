@@ -6,6 +6,7 @@ package tar
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -243,6 +244,9 @@ func TestReader(t *testing.T) {
 	}, {
 		file: "testdata/pax-bad-hdr-file.tar",
 		err:  ErrHeader,
+	}, {
+		file: "testdata/pax-bad-hdr-large.tar.bz2",
+		err:  ErrFieldTooLong,
 	}, {
 		file: "testdata/pax-bad-mtime-file.tar",
 		err:  ErrHeader,
@@ -625,9 +629,14 @@ func TestReader(t *testing.T) {
 			}
 			defer f.Close()
 
+			var fr io.Reader = f
+			if strings.HasSuffix(v.file, ".bz2") {
+				fr = bzip2.NewReader(fr)
+			}
+
 			// Capture all headers and checksums.
 			var (
-				tr      = NewReader(f)
+				tr      = NewReader(fr)
 				hdrs    []*Header
 				chksums []string
 				rdbuf   = make([]byte, 8)
@@ -657,7 +666,6 @@ func TestReader(t *testing.T) {
 			for i, hdr := range hdrs {
 				if i >= len(v.headers) {
 					t.Fatalf("entry %d: unexpected header:\ngot %+v", i, *hdr)
-					continue
 				}
 				if !reflect.DeepEqual(*hdr, *v.headers[i]) {
 					t.Fatalf("entry %d: incorrect header:\ngot  %+v\nwant %+v", i, *hdr, *v.headers[i])
@@ -670,7 +678,6 @@ func TestReader(t *testing.T) {
 			for i, sum := range chksums {
 				if i >= len(v.chksums) {
 					t.Fatalf("entry %d: unexpected sum: got %s", i, sum)
-					continue
 				}
 				if sum != v.chksums[i] {
 					t.Fatalf("entry %d: incorrect checksum: got %s, want %s", i, sum, v.chksums[i])
@@ -1021,12 +1028,12 @@ func TestParsePAX(t *testing.T) {
 
 func TestReadOldGNUSparseMap(t *testing.T) {
 	populateSparseMap := func(sa sparseArray, sps []string) []string {
-		for i := 0; len(sps) > 0 && i < sa.MaxEntries(); i++ {
-			copy(sa.Entry(i), sps[0])
+		for i := 0; len(sps) > 0 && i < sa.maxEntries(); i++ {
+			copy(sa.entry(i), sps[0])
 			sps = sps[1:]
 		}
 		if len(sps) > 0 {
-			copy(sa.IsExtended(), "\x80")
+			copy(sa.isExtended(), "\x80")
 		}
 		return sps
 	}
@@ -1034,19 +1041,19 @@ func TestReadOldGNUSparseMap(t *testing.T) {
 	makeInput := func(format Format, size string, sps ...string) (out []byte) {
 		// Write the initial GNU header.
 		var blk block
-		gnu := blk.GNU()
-		sparse := gnu.Sparse()
-		copy(gnu.RealSize(), size)
+		gnu := blk.toGNU()
+		sparse := gnu.sparse()
+		copy(gnu.realSize(), size)
 		sps = populateSparseMap(sparse, sps)
 		if format != FormatUnknown {
-			blk.SetFormat(format)
+			blk.setFormat(format)
 		}
 		out = append(out, blk[:]...)
 
 		// Write extended sparse blocks.
 		for len(sps) > 0 {
 			var blk block
-			sps = populateSparseMap(blk.Sparse(), sps)
+			sps = populateSparseMap(blk.toSparse(), sps)
 			out = append(out, blk[:]...)
 		}
 		return out
@@ -1359,11 +1366,11 @@ func TestFileReader(t *testing.T) {
 			wantCnt int64
 			wantErr error
 		}
-		testRemaining struct { // LogicalRemaining() == wantLCnt, PhysicalRemaining() == wantPCnt
+		testRemaining struct { // logicalRemaining() == wantLCnt, physicalRemaining() == wantPCnt
 			wantLCnt int64
 			wantPCnt int64
 		}
-		testFnc interface{} // testRead | testWriteTo | testRemaining
+		testFnc any // testRead | testWriteTo | testRemaining
 	)
 
 	type (
@@ -1376,7 +1383,7 @@ func TestFileReader(t *testing.T) {
 			spd     sparseDatas
 			size    int64
 		}
-		fileMaker interface{} // makeReg | makeSparse
+		fileMaker any // makeReg | makeSparse
 	)
 
 	vectors := []struct {
@@ -1596,15 +1603,72 @@ func TestFileReader(t *testing.T) {
 					t.Errorf("test %d.%d, expected %d more operations", i, j, len(f.ops))
 				}
 			case testRemaining:
-				if got := fr.LogicalRemaining(); got != tf.wantLCnt {
-					t.Errorf("test %d.%d, LogicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
+				if got := fr.logicalRemaining(); got != tf.wantLCnt {
+					t.Errorf("test %d.%d, logicalRemaining() = %d, want %d", i, j, got, tf.wantLCnt)
 				}
-				if got := fr.PhysicalRemaining(); got != tf.wantPCnt {
-					t.Errorf("test %d.%d, PhysicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
+				if got := fr.physicalRemaining(); got != tf.wantPCnt {
+					t.Errorf("test %d.%d, physicalRemaining() = %d, want %d", i, j, got, tf.wantPCnt)
 				}
 			default:
 				t.Fatalf("test %d.%d, unknown test operation: %T", i, j, tf)
 			}
 		}
+	}
+}
+
+func TestInsecurePaths(t *testing.T) {
+	t.Setenv("GODEBUG", "tarinsecurepath=0")
+	for _, path := range []string{
+		"../foo",
+		"/foo",
+		"a/b/../../../c",
+	} {
+		var buf bytes.Buffer
+		tw := NewWriter(&buf)
+		tw.WriteHeader(&Header{
+			Name: path,
+		})
+		const securePath = "secure"
+		tw.WriteHeader(&Header{
+			Name: securePath,
+		})
+		tw.Close()
+
+		tr := NewReader(&buf)
+		h, err := tr.Next()
+		if err != ErrInsecurePath {
+			t.Errorf("tr.Next for file %q: got err %v, want ErrInsecurePath", path, err)
+			continue
+		}
+		if h.Name != path {
+			t.Errorf("tr.Next for file %q: got name %q, want %q", path, h.Name, path)
+		}
+		// Error should not be sticky.
+		h, err = tr.Next()
+		if err != nil {
+			t.Errorf("tr.Next for file %q: got err %v, want nil", securePath, err)
+		}
+		if h.Name != securePath {
+			t.Errorf("tr.Next for file %q: got name %q, want %q", securePath, h.Name, securePath)
+		}
+	}
+}
+
+func TestDisableInsecurePathCheck(t *testing.T) {
+	t.Setenv("GODEBUG", "tarinsecurepath=1")
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	const name = "/foo"
+	tw.WriteHeader(&Header{
+		Name: name,
+	})
+	tw.Close()
+	tr := NewReader(&buf)
+	h, err := tr.Next()
+	if err != nil {
+		t.Fatalf("tr.Next with tarinsecurepath=1: got err %v, want nil", err)
+	}
+	if h.Name != name {
+		t.Fatalf("tr.Next with tarinsecurepath=1: got name %q, want %q", h.Name, name)
 	}
 }

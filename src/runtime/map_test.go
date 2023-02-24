@@ -6,10 +6,11 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/abi"
+	"internal/goarch"
 	"math"
 	"reflect"
 	"runtime"
-	"runtime/internal/sys"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,7 +22,7 @@ func TestHmapSize(t *testing.T) {
 	// The structure of hmap is defined in runtime/map.go
 	// and in cmd/compile/internal/gc/reflect.go and must be in sync.
 	// The size of hmap should be 48 bytes on 64 bit and 28 bytes on 32 bit platforms.
-	var hmapSize = uintptr(8 + 5*sys.PtrSize)
+	var hmapSize = uintptr(8 + 5*goarch.PtrSize)
 	if runtime.RuntimeHmapSize != hmapSize {
 		t.Errorf("sizeof(runtime.hmap{})==%d, want %d", runtime.RuntimeHmapSize, hmapSize)
 	}
@@ -29,8 +30,9 @@ func TestHmapSize(t *testing.T) {
 }
 
 // negative zero is a good test because:
-//  1) 0 and -0 are equal, yet have distinct representations.
-//  2) 0 is represented as all zeros, -0 isn't.
+//  1. 0 and -0 are equal, yet have distinct representations.
+//  2. 0 is represented as all zeros, -0 isn't.
+//
 // I'm not sure the language spec actually requires this behavior,
 // but it's what the current map implementation does.
 func TestNegativeZero(t *testing.T) {
@@ -473,7 +475,7 @@ func TestMapNanGrowIterator(t *testing.T) {
 	nan := math.NaN()
 	const nBuckets = 16
 	// To fill nBuckets buckets takes LOAD * nBuckets keys.
-	nKeys := int(nBuckets * *runtime.HashLoad)
+	nKeys := int(nBuckets * runtime.HashLoad)
 
 	// Get map to full point with nan keys.
 	for i := 0; i < nKeys; i++ {
@@ -505,7 +507,12 @@ func TestMapNanGrowIterator(t *testing.T) {
 }
 
 func TestMapIterOrder(t *testing.T) {
-	for _, n := range [...]int{3, 7, 9, 15} {
+	sizes := []int{3, 7, 9, 15}
+	if abi.MapBucketCountBits >= 5 {
+		// it gets flaky (often only one iteration order) at size 3 when abi.MapBucketCountBits >=5.
+		t.Fatalf("This test becomes flaky if abi.MapBucketCountBits(=%d) is 5 or larger", abi.MapBucketCountBits)
+	}
+	for _, n := range sizes {
 		for i := 0; i < 1000; i++ {
 			// Make m be {0: true, 1: true, ..., n-1: true}.
 			m := make(map[int]bool)
@@ -672,7 +679,16 @@ func TestIgnoreBogusMapHint(t *testing.T) {
 	}
 }
 
-var mapSink map[int]int
+const bs = abi.MapBucketCount
+
+// belowOverflow should be a pretty-full pair of buckets;
+// atOverflow is 1/8 bs larger = 13/8 buckets or two buckets
+// that are 13/16 full each, which is the overflow boundary.
+// Adding one to that should ensure overflow to the next higher size.
+const (
+	belowOverflow = bs * 3 / 2           // 1.5 bs = 2 buckets @ 75%
+	atOverflow    = belowOverflow + bs/8 // 2 buckets at 13/16 fill.
+)
 
 var mapBucketTests = [...]struct {
 	n        int // n is the number of map elements
@@ -683,11 +699,16 @@ var mapBucketTests = [...]struct {
 	{-1, 1, 1},
 	{0, 1, 1},
 	{1, 1, 1},
-	{8, 1, 1},
-	{9, 2, 2},
-	{13, 2, 2},
-	{14, 4, 4},
-	{26, 4, 4},
+	{bs, 1, 1},
+	{bs + 1, 2, 2},
+	{belowOverflow, 2, 2},  // 1.5 bs = 2 buckets @ 75%
+	{atOverflow + 1, 4, 4}, // 13/8 bs + 1 == overflow to 4
+
+	{2 * belowOverflow, 4, 4}, // 3 bs = 4 buckets @75%
+	{2*atOverflow + 1, 8, 8},  // 13/4 bs + 1 = overflow to 8
+
+	{4 * belowOverflow, 8, 8},  // 6 bs = 8 buckets @ 75%
+	{4*atOverflow + 1, 16, 16}, // 13/2 bs + 1 = overflow to 16
 }
 
 func TestMapBuckets(t *testing.T) {
@@ -709,7 +730,7 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
 			}
-			escapingMap := map[int]int{}
+			escapingMap := runtime.Escape(map[int]int{})
 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
 			}
@@ -719,7 +740,6 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
 				t.Errorf("escape n=%d want %d buckets, got %d", tt.n, tt.escape, got)
 			}
-			mapSink = escapingMap
 		}
 	})
 	t.Run("nohint", func(t *testing.T) {
@@ -734,7 +754,7 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
 			}
-			escapingMap := make(map[int]int)
+			escapingMap := runtime.Escape(make(map[int]int))
 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
 			}
@@ -744,7 +764,6 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
 				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
 			}
-			mapSink = escapingMap
 		}
 	})
 	t.Run("makemap", func(t *testing.T) {
@@ -759,7 +778,7 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
 			}
-			escapingMap := make(map[int]int, tt.n)
+			escapingMap := runtime.Escape(make(map[int]int, tt.n))
 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
 			}
@@ -769,7 +788,6 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
 				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
 			}
-			mapSink = escapingMap
 		}
 	})
 	t.Run("makemap64", func(t *testing.T) {
@@ -784,7 +802,7 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(localMap); got != tt.noescape {
 				t.Errorf("no escape: n=%d want %d buckets, got %d", tt.n, tt.noescape, got)
 			}
-			escapingMap := make(map[int]int, tt.n)
+			escapingMap := runtime.Escape(make(map[int]int, tt.n))
 			if count := runtime.MapBucketsCount(escapingMap); count > 1 && runtime.MapBucketsPointerIsNil(escapingMap) {
 				t.Errorf("escape: buckets pointer is nil for n=%d buckets", count)
 			}
@@ -794,7 +812,6 @@ func TestMapBuckets(t *testing.T) {
 			if got := runtime.MapBucketsCount(escapingMap); got != tt.escape {
 				t.Errorf("escape: n=%d want %d buckets, got %d", tt.n, tt.escape, got)
 			}
-			mapSink = escapingMap
 		}
 	})
 
@@ -1050,7 +1067,7 @@ func BenchmarkMapDelete(b *testing.B) {
 func TestDeferDeleteSlow(t *testing.T) {
 	ks := []complex128{0, 1, 2, 3}
 
-	m := make(map[interface{}]int)
+	m := make(map[any]int)
 	for i, k := range ks {
 		m[k] = i
 	}
@@ -1193,14 +1210,14 @@ func TestMapInterfaceKey(t *testing.T) {
 		c64  complex64
 		c128 complex128
 		s    string
-		i0   interface{}
+		i0   any
 		i1   interface {
 			String() string
 		}
 		a [4]string
 	}
 
-	m := map[interface{}]bool{}
+	m := map[any]bool{}
 	// Put a bunch of data in m, so that a bad hash is likely to
 	// lead to a bad bucket, which will lead to a missed lookup.
 	for i := 0; i < 1000; i++ {

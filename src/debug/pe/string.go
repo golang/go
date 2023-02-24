@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"internal/saferio"
 	"io"
 )
 
@@ -44,8 +45,8 @@ func readStringTable(fh *FileHeader, r io.ReadSeeker) (StringTable, error) {
 		return nil, nil
 	}
 	l -= 4
-	buf := make([]byte, l)
-	_, err = io.ReadFull(r, buf)
+
+	buf, err := saferio.ReadData(r, uint64(l))
 	if err != nil {
 		return nil, fmt.Errorf("fail to read string table: %v", err)
 	}

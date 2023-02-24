@@ -3,13 +3,12 @@
 // license that can be found in the LICENSE file.
 
 //go:build gc
-// +build gc
 
 package goroot
 
 import (
-	exec "internal/execabs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -21,8 +20,8 @@ func IsStandardPackage(goroot, compiler, path string) bool {
 	switch compiler {
 	case "gc":
 		dir := filepath.Join(goroot, "src", path)
-		_, err := os.Stat(dir)
-		return err == nil
+		info, err := os.Stat(dir)
+		return err == nil && info.IsDir()
 	case "gccgo":
 		return gccgoSearch.isStandard(path)
 	default:

@@ -1,0 +1,94 @@
+-- input --
+Text.
+	A tab-indented
+	(no, not eight-space indented)
+	code block and haiku.
+More text.
+ One space
+  is
+   enough
+    to
+     start
+      a
+       block.
+More text.
+
+      Blocks
+    can
+
+  have
+    blank
+      lines.
+-- gofmt --
+Text.
+
+	A tab-indented
+	(no, not eight-space indented)
+	code block and haiku.
+
+More text.
+
+	One space
+	 is
+	  enough
+	   to
+	    start
+	     a
+	      block.
+
+More text.
+
+	    Blocks
+	  can
+
+	have
+	  blank
+	    lines.
+-- markdown --
+Text.
+
+	A tab-indented
+	(no, not eight-space indented)
+	code block and haiku.
+
+More text.
+
+	One space
+	 is
+	  enough
+	   to
+	    start
+	     a
+	      block.
+
+More text.
+
+	    Blocks
+	  can
+
+	have
+	  blank
+	    lines.
+-- html --
+<p>Text.
+<pre>A tab-indented
+(no, not eight-space indented)
+code block and haiku.
+</pre>
+<p>More text.
+<pre>One space
+ is
+  enough
+   to
+    start
+     a
+      block.
+</pre>
+<p>More text.
+<pre>    Blocks
+  can
+
+have
+  blank
+    lines.
+</pre>

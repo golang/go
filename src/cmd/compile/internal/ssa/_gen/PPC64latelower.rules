@@ -1,0 +1,19 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules used by the laterLower pass.
+
+// Simplify ISEL x $0 z into ISELZ
+(ISEL [a] x (MOVDconst [0]) z) => (ISELZ [a] x z)
+// Simplify ISEL $0 y z into ISELZ by inverting comparison and reversing arguments.
+(ISEL [a] (MOVDconst [0]) y z) => (ISELZ [a^0x4] y z)
+
+// SETBC, SETBCR is supported on ISA 3.1(Power10) and newer, use ISELZ for
+// older targets
+(SETBC [2] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [2] (MOVDconst [1]) cmp)
+(SETBCR [2] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [6] (MOVDconst [1]) cmp)
+(SETBC [0] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [0] (MOVDconst [1]) cmp)
+(SETBCR [0] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [4] (MOVDconst [1]) cmp)
+(SETBC [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [1] (MOVDconst [1]) cmp)
+(SETBCR [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [5] (MOVDconst [1]) cmp)

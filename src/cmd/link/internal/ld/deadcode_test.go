@@ -7,7 +7,6 @@ package ld
 import (
 	"bytes"
 	"internal/testenv"
-	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -20,14 +19,16 @@ func TestDeadcode(t *testing.T) {
 
 	tests := []struct {
 		src      string
-		pos, neg string // positive and negative patterns
+		pos, neg []string // positive and negative patterns
 	}{
-		{"reflectcall", "", "main.T.M"},
-		{"typedesc", "", "type.main.T"},
-		{"ifacemethod", "", "main.T.M"},
-		{"ifacemethod2", "main.T.M", ""},
-		{"ifacemethod3", "main.S.M", ""},
-		{"ifacemethod4", "", "main.T.M"},
+		{"reflectcall", nil, []string{"main.T.M"}},
+		{"typedesc", nil, []string{"type:main.T"}},
+		{"ifacemethod", nil, []string{"main.T.M"}},
+		{"ifacemethod2", []string{"main.T.M"}, nil},
+		{"ifacemethod3", []string{"main.S.M"}, nil},
+		{"ifacemethod4", nil, []string{"main.T.M"}},
+		{"globalmap", []string{"main.small", "main.effect"},
+			[]string{"main.large"}},
 	}
 	for _, test := range tests {
 		test := test
@@ -35,16 +36,20 @@ func TestDeadcode(t *testing.T) {
 			t.Parallel()
 			src := filepath.Join("testdata", "deadcode", test.src+".go")
 			exe := filepath.Join(tmpdir, test.src+".exe")
-			cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-dumpdep", "-o", exe, src)
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-dumpdep", "-o", exe, src)
 			out, err := cmd.CombinedOutput()
 			if err != nil {
 				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 			}
-			if test.pos != "" && !bytes.Contains(out, []byte(test.pos+"\n")) {
-				t.Errorf("%s should be reachable. Output:\n%s", test.pos, out)
+			for _, pos := range test.pos {
+				if !bytes.Contains(out, []byte(pos+"\n")) {
+					t.Errorf("%s should be reachable. Output:\n%s", pos, out)
+				}
 			}
-			if test.neg != "" && bytes.Contains(out, []byte(test.neg+"\n")) {
-				t.Errorf("%s should not be reachable. Output:\n%s", test.neg, out)
+			for _, neg := range test.neg {
+				if bytes.Contains(out, []byte(neg+"\n")) {
+					t.Errorf("%s should not be reachable. Output:\n%s", neg, out)
+				}
 			}
 		})
 	}

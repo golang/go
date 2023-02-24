@@ -1,0 +1,21 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains rules used by the laterLower pass.
+// These are often the exact inverse of rules in ARM64.rules.
+
+(ADDconst [c] x) && !isARM64addcon(c)  => (ADD x (MOVDconst [c]))
+(SUBconst [c] x) && !isARM64addcon(c)  => (SUB x (MOVDconst [c]))
+(ANDconst [c] x) && !isARM64bitcon(uint64(c)) => (AND x (MOVDconst [c]))
+(ORconst  [c] x) && !isARM64bitcon(uint64(c))  => (OR  x (MOVDconst [c]))
+(XORconst [c] x) && !isARM64bitcon(uint64(c))  => (XOR x (MOVDconst [c]))
+(TSTconst [c] x) && !isARM64bitcon(uint64(c))  => (TST x (MOVDconst [c]))
+(TSTWconst [c] x) && !isARM64bitcon(uint64(c)|uint64(c)<<32)  => (TSTW x (MOVDconst [int64(c)]))
+
+(CMPconst [c] x) && !isARM64addcon(c)  => (CMP x (MOVDconst [c]))
+(CMPWconst [c] x) && !isARM64addcon(int64(c))  => (CMPW x (MOVDconst [int64(c)]))
+(CMNconst [c] x) && !isARM64addcon(c)  => (CMN x (MOVDconst [c]))
+(CMNWconst [c] x) && !isARM64addcon(int64(c))  => (CMNW x (MOVDconst [int64(c)]))
+
+(ADDSconstflags [c] x) && !isARM64addcon(c)  => (ADDSflags x (MOVDconst [c]))

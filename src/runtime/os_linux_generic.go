@@ -3,14 +3,12 @@
 // license that can be found in the LICENSE file.
 
 //go:build !mips && !mipsle && !mips64 && !mips64le && !s390x && !ppc64 && linux
-// +build !mips,!mipsle,!mips64,!mips64le,!s390x,!ppc64,linux
 
 package runtime
 
 const (
 	_SS_DISABLE  = 2
 	_NSIG        = 65
-	_SI_USER     = 0
 	_SIG_BLOCK   = 0
 	_SIG_UNBLOCK = 1
 	_SIG_SETMASK = 2

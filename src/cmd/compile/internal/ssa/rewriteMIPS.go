@@ -1,5 +1,4 @@
-// Code generated from gen/MIPS.rules; DO NOT EDIT.
-// generated with: cd gen; go run *.go
+// Code generated from _gen/MIPS.rules using 'go generate'; DO NOT EDIT.
 
 package ssa
 
@@ -543,6 +542,9 @@ func rewriteValueMIPS(v *Value) bool {
 		return true
 	case OpSubPtr:
 		v.Op = OpMIPSSUB
+		return true
+	case OpTailCall:
+		v.Op = OpMIPSCALLtail
 		return true
 	case OpTrunc16to8:
 		v.Op = OpCopy
@@ -1651,17 +1653,44 @@ func rewriteValueMIPS_OpLoad(v *Value) bool {
 	return false
 }
 func rewriteValueMIPS_OpLocalAddr(v *Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (LocalAddr {sym} base _)
-	// result: (MOVWaddr {sym} base)
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (LocalAddr <t> {sym} base mem)
+	// cond: t.Elem().HasPointers()
+	// result: (MOVWaddr {sym} (SPanchored base mem))
 	for {
+		t := v.Type
 		sym := auxToSym(v.Aux)
 		base := v_0
+		mem := v_1
+		if !(t.Elem().HasPointers()) {
+			break
+		}
+		v.reset(OpMIPSMOVWaddr)
+		v.Aux = symToAux(sym)
+		v0 := b.NewValue0(v.Pos, OpSPanchored, typ.Uintptr)
+		v0.AddArg2(base, mem)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LocalAddr <t> {sym} base _)
+	// cond: !t.Elem().HasPointers()
+	// result: (MOVWaddr {sym} base)
+	for {
+		t := v.Type
+		sym := auxToSym(v.Aux)
+		base := v_0
+		if !(!t.Elem().HasPointers()) {
+			break
+		}
 		v.reset(OpMIPSMOVWaddr)
 		v.Aux = symToAux(sym)
 		v.AddArg(base)
 		return true
 	}
+	return false
 }
 func rewriteValueMIPS_OpLsh16x16(v *Value) bool {
 	v_1 := v.Args[1]
@@ -1996,7 +2025,8 @@ func rewriteValueMIPS_OpLsh8x8(v *Value) bool {
 func rewriteValueMIPS_OpMIPSADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADD x (MOVWconst [c]))
+	// match: (ADD x (MOVWconst <t> [c]))
+	// cond: !t.IsPtr()
 	// result: (ADDconst [c] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -2004,7 +2034,11 @@ func rewriteValueMIPS_OpMIPSADD(v *Value) bool {
 			if v_1.Op != OpMIPSMOVWconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt32(v_1.AuxInt)
+			if !(!t.IsPtr()) {
+				continue
+			}
 			v.reset(OpMIPSADDconst)
 			v.AuxInt = int32ToAuxInt(c)
 			v.AddArg(x)

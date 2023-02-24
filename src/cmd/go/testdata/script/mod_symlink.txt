@@ -1,12 +1,12 @@
 env GO111MODULE=on
 [!symlink] skip
 
-# 'go get -d' should resolve modules of imported packages.
-go get -d
+# 'go get' should resolve modules of imported packages.
+go get
 go list -deps -f '{{.Module}}' .
 stdout golang.org/x/text
 
-go get -d ./subpkg
+go get ./subpkg
 go list -deps -f '{{.Module}}' ./subpkg
 stdout golang.org/x/text
 

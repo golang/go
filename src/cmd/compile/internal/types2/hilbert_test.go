@@ -6,13 +6,10 @@ package types2_test
 
 import (
 	"bytes"
-	"cmd/compile/internal/syntax"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
-
-	. "cmd/compile/internal/types2"
 )
 
 var (
@@ -24,24 +21,11 @@ func TestHilbert(t *testing.T) {
 	// generate source
 	src := program(*H, *out)
 	if *out != "" {
-		ioutil.WriteFile(*out, src, 0666)
+		os.WriteFile(*out, src, 0666)
 		return
 	}
 
-	// parse source
-	// TODO(gri) get rid of []bytes to string conversion below
-	f, err := parseSrc("hilbert.go", string(src))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// type-check file
-	DefPredeclaredTestFuncs() // define assert built-in
-	conf := Config{Importer: defaultImporter()}
-	_, err = conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	mustTypecheck("hilbert.go", string(src), nil, nil)
 }
 
 func program(n int, out string) []byte {

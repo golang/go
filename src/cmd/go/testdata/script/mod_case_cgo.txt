@@ -2,7 +2,7 @@
 
 env GO111MODULE=on
 
-go get -d rsc.io/CGO
+go get rsc.io/CGO
 [short] stop
 
 go build rsc.io/CGO
