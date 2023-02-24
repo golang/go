@@ -44,19 +44,33 @@ func initMPTCPavailable() {
 }
 
 func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
-	// Fallback to dialTCP if Multipath TCP isn't supported on this operating system.
-	if !supportsMultipathTCP() {
-		return sd.dialTCP(ctx, laddr, raddr)
+	if supportsMultipathTCP() {
+		if conn, err := sd.doDialTCPProto(ctx, laddr, raddr, _IPPROTO_MPTCP); err == nil {
+			return conn, nil
+		}
 	}
 
-	return sd.doDialTCPProto(ctx, laddr, raddr, _IPPROTO_MPTCP)
+	// Fallback to dialTCP if Multipath TCP isn't supported on this operating
+	// system. But also fallback in case of any error with MPTCP.
+	//
+	// Possible MPTCP specific error: ENOPROTOOPT (sysctl net.mptcp.enabled=0)
+	// But just in case MPTCP is blocked differently (SELinux, etc.), just
+	// retry with "plain" TCP.
+	return sd.dialTCP(ctx, laddr, raddr)
 }
 
 func (sl *sysListener) listenMPTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
-	// Fallback to listenTCP if Multipath TCP isn't supported on this operating system.
-	if !supportsMultipathTCP() {
-		return sl.listenTCP(ctx, laddr)
+	if supportsMultipathTCP() {
+		if dial, err := sl.listenTCPProto(ctx, laddr, _IPPROTO_MPTCP); err == nil {
+			return dial, nil
+		}
 	}
 
-	return sl.listenTCPProto(ctx, laddr, _IPPROTO_MPTCP)
+	// Fallback to listenTCP if Multipath TCP isn't supported on this operating
+	// system. But also fallback in case of any error with MPTCP.
+	//
+	// Possible MPTCP specific error: ENOPROTOOPT (sysctl net.mptcp.enabled=0)
+	// But just in case MPTCP is blocked differently (SELinux, etc.), just
+	// retry with "plain" TCP.
+	return sl.listenTCP(ctx, laddr)
 }
