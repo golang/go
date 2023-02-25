@@ -18,7 +18,6 @@ import (
 	"sync"
 	"testing"
 	"testing/quick"
-	"time"
 	. "time"
 )
 
@@ -1862,14 +1861,14 @@ func TestZoneBounds(t *testing.T) {
 		6: {Date(1991, September, 15, 0, 50, 0, 0, loc), boundTwo, boundThree},
 
 		// The ZoneBounds of a "Asia/Shanghai" after the last transition (Standard Time)
-		7:  {boundThree, boundThree, time.Time{}},
-		8:  {Date(1991, December, 15, 1, 50, 0, 0, loc), boundThree, time.Time{}},
-		9:  {Date(1992, April, 13, 17, 50, 0, 0, loc), boundThree, time.Time{}},
-		10: {Date(1992, April, 13, 18, 0, 0, 0, loc), boundThree, time.Time{}},
-		11: {Date(1992, April, 14, 1, 50, 0, 0, loc), boundThree, time.Time{}},
-		12: {Date(1992, September, 14, 16, 50, 0, 0, loc), boundThree, time.Time{}},
-		13: {Date(1992, September, 14, 17, 0, 0, 0, loc), boundThree, time.Time{}},
-		14: {Date(1992, September, 15, 0, 50, 0, 0, loc), boundThree, time.Time{}},
+		7:  {boundThree, boundThree, Time{}},
+		8:  {Date(1991, December, 15, 1, 50, 0, 0, loc), boundThree, Time{}},
+		9:  {Date(1992, April, 13, 17, 50, 0, 0, loc), boundThree, Time{}},
+		10: {Date(1992, April, 13, 18, 0, 0, 0, loc), boundThree, Time{}},
+		11: {Date(1992, April, 14, 1, 50, 0, 0, loc), boundThree, Time{}},
+		12: {Date(1992, September, 14, 16, 50, 0, 0, loc), boundThree, Time{}},
+		13: {Date(1992, September, 14, 17, 0, 0, 0, loc), boundThree, Time{}},
+		14: {Date(1992, September, 15, 0, 50, 0, 0, loc), boundThree, Time{}},
 
 		// The ZoneBounds of a local time would return two local Time.
 		// Note: We preloaded "America/Los_Angeles" as time.Local for testing
