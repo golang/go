@@ -71,7 +71,7 @@ which would output
 	"some       leading spaces"
 
 Noting that the white spaces in "some    " and in "{{ "   " }}" would not be
-trimmed as they do not immediately precede "{{- " spaces" }}".
+trimmed as they do not immediately precede "{{- " leading spaces" }}".
 
 Actions
 
