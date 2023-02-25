@@ -446,7 +446,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				// Clear all non-requested fields.
 				for i := 0; i < v.NumField(); i++ {
 					if !listJsonFields.needAny(v.Type().Field(i).Name) {
-						v.Field(i).Set(reflect.Zero(v.Type().Field(i).Type))
+						v.Field(i).SetZero()
 					}
 				}
 			}
