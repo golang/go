@@ -70,8 +70,8 @@ which would output
 
 	"some       leading spaces"
 
-Noting that the white space in "some    " would not be trimmed as it does not
-immediately precedes "{{- " spaces" }}".
+Noting that the white spaces in "some    " and in "{{ "   " }}" would not be
+trimmed as they do not immediately precede "{{- " spaces" }}".
 
 Actions
 
