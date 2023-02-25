@@ -601,15 +601,13 @@ func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value refl
 	keyInstr := &decInstr{keyOp, 0, nil, ovfl}
 	elemInstr := &decInstr{elemOp, 0, nil, ovfl}
 	keyP := reflect.New(mtyp.Key())
-	keyZ := reflect.Zero(mtyp.Key())
 	elemP := reflect.New(mtyp.Elem())
-	elemZ := reflect.Zero(mtyp.Elem())
 	for i := 0; i < n; i++ {
 		key := decodeIntoValue(state, keyOp, keyIsPtr, keyP.Elem(), keyInstr)
 		elem := decodeIntoValue(state, elemOp, elemIsPtr, elemP.Elem(), elemInstr)
 		value.SetMapIndex(key, elem)
-		keyP.Elem().Set(keyZ)
-		elemP.Elem().Set(elemZ)
+		keyP.Elem().SetZero()
+		elemP.Elem().SetZero()
 	}
 }
 
@@ -692,7 +690,7 @@ func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, valu
 	// Allocate the destination interface value.
 	if len(name) == 0 {
 		// Copy the nil interface value to the target.
-		value.Set(reflect.Zero(value.Type()))
+		value.SetZero()
 		return
 	}
 	if len(name) > 1024 {
