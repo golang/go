@@ -62,6 +62,17 @@ the generated output would be
 For this trimming, the definition of white space characters is the same as in Go:
 space, horizontal tab, carriage return, and newline.
 
+Another example is
+
+	"some   {{ "   " }}   {{- " leading spaces" }}"
+
+which would output
+
+	"some       leading spaces"
+
+Noting that the white space in "some    " would not be trimmed as it does not
+immediately precedes "{{- " spaces" }}".
+
 Actions
 
 Here is the list of actions. "Arguments" and "pipelines" are evaluations of
