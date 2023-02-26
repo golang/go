@@ -3461,31 +3461,29 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(c.brdist(p, 0, 19, 2) << 5)
 
 	case 8: /* lsl $c,[R],R -> ubfm $(W-1)-c,$(-c MOD (W-1)),Rn,Rd */
-		rt := int(p.To.Reg)
-
-		rf := int(p.Reg)
+		rt, rf := p.To.Reg, p.Reg
 		if rf == obj.REG_NONE {
 			rf = rt
 		}
-		v := int32(p.From.Offset)
+		v := p.From.Offset
 		switch p.As {
 		case AASR:
-			o1 = c.opbfm(p, ASBFM, int(v), 63, rf, rt)
+			o1 = c.opbfm(p, ASBFM, v, 63, rf, rt)
 
 		case AASRW:
-			o1 = c.opbfm(p, ASBFMW, int(v), 31, rf, rt)
+			o1 = c.opbfm(p, ASBFMW, v, 31, rf, rt)
 
 		case ALSL:
-			o1 = c.opbfm(p, AUBFM, int((64-v)&63), int(63-v), rf, rt)
+			o1 = c.opbfm(p, AUBFM, (64-v)&63, 63-v, rf, rt)
 
 		case ALSLW:
-			o1 = c.opbfm(p, AUBFMW, int((32-v)&31), int(31-v), rf, rt)
+			o1 = c.opbfm(p, AUBFMW, (32-v)&31, 31-v, rf, rt)
 
 		case ALSR:
-			o1 = c.opbfm(p, AUBFM, int(v), 63, rf, rt)
+			o1 = c.opbfm(p, AUBFM, v, 63, rf, rt)
 
 		case ALSRW:
-			o1 = c.opbfm(p, AUBFMW, int(v), 31, rf, rt)
+			o1 = c.opbfm(p, AUBFMW, v, 31, rf, rt)
 
 		case AROR:
 			o1 = c.opextr(p, AEXTR, v, rf, rf, rt)
@@ -4094,16 +4092,14 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.op0(p, p.As)
 
 	case 42: /* bfm R,r,s,R */
-		o1 = c.opbfm(p, p.As, int(p.From.Offset), int(p.GetFrom3().Offset), int(p.Reg), int(p.To.Reg))
+		o1 = c.opbfm(p, p.As, p.From.Offset, p.GetFrom3().Offset, p.Reg, p.To.Reg)
 
 	case 43: /* bfm aliases */
-		r := int(p.From.Offset)
-		s := int(p.GetFrom3().Offset)
-		rf := int(p.Reg)
-		rt := int(p.To.Reg)
+		rt, rf := p.To.Reg, p.Reg
 		if rf == obj.REG_NONE {
 			rf = rt
 		}
+		r, s := p.From.Offset, p.GetFrom3().Offset
 		switch p.As {
 		case ABFI:
 			if r != 0 {
@@ -4165,13 +4161,11 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 44: /* extr $b, Rn, Rm, Rd */
-		o1 = c.opextr(p, p.As, int32(p.From.Offset), int(p.GetFrom3().Reg), int(p.Reg), int(p.To.Reg))
+		o1 = c.opextr(p, p.As, p.From.Offset, p.GetFrom3().Reg, p.Reg, p.To.Reg)
 
 	case 45: /* sxt/uxt[bhw] R,R; movT R,R -> sxtT R,R */
-		rf := int(p.From.Reg)
-
-		rt := int(p.To.Reg)
 		as := p.As
+		rt, rf := p.To.Reg, p.From.Reg
 		if rf == REGZERO {
 			as = AMOVWU /* clearer in disassembly */
 		}
@@ -7388,7 +7382,7 @@ func (c *ctxt7) omovlconst(as obj.As, p *obj.Prog, a *obj.Addr, rt int, os []uin
 	}
 }
 
-func (c *ctxt7) opbfm(p *obj.Prog, a obj.As, r int, s int, rf int, rt int) uint32 {
+func (c *ctxt7) opbfm(p *obj.Prog, a obj.As, r, s int64, rf, rt int16) uint32 {
 	var b uint32
 	o := c.opirr(p, a)
 	if (o & (1 << 31)) == 0 {
@@ -7408,7 +7402,7 @@ func (c *ctxt7) opbfm(p *obj.Prog, a obj.As, r int, s int, rf int, rt int) uint3
 	return o
 }
 
-func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int32, rn int, rm int, rt int) uint32 {
+func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int64, rn, rm, rt int16) uint32 {
 	var b uint32
 	o := c.opirr(p, a)
 	if (o & (1 << 31)) != 0 {
