@@ -53,6 +53,9 @@ func EqualFunc[M1 ~map[K]V1, M2 ~map[K]V2, K comparable, V1, V2 any](m1 M1, m2 M
 	return true
 }
 
+// clone is implemented in the runtime package.
+func clone(m any) any
+
 // Clone returns a copy of m.  This is a shallow clone:
 // the new keys and values are set using ordinary assignment.
 func Clone[M ~map[K]V, K comparable, V any](m M) M {
@@ -60,11 +63,7 @@ func Clone[M ~map[K]V, K comparable, V any](m M) M {
 	if m == nil {
 		return nil
 	}
-	r := make(M, len(m))
-	for k, v := range m {
-		r[k] = v
-	}
-	return r
+	return clone(m).(M)
 }
 
 // Copy copies all key/value pairs in src adding them to dst.

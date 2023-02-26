@@ -179,3 +179,52 @@ func TestDeleteFunc(t *testing.T) {
 		t.Errorf("DeleteFunc result = %v, want %v", mc, want)
 	}
 }
+
+var n map[int]int
+
+func BenchmarkMapClone(b *testing.B) {
+	var m = make(map[int]int)
+	for i := 0; i < 1000000; i++ {
+		m[i] = i
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		n = Clone(m)
+	}
+}
+
+func TestCloneWithDelete(t *testing.T) {
+	var m = make(map[int]int)
+	for i := 0; i < 32; i++ {
+		m[i] = i
+	}
+	for i := 8; i < 32; i++ {
+		delete(m, i)
+	}
+	m2 := Clone(m)
+	if len(m2) != 8 {
+		t.Errorf("len2(m2) = %d, want %d", len(m2), 8)
+	}
+	for i := 0; i < 8; i++ {
+		if m2[i] != m[i] {
+			t.Errorf("m2[%d] = %d, want %d", i, m2[i], m[i])
+		}
+	}
+}
+
+func TestCloneWithMapAssign(t *testing.T) {
+	var m = make(map[int]int)
+	const N = 25
+	for i := 0; i < N; i++ {
+		m[i] = i
+	}
+	m2 := Clone(m)
+	if len(m2) != N {
+		t.Errorf("len2(m2) = %d, want %d", len(m2), N)
+	}
+	for i := 0; i < N; i++ {
+		if m2[i] != m[i] {
+			t.Errorf("m2[%d] = %d, want %d", i, m2[i], m[i])
+		}
+	}
+}
