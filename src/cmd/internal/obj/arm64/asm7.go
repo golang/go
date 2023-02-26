@@ -4482,26 +4482,26 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Type = c.addrRelocType(p)
 
 	case 66: /* ldp O(R)!, (r1, r2); ldp (R)O!, (r1, r2) */
-		v := int32(c.regoff(&p.From))
-		r := int(p.From.Reg)
-		if r == obj.REG_NONE {
-			r = int(o.param)
+		rf, rt1, rt2 := p.From.Reg, p.To.Reg, int16(p.To.Offset)
+		if rf == obj.REG_NONE {
+			rf = o.param
 		}
-		if r == obj.REG_NONE {
+		if rf == obj.REG_NONE {
 			c.ctxt.Diag("invalid ldp source: %v\n", p)
 		}
-		o1 = c.opldpstp(p, o, v, uint32(r), uint32(p.To.Reg), uint32(p.To.Offset), 1)
+		v := int32(c.regoff(&p.From))
+		o1 = c.opldpstp(p, o, v, rf, rt1, rt2, 1)
 
 	case 67: /* stp (r1, r2), O(R)!; stp (r1, r2), (R)O! */
-		r := int(p.To.Reg)
-		if r == obj.REG_NONE {
-			r = int(o.param)
+		rt, rf1, rf2 := p.To.Reg, p.From.Reg, int16(p.From.Offset)
+		if rt == obj.REG_NONE {
+			rt = o.param
 		}
-		if r == obj.REG_NONE {
+		if rt == obj.REG_NONE {
 			c.ctxt.Diag("invalid stp destination: %v\n", p)
 		}
 		v := int32(c.regoff(&p.To))
-		o1 = c.opldpstp(p, o, v, uint32(r), uint32(p.From.Reg), uint32(p.From.Offset), 0)
+		o1 = c.opldpstp(p, o, v, rt, rf1, rf2, 0)
 
 	case 68: /* movT $vconaddr(SB), reg -> adrp + add + reloc */
 		// NOTE: this case does not use REGTMP. If it ever does,
@@ -4663,7 +4663,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 74:
 		//	add $O, R, Rtmp or sub $O, R, Rtmp
 		//	ldp (Rtmp), (R1, R2)
-		rf := p.From.Reg
+		rf, rt1, rt2 := p.From.Reg, p.To.Reg, int16(p.To.Offset)
 		if rf == obj.REG_NONE {
 			rf = o.param
 		}
@@ -4672,36 +4672,36 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		v := int32(c.regoff(&p.From))
 		o1 = c.oaddi12(p, v, REGTMP, rf)
-		o2 = c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.To.Reg), uint32(p.To.Offset), 1)
+		o2 = c.opldpstp(p, o, 0, REGTMP, rt1, rt2, 1)
 
 	case 75:
 		//	mov $L, Rtmp (from constant pool)
 		//	add Rtmp, R, Rtmp
 		//	ldp (Rtmp), (R1, R2)
-		r := int(p.From.Reg)
-		if r == REGTMP {
+		rf, rt1, rt2 := int(p.From.Reg), p.To.Reg, int16(p.To.Offset)
+		if rf == REGTMP {
 			c.ctxt.Diag("REGTMP used in large offset load: %v", p)
 		}
-		if r == obj.REG_NONE {
-			r = int(o.param)
+		if rf == obj.REG_NONE {
+			rf = int(o.param)
 		}
-		if r == obj.REG_NONE {
+		if rf == obj.REG_NONE {
 			c.ctxt.Diag("invalid ldp source: %v", p)
 		}
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
 		o2 = c.opxrrr(p, AADD, false)
 		o2 |= (REGTMP & 31) << 16
-		o2 |= uint32(r&31) << 5
+		o2 |= uint32(rf&31) << 5
 		o2 |= uint32(REGTMP & 31)
-		o3 = c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.To.Reg), uint32(p.To.Offset), 1)
+		o3 = c.opldpstp(p, o, 0, REGTMP, rt1, rt2, 1)
 
 	case 76:
 		//	add $O, R, Rtmp or sub $O, R, Rtmp
 		//	stp (R1, R2), (Rtmp)
-		if p.From.Reg == REGTMP || p.From.Offset == REGTMP {
+		rt, rf1, rf2 := p.To.Reg, p.From.Reg, int16(p.From.Offset)
+		if rf1 == REGTMP || rf2 == REGTMP {
 			c.ctxt.Diag("cannot use REGTMP as source: %v", p)
 		}
-		rt := p.To.Reg
 		if rt == obj.REG_NONE {
 			rt = o.param
 		}
@@ -4710,28 +4710,28 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		v := int32(c.regoff(&p.To))
 		o1 = c.oaddi12(p, v, REGTMP, rt)
-		o2 = c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.From.Reg), uint32(p.From.Offset), 0)
+		o2 = c.opldpstp(p, o, 0, REGTMP, rf1, rf2, 0)
 
 	case 77:
 		//	mov $L, Rtmp (from constant pool)
 		//	add Rtmp, R, Rtmp
 		//	stp (R1, R2), (Rtmp)
-		r := int(p.To.Reg)
-		if r == REGTMP || p.From.Reg == REGTMP || p.From.Offset == REGTMP {
+		rt, rf1, rf2 := int(p.To.Reg), p.From.Reg, int16(p.From.Offset)
+		if rt == REGTMP || rf1 == REGTMP || rf2 == REGTMP {
 			c.ctxt.Diag("REGTMP used in large offset store: %v", p)
 		}
-		if r == obj.REG_NONE {
-			r = int(o.param)
+		if rt == obj.REG_NONE {
+			rt = int(o.param)
 		}
-		if r == obj.REG_NONE {
+		if rt == obj.REG_NONE {
 			c.ctxt.Diag("invalid stp destination: %v", p)
 		}
 		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
 		o2 = c.opxrrr(p, AADD, false)
 		o2 |= REGTMP & 31 << 16
-		o2 |= uint32(r&31) << 5
+		o2 |= uint32(rt&31) << 5
 		o2 |= uint32(REGTMP & 31)
-		o3 = c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.From.Reg), uint32(p.From.Offset), 0)
+		o3 = c.opldpstp(p, o, 0, REGTMP, rf1, rf2, 0)
 
 	case 78: /* vmov R, V.<T>[index] */
 		rf := int(p.From.Reg)
@@ -5025,7 +5025,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(Q&1) << 30) | (uint32((r>>5)&7) << 16) | (uint32(r&0x1f) << 5) | uint32(rt&31)
 
 	case 87: /* stp (r,r), addr(SB) -> adrp + add + stp */
-		if p.From.Reg == REGTMP || p.From.Offset == REGTMP {
+		rf1, rf2 := p.From.Reg, int16(p.From.Offset)
+		if rf1 == REGTMP || rf2 == REGTMP {
 			c.ctxt.Diag("cannot use REGTMP as source: %v", p)
 		}
 		o1 = ADR(1, 0, REGTMP)
@@ -5036,9 +5037,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Sym = p.To.Sym
 		rel.Add = p.To.Offset
 		rel.Type = objabi.R_ADDRARM64
-		o3 = c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.From.Reg), uint32(p.From.Offset), 0)
+		o3 = c.opldpstp(p, o, 0, REGTMP, rf1, rf2, 0)
 
 	case 88: /* ldp addr(SB), (r,r) -> adrp + add + ldp */
+		rt1, rt2 := p.To.Reg, int16(p.To.Offset)
 		o1 = ADR(1, 0, REGTMP)
 		o2 = c.opirr(p, AADD) | REGTMP&31<<5 | REGTMP&31
 		rel := obj.Addrel(c.cursym)
@@ -5047,7 +5049,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
 		rel.Type = objabi.R_ADDRARM64
-		o3 = c.opldpstp(p, o, 0, uint32(REGTMP), uint32(p.To.Reg), uint32(p.To.Offset), 1)
+		o3 = c.opldpstp(p, o, 0, REGTMP, rt1, rt2, 1)
 
 	case 89: /* vadd/vsub Vm, Vn, Vd */
 		switch p.As {
@@ -7421,7 +7423,7 @@ func (c *ctxt7) opextr(p *obj.Prog, a obj.As, v int64, rn, rm, rt int16) uint32 
 }
 
 /* generate instruction encoding for ldp and stp series */
-func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uint32) uint32 {
+func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh int16, ldp uint32) uint32 {
 	wback := false
 	if o.scond == C_XPOST || o.scond == C_XPRE {
 		wback = true
@@ -7502,7 +7504,7 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
 	default:
 		ret |= 2 << 23
 	}
-	ret |= 5<<27 | (ldp&1)<<22 | uint32(vo&0x7f)<<15 | (rh&31)<<10 | (rbase&31)<<5 | (rl & 31)
+	ret |= 5<<27 | (ldp&1)<<22 | uint32(vo&0x7f)<<15 | uint32(rh&31)<<10 | uint32(rbase&31)<<5 | uint32(rl&31)
 	return ret
 }
 
