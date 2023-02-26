@@ -46,21 +46,25 @@ type Data map[string]interface{}
 
 // Reportf reports a formatted bug message.
 func Reportf(format string, args ...interface{}) {
-	Report(fmt.Sprintf(format, args...), nil)
+	report(fmt.Sprintf(format, args...), nil)
 }
 
 // Errorf calls fmt.Errorf for the given arguments, and reports the resulting
 // error message as a bug.
 func Errorf(format string, args ...interface{}) error {
 	err := fmt.Errorf(format, args...)
-	Report(err.Error(), nil)
+	report(err.Error(), nil)
 	return err
 }
 
 // Report records a new bug encountered on the server.
 // It uses reflection to report the position of the immediate caller.
 func Report(description string, data Data) {
-	_, file, line, ok := runtime.Caller(1)
+	report(description, data)
+}
+
+func report(description string, data Data) {
+	_, file, line, ok := runtime.Caller(2) // all exported reporting functions call report directly
 
 	key := "<missing callsite>"
 	if ok {
