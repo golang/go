@@ -447,6 +447,10 @@ type ClientHelloInfo struct {
 	// might be rejected if used.
 	SupportedVersions []uint16
 
+	// Extensions lists the IDs of the extensions presented by the client
+	// in the client hello.
+	Extensions []uint16
+
 	// Conn is the underlying net.Conn for the connection. Do not read
 	// from, or write to, this connection; that will cause the TLS
 	// connection to fail.
