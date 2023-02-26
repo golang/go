@@ -428,8 +428,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		if err != nil {
 			return nil, err
 		}
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))
-		sa.Name = string(bytes[0:n])
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
