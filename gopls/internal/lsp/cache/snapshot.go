@@ -1092,7 +1092,7 @@ func (s *snapshot) AllMetadata(ctx context.Context) ([]*source.Metadata, error) 
 	return meta, nil
 }
 
-func (s *snapshot) CachedImportPaths(ctx context.Context) (map[PackagePath]*types.Package, error) {
+func (s *snapshot) CachedPackages(ctx context.Context) []source.Package {
 	// Don't reload workspace package metadata.
 	// This function is meant to only return currently cached information.
 	s.AwaitInitialized(ctx)
@@ -1100,42 +1100,15 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[PackagePath]*type
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	pkgs := make(map[PackagePath]*syntaxPackage)
-
-	// Find all cached packages that are imported a nonzero amount of time.
-	//
-	// TODO(rfindley): this is pre-existing behavior, and a test fails if we
-	// don't do the importCount filter, but why do we care if a package is
-	// imported a nonzero amount of times?
-	imported := make(map[PackagePath]bool)
+	var pkgs []source.Package
 	s.packages.Range(func(_, v interface{}) {
 		ph := v.(*packageHandle)
-		for dep := range ph.m.DepsByPkgPath {
-			imported[dep] = true
-		}
-		if ph.m.Name == "main" {
-			return
-		}
 		pkg, err := ph.cached()
-		if err != nil {
-			return
-		}
-		if old, ok := pkgs[ph.m.PkgPath]; ok {
-			if len(pkg.compiledGoFiles) < len(old.compiledGoFiles) {
-				pkgs[ph.m.PkgPath] = pkg
-			}
-		} else {
-			pkgs[ph.m.PkgPath] = pkg
+		if err == nil {
+			pkgs = append(pkgs, &Package{ph.m, pkg})
 		}
 	})
-	results := make(map[PackagePath]*types.Package)
-	for pkgPath, pkg := range pkgs {
-		if imported[pkgPath] {
-			results[pkgPath] = pkg.types
-		}
-	}
-
-	return results, nil
+	return pkgs
 }
 
 // TODO(rfindley): clarify that this is only active modules. Or update to just

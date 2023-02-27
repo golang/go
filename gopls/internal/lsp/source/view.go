@@ -156,13 +156,13 @@ type Snapshot interface {
 	// excluding id itself.
 	ReverseDependencies(ctx context.Context, id PackageID, transitive bool) (map[PackageID]*Metadata, error)
 
-	// CachedImportPaths returns all the imported packages loaded in this
-	// snapshot, indexed by their package path (not import path, despite the name)
-	// and checked in TypecheckWorkspace mode.
+	// CachedPackages returns a new, unordered array of all
+	// packages currently cached in this snapshot, which is a
+	// poorly defined set that depends on the history of
+	// operations up to this point. Do not use it.
 	//
-	// To reduce latency, it does not wait for type-checking to complete.
-	// It is intended for use only in completions.
-	CachedImportPaths(ctx context.Context) (map[PackagePath]*types.Package, error)
+	// TODO(adonovan): get rid of the last call from completions.
+	CachedPackages(ctx context.Context) []Package
 
 	// ActiveMetadata returns a new, unordered slice containing
 	// metadata for all packages considered 'active' in the workspace.

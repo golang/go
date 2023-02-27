@@ -359,6 +359,7 @@ func (c *completer) getSurrounding() *Selection {
 // candidate represents a completion candidate.
 type candidate struct {
 	// obj is the types.Object to complete to.
+	// TODO(adonovan): eliminate dependence on go/types throughout this struct.
 	obj types.Object
 
 	// score is used to rank candidates.
@@ -1137,9 +1138,37 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 
 func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error {
 	// Try loaded packages first. They're relevant, fast, and fully typed.
-	known, err := c.snapshot.CachedImportPaths(ctx)
-	if err != nil {
-		return err
+	//
+	// Find all cached packages that are imported a nonzero amount of time.
+	//
+	// TODO(rfindley): this is pre-existing behavior, and a test fails if we
+	// don't do the importCount filter, but why do we care if a package is
+	// imported a nonzero amount of times?
+	//
+	// TODO(adonovan): avoid the need for type-checked packges entirely here.
+	pkgs := make(map[source.PackagePath]source.Package)
+	imported := make(map[source.PackagePath]bool)
+	for _, pkg := range c.snapshot.CachedPackages(ctx) {
+		m := pkg.Metadata()
+		for dep := range m.DepsByPkgPath {
+			imported[dep] = true
+		}
+		if m.Name == "main" {
+			continue
+		}
+		if old, ok := pkgs[m.PkgPath]; ok {
+			if len(m.CompiledGoFiles) < len(old.Metadata().CompiledGoFiles) {
+				pkgs[m.PkgPath] = pkg
+			}
+		} else {
+			pkgs[m.PkgPath] = pkg
+		}
+	}
+	known := make(map[source.PackagePath]*types.Package)
+	for pkgPath, pkg := range pkgs {
+		if imported[pkgPath] {
+			known[pkgPath] = pkg.GetTypes()
+		}
 	}
 
 	var paths []string
@@ -1481,21 +1510,28 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 
 	count := 0
 
-	// TODO(adonovan): strength-reduce to a metadata query.
-	// All that's needed below is Package.{Name,Path}.
-	// Presumably that can be answered more thoroughly more quickly.
-	known, err := c.snapshot.CachedImportPaths(ctx)
+	// Search packages across the entire workspace.
+	all, err := c.snapshot.AllMetadata(ctx)
 	if err != nil {
 		return err
 	}
+	pkgNameByPath := make(map[source.PackagePath]string)
 	var paths []string // actually PackagePaths
-	for path, pkg := range known {
-		if !strings.HasPrefix(pkg.Name(), prefix) {
-			continue
+	for _, m := range all {
+		if m.ForTest != "" {
+			continue // skip all test variants
 		}
-		paths = append(paths, string(path))
+		if m.Name == "main" {
+			continue // main is non-importable
+		}
+		if !strings.HasPrefix(string(m.Name), prefix) {
+			continue // not a match
+		}
+		paths = append(paths, string(m.PkgPath))
+		pkgNameByPath[m.PkgPath] = string(m.Name)
 	}
 
+	// Rank candidates using goimports' algorithm.
 	var relevances map[string]float64
 	if len(paths) != 0 {
 		if err := c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
@@ -1506,7 +1542,6 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 			return err
 		}
 	}
-
 	sort.Slice(paths, func(i, j int) bool {
 		if relevances[paths[i]] != relevances[paths[j]] {
 			return relevances[paths[i]] > relevances[paths[j]]
@@ -1518,22 +1553,22 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 	})
 
 	for _, path := range paths {
-		pkg := known[source.PackagePath(path)]
-		if _, ok := seen[pkg.Name()]; ok {
+		name := pkgNameByPath[source.PackagePath(path)]
+		if _, ok := seen[name]; ok {
 			continue
 		}
 		imp := &importInfo{
 			importPath: path,
 		}
-		if imports.ImportPathToAssumedName(path) != pkg.Name() {
-			imp.name = pkg.Name()
+		if imports.ImportPathToAssumedName(path) != name {
+			imp.name = name
 		}
 		if count >= maxUnimportedPackageNames {
 			return nil
 		}
 		c.deepState.enqueue(candidate{
 			// Pass an empty *types.Package to disable deep completions.
-			obj:   types.NewPkgName(0, nil, pkg.Name(), types.NewPackage(path, string(pkg.Name()))),
+			obj:   types.NewPkgName(0, nil, name, types.NewPackage(path, name)),
 			score: unimportedScore(relevances[path]),
 			imp:   imp,
 		})
