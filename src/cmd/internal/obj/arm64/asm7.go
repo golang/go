@@ -4045,9 +4045,9 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			c.ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
 		}
 
-		r := p.To.Reg
-		if r == obj.REG_NONE {
-			r = o.param
+		rt, rf := p.To.Reg, p.From.Reg
+		if rt == obj.REG_NONE {
+			rt = o.param
 		}
 
 		v := c.regoff(&p.To)
@@ -4060,8 +4060,8 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		// Handle smaller unaligned and negative offsets via addition or subtraction.
 		if v >= -4095 && v <= 4095 {
-			o1 = c.oaddi12(p, v, REGTMP, int16(r))
-			o2 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, p.From.Reg)
+			o1 = c.oaddi12(p, v, REGTMP, int16(rt))
+			o2 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, rf)
 			break
 		}
 
@@ -4072,19 +4072,19 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		if p.Pool != nil {
 			c.ctxt.Diag("%v: unused constant in pool (%v)\n", p, v)
 		}
-		o1 = c.oaddi(p, AADD, hi, REGTMP, r)
-		o2 = c.olsr12u(p, c.opstr(p, p.As), lo, REGTMP, p.From.Reg)
+		o1 = c.oaddi(p, AADD, hi, REGTMP, rt)
+		o2 = c.olsr12u(p, c.opstr(p, p.As), lo, REGTMP, rf)
 		break
 
 	storeusepool:
 		if p.Pool == nil {
 			c.ctxt.Diag("%v: constant is not in pool", p)
 		}
-		if r == REGTMP || p.From.Reg == REGTMP {
+		if rt == REGTMP || rf == REGTMP {
 			c.ctxt.Diag("REGTMP used in large offset store: %v", p)
 		}
 		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
-		o2 = c.olsxrr(p, int32(c.opstrr(p, p.As, false)), int(p.From.Reg), int(r), REGTMP)
+		o2 = c.opstrr(p, p.As, rf, rt, REGTMP, false)
 
 	case 31: /* movT L(R), R -> ldrT */
 		// If offset L fits in a 12 bit unsigned immediate:
@@ -4101,9 +4101,9 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			c.ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
 		}
 
-		r := p.From.Reg
-		if r == obj.REG_NONE {
-			r = o.param
+		rt, rf := p.To.Reg, p.From.Reg
+		if rf == obj.REG_NONE {
+			rf = o.param
 		}
 
 		v := c.regoff(&p.From)
@@ -4116,8 +4116,8 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		// Handle smaller unaligned and negative offsets via addition or subtraction.
 		if v >= -4095 && v <= 4095 {
-			o1 = c.oaddi12(p, v, REGTMP, int16(r))
-			o2 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, p.To.Reg)
+			o1 = c.oaddi12(p, v, REGTMP, int16(rf))
+			o2 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, rt)
 			break
 		}
 
@@ -4128,19 +4128,19 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		if p.Pool != nil {
 			c.ctxt.Diag("%v: unused constant in pool (%v)\n", p, v)
 		}
-		o1 = c.oaddi(p, AADD, hi, REGTMP, r)
-		o2 = c.olsr12u(p, c.opldr(p, p.As), lo, REGTMP, p.To.Reg)
+		o1 = c.oaddi(p, AADD, hi, REGTMP, rf)
+		o2 = c.olsr12u(p, c.opldr(p, p.As), lo, REGTMP, rt)
 		break
 
 	loadusepool:
 		if p.Pool == nil {
 			c.ctxt.Diag("%v: constant is not in pool", p)
 		}
-		if r == REGTMP || p.From.Reg == REGTMP {
+		if rt == REGTMP || rf == REGTMP {
 			c.ctxt.Diag("REGTMP used in large offset load: %v", p)
 		}
 		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
-		o2 = c.olsxrr(p, int32(c.opldrr(p, p.As, false)), int(p.To.Reg), int(r), REGTMP)
+		o2 = c.opldrr(p, p.As, rt, rf, REGTMP, false)
 
 	case 32: /* mov $con, R -> movz/movn */
 		o1 = c.omovconst(p.As, p, &p.From, int(p.To.Reg))
@@ -4167,11 +4167,11 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		o1 |= uint32((((d >> uint(s*16)) & 0xFFFF) << 5) | int64((uint32(s)&3)<<21) | int64(rt&31))
 
 	case 34: /* mov $lacon,R */
-		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
 		rt, r, rf := p.To.Reg, p.From.Reg, int16(REGTMP)
 		if r == obj.REG_NONE {
 			r = o.param
 		}
+		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
 		o2 = c.opxrrr(p, AADD, rt, r, rf, false)
 		o2 |= LSL0_64
 
@@ -5643,36 +5643,32 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		o1 |= (uint32(Q&1) << 30) | (uint32(r&31) << 16) | ((opcode & 7) << 13) | (uint32(S&1) << 12) | (uint32(size&3) << 10) | (uint32(rf&31) << 5) | uint32(rt&31)
 
 	case 98: /* MOVD (Rn)(Rm.SXTW[<<amount]),Rd */
+		rt, rf := p.To.Reg, p.From.Reg
 		if isRegShiftOrExt(&p.From) {
 			// extended or shifted offset register.
 			c.checkShiftAmount(p, &p.From)
 
-			o1 = c.opldrr(p, p.As, true)
+			o1 = c.opldrr(p, p.As, rt, rf, obj.REG_NONE, true)
 			o1 |= c.encRegShiftOrExt(p, &p.From, p.From.Index) /* includes reg, op, etc */
 		} else {
 			// (Rn)(Rm), no extension or shift.
-			o1 = c.opldrr(p, p.As, false)
+			o1 = c.opldrr(p, p.As, rt, rf, obj.REG_NONE, false)
 			o1 |= uint32(p.From.Index&31) << 16
 		}
-		o1 |= uint32(p.From.Reg&31) << 5
-		rt := int(p.To.Reg)
-		o1 |= uint32(rt & 31)
 
 	case 99: /* MOVD Rt, (Rn)(Rm.SXTW[<<amount]) */
+		rt, rf := p.To.Reg, p.From.Reg
 		if isRegShiftOrExt(&p.To) {
 			// extended or shifted offset register.
 			c.checkShiftAmount(p, &p.To)
 
-			o1 = c.opstrr(p, p.As, true)
+			o1 = c.opstrr(p, p.As, rf, rt, obj.REG_NONE, true)
 			o1 |= c.encRegShiftOrExt(p, &p.To, p.To.Index) /* includes reg, op, etc */
 		} else {
 			// (Rn)(Rm), no extension or shift.
-			o1 = c.opstrr(p, p.As, false)
+			o1 = c.opstrr(p, p.As, rf, rt, obj.REG_NONE, false)
 			o1 |= uint32(p.To.Index&31) << 16
 		}
-		o1 |= uint32(p.To.Reg&31) << 5
-		rf := int(p.From.Reg)
-		o1 |= uint32(rf & 31)
 
 	case 100: /* VTBL/VTBX Vn.<T>, [Vt1.<T>, Vt2.<T>, ...], Vd.<T> */
 		af := int((p.From.Reg >> 5) & 15)
@@ -7258,71 +7254,74 @@ func (c *ctxt7) opldr(p *obj.Prog, a obj.As) uint32 {
 	return 0
 }
 
-// olsxrr attaches register operands to a load/store opcode supplied in o.
-// The result either encodes a load of r from (r1+r2) or a store of r to (r1+r2).
-func (c *ctxt7) olsxrr(p *obj.Prog, o int32, r int, r1 int, r2 int) uint32 {
-	o |= int32(r1&31) << 5
-	o |= int32(r2&31) << 16
-	o |= int32(r & 31)
-	return uint32(o)
-}
-
 // opldrr returns the ARM64 opcode encoding corresponding to the obj.As opcode
 // for load instruction with register offset.
 // The offset register can be (Rn)(Rm.UXTW<<2) or (Rn)(Rm<<2) or (Rn)(Rm).
-func (c *ctxt7) opldrr(p *obj.Prog, a obj.As, extension bool) uint32 {
+func (c *ctxt7) opldrr(p *obj.Prog, a obj.As, rt, rn, rm int16, extension bool) uint32 {
+	var op uint32
+
 	OptionS := uint32(0x1a)
 	if extension {
 		OptionS = uint32(0) // option value and S value have been encoded into p.From.Offset.
 	}
 	switch a {
 	case AMOVD:
-		return OptionS<<10 | 0x3<<21 | 0x1f<<27
+		op = OptionS<<10 | 0x3<<21 | 0x1f<<27
 	case AMOVW:
-		return OptionS<<10 | 0x5<<21 | 0x17<<27
+		op = OptionS<<10 | 0x5<<21 | 0x17<<27
 	case AMOVWU:
-		return OptionS<<10 | 0x3<<21 | 0x17<<27
+		op = OptionS<<10 | 0x3<<21 | 0x17<<27
 	case AMOVH:
-		return OptionS<<10 | 0x5<<21 | 0x0f<<27
+		op = OptionS<<10 | 0x5<<21 | 0x0f<<27
 	case AMOVHU:
-		return OptionS<<10 | 0x3<<21 | 0x0f<<27
+		op = OptionS<<10 | 0x3<<21 | 0x0f<<27
 	case AMOVB:
-		return OptionS<<10 | 0x5<<21 | 0x07<<27
+		op = OptionS<<10 | 0x5<<21 | 0x07<<27
 	case AMOVBU:
-		return OptionS<<10 | 0x3<<21 | 0x07<<27
+		op = OptionS<<10 | 0x3<<21 | 0x07<<27
 	case AFMOVS:
-		return OptionS<<10 | 0x3<<21 | 0x17<<27 | 1<<26
+		op = OptionS<<10 | 0x3<<21 | 0x17<<27 | 1<<26
 	case AFMOVD:
-		return OptionS<<10 | 0x3<<21 | 0x1f<<27 | 1<<26
+		op = OptionS<<10 | 0x3<<21 | 0x1f<<27 | 1<<26
+	default:
+		c.ctxt.Diag("bad opldrr %v\n%v", a, p)
+		return 0
 	}
-	c.ctxt.Diag("bad opldrr %v\n%v", a, p)
-	return 0
+	op |= uint32(rm&31)<<16 | uint32(rn&31)<<5 | uint32(rt&31)
+
+	return op
 }
 
 // opstrr returns the ARM64 opcode encoding corresponding to the obj.As opcode
 // for store instruction with register offset.
 // The offset register can be (Rn)(Rm.UXTW<<2) or (Rn)(Rm<<2) or (Rn)(Rm).
-func (c *ctxt7) opstrr(p *obj.Prog, a obj.As, extension bool) uint32 {
+func (c *ctxt7) opstrr(p *obj.Prog, a obj.As, rt, rn, rm int16, extension bool) uint32 {
+	var op uint32
+
 	OptionS := uint32(0x1a)
 	if extension {
 		OptionS = uint32(0) // option value and S value have been encoded into p.To.Offset.
 	}
 	switch a {
 	case AMOVD:
-		return OptionS<<10 | 0x1<<21 | 0x1f<<27
+		op = OptionS<<10 | 0x1<<21 | 0x1f<<27
 	case AMOVW, AMOVWU:
-		return OptionS<<10 | 0x1<<21 | 0x17<<27
+		op = OptionS<<10 | 0x1<<21 | 0x17<<27
 	case AMOVH, AMOVHU:
-		return OptionS<<10 | 0x1<<21 | 0x0f<<27
+		op = OptionS<<10 | 0x1<<21 | 0x0f<<27
 	case AMOVB, AMOVBU:
-		return OptionS<<10 | 0x1<<21 | 0x07<<27
+		op = OptionS<<10 | 0x1<<21 | 0x07<<27
 	case AFMOVS:
-		return OptionS<<10 | 0x1<<21 | 0x17<<27 | 1<<26
+		op = OptionS<<10 | 0x1<<21 | 0x17<<27 | 1<<26
 	case AFMOVD:
-		return OptionS<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
+		op = OptionS<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
+	default:
+		c.ctxt.Diag("bad opstrr %v\n%v", a, p)
+		return 0
 	}
-	c.ctxt.Diag("bad opstrr %v\n%v", a, p)
-	return 0
+	op |= uint32(rm&31)<<16 | uint32(rn&31)<<5 | uint32(rt&31)
+
+	return op
 }
 
 func (c *ctxt7) oaddi(p *obj.Prog, a obj.As, v int32, rd, rn int16) uint32 {
