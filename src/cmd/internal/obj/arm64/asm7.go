@@ -3708,31 +3708,30 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		v := int32(c.regoff(&p.To))
 		sz := int32(1 << uint(movesize(p.As)))
 
-		r := p.To.Reg
-		if r == obj.REG_NONE {
-			r = o.param
+		rt, rf := p.To.Reg, p.From.Reg
+		if rt == obj.REG_NONE {
+			rt = o.param
 		}
 		if v < 0 || v%sz != 0 { /* unscaled 9-bit signed */
-			o1 = c.olsr9s(p, int32(c.opstr(p, p.As)), v, int(r), int(p.From.Reg))
+			o1 = c.olsr9s(p, c.opstr(p, p.As), v, rt, rf)
 		} else {
 			v = int32(c.offsetshift(p, int64(v), int(o.a4)))
-			o1 = c.olsr12u(p, c.opstr(p, p.As), v, r, p.From.Reg)
+			o1 = c.olsr12u(p, c.opstr(p, p.As), v, rt, rf)
 		}
 
 	case 21: /* movT O(R),R -> ldrT */
 		v := int32(c.regoff(&p.From))
 		sz := int32(1 << uint(movesize(p.As)))
 
-		r := p.From.Reg
-		if r == obj.REG_NONE {
-			r = o.param
+		rt, rf := p.To.Reg, p.From.Reg
+		if rf == obj.REG_NONE {
+			rf = o.param
 		}
 		if v < 0 || v%sz != 0 { /* unscaled 9-bit signed */
-			o1 = c.olsr9s(p, int32(c.opldr(p, p.As)), v, int(r), int(p.To.Reg))
+			o1 = c.olsr9s(p, c.opldr(p, p.As), v, rf, rt)
 		} else {
 			v = int32(c.offsetshift(p, int64(v), int(o.a1)))
-			//print("offset=%lld v=%ld a1=%d\n", instoffset, v, o->a1);
-			o1 = c.olsr12u(p, c.opldr(p, p.As), v, r, p.To.Reg)
+			o1 = c.olsr12u(p, c.opldr(p, p.As), v, rf, rt)
 		}
 
 	case 22: /* movT (R)O!,R; movT O(R)!, R -> ldrT */
@@ -6948,13 +6947,13 @@ func (c *ctxt7) opstore(p *obj.Prog, a obj.As) uint32 {
  * load/store register (scaled 12-bit unsigned immediate) C3.3.13
  *	these produce 64-bit values (when there's an option)
  */
-func (c *ctxt7) olsr12u(p *obj.Prog, o uint32, v int32, b, r int16) uint32 {
+func (c *ctxt7) olsr12u(p *obj.Prog, o uint32, v int32, rn, rt int16) uint32 {
 	if v < 0 || v >= (1<<12) {
 		c.ctxt.Diag("offset out of range: %d\n%v", v, p)
 	}
 	o |= uint32(v&0xFFF) << 10
-	o |= uint32(b&31) << 5
-	o |= uint32(r & 31)
+	o |= uint32(rn&31) << 5
+	o |= uint32(rt & 31)
 	o |= 1 << 24
 	return o
 }
@@ -6962,14 +6961,14 @@ func (c *ctxt7) olsr12u(p *obj.Prog, o uint32, v int32, b, r int16) uint32 {
 /*
  * load/store register (unscaled 9-bit signed immediate) C3.3.12
  */
-func (c *ctxt7) olsr9s(p *obj.Prog, o int32, v int32, b int, r int) uint32 {
+func (c *ctxt7) olsr9s(p *obj.Prog, o uint32, v int32, rn, rt int16) uint32 {
 	if v < -256 || v > 255 {
 		c.ctxt.Diag("offset out of range: %d\n%v", v, p)
 	}
-	o |= (v & 0x1FF) << 12
-	o |= int32(b&31) << 5
-	o |= int32(r & 31)
-	return uint32(o)
+	o |= uint32((v & 0x1FF) << 12)
+	o |= uint32(rn&31) << 5
+	o |= uint32(rt & 31)
+	return o
 }
 
 // store(immediate)
