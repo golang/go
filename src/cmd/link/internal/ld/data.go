@@ -2536,7 +2536,7 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 //
 // The same applies to Darwin/ARM64, with 2^27 byte threshold.
 func splitTextSections(ctxt *Link) bool {
-	return (ctxt.IsARM() || ctxt.IsPPC64() || (ctxt.IsARM64() && ctxt.IsDarwin())) && ctxt.IsExternal()
+	return (ctxt.IsPPC64() || (ctxt.IsARM64() && ctxt.IsDarwin())) && ctxt.IsExternal()
 }
 
 // On Wasm, we reserve 4096 bytes for zero page, then 8192 bytes for wasm_exec.js
