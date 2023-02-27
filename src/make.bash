@@ -131,103 +131,25 @@ do
 	fi
 done
 
-# Test for debian/kFreeBSD.
-# cmd/dist will detect kFreeBSD as freebsd/$GOARCH, but we need to
-# disable cgo manually.
-if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
-	export CGO_ENABLED=0
-fi
+for i in cmd runtime
+do
+	cd $i
+	bash make.bash
+	cd ..
+done
 
-# Clean old generated file that will cause problems in the build.
-rm -f ./runtime/runtime_defs.go
+# do these after go compiler and runtime are built
+for i in syscall
+do
+	echo; echo; echo %%%% making $i %%%%; echo
+	cd $i
+	make install
+	cd ..
+done
 
-# Finally!  Run the build.
-
-verbose=false
-vflag=""
-if [ "$1" = "-v" ]; then
-	verbose=true
-	vflag=-v
-	shift
-fi
-
-goroot_bootstrap_set=${GOROOT_BOOTSTRAP+"true"}
-if [ -z "$GOROOT_BOOTSTRAP" ]; then
-	GOROOT_BOOTSTRAP="$HOME/go1.4"
-	for d in sdk/go$bootgo go$bootgo; do
-		if [ -d "$HOME/$d" ]; then
-			GOROOT_BOOTSTRAP="$HOME/$d"
-		fi
-	done
-fi
-export GOROOT_BOOTSTRAP
-
-nogoenv() {
-	GO111MODULE=off GOENV=off GOOS= GOARCH= GOEXPERIMENT= GOFLAGS= "$@"
-}
-
-export GOROOT="$(cd .. && pwd)"
-IFS=$'\n'; for go_exe in $(type -ap go); do
-	if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
-		goroot=$(GOROOT= nogoenv "$go_exe" env GOROOT)
-		if [ "$goroot" != "$GOROOT" ]; then
-			if [ "$goroot_bootstrap_set" = "true" ]; then
-				printf 'WARNING: %s does not exist, found %s from env\n' "$GOROOT_BOOTSTRAP/bin/go" "$go_exe" >&2
-				printf 'WARNING: set %s as GOROOT_BOOTSTRAP\n' "$goroot" >&2
-			fi
-			GOROOT_BOOTSTRAP="$goroot"
-		fi
-	fi
-done; unset IFS
-if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
-	echo "ERROR: Cannot find $GOROOT_BOOTSTRAP/bin/go." >&2
-	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go $bootgo." >&2
-	exit 1
-fi
-# Get the exact bootstrap toolchain version to help with debugging.
-# We clear GOOS and GOARCH to avoid an ominous but harmless warning if
-# the bootstrap doesn't support them.
-GOROOT_BOOTSTRAP_VERSION=$(nogoenv "$GOROOT_BOOTSTRAP/bin/go" version | sed 's/go version //')
-echo "Building Go cmd/dist using $GOROOT_BOOTSTRAP. ($GOROOT_BOOTSTRAP_VERSION)"
-if $verbose; then
-	echo cmd/dist
-fi
-if [ "$GOROOT_BOOTSTRAP" = "$GOROOT" ]; then
-	echo "ERROR: \$GOROOT_BOOTSTRAP must not be set to \$GOROOT" >&2
-	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go $bootgo." >&2
-	exit 1
-fi
-rm -f cmd/dist/dist
-GOROOT="$GOROOT_BOOTSTRAP" nogoenv "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
-
-# -e doesn't propagate out of eval, so check success by hand.
-eval $(./cmd/dist/dist env -p || echo FAIL=true)
-if [ "$FAIL" = true ]; then
-	exit 1
-fi
-
-if $verbose; then
-	echo
-fi
-
-if [ "$1" = "--dist-tool" ]; then
-	# Stop after building dist tool.
-	mkdir -p "$GOTOOLDIR"
-	if [ "$2" != "" ]; then
-		cp cmd/dist/dist "$2"
-	fi
-	mv cmd/dist/dist "$GOTOOLDIR"/dist
-	exit 0
-fi
-
-# Run dist bootstrap to complete make.bash.
-# Bootstrap installs a proper cmd/dist, built with the new toolchain.
-# Throw ours, built with the bootstrap toolchain, away after bootstrap.
-./cmd/dist/dist bootstrap -a $vflag $GO_DISTFLAGS "$@"
-rm -f ./cmd/dist/dist
-
-# DO NOT ADD ANY NEW CODE HERE.
-# The bootstrap+rm above are the final step of make.bash.
-# If something must be added, add it to cmd/dist's cmdbootstrap,
-# to avoid needing three copies in three different shell languages
-# (make.bash, make.bat, make.rc).
+for i in lib
+do
+	cd $i
+	bash make.bash
+	cd ..
+done
