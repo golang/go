@@ -1,0 +1,7 @@
+{
+    "C_Cpp.default.configurationProvider": "ms-vscode.makefile-tools",
+    "go.toolsEnvVars": {},
+    "githubPullRequests.ignoredPullRequestBranches": [
+        "master"
+    ]
+}
