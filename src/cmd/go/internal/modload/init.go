@@ -388,8 +388,8 @@ func Init() {
 			base.Fatalf("go: -modfile cannot be used with commands that ignore the current module")
 		}
 		modRoots = nil
-	} else if inWorkspaceMode() {
-		// We're in workspace mode.
+	} else if workFilePath != "" {
+		// We're in workspace mode, which implies module mode.
 	} else {
 		if modRoot := findModuleRoot(base.Cwd()); modRoot == "" {
 			if cfg.ModFile != "" {
@@ -495,6 +495,9 @@ func VendorDir() string {
 func inWorkspaceMode() bool {
 	if !initialized {
 		panic("inWorkspaceMode called before modload.Init called")
+	}
+	if !Enabled() {
+		return false
 	}
 	return workFilePath != ""
 }
