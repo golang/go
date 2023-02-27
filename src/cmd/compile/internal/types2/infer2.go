@@ -8,7 +8,6 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
-	. "internal/types/errors"
 )
 
 // If compareWithInfer1, infer2 results must match infer1 results.
@@ -29,7 +28,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 		assert(len(r2) == len(r1))
 		for i, targ2 := range r2 {
 			targ1 := r1[i]
-			var c comparer
+			c := comparer{ignoreInvalids: true}
 			c.ignoreInvalids = true
 			if !c.identical(targ2, targ1, nil) {
 				tpar := tparams[i]
