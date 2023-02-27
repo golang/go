@@ -325,6 +325,9 @@ var optab = []Optab{
 	{as: AADDEX, a1: C_REG, a2: C_REG, a3: C_SCON, a6: C_REG, type_: 94, size: 4}, /* add extended using alternate carry, z23-form */
 	{as: ACRAND, a1: C_CRBIT, a2: C_CRBIT, a6: C_CRBIT, type_: 2, size: 4},        /* logical ops for condition register bits xl-form */
 
+	/* Misc ISA 3.0 instructions */
+	{as: ASETB, a1: C_CREG, a6: C_REG, type_: 110, size: 4},
+
 	/* Vector instructions */
 
 	/* Vector load */
@@ -2111,6 +2114,7 @@ func buildop(ctxt *obj.Link) {
 			AMTVSRDD,
 			APNOP,
 			AISEL,
+			ASETB,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AUNDEF,
@@ -2335,6 +2339,7 @@ const (
 	OP_RLDICL   = 30<<26 | 0<<1 | 0<<10 | 0
 	OP_RLDCL    = 30<<26 | 8<<1 | 0<<10 | 0
 	OP_EXTSWSLI = 31<<26 | 445<<2
+	OP_SETB     = 31<<26 | 128<<1
 )
 
 func pfxadd(rt, ra int16, r uint32, imm32 int64) (uint32, uint32) {
@@ -3971,6 +3976,11 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		o1 = AOP_RRR(c.oploadx(p.As), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
 		// Sign extend MOVB operations. This is ignored for other cases (o.size == 4).
 		o2 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
+
+	case 110: /* SETB creg, rt */
+		bfa := uint32(p.From.Reg) << 2
+		rt := uint32(p.To.Reg)
+		o1 = LOP_RRR(OP_SETB, bfa, rt, 0)
 	}
 
 	out[0] = o1

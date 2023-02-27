@@ -333,6 +333,7 @@ var Anames = []string{
 	"EXTSWSLICC",
 	"STDCCC",
 	"TD",
+	"SETB",
 	"DWORD",
 	"REMD",
 	"REMDU",

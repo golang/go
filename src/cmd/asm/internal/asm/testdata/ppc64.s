@@ -1087,4 +1087,6 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
 	MOVD 4(R1), XER                 // ebe100047fe103a6
 	PNOP                            // 0700000000000000
 
+	SETB CR1,R3                     // 7c640100
+
 	RET
