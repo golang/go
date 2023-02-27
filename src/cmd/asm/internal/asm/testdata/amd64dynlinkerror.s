@@ -66,3 +66,9 @@ two:
 one:
 	MOVL $0, R15
 	JMP two
+
+// Ensure 3-arg instructions get GOT-rewritten without errors.
+// See issue 58735.
+TEXT ·a13(SB), 0, $0-0
+	MULXQ runtime·writeBarrier(SB), AX, CX
+	RET

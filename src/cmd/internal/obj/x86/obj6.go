@@ -497,6 +497,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	p2.As = p.As
 	p2.From = p.From
 	p2.To = p.To
+	if from3 := p.GetFrom3(); from3 != nil {
+		p2.SetFrom3(*from3)
+	}
 	if p.From.Name == obj.NAME_EXTERN {
 		p2.From.Reg = reg
 		p2.From.Name = obj.NAME_NONE
