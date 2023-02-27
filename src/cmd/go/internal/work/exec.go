@@ -385,8 +385,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	for _, file := range inputFiles {
 		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
 	}
-	if cfg.BuildPGOFile != "" {
-		fmt.Fprintf(h, "pgofile %s\n", b.fileHash(cfg.BuildPGOFile))
+	if p.Internal.PGOProfile != "" {
+		fmt.Fprintf(h, "pgofile %s\n", b.fileHash(p.Internal.PGOProfile))
 	}
 	for _, a1 := range a.Deps {
 		p1 := a1.Package

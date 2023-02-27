@@ -206,6 +206,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		ptest.Internal.Embed = testEmbed
 		ptest.EmbedFiles = str.StringList(p.EmbedFiles, p.TestEmbedFiles)
 		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath
+		ptest.Internal.PGOProfile = p.Internal.PGOProfile
 		ptest.Internal.Build.Directives = append(slices.Clip(p.Internal.Build.Directives), p.Internal.Build.TestDirectives...)
 		ptest.collectDeps()
 	} else {
@@ -243,6 +244,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 				Gccgoflags:     p.Internal.Gccgoflags,
 				Embed:          xtestEmbed,
 				OrigImportPath: p.Internal.OrigImportPath,
+				PGOProfile:     p.Internal.PGOProfile,
 			},
 		}
 		if pxtestNeedsPtest {
@@ -270,6 +272,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 			Ldflags:        p.Internal.Ldflags,
 			Gccgoflags:     p.Internal.Gccgoflags,
 			OrigImportPath: p.Internal.OrigImportPath,
+			PGOProfile:     p.Internal.PGOProfile,
 		},
 	}
 

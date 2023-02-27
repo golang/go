@@ -232,6 +232,7 @@ type PackageInternal struct {
 	TestmainGo        *[]byte              // content for _testmain.go
 	Embed             map[string][]string  // //go:embed comment mapping
 	OrigImportPath    string               // original import path before adding '_test' suffix
+	PGOProfile        string               // path to PGO profile
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
@@ -2385,11 +2386,11 @@ func (p *Package) setBuildInfo(autoVCS bool) {
 			appendSetting("-ldflags", ldflags)
 		}
 	}
-	if cfg.BuildPGOFile != "" {
+	if p.Internal.PGOProfile != "" {
 		if cfg.BuildTrimpath {
-			appendSetting("-pgo", filepath.Base(cfg.BuildPGOFile))
+			appendSetting("-pgo", filepath.Base(p.Internal.PGOProfile))
 		} else {
-			appendSetting("-pgo", cfg.BuildPGOFile)
+			appendSetting("-pgo", p.Internal.PGOProfile)
 		}
 	}
 	if cfg.BuildMSan {
@@ -2894,7 +2895,7 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 	return pkgs
 }
 
-// setPGOProfilePath sets cfg.BuildPGOFile to the PGO profile path.
+// setPGOProfilePath sets the PGO profile path for pkgs.
 // In -pgo=auto mode, it finds the default PGO profile.
 func setPGOProfilePath(pkgs []*Package) {
 	switch cfg.BuildPGO {
@@ -2929,16 +2930,21 @@ func setPGOProfilePath(pkgs []*Package) {
 		}
 		file := filepath.Join(mainpkg.Dir, "default.pgo")
 		if fi, err := os.Stat(file); err == nil && !fi.IsDir() {
-			cfg.BuildPGOFile = file
+			for _, p := range PackageList(pkgs) {
+				p.Internal.PGOProfile = file
+			}
 		}
 
 	default:
 		// Profile specified from the command line.
 		// Make it absolute path, as the compiler runs on various directories.
-		if p, err := filepath.Abs(cfg.BuildPGO); err != nil {
+		file, err := filepath.Abs(cfg.BuildPGO)
+		if err != nil {
 			base.Fatalf("fail to get absolute path of PGO file %s: %v", cfg.BuildPGO, err)
-		} else {
-			cfg.BuildPGOFile = p
+		}
+
+		for _, p := range PackageList(pkgs) {
+			p.Internal.PGOProfile = file
 		}
 	}
 }
