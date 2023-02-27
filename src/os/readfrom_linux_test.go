@@ -13,6 +13,7 @@ import (
 	"os"
 	. "os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -701,6 +702,9 @@ func testGetPollFromReader(t *testing.T, proto string) {
 
 func createSocketPair(t *testing.T, proto string) (client, server net.Conn) {
 	t.Helper()
+	if !nettest.TestableNetwork(proto) {
+		t.Skipf("%s does not support %q", runtime.GOOS, proto)
+	}
 
 	ln, err := nettest.NewLocalListener(proto)
 	if err != nil {
