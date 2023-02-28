@@ -28,7 +28,7 @@ type pkcs8 struct {
 // ParsePKCS8PrivateKey parses an unencrypted private key in PKCS #8, ASN.1 DER form.
 //
 // It returns a *rsa.PrivateKey, a *ecdsa.PrivateKey, a ed25519.PrivateKey (not
-// a pointer), or a *ecdh.PublicKey (for X25519). More types might be supported
+// a pointer), or a *ecdh.PrivateKey (for X25519). More types might be supported
 // in the future.
 //
 // This kind of key is commonly encoded in PEM blocks of type "PRIVATE KEY".
