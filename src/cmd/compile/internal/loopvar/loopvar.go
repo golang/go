@@ -50,6 +50,10 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 		// will be transformed.
 		possiblyLeaked := make(map[*ir.Name]bool)
 
+		// these enable an optimization of "escape" under return statements
+		loopDepth := 0
+		returnInLoopDepth := 0
+
 		// noteMayLeak is called for candidate variables in for range/3-clause, and
 		// adds them (mapped to false) to possiblyLeaked.
 		noteMayLeak := func(x ir.Node) {
@@ -95,6 +99,11 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 		scanChildrenThenTransform = func(n ir.Node) bool {
 			switch x := n.(type) {
 			case *ir.ClosureExpr:
+				if returnInLoopDepth >= loopDepth {
+					// This expression is a child of a return, which escapes all loops above
+					// the return, but not those between this expression and the return.
+					break
+				}
 				for _, cv := range x.Func.ClosureVars {
 					v := cv.Canonical()
 					if _, ok := possiblyLeaked[v]; ok {
@@ -103,6 +112,11 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 				}
 
 			case *ir.AddrExpr:
+				if returnInLoopDepth >= loopDepth {
+					// This expression is a child of a return, which escapes all loops above
+					// the return, but not those between this expression and the return.
+					break
+				}
 				// Explicitly note address-taken so that return-statements can be excluded
 				y := ir.OuterValue(x.X)
 				if y.Op() != ir.ONAME {
@@ -119,6 +133,11 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 					}
 				}
 
+			case *ir.ReturnStmt:
+				savedRILD := returnInLoopDepth
+				returnInLoopDepth = loopDepth
+				defer func() { returnInLoopDepth = savedRILD }()
+
 			case *ir.RangeStmt:
 				if !(x.Def && x.DistinctVars) {
 					// range loop must define its iteration variables AND have distinctVars.
@@ -127,7 +146,9 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 				}
 				noteMayLeak(x.Key)
 				noteMayLeak(x.Value)
+				loopDepth++
 				ir.DoChildren(n, scanChildrenThenTransform)
+				loopDepth--
 				x.Key = maybeReplaceVar(x.Key, x)
 				x.Value = maybeReplaceVar(x.Value, x)
 				x.DistinctVars = false
@@ -138,7 +159,9 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 					break
 				}
 				forAllDefInInit(x, noteMayLeak)
+				loopDepth++
 				ir.DoChildren(n, scanChildrenThenTransform)
+				loopDepth--
 				var leaked []*ir.Name
 				// Collect the leaking variables for the much-more-complex transformation.
 				forAllDefInInit(x, func(z ir.Node) {

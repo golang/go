@@ -206,3 +206,41 @@ func TestLoopVarHashes(t *testing.T) {
 		t.Errorf("Did not see expected value of m run")
 	}
 }
+
+func TestLoopVarOpt(t *testing.T) {
+	switch runtime.GOOS {
+	case "linux", "darwin":
+	default:
+		t.Skipf("Slow test, usually avoid it, os=%s not linux or darwin", runtime.GOOS)
+	}
+	switch runtime.GOARCH {
+	case "amd64", "arm64":
+	default:
+		t.Skipf("Slow test, usually avoid it, arch=%s not amd64 or arm64", runtime.GOARCH)
+	}
+
+	testenv.MustHaveGoBuild(t)
+	gocmd := testenv.GoToolPath(t)
+
+	cmd := testenv.Command(t, gocmd, "run", "-gcflags=-d=loopvar=2", "opt.go")
+	cmd.Dir = filepath.Join("testdata")
+
+	b, err := cmd.CombinedOutput()
+	m := string(b)
+
+	t.Logf(m)
+
+	yCount := strings.Count(m, "opt.go:16:6: transformed loop variable private escapes (loop inlined into ./opt.go:30)")
+	nCount := strings.Count(m, "shared")
+
+	if yCount != 1 {
+		t.Errorf("yCount=%d != 1", yCount)
+	}
+	if nCount > 0 {
+		t.Errorf("nCount=%d > 0", nCount)
+	}
+	if err != nil {
+		t.Errorf("err=%v != nil", err)
+	}
+
+}
