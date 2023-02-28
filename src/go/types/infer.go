@@ -188,12 +188,12 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		u.tracef("type parameters: %s", tparams)
 	}
 
-	// Repeatedly apply constraint type inference as long as
-	// progress is being made.
+	// Unify type parameters with their constraints as long
+	// as progress is being made.
 	//
 	// This is an O(n^2) algorithm where n is the number of
 	// type parameters: if there is progress, at least one
-	// type argument is inferred per iteration and we have
+	// type argument is inferred per iteration, and we have
 	// a doubly nested loop.
 	//
 	// In practice this is not a problem because the number
@@ -207,6 +207,11 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		nn := u.unknowns()
 
 		for _, tpar := range tparams {
+			tx := u.at(tpar)
+			if traceInference && tx != nil {
+				u.tracef("%s = %s", tpar, tx)
+			}
+
 			// If there is a core term (i.e., a core type with tilde information)
 			// unify the type parameter with the core type.
 			if core, single := coreTerm(tpar); core != nil {
@@ -214,7 +219,6 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 					u.tracef("core(%s) = %s (single = %v)", tpar, core, single)
 				}
 				// A type parameter can be unified with its core type in two cases.
-				tx := u.at(tpar)
 				switch {
 				case tx != nil:
 					// The corresponding type argument tx is known. There are 2 cases:
@@ -240,6 +244,17 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			} else {
 				if traceInference {
 					u.tracef("core(%s) = nil", tpar)
+				}
+				if tx != nil {
+					// We don't have a core type, but the type argument tx is known.
+					// It must have (at least) all the methods of the type constraint,
+					// and the method signatures must unify; otherwise tx cannot satisfy
+					// the constraint.
+					constraint := tpar.iface()
+					if m, wrong := check.missingMethod(tx, constraint, true, u.unify); m != nil {
+						check.errorf(posn, CannotInferTypeArgs, "%s does not satisfy %s %s", tx, constraint, check.missingMethodCause(tx, constraint, m, wrong))
+						return nil
+					}
 				}
 			}
 		}
@@ -275,7 +290,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			j++
 		}
 	}
-	// untyped[:j] are the undices of parameters without a type yet
+	// untyped[:j] are the indices of parameters without a type yet
 	for _, i := range untyped[:j] {
 		tpar := params.At(i).typ.(*TypeParam)
 		arg := args[i]

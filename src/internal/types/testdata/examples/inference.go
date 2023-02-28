@@ -114,3 +114,38 @@ func _() {
 	// List[Elem].
 	related3 /* ERROR "cannot infer Slice" */ [int]()
 }
+
+func wantsMethods[P interface{ m1(Q); m2() R }, Q, R any](P) {}
+
+type hasMethods1 struct{}
+
+func (hasMethods1) m1(int)
+func (hasMethods1) m2() string
+
+type hasMethods2 struct{}
+
+func (*hasMethods2) m1(int)
+func (*hasMethods2) m2() string
+
+type hasMethods3 interface{
+	m1(float64)
+	m2() complex128
+}
+
+type hasMethods4 interface{
+	m1()
+}
+
+func _() {
+	// wantsMethod can be called with arguments that have the relevant methods
+	// and wantsMethod's type arguments are inferred from those types' method
+	// signatures.
+	wantsMethods(hasMethods1{})
+	wantsMethods(&hasMethods1{})
+	// TODO(gri) improve error message (the cause is ptr vs non-pointer receiver)
+	wantsMethods /* ERROR "hasMethods2 does not satisfy interface{m1(Q); m2() R} (wrong type for method m1)" */ (hasMethods2{})
+	wantsMethods(&hasMethods2{})
+	wantsMethods(hasMethods3(nil))
+	wantsMethods /* ERROR "any does not satisfy interface{m1(Q); m2() R} (missing method m1)" */ (any(nil))
+	wantsMethods /* ERROR "hasMethods4 does not satisfy interface{m1(Q); m2() R} (wrong type for method m1)" */ (hasMethods4(nil))
+}
