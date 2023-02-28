@@ -234,8 +234,17 @@ func hashExecutable() (hash [32]byte, err error) {
 // process, possibly running a different version of gopls, possibly
 // running concurrently.
 func gc(goplsDir string) {
-	const period = 1 * time.Minute           // period between collections
-	const statDelay = 100 * time.Microsecond // delay between stats to smooth out I/O
+	const period = 1 * time.Minute // period between collections
+	// Sleep statDelay*batchSize between stats to smooth out I/O.
+	//
+	// The constants below were chosen using the following heuristics:
+	//  - 1GB of filecache is on the order of ~100-200k files, in which case
+	//    100μs delay per file introduces 10-20s of additional walk time, less
+	//    than the 1m gc period.
+	//  - Processing batches of stats at once is much more efficient than
+	//    sleeping after every stat (due to OS optimizations).
+	const statDelay = 100 * time.Microsecond // average delay between stats, to smooth out I/O
+	const batchSize = 1000                   // # of stats to process before sleeping
 	const maxAge = 5 * 24 * time.Hour        // max time since last access before file is deleted
 
 	// The macOS filesystem is strikingly slow, at least on some machines.
@@ -261,6 +270,7 @@ func gc(goplsDir string) {
 			stat os.FileInfo
 		}
 		var files []item
+		start := time.Now()
 		var total int64 // bytes
 		_ = filepath.Walk(goplsDir, func(path string, stat os.FileInfo, err error) error {
 			if err != nil {
@@ -285,7 +295,12 @@ func gc(goplsDir string) {
 				} else {
 					files = append(files, item{path, stat})
 					total += stat.Size()
-					time.Sleep(statDelay)
+					if debug && len(files)%1000 == 0 {
+						log.Printf("filecache: checked %d files in %v", len(files), time.Since(start))
+					}
+					if len(files)%batchSize == 0 {
+						time.Sleep(batchSize * statDelay)
+					}
 				}
 			}
 			return nil
