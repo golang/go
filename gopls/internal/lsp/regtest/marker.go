@@ -1335,41 +1335,51 @@ func rename(env *Env, loc protocol.Location, newName string) (map[string][]byte,
 		return nil, err
 	}
 
-	return applyDocumentChanges(env, editMap.DocumentChanges)
+	fileChanges := make(map[string][]byte)
+	if err := applyDocumentChanges(env, editMap.DocumentChanges, fileChanges); err != nil {
+		return nil, fmt.Errorf("applying document changes: %v", err)
+	}
+	return fileChanges, nil
 }
 
-// applyDocumentChanges returns the effect of applying the document
-// changes to the contents of the Editor buffers. The actual editor
-// buffers are unchanged.
-func applyDocumentChanges(env *Env, changes []protocol.DocumentChanges) (map[string][]byte, error) {
-	result := make(map[string][]byte)
+// applyDocumentChanges applies the given document changes to the editor buffer
+// content, recording the resulting contents in the fileChanges map. It is an
+// error for a change to an edit a file that is already present in the
+// fileChanges map.
+func applyDocumentChanges(env *Env, changes []protocol.DocumentChanges, fileChanges map[string][]byte) error {
+	getMapper := func(path string) (*protocol.Mapper, error) {
+		if _, ok := fileChanges[path]; ok {
+			return nil, fmt.Errorf("internal error: %s is already edited", path)
+		}
+		return env.Editor.Mapper(path)
+	}
+
 	for _, change := range changes {
 		if change.RenameFile != nil {
 			// rename
 			oldFile := env.Sandbox.Workdir.URIToPath(change.RenameFile.OldURI)
-			newFile := env.Sandbox.Workdir.URIToPath(change.RenameFile.NewURI)
-			mapper, err := env.Editor.Mapper(oldFile)
+			mapper, err := getMapper(oldFile)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			result[newFile] = mapper.Content
-
+			newFile := env.Sandbox.Workdir.URIToPath(change.RenameFile.NewURI)
+			fileChanges[newFile] = mapper.Content
 		} else {
 			// edit
 			filename := env.Sandbox.Workdir.URIToPath(change.TextDocumentEdit.TextDocument.URI)
-			mapper, err := env.Editor.Mapper(filename)
+			mapper, err := getMapper(filename)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			patched, _, err := source.ApplyProtocolEdits(mapper, change.TextDocumentEdit.Edits)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			result[filename] = patched
+			fileChanges[filename] = patched
 		}
 	}
 
-	return result, nil
+	return nil
 }
 
 func codeActionMarker(mark marker, actionKind string, start, end protocol.Location, golden *Golden) {
@@ -1453,40 +1463,56 @@ func codeAction(env *Env, uri protocol.DocumentURI, rng protocol.Range, actionKi
 	}
 	action := candidates[0]
 
+	// Apply the codeAction.
+	//
+	// Spec:
+	//  "If a code action provides an edit and a command, first the edit is
+	//  executed and then the command."
+	fileChanges := make(map[string][]byte)
 	// An action may specify an edit and/or a command, to be
 	// applied in that order. But since applyDocumentChanges(env,
 	// action.Edit.DocumentChanges) doesn't compose, for now we
 	// assert that all commands used in the @suggestedfix tests
 	// return only a command.
-	if action.Edit != nil && action.Edit.DocumentChanges != nil {
-		env.T.Errorf("internal error: discarding unexpected CodeAction{Kind=%s, Title=%q}.Edit.DocumentChanges", action.Kind, action.Title)
-	}
-	if action.Command == nil {
-		return nil, fmt.Errorf("missing CodeAction{Kind=%s, Title=%q}.Command", action.Kind, action.Title)
-	}
-
-	// This is a typical CodeAction command:
-	//
-	//   Title:     "Implement error"
-	//   Command:   gopls.apply_fix
-	//   Arguments: [{"Fix":"stub_methods","URI":".../a.go","Range":...}}]
-	//
-	// The client makes an ExecuteCommand RPC to the server,
-	// which dispatches it to the ApplyFix handler.
-	// ApplyFix dispatches to the "stub_methods" suggestedfix hook (the meat).
-	// The server then makes an ApplyEdit RPC to the client,
-	// whose Awaiter hook gathers the edits instead of applying them.
-
-	_ = env.Awaiter.takeDocumentChanges() // reset (assuming Env is confined to this thread)
-
-	if _, err := env.Editor.Server.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
-		Command:   action.Command.Command,
-		Arguments: action.Command.Arguments,
-	}); err != nil {
-		env.T.Fatalf("error converting command %q to edits: %v", action.Command.Command, err)
+	if action.Edit != nil {
+		if action.Edit.Changes != nil {
+			env.T.Errorf("internal error: discarding unexpected CodeAction{Kind=%s, Title=%q}.Edit.Changes", action.Kind, action.Title)
+		}
+		if action.Edit.DocumentChanges != nil {
+			if err := applyDocumentChanges(env, action.Edit.DocumentChanges, fileChanges); err != nil {
+				return nil, fmt.Errorf("applying document changes: %v", err)
+			}
+		}
 	}
 
-	return applyDocumentChanges(env, env.Awaiter.takeDocumentChanges())
+	if action.Command != nil {
+		// This is a typical CodeAction command:
+		//
+		//   Title:     "Implement error"
+		//   Command:   gopls.apply_fix
+		//   Arguments: [{"Fix":"stub_methods","URI":".../a.go","Range":...}}]
+		//
+		// The client makes an ExecuteCommand RPC to the server,
+		// which dispatches it to the ApplyFix handler.
+		// ApplyFix dispatches to the "stub_methods" suggestedfix hook (the meat).
+		// The server then makes an ApplyEdit RPC to the client,
+		// whose Awaiter hook gathers the edits instead of applying them.
+
+		_ = env.Awaiter.takeDocumentChanges() // reset (assuming Env is confined to this thread)
+
+		if _, err := env.Editor.Server.ExecuteCommand(env.Ctx, &protocol.ExecuteCommandParams{
+			Command:   action.Command.Command,
+			Arguments: action.Command.Arguments,
+		}); err != nil {
+			env.T.Fatalf("error converting command %q to edits: %v", action.Command.Command, err)
+		}
+
+		if err := applyDocumentChanges(env, env.Awaiter.takeDocumentChanges(), fileChanges); err != nil {
+			return nil, fmt.Errorf("applying document changes from command: %v", err)
+		}
+	}
+
+	return fileChanges, nil
 }
 
 // TODO(adonovan): suggestedfixerr

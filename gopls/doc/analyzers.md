@@ -217,22 +217,6 @@ io.Reader, so this assertion cannot succeed.
 
 **Enabled by default.**
 
-## **infertypeargs**
-
-check for unnecessary type arguments in call expressions
-
-Explicit type arguments may be omitted from call expressions if they can be
-inferred from function arguments, or from other type arguments:
-
-	func f[T any](T) {}
-	
-	func _() {
-		f[string]("foo") // string could be inferred
-	}
-
-
-**Enabled by default.**
-
 ## **loopclosure**
 
 check references to loop variables from within nested functions
@@ -751,6 +735,22 @@ This analyzer provides diagnostics for any struct literals that do not have
 any fields initialized. Because the suggested fix for this analysis is
 expensive to compute, callers should compute it separately, using the
 SuggestedFix function below.
+
+
+**Enabled by default.**
+
+## **infertypeargs**
+
+check for unnecessary type arguments in call expressions
+
+Explicit type arguments may be omitted from call expressions if they can be
+inferred from function arguments, or from other type arguments:
+
+	func f[T any](T) {}
+	
+	func _() {
+		f[string]("foo") // string could be inferred
+	}
 
 
 **Enabled by default.**

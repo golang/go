@@ -1,0 +1,38 @@
+This test verifies the infertypeargs refactoring.
+
+-- flags --
+-min_go=go1.18
+
+-- go.mod --
+module mod.test/infertypeargs
+
+go 1.18
+
+-- p.go --
+package infertypeargs
+
+func app[S interface{ ~[]E }, E interface{}](s S, e E) S {
+	return append(s, e)
+}
+
+func _() {
+	_ = app[[]int]
+	_ = app[[]int, int]
+	_ = app[[]int]([]int{}, 0) //@codeaction("refactor.rewrite", "app", ")", infer)
+	_ = app([]int{}, 0)
+}
+
+-- @infer/p.go --
+package infertypeargs
+
+func app[S interface{ ~[]E }, E interface{}](s S, e E) S {
+	return append(s, e)
+}
+
+func _() {
+	_ = app[[]int]
+	_ = app[[]int, int]
+	_ = app([]int{}, 0) //@codeaction("refactor.rewrite", "app", ")", infer)
+	_ = app([]int{}, 0)
+}
+

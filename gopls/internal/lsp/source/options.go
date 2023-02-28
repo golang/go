@@ -1402,6 +1402,11 @@ func convenienceAnalyzers() map[string]*Analyzer {
 			Fix:        StubMethods,
 			Enabled:    true,
 		},
+		infertypeargs.Analyzer.Name: {
+			Analyzer:   infertypeargs.Analyzer,
+			Enabled:    true,
+			ActionKind: []protocol.CodeActionKind{protocol.RefactorRewrite},
+		},
 	}
 }
 
@@ -1445,7 +1450,6 @@ func defaultAnalyzers() map[string]*Analyzer {
 		unusedparams.Analyzer.Name:     {Analyzer: unusedparams.Analyzer, Enabled: false},
 		unusedwrite.Analyzer.Name:      {Analyzer: unusedwrite.Analyzer, Enabled: false},
 		useany.Analyzer.Name:           {Analyzer: useany.Analyzer, Enabled: false},
-		infertypeargs.Analyzer.Name:    {Analyzer: infertypeargs.Analyzer, Enabled: true},
 		embeddirective.Analyzer.Name:   {Analyzer: embeddirective.Analyzer, Enabled: true},
 		timeformat.Analyzer.Name:       {Analyzer: timeformat.Analyzer, Enabled: true},
 

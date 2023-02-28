@@ -282,11 +282,6 @@ var GeneratedAPIJSON = &APIJSON{
 							Default: "true",
 						},
 						{
-							Name:    "\"infertypeargs\"",
-							Doc:     "check for unnecessary type arguments in call expressions\n\nExplicit type arguments may be omitted from call expressions if they can be\ninferred from function arguments, or from other type arguments:\n\n\tfunc f[T any](T) {}\n\t\n\tfunc _() {\n\t\tf[string](\"foo\") // string could be inferred\n\t}\n",
-							Default: "true",
-						},
-						{
 							Name:    "\"loopclosure\"",
 							Doc:     "check references to loop variables from within nested functions\n\nThis analyzer reports places where a function literal references the\niteration variable of an enclosing loop, and the loop calls the function\nin such a way (e.g. with go or defer) that it may outlive the loop\niteration and possibly observe the wrong value of the variable.\n\nIn this example, all the deferred functions run after the loop has\ncompleted, so all observe the final value of v.\n\n\tfor _, v := range list {\n\t    defer func() {\n\t        use(v) // incorrect\n\t    }()\n\t}\n\nOne fix is to create a new variable for each iteration of the loop:\n\n\tfor _, v := range list {\n\t    v := v // new var per iteration\n\t    defer func() {\n\t        use(v) // ok\n\t    }()\n\t}\n\nThe next example uses a go statement and has a similar problem.\nIn addition, it has a data race because the loop updates v\nconcurrent with the goroutines accessing it.\n\n\tfor _, v := range elem {\n\t    go func() {\n\t        use(v)  // incorrect, and a data race\n\t    }()\n\t}\n\nA fix is the same as before. The checker also reports problems\nin goroutines started by golang.org/x/sync/errgroup.Group.\nA hard-to-spot variant of this form is common in parallel tests:\n\n\tfunc Test(t *testing.T) {\n\t    for _, test := range tests {\n\t        t.Run(test.name, func(t *testing.T) {\n\t            t.Parallel()\n\t            use(test) // incorrect, and a data race\n\t        })\n\t    }\n\t}\n\nThe t.Parallel() call causes the rest of the function to execute\nconcurrent with the loop.\n\nThe analyzer reports references only in the last statement,\nas it is not deep enough to understand the effects of subsequent\nstatements that might render the reference benign.\n(\"Last statement\" is defined recursively in compound\nstatements such as if, switch, and select.)\n\nSee: https://golang.org/doc/go_faq.html#closures_and_goroutines",
 							Default: "true",
@@ -434,6 +429,11 @@ var GeneratedAPIJSON = &APIJSON{
 						{
 							Name:    "\"fillstruct\"",
 							Doc:     "note incomplete struct initializations\n\nThis analyzer provides diagnostics for any struct literals that do not have\nany fields initialized. Because the suggested fix for this analysis is\nexpensive to compute, callers should compute it separately, using the\nSuggestedFix function below.\n",
+							Default: "true",
+						},
+						{
+							Name:    "\"infertypeargs\"",
+							Doc:     "check for unnecessary type arguments in call expressions\n\nExplicit type arguments may be omitted from call expressions if they can be\ninferred from function arguments, or from other type arguments:\n\n\tfunc f[T any](T) {}\n\t\n\tfunc _() {\n\t\tf[string](\"foo\") // string could be inferred\n\t}\n",
 							Default: "true",
 						},
 						{
@@ -952,11 +952,6 @@ var GeneratedAPIJSON = &APIJSON{
 			Default: true,
 		},
 		{
-			Name:    "infertypeargs",
-			Doc:     "check for unnecessary type arguments in call expressions\n\nExplicit type arguments may be omitted from call expressions if they can be\ninferred from function arguments, or from other type arguments:\n\n\tfunc f[T any](T) {}\n\t\n\tfunc _() {\n\t\tf[string](\"foo\") // string could be inferred\n\t}\n",
-			Default: true,
-		},
-		{
 			Name:    "loopclosure",
 			Doc:     "check references to loop variables from within nested functions\n\nThis analyzer reports places where a function literal references the\niteration variable of an enclosing loop, and the loop calls the function\nin such a way (e.g. with go or defer) that it may outlive the loop\niteration and possibly observe the wrong value of the variable.\n\nIn this example, all the deferred functions run after the loop has\ncompleted, so all observe the final value of v.\n\n\tfor _, v := range list {\n\t    defer func() {\n\t        use(v) // incorrect\n\t    }()\n\t}\n\nOne fix is to create a new variable for each iteration of the loop:\n\n\tfor _, v := range list {\n\t    v := v // new var per iteration\n\t    defer func() {\n\t        use(v) // ok\n\t    }()\n\t}\n\nThe next example uses a go statement and has a similar problem.\nIn addition, it has a data race because the loop updates v\nconcurrent with the goroutines accessing it.\n\n\tfor _, v := range elem {\n\t    go func() {\n\t        use(v)  // incorrect, and a data race\n\t    }()\n\t}\n\nA fix is the same as before. The checker also reports problems\nin goroutines started by golang.org/x/sync/errgroup.Group.\nA hard-to-spot variant of this form is common in parallel tests:\n\n\tfunc Test(t *testing.T) {\n\t    for _, test := range tests {\n\t        t.Run(test.name, func(t *testing.T) {\n\t            t.Parallel()\n\t            use(test) // incorrect, and a data race\n\t        })\n\t    }\n\t}\n\nThe t.Parallel() call causes the rest of the function to execute\nconcurrent with the loop.\n\nThe analyzer reports references only in the last statement,\nas it is not deep enough to understand the effects of subsequent\nstatements that might render the reference benign.\n(\"Last statement\" is defined recursively in compound\nstatements such as if, switch, and select.)\n\nSee: https://golang.org/doc/go_faq.html#closures_and_goroutines",
 			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/loopclosure",
@@ -1117,6 +1112,11 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "fillstruct",
 			Doc:     "note incomplete struct initializations\n\nThis analyzer provides diagnostics for any struct literals that do not have\nany fields initialized. Because the suggested fix for this analysis is\nexpensive to compute, callers should compute it separately, using the\nSuggestedFix function below.\n",
+			Default: true,
+		},
+		{
+			Name:    "infertypeargs",
+			Doc:     "check for unnecessary type arguments in call expressions\n\nExplicit type arguments may be omitted from call expressions if they can be\ninferred from function arguments, or from other type arguments:\n\n\tfunc f[T any](T) {}\n\t\n\tfunc _() {\n\t\tf[string](\"foo\") // string could be inferred\n\t}\n",
 			Default: true,
 		},
 		{

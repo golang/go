@@ -39,8 +39,7 @@ func app[S interface{ ~[]E }, E interface{}](s S, e E) S {
 func _() {
 	_ = app[[]int]             //@hover("app", "app", appint)
 	_ = app[[]int, int]        //@hover("app", "app", appint)
-	// TODO(rfindley): eliminate this diagnostic.
-	_ = app[[]int]([]int{}, 0) //@hover("app", "app", appint),diag("[[]int]", re"unnecessary type arguments")
+	_ = app[[]int]([]int{}, 0) //@hover("app", "app", appint)
 	_ = app([]int{}, 0)        //@hover("app", "app", appint)
 }
 
