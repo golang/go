@@ -305,20 +305,22 @@ func (l *instanceLookup) add(inst *Named) {
 // present in V have matching types (e.g., for a type assertion x.(T) where
 // x is of interface type V).
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
-	m, alt := (*Checker)(nil).missingMethod(V, T, static)
+	m, alt := (*Checker)(nil).missingMethod(V, T, static, Identical)
 	// Only report a wrong type if the alternative method has the same name as m.
 	return m, alt != nil && alt.name == m.name // alt != nil implies m != nil
 }
 
-// missingMethod is like MissingMethod but accepts a *Checker as receiver.
+// missingMethod is like MissingMethod but accepts a *Checker as receiver
+// and comparator equivalent for type comparison.
 // The receiver may be nil if missingMethod is invoked through an exported
 // API call (such as MissingMethod), i.e., when all methods have been type-
 // checked.
+// The comparator is used to compare signatures.
 //
 // If a method is missing on T but is found on *T, or if a method is found
 // on T when looked up with case-folding, this alternative method is returned
 // as the second result.
-func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, alt *Func) {
+func (check *Checker) missingMethod(V Type, T *Interface, static bool, equivalent func(x, y Type) bool) (method, alt *Func) {
 	if T.NumMethods() == 0 {
 		return
 	}
@@ -336,7 +338,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 				return m, nil
 			}
 
-			if !Identical(f.typ, m.typ) {
+			if !equivalent(f.typ, m.typ) {
 				return m, f
 			}
 		}
@@ -370,7 +372,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			check.objDecl(f, nil)
 		}
 
-		if !found || !Identical(f.typ, m.typ) {
+		if !found || !equivalent(f.typ, m.typ) {
 			return m, f
 		}
 	}
@@ -467,7 +469,7 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
 		return
 	}
 	// TODO(gri) fix this for generalized interfaces
-	return check.missingMethod(T, V, false)
+	return check.missingMethod(T, V, false, Identical)
 }
 
 // newAssertableTo reports whether a value of type V can be asserted to have type T.
