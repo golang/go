@@ -250,14 +250,14 @@ func (p *Profile) initializeIRGraph() {
 	// Bottomup walk over the function to create IRGraph.
 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
 		for _, n := range list {
-			p.VisitIR(n, recursive)
+			p.VisitIR(n)
 		}
 	})
 }
 
 // VisitIR traverses the body of each ir.Func and use NodeMap to determine if
 // we need to add an edge from ir.Func and any node in the ir.Func body.
-func (p *Profile) VisitIR(fn *ir.Func, recursive bool) {
+func (p *Profile) VisitIR(fn *ir.Func) {
 	g := p.WeightedCG
 
 	if g.IRNodes == nil {
