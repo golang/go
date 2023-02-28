@@ -425,11 +425,14 @@ TEXT gogo<>(SB), NOSPLIT, $0
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return. It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-8
+TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $0-8
 	MOVQ	AX, DX	// DX = fn
 
-	// save state in g->sched
-	MOVQ	0(SP), BX	// caller's PC
+	// Save state in g->sched.
+	// The original frame pointer is stored in BP,
+	// which is useful for stack unwinding.
+	MOVQ	SP, BX	// hide (SP) reads from vet
+	MOVQ	8(BX), BX	// caller's PC
 	MOVQ	BX, (g_sched+gobuf_pc)(R14)
 	LEAQ	fn+0(FP), BX	// caller's SP
 	MOVQ	BX, (g_sched+gobuf_sp)(R14)
@@ -459,11 +462,17 @@ goodm:
 // lives at the bottom of the G stack from the one that lives
 // at the top of the system stack because the one at the top of
 // the system stack terminates the stack walk (see topofstack()).
+// The frame layout needs to match systemstack
+// so that it can pretend to be systemstack_switch.
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+	UNDEF
+	// Make sure this function is not leaf,
+	// so the frame is saved.
+	CALL	runtime·abort(SB)
 	RET
 
 // func systemstack(fn func())
-TEXT runtime·systemstack(SB), NOSPLIT|NOFRAME, $0-8
+TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	MOVQ	fn+0(FP), DI	// DI = fn
 	get_tls(CX)
 	MOVQ	g(CX), AX	// AX = g
@@ -479,16 +488,17 @@ TEXT runtime·systemstack(SB), NOSPLIT|NOFRAME, $0-8
 	CMPQ	AX, m_curg(BX)
 	JNE	bad
 
-	// switch stacks
-	// save our state in g->sched. Pretend to
+	// Switch stacks.
+	// The original frame pointer is stored in BP,
+	// which is useful for stack unwinding.
+	// Save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	CALL	gosave_systemstack_switch<>(SB)
 
 	// switch to g0
 	MOVQ	DX, g(CX)
 	MOVQ	DX, R14 // set the g register
-	MOVQ	(g_sched+gobuf_sp)(DX), BX
-	MOVQ	BX, SP
+	MOVQ	(g_sched+gobuf_sp)(DX), SP
 
 	// call target function
 	MOVQ	DI, DX
@@ -502,7 +512,9 @@ TEXT runtime·systemstack(SB), NOSPLIT|NOFRAME, $0-8
 	MOVQ	m_curg(BX), AX
 	MOVQ	AX, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(AX), SP
+	MOVQ	(g_sched+gobuf_bp)(AX), BP
 	MOVQ	$0, (g_sched+gobuf_sp)(AX)
+	MOVQ	$0, (g_sched+gobuf_bp)(AX)
 	RET
 
 noswitch:
@@ -511,6 +523,9 @@ noswitch:
 	// at an intermediate systemstack.
 	MOVQ	DI, DX
 	MOVQ	0(DI), DI
+	// The function epilogue is not called on a tail call.
+	// Pop BP from the stack to simulate it.
+	POPQ	BP
 	JMP	DI
 
 bad:
@@ -571,6 +586,7 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	m_g0(BX), BX
 	MOVQ	BX, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(BX), SP
+	MOVQ	(g_sched+gobuf_bp)(BX), BP
 	CALL	runtime·newstack(SB)
 	CALL	runtime·abort(SB)	// crash if newstack returns
 	RET
@@ -769,11 +785,15 @@ TEXT ·publicationBarrier<ABIInternal>(SB),NOSPLIT,$0-0
 
 // Save state of caller into g->sched,
 // but using fake PC from systemstack_switch.
-// Must only be called from functions with no locals ($0)
-// or else unwinding from systemstack_switch is incorrect.
+// Must only be called from functions with frame pointer
+// and without locals ($0) or else unwinding from
+// systemstack_switch is incorrect.
 // Smashes R9.
 TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
-	MOVQ	$runtime·systemstack_switch(SB), R9
+	// Take systemstack_switch PC and add 8 bytes to skip
+	// the prologue. The final location does not matter
+	// as long as we are between the prologue and the epilogue.
+	MOVQ	$runtime·systemstack_switch+8(SB), R9
 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
 	LEAQ	8(SP), R9
 	MOVQ	R9, (g_sched+gobuf_sp)(R14)
@@ -789,11 +809,10 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 // func asmcgocall_no_g(fn, arg unsafe.Pointer)
 // Call fn(arg) aligned appropriately for the gcc ABI.
 // Called on a system stack, and there may be no g yet (during needm).
-TEXT ·asmcgocall_no_g(SB),NOSPLIT|NOFRAME,$0-16
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$32-16
 	MOVQ	fn+0(FP), AX
 	MOVQ	arg+8(FP), BX
 	MOVQ	SP, DX
-	SUBQ	$32, SP
 	ANDQ	$~15, SP	// alignment
 	MOVQ	DX, 8(SP)
 	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
@@ -807,7 +826,7 @@ TEXT ·asmcgocall_no_g(SB),NOSPLIT|NOFRAME,$0-16
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
 // See cgocall.go for more details.
-TEXT ·asmcgocall(SB),NOSPLIT|NOFRAME,$0-20
+TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVQ	fn+0(FP), AX
 	MOVQ	arg+8(FP), BX
 
@@ -830,6 +849,8 @@ TEXT ·asmcgocall(SB),NOSPLIT|NOFRAME,$0-20
 	JEQ	nosave
 
 	// Switch to system stack.
+	// The original frame pointer is stored in BP,
+	// which is useful for stack unwinding.
 	CALL	gosave_systemstack_switch<>(SB)
 	MOVQ	SI, g(CX)
 	MOVQ	(g_sched+gobuf_sp)(SI), SP
