@@ -343,49 +343,19 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		return true
 	}
 
+	// x != y if we get here
+	assert(x != y)
+
 	// If we get here and x or y is a type parameter, they are unbound
 	// (not recorded with the unifier).
-	// By definition, a valid type argument must be in the type set of
-	// the respective type constraint. Therefore, the type argument's
-	// underlying type must be in the set of underlying types of that
-	// constraint. If there is a single such underlying type, it's the
-	// constraint's core type. It must match the type argument's under-
-	// lying type, irrespective of whether the actual type argument,
-	// which may be a defined type, is actually in the type set (that
-	// will be determined at instantiation time).
-	// Thus, if we have the core type of an unbound type parameter,
-	// we know the structure of the possible types satisfying such
-	// parameters. Use that core type for further unification
-	// (see go.dev/issue/50755 for a test case).
-	if enableCoreTypeUnification {
-		// swap x and y as needed
-		// (the earlier swap checks for _recorded_ type parameters only)
-		if isTypeParam(y) {
-			if traceInference {
-				u.tracef("%s ≡ %s (swap)", y, x)
-			}
-			x, y = y, x
+	// Ensure that if we have at least one type parameter, it is in x
+	// (the earlier swap checks for _recorded_ type parameters only).
+	if isTypeParam(y) {
+		if traceInference {
+			u.tracef("%s ≡ %s (swap)", y, x)
 		}
-		if isTypeParam(x) {
-			// When considering the type parameter for unification
-			// we look at the core type.
-			// Because the core type is always an underlying type,
-			// unification will take care of matching against a
-			// defined or literal type automatically.
-			// If y is also an unbound type parameter, we will end
-			// up here again with x and y swapped, so we don't
-			// need to take care of that case separately.
-			if cx := coreType(x); cx != nil {
-				if traceInference {
-					u.tracef("core %s ≡ %s", x, y)
-				}
-				return u.nify(cx, y, p)
-			}
-		}
+		x, y = y, x
 	}
-
-	// x != y if we reach here
-	assert(x != y)
 
 	switch x := x.(type) {
 	case *Basic:
@@ -561,7 +531,37 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *TypeParam:
-		// nothing to do - we know x != y
+		// x must be an unbound type parameter (see comment above).
+		if debug {
+			assert(u.asTypeParam(x) == nil)
+		}
+		// By definition, a valid type argument must be in the type set of
+		// the respective type constraint. Therefore, the type argument's
+		// underlying type must be in the set of underlying types of that
+		// constraint. If there is a single such underlying type, it's the
+		// constraint's core type. It must match the type argument's under-
+		// lying type, irrespective of whether the actual type argument,
+		// which may be a defined type, is actually in the type set (that
+		// will be determined at instantiation time).
+		// Thus, if we have the core type of an unbound type parameter,
+		// we know the structure of the possible types satisfying such
+		// parameters. Use that core type for further unification
+		// (see go.dev/issue/50755 for a test case).
+		if enableCoreTypeUnification {
+			// Because the core type is always an underlying type,
+			// unification will take care of matching against a
+			// defined or literal type automatically.
+			// If y is also an unbound type parameter, we will end
+			// up here again with x and y swapped, so we don't
+			// need to take care of that case separately.
+			if cx := coreType(x); cx != nil {
+				if traceInference {
+					u.tracef("core %s ≡ %s", x, y)
+				}
+				return u.nify(cx, y, p)
+			}
+		}
+		// x != y and there's nothing to do
 
 	case nil:
 		// avoid a crash in case of nil type
