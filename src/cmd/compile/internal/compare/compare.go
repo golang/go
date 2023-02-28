@@ -331,7 +331,7 @@ func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
 	call.Args.Append(nx)
 	call.Args.Append(ny)
 	if needsize {
-		call.Args.Append(ir.NewInt(size))
+		call.Args.Append(ir.NewInt(base.Pos, size))
 	}
 
 	return call

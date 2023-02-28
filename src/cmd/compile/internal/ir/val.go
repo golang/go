@@ -60,11 +60,6 @@ func ValidTypeForConst(t *types.Type, v constant.Value) bool {
 	panic("unreachable")
 }
 
-// NewLiteral returns a new untyped constant with value v.
-func NewLiteral(v constant.Value) Node {
-	return NewBasicLit(base.Pos, v)
-}
-
 func idealType(ct constant.Kind) *types.Type {
 	switch ct {
 	case constant.String:

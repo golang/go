@@ -102,7 +102,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		init = append(init, ir.NewAssignStmt(base.Pos, hn, ir.NewUnaryExpr(base.Pos, ir.OLEN, ha)))
 
 		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv1, hn)
-		nfor.Post = ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(1)))
+		nfor.Post = ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(base.Pos, 1)))
 
 		// for range ha { body }
 		if v1 == nil {
@@ -214,7 +214,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// This reads from hp and writes to hu.
 		huVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], hp)
 		huVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUINTPTR], huVal)
-		as := ir.NewAssignStmt(base.Pos, hu, ir.NewBinaryExpr(base.Pos, ir.OADD, huVal, ir.NewInt(elem.Size())))
+		as := ir.NewAssignStmt(base.Pos, hu, ir.NewBinaryExpr(base.Pos, ir.OADD, huVal, ir.NewInt(base.Pos, elem.Size())))
 		nfor.Post = ir.NewBlockStmt(base.Pos, []ir.Node{nfor.Post, as})
 
 	case types.TMAP:
@@ -260,7 +260,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		}
 		hb := typecheck.Temp(types.Types[types.TBOOL])
 
-		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, hb, ir.NewBool(false))
+		nfor.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, hb, ir.NewBool(base.Pos, false))
 		lhs := []ir.Node{hv1, hb}
 		rhs := []ir.Node{ir.NewUnaryExpr(base.Pos, ir.ORECV, ha)}
 		a := ir.NewAssignListStmt(base.Pos, ir.OAS2RECV, lhs, rhs)
@@ -317,10 +317,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 
 		// if hv2 < utf8.RuneSelf
 		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
-		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, ir.NewInt(utf8.RuneSelf))
+		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, ir.NewInt(base.Pos, utf8.RuneSelf))
 
 		// hv1++
-		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(1)))}
+		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(base.Pos, 1)))}
 
 		// } else {
 		// hv2, hv1 = decoderune(ha, hv1)
@@ -524,19 +524,19 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 	// 	i = len(a) - 1
 	// }
 	n := ir.NewIfStmt(base.Pos, nil, nil, nil)
-	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(0))
+	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 0))
 
 	// hp = &a[0]
 	hp := typecheck.Temp(types.Types[types.TUNSAFEPTR])
 
-	ix := ir.NewIndexExpr(base.Pos, a, ir.NewInt(0))
+	ix := ir.NewIndexExpr(base.Pos, a, ir.NewInt(base.Pos, 0))
 	ix.SetBounded(true)
 	addr := typecheck.ConvNop(typecheck.NodAddr(ix), types.Types[types.TUNSAFEPTR])
 	n.Body.Append(ir.NewAssignStmt(base.Pos, hp, addr))
 
 	// hn = len(a) * sizeof(elem(a))
 	hn := typecheck.Temp(types.Types[types.TUINTPTR])
-	mul := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(elemsize)), types.Types[types.TUINTPTR])
+	mul := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, elemsize)), types.Types[types.TUINTPTR])
 	n.Body.Append(ir.NewAssignStmt(base.Pos, hn, mul))
 
 	var fn ir.Node
@@ -553,7 +553,7 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 
 	// For array range clear, also set "i = len(a) - 1"
 	if nrange != nil {
-		idx := ir.NewAssignStmt(base.Pos, nrange.Key, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(1)))
+		idx := ir.NewAssignStmt(base.Pos, nrange.Key, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 1)))
 		n.Body.Append(idx)
 	}
 
@@ -570,7 +570,7 @@ func addptr(p ir.Node, n int64) ir.Node {
 	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
 	p.SetType(types.Types[types.TUINTPTR])
 
-	p = ir.NewBinaryExpr(base.Pos, ir.OADD, p, ir.NewInt(n))
+	p = ir.NewBinaryExpr(base.Pos, ir.OADD, p, ir.NewInt(base.Pos, n))
 
 	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
 	p.SetType(t)

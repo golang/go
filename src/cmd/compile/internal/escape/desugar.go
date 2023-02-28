@@ -27,7 +27,7 @@ func fixRecoverCall(call *ir.CallExpr) {
 	// FP is equal to caller's SP plus FixedFrameSize.
 	var fp ir.Node = ir.NewCallExpr(pos, ir.OGETCALLERSP, nil, nil)
 	if off := base.Ctxt.Arch.FixedFrameSize; off != 0 {
-		fp = ir.NewBinaryExpr(fp.Pos(), ir.OADD, fp, ir.NewInt(off))
+		fp = ir.NewBinaryExpr(fp.Pos(), ir.OADD, fp, ir.NewInt(base.Pos, off))
 	}
 	// TODO(mdempsky): Replace *int32 with unsafe.Pointer, without upsetting checkptr.
 	fp = ir.NewConvExpr(pos, ir.OCONVNOP, types.NewPtr(types.Types[types.TINT32]), fp)

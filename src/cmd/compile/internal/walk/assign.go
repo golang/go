@@ -559,7 +559,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 
 		fn := typecheck.LookupRuntime("slicecopy")
 		fn = typecheck.SubstArgTypes(fn, ptr1.Type().Elem(), ptr2.Type().Elem())
-		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, ir.NewInt(elemtype.Size()))
+		ncopy = mkcall1(fn, types.Types[types.TINT], &nodes, ptr1, len1, ptr2, len2, ir.NewInt(base.Pos, elemtype.Size()))
 	} else {
 		// memmove(&s[idx], &l2[0], len(l2)*sizeof(T))
 		ix := ir.NewIndexExpr(base.Pos, s, idx)
@@ -569,7 +569,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 		sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, l2)
 
 		nwid := cheapExpr(typecheck.Conv(ir.NewUnaryExpr(base.Pos, ir.OLEN, l2), types.Types[types.TUINTPTR]), &nodes)
-		nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(elemtype.Size()))
+		nwid = ir.NewBinaryExpr(base.Pos, ir.OMUL, nwid, ir.NewInt(base.Pos, elemtype.Size()))
 
 		// instantiate func memmove(to *any, frm *any, length uintptr)
 		fn := typecheck.LookupRuntime("memmove")
@@ -667,7 +667,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	var nodes []ir.Node
 
 	// if l2 >= 0 (likely happens), do nothing
-	nifneg := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGE, l2, ir.NewInt(0)), nil, nil)
+	nifneg := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OGE, l2, ir.NewInt(base.Pos, 0)), nil, nil)
 	nifneg.Likely = true
 
 	// else panicmakeslicelen()
@@ -718,7 +718,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	hp := typecheck.ConvNop(typecheck.NodAddr(ix), types.Types[types.TUNSAFEPTR])
 
 	// hn := l2 * sizeof(elem(s))
-	hn := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, l2, ir.NewInt(elemtype.Size())), types.Types[types.TUINTPTR])
+	hn := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, l2, ir.NewInt(base.Pos, elemtype.Size())), types.Types[types.TUINTPTR])
 
 	clrname := "memclrNoHeapPointers"
 	hasPointers := elemtype.HasPointers()

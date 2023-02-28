@@ -140,9 +140,9 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		n = cheapExpr(n, init)
 		n = soleComponent(init, n)
 		// byteindex widens n so that the multiplication doesn't overflow.
-		index := ir.NewBinaryExpr(base.Pos, ir.OLSH, byteindex(n), ir.NewInt(3))
+		index := ir.NewBinaryExpr(base.Pos, ir.OLSH, byteindex(n), ir.NewInt(base.Pos, 3))
 		if ssagen.Arch.LinkArch.ByteOrder == binary.BigEndian {
-			index = ir.NewBinaryExpr(base.Pos, ir.OADD, index, ir.NewInt(7))
+			index = ir.NewBinaryExpr(base.Pos, ir.OADD, index, ir.NewInt(base.Pos, 7))
 		}
 		// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
 		// individual bytes.
@@ -418,7 +418,7 @@ func soleComponent(init *ir.Nodes, n ir.Node) ir.Node {
 			}
 			n = typecheck.Expr(ir.NewSelectorExpr(n.Pos(), ir.OXDOT, n, n.Type().Field(0).Sym))
 		case n.Type().IsArray():
-			n = typecheck.Expr(ir.NewIndexExpr(n.Pos(), n, ir.NewInt(0)))
+			n = typecheck.Expr(ir.NewIndexExpr(n.Pos(), n, ir.NewInt(base.Pos, 0)))
 		default:
 			return n
 		}

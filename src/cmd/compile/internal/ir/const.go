@@ -11,18 +11,19 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
-func NewBool(b bool) Node {
-	return NewLiteral(constant.MakeBool(b))
+func NewBool(pos src.XPos, b bool) Node {
+	return NewBasicLit(pos, constant.MakeBool(b))
 }
 
-func NewInt(v int64) Node {
-	return NewLiteral(constant.MakeInt64(v))
+func NewInt(pos src.XPos, v int64) Node {
+	return NewBasicLit(pos, constant.MakeInt64(v))
 }
 
-func NewString(s string) Node {
-	return NewLiteral(constant.MakeString(s))
+func NewString(pos src.XPos, s string) Node {
+	return NewBasicLit(pos, constant.MakeString(s))
 }
 
 const (

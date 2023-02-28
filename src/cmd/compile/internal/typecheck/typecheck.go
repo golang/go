@@ -1605,7 +1605,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
 	var l []ir.Node
 	i := 0
 	for _, r := range ir.StringVal(n.X) {
-		l = append(l, ir.NewKeyExpr(base.Pos, ir.NewInt(int64(i)), ir.NewInt(int64(r))))
+		l = append(l, ir.NewKeyExpr(base.Pos, ir.NewInt(base.Pos, int64(i)), ir.NewInt(base.Pos, int64(r))))
 		i++
 	}
 

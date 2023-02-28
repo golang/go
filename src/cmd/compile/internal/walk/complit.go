@@ -204,7 +204,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 				}
 				r = kv.Value
 			}
-			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(k))
+			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(base.Pos, k))
 			k++
 			if isBlank {
 				return ir.BlankNode, r
@@ -377,7 +377,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 			}
 			value = kv.Value
 		}
-		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(index))
+		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(base.Pos, index))
 		a.SetBounded(true)
 		index++
 
@@ -416,7 +416,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
-	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
+	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(base.Pos, n.Len+int64(len(n.List)))}
 	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
 	a.RType = n.RType
 	a.SetEsc(n.Esc())
@@ -476,9 +476,9 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
 		lhs.RType = n.RType
 
-		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
-		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(tk.NumElem()))
-		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
+		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(base.Pos, 0))
+		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(base.Pos, tk.NumElem()))
+		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(base.Pos, 1)))
 
 		var body ir.Node = ir.NewAssignStmt(base.Pos, lhs, rhs)
 		body = typecheck.Stmt(body)

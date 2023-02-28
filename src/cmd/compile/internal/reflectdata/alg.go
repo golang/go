@@ -163,9 +163,9 @@ func hashFunc(t *types.Type) *ir.Func {
 
 		// for i := 0; i < nelem; i++
 		ni := typecheck.Temp(types.Types[types.TINT])
-		init := ir.NewAssignStmt(base.Pos, ni, ir.NewInt(0))
-		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, ni, ir.NewInt(t.NumElem()))
-		post := ir.NewAssignStmt(base.Pos, ni, ir.NewBinaryExpr(base.Pos, ir.OADD, ni, ir.NewInt(1)))
+		init := ir.NewAssignStmt(base.Pos, ni, ir.NewInt(base.Pos, 0))
+		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, ni, ir.NewInt(base.Pos, t.NumElem()))
+		post := ir.NewAssignStmt(base.Pos, ni, ir.NewBinaryExpr(base.Pos, ir.OADD, ni, ir.NewInt(base.Pos, 1)))
 		loop := ir.NewForStmt(base.Pos, nil, cond, post, nil)
 		loop.PtrInit().Append(init)
 
@@ -216,7 +216,7 @@ func hashFunc(t *types.Type) *ir.Func {
 			na := typecheck.NodAddr(nx)
 			call.Args.Append(na)
 			call.Args.Append(nh)
-			call.Args.Append(ir.NewInt(size))
+			call.Args.Append(ir.NewInt(base.Pos, size))
 			fn.Body.Append(ir.NewAssignStmt(base.Pos, nh, call))
 
 			i = next
@@ -440,8 +440,8 @@ func eqFunc(t *types.Type) *ir.Func {
 				// Generate an unrolled for loop.
 				// for i := 0; i < nelem/unroll*unroll; i += unroll
 				i := typecheck.Temp(types.Types[types.TINT])
-				init := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
-				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(iterateTo))
+				init := ir.NewAssignStmt(base.Pos, i, ir.NewInt(base.Pos, 0))
+				cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(base.Pos, iterateTo))
 				loop := ir.NewForStmt(base.Pos, nil, cond, nil, nil)
 				loop.PtrInit().Append(init)
 
@@ -454,7 +454,7 @@ func eqFunc(t *types.Type) *ir.Func {
 					nif := ir.NewIfStmt(base.Pos, checkIdx(i), nil, nil)
 					nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
 					loop.Body.Append(nif)
-					post := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
+					post := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(base.Pos, 1)))
 					loop.Body.Append(post)
 				}
 
@@ -462,7 +462,7 @@ func eqFunc(t *types.Type) *ir.Func {
 
 				if nelem == iterateTo {
 					if last {
-						fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
+						fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(base.Pos, true)))
 					}
 					return
 				}
@@ -479,12 +479,12 @@ func eqFunc(t *types.Type) *ir.Func {
 			// }
 			for j := iterateTo; j < nelem; j++ {
 				// if check {} else { goto neq }
-				nif := ir.NewIfStmt(base.Pos, checkIdx(ir.NewInt(j)), nil, nil)
+				nif := ir.NewIfStmt(base.Pos, checkIdx(ir.NewInt(base.Pos, j)), nil, nil)
 				nif.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
 				fn.Body.Append(nif)
 			}
 			if last {
-				fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(ir.NewInt(nelem))))
+				fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, checkIdx(ir.NewInt(base.Pos, nelem))))
 			}
 		}
 
@@ -518,7 +518,7 @@ func eqFunc(t *types.Type) *ir.Func {
 	case types.TSTRUCT:
 		flatConds := compare.EqStruct(t, np, nq)
 		if len(flatConds) == 0 {
-			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(true)))
+			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(base.Pos, true)))
 		} else {
 			for _, c := range flatConds[:len(flatConds)-1] {
 				// if cond {} else { goto neq }
@@ -540,7 +540,7 @@ func eqFunc(t *types.Type) *ir.Func {
 	//   r = false
 	//   return (or goto ret)
 	fn.Body.Append(ir.NewLabelStmt(base.Pos, neq))
-	fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(false)))
+	fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(base.Pos, false)))
 	if compare.EqCanPanic(t) || anyCall(fn) {
 		// Epilogue is large, so share it with the equal case.
 		fn.Body.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, ret))

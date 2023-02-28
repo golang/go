@@ -42,7 +42,7 @@ func walkSwitchExpr(sw *ir.SwitchStmt) {
 
 	// convert switch {...} to switch true {...}
 	if cond == nil {
-		cond = ir.NewBool(true)
+		cond = ir.NewBool(base.Pos, true)
 		cond = typecheck.Expr(cond)
 		cond = typecheck.DefaultLit(cond, nil)
 	}
@@ -620,13 +620,13 @@ func (s *typeSwitch) flush() {
 	// TODO: figure out if we could use a jump table using some low bits of the type hashes.
 	binarySearch(len(cc), &s.done,
 		func(i int) ir.Node {
-			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashname, ir.NewInt(int64(cc[i-1].hash)))
+			return ir.NewBinaryExpr(base.Pos, ir.OLE, s.hashname, ir.NewInt(base.Pos, int64(cc[i-1].hash)))
 		},
 		func(i int, nif *ir.IfStmt) {
 			// TODO(mdempsky): Omit hash equality check if
 			// there's only one type.
 			c := cc[i]
-			nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, s.hashname, ir.NewInt(int64(c.hash)))
+			nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, s.hashname, ir.NewInt(base.Pos, int64(c.hash)))
 			nif.Body.Append(c.body.Take()...)
 		},
 	)
@@ -737,9 +737,9 @@ func stringSearch(expr ir.Node, cc []exprClause, out *ir.Nodes) {
 	slice := ir.NewConvExpr(base.Pos, ir.OSTR2BYTESTMP, types.NewSlice(types.Types[types.TINT8]), expr)
 	slice.SetTypecheck(1) // legacy typechecker doesn't handle this op
 	// Load the byte we're splitting on.
-	load := ir.NewIndexExpr(base.Pos, slice, ir.NewInt(int64(bestIdx)))
+	load := ir.NewIndexExpr(base.Pos, slice, ir.NewInt(base.Pos, int64(bestIdx)))
 	// Compare with the value we're splitting on.
-	cmp := ir.Node(ir.NewBinaryExpr(base.Pos, ir.OLE, load, ir.NewInt(int64(bestByte))))
+	cmp := ir.Node(ir.NewBinaryExpr(base.Pos, ir.OLE, load, ir.NewInt(base.Pos, int64(bestByte))))
 	cmp = typecheck.DefaultLit(typecheck.Expr(cmp), nil)
 	nif := ir.NewIfStmt(base.Pos, cmp, nil, nil)
 

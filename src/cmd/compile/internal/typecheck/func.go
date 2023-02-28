@@ -678,7 +678,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 				return n
 			}
 		} else {
-			l = ir.NewInt(0)
+			l = ir.NewInt(base.Pos, 0)
 		}
 		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKEMAP, l, nil)
 		nn.SetEsc(n.Esc())
@@ -699,7 +699,7 @@ func tcMake(n *ir.CallExpr) ir.Node {
 				return n
 			}
 		} else {
-			l = ir.NewInt(0)
+			l = ir.NewInt(base.Pos, 0)
 		}
 		nn = ir.NewMakeExpr(n.Pos(), ir.OMAKECHAN, l, nil)
 	}
