@@ -339,3 +339,94 @@ func callerLine(t *testing.T, skip int) int {
 	}
 	return line
 }
+
+func BenchmarkCallers(b *testing.B) {
+	b.Run("cached", func(b *testing.B) {
+		// Very pcvalueCache-friendly, no inlining.
+		callersCached(b, 100)
+	})
+	b.Run("inlined", func(b *testing.B) {
+		// Some inlining, still pretty cache-friendly.
+		callersInlined(b, 100)
+	})
+	b.Run("no-cache", func(b *testing.B) {
+		// Cache-hostile
+		callersNoCache(b, 100)
+	})
+}
+
+func callersCached(b *testing.B, n int) int {
+	if n <= 0 {
+		pcs := make([]uintptr, 32)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			runtime.Callers(0, pcs)
+		}
+		b.StopTimer()
+		return 0
+	}
+	return 1 + callersCached(b, n-1)
+}
+
+func callersInlined(b *testing.B, n int) int {
+	if n <= 0 {
+		pcs := make([]uintptr, 32)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			runtime.Callers(0, pcs)
+		}
+		b.StopTimer()
+		return 0
+	}
+	return 1 + callersInlined1(b, n-1)
+}
+func callersInlined1(b *testing.B, n int) int { return callersInlined2(b, n) }
+func callersInlined2(b *testing.B, n int) int { return callersInlined3(b, n) }
+func callersInlined3(b *testing.B, n int) int { return callersInlined4(b, n) }
+func callersInlined4(b *testing.B, n int) int { return callersInlined(b, n) }
+
+func callersNoCache(b *testing.B, n int) int {
+	if n <= 0 {
+		pcs := make([]uintptr, 32)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			runtime.Callers(0, pcs)
+		}
+		b.StopTimer()
+		return 0
+	}
+	switch n % 16 {
+	case 0:
+		return 1 + callersNoCache(b, n-1)
+	case 1:
+		return 1 + callersNoCache(b, n-1)
+	case 2:
+		return 1 + callersNoCache(b, n-1)
+	case 3:
+		return 1 + callersNoCache(b, n-1)
+	case 4:
+		return 1 + callersNoCache(b, n-1)
+	case 5:
+		return 1 + callersNoCache(b, n-1)
+	case 6:
+		return 1 + callersNoCache(b, n-1)
+	case 7:
+		return 1 + callersNoCache(b, n-1)
+	case 8:
+		return 1 + callersNoCache(b, n-1)
+	case 9:
+		return 1 + callersNoCache(b, n-1)
+	case 10:
+		return 1 + callersNoCache(b, n-1)
+	case 11:
+		return 1 + callersNoCache(b, n-1)
+	case 12:
+		return 1 + callersNoCache(b, n-1)
+	case 13:
+		return 1 + callersNoCache(b, n-1)
+	case 14:
+		return 1 + callersNoCache(b, n-1)
+	default:
+		return 1 + callersNoCache(b, n-1)
+	}
+}
