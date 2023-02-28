@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2905,34 +2906,55 @@ func setPGOProfilePath(pkgs []*Package) {
 		return
 
 	case "auto":
-		// Locate PGO profile from the main package.
-
-		setError := func(p *Package) {
-			if p.Error == nil {
-				p.Error = &PackageError{Err: errors.New("-pgo=auto requires exactly one main package")}
-			}
-		}
-
-		var mainpkg *Package
+		// Locate PGO profiles from the main packages, and
+		// attach the profile to the main package and its
+		// dependencies.
+		// If we're builing multiple main packages, they may
+		// have different profiles. We may need to split (unshare)
+		// the dependency graph so they can attach different
+		// profiles.
 		for _, p := range pkgs {
-			if p.Name == "main" {
-				if mainpkg != nil {
-					setError(p)
-					setError(mainpkg)
-					continue
+			if p.Name != "main" {
+				continue
+			}
+			pmain := p
+			file := filepath.Join(pmain.Dir, "default.pgo")
+			if _, err := os.Stat(file); err != nil {
+				continue // no profile
+			}
+
+			copied := make(map[*Package]*Package)
+			var split func(p *Package) *Package
+			split = func(p *Package) *Package {
+				if len(pkgs) > 1 && p != pmain {
+					// Make a copy, then attach profile.
+					// No need to copy if there is only one root package (we can
+					// attach profile directly in-place).
+					// Also no need to copy the main package.
+					if p1 := copied[p]; p1 != nil {
+						return p1
+					}
+					if p.Internal.PGOProfile != "" {
+						panic("setPGOProfilePath: already have profile")
+					}
+					p1 := new(Package)
+					*p1 = *p
+					// Unalias the Internal.Imports slice, which is we're going to
+					// modify. We don't copy other slices as we don't change them.
+					p1.Internal.Imports = slices.Clone(p.Internal.Imports)
+					copied[p] = p1
+					p = p1
 				}
-				mainpkg = p
-			}
-		}
-		if mainpkg == nil {
-			// No main package, no default.pgo to look for.
-			return
-		}
-		file := filepath.Join(mainpkg.Dir, "default.pgo")
-		if fi, err := os.Stat(file); err == nil && !fi.IsDir() {
-			for _, p := range PackageList(pkgs) {
 				p.Internal.PGOProfile = file
+				// Recurse to dependencies.
+				for i, pp := range p.Internal.Imports {
+					p.Internal.Imports[i] = split(pp)
+				}
+				return p
 			}
+
+			// Replace the package and imports with the PGO version.
+			split(pmain)
 		}
 
 	default:
@@ -2979,11 +3001,18 @@ func CheckPackageErrors(pkgs []*Package) {
 	seen := map[string]bool{}
 	reported := map[string]bool{}
 	for _, pkg := range PackageList(pkgs) {
-		if seen[pkg.ImportPath] && !reported[pkg.ImportPath] {
-			reported[pkg.ImportPath] = true
+		// -pgo=auto with multiple main packages can cause a package being
+		// built multiple times (with different profiles).
+		// We check that package import path + profile path is unique.
+		key := pkg.ImportPath
+		if pkg.Internal.PGOProfile != "" {
+			key += " pgo:" + pkg.Internal.PGOProfile
+		}
+		if seen[key] && !reported[key] {
+			reported[key] = true
 			base.Errorf("internal error: duplicate loads of %s", pkg.ImportPath)
 		}
-		seen[pkg.ImportPath] = true
+		seen[key] = true
 	}
 	base.ExitIfErrors()
 }
