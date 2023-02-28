@@ -1113,14 +1113,6 @@ func (s *snapshot) AllMetadata(ctx context.Context) ([]*source.Metadata, error) 
 	return meta, nil
 }
 
-func (s *snapshot) CachedPackages(ctx context.Context) []source.Package {
-	// Cached packages do not make sense with incremental gopls.
-	//
-	// TODO(golang/go#58663): re-implement unimported completions to not depend
-	// on cached import paths.
-	return nil
-}
-
 // TODO(rfindley): clarify that this is only active modules. Or update to just
 // use findRootPattern.
 func (s *snapshot) GoModForFile(uri span.URI) span.URI {

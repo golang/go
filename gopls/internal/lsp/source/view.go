@@ -156,14 +156,6 @@ type Snapshot interface {
 	// excluding id itself.
 	ReverseDependencies(ctx context.Context, id PackageID, transitive bool) (map[PackageID]*Metadata, error)
 
-	// CachedPackages returns a new, unordered array of all
-	// packages currently cached in this snapshot, which is a
-	// poorly defined set that depends on the history of
-	// operations up to this point. Do not use it.
-	//
-	// TODO(adonovan): get rid of the last call from completions.
-	CachedPackages(ctx context.Context) []Package
-
 	// ActiveMetadata returns a new, unordered slice containing
 	// metadata for all packages considered 'active' in the workspace.
 	//

@@ -228,7 +228,7 @@ Suffixes:
 		Score:               cand.score,
 		Depth:               len(cand.path),
 		snippet:             &snip,
-		obj:                 obj,
+		isSlice:             isSlice(obj),
 	}
 	// If the user doesn't want documentation for completion items.
 	if !c.opts.documentation {

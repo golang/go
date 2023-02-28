@@ -144,7 +144,7 @@ func defSnippet(prefix, suffix string, obj types.Object) CompletionItem {
 		Score:         10,
 		snippet:       &sn,
 		Documentation: prefix + " test function",
-		obj:           obj,
+		isSlice:       isSlice(obj),
 	}
 }
 func defItem(val string, obj types.Object) CompletionItem {
@@ -155,6 +155,6 @@ func defItem(val string, obj types.Object) CompletionItem {
 		Depth:         0,
 		Score:         9, // prefer the snippets when available
 		Documentation: "complete the function name",
-		obj:           obj,
+		isSlice:       isSlice(obj),
 	}
 }

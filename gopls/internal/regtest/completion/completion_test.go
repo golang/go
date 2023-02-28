@@ -297,7 +297,7 @@ func _() {
 		if len(completions.Items) == 0 {
 			t.Fatalf("no completion items")
 		}
-		env.AcceptCompletion(loc, completions.Items[0])
+		env.AcceptCompletion(loc, completions.Items[0]) // adds blah import to main.go
 		env.Await(env.DoneWithChange())
 
 		// Trigger completions once again for the blah.<> selector.
@@ -497,8 +497,6 @@ func doit() {
 }
 
 func TestUnimportedCompletion_VSCodeIssue1489(t *testing.T) {
-	t.Skip("golang/go#58663: currently broken with incremental gopls")
-
 	const src = `
 -- go.mod --
 module mod.com
@@ -518,7 +516,7 @@ func main() {
 	WithOptions(
 		WindowsLineEndings(),
 	).Run(t, src, func(t *testing.T, env *Env) {
-		// Trigger unimported completions for the example.com/blah package.
+		// Trigger unimported completions for the mod.com package.
 		env.OpenFile("main.go")
 		env.Await(env.DoneWithOpen())
 		loc := env.RegexpSearch("main.go", "Sqr()")
@@ -530,6 +528,47 @@ func main() {
 		env.Await(env.DoneWithChange())
 		got := env.BufferText("main.go")
 		want := "package main\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"math\"\r\n)\r\n\r\nfunc main() {\r\n\tfmt.Println(\"a\")\r\n\tmath.Sqrt(${1:})\r\n}\r\n"
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("unimported completion (-want +got):\n%s", diff)
+		}
+	})
+}
+
+func TestPackageMemberCompletionAfterSyntaxError(t *testing.T) {
+	// This test documents the current broken behavior due to golang/go#58833.
+	const src = `
+-- go.mod --
+module mod.com
+
+go 1.14
+
+-- main.go --
+package main
+
+import "math"
+
+func main() {
+	math.Sqrt(,0)
+	math.Ldex
+}
+`
+	Run(t, src, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.Await(env.DoneWithOpen())
+		loc := env.RegexpSearch("main.go", "Ldex()")
+		completions := env.Completion(loc)
+		if len(completions.Items) == 0 {
+			t.Fatalf("no completion items")
+		}
+		env.AcceptCompletion(loc, completions.Items[0])
+		env.Await(env.DoneWithChange())
+		got := env.BufferText("main.go")
+		// The completion of math.Ldex after the syntax error on the
+		// previous line is not "math.Ldexp" but "math.Ldexmath.Abs".
+		// (In VSCode, "Abs" wrongly appears in the completion menu.)
+		// This is a consequence of poor error recovery in the parser
+		// causing "math.Ldex" to become a BadExpr.
+		want := "package main\n\nimport \"math\"\n\nfunc main() {\n\tmath.Sqrt(,0)\n\tmath.Ldexmath.Abs(${1:})\n}\n"
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("unimported completion (-want +got):\n%s", diff)
 		}

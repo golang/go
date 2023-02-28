@@ -121,7 +121,7 @@ Loop:
 			Depth:         0,
 			Score:         10, // pretty confident the user should see this
 			Documentation: "argument types from f.Add",
-			obj:           nil,
+			isSlice:       false,
 		}
 		c.items = append(c.items, xx)
 		for i := 0; i < mset.Len(); i++ {

@@ -7,10 +7,12 @@
 package completion
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/parser"
 	"go/scanner"
 	"go/token"
 	"go/types"
@@ -19,20 +21,28 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/fuzzy"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/typeparams"
 )
 
+// A CompletionItem represents a possible completion suggested by the algorithm.
 type CompletionItem struct {
+
+	// Invariant: CompletionItem does not refer to syntax or types.
+
 	// Label is the primary text the user sees for this completion item.
 	Label string
 
@@ -85,9 +95,10 @@ type CompletionItem struct {
 	// Documentation is the documentation for the completion item.
 	Documentation string
 
-	// obj is the object from which this candidate was derived, if any.
-	// obj is for internal use only.
-	obj types.Object
+	// isSlice reports whether the underlying type of the object
+	// from which this candidate was derived is a slice.
+	// (Used to complete append() calls.)
+	isSlice bool
 }
 
 // completionOptions holds completion specific configuration.
@@ -1095,92 +1106,91 @@ const (
 func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	c.inference.objChain = objChain(c.pkg.GetTypesInfo(), sel.X)
 
-	// Is sel a qualified identifier?
-	if id, ok := sel.X.(*ast.Ident); ok {
-		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
-			// If this package path is not a known dep, it means that it resolves to
-			// an import path that couldn't be resolved by go/packages.
-			//
-			// Try to complete from the package cache.
-			pkgPath := source.PackagePath(pkgName.Imported().Path())
-			if _, ok := c.pkg.Metadata().DepsByPkgPath[pkgPath]; !ok && c.opts.unimported {
-				if err := c.unimportedMembers(ctx, id); err != nil {
-					return err
-				}
-			}
-			c.packageMembers(pkgName.Imported(), stdScore, nil, func(cand candidate) {
-				c.deepState.enqueue(cand)
-			})
-			return nil
-		}
-	}
-
-	// Invariant: sel is a true selector.
-	tv, ok := c.pkg.GetTypesInfo().Types[sel.X]
-	if ok {
-		c.methodsAndFields(tv.Type, tv.Addressable(), nil, func(cand candidate) {
-			c.deepState.enqueue(cand)
-		})
-
+	// True selector?
+	if tv, ok := c.pkg.GetTypesInfo().Types[sel.X]; ok {
+		c.methodsAndFields(tv.Type, tv.Addressable(), nil, c.deepState.enqueue)
 		c.addPostfixSnippetCandidates(ctx, sel)
-
 		return nil
 	}
 
-	// Try unimported packages.
-	if id, ok := sel.X.(*ast.Ident); ok && c.opts.unimported {
-		if err := c.unimportedMembers(ctx, id); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error {
-	// Try loaded packages first. They're relevant, fast, and fully typed.
-	//
-	// Find all cached packages that are imported a nonzero amount of time.
-	//
-	// TODO(rfindley): this is pre-existing behavior, and a test fails if we
-	// don't do the importCount filter, but why do we care if a package is
-	// imported a nonzero amount of times?
-	//
-	// TODO(adonovan): avoid the need for type-checked packges entirely here.
-	pkgs := make(map[source.PackagePath]source.Package)
-	imported := make(map[source.PackagePath]bool)
-	for _, pkg := range c.snapshot.CachedPackages(ctx) {
-		m := pkg.Metadata()
-		for dep := range m.DepsByPkgPath {
-			imported[dep] = true
-		}
-		if m.Name == "main" {
-			continue
-		}
-		if old, ok := pkgs[m.PkgPath]; ok {
-			if len(m.CompiledGoFiles) < len(old.Metadata().CompiledGoFiles) {
-				pkgs[m.PkgPath] = pkg
-			}
-		} else {
-			pkgs[m.PkgPath] = pkg
-		}
-	}
-	known := make(map[source.PackagePath]*types.Package)
-	for pkgPath, pkg := range pkgs {
-		if imported[pkgPath] {
-			known[pkgPath] = pkg.GetTypes()
-		}
+	id, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return nil
 	}
 
+	// Treat sel as a qualified identifier.
+	var filter func(*source.Metadata) bool
+	needImport := false
+	if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
+		// Qualified identifier with import declaration.
+		imp := pkgName.Imported()
+
+		// Known direct dependency? Expand using type information.
+		if _, ok := c.pkg.Metadata().DepsByPkgPath[source.PackagePath(imp.Path())]; ok {
+			c.packageMembers(imp, stdScore, nil, c.deepState.enqueue)
+			return nil
+		}
+
+		// Imported declaration with missing type information.
+		// Fall through to shallow completion of unimported package members.
+		// Match candidate packages by path.
+		// TODO(adonovan): simplify by merging with else case and matching on name only?
+		filter = func(m *source.Metadata) bool {
+			return strings.TrimPrefix(string(m.PkgPath), "vendor/") == imp.Path()
+		}
+	} else {
+		// Qualified identifier without import declaration.
+		// Match candidate packages by name.
+		filter = func(m *source.Metadata) bool {
+			return string(m.Name) == id.Name
+		}
+		needImport = true
+	}
+
+	// Search unimported packages.
+	if !c.opts.unimported {
+		return nil // feature disabled
+	}
+
+	// The deep completion algorithm is exceedingly complex and
+	// deeply coupled to the now obsolete notions that all
+	// token.Pos values can be interpreted by as a single FileSet
+	// belonging to the Snapshot and that all types.Object values
+	// are canonicalized by a single types.Importer mapping.
+	// These invariants are no longer true now that gopls uses
+	// an incremental approach, parsing and type-checking each
+	// package separately.
+	//
+	// Consequently, completion of symbols defined in packages that
+	// are not currently imported by the query file cannot use the
+	// deep completion machinery which is based on type information.
+	// Instead it must use only syntax information from a quick
+	// parse of top-level declarations (but not function bodies).
+	//
+	// TODO(adonovan): rewrite the deep completion machinery to
+	// not assume global Pos/Object realms and then use export
+	// data instead of the quick parse approach taken here.
+
+	// First, we search among packages in the workspace.
+	// We'll use a fast parse to extract package members
+	// from those that match the name/path criterion.
+	all, err := c.snapshot.AllMetadata(ctx)
+	if err != nil {
+		return err
+	}
 	var paths []string
-	for path, pkg := range known {
-		if pkg.Name() != id.Name {
+	known := make(map[source.PackagePath][]*source.Metadata) // may include test variant
+	for _, m := range all {
+		if m.IsIntermediateTestVariant() || m.Name == "main" || !filter(m) {
 			continue
 		}
-		paths = append(paths, string(path))
+		known[m.PkgPath] = append(known[m.PkgPath], m)
+		paths = append(paths, string(m.PkgPath))
 	}
 
+	// Rank import paths as goimports would.
 	var relevances map[string]float64
-	if len(paths) != 0 {
+	if len(paths) > 0 {
 		if err := c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 			var err error
 			relevances, err = imports.ScoreImportPaths(ctx, opts.Env, paths)
@@ -1188,32 +1198,119 @@ func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error 
 		}); err != nil {
 			return err
 		}
-	}
-	sort.Slice(paths, func(i, j int) bool {
-		return relevances[paths[i]] > relevances[paths[j]]
-	})
-
-	for _, path := range paths {
-		pkg := known[source.PackagePath(path)]
-		if pkg.Name() != id.Name {
-			continue
-		}
-		imp := &importInfo{
-			importPath: path,
-		}
-		if imports.ImportPathToAssumedName(path) != pkg.Name() {
-			imp.name = pkg.Name()
-		}
-		c.packageMembers(pkg, unimportedScore(relevances[path]), imp, func(cand candidate) {
-			c.deepState.enqueue(cand)
+		sort.Slice(paths, func(i, j int) bool {
+			return relevances[paths[i]] > relevances[paths[j]]
 		})
-		if len(c.items) >= unimportedMemberTarget {
+	}
+
+	// quickParse does a quick parse of a single file of package m,
+	// extracts exported package members and adds candidates to c.items.
+	var itemsMu sync.Mutex // guards c.items
+	var enough int32       // atomic bool
+	quickParse := func(uri span.URI, m *source.Metadata) error {
+		if atomic.LoadInt32(&enough) != 0 {
 			return nil
 		}
+
+		fh, err := c.snapshot.GetFile(ctx, uri)
+		if err != nil {
+			return err
+		}
+		content, err := fh.Read()
+		if err != nil {
+			return err
+		}
+		path := string(m.PkgPath)
+		forEachPackageMember(content, func(tok token.Token, id *ast.Ident, fn *ast.FuncDecl) {
+			if atomic.LoadInt32(&enough) != 0 {
+				return
+			}
+
+			if !id.IsExported() ||
+				sel.Sel.Name != "_" && !strings.HasPrefix(id.Name, sel.Sel.Name) {
+				return // not a match
+			}
+
+			// The only detail is the kind and package: `var (from "example.com/foo")`
+			// TODO(adonovan): pretty-print FuncDecl.FuncType or TypeSpec.Type?
+			item := CompletionItem{
+				Label:      id.Name,
+				Detail:     fmt.Sprintf("%s (from %q)", strings.ToLower(tok.String()), m.PkgPath),
+				InsertText: id.Name,
+				Score:      unimportedScore(relevances[path]),
+			}
+			switch tok {
+			case token.FUNC:
+				item.Kind = protocol.FunctionCompletion
+			case token.VAR:
+				item.Kind = protocol.VariableCompletion
+			case token.CONST:
+				item.Kind = protocol.ConstantCompletion
+			case token.TYPE:
+				// Without types, we can't distinguish Class from Interface.
+				item.Kind = protocol.ClassCompletion
+			}
+
+			if needImport {
+				imp := &importInfo{importPath: path}
+				if imports.ImportPathToAssumedName(path) != string(m.Name) {
+					imp.name = string(m.Name)
+				}
+				item.AdditionalTextEdits, _ = c.importEdits(imp)
+			}
+
+			// For functions, add a parameter snippet.
+			if fn != nil {
+				var sn snippet.Builder
+				sn.WriteText(id.Name)
+				sn.WriteText("(")
+				var nparams int
+				for _, field := range fn.Type.Params.List {
+					if field.Names != nil {
+						nparams += len(field.Names)
+					} else {
+						nparams++
+					}
+				}
+				for i := 0; i < nparams; i++ {
+					if i > 0 {
+						sn.WriteText(", ")
+					}
+					sn.WritePlaceholder(nil)
+				}
+				sn.WriteText(")")
+				item.snippet = &sn
+			}
+
+			itemsMu.Lock()
+			c.items = append(c.items, item)
+			if len(c.items) >= unimportedMemberTarget {
+				atomic.StoreInt32(&enough, 1)
+			}
+			itemsMu.Unlock()
+		})
+		return nil
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	// Extract the package-level candidates using a quick parse.
+	var g errgroup.Group
+	for _, path := range paths {
+		for _, m := range known[source.PackagePath(path)] {
+			m := m
+			for _, uri := range m.CompiledGoFiles {
+				uri := uri
+				g.Go(func() error {
+					return quickParse(uri, m)
+				})
+			}
+		}
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
 
+	// In addition, we search in the module cache using goimports.
+	ctx, cancel := context.WithCancel(ctx)
 	var mu sync.Mutex
 	add := func(pkgExport imports.PackageExport) {
 		mu.Lock()
@@ -3059,4 +3156,97 @@ func (c *completer) innermostScope() *types.Scope {
 		}
 	}
 	return nil
+}
+
+// isSlice reports whether the object's underlying type is a slice.
+func isSlice(obj types.Object) bool {
+	if obj != nil && obj.Type() != nil {
+		if _, ok := obj.Type().Underlying().(*types.Slice); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// forEachPackageMember calls f(tok, id, fn) for each package-level
+// TYPE/VAR/CONST/FUNC declaration in the Go source file, based on a
+// quick partial parse. fn is non-nil only for function declarations.
+// The AST position information is garbage.
+func forEachPackageMember(content []byte, f func(tok token.Token, id *ast.Ident, fn *ast.FuncDecl)) {
+	purged := purgeFuncBodies(content)
+	file, _ := parser.ParseFile(token.NewFileSet(), "", purged, 0)
+	for _, decl := range file.Decls {
+		switch decl := decl.(type) {
+		case *ast.GenDecl:
+			for _, spec := range decl.Specs {
+				switch spec := spec.(type) {
+				case *ast.ValueSpec: // var/const
+					for _, id := range spec.Names {
+						f(decl.Tok, id, nil)
+					}
+				case *ast.TypeSpec:
+					f(decl.Tok, spec.Name, nil)
+				}
+			}
+		case *ast.FuncDecl:
+			if decl.Recv == nil {
+				f(token.FUNC, decl.Name, decl)
+			}
+		}
+	}
+}
+
+// purgeFuncBodies returns a copy of src in which the contents of each
+// outermost {...} region except struct and interface types have been
+// deleted. It does not preserve newlines. This reduces the amount of
+// work required to parse the top-level declarations.
+func purgeFuncBodies(src []byte) []byte {
+	// Destroy the content of any {...}-bracketed regions that are
+	// not immediately preceded by a "struct" or "interface"
+	// token.  That includes function bodies, composite literals,
+	// switch/select bodies, and all blocks of statements.
+	// This will lead to non-void functions that don't have return
+	// statements, which of course is a type error, but that's ok.
+
+	var out bytes.Buffer
+	file := token.NewFileSet().AddFile("", -1, len(src))
+	var sc scanner.Scanner
+	sc.Init(file, src, nil, 0)
+	var prev token.Token
+	var cursor int         // last consumed src offset
+	var braces []token.Pos // stack of unclosed braces or -1 for struct/interface type
+	for {
+		pos, tok, _ := sc.Scan()
+		if tok == token.EOF {
+			break
+		}
+		switch tok {
+		case token.COMMENT:
+			// TODO(adonovan): opt: skip, to save an estimated 20% of time.
+
+		case token.LBRACE:
+			if prev == token.STRUCT || prev == token.INTERFACE {
+				pos = -1
+			}
+			braces = append(braces, pos)
+
+		case token.RBRACE:
+			if last := len(braces) - 1; last >= 0 {
+				top := braces[last]
+				braces = braces[:last]
+				if top < 0 {
+					// struct/interface type: leave alone
+				} else if len(braces) == 0 { // toplevel only
+					// Delete {...} body.
+					start, _ := safetoken.Offset(file, top)
+					end, _ := safetoken.Offset(file, pos)
+					out.Write(src[cursor : start+len("{")])
+					cursor = end
+				}
+			}
+		}
+		prev = tok
+	}
+	out.Write(src[cursor:])
+	return out.Bytes()
 }

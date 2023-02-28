@@ -106,11 +106,7 @@ func (c *completer) addAssignAppend() {
 		// Offer the long form assign + append candidate if our best
 		// candidate is a slice.
 		bestItem := c.topCandidate()
-		if bestItem == nil || bestItem.obj == nil || bestItem.obj.Type() == nil {
-			return
-		}
-
-		if _, isSlice := bestItem.obj.Type().Underlying().(*types.Slice); !isSlice {
+		if bestItem == nil || !bestItem.isSlice {
 			return
 		}
 
