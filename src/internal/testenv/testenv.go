@@ -193,27 +193,39 @@ func GOROOT(t testing.TB) string {
 
 // GoTool reports the path to the Go tool.
 func GoTool() (string, error) {
-	if !HasGoBuild() {
-		return "", errors.New("platform cannot run go tool")
-	}
-	var exeSuffix string
-	if runtime.GOOS == "windows" {
-		exeSuffix = ".exe"
-	}
-	goroot, err := findGOROOT()
-	if err != nil {
-		return "", fmt.Errorf("cannot find go tool: %w", err)
-	}
-	path := filepath.Join(goroot, "bin", "go"+exeSuffix)
-	if _, err := os.Stat(path); err == nil {
-		return path, nil
-	}
-	goBin, err := exec.LookPath("go" + exeSuffix)
-	if err != nil {
-		return "", errors.New("cannot find go tool: " + err.Error())
-	}
-	return goBin, nil
+	goToolOnce.Do(func() {
+		goToolPath, goToolErr = func() (string, error) {
+			if !HasGoBuild() {
+				return "", errors.New("platform cannot run go tool")
+			}
+			var exeSuffix string
+			if runtime.GOOS == "windows" {
+				exeSuffix = ".exe"
+			}
+			goroot, err := findGOROOT()
+			if err != nil {
+				return "", fmt.Errorf("cannot find go tool: %w", err)
+			}
+			path := filepath.Join(goroot, "bin", "go"+exeSuffix)
+			if _, err := os.Stat(path); err == nil {
+				return path, nil
+			}
+			goBin, err := exec.LookPath("go" + exeSuffix)
+			if err != nil {
+				return "", errors.New("cannot find go tool: " + err.Error())
+			}
+			return goBin, nil
+		}()
+	})
+
+	return goToolPath, goToolErr
 }
+
+var (
+	goToolOnce sync.Once
+	goToolPath string
+	goToolErr  error
+)
 
 // HasSrc reports whether the entire source tree is available under GOROOT.
 func HasSrc() bool {
@@ -242,16 +254,34 @@ func MustHaveExternalNetwork(t testing.TB) {
 	}
 }
 
-var haveCGO bool
-
 // HasCGO reports whether the current system can use cgo.
 func HasCGO() bool {
-	return haveCGO
+	hasCgoOnce.Do(func() {
+		goTool, err := GoTool()
+		if err != nil {
+			return
+		}
+		cmd := exec.Command(goTool, "env", "CGO_ENABLED")
+		out, err := cmd.Output()
+		if err != nil {
+			panic(fmt.Sprintf("%v: %v", cmd, out))
+		}
+		hasCgo, err = strconv.ParseBool(string(bytes.TrimSpace(out)))
+		if err != nil {
+			panic(fmt.Sprintf("%v: non-boolean output %q", cmd, out))
+		}
+	})
+	return hasCgo
 }
+
+var (
+	hasCgoOnce sync.Once
+	hasCgo     bool
+)
 
 // MustHaveCGO calls t.Skip if cgo is not available.
 func MustHaveCGO(t testing.TB) {
-	if !haveCGO {
+	if !HasCGO() {
 		t.Skipf("skipping test: no cgo")
 	}
 }
