@@ -460,6 +460,10 @@ type response struct {
 	// Content-Length.
 	closeAfterReply bool
 
+	// When fullDuplex is false (the default), we consume any remaining
+	// request body before starting to write a response.
+	fullDuplex bool
+
 	// requestBodyLimitHit is set by requestTooLarge when
 	// maxBytesReader hits its max size. It is checked in
 	// WriteHeader, to make sure we don't consume the
@@ -495,6 +499,11 @@ func (c *response) SetReadDeadline(deadline time.Time) error {
 
 func (c *response) SetWriteDeadline(deadline time.Time) error {
 	return c.conn.rwc.SetWriteDeadline(deadline)
+}
+
+func (c *response) EnableFullDuplex() error {
+	c.fullDuplex = true
+	return nil
 }
 
 // TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
@@ -1354,14 +1363,14 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		w.closeAfterReply = true
 	}
 
-	// Per RFC 2616, we should consume the request body before
-	// replying, if the handler hasn't already done so. But we
-	// don't want to do an unbounded amount of reading here for
-	// DoS reasons, so we only try up to a threshold.
-	// TODO(bradfitz): where does RFC 2616 say that? See Issue 15527
-	// about HTTP/1.x Handlers concurrently reading and writing, like
-	// HTTP/2 handlers can do. Maybe this code should be relaxed?
-	if w.req.ContentLength != 0 && !w.closeAfterReply {
+	// We do this by default because there are a number of clients that
+	// send a full request before starting to read the response, and they
+	// can deadlock if we start writing the response with unconsumed body
+	// remaining. See Issue 15527 for some history.
+	//
+	// If full duplex mode has been enabled with ResponseController.EnableFullDuplex,
+	// then leave the request body alone.
+	if w.req.ContentLength != 0 && !w.closeAfterReply && !w.fullDuplex {
 		var discard, tooBig bool
 
 		switch bdy := w.req.Body.(type) {
