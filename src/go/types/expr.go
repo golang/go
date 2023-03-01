@@ -1742,8 +1742,7 @@ func keyVal(x constant.Value) interface{} {
 // typeAssertion checks x.(T). The type of x must be an interface.
 func (check *Checker) typeAssertion(e ast.Expr, x *operand, T Type, typeSwitch bool) {
 	var cause string
-	method, _ := check.assertableTo(x.typ, T, &cause)
-	if method == nil {
+	if check.assertableTo(x.typ, T, &cause) {
 		return // success
 	}
 
