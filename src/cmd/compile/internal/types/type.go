@@ -1857,6 +1857,11 @@ func IsReflectPkg(p *Pkg) bool {
 	return p.Path == "reflect"
 }
 
+// IsTypePkg reports whether p is pesudo package type.
+func IsTypePkg(p *Pkg) bool {
+	return p == typepkg
+}
+
 // ReceiverBaseType returns the underlying type, if any,
 // that owns methods with receiver parameter t.
 // The result is either a named type or an anonymous struct.

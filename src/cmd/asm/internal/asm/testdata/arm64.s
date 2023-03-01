@@ -819,6 +819,38 @@ again:
 	LDEORLH	R5, (RSP), R7                        // e7236578
 	LDEORLB	R5, (R6), R7                         // c7206538
 	LDEORLB	R5, (RSP), R7                        // e7236538
+	LDADDD	R5, (R6), ZR                         // df0025f8
+	LDADDW	R5, (R6), ZR                         // df0025b8
+	LDADDH	R5, (R6), ZR                         // df002578
+	LDADDB	R5, (R6), ZR                         // df002538
+	LDADDLD	R5, (R6), ZR                         // df0065f8
+	LDADDLW	R5, (R6), ZR                         // df0065b8
+	LDADDLH	R5, (R6), ZR                         // df006578
+	LDADDLB	R5, (R6), ZR                         // df006538
+	LDCLRD	R5, (R6), ZR                         // df1025f8
+	LDCLRW	R5, (R6), ZR                         // df1025b8
+	LDCLRH	R5, (R6), ZR                         // df102578
+	LDCLRB	R5, (R6), ZR                         // df102538
+	LDCLRLD	R5, (R6), ZR                         // df1065f8
+	LDCLRLW	R5, (R6), ZR                         // df1065b8
+	LDCLRLH	R5, (R6), ZR                         // df106578
+	LDCLRLB	R5, (R6), ZR                         // df106538
+	LDEORD	R5, (R6), ZR                         // df2025f8
+	LDEORW	R5, (R6), ZR                         // df2025b8
+	LDEORH	R5, (R6), ZR                         // df202578
+	LDEORB	R5, (R6), ZR                         // df202538
+	LDEORLD	R5, (R6), ZR                         // df2065f8
+	LDEORLW	R5, (R6), ZR                         // df2065b8
+	LDEORLH	R5, (R6), ZR                         // df206578
+	LDEORLB	R5, (R6), ZR                         // df206538
+	LDORD	R5, (R6), ZR                         // df3025f8
+	LDORW	R5, (R6), ZR                         // df3025b8
+	LDORH	R5, (R6), ZR                         // df302578
+	LDORB	R5, (R6), ZR                         // df302538
+	LDORLD	R5, (R6), ZR                         // df3065f8
+	LDORLW	R5, (R6), ZR                         // df3065b8
+	LDORLH	R5, (R6), ZR                         // df306578
+	LDORLB	R5, (R6), ZR                         // df306538
 	LDORAD	R5, (R6), R7                         // c730a5f8
 	LDORAD	R5, (RSP), R7                        // e733a5f8
 	LDORAW	R5, (R6), R7                         // c730a5b8

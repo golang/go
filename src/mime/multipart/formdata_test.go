@@ -55,6 +55,23 @@ func TestReadFormWithNamelessFile(t *testing.T) {
 	}
 }
 
+// Issue 58384: Handle ReadForm(math.MaxInt64)
+func TestReadFormWitFileNameMaxMemoryOverflow(t *testing.T) {
+	b := strings.NewReader(strings.ReplaceAll(messageWithFileName, "\n", "\r\n"))
+	r := NewReader(b, boundary)
+	f, err := r.ReadForm(math.MaxInt64)
+	if err != nil {
+		t.Fatalf("ReadForm(MaxInt64): %v", err)
+	}
+	defer f.RemoveAll()
+
+	fd := testFile(t, f.File["filea"][0], "filea.txt", fileaContents)
+	if _, ok := fd.(*os.File); ok {
+		t.Error("file is *os.File, should not be")
+	}
+	fd.Close()
+}
+
 // Issue 40430: Handle ReadForm(math.MaxInt64)
 func TestReadFormMaxMemoryOverflow(t *testing.T) {
 	b := strings.NewReader(strings.ReplaceAll(messageWithTextContentType, "\n", "\r\n"))
@@ -65,6 +82,11 @@ func TestReadFormMaxMemoryOverflow(t *testing.T) {
 	}
 	if f == nil {
 		t.Fatal("ReadForm(MaxInt64): missing form")
+	}
+	defer f.RemoveAll()
+
+	if g, e := f.Value["texta"][0], textaValue; g != e {
+		t.Errorf("texta value = %q, want %q", g, e)
 	}
 }
 
@@ -119,6 +141,15 @@ Content-Disposition: form-data; name="hiddenfile"; filename=""
 Content-Type: text/plain
 
 ` + filebContents + `
+--MyBoundary--
+`
+
+const messageWithFileName = `
+--MyBoundary
+Content-Disposition: form-data; name="filea"; filename="filea.txt"
+Content-Type: text/plain
+
+` + fileaContents + `
 --MyBoundary--
 `
 

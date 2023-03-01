@@ -77,6 +77,9 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	// unconfigurable 10 MB added on to maxMemory, is unfortunate but difficult to change
 	// within the constraints of the API as documented.
 	maxFileMemoryBytes := maxMemory
+	if maxFileMemoryBytes == math.MaxInt64 {
+		maxFileMemoryBytes--
+	}
 	maxMemoryBytes := maxMemory + int64(10<<20)
 	if maxMemoryBytes <= 0 {
 		if maxMemory < 0 {

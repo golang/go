@@ -112,7 +112,7 @@ func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err erro
 // the underlying io.Reader and the remaining amount of bytes if the assertion succeeds,
 // otherwise it just returns the original io.Reader and the theoretical unlimited remaining amount of bytes.
 func tryLimitedReader(r io.Reader) (*io.LimitedReader, io.Reader, int64) {
-	remain := int64(1 << 62)
+	var remain int64 = 1<<63 - 1 // by default, copy until EOF
 
 	lr, ok := r.(*io.LimitedReader)
 	if !ok {

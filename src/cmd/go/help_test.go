@@ -17,6 +17,7 @@ import (
 var fixDocs = flag.Bool("fixdocs", false, "if true, update alldocs.go")
 
 func TestDocsUpToDate(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
 	if !*fixDocs {
 		t.Parallel()
 	}

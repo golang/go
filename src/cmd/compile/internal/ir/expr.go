@@ -563,8 +563,7 @@ func (n *SelectorExpr) FuncName() *Name {
 	if n.Selection.Nname != nil {
 		// TODO(austin): Nname is nil for interface method
 		// expressions (I.M), so we can't attach a Func to
-		// those here. reflectdata.methodWrapper generates the
-		// Func.
+		// those here.
 		fn.Func = n.Selection.Nname.(*Name).Func
 	}
 	return fn

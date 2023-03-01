@@ -108,7 +108,7 @@ func (tc spliceTestCase) test(t *testing.T) {
 }
 
 func (tc spliceTestCase) testFile(t *testing.T) {
-	f, err := os.CreateTemp(t.TempDir(), "linux-splice-to-file")
+	f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

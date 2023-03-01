@@ -1566,13 +1566,6 @@ func (r *reader) addLocal(name *ir.Name, ctxt ir.Class) {
 			name.SetInlFormal(true)
 			ctxt = ir.PAUTO
 		}
-
-		// TODO(mdempsky): Rethink this hack.
-		if strings.HasPrefix(name.Sym().Name, "~") || base.Flag.GenDwarfInl == 0 {
-			name.SetPos(r.inlCall.Pos())
-			name.SetInlFormal(false)
-			name.SetInlLocal(false)
-		}
 	}
 
 	name.Class = ctxt
@@ -3549,15 +3542,9 @@ func unifiedInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.Inlined
 			name.Curfn = callerfn
 			callerfn.Dcl = append(callerfn.Dcl, name)
 
-			// Quirkish. TODO(mdempsky): Document why.
 			if name.AutoTemp() {
 				name.SetEsc(ir.EscUnknown)
-
-				if base.Flag.GenDwarfInl != 0 {
-					name.SetInlLocal(true)
-				} else {
-					name.SetPos(r.inlCall.Pos())
-				}
+				name.SetInlLocal(true)
 			}
 		}
 	}

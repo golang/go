@@ -361,8 +361,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
 					"number of undefined symbols after index in dynamic symbol table command is greater than symbol table length (%d > %d)",
 					hdr.Iundefsym+hdr.Nundefsym, len(f.Symtab.Syms)), nil}
 			}
-			dat := make([]byte, hdr.Nindirectsyms*4)
-			if _, err := r.ReadAt(dat, int64(hdr.Indirectsymoff)); err != nil {
+			dat, err := saferio.ReadDataAt(r, uint64(hdr.Nindirectsyms)*4, int64(hdr.Indirectsymoff))
+			if err != nil {
 				return nil, err
 			}
 			x := make([]uint32, hdr.Nindirectsyms)

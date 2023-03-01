@@ -155,7 +155,7 @@ func LockOSThreadAvoidsStatePropagation() {
 		}
 		// Chdir to somewhere else on this thread.
 		// On systems other than Linux, this is a no-op.
-		if err := chdir("/tmp"); err != nil {
+		if err := chdir(os.TempDir()); err != nil {
 			println("failed to chdir:", err.Error())
 			os.Exit(1)
 		}
