@@ -8,7 +8,6 @@ import (
 	"errors"
 	"io"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -25,8 +24,8 @@ type FD struct {
 	waio      *asyncIO
 	rtimer    *time.Timer
 	wtimer    *time.Timer
-	rtimedout atomic.Bool // set true when read deadline has been reached
-	wtimedout atomic.Bool // set true when write deadline has been reached
+	rtimedout bool // set true when read deadline has been reached
+	wtimedout bool // set true when write deadline has been reached
 
 	// Whether this is a normal file.
 	// On Plan 9 we do not use this package for ordinary files,
@@ -64,7 +63,7 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 		return 0, nil
 	}
 	fd.rmu.Lock()
-	if fd.rtimedout.Load() {
+	if fd.rtimedout {
 		fd.rmu.Unlock()
 		return 0, ErrDeadlineExceeded
 	}
@@ -88,7 +87,7 @@ func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
 	}
 	defer fd.writeUnlock()
 	fd.wmu.Lock()
-	if fd.wtimedout.Load() {
+	if fd.wtimedout {
 		fd.wmu.Unlock()
 		return 0, ErrDeadlineExceeded
 	}
@@ -126,7 +125,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 			fd.rtimer.Stop()
 			fd.rtimer = nil
 		}
-		fd.rtimedout.Store(false)
+		fd.rtimedout = false
 	}
 	if mode == 'w' || mode == 'r'+'w' {
 		fd.wmu.Lock()
@@ -135,7 +134,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 			fd.wtimer.Stop()
 			fd.wtimer = nil
 		}
-		fd.wtimedout.Store(false)
+		fd.wtimedout = false
 	}
 	if !t.IsZero() && d > 0 {
 		// Interrupt I/O operation once timer has expired
@@ -148,7 +147,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 					// deadline was changed
 					return
 				}
-				fd.rtimedout.Store(true)
+				fd.rtimedout = true
 				if fd.raio != nil {
 					fd.raio.Cancel()
 				}
@@ -164,7 +163,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 					// deadline was changed
 					return
 				}
-				fd.wtimedout.Store(true)
+				fd.wtimedout = true
 				if fd.waio != nil {
 					fd.waio.Cancel()
 				}
@@ -175,13 +174,13 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 	if !t.IsZero() && d < 0 {
 		// Interrupt current I/O operation
 		if mode == 'r' || mode == 'r'+'w' {
-			fd.rtimedout.Store(true)
+			fd.rtimedout = true
 			if fd.raio != nil {
 				fd.raio.Cancel()
 			}
 		}
 		if mode == 'w' || mode == 'r'+'w' {
-			fd.wtimedout.Store(true)
+			fd.wtimedout = true
 			if fd.waio != nil {
 				fd.waio.Cancel()
 			}
