@@ -1860,7 +1860,11 @@ func TestIssue51759(t *testing.T) {
 	if runtime.GOOS != "darwin" {
 		t.Skip("only affects darwin")
 	}
-	if builder := testenv.Builder(); builder == "darwin-amd64-10_14" || builder == "darwin-amd64-10_15" {
+	builder := testenv.Builder()
+	if builder == "" {
+		t.Skip("only run this test on the builders, as we have no reasonable way to gate tests on macOS versions elsewhere")
+	}
+	if builder == "darwin-amd64-10_14" || builder == "darwin-amd64-10_15" {
 		t.Skip("behavior only enforced in macOS 11 and after")
 	}
 	// badCertData contains a cert that we parse as valid
