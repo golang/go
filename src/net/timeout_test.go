@@ -909,10 +909,6 @@ func TestVariousDeadlines4Proc(t *testing.T) {
 }
 
 func testVariousDeadlines(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test on plan9; see golang.org/issue/26945")
-	}
-
 	handler := func(ls *localServer, ln Listener) {
 		for {
 			c, err := ln.Accept()
