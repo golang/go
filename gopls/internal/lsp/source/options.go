@@ -735,12 +735,14 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 	o.DynamicWatchedFilesSupported = caps.Workspace.DidChangeWatchedFiles.DynamicRegistration
 
 	// Check which types of content format are supported by this client.
-	if hover := caps.TextDocument.Hover; len(hover.ContentFormat) > 0 {
+	if hover := caps.TextDocument.Hover; hover != nil && len(hover.ContentFormat) > 0 {
 		o.PreferredContentFormat = hover.ContentFormat[0]
 	}
 	// Check if the client supports only line folding.
-	fr := caps.TextDocument.FoldingRange
-	o.LineFoldingOnly = fr.LineFoldingOnly
+
+	if fr := caps.TextDocument.FoldingRange; fr != nil {
+		o.LineFoldingOnly = fr.LineFoldingOnly
+	}
 	// Check if the client supports hierarchical document symbols.
 	o.HierarchicalDocumentSymbolSupport = caps.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport
 

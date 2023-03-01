@@ -49,7 +49,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 			return nil, err
 		}
 		rng := protocol.Range{Start: fn.Rng.Start, End: fn.Rng.Start}
-		codeLens = append(codeLens, protocol.CodeLens{Range: rng, Command: cmd})
+		codeLens = append(codeLens, protocol.CodeLens{Range: rng, Command: &cmd})
 	}
 
 	for _, fn := range fns.Benchmarks {
@@ -58,7 +58,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 			return nil, err
 		}
 		rng := protocol.Range{Start: fn.Rng.Start, End: fn.Rng.Start}
-		codeLens = append(codeLens, protocol.CodeLens{Range: rng, Command: cmd})
+		codeLens = append(codeLens, protocol.CodeLens{Range: rng, Command: &cmd})
 	}
 
 	if len(fns.Benchmarks) > 0 {
@@ -79,7 +79,7 @@ func runTestCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		if err != nil {
 			return nil, err
 		}
-		codeLens = append(codeLens, protocol.CodeLens{Range: rng, Command: cmd})
+		codeLens = append(codeLens, protocol.CodeLens{Range: rng, Command: &cmd})
 	}
 	return codeLens, nil
 }
@@ -191,8 +191,8 @@ func goGenerateCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 				return nil, err
 			}
 			return []protocol.CodeLens{
-				{Range: rng, Command: recursiveCmd},
-				{Range: rng, Command: nonRecursiveCmd},
+				{Range: rng, Command: &recursiveCmd},
+				{Range: rng, Command: &nonRecursiveCmd},
 			}, nil
 
 		}
@@ -223,7 +223,7 @@ func regenerateCgoLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 	if err != nil {
 		return nil, err
 	}
-	return []protocol.CodeLens{{Range: rng, Command: cmd}}, nil
+	return []protocol.CodeLens{{Range: rng, Command: &cmd}}, nil
 }
 
 func toggleDetailsCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.CodeLens, error) {
@@ -244,5 +244,5 @@ func toggleDetailsCodeLens(ctx context.Context, snapshot Snapshot, fh FileHandle
 	if err != nil {
 		return nil, err
 	}
-	return []protocol.CodeLens{{Range: rng, Command: cmd}}, nil
+	return []protocol.CodeLens{{Range: rng, Command: &cmd}}, nil
 }

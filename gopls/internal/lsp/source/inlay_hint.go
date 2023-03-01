@@ -168,7 +168,7 @@ func parameterNames(node ast.Node, m *protocol.Mapper, tf *token.File, info *typ
 			label = label + "..."
 		}
 		hints = append(hints, protocol.InlayHint{
-			Position:     &start,
+			Position:     start,
 			Label:        buildLabel(label + ":"),
 			Kind:         protocol.Parameter,
 			PaddingRight: true,
@@ -202,7 +202,7 @@ func funcTypeParams(node ast.Node, m *protocol.Mapper, tf *token.File, info *typ
 		return nil
 	}
 	return []protocol.InlayHint{{
-		Position: &start,
+		Position: start,
 		Label:    buildLabel("[" + strings.Join(args, ", ") + "]"),
 		Kind:     protocol.Type,
 	}}
@@ -248,7 +248,7 @@ func variableType(e ast.Expr, m *protocol.Mapper, tf *token.File, info *types.In
 		return nil
 	}
 	return &protocol.InlayHint{
-		Position:    &end,
+		Position:    end,
 		Label:       buildLabel(types.TypeString(typ, *q)),
 		Kind:        protocol.Type,
 		PaddingLeft: true,
@@ -298,7 +298,7 @@ func constantValues(node ast.Node, m *protocol.Mapper, tf *token.File, info *typ
 			continue
 		}
 		hints = append(hints, protocol.InlayHint{
-			Position:    &end,
+			Position:    end,
 			Label:       buildLabel("= " + strings.Join(values, ", ")),
 			PaddingLeft: true,
 		})
@@ -335,7 +335,7 @@ func compositeLiteralFields(node ast.Node, m *protocol.Mapper, tf *token.File, i
 				break
 			}
 			hints = append(hints, protocol.InlayHint{
-				Position:     &start,
+				Position:     start,
 				Label:        buildLabel(strct.Field(i).Name() + ":"),
 				Kind:         protocol.Parameter,
 				PaddingRight: true,
@@ -377,7 +377,7 @@ func compositeLiteralTypes(node ast.Node, m *protocol.Mapper, tf *token.File, in
 		return nil
 	}
 	return []protocol.InlayHint{{
-		Position: &start,
+		Position: start,
 		Label:    buildLabel(fmt.Sprintf("%s%s", prefix, types.TypeString(typ, *q))),
 		Kind:     protocol.Type,
 	}}

@@ -132,7 +132,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 					codeActions = append(codeActions, protocol.CodeAction{
 						Title: importFixTitle(importFix.Fix),
 						Kind:  protocol.QuickFix,
-						Edit: protocol.WorkspaceEdit{
+						Edit: &protocol.WorkspaceEdit{
 							DocumentChanges: documentChanges(fh, importFix.Edits),
 						},
 						Diagnostics: fixes,
@@ -146,7 +146,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 				codeActions = append(codeActions, protocol.CodeAction{
 					Title: "Organize Imports",
 					Kind:  protocol.SourceOrganizeImports,
-					Edit: protocol.WorkspaceEdit{
+					Edit: &protocol.WorkspaceEdit{
 						DocumentChanges: documentChanges(fh, importEdits),
 					},
 				})
@@ -433,7 +433,7 @@ func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd 
 		action := protocol.CodeAction{
 			Title: fix.Title,
 			Kind:  fix.ActionKind,
-			Edit: protocol.WorkspaceEdit{
+			Edit: &protocol.WorkspaceEdit{
 				DocumentChanges: changes,
 			},
 			Command: fix.Command,

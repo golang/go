@@ -927,7 +927,7 @@ func (r *runner) InlayHints(t *testing.T, spn span.Span) {
 			paddingRight = " "
 		}
 		edits[i] = protocol.TextEdit{
-			Range:   protocol.Range{Start: *hint.Position, End: *hint.Position},
+			Range:   protocol.Range{Start: hint.Position, End: hint.Position},
 			NewText: fmt.Sprintf("<%s%s%s>", paddingLeft, hint.Label[0].Value, paddingRight),
 		}
 	}

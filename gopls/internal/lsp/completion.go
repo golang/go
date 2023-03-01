@@ -118,7 +118,7 @@ func toProtocolCompletionItems(candidates []completion.CompletionItem, rng proto
 				NewText: insertText,
 				Range:   rng,
 			},
-			InsertTextFormat:    options.InsertTextFormat,
+			InsertTextFormat:    &options.InsertTextFormat,
 			AdditionalTextEdits: candidate.AdditionalTextEdits,
 			// This is a hack so that the client sorts completion results in the order
 			// according to their score. This can be removed upon the resolution of

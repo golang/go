@@ -1111,7 +1111,7 @@ func (data *Data) Golden(t *testing.T, tag, target string, update func() ([]byte
 func (data *Data) collectCodeLens(spn span.Span, title, cmd string) {
 	data.CodeLens[spn.URI()] = append(data.CodeLens[spn.URI()], protocol.CodeLens{
 		Range: data.mustRange(spn),
-		Command: protocol.Command{
+		Command: &protocol.Command{
 			Title:   title,
 			Command: cmd,
 		},

@@ -242,6 +242,7 @@ func (e *Editor) settingsLocked() map[string]interface{} {
 
 func (e *Editor) initialize(ctx context.Context) error {
 	params := &protocol.ParamInitialize{}
+	params.ClientInfo = &protocol.Msg_XInitializeParams_clientInfo{}
 	params.ClientInfo.Name = "fakeclient"
 	params.ClientInfo.Version = "v1.0.0"
 	e.mu.Lock()
@@ -859,15 +860,17 @@ func (e *Editor) ApplyQuickFixes(ctx context.Context, loc protocol.Location, dia
 
 // ApplyCodeAction applies the given code action.
 func (e *Editor) ApplyCodeAction(ctx context.Context, action protocol.CodeAction) error {
-	for _, change := range action.Edit.DocumentChanges {
-		if change.TextDocumentEdit != nil {
-			path := e.sandbox.Workdir.URIToPath(change.TextDocumentEdit.TextDocument.URI)
-			if int32(e.buffers[path].version) != change.TextDocumentEdit.TextDocument.Version {
-				// Skip edits for old versions.
-				continue
-			}
-			if err := e.EditBuffer(ctx, path, change.TextDocumentEdit.Edits); err != nil {
-				return fmt.Errorf("editing buffer %q: %w", path, err)
+	if action.Edit != nil {
+		for _, change := range action.Edit.DocumentChanges {
+			if change.TextDocumentEdit != nil {
+				path := e.sandbox.Workdir.URIToPath(change.TextDocumentEdit.TextDocument.URI)
+				if int32(e.buffers[path].version) != change.TextDocumentEdit.TextDocument.Version {
+					// Skip edits for old versions.
+					continue
+				}
+				if err := e.EditBuffer(ctx, path, change.TextDocumentEdit.Edits); err != nil {
+					return fmt.Errorf("editing buffer %q: %w", path, err)
+				}
 			}
 		}
 	}
@@ -937,11 +940,13 @@ func (e *Editor) ExecuteCommand(ctx context.Context, params *protocol.ExecuteCom
 		return nil, nil
 	}
 	var match bool
-	// Ensure that this command was actually listed as a supported command.
-	for _, command := range e.serverCapabilities.ExecuteCommandProvider.Commands {
-		if command == params.Command {
-			match = true
-			break
+	if e.serverCapabilities.ExecuteCommandProvider != nil {
+		// Ensure that this command was actually listed as a supported command.
+		for _, command := range e.serverCapabilities.ExecuteCommandProvider.Commands {
+			if command == params.Command {
+				match = true
+				break
+			}
 		}
 	}
 	if !match {

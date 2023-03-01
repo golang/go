@@ -354,7 +354,7 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 		options(opts)
 	}
 	// If you add an additional option here, you must update the map key in connect.
-	params.Capabilities.TextDocument.Hover = protocol.HoverClientCapabilities{
+	params.Capabilities.TextDocument.Hover = &protocol.HoverClientCapabilities{
 		ContentFormat: []protocol.MarkupKind{opts.PreferredContentFormat},
 	}
 	params.Capabilities.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport = opts.HierarchicalDocumentSymbolSupport

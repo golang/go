@@ -106,7 +106,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 		}
 	}
 	var renameOpts interface{} = true
-	if r := params.Capabilities.TextDocument.Rename; r.PrepareSupport {
+	if r := params.Capabilities.TextDocument.Rename; r != nil && r.PrepareSupport {
 		renameOpts = protocol.RenameOptions{
 			PrepareProvider: r.PrepareSupport,
 		}
@@ -139,7 +139,7 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 			CallHierarchyProvider: &protocol.Or_ServerCapabilities_callHierarchyProvider{Value: true},
 			CodeActionProvider:    codeActionProvider,
 			CodeLensProvider:      &protocol.CodeLensOptions{}, // must be non-nil to enable the code lens capability
-			CompletionProvider: protocol.CompletionOptions{
+			CompletionProvider: &protocol.CompletionOptions{
 				TriggerCharacters: []string{"."},
 			},
 			DefinitionProvider:         &protocol.Or_ServerCapabilities_definitionProvider{Value: true},
@@ -148,13 +148,13 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 			DocumentFormattingProvider: &protocol.Or_ServerCapabilities_documentFormattingProvider{Value: true},
 			DocumentSymbolProvider:     &protocol.Or_ServerCapabilities_documentSymbolProvider{Value: true},
 			WorkspaceSymbolProvider:    &protocol.Or_ServerCapabilities_workspaceSymbolProvider{Value: true},
-			ExecuteCommandProvider: protocol.ExecuteCommandOptions{
+			ExecuteCommandProvider: &protocol.ExecuteCommandOptions{
 				Commands: options.SupportedCommands,
 			},
 			FoldingRangeProvider:      &protocol.Or_ServerCapabilities_foldingRangeProvider{Value: true},
 			HoverProvider:             &protocol.Or_ServerCapabilities_hoverProvider{Value: true},
 			DocumentHighlightProvider: &protocol.Or_ServerCapabilities_documentHighlightProvider{Value: true},
-			DocumentLinkProvider:      protocol.DocumentLinkOptions{},
+			DocumentLinkProvider:      &protocol.DocumentLinkOptions{},
 			InlayHintProvider:         protocol.InlayHintOptions{},
 			ReferencesProvider:        &protocol.Or_ServerCapabilities_referencesProvider{Value: true},
 			RenameProvider:            renameOpts,
@@ -167,24 +167,24 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 					TokenModifiers: s.session.Options().SemanticMods,
 				},
 			},
-			SignatureHelpProvider: protocol.SignatureHelpOptions{
+			SignatureHelpProvider: &protocol.SignatureHelpOptions{
 				TriggerCharacters: []string{"(", ","},
 			},
 			TextDocumentSync: &protocol.TextDocumentSyncOptions{
 				Change:    protocol.Incremental,
 				OpenClose: true,
-				Save: protocol.SaveOptions{
+				Save: &protocol.SaveOptions{
 					IncludeText: false,
 				},
 			},
-			Workspace: protocol.Workspace6Gn{
-				WorkspaceFolders: protocol.WorkspaceFolders5Gn{
+			Workspace: &protocol.Workspace6Gn{
+				WorkspaceFolders: &protocol.WorkspaceFolders5Gn{
 					Supported:           true,
 					ChangeNotifications: "workspace/didChangeWorkspaceFolders",
 				},
 			},
 		},
-		ServerInfo: protocol.PServerInfoMsg_initialize{
+		ServerInfo: &protocol.PServerInfoMsg_initialize{
 			Name:    "gopls",
 			Version: string(goplsVersion),
 		},
@@ -447,10 +447,11 @@ func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, patterns 
 		delete(s.watchedGlobPatterns, k)
 	}
 	var watchers []protocol.FileSystemWatcher
+	val := protocol.WatchChange | protocol.WatchDelete | protocol.WatchCreate
 	for pattern := range patterns {
 		watchers = append(watchers, protocol.FileSystemWatcher{
 			GlobPattern: pattern,
-			Kind:        uint32(protocol.WatchChange + protocol.WatchDelete + protocol.WatchCreate),
+			Kind:        &val,
 		})
 	}
 

@@ -41,7 +41,7 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 	if err != nil {
 		return nil, err
 	}
-	lenses := []protocol.CodeLens{{Range: modrng, Command: reset}}
+	lenses := []protocol.CodeLens{{Range: modrng, Command: &reset}}
 	if len(pm.File.Require) == 0 {
 		// Nothing to upgrade.
 		return lenses, nil
@@ -81,9 +81,9 @@ func upgradeLenses(ctx context.Context, snapshot source.Snapshot, fh source.File
 	}
 
 	return append(lenses, []protocol.CodeLens{
-		{Range: rng, Command: checkUpgrade},
-		{Range: rng, Command: upgradeTransitive},
-		{Range: rng, Command: upgradeDirect},
+		{Range: rng, Command: &checkUpgrade},
+		{Range: rng, Command: &upgradeTransitive},
+		{Range: rng, Command: &upgradeDirect},
 	}...), nil
 }
 
@@ -103,7 +103,7 @@ func tidyLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 	}
 	return []protocol.CodeLens{{
 		Range:   rng,
-		Command: cmd,
+		Command: &cmd,
 	}}, nil
 }
 
@@ -132,7 +132,7 @@ func vendorLens(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 	if info, _ := os.Stat(vendorDir); info != nil && info.IsDir() {
 		title = "Sync vendor directory"
 	}
-	return []protocol.CodeLens{{Range: rng, Command: cmd}}, nil
+	return []protocol.CodeLens{{Range: rng, Command: &cmd}}, nil
 }
 
 func moduleStmtRange(fh source.FileHandle, pm *source.ParsedModule) (protocol.Range, error) {
@@ -186,6 +186,6 @@ func vulncheckLenses(ctx context.Context, snapshot source.Snapshot, fh source.Fi
 		return nil, err
 	}
 	return []protocol.CodeLens{
-		{Range: rng, Command: vulncheck},
+		{Range: rng, Command: &vulncheck},
 	}, nil
 }

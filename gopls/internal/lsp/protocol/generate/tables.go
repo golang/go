@@ -18,109 +18,45 @@ const (
 )
 
 // goplsStar records the optionality of each field in the protocol.
+// The comments are vague hints as to why removing the line is not trivial.
+// A.B.C.D means that one of B or C would change to a pointer
+// so a test or initialization would be needed
 var goplsStar = map[prop]int{
-	{"ClientCapabilities", "textDocument"}:                       wantOpt,
-	{"ClientCapabilities", "window"}:                             wantOpt,
-	{"ClientCapabilities", "workspace"}:                          wantOpt,
-	{"CodeAction", "edit"}:                                       wantOpt,
-	{"CodeAction", "kind"}:                                       wantOpt,
-	{"CodeActionClientCapabilities", "codeActionLiteralSupport"}: wantOpt,
-	{"CodeActionContext", "triggerKind"}:                         wantOpt,
-	{"CodeLens", "command"}:                                      wantOpt,
-	{"CompletionClientCapabilities", "completionItem"}:           wantOpt,
-	{"CompletionClientCapabilities", "insertTextMode"}:           wantOpt,
-	{"CompletionItem", "insertTextFormat"}:                       wantOpt,
-	{"CompletionItem", "insertTextMode"}:                         wantOpt,
-	{"CompletionItem", "kind"}:                                   wantOpt,
-	{"CompletionParams", "context"}:                              wantOpt,
-	{"Diagnostic", "severity"}:                                   wantOpt,
-	{"DidSaveTextDocumentParams", "text"}:                        wantOptStar,
-	{"DocumentHighlight", "kind"}:                                wantOpt,
-	{"FileOperationPattern", "matches"}:                          wantOpt,
-	{"FileSystemWatcher", "kind"}:                                wantOpt,
-	{"Hover", "range"}:                                           wantOpt,
-	{"InitializeResult", "serverInfo"}:                           wantOpt,
-	{"InlayHint", "kind"}:                                        wantOpt,
-	{"InlayHint", "position"}:                                    wantStar,
+	{"ClientCapabilities", "textDocument"}: wantOpt, // A.B.C.D at fake/editor.go:255
+	{"ClientCapabilities", "window"}:       wantOpt, // regtest failures
+	{"ClientCapabilities", "workspace"}:    wantOpt, // regtest failures
+	{"CodeAction", "kind"}:                 wantOpt, // A.B.C.D
 
-	{"Lit_CompletionClientCapabilities_completionItem", "commitCharactersSupport"}: nothing,
-	{"Lit_CompletionClientCapabilities_completionItem", "deprecatedSupport"}:       nothing,
-	{"Lit_CompletionClientCapabilities_completionItem", "documentationFormat"}:     nothing,
-	{"Lit_CompletionClientCapabilities_completionItem", "insertReplaceSupport"}:    nothing,
-	{"Lit_CompletionClientCapabilities_completionItem", "insertTextModeSupport"}:   nothing,
-	{"Lit_CompletionClientCapabilities_completionItem", "labelDetailsSupport"}:     nothing,
-	{"Lit_CompletionClientCapabilities_completionItem", "preselectSupport"}:        nothing,
-	{"Lit_CompletionClientCapabilities_completionItem", "resolveSupport"}:          nothing,
-	{"Lit_CompletionClientCapabilities_completionItem", "snippetSupport"}:          nothing,
-	{"Lit_CompletionClientCapabilities_completionItem", "tagSupport"}:              nothing,
-	{"Lit_CompletionClientCapabilities_completionItemKind", "valueSet"}:            nothing,
-	{"Lit_CompletionClientCapabilities_completionList", "itemDefaults"}:            nothing,
-	{"Lit_CompletionList_itemDefaults", "commitCharacters"}:                        nothing,
-	{"Lit_CompletionList_itemDefaults", "data"}:                                    nothing,
-	{"Lit_CompletionList_itemDefaults", "editRange"}:                               nothing,
-	{"Lit_CompletionList_itemDefaults", "insertTextFormat"}:                        nothing,
-	{"Lit_CompletionList_itemDefaults", "insertTextMode"}:                          nothing,
-	{"Lit_CompletionOptions_completionItem", "labelDetailsSupport"}:                nothing,
-	{"Lit_DocumentSymbolClientCapabilities_symbolKind", "valueSet"}:                nothing,
-	{"Lit_FoldingRangeClientCapabilities_foldingRange", "collapsedText"}:           nothing,
-	{"Lit_FoldingRangeClientCapabilities_foldingRangeKind", "valueSet"}:            nothing,
-	{"Lit_InitializeResult_serverInfo", "version"}:                                 nothing,
-	{"Lit_NotebookDocumentChangeEvent_cells", "data"}:                              nothing,
-	{"Lit_NotebookDocumentChangeEvent_cells", "structure"}:                         nothing,
-	{"Lit_NotebookDocumentChangeEvent_cells", "textContent"}:                       nothing,
-	{"Lit_NotebookDocumentChangeEvent_cells_structure", "didClose"}:                nothing,
-	{"Lit_NotebookDocumentChangeEvent_cells_structure", "didOpen"}:                 nothing,
-	{"Lit_NotebookDocumentFilter_Item0", "pattern"}:                                nothing,
-	{"Lit_NotebookDocumentFilter_Item0", "scheme"}:                                 nothing,
-	{"Lit_NotebookDocumentSyncOptions_notebookSelector_Elem_Item0", "cells"}:       nothing,
-	{"Lit_SemanticTokensClientCapabilities_requests", "full"}:                      nothing,
-	{"Lit_SemanticTokensClientCapabilities_requests", "range"}:                     nothing,
-	{"Lit_SemanticTokensClientCapabilities_requests_full_Item1", "delta"}:          nothing,
-	{"Lit_SemanticTokensOptions_full_Item1", "delta"}:                              nothing,
-	{"Lit_ServerCapabilities_workspace", "fileOperations"}:                         nothing,
-	{"Lit_ServerCapabilities_workspace", "workspaceFolders"}:                       nothing,
+	{"CodeActionClientCapabilities", "codeActionLiteralSupport"}: wantOpt, // regtest failures
 
-	{"Lit_ShowMessageRequestClientCapabilities_messageActionItem", "additionalPropertiesSupport"}:           nothing,
-	{"Lit_SignatureHelpClientCapabilities_signatureInformation", "activeParameterSupport"}:                  nothing,
-	{"Lit_SignatureHelpClientCapabilities_signatureInformation", "documentationFormat"}:                     nothing,
-	{"Lit_SignatureHelpClientCapabilities_signatureInformation", "parameterInformation"}:                    nothing,
-	{"Lit_SignatureHelpClientCapabilities_signatureInformation_parameterInformation", "labelOffsetSupport"}: nothing,
+	{"CompletionClientCapabilities", "completionItem"}: wantOpt, // A.B.C.D
+	{"CompletionClientCapabilities", "insertTextMode"}: wantOpt, // A.B.C.D
+	{"CompletionItem", "kind"}:                         wantOpt, // need temporary variables
+	{"CompletionParams", "context"}:                    wantOpt, // needs nil checks
 
-	{"Lit_TextDocumentContentChangeEvent_Item0", "range"}:       wantStar,
-	{"Lit_TextDocumentContentChangeEvent_Item0", "rangeLength"}: nothing,
-	{"Lit_TextDocumentFilter_Item0", "pattern"}:                 nothing,
-	{"Lit_TextDocumentFilter_Item0", "scheme"}:                  nothing,
-	{"Lit_TextDocumentFilter_Item1", "language"}:                nothing,
-	{"Lit_TextDocumentFilter_Item1", "pattern"}:                 nothing,
+	{"Diagnostic", "severity"}:            wantOpt,     // nil checks or more careful thought
+	{"DidSaveTextDocumentParams", "text"}: wantOptStar, // capabilities_test.go:112 logic
+	{"DocumentHighlight", "kind"}:         wantOpt,     // need temporary variables
+	{"Hover", "range"}:                    wantOpt,     // complex expressions
+	{"InlayHint", "kind"}:                 wantOpt,     // temporary variables
 
-	{"Lit_WorkspaceEditClientCapabilities_changeAnnotationSupport", "groupsOnLabel"}: nothing,
-	{"Lit_WorkspaceSymbolClientCapabilities_symbolKind", "valueSet"}:                 nothing,
-	{"Lit__InitializeParams_clientInfo", "version"}:                                  nothing,
+	{"Lit_CompletionClientCapabilities_completionItem", "tagSupport"}:     nothing, // A.B.C.
+	{"Lit_SemanticTokensClientCapabilities_requests", "full"}:             nothing, // A.B.C.D
+	{"Lit_SemanticTokensClientCapabilities_requests", "range"}:            nothing, // A.B.C.D
+	{"Lit_SemanticTokensClientCapabilities_requests_full_Item1", "delta"}: nothing, // A.B.C.D
+	{"Lit_SemanticTokensOptions_full_Item1", "delta"}:                     nothing, // A.B.C.
 
-	{"Moniker", "kind"}:                                       wantOpt,
-	{"PartialResultParams", "partialResultToken"}:             wantOpt,
-	{"ResourceOperation", "annotationId"}:                     wantOpt,
-	{"ServerCapabilities", "completionProvider"}:              wantOpt,
-	{"ServerCapabilities", "documentLinkProvider"}:            wantOpt,
-	{"ServerCapabilities", "executeCommandProvider"}:          wantOpt,
-	{"ServerCapabilities", "positionEncoding"}:                wantOpt,
-	{"ServerCapabilities", "signatureHelpProvider"}:           wantOpt,
-	{"ServerCapabilities", "workspace"}:                       wantOpt,
-	{"TextDocumentClientCapabilities", "codeAction"}:          wantOpt,
-	{"TextDocumentClientCapabilities", "completion"}:          wantOpt,
-	{"TextDocumentClientCapabilities", "documentSymbol"}:      wantOpt,
-	{"TextDocumentClientCapabilities", "foldingRange"}:        wantOpt,
-	{"TextDocumentClientCapabilities", "hover"}:               wantOpt,
-	{"TextDocumentClientCapabilities", "publishDiagnostics"}:  wantOpt,
-	{"TextDocumentClientCapabilities", "rename"}:              wantOpt,
-	{"TextDocumentClientCapabilities", "semanticTokens"}:      wantOpt,
-	{"TextDocumentSyncOptions", "change"}:                     wantOpt,
-	{"TextDocumentSyncOptions", "save"}:                       wantOpt,
-	{"WorkDoneProgressParams", "workDoneToken"}:               wantOpt,
-	{"WorkspaceClientCapabilities", "didChangeConfiguration"}: wantOpt,
-	{"WorkspaceClientCapabilities", "didChangeWatchedFiles"}:  wantOpt,
-	{"WorkspaceEditClientCapabilities", "failureHandling"}:    wantOpt,
-	{"XInitializeParams", "clientInfo"}:                       wantOpt,
+	{"Lit_TextDocumentContentChangeEvent_Item0", "range"}: wantStar, // == nil test
+
+	{"TextDocumentClientCapabilities", "codeAction"}:          wantOpt, // A.B.C.D
+	{"TextDocumentClientCapabilities", "completion"}:          wantOpt, // A.B.C.D
+	{"TextDocumentClientCapabilities", "documentSymbol"}:      wantOpt, // A.B.C.D
+	{"TextDocumentClientCapabilities", "publishDiagnostics"}:  wantOpt, //A.B.C.D
+	{"TextDocumentClientCapabilities", "semanticTokens"}:      wantOpt, // A.B.C.D
+	{"TextDocumentSyncOptions", "change"}:                     wantOpt, // &constant
+	{"WorkDoneProgressParams", "workDoneToken"}:               wantOpt, // regtest
+	{"WorkspaceClientCapabilities", "didChangeConfiguration"}: wantOpt, // A.B.C.D
+	{"WorkspaceClientCapabilities", "didChangeWatchedFiles"}:  wantOpt, // A.B.C.D
 }
 
 // keep track of which entries in goplsStar are used
