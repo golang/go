@@ -77,7 +77,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
 			m[k] = v
 		}
 	}
-	keys := make([]string, len(m))
+	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
