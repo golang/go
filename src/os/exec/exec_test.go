@@ -694,7 +694,7 @@ func TestExtraFiles(t *testing.T) {
 
 	// This test runs with cgo disabled. External linking needs cgo, so
 	// it doesn't work if external linking is required.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)

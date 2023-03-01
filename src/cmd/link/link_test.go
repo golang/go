@@ -176,19 +176,7 @@ main.x: relocation target main.zero not defined
 func TestIssue33979(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
-	testenv.MustInternalLink(t)
-
-	// Skip test on platforms that do not support cgo internal linking.
-	switch runtime.GOARCH {
-	case "loong64":
-		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
-	case "mips", "mipsle", "mips64", "mips64le":
-		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
-	if runtime.GOOS == "aix" ||
-		runtime.GOOS == "windows" && runtime.GOARCH == "arm64" {
-		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	testenv.MustInternalLink(t, true)
 
 	t.Parallel()
 
@@ -751,8 +739,8 @@ func TestTrampolineCgo(t *testing.T) {
 
 		// Test internal linking mode.
 
-		if runtime.GOARCH == "ppc64" || (runtime.GOARCH == "arm64" && runtime.GOOS == "windows") || !testenv.CanInternalLink() {
-			return // internal linking cgo is not supported
+		if !testenv.CanInternalLink(true) {
+			continue
 		}
 		cmd = testenv.Command(t, testenv.GoToolPath(t), "build", "-buildmode="+mode, "-ldflags=-debugtramp=2 -linkmode=internal", "-o", exe, src)
 		out, err = cmd.CombinedOutput()

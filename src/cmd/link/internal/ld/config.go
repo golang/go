@@ -5,7 +5,6 @@
 package ld
 
 import (
-	"cmd/internal/sys"
 	"fmt"
 	"internal/buildcfg"
 	"internal/platform"
@@ -125,7 +124,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		}()
 	}
 
-	if platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH) {
+	if platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH, false) {
 		return true, fmt.Sprintf("%s/%s requires external linking", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 
@@ -137,24 +136,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "asan"
 	}
 
-	// Internally linking cgo is incomplete on some architectures.
-	// https://golang.org/issue/14449
-	if iscgo && ctxt.Arch.InFamily(sys.Loong64, sys.MIPS64, sys.MIPS, sys.RISCV64) {
+	if iscgo && platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH, true) {
 		return true, buildcfg.GOARCH + " does not support internal cgo"
-	}
-	if iscgo && (buildcfg.GOOS == "android" || buildcfg.GOOS == "dragonfly") {
-		// It seems that on Dragonfly thread local storage is
-		// set up by the dynamic linker, so internal cgo linking
-		// doesn't work. Test case is "go test runtime/cgo".
-		return true, buildcfg.GOOS + " does not support internal cgo"
-	}
-	if iscgo && buildcfg.GOOS == "windows" && buildcfg.GOARCH == "arm64" {
-		// windows/arm64 internal linking is not implemented.
-		return true, buildcfg.GOOS + "/" + buildcfg.GOARCH + " does not support internal cgo"
-	}
-	if iscgo && ctxt.Arch == sys.ArchPPC64 {
-		// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
-		return true, buildcfg.GOOS + " does not support internal cgo"
 	}
 
 	// Some build modes require work the internal linker cannot do (yet).
@@ -164,12 +147,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	case BuildModeCShared:
 		return true, "buildmode=c-shared"
 	case BuildModePIE:
-		switch buildcfg.GOOS + "/" + buildcfg.GOARCH {
-		case "android/arm64":
-		case "linux/amd64", "linux/arm64", "linux/ppc64le":
-		case "windows/386", "windows/amd64", "windows/arm", "windows/arm64":
-		case "darwin/amd64", "darwin/arm64":
-		default:
+		if !platform.InternalLinkPIESupported(buildcfg.GOOS, buildcfg.GOARCH) {
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"
 		}

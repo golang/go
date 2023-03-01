@@ -288,15 +288,18 @@ func MustHaveCGO(t testing.TB) {
 
 // CanInternalLink reports whether the current system can link programs with
 // internal linking.
-func CanInternalLink() bool {
-	return !platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH)
+func CanInternalLink(withCgo bool) bool {
+	return !platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, withCgo)
 }
 
 // MustInternalLink checks that the current system can link programs with internal
 // linking.
 // If not, MustInternalLink calls t.Skip with an explanation.
-func MustInternalLink(t testing.TB) {
-	if !CanInternalLink() {
+func MustInternalLink(t testing.TB, withCgo bool) {
+	if !CanInternalLink(withCgo) {
+		if withCgo && CanInternalLink(false) {
+			t.Skipf("skipping test: internal linking on %s/%s is not supported with cgo", runtime.GOOS, runtime.GOARCH)
+		}
 		t.Skipf("skipping test: internal linking on %s/%s is not supported", runtime.GOOS, runtime.GOARCH)
 	}
 }

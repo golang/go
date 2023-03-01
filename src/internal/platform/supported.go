@@ -71,8 +71,39 @@ func FuzzInstrumented(goos, goarch string) bool {
 	}
 }
 
-// MustLinkExternal reports whether goos/goarch requires external linking.
-func MustLinkExternal(goos, goarch string) bool {
+// MustLinkExternal reports whether goos/goarch requires external linking
+// with or without cgo dependencies.
+func MustLinkExternal(goos, goarch string, withCgo bool) bool {
+	if withCgo {
+		switch goarch {
+		case "loong64",
+			"mips", "mipsle", "mips64", "mips64le",
+			"riscv64":
+			// Internally linking cgo is incomplete on some architectures.
+			// https://go.dev/issue/14449
+			return true
+		case "arm64":
+			if goos == "windows" {
+				// windows/arm64 internal linking is not implemented.
+				return true
+			}
+		case "ppc64":
+			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
+			// https://go.dev/issue/8912
+			return true
+		}
+
+		switch goos {
+		case "android":
+			return true
+		case "dragonfly":
+			// It seems that on Dragonfly thread local storage is
+			// set up by the dynamic linker, so internal cgo linking
+			// doesn't work. Test case is "go test runtime/cgo".
+			return true
+		}
+	}
+
 	switch goos {
 	case "android":
 		if goarch != "arm64" {
@@ -178,10 +209,10 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 func InternalLinkPIESupported(goos, goarch string) bool {
 	switch goos + "/" + goarch {
-	case "darwin/amd64", "darwin/arm64",
+	case "android/arm64",
+		"darwin/amd64", "darwin/arm64",
 		"linux/amd64", "linux/arm64", "linux/ppc64le",
-		"android/arm64",
-		"windows-amd64", "windows-386", "windows-arm":
+		"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
 		return true
 	}
 	return false

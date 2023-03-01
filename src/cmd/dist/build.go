@@ -539,7 +539,36 @@ func setup() {
 // mustLinkExternal is a copy of internal/platform.MustLinkExternal,
 // duplicated here to avoid version skew in the MustLinkExternal function
 // during bootstrapping.
-func mustLinkExternal(goos, goarch string) bool {
+func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
+	if cgoEnabled {
+		switch goarch {
+		case "loong64",
+			"mips", "mipsle", "mips64", "mips64le",
+			"riscv64":
+			// Internally linking cgo is incomplete on some architectures.
+			// https://golang.org/issue/14449
+			return true
+		case "arm64":
+			if goos == "windows" {
+				// windows/arm64 internal linking is not implemented.
+				return true
+			}
+		case "ppc64":
+			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
+			return true
+		}
+
+		switch goos {
+		case "android":
+			return true
+		case "dragonfly":
+			// It seems that on Dragonfly thread local storage is
+			// set up by the dynamic linker, so internal cgo linking
+			// doesn't work. Test case is "go test runtime/cgo".
+			return true
+		}
+	}
+
 	switch goos {
 	case "android":
 		if goarch != "arm64" {
@@ -1283,7 +1312,7 @@ func timelog(op, name string) {
 // to switch between the host and target configurations when cross-compiling.
 func toolenv() []string {
 	var env []string
-	if !mustLinkExternal(goos, goarch) {
+	if !mustLinkExternal(goos, goarch, false) {
 		// Unless the platform requires external linking,
 		// we disable cgo to get static binaries for cmd/go and cmd/pprof,
 		// so that they work on systems without the same dynamic libraries

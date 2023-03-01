@@ -184,7 +184,7 @@ func TestCrashHandler(t *testing.T) {
 
 func testDeadlock(t *testing.T, name string) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", name)
 	want := "fatal error: all goroutines are asleep - deadlock!\n"
@@ -211,7 +211,7 @@ func TestLockedDeadlock2(t *testing.T) {
 
 func TestGoexitDeadlock(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", "GoexitDeadlock")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -311,7 +311,7 @@ panic: third panic
 
 func TestGoexitCrash(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", "GoexitExit")
 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
@@ -372,7 +372,7 @@ func TestBreakpoint(t *testing.T) {
 
 func TestGoexitInPanic(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	// see issue 8774: this code used to trigger an infinite recursion
 	output := runTestProg(t, "testprog", "GoexitInPanic")
@@ -439,7 +439,7 @@ func TestPanicAfterGoexit(t *testing.T) {
 
 func TestRecoveredPanicAfterGoexit(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	output := runTestProg(t, "testprog", "RecoveredPanicAfterGoexit")
 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
@@ -450,7 +450,7 @@ func TestRecoveredPanicAfterGoexit(t *testing.T) {
 
 func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit")
@@ -462,7 +462,7 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 
 func TestRecoverBeforePanicAfterGoexit2(t *testing.T) {
 	// External linking brings in cgo, causing deadlock detection not working.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 	output := runTestProg(t, "testprog", "RecoverBeforePanicAfterGoexit2")

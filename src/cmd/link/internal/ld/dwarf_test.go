@@ -274,7 +274,7 @@ func TestSizes(t *testing.T) {
 	}
 
 	// External linking may bring in C symbols with unknown size. Skip.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 
@@ -882,7 +882,7 @@ func TestAbstractOriginSanityIssue26237(t *testing.T) {
 
 func TestRuntimeTypeAttrInternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
@@ -1165,7 +1165,7 @@ func main() {
 	// TODO: maybe there is some way to tell the external linker not to put
 	// those symbols in the executable's symbol table? Prefix the symbol name
 	// with "." or "L" to pretend it is a label?
-	if !testenv.CanInternalLink() {
+	if !testenv.CanInternalLink(false) {
 		return
 	}
 

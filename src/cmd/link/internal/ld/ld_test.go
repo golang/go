@@ -21,7 +21,7 @@ func TestUndefinedRelocErrors(t *testing.T) {
 
 	// When external linking, symbols may be defined externally, so we allow
 	// undefined symbols and let external linker resolve. Skip the test.
-	testenv.MustInternalLink(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 
