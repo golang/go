@@ -325,14 +325,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		return
 	}
 
-	var alt *Func
-	if cause != nil {
-		defer func() {
-			if method != nil {
-				*cause = check.missingMethodCause(V, T, method, alt)
-			}
-		}()
-	}
+	var alt *Func // alternative method (pointer receiver or similar spelling)
 
 	// V is an interface
 	if u, _ := under(V).(*Interface); u != nil {
@@ -344,16 +337,18 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 				if !static {
 					continue
 				}
-				return m, false
+				method = m
+				goto Error
 			}
 
 			if !equivalent(f.typ, m.typ) {
-				alt = f
-				return m, true
+				method, alt = m, f
+				wrongType = true
+				goto Error
 			}
 		}
 
-		return
+		return nil, false
 	}
 
 	// V is not an interface
@@ -374,7 +369,8 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		// we must have a method (not a struct field)
 		f, _ := obj.(*Func)
 		if f == nil {
-			return m, false
+			method = m
+			goto Error
 		}
 
 		// methods may not have a fully set up signature yet
@@ -383,60 +379,63 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		}
 
 		if !found || !equivalent(f.typ, m.typ) {
-			alt = f
-			return m, f.name == m.name
+			method, alt = m, f
+			wrongType = f.name == m.name
+			goto Error
 		}
 	}
 
-	return
-}
+	return nil, false
 
-// missingMethodCause returns a string giving the detailed cause for a missing method m,
-// where m is missing from V, but required by T. It puts the cause in parentheses,
-// and may include more have/want info after that. If non-nil, alt is a relevant
-// method that matches in some way. It may have the correct name, but wrong type, or
-// it may have a pointer receiver, or it may have the correct name except wrong case.
-// check may be nil.
-// missingMethodCause should only be called by missingMethod.
-// TODO(gri) integrate this logic into missingMethod and get rid of this function.
-func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
-	mname := "method " + m.Name()
+Error:
+	if cause == nil {
+		return
+	}
+
+	mname := "method " + method.Name()
 
 	if alt != nil {
-		if m.Name() != alt.Name() {
-			return check.sprintf("(missing %s)\n\t\thave %s\n\t\twant %s",
-				mname, check.funcString(alt, false), check.funcString(m, false))
+		if method.Name() != alt.Name() {
+			*cause = check.sprintf("(missing %s)\n\t\thave %s\n\t\twant %s",
+				mname, check.funcString(alt, false), check.funcString(method, false))
+			return
 		}
 
-		if Identical(m.typ, alt.typ) {
-			return check.sprintf("(%s has pointer receiver)", mname)
+		if Identical(method.typ, alt.typ) {
+			*cause = check.sprintf("(%s has pointer receiver)", mname)
+			return
 		}
 
-		altS, mS := check.funcString(alt, false), check.funcString(m, false)
-		if altS == mS {
+		altS, methodS := check.funcString(alt, false), check.funcString(method, false)
+		if altS == methodS {
 			// Would tell the user that Foo isn't a Foo, add package information to disambiguate.
 			// See go.dev/issue/54258.
-			altS, mS = check.funcString(alt, true), check.funcString(m, true)
+			altS, methodS = check.funcString(alt, true), check.funcString(method, true)
 		}
 
-		return check.sprintf("(wrong type for %s)\n\t\thave %s\n\t\twant %s",
-			mname, altS, mS)
+		*cause = check.sprintf("(wrong type for %s)\n\t\thave %s\n\t\twant %s",
+			mname, altS, methodS)
+		return
 	}
 
 	if isInterfacePtr(V) {
-		return "(" + check.interfacePtrError(V) + ")"
+		*cause = "(" + check.interfacePtrError(V) + ")"
+		return
 	}
 
 	if isInterfacePtr(T) {
-		return "(" + check.interfacePtrError(T) + ")"
+		*cause = "(" + check.interfacePtrError(T) + ")"
+		return
 	}
 
-	obj, _, _ := lookupFieldOrMethod(V, true /* auto-deref */, m.pkg, m.name, false)
+	obj, _, _ := lookupFieldOrMethod(V, true /* auto-deref */, method.pkg, method.name, false)
 	if fld, _ := obj.(*Var); fld != nil {
-		return check.sprintf("(%s.%s is a field, not a method)", V, fld.Name())
+		*cause = check.sprintf("(%s.%s is a field, not a method)", V, fld.Name())
+		return
 	}
 
-	return check.sprintf("(missing %s)", mname)
+	*cause = check.sprintf("(missing %s)", mname)
+	return
 }
 
 func isInterfacePtr(T Type) bool {
