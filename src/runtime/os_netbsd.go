@@ -246,7 +246,7 @@ func newosproc(mp *m) {
 // It is written in assembly, uses ABI0, is marked TOPFRAME, and calls netbsdMstart0.
 func netbsdMstart()
 
-// netbsdMStart0 is the function call that starts executing a newly
+// netbsdMstart0 is the function call that starts executing a newly
 // created thread. On NetBSD, a new thread inherits the signal stack
 // of the creating thread. That confuses minit, so we remove that
 // signal stack here before calling the regular mstart. It's a bit

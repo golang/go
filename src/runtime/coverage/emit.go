@@ -241,7 +241,7 @@ func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
 	return ml, nil
 }
 
-// emitMetaData emits the meta-data output file to the specified
+// emitMetaDataToDirectory emits the meta-data output file to the specified
 // directory, returning an error if something went wrong.
 func emitMetaDataToDirectory(outdir string, ml []rtcov.CovMetaBlob) error {
 	ml, err := prepareForMetaEmit()
@@ -289,7 +289,7 @@ func emitCounterData() {
 	}
 }
 
-// emitMetaData emits the counter-data output file for this coverage run.
+// emitCounterDataToDirectory emits the counter-data output file for this coverage run.
 func emitCounterDataToDirectory(outdir string) error {
 	// Ask the runtime for the list of coverage counter symbols.
 	cl := getCovCounterList()
@@ -336,7 +336,7 @@ func emitCounterDataToDirectory(outdir string) error {
 	return nil
 }
 
-// emitMetaData emits counter data for this coverage run to an io.Writer.
+// emitCounterDataToWriter emits counter data for this coverage run to an io.Writer.
 func (s *emitState) emitCounterDataToWriter(w io.Writer) error {
 	if err := s.emitCounterDataFile(finalHash, w); err != nil {
 		return err

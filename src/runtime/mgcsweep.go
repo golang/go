@@ -484,7 +484,7 @@ func (s *mspan) ensureSwept() {
 	}
 }
 
-// Sweep frees or collects finalizers for blocks not marked in the mark phase.
+// sweep frees or collects finalizers for blocks not marked in the mark phase.
 // It clears the mark bits in preparation for the next GC round.
 // Returns true if the span was returned to heap.
 // If preserve=true, don't return it to heap nor relink in mcentral lists;
