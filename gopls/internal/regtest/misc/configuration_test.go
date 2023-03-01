@@ -15,10 +15,10 @@ import (
 // Test that enabling and disabling produces the expected results of showing
 // and hiding staticcheck analysis results.
 func TestChangeConfiguration(t *testing.T) {
-	// Staticcheck only supports Go versions >= 1.17.
+	// Staticcheck only supports Go versions >= 1.19.
 	// Note: keep this in sync with TestStaticcheckWarning. Below this version we
 	// should get an error when setting staticcheck configuration.
-	testenv.NeedsGo1Point(t, 17)
+	testenv.NeedsGo1Point(t, 19)
 
 	const files = `
 -- go.mod --
