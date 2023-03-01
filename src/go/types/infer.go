@@ -250,9 +250,10 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 					// It must have (at least) all the methods of the type constraint,
 					// and the method signatures must unify; otherwise tx cannot satisfy
 					// the constraint.
+					var cause string
 					constraint := tpar.iface()
-					if m, wrong := check.missingMethod(tx, constraint, true, u.unify); m != nil {
-						check.errorf(posn, CannotInferTypeArgs, "%s does not satisfy %s %s", tx, constraint, check.missingMethodCause(tx, constraint, m, wrong))
+					if m, _ := check.missingMethod(tx, constraint, true, u.unify, &cause); m != nil {
+						check.errorf(posn, CannotInferTypeArgs, "%s does not satisfy %s %s", tx, constraint, cause)
 						return nil
 					}
 				}

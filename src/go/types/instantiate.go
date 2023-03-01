@@ -243,9 +243,9 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 	}
 
 	// V must implement T's methods, if any.
-	if m, wrong := check.missingMethod(V, Ti, true, Identical); m != nil /* !Implements(V, Ti) */ {
+	if m, _ := check.missingMethod(V, T, true, Identical, cause); m != nil /* !Implements(V, T) */ {
 		if cause != nil {
-			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, check.missingMethodCause(V, T, m, wrong))
+			*cause = check.sprintf("%s does not %s %s %s", V, verb, T, *cause)
 		}
 		return false
 	}

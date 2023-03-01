@@ -307,30 +307,42 @@ func (l *instanceLookup) add(inst *Named) {
 // present in V have matching types (e.g., for a type assertion x.(T) where
 // x is of interface type V).
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
-	m, alt := (*Checker)(nil).missingMethod(V, T, static, Identical)
+	m, alt := (*Checker)(nil).missingMethod(V, T, static, Identical, nil)
 	// Only report a wrong type if the alternative method has the same name as m.
 	return m, alt != nil && alt.name == m.name // alt != nil implies m != nil
 }
 
-// missingMethod is like MissingMethod but accepts a *Checker as receiver
-// and comparator equivalent for type comparison.
+// missingMethod is like MissingMethod but accepts a *Checker as receiver,
+// a comparator equivalent for type comparison, and a *string for error causes.
 // The receiver may be nil if missingMethod is invoked through an exported
 // API call (such as MissingMethod), i.e., when all methods have been type-
 // checked.
+// The underlying type of T must be an interface; T (rather than its under-
+// lying type) is used for better error messages (reported through *cause).
 // The comparator is used to compare signatures.
+// If a method is missing and cause is not nil, *cause is set to the error cause.
 //
 // If a method is missing on T but is found on *T, or if a method is found
 // on T when looked up with case-folding, this alternative method is returned
 // as the second result.
-func (check *Checker) missingMethod(V Type, T *Interface, static bool, equivalent func(x, y Type) bool) (method, alt *Func) {
-	if T.NumMethods() == 0 {
+func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y Type) bool, cause *string) (method, alt *Func) {
+	methods := under(T).(*Interface).typeSet().methods // T must be an interface
+	if len(methods) == 0 {
 		return
+	}
+
+	if cause != nil {
+		defer func() {
+			if method != nil {
+				*cause = check.missingMethodCause(V, T, method, alt)
+			}
+		}()
 	}
 
 	// V is an interface
 	if u, _ := under(V).(*Interface); u != nil {
 		tset := u.typeSet()
-		for _, m := range T.typeSet().methods {
+		for _, m := range methods {
 			_, f := tset.LookupMethod(m.pkg, m.name, false)
 
 			if f == nil {
@@ -349,7 +361,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool, equivalen
 	}
 
 	// V is not an interface
-	for _, m := range T.typeSet().methods {
+	for _, m := range methods {
 		// TODO(gri) should this be calling LookupFieldOrMethod instead (and why not)?
 		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name, false)
 
@@ -388,6 +400,8 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool, equivalen
 // method that matches in some way. It may have the correct name, but wrong type, or
 // it may have a pointer receiver, or it may have the correct name except wrong case.
 // check may be nil.
+// missingMethodCause should only be called by missingMethod.
+// TODO(gri) integrate this logic into missingMethod and get rid of this function.
 func (check *Checker) missingMethodCause(V, T Type, m, alt *Func) string {
 	mname := "method " + m.Name()
 
@@ -462,8 +476,10 @@ func (check *Checker) funcString(f *Func, pkgInfo bool) string {
 // method required by V and whether it is missing or just has the wrong type.
 // The receiver may be nil if assertableTo is invoked through an exported API call
 // (such as AssertableTo), i.e., when all methods have been type-checked.
+// The underlying type of V must be an interface.
+// If the result is negative and cause is not nil, *cause is set to the error cause.
 // TODO(gri) replace calls to this function with calls to newAssertableTo.
-func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Func) {
+func (check *Checker) assertableTo(V, T Type, cause *string) (method, wrongType *Func) {
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
@@ -471,20 +487,22 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
 		return
 	}
 	// TODO(gri) fix this for generalized interfaces
-	return check.missingMethod(T, V, false, Identical)
+	return check.missingMethod(T, V, false, Identical, cause)
 }
 
 // newAssertableTo reports whether a value of type V can be asserted to have type T.
 // It also implements behavior for interfaces that currently are only permitted
 // in constraint position (we have not yet defined that behavior in the spec).
-func (check *Checker) newAssertableTo(V *Interface, T Type) bool {
+// The underlying type of V must be an interface.
+// If the result is false and cause is not nil, *cause is set to the error cause.
+func (check *Checker) newAssertableTo(V, T Type, cause *string) bool {
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
 	if IsInterface(T) {
 		return true
 	}
-	return check.implements(T, V, false, nil)
+	return check.implements(T, V, false, cause)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.

@@ -442,7 +442,7 @@ func AssertableTo(V *Interface, T Type) bool {
 	if T.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).newAssertableTo(V, T)
+	return (*Checker)(nil).newAssertableTo(V, T, nil)
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable
