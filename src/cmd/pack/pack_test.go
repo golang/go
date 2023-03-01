@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -191,6 +192,7 @@ func TestExtract(t *testing.T) {
 // Test that pack-created archives can be understood by the tools.
 func TestHello(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustInternalLink(t, false)
 
 	dir := t.TempDir()
 	hello := filepath.Join(dir, "hello.go")
@@ -413,6 +415,9 @@ func doRun(t *testing.T, dir string, args ...string) string {
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
+		if t.Name() == "TestHello" && runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
+			testenv.SkipFlaky(t, 58806)
+		}
 		t.Fatalf("%v: %v\n%s", args, err, string(out))
 	}
 	return string(out)

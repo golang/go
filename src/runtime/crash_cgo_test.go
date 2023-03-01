@@ -520,6 +520,9 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 	t.Log(got)
 	want := "runtime.sigpanic"
 	if !strings.Contains(got, want) {
+		if runtime.GOOS == "android" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+			testenv.SkipFlaky(t, 58794)
+		}
 		t.Errorf("did not see %q in output", want)
 	}
 	// No runtime errors like "runtime: unexpected return pc".

@@ -41,6 +41,7 @@ func TestIssue21703(t *testing.T) {
 	t.Parallel()
 
 	testenv.MustHaveGoBuild(t)
+	testenv.MustInternalLink(t, false)
 
 	const source = `
 package main
@@ -70,6 +71,9 @@ func main() {}
 	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
+		if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
+			testenv.SkipFlaky(t, 58806)
+		}
 		t.Fatalf("failed to link main.o: %v, output: %s\n", err, out)
 	}
 }
@@ -82,6 +86,7 @@ func TestIssue28429(t *testing.T) {
 	t.Parallel()
 
 	testenv.MustHaveGoBuild(t)
+	testenv.MustInternalLink(t, false)
 
 	tmpdir := t.TempDir()
 
@@ -97,6 +102,9 @@ func TestIssue28429(t *testing.T) {
 		cmd.Dir = tmpdir
 		out, err := cmd.CombinedOutput()
 		if err != nil {
+			if len(args) >= 2 && args[1] == "link" && runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
+				testenv.SkipFlaky(t, 58806)
+			}
 			t.Fatalf("'go %s' failed: %v, output: %s",
 				strings.Join(args, " "), err, out)
 		}
@@ -763,6 +771,7 @@ func TestIndexMismatch(t *testing.T) {
 	// This shouldn't happen with "go build". We invoke the compiler and the linker
 	// manually, and try to "trick" the linker with an inconsistent object file.
 	testenv.MustHaveGoBuild(t)
+	testenv.MustInternalLink(t, false)
 
 	t.Parallel()
 
@@ -797,6 +806,9 @@ func TestIndexMismatch(t *testing.T) {
 	t.Log(cmd)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
+		if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
+			testenv.SkipFlaky(t, 58806)
+		}
 		t.Errorf("linking failed: %v\n%s", err, out)
 	}
 

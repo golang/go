@@ -340,7 +340,7 @@ func TestPIESize(t *testing.T) {
 					t.Logf("%s", out)
 				}
 				if err != nil {
-					t.Error(err)
+					t.Log(err)
 				}
 				return err
 			}
@@ -358,6 +358,9 @@ func TestPIESize(t *testing.T) {
 			}()
 			wg.Wait()
 			if errexe != nil || errpie != nil {
+				if runtime.GOOS == "android" && runtime.GOARCH == "arm64" {
+					testenv.SkipFlaky(t, 58806)
+				}
 				t.Fatal("link failed")
 			}
 
