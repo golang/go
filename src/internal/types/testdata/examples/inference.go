@@ -142,8 +142,7 @@ func _() {
 	// signatures.
 	wantsMethods(hasMethods1{})
 	wantsMethods(&hasMethods1{})
-	// TODO(gri) improve error message (the cause is ptr vs non-pointer receiver)
-	wantsMethods /* ERROR "hasMethods2 does not satisfy interface{m1(Q); m2() R} (wrong type for method m1)" */ (hasMethods2{})
+	wantsMethods /* ERROR "hasMethods2 does not satisfy interface{m1(Q); m2() R} (method m1 has pointer receiver)" */ (hasMethods2{})
 	wantsMethods(&hasMethods2{})
 	wantsMethods(hasMethods3(nil))
 	wantsMethods /* ERROR "any does not satisfy interface{m1(Q); m2() R} (missing method m1)" */ (any(nil))
