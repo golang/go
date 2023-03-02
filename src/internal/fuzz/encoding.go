@@ -81,7 +81,7 @@ func marshalCorpusFile(vals ...any) []byte {
 			// We arbitrarily draw the line at UTF-8 validity, which biases toward the
 			// "rune" interpretation. (However, we accept either format as input.)
 			if utf8.ValidRune(t) {
-				fmt.Fprintf(b, "rune(%q)\n", t)
+				fmt.Fprintf(b, "int32(%v)/rune(%q)\n", t, t)
 			} else {
 				fmt.Fprintf(b, "int32(%v)\n", t)
 			}
@@ -116,6 +116,12 @@ func unmarshalCorpusFile(b []byte) ([]any, error) {
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 {
 			continue
+		}
+		if bytes.HasPrefix(line, []byte("int32")) ||
+			bytes.HasPrefix(line, []byte("rune")) {
+			if idx := bytes.IndexByte(line, '/'); idx != -1 {
+				line = line[:idx]
+			}
 		}
 		v, err := parseCorpusValue(line)
 		if err != nil {
