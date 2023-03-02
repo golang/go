@@ -236,8 +236,9 @@ func main() {
 		startTemplateThread()
 		cgocall(_cgo_notify_runtime_init_done, nil)
 	} else if GOOS == "windows" {
-		// On Windows, always no pthread key created, due to lack of the destructor callback for pthread key.
-		// It means still needm & dropm on each c => Go call.
+		// On Windows, signal handler reply on runtime.cgocallback even when cgo is not enabled,
+		// which means _cgo_pthread_key_created is a nil pointer.
+		// Setting it as a pointer to a zero value, to make the assembly code simple in runtime.cgocallback.
 		_cgo_pthread_key_created = unsafe.Pointer(&zero)
 	}
 
