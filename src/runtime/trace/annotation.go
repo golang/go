@@ -21,11 +21,11 @@ type traceContextKey struct{}
 // like the Go execution tracer may assume there are only a bounded
 // number of unique task types in the system.
 //
-// The returned end function is used to mark the task's end.
+// The returned Task's End method is used to mark the task's end.
 // The trace tool measures task latency as the time between task creation
-// and when the end function is called, and provides the latency
+// and when the End method is called, and provides the latency
 // distribution per task type.
-// If the end function is called multiple times, only the first
+// If the End method is called multiple times, only the first
 // call is used in the latency measurement.
 //
 //	ctx, task := trace.NewTask(ctx, "awesomeTask")
@@ -42,9 +42,9 @@ func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *
 	s := &Task{id: id}
 	return context.WithValue(pctx, traceContextKey{}, s), s
 
-	// We allocate a new task and the end function even when
-	// the tracing is disabled because the context and the detach
-	// function can be used across trace enable/disable boundaries,
+	// We allocate a new task even when
+	// the tracing is disabled because the context and task
+	// can be used across trace enable/disable boundaries,
 	// which complicates the problem.
 	//
 	// For example, consider the following scenario:
@@ -141,8 +141,8 @@ func WithRegion(ctx context.Context, regionType string, fn func()) {
 	fn()
 }
 
-// StartRegion starts a region and returns a function for marking the
-// end of the region. The returned Region's End function must be called
+// StartRegion starts a region and returns it.
+// The returned Region's End method must be called
 // from the same goroutine where the region was started.
 // Within each goroutine, regions must nest. That is, regions started
 // after this region must be ended before this region can be ended.
