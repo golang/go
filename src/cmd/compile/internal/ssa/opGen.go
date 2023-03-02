@@ -1716,7 +1716,8 @@ const (
 	OpLOONG64SUBV
 	OpLOONG64SUBVconst
 	OpLOONG64MULV
-	OpLOONG64MULVU
+	OpLOONG64MULHV
+	OpLOONG64MULHVU
 	OpLOONG64DIVV
 	OpLOONG64DIVVU
 	OpLOONG64ADDF
@@ -22912,34 +22913,47 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:            "MULV",
-		argLen:          2,
-		commutative:     true,
-		resultNotInArgs: true,
+		name:        "MULV",
+		argLen:      2,
+		commutative: true,
+		asm:         loong64.AMULV,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
-				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+				{0, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			outputs: []outputInfo{
 				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
-				{1, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
 			},
 		},
 	},
 	{
-		name:            "MULVU",
-		argLen:          2,
-		commutative:     true,
-		resultNotInArgs: true,
+		name:        "MULHV",
+		argLen:      2,
+		commutative: true,
+		asm:         loong64.AMULHV,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
-				{1, 1072496632}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+				{0, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
 			},
 			outputs: []outputInfo{
 				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
-				{1, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
+			},
+		},
+	},
+	{
+		name:        "MULHVU",
+		argLen:      2,
+		commutative: true,
+		asm:         loong64.AMULHVU,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+				{1, 1072693240}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 g R23 R24 R25 R26 R27 R28 R29 R31
+			},
+			outputs: []outputInfo{
+				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
 			},
 		},
 	},

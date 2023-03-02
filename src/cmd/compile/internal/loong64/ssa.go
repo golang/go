@@ -140,7 +140,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpLOONG64MULF,
 		ssa.OpLOONG64MULD,
 		ssa.OpLOONG64DIVF,
-		ssa.OpLOONG64DIVD:
+		ssa.OpLOONG64DIVD,
+		ssa.OpLOONG64MULV, ssa.OpLOONG64MULHV, ssa.OpLOONG64MULHVU:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
@@ -174,32 +175,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpLOONG64MULV:
-		p := s.Prog(loong64.AMULV)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[1].Reg()
-		p.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg1()
-		p1 := s.Prog(loong64.AMULHV)
-		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = v.Args[1].Reg()
-		p1.Reg = v.Args[0].Reg()
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = v.Reg0()
-	case ssa.OpLOONG64MULVU:
-		p := s.Prog(loong64.AMULV)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[1].Reg()
-		p.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg1()
-		p1 := s.Prog(loong64.AMULHVU)
-		p1.From.Type = obj.TYPE_REG
-		p1.From.Reg = v.Args[1].Reg()
-		p1.Reg = v.Args[0].Reg()
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = v.Reg0()
 	case ssa.OpLOONG64DIVV:
 		p := s.Prog(loong64.ADIVV)
 		p.From.Type = obj.TYPE_REG
