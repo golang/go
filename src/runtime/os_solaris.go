@@ -67,10 +67,10 @@ func sysvicall1(fn *libcFunc, a1 uintptr) uintptr {
 	return r1
 }
 
-//go:nosplit
-
 // sysvicall1Err returns both the system call result and the errno value.
 // This is used by sysvicall1 and pipe.
+//
+//go:nosplit
 func sysvicall1Err(fn *libcFunc, a1 uintptr) (r1, err uintptr) {
 	// Leave caller's PC/SP around for traceback.
 	gp := getg()

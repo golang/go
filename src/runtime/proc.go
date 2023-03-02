@@ -312,10 +312,10 @@ func forcegchelper() {
 	}
 }
 
-//go:nosplit
-
 // Gosched yields the processor, allowing other goroutines to run. It does not
 // suspend the current goroutine, so execution resumes automatically.
+//
+//go:nosplit
 func Gosched() {
 	checkTimeouts()
 	mcall(gosched_m)
@@ -4516,8 +4516,6 @@ func dolockOSThread() {
 	gp.lockedm.set(gp.m)
 }
 
-//go:nosplit
-
 // LockOSThread wires the calling goroutine to its current operating system thread.
 // The calling goroutine will always execute in that thread,
 // and no other goroutine will execute in it,
@@ -4532,6 +4530,8 @@ func dolockOSThread() {
 //
 // A goroutine should call LockOSThread before calling OS services or
 // non-Go library functions that depend on per-thread state.
+//
+//go:nosplit
 func LockOSThread() {
 	if atomic.Load(&newmHandoff.haveTemplateThread) == 0 && GOOS != "plan9" {
 		// If we need to start a new thread from the locked
@@ -4571,8 +4571,6 @@ func dounlockOSThread() {
 	gp.lockedm = 0
 }
 
-//go:nosplit
-
 // UnlockOSThread undoes an earlier call to LockOSThread.
 // If this drops the number of active LockOSThread calls on the
 // calling goroutine to zero, it unwires the calling goroutine from
@@ -4585,6 +4583,8 @@ func dounlockOSThread() {
 // other goroutines, it should not call this function and thus leave
 // the goroutine locked to the OS thread until the goroutine (and
 // hence the thread) exits.
+//
+//go:nosplit
 func UnlockOSThread() {
 	gp := getg()
 	if gp.m.lockedExt == 0 {

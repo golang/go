@@ -9,5 +9,4 @@
 package notsha256
 
 //go:noescape
-
 func block(dig *digest, p []byte)

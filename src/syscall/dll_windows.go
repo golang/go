@@ -146,8 +146,6 @@ func (p *Proc) Addr() uintptr {
 	return p.addr
 }
 
-//go:uintptrescapes
-
 // Call executes procedure p with arguments a.
 //
 // The returned error is always non-nil, constructed from the result of GetLastError.
@@ -162,6 +160,8 @@ func (p *Proc) Addr() uintptr {
 // values are returned in r2. The return value for C type "float" is
 // math.Float32frombits(uint32(r2)). For C type "double", it is
 // math.Float64frombits(uint64(r2)).
+//
+//go:uintptrescapes
 func (p *Proc) Call(a ...uintptr) (uintptr, uintptr, error) {
 	return SyscallN(p.Addr(), a...)
 }
@@ -277,10 +277,10 @@ func (p *LazyProc) Addr() uintptr {
 	return p.proc.Addr()
 }
 
-//go:uintptrescapes
-
 // Call executes procedure p with arguments a. See the documentation of
 // Proc.Call for more information.
+//
+//go:uintptrescapes
 func (p *LazyProc) Call(a ...uintptr) (r1, r2 uintptr, lastErr error) {
 	p.mustFind()
 	return p.proc.Call(a...)
