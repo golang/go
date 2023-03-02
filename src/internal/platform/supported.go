@@ -99,7 +99,9 @@ func MustLinkExternal(goos, goarch string, withCgo bool) bool {
 		case "ppc64":
 			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
 			// https://go.dev/issue/8912
-			return true
+			if goos == "aix" || goos == "linux" {
+				return true
+			}
 		}
 
 		switch goos {
