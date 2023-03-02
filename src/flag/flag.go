@@ -1114,7 +1114,7 @@ func (f *FlagSet) Parse(arguments []string) error {
 		}
 		switch f.errorHandling {
 		case ContinueOnError:
-			return err
+			continue
 		case ExitOnError:
 			if err == ErrHelp {
 				os.Exit(0)
