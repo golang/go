@@ -47,6 +47,10 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 	if err != nil {
 		return nil, err
 	}
+	// Check for context cancellation before actually doing the parse.
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	return parseGoSrc(ctx, fset, fh.URI(), content, mode), nil
 }
 
