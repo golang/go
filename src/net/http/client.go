@@ -651,13 +651,16 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			}
 			ireq := reqs[0]
 			req = &Request{
-				Method:   redirectMethod,
-				Response: resp,
-				URL:      u,
-				Header:   make(Header),
-				Host:     host,
-				Cancel:   ireq.Cancel,
-				ctx:      ireq.ctx,
+				Method:     redirectMethod,
+				Response:   resp,
+				URL:        u,
+				Proto:      ireq.Proto,
+				ProtoMajor: ireq.ProtoMajor,
+				ProtoMinor: ireq.ProtoMinor,
+				Header:     make(Header),
+				Host:       host,
+				Cancel:     ireq.Cancel,
+				ctx:        ireq.ctx,
 			}
 			if includeBody && ireq.GetBody != nil {
 				req.Body, err = ireq.GetBody()

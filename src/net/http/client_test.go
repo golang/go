@@ -318,6 +318,39 @@ func testClientRedirectsContext(t *testing.T, mode testMode) {
 	}
 }
 
+func TestClientRedirectProto(t *testing.T) { run(t, testClientRedirectProto) }
+func testClientRedirectProto(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		Redirect(w, r, "/", StatusTemporaryRedirect)
+	})).ts
+
+	ireq, _ := NewRequest("GET", ts.URL, nil)
+
+	c := ts.Client()
+	c.CheckRedirect = func(req *Request, via []*Request) error {
+		if req.Proto != ireq.Proto {
+			t.Errorf("proto = %q; want %q", req.Proto, ireq.Proto)
+		}
+		if req.ProtoMajor != ireq.ProtoMajor {
+			t.Errorf("proto = %d; want %d", req.ProtoMajor, ireq.ProtoMajor)
+		}
+		if req.ProtoMinor != ireq.ProtoMinor {
+			t.Errorf("proto = %d; want %d", req.ProtoMinor, ireq.ProtoMinor)
+		}
+		return ErrUseLastResponse
+	}
+
+	res, err := c.Do(ireq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	if res.StatusCode != StatusTemporaryRedirect {
+		t.Errorf("status = %d; want %d", res.StatusCode, StatusTemporaryRedirect)
+	}
+}
+
 type redirectTest struct {
 	suffix       string
 	want         int // response code
