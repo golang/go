@@ -742,7 +742,8 @@ havem:
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CMP	R6, $0
 	BEQ	dropm
-	CMP	(R6), $0
+	MOVD	(R6), R6
+	CMP	R6, $0
 	BNE	droppedm
 
 dropm:

@@ -624,7 +624,8 @@ havem:
 	MOV	_cgo_pthread_key_created(SB), X5
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	BEQ	ZERO, X5, dropm
-	BNE	ZERO, (X5), droppedm
+	MOV	(X5), X5
+	BNE	ZERO, X5, droppedm
 
 dropm:
 	MOV	$runtime·dropm(SB), X6

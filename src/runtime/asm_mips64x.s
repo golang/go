@@ -573,8 +573,9 @@ havem:
 	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVV	_cgo_pthread_key_created(SB), R3
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
-	BEQ	R3, droppedm
-	BNE	(R3), (droppedm)
+	BEQ	R3, dropm
+	MOVV	(R3), R3
+	BNE	R3, droppedm
 
 dropm:
 	MOVV	$runtime·dropm(SB), R4
