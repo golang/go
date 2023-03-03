@@ -40,6 +40,12 @@ stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b_test\.go'
 stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
 ! stderr 'compile.*-pgoprofile=.*nopgo(/|\\\\)nopgo_test\.go'
 
+# go list -deps prints packages built multiple times.
+go list -pgo=auto -deps ./a ./b ./nopgo
+stdout 'test/dep \[test/a\]'
+stdout 'test/dep \[test/b\]'
+stdout 'test/dep$'
+
 # Here we have 3 main packages, a, b, and nopgo, where a and b each has
 # its own default.pgo profile, and nopgo has none.
 # All 3 main packages import dep and dep2, both of which then import dep3

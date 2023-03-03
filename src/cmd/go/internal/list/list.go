@@ -733,19 +733,20 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	if *listTest {
+	if *listTest || (cfg.BuildPGO == "auto" && len(cmdline) > 1) {
 		all := pkgs
 		if !*listDeps {
 			all = loadPackageList(pkgs)
 		}
 		// Update import paths to distinguish the real package p
-		// from p recompiled for q.test.
+		// from p recompiled for q.test, or to distinguish between
+		// p compiled with different PGO profiles.
 		// This must happen only once the build code is done
 		// looking at import paths, because it will get very confused
 		// if it sees these.
 		old := make(map[string]string)
 		for _, p := range all {
-			if p.ForTest != "" {
+			if p.ForTest != "" || p.Internal.ForMain != "" {
 				new := p.Desc()
 				old[new] = p.ImportPath
 				p.ImportPath = new
@@ -756,7 +757,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		m := make(map[string]string)
 		for _, p := range all {
 			for _, p1 := range p.Internal.Imports {
-				if p1.ForTest != "" {
+				if p1.ForTest != "" || p1.Internal.ForMain != "" {
 					m[old[p1.ImportPath]] = p1.ImportPath
 				}
 			}

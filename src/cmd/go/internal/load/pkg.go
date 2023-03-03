@@ -195,6 +195,9 @@ func (p *Package) Desc() string {
 	if p.ForTest != "" {
 		return p.ImportPath + " [" + p.ForTest + ".test]"
 	}
+	if p.Internal.ForMain != "" {
+		return p.ImportPath + " [" + p.Internal.ForMain + "]"
+	}
 	return p.ImportPath
 }
 
@@ -234,6 +237,7 @@ type PackageInternal struct {
 	Embed             map[string][]string  // //go:embed comment mapping
 	OrigImportPath    string               // original import path before adding '_test' suffix
 	PGOProfile        string               // path to PGO profile
+	ForMain           string               // the main package if this package is built specifically for it
 
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
@@ -2944,6 +2948,7 @@ func setPGOProfilePath(pkgs []*Package) {
 					p1.Internal.Imports = slices.Clone(p.Internal.Imports)
 					copied[p] = p1
 					p = p1
+					p.Internal.ForMain = pmain.ImportPath
 				}
 				p.Internal.PGOProfile = file
 				// Recurse to dependencies.
