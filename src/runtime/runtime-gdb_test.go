@@ -661,6 +661,10 @@ func TestGdbPanic(t *testing.T) {
 	t.Parallel()
 	checkGdbVersion(t)
 
+	if runtime.GOOS == "windows" {
+		t.Skip("no signals on windows")
+	}
+
 	dir := t.TempDir()
 
 	// Build the source code.
