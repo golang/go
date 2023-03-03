@@ -266,7 +266,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
 		case t == nil:
 			fallthrough // should not happen but be cautious
 		case t == Typ[Invalid]:
-			s = "<T>"
+			s = "unknown type"
 		case isUntyped(t):
 			if isNumeric(t) {
 				// Do not imply a specific type requirement:
