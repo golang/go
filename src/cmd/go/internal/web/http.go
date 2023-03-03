@@ -114,7 +114,7 @@ func interceptURL(u *urlpkg.URL) (*Interceptor, bool) {
 		return nil, false
 	}
 	for i, t := range testInterceptors {
-		if u.Host == t.FromHost && (t.Scheme == "" || u.Scheme == t.Scheme) {
+		if u.Host == t.FromHost && (u.Scheme == "" || u.Scheme == t.Scheme) {
 			return &testInterceptors[i], true
 		}
 	}

@@ -210,6 +210,7 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"GOROOT=" + testGOROOT,
 		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
 		"GOTRACEBACK=system",
+		"TESTGONETWORK=panic", // allow only local connections by default; the [net] condition resets this
 		"TESTGO_GOROOT=" + testGOROOT,
 		"TESTGO_EXE=" + testGo,
 		"TESTGO_VCSTEST_HOST=" + httpURL.Host,
@@ -232,8 +233,11 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 			"GIT_TRACE_CURL_NO_DATA=1",
 			"GIT_REDACT_COOKIES=o,SSO,GSSO_Uberproxy")
 	}
-	if !testenv.HasExternalNetwork() {
-		env = append(env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
+	if testing.Short() {
+		// VCS commands are always somewhat slow: they either require access to external hosts,
+		// or they require our intercepted vcs-test.golang.org to regenerate the repository.
+		// Require all tests that use VCS commands to be skipped in short mode.
+		env = append(env, "TESTGOVCS=panic")
 	}
 	if os.Getenv("CGO_ENABLED") != "" || runtime.GOOS != goHostOS || runtime.GOARCH != goHostArch {
 		// If the actual CGO_ENABLED might not match the cmd/go default, set it

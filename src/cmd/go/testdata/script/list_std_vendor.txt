@@ -25,7 +25,7 @@ cmp stdout $WORK/net-deps.txt
 # However, 'go mod' and 'go get' subcommands should report the original module
 # dependencies, not the vendored packages.
 
-[!net] stop
+[!net:golang.org] stop
 
 env GOPROXY=
 env GOWORK=off

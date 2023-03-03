@@ -1,6 +1,6 @@
 # This test verifies a fix for a security issue; see https://go.dev/issue/22125.
 
-[!net] skip
+[short] skip
 [!git] skip
 [!exec:svn] skip
 

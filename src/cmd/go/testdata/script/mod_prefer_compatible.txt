@@ -2,7 +2,8 @@
 # @latest, @upgrade, and @patch should prefer compatible versions over
 # +incompatible ones, even if offered by a proxy.
 
-[!net] skip
+[!net:github.com] skip
+[!net:proxy.golang.org] skip
 
 env GO111MODULE=on
 env GOPROXY=

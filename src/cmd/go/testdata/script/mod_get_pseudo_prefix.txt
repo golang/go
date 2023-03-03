@@ -6,7 +6,7 @@ env GOSUMDB=off
 # prefixed tag in any commit that is a parent of the commit supplied
 # to 'go get', when using a repo with go.mod in a sub directory.
 
-[!net] skip
+[short] skip
 [!git] skip
 
 # For this test repository go.mod resides in sub/ (only):

@@ -402,8 +402,8 @@ The available conditions are:
 	test's GOROOT_FINAL does not match the real GOROOT
 [msan]
 	GOOS/GOARCH supports -msan
-[net]
-	testenv.HasExternalNetwork()
+[net:*]
+	can connect to external network host <suffix>
 [race]
 	GOOS/GOARCH supports -race
 [root]
