@@ -53,6 +53,10 @@ _cgo_wait_runtime_init_done(void) {
 	    x_cgo_pthread_key_created = 1;
 	}
 	if (x_cgo_pthread_key_created == 1 && pthread_getspecific(dummy_key) == NULL) {
+	    // We assume this will always succeed, otherwise, there might be extra M leaking,
+	    // when a thread exits after a cgo call and no destructor has been created.
+	    // Since we only check the x_cgo_pthread_key_created in runtime.cgocallback,
+	    // and will skip dropm when it's 1.
 	    pthread_setspecific(dummy_key, &dummy_value);
 	}
 
@@ -130,6 +134,7 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
 
 static void
 pthread_key_destructor(void *value) {
+    x_cgo_pthread_key_created = 0;
     // fn == NULL means dropm.
     crosscall2(NULL, NULL, 0, 0);
 }
