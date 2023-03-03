@@ -57,7 +57,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// not have found it for T (see also go.dev/issue/8590).
 	if t, _ := T.(*Named); t != nil {
 		if p, _ := t.Underlying().(*Pointer); p != nil {
-			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name, false)
+			obj, index, indirect = lookupFieldOrMethodImpl(p, false, pkg, name, false)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
 			}
@@ -65,7 +65,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 		}
 	}
 
-	obj, index, indirect = lookupFieldOrMethod(T, addressable, pkg, name, false)
+	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, false)
 
 	// If we didn't find anything and if we have a type parameter with a core type,
 	// see if there is a matching field (but not a method, those need to be declared
@@ -74,7 +74,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	const enableTParamFieldLookup = false // see go.dev/issue/51576
 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
 		if t := coreType(T); t != nil {
-			obj, index, indirect = lookupFieldOrMethod(t, addressable, pkg, name, false)
+			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, false)
 			if _, ok := obj.(*Var); !ok {
 				obj, index, indirect = nil, nil, false // accept fields (variables) only
 			}
@@ -83,18 +83,33 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	return
 }
 
-// lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
-// If foldCase is true, the lookup for methods will include looking for any method
-// which case-folds to the same as 'name' (used for giving helpful error messages).
+// lookupFieldOrMethodImpl is the implementation of LookupFieldOrMethod.
+// Notably, in contrast to LookupFieldOrMethod, it won't find struct fields
+// in base types of defined (*Named) pointer types T. For instance, given
+// the declaration:
+//
+//	type T *struct{f int}
+//
+// lookupFieldOrMethodImpl won't find the field f in the defined (*Named) type T
+// (methods on T are not permitted in the first place).
+//
+// Thus, lookupFieldOrMethodImpl should only be called by LookupFieldOrMethod
+// and missingMethod (the latter doesn't care about struct fields).
+//
+// If foldCase is true, method names are considered equal if they are equal
+// with case folding.
 //
 // The resulting object may not be fully type-checked.
-func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
+func lookupFieldOrMethodImpl(T Type, addressable bool, pkg *Package, name string, foldCase bool) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 
 	if name == "_" {
 		return // blank fields/methods are never found
 	}
 
+	// Importantly, we must not call under before the call to deref below (nor
+	// does deref call under), as doing so could incorrectly result in finding
+	// methods of the pointer base type when T is a (*Named) pointer type.
 	typ, isPtr := deref(T)
 
 	// *typ where typ is an interface (incl. a type parameter) has no methods.
@@ -358,14 +373,13 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		}
 	} else {
 		for _, m = range methods {
-			// TODO(gri) should this be calling LookupFieldOrMethod instead (and why not)?
-			obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name, false)
+			obj, _, _ := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
 
 			// check if m is on *V, or on V with case-folding
 			if obj == nil {
 				state = notFound
 				// TODO(gri) Instead of NewPointer(V) below, can we just set the "addressable" argument?
-				obj, _, _ = lookupFieldOrMethod(NewPointer(V), false, m.pkg, m.name, false)
+				obj, _, _ = lookupFieldOrMethodImpl(NewPointer(V), false, m.pkg, m.name, false)
 				if obj != nil {
 					f, _ = obj.(*Func)
 					if f != nil {
@@ -374,7 +388,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 					// otherwise we found a field, keep state == notFound
 					break
 				}
-				obj, _, _ = lookupFieldOrMethod(V, false, m.pkg, m.name, true /* fold case */)
+				obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
 				if obj != nil {
 					f, _ = obj.(*Func)
 					if f != nil {
@@ -506,7 +520,8 @@ func (check *Checker) newAssertableTo(V, T Type, cause *string) bool {
 	return check.implements(T, V, false, cause)
 }
 
-// deref dereferences typ if it is a *Pointer and returns its base and true.
+// deref dereferences typ if it is a *Pointer (but not a *Named type
+// with an underlying pointer type!) and returns its base and true.
 // Otherwise it returns (typ, false).
 func deref(typ Type) (Type, bool) {
 	if p, _ := typ.(*Pointer); p != nil {
