@@ -81,22 +81,26 @@ func highlightPath(path []ast.Node, file *ast.File, info *types.Info) (map[posRa
 		highlightFuncControlFlow(path, result)
 		highlightIdentifier(node, file, info, result)
 	case *ast.ForStmt, *ast.RangeStmt:
-		highlightLoopControlFlow(path, result)
+		highlightLoopControlFlow(path, info, result)
 	case *ast.SwitchStmt:
-		highlightSwitchFlow(path, result)
+		highlightSwitchFlow(path, info, result)
 	case *ast.BranchStmt:
 		// BREAK can exit a loop, switch or select, while CONTINUE exit a loop so
 		// these need to be handled separately. They can also be embedded in any
 		// other loop/switch/select if they have a label. TODO: add support for
 		// GOTO and FALLTHROUGH as well.
-		if node.Label != nil {
-			highlightLabeledFlow(node, result)
-		} else {
-			switch node.Tok {
-			case token.BREAK:
-				highlightUnlabeledBreakFlow(path, result)
-			case token.CONTINUE:
-				highlightLoopControlFlow(path, result)
+		switch node.Tok {
+		case token.BREAK:
+			if node.Label != nil {
+				highlightLabeledFlow(path, info, node, result)
+			} else {
+				highlightUnlabeledBreakFlow(path, info, result)
+			}
+		case token.CONTINUE:
+			if node.Label != nil {
+				highlightLabeledFlow(path, info, node, result)
+			} else {
+				highlightLoopControlFlow(path, info, result)
 			}
 		}
 	default:
@@ -222,15 +226,16 @@ Outer:
 	})
 }
 
-func highlightUnlabeledBreakFlow(path []ast.Node, result map[posRange]struct{}) {
+// highlightUnlabeledBreakFlow highlights the innermost enclosing for/range/switch or swlect
+func highlightUnlabeledBreakFlow(path []ast.Node, info *types.Info, result map[posRange]struct{}) {
 	// Reverse walk the path until we find closest loop, select, or switch.
 	for _, n := range path {
 		switch n.(type) {
 		case *ast.ForStmt, *ast.RangeStmt:
-			highlightLoopControlFlow(path, result)
+			highlightLoopControlFlow(path, info, result)
 			return // only highlight the innermost statement
 		case *ast.SwitchStmt:
-			highlightSwitchFlow(path, result)
+			highlightSwitchFlow(path, info, result)
 			return
 		case *ast.SelectStmt:
 			// TODO: add highlight when breaking a select.
@@ -239,20 +244,23 @@ func highlightUnlabeledBreakFlow(path []ast.Node, result map[posRange]struct{}) 
 	}
 }
 
-func highlightLabeledFlow(node *ast.BranchStmt, result map[posRange]struct{}) {
-	obj := node.Label.Obj
-	if obj == nil || obj.Decl == nil {
+// highlightLabeledFlow highlights the enclosing labeled for, range,
+// or switch statement denoted by a labeled break or continue stmt.
+func highlightLabeledFlow(path []ast.Node, info *types.Info, stmt *ast.BranchStmt, result map[posRange]struct{}) {
+	use := info.Uses[stmt.Label]
+	if use == nil {
 		return
 	}
-	label, ok := obj.Decl.(*ast.LabeledStmt)
-	if !ok {
-		return
-	}
-	switch label.Stmt.(type) {
-	case *ast.ForStmt, *ast.RangeStmt:
-		highlightLoopControlFlow([]ast.Node{label.Stmt, label}, result)
-	case *ast.SwitchStmt:
-		highlightSwitchFlow([]ast.Node{label.Stmt, label}, result)
+	for _, n := range path {
+		if label, ok := n.(*ast.LabeledStmt); ok && info.Defs[label.Label] == use {
+			switch label.Stmt.(type) {
+			case *ast.ForStmt, *ast.RangeStmt:
+				highlightLoopControlFlow([]ast.Node{label.Stmt, label}, info, result)
+			case *ast.SwitchStmt:
+				highlightSwitchFlow([]ast.Node{label.Stmt, label}, info, result)
+			}
+			return
+		}
 	}
 }
 
@@ -265,7 +273,7 @@ func labelFor(path []ast.Node) *ast.Ident {
 	return nil
 }
 
-func highlightLoopControlFlow(path []ast.Node, result map[posRange]struct{}) {
+func highlightLoopControlFlow(path []ast.Node, info *types.Info, result map[posRange]struct{}) {
 	var loop ast.Node
 	var loopLabel *ast.Ident
 	stmtLabel := labelFor(path)
@@ -305,7 +313,7 @@ Outer:
 		if !ok {
 			return true
 		}
-		if b.Label == nil || labelDecl(b.Label) == loopLabel {
+		if b.Label == nil || info.Uses[b.Label] == info.Defs[loopLabel] {
 			result[posRange{start: b.Pos(), end: b.End()}] = struct{}{}
 		}
 		return true
@@ -336,14 +344,14 @@ Outer:
 			return true
 		}
 		// statement with labels that matches the loop
-		if b.Label != nil && labelDecl(b.Label) == loopLabel {
+		if b.Label != nil && info.Uses[b.Label] == info.Defs[loopLabel] {
 			result[posRange{start: b.Pos(), end: b.End()}] = struct{}{}
 		}
 		return true
 	})
 }
 
-func highlightSwitchFlow(path []ast.Node, result map[posRange]struct{}) {
+func highlightSwitchFlow(path []ast.Node, info *types.Info, result map[posRange]struct{}) {
 	var switchNode ast.Node
 	var switchNodeLabel *ast.Ident
 	stmtLabel := labelFor(path)
@@ -385,7 +393,7 @@ Outer:
 			return true
 		}
 
-		if b.Label == nil || labelDecl(b.Label) == switchNodeLabel {
+		if b.Label == nil || info.Uses[b.Label] == info.Defs[switchNodeLabel] {
 			result[posRange{start: b.Pos(), end: b.End()}] = struct{}{}
 		}
 		return true
@@ -403,29 +411,12 @@ Outer:
 			return true
 		}
 
-		if b.Label != nil && labelDecl(b.Label) == switchNodeLabel {
+		if b.Label != nil && info.Uses[b.Label] == info.Defs[switchNodeLabel] {
 			result[posRange{start: b.Pos(), end: b.End()}] = struct{}{}
 		}
 
 		return true
 	})
-}
-
-func labelDecl(n *ast.Ident) *ast.Ident {
-	if n == nil {
-		return nil
-	}
-	if n.Obj == nil {
-		return nil
-	}
-	if n.Obj.Decl == nil {
-		return nil
-	}
-	stmt, ok := n.Obj.Decl.(*ast.LabeledStmt)
-	if !ok {
-		return nil
-	}
-	return stmt.Label
 }
 
 func highlightImportUses(path []ast.Node, info *types.Info, result map[posRange]struct{}) error {
