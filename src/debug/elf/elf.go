@@ -728,6 +728,7 @@ type CompressionType int
 
 const (
 	COMPRESS_ZLIB   CompressionType = 1          /* ZLIB compression. */
+	COMPRESS_ZSTD   CompressionType = 2          /* ZSTD compression. */
 	COMPRESS_LOOS   CompressionType = 0x60000000 /* First OS-specific. */
 	COMPRESS_HIOS   CompressionType = 0x6fffffff /* Last OS-specific. */
 	COMPRESS_LOPROC CompressionType = 0x70000000 /* First processor-specific type. */
@@ -736,6 +737,7 @@ const (
 
 var compressionStrings = []intName{
 	{1, "COMPRESS_ZLIB"},
+	{2, "COMPRESS_ZSTD"},
 	{0x60000000, "COMPRESS_LOOS"},
 	{0x6fffffff, "COMPRESS_HIOS"},
 	{0x70000000, "COMPRESS_LOPROC"},

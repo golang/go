@@ -78,6 +78,7 @@ var bootstrapDirs = []string{
 	"internal/types/errors",
 	"internal/unsafeheader",
 	"internal/xcoff",
+	"internal/zstd",
 	"math/big",
 	"math/bits",
 	"sort",

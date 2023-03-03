@@ -38,7 +38,7 @@ var nameTests = []nameTest{
 	{R_SPARC_GOT22, "R_SPARC_GOT22"},
 	{ET_LOOS + 5, "ET_LOOS+5"},
 	{ProgFlag(0x50), "0x50"},
-	{COMPRESS_ZLIB + 1, "COMPRESS_ZLIB+1"},
+	{COMPRESS_ZLIB + 2, "COMPRESS_ZSTD+1"},
 }
 
 func TestNames(t *testing.T) {
