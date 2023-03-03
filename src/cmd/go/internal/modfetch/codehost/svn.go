@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"cmd/go/internal/base"
 )
 
 func svnParseStat(rev, out string) (*RevInfo, error) {
@@ -66,6 +68,10 @@ func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote
 		remotePath += "/" + subdir
 	}
 
+	release, err := base.AcquireNet()
+	if err != nil {
+		return err
+	}
 	out, err := Run(ctx, workDir, []string{
 		"svn", "list",
 		"--non-interactive",
@@ -75,6 +81,7 @@ func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote
 		"--revision", rev,
 		"--", remotePath,
 	})
+	release()
 	if err != nil {
 		return err
 	}
@@ -98,6 +105,10 @@ func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote
 	}
 	defer os.RemoveAll(exportDir) // best-effort
 
+	release, err = base.AcquireNet()
+	if err != nil {
+		return err
+	}
 	_, err = Run(ctx, workDir, []string{
 		"svn", "export",
 		"--non-interactive",
@@ -112,6 +123,7 @@ func svnReadZip(ctx context.Context, dst io.Writer, workDir, rev, subdir, remote
 		"--", remotePath,
 		exportDir,
 	})
+	release()
 	if err != nil {
 		return err
 	}

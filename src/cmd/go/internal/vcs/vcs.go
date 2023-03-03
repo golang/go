@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
@@ -719,12 +720,24 @@ func (v *Cmd) Ping(scheme, repo string) error {
 	}
 	os.MkdirAll(dir, 0777) // Ignore errors — if unsuccessful, the command will likely fail.
 
+	release, err := base.AcquireNet()
+	if err != nil {
+		return err
+	}
+	defer release()
+
 	return v.runVerboseOnly(dir, v.PingCmd, "scheme", scheme, "repo", repo)
 }
 
 // Create creates a new copy of repo in dir.
 // The parent of dir must exist; dir must not.
 func (v *Cmd) Create(dir, repo string) error {
+	release, err := base.AcquireNet()
+	if err != nil {
+		return err
+	}
+	defer release()
+
 	for _, cmd := range v.CreateCmd {
 		if err := v.run(filepath.Dir(dir), cmd, "dir", dir, "repo", repo); err != nil {
 			return err
@@ -735,6 +748,12 @@ func (v *Cmd) Create(dir, repo string) error {
 
 // Download downloads any new changes for the repo in dir.
 func (v *Cmd) Download(dir string) error {
+	release, err := base.AcquireNet()
+	if err != nil {
+		return err
+	}
+	defer release()
+
 	for _, cmd := range v.DownloadCmd {
 		if err := v.run(dir, cmd); err != nil {
 			return err
@@ -779,6 +798,12 @@ func (v *Cmd) TagSync(dir, tag string) error {
 			}
 		}
 	}
+
+	release, err := base.AcquireNet()
+	if err != nil {
+		return err
+	}
+	defer release()
 
 	if tag == "" && v.TagSyncDefault != nil {
 		for _, cmd := range v.TagSyncDefault {

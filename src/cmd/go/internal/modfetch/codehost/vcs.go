@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/go/internal/base"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/str"
@@ -109,7 +110,14 @@ func newVCSRepo(ctx context.Context, vcs, remote string) (Repo, error) {
 	defer unlock()
 
 	if _, err := os.Stat(filepath.Join(r.dir, "."+vcs)); err != nil {
-		if _, err := Run(ctx, r.dir, cmd.init(r.remote)); err != nil {
+		release, err := base.AcquireNet()
+		if err != nil {
+			return nil, err
+		}
+		_, err = Run(ctx, r.dir, cmd.init(r.remote))
+		release()
+
+		if err != nil {
 			os.RemoveAll(r.dir)
 			return nil, err
 		}
@@ -355,7 +363,13 @@ func (r *vcsRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 
 func (r *vcsRepo) fetch(ctx context.Context) {
 	if len(r.cmd.fetch) > 0 {
+		release, err := base.AcquireNet()
+		if err != nil {
+			r.fetchErr = err
+			return
+		}
 		_, r.fetchErr = Run(ctx, r.dir, r.cmd.fetch)
+		release()
 	}
 }
 

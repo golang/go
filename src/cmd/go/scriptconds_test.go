@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"sync"
 )
 
 func scriptConditions() map[string]script.Cond {
@@ -107,6 +108,8 @@ func hasBuildmode(s *script.State, mode string) (bool, error) {
 	return platform.BuildModeSupported(runtime.Compiler, mode, GOOS, GOARCH), nil
 }
 
+var scriptNetEnabled sync.Map // testing.TB → already enabled
+
 func hasNet(s *script.State, host string) (bool, error) {
 	if !testenv.HasExternalNetwork() {
 		return false, nil
@@ -114,6 +117,26 @@ func hasNet(s *script.State, host string) (bool, error) {
 
 	// TODO(bcmills): Add a flag or environment variable to allow skipping tests
 	// for specific hosts and/or skipping all net tests except for specific hosts.
+
+	t, ok := tbFromContext(s.Context())
+	if !ok {
+		return false, errors.New("script Context unexpectedly missing testing.TB key")
+	}
+
+	if netTestSem != nil {
+		// When the number of external network connections is limited, we limit the
+		// number of net tests that can run concurrently so that the overall number
+		// of network connections won't exceed the limit.
+		_, dup := scriptNetEnabled.LoadOrStore(t, true)
+		if !dup {
+			// Acquire a net token for this test until the test completes.
+			netTestSem <- struct{}{}
+			t.Cleanup(func() {
+				<-netTestSem
+				scriptNetEnabled.Delete(t)
+			})
+		}
+	}
 
 	// Since we have confirmed that the network is available,
 	// allow cmd/go to use it.

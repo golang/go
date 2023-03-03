@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"cmd/go/internal/base"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/web"
@@ -241,7 +242,14 @@ func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
 		// The git protocol sends all known refs and ls-remote filters them on the client side,
 		// so we might as well record both heads and tags in one shot.
 		// Most of the time we only care about tags but sometimes we care about heads too.
+		release, err := base.AcquireNet()
+		if err != nil {
+			r.refsErr = err
+			return
+		}
 		out, gitErr := Run(ctx, r.dir, "git", "ls-remote", "-q", r.remote)
+		release()
+
 		if gitErr != nil {
 			if rerr, ok := gitErr.(*RunError); ok {
 				if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
@@ -531,7 +539,14 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
 			ref = hash
 			refspec = hash + ":refs/dummy"
 		}
-		_, err := Run(ctx, r.dir, "git", "fetch", "-f", "--depth=1", r.remote, refspec)
+
+		release, err := base.AcquireNet()
+		if err != nil {
+			return nil, err
+		}
+		_, err = Run(ctx, r.dir, "git", "fetch", "-f", "--depth=1", r.remote, refspec)
+		release()
+
 		if err == nil {
 			return r.statLocal(ctx, rev, ref)
 		}
@@ -565,6 +580,12 @@ func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
 		// unshallow the repository as a separate fetch operation. (See
 		// golang.org/issue/34266 and
 		// https://github.com/git/git/blob/4c86140027f4a0d2caaa3ab4bd8bfc5ce3c11c8a/transport.c#L1303-L1309.)
+
+		release, err := base.AcquireNet()
+		if err != nil {
+			return err
+		}
+		defer release()
 
 		if _, err := Run(ctx, r.dir, "git", "fetch", "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
 			return err

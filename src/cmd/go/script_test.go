@@ -116,7 +116,7 @@ func TestScript(t *testing.T) {
 				defer removeAll(workdir)
 			}
 
-			s, err := script.NewState(ctx, workdir, env)
+			s, err := script.NewState(tbContext(ctx, t), workdir, env)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -154,6 +154,23 @@ func TestScript(t *testing.T) {
 			scripttest.Run(t, engine, s, filepath.Base(file), bytes.NewReader(a.Comment))
 		})
 	}
+}
+
+// testingTBKey is the Context key for a testing.TB.
+type testingTBKey struct{}
+
+// tbContext returns a Context derived from ctx and associated with t.
+func tbContext(ctx context.Context, t testing.TB) context.Context {
+	return context.WithValue(ctx, testingTBKey{}, t)
+}
+
+// tbFromContext returns the testing.TB associated with ctx, if any.
+func tbFromContext(ctx context.Context) (testing.TB, bool) {
+	t := ctx.Value(testingTBKey{})
+	if t == nil {
+		return nil, false
+	}
+	return t.(testing.TB), true
 }
 
 // initScriptState creates the initial directory structure in s for unpacking a
@@ -216,6 +233,7 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"TESTGO_VCSTEST_HOST=" + httpURL.Host,
 		"TESTGO_VCSTEST_TLS_HOST=" + httpsURL.Host,
 		"TESTGO_VCSTEST_CERT=" + srvCertFile,
+		"TESTGONETWORK=panic", // cleared by the [net] condition
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",
@@ -239,6 +257,7 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		// Require all tests that use VCS commands to be skipped in short mode.
 		env = append(env, "TESTGOVCS=panic")
 	}
+
 	if os.Getenv("CGO_ENABLED") != "" || runtime.GOOS != goHostOS || runtime.GOARCH != goHostArch {
 		// If the actual CGO_ENABLED might not match the cmd/go default, set it
 		// explicitly in the environment. Otherwise, leave it unset so that we also
