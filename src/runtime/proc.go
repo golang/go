@@ -141,9 +141,6 @@ var runtimeInitTime int64
 // Value to use for signal mask for newly created M's.
 var initSigmask sigset
 
-// Zero value for _cgo_pthread_key_created, Windows only.
-var zero uint64 = 0
-
 // The main goroutine.
 func main() {
 	mp := getg().m
@@ -235,11 +232,6 @@ func main() {
 		// a C-created thread and need to create a new thread.
 		startTemplateThread()
 		cgocall(_cgo_notify_runtime_init_done, nil)
-	} else if GOOS == "windows" {
-		// On Windows, signal handler reply on runtime.cgocallback even when cgo is not enabled,
-		// which means _cgo_pthread_key_created is a nil pointer.
-		// Setting it as a pointer to a zero value, to make the assembly code simple in runtime.cgocallback.
-		_cgo_pthread_key_created = unsafe.Pointer(&zero)
 	}
 
 	doInit(&main_inittask)

@@ -1056,9 +1056,13 @@ havem:
 	MOVQ	savedm-8(SP), BX
 	CMPQ	BX, $0
 	JNE	done
+
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
 	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVQ	_cgo_pthread_key_created(SB), AX
+	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+	CMPQ	AX, $0
+	JEQ	dropm
 	CMPQ	(AX), $0
 	JNE	done
 

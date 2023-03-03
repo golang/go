@@ -794,11 +794,15 @@ havem:
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVL	savedm-4(SP), DX
 	CMPL	DX, $0
-	JNE 6(PC)
+	JNE 8(PC)
+
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
 	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVL	_cgo_pthread_key_created(SB), DX
+	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CMPL	DX, $0
+	JEQ 3(PC)
+	CMPL	(DX), $0
 	JNE	3(PC)
 
 dropm:

@@ -735,10 +735,14 @@ havem:
 	MOVD	savedm-8(SP), R6
 	CMP	R6, $0
 	BNE	droppedm
+
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
 	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVD	_cgo_pthread_key_created(SB), R6
+	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CMP	R6, $0
+	BEQ	dropm
+	CMP	(R6), $0
 	BNE	droppedm
 
 dropm:

@@ -561,10 +561,13 @@ havem:
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVV	savedm-8(SP), R12
 	BNE	R12, droppedm
+
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
 	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVV	_cgo_pthread_key_created(SB), R12
-	BNE	R12, droppedm
+	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+	BEQ	R12, dropm
+	BNE	(R12), droppedm
 
 dropm:
 	MOVV	$runtime·dropm(SB), R4
