@@ -7,7 +7,6 @@
 #include "tls_arm64.h"
 #include "funcdata.h"
 #include "textflag.h"
-#include "cgo/abi_arm64.h"
 
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	// SP = stack; R0 = argc; R1 = argv

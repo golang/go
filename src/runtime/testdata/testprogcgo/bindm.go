@@ -10,6 +10,7 @@
 package main
 
 /*
+#include <stdint.h>
 #include <pthread.h>
 #include <sched.h>
 #include <unistd.h>
