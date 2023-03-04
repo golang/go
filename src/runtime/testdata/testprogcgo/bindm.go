@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !plan9 && !windows
-// +build !plan9,!windows
 
 // Test that callbacks from C to Go in the same C-thread always get the same m.
 // Make sure the extra M bind to the C-thread.
@@ -27,7 +26,7 @@ static void* checkBindMThread(void* thread) {
 		sched_yield(); // Help the threads get started.
 	}
 	for (i = 0; i < CHECKCALLS; i++) {
-		GoCheckBindM((unsigned long)thread);
+		GoCheckBindM((uintptr_t)thread);
 		usleep(1);
 	}
 	return NULL;
@@ -51,19 +50,31 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
 )
-
-func init() {
-	register("EnsureBindM", EnsureBindM)
-}
 
 var (
 	mutex      = sync.Mutex{}
 	cThreadToM = map[uintptr]uintptr{}
+	wg         = sync.WaitGroup{}
+	allStarted = atomic.Bool{}
 )
+
+// same as CTHREADS in C, make sure all the C threads are actually started.
+const cThreadNum = 2
+
+func init() {
+	wg.Add(cThreadNum)
+	register("EnsureBindM", EnsureBindM)
+}
 
 //export GoCheckBindM
 func GoCheckBindM(thread uintptr) {
+	if !allStarted.Load() {
+		wg.Done()
+		wg.Wait()
+		allStarted.Store(true)
+	}
 	m := runtime_getm_for_test()
 	mutex.Lock()
 	defer mutex.Unlock()

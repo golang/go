@@ -675,7 +675,7 @@ havem:
 	// Skip cgocallbackg, just dropm when fn is nil.
 	// It is used to dropm while thread is exiting.
 	MOVW	fn+0(FP), R1
-	CMP	    $0, R1
+	CMP	$0, R1
 	B.EQ	dropm
 
 	// Now there's a valid m, and we're running on its m->g0.
@@ -734,22 +734,23 @@ havem:
 	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVW	savedm-4(SP), R6
 	CMP	$0, R6
-	B.NE	9(PC)
+	B.NE	done
 
 	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
 	// since pthread_key_destructor will dropm when thread is exiting.
 	MOVW	_cgo_pthread_key_created(SB), R6
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CMP	$0, R6
-	B.EQ	4(PC)
+	B.EQ	dropm
 	MOVW	(R6), R6
 	CMP	$0, R6
-	B.NE	3(PC)
+	B.NE	done
 
 dropm:
 	MOVW	$runtime·dropm(SB), R0
 	BL	(R0)
 
+done:
 	// Done!
 	RET
 

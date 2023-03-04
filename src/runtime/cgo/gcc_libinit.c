@@ -49,6 +49,8 @@ _cgo_wait_runtime_init_done(void) {
 		pthread_cond_wait(&runtime_init_cond, &runtime_init_mu);
 	}
 
+	// The key and x_cgo_pthread_key_created are for the whole program,
+	// whereas the specific and destructor is per thread.
 	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&dummy_key, pthread_key_destructor) == 0) {
 	    x_cgo_pthread_key_created = 1;
 	}
@@ -134,7 +136,6 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
 
 static void
 pthread_key_destructor(void *value) {
-    x_cgo_pthread_key_created = 0;
     // fn == NULL means dropm.
     crosscall2(NULL, NULL, 0, 0);
 }

@@ -672,7 +672,7 @@ havem:
 	// Skip cgocallbackg, just dropm when fn is nil.
 	// It is used to dropm while thread is exiting.
 	MOVD	fn+0(FP), R5
-	CMP     R5, $0
+	CMP	R5, $0
 	BEQ	dropm
 
 	// Now there's a valid m, and we're running on its m->g0.
