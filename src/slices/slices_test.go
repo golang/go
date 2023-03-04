@@ -351,6 +351,17 @@ func TestClone(t *testing.T) {
 	}
 }
 
+func TestCloneFunc(t *testing.T) {
+	s1 := []byte{65, 66, 67}
+	s2 := CloneFunc[byte, string](s1, func(c byte) string {
+		return string(c)
+	})
+	want := []string{"A", "B", "C"}
+	if !Equal(s2, want) {
+		t.Errorf("CloneFunc(%v) = %#v, want %#v", s1, s2, want)
+	}
+}
+
 var compactTests = []struct {
 	name string
 	s    []int

@@ -137,6 +137,17 @@ func Clone[S ~[]E, E any](s S) S {
 	return append(S([]E{}), s...)
 }
 
+// CloneFunc creates a transposition of the slice using f to create each
+// corresponding element. May be used for creating a deep copy of s by supplying
+// an f that creates a deep copy of each element.
+func CloneFunc[S any, R any](s []S, f func(S) R) []R {
+	r := make([]R, len(s))
+	for i := 0; i < len(s); i++ {
+		r[i] = f(s[i])
+	}
+	return r
+}
+
 // Compact replaces consecutive runs of equal elements with a single copy.
 // This is like the uniq command found on Unix.
 // Compact modifies the contents of the slice s; it does not create a new slice.
