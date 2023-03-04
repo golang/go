@@ -228,6 +228,13 @@ func main() {
 		if _cgo_notify_runtime_init_done == nil {
 			throw("_cgo_notify_runtime_init_done missing")
 		}
+
+		// Set the x_crosscall2 function pointer variable in C point to crosscall2.
+		if set_crosscall2 == nil {
+			throw("set_crosscall2 missing")
+		}
+		set_crosscall2()
+
 		// Start the template thread in case we enter Go from
 		// a C-created thread and need to create a new thread.
 		startTemplateThread()

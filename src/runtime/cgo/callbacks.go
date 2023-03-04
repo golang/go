@@ -82,6 +82,21 @@ var _cgo_sys_thread_create = &x_cgo_sys_thread_create
 var x_cgo_pthread_key_created byte
 var _cgo_pthread_key_created = &x_cgo_pthread_key_created
 
+// Export crosscall2 to a c function pointer variable.
+// Used to dropm in pthread key destructor, while c thread is exiting.
+
+//go:cgo_import_static x_crosscall2
+//go:linkname x_crosscall2 x_crosscall2
+//go:linkname _crosscall2 _crosscall2
+var x_crosscall2 byte
+var _crosscall2 = &x_crosscall2
+
+// Set the x_crosscall2 function pointer variable in C point to crosscall2.
+func set_crosscall2()
+
+//go:linkname _set_crosscall2 runtime.set_crosscall2
+var _set_crosscall2 = set_crosscall2
+
 // Notifies that the runtime has been initialized.
 //
 // We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
