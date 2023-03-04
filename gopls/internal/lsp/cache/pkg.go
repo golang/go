@@ -40,8 +40,7 @@ type Package struct {
 // syntaxPackage contains parse trees and type information for a package.
 type syntaxPackage struct {
 	// -- identifiers --
-	id   PackageID
-	mode source.ParseMode
+	id PackageID
 
 	// -- outputs --
 	fset            *token.FileSet // for now, same as the snapshot's FileSet
@@ -82,10 +81,6 @@ func (fileLoadScope) aScope()    {}
 func (packageLoadScope) aScope() {}
 func (moduleLoadScope) aScope()  {}
 func (viewLoadScope) aScope()    {}
-
-func (p *Package) ParseMode() source.ParseMode {
-	return p.pkg.mode
-}
 
 func (p *Package) CompiledGoFiles() []*source.ParsedGoFile {
 	return p.pkg.compiledGoFiles

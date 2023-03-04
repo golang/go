@@ -580,7 +580,9 @@ func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *sou
 			group.Go(func() error {
 				// Call parseGoImpl directly, not the caching wrapper,
 				// as cached ASTs require the global FileSet.
-				pgf, err := parseGoImpl(ctx, fset, fh, source.ParseFull)
+				// ast.Object resolution is unfortunately an implied part of the
+				// go/analysis contract.
+				pgf, err := parseGoImpl(ctx, fset, fh, source.ParseFull&^source.SkipObjectResolution)
 				parsed[i] = pgf
 				return err
 			})

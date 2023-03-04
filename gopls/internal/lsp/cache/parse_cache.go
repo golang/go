@@ -7,6 +7,7 @@ package cache
 import (
 	"container/heap"
 	"context"
+	"go/parser"
 	"go/token"
 	"runtime"
 	"sort"
@@ -66,7 +67,7 @@ type parseCache struct {
 // parseKey uniquely identifies a parsed Go file.
 type parseKey struct {
 	file source.FileIdentity
-	mode source.ParseMode
+	mode parser.Mode
 }
 
 type parseCacheEntry struct {
@@ -84,7 +85,7 @@ type parseCacheEntry struct {
 // The resulting slice has an entry for every given file handle, though some
 // entries may be nil if there was an error reading the file (in which case the
 // resulting error will be non-nil).
-func (c *parseCache) startParse(mode source.ParseMode, fhs ...source.FileHandle) ([]*memoize.Promise, error) {
+func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*memoize.Promise, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -173,7 +174,7 @@ func (c *parseCache) startParse(mode source.ParseMode, fhs ...source.FileHandle)
 // For parsed files that already exists in the cache, access time will be
 // updated. For others, parseFiles will parse and store as many results in the
 // cache as space allows.
-func (c *parseCache) parseFiles(ctx context.Context, mode source.ParseMode, fhs ...source.FileHandle) ([]*source.ParsedGoFile, *token.FileSet, error) {
+func (c *parseCache) parseFiles(ctx context.Context, mode parser.Mode, fhs ...source.FileHandle) ([]*source.ParsedGoFile, *token.FileSet, error) {
 	promises, firstReadError := c.startParse(mode, fhs...)
 
 	// Await all parsing.

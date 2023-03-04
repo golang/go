@@ -23,7 +23,7 @@ import (
 	"golang.org/x/tools/internal/bug"
 )
 
-func extractVariable(fset *token.FileSet, start, end token.Pos, src []byte, file *ast.File, _ *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
+func extractVariable(fset *token.FileSet, start, end token.Pos, src []byte, file *ast.File, pkg *types.Package, info *types.Info) (*analysis.SuggestedFix, error) {
 	tokFile := fset.File(file.Pos())
 	expr, path, ok, err := CanExtractVariable(start, end, file)
 	if !ok {
@@ -36,14 +36,14 @@ func extractVariable(fset *token.FileSet, start, end token.Pos, src []byte, file
 	// TODO: stricter rules for selectorExpr.
 	case *ast.BasicLit, *ast.CompositeLit, *ast.IndexExpr, *ast.SliceExpr,
 		*ast.UnaryExpr, *ast.BinaryExpr, *ast.SelectorExpr:
-		lhsName, _ := generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0)
+		lhsName, _ := generateAvailableIdentifier(expr.Pos(), file, path, pkg, info, "x", 0)
 		lhsNames = append(lhsNames, lhsName)
 	case *ast.CallExpr:
 		tup, ok := info.TypeOf(expr).(*types.Tuple)
 		if !ok {
 			// If the call expression only has one return value, we can treat it the
 			// same as our standard extract variable case.
-			lhsName, _ := generateAvailableIdentifier(expr.Pos(), file, path, info, "x", 0)
+			lhsName, _ := generateAvailableIdentifier(expr.Pos(), file, path, pkg, info, "x", 0)
 			lhsNames = append(lhsNames, lhsName)
 			break
 		}
@@ -51,7 +51,7 @@ func extractVariable(fset *token.FileSet, start, end token.Pos, src []byte, file
 		for i := 0; i < tup.Len(); i++ {
 			// Generate a unique variable for each return value.
 			var lhsName string
-			lhsName, idx = generateAvailableIdentifier(expr.Pos(), file, path, info, "x", idx)
+			lhsName, idx = generateAvailableIdentifier(expr.Pos(), file, path, pkg, info, "x", idx)
 			lhsNames = append(lhsNames, lhsName)
 		}
 	default:
@@ -142,10 +142,16 @@ func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.
 
 // generateAvailableIdentifier adjusts the new function name until there are no collisions in scope.
 // Possible collisions include other function and variable names. Returns the next index to check for prefix.
-func generateAvailableIdentifier(pos token.Pos, file *ast.File, path []ast.Node, info *types.Info, prefix string, idx int) (string, int) {
+func generateAvailableIdentifier(pos token.Pos, file *ast.File, path []ast.Node, pkg *types.Package, info *types.Info, prefix string, idx int) (string, int) {
 	scopes := CollectScopes(info, path, pos)
+	scopes = append(scopes, pkg.Scope())
 	return generateIdentifier(idx, prefix, func(name string) bool {
-		return file.Scope.Lookup(name) != nil || !isValidName(name, scopes)
+		for _, scope := range scopes {
+			if scope != nil && scope.Lookup(name) != nil {
+				return true
+			}
+		}
+		return false
 	})
 }
 
@@ -159,19 +165,6 @@ func generateIdentifier(idx int, prefix string, hasCollision func(string) bool) 
 		name = fmt.Sprintf("%v%d", prefix, idx)
 	}
 	return name, idx + 1
-}
-
-// isValidName checks for variable collision in scope.
-func isValidName(name string, scopes []*types.Scope) bool {
-	for _, scope := range scopes {
-		if scope == nil {
-			continue
-		}
-		if scope.Lookup(name) != nil {
-			return false
-		}
-	}
-	return true
 }
 
 // returnVariable keeps track of the information we need to properly introduce a new variable
@@ -534,7 +527,7 @@ func extractFunctionMethod(fset *token.FileSet, start, end token.Pos, src []byte
 		funName = name
 	} else {
 		name = "newFunction"
-		funName, _ = generateAvailableIdentifier(start, file, path, info, name, 0)
+		funName, _ = generateAvailableIdentifier(start, file, path, pkg, info, name, 0)
 	}
 	extractedFunCall := generateFuncCall(hasNonNestedReturn, hasReturnValues, params,
 		append(returns, getNames(retVars)...), funName, sym, receiverName)
@@ -1137,7 +1130,7 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 	var cond *ast.Ident
 	if !hasNonNestedReturns {
 		// Generate information for the added bool value.
-		name, _ := generateAvailableIdentifier(pos, file, path, info, "shouldReturn", 0)
+		name, _ := generateAvailableIdentifier(pos, file, path, pkg, info, "shouldReturn", 0)
 		cond = &ast.Ident{Name: name}
 		retVars = append(retVars, &returnVariable{
 			name:    cond,
@@ -1159,8 +1152,7 @@ func generateReturnInfo(enclosing *ast.FuncType, pkg *types.Package, path []ast.
 				return nil, nil, fmt.Errorf("nil AST expression")
 			}
 			var name string
-			name, idx = generateAvailableIdentifier(pos, file,
-				path, info, "returnValue", idx)
+			name, idx = generateAvailableIdentifier(pos, file, path, pkg, info, "returnValue", idx)
 			retVars = append(retVars, &returnVariable{
 				name:    ast.NewIdent(name),
 				decl:    &ast.Field{Type: expr},

@@ -26,7 +26,7 @@ import (
 
 // ParseGo parses the file whose contents are provided by fh, using a cache.
 // The resulting tree may have beeen fixed up.
-func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
+func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode parser.Mode) (*source.ParsedGoFile, error) {
 	pgfs, _, err := s.parseCache.parseFiles(ctx, mode, fh)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (s *snapshot) ParseGo(ctx context.Context, fh source.FileHandle, mode sourc
 }
 
 // parseGoImpl parses the Go source file whose content is provided by fh.
-func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) (*source.ParsedGoFile, error) {
+func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode parser.Mode) (*source.ParsedGoFile, error) {
 	ctx, done := event.Start(ctx, "cache.parseGo", tag.File.Of(fh.URI().Filename()))
 	defer done()
 
@@ -55,13 +55,8 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 }
 
 // parseGoSrc parses a buffer of Go source, repairing the tree if necessary.
-func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []byte, mode source.ParseMode) (res *source.ParsedGoFile) {
-	parserMode := parser.AllErrors | parser.ParseComments
-	if mode == source.ParseHeader {
-		parserMode = parser.ImportsOnly | parser.ParseComments
-	}
-
-	file, err := parser.ParseFile(fset, uri.Filename(), src, parserMode)
+func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []byte, mode parser.Mode) (res *source.ParsedGoFile) {
+	file, err := parser.ParseFile(fset, uri.Filename(), src, mode)
 	var parseErr scanner.ErrorList
 	if err != nil {
 		// We passed a byte slice, so the only possible error is a parse error.
@@ -98,7 +93,7 @@ func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []by
 				event.Log(ctx, fmt.Sprintf("fixSrc loop - last diff:\n%v", unified), tag.File.Of(tok.Name()))
 			}
 
-			newFile, _ := parser.ParseFile(fset, uri.Filename(), newSrc, parserMode)
+			newFile, _ := parser.ParseFile(fset, uri.Filename(), newSrc, mode)
 			if newFile != nil {
 				// Maintain the original parseError so we don't try formatting the doctored file.
 				file = newFile

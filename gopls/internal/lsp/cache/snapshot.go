@@ -2195,7 +2195,10 @@ func (s *snapshot) BuiltinFile(ctx context.Context) (*source.ParsedGoFile, error
 	if err != nil {
 		return nil, err
 	}
-	return s.ParseGo(ctx, fh, source.ParseFull)
+	// For the builtin file only, we need syntactic object resolution
+	// (since we can't type check).
+	mode := source.ParseFull &^ source.SkipObjectResolution
+	return parseGoImpl(ctx, token.NewFileSet(), fh, mode)
 }
 
 func (s *snapshot) IsBuiltin(ctx context.Context, uri span.URI) bool {

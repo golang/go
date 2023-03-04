@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !go1.17
-// +build !go1.17
+//go:build go1.17
+// +build go1.17
 
-package cache
+package source
 
-// The parser.SkipObjectResolution mode flag is not supported before Go 1.17.
-const skipObjectResolution = 0
+import "go/parser"
+
+const SkipObjectResolution = parser.SkipObjectResolution
