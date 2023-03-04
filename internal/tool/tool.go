@@ -43,6 +43,7 @@ import (
 type Profile struct {
 	CPU    string `flag:"profile.cpu" help:"write CPU profile to this file"`
 	Memory string `flag:"profile.mem" help:"write memory profile to this file"`
+	Alloc  string `flag:"profile.alloc" help:"write alloc profile to this file"`
 	Trace  string `flag:"profile.trace" help:"write trace log to this file"`
 }
 
@@ -160,6 +161,19 @@ func Run(ctx context.Context, s *flag.FlagSet, app Application, args []string) e
 			runtime.GC() // get up-to-date statistics
 			if err := pprof.WriteHeapProfile(f); err != nil {
 				log.Printf("Writing memory profile: %v", err)
+			}
+			f.Close()
+		}()
+	}
+
+	if p != nil && p.Alloc != "" {
+		f, err := os.Create(p.Alloc)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := pprof.Lookup("allocs").WriteTo(f, 0); err != nil {
+				log.Printf("Writing alloc profile: %v", err)
 			}
 			f.Close()
 		}()

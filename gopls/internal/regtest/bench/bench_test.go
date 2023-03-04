@@ -36,9 +36,10 @@ var (
 	installGoplsOnce sync.Once // guards installing gopls at -gopls_commit
 	goplsCommit      = flag.String("gopls_commit", "", "if set, install and use gopls at this commit for testing; incompatible with -gopls_path")
 
-	cpuProfile = flag.String("gopls_cpuprofile", "", "if set, the cpu profile file suffix; see \"Profiling\" in the package doc")
-	memProfile = flag.String("gopls_memprofile", "", "if set, the mem profile file suffix; see \"Profiling\" in the package doc")
-	trace      = flag.String("gopls_trace", "", "if set, the trace file suffix; see \"Profiling\" in the package doc")
+	cpuProfile   = flag.String("gopls_cpuprofile", "", "if set, the cpu profile file suffix; see \"Profiling\" in the package doc")
+	memProfile   = flag.String("gopls_memprofile", "", "if set, the mem profile file suffix; see \"Profiling\" in the package doc")
+	allocProfile = flag.String("gopls_allocprofile", "", "if set, the alloc profile file suffix; see \"Profiling\" in the package doc")
+	trace        = flag.String("gopls_trace", "", "if set, the trace file suffix; see \"Profiling\" in the package doc")
 
 	// If non-empty, tempDir is a temporary working dir that was created by this
 	// test suite.
@@ -149,6 +150,9 @@ func newGoplsServer(name string) (servertest.Connector, error) {
 	}
 	if *memProfile != "" {
 		args = append(args, fmt.Sprintf("-profile.mem=%s", name+"."+*memProfile))
+	}
+	if *allocProfile != "" {
+		args = append(args, fmt.Sprintf("-profile.alloc=%s", name+"."+*allocProfile))
 	}
 	if *trace != "" {
 		args = append(args, fmt.Sprintf("-profile.trace=%s", name+"."+*trace))

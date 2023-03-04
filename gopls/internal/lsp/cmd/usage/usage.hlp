@@ -55,6 +55,8 @@ flags:
     	the address of the ocagent (e.g. http://localhost:55678), or off (default "off")
   -port=int
     	port on which to run gopls for debugging purposes
+  -profile.alloc=string
+    	write alloc profile to this file
   -profile.cpu=string
     	write CPU profile to this file
   -profile.mem=string
