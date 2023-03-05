@@ -63,11 +63,11 @@ func defaultCCFunc(name string, defaultcc map[string]string) string {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		fmt.Fprintf(&buf, "\tcase %q:\n\t\treturn %q\n", k, defaultcc[k])
+		fmt.Fprintf(&buf, "\tcase %s:\n\t\treturn %s\n", quote(k), quote(defaultcc[k]))
 	}
 	fmt.Fprintf(&buf, "\t}\n")
 	if cc := defaultcc[""]; cc != "" {
-		fmt.Fprintf(&buf, "\treturn %q\n", cc)
+		fmt.Fprintf(&buf, "\treturn %s\n", quote(cc))
 	} else {
 		clang, gcc := "clang", "gcc"
 		if strings.HasSuffix(name, "CXX") {
@@ -79,12 +79,12 @@ func defaultCCFunc(name string, defaultcc map[string]string) string {
 			if i > 0 {
 				fmt.Fprintf(&buf, ", ")
 			}
-			fmt.Fprintf(&buf, "%q", os)
+			fmt.Fprintf(&buf, "%s", quote(os))
 		}
 		fmt.Fprintf(&buf, ":\n")
-		fmt.Fprintf(&buf, "\t\treturn %q\n", clang)
+		fmt.Fprintf(&buf, "\t\treturn %s\n", quote(clang))
 		fmt.Fprintf(&buf, "\t}\n")
-		fmt.Fprintf(&buf, "\treturn %q\n", gcc)
+		fmt.Fprintf(&buf, "\treturn %s\n", quote(gcc))
 	}
 	fmt.Fprintf(&buf, "}\n")
 
@@ -105,7 +105,7 @@ func mkzosarch(dir, file string) {
 	fmt.Fprintf(&buf, "package cfg\n\n")
 	fmt.Fprintf(&buf, "var OSArchSupportsCgo = map[string]bool{\n")
 	for _, plat := range list {
-		fmt.Fprintf(&buf, "\t%q: %v,\n", plat, cgoEnabled[plat])
+		fmt.Fprintf(&buf, "\t%s: %v,\n", quote(plat), cgoEnabled[plat])
 	}
 	fmt.Fprintf(&buf, "}\n")
 
@@ -133,11 +133,11 @@ func mkzcgo(dir, file string) {
 	fmt.Fprintln(&buf)
 	fmt.Fprintf(&buf, "package build\n")
 	fmt.Fprintln(&buf)
-	fmt.Fprintf(&buf, "const defaultCGO_ENABLED = %q\n", os.Getenv("CGO_ENABLED"))
+	fmt.Fprintf(&buf, "const defaultCGO_ENABLED = %s\n", quote(os.Getenv("CGO_ENABLED")))
 	fmt.Fprintln(&buf)
 	fmt.Fprintf(&buf, "var cgoEnabled = map[string]bool{\n")
 	for _, plat := range list {
-		fmt.Fprintf(&buf, "\t%q: true,\n", plat)
+		fmt.Fprintf(&buf, "\t%s: true,\n", quote(plat))
 	}
 	fmt.Fprintf(&buf, "}\n")
 
@@ -156,7 +156,28 @@ func mktzdata(dir, file string) {
 	fmt.Fprintln(&buf)
 	fmt.Fprintf(&buf, "package tzdata\n")
 	fmt.Fprintln(&buf)
-	fmt.Fprintf(&buf, "const zipdata = %q\n", zip)
+	fmt.Fprintf(&buf, "const zipdata = %s\n", quote(zip))
 
 	writefile(buf.String(), file, writeSkipSame)
+}
+
+// quote is like strconv.Quote but simpler and has output
+// that does not depend on the exact Go bootstrap version.
+func quote(s string) string {
+	const hex = "0123456789abcdef"
+	var out strings.Builder
+	out.WriteByte('"')
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if 0x20 <= c && c <= 0x7E && c != '"' && c != '\\' {
+			out.WriteByte(c)
+		} else {
+			out.WriteByte('\\')
+			out.WriteByte('x')
+			out.WriteByte(hex[c>>4])
+			out.WriteByte(hex[c&0xf])
+		}
+	}
+	out.WriteByte('"')
+	return out.String()
 }

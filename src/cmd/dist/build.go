@@ -313,6 +313,9 @@ var clangos = []string{
 // compilerEnvLookup returns the compiler settings for goos/goarch in map m.
 // kind is "CC" or "CXX".
 func compilerEnvLookup(kind string, m map[string]string, goos, goarch string) string {
+	if !needCC() {
+		return ""
+	}
 	if cc := m[goos+"/"+goarch]; cc != "" {
 		return cc
 	}
@@ -1568,7 +1571,7 @@ func cmdbootstrap() {
 	}
 
 	// Remove go_bootstrap now that we're done.
-	xremove(pathf("%s/go_bootstrap", tooldir))
+	xremove(pathf("%s/go_bootstrap"+exe, tooldir))
 
 	if goos == "android" {
 		// Make sure the exec wrapper will sync a fresh $GOROOT to the device.
@@ -1740,13 +1743,7 @@ var firstClass = map[string]bool{
 }
 
 func needCC() bool {
-	switch os.Getenv("CGO_ENABLED") {
-	case "1":
-		return true
-	case "0":
-		return false
-	}
-	return cgoEnabled[gohostos+"/"+gohostarch]
+	return os.Getenv("CGO_ENABLED") == "1"
 }
 
 func checkCC() {
