@@ -9,14 +9,49 @@ import (
 	"context"
 	"go/parser"
 	"go/token"
+	"math/bits"
 	"runtime"
-	"sort"
 	"sync"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
+	"golang.org/x/tools/internal/tokeninternal"
 )
+
+// reservedForParsing defines the room in the token.Pos space reserved for
+// cached parsed files.
+//
+// Files parsed through the parseCache are guaranteed not to have overlapping
+// spans: the parseCache tracks a monotonic base for newly parsed files.
+//
+// By offsetting the initial base of a FileSet, we can allow other operations
+// accepting the FileSet (such as the gcimporter) to add new files using the
+// normal FileSet APIs without overlapping with cached parsed files.
+//
+// Note that 1<<60 represents an exabyte of parsed data, more than any gopls
+// process can ever parse.
+//
+// On 32-bit systems we don't cache parse results (see parseFiles).
+const reservedForParsing = 1 << (bits.UintSize - 4)
+
+// fileSetWithBase returns a new token.FileSet with Base() equal to the
+// requested base, or 1 if base < 1.
+func fileSetWithBase(base int) *token.FileSet {
+	fset := token.NewFileSet()
+	if base > 1 {
+		// Add a dummy file to set the base of fset. We won't ever use the
+		// resulting FileSet, so it doesn't matter how we achieve this.
+		//
+		// FileSets leave a 1-byte padding between files, so we set the base by
+		// adding a zero-length file at base-1.
+		fset.AddFile("", base-1, 0)
+	}
+	if base >= 1 && fset.Base() != base {
+		panic("unexpected FileSet.Base")
+	}
+	return fset
+}
 
 // This file contains an implementation of a bounded-size parse cache, that
 // offsets the base token.Pos value of each cached file so that they may be
@@ -34,9 +69,8 @@ import (
 //     cache hits for low-latency operations.
 const parseCacheMaxFiles = 200
 
-// parsePadding is additional padding allocated between entries in the parse
-// cache to allow for increases in length (such as appending missing braces)
-// caused by fixAST.
+// parsePadding is additional padding allocated to allow for increases in
+// length (such as appending missing braces) caused by fixAST.
 //
 // This is used to mitigate a chicken and egg problem: we must know the base
 // offset of the file we're about to parse, before we start parsing, and yet
@@ -57,11 +91,11 @@ var parsePadding = 1000 // mutable for testing
 // caching) multiple files. This is necessary for type-checking, where files
 // must be parsed in a common fileset.
 type parseCache struct {
-	mu         sync.Mutex
-	m          map[parseKey]*parseCacheEntry
-	lru        queue     // min-atime priority queue of *parseCacheEntry
-	clock      uint64    // clock time, incremented when the cache is updated
-	nextOffset token.Pos // token.Pos offset for the next parsed file
+	mu       sync.Mutex
+	m        map[parseKey]*parseCacheEntry
+	lru      queue  // min-atime priority queue of *parseCacheEntry
+	clock    uint64 // clock time, incremented when the cache is updated
+	nextBase int    // base offset for the next parsed file
 }
 
 // parseKey uniquely identifies a parsed Go file.
@@ -77,10 +111,8 @@ type parseCacheEntry struct {
 	lruIndex int
 }
 
-// startParse prepares a parsing pass, using the following steps:
-//   - search for cache hits
-//   - create new promises for cache misses
-//   - store as many new promises in the cache as space will allow
+// startParse prepares a parsing pass, creating new promises in the cache for
+// any cache misses.
 //
 // The resulting slice has an entry for every given file handle, though some
 // entries may be nil if there was an error reading the file (in which case the
@@ -124,16 +156,32 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 			continue
 		}
 
-		// ...otherwise, create a new promise to parse with a non-overlapping offset
-		fset := token.NewFileSet()
-		if c.nextOffset > 0 {
-			// Add a dummy file so that this parsed file does not overlap with others.
-			fset.AddFile("", 1, int(c.nextOffset))
-		}
-		c.nextOffset += token.Pos(len(content) + parsePadding + 1) // leave room for src fixes
-		fh := fh
+		// ...otherwise, create a new promise to parse with a non-overlapping
+		// offset. We allocate 2*len(content)+parsePadding to allow for re-parsing
+		// once inside of parseGoSrc without exceeding the allocated space.
+		base, nextBase, fset := c.allocateSpaceLocked(2*len(content) + parsePadding)
+		uri := fh.URI()
 		promise := memoize.NewPromise(string(fh.URI()), func(ctx context.Context, _ interface{}) interface{} {
-			return parseGoSrc(ctx, fset, fh.URI(), content, mode)
+			pgf := parseGoSrc(ctx, fset, uri, content, mode)
+			file := pgf.Tok
+			if file.Base()+file.Size()+1 > nextBase {
+				// The parsed file exceeds its allocated space, likely due to multiple
+				// passes of src fixing. In this case, we have no choice but to re-do
+				// the operation with the correct size.
+				//
+				// Even though the final successful parse requires only file.Size()
+				// bytes of Pos space, we need to accommodate all the missteps to get
+				// there, as parseGoSrc will repeat them.
+				actual := file.Base() + file.Size() - base // actual size consumed, after re-parsing
+				c.mu.Lock()
+				_, next, fset := c.allocateSpaceLocked(actual)
+				c.mu.Unlock()
+				pgf = parseGoSrc(ctx, fset, uri, content, mode)
+				if pgf.Tok.Base()+pgf.Tok.Size() != next-1 {
+					panic("internal error: non-deterministic parsing result")
+				}
+			}
+			return pgf
 		})
 		promises[i] = promise
 
@@ -163,24 +211,60 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 	return promises, firstReadError
 }
 
-// parseFiles returns a ParsedGoFile for the given file handles in the
+// allocateSpaceLocked reserves the next n bytes of token.Pos space in the
+// cache.
+//
+// It returns the resulting file base, next base, and an offset FileSet to use
+// for parsing.
+func (c *parseCache) allocateSpaceLocked(size int) (int, int, *token.FileSet) {
+	base := c.nextBase
+	c.nextBase += size + 1
+	return base, c.nextBase, fileSetWithBase(base)
+}
+
+// The parse cache is not supported on 32-bit systems, where reservedForParsing
+// is too small to be viable.
+func parseCacheSupported() bool {
+	return bits.UintSize != 32
+}
+
+// parseFiles returns a ParsedGoFile for each file handle in fhs, in the
 // requested parse mode.
-//
-// If parseFiles returns an error, it still returns a slice,
-// but with a nil entry for each file that could not be parsed.
-//
-// The second result is a FileSet describing all resulting parsed files.
 //
 // For parsed files that already exists in the cache, access time will be
 // updated. For others, parseFiles will parse and store as many results in the
 // cache as space allows.
-func (c *parseCache) parseFiles(ctx context.Context, mode parser.Mode, fhs ...source.FileHandle) ([]*source.ParsedGoFile, *token.FileSet, error) {
-	promises, firstReadError := c.startParse(mode, fhs...)
+//
+// The token.File for each resulting parsed file will be added to the provided
+// FileSet, using the tokeninternal.AddExistingFiles API. Consequently, the
+// given fset should only be used in other APIs if its base is >=
+// reservedForParsing.
+//
+// If parseFiles returns an error, it still returns a slice,
+// but with a nil entry for each file that could not be parsed.
+func (c *parseCache) parseFiles(ctx context.Context, fset *token.FileSet, mode parser.Mode, fhs ...source.FileHandle) ([]*source.ParsedGoFile, error) {
+	pgfs := make([]*source.ParsedGoFile, len(fhs))
+
+	// Temporary fall-back for 32-bit systems, where reservedForParsing is too
+	// small to be viable. We don't actually support 32-bit systems, so this
+	// workaround is only for tests and can be removed when we stop running
+	// 32-bit TryBots for gopls.
+	if bits.UintSize == 32 {
+		for i, fh := range fhs {
+			var err error
+			pgfs[i], err = parseGoImpl(ctx, fset, fh, mode)
+			if err != nil {
+				return pgfs, err
+			}
+		}
+		return pgfs, nil
+	}
+
+	promises, firstErr := c.startParse(mode, fhs...)
 
 	// Await all parsing.
 	var g errgroup.Group
 	g.SetLimit(runtime.GOMAXPROCS(-1)) // parsing is CPU-bound.
-	pgfs := make([]*source.ParsedGoFile, len(fhs))
 	for i, promise := range promises {
 		if promise == nil {
 			continue
@@ -196,77 +280,22 @@ func (c *parseCache) parseFiles(ctx context.Context, mode parser.Mode, fhs ...so
 			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
-		return nil, nil, err
+
+	if err := g.Wait(); err != nil && firstErr == nil {
+		firstErr = err
 	}
 
-	// Construct a token.FileSet mapping all parsed files, and update their
-	// Tok to the corresponding file in the new fileset.
-	//
-	// In the unlikely event that a parsed file no longer fits in its allocated
-	// space in the FileSet range, it will need to be re-parsed.
-
+	// Augment the FileSet to map all parsed files.
 	var tokenFiles []*token.File
-	fileIndex := make(map[*token.File]int) // to look up original indexes after sorting
-	for i, pgf := range pgfs {
+	for _, pgf := range pgfs {
 		if pgf == nil {
 			continue
 		}
-		fileIndex[pgf.Tok] = i
 		tokenFiles = append(tokenFiles, pgf.Tok)
 	}
+	tokeninternal.AddExistingFiles(fset, tokenFiles)
 
-	sort.Slice(tokenFiles, func(i, j int) bool {
-		return tokenFiles[i].Base() < tokenFiles[j].Base()
-	})
-
-	var needReparse []int // files requiring reparsing
-	out := tokenFiles[:0]
-	for i, f := range tokenFiles {
-		if i < len(tokenFiles)-1 && f.Base()+f.Size() >= tokenFiles[i+1].Base() {
-			if f != tokenFiles[i+1] { // no need to re-parse duplicates
-				needReparse = append(needReparse, fileIndex[f])
-			}
-		} else {
-			out = append(out, f)
-		}
-	}
-	fset := source.FileSetFor(out...)
-
-	// Re-parse any remaining files using the stitched fileSet.
-	for _, i := range needReparse {
-		// Start from scratch, rather than using ParsedGoFile.Src, so that source
-		// fixing operates exactly the same (note that fixing stops after a limited
-		// number of tries).
-		fh := fhs[i]
-		content, err := fh.Content()
-		if err != nil {
-			if firstReadError == nil {
-				firstReadError = err
-			}
-			continue
-		}
-		pgfs[i] = parseGoSrc(ctx, fset, fh.URI(), content, mode)
-	}
-
-	// Ensure each PGF refers to a token.File from the new FileSet.
-	for i, pgf := range pgfs {
-		if pgf == nil {
-			continue
-		}
-		newTok := fset.File(token.Pos(pgf.Tok.Base()))
-		if newTok == nil {
-			panic("internal error: missing tok for " + pgf.URI)
-		}
-		if newTok.Base() != pgf.Tok.Base() || newTok.Size() != pgf.Tok.Size() {
-			panic("internal error: mismatching token.File in synthetic FileSet")
-		}
-		pgf2 := *pgf
-		pgf2.Tok = newTok
-		pgfs[i] = &pgf2
-	}
-
-	return pgfs, fset, firstReadError
+	return pgfs, firstErr
 }
 
 // -- priority queue boilerplate --

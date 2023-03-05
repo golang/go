@@ -45,10 +45,10 @@ import (
 type typeCheckBatch struct {
 	meta *metadataGraph
 
-	cpulimit    chan struct{}                     // concurrency limiter for CPU-bound operations
-	needSyntax  map[PackageID]bool                // packages that need type-checked syntax
-	parsedFiles map[span.URI]*source.ParsedGoFile // parsed files necessary for type-checking
-	fset        *token.FileSet                    // FileSet describing all parsed files
+	fset       *token.FileSet     // FileSet describing all parsed files
+	parseCache *parseCache        // shared parsing cache
+	cpulimit   chan struct{}      // concurrency limiter for CPU-bound operations
+	needSyntax map[PackageID]bool // packages that need type-checked syntax
 
 	// Promises holds promises to either read export data for the package, or
 	// parse and type-check its syntax.
@@ -57,11 +57,15 @@ type typeCheckBatch struct {
 	// awaited, they must write an entry into the imports map.
 	promises map[PackageID]*memoize.Promise
 
-	mu         sync.Mutex
-	needFiles  map[span.URI]source.FileHandle // de-duplicated file handles required for type-checking
-	imports    map[PackageID]pkgOrErr         // types.Packages to use for importing
-	exportData map[PackageID][]byte
-	packages   map[PackageID]*Package
+	mu sync.Mutex
+	// TODO(rfindley): parsedFiles, which holds every file needed for
+	// type-checking, may not be necessary given the parseCache.
+	//
+	// In fact, parsedFiles may be counter-productive due to pinning all files in
+	// memory during large operations.
+	parsedFiles map[span.URI]*source.ParsedGoFile // parsed files necessary for type-checking
+	imports     map[PackageID]pkgOrErr            // types.Packages to use for importing
+	packages    map[PackageID]*Package
 }
 
 type pkgOrErr struct {
@@ -79,18 +83,17 @@ type pkgOrErr struct {
 // indicates context cancellation or otherwise significant failure to perform
 // the type-checking operation.
 func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Package, error) {
-	// Build up shared state for efficient type-checking.
+	// Shared state for efficient type-checking.
 	b := &typeCheckBatch{
-		cpulimit:    make(chan struct{}, runtime.GOMAXPROCS(0)),
-		needSyntax:  make(map[PackageID]bool),
-		parsedFiles: make(map[span.URI]*source.ParsedGoFile),
-		// fset is built during the parsing pass.
+		fset:       fileSetWithBase(reservedForParsing),
+		parseCache: s.parseCache,
+		cpulimit:   make(chan struct{}, runtime.GOMAXPROCS(0)),
+		needSyntax: make(map[PackageID]bool),
 
-		needFiles:  make(map[span.URI]source.FileHandle),
-		promises:   make(map[PackageID]*memoize.Promise),
-		imports:    make(map[PackageID]pkgOrErr),
-		exportData: make(map[PackageID][]byte),
-		packages:   make(map[PackageID]*Package),
+		parsedFiles: make(map[span.URI]*source.ParsedGoFile),
+		promises:    make(map[PackageID]*memoize.Promise),
+		imports:     make(map[PackageID]pkgOrErr),
+		packages:    make(map[PackageID]*Package),
 	}
 
 	// Check for existing active packages.
@@ -120,12 +123,8 @@ func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Pa
 	b.meta = s.meta
 	s.mu.Unlock()
 
-	//  -- Step 1: assemble the promises graph --
-	var (
-		needExportData = make(map[PackageID]packageHandleKey)
-		packageHandles = make(map[PackageID]*packageHandle)
-	)
-
+	//  -- assemble the promises graph --
+	//
 	// collectPromises collects promises to load packages from export data or
 	// type-check.
 	var collectPromises func(PackageID) error
@@ -152,21 +151,11 @@ func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Pa
 		if err != nil {
 			return err
 		}
-		packageHandles[id] = ph
-
-		if b.needSyntax[id] {
-			// We will need to parse and type-check this package.
-			//
-			// We may also need to parse and type-check if export data is missing,
-			// but that is handled after fetching export data below.
-			b.addNeededFiles(ph)
-		} else if id != "unsafe" { // we can't load export data for unsafe
-			needExportData[id] = ph.key
-		}
 
 		debugName := fmt.Sprintf("check(%s)", id)
 		b.promises[id] = memoize.NewPromise(debugName, func(ctx context.Context, _ interface{}) interface{} {
 			pkg, err := b.processPackage(ctx, ph)
+
 			b.mu.Lock()
 			b.imports[m.ID] = pkgOrErr{pkg, err}
 			b.mu.Unlock()
@@ -178,57 +167,7 @@ func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Pa
 		collectPromises(id)
 	}
 
-	// -- Step 2: collect export data --
-	//
-	// This must be done before parsing in order to determine which files must be
-	// parsed.
-	{
-		var g errgroup.Group
-		for id, key := range needExportData {
-			id := id
-			key := key
-			g.Go(func() error {
-				data, err := filecache.Get(exportDataKind, key)
-				if err != nil {
-					if err == filecache.ErrNotFound {
-						ph := packageHandles[id]
-						b.addNeededFiles(ph) // we will need to parse and type check
-						return nil           // ok: we will type check later
-					}
-					return err
-				}
-				b.mu.Lock()
-				b.exportData[id] = data
-				b.mu.Unlock()
-				return nil
-			})
-		}
-		if err := g.Wait(); err != nil {
-			return pkgs, err
-		}
-	}
-
-	// -- Step 3: parse files required for type checking. --
-	//
-	// Parse all necessary files in parallel. Unfortunately we can't start
-	// parsing each package's file as soon as we discover that it is a syntax
-	// package, because the parseCache cannot add files to an existing FileSet.
-	{
-		var fhs []source.FileHandle
-		for _, fh := range b.needFiles {
-			fhs = append(fhs, fh)
-		}
-		pgfs, fset, err := s.parseCache.parseFiles(ctx, source.ParseFull, fhs...)
-		if err != nil {
-			return pkgs, err
-		}
-		for _, pgf := range pgfs {
-			b.parsedFiles[pgf.URI] = pgf
-		}
-		b.fset = fset
-	}
-
-	// -- Step 4: await results --
+	// -- await type-checking. --
 	//
 	// Start a single goroutine for each promise.
 	{
@@ -277,20 +216,41 @@ func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Pa
 	return pkgs, firstErr
 }
 
-// addNeededFiles records the files necessary for type-checking ph, for later
-// parsing.
-func (b *typeCheckBatch) addNeededFiles(ph *packageHandle) {
+// parseFiles gets pre-existing parsed files for fhs from b.parsedFiles, or
+// parses as needed.
+func (b *typeCheckBatch) parseFiles(ctx context.Context, fhs []source.FileHandle) ([]*source.ParsedGoFile, error) {
+	var needFiles []source.FileHandle // files that need to be parsed
+	var needIndex []int               // indexes in fhs of the entries in needFiles
+
+	pgfs := make([]*source.ParsedGoFile, len(fhs))
+	b.mu.Lock()
+	for i, fh := range fhs {
+		if pgf, ok := b.parsedFiles[fh.URI()]; ok {
+			pgfs[i] = pgf
+		} else {
+			needFiles = append(needFiles, fh)
+			needIndex = append(needIndex, i)
+		}
+	}
+	b.mu.Unlock()
+
+	parsed, err := b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, needFiles...)
+	if err != nil {
+		return nil, err
+	}
+
 	b.mu.Lock()
 	defer b.mu.Unlock()
-
-	// Technically for export-only packages we only need compiledGoFiles, but
-	// these slices are usually redundant.
-	for _, fh := range ph.inputs.goFiles {
-		b.needFiles[fh.URI()] = fh
+	for i, pgf := range parsed {
+		idx := needIndex[i]
+		if existing, ok := b.parsedFiles[pgf.URI]; ok { // lost a race
+			pgfs[idx] = existing
+		} else {
+			b.parsedFiles[pgf.URI] = pgf
+			pgfs[idx] = pgf
+		}
 	}
-	for _, fh := range ph.inputs.compiledGoFiles {
-		b.needFiles[fh.URI()] = fh
-	}
+	return pgfs, nil
 }
 
 // processPackage processes the package handle for the type checking batch,
@@ -315,31 +275,32 @@ func (b *typeCheckBatch) processPackage(ctx context.Context, ph *packageHandle) 
 		}()
 	}
 
-	b.mu.Lock()
-	data, ok := b.exportData[ph.m.ID]
-	b.mu.Unlock()
+	if b.needSyntax[ph.m.ID] {
+		// We need a syntax package.
+		syntaxPkg, err := b.checkPackage(ctx, ph)
+		if err != nil {
+			return nil, err
+		}
 
-	if ok {
-		// We need export data, and have it.
-		return b.importPackage(ctx, ph.m, data)
+		b.mu.Lock()
+		b.packages[ph.m.ID] = syntaxPkg
+		b.mu.Unlock()
+		return syntaxPkg.pkg.types, nil
 	}
 
-	if !b.needSyntax[ph.m.ID] {
-		// We need only a types.Package, but don't have export data.
-		// Type-check as fast as possible (skipping function bodies).
+	if ph.m.ID == "unsafe" {
+		return types.Unsafe, nil
+	}
+
+	data, err := filecache.Get(exportDataKind, ph.key)
+	if err == filecache.ErrNotFound {
+		// No cached export data: type-check as fast as possible.
 		return b.checkPackageForImport(ctx, ph)
 	}
-
-	// We need a syntax package.
-	syntaxPkg, err := b.checkPackage(ctx, ph)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read cache data for %s: %v", ph.m.ID, err)
 	}
-
-	b.mu.Lock()
-	b.packages[ph.m.ID] = syntaxPkg
-	b.mu.Unlock()
-	return syntaxPkg.pkg.types, nil
+	return b.importPackage(ctx, ph.m, data)
 }
 
 // importPackage loads the given package from its export data in p.exportData
@@ -364,26 +325,23 @@ func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, 
 // checkPackageForImport type checks, but skips function bodies and does not
 // record syntax information.
 func (b *typeCheckBatch) checkPackageForImport(ctx context.Context, ph *packageHandle) (*types.Package, error) {
-	if ph.m.ID == "unsafe" {
-		return types.Unsafe, nil
-	}
 	impMap, errMap := b.importMap(ph.inputs.id)
 	onError := func(e error) {
 		// Ignore errors for exporting.
 	}
 	cfg := b.typesConfig(ph.inputs, onError, impMap, errMap)
-	var files []*ast.File
-	for _, fh := range ph.inputs.compiledGoFiles {
-		pgf := b.parsedFiles[fh.URI()]
-		if pgf == nil {
-			return nil, fmt.Errorf("compiled go file %q failed to parse", fh.URI().Filename())
-		}
-		files = append(files, pgf.File)
+	pgfs, err := b.parseFiles(ctx, ph.inputs.compiledGoFiles)
+	if err != nil {
+		return nil, err
 	}
 	cfg.IgnoreFuncBodies = true
 	pkg := types.NewPackage(string(ph.inputs.pkgPath), string(ph.inputs.name))
 	check := types.NewChecker(cfg, b.fset, pkg, nil)
 
+	files := make([]*ast.File, len(pgfs))
+	for i, pgf := range pgfs {
+		files[i] = pgf.File
+	}
 	_ = check.Files(files) // ignore errors
 
 	// If the context was cancelled, we may have returned a ton of transient
@@ -923,24 +881,19 @@ func doTypeCheck(ctx context.Context, b *typeCheckBatch, inputs typeCheckInputs)
 
 	// Collect parsed files from the type check pass, capturing parse errors from
 	// compiled files.
-	for _, fh := range inputs.goFiles {
-		pgf := b.parsedFiles[fh.URI()]
-		if pgf == nil {
-			// If go/packages told us that a file is in a package, it should be
-			// parseable (after all, it was parsed by go list).
-			return nil, bug.Errorf("go file %q failed to parse", fh.URI().Filename())
-		}
-		pkg.goFiles = append(pkg.goFiles, pgf)
+	var err error
+	pkg.goFiles, err = b.parseFiles(ctx, inputs.goFiles)
+	if err != nil {
+		return nil, err
 	}
-	for _, fh := range inputs.compiledGoFiles {
-		pgf := b.parsedFiles[fh.URI()]
-		if pgf == nil {
-			return nil, fmt.Errorf("compiled go file %q failed to parse", fh.URI().Filename())
-		}
+	pkg.compiledGoFiles, err = b.parseFiles(ctx, inputs.compiledGoFiles)
+	if err != nil {
+		return nil, err
+	}
+	for _, pgf := range pkg.compiledGoFiles {
 		if pgf.ParseErr != nil {
 			pkg.parseErrors = append(pkg.parseErrors, pgf.ParseErr)
 		}
-		pkg.compiledGoFiles = append(pkg.compiledGoFiles, pgf)
 	}
 
 	// Use the default type information for the unsafe package.

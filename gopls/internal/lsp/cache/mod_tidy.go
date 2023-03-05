@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -460,7 +461,7 @@ func missingModuleForImport(pgf *source.ParsedGoFile, imp *ast.ImportSpec, req *
 //
 // TODO(rfindley): this should key off source.ImportPath.
 func parseImports(ctx context.Context, s *snapshot, files []source.FileHandle) (map[string]bool, error) {
-	pgfs, _, err := s.parseCache.parseFiles(ctx, source.ParseHeader, files...)
+	pgfs, err := s.parseCache.parseFiles(ctx, token.NewFileSet(), source.ParseHeader, files...)
 	if err != nil { // e.g. context cancellation
 		return nil, err
 	}

@@ -2059,9 +2059,10 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 		return false, false, false
 	}
 
+	fset := token.NewFileSet()
 	// Parse headers to compare package names and imports.
-	oldHeads, _, oldErr := lockedSnapshot.parseCache.parseFiles(ctx, source.ParseHeader, oldFH)
-	newHeads, _, newErr := lockedSnapshot.parseCache.parseFiles(ctx, source.ParseHeader, newFH)
+	oldHeads, oldErr := lockedSnapshot.parseCache.parseFiles(ctx, fset, source.ParseHeader, oldFH)
+	newHeads, newErr := lockedSnapshot.parseCache.parseFiles(ctx, fset, source.ParseHeader, newFH)
 
 	if oldErr != nil || newErr != nil {
 		// TODO(rfindley): we can get here if newFH does not exist. There is
@@ -2112,8 +2113,8 @@ func metadataChanges(ctx context.Context, lockedSnapshot *snapshot, oldFH, newFH
 	// Note: if this affects performance we can probably avoid parsing in the
 	// common case by first scanning the source for potential comments.
 	if !invalidate {
-		origFulls, _, oldErr := lockedSnapshot.parseCache.parseFiles(ctx, source.ParseFull, oldFH)
-		newFulls, _, newErr := lockedSnapshot.parseCache.parseFiles(ctx, source.ParseFull, newFH)
+		origFulls, oldErr := lockedSnapshot.parseCache.parseFiles(ctx, fset, source.ParseFull, oldFH)
+		newFulls, newErr := lockedSnapshot.parseCache.parseFiles(ctx, fset, source.ParseFull, newFH)
 		if oldErr == nil && newErr == nil {
 			invalidate = magicCommentsChanged(origFulls[0].File, newFulls[0].File)
 		} else {
