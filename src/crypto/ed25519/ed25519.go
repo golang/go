@@ -90,18 +90,21 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
 	if opts, ok := opts.(*Options); ok {
 		context = opts.Context
 	}
-	if l := len(context); l > 255 {
-		return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
-	}
 	switch {
 	case hash == crypto.SHA512: // Ed25519ph
 		if l := len(message); l != sha512.Size {
 			return nil, errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
 		}
+		if l := len(context); l > 255 {
+			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
+		}
 		signature := make([]byte, SignatureSize)
 		sign(signature, priv, message, domPrefixPh, context)
 		return signature, nil
 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
+		if l := len(context); l > 255 {
+			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
+		}
 		signature := make([]byte, SignatureSize)
 		sign(signature, priv, message, domPrefixCtx, context)
 		return signature, nil
