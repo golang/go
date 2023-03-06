@@ -126,6 +126,12 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 			return "", "", errUnrecognizedFormat
 		}
 		x = &machoExe{f}
+	case bytes.HasPrefix(ident, []byte("\xCA\xFE\xBA\xBE")) || bytes.HasPrefix(ident, []byte("\xCA\xFE\xBA\xBF")):
+		f, err := macho.NewFatFile(r)
+		if err != nil || len(f.Arches) == 0 {
+			return "", "", errUnrecognizedFormat
+		}
+		x = &machoExe{f.Arches[0].File}
 	case bytes.HasPrefix(ident, []byte{0x01, 0xDF}) || bytes.HasPrefix(ident, []byte{0x01, 0xF7}):
 		f, err := xcoff.NewFile(r)
 		if err != nil {
@@ -423,5 +429,4 @@ func (x *plan9objExe) ReadData(addr, size uint64) ([]byte, error) {
 		}
 	}
 	return nil, errors.New("address not mapped")
-
 }
