@@ -349,7 +349,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 
 	state := ok
 	var m *Func // method on T we're trying to implement
-	var f *Func // method on V, if found (state is one of ok, wrongName, wrongSig, ptrRecv)
+	var f *Func // method on V, if found (state is one of ok, wrongName, wrongSig)
 
 	if u, _ := under(V).(*Interface); u != nil {
 		tset := u.typeSet()
@@ -371,29 +371,21 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		}
 	} else {
 		for _, m = range methods {
-			obj, _, _ := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
+			obj, _, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
 
 			// check if m is on *V, or on V with case-folding
 			if obj == nil {
-				state = notFound
-				// TODO(gri) Instead of NewPointer(V) below, can we just set the "addressable" argument?
-				obj, _, _ = lookupFieldOrMethodImpl(NewPointer(V), false, m.pkg, m.name, false)
-				if obj != nil {
-					f, _ = obj.(*Func)
-					if f != nil {
-						state = ptrRecv
-					}
-					// otherwise we found a field, keep state == notFound
+				if indirect {
+					state = ptrRecv
 					break
 				}
 				obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
-				if obj != nil {
-					f, _ = obj.(*Func)
-					if f != nil {
-						state = wrongName
-					}
-					// otherwise we found a (differently spelled) field, keep state == notFound
+				f, _ = obj.(*Func)
+				if f != nil {
+					state = wrongName
+					break
 				}
+				state = notFound
 				break
 			}
 
