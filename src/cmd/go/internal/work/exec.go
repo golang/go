@@ -2239,31 +2239,12 @@ func (e *prefixSuffixError) ImportPath() string {
 func formatOutput(workDir, dir, importPath, desc, out string) *prefixSuffixError {
 	prefix := "# " + desc
 	suffix := "\n" + out
-
-	suffix = strings.ReplaceAll(suffix, " "+workDir, " $WORK")
-
-	for {
-		// Note that dir starts out long, something like
-		// /foo/bar/baz/root/a
-		// The target string to be reduced is something like
-		// (blah-blah-blah) /foo/bar/baz/root/sibling/whatever.go:blah:blah
-		// /foo/bar/baz/root/a doesn't match /foo/bar/baz/root/sibling, but the prefix
-		// /foo/bar/baz/root does.  And there may be other niblings sharing shorter
-		// prefixes, the only way to find them is to look.
-		// This doesn't always produce a relative path --
-		// /foo is shorter than ../../.., for example.
-		//
-		if reldir := base.ShortPath(dir); reldir != dir {
-			suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
-			suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
-			suffix = strings.ReplaceAll(suffix, "\n\t"+dir, "\n\t"+reldir)
-		}
-		dirP := filepath.Dir(dir)
-		if dir == dirP {
-			break
-		}
-		dir = dirP
+	if reldir := base.ShortPath(dir); reldir != dir {
+		suffix = strings.ReplaceAll(suffix, " "+dir, " "+reldir)
+		suffix = strings.ReplaceAll(suffix, "\n"+dir, "\n"+reldir)
+		suffix = strings.ReplaceAll(suffix, "\n\t"+dir, "\n\t"+reldir)
 	}
+	suffix = strings.ReplaceAll(suffix, " "+workDir, " $WORK")
 
 	return &prefixSuffixError{importPath: importPath, prefix: prefix, suffix: suffix}
 }
