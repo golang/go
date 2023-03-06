@@ -345,6 +345,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		notFound
 		wrongName
 		wrongSig
+		ambigSel
 		ptrRecv
 		field
 	)
@@ -373,21 +374,23 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		}
 	} else {
 		for _, m = range methods {
-			obj, _, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
+			obj, index, indirect := lookupFieldOrMethodImpl(V, false, m.pkg, m.name, false)
 
-			// check if m is on *V, or on V with case-folding
+			// check if m is ambiguous, on *V, or on V with case-folding
 			if obj == nil {
-				if indirect {
+				switch {
+				case index != nil:
+					state = ambigSel
+				case indirect:
 					state = ptrRecv
-					break
+				default:
+					state = notFound
+					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
+					f, _ = obj.(*Func)
+					if f != nil {
+						state = wrongName
+					}
 				}
-				obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
-				f, _ = obj.(*Func)
-				if f != nil {
-					state = wrongName
-					break
-				}
-				state = notFound
 				break
 			}
 
@@ -438,6 +441,8 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 			}
 			*cause = check.sprintf("(wrong type for method %s)\n\t\thave %s\n\t\twant %s",
 				m.Name(), fs, ms)
+		case ambigSel:
+			*cause = check.sprintf("(ambiguous selector %s.%s)", V, m.Name())
 		case ptrRecv:
 			*cause = check.sprintf("(method %s has pointer receiver)", m.Name())
 		case field:

@@ -195,5 +195,5 @@ var (
 )
 
 var (
-	_ interface{ xm() } = eD /* ERROR "missing method xm" */ {}
+	_ interface{ xm() } = eD /* ERROR "ambiguous selector eD.xm" */ {}
 )
