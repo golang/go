@@ -1634,7 +1634,7 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 		if len(out) > 0 {
 			// We need to handle path with spaces so that C:/Program\ Files can pass
 			// checkLinkerFlags. Use splitPkgConfigOutput here just like we treat cflags.
-			ldflags, err = splitPkgConfigOutput(out)
+			ldflags, err = splitPkgConfigOutput(bytes.TrimSpace(out))
 			if err != nil {
 				return nil, nil, err
 			}
