@@ -16,6 +16,11 @@ import (
 // BenchmarkInitialWorkspaceLoad benchmarks the initial workspace load time for
 // a new editing session.
 func BenchmarkInitialWorkspaceLoad(b *testing.B) {
+	if testing.Short() {
+		// TODO(rfindley): remove this skip once the released gopls version
+		// supports the memstats command.
+		b.Skip("temporarily skipping as baseline gopls versions do not support the memstats command")
+	}
 	tests := []struct {
 		repo string
 		file string
