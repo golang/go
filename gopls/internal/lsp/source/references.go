@@ -393,6 +393,7 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 	if err != nil {
 		return err
 	}
+	var mu sync.Mutex // guards scope and targets
 	var group errgroup.Group
 	for i, index := range indexes {
 		i := i
@@ -400,16 +401,19 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 		group.Go(func() error {
 			// Consult index for matching methods.
 			results := index.Search(key, method.Name())
+			if len(results) == 0 {
+				return nil
+			}
 
 			// Expand global search scope to include rdeps of this pkg.
-			if len(results) > 0 {
-				rdeps, err := snapshot.ReverseDependencies(ctx, allIDs[i], true)
-				if err != nil {
-					return err
-				}
-				for _, rdep := range rdeps {
-					scope[rdep.ID] = rdep
-				}
+			rdeps, err := snapshot.ReverseDependencies(ctx, allIDs[i], true)
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			for _, rdep := range rdeps {
+				scope[rdep.ID] = rdep
 			}
 
 			// Add each corresponding method the to set of global search targets.
