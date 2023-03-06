@@ -13,6 +13,9 @@
 //
 // The space budget of the cache can be controlled by [SetBudget].
 // Cache entries may be evicted at any time or in any order.
+// Note that "du -sh $GOPLSCACHE" may report a disk usage
+// figure that is rather larger (e.g. 50%) than the budget because
+// it rounds up partial disk blocks.
 //
 // The Get and Set operations are concurrency-safe.
 package filecache
@@ -161,7 +164,7 @@ func filename(kind string, key [32]byte) string {
 func getCacheDir() string {
 	cacheDirOnce.Do(func() {
 		// Use user's preferred cache directory.
-		userDir := os.Getenv("GOPLS_CACHE")
+		userDir := os.Getenv("GOPLSCACHE")
 		if userDir == "" {
 			var err error
 			userDir, err = os.UserCacheDir()
