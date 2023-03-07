@@ -645,7 +645,7 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
 	//
 	// So this calculation is really:
 	//     (heapLive-trigger) / (assistDuration * procs * (1-utilization)) /
-	//         (scanWork) / (assistDuration * procs * (utilization+idleUtilization)
+	//         (scanWork) / (assistDuration * procs * (utilization+idleUtilization))
 	//
 	// Note that because we only care about the ratio, assistDuration and procs cancel out.
 	scanWork := c.heapScanWork.Load() + c.stackScanWork.Load() + c.globalsScanWork.Load()
