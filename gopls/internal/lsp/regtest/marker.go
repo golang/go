@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"go/token"
@@ -382,8 +383,10 @@ type marker struct {
 }
 
 // errorf reports an error with a prefix indicating the position of the marker note.
+//
+// It formats the error message using mark.sprintf.
 func (mark marker) errorf(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
+	msg := mark.sprintf(format, args...)
 	// TODO(adonovan): consider using fmt.Fprintf(os.Stderr)+t.Fail instead of
 	// t.Errorf to avoid reporting uninteresting positions in the Go source of
 	// the driver. However, this loses the order of stderr wrt "FAIL: TestFoo"
@@ -731,6 +734,28 @@ type markerTestRun struct {
 	// Each @diag/@suggestedfix marker eliminates an entry from diags.
 	locations map[expect.Identifier]protocol.Location
 	diags     map[protocol.Location][]protocol.Diagnostic
+}
+
+// sprintf returns a formatted string after applying pre-processing to
+// arguments of the following types:
+//   - token.Pos: formatted using (*markerTestRun).fmtPos
+//   - protocol.Location: formatted using (*markerTestRun).fmtLoc
+func (c *marker) sprintf(format string, args ...interface{}) string {
+	if false {
+		_ = fmt.Sprintf(format, args...) // enable vet printf checker
+	}
+	var args2 []interface{}
+	for _, arg := range args {
+		switch arg := arg.(type) {
+		case token.Pos:
+			args2 = append(args2, c.run.fmtPos(arg))
+		case protocol.Location:
+			args2 = append(args2, c.run.fmtLoc(arg))
+		default:
+			args2 = append(args2, arg)
+		}
+	}
+	return fmt.Sprintf(format, args2...)
 }
 
 // fmtLoc formats the given pos in the context of the test, using
@@ -1105,7 +1130,7 @@ func removeDiagnostic(mark marker, loc protocol.Location, re *regexp.Regexp) (pr
 			return diag, nil
 		}
 	}
-	return protocol.Diagnostic{}, fmt.Errorf("no diagnostic matches %q", re)
+	return protocol.Diagnostic{}, errors.New(mark.sprintf("no diagnostic at %v matches %q", loc, re))
 }
 
 // renameMarker implements the @rename(location, new, golden) marker.

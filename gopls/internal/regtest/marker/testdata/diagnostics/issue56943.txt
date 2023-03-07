@@ -1,0 +1,22 @@
+This test verifies that we produce diagnostics related to mismatching
+unexported interface methods in non-workspace packages.
+
+Previously, we would fail to produce a diagnostic because we trimmed the AST.
+See golang/go#56943.
+-- main.go --
+package main
+
+import (
+	"go/ast"
+	"go/token"
+)
+
+func main() {
+	var a int               //@diag(re"(a) int", re"a declared.*not used")
+	var _ ast.Expr = node{} //@diag("node{}", re"missing.*exprNode")
+}
+
+type node struct{}
+
+func (node) Pos() token.Pos { return 0 }
+func (node) End() token.Pos { return 0 }
