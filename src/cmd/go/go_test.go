@@ -69,14 +69,10 @@ var exeSuffix string = func() string {
 	return ""
 }()
 
-func tooSlow(t *testing.T) {
+func tooSlow(t *testing.T, reason string) {
 	if testing.Short() {
-		// In -short mode; skip test, except run it on the {darwin,linux,windows}/amd64 builders.
-		if testenv.Builder() != "" && runtime.GOARCH == "amd64" && (runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-			return
-		}
 		t.Helper()
-		t.Skip("skipping test in -short mode")
+		t.Skipf("skipping test in -short mode: %s", reason)
 	}
 }
 
@@ -1085,7 +1081,7 @@ func TestPackageMainTestCompilerFlags(t *testing.T) {
 
 // Issue 4104.
 func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links and runs a test")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1096,7 +1092,7 @@ func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 }
 
 func TestGoListHasAConsistentOrder(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "walks all of GOROOT/src twice")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1109,7 +1105,7 @@ func TestGoListHasAConsistentOrder(t *testing.T) {
 }
 
 func TestGoListStdDoesNotIncludeCommands(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "walks all of GOROOT/src")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1119,7 +1115,7 @@ func TestGoListStdDoesNotIncludeCommands(t *testing.T) {
 
 func TestGoListCmdOnlyShowsCommands(t *testing.T) {
 	skipIfGccgo(t, "gccgo does not have GOROOT")
-	tooSlow(t)
+	tooSlow(t, "walks all of GOROOT/src/cmd")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1202,7 +1198,8 @@ func TestGoListTest(t *testing.T) {
 }
 
 func TestGoListCompiledCgo(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "compiles cgo files")
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1423,7 +1420,7 @@ func TestDefaultGOPATHPrintedSearchList(t *testing.T) {
 
 func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 	skipIfGccgo(t, "gccgo does not support -ldflags -X")
-	tooSlow(t)
+	tooSlow(t, "compiles and links a binary")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1440,7 +1437,7 @@ func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
 	// Test the extremely long command line arguments that contain '\n' characters
 	// get encoded and passed correctly.
 	skipIfGccgo(t, "gccgo does not support -ldflags -X")
-	tooSlow(t)
+	tooSlow(t, "compiles and links a binary")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1462,7 +1459,7 @@ func TestLdFlagsLongArgumentsIssue42295(t *testing.T) {
 
 func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no standard packages")
-	tooSlow(t)
+	tooSlow(t, "compiles and links a test binary")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1473,7 +1470,7 @@ func TestGoTestDashCDashOControlsBinaryLocation(t *testing.T) {
 
 func TestGoTestDashOWritesBinary(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no standard packages")
-	tooSlow(t)
+	tooSlow(t, "compiles and runs a test binary")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1484,7 +1481,7 @@ func TestGoTestDashOWritesBinary(t *testing.T) {
 
 // Issue 4515.
 func TestInstallWithTags(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "compiles and links binaries")
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -1553,7 +1550,7 @@ func TestCgoShowsFullPathNames(t *testing.T) {
 }
 
 func TestCgoHandlesWlORIGIN(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "compiles cgo files")
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -1571,7 +1568,7 @@ func TestCgoHandlesWlORIGIN(t *testing.T) {
 }
 
 func TestCgoPkgConfig(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "compiles cgo files")
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
@@ -1672,7 +1669,7 @@ func TestListTemplateContextFunction(t *testing.T) {
 // accessed by a non-local import (found in a GOPATH/GOROOT).
 // See golang.org/issue/17475.
 func TestImportLocal(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "builds a lot of sequential packages")
 
 	tg := testgo(t)
 	tg.parallel()
@@ -1830,7 +1827,7 @@ func TestGoInstallPkgdir(t *testing.T) {
 		// for the install.
 		t.Skip("skipping because cgo not enabled")
 	}
-	tooSlow(t)
+	tooSlow(t, "builds a package with cgo dependencies")
 
 	tg := testgo(t)
 	tg.parallel()
@@ -1845,7 +1842,7 @@ func TestGoInstallPkgdir(t *testing.T) {
 
 // For issue 14337.
 func TestParallelTest(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links and runs test binaries")
 	tg := testgo(t)
 	tg.parallel()
 	defer tg.cleanup()
@@ -1865,7 +1862,7 @@ func TestParallelTest(t *testing.T) {
 }
 
 func TestBinaryOnlyPackages(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "compiles several packages sequentially")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2067,7 +2064,7 @@ func TestFFLAGS(t *testing.T) {
 // This is really a cmd/link issue but this is a convenient place to test it.
 func TestDuplicateGlobalAsmSymbols(t *testing.T) {
 	skipIfGccgo(t, "gccgo does not use cmd/asm")
-	tooSlow(t)
+	tooSlow(t, "links a binary with cgo dependencies")
 	if runtime.GOARCH != "386" && runtime.GOARCH != "amd64" {
 		t.Skipf("skipping test on %s", runtime.GOARCH)
 	}
@@ -2366,10 +2363,11 @@ func TestUpxCompression(t *testing.T) {
 var gocacheverify = godebug.New("gocacheverify")
 
 func TestCacheListStale(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links a binary")
 	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2388,8 +2386,7 @@ func TestCacheListStale(t *testing.T) {
 }
 
 func TestCacheCoverage(t *testing.T) {
-	tooSlow(t)
-
+	tooSlow(t, "links and runs a test binary with coverage enabled")
 	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
@@ -2423,10 +2420,11 @@ func TestIssue22588(t *testing.T) {
 }
 
 func TestIssue22531(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links binaries")
 	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2452,10 +2450,11 @@ func TestIssue22531(t *testing.T) {
 }
 
 func TestIssue22596(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links binaries")
 	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
 	}
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2481,7 +2480,7 @@ func TestIssue22596(t *testing.T) {
 }
 
 func TestTestCache(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links and runs test binaries")
 
 	if gocacheverify.Value() == "1" {
 		t.Skip("GODEBUG gocacheverify")
@@ -2588,7 +2587,8 @@ func TestTestSkipVetAfterFailedBuild(t *testing.T) {
 }
 
 func TestTestVetRebuild(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links and runs test binaries")
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2628,7 +2628,8 @@ func TestTestVetRebuild(t *testing.T) {
 }
 
 func TestInstallDeps(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links a binary")
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2659,7 +2660,8 @@ func TestInstallDeps(t *testing.T) {
 
 // Issue 22986.
 func TestImportPath(t *testing.T) {
-	tooSlow(t)
+	tooSlow(t, "links and runs a test binary")
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2760,7 +2762,8 @@ func TestTwoPkgConfigs(t *testing.T) {
 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
 		t.Skipf("no shell scripts on %s", runtime.GOOS)
 	}
-	tooSlow(t)
+	tooSlow(t, "builds a package with cgo dependencies")
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
@@ -2791,7 +2794,7 @@ func TestCgoCache(t *testing.T) {
 	if !canCgo {
 		t.Skip("no cgo")
 	}
-	tooSlow(t)
+	tooSlow(t, "builds a package with cgo dependencies")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2844,7 +2847,7 @@ func TestLinkerTmpDirIsDeleted(t *testing.T) {
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
-	tooSlow(t)
+	tooSlow(t, "builds a package with cgo dependencies")
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2891,7 +2894,8 @@ func TestLinkerTmpDirIsDeleted(t *testing.T) {
 // Issue 25093.
 func TestCoverpkgTestOnly(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no cover tool")
-	tooSlow(t)
+	tooSlow(t, "links and runs a test binary with coverage enabled")
+
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
