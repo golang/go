@@ -311,7 +311,7 @@ func (d *Decoder) parseHeaderFieldRepr() error {
 		return d.parseFieldIndexed()
 	case b&192 == 64:
 		// 6.2.1 Literal Header Field with Incremental Indexing
-		// 0b10xxxxxx: top two bits are 10
+		// 0b01xxxxxx: top two bits are 01
 		// https://httpwg.org/specs/rfc7541.html#rfc.section.6.2.1
 		return d.parseFieldLiteral(6, indexedTrue)
 	case b&240 == 0:
