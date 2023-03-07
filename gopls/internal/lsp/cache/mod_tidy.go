@@ -192,8 +192,15 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 	// workspace.
 	// TODO(adonovan): opt: opportunities for parallelism abound.
 	for _, m := range snapshot.workspaceMetadata() {
-		// Read both lists of files of this package, in parallel.
-		goFiles, compiledGoFiles, err := readGoFiles(ctx, snapshot, m)
+		// Read both lists of files of this package.
+		//
+		// Parallelism is not necessary here as the files will have already been
+		// pre-read at load time.
+		goFiles, err := readFiles(ctx, snapshot, m.GoFiles)
+		if err != nil {
+			return nil, err
+		}
+		compiledGoFiles, err := readFiles(ctx, snapshot, m.CompiledGoFiles)
 		if err != nil {
 			return nil, err
 		}

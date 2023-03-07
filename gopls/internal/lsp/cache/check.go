@@ -718,14 +718,21 @@ func (s *snapshot) typeCheckInputs(ctx context.Context, m *source.Metadata) (typ
 		deps[depID] = depHandle
 	}
 
-	// Read both lists of files of this package, in parallel.
+	// Read both lists of files of this package.
+	//
+	// Parallelism is not necessary here as the files will have already been
+	// pre-read at load time.
 	//
 	// goFiles aren't presented to the type checker--nor
 	// are they included in the key, unsoundly--but their
 	// syntax trees are available from (*pkg).File(URI).
 	// TODO(adonovan): consider parsing them on demand?
 	// The need should be rare.
-	goFiles, compiledGoFiles, err := readGoFiles(ctx, s, m)
+	goFiles, err := readFiles(ctx, s, m.GoFiles)
+	if err != nil {
+		return typeCheckInputs{}, err
+	}
+	compiledGoFiles, err := readFiles(ctx, s, m.CompiledGoFiles)
 	if err != nil {
 		return typeCheckInputs{}, err
 	}
@@ -752,24 +759,17 @@ func (s *snapshot) typeCheckInputs(ctx context.Context, m *source.Metadata) (typ
 	}, nil
 }
 
-// readGoFiles reads the content of Metadata.GoFiles and
-// Metadata.CompiledGoFiles, in parallel.
-func readGoFiles(ctx context.Context, s *snapshot, m *source.Metadata) (goFiles, compiledGoFiles []source.FileHandle, err error) {
-	var group errgroup.Group
-	getFileHandles := func(files []span.URI) []source.FileHandle {
-		fhs := make([]source.FileHandle, len(files))
-		for i, uri := range files {
-			i, uri := i, uri
-			group.Go(func() (err error) {
-				fhs[i], err = s.GetFile(ctx, uri) // ~25us
-				return
-			})
+// readFiles reads the content of each file URL from the source
+// (e.g. snapshot or cache).
+func readFiles(ctx context.Context, fs source.FileSource, uris []span.URI) (_ []source.FileHandle, err error) {
+	fhs := make([]source.FileHandle, len(uris))
+	for i, uri := range uris {
+		fhs[i], err = fs.GetFile(ctx, uri)
+		if err != nil {
+			return nil, err
 		}
-		return fhs
 	}
-	return getFileHandles(m.GoFiles),
-		getFileHandles(m.CompiledGoFiles),
-		group.Wait()
+	return fhs, nil
 }
 
 // computePackageKey returns a key representing the act of type checking

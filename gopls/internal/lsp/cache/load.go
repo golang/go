@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -211,9 +212,17 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	// Compute the minimal metadata updates (for Clone)
 	// required to preserve this invariant:
 	// for all id, s.packages.Get(id).m == s.meta.metadata[id].
+	var files []span.URI
+	seenFiles := make(map[span.URI]bool)
 	updates := make(map[PackageID]*source.Metadata)
 	for _, m := range newMetadata {
 		if existing := s.meta.metadata[m.ID]; existing == nil {
+			for _, uri := range m.CompiledGoFiles {
+				if !seenFiles[uri] {
+					files = append(files, uri)
+					seenFiles[uri] = true
+				}
+			}
 			updates[m.ID] = m
 			delete(s.shouldLoad, m.ID)
 		}
@@ -246,20 +255,27 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	s.dumpWorkspace("load")
 	s.mu.Unlock()
 
-	// Recompute the workspace package handle for any packages we invalidated.
+	// Opt: pre-fetch loaded files in parallel.
 	//
-	// This is (putatively) an optimization since handle construction prefetches
-	// the content of all Go source files.
-	//
-	// However, one necessary side effect of this operation is that we are
-	// guaranteed to visit all package files during load. This is required for
-	// e.g. determining the set of directories to watch.
+	// Requesting files in batch optimizes the underlying filesystem reads.
+	// However, this is also currently necessary for correctness: populating all
+	// files in the snapshot is necessary for certain operations that rely on the
+	// completeness of the file map, e.g. computing the set of directories to
+	// watch.
 	//
 	// TODO(rfindley, golang/go#57558): determine the set of directories based on
-	// loaded packages, and skip this precomputation.
-	for _, m := range updates {
-		s.buildPackageHandle(ctx, m.ID) // ignore error
+	// loaded packages, so that reading files here is not necessary for
+	// correctness.
+	var wg sync.WaitGroup
+	for _, uri := range files {
+		uri := uri
+		wg.Add(1)
+		go func() {
+			s.GetFile(ctx, uri) // ignore result
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 
 	if len(moduleErrs) > 0 {
 		return &moduleErrorMap{moduleErrs}

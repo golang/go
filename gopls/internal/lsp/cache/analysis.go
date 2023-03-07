@@ -370,17 +370,23 @@ func analyzeImpl(ctx context.Context, snapshot *snapshot, analyzers []*analysis.
 		return nil, fmt.Errorf("no metadata for %s", id)
 	}
 
+	// Also, load the contents of each "compiled" Go file through
+	// the snapshot's cache.
+	// (These are all cache hits as files are pre-loaded following packages.Load)
+	compiledGoFiles := make([]source.FileHandle, len(m.CompiledGoFiles))
+	for i, uri := range m.CompiledGoFiles {
+		fh, err := snapshot.GetFile(ctx, uri)
+		if err != nil {
+			return nil, err // e.g. canceled
+		}
+		compiledGoFiles[i] = fh
+	}
+
 	// Recursively analyze each "vertical" dependency
 	// for its types.Package and (perhaps) analysis.Facts.
 	// If any of them fails to produce a package, we cannot continue.
 	// We request only the analyzers that produce facts.
-	//
-	// Also, load the contents of each "compiled" Go file through
-	// the snapshot's cache.
-	//
-	// Both loops occur in parallel, and parallel with each other.
 	vdeps := make(map[PackageID]*analyzeSummary)
-	compiledGoFiles := make([]source.FileHandle, len(m.CompiledGoFiles))
 	{
 		var group errgroup.Group
 
@@ -405,19 +411,6 @@ func analyzeImpl(ctx context.Context, snapshot *snapshot, analyzers []*analysis.
 				vdeps[id] = res
 				vdepsMu.Unlock()
 				return nil
-			})
-		}
-
-		// Read file contents.
-		// (In practice these will be cache hits
-		// on reads done by the initial workspace load
-		// or after a change modification event.)
-		for i, uri := range m.CompiledGoFiles {
-			i, uri := i, uri
-			group.Go(func() error {
-				fh, err := snapshot.GetFile(ctx, uri) // ~25us
-				compiledGoFiles[i] = fh
-				return err // e.g. cancelled
 			})
 		}
 
