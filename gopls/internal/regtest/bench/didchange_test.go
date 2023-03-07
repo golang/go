@@ -66,11 +66,12 @@ func BenchmarkDiagnoseChange(b *testing.B) {
 		b.Run(test.repo, func(b *testing.B) {
 			// Use a new env to avoid the diagnostic delay: we want to measure how
 			// long it takes to produce the diagnostics.
-			env := repos[test.repo].newEnv(b, "diagnoseChange", fake.EditorConfig{
+			env := getRepo(b, test.repo).newEnv(b, "diagnoseChange", fake.EditorConfig{
 				Settings: map[string]interface{}{
 					"diagnosticsDelay": "0s",
 				},
 			})
+			defer env.Close()
 			env.OpenFile(test.file)
 			// Insert the text we'll be modifying at the top of the file.
 			env.EditBuffer(test.file, protocol.TextEdit{NewText: "// __REGTEST_PLACEHOLDER_0__\n"})
