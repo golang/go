@@ -30,7 +30,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	}
 
 	if traceInference {
-		check.dump("-- infer %s%s ➞ %s", tparams, params, targs)
+		check.dump("== infer : %s%s ➞ %s", tparams, params, targs) // aligned with rename print below
 		defer func() {
 			check.dump("=> %s ➞ %s\n", tparams, inferred)
 		}()
@@ -53,7 +53,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	tparams, params = check.renameTParams(pos, tparams, params)
 
 	if traceInference {
-		check.dump("after rename: %s%s ➞ %s\n", tparams, params, targs)
+		check.dump("-- rename: %s%s ➞ %s\n", tparams, params, targs)
 	}
 
 	// Make sure we have a "full" list of type arguments, some of which may
@@ -142,8 +142,8 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// use information from function arguments
 
 	if traceInference {
-		u.tracef("parameters: %s", params)
-		u.tracef("arguments : %s", args)
+		u.tracef("== function parameters: %s", params)
+		u.tracef("-- function arguments : %s", args)
 	}
 
 	for i, arg := range args {
@@ -183,7 +183,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// use information from type parameter constraints
 
 	if traceInference {
-		u.tracef("type parameters: %s", tparams)
+		u.tracef("== type parameters: %s", tparams)
 	}
 
 	// Unify type parameters with their constraints as long
@@ -201,21 +201,25 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// here could handle the respective type parameters only,
 	// but that will come at a cost of extra complexity which
 	// may not be worth it.)
-	for {
+	for i := 0; ; i++ {
 		nn := u.unknowns()
+		if traceInference {
+			if i > 0 {
+				fmt.Println()
+			}
+			u.tracef("-- iteration %d", i)
+		}
 
 		for _, tpar := range tparams {
 			tx := u.at(tpar)
-			if traceInference && tx != nil {
-				u.tracef("%s = %s", tpar, tx)
+			core, single := coreTerm(tpar)
+			if traceInference {
+				u.tracef("-- type parameter %s = %s: core(%s) = %s, single = %v", tpar, tx, tpar, core, single)
 			}
 
 			// If there is a core term (i.e., a core type with tilde information)
 			// unify the type parameter with the core type.
-			if core, single := coreTerm(tpar); core != nil {
-				if traceInference {
-					u.tracef("core(%s) = %s (single = %v)", tpar, core, single)
-				}
+			if core != nil {
 				// A type parameter can be unified with its core type in two cases.
 				switch {
 				case tx != nil:
@@ -240,9 +244,6 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 					u.set(tpar, core.typ)
 				}
 			} else {
-				if traceInference {
-					u.tracef("core(%s) = nil", tpar)
-				}
 				if tx != nil {
 					// We don't have a core type, but the type argument tx is known.
 					// It must have (at least) all the methods of the type constraint,
@@ -272,7 +273,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 	// use information from untyped contants
 
 	if traceInference {
-		u.tracef("untyped: %v", untyped)
+		u.tracef("== untyped arguments: %v", untyped)
 	}
 
 	// Some generic parameters with untyped arguments may have been given a type by now.
