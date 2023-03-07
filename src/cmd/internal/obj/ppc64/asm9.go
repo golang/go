@@ -327,6 +327,7 @@ var optab = []Optab{
 
 	/* Misc ISA 3.0 instructions */
 	{as: ASETB, a1: C_CREG, a6: C_REG, type_: 110, size: 4},
+	{as: AVCLZLSBB, a1: C_VREG, a6: C_REG, type_: 85, size: 4},
 
 	/* Vector instructions */
 
@@ -2088,6 +2089,9 @@ func buildop(ctxt *obj.Link) {
 
 		case AMOVW: /* load/store/move word with sign extension; move 32-bit literals  */
 			opset(AMOVWZ, r0) /* Same as above, but zero extended */
+
+		case AVCLZLSBB:
+			opset(AVCTZLSBB, r0)
 
 		case AADD,
 			AADDIS,
@@ -4783,6 +4787,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVX(4, 1922, 0, 0) /* vclzw - v2.07 */
 	case AVCLZD:
 		return OPVX(4, 1986, 0, 0) /* vclzd - v2.07 */
+
+	case AVCLZLSBB:
+		return OPVX(4, 1538, 0, 0) /* vclzlsbb - v3.0 */
+	case AVCTZLSBB:
+		return OPVX(4, 1538, 0, 0) | 1<<16 /* vctzlsbb - v3.0 */
 
 	case AVPOPCNTB:
 		return OPVX(4, 1795, 0, 0) /* vpopcntb - v2.07 */
