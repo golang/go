@@ -303,7 +303,7 @@ func (o *orderState) mapKeyTemp(outerPos src.XPos, t *types.Type, n ir.Node) ir.
 // For:
 //
 //	x = m[string(k)]
-//	x = m[T1{... Tn{..., string(k), ...}]
+//	x = m[T1{... Tn{..., string(k), ...}}]
 //
 // where k is []byte, T1 to Tn is a nesting of struct and array literals,
 // the allocation of backing bytes for the string can be avoided

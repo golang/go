@@ -1751,7 +1751,7 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
 // it constructs a 2-element location list: the first element holds
 // the input register, and the second element holds the stack location
 // of the param (the assumption being that when optimization is off,
-// each input param reg will be spilled in the prolog.
+// each input param reg will be spilled in the prolog).
 func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
 
 	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type.FuncType())

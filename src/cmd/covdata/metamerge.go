@@ -166,7 +166,7 @@ func (mm *metaMerge) beginPod() {
 //
 // Case 2: if this is a select merge (-pkg is in effect), then at
 // this point we write out a new smaller meta-data file that includes
-// only the packages of interest). At this point we also emit a merged
+// only the packages of interest. At this point we also emit a merged
 // counter data file as well.
 //
 // Case 3: if "-pcombine" is in effect, we don't write anything at

@@ -321,7 +321,7 @@ func eqfield(p ir.Node, q ir.Node, op ir.Op, field *types.Sym) ir.Node {
 
 // eqmem returns the node
 //
-//	memequal(&p.field, &q.field, size])
+//	memequal(&p.field, &q.field, size)
 func eqmem(p ir.Node, q ir.Node, field *types.Sym, size int64) ir.Node {
 	nx := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, p, field)))
 	ny := typecheck.Expr(typecheck.NodAddr(ir.NewSelectorExpr(base.Pos, ir.OXDOT, q, field)))
