@@ -39,7 +39,7 @@ func scriptConditions() map[string]script.Cond {
 	add("asan", sysCondition("-asan", platform.ASanSupported, true))
 	add("buildmode", script.PrefixCondition("go supports -buildmode=<suffix>", hasBuildmode))
 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
-	add("cgo", script.BoolCondition("host CGO_ENABLED", canCgo))
+	add("cgo", script.BoolCondition("host CGO_ENABLED", testenv.HasCGO()))
 	add("cross", script.BoolCondition("cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH", goHostOS != runtime.GOOS || goHostArch != runtime.GOARCH))
 	add("fuzz", sysCondition("-fuzz", platform.FuzzSupported, false))
 	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented, false))
@@ -84,7 +84,7 @@ func sysCondition(flag string, f func(goos, goarch string) bool, needsCgo bool) 
 			GOOS, _ := s.LookupEnv("GOOS")
 			GOARCH, _ := s.LookupEnv("GOARCH")
 			cross := goHostOS != GOOS || goHostArch != GOARCH
-			return (!needsCgo || (canCgo && !cross)) && f(GOOS, GOARCH), nil
+			return (!needsCgo || (testenv.HasCGO() && !cross)) && f(GOOS, GOARCH), nil
 		})
 }
 
