@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"time"
 
-	"golang.org/x/tools/godoc/static"
 	"golang.org/x/tools/playground/socket"
 	"golang.org/x/tools/present"
 
@@ -33,10 +32,6 @@ func playScript(fsys fs.FS, transport string) {
 	modTime := time.Now()
 	var buf bytes.Buffer
 	for _, p := range scripts {
-		if s, ok := static.Files[p]; ok {
-			buf.WriteString(s)
-			continue
-		}
 		b, err := fs.ReadFile(fsys, "static/"+p)
 		if err != nil {
 			panic(err)
