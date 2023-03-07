@@ -66,6 +66,14 @@ type File struct {
 }
 
 // OpenReader will open the Zip file specified by name and return a ReadCloser.
+//
+// If any file inside the archive uses a non-local name
+// (as defined by [filepath.IsLocal]) or a name containing backslashes
+// and the GODEBUG environment variable contains `zipinsecurepath=0`,
+// OpenReader returns the reader with an ErrInsecurePath error.
+// A future version of Go may introduce this behavior by default.
+// Programs that want to accept non-local names can ignore
+// the ErrInsecurePath error and use the returned reader.
 func OpenReader(name string) (*ReadCloser, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -77,12 +85,12 @@ func OpenReader(name string) (*ReadCloser, error) {
 		return nil, err
 	}
 	r := new(ReadCloser)
-	if err := r.init(f, fi.Size()); err != nil {
+	if err = r.init(f, fi.Size()); err != nil && err != ErrInsecurePath {
 		f.Close()
 		return nil, err
 	}
 	r.f = f
-	return r, nil
+	return r, err
 }
 
 // NewReader returns a new Reader reading from r, which is assumed to
@@ -100,25 +108,11 @@ func NewReader(r io.ReaderAt, size int64) (*Reader, error) {
 		return nil, errors.New("zip: size cannot be negative")
 	}
 	zr := new(Reader)
-	if err := zr.init(r, size); err != nil {
+	var err error
+	if err = zr.init(r, size); err != nil && err != ErrInsecurePath {
 		return nil, err
 	}
-	for _, f := range zr.File {
-		if f.Name == "" {
-			// Zip permits an empty file name field.
-			continue
-		}
-		// The zip specification states that names must use forward slashes,
-		// so consider any backslashes in the name insecure.
-		if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
-			if zipinsecurepath.Value() != "0" {
-				continue
-			}
-			zipinsecurepath.IncNonDefault()
-			return zr, ErrInsecurePath
-		}
-	}
-	return zr, nil
+	return zr, err
 }
 
 func (r *Reader) init(rdr io.ReaderAt, size int64) error {
@@ -164,6 +158,20 @@ func (r *Reader) init(rdr io.ReaderAt, size int64) error {
 		// Return the readDirectoryHeader error if we read
 		// the wrong number of directory entries.
 		return err
+	}
+	if zipinsecurepath.Value() == "0" {
+		for _, f := range r.File {
+			if f.Name == "" {
+				// Zip permits an empty file name field.
+				continue
+			}
+			// The zip specification states that names must use forward slashes,
+			// so consider any backslashes in the name insecure.
+			if !filepath.IsLocal(f.Name) || strings.Contains(f.Name, `\`) {
+				zipinsecurepath.IncNonDefault()
+				return ErrInsecurePath
+			}
+		}
 	}
 	return nil
 }
