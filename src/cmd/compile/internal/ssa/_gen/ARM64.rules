@@ -706,10 +706,10 @@
 
 (Equal (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (Equal (TSTconst [c] y))
 (NotEqual (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (NotEqual (TSTconst [c] y))
-(LessThan (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessThan (TSTconst [c] y))
-(LessEqual (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessEqual (TSTconst [c] y))
-(GreaterThan (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterThan (TSTconst [c] y))
-(GreaterEqual (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterEqual (TSTconst [c] y))
+(LessThan (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessThan (TSTconst [c] y))
+(LessEqual (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessEqual (TSTconst [c] y))
+(GreaterThan (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterThan (TSTconst [c] y))
+(GreaterEqual (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterEqual (TSTconst [c] y))
 
 (EQ (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (EQ (CMNconst [c] y) yes no)
 (NE (CMPconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => (NE (CMNconst [c] y) yes no)
