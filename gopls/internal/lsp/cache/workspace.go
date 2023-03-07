@@ -32,7 +32,7 @@ func computeWorkspaceModFiles(ctx context.Context, gomod, gowork span.URI, go111
 		if err != nil {
 			return nil, err
 		}
-		content, err := fh.Read()
+		content, err := fh.Content()
 		if err != nil {
 			return nil, err
 		}
@@ -110,9 +110,9 @@ func fileExists(ctx context.Context, uri span.URI, source source.FileSource) (bo
 	return fileHandleExists(fh)
 }
 
-// fileHandleExists reports if the file underlying fh actually exits.
+// fileHandleExists reports if the file underlying fh actually exists.
 func fileHandleExists(fh source.FileHandle) (bool, error) {
-	_, err := fh.Read()
+	_, err := fh.Content()
 	if err == nil {
 		return true, nil
 	}

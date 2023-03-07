@@ -50,9 +50,9 @@ func (h *DiskFile) FileIdentity() source.FileIdentity {
 	}
 }
 
-func (h *DiskFile) Saved() bool           { return true }
-func (h *DiskFile) Version() int32        { return 0 }
-func (h *DiskFile) Read() ([]byte, error) { return h.content, h.err }
+func (h *DiskFile) Saved() bool              { return true }
+func (h *DiskFile) Version() int32           { return 0 }
+func (h *DiskFile) Content() ([]byte, error) { return h.content, h.err }
 
 // GetFile stats and (maybe) reads the file, updates the cache, and returns it.
 func (fs *memoizedFS) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {

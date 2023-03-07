@@ -904,6 +904,6 @@ var FileTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 	Kind: <b>{{.Kind}}</b><br>
 {{end}}
 <h3>Contents</h3>
-<pre>{{fcontent .Read}}</pre>
+<pre>{{fcontent .Content}}</pre>
 {{end}}
 `))

@@ -535,7 +535,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 		if err != nil {
 			return "", nil, cleanup, err
 		}
-		modContent, err = modFH.Read()
+		modContent, err = modFH.Content()
 		if err != nil {
 			return "", nil, cleanup, err
 		}

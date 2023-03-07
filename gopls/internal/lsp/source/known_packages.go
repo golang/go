@@ -40,7 +40,7 @@ func KnownPackagePaths(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 
 	// Parse the file's imports so we can compute which
 	// PackagePaths are imported by this specific file.
-	src, err := fh.Read()
+	src, err := fh.Content()
 	if err != nil {
 		return nil, err
 	}

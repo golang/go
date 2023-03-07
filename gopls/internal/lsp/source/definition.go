@@ -220,7 +220,7 @@ func mapPosition(ctx context.Context, fset *token.FileSet, s FileSource, start, 
 	if err != nil {
 		return protocol.Location{}, err
 	}
-	content, err := fh.Read()
+	content, err := fh.Content()
 	if err != nil {
 		return protocol.Location{}, err
 	}

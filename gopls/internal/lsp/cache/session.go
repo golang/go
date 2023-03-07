@@ -493,7 +493,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			if err != nil {
 				return nil, nil, err
 			}
-			content, err := fh.Read()
+			content, err := fh.Content()
 			if err != nil {
 				// Ignore the error: the file may be deleted.
 				content = nil
@@ -688,7 +688,7 @@ func (fs *overlayFS) updateOverlays(ctx context.Context, changes []source.FileMo
 			if err != nil {
 				return err
 			}
-			_, readErr := fh.Read()
+			_, readErr := fh.Content()
 			sameContentOnDisk = (readErr == nil && fh.FileIdentity().Hash == hash)
 		}
 		o = &Overlay{

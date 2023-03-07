@@ -61,7 +61,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 				// Don't try to load a file that doesn't exist, or isn't a go file.
 				continue
 			}
-			contents, err := fh.Read()
+			contents, err := fh.Content()
 			if err != nil {
 				continue
 			}

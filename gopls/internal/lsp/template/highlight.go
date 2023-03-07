@@ -14,7 +14,7 @@ import (
 )
 
 func Highlight(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, loc protocol.Position) ([]protocol.DocumentHighlight, error) {
-	buf, err := fh.Read()
+	buf, err := fh.Content()
 	if err != nil {
 		return nil, err
 	}

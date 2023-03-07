@@ -275,7 +275,7 @@ func Rename(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Po
 		if err != nil {
 			return nil, false, err
 		}
-		data, err := fh.Read()
+		data, err := fh.Content()
 		if err != nil {
 			return nil, false, err
 		}

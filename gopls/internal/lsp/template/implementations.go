@@ -25,7 +25,7 @@ var errRe = regexp.MustCompile(`template.*:(\d+): (.*)`)
 func Diagnose(f source.FileHandle) []*source.Diagnostic {
 	// no need for skipTemplate check, as Diagnose is called on the
 	// snapshot's template files
-	buf, err := f.Read()
+	buf, err := f.Content()
 	if err != nil {
 		// Is a Diagnostic with no Range useful? event.Error also?
 		msg := fmt.Sprintf("failed to read %s (%v)", f.URI().Filename(), err)
@@ -152,7 +152,7 @@ func SemanticTokens(ctx context.Context, snapshot source.Snapshot, spn span.URI,
 	if err != nil {
 		return nil, err
 	}
-	buf, err := fh.Read()
+	buf, err := fh.Content()
 	if err != nil {
 		return nil, err
 	}

@@ -130,7 +130,7 @@ func (h fakeFileHandle) URI() span.URI {
 	return h.uri
 }
 
-func (h fakeFileHandle) Read() ([]byte, error) {
+func (h fakeFileHandle) Content() ([]byte, error) {
 	return h.data, nil
 }
 

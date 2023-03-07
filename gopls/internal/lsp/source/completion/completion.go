@@ -1215,7 +1215,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 		if err != nil {
 			return err
 		}
-		content, err := fh.Read()
+		content, err := fh.Content()
 		if err != nil {
 			return err
 		}

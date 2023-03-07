@@ -101,14 +101,14 @@ func (c *parseCache) startParse(mode source.ParseMode, fhs ...source.FileHandle)
 		firstReadError error // first error from fh.Read, or nil
 	)
 	for i, fh := range fhs {
-		src, err := fh.Read()
+		content, err := fh.Content()
 		if err != nil {
 			if firstReadError == nil {
 				firstReadError = err
 			}
 			continue
 		}
-		data[i] = src
+		data[i] = content
 
 		key := parseKey{
 			file: fh.FileIdentity(),
@@ -129,10 +129,10 @@ func (c *parseCache) startParse(mode source.ParseMode, fhs ...source.FileHandle)
 			// Add a dummy file so that this parsed file does not overlap with others.
 			fset.AddFile("", 1, int(c.nextOffset))
 		}
-		c.nextOffset += token.Pos(len(src) + parsePadding + 1) // leave room for src fixes
+		c.nextOffset += token.Pos(len(content) + parsePadding + 1) // leave room for src fixes
 		fh := fh
 		promise := memoize.NewPromise(string(fh.URI()), func(ctx context.Context, _ interface{}) interface{} {
-			return parseGoSrc(ctx, fset, fh.URI(), src, mode)
+			return parseGoSrc(ctx, fset, fh.URI(), content, mode)
 		})
 		promises[i] = promise
 
@@ -238,14 +238,14 @@ func (c *parseCache) parseFiles(ctx context.Context, mode source.ParseMode, fhs 
 		// fixing operates exactly the same (note that fixing stops after a limited
 		// number of tries).
 		fh := fhs[i]
-		src, err := fh.Read()
+		content, err := fh.Content()
 		if err != nil {
 			if firstReadError == nil {
 				firstReadError = err
 			}
 			continue
 		}
-		pgfs[i] = parseGoSrc(ctx, fset, fh.URI(), src, mode)
+		pgfs[i] = parseGoSrc(ctx, fset, fh.URI(), content, mode)
 	}
 
 	// Ensure each PGF refers to a token.File from the new FileSet.

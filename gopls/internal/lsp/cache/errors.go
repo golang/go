@@ -432,7 +432,7 @@ func spanToRange(ctx context.Context, fs source.FileSource, spn span.Span) (prot
 	if err != nil {
 		return protocol.Range{}, err
 	}
-	content, err := fh.Read()
+	content, err := fh.Content()
 	if err != nil {
 		return protocol.Range{}, err
 	}

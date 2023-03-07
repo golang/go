@@ -306,7 +306,7 @@ func (s *Server) applyIncrementalChanges(ctx context.Context, uri span.URI, chan
 	if err != nil {
 		return nil, err
 	}
-	content, err := fh.Read()
+	content, err := fh.Content()
 	if err != nil {
 		return nil, fmt.Errorf("%w: file not found (%v)", jsonrpc2.ErrInternal, err)
 	}

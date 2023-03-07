@@ -626,9 +626,9 @@ type FileHandle interface {
 	// Version returns the file version, as defined by the LSP client.
 	// For on-disk file handles, Version returns 0.
 	Version() int32
-	// Read reads the contents of a file.
+	// Content returns the contents of a file.
 	// If the file is not available, returns a nil slice and an error.
-	Read() ([]byte, error)
+	Content() ([]byte, error)
 }
 
 // A Hash is a cryptographic digest of the contents of a file.

@@ -66,7 +66,7 @@ func parseModImpl(ctx context.Context, fh source.FileHandle) (*source.ParsedModu
 	_, done := event.Start(ctx, "cache.ParseMod", tag.URI.Of(fh.URI()))
 	defer done()
 
-	contents, err := fh.Read()
+	contents, err := fh.Content()
 	if err != nil {
 		return nil, err
 	}
@@ -143,12 +143,12 @@ func parseWorkImpl(ctx context.Context, fh source.FileHandle) (*source.ParsedWor
 	_, done := event.Start(ctx, "cache.ParseWork", tag.URI.Of(fh.URI()))
 	defer done()
 
-	contents, err := fh.Read()
+	content, err := fh.Content()
 	if err != nil {
 		return nil, err
 	}
-	m := protocol.NewMapper(fh.URI(), contents)
-	file, parseErr := modfile.ParseWork(fh.URI().Filename(), contents, nil)
+	m := protocol.NewMapper(fh.URI(), content)
+	file, parseErr := modfile.ParseWork(fh.URI().Filename(), content, nil)
 	// Attempt to convert the error to a standardized parse error.
 	var parseErrors []*source.Diagnostic
 	if parseErr != nil {
@@ -196,7 +196,7 @@ func (s *snapshot) goSum(ctx context.Context, modURI span.URI) []byte {
 			return nil
 		}
 	}
-	content, err := sumFH.Read()
+	content, err := sumFH.Content()
 	if err != nil {
 		return nil
 	}

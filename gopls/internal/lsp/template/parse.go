@@ -73,7 +73,7 @@ type All struct {
 func New(tmpls map[span.URI]source.FileHandle) *All {
 	all := make(map[span.URI]*Parsed)
 	for k, v := range tmpls {
-		buf, err := v.Read()
+		buf, err := v.Content()
 		if err != nil { // PJW: decide what to do with these errors
 			log.Printf("failed to read %s (%v)", v.URI().Filename(), err)
 			continue
@@ -378,7 +378,7 @@ func (p *Parsed) FromPosition(x protocol.Position) int {
 }
 
 func symAtPosition(fh source.FileHandle, loc protocol.Position) (*symbol, *Parsed, error) {
-	buf, err := fh.Read()
+	buf, err := fh.Content()
 	if err != nil {
 		return nil, nil, err
 	}

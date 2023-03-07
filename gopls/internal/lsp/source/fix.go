@@ -116,7 +116,7 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh FileHandle,
 			}
 			editsPerFile[fh.URI()] = te
 		}
-		content, err := fh.Read()
+		content, err := fh.Content()
 		if err != nil {
 			return nil, err
 		}

@@ -91,7 +91,7 @@ func formatSource(ctx context.Context, fh FileHandle) ([]byte, error) {
 	_, done := event.Start(ctx, "source.formatSource")
 	defer done()
 
-	data, err := fh.Read()
+	data, err := fh.Content()
 	if err != nil {
 		return nil, err
 	}

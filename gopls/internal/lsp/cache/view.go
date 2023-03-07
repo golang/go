@@ -277,7 +277,7 @@ func tempModFile(modFh source.FileHandle, gosum []byte) (tmpURI span.URI, cleanu
 	tmpURI = span.URIFromPath(tmpMod.Name())
 	tmpSumName := sumFilename(tmpURI)
 
-	content, err := modFh.Read()
+	content, err := modFh.Content()
 	if err != nil {
 		return "", nil, err
 	}

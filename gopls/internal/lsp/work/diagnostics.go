@@ -67,7 +67,7 @@ func DiagnosticsForWork(ctx context.Context, snapshot source.Snapshot, fh source
 		if err != nil {
 			return nil, err
 		}
-		if _, err := modfh.Read(); err != nil && os.IsNotExist(err) {
+		if _, err := modfh.Content(); err != nil && os.IsNotExist(err) {
 			diagnostics = append(diagnostics, &source.Diagnostic{
 				URI:      fh.URI(),
 				Range:    rng,

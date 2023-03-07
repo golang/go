@@ -613,7 +613,7 @@ func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI,
 	if err != nil {
 		return nil, err
 	}
-	oldContent, err := fh.Read()
+	oldContent, err := fh.Content()
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}

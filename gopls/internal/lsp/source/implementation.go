@@ -231,7 +231,7 @@ func offsetToLocation(ctx context.Context, snapshot Snapshot, filename string, s
 	if err != nil {
 		return protocol.Location{}, err // cancelled, perhaps
 	}
-	content, err := fh.Read()
+	content, err := fh.Content()
 	if err != nil {
 		return protocol.Location{}, err // nonexistent or deleted ("can't happen")
 	}
