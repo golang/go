@@ -4219,7 +4219,7 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		return true
 	}
 	// match: (Equal (CMPconst [0] z:(MADD a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (Equal (CMN a (MUL <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -4244,7 +4244,7 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		return true
 	}
 	// match: (Equal (CMPconst [0] z:(MSUB a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (Equal (CMP a (MUL <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -4269,7 +4269,7 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		return true
 	}
 	// match: (Equal (CMPWconst [0] z:(MADDW a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (Equal (CMNW a (MULW <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
@@ -4294,7 +4294,7 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		return true
 	}
 	// match: (Equal (CMPWconst [0] z:(MSUBW a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (Equal (CMPW a (MULW <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
@@ -17021,7 +17021,7 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		return true
 	}
 	// match: (NotEqual (CMPconst [0] z:(MADD a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (NotEqual (CMN a (MUL <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -17046,7 +17046,7 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		return true
 	}
 	// match: (NotEqual (CMPconst [0] z:(MSUB a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (NotEqual (CMP a (MUL <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -17071,7 +17071,7 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		return true
 	}
 	// match: (NotEqual (CMPWconst [0] z:(MADDW a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (NotEqual (CMNW a (MULW <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
@@ -17096,7 +17096,7 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		return true
 	}
 	// match: (NotEqual (CMPWconst [0] z:(MSUBW a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (NotEqual (CMPW a (MULW <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
