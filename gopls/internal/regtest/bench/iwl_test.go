@@ -16,11 +16,6 @@ import (
 // BenchmarkInitialWorkspaceLoad benchmarks the initial workspace load time for
 // a new editing session.
 func BenchmarkInitialWorkspaceLoad(b *testing.B) {
-	if testing.Short() {
-		// TODO(rfindley): remove this skip once the released gopls version
-		// supports the memstats command.
-		b.Skip("temporarily skipping as baseline gopls versions do not support the memstats command")
-	}
 	tests := []struct {
 		repo string
 		file string
@@ -65,13 +60,17 @@ func doIWL(b *testing.B, gopath string, repo *repo, file string) {
 	env.OpenFile(file)
 
 	env.Await(InitialWorkspaceLoad)
-	b.StopTimer()
-	params := &protocol.ExecuteCommandParams{
-		Command: command.MemStats.ID(),
+	// TODO(rfindley): remove this guard once the released gopls version supports
+	// the memstats command.
+	if !testing.Short() {
+		b.StopTimer()
+		params := &protocol.ExecuteCommandParams{
+			Command: command.MemStats.ID(),
+		}
+		var memstats command.MemStatsResult
+		env.ExecuteCommand(params, &memstats)
+		b.ReportMetric(float64(memstats.HeapAlloc), "alloc_bytes")
+		b.ReportMetric(float64(memstats.HeapInUse), "in_use_bytes")
+		b.StartTimer()
 	}
-	var memstats command.MemStatsResult
-	env.ExecuteCommand(params, &memstats)
-	b.ReportMetric(float64(memstats.HeapAlloc), "alloc_bytes")
-	b.ReportMetric(float64(memstats.HeapInUse), "in_use_bytes")
-	b.StartTimer()
 }

@@ -27,7 +27,14 @@
 // is the cpu profile for the last iteration of the initial workspace load
 // test, which starts a new editor session for each iteration.
 //
+// # Integration with perf.golang.org
+//
+// Benchmarks that run with -short are automatically tracked by
+// perf.golang.org, at
+// https://perf.golang.org/dashboard/?benchmark=all&repository=tools&branch=release-branch.go1.20
+//
 // # TODO
 //   - add more benchmarks, and more repositories
+//   - fix the perf dashboard to not require the branch= parameter
 //   - improve this documentation
 package bench
