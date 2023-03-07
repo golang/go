@@ -1134,7 +1134,6 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 		// Imported declaration with missing type information.
 		// Fall through to shallow completion of unimported package members.
 		// Match candidate packages by path.
-		// TODO(adonovan): simplify by merging with else case and matching on name only?
 		filter = func(m *source.Metadata) bool {
 			return strings.TrimPrefix(string(m.PkgPath), "vendor/") == imp.Path()
 		}

@@ -497,43 +497,45 @@ type packageData struct {
 // either loading from the file-based cache or type-checking and extracting
 // data using the provided get function.
 func (s *snapshot) getPackageData(ctx context.Context, kind string, ids []PackageID, get func(*syntaxPackage) []byte) ([]*packageData, error) {
-	var needIDs []PackageID
-	keys := make([]packageHandleKey, len(ids))
+	needIDs := make([]PackageID, len(ids))
 	pkgData := make([]*packageData, len(ids))
-	var firstErr error
+
 	// Compute package keys and query file cache.
+	var grp errgroup.Group
 	for i, id := range ids {
-		ph, err := s.buildPackageHandle(ctx, id)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
+		i, id := i, id
+		grp.Go(func() error {
+			ph, err := s.buildPackageHandle(ctx, id)
+			if err != nil {
+				return err
 			}
-			if ctx.Err() != nil {
-				return pkgData, firstErr
+			data, err := filecache.Get(kind, ph.key)
+			if err == nil { // hit
+				pkgData[i] = &packageData{m: ph.m, data: data}
+			} else if err == filecache.ErrNotFound { // miss
+				needIDs[i] = id
+				err = nil
 			}
-			continue
-		}
-		keys[i] = ph.key
-		data, err := filecache.Get(kind, ph.key)
-		switch err {
-		case nil:
-			pkgData[i] = &packageData{m: ph.m, data: data}
-		case filecache.ErrNotFound:
-			needIDs = append(needIDs, id)
-		default:
-			if firstErr == nil {
-				firstErr = err
-			}
-			if ctx.Err() != nil {
-				return pkgData, firstErr
-			}
+			return err
+		})
+	}
+	if err := grp.Wait(); err != nil {
+		return pkgData, err
+	}
+
+	// Compact needIDs (which was sparse to avoid the need for a mutex).
+	out := needIDs[:0]
+	for _, id := range needIDs {
+		if id != "" {
+			out = append(out, id)
 		}
 	}
+	needIDs = out
 
 	// Type-check the packages for which we got file-cache misses.
 	pkgs, err := s.TypeCheck(ctx, needIDs...)
 	if err != nil {
-		return nil, err
+		return pkgData, err
 	}
 
 	pkgMap := make(map[PackageID]source.Package)
@@ -554,7 +556,7 @@ func (s *snapshot) getPackageData(ctx context.Context, kind string, ids []Packag
 		pkgData[i] = &packageData{m: result.Metadata(), data: data}
 	}
 
-	return pkgData, firstErr
+	return pkgData, nil
 }
 
 type packageHandleKey source.Hash
