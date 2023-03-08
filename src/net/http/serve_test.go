@@ -1354,13 +1354,7 @@ func testServerAllowsBlockingRemoteAddr(t *testing.T, mode testMode) {
 	// Start another request and grab its connection
 	response2c := make(chan string, 1)
 	go fetch(2, response2c)
-	var conn2 net.Conn
-
-	select {
-	case conn2 = <-conns:
-	case <-time.After(time.Second):
-		t.Fatal("Second Accept didn't happen")
-	}
+	conn2 := <-conns
 
 	// Send a response on connection 2.
 	conn2.(*blockingRemoteAddrConn).addrs <- &net.TCPAddr{
