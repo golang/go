@@ -46,6 +46,7 @@ func TestTSAN(t *testing.T) {
 		{src: "tsan10.go", needsRuntime: true},
 		{src: "tsan11.go", needsRuntime: true},
 		{src: "tsan12.go", needsRuntime: true},
+		{src: "tsan13.go", needsRuntime: true},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -63,6 +64,9 @@ func TestTSAN(t *testing.T) {
 			if tc.needsRuntime {
 				config.skipIfRuntimeIncompatible(t)
 			}
+			// If we don't see halt_on_error, the program
+			// will only exit non-zero if we call C.exit.
+			cmd.Env = append(cmd.Environ(), "TSAN_OPTIONS=halt_on_error=1")
 			mustRun(t, cmd)
 		})
 	}

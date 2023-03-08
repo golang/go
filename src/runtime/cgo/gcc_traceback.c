@@ -39,6 +39,8 @@ x_cgo_callers(uintptr_t sig, void *info, void *context, void (*cgoTraceback)(str
         __msan_unpoison(&arg, sizeof arg);
 #endif
 
+	_cgo_tsan_acquire();
 	(*cgoTraceback)(&arg);
+	_cgo_tsan_release();
 	sigtramp(sig, info, context);
 }
