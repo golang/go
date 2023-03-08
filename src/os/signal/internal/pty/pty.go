@@ -42,14 +42,14 @@ func (e *PtyError) Unwrap() error { return e.Errno }
 // Open returns a control pty and the name of the linked process tty.
 func Open() (pty *os.File, processTTY string, err error) {
 	m, err := C.posix_openpt(C.O_RDWR)
-	if err != nil {
+	if m < 0 {
 		return nil, "", ptyError("posix_openpt", err)
 	}
-	if _, err := C.grantpt(m); err != nil {
+	if res, err := C.grantpt(m); res < 0 {
 		C.close(m)
 		return nil, "", ptyError("grantpt", err)
 	}
-	if _, err := C.unlockpt(m); err != nil {
+	if res, err := C.unlockpt(m); res < 0 {
 		C.close(m)
 		return nil, "", ptyError("unlockpt", err)
 	}
