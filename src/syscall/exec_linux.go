@@ -293,6 +293,11 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 			exitSignal: uint64(SIGCHLD),
 			cgroup:     uint64(sys.CgroupFD),
 		}
+	} else if flags&CLONE_NEWTIME != 0 {
+		clone3 = &cloneArgs{
+			flags:      uint64(flags),
+			exitSignal: uint64(SIGCHLD),
+		}
 	}
 
 	// About to call fork.

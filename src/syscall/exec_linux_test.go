@@ -487,6 +487,52 @@ func TestUseCgroupFDHelper(*testing.T) {
 	fmt.Print(string(selfCg))
 }
 
+func TestCloneTimeNamespace(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		timens, err := os.Readlink("/proc/self/ns/time")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		fmt.Print(string(timens))
+		os.Exit(0)
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testenv.Command(t, exe, "-test.run=TestCloneTimeNamespace")
+	cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWTIME,
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		if isNotSupported(err) {
+			// CLONE_NEWTIME does not appear to be supported.
+			t.Skipf("skipping, CLONE_NEWTIME not supported: %v", err)
+		}
+		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
+	}
+
+	// Inode numer of the time namespaces should be different.
+	// Based on https://man7.org/linux/man-pages/man7/time_namespaces.7.html#EXAMPLES
+	timens, err := os.Readlink("/proc/self/ns/time")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parentTimeNS := string(timens)
+	childTimeNS := string(out)
+	if childTimeNS == parentTimeNS {
+		t.Fatalf("expected child time namespace to be different from parent time namespace: %s", parentTimeNS)
+	}
+}
+
 type capHeader struct {
 	version uint32
 	pid     int32
