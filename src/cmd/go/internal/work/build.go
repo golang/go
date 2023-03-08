@@ -602,7 +602,8 @@ Starting in Go 1.20, the standard library is built and cached but not installed.
 Setting GODEBUG=installgoroot=all restores the use of
 $GOROOT/pkg/$GOOS_$GOARCH.
 
-For more about the build flags, see 'go help build'.
+For more about build flags, see 'go help build'.
+
 For more about specifying packages, see 'go help packages'.
 
 See also: go build, go get, go clean.

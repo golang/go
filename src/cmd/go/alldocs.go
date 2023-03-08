@@ -758,7 +758,8 @@
 // Setting GODEBUG=installgoroot=all restores the use of
 // $GOROOT/pkg/$GOOS_$GOARCH.
 //
-// For more about the build flags, see 'go help build'.
+// For more about build flags, see 'go help build'.
+//
 // For more about specifying packages, see 'go help packages'.
 //
 // See also: go build, go get, go clean.
@@ -2551,6 +2552,8 @@
 // it also updates any git submodules referenced by the repository.
 //
 // Get never checks out or updates code stored in vendor directories.
+//
+// For more about build flags, see 'go help build'.
 //
 // For more about specifying packages, see 'go help packages'.
 //

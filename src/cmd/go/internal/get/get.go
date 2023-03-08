@@ -69,6 +69,8 @@ it also updates any git submodules referenced by the repository.
 
 Get never checks out or updates code stored in vendor directories.
 
+For more about build flags, see 'go help build'.
+
 For more about specifying packages, see 'go help packages'.
 
 For more about how 'go get' finds source code to
