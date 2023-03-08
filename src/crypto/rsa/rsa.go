@@ -286,7 +286,8 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
 	randutil.MaybeReadByte(random)
 
-	if boring.Enabled && random == boring.RandReader && nprimes == 2 && (bits == 2048 || bits == 3072) {
+	if boring.Enabled && random == boring.RandReader && nprimes == 2 &&
+		(bits == 2048 || bits == 3072 || bits == 4096) {
 		bN, bE, bD, bP, bQ, bDp, bDq, bQinv, err := boring.GenerateKeyRSA(bits)
 		if err != nil {
 			return nil, err
