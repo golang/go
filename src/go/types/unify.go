@@ -508,26 +508,24 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Named:
-		// TODO(gri) This code differs now from the parallel code in Checker.identical. Investigate.
+		// Two named types are identical if their type names originate
+		// in the same type declaration; if they are instantiated they
+		// must have identical type argument lists.
 		if y, ok := y.(*Named); ok {
+			// check type arguments before origins so they unify
+			// even if the origins don't match; for better error
+			// messages (see go.dev/issue/53692)
 			xargs := x.TypeArgs().list()
 			yargs := y.TypeArgs().list()
-
 			if len(xargs) != len(yargs) {
 				return false
 			}
-
-			// TODO(gri) This is not always correct: two types may have the same names
-			//           in the same package if one of them is nested in a function.
-			//           Extremely unlikely but we need an always correct solution.
-			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
-				for i, x := range xargs {
-					if !u.nify(x, yargs[i], p) {
-						return false
-					}
+			for i, xarg := range xargs {
+				if !u.nify(xarg, yargs[i], p) {
+					return false
 				}
-				return true
 			}
+			return indenticalOrigin(x, y)
 		}
 
 	case *TypeParam:
