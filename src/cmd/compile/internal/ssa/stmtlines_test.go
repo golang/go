@@ -75,8 +75,15 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
+	// Build cmd/go forcing DWARF enabled, as a large test case.
+	dir := t.TempDir()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-w=0", "-o", dir+"/test.exe", "cmd/go").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build: %v\n%s", err, out)
+	}
+
 	lines := map[Line]bool{}
-	dw, err := open(testenv.GoToolPath(t))
+	dw, err := open(dir + "/test.exe")
 	must(err)
 	rdr := dw.Reader()
 	rdr.Seek(0)
