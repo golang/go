@@ -537,6 +537,13 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 			ldr.Errorf(s, "internal error: relocation addend overflow: %s+0x%x", ldr.SymName(rs), xadd)
 		}
 	}
+	if rt == objabi.R_CALLARM64 && xadd != 0 {
+		label := ldr.Lookup(offsetLabelName(ldr, rs, xadd), ldr.SymVersion(rs))
+		if label != 0 {
+			xadd = ldr.SymValue(rs) + xadd - ldr.SymValue(label) // should always be 0 (checked below)
+			rs = label
+		}
+	}
 
 	if ldr.SymType(rs) == sym.SHOSTOBJ || rt == objabi.R_CALLARM64 ||
 		rt == objabi.R_ARM64_PCREL_LDST8 || rt == objabi.R_ARM64_PCREL_LDST16 ||
@@ -564,10 +571,9 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 		v |= ld.MACHO_ARM64_RELOC_UNSIGNED << 28
 	case objabi.R_CALLARM64:
 		if xadd != 0 {
-			out.Write32(uint32(sectoff))
-			out.Write32((ld.MACHO_ARM64_RELOC_ADDEND << 28) | (2 << 25) | uint32(xadd&0xffffff))
+			// Addend should be handled above via label symbols.
+			ldr.Errorf(s, "unexpected non-zero addend: %s+%d", ldr.SymName(rs), xadd)
 		}
-
 		v |= 1 << 24 // pc-relative bit
 		v |= ld.MACHO_ARM64_RELOC_BRANCH26 << 28
 	case objabi.R_ADDRARM64,
@@ -788,9 +794,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 		case objabi.R_CALLARM64:
 			nExtReloc = 1
-			if target.IsDarwin() && r.Add() != 0 {
-				nExtReloc = 2 // need another relocation for addend
-			}
 			return val, nExtReloc, isOk
 
 		case objabi.R_ARM64_TLS_LE:
@@ -1184,6 +1187,9 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 	// addend. For large symbols, we generate "label" symbols in the middle, so
 	// that relocations can target them with smaller addends.
 	// On Windows, we only get 21 bits, again (presumably) signed.
+	// Also, on Windows (always) and Darwin (for very large binaries), the external
+	// linker does't support CALL relocations with addend, so we generate "label"
+	// symbols for functions of which we can target the middle (Duff's devices).
 	if !ctxt.IsDarwin() && !ctxt.IsWindows() || !ctxt.IsExternal() {
 		return
 	}
@@ -1191,19 +1197,6 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 	limit := int64(machoRelocLimit)
 	if ctxt.IsWindows() {
 		limit = peRelocLimit
-	}
-
-	if ctxt.IsDarwin() {
-		big := false
-		for _, seg := range ld.Segments {
-			if seg.Length >= machoRelocLimit {
-				big = true
-				break
-			}
-		}
-		if !big {
-			return // skip work if nothing big
-		}
 	}
 
 	// addLabelSyms adds "label" symbols at s+limit, s+2*limit, etc.
@@ -1225,23 +1218,36 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 		}
 	}
 
+	// Generate symbol names for every offset we need in duffcopy/duffzero (only 64 each).
+	if s := ldr.Lookup("runtime.duffcopy", sym.SymVerABIInternal); s != 0 && ldr.AttrReachable(s) {
+		addLabelSyms(s, 8, 8*64)
+	}
+	if s := ldr.Lookup("runtime.duffzero", sym.SymVerABIInternal); s != 0 && ldr.AttrReachable(s) {
+		addLabelSyms(s, 4, 4*64)
+	}
+
+	if ctxt.IsDarwin() {
+		big := false
+		for _, seg := range ld.Segments {
+			if seg.Length >= machoRelocLimit {
+				big = true
+				break
+			}
+		}
+		if !big {
+			return // skip work if nothing big
+		}
+	}
+
 	for s, n := loader.Sym(1), loader.Sym(ldr.NSym()); s < n; s++ {
 		if !ldr.AttrReachable(s) {
 			continue
 		}
 		t := ldr.SymType(s)
 		if t == sym.STEXT {
-			if ctxt.IsDarwin() || ctxt.IsWindows() {
-				// Cannot relocate into middle of function.
-				// Generate symbol names for every offset we need in duffcopy/duffzero (only 64 each).
-				switch ldr.SymName(s) {
-				case "runtime.duffcopy":
-					addLabelSyms(s, 8, 8*64)
-				case "runtime.duffzero":
-					addLabelSyms(s, 4, 4*64)
-				}
-			}
-			continue // we don't target the middle of other functions
+			// Except for Duff's devices (handled above), we don't
+			// target the middle of a function.
+			continue
 		}
 		if t >= sym.SDWARFSECT {
 			continue // no need to add label for DWARF symbols
