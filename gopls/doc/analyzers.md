@@ -215,7 +215,6 @@ name but different signatures. Example:
 The Read method in v has a different signature than the Read method in
 io.Reader, so this assertion cannot succeed.
 
-
 **Enabled by default.**
 
 ## **infertypeargs**
@@ -246,43 +245,43 @@ iteration and possibly observe the wrong value of the variable.
 In this example, all the deferred functions run after the loop has
 completed, so all observe the final value of v.
 
-    for _, v := range list {
-        defer func() {
-            use(v) // incorrect
-        }()
-    }
+	for _, v := range list {
+	    defer func() {
+	        use(v) // incorrect
+	    }()
+	}
 
 One fix is to create a new variable for each iteration of the loop:
 
-    for _, v := range list {
-        v := v // new var per iteration
-        defer func() {
-            use(v) // ok
-        }()
-    }
+	for _, v := range list {
+	    v := v // new var per iteration
+	    defer func() {
+	        use(v) // ok
+	    }()
+	}
 
 The next example uses a go statement and has a similar problem.
 In addition, it has a data race because the loop updates v
 concurrent with the goroutines accessing it.
 
-    for _, v := range elem {
-        go func() {
-            use(v)  // incorrect, and a data race
-        }()
-    }
+	for _, v := range elem {
+	    go func() {
+	        use(v)  // incorrect, and a data race
+	    }()
+	}
 
 A fix is the same as before. The checker also reports problems
 in goroutines started by golang.org/x/sync/errgroup.Group.
 A hard-to-spot variant of this form is common in parallel tests:
 
-    func Test(t *testing.T) {
-        for _, test := range tests {
-            t.Run(test.name, func(t *testing.T) {
-                t.Parallel()
-                use(test) // incorrect, and a data race
-            })
-        }
-    }
+	func Test(t *testing.T) {
+	    for _, test := range tests {
+	        t.Run(test.name, func(t *testing.T) {
+	            t.Parallel()
+	            use(test) // incorrect, and a data race
+	        })
+	    }
+	}
 
 The t.Parallel() call causes the rest of the function to execute
 concurrent with the loop.
@@ -353,7 +352,6 @@ and:
 		panic(p)
 	}
 
-
 **Disabled by default. Enable it by setting `"analyses": {"nilness": true}`.**
 
 ## **printf**
@@ -388,7 +386,6 @@ function is assumed to be Printf-like, taking a format string before the
 argument list. Otherwise it is assumed to be Print-like, taking a list
 of arguments with no format string.
 
-
 **Enabled by default.**
 
 ## **shadow**
@@ -417,7 +414,6 @@ For example:
 		}
 		return err
 	}
-
 
 **Disabled by default. Enable it by setting `"analyses": {"shadow": true}`.**
 
@@ -490,18 +486,18 @@ For example, the result of this WriteTo method should be (int64, error),
 not error, to satisfy io.WriterTo:
 
 	type myWriterTo struct{...}
-        func (myWriterTo) WriteTo(w io.Writer) error { ... }
+	func (myWriterTo) WriteTo(w io.Writer) error { ... }
 
 This check ensures that each method whose name matches one of several
 well-known interface methods from the standard library has the correct
 signature for that interface.
 
 Checked method names include:
+
 	Format GobEncode GobDecode MarshalJSON MarshalXML
 	Peek ReadByte ReadFrom ReadRune Scan Seek
 	UnmarshalJSON UnreadByte UnreadRune WriteByte
 	WriteTo
-
 
 **Enabled by default.**
 
@@ -518,7 +514,6 @@ invalid code point, the conversion cannot be statically rejected.
 For conversions that intend on using the code point, consider replacing them
 with string(rune(x)). Otherwise, strconv.Itoa and its equivalents return the
 string representation of the value in the desired base.
-
 
 **Enabled by default.**
 
@@ -539,12 +534,11 @@ Skip{,f,Now} methods of *testing.T, must be called from the test goroutine itsel
 This checker detects calls to these functions that occur within a goroutine
 started by the test. For example:
 
-func TestFoo(t *testing.T) {
-    go func() {
-        t.Fatal("oops") // error: (*T).Fatal called from non-test goroutine
-    }()
-}
-
+	func TestFoo(t *testing.T) {
+	    go func() {
+	        t.Fatal("oops") // error: (*T).Fatal called from non-test goroutine
+	    }()
+	}
 
 **Enabled by default.**
 
@@ -568,7 +562,6 @@ check for calls of (time.Time).Format or time.Parse with 2006-02-01
 The timeformat checker looks for time formats with the 2006-02-01 (yyyy-dd-mm)
 format. Internationally, "yyyy-dd-mm" does not occur in common calendar date
 standards, and so it is more likely that 2006-01-02 (yyyy-mm-dd) was intended.
-
 
 **Enabled by default.**
 
@@ -599,7 +592,7 @@ The unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer
 to convert integers to pointers. A conversion from uintptr to
 unsafe.Pointer is invalid if it implies that there is a uintptr-typed
 word in memory that holds a pointer value, because that word will be
-invisible to stack copying and to the garbage collector.
+invisible to stack copying and to the garbage collector.`
 
 **Enabled by default.**
 
@@ -643,6 +636,7 @@ with the original object.
 For example:
 
 	type T struct { x int }
+
 	func f(input []T) {
 		for i, v := range input {  // v is a copy
 			v.x = i  // unused write to field x
@@ -652,10 +646,10 @@ For example:
 Another example is about non-pointer receiver:
 
 	type T struct { x int }
+
 	func (t T) f() {  // t is a copy
 		t.x = i  // unused write to field x
 	}
-
 
 **Disabled by default. Enable it by setting `"analyses": {"unusedwrite": true}`.**
 

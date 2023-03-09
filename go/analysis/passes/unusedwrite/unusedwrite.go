@@ -2,49 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package unusedwrite checks for unused writes to the elements of a struct or array object.
 package unusedwrite
 
 import (
+	_ "embed"
 	"fmt"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ssa"
 )
 
-// Doc is a documentation string.
-const Doc = `checks for unused writes
-
-The analyzer reports instances of writes to struct fields and
-arrays that are never read. Specifically, when a struct object
-or an array is copied, its elements are copied implicitly by
-the compiler, and any element write to this copy does nothing
-with the original object.
-
-For example:
-
-	type T struct { x int }
-	func f(input []T) {
-		for i, v := range input {  // v is a copy
-			v.x = i  // unused write to field x
-		}
-	}
-
-Another example is about non-pointer receiver:
-
-	type T struct { x int }
-	func (t T) f() {  // t is a copy
-		t.x = i  // unused write to field x
-	}
-`
+//go:embed doc.go
+var doc string
 
 // Analyzer reports instances of writes to struct fields and arrays
 // that are never read.
 var Analyzer = &analysis.Analyzer{
 	Name:     "unusedwrite",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "unusedwrite"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedwrite",
 	Requires: []*analysis.Analyzer{buildssa.Analyzer},
 	Run:      run,

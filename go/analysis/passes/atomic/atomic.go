@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package atomic defines an Analyzer that checks for common mistakes
-// using the sync/atomic package.
 package atomic
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -17,17 +16,12 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-const Doc = `check for common mistakes using the sync/atomic package
-
-The atomic checker looks for assignment statements of the form:
-
-	x = atomic.AddUint64(&x, 1)
-
-which are not atomic.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:             "atomic",
-	Doc:              Doc,
+	Doc:              analysisutil.MustExtractDoc(doc, "atomic"),
 	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/atomic",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,

@@ -7,6 +7,7 @@
 package unsafeptr
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -25,9 +26,12 @@ unsafe.Pointer is invalid if it implies that there is a uintptr-typed
 word in memory that holds a pointer value, because that word will be
 invisible to stack copying and to the garbage collector.`
 
+//go:embed doc.go
+var doc string
+
 var Analyzer = &analysis.Analyzer{
 	Name:     "unsafeptr",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "unsafeptr"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unsafeptr",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,

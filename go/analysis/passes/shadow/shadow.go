@@ -2,50 +2,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package shadow defines an Analyzer that checks for shadowed variables.
 package shadow
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
 // NOTE: Experimental. Not part of the vet suite.
 
-const Doc = `check for possible unintended shadowing of variables
-
-This analyzer check for shadowed variables.
-A shadowed variable is a variable declared in an inner scope
-with the same name and type as a variable in an outer scope,
-and where the outer variable is mentioned after the inner one
-is declared.
-
-(This definition can be refined; the module generates too many
-false positives and is not yet enabled by default.)
-
-For example:
-
-	func BadRead(f *os.File, buf []byte) error {
-		var err error
-		for {
-			n, err := f.Read(buf) // shadows the function variable 'err'
-			if err != nil {
-				break // causes return of wrong value
-			}
-			foo(buf)
-		}
-		return err
-	}
-`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "shadow",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "shadow"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/shadow",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,

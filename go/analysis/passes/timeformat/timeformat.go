@@ -7,6 +7,7 @@
 package timeformat
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -15,6 +16,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 )
@@ -29,9 +31,12 @@ format. Internationally, "yyyy-dd-mm" does not occur in common calendar date
 standards, and so it is more likely that 2006-01-02 (yyyy-mm-dd) was intended.
 `
 
+//go:embed doc.go
+var doc string
+
 var Analyzer = &analysis.Analyzer{
 	Name:     "timeformat",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "timeformat"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/timeformat",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,

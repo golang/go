@@ -2,29 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The unmarshal package defines an Analyzer that checks for passing
-// non-pointer or non-interface types to unmarshal and decode functions.
 package unmarshal
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/typeparams"
 )
 
-const Doc = `report passing non-pointer or non-interface values to unmarshal
-
-The unmarshal analysis reports calls to functions such as json.Unmarshal
-in which the argument type is not a pointer or an interface.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "unmarshal",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "unmarshal"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unmarshal",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,

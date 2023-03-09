@@ -2,43 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package reflectvaluecompare defines an Analyzer that checks for accidentally
-// using == or reflect.DeepEqual to compare reflect.Value values.
-// See issues 43993 and 18871.
 package reflectvaluecompare
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 )
 
-const Doc = `check for comparing reflect.Value values with == or reflect.DeepEqual
-
-The reflectvaluecompare checker looks for expressions of the form:
-
-    v1 == v2
-    v1 != v2
-    reflect.DeepEqual(v1, v2)
-
-where v1 or v2 are reflect.Values. Comparing reflect.Values directly
-is almost certainly not correct, as it compares the reflect package's
-internal representation, not the underlying value.
-Likely what is intended is:
-
-    v1.Interface() == v2.Interface()
-    v1.Interface() != v2.Interface()
-    reflect.DeepEqual(v1.Interface(), v2.Interface())
-`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "reflectvaluecompare",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "reflectvaluecompare"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/reflectvaluecompare",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,

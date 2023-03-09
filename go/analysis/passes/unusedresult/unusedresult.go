@@ -7,6 +7,7 @@
 package unusedresult
 
 import (
+	_ "embed"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -32,9 +33,12 @@ calls to certain functions in which the result of the call is ignored.
 
 The set of functions may be controlled using flags.`
 
+//go:embed doc.go
+var doc string
+
 var Analyzer = &analysis.Analyzer{
 	Name:     "unusedresult",
-	Doc:      Doc,
+	Doc:      analysisutil.MustExtractDoc(doc, "unusedresult"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedresult",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
