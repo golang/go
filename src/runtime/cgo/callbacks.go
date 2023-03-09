@@ -85,13 +85,13 @@ var _cgo_pthread_key_created = &x_cgo_pthread_key_created
 // Export crosscall2 to a c function pointer variable.
 // Used to dropm in pthread key destructor, while c thread is exiting.
 
-//go:cgo_import_static x_crosscall2
-//go:linkname x_crosscall2 x_crosscall2
-//go:linkname _crosscall2 _crosscall2
-var x_crosscall2 byte
-var _crosscall2 = &x_crosscall2
+//go:cgo_import_static x_crosscall2_ptr
+//go:linkname x_crosscall2_ptr x_crosscall2_ptr
+//go:linkname _crosscall2_ptr _crosscall2_ptr
+var x_crosscall2_ptr byte
+var _crosscall2_ptr = &x_crosscall2_ptr
 
-// Set the x_crosscall2 function pointer variable in C point to crosscall2.
+// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
 func set_crosscall2()
 
 //go:linkname _set_crosscall2 runtime.set_crosscall2

@@ -229,7 +229,7 @@ func main() {
 			throw("_cgo_notify_runtime_init_done missing")
 		}
 
-		// Set the x_crosscall2 function pointer variable in C point to crosscall2.
+		// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
 		if set_crosscall2 == nil {
 			throw("set_crosscall2 missing")
 		}

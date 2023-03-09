@@ -5,10 +5,10 @@
 #include "textflag.h"
 #include "abi_amd64.h"
 
-// Set the x_crosscall2 function pointer variable in C point to crosscall2.
-// It's such a pointer chain: _crosscall2 -> x_crosscall2 -> crosscall2
+// Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+// It's such a pointer chain: _crosscall2_ptr -> x_crosscall2_ptr -> crosscall2
 TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
-	MOVQ	_crosscall2(SB), AX
+	MOVQ	_crosscall2_ptr(SB), AX
 	MOVQ	$crosscall2(SB), BX
 	MOVQ	BX, (AX)
 	RET

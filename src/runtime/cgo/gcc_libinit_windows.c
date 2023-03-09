@@ -31,7 +31,7 @@ static HANDLE runtime_init_wait;
 static int runtime_init_done;
 
 uintptr_t x_cgo_pthread_key_created;
-void (*x_crosscall2)(void (*fn)(void *), void *, int, size_t);
+void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
 
 // Pre-initialize the runtime synchronization objects
 void
