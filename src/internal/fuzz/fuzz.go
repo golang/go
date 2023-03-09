@@ -195,6 +195,11 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 
 	c.logStats()
 	for {
+		// If there is an execution limit, and we've reached it, stop.
+		if c.opts.Limit > 0 && c.count >= c.opts.Limit {
+			stop(nil)
+		}
+
 		var inputC chan fuzzInput
 		input, ok := c.peekInput()
 		if ok && c.crashMinimizing == nil && !stopping {
@@ -311,6 +316,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					if c.canMinimize() && result.canMinimize && c.crashMinimizing == nil {
 						// Send back to workers to find a smaller value that preserves
 						// at least one new coverage bit.
+
 						c.queueForMinimization(result, keepCoverage)
 					} else {
 						// Update the coordinator's coverage mask and save the value.
@@ -368,12 +374,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 						)
 					}
 				}
-			}
-
-			// Once the result has been processed, stop the worker if we
-			// have reached the fuzzing limit.
-			if c.opts.Limit > 0 && c.count >= c.opts.Limit {
-				stop(nil)
 			}
 
 		case inputC <- input:
