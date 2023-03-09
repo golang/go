@@ -179,6 +179,11 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	IDs will refer to the ID of the goroutine at the time of creation; it's possible for this
 	ID to be reused for another goroutine. Setting N to 0 will report no ancestry information.
 
+	tracefpunwindoff: setting tracefpunwindoff=1 forces the execution tracer to
+	use the runtime's default stack unwinder instead of frame pointer unwinding.
+	This increases tracer overhead, but could be helpful as a workaround or for
+	debugging unexpected regressions caused by frame pointer unwinding.
+
 	asyncpreemptoff: asyncpreemptoff=1 disables signal-based
 	asynchronous goroutine preemption. This makes some loops
 	non-preemptible for long periods, which may delay GC and

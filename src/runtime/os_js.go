@@ -169,3 +169,6 @@ const preemptMSupported = false
 func preemptM(mp *m) {
 	// No threads, so nothing to do.
 }
+
+// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+func getcallerfp() uintptr { return 0 }

@@ -21,3 +21,7 @@ func emptyfunc()
 // respectively. Does not follow the Go ABI.
 func spillArgs()
 func unspillArgs()
+
+// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+// TODO: Make this a compiler intrinsic
+func getcallerfp() uintptr
