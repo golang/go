@@ -5,6 +5,8 @@
 package testing_test
 
 import (
+	"bytes"
+	"internal/testenv"
 	"os"
 	"path/filepath"
 	"testing"
@@ -231,4 +233,63 @@ func TestSetenvWithParallelGrandParentBeforeSetenv(t *testing.T) {
 			t.Setenv("GO_TEST_KEY_1", "value")
 		})
 	})
+}
+
+// testingTrueInInit is part of TestTesting.
+var testingTrueInInit = false
+
+// testingTrueInPackageVarInit is part of TestTesting.
+var testingTrueInPackageVarInit = testing.Testing()
+
+// init is part of TestTesting.
+func init() {
+	if testing.Testing() {
+		testingTrueInInit = true
+	}
+}
+
+var testingProg = `
+package main
+
+import (
+	"fmt"
+	"testing"
+)
+
+func main() {
+	fmt.Println(testing.Testing())
+}
+`
+
+func TestTesting(t *testing.T) {
+	if !testing.Testing() {
+		t.Errorf("testing.Testing() == %t, want %t", testing.Testing(), true)
+	}
+	if !testingTrueInInit {
+		t.Errorf("testing.Testing() called by init function == %t, want %t", testingTrueInInit, true)
+	}
+	if !testingTrueInPackageVarInit {
+		t.Errorf("testing.Testing() variable initialized as %t, want %t", testingTrueInPackageVarInit, true)
+	}
+
+	if testing.Short() {
+		t.Skip("skipping building a binary in short mode")
+	}
+	testenv.MustHaveGoRun(t)
+
+	fn := filepath.Join(t.TempDir(), "x.go")
+	if err := os.WriteFile(fn, []byte(testingProg), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "run", fn)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v failed: %v\n%s", cmd, err, out)
+	}
+
+	s := string(bytes.TrimSpace(out))
+	if s != "false" {
+		t.Errorf("in non-test testing.Test() returned %q, want %q", s, "false")
+	}
 }

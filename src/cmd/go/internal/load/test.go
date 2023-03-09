@@ -253,6 +253,10 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		pxtest.collectDeps()
 	}
 
+	// Arrange for testing.Testing to report true.
+	ldflags := append(p.Internal.Ldflags, "-X", "testing.testBinary=1")
+	gccgoflags := append(p.Internal.Gccgoflags, "-Wl,--defsym,testing.gccgoTestBinary=1")
+
 	// Build main package.
 	pmain = &Package{
 		PackagePublic: PackagePublic{
@@ -269,8 +273,8 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 			BuildInfo:      p.Internal.BuildInfo,
 			Asmflags:       p.Internal.Asmflags,
 			Gcflags:        p.Internal.Gcflags,
-			Ldflags:        p.Internal.Ldflags,
-			Gccgoflags:     p.Internal.Gccgoflags,
+			Ldflags:        ldflags,
+			Gccgoflags:     gccgoflags,
 			OrigImportPath: p.Internal.OrigImportPath,
 			PGOProfile:     p.Internal.PGOProfile,
 		},
