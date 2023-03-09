@@ -24,7 +24,7 @@ func (fs *fileStat) ModTime() time.Time { return fs.modTime }
 func (fs *fileStat) Sys() any           { return fs.sys }
 
 func sameFile(fs1, fs2 *fileStat) bool {
-	a := fs1.sys.(*syscall.Dir)
-	b := fs2.sys.(*syscall.Dir)
+	a, _ := fs1.sys.(*syscall.Dir)
+	b, _ := fs2.sys.(*syscall.Dir)
 	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
 }
