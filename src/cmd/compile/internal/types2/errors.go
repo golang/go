@@ -250,7 +250,7 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
 		pos = check.errpos
 	}
 
-	err := Error{pos, stripAnnotations(msg), msg, soft}
+	err := Error{pos, stripAnnotations(msg), msg, soft, code}
 	if check.firstErr == nil {
 		check.firstErr = err
 	}
