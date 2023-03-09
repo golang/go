@@ -945,7 +945,7 @@ func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.N
 	}
 
 	// Reject smaller candidates if not in stress mode.
-	if rsiz < wrapGlobalMapInitSizeThreshold && base.Debug.WrapGlobalMapStress == 0 {
+	if rsiz < wrapGlobalMapInitSizeThreshold && base.Debug.WrapGlobalMapCtl != 2 {
 		if base.Debug.WrapGlobalMapDbg > 1 {
 			fmt.Fprintf(os.Stderr, "=-= skipping %v size too small at %d\n",
 				nm, rsiz)
@@ -1046,7 +1046,7 @@ func AddKeepRelocations() {
 // functions (if legal/profitable). Return value is an updated list
 // and a list of any newly generated "map init" functions.
 func OutlineMapInits(stmts []ir.Node) ([]ir.Node, []*ir.Func) {
-	if !base.Flag.WrapGlobalMapInit {
+	if base.Debug.WrapGlobalMapCtl == 1 {
 		return stmts, nil
 	}
 	newfuncs := []*ir.Func{}

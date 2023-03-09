@@ -374,7 +374,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	}
 
 	// Add keep relocations for global maps.
-	if base.Flag.WrapGlobalMapInit {
+	if base.Debug.WrapGlobalMapCtl != 1 {
 		staticinit.AddKeepRelocations()
 	}
 

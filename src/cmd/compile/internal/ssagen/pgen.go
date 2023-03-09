@@ -214,7 +214,7 @@ func Compile(fn *ir.Func, worker int) {
 	// If we're compiling the package init function, search for any
 	// relocations that target global map init outline functions and
 	// turn them into weak relocs.
-	if base.Flag.WrapGlobalMapInit && fn.IsPackageInit() {
+	if fn.IsPackageInit() && base.Debug.WrapGlobalMapCtl != 1 {
 		weakenGlobalMapInitRelocs(fn)
 	}
 
