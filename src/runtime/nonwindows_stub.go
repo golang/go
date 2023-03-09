@@ -15,3 +15,7 @@ const osRelaxMinNS = 0
 // osRelax is called by the scheduler when transitioning to and from
 // all Ps being idle.
 func osRelax(relax bool) {}
+
+// enableWER is called by setTraceback("wer").
+// Windows Error Reporting (WER) is only supported on Windows.
+func enableWER() {}

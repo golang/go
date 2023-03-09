@@ -67,7 +67,7 @@ type exceptionrecord struct {
 	exceptioncode        uint32
 	exceptionflags       uint32
 	exceptionrecord      *exceptionrecord
-	exceptionaddress     *byte
+	exceptionaddress     uintptr
 	numberparameters     uint32
 	exceptioninformation [15]uintptr
 }
