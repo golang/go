@@ -3201,11 +3201,9 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 
 	// TODO: make cgo not depend on $GOARCH?
 
-	isRuntimeCgo := false
 	cgoflags := []string{}
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
-		isRuntimeCgo = true
 	}
 	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/msan" || p.ImportPath == "runtime/cgo" || p.ImportPath == "runtime/asan") {
 		cgoflags = append(cgoflags, "-import_syscall=false")
@@ -3289,18 +3287,12 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 		outObj = append(outObj, ofile)
 	}
 
-	// gcc_dummy_crosscall2.c only contains the dummy function for dynimport.
-	dummyObj := ""
 	for _, file := range gccfiles {
 		ofile := nextOfile()
 		if err := b.gcc(a, p, a.Objdir, ofile, cflags, file); err != nil {
 			return nil, nil, err
 		}
-		if isRuntimeCgo && file == "gcc_dummy_crosscall2.c" {
-			dummyObj = ofile
-		} else {
-			outObj = append(outObj, ofile)
-		}
+		outObj = append(outObj, ofile)
 	}
 
 	cxxflags := str.StringList(cgoCPPFLAGS, cgoCXXFLAGS)
@@ -3332,11 +3324,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
 	switch cfg.BuildToolchainName {
 	case "gc":
 		importGo := objdir + "_cgo_import.go"
-		obj := outObj
-		if dummyObj != "" {
-			obj = append(obj, dummyObj)
-		}
-		dynOutGo, dynOutObj, err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, obj)
+		dynOutGo, dynOutObj, err := b.dynimport(a, p, objdir, importGo, cgoExe, cflags, cgoLDFLAGS, outObj)
 		if err != nil {
 			return nil, nil, err
 		}
