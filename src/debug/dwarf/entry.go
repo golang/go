@@ -748,7 +748,7 @@ func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry 
 			// the unit. Not much we can do about that.
 			var rnglistsBase int64
 			if cu != nil {
-				rnglistsBase, _ = cu.Val(AttrRnglistsBase).(int64)
+				rnglistsBase = cu.Val(AttrRnglistsBase).(int64)
 			} else if a.tag == TagCompileUnit {
 				delay = append(delay, delayed{i, off, formRnglistx})
 				break
