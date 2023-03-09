@@ -256,7 +256,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	base.Timer.Start("fe", "pgoprofile")
 	var profile *pgo.Profile
 	if base.Flag.PgoProfile != "" {
-		profile = pgo.New(base.Flag.PgoProfile)
+		var err error
+		profile, err = pgo.New(base.Flag.PgoProfile)
+		if err != nil {
+			log.Fatalf("%s: PGO error: %v", base.Flag.PgoProfile, err)
+		}
 	}
 
 	// Inlining
