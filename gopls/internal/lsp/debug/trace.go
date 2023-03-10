@@ -22,58 +22,115 @@ import (
 	"golang.org/x/tools/internal/event/label"
 )
 
+// TraceTmpl extends BaseTemplate and renders a TraceResults, e.g. from getData().
 var TraceTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{define "title"}}Trace Information{{end}}
 {{define "body"}}
 	{{range .Traces}}<a href="/trace/{{.Name}}">{{.Name}}</a> last: {{.Last.Duration}}, longest: {{.Longest.Duration}}<br>{{end}}
 	{{if .Selected}}
 		<H2>{{.Selected.Name}}</H2>
-		{{if .Selected.Last}}<H3>Last</H3><ul>{{template "details" .Selected.Last}}</ul>{{end}}
-		{{if .Selected.Longest}}<H3>Longest</H3><ul>{{template "details" .Selected.Longest}}</ul>{{end}}
+		{{if .Selected.Last}}<H3>Last</H3><ul class='spans'>{{template "completeSpan" .Selected.Last}}</ul>{{end}}
+		{{if .Selected.Longest}}<H3>Longest</H3><ul class='spans'>{{template "completeSpan" .Selected.Longest}}</ul>{{end}}
+	{{end}}
+
+        <H2>Recent spans (oldest first)</H2>
+        <p>
+	A finite number of recent span start/end times are shown below.
+        The nesting represents the children of a parent span (and the log events within a span).
+        A span may appear twice: chronologically at toplevel, and nested within its parent.
+        </p>
+	<ul class='spans'>{{range .Recent}}{{template "spanStartEnd" .}}{{end}}</ul>
+{{end}}
+{{define "spanStartEnd"}}
+	{{if .Start}}
+		<li>{{.Span.Header .Start}}</li>
+	{{else}}
+		{{template "completeSpan" .Span}}
 	{{end}}
 {{end}}
-{{define "details"}}
-	<li>{{.Offset}} {{.Name}} {{.Duration}} {{.Tags}}</li>
-	{{if .Events}}<ul class=events>{{range .Events}}<li>{{.Offset}} {{.Tags}}</li>{{end}}</ul>{{end}}
-	{{if .Children}}<ul>{{range .Children}}{{template "details" .}}{{end}}</ul>{{end}}
+{{define "completeSpan"}}
+	<li>{{.Header false}}</li>
+	{{if .Events}}<ul>{{range .Events}}<li>{{.Header}}</li>{{end}}</ul>{{end}}
+	{{if .ChildStartEnd}}<ul>{{range .ChildStartEnd}}{{template "spanStartEnd" .}}{{end}}</ul>{{end}}
 {{end}}
 `))
 
 type traces struct {
-	mu         sync.Mutex
-	sets       map[string]*traceSet
-	unfinished map[export.SpanContext]*traceData
+	mu              sync.Mutex
+	sets            map[string]*traceSet
+	unfinished      map[export.SpanContext]*traceSpan
+	recent          []spanStartEnd
+	recentEvictions int
 }
 
+// A spanStartEnd records the start or end of a span.
+// If Start, the span may be unfinished, so some fields (e.g. Finish)
+// may be unset and others (e.g. Events) may be being actively populated.
+type spanStartEnd struct {
+	Start bool
+	Span  *traceSpan
+}
+
+func (ev spanStartEnd) Time() time.Time {
+	if ev.Start {
+		return ev.Span.Start
+	} else {
+		return ev.Span.Finish
+	}
+}
+
+// A TraceResults is the subject for the /trace HTML template.
 type TraceResults struct { // exported for testing
 	Traces   []*traceSet
 	Selected *traceSet
+	Recent   []spanStartEnd
 }
 
+// A traceSet holds two representative spans of a given span name.
 type traceSet struct {
 	Name    string
-	Last    *traceData
-	Longest *traceData
+	Last    *traceSpan
+	Longest *traceSpan
 }
 
-type traceData struct {
-	TraceID  export.TraceID
-	SpanID   export.SpanID
-	ParentID export.SpanID
-	Name     string
-	Start    time.Time
-	Finish   time.Time
-	Offset   time.Duration
-	Duration time.Duration
-	Tags     string
-	Events   []traceEvent
-	Children []*traceData
+// A traceSpan holds information about a single span.
+type traceSpan struct {
+	TraceID       export.TraceID
+	SpanID        export.SpanID
+	ParentID      export.SpanID
+	Name          string
+	Start         time.Time
+	Finish        time.Time     // set at end
+	Duration      time.Duration // set at end
+	Tags          string
+	Events        []traceEvent   // set at end
+	ChildStartEnd []spanStartEnd // populated while active
+
+	parent *traceSpan
+}
+
+const timeFormat = "15:04:05.000"
+
+// Header renders the time, name, tags, and (if !start),
+// duration of a span start or end event.
+func (span *traceSpan) Header(start bool) string {
+	if start {
+		return fmt.Sprintf("%s start %s %s",
+			span.Start.Format(timeFormat), span.Name, span.Tags)
+	} else {
+		return fmt.Sprintf("%s end %s (+%s) %s",
+			span.Finish.Format(timeFormat), span.Name, span.Duration, span.Tags)
+	}
 }
 
 type traceEvent struct {
 	Time   time.Time
-	Offset time.Duration
+	Offset time.Duration // relative to start of span
 	Tags   string
+}
+
+func (ev traceEvent) Header() string {
+	return fmt.Sprintf("%s event (+%s) %s", ev.Time.Format(timeFormat), ev.Offset, ev.Tags)
 }
 
 func StdTrace(exporter event.Exporter) event.Exporter {
@@ -128,7 +185,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 	case event.IsStart(ev):
 		// Just starting: add it to the unfinished map.
 		// Allocate before the critical section.
-		td := &traceData{
+		td := &traceSpan{
 			TraceID:  span.ID.TraceID,
 			SpanID:   span.ID.SpanID,
 			ParentID: span.ParentID,
@@ -139,22 +196,23 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 
 		t.mu.Lock()
 		defer t.mu.Unlock()
+
+		t.addRecentLocked(td, true) // add start event
+
 		if t.sets == nil {
 			t.sets = make(map[string]*traceSet)
-			t.unfinished = make(map[export.SpanContext]*traceData)
+			t.unfinished = make(map[export.SpanContext]*traceSpan)
 		}
 		t.unfinished[span.ID] = td
-		// and wire up parents if we have them
-		if !span.ParentID.IsValid() {
-			return ctx
+
+		// Wire up parents if we have them.
+		if span.ParentID.IsValid() {
+			parentID := export.SpanContext{TraceID: span.ID.TraceID, SpanID: span.ParentID}
+			if parent, ok := t.unfinished[parentID]; ok {
+				td.parent = parent
+				parent.ChildStartEnd = append(parent.ChildStartEnd, spanStartEnd{true, td})
+			}
 		}
-		parentID := export.SpanContext{TraceID: span.ID.TraceID, SpanID: span.ParentID}
-		parent, found := t.unfinished[parentID]
-		if !found {
-			// trace had an invalid parent, so it cannot itself be valid
-			return ctx
-		}
-		parent.Children = append(parent.Children, td)
 
 	case event.IsEnd(ev):
 		// Finishing: must be already in the map.
@@ -175,10 +233,10 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 			return ctx // if this happens we are in a bad place
 		}
 		delete(t.unfinished, span.ID)
-
 		td.Finish = span.Finish().At()
 		td.Duration = span.Finish().At().Sub(span.Start().At())
 		td.Events = tdEvents
+		t.addRecentLocked(td, false) // add end event
 
 		set, ok := t.sets[span.Name]
 		if !ok {
@@ -189,43 +247,75 @@ func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, lm label.Map) 
 		if set.Longest == nil || set.Last.Duration > set.Longest.Duration {
 			set.Longest = set.Last
 		}
-		if !td.ParentID.IsValid() {
+		if td.parent != nil {
+			td.parent.ChildStartEnd = append(td.parent.ChildStartEnd, spanStartEnd{false, td})
+		} else {
 			fillOffsets(td, td.Start)
 		}
 	}
 	return ctx
 }
 
-func (t *traces) getData(req *http.Request) interface{} {
-	if len(t.sets) == 0 {
-		return nil
+// addRecentLocked appends a start or end event to the "recent" log,
+// evicting an old entry if necessary.
+func (t *traces) addRecentLocked(span *traceSpan, start bool) {
+	const (
+		maxRecent = 100 // number of log entries before age-based eviction
+		maxAge    = 1 * time.Minute
+	)
+	t.recent = append(t.recent, spanStartEnd{Start: start, Span: span})
+
+	for len(t.recent) > maxRecent && t.recent[0].Time().Before(time.Now().Add(-maxAge)) {
+		t.recent[0] = spanStartEnd{} // aid GC
+		t.recent = t.recent[1:]
+		t.recentEvictions++
+
+		// Using a slice as a FIFO queue leads to unbounded growth
+		// as Go's GC cannot collect the ever-growing unused prefix.
+		// So, compact it periodically.
+		if t.recentEvictions%maxRecent == 0 {
+			t.recent = append([]spanStartEnd(nil), t.recent...)
+		}
 	}
-	data := TraceResults{}
-	data.Traces = make([]*traceSet, 0, len(t.sets))
-	for _, set := range t.sets {
-		data.Traces = append(data.Traces, set)
-	}
-	sort.Slice(data.Traces, func(i, j int) bool { return data.Traces[i].Name < data.Traces[j].Name })
-	if bits := strings.SplitN(req.URL.Path, "/trace/", 2); len(bits) > 1 {
-		data.Selected = t.sets[bits[1]]
-	}
-	return data
 }
 
-func fillOffsets(td *traceData, start time.Time) {
-	td.Offset = td.Start.Sub(start)
+// getData returns the TraceResults rendered by TraceTmpl for the /trace[/name] endpoint.
+func (t *traces) getData(req *http.Request) interface{} {
+	// TODO(adonovan): the HTTP request doesn't acquire the mutex
+	// for t or for each span! Audit and fix.
+
+	// Sort last/longest sets by name.
+	traces := make([]*traceSet, 0, len(t.sets))
+	for _, set := range t.sets {
+		traces = append(traces, set)
+	}
+	sort.Slice(traces, func(i, j int) bool {
+		return traces[i].Name < traces[j].Name
+	})
+
+	return TraceResults{
+		Traces:   traces,
+		Selected: t.sets[strings.TrimPrefix(req.URL.Path, "/trace/")], // may be nil
+		Recent:   t.recent,
+	}
+}
+
+func fillOffsets(td *traceSpan, start time.Time) {
 	for i := range td.Events {
 		td.Events[i].Offset = td.Events[i].Time.Sub(start)
 	}
-	for _, child := range td.Children {
-		fillOffsets(child, start)
+	for _, child := range td.ChildStartEnd {
+		if !child.Start {
+			fillOffsets(child.Span, start)
+		}
 	}
 }
 
 func renderLabels(labels label.List) string {
 	buf := &bytes.Buffer{}
 	for index := 0; labels.Valid(index); index++ {
-		if l := labels.Label(index); l.Valid() {
+		// The 'start' label duplicates the span name, so discard it.
+		if l := labels.Label(index); l.Valid() && l.Key().Name() != "start" {
 			fmt.Fprintf(buf, "%v ", l)
 		}
 	}

@@ -697,10 +697,10 @@ var BaseTemplate = template.Must(template.New("").Parse(`
 td.value {
   text-align: right;
 }
-ul.events {
-	list-style-type: none;
+ul.spans {
+	font-family: monospace;
+	font-size:   85%;
 }
-
 </style>
 {{block "head" .}}{{end}}
 </head>
