@@ -98,11 +98,10 @@ const (
 // See https://docs.microsoft.com/en-us/windows/win32/debug/pe-format.
 // TODO(crawshaw): add these constants to debug/pe.
 const (
-	// TODO: the Microsoft doco says IMAGE_SYM_DTYPE_ARRAY is 3 and IMAGE_SYM_DTYPE_FUNCTION is 2
 	IMAGE_SYM_TYPE_NULL      = 0
 	IMAGE_SYM_TYPE_STRUCT    = 8
-	IMAGE_SYM_DTYPE_FUNCTION = 0x20
-	IMAGE_SYM_DTYPE_ARRAY    = 0x30
+	IMAGE_SYM_DTYPE_FUNCTION = 2
+	IMAGE_SYM_DTYPE_ARRAY    = 3
 	IMAGE_SYM_CLASS_EXTERNAL = 2
 	IMAGE_SYM_CLASS_STATIC   = 3
 
@@ -754,14 +753,12 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		if ctxt.IsExternal() {
 			peSymType = IMAGE_SYM_TYPE_NULL
 		} else {
-			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
-			// peSymType = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
-			peSymType = 0x0308 // "array of structs"
+			peSymType = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
 		}
 		sect, value, err := f.mapToPESection(ldr, s, ctxt.LinkMode)
 		if err != nil {
 			if t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
-				peSymType = IMAGE_SYM_DTYPE_FUNCTION
+				peSymType = IMAGE_SYM_DTYPE_FUNCTION << 8
 			} else {
 				ctxt.Errorf(s, "addpesym: %v", err)
 			}

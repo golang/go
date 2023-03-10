@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	// TODO: the Microsoft doco says IMAGE_SYM_DTYPE_ARRAY is 3 (same with IMAGE_SYM_DTYPE_POINTER and IMAGE_SYM_DTYPE_FUNCTION)
 	IMAGE_SYM_UNDEFINED              = 0
 	IMAGE_SYM_ABSOLUTE               = -1
 	IMAGE_SYM_DEBUG                  = -2
@@ -43,9 +42,9 @@ const (
 	IMAGE_SYM_TYPE_DWORD             = 15
 	IMAGE_SYM_TYPE_PCODE             = 32768
 	IMAGE_SYM_DTYPE_NULL             = 0
-	IMAGE_SYM_DTYPE_POINTER          = 0x10
-	IMAGE_SYM_DTYPE_FUNCTION         = 0x20
-	IMAGE_SYM_DTYPE_ARRAY            = 0x30
+	IMAGE_SYM_DTYPE_POINTER          = 1
+	IMAGE_SYM_DTYPE_FUNCTION         = 2
+	IMAGE_SYM_DTYPE_ARRAY            = 3
 	IMAGE_SYM_CLASS_END_OF_FUNCTION  = -1
 	IMAGE_SYM_CLASS_NULL             = 0
 	IMAGE_SYM_CLASS_AUTOMATIC        = 1
@@ -673,7 +672,7 @@ func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuild
 
 	var s loader.Sym
 	var bld *loader.SymbolBuilder
-	switch pesym.Type {
+	switch uint8(pesym.Type >> 8) {
 	default:
 		return nil, 0, fmt.Errorf("%s: invalid symbol type %d", symname, pesym.Type)
 
