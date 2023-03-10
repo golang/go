@@ -13,6 +13,18 @@ type runConfig struct {
 	skipHooks bool
 }
 
+func defaultConfig() runConfig {
+	return runConfig{
+		editor: fake.EditorConfig{
+			Settings: map[string]interface{}{
+				// Shorten the diagnostic delay to speed up test execution (else we'd add
+				// the default delay to each assertion about diagnostics)
+				"diagnosticsDelay": "10ms",
+			},
+		},
+	}
+}
+
 // A RunOption augments the behavior of the test runner.
 type RunOption interface {
 	set(*runConfig)

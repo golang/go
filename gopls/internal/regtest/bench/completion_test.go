@@ -25,6 +25,7 @@ type completionBenchOptions struct {
 
 func benchmarkCompletion(options completionBenchOptions, b *testing.B) {
 	repo := getRepo(b, "tools")
+	_ = repo.sharedEnv(b) // ensure cache is warm
 	env := repo.newEnv(b, "completion.tools", fake.EditorConfig{})
 	defer env.Close()
 

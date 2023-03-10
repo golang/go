@@ -224,10 +224,6 @@ func (e *Editor) settingsLocked() map[string]interface{} {
 		// Set a generous completion budget, so that tests don't flake because
 		// completions are too slow.
 		"completionBudget": "10s",
-
-		// Shorten the diagnostic delay to speed up test execution (else we'd add
-		// the default delay to each assertion about diagnostics)
-		"diagnosticsDelay": "10ms",
 	}
 
 	for k, v := range e.config.Settings {
