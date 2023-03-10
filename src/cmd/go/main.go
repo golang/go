@@ -87,11 +87,14 @@ func init() {
 	}
 }
 
+var _ = go11tag
+
 func main() {
-	_ = go11tag
+	log.SetFlags(0)
+	switchGoToolchain()
+
 	flag.Usage = base.Usage
 	flag.Parse()
-	log.SetFlags(0)
 
 	args := flag.Args()
 	if len(args) < 1 {

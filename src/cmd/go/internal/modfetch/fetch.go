@@ -173,7 +173,18 @@ func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err e
 
 		// The zip or ziphash file does not exist. Acquire the lock and create them.
 		if cfg.CmdName != "mod download" {
-			fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
+			vers := mod.Version
+			if mod.Path == "golang.org/toolchain" {
+				// Shorten v0.0.1-go1.13.1.darwin-amd64 to go1.13.1.darwin-amd64
+				_, vers, _ = strings.Cut(vers, "-")
+				if i := strings.LastIndex(vers, "."); i >= 0 {
+					goos, goarch, _ := strings.Cut(vers[i+1:], "-")
+					vers = vers[:i] + " (" + goos + "/" + goarch + ")"
+				}
+				fmt.Fprintf(os.Stderr, "go: downloading %s\n", vers)
+			} else {
+				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, vers)
+			}
 		}
 		unlock, err := lockVersion(mod)
 		if err != nil {

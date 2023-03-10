@@ -88,7 +88,8 @@ func init() {
 	base.AddModCommonFlags(&cmdDownload.Flag)
 }
 
-type moduleJSON struct {
+// A ModuleJSON describes the result of go mod download.
+type ModuleJSON struct {
 	Path     string `json:",omitempty"`
 	Version  string `json:",omitempty"`
 	Query    string `json:",omitempty"`
@@ -167,43 +168,11 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		base.Exit()
 	}
 
-	downloadModule := func(m *moduleJSON) {
-		_, file, err := modfetch.InfoFile(m.Path, m.Version)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		m.Info = file
-		m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		mod := module.Version{Path: m.Path, Version: m.Version}
-		m.Zip, err = modfetch.DownloadZip(ctx, mod)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-		m.Sum = modfetch.Sum(mod)
-		m.Dir, err = modfetch.Download(ctx, mod)
-		if err != nil {
-			m.Error = err.Error()
-			return
-		}
-	}
-
-	var mods []*moduleJSON
-
 	if *downloadReuse != "" && modload.HasModRoot() {
 		base.Fatalf("go mod download -reuse cannot be used inside a module")
 	}
 
+	var mods []*ModuleJSON
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 	infos, infosErr := modload.ListModules(ctx, args, 0, *downloadReuse)
@@ -232,7 +201,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 			// Nothing to download.
 			continue
 		}
-		m := &moduleJSON{
+		m := &ModuleJSON{
 			Path:    info.Path,
 			Version: info.Version,
 			Query:   info.Query,
@@ -249,7 +218,7 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		sem <- token{}
 		go func() {
-			downloadModule(m)
+			DownloadModule(ctx, m)
 			<-sem
 		}()
 	}
@@ -307,5 +276,39 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	// successfully).
 	if infosErr != nil {
 		base.Errorf("go: %v", infosErr)
+	}
+}
+
+// DownloadModule runs 'go mod download' for m.Path@m.Version,
+// leaving the results (including any error) in m itself.
+func DownloadModule(ctx context.Context, m *ModuleJSON) {
+	var err error
+	_, file, err := modfetch.InfoFile(m.Path, m.Version)
+	if err != nil {
+		m.Error = err.Error()
+		return
+	}
+	m.Info = file
+	m.GoMod, err = modfetch.GoModFile(m.Path, m.Version)
+	if err != nil {
+		m.Error = err.Error()
+		return
+	}
+	m.GoModSum, err = modfetch.GoModSum(m.Path, m.Version)
+	if err != nil {
+		m.Error = err.Error()
+		return
+	}
+	mod := module.Version{Path: m.Path, Version: m.Version}
+	m.Zip, err = modfetch.DownloadZip(ctx, mod)
+	if err != nil {
+		m.Error = err.Error()
+		return
+	}
+	m.Sum = modfetch.Sum(mod)
+	m.Dir, err = modfetch.Download(ctx, mod)
+	if err != nil {
+		m.Error = err.Error()
+		return
 	}
 }

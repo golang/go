@@ -1,0 +1,51 @@
+[!GOOS:windows] chmod 0755 $WORK/bin/go1.999testpath
+[!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
+[GOOS:plan9] env path=$WORK/bin${:}$path
+[GOOS:plan9] replace /bin/sh /bin/rc $WORK/bin/go1.999testpath
+
+# Plain go version
+go version
+! stdout 999
+
+# GOTOOLCHAIN from PATH
+env GOTOOLCHAIN=go1.999testpath
+go version
+[!GOOS:windows] stdout 'go1.999testpath here!'
+[GOOS:windows] stdout 'pretend we ran .*go1.999testpath'
+
+# GOTOOLCHAIN from PATH, with forced subprocess
+env GOTOOLCHAIN=go1.999testpath
+env GODEBUG=gotoolchainexec=0
+go version
+[!GOOS:windows] stdout 'go1.999testpath here!'
+[GOOS:windows] stdout 'pretend we ran .*go1.999testpath'
+env GODEBUG=
+
+# GOTOOLCHAIN from network
+env GOTOOLCHAIN=go1.999testmod
+go version
+stderr 'go: downloading go1.999testmod \(.*/.*\)'
+[!GOOS:windows] stdout 'go1.999testmod here!'
+[GOOS:windows] stdout 'pretend we ran .*go1.999testmod.*\\bin\\go'
+
+# GOTOOLCHAIN from network, does not exist
+env GOTOOLCHAIN=go1.9999x
+! go version
+stderr 'go: download go1.9999x for .*: toolchain not available'
+
+-- $WORK/bin/go1.999testpath --
+#!/bin/sh
+echo go1.999testpath here!
+-- $WORK/bin/go1.999testpath.bat --
+This should say:
+	@echo go1.999testpath here!
+but exec.Command does not directly support batch files.
+execGoToolchain in cmd/go/toolchain.go picks off versions
+named go1.999test and instead of running them just runs
+cmd /c "echo pretend we ran <file>".
+
+Since the real toolchain will have an exe file and cmd is an
+exe file, this seems like a good enough test.
+Changing execGoToolchain to use cmd /c to run the batch file
+hangs for unknown reasons.
+
