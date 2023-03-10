@@ -65,7 +65,7 @@ func LoadPackage(filenames []string) {
 	var m posMap
 	for _, p := range noders {
 		for e := range p.err {
-			base.ErrorfAt(m.makeXPos(e.Pos), "%s", e.Msg)
+			base.ErrorfAt(m.makeXPos(e.Pos), 0, "%s", e.Msg)
 		}
 		if p.file == nil {
 			base.ErrorExit()

@@ -7,6 +7,7 @@ package base
 import (
 	"fmt"
 	"internal/buildcfg"
+	"internal/types/errors"
 	"os"
 	"runtime/debug"
 	"sort"
@@ -105,11 +106,11 @@ func sameline(a, b src.XPos) bool {
 
 // Errorf reports a formatted error at the current line.
 func Errorf(format string, args ...interface{}) {
-	ErrorfAt(Pos, format, args...)
+	ErrorfAt(Pos, 0, format, args...)
 }
 
 // ErrorfAt reports a formatted error message at pos.
-func ErrorfAt(pos src.XPos, format string, args ...interface{}) {
+func ErrorfAt(pos src.XPos, code errors.Code, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 
 	if strings.HasPrefix(msg, "syntax error") {

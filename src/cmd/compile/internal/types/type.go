@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/internal/src"
 	"fmt"
+	"internal/types/errors"
 	"sync"
 )
 
@@ -1663,7 +1664,7 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	// Double-check use of type as embedded type.
 	if ft.Embedlineno.IsKnown() {
 		if t.IsPtr() || t.IsUnsafePtr() {
-			base.ErrorfAt(ft.Embedlineno, "embedded type cannot be a pointer")
+			base.ErrorfAt(ft.Embedlineno, errors.InvalidPtrEmbed, "embedded type cannot be a pointer")
 		}
 	}
 }

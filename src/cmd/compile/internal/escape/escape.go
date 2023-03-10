@@ -303,7 +303,7 @@ func (b *batch) finish(fns []*ir.Func) {
 		if loc.escapes {
 			if n.Op() == ir.ONAME {
 				if base.Flag.CompilingRuntime {
-					base.ErrorfAt(n.Pos(), "%v escapes to heap, not allowed in runtime", n)
+					base.ErrorfAt(n.Pos(), 0, "%v escapes to heap, not allowed in runtime", n)
 				}
 				if base.Flag.LowerM != 0 {
 					base.WarnfAt(n.Pos(), "moved to heap: %v", n)

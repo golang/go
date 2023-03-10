@@ -6,6 +6,7 @@ package typecheck
 
 import (
 	"fmt"
+	"internal/types/errors"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -48,15 +49,15 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 
 	// kludgy: TypecheckAllowed means we're past parsing. Eg reflectdata.methodWrapper may declare out of package names later.
 	if !inimport && !TypecheckAllowed && s.Pkg != types.LocalPkg {
-		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
+		base.ErrorfAt(n.Pos(), 0, "cannot declare name %v", s)
 	}
 
 	if ctxt == ir.PEXTERN {
 		if s.Name == "init" {
-			base.ErrorfAt(n.Pos(), "cannot declare init - must be func")
+			base.ErrorfAt(n.Pos(), errors.InvalidInitDecl, "cannot declare init - must be func")
 		}
 		if s.Name == "main" && s.Pkg.Name == "main" {
-			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
+			base.ErrorfAt(n.Pos(), errors.InvalidMainDecl, "cannot declare main - must be func")
 		}
 		Target.Externs = append(Target.Externs, n)
 		s.Def = n
@@ -154,7 +155,7 @@ func checkdupfields(what string, fss ...[]*types.Field) {
 				continue
 			}
 			if seen[f.Sym] {
-				base.ErrorfAt(f.Pos, "duplicate %s %s", what, f.Sym.Name)
+				base.ErrorfAt(f.Pos, errors.DuplicateFieldAndMethod, "duplicate %s %s", what, f.Sym.Name)
 				continue
 			}
 			seen[f.Sym] = true

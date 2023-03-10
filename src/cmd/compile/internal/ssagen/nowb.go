@@ -154,7 +154,7 @@ func (c *nowritebarrierrecChecker) check() {
 		}
 		// Check go:nowritebarrier functions.
 		if fn.Pragma&ir.Nowritebarrier != 0 && fn.WBPos.IsKnown() {
-			base.ErrorfAt(fn.WBPos, "write barrier prohibited")
+			base.ErrorfAt(fn.WBPos, 0, "write barrier prohibited")
 		}
 	}
 
@@ -185,7 +185,7 @@ func (c *nowritebarrierrecChecker) check() {
 				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)
 				call = funcs[call.target]
 			}
-			base.ErrorfAt(fn.WBPos, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
+			base.ErrorfAt(fn.WBPos, 0, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
 			continue
 		}
 

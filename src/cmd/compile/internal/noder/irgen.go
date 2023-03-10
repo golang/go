@@ -6,6 +6,7 @@ package noder
 
 import (
 	"fmt"
+	"internal/types/errors"
 	"regexp"
 	"sort"
 
@@ -47,7 +48,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 			if versionErrorRx.MatchString(msg) {
 				msg = fmt.Sprintf("%s (-lang was set to %s; check go.mod)", msg, base.Flag.Lang)
 			}
-			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", msg)
+			base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
 		},
 		Importer: &importer,
 		Sizes:    &gcSizes{},
@@ -72,7 +73,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 			syntax.Inspect(file, func(n syntax.Node) bool {
 				if n, ok := n.(*syntax.InterfaceType); ok {
 					if f.hasCycle(n.GetTypeInfo().Type.(*types2.Interface)) {
-						base.ErrorfAt(m.makeXPos(n.Pos()), "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
+						base.ErrorfAt(m.makeXPos(n.Pos()), errors.InvalidTypeCycle, "invalid recursive type: anonymous interface refers to itself (see https://go.dev/issue/56103)")
 
 						for typ := range f.cyclic {
 							f.cyclic[typ] = false // suppress duplicate errors
@@ -106,7 +107,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 			return ti.pos.Before(tj.pos)
 		})
 		for _, targ := range nihTargs {
-			base.ErrorfAt(targ.pos, "cannot use incomplete (or unallocatable) type as a type argument: %v", targ.typ)
+			base.ErrorfAt(targ.pos, 0, "cannot use incomplete (or unallocatable) type as a type argument: %v", targ.typ)
 		}
 	}
 

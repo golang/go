@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"internal/types/errors"
 	"math"
 	"math/big"
 	"strings"
@@ -567,7 +568,7 @@ func OrigConst(n ir.Node, v constant.Value) ir.Node {
 		if what == "" {
 			base.Fatalf("unexpected overflow: %v", n.Op())
 		}
-		base.ErrorfAt(n.Pos(), "constant %v overflow", what)
+		base.ErrorfAt(n.Pos(), errors.NumericOverflow, "constant %v overflow", what)
 		n.SetType(nil)
 		return n
 	}

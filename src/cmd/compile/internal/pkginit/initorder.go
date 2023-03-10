@@ -7,6 +7,7 @@ package pkginit
 import (
 	"container/heap"
 	"fmt"
+	"internal/types/errors"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -243,7 +244,7 @@ func reportInitLoopAndExit(l []*ir.Name) {
 	}
 	fmt.Fprintf(&msg, "\t%v: %v", ir.Line(l[0]), l[0])
 
-	base.ErrorfAt(l[0].Pos(), msg.String())
+	base.ErrorfAt(l[0].Pos(), errors.InvalidInitCycle, msg.String())
 	base.ErrorExit()
 }
 

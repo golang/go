@@ -146,7 +146,7 @@ func (s *SymABIs) GenABIWrappers() {
 		defABI, hasDefABI := s.defs[symName]
 		if hasDefABI {
 			if len(fn.Body) != 0 {
-				base.ErrorfAt(fn.Pos(), "%v defined in both Go and assembly", fn)
+				base.ErrorfAt(fn.Pos(), 0, "%v defined in both Go and assembly", fn)
 			}
 			fn.ABI = defABI
 		}
@@ -251,7 +251,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// below to handle the receiver. Panic if we see this scenario.
 	ft := f.Nname.Type()
 	if ft.NumRecvs() != 0 {
-		base.ErrorfAt(f.Pos(), "makeABIWrapper support for wrapping methods not implemented")
+		base.ErrorfAt(f.Pos(), 0, "makeABIWrapper support for wrapping methods not implemented")
 		return
 	}
 
