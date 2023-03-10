@@ -73,6 +73,43 @@ func FuzzInstrumented(goos, goarch string) bool {
 
 // MustLinkExternal reports whether goos/goarch requires external linking.
 func MustLinkExternal(goos, goarch string) bool {
+	return MustLinkExternalGo121(goos, goarch, false)
+}
+
+// MustLinkExternalGo121 reports whether goos/goarch requires external linking,
+// with or without cgo dependencies. [This version back-ported from
+// Go 1.21 as part of a test].
+func MustLinkExternalGo121(goos, goarch string, withCgo bool) bool {
+	if withCgo {
+		switch goarch {
+		case "loong64",
+			"mips", "mipsle", "mips64", "mips64le",
+			"riscv64":
+			// Internally linking cgo is incomplete on some architectures.
+			// https://go.dev/issue/14449
+			return true
+		case "arm64":
+			if goos == "windows" {
+				// windows/arm64 internal linking is not implemented.
+				return true
+			}
+		case "ppc64":
+			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
+			// https://go.dev/issue/8912
+			return true
+		}
+
+		switch goos {
+		case "android":
+			return true
+		case "dragonfly":
+			// It seems that on Dragonfly thread local storage is
+			// set up by the dynamic linker, so internal cgo linking
+			// doesn't work. Test case is "go test runtime/cgo".
+			return true
+		}
+	}
+
 	switch goos {
 	case "android":
 		if goarch != "arm64" {
