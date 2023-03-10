@@ -489,8 +489,11 @@ func readMIMEHeader(r *Reader, lim int64) (MIMEHeader, error) {
 	// large one ahead of time which we'll cut up into smaller
 	// slices. If this isn't big enough later, we allocate small ones.
 	var strs []string
-	hint := r.upcomingHeaderNewlines()
+	hint := r.upcomingHeaderKeys()
 	if hint > 0 {
+		if hint > 1000 {
+			hint = 1000 // set a cap to avoid overallocation
+		}
 		strs = make([]string, hint)
 	}
 
@@ -581,9 +584,9 @@ func mustHaveFieldNameColon(line []byte) error {
 
 var nl = []byte("\n")
 
-// upcomingHeaderNewlines returns an approximation of the number of newlines
+// upcomingHeaderKeys returns an approximation of the number of keys
 // that will be in this header. If it gets confused, it returns 0.
-func (r *Reader) upcomingHeaderNewlines() (n int) {
+func (r *Reader) upcomingHeaderKeys() (n int) {
 	// Try to determine the 'hint' size.
 	r.R.Peek(1) // force a buffer load if empty
 	s := r.R.Buffered()
@@ -591,7 +594,20 @@ func (r *Reader) upcomingHeaderNewlines() (n int) {
 		return
 	}
 	peek, _ := r.R.Peek(s)
-	return bytes.Count(peek, nl)
+	for len(peek) > 0 && n < 1000 {
+		var line []byte
+		line, peek, _ = bytes.Cut(peek, nl)
+		if len(line) == 0 || (len(line) == 1 && line[0] == '\r') {
+			// Blank line separating headers from the body.
+			break
+		}
+		if line[0] == ' ' || line[0] == '\t' {
+			// Folded continuation of the previous line.
+			continue
+		}
+		n++
+	}
+	return n
 }
 
 // CanonicalMIMEHeaderKey returns the canonical format of the
