@@ -12,6 +12,7 @@
 #include "go_tls.h"
 #include "textflag.h"
 #include "asm_ppc64x.h"
+#include "cgo/abi_ppc64x.h"
 
 #define SYS_exit		  1
 #define SYS_read		  3
@@ -633,11 +634,11 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	// The stack unwinder, presumably written in C, may not be able to
 	// handle Go frame correctly. So, this function is NOFRAME, and we
-	// save/restore LR manually.
+	// save/restore LR manually, and obey ELFv2 calling conventions.
 	MOVD	LR, R10
 
-	// We're coming from C code, initialize essential registers.
-	CALL	runtime·reginit(SB)
+	// We're coming from C code, initialize R0
+	MOVD	$0, R0
 
 	// If no traceback function, do usual sigtramp.
 	MOVD	runtime·cgoTraceback(SB), R6
@@ -650,15 +651,18 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	CMP	$0, R6
 	BEQ	sigtramp
 
-	// Set up g register.
-	CALL	runtime·load_g(SB)
+	// Inspect the g in TLS without clobbering R30/R31 via runtime.load_g.
+        MOVD    runtime·tls_g(SB), R9
+        MOVD    0(R9), R9
 
 	// Figure out if we are currently in a cgo call.
 	// If not, just do usual sigtramp.
 	// compared to ARM64 and others.
-	CMP	$0, g
+	CMP	$0, R9
 	BEQ	sigtrampnog // g == nil
-	MOVD	g_m(g), R6
+
+	// g is not nil. Check further.
+	MOVD	g_m(R9), R6
 	CMP	$0, R6
 	BEQ	sigtramp    // g.m == nil
 	MOVW	m_ncgo(R6), R7
@@ -731,13 +735,38 @@ TEXT cgoSigtramp<>(SB),NOSPLIT,$0
 	JMP	sigtramp<>(SB)
 #endif
 
-TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
-	// We're coming from C code, set up essential register, then call sigprofNonGo.
-	CALL	runtime·reginit(SB)
-	MOVW	R3, FIXED_FRAME+0(R1)	// sig
-	MOVD	R4, FIXED_FRAME+8(R1)	// info
-	MOVD	R5, FIXED_FRAME+16(R1)	// ctx
-	CALL	runtime·sigprofNonGo(SB)
+// Used by cgoSigtramp to inspect without clobbering R30/R31 via runtime.load_g.
+GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8
+
+TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT|NOFRAME,$0
+	// This is called from C code. Callee save registers must be saved.
+	// R3,R4,R5 hold arguments.
+	// Save LR into R0 and stack a big frame.
+	MOVD	LR, R0
+	MOVD	R0, 16(R1)
+	MOVW	CR, R0
+	MOVD	R0, 8(R1)
+	// Don't save a back chain pointer when calling into Go. It will be overwritten.
+	// Go stores LR where ELF stores a back chain pointer.
+	ADD	$-(32+SAVE_ALL_REG_SIZE), R1
+
+	SAVE_GPR(32)
+	SAVE_FPR(32+SAVE_GPR_SIZE)
+	SAVE_VR(32+SAVE_GPR_SIZE+SAVE_FPR_SIZE, R6)
+
+	MOVD	$0, R0
+	CALL	runtime·sigprofNonGo<ABIInternal>(SB)
+
+	RESTORE_GPR(32)
+	RESTORE_FPR(32+SAVE_GPR_SIZE)
+	RESTORE_VR(32+SAVE_GPR_SIZE+SAVE_FPR_SIZE, R6)
+
+	// Clear frame, restore LR, return
+	ADD 	$(32+SAVE_ALL_REG_SIZE), R1
+	MOVD	16(R1), R0
+	MOVD	R0, LR
+	MOVD	8(R1), R0
+	MOVW	R0, CR
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
