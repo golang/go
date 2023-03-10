@@ -1947,20 +1947,27 @@ type Conn struct {
 	// it's returned to the connection pool.
 	dc *driverConn
 
-	// done transitions from 0 to 1 exactly once, on close.
+	// done transitions from false to true exactly once, on close.
 	// Once done, all operations fail with ErrConnDone.
-	// Use atomic operations on value when checking value.
-	done int32
+	done atomic.Bool
+
+	// releaseConn is a cache of c.closemuRUnlockCondReleaseConn
+	// to save allocations in a call to grabConn.
+	releaseConnOnce  sync.Once
+	releaseConnCache releaseConn
 }
 
 // grabConn takes a context to implement stmtConnGrabber
 // but the context is not used.
 func (c *Conn) grabConn(context.Context) (*driverConn, releaseConn, error) {
-	if atomic.LoadInt32(&c.done) != 0 {
+	if c.done.Load() {
 		return nil, nil, ErrConnDone
 	}
+	c.releaseConnOnce.Do(func() {
+		c.releaseConnCache = c.closemuRUnlockCondReleaseConn
+	})
 	c.closemu.RLock()
-	return c.dc, c.closemuRUnlockCondReleaseConn, nil
+	return c.dc, c.releaseConnCache, nil
 }
 
 // PingContext verifies the connection to the database is still alive.
@@ -2084,7 +2091,7 @@ func (c *Conn) txCtx() context.Context {
 }
 
 func (c *Conn) close(err error) error {
-	if !atomic.CompareAndSwapInt32(&c.done, 0, 1) {
+	if !c.done.CompareAndSwap(false, true) {
 		return ErrConnDone
 	}
 
