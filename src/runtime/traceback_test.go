@@ -19,6 +19,7 @@ import (
 
 // Test traceback printing of inlined frames.
 func TestTracebackInlined(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t) // This test requires inlining
 	check := func(t *testing.T, r *ttiResult, funcs ...string) {
 		t.Helper()
 
