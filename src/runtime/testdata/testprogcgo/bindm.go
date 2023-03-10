@@ -12,7 +12,6 @@ package main
 /*
 #include <stdint.h>
 #include <pthread.h>
-#include <sched.h>
 #include <unistd.h>
 
 extern void GoCheckBindM();
@@ -22,10 +21,6 @@ extern void GoCheckBindM();
 
 static void* checkBindMThread(void* thread) {
 	int i;
-
-	for (i = 0; i < CTHREADS; i++) {
-		sched_yield(); // Help the threads get started.
-	}
 	for (i = 0; i < CHECKCALLS; i++) {
 		GoCheckBindM((uintptr_t)thread);
 		usleep(1);
@@ -52,29 +47,31 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var (
 	mutex      = sync.Mutex{}
 	cThreadToM = map[uintptr]uintptr{}
-	wg         = sync.WaitGroup{}
-	allStarted = atomic.Bool{}
+	started    = atomic.Uint32{}
 )
 
 // same as CTHREADS in C, make sure all the C threads are actually started.
 const cThreadNum = 2
 
 func init() {
-	wg.Add(cThreadNum)
 	register("EnsureBindM", EnsureBindM)
 }
 
 //export GoCheckBindM
 func GoCheckBindM(thread uintptr) {
-	if !allStarted.Load() {
-		wg.Done()
-		wg.Wait()
-		allStarted.Store(true)
+	// Wait all threads start
+	if started.Load() != cThreadNum {
+		// Only once for each thread, since it will wait all threads start.
+		started.Add(1)
+		for started.Load() < cThreadNum {
+			time.Sleep(1)
+		}
 	}
 	m := runtime_getm_for_test()
 	mutex.Lock()

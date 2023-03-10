@@ -83,7 +83,7 @@ var x_cgo_pthread_key_created byte
 var _cgo_pthread_key_created = &x_cgo_pthread_key_created
 
 // Export crosscall2 to a c function pointer variable.
-// Used to dropm in pthread key destructor, while c thread is exiting.
+// Used to dropm in pthread key destructor, while C thread is exiting.
 
 //go:cgo_import_static x_crosscall2_ptr
 //go:linkname x_crosscall2_ptr x_crosscall2_ptr
