@@ -364,6 +364,8 @@ Script:
 				ok = testing.Short()
 			case "cgo":
 				ok = canCgo
+			case "cgolinkext":
+				ok = mustLinkExternalCgo(runtime.GOOS, runtime.GOARCH, true)
 			case "msan":
 				ok = canMSan
 			case "asan":
@@ -1664,4 +1666,41 @@ func TestDiff(t *testing.T) {
 			t.Errorf("diff(%q, %q) = %q, want %q", text1, text2, out, tt.diff)
 		}
 	}
+}
+
+// copied in from internal/platform.MustLinkExternal on tip.
+func mustLinkExternalCgo(goos, goarch string, withCgo bool) bool {
+	if withCgo {
+		switch goarch {
+		case "loong64",
+			"mips", "mipsle", "mips64", "mips64le",
+			"riscv64":
+			return true
+		case "arm64":
+			if goos == "windows" {
+				return true
+			}
+		case "ppc64":
+			return true
+		}
+
+		switch goos {
+		case "android":
+			return true
+		case "dragonfly":
+			return true
+		}
+	}
+
+	switch goos {
+	case "android":
+		if goarch != "arm64" {
+			return true
+		}
+	case "ios":
+		if goarch == "arm64" {
+			return true
+		}
+	}
+	return false
 }

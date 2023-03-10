@@ -230,32 +230,55 @@ var validLinkerFlagsWithNextArg = []string{
 }
 
 func checkCompilerFlags(name, source string, list []string) error {
-	return checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg)
+	checkOverrides := true
+	return checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
 }
 
 func checkLinkerFlags(name, source string, list []string) error {
-	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg)
+	checkOverrides := true
+	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
 }
 
-func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string) error {
+// checkCompilerFlagsForInternalLink returns an error if 'list'
+// contains a flag or flags that may not be fully supported by
+// internal linking (meaning that we should punt the link to the
+// external linker).
+func checkCompilerFlagsForInternalLink(name, source string, list []string) error {
+	checkOverrides := false
+	if err := checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides); err != nil {
+		return err
+	}
+	// Currently the only flag on the allow list that causes problems
+	// for the linker is "-flto"; check for it manually here.
+	for _, fl := range list {
+		if strings.HasPrefix(fl, "-flto") {
+			return fmt.Errorf("flag %q triggers external linking", fl)
+		}
+	}
+	return nil
+}
+
+func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string, checkOverrides bool) error {
 	// Let users override rules with $CGO_CFLAGS_ALLOW, $CGO_CFLAGS_DISALLOW, etc.
 	var (
 		allow    *regexp.Regexp
 		disallow *regexp.Regexp
 	)
-	if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
-		r, err := regexp.Compile(env)
-		if err != nil {
-			return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
+	if checkOverrides {
+		if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
+			r, err := regexp.Compile(env)
+			if err != nil {
+				return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
+			}
+			allow = r
 		}
-		allow = r
-	}
-	if env := cfg.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
-		r, err := regexp.Compile(env)
-		if err != nil {
-			return fmt.Errorf("parsing $CGO_%s_DISALLOW: %v", name, err)
+		if env := cfg.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
+			r, err := regexp.Compile(env)
+			if err != nil {
+				return fmt.Errorf("parsing $CGO_%s_DISALLOW: %v", name, err)
+			}
+			disallow = r
 		}
-		disallow = r
 	}
 
 Args:
