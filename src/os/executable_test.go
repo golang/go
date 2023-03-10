@@ -89,7 +89,7 @@ func init() {
 }
 
 func TestExecutableDeleted(t *testing.T) {
-	testenv.MustHaveExec(t)
+	testenv.MustHaveGoBuild(t)
 	switch runtime.GOOS {
 	case "windows", "plan9":
 		t.Skipf("%v does not support deleting running binary", runtime.GOOS)
