@@ -4,12 +4,21 @@
 
 package ssa
 
+import "cmd/compile/internal/base"
+
 // tighten moves Values closer to the Blocks in which they are used.
 // This can reduce the amount of register spilling required,
 // if it doesn't also create more live values.
 // A Value can be moved to any block that
 // dominates all blocks in which it is used.
 func tighten(f *Func) {
+	if base.Flag.N != 0 && len(f.Blocks) < 10000 {
+		// Skip the optimization in -N mode, except for huge functions.
+		// Too many values live across blocks can cause pathological
+		// behavior in the register allocator (see issue 52180).
+		return
+	}
+
 	canMove := f.Cache.allocBoolSlice(f.NumValues())
 	defer f.Cache.freeBoolSlice(canMove)
 	for _, b := range f.Blocks {

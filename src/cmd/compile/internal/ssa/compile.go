@@ -496,7 +496,7 @@ var passes = [...]pass{
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
-	{name: "tighten", fn: tighten}, // move values closer to their uses
+	{name: "tighten", fn: tighten, required: true}, // move values closer to their uses
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
 	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
