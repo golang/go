@@ -74,12 +74,10 @@ func mustHaveDisasm(t *testing.T) {
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
 	}
 
-	// Skip PIE platforms, pprof can't disassemble PIE.
-	//
-	// TODO(#58807): factor this condition out into a function in
-	// internal/platform so that it won't get out of sync with cmd/go and
-	// cmd/link.
-	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") || runtime.GOOS == "android" {
+	// pprof can only disassemble PIE on some platforms.
+	// Skip the ones it can't handle yet.
+	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") ||
+		(runtime.GOOS == "android" && runtime.GOARCH == "arm") {
 		t.Skipf("skipping on %s/%s, issue 46639", runtime.GOOS, runtime.GOARCH)
 	}
 }

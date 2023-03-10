@@ -217,3 +217,17 @@ func InternalLinkPIESupported(goos, goarch string) bool {
 	}
 	return false
 }
+
+// DefaultPIE reports whether goos/goarch produces a PIE binary when using the
+// "default" buildmode.
+func DefaultPIE(goos, goarch string) bool {
+	switch goos {
+	case "android", "ios":
+		return true
+	case "windows":
+		return true // but switches back to "exe" if -race is enabled
+	case "darwin":
+		return goarch == "arm64"
+	}
+	return false
+}

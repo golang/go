@@ -8,6 +8,7 @@ import (
 	"debug/dwarf"
 	"debug/pe"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
 	"io"
 	"os"
@@ -891,12 +892,6 @@ func TestRuntimeTypeAttrInternal(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	// TODO(#58807): factor this condition out into a function in
-	// internal/platform so that it won't get out of sync with cmd/link.
-	if runtime.GOOS == "android" || runtime.GOOS == "windows" {
-		t.Skipf("skipping on %s; test is incompatible with relocatable binaries", runtime.GOOS)
-	}
-
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
 }
 
@@ -912,10 +907,6 @@ func TestRuntimeTypeAttrExternal(t *testing.T) {
 	// Explicitly test external linking, for dsymutil compatibility on Darwin.
 	if runtime.GOARCH == "ppc64" {
 		t.Skip("-linkmode=external not supported on ppc64")
-	}
-
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
 	}
 
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
@@ -985,9 +976,7 @@ func main() {
 		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
 	}
 
-	// TODO(#58807): factor this condition out into a function in
-	// internal/platform so that it won't get out of sync with cmd/link.
-	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") || runtime.GOOS == "android" {
+	if platform.DefaultPIE(runtime.GOOS, runtime.GOARCH) {
 		return // everything is PIE, addresses are relocated
 	}
 	if rtAttr.(uint64)+types.Addr != addr {

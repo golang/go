@@ -6,6 +6,7 @@ package main
 
 import (
 	"internal/obscuretestdata"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -165,19 +166,9 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
 				return true
 			}
 		}
-		// Code is always relocated if the default buildmode is PIE.
-		//
-		// TODO(#58807): factor this condition out into a function in
-		// internal/platform so that it won't get out of sync with cmd/go and
-		// cmd/link.
-		if runtime.GOOS == "android" {
+		if platform.DefaultPIE(runtime.GOOS, runtime.GOARCH) {
+			// Code is always relocated if the default buildmode is PIE.
 			return true
-		}
-		if runtime.GOOS == "windows" {
-			return true
-		}
-		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
-			return true // On darwin/arm64 everything is PIE
 		}
 		return false
 	}
