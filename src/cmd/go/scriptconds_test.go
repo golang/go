@@ -49,6 +49,7 @@ func scriptConditions() map[string]script.Cond {
 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
 	add("mismatched-goroot", script.Condition("test's GOROOT_FINAL does not match the real GOROOT", isMismatchedGoroot))
 	add("msan", sysCondition("-msan", platform.MSanSupported, true))
+	add("cgolinkext", script.BoolCondition("platform requires external linking for cgo", platform.MustLinkExternal(cfg.Goos, cfg.Goarch, true)))
 	add("net", lazyBool("testenv.HasExternalNetwork()", testenv.HasExternalNetwork))
 	add("race", sysCondition("-race", platform.RaceDetectorSupported, true))
 	add("symlink", lazyBool("testenv.HasSymlink()", testenv.HasSymlink))

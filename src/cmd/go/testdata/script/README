@@ -382,6 +382,8 @@ The available conditions are:
 	$WORK filesystem is case-sensitive
 [cgo]
 	host CGO_ENABLED
+[cgolinkext]
+	platform requires external linking for cgo
 [compiler:*]
 	runtime.Compiler == <suffix>
 [cross]

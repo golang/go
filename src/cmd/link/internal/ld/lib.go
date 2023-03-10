@@ -341,6 +341,12 @@ var (
 	// any of these objects, we must link externally. Issue 52863.
 	dynimportfail []string
 
+	// preferlinkext is a list of packages for which the Go command
+	// noticed use of peculiar C flags. If we see any of these,
+	// default to linking externally unless overridden by the
+	// user. See issues #58619, #58620, and #58848.
+	preferlinkext []string
+
 	// unknownObjFormat is set to true if we see an object whose
 	// format we don't recognize.
 	unknownObjFormat = false
@@ -1085,6 +1091,13 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
 
 		if arhdr.name == "dynimportfail" {
 			dynimportfail = append(dynimportfail, lib.Pkg)
+		}
+		if arhdr.name == "preferlinkext" {
+			// Ignore this directive if -linkmode has been
+			// set explicitly.
+			if ctxt.LinkMode == LinkAuto {
+				preferlinkext = append(preferlinkext, lib.Pkg)
+			}
 		}
 
 		// Skip other special (non-object-file) sections that

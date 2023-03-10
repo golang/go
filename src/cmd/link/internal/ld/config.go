@@ -198,7 +198,11 @@ func determineLinkMode(ctxt *Link) {
 			ctxt.LinkMode = LinkExternal
 			via = "via GO_EXTLINK_ENABLED "
 		default:
-			if extNeeded || (iscgo && externalobj) {
+			preferExternal := len(preferlinkext) != 0
+			if preferExternal && ctxt.Debugvlog > 0 {
+				ctxt.Logf("external linking prefer list is %v\n", preferlinkext)
+			}
+			if extNeeded || (iscgo && (externalobj || preferExternal)) {
 				ctxt.LinkMode = LinkExternal
 			} else {
 				ctxt.LinkMode = LinkInternal
