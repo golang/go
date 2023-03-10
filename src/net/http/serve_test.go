@@ -6756,3 +6756,37 @@ func testHeadBody(t *testing.T, mode testMode, chunked bool, method string) {
 		}
 	}
 }
+
+// TestContentLengthResponseCanBeNilled verifies that the Content-Length is set by default
+// or disabled when the header is set to nil.
+func TestDisableContentLength(t *testing.T) { run(t, testDisableContentLength) }
+func testDisableContentLength(t *testing.T, mode testMode) {
+	if mode == http2Mode {
+		t.Skip("skipping until h2_bundle.go is updated; see https://go-review.googlesource.com/c/net/+/471535")
+	}
+
+	noCL := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header()["Content-Length"] = nil // disable the default Content-Length response
+		fmt.Fprintf(w, "OK")
+	}))
+
+	res, err := noCL.c.Get(noCL.ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if got, haveCL := res.Header["Content-Length"]; haveCL {
+		t.Errorf("Unexpected Content-Length: %q", got)
+	}
+
+	withCL := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "OK")
+	}))
+
+	res, err = withCL.c.Get(withCL.ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if got := res.Header.Get("Content-Length"); got != "2" {
+		t.Errorf("Content-Length: %q; want 2", got)
+	}
+}
