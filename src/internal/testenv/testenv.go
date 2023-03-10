@@ -45,12 +45,61 @@ func HasGoBuild() bool {
 		// run go build.
 		return false
 	}
-	switch runtime.GOOS {
-	case "android", "js", "ios", "wasip1":
+
+	if !HasExec() {
+		// If we can't exec anything at all, we certainly can't exec 'go build'.
 		return false
 	}
+
+	if platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, false) {
+		// We can assume that we always have a complete Go toolchain available.
+		// However, this platform requires a C linker to build even pure Go
+		// programs, including tests. Do we have one in the test environment?
+		// (On Android, for example, the device running the test might not have a
+		// C toolchain installed.)
+		//
+		// If CC is set explicitly, assume that we do. Otherwise, use 'go env CC'
+		// to determine which toolchain it would use by default.
+		if os.Getenv("CC") == "" {
+			if _, err := findCC(); err != nil {
+				return false
+			}
+		}
+	}
+
 	return true
 }
+
+func findCC() (string, error) {
+	ccOnce.Do(func() {
+		goTool, err := findGoTool()
+		if err != nil {
+			ccErr = err
+			return
+		}
+
+		cmd := exec.Command(goTool, "env", "CC")
+		out, err := cmd.Output()
+		out = bytes.TrimSpace(out)
+		if err != nil {
+			ccErr = fmt.Errorf("%v: %w", cmd, err)
+			return
+		} else if len(out) == 0 {
+			ccErr = fmt.Errorf("%v: no CC reported", cmd)
+			return
+		}
+
+		cc := string(out)
+		ccPath, ccErr = exec.LookPath(cc)
+	})
+	return ccPath, ccErr
+}
+
+var (
+	ccOnce sync.Once
+	ccPath string
+	ccErr  error
+)
 
 // MustHaveGoBuild checks that the current system can build programs with “go build”
 // and then run them with os.StartProcess or exec.Command.
@@ -212,11 +261,15 @@ func GOROOT(t testing.TB) string {
 
 // GoTool reports the path to the Go tool.
 func GoTool() (string, error) {
+	if !HasGoBuild() {
+		return "", errors.New("platform cannot run go tool")
+	}
+	return findGoTool()
+}
+
+func findGoTool() (string, error) {
 	goToolOnce.Do(func() {
 		goToolPath, goToolErr = func() (string, error) {
-			if !HasGoBuild() {
-				return "", errors.New("platform cannot run go tool")
-			}
 			var exeSuffix string
 			if runtime.GOOS == "windows" {
 				exeSuffix = ".exe"
