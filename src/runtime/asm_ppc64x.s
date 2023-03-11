@@ -545,6 +545,43 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 #define asmcgocallSaveOffset cgoCalleeStackSize
 #endif
 
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVD	fn+0(FP), R3
+	MOVD	arg+8(FP), R4
+
+	MOVD	R1, R15
+	SUB	$(asmcgocallSaveOffset+8), R1
+	RLDCR	$0, R1, $~15, R1	// 16-byte alignment for gcc ABI
+	MOVD	R15, asmcgocallSaveOffset(R1)
+
+	MOVD	R0, 0(R1)	// clear back chain pointer (TODO can we give it real back trace information?)
+
+	// This is a "global call", so put the global entry point in r12
+	MOVD	R3, R12
+
+#ifdef GO_PPC64X_HAS_FUNCDESC
+	// Load the real entry address from the first slot of the function descriptor.
+	MOVD	8(R12), R2
+	MOVD	(R12), R12
+#endif
+	MOVD	R12, CTR
+	MOVD	R4, R3		// arg in r3
+	BL	(CTR)
+
+	// C code can clobber R0, so set it back to 0. F27-F31 are
+	// callee save, so we don't need to recover those.
+	XOR	R0, R0
+
+	MOVD	asmcgocallSaveOffset(R1), R1	// Restore stack pointer.
+#ifndef GOOS_aix
+	MOVD	24(R1), R2
+#endif
+
+	RET
+
 // func asmcgocall(fn, arg unsafe.Pointer) int32
 // Call fn(arg) on the scheduler stack,
 // aligned appropriately for the gcc ABI.
@@ -677,9 +714,11 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 
 loadg:
 	// Load m and g from thread-local storage.
+#ifndef GOOS_openbsd
 	MOVBZ	runtime·iscgo(SB), R3
 	CMP	R3, $0
 	BEQ	nocgo
+#endif
 	BL	runtime·load_g(SB)
 nocgo:
 
