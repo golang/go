@@ -6,11 +6,6 @@ package json
 
 import "bytes"
 
-// TODO(https://go.dev/issue/53685): Use bytes.Buffer.AvailableBuffer instead.
-func availableBuffer(b *bytes.Buffer) []byte {
-	return b.Bytes()[b.Len():]
-}
-
 // HTMLEscape appends to dst the JSON-encoded src with <, >, &, U+2028 and U+2029
 // characters inside string literals changed to \u003c, \u003e, \u0026, \u2028, \u2029
 // so that the JSON will be safe to embed inside HTML <script> tags.
@@ -18,7 +13,7 @@ func availableBuffer(b *bytes.Buffer) []byte {
 // escaping within <script> tags, so an alternative JSON encoding must be used.
 func HTMLEscape(dst *bytes.Buffer, src []byte) {
 	dst.Grow(len(src))
-	dst.Write(appendHTMLEscape(availableBuffer(dst), src))
+	dst.Write(appendHTMLEscape(dst.AvailableBuffer(), src))
 }
 
 func appendHTMLEscape(dst, src []byte) []byte {
@@ -45,7 +40,7 @@ func appendHTMLEscape(dst, src []byte) []byte {
 // insignificant space characters elided.
 func Compact(dst *bytes.Buffer, src []byte) error {
 	dst.Grow(len(src))
-	b := availableBuffer(dst)
+	b := dst.AvailableBuffer()
 	b, err := appendCompact(b, src, false)
 	dst.Write(b)
 	return err
@@ -114,7 +109,7 @@ const indentGrowthFactor = 2
 // if src ends in a trailing newline, so will dst.
 func Indent(dst *bytes.Buffer, src []byte, prefix, indent string) error {
 	dst.Grow(indentGrowthFactor * len(src))
-	b := availableBuffer(dst)
+	b := dst.AvailableBuffer()
 	b, err := appendIndent(b, src, prefix, indent)
 	dst.Write(b)
 	return err
