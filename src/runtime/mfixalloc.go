@@ -13,7 +13,7 @@ import (
 	"unsafe"
 )
 
-// FixAlloc is a simple free-list allocator for fixed size objects.
+// fixalloc is a simple free-list allocator for fixed size objects.
 // Malloc uses a FixAlloc wrapped around sysAlloc to manage its
 // mcache and mspan objects.
 //

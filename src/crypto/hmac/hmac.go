@@ -35,7 +35,7 @@ import (
 // opad = 0x5c byte repeated for key length
 // hmac = H([key ^ opad] H([key ^ ipad] text))
 
-// Marshalable is the combination of encoding.BinaryMarshaler and
+// marshalable is the combination of encoding.BinaryMarshaler and
 // encoding.BinaryUnmarshaler. Their method definitions are repeated here to
 // avoid a dependency on the encoding package.
 type marshalable interface {
