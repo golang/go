@@ -1860,16 +1860,26 @@ func TestZoneBounds(t *testing.T) {
 		5: {Date(1991, September, 14, 17, 0, 0, 0, loc), boundTwo, boundThree},
 		6: {Date(1991, September, 15, 0, 50, 0, 0, loc), boundTwo, boundThree},
 
+		// The ZoneBounds of a "Asia/Shanghai" after the last transition (Standard Time)
+		7:  {boundThree, boundThree, Time{}},
+		8:  {Date(1991, December, 15, 1, 50, 0, 0, loc), boundThree, Time{}},
+		9:  {Date(1992, April, 13, 17, 50, 0, 0, loc), boundThree, Time{}},
+		10: {Date(1992, April, 13, 18, 0, 0, 0, loc), boundThree, Time{}},
+		11: {Date(1992, April, 14, 1, 50, 0, 0, loc), boundThree, Time{}},
+		12: {Date(1992, September, 14, 16, 50, 0, 0, loc), boundThree, Time{}},
+		13: {Date(1992, September, 14, 17, 0, 0, 0, loc), boundThree, Time{}},
+		14: {Date(1992, September, 15, 0, 50, 0, 0, loc), boundThree, Time{}},
+
 		// The ZoneBounds of a local time would return two local Time.
 		// Note: We preloaded "America/Los_Angeles" as time.Local for testing
-		7:  {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
-		8:  {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
-		9:  {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
-		10: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		11: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		12: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		13: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		14: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
+		15: {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
+		16: {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
+		17: {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
+		18: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		19: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		20: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		21: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
+		22: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
 	}
 	for i, tt := range realTests {
 		start, end := tt.giveTime.ZoneBounds()
