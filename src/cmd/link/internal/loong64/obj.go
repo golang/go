@@ -19,6 +19,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Minalign:         minAlign,
 		Dwarfregsp:       dwarfRegSP,
 		Dwarfreglr:       dwarfRegLR,
+		CodePad:          []byte{0x00, 0x00, 0x2a, 0x00}, // BREAK 0
 		Adddynrel:        adddynrel,
 		Archinit:         archinit,
 		Archreloc:        archreloc,
