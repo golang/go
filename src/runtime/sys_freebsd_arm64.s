@@ -295,14 +295,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-#ifdef GOEXPERIMENT_regabiargs
 	// Restore signum to R0.
 	MOVW	8(RSP), R0
 	// R1 and R2 already contain info and ctx, respectively.
-#else
-	MOVD	R1, 16(RSP)
-	MOVD	R2, 24(RSP)
-#endif
 	MOVD	$runtime·sigtrampgo<ABIInternal>(SB), R3
 	BL	(R3)
 
