@@ -45,9 +45,9 @@ import "C"
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 var (
@@ -70,7 +70,7 @@ func GoCheckBindM(thread uintptr) {
 		// Only once for each thread, since it will wait all threads start.
 		started.Add(1)
 		for started.Load() < cThreadNum {
-			time.Sleep(1)
+			runtime.Gosched()
 		}
 	}
 	m := runtime_getm_for_test()

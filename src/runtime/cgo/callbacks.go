@@ -92,6 +92,7 @@ var x_crosscall2_ptr byte
 var _crosscall2_ptr = &x_crosscall2_ptr
 
 // Set the x_crosscall2_ptr C function pointer variable point to crosscall2.
+// It's for the runtime package to call at init time.
 func set_crosscall2()
 
 //go:linkname _set_crosscall2 runtime.set_crosscall2
