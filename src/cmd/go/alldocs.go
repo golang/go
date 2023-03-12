@@ -2098,9 +2098,9 @@
 // # Environment variables
 //
 // The go command and the tools it invokes consult environment variables
-// for configuration. If an environment variable is unset, the go command
-// uses a sensible default setting. To see the effective setting of the
-// variable <NAME>, run 'go env <NAME>'. To change the default setting,
+// for configuration. If an environment variable is unset or empty, the go
+// command uses a sensible default setting. To see the effective setting of
+// the variable <NAME>, run 'go env <NAME>'. To change the default setting,
 // run 'go env -w <NAME>=<VALUE>'. Defaults changed using 'go env -w'
 // are recorded in a Go environment configuration file stored in the
 // per-user configuration directory, as reported by os.UserConfigDir.
