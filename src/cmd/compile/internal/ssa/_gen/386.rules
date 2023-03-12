@@ -56,8 +56,12 @@
 (Sqrt ...) => (SQRTSD ...)
 (Sqrt32 ...) => (SQRTSS ...)
 
+(Ctz8 x) => (BSFL (ORLconst <typ.UInt32> [0x100] x))
+(Ctz8NonZero ...) => (BSFL ...)
 (Ctz16 x) => (BSFL (ORLconst <typ.UInt32> [0x10000] x))
 (Ctz16NonZero ...) => (BSFL ...)
+(Ctz32 ...) => (LoweredCtz32 ...)
+(Ctz32NonZero ...) => (BSFL ...)
 
 // Lowering extension
 (SignExt8to16  ...) => (MOVBLSX ...)

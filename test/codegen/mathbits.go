@@ -293,6 +293,7 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
 func TrailingZeros(n uint) int {
 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// amd64/v3:"TZCNTQ"
+	// 386:"BSFL"
 	// arm:"CLZ"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
@@ -305,6 +306,7 @@ func TrailingZeros(n uint) int {
 func TrailingZeros64(n uint64) int {
 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
 	// amd64/v3:"TZCNTQ"
+	// 386:"BSFL"
 	// arm64:"RBIT","CLZ"
 	// s390x:"FLOGR"
 	// ppc64x/power8:"ANDN","POPCNTD"
@@ -322,6 +324,7 @@ func TrailingZeros64Subtract(n uint64) int {
 func TrailingZeros32(n uint32) int {
 	// amd64/v1,amd64/v2:"BTSQ\\t\\$32","BSFQ"
 	// amd64/v3:"TZCNTL"
+	// 386:"BSFL"
 	// arm:"CLZ"
 	// arm64:"RBITW","CLZW"
 	// s390x:"FLOGR","MOVWZ"
@@ -345,6 +348,7 @@ func TrailingZeros16(n uint16) int {
 
 func TrailingZeros8(n uint8) int {
 	// amd64:"BSFL","BTSL\\t\\$8"
+	// 386:"BSFL"
 	// arm:"ORR\t\\$256","CLZ",-"MOVBU\tR"
 	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"
 	// s390x:"FLOGR","OR\t\\$256"

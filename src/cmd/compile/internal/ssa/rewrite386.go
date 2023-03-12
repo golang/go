@@ -315,6 +315,17 @@ func rewriteValue386(v *Value) bool {
 	case OpCtz16NonZero:
 		v.Op = Op386BSFL
 		return true
+	case OpCtz32:
+		v.Op = Op386LoweredCtz32
+		return true
+	case OpCtz32NonZero:
+		v.Op = Op386BSFL
+		return true
+	case OpCtz8:
+		return rewriteValue386_OpCtz8(v)
+	case OpCtz8NonZero:
+		v.Op = Op386BSFL
+		return true
 	case OpCvt32Fto32:
 		v.Op = Op386CVTTSS2SL
 		return true
@@ -8522,6 +8533,22 @@ func rewriteValue386_OpCtz16(v *Value) bool {
 		v.reset(Op386BSFL)
 		v0 := b.NewValue0(v.Pos, Op386ORLconst, typ.UInt32)
 		v0.AuxInt = int32ToAuxInt(0x10000)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue386_OpCtz8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Ctz8 x)
+	// result: (BSFL (ORLconst <typ.UInt32> [0x100] x))
+	for {
+		x := v_0
+		v.reset(Op386BSFL)
+		v0 := b.NewValue0(v.Pos, Op386ORLconst, typ.UInt32)
+		v0.AuxInt = int32ToAuxInt(0x100)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true

@@ -456,6 +456,7 @@ const (
 	Op386NOTL
 	Op386BSFL
 	Op386BSFW
+	Op386LoweredCtz32
 	Op386BSRL
 	Op386BSRW
 	Op386BSWAPL
@@ -5025,6 +5026,20 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		clobberFlags: true,
 		asm:          x86.ABSFW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+			outputs: []outputInfo{
+				{0, 239}, // AX CX DX BX BP SI DI
+			},
+		},
+	},
+	{
+		name:         "LoweredCtz32",
+		argLen:       1,
+		clobberFlags: true,
+		asm:          x86.ABSFL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 239}, // AX CX DX BX BP SI DI
