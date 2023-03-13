@@ -1727,3 +1727,9 @@ func FrameStartLine(f *Frame) int {
 func PersistentAlloc(n uintptr) unsafe.Pointer {
 	return persistentalloc(n, 0, &memstats.other_sys)
 }
+
+// FPCallers works like Callers and uses frame pointer unwinding to populate
+// pcBuf with the return addresses of the physical frames on the stack.
+func FPCallers(skip int, pcBuf []uintptr) int {
+	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf)
+}

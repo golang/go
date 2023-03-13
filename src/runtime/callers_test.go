@@ -430,3 +430,23 @@ func callersNoCache(b *testing.B, n int) int {
 		return 1 + callersNoCache(b, n-1)
 	}
 }
+
+func BenchmarkFPCallers(b *testing.B) {
+	b.Run("cached", func(b *testing.B) {
+		// Very pcvalueCache-friendly, no inlining.
+		fpCallersCached(b, 100)
+	})
+}
+
+func fpCallersCached(b *testing.B, n int) int {
+	if n <= 0 {
+		pcs := make([]uintptr, 32)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			runtime.FPCallers(0, pcs)
+		}
+		b.StopTimer()
+		return 0
+	}
+	return 1 + fpCallersCached(b, n-1)
+}
