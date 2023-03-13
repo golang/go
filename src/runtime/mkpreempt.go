@@ -481,6 +481,12 @@ func genLoong64() {
 		l.add(movf, reg, regsize)
 	}
 
+	// save/restore FCC0
+	l.addSpecial(
+		mov+" FCC0, R4\n"+mov+" R4, %d(R3)",
+		mov+" %d(R3), R4\n"+mov+" R4, FCC0",
+		regsize)
+
 	// allocate frame, save PC of interrupted instruction (in LR)
 	p(mov+" R1, -%d(R3)", l.stack)
 	p(sub+" $%d, R3", l.stack)
