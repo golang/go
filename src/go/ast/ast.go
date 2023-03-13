@@ -1046,6 +1046,7 @@ type File struct {
 	Imports            []*ImportSpec   // imports in this file
 	Unresolved         []*Ident        // unresolved identifiers in this file
 	Comments           []*CommentGroup // list of all comments in the source file
+	GoVersion          string          // minimum Go version required by //go:build or // +build directives
 }
 
 // Pos returns the position of the package declaration.
