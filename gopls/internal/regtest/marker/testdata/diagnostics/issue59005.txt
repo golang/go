@@ -1,0 +1,20 @@
+This test verifies that we don't drop type checking errors on the floor when we
+fail to compute positions for their related errors.
+
+-- go.mod --
+module play.ground
+
+-- p.go --
+package p
+
+import (
+	. "play.ground/foo"
+)
+
+const C = 1 //@diag("C", re"C already declared through dot-import")
+var _ = C
+
+-- foo/foo.go --
+package foo
+
+const C = 2

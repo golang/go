@@ -135,7 +135,13 @@ func typeErrorDiagnostics(moduleMode bool, linkTarget string, pkg *syntaxPackage
 	for _, secondary := range e.secondaries {
 		_, secondaryLoc, err := typeErrorData(pkg, secondary)
 		if err != nil {
-			return nil, err
+			// We may not be able to compute type error data in scenarios where the
+			// secondary position is outside of the current package. In this case, we
+			// don't want to ignore the diagnostic entirely.
+			//
+			// See golang/go#59005 for an example where gopls was missing diagnostics
+			// due to returning an error here.
+			continue
 		}
 		diag.Related = append(diag.Related, protocol.DiagnosticRelatedInformation{
 			Location: secondaryLoc,

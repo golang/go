@@ -880,7 +880,11 @@ func typeCheckImpl(ctx context.Context, b *typeCheckBatch, inputs typeCheckInput
 	for _, e := range expandErrors(unexpanded, inputs.relatedInformation) {
 		diags, err := typeErrorDiagnostics(inputs.moduleMode, inputs.linkTarget, pkg, e)
 		if err != nil {
-			event.Error(ctx, "unable to compute positions for type errors", err, tag.Package.Of(string(inputs.id)))
+			// If we fail here and there are no parse errors, it means we are hiding
+			// a valid type-checking error from the user. This must be a bug.
+			if len(pkg.parseErrors) == 0 {
+				bug.Reportf("failed to compute position for type error %v: %v", e, err)
+			}
 			continue
 		}
 		pkg.typeErrors = append(pkg.typeErrors, e.primary)
