@@ -200,8 +200,11 @@ There must be no spaces between markers. Within marked text,
 a single marker character becomes a space and a doubled single
 marker quotes the marker character.
 
-Links can be included in any text with the form [[url][label]], or
-[[url]] to use the URL itself as the label.
+Links can be included in any text with either explicit labels
+or the URL itself as the label. For example:
+
+	[[url][label]]
+	[[url]]
 
 # Command Invocations
 
