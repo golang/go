@@ -780,3 +780,23 @@ func TestIssue59180(t *testing.T) {
 		}
 	}
 }
+
+func TestGoVersion(t *testing.T) {
+	fset := token.NewFileSet()
+	pkgs, err := ParseDir(fset, "./testdata/goversion", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, p := range pkgs {
+		want := strings.ReplaceAll(p.Name, "_", ".")
+		if want == "none" {
+			want = ""
+		}
+		for _, f := range p.Files {
+			if f.GoVersion != want {
+				t.Errorf("%s: GoVersion = %q, want %q", fset.Position(f.Pos()), f.GoVersion, want)
+			}
+		}
+	}
+}

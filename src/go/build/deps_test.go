@@ -263,13 +263,15 @@ var depsRules = `
 	< go/token
 	< go/scanner
 	< go/ast
-	< go/internal/typeparams
-	< go/parser;
+	< go/internal/typeparams;
 
 	FMT
 	< go/build/constraint, go/doc/comment;
 
-	go/build/constraint, go/doc/comment, go/parser, text/tabwriter
+	go/internal/typeparams, go/build/constraint
+	< go/parser;
+
+	go/doc/comment, go/parser, text/tabwriter
 	< go/printer
 	< go/format;
 

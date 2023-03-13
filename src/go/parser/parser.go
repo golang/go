@@ -18,9 +18,11 @@ package parser
 import (
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/internal/typeparams"
 	"go/scanner"
 	"go/token"
+	"strings"
 )
 
 // The parser structure holds the parser's internal state.
@@ -38,6 +40,8 @@ type parser struct {
 	comments    []*ast.CommentGroup
 	leadComment *ast.CommentGroup // last lead comment
 	lineComment *ast.CommentGroup // last line comment
+	top         bool              // in top of file (before package clause)
+	goVersion   string            // minimum Go version found in //go:build comment
 
 	// Next token
 	pos token.Pos   // token position
@@ -64,13 +68,10 @@ type parser struct {
 
 func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode) {
 	p.file = fset.AddFile(filename, -1, len(src))
-	var m scanner.Mode
-	if mode&ParseComments != 0 {
-		m = scanner.ScanComments
-	}
 	eh := func(pos token.Position, msg string) { p.errors.Add(pos, msg) }
-	p.scanner.Init(p.file, src, eh, m)
+	p.scanner.Init(p.file, src, eh, scanner.ScanComments)
 
+	p.top = true
 	p.mode = mode
 	p.trace = mode&Trace != 0 // for convenience (p.trace is used frequently)
 	p.next()
@@ -142,7 +143,23 @@ func (p *parser) next0() {
 		}
 	}
 
-	p.pos, p.tok, p.lit = p.scanner.Scan()
+	for {
+		p.pos, p.tok, p.lit = p.scanner.Scan()
+		if p.tok == token.COMMENT {
+			if p.top && strings.HasPrefix(p.lit, "//go:build") {
+				if x, err := constraint.Parse(p.lit); err == nil {
+					p.goVersion = constraint.GoVersion(x)
+				}
+			}
+			if p.mode&ParseComments == 0 {
+				continue
+			}
+		} else {
+			// Found a non-comment; top of file is over.
+			p.top = false
+		}
+		break
+	}
 }
 
 // Consume a comment and return it and the line on which it ends.
@@ -2851,6 +2868,7 @@ func (p *parser) parseFile() *ast.File {
 		FileEnd:   token.Pos(p.file.Base() + p.file.Size()),
 		Imports:   p.imports,
 		Comments:  p.comments,
+		GoVersion: p.goVersion,
 	}
 	var declErr func(token.Pos, string)
 	if p.mode&DeclarationErrors != 0 {
