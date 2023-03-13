@@ -417,7 +417,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 				t = (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
 			}
 		}
-		if t > 0x7fffff || t < -0x800000 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+		if t > 0x7fffff || t <= -0x800000 || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			// direct call too far, need to insert trampoline.
 			// look up existing trampolines first. if we found one within the range
 			// of direct call, we can reuse it. otherwise create a new one.
