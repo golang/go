@@ -532,6 +532,10 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		return errors.New("binary-only packages are no longer supported")
 	}
 
+	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+		return errors.New("module requires Go " + p.Module.GoVersion + " or later")
+	}
+
 	if err := b.checkDirectives(a); err != nil {
 		return err
 	}
@@ -853,10 +857,6 @@ OverlayLoop:
 	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, gofiles)
 	if len(out) > 0 {
 		output := b.processOutput(out)
-		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
-			output += "note: module requires Go " + p.Module.GoVersion + "\n"
-		}
-
 		if err != nil {
 			return formatOutput(b.WorkDir, p.Dir, p.ImportPath, p.Desc(), output)
 		} else {
@@ -864,9 +864,6 @@ OverlayLoop:
 		}
 	}
 	if err != nil {
-		if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
-			b.showOutput(a, p.Dir, p.Desc(), "note: module requires Go "+p.Module.GoVersion+"\n")
-		}
 		return err
 	}
 	if ofile != objpkg {
