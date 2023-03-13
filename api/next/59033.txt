@@ -1,0 +1,2 @@
+pkg go/build/constraint, func GoVersion(Expr) string #59033
+
