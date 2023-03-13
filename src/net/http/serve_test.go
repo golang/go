@@ -35,7 +35,6 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -827,15 +826,7 @@ func testWriteDeadlineExtendedOnNewRequest(t *testing.T, mode testMode) {
 			t.Fatal(err)
 		}
 
-		// fail test if no response after 1 second
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-		defer cancel()
-		req = req.WithContext(ctx)
-
 		r, err := c.Do(req)
-		if ctx.Err() == context.DeadlineExceeded {
-			t.Fatalf("http2 Get #%d response timed out", i)
-		}
 		if err != nil {
 			t.Fatalf("http2 Get #%d: %v", i, err)
 		}
@@ -988,25 +979,19 @@ func testOnlyWriteTimeout(t *testing.T, mode testMode) {
 
 	c := ts.Client()
 
-	errc := make(chan error, 1)
-	go func() {
+	err := func() error {
 		res, err := c.Get(ts.URL)
 		if err != nil {
-			errc <- err
-			return
+			return err
 		}
 		_, err = io.Copy(io.Discard, res.Body)
 		res.Body.Close()
-		errc <- err
+		return err
 	}()
-	select {
-	case err := <-errc:
-		if err == nil {
-			t.Errorf("expected an error from Get request")
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for Get error")
+	if err == nil {
+		t.Errorf("expected an error copying body from Get request")
 	}
+
 	if err := <-afterTimeoutErrc; err == nil {
 		t.Error("expected write error after timeout")
 	}
@@ -1133,21 +1118,10 @@ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
 		t.Fatal("ReadResponse error:", err)
 	}
 
-	didReadAll := make(chan bool, 1)
-	go func() {
-		select {
-		case <-time.After(5 * time.Second):
-			t.Error("body not closed after 5s")
-			return
-		case <-didReadAll:
-		}
-	}()
-
 	_, err = io.ReadAll(r)
 	if err != nil {
 		t.Fatal("read error:", err)
 	}
-	didReadAll <- true
 
 	if !res.Close {
 		t.Errorf("Response.Close = false; want true")
@@ -1323,7 +1297,6 @@ func testServerAllowsBlockingRemoteAddr(t *testing.T, mode testMode) {
 	}).ts
 
 	c := ts.Client()
-	c.Timeout = time.Second
 	// Force separate connection for each:
 	c.Transport.(*Transport).DisableKeepAlives = true
 
@@ -1526,8 +1499,6 @@ func TestServeTLS(t *testing.T) {
 	case err := <-errc:
 		t.Fatalf("ServeTLS: %v", err)
 	case <-serving:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout")
 	}
 
 	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
@@ -2820,18 +2791,7 @@ func testHandlerPanic(t *testing.T, withHijack bool, mode testMode, wrapper func
 		return
 	}
 
-	var delay time.Duration
-	if deadline, ok := t.Deadline(); ok {
-		delay = time.Until(deadline)
-	} else {
-		delay = 5 * time.Second
-	}
-	select {
-	case <-done:
-		return
-	case <-time.After(delay):
-		t.Fatal("expected server handler to log an error")
-	}
+	<-done
 }
 
 type terrorWriter struct{ t *testing.T }
@@ -2871,11 +2831,7 @@ func testServerWriteHijackZeroBytes(t *testing.T, mode testMode) {
 		t.Fatal(err)
 	}
 	res.Body.Close()
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout")
-	}
+	<-done
 }
 
 func TestServerNoDate(t *testing.T) {
@@ -3238,8 +3194,6 @@ For:
 			diec <- true
 		case <-sawClose:
 			break For
-		case <-time.After(5 * time.Second):
-			t.Fatal("timeout")
 		}
 	}
 	ts.Close()
@@ -3295,9 +3249,6 @@ func testCloseNotifierPipelined(t *testing.T, mode testMode) {
 			if closes > 1 {
 				return
 			}
-		case <-time.After(5 * time.Second):
-			ts.CloseClientConnections()
-			t.Fatal("timeout")
 		}
 	}
 }
@@ -3408,12 +3359,8 @@ func testHijackBeforeRequestBodyRead(t *testing.T, mode testMode) {
 			return
 		}
 		bodyOkay <- true
-		select {
-		case <-gone:
-			gotCloseNotify <- true
-		case <-time.After(5 * time.Second):
-			gotCloseNotify <- false
-		}
+		<-gone
+		gotCloseNotify <- true
 	})).ts
 
 	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
@@ -3429,9 +3376,7 @@ func testHijackBeforeRequestBodyRead(t *testing.T, mode testMode) {
 		return
 	}
 	conn.Close()
-	if !<-gotCloseNotify {
-		t.Error("timeout waiting for CloseNotify")
-	}
+	<-gotCloseNotify
 }
 
 func TestOptions(t *testing.T) { run(t, testOptions, []testMode{http1Mode}) }
@@ -3507,13 +3452,8 @@ func testOptionsHandler(t *testing.T, mode testMode) {
 		t.Fatal(err)
 	}
 
-	select {
-	case got := <-rc:
-		if got.Method != "OPTIONS" || got.RequestURI != "*" {
-			t.Errorf("Expected OPTIONS * request, got %v", got)
-		}
-	case <-time.After(5 * time.Second):
-		t.Error("timeout")
+	if got := <-rc; got.Method != "OPTIONS" || got.RequestURI != "*" {
+		t.Errorf("Expected OPTIONS * request, got %v", got)
 	}
 }
 
@@ -3985,8 +3925,6 @@ func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
 		}
 		<-unblockBackend
 	}))
-	var quitTimer *time.Timer
-	defer func() { quitTimer.Stop() }()
 	defer backend.close()
 
 	backendRespc := make(chan *Response, 1)
@@ -4019,20 +3957,6 @@ func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
 		rw.Write([]byte("OK"))
 	}))
 	defer proxy.close()
-	defer func() {
-		// Before we shut down our two httptest.Servers, start a timer.
-		// We choose 7 seconds because httptest.Server starts logging
-		// warnings to stderr at 5 seconds. If we don't disarm this bomb
-		// in 7 seconds (after the two httptest.Server.Close calls above),
-		// then we explode with stacks.
-		quitTimer = time.AfterFunc(7*time.Second, func() {
-			debug.SetTraceback("ALL")
-			stacks := make([]byte, 1<<20)
-			stacks = stacks[:runtime.Stack(stacks, true)]
-			fmt.Fprintf(os.Stderr, "%s", stacks)
-			log.Fatalf("Timeout.")
-		})
-	}()
 
 	defer close(unblockBackend)
 	req, _ := NewRequest("POST", proxy.ts.URL, io.LimitReader(neverEnding('a'), bodySize))
@@ -4098,8 +4022,6 @@ func testRequestBodyCloseDoesntBlock(t *testing.T, mode testMode) {
 		}
 	case err := <-errCh:
 		t.Error(err)
-	case <-time.After(5 * time.Second):
-		t.Error("timeout")
 	}
 }
 
@@ -4176,22 +4098,7 @@ func testServerConnState(t *testing.T, mode testMode) {
 
 		doRequests()
 
-		stateDelay := 5 * time.Second
-		if deadline, ok := t.Deadline(); ok {
-			// Allow an arbitrarily long delay.
-			// This test was observed to be flaky on the darwin-arm64-corellium builder,
-			// so we're increasing the deadline to see if it starts passing.
-			// See https://golang.org/issue/37322.
-			const arbitraryCleanupMargin = 1 * time.Second
-			stateDelay = time.Until(deadline) - arbitraryCleanupMargin
-		}
-		timer := time.NewTimer(stateDelay)
-		select {
-		case <-timer.C:
-			t.Errorf("Timed out after %v waiting for connection to change state.", stateDelay)
-		case <-complete:
-			timer.Stop()
-		}
+		<-complete
 		sl := <-activeLog
 		if !reflect.DeepEqual(sl.got, sl.want) {
 			t.Errorf("Request(s) produced unexpected state sequence.\nGot:  %v\nWant: %v", sl.got, sl.want)
@@ -4480,8 +4387,6 @@ func testServerKeepAliveAfterWriteError(t *testing.T, mode testMode) {
 		}
 	}()
 
-	timeout := time.NewTimer(numReq * 2 * time.Second) // 4x overkill
-	defer timeout.Stop()
 	addrSeen := map[string]bool{}
 	numOkay := 0
 	for {
@@ -4501,8 +4406,6 @@ func testServerKeepAliveAfterWriteError(t *testing.T, mode testMode) {
 			if err == nil {
 				numOkay++
 			}
-		case <-timeout.C:
-			t.Fatal("timeout waiting for requests to complete")
 		}
 	}
 }
@@ -4936,15 +4839,11 @@ func testServerContext_LocalAddrContextKey(t *testing.T, mode testMode) {
 	}
 
 	host := cst.ts.Listener.Addr().String()
-	select {
-	case got := <-ch:
-		if addr, ok := got.(net.Addr); !ok {
-			t.Errorf("local addr value = %T; want net.Addr", got)
-		} else if fmt.Sprint(addr) != host {
-			t.Errorf("local addr = %v; want %v", addr, host)
-		}
-	case <-time.After(5 * time.Second):
-		t.Error("timed out")
+	got := <-ch
+	if addr, ok := got.(net.Addr); !ok {
+		t.Errorf("local addr value = %T; want net.Addr", got)
+	} else if fmt.Sprint(addr) != host {
+		t.Errorf("local addr = %v; want %v", addr, host)
 	}
 }
 
@@ -5151,8 +5050,9 @@ func BenchmarkClient(b *testing.B) {
 	}
 
 	// Start server process.
-	cmd := exec.Command(os.Args[0], "-test.run=XXXX", "-test.bench=BenchmarkClient$")
-	cmd.Env = append(os.Environ(), "TEST_BENCH_SERVER=yes")
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := testenv.CommandContext(b, ctx, os.Args[0], "-test.run=XXXX", "-test.bench=BenchmarkClient$")
+	cmd.Env = append(cmd.Environ(), "TEST_BENCH_SERVER=yes")
 	cmd.Stderr = os.Stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -5161,34 +5061,27 @@ func BenchmarkClient(b *testing.B) {
 	if err := cmd.Start(); err != nil {
 		b.Fatalf("subprocess failed to start: %v", err)
 	}
-	defer cmd.Process.Kill()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+		close(done)
+	}()
+	defer func() {
+		cancel()
+		<-done
+	}()
 
 	// Wait for the server in the child process to respond and tell us
 	// its listening address, once it's started listening:
-	timer := time.AfterFunc(10*time.Second, func() {
-		cmd.Process.Kill()
-	})
-	defer timer.Stop()
 	bs := bufio.NewScanner(stdout)
 	if !bs.Scan() {
 		b.Fatalf("failed to read listening URL from child: %v", bs.Err())
 	}
 	url := "http://" + strings.TrimSpace(bs.Text()) + "/"
-	timer.Stop()
 	if _, err := getNoBody(url); err != nil {
 		b.Fatalf("initial probe of child process failed: %v", err)
 	}
-
-	done := make(chan error)
-	stop := make(chan struct{})
-	defer close(stop)
-	go func() {
-		select {
-		case <-stop:
-			return
-		case done <- cmd.Wait():
-		}
-	}()
 
 	// Do b.N requests to the server.
 	b.StartTimer()
@@ -5210,13 +5103,8 @@ func BenchmarkClient(b *testing.B) {
 
 	// Instruct server process to stop.
 	getNoBody(url + "?stop=yes")
-	select {
-	case err := <-done:
-		if err != nil {
-			b.Fatalf("subprocess failed: %v", err)
-		}
-	case <-time.After(5 * time.Second):
-		b.Fatalf("subprocess did not stop")
+	if err := <-done; err != nil {
+		b.Fatalf("subprocess failed: %v", err)
 	}
 }
 
@@ -5426,8 +5314,6 @@ func benchmarkCloseNotifier(b *testing.B, mode testMode) {
 		<-rw.(CloseNotifier).CloseNotify()
 		sawClose <- true
 	})).ts
-	tot := time.NewTimer(5 * time.Second)
-	defer tot.Stop()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
@@ -5439,12 +5325,7 @@ func benchmarkCloseNotifier(b *testing.B, mode testMode) {
 			b.Fatal(err)
 		}
 		conn.Close()
-		tot.Reset(5 * time.Second)
-		select {
-		case <-sawClose:
-		case <-tot.C:
-			b.Fatal("timeout")
-		}
+		<-sawClose
 	}
 	b.StopTimer()
 }
@@ -5603,11 +5484,7 @@ func testServerShutdown(t *testing.T, mode testMode) {
 	if err := <-shutdownRes; err != nil {
 		t.Fatalf("Shutdown: %v", err)
 	}
-	select {
-	case <-gotOnShutdown:
-	case <-time.After(5 * time.Second):
-		t.Errorf("onShutdown callback not called, RegisterOnShutdown broken?")
-	}
+	<-gotOnShutdown // Will hang if RegisterOnShutdown is broken.
 
 	if states := <-statesRes; states[StateActive] != 1 {
 		t.Errorf("connection in wrong state, %v", states)
@@ -5678,13 +5555,8 @@ func testServerShutdownStateNew(t *testing.T, mode testMode) {
 
 	// Wait for c.Read to unblock; should be already done at this point,
 	// or within a few milliseconds.
-	select {
-	case err := <-readRes:
-		if err == nil {
-			t.Error("expected error from Read")
-		}
-	case <-time.After(2 * time.Second):
-		t.Errorf("timeout waiting for Read to unblock")
+	if err := <-readRes; err == nil {
+		t.Error("expected error from Read")
 	}
 }
 
@@ -5954,11 +5826,7 @@ func testServerHijackGetsBackgroundByte(t *testing.T, mode testMode) {
 	if err := cn.(*net.TCPConn).CloseWrite(); err != nil {
 		t.Fatal(err)
 	}
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Error("timeout")
-	}
+	<-done
 }
 
 // Like TestServerHijackGetsBackgroundByte above but sending a
