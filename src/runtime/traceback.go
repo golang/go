@@ -21,6 +21,17 @@ import (
 
 const usesLR = sys.MinFrameSize > 0
 
+const (
+	// tracebackInnerFrames is the number of innermost frames to print in a
+	// stack trace. The total maximum frames is tracebackInnerFrames +
+	// tracebackOuterFrames.
+	tracebackInnerFrames = 50
+
+	// tracebackOuterFrames is the number of outermost frames to print in a
+	// stack trace.
+	tracebackOuterFrames = 50
+)
+
 // unwindFlags control the behavior of various unwinders.
 type unwindFlags uint8
 
@@ -812,18 +823,80 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags unwindFlags) {
 		flags &^= unwindTrap
 	}
 
-	// Print traceback. By default, omits runtime frames.
-	// If that means we print nothing at all, repeat forcing all frames printed.
+	// Print traceback.
+	//
+	// We print the first tracebackInnerFrames frames, and the last
+	// tracebackOuterFrames frames. There are many possible approaches to this.
+	// There are various complications to this:
+	//
+	// - We'd prefer to walk the stack once because in really bad situations
+	//   traceback may crash (and we want as much output as possible) or the stack
+	//   may be changing.
+	//
+	// - Each physical frame can represent several logical frames, so we might
+	//   have to pause in the middle of a physical frame and pick up in the middle
+	//   of a physical frame.
+	//
+	// - The cgo symbolizer can expand a cgo PC to more than one logical frame,
+	//   and involves juggling state on the C side that we don't manage. Since its
+	//   expansion state is managed on the C side, we can't capture the expansion
+	//   state part way through, and because the output strings are managed on the
+	//   C side, we can't capture the output. Thus, our only choice is to replay a
+	//   whole expansion, potentially discarding some of it.
+	//
+	// Rejected approaches:
+	//
+	// - Do two passes where the first pass just counts and the second pass does
+	//   all the printing. This is undesireable if the stack is corrupted or changing
+	//   because we won't see a partial stack if we panic.
+	//
+	// - Keep a ring buffer of the last N logical frames and use this to print
+	//   the bottom frames once we reach the end of the stack. This works, but
+	//   requires keeping a surprising amount of state on the stack, and we have
+	//   to run the cgo symbolizer twice—once to count frames, and a second to
+	//   print them—since we can't retain the strings it returns.
+	//
+	// Instead, we print the outer frames, and if we reach that limit, we clone
+	// the unwinder, count the remaining frames, and then skip forward and
+	// finish printing from the clone. This makes two passes over the outer part
+	// of the stack, but the single pass over the inner part ensures that's
+	// printed immediately and not revisited. It keeps minimal state on the
+	// stack. And through a combination of skip counts and limits, we can do all
+	// of the steps we need with a single traceback printer implementation.
+	//
+	// We could be more lax about exactly how many frames we print, for example
+	// always stopping and resuming on physical frame boundaries, or at least
+	// cgo expansion boundaries. It's not clear that's much simpler.
 	flags |= unwindPrintErrors
 	var u unwinder
-	u.initAt(pc, sp, lr, gp, flags)
-	n := traceback2(&u, false)
-	if n == 0 {
+	tracebackWithRuntime := func(showRuntime bool) int {
+		const maxInt int = 0x7fffffff
 		u.initAt(pc, sp, lr, gp, flags)
-		n = traceback2(&u, true)
+		n, lastN := traceback2(&u, showRuntime, 0, tracebackInnerFrames)
+		if n < tracebackInnerFrames {
+			// We printed the whole stack.
+			return n
+		}
+		// Clone the unwinder and figure out how many frames are left. This
+		// count will include any logical frames already printed for u's current
+		// physical frame.
+		u2 := u
+		remaining, _ := traceback2(&u, showRuntime, maxInt, 0)
+		elide := remaining - lastN - tracebackOuterFrames
+		if elide > 0 {
+			print("...", elide, " frames elided...\n")
+			traceback2(&u2, showRuntime, lastN+elide, tracebackOuterFrames)
+		} else if elide <= 0 {
+			// There are tracebackOuterFrames or fewer frames left to print.
+			// Just print the rest of the stack.
+			traceback2(&u2, showRuntime, lastN, tracebackOuterFrames)
+		}
+		return n
 	}
-	if n == _TracebackMaxFrames {
-		print("...additional frames elided...\n")
+	// By default, omits runtime frames. If that means we print nothing at all,
+	// repeat forcing all frames printed.
+	if tracebackWithRuntime(false) == 0 {
+		tracebackWithRuntime(true)
 	}
 	printcreatedby(gp)
 
@@ -835,19 +908,48 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags unwindFlags) {
 	}
 }
 
-func traceback2(u *unwinder, showRuntime bool) int {
+// traceback2 prints a stack trace starting at u. It skips the first "skip"
+// logical frames, after which it prints at most "max" logical frames. It
+// returns n, which is the number of logical frames skipped and printed, and
+// lastN, which is the number of logical frames skipped or printed just in the
+// phyiscal frame that u references.
+func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
+	// commitFrame commits to a logical frame and returns whether this frame
+	// should be printed and whether iteration should stop.
+	commitFrame := func() (pr, stop bool) {
+		if skip == 0 && max == 0 {
+			// Stop
+			return false, true
+		}
+		n++
+		lastN++
+		if skip > 0 {
+			// Skip
+			skip--
+			return false, false
+		}
+		// Print
+		max--
+		return true, false
+	}
+
 	gp := u.g.ptr()
 	level, _, _ := gotraceback()
-	n := 0
-	const max = _TracebackMaxFrames
 	var cgoBuf [32]uintptr
-	for ; n < max && u.valid(); u.next() {
+	for ; u.valid(); u.next() {
+		lastN = 0
 		f := u.frame.fn
-		for iu, uf := newInlineUnwinder(f, u.symPC(), noEscapePtr(&u.cache)); n < max && uf.valid(); uf = iu.next(uf) {
+		for iu, uf := newInlineUnwinder(f, u.symPC(), noEscapePtr(&u.cache)); uf.valid(); uf = iu.next(uf) {
 			sf := iu.srcFunc(uf)
 			callee := u.calleeFuncID
 			u.calleeFuncID = sf.funcID
 			if !(showRuntime || showframe(sf, gp, n == 0, callee)) {
+				continue
+			}
+
+			if pr, stop := commitFrame(); stop {
+				return
+			} else if !pr {
 				continue
 			}
 
@@ -878,34 +980,39 @@ func traceback2(u *unwinder, showRuntime bool) int {
 				}
 			}
 			print("\n")
-			n++
 		}
 
 		// Print cgo frames.
 		if cgoN := u.cgoCallers(cgoBuf[:]); cgoN > 0 {
 			var arg cgoSymbolizerArg
 			anySymbolized := false
+			stop := false
 			for _, pc := range cgoBuf[:cgoN] {
-				if n >= max {
-					break
-				}
 				if cgoSymbolizer == nil {
-					print("non-Go function at pc=", hex(pc), "\n")
+					if pr, stop := commitFrame(); stop {
+						break
+					} else if pr {
+						print("non-Go function at pc=", hex(pc), "\n")
+					}
 				} else {
-					c := printOneCgoTraceback(pc, max-n, &arg)
-					n += c - 1 // +1 a few lines down
+					stop = printOneCgoTraceback(pc, commitFrame, &arg)
 					anySymbolized = true
+					if stop {
+						break
+					}
 				}
-				n++
 			}
 			if anySymbolized {
 				// Free symbolization state.
 				arg.pc = 0
 				callCgoSymbolizer(&arg)
 			}
+			if stop {
+				return
+			}
 		}
 	}
-	return n
+	return n, 0
 }
 
 // printAncestorTraceback prints the traceback of the given ancestor.
@@ -918,7 +1025,7 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 			printAncestorTracebackFuncInfo(f, pc)
 		}
 	}
-	if len(ancestor.pcs) == _TracebackMaxFrames {
+	if len(ancestor.pcs) == tracebackInnerFrames {
 		print("...additional frames elided...\n")
 	}
 	// Show what created goroutine, except main goroutine (goid 1).
@@ -1405,12 +1512,13 @@ func printCgoTraceback(callers *cgoCallers) {
 		return
 	}
 
+	commitFrame := func() (pr, stop bool) { return true, false }
 	var arg cgoSymbolizerArg
 	for _, c := range callers {
 		if c == 0 {
 			break
 		}
-		printOneCgoTraceback(c, 0x7fffffff, &arg)
+		printOneCgoTraceback(c, commitFrame, &arg)
 	}
 	arg.pc = 0
 	callCgoSymbolizer(&arg)
@@ -1418,11 +1526,16 @@ func printCgoTraceback(callers *cgoCallers) {
 
 // printOneCgoTraceback prints the traceback of a single cgo caller.
 // This can print more than one line because of inlining.
-// Returns the number of frames printed.
-func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
-	c := 0
+// It returns the "stop" result of commitFrame.
+func printOneCgoTraceback(pc uintptr, commitFrame func() (pr, stop bool), arg *cgoSymbolizerArg) bool {
 	arg.pc = pc
-	for c <= max {
+	for {
+		if pr, stop := commitFrame(); stop {
+			return true
+		} else if !pr {
+			continue
+		}
+
 		callCgoSymbolizer(arg)
 		if arg.funcName != nil {
 			// Note that we don't print any argument
@@ -1437,12 +1550,10 @@ func printOneCgoTraceback(pc uintptr, max int, arg *cgoSymbolizerArg) int {
 			print(gostringnocopy(arg.file), ":", arg.lineno, " ")
 		}
 		print("pc=", hex(pc), "\n")
-		c++
 		if arg.more == 0 {
-			break
+			return false
 		}
 	}
-	return c
 }
 
 // callCgoSymbolizer calls the cgoSymbolizer function.

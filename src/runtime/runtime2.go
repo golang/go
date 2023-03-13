@@ -1049,9 +1049,6 @@ type ancestorInfo struct {
 	gopc uintptr   // pc of go statement that created this goroutine
 }
 
-// The maximum number of frames we print for a traceback
-const _TracebackMaxFrames = 100
-
 // A waitReason explains why a goroutine has been stopped.
 // See gopark. Do not re-use waitReasons, add new ones.
 type waitReason uint8

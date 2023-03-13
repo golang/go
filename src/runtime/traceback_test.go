@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"internal/abi"
 	"internal/testenv"
+	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -149,6 +151,113 @@ func ttiExcluded3() *ttiResult {
 }
 
 var testTracebackArgsBuf [1000]byte
+
+func TestTracebackElision(t *testing.T) {
+	// Test printing exactly the maximum number of frames to make sure we don't
+	// print any "elided" message, eliding exactly 1 so we have to pick back up
+	// in the paused physical frame, and eliding 10 so we have to advance the
+	// physical frame forward.
+	for _, elided := range []int{0, 1, 10} {
+		t.Run(fmt.Sprintf("elided=%d", elided), func(t *testing.T) {
+			n := elided + runtime.TracebackInnerFrames + runtime.TracebackOuterFrames
+
+			// Start a new goroutine so we have control over the whole stack.
+			stackChan := make(chan string)
+			go tteStack(n, stackChan)
+			stack := <-stackChan
+			tb := parseTraceback1(t, stack)
+
+			// Check the traceback.
+			i := 0
+			for i < n {
+				if len(tb.frames) == 0 {
+					t.Errorf("traceback ended early")
+					break
+				}
+				fr := tb.frames[0]
+				if i == runtime.TracebackInnerFrames && elided > 0 {
+					// This should be an "elided" frame.
+					if fr.elided != elided {
+						t.Errorf("want %d frames elided", elided)
+						break
+					}
+					i += fr.elided
+				} else {
+					want := fmt.Sprintf("runtime_test.tte%d", (i+1)%5)
+					if i == 0 {
+						want = "runtime/debug.Stack"
+					} else if i == n-1 {
+						want = "runtime_test.tteStack"
+					}
+					if fr.funcName != want {
+						t.Errorf("want %s, got %s", want, fr.funcName)
+						break
+					}
+					i++
+				}
+				tb.frames = tb.frames[1:]
+			}
+			if !t.Failed() && len(tb.frames) > 0 {
+				t.Errorf("got %d more frames than expected", len(tb.frames))
+			}
+			if t.Failed() {
+				t.Logf("traceback diverged at frame %d", i)
+				off := len(stack)
+				if len(tb.frames) > 0 {
+					off = tb.frames[0].off
+				}
+				t.Logf("traceback before error:\n%s", stack[:off])
+				t.Logf("traceback after error:\n%s", stack[off:])
+			}
+		})
+	}
+}
+
+// tteStack creates a stack of n logical frames and sends the traceback to
+// stack. It cycles through 5 logical frames per physical frame to make it
+// unlikely that any part of the traceback will end on a physical boundary.
+func tteStack(n int, stack chan<- string) {
+	n-- // Account for this frame
+	// This is basically a Duff's device for starting the inline stack in the
+	// right place so we wind up at tteN when n%5=N.
+	switch n % 5 {
+	case 0:
+		stack <- tte0(n)
+	case 1:
+		stack <- tte1(n)
+	case 2:
+		stack <- tte2(n)
+	case 3:
+		stack <- tte3(n)
+	case 4:
+		stack <- tte4(n)
+	default:
+		panic("unreachable")
+	}
+}
+func tte0(n int) string {
+	return tte4(n - 1)
+}
+func tte1(n int) string {
+	return tte0(n - 1)
+}
+func tte2(n int) string {
+	// tte2 opens n%5 == 2 frames. It's also the base case of the recursion,
+	// since we can open no fewer than two frames to call debug.Stack().
+	if n < 2 {
+		panic("bad n")
+	}
+	if n == 2 {
+		return string(debug.Stack())
+	}
+	return tte1(n - 1)
+}
+func tte3(n int) string {
+	return tte2(n - 1)
+}
+func tte4(n int) string {
+	return tte3(n - 1)
+}
 
 func TestTracebackArgs(t *testing.T) {
 	if *flagQuick {
@@ -586,37 +695,50 @@ type tbFrame struct {
 	funcName string
 	args     string
 	inlined  bool
+
+	// elided is set to the number of frames elided, and the other fields are
+	// set to the zero value.
+	elided int
+
+	off int // byte offset in the traceback text of this frame
 }
 
 // parseTraceback parses a printed traceback to make it easier for tests to
 // check the result.
 func parseTraceback(t *testing.T, tb string) []*traceback {
-	lines := strings.Split(tb, "\n")
-	nLines := len(lines)
+	//lines := strings.Split(tb, "\n")
+	//nLines := len(lines)
+	off := 0
+	lineNo := 0
 	fatal := func(f string, args ...any) {
-		lineNo := nLines - len(lines) + 1
 		msg := fmt.Sprintf(f, args...)
 		t.Fatalf("%s (line %d):\n%s", msg, lineNo, tb)
 	}
 	parseFrame := func(funcName, args string) *tbFrame {
 		// Consume file/line/etc
-		if len(lines) == 0 || !strings.HasPrefix(lines[0], "\t") {
+		if !strings.HasPrefix(tb, "\t") {
 			fatal("missing source line")
 		}
-		lines = lines[1:]
+		_, tb, _ = strings.Cut(tb, "\n")
+		lineNo++
 		inlined := args == "..."
-		return &tbFrame{funcName, args, inlined}
+		return &tbFrame{funcName: funcName, args: args, inlined: inlined, off: off}
 	}
+	var elidedRe = regexp.MustCompile(`^\.\.\.([0-9]+) frames elided\.\.\.$`)
 	var tbs []*traceback
 	var cur *traceback
-	for len(lines) > 0 {
-		line := lines[0]
-		lines = lines[1:]
+	tbLen := len(tb)
+	for len(tb) > 0 {
+		var line string
+		off = tbLen - len(tb)
+		line, tb, _ = strings.Cut(tb, "\n")
+		lineNo++
 		switch {
 		case strings.HasPrefix(line, "goroutine "):
 			cur = &traceback{}
 			tbs = append(tbs, cur)
 		case line == "":
+			// Separator between goroutines
 			cur = nil
 		case line[0] == '\t':
 			fatal("unexpected indent")
@@ -630,6 +752,12 @@ func parseTraceback(t *testing.T, tb string) []*traceback {
 				fatal("missing (")
 			}
 			frame := parseFrame(funcName, args)
+			cur.frames = append(cur.frames, frame)
+		case elidedRe.MatchString(line):
+			// "...N frames elided..."
+			nStr := elidedRe.FindStringSubmatch(line)
+			n, _ := strconv.Atoi(nStr[1])
+			frame := &tbFrame{elided: n}
 			cur.frames = append(cur.frames, frame)
 		}
 	}
