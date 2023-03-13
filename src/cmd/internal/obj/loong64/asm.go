@@ -324,6 +324,9 @@ var optab = []Optab{
 	{AMOVV, C_REG, C_NONE, C_FREG, C_NONE, 47, 4, 0, sys.Loong64, 0},
 	{AMOVV, C_FREG, C_NONE, C_REG, C_NONE, 48, 4, 0, sys.Loong64, 0},
 
+	{AMOVV, C_FCCREG, C_NONE, C_REG, C_NONE, 63, 4, 0, sys.Loong64, 0},
+	{AMOVV, C_REG, C_NONE, C_FCCREG, C_NONE, 64, 4, 0, sys.Loong64, 0},
+
 	{AMOVW, C_ADDCON, C_NONE, C_FREG, C_NONE, 34, 8, 0, sys.Loong64, 0},
 	{AMOVW, C_ANDCON, C_NONE, C_FREG, C_NONE, 34, 8, 0, sys.Loong64, 0},
 
@@ -1622,6 +1625,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 62: // rdtimex rd, rj
 		o1 = OP_RR(c.oprr(p.As), uint32(p.To.Reg), uint32(p.RegTo2))
+
+	case 63: // movv c_fcc0, c_reg ==> movcf2gr rd, cj
+		a := OP_TEN(8, 1335)
+		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
+
+	case 64: // movv c_reg, c_fcc0 ==> movgr2cf cd, rj
+		a := OP_TEN(8, 1334)
+		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
 	}
 
 	out[0] = o1
