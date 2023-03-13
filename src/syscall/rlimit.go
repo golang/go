@@ -4,9 +4,7 @@
 
 //go:build unix
 
-package os
-
-import "syscall"
+package syscall
 
 // Some systems set an artificially low soft limit on open file count, for compatibility
 // with code that uses select and its hard-coded maximum file descriptor
@@ -23,10 +21,10 @@ import "syscall"
 // Code that really wants Go to leave the limit alone can set the hard limit,
 // which Go of course has no choice but to respect.
 func init() {
-	var lim syscall.Rlimit
-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
+	var lim Rlimit
+	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
 		lim.Cur = lim.Max
 		adjustFileLimit(&lim)
-		syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim)
+		Setrlimit(RLIMIT_NOFILE, &lim)
 	}
 }

@@ -4,9 +4,7 @@
 
 //go:build aix || dragonfly || freebsd || linux || netbsd || openbsd || solaris
 
-package os
-
-import "syscall"
+package syscall
 
 // adjustFileLimit adds per-OS limitations on the Rlimit used for RLIMIT_NOFILE. See rlimit.go.
-func adjustFileLimit(lim *syscall.Rlimit) {}
+func adjustFileLimit(lim *Rlimit) {}
