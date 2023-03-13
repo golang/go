@@ -672,7 +672,10 @@ func (state *peLoaderState) readpesym(pesym *pe.COFFSymbol) (*loader.SymbolBuild
 
 	var s loader.Sym
 	var bld *loader.SymbolBuilder
-	switch uint8(pesym.Type >> 8) {
+	// Microsoft's PE documentation is contradictory. It says that the symbol's complex type
+	// is stored in the pesym.Type most significant byte, but MSVC, LLVM, and mingw store it
+	// in the 4 high bits of the less significant byte.
+	switch uint8(pesym.Type&0xf0) >> 4 {
 	default:
 		return nil, 0, fmt.Errorf("%s: invalid symbol type %d", symname, pesym.Type)
 
