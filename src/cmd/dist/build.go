@@ -1742,8 +1742,10 @@ var firstClass = map[string]bool{
 	"windows/amd64": true,
 }
 
+// We only need CC if cgo is forced on, or if the platform requires external linking.
+// Otherwise the go command will automatically disable it.
 func needCC() bool {
-	return os.Getenv("CGO_ENABLED") == "1"
+	return os.Getenv("CGO_ENABLED") == "1" || mustLinkExternal(gohostos, gohostarch, false)
 }
 
 func checkCC() {
