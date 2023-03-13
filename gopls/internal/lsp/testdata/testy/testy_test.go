@@ -8,7 +8,7 @@ import (
 )
 
 func TestSomething(t *testing.T) { //@item(TestSomething, "TestSomething(t *testing.T)", "", "func")
-	var x int //@mark(testyX, "x"),diag("x", "compiler", "x declared (and|but) not used", "error"),refs("x", testyX)
+	var x int //@mark(testyX, "x"),diag("x", "compiler", "x declared (and|but) not used", "error")
 	a()       //@mark(testyA, "a")
 }
 

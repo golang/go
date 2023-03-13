@@ -50,7 +50,7 @@ func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 	ctx, done := event.Start(ctx, "source.Implementation")
 	defer done()
 
-	locs, err := implementations2(ctx, snapshot, f, pp)
+	locs, err := implementations(ctx, snapshot, f, pp)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func Implementation(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 	return locs, nil
 }
 
-func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Position) ([]protocol.Location, error) {
+func implementations(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Position) ([]protocol.Location, error) {
 
 	// Type-check the query package, find the query identifier,
 	// and locate the type or method declaration it refers to.
@@ -407,7 +407,7 @@ func concreteImplementsIntf(a, b types.Type) bool {
 	// to report (e.g.) "ArrayList[T] implements List[T]", but
 	// GenericAssignableTo doesn't work correctly on pointers to
 	// generic named types. Thus the legacy implementation and the
-	// "local" part of implementation2 fail to report generics.
+	// "local" part of implementations fail to report generics.
 	// The global algorithm based on subsets does the right thing.
 	return types.AssignableTo(a, b)
 }

@@ -1,0 +1,37 @@
+Test of basic cross-package references.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+type X struct {
+	Y int //@loc(typeXY, "Y")
+}
+
+-- b/b.go --
+package b
+
+import "example.com/a"
+
+func GetXes() []a.X {
+	return []a.X{
+		{
+			Y: 1, //@loc(GetXesY, "Y"), refs("Y", typeXY, GetXesY, anotherXY)
+		},
+	}
+}
+
+-- c/c.go --
+package c
+
+import "example.com/b"
+
+func _() {
+        xes := b.GetXes()
+        for _, x := range xes { //@loc(defX, "x")
+                _ = x.Y //@loc(useX, "x"), loc(anotherXY, "Y"), refs("Y", typeXY, anotherXY, GetXesY), refs(".", defX, useX), refs("x", defX, useX)
+        }
+}

@@ -1,0 +1,36 @@
+Basic test of references within a single package.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+type i int //@loc(decli, "i"), refs("i", decli, argi, returni, embeddedi)
+
+func _(_ i) []bool { //@loc(argi, "i")
+	return nil
+}
+
+func _(_ []byte) i { //@loc(returni, "i")
+	return 0
+}
+
+var q string //@loc(declq, "q"), refs("q", declq, assignq, bobq)
+
+var Q string //@loc(declQ, "Q"), refs("Q", declQ)
+
+func _() {
+	q = "hello" //@loc(assignq, "q")
+	bob := func(_ string) {}
+	bob(q) //@loc(bobq, "q")
+}
+
+type e struct {
+	i //@loc(embeddedi, "i"), refs("i", embeddedi, embeddediref)
+}
+
+func _() {
+	_ = e{}.i //@loc(embeddediref, "i")
+}

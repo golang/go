@@ -1212,7 +1212,7 @@ func (r *renamer) updatePkgName(pgf *ParsedGoFile, pkgName *types.PkgName) (diff
 // returns the package name declaration of file fh, and reports
 // whether the position ppos lies within it.
 //
-// Note: also used by references2.
+// Note: also used by references.
 func parsePackageNameDecl(ctx context.Context, snapshot Snapshot, fh FileHandle, ppos protocol.Position) (*ParsedGoFile, bool, error) {
 	pgf, err := snapshot.ParseGo(ctx, fh, ParseHeader)
 	if err != nil {

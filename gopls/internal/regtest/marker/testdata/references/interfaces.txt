@@ -1,0 +1,42 @@
+Test of references applied to concrete and interface types that are
+related by assignability. The result includes references to both.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+type first interface {
+	common() //@loc(firCommon, "common"), refs("common", firCommon, xCommon, zCommon)
+	firstMethod() //@loc(firMethod, "firstMethod"), refs("firstMethod", firMethod, xfMethod, zfMethod)
+}
+
+type second interface {
+	common() //@loc(secCommon, "common"), refs("common", secCommon, yCommon, zCommon)
+	secondMethod() //@loc(secMethod, "secondMethod"), refs("secondMethod", secMethod, ysMethod, zsMethod)
+}
+
+type s struct {}
+
+func (*s) common() {} //@loc(sCommon, "common"), refs("common", sCommon, xCommon, yCommon, zCommon)
+
+func (*s) firstMethod() {} //@loc(sfMethod, "firstMethod"), refs("firstMethod", sfMethod, xfMethod, zfMethod)
+
+func (*s) secondMethod() {} //@loc(ssMethod, "secondMethod"), refs("secondMethod", ssMethod, ysMethod, zsMethod)
+
+func main() {
+	var x first = &s{}
+	var y second = &s{}
+
+	x.common() //@loc(xCommon, "common"), refs("common", firCommon, xCommon, zCommon)
+	x.firstMethod() //@loc(xfMethod, "firstMethod"), refs("firstMethod", firMethod, xfMethod, zfMethod)
+	y.common() //@loc(yCommon, "common"), refs("common", secCommon, yCommon, zCommon)
+	y.secondMethod() //@loc(ysMethod, "secondMethod"), refs("secondMethod", secMethod, ysMethod, zsMethod)
+
+	var z *s = &s{}
+	z.firstMethod() //@loc(zfMethod, "firstMethod"), refs("firstMethod", sfMethod, xfMethod, zfMethod)
+	z.secondMethod() //@loc(zsMethod, "secondMethod"), refs("secondMethod", ssMethod, ysMethod, zsMethod)
+	z.common() //@loc(zCommon, "common"), refs("common", sCommon, xCommon, yCommon, zCommon)
+}

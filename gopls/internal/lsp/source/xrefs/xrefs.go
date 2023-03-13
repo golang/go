@@ -5,7 +5,7 @@
 // Package xrefs defines the serializable index of cross-package
 // references that is computed during type checking.
 //
-// See ../references2.go for the 'references' query.
+// See ../references.go for the 'references' query.
 package xrefs
 
 import (

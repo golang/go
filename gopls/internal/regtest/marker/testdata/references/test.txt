@@ -1,0 +1,29 @@
+Test of references between the extra files of a test variant
+and the regular package.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+func fn() {} //@loc(def, "fn"), refs("fn", def, use)
+
+type t struct { g int } //@loc(gdef, "g")
+type u struct { t }
+
+var _ = new(u).g //@loc(gref, "g"), refs("g", gdef, gref)
+// TODO(adonovan): fix: gref2 and gdef2 are missing.
+
+-- a/a_test.go --
+package a
+
+func _() {
+	fn() //@loc(use, "fn")
+
+	_ = new(u).g //@loc(gref2, "g"), refs("g", gdef2, gref, gref2)
+}
+
+// This declaration changes the meaning of u.t in the test.
+func (u) g() {} //@loc(gdef2, "g")

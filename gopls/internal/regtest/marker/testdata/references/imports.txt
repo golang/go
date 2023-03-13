@@ -1,0 +1,17 @@
+Test of references to local package names (imports).
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+import "os" //@loc(osDef, `"os"`), refs("os", osDef, osUse)
+
+import fmt2 "fmt" //@loc(fmt2Def, `fmt2`), refs("fmt2", fmt2Def, fmt2Use)
+
+func _() {
+	os.Getwd() //@loc(osUse, "os")
+	fmt2.Println() //@loc(fmt2Use, "fmt2")
+}

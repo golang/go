@@ -1,0 +1,17 @@
+Test of references in the presence of shadowing.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+func _() {
+	x := 123 //@loc(x1, "x"), refs("x", x1, x1ref)
+	_ = x //@loc(x1ref, "x")
+	{
+		x := "hi" //@loc(x2, "x"), refs("x", x2, x2ref)
+		_ = x //@loc(x2ref, "x")
+	}
+}

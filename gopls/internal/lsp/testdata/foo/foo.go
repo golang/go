@@ -13,8 +13,8 @@ func Foo() { //@item(Foo, "Foo", "func()", "func")
 }
 
 func _() {
-	var sFoo StructFoo           //@mark(sFoo1, "sFoo"),complete("t", StructFoo)
-	if x := sFoo; x.Value == 1 { //@mark(sFoo2, "sFoo"),complete("V", Value),typdef("sFoo", StructFoo),refs("sFo", sFoo1, sFoo2)
+	var sFoo StructFoo           //@complete("t", StructFoo)
+	if x := sFoo; x.Value == 1 { //@complete("V", Value),typdef("sFoo", StructFoo)
 		return
 	}
 }
@@ -22,7 +22,7 @@ func _() {
 func _() {
 	shadowed := 123
 	{
-		shadowed := "hi" //@item(shadowed, "shadowed", "string", "var"),refs("shadowed", shadowed)
+		shadowed := "hi" //@item(shadowed, "shadowed", "string", "var")
 		sha              //@complete("a", shadowed)
 	}
 }

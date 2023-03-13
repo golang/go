@@ -9,7 +9,7 @@
 // This package provides only the "global" (all workspace) search; the
 // "local" search within a given package uses a different
 // implementation based on type-checker data structures for a single
-// package plus variants; see ../implementation2.go.
+// package plus variants; see ../implementation.go.
 // The local algorithm is more precise as it tests function-local types too.
 //
 // A global index of function-local types is challenging since they

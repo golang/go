@@ -1,0 +1,18 @@
+Tests of reference to implicit type switch vars, which are
+a special case in go/types.Info{Def,Use,Implicits}.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+func _(x interface{}) {
+	switch y := x.(type) { //@loc(yDecl, "y"), refs("y", yDecl, yInt, yDefault)
+	case int:
+		println(y) //@loc(yInt, "y"), refs("y", yDecl, yInt, yDefault)
+	default:
+		println(y) //@loc(yDefault, "y")
+	}
+}

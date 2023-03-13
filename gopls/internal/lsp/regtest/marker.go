@@ -33,6 +33,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
+	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/testenv"
@@ -42,6 +43,7 @@ import (
 var update = flag.Bool("update", false, "if set, update test data during marker tests")
 
 // RunMarkerTests runs "marker" tests in the given test data directory.
+// (In practice: ../../regtest/marker/testdata)
 //
 // A marker test uses the '//@' marker syntax of the x/tools/go/expect package
 // to annotate source code with various information such as locations and
@@ -139,6 +141,10 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     to have exactly one associated code action of the specified kind.
 //     This action is executed for its editing effects on the source files.
 //     Like rename, the golden directory contains the expected transformed files.
+//
+//   - refs(location, want ...location): executes a 'references' query at the
+//     first location and asserts that the result is the set of 'want' locations.
+//     The first want location must be the declaration (assumedly unique).
 //
 // # Argument conversion
 //
@@ -245,13 +251,11 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - Formats
 //   - Imports
 //   - SemanticTokens
-//   - SuggestedFixes
 //   - FunctionExtractions
 //   - MethodExtractions
 //   - Definitions
 //   - Implementations
 //   - Highlights
-//   - References
 //   - Renames
 //   - PrepareRenames
 //   - Symbols
@@ -373,6 +377,10 @@ func RunMarkerTests(t *testing.T, dir string) {
 			}
 		})
 	}
+
+	if abs, err := filepath.Abs(dir); err == nil && t.Failed() {
+		t.Logf("(Filenames are relative to %s.)", abs)
+	}
 }
 
 // A marker holds state for the execution of a single @marker
@@ -404,21 +412,25 @@ func (mark marker) execute() {
 
 	// The first converter corresponds to the *Env argument.
 	// All others must be converted from the marker syntax.
-	if got, want := len(mark.note.Args), len(fn.converters); got != want {
-		mark.errorf("got %d arguments to %s, expect %d", got, mark.note.Name, want)
-		return
-	}
-
 	args := []reflect.Value{reflect.ValueOf(mark)}
+	var convert converter
 	for i, in := range mark.note.Args {
-		// Special handling for the blank identifier: treat it as the zero
-		// value.
+		if i < len(fn.converters) {
+			convert = fn.converters[i]
+		} else if !fn.variadic {
+			mark.errorf("got %d arguments to %s, expect %d",
+				len(mark.note.Args), mark.note.Name, len(fn.converters))
+			return
+		}
+
+		// Special handling for the blank identifier: treat it as the zero value.
 		if ident, ok := in.(expect.Identifier); ok && ident == "_" {
 			zero := reflect.Zero(fn.paramTypes[i])
 			args = append(args, zero)
 			continue
 		}
-		out, err := fn.converters[i](mark, in)
+
+		out, err := convert(mark, in)
 		if err != nil {
 			mark.errorf("converting argument #%d of %s (%v): %v", i, mark.note.Name, in, err)
 			return
@@ -444,6 +456,7 @@ var markerFuncs = map[string]markerFunc{
 	"rename":       makeMarkerFunc(renameMarker),
 	"renameerr":    makeMarkerFunc(renameErrMarker),
 	"suggestedfix": makeMarkerFunc(suggestedfixMarker),
+	"refs":         makeMarkerFunc(refsMarker),
 }
 
 // markerTest holds all the test data extracted from a test txtar archive.
@@ -723,6 +736,7 @@ type markerFunc struct {
 	fn         reflect.Value  // the func to invoke
 	paramTypes []reflect.Type // parameter types, for zero values
 	converters []converter    // to convert non-blank arguments
+	variadic   bool
 }
 
 // A markerTestRun holds the state of one run of a marker test archive.
@@ -833,6 +847,7 @@ func makeMarkerFunc(fn interface{}) markerFunc {
 		fn: reflect.ValueOf(fn),
 	}
 	mtyp := mi.fn.Type()
+	mi.variadic = mtyp.IsVariadic()
 	if mtyp.NumIn() == 0 || mtyp.In(0) != markerType {
 		panic(fmt.Sprintf("marker function %#v must accept marker as its first argument", mi.fn))
 	}
@@ -841,6 +856,9 @@ func makeMarkerFunc(fn interface{}) markerFunc {
 	}
 	for a := 1; a < mtyp.NumIn(); a++ {
 		in := mtyp.In(a)
+		if mi.variadic && a == mtyp.NumIn()-1 {
+			in = in.Elem() // for ...T, convert to T
+		}
 		mi.paramTypes = append(mi.paramTypes, in)
 		c := makeConverter(in)
 		mi.converters = append(mi.converters, c)
@@ -1111,6 +1129,11 @@ func hoverMarker(mark marker, src, dst protocol.Location, golden *Golden) {
 // locMarker implements the @loc marker. It is executed before other
 // markers, so that locations are available.
 func locMarker(mark marker, name expect.Identifier, loc protocol.Location) {
+	if prev, dup := mark.run.locations[name]; dup {
+		mark.errorf("location %q already declared at %s",
+			name, mark.run.fmtLoc(prev))
+		return
+	}
 	mark.run.locations[name] = loc
 }
 
@@ -1296,3 +1319,54 @@ func suggestedfix(env *Env, loc protocol.Location, diag protocol.Diagnostic, act
 }
 
 // TODO(adonovan): suggestedfixerr
+
+// refsMarker implements the @refs marker.
+func refsMarker(mark marker, src protocol.Location, want ...protocol.Location) {
+	refs := func(includeDeclaration bool, want []protocol.Location) error {
+		params := &protocol.ReferenceParams{
+			TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(src),
+			Context: protocol.ReferenceContext{
+				IncludeDeclaration: includeDeclaration,
+			},
+		}
+
+		got, err := mark.run.env.Editor.Server.References(mark.run.env.Ctx, params)
+		if err != nil {
+			return err
+		}
+
+		// Compare the sets of locations.
+		toString := func(locs []protocol.Location) string {
+			// TODO(adonovan): use generic JoinValues(locs, fmtLoc).
+			strs := make([]string, len(locs))
+			for i, loc := range locs {
+				strs[i] = mark.run.fmtLoc(loc)
+			}
+			sort.Strings(strs)
+			return strings.Join(strs, "\n")
+		}
+		gotStr := toString(got)
+		wantStr := toString(want)
+		if gotStr != wantStr {
+			return fmt.Errorf("incorrect references (got %d, want %d) at %s:\n%s",
+				len(got), len(want),
+				mark.run.fmtLoc(src),
+				diff.Unified("want", "got", wantStr, gotStr))
+		}
+		return nil
+	}
+
+	for _, includeDeclaration := range []bool{false, true} {
+		// Ignore first 'want' location if we didn't request the declaration.
+		// TODO(adonovan): don't assume a single declaration:
+		// there may be >1 if corresponding methods are considered.
+		want := want
+		if !includeDeclaration && len(want) > 0 {
+			want = want[1:]
+		}
+		if err := refs(includeDeclaration, want); err != nil {
+			mark.errorf("refs(includeDeclaration=%t) failed: %v",
+				includeDeclaration, err)
+		}
+	}
+}

@@ -60,7 +60,7 @@ type reference struct {
 // definitions before uses) to the object denoted by the identifier at
 // the given file/position, searching the entire workspace.
 func references(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]reference, error) {
-	ctx, done := event.Start(ctx, "source.References2")
+	ctx, done := event.Start(ctx, "source.references")
 	defer done()
 
 	// Is the cursor within the package name declaration?
@@ -572,11 +572,11 @@ func objectsAt(info *types.Info, file *ast.File, pos token.Pos) (map[types.Objec
 // mustLocation reports the location interval a syntax node,
 // which must belong to m.File.
 //
-// Safe for use only by references2 and implementations2.
+// Safe for use only by references and implementations.
 func mustLocation(pgf *ParsedGoFile, n ast.Node) protocol.Location {
 	loc, err := pgf.NodeLocation(n)
 	if err != nil {
-		panic(err) // can't happen in references2 or implementations2
+		panic(err) // can't happen in references or implementations
 	}
 	return loc
 }

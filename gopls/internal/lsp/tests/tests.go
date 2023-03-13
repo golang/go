@@ -84,7 +84,6 @@ type MethodExtractions = map[span.Span]span.Span
 type Definitions = map[span.Span]Definition
 type Implementations = map[span.Span][]span.Span
 type Highlights = map[span.Span][]span.Span
-type References = map[span.Span][]span.Span
 type Renames = map[span.Span]string
 type PrepareRenames = map[span.Span]*source.PrepareItem
 type Symbols = map[span.URI][]*symbol
@@ -119,7 +118,6 @@ type Data struct {
 	Definitions              Definitions
 	Implementations          Implementations
 	Highlights               Highlights
-	References               References
 	Renames                  Renames
 	InlayHints               InlayHints
 	PrepareRenames           PrepareRenames
@@ -169,7 +167,6 @@ type Tests interface {
 	Implementation(*testing.T, span.Span, []span.Span)
 	Highlight(*testing.T, span.Span, []span.Span)
 	InlayHints(*testing.T, span.Span)
-	References(*testing.T, span.Span, []span.Span)
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
 	Symbols(*testing.T, span.URI, []protocol.DocumentSymbol)
@@ -318,7 +315,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		Definitions:              make(Definitions),
 		Implementations:          make(Implementations),
 		Highlights:               make(Highlights),
-		References:               make(References),
 		Renames:                  make(Renames),
 		PrepareRenames:           make(PrepareRenames),
 		SuggestedFixes:           make(SuggestedFixes),
@@ -481,7 +477,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"hoverdef":        datum.collectHoverDefinitions,
 		"highlight":       datum.collectHighlights,
 		"inlayHint":       datum.collectInlayHints,
-		"refs":            datum.collectReferences,
 		"rename":          datum.collectRenames,
 		"prepare":         datum.collectPrepareRenames,
 		"symbol":          datum.collectSymbols,
@@ -787,16 +782,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
-	t.Run("References", func(t *testing.T) {
-		t.Helper()
-		for src, itemList := range data.References {
-			t.Run(SpanName(src), func(t *testing.T) {
-				t.Helper()
-				tests.References(t, src, itemList)
-			})
-		}
-	})
-
 	t.Run("Renames", func(t *testing.T) {
 		t.Helper()
 		for spn, newText := range data.Renames {
@@ -1019,7 +1004,6 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "TypeDefinitionsCount = %v\n", typeDefinitionCount)
 	fmt.Fprintf(buf, "HighlightsCount = %v\n", len(data.Highlights))
 	fmt.Fprintf(buf, "InlayHintsCount = %v\n", len(data.InlayHints))
-	fmt.Fprintf(buf, "ReferencesCount = %v\n", len(data.References))
 	fmt.Fprintf(buf, "RenamesCount = %v\n", len(data.Renames))
 	fmt.Fprintf(buf, "PrepareRenamesCount = %v\n", len(data.PrepareRenames))
 	fmt.Fprintf(buf, "SymbolsCount = %v\n", len(data.Symbols))
@@ -1300,10 +1284,6 @@ func (data *Data) collectHighlights(src span.Span, expected []span.Span) {
 
 func (data *Data) collectInlayHints(src span.Span) {
 	data.InlayHints = append(data.InlayHints, src)
-}
-
-func (data *Data) collectReferences(src span.Span, expected []span.Span) {
-	data.References[src] = expected
 }
 
 func (data *Data) collectRenames(src span.Span, newText string) {

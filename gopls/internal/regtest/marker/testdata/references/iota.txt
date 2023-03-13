@@ -1,0 +1,16 @@
+Test of references to iota. The result is the empty set.
+
+TODO(adonovan): treat iota like other built-ins and reject it.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+const (
+	zero = iota //@loc(iota, "iota"), refs("iota")
+	one
+	two = iota
+)
