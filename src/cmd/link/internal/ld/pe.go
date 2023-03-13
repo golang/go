@@ -749,22 +749,20 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 
 		name = mangleABIName(ctxt, ldr, s, name)
 
-		var peSymType uint16
-		if ctxt.IsExternal() {
-			peSymType = IMAGE_SYM_TYPE_NULL
-		} else {
+		var peSymType uint16 = IMAGE_SYM_TYPE_NULL
+		switch t {
+		case sym.STEXT, sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
 			// Microsoft's PE documentation is contradictory. It says that the symbol's complex type
 			// is stored in the pesym.Type most significant byte, but MSVC, LLVM, and mingw store it
-			// in the 4 high bits of the less significant byte.
-			peSymType = IMAGE_SYM_DTYPE_ARRAY<<4 + IMAGE_SYM_TYPE_STRUCT
+			// in the 4 high bits of the less significant byte. Also, the PE documentation says that
+			// the basic type for a function should be IMAGE_SYM_TYPE_VOID,
+			// but the reality is that it uses IMAGE_SYM_TYPE_NULL instead.
+			peSymType = IMAGE_SYM_DTYPE_FUNCTION<<4 + IMAGE_SYM_TYPE_NULL
 		}
 		sect, value, err := f.mapToPESection(ldr, s, ctxt.LinkMode)
 		if err != nil {
 			switch t {
 			case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
-				// Microsoft's PE documentation says that the basic type for a function should be
-				// IMAGE_SYM_TYPE_VOID, but the reality is that it uses IMAGE_SYM_TYPE_NULL instead.
-				peSymType = IMAGE_SYM_DTYPE_FUNCTION<<4 + IMAGE_SYM_TYPE_NULL
 			default:
 				ctxt.Errorf(s, "addpesym: %v", err)
 			}
