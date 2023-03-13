@@ -685,10 +685,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q = c.stacksplit(q, autosize) // emit split check
 			}
 
-			// Special handling of the racecall thunk. Assume that its asm code will
-			// save the link register and update the stack, since that code is
-			// called directly from C/C++ and can't clobber REGTMP (R31).
-			if autosize != 0 && c.cursym.Name != "runtime.racecallbackthunk" {
+			if autosize != 0 {
 				var prologueEnd *obj.Prog
 				// Save the link register and update the SP.  MOVDU is used unless
 				// the frame size is too large.  The link register must be saved
@@ -875,7 +872,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			retTarget := p.To.Sym
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
-				if autosize == 0 || c.cursym.Name == "runtime.racecallbackthunk" {
+				if autosize == 0 {
 					p.As = ABR
 					p.From = obj.Addr{}
 					if retTarget == nil {
@@ -950,7 +947,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = q
 			}
 			prev := p
-			if autosize != 0 && c.cursym.Name != "runtime.racecallbackthunk" {
+			if autosize != 0 {
 				q = c.newprog()
 				q.As = AADD
 				q.Pos = p.Pos
