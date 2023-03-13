@@ -424,7 +424,7 @@ func hoverImport(ctx context.Context, snapshot Snapshot, pkg Package, pgf *Parse
 	// Find the first file with a package doc comment.
 	var comment *ast.CommentGroup
 	for _, f := range impMetadata.CompiledGoFiles {
-		fh, err := snapshot.GetFile(ctx, f)
+		fh, err := snapshot.ReadFile(ctx, f)
 		if err != nil {
 			if ctx.Err() != nil {
 				return protocol.Range{}, nil, ctx.Err()
@@ -684,7 +684,7 @@ func parseFull(ctx context.Context, snapshot Snapshot, fset *token.FileSet, pos 
 	}
 
 	uri := span.URIFromPath(f.Name())
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, 0, err
 	}

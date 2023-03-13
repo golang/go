@@ -271,7 +271,7 @@ func Rename(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Po
 		// See https://go.dev/cl/457615 for example.
 		// This really occurs in practice, e.g. kubernetes has
 		// vendor/k8s.io/kubectl -> ../../staging/src/k8s.io/kubectl.
-		fh, err := snapshot.GetFile(ctx, uri)
+		fh, err := snapshot.ReadFile(ctx, uri)
 		if err != nil {
 			return nil, false, err
 		}
@@ -614,7 +614,7 @@ func renamePackageName(ctx context.Context, s Snapshot, f FileHandle, newName Pa
 	// Get all active mod files in the workspace
 	modFiles := s.ModFiles()
 	for _, m := range modFiles {
-		fh, err := s.GetFile(ctx, m)
+		fh, err := s.ReadFile(ctx, m)
 		if err != nil {
 			return nil, err
 		}
@@ -792,7 +792,7 @@ func renamePackage(ctx context.Context, s Snapshot, f FileHandle, newName Packag
 func renamePackageClause(ctx context.Context, m *Metadata, snapshot Snapshot, newName PackageName, edits map[span.URI][]diff.Edit) error {
 	// Rename internal references to the package in the renaming package.
 	for _, uri := range m.CompiledGoFiles {
-		fh, err := snapshot.GetFile(ctx, uri)
+		fh, err := snapshot.ReadFile(ctx, uri)
 		if err != nil {
 			return err
 		}
@@ -833,7 +833,7 @@ func renameImports(ctx context.Context, snapshot Snapshot, m *Metadata, newPath 
 		}
 
 		for _, uri := range rdep.CompiledGoFiles {
-			fh, err := snapshot.GetFile(ctx, uri)
+			fh, err := snapshot.ReadFile(ctx, uri)
 			if err != nil {
 				return err
 			}

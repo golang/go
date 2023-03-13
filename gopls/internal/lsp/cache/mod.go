@@ -182,7 +182,7 @@ func parseWorkImpl(ctx context.Context, fh source.FileHandle) (*source.ParsedWor
 // it doesn't exist, it returns nil.
 func (s *snapshot) goSum(ctx context.Context, modURI span.URI) []byte {
 	// Get the go.sum file, either from the snapshot or directly from the
-	// cache. Avoid (*snapshot).GetFile here, as we don't want to add
+	// cache. Avoid (*snapshot).ReadFile here, as we don't want to add
 	// nonexistent file handles to the snapshot if the file does not exist.
 	//
 	// TODO(rfindley): but that's not right. Changes to sum files should
@@ -191,7 +191,7 @@ func (s *snapshot) goSum(ctx context.Context, modURI span.URI) []byte {
 	var sumFH source.FileHandle = s.FindFile(sumURI)
 	if sumFH == nil {
 		var err error
-		sumFH, err = s.view.fs.GetFile(ctx, sumURI)
+		sumFH, err = s.view.fs.ReadFile(ctx, sumURI)
 		if err != nil {
 			return nil
 		}
@@ -307,7 +307,7 @@ func (s *snapshot) extractGoCommandErrors(ctx context.Context, goCmdError error)
 
 	// Match the error against all the mod files in the workspace.
 	for _, uri := range s.ModFiles() {
-		fh, err := s.GetFile(ctx, uri)
+		fh, err := s.ReadFile(ctx, uri)
 		if err != nil {
 			event.Error(ctx, "getting modfile for Go command error", err)
 			continue

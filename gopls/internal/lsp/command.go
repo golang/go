@@ -609,7 +609,7 @@ func (s *Server) runGoModUpdateCommands(ctx context.Context, snapshot source.Sna
 }
 
 func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI, newContent []byte) ([]protocol.TextDocumentEdit, error) {
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -738,7 +738,7 @@ func (c *commandHandler) ListImports(ctx context.Context, args command.URIArg) (
 	err := c.run(ctx, commandConfig{
 		forURI: args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		fh, err := deps.snapshot.GetFile(ctx, args.URI.SpanURI())
+		fh, err := deps.snapshot.ReadFile(ctx, args.URI.SpanURI())
 		if err != nil {
 			return err
 		}

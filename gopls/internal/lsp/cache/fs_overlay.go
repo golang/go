@@ -39,14 +39,14 @@ func (fs *overlayFS) Overlays() []*Overlay {
 	return overlays
 }
 
-func (fs *overlayFS) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+func (fs *overlayFS) ReadFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	fs.mu.Lock()
 	overlay, ok := fs.overlays[uri]
 	fs.mu.Unlock()
 	if ok {
 		return overlay, nil
 	}
-	return fs.delegate.GetFile(ctx, uri)
+	return fs.delegate.ReadFile(ctx, uri)
 }
 
 // An Overlay is a file open in the editor. It may have unsaved edits.

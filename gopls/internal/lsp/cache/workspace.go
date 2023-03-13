@@ -28,7 +28,7 @@ func computeWorkspaceModFiles(ctx context.Context, gomod, gowork span.URI, go111
 		return nil, nil
 	}
 	if gowork != "" {
-		fh, err := fs.GetFile(ctx, gowork)
+		fh, err := fs.ReadFile(ctx, gowork)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +103,7 @@ func isGoWork(uri span.URI) bool {
 
 // fileExists reports if the file uri exists within source.
 func fileExists(ctx context.Context, uri span.URI, source source.FileSource) (bool, error) {
-	fh, err := source.GetFile(ctx, uri)
+	fh, err := source.ReadFile(ctx, uri)
 	if err != nil {
 		return false, err
 	}

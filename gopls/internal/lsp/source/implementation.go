@@ -227,7 +227,7 @@ func implementations2(ctx context.Context, snapshot Snapshot, fh FileHandle, pp 
 // which requires reading the file.
 func offsetToLocation(ctx context.Context, snapshot Snapshot, filename string, start, end int) (protocol.Location, error) {
 	uri := span.URIFromPath(filename)
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.ReadFile(ctx, uri)
 	if err != nil {
 		return protocol.Location{}, err // cancelled, perhaps
 	}

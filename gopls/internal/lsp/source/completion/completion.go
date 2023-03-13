@@ -1211,7 +1211,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 			return nil
 		}
 
-		fh, err := c.snapshot.GetFile(ctx, uri)
+		fh, err := c.snapshot.ReadFile(ctx, uri)
 		if err != nil {
 			return err
 		}

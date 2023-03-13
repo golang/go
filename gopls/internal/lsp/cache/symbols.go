@@ -31,7 +31,7 @@ func (s *snapshot) symbolize(ctx context.Context, uri span.URI) ([]source.Symbol
 
 	// Cache miss?
 	if !hit {
-		fh, err := s.GetFile(ctx, uri)
+		fh, err := s.ReadFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}

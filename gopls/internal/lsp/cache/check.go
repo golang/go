@@ -764,7 +764,7 @@ func (s *snapshot) typeCheckInputs(ctx context.Context, m *source.Metadata) (typ
 func readFiles(ctx context.Context, fs source.FileSource, uris []span.URI) (_ []source.FileHandle, err error) {
 	fhs := make([]source.FileHandle, len(uris))
 	for i, uri := range uris {
-		fhs[i], err = fs.GetFile(ctx, uri)
+		fhs[i], err = fs.ReadFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}

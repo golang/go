@@ -47,7 +47,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 		// If the file handle is an overlay, it may not be written to disk.
 		// The go.mod file has to be on disk for `go mod tidy` to work.
 		// TODO(rfindley): is this still true with Go 1.16 overlay support?
-		fh, err := s.GetFile(ctx, pm.URI)
+		fh, err := s.ReadFile(ctx, pm.URI)
 		if err != nil {
 			return nil, err
 		}

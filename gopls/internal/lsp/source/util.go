@@ -29,9 +29,9 @@ import (
 // https://golang.org/s/generatedcode.
 //
 // TODO(adonovan): opt: this function does too much.
-// Move snapshot.GetFile into the caller (most of which have already done it).
+// Move snapshot.ReadFile into the caller (most of which have already done it).
 func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.ReadFile(ctx, uri)
 	if err != nil {
 		return false
 	}

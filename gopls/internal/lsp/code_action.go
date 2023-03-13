@@ -312,7 +312,7 @@ func extractionFixes(ctx context.Context, snapshot source.Snapshot, uri span.URI
 	if rng.Start == rng.End {
 		return nil, nil
 	}
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +414,7 @@ func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd 
 	for _, fix := range sd.SuggestedFixes {
 		var changes []protocol.DocumentChanges
 		for uri, edits := range fix.Edits {
-			fh, err := snapshot.GetFile(ctx, uri)
+			fh, err := snapshot.ReadFile(ctx, uri)
 			if err != nil {
 				return nil, err
 			}
@@ -442,7 +442,7 @@ func sameDiagnostic(pd protocol.Diagnostic, sd *source.Diagnostic) bool {
 }
 
 func goTest(ctx context.Context, snapshot source.Snapshot, uri span.URI, rng protocol.Range) ([]protocol.CodeAction, error) {
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}

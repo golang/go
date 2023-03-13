@@ -33,7 +33,7 @@ func (s *snapshot) ModVuln(ctx context.Context, modURI span.URI) (*govulncheck.R
 		// The go.mod file has to be on disk for vulncheck to work.
 		//
 		// TODO(hyangah): use overlays for vulncheck.
-		fh, err := s.GetFile(ctx, modURI)
+		fh, err := s.ReadFile(ctx, modURI)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +67,7 @@ func modVulnImpl(ctx context.Context, s *snapshot, uri span.URI) (*govulncheck.R
 	if vulncheck.VulnerablePackages == nil {
 		return &govulncheck.Result{}, nil
 	}
-	fh, err := s.GetFile(ctx, uri)
+	fh, err := s.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}

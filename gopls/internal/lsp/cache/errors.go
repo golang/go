@@ -434,7 +434,7 @@ func typeErrorData(pkg *syntaxPackage, terr types.Error) (typesinternal.ErrorCod
 // contained in the provided FileSource.
 func spanToRange(ctx context.Context, fs source.FileSource, spn span.Span) (protocol.Range, error) {
 	uri := spn.URI()
-	fh, err := fs.GetFile(ctx, uri)
+	fh, err := fs.ReadFile(ctx, uri)
 	if err != nil {
 		return protocol.Range{}, err
 	}
@@ -514,7 +514,7 @@ func parseGoListImportCycleError(ctx context.Context, e packages.Error, m *sourc
 //
 // It returns an error if the file could not be read.
 func parseGoURI(ctx context.Context, fs source.FileSource, uri span.URI, mode source.ParseMode) (*source.ParsedGoFile, error) {
-	fh, err := fs.GetFile(ctx, uri)
+	fh, err := fs.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -526,7 +526,7 @@ func parseGoURI(ctx context.Context, fs source.FileSource, uri span.URI, mode so
 //
 // It returns an error if the file could not be read.
 func parseModURI(ctx context.Context, fs source.FileSource, uri span.URI) (*source.ParsedModule, error) {
-	fh, err := fs.GetFile(ctx, uri)
+	fh, err := fs.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}

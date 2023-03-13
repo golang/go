@@ -67,13 +67,15 @@ type Snapshot interface {
 	// and their GOPATH.
 	ValidBuildConfiguration() bool
 
+	// A Snapshot is a caching implementation of FileSource whose
+	// ReadFile method returns consistent information about the existence
+	// and content of each file throughout its lifetime.
+	FileSource
+
 	// FindFile returns the FileHandle for the given URI, if it is already
 	// in the given snapshot.
+	// TODO(adonovan): delete this operation; use ReadFile instead.
 	FindFile(uri span.URI) FileHandle
-
-	// GetFile returns the FileHandle for a given URI, initializing it if it is
-	// not already part of the snapshot.
-	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
 
 	// AwaitInitialized waits until the snapshot's view is initialized.
 	AwaitInitialized(ctx context.Context)
@@ -363,10 +365,11 @@ type View interface {
 	GoVersionString() string
 }
 
-// A FileSource maps uris to FileHandles.
+// A FileSource maps URIs to FileHandles.
 type FileSource interface {
-	// GetFile returns the FileHandle for a given URI.
-	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
+	// ReadFile returns the FileHandle for a given URI, either by
+	// reading the content of the file or by obtaining it from a cache.
+	ReadFile(ctx context.Context, uri span.URI) (FileHandle, error)
 }
 
 // A MetadataSource maps package IDs to metadata.
@@ -609,8 +612,13 @@ const (
 	ParseFull
 )
 
-// A FileHandle is an interface to files tracked by the LSP session, which may
-// be either files read from disk, or open in the editor session (overlays).
+// A FileHandle represents the URI, content, hash, and optional
+// version of a file tracked by the LSP session.
+//
+// File content may be provided by the file system (for Saved files)
+// or from an overlay, for open files with unsaved edits.
+// A FileHandle may record an attempt to read a non-existent file,
+// in which case Content returns an error.
 type FileHandle interface {
 	// URI is the URI for this file handle.
 	// TODO(rfindley): this is not actually well-defined. In some cases, there
@@ -620,8 +628,8 @@ type FileHandle interface {
 	// FileIdentity returns a FileIdentity for the file, even if there was an
 	// error reading it.
 	FileIdentity() FileIdentity
-	// Saved reports whether the file has the same content on disk.
-	// For on-disk files, this is trivially true.
+	// Saved reports whether the file has the same content on disk:
+	// it is false for files open on an editor with unsaved edits.
 	Saved() bool
 	// Version returns the file version, as defined by the LSP client.
 	// For on-disk file handles, Version returns 0.

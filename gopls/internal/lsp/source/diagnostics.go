@@ -67,7 +67,7 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeCon
 // efficient to compute the set of packages and TypeCheck and
 // Analyze them all at once.
 func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (FileHandle, []*Diagnostic, error) {
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, nil, err
 	}

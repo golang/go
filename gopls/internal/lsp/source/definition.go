@@ -183,7 +183,7 @@ func importDefinition(ctx context.Context, s Snapshot, pkg Package, pgf *ParsedG
 
 	var locs []protocol.Location
 	for _, f := range impMetadata.CompiledGoFiles {
-		fh, err := s.GetFile(ctx, f)
+		fh, err := s.ReadFile(ctx, f)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -216,7 +216,7 @@ func importDefinition(ctx context.Context, s Snapshot, pkg Package, pgf *ParsedG
 func mapPosition(ctx context.Context, fset *token.FileSet, s FileSource, start, end token.Pos) (protocol.Location, error) {
 	file := fset.File(start)
 	uri := span.URIFromPath(file.Name())
-	fh, err := s.GetFile(ctx, uri)
+	fh, err := s.ReadFile(ctx, uri)
 	if err != nil {
 		return protocol.Location{}, err
 	}

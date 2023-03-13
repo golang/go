@@ -489,7 +489,7 @@ func (s *snapshot) locateTemplateFiles(ctx context.Context) {
 		//
 		// Furthermore, this operation must ignore errors, including context
 		// cancellation, or risk leaving the snapshot in an undefined state.
-		s.GetFile(ctx, uri)
+		s.ReadFile(ctx, uri)
 		return nil
 	})
 	if err != nil {
@@ -703,7 +703,7 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) (loadEr
 		for modURI := range s.workspaceModFiles {
 			// Be careful not to add context cancellation errors as critical module
 			// errors.
-			fh, err := s.GetFile(ctx, modURI)
+			fh, err := s.ReadFile(ctx, modURI)
 			if err != nil {
 				if ctx.Err() == nil {
 					addError(modURI, err)

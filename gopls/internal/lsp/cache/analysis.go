@@ -154,7 +154,7 @@ import (
 //   Steps:
 //   - define a narrow driver.Snapshot interface with only these methods:
 //        Metadata(PackageID) source.Metadata
-//        GetFile(Context, URI) (source.FileHandle, error)
+//        ReadFile(Context, URI) (source.FileHandle, error)
 //        View() *View // for Options
 //   - define a State type that encapsulates the persistent map
 //     (with its own mutex), and has methods:
@@ -375,7 +375,7 @@ func analyzeImpl(ctx context.Context, snapshot *snapshot, analyzers []*analysis.
 	// (These are all cache hits as files are pre-loaded following packages.Load)
 	compiledGoFiles := make([]source.FileHandle, len(m.CompiledGoFiles))
 	for i, uri := range m.CompiledGoFiles {
-		fh, err := snapshot.GetFile(ctx, uri)
+		fh, err := snapshot.ReadFile(ctx, uri)
 		if err != nil {
 			return nil, err // e.g. canceled
 		}

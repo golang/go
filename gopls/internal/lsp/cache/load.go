@@ -271,7 +271,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 		uri := uri
 		wg.Add(1)
 		go func() {
-			s.GetFile(ctx, uri) // ignore result
+			s.ReadFile(ctx, uri) // ignore result
 			wg.Done()
 		}()
 	}

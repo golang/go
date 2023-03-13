@@ -144,7 +144,7 @@ func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI) ([]
 		}
 		for _, rdep := range rdeps {
 			for _, uri := range rdep.CompiledGoFiles {
-				fh, err := snapshot.GetFile(ctx, uri)
+				fh, err := snapshot.ReadFile(ctx, uri)
 				if err != nil {
 					return nil, err
 				}
@@ -173,7 +173,7 @@ func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI) ([]
 	// "internal" references.
 	widest := metas[len(metas)-1]
 	for _, uri := range widest.CompiledGoFiles {
-		fh, err := snapshot.GetFile(ctx, uri)
+		fh, err := snapshot.ReadFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}

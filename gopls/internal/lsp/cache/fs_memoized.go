@@ -54,8 +54,8 @@ func (h *DiskFile) Saved() bool              { return true }
 func (h *DiskFile) Version() int32           { return 0 }
 func (h *DiskFile) Content() ([]byte, error) { return h.content, h.err }
 
-// GetFile stats and (maybe) reads the file, updates the cache, and returns it.
-func (fs *memoizedFS) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+// ReadFile stats and (maybe) reads the file, updates the cache, and returns it.
+func (fs *memoizedFS) ReadFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	id, mtime, err := robustio.GetFileID(uri.Filename())
 	if err != nil {
 		// file does not exist

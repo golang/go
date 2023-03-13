@@ -489,7 +489,7 @@ func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			if _, ok := views[view]; !ok {
 				views[view] = make(map[span.URI]*fileChange)
 			}
-			fh, err := s.GetFile(ctx, c.URI)
+			fh, err := s.ReadFile(ctx, c.URI)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -684,7 +684,7 @@ func (fs *overlayFS) updateOverlays(ctx context.Context, changes []source.FileMo
 			}
 			sameContentOnDisk = true
 		default:
-			fh, err := fs.delegate.GetFile(ctx, c.URI)
+			fh, err := fs.delegate.ReadFile(ctx, c.URI)
 			if err != nil {
 				return err
 			}

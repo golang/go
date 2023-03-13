@@ -302,7 +302,7 @@ func (s *Server) changedText(ctx context.Context, uri span.URI, changes []protoc
 }
 
 func (s *Server) applyIncrementalChanges(ctx context.Context, uri span.URI, changes []protocol.TextDocumentContentChangeEvent) ([]byte, error) {
-	fh, err := s.session.GetFile(ctx, uri)
+	fh, err := s.session.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}

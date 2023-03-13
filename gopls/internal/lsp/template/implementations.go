@@ -148,7 +148,7 @@ func References(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 }
 
 func SemanticTokens(ctx context.Context, snapshot source.Snapshot, spn span.URI, add func(line, start, len uint32), d func() []uint32) (*protocol.SemanticTokens, error) {
-	fh, err := snapshot.GetFile(ctx, spn)
+	fh, err := snapshot.ReadFile(ctx, spn)
 	if err != nil {
 		return nil, err
 	}

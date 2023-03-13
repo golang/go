@@ -588,7 +588,7 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 	// This call has the effect of inserting fh into snapshot.files,
 	// where for better or worse (actually: just worse) it influences
 	// the sets of open, known, and orphaned files.
-	snapshot.GetFile(ctx, fh.URI())
+	snapshot.ReadFile(ctx, fh.URI())
 
 	metas, _ := snapshot.MetadataForFile(ctx, fh.URI())
 	if len(metas) > 0 || ctx.Err() != nil {

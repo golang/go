@@ -100,7 +100,7 @@ func ApplyFix(ctx context.Context, fix string, snapshot Snapshot, fh FileHandle,
 		if !end.IsValid() {
 			end = edit.Pos
 		}
-		fh, err := snapshot.GetFile(ctx, span.URIFromPath(tokFile.Name()))
+		fh, err := snapshot.ReadFile(ctx, span.URIFromPath(tokFile.Name()))
 		if err != nil {
 			return nil, err
 		}

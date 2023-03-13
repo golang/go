@@ -54,7 +54,7 @@ func VulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot) (ma
 func collectDiagnostics(ctx context.Context, snapshot source.Snapshot, diagFn func(context.Context, source.Snapshot, source.FileHandle) ([]*source.Diagnostic, error)) (map[span.URI][]*source.Diagnostic, error) {
 	reports := make(map[span.URI][]*source.Diagnostic)
 	for _, uri := range snapshot.ModFiles() {
-		fh, err := snapshot.GetFile(ctx, uri)
+		fh, err := snapshot.ReadFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +64,7 @@ func collectDiagnostics(ctx context.Context, snapshot source.Snapshot, diagFn fu
 			return nil, err
 		}
 		for _, d := range diagnostics {
-			fh, err := snapshot.GetFile(ctx, d.URI)
+			fh, err := snapshot.ReadFile(ctx, d.URI)
 			if err != nil {
 				return nil, err
 			}

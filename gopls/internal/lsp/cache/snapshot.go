@@ -531,7 +531,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 
 	var modContent []byte
 	if modURI != "" {
-		modFH, err := s.GetFile(ctx, modURI)
+		modFH, err := s.ReadFile(ctx, modURI)
 		if err != nil {
 			return "", nil, cleanup, err
 		}
@@ -588,7 +588,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 		if modURI == "" {
 			return "", nil, cleanup, fmt.Errorf("no go.mod file found in %s", inv.WorkingDir)
 		}
-		modFH, err := s.GetFile(ctx, modURI)
+		modFH, err := s.ReadFile(ctx, modURI)
 		if err != nil {
 			return "", nil, cleanup, err
 		}
@@ -1212,29 +1212,29 @@ func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
 	return result
 }
 
-// GetFile returns a File for the given URI. If the file is unknown it is added
+// ReadFile returns a File for the given URI. If the file is unknown it is added
 // to the managed set.
 //
-// GetFile succeeds even if the file does not exist. A non-nil error return
+// ReadFile succeeds even if the file does not exist. A non-nil error return
 // indicates some type of internal error, for example if ctx is cancelled.
-func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+func (s *snapshot) ReadFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return lockedSnapshot{s}.GetFile(ctx, uri)
+	return lockedSnapshot{s}.ReadFile(ctx, uri)
 }
 
 // A lockedSnapshot implements the source.FileSource interface while holding
 // the lock for the wrapped snapshot.
 type lockedSnapshot struct{ wrapped *snapshot }
 
-func (s lockedSnapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+func (s lockedSnapshot) ReadFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	s.wrapped.view.markKnown(uri)
 	if fh, ok := s.wrapped.files.Get(uri); ok {
 		return fh, nil
 	}
 
-	fh, err := s.wrapped.view.fs.GetFile(ctx, uri) // read the file
+	fh, err := s.wrapped.view.fs.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -1587,11 +1587,11 @@ type unappliedChanges struct {
 	changes          map[span.URI]*fileChange
 }
 
-func (ac *unappliedChanges) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+func (ac *unappliedChanges) ReadFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
 	if c, ok := ac.changes[uri]; ok {
 		return c.fileHandle, nil
 	}
-	return ac.originalSnapshot.GetFile(ctx, uri)
+	return ac.originalSnapshot.ReadFile(ctx, uri)
 }
 
 func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, func()) {
@@ -2191,7 +2191,7 @@ func (s *snapshot) BuiltinFile(ctx context.Context) (*source.ParsedGoFile, error
 		return nil, fmt.Errorf("no builtin package for view %s", s.view.name)
 	}
 
-	fh, err := s.GetFile(ctx, builtin)
+	fh, err := s.ReadFile(ctx, builtin)
 	if err != nil {
 		return nil, err
 	}

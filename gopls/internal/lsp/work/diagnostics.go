@@ -26,7 +26,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[span.URI][]
 	if uri == "" {
 		return nil, nil
 	}
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[span.URI][]
 		return nil, err
 	}
 	for _, d := range diagnostics {
-		fh, err := snapshot.GetFile(ctx, d.URI)
+		fh, err := snapshot.ReadFile(ctx, d.URI)
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +63,7 @@ func DiagnosticsForWork(ctx context.Context, snapshot source.Snapshot, fh source
 			return nil, err
 		}
 
-		modfh, err := snapshot.GetFile(ctx, modFileURI(pw, use))
+		modfh, err := snapshot.ReadFile(ctx, modFileURI(pw, use))
 		if err != nil {
 			return nil, err
 		}

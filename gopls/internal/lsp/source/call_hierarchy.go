@@ -107,7 +107,7 @@ func IncomingCalls(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 // enclosingNodeCallItem creates a CallHierarchyItem representing the function call at loc.
 func enclosingNodeCallItem(ctx context.Context, snapshot Snapshot, pkgPath PackagePath, loc protocol.Location) (protocol.CallHierarchyItem, error) {
 	// Parse the file containing the reference.
-	fh, err := snapshot.GetFile(ctx, loc.URI.SpanURI())
+	fh, err := snapshot.ReadFile(ctx, loc.URI.SpanURI())
 	if err != nil {
 		return protocol.CallHierarchyItem{}, err
 	}
