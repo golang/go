@@ -104,58 +104,92 @@
 // Save and restore VR20-31 (aka VSR56-63). These
 // macros must point to a 16B aligned offset.
 #define SAVE_VR_SIZE (12*16)
-#define SAVE_VR(offset, rtmp)   \
-	MOVD	$(offset), rtmp \
-	STVX	V20, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V21, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V22, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V23, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V24, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V25, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V26, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V27, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V28, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V29, (rtmp)(R1) \
-	ADD	$16, rtmp       \
-	STVX	V30, (rtmp)(R1) \
-	ADD	$16, rtmp       \
+#define SAVE_VR(offset, rtmp)         \
+	MOVD	$(offset+16*0), rtmp  \
+	STVX	V20, (rtmp)(R1)       \
+	MOVD	$(offset+16*1), rtmp  \
+	STVX	V21, (rtmp)(R1)       \
+	MOVD	$(offset+16*2), rtmp  \
+	STVX	V22, (rtmp)(R1)       \
+	MOVD	$(offset+16*3), rtmp  \
+	STVX	V23, (rtmp)(R1)       \
+	MOVD	$(offset+16*4), rtmp  \
+	STVX	V24, (rtmp)(R1)       \
+	MOVD	$(offset+16*5), rtmp  \
+	STVX	V25, (rtmp)(R1)       \
+	MOVD	$(offset+16*6), rtmp  \
+	STVX	V26, (rtmp)(R1)       \
+	MOVD	$(offset+16*7), rtmp  \
+	STVX	V27, (rtmp)(R1)       \
+	MOVD	$(offset+16*8), rtmp  \
+	STVX	V28, (rtmp)(R1)       \
+	MOVD	$(offset+16*9), rtmp  \
+	STVX	V29, (rtmp)(R1)       \
+	MOVD	$(offset+16*10), rtmp \
+	STVX	V30, (rtmp)(R1)       \
+	MOVD	$(offset+16*11), rtmp \
 	STVX	V31, (rtmp)(R1)
 
-#define RESTORE_VR(offset, rtmp) \
-	MOVD	$(offset), rtmp  \
-	LVX	(rtmp)(R1), V20  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V21  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V22  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V23  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V24  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V25  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V26  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V27  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V28  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V29  \
-	ADD	$16, rtmp        \
-	LVX	(rtmp)(R1), V30  \
-	ADD	$16, rtmp        \
+#define RESTORE_VR(offset, rtmp)      \
+	MOVD	$(offset+16*0), rtmp  \
+	LVX	(rtmp)(R1), V20       \
+	MOVD	$(offset+16*1), rtmp  \
+	LVX	(rtmp)(R1), V21       \
+	MOVD	$(offset+16*2), rtmp  \
+	LVX	(rtmp)(R1), V22       \
+	MOVD	$(offset+16*3), rtmp  \
+	LVX	(rtmp)(R1), V23       \
+	MOVD	$(offset+16*4), rtmp  \
+	LVX	(rtmp)(R1), V24       \
+	MOVD	$(offset+16*5), rtmp  \
+	LVX	(rtmp)(R1), V25       \
+	MOVD	$(offset+16*6), rtmp  \
+	LVX	(rtmp)(R1), V26       \
+	MOVD	$(offset+16*7), rtmp  \
+	LVX	(rtmp)(R1), V27       \
+	MOVD	$(offset+16*8), rtmp  \
+	LVX	(rtmp)(R1), V28       \
+	MOVD	$(offset+16*9), rtmp  \
+	LVX	(rtmp)(R1), V29       \
+	MOVD	$(offset+16*10), rtmp \
+	LVX	(rtmp)(R1), V30       \
+	MOVD	$(offset+16*11), rtmp \
 	LVX	(rtmp)(R1), V31
 
 // LR and CR are saved in the caller's frame. The callee must
 // make space for all other callee-save registers.
 #define SAVE_ALL_REG_SIZE (SAVE_GPR_SIZE+SAVE_FPR_SIZE+SAVE_VR_SIZE)
+
+// Stack a frame and save all callee-save registers following the
+// host OS's ABI. Fortunately, this is identical for AIX, ELFv1, and
+// ELFv2. All host ABIs require the stack pointer to maintain 16 byte
+// alignment, and save the callee-save registers in the same places.
+//
+// To restate, R1 is assumed to be aligned when this macro is used.
+// This assumes the caller's frame is compliant with the host ABI.
+// CR and LR are saved into the caller's frame per the host ABI.
+// R0 is initialized to $0 as expected by Go.
+#define STACK_AND_SAVE_HOST_TO_GO_ABI(extra)                       \
+	MOVD	LR, R0                                             \
+	MOVD	R0, 16(R1)                                         \
+	MOVW	CR, R0                                             \
+	MOVD	R0, 8(R1)                                          \
+	MOVDU	R1, -(extra)-FIXED_FRAME-SAVE_ALL_REG_SIZE(R1)     \
+	SAVE_GPR(extra+FIXED_FRAME)                                \
+	SAVE_FPR(extra+FIXED_FRAME+SAVE_GPR_SIZE)                  \
+	SAVE_VR(extra+FIXED_FRAME+SAVE_GPR_SIZE+SAVE_FPR_SIZE, R0) \
+	MOVD	$0, R0
+
+// This unstacks the frame, restoring all callee-save registers
+// as saved by STACK_AND_SAVE_HOST_TO_GO_ABI.
+//
+// R0 is not guaranteed to contain $0 after this macro.
+#define UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(extra)                     \
+	RESTORE_GPR(extra+FIXED_FRAME)                                \
+	RESTORE_FPR(extra+FIXED_FRAME+SAVE_GPR_SIZE)                  \
+	RESTORE_VR(extra+FIXED_FRAME+SAVE_GPR_SIZE+SAVE_FPR_SIZE, R0) \
+	ADD 	$(extra+FIXED_FRAME+SAVE_ALL_REG_SIZE), R1            \
+	MOVD	16(R1), R0                                            \
+	MOVD	R0, LR                                                \
+	MOVD	8(R1), R0                                             \
+	MOVW	R0, CR
