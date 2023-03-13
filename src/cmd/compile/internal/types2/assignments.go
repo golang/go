@@ -189,7 +189,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	}
 
 	var x operand
-	check.expr(&x, lhs)
+	check.expr(nil, &x, lhs)
 
 	if v != nil {
 		v.used = v_used // restore v.used
@@ -205,7 +205,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	default:
 		if sel, ok := x.expr.(*syntax.SelectorExpr); ok {
 			var op operand
-			check.expr(&op, sel.X)
+			check.expr(nil, &op, sel.X)
 			if op.mode == mapindex {
 				check.errorf(&x, UnaddressableFieldAssign, "cannot assign to struct field %s in map", syntax.String(x.expr))
 				return Typ[Invalid]
@@ -218,15 +218,20 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	return x.typ
 }
 
-// assignVar checks the assignment lhs = x.
-func (check *Checker) assignVar(lhs syntax.Expr, x *operand) {
-	if x.mode == invalid {
-		check.useLHS(lhs)
+// assignVar checks the assignment lhs = rhs (if x == nil), or lhs = x (if x != nil).
+// If x != nil, it must be the evaluation of rhs (and rhs will be ignored).
+func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
+	T := check.lhsVar(lhs) // nil if lhs is _
+	if T == Typ[Invalid] {
+		check.use(rhs)
 		return
 	}
 
-	T := check.lhsVar(lhs) // nil if lhs is _
-	if T == Typ[Invalid] {
+	if x == nil {
+		x = new(operand)
+		check.expr(T, x, rhs)
+	}
+	if x.mode == invalid {
 		return
 	}
 
@@ -351,7 +356,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 	if l == r && !isCall {
 		var x operand
 		for i, lhs := range lhs {
-			check.expr(&x, orig_rhs[i])
+			check.expr(lhs.typ, &x, orig_rhs[i])
 			check.initVar(lhs, &x, context)
 		}
 		return
@@ -423,9 +428,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	// each value can be assigned to its corresponding variable.
 	if l == r && !isCall {
 		for i, lhs := range lhs {
-			var x operand
-			check.expr(&x, orig_rhs[i])
-			check.assignVar(lhs, &x)
+			check.assignVar(lhs, orig_rhs[i], nil)
 		}
 		return
 	}
@@ -446,7 +449,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	r = len(rhs)
 	if l == r {
 		for i, lhs := range lhs {
-			check.assignVar(lhs, rhs[i])
+			check.assignVar(lhs, nil, rhs[i])
 		}
 		if commaOk {
 			check.recordCommaOkTypes(orig_rhs[0], rhs)

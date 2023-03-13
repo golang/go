@@ -8,31 +8,54 @@ package types2
 
 import (
 	"cmd/compile/internal/syntax"
+	"fmt"
 	. "internal/types/errors"
 	"strings"
 	"unicode"
 )
 
-// funcInst type-checks a function instantiation inst and returns the result in x.
-// The operand x must be the evaluation of inst.X and its type must be a signature.
-func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
+// funcInst type-checks a function instantiation and returns the result in x.
+// The incoming x must be an uninstantiated generic function. If inst != 0,
+// it provides (some or all of) the type arguments (inst.Index) for the
+// instantiation. If the target type T != nil and is a (non-generic) function
+// signature, the signature's parameter types are used to infer additional
+// missing type arguments of x, if any.
+// At least one of inst or T must be provided.
+func (check *Checker) funcInst(T Type, pos syntax.Pos, x *operand, inst *syntax.IndexExpr) {
 	if !check.allowVersion(check.pkg, 1, 18) {
 		check.versionErrorf(inst.Pos(), "go1.18", "function instantiation")
 	}
 
-	xlist := unpackExpr(inst.Index)
-	targs := check.typeList(xlist)
-	if targs == nil {
-		x.mode = invalid
-		x.expr = inst
-		return
+	// tsig is the (assignment) target function signature, or nil.
+	// TODO(gri) refactor and pass in tsig to funcInst instead
+	var tsig *Signature
+	if check.conf.EnableReverseTypeInference && T != nil {
+		tsig, _ = under(T).(*Signature)
 	}
-	assert(len(targs) == len(xlist))
 
-	// check number of type arguments (got) vs number of type parameters (want)
+	// targs and xlist are the type arguments and corresponding type expressions, or nil.
+	var targs []Type
+	var xlist []syntax.Expr
+	if inst != nil {
+		xlist = unpackExpr(inst.Index)
+		targs = check.typeList(xlist)
+		if targs == nil {
+			x.mode = invalid
+			x.expr = inst
+			return
+		}
+		assert(len(targs) == len(xlist))
+	}
+
+	assert(tsig != nil || targs != nil)
+
+	// Check the number of type arguments (got) vs number of type parameters (want).
+	// Note that x is a function value, not a type expression, so we don't need to
+	// call under below.
 	sig := x.typ.(*Signature)
 	got, want := len(targs), sig.TypeParams().Len()
 	if got > want {
+		// Providing too many type arguments is always an error.
 		check.errorf(xlist[got-1], WrongTypeArgCount, "got %d type arguments but want %d", got, want)
 		x.mode = invalid
 		x.expr = inst
@@ -40,7 +63,37 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	}
 
 	if got < want {
-		targs = check.infer(inst.Pos(), sig.TypeParams().list(), targs, nil, nil)
+		// If the uninstantiated or partially instantiated function x is used in an
+		// assignment (tsig != nil), use the respective function parameter and result
+		// types to infer additional type arguments.
+		var args []*operand
+		var params []*Var
+		if tsig != nil && sig.tparams != nil && tsig.params.Len() == sig.params.Len() && tsig.results.Len() == sig.results.Len() {
+			// x is a generic function and the signature arity matches the target function.
+			// To infer x's missing type arguments, treat the function assignment as a call
+			// of a synthetic function f where f's parameters are the parameters and results
+			// of x and where the arguments to the call of f are values of the parameter and
+			// result types of x.
+			n := tsig.params.Len()
+			m := tsig.results.Len()
+			args = make([]*operand, n+m)
+			params = make([]*Var, n+m)
+			for i := 0; i < n; i++ {
+				lvar := tsig.params.At(i)
+				lname := syntax.NewName(x.Pos(), paramName(lvar.name, i, "parameter"))
+				args[i] = &operand{mode: value, expr: lname, typ: lvar.typ}
+				params[i] = sig.params.At(i)
+			}
+			for i := 0; i < m; i++ {
+				lvar := tsig.results.At(i)
+				lname := syntax.NewName(x.Pos(), paramName(lvar.name, i, "result parameter"))
+				args[n+i] = &operand{mode: value, expr: lname, typ: lvar.typ}
+				params[n+i] = sig.results.At(i)
+			}
+		}
+
+		// Note that NewTuple(params...) below is nil if len(params) == 0, as desired.
+		targs = check.infer(pos, sig.TypeParams().list(), targs, NewTuple(params...), args)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
@@ -54,10 +107,33 @@ func (check *Checker) funcInst(x *operand, inst *syntax.IndexExpr) {
 	// instantiate function signature
 	sig = check.instantiateSignature(x.Pos(), sig, targs, xlist)
 	assert(sig.TypeParams().Len() == 0) // signature is not generic anymore
-	check.recordInstance(inst.X, targs, sig)
+
 	x.typ = sig
 	x.mode = value
-	x.expr = inst
+	// If we don't have an index expression, keep the existing expression of x.
+	if inst != nil {
+		x.expr = inst
+	}
+	check.recordInstance(x.expr, targs, sig)
+}
+
+func paramName(name string, i int, kind string) string {
+	if name != "" {
+		return name
+	}
+	return nth(i+1) + " " + kind
+}
+
+func nth(n int) string {
+	switch n {
+	case 1:
+		return "1st"
+	case 2:
+		return "2nd"
+	case 3:
+		return "3rd"
+	}
+	return fmt.Sprintf("%dth", n)
 }
 
 func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs []Type, xlist []syntax.Expr) (res *Signature) {
@@ -119,7 +195,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 	case typexpr:
 		// conversion
-		check.nonGeneric(x)
+		check.nonGeneric(nil, x)
 		if x.mode == invalid {
 			return conversion
 		}
@@ -129,7 +205,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		case 0:
 			check.errorf(call, WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
-			check.expr(x, call.ArgList[0])
+			check.expr(nil, x, call.ArgList[0])
 			if x.mode != invalid {
 				if t, _ := under(T).(*Interface); t != nil && !isTypeParam(T) {
 					if !t.IsMethodSet() {
@@ -272,7 +348,7 @@ func (check *Checker) exprList(elist []syntax.Expr) (xlist []*operand) {
 		xlist = make([]*operand, len(elist))
 		for i, e := range elist {
 			var x operand
-			check.expr(&x, e)
+			check.expr(nil, &x, e)
 			xlist[i] = &x
 		}
 	}
@@ -744,14 +820,14 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
 				}
 			}
 		}
-		check.rawExpr(&x, n, nil, true)
+		check.rawExpr(nil, &x, n, nil, true)
 		if v != nil {
 			v.used = v_used // restore v.used
 		}
 	case *syntax.ListExpr:
 		return check.useN(n.ElemList, lhs)
 	default:
-		check.rawExpr(&x, e, nil, true)
+		check.rawExpr(nil, &x, e, nil, true)
 	}
 	return x.mode != invalid
 }

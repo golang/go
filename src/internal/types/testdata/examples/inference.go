@@ -148,3 +148,10 @@ func _() {
 	wantsMethods /* ERROR "any does not satisfy interface{m1(Q); m2() R} (missing method m1)" */ (any(nil))
 	wantsMethods /* ERROR "hasMethods4 does not satisfy interface{m1(Q); m2() R} (wrong type for method m1)" */ (hasMethods4(nil))
 }
+
+// "Reverse" type inference is not yet permitted.
+
+func f[P any](P) {}
+
+// This must not crash.
+var _ func(int) = f // ERROR "cannot use generic function f without instantiation"

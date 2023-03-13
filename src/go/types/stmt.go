@@ -173,7 +173,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	var x operand
 	var msg string
 	var code Code
-	switch check.rawExpr(&x, call, nil, false) {
+	switch check.rawExpr(nil, &x, call, nil, false) {
 	case conversion:
 		msg = "requires function call, not conversion"
 		code = InvalidDefer
@@ -237,7 +237,7 @@ func (check *Checker) caseValues(x *operand, values []ast.Expr, seen valueMap) {
 L:
 	for _, e := range values {
 		var v operand
-		check.expr(&v, e)
+		check.expr(nil, &v, e)
 		if x.mode == invalid || v.mode == invalid {
 			continue L
 		}
@@ -288,7 +288,7 @@ L:
 		// The spec allows the value nil instead of a type.
 		if check.isNil(e) {
 			T = nil
-			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
 		} else {
 			T = check.varType(e)
 			if T == Typ[Invalid] {
@@ -327,7 +327,7 @@ L:
 // 		// The spec allows the value nil instead of a type.
 // 		var hash string
 // 		if check.isNil(e) {
-// 			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
+// 			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
 // 			T = nil
 // 			hash = "<nil>" // avoid collision with a type named nil
 // 		} else {
@@ -394,7 +394,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		kind := check.rawExpr(&x, s.X, nil, false)
+		kind := check.rawExpr(nil, &x, s.X, nil, false)
 		var msg string
 		var code Code
 		switch x.mode {
@@ -415,8 +415,8 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 	case *ast.SendStmt:
 		var ch, val operand
-		check.expr(&ch, s.Chan)
-		check.expr(&val, s.Value)
+		check.expr(nil, &ch, s.Chan)
+		check.expr(nil, &val, s.Value)
 		if ch.mode == invalid || val.mode == invalid {
 			return
 		}
@@ -449,7 +449,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 		var x operand
-		check.expr(&x, s.X)
+		check.expr(nil, &x, s.X)
 		if x.mode == invalid {
 			return
 		}
@@ -463,7 +463,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if x.mode == invalid {
 			return
 		}
-		check.assignVar(s.X, &x)
+		check.assignVar(s.X, nil, &x)
 
 	case *ast.AssignStmt:
 		switch s.Tok {
@@ -495,7 +495,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			if x.mode == invalid {
 				return
 			}
-			check.assignVar(s.Lhs[0], &x)
+			check.assignVar(s.Lhs[0], nil, &x)
 		}
 
 	case *ast.GoStmt:
@@ -570,7 +570,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		check.simpleStmt(s.Init)
 		var x operand
-		check.expr(&x, s.Cond)
+		check.expr(nil, &x, s.Cond)
 		if x.mode != invalid && !allBoolean(x.typ) {
 			check.error(s.Cond, InvalidCond, "non-boolean condition in if statement")
 		}
@@ -594,7 +594,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.simpleStmt(s.Init)
 		var x operand
 		if s.Tag != nil {
-			check.expr(&x, s.Tag)
+			check.expr(nil, &x, s.Tag)
 			// By checking assignment of x to an invisible temporary
 			// (as a compiler would), we get all the relevant checks.
 			check.assignment(&x, nil, "switch expression")
@@ -686,7 +686,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			return
 		}
 		var x operand
-		check.expr(&x, expr.X)
+		check.expr(nil, &x, expr.X)
 		if x.mode == invalid {
 			return
 		}
@@ -808,7 +808,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.simpleStmt(s.Init)
 		if s.Cond != nil {
 			var x operand
-			check.expr(&x, s.Cond)
+			check.expr(nil, &x, s.Cond)
 			if x.mode != invalid && !allBoolean(x.typ) {
 				check.error(s.Cond, InvalidCond, "non-boolean condition in for statement")
 			}
@@ -830,7 +830,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		// check expression to iterate over
 		var x operand
-		check.expr(&x, s.X)
+		check.expr(nil, &x, s.X)
 
 		// determine key/value types
 		var key, val Type
@@ -928,7 +928,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					x.mode = value
 					x.expr = lhs // we don't have a better rhs expression to use here
 					x.typ = typ
-					check.assignVar(lhs, &x)
+					check.assignVar(lhs, nil, &x)
 				}
 			}
 		}

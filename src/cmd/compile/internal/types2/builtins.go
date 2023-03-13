@@ -678,7 +678,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			return
 		}
 
-		check.expr(x, selx.X)
+		check.expr(nil, x, selx.X)
 		if x.mode == invalid {
 			return
 		}
@@ -878,7 +878,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		var t operand
 		x1 := x
 		for _, arg := range call.ArgList {
-			check.rawExpr(x1, arg, nil, false) // permit trace for types, e.g.: new(trace(T))
+			check.rawExpr(nil, x1, arg, nil, false) // permit trace for types, e.g.: new(trace(T))
 			check.dump("%v: %s", posFor(x1), x1)
 			x1 = &t // use incoming x only for first argument
 		}

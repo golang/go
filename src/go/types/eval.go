@@ -91,8 +91,8 @@ func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, 
 
 	// evaluate node
 	var x operand
-	check.rawExpr(&x, expr, nil, true) // allow generic expressions
-	check.processDelayed(0)            // incl. all functions
+	check.rawExpr(nil, &x, expr, nil, true) // allow generic expressions
+	check.processDelayed(0)                 // incl. all functions
 	check.recordUntyped()
 
 	return nil
