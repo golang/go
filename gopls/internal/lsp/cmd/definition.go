@@ -99,16 +99,6 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if len(locs) == 0 {
 		return fmt.Errorf("%v: not an identifier", from)
 	}
-	q := protocol.HoverParams{
-		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
-	}
-	hover, err := conn.Hover(ctx, &q)
-	if err != nil {
-		return fmt.Errorf("%v: %v", from, err)
-	}
-	if hover == nil {
-		return fmt.Errorf("%v: not an identifier", from)
-	}
 	file = conn.openFile(ctx, fileURI(locs[0].URI))
 	if file.err != nil {
 		return fmt.Errorf("%v: %v", from, file.err)
@@ -117,7 +107,19 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return fmt.Errorf("%v: %v", from, err)
 	}
-	description := strings.TrimSpace(hover.Contents.Value)
+
+	q := protocol.HoverParams{
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
+	}
+	hover, err := conn.Hover(ctx, &q)
+	if err != nil {
+		return fmt.Errorf("%v: %v", from, err)
+	}
+	var description string
+	if hover != nil {
+		description = strings.TrimSpace(hover.Contents.Value)
+	}
+
 	result := &Definition{
 		Span:        definition,
 		Description: description,
@@ -127,6 +129,10 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 		enc.SetIndent("", "\t")
 		return enc.Encode(result)
 	}
-	fmt.Printf("%v: defined here as %s", result.Span, result.Description)
+	fmt.Printf("%v", result.Span)
+	if len(result.Description) > 0 {
+		fmt.Printf(": defined here as %s", result.Description)
+	}
+	fmt.Printf("\n")
 	return nil
 }
