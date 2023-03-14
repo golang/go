@@ -30,10 +30,8 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	BL	runtime·reginit(SB)
 	BL	runtime·load_g(SB)
 
-#ifdef GOARCH_ppc64
-	// ppc64 use elf ABI v1. we must get the real entry address from
-	// first slot of the function descriptor before call.
-	// Same for AIX.
+#ifdef GO_PPC64X_HAS_FUNCDESC
+	// Load the real entry address from the first slot of the function descriptor.
 	MOVD	8(R3), R2
 	MOVD	(R3), R3
 #endif

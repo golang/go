@@ -23,3 +23,17 @@
 // and currently always use that much, PIC on ppc64 would need to use 48).
 
 #define FIXED_FRAME 32
+
+// aix/ppc64 uses XCOFF which has function descriptors.
+#ifdef GOOS_aix
+#ifdef GOARCH_ppc64
+#define GO_PPC64X_HAS_FUNCDESC
+#endif
+#endif
+
+// linux/ppc64 uses ELFv1 which has function descriptors.
+#ifdef GOOS_linux
+#ifdef GOARCH_ppc64
+#define GO_PPC64X_HAS_FUNCDESC
+#endif
+#endif

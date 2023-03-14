@@ -38,13 +38,13 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	MOVD	R3, (g_stack+stack_lo)(g)
 	MOVD	R1, (g_stack+stack_hi)(g)
 
-	// if there is a _cgo_init, call it using the gcc ABI.
+	// If there is a _cgo_init, call it using the gcc ABI.
 	MOVD	_cgo_init(SB), R12
 	CMP	R0, R12
 	BEQ	nocgo
-#ifdef GOARCH_ppc64
-	// ppc64 use elf ABI v1. we must get the real entry address from
-	// first slot of the function descriptor before call.
+
+#ifdef GO_PPC64X_HAS_FUNCDESC
+	// Load the real entry address from the first slot of the function descriptor.
 	MOVD	8(R12), R2
 	MOVD	(R12), R12
 #endif
@@ -597,10 +597,8 @@ g0:
 	// This is a "global call", so put the global entry point in r12
 	MOVD	R3, R12
 
-#ifdef GOARCH_ppc64
-	// ppc64 use elf ABI v1. we must get the real entry address from
-	// first slot of the function descriptor before call.
-	// Same for AIX.
+#ifdef GO_PPC64X_HAS_FUNCDESC
+	// Load the real entry address from the first slot of the function descriptor.
 	MOVD	8(R12), R2
 	MOVD	(R12), R12
 #endif
