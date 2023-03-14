@@ -50,6 +50,7 @@ func FuzzDecode(f *testing.F) {
 			NoCompression,
 			BestSpeed,
 			BestCompression,
+			HuffmanOnly,
 		}
 		for _, l := range levels {
 			var w bytes.Buffer
