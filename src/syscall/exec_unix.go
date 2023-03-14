@@ -282,6 +282,11 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	}
 	runtime_BeforeExec()
 
+	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
+	if rlimOK && rlim.Cur != 0 {
+		Setrlimit(RLIMIT_NOFILE, &rlim)
+	}
+
 	var err1 error
 	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "aix" {
 		// RawSyscall should never be used on Solaris, illumos, or AIX.
