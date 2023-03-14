@@ -747,22 +747,23 @@ TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT|NOFRAME,$0
 	MOVW	CR, R0
 	MOVD	R0, 8(R1)
 	// Don't save a back chain pointer when calling into Go. It will be overwritten.
-	// Go stores LR where ELF stores a back chain pointer.
-	ADD	$-(32+SAVE_ALL_REG_SIZE), R1
+	// Go stores LR where ELF stores a back chain pointer.  And, allocate 64B for
+	// FIXED_FRAME and 24B argument space, rounded up to a 16 byte boundary.
+	ADD	$-(64+SAVE_ALL_REG_SIZE), R1
 
-	SAVE_GPR(32)
-	SAVE_FPR(32+SAVE_GPR_SIZE)
-	SAVE_VR(32+SAVE_GPR_SIZE+SAVE_FPR_SIZE, R6)
+	SAVE_GPR(64)
+	SAVE_FPR(64+SAVE_GPR_SIZE)
+	SAVE_VR(64+SAVE_GPR_SIZE+SAVE_FPR_SIZE, R6)
 
 	MOVD	$0, R0
 	CALL	runtime·sigprofNonGo<ABIInternal>(SB)
 
-	RESTORE_GPR(32)
-	RESTORE_FPR(32+SAVE_GPR_SIZE)
-	RESTORE_VR(32+SAVE_GPR_SIZE+SAVE_FPR_SIZE, R6)
+	RESTORE_GPR(64)
+	RESTORE_FPR(64+SAVE_GPR_SIZE)
+	RESTORE_VR(64+SAVE_GPR_SIZE+SAVE_FPR_SIZE, R6)
 
 	// Clear frame, restore LR, return
-	ADD 	$(32+SAVE_ALL_REG_SIZE), R1
+	ADD 	$(64+SAVE_ALL_REG_SIZE), R1
 	MOVD	16(R1), R0
 	MOVD	R0, LR
 	MOVD	8(R1), R0
