@@ -608,7 +608,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 	}
 	if pseudoBase == "" {
 		tag, err := r.code.RecentTag(info.Name, tagPrefix, tagAllowed)
-		if err != nil && !errors.Is(err, codehost.ErrUnsupported) {
+		if err != nil && !errors.Is(err, errors.ErrUnsupported) {
 			return nil, err
 		}
 		if tag != "" {
