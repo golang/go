@@ -1265,7 +1265,7 @@ func (r *runner) collectDiagnostics(view *cache.View) {
 	defer release()
 
 	// Always run diagnostics with analysis.
-	r.server.diagnose(r.ctx, snapshot, true)
+	r.server.diagnose(r.ctx, snapshot, analyzeEverything)
 	for uri, reports := range r.server.diagnostics {
 		for _, report := range reports.reports {
 			for _, d := range report.diags {

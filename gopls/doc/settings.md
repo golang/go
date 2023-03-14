@@ -342,7 +342,7 @@ on recently modified packages.
 
 This option must be set to a valid duration string, for example `"250ms"`.
 
-Default: `"250ms"`.
+Default: `"1s"`.
 
 #### Documentation
 

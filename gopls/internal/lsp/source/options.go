@@ -124,7 +124,7 @@ func DefaultOptions() *Options {
 				},
 				UIOptions: UIOptions{
 					DiagnosticOptions: DiagnosticOptions{
-						DiagnosticsDelay: 250 * time.Millisecond,
+						DiagnosticsDelay: 1 * time.Second,
 						Annotations: map[Annotation]bool{
 							Bounds: true,
 							Escape: true,

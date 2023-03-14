@@ -53,11 +53,8 @@ func doIWL(b *testing.B, gopath string, repo *repo, file string) {
 	defer env.Close()
 	b.StartTimer()
 
-	// Open an arbitrary file to ensure that gopls starts working.
-	//
-	// In the future, this may matter if gopls doesn't eagerly construct
-	// the workspace.
-	env.OpenFile(file)
+	// Note: in the future, we may need to open a file in order to cause gopls to
+	// start loading. the workspace.
 
 	env.Await(InitialWorkspaceLoad)
 	// TODO(rfindley): remove this guard once the released gopls version supports

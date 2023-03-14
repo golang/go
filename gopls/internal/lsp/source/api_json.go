@@ -509,7 +509,7 @@ var GeneratedAPIJSON = &APIJSON{
 				Name:      "diagnosticsDelay",
 				Type:      "time.Duration",
 				Doc:       "diagnosticsDelay controls the amount of time that gopls waits\nafter the most recent file modification before computing deep diagnostics.\nSimple diagnostics (parsing and type-checking) are always run immediately\non recently modified packages.\n\nThis option must be set to a valid duration string, for example `\"250ms\"`.\n",
-				Default:   "\"250ms\"",
+				Default:   "\"1s\"",
 				Status:    "advanced",
 				Hierarchy: "ui.diagnostic",
 			},

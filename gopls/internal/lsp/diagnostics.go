@@ -124,7 +124,7 @@ func hashDiagnostics(diags ...*source.Diagnostic) string {
 func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 	ctx := snapshot.BackgroundContext()
 	ctx = xcontext.Detach(ctx)
-	s.diagnose(ctx, snapshot, false)
+	s.diagnose(ctx, snapshot, analyzeOpenPackages)
 	s.publishDiagnostics(ctx, true, snapshot)
 }
 
@@ -164,14 +164,14 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 		// TODO(rfindley): it would be cleaner to simply put the diagnostic
 		// debouncer on the view, and remove the "key" argument to debouncing.
 		if ok := <-s.diagDebouncer.debounce(snapshot.View().Name(), snapshot.SequenceID(), time.After(delay)); ok {
-			s.diagnose(ctx, snapshot, false)
+			s.diagnose(ctx, snapshot, analyzeOpenPackages)
 			s.publishDiagnostics(ctx, true, snapshot)
 		}
 		return
 	}
 
 	// Ignore possible workspace configuration warnings in the normal flow.
-	s.diagnose(ctx, snapshot, false)
+	s.diagnose(ctx, snapshot, analyzeOpenPackages)
 	s.publishDiagnostics(ctx, true, snapshot)
 }
 
@@ -219,12 +219,12 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 			}
 		}
 	}
-	s.diagnosePkgs(ctx, snapshot, toDiagnose, false)
+	s.diagnosePkgs(ctx, snapshot, toDiagnose, analyzeNothing)
 }
 
 // diagnose is a helper function for running diagnostics with a given context.
 // Do not call it directly. forceAnalysis is only true for testing purposes.
-func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAnalysis bool) {
+func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze analysisMode) {
 	ctx, done := event.Start(ctx, "Server.diagnose", source.SnapshotLabels(snapshot)...)
 	defer done()
 
@@ -335,7 +335,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 		}
 		toDiagnose = append(toDiagnose, m)
 	}
-	s.diagnosePkgs(ctx, snapshot, toDiagnose, forceAnalysis)
+	s.diagnosePkgs(ctx, snapshot, toDiagnose, analyze)
 
 	// Orphaned files.
 	// Confirm that every opened file belongs to a package (if any exist in
@@ -352,23 +352,36 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, forceAn
 	}
 }
 
-func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, mds []*source.Metadata, alwaysAnalyze bool) {
+// analysisMode parameterizes analysis behavior of a call to diagnosePkgs.
+type analysisMode int
+
+const (
+	analyzeNothing      analysisMode = iota // don't run any analysis
+	analyzeOpenPackages                     // run analysis on packages with open files
+	analyzeEverything                       // run analysis on all packages
+)
+
+func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, mds []*source.Metadata, analysis analysisMode) {
 	ctx, done := event.Start(ctx, "Server.diagnosePkgs", source.SnapshotLabels(snapshot)...)
 	defer done()
 	var needIDs []source.PackageID // exclude e.g. testdata packages
 	needAnalysis := make(map[source.PackageID]*source.Metadata)
+
 	for _, m := range mds {
-		enableDiagnostics := false
-		includeAnalysis := alwaysAnalyze // only run analyses for packages with open files
+		var hasNonIgnored, hasOpenFile bool
 		for _, uri := range m.CompiledGoFiles {
-			enableDiagnostics = enableDiagnostics || !snapshot.IgnoredFile(uri)
-			includeAnalysis = includeAnalysis || snapshot.IsOpen(uri)
+			if !snapshot.IgnoredFile(uri) {
+				hasNonIgnored = true
+			}
+			if snapshot.IsOpen(uri) {
+				hasOpenFile = true
+			}
 		}
-		if enableDiagnostics {
+		if hasNonIgnored {
 			needIDs = append(needIDs, m.ID)
-		}
-		if includeAnalysis && enableDiagnostics {
-			needAnalysis[m.ID] = m
+			if analysis == analyzeEverything || analysis == analyzeOpenPackages && hasOpenFile {
+				needAnalysis[m.ID] = m
+			}
 		}
 	}
 

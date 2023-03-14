@@ -293,6 +293,12 @@ func RunMarkerTests(t *testing.T, dir string) {
 				Settings: test.settings,
 				Env:      test.env,
 			}
+			if _, ok := config.Settings["diagnosticsDelay"]; !ok {
+				if config.Settings == nil {
+					config.Settings = make(map[string]interface{})
+				}
+				config.Settings["diagnosticsDelay"] = "10ms"
+			}
 			run := &markerTestRun{
 				test: test,
 				env:  newEnv(t, cache, test.files, config),
