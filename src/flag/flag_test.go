@@ -814,11 +814,11 @@ func TestUserDefinedBoolFunc(t *testing.T) {
 		t.Error(err)
 	}
 	if len(ss) != 1 {
-		t.Fatal("expected 1 args; got ", len(ss))
+		t.Fatalf("got %d args; want 1 arg", len(ss))
 	}
-	expect := "[true]"
-	if got := fmt.Sprint(ss); got != expect {
-		t.Errorf("expected value %q got %q", expect, got)
+	want := "[true]"
+	if got := fmt.Sprint(ss); got != want {
+		t.Errorf("got %q; want %q", got, want)
 	}
 	// test usage
 	var buf strings.Builder
@@ -839,8 +839,8 @@ func TestUserDefinedBoolFunc(t *testing.T) {
 	}
 	// flag set, expect error
 	if err := flags.Parse([]string{"-v", ""}); err == nil {
-		t.Error("expected error; got none")
+		t.Error("got err == nil; want err != nil")
 	} else if errMsg := err.Error(); !strings.Contains(errMsg, "test error") {
-		t.Errorf(`error should contain "test error"; got %q`, errMsg)
+		t.Errorf(`got %q; error should contain "test error"`, errMsg)
 	}
 }
