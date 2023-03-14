@@ -120,6 +120,12 @@ var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
 var x_cgo_set_context_function byte
 var _cgo_set_context_function = &x_cgo_set_context_function
 
+//go:cgo_import_static x_cgo_bindm
+//go:linkname x_cgo_bindm x_cgo_bindm
+//go:linkname _cgo_bindm _cgo_bindm
+var x_cgo_bindm byte
+var _cgo_bindm = &x_cgo_bindm
+
 // Calls a libc function to execute background work injected via libc
 // interceptors, such as processing pending signals under the thread
 // sanitizer.

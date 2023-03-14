@@ -83,6 +83,10 @@ _cgo_wait_runtime_init_done(void) {
 	return 0;
 }
 
+void x_cgo_bindm(void *g) {
+	pthread_setspecific(dummy_key, g);
+}
+
 void
 x_cgo_notify_runtime_init_done(void* dummy __attribute__ ((unused))) {
 	pthread_mutex_lock(&runtime_init_mu);

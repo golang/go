@@ -2093,6 +2093,12 @@ func dropm() {
 	msigrestore(sigmask)
 }
 
+func bindm() {
+	if _cgo_bindm != nil {
+		cgocall(_cgo_bindm, unsafe.Pointer(getg()))
+	}
+}
+
 // A helper function for EnsureDropM.
 func getm() uintptr {
 	return uintptr(unsafe.Pointer(getg().m))

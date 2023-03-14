@@ -1127,7 +1127,10 @@ havem:
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CBZ	R6, dropm
 	MOVD	(R6), R6
-	CBNZ	R6, droppedm
+	CBZ	R6, dropm
+	MOVD	$runtime·bindm(SB), R0
+	BL	(R0)
+	B	droppedm
 
 dropm:
 	MOVD	$runtime·dropm(SB), R0

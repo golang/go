@@ -18,6 +18,7 @@ import "unsafe"
 //go:linkname _cgo_set_context_function _cgo_set_context_function
 //go:linkname _cgo_yield _cgo_yield
 //go:linkname _cgo_pthread_key_created _cgo_pthread_key_created
+//go:linkname _cgo_bindm _cgo_bindm
 
 var (
 	_cgo_init                     unsafe.Pointer
@@ -28,6 +29,7 @@ var (
 	_cgo_set_context_function     unsafe.Pointer
 	_cgo_yield                    unsafe.Pointer
 	_cgo_pthread_key_created      unsafe.Pointer
+	_cgo_bindm                    unsafe.Pointer
 )
 
 // iscgo is set to true by the runtime/cgo package
