@@ -23,7 +23,6 @@ package expvar
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -31,9 +30,9 @@ import (
 	"runtime"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode/utf8"
 )
 
 // Var is an abstract type for all exported variables.
@@ -42,6 +41,11 @@ type Var interface {
 	// Types with String methods that do not return valid JSON
 	// (such as time.Time) must not be used as a Var.
 	String() string
+}
+
+type jsonVar interface {
+	// appendJSON appends the JSON representation of the receiver to b.
+	appendJSON(b []byte) []byte
 }
 
 // Int is a 64-bit integer variable that satisfies the Var interface.
@@ -54,7 +58,11 @@ func (v *Int) Value() int64 {
 }
 
 func (v *Int) String() string {
-	return strconv.FormatInt(atomic.LoadInt64(&v.i), 10)
+	return string(v.appendJSON(nil))
+}
+
+func (v *Int) appendJSON(b []byte) []byte {
+	return strconv.AppendInt(b, atomic.LoadInt64(&v.i), 10)
 }
 
 func (v *Int) Add(delta int64) {
@@ -75,8 +83,11 @@ func (v *Float) Value() float64 {
 }
 
 func (v *Float) String() string {
-	return strconv.FormatFloat(
-		math.Float64frombits(v.f.Load()), 'g', -1, 64)
+	return string(v.appendJSON(nil))
+}
+
+func (v *Float) appendJSON(b []byte) []byte {
+	return strconv.AppendFloat(b, math.Float64frombits(v.f.Load()), 'g', -1, 64)
 }
 
 // Add adds delta to v.
@@ -111,23 +122,44 @@ type KeyValue struct {
 }
 
 func (v *Map) String() string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "{")
+	return string(v.appendJSON(nil))
+}
+
+func (v *Map) appendJSON(b []byte) []byte {
+	return v.appendJSONMayExpand(b, false)
+}
+
+func (v *Map) appendJSONMayExpand(b []byte, expand bool) []byte {
+	afterCommaDelim := byte(' ')
+	mayAppendNewline := func(b []byte) []byte { return b }
+	if expand {
+		afterCommaDelim = '\n'
+		mayAppendNewline = func(b []byte) []byte { return append(b, '\n') }
+	}
+
+	b = append(b, '{')
+	b = mayAppendNewline(b)
 	first := true
 	v.Do(func(kv KeyValue) {
 		if !first {
-			fmt.Fprintf(&b, ", ")
-		}
-		fmt.Fprintf(&b, "%q: ", kv.Key)
-		if kv.Value != nil {
-			fmt.Fprintf(&b, "%v", kv.Value)
-		} else {
-			fmt.Fprint(&b, "null")
+			b = append(b, ',', afterCommaDelim)
 		}
 		first = false
+		b = appendJSONQuote(b, kv.Key)
+		b = append(b, ':', ' ')
+		switch v := kv.Value.(type) {
+		case nil:
+			b = append(b, "null"...)
+		case jsonVar:
+			b = v.appendJSON(b)
+		default:
+			b = append(b, v.String()...)
+		}
 	})
-	fmt.Fprintf(&b, "}")
-	return b.String()
+	b = mayAppendNewline(b)
+	b = append(b, '}')
+	b = mayAppendNewline(b)
+	return b
 }
 
 // Init removes all keys from the map.
@@ -247,9 +279,11 @@ func (v *String) Value() string {
 // String implements the Var interface. To get the unquoted string
 // use Value.
 func (v *String) String() string {
-	s := v.Value()
-	b, _ := json.Marshal(s)
-	return string(b)
+	return string(v.appendJSON(nil))
+}
+
+func (v *String) appendJSON(b []byte) []byte {
+	return appendJSONQuote(b, v.Value())
 }
 
 func (v *String) Set(value string) {
@@ -270,31 +304,25 @@ func (f Func) String() string {
 }
 
 // All published variables.
-var (
-	vars      sync.Map // map[string]Var
-	varKeysMu sync.RWMutex
-	varKeys   []string // sorted
-)
+var vars Map
 
 // Publish declares a named exported variable. This should be called from a
 // package's init function when it creates its Vars. If the name is already
 // registered then this will log.Panic.
 func Publish(name string, v Var) {
-	if _, dup := vars.LoadOrStore(name, v); dup {
+	if _, dup := vars.m.LoadOrStore(name, v); dup {
 		log.Panicln("Reuse of exported var name:", name)
 	}
-	varKeysMu.Lock()
-	defer varKeysMu.Unlock()
-	varKeys = append(varKeys, name)
-	sort.Strings(varKeys)
+	vars.keysMu.Lock()
+	defer vars.keysMu.Unlock()
+	vars.keys = append(vars.keys, name)
+	sort.Strings(vars.keys)
 }
 
 // Get retrieves a named exported variable. It returns nil if the name has
 // not been registered.
 func Get(name string) Var {
-	i, _ := vars.Load(name)
-	v, _ := i.(Var)
-	return v
+	return vars.Get(name)
 }
 
 // Convenience functions for creating new exported variables.
@@ -327,26 +355,12 @@ func NewString(name string) *String {
 // The global variable map is locked during the iteration,
 // but existing entries may be concurrently updated.
 func Do(f func(KeyValue)) {
-	varKeysMu.RLock()
-	defer varKeysMu.RUnlock()
-	for _, k := range varKeys {
-		val, _ := vars.Load(k)
-		f(KeyValue{k, val.(Var)})
-	}
+	vars.Do(f)
 }
 
 func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintf(w, "{\n")
-	first := true
-	Do(func(kv KeyValue) {
-		if !first {
-			fmt.Fprintf(w, ",\n")
-		}
-		first = false
-		fmt.Fprintf(w, "%q: %s", kv.Key, kv.Value)
-	})
-	fmt.Fprintf(w, "\n}\n")
+	w.Write(vars.appendJSONMayExpand(nil, true))
 }
 
 // Handler returns the expvar HTTP Handler.
@@ -370,4 +384,33 @@ func init() {
 	http.HandleFunc("/debug/vars", expvarHandler)
 	Publish("cmdline", Func(cmdline))
 	Publish("memstats", Func(memstats))
+}
+
+// TODO: Use json.appendString instead.
+func appendJSONQuote(b []byte, s string) []byte {
+	const hex = "0123456789abcdef"
+	b = append(b, '"')
+	for _, r := range s {
+		switch {
+		case r < ' ' || r == '\\' || r == '"' || r == '<' || r == '>' || r == '&' || r == '\u2028' || r == '\u2029':
+			switch r {
+			case '\\', '"':
+				b = append(b, '\\', byte(r))
+			case '\n':
+				b = append(b, '\\', 'n')
+			case '\r':
+				b = append(b, '\\', 'r')
+			case '\t':
+				b = append(b, '\\', 't')
+			default:
+				b = append(b, '\\', 'u', hex[(r>>12)&0xf], hex[(r>>8)&0xf], hex[(r>>4)&0xf], hex[(r>>0)&0xf])
+			}
+		case r < utf8.RuneSelf:
+			b = append(b, byte(r))
+		default:
+			b = utf8.AppendRune(b, r)
+		}
+	}
+	b = append(b, '"')
+	return b
 }
