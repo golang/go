@@ -340,6 +340,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	initialRS := LoadModFile(ctx)
 
+	if len(initialRS.rootModules) == 0 {
+		return matches, loadedPackages
+	}
+
 	ld := loadFromRoots(ctx, loaderParams{
 		PackageOpts:  opts,
 		requirements: initialRS,
