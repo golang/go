@@ -11,13 +11,13 @@ import (
 )
 
 func TestGet(t *testing.T) {
-	foo := New("foo")
+	foo := New("#foo")
 	tests := []struct {
 		godebug string
 		setting *Setting
 		want    string
 	}{
-		{"", New(""), ""},
+		{"", New("#"), ""},
 		{"", foo, ""},
 		{"foo=bar", foo, "bar"},
 		{"foo=bar,after=x", foo, "bar"},
@@ -28,7 +28,7 @@ func TestGet(t *testing.T) {
 		{"foo=", foo, ""},
 		{"foo", foo, ""},
 		{",foo", foo, ""},
-		{"foo=bar,baz", New("loooooooong"), ""},
+		{"foo=bar,baz", New("#loooooooong"), ""},
 	}
 	for _, tt := range tests {
 		t.Setenv("GODEBUG", tt.godebug)

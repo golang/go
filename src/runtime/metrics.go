@@ -7,6 +7,7 @@ package runtime
 // Metrics implementation exported to runtime/metrics.
 
 import (
+	"internal/godebugs"
 	"unsafe"
 )
 
@@ -286,20 +287,6 @@ func initMetrics() {
 				out.scalar = uint64(startingStackSize)
 			},
 		},
-		"/godebug/non-default-behavior/execerrdot:events":           {compute: compute0},
-		"/godebug/non-default-behavior/http2client:events":          {compute: compute0},
-		"/godebug/non-default-behavior/http2server:events":          {compute: compute0},
-		"/godebug/non-default-behavior/installgoroot:events":        {compute: compute0},
-		"/godebug/non-default-behavior/jstmpllitinterp:events":      {compute: compute0},
-		"/godebug/non-default-behavior/multipartfiles:events":       {compute: compute0},
-		"/godebug/non-default-behavior/multipartmaxheaders:events":  {compute: compute0},
-		"/godebug/non-default-behavior/multipartmaxparts:events":    {compute: compute0},
-		"/godebug/non-default-behavior/panicnil:events":             {compute: compute0},
-		"/godebug/non-default-behavior/randautoseed:events":         {compute: compute0},
-		"/godebug/non-default-behavior/tarinsecurepath:events":      {compute: compute0},
-		"/godebug/non-default-behavior/x509sha1:events":             {compute: compute0},
-		"/godebug/non-default-behavior/x509usefallbackroots:events": {compute: compute0},
-		"/godebug/non-default-behavior/zipinsecurepath:events":      {compute: compute0},
 		"/memory/classes/heap/free:bytes": {
 			deps: makeStatDepSet(heapStatsDep),
 			compute: func(in *statAggregate, out *metricValue) {
@@ -432,6 +419,13 @@ func initMetrics() {
 			},
 		},
 	}
+
+	for _, info := range godebugs.All {
+		if !info.Opaque {
+			metrics["/godebug/non-default-behavior/"+info.Name+":events"] = metricData{compute: compute0}
+		}
+	}
+
 	metricsInit = true
 }
 
@@ -445,10 +439,6 @@ type metricReader func() uint64
 func (f metricReader) compute(_ *statAggregate, out *metricValue) {
 	out.kind = metricKindUint64
 	out.scalar = f()
-}
-
-var godebugNonDefaults = []string{
-	"panicnil",
 }
 
 //go:linkname godebug_registerMetric internal/godebug.registerMetric

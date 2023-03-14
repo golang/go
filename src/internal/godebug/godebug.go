@@ -30,6 +30,7 @@
 package godebug
 
 import (
+	"internal/godebugs"
 	"sync"
 	"sync/atomic"
 	_ "unsafe" // go:linkname
@@ -46,21 +47,38 @@ type setting struct {
 	value          atomic.Pointer[string]
 	nonDefaultOnce sync.Once
 	nonDefault     atomic.Uint64
+	info           *godebugs.Info
 }
 
 // New returns a new Setting for the $GODEBUG setting with the given name.
+//
+// GODEBUGs meant for use by end users must be listed in ../godebugs/table.go,
+// which is used for generating and checking various documentation.
+// If the name is not listed in that table, New will succeed but calling Value
+// on the returned Setting will panic.
+// To disable that panic for access to an undocumented setting,
+// prefix the name with a #, as in godebug.New("#gofsystrace").
+// The # is a signal to New but not part of the key used in $GODEBUG.
 func New(name string) *Setting {
 	return &Setting{name: name}
 }
 
 // Name returns the name of the setting.
 func (s *Setting) Name() string {
+	if s.name != "" && s.name[0] == '#' {
+		return s.name[1:]
+	}
 	return s.name
+}
+
+// Undocumented reports whether this is an undocumented setting.
+func (s *Setting) Undocumented() bool {
+	return s.name != "" && s.name[0] == '#'
 }
 
 // String returns a printable form for the setting: name=value.
 func (s *Setting) String() string {
-	return s.name + "=" + s.Value()
+	return s.Name() + "=" + s.Value()
 }
 
 // IncNonDefault increments the non-default behavior counter
@@ -69,20 +87,16 @@ func (s *Setting) String() string {
 // /godebug/non-default-behavior/<name>:events.
 //
 // Note that Value must be called at least once before IncNonDefault.
-//
-// Any GODEBUG setting that can call IncNonDefault must be listed
-// in three more places:
-//
-//   - the table in ../runtime/metrics.go (search for non-default-behavior)
-//   - the table in ../../runtime/metrics/description.go (search for non-default-behavior; run 'go generate' afterward)
-//   - the table in ../../cmd/go/internal/load/godebug.go (search for defaultGodebugs)
 func (s *Setting) IncNonDefault() {
 	s.nonDefaultOnce.Do(s.register)
 	s.nonDefault.Add(1)
 }
 
 func (s *Setting) register() {
-	registerMetric("/godebug/non-default-behavior/"+s.name+":events", s.nonDefault.Load)
+	if s.info == nil || s.info.Opaque {
+		panic("godebug: unexpected IncNonDefault of " + s.name)
+	}
+	registerMetric("/godebug/non-default-behavior/"+s.Name()+":events", s.nonDefault.Load)
 }
 
 // cache is a cache of all the GODEBUG settings,
@@ -111,7 +125,10 @@ var empty string
 // caching of Value's result.
 func (s *Setting) Value() string {
 	s.once.Do(func() {
-		s.setting = lookup(s.name)
+		s.setting = lookup(s.Name())
+		if s.info == nil && !s.Undocumented() {
+			panic("godebug: Value of name not listed in godebugs.All: " + s.name)
+		}
 	})
 	return *s.value.Load()
 }
@@ -122,6 +139,7 @@ func lookup(name string) *setting {
 		return v.(*setting)
 	}
 	s := new(setting)
+	s.info = godebugs.Lookup(name)
 	s.value.Store(&empty)
 	if v, loaded := cache.LoadOrStore(name, s); loaded {
 		// Lost race: someone else created it. Use theirs.

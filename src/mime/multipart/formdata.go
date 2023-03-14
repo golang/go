@@ -34,7 +34,7 @@ func (r *Reader) ReadForm(maxMemory int64) (*Form, error) {
 }
 
 var (
-	multipartFiles    = godebug.New("multipartfiles")
+	multipartFiles    = godebug.New("#multipartfiles") // TODO: document and remove #
 	multipartMaxParts = godebug.New("multipartmaxparts")
 )
 
@@ -48,7 +48,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	combineFiles := true
 	if multipartFiles.Value() == "distinct" {
 		combineFiles = false
-		multipartFiles.IncNonDefault()
+		// multipartFiles.IncNonDefault() // TODO: uncomment after documenting
 	}
 	maxParts := 1000
 	if s := multipartMaxParts.Value(); s != "" {

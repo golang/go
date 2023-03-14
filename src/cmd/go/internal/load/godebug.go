@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"internal/godebugs"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,7 +44,13 @@ func ParseGoDebug(text string) (key, value string, err error) {
 	if strings.ContainsAny(v, ",") {
 		return "", "", fmt.Errorf("value contains comma")
 	}
-	return k, v, nil
+
+	for _, info := range godebugs.All {
+		if k == info.Name {
+			return k, v, nil
+		}
+	}
+	return "", "", fmt.Errorf("unknown //go:debug setting %q", k)
 }
 
 // defaultGODEBUG returns the default GODEBUG setting for the main package p.
@@ -110,19 +117,10 @@ func godebugForGoVersion(v string) map[string]string {
 	}
 
 	def := make(map[string]string)
-	for _, d := range defaultGodebugs {
-		if (d.before != 0 && n < d.before) || (d.first != 0 && n >= d.first) {
-			def[d.name] = d.value
+	for _, info := range godebugs.All {
+		if n < info.Changed {
+			def[info.Name] = info.Old
 		}
 	}
 	return def
-}
-
-var defaultGodebugs = []struct {
-	before int // applies to Go versions up until this one (21 for Go 1.21)
-	first  int // applies to Go versions starting at this one (21 for Go 1.21)
-	name   string
-	value  string
-}{
-	{before: 21, name: "panicnil", value: "1"},
 }

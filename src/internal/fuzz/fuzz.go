@@ -1090,7 +1090,7 @@ var zeroVals []any = []any{
 	uint64(0),
 }
 
-var debugInfo = godebug.New("fuzzdebug").Value() == "1"
+var debugInfo = godebug.New("#fuzzdebug").Value() == "1"
 
 func shouldPrintDebugInfo() bool {
 	return debugInfo

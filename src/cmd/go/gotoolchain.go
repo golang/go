@@ -187,7 +187,7 @@ func execGoToolchain(gotoolchain, dir, exe string) {
 	// propagate signals and such, but there are no signals on Windows.
 	// We also use the exec case when GODEBUG=gotoolchainexec=0,
 	// to allow testing this code even when not on Windows.
-	if godebug.New("gotoolchainexec").Value() == "0" || runtime.GOOS == "windows" {
+	if godebug.New("#gotoolchainexec").Value() == "0" || runtime.GOOS == "windows" {
 		cmd := exec.Command(exe, os.Args[1:]...)
 		if runtime.GOOS == "windows" && strings.Contains(exe, "go1.999test") {
 			// See testdata/script/gotoolchain.txt.

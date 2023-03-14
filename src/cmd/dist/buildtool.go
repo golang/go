@@ -65,6 +65,7 @@ var bootstrapDirs = []string{
 	"internal/coverage",
 	"internal/buildcfg",
 	"internal/goarch",
+	"internal/godebugs",
 	"internal/goexperiment",
 	"internal/goroot",
 	"internal/goversion",

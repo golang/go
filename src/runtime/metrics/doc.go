@@ -221,13 +221,8 @@ Below is the full list of supported metrics, ordered lexicographically.
 
 	/godebug/non-default-behavior/jstmpllitinterp:events
 		The number of non-default behaviors executed by
-		the html/templatepackage due to a non-default
+		the html/template package due to a non-default
 		GODEBUG=jstmpllitinterp=... setting.
-
-	/godebug/non-default-behavior/multipartfiles:events
-		The number of non-default behaviors executed by
-		the mime/multipart package due to a non-default
-		GODEBUG=multipartfiles=... setting.
 
 	/godebug/non-default-behavior/multipartmaxheaders:events
 		The number of non-default behaviors executed by

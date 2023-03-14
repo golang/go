@@ -219,7 +219,7 @@ func cloneGOROOTDeps(goroot string) error {
 	for _, pkg := range pkgs {
 		parentFound := false
 		for _, prev := range pkgRoots {
-			if strings.HasPrefix(pkg, prev) {
+			if pkg == prev || strings.HasPrefix(pkg, prev+"/") {
 				// We will copy in the source for pkg when we copy in prev.
 				parentFound = true
 				break
