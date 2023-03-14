@@ -406,7 +406,7 @@ func (check *Checker) collectObjects() {
 				}
 
 			case *syntax.TypeDecl:
-				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) {
+				if len(s.TParamList) != 0 && !check.allowVersion(pkg, s.Pos(), 1, 18) {
 					check.versionErrorf(s.TParamList[0], "go1.18", "type parameter")
 				}
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
@@ -455,7 +455,7 @@ func (check *Checker) collectObjects() {
 					}
 					check.recordDef(s.Name, obj)
 				}
-				if len(s.TParamList) != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+				if len(s.TParamList) != 0 && !check.allowVersion(pkg, s.Pos(), 1, 18) && !hasTParamError {
 					check.versionErrorf(s.TParamList[0], "go1.18", "type parameter")
 				}
 				info := &declInfo{file: fileScope, fdecl: s}

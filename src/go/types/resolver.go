@@ -386,7 +386,7 @@ func (check *Checker) collectObjects() {
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
-				if d.spec.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) {
+				if d.spec.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, d.spec.Pos(), 1, 18) {
 					check.softErrorf(d.spec.TypeParams.List[0], UnsupportedFeature, "type parameter requires go1.18 or later")
 				}
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
@@ -444,7 +444,7 @@ func (check *Checker) collectObjects() {
 					}
 					check.recordDef(d.decl.Name, obj)
 				}
-				if d.decl.Type.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, 1, 18) && !hasTParamError {
+				if d.decl.Type.TypeParams.NumFields() != 0 && !check.allowVersion(pkg, d.decl.Pos(), 1, 18) && !hasTParamError {
 					check.softErrorf(d.decl.Type.TypeParams.List[0], UnsupportedFeature, "type parameter requires go1.18 or later")
 				}
 				info := &declInfo{file: fileScope, fdecl: d.decl}

@@ -116,6 +116,7 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*syntax.File              // list of package files
+	posVers       map[*syntax.PosBase]version // Pos -> Go version mapping
 	imports       []*PkgName                  // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
@@ -279,6 +280,32 @@ func (check *Checker) initFiles(files []*syntax.File) {
 		default:
 			check.errorf(file, MismatchedPkgName, "package %s; expected %s", name, pkg.name)
 			// ignore this file
+		}
+	}
+
+	for _, file := range check.files {
+		v, _ := parseGoVersion(file.GoVersion)
+		if v.major > 0 {
+			if v.equal(check.version) {
+				continue
+			}
+			// Go 1.21 introduced the feature of setting the go.mod
+			// go line to an early version of Go and allowing //go:build lines
+			// to “upgrade” the Go version in a given file.
+			// We can do that backwards compatibly.
+			// Go 1.21 also introduced the feature of allowing //go:build lines
+			// to “downgrade” the Go version in a given file.
+			// That can't be done compatibly in general, since before the
+			// build lines were ignored and code got the module's Go version.
+			// To work around this, downgrades are only allowed when the
+			// module's Go version is Go 1.21 or later.
+			if v.before(check.version) && check.version.before(version{1, 21}) {
+				continue
+			}
+			if check.posVers == nil {
+				check.posVers = make(map[*syntax.PosBase]version)
+			}
+			check.posVers[base(file.Pos())] = v
 		}
 	}
 }

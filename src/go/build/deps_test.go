@@ -275,14 +275,19 @@ var depsRules = `
 	< go/printer
 	< go/format;
 
-	go/doc/comment, go/parser, internal/lazyregexp, text/template
-	< go/doc;
-
 	math/big, go/token
 	< go/constant;
 
-	container/heap, go/constant, go/parser, internal/types/errors, internal/lazyregexp
+	container/heap, go/constant, go/parser, internal/types/errors
 	< go/types;
+
+	# The vast majority of standard library packages should not be resorting to regexp.
+	# go/types is a good chokepoint. It shouldn't use regexp, nor should anything
+	# that is low-enough level to be used by go/types.
+	regexp !< go/types;
+
+	go/doc/comment, go/parser, internal/lazyregexp, text/template
+	< go/doc;
 
 	FMT, internal/goexperiment
 	< internal/buildcfg;

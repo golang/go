@@ -25,7 +25,7 @@ import (
 func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *typeparams.IndexExpr) {
 	assert(tsig != nil || ix != nil)
 
-	if !check.allowVersion(check.pkg, 1, 18) {
+	if !check.allowVersion(check.pkg, pos, 1, 18) {
 		check.softErrorf(inNode(ix.Orig, ix.Lbrack), UnsupportedFeature, "function instantiation requires go1.18 or later")
 	}
 
@@ -283,7 +283,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		// is an error checking its arguments (for example, if an incorrect number
 		// of arguments is supplied).
 		if got == want && want > 0 {
-			if !check.allowVersion(check.pkg, 1, 18) {
+			if !check.allowVersion(check.pkg, ix.Pos(), 1, 18) {
 				check.softErrorf(inNode(call.Fun, ix.Lbrack), UnsupportedFeature, "function instantiation requires go1.18 or later")
 			}
 
@@ -445,7 +445,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 
 	// infer type arguments and instantiate signature if necessary
 	if sig.TypeParams().Len() > 0 {
-		if !check.allowVersion(check.pkg, 1, 18) {
+		if !check.allowVersion(check.pkg, call.Pos(), 1, 18) {
 			switch call.Fun.(type) {
 			case *ast.IndexExpr, *ast.IndexListExpr:
 				ix := typeparams.UnpackIndexExpr(call.Fun)

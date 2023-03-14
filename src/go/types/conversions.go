@@ -181,7 +181,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		switch a := Tu.(type) {
 		case *Array:
 			if Identical(s.Elem(), a.Elem()) {
-				if check == nil || check.allowVersion(check.pkg, 1, 20) {
+				if check == nil || check.allowVersion(check.pkg, x.Pos(), 1, 20) {
 					return true
 				}
 				// check != nil
@@ -194,7 +194,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
 		case *Pointer:
 			if a, _ := under(a.Elem()).(*Array); a != nil {
 				if Identical(s.Elem(), a.Elem()) {
-					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+					if check == nil || check.allowVersion(check.pkg, x.Pos(), 1, 17) {
 						return true
 					}
 					// check != nil

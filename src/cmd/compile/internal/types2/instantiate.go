@@ -176,7 +176,7 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 		// the parameterized type.
 		bound := check.subst(pos, tpar.bound, smap, nil, ctxt)
 		var cause string
-		if !check.implements(targs[i], bound, true, &cause) {
+		if !check.implements(pos, targs[i], bound, true, &cause) {
 			return i, errors.New(cause)
 		}
 	}
@@ -189,7 +189,7 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type,
 //
 // If the provided cause is non-nil, it may be set to an error string
 // explaining why V does not implement (or satisfy, for constraints) T.
-func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool {
+func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cause *string) bool {
 	Vu := under(V)
 	Tu := under(T)
 	if Vu == Typ[Invalid] || Tu == Typ[Invalid] {
@@ -262,7 +262,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		// so that ordinary, non-type parameter interfaces implement comparable.
 		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
 			// V is comparable if we are at Go 1.20 or higher.
-			if check == nil || check.allowVersion(check.pkg, 1, 20) {
+			if check == nil || check.allowVersion(check.pkg, pos, 1, 20) {
 				return true
 			}
 			if cause != nil {

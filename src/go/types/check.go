@@ -118,6 +118,7 @@ type Checker struct {
 	// (initialized by Files, valid only for the duration of check.Files;
 	// maps and lists are allocated on demand)
 	files         []*ast.File               // package files
+	posVers       map[*token.File]version   // Pos -> Go version mapping
 	imports       []*PkgName                // list of imported packages
 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
@@ -284,6 +285,38 @@ func (check *Checker) initFiles(files []*ast.File) {
 			// ignore this file
 		}
 	}
+
+	for _, file := range check.files {
+		v, _ := parseGoVersion(file.GoVersion)
+		if v.major > 0 {
+			if v.equal(check.version) {
+				continue
+			}
+			// Go 1.21 introduced the feature of setting the go.mod
+			// go line to an early version of Go and allowing //go:build lines
+			// to “upgrade” the Go version in a given file.
+			// We can do that backwards compatibly.
+			// Go 1.21 also introduced the feature of allowing //go:build lines
+			// to “downgrade” the Go version in a given file.
+			// That can't be done compatibly in general, since before the
+			// build lines were ignored and code got the module's Go version.
+			// To work around this, downgrades are only allowed when the
+			// module's Go version is Go 1.21 or later.
+			if v.before(check.version) && check.version.before(version{1, 21}) {
+				continue
+			}
+			if check.posVers == nil {
+				check.posVers = make(map[*token.File]version)
+			}
+			check.posVers[check.fset.File(file.FileStart)] = v
+		}
+	}
+}
+
+// A posVers records that the file starting at pos declares the Go version vers.
+type posVers struct {
+	pos  token.Pos
+	vers version
 }
 
 // A bailout panic is used for early termination.
