@@ -456,6 +456,7 @@ func CmpToZero_ex5(e, f int32, u uint32) int {
 	}
 	return 0
 }
+
 func UintLtZero(a uint8, b uint16, c uint32, d uint64) int {
 	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCC|JCS)`
 	// arm64: -`(CMPW|CMP|BHS|BLO)`
@@ -703,4 +704,46 @@ func cmpToCmn(a, b, c, d int) int {
 		c11 = 1
 	}
 	return c1 + c2 + c3 + c4 + c5 + c6 + c7 + c8 + c9 + c10 + c11
+}
+
+func cmpToCmnLessThan(a, b, c, d int) int {
+	var c1, c2, c3, c4 int
+	// arm64:`CMN`,`CSET\tMI`,-`CMP`
+	if a+1 < 0 {
+		c1 = 1
+	}
+	// arm64:`CMN`,`CSET\tMI`,-`CMP`
+	if a+b < 0 {
+		c2 = 1
+	}
+	// arm64:`CMN`,`CSET\tMI`,-`CMP`
+	if a*b+c < 0 {
+		c3 = 1
+	}
+	// arm64:`CMP`,`CSET\tMI`,-`CMN`
+	if a-b*c < 0 {
+		c4 = 1
+	}
+	return c1 + c2 + c3 + c4
+}
+
+func cmpToCmnGreaterThanEqual(a, b, c, d int) int {
+	var c1, c2, c3, c4 int
+	// arm64:`CMN`,`CSET\tPL`,-`CMP`
+	if a+1 >= 0 {
+		c1 = 1
+	}
+	// arm64:`CMN`,`CSET\tPL`,-`CMP`
+	if a+b >= 0 {
+		c2 = 1
+	}
+	// arm64:`CMN`,`CSET\tPL`,-`CMP`
+	if a*b+c >= 0 {
+		c3 = 1
+	}
+	// arm64:`CMP`,`CSET\tPL`,-`CMN`
+	if a-b*c >= 0 {
+		c4 = 1
+	}
+	return c1 + c2 + c3 + c4
 }

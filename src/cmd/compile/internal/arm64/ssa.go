@@ -1105,7 +1105,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64NotLessThanF,
 		ssa.OpARM64NotLessEqualF,
 		ssa.OpARM64NotGreaterThanF,
-		ssa.OpARM64NotGreaterEqualF:
+		ssa.OpARM64NotGreaterEqualF,
+		ssa.OpARM64LessThanNoov,
+		ssa.OpARM64GreaterEqualNoov:
 		// generate boolean values using CSET
 		p := s.Prog(arm64.ACSET)
 		p.From.Type = obj.TYPE_SPECIAL // assembler encodes conditional bits in Offset
@@ -1196,6 +1198,9 @@ var condBits = map[ssa.Op]arm64.SpecialOperand{
 	ssa.OpARM64NotLessEqualF:    arm64.SPOP_HI, // Greater than or unordered
 	ssa.OpARM64NotGreaterThanF:  arm64.SPOP_LE, // Less than, equal to or unordered
 	ssa.OpARM64NotGreaterEqualF: arm64.SPOP_LT, // Less than or unordered
+
+	ssa.OpARM64LessThanNoov:     arm64.SPOP_MI, // Less than but without honoring overflow
+	ssa.OpARM64GreaterEqualNoov: arm64.SPOP_PL, // Greater than or equal to but without honoring overflow
 }
 
 var blockJump = map[ssa.BlockKind]struct {

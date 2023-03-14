@@ -514,6 +514,9 @@ func init() {
 		{name: "NotLessEqualF", argLength: 1, reg: readflags},    // bool, true flags encode floating-point x>y || x is unordered with y, false otherwise.
 		{name: "NotGreaterThanF", argLength: 1, reg: readflags},  // bool, true flags encode floating-point x<=y || x is unordered with y, false otherwise.
 		{name: "NotGreaterEqualF", argLength: 1, reg: readflags}, // bool, true flags encode floating-point x<y || x is unordered with y, false otherwise.
+		{name: "LessThanNoov", argLength: 1, reg: readflags},     // bool, true flags encode signed x<y but without honoring overflow, false otherwise.
+		{name: "GreaterEqualNoov", argLength: 1, reg: readflags}, // bool, true flags encode signed x>=y but without honoring overflow, false otherwise.
+
 		// duffzero
 		// arg0 = address of memory to zero
 		// arg1 = mem

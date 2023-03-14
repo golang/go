@@ -650,15 +650,15 @@
 ((Equal|NotEqual) (CMPW x z:(NEG y))) && z.Uses == 1 => ((Equal|NotEqual) (CMNW x y))
 
 // For conditional instructions such as CSET, CSEL.
-// TODO: add support for LT, LE, GT, GE, overflow needs to be considered.
-((Equal|NotEqual) (CMPconst  [0] x:(ADDconst [c] y))) && x.Uses == 1 => ((Equal|NotEqual) (CMNconst [c] y))
-((Equal|NotEqual) (CMPWconst [0] x:(ADDconst [c] y))) && x.Uses == 1 => ((Equal|NotEqual) (CMNWconst [int32(c)] y))
-((Equal|NotEqual) (CMPconst  [0] z:(ADD        x y))) && z.Uses == 1 => ((Equal|NotEqual) (CMN x y))
-((Equal|NotEqual) (CMPWconst [0] z:(ADD        x y))) && z.Uses == 1 => ((Equal|NotEqual) (CMNW x y))
-((Equal|NotEqual) (CMPconst  [0] z:(MADD     a x y))) && z.Uses == 1 => ((Equal|NotEqual) (CMN a (MUL <x.Type> x y)))
-((Equal|NotEqual) (CMPconst  [0] z:(MSUB     a x y))) && z.Uses == 1 => ((Equal|NotEqual) (CMP a (MUL <x.Type> x y)))
-((Equal|NotEqual) (CMPWconst [0] z:(MADDW    a x y))) && z.Uses == 1 => ((Equal|NotEqual) (CMNW a (MULW <x.Type> x y)))
-((Equal|NotEqual) (CMPWconst [0] z:(MSUBW    a x y))) && z.Uses == 1 => ((Equal|NotEqual) (CMPW a (MULW <x.Type> x y)))
+// TODO: add support for LE, GT, overflow needs to be considered.
+((Equal|NotEqual|LessThan|GreaterEqual) (CMPconst  [0] x:(ADDconst [c] y))) && x.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMNconst [c] y))
+((Equal|NotEqual|LessThan|GreaterEqual) (CMPWconst [0] x:(ADDconst [c] y))) && x.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMNWconst [int32(c)] y))
+((Equal|NotEqual|LessThan|GreaterEqual) (CMPconst  [0] z:(ADD        x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMN  x y))
+((Equal|NotEqual|LessThan|GreaterEqual) (CMPWconst [0] z:(ADD        x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMNW x y))
+((Equal|NotEqual|LessThan|GreaterEqual) (CMPconst  [0] z:(MADD     a x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMN  a (MUL  <x.Type> x y)))
+((Equal|NotEqual|LessThan|GreaterEqual) (CMPconst  [0] z:(MSUB     a x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMP  a (MUL  <x.Type> x y)))
+((Equal|NotEqual|LessThan|GreaterEqual) (CMPWconst [0] z:(MADDW    a x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMNW a (MULW <x.Type> x y)))
+((Equal|NotEqual|LessThan|GreaterEqual) (CMPWconst [0] z:(MSUBW    a x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMPW a (MULW <x.Type> x y)))
 
 ((CMPconst|CMNconst)   [c] y) && c < 0 && c != -1<<63 => ((CMNconst|CMPconst)   [-c] y)
 ((CMPWconst|CMNWconst) [c] y) && c < 0 && c != -1<<31 => ((CMNWconst|CMPWconst) [-c] y)
