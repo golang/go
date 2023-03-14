@@ -6,7 +6,9 @@ package os_test
 
 import (
 	"bytes"
+	"errors"
 	"internal/poll"
+	"internal/testpty"
 	"io"
 	"math/rand"
 	"net"
@@ -16,6 +18,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -279,6 +282,12 @@ func TestSpliceFile(t *testing.T) {
 			})
 		}
 	})
+	t.Run("TCP-To-TTY", func(t *testing.T) {
+		testSpliceToTTY(t, "tcp", 32768)
+	})
+	t.Run("Unix-To-TTY", func(t *testing.T) {
+		testSpliceToTTY(t, "unix", 32768)
+	})
 	t.Run("Limited", func(t *testing.T) {
 		t.Run("OneLess-TCP", func(t *testing.T) {
 			for _, size := range sizes {
@@ -393,6 +402,81 @@ func testSpliceFile(t *testing.T, proto string, size, limit int64) {
 		if want := limit - n; lr.N != want {
 			t.Fatalf("didn't update limit correctly: got %d, want %d", lr.N, want)
 		}
+	}
+}
+
+// Issue #59041.
+func testSpliceToTTY(t *testing.T, proto string, size int64) {
+	var wg sync.WaitGroup
+
+	// Call wg.Wait as the final deferred function,
+	// because the goroutines may block until some of
+	// the deferred Close calls.
+	defer wg.Wait()
+
+	pty, ttyName, err := testpty.Open()
+	if err != nil {
+		t.Skipf("skipping test because pty open failed: %v", err)
+	}
+	defer pty.Close()
+
+	// Open the tty directly, rather than via OpenFile.
+	// This bypasses the non-blocking support and is required
+	// to recreate the problem in the issue (#59041).
+	ttyFD, err := syscall.Open(ttyName, syscall.O_RDWR, 0)
+	if err != nil {
+		t.Skipf("skipping test becaused failed to open tty: %v", err)
+	}
+	defer syscall.Close(ttyFD)
+
+	tty := NewFile(uintptr(ttyFD), "tty")
+	defer tty.Close()
+
+	client, server := createSocketPair(t, proto)
+
+	data := bytes.Repeat([]byte{'a'}, int(size))
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// The problem (issue #59041) occurs when writing
+		// a series of blocks of data. It does not occur
+		// when all the data is written at once.
+		for i := 0; i < len(data); i += 1024 {
+			if _, err := client.Write(data[i : i+1024]); err != nil {
+				// If we get here because the client was
+				// closed, skip the error.
+				if !errors.Is(err, net.ErrClosed) {
+					t.Errorf("error writing to socket: %v", err)
+				}
+				return
+			}
+		}
+		client.Close()
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		buf := make([]byte, 32)
+		for {
+			if _, err := pty.Read(buf); err != nil {
+				if err != io.EOF && !errors.Is(err, ErrClosed) {
+					// An error here doesn't matter for
+					// our test.
+					t.Logf("error reading from pty: %v", err)
+				}
+				return
+			}
+		}
+	}()
+
+	// Close Client to wake up the writing goroutine if necessary.
+	defer client.Close()
+
+	_, err = io.Copy(tty, server)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
