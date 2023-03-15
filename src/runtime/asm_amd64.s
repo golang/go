@@ -1064,7 +1064,10 @@ havem:
 	CMPQ	AX, $0
 	JEQ	dropm
 	CMPQ	(AX), $0
-	JNE	done
+	JEQ	dropm
+	MOVQ	$runtime·bindm(SB), AX
+	CALL	AX
+	JMP	done
 
 dropm:
 	MOVQ	$runtime·dropm(SB), AX

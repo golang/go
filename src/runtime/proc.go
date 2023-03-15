@@ -2093,9 +2093,10 @@ func dropm() {
 	msigrestore(sigmask)
 }
 
+//go:nosplit
 func bindm() {
 	if _cgo_bindm != nil {
-		cgocall(_cgo_bindm, unsafe.Pointer(getg()))
+		asmcgocall(_cgo_bindm, unsafe.Pointer(getg()))
 	}
 }
 

@@ -21,7 +21,6 @@ static int runtime_init_done;
 // which runs when the thread exits.
 // Currently we don't care about the content of key and value.
 static pthread_key_t dummy_key;
-static void *dummy_value;
 static void pthread_key_destructor(void *value);
 uintptr_t x_cgo_pthread_key_created;
 void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
@@ -52,13 +51,6 @@ _cgo_wait_runtime_init_done(void) {
 	// whereas the specific and destructor is per thread.
 	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&dummy_key, pthread_key_destructor) == 0) {
 	    x_cgo_pthread_key_created = 1;
-	}
-	if (x_cgo_pthread_key_created == 1 && pthread_getspecific(dummy_key) == NULL) {
-	    // We assume this will always succeed, otherwise, there might be extra M leaking,
-	    // when a thread exits after a cgo call and no destructor has been created.
-	    // Since we only check the x_cgo_pthread_key_created in runtime.cgocallback,
-	    // and will skip dropm when it's 1.
-	    pthread_setspecific(dummy_key, &dummy_value);
 	}
 
 	// TODO(iant): For the case of a new C thread calling into Go, such
