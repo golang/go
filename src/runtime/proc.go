@@ -2093,12 +2093,24 @@ func dropm() {
 	msigrestore(sigmask)
 }
 
-//go:nosplit
+// bindm store the current g into the value of a pthread key.
+//
+// We allocate a pthread per-thread variable using pthread_key_create,
+// to register a thread-exit-time destructor.
+// We are here setting the value of the pthread variable, to enable the destructoor.
+// So that the destructor would invoke dropm while the C thread is exiting.
+//
+// On systems without pthreads, like Windows, bindm won't be invoked.
+//
+// NOTE: this always runs without a P, so, nowritebarrierrec required.
+//
+//go:nowritebarrierrec
 func bindm() {
-	if GOOS != "windows" && GOOS != "plan9" {
-		if _cgo_bindm != nil {
-			asmcgocall(_cgo_bindm, unsafe.Pointer(getg()))
-		}
+	if GOOS == "windows" || GOOS == "plan9" {
+		fatal("bindm happen in unexpected GOOS")
+	}
+	if _cgo_bindm != nil {
+		asmcgocall(_cgo_bindm, unsafe.Pointer(getg()))
 	}
 }
 
