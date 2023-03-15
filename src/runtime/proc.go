@@ -2100,14 +2100,14 @@ func dropm() {
 // We are here setting the value of the pthread variable, to enable the destructoor.
 // So that the destructor would invoke dropm while the C thread is exiting.
 //
-// On systems without pthreads, like Windows, bindm won't be invoked.
+// On systems without pthreads, like Windows, bindm won't be used.
 //
 // NOTE: this always runs without a P, so, nowritebarrierrec required.
 //
 //go:nowritebarrierrec
 func bindm() {
 	if GOOS == "windows" || GOOS == "plan9" {
-		fatal("bindm happen in unexpected GOOS")
+		fatal("bindm in unexpected GOOS")
 	}
 	if _cgo_bindm != nil {
 		asmcgocall(_cgo_bindm, unsafe.Pointer(getg()))
