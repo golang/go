@@ -56,7 +56,7 @@ func addTemplates(templates *template.Template) {
 	def("d3flamegraphscript", d3flamegraph.JSSource)
 	def("d3flamegraphcss", d3flamegraph.CSSSource)
 
-	// Embeded files.
+	// Embedded files.
 	def("css", loadCSS("html/common.css"))
 	def("header", loadFile("html/header.html"))
 	def("graph", loadFile("html/graph.html"))
