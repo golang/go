@@ -2095,8 +2095,10 @@ func dropm() {
 
 //go:nosplit
 func bindm() {
-	if _cgo_bindm != nil {
-		asmcgocall(_cgo_bindm, unsafe.Pointer(getg()))
+	if GOOS != "windows" && GOOS != "plan9" {
+		if _cgo_bindm != nil {
+			asmcgocall(_cgo_bindm, unsafe.Pointer(getg()))
+		}
 	}
 }
 

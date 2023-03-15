@@ -94,6 +94,9 @@ _cgo_wait_runtime_init_done(void) {
 	return 0;
 }
 
+void x_cgo_bindm(void* dummy) {
+}
+
 void
 x_cgo_notify_runtime_init_done(void* dummy) {
 	 _cgo_maybe_run_preinit();

@@ -17,11 +17,10 @@ static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
 static int runtime_init_done;
 
-// dummy_key and dummy_value are pthread specific key and value, for registering a destructor,
-// which runs when the thread exits.
-// Currently we don't care about the content of key and value.
-static pthread_key_t dummy_key;
-static void pthread_key_destructor(void *value);
+// pthread_g is a pthread specific key, for storing the g that binded to the C thread.
+// The registered destructor will be invoked, to dropm, when the g is not NULL and C thread is exiting.
+static pthread_key_t pthread_g;
+static void pthread_key_destructor(void* g);
 uintptr_t x_cgo_pthread_key_created;
 void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
 
@@ -49,7 +48,7 @@ _cgo_wait_runtime_init_done(void) {
 
 	// The key and x_cgo_pthread_key_created are for the whole program,
 	// whereas the specific and destructor is per thread.
-	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&dummy_key, pthread_key_destructor) == 0) {
+	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&pthread_g, pthread_key_destructor) == 0) {
 	    x_cgo_pthread_key_created = 1;
 	}
 
@@ -75,8 +74,8 @@ _cgo_wait_runtime_init_done(void) {
 	return 0;
 }
 
-void x_cgo_bindm(void *g) {
-	pthread_setspecific(dummy_key, g);
+void x_cgo_bindm(void* g) {
+	pthread_setspecific(pthread_g, g);
 }
 
 void
@@ -130,9 +129,9 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
 }
 
 static void
-pthread_key_destructor(void *value) {
+pthread_key_destructor(void* g) {
     if (x_crosscall2_ptr != NULL) {
         // fn == NULL means dropm.
-        (*x_crosscall2_ptr)(NULL, value, 0, 0);
+        (*x_crosscall2_ptr)(NULL, g, 0, 0);
     }
 }
