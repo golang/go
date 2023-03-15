@@ -692,7 +692,7 @@ TEXT ·cgocallback(SB),NOSPLIT,$12-12  // Frame size must match commented places
 	// Skip cgocallbackg, just dropm when fn is nil.
 	// It is used to dropm while thread is exiting.
 	MOVL	fn+0(FP), AX
-	CMPQ	AX, $0
+	CMPL	AX, $0
 	JNE	loadg
 	get_tls(CX)
 	MOVL	frame+4(FP), BX
