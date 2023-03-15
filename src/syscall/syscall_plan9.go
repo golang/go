@@ -12,6 +12,7 @@
 package syscall
 
 import (
+	"errors"
 	"internal/oserror"
 	"runtime"
 	"unsafe"
@@ -43,6 +44,8 @@ func (e ErrorString) Is(target error) bool {
 	case oserror.ErrNotExist:
 		return checkErrMessageContent(e, "does not exist", "not found",
 			"has been removed", "no parent")
+	case errors.ErrUnsupported:
+		return checkErrMessageContent(e, "not supported")
 	}
 	return false
 }

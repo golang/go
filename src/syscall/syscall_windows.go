@@ -156,6 +156,8 @@ func (e Errno) Is(target error) bool {
 		return e == ERROR_FILE_NOT_FOUND ||
 			e == _ERROR_BAD_NETPATH ||
 			e == ERROR_PATH_NOT_FOUND
+	case errorspkg.ErrUnsupported:
+		return e == EWINDOWS
 	}
 	return false
 }
