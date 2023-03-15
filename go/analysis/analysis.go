@@ -149,11 +149,7 @@ type Pass struct {
 	// WARNING: This is an experimental API and may change in the future.
 	AllObjectFacts func() []ObjectFact
 
-	// typeErrors contains types.Errors that are associated with the pkg.
-	typeErrors []types.Error
-
 	/* Further fields may be added in future. */
-	// For example, suggested or applied refactorings.
 }
 
 // PackageFact is a package together with an associated fact.

@@ -363,12 +363,15 @@ check consistency of Printf format strings and arguments
 The check applies to known functions (for example, those in package fmt)
 as well as any detected wrappers of known functions.
 
-A function that wants to avail itself of printf checking but is not
-found by this analyzer's heuristics (for example, due to use of
-dynamic calls) can insert a bogus call:
+To enable printf checking on a function that is not found by this
+analyzer's heuristics (for example, because control is obscured by
+dynamic method calls), insert a bogus call:
 
-	if false {
-		_ = fmt.Sprintf(format, args...) // enable printf checking
+	func MyPrintf(format string, args ...any) {
+		if false {
+			_ = fmt.Sprintf(format, args...) // enable printf checker
+		}
+		...
 	}
 
 The -funcs flag specifies a comma-separated list of names of additional
