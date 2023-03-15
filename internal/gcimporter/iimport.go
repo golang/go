@@ -85,7 +85,7 @@ const (
 // If the export data version is not recognized or the format is otherwise
 // compromised, an error is returned.
 func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (int, *types.Package, error) {
-	pkgs, err := iimportCommon(fset, imports, data, false, path, nil)
+	pkgs, err := iimportCommon(fset, GetPackageFromMap(imports), data, false, path, nil)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -94,10 +94,36 @@ func IImportData(fset *token.FileSet, imports map[string]*types.Package, data []
 
 // IImportBundle imports a set of packages from the serialized package bundle.
 func IImportBundle(fset *token.FileSet, imports map[string]*types.Package, data []byte) ([]*types.Package, error) {
-	return iimportCommon(fset, imports, data, true, "", nil)
+	return iimportCommon(fset, GetPackageFromMap(imports), data, true, "", nil)
 }
 
-func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data []byte, bundle bool, path string, insert InsertType) (pkgs []*types.Package, err error) {
+// A GetPackageFunc is a function that gets the package with
+// the given path from the importer state, creating it
+// (with the specified name) if necessary.
+// It is an abstraction of the map historically used to memoize package creation.
+//
+// Two calls with the same path must return the same package.
+type GetPackageFunc = func(path, name string) *types.Package
+
+// GetPackageFromMap returns a GetPackageFunc that retrieves packages from the
+// given map of package path -> package.
+//
+// The resulting func may mutate m: if a requested package is not found, a new
+// package will be inserted into m.
+func GetPackageFromMap(m map[string]*types.Package) GetPackageFunc {
+	return func(path, name string) *types.Package {
+		if _, ok := m[path]; !ok {
+			m[path] = types.NewPackage(path, name)
+		}
+		return m[path]
+	}
+}
+
+// iimportCommon implements the core of the import algorithm.
+//
+// The given getPackage func must always return a non-nil package
+// (see ImportFromMap for an example).
+func iimportCommon(fset *token.FileSet, getPackage GetPackageFunc, data []byte, bundle bool, path string, insert InsertType) (pkgs []*types.Package, err error) {
 	const currentVersion = iexportVersionCurrent
 	version := int64(-1)
 	if !debug {
@@ -195,10 +221,9 @@ func iimportCommon(fset *token.FileSet, imports map[string]*types.Package, data 
 		if pkgPath == "" {
 			pkgPath = path
 		}
-		pkg := imports[pkgPath]
+		pkg := getPackage(pkgPath, pkgName)
 		if pkg == nil {
-			pkg = types.NewPackage(pkgPath, pkgName)
-			imports[pkgPath] = pkg
+			errorf("internal error: getPackage returned nil package for %s", pkgPath)
 		} else if pkg.Name() != pkgName {
 			errorf("conflicting names %s and %s for package %q", pkg.Name(), pkgName, path)
 		}

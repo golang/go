@@ -354,7 +354,7 @@ func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, 
 
 	// TODO(rfindley): collect "deep" hashes here using the provided
 	// callback, for precise pruning.
-	imported, err := gcimporter.IImportShallow(b.fset, impMap, data, string(m.PkgPath), func(*types.Package, string) {})
+	imported, err := gcimporter.IImportShallow(b.fset, gcimporter.GetPackageFromMap(impMap), data, string(m.PkgPath), func(*types.Package, string) {})
 	if err != nil {
 		return nil, bug.Errorf("invalid export data for %q: %v", m.ID, err)
 	}

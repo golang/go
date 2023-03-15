@@ -743,7 +743,7 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 			return nil, bug.Errorf("missing export data for %q", pkgPath)
 		}
 		hashExport(pkgPath, export)
-		imported, err := gcimporter.IImportShallow(fset, importMap, export, string(pkgPath), insert)
+		imported, err := gcimporter.IImportShallow(fset, gcimporter.GetPackageFromMap(importMap), export, string(pkgPath), insert)
 		if err != nil {
 			return nil, bug.Errorf("invalid export data for %q: %v", pkgPath, err)
 		}

@@ -118,7 +118,7 @@ func typecheck(t *testing.T, ppkg *packages.Package) {
 	)
 	loadFromExportData := func(imp *packages.Package) (*types.Package, error) {
 		data := []byte(imp.ExportFile)
-		return gcimporter.IImportShallow(fset, importMap, data, imp.PkgPath, insert)
+		return gcimporter.IImportShallow(fset, gcimporter.GetPackageFromMap(importMap), data, imp.PkgPath, insert)
 	}
 	insert = func(p *types.Package, name string) {
 		imp, ok := depsByPkgPath[p.Path()]

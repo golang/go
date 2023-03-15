@@ -833,7 +833,7 @@ func TestIssue57729(t *testing.T) {
 	// Re-import it.
 	imports := make(map[string]*types.Package)
 	insert := func(pkg1 *types.Package, name string) { panic("unexpected insert") }
-	pkg2, err := IImportShallow(fset, imports, data, "p", insert)
+	pkg2, err := IImportShallow(fset, GetPackageFromMap(imports), data, "p", insert)
 	if err != nil {
 		t.Fatalf("import: %v", err) // any failure of IExport+IImport is a bug.
 	}
