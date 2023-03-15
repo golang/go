@@ -97,12 +97,13 @@ func IImportBundle(fset *token.FileSet, imports map[string]*types.Package, data 
 	return iimportCommon(fset, GetPackageFromMap(imports), data, true, "", nil)
 }
 
-// A GetPackageFunc is a function that gets the package with
-// the given path from the importer state, creating it
-// (with the specified name) if necessary.
+// A GetPackageFunc is a function that gets the package with the given path
+// from the importer state, creating it (with the specified name) if necessary.
 // It is an abstraction of the map historically used to memoize package creation.
 //
 // Two calls with the same path must return the same package.
+//
+// If the given getPackage func returns nil, the import will fail.
 type GetPackageFunc = func(path, name string) *types.Package
 
 // GetPackageFromMap returns a GetPackageFunc that retrieves packages from the
@@ -119,10 +120,6 @@ func GetPackageFromMap(m map[string]*types.Package) GetPackageFunc {
 	}
 }
 
-// iimportCommon implements the core of the import algorithm.
-//
-// The given getPackage func must always return a non-nil package
-// (see ImportFromMap for an example).
 func iimportCommon(fset *token.FileSet, getPackage GetPackageFunc, data []byte, bundle bool, path string, insert InsertType) (pkgs []*types.Package, err error) {
 	const currentVersion = iexportVersionCurrent
 	version := int64(-1)

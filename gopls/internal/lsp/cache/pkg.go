@@ -51,9 +51,9 @@ type syntaxPackage struct {
 	typeErrors      []types.Error
 	types           *types.Package
 	typesInfo       *types.Info
-	importMap       map[string]*types.Package // keys are PackagePaths
-	hasFixedFiles   bool                      // if true, AST was sufficiently mangled that we should hide type errors
-	analyses        memoize.Store             // maps analyzer.Name to Promise[actionResult]
+	importMap       map[PackagePath]*types.Package
+	hasFixedFiles   bool          // if true, AST was sufficiently mangled that we should hide type errors
+	analyses        memoize.Store // maps analyzer.Name to Promise[actionResult]
 	xrefs           []byte
 	methodsets      *methodsets.Index
 }
@@ -129,10 +129,7 @@ func (p *Package) GetTypesInfo() *types.Info {
 // dependencies of p, or if no symbols from that package were
 // referenced during the type-checking of p.
 func (p *Package) DependencyTypes(path source.PackagePath) *types.Package {
-	if path == p.m.PkgPath {
-		return p.pkg.types
-	}
-	return p.pkg.importMap[string(path)]
+	return p.pkg.importMap[path]
 }
 
 func (p *Package) HasParseErrors() bool {

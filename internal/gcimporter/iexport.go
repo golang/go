@@ -44,12 +44,12 @@ func IExportShallow(fset *token.FileSet, pkg *types.Package) ([]byte, error) {
 	return out.Bytes(), err
 }
 
-// IImportShallow decodes "shallow" types.Package data encoded by IExportShallow
-// in the same executable. This function cannot import data from
+// IImportShallow decodes "shallow" types.Package data encoded by
+// IExportShallow in the same executable. This function cannot import data from
 // cmd/compile or gcexportdata.Write.
-func IImportShallow(fset *token.FileSet, importFunc func(path, name string) *types.Package, data []byte, path string, insert InsertType) (*types.Package, error) {
+func IImportShallow(fset *token.FileSet, getPackage GetPackageFunc, data []byte, path string, insert InsertType) (*types.Package, error) {
 	const bundle = false
-	pkgs, err := iimportCommon(fset, importFunc, data, bundle, path, insert)
+	pkgs, err := iimportCommon(fset, getPackage, data, bundle, path, insert)
 	if err != nil {
 		return nil, err
 	}
