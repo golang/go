@@ -845,7 +845,9 @@ func traceback2(u *unwinder, showRuntime bool) int {
 		f := u.frame.fn
 		for iu, uf := newInlineUnwinder(f, u.symPC(), noEscapePtr(&u.cache)); n < max && uf.valid(); uf = iu.next(uf) {
 			sf := iu.srcFunc(uf)
-			if !(showRuntime || showframe(sf, gp, n == 0, u.calleeFuncID)) {
+			callee := u.calleeFuncID
+			u.calleeFuncID = sf.funcID
+			if !(showRuntime || showframe(sf, gp, n == 0, callee)) {
 				continue
 			}
 
