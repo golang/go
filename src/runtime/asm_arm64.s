@@ -1018,7 +1018,7 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	// It is used to dropm while thread is exiting.
 	MOVD	fn+0(FP), R1
 	CBNZ	R1, loadg
-	MOVD	g+8(FP), R2
+	MOVD	frame+8(FP), R2
 	MOVD	R2, g
 	B	haveg
 

@@ -915,6 +915,16 @@ GLOBL zeroTLS<>(SB),RODATA,$const_tlsSize
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOVQ	fn+0(FP), AX
+	CMPQ	AX, $0
+	JNE	loadg
+	MOVQ	frame+8(FP), CX
+	MOVQ	CX, g
+	JMP	haveg
+
+loadg:
 	// If g is nil, Go did not create the current thread,
 	// or if this thread never called into Go on some platforms.
 	// Call needm to obtain one m for temporary use.
@@ -927,6 +937,8 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	CMPQ	CX, $0
 	JEQ	2(PC)
 #endif
+
+haveg:
 	MOVQ	g(CX), BX
 	CMPQ	BX, $0
 	JEQ	needm
