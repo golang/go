@@ -422,3 +422,9 @@ func WriteImportcfg(t testing.TB, dstPath string, packageFiles map[string]string
 		t.Fatal(err)
 	}
 }
+
+// SyscallIsNotSupported reports whether err may indicate that a system call is
+// not supported by the current platform or execution environment.
+func SyscallIsNotSupported(err error) bool {
+	return syscallIsNotSupported(err)
+}
