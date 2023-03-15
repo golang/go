@@ -920,9 +920,10 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	MOVQ	fn+0(FP), AX
 	CMPQ	AX, $0
 	JNE	loadg
-	MOVQ	frame+8(FP), CX
-	MOVQ	CX, g
-	JMP	haveg
+	get_tls(CX)
+	MOVQ	frame+8(FP), BX
+	MOVQ	BX, g(CX)
+	JMP	dropm
 
 loadg:
 	// If g is nil, Go did not create the current thread,
@@ -938,7 +939,6 @@ loadg:
 	JEQ	2(PC)
 #endif
 
-haveg:
 	MOVQ	g(CX), BX
 	CMPQ	BX, $0
 	JEQ	needm
@@ -988,12 +988,6 @@ needm:
 	MOVQ	SP, (g_sched+gobuf_sp)(SI)
 
 havem:
-	// Skip cgocallbackg, just dropm when fn is nil.
-	// It is used to dropm while thread is exiting.
-	MOVQ	fn+0(FP), AX
-	CMPQ	AX, $0
-	JEQ	dropm
-
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for

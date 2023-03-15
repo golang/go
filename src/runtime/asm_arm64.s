@@ -1020,7 +1020,7 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	CBNZ	R1, loadg
 	MOVD	frame+8(FP), R2
 	MOVD	R2, g
-	B	haveg
+	B	dropm
 
 loadg:
 	// Load g from thread-local storage.
@@ -1033,7 +1033,6 @@ loadg:
 	// the linker analysis by using an indirect call.
 	CBZ	g, needm
 
-haveg:
 	MOVD	g_m(g), R8
 	MOVD	R8, savedm-8(SP)
 	B	havem
@@ -1061,11 +1060,6 @@ needm:
 	MOVD	R29, (g_sched+gobuf_bp)(R3)
 
 havem:
-	// Skip cgocallbackg, just dropm when fn is nil.
-	// It is used to dropm while thread is exiting.
-	MOVD	fn+0(FP), R1
-	CBZ	R1, dropm
-
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
