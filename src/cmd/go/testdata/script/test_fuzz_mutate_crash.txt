@@ -6,6 +6,7 @@
 # to the seed corpus in testdata, and failing the next time the test is run.
 
 [short] skip
+env GOCACHE=$WORK/cache
 
 # Running the seed corpus for all of the targets should pass the first
 # time, since nothing in the seed corpus will cause a crash.

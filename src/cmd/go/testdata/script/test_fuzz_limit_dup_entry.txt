@@ -1,12 +1,12 @@
 [!fuzz] skip
 [short] skip
+env GOCACHE=$WORK/cache
 
 # FuzzA attempts to cause the mutator to create duplicate inputs that generate
 # new coverage. Previously this would trigger a corner case when the fuzzer
 # had a execution limit, causing it to deadlock and sit in the coordinator
 # loop indefinitely, failing to exit once the limit had been exhausted.
 
-go clean --fuzzcache
 go test -fuzz=FuzzA -fuzztime=100x -parallel=1
 
 -- go.mod --
