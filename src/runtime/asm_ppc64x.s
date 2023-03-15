@@ -628,6 +628,16 @@ g0:
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOVD	fn+0(FP), R5
+	CMP	R5, $0
+	BNE	loadg
+	MOVD	frame+8(FP), R6
+	MOVD	R6, g
+	BR	dropm
+
+loadg:
 	// Load m and g from thread-local storage.
 	MOVBZ	runtime·iscgo(SB), R3
 	CMP	R3, $0
@@ -669,12 +679,6 @@ needm:
 	MOVD	R1, (g_sched+gobuf_sp)(R3)
 
 havem:
-	// Skip cgocallbackg, just dropm when fn is nil.
-	// It is used to dropm while thread is exiting.
-	MOVD	fn+0(FP), R5
-	CMP	R5, $0
-	BEQ	dropm
-
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
@@ -744,7 +748,11 @@ havem:
 	BEQ	dropm
 	MOVD	(R6), R6
 	CMP	R6, $0
-	BNE	droppedm
+	BEQ	dropm
+	MOVD	$runtime·bindm(SB), R12
+	MOVD	R12, CTR
+	BL	(CTR)
+	BR	droppedm
 
 dropm:
 	MOVD	$runtime·dropm(SB), R12
