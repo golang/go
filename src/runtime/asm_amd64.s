@@ -938,7 +938,6 @@ loadg:
 	CMPQ	CX, $0
 	JEQ	2(PC)
 #endif
-
 	MOVQ	g(CX), BX
 	CMPQ	BX, $0
 	JEQ	needm

@@ -689,6 +689,17 @@ nosave:
 TEXT ·cgocallback(SB),NOSPLIT,$12-12  // Frame size must match commented places below
 	NO_LOCAL_POINTERS
 
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOVL	fn+0(FP), AX
+	CMPQ	AX, $0
+	JNE	loadg
+	get_tls(CX)
+	MOVL	frame+4(FP), BX
+	MOVL	BX, g(CX)
+	JMP	dropm
+
+loadg:
 	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
@@ -729,12 +740,6 @@ needm:
 	MOVL	SP, (g_sched+gobuf_sp)(SI)
 
 havem:
-	// Skip cgocallbackg, just dropm when fn is nil.
-	// It is used to dropm while thread is exiting.
-	MOVL	fn+0(FP), AX
-	CMPL	AX, $0
-	JEQ	dropm
-
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
@@ -803,7 +808,10 @@ havem:
 	CMPL	DX, $0
 	JEQ	dropm
 	CMPL	(DX), $0
-	JNE	droppedm
+	JEQ	dropm
+	MOVL	$runtime·bindm(SB), AX
+	CALL	AX
+	JMP	droppedm
 
 dropm:
 	MOVL	$runtime·dropm(SB), AX
