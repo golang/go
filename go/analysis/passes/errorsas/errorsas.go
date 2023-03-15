@@ -25,6 +25,7 @@ of the second argument is not a pointer to a type implementing error.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "errorsas",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

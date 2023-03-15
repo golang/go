@@ -78,6 +78,7 @@ See: https://golang.org/doc/go_faq.html#closures_and_goroutines`
 var Analyzer = &analysis.Analyzer{
 	Name:     "loopclosure",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/loopclosure",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

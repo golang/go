@@ -31,6 +31,7 @@ func TestFoo(t *testing.T) {
 var Analyzer = &analysis.Analyzer{
 	Name:     "testinggoroutine",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/testinggoroutine",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

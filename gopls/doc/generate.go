@@ -516,6 +516,7 @@ func loadAnalyzers(m map[string]*source.Analyzer) []*source.AnalyzerJSON {
 		json = append(json, &source.AnalyzerJSON{
 			Name:    a.Analyzer.Name,
 			Doc:     a.Analyzer.Doc,
+			URL:     a.Analyzer.URL,
 			Default: a.Enabled,
 		})
 	}

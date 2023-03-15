@@ -29,6 +29,7 @@ const Doc = "check for shifts that equal or exceed the width of the integer"
 var Analyzer = &analysis.Analyzer{
 	Name:     "shift",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/shift",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

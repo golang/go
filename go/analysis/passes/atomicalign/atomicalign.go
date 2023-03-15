@@ -25,6 +25,7 @@ const Doc = "check for non-64-bits-aligned arguments to sync/atomic functions"
 var Analyzer = &analysis.Analyzer{
 	Name:     "atomicalign",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/atomicalign",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

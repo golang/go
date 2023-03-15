@@ -46,6 +46,7 @@ For example:
 var Analyzer = &analysis.Analyzer{
 	Name:     "shadow",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/shadow",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

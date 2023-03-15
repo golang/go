@@ -35,6 +35,7 @@ The set of functions may be controlled using flags.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "unusedresult",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedresult",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

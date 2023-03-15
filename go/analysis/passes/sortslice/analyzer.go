@@ -27,11 +27,13 @@ the interface{} value passed to sort.Slice is actually a slice.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "sortslice",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/sortslice",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	// TODO(adonovan): opt: first check for import "sort".
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{

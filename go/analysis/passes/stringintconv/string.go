@@ -34,6 +34,7 @@ string representation of the value in the desired base.
 var Analyzer = &analysis.Analyzer{
 	Name:     "stringintconv",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stringintconv",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

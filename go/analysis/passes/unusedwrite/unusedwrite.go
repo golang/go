@@ -45,6 +45,7 @@ Another example is about non-pointer receiver:
 var Analyzer = &analysis.Analyzer{
 	Name:     "unusedwrite",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedwrite",
 	Requires: []*analysis.Analyzer{buildssa.Analyzer},
 	Run:      run,
 }

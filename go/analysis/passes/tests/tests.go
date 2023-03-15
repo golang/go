@@ -33,6 +33,7 @@ for the conventions that are enforced for Tests, Benchmarks, and Examples.`
 var Analyzer = &analysis.Analyzer{
 	Name: "tests",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/tests",
 	Run:  run,
 }
 

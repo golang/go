@@ -25,6 +25,7 @@ in which the argument type is not a pointer or an interface.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "unmarshal",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unmarshal",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

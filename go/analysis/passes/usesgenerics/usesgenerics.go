@@ -18,6 +18,7 @@ import (
 var Analyzer = &analysis.Analyzer{
 	Name:       "usesgenerics",
 	Doc:        Doc,
+	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/usesgenerics",
 	Requires:   []*analysis.Analyzer{inspect.Analyzer},
 	Run:        run,
 	ResultType: reflect.TypeOf((*Result)(nil)),

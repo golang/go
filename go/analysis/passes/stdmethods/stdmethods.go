@@ -40,6 +40,7 @@ Checked method names include:
 var Analyzer = &analysis.Analyzer{
 	Name:     "stdmethods",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdmethods",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

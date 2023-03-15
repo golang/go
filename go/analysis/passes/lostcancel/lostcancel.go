@@ -28,6 +28,7 @@ until its parent context is cancelled.
 var Analyzer = &analysis.Analyzer{
 	Name: "lostcancel",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/lostcancel",
 	Run:  run,
 	Requires: []*analysis.Analyzer{
 		inspect.Analyzer,

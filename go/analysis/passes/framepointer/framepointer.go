@@ -20,6 +20,7 @@ const Doc = "report assembly that clobbers the frame pointer before saving it"
 var Analyzer = &analysis.Analyzer{
 	Name: "framepointer",
 	Doc:  Doc,
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/framepointer",
 	Run:  run,
 }
 

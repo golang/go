@@ -57,6 +57,7 @@ and:
 var Analyzer = &analysis.Analyzer{
 	Name:     "nilness",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/nilness",
 	Run:      run,
 	Requires: []*analysis.Analyzer{buildssa.Analyzer},
 }

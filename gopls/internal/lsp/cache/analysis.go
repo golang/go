@@ -1232,7 +1232,7 @@ func toGobDiagnostic(posToLocation func(start, end token.Pos) (protocol.Location
 		// Severity for analysis diagnostics is dynamic, based on user
 		// configuration per analyzer.
 		// Code and CodeHref are unset for Analysis diagnostics,
-		// TODO(rfindley): set Code fields if/when golang/go#57906 is accepted.
+		// TODO(rfindley): derive Code fields from diag.URL.
 		Source:         diag.Category,
 		Message:        diag.Message,
 		SuggestedFixes: fixes,

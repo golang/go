@@ -24,6 +24,10 @@ type Analyzer struct {
 	// (no capital or period, max ~60 letters).
 	Doc string
 
+	// URL holds an optional link to a web page with additional
+	// documentation for this analyzer.
+	URL string
+
 	// Flags defines any flags accepted by the analyzer.
 	// The manner in which these flags are exposed to the user
 	// depends on the driver which runs the analyzer.

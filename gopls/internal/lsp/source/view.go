@@ -819,7 +819,7 @@ type CriticalError struct {
 // An Diagnostic corresponds to an LSP Diagnostic.
 // https://microsoft.github.io/language-server-protocol/specification#diagnostic
 type Diagnostic struct {
-	URI      span.URI
+	URI      span.URI // of diagnosed file (not diagnostic documentation)
 	Range    protocol.Range
 	Severity protocol.DiagnosticSeverity
 	Code     string

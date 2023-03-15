@@ -30,6 +30,7 @@ usually a mistake.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "assign",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/assign",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

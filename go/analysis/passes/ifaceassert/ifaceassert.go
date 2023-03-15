@@ -34,6 +34,7 @@ io.Reader, so this assertion cannot succeed.
 var Analyzer = &analysis.Analyzer{
 	Name:     "ifaceassert",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/ifaceassert",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

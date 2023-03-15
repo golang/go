@@ -32,6 +32,7 @@ standards, and so it is more likely that 2006-01-02 (yyyy-mm-dd) was intended.
 var Analyzer = &analysis.Analyzer{
 	Name:     "timeformat",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/timeformat",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

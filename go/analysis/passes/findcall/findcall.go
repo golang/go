@@ -26,6 +26,7 @@ of a particular name.`
 var Analyzer = &analysis.Analyzer{
 	Name:             "findcall",
 	Doc:              Doc,
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/findcall",
 	Run:              run,
 	RunDespiteErrors: true,
 	FactTypes:        []analysis.Fact{new(foundFact)},

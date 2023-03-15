@@ -35,6 +35,7 @@ func init() {
 var Analyzer = &analysis.Analyzer{
 	Name:       "printf",
 	Doc:        Doc,
+	URL:        "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/printf",
 	Requires:   []*analysis.Analyzer{inspect.Analyzer},
 	Run:        run,
 	ResultType: reflect.TypeOf((*Result)(nil)),

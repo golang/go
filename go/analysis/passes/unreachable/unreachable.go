@@ -26,6 +26,7 @@ infinite loop, or similar constructs.`
 var Analyzer = &analysis.Analyzer{
 	Name:             "unreachable",
 	Doc:              Doc,
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unreachable",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,

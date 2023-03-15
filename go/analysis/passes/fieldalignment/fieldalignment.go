@@ -51,6 +51,7 @@ known as "false sharing" that slows down both goroutines.
 var Analyzer = &analysis.Analyzer{
 	Name:     "fieldalignment",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/fieldalignment",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

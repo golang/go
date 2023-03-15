@@ -39,6 +39,7 @@ Likely what is intended is:
 var Analyzer = &analysis.Analyzer{
 	Name:     "reflectvaluecompare",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/reflectvaluecompare",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

@@ -35,6 +35,7 @@ diagnostic for such mistakes.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "httpresponse",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/httpresponse",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

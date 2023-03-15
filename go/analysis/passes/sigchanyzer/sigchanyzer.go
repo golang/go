@@ -27,6 +27,7 @@ where c is an unbuffered channel, which can be at risk of missing the signal.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "sigchanyzer",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/sigchanyzer",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

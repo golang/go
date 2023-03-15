@@ -24,6 +24,7 @@ A useless comparison is one like f == nil as opposed to f() == nil.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "nilfunc",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/nilfunc",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

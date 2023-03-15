@@ -28,6 +28,7 @@ invisible to stack copying and to the garbage collector.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "unsafeptr",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unsafeptr",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

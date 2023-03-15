@@ -1605,6 +1605,7 @@ func (l *LensJSON) Write(w io.Writer) {
 type AnalyzerJSON struct {
 	Name    string
 	Doc     string
+	URL     string
 	Default bool
 }
 

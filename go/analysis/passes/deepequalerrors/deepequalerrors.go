@@ -28,6 +28,7 @@ errors is discouraged.`
 var Analyzer = &analysis.Analyzer{
 	Name:     "deepequalerrors",
 	Doc:      Doc,
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/deepequalerrors",
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

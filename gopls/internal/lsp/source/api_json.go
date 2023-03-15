@@ -854,56 +854,67 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "asmdecl",
 			Doc:     "report mismatches between assembly files and Go declarations",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/asmdecl",
 			Default: true,
 		},
 		{
 			Name:    "assign",
 			Doc:     "check for useless assignments\n\nThis checker reports assignments of the form x = x or a[i] = a[i].\nThese are almost always useless, and even when they aren't they are\nusually a mistake.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/assign",
 			Default: true,
 		},
 		{
 			Name:    "atomic",
 			Doc:     "check for common mistakes using the sync/atomic package\n\nThe atomic checker looks for assignment statements of the form:\n\n\tx = atomic.AddUint64(&x, 1)\n\nwhich are not atomic.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/atomic",
 			Default: true,
 		},
 		{
 			Name:    "atomicalign",
 			Doc:     "check for non-64-bits-aligned arguments to sync/atomic functions",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/atomicalign",
 			Default: true,
 		},
 		{
 			Name:    "bools",
 			Doc:     "check for common mistakes involving boolean operators",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/bools",
 			Default: true,
 		},
 		{
 			Name:    "buildtag",
 			Doc:     "check //go:build and // +build directives",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/buildtag",
 			Default: true,
 		},
 		{
 			Name:    "cgocall",
 			Doc:     "detect some violations of the cgo pointer passing rules\n\nCheck for invalid cgo pointer passing.\nThis looks for code that uses cgo to call C code passing values\nwhose types are almost always invalid according to the cgo pointer\nsharing rules.\nSpecifically, it warns about attempts to pass a Go chan, map, func,\nor slice to C, either directly, or via a pointer, array, or struct.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/cgocall",
 			Default: true,
 		},
 		{
 			Name:    "composites",
 			Doc:     "check for unkeyed composite literals\n\nThis analyzer reports a diagnostic for composite literals of struct\ntypes imported from another package that do not use the field-keyed\nsyntax. Such literals are fragile because the addition of a new field\n(even if unexported) to the struct will cause compilation to fail.\n\nAs an example,\n\n\terr = &net.DNSConfigError{err}\n\nshould be replaced by:\n\n\terr = &net.DNSConfigError{Err: err}\n",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/composites",
 			Default: true,
 		},
 		{
 			Name:    "copylocks",
 			Doc:     "check for locks erroneously passed by value\n\nInadvertently copying a value containing a lock, such as sync.Mutex or\nsync.WaitGroup, may cause both copies to malfunction. Generally such\nvalues should be referred to through a pointer.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/copylocks",
 			Default: true,
 		},
 		{
 			Name:    "deepequalerrors",
 			Doc:     "check for calls of reflect.DeepEqual on error values\n\nThe deepequalerrors checker looks for calls of the form:\n\n    reflect.DeepEqual(err1, err2)\n\nwhere err1 and err2 are errors. Using reflect.DeepEqual to compare\nerrors is discouraged.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/deepequalerrors",
 			Default: true,
 		},
 		{
 			Name:    "directive",
 			Doc:     "check Go toolchain directives such as //go:debug\n\nThis analyzer checks for problems with known Go toolchain directives\nin all Go source files in a package directory, even those excluded by\n//go:build constraints, and all non-Go source files too.\n\nFor //go:debug (see https://go.dev/doc/godebug), the analyzer checks\nthat the directives are placed only in Go source files, only above the\npackage comment, and only in package main or *_test.go files.\n\nSupport for other known directives may be added in the future.\n\nThis analyzer does not check //go:build, which is handled by the\nbuildtag analyzer.\n",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/directive",
 			Default: true,
 		},
 		{
@@ -914,20 +925,24 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "errorsas",
 			Doc:     "report passing non-pointer or non-error values to errors.As\n\nThe errorsas analysis reports calls to errors.As where the type\nof the second argument is not a pointer to a type implementing error.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas",
 			Default: true,
 		},
 		{
 			Name: "fieldalignment",
 			Doc:  "find structs that would use less memory if their fields were sorted\n\nThis analyzer find structs that can be rearranged to use less memory, and provides\na suggested edit with the most compact order.\n\nNote that there are two different diagnostics reported. One checks struct size,\nand the other reports \"pointer bytes\" used. Pointer bytes is how many bytes of the\nobject that the garbage collector has to potentially scan for pointers, for example:\n\n\tstruct { uint32; string }\n\nhave 16 pointer bytes because the garbage collector has to scan up through the string's\ninner pointer.\n\n\tstruct { string; *uint32 }\n\nhas 24 pointer bytes because it has to scan further through the *uint32.\n\n\tstruct { string; uint32 }\n\nhas 8 because it can stop immediately after the string pointer.\n\nBe aware that the most compact order is not always the most efficient.\nIn rare cases it may cause two variables each updated by its own goroutine\nto occupy the same CPU cache line, inducing a form of memory contention\nknown as \"false sharing\" that slows down both goroutines.\n",
+			URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/fieldalignment",
 		},
 		{
 			Name:    "httpresponse",
 			Doc:     "check for mistakes using HTTP responses\n\nA common mistake when using the net/http package is to defer a function\ncall to close the http.Response Body before checking the error that\ndetermines whether the response is valid:\n\n\tresp, err := http.Head(url)\n\tdefer resp.Body.Close()\n\tif err != nil {\n\t\tlog.Fatal(err)\n\t}\n\t// (defer statement belongs here)\n\nThis checker helps uncover latent nil dereference bugs by reporting a\ndiagnostic for such mistakes.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/httpresponse",
 			Default: true,
 		},
 		{
 			Name:    "ifaceassert",
 			Doc:     "detect impossible interface-to-interface type assertions\n\nThis checker flags type assertions v.(T) and corresponding type-switch cases\nin which the static type V of v is an interface that cannot possibly implement\nthe target interface T. This occurs when V and T contain methods with the same\nname but different signatures. Example:\n\n\tvar v interface {\n\t\tRead()\n\t}\n\t_ = v.(io.Reader)\n\nThe Read method in v has a different signature than the Read method in\nio.Reader, so this assertion cannot succeed.\n",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/ifaceassert",
 			Default: true,
 		},
 		{
@@ -938,34 +953,41 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "loopclosure",
 			Doc:     "check references to loop variables from within nested functions\n\nThis analyzer reports places where a function literal references the\niteration variable of an enclosing loop, and the loop calls the function\nin such a way (e.g. with go or defer) that it may outlive the loop\niteration and possibly observe the wrong value of the variable.\n\nIn this example, all the deferred functions run after the loop has\ncompleted, so all observe the final value of v.\n\n    for _, v := range list {\n        defer func() {\n            use(v) // incorrect\n        }()\n    }\n\nOne fix is to create a new variable for each iteration of the loop:\n\n    for _, v := range list {\n        v := v // new var per iteration\n        defer func() {\n            use(v) // ok\n        }()\n    }\n\nThe next example uses a go statement and has a similar problem.\nIn addition, it has a data race because the loop updates v\nconcurrent with the goroutines accessing it.\n\n    for _, v := range elem {\n        go func() {\n            use(v)  // incorrect, and a data race\n        }()\n    }\n\nA fix is the same as before. The checker also reports problems\nin goroutines started by golang.org/x/sync/errgroup.Group.\nA hard-to-spot variant of this form is common in parallel tests:\n\n    func Test(t *testing.T) {\n        for _, test := range tests {\n            t.Run(test.name, func(t *testing.T) {\n                t.Parallel()\n                use(test) // incorrect, and a data race\n            })\n        }\n    }\n\nThe t.Parallel() call causes the rest of the function to execute\nconcurrent with the loop.\n\nThe analyzer reports references only in the last statement,\nas it is not deep enough to understand the effects of subsequent\nstatements that might render the reference benign.\n(\"Last statement\" is defined recursively in compound\nstatements such as if, switch, and select.)\n\nSee: https://golang.org/doc/go_faq.html#closures_and_goroutines",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/loopclosure",
 			Default: true,
 		},
 		{
 			Name:    "lostcancel",
 			Doc:     "check cancel func returned by context.WithCancel is called\n\nThe cancellation function returned by context.WithCancel, WithTimeout,\nand WithDeadline must be called or the new context will remain live\nuntil its parent context is cancelled.\n(The background context is never cancelled.)",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/lostcancel",
 			Default: true,
 		},
 		{
 			Name:    "nilfunc",
 			Doc:     "check for useless comparisons between functions and nil\n\nA useless comparison is one like f == nil as opposed to f() == nil.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/nilfunc",
 			Default: true,
 		},
 		{
 			Name: "nilness",
 			Doc:  "check for redundant or impossible nil comparisons\n\nThe nilness checker inspects the control-flow graph of each function in\na package and reports nil pointer dereferences, degenerate nil\npointers, and panics with nil values. A degenerate comparison is of the form\nx==nil or x!=nil where x is statically known to be nil or non-nil. These are\noften a mistake, especially in control flow related to errors. Panics with nil\nvalues are checked because they are not detectable by\n\n\tif r := recover(); r != nil {\n\nThis check reports conditions such as:\n\n\tif f == nil { // impossible condition (f is a function)\n\t}\n\nand:\n\n\tp := &v\n\t...\n\tif p != nil { // tautological condition\n\t}\n\nand:\n\n\tif p == nil {\n\t\tprint(*p) // nil dereference\n\t}\n\nand:\n\n\tif p == nil {\n\t\tpanic(p)\n\t}\n",
+			URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/nilness",
 		},
 		{
 			Name:    "printf",
 			Doc:     "check consistency of Printf format strings and arguments\n\nThe check applies to known functions (for example, those in package fmt)\nas well as any detected wrappers of known functions.\n\nA function that wants to avail itself of printf checking but is not\nfound by this analyzer's heuristics (for example, due to use of\ndynamic calls) can insert a bogus call:\n\n\tif false {\n\t\t_ = fmt.Sprintf(format, args...) // enable printf checking\n\t}\n\nThe -funcs flag specifies a comma-separated list of names of additional\nknown formatting functions or methods. If the name contains a period,\nit must denote a specific function using one of the following forms:\n\n\tdir/pkg.Function\n\tdir/pkg.Type.Method\n\t(*dir/pkg.Type).Method\n\nOtherwise the name is interpreted as a case-insensitive unqualified\nidentifier such as \"errorf\". Either way, if a listed name ends in f, the\nfunction is assumed to be Printf-like, taking a format string before the\nargument list. Otherwise it is assumed to be Print-like, taking a list\nof arguments with no format string.\n",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/printf",
 			Default: true,
 		},
 		{
 			Name: "shadow",
 			Doc:  "check for possible unintended shadowing of variables\n\nThis analyzer check for shadowed variables.\nA shadowed variable is a variable declared in an inner scope\nwith the same name and type as a variable in an outer scope,\nand where the outer variable is mentioned after the inner one\nis declared.\n\n(This definition can be refined; the module generates too many\nfalse positives and is not yet enabled by default.)\n\nFor example:\n\n\tfunc BadRead(f *os.File, buf []byte) error {\n\t\tvar err error\n\t\tfor {\n\t\t\tn, err := f.Read(buf) // shadows the function variable 'err'\n\t\t\tif err != nil {\n\t\t\t\tbreak // causes return of wrong value\n\t\t\t}\n\t\t\tfoo(buf)\n\t\t}\n\t\treturn err\n\t}\n",
+			URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/shadow",
 		},
 		{
 			Name:    "shift",
 			Doc:     "check for shifts that equal or exceed the width of the integer",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/shift",
 			Default: true,
 		},
 		{
@@ -986,51 +1008,61 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "sortslice",
 			Doc:     "check the argument type of sort.Slice\n\nsort.Slice requires an argument of a slice type. Check that\nthe interface{} value passed to sort.Slice is actually a slice.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/sortslice",
 			Default: true,
 		},
 		{
 			Name:    "stdmethods",
 			Doc:     "check signature of methods of well-known interfaces\n\nSometimes a type may be intended to satisfy an interface but may fail to\ndo so because of a mistake in its method signature.\nFor example, the result of this WriteTo method should be (int64, error),\nnot error, to satisfy io.WriterTo:\n\n\ttype myWriterTo struct{...}\n        func (myWriterTo) WriteTo(w io.Writer) error { ... }\n\nThis check ensures that each method whose name matches one of several\nwell-known interface methods from the standard library has the correct\nsignature for that interface.\n\nChecked method names include:\n\tFormat GobEncode GobDecode MarshalJSON MarshalXML\n\tPeek ReadByte ReadFrom ReadRune Scan Seek\n\tUnmarshalJSON UnreadByte UnreadRune WriteByte\n\tWriteTo\n",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdmethods",
 			Default: true,
 		},
 		{
 			Name:    "stringintconv",
 			Doc:     "check for string(int) conversions\n\nThis checker flags conversions of the form string(x) where x is an integer\n(but not byte or rune) type. Such conversions are discouraged because they\nreturn the UTF-8 representation of the Unicode code point x, and not a decimal\nstring representation of x as one might expect. Furthermore, if x denotes an\ninvalid code point, the conversion cannot be statically rejected.\n\nFor conversions that intend on using the code point, consider replacing them\nwith string(rune(x)). Otherwise, strconv.Itoa and its equivalents return the\nstring representation of the value in the desired base.\n",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stringintconv",
 			Default: true,
 		},
 		{
 			Name:    "structtag",
 			Doc:     "check that struct field tags conform to reflect.StructTag.Get\n\nAlso report certain struct tags (json, xml) used with unexported fields.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/structtag",
 			Default: true,
 		},
 		{
 			Name:    "testinggoroutine",
 			Doc:     "report calls to (*testing.T).Fatal from goroutines started by a test.\n\nFunctions that abruptly terminate a test, such as the Fatal, Fatalf, FailNow, and\nSkip{,f,Now} methods of *testing.T, must be called from the test goroutine itself.\nThis checker detects calls to these functions that occur within a goroutine\nstarted by the test. For example:\n\nfunc TestFoo(t *testing.T) {\n    go func() {\n        t.Fatal(\"oops\") // error: (*T).Fatal called from non-test goroutine\n    }()\n}\n",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/testinggoroutine",
 			Default: true,
 		},
 		{
 			Name:    "tests",
 			Doc:     "check for common mistaken usages of tests and examples\n\nThe tests checker walks Test, Benchmark and Example functions checking\nmalformed names, wrong signatures and examples documenting non-existent\nidentifiers.\n\nPlease see the documentation for package testing in golang.org/pkg/testing\nfor the conventions that are enforced for Tests, Benchmarks, and Examples.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/tests",
 			Default: true,
 		},
 		{
 			Name:    "timeformat",
 			Doc:     "check for calls of (time.Time).Format or time.Parse with 2006-02-01\n\nThe timeformat checker looks for time formats with the 2006-02-01 (yyyy-dd-mm)\nformat. Internationally, \"yyyy-dd-mm\" does not occur in common calendar date\nstandards, and so it is more likely that 2006-01-02 (yyyy-mm-dd) was intended.\n",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/timeformat",
 			Default: true,
 		},
 		{
 			Name:    "unmarshal",
 			Doc:     "report passing non-pointer or non-interface values to unmarshal\n\nThe unmarshal analysis reports calls to functions such as json.Unmarshal\nin which the argument type is not a pointer or an interface.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unmarshal",
 			Default: true,
 		},
 		{
 			Name:    "unreachable",
 			Doc:     "check for unreachable code\n\nThe unreachable analyzer finds statements that execution can never reach\nbecause they are preceded by an return statement, a call to panic, an\ninfinite loop, or similar constructs.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unreachable",
 			Default: true,
 		},
 		{
 			Name:    "unsafeptr",
 			Doc:     "check for invalid conversions of uintptr to unsafe.Pointer\n\nThe unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer\nto convert integers to pointers. A conversion from uintptr to\nunsafe.Pointer is invalid if it implies that there is a uintptr-typed\nword in memory that holds a pointer value, because that word will be\ninvisible to stack copying and to the garbage collector.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unsafeptr",
 			Default: true,
 		},
 		{
@@ -1040,11 +1072,13 @@ var GeneratedAPIJSON = &APIJSON{
 		{
 			Name:    "unusedresult",
 			Doc:     "check for unused results of calls to some functions\n\nSome functions like fmt.Errorf return a result and have no side effects,\nso it is always a mistake to discard the result. This analyzer reports\ncalls to certain functions in which the result of the call is ignored.\n\nThe set of functions may be controlled using flags.",
+			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedresult",
 			Default: true,
 		},
 		{
 			Name: "unusedwrite",
 			Doc:  "checks for unused writes\n\nThe analyzer reports instances of writes to struct fields and\narrays that are never read. Specifically, when a struct object\nor an array is copied, its elements are copied implicitly by\nthe compiler, and any element write to this copy does nothing\nwith the original object.\n\nFor example:\n\n\ttype T struct { x int }\n\tfunc f(input []T) {\n\t\tfor i, v := range input {  // v is a copy\n\t\t\tv.x = i  // unused write to field x\n\t\t}\n\t}\n\nAnother example is about non-pointer receiver:\n\n\ttype T struct { x int }\n\tfunc (t T) f() {  // t is a copy\n\t\tt.x = i  // unused write to field x\n\t}\n",
+			URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedwrite",
 		},
 		{
 			Name: "useany",
