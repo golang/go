@@ -18,8 +18,9 @@ import (
 
 // An errorMsg is a queued error message, waiting to be printed.
 type errorMsg struct {
-	pos src.XPos
-	msg string
+	pos  src.XPos
+	msg  string
+	code errors.Code
 }
 
 // Pos is the current source position being processed,
@@ -43,7 +44,7 @@ func SyntaxErrors() int {
 }
 
 // addErrorMsg adds a new errorMsg (which may be a warning) to errorMsgs.
-func addErrorMsg(pos src.XPos, format string, args ...interface{}) {
+func addErrorMsg(pos src.XPos, code errors.Code, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	// Only add the position if know the position.
 	// See issue golang.org/issue/11361.
@@ -51,8 +52,9 @@ func addErrorMsg(pos src.XPos, format string, args ...interface{}) {
 		msg = fmt.Sprintf("%v: %s", FmtPos(pos), msg)
 	}
 	errorMsgs = append(errorMsgs, errorMsg{
-		pos: pos,
-		msg: msg + "\n",
+		pos:  pos,
+		msg:  msg + "\n",
+		code: code,
 	})
 }
 
@@ -84,6 +86,10 @@ func FlushErrors() {
 	for i, err := range errorMsgs {
 		if i == 0 || err.msg != errorMsgs[i-1].msg {
 			fmt.Printf("%s", err.msg)
+			if Flag.Url && err.code != 0 {
+				// TODO(gri) we should come up with a better URL eventually
+				fmt.Printf("\thttps://pkg.go.dev/internal/types/errors#%s\n", err.code)
+			}
 		}
 	}
 	errorMsgs = errorMsgs[:0]
@@ -133,7 +139,7 @@ func ErrorfAt(pos src.XPos, code errors.Code, format string, args ...interface{}
 		lasterror.msg = msg
 	}
 
-	addErrorMsg(pos, "%s", msg)
+	addErrorMsg(pos, code, "%s", msg)
 	numErrors++
 
 	hcrash()
@@ -175,7 +181,7 @@ func Warn(format string, args ...interface{}) {
 // so this should be used only when the user has opted in
 // to additional output by setting a particular flag.
 func WarnfAt(pos src.XPos, format string, args ...interface{}) {
-	addErrorMsg(pos, format, args...)
+	addErrorMsg(pos, 0, format, args...)
 	if Flag.LowerM != 0 {
 		FlushErrors()
 	}
