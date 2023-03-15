@@ -444,14 +444,21 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 			if weak && !ldr.AttrReachable(rs) {
 				continue
 			}
-			if ldr.SymSect(rs) == nil {
-				st.err.Errorf(s, "unreachable sym in relocation: %s", ldr.SymName(rs))
+			sect := ldr.SymSect(rs)
+			if sect == nil {
+				if rst == sym.SDYNIMPORT {
+					st.err.Errorf(s, "cannot target DYNIMPORT sym in section-relative reloc: %s", ldr.SymName(rs))
+				} else if rst == sym.SUNDEFEXT {
+					st.err.Errorf(s, "undefined symbol in relocation: %s", ldr.SymName(rs))
+				} else {
+					st.err.Errorf(s, "missing section for relocation target %s", ldr.SymName(rs))
+				}
 				continue
 			}
 
 			// The method offset tables using this relocation expect the offset to be relative
 			// to the start of the first text section, even if there are multiple.
-			if ldr.SymSect(rs).Name == ".text" {
+			if sect.Name == ".text" {
 				o = ldr.SymValue(rs) - int64(Segtext.Sections[0].Vaddr) + r.Add()
 			} else {
 				o = ldr.SymValue(rs) - int64(ldr.SymSect(rs).Vaddr) + r.Add()

@@ -159,6 +159,14 @@ func Main(arch *sys.Arch, theArch Arch) {
 		// dump symbol info on crash
 		defer func() { ctxt.loader.Dump() }()
 	}
+	if ctxt.Debugvlog > 1 {
+		// dump symbol info on error
+		AtExit(func() {
+			if nerrors > 0 {
+				ctxt.loader.Dump()
+			}
+		})
+	}
 
 	switch *flagHeadType {
 	case "":
