@@ -39,6 +39,8 @@ func isNotSupported(err error) bool {
 		switch errno {
 		case syscall.ENOSYS, syscall.ENOTSUP:
 			// Explicitly not supported.
+			// TODO(#41198): remove these cases when errors.Is reports that they are
+			// equivalent to ErrUnsupported.
 			return true
 		case syscall.EPERM, syscall.EROFS:
 			// User lacks permission: either the call requires root permission and the
@@ -51,11 +53,9 @@ func isNotSupported(err error) bool {
 		}
 	}
 
-	if errors.Is(err, fs.ErrPermission) {
+	if errors.Is(err, fs.ErrPermission) || errors.Is(err, errors.ErrUnsupported) {
 		return true
 	}
-
-	// TODO(#41198): Also return true if errors.Is(err, errors.ErrUnsupported).
 
 	return false
 }
