@@ -1014,6 +1014,15 @@ nosave:
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOVD	fn+0(FP), R1
+	CBNZ	R1, loadg
+	MOVD	g+8(FP), R2
+	MOVD	R2, g
+	B	haveg
+
+loadg:
 	// Load g from thread-local storage.
 	BL	runtime·load_g(SB)
 
@@ -1024,6 +1033,7 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	// the linker analysis by using an indirect call.
 	CBZ	g, needm
 
+haveg:
 	MOVD	g_m(g), R8
 	MOVD	R8, savedm-8(SP)
 	B	havem
