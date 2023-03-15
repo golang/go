@@ -4,6 +4,8 @@
 
 package errors
 
+//go:generate stringer -type Code codes.go
+
 type Code int
 
 // This file defines the error codes that can be produced during type-checking.
