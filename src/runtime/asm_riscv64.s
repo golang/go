@@ -524,7 +524,7 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	MOV	fn+0(FP), X7
 	BNE	ZERO, X7, loadg
 	MOV	frame+8(FP), X8
-	MOVD	X8, g
+	MOV	X8, g
 	JMP	dropm
 
 loadg:
