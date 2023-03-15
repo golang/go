@@ -216,6 +216,16 @@ func (w *worker) coordinate(ctx context.Context) error {
 					result.crasherMsg = err.Error()
 				}
 			}
+			if shouldPrintDebugInfo() {
+				w.coordinator.debugLogf(
+					"input minimized, id: %s, original id: %s, crasher: %t, originally crasher: %t, minimizing took: %s",
+					result.entry.Path,
+					input.entry.Path,
+					result.crasherMsg != "",
+					input.crasherMsg != "",
+					result.totalDuration,
+				)
+			}
 			w.coordinator.resultC <- result
 		}
 	}

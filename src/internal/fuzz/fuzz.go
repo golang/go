@@ -322,7 +322,6 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 					if c.canMinimize() && result.canMinimize && c.crashMinimizing == nil {
 						// Send back to workers to find a smaller value that preserves
 						// at least one new coverage bit.
-
 						c.queueForMinimization(result, keepCoverage)
 					} else {
 						// Update the coordinator's coverage mask and save the value.
@@ -822,8 +821,10 @@ func (c *coordinator) refillInputQueue() {
 func (c *coordinator) queueForMinimization(result fuzzResult, keepCoverage []byte) {
 	if shouldPrintDebugInfo() {
 		c.debugLogf(
-			"queueing input for minimization, id: %s, crasher: %t",
+			"queueing input for minimization, id: %s, parent: %s, keepCoverage: %t, crasher: %t",
 			result.entry.Path,
+			result.entry.Parent,
+			keepCoverage,
 			result.crasherMsg != "",
 		)
 	}
