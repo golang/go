@@ -519,6 +519,15 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
+	// Skip cgocallbackg, just dropm when fn is nil.
+	// It is used to dropm while thread is exiting.
+	MOV	fn+0(FP), X7
+	BNE	ZERO, X7, loadg
+	MOV	frame+8(FP), X8
+	MOVD	X8, g
+	JMP	dropm
+
+loadg:
 	// Load m and g from thread-local storage.
 	MOVBU	runtime·iscgo(SB), X5
 	BEQ	ZERO, X5, nocgo
@@ -557,11 +566,6 @@ needm:
 	MOV	X2, (g_sched+gobuf_sp)(X6)
 
 havem:
-	// Skip cgocallbackg, just dropm when fn is nil.
-	// It is used to dropm while thread is exiting.
-	MOV	fn+0(FP), X7
-	BEQ	ZERO, X7, dropm
-
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
@@ -625,7 +629,10 @@ havem:
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	BEQ	ZERO, X5, dropm
 	MOV	(X5), X5
-	BNE	ZERO, X5, droppedm
+	BEQ	ZERO, X5, dropm
+	MOV	$runtime·bindm(SB), X6
+	JALR	RA, X6
+	JMP	droppedm
 
 dropm:
 	MOV	$runtime·dropm(SB), X6
