@@ -168,7 +168,8 @@ func TestIPConnSpecificMethods(t *testing.T) {
 	}
 	c, err := ListenIP("ip4:icmp", la)
 	if testenv.SyscallIsNotSupported(err) {
-		// May be inside a container that disallows creating a socket.
+		// May be inside a container that disallows creating a socket or
+		// not running as root.
 		t.Skipf("skipping: %v", err)
 	} else if err != nil {
 		t.Fatal(err)
