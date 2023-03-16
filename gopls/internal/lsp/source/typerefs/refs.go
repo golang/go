@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/tools/gopls/internal/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/typeparams"
 )
@@ -60,7 +61,7 @@ type Class struct {
 // A Symbol represents an external (imported) symbol
 // referenced by the analyzed package.
 type Symbol struct {
-	pkgIdx packageIdx // w.r.t. PackageIndex passed to decoder
+	pkgIdx int // w.r.t. PackageIndex passed to decoder
 	Name   string
 }
 
@@ -286,6 +287,12 @@ func visitFile(file *ast.File, imports map[source.ImportPath]*source.Metadata, d
 			return
 		}
 		from := decls[fromId.Name]
+		// When visiting a method, there may not be a valid type declaration for
+		// the receiver. In this case there is no way to refer to the method, so
+		// we need not record edges.
+		if from == nil {
+			return
+		}
 
 		// Visit each reference to name or name.sel.
 		visitDeclOrSpec(node, func(name, sel string) {
@@ -382,17 +389,19 @@ func visitFile(file *ast.File, imports map[source.ImportPath]*source.Metadata, d
 			// (as in func () f()).
 			if d.Recv.NumFields() > 0 {
 				// Method. Associate it with the receiver.
-				_, id, typeParams := unpackRecv(d.Recv.List[0].Type)
-				var tparams map[string]bool
-				if len(typeParams) > 0 {
-					tparams = make(map[string]bool)
-					for _, tparam := range typeParams {
-						if tparam.Name != "_" {
-							tparams[tparam.Name] = true
+				_, id, typeParams := astutil.UnpackRecv(d.Recv.List[0].Type)
+				if id != nil {
+					var tparams map[string]bool
+					if len(typeParams) > 0 {
+						tparams = make(map[string]bool)
+						for _, tparam := range typeParams {
+							if tparam.Name != "_" {
+								tparams[tparam.Name] = true
+							}
 						}
 					}
+					visit(id, d, tparams)
 				}
-				visit(id, d, tparams)
 			} else {
 				// Non-method.
 				tparams := tparamsMap(typeparams.ForFuncType(d.Type))
@@ -596,52 +605,6 @@ func visitFieldList(n *ast.FieldList, f refVisitor) {
 	for _, field := range n.List {
 		visitExpr(field.Type, f)
 	}
-}
-
-// Copied (with modifications) from go/types.
-func unpackRecv(rtyp ast.Expr) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
-L: // unpack receiver type
-	// This accepts invalid receivers such as ***T and does not
-	// work for other invalid receivers, but we don't care. The
-	// validity of receiver expressions is checked elsewhere.
-	for {
-		switch t := rtyp.(type) {
-		case *ast.ParenExpr:
-			rtyp = t.X
-		case *ast.StarExpr:
-			ptr = true
-			rtyp = t.X
-		default:
-			break L
-		}
-	}
-
-	// unpack type parameters, if any
-	switch rtyp.(type) {
-	case *ast.IndexExpr, *typeparams.IndexListExpr:
-		var indices []ast.Expr
-		rtyp, _, indices, _ = typeparams.UnpackIndexExpr(rtyp)
-		for _, arg := range indices {
-			var par *ast.Ident
-			switch arg := arg.(type) {
-			case *ast.Ident:
-				par = arg
-			default:
-				// ignore errors
-			}
-			if par == nil {
-				par = &ast.Ident{NamePos: arg.Pos(), Name: "_"}
-			}
-			tparams = append(tparams, par)
-		}
-	}
-
-	// unpack receiver name
-	if name, _ := rtyp.(*ast.Ident); name != nil {
-		rname = name
-	}
-
-	return
 }
 
 // -- strong component graph construction (plundered from go/pointer) --
@@ -877,7 +840,7 @@ func decode(pkgIndex *PackageIndex, id source.PackageID, data []byte) []Class {
 				fmt.Fprintf(&buf, " .%s", name)
 			}
 			// Group symbols by package.
-			var prevID packageIdx = -1
+			prevID := -1
 			for _, sym := range class.Refs {
 				if sym.pkgIdx != prevID {
 					prevID = sym.pkgIdx

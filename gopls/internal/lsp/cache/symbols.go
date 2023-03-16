@@ -11,6 +11,7 @@ import (
 	"go/types"
 	"strings"
 
+	"golang.org/x/tools/gopls/internal/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
@@ -122,7 +123,7 @@ func (w *symbolWalker) fileDecls(decls []ast.Decl) {
 			var recv *ast.Ident
 			if decl.Recv.NumFields() > 0 {
 				kind = protocol.Method
-				recv = unpackRecv(decl.Recv.List[0].Type)
+				_, recv, _ = astutil.UnpackRecv(decl.Recv.List[0].Type)
 			}
 			w.atNode(decl.Name, decl.Name.Name, kind, recv)
 		case *ast.GenDecl:
@@ -156,25 +157,6 @@ func guessKind(spec *ast.TypeSpec) protocol.SymbolKind {
 		return protocol.Function
 	}
 	return protocol.Class
-}
-
-func unpackRecv(rtyp ast.Expr) *ast.Ident {
-	// Extract the receiver identifier. Lifted from go/types/resolver.go
-L:
-	for {
-		switch t := rtyp.(type) {
-		case *ast.ParenExpr:
-			rtyp = t.X
-		case *ast.StarExpr:
-			rtyp = t.X
-		default:
-			break L
-		}
-	}
-	if name, _ := rtyp.(*ast.Ident); name != nil {
-		return name
-	}
-	return nil
 }
 
 // walkType processes symbols related to a type expression. path is path of

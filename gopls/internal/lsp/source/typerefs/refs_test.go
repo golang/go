@@ -478,6 +478,17 @@ var B struct{ ext.B
 			allowErrs: true,
 		},
 		{
+			label: "unmapped receiver",
+			srcs: []string{`package p
+
+type P struct{}
+
+func (a) x(P)
+`},
+			want: map[string][]string{},
+			allowErrs: true,
+		},
+		{
 			label: "SCC special case",
 			srcs: []string{`package p
 

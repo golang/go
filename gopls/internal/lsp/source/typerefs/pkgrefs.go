@@ -202,7 +202,7 @@ func (g *PackageGraph) reachesByDeps(ctx context.Context, m *source.Metadata) (*
 		if err != nil {
 			return nil, err
 		}
-		transitive.add(g.pkgIndex.idx(dep.metadata.ID))
+		transitive.Add(dep.metadata.ID)
 		for _, set := range dep.transitiveRefs {
 			transitive.Union(set)
 		}

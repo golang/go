@@ -68,7 +68,7 @@ func TestBuildPackageGraph(t *testing.T) {
 		t.Skip("skipping with -short: loading the packages can take a long time with a cold cache")
 	}
 	t0 := time.Now()
-	exports, meta, err := load(*query)
+	exports, meta, err := load(*query, *verify)
 	if err != nil {
 		t.Fatalf("loading failed: %v", err)
 	}
@@ -247,7 +247,7 @@ func importFromExportData(pkgPath, exportFile string) (*types.Package, error) {
 
 func BenchmarkBuildPackageGraph(b *testing.B) {
 	t0 := time.Now()
-	exports, meta, err := load(*query)
+	exports, meta, err := load(*query, *verify)
 	if err != nil {
 		b.Fatalf("loading failed: %v", err)
 	}
@@ -328,7 +328,7 @@ func (s mapMetadataSource) Metadata(id PackageID) *Metadata {
 //
 // TODO(rfindley): it may be valuable to extract this logic from the snapshot,
 // since it is otherwise standalone.
-func load(query string) (map[PackageID]string, MetadataSource, error) {
+func load(query string, needExport bool) (map[PackageID]string, MetadataSource, error) {
 	cfg := &packages.Config{
 		Dir: *dir,
 		Mode: packages.NeedName |
@@ -338,11 +338,13 @@ func load(query string) (map[PackageID]string, MetadataSource, error) {
 			packages.NeedDeps |
 			packages.NeedTypesSizes |
 			packages.NeedModule |
-			packages.NeedExportFile | // ExportFile is not requested by gopls: this is used to verify reachability
 			packages.NeedEmbedFiles |
 			packages.LoadMode(packagesinternal.DepsErrors) |
 			packages.LoadMode(packagesinternal.ForTest),
 		Tests: true,
+	}
+	if needExport {
+		cfg.Mode |= packages.NeedExportFile // ExportFile is not requested by gopls: this is used to verify reachability
 	}
 	pkgs, err := packages.Load(cfg, query)
 	if err != nil {

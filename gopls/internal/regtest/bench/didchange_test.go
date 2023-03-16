@@ -64,13 +64,18 @@ func BenchmarkDidChange(b *testing.B) {
 func BenchmarkDiagnoseChange(b *testing.B) {
 	for _, test := range didChangeTests {
 		b.Run(test.repo, func(b *testing.B) {
-			// Use a new env to avoid the diagnostic delay: we want to measure how
-			// long it takes to produce the diagnostics.
-			env := getRepo(b, test.repo).newEnv(b, "diagnoseChange", fake.EditorConfig{
+			sharedEnv := getRepo(b, test.repo).sharedEnv(b)
+			config := fake.EditorConfig{
+				Env: map[string]string{
+					"GOPATH": sharedEnv.Sandbox.GOPATH(),
+				},
 				Settings: map[string]interface{}{
 					"diagnosticsDelay": "0s",
 				},
-			})
+			}
+			// Use a new env to avoid the diagnostic delay: we want to measure how
+			// long it takes to produce the diagnostics.
+			env := getRepo(b, test.repo).newEnv(b, "diagnoseChange", config)
 			defer env.Close()
 			env.OpenFile(test.file)
 			// Insert the text we'll be modifying at the top of the file.

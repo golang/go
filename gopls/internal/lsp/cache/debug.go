@@ -28,6 +28,13 @@ func debugf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, ">>> "+format+"\n", args...)
 }
 
+// assert panics with the given msg if cond is not true.
+func assert(cond bool, msg string) {
+	if !cond {
+		panic(msg)
+	}
+}
+
 // If debugEnabled is true, dumpWorkspace prints a summary of workspace
 // packages to stderr. If debugEnabled is false, it is a no-op.
 //

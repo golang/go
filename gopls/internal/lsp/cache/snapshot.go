@@ -33,6 +33,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
+	"golang.org/x/tools/gopls/internal/lsp/source/typerefs"
 	"golang.org/x/tools/gopls/internal/lsp/source/xrefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
@@ -181,6 +182,9 @@ type snapshot struct {
 	// See getImportGraph for additional documentation.
 	importGraphDone chan struct{} // closed when importGraph is set; may be nil
 	importGraph     *importGraph  // copied from preceding snapshot and re-evaluated
+
+	// pkgIndex is an index of package IDs, for efficient storage of typerefs.
+	pkgIndex *typerefs.PackageIndex
 }
 
 var globalSnapshotID uint64
@@ -654,6 +658,7 @@ const (
 	methodSetsKind  = "methodsets"
 	exportDataKind  = "export"
 	diagnosticsKind = "diagnostics"
+	typerefsKind    = "typerefs"
 )
 
 func (s *snapshot) PackageDiagnostics(ctx context.Context, ids ...PackageID) (map[span.URI][]*source.Diagnostic, error) {
@@ -681,7 +686,7 @@ func (s *snapshot) PackageDiagnostics(ctx context.Context, ids ...PackageID) (ma
 		return true
 	}
 	post := func(_ int, pkg *Package) {
-		collect(pkg.m.Diagnostics)
+		collect(pkg.ph.m.Diagnostics)
 		collect(pkg.pkg.diagnostics)
 	}
 	return perFile, s.forEachPackage(ctx, ids, pre, post)
@@ -703,7 +708,7 @@ func (s *snapshot) References(ctx context.Context, ids ...PackageID) ([]source.X
 		return true
 	}
 	post := func(i int, pkg *Package) {
-		indexes[i] = XrefIndex{m: pkg.m, data: pkg.pkg.xrefs}
+		indexes[i] = XrefIndex{m: pkg.ph.m, data: pkg.pkg.xrefs}
 	}
 	return indexes, s.forEachPackage(ctx, ids, pre, post)
 }
@@ -1785,6 +1790,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		workspaceModFiles:    wsModFiles,
 		workspaceModFilesErr: wsModFilesErr,
 		importGraph:          s.importGraph,
+		pkgIndex:             s.pkgIndex,
 	}
 
 	// The snapshot should be initialized if either s was uninitialized, or we've
@@ -1954,9 +1960,16 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		addRevDeps(id, invalidateMetadata)
 	}
 
-	// Delete invalidated package type information.
-	for id := range idsToInvalidate {
-		result.packages.Delete(id)
+	// Invalidated package information.
+	for id, invalidateMetadata := range idsToInvalidate {
+		if _, ok := directIDs[id]; ok || invalidateMetadata {
+			result.packages.Delete(id)
+		} else {
+			if entry, hit := result.packages.Get(id); hit {
+				ph := entry.(*packageHandle).clone(false)
+				result.packages.Set(id, ph, nil)
+			}
+		}
 		result.activePackages.Delete(id)
 	}
 

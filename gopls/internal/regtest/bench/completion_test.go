@@ -127,7 +127,8 @@ func (c *completer) _() {
 		env.OpenFile(file)
 		originalBuffer := env.BufferText(file)
 		env.EditBuffer(file, protocol.TextEdit{
-			Range:   endRangeInBuffer(env, file),
+			Range: endRangeInBuffer(env, file),
+			// TODO(rfindley): this is a bug: it should just be fileContent.
 			NewText: originalBuffer + fileContent,
 		})
 	}

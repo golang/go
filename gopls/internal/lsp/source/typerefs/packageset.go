@@ -21,28 +21,26 @@ type PackageIndex struct {
 	// faster unions via sparse int vectors.
 	mu  sync.Mutex
 	ids []source.PackageID
-	m   map[source.PackageID]packageIdx
+	m   map[source.PackageID]int
 }
-
-type packageIdx int // for additional type safety: an index in PackageIndex.ids
 
 // NewPackageIndex creates a new PackageIndex instance for use in building
 // reference and package sets.
 func NewPackageIndex() *PackageIndex {
 	return &PackageIndex{
-		m: make(map[source.PackageID]packageIdx),
+		m: make(map[source.PackageID]int),
 	}
 }
 
 // idx returns the packageIdx referencing id, creating one if id is not yet
 // tracked by the receiver.
-func (r *PackageIndex) idx(id source.PackageID) packageIdx {
+func (r *PackageIndex) idx(id source.PackageID) int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if i, ok := r.m[id]; ok {
 		return i
 	}
-	i := packageIdx(len(r.ids))
+	i := len(r.ids)
 	r.m[id] = i
 	r.ids = append(r.ids, id)
 	return i
@@ -51,7 +49,7 @@ func (r *PackageIndex) idx(id source.PackageID) packageIdx {
 // id returns the PackageID for idx.
 //
 // idx must have been created by this PackageIndex instance.
-func (r *PackageIndex) id(idx packageIdx) source.PackageID {
+func (r *PackageIndex) id(idx int) source.PackageID {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.ids[idx]
@@ -79,10 +77,12 @@ func (s *PackageIndex) NewSet() *PackageSet {
 	}
 }
 
-// add records a new element in the package set.
-//
-// For internal use, since it adds by index rather than ID, to avoid lookups.
-func (s *PackageSet) add(idx packageIdx) {
+// Add records a new element in the package set.
+func (s *PackageSet) Add(id source.PackageID) {
+	s.add(s.parent.idx(id))
+}
+
+func (s *PackageSet) add(idx int) {
 	i := int(idx)
 	s.sparse[i/blockSize] |= 1 << (i % blockSize)
 }
@@ -123,7 +123,7 @@ func (s *PackageSet) Elems(f func(source.PackageID)) {
 		v := s.sparse[i]
 		for b := 0; b < blockSize; b++ {
 			if (v & (1 << b)) != 0 {
-				f(s.parent.id(packageIdx(i*blockSize + b)))
+				f(s.parent.id(i*blockSize + b))
 			}
 		}
 	}

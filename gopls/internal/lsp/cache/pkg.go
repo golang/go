@@ -25,14 +25,14 @@ type (
 	ImportPath  = source.ImportPath
 )
 
-// A Package is the union of snapshot-local information (Metadata) and shared
-// type-checking information (a syntaxPackage).
+// A Package is the union of type-checking inputs (packageHandle) and results
+// (a syntaxPackage).
 //
 // TODO(rfindley): for now, we do not persist the post-processing of
 // loadDiagnostics, because the value of the snapshot.packages map  is just the
 // package handle. Fix this.
 type Package struct {
-	m   *source.Metadata
+	ph  *packageHandle
 	pkg *syntaxPackage
 }
 
@@ -52,13 +52,17 @@ type syntaxPackage struct {
 	typesInfo       *types.Info
 	importMap       map[PackagePath]*types.Package
 	hasFixedFiles   bool // if true, AST was sufficiently mangled that we should hide type errors
-	xrefs           []byte
-	methodsets      *methodsets.Index
+
+	// TODO(rfindley): opt: xrefs and methodsets do not need to be pinned to the
+	// package, and perhaps should be computed asynchronously to package
+	// diagnostics.
+	xrefs      []byte
+	methodsets *methodsets.Index
 }
 
-func (p *Package) String() string { return string(p.m.ID) }
+func (p *Package) String() string { return string(p.ph.m.ID) }
 
-func (p *Package) Metadata() *source.Metadata { return p.m }
+func (p *Package) Metadata() *source.Metadata { return p.ph.m }
 
 // A loadScope defines a package loading scope for use with go/packages.
 //
@@ -140,7 +144,7 @@ func (p *Package) HasTypeErrors() bool {
 
 func (p *Package) DiagnosticsForFile(ctx context.Context, s source.Snapshot, uri span.URI) ([]*source.Diagnostic, error) {
 	var diags []*source.Diagnostic
-	for _, diag := range p.m.Diagnostics {
+	for _, diag := range p.ph.m.Diagnostics {
 		if diag.URI == uri {
 			diags = append(diags, diag)
 		}

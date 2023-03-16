@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/gopls/internal/lsp/source/typerefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
@@ -174,6 +175,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		knownSubdirs:         newKnownDirsSet(),
 		workspaceModFiles:    wsModFiles,
 		workspaceModFilesErr: wsModFilesErr,
+		pkgIndex:             typerefs.NewPackageIndex(),
 	}
 	// Save one reference in the view.
 	v.releaseSnapshot = v.snapshot.Acquire()
