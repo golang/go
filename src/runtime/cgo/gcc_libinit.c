@@ -132,6 +132,6 @@ static void
 pthread_key_destructor(void* g) {
     if (x_crosscall2_ptr != NULL) {
         // fn == NULL means dropm.
-        (*x_crosscall2_ptr)(NULL, g, 0, 0);
+        x_crosscall2_ptr(NULL, g, 0, 0);
     }
 }
