@@ -499,6 +499,12 @@ func readMIMEHeader(r *Reader, lim int64) (MIMEHeader, error) {
 
 	m := make(MIMEHeader, hint)
 
+	// Account for 400 bytes of overhead for the MIMEHeader, plus 200 bytes per entry.
+	// Benchmarking map creation as of go1.20, a one-entry MIMEHeader is 416 bytes and large
+	// MIMEHeaders average about 200 bytes per entry.
+	lim -= 400
+	const mapEntryOverhead = 200
+
 	// The first line cannot start with a leading space.
 	if buf, err := r.R.Peek(1); err == nil && (buf[0] == ' ' || buf[0] == '\t') {
 		line, err := r.readLineSlice()
@@ -542,7 +548,7 @@ func readMIMEHeader(r *Reader, lim int64) (MIMEHeader, error) {
 		vv := m[key]
 		if vv == nil {
 			lim -= int64(len(key))
-			lim -= 100 // map entry overhead
+			lim -= mapEntryOverhead
 		}
 		lim -= int64(len(value))
 		if lim < 0 {
