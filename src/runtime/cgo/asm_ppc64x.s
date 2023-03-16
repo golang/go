@@ -12,7 +12,7 @@
 TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
 	MOVD	_crosscall2_ptr(SB), R5
 #ifdef GOARCH_ppc64
-	MOVD	$_crosscall2(SB), R6
+	MOVD	$_crosscall2<>(SB), R6
 #else
 	MOVD	$crosscall2(SB), R6
 #endif
@@ -21,13 +21,13 @@ TEXT ·set_crosscall2(SB),NOSPLIT,$0-0
 
 #ifdef GOARCH_ppc64
 #ifdef GOOS_aix
-// _crosscall2 is a function descriptor to the real crosscall2.
-DATA    _crosscall2+0(SB)/8, $crosscall2(SB)
-DATA    _crosscall2+8(SB)/8, $TOC(SB)
-DATA    _crosscall2+16(SB)/8, $0
-GLOBL   _crosscall2(SB), NOPTR, $24
+// _crosscall2<> is a function descriptor to the real crosscall2.
+DATA    _crosscall2<>+0(SB)/8, $crosscall2(SB)
+DATA    _crosscall2<>+8(SB)/8, $TOC(SB)
+DATA    _crosscall2<>+16(SB)/8, $0
+GLOBL   _crosscall2<>(SB), NOPTR, $24
 #else
-TEXT _crosscall2(SB),NOSPLIT|NOFRAME,$0-0
+TEXT _crosscall2<>(SB),NOSPLIT|NOFRAME,$0
 	DWORD	$crosscall2(SB)
 	DWORD	$0
 	DWORD	$0
