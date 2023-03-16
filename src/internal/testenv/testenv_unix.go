@@ -24,11 +24,6 @@ func syscallIsNotSupported(err error) bool {
 	var errno syscall.Errno
 	if errors.As(err, &errno) {
 		switch errno {
-		case syscall.ENOSYS, syscall.ENOTSUP:
-			// Explicitly not supported.
-			// TODO(#41198): remove these cases when errors.Is reports that they are
-			// equivalent to ErrUnsupported.
-			return true
 		case syscall.EPERM, syscall.EROFS:
 			// User lacks permission: either the call requires root permission and the
 			// user is not root, or the call is denied by a container security policy.

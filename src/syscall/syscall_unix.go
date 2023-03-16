@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	errorspkg "errors"
 	"internal/bytealg"
 	"internal/itoa"
 	"internal/oserror"
@@ -97,8 +98,8 @@ func (m *mmapper) Munmap(data []byte) (err error) {
 //		err = errno
 //	}
 //
-// Errno values can be tested against error values from the os package
-// using errors.Is. For example:
+// Errno values can be tested against error values using errors.Is.
+// For example:
 //
 //	_, _, err := syscall.Syscall(...)
 //	if errors.Is(err, fs.ErrNotExist) ...
@@ -122,6 +123,8 @@ func (e Errno) Is(target error) bool {
 		return e == EEXIST || e == ENOTEMPTY
 	case oserror.ErrNotExist:
 		return e == ENOENT
+	case errorspkg.ErrUnsupported:
+		return e == ENOSYS || e == ENOTSUP || e == EOPNOTSUPP
 	}
 	return false
 }
