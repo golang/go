@@ -33,19 +33,6 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 }
 
 func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error) {
-	// At least as of kernel 5.19.11, splice to a tty fails.
-	// poll.Splice will do the wrong thing if it can splice from r
-	// but can't splice to f: it will read data from r, which is
-	// not what we want if r is a pipe or socket.
-	// So we have to check now whether f is a tty.
-	fi, err := f.Stat()
-	if err != nil {
-		return 0, false, err
-	}
-	if fi.Mode()&ModeCharDevice != 0 {
-		return 0, false, nil
-	}
-
 	var (
 		remain int64
 		lr     *io.LimitedReader
