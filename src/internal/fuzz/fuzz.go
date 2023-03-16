@@ -824,7 +824,7 @@ func (c *coordinator) queueForMinimization(result fuzzResult, keepCoverage []byt
 			"queueing input for minimization, id: %s, parent: %s, keepCoverage: %t, crasher: %t",
 			result.entry.Path,
 			result.entry.Parent,
-			keepCoverage,
+			keepCoverage != nil,
 			result.crasherMsg != "",
 		)
 	}
