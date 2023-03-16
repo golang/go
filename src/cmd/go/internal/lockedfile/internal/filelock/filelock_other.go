@@ -6,7 +6,10 @@
 
 package filelock
 
-import "io/fs"
+import (
+	"errors"
+	"io/fs"
+)
 
 type lockType int8
 
@@ -19,7 +22,7 @@ func lock(f File, lt lockType) error {
 	return &fs.PathError{
 		Op:   lt.String(),
 		Path: f.Name(),
-		Err:  ErrNotSupported,
+		Err:  errors.ErrUnsupported,
 	}
 }
 
@@ -27,10 +30,6 @@ func unlock(f File) error {
 	return &fs.PathError{
 		Op:   "Unlock",
 		Path: f.Name(),
-		Err:  ErrNotSupported,
+		Err:  errors.ErrUnsupported,
 	}
-}
-
-func isNotSupported(err error) bool {
-	return err == ErrNotSupported
 }
