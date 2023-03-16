@@ -88,6 +88,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 			maxMemoryBytes = math.MaxInt64
 		}
 	}
+	var copyBuf []byte
 	for {
 		p, err := r.nextPart(false, maxMemoryBytes)
 		if err == io.EOF {
@@ -151,14 +152,22 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 				}
 			}
 			numDiskFiles++
-			size, err := io.Copy(file, io.MultiReader(&b, p))
+			if _, err := file.Write(b.Bytes()); err != nil {
+				return nil, err
+			}
+			if copyBuf == nil {
+				copyBuf = make([]byte, 32*1024) // same buffer size as io.Copy uses
+			}
+			// os.File.ReadFrom will allocate its own copy buffer if we let io.Copy use it.
+			type writerOnly struct{ io.Writer }
+			remainingSize, err := io.CopyBuffer(writerOnly{file}, p, copyBuf)
 			if err != nil {
 				return nil, err
 			}
 			fh.tmpfile = file.Name()
-			fh.Size = size
+			fh.Size = int64(b.Len()) + remainingSize
 			fh.tmpoff = fileOff
-			fileOff += size
+			fileOff += fh.Size
 			if !combineFiles {
 				if err := file.Close(); err != nil {
 					return nil, err

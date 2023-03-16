@@ -399,3 +399,52 @@ func testReadFormManyFiles(t *testing.T, distinct bool) {
 		t.Fatalf("temp dir contains %v files; want 0", len(names))
 	}
 }
+
+func BenchmarkReadForm(b *testing.B) {
+	for _, test := range []struct {
+		name string
+		form func(fw *Writer, count int)
+	}{{
+		name: "fields",
+		form: func(fw *Writer, count int) {
+			for i := 0; i < count; i++ {
+				w, _ := fw.CreateFormField(fmt.Sprintf("field%v", i))
+				fmt.Fprintf(w, "value %v", i)
+			}
+		},
+	}, {
+		name: "files",
+		form: func(fw *Writer, count int) {
+			for i := 0; i < count; i++ {
+				w, _ := fw.CreateFormFile(fmt.Sprintf("field%v", i), fmt.Sprintf("file%v", i))
+				fmt.Fprintf(w, "value %v", i)
+			}
+		},
+	}} {
+		b.Run(test.name, func(b *testing.B) {
+			for _, maxMemory := range []int64{
+				0,
+				1 << 20,
+			} {
+				var buf bytes.Buffer
+				fw := NewWriter(&buf)
+				test.form(fw, 10)
+				if err := fw.Close(); err != nil {
+					b.Fatal(err)
+				}
+				b.Run(fmt.Sprintf("maxMemory=%v", maxMemory), func(b *testing.B) {
+					b.ReportAllocs()
+					for i := 0; i < b.N; i++ {
+						fr := NewReader(bytes.NewReader(buf.Bytes()), fw.Boundary())
+						form, err := fr.ReadForm(maxMemory)
+						if err != nil {
+							b.Fatal(err)
+						}
+						form.RemoveAll()
+					}
+
+				})
+			}
+		})
+	}
+}
