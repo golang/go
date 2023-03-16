@@ -993,13 +993,13 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args 
 	if !ok {
 		return CorpusEntry{}, minimizeResponse{}, errSharedMemClosed
 	}
+	defer func() { wc.memMu <- mem }()
 	mem.header().count = 0
 	inp, err := corpusEntryData(entryIn)
 	if err != nil {
 		return CorpusEntry{}, minimizeResponse{}, err
 	}
 	mem.setValue(inp)
-	defer func() { wc.memMu <- mem }()
 	entryOut = entryIn
 	entryOut.Values, err = unmarshalCorpusFile(inp)
 	if err != nil {
@@ -1082,6 +1082,7 @@ func (wc *workerClient) fuzz(ctx context.Context, entryIn CorpusEntry, args fuzz
 	mem.header().count = 0
 	inp, err := corpusEntryData(entryIn)
 	if err != nil {
+		wc.memMu <- mem
 		return CorpusEntry{}, fuzzResponse{}, true, err
 	}
 	mem.setValue(inp)
