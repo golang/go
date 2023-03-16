@@ -15,7 +15,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"sync"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/sync/errgroup"
@@ -44,27 +43,21 @@ import (
 type typeCheckBatch struct {
 	meta *metadataGraph
 
-	fset       *token.FileSet     // FileSet describing all parsed files
-	parseCache *parseCache        // shared parsing cache
-	cpulimit   chan struct{}      // concurrency limiter for CPU-bound operations
-	needSyntax map[PackageID]bool // packages that need type-checked syntax
+	fset       *token.FileSet // FileSet describing all parsed files
+	parseCache *parseCache    // shared parsing cache
+	cpulimit   chan struct{}  // concurrency limiter for CPU-bound operations
 
-	// Promises holds promises to either read export data for the package, or
-	// parse and type-check its syntax.
+	// Promises:
 	//
-	// The return value of these promises is not used: after promises are
-	// awaited, they must write an entry into the imports map.
-	promises map[PackageID]*memoize.Promise
-
-	mu sync.Mutex
-	// TODO(rfindley): parsedFiles, which holds every file needed for
-	// type-checking, may not be necessary given the parseCache.
-	//
-	// In fact, parsedFiles may be counter-productive due to pinning all files in
-	// memory during large operations.
-	parsedFiles map[span.URI]*source.ParsedGoFile // parsed files necessary for type-checking
-	packages    map[PackageID]*Package
-	errors      map[PackageID]error // lazily allocated
+	// The type-checking batch collects two types of promises:
+	//  - a package promise produces type-checked syntax, if the 'pre' function
+	//    returns false. All packagePromises are evaluated.
+	//  - an import promise builds a types.Package as fast as possible for
+	//    type-checking, using export data if available. importPromises may never
+	//    be evaluated if a package promise was evaluated instead, or if the
+	//    import is not actually reached.
+	packagePromises map[PackageID]*memoize.Promise // Promise[pkgOrErr] // may be zero value
+	importPromises  map[PackageID]*memoize.Promise // Promise[pkgOrErr]
 }
 
 type pkgOrErr struct {
@@ -82,16 +75,12 @@ type pkgOrErr struct {
 // indicates context cancellation or otherwise significant failure to perform
 // the type-checking operation.
 func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Package, error) {
-	// Shared state for efficient type-checking.
-	b := &typeCheckBatch{
-		fset:        fileSetWithBase(reservedForParsing),
-		parseCache:  s.parseCache,
-		cpulimit:    make(chan struct{}, runtime.GOMAXPROCS(0)),
-		needSyntax:  make(map[PackageID]bool),
-		promises:    make(map[PackageID]*memoize.Promise),
-		parsedFiles: make(map[span.URI]*source.ParsedGoFile),
-		packages:    make(map[PackageID]*Package),
-	}
+	pkgs := make([]source.Package, len(ids))
+
+	var (
+		needIDs []PackageID // ids to type-check
+		indexes []int       // original index of requested ids
+	)
 
 	// Check for existing active packages.
 	//
@@ -102,17 +91,51 @@ func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Pa
 	// changes to an open package many LSP clients send several successive
 	// requests for package information for the modified package (semantic
 	// tokens, code lens, inlay hints, etc.)
-	pkgs := make([]source.Package, len(ids))
 	for i, id := range ids {
 		if pkg := s.getActivePackage(id); pkg != nil {
 			pkgs[i] = pkg
 		} else {
-			b.needSyntax[id] = true
+			needIDs = append(needIDs, id)
+			indexes = append(indexes, i)
 		}
 	}
 
-	if len(b.needSyntax) == 0 {
-		return pkgs, nil
+	post := func(i int, pkg *Package) {
+		if alt := s.memoizeActivePackage(pkg.m.ID, pkg); alt != nil && alt != pkg {
+			// pkg is an open package, but we've lost a race and an existing package
+			// has already been memoized.
+			pkg = alt
+		}
+		pkgs[indexes[i]] = pkg
+	}
+	return pkgs, s.forEachPackage(ctx, needIDs, nil, post)
+}
+
+// Package visiting functions used by forEachPackage; see the documentation of
+// forEachPackage for details.
+type (
+	preTypeCheck  = func(int, *packageHandle) bool // false => don't type check
+	postTypeCheck = func(int, *Package)
+)
+
+// forEachPackage does a pre- and post- order traversal of the packages
+// specified by ids using the provided pre and post functions.
+//
+// The pre func is is optional. If set, pre is evaluated after the package
+// handle has been constructed, but before type-checking. If pre returns false,
+// type-checking is skipped for this package handle.
+//
+// post is called with a syntax package after type-checking completes. It is
+// only called if pre returned true.
+//
+// Both pre and post may be called concurrently.
+func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preTypeCheck, post postTypeCheck) error {
+	b := &typeCheckBatch{
+		fset:            fileSetWithBase(reservedForParsing),
+		parseCache:      s.parseCache,
+		cpulimit:        make(chan struct{}, runtime.GOMAXPROCS(0)),
+		importPromises:  make(map[PackageID]*memoize.Promise),
+		packagePromises: make(map[PackageID]*memoize.Promise),
 	}
 
 	// Capture metadata once to ensure a consistent view.
@@ -121,156 +144,62 @@ func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Pa
 	s.mu.Unlock()
 
 	//  -- assemble the promises graph --
-	//
-	// collectPromises collects promises to load packages from export data or
-	// type-check.
-	var collectPromises func(PackageID) error
-	collectPromises = func(id PackageID) error {
-		if _, ok := b.promises[id]; ok {
+
+	// collectImportPromises constructs import promises for the specified
+	// package and its transitive dependencies.
+	var collectImportPromises func(PackageID) error
+	collectImportPromises = func(id PackageID) error {
+		if _, ok := b.importPromises[id]; ok {
 			return nil
 		}
-		b.promises[id] = nil // break cycles
+		b.importPromises[id] = nil // break cycles
 
 		m := b.meta.metadata[id]
 		if m == nil {
 			return bug.Errorf("missing metadata for %v", id)
 		}
 		for _, id := range m.DepsByPkgPath {
-			if err := collectPromises(id); err != nil {
+			if err := collectImportPromises(id); err != nil {
 				return err
 			}
 		}
 
-		// Note that we can't reuse active packages here, as they will have the
-		// wrong FileSet. Any active packages that exist as dependencies of other
-		// packages will need to be loaded from export data.
+		// Note: promises cannot close over the snapshot, because the promise
+		// function technically runs asynchronously: it may continue to run even
+		// after all calls to Get have returned. We cannot use snapshots
+		// asynchronously without first Acquiring them.
 		ph, err := s.buildPackageHandle(ctx, id)
 		if err != nil {
 			return err
 		}
 
-		debugName := fmt.Sprintf("check(%s)", id)
-		b.promises[id] = memoize.NewPromise(debugName, func(ctx context.Context, _ interface{}) interface{} {
-			pkg, err := b.processPackage(ctx, ph)
-			if err != nil {
-				b.mu.Lock()
-				if b.errors == nil {
-					b.errors = make(map[PackageID]error)
-				}
-				b.errors[id] = err
-				b.mu.Unlock()
-			}
+		debugName := fmt.Sprintf("import(%s)", id)
+		b.importPromises[id] = memoize.NewPromise(debugName, func(ctx context.Context, _ interface{}) interface{} {
+			pkg, err := b.importOrTypeCheck(ctx, ph)
 			return pkgOrErr{pkg, err}
 		})
 		return nil
 	}
-	for id := range b.needSyntax {
-		collectPromises(id)
-	}
 
-	// -- await type-checking. --
+	// doPkg handles request one package in the ids slice.
 	//
-	// Start a single goroutine for each syntax package.
+	// If type checking occurred while handling the package, it returns the
+	// resulting types.Package so that it may be used for importing.
 	//
-	// Other promises are reached recursively, and will not be evaluated if they
-	// are not needed.
-	{
-		var g errgroup.Group
-		for id := range b.needSyntax {
-			promise := b.promises[id]
-			g.Go(func() error {
-				_, err := promise.Get(ctx, nil)
-				return err
-			})
+	// doPkg return (nil, nil) if pre returned false.
+	doPkg := func(ctx context.Context, i int, ph *packageHandle) (*types.Package, error) {
+		if pre != nil && !pre(i, ph) {
+			return nil, nil // skip: export data only
 		}
-		if err := g.Wait(); err != nil {
-			return pkgs, err
-		}
-	}
 
-	// Fill in the gaps of the results slice.
-	var firstErr error
-	for i, id := range ids {
-		if pkgs[i] != nil {
-			continue
-		}
-		if err := b.errors[id]; err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			continue
-		}
-		pkg := b.packages[id]
-		if pkg == nil {
-			panic("nil package")
-		}
-		if alt := s.memoizeActivePackage(id, pkg); alt != nil && alt != pkg {
-			// pkg is an open package, but we've lost a race and an existing package
-			// has already been memoized.
-			pkg = alt
-		}
-		pkgs[i] = pkg
-	}
-
-	return pkgs, firstErr
-}
-
-// parseFiles gets pre-existing parsed files for fhs from b.parsedFiles, or
-// parses as needed.
-func (b *typeCheckBatch) parseFiles(ctx context.Context, fhs []source.FileHandle) ([]*source.ParsedGoFile, error) {
-	var needFiles []source.FileHandle // files that need to be parsed
-	var needIndex []int               // indexes in fhs of the entries in needFiles
-
-	pgfs := make([]*source.ParsedGoFile, len(fhs))
-	b.mu.Lock()
-	for i, fh := range fhs {
-		if pgf, ok := b.parsedFiles[fh.URI()]; ok {
-			pgfs[i] = pgf
-		} else {
-			needFiles = append(needFiles, fh)
-			needIndex = append(needIndex, i)
-		}
-	}
-	b.mu.Unlock()
-
-	parsed, err := b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, needFiles...)
-	if err != nil {
-		return nil, err
-	}
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	for i, pgf := range parsed {
-		idx := needIndex[i]
-		if existing, ok := b.parsedFiles[pgf.URI]; ok { // lost a race
-			pgfs[idx] = existing
-		} else {
-			b.parsedFiles[pgf.URI] = pgf
-			pgfs[idx] = pgf
-		}
-	}
-	return pgfs, nil
-}
-
-// processPackage processes the package handle for the type checking batch,
-// which may involve any one of importing, type-checking for import, or
-// type-checking for syntax, depending on the requested syntax packages and
-// available export data.
-func (b *typeCheckBatch) processPackage(ctx context.Context, ph *packageHandle) (*types.Package, error) {
-	// Type-check at most b.cpulimit syntax packages concurrently.
-	//
-	// (For a non-syntax package, it is not necessary to await all
-	// predecessors because decoding export data typically only
-	// demands a small subset of all possible dependencies.)
-	if b.needSyntax[ph.m.ID] {
 		if err := b.awaitPredecessors(ctx, ph.m); err != nil {
 			return nil, err
 		}
 
-		// Wait to acquire CPU token.
+		// Wait to acquire a CPU token.
 		//
 		// Note: it is important to acquire this token only after awaiting
-		// predecessors, to avoid a starvation lock.
+		// predecessors, to avoid starvation.
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -285,15 +214,72 @@ func (b *typeCheckBatch) processPackage(ctx context.Context, ph *packageHandle) 
 		if err != nil {
 			return nil, err
 		}
-
-		b.mu.Lock()
-		b.packages[ph.m.ID] = syntaxPkg
-		b.mu.Unlock()
+		post(i, syntaxPkg)
 		return syntaxPkg.pkg.types, nil
 	}
 
+	// Build package promises for all requested ids, and collect import promises
+	// for both the ids and their transitive dependencies.
+	for i, id := range ids {
+		i := i
+
+		// See note in collectImportPromises above for an explanation of why we
+		// cannot build the package handle inside the promise.
+		ph, err := s.buildPackageHandle(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		debugName := fmt.Sprintf("check(%s)", id)
+		b.packagePromises[id] = memoize.NewPromise(debugName, func(ctx context.Context, _ interface{}) interface{} {
+			pkg, err := doPkg(ctx, i, ph)
+			return pkgOrErr{pkg, err}
+		})
+		collectImportPromises(id)
+	}
+
+	// -- await results --
+
+	// Start a single goroutine for each requested package.
+	//
+	// Other promises are reached recursively, and will not be evaluated if they
+	// are not needed.
+	var g errgroup.Group
+	for _, id := range ids {
+		promise := b.packagePromises[id]
+		g.Go(func() error {
+			v, err := promise.Get(ctx, nil)
+			if err != nil {
+				return err
+			}
+			return v.(pkgOrErr).err
+		})
+	}
+	return g.Wait()
+}
+
+// importOrTypeCheck returns the *types.Package to use for importing the
+// package references by ph.
+//
+// This may be the package produced during type-checking syntax, an imported
+// package, or a package type-checking for import only.
+func (b *typeCheckBatch) importOrTypeCheck(ctx context.Context, ph *packageHandle) (*types.Package, error) {
 	if ph.m.ID == "unsafe" {
 		return types.Unsafe, nil
+	}
+	if pkgPromise := b.packagePromises[ph.m.ID]; pkgPromise != nil {
+		v, err := pkgPromise.Get(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		res := v.(pkgOrErr)
+		if res.err != nil {
+			return nil, res.err
+		}
+		if res.pkg != nil {
+			return res.pkg, nil
+		}
+		// type-checking was short-circuited by the pre- func.
 	}
 
 	data, err := filecache.Get(exportDataKind, ph.key)
@@ -359,8 +345,7 @@ func (b *typeCheckBatch) checkPackageForImport(ctx context.Context, ph *packageH
 	}
 	cfg := b.typesConfig(ctx, ph.inputs, onError)
 	cfg.IgnoreFuncBodies = true
-
-	pgfs, err := b.parseFiles(ctx, ph.inputs.compiledGoFiles)
+	pgfs, err := b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, ph.inputs.compiledGoFiles...)
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +423,7 @@ func (b *typeCheckBatch) awaitPredecessors(ctx context.Context, m *source.Metada
 	// batch.
 	var g errgroup.Group
 	for _, depID := range m.DepsByPkgPath {
-		if p, ok := b.promises[depID]; ok {
+		if p, ok := b.importPromises[depID]; ok {
 			g.Go(func() error {
 				_, err := p.Get(ctx, nil)
 				return err
@@ -460,7 +445,7 @@ func (b *typeCheckBatch) importMap(id PackageID) map[string]*memoize.Promise {
 			if _, ok := impMap[string(m.PkgPath)]; ok {
 				continue
 			}
-			promise, ok := b.promises[m.ID]
+			promise, ok := b.importPromises[m.ID]
 			if !ok {
 				panic(fmt.Sprintf("import map for %q missing package data for %q", outerID, m.ID))
 			}
@@ -472,81 +457,6 @@ func (b *typeCheckBatch) importMap(id PackageID) map[string]*memoize.Promise {
 	populateDepsOf(m)
 	return impMap
 }
-
-// packageData holds binary data (e.g. types, xrefs) extracted from a syntax
-// package.
-type packageData struct {
-	m    *source.Metadata
-	data []byte
-}
-
-// getPackageData gets package data (e.g. types, xrefs) for the requested ids,
-// either loading from the file-based cache or type-checking and extracting
-// data using the provided get function.
-func (s *snapshot) getPackageData(ctx context.Context, kind string, ids []PackageID, get func(*syntaxPackage) []byte) ([]*packageData, error) {
-	needIDs := make([]PackageID, len(ids))
-	pkgData := make([]*packageData, len(ids))
-
-	// Compute package keys and query file cache.
-	var grp errgroup.Group
-	for i, id := range ids {
-		i, id := i, id
-		grp.Go(func() error {
-			ph, err := s.buildPackageHandle(ctx, id)
-			if err != nil {
-				return err
-			}
-			data, err := filecache.Get(kind, ph.key)
-			if err == nil { // hit
-				pkgData[i] = &packageData{m: ph.m, data: data}
-			} else if err == filecache.ErrNotFound { // miss
-				needIDs[i] = id
-				err = nil
-			}
-			return err
-		})
-	}
-	if err := grp.Wait(); err != nil {
-		return pkgData, err
-	}
-
-	// Compact needIDs (which was sparse to avoid the need for a mutex).
-	out := needIDs[:0]
-	for _, id := range needIDs {
-		if id != "" {
-			out = append(out, id)
-		}
-	}
-	needIDs = out
-
-	// Type-check the packages for which we got file-cache misses.
-	pkgs, err := s.TypeCheck(ctx, needIDs...)
-	if err != nil {
-		return pkgData, err
-	}
-
-	pkgMap := make(map[PackageID]source.Package)
-	for i, id := range needIDs {
-		pkgMap[id] = pkgs[i]
-	}
-
-	// Fill in the gaps using data derived from type checking.
-	for i, id := range ids {
-		if pkgData[i] != nil {
-			continue
-		}
-		result := pkgMap[id]
-		if result == nil {
-			panic(fmt.Sprintf("missing type-check result for %s", id))
-		}
-		data := get(result.(*Package).pkg)
-		pkgData[i] = &packageData{m: result.Metadata(), data: data}
-	}
-
-	return pkgData, nil
-}
-
-type packageHandleKey source.Hash
 
 // A packageHandle holds package information, some of which may not be fully
 // evaluated.
@@ -565,7 +475,7 @@ type packageHandle struct {
 	// really depends on: export data of direct deps should be
 	// enough. (The key for analysis actions could similarly
 	// hash only Facts of direct dependencies.)
-	key packageHandleKey
+	key source.Hash
 
 	// Note: as an optimization, we could join in-flight type-checking by
 	// recording a transient ref-counted promise here.
@@ -737,7 +647,7 @@ func readFiles(ctx context.Context, fs source.FileSource, uris []span.URI) (_ []
 // computePackageKey returns a key representing the act of type checking
 // a package named id containing the specified files, metadata, and
 // combined dependency hash.
-func computePackageKey(s *snapshot, inputs typeCheckInputs) packageHandleKey {
+func computePackageKey(s *snapshot, inputs typeCheckInputs) source.Hash {
 	hasher := sha256.New()
 
 	// In principle, a key must be the hash of an
@@ -791,7 +701,7 @@ func computePackageKey(s *snapshot, inputs typeCheckInputs) packageHandleKey {
 
 	var hash [sha256.Size]byte
 	hasher.Sum(hash[:0])
-	return packageHandleKey(hash)
+	return hash
 }
 
 // typeCheckImpl type checks the parsed source files in compiledGoFiles.
@@ -884,11 +794,11 @@ func doTypeCheck(ctx context.Context, b *typeCheckBatch, inputs typeCheckInputs)
 	// Collect parsed files from the type check pass, capturing parse errors from
 	// compiled files.
 	var err error
-	pkg.goFiles, err = b.parseFiles(ctx, inputs.goFiles)
+	pkg.goFiles, err = b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, inputs.goFiles...)
 	if err != nil {
 		return nil, err
 	}
-	pkg.compiledGoFiles, err = b.parseFiles(ctx, inputs.compiledGoFiles)
+	pkg.compiledGoFiles, err = b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, inputs.compiledGoFiles...)
 	if err != nil {
 		return nil, err
 	}
@@ -978,7 +888,7 @@ func (b *typeCheckBatch) typesConfig(ctx context.Context, inputs typeCheckInputs
 			if !source.IsValidImport(inputs.pkgPath, depPH.m.PkgPath) {
 				return nil, fmt.Errorf("invalid use of internal package %q", path)
 			}
-			promise, ok := b.promises[id]
+			promise, ok := b.importPromises[id]
 			if !ok {
 				panic("missing import")
 			}
