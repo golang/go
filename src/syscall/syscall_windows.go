@@ -142,7 +142,11 @@ func (e Errno) Error() string {
 	return string(utf16.Decode(b[:n]))
 }
 
-const _ERROR_BAD_NETPATH = Errno(53)
+const (
+	_ERROR_NOT_SUPPORTED        = Errno(50)
+	_ERROR_BAD_NETPATH          = Errno(53)
+	_ERROR_CALL_NOT_IMPLEMENTED = Errno(120)
+)
 
 func (e Errno) Is(target error) bool {
 	switch target {
@@ -162,7 +166,9 @@ func (e Errno) Is(target error) bool {
 			e == ERROR_PATH_NOT_FOUND ||
 			e == ENOENT
 	case errorspkg.ErrUnsupported:
-		return e == ENOSYS ||
+		return e == _ERROR_NOT_SUPPORTED ||
+			e == _ERROR_CALL_NOT_IMPLEMENTED ||
+			e == ENOSYS ||
 			e == ENOTSUP ||
 			e == EOPNOTSUPP ||
 			e == EWINDOWS
