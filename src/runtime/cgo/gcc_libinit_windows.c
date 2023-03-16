@@ -94,7 +94,10 @@ _cgo_wait_runtime_init_done(void) {
 	return 0;
 }
 
+// Should not be used since x_cgo_pthread_key_created will always be zero.
 void x_cgo_bindm(void* dummy) {
+	fprintf(stderr, "unexpected on Windows\n");
+	abort();
 }
 
 void

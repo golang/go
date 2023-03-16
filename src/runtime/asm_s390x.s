@@ -564,10 +564,11 @@ g0:
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
-	// Skip cgocallbackg, just dropm when fn is nil.
+	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
 	// It is used to dropm while thread is exiting.
 	MOVD	fn+0(FP), R1
 	CMPBNE	R1, $0, loadg
+	// Restore the g from frame.
 	MOVD	frame+8(FP), R2
 	MOVD	R2, g
 	BR	dropm
@@ -579,7 +580,8 @@ loadg:
 	BL	runtime·load_g(SB)
 
 nocgo:
-	// If g is nil, Go did not create the current thread.
+	// If g is nil, Go did not create the current thread,
+	// or if this thread never called into Go on some platforms.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -668,8 +670,9 @@ havem:
 	MOVD	savedm-8(SP), R6
 	CMPBNE	R6, $0, droppedm
 
-	// Skip dropm to reuse it in next call, when a dummy pthread key has created,
-	// since pthread_key_destructor will dropm when thread is exiting.
+	// Skip dropm to reuse it in the next call, when a pthread key has been created,
+	// instead, bindm save the g into a thread-specific value associated with the pthread key,
+	// and pthread_key_destructor will dropm when the thread is exiting.
 	MOVD	_cgo_pthread_key_created(SB), R6
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CMPBEQ	R6, $0, dropm

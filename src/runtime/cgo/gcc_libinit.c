@@ -18,7 +18,8 @@ static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
 static int runtime_init_done;
 
 // pthread_g is a pthread specific key, for storing the g that binded to the C thread.
-// The registered destructor will be invoked, to dropm, when the g is not NULL and C thread is exiting.
+// The registered pthread_key_destructor will dropm, when the pthread-specified value g is not NULL,
+// while a C thread is exiting.
 static pthread_key_t pthread_g;
 static void pthread_key_destructor(void* g);
 uintptr_t x_cgo_pthread_key_created;
@@ -74,7 +75,13 @@ _cgo_wait_runtime_init_done(void) {
 	return 0;
 }
 
+// Store the g into a thread-specific value associated with the pthread key pthread_g.
+// And pthread_key_destructor will dropm when the thread is exiting.
 void x_cgo_bindm(void* g) {
+    // We assume this will always succeed, otherwise, there might be extra M leaking,
+    // when a C thread exits after a cgo call.
+    // Since we only check the x_cgo_pthread_key_created in runtime.cgocallback,
+    // and will skip dropm when it's 1.
 	pthread_setspecific(pthread_g, g);
 }
 
@@ -132,6 +139,9 @@ static void
 pthread_key_destructor(void* g) {
     if (x_crosscall2_ptr != NULL) {
         // fn == NULL means dropm.
+        // We restore g by using the stored g, before dropm in runtime.cgocallback,
+        // since the g stored in the TLS by Go might be cleared in some platforms,
+        // before this destructor invoked.
         x_crosscall2_ptr(NULL, g, 0, 0);
     }
 }

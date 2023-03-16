@@ -238,7 +238,7 @@ func noEscapePtr[T any](p *T) *T {
 // This in turn calls cgocallbackg, which is where we'll find
 // pointer-declared arguments.
 //
-// When fn is nil, call dropm instead. This is used when the C thread is exiting.
+// When fn is nil (frame is saved g), call dropm instead. This is used when the C thread is exiting.
 func cgocallback(fn, frame, ctxt uintptr)
 
 func gogo(buf *gobuf)

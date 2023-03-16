@@ -2054,8 +2054,10 @@ func oneNewExtraM() {
 //
 // 2. On systems with pthreads
 // dropm is called while a non-Go thread is exiting.
-// We allocate a dummy pthread per-thread variable using pthread_key_create,
+// We allocate a pthread per-thread variable using pthread_key_create,
 // to register a thread-exit-time destructor.
+// And store the g into a thread-specific value associated with the pthread key,
+// when first return back to C.
 // So that the destructor would invoke dropm while the non-Go thread is exiting.
 // This is much faster since it avoids expensive signal-related syscalls.
 //
@@ -2093,14 +2095,18 @@ func dropm() {
 	msigrestore(sigmask)
 }
 
-// bindm store the current g into the value of a pthread key.
+// bindm store the current g into a thread-specific value.
 //
 // We allocate a pthread per-thread variable using pthread_key_create,
 // to register a thread-exit-time destructor.
-// We are here setting the value of the pthread variable, to enable the destructoor.
-// So that the destructor would invoke dropm while the C thread is exiting.
+// We are here setting the thread-specific value of the pthread key, to enable the destructoor.
+// So that the pthread_key_destructor would dropm while the C thread is exiting.
 //
-// On systems without pthreads, like Windows, bindm won't be used.
+// And the saved g will be used in pthread_key_destructor,
+// since the g stored in the TLS by Go might be cleared in some platforms,
+// before the destructor invoked, so, we restore g by the stored g, before dropm.
+//
+// On systems without pthreads, like Windows, bindm shouldn't be used.
 //
 // NOTE: this always runs without a P, so, nowritebarrierrec required.
 //

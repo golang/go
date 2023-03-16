@@ -98,6 +98,15 @@ func set_crosscall2()
 //go:linkname _set_crosscall2 runtime.set_crosscall2
 var _set_crosscall2 = set_crosscall2
 
+// Store the g into the thread-specific value.
+// So that pthread_key_destructor will dropm when the thread is exiting.
+
+//go:cgo_import_static x_cgo_bindm
+//go:linkname x_cgo_bindm x_cgo_bindm
+//go:linkname _cgo_bindm _cgo_bindm
+var x_cgo_bindm byte
+var _cgo_bindm = &x_cgo_bindm
+
 // Notifies that the runtime has been initialized.
 //
 // We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
@@ -119,12 +128,6 @@ var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
 //go:linkname _cgo_set_context_function _cgo_set_context_function
 var x_cgo_set_context_function byte
 var _cgo_set_context_function = &x_cgo_set_context_function
-
-//go:cgo_import_static x_cgo_bindm
-//go:linkname x_cgo_bindm x_cgo_bindm
-//go:linkname _cgo_bindm _cgo_bindm
-var x_cgo_bindm byte
-var _cgo_bindm = &x_cgo_bindm
 
 // Calls a libc function to execute background work injected via libc
 // interceptors, such as processing pending signals under the thread
