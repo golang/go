@@ -107,8 +107,9 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 		// Multiple values for the same key (one map entry, longer slice) are cheaper
 		// than the same number of values for different keys (many map entries), but
 		// using a consistent per-value cost for overhead is simpler.
+		const mapEntryOverhead = 200
 		maxMemoryBytes -= int64(len(name))
-		maxMemoryBytes -= 100 // map overhead
+		maxMemoryBytes -= mapEntryOverhead
 		if maxMemoryBytes < 0 {
 			// We can't actually take this path, since nextPart would already have
 			// rejected the MIME headers for being too large. Check anyway.
@@ -132,7 +133,10 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 		}
 
 		// file, store in memory or on disk
+		const fileHeaderSize = 100
 		maxMemoryBytes -= mimeHeaderSize(p.Header)
+		maxMemoryBytes -= mapEntryOverhead
+		maxMemoryBytes -= fileHeaderSize
 		if maxMemoryBytes < 0 {
 			return nil, ErrMessageTooLarge
 		}
@@ -187,9 +191,10 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 }
 
 func mimeHeaderSize(h textproto.MIMEHeader) (size int64) {
+	size = 400
 	for k, vs := range h {
 		size += int64(len(k))
-		size += 100 // map entry overhead
+		size += 200 // map entry overhead
 		for _, v := range vs {
 			size += int64(len(v))
 		}

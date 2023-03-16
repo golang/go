@@ -223,10 +223,10 @@ func (r *failOnReadAfterErrorReader) Read(p []byte) (n int, err error) {
 // TestReadForm_NonFileMaxMemory asserts that the ReadForm maxMemory limit is applied
 // while processing non-file form data as well as file form data.
 func TestReadForm_NonFileMaxMemory(t *testing.T) {
-	n := 10<<20 + 25
 	if testing.Short() {
-		n = 10<<10 + 25
+		t.Skip("skipping in -short mode")
 	}
+	n := 10 << 20
 	largeTextValue := strings.Repeat("1", n)
 	message := `--MyBoundary
 Content-Disposition: form-data; name="largetext"
@@ -234,38 +234,29 @@ Content-Disposition: form-data; name="largetext"
 ` + largeTextValue + `
 --MyBoundary--
 `
-
 	testBody := strings.ReplaceAll(message, "\n", "\r\n")
-	testCases := []struct {
-		name      string
-		maxMemory int64
-		err       error
-	}{
-		{"smaller", 50 + int64(len("largetext")) + 100, nil},
-		{"exact-fit", 25 + int64(len("largetext")) + 100, nil},
-		{"too-large", 0, ErrMessageTooLarge},
+	// Try parsing the form with increasing maxMemory values.
+	// Changes in how we account for non-file form data may cause the exact point
+	// where we change from rejecting the form as too large to accepting it to vary,
+	// but we should see both successes and failures.
+	const failWhenMaxMemoryLessThan = 128
+	for maxMemory := int64(0); maxMemory < failWhenMaxMemoryLessThan*2; maxMemory += 16 {
+		b := strings.NewReader(testBody)
+		r := NewReader(b, boundary)
+		f, err := r.ReadForm(maxMemory)
+		if err != nil {
+			continue
+		}
+		if g := f.Value["largetext"][0]; g != largeTextValue {
+			t.Errorf("largetext mismatch: got size: %v, expected size: %v", len(g), len(largeTextValue))
+		}
+		f.RemoveAll()
+		if maxMemory < failWhenMaxMemoryLessThan {
+			t.Errorf("ReadForm(%v): no error, expect to hit memory limit when maxMemory < %v", maxMemory, failWhenMaxMemoryLessThan)
+		}
+		return
 	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			if tc.maxMemory == 0 && testing.Short() {
-				t.Skip("skipping in -short mode")
-			}
-			b := strings.NewReader(testBody)
-			r := NewReader(b, boundary)
-			f, err := r.ReadForm(tc.maxMemory)
-			if err == nil {
-				defer f.RemoveAll()
-			}
-			if tc.err != err {
-				t.Fatalf("ReadForm error - got: %v; expected: %v", err, tc.err)
-			}
-			if err == nil {
-				if g := f.Value["largetext"][0]; g != largeTextValue {
-					t.Errorf("largetext mismatch: got size: %v, expected size: %v", len(g), len(largeTextValue))
-				}
-			}
-		})
-	}
+	t.Errorf("ReadForm(x) failed for x < 1024, expect success")
 }
 
 // TestReadForm_MetadataTooLarge verifies that we account for the size of field names,
