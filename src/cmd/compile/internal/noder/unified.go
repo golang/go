@@ -158,7 +158,11 @@ func readBodies(target *ir.Package, duringInlining bool) {
 			// Instantiated generic function: add to Decls for typechecking
 			// and compilation.
 			if fn.OClosure == nil && len(pri.dict.targs) != 0 {
-				if duringInlining {
+				// cmd/link does not support a type symbol referencing a method symbol
+				// across DSO boundary, so force re-compiling methods on a generic type
+				// even it was seen from imported package in linkshared mode, see #58966.
+				canSkipNonGenericMethod := !(base.Ctxt.Flag_linkshared && ir.IsMethod(fn))
+				if duringInlining && canSkipNonGenericMethod {
 					inlDecls = append(inlDecls, fn)
 				} else {
 					target.Decls = append(target.Decls, fn)
