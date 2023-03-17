@@ -5439,12 +5439,16 @@ func testServerSetKeepAlivesEnabledClosesConns(t *testing.T, mode testMode) {
 	ts.Config.SetKeepAlivesEnabled(false)
 
 	var idle1 int
-	if !waitCondition(2*time.Second, 10*time.Millisecond, func() bool {
+	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
 		idle1 = tr.IdleConnCountForTesting("http", addr)
-		return idle1 == 0
-	}) {
-		t.Fatalf("idle count after SetKeepAlivesEnabled called = %v; want 0", idle1)
-	}
+		if idle1 != 0 {
+			if d > 0 {
+				t.Logf("idle count %v after SetKeepAlivesEnabled called = %v; waiting for 0", d, idle1)
+			}
+			return false
+		}
+		return true
+	})
 
 	a3 := get()
 	if a3 == a2 {
@@ -5604,9 +5608,15 @@ func testServerKeepAlivesEnabled(t *testing.T, mode testMode) {
 	srv := cst.ts.Config
 	srv.SetKeepAlivesEnabled(false)
 	for try := 0; try < 2; try++ {
-		if !waitCondition(2*time.Second, 10*time.Millisecond, srv.ExportAllConnsIdle) {
-			t.Fatalf("request %v: test server has active conns", try)
-		}
+		waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
+			if !srv.ExportAllConnsIdle() {
+				if d > 0 {
+					t.Logf("test server still has active conns after %v", d)
+				}
+				return false
+			}
+			return true
+		})
 		conns := 0
 		var info httptrace.GotConnInfo
 		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{

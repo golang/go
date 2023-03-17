@@ -140,29 +140,15 @@ func afterTest(t testing.TB) {
 	t.Errorf("Test appears to have leaked %s:\n%s", bad, stacks)
 }
 
-// waitCondition reports whether fn eventually returned true,
-// checking immediately and then every checkEvery amount,
-// until waitFor has elapsed, at which point it returns false.
-func waitCondition(waitFor, checkEvery time.Duration, fn func() bool) bool {
-	deadline := time.Now().Add(waitFor)
-	for time.Now().Before(deadline) {
-		if fn() {
-			return true
-		}
-		time.Sleep(checkEvery)
+// waitCondition waits for fn to return true,
+// checking immediately and then at exponentially increasing intervals.
+func waitCondition(t testing.TB, delay time.Duration, fn func(time.Duration) bool) {
+	t.Helper()
+	start := time.Now()
+	var since time.Duration
+	for !fn(since) {
+		time.Sleep(delay)
+		delay = 2*delay - (delay / 2) // 1.5x, rounded up
+		since = time.Since(start)
 	}
-	return false
-}
-
-// waitErrCondition is like waitCondition but with errors instead of bools.
-func waitErrCondition(waitFor, checkEvery time.Duration, fn func() error) error {
-	deadline := time.Now().Add(waitFor)
-	var err error
-	for time.Now().Before(deadline) {
-		if err = fn(); err == nil {
-			return nil
-		}
-		time.Sleep(checkEvery)
-	}
-	return err
 }
