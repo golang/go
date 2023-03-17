@@ -684,7 +684,7 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	// On Windows, DLL file name is recorded in PE file
 	// export section, so do like on OS X.
 	dir := "."
-	if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" {
+	if (cfg.Goos == "darwin" || cfg.Goos == "windows") && (cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin") {
 		dir, out = filepath.Split(out)
 	}
 
