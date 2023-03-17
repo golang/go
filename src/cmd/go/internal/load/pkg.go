@@ -2627,12 +2627,7 @@ func externalLinkingForced(p *Package) bool {
 	}
 
 	// Some targets must use external linking even inside GOROOT.
-	switch cfg.BuildContext.GOOS {
-	case "android":
-		if cfg.BuildContext.GOARCH != "arm64" {
-			return true
-		}
-	case "ios":
+	if platform.MustLinkExternal(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH, false) {
 		return true
 	}
 
