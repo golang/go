@@ -609,8 +609,8 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		// might not expect those errors to stop showing up.
 		// See issue #52443.
 		SuppressDeps:       !listJsonFields.needAny("Deps", "DepsErrors"),
-		SuppressBuildInfo:  !listJsonFields.needAny("Stale", "StaleReason"),
-		SuppressEmbedFiles: !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
+		SuppressBuildInfo:  !*listExport && !listJsonFields.needAny("Stale", "StaleReason"),
+		SuppressEmbedFiles: !*listExport && !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
 	}
 	pkgs := load.PackagesAndErrors(ctx, pkgOpts, args)
 	if !*listE {
