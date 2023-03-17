@@ -95,6 +95,26 @@ func TestParseCache_Reparsing(t *testing.T) {
 	}
 }
 
+// Re-parsing the first file should not panic.
+func TestParseCache_Issue59097(t *testing.T) {
+	skipIfNoParseCache(t)
+
+	defer func(padding int) {
+		parsePadding = padding
+	}(parsePadding)
+	parsePadding = 0
+
+	danglingSelector := []byte("package p\nfunc _() {\n\tx.\n}")
+	files := []source.FileHandle{makeFakeFileHandle("file:///bad", danglingSelector)}
+
+	// Parsing should succeed even though we overflow the padding.
+	var cache parseCache
+	_, err := cache.parseFiles(context.Background(), token.NewFileSet(), source.ParseFull, files...)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestParseCache_Duplicates(t *testing.T) {
 	skipIfNoParseCache(t)
 

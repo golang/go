@@ -5,6 +5,7 @@
 package cache
 
 import (
+	"bytes"
 	"container/heap"
 	"context"
 	"fmt"
@@ -37,7 +38,10 @@ import (
 const reservedForParsing = 1 << (bits.UintSize - 4)
 
 // fileSetWithBase returns a new token.FileSet with Base() equal to the
-// requested base, or 1 if base < 1.
+// requested base.
+//
+// If base < 1, fileSetWithBase panics.
+// (1 is the smallest permitted FileSet base).
 func fileSetWithBase(base int) *token.FileSet {
 	fset := token.NewFileSet()
 	if base > 1 {
@@ -48,7 +52,7 @@ func fileSetWithBase(base int) *token.FileSet {
 		// adding a zero-length file at base-1.
 		fset.AddFile("", base-1, 0)
 	}
-	if base >= 1 && fset.Base() != base {
+	if fset.Base() != base {
 		panic("unexpected FileSet.Base")
 	}
 	return fset
@@ -149,21 +153,20 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 			mode: mode,
 		}
 
-		// Check for a cache hit.
-		if e, ok := c.m[key]; ok {
+		if e, ok := c.m[key]; ok { // cache hit
 			e.atime = c.clock
 			heap.Fix(&c.lru, e.lruIndex)
 			promises[i] = e.promise
 			continue
 		}
 
-		// ...otherwise, create a new promise to parse with a non-overlapping
-		// offset. We allocate 2*len(content)+parsePadding to allow for re-parsing
-		// once inside of parseGoSrc without exceeding the allocated space.
-		base, nextBase, fset := c.allocateSpaceLocked(2*len(content) + parsePadding)
 		uri := fh.URI()
-		promise := memoize.NewPromise(string(fh.URI()), func(ctx context.Context, _ interface{}) interface{} {
-			pgf := parseGoSrc(ctx, fset, uri, content, mode)
+		promise := memoize.NewPromise(fmt.Sprintf("parse(%s)", uri), func(ctx context.Context, _ interface{}) interface{} {
+			// Allocate 2*len(content)+parsePadding to allow for re-parsing once
+			// inside of parseGoSrc without exceeding the allocated space.
+			base, nextBase := c.allocateSpace(2*len(content) + parsePadding)
+
+			pgf, fixes1 := parseGoSrc(ctx, fileSetWithBase(base), uri, content, mode)
 			file := pgf.Tok
 			if file.Base()+file.Size()+1 > nextBase {
 				// The parsed file exceeds its allocated space, likely due to multiple
@@ -174,13 +177,24 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 				// bytes of Pos space, we need to accommodate all the missteps to get
 				// there, as parseGoSrc will repeat them.
 				actual := file.Base() + file.Size() - base // actual size consumed, after re-parsing
-				c.mu.Lock()
-				_, next, fset := c.allocateSpaceLocked(actual)
-				c.mu.Unlock()
-				pgf = parseGoSrc(ctx, fset, uri, content, mode)
-				if pgf.Tok.Base()+pgf.Tok.Size() != next-1 {
-					panic("internal error: non-deterministic parsing result")
+				base2, nextBase2 := c.allocateSpace(actual)
+				pgf2, fixes2 := parseGoSrc(ctx, fileSetWithBase(base2), uri, content, mode)
+
+				// In golang/go#59097 we observed that this panic condition was hit.
+				// One bug was found and fixed, but record more information here in
+				// case there is still a bug here.
+				if end := pgf2.Tok.Base() + pgf2.Tok.Size(); end != nextBase2-1 {
+					var errBuf bytes.Buffer
+					fmt.Fprintf(&errBuf, "internal error: non-deterministic parsing result:\n")
+					fmt.Fprintf(&errBuf, "\t%q (%d-%d) does not span %d-%d\n", uri, pgf2.Tok.Base(), base2, end, nextBase2-1)
+					fmt.Fprintf(&errBuf, "\tfirst %q (%d-%d)\n", pgf.URI, pgf.Tok.Base(), pgf.Tok.Base()+pgf.Tok.Size())
+					fmt.Fprintf(&errBuf, "\tfirst space: (%d-%d), second space: (%d-%d)\n", base, nextBase, base2, nextBase2)
+					fmt.Fprintf(&errBuf, "\tfirst mode: %v, second mode: %v", pgf.Mode, pgf2.Mode)
+					fmt.Fprintf(&errBuf, "\tfirst err: %v, second err: %v", pgf.ParseErr, pgf2.ParseErr)
+					fmt.Fprintf(&errBuf, "\tfirst fixes: %v, second fixes: %v", fixes1, fixes2)
+					panic(errBuf.String())
 				}
+				pgf = pgf2
 			}
 			return pgf
 		})
@@ -212,15 +226,22 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 	return promises, firstReadError
 }
 
-// allocateSpaceLocked reserves the next n bytes of token.Pos space in the
+// allocateSpace reserves the next n bytes of token.Pos space in the
 // cache.
 //
 // It returns the resulting file base, next base, and an offset FileSet to use
 // for parsing.
-func (c *parseCache) allocateSpaceLocked(size int) (int, int, *token.FileSet) {
+func (c *parseCache) allocateSpace(size int) (int, int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.nextBase == 0 {
+		// FileSet base values must be at least 1.
+		c.nextBase = 1
+	}
 	base := c.nextBase
 	c.nextBase += size + 1
-	return base, c.nextBase, fileSetWithBase(base)
+	return base, c.nextBase
 }
 
 // The parse cache is not supported on 32-bit systems, where reservedForParsing

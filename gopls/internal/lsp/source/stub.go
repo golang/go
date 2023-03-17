@@ -59,7 +59,7 @@ func stub(ctx context.Context, snapshot Snapshot, si *stubmethods.StubInfo) (*to
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse file %q declaring implementation type: %w", declPGF.URI, err)
 	}
-	if declPGF.Fixed {
+	if declPGF.Fixed() {
 		return nil, nil, fmt.Errorf("file contains parse errors: %s", declPGF.URI)
 	}
 

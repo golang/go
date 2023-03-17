@@ -391,10 +391,32 @@ type ParsedGoFile struct {
 	Tok  *token.File
 	// Source code used to build the AST. It may be different from the
 	// actual content of the file if we have fixed the AST.
-	Src      []byte
-	Fixed    bool
+	Src []byte
+
+	// FixedSrc and Fixed AST report on "fixing" that occurred during parsing of
+	// this file.
+	//
+	// If FixedSrc == true, the source contained in the Src field was modified
+	// from the original source to improve parsing.
+	//
+	// If FixedAST == true, the ast was modified after parsing, and therefore
+	// positions encoded in the AST may not accurately represent the content of
+	// the Src field.
+	//
+	// TODO(rfindley): there are many places where we haphazardly use the Src or
+	// positions without checking these fields. Audit these places and guard
+	// accordingly. After doing so, we may find that we don't need to
+	// differentiate FixedSrc and FixedAST.
+	FixedSrc bool
+	FixedAST bool
 	Mapper   *protocol.Mapper // may map fixed Src, not file content
 	ParseErr scanner.ErrorList
+}
+
+// Fixed reports whether p was "Fixed", meaning that its source or positions
+// may not correlate with the original file.
+func (p ParsedGoFile) Fixed() bool {
+	return p.FixedSrc || p.FixedAST
 }
 
 // -- go/token domain convenience helpers --

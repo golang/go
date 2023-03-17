@@ -51,11 +51,12 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	return parseGoSrc(ctx, fset, fh.URI(), content, mode), nil
+	pgf, _ := parseGoSrc(ctx, fset, fh.URI(), content, mode)
+	return pgf, nil
 }
 
 // parseGoSrc parses a buffer of Go source, repairing the tree if necessary.
-func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []byte, mode parser.Mode) (res *source.ParsedGoFile) {
+func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []byte, mode parser.Mode) (res *source.ParsedGoFile, fixes []fixType) {
 	file, err := parser.ParseFile(fset, uri.Filename(), src, mode)
 	var parseErr scanner.ErrorList
 	if err != nil {
@@ -72,15 +73,20 @@ func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []by
 		tok.SetLinesForContent(src)
 	}
 
-	fixed := false
+	fixedSrc := false
+	fixedAST := false
 	// If there were parse errors, attempt to fix them up.
 	if parseErr != nil {
 		// Fix any badly parsed parts of the AST.
-		fixed = fixAST(file, tok, src)
+		astFixes := fixAST(file, tok, src)
+		fixedAST = len(fixes) > 0
+		if fixedAST {
+			fixes = append(fixes, astFixes...)
+		}
 
 		for i := 0; i < 10; i++ {
 			// Fix certain syntax errors that render the file unparseable.
-			newSrc := fixSrc(file, tok, src)
+			newSrc, srcFix := fixSrc(file, tok, src)
 			if newSrc == nil {
 				break
 			}
@@ -93,14 +99,30 @@ func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []by
 				event.Log(ctx, fmt.Sprintf("fixSrc loop - last diff:\n%v", unified), tag.File.Of(tok.Name()))
 			}
 
-			newFile, _ := parser.ParseFile(fset, uri.Filename(), newSrc, mode)
-			if newFile != nil {
-				// Maintain the original parseError so we don't try formatting the doctored file.
-				file = newFile
-				src = newSrc
-				tok = fset.File(file.Pos())
+			newFile, newErr := parser.ParseFile(fset, uri.Filename(), newSrc, mode)
+			if newFile == nil {
+				break // no progress
+			}
 
-				fixed = fixAST(file, tok, src)
+			// Maintain the original parseError so we don't try formatting the
+			// doctored file.
+			file = newFile
+			src = newSrc
+			tok = fset.File(file.Pos())
+
+			// Only now that we accept the fix do we record the src fix from above.
+			fixes = append(fixes, srcFix)
+			fixedSrc = true
+
+			if newErr == nil {
+				break // nothing to fix
+			}
+
+			// Note that fixedAST is reset after we fix src.
+			astFixes = fixAST(file, tok, src)
+			fixedAST = len(astFixes) > 0
+			if fixedAST {
+				fixes = append(fixes, astFixes...)
 			}
 		}
 	}
@@ -109,12 +131,13 @@ func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []by
 		URI:      uri,
 		Mode:     mode,
 		Src:      src,
-		Fixed:    fixed,
+		FixedSrc: fixedSrc,
+		FixedAST: fixedAST,
 		File:     file,
 		Tok:      tok,
 		Mapper:   protocol.NewMapper(uri, src),
 		ParseErr: parseErr,
-	}
+	}, fixes
 }
 
 // fixAST inspects the AST and potentially modifies any *ast.BadStmts so that it can be
@@ -122,22 +145,26 @@ func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []by
 //
 // If fixAST returns true, the resulting AST is considered "fixed", meaning
 // positions have been mangled, and type checker errors may not make sense.
-func fixAST(n ast.Node, tok *token.File, src []byte) (fixed bool) {
+func fixAST(n ast.Node, tok *token.File, src []byte) (fixes []fixType) {
 	var err error
 	walkASTWithParent(n, func(n, parent ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.BadStmt:
-			if fixed = fixDeferOrGoStmt(n, parent, tok, src); fixed {
+			if fixDeferOrGoStmt(n, parent, tok, src) {
+				fixes = append(fixes, fixedDeferOrGo)
 				// Recursively fix in our fixed node.
-				_ = fixAST(parent, tok, src)
+				moreFixes := fixAST(parent, tok, src)
+				fixes = append(fixes, moreFixes...)
 			} else {
 				err = fmt.Errorf("unable to parse defer or go from *ast.BadStmt: %v", err)
 			}
 			return false
 		case *ast.BadExpr:
-			if fixed = fixArrayType(n, parent, tok, src); fixed {
+			if fixArrayType(n, parent, tok, src) {
+				fixes = append(fixes, fixedArrayType)
 				// Recursively fix in our fixed node.
-				_ = fixAST(parent, tok, src)
+				moreFixes := fixAST(parent, tok, src)
+				fixes = append(fixes, moreFixes...)
 				return false
 			}
 
@@ -147,15 +174,18 @@ func fixAST(n ast.Node, tok *token.File, src []byte) (fixed bool) {
 			//   // "i := foo" is init statement, not condition.
 			//   for i := foo
 			//
-			fixInitStmt(n, parent, tok, src)
-
+			if fixInitStmt(n, parent, tok, src) {
+				fixes = append(fixes, fixedInit)
+			}
 			return false
 		case *ast.SelectorExpr:
 			// Fix cases where a keyword prefix results in a phantom "_" selector, e.g.:
 			//
 			//   foo.var<> // want to complete to "foo.variance"
 			//
-			fixPhantomSelector(n, tok, src)
+			if fixPhantomSelector(n, tok, src) {
+				fixes = append(fixes, fixedPhantomSelector)
+			}
 			return true
 
 		case *ast.BlockStmt:
@@ -163,7 +193,9 @@ func fixAST(n ast.Node, tok *token.File, src []byte) (fixed bool) {
 			case *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
 				// Adjust closing curly brace of empty switch/select
 				// statements so we can complete inside them.
-				fixEmptySwitch(n, tok, src)
+				if fixEmptySwitch(n, tok, src) {
+					fixes = append(fixes, fixedEmptySwitch)
+				}
 			}
 
 			return true
@@ -171,7 +203,7 @@ func fixAST(n ast.Node, tok *token.File, src []byte) (fixed bool) {
 			return true
 		}
 	})
-	return fixed
+	return fixes
 }
 
 // walkASTWithParent walks the AST rooted at n. The semantics are
@@ -199,9 +231,26 @@ func walkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
 	})
 }
 
+// TODO(rfindley): revert this intrumentation once we're certain the crash in
+// #59097 is fixed.
+type fixType int
+
+const (
+	noFix fixType = iota
+	fixedCurlies
+	fixedDanglingSelector
+	fixedDeferOrGo
+	fixedArrayType
+	fixedInit
+	fixedPhantomSelector
+	fixedEmptySwitch
+)
+
 // fixSrc attempts to modify the file's source code to fix certain
 // syntax errors that leave the rest of the file unparsed.
-func fixSrc(f *ast.File, tf *token.File, src []byte) (newSrc []byte) {
+//
+// fixSrc returns a non-nil result if and only if a fix was applied.
+func fixSrc(f *ast.File, tf *token.File, src []byte) (newSrc []byte, fix fixType) {
 	walkASTWithParent(f, func(n, parent ast.Node) bool {
 		if newSrc != nil {
 			return false
@@ -210,14 +259,20 @@ func fixSrc(f *ast.File, tf *token.File, src []byte) (newSrc []byte) {
 		switch n := n.(type) {
 		case *ast.BlockStmt:
 			newSrc = fixMissingCurlies(f, n, parent, tf, src)
+			if newSrc != nil {
+				fix = fixedCurlies
+			}
 		case *ast.SelectorExpr:
 			newSrc = fixDanglingSelector(n, tf, src)
+			if newSrc != nil {
+				fix = fixedDanglingSelector
+			}
 		}
 
 		return newSrc == nil
 	})
 
-	return newSrc
+	return newSrc, fix
 }
 
 // fixMissingCurlies adds in curly braces for block statements that
@@ -336,30 +391,33 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 //	switch {
 //
 //	}
-func fixEmptySwitch(body *ast.BlockStmt, tok *token.File, src []byte) {
+//
+// The resulting bool reports whether any fixing occured.
+func fixEmptySwitch(body *ast.BlockStmt, tok *token.File, src []byte) bool {
 	// We only care about empty switch statements.
 	if len(body.List) > 0 || !body.Rbrace.IsValid() {
-		return
+		return false
 	}
 
 	// If the right brace is actually in the source code at the
 	// specified position, don't mess with it.
 	braceOffset, err := safetoken.Offset(tok, body.Rbrace)
 	if err != nil {
-		return
+		return false
 	}
 	if braceOffset < len(src) && src[braceOffset] == '}' {
-		return
+		return false
 	}
 
 	braceLine := tok.Line(body.Rbrace)
 	if braceLine >= tok.LineCount() {
 		// If we are the last line in the file, no need to fix anything.
-		return
+		return false
 	}
 
 	// Move the right brace down one line.
 	body.Rbrace = tok.LineStart(braceLine + 1)
+	return true
 }
 
 // fixDanglingSelector inserts real "_" selector expressions in place
@@ -410,9 +468,11 @@ func fixDanglingSelector(s *ast.SelectorExpr, tf *token.File, src []byte) []byte
 // yields a "_" selector instead of "var" since "var" is a keyword.
 //
 // TODO(rfindley): should this constitute an ast 'fix'?
-func fixPhantomSelector(sel *ast.SelectorExpr, tf *token.File, src []byte) {
+//
+// The resulting bool reports whether any fixing occured.
+func fixPhantomSelector(sel *ast.SelectorExpr, tf *token.File, src []byte) bool {
 	if !isPhantomUnderscore(sel.Sel, tf, src) {
-		return
+		return false
 	}
 
 	// Only consider selectors directly abutting the selector ".". This
@@ -422,15 +482,15 @@ func fixPhantomSelector(sel *ast.SelectorExpr, tf *token.File, src []byte) {
 	//   var bar = 123
 	//
 	if sel.Sel.Pos() != sel.X.End()+1 {
-		return
+		return false
 	}
 
 	maybeKeyword := readKeyword(sel.Sel.Pos(), tf, src)
 	if maybeKeyword == "" {
-		return
+		return false
 	}
 
-	replaceNode(sel, sel.Sel, &ast.Ident{
+	return replaceNode(sel, sel.Sel, &ast.Ident{
 		Name:    maybeKeyword,
 		NamePos: sel.Sel.Pos(),
 	})
@@ -459,21 +519,21 @@ func isPhantomUnderscore(id *ast.Ident, tok *token.File, src []byte) bool {
 // parser is looking for the conditional expression. However, "i := 0"
 // are not valid expressions, so we get a BadExpr.
 //
-// fixInitStmt returns valid AST for the original source.
-func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte) {
+// The resulting bool reports whether any fixing occured.
+func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte) bool {
 	if !bad.Pos().IsValid() || !bad.End().IsValid() {
-		return
+		return false
 	}
 
 	// Try to extract a statement from the BadExpr.
 	start, end, err := safetoken.Offsets(tok, bad.Pos(), bad.End()-1)
 	if err != nil {
-		return
+		return false
 	}
 	stmtBytes := src[start : end+1]
 	stmt, err := parseStmt(bad.Pos(), stmtBytes)
 	if err != nil {
-		return
+		return false
 	}
 
 	// If the parent statement doesn't already have an "init" statement,
@@ -482,29 +542,33 @@ func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte)
 	switch p := parent.(type) {
 	case *ast.IfStmt:
 		if p.Init != nil {
-			return
+			return false
 		}
 		p.Init = stmt
 		p.Cond = &ast.Ident{
 			Name:    "_",
 			NamePos: stmt.End(),
 		}
+		return true
 	case *ast.ForStmt:
 		if p.Init != nil {
-			return
+			return false
 		}
 		p.Init = stmt
 		p.Cond = &ast.Ident{
 			Name:    "_",
 			NamePos: stmt.End(),
 		}
+		return true
 	case *ast.SwitchStmt:
 		if p.Init != nil {
-			return
+			return false
 		}
 		p.Init = stmt
 		p.Tag = nil
+		return true
 	}
+	return false
 }
 
 // readKeyword reads the keyword starting at pos, if any.
