@@ -7,6 +7,7 @@ package cache
 import (
 	"container/heap"
 	"context"
+	"fmt"
 	"go/parser"
 	"go/token"
 	"math/bits"
@@ -294,6 +295,22 @@ func (c *parseCache) parseFiles(ctx context.Context, fset *token.FileSet, mode p
 		tokenFiles = append(tokenFiles, pgf.Tok)
 	}
 	tokeninternal.AddExistingFiles(fset, tokenFiles)
+
+	const debugIssue59080 = true
+	if debugIssue59080 {
+		for _, f := range tokenFiles {
+			pos := token.Pos(f.Base())
+			f2 := fset.File(pos)
+			if f2 != f {
+				panic(fmt.Sprintf("internal error: File(%d (start)) = %v, not %v", pos, f2, f))
+			}
+			pos = token.Pos(f.Base() + f.Size())
+			f2 = fset.File(pos)
+			if f2 != f {
+				panic(fmt.Sprintf("internal error: File(%d (end)) = %v, not %v", pos, f2, f))
+			}
+		}
+	}
 
 	return pgfs, firstErr
 }
