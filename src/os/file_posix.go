@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-func sigpipe() // implemented in package runtime
-
 // Close closes the File, rendering it unusable for I/O.
 // On files that support SetDeadline, any pending I/O operations will
 // be canceled and return immediately with an ErrClosed error.

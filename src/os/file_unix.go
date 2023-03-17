@@ -210,6 +210,8 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	return f
 }
 
+func sigpipe() // implemented in package runtime
+
 // epipecheck raises SIGPIPE if we get an EPIPE error on standard
 // output or standard error. See the SIGPIPE docs in os/signal, and
 // issue 11845.
