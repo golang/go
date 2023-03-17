@@ -22,6 +22,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/gopls/internal/hooks"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
@@ -114,6 +115,9 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 // # Marker types
 //
 // The following markers are supported within marker tests:
+//
+//   - complete(location, ...labels): specifies expected completion results at
+//     the given location.
 //
 //   - diag(location, regexp): specifies an expected diagnostic matching the
 //     given regexp at the given location. The test runner requires
@@ -455,6 +459,7 @@ func (mark marker) execute() {
 // Marker funcs should not mutate the test environment (e.g. via opening files
 // or applying edits in the editor).
 var markerFuncs = map[string]markerFunc{
+	"complete":     makeMarkerFunc(completeMarker),
 	"def":          makeMarkerFunc(defMarker),
 	"diag":         makeMarkerFunc(diagMarker),
 	"hover":        makeMarkerFunc(hoverMarker),
@@ -1090,6 +1095,26 @@ func checkChangedFiles(mark marker, changed map[string][]byte, golden *Golden) {
 }
 
 // ---- marker functions ----
+
+// completeMarker implements the @complete marker, running
+// textDocument/completion at the given src location and asserting that the
+// results match the expected results.
+//
+// TODO(rfindley): for now, this is just a quick check against the expected
+// completion labels. We could do more by assembling richer completion items,
+// as is done in the old marker tests. Does that add value? If so, perhaps we
+// should support a variant form of the argument, labelOrItem, which allows the
+// string form or item form.
+func completeMarker(mark marker, src protocol.Location, want ...string) {
+	list := mark.run.env.Completion(src)
+	var got []string
+	for _, item := range list.Items {
+		got = append(got, item.Label)
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		mark.errorf("Completion(...) returned unexpect results (-want +got):\n%s", diff)
+	}
+}
 
 // defMarker implements the @godef marker, running textDocument/definition at
 // the given src location and asserting that there is exactly one resulting

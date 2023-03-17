@@ -658,7 +658,11 @@ func (c *completer) collectCompletions(ctx context.Context) error {
 	//   recv.‸(arg)
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
-		return c.selector(ctx, &ast.SelectorExpr{X: n.X})
+		//
+		// The name "_" is the convention used by go/parser to represent phantom
+		// selectors.
+		sel := &ast.Ident{NamePos: n.X.End() + token.Pos(len(".")), Name: "_"}
+		return c.selector(ctx, &ast.SelectorExpr{X: n.X, Sel: sel})
 	case *ast.SelectorExpr:
 		return c.selector(ctx, n)
 	// At the file scope, only keywords are allowed.

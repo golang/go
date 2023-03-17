@@ -1,0 +1,18 @@
+This test exercises the panic in golang/go#59096: completing at a syntactic
+type-assert expression was panicking because gopls was translating it into
+a (malformed) selector expr.
+
+-- go.mod --
+module example.com
+
+-- a/a.go --
+package a
+
+func _() {
+	b.(foo) //@complete(re"b.()", "B"), diag("b", re"(undefined|undeclared name): b")
+}
+
+-- b/b.go --
+package b
+
+const B = 0
