@@ -317,7 +317,7 @@ var depsRules = `
 
 	# Bulk of the standard library must not use cgo.
 	# The prohibition stops at net and os/user.
-	C !< fmt, go/types, CRYPTO-MATH;
+	C !< fmt, go/types, CRYPTO-MATH, log/slog;
 
 	CGO, OS
 	< plugin;
@@ -372,10 +372,21 @@ var depsRules = `
 	FMT
 	< log;
 
-	log !< crypto/tls, database/sql, go/importer, testing;
+	log, log/slog !< crypto/tls, database/sql, go/importer, testing;
 
 	FMT, log, net
 	< log/syslog;
+
+	RUNTIME
+	< log/slog/internal, log/slog/internal/buffer;
+
+	FMT,
+	encoding, encoding/json,
+	log,
+	log/slog/internal, log/slog/internal/buffer,
+	slices
+	< log/slog
+	< log/slog/internal/testutil;
 
 	NET, log
 	< net/mail;
