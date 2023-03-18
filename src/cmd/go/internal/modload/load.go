@@ -340,10 +340,6 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 
 	initialRS := LoadModFile(ctx)
 
-	if len(initialRS.rootModules) == 0 {
-		return matches, loadedPackages
-	}
-
 	ld := loadFromRoots(ctx, loaderParams{
 		PackageOpts:  opts,
 		requirements: initialRS,
@@ -358,6 +354,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
 			return roots
 		},
 	})
+
+	if len(ld.requirements.rootModules) == 0 {
+		return matches, loadedPackages
+	}
 
 	// One last pass to finalize wildcards.
 	updateMatches(ld.requirements, ld)
