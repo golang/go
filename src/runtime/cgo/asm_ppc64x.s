@@ -30,10 +30,11 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	BL	runtime·reginit(SB)
 	BL	runtime·load_g(SB)
 
-#ifdef GOARCH_ppc64
+#ifdef GOOS_aix
 	// ppc64 use elf ABI v1. we must get the real entry address from
 	// first slot of the function descriptor before call.
-	// Same for AIX.
+	// This applies only for AIX; on Linux go functions are represented
+	// by a raw pointer regardless of elf ABI version
 	MOVD	8(R3), R2
 	MOVD	(R3), R3
 #endif
