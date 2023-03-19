@@ -3,8 +3,31 @@
 // license that can be found in the LICENSE file.
 
 #include <string.h>
+#include <pthread.h>
 
 #include "_cgo_export.h"
+
+static void* goDummyCallbackThread(void* p) {
+	int i;
+	int n = *(int*)p;
+	for (i = 0; i < n; i++) {
+		goDummy();
+	}
+	return NULL;
+}
+
+int
+callGoInCThread(int max)
+{
+	pthread_t thread;
+	if (pthread_create(&thread, NULL, goDummyCallbackThread, (void*)(&max)) != 0) {
+		return -1;
+	};
+	if (pthread_join(thread, NULL) != 0) {
+		return -1;
+	}
+	return max;
+}
 
 void
 callback(void *f)

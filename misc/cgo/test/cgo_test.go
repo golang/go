@@ -107,3 +107,4 @@ func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
 func BenchmarkCgoCall(b *testing.B)     { benchCgoCall(b) }
 func BenchmarkGoString(b *testing.B)    { benchGoString(b) }
 func BenchmarkCGoCallback(b *testing.B) { benchCallback(b) }
+func BenchmarkCGoInCThead(b *testing.B) { benchCGoInCthread(b) }

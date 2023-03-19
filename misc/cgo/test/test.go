@@ -925,6 +925,8 @@ typedef struct issue45451Undefined issue45451;
 extern void GoFunc49633(void*);
 void cfunc49633(void *context) { GoFunc49633(context); }
 
+int callGoInCThread(int n);
+
 */
 import "C"
 
@@ -1140,6 +1142,15 @@ func benchCallback(b *testing.B) {
 	}
 	if !x {
 		b.Fatal("nestedCall was not invoked")
+	}
+}
+
+// Benchmark measuring overhead from C to Go in a C thread.
+// Create a new C thread and invoke Go function repeatedly in the new C thread.
+func benchCGoInCthread(b *testing.B) {
+	n := C.callGoInCThread(C.int(b.N))
+	if int(n) != b.N {
+		b.Fatal("unmatch loop times")
 	}
 }
 
