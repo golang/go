@@ -97,8 +97,9 @@ var (
 
 	CmdName string // "build", "install", "list", "mod tidy", etc.
 
-	DebugActiongraph string // -debug-actiongraph flag (undocumented, unstable)
-	DebugTrace       string // -debug-trace flag
+	DebugActiongraph  string // -debug-actiongraph flag (undocumented, unstable)
+	DebugTrace        string // -debug-trace flag
+	DebugRuntimeTrace string // -debug-runtime-trace flag (undocumented, unstable)
 
 	// GoPathError is set when GOPATH is not set. it contains an
 	// explanation why GOPATH is unset.

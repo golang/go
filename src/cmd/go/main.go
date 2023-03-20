@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	rtrace "runtime/trace"
 	"strings"
 
 	"cmd/go/internal/base"
@@ -220,6 +221,20 @@ func invoke(cmd *base.Command, args []string) {
 		cmd.Flag.Parse(args[1:])
 		args = cmd.Flag.Args()
 	}
+
+	if cfg.DebugRuntimeTrace != "" {
+		f, err := os.Create(cfg.DebugRuntimeTrace)
+		if err != nil {
+			base.Fatalf("creating trace file: %v", err)
+		}
+		if err := rtrace.Start(f); err != nil {
+			base.Fatalf("starting event trace: %v", err)
+		}
+		defer func() {
+			rtrace.Stop()
+		}()
+	}
+
 	ctx := maybeStartTrace(context.Background())
 	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
 	cmd.Run(ctx, cmd, args)
