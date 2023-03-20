@@ -2636,14 +2636,26 @@ func externalLinkingForced(p *Package) bool {
 		return true
 	}
 
-	// Currently build modes c-shared, pie (on systems that do not
-	// support PIE with internal linking mode (currently all
-	// systems: issue #18968)), plugin, and -linkshared force
+	// Decide whether we are building a PIE,
+	// bearing in mind that some systems default to PIE.
+	isPIE := false
+	if cfg.BuildBuildmode == "pie" {
+		isPIE = true
+	} else if cfg.BuildBuildmode == "default" && platform.DefaultPIE(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH, cfg.BuildRace) {
+		isPIE = true
+	}
+	// If we are building a PIE, and we are on a system
+	// that does not support PIE with internal linking mode,
+	// then we must use external linking.
+	if isPIE && !platform.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH) {
+		return true
+	}
+
+	// Currently build modes c-shared, plugin, and -linkshared force
 	// external linking mode, as of course does
 	// -ldflags=-linkmode=external. External linking mode forces
 	// an import of runtime/cgo.
 	// If there are multiple -linkmode options, the last one wins.
-	pieCgo := cfg.BuildBuildmode == "pie" && !platform.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
 	linkmodeExternal := false
 	if p != nil {
 		ldflags := BuildLdflags.For(p)
@@ -2660,7 +2672,7 @@ func externalLinkingForced(p *Package) bool {
 		}
 	}
 
-	return cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin" || pieCgo || cfg.BuildLinkshared || linkmodeExternal
+	return cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin" || cfg.BuildLinkshared || linkmodeExternal
 }
 
 // mkAbs rewrites list, which must be paths relative to p.Dir,
