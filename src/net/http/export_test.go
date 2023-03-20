@@ -142,9 +142,11 @@ func (t *Transport) IdleConnStrsForTesting_h2() []string {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	for k, cc := range pool.conns {
-		for range cc {
-			ret = append(ret, k)
+	for k, ccs := range pool.conns {
+		for _, cc := range ccs {
+			if cc.idleState().canTakeNewRequest {
+				ret = append(ret, k)
+			}
 		}
 	}
 

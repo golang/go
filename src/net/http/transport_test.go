@@ -5047,7 +5047,7 @@ timeoutLoop:
 		}
 
 		var conn string
-		doReq := func(n int) (ok bool) {
+		doReq := func(n int) (timeoutOk bool) {
 			req, _ := NewRequest("GET", cst.ts.URL, nil)
 			req = req.WithContext(httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
 				PutIdleConn: func(err error) {
@@ -5094,7 +5094,7 @@ timeoutLoop:
 		waitCondition(t, timeout/2, func(d time.Duration) bool {
 			if got := idleConns(); len(got) != 0 {
 				if d >= timeout*3/2 {
-					t.Logf("after %d, idle conns = %q", d, got)
+					t.Logf("after %v, idle conns = %q", d, got)
 				}
 				return false
 			}
