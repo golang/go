@@ -479,12 +479,12 @@ var colon = []byte(":")
 //		"Long-Key": {"Even Longer Value"},
 //	}
 func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
-	return readMIMEHeader(r, math.MaxInt64)
+	return readMIMEHeader(r, math.MaxInt64, math.MaxInt64)
 }
 
 // readMIMEHeader is a version of ReadMIMEHeader which takes a limit on the header size.
 // It is called by the mime/multipart package.
-func readMIMEHeader(r *Reader, lim int64) (MIMEHeader, error) {
+func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) {
 	// Avoid lots of small slice allocations later by allocating one
 	// large one ahead of time which we'll cut up into smaller
 	// slices. If this isn't big enough later, we allocate small ones.
@@ -502,7 +502,7 @@ func readMIMEHeader(r *Reader, lim int64) (MIMEHeader, error) {
 	// Account for 400 bytes of overhead for the MIMEHeader, plus 200 bytes per entry.
 	// Benchmarking map creation as of go1.20, a one-entry MIMEHeader is 416 bytes and large
 	// MIMEHeaders average about 200 bytes per entry.
-	lim -= 400
+	maxMemory -= 400
 	const mapEntryOverhead = 200
 
 	// The first line cannot start with a leading space.
@@ -542,16 +542,21 @@ func readMIMEHeader(r *Reader, lim int64) (MIMEHeader, error) {
 			continue
 		}
 
+		maxHeaders--
+		if maxHeaders < 0 {
+			return nil, errors.New("message too large")
+		}
+
 		// Skip initial spaces in value.
 		value := string(bytes.TrimLeft(v, " \t"))
 
 		vv := m[key]
 		if vv == nil {
-			lim -= int64(len(key))
-			lim -= mapEntryOverhead
+			maxMemory -= int64(len(key))
+			maxMemory -= mapEntryOverhead
 		}
-		lim -= int64(len(value))
-		if lim < 0 {
+		maxMemory -= int64(len(value))
+		if maxMemory < 0 {
 			// TODO: This should be a distinguishable error (ErrMessageTooLarge)
 			// to allow mime/multipart to detect it.
 			return m, errors.New("message too large")
