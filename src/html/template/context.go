@@ -120,6 +120,8 @@ const (
 	stateJSDqStr
 	// stateJSSqStr occurs inside a JavaScript single quoted string.
 	stateJSSqStr
+	// stateJSBqStr occurs inside a JavaScript back quoted string.
+	stateJSBqStr
 	// stateJSRegexp occurs inside a JavaScript regexp literal.
 	stateJSRegexp
 	// stateJSBlockCmt occurs inside a JavaScript /* block comment */.

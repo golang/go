@@ -306,6 +306,13 @@ var allDesc = []Description{
 		Cumulative: true,
 	},
 	{
+		Name: "/godebug/non-default-behavior/jstmpllitinterp:events",
+		Description: "The number of non-default behaviors executed by the html/template" +
+			"package due to a non-default GODEBUG=jstmpllitinterp=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
 		Name: "/godebug/non-default-behavior/multipartfiles:events",
 		Description: "The number of non-default behaviors executed by the mime/multipart package " +
 			"due to a non-default GODEBUG=multipartfiles=... setting.",

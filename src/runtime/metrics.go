@@ -290,6 +290,7 @@ func initMetrics() {
 		"/godebug/non-default-behavior/http2client:events":          {compute: compute0},
 		"/godebug/non-default-behavior/http2server:events":          {compute: compute0},
 		"/godebug/non-default-behavior/installgoroot:events":        {compute: compute0},
+		"/godebug/non-default-behavior/jstmpllitinterp:events":      {compute: compute0},
 		"/godebug/non-default-behavior/multipartfiles:events":       {compute: compute0},
 		"/godebug/non-default-behavior/multipartmaxheaders:events":  {compute: compute0},
 		"/godebug/non-default-behavior/multipartmaxparts:events":    {compute: compute0},
