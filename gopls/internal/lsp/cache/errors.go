@@ -249,13 +249,13 @@ func encodeDiagnostics(srcDiags []*source.Diagnostic) []byte {
 		}
 		gobDiags = append(gobDiags, gobDiag)
 	}
-	return mustEncode(gobDiags)
+	return mustJSONEncode(gobDiags)
 }
 
 // decodeDiagnostics decodes the given gob-encoded diagnostics.
 func decodeDiagnostics(data []byte) []*source.Diagnostic {
 	var gobDiags []gobDiagnostic
-	mustDecode(data, &gobDiags)
+	mustJSONDecode(data, &gobDiags)
 	var srcDiags []*source.Diagnostic
 	for _, gobDiag := range gobDiags {
 		var srcFixes []source.SuggestedFix
@@ -276,7 +276,7 @@ func decodeDiagnostics(data []byte) []*source.Diagnostic {
 				srcFix.Edits[uri] = append(srcFix.Edits[uri], srcEdit)
 			}
 			if gobCmd := gobFix.Command; gobCmd != nil {
-				gobFix.Command = &gobCommand{
+				srcFix.Command = &protocol.Command{
 					Title:     gobCmd.Title,
 					Command:   gobCmd.Command,
 					Arguments: gobCmd.Arguments,
@@ -293,6 +293,8 @@ func decodeDiagnostics(data []byte) []*source.Diagnostic {
 			URI:            gobDiag.Location.URI.SpanURI(),
 			Range:          gobDiag.Location.Range,
 			Severity:       gobDiag.Severity,
+			Code:           gobDiag.Code,
+			CodeHref:       gobDiag.CodeHref,
 			Source:         source.AnalyzerErrorKind(gobDiag.Source),
 			Message:        gobDiag.Message,
 			Tags:           gobDiag.Tags,

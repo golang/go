@@ -1145,9 +1145,25 @@ func mustEncode(x interface{}) []byte {
 	return buf.Bytes()
 }
 
+// TODO(rfindley): based on profiling, we should consider using JSON encoding
+// throughout, rather than gob encoding.
+func mustJSONEncode(x interface{}) []byte {
+	data, err := json.Marshal(x)
+	if err != nil {
+		log.Fatalf("internal error marshalling %T: %v", data, err)
+	}
+	return data
+}
+
 func mustDecode(data []byte, ptr interface{}) {
 	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(ptr); err != nil {
 		log.Fatalf("internal error decoding %T: %v", ptr, err)
+	}
+}
+
+func mustJSONDecode(data []byte, ptr interface{}) {
+	if err := json.Unmarshal(data, ptr); err != nil {
+		log.Fatalf("internal error unmarshalling %T: %v", ptr, err)
 	}
 }
 
