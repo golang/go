@@ -1240,6 +1240,42 @@ func (s *snapshot) ReadFile(ctx context.Context, uri span.URI) (source.FileHandl
 	return lockedSnapshot{s}.ReadFile(ctx, uri)
 }
 
+// preloadFiles delegates to the view FileSource to read the requested uris in
+// parallel, without holding the snapshot lock.
+func (s *snapshot) preloadFiles(ctx context.Context, uris []span.URI) {
+	files := make([]source.FileHandle, len(uris))
+	var wg sync.WaitGroup
+	iolimit := make(chan struct{}, 20) // I/O concurrency limiting semaphore
+	for i, uri := range uris {
+		wg.Add(1)
+		iolimit <- struct{}{}
+		go func(i int, uri span.URI) {
+			defer wg.Done()
+			fh, err := s.view.fs.ReadFile(ctx, uri)
+			<-iolimit
+			if err != nil && ctx.Err() == nil {
+				event.Error(ctx, fmt.Sprintf("reading %s", uri), err)
+				return
+			}
+			files[i] = fh
+		}(i, uri)
+	}
+	wg.Wait()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, fh := range files {
+		if fh == nil {
+			continue // error logged above
+		}
+		uri := uris[i]
+		if _, ok := s.files.Get(uri); !ok {
+			s.files.Set(uri, fh)
+		}
+	}
+}
+
 // A lockedSnapshot implements the source.FileSource interface while holding
 // the lock for the wrapped snapshot.
 type lockedSnapshot struct{ wrapped *snapshot }

@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -255,7 +254,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	s.dumpWorkspace("load")
 	s.mu.Unlock()
 
-	// Opt: pre-fetch loaded files in parallel.
+	// Opt: preLoad files in parallel.
 	//
 	// Requesting files in batch optimizes the underlying filesystem reads.
 	// However, this is also currently necessary for correctness: populating all
@@ -266,16 +265,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	// TODO(rfindley, golang/go#57558): determine the set of directories based on
 	// loaded packages, so that reading files here is not necessary for
 	// correctness.
-	var wg sync.WaitGroup
-	for _, uri := range files {
-		uri := uri
-		wg.Add(1)
-		go func() {
-			s.ReadFile(ctx, uri) // ignore result
-			wg.Done()
-		}()
-	}
-	wg.Wait()
+	s.preloadFiles(ctx, files)
 
 	if len(moduleErrs) > 0 {
 		return &moduleErrorMap{moduleErrs}
