@@ -78,6 +78,7 @@ func cgoCheckMemmove(typ *_type, dst, src unsafe.Pointer) {
 // size is the number of bytes to copy.
 // It throws if the program is copying a block that contains a Go pointer
 // into non-Go memory.
+//
 //go:nosplit
 //go:nowritebarrier
 func cgoCheckMemmove2(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {

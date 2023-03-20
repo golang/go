@@ -73,9 +73,9 @@ func (s *Setting) String() string {
 // Any GODEBUG setting that can call IncNonDefault must be listed
 // in three more places:
 //
-//	- the table in ../runtime/metrics.go (search for non-default-behavior)
-//	- the table in ../../runtime/metrics/description.go (search for non-default-behavior; run 'go generate' afterward)
-//	- the table in ../../cmd/go/internal/load/godebug.go (search for defaultGodebugs)
+//   - the table in ../runtime/metrics.go (search for non-default-behavior)
+//   - the table in ../../runtime/metrics/description.go (search for non-default-behavior; run 'go generate' afterward)
+//   - the table in ../../cmd/go/internal/load/godebug.go (search for defaultGodebugs)
 func (s *Setting) IncNonDefault() {
 	s.nonDefaultOnce.Do(s.register)
 	s.nonDefault.Add(1)
@@ -149,9 +149,13 @@ func registerMetric(name string, read func() uint64)
 
 // setNewNonDefaultInc is provided by package runtime.
 // The runtime can do
+//
 //	inc := newNonDefaultInc(name)
+//
 // instead of
+//
 //	inc := godebug.New(name).IncNonDefault
+//
 // since it cannot import godebug.
 //
 //go:linkname setNewIncNonDefault

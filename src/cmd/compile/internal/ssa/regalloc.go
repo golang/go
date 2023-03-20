@@ -474,8 +474,8 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	// If the evicted register isn't used between the start of the block
 	// and now then there is no reason to even request it on entry. We can
 	// drop from startRegs in that case.
-	if s.usedSinceBlockStart&(regMask(1) << r) == 0 {
-		if s.startRegsMask&(regMask(1) << r) == 1 {
+	if s.usedSinceBlockStart&(regMask(1)<<r) == 0 {
+		if s.startRegsMask&(regMask(1)<<r) == 1 {
 			if s.f.pass.debug > regDebug {
 				fmt.Printf("dropped from startRegs: %s\n", &s.registers[r])
 			}
@@ -1918,7 +1918,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		if c := countRegs(s.startRegsMask); c != len(s.startRegs[b.ID]) {
 			regs := make([]startReg, 0, c)
 			for _, sr := range s.startRegs[b.ID] {
-				if s.startRegsMask&(regMask(1) << sr.r) == 0 {
+				if s.startRegsMask&(regMask(1)<<sr.r) == 0 {
 					continue
 				}
 				regs = append(regs, sr)
