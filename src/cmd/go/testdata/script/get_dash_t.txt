@@ -5,5 +5,5 @@
 env GO111MODULE=off
 
 go get -v -t github.com/rsc/go-get-issue-8181/a github.com/rsc/go-get-issue-8181/b
-go list ...
+go list -test -deps github.com/rsc/go-get-issue-8181/b
 stdout 'x/build/gerrit'
