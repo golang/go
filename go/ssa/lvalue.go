@@ -25,7 +25,7 @@ type lvalue interface {
 
 // An address is an lvalue represented by a true pointer.
 type address struct {
-	addr Value
+	addr Value     // must have a pointer core type.
 	pos  token.Pos // source position
 	expr ast.Expr  // source syntax of the value (not address) [debug mode]
 }
@@ -52,7 +52,7 @@ func (a *address) address(fn *Function) Value {
 }
 
 func (a *address) typ() types.Type {
-	return deref(a.addr.Type())
+	return mustDeref(a.addr.Type())
 }
 
 // An element is an lvalue represented by m[k], the location of an

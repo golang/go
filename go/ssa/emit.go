@@ -372,9 +372,10 @@ func emitTypeCoercion(f *Function, v Value, typ types.Type) Value {
 // emitStore emits to f an instruction to store value val at location
 // addr, applying implicit conversions as required by assignability rules.
 func emitStore(f *Function, addr, val Value, pos token.Pos) *Store {
+	typ := mustDeref(addr.Type())
 	s := &Store{
 		Addr: addr,
-		Val:  emitConv(f, val, deref(addr.Type())),
+		Val:  emitConv(f, val, typ),
 		pos:  pos,
 	}
 	f.emit(s)

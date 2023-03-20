@@ -340,7 +340,7 @@ func TestGenericBodies(t *testing.T) {
 			func d[T interface{ map[int]int64 }](x T) int64 {
 				print(x, x[2], x[3]) //@ types(T, int64, int64)
 				x[2] = 43
-        		return x[3]
+				return x[3]
 			}
 			func e[T ~string](t T) {
 				print(t, t[0]) //@ types(T, uint8)
@@ -413,6 +413,7 @@ func TestGenericBodies(t *testing.T) {
 			`,
 		},
 		{
+			// TODO(59983): investigate why writing g.c panics in (*FieldAddr).String.
 			pkg: "g",
 			contents: `package g
 			type S struct{ f int }
@@ -457,6 +458,45 @@ func TestGenericBodies(t *testing.T) {
 				return x
 			}
 			`,
+		},
+		{
+			pkg: "k",
+			contents: `
+			package k
+
+			func f[M any, PM *M](p PM) {
+				var m M
+				*p = m
+				print(m)  /*@ types(M)*/
+				print(p)  /*@ types(PM)*/
+			}
+			`,
+		},
+		{
+			pkg: "l",
+			contents: `
+			package l
+
+			type A struct{int}
+			func (*A) Marker() {}
+
+			type B struct{string}
+			func (*B) Marker() {}
+
+			type C struct{float32}
+			func (*C) Marker() {}
+
+			func process[T interface {
+				*A
+				*B
+				*C
+				Marker()
+			}](v T) {
+				v.Marker()
+				a := *(any(v).(*A)); print(a)  /*@ types("l.A")*/
+				b := *(any(v).(*B)); print(b)  /*@ types("l.B")*/
+				c := *(any(v).(*C)); print(c)  /*@ types("l.C")*/
+			}`,
 		},
 	} {
 		test := test
