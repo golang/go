@@ -11,7 +11,10 @@ cp $WORK/modules-1.13.txt $WORK/auto/modules.txt
 # An explicit -mod=vendor should force use of the vendor directory.
 env GOFLAGS=-mod=vendor
 
-go list -f {{.Dir}} -tags tools all
+# Pass -e to permit an error: tools.go imports a main package
+# "example.com/printversion".
+# TODO(#59186): investigate why it didn't fail without -e.
+go list -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
@@ -25,7 +28,7 @@ stderr 'go: can''t compute ''all'' using the vendor directory\n\t\(Use -mod=mod 
 # An explicit -mod=mod should force the vendor directory to be ignored.
 env GOFLAGS=-mod=mod
 
-go list -f {{.Dir}} -tags tools all
+go list -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
 stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
@@ -44,7 +47,7 @@ stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
 env GOFLAGS=
 go mod edit -go=1.13
 
-go list -f {{.Dir}} -tags tools all
+go list -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
 stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
@@ -75,7 +78,7 @@ stdout '^example.com/printversion@v1.0.0 example.com/version@v1.0.0$'
 # An explicit -mod=mod should still force the vendor directory to be ignored.
 env GOFLAGS=-mod=mod
 
-go list -f {{.Dir}} -tags tools all
+go list -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$GOPATH'[/\\]pkg[/\\]mod[/\\]example.com[/\\]printversion@v1.0.0$'
 stdout '^'$WORK'[/\\]auto[/\\]replacement-version$'
@@ -97,7 +100,7 @@ env GOFLAGS=
 go mod edit -go=1.14
 go mod vendor
 
-go list -f {{.Dir}} -tags tools all
+go list -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
@@ -120,7 +123,7 @@ rm go.mod
 rm vendor/modules.txt
 
 go mod init example.com/auto
-go list -f {{.Dir}} -tags tools all
+go list -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
@@ -130,7 +133,7 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
 
 cp go.mod.orig go.mod
 go mod edit -go=1.14
-! go list -f {{.Dir}} -tags tools all
+! go list -f {{.Dir}} -tags tools -e all
 stderr '^go: inconsistent vendoring in '$WORK[/\\]auto':$'
 stderr '^\texample.com/printversion@v1.0.0: is explicitly required in go.mod, but not marked as explicit in vendor/modules.txt'
 stderr '^\texample.com/unused: is replaced in go.mod, but not marked as replaced in vendor/modules.txt'
@@ -141,7 +144,7 @@ stderr '^\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo 
 # the go version is 1.13 or earlier.
 # An incomplete or missing vendor/modules.txt should resolve the vendored packages...
 go mod edit -go=1.13
-go list -mod=vendor -f {{.Dir}} -tags tools all
+go list -mod=vendor -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
@@ -158,7 +161,7 @@ stderr '^\tTo ignore the vendor directory, use -mod=readonly or -mod=mod.\n\tTo 
 go mod vendor
 cmp $WORK/modules-1.13.txt vendor/modules.txt
 
-go list -mod=vendor -f {{.Dir}} -tags tools all
+go list -mod=vendor -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
@@ -170,7 +173,7 @@ go mod vendor
 cmp $WORK/modules-1.14.txt vendor/modules.txt
 
 # Then, -mod=vendor should kick in automatically and succeed.
-go list -f {{.Dir}} -tags tools all
+go list -f {{.Dir}} -tags tools -e all
 stdout '^'$WORK'[/\\]auto$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]printversion$'
 stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
