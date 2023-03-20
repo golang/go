@@ -319,9 +319,9 @@ func getpid() uint64 {
 }
 
 func osinit() {
+	physPageSize = getPageSize()
 	initBloc()
 	ncpu = getproccount()
-	physPageSize = getPageSize()
 	getg().m.procid = getpid()
 }
 
