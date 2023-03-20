@@ -7,6 +7,7 @@ package token
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 )
@@ -41,7 +42,7 @@ func (pos Position) String() string {
 		if s != "" {
 			s += ":"
 		}
-		s += fmt.Sprintf("%d", pos.Line)
+		s += strconv.Itoa(pos.Line)
 		if pos.Column != 0 {
 			s += fmt.Sprintf(":%d", pos.Column)
 		}

@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -357,7 +358,7 @@ func (s *emitState) openMetaFile(metaHash [16]byte, metaLen uint64) error {
 	fi, err := os.Stat(s.mfname)
 	if err != nil || fi.Size() != int64(metaLen) {
 		// We need a new meta-file.
-		tname := "tmp." + fn + fmt.Sprintf("%d", time.Now().UnixNano())
+		tname := "tmp." + fn + strconv.FormatInt(time.Now().UnixNano(), 10)
 		s.mftmp = filepath.Join(s.outdir, tname)
 		s.mf, err = os.Create(s.mftmp)
 		if err != nil {
@@ -613,7 +614,7 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 // is also used to capture GOOS + GOARCH values as well.
 func captureOsArgs() map[string]string {
 	m := make(map[string]string)
-	m["argc"] = fmt.Sprintf("%d", len(os.Args))
+	m["argc"] = strconv.Itoa(len(os.Args))
 	for k, a := range os.Args {
 		m[fmt.Sprintf("argv%d", k)] = a
 	}

@@ -488,7 +488,7 @@ func (d *deleteCloser) Close() error {
 }
 
 func hgParseStat(rev, out string) (*RevInfo, error) {
-	f := strings.Fields(string(out))
+	f := strings.Fields(out)
 	if len(f) < 3 {
 		return nil, vcsErrorf("unexpected response from hg log: %q", out)
 	}
@@ -567,7 +567,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 	}
 
 	info := &RevInfo{
-		Name:    fmt.Sprintf("%d", revno),
+		Name:    strconv.FormatInt(revno, 10),
 		Short:   fmt.Sprintf("%012d", revno),
 		Time:    tm,
 		Version: rev,

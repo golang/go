@@ -4,7 +4,10 @@
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 type argvalues struct {
 	osargs []string
@@ -49,7 +52,7 @@ func (a *argstate) Merge(state argvalues) {
 func (a *argstate) ArgsSummary() map[string]string {
 	m := make(map[string]string)
 	if len(a.state.osargs) != 0 {
-		m["argc"] = fmt.Sprintf("%d", len(a.state.osargs))
+		m["argc"] = strconv.Itoa(len(a.state.osargs))
 		for k, a := range a.state.osargs {
 			m[fmt.Sprintf("argv%d", k)] = a
 		}
