@@ -214,6 +214,19 @@ const (
 	//   pipeline occurs in an unquoted attribute value context, "html" is
 	//   disallowed. Avoid using "html" and "urlquery" entirely in new templates.
 	ErrPredefinedEscaper
+
+	// errJSTmplLit: "... appears in a JS template literal"
+	// Example:
+	//     <script>var tmpl = `{{.Interp}`</script>
+	// Discussion:
+	//   Package html/template does not support actions inside of JS template
+	//   literals.
+	//
+	// TODO(rolandshoemaker): we cannot add this as an exported error in a minor
+	// release, since it is backwards incompatible with the other minor
+	// releases. As such we need to leave it unexported, and then we'll add it
+	// in the next major release.
+	errJSTmplLit
 )
 
 func (e *Error) Error() string {
