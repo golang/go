@@ -684,15 +684,6 @@ const (
 	// GetTestDeps is for download (part of "go get") and indicates
 	// that test dependencies should be fetched too.
 	GetTestDeps
-
-	// The remainder are internal modes for calls to loadImport.
-
-	// cmdlinePkg is for a package mentioned on the command line.
-	cmdlinePkg
-
-	// cmdlinePkgLiteral is for a package mentioned on the command line
-	// without using any wildcards or meta-patterns.
-	cmdlinePkgLiteral
 )
 
 // LoadImport scans the directory named by path, which must be an import path,
@@ -747,29 +738,17 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 		return p
 	}
 
-	setCmdline := func(p *Package) {
-		if mode&cmdlinePkg != 0 {
-			p.Internal.CmdlinePkg = true
-		}
-		if mode&cmdlinePkgLiteral != 0 {
-			p.Internal.CmdlinePkgLiteral = true
-		}
-	}
-
 	importPath := bp.ImportPath
 	p := packageCache[importPath]
 	if p != nil {
 		stk.Push(path)
 		p = reusePackage(p, stk)
 		stk.Pop()
-		setCmdline(p)
 	} else {
 		p = new(Package)
 		p.Internal.Local = build.IsLocalImport(path)
 		p.ImportPath = importPath
 		packageCache[importPath] = p
-
-		setCmdline(p)
 
 		// Load package.
 		// loadPackageData may return bp != nil even if an error occurs,
@@ -2865,15 +2844,15 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 			if pkg == "" {
 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern()))
 			}
-			mode := cmdlinePkg
+			p := loadImport(ctx, opts, pre, pkg, base.Cwd(), nil, &stk, nil, 0)
+			p.Match = append(p.Match, m.Pattern())
+			p.Internal.CmdlinePkg = true
 			if m.IsLiteral() {
 				// Note: do not set = m.IsLiteral unconditionally
 				// because maybe we'll see p matching both
 				// a literal and also a non-literal pattern.
-				mode |= cmdlinePkgLiteral
+				p.Internal.CmdlinePkgLiteral = true
 			}
-			p := loadImport(ctx, opts, pre, pkg, base.Cwd(), nil, &stk, nil, mode)
-			p.Match = append(p.Match, m.Pattern())
 			if seenPkg[p] {
 				continue
 			}
