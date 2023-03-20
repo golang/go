@@ -12,6 +12,7 @@ import (
 	"math"
 	"net/textproto"
 	"os"
+	"strconv"
 )
 
 // ErrMessageTooLarge is returned by ReadForm if the message form
@@ -32,7 +33,10 @@ func (r *Reader) ReadForm(maxMemory int64) (*Form, error) {
 	return r.readForm(maxMemory)
 }
 
-var multipartFiles = godebug.New("multipartfiles")
+var (
+	multipartFiles    = godebug.New("multipartfiles")
+	multipartMaxParts = godebug.New("multipartmaxparts")
+)
 
 func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	form := &Form{make(map[string][]string), make(map[string][]*FileHeader)}
@@ -41,7 +45,20 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 		fileOff int64
 	)
 	numDiskFiles := 0
-	combineFiles := multipartFiles.Value() != "distinct"
+	combineFiles := true
+	if multipartFiles.Value() == "distinct" {
+		combineFiles = false
+		multipartFiles.IncNonDefault()
+	}
+	maxParts := 1000
+	if s := multipartMaxParts.Value(); s != "" {
+		if v, err := strconv.Atoi(s); err == nil && v >= 0 {
+			maxParts = v
+			multipartMaxParts.IncNonDefault()
+		}
+	}
+	maxHeaders := maxMIMEHeaders()
+
 	defer func() {
 		if file != nil {
 			if cerr := file.Close(); err == nil {
@@ -90,13 +107,17 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	}
 	var copyBuf []byte
 	for {
-		p, err := r.nextPart(false, maxMemoryBytes)
+		p, err := r.nextPart(false, maxMemoryBytes, maxHeaders)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return nil, err
 		}
+		if maxParts <= 0 {
+			return nil, ErrMessageTooLarge
+		}
+		maxParts--
 
 		name := p.FormName()
 		if name == "" {
@@ -139,6 +160,9 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 		maxMemoryBytes -= fileHeaderSize
 		if maxMemoryBytes < 0 {
 			return nil, ErrMessageTooLarge
+		}
+		for _, v := range p.Header {
+			maxHeaders -= int64(len(v))
 		}
 		fh := &FileHeader{
 			Filename: filename,

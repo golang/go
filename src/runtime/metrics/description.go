@@ -306,6 +306,27 @@ var allDesc = []Description{
 		Cumulative: true,
 	},
 	{
+		Name: "/godebug/non-default-behavior/multipartfiles:events",
+		Description: "The number of non-default behaviors executed by the mime/multipart package " +
+			"due to a non-default GODEBUG=multipartfiles=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/multipartmaxheaders:events",
+		Description: "The number of non-default behaviors executed by the mime/multipart package " +
+			"due to a non-default GODEBUG=multipartmaxheaders=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
+		Name: "/godebug/non-default-behavior/multipartmaxparts:events",
+		Description: "The number of non-default behaviors executed by the mime/multipart package " +
+			"due to a non-default GODEBUG=multipartmaxparts=... setting.",
+		Kind:       KindUint64,
+		Cumulative: true,
+	},
+	{
 		Name: "/godebug/non-default-behavior/panicnil:events",
 		Description: "The number of non-default behaviors executed by the runtime package " +
 			"due to a non-default GODEBUG=panicnil=... setting.",

@@ -16,11 +16,13 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"mime"
 	"mime/quotedprintable"
 	"net/textproto"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -128,12 +130,12 @@ func (r *stickyErrorReader) Read(p []byte) (n int, _ error) {
 	return n, r.err
 }
 
-func newPart(mr *Reader, rawPart bool, maxMIMEHeaderSize int64) (*Part, error) {
+func newPart(mr *Reader, rawPart bool, maxMIMEHeaderSize, maxMIMEHeaders int64) (*Part, error) {
 	bp := &Part{
 		Header: make(map[string][]string),
 		mr:     mr,
 	}
-	if err := bp.populateHeaders(maxMIMEHeaderSize); err != nil {
+	if err := bp.populateHeaders(maxMIMEHeaderSize, maxMIMEHeaders); err != nil {
 		return nil, err
 	}
 	bp.r = partReader{bp}
@@ -149,9 +151,9 @@ func newPart(mr *Reader, rawPart bool, maxMIMEHeaderSize int64) (*Part, error) {
 	return bp, nil
 }
 
-func (p *Part) populateHeaders(maxMIMEHeaderSize int64) error {
+func (p *Part) populateHeaders(maxMIMEHeaderSize, maxMIMEHeaders int64) error {
 	r := textproto.NewReader(p.mr.bufReader)
-	header, err := readMIMEHeader(r, maxMIMEHeaderSize)
+	header, err := readMIMEHeader(r, maxMIMEHeaderSize, maxMIMEHeaders)
 	if err == nil {
 		p.Header = header
 	}
@@ -330,6 +332,21 @@ type Reader struct {
 // including header keys, values, and map overhead.
 const maxMIMEHeaderSize = 10 << 20
 
+// multipartMaxHeaders is the maximum number of header entries NextPart will return,
+// as well as the maximum combined total of header entries Reader.ReadForm will return
+// in FileHeaders.
+var multipartMaxHeaders = godebug.New("multipartmaxheaders")
+
+func maxMIMEHeaders() int64 {
+	if s := multipartMaxHeaders.Value(); s != "" {
+		if v, err := strconv.ParseInt(s, 10, 64); err == nil && v >= 0 {
+			multipartMaxHeaders.IncNonDefault()
+			return v
+		}
+	}
+	return 10000
+}
+
 // NextPart returns the next part in the multipart or an error.
 // When there are no more parts, the error io.EOF is returned.
 //
@@ -337,7 +354,7 @@ const maxMIMEHeaderSize = 10 << 20
 // has a value of "quoted-printable", that header is instead
 // hidden and the body is transparently decoded during Read calls.
 func (r *Reader) NextPart() (*Part, error) {
-	return r.nextPart(false, maxMIMEHeaderSize)
+	return r.nextPart(false, maxMIMEHeaderSize, maxMIMEHeaders())
 }
 
 // NextRawPart returns the next part in the multipart or an error.
@@ -346,10 +363,10 @@ func (r *Reader) NextPart() (*Part, error) {
 // Unlike NextPart, it does not have special handling for
 // "Content-Transfer-Encoding: quoted-printable".
 func (r *Reader) NextRawPart() (*Part, error) {
-	return r.nextPart(true, maxMIMEHeaderSize)
+	return r.nextPart(true, maxMIMEHeaderSize, maxMIMEHeaders())
 }
 
-func (r *Reader) nextPart(rawPart bool, maxMIMEHeaderSize int64) (*Part, error) {
+func (r *Reader) nextPart(rawPart bool, maxMIMEHeaderSize, maxMIMEHeaders int64) (*Part, error) {
 	if r.currentPart != nil {
 		r.currentPart.Close()
 	}
@@ -374,7 +391,7 @@ func (r *Reader) nextPart(rawPart bool, maxMIMEHeaderSize int64) (*Part, error) 
 
 		if r.isBoundaryDelimiterLine(line) {
 			r.partsRead++
-			bp, err := newPart(r, rawPart, maxMIMEHeaderSize)
+			bp, err := newPart(r, rawPart, maxMIMEHeaderSize, maxMIMEHeaders)
 			if err != nil {
 				return nil, err
 			}

@@ -219,6 +219,21 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the go/build
 		package due to a non-default GODEBUG=installgoroot=... setting.
 
+	/godebug/non-default-behavior/multipartfiles:events
+		The number of non-default behaviors executed by
+		the mime/multipart package due to a non-default
+		GODEBUG=multipartfiles=... setting.
+
+	/godebug/non-default-behavior/multipartmaxheaders:events
+		The number of non-default behaviors executed by
+		the mime/multipart package due to a non-default
+		GODEBUG=multipartmaxheaders=... setting.
+
+	/godebug/non-default-behavior/multipartmaxparts:events
+		The number of non-default behaviors executed by
+		the mime/multipart package due to a non-default
+		GODEBUG=multipartmaxparts=... setting.
+
 	/godebug/non-default-behavior/panicnil:events
 		The number of non-default behaviors executed by the runtime
 		package due to a non-default GODEBUG=panicnil=... setting.

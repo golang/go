@@ -391,6 +391,67 @@ func testReadFormManyFiles(t *testing.T, distinct bool) {
 	}
 }
 
+func TestReadFormLimits(t *testing.T) {
+	for _, test := range []struct {
+		values           int
+		files            int
+		extraKeysPerFile int
+		wantErr          error
+		godebug          string
+	}{
+		{values: 1000},
+		{values: 1001, wantErr: ErrMessageTooLarge},
+		{values: 500, files: 500},
+		{values: 501, files: 500, wantErr: ErrMessageTooLarge},
+		{files: 1000},
+		{files: 1001, wantErr: ErrMessageTooLarge},
+		{files: 1, extraKeysPerFile: 9998}, // plus Content-Disposition and Content-Type
+		{files: 1, extraKeysPerFile: 10000, wantErr: ErrMessageTooLarge},
+		{godebug: "multipartmaxparts=100", values: 100},
+		{godebug: "multipartmaxparts=100", values: 101, wantErr: ErrMessageTooLarge},
+		{godebug: "multipartmaxheaders=100", files: 2, extraKeysPerFile: 48},
+		{godebug: "multipartmaxheaders=100", files: 2, extraKeysPerFile: 50, wantErr: ErrMessageTooLarge},
+	} {
+		name := fmt.Sprintf("values=%v/files=%v/extraKeysPerFile=%v", test.values, test.files, test.extraKeysPerFile)
+		if test.godebug != "" {
+			name += fmt.Sprintf("/godebug=%v", test.godebug)
+		}
+		t.Run(name, func(t *testing.T) {
+			if test.godebug != "" {
+				t.Setenv("GODEBUG", test.godebug)
+			}
+			var buf bytes.Buffer
+			fw := NewWriter(&buf)
+			for i := 0; i < test.values; i++ {
+				w, _ := fw.CreateFormField(fmt.Sprintf("field%v", i))
+				fmt.Fprintf(w, "value %v", i)
+			}
+			for i := 0; i < test.files; i++ {
+				h := make(textproto.MIMEHeader)
+				h.Set("Content-Disposition",
+					fmt.Sprintf(`form-data; name="file%v"; filename="file%v"`, i, i))
+				h.Set("Content-Type", "application/octet-stream")
+				for j := 0; j < test.extraKeysPerFile; j++ {
+					h.Set(fmt.Sprintf("k%v", j), "v")
+				}
+				w, _ := fw.CreatePart(h)
+				fmt.Fprintf(w, "value %v", i)
+			}
+			if err := fw.Close(); err != nil {
+				t.Fatal(err)
+			}
+			fr := NewReader(bytes.NewReader(buf.Bytes()), fw.Boundary())
+			form, err := fr.ReadForm(1 << 10)
+			if err == nil {
+				defer form.RemoveAll()
+			}
+			if err != test.wantErr {
+				t.Errorf("ReadForm = %v, want %v", err, test.wantErr)
+			}
+		})
+	}
+}
+
 func BenchmarkReadForm(b *testing.B) {
 	for _, test := range []struct {
 		name string
