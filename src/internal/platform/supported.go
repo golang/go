@@ -219,13 +219,19 @@ func InternalLinkPIESupported(goos, goarch string) bool {
 }
 
 // DefaultPIE reports whether goos/goarch produces a PIE binary when using the
-// "default" buildmode.
-func DefaultPIE(goos, goarch string) bool {
+// "default" buildmode. On Windows this is affected by -race,
+// so force the caller to pass that in to centralize that choice.
+func DefaultPIE(goos, goarch string, isRace bool) bool {
 	switch goos {
 	case "android", "ios":
 		return true
 	case "windows":
-		return true // but switches back to "exe" if -race is enabled
+		if isRace {
+			// PIE is not supported with -race on windows;
+			// see https://go.dev/cl/416174.
+			return false
+		}
+		return true
 	case "darwin":
 		return goarch == "arm64"
 	}

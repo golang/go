@@ -230,14 +230,10 @@ func buildModeInit() {
 		ldBuildmode = "c-shared"
 	case "default":
 		ldBuildmode = "exe"
-		if platform.DefaultPIE(cfg.Goos, cfg.Goarch) {
-			if cfg.Goos == "windows" && cfg.BuildRace {
-				// PIE is not supported with -race on windows; see https://go.dev/cl/416174.
-			} else {
-				ldBuildmode = "pie"
-				if cfg.Goos != "windows" && !gccgo {
-					codegenArg = "-shared"
-				}
+		if platform.DefaultPIE(cfg.Goos, cfg.Goarch, cfg.BuildRace) {
+			ldBuildmode = "pie"
+			if cfg.Goos != "windows" && !gccgo {
+				codegenArg = "-shared"
 			}
 		}
 	case "exe":

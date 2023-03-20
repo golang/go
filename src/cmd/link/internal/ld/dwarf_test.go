@@ -976,7 +976,7 @@ func main() {
 		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
 	}
 
-	if platform.DefaultPIE(runtime.GOOS, runtime.GOARCH) {
+	if platform.DefaultPIE(runtime.GOOS, runtime.GOARCH, false) {
 		return // everything is PIE, addresses are relocated
 	}
 	if rtAttr.(uint64)+types.Addr != addr {
