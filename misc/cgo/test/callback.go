@@ -138,10 +138,6 @@ func testZeroArgCallback(t *testing.T) {
 	C.callGoFoo()
 }
 
-//export goDummy
-func goDummy() {
-}
-
 //export goFoo
 func goFoo() {
 	x := 1
