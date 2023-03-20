@@ -291,7 +291,7 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
 				`0123456789:;\u003c=\u003e?` +
 				`@ABCDEFGHIJKLMNO` +
 				`PQRSTUVWXYZ[\\]^_` +
-				"`abcdefghijklmno" +
+				"\\u0060abcdefghijklmno" +
 				"pqrstuvwxyz{|}~\u007f" +
 				"\u00A0\u0100\\u2028\\u2029\ufeff\U0001D11E",
 		},

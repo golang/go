@@ -308,6 +308,7 @@ var jsStrReplacementTable = []string{
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
 	'"':  `\u0022`,
+	'`':  `\u0060`,
 	'&':  `\u0026`,
 	'\'': `\u0027`,
 	'+':  `\u002b`,
@@ -331,6 +332,7 @@ var jsStrNormReplacementTable = []string{
 	'"':  `\u0022`,
 	'&':  `\u0026`,
 	'\'': `\u0027`,
+	'`':  `\u0060`,
 	'+':  `\u002b`,
 	'/':  `\/`,
 	'<':  `\u003c`,

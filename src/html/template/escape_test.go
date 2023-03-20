@@ -681,35 +681,31 @@ func TestEscape(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		tmpl := New(test.name)
-		tmpl = Must(tmpl.Parse(test.input))
-		// Check for bug 6459: Tree field was not set in Parse.
-		if tmpl.Tree != tmpl.text.Tree {
-			t.Errorf("%s: tree not set properly", test.name)
-			continue
-		}
-		b := new(strings.Builder)
-		if err := tmpl.Execute(b, data); err != nil {
-			t.Errorf("%s: template execution failed: %s", test.name, err)
-			continue
-		}
-		if w, g := test.output, b.String(); w != g {
-			t.Errorf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.name, w, g)
-			continue
-		}
-		b.Reset()
-		if err := tmpl.Execute(b, pdata); err != nil {
-			t.Errorf("%s: template execution failed for pointer: %s", test.name, err)
-			continue
-		}
-		if w, g := test.output, b.String(); w != g {
-			t.Errorf("%s: escaped output for pointer: want\n\t%q\ngot\n\t%q", test.name, w, g)
-			continue
-		}
-		if tmpl.Tree != tmpl.text.Tree {
-			t.Errorf("%s: tree mismatch", test.name)
-			continue
-		}
+		t.Run(test.name, func(t *testing.T) {
+			tmpl := New(test.name)
+			tmpl = Must(tmpl.Parse(test.input))
+			// Check for bug 6459: Tree field was not set in Parse.
+			if tmpl.Tree != tmpl.text.Tree {
+				t.Fatalf("%s: tree not set properly", test.name)
+			}
+			b := new(strings.Builder)
+			if err := tmpl.Execute(b, data); err != nil {
+				t.Fatalf("%s: template execution failed: %s", test.name, err)
+			}
+			if w, g := test.output, b.String(); w != g {
+				t.Fatalf("%s: escaped output: want\n\t%q\ngot\n\t%q", test.name, w, g)
+			}
+			b.Reset()
+			if err := tmpl.Execute(b, pdata); err != nil {
+				t.Fatalf("%s: template execution failed for pointer: %s", test.name, err)
+			}
+			if w, g := test.output, b.String(); w != g {
+				t.Fatalf("%s: escaped output for pointer: want\n\t%q\ngot\n\t%q", test.name, w, g)
+			}
+			if tmpl.Tree != tmpl.text.Tree {
+				t.Fatalf("%s: tree mismatch", test.name)
+			}
+		})
 	}
 }
 
@@ -936,6 +932,10 @@ func TestErrors(t *testing.T) {
 			"{{range .Items}}<a{{if .X}}{{end}}>{{if .X}}{{break}}{{end}}{{end}}",
 			"",
 		},
+		{
+			"<script>var a = `${a+b}`</script>`",
+			"",
+		},
 		// Error cases.
 		{
 			"{{if .Cond}}<a{{end}}",
@@ -1081,6 +1081,10 @@ func TestErrors(t *testing.T) {
 			`Hello, {{. | urlquery | html}}!`,
 			// html is allowed since it is the last command in the pipeline, but urlquery is not.
 			`predefined escaper "urlquery" disallowed in template`,
+		},
+		{
+			"<script>var tmpl = `asd {{.}}`;</script>",
+			`{{.}} appears in a JS template literal`,
 		},
 	}
 	for _, test := range tests {
@@ -1302,6 +1306,10 @@ func TestEscapeText(t *testing.T) {
 		{
 			`<a onclick="'foo&quot;`,
 			context{state: stateJSSqStr, delim: delimDoubleQuote, attr: attrScript},
+		},
+		{
+			"<a onclick=\"`foo",
+			context{state: stateJSBqStr, delim: delimDoubleQuote, attr: attrScript},
 		},
 		{
 			`<A ONCLICK="'`,
