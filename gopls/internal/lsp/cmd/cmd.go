@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
+	"golang.org/x/tools/gopls/internal/lsp/filecache"
 	"golang.org/x/tools/gopls/internal/lsp/lsprpc"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -214,6 +215,11 @@ func isZeroValue(f *flag.Flag, value string) bool {
 // If no arguments are passed it will invoke the server sub command, as a
 // temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
+	// In the category of "things we can do while waiting for the Go command":
+	// Pre-initialize the filecache, which takes ~50ms to hash the gopls
+	// executable, and immediately runs a gc.
+	filecache.Start()
+
 	ctx = debug.WithInstance(ctx, app.wd, app.OCAgent)
 	if len(args) == 0 {
 		s := flag.NewFlagSet(app.Name(), flag.ExitOnError)

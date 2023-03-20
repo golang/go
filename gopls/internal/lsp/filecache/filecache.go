@@ -38,6 +38,14 @@ import (
 	"golang.org/x/tools/internal/lockedfile"
 )
 
+// Start causes the filecache to initialize and start garbage gollection.
+//
+// Start is automatically called by the first call to Get, but may be called
+// explicitly to pre-initialize the cache.
+func Start() {
+	go getCacheDir()
+}
+
 // Get retrieves from the cache and returns a newly allocated
 // copy of the value most recently supplied to Set(kind, key),
 // possibly by another process.
