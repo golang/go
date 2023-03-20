@@ -164,26 +164,21 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 	return x.typ
 }
 
-func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
-	if x.mode == invalid || x.typ == Typ[Invalid] {
-		check.use(lhs)
-		return nil
-	}
-
+// lhsVar checks a lhs variable in an assignment and returns its type.
+// lhsVar takes care of not counting a lhs identifier as a "use" of
+// that identifier. The result is nil if it is the blank identifier,
+// and Typ[Invalid] if it is an invalid lhs expression.
+func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	// Determine if the lhs is a (possibly parenthesized) identifier.
 	ident, _ := unparen(lhs).(*syntax.Name)
 
 	// Don't evaluate lhs if it is the blank identifier.
 	if ident != nil && ident.Value == "_" {
 		check.recordDef(ident, nil)
-		check.assignment(x, nil, "assignment to _ identifier")
-		if x.mode == invalid {
-			return nil
-		}
-		return x.typ
+		return nil
 	}
 
-	// If the lhs is an identifier denoting a variable v, this assignment
+	// If the lhs is an identifier denoting a variable v, this reference
 	// is not a 'use' of v. Remember current value of v.used and restore
 	// after evaluating the lhs via check.expr.
 	var v *Var
@@ -200,37 +195,58 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 		}
 	}
 
-	var z operand
-	check.expr(&z, lhs)
+	var x operand
+	check.expr(&x, lhs)
+
 	if v != nil {
 		v.used = v_used // restore v.used
 	}
 
-	if z.mode == invalid || z.typ == Typ[Invalid] {
-		return nil
+	if x.mode == invalid || x.typ == Typ[Invalid] {
+		return Typ[Invalid]
 	}
 
 	// spec: "Each left-hand side operand must be addressable, a map index
 	// expression, or the blank identifier. Operands may be parenthesized."
-	switch z.mode {
+	switch x.mode {
 	case invalid:
-		return nil
+		return Typ[Invalid]
 	case variable, mapindex:
 		// ok
 	default:
-		if sel, ok := z.expr.(*syntax.SelectorExpr); ok {
+		if sel, ok := x.expr.(*syntax.SelectorExpr); ok {
 			var op operand
 			check.expr(&op, sel.X)
 			if op.mode == mapindex {
-				check.errorf(&z, UnaddressableFieldAssign, "cannot assign to struct field %s in map", syntax.String(z.expr))
-				return nil
+				check.errorf(&x, UnaddressableFieldAssign, "cannot assign to struct field %s in map", syntax.String(x.expr))
+				return Typ[Invalid]
 			}
 		}
-		check.errorf(&z, UnassignableOperand, "cannot assign to %s", &z)
+		check.errorf(&x, UnassignableOperand, "cannot assign to %s", &x)
+		return Typ[Invalid]
+	}
+
+	return x.typ
+}
+
+// assignVar checks the assignment lhs = x and returns the type of x.
+// If the assignment is invalid, the result is nil.
+func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+	if x.mode == invalid || x.typ == Typ[Invalid] {
+		check.use(lhs)
 		return nil
 	}
 
-	check.assignment(x, z.typ, "assignment")
+	T := check.lhsVar(lhs) // nil if lhs is _
+	if T == Typ[Invalid] {
+		return nil
+	}
+
+	context := "assignment"
+	if T == nil {
+		context = "assignment to _ identifier"
+	}
+	check.assignment(x, T, context)
 	if x.mode == invalid {
 		return nil
 	}
