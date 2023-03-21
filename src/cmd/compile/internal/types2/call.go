@@ -265,32 +265,8 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
 	switch len(elist) {
 	case 0:
 		// nothing to do
-
 	case 1:
-		// single (possibly comma-ok) value, or function returning multiple values
-		e := elist[0]
-		var x operand
-		check.multiExpr(&x, e)
-		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
-			// multiple values
-			xlist = make([]*operand, t.Len())
-			for i, v := range t.vars {
-				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
-			}
-			break
-		}
-
-		// exactly one (possibly invalid or comma-ok) value
-		xlist = []*operand{&x}
-		if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
-			x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
-			if x.mode == commaerr {
-				x2.typ = universeError
-			}
-			xlist = append(xlist, x2)
-			commaOk = true
-		}
-
+		return check.multiExpr(elist[0], allowCommaOk)
 	default:
 		// multiple (possibly invalid) values
 		xlist = make([]*operand, len(elist))
@@ -300,7 +276,6 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
 			xlist[i] = &x
 		}
 	}
-
 	return
 }
 
