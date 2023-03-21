@@ -683,8 +683,10 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string) 
 	// just the final path element.
 	// On Windows, DLL file name is recorded in PE file
 	// export section, so do like on OS X.
+	// On Linux, for a shared object, at least with the Gold linker,
+	// the output file path is recorded in the .gnu.version_d section.
 	dir := "."
-	if (cfg.Goos == "darwin" || cfg.Goos == "windows") && (cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin") {
+	if cfg.BuildBuildmode == "c-shared" || cfg.BuildBuildmode == "plugin" {
 		dir, out = filepath.Split(out)
 	}
 
