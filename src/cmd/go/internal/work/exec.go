@@ -2583,27 +2583,47 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 	// when -trimpath is enabled.
 	if b.gccSupportsFlag(compiler, "-fdebug-prefix-map=a=b") {
 		if cfg.BuildTrimpath || p.Goroot {
+			prefixMapFlag := "-fdebug-prefix-map"
+			if b.gccSupportsFlag(compiler, "-ffile-prefix-map=a=b") {
+				prefixMapFlag = "-ffile-prefix-map"
+			}
 			// Keep in sync with Action.trimpath.
-			// The trimmed paths are a little different, but we need to trim in the
+			// The trimmed paths are a little different, but we need to trim in mostly the
 			// same situations.
 			var from, toPath string
-			if m := p.Module; m != nil {
-				from = m.Dir
-				toPath = m.Path + "@" + m.Version
+			if m := p.Module; m == nil {
+				if p.Root == "" { // command-line-arguments in GOPATH mode, maybe?
+					from = p.Dir
+					toPath = p.ImportPath
+				} else if p.Goroot {
+					from = p.Root
+					toPath = "GOROOT"
+				} else {
+					from = p.Root
+					toPath = "GOPATH"
+				}
+			} else if m.Dir == "" {
+				// The module is in the vendor directory. Replace the entire vendor
+				// directory path, because the module's Dir is not filled in.
+				from = modload.VendorDir()
+				toPath = "vendor"
 			} else {
-				from = p.Dir
-				toPath = p.ImportPath
+				from = m.Dir
+				toPath = m.Path
+				if m.Version != "" {
+					m.Path += "@" + m.Version
+				}
 			}
-			// -fdebug-prefix-map requires an absolute "to" path (or it joins the path
-			// with the working directory). Pick something that makes sense for the
-			// target platform.
+			// -fdebug-prefix-map (or -ffile-prefix-map) requires an absolute "to"
+			// path (or it joins the path  with the working directory). Pick something
+			// that makes sense for the target platform.
 			var to string
 			if cfg.BuildContext.GOOS == "windows" {
 				to = filepath.Join(`\\_\_`, toPath)
 			} else {
 				to = filepath.Join("/_", toPath)
 			}
-			flags = append(slices.Clip(flags), "-fdebug-prefix-map="+from+"="+to)
+			flags = append(slices.Clip(flags), prefixMapFlag+"="+from+"="+to)
 		}
 	}
 
@@ -2786,7 +2806,11 @@ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []strin
 			workdir = b.WorkDir
 		}
 		workdir = strings.TrimSuffix(workdir, string(filepath.Separator))
-		a = append(a, "-fdebug-prefix-map="+workdir+"=/tmp/go-build")
+		if b.gccSupportsFlag(compiler, "-ffile-prefix-map=a=b") {
+			a = append(a, "-ffile-prefix-map="+workdir+"=/tmp/go-build")
+		} else {
+			a = append(a, "-fdebug-prefix-map="+workdir+"=/tmp/go-build")
+		}
 	}
 
 	// Tell gcc not to include flags in object files, which defeats the
