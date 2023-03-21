@@ -283,8 +283,11 @@ func (check *Checker) exprList(elist []syntax.Expr, allowCommaOk bool) (xlist []
 		// exactly one (possibly invalid or comma-ok) value
 		xlist = []*operand{&x}
 		if allowCommaOk && (x.mode == mapindex || x.mode == commaok || x.mode == commaerr) {
-			x.mode = value
-			xlist = append(xlist, &operand{mode: value, expr: e, typ: Typ[UntypedBool]})
+			x2 := &operand{mode: value, expr: e, typ: Typ[UntypedBool]}
+			if x.mode == commaerr {
+				x2.typ = universeError
+			}
+			xlist = append(xlist, x2)
 			commaOk = true
 		}
 
