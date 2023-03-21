@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -30,6 +31,7 @@ var repos = map[string]*repo{
 		name:   "istio",
 		url:    "https://github.com/istio/istio",
 		commit: "1.17.0",
+		inDir:  flag.String("istio_dir", "", "if set, reuse this directory as istio@v1.17.0"),
 	},
 
 	// Kubernetes is a large repo with many dependencies, and in the past has
@@ -38,6 +40,7 @@ var repos = map[string]*repo{
 		name:   "kubernetes",
 		url:    "https://github.com/kubernetes/kubernetes",
 		commit: "v1.24.0",
+		inDir:  flag.String("kubernetes_dir", "", "if set, reuse this directory as kubernetes@v1.24.0"),
 	},
 
 	// A large, industrial application.
@@ -45,6 +48,7 @@ var repos = map[string]*repo{
 		name:   "kuma",
 		url:    "https://github.com/kumahq/kuma",
 		commit: "2.1.1",
+		inDir:  flag.String("kuma_dir", "", "if set, reuse this directory as kuma@v2.1.1"),
 	},
 
 	// x/pkgsite is familiar and represents a common use case (a webserver). It
@@ -54,6 +58,7 @@ var repos = map[string]*repo{
 		url:    "https://go.googlesource.com/pkgsite",
 		commit: "81f6f8d4175ad0bf6feaa03543cc433f8b04b19b",
 		short:  true,
+		inDir:  flag.String("pkgsite_dir", "", "if set, reuse this directory as pkgsite@81f6f8d4"),
 	},
 
 	// A tiny self-contained project.
@@ -62,6 +67,7 @@ var repos = map[string]*repo{
 		url:    "https://github.com/google/starlark-go",
 		commit: "3f75dec8e4039385901a30981e3703470d77e027",
 		short:  true,
+		inDir:  flag.String("starlark_dir", "", "if set, reuse this directory as starlark@3f75dec8"),
 	},
 
 	// The current repository, which is medium-small and has very few dependencies.
@@ -70,6 +76,7 @@ var repos = map[string]*repo{
 		url:    "https://go.googlesource.com/tools",
 		commit: "gopls/v0.9.0",
 		short:  true,
+		inDir:  flag.String("tools_dir", "", "if set, reuse this directory as x/tools@v0.9.0"),
 	},
 }
 
@@ -94,10 +101,11 @@ func getRepo(tb testing.TB, name string) *repo {
 // codebase.
 type repo struct {
 	// static configuration
-	name   string // must be unique, used for subdirectory
-	url    string // repo url
-	commit string // full commit hash or tag
-	short  bool   // whether this repo runs with -short
+	name   string  // must be unique, used for subdirectory
+	url    string  // repo url
+	commit string  // full commit hash or tag
+	short  bool    // whether this repo runs with -short
+	inDir  *string // if set, use this dir as url@commit, and don't delete
 
 	dirOnce sync.Once
 	dir     string // directory contaning source code checked out to url@commit
@@ -109,14 +117,37 @@ type repo struct {
 	awaiter    *Awaiter
 }
 
+// reusableDir return a reusable directory for benchmarking, or "".
+//
+// If the user specifies a directory, the test will create and populate it
+// on the first run an re-use it on subsequent runs. Otherwise it will
+// create, populate, and delete a temporary directory.
+func (r *repo) reusableDir() string {
+	if r.inDir == nil {
+		return ""
+	}
+	return *r.inDir
+}
+
 // getDir returns directory containing repo source code, creating it if
 // necessary. It is safe for concurrent use.
 func (r *repo) getDir() string {
 	r.dirOnce.Do(func() {
-		r.dir = filepath.Join(getTempDir(), r.name)
-		log.Printf("cloning %s@%s into %s", r.url, r.commit, r.dir)
-		if err := shallowClone(r.dir, r.url, r.commit); err != nil {
+		if r.dir = r.reusableDir(); r.dir == "" {
+			r.dir = filepath.Join(getTempDir(), r.name)
+		}
+
+		_, err := os.Stat(r.dir)
+		switch {
+		case os.IsNotExist(err):
+			log.Printf("cloning %s@%s into %s", r.url, r.commit, r.dir)
+			if err := shallowClone(r.dir, r.url, r.commit); err != nil {
+				log.Fatal(err)
+			}
+		case err != nil:
 			log.Fatal(err)
+		default:
+			log.Printf("reusing %s as %s@%s", r.dir, r.url, r.commit)
 		}
 	})
 	return r.dir
@@ -200,7 +231,7 @@ func (r *repo) Close() error {
 			fmt.Fprintf(&errBuf, "closing sandbox: %v", err)
 		}
 	}
-	if r.dir != "" {
+	if r.dir != "" && r.reusableDir() == "" {
 		if err := os.RemoveAll(r.dir); err != nil {
 			fmt.Fprintf(&errBuf, "cleaning dir: %v", err)
 		}
