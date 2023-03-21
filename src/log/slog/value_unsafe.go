@@ -5,7 +5,6 @@
 package slog
 
 import (
-	"reflect"
 	"unsafe"
 )
 
@@ -29,8 +28,8 @@ type Value struct {
 }
 
 type (
-	stringptr unsafe.Pointer // used in Value.any when the Value is a string
-	groupptr  unsafe.Pointer // used in Value.any when the Value is a []Attr
+	stringptr *byte // used in Value.any when the Value is a string
+	groupptr  *Attr // used in Value.any when the Value is a []Attr
 )
 
 // Kind returns v's Kind.
@@ -55,16 +54,11 @@ func (v Value) Kind() Kind {
 
 // StringValue returns a new Value for a string.
 func StringValue(value string) Value {
-	hdr := (*reflect.StringHeader)(unsafe.Pointer(&value))
-	return Value{num: uint64(hdr.Len), any: stringptr(hdr.Data)}
+	return Value{num: uint64(len(value)), any: stringptr(unsafe.StringData(value))}
 }
 
 func (v Value) str() string {
-	var s string
-	hdr := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	hdr.Data = uintptr(v.any.(stringptr))
-	hdr.Len = int(v.num)
-	return s
+	return unsafe.String(v.any.(stringptr), v.num)
 }
 
 // String returns Value's value as a string, formatted like fmt.Sprint. Unlike
@@ -72,20 +66,14 @@ func (v Value) str() string {
 // wrong kind, String never panics.
 func (v Value) String() string {
 	if sp, ok := v.any.(stringptr); ok {
-		// Inlining this code makes a huge difference.
-		var s string
-		hdr := (*reflect.StringHeader)(unsafe.Pointer(&s))
-		hdr.Data = uintptr(sp)
-		hdr.Len = int(v.num)
-		return s
+		return unsafe.String(sp, v.num)
 	}
 	var buf []byte
 	return string(v.append(buf))
 }
 
 func groupValue(as []Attr) Value {
-	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&as))
-	return Value{num: uint64(hdr.Len), any: groupptr(hdr.Data)}
+	return Value{num: uint64(len(as)), any: groupptr(unsafe.SliceData(as))}
 }
 
 // group returns the Value's value as a []Attr.
