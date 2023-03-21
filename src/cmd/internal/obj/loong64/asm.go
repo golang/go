@@ -1243,24 +1243,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 11: // jmp lbra
 		v := int32(0)
-		if c.aclass(&p.To) == C_SBRA && p.To.Sym == nil && p.As == AJMP {
-			// use PC-relative branch for short branches
-			// BEQ	R0, R0, sbra
-			if p.To.Target() != nil {
-				v = int32(p.To.Target().Pc-p.Pc) >> 2
-			}
-			if (v<<16)>>16 == v {
-				o1 = OP_16IRR(c.opirr(ABEQ), uint32(v), uint32(REGZERO), uint32(REGZERO))
-				break
-			}
-		}
-		if p.To.Target() == nil {
-			v = int32(p.Pc) >> 2
-		} else {
-			v = int32(p.To.Target().Pc) >> 2
+		if p.To.Target() != nil {
+			v = int32(p.To.Target().Pc-p.Pc) >> 2
 		}
 		o1 = OP_B_BL(c.opirr(p.As), uint32(v))
 		if p.To.Sym == nil {
+			if p.As == AJMP {
+				break
+			}
 			p.To.Sym = c.cursym.Func().Text.From.Sym
 			p.To.Offset = p.To.Target().Pc
 		}
