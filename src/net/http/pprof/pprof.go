@@ -66,8 +66,7 @@
 // in your browser.
 //
 // For a study of the facility in action, visit
-//
-//	https://blog.golang.org/2011/06/profiling-go-programs.html
+// https://blog.golang.org/2011/06/profiling-go-programs.html.
 package pprof
 
 import (
