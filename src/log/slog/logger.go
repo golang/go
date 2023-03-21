@@ -109,6 +109,8 @@ func (l *Logger) With(args ...any) *Logger {
 
 // WithGroup returns a new Logger that starts a group. The keys of all
 // attributes added to the Logger will be qualified by the given name.
+// (How that qualification happens depends on the [Handler.WithGroup]
+// method of the Logger's Handler.)
 // The new Logger shares the old Logger's context.
 //
 // The new Logger's handler is the result of calling WithGroup on the receiver's
