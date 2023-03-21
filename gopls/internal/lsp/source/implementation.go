@@ -172,7 +172,7 @@ func implementations(ctx context.Context, snapshot Snapshot, fh FileHandle, pp p
 	}
 	indexes, err := snapshot.MethodSets(ctx, globalIDs...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("querying method sets: %v", err)
 	}
 
 	// Search local and global packages in parallel.

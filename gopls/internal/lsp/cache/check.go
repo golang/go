@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/sync/errgroup"
@@ -29,7 +30,6 @@ import (
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/gcimporter"
-	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal"
@@ -41,23 +41,28 @@ import (
 // It shares state such as parsed files and imports, to optimize type-checking
 // for packages with overlapping dependency graphs.
 type typeCheckBatch struct {
-	meta *metadataGraph
+	packageIndexes map[PackageID]int // requested ID -> index in ids
+	pre            preTypeCheck
+	post           postTypeCheck
 
-	fset       *token.FileSet // FileSet describing all parsed files
-	parseCache *parseCache    // shared parsing cache
-	cpulimit   chan struct{}  // concurrency limiter for CPU-bound operations
+	s        *snapshot
+	meta     *metadataGraph // captured once at the start of type checking
+	fset     *token.FileSet // describes all parsed or imported files
+	cpulimit chan struct{}  // concurrency limiter for CPU-bound operations
 
-	// Promises:
-	//
-	// The type-checking batch collects two types of promises:
-	//  - a package promise produces type-checked syntax, if the 'pre' function
-	//    returns false. All packagePromises are evaluated.
-	//  - an import promise builds a types.Package as fast as possible for
-	//    type-checking, using export data if available. importPromises may never
-	//    be evaluated if a package promise was evaluated instead, or if the
-	//    import is not actually reached.
-	packagePromises map[PackageID]*memoize.Promise // Promise[pkgOrErr] // may be zero value
-	importPromises  map[PackageID]*memoize.Promise // Promise[pkgOrErr]
+	mu             sync.Mutex
+	syntaxPackages map[PackageID]*futurePackage // results of processing a requested package; may hold (nil, nil)
+	importPackages map[PackageID]*futurePackage // package results to use for importing
+}
+
+// A futurePackage is a future result of type checking or importing a package,
+// to be cached in a map.
+//
+// The goroutine that creates the futurePackage is responsible for evaluating
+// its value, and closing the done channel.
+type futurePackage struct {
+	done chan struct{}
+	v    pkgOrErr
 }
 
 type pkgOrErr struct {
@@ -125,161 +130,98 @@ type (
 // handle has been constructed, but before type-checking. If pre returns false,
 // type-checking is skipped for this package handle.
 //
-// post is called with a syntax package after type-checking completes. It is
-// only called if pre returned true.
+// post is called with a syntax package after type-checking completes
+// successfully. It is only called if pre returned true.
 //
 // Both pre and post may be called concurrently.
 func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preTypeCheck, post postTypeCheck) error {
 	b := &typeCheckBatch{
-		fset:            fileSetWithBase(reservedForParsing),
-		parseCache:      s.parseCache,
-		cpulimit:        make(chan struct{}, runtime.GOMAXPROCS(0)),
-		importPromises:  make(map[PackageID]*memoize.Promise),
-		packagePromises: make(map[PackageID]*memoize.Promise),
+		s:              s,
+		pre:            pre,
+		post:           post,
+		fset:           fileSetWithBase(reservedForParsing),
+		packageIndexes: make(map[PackageID]int),
+		cpulimit:       make(chan struct{}, runtime.GOMAXPROCS(0)),
+		syntaxPackages: make(map[PackageID]*futurePackage),
+		importPackages: make(map[PackageID]*futurePackage),
 	}
 
-	// Capture metadata once to ensure a consistent view.
+	// Capture metadata once to avoid locking the snapshot when accessing
+	// metadata.
 	s.mu.Lock()
 	b.meta = s.meta
 	s.mu.Unlock()
 
-	//  -- assemble the promises graph --
-
-	// collectImportPromises constructs import promises for the specified
-	// package and its transitive dependencies.
-	var collectImportPromises func(PackageID) error
-	collectImportPromises = func(id PackageID) error {
-		if _, ok := b.importPromises[id]; ok {
-			return nil
-		}
-		b.importPromises[id] = nil // break cycles
-
-		m := b.meta.metadata[id]
-		if m == nil {
-			return bug.Errorf("missing metadata for %v", id)
-		}
-		for _, id := range m.DepsByPkgPath {
-			if err := collectImportPromises(id); err != nil {
-				return err
-			}
-		}
-
-		// Note: promises cannot close over the snapshot, because the promise
-		// function technically runs asynchronously: it may continue to run even
-		// after all calls to Get have returned. We cannot use snapshots
-		// asynchronously without first Acquiring them.
-		ph, err := s.buildPackageHandle(ctx, id)
-		if err != nil {
-			return err
-		}
-
-		debugName := fmt.Sprintf("import(%s)", id)
-		b.importPromises[id] = memoize.NewPromise(debugName, func(ctx context.Context, _ interface{}) interface{} {
-			pkg, err := b.importOrTypeCheck(ctx, ph)
-			return pkgOrErr{pkg, err}
-		})
-		return nil
-	}
-
-	// doPkg handles request one package in the ids slice.
-	//
-	// If type checking occurred while handling the package, it returns the
-	// resulting types.Package so that it may be used for importing.
-	//
-	// doPkg return (nil, nil) if pre returned false.
-	doPkg := func(ctx context.Context, i int, ph *packageHandle) (*types.Package, error) {
-		if pre != nil && !pre(i, ph) {
-			return nil, nil // skip: export data only
-		}
-
-		if err := b.awaitPredecessors(ctx, ph.m); err != nil {
-			return nil, err
-		}
-
-		// Wait to acquire a CPU token.
-		//
-		// Note: it is important to acquire this token only after awaiting
-		// predecessors, to avoid starvation.
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case b.cpulimit <- struct{}{}:
-			defer func() {
-				<-b.cpulimit // release CPU token
-			}()
-		}
-
-		// We need a syntax package.
-		syntaxPkg, err := b.checkPackage(ctx, ph)
-		if err != nil {
-			return nil, err
-		}
-		post(i, syntaxPkg)
-		return syntaxPkg.pkg.types, nil
-	}
-
-	// Build package promises for all requested ids, and collect import promises
-	// for both the ids and their transitive dependencies.
 	for i, id := range ids {
-		i := i
-
-		// See note in collectImportPromises above for an explanation of why we
-		// cannot build the package handle inside the promise.
-		ph, err := s.buildPackageHandle(ctx, id)
-		if err != nil {
-			return err
-		}
-
-		debugName := fmt.Sprintf("check(%s)", id)
-		b.packagePromises[id] = memoize.NewPromise(debugName, func(ctx context.Context, _ interface{}) interface{} {
-			pkg, err := doPkg(ctx, i, ph)
-			return pkgOrErr{pkg, err}
-		})
-		collectImportPromises(id)
+		b.packageIndexes[id] = i
 	}
-
-	// -- await results --
 
 	// Start a single goroutine for each requested package.
 	//
-	// Other promises are reached recursively, and will not be evaluated if they
+	// Other packages are reached recursively, and will not be evaluated if they
 	// are not needed.
 	var g errgroup.Group
-	for _, id := range ids {
-		promise := b.packagePromises[id]
+	for i, id := range ids {
+		i := i
+		id := id
 		g.Go(func() error {
-			v, err := promise.Get(ctx, nil)
-			if err != nil {
-				return err
-			}
-			return v.(pkgOrErr).err
+			_, err := b.handleSyntaxPackage(ctx, i, id)
+			return err
 		})
 	}
 	return g.Wait()
 }
 
-// importOrTypeCheck returns the *types.Package to use for importing the
-// package references by ph.
+// TODO(rfindley): re-order the declarations below to read better from top-to-bottom.
+
+// getImportPackage returns the *types.Package to use for importing the
+// package referenced by id.
 //
-// This may be the package produced during type-checking syntax, an imported
-// package, or a package type-checking for import only.
-func (b *typeCheckBatch) importOrTypeCheck(ctx context.Context, ph *packageHandle) (*types.Package, error) {
-	if ph.m.ID == "unsafe" {
-		return types.Unsafe, nil
+// This may be the package produced by type-checking syntax (as in the case
+// where id is in the set of requested IDs), a package loaded from export data,
+// or a package type-checked for import only.
+func (b *typeCheckBatch) getImportPackage(ctx context.Context, id PackageID) (pkg *types.Package, err error) {
+	b.mu.Lock()
+	f, ok := b.importPackages[id]
+	if ok {
+		b.mu.Unlock()
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-f.done:
+			return f.v.pkg, f.v.err
+		}
 	}
-	if pkgPromise := b.packagePromises[ph.m.ID]; pkgPromise != nil {
-		v, err := pkgPromise.Get(ctx, nil)
+
+	f = &futurePackage{done: make(chan struct{})}
+	b.importPackages[id] = f
+	b.mu.Unlock()
+
+	defer func() {
+		f.v = pkgOrErr{pkg, err}
+		close(f.done)
+	}()
+
+	if index, ok := b.packageIndexes[id]; ok {
+		pkg, err := b.handleSyntaxPackage(ctx, index, id)
 		if err != nil {
 			return nil, err
 		}
-		res := v.(pkgOrErr)
-		if res.err != nil {
-			return nil, res.err
-		}
-		if res.pkg != nil {
-			return res.pkg, nil
+		if pkg != nil {
+			return pkg, nil
 		}
 		// type-checking was short-circuited by the pre- func.
+	}
+
+	// unsafe cannot be imported or type-checked.
+	if id == "unsafe" {
+		return types.Unsafe, nil
+	}
+
+	ph, err := b.s.buildPackageHandle(ctx, id)
+	if err != nil {
+		return nil, err
 	}
 
 	data, err := filecache.Get(exportDataKind, ph.key)
@@ -293,26 +235,85 @@ func (b *typeCheckBatch) importOrTypeCheck(ctx context.Context, ph *packageHandl
 	return b.importPackage(ctx, ph.m, data)
 }
 
+// handleSyntaxPackage handles one package from the ids slice.
+//
+// If type checking occurred while handling the package, it returns the
+// resulting types.Package so that it may be used for importing.
+//
+// handleSyntaxPackage returns (nil, nil) if pre returned false.
+func (b *typeCheckBatch) handleSyntaxPackage(ctx context.Context, i int, id PackageID) (pkg *types.Package, err error) {
+	b.mu.Lock()
+	f, ok := b.syntaxPackages[id]
+	if ok {
+		b.mu.Unlock()
+		<-f.done
+		return f.v.pkg, f.v.err
+	}
+
+	f = &futurePackage{done: make(chan struct{})}
+	b.syntaxPackages[id] = f
+	b.mu.Unlock()
+	defer func() {
+		f.v = pkgOrErr{pkg, err}
+		close(f.done)
+	}()
+
+	ph, err := b.s.buildPackageHandle(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if b.pre != nil && !b.pre(i, ph) {
+		return nil, nil // skip: export data only
+	}
+
+	if err := b.awaitPredecessors(ctx, ph.m); err != nil {
+		// One failed precessesor should not fail the entire type checking
+		// operation. Errors related to imports will be reported as type checking
+		// diagnostics.
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+	}
+
+	// Wait to acquire a CPU token.
+	//
+	// Note: it is important to acquire this token only after awaiting
+	// predecessors, to avoid starvation.
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case b.cpulimit <- struct{}{}:
+		defer func() {
+			<-b.cpulimit // release CPU token
+		}()
+	}
+
+	// We need a syntax package.
+	syntaxPkg, err := b.checkPackage(ctx, ph)
+	if err != nil {
+		return nil, err
+	}
+	b.post(i, syntaxPkg)
+	return syntaxPkg.pkg.types, nil
+}
+
 // importPackage loads the given package from its export data in p.exportData
 // (which must already be populated).
 func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, data []byte) (*types.Package, error) {
 	impMap := b.importMap(m.ID)
 
-	var firstErr error
+	var firstErr error // TODO(rfindley): unused: revisit or remove.
 	thisPackage := types.NewPackage(string(m.PkgPath), string(m.Name))
 	getPackage := func(path, name string) *types.Package {
 		if path == string(m.PkgPath) {
 			return thisPackage
 		}
 
-		promise := impMap[path]
-		v, err := promise.Get(ctx, nil)
+		id := impMap[path]
+		imp, err := b.getImportPackage(ctx, id)
 		if err == nil {
-			result := v.(pkgOrErr)
-			err = result.err
-			if err == nil {
-				return result.pkg
-			}
+			return imp
 		}
 		// inv: err != nil
 		if firstErr == nil {
@@ -326,6 +327,12 @@ func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, 
 		// gcimporter.debug is set), but that is preferable to the confusing errors
 		// produced when shallow import encounters an empty package.
 		return nil
+	}
+
+	// Importing is potentially expensive, and might not encounter cancellations
+	// via dependencies (e.g. if they have already been evaluated).
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	// TODO(rfindley): collect "deep" hashes here using the provided
@@ -345,7 +352,7 @@ func (b *typeCheckBatch) checkPackageForImport(ctx context.Context, ph *packageH
 	}
 	cfg := b.typesConfig(ctx, ph.inputs, onError)
 	cfg.IgnoreFuncBodies = true
-	pgfs, err := b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, ph.inputs.compiledGoFiles...)
+	pgfs, err := b.s.parseCache.parseFiles(ctx, b.fset, source.ParseFull, ph.inputs.compiledGoFiles...)
 	if err != nil {
 		return nil, err
 	}
@@ -356,6 +363,13 @@ func (b *typeCheckBatch) checkPackageForImport(ctx context.Context, ph *packageH
 	for i, pgf := range pgfs {
 		files[i] = pgf.File
 	}
+
+	// Type checking is expensive, and we may not have ecountered cancellations
+	// via parsing (e.g. if we got nothing but cache hits for parsed files).
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
 	_ = check.Files(files) // ignore errors
 
 	// If the context was cancelled, we may have returned a ton of transient
@@ -414,47 +428,43 @@ func (b *typeCheckBatch) checkPackage(ctx context.Context, ph *packageHandle) (*
 	return &Package{ph.m, pkg}, err
 }
 
-// awaitPredecessors awaits all promises for m.DepsByPkgPath, returning an
+// awaitPredecessors awaits all packages for m.DepsByPkgPath, returning an
 // error if awaiting failed due to context cancellation or if there was an
 // unrecoverable error loading export data.
+//
+// TODO(rfindley): inline, now that this is only called in one place.
 func (b *typeCheckBatch) awaitPredecessors(ctx context.Context, m *source.Metadata) error {
 	// await predecessors concurrently, as some of them may be non-syntax
 	// packages, and therefore will not have been started by the type-checking
 	// batch.
 	var g errgroup.Group
 	for _, depID := range m.DepsByPkgPath {
-		if p, ok := b.importPromises[depID]; ok {
-			g.Go(func() error {
-				_, err := p.Get(ctx, nil)
-				return err
-			})
-		}
+		depID := depID
+		g.Go(func() error {
+			_, err := b.getImportPackage(ctx, depID)
+			return err
+		})
 	}
 	return g.Wait()
 }
 
-// importMap returns an import map for the given package ID, populated with
-// promises keyed by package path for its dependencies.
-func (b *typeCheckBatch) importMap(id PackageID) map[string]*memoize.Promise {
-	impMap := make(map[string]*memoize.Promise)
-	outerID := id
-	var populateDepsOf func(m *source.Metadata)
-	populateDepsOf = func(parent *source.Metadata) {
+// importMap returns the map of package path -> package ID relative to the
+// specified ID.
+func (b *typeCheckBatch) importMap(id PackageID) map[string]source.PackageID {
+	impMap := make(map[string]source.PackageID)
+	var populateDeps func(m *source.Metadata)
+	populateDeps = func(parent *source.Metadata) {
 		for _, id := range parent.DepsByPkgPath {
 			m := b.meta.metadata[id]
 			if _, ok := impMap[string(m.PkgPath)]; ok {
 				continue
 			}
-			promise, ok := b.importPromises[m.ID]
-			if !ok {
-				panic(fmt.Sprintf("import map for %q missing package data for %q", outerID, m.ID))
-			}
-			impMap[string(m.PkgPath)] = promise
-			populateDepsOf(m)
+			impMap[string(m.PkgPath)] = m.ID
+			populateDeps(m)
 		}
 	}
 	m := b.meta.metadata[id]
-	populateDepsOf(m)
+	populateDeps(m)
 	return impMap
 }
 
@@ -476,10 +486,6 @@ type packageHandle struct {
 	// enough. (The key for analysis actions could similarly
 	// hash only Facts of direct dependencies.)
 	key source.Hash
-
-	// Note: as an optimization, we could join in-flight type-checking by
-	// recording a transient ref-counted promise here.
-	// (This was done previously, but proved to be a premature optimization).
 }
 
 // buildPackageHandle returns a handle for the future results of
@@ -794,11 +800,11 @@ func doTypeCheck(ctx context.Context, b *typeCheckBatch, inputs typeCheckInputs)
 	// Collect parsed files from the type check pass, capturing parse errors from
 	// compiled files.
 	var err error
-	pkg.goFiles, err = b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, inputs.goFiles...)
+	pkg.goFiles, err = b.s.parseCache.parseFiles(ctx, b.fset, source.ParseFull, inputs.goFiles...)
 	if err != nil {
 		return nil, err
 	}
-	pkg.compiledGoFiles, err = b.parseCache.parseFiles(ctx, b.fset, source.ParseFull, inputs.compiledGoFiles...)
+	pkg.compiledGoFiles, err = b.s.parseCache.parseFiles(ctx, b.fset, source.ParseFull, inputs.compiledGoFiles...)
 	if err != nil {
 		return nil, err
 	}
@@ -835,6 +841,12 @@ func doTypeCheck(ctx context.Context, b *typeCheckBatch, inputs typeCheckInputs)
 	var files []*ast.File
 	for _, cgf := range pkg.compiledGoFiles {
 		files = append(files, cgf.File)
+	}
+
+	// Type checking is expensive, and we may not have ecountered cancellations
+	// via parsing (e.g. if we got nothing but cache hits for parsed files).
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	// Type checking errors are handled via the config, so ignore them here.
@@ -888,19 +900,7 @@ func (b *typeCheckBatch) typesConfig(ctx context.Context, inputs typeCheckInputs
 			if !source.IsValidImport(inputs.pkgPath, depPH.m.PkgPath) {
 				return nil, fmt.Errorf("invalid use of internal package %q", path)
 			}
-			promise, ok := b.importPromises[id]
-			if !ok {
-				panic("missing import")
-			}
-			v, err := promise.Get(ctx, nil)
-			if err != nil {
-				// Context cancellation: note that this could lead to non-deterministic
-				// results in the type-checker, so it is important that we don't use
-				// any type-checking results in the case where ctx is cancelled.
-				return nil, err
-			}
-			res := v.(pkgOrErr)
-			return res.pkg, res.err
+			return b.getImportPackage(ctx, id)
 		}),
 	}
 

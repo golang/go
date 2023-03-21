@@ -23,14 +23,20 @@ import (
 	"golang.org/x/vuln/osv"
 )
 
-// Diagnostics returns diagnostics for the modules in the workspace.
-//
-// It waits for completion of type-checking of all active packages.
+// Diagnostics returns diagnostics from parsing the modules in the workspace.
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[span.URI][]*source.Diagnostic, error) {
 	ctx, done := event.Start(ctx, "mod.Diagnostics", source.SnapshotLabels(snapshot)...)
 	defer done()
 
-	return collectDiagnostics(ctx, snapshot, ModDiagnostics)
+	return collectDiagnostics(ctx, snapshot, ModParseDiagnostics)
+}
+
+// Diagnostics returns diagnostics from running go mod tidy.
+func TidyDiagnostics(ctx context.Context, snapshot source.Snapshot) (map[span.URI][]*source.Diagnostic, error) {
+	ctx, done := event.Start(ctx, "mod.Diagnostics", source.SnapshotLabels(snapshot)...)
+	defer done()
+
+	return collectDiagnostics(ctx, snapshot, ModTidyDiagnostics)
 }
 
 // UpgradeDiagnostics returns upgrade diagnostics for the modules in the
@@ -74,10 +80,8 @@ func collectDiagnostics(ctx context.Context, snapshot source.Snapshot, diagFn fu
 	return reports, nil
 }
 
-// ModDiagnostics waits for completion of type-checking of all active
-// packages, then returns diagnostics from diagnosing the packages in
-// the workspace and from tidying the go.mod file.
-func ModDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) (diagnostics []*source.Diagnostic, err error) {
+// ModParseDiagnostics reports diagnostics from parsing the mod file.
+func ModParseDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) (diagnostics []*source.Diagnostic, err error) {
 	pm, err := snapshot.ParseMod(ctx, fh)
 	if err != nil {
 		if pm == nil || len(pm.ParseErrors) == 0 {
@@ -85,28 +89,14 @@ func ModDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.Fil
 		}
 		return pm.ParseErrors, nil
 	}
+	return nil, nil
+}
 
-	// Packages in the workspace can contribute diagnostics to go.mod files.
-	// TODO(rfindley): Try to avoid type checking all packages in the workspace here,
-	// for every go.mod file. If gc_details is enabled, it looks like this could lead to extra
-	// go command invocations (as gc details is not memoized).
-	active, err := snapshot.ActiveMetadata(ctx)
-	if err != nil && !source.IsNonFatalGoModError(err) {
-		event.Error(ctx, fmt.Sprintf("workspace packages: diagnosing %s", pm.URI), err)
-	}
-	if err == nil {
-		// Note: the call to PackageDiagnostics below may be the first operation
-		// after the initial metadata load, and therefore result in type-checking
-		// or loading many packages.
-		ids := make([]source.PackageID, len(active))
-		for i, meta := range active {
-			ids[i] = meta.ID
-		}
-		diags, err := snapshot.PackageDiagnostics(ctx, ids...)
-		if err != nil {
-			return nil, err
-		}
-		diagnostics = append(diagnostics, diags[fh.URI()]...)
+// ModTidyDiagnostics reports diagnostics from running go mod tidy.
+func ModTidyDiagnostics(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) (diagnostics []*source.Diagnostic, err error) {
+	pm, err := snapshot.ParseMod(ctx, fh) // memoized
+	if err != nil {
+		return nil, nil // errors reported by ModDiagnostics above
 	}
 
 	tidied, err := snapshot.ModTidy(ctx, pm)

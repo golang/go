@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/gopls/internal/lsp/debug/log"
 	"golang.org/x/tools/gopls/internal/lsp/mod"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -23,16 +22,23 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/template"
 	"golang.org/x/tools/gopls/internal/lsp/work"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/xcontext"
 )
 
 // diagnosticSource differentiates different sources of diagnostics.
+//
+// Diagnostics from the same source overwrite each other, whereas diagnostics
+// from different sources do not. Conceptually, the server state is a mapping
+// from diagnostics source to a set of diagnostics, and each storeDiagnostics
+// operation updates one entry of that mapping.
 type diagnosticSource int
 
 const (
-	modSource diagnosticSource = iota
+	modParseSource diagnosticSource = iota
+	modTidySource
 	gcDetailsSource
 	analysisSource
 	typeCheckSource
@@ -84,8 +90,10 @@ type fileReports struct {
 
 func (d diagnosticSource) String() string {
 	switch d {
-	case modSource:
-		return "FromSource"
+	case modParseSource:
+		return "FromModParse"
+	case modTidySource:
+		return "FromModTidy"
 	case gcDetailsSource:
 		return "FromGCDetails"
 	case analysisSource:
@@ -179,8 +187,7 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 	ctx, done := event.Start(ctx, "Server.diagnoseChangedFiles", source.SnapshotLabels(snapshot)...)
 	defer done()
 
-	seen := make(map[source.PackageID]bool)
-	var toDiagnose []*source.Metadata
+	toDiagnose := make(map[source.PackageID]*source.Metadata)
 	for _, uri := range uris {
 		// If the change is only on-disk and the file is not open, don't
 		// directly request its package. It may not be a workspace package.
@@ -195,6 +202,11 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 
 		// Don't request type-checking for builtin.go: it's not a real package.
 		if snapshot.IsBuiltin(ctx, uri) {
+			continue
+		}
+
+		// Don't diagnose files that are ignored by `go list` (e.g. testdata).
+		if snapshot.IgnoredFile(uri) {
 			continue
 		}
 
@@ -213,14 +225,20 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 			if m.IsIntermediateTestVariant() {
 				continue
 			}
-			if !seen[m.ID] {
-				seen[m.ID] = true
-				toDiagnose = append(toDiagnose, m)
-			}
+			toDiagnose[m.ID] = m
 		}
 	}
-	s.diagnosePkgs(ctx, snapshot, toDiagnose, analyzeNothing)
+	s.diagnosePkgs(ctx, snapshot, toDiagnose, nil)
 }
+
+// analysisMode parameterizes analysis behavior of a call to diagnosePkgs.
+type analysisMode int
+
+const (
+	analyzeNothing      analysisMode = iota // don't run any analysis
+	analyzeOpenPackages                     // run analysis on packages with open files
+	analyzeEverything                       // run analysis on all packages
+)
 
 // diagnose is a helper function for running diagnostics with a given context.
 // Do not call it directly. forceAnalysis is only true for testing purposes.
@@ -256,13 +274,8 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 		}
 	}
 
-	// Diagnose go.mod upgrades.
-	upgradeReports, upgradeErr := mod.UpgradeDiagnostics(ctx, snapshot)
-	if ctx.Err() != nil {
-		log.Trace.Log(ctx, "diagnose cancelled")
-		return
-	}
-	store(modCheckUpgradesSource, "diagnosing go.mod upgrades", upgradeReports, upgradeErr, true)
+	// Diagnostics below are organized by increasing specificity:
+	//  go.work > mod > mod upgrade > mod vuln > package, etc.
 
 	// Diagnose go.work file.
 	workReports, workErr := work.Diagnostics(ctx, snapshot)
@@ -273,14 +286,20 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	store(workSource, "diagnosing go.work file", workReports, workErr, true)
 
 	// Diagnose go.mod file.
-	// (This step demands type checking of all active packages:
-	// the bottleneck in the startup sequence for a big workspace.)
 	modReports, modErr := mod.Diagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
 		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
-	store(modSource, "diagnosing go.mod file", modReports, modErr, true)
+	store(modParseSource, "diagnosing go.mod file", modReports, modErr, true)
+
+	// Diagnose go.mod upgrades.
+	upgradeReports, upgradeErr := mod.UpgradeDiagnostics(ctx, snapshot)
+	if ctx.Err() != nil {
+		log.Trace.Log(ctx, "diagnose cancelled")
+		return
+	}
+	store(modCheckUpgradesSource, "diagnosing go.mod upgrades", upgradeReports, upgradeErr, true)
 
 	// Diagnose vulnerabilities.
 	vulnReports, vulnErr := mod.VulnerabilityDiagnostics(ctx, snapshot)
@@ -317,25 +336,50 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 		return
 	}
 
-	// Run go/analysis diagnosis of packages in parallel.
-	// TODO(adonovan): opt: it may be more efficient to
-	// have diagnosePkg take a set of packages.
+	var wg sync.WaitGroup // for potentially slow operations below
+
+	// Maybe run go mod tidy (if it has been invalidated).
 	//
-	// TODO(adonovan): opt: since the new analysis driver does its
-	// own type checking, we could strength-reduce pkg to
-	// PackageID and get this step started as soon as the set of
-	// active package IDs are known, without waiting for them to load.
+	// Since go mod tidy can be slow, we run it concurrently to diagnostics.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		modTidyReports, err := mod.TidyDiagnostics(ctx, snapshot)
+		store(modTidySource, "running go mod tidy", modTidyReports, err, true)
+	}()
+
+	// Run type checking and go/analysis diagnosis of packages in parallel.
 	var (
 		seen       = map[span.URI]struct{}{}
-		toDiagnose []*source.Metadata
+		toDiagnose = make(map[source.PackageID]*source.Metadata)
+		toAnalyze  = make(map[source.PackageID]*source.Metadata)
 	)
 	for _, m := range activeMetas {
+		var hasNonIgnored, hasOpenFile bool
 		for _, uri := range m.CompiledGoFiles {
 			seen[uri] = struct{}{}
+			if !snapshot.IgnoredFile(uri) {
+				hasNonIgnored = true
+			}
+			if snapshot.IsOpen(uri) {
+				hasOpenFile = true
+			}
 		}
-		toDiagnose = append(toDiagnose, m)
+		if hasNonIgnored {
+			toDiagnose[m.ID] = m
+			if analyze == analyzeEverything || analyze == analyzeOpenPackages && hasOpenFile {
+				toAnalyze[m.ID] = m
+			}
+		}
 	}
-	s.diagnosePkgs(ctx, snapshot, toDiagnose, analyze)
+
+	wg.Add(1)
+	go func() {
+		s.diagnosePkgs(ctx, snapshot, toDiagnose, toAnalyze)
+		wg.Done()
+	}()
+
+	wg.Wait()
 
 	// Orphaned files.
 	// Confirm that every opened file belongs to a package (if any exist in
@@ -352,128 +396,144 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	}
 }
 
-// analysisMode parameterizes analysis behavior of a call to diagnosePkgs.
-type analysisMode int
-
-const (
-	analyzeNothing      analysisMode = iota // don't run any analysis
-	analyzeOpenPackages                     // run analysis on packages with open files
-	analyzeEverything                       // run analysis on all packages
-)
-
-func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, mds []*source.Metadata, analysis analysisMode) {
+// diagnosePkgs type checks packages in toDiagnose, and analyzes packages in
+// toAnalyze, merging their diagnostics. Packages in toAnalyze must be a subset
+// of the packages in toDiagnose.
+//
+// It also implements gc_details diagnostics.
+//
+// TODO(rfindley): revisit handling of analysis gc_details. It may be possible
+// to merge this function with Server.diagnose, thereby avoiding the two layers
+// of concurrent dispatch: as of writing we concurrently run TidyDiagnostics
+// and diagnosePkgs, and diagnosePkgs concurrently runs PackageDiagnostics and
+// analysis.
+func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toDiagnose, toAnalyze map[source.PackageID]*source.Metadata) {
 	ctx, done := event.Start(ctx, "Server.diagnosePkgs", source.SnapshotLabels(snapshot)...)
 	defer done()
-	var needIDs []source.PackageID // exclude e.g. testdata packages
-	needAnalysis := make(map[source.PackageID]*source.Metadata)
-
-	for _, m := range mds {
-		var hasNonIgnored, hasOpenFile bool
-		for _, uri := range m.CompiledGoFiles {
-			if !snapshot.IgnoredFile(uri) {
-				hasNonIgnored = true
-			}
-			if snapshot.IsOpen(uri) {
-				hasOpenFile = true
-			}
-		}
-		if hasNonIgnored {
-			needIDs = append(needIDs, m.ID)
-			if analysis == analyzeEverything || analysis == analyzeOpenPackages && hasOpenFile {
-				needAnalysis[m.ID] = m
-			}
-		}
-	}
 
 	// Analyze and type-check concurrently, since they are independent
 	// operations.
 	var (
-		g             errgroup.Group
-		diags         map[span.URI][]*source.Diagnostic
+		wg            sync.WaitGroup
+		pkgDiags      map[span.URI][]*source.Diagnostic
 		analysisMu    sync.Mutex
 		analysisDiags = make(map[span.URI][]*source.Diagnostic)
 	)
 
 	// Collect package diagnostics.
-	g.Go(func() error {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var ids []source.PackageID
+		for id := range toDiagnose {
+			ids = append(ids, id)
+		}
 		var err error
-		diags, err = snapshot.PackageDiagnostics(ctx, needIDs...)
+		pkgDiags, err = snapshot.PackageDiagnostics(ctx, ids...)
 		if err != nil {
 			event.Error(ctx, "warning: diagnostics failed", err, source.SnapshotLabels(snapshot)...)
 		}
-		return err
-	})
+	}()
 
 	// Get diagnostics from analysis framework.
 	// This includes type-error analyzers, which suggest fixes to compiler errors.
-	for _, m := range needAnalysis {
+	//
+	// TODO(adonovan): in many cases we will be analyze multiple open variants of
+	// an open package, which have significantly overlapping import graphs.
+	// It may make sense to change the Analyze API to accept a slice of IDs, or
+	// merge analysis with type-checking.
+	for _, m := range toAnalyze {
 		m := m
-		g.Go(func() error {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			diags, err := source.Analyze(ctx, snapshot, m.ID, false)
 			if err != nil {
 				event.Error(ctx, "warning: analyzing package", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
-				return nil
+				return
 			}
 			analysisMu.Lock()
 			for uri, diags := range diags {
 				analysisDiags[uri] = append(analysisDiags[uri], diags...)
 			}
 			analysisMu.Unlock()
-			return nil
-		})
+		}()
 	}
-	if err := g.Wait(); err != nil {
-		return // error handled elsewhere
-	}
+	wg.Wait()
 
-	for _, m := range mds {
-		// For each file, update the server's diagnostics state.
-		for _, uri := range m.CompiledGoFiles {
-			// builtin.go exists only for documentation purposes and
-			// is not valid Go code. Don't report distracting errors.
-			if snapshot.IsBuiltin(ctx, uri) {
-				continue
-			}
+	// TODO(rfindley): remove the guards against snapshot.IsBuiltin, after the
+	// gopls@v0.12.0 release. Packages should not be producing diagnostics for
+	// the builtin file: I do not know why this logic existed previously.
 
-			pkgDiags := diags[uri]
-			var tdiags, adiags []*source.Diagnostic
-			source.CombineDiagnostics(pkgDiags, analysisDiags[uri], &tdiags, &adiags)
-			s.storeDiagnostics(snapshot, uri, typeCheckSource, tdiags, true)
-			s.storeDiagnostics(snapshot, uri, analysisSource, adiags, true)
+	// Merge analysis diagnostics with package diagnostics, and store the
+	// resulting analysis diagnostics.
+	for uri, adiags := range analysisDiags {
+		if snapshot.IsBuiltin(ctx, uri) {
+			bug.Reportf("go/analysis reported diagnostics for the builtin file: %v", adiags)
+			continue
 		}
+		tdiags := pkgDiags[uri]
+		var tdiags2, adiags2 []*source.Diagnostic
+		source.CombineDiagnostics(tdiags, adiags, &tdiags2, &adiags2)
+		pkgDiags[uri] = tdiags2
+		s.storeDiagnostics(snapshot, uri, analysisSource, adiags2, true)
+	}
 
-		// If gc optimization details are requested, add them to the
-		// diagnostic reports.
+	// Store the package diagnostics.
+	for uri, diags := range pkgDiags {
+		if snapshot.IsBuiltin(ctx, uri) {
+			bug.Reportf("type checking reported diagnostics for the builtin file: %v", diags)
+			continue
+		}
+		s.storeDiagnostics(snapshot, uri, typeCheckSource, diags, true)
+	}
+
+	// Process requested gc_details diagnostics.
+	//
+	// TODO(rfindley): this could be improved:
+	//   1. This should memoize its results if the package has not changed.
+	//   2. This should not even run gc_details if the package contains unsaved
+	//      files.
+	//   3. See note below about using FindFile.
+	var toGCDetail map[source.PackageID]*source.Metadata
+	s.gcOptimizationDetailsMu.Lock()
+	for id := range s.gcOptimizationDetails {
+		if m, ok := toDiagnose[id]; ok {
+			if toGCDetail == nil {
+				toGCDetail = make(map[source.PackageID]*source.Metadata)
+			}
+			toGCDetail[id] = m
+		}
+	}
+	s.gcOptimizationDetailsMu.Unlock()
+
+	for _, m := range toGCDetail {
+		gcReports, err := source.GCOptimizationDetails(ctx, snapshot, m)
+		if err != nil {
+			event.Error(ctx, "warning: gc details", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
+		}
 		s.gcOptimizationDetailsMu.Lock()
 		_, enableGCDetails := s.gcOptimizationDetails[m.ID]
-		s.gcOptimizationDetailsMu.Unlock()
 
-		// TODO(rfindley): we should avoid running the go command repeatedly here.
+		// NOTE(golang/go#44826): hold the gcOptimizationDetails lock, and re-check
+		// whether gc optimization details are enabled, while storing gc_details
+		// results. This ensures that the toggling of GC details and clearing of
+		// diagnostics does not race with storing the results here.
 		if enableGCDetails {
-			gcReports, err := source.GCOptimizationDetails(ctx, snapshot, m)
-			if err != nil {
-				event.Error(ctx, "warning: gc details", err, append(source.SnapshotLabels(snapshot), tag.Package.Of(string(m.ID)))...)
-			}
-			s.gcOptimizationDetailsMu.Lock()
-			_, enableGCDetails := s.gcOptimizationDetails[m.ID]
-
-			// NOTE(golang/go#44826): hold the gcOptimizationDetails lock, and re-check
-			// whether gc optimization details are enabled, while storing gc_details
-			// results. This ensures that the toggling of GC details and clearing of
-			// diagnostics does not race with storing the results here.
-			if enableGCDetails {
-				for uri, diags := range gcReports {
-					fh := snapshot.FindFile(uri)
-					// Don't publish gc details for unsaved buffers, since the underlying
-					// logic operates on the file on disk.
-					if fh == nil || !fh.Saved() {
-						continue
-					}
-					s.storeDiagnostics(snapshot, uri, gcDetailsSource, diags, true)
+			for uri, diags := range gcReports {
+				// TODO(rfindley): remove the use of FindFile here, and use ReadFile
+				// instead. Isn't it enough to know that the package came from the
+				// snapshot? Any reports should apply to the snapshot.
+				fh := snapshot.FindFile(uri)
+				// Don't publish gc details for unsaved buffers, since the underlying
+				// logic operates on the file on disk.
+				if fh == nil || !fh.Saved() {
+					continue
 				}
+				s.storeDiagnostics(snapshot, uri, gcDetailsSource, diags, true)
 			}
-			s.gcOptimizationDetailsMu.Unlock()
 		}
+		s.gcOptimizationDetailsMu.Unlock()
 	}
 }
 
@@ -556,7 +616,7 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 	if err != nil {
 		event.Error(ctx, "errors loading workspace", err.MainError, source.SnapshotLabels(snapshot)...)
 		for _, d := range err.Diagnostics {
-			s.storeDiagnostics(snapshot, d.URI, modSource, []*source.Diagnostic{d}, true)
+			s.storeDiagnostics(snapshot, d.URI, modParseSource, []*source.Diagnostic{d}, true)
 		}
 		errMsg = strings.ReplaceAll(err.MainError.Error(), "\n", " ")
 	}
@@ -755,6 +815,8 @@ func (s *Server) shouldIgnoreError(ctx context.Context, snapshot source.Snapshot
 		return true
 	}
 	// If the folder has no Go code in it, we shouldn't spam the user with a warning.
+	// TODO(rfindley): surely it is not correct to walk the folder here just to
+	// suppress diagnostics, every time we compute diagnostics.
 	var hasGo bool
 	_ = filepath.Walk(snapshot.View().Folder().Filename(), func(path string, info os.FileInfo, err error) error {
 		if err != nil {

@@ -66,22 +66,43 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		return nil, fmt.Errorf("no supported code action to execute for %s, wanted %v", uri, params.Context.Only)
 	}
 
+	// TODO(rfindley): the logic here is backward: if we have *any* diagnostics
+	// in params.Context.Diagnostics, we request all of the diagnostics and see
+	// which match?
+	//
+	// This is problematic when diagnostics are not completely free. Diagnostics
+	// may be computed and published at different times, and this function may
+	// circumvent the structure implemented in Server.diagnose.
+	//
+	// We could have a much simpler way to correlate params.Context.Diagnostics
+	// with published diagnostics, since we keep track of all the diagnostics
+	// we've published: just match the diagnostics in params.Context.Diagnostics
+	// with our view of the published diagnostics.
 	var codeActions []protocol.CodeAction
 	switch kind {
 	case source.Mod:
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
-			diags, err := mod.ModDiagnostics(ctx, snapshot, fh)
+			diags, err := mod.ModParseDiagnostics(ctx, snapshot, fh)
+			if err != nil {
+				return nil, err
+			}
+
+			tdiags, err := mod.ModTidyDiagnostics(ctx, snapshot, fh)
 			if source.IsNonFatalGoModError(err) {
 				return nil, nil
 			}
 			if err != nil {
 				return nil, err
 			}
+			diags = append(diags, tdiags...)
+
 			udiags, err := mod.ModUpgradeDiagnostics(ctx, snapshot, fh)
 			if err != nil {
 				return nil, err
 			}
-			quickFixes, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, append(diags, udiags...))
+			diags = append(diags, udiags...)
+
+			quickFixes, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, diags)
 			if err != nil {
 				return nil, err
 			}
@@ -106,6 +127,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 				codeActions = append(codeActions, quickFixes...)
 			}
 		}
+
 	case source.Go:
 		// Don't suggest fixes for generated files, since they are generally
 		// not useful and some editors may apply them automatically on save.
