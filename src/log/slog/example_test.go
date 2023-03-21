@@ -6,7 +6,7 @@ package slog_test
 
 import (
 	"log/slog"
-	"log/slog/internal/testutil"
+	"log/slog/internal/slogtest"
 	"net/http"
 	"os"
 	"time"
@@ -16,7 +16,7 @@ func ExampleGroup() {
 	r, _ := http.NewRequest("GET", "localhost", nil)
 	// ...
 
-	logger := slog.New(slog.HandlerOptions{ReplaceAttr: testutil.RemoveTime}.NewTextHandler(os.Stdout))
+	logger := slog.New(slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}.NewTextHandler(os.Stdout))
 	slog.SetDefault(logger)
 
 	slog.Info("finished",

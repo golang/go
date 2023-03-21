@@ -4,7 +4,11 @@
 
 package buffer
 
-import "testing"
+import (
+	"internal/race"
+	"internal/testenv"
+	"testing"
+)
 
 func Test(t *testing.T) {
 	b := New()
@@ -18,5 +22,20 @@ func Test(t *testing.T) {
 	want := "hello, world0017"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestAlloc(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skipping test in race mode")
+	}
+	testenv.SkipIfOptimizationOff(t)
+	got := int(testing.AllocsPerRun(5, func() {
+		b := New()
+		defer b.Free()
+		b.WriteString("not 1K worth of bytes")
+	}))
+	if got != 0 {
+		t.Errorf("got %d allocs, want 0", got)
 	}
 }
