@@ -358,6 +358,9 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
 		if state.b.Len() == 0 {
 			errorf("decoding string array or slice: length exceeds input size (%d elements)", length)
 		}
+		if i >= len(slice) {
+			growSlice(v, &slice, length)
+		}
 		u := state.decodeUint()
 		n := int(u)
 		if n < 0 || uint64(n) != u || n > state.b.Len() {
