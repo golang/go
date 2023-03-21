@@ -482,6 +482,7 @@ var passes = [...]pass{
 	{name: "branchelim", fn: branchelim},
 	{name: "late fuse", fn: fuseLate},
 	{name: "dse", fn: dse},
+	{name: "memcombine", fn: memcombine},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
@@ -580,6 +581,10 @@ var passOrder = [...]constraint{
 	{"regalloc", "stackframe"},
 	// trim needs regalloc to be done first.
 	{"regalloc", "trim"},
+	// memcombine works better if fuse happens first, to help merge stores.
+	{"late fuse", "memcombine"},
+	// memcombine is a arch-independent pass.
+	{"memcombine", "lower"},
 }
 
 func init() {

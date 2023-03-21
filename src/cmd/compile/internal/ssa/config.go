@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/abi"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -50,6 +51,10 @@ type Config struct {
 	Race           bool        // race detector enabled
 	BigEndian      bool        //
 	UseFMA         bool        // Use hardware FMA operation
+	unalignedOK    bool        // Unaligned loads/stores are ok
+	haveBswap64    bool        // architecture implements Bswap64
+	haveBswap32    bool        // architecture implements Bswap32
+	haveBswap16    bool        // architecture implements Bswap16
 }
 
 type (
@@ -192,6 +197,10 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegAMD64
 		c.LinkReg = linkRegAMD64
 		c.hasGReg = true
+		c.unalignedOK = true
+		c.haveBswap64 = true
+		c.haveBswap32 = true
+		c.haveBswap16 = true
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
@@ -204,6 +213,9 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerReg386
 		c.LinkReg = linkReg386
 		c.hasGReg = false
+		c.unalignedOK = true
+		c.haveBswap32 = true
+		c.haveBswap16 = true
 	case "arm":
 		c.PtrSize = 4
 		c.RegSize = 4
@@ -230,6 +242,10 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegARM64
 		c.LinkReg = linkRegARM64
 		c.hasGReg = true
+		c.unalignedOK = true
+		c.haveBswap64 = true
+		c.haveBswap32 = true
+		c.haveBswap16 = true
 	case "ppc64":
 		c.BigEndian = true
 		fallthrough
@@ -249,6 +265,14 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.FPReg = framepointerRegPPC64
 		c.LinkReg = linkRegPPC64
 		c.hasGReg = true
+		c.unalignedOK = true
+		// Note: ppc64 has register bswap ops only when GOPPC64>=10.
+		// But it has bswap+load and bswap+store ops for all ppc64 variants.
+		// That is the sense we're using them here - they are only used
+		// in contexts where they can be merged with a load or store.
+		c.haveBswap64 = true
+		c.haveBswap32 = true
+		c.haveBswap16 = true
 	case "mips64":
 		c.BigEndian = true
 		fallthrough
@@ -288,6 +312,10 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.hasGReg = true
 		c.noDuffDevice = true
 		c.BigEndian = true
+		c.unalignedOK = true
+		c.haveBswap64 = true
+		c.haveBswap32 = true
+		c.haveBswap16 = true // only for loads&stores, see ppc64 comment
 	case "mips":
 		c.BigEndian = true
 		fallthrough
@@ -387,3 +415,17 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 }
 
 func (c *Config) Ctxt() *obj.Link { return c.ctxt }
+
+func (c *Config) haveByteSwap(size int64) bool {
+	switch size {
+	case 8:
+		return c.haveBswap64
+	case 4:
+		return c.haveBswap32
+	case 2:
+		return c.haveBswap16
+	default:
+		base.Fatalf("bad size %d\n", size)
+		return false
+	}
+}

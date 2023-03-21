@@ -845,8 +845,8 @@
 (MOVWstoreidx ptr idx (MOV(W|WZ)reg x) mem) => (MOVWstoreidx ptr idx x mem)
 (MOVBstoreidx ptr idx (SRWconst (MOV(H|HZ)reg x) [c]) mem) && c <= 8 => (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
 (MOVBstoreidx ptr idx (SRWconst (MOV(W|WZ)reg x) [c]) mem) && c <= 24 => (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
-(MOVHBRstore {sym} ptr (MOV(H|HZ|W|WZ)reg x) mem) => (MOVHBRstore {sym} ptr x mem)
-(MOVWBRstore {sym} ptr (MOV(W|WZ)reg x) mem) => (MOVWBRstore {sym} ptr x mem)
+(MOVHBRstore ptr (MOV(H|HZ|W|WZ)reg x) mem) => (MOVHBRstore ptr x mem)
+(MOVWBRstore ptr (MOV(W|WZ)reg x) mem) => (MOVWBRstore ptr x mem)
 
 // Lose W-widening ops fed to compare-W
 (CMP(W|WU) x (MOV(W|WZ)reg y)) => (CMP(W|WU) x y)
@@ -958,307 +958,6 @@
 (F(ADD|SUB) (FMUL x y) z) && x.Block.Func.useFMA(v) => (FM(ADD|SUB) x y z)
 (F(ADDS|SUBS) (FMULS x y) z) && x.Block.Func.useFMA(v) => (FM(ADDS|SUBS) x y z)
 
-// The following statements are found in encoding/binary functions UintXX (load) and PutUintXX (store)
-// and convert the statements in these functions from multiple single byte loads or stores to
-// the single largest possible load or store.
-// Some are marked big or little endian based on the order in which the bytes are loaded or stored,
-// not on the ordering of the machine. These are intended for little endian machines.
-// To implement for big endian machines, most rules would have to be duplicated but the
-// resulting rule would be reversed, i. e., MOVHZload on little endian would be MOVHBRload on big endian
-// and vice versa.
-// b[0] | b[1]<<8 => load 16-bit Little endian
-(OR <t> x0:(MOVBZload [i0] {s} p mem)
-	o1:(SL(W|D)const x1:(MOVBZload [i1] {s} p mem) [8]))
-	&& !config.BigEndian
-	&& i1 == i0+1
-	&& x0.Uses ==1 && x1.Uses == 1
-	&& o1.Uses == 1
-	&& mergePoint(b, x0, x1) != nil
-	&& clobber(x0, x1, o1)
-	 => @mergePoint(b,x0,x1) (MOVHZload <t> {s} [i0] p mem)
-
-// b[0]<<8 | b[1] => load 16-bit Big endian on Little endian arch.
-// Use byte-reverse indexed load for 2 bytes.
-(OR <t> x0:(MOVBZload [i1] {s} p mem)
-	o1:(SL(W|D)const x1:(MOVBZload [i0] {s} p mem) [8]))
-	&& !config.BigEndian
-	&& i1 == i0+1
-	&& x0.Uses ==1 && x1.Uses == 1
-	&& o1.Uses == 1
-	&& mergePoint(b, x0, x1) != nil
-	&& clobber(x0, x1, o1)
-	  => @mergePoint(b,x0,x1) (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
-
-// b[0]<<n+8 | b[1]<<n => load 16-bit Big endian (where n%8== 0)
-// Use byte-reverse indexed load for 2 bytes,
-// then shift left to the correct position. Used to match subrules
-// from longer rules.
-(OR <t> s0:(SL(W|D)const x0:(MOVBZload [i1] {s} p mem) [n1])
-	s1:(SL(W|D)const x1:(MOVBZload [i0] {s} p mem) [n2]))
-	&& !config.BigEndian
-	&& i1 == i0+1
-	&& n1%8 == 0
-	&& n2 == n1+8
-	&& x0.Uses == 1 && x1.Uses == 1
-	&& s0.Uses == 1 && s1.Uses == 1
-	&& mergePoint(b, x0, x1) != nil
-	&& clobber(x0, x1, s0, s1)
-	  => @mergePoint(b,x0,x1) (SLDconst <t> (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [n1])
-
-// b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24 => load 32-bit Little endian
-// Use byte-reverse indexed load for 4 bytes.
-(OR <t> s1:(SL(W|D)const x2:(MOVBZload [i3] {s} p mem) [24])
-	o0:(OR <t> s0:(SL(W|D)const x1:(MOVBZload [i2] {s} p mem) [16])
-	x0:(MOVHZload [i0] {s} p mem)))
-	&& !config.BigEndian
-	&& i2 == i0+2
-	&& i3 == i0+3
-	&& x0.Uses ==1 && x1.Uses == 1 && x2.Uses == 1
-	&& o0.Uses == 1
-	&& s0.Uses == 1 && s1.Uses == 1
-	&& mergePoint(b, x0, x1, x2) != nil
-	&& clobber(x0, x1, x2, s0, s1, o0)
-	 => @mergePoint(b,x0,x1,x2) (MOVWZload <t> {s} [i0] p mem)
-
-// b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3] => load 32-bit Big endian order on Little endian arch
-// Use byte-reverse indexed load for 4 bytes with computed address.
-// Could be used to match subrules of a longer rule.
-(OR <t> s1:(SL(W|D)const x2:(MOVBZload [i0] {s} p mem) [24])
-	o0:(OR <t> s0:(SL(W|D)const x1:(MOVBZload [i1] {s} p mem) [16])
-	x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem)))
-	&& !config.BigEndian
-	&& i1 == i0+1
-	&& i2 == i0+2
-	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1
-	&& o0.Uses == 1
-	&& s0.Uses == 1 && s1.Uses == 1
-	&& mergePoint(b, x0, x1, x2) != nil
-	&& clobber(x0, x1, x2, s0, s1, o0)
-	  => @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
-
-// b[3] | b[2]<<8 | b[1]<<16 | b[0]<<24 => load 32-bit Big endian order on Little endian arch
-// Use byte-reverse indexed load for 4 bytes with computed address.
-// Could be used to match subrules of a longer rule.
-(OR <t> x0:(MOVBZload [i3] {s} p mem)
-	o0:(OR <t> s0:(SL(W|D)const x1:(MOVBZload [i2] {s} p mem) [8])
-	s1:(SL(W|D)const x2:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [16])))
-	&& !config.BigEndian
-	&& i2 == i0+2
-	&& i3 == i0+3
-	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1
-	&& o0.Uses == 1
-	&& s0.Uses == 1 && s1.Uses == 1
-	&& mergePoint(b, x0, x1, x2) != nil
-	&& clobber(x0, x1, x2, s0, s1, o0)
-	  => @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
-
-// b[0]<<56 | b[1]<<48 | b[2]<<40 | b[3]<<32 => load 32-bit Big endian order on Little endian arch
-// Use byte-reverse indexed load to for 4 bytes with computed address.
-// Used to match longer rules.
-(OR <t> s2:(SLDconst x2:(MOVBZload [i3] {s} p mem) [32])
-	o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i2] {s} p mem) [40])
-	s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [48])))
-	&& !config.BigEndian
-	&& i2 == i0+2
-	&& i3 == i0+3
-	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1
-	&& o0.Uses == 1
-	&& s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1
-	&& mergePoint(b, x0, x1, x2) != nil
-	&& clobber(x0, x1, x2, s0, s1, s2, o0)
-	  => @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
-
-// b[3]<<32 | b[2]<<40 | b[1]<<48 | b[0]<<56 => load 32-bit Big endian order on Little endian arch
-// Use byte-reverse indexed load for 4 bytes with constant address.
-// Used to match longer rules.
-(OR <t> s2:(SLDconst x2:(MOVBZload [i0] {s} p mem) [56])
-        o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])
-        s0:(SLDconst x0:(MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i2] {s} p) mem) [32])))
-        && !config.BigEndian
-        && i1 == i0+1
-        && i2 == i0+2
-        && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1
-        && o0.Uses == 1
-        && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1
-        && mergePoint(b, x0, x1, x2) != nil
-        && clobber(x0, x1, x2, s0, s1, s2, o0)
-          => @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
-
-// b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24 | b[4] <<32 | b[5]<<40 | b[6]<<48 | b[7]<<56 => load 64-bit Little endian
-// Rules with commutative ops and many operands will result in extremely large functions in rewritePPC64,
-// so matching shorter previously defined subrules is important.
-// Offset must be multiple of 4 for MOVD
-(OR <t> s6:(SLDconst x7:(MOVBZload [i7] {s} p mem) [56])
-	o5:(OR <t> s5:(SLDconst x6:(MOVBZload [i6] {s} p mem) [48])
-	o4:(OR <t> s4:(SLDconst x5:(MOVBZload [i5] {s} p mem) [40])
-	o3:(OR <t> s3:(SLDconst x4:(MOVBZload [i4] {s} p mem) [32])
-	x0:(MOVWZload {s} [i0] p mem)))))
-	&& !config.BigEndian
-	&& i4 == i0+4
-	&& i5 == i0+5
-	&& i6 == i0+6
-	&& i7 == i0+7
-	&& x0.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses ==1 && x7.Uses == 1
-	&& o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1
-	&& s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1
-	&& mergePoint(b, x0, x4, x5, x6, x7) != nil
-	&& clobber(x0, x4, x5, x6, x7, s3, s4, s5, s6, o3, o4, o5)
-	  => @mergePoint(b,x0,x4,x5,x6,x7) (MOVDload <t> {s} [i0] p mem)
-
-// b[7] | b[6]<<8 | b[5]<<16 | b[4]<<24 | b[3]<<32 | b[2]<<40 | b[1]<<48 | b[0]<<56 load 64-bit Big endian ordered bytes on Little endian arch
-// Use byte-reverse indexed load of 8 bytes.
-// Rules with commutative ops and many operands can result in extremely large functions in rewritePPC64,
-// so matching shorter previously defined subrules is important.
-(OR <t> s0:(SLDconst x0:(MOVBZload [i0] {s} p mem) [56])
-	o0:(OR <t> s1:(SLDconst x1:(MOVBZload [i1] {s} p mem) [48])
-	o1:(OR <t> s2:(SLDconst x2:(MOVBZload [i2] {s} p mem) [40])
-	o2:(OR <t> s3:(SLDconst x3:(MOVBZload [i3] {s} p mem) [32])
-	x4:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i4] p) mem)))))
-	&& !config.BigEndian
-	&& i1 == i0+1
-	&& i2 == i0+2
-	&& i3 == i0+3
-	&& i4 == i0+4
-	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1
-	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1
-	&& s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
-	&& mergePoint(b, x0, x1, x2, x3, x4) != nil
-	&& clobber(x0, x1, x2, x3, x4, o0, o1, o2, s0, s1, s2, s3)
-	  => @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
-
-// b[0]<<56 | b[1]<<48 | b[2]<<40 | b[3]<<32 | b[4]<<24 | b[5]<<16 | b[6]<<8 | b[7] => load 64-bit Big endian ordered bytes on Little endian arch
-// Use byte-reverse indexed load of 8 bytes.
-// Rules with commutative ops and many operands can result in extremely large functions in rewritePPC64,
-// so matching shorter previously defined subrules is important.
-(OR <t> x7:(MOVBZload [i7] {s} p mem)
-	o5:(OR <t> s6:(SLDconst x6:(MOVBZload [i6] {s} p mem) [8])
-	o4:(OR <t> s5:(SLDconst x5:(MOVBZload [i5] {s} p mem) [16])
-	o3:(OR <t> s4:(SLDconst x4:(MOVBZload [i4] {s} p mem) [24])
-	s0:(SL(W|D)const x3:(MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])))))
-	&& !config.BigEndian
-	&& i4 == i0+4
-	&& i5 == i0+5
-	&& i6 == i0+6
-	&& i7 == i0+7
-	&& x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1 && x7.Uses == 1
-	&& o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1
-	&& s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1
-	&& mergePoint(b, x3, x4, x5, x6, x7) != nil
-	&& clobber(x3, x4, x5, x6, x7, o3, o4, o5, s0, s4, s5, s6)
-	=> @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
-
-// 2 byte store Little endian as in:
-//      b[0] = byte(v >> 16)
-//      b[1] = byte(v >> 24)
-// Added for use in matching longer rules.
-(MOVBstore [i1] {s} p (SR(W|D)const w [24])
-        x0:(MOVBstore [i0] {s} p (SR(W|D)const w [16]) mem))
-        && !config.BigEndian
-        && x0.Uses == 1
-        && i1 == i0+1
-        && clobber(x0)
-          => (MOVHstore [i0] {s} p (SRWconst <typ.UInt16> w [16]) mem)
-
-// 2 byte store Little endian as in:
-//      b[0] = byte(v)
-//      b[1] = byte(v >> 8)
-(MOVBstore [i1] {s} p (SR(W|D)const w [8])
-	x0:(MOVBstore [i0] {s} p w mem))
-	&& !config.BigEndian
-	&& x0.Uses == 1
-	&& i1 == i0+1
-	&& clobber(x0)
-	  => (MOVHstore [i0] {s} p w mem)
-
-// 4 byte store Little endian as in:
-//     b[0:1] = uint16(v)
-//     b[2:3] = uint16(v >> 16)
-(MOVHstore [i1] {s} p (SR(W|D)const w [16])
-	x0:(MOVHstore [i0] {s} p w mem))
-	&& !config.BigEndian
-	&& x0.Uses == 1
-	&& i1 == i0+2
-	&& clobber(x0)
-	  => (MOVWstore [i0] {s} p w mem)
-
-// 4 byte store Big endian as in:
-//     b[0] = byte(v >> 24)
-//     b[1] = byte(v >> 16)
-//     b[2] = byte(v >> 8)
-//     b[3] = byte(v)
-// Use byte-reverse indexed 4 byte store.
-(MOVBstore [i3] {s} p w
-	x0:(MOVBstore [i2] {s} p (SRWconst w [8])
-	x1:(MOVBstore [i1] {s} p (SRWconst w [16])
-	x2:(MOVBstore [i0] {s} p (SRWconst w [24]) mem))))
-	&& !config.BigEndian
-	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1
-	&& i1 == i0+1 && i2 == i0+2 && i3 == i0+3
-	&& clobber(x0, x1, x2)
-	  => (MOVWBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
-
-// The 2 byte store appears after the 4 byte store so that the
-// match for the 2 byte store is not done first.
-// If the 4 byte store is based on the 2 byte store then there are
-// variations on the MOVDaddr subrule that would require additional
-// rules to be written.
-
-// 2 byte store Big endian as in:
-//      b[0] = byte(v >> 8)
-//      b[1] = byte(v)
-(MOVBstore [i1] {s} p w x0:(MOVBstore [i0] {s} p (SRWconst w [8]) mem))
-	&& !config.BigEndian
-	&& x0.Uses == 1
-	&& i1 == i0+1
-	&& clobber(x0)
-	  => (MOVHBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
-
-// 8 byte store Little endian as in:
-//	b[0] = byte(v)
-//	b[1] = byte(v >> 8)
-//	b[2] = byte(v >> 16)
-//	b[3] = byte(v >> 24)
-//	b[4] = byte(v >> 32)
-//	b[5] = byte(v >> 40)
-//	b[6] = byte(v >> 48)
-//	b[7] = byte(v >> 56)
-// Built on previously defined rules
-// Offset must be multiple of 4 for MOVDstore
-(MOVBstore [i7] {s} p (SRDconst w [56])
-	x0:(MOVBstore [i6] {s} p (SRDconst w [48])
-	x1:(MOVBstore [i5] {s} p (SRDconst w [40])
-	x2:(MOVBstore [i4] {s} p (SRDconst w [32])
-	x3:(MOVWstore [i0] {s} p w mem)))))
-	&& !config.BigEndian
-	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1
-	&& i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
-	&& clobber(x0, x1, x2, x3)
-	  => (MOVDstore [i0] {s} p w mem)
-
-// 8 byte store Big endian as in:
-//      b[0] = byte(v >> 56)
-//      b[1] = byte(v >> 48)
-//      b[2] = byte(v >> 40)
-//      b[3] = byte(v >> 32)
-//      b[4] = byte(v >> 24)
-//      b[5] = byte(v >> 16)
-//      b[6] = byte(v >> 8)
-//      b[7] = byte(v)
-// Use byte-reverse indexed 8 byte store.
-(MOVBstore [i7] {s} p w
-        x0:(MOVBstore [i6] {s} p (SRDconst w [8])
-        x1:(MOVBstore [i5] {s} p (SRDconst w [16])
-        x2:(MOVBstore [i4] {s} p (SRDconst w [24])
-        x3:(MOVBstore [i3] {s} p (SRDconst w [32])
-        x4:(MOVBstore [i2] {s} p (SRDconst w [40])
-        x5:(MOVBstore [i1] {s} p (SRDconst w [48])
-        x6:(MOVBstore [i0] {s} p (SRDconst w [56]) mem))))))))
-        && !config.BigEndian
-        && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1
-        && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
-        && clobber(x0, x1, x2, x3, x4, x5, x6)
-          => (MOVDBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
-
 // Arch-specific inlining for small or disjoint runtime.memmove
 (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore  _ src s3:(MOVDstore {t} _ dst mem)))))
         && sz >= 0
@@ -1287,3 +986,22 @@
 
 // Use byte reverse instructions on Power10
 (Bswap(16|32|64) x) && buildcfg.GOPPC64>=10 => (BR(H|W|D) x)
+
+// Fold bit reversal into loads.
+(BR(W|H) x:(MOV(W|H)Zload [off] {sym} ptr mem)) && x.Uses == 1 => @x.Block (MOV(W|H)BRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
+(BR(W|H) x:(MOV(W|H)Zloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOV(W|H)Zreg (MOV(W|H)BRloadidx ptr idx mem))
+(BRD x:(MOVDload [off] {sym} ptr mem)) && x.Uses == 1 => @x.Block (MOVDBRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
+(BRD x:(MOVDloadidx ptr idx      mem)) && x.Uses == 1 => @x.Block (MOVDBRloadidx ptr idx mem)
+
+// Fold bit reversal into stores.
+(MOV(D|W|H)store [off] {sym} ptr r:(BR(D|W|H) val) mem) && r.Uses == 1 => (MOV(D|W|H)BRstore (MOVDaddr <ptr.Type> [off] {sym} ptr) val mem)
+(MOV(D|W|H)storeidx ptr idx      r:(BR(D|W|H) val) mem) && r.Uses == 1 => (MOV(D|W|H)BRstoreidx ptr idx val mem)
+
+// GOPPC64<10 rules.
+// These Bswap operations should only be introduced by the memcombine pass in places where they can be folded into loads or stores.
+(Bswap(32|16) x:(MOV(W|H)Zload [off] {sym} ptr mem)) => @x.Block (MOV(W|H)BRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
+(Bswap(32|16) x:(MOV(W|H)Zloadidx ptr idx      mem)) => @x.Block (MOV(W|H)Zreg (MOV(W|H)BRloadidx ptr idx mem))
+(Bswap64 x:(MOVDload [off] {sym} ptr mem)) => @x.Block (MOVDBRload (MOVDaddr <ptr.Type> [off] {sym} ptr) mem)
+(Bswap64 x:(MOVDloadidx ptr idx      mem)) => @x.Block (MOVDBRloadidx ptr idx mem)
+(MOV(D|W|H)store [off] {sym} ptr (Bswap(64|32|16) val) mem) => (MOV(D|W|H)BRstore (MOVDaddr <ptr.Type> [off] {sym} ptr) val mem)
+(MOV(D|W|H)storeidx ptr idx      (Bswap(64|32|16) val) mem) => (MOV(D|W|H)BRstoreidx ptr idx val mem)

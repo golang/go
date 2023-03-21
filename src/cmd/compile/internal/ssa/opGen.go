@@ -29470,10 +29470,8 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVDBRload",
-		auxType:        auxSymOff,
 		argLen:         2,
 		faultOnNilArg0: true,
-		symEffect:      SymRead,
 		asm:            ppc64.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -29486,10 +29484,8 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVWBRload",
-		auxType:        auxSymOff,
 		argLen:         2,
 		faultOnNilArg0: true,
-		symEffect:      SymRead,
 		asm:            ppc64.AMOVWBR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -29502,10 +29498,8 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVHBRload",
-		auxType:        auxSymOff,
 		argLen:         2,
 		faultOnNilArg0: true,
-		symEffect:      SymRead,
 		asm:            ppc64.AMOVHBR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -29684,10 +29678,8 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVDBRstore",
-		auxType:        auxSym,
 		argLen:         3,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
 		asm:            ppc64.AMOVDBR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -29698,10 +29690,8 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVWBRstore",
-		auxType:        auxSym,
 		argLen:         3,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
 		asm:            ppc64.AMOVWBR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -29712,10 +29702,8 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVHBRstore",
-		auxType:        auxSym,
 		argLen:         3,
 		faultOnNilArg0: true,
-		symEffect:      SymWrite,
 		asm:            ppc64.AMOVHBR,
 		reg: regInfo{
 			inputs: []inputInfo{

@@ -84,6 +84,13 @@ func (v *Value) AuxInt8() int8 {
 	return int8(v.AuxInt)
 }
 
+func (v *Value) AuxUInt8() uint8 {
+	if opcodeTable[v.Op].auxType != auxUInt8 {
+		v.Fatalf("op %s doesn't have an uint8 aux field", v.Op)
+	}
+	return uint8(v.AuxInt)
+}
+
 func (v *Value) AuxInt16() int16 {
 	if opcodeTable[v.Op].auxType != auxInt16 {
 		v.Fatalf("op %s doesn't have an int16 aux field", v.Op)
@@ -190,6 +197,8 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
 	case auxInt64, auxInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxUInt8:
+		return fmt.Sprintf(" [%d]", v.AuxUInt8())
 	case auxARM64BitField:
 		lsb := v.AuxArm64BitField().getARM64BFlsb()
 		width := v.AuxArm64BitField().getARM64BFwidth()
@@ -202,6 +211,7 @@ func (v *Value) auxString() string {
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
+		return ""
 	case auxSymOff, auxCallOff, auxTypSize, auxNameOffsetInt8:
 		s := ""
 		if v.Aux != nil {
@@ -223,8 +233,12 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" {%v}", v.Aux)
 	case auxFlagConstant:
 		return fmt.Sprintf("[%s]", flagConstant(v.AuxInt))
+	case auxNone:
+		return ""
+	default:
+		// If you see this, add a case above instead.
+		return fmt.Sprintf("[auxtype=%d AuxInt=%d Aux=%v]", opcodeTable[v.Op].auxType, v.AuxInt, v.Aux)
 	}
-	return ""
 }
 
 // If/when midstack inlining is enabled (-l=4), the compiler gets both larger and slower.
