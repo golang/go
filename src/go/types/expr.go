@@ -1773,6 +1773,7 @@ func (check *Checker) expr(x *operand, e ast.Expr) {
 // If allowCommaOk is set and e is a map index, comma-ok, or comma-err
 // expression, the result is a two-element list containing the value
 // of e, and an untyped bool value or an error value, respectively.
+// If an error occurred, list[0] is not valid.
 func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand, commaOk bool) {
 	var x operand
 	check.rawExpr(&x, e, nil, false)

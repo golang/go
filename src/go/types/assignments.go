@@ -372,31 +372,56 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
 	}
 }
 
-func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
-	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2)
+func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
+	l, r := len(lhs), len(orig_rhs)
 
-	if len(lhs) != len(rhs) {
-		check.useLHS(lhs...)
-		// don't report an error if we already reported one
-		for _, x := range rhs {
-			if x.mode == invalid {
-				return
-			}
+	// If l == 1 and the rhs is a single call, for a better
+	// error message don't handle it as n:n mapping below.
+	isCall := false
+	if r == 1 {
+		_, isCall = unparen(orig_rhs[0]).(*ast.CallExpr)
+	}
+
+	// If we have a n:n mapping from lhs variable to rhs expression,
+	// each value can be assigned to its corresponding variable.
+	if l == r && !isCall {
+		for i, lhs := range lhs {
+			var x operand
+			check.expr(&x, orig_rhs[i])
+			check.assignVar(lhs, &x)
 		}
-		check.assignError(origRHS, len(lhs), len(rhs))
 		return
 	}
 
-	if commaOk {
-		check.assignVar(lhs[0], rhs[0])
-		check.assignVar(lhs[1], rhs[1])
-		check.recordCommaOkTypes(origRHS[0], rhs)
+	// If we don't have an n:n mapping, the rhs must be a single expression
+	// resulting in 2 or more values; otherwise we have an assignment mismatch.
+	if r != 1 {
+		check.assignError(orig_rhs, l, r)
+		check.useLHS(lhs...)
+		check.use(orig_rhs...)
 		return
 	}
 
-	for i, lhs := range lhs {
-		check.assignVar(lhs, rhs[i])
+	rhs, commaOk := check.multiExpr(orig_rhs[0], l == 2)
+	r = len(rhs)
+	if l == r {
+		for i, lhs := range lhs {
+			check.assignVar(lhs, rhs[i])
+		}
+		if commaOk {
+			check.recordCommaOkTypes(orig_rhs[0], rhs)
+		}
+		return
 	}
+
+	// In all other cases we have an assignment mismatch.
+	// Only report a mismatch error if there was no error
+	// on the rhs.
+	if rhs[0].mode != invalid {
+		check.assignError(orig_rhs, l, r)
+	}
+	check.useLHS(lhs...)
+	// orig_rhs[0] was already evaluated
 }
 
 func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
