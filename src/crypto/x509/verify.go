@@ -591,22 +591,19 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	}
 	comparisonCount := 0
 
-	var leaf *Certificate
 	if certType == intermediateCertificate || certType == rootCertificate {
 		if len(currentChain) == 0 {
 			return errors.New("x509: internal error: empty chain when appending CA cert")
 		}
-		leaf = currentChain[0]
 	}
 
 	if (certType == intermediateCertificate || certType == rootCertificate) &&
 		c.hasNameConstraints() {
 		toCheck := []*Certificate{}
-		if leaf.hasSANExtension() {
-			toCheck = append(toCheck, leaf)
-		}
-		if c.hasSANExtension() {
-			toCheck = append(toCheck, c)
+		for _, c := range currentChain {
+			if c.hasSANExtension() {
+				toCheck = append(toCheck, c)
+			}
 		}
 		for _, sanCert := range toCheck {
 			err := forEachSAN(sanCert.getSANExtension(), func(tag int, data []byte) error {
