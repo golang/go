@@ -365,11 +365,9 @@ func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.St
 	}
 
 	if commaOk {
-		var a [2]Type
-		for i := range a {
-			a[i] = check.initVar(lhs[i], rhs[i], context)
-		}
-		check.recordCommaOkTypes(origRHS[0], a)
+		check.initVar(lhs[0], rhs[0], context)
+		check.initVar(lhs[1], rhs[1], context)
+		check.recordCommaOkTypes(origRHS[0], rhs)
 		return
 	}
 
@@ -394,11 +392,9 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
 	}
 
 	if commaOk {
-		var a [2]Type
-		for i := range a {
-			a[i] = check.assignVar(lhs[i], rhs[i])
-		}
-		check.recordCommaOkTypes(origRHS[0], a)
+		check.assignVar(lhs[0], rhs[0])
+		check.assignVar(lhs[1], rhs[1])
+		check.recordCommaOkTypes(origRHS[0], rhs)
 		return
 	}
 
