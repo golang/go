@@ -1095,7 +1095,7 @@ func OP_RR(op uint32, r2 uint32, r3 uint32) uint32 {
 }
 
 func OP_16IR_5I(op uint32, i uint32, r2 uint32) uint32 {
-	return op | (i&0xFFFF)<<10 | (r2&0x7)<<5 | ((i >> 16) & 0x1F)
+	return op | (i&0xFFFF)<<10 | (r2&0x1F)<<5 | ((i >> 16) & 0x1F)
 }
 
 func OP_16IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
@@ -1182,23 +1182,38 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if p.To.Target() != nil {
 			v = int32(p.To.Target().Pc-p.Pc) >> 2
 		}
-		rd, rj := p.Reg, p.From.Reg
-		if p.As == ABGTZ || p.As == ABLEZ {
+		as, rd, rj, width := p.As, p.Reg, p.From.Reg, 16
+		switch as {
+		case ABGTZ, ABLEZ:
 			rd, rj = rj, rd
-		}
-		switch p.As {
 		case ABFPT, ABFPF:
+			width = 21
+			// FCC0 is the implicit source operand, now that we
+			// don't register-allocate from the FCC bank.
+			rd = REG_FCC0
+		case ABEQ, ABNE:
+			if rd == 0 || rd == REGZERO || rj == REGZERO {
+				// BEQZ/BNEZ can be encoded with 21-bit offsets.
+				width = 21
+				as = -as
+				if rj == 0 || rj == REGZERO {
+					rj = rd
+				}
+			}
+		}
+		switch width {
+		case 21:
 			if (v<<11)>>11 != v {
 				c.ctxt.Diag("21 bit-width, short branch too far\n%v", p)
 			}
-			// FCC0 is the implicit source operand, now that we
-			// don't register-allocate from the FCC bank.
-			o1 = OP_16IR_5I(c.opirr(p.As), uint32(v), uint32(REG_FCC0))
-		default:
+			o1 = OP_16IR_5I(c.opirr(as), uint32(v), uint32(rj))
+		case 16:
 			if (v<<16)>>16 != v {
 				c.ctxt.Diag("16 bit-width, short branch too far\n%v", p)
 			}
-			o1 = OP_16IRR(c.opirr(p.As), uint32(v), uint32(rj), uint32(rd))
+			o1 = OP_16IRR(c.opirr(as), uint32(v), uint32(rj), uint32(rd))
+		default:
+			c.ctxt.Diag("unexpected branch encoding\n%v", p)
 		}
 
 	case 7: // mov r, soreg
@@ -1902,6 +1917,10 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x1b << 26
 	case ABGE, ABGEZ, ABLEZ:
 		return 0x19 << 26
+	case -ABEQ: // beqz
+		return 0x10 << 26
+	case -ABNE: // bnez
+		return 0x11 << 26
 	case ABEQ:
 		return 0x16 << 26
 	case ABNE:
