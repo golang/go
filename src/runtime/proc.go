@@ -1956,6 +1956,15 @@ func needm() {
 	// mp.curg is now a real goroutine.
 	casgstatus(mp.curg, _Gdead, _Gsyscall)
 	sched.ngsys.Add(-1)
+
+	// When a pthread key has been created:
+	// 1. cgoBindM in here
+	//    bind the m to the C thread, and will dropm when the C thread exists.
+	// 2. skip dropm in runtime.cgocallback
+	//    reuse m for next calls.
+	if _cgo_pthread_key_created != nil && *(*int)(_cgo_pthread_key_created) != 0 {
+		cgoBindM()
+	}
 }
 
 // newextram allocates m's and puts them on the extra list.
@@ -2095,7 +2104,7 @@ func dropm() {
 	msigrestore(sigmask)
 }
 
-// bindm store the current g into a thread-specific value.
+// bindm store the g0 of the current m into a thread-specific value.
 //
 // We allocate a pthread per-thread variable using pthread_key_create,
 // to register a thread-exit-time destructor.
@@ -2106,17 +2115,23 @@ func dropm() {
 // since the g stored in the TLS by Go might be cleared in some platforms,
 // before the destructor invoked, so, we restore g by the stored g, before dropm.
 //
+// We store g0 instead of m, to make the assembly code simpler in runtime.cgocallback.
+//
 // On systems without pthreads, like Windows, bindm shouldn't be used.
 //
 // NOTE: this always runs without a P, so, nowritebarrierrec required.
 //
 //go:nowritebarrierrec
-func bindm() {
+func cgoBindM() {
 	if GOOS == "windows" || GOOS == "plan9" {
 		fatal("bindm in unexpected GOOS")
 	}
+	g := getg()
+	if g.m.g0 != g {
+		fatal("the current g is not g0 of the current m")
+	}
 	if _cgo_bindm != nil {
-		asmcgocall(_cgo_bindm, unsafe.Pointer(getg()))
+		asmcgocall(_cgo_bindm, unsafe.Pointer(g))
 	}
 }
 

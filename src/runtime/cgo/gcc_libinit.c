@@ -78,10 +78,10 @@ _cgo_wait_runtime_init_done(void) {
 // Store the g into a thread-specific value associated with the pthread key pthread_g.
 // And pthread_key_destructor will dropm when the thread is exiting.
 void x_cgo_bindm(void* g) {
-    // We assume this will always succeed, otherwise, there might be extra M leaking,
-    // when a C thread exits after a cgo call.
-    // Since we only check the x_cgo_pthread_key_created in runtime.cgocallback,
-    // and will skip dropm when it's 1.
+	// We assume this will always succeed, otherwise, there might be extra M leaking,
+	// when a C thread exits after a cgo call.
+	// Since we only check the x_cgo_pthread_key_created in runtime.cgocallback,
+	// and will skip dropm when it's 1.
 	pthread_setspecific(pthread_g, g);
 }
 
@@ -137,11 +137,11 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
 
 static void
 pthread_key_destructor(void* g) {
-    if (x_crosscall2_ptr != NULL) {
-        // fn == NULL means dropm.
-        // We restore g by using the stored g, before dropm in runtime.cgocallback,
-        // since the g stored in the TLS by Go might be cleared in some platforms,
-        // before this destructor invoked.
-        x_crosscall2_ptr(NULL, g, 0, 0);
-    }
+	if (x_crosscall2_ptr != NULL) {
+		// fn == NULL means dropm.
+		// We restore g by using the stored g, before dropm in runtime.cgocallback,
+		// since the g stored in the TLS by Go might be cleared in some platforms,
+		// before this destructor invoked.
+		x_crosscall2_ptr(NULL, g, 0, 0);
+	}
 }

@@ -61,10 +61,10 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	// Load the real entry address from the first slot of the function descriptor.
 	// The first argument fn might be null, that means dropm in pthread key destructor.
 	CMP	R3, $0
-	BEQ	nullptr
+	BEQ	nil_fn
 	MOVD	8(R3), R2
 	MOVD	(R3), R3
-nullptr:
+nil_fn:
 #endif
 	MOVD	R3, FIXED_FRAME+0(R1)	// fn unsafe.Pointer
 	MOVD	R4, FIXED_FRAME+8(R1)	// a unsafe.Pointer

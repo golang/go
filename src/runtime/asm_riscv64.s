@@ -524,8 +524,7 @@ TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	MOV	fn+0(FP), X7
 	BNE	ZERO, X7, loadg
 	// Restore the g from frame.
-	MOV	frame+8(FP), X8
-	MOV	X8, g
+	MOV	frame+8(FP), g
 	JMP	dropm
 
 loadg:
@@ -620,22 +619,21 @@ havem:
 	MOV	savedsp-24(SP), X6	// must match frame size
 	MOV	X6, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m
-	// for the duration of the call. Since the call is over, return it with dropm.
+	// If the m on entry was nil, we called needm above to borrow an m,
+	// 1. for the duration of the call on non-pthread platforms,
+	// 2. or the duration of the C thread alive on pthread platforms.
+	// If the m on entry wasn't nil, the current thread might be a Go thread,
+	// or it's wasn't the first call from a C thread on pthread platforms,
+	// since we skip dropm to resue the m in the first call.
 	MOV	savedm-8(SP), X5
 	BNE	ZERO, X5, droppedm
 
-	// Skip dropm to reuse it in the next call, when a pthread key has been created,
-	// instead, bindm save the g into a thread-specific value associated with the pthread key,
-	// and pthread_key_destructor will dropm when the thread is exiting.
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
 	MOV	_cgo_pthread_key_created(SB), X5
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	BEQ	ZERO, X5, dropm
 	MOV	(X5), X5
-	BEQ	ZERO, X5, dropm
-	MOV	$runtime·bindm(SB), X6
-	JALR	RA, X6
-	JMP	droppedm
+	BNE	ZERO, X5, droppedm
 
 dropm:
 	MOV	$runtime·dropm(SB), X6

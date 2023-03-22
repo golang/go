@@ -635,8 +635,7 @@ TEXT	·cgocallback(SB),NOSPLIT,$12-12
 	MOVW	fn+0(FP), R1
 	B.NE	loadg
 	// Restore the g from frame.
-	MOVW	frame+4(FP), R2
-	MOVW	R2, g
+	MOVW	frame+4(FP), g
 	B	dropm
 
 loadg:
@@ -735,25 +734,24 @@ havem:
 	MOVW	savedsp-12(SP), R4	// must match frame size
 	MOVW	R4, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m
-	// for the duration of the call. Since the call is over, return it with dropm.
+	// If the m on entry was nil, we called needm above to borrow an m,
+	// 1. for the duration of the call on non-pthread platforms,
+	// 2. or the duration of the C thread alive on pthread platforms.
+	// If the m on entry wasn't nil, the current thread might be a Go thread,
+	// or it's wasn't the first call from a C thread on pthread platforms,
+	// since we skip dropm to resue the m in the first call.
 	MOVW	savedm-4(SP), R6
 	CMP	$0, R6
 	B.NE	done
 
-	// Skip dropm to reuse it in the next call, when a pthread key has been created,
-	// instead, bindm save the g into a thread-specific value associated with the pthread key,
-	// and pthread_key_destructor will dropm when the thread is exiting.
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
 	MOVW	_cgo_pthread_key_created(SB), R6
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CMP	$0, R6
 	B.EQ	dropm
 	MOVW	(R6), R6
 	CMP	$0, R6
-	B.EQ	dropm
-	MOVW	$runtime·bindm(SB), R0
-	BL	(R0)
-	B	done
+	B.NE	done
 
 dropm:
 	MOVW	$runtime·dropm(SB), R0
