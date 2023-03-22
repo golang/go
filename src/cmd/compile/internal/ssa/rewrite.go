@@ -1370,6 +1370,9 @@ func zeroUpper56Bits(x *Value, depth int) bool {
 }
 
 func isInlinableMemclr(c *Config, sz int64) bool {
+	if sz < 0 {
+		return false
+	}
 	// TODO: expand this check to allow other architectures
 	// see CL 454255 and issue 56997
 	switch c.arch {
