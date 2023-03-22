@@ -227,7 +227,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
 // If the assignment is invalid, the result is nil.
 func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] {
-		check.use(lhs)
+		check.useLHS(lhs)
 		return nil
 	}
 
@@ -380,7 +380,7 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
 	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2)
 
 	if len(lhs) != len(rhs) {
-		check.use(lhs...)
+		check.useLHS(lhs...)
 		// don't report an error if we already reported one
 		for _, x := range rhs {
 			if x.mode == invalid {
@@ -415,7 +415,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
 	for i, lhs := range lhs {
 		ident, _ := lhs.(*ast.Ident)
 		if ident == nil {
-			check.use(lhs)
+			check.useLHS(lhs)
 			// TODO(rFindley) this is redundant with a parser error. Consider omitting?
 			check.errorf(lhs, BadDecl, "non-name %s on left side of :=", lhs)
 			hasErr = true

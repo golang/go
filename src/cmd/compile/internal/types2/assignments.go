@@ -134,9 +134,6 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
-		// Note: This was reverted in go/types (https://golang.org/cl/292751).
-		// TODO(gri): decide what to do (also affects test/run.go exclusion list)
-		lhs.used = true // avoid follow-on "declared and not used" errors
 		return nil
 	}
 
@@ -157,7 +154,6 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 
 	check.assignment(x, lhs.typ, context)
 	if x.mode == invalid {
-		lhs.used = true // avoid follow-on "declared and not used" errors
 		return nil
 	}
 
@@ -233,7 +229,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 // If the assignment is invalid, the result is nil.
 func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] {
-		check.use(lhs)
+		check.useLHS(lhs)
 		return nil
 	}
 
@@ -398,7 +394,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2)
 
 	if len(lhs) != len(rhs) {
-		check.use(lhs...)
+		check.useLHS(lhs...)
 		// don't report an error if we already reported one
 		for _, x := range rhs {
 			if x.mode == invalid {
@@ -416,26 +412,8 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 		return
 	}
 
-	ok := true
 	for i, lhs := range lhs {
-		if check.assignVar(lhs, rhs[i]) == nil {
-			ok = false
-		}
-	}
-
-	// avoid follow-on "declared and not used" errors if any assignment failed
-	if !ok {
-		// don't call check.use to avoid re-evaluation of the lhs expressions
-		for _, lhs := range lhs {
-			if name, _ := unparen(lhs).(*syntax.Name); name != nil {
-				if obj := check.lookup(name.Value); obj != nil {
-					// see comment in assignVar
-					if v, _ := obj.(*Var); v != nil && v.pkg == check.pkg {
-						v.used = true
-					}
-				}
-			}
-		}
+		check.assignVar(lhs, rhs[i])
 	}
 }
 
@@ -466,7 +444,7 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
 	for i, lhs := range lhs {
 		ident, _ := lhs.(*syntax.Name)
 		if ident == nil {
-			check.use(lhs)
+			check.useLHS(lhs)
 			check.errorf(lhs, BadDecl, "non-name %s on left side of :=", lhs)
 			hasErr = true
 			continue
