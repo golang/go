@@ -764,3 +764,19 @@ func TestRangePos(t *testing.T) {
 		})
 	}
 }
+
+// TestIssue59180 tests that line number overflow doesn't cause an infinite loop.
+func TestIssue59180(t *testing.T) {
+	testcases := []string{
+		"package p\n//line :9223372036854775806\n\n//",
+		"package p\n//line :1:9223372036854775806\n\n//",
+		"package p\n//line file:9223372036854775806\n\n//",
+	}
+
+	for _, src := range testcases {
+		_, err := ParseFile(token.NewFileSet(), "", src, ParseComments)
+		if err == nil {
+			t.Errorf("ParseFile(%s) succeeded unexpectedly", src)
+		}
+	}
+}
