@@ -1956,15 +1956,6 @@ func needm() {
 	// mp.curg is now a real goroutine.
 	casgstatus(mp.curg, _Gdead, _Gsyscall)
 	sched.ngsys.Add(-1)
-
-	// When a pthread key has been created:
-	// 1. cgoBindM in here
-	//    bind the m to the C thread, and will dropm when the C thread exists.
-	// 2. skip dropm in runtime.cgocallback
-	//    reuse m for next calls.
-	if _cgo_pthread_key_created != nil && *(*int)(_cgo_pthread_key_created) != 0 {
-		cgoBindM()
-	}
 }
 
 // newextram allocates m's and puts them on the extra list.

@@ -559,21 +559,22 @@ havem:
 	MOVW	savedsp-12(SP), R2	// must match frame size
 	MOVW	R2, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m,
-	// 1. for the duration of the call on non-pthread platforms,
-	// 2. or the duration of the C thread alive on pthread platforms.
-	// If the m on entry wasn't nil, the current thread might be a Go thread,
-	// or it's wasn't the first call from a C thread on pthread platforms,
-	// since we skip dropm to resue the m in the first call.
+	// If the m on entry was nil, we called needm above to borrow an m
+	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVW	savedm-4(SP), R3
 	BNE	R3, droppedm
 
-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+	// Skip dropm to reuse it in the next call, when a pthread key has been created,
+	// instead, bindm save the g into a thread-specific value associated with the pthread key,
+	// and pthread_key_destructor will dropm when the thread is exiting.
 	MOVW	_cgo_pthread_key_created(SB), R3
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	BEQ	R3, dropm
 	MOVW	(R3), R3
-	BNE	R3, droppedm
+	BEQ	R3, dropm
+	MOVW	$runtime·cgoBindM(SB), R4
+	JAL	(R4)
+	JMP	droppedm
 
 dropm:
 	MOVW	$runtime·dropm(SB), R4
