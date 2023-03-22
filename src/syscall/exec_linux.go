@@ -228,6 +228,8 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		clone3                    *cloneArgs
 	)
 
+	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
+
 	if sys.UidMappings != nil {
 		puid = []byte("/proc/self/uid_map\000")
 		uidmap = formatIDMappings(sys.UidMappings)
@@ -590,6 +592,11 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		if err1 != 0 {
 			goto childerror
 		}
+	}
+
+	// Restore original rlimit.
+	if rlimOK && rlim.Cur != 0 {
+		rawSetrlimit(RLIMIT_NOFILE, &rlim)
 	}
 
 	// Enable tracing if requested.

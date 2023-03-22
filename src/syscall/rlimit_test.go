@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package os_test
+package syscall_test
 
 import (
-	. "os"
+	"os"
 	"runtime"
 	"testing"
 )
@@ -24,9 +24,9 @@ func TestOpenFileLimit(t *testing.T) {
 		fileCount = 768
 	}
 
-	var files []*File
+	var files []*os.File
 	for i := 0; i < fileCount; i++ {
-		f, err := Open("rlimit.go")
+		f, err := os.Open("rlimit.go")
 		if err != nil {
 			t.Error(err)
 			break

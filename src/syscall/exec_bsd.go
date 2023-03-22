@@ -61,6 +61,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		i      int
 	)
 
+	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
+
 	// guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so
 	// that we can't run the risk of overwriting any of them.
@@ -268,6 +270,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		if err1 != 0 {
 			goto childerror
 		}
+	}
+
+	// Restore original rlimit.
+	if rlimOK && rlim.Cur != 0 {
+		RawSyscall(SYS_SETRLIMIT, uintptr(RLIMIT_NOFILE), uintptr(unsafe.Pointer(&rlim)), 0)
 	}
 
 	// Time to exec.

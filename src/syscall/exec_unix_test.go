@@ -7,12 +7,15 @@
 package syscall_test
 
 import (
+	"bytes"
+	"fmt"
 	"internal/testenv"
 	"io"
 	"math/rand"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -344,4 +347,43 @@ func TestExecHelper(t *testing.T) {
 	syscall.Exec(os.Args[0], argv, os.Environ())
 
 	t.Error("syscall.Exec returned")
+}
+
+// Test that rlimit values are restored by exec.
+func TestRlimitRestored(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "" {
+		fmt.Println(syscall.OrigRlimitNofile().Cur)
+		os.Exit(0)
+	}
+
+	orig := syscall.OrigRlimitNofile()
+	if orig.Cur == 0 {
+		t.Skip("skipping test because rlimit not adjusted at startup")
+	}
+
+	executable, err := os.Executable()
+	if err != nil {
+		executable = os.Args[0]
+	}
+
+	cmd := testenv.Command(t, executable, "-test.run=TestRlimitRestored")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatalf("subprocess failed: %v", err)
+	}
+	s := string(bytes.TrimSpace(out))
+	v, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		t.Fatalf("could not parse %q as number: %v", s, v)
+	}
+
+	if v != uint64(orig.Cur) {
+		t.Errorf("exec rlimit = %d, want %d", v, orig)
+	}
 }
