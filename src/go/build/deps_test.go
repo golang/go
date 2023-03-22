@@ -386,7 +386,7 @@ var depsRules = `
 	log/slog/internal, log/slog/internal/buffer,
 	slices
 	< log/slog
-	< log/slog/internal/slogtest;
+	< log/slog/internal/slogtest, log/slog/internal/benchmarks;
 
 	NET, log
 	< net/mail;
