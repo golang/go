@@ -9,11 +9,13 @@ package user
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strconv"
+	"time"
 )
 
 func listGroupsFromReader(u *User, r io.Reader) ([]string, error) {
@@ -99,6 +101,13 @@ func listGroupsFromReader(u *User, r io.Reader) ([]string, error) {
 }
 
 func listGroups(u *User) ([]string, error) {
+	if defaultUserdbClient.isUsable() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		if ids, ok, err := defaultUserdbClient.lookupGroupIds(ctx, u.Username); ok {
+			return ids, err
+		}
+	}
 	f, err := os.Open(groupFile)
 	if err != nil {
 		return nil, err
