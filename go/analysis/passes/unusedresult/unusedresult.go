@@ -21,10 +21,6 @@ import (
 	"golang.org/x/tools/internal/typeparams"
 )
 
-// TODO(adonovan): make this analysis modular: export a mustUseResult
-// fact for each function that tail-calls one of the functions that we
-// check, and check those functions too.
-
 const Doc = `check for unused results of calls to some functions
 
 Some functions like fmt.Errorf return a result and have no side effects,
@@ -48,8 +44,27 @@ var Analyzer = &analysis.Analyzer{
 var funcs, stringMethods stringSetFlag
 
 func init() {
-	// TODO(adonovan): provide a comment syntax to allow users to
-	// add their functions to this set using facts.
+	// TODO(adonovan): provide a comment or declaration syntax to
+	// allow users to add their functions to this set using facts.
+	// For example:
+	//
+	//    func ignoringTheErrorWouldBeVeryBad() error {
+	//      type mustUseResult struct{} // enables vet unusedresult check
+	//      ...
+	//    }
+	//
+	//    ignoringTheErrorWouldBeVeryBad() // oops
+	//
+
+	// Also, it is tempting to make this analysis modular: one
+	// could export a "mustUseResult" fact for each function that
+	// tail-calls one of the functions that we check, and check
+	// those functions too.
+	//
+	// However, just because you must use the result of
+	// fmt.Sprintf doesn't mean you need to use the result of
+	// every function that returns a formatted string:
+	// it may have other results and effects.
 	funcs.Set("errors.New,fmt.Errorf,fmt.Sprintf,fmt.Sprint,sort.Reverse,context.WithValue,context.WithCancel,context.WithDeadline,context.WithTimeout")
 	Analyzer.Flags.Var(&funcs, "funcs",
 		"comma-separated list of functions whose results must be used")

@@ -358,8 +358,16 @@ and:
 
 check consistency of Printf format strings and arguments
 
-The check applies to known functions (for example, those in package fmt)
-as well as any detected wrappers of known functions.
+The check applies to calls of the formatting functions such as
+[fmt.Printf] and [fmt.Sprintf], as well as any detected wrappers of
+those functions.
+
+In this example, the %d format operator requires an integer operand:
+
+	fmt.Printf("%d", "hello") // fmt.Printf format %d has arg "hello" of wrong type string
+
+See the documentation of the fmt package for the complete set of
+format operators and their operand types.
 
 To enable printf checking on a function that is not found by this
 analyzer's heuristics (for example, because control is obscured by
