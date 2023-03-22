@@ -129,15 +129,17 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 	lhs.val = x.val
 }
 
-func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
+// initVar checks the initialization lhs = x in a variable declaration.
+// If lhs doesn't have a type yet, it is given the type of x,
+// or Typ[Invalid] in case of an error.
+func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 	if x.mode == invalid || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
-		return nil
 	}
 
-	// If the lhs doesn't have a type yet, use the type of x.
+	// If lhs doesn't have a type yet, use the type of x.
 	if lhs.typ == nil {
 		typ := x.typ
 		if isUntyped(typ) {
@@ -145,7 +147,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 			if typ == Typ[UntypedNil] {
 				check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
 				lhs.typ = Typ[Invalid]
-				return nil
+				return
 			}
 			typ = Default(typ)
 		}
@@ -153,11 +155,6 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 	}
 
 	check.assignment(x, lhs.typ, context)
-	if x.mode == invalid {
-		return nil
-	}
-
-	return x.typ
 }
 
 // lhsVar checks a lhs variable in an assignment and returns its type.
@@ -221,17 +218,16 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	return x.typ
 }
 
-// assignVar checks the assignment lhs = x and returns the type of x.
-// If the assignment is invalid, the result is nil.
-func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
+// assignVar checks the assignment lhs = x.
+func (check *Checker) assignVar(lhs syntax.Expr, x *operand) {
 	if x.mode == invalid {
 		check.useLHS(lhs)
-		return nil
+		return
 	}
 
 	T := check.lhsVar(lhs) // nil if lhs is _
 	if T == Typ[Invalid] {
-		return nil
+		return
 	}
 
 	context := "assignment"
@@ -239,11 +235,6 @@ func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
 		context = "assignment to _ identifier"
 	}
 	check.assignment(x, T, context)
-	if x.mode == invalid {
-		return nil
-	}
-
-	return x.typ
 }
 
 // operandTypes returns the list of types for the given operands.
