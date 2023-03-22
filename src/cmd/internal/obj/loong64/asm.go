@@ -1179,26 +1179,26 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 	case 6: // beq r1,[r2],sbra
 		v := int32(0)
-		vcmp := int32(0)
 		if p.To.Target() != nil {
 			v = int32(p.To.Target().Pc-p.Pc) >> 2
 		}
-		if v < 0 {
-			vcmp = -v
-		}
-		if (p.As == ABFPT || p.As == ABFPF) && ((uint32(vcmp))>>21)&0x7FF != 0 {
-			c.ctxt.Diag("21 bit-width, short branch too far\n%v", p)
-		} else if p.As != ABFPT && p.As != ABFPF && (v<<16)>>16 != v {
-			c.ctxt.Diag("16 bit-width, short branch too far\n%v", p)
-		}
+		rd, rj := p.Reg, p.From.Reg
 		if p.As == ABGTZ || p.As == ABLEZ {
-			o1 = OP_16IRR(c.opirr(p.As), uint32(v), uint32(p.Reg), uint32(p.From.Reg))
-		} else if p.As == ABFPT || p.As == ABFPF {
-			// BCNEZ cj offset21 ,cj = fcc0
-			// BCEQZ cj offset21 ,cj = fcc0
+			rd, rj = rj, rd
+		}
+		switch p.As {
+		case ABFPT, ABFPF:
+			if (v<<11)>>11 != v {
+				c.ctxt.Diag("21 bit-width, short branch too far\n%v", p)
+			}
+			// FCC0 is the implicit source operand, now that we
+			// don't register-allocate from the FCC bank.
 			o1 = OP_16IR_5I(c.opirr(p.As), uint32(v), uint32(REG_FCC0))
-		} else {
-			o1 = OP_16IRR(c.opirr(p.As), uint32(v), uint32(p.From.Reg), uint32(p.Reg))
+		default:
+			if (v<<16)>>16 != v {
+				c.ctxt.Diag("16 bit-width, short branch too far\n%v", p)
+			}
+			o1 = OP_16IRR(c.opirr(p.As), uint32(v), uint32(rj), uint32(rd))
 		}
 
 	case 7: // mov r, soreg
