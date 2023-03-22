@@ -390,6 +390,9 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value 
 	hasNilCheck := false
 	sset.clear() // sset is the set of stores that are used in other values
 	for _, v := range values {
+		if v.Op == OpInvalid {
+			continue
+		}
 		if v.Type.IsMemory() {
 			stores = append(stores, v)
 			if v.Op == OpInitMem || v.Op == OpPhi {

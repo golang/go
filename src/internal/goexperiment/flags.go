@@ -127,4 +127,8 @@ type Flags struct {
 	// ExecTracer2 controls whether to use the new execution trace
 	// implementation.
 	ExecTracer2 bool
+
+	// LoopOpts enables aggressive loop optimizations on SSA, which may takes
+	// more time to compile but produce faster code.
+	LoopOpts bool
 }

@@ -257,6 +257,38 @@ func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
 	w.Uses++
 }
 
+// ReplaceSucc replaces b->oldSucc to b->newSucc, n indicates which predecessor
+// index of newSucc refers to b. It is the responsibility of the caller to clear
+// the corresponding predecessor of oldSucc.
+func (b *Block) ReplaceSucc(oldSucc, newSucc *Block, n int) {
+	for i := 0; i < len(b.Succs); i++ {
+		succ := &b.Succs[i]
+		if succ.b == oldSucc {
+			succ.b = newSucc
+			succ.i = n
+			newSucc.Preds[n] = Edge{b, i}
+			return
+		}
+	}
+	panic(fmt.Sprintf("Can not found %v->%v", b, oldSucc))
+}
+
+// ReplacePred replaces oldPred->b to newPred->b, n indicates which successor
+// index of newPred refers to b. It is the responsibility of the caller to clear
+// the corresponding successor of oldPred.
+func (b *Block) ReplacePred(oldPred, newPred *Block, n int) {
+	for i := 0; i < len(b.Preds); i++ {
+		pred := &b.Preds[i]
+		if pred.b == oldPred {
+			pred.b = newPred
+			pred.i = n
+			newPred.Succs[n] = Edge{b, i}
+			return
+		}
+	}
+	panic(fmt.Sprintf("Can not found %v->%v", oldPred, b))
+}
+
 // truncateValues truncates b.Values at the ith element, zeroing subsequent elements.
 // The values in b.Values after i must already have had their args reset,
 // to maintain correct value uses counts.
