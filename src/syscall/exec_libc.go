@@ -53,6 +53,7 @@ func getpid() (pid uintptr, err Errno)
 func ioctl(fd uintptr, req uintptr, arg uintptr) (err Errno)
 func setgid(gid uintptr) (err Errno)
 func setgroups1(ngid uintptr, gid uintptr) (err Errno)
+func setrlimit1(which uintptr, lim unsafe.Pointer) (err Errno)
 func setsid() (pid uintptr, err Errno)
 func setuid(uid uintptr) (err Errno)
 func setpgid(pid uintptr, pgid uintptr) (err Errno)
@@ -86,6 +87,8 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		nextfd int
 		i      int
 	)
+
+	rlim, rlimOK := origRlimitNofile.Load().(Rlimit)
 
 	// guard against side effects of shuffling fds below.
 	// Make sure that nextfd is beyond any currently open files so
@@ -287,6 +290,11 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		if err1 != 0 {
 			goto childerror
 		}
+	}
+
+	// Restore original rlimit.
+	if rlimOK && rlim.Cur != 0 {
+		setrlimit1(RLIMIT_NOFILE, unsafe.Pointer(&rlim))
 	}
 
 	// Time to exec.
