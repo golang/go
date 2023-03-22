@@ -99,7 +99,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 }
 
 func (check *Checker) initConst(lhs *Const, x *operand) {
-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
+	if x.mode == invalid || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -130,7 +130,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 }
 
 func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
-	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
+	if x.mode == invalid || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
@@ -198,10 +198,6 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 		v.used = v_used // restore v.used
 	}
 
-	if x.mode == invalid || x.typ == Typ[Invalid] {
-		return Typ[Invalid]
-	}
-
 	// spec: "Each left-hand side operand must be addressable, a map index
 	// expression, or the blank identifier. Operands may be parenthesized."
 	switch x.mode {
@@ -228,7 +224,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 // assignVar checks the assignment lhs = x and returns the type of x.
 // If the assignment is invalid, the result is nil.
 func (check *Checker) assignVar(lhs syntax.Expr, x *operand) Type {
-	if x.mode == invalid || x.typ == Typ[Invalid] {
+	if x.mode == invalid {
 		check.useLHS(lhs)
 		return nil
 	}
