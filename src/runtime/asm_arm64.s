@@ -1027,7 +1027,7 @@ loadg:
 	BL	runtime·load_g(SB)
 
 	// If g is nil, Go did not create the current thread,
-	// or if this thread never called into Go on some platforms.
+	// or if this thread never called into Go on pthread platforms.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -1121,14 +1121,19 @@ havem:
 	MOVD	savedsp-16(SP), R4
 	MOVD	R4, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m
-	// for the duration of the call. Since the call is over, return it with dropm.
+	// If the m on entry was nil, we called needm above to borrow an m,
+	// 1. for the duration of the call on non-pthread platforms,
+	// 2. or the duration of the C thread alive on pthread platforms.
+	// If the m on entry wasn't nil,
+	// 1. the thread might be a Go thread,
+	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+	//    since the we skip dropm to resue the m in the first call.
 	MOVD	savedm-8(SP), R6
 	CBNZ	R6, droppedm
 
 	// Skip dropm to reuse it in the next call, when a pthread key has been created,
-	// instead, bindm save the g into a thread-specific value associated with the pthread key,
-	// and pthread_key_destructor will dropm when the thread is exiting.
+	// instead, cgoBindM save the g0 into a thread-specific value associated with the
+	// pthread key, and pthread_key_destructor will dropm when the thread is exiting.
 	MOVD	_cgo_pthread_key_created(SB), R6
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CBZ	R6, dropm

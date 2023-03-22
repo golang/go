@@ -2106,7 +2106,8 @@ func dropm() {
 // since the g stored in the TLS by Go might be cleared in some platforms,
 // before the destructor invoked, so, we restore g by the stored g, before dropm.
 //
-// We store g0 instead of m, to make the assembly code simpler in runtime.cgocallback.
+// We store g0 instead of m, to make the assembly code simpler,
+// since we need to restore g0 in runtime.cgocallback.
 //
 // On systems without pthreads, like Windows, bindm shouldn't be used.
 //
@@ -2119,7 +2120,7 @@ func cgoBindM() {
 	}
 	g := getg()
 	if g.m.g0 != g {
-		fatal("the current g is not g0 of the current m")
+		fatal("the current g is not g0")
 	}
 	if _cgo_bindm != nil {
 		asmcgocall(_cgo_bindm, unsafe.Pointer(g))
