@@ -50,7 +50,7 @@ _cgo_wait_runtime_init_done(void) {
 	// The key and x_cgo_pthread_key_created are for the whole program,
 	// whereas the specific and destructor is per thread.
 	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&pthread_g, pthread_key_destructor) == 0) {
-	    x_cgo_pthread_key_created = 1;
+		x_cgo_pthread_key_created = 1;
 	}
 
 	// TODO(iant): For the case of a new C thread calling into Go, such
