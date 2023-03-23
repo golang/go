@@ -312,16 +312,33 @@ func TestMain(m *testing.M) {
 
 	if !*testWork {
 		// There shouldn't be anything left in topTmpdir.
-		dirf, err := os.Open(topTmpdir)
+		var extraFiles, extraDirs []string
+		err := filepath.WalkDir(topTmpdir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if path == topTmpdir {
+				return nil
+			}
+
+			if rel, err := filepath.Rel(topTmpdir, path); err == nil {
+				path = rel
+			}
+			if d.IsDir() {
+				extraDirs = append(extraDirs, path)
+			} else {
+				extraFiles = append(extraFiles, path)
+			}
+			return nil
+		})
 		if err != nil {
 			log.Fatal(err)
 		}
-		names, err := dirf.Readdirnames(0)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if len(names) > 0 {
-			log.Fatalf("unexpected files left in tmpdir: %v", names)
+
+		if len(extraFiles) > 0 {
+			log.Fatalf("unexpected files left in tmpdir: %q", extraFiles)
+		} else if len(extraDirs) > 0 {
+			log.Fatalf("unexpected subdirectories left in tmpdir: %q", extraDirs)
 		}
 
 		removeAll(topTmpdir)
