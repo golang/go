@@ -170,6 +170,14 @@ type snapshot struct {
 	// This set is immutable inside the snapshot, and therefore is not guarded by mu.
 	workspaceModFiles    map[span.URI]struct{}
 	workspaceModFilesErr error // error encountered computing workspaceModFiles
+
+	// importGraph holds a shared import graph to use for type-checking. Adding
+	// more packages to this import graph can speed up type checking, at the
+	// expense of in-use memory.
+	//
+	// See getImportGraph for additional documentation.
+	importGraphDone chan struct{} // closed when importGraph is set; may be nil
+	importGraph     *importGraph  // copied from preceding snapshot and re-evaluated
 }
 
 var globalSnapshotID uint64
@@ -606,20 +614,32 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {
+	overlays := make(map[string][]byte)
+	for _, overlay := range s.overlays() {
+		if overlay.saved {
+			continue
+		}
+		// TODO(rfindley): previously, there was a todo here to make sure we don't
+		// send overlays outside of the current view. IMO we should instead make
+		// sure this doesn't matter.
+		overlays[overlay.URI().Filename()] = overlay.content
+	}
+	return overlays
+}
+
+// TODO(rfindley): investigate whether it would be worthwhile to keep track of
+// overlays when we get them via GetFile.
+func (s *snapshot) overlays() []*Overlay {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	overlays := make(map[string][]byte)
+	var overlays []*Overlay
 	s.files.Range(func(uri span.URI, fh source.FileHandle) {
 		overlay, ok := fh.(*Overlay)
 		if !ok {
 			return
 		}
-		if overlay.saved {
-			return
-		}
-		// TODO(rstambler): Make sure not to send overlays outside of the current view.
-		overlays[uri.Filename()] = overlay.content
+		overlays = append(overlays, overlay)
 	})
 	return overlays
 }
@@ -1324,6 +1344,7 @@ func isFileOpen(fh source.FileHandle) bool {
 	return open
 }
 
+// TODO(rfindley): it would make sense for awaitLoaded to return metadata.
 func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	loadErr := s.awaitLoadedAllErrors(ctx)
 
@@ -1733,6 +1754,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		knownSubdirs:         s.knownSubdirs.Clone(),
 		workspaceModFiles:    wsModFiles,
 		workspaceModFilesErr: wsModFilesErr,
+		importGraph:          s.importGraph,
 	}
 
 	// The snapshot should be initialized if either s was uninitialized, or we've

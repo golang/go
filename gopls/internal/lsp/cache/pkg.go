@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/methodsets"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/memoize"
 )
 
 // Convenient local aliases for typed strings.
@@ -52,8 +51,7 @@ type syntaxPackage struct {
 	types           *types.Package
 	typesInfo       *types.Info
 	importMap       map[PackagePath]*types.Package
-	hasFixedFiles   bool          // if true, AST was sufficiently mangled that we should hide type errors
-	analyses        memoize.Store // maps analyzer.Name to Promise[actionResult]
+	hasFixedFiles   bool // if true, AST was sufficiently mangled that we should hide type errors
 	xrefs           []byte
 	methodsets      *methodsets.Index
 }

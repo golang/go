@@ -32,6 +32,7 @@ import (
 	"golang.org/x/tools/gopls/internal/vulncheck"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/tokeninternal"
 	"golang.org/x/tools/internal/xcontext"
 )
 
@@ -746,7 +747,7 @@ func (c *commandHandler) ListImports(ctx context.Context, args command.URIArg) (
 		if err != nil {
 			return err
 		}
-		fset := source.FileSetFor(pgf.Tok)
+		fset := tokeninternal.FileSetFor(pgf.Tok)
 		for _, group := range astutil.Imports(fset, pgf.File) {
 			for _, imp := range group {
 				if imp.Path == nil {

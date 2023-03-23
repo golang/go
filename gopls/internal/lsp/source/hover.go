@@ -27,6 +27,7 @@ import (
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/tokeninternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -195,7 +196,7 @@ func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Po
 		spec2.Comment = nil
 		var b strings.Builder
 		b.WriteString("type ")
-		fset := FileSetFor(declPGF.Tok)
+		fset := tokeninternal.FileSetFor(declPGF.Tok)
 		if err := format.Node(&b, fset, &spec2); err != nil {
 			return protocol.Range{}, nil, err
 		}

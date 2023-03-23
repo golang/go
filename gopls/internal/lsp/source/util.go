@@ -127,24 +127,8 @@ func FormatNode(fset *token.FileSet, n ast.Node) string {
 // FormatNodeFile is like FormatNode, but requires only the token.File for the
 // syntax containing the given ast node.
 func FormatNodeFile(file *token.File, n ast.Node) string {
-	fset := FileSetFor(file)
+	fset := tokeninternal.FileSetFor(file)
 	return FormatNode(fset, n)
-}
-
-// FileSetFor returns a new FileSet containing a sequence of new Files with
-// the same base, size, and line as the input files, for use in APIs that
-// require a FileSet.
-//
-// Precondition: the input files must be non-overlapping, and sorted in order
-// of their Base.
-func FileSetFor(files ...*token.File) *token.FileSet {
-	fset := token.NewFileSet()
-	for _, f := range files {
-		f2 := fset.AddFile(f.Name(), f.Base(), f.Size())
-		lines := tokeninternal.GetLines(f)
-		f2.SetLines(lines)
-	}
-	return fset
 }
 
 // Deref returns a pointer's element type, traversing as many levels as needed.

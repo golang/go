@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/tokeninternal"
 )
 
 // Format formats a file with a given range.
@@ -53,7 +54,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 	// This should be acceptable for all users, who likely be prompted to rebuild
 	// the LSP server on each Go release.
 	buf := &bytes.Buffer{}
-	fset := FileSetFor(pgf.Tok)
+	fset := tokeninternal.FileSetFor(pgf.Tok)
 	if err := format.Node(buf, fset, pgf.File); err != nil {
 		return nil, err
 	}

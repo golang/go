@@ -31,8 +31,14 @@ import (
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/gcimporter"
 	"golang.org/x/tools/internal/packagesinternal"
+	"golang.org/x/tools/internal/tokeninternal"
 	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal"
+)
+
+// Various optimizations that should not affect correctness.
+const (
+	preserveImportGraph = true // hold on to the import graph for open packages
 )
 
 // A typeCheckBatch holds data for a logical type-checking operation, which may
@@ -41,9 +47,9 @@ import (
 // It shares state such as parsed files and imports, to optimize type-checking
 // for packages with overlapping dependency graphs.
 type typeCheckBatch struct {
-	packageIndexes map[PackageID]int // requested ID -> index in ids
-	pre            preTypeCheck
-	post           postTypeCheck
+	syntaxIndex map[PackageID]int // requested ID -> index in ids
+	pre         preTypeCheck
+	post        postTypeCheck
 
 	s        *snapshot
 	meta     *metadataGraph // captured once at the start of type checking
@@ -116,6 +122,199 @@ func (s *snapshot) TypeCheck(ctx context.Context, ids ...PackageID) ([]source.Pa
 	return pkgs, s.forEachPackage(ctx, needIDs, nil, post)
 }
 
+// getImportGraph returns a shared import graph use for this snapshot, or nil.
+//
+// This is purely an optimization: holding on to more imports allows trading
+// memory for CPU and latency. Currently, getImportGraph returns an import
+// graph containing all packages imported by open packages, since these are
+// highly likely to be needed when packages change.
+//
+// Furthermore, since we memoize active packages, including their imports in
+// the shared import graph means we don't run the risk of pinning duplicate
+// copies of common imports, if active packages are computed in separate type
+// checking batches.
+func (s *snapshot) getImportGraph(ctx context.Context) *importGraph {
+	if !preserveImportGraph {
+		return nil
+	}
+	s.mu.Lock()
+
+	// Evaluate the shared import graph for the snapshot. There are three major
+	// codepaths here:
+	//
+	//  1. importGraphDone == nil, importGraph == nil: it is this goroutine's
+	//     responsibility to type-check the shared import graph.
+	//  2. importGraphDone == nil, importGraph != nil: it is this goroutine's
+	//     responsibility to resolve the import graph, which may result in
+	//     type-checking only if the existing importGraph (carried over from the
+	//     preceding snapshot) is invalid.
+	//  3. importGraphDone != nil: some other goroutine is doing (1) or (2), wait
+	//     for the work to be done.
+	done := s.importGraphDone
+	if done == nil {
+		done = make(chan struct{})
+		s.importGraphDone = done
+		release := s.Acquire() // must acquire to use the snapshot asynchronously
+		go func() {
+			defer release()
+			importGraph, err := s.resolveImportGraph() // may be nil
+			if err != nil {
+				if ctx.Err() == nil {
+					event.Error(ctx, "computing the shared import graph", err)
+				}
+				importGraph = nil
+			}
+			s.mu.Lock()
+			s.importGraph = importGraph
+			s.mu.Unlock()
+			close(done)
+		}()
+	}
+	s.mu.Unlock()
+
+	select {
+	case <-done:
+		return s.importGraph
+	case <-ctx.Done():
+		return nil
+	}
+}
+
+// resolveImportGraph evaluates the shared import graph to use for
+// type-checking in this snapshot. This may involve re-using the import graph
+// of the previous snapshot (stored in s.importGraph), or computing a fresh
+// import graph.
+//
+// resolveImportGraph should only be called from getImportGraph.
+func (s *snapshot) resolveImportGraph() (*importGraph, error) {
+	ctx := s.backgroundCtx
+	if err := s.awaitLoaded(ctx); err != nil {
+		return nil, err
+	}
+
+	s.mu.Lock()
+	meta := s.meta
+	lastImportGraph := s.importGraph
+	s.mu.Unlock()
+
+	openPackages := make(map[PackageID]bool)
+	for _, fh := range s.overlays() {
+		for _, id := range meta.ids[fh.URI()] {
+			openPackages[id] = true
+		}
+	}
+
+	// TODO(rfindley): when building package handles becomes more expensive (due
+	// to precise pruning support), we may want to parallelize this loop.
+	deps := make(map[PackageID]source.Hash)
+	for id := range openPackages {
+		m := meta.metadata[id]
+		for _, id := range m.DepsByPkgPath {
+			if _, ok := deps[id]; !ok {
+				ph, err := s.buildPackageHandle(ctx, id)
+				if err != nil {
+					if ctx.Err() != nil {
+						return nil, err
+					} else {
+						continue
+					}
+				}
+				deps[id] = ph.key
+			}
+		}
+	}
+
+	// Subtlety: we erase the upward cone of open packages from the shared import
+	// graph, to increase reusability.
+	//
+	// This is easiest to understand via an example: suppose A imports B, and B
+	// imports C. Now suppose A and B are open. If we preserve the entire set of
+	// shared deps by open packages, deps will be {B, C}. But this means that any
+	// change to the open package B will invalidate the shared import graph,
+	// meaning we will experience no benefit from sharing when B is edited.
+	// Consider that this will be a common scenario, when A is foo_test and B is
+	// foo. Better to just preserve the shared import C.
+	//
+	// With precise pruning, we may want to truncate this search based on
+	// reachability.
+	//
+	// TODO(rfindley): this logic could use a unit test.
+	volatileDeps := make(map[PackageID]bool)
+	var isVolatile func(PackageID) bool
+	isVolatile = func(id PackageID) (volatile bool) {
+		if v, ok := volatileDeps[id]; ok {
+			return v
+		}
+		defer func() {
+			volatileDeps[id] = volatile
+		}()
+		if openPackages[id] {
+			return true
+		}
+		m := meta.metadata[id]
+		if m != nil {
+			for _, dep := range m.DepsByPkgPath {
+				if isVolatile(dep) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	for dep := range deps {
+		isVolatile(dep)
+	}
+	for id, volatile := range volatileDeps {
+		if volatile {
+			delete(deps, id)
+		}
+	}
+
+	// We reuse the last import graph if and only if none of the dependencies
+	// have changed. Doing better would involve analyzing dependencies to find
+	// subgraphs that are still valid. Not worth it, especially when in the
+	// common case nothing has changed.
+	unchanged := lastImportGraph != nil && len(deps) == len(lastImportGraph.deps)
+	var ids []PackageID
+	for id, key := range deps {
+		ids = append(ids, id)
+		if unchanged {
+			prevKey, ok := lastImportGraph.deps[id]
+			unchanged = ok && prevKey == key
+		}
+	}
+
+	if unchanged {
+		return lastImportGraph, nil
+	}
+
+	b, err := s.forEachPackageInternal(ctx, nil, ids, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	next := &importGraph{
+		fset:    b.fset,
+		deps:    deps,
+		imports: make(map[PackageID]pkgOrErr),
+	}
+	for id, fut := range b.importPackages {
+		if fut.v.pkg == nil && fut.v.err == nil {
+			panic(fmt.Sprintf("internal error: import node %s is not evaluated", id))
+		}
+		next.imports[id] = fut.v
+	}
+	return next, nil
+}
+
+// An importGraph holds selected results of a type-checking pass, to be re-used
+// by subsequent snapshots.
+type importGraph struct {
+	fset    *token.FileSet            // fileset used for type checking imports
+	deps    map[PackageID]source.Hash // hash of direct dependencies for this graph
+	imports map[PackageID]pkgOrErr    // results of type checking
+}
+
 // Package visiting functions used by forEachPackage; see the documentation of
 // forEachPackage for details.
 type (
@@ -135,15 +334,42 @@ type (
 //
 // Both pre and post may be called concurrently.
 func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preTypeCheck, post postTypeCheck) error {
+	if len(ids) == 0 {
+		return nil // short cut: many call sites do not handle empty ids
+	}
+
+	impGraph := s.getImportGraph(ctx)
+	_, err := s.forEachPackageInternal(ctx, impGraph, nil, ids, pre, post)
+	return err
+}
+
+// forEachPackageInternal is used by both forEachPackage and loadImportGraph to
+// type-check a graph of packages.
+//
+// If a non-nil importGraph is provided, imports in this graph will be reused.
+func (s *snapshot) forEachPackageInternal(ctx context.Context, importGraph *importGraph, importIDs, syntaxIDs []PackageID, pre preTypeCheck, post postTypeCheck) (*typeCheckBatch, error) {
 	b := &typeCheckBatch{
 		s:              s,
 		pre:            pre,
 		post:           post,
 		fset:           fileSetWithBase(reservedForParsing),
-		packageIndexes: make(map[PackageID]int),
+		syntaxIndex:    make(map[PackageID]int),
 		cpulimit:       make(chan struct{}, runtime.GOMAXPROCS(0)),
 		syntaxPackages: make(map[PackageID]*futurePackage),
 		importPackages: make(map[PackageID]*futurePackage),
+	}
+
+	if importGraph != nil {
+		// Clone the file set every time, to ensure we do not leak files.
+		b.fset = tokeninternal.CloneFileSet(importGraph.fset)
+		// Pre-populate future cache with 'done' futures.
+		done := make(chan struct{})
+		close(done)
+		for id, res := range importGraph.imports {
+			b.importPackages[id] = &futurePackage{done, res}
+		}
+	} else {
+		b.fset = fileSetWithBase(reservedForParsing)
 	}
 
 	// Capture metadata once to avoid locking the snapshot when accessing
@@ -152,8 +378,8 @@ func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preT
 	b.meta = s.meta
 	s.mu.Unlock()
 
-	for i, id := range ids {
-		b.packageIndexes[id] = i
+	for i, id := range syntaxIDs {
+		b.syntaxIndex[id] = i
 	}
 
 	// Start a single goroutine for each requested package.
@@ -161,7 +387,14 @@ func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preT
 	// Other packages are reached recursively, and will not be evaluated if they
 	// are not needed.
 	var g errgroup.Group
-	for i, id := range ids {
+	for _, id := range importIDs {
+		id := id
+		g.Go(func() error {
+			_, err := b.getImportPackage(ctx, id)
+			return err
+		})
+	}
+	for i, id := range syntaxIDs {
 		i := i
 		id := id
 		g.Go(func() error {
@@ -169,7 +402,7 @@ func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preT
 			return err
 		})
 	}
-	return g.Wait()
+	return b, g.Wait()
 }
 
 // TODO(rfindley): re-order the declarations below to read better from top-to-bottom.
@@ -203,7 +436,7 @@ func (b *typeCheckBatch) getImportPackage(ctx context.Context, id PackageID) (pk
 		close(f.done)
 	}()
 
-	if index, ok := b.packageIndexes[id]; ok {
+	if index, ok := b.syntaxIndex[id]; ok {
 		pkg, err := b.handleSyntaxPackage(ctx, index, id)
 		if err != nil {
 			return nil, err
@@ -965,7 +1198,7 @@ func depsErrors(ctx context.Context, m *source.Metadata, meta *metadataGraph, fs
 		if err != nil {
 			return nil, err
 		}
-		fset := source.FileSetFor(pgf.Tok)
+		fset := tokeninternal.FileSetFor(pgf.Tok)
 		// TODO(adonovan): modify Imports() to accept a single token.File (cgf.Tok).
 		for _, group := range astutil.Imports(fset, pgf.File) {
 			for _, imp := range group {

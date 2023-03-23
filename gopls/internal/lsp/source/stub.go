@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/internal/tokeninternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -232,7 +233,7 @@ func (%s%s%s) %s%s {
 			NewText: []byte(edit.New),
 		})
 	}
-	return FileSetFor(declPGF.Tok), // edits use declPGF.Tok
+	return tokeninternal.FileSetFor(declPGF.Tok), // edits use declPGF.Tok
 		&analysis.SuggestedFix{TextEdits: edits},
 		nil
 }

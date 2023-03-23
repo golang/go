@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
+	"golang.org/x/tools/internal/tokeninternal"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -110,7 +111,7 @@ func NewBuiltinSignature(ctx context.Context, s Snapshot, name string) (*signatu
 			variadic = true
 		}
 	}
-	fset := FileSetFor(builtin.Tok)
+	fset := tokeninternal.FileSetFor(builtin.Tok)
 	params, _ := formatFieldList(ctx, fset, decl.Type.Params, variadic)
 	results, needResultParens := formatFieldList(ctx, fset, decl.Type.Results, false)
 	d := decl.Doc.Text()
