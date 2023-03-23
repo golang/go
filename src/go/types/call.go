@@ -228,7 +228,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	}
 
 	// evaluate arguments
-	args, _ := check.exprList(call.Args, false)
+	args := check.exprList(call.Args)
 	sig = check.arguments(call, sig, targs, args, xlist)
 
 	if wasGeneric && sig.TypeParams().Len() == 0 {
@@ -263,12 +263,12 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	return statement
 }
 
-func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
+func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
 	switch len(elist) {
 	case 0:
 		// nothing to do
 	case 1:
-		return check.multiExpr(elist[0], allowCommaOk)
+		xlist, _ = check.multiExpr(elist[0], false)
 	default:
 		// multiple (possibly invalid) values
 		xlist = make([]*operand, len(elist))

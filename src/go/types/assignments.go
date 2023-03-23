@@ -359,7 +359,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
 	// resulting in 2 or more values; otherwise we have an assignment mismatch.
 	if r != 1 {
 		if returnStmt != nil {
-			rhs, _ := check.exprList(orig_rhs, false)
+			rhs := check.exprList(orig_rhs)
 			check.returnError(returnStmt, lhs, rhs)
 		} else {
 			check.assignError(orig_rhs, l, r)
