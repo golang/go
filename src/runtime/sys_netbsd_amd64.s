@@ -324,7 +324,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
 
 	ADJSP	$-24
 
-        POP_REGS_HOST_TO_ABI0()
+	POP_REGS_HOST_TO_ABI0()
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0

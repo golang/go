@@ -106,7 +106,7 @@ lt64gt8:
 	ADD	$32, TGT
 
 lt32gt8:
-        // At this point >= 8 and < 32
+	// At this point >= 8 and < 32
 	// Move 16 bytes if possible
 	CMP     DWORDS, $2
 	BLT     lt16

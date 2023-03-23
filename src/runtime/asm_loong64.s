@@ -83,8 +83,8 @@ TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
 TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
-        JAL     runtime·mstart0(SB)
-        RET // not reached
+	JAL     runtime·mstart0(SB)
+	RET // not reached
 
 // func cputicks() int64
 TEXT runtime·cputicks(SB),NOSPLIT,$0-8

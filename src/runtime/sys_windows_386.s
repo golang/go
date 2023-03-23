@@ -112,7 +112,7 @@ TEXT runtime·lastcontinuetramp(SB),NOSPLIT,$0-0
 	JMP	sigtramp<>(SB)
 
 TEXT runtime·callbackasm1(SB),NOSPLIT,$0
-  	MOVL	0(SP), AX	// will use to find our callback context
+	MOVL	0(SP), AX	// will use to find our callback context
 
 	// remove return address from stack, we are not returning to callbackasm, but to its caller.
 	ADDL	$4, SP
