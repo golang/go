@@ -2416,7 +2416,9 @@ func (ctxt *Link) textaddress() {
 		}
 	}
 
-	sect.Length = va - sect.Vaddr
+	// Add MinLC size after etext, so it won't collide with the next symbol
+	// (which may confuse some symbolizer).
+	sect.Length = va - sect.Vaddr + uint64(ctxt.Arch.MinLC)
 	ldr.SetSymSect(etext, sect)
 	if ldr.SymValue(etext) == 0 {
 		// Set the address of the start/end symbols, if not already
