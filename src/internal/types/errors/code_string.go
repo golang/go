@@ -153,6 +153,7 @@ func _() {
 	_ = x[InvalidUnsafeSliceData-145]
 	_ = x[InvalidUnsafeString-146]
 	_ = x[InvalidClear-148]
+	_ = x[TypeTooLarge-149]
 }
 
 const (
@@ -161,7 +162,7 @@ const (
 	_Code_name_2 = "InvalidPtrEmbedBadRecvInvalidRecvDuplicateFieldAndMethodDuplicateMethodInvalidBlankInvalidIotaMissingInitBodyInvalidInitSigInvalidInitDeclInvalidMainDeclTooManyValuesNotAnExprTruncatedFloatNumericOverflowUndefinedOpMismatchedTypesDivByZeroNonNumericIncDecUnaddressableOperandInvalidIndirectionNonIndexableOperandInvalidIndexSwappedSliceIndicesNonSliceableOperandInvalidSliceExprInvalidShiftCountInvalidShiftOperandInvalidReceiveInvalidSendDuplicateLitKeyMissingLitKeyInvalidLitIndexOversizeArrayLitMixedStructLitInvalidStructLitMissingLitFieldDuplicateLitFieldUnexportedLitFieldInvalidLitFieldUntypedLitInvalidLitAmbiguousSelectorUndeclaredImportedNameUnexportedNameUndeclaredNameMissingFieldOrMethodBadDotDotDotSyntaxNonVariadicDotDotDotMisplacedDotDotDot"
 	_Code_name_3 = "InvalidDotDotDotUncalledBuiltinInvalidAppendInvalidCapInvalidCloseInvalidCopyInvalidComplexInvalidDeleteInvalidImagInvalidLenSwappedMakeArgsInvalidMakeInvalidRealInvalidAssertImpossibleAssertInvalidConversionInvalidUntypedConversionBadOffsetofSyntaxInvalidOffsetofUnusedExprUnusedVarMissingReturnWrongResultCountOutOfScopeResultInvalidCondInvalidPostDecl"
 	_Code_name_4 = "InvalidIterVarInvalidRangeExprMisplacedBreakMisplacedContinueMisplacedFallthroughDuplicateCaseDuplicateDefaultBadTypeKeywordInvalidTypeSwitchInvalidExprSwitchInvalidSelectCaseUndeclaredLabelDuplicateLabelMisplacedLabelUnusedLabelJumpOverDeclJumpIntoBlockInvalidMethodExprWrongArgCountInvalidCallUnusedResultsInvalidDeferInvalidGoBadDeclRepeatedDeclInvalidUnsafeAddInvalidUnsafeSliceUnsupportedFeatureNotAGenericTypeWrongTypeArgCountCannotInferTypeArgsInvalidTypeArgInvalidInstanceCycleInvalidUnionMisplacedConstraintIfaceInvalidMethodTypeParamsMisplacedTypeParamInvalidUnsafeSliceDataInvalidUnsafeString"
-	_Code_name_5 = "InvalidClear"
+	_Code_name_5 = "InvalidClearTypeTooLarge"
 )
 
 var (
@@ -169,6 +170,7 @@ var (
 	_Code_index_2 = [...]uint16{0, 15, 22, 33, 56, 71, 83, 94, 109, 123, 138, 153, 166, 175, 189, 204, 215, 230, 239, 255, 275, 293, 312, 324, 343, 362, 378, 395, 414, 428, 439, 454, 467, 482, 498, 512, 528, 543, 560, 578, 593, 603, 613, 630, 652, 666, 680, 700, 718, 738, 756}
 	_Code_index_3 = [...]uint16{0, 16, 31, 44, 54, 66, 77, 91, 104, 115, 125, 140, 151, 162, 175, 191, 208, 232, 249, 264, 274, 283, 296, 312, 328, 339, 354}
 	_Code_index_4 = [...]uint16{0, 14, 30, 44, 61, 81, 94, 110, 124, 141, 158, 175, 190, 204, 218, 229, 241, 254, 271, 284, 295, 308, 320, 329, 336, 348, 364, 382, 400, 415, 432, 451, 465, 485, 497, 521, 544, 562, 584, 603}
+	_Code_index_5 = [...]uint8{0, 12, 24}
 )
 
 func (i Code) String() string {
@@ -187,8 +189,9 @@ func (i Code) String() string {
 	case 108 <= i && i <= 146:
 		i -= 108
 		return _Code_name_4[_Code_index_4[i]:_Code_index_4[i+1]]
-	case i == 148:
-		return _Code_name_5
+	case 148 <= i && i <= 149:
+		i -= 148
+		return _Code_name_5[_Code_index_5[i]:_Code_index_5[i+1]]
 	default:
 		return "Code(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

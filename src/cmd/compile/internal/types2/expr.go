@@ -313,6 +313,12 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 		conf = check.conf
 	}
 
+	sizeof := func(T Type) int64 {
+		s := conf.sizeof(T)
+		assert(s == 4 || s == 8)
+		return s
+	}
+
 	switch {
 	case isInteger(typ):
 		x := constant.ToInt(x)
@@ -325,7 +331,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 		if x, ok := constant.Int64Val(x); ok {
 			switch typ.kind {
 			case Int:
-				var s = uint(conf.sizeof(typ)) * 8
+				var s = uint(sizeof(typ)) * 8
 				return int64(-1)<<(s-1) <= x && x <= int64(1)<<(s-1)-1
 			case Int8:
 				const s = 8
@@ -339,7 +345,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 			case Int64, UntypedInt:
 				return true
 			case Uint, Uintptr:
-				if s := uint(conf.sizeof(typ)) * 8; s < 64 {
+				if s := uint(sizeof(typ)) * 8; s < 64 {
 					return 0 <= x && x <= int64(1)<<s-1
 				}
 				return 0 <= x
@@ -361,7 +367,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
 		// x does not fit into int64
 		switch n := constant.BitLen(x); typ.kind {
 		case Uint, Uintptr:
-			var s = uint(conf.sizeof(typ)) * 8
+			var s = uint(sizeof(typ)) * 8
 			return constant.Sign(x) >= 0 && n <= int(s)
 		case Uint64:
 			return constant.Sign(x) >= 0 && n <= 64
