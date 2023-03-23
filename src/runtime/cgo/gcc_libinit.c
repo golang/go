@@ -49,6 +49,14 @@ _cgo_wait_runtime_init_done(void) {
 
 	// The key and x_cgo_pthread_key_created are for the whole program,
 	// whereas the specific and destructor is per thread.
+	// We assume pthread_key_create will always succeed, otherwise,
+	// there might be a very very small race could leads extra M leaking,
+	// in such case:
+	// 1. pthread_key_create failed, so x_cgo_pthread_key_created is 0,
+	// 2. then, it won't bindm in runtime.needAndBindM,
+	// 3. but, it may skip dropm in runtime.cgocallback,
+	//    when another C thread call pthread_key_create success,
+	// 4. pthread_key_destructor won't be invoked to dropm when the C thread is exiting.
 	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&pthread_g, pthread_key_destructor) == 0) {
 		x_cgo_pthread_key_created = 1;
 	}
@@ -80,8 +88,8 @@ _cgo_wait_runtime_init_done(void) {
 void x_cgo_bindm(void* g) {
 	// We assume this will always succeed, otherwise, there might be extra M leaking,
 	// when a C thread exits after a cgo call.
-	// Since we only check the x_cgo_pthread_key_created in runtime.cgocallback,
-	// and will skip dropm when it's 1.
+	// Since we only invoke this function once per thread in runtime.needAndBindM,
+	// and the next calls just reuse the binded m.
 	pthread_setspecific(pthread_g, g);
 }
 
