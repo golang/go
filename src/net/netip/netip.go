@@ -3,13 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // Package netip defines an IP address type that's a small value type.
-// Building on that Addr type, the package also defines AddrPort (an
-// IP address and a port), and Prefix (an IP address and a bit length
+// Building on that [Addr] type, the package also defines [AddrPort] (an
+// IP address and a port) and [Prefix] (an IP address and a bit length
 // prefix).
 //
-// Compared to the net.IP type, this package's Addr type takes less
-// memory, is immutable, and is comparable (supports == and being a
-// map key).
+// Compared to the [net.IP] type, [Addr] type takes less memory, is immutable,
+// and is comparable (supports == and being a map key).
 package netip
 
 import (
@@ -28,9 +27,9 @@ import (
 //   netip.Addr: 24 bytes (zone is per-name singleton, shared across all users)
 
 // Addr represents an IPv4 or IPv6 address (with or without a scoped
-// addressing zone), similar to net.IP or net.IPAddr.
+// addressing zone), similar to [net.IP] or [net.IPAddr].
 //
-// Unlike net.IP or net.IPAddr, Addr is a comparable value
+// Unlike [net.IP] or [net.IPAddr], Addr is a comparable value
 // type (it supports == and can be a map key) and is immutable.
 //
 // The zero Addr is not a valid IP address.

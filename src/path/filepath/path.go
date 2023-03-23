@@ -8,7 +8,7 @@
 // The filepath package uses either forward slashes or backslashes,
 // depending on the operating system. To process paths such as URLs
 // that always use forward slashes regardless of the operating
-// system, see the path package.
+// system, see the [path] package.
 package filepath
 
 import (
