@@ -334,17 +334,17 @@ func parseKeyUsageExtension(der cryptobyte.String) (KeyUsage, error) {
 func parseBasicConstraintsExtension(der cryptobyte.String) (bool, int, error) {
 	var isCA bool
 	if !der.ReadASN1(&der, cryptobyte_asn1.SEQUENCE) {
-		return false, 0, errors.New("x509: invalid basic constraints a")
+		return false, 0, errors.New("x509: invalid basic constraints")
 	}
 	if der.PeekASN1Tag(cryptobyte_asn1.BOOLEAN) {
 		if !der.ReadASN1Boolean(&isCA) {
-			return false, 0, errors.New("x509: invalid basic constraints b")
+			return false, 0, errors.New("x509: invalid basic constraints")
 		}
 	}
 	maxPathLen := -1
 	if !der.Empty() && der.PeekASN1Tag(cryptobyte_asn1.INTEGER) {
 		if !der.ReadASN1Integer(&maxPathLen) {
-			return false, 0, errors.New("x509: invalid basic constraints c")
+			return false, 0, errors.New("x509: invalid basic constraints")
 		}
 	}
 
