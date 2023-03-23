@@ -111,8 +111,8 @@ func TestJSONAppendAttrValueSpecial(t *testing.T) {
 		want  string
 	}{
 		{math.NaN(), `"NaN"`},
-		{math.Inf(+1), `"+Inf"`},
-		{math.Inf(-1), `"-Inf"`},
+		{math.Inf(+1), `"Infinity"`},
+		{math.Inf(-1), `"-Infinity"`},
 		{LevelWarn, `"WARN"`},
 	} {
 		got := jsonValueString(t, AnyValue(test.value))
