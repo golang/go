@@ -360,11 +360,14 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 	// If we don't have an n:n mapping, the rhs must be a single expression
 	// resulting in 2 or more values; otherwise we have an assignment mismatch.
 	if r != 1 {
-		if returnStmt != nil {
-			rhs := check.exprList(orig_rhs)
-			check.returnError(returnStmt, lhs, rhs)
-		} else {
-			check.assignError(orig_rhs, l, r)
+		// Only report a mismatch error if there are no other errors on the rhs.
+		if check.use(orig_rhs...) {
+			if returnStmt != nil {
+				rhs := check.exprList(orig_rhs)
+				check.returnError(returnStmt, lhs, rhs)
+			} else {
+				check.assignError(orig_rhs, l, r)
+			}
 		}
 		// ensure that LHS variables have a type
 		for _, v := range lhs {
@@ -372,7 +375,6 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 				v.typ = Typ[Invalid]
 			}
 		}
-		check.use(orig_rhs...)
 		return
 	}
 
@@ -389,8 +391,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 	}
 
 	// In all other cases we have an assignment mismatch.
-	// Only report a mismatch error if there was no error
-	// on the rhs.
+	// Only report a mismatch error if there are no other errors on the rhs.
 	if rhs[0].mode != invalid {
 		if returnStmt != nil {
 			check.returnError(returnStmt, lhs, rhs)
@@ -432,9 +433,12 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	// If we don't have an n:n mapping, the rhs must be a single expression
 	// resulting in 2 or more values; otherwise we have an assignment mismatch.
 	if r != 1 {
-		check.assignError(orig_rhs, l, r)
-		check.useLHS(lhs...)
-		check.use(orig_rhs...)
+		// Only report a mismatch error if there are no other errors on the lhs or rhs.
+		okLHS := check.useLHS(lhs...)
+		okRHS := check.use(orig_rhs...)
+		if okLHS && okRHS {
+			check.assignError(orig_rhs, l, r)
+		}
 		return
 	}
 
@@ -451,8 +455,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 	}
 
 	// In all other cases we have an assignment mismatch.
-	// Only report a mismatch error if there was no error
-	// on the rhs.
+	// Only report a mismatch error if there are no other errors on the rhs.
 	if rhs[0].mode != invalid {
 		check.assignError(orig_rhs, l, r)
 	}

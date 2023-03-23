@@ -699,23 +699,27 @@ Error:
 // Useful to make sure expressions are evaluated
 // (and variables are "used") in the presence of
 // other errors. Arguments may be nil.
-func (check *Checker) use(args ...syntax.Expr) {
-	for _, e := range args {
-		check.use1(e, false)
-	}
-}
+// Reports if all arguments evaluated without error.
+func (check *Checker) use(args ...syntax.Expr) bool { return check.useN(args, false) }
 
 // useLHS is like use, but doesn't "use" top-level identifiers.
 // It should be called instead of use if the arguments are
 // expressions on the lhs of an assignment.
-func (check *Checker) useLHS(args ...syntax.Expr) {
+func (check *Checker) useLHS(args ...syntax.Expr) bool { return check.useN(args, true) }
+
+func (check *Checker) useN(args []syntax.Expr, lhs bool) bool {
+	ok := true
 	for _, e := range args {
-		check.use1(e, true)
+		if !check.use1(e, lhs) {
+			ok = false
+		}
 	}
+	return ok
 }
 
-func (check *Checker) use1(e syntax.Expr, lhs bool) {
+func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
 	var x operand
+	x.mode = value // anything but invalid
 	switch n := unparen(e).(type) {
 	case nil:
 		// nothing to do
@@ -745,10 +749,9 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) {
 			v.used = v_used // restore v.used
 		}
 	case *syntax.ListExpr:
-		for _, e := range n.ElemList {
-			check.use1(e, lhs)
-		}
+		return check.useN(n.ElemList, lhs)
 	default:
 		check.rawExpr(&x, e, nil, true)
 	}
+	return x.mode != invalid
 }

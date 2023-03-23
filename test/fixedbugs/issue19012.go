@@ -15,7 +15,7 @@ func f(x int, y uint) {
 	if true {
 		return "a" > 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
 	}
-	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types" "too many return values"
+	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
 }
 
 func main() {
