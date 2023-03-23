@@ -11,7 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log/slog/internal/buffer"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -603,11 +602,8 @@ func TestWriteTimeRFC3339(t *testing.T) {
 		time.Date(2000, 1, 2, 3, 4, 5, 400, time.Local),
 		time.Date(2000, 11, 12, 3, 4, 500, 5e7, time.UTC),
 	} {
+		got := string(appendRFC3339Millis(nil, tm))
 		want := tm.Format(rfc3339Millis)
-		buf := buffer.New()
-		defer buf.Free()
-		writeTimeRFC3339Millis(buf, tm)
-		got := buf.String()
 		if got != want {
 			t.Errorf("got %s, want %s", got, want)
 		}
@@ -615,12 +611,10 @@ func TestWriteTimeRFC3339(t *testing.T) {
 }
 
 func BenchmarkWriteTime(b *testing.B) {
-	buf := buffer.New()
-	defer buf.Free()
 	tm := time.Date(2022, 3, 4, 5, 6, 7, 823456789, time.Local)
 	b.ResetTimer()
+	var buf []byte
 	for i := 0; i < b.N; i++ {
-		writeTimeRFC3339Millis(buf, tm)
-		buf.Reset()
+		buf = appendRFC3339Millis(buf[:0], tm)
 	}
 }
