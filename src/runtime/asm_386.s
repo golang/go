@@ -720,7 +720,7 @@ loadg:
 	MOVL	BP, savedm-4(SP) // saved copy of oldm
 	JMP	havem
 needm:
-	MOVL	$runtime·needm(SB), AX
+	MOVL	$runtime·needAndBindM(SB), AX
 	CALL	AX
 	MOVL	$0, savedm-4(SP)
 	get_tls(CX)
@@ -808,18 +808,13 @@ havem:
 	CMPL	DX, $0
 	JNE	droppedm
 
-	// Skip dropm to reuse it in the next call, when a pthread key has been created,
-	// instead, cgoBindM save the g0 into a thread-specific value associated with the
-	// pthread key, and pthread_key_destructor will dropm when the thread is exiting.
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
 	MOVL	_cgo_pthread_key_created(SB), DX
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CMPL	DX, $0
 	JEQ	dropm
 	CMPL	(DX), $0
-	JEQ	dropm
-	MOVL	$runtime·cgoBindM(SB), AX
-	CALL	AX
-	JMP	droppedm
+	JNE	droppedm
 
 dropm:
 	MOVL	$runtime·dropm(SB), AX

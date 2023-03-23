@@ -498,7 +498,7 @@ nocgo:
 
 needm:
 	MOVV	g, savedm-8(SP) // g is zero, so is m.
-	MOVV	$runtime·needm(SB), R4
+	MOVV	$runtime·needAndBindM(SB), R4
 	JAL	(R4)
 
 	// Set m->sched.sp = SP, so that if a panic happens
@@ -579,17 +579,12 @@ havem:
 	MOVV	savedm-8(SP), R3
 	BNE	R3, droppedm
 
-	// Skip dropm to reuse it in the next call, when a pthread key has been created,
-	// instead, cgoBindM save the g0 into a thread-specific value associated with the
-	// pthread key, and pthread_key_destructor will dropm when the thread is exiting.
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
 	MOVV	_cgo_pthread_key_created(SB), R3
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	BEQ	R3, dropm
 	MOVV	(R3), R3
-	BEQ	R3, dropm
-	MOVV	$runtime·cgoBindM(SB), R4
-	JAL	(R4)
-	JMP	droppedm
+	BNE	R3, droppedm
 
 dropm:
 	MOVV	$runtime·dropm(SB), R4

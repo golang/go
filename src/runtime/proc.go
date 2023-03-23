@@ -1881,8 +1881,9 @@ func allocm(pp *p, fn func(), id int64) *m {
 // pressed into service as the scheduling stack and current
 // goroutine for the duration of the cgo callback.
 //
-// When the callback is done with the m, it calls dropm to
-// put the m back on the list.
+// It calls dropm to put the m back on the list,
+// 1. when the callback is done with the m in non-pthread platforms,
+// 2. or when the C thread exiting on pthread platforms.
 //
 //go:nosplit
 func needm() {
@@ -1956,6 +1957,17 @@ func needm() {
 	// mp.curg is now a real goroutine.
 	casgstatus(mp.curg, _Gdead, _Gsyscall)
 	sched.ngsys.Add(-1)
+}
+
+// Acquire an extra m and bind it to the C thread when a pthread key has been created.
+//
+//go:nosplit
+func needAndBindM() {
+	needm()
+
+	if _cgo_pthread_key_created != nil && *(*int)(_cgo_pthread_key_created) != 0 {
+		cgoBindM()
+	}
 }
 
 // newextram allocates m's and puts them on the extra list.
@@ -2099,7 +2111,7 @@ func dropm() {
 //
 // We allocate a pthread per-thread variable using pthread_key_create,
 // to register a thread-exit-time destructor.
-// We are here setting the thread-specific value of the pthread key, to enable the destructoor.
+// We are here setting the thread-specific value of the pthread key, to enable the destructor.
 // So that the pthread_key_destructor would dropm while the C thread is exiting.
 //
 // And the saved g will be used in pthread_key_destructor,
@@ -2113,6 +2125,7 @@ func dropm() {
 //
 // NOTE: this always runs without a P, so, nowritebarrierrec required.
 //
+//go:nosplit
 //go:nowritebarrierrec
 func cgoBindM() {
 	if GOOS == "windows" || GOOS == "plan9" {

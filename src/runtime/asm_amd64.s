@@ -966,7 +966,7 @@ needm:
 	// a bad value in there, in case needm tries to use it.
 	XORPS	X15, X15
 	XORQ    R14, R14
-	MOVQ	$runtime·needm<ABIInternal>(SB), AX
+	MOVQ	$runtime·needAndBindM<ABIInternal>(SB), AX
 	CALL	AX
 	MOVQ	$0, savedm-8(SP)
 	get_tls(CX)
@@ -1068,18 +1068,13 @@ havem:
 	CMPQ	BX, $0
 	JNE	done
 
-	// Skip dropm to reuse it in the next call, when a pthread key has been created,
-	// instead, cgoBindM save the g0 into a thread-specific value associated with the
-	// pthread key, and pthread_key_destructor will dropm when the thread is exiting.
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
 	MOVQ	_cgo_pthread_key_created(SB), AX
 	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
 	CMPQ	AX, $0
 	JEQ	dropm
 	CMPQ	(AX), $0
-	JEQ	dropm
-	MOVQ	$runtime·cgoBindM(SB), AX
-	CALL	AX
-	JMP	done
+	JNE	done
 
 dropm:
 	MOVQ	$runtime·dropm(SB), AX
