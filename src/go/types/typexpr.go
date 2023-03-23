@@ -494,13 +494,17 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 				if n, ok := constant.Int64Val(val); ok && n >= 0 {
 					return n
 				}
-				check.errorf(&x, InvalidArrayLen, "invalid array length %s", &x)
-				return -1
 			}
 		}
 	}
 
-	check.errorf(&x, InvalidArrayLen, "array length %s must be integer", &x)
+	var msg string
+	if isInteger(x.typ) {
+		msg = "invalid array length %s"
+	} else {
+		msg = "array length %s must be integer"
+	}
+	check.errorf(&x, InvalidArrayLen, msg, &x)
 	return -1
 }
 
