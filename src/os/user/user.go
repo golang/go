@@ -11,10 +11,6 @@ One is written in pure Go and parses /etc/passwd and /etc/group. The other
 is cgo-based and relies on the standard C library (libc) routines such as
 getpwuid_r, getgrnam_r, and getgrouplist.
 
-For Linux, the pure Go implementation queries the systemd-userdb service first.
-If the service is not available, it falls back to parsing /etc/passwd and
-/etc/group.
-
 When cgo is available, and the required routines are implemented in libc
 for a particular platform, cgo-based (libc-backed) code is used.
 This can be overridden by using osusergo build tag, which enforces
