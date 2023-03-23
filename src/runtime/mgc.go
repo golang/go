@@ -285,8 +285,9 @@ func pollFractionalWorkerExit() bool {
 
 var work struct {
 	full  lfstack          // lock-free list of full blocks workbuf
+	pad0  cpu.CacheLinePad // prevents false-sharing between full and empty
 	empty lfstack          // lock-free list of empty blocks workbuf
-	pad0  cpu.CacheLinePad // prevents false-sharing between full/empty and nproc/nwait
+	pad1  cpu.CacheLinePad // prevents false-sharing between empty and nproc/nwait
 
 	wbufSpans struct {
 		lock mutex
