@@ -342,7 +342,7 @@ func parseBasicConstraintsExtension(der cryptobyte.String) (bool, int, error) {
 		}
 	}
 	maxPathLen := -1
-	if !der.Empty() && der.PeekASN1Tag(cryptobyte_asn1.INTEGER) {
+	if der.PeekASN1Tag(cryptobyte_asn1.INTEGER) {
 		if !der.ReadASN1Integer(&maxPathLen) {
 			return false, 0, errors.New("x509: invalid basic constraints")
 		}
