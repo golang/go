@@ -424,7 +424,7 @@ func mdestroy(mp *m) {
 //#define sa_handler k_sa_handler
 //#endif
 
-func sigreturn()
+func sigreturn__sigaction()
 func sigtramp() // Called via C ABI
 func cgoSigtramp()
 
@@ -481,7 +481,7 @@ func setsig(i uint32, fn uintptr) {
 	// should not be used". x86_64 kernel requires it. Only use it on
 	// x86.
 	if GOARCH == "386" || GOARCH == "amd64" {
-		sa.sa_restorer = abi.FuncPCABI0(sigreturn)
+		sa.sa_restorer = abi.FuncPCABI0(sigreturn__sigaction)
 	}
 	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
 		if iscgo {

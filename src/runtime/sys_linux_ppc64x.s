@@ -447,9 +447,6 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	24(R1), R2
 	RET
 
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
-	RET
-
 #ifdef GOARCH_ppc64le
 // ppc64le doesn't need function descriptors
 // Save callee-save registers in the case of signal forwarding.
