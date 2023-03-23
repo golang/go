@@ -55,6 +55,15 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	cgocheck mode can be enabled using GOEXPERIMENT (which
 	requires a rebuild), see https://pkg.go.dev/internal/goexperiment for details.
 
+	dontfreezetheworld: by default, the start of a fatal panic or throw
+	"freezes the world", stopping all goroutines, which makes it possible
+	to traceback all goroutines (running goroutines cannot be traced), and
+	keeps their state close to the point of panic. Setting
+	dontfreezetheworld=1 disables freeze, allowing goroutines to continue
+	executing during panic processing. This can be useful when debugging
+	the runtime scheduler, as freezetheworld perturbs scheduler state and
+	thus may hide problems.
+
 	efence: setting efence=1 causes the allocator to run in a mode
 	where each object is allocated on a unique page and addresses are
 	never recycled.
