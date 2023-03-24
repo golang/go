@@ -25,7 +25,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -766,35 +765,6 @@ func (r *runner) Definition(t *testing.T, _ span.Span, d tests.Definition) {
 	}
 	if !didSomething {
 		t.Errorf("no tests ran for %s", d.Src.URI())
-	}
-}
-
-func (r *runner) Implementation(t *testing.T, spn span.Span, wantSpans []span.Span) {
-	sm, err := r.data.Mapper(spn.URI())
-	if err != nil {
-		t.Fatal(err)
-	}
-	loc, err := sm.SpanLocation(spn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	gotImpls, err := r.server.Implementation(r.ctx, &protocol.ImplementationParams{
-		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(loc),
-	})
-	if err != nil {
-		t.Fatalf("Server.Implementation(%s): %v", spn, err)
-	}
-	gotLocs, err := tests.LocationsToSpans(r.data, gotImpls)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sanitize := func(s string) string {
-		return strings.ReplaceAll(s, r.data.Config.Dir, "gopls/internal/lsp/testdata")
-	}
-	want := sanitize(tests.SortAndFormatSpans(wantSpans))
-	got := sanitize(tests.SortAndFormatSpans(gotLocs))
-	if got != want {
-		t.Errorf("implementations(%s):\n%s", sanitize(fmt.Sprint(spn)), diff.Unified("want", "got", want, got))
 	}
 }
 

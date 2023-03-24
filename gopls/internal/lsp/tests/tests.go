@@ -82,7 +82,6 @@ type SuggestedFixes = map[span.Span][]SuggestedFix
 type FunctionExtractions = map[span.Span]span.Span
 type MethodExtractions = map[span.Span]span.Span
 type Definitions = map[span.Span]Definition
-type Implementations = map[span.Span][]span.Span
 type Highlights = map[span.Span][]span.Span
 type Renames = map[span.Span]string
 type PrepareRenames = map[span.Span]*source.PrepareItem
@@ -116,7 +115,6 @@ type Data struct {
 	FunctionExtractions      FunctionExtractions
 	MethodExtractions        MethodExtractions
 	Definitions              Definitions
-	Implementations          Implementations
 	Highlights               Highlights
 	Renames                  Renames
 	InlayHints               InlayHints
@@ -164,7 +162,6 @@ type Tests interface {
 	FunctionExtraction(*testing.T, span.Span, span.Span)
 	MethodExtraction(*testing.T, span.Span, span.Span)
 	Definition(*testing.T, span.Span, Definition)
-	Implementation(*testing.T, span.Span, []span.Span)
 	Highlight(*testing.T, span.Span, []span.Span)
 	InlayHints(*testing.T, span.Span)
 	Rename(*testing.T, span.Span, string)
@@ -313,7 +310,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		RankCompletions:          make(RankCompletions),
 		CaseSensitiveCompletions: make(CaseSensitiveCompletions),
 		Definitions:              make(Definitions),
-		Implementations:          make(Implementations),
 		Highlights:               make(Highlights),
 		Renames:                  make(Renames),
 		PrepareRenames:           make(PrepareRenames),
@@ -457,38 +453,37 @@ func load(t testing.TB, mode string, dir string) *Data {
 
 	// Collect any data that needs to be used by subsequent tests.
 	if err := datum.Exported.Expect(map[string]interface{}{
-		"codelens":        datum.collectCodeLens,
-		"diag":            datum.collectDiagnostics,
-		"item":            datum.collectCompletionItems,
-		"complete":        datum.collectCompletions(CompletionDefault),
-		"unimported":      datum.collectCompletions(CompletionUnimported),
-		"deep":            datum.collectCompletions(CompletionDeep),
-		"fuzzy":           datum.collectCompletions(CompletionFuzzy),
-		"casesensitive":   datum.collectCompletions(CompletionCaseSensitive),
-		"rank":            datum.collectCompletions(CompletionRank),
-		"snippet":         datum.collectCompletionSnippets,
-		"fold":            datum.collectFoldingRanges,
-		"format":          datum.collectFormats,
-		"import":          datum.collectImports,
-		"semantic":        datum.collectSemanticTokens,
-		"godef":           datum.collectDefinitions,
-		"implementations": datum.collectImplementations,
-		"typdef":          datum.collectTypeDefinitions,
-		"hoverdef":        datum.collectHoverDefinitions,
-		"highlight":       datum.collectHighlights,
-		"inlayHint":       datum.collectInlayHints,
-		"rename":          datum.collectRenames,
-		"prepare":         datum.collectPrepareRenames,
-		"symbol":          datum.collectSymbols,
-		"signature":       datum.collectSignatures,
-		"link":            datum.collectLinks,
-		"suggestedfix":    datum.collectSuggestedFixes,
-		"extractfunc":     datum.collectFunctionExtractions,
-		"extractmethod":   datum.collectMethodExtractions,
-		"incomingcalls":   datum.collectIncomingCalls,
-		"outgoingcalls":   datum.collectOutgoingCalls,
-		"addimport":       datum.collectAddImports,
-		"selectionrange":  datum.collectSelectionRanges,
+		"codelens":       datum.collectCodeLens,
+		"diag":           datum.collectDiagnostics,
+		"item":           datum.collectCompletionItems,
+		"complete":       datum.collectCompletions(CompletionDefault),
+		"unimported":     datum.collectCompletions(CompletionUnimported),
+		"deep":           datum.collectCompletions(CompletionDeep),
+		"fuzzy":          datum.collectCompletions(CompletionFuzzy),
+		"casesensitive":  datum.collectCompletions(CompletionCaseSensitive),
+		"rank":           datum.collectCompletions(CompletionRank),
+		"snippet":        datum.collectCompletionSnippets,
+		"fold":           datum.collectFoldingRanges,
+		"format":         datum.collectFormats,
+		"import":         datum.collectImports,
+		"semantic":       datum.collectSemanticTokens,
+		"godef":          datum.collectDefinitions,
+		"typdef":         datum.collectTypeDefinitions,
+		"hoverdef":       datum.collectHoverDefinitions,
+		"highlight":      datum.collectHighlights,
+		"inlayHint":      datum.collectInlayHints,
+		"rename":         datum.collectRenames,
+		"prepare":        datum.collectPrepareRenames,
+		"symbol":         datum.collectSymbols,
+		"signature":      datum.collectSignatures,
+		"link":           datum.collectLinks,
+		"suggestedfix":   datum.collectSuggestedFixes,
+		"extractfunc":    datum.collectFunctionExtractions,
+		"extractmethod":  datum.collectMethodExtractions,
+		"incomingcalls":  datum.collectIncomingCalls,
+		"outgoingcalls":  datum.collectOutgoingCalls,
+		"addimport":      datum.collectAddImports,
+		"selectionrange": datum.collectSelectionRanges,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -752,16 +747,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
-	t.Run("Implementation", func(t *testing.T) {
-		t.Helper()
-		for spn, m := range data.Implementations {
-			t.Run(SpanName(spn), func(t *testing.T) {
-				t.Helper()
-				tests.Implementation(t, spn, m)
-			})
-		}
-	})
-
 	t.Run("Highlight", func(t *testing.T) {
 		t.Helper()
 		for pos, locations := range data.Highlights {
@@ -1010,7 +995,6 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "WorkspaceSymbolsCount = %v\n", countWorkspaceSymbols(data.WorkspaceSymbols))
 	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
-	fmt.Fprintf(buf, "ImplementationsCount = %v\n", len(data.Implementations))
 	fmt.Fprintf(buf, "SelectionRangesCount = %v\n", len(data.SelectionRanges))
 
 	want := string(data.Golden(t, "summary", summaryFile, func() ([]byte, error) {
@@ -1215,10 +1199,6 @@ func (data *Data) collectDefinitions(src, target span.Span) {
 
 func (data *Data) collectSelectionRanges(spn span.Span) {
 	data.SelectionRanges = append(data.SelectionRanges, spn)
-}
-
-func (data *Data) collectImplementations(src span.Span, targets []span.Span) {
-	data.Implementations[src] = targets
 }
 
 func (data *Data) collectIncomingCalls(src span.Span, calls []span.Span) {

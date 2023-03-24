@@ -34,7 +34,6 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
-	"golang.org/x/tools/internal/diff"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/testenv"
@@ -129,6 +128,10 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - hover(src, dst location, g Golden): perform a textDocument/hover at the
 //     src location, and checks that the result is the dst location, with hover
 //     content matching "hover.md" in the golden data g.
+//
+//   - implementations(src location, want ...location): makes a
+//     textDocument/implementation query at the src location and
+//     checks that the resulting set of locations matches want.
 //
 //   - loc(name, location): specifies the name for a location in the source. These
 //     locations may be referenced by other markers.
@@ -258,7 +261,6 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - FunctionExtractions
 //   - MethodExtractions
 //   - Definitions
-//   - Implementations
 //   - Highlights
 //   - Renames
 //   - PrepareRenames
@@ -428,9 +430,7 @@ func (mark marker) execute() {
 		if i < len(fn.converters) {
 			convert = fn.converters[i]
 		} else if !fn.variadic {
-			mark.errorf("got %d arguments to %s, expect %d",
-				len(mark.note.Args), mark.note.Name, len(fn.converters))
-			return
+			goto arity // too many args
 		}
 
 		// Special handling for the blank identifier: treat it as the zero value.
@@ -447,8 +447,16 @@ func (mark marker) execute() {
 		}
 		args = append(args, reflect.ValueOf(out))
 	}
+	if len(args) < len(fn.converters) {
+		goto arity // too few args
+	}
 
 	fn.fn.Call(args)
+	return
+
+arity:
+	mark.errorf("got %d arguments to %s, want %d",
+		len(mark.note.Args), mark.note.Name, len(fn.converters))
 }
 
 // Supported marker functions.
@@ -459,15 +467,16 @@ func (mark marker) execute() {
 // Marker funcs should not mutate the test environment (e.g. via opening files
 // or applying edits in the editor).
 var markerFuncs = map[string]markerFunc{
-	"complete":     makeMarkerFunc(completeMarker),
-	"def":          makeMarkerFunc(defMarker),
-	"diag":         makeMarkerFunc(diagMarker),
-	"hover":        makeMarkerFunc(hoverMarker),
-	"loc":          makeMarkerFunc(locMarker),
-	"rename":       makeMarkerFunc(renameMarker),
-	"renameerr":    makeMarkerFunc(renameErrMarker),
-	"suggestedfix": makeMarkerFunc(suggestedfixMarker),
-	"refs":         makeMarkerFunc(refsMarker),
+	"complete":       makeMarkerFunc(completeMarker),
+	"def":            makeMarkerFunc(defMarker),
+	"diag":           makeMarkerFunc(diagMarker),
+	"hover":          makeMarkerFunc(hoverMarker),
+	"implementation": makeMarkerFunc(implementationMarker),
+	"loc":            makeMarkerFunc(locMarker),
+	"rename":         makeMarkerFunc(renameMarker),
+	"renameerr":      makeMarkerFunc(renameErrMarker),
+	"suggestedfix":   makeMarkerFunc(suggestedfixMarker),
+	"refs":           makeMarkerFunc(refsMarker),
 }
 
 // markerTest holds all the test data extracted from a test txtar archive.
@@ -1354,37 +1363,17 @@ func suggestedfix(env *Env, loc protocol.Location, diag protocol.Diagnostic, act
 // refsMarker implements the @refs marker.
 func refsMarker(mark marker, src protocol.Location, want ...protocol.Location) {
 	refs := func(includeDeclaration bool, want []protocol.Location) error {
-		params := &protocol.ReferenceParams{
+		got, err := mark.run.env.Editor.Server.References(mark.run.env.Ctx, &protocol.ReferenceParams{
 			TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(src),
 			Context: protocol.ReferenceContext{
 				IncludeDeclaration: includeDeclaration,
 			},
-		}
-
-		got, err := mark.run.env.Editor.Server.References(mark.run.env.Ctx, params)
+		})
 		if err != nil {
 			return err
 		}
 
-		// Compare the sets of locations.
-		toString := func(locs []protocol.Location) string {
-			// TODO(adonovan): use generic JoinValues(locs, fmtLoc).
-			strs := make([]string, len(locs))
-			for i, loc := range locs {
-				strs[i] = mark.run.fmtLoc(loc)
-			}
-			sort.Strings(strs)
-			return strings.Join(strs, "\n")
-		}
-		gotStr := toString(got)
-		wantStr := toString(want)
-		if gotStr != wantStr {
-			return fmt.Errorf("incorrect references (got %d, want %d) at %s:\n%s",
-				len(got), len(want),
-				mark.run.fmtLoc(src),
-				diff.Unified("want", "got", wantStr, gotStr))
-		}
-		return nil
+		return compareLocations(mark, got, want)
 	}
 
 	for _, includeDeclaration := range []bool{false, true} {
@@ -1400,4 +1389,36 @@ func refsMarker(mark marker, src protocol.Location, want ...protocol.Location) {
 				includeDeclaration, err)
 		}
 	}
+}
+
+// implementationMarker implements the @implementation marker.
+func implementationMarker(mark marker, src protocol.Location, want ...protocol.Location) {
+	got, err := mark.run.env.Editor.Server.Implementation(mark.run.env.Ctx, &protocol.ImplementationParams{
+		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(src),
+	})
+	if err != nil {
+		mark.errorf("implementation at %s failed: %v", src, err)
+		return
+	}
+	if err := compareLocations(mark, got, want); err != nil {
+		mark.errorf("implementation: %v", err)
+	}
+}
+
+// compareLocations returns an error message if got and want are not
+// the same set of locations. The marker is used only for fmtLoc.
+func compareLocations(mark marker, got, want []protocol.Location) error {
+	toStrings := func(locs []protocol.Location) []string {
+		strs := make([]string, len(locs))
+		for i, loc := range locs {
+			strs[i] = mark.run.fmtLoc(loc)
+		}
+		sort.Strings(strs)
+		return strs
+	}
+	if diff := cmp.Diff(toStrings(want), toStrings(got)); diff != "" {
+		return fmt.Errorf("incorrect result locations: (got %d, want %d):\n%s",
+			len(got), len(want), diff)
+	}
+	return nil
 }

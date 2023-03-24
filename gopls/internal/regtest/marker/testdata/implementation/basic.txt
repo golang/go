@@ -1,0 +1,73 @@
+Basic test of implementation query.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- implementation/implementation.go --
+package implementation
+
+import "example.com/other"
+
+type ImpP struct{} //@loc(ImpP, "ImpP"),implementation("ImpP", Laugher, OtherLaugher)
+
+func (*ImpP) Laugh() { //@loc(LaughP, "Laugh"),implementation("Laugh", Laugh, OtherLaugh)
+}
+
+type ImpS struct{} //@loc(ImpS, "ImpS"),implementation("ImpS", Laugher, OtherLaugher)
+
+func (ImpS) Laugh() { //@loc(LaughS, "Laugh"),implementation("Laugh", Laugh, OtherLaugh)
+}
+
+type Laugher interface { //@loc(Laugher, "Laugher"),implementation("Laugher", ImpP, OtherImpP, ImpS, OtherImpS, embedsImpP)
+	Laugh() //@loc(Laugh, "Laugh"),implementation("Laugh", LaughP, OtherLaughP, LaughS, OtherLaughS)
+}
+
+type Foo struct { //@implementation("Foo", Joker)
+	other.Foo
+}
+
+type Joker interface { //@loc(Joker, "Joker")
+	Joke() //@loc(Joke, "Joke"),implementation("Joke", ImpJoker)
+}
+
+type cryer int //@implementation("cryer", Cryer)
+
+func (cryer) Cry(other.CryType) {} //@loc(CryImpl, "Cry"),implementation("Cry", Cry)
+
+type Empty interface{} //@implementation("Empty")
+
+var _ interface{ Joke() } //@implementation("Joke", ImpJoker)
+
+type embedsImpP struct { //@loc(embedsImpP, "embedsImpP")
+	ImpP //@implementation("ImpP", Laugher, OtherLaugher)
+}
+
+-- other/other.go --
+package other
+
+type ImpP struct{} //@loc(OtherImpP, "ImpP")
+
+func (*ImpP) Laugh() { //@loc(OtherLaughP, "Laugh")
+}
+
+type ImpS struct{} //@loc(OtherImpS, "ImpS")
+
+func (ImpS) Laugh() { //@loc(OtherLaughS, "Laugh")
+}
+
+type ImpI interface { //@loc(OtherLaugher, "ImpI")
+	Laugh() //@loc(OtherLaugh, "Laugh")
+}
+
+type Foo struct { //@implementation("Foo", Joker)
+}
+
+func (Foo) Joke() { //@loc(ImpJoker, "Joke"),implementation("Joke", Joke)
+}
+
+type CryType int
+
+type Cryer interface { //@loc(Cryer, "Cryer")
+	Cry(CryType) //@loc(Cry, "Cry"),implementation("Cry", CryImpl)
+}

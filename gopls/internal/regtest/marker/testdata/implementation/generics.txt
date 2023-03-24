@@ -1,0 +1,34 @@
+Test of 'implementation' query on generic types.
+
+-- flags --
+-min_go=go1.18
+
+-- go.mod --
+module example.com
+go 1.18
+
+-- implementation/implementation.go --
+package implementation
+
+type GenIface[T any] interface { //@loc(GenIface, "GenIface"),implementation("GenIface", GC)
+	F(int, string, T) //@loc(GenIfaceF, "F"),implementation("F", GCF)
+}
+
+type GenConc[U any] int //@loc(GenConc, "GenConc"),implementation("GenConc", GI)
+
+func (GenConc[V]) F(int, string, V) {} //@loc(GenConcF, "F"),implementation("F", GIF)
+
+type GenConcString struct{ GenConc[string] } //@loc(GenConcString, "GenConcString"),implementation(GenConcString, GIString)
+
+-- other/other.go --
+package other
+
+type GI[T any] interface { //@loc(GI, "GI"),implementation("GI", GenConc)
+	F(int, string, T) //@loc(GIF, "F"),implementation("F", GenConcF)
+}
+
+type GIString GI[string] //@loc(GIString, "GIString"),implementation("GIString", GenConcString)
+
+type GC[U any] int //@loc(GC, "GC"),implementation("GC", GenIface)
+
+func (GC[V]) F(int, string, V) {} //@loc(GCF, "F"),implementation("F", GenIfaceF)
