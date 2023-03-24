@@ -633,6 +633,7 @@ TEXT	·cgocallback(SB),NOSPLIT,$12-12
 	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
 	// It is used to dropm while thread is exiting.
 	MOVW	fn+0(FP), R1
+	CMP	$0, R1
 	B.NE	loadg
 	// Restore the g from frame.
 	MOVW	frame+4(FP), g
