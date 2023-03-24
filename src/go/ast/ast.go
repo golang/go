@@ -153,7 +153,12 @@ func (g *CommentGroup) Text() string {
 		}
 		lines = lines[0:n]
 	} else {
+		// Remove trailing blank lines
 		n = len(lines)
+		for n > 0 && lines[n-1] == "" {
+			n--
+		}
+		lines = lines[0:n]
 	}
 
 	// Add final "" entry to get trailing newline from Join.
