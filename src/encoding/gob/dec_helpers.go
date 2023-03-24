@@ -359,6 +359,7 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
 			errorf("decoding string array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
+			// This is a slice that we only partially allocated.
 			growSlice(v, &slice, length)
 		}
 		u := state.decodeUint()
