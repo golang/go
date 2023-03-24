@@ -1965,7 +1965,7 @@ func needm() {
 func needAndBindM() {
 	needm()
 
-	if _cgo_pthread_key_created != nil && *(*int)(_cgo_pthread_key_created) != 0 {
+	if _cgo_pthread_key_created != nil && *(*uintptr)(_cgo_pthread_key_created) != 0 {
 		cgoBindM()
 	}
 }
