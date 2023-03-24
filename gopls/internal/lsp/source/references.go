@@ -258,8 +258,9 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	var (
 		globalScope   = make(map[PackageID]*Metadata)
 		globalTargets map[PackagePath]map[objectpath.Path]unit
+		expansions    = make(map[*Metadata]unit) // packages that caused search expansion
 	)
-	// TODO(adonovan): what about generic functions. Need to consider both
+	// TODO(adonovan): what about generic functions? Need to consider both
 	// uninstantiated and instantiated. The latter have no objectpath. Use Origin?
 	if path, err := objectpath.For(obj); err == nil && obj.Exported() {
 		pkgPath := variants[0].PkgPath // (all variants have same package path)
@@ -291,8 +292,11 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 		// all methods that correspond to it through interface
 		// satisfaction, and the scope includes the rdeps of
 		// the package that declares each corresponding type.
+		//
+		// 'expansions' records the packages that declared
+		// such types.
 		if recv := effectiveReceiver(obj); recv != nil {
-			if err := expandMethodSearch(ctx, snapshot, obj.(*types.Func), recv, globalScope, globalTargets); err != nil {
+			if err := expandMethodSearch(ctx, snapshot, obj.(*types.Func), recv, globalScope, globalTargets, expansions); err != nil {
 				return nil, err
 			}
 		}
@@ -326,6 +330,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	var group errgroup.Group
 
 	// Compute local references for each variant.
+	// The target objects are identified by (URI, offset).
 	for _, m := range variants {
 		// We want the ordinary importable package,
 		// plus any test-augmented variants, since
@@ -341,7 +346,66 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 		}
 		m := m
 		group.Go(func() error {
-			return localReferences(ctx, snapshot, declURI, declPosn.Offset, m, report)
+			// TODO(adonovan): opt: batch these TypeChecks.
+			pkgs, err := snapshot.TypeCheck(ctx, m.ID)
+			if err != nil {
+				return err
+			}
+			pkg := pkgs[0]
+
+			// Find the declaration of the corresponding
+			// object in this package based on (URI, offset).
+			pgf, err := pkg.File(declURI)
+			if err != nil {
+				return err
+			}
+			pos, err := safetoken.Pos(pgf.Tok, declPosn.Offset)
+			if err != nil {
+				return err
+			}
+			objects, _, err := objectsAt(pkg.GetTypesInfo(), pgf.File, pos)
+			if err != nil {
+				return err // unreachable? (probably caught earlier)
+			}
+
+			// Report the locations of the declaration(s).
+			// TODO(adonovan): what about for corresponding methods? Add tests.
+			for _, node := range objects {
+				report(mustLocation(pgf, node), true)
+			}
+
+			// Convert targets map to set.
+			targets := make(map[types.Object]bool)
+			for obj := range objects {
+				targets[obj] = true
+			}
+
+			return localReferences(pkg, targets, report)
+		})
+	}
+
+	// Also compute local references within packages that declare
+	// corresponding methods (see above), which expand the global search.
+	// The target objects are identified by (PkgPath, objectpath).
+	for m := range expansions {
+		m := m
+		group.Go(func() error {
+			// TODO(adonovan): opt: batch these TypeChecks.
+			pkgs, err := snapshot.TypeCheck(ctx, m.ID)
+			if err != nil {
+				return err
+			}
+			pkg := pkgs[0]
+
+			targets := make(map[types.Object]bool)
+			for objpath := range globalTargets[m.PkgPath] {
+				obj, err := objectpath.Object(pkg.GetTypes(), objpath)
+				if err != nil {
+					return err // can't happen?
+				}
+				targets[obj] = true
+			}
+			return localReferences(pkg, targets, report)
 		})
 	}
 
@@ -373,8 +437,12 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 // for an exported method to include all methods that correspond to
 // it through interface satisfaction.
 //
+// Each package that declares a corresponding type is added to
+// expansions so that we can also find local references to the type
+// within the package, which of course requires type checking.
+//
 // recv is the method's effective receiver type, for method-set computations.
-func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Func, recv types.Type, scope map[PackageID]*Metadata, targets map[PackagePath]map[objectpath.Path]unit) error {
+func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Func, recv types.Type, scope map[PackageID]*Metadata, targets map[PackagePath]map[objectpath.Path]unit, expansions map[*Metadata]unit) error {
 	// Compute the method-set fingerprint used as a key to the global search.
 	key, hasMethods := methodsets.KeyOf(recv)
 	if !hasMethods {
@@ -393,7 +461,7 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 	if err != nil {
 		return err
 	}
-	var mu sync.Mutex // guards scope and targets
+	var mu sync.Mutex // guards scope, targets, expansions
 	var group errgroup.Group
 	for i, index := range indexes {
 		i := i
@@ -410,8 +478,12 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 			if err != nil {
 				return err
 			}
+
 			mu.Lock()
 			defer mu.Unlock()
+
+			expansions[metas[i]] = unit{}
+
 			for _, rdep := range rdeps {
 				scope[rdep.ID] = rdep
 			}
@@ -432,36 +504,8 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 	return group.Wait()
 }
 
-// localReferences reports each reference to the object
-// declared at the specified URI/offset within its enclosing package m.
-func localReferences(ctx context.Context, snapshot Snapshot, declURI span.URI, declOffset int, m *Metadata, report func(loc protocol.Location, isDecl bool)) error {
-	pkgs, err := snapshot.TypeCheck(ctx, m.ID)
-	if err != nil {
-		return err
-	}
-	pkg := pkgs[0] // narrowest
-
-	// Find declaration of corresponding object
-	// in this package based on (URI, offset).
-	pgf, err := pkg.File(declURI)
-	if err != nil {
-		return err
-	}
-	pos, err := safetoken.Pos(pgf.Tok, declOffset)
-	if err != nil {
-		return err
-	}
-	targets, _, err := objectsAt(pkg.GetTypesInfo(), pgf.File, pos)
-	if err != nil {
-		return err // unreachable? (probably caught earlier)
-	}
-
-	// Report the locations of the declaration(s).
-	// TODO(adonovan): what about for corresponding methods? Add tests.
-	for _, node := range targets {
-		report(mustLocation(pgf, node), true)
-	}
-
+// localReferences traverses syntax and reports each reference to one of the target objects.
+func localReferences(pkg Package, targets map[types.Object]bool, report func(loc protocol.Location, isDecl bool)) error {
 	// If we're searching for references to a method, broaden the
 	// search to include references to corresponding methods of
 	// mutually assignable receiver types.
@@ -478,7 +522,7 @@ func localReferences(ctx context.Context, snapshot Snapshot, declURI span.URI, d
 	// matches reports whether obj either is or corresponds to a target.
 	// (Correspondence is defined as usual for interface methods.)
 	matches := func(obj types.Object) bool {
-		if targets[obj] != nil {
+		if targets[obj] {
 			return true
 		} else if methodRecvs != nil && obj.Name() == methodName {
 			if orecv := effectiveReceiver(obj); orecv != nil {

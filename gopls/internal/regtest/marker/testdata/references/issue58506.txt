@@ -1,0 +1,56 @@
+Regression test for 'references' bug golang/go#58506.
+
+The 'references' query below, applied to method A.F, implicitly uses
+the 'implementation' operation. The correct response includes two
+references to B.F, one from package b and one from package d.
+However, the incremental 'implementation' algorithm had a bug that
+cause it to fail to report the reference from package b.
+
+The reason was that the incremental implementation uses different
+algorithms for the local and global cases (with disjoint results), and
+that when it discovered that type A satisfies interface B and thus
+that B.F must be included among the global search targets, the
+implementation forgot to also search package b for local references
+to B.F.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+type A int
+
+func (A) F() {} //@loc(refa, "F"), refs("F", refa, refb, refd)
+
+-- b/b.go --
+package b
+
+import (
+	"example.com/a"
+	"example.com/c"
+)
+
+type B interface{ F() }
+
+var _ B = a.A(0)
+var _ B = c.C(0)
+
+var _ = B.F //@loc(refb, "F")
+
+-- c/c.go --
+package c
+
+type C int
+
+// Even though C.F is "rename coupled" to A.F by B.F,
+// it should not be among the results.
+func (C) F() {}
+
+-- d/d.go --
+package d
+
+import "example.com/b"
+
+var _ interface{} = b.B.F //@loc(refd, "F")
