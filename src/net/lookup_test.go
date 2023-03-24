@@ -1401,23 +1401,39 @@ func TestDNSTimeout(t *testing.T) {
 }
 
 func TestLookupNoData(t *testing.T) {
+	testLookupNoData(t, "default resolver")
+
+	func() {
+		defer forceGoDNS()()
+		testLookupNoData(t, "forced go resolver")
+	}()
+
+	func() {
+		defer forceCgoDNS()()
+		testLookupNoData(t, "forced cgo resolver")
+	}()
+}
+
+func testLookupNoData(t *testing.T, prefix string) {
 	// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
 	// so that it returns an empty response without any error codes (NXDOMAIN).
 	_, err := LookupHost("_dmarc.google.com")
 	if err == nil {
-		t.Fatal("unexpected success")
+		t.Errorf("%v: unexpected success", prefix)
+		return
 	}
 
 	var dnsErr *DNSError
 	if !errors.As(err, &dnsErr) {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("%v: unexpected error: %v", prefix, err)
+		return
 	}
 
 	if !dnsErr.IsNotFound {
-		t.Error("IsNotFound is set to false")
+		t.Errorf("%v: IsNotFound is set to false", prefix)
 	}
 
 	if dnsErr.Err != errNoSuchHost.Error() {
-		t.Errorf("error message is not equal to: %v", errNoSuchHost.Error())
+		t.Errorf("%v: error message is not equal to: %v", prefix, errNoSuchHost.Error())
 	}
 }
