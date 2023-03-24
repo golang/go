@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/tools/go/gcexportdata"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/gopls/internal/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/source/typerefs"
@@ -286,10 +287,12 @@ func newParser() *memoizedParser {
 
 func (p *memoizedParser) parse(ctx context.Context, uri span.URI) (*ParsedGoFile, error) {
 	doParse := func(ctx context.Context, uri span.URI) (*ParsedGoFile, error) {
+		// TODO(adonovan): hoist this operation outside the benchmark critsec.
 		content, err := os.ReadFile(uri.Filename())
 		if err != nil {
 			return nil, err
 		}
+		content = astutil.PurgeFuncBodies(content)
 		pgf, _ := cache.ParseGoSrc(ctx, token.NewFileSet(), uri, content, source.ParseFull)
 		return pgf, nil
 	}

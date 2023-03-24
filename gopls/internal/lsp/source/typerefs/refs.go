@@ -46,14 +46,16 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 		// slice because multiple packages may be referenced by a given name in the
 		// presence of type errors (or multiple dot imports, which are keyed by
 		// ".").
-		localImports = make(map[*ast.File]map[string][]*source.Metadata)
+		localImports = make(map[*ast.File]map[string][]source.PackageID)
 	)
 
 	// Scan top-level declarations once to collect local import names and
 	// declInfo for each non-import declaration.
 	for _, pgf := range pgfs {
 		file := pgf.File
-		localImports[file] = make(map[string][]*source.Metadata)
+		fileImports := make(map[string][]source.PackageID)
+		localImports[file] = fileImports
+
 		for _, d := range file.Decls {
 			switch d := d.(type) {
 			case *ast.GenDecl:
@@ -80,28 +82,29 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 							}
 							name = spec.Name.Name // possibly "."
 						}
-						localImports[file][name] = append(localImports[file][name], dep)
+						fileImports[name] = append(fileImports[name], dep.ID)
 					}
 
 				case token.TYPE:
 					for _, spec := range d.Specs {
 						spec := spec.(*ast.TypeSpec)
-						if spec.Name.Name == "_" {
+						name := spec.Name.Name
+						if name == "_" {
 							continue
 						}
-						info := decls[spec.Name.Name] // TODO(rfindley): handle the case of duplicate decls.
+						info := decls[name] // TODO(rfindley): handle the case of duplicate decls.
 						if info == nil {
 							info = &declInfo{}
-							decls[spec.Name.Name] = info
+							decls[name] = info
 						}
 						// Sanity check that the root node info has not been set.
 						//
 						// TODO(rfindley): this panic is incorrect in the presence of
 						// invalid code with duplicate decls.
 						if info.node != nil || info.tparams != nil {
-							panic(fmt.Sprintf("root node already set for %s.%s", id, spec.Name.Name))
+							panic(fmt.Sprintf("root node already set for %s.%s", id, name))
 						}
-						info.name = spec.Name.Name
+						info.name = name
 						info.file = file
 						info.node = spec
 						info.tparams = tparamsMap(typeparams.ForTypeSpec(spec))
@@ -172,18 +175,23 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 
 		// recordEdge records the (id, name)->(id2, name) edge.
 		recordEdge := func(id2 source.PackageID, name2 string) {
-			if mappedRefs[name] == nil {
-				mappedRefs[name] = make(map[source.PackageID]map[string]bool)
+			pkgRefs, ok := mappedRefs[name]
+			if !ok {
+				pkgRefs = make(map[source.PackageID]map[string]bool)
+				mappedRefs[name] = pkgRefs
 			}
-			if mappedRefs[name][id2] == nil {
-				mappedRefs[name][id2] = make(map[string]bool)
+			names, ok := pkgRefs[id2]
+			if !ok {
+				names = make(map[string]bool)
+				pkgRefs[id2] = names
 			}
-			mappedRefs[name][id2][name2] = true
+			names[name2] = true
 		}
 
 		for _, info := range infos {
-			localImports := localImports[info.file]
+			fileImports := localImports[info.file]
 
+			// Visit each reference to name or name.sel.
 			visitDeclOrSpec(info.node, func(name, sel string) {
 				if info.tparams[name] {
 					return
@@ -215,18 +223,18 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 				//
 				// Just record edges to both.
 				if token.IsExported(name) {
-					for _, dep := range localImports["."] {
+					for _, depID := range fileImports["."] {
 						// Conservatively, assume that this name comes from every
 						// dot-imported package.
-						recordEdge(dep.ID, name)
+						recordEdge(depID, name)
 					}
 				}
 
 				// Similarly, if sel is exported we record an edge for every matching
 				// import.
 				if sel != "" && token.IsExported(sel) {
-					for _, dep := range localImports[name] {
-						recordEdge(dep.ID, sel)
+					for _, depID := range fileImports[name] {
+						recordEdge(depID, sel)
 					}
 				}
 			})
@@ -242,9 +250,9 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 		sort.Strings(names)
 		for _, name := range names {
 			fmt.Printf("\t-> %s\n", name)
-			for id2, names2 := range mappedRefs[name] {
+			for id2, pkgRefs := range mappedRefs[name] {
 				var ns []string
-				for n := range names2 {
+				for n := range pkgRefs {
 					ns = append(ns, n)
 				}
 				sort.Strings(ns)
@@ -333,17 +341,31 @@ func visitDeclOrSpec(node ast.Node, f refVisitor) {
 // visitExpr can't reliably distinguish a dotted ident pkg.X from a
 // selection expr.f or T.method.
 func visitExpr(expr ast.Expr, f refVisitor) {
-	// walk children
-	// (the order of the cases matches the order
-	// of the corresponding node types in ast.go)
 	switch n := expr.(type) {
-	// Expressions
-	case *ast.BadExpr, *ast.BasicLit:
-		// nothing to do
-
+	// These four cases account for about two thirds of all nodes,
+	// so we place them first to shorten the common control paths.
+	// (See go.dev/cl/480915.)
 	case *ast.Ident:
 		f(n.Name, "")
 
+	case *ast.BasicLit:
+		// nothing to do
+
+	case *ast.SelectorExpr:
+		if ident, ok := n.X.(*ast.Ident); ok {
+			f(ident.Name, n.Sel.Name)
+		} else {
+			visitExpr(n.X, f)
+			// Skip n.Sel as we don't care about which field or method is selected,
+			// as we'll have recorded an edge to all declarations relevant to the
+			// receiver type via visiting n.X above.
+		}
+
+	case *ast.CallExpr:
+		visitExpr(n.Fun, f)
+		visitExprList(n.Args, f) // args affect types for unsafe.Sizeof or builtins or generics
+
+	// Expressions
 	case *ast.Ellipsis:
 		if n.Elt != nil {
 			visitExpr(n.Elt, f)
@@ -361,16 +383,6 @@ func visitExpr(expr ast.Expr, f refVisitor) {
 
 	case *ast.ParenExpr:
 		visitExpr(n.X, f)
-
-	case *ast.SelectorExpr:
-		if ident, ok := n.X.(*ast.Ident); ok {
-			f(ident.Name, n.Sel.Name)
-		} else {
-			visitExpr(n.X, f)
-			// Skip n.Sel as we don't care about which field or method is selected,
-			// as we'll have recorded an edge to all declarations relevant to the
-			// receiver type via visiting n.X above.
-		}
 
 	case *ast.IndexExpr:
 		visitExpr(n.X, f)
@@ -392,10 +404,6 @@ func visitExpr(expr ast.Expr, f refVisitor) {
 		if n.Type != nil {
 			visitExpr(n.Type, f)
 		}
-
-	case *ast.CallExpr:
-		visitExpr(n.Fun, f)
-		visitExprList(n.Args, f) // args affect types for unsafe.Sizeof or builtins or generics
 
 	case *ast.StarExpr:
 		visitExpr(n.X, f)
@@ -439,6 +447,10 @@ func visitExpr(expr ast.Expr, f refVisitor) {
 
 	case *ast.ChanType:
 		visitExpr(n.Value, f)
+
+	case *ast.BadExpr:
+		// nothing to do
+
 	default:
 		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
 	}

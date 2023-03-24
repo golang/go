@@ -7,7 +7,6 @@
 package completion
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -27,6 +26,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/ast/astutil"
+	goplsastutil "golang.org/x/tools/gopls/internal/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
@@ -3176,7 +3176,7 @@ func isSlice(obj types.Object) bool {
 // quick partial parse. fn is non-nil only for function declarations.
 // The AST position information is garbage.
 func forEachPackageMember(content []byte, f func(tok token.Token, id *ast.Ident, fn *ast.FuncDecl)) {
-	purged := purgeFuncBodies(content)
+	purged := goplsastutil.PurgeFuncBodies(content)
 	file, _ := parser.ParseFile(token.NewFileSet(), "", purged, 0)
 	for _, decl := range file.Decls {
 		switch decl := decl.(type) {
@@ -3197,59 +3197,4 @@ func forEachPackageMember(content []byte, f func(tok token.Token, id *ast.Ident,
 			}
 		}
 	}
-}
-
-// purgeFuncBodies returns a copy of src in which the contents of each
-// outermost {...} region except struct and interface types have been
-// deleted. It does not preserve newlines. This reduces the amount of
-// work required to parse the top-level declarations.
-func purgeFuncBodies(src []byte) []byte {
-	// Destroy the content of any {...}-bracketed regions that are
-	// not immediately preceded by a "struct" or "interface"
-	// token.  That includes function bodies, composite literals,
-	// switch/select bodies, and all blocks of statements.
-	// This will lead to non-void functions that don't have return
-	// statements, which of course is a type error, but that's ok.
-
-	var out bytes.Buffer
-	file := token.NewFileSet().AddFile("", -1, len(src))
-	var sc scanner.Scanner
-	sc.Init(file, src, nil, 0)
-	var prev token.Token
-	var cursor int         // last consumed src offset
-	var braces []token.Pos // stack of unclosed braces or -1 for struct/interface type
-	for {
-		pos, tok, _ := sc.Scan()
-		if tok == token.EOF {
-			break
-		}
-		switch tok {
-		case token.COMMENT:
-			// TODO(adonovan): opt: skip, to save an estimated 20% of time.
-
-		case token.LBRACE:
-			if prev == token.STRUCT || prev == token.INTERFACE {
-				pos = -1
-			}
-			braces = append(braces, pos)
-
-		case token.RBRACE:
-			if last := len(braces) - 1; last >= 0 {
-				top := braces[last]
-				braces = braces[:last]
-				if top < 0 {
-					// struct/interface type: leave alone
-				} else if len(braces) == 0 { // toplevel only
-					// Delete {...} body.
-					start, _ := safetoken.Offset(file, top)
-					end, _ := safetoken.Offset(file, pos)
-					out.Write(src[cursor : start+len("{")])
-					cursor = end
-				}
-			}
-		}
-		prev = tok
-	}
-	out.Write(src[cursor:])
-	return out.Bytes()
 }
