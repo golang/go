@@ -240,11 +240,12 @@ func (oi ObjectIdentifier) String() string {
 	var s strings.Builder
 	s.Grow(32)
 
+	buf := make([]byte, 0, 19)
 	for i, v := range oi {
 		if i > 0 {
 			s.WriteByte('.')
 		}
-		s.Write(strconv.AppendInt(make([]byte, 0, 16), int64(v), 10))
+		s.Write(strconv.AppendInt(buf[:0], int64(v), 10))
 	}
 
 	return s.String()
