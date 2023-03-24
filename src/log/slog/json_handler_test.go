@@ -14,6 +14,7 @@ import (
 	"log/slog/internal/buffer"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -201,7 +202,7 @@ func BenchmarkPreformatting(b *testing.B) {
 		}),
 	}
 
-	outFile, err := os.Create("/tmp/bench.log")
+	outFile, err := os.Create(filepath.Join(b.TempDir(), "bench.log"))
 	if err != nil {
 		b.Fatal(err)
 	}

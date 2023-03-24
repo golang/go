@@ -34,6 +34,21 @@ go list -test -pgo=auto ./a/a1
 
 go list -deps -pgo=auto ./a/a1
 
+# -pgo=auto is the default. Commands without explicit -pgo=auto
+# should work as -pgo=auto.
+go build -n ./a/a1
+stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
+
+go build -n -o nopgo.exe ./nopgo
+stderr 'compile.*nopgo.go'
+! stderr '-pgoprofile'
+
+# -pgo=off should turn off PGO.
+go build -n -pgo=off ./a/a1
+stderr 'compile.*a1.go'
+! stderr '-pgoprofile'
+
 -- go.mod --
 module test
 go 1.20

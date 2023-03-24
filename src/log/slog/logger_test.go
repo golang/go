@@ -7,6 +7,8 @@ package slog
 import (
 	"bytes"
 	"context"
+	"internal/race"
+	"internal/testenv"
 	"io"
 	"log"
 	"path/filepath"
@@ -508,4 +510,16 @@ func callerPC(depth int) uintptr {
 	var pcs [1]uintptr
 	runtime.Callers(depth, pcs[:])
 	return pcs[0]
+}
+
+func wantAllocs(t *testing.T, want int, f func()) {
+	if race.Enabled {
+		t.Skip("skipping test in race mode")
+	}
+	testenv.SkipIfOptimizationOff(t)
+	t.Helper()
+	got := int(testing.AllocsPerRun(5, f))
+	if got != want {
+		t.Errorf("got %d allocs, want %d", got, want)
+	}
 }

@@ -652,8 +652,8 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	BEQ	sigtramp
 
 	// Inspect the g in TLS without clobbering R30/R31 via runtime.load_g.
-        MOVD    runtime·tls_g(SB), R9
-        MOVD    0(R9), R9
+	MOVD	runtime·tls_g(SB), R9
+	MOVD	0(R9), R9
 
 	// Figure out if we are currently in a cgo call.
 	// If not, just do usual sigtramp.

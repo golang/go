@@ -4219,7 +4219,7 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		return true
 	}
 	// match: (Equal (CMPconst [0] z:(MADD a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (Equal (CMN a (MUL <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -4244,7 +4244,7 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		return true
 	}
 	// match: (Equal (CMPconst [0] z:(MSUB a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (Equal (CMP a (MUL <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -4269,7 +4269,7 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		return true
 	}
 	// match: (Equal (CMPWconst [0] z:(MADDW a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (Equal (CMNW a (MULW <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
@@ -4294,7 +4294,7 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		return true
 	}
 	// match: (Equal (CMPWconst [0] z:(MSUBW a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (Equal (CMPW a (MULW <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
@@ -5698,11 +5698,11 @@ func rewriteValueARM64_OpARM64GreaterEqual(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (GreaterEqual (CMPWconst [0] x:(ANDconst [c] y)))
+	// match: (GreaterEqual (CMPconst [0] x:(ANDconst [c] y)))
 	// cond: x.Uses == 1
 	// result: (GreaterEqual (TSTconst [c] y))
 	for {
-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
 			break
 		}
 		x := v_0.Args[0]
@@ -5718,6 +5718,196 @@ func rewriteValueARM64_OpARM64GreaterEqual(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARM64TSTconst, types.TypeFlags)
 		v0.AuxInt = int64ToAuxInt(c)
 		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPconst [0] x:(ADDconst [c] y)))
+	// cond: x.Uses == 1
+	// result: (GreaterEqualNoov (CMNconst [c] y))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		if x.Op != OpARM64ADDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		y := x.Args[0]
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64GreaterEqualNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMNconst, types.TypeFlags)
+		v0.AuxInt = int64ToAuxInt(c)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPWconst [0] x:(ADDconst [c] y)))
+	// cond: x.Uses == 1
+	// result: (GreaterEqualNoov (CMNWconst [int32(c)] y))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		if x.Op != OpARM64ADDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		y := x.Args[0]
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64GreaterEqualNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMNWconst, types.TypeFlags)
+		v0.AuxInt = int32ToAuxInt(int32(c))
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPconst [0] z:(ADD x y)))
+	// cond: z.Uses == 1
+	// result: (GreaterEqualNoov (CMN x y))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64ADD {
+			break
+		}
+		y := z.Args[1]
+		x := z.Args[0]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64GreaterEqualNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
+		v0.AddArg2(x, y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPWconst [0] z:(ADD x y)))
+	// cond: z.Uses == 1
+	// result: (GreaterEqualNoov (CMNW x y))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64ADD {
+			break
+		}
+		y := z.Args[1]
+		x := z.Args[0]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64GreaterEqualNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
+		v0.AddArg2(x, y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPconst [0] z:(MADD a x y)))
+	// cond: z.Uses == 1
+	// result: (GreaterEqualNoov (CMN a (MUL <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MADD {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64GreaterEqualNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPconst [0] z:(MSUB a x y)))
+	// cond: z.Uses == 1
+	// result: (GreaterEqualNoov (CMP a (MUL <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MSUB {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64GreaterEqualNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPWconst [0] z:(MADDW a x y)))
+	// cond: z.Uses == 1
+	// result: (GreaterEqualNoov (CMNW a (MULW <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MADDW {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64GreaterEqualNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPWconst [0] z:(MSUBW a x y)))
+	// cond: z.Uses == 1
+	// result: (GreaterEqualNoov (CMPW a (MULW <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MSUBW {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64GreaterEqualNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMPW, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
 		v.AddArg(v0)
 		return true
 	}
@@ -5856,11 +6046,11 @@ func rewriteValueARM64_OpARM64GreaterThan(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (GreaterThan (CMPWconst [0] x:(ANDconst [c] y)))
+	// match: (GreaterThan (CMPconst [0] x:(ANDconst [c] y)))
 	// cond: x.Uses == 1
 	// result: (GreaterThan (TSTconst [c] y))
 	for {
-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
 			break
 		}
 		x := v_0.Args[0]
@@ -6064,11 +6254,11 @@ func rewriteValueARM64_OpARM64LessEqual(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (LessEqual (CMPWconst [0] x:(ANDconst [c] y)))
+	// match: (LessEqual (CMPconst [0] x:(ANDconst [c] y)))
 	// cond: x.Uses == 1
 	// result: (LessEqual (TSTconst [c] y))
 	for {
-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
 			break
 		}
 		x := v_0.Args[0]
@@ -6222,11 +6412,11 @@ func rewriteValueARM64_OpARM64LessThan(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (LessThan (CMPWconst [0] x:(ANDconst [c] y)))
+	// match: (LessThan (CMPconst [0] x:(ANDconst [c] y)))
 	// cond: x.Uses == 1
 	// result: (LessThan (TSTconst [c] y))
 	for {
-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
 			break
 		}
 		x := v_0.Args[0]
@@ -6242,6 +6432,196 @@ func rewriteValueARM64_OpARM64LessThan(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARM64TSTconst, types.TypeFlags)
 		v0.AuxInt = int64ToAuxInt(c)
 		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LessThan (CMPconst [0] x:(ADDconst [c] y)))
+	// cond: x.Uses == 1
+	// result: (LessThanNoov (CMNconst [c] y))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		if x.Op != OpARM64ADDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		y := x.Args[0]
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64LessThanNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMNconst, types.TypeFlags)
+		v0.AuxInt = int64ToAuxInt(c)
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LessThan (CMPWconst [0] x:(ADDconst [c] y)))
+	// cond: x.Uses == 1
+	// result: (LessThanNoov (CMNWconst [int32(c)] y))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		if x.Op != OpARM64ADDconst {
+			break
+		}
+		c := auxIntToInt64(x.AuxInt)
+		y := x.Args[0]
+		if !(x.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64LessThanNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMNWconst, types.TypeFlags)
+		v0.AuxInt = int32ToAuxInt(int32(c))
+		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LessThan (CMPconst [0] z:(ADD x y)))
+	// cond: z.Uses == 1
+	// result: (LessThanNoov (CMN x y))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64ADD {
+			break
+		}
+		y := z.Args[1]
+		x := z.Args[0]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64LessThanNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
+		v0.AddArg2(x, y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LessThan (CMPWconst [0] z:(ADD x y)))
+	// cond: z.Uses == 1
+	// result: (LessThanNoov (CMNW x y))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64ADD {
+			break
+		}
+		y := z.Args[1]
+		x := z.Args[0]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64LessThanNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
+		v0.AddArg2(x, y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LessThan (CMPconst [0] z:(MADD a x y)))
+	// cond: z.Uses == 1
+	// result: (LessThanNoov (CMN a (MUL <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MADD {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64LessThanNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMN, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LessThan (CMPconst [0] z:(MSUB a x y)))
+	// cond: z.Uses == 1
+	// result: (LessThanNoov (CMP a (MUL <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MSUB {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64LessThanNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LessThan (CMPWconst [0] z:(MADDW a x y)))
+	// cond: z.Uses == 1
+	// result: (LessThanNoov (CMNW a (MULW <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MADDW {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64LessThanNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LessThan (CMPWconst [0] z:(MSUBW a x y)))
+	// cond: z.Uses == 1
+	// result: (LessThanNoov (CMPW a (MULW <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MSUBW {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64LessThanNoov)
+		v0 := b.NewValue0(v.Pos, OpARM64CMPW, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
 		v.AddArg(v0)
 		return true
 	}
@@ -17021,7 +17401,7 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		return true
 	}
 	// match: (NotEqual (CMPconst [0] z:(MADD a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (NotEqual (CMN a (MUL <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -17046,7 +17426,7 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		return true
 	}
 	// match: (NotEqual (CMPconst [0] z:(MSUB a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (NotEqual (CMP a (MUL <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
@@ -17071,7 +17451,7 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		return true
 	}
 	// match: (NotEqual (CMPWconst [0] z:(MADDW a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (NotEqual (CMNW a (MULW <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
@@ -17096,7 +17476,7 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		return true
 	}
 	// match: (NotEqual (CMPWconst [0] z:(MSUBW a x y)))
-	// cond: z.Uses==1
+	// cond: z.Uses == 1
 	// result: (NotEqual (CMPW a (MULW <x.Type> x y)))
 	for {
 		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {

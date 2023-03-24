@@ -13,9 +13,11 @@ lable2:
 	BFPF	1(PC)			// 00040048
 	BFPF	lable2	// BFPF 4 	// 1ffcff4b
 
-	JMP	foo(SB)			// 00100050
+	// relocation in play so the assembled offset should be 0
+	JMP	foo(SB)			// 00000050
+
 	JMP	(R4)			// 8000004c
-	JMP	1(PC)			// 00040058
+	JMP	1(PC)			// 00040050
 	MOVW	$65536, R4		// 04020014
 	MOVW	$4096, R4		// 24000014
 	MOVV	$65536, R4		// 04020014

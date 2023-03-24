@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package testutil contains support functions for testing.
-package testutil
+// Package slogtest contains support functions for testing slog.
+package slogtest
 
 import "log/slog"
 

@@ -151,15 +151,15 @@ TEXT runtime·callbackasm1(SB),NOSPLIT|NOFRAME,$0
 	// In any case, even if function has 0,1,2,3,4 args, there is reserved
 	// but uninitialized "shadow space" for the first 4 args.
 	// The values are in registers.
-  	MOVQ	CX, (16+0)(SP)
-  	MOVQ	DX, (16+8)(SP)
-  	MOVQ	R8, (16+16)(SP)
-  	MOVQ	R9, (16+24)(SP)
+	MOVQ	CX, (16+0)(SP)
+	MOVQ	DX, (16+8)(SP)
+	MOVQ	R8, (16+16)(SP)
+	MOVQ	R9, (16+24)(SP)
 	// R8 = address of args vector
 	LEAQ	(16+0)(SP), R8
 
 	// remove return address from stack, we are not returning to callbackasm, but to its caller.
-  	MOVQ	0(SP), AX
+	MOVQ	0(SP), AX
 	ADDQ	$8, SP
 
 	// determine index into runtime·cbs table

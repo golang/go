@@ -74,7 +74,7 @@ TEXT errors(SB),$0
 	MOVQ (AX), DR3                  // ERROR "invalid instruction"
 	MOVQ (AX), DR6                  // ERROR "invalid instruction"
 	MOVQ (AX), DR7                  // ERROR "invalid instruction"
-        // AVX512GATHER index/index #UD cases.
+	// AVX512GATHER index/index #UD cases.
 	VPGATHERQQ (BP)(X2*2), K1, X2   // ERROR "index and destination registers should be distinct"
 	VPGATHERQQ (BP)(Y15*2), K1, Y15 // ERROR "index and destination registers should be distinct"
 	VPGATHERQQ (BP)(Z20*2), K1, Z20 // ERROR "index and destination registers should be distinct"

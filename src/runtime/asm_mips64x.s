@@ -652,7 +652,7 @@ retry:
 	// Increment wbBuf.next position.
 	ADDV	R25, R2
 	// Is the buffer full?
-        SGTU	R2, R23, R23
+	SGTU	R2, R23, R23
 	BNE	R23, flush
 	// Commit to the larger buffer.
 	MOVV	R2, (p_wbBuf+wbBuf_next)(R1)

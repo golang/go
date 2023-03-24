@@ -5421,39 +5421,36 @@ func testServerSetKeepAlivesEnabledClosesConns(t *testing.T, mode testMode) {
 	get := func() string { return get(t, c, ts.URL) }
 
 	a1, a2 := get(), get()
-	if a1 != a2 {
-		t.Fatal("expected first two requests on same connection")
+	if a1 == a2 {
+		t.Logf("made two requests from a single conn %q (as expected)", a1)
+	} else {
+		t.Errorf("server reported requests from %q and %q; expected same connection", a1, a2)
 	}
-	addr := strings.TrimPrefix(ts.URL, "http://")
 
 	// The two requests should have used the same connection,
 	// and there should not have been a second connection that
 	// was created by racing dial against reuse.
 	// (The first get was completed when the second get started.)
-	n := tr.IdleConnCountForTesting("http", addr)
-	if n != 1 {
-		t.Fatalf("idle count for %q after 2 gets = %d, want 1", addr, n)
+	if conns := tr.IdleConnStrsForTesting(); len(conns) != 1 {
+		t.Errorf("found %d idle conns (%q); want 1", len(conns), conns)
 	}
 
 	// SetKeepAlivesEnabled should discard idle conns.
 	ts.Config.SetKeepAlivesEnabled(false)
 
-	var idle1 int
 	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
-		idle1 = tr.IdleConnCountForTesting("http", addr)
-		if idle1 != 0 {
+		if conns := tr.IdleConnStrsForTesting(); len(conns) > 0 {
 			if d > 0 {
-				t.Logf("idle count %v after SetKeepAlivesEnabled called = %v; waiting for 0", d, idle1)
+				t.Logf("idle conns %v after SetKeepAlivesEnabled called = %q; waiting for empty", d, conns)
 			}
 			return false
 		}
 		return true
 	})
 
-	a3 := get()
-	if a3 == a2 {
-		t.Fatal("expected third request on new connection")
-	}
+	// If we make a third request it should use a new connection, but in general
+	// we have no way to verify that: the new connection could happen to reuse the
+	// exact same ports from the previous connection.
 }
 
 func TestServerShutdown(t *testing.T) { run(t, testServerShutdown) }

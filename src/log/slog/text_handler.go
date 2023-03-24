@@ -137,7 +137,9 @@ func needsQuoting(s string) bool {
 	for i := 0; i < len(s); {
 		b := s[i]
 		if b < utf8.RuneSelf {
-			if needsQuotingSet[b] {
+			// Quote anything except a backslash that would need quoting in a
+			// JSON string, as well as space and '='
+			if b != '\\' && (b == ' ' || b == '=' || !safeSet[b]) {
 				return true
 			}
 			i++
@@ -150,18 +152,4 @@ func needsQuoting(s string) bool {
 		i += size
 	}
 	return false
-}
-
-var needsQuotingSet = [utf8.RuneSelf]bool{
-	'"': true,
-	'=': true,
-}
-
-func init() {
-	for i := 0; i < utf8.RuneSelf; i++ {
-		r := rune(i)
-		if unicode.IsSpace(r) || !unicode.IsPrint(r) {
-			needsQuotingSet[i] = true
-		}
-	}
 }
