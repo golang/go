@@ -166,7 +166,7 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 			// inside of parseGoSrc without exceeding the allocated space.
 			base, nextBase := c.allocateSpace(2*len(content) + parsePadding)
 
-			pgf, fixes1 := parseGoSrc(ctx, fileSetWithBase(base), uri, content, mode)
+			pgf, fixes1 := ParseGoSrc(ctx, fileSetWithBase(base), uri, content, mode)
 			file := pgf.Tok
 			if file.Base()+file.Size()+1 > nextBase {
 				// The parsed file exceeds its allocated space, likely due to multiple
@@ -178,7 +178,7 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 				// there, as parseGoSrc will repeat them.
 				actual := file.Base() + file.Size() - base // actual size consumed, after re-parsing
 				base2, nextBase2 := c.allocateSpace(actual)
-				pgf2, fixes2 := parseGoSrc(ctx, fileSetWithBase(base2), uri, content, mode)
+				pgf2, fixes2 := ParseGoSrc(ctx, fileSetWithBase(base2), uri, content, mode)
 
 				// In golang/go#59097 we observed that this panic condition was hit.
 				// One bug was found and fixed, but record more information here in

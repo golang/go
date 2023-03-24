@@ -51,12 +51,14 @@ func parseGoImpl(ctx context.Context, fset *token.FileSet, fh source.FileHandle,
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	pgf, _ := parseGoSrc(ctx, fset, fh.URI(), content, mode)
+	pgf, _ := ParseGoSrc(ctx, fset, fh.URI(), content, mode)
 	return pgf, nil
 }
 
-// parseGoSrc parses a buffer of Go source, repairing the tree if necessary.
-func parseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []byte, mode parser.Mode) (res *source.ParsedGoFile, fixes []fixType) {
+// ParseGoSrc parses a buffer of Go source, repairing the tree if necessary.
+//
+// The provided ctx is used only for logging.
+func ParseGoSrc(ctx context.Context, fset *token.FileSet, uri span.URI, src []byte, mode parser.Mode) (res *source.ParsedGoFile, fixes []fixType) {
 	file, err := parser.ParseFile(fset, uri.Filename(), src, mode)
 	var parseErr scanner.ErrorList
 	if err != nil {
