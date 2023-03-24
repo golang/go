@@ -8,6 +8,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"net/netip"
@@ -1397,4 +1398,26 @@ func TestDNSTimeout(t *testing.T) {
 	checkErr(err1)
 	checkErr(err2)
 	cancel()
+}
+
+func TestLookupNoData(t *testing.T) {
+	// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
+	// so that it returns an empty response without any error codes (NXDOMAIN).
+	_, err := LookupHost("_dmarc.google.com")
+	if err == nil {
+		t.Fatal("unexpected success")
+	}
+
+	var dnsErr *DNSError
+	if !errors.As(err, &dnsErr) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !dnsErr.IsNotFound {
+		t.Error("IsNotFound is set to false")
+	}
+
+	if dnsErr.Err != errNoSuchHost.Error() {
+		t.Errorf("error message is not equal to: %v", errNoSuchHost.Error())
+	}
 }
