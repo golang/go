@@ -6,6 +6,7 @@ package work
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -221,13 +222,6 @@ func pkgImportPath(pkgpath string) *load.Package {
 // directory.
 // See https://golang.org/issue/18878.
 func TestRespectSetgidDir(t *testing.T) {
-	switch runtime.GOOS {
-	case "ios":
-		t.Skip("can't set SetGID bit with chmod on iOS")
-	case "windows", "plan9":
-		t.Skip("chown/chmod setgid are not supported on Windows or Plan 9")
-	}
-
 	var b Builder
 
 	// Check that `cp` is called instead of `mv` by looking at the output
@@ -250,12 +244,23 @@ func TestRespectSetgidDir(t *testing.T) {
 	// the new temporary directory.
 	err = os.Chown(setgiddir, os.Getuid(), os.Getgid())
 	if err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("skipping: chown is not supported on " + runtime.GOOS)
+		}
 		t.Fatal(err)
 	}
 
 	// Change setgiddir's permissions to include the SetGID bit.
 	if err := os.Chmod(setgiddir, 0755|fs.ModeSetgid); err != nil {
+		if testenv.SyscallIsNotSupported(err) {
+			t.Skip("skipping: chmod is not supported on " + runtime.GOOS)
+		}
 		t.Fatal(err)
+	}
+	if fi, err := os.Stat(setgiddir); err != nil {
+		t.Fatal(err)
+	} else if fi.Mode()&fs.ModeSetgid == 0 {
+		t.Skip("skipping: Chmod ignored ModeSetgid on " + runtime.GOOS)
 	}
 
 	pkgfile, err := os.CreateTemp("", "pkgfile")

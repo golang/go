@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"internal/testenv"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -152,8 +151,8 @@ func dummyID(x int) [HashSize]byte {
 }
 
 func TestCacheTrim(t *testing.T) {
-	if runtime.GOOS == "js" {
-		testenv.SkipFlaky(t, 35220)
+	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+		t.Skip("file lock is unsupported on +" + runtime.GOOS)
 	}
 
 	dir, err := os.MkdirTemp("", "cachetest-")

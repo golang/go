@@ -675,7 +675,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Runtime CPU tests.
-	if !t.compileOnly && goos != "js" { // js can't handle -cpu != 1
+	if !t.compileOnly && t.hasParallelism() {
 		t.registerTest("runtime:cpu124", "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
 			&goTest{
 				timeout:   300 * time.Second,
@@ -737,9 +737,9 @@ func (t *tester) registerTests() {
 	// On the builders only, test that a moved GOROOT still works.
 	// Fails on iOS because CC_FOR_TARGET refers to clangwrap.sh
 	// in the unmoved GOROOT.
-	// Fails on Android and js/wasm with an exec format error.
+	// Fails on Android, js/wasm and wasip1/wasm with an exec format error.
 	// Fails on plan9 with "cannot find GOROOT" (issue #21016).
-	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" && goos != "js" {
+	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" && goos != "js" && goos != "wasip1" {
 		t.tests = append(t.tests, distTest{
 			name:    "moved_goroot",
 			heading: "moved GOROOT",
@@ -835,7 +835,7 @@ func (t *tester) registerTests() {
 	}
 
 	// sync tests
-	if goos != "js" { // js doesn't support -cpu=10
+	if t.hasParallelism() {
 		t.registerTest("sync_cpu", "sync -cpu=10",
 			&goTest{
 				timeout: 120 * time.Second,
@@ -1473,6 +1473,14 @@ func (t *tester) hasSwig() bool {
 		}
 	}
 
+	return true
+}
+
+func (t *tester) hasParallelism() bool {
+	switch goos {
+	case "js", "wasip1":
+		return false
+	}
 	return true
 }
 

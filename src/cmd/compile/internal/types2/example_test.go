@@ -5,7 +5,7 @@
 // Only run where builders (build.golang.org) have
 // access to compiled packages for import.
 //
-//go:build !android && !ios && !js
+//go:build !android && !ios && !js && !wasip1
 
 package types2_test
 
