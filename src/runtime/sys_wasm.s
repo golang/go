@@ -86,15 +86,6 @@ TEXT runtime·exitThread(SB), NOSPLIT, $0-0
 TEXT runtime·osyield(SB), NOSPLIT, $0-0
 	UNDEF
 
-TEXT runtime·usleep(SB), NOSPLIT, $0-0
-	RET // TODO(neelance): implement usleep
-
-TEXT runtime·currentMemory(SB), NOSPLIT, $0
-	Get SP
-	CurrentMemory
-	I32Store ret+0(FP)
-	RET
-
 TEXT runtime·growMemory(SB), NOSPLIT, $0
 	Get SP
 	I32Load pages+0(FP)

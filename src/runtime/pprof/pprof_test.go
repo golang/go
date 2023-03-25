@@ -448,6 +448,8 @@ func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Dura
 		t.Logf("uname -a: %v", vers)
 	case "plan9":
 		t.Skip("skipping on plan9")
+	case "wasip1":
+		t.Skip("skipping on wasip1")
 	}
 
 	broken := cpuProfilingBroken()
@@ -1457,6 +1459,8 @@ func containsCountsLabels(prof *profile.Profile, countLabels map[int64]map[strin
 }
 
 func TestGoroutineProfileConcurrency(t *testing.T) {
+	testenv.MustHaveParallelism(t)
+
 	goroutineProf := Lookup("goroutine")
 
 	profilerCalls := func(s string) int {
@@ -1785,6 +1789,7 @@ func TestCPUProfileLabel(t *testing.T) {
 }
 
 func TestLabelRace(t *testing.T) {
+	testenv.MustHaveParallelism(t)
 	// Test the race detector annotations for synchronization
 	// between setting labels and consuming them from the
 	// profile.
@@ -1809,6 +1814,7 @@ func TestLabelRace(t *testing.T) {
 }
 
 func TestGoroutineProfileLabelRace(t *testing.T) {
+	testenv.MustHaveParallelism(t)
 	// Test the race detector annotations for synchronization
 	// between setting labels and consuming them from the
 	// goroutine profile. See issue #50292.

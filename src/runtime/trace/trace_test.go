@@ -184,8 +184,9 @@ func testBrokenTimestamps(t *testing.T, data []byte) {
 }
 
 func TestTraceStress(t *testing.T) {
-	if runtime.GOOS == "js" {
-		t.Skip("no os.Pipe on js")
+	switch runtime.GOOS {
+	case "js", "wasip1":
+		t.Skip("no os.Pipe on " + runtime.GOOS)
 	}
 	if IsEnabled() {
 		t.Skip("skipping because -test.trace is set")
@@ -348,8 +349,9 @@ func isMemoryConstrained() bool {
 // Do a bunch of various stuff (timers, GC, network, etc) in a separate goroutine.
 // And concurrently with all that start/stop trace 3 times.
 func TestTraceStressStartStop(t *testing.T) {
-	if runtime.GOOS == "js" {
-		t.Skip("no os.Pipe on js")
+	switch runtime.GOOS {
+	case "js", "wasip1":
+		t.Skip("no os.Pipe on " + runtime.GOOS)
 	}
 	if IsEnabled() {
 		t.Skip("skipping because -test.trace is set")

@@ -131,7 +131,7 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
 			BuildID:      peBuildID(exe),
 			HasFunctions: true,
 		}
-	case "js":
+	case "js", "wasip1":
 		addr1 = uint64(abi.FuncPCABIInternal(f1))
 		addr2 = uint64(abi.FuncPCABIInternal(f2))
 	default:

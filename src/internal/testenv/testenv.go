@@ -78,6 +78,24 @@ func MustHaveGoRun(t testing.TB) {
 	}
 }
 
+// HasParallelism reports whether the current system can execute multiple
+// threads in parallel.
+func HasParallelism() bool {
+	switch runtime.GOOS {
+	case "js", "wasip1":
+		return false
+	}
+	return true
+}
+
+// MustHaveParallelism checks that the current system can execute multiple
+// threads in parallel. If not, MustHaveParallelism calls t.Skip with an explanation.
+func MustHaveParallelism(t testing.TB) {
+	if !HasParallelism() {
+		t.Skipf("skipping test: no parallelism available on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
 // GoToolPath reports the path to the Go tool.
 // It is a convenience wrapper around GoTool.
 // If the tool is unavailable GoToolPath calls t.Skip.
