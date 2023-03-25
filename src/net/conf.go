@@ -143,7 +143,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			fallbackOrder = hostLookupFilesDNS
 		}
 	}
-	if c.forceCgoLookupHost || c.goos == "android" || c.goos == "windows" || c.goos == "plan9" {
+	if c.forceCgoLookupHost || c.netCgo || c.goos == "android" || c.goos == "windows" || c.goos == "plan9" {
 		return fallbackOrder, nil
 	}
 	if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
