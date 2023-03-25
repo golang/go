@@ -112,13 +112,6 @@ func (e Edge) String() string {
 }
 
 // BlockKind is the kind of SSA block.
-//
-//	  kind          controls        successors
-//	------------------------------------------
-//	  Exit      [return mem]                []
-//	 Plain                []            [next]
-//	    If   [boolean Value]      [then, else]
-//	 Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
 type BlockKind int16
 
 // short form print
