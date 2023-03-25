@@ -104,6 +104,18 @@ var sysdir = func() *sysDir {
 				"local",
 			},
 		}
+	case "wasip1":
+		// wasmtime has issues resolving symbolic links that are often present
+		// in directories like /etc/group below (e.g. private/etc/group on OSX).
+		// For this reason we use files in the Go source tree instead.
+		return &sysDir{
+			runtime.GOROOT(),
+			[]string{
+				"go.env",
+				"LICENSE",
+				"CONTRIBUTING.md",
+			},
+		}
 	}
 	return &sysDir{
 		"/etc",
@@ -1253,6 +1265,10 @@ func checkMode(t *testing.T, path string, mode FileMode) {
 }
 
 func TestChmod(t *testing.T) {
+	// Chmod is not supported on wasip1.
+	if runtime.GOOS == "wasip1" {
+		t.Skip("Chmod is not supported on " + runtime.GOOS)
+	}
 	t.Parallel()
 
 	f := newFile("TestChmod", t)
@@ -1661,7 +1677,7 @@ func TestSeek(t *testing.T) {
 
 func TestSeekError(t *testing.T) {
 	switch runtime.GOOS {
-	case "js", "plan9":
+	case "js", "plan9", "wasip1":
 		t.Skipf("skipping test on %v", runtime.GOOS)
 	}
 	t.Parallel()
@@ -2172,6 +2188,9 @@ func TestLargeWriteToConsole(t *testing.T) {
 }
 
 func TestStatDirModeExec(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		t.Skip("Chmod is not supported on " + runtime.GOOS)
+	}
 	t.Parallel()
 
 	const mode = 0111
@@ -2365,9 +2384,11 @@ func TestLongPath(t *testing.T) {
 					if dir.Size() != filesize || filesize != wantSize {
 						t.Errorf("Size(%q) is %d, len(ReadFile()) is %d, want %d", path, dir.Size(), filesize, wantSize)
 					}
-					err = Chmod(path, dir.Mode())
-					if err != nil {
-						t.Fatalf("Chmod(%q) failed: %v", path, err)
+					if runtime.GOOS != "wasip1" { // Chmod is not supported on wasip1
+						err = Chmod(path, dir.Mode())
+						if err != nil {
+							t.Fatalf("Chmod(%q) failed: %v", path, err)
+						}
 					}
 				}
 				if err := Truncate(sizedTempDir+"/bar.txt", 0); err != nil {
@@ -2561,6 +2582,8 @@ func TestPipeThreads(t *testing.T) {
 		t.Skip("skipping on Plan 9; does not support runtime poller")
 	case "js":
 		t.Skip("skipping on js; no support for os.Pipe")
+	case "wasip1":
+		t.Skip("skipping on wasip1; no support for os.Pipe")
 	}
 
 	threads := 100
@@ -2963,8 +2986,8 @@ func TestWriteStringAlloc(t *testing.T) {
 // Test that it's OK to have parallel I/O and Close on a pipe.
 func TestPipeIOCloseRace(t *testing.T) {
 	// Skip on wasm, which doesn't have pipes.
-	if runtime.GOOS == "js" {
-		t.Skip("skipping on js: no pipes")
+	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+		t.Skipf("skipping on %s: no pipes", runtime.GOOS)
 	}
 	t.Parallel()
 
@@ -3041,8 +3064,8 @@ func TestPipeIOCloseRace(t *testing.T) {
 // Test that it's OK to call Close concurrently on a pipe.
 func TestPipeCloseRace(t *testing.T) {
 	// Skip on wasm, which doesn't have pipes.
-	if runtime.GOOS == "js" {
-		t.Skip("skipping on js: no pipes")
+	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+		t.Skipf("skipping on %s: no pipes", runtime.GOOS)
 	}
 	t.Parallel()
 

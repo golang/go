@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm)
+//go:build unix || (js && wasm) || wasip1
 
 package os_test
 
 import (
+	"internal/testenv"
 	"io"
 	. "os"
 	"path/filepath"
@@ -39,6 +40,9 @@ func checkUidGid(t *testing.T, path string, uid, gid int) {
 }
 
 func TestChown(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		t.Skip("file ownership not supported on " + runtime.GOOS)
+	}
 	t.Parallel()
 
 	// Use TempDir() to make sure we're on a local file system,
@@ -84,6 +88,9 @@ func TestChown(t *testing.T) {
 }
 
 func TestFileChown(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		t.Skip("file ownership not supported on " + runtime.GOOS)
+	}
 	t.Parallel()
 
 	// Use TempDir() to make sure we're on a local file system,
@@ -129,6 +136,7 @@ func TestFileChown(t *testing.T) {
 }
 
 func TestLchown(t *testing.T) {
+	testenv.MustHaveSymlink(t)
 	t.Parallel()
 
 	// Use TempDir() to make sure we're on a local file system,
@@ -219,6 +227,9 @@ func TestReaddirRemoveRace(t *testing.T) {
 
 // Issue 23120: respect umask when doing Mkdir with the sticky bit
 func TestMkdirStickyUmask(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		t.Skip("file permissions not supported on " + runtime.GOOS)
+	}
 	t.Parallel()
 
 	const umask = 0077
@@ -241,7 +252,7 @@ func TestMkdirStickyUmask(t *testing.T) {
 
 // See also issues: 22939, 24331
 func newFileTest(t *testing.T, blocking bool) {
-	if runtime.GOOS == "js" {
+	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
 		t.Skipf("syscall.Pipe is not available on %s.", runtime.GOOS)
 	}
 
