@@ -1401,6 +1401,8 @@ func TestDNSTimeout(t *testing.T) {
 }
 
 func TestLookupNoData(t *testing.T) {
+	mustHaveExternalNetwork(t)
+
 	testLookupNoData(t, "default resolver")
 
 	func() {
@@ -1415,25 +1417,44 @@ func TestLookupNoData(t *testing.T) {
 }
 
 func testLookupNoData(t *testing.T, prefix string) {
-	// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
-	// so that it returns an empty response without any error codes (NXDOMAIN).
-	_, err := LookupHost("_dmarc.google.com")
-	if err == nil {
-		t.Errorf("%v: unexpected success", prefix)
-		return
-	}
+	attempts := 0
+	for {
+		// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
+		// so that it returns an empty response without any error codes (NXDOMAIN).
+		_, err := LookupHost("_dmarc.google.com")
+		if err == nil {
+			t.Errorf("%v: unexpected success", prefix)
+			return
+		}
 
-	var dnsErr *DNSError
-	if !errors.As(err, &dnsErr) {
+		var dnsErr *DNSError
+		if errors.As(err, &dnsErr) {
+			succeeded := true
+			if !dnsErr.IsNotFound {
+				succeeded = false
+				t.Logf("%v: IsNotFound is set to false", prefix)
+			}
+
+			if dnsErr.Err != errNoSuchHost.Error() {
+				succeeded = false
+				t.Logf("%v: error message is not equal to: %v", prefix, errNoSuchHost.Error())
+			}
+
+			if succeeded {
+				return
+			}
+		}
+
+		testenv.SkipFlakyNet(t)
+		if attempts < len(backoffDuration) {
+			dur := backoffDuration[attempts]
+			t.Logf("%v: backoff %v after failure %v\n", prefix, dur, err)
+			time.Sleep(dur)
+			attempts++
+			continue
+		}
+
 		t.Errorf("%v: unexpected error: %v", prefix, err)
 		return
-	}
-
-	if !dnsErr.IsNotFound {
-		t.Errorf("%v: IsNotFound is set to false", prefix)
-	}
-
-	if dnsErr.Err != errNoSuchHost.Error() {
-		t.Errorf("%v: error message is not equal to: %v", prefix, errNoSuchHost.Error())
 	}
 }
