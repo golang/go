@@ -623,7 +623,6 @@ func bootstrapType(name string, e any) typeId {
 	typ := &CommonType{Name: name}
 	types[rt] = typ
 	setTypeId(typ)
-	userType(rt) // might as well cache it now
 	return typ.id()
 }
 
