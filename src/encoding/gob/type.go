@@ -109,6 +109,8 @@ var (
 	binaryUnmarshalerInterfaceType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
 	textMarshalerInterfaceType     = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
 	textUnmarshalerInterfaceType   = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+
+	wireTypeType = reflect.TypeOf((*wireType)(nil)).Elem()
 )
 
 // implementsInterface reports whether the type implements the
@@ -262,7 +264,7 @@ var (
 )
 
 // Predefined because it's needed by the Decoder
-var tWireType = mustGetTypeInfo(reflect.TypeOf((*wireType)(nil)).Elem()).id
+var tWireType = mustGetTypeInfo(wireTypeType).id
 var wireTypeUserInfo *userTypeInfo // userTypeInfo of wireType
 
 func init() {
@@ -284,7 +286,7 @@ func init() {
 	}
 	idToType = idToType[:firstUserId]
 	registerBasics()
-	wireTypeUserInfo = userType(reflect.TypeOf((*wireType)(nil)).Elem())
+	wireTypeUserInfo = userType(wireTypeType)
 }
 
 // Array type
