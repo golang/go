@@ -406,7 +406,7 @@ type fieldType struct {
 
 type structType struct {
 	CommonType
-	Field []*fieldType
+	Field []fieldType
 }
 
 func (s *structType) safeString(seen map[typeId]bool) string {
@@ -549,7 +549,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 			if gt.id() == 0 {
 				setTypeId(gt)
 			}
-			st.Field = append(st.Field, &fieldType{f.Name, gt.id()})
+			st.Field = append(st.Field, fieldType{f.Name, gt.id()})
 		}
 		return st, nil
 
