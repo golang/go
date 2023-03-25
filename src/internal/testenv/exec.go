@@ -20,7 +20,7 @@ import (
 // using os.StartProcess or (more commonly) exec.Command.
 func HasExec() bool {
 	switch runtime.GOOS {
-	case "js", "ios":
+	case "wasip1", "js", "ios":
 		return false
 	}
 	return true

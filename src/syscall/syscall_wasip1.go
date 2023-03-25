@@ -7,6 +7,7 @@
 package syscall
 
 import (
+	"errors"
 	"internal/itoa"
 	"internal/oserror"
 	"unsafe"
@@ -81,6 +82,8 @@ func (e Errno) Is(target error) bool {
 		return e == EEXIST || e == ENOTEMPTY
 	case oserror.ErrNotExist:
 		return e == ENOENT
+	case errors.ErrUnsupported:
+		return e == ENOSYS
 	}
 	return false
 }

@@ -1476,6 +1476,9 @@ func (t *tester) hasSwig() bool {
 	return true
 }
 
+// hasParallelism is a copy of the function
+// internal/testenv.HasParallelism, which can't be used here
+// because cmd/dist can not import internal packages during bootstrap.
 func (t *tester) hasParallelism() bool {
 	switch goos {
 	case "js", "wasip1":

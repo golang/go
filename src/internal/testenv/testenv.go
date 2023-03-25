@@ -46,7 +46,7 @@ func HasGoBuild() bool {
 		return false
 	}
 	switch runtime.GOOS {
-	case "android", "js", "ios":
+	case "android", "js", "ios", "wasip1":
 		return false
 	}
 	return true
@@ -80,6 +80,7 @@ func MustHaveGoRun(t testing.TB) {
 
 // HasParallelism reports whether the current system can execute multiple
 // threads in parallel.
+// There is a copy of this function in cmd/dist/test.go.
 func HasParallelism() bool {
 	switch runtime.GOOS {
 	case "js", "wasip1":
@@ -257,14 +258,14 @@ func HasSrc() bool {
 // HasExternalNetwork reports whether the current system can use
 // external (non-localhost) networks.
 func HasExternalNetwork() bool {
-	return !testing.Short() && runtime.GOOS != "js"
+	return !testing.Short() && runtime.GOOS != "js" && runtime.GOOS != "wasip1"
 }
 
 // MustHaveExternalNetwork checks that the current system can use
 // external (non-localhost) networks.
 // If not, MustHaveExternalNetwork calls t.Skip with an explanation.
 func MustHaveExternalNetwork(t testing.TB) {
-	if runtime.GOOS == "js" {
+	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
 		t.Skipf("skipping test: no external network on %s", runtime.GOOS)
 	}
 	if testing.Short() {
@@ -372,7 +373,7 @@ func SkipFlakyNet(t testing.TB) {
 // CPUIsSlow reports whether the CPU running the test is suspected to be slow.
 func CPUIsSlow() bool {
 	switch runtime.GOARCH {
-	case "arm", "mips", "mipsle", "mips64", "mips64le":
+	case "arm", "mips", "mipsle", "mips64", "mips64le", "wasm":
 		return true
 	}
 	return false
