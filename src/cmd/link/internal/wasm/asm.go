@@ -114,6 +114,8 @@ func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
 
 var wasmFuncTypes = map[string]*wasmFuncType{
 	"_rt0_wasm_js":            {Params: []byte{}},                                         //
+	"_rt0_wasm_wasip1":        {Params: []byte{}},                                         //
+	"wasm_export__start":      {},                                                         //
 	"wasm_export_run":         {Params: []byte{I32, I32}},                                 // argc, argv
 	"wasm_export_resume":      {Params: []byte{}},                                         //
 	"wasm_export_getsp":       {Results: []byte{I32}},                                     // sp
@@ -450,19 +452,32 @@ func writeGlobalSec(ctxt *ld.Link) {
 func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
 	sizeOffset := writeSecHeader(ctxt, sectionExport)
 
-	writeUleb128(ctxt.Out, 4) // number of exports
-
-	for _, name := range []string{"run", "resume", "getsp"} {
-		s := ldr.Lookup("wasm_export_"+name, 0)
+	switch buildcfg.GOOS {
+	case "wasip1":
+		writeUleb128(ctxt.Out, 2) // number of exports
+		s := ldr.Lookup("_rt0_wasm_wasip1", 0)
 		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
-		writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
+		writeName(ctxt.Out, "_start")       // the wasi entrypoint
 		ctxt.Out.WriteByte(0x00)            // func export
 		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+		writeName(ctxt.Out, "memory")       // memory in wasi
+		ctxt.Out.WriteByte(0x02)            // mem export
+		writeUleb128(ctxt.Out, 0)           // memidx
+	case "js":
+		writeUleb128(ctxt.Out, 4) // number of exports
+		for _, name := range []string{"run", "resume", "getsp"} {
+			s := ldr.Lookup("wasm_export_"+name, 0)
+			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+			writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
+			ctxt.Out.WriteByte(0x00)            // func export
+			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+		}
+		writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
+		ctxt.Out.WriteByte(0x02)   // mem export
+		writeUleb128(ctxt.Out, 0)  // memidx
+	default:
+		ld.Exitf("internal error: writeExportSec: unrecognized GOOS %s", buildcfg.GOOS)
 	}
-
-	writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
-	ctxt.Out.WriteByte(0x02)   // mem export
-	writeUleb128(ctxt.Out, 0)  // memidx
 
 	writeSecSize(ctxt, sizeOffset)
 }

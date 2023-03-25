@@ -15,7 +15,9 @@ TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME|TOPFRAME, $0
 	// set g to g0
 	MOVD $runtime·g0(SB), g
 	CALLNORESUME runtime·check(SB)
+#ifdef GOOS_js
 	CALLNORESUME runtime·args(SB)
+#endif
 	CALLNORESUME runtime·osinit(SB)
 	CALLNORESUME runtime·schedinit(SB)
 	MOVD $runtime·mainPC(SB), 0(SP)
@@ -482,3 +484,42 @@ TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
 	I64Const $64
 	Call	gcWriteBarrier<>(SB)
 	Return
+
+TEXT wasm_pc_f_loop(SB),NOSPLIT,$0
+// Call the function for the current PC_F. Repeat until PAUSE != 0 indicates pause or exit.
+// The WebAssembly stack may unwind, e.g. when switching goroutines.
+// The Go stack on the linear memory is then used to jump to the correct functions
+// with this loop, without having to restore the full WebAssembly stack.
+// It is expected to have a pending call before entering the loop, so check PAUSE first.
+	Get PAUSE
+	I32Eqz
+	If
+	loop:
+		Loop
+			// Get PC_B & PC_F from -8(SP)
+			Get SP
+			I32Const $8
+			I32Sub
+			I32Load16U $0 // PC_B
+
+			Get SP
+			I32Const $8
+			I32Sub
+			I32Load16U $2 // PC_F
+
+			CallIndirect $0
+			Drop
+
+			Get PAUSE
+			I32Eqz
+			BrIf loop
+		End
+	End
+
+	I32Const $0
+	Set PAUSE
+
+	Return
+
+TEXT wasm_export_lib(SB),NOSPLIT,$0
+	UNDEF
