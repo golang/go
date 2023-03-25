@@ -16,7 +16,8 @@ import "io"
 // On OpenBSD and macOS, Reader uses getentropy(2).
 // On other Unix-like systems, Reader reads from /dev/urandom.
 // On Windows systems, Reader uses the RtlGenRandom API.
-// On Wasm, Reader uses the Web Crypto API.
+// On JS/Wasm, Reader uses the Web Crypto API.
+// On WASIP1/Wasm, Reader uses random_get from wasi_snapshot_preview1.
 var Reader io.Reader
 
 // Read is a helper function that calls Reader.Read using io.ReadFull.
