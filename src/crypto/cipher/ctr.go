@@ -19,10 +19,11 @@ import (
 )
 
 type ctr struct {
-	b       Block
-	ctr     []byte
-	out     []byte
-	outUsed int
+	b         Block
+	ctr       []byte
+	out       []byte
+	outUsed   int
+	offsetPos int
 }
 
 const streamBufferSize = 512
@@ -36,7 +37,12 @@ type ctrAble interface {
 
 // NewCTR returns a Stream which encrypts/decrypts using the given Block in
 // counter mode. The length of iv must be the same as the Block's block size.
+
 func NewCTR(block Block, iv []byte) Stream {
+	return NewCTRWithOffset(block, iv, 0)
+}
+
+func NewCTRWithOffset(block Block, iv []byte, offsetPos int) Stream {
 	if ctr, ok := block.(ctrAble); ok {
 		return ctr.NewCTR(iv)
 	}
@@ -48,11 +54,54 @@ func NewCTR(block Block, iv []byte) Stream {
 		bufSize = block.BlockSize()
 	}
 	return &ctr{
-		b:       block,
-		ctr:     bytes.Clone(iv),
-		out:     make([]byte, 0, bufSize),
-		outUsed: 0,
+		offsetPos: offsetPos,
+		b:         block,
+		ctr:       IncreaseCtr(offsetPos, block.BlockSize(), iv),
+		out:       make([]byte, 0, bufSize),
+		outUsed:   0,
 	}
+}
+
+func IncreaseCtr(offsetPos, BlockSize int, iv []byte) []byte {
+
+	iv = bytes.Clone(iv)
+	
+	if len(iv) == 0 || offsetPos <= 0 || BlockSize <= 0 {
+		return iv
+	}
+
+
+	needAdd := offsetPos / BlockSize
+	index := 0
+
+	for {
+		add := needAdd & 0xff
+
+		tmpIv := iv[:len(iv)-index]
+		for i := len(tmpIv) - 1; i >= 0; i-- {
+			if i == len(tmpIv)-1 && int(tmpIv[i])+add > 255 {
+				tmpIv[i] = byte((int(tmpIv[i]) + add) % 256)
+				add = 1
+				continue
+			}
+			tmpIv[i] += byte(add)
+			if tmpIv[i] != 0 {
+				break
+			}
+		}
+
+		index++
+		if index >= len(iv) {
+			break
+		}
+
+		needAdd >>= 8
+		if needAdd <= 0 {
+			break
+		}
+	}
+
+	return iv
 }
 
 func (x *ctr) refill() {
@@ -74,6 +123,12 @@ func (x *ctr) refill() {
 	}
 	x.out = x.out[:remain]
 	x.outUsed = 0
+
+	if x.offsetPos > 0 {
+		offset := x.offsetPos % x.b.BlockSize()
+		x.out = x.out[offset:]
+		x.offsetPos = 0
+	}
 }
 
 func (x *ctr) XORKeyStream(dst, src []byte) {

@@ -53,3 +53,49 @@ func TestCTR(t *testing.T) {
 		}
 	}
 }
+
+var ctrAESIncreaseTests = []struct {
+	iv     []byte
+	offset int
+	ivWant []byte
+}{
+	{
+		[]byte{0, 0},
+		(100 * 256 * 256 * 256) * 16,
+		[]byte{0, 0},
+	},
+	{
+		[]byte{0, 0, 0, 0, 100},
+		156 * 16,
+		[]byte{0, 0, 0, 1, 0},
+	},
+	{
+		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		100 * 16,
+		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100},
+	},
+	{
+		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		(100*256 + 100) * 16,
+		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100},
+	},
+	{
+		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		(100 * 256 * 256 * 256) * 16,
+		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0},
+	},
+	{
+		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		(100 * 256 * 256 * 256) * 16,
+		[]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 0, 0},
+	},
+}
+
+func TestIncreaseCtr(t *testing.T) {
+	for _, item := range ctrAESIncreaseTests {
+		ivNext := cipher.IncreaseCtr(item.offset, 16, item.iv)
+		if !bytes.Equal(ivNext, item.ivWant) {
+			t.Errorf("for iv %d\noffset %x\nwant %x", item.iv, item.offset, item.ivWant)
+		}
+	}
+}
