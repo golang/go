@@ -148,11 +148,11 @@ func concurrentThreadsLimit() int {
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim); err != nil {
 		return 500
 	}
-	r := int(rlim.Cur)
+	r := rlim.Cur
 	if r > 500 {
 		r = 500
 	} else if r > 30 {
 		r -= 30
 	}
-	return r
+	return int(r)
 }
