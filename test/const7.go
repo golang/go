@@ -59,7 +59,7 @@ func testProg(dir, name string, length int, msg string) {
 }
 
 func main() {
-	if runtime.GOOS == "js" || runtime.Compiler != "gc" {
+	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" || runtime.Compiler != "gc" {
 		return
 	}
 

@@ -1,6 +1,6 @@
 // errorcheck -0 -m -live -std
 
-// +build !windows,!js
+// +build !windows,!js,!wasip1
 
 // Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
