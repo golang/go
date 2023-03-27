@@ -289,6 +289,11 @@ func Run(t Testing, dir string, a *analysis.Analyzer, patterns ...string) []*Res
 		return nil
 	}
 
+	if err := analysis.Validate([]*analysis.Analyzer{a}); err != nil {
+		t.Errorf("Validate: %v", err)
+		return nil
+	}
+
 	results := checker.TestAnalyzer(a, pkgs)
 	for _, result := range results {
 		if result.Err != nil {
