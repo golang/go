@@ -3132,8 +3132,13 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 		if r == 0 {
 			r = c.getimpliedreg(&p.From, p)
 		}
-		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), uint32(r), uint32(high16adjusted(v)))
-		o2 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), uint32(p.To.Reg), uint32(v))
+		if o.a6 == C_REG {
+			o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), uint32(r), uint32(high16adjusted(v)))
+			o2 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), uint32(p.To.Reg), uint32(v))
+		} else {
+			o1 = AOP_IRR(OP_ADDIS, uint32(REGTMP), uint32(r), uint32(high16adjusted(v)))
+			o2 = AOP_IRR(c.opload(p.As), uint32(p.To.Reg), uint32(REGTMP), uint32(v))
+		}
 
 		// Sign extend MOVB if needed
 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
@@ -3519,8 +3524,8 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
 				rel.Type = objabi.R_ADDRPOWER_TOCREL_DS
 			}
 		default:
-			reuseBaseReg := p.As != AFMOVD && p.As != AFMOVS
-			// Reuse To.Reg as base register if not FP move.
+			reuseBaseReg := o.a6 == C_REG
+			// Reuse To.Reg as base register if it is a GPR.
 			o1, o2 = c.symbolAccess(p.From.Sym, v, p.To.Reg, inst, reuseBaseReg)
 		}
 
