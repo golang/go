@@ -1,0 +1,29 @@
+This test check hover on the 2nd argument in go:linkname directives.
+-- go.mod --
+module mod.com
+
+-- upper/upper.go --
+package upper
+
+import (
+	_ "unsafe"
+	_ "mod.com/lower"
+)
+
+//go:linkname foo mod.com/lower.bar //@hover("mod.com/lower.bar", "mod.com/lower.bar", bar)
+func foo() string
+
+-- lower/lower.go --
+package lower
+
+// bar does foo.
+func bar() string {
+	return "foo by bar"
+}
+
+-- @bar/hover.md --
+```go
+func bar() string
+```
+
+bar does foo.

@@ -382,3 +382,42 @@ var C int
 		})
 	}
 }
+
+const linknameHover = `
+-- go.mod --
+module mod.com
+
+-- upper/upper.go --
+package upper
+
+import (
+	_ "unsafe"
+	_ "mod.com/lower"
+)
+
+//go:linkname foo mod.com/lower.bar
+func foo() string
+
+-- lower/lower.go --
+package lower
+
+// bar does foo.
+func bar() string {
+	return "foo by bar"
+}`
+
+func TestHoverLinknameDirective(t *testing.T) {
+	Run(t, linknameHover, func(t *testing.T, env *Env) {
+		// Jump from directives 2nd arg.
+		env.OpenFile("upper/upper.go")
+		from := env.RegexpSearch("upper/upper.go", `lower.bar`)
+
+		hover, _ := env.Hover(from)
+		content := hover.Value
+
+		expect := "bar does foo"
+		if !strings.Contains(content, expect) {
+			t.Errorf("hover: %q does not contain: %q", content, expect)
+		}
+	})
+}

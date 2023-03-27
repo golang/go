@@ -23,30 +23,43 @@ var ErrNoLinkname = errors.New("no linkname directive found")
 
 // LinknameDefinition finds the definition of the linkname directive in fh at pos.
 // If there is no linkname directive at pos, returns ErrNoLinkname.
-func LinknameDefinition(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]protocol.Location, error) {
-	pkgPath, name := parseLinkname(ctx, snapshot, fh, pos)
+func LinknameDefinition(ctx context.Context, snapshot Snapshot, fh FileHandle, from protocol.Position) ([]protocol.Location, error) {
+	pkgPath, name, _ := parseLinkname(ctx, snapshot, fh, from)
 	if pkgPath == "" {
 		return nil, ErrNoLinkname
 	}
-	return findLinkname(ctx, snapshot, fh, pos, PackagePath(pkgPath), name)
+
+	_, pgf, pos, err := findLinkname(ctx, snapshot, PackagePath(pkgPath), name)
+	if err != nil {
+		return nil, fmt.Errorf("find linkname: %w", err)
+	}
+	loc, err := pgf.PosLocation(pos, pos+token.Pos(len(name)))
+	if err != nil {
+		return nil, fmt.Errorf("location of linkname: %w", err)
+	}
+	return []protocol.Location{loc}, nil
 }
 
 // parseLinkname attempts to parse a go:linkname declaration at the given pos.
-// If successful, it returns the package path and object name referenced by the second
-// argument of the linkname directive.
+// If successful, it returns
+// - package path referenced
+// - object name referenced
+// - byte offset in fh of the start of the link target
+// of the linkname directives 2nd argument.
 //
-// If the position is not in the second argument of a go:linkname directive, or parsing fails, it returns "", "".
-func parseLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (pkgPath, name string) {
+// If the position is not in the second argument of a go:linkname directive,
+// or parsing fails, it returns "", "", 0.
+func parseLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (pkgPath, name string, targetOffset int) {
 	// TODO(adonovan): opt: parsing isn't necessary here.
 	// We're only looking for a line comment.
 	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
-		return "", ""
+		return "", "", 0
 	}
 
 	offset, err := pgf.Mapper.PositionOffset(pos)
 	if err != nil {
-		return "", ""
+		return "", "", 0
 	}
 
 	// Looking for pkgpath in '//go:linkname f pkgpath.g'.
@@ -54,23 +67,24 @@ func parseLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	directive, end := findLinknameAtOffset(pgf, offset)
 	parts := strings.Fields(directive)
 	if len(parts) != 3 {
-		return "", ""
+		return "", "", 0
 	}
 
 	// Inside 2nd arg [start, end]?
 	// (Assumes no trailing spaces.)
 	start := end - len(parts[2])
 	if !(start <= offset && offset <= end) {
-		return "", ""
+		return "", "", 0
 	}
 	linkname := parts[2]
 
 	// Split the pkg path from the name.
 	dot := strings.LastIndexByte(linkname, '.')
 	if dot < 0 {
-		return "", ""
+		return "", "", 0
 	}
-	return linkname[:dot], linkname[dot+1:]
+
+	return linkname[:dot], linkname[dot+1:], start
 }
 
 // findLinknameAtOffset returns the first linkname directive on line and its end offset.
@@ -80,9 +94,17 @@ func findLinknameAtOffset(pgf *ParsedGoFile, offset int) (string, int) {
 		for _, com := range grp.List {
 			if strings.HasPrefix(com.Text, "//go:linkname") {
 				p := safetoken.Position(pgf.Tok, com.Pos())
-				end := p.Offset + len(com.Text)
+
+				// Sometimes source code (typically tests) has another
+				// comment after the directive, trim that away.
+				text := com.Text
+				if i := strings.LastIndex(text, "//"); i != 0 {
+					text = strings.TrimSpace(text[:i])
+				}
+
+				end := p.Offset + len(text)
 				if p.Offset <= offset && offset < end {
-					return com.Text, end
+					return text, end
 				}
 			}
 		}
@@ -92,14 +114,14 @@ func findLinknameAtOffset(pgf *ParsedGoFile, offset int) (string, int) {
 
 // findLinkname searches dependencies of packages containing fh for an object
 // with linker name matching the given package path and name.
-func findLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position, pkgPath PackagePath, name string) ([]protocol.Location, error) {
+func findLinkname(ctx context.Context, snapshot Snapshot, pkgPath PackagePath, name string) (Package, *ParsedGoFile, token.Pos, error) {
 	// Typically the linkname refers to a forward dependency
 	// or a reverse dependency, but in general it may refer
 	// to any package in the workspace.
 	var pkgMeta *Metadata
 	metas, err := snapshot.AllMetadata(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, token.NoPos, err
 	}
 	RemoveIntermediateTestVariants(&metas)
 	for _, meta := range metas {
@@ -109,29 +131,26 @@ func findLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pro
 		}
 	}
 	if pkgMeta == nil {
-		return nil, fmt.Errorf("cannot find package %q", pkgPath)
+		return nil, nil, token.NoPos, fmt.Errorf("cannot find package %q", pkgPath)
 	}
 
 	// When found, type check the desired package (snapshot.TypeCheck in TypecheckFull mode),
 	pkgs, err := snapshot.TypeCheck(ctx, pkgMeta.ID)
 	if err != nil {
-		return nil, err
+		return nil, nil, token.NoPos, err
 	}
 	pkg := pkgs[0]
 
 	obj := pkg.GetTypes().Scope().Lookup(name)
 	if obj == nil {
-		return nil, fmt.Errorf("package %q does not define %s", pkgPath, name)
+		return nil, nil, token.NoPos, fmt.Errorf("package %q does not define %s", pkgPath, name)
 	}
 
 	objURI := safetoken.StartPosition(pkg.FileSet(), obj.Pos())
 	pgf, err := pkg.File(span.URIFromPath(objURI.Filename))
 	if err != nil {
-		return nil, err
+		return nil, nil, token.NoPos, err
 	}
-	loc, err := pgf.PosLocation(obj.Pos(), obj.Pos()+token.Pos(len(name)))
-	if err != nil {
-		return nil, err
-	}
-	return []protocol.Location{loc}, nil
+
+	return pkg, pgf, obj.Pos(), nil
 }
