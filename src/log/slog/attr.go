@@ -83,6 +83,8 @@ func (a Attr) String() string {
 	return fmt.Sprintf("%s=%s", a.Key, a.Value)
 }
 
+// isEmpty reports whether a has an empty key and a nil value.
+// That can be written as Attr{} or Any("", nil).
 func (a Attr) isEmpty() bool {
 	return a.Key == "" && a.Value.num == 0 && a.Value.any == nil
 }

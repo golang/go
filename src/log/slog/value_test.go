@@ -185,7 +185,6 @@ func TestLogValue(t *testing.T) {
 	if !attrsEqual(got2, want2) {
 		t.Errorf("got %v, want %v", got2, want2)
 	}
-
 }
 
 func TestZeroTime(t *testing.T) {

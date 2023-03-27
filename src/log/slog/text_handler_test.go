@@ -185,7 +185,7 @@ func TestNeedsQuoting(t *testing.T) {
 		in   string
 		want bool
 	}{
-		{"", false},
+		{"", true},
 		{"ab", false},
 		{"a=b", true},
 		{`"ab"`, true},

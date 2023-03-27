@@ -30,7 +30,7 @@ func Example_wrapping() {
 	replace := func(groups []string, a slog.Attr) slog.Attr {
 		// Remove time.
 		if a.Key == slog.TimeKey && len(groups) == 0 {
-			a.Key = ""
+			return slog.Attr{}
 		}
 		// Remove the directory from the source's filename.
 		if a.Key == slog.SourceKey {

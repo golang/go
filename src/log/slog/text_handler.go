@@ -138,6 +138,9 @@ func byteSlice(a any) ([]byte, bool) {
 }
 
 func needsQuoting(s string) bool {
+	if len(s) == 0 {
+		return true
+	}
 	for i := 0; i < len(s); {
 		b := s[i]
 		if b < utf8.RuneSelf {
