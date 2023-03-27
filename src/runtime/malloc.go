@@ -117,8 +117,6 @@ const (
 	pageShift = _PageShift
 	pageSize  = _PageSize
 
-	concurrentSweep = _ConcurrentSweep
-
 	_PageSize = 1 << _PageShift
 	_PageMask = _PageSize - 1
 

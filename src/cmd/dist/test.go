@@ -676,8 +676,22 @@ func (t *tester) registerTests() {
 			})
 	}
 
-	// morestack tests. We only run these on in long-test mode
-	// (with GO_TEST_SHORT=false) because the runtime test is
+	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
+	// mode (with GO_TEST_SHORT=0) because this is just testing a
+	// non-critical debug setting.
+	if !t.compileOnly && !t.short {
+		t.registerTest("GODEBUG=gcstoptheworld=2 archive/zip",
+			&goTest{
+				variant: "runtime:gcstoptheworld2",
+				timeout: 300 * time.Second,
+				short:   true,
+				env:     []string{"GODEBUG=gcstoptheworld=2"},
+				pkg:     "archive/zip",
+			})
+	}
+
+	// morestack tests. We only run these in long-test mode
+	// (with GO_TEST_SHORT=0) because the runtime test is
 	// already quite long and mayMoreStackMove makes it about
 	// twice as slow.
 	if !t.compileOnly && !t.short {
