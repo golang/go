@@ -85,7 +85,6 @@ type Definitions = map[span.Span]Definition
 type Highlights = map[span.Span][]span.Span
 type Renames = map[span.Span]string
 type PrepareRenames = map[span.Span]*source.PrepareItem
-type Symbols = map[span.URI][]*symbol
 type InlayHints = []span.Span
 type WorkspaceSymbols = map[WorkspaceSymbolsTestType]map[span.URI][]string
 type Signatures = map[span.Span]*protocol.SignatureHelp
@@ -119,7 +118,6 @@ type Data struct {
 	Renames                  Renames
 	InlayHints               InlayHints
 	PrepareRenames           PrepareRenames
-	Symbols                  Symbols
 	WorkspaceSymbols         WorkspaceSymbols
 	Signatures               Signatures
 	Links                    Links
@@ -166,7 +164,6 @@ type Tests interface {
 	InlayHints(*testing.T, span.Span)
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
-	Symbols(*testing.T, span.URI, []protocol.DocumentSymbol)
 	WorkspaceSymbols(*testing.T, span.URI, string, WorkspaceSymbolsTestType)
 	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
@@ -240,12 +237,6 @@ type SuggestedFix struct {
 	ActionKind, Title string
 }
 
-// A symbol holds a DocumentSymbol along with its parent-child edge.
-type symbol struct {
-	pSymbol      protocol.DocumentSymbol
-	id, parentID string
-}
-
 type Golden struct {
 	Filename string
 	Archive  *txtar.Archive
@@ -316,7 +307,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		SuggestedFixes:           make(SuggestedFixes),
 		FunctionExtractions:      make(FunctionExtractions),
 		MethodExtractions:        make(MethodExtractions),
-		Symbols:                  make(Symbols),
 		WorkspaceSymbols:         make(WorkspaceSymbols),
 		Signatures:               make(Signatures),
 		Links:                    make(Links),
@@ -474,7 +464,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"inlayHint":      datum.collectInlayHints,
 		"rename":         datum.collectRenames,
 		"prepare":        datum.collectPrepareRenames,
-		"symbol":         datum.collectSymbols,
 		"signature":      datum.collectSignatures,
 		"link":           datum.collectLinks,
 		"suggestedfix":   datum.collectSuggestedFixes,
@@ -787,50 +776,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
-	t.Run("Symbols", func(t *testing.T) {
-		t.Helper()
-		for uri, allSymbols := range data.Symbols {
-			byParent := make(map[string][]*symbol)
-			for _, sym := range allSymbols {
-				if sym.parentID != "" {
-					byParent[sym.parentID] = append(byParent[sym.parentID], sym)
-				}
-			}
-
-			// collectChildren does a depth-first traversal of the symbol tree,
-			// computing children of child nodes before returning to their parent.
-			// This is necessary as the Children field is slice of non-pointer types,
-			// and therefore we need to be careful to mutate children first before
-			// assigning them to their parent.
-			var collectChildren func(id string) []protocol.DocumentSymbol
-			collectChildren = func(id string) []protocol.DocumentSymbol {
-				children := byParent[id]
-				// delete from byParent before recursing, to ensure that
-				// collectChildren terminates even in the presence of cycles.
-				delete(byParent, id)
-				var result []protocol.DocumentSymbol
-				for _, child := range children {
-					child.pSymbol.Children = collectChildren(child.id)
-					result = append(result, child.pSymbol)
-				}
-				return result
-			}
-
-			var topLevel []protocol.DocumentSymbol
-			for _, sym := range allSymbols {
-				if sym.parentID == "" {
-					sym.pSymbol.Children = collectChildren(sym.id)
-					topLevel = append(topLevel, sym.pSymbol)
-				}
-			}
-
-			t.Run(uriName(uri), func(t *testing.T) {
-				t.Helper()
-				tests.Symbols(t, uri, topLevel)
-			})
-		}
-	})
-
 	t.Run("WorkspaceSymbols", func(t *testing.T) {
 		t.Helper()
 
@@ -991,7 +936,6 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "InlayHintsCount = %v\n", len(data.InlayHints))
 	fmt.Fprintf(buf, "RenamesCount = %v\n", len(data.Renames))
 	fmt.Fprintf(buf, "PrepareRenamesCount = %v\n", len(data.PrepareRenames))
-	fmt.Fprintf(buf, "SymbolsCount = %v\n", len(data.Symbols))
 	fmt.Fprintf(buf, "WorkspaceSymbolsCount = %v\n", countWorkspaceSymbols(data.WorkspaceSymbols))
 	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
@@ -1275,23 +1219,6 @@ func (data *Data) collectPrepareRenames(src, spn span.Span, placeholder string) 
 		Range: data.mustRange(spn),
 		Text:  placeholder,
 	}
-}
-
-// collectSymbols is responsible for collecting @symbol annotations.
-func (data *Data) collectSymbols(name string, selectionRng span.Span, kind, detail, id, parentID string) {
-	// We don't set 'Range' here as it is difficult (impossible?) to express
-	// multi-line ranges in the packagestest framework.
-	uri := selectionRng.URI()
-	data.Symbols[uri] = append(data.Symbols[uri], &symbol{
-		pSymbol: protocol.DocumentSymbol{
-			Name:           name,
-			Kind:           protocol.ParseSymbolKind(kind),
-			SelectionRange: data.mustRange(selectionRng),
-			Detail:         detail,
-		},
-		id:       id,
-		parentID: parentID,
-	})
 }
 
 // mustRange converts spn into a protocol.Range, panicking on any error.

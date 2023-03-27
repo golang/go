@@ -1,0 +1,114 @@
+Basic tests of textDocument/documentSymbols.
+
+-- symbol.go --
+package main
+
+//@symbol(want)
+
+import "io"
+
+var _ = 1
+
+var x = 42
+
+var nested struct {
+	nestedField struct {
+		f int
+	}
+}
+
+const y = 43
+
+type Number int
+
+type Alias = string
+
+type NumberAlias = Number
+
+type (
+	Boolean   bool
+	BoolAlias = bool
+)
+
+type Foo struct {
+	Quux
+	W         io.Writer
+	Bar       int
+	baz       string
+	funcField func(int) int
+}
+
+type Quux struct {
+	X, Y float64
+}
+
+type EmptyStruct struct{}
+
+func (f Foo) Baz() string {
+	return f.baz
+}
+
+func _() {}
+
+func (q *Quux) Do() {}
+
+func main() {
+}
+
+type Stringer interface {
+	String() string
+}
+
+type ABer interface {
+	B()
+	A() string
+}
+
+type WithEmbeddeds interface {
+	Do()
+	ABer
+	io.Writer
+}
+
+type EmptyInterface interface{}
+
+func Dunk() int { return 0 }
+
+func dunk() {}
+
+-- @want --
+(*Quux).Do "func()"
+(Foo).Baz "func() string" +2 lines
+ABer "interface{...}" +3 lines
+ABer.A "func() string"
+ABer.B "func()"
+Alias "string"
+BoolAlias "bool"
+Boolean "bool"
+Dunk "func() int"
+EmptyInterface "interface{}"
+EmptyStruct "struct{}"
+Foo "struct{...}" +6 lines
+Foo.Bar "int"
+Foo.Quux "Quux"
+Foo.W "io.Writer"
+Foo.baz "string"
+Foo.funcField "func(int) int"
+Number "int"
+NumberAlias "Number"
+Quux "struct{...}" +2 lines
+Quux.X "float64"
+Quux.Y "float64"
+Stringer "interface{...}" +2 lines
+Stringer.String "func() string"
+WithEmbeddeds "interface{...}" +4 lines
+WithEmbeddeds.ABer "ABer"
+WithEmbeddeds.Do "func()"
+WithEmbeddeds.Writer "io.Writer"
+dunk "func()"
+main "func()" +1 lines
+nested "struct{...}" +4 lines
+nested.nestedField "struct{...}" +2 lines
+nested.nestedField.f "int"
+x ""
+y ""

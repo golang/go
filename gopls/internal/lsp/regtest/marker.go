@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"go/token"
 	"io/fs"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -44,6 +45,10 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 
 // RunMarkerTests runs "marker" tests in the given test data directory.
 // (In practice: ../../regtest/marker/testdata)
+//
+// Use this command to run the tests:
+//
+//	$ go test ./gopls/internal/regtest/marker [-update]
 //
 // A marker test uses the '//@' marker syntax of the x/tools/go/expect package
 // to annotate source code with various information such as locations and
@@ -153,6 +158,18 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     first location and asserts that the result is the set of 'want' locations.
 //     The first want location must be the declaration (assumedly unique).
 //
+//   - symbol(golden): makes a textDocument/documentSymbol request
+//     for the enclosing file, formats the response with one symbol
+//     per line, sorts it, and compares against the named golden file.
+//     Each line is of the form:
+//
+//     dotted.symbol.name kind "detail" +n lines
+//
+//     where the "+n lines" part indicates that the declaration spans
+//     several lines. The test otherwise makes no attempt to check
+//     location information. There is no point to using more than one
+//     @symbol marker in a given file.
+//
 // # Argument conversion
 //
 // Marker arguments are first parsed by the go/expect package, which accepts
@@ -242,7 +259,7 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - reorganize regtest packages (and rename to just 'test'?)
 //   - Rename the files .txtar.
 //
-// Existing marker tests to port:
+// Existing marker tests (in ../testdata) to port:
 //   - CallHierarchy
 //   - CodeLens
 //   - Diagnostics
@@ -260,11 +277,9 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - SemanticTokens
 //   - FunctionExtractions
 //   - MethodExtractions
-//   - Definitions
 //   - Highlights
 //   - Renames
 //   - PrepareRenames
-//   - Symbols
 //   - InlayHints
 //   - WorkspaceSymbols
 //   - Signatures
@@ -476,6 +491,7 @@ var markerFuncs = map[string]markerFunc{
 	"rename":         makeMarkerFunc(renameMarker),
 	"renameerr":      makeMarkerFunc(renameErrMarker),
 	"suggestedfix":   makeMarkerFunc(suggestedfixMarker),
+	"symbol":         makeMarkerFunc(symbolMarker),
 	"refs":           makeMarkerFunc(refsMarker),
 }
 
@@ -598,6 +614,13 @@ func loadMarkerTests(dir string) ([]*markerTest, error) {
 
 func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 	archive := txtar.Parse(content)
+	if len(archive.Files) == 0 {
+		return nil, fmt.Errorf("txtar file has no '-- filename --' sections")
+	}
+	if bytes.Contains(archive.Comment, []byte("\n-- ")) {
+		// This check is conservative, but the comment is only a comment.
+		return nil, fmt.Errorf("ill-formed '-- filename --' header in comment")
+	}
 	test := &markerTest{
 		name:    name,
 		fset:    token.NewFileSet(),
@@ -649,6 +672,13 @@ func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 			}
 			test.notes = append(test.notes, notes...)
 			test.files[file.Name] = file.Data
+		}
+
+		// Print a warning if we see what looks like "-- filename --"
+		// without the second "--". It's not necessarily wrong,
+		// but it should almost never appear in our test inputs.
+		if bytes.Contains(file.Data, []byte("\n-- ")) {
+			log.Printf("ill-formed '-- filename --' header in %s?", file.Name)
 		}
 	}
 
@@ -790,6 +820,11 @@ func (c *marker) sprintf(format string, args ...interface{}) string {
 		}
 	}
 	return fmt.Sprintf(format, args2...)
+}
+
+// uri returns the URI of the file containing the marker.
+func (mark marker) uri() protocol.DocumentURI {
+	return mark.run.env.Sandbox.Workdir.URI(mark.run.test.fset.File(mark.note.Pos).Name())
 }
 
 // fmtLoc formats the given pos in the context of the test, using
@@ -1402,6 +1437,75 @@ func implementationMarker(mark marker, src protocol.Location, want ...protocol.L
 	}
 	if err := compareLocations(mark, got, want); err != nil {
 		mark.errorf("implementation: %v", err)
+	}
+}
+
+// symbolMarker implements the @symbol marker.
+func symbolMarker(mark marker, golden *Golden) {
+	// Retrieve information about all symbols in this file.
+	symbols, err := mark.run.env.Editor.Server.DocumentSymbol(mark.run.env.Ctx, &protocol.DocumentSymbolParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: mark.uri()},
+	})
+	if err != nil {
+		mark.errorf("DocumentSymbol request failed: %v", err)
+		return
+	}
+
+	// Format symbols one per line, sorted (in effect) by first column, a dotted name.
+	var lines []string
+	for _, symbol := range symbols {
+		// Each result element is a union of (legacy)
+		// SymbolInformation and (new) DocumentSymbol,
+		// so we ascertain which one and then transcode.
+		data, err := json.Marshal(symbol)
+		if err != nil {
+			mark.run.env.T.Fatal(err)
+		}
+		if _, ok := symbol.(map[string]interface{})["location"]; ok {
+			// This case is not reached because Editor initialization
+			// enables HierarchicalDocumentSymbolSupport.
+			// TODO(adonovan): test this too.
+			var sym protocol.SymbolInformation
+			if err := json.Unmarshal(data, &sym); err != nil {
+				mark.run.env.T.Fatal(err)
+			}
+			mark.errorf("fake Editor doesn't support SymbolInformation")
+
+		} else {
+			var sym protocol.DocumentSymbol // new hierarchical hotness
+			if err := json.Unmarshal(data, &sym); err != nil {
+				mark.run.env.T.Fatal(err)
+			}
+
+			// Print each symbol in the response tree.
+			var visit func(sym protocol.DocumentSymbol, prefix []string)
+			visit = func(sym protocol.DocumentSymbol, prefix []string) {
+				var out strings.Builder
+				out.WriteString(strings.Join(prefix, "."))
+				fmt.Fprintf(&out, " %q", sym.Detail)
+				if delta := sym.Range.End.Line - sym.Range.Start.Line; delta > 0 {
+					fmt.Fprintf(&out, " +%d lines", delta)
+				}
+				lines = append(lines, out.String())
+
+				for _, child := range sym.Children {
+					visit(child, append(prefix, child.Name))
+				}
+			}
+			visit(sym, []string{sym.Name})
+		}
+	}
+	sort.Strings(lines)
+	lines = append(lines, "") // match trailing newline in .txtar file
+	got := []byte(strings.Join(lines, "\n"))
+
+	// Compare with golden.
+	want, ok := golden.Get(mark.run.env.T, "", got)
+	if !ok {
+		mark.errorf("%s: missing golden file @%s", mark.note.Name, golden.id)
+	} else if diff := cmp.Diff(string(got), string(want)); diff != "" {
+		mark.errorf("%s: unexpected output: got:\n%s\nwant:\n%s\ndiff:\n%s",
+			mark.note.Name, got, want, diff)
 	}
 }
 

@@ -1,7 +1,0 @@
--- symbols --
-T Struct 6:6-6:7
-	F Field 7:2-7:3
-Constraint Interface 10:6-10:16
-	interface{...} Field 15:2-15:18
-	~int | struct{int} Field 11:2-11:22
-

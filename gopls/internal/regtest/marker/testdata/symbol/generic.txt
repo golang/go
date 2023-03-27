@@ -1,0 +1,29 @@
+Basic tests of textDocument/documentSymbols with generics.
+
+-- flags --
+-min_go=go1.18
+
+-- symbol.go --
+//@symbol(want)
+
+//go:build go1.18
+// +build go1.18
+
+package main
+
+type T[P any] struct {
+	F P
+}
+
+type Constraint interface {
+	~int | struct{ int }
+	interface{ M() }
+}
+
+-- @want --
+Constraint "interface{...}" +3 lines
+Constraint.interface{...} ""
+Constraint.interface{...}.M "func()"
+Constraint.~int | struct{int} ""
+T "struct{...}" +2 lines
+T.F "P"

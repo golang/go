@@ -16,7 +16,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -990,43 +989,6 @@ func applyTextDocumentEdits(r *runner, edits []protocol.DocumentChanges) (map[sp
 		}
 	}
 	return res, nil
-}
-
-func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.DocumentSymbol) {
-	params := &protocol.DocumentSymbolParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(uri),
-		},
-	}
-	got, err := r.server.DocumentSymbol(r.ctx, params)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	symbols := make([]protocol.DocumentSymbol, len(got))
-	for i, s := range got {
-		s, ok := s.(protocol.DocumentSymbol)
-		if !ok {
-			t.Fatalf("%v: wanted []DocumentSymbols but got %v", uri, got)
-		}
-		symbols[i] = s
-	}
-
-	// Sort by position to make it easier to find errors.
-	sortSymbols := func(s []protocol.DocumentSymbol) {
-		sort.Slice(s, func(i, j int) bool {
-			return protocol.CompareRange(s[i].SelectionRange, s[j].SelectionRange) < 0
-		})
-	}
-	sortSymbols(expectedSymbols)
-	sortSymbols(symbols)
-
-	// Ignore 'Range' here as it is difficult (impossible?) to express
-	// multi-line ranges in the packagestest framework.
-	ignoreRange := cmpopts.IgnoreFields(protocol.DocumentSymbol{}, "Range")
-	if diff := cmp.Diff(expectedSymbols, symbols, ignoreRange); diff != "" {
-		t.Errorf("mismatching symbols (-want +got)\n%s", diff)
-	}
 }
 
 func (r *runner) WorkspaceSymbols(t *testing.T, uri span.URI, query string, typ tests.WorkspaceSymbolsTestType) {

@@ -265,6 +265,10 @@ func (e *Editor) initialize(ctx context.Context) error {
 		"deprecated", "abstract", "async", "modification", "documentation", "defaultLibrary",
 	}
 
+	// The LSP tests have historically enabled this flag,
+	// but really we should test both ways for older editors.
+	params.Capabilities.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport = true
+
 	// This is a bit of a hack, since the fake editor doesn't actually support
 	// watching changed files that match a specific glob pattern. However, the
 	// editor does send didChangeWatchedFiles notifications, so set this to
