@@ -106,7 +106,7 @@ func (r *Record) AddAttrs(attrs ...Attr) {
 	// and seeing if the Attr there is non-zero.
 	if cap(r.back) > len(r.back) {
 		end := r.back[:len(r.back)+1][len(r.back)]
-		if end != (Attr{}) {
+		if !end.isEmpty() {
 			panic("copies of a slog.Record were both modified")
 		}
 	}
