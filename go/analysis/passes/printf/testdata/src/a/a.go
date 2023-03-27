@@ -360,6 +360,9 @@ func PrintfTests() {
 	es.Errorf("%w", err)           // OK
 	eis.Errorf(0, "%w", err)       // OK
 	ess.Errorf("ERROR", "%w", err) // OK
+	fmt.Appendf(nil, "%d", "123")  // want `wrong type`
+	fmt.Append(nil, "%d", 123)     // want `possible formatting directive`
+
 }
 
 func someString() string { return "X" }

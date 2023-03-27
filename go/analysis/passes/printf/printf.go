@@ -315,9 +315,10 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 // example, fmt.Printf forwards to fmt.Fprintf. We avoid relying on the
 // driver applying analyzers to standard packages because "go vet" does
 // not do so with gccgo, and nor do some other build systems.
-// TODO(adonovan): eliminate the redundant facts once this restriction
-// is lifted.
 var isPrint = stringSet{
+	"fmt.Appendf":  true,
+	"fmt.Append":   true,
+	"fmt.Appendln": true,
 	"fmt.Errorf":   true,
 	"fmt.Fprint":   true,
 	"fmt.Fprintf":  true,
