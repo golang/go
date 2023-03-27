@@ -70,6 +70,11 @@ func TestGdbCoreSignalBacktrace(t *testing.T) {
 		// to know how to enable/find core files on each OS.
 		t.Skip("Test only supported on Linux")
 	}
+	if runtime.GOARCH != "386" && runtime.GOARCH != "amd64" {
+		// TODO(go.dev/issue/25218): Other architectures use sigreturn
+		// via VDSO, which we somehow don't handle correctly.
+		t.Skip("Backtrace through signal handler only works on 386 and amd64")
+	}
 
 	checkGdbEnvironment(t)
 	t.Parallel()
