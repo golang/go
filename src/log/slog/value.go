@@ -414,8 +414,10 @@ func (v Value) append(dst []byte) []byte {
 		return append(dst, v.duration().String()...)
 	case KindTime:
 		return append(dst, v.time().String()...)
-	case KindAny, KindGroup, KindLogValuer:
-		return append(dst, fmt.Sprint(v.any)...)
+	case KindGroup:
+		return fmt.Append(dst, v.group())
+	case KindAny, KindLogValuer:
+		return fmt.Append(dst, v.any)
 	default:
 		panic(fmt.Sprintf("bad kind: %s", v.Kind()))
 	}

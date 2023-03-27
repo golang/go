@@ -59,6 +59,7 @@ func TestValueString(t *testing.T) {
 		{StringValue("foo"), "foo"},
 		{TimeValue(testTime), "2000-01-02 03:04:05 +0000 UTC"},
 		{AnyValue(time.Duration(3 * time.Second)), "3s"},
+		{GroupValue(Int("a", 1), Bool("b", true)), "[a=1 b=true]"},
 	} {
 		if got := test.v.String(); got != test.want {
 			t.Errorf("%#v:\ngot  %q\nwant %q", test.v, got, test.want)
