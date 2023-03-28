@@ -791,17 +791,14 @@ func inlcopy(n ir.Node) ir.Node {
 func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
 	savefn := ir.CurFunc
 	ir.CurFunc = fn
-	maxCost := int32(inlineMaxBudget)
-	if isBigFunc(fn) {
-		if base.Flag.LowerM > 1 {
-			fmt.Printf("%v: function %v considered 'big'; revising maxCost from %d to %d\n", ir.Line(fn), fn, maxCost, inlineBigFunctionMaxCost)
-		}
-		maxCost = inlineBigFunctionMaxCost
+	bigCaller := isBigFunc(fn)
+	if bigCaller && base.Flag.LowerM > 1 {
+		fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
 	}
 	var inlCalls []*ir.InlinedCallExpr
 	var edit func(ir.Node) ir.Node
 	edit = func(n ir.Node) ir.Node {
-		return inlnode(n, maxCost, &inlCalls, edit, profile)
+		return inlnode(n, bigCaller, &inlCalls, edit, profile)
 	}
 	ir.EditChildren(fn, edit)
 
@@ -832,7 +829,7 @@ func InlineCalls(fn *ir.Func, profile *pgo.Profile) {
 // The result of inlnode MUST be assigned back to n, e.g.
 //
 //	n.Left = inlnode(n.Left)
-func inlnode(n ir.Node, maxCost int32, inlCalls *[]*ir.InlinedCallExpr, edit func(ir.Node) ir.Node, profile *pgo.Profile) ir.Node {
+func inlnode(n ir.Node, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr, edit func(ir.Node) ir.Node, profile *pgo.Profile) ir.Node {
 	if n == nil {
 		return n
 	}
@@ -894,7 +891,7 @@ func inlnode(n ir.Node, maxCost int32, inlCalls *[]*ir.InlinedCallExpr, edit fun
 			break
 		}
 		if fn := inlCallee(call.X, profile); fn != nil && typecheck.HaveInlineBody(fn) {
-			n = mkinlcall(call, fn, maxCost, inlCalls, edit)
+			n = mkinlcall(call, fn, bigCaller, inlCalls, edit)
 			if fn.IsHiddenClosure() {
 				// Visit function to pick out any contained hidden
 				// closures to mark them as dead, since they will no
@@ -969,6 +966,54 @@ var InlineCall = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedC
 	panic("unreachable")
 }
 
+// inlineCostOK returns true if call n from caller to callee is cheap enough to
+// inline. bigCaller indicates that caller is a big function.
+//
+// If inlineCostOK returns false, it also returns the max cost that the callee
+// exceeded.
+func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool, int32) {
+	maxCost := int32(inlineMaxBudget)
+	if bigCaller {
+		// We use this to restrict inlining into very big functions.
+		// See issue 26546 and 17566.
+		maxCost = inlineBigFunctionMaxCost
+	}
+
+	if callee.Inl.Cost <= maxCost {
+		// Simple case. Function is already cheap enough.
+		return true, 0
+	}
+
+	// We'll also allow inlining of hot functions below inlineHotMaxBudget,
+	// but only in small functions.
+
+	lineOffset := pgo.NodeLineOffset(n, caller)
+	csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: caller}
+	if _, ok := candHotEdgeMap[csi]; !ok {
+		// Cold
+		return false, maxCost
+	}
+
+	// Hot
+
+	if bigCaller {
+		if base.Debug.PGOInline > 0 {
+			fmt.Printf("hot-big check disallows inlining for call %s (cost %d) at %v in big function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
+		}
+		return false, maxCost
+	}
+
+	if callee.Inl.Cost > inlineHotMaxBudget {
+		return false, inlineHotMaxBudget
+	}
+
+	if base.Debug.PGOInline > 0 {
+		fmt.Printf("hot-budget check allows inlining for call %s (cost %d) at %v in function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
+	}
+
+	return true, 0
+}
+
 // If n is a OCALLFUNC node, and fn is an ONAME node for a
 // function with an inlinable body, return an OINLCALL node that can replace n.
 // The returned node's Ninit has the parameter assignments, the Nbody is the
@@ -977,7 +1022,7 @@ var InlineCall = func(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedC
 // The result of mkinlcall MUST be assigned back to n, e.g.
 //
 //	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.InlinedCallExpr, edit func(ir.Node) ir.Node) ir.Node {
+func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr, edit func(ir.Node) ir.Node) ir.Node {
 	if fn.Inl == nil {
 		if logopt.Enabled() {
 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
@@ -985,30 +1030,13 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
 		}
 		return n
 	}
-	if fn.Inl.Cost > maxCost {
-		// If the callsite is hot and it is under the inlineHotMaxBudget budget, then try to inline it, or else bail.
-		lineOffset := pgo.NodeLineOffset(n, ir.CurFunc)
-		csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: ir.CurFunc}
-		if _, ok := candHotEdgeMap[csi]; ok {
-			if fn.Inl.Cost > inlineHotMaxBudget {
-				if logopt.Enabled() {
-					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
-						fmt.Sprintf("cost %d of %s exceeds max large caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), inlineHotMaxBudget))
-				}
-				return n
-			}
-			if base.Debug.PGOInline > 0 {
-				fmt.Printf("hot-budget check allows inlining for call %s at %v\n", ir.PkgFuncName(fn), ir.Line(n))
-			}
-		} else {
-			// The inlined function body is too big. Typically we use this check to restrict
-			// inlining into very big functions.  See issue 26546 and 17566.
-			if logopt.Enabled() {
-				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
-					fmt.Sprintf("cost %d of %s exceeds max large caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), maxCost))
-			}
-			return n
+
+	if ok, maxCost := inlineCostOK(n, ir.CurFunc, fn, bigCaller); !ok {
+		if logopt.Enabled() {
+			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+			fmt.Sprintf("cost %d of %s exceeds max caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), maxCost))
 		}
+		return n
 	}
 
 	if fn == ir.CurFunc {
