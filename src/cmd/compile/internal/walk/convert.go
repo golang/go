@@ -281,7 +281,9 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 		// Copy from the static string data to the [n]byte.
 		if len(sc) > 0 {
-			as := ir.NewAssignStmt(base.Pos, ir.NewStarExpr(base.Pos, p), ir.NewStarExpr(base.Pos, typecheck.ConvNop(ir.NewUnaryExpr(base.Pos, ir.OSPTR, s), t.PtrTo())))
+			sptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, s)
+			sptr.SetBounded(true)
+			as := ir.NewAssignStmt(base.Pos, ir.NewStarExpr(base.Pos, p), ir.NewStarExpr(base.Pos, typecheck.ConvNop(sptr, t.PtrTo())))
 			appendWalkStmt(init, as)
 		}
 
