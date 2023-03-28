@@ -120,19 +120,19 @@ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 
 // func usleep(usec uint32)
 TEXT runtime·usleep(SB),NOSPLIT,$16-4
-	MOVWU	usec+0(FP), R6
-	MOVV	R6, R5
-	MOVW	$1000000, R4
-	DIVVU	R4, R6, R6
-	MOVV	R6, 8(R3)
-	MOVW	$1000, R4
-	MULVU	R6, R4, R4
-	SUBVU	R4, R5
-	MOVV	R5, 16(R3)
+	MOVWU	usec+0(FP), R7
+	MOVV	$1000, R6
+	MULVU	R6, R7, R7
+	MOVV	$1000000000, R6
+
+	DIVVU	R6, R7, R5	// ts->tv_sec
+	REMVU	R6, R7, R4	// ts->tv_nsec
+	MOVV	R5, 8(R3)
+	MOVV	R4, 16(R3)
 
 	// nanosleep(&ts, 0)
 	ADDV	$8, R3, R4
-	MOVW	$0, R5
+	MOVV	R0, R5
 	MOVV	$SYS_nanosleep, R11
 	SYSCALL
 	RET
