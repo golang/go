@@ -345,6 +345,7 @@ var optab = []Optab{
 	{ARDTIMED, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
 
 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0},
+	{obj.APCALIGN, C_SCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_DCON, C_NONE, C_NONE, C_DCON, C_NONE, 0, 0, 0, 0},
 	{obj.AFUNCDATA, C_SCON, C_NONE, C_NONE, C_ADDR, C_NONE, 0, 0, 0, 0},
@@ -357,6 +358,15 @@ var optab = []Optab{
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // same as AJMP
 
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0},
+}
+
+// pcAlignPadLength returns the number of bytes required to align pc to alignedValue,
+// reporting an error if alignedValue is not a power of two or is out of range.
+func pcAlignPadLength(ctxt *obj.Link, pc int64, alignedValue int64) int {
+	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
+		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", alignedValue)
+	}
+	return int(-pc & (alignedValue - 1))
 }
 
 var oprange [ALAST & obj.AMask][]Optab
@@ -390,10 +400,20 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o = c.oplook(p)
 		m = int(o.size)
 		if m == 0 {
-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+			switch p.As {
+			case obj.APCALIGN:
+				alignedValue := p.From.Offset
+				m = pcAlignPadLength(ctxt, pc, alignedValue)
+				// Update the current text symbol alignment value.
+				if int32(alignedValue) > cursym.Func().Align {
+					cursym.Func().Align = int32(alignedValue)
+				}
+				break
+			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+				continue
+			default:
 				c.ctxt.Diag("zero-width instruction\n%v", p)
 			}
-			continue
 		}
 
 		pc += int64(m)
@@ -443,10 +463,16 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 			m = int(o.size)
 			if m == 0 {
-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+				switch p.As {
+				case obj.APCALIGN:
+					alignedValue := p.From.Offset
+					m = pcAlignPadLength(ctxt, pc, alignedValue)
+					break
+				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
+					continue
+				default:
 					c.ctxt.Diag("zero-width instruction\n%v", p)
 				}
-				continue
 			}
 
 			pc += int64(m)
@@ -469,6 +495,16 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		o = c.oplook(p)
 		if int(o.size) > 4*len(out) {
 			log.Fatalf("out array in span0 is too small, need at least %d for %v", o.size/4, p)
+		}
+		if p.As == obj.APCALIGN {
+			alignedValue := p.From.Offset
+			v := pcAlignPadLength(c.ctxt, p.Pc, alignedValue)
+			for i = 0; i < int32(v/4); i++ {
+				// emit ANOOP instruction by the padding size
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, c.oprrr(ANOOP))
+				bp = bp[4:]
+			}
+			continue
 		}
 		c.asmout(p, o, out[:])
 		for i = 0; i < int32(o.size/4); i++ {
@@ -1062,6 +1098,7 @@ func buildop(ctxt *obj.Link) {
 			obj.ATEXT,
 			obj.AUNDEF,
 			obj.AFUNCDATA,
+			obj.APCALIGN,
 			obj.APCDATA,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:

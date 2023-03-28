@@ -567,7 +567,8 @@ func main() {
 }
 `
 
-const testFuncAlignAsmSrc = `
+var testFuncAlignAsmSources = map[string]string{
+	"arm64": `
 #include "textflag.h"
 
 TEXT	·alignPc(SB),NOSPLIT, $0-0
@@ -578,13 +579,27 @@ TEXT	·alignPc(SB),NOSPLIT, $0-0
 
 GLOBL	·alignPcFnAddr(SB),RODATA,$8
 DATA	·alignPcFnAddr(SB)/8,$·alignPc(SB)
-`
+`,
+	"loong64": `
+#include "textflag.h"
+
+TEXT	·alignPc(SB),NOSPLIT, $0-0
+	MOVV	$2, R4
+	PCALIGN	$512
+	MOVV	$3, R5
+	RET
+
+GLOBL	·alignPcFnAddr(SB),RODATA,$8
+DATA	·alignPcFnAddr(SB)/8,$·alignPc(SB)
+`,
+}
 
 // TestFuncAlign verifies that the address of a function can be aligned
-// with a specific value on arm64.
+// with a specific value on arm64 and loong64.
 func TestFuncAlign(t *testing.T) {
-	if runtime.GOARCH != "arm64" || runtime.GOOS != "linux" {
-		t.Skip("skipping on non-linux/arm64 platform")
+	testFuncAlignAsmSrc := testFuncAlignAsmSources[runtime.GOARCH]
+	if len(testFuncAlignAsmSrc) == 0 || runtime.GOOS != "linux" {
+		t.Skip("skipping on non-linux/{arm64,loong64} platform")
 	}
 	testenv.MustHaveGoBuild(t)
 
