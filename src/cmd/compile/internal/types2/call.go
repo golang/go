@@ -820,7 +820,7 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
 				}
 			}
 		}
-		check.rawExpr(nil, &x, n, nil, true)
+		check.exprOrType(&x, n, true)
 		if v != nil {
 			v.used = v_used // restore v.used
 		}
