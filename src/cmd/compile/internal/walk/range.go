@@ -193,6 +193,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
 		// Pointer to current iteration position. Start on entry to the loop
 		// with the pointer in hu.
 		ptr := ir.NewUnaryExpr(base.Pos, ir.OSPTR, hs)
+		ptr.SetBounded(true)
 		huVal := ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUNSAFEPTR], ptr)
 		huVal = ir.NewConvExpr(base.Pos, ir.OCONVNOP, types.Types[types.TUINTPTR], huVal)
 		hu := typecheck.Temp(types.Types[types.TUINTPTR])

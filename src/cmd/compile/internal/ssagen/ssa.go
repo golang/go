@@ -3199,7 +3199,10 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		n := n.(*ir.UnaryExpr)
 		a := s.expr(n.X)
 		if n.X.Type().IsSlice() {
-			return s.newValue1(ssa.OpSlicePtr, n.Type(), a)
+			if n.Bounded() {
+				return s.newValue1(ssa.OpSlicePtr, n.Type(), a)
+			}
+			return s.newValue1(ssa.OpSlicePtrUnchecked, n.Type(), a)
 		} else {
 			return s.newValue1(ssa.OpStringPtr, n.Type(), a)
 		}
