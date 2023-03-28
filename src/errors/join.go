@@ -10,6 +10,8 @@ package errors
 // The error formats as the concatenation of the strings obtained
 // by calling the Error method of each element of errs, with a newline
 // between each string.
+//
+// A non-nil error returned by Join implements the Unwrap() []error method.
 func Join(errs ...error) error {
 	n := 0
 	for _, err := range errs {
