@@ -165,6 +165,9 @@ func handleSelectJSON(w http.ResponseWriter, req *http.Request) {
 	}
 	fmt.Fprintf(out, "\n")
 
+	// Syntax debug output.
+	ast.Fprint(out, fset, path[0], nil) // ignore errors
+
 	// Clean up the messy temp file name.
 	outStr := strings.ReplaceAll(out.String(), f.Name(), "play.go")
 
