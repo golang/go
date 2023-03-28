@@ -11,7 +11,6 @@ import (
 	"internal/testenv"
 	"io"
 	"io/fs"
-	"os"
 	. "os"
 	"os/exec"
 	"path/filepath"
@@ -29,8 +28,8 @@ import (
 
 func TestMain(m *testing.M) {
 	if Getenv("GO_OS_TEST_DRAIN_STDIN") == "1" {
-		os.Stdout.Close()
-		io.Copy(io.Discard, os.Stdin)
+		Stdout.Close()
+		io.Copy(io.Discard, Stdin)
 		Exit(0)
 	}
 
@@ -153,7 +152,7 @@ func localTmp() string {
 }
 
 func newFile(testName string, t *testing.T) (f *File) {
-	f, err := os.CreateTemp(localTmp(), "_Go_"+testName)
+	f, err := CreateTemp(localTmp(), "_Go_"+testName)
 	if err != nil {
 		t.Fatalf("TempFile %s: %s", testName, err)
 	}
@@ -161,7 +160,7 @@ func newFile(testName string, t *testing.T) (f *File) {
 }
 
 func newDir(testName string, t *testing.T) (name string) {
-	name, err := os.MkdirTemp(localTmp(), "_Go_"+testName)
+	name, err := MkdirTemp(localTmp(), "_Go_"+testName)
 	if err != nil {
 		t.Fatalf("TempDir %s: %s", testName, err)
 	}
@@ -229,19 +228,19 @@ func TestStatSymlinkLoop(t *testing.T) {
 
 	defer chtmpdir(t)()
 
-	err := os.Symlink("x", "y")
+	err := Symlink("x", "y")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove("y")
+	defer Remove("y")
 
-	err = os.Symlink("y", "x")
+	err = Symlink("y", "x")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove("x")
+	defer Remove("x")
 
-	_, err = os.Stat("x")
+	_, err = Stat("x")
 	if _, ok := err.(*fs.PathError); !ok {
 		t.Errorf("expected *PathError, got %T: %v\n", err, err)
 	}
@@ -818,7 +817,7 @@ func TestReaddirStatFailures(t *testing.T) {
 func TestReaddirOfFile(t *testing.T) {
 	t.Parallel()
 
-	f, err := os.CreateTemp(t.TempDir(), "_Go_ReaddirOfFile")
+	f, err := CreateTemp(t.TempDir(), "_Go_ReaddirOfFile")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -908,7 +907,7 @@ func chtmpdir(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
 	}
-	d, err := os.MkdirTemp("", "test")
+	d, err := MkdirTemp("", "test")
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
 	}
@@ -1033,12 +1032,12 @@ func TestRenameOverwriteDest(t *testing.T) {
 	toData := []byte("to")
 	fromData := []byte("from")
 
-	err := os.WriteFile(to, toData, 0777)
+	err := WriteFile(to, toData, 0777)
 	if err != nil {
 		t.Fatalf("write file %q failed: %v", to, err)
 	}
 
-	err = os.WriteFile(from, fromData, 0777)
+	err = WriteFile(from, fromData, 0777)
 	if err != nil {
 		t.Fatalf("write file %q failed: %v", from, err)
 	}
@@ -1340,18 +1339,18 @@ func TestTruncateNonexistentFile(t *testing.T) {
 
 	assertPathError := func(t testing.TB, path string, err error) {
 		t.Helper()
-		if pe, ok := err.(*os.PathError); !ok || !os.IsNotExist(err) || pe.Path != path {
+		if pe, ok := err.(*PathError); !ok || !IsNotExist(err) || pe.Path != path {
 			t.Errorf("got error: %v\nwant an ErrNotExist PathError with path %q", err, path)
 		}
 	}
 
 	path := filepath.Join(t.TempDir(), "nonexistent")
 
-	err := os.Truncate(path, 1)
+	err := Truncate(path, 1)
 	assertPathError(t, path, err)
 
 	// Truncate shouldn't create any new file.
-	_, err = os.Stat(path)
+	_, err = Stat(path)
 	assertPathError(t, path, err)
 }
 
@@ -1415,7 +1414,7 @@ func testChtimes(t *testing.T, name string) {
 			// the contents are accessed; also, it is set
 			// whenever mtime is set.
 		case "netbsd":
-			mounts, _ := os.ReadFile("/proc/mounts")
+			mounts, _ := ReadFile("/proc/mounts")
 			if strings.Contains(string(mounts), "noatime") {
 				t.Logf("AccessTime didn't go backwards, but see a filesystem mounted noatime; ignoring. Issue 19293.")
 			} else {
@@ -1487,7 +1486,7 @@ func TestChdirAndGetwd(t *testing.T) {
 	case "ios":
 		dirs = nil
 		for _, d := range []string{"d1", "d2"} {
-			dir, err := os.MkdirTemp("", d)
+			dir, err := MkdirTemp("", d)
 			if err != nil {
 				t.Fatalf("TempDir: %v", err)
 			}
@@ -1580,7 +1579,7 @@ func TestProgWideChdir(t *testing.T) {
 		c <- true
 		t.Fatalf("Getwd: %v", err)
 	}
-	d, err := os.MkdirTemp("", "test")
+	d, err := MkdirTemp("", "test")
 	if err != nil {
 		c <- true
 		t.Fatalf("TempDir: %v", err)
@@ -1649,7 +1648,7 @@ func TestSeek(t *testing.T) {
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
 			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 && runtime.GOOS == "linux" {
-				mounts, _ := os.ReadFile("/proc/mounts")
+				mounts, _ := ReadFile("/proc/mounts")
 				if strings.Contains(string(mounts), "reiserfs") {
 					// Reiserfs rejects the big seeks.
 					t.Skipf("skipping test known to fail on reiserfs; https://golang.org/issue/91")
@@ -1949,7 +1948,7 @@ func TestWriteAt(t *testing.T) {
 		t.Fatalf("WriteAt 7: %d, %v", n, err)
 	}
 
-	b, err := os.ReadFile(f.Name())
+	b, err := ReadFile(f.Name())
 	if err != nil {
 		t.Fatalf("ReadFile %s: %v", f.Name(), err)
 	}
@@ -1999,7 +1998,7 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
 		t.Fatalf("WriteString: %d, %v", n, err)
 	}
 	f.Close()
-	data, err := os.ReadFile(fname)
+	data, err := ReadFile(fname)
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}
@@ -2332,7 +2331,7 @@ func TestLongPath(t *testing.T) {
 				t.Fatalf("MkdirAll failed: %v", err)
 			}
 			data := []byte("hello world\n")
-			if err := os.WriteFile(sizedTempDir+"/foo.txt", data, 0644); err != nil {
+			if err := WriteFile(sizedTempDir+"/foo.txt", data, 0644); err != nil {
 				t.Fatalf("os.WriteFile() failed: %v", err)
 			}
 			if err := Rename(sizedTempDir+"/foo.txt", sizedTempDir+"/bar.txt"); err != nil {
@@ -2529,7 +2528,7 @@ func TestRemoveAllRace(t *testing.T) {
 
 	n := runtime.GOMAXPROCS(16)
 	defer runtime.GOMAXPROCS(n)
-	root, err := os.MkdirTemp("", "issue")
+	root, err := MkdirTemp("", "issue")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2666,7 +2665,7 @@ func TestUserHomeDir(t *testing.T) {
 
 	fi, err := Stat(dir)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if IsNotExist(err) {
 			// The user's home directory has a well-defined location, but does not
 			// exist. (Maybe nothing has written to it yet? That could happen, for
 			// example, on minimal VM images used for CI testing.)
@@ -2751,7 +2750,7 @@ func TestReaddirSmallSeek(t *testing.T) {
 	}
 }
 
-// isDeadlineExceeded reports whether err is or wraps os.ErrDeadlineExceeded.
+// isDeadlineExceeded reports whether err is or wraps ErrDeadlineExceeded.
 // We also check that the error has a Timeout method that returns true.
 func isDeadlineExceeded(err error) bool {
 	if !IsTimeout(err) {
@@ -2861,7 +2860,7 @@ func TestDirFS(t *testing.T) {
 func TestDirFSRootDir(t *testing.T) {
 	t.Parallel()
 
-	cwd, err := os.Getwd()
+	cwd, err := Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2882,7 +2881,7 @@ func TestDirFSEmptyDir(t *testing.T) {
 	t.Parallel()
 
 	d := DirFS("")
-	cwd, _ := os.Getwd()
+	cwd, _ := Getwd()
 	for _, path := range []string{
 		"testdata/dirfs/a",                          // not DirFS(".")
 		filepath.ToSlash(cwd) + "/testdata/dirfs/a", // not DirFS("/")
@@ -2901,14 +2900,14 @@ func TestDirFSPathsValid(t *testing.T) {
 	t.Parallel()
 
 	d := t.TempDir()
-	if err := os.WriteFile(filepath.Join(d, "control.txt"), []byte(string("Hello, world!")), 0644); err != nil {
+	if err := WriteFile(filepath.Join(d, "control.txt"), []byte(string("Hello, world!")), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(d, `e:xperi\ment.txt`), []byte(string("Hello, colon and backslash!")), 0644); err != nil {
+	if err := WriteFile(filepath.Join(d, `e:xperi\ment.txt`), []byte(string("Hello, colon and backslash!")), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	fsys := os.DirFS(d)
+	fsys := DirFS(d)
 	err := fs.WalkDir(fsys, ".", func(path string, e fs.DirEntry, err error) error {
 		if fs.ValidPath(e.Name()) {
 			t.Logf("%q ok", e.Name())

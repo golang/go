@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
-	"os"
 	. "os"
 	"path/filepath"
 	"runtime"
@@ -165,7 +164,7 @@ func TestRemoveAllLongPath(t *testing.T) {
 		t.Fatalf("Could not get wd: %s", err)
 	}
 
-	startPath, err := os.MkdirTemp("", "TestRemoveAllLongPath-")
+	startPath, err := MkdirTemp("", "TestRemoveAllLongPath-")
 	if err != nil {
 		t.Fatalf("Could not create TempDir: %s", err)
 	}
@@ -207,7 +206,7 @@ func TestRemoveAllDot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not get wd: %s", err)
 	}
-	tempDir, err := os.MkdirTemp("", "TestRemoveAllDot-")
+	tempDir, err := MkdirTemp("", "TestRemoveAllDot-")
 	if err != nil {
 		t.Fatalf("Could not create TempDir: %s", err)
 	}
@@ -407,7 +406,7 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
 	}
 
 	// Make the parent directory read-only. On some platforms, this is what
-	// prevents os.Remove from removing the files within that directory.
+	// prevents Remove from removing the files within that directory.
 	if err := Chmod(path, 0555); err != nil {
 		t.Fatal(err)
 	}

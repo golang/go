@@ -8,7 +8,6 @@ package os_test
 
 import (
 	"io"
-	"os"
 	. "os"
 	"path/filepath"
 	"runtime"
@@ -196,7 +195,7 @@ func TestReaddirRemoveRace(t *testing.T) {
 	}
 	dir := newDir("TestReaddirRemoveRace", t)
 	defer RemoveAll(dir)
-	if err := os.WriteFile(filepath.Join(dir, "some-file"), []byte("hello"), 0644); err != nil {
+	if err := WriteFile(filepath.Join(dir, "some-file"), []byte("hello"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	d, err := Open(dir)

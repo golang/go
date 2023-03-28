@@ -12,7 +12,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"os"
 	. "os"
 	"path/filepath"
 	"runtime"
@@ -85,13 +84,13 @@ func TestCopyFileRange(t *testing.T) {
 	t.Run("CopyFileItself", func(t *testing.T) {
 		hook := hookCopyFileRange(t)
 
-		f, err := os.CreateTemp("", "file-readfrom-itself-test")
+		f, err := CreateTemp("", "file-readfrom-itself-test")
 		if err != nil {
 			t.Fatalf("failed to create tmp file: %v", err)
 		}
 		t.Cleanup(func() {
 			f.Close()
-			os.Remove(f.Name())
+			Remove(f.Name())
 		})
 
 		data := []byte("hello world!")
@@ -231,7 +230,7 @@ func TestCopyFileRange(t *testing.T) {
 	})
 	t.Run("Nil", func(t *testing.T) {
 		var nilFile *File
-		anyFile, err := os.CreateTemp("", "")
+		anyFile, err := CreateTemp("", "")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -721,17 +720,17 @@ func TestProcCopy(t *testing.T) {
 	t.Parallel()
 
 	const cmdlineFile = "/proc/self/cmdline"
-	cmdline, err := os.ReadFile(cmdlineFile)
+	cmdline, err := ReadFile(cmdlineFile)
 	if err != nil {
 		t.Skipf("can't read /proc file: %v", err)
 	}
-	in, err := os.Open(cmdlineFile)
+	in, err := Open(cmdlineFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer in.Close()
 	outFile := filepath.Join(t.TempDir(), "cmdline")
-	out, err := os.Create(outFile)
+	out, err := Create(outFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -741,7 +740,7 @@ func TestProcCopy(t *testing.T) {
 	if err := out.Close(); err != nil {
 		t.Fatal(err)
 	}
-	copy, err := os.ReadFile(outFile)
+	copy, err := ReadFile(outFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -766,7 +765,7 @@ func testGetPollFromReader(t *testing.T, proto string) {
 		t.Fatalf("server SyscallConn error: %v", err)
 	}
 	if err = rc.Control(func(fd uintptr) {
-		pfd := os.GetPollFDForTest(server)
+		pfd := GetPollFDForTest(server)
 		if pfd == nil {
 			t.Fatalf("GetPollFDForTest didn't return poll.FD")
 		}
