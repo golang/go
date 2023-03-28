@@ -28,6 +28,7 @@ type ctxt0 struct {
 
 const (
 	FuncAlign = 4
+	loopAlign = 16
 )
 
 type Optab struct {
@@ -45,6 +46,10 @@ type Optab struct {
 
 const (
 	NOTUSETMP = 1 << iota // p expands to multiple instructions, but does NOT use REGTMP
+
+	// branchLoopHead marks loop entry.
+	// Used to insert padding for under-aligned loops.
+	branchLoopHead
 )
 
 var optab = []Optab{
@@ -421,24 +426,58 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	c.cursym.Size = pc
 
-	/*
-	 * if any procedure is large enough to
-	 * generate a large SBRA branch, then
-	 * generate extra passes putting branches
-	 * around jmps to fix. this is rare.
-	 */
-	bflag := 1
+	// mark loop entry instructions for padding
+	// loop entrances are defined as targets of backward branches
+	for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
+		if q := p.To.Target(); q != nil && q.Pc < p.Pc {
+			q.Mark |= branchLoopHead
+		}
+	}
 
+	// Run these passes until convergence.
+	bflag := 1
 	var otxt int64
 	var q *obj.Prog
 	for bflag != 0 {
 		bflag = 0
 		pc = 0
-		for p = c.cursym.Func().Text.Link; p != nil; p = p.Link {
+		prev := c.cursym.Func().Text
+		for p = prev.Link; p != nil; prev, p = p, p.Link {
 			p.Pc = pc
 			o = c.oplook(p)
 
+			// Prepend a PCALIGN $loopAlign to each of the loop heads
+			// that need padding, if not already done so (because this
+			// pass may execute more than once).
+			//
+			// This needs to come before any pass that look at pc,
+			// because pc will be adjusted if padding happens.
+			if p.Mark&branchLoopHead != 0 && pc&(loopAlign-1) != 0 &&
+				!(prev.As == obj.APCALIGN && prev.From.Offset >= loopAlign) {
+				q = c.newprog()
+				prev.Link = q
+				q.Link = p
+				q.Pc = pc
+				q.As = obj.APCALIGN
+				q.From.Type = obj.TYPE_CONST
+				q.From.Offset = loopAlign
+				// Don't associate the synthesized PCALIGN with
+				// the original source position, for deterministic
+				// mapping between source and corresponding asm.
+				// q.Pos = p.Pos
+
+				// Manually make the PCALIGN come into effect,
+				// since this loop iteration is for p.
+				pc += int64(pcAlignPadLength(ctxt, pc, loopAlign))
+				p.Pc = pc
+			}
+
 			// very large conditional branches
+			//
+			// if any procedure is large enough to
+			// generate a large SBRA branch, then
+			// generate extra passes putting branches
+			// around jmps to fix. this is rare.
 			if o.type_ == 6 && p.To.Target() != nil {
 				otxt = p.To.Target().Pc - pc
 				if otxt < -(1<<17)+10 || otxt >= (1<<17)-10 {
