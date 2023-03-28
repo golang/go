@@ -43,7 +43,7 @@ func TestForceCgoDNS(t *testing.T) {
 	defer forceCgoDNS()()
 	order, _ := systemConf().hostLookupOrder(nil, "go.dev")
 	if order != hostLookupCgo {
-		t.Fatalf("expected cgo hostLookuporder got: %v", order)
+		t.Fatalf("expected cgo hostLookupOrder got: %v", order)
 	}
 }
 
@@ -51,6 +51,6 @@ func TestForceGoDNS(t *testing.T) {
 	defer forceGoDNS()()
 	order, _ := systemConf().hostLookupOrder(nil, "go.dev")
 	if !(order == hostLookupFiles || order == hostLookupFilesDNS || order == hostLookupDNSFiles || order == hostLookupDNS) {
-		t.Fatalf("expected go hostLookuporder got: %v", order)
+		t.Fatalf("expected go hostLookupOrder got: %v", order)
 	}
 }
