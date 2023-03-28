@@ -1367,7 +1367,12 @@ func (ctxt *Link) archive() {
 	exitIfErrors()
 
 	if *flagExtar == "" {
+		const printProgName = "--print-prog-name=ar"
+		cc := ctxt.extld()
 		*flagExtar = "ar"
+		if linkerFlagSupported(ctxt.Arch, cc[0], "", printProgName) {
+			*flagExtar = ctxt.findExtLinkTool("ar")
+		}
 	}
 
 	mayberemoveoutfile()
@@ -1997,22 +2002,8 @@ func (ctxt *Link) hostlink() {
 	uuidUpdated := false
 	if combineDwarf {
 		// Find "dsymutils" and "strip" tools using CC --print-prog-name.
-		var cc []string
-		cc = append(cc, ctxt.extld()...)
-		cc = append(cc, hostlinkArchArgs(ctxt.Arch)...)
-		cc = append(cc, "--print-prog-name", "dsymutil")
-		out, err := exec.Command(cc[0], cc[1:]...).CombinedOutput()
-		if err != nil {
-			Exitf("%s: finding dsymutil failed: %v\n%s", os.Args[0], err, out)
-		}
-		dsymutilCmd := strings.TrimSuffix(string(out), "\n")
-
-		cc[len(cc)-1] = "strip"
-		out, err = exec.Command(cc[0], cc[1:]...).CombinedOutput()
-		if err != nil {
-			Exitf("%s: finding strip failed: %v\n%s", os.Args[0], err, out)
-		}
-		stripCmd := strings.TrimSuffix(string(out), "\n")
+		dsymutilCmd := ctxt.findExtLinkTool("dsymutil")
+		stripCmd := ctxt.findExtLinkTool("strip")
 
 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
 		cmd := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym)
@@ -2912,4 +2903,20 @@ func captureHostObj(h *Hostobj) {
 
 	fmt.Fprintf(os.Stderr, "link: info: captured host object %s to %s\n",
 		h.file, opath)
+}
+
+// findExtLinkTool invokes the external linker CC with --print-prog-name
+// passing the name of the tool we're interested in, such as "strip",
+// "ar", or "dsymutil", and returns the path passed back from the command.
+func (ctxt *Link) findExtLinkTool(toolname string) string {
+	var cc []string
+	cc = append(cc, ctxt.extld()...)
+	cc = append(cc, hostlinkArchArgs(ctxt.Arch)...)
+	cc = append(cc, "--print-prog-name", toolname)
+	out, err := exec.Command(cc[0], cc[1:]...).CombinedOutput()
+	if err != nil {
+		Exitf("%s: finding %s failed: %v\n%s", os.Args[0], toolname, err, out)
+	}
+	cmdpath := strings.TrimSuffix(string(out), "\n")
+	return cmdpath
 }
