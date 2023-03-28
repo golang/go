@@ -31,3 +31,4 @@ func TestDeadlineExceededSupportsTimeout(t *testing.T) { XTestDeadlineExceededSu
 func TestCustomContextGoroutines(t *testing.T)         { XTestCustomContextGoroutines(t) }
 func TestCause(t *testing.T)                           { XTestCause(t) }
 func TestCauseRace(t *testing.T)                       { XTestCauseRace(t) }
+func TestWithoutCancel(t *testing.T)                   { XTestWithoutCancel(t) }

@@ -474,6 +474,40 @@ func (c *cancelCtx) cancel(removeFromParent bool, err, cause error) {
 	}
 }
 
+// WithoutCancel returns a copy of parent that is not canceled when parent is canceled.
+// The returned context returns no Deadline or Err, and its Done channel is nil.
+// Calling Cause on the returned context returns nil.
+func WithoutCancel(parent Context) Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	return withoutCancelCtx{parent}
+}
+
+type withoutCancelCtx struct {
+	c Context
+}
+
+func (withoutCancelCtx) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+func (withoutCancelCtx) Done() <-chan struct{} {
+	return nil
+}
+
+func (withoutCancelCtx) Err() error {
+	return nil
+}
+
+func (c withoutCancelCtx) Value(key any) any {
+	return value(c, key)
+}
+
+func (c withoutCancelCtx) String() string {
+	return contextName(c.c) + ".WithoutCancel"
+}
+
 // WithDeadline returns a copy of the parent context with the deadline adjusted
 // to be no later than d. If the parent's deadline is already earlier than d,
 // WithDeadline(parent, d) is semantically equivalent to parent. The returned
@@ -645,6 +679,13 @@ func value(c Context, key any) any {
 				return c
 			}
 			c = ctx.Context
+		case withoutCancelCtx:
+			if key == &cancelCtxKey {
+				// This implements Cause(ctx) == nil
+				// when ctx is created using WithoutCancel.
+				return nil
+			}
+			c = ctx.c
 		case *timerCtx:
 			if key == &cancelCtxKey {
 				return &ctx.cancelCtx

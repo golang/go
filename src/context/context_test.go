@@ -981,6 +981,36 @@ func XTestCause(t testingT) {
 			err:   Canceled,
 			cause: finishedEarly,
 		},
+		{
+			name: "WithoutCancel",
+			ctx: func() Context {
+				return WithoutCancel(Background())
+			}(),
+			err:   nil,
+			cause: nil,
+		},
+		{
+			name: "WithoutCancel canceled",
+			ctx: func() Context {
+				ctx, cancel := WithCancelCause(Background())
+				ctx = WithoutCancel(ctx)
+				cancel(finishedEarly)
+				return ctx
+			}(),
+			err:   nil,
+			cause: nil,
+		},
+		{
+			name: "WithoutCancel timeout",
+			ctx: func() Context {
+				ctx, cancel := WithTimeoutCause(Background(), 0, tooSlow)
+				ctx = WithoutCancel(ctx)
+				cancel()
+				return ctx
+			}(),
+			err:   nil,
+			cause: nil,
+		},
 	} {
 		if got, want := test.ctx.Err(), test.err; want != got {
 			t.Errorf("%s: ctx.Err() = %v want %v", test.name, got, want)
@@ -1007,5 +1037,23 @@ func XTestCauseRace(t testingT) {
 			break
 		}
 		runtime.Gosched()
+	}
+}
+
+func XTestWithoutCancel(t testingT) {
+	key, value := "key", "value"
+	ctx := WithValue(Background(), key, value)
+	ctx = WithoutCancel(ctx)
+	if d, ok := ctx.Deadline(); !d.IsZero() || ok != false {
+		t.Errorf("ctx.Deadline() = %v, %v want zero, false", d, ok)
+	}
+	if done := ctx.Done(); done != nil {
+		t.Errorf("ctx.Deadline() = %v want nil", done)
+	}
+	if err := ctx.Err(); err != nil {
+		t.Errorf("ctx.Err() = %v want nil", err)
+	}
+	if v := ctx.Value(key); v != value {
+		t.Errorf("ctx.Value(%q) = %q want %q", key, v, value)
 	}
 }
