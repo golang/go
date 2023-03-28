@@ -1889,8 +1889,11 @@ func allocm(pp *p, fn func(), id int64) *m {
 // 1. when the callback is done with the m in non-pthread platforms,
 // 2. or when the C thread exiting on pthread platforms.
 //
+// The signal argument indicates whether we're called from a signal
+// handler.
+//
 //go:nosplit
-func needm() {
+func needm(signal bool) {
 	if (iscgo || GOOS == "windows") && !cgoHasExtraM {
 		// Can happen if C/C++ code calls Go from a global ctor.
 		// Can also happen on Windows if a global ctor uses a
@@ -1939,14 +1942,23 @@ func needm() {
 	osSetupTLS(mp)
 
 	// Install g (= m->g0) and set the stack bounds
-	// to match the current stack. We don't actually know
+	// to match the current stack. If we don't actually know
 	// how big the stack is, like we don't know how big any
-	// scheduling stack is, but we assume there's at least 32 kB,
-	// which is more than enough for us.
+	// scheduling stack is, but we assume there's at least 32 kB.
+	// If we can get a more accurate stack bound from pthread,
+	// use that.
 	setg(mp.g0)
 	gp := getg()
 	gp.stack.hi = getcallersp() + 1024
 	gp.stack.lo = getcallersp() - 32*1024
+	if !signal && _cgo_getstackbound != nil {
+		// Don't adjust if called from the signal handler.
+		// We are on the signal stack, not the pthread stack.
+		// (We could get the stack bounds from sigaltstack, but
+		// we're getting out of the signal handler very soon
+		// anyway. Not worth it.)
+		asmcgocall(_cgo_getstackbound, unsafe.Pointer(gp))
+	}
 	gp.stackguard0 = gp.stack.lo + _StackGuard
 
 	// Should mark we are already in Go now.
@@ -1967,7 +1979,7 @@ func needm() {
 //
 //go:nosplit
 func needAndBindM() {
-	needm()
+	needm(false)
 
 	if _cgo_pthread_key_created != nil && *(*uintptr)(_cgo_pthread_key_created) != 0 {
 		cgoBindM()

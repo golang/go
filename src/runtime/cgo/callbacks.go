@@ -141,3 +141,12 @@ var _cgo_yield unsafe.Pointer
 
 //go:cgo_export_static _cgo_topofstack
 //go:cgo_export_dynamic _cgo_topofstack
+
+// x_cgo_getstackbound gets the thread's C stack size and
+// set the G's stack bound based on the stack size.
+
+//go:cgo_import_static x_cgo_getstackbound
+//go:linkname x_cgo_getstackbound x_cgo_getstackbound
+//go:linkname _cgo_getstackbound _cgo_getstackbound
+var x_cgo_getstackbound byte
+var _cgo_getstackbound = &x_cgo_getstackbound
