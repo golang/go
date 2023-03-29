@@ -1278,8 +1278,8 @@ func (check *Checker) nonGeneric(T Type, x *operand) {
 	case *Signature:
 		if t.tparams != nil {
 			if check.conf._EnableReverseTypeInference && T != nil {
-				if _, ok := under(T).(*Signature); ok {
-					check.funcInst(T, x.Pos(), x, nil)
+				if tsig, _ := under(T).(*Signature); tsig != nil {
+					check.funcInst(tsig, x.Pos(), x, nil)
 					return
 				}
 			}
@@ -1600,7 +1600,11 @@ func (check *Checker) exprInternal(T Type, x *operand, e ast.Expr, hint Type) ex
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(e)
 		if check.indexExpr(x, ix) {
-			check.funcInst(T, e.Pos(), x, ix)
+			var tsig *Signature
+			if check.conf._EnableReverseTypeInference && T != nil {
+				tsig, _ = under(T).(*Signature)
+			}
+			check.funcInst(tsig, e.Pos(), x, ix)
 		}
 		if x.mode == invalid {
 			goto Error

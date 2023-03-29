@@ -15,22 +15,16 @@ import (
 )
 
 // funcInst type-checks a function instantiation and returns the result in x.
-// The incoming x must be an uninstantiated generic function. If inst != 0,
+// The incoming x must be an uninstantiated generic function. If inst != nil,
 // it provides (some or all of) the type arguments (inst.Index) for the
-// instantiation. If the target type T != nil and is a (non-generic) function
-// signature, the signature's parameter types are used to infer additional
-// missing type arguments of x, if any.
-// At least one of inst or T must be provided.
-func (check *Checker) funcInst(T Type, pos syntax.Pos, x *operand, inst *syntax.IndexExpr) {
+// instantiation. If the target type tsig != nil, the signature's parameter
+// types are used to infer additional missing type arguments of x, if any.
+// At least one of tsig or inst must be provided.
+func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst *syntax.IndexExpr) {
+	assert(tsig != nil || inst != nil)
+
 	if !check.allowVersion(check.pkg, 1, 18) {
 		check.versionErrorf(inst.Pos(), "go1.18", "function instantiation")
-	}
-
-	// tsig is the (assignment) target function signature, or nil.
-	// TODO(gri) refactor and pass in tsig to funcInst instead
-	var tsig *Signature
-	if check.conf.EnableReverseTypeInference && T != nil {
-		tsig, _ = under(T).(*Signature)
 	}
 
 	// targs and xlist are the type arguments and corresponding type expressions, or nil.
@@ -46,8 +40,6 @@ func (check *Checker) funcInst(T Type, pos syntax.Pos, x *operand, inst *syntax.
 		}
 		assert(len(targs) == len(xlist))
 	}
-
-	assert(tsig != nil || targs != nil)
 
 	// Check the number of type arguments (got) vs number of type parameters (want).
 	// Note that x is a function value, not a type expression, so we don't need to
