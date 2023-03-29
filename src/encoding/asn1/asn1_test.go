@@ -1168,3 +1168,10 @@ func TestNonMinimalEncodedOID(t *testing.T) {
 		t.Fatalf("accepted non-minimally encoded oid")
 	}
 }
+
+func BenchmarkObjectIdentifierString(b *testing.B) {
+	oidPublicKeyRSA := ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+	for i := 0; i < b.N; i++ {
+		_ = oidPublicKeyRSA.String()
+	}
+}
