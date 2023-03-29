@@ -3894,6 +3894,28 @@ For <code>a</code> of <a href="#Map_types">map type</a> <code>M</code>:
 </ul>
 
 <p>
+	An index expression on a map <code>a</code> of type <code>map[K]V</code>
+	used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
+	</p>
+
+	<pre>
+	v, ok = a[x]
+	v, ok := a[x]
+	var v, ok = a[x]
+	</pre>
+
+	<p>
+	yields an additional untyped boolean value. The value of <code>ok</code> is
+	<code>true</code> if the key <code>x</code> is present in the map, and
+	<code>false</code> otherwise.
+	</p>
+
+	<p>
+	Assigning to an element of a <code>nil</code> map causes a
+	<a href="#Run_time_panics">run-time panic</a>.
+	</p>
+
+<p>
 For <code>a</code> of <a href="#Type_parameter_declarations">type parameter type</a> <code>P</code>:
 </p>
 <ul>
@@ -3914,28 +3936,6 @@ For <code>a</code> of <a href="#Type_parameter_declarations">type parameter type
 
 <p>
 Otherwise <code>a[x]</code> is illegal.
-</p>
-
-<p>
-An index expression on a map <code>a</code> of type <code>map[K]V</code>
-used in an <a href="#Assignment_statements">assignment statement</a> or initialization of the special form
-</p>
-
-<pre>
-v, ok = a[x]
-v, ok := a[x]
-var v, ok = a[x]
-</pre>
-
-<p>
-yields an additional untyped boolean value. The value of <code>ok</code> is
-<code>true</code> if the key <code>x</code> is present in the map, and
-<code>false</code> otherwise.
-</p>
-
-<p>
-Assigning to an element of a <code>nil</code> map causes a
-<a href="#Run_time_panics">run-time panic</a>.
 </p>
 
 
