@@ -135,7 +135,8 @@ func appendJSONValue(s *handleState, v Value) error {
 		s.appendTime(v.Time())
 	case KindAny:
 		a := v.Any()
-		if err, ok := a.(error); ok {
+		_, jm := a.(json.Marshaler)
+		if err, ok := a.(error); ok && !jm {
 			s.appendString(err.Error())
 		} else {
 			return appendJSONMarshal(s.buf, a)

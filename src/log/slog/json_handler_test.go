@@ -67,6 +67,12 @@ func (j jsonMarshaler) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`[%q]`, j.s)), nil
 }
 
+type jsonMarshalerError struct {
+	jsonMarshaler
+}
+
+func (jsonMarshalerError) Error() string { return "oops" }
+
 func TestAppendJSONValue(t *testing.T) {
 	// On most values, jsonAppendAttrValue should agree with json.Marshal.
 	for _, value := range []any{
@@ -82,6 +88,7 @@ func TestAppendJSONValue(t *testing.T) {
 		time.Minute,
 		testTime,
 		jsonMarshaler{"xyz"},
+		jsonMarshalerError{jsonMarshaler{"pqr"}},
 	} {
 		got := jsonValueString(t, AnyValue(value))
 		want, err := marshalJSON(value)
