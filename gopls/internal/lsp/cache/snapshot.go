@@ -80,7 +80,10 @@ type snapshot struct {
 	// mu guards all of the maps in the snapshot, as well as the builtin URI.
 	mu sync.Mutex
 
-	// builtin pins the AST and package for builtin.go in memory.
+	// builtin is the location of builtin.go in GOROOT.
+	//
+	// TODO(rfindley): would it make more sense to eagerly parse builtin, and
+	// instead store a *ParsedGoFile here?
 	builtin span.URI
 
 	// meta holds loaded metadata.
@@ -2273,7 +2276,11 @@ func (s *snapshot) BuiltinFile(ctx context.Context) (*source.ParsedGoFile, error
 	// For the builtin file only, we need syntactic object resolution
 	// (since we can't type check).
 	mode := source.ParseFull &^ source.SkipObjectResolution
-	return parseGoImpl(ctx, token.NewFileSet(), fh, mode)
+	pgfs, err := s.parseCache.parseFiles(ctx, token.NewFileSet(), mode, fh)
+	if err != nil {
+		return nil, err
+	}
+	return pgfs[0], nil
 }
 
 func (s *snapshot) IsBuiltin(ctx context.Context, uri span.URI) bool {
