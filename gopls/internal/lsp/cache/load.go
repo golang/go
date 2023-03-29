@@ -435,6 +435,13 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 	// Allow for multiple ad-hoc packages in the workspace (see #47584).
 	pkgPath := PackagePath(pkg.PkgPath)
 	id := PackageID(pkg.ID)
+
+	// TODO(rfindley): this creates at most one command-line-arguments package
+	// per load, but if we pass multiple file= queries to go/packages, there may
+	// be multiple command-line-arguments packages.
+	//
+	// As reported in golang/go#59318, this can result in accidentally quadratic
+	// loading behavior.
 	if source.IsCommandLineArguments(id) {
 		suffix := ":" + strings.Join(query, ",")
 		id = PackageID(pkg.ID + suffix)
