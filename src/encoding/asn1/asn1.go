@@ -245,7 +245,7 @@ func (oi ObjectIdentifier) String() string {
 		if i > 0 {
 			s.WriteByte('.')
 		}
-		s.Write(strconv.AppendInt(buf[:0], int64(v), 10))
+		s.Write(strconv.AppendInt(buf, int64(v), 10))
 	}
 
 	return s.String()
