@@ -657,6 +657,9 @@ const (
 )
 
 func (s *snapshot) PackageDiagnostics(ctx context.Context, ids ...PackageID) (map[span.URI][]*source.Diagnostic, error) {
+	ctx, done := event.Start(ctx, "cache.snapshot.PackageDiagnostics")
+	defer done()
+
 	var mu sync.Mutex
 	perFile := make(map[span.URI][]*source.Diagnostic)
 	collect := func(diags []*source.Diagnostic) {
@@ -685,6 +688,9 @@ func (s *snapshot) PackageDiagnostics(ctx context.Context, ids ...PackageID) (ma
 }
 
 func (s *snapshot) References(ctx context.Context, ids ...PackageID) ([]source.XrefIndex, error) {
+	ctx, done := event.Start(ctx, "cache.snapshot.References")
+	defer done()
+
 	indexes := make([]source.XrefIndex, len(ids))
 	pre := func(i int, ph *packageHandle) bool {
 		data, err := filecache.Get(xrefsKind, ph.key)
@@ -713,6 +719,9 @@ func (index XrefIndex) Lookup(targets map[PackagePath]map[objectpath.Path]struct
 }
 
 func (s *snapshot) MethodSets(ctx context.Context, ids ...PackageID) ([]*methodsets.Index, error) {
+	ctx, done := event.Start(ctx, "cache.snapshot.MethodSets")
+	defer done()
+
 	indexes := make([]*methodsets.Index, len(ids))
 	pre := func(i int, ph *packageHandle) bool {
 		data, err := filecache.Get(methodSetsKind, ph.key)
@@ -731,6 +740,9 @@ func (s *snapshot) MethodSets(ctx context.Context, ids ...PackageID) ([]*methods
 }
 
 func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source.Metadata, error) {
+	ctx, done := event.Start(ctx, "cache.snapshot.MetadataForFile")
+	defer done()
+
 	s.mu.Lock()
 
 	// Start with the set of package associations derived from the last load.
@@ -1689,7 +1701,7 @@ func (ac *unappliedChanges) ReadFile(ctx context.Context, uri span.URI) (source.
 }
 
 func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileChange, forceReloadMetadata bool) (*snapshot, func()) {
-	ctx, done := event.Start(ctx, "snapshot.clone")
+	ctx, done := event.Start(ctx, "cache.snapshot.clone")
 	defer done()
 
 	reinit := false

@@ -37,6 +37,9 @@ import (
 )
 
 func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
+	ctx, done := event.Start(ctx, "lsp.Server.executeCommand")
+	defer done()
+
 	var found bool
 	for _, name := range s.session.Options().SupportedCommands {
 		if name == params.Command {

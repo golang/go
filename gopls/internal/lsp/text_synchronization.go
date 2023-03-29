@@ -15,6 +15,8 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/jsonrpc2"
 )
 
@@ -72,6 +74,9 @@ func (m ModificationSource) String() string {
 }
 
 func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
+	ctx, done := event.Start(ctx, "lsp.Server.didOpen", tag.URI.Of(params.TextDocument.URI))
+	defer done()
+
 	uri := params.TextDocument.URI.SpanURI()
 	if !uri.IsFile() {
 		return nil
@@ -102,6 +107,9 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 }
 
 func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
+	ctx, done := event.Start(ctx, "lsp.Server.didChange", tag.URI.Of(params.TextDocument.URI))
+	defer done()
+
 	uri := params.TextDocument.URI.SpanURI()
 	if !uri.IsFile() {
 		return nil
@@ -162,6 +170,9 @@ func (s *Server) warnAboutModifyingGeneratedFiles(ctx context.Context, uri span.
 }
 
 func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
+	ctx, done := event.Start(ctx, "lsp.Server.didChangeWatchedFiles")
+	defer done()
+
 	var modifications []source.FileModification
 	for _, change := range params.Changes {
 		uri := change.URI.SpanURI()
@@ -179,6 +190,9 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 }
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
+	ctx, done := event.Start(ctx, "lsp.Server.didSave", tag.URI.Of(params.TextDocument.URI))
+	defer done()
+
 	uri := params.TextDocument.URI.SpanURI()
 	if !uri.IsFile() {
 		return nil
@@ -194,6 +208,9 @@ func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocume
 }
 
 func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
+	ctx, done := event.Start(ctx, "lsp.Server.didClose", tag.URI.Of(params.TextDocument.URI))
+	defer done()
+
 	uri := params.TextDocument.URI.SpanURI()
 	if !uri.IsFile() {
 		return nil

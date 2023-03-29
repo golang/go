@@ -23,6 +23,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/template"
 	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -37,23 +38,20 @@ const maxFullFileSize int = 100000
 // semDebug should NEVER be true in checked-in code
 const semDebug = false
 
-func (s *Server) semanticTokensFull(ctx context.Context, p *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
-	ret, err := s.computeSemanticTokens(ctx, p.TextDocument, nil)
+func (s *Server) semanticTokensFull(ctx context.Context, params *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
+	ctx, done := event.Start(ctx, "lsp.Server.semanticTokensFull", tag.URI.Of(params.TextDocument.URI))
+	defer done()
+
+	ret, err := s.computeSemanticTokens(ctx, params.TextDocument, nil)
 	return ret, err
 }
 
-func (s *Server) semanticTokensFullDelta(ctx context.Context, p *protocol.SemanticTokensDeltaParams) (interface{}, error) {
-	return nil, fmt.Errorf("implement SemanticTokensFullDelta")
-}
+func (s *Server) semanticTokensRange(ctx context.Context, params *protocol.SemanticTokensRangeParams) (*protocol.SemanticTokens, error) {
+	ctx, done := event.Start(ctx, "lsp.Server.semanticTokensRange", tag.URI.Of(params.TextDocument.URI))
+	defer done()
 
-func (s *Server) semanticTokensRange(ctx context.Context, p *protocol.SemanticTokensRangeParams) (*protocol.SemanticTokens, error) {
-	ret, err := s.computeSemanticTokens(ctx, p.TextDocument, &p.Range)
+	ret, err := s.computeSemanticTokens(ctx, params.TextDocument, &params.Range)
 	return ret, err
-}
-
-func (s *Server) semanticTokensRefresh(ctx context.Context) error {
-	// in the code, but not in the protocol spec
-	return fmt.Errorf("implement SemanticTokensRefresh")
 }
 
 func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocumentIdentifier, rng *protocol.Range) (*protocol.SemanticTokens, error) {

@@ -24,6 +24,9 @@ import (
 )
 
 func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) (links []protocol.DocumentLink, err error) {
+	ctx, done := event.Start(ctx, "lsp.Server.documentLink")
+	defer done()
+
 	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)
 	defer release()
 	if !ok {

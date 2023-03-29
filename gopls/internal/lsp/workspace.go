@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/event"
 )
 
 func (s *Server) didChangeWorkspaceFolders(ctx context.Context, params *protocol.DidChangeWorkspaceFoldersParams) error {
@@ -44,6 +45,9 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 }
 
 func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChangeConfigurationParams) error {
+	ctx, done := event.Start(ctx, "lsp.Server.didChangeConfiguration")
+	defer done()
+
 	// Apply any changes to the session-level settings.
 	options := s.session.Options().Clone()
 	if err := s.fetchConfig(ctx, "", "", options); err != nil {

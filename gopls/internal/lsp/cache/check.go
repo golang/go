@@ -188,6 +188,9 @@ func (s *snapshot) getImportGraph(ctx context.Context) *importGraph {
 // resolveImportGraph should only be called from getImportGraph.
 func (s *snapshot) resolveImportGraph() (*importGraph, error) {
 	ctx := s.backgroundCtx
+	ctx, done := event.Start(event.Detach(ctx), "cache.resolveImportGraph")
+	defer done()
+
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
@@ -334,6 +337,9 @@ type (
 //
 // Both pre and post may be called concurrently.
 func (s *snapshot) forEachPackage(ctx context.Context, ids []PackageID, pre preTypeCheck, post postTypeCheck) error {
+	ctx, done := event.Start(ctx, "cache.forEachPackage", tag.PackageCount.Of(len(ids)))
+	defer done()
+
 	if len(ids) == 0 {
 		return nil // short cut: many call sites do not handle empty ids
 	}
@@ -534,6 +540,9 @@ func (b *typeCheckBatch) handleSyntaxPackage(ctx context.Context, i int, id Pack
 // importPackage loads the given package from its export data in p.exportData
 // (which must already be populated).
 func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, data []byte) (*types.Package, error) {
+	ctx, done := event.Start(ctx, "cache.typeCheckBatch.importPackage", tag.Package.Of(string(m.ID)))
+	defer done()
+
 	impMap := b.importMap(m.ID)
 
 	var firstErr error // TODO(rfindley): unused: revisit or remove.
@@ -580,6 +589,9 @@ func (b *typeCheckBatch) importPackage(ctx context.Context, m *source.Metadata, 
 // checkPackageForImport type checks, but skips function bodies and does not
 // record syntax information.
 func (b *typeCheckBatch) checkPackageForImport(ctx context.Context, ph *packageHandle) (*types.Package, error) {
+	ctx, done := event.Start(ctx, "cache.typeCheckBatch.checkPackageForImport", tag.Package.Of(string(ph.m.ID)))
+	defer done()
+
 	onError := func(e error) {
 		// Ignore errors for exporting.
 	}
@@ -627,6 +639,9 @@ func (b *typeCheckBatch) checkPackageForImport(ctx context.Context, ph *packageH
 
 // checkPackage "fully type checks" to produce a syntax package.
 func (b *typeCheckBatch) checkPackage(ctx context.Context, ph *packageHandle) (*Package, error) {
+	ctx, done := event.Start(ctx, "cache.typeCheckBatch.checkPackage", tag.Package.Of(string(ph.m.ID)))
+	defer done()
+
 	// TODO(rfindley): refactor to inline typeCheckImpl here. There is no need
 	// for so many layers to build up the package
 	// (checkPackage->typeCheckImpl->doTypeCheck).

@@ -29,6 +29,9 @@ import (
 // ModTidy returns the go.mod file that would be obtained by running
 // "go mod tidy". Concurrent requests are combined into a single command.
 func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*source.TidiedModule, error) {
+	ctx, done := event.Start(ctx, "cache.snapshot.ModTidy")
+	defer done()
+
 	uri := pm.URI
 	if pm.File == nil {
 		return nil, fmt.Errorf("cannot tidy unparseable go.mod file: %v", uri)

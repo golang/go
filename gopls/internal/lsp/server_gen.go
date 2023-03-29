@@ -241,7 +241,7 @@ func (s *Server) SemanticTokensFull(ctx context.Context, p *protocol.SemanticTok
 }
 
 func (s *Server) SemanticTokensFullDelta(ctx context.Context, p *protocol.SemanticTokensDeltaParams) (interface{}, error) {
-	return s.semanticTokensFullDelta(ctx, p)
+	return nil, notImplemented("SemanticTokensFullDelta")
 }
 
 func (s *Server) SemanticTokensRange(ctx context.Context, p *protocol.SemanticTokensRangeParams) (*protocol.SemanticTokens, error) {

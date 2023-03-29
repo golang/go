@@ -103,7 +103,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	}
 	sort.Strings(query) // for determinism
 
-	ctx, done := event.Start(ctx, "cache.view.load", tag.Query.Of(query))
+	ctx, done := event.Start(ctx, "cache.snapshot.load", tag.Query.Of(query))
 	defer done()
 
 	flags := source.LoadWorkspace

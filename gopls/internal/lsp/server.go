@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
 )
 
@@ -114,10 +115,16 @@ type Server struct {
 }
 
 func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
+	ctx, done := event.Start(ctx, "lsp.Server.workDoneProgressCancel")
+	defer done()
+
 	return s.progress.Cancel(params.Token)
 }
 
 func (s *Server) nonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
+	ctx, done := event.Start(ctx, "lsp.Server.nonstandardRequest")
+	defer done()
+
 	switch method {
 	case "gopls/diagnoseFiles":
 		paramMap := params.(map[string]interface{})

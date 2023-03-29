@@ -25,7 +25,7 @@ import (
 // returned for each cursor to avoid multiple round-trips when the user is
 // likely to issue this command multiple times in quick succession.
 func (s *Server) selectionRange(ctx context.Context, params *protocol.SelectionRangeParams) ([]protocol.SelectionRange, error) {
-	ctx, done := event.Start(ctx, "lsp.Server.documentSymbol")
+	ctx, done := event.Start(ctx, "lsp.Server.selectionRange")
 	defer done()
 
 	snapshot, fh, ok, release, err := s.beginFileRequest(ctx, params.TextDocument.URI, source.UnknownKind)

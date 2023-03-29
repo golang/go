@@ -161,7 +161,7 @@ func (c *parseCache) startParse(mode parser.Mode, fhs ...source.FileHandle) ([]*
 		}
 
 		uri := fh.URI()
-		promise := memoize.NewPromise(fmt.Sprintf("parse(%s)", uri), func(ctx context.Context, _ interface{}) interface{} {
+		promise := memoize.NewPromise("parseCache.parse", func(ctx context.Context, _ interface{}) interface{} {
 			// Allocate 2*len(content)+parsePadding to allow for re-parsing once
 			// inside of parseGoSrc without exceeding the allocated space.
 			base, nextBase := c.allocateSpace(2*len(content) + parsePadding)

@@ -26,6 +26,9 @@ import (
 )
 
 func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitialize) (*protocol.InitializeResult, error) {
+	ctx, done := event.Start(ctx, "lsp.Server.initialize")
+	defer done()
+
 	s.stateMu.Lock()
 	if s.state >= serverInitializing {
 		defer s.stateMu.Unlock()
@@ -192,6 +195,9 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 }
 
 func (s *Server) initialized(ctx context.Context, params *protocol.InitializedParams) error {
+	ctx, done := event.Start(ctx, "lsp.Server.initialized")
+	defer done()
+
 	s.stateMu.Lock()
 	if s.state >= serverInitialized {
 		defer s.stateMu.Unlock()
@@ -585,6 +591,9 @@ func (s *Server) beginFileRequest(ctx context.Context, pURI protocol.DocumentURI
 // shutdown implements the 'shutdown' LSP handler. It releases resources
 // associated with the server and waits for all ongoing work to complete.
 func (s *Server) shutdown(ctx context.Context) error {
+	ctx, done := event.Start(ctx, "lsp.Server.shutdown")
+	defer done()
+
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
 	if s.state < serverInitialized {
@@ -604,6 +613,9 @@ func (s *Server) shutdown(ctx context.Context) error {
 }
 
 func (s *Server) exit(ctx context.Context) error {
+	ctx, done := event.Start(ctx, "lsp.Server.exit")
+	defer done()
+
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
 

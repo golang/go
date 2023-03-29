@@ -18,26 +18,19 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/command"
+	"golang.org/x/tools/gopls/internal/lsp/debug"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/lsp/tests"
 	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/bug"
-	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
 	bug.PanicOnBugs = true
 	testenv.ExitIfSmallMachine()
-
-	// Set the global exporter to nil so that we don't log to stderr. This avoids
-	// a lot of misleading noise in test output.
-	//
-	// TODO(rfindley): investigate whether we can/should capture logs scoped to
-	// individual tests by passing in a context with a local exporter.
-	event.SetExporter(nil)
 
 	os.Exit(m.Run())
 }
@@ -51,6 +44,13 @@ func TestLSP(t *testing.T) {
 
 func testLSP(t *testing.T, datum *tests.Data) {
 	ctx := tests.Context(t)
+
+	// Setting a debug instance suppresses logging to stderr, but ensures that we
+	// still e.g. convert events into runtime/trace/instrumentation.
+	//
+	// Previously, we called event.SetExporter(nil), which turns off all
+	// instrumentation.
+	ctx = debug.WithInstance(ctx, "", "off")
 
 	session := cache.NewSession(ctx, cache.New(nil), nil)
 	options := source.DefaultOptions().Clone()
