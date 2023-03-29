@@ -119,6 +119,7 @@ var (
 	procGetFileAttributesW                 = modkernel32.NewProc("GetFileAttributesW")
 	procGetFileInformationByHandle         = modkernel32.NewProc("GetFileInformationByHandle")
 	procGetFileType                        = modkernel32.NewProc("GetFileType")
+	procGetFinalPathNameByHandleW          = modkernel32.NewProc("GetFinalPathNameByHandleW")
 	procGetFullPathNameW                   = modkernel32.NewProc("GetFullPathNameW")
 	procGetLastError                       = modkernel32.NewProc("GetLastError")
 	procGetLongPathNameW                   = modkernel32.NewProc("GetLongPathNameW")
@@ -774,6 +775,15 @@ func GetFileType(filehandle Handle) (n uint32, err error) {
 	r0, _, e1 := Syscall(procGetFileType.Addr(), 1, uintptr(filehandle), 0, 0)
 	n = uint32(r0)
 	if n == 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
+
+func getFinalPathNameByHandle(file Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) {
+	r0, _, e1 := Syscall6(procGetFinalPathNameByHandleW.Addr(), 4, uintptr(file), uintptr(unsafe.Pointer(filePath)), uintptr(filePathSize), uintptr(flags), 0, 0)
+	n = uint32(r0)
+	if n == 0 || n >= filePathSize {
 		err = errnoErr(e1)
 	}
 	return

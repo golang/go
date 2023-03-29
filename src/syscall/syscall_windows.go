@@ -143,6 +143,7 @@ func (e Errno) Error() string {
 }
 
 const (
+	_ERROR_NOT_ENOUGH_MEMORY    = Errno(8)
 	_ERROR_NOT_SUPPORTED        = Errno(50)
 	_ERROR_BAD_NETPATH          = Errno(53)
 	_ERROR_CALL_NOT_IMPLEMENTED = Errno(120)
@@ -311,6 +312,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	initializeProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, attrcount uint32, flags uint32, size *uintptr) (err error) = InitializeProcThreadAttributeList
 //sys	deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) = DeleteProcThreadAttributeList
 //sys	updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value unsafe.Pointer, size uintptr, prevvalue unsafe.Pointer, returnedsize *uintptr) (err error) = UpdateProcThreadAttribute
+//sys	getFinalPathNameByHandle(file Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) [n == 0 || n >= filePathSize] = kernel32.GetFinalPathNameByHandleW
 
 // syscall interface implementation for other packages
 
@@ -1193,8 +1195,47 @@ func Getppid() (ppid int) {
 	return int(pe.ParentProcessID)
 }
 
+func fdpath(fd Handle, buf []uint16) ([]uint16, error) {
+	const (
+		FILE_NAME_NORMALIZED = 0
+		VOLUME_NAME_DOS      = 0
+	)
+	for {
+		n, err := getFinalPathNameByHandle(fd, &buf[0], uint32(len(buf)), FILE_NAME_NORMALIZED|VOLUME_NAME_DOS)
+		if err == nil {
+			buf = buf[:n]
+			break
+		}
+		if err != _ERROR_NOT_ENOUGH_MEMORY {
+			return nil, err
+		}
+		buf = append(buf, make([]uint16, n-uint32(len(buf)))...)
+	}
+	return buf, nil
+}
+
+func Fchdir(fd Handle) (err error) {
+	var buf [MAX_PATH + 1]uint16
+	path, err := fdpath(fd, buf[:])
+	if err != nil {
+		return err
+	}
+	// When using VOLUME_NAME_DOS, the path is always pefixed by "\\?\".
+	// That prefix tells the Windows APIs to disable all string parsing and to send
+	// the string that follows it straight to the file system.
+	// Although SetCurrentDirectory and GetCurrentDirectory do support the "\\?\" prefix,
+	// some other Windows APIs don't. If the prefix is not removed here, it will leak
+	// to Getwd, and we don't want such a general-purpose function to always return a
+	// path with the "\\?\" prefix after Fchdir is called.
+	// The downside is that APIs that do support it will parse the path and try to normalize it,
+	// when it's already normalized.
+	if len(path) >= 4 && path[0] == '\\' && path[1] == '\\' && path[2] == '?' && path[3] == '\\' {
+		path = path[4:]
+	}
+	return SetCurrentDirectory(&path[0])
+}
+
 // TODO(brainman): fix all needed for os
-func Fchdir(fd Handle) (err error)             { return EWINDOWS }
 func Link(oldpath, newpath string) (err error) { return EWINDOWS }
 func Symlink(path, link string) (err error)    { return EWINDOWS }
 
