@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-const shortDuration = 1 * time.Millisecond // a reasonable duration to block in an example
-
 var neverReady = make(chan struct{}) // never closed
 
 // This example demonstrates the use of a cancelable context to prevent a
