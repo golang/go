@@ -273,7 +273,7 @@ func TestDisasmGnuAsm(t *testing.T) {
 func TestDisasmExtld(t *testing.T) {
 	testenv.MustHaveCGO(t)
 	switch runtime.GOOS {
-	case "plan9", "windows":
+	case "plan9":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	t.Parallel()
