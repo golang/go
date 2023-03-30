@@ -1345,7 +1345,7 @@ func (t *Type) IsUnsafePtr() bool {
 	return t.kind == TUNSAFEPTR
 }
 
-// IsUintptr reports whether t is an uintptr.
+// IsUintptr reports whether t is a uintptr.
 func (t *Type) IsUintptr() bool {
 	return t.kind == TUINTPTR
 }

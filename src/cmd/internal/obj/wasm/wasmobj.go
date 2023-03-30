@@ -232,7 +232,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 				// Offset is the location of the param on the Go stack (ie relative to sp).
 				// Because of our call convention, the parameters are located an additional 8 bytes
-				// from sp because we store the return address as a int64 at the bottom of the stack.
+				// from sp because we store the return address as an int64 at the bottom of the stack.
 				// Ie the stack looks like [return_addr, param3, param2, param1, etc]
 
 				// Ergo, we add 8 to the true byte offset of the param to skip the return address.

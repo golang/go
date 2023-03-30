@@ -141,7 +141,7 @@ const (
 	// a jump to the loaded value.
 	CreateImportStubPltToken = -2
 
-	// When stored into the GOT value for a import symbol __imp_X this
+	// When stored into the GOT value for an import symbol __imp_X this
 	// token tells windynrelocsym to redirect references to the
 	// underlying DYNIMPORT symbol X.
 	RedirectToDynImportGotToken = -2

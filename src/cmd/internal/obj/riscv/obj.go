@@ -1691,7 +1691,7 @@ func instructionForProg(p *obj.Prog) *instruction {
 	return ins
 }
 
-// instructionsForOpImmediate returns the machine instructions for a immedate
+// instructionsForOpImmediate returns the machine instructions for an immediate
 // operand. The instruction is specified by as and the source register is
 // specified by rs, instead of the obj.Prog.
 func instructionsForOpImmediate(p *obj.Prog, as obj.As, rs int16) []*instruction {

@@ -609,7 +609,7 @@ func isAppendOfMake(n ir.Node) bool {
 	}
 
 	// y must be either an integer constant or the largest possible positive value
-	// of variable y needs to fit into an uint.
+	// of variable y needs to fit into a uint.
 
 	// typecheck made sure that constant arguments to make are not negative and fit into an int.
 
@@ -652,7 +652,7 @@ func isAppendOfMake(n ir.Node) bool {
 //	growslice will have done the clearing for us.
 
 func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
-	// isAppendOfMake made sure all possible positive values of l2 fit into an uint.
+	// isAppendOfMake made sure all possible positive values of l2 fit into a uint.
 	// The case of l2 overflow when converting from e.g. uint to int is handled by an explicit
 	// check of l2 < 0 at runtime which is generated below.
 	l2 := typecheck.Conv(n.Args[1].(*ir.MakeExpr).Len, types.Types[types.TINT])

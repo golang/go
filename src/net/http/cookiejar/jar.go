@@ -365,7 +365,7 @@ func isIP(host string) bool {
 	return net.ParseIP(host) != nil
 }
 
-// defaultPath returns the directory part of an URL's path according to
+// defaultPath returns the directory part of a URL's path according to
 // RFC 6265 section 5.1.4.
 func defaultPath(path string) string {
 	if len(path) == 0 || path[0] != '/' {
@@ -379,7 +379,7 @@ func defaultPath(path string) string {
 	return path[:i] // Path is either of form "/abc/xyz" or "/abc/xyz/".
 }
 
-// newEntry creates an entry from a http.Cookie c. now is the current time and
+// newEntry creates an entry from an http.Cookie c. now is the current time and
 // is compared to c.Expires to determine deletion of c. defPath and host are the
 // default-path and the canonical host name of the URL c was received from.
 //

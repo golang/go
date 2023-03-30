@@ -626,7 +626,7 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 	return 0
 }
 
-// Get the implied register of a operand which doesn't specify one.  These show up
+// Get the implied register of an operand which doesn't specify one.  These show up
 // in handwritten asm like "MOVD R5, foosymbol" where a base register is not supplied,
 // or "MOVD R5, foo+10(SP) or pseudo-register is used.  The other common case is when
 // generating constants in register like "MOVD $constant, Rx".

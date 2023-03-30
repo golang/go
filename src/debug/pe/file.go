@@ -464,7 +464,7 @@ func (e *FormatError) Error() string {
 	return "unknown error"
 }
 
-// readOptionalHeader accepts a io.ReadSeeker pointing to optional header in the PE file
+// readOptionalHeader accepts an io.ReadSeeker pointing to optional header in the PE file
 // and its size as seen in the file header.
 // It parses the given size of bytes and returns optional header. It infers whether the
 // bytes being parsed refer to 32 bit or 64 bit version of optional header.
@@ -612,7 +612,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (any, error) {
 	}
 }
 
-// readDataDirectories accepts a io.ReadSeeker pointing to data directories in the PE file,
+// readDataDirectories accepts an io.ReadSeeker pointing to data directories in the PE file,
 // its size and number of data directories as seen in optional header.
 // It parses the given size of bytes and returns given number of data directories.
 func readDataDirectories(r io.ReadSeeker, sz uint16, n uint32) ([]DataDirectory, error) {

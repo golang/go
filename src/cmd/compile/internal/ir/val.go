@@ -92,7 +92,7 @@ func Int64Val(n Node) int64 {
 	return x
 }
 
-// Uint64Val returns n as an uint64.
+// Uint64Val returns n as a uint64.
 // n must be an integer or rune constant.
 func Uint64Val(n Node) uint64 {
 	if !IsConst(n, constant.Int) {

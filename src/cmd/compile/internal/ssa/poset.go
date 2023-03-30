@@ -56,7 +56,7 @@ const (
 )
 
 // posetUndo represents an undo pass to be performed.
-// It's an union of fields that can be used to store information,
+// It's a union of fields that can be used to store information,
 // and typ is the discriminant, that specifies which kind
 // of operation must be performed. Not all fields are always used.
 type posetUndo struct {

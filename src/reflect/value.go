@@ -3474,7 +3474,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 		if dst.Kind() == Pointer && dst.Elem().Kind() == Array && src.Elem() == dst.Elem().Elem() {
 			return cvtSliceArrayPtr
 		}
-		// "x is a slice, T is a array type,
+		// "x is a slice, T is an array type,
 		// and the slice and array types have identical element types."
 		if dst.Kind() == Array && src.Elem() == dst.Elem() {
 			return cvtSliceArray

@@ -1213,7 +1213,7 @@ parseElements:
 	}
 
 	// TODO(rfindley): the error produced here could be improved, since we could
-	// accept a identifier, 'type', or a '}' at this point.
+	// accept an identifier, 'type', or a '}' at this point.
 	rbrace := p.expect(token.RBRACE)
 
 	return &ast.InterfaceType{

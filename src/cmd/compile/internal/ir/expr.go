@@ -380,7 +380,7 @@ func (n *InlinedCallExpr) SingleResult() Node {
 	return n.ReturnVars[0]
 }
 
-// A LogicalExpr is a expression X Op Y where Op is && or ||.
+// A LogicalExpr is an expression X Op Y where Op is && or ||.
 // It is separate from BinaryExpr to make room for statements
 // that must be executed before Y but after X.
 type LogicalExpr struct {

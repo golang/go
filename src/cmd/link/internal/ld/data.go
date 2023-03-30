@@ -1677,7 +1677,7 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
 	}
 }
 
-// allocateDataSectionForSym creates a new sym.Section into which a a
+// allocateDataSectionForSym creates a new sym.Section into which a
 // single symbol will be placed. Here "seg" is the segment into which
 // the section will go, "s" is the symbol to be placed into the new
 // section, and "rwx" contains permissions for the section.
