@@ -17,6 +17,7 @@ const (
 	AI_MASK      = 0x1407
 
 	EAI_AGAIN    = 2
+	EAI_NODATA   = 7
 	EAI_NONAME   = 8
 	EAI_SYSTEM   = 11
 	EAI_OVERFLOW = 14

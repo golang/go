@@ -166,7 +166,7 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 				// comes up again. golang.org/issue/6232.
 				err = syscall.EMFILE
 			}
-		case _C_EAI_NONAME:
+		case _C_EAI_NONAME, _C_EAI_NODATA:
 			err = errNoSuchHost
 			isErrorNoSuchHost = true
 		default:
