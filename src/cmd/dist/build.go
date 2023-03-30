@@ -1731,6 +1731,7 @@ var cgoEnabled = map[string]bool{
 // See go.dev/issue/56679.
 var broken = map[string]bool{
 	"linux/sparc64": true, // An incomplete port. See CL 132155.
+	"wasip1/wasm":   true, // An incomplete port. See CL 479627.
 }
 
 // List of platforms which are first class ports. See go.dev/issue/38874.
