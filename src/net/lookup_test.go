@@ -1402,7 +1402,7 @@ func TestDNSTimeout(t *testing.T) {
 
 func TestLookupNoData(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("not supported yet")
+		t.Skip("not supported on plan9")
 	}
 
 	mustHaveExternalNetwork(t)
