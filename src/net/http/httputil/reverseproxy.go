@@ -173,7 +173,7 @@ type ReverseProxy struct {
 	// ErrorLog specifies an optional logger for errors
 	// that occur when attempting to proxy the request.
 	// If nil, logging is done via the log package's standard logger.
-	ErrorLog *log.Logger
+	ErrorLog Logger
 
 	// BufferPool optionally specifies a buffer pool to
 	// get byte slices for use by io.CopyBuffer when
@@ -197,6 +197,11 @@ type ReverseProxy struct {
 	// If nil, the default is to log the provided error and return
 	// a 502 Status Bad Gateway response.
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
+}
+
+// A Logger is an interface for printing logs.
+type Logger interface {
+	Printf(format string, v ...interface{})
 }
 
 // A BufferPool is an interface for getting and returning temporary
