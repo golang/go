@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/gopls/internal/lsp/tests/compare"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/internal/testenv"
@@ -50,6 +51,34 @@ func TestZ(t *testing.T) {
 		got := env.BufferText("a_test.go")
 		if want != got {
 			t.Errorf("got\n%q, wanted\n%q", got, want)
+		}
+	})
+}
+
+func TestIssue59124(t *testing.T) {
+	const stuff = `
+-- go.mod --
+module foo
+go 1.29
+-- a.go --
+//line foo.y:102
+package main
+
+import "fmt"
+
+//this comment is necessary for failure
+func a() {
+	fmt.Println("hello")
+}
+`
+	Run(t, stuff, func(t *testing.T, env *Env) {
+		env.OpenFile("a.go")
+		was := env.BufferText("a.go")
+		env.Await(NoDiagnostics())
+		env.OrganizeImports("a.go")
+		is := env.BufferText("a.go")
+		if diff := compare.Text(was, is); diff != "" {
+			t.Errorf("unexpected diff after organizeImports:\n%s", diff)
 		}
 	})
 }

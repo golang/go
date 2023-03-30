@@ -1113,7 +1113,7 @@ func (r *renamer) update() (map[span.URI][]diff.Edit, error) {
 			// Just run the loop body once over the entire multiline comment.
 			lines := strings.Split(comment.Text, "\n")
 			tokFile := pgf.Tok
-			commentLine := tokFile.Line(comment.Pos())
+			commentLine := safetoken.Line(tokFile, comment.Pos())
 			uri := span.URIFromPath(tokFile.Name())
 			for i, line := range lines {
 				lineStart := comment.Pos()
@@ -1165,14 +1165,14 @@ func docComment(pgf *ParsedGoFile, id *ast.Ident) *ast.CommentGroup {
 				return nil
 			}
 
-			identLine := pgf.Tok.Line(id.Pos())
+			identLine := safetoken.Line(pgf.Tok, id.Pos())
 			for _, comment := range nodes[len(nodes)-1].(*ast.File).Comments {
 				if comment.Pos() > id.Pos() {
 					// Comment is after the identifier.
 					continue
 				}
 
-				lastCommentLine := pgf.Tok.Line(comment.End())
+				lastCommentLine := safetoken.Line(pgf.Tok, comment.End())
 				if lastCommentLine+1 == identLine {
 					return comment
 				}

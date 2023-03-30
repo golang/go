@@ -238,7 +238,7 @@ func importPrefix(src []byte) (string, error) {
 		// specifically, in the text of a comment, it will strip out \r\n line
 		// endings in favor of \n. To account for these differences, we try to
 		// return a position on the next line whenever possible.
-		switch line := tok.Line(tok.Pos(offset)); {
+		switch line := safetoken.Line(tok, tok.Pos(offset)); {
 		case line < tok.LineCount():
 			nextLineOffset, err := safetoken.Offset(tok, tok.LineStart(line+1))
 			if err != nil {

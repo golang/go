@@ -108,7 +108,7 @@ func packageCompletionSurrounding(pgf *source.ParsedGoFile, offset int) (*Select
 	// appear on any line of the file as long as it's the first code expression
 	// in the file.
 	lines := strings.Split(string(pgf.Src), "\n")
-	cursorLine := tok.Line(cursor)
+	cursorLine := safetoken.Line(tok, cursor)
 	if cursorLine <= 0 || cursorLine > len(lines) {
 		return nil, fmt.Errorf("invalid line number")
 	}

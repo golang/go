@@ -916,14 +916,14 @@ func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast
 	// comment itself.
 	c.opts.documentation = false
 
-	commentLine := file.Line(comment.End())
+	commentLine := safetoken.Line(file, comment.End())
 
 	// comment is valid, set surrounding as word boundaries around cursor
 	c.setSurroundingForComment(comment)
 
 	// Using the next line pos, grab and parse the exported symbol on that line
 	for _, n := range c.file.Decls {
-		declLine := file.Line(n.Pos())
+		declLine := safetoken.Line(file, n.Pos())
 		// if the comment is not in, directly above or on the same line as a declaration
 		if declLine != commentLine && declLine != commentLine+1 &&
 			!(n.Pos() <= comment.Pos() && comment.End() <= n.End()) {

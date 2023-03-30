@@ -91,6 +91,11 @@ func Position(f *token.File, pos token.Pos) token.Position {
 	return f.PositionFor(pos, false)
 }
 
+// Line returns the line number for the given offset in the given file.
+func Line(f *token.File, pos token.Pos) int {
+	return Position(f, pos).Line
+}
+
 // StartPosition converts a start Pos in the FileSet into a Position.
 //
 // Call this function only if start represents the start of a token or

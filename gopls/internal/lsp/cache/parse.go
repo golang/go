@@ -298,7 +298,7 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 		}
 	}
 
-	parentLine := tok.Line(parent.Pos())
+	parentLine := safetoken.Line(tok, parent.Pos())
 
 	if parentLine >= tok.LineCount() {
 		// If we are the last line in the file, no need to fix anything.
@@ -411,7 +411,7 @@ func fixEmptySwitch(body *ast.BlockStmt, tok *token.File, src []byte) bool {
 		return false
 	}
 
-	braceLine := tok.Line(body.Rbrace)
+	braceLine := safetoken.Line(tok, body.Rbrace)
 	if braceLine >= tok.LineCount() {
 		// If we are the last line in the file, no need to fix anything.
 		return false
@@ -748,7 +748,7 @@ FindTo:
 		// the period is likely a dangling selector and needs a phantom
 		// "_". Likewise if the current token is on a different line than
 		// the period, the period is likely a dangling selector.
-		if lastToken == token.PERIOD && (tkn == token.RBRACE || tok.Line(to) > tok.Line(last)) {
+		if lastToken == token.PERIOD && (tkn == token.RBRACE || safetoken.Line(tok, to) > safetoken.Line(tok, last)) {
 			// Insert phantom "_" selector after the dangling ".".
 			phantomSelectors = append(phantomSelectors, last+1)
 			// If we aren't in a block then end the expression after the ".".

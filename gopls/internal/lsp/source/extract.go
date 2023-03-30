@@ -132,7 +132,7 @@ func CanExtractVariable(start, end token.Pos, file *ast.File) (ast.Expr, []ast.N
 // formatting (i.e. the proper indentation). To do so, we observe the indentation on the
 // line of code on which the insertion occurs.
 func calculateIndentation(content []byte, tok *token.File, insertBeforeStmt ast.Node) (string, error) {
-	line := tok.Line(insertBeforeStmt.Pos())
+	line := safetoken.Line(tok, insertBeforeStmt.Pos())
 	lineOffset, stmtOffset, err := safetoken.Offsets(tok, tok.LineStart(line), insertBeforeStmt.Pos())
 	if err != nil {
 		return "", err

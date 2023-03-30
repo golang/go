@@ -98,6 +98,7 @@ func TestGoplsSourceDoesNotCallTokenFileMethods(t *testing.T) {
 		oldMethod, _, _ := types.LookupFieldOrMethod(recv.Type(), true, recv.Pkg(), old)
 		alternative[oldMethod] = new
 	}
+	setAlternative(File, "Line", "safetoken.Line")
 	setAlternative(File, "Offset", "safetoken.Offset")
 	setAlternative(File, "Position", "safetoken.Position")
 	setAlternative(File, "PositionFor", "safetoken.Position")

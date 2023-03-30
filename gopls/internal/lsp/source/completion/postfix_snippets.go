@@ -17,6 +17,7 @@ import (
 	"text/template"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/lsp/snippet"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/event"
@@ -340,7 +341,7 @@ func (c *completer) addPostfixSnippetCandidates(ctx context.Context, sel *ast.Se
 				//
 				// detect that "foo." makes up the entire statement since the
 				// apparent selector spans lines.
-				stmtOK = tokFile.Line(c.pos) < tokFile.Line(p.TokPos)
+				stmtOK = safetoken.Line(tokFile, c.pos) < safetoken.Line(tokFile, p.TokPos)
 			}
 			break
 		}
@@ -362,8 +363,8 @@ func (c *completer) addPostfixSnippetCandidates(ctx context.Context, sel *ast.Se
 	//
 	// and adjust afterDot so that we don't mistakenly delete the
 	// newline thinking "bar" is part of our selector.
-	if startLine := tokFile.Line(sel.Pos()); startLine != tokFile.Line(afterDot) {
-		if tokFile.Line(c.pos) != startLine {
+	if startLine := safetoken.Line(tokFile, sel.Pos()); startLine != safetoken.Line(tokFile, afterDot) {
+		if safetoken.Line(tokFile, c.pos) != startLine {
 			return
 		}
 		afterDot = c.pos

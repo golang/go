@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/internal/bug"
 )
 
@@ -124,7 +125,7 @@ func foldingRangeFunc(pgf *ParsedGoFile, n ast.Node, lineFoldingOnly bool) *Fold
 		return nil
 	}
 	// in line folding mode, do not fold if the start and end lines are the same.
-	if lineFoldingOnly && pgf.Tok.Line(start) == pgf.Tok.Line(end) {
+	if lineFoldingOnly && safetoken.Line(pgf.Tok, start) == safetoken.Line(pgf.Tok, end) {
 		return nil
 	}
 	mrng, err := pgf.PosMappedRange(start, end)
@@ -149,8 +150,8 @@ func validLineFoldingRange(tokFile *token.File, open, close, start, end token.Po
 		// as an example, the example below should *not* fold:
 		// var x = [2]string{"d",
 		// "e" }
-		if tokFile.Line(open) == tokFile.Line(start) ||
-			tokFile.Line(close) == tokFile.Line(end) {
+		if safetoken.Line(tokFile, open) == safetoken.Line(tokFile, start) ||
+			safetoken.Line(tokFile, close) == safetoken.Line(tokFile, end) {
 			return token.NoPos, token.NoPos
 		}
 
@@ -165,7 +166,7 @@ func validLineFoldingRange(tokFile *token.File, open, close, start, end token.Po
 func commentsFoldingRange(pgf *ParsedGoFile) (comments []*FoldingRangeInfo) {
 	tokFile := pgf.Tok
 	for _, commentGrp := range pgf.File.Comments {
-		startGrpLine, endGrpLine := tokFile.Line(commentGrp.Pos()), tokFile.Line(commentGrp.End())
+		startGrpLine, endGrpLine := safetoken.Line(tokFile, commentGrp.Pos()), safetoken.Line(tokFile, commentGrp.End())
 		if startGrpLine == endGrpLine {
 			// Don't fold single line comments.
 			continue
@@ -173,7 +174,7 @@ func commentsFoldingRange(pgf *ParsedGoFile) (comments []*FoldingRangeInfo) {
 
 		firstComment := commentGrp.List[0]
 		startPos, endLinePos := firstComment.Pos(), firstComment.End()
-		startCmmntLine, endCmmntLine := tokFile.Line(startPos), tokFile.Line(endLinePos)
+		startCmmntLine, endCmmntLine := safetoken.Line(tokFile, startPos), safetoken.Line(tokFile, endLinePos)
 		if startCmmntLine != endCmmntLine {
 			// If the first comment spans multiple lines, then we want to have the
 			// folding range start at the end of the first line.

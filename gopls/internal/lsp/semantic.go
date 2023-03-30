@@ -258,7 +258,7 @@ func (e *encoded) strStack() string {
 // find the line in the source
 func (e *encoded) srcLine(x ast.Node) string {
 	file := e.pgf.Tok
-	line := file.Line(x.Pos())
+	line := safetoken.Line(file, x.Pos())
 	start, err := safetoken.Offset(file, file.LineStart(line))
 	if err != nil {
 		return ""
