@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/src"
 )
 
 // AlgType returns the fixed-width AMEMxx variants instead of the general
@@ -507,7 +508,66 @@ func eqFunc(t *types.Type) *ir.Func {
 				// p[i] == q[i]
 				return ir.NewBinaryExpr(base.Pos, ir.OEQ, pi, qi)
 			})
-		// TODO: pick apart structs, do them piecemeal too
+		case types.TSTRUCT:
+			isCall := func(n ir.Node) bool {
+				return n.Op() == ir.OCALL || n.Op() == ir.OCALLFUNC
+			}
+			var expr ir.Node
+			var hasCallExprs bool
+			allCallExprs := true
+			and := func(cond ir.Node) {
+				if expr == nil {
+					expr = cond
+				} else {
+					expr = ir.NewLogicalExpr(base.Pos, ir.OANDAND, expr, cond)
+				}
+			}
+
+			var tmpPos src.XPos
+			pi := ir.NewIndexExpr(tmpPos, np, ir.NewInt(tmpPos, 0))
+			pi.SetBounded(true)
+			pi.SetType(t.Elem())
+			qi := ir.NewIndexExpr(tmpPos, nq, ir.NewInt(tmpPos, 0))
+			qi.SetBounded(true)
+			qi.SetType(t.Elem())
+			flatConds := compare.EqStruct(t.Elem(), pi, qi)
+			for _, c := range flatConds {
+				if isCall(c) {
+					hasCallExprs = true
+				} else {
+					allCallExprs = false
+				}
+			}
+			if !hasCallExprs || allCallExprs {
+				checkAll(1, true, func(pi, qi ir.Node) ir.Node {
+					// p[i] == q[i]
+					return ir.NewBinaryExpr(base.Pos, ir.OEQ, pi, qi)
+				})
+			} else {
+				checkAll(4, false, func(pi, qi ir.Node) ir.Node {
+					expr = nil
+					flatConds := compare.EqStruct(t.Elem(), pi, qi)
+					if len(flatConds) == 0 {
+						return ir.NewBool(base.Pos, true)
+					}
+					for _, c := range flatConds {
+						if !isCall(c) {
+							and(c)
+						}
+					}
+					return expr
+				})
+				checkAll(2, true, func(pi, qi ir.Node) ir.Node {
+					expr = nil
+					flatConds := compare.EqStruct(t.Elem(), pi, qi)
+					for _, c := range flatConds {
+						if isCall(c) {
+							and(c)
+						}
+					}
+					return expr
+				})
+			}
 		default:
 			checkAll(1, true, func(pi, qi ir.Node) ir.Node {
 				// p[i] == q[i]
@@ -520,7 +580,7 @@ func eqFunc(t *types.Type) *ir.Func {
 		if len(flatConds) == 0 {
 			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(base.Pos, true)))
 		} else {
-			for _, c := range flatConds[:len(flatConds)-1] {
+			for _, c := range flatConds {
 				// if cond {} else { goto neq }
 				n := ir.NewIfStmt(base.Pos, c, nil, nil)
 				n.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
