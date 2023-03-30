@@ -12,7 +12,8 @@ import (
 // type contains an Unwrap method returning error.
 // Otherwise, Unwrap returns nil.
 //
-// Unwrap returns nil if the Unwrap method returns []error.
+// Unwrap only calls a method of the form "Unwrap() error".
+// In particular Unwrap does not unwrap errors returned by [Join].
 func Unwrap(err error) error {
 	u, ok := err.(interface {
 		Unwrap() error
