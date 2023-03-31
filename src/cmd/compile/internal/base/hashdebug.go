@@ -39,6 +39,7 @@ type HashDebug struct {
 	posTmp           []src.Pos
 	bytesTmp         bytes.Buffer
 	matches          []hashAndMask // A hash matches if one of these matches.
+	excludes         []hashAndMask // explicitly excluded hash suffixes
 	yes, no          bool
 	fileSuffixOnly   bool // for Pos hashes, remove the directory prefix.
 	inlineSuffixOnly bool // for Pos hashes, remove all but the most inline position.
@@ -76,15 +77,23 @@ var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
 //
 //  3. is "n" or "N" (returns false)
 //
-//  4. is a suffix of the sha1 hash of pkgAndName (returns true)
+//  4. does not explicitly exclude the sha1 hash of pkgAndName (see step 6)
 //
-//  5. OR
-//     if the value is in the regular language "[01]+(/[01]+)+"
-//     test the [01]+ substrings after in order returning true
-//     for the first one that suffix-matches. The substrings AFTER
-//     the first slash are numbered 0,1, etc and are named
-//     fmt.Sprintf("%s%d", varname, number)
-//     Clause 5 is not really intended for human use and only
+//  5. is a suffix of the sha1 hash of pkgAndName (returns true)
+//
+//  6. OR
+//     if the (non-empty) value is in the regular language
+//     "(-[01]+/)+?([01]+(/[01]+)+?"
+//     (exclude..)(....include...)
+//     test the [01]+ exclude substrings, if any suffix-match, return false (4 above)
+//     test the [01]+ include substrings, if any suffix-match, return true
+//     The include substrings AFTER the first slash are numbered 0,1, etc and
+//     are named fmt.Sprintf("%s%d", varname, number)
+//     As an extra-special case for multiple failure search,
+//     an excludes-only string ending in a slash (terminated, not separated)
+//     implicitly specifies the include string "0/1", that is, match everything.
+//     (Exclude strings are used for automated search for multiple failures.)
+//     Clause 6 is not really intended for human use and only
 //     matters for failures that require multiple triggers.
 //
 // Otherwise it returns false.
@@ -169,11 +178,35 @@ func NewHashDebug(ev, s string, file writeSyncer) *HashDebug {
 		return hd
 	}
 	ss := strings.Split(s, "/")
-	hd.matches = append(hd.matches, toHashAndMask(ss[0], ev))
+	// first remove any leading exclusions; these are preceded with "-"
+	i := 0
+	for len(ss) > 0 {
+		s := ss[0]
+		if len(s) == 0 || len(s) > 0 && s[0] != '-' {
+			break
+		}
+		ss = ss[1:]
+		hd.excludes = append(hd.excludes, toHashAndMask(s[1:], fmt.Sprintf("%s%d", "HASH_EXCLUDE", i)))
+		i++
+	}
 	// hash searches may use additional EVs with 0, 1, 2, ... suffixes.
-	for i := 1; i < len(ss); i++ {
-		evi := fmt.Sprintf("%s%d", ev, i-1) // convention is extras begin indexing at zero
-		hd.matches = append(hd.matches, toHashAndMask(ss[i], evi))
+	i = 0
+	for _, s := range ss {
+		if s == "" {
+			if i != 0 || len(ss) > 1 && ss[1] != "" || len(ss) > 2 {
+				Fatalf("Empty hash match string for %s should be first (and only) one", ev)
+			}
+			// Special case of should match everything.
+			hd.matches = append(hd.matches, toHashAndMask("0", fmt.Sprintf("%s0", ev)))
+			hd.matches = append(hd.matches, toHashAndMask("1", fmt.Sprintf("%s1", ev)))
+			break
+		}
+		if i == 0 {
+			hd.matches = append(hd.matches, toHashAndMask(s, fmt.Sprintf("%s", ev)))
+		} else {
+			hd.matches = append(hd.matches, toHashAndMask(s, fmt.Sprintf("%s%d", ev, i-1)))
+		}
+		i++
 	}
 	return hd
 
@@ -216,6 +249,36 @@ func (d *HashDebug) DebugHashMatch(pkgAndName string) bool {
 	return d.DebugHashMatchParam(pkgAndName, 0)
 }
 
+func (d *HashDebug) excluded(hash uint64) bool {
+	for _, m := range d.excludes {
+		if (m.hash^hash)&m.mask == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func hashString(hash uint64) string {
+	hstr := ""
+	if hash == 0 {
+		hstr = "0"
+	} else {
+		for ; hash != 0; hash = hash >> 1 {
+			hstr = string('0'+byte(hash&1)) + hstr
+		}
+	}
+	return hstr
+}
+
+func (d *HashDebug) match(hash uint64) *hashAndMask {
+	for i, m := range d.matches {
+		if (m.hash^hash)&m.mask == 0 {
+			return &d.matches[i]
+		}
+	}
+	return nil
+}
+
 // DebugHashMatchParam returns true if either the variable used to create d is
 // unset, or if its value is y, or if it is a suffix of the base-two
 // representation of the hash of pkgAndName and param. If the variable is not
@@ -236,19 +299,13 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
 
 	hash := hashOf(pkgAndName, param)
 
-	for _, m := range d.matches {
-		if (m.hash^hash)&m.mask == 0 {
-			hstr := ""
-			if hash == 0 {
-				hstr = "0"
-			} else {
-				for ; hash != 0; hash = hash >> 1 {
-					hstr = string('0'+byte(hash&1)) + hstr
-				}
-			}
-			d.logDebugHashMatch(m.name, pkgAndName, hstr, param)
-			return true
-		}
+	// Return false for explicitly excluded hashes
+	if d.excluded(hash) {
+		return false
+	}
+	if m := d.match(hash); m != nil {
+		d.logDebugHashMatch(m.name, pkgAndName, hashString(hash), param)
+		return true
 	}
 	return false
 }
@@ -284,19 +341,13 @@ func (d *HashDebug) debugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
 
 	hash := hashOfBytes(b, 0)
 
-	for _, m := range d.matches {
-		if (m.hash^hash)&m.mask == 0 {
-			hstr := ""
-			if hash == 0 {
-				hstr = "0"
-			} else {
-				for ; hash != 0; hash = hash >> 1 {
-					hstr = string('0'+byte(hash&1)) + hstr
-				}
-			}
-			d.logDebugHashMatchLocked(m.name, "POS="+string(b), hstr, 0)
-			return true
-		}
+	// Return false for explicitly excluded hashes
+	if d.excluded(hash) {
+		return false
+	}
+	if m := d.match(hash); m != nil {
+		d.logDebugHashMatchLocked(m.name, "POS="+string(b), hashString(hash), 0)
+		return true
 	}
 	return false
 }
