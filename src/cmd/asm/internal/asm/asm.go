@@ -669,9 +669,17 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
 		case sys.Loong64:
-			prog.From = a[0]
-			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.To = a[2]
+			switch {
+			// Loong64 atomic instructions with one input and two outputs.
+			case arch.IsLoong64AMO(op):
+				prog.From = a[0]
+				prog.To = a[1]
+				prog.RegTo2 = a[2].Reg
+			default:
+				prog.From = a[0]
+				prog.Reg = p.getRegister(prog, op, &a[1])
+				prog.To = a[2]
+			}
 		case sys.ARM:
 			// Special cases.
 			if arch.IsARMSTREX(op) {

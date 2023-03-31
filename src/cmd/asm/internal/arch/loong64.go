@@ -55,6 +55,10 @@ func IsLoong64RDTIME(op obj.As) bool {
 	return false
 }
 
+func IsLoong64AMO(op obj.As) bool {
+	return loong64.IsAtomicInst(op)
+}
+
 func loong64RegisterNumber(name string, n int16) (int16, bool) {
 	switch name {
 	case "F":
