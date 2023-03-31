@@ -308,7 +308,7 @@ func RunMarkerTests(t *testing.T, dir string) {
 				if _, err := fmt.Sscanf(test.minGoVersion, "go1.%d", &go1point); err != nil {
 					t.Fatalf("parsing -min_go version: %v", err)
 				}
-				testenv.NeedsGo1Point(t, 18)
+				testenv.NeedsGo1Point(t, go1point)
 			}
 			config := fake.EditorConfig{
 				Settings: test.settings,

@@ -143,7 +143,7 @@ func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Po
 	// There's not much useful information to provide.
 	if selectedType != nil {
 		fakeObj := types.NewVar(obj.Pos(), obj.Pkg(), obj.Name(), selectedType)
-		signature := objectString(fakeObj, qf, nil)
+		signature := types.ObjectString(fakeObj, qf)
 		return rng, &HoverJSON{
 			Signature:  signature,
 			SingleLine: signature,
@@ -168,10 +168,14 @@ func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Po
 	docText := comment.Text()
 
 	// By default, types.ObjectString provides a reasonable signature.
-	signature := objectString(obj, qf, nil)
+	signature := objectString(obj, qf, declPos, declPGF.Tok, spec)
+	singleLineSignature := signature
+
 	// TODO(rfindley): we could do much better for inferred signatures.
 	if inferred := inferredSignature(pkg.GetTypesInfo(), ident); inferred != nil {
-		signature = objectString(obj, qf, inferred)
+		if s := inferredSignatureString(obj, qf, inferred); s != "" {
+			signature = s
+		}
 	}
 
 	// For "objects defined by a type spec", the signature produced by
@@ -214,7 +218,7 @@ func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Po
 				if (m.Obj().Exported() || m.Obj().Pkg() == pkg.GetTypes()) && len(m.Index()) == 1 {
 					b.WriteString(sep)
 					sep = "\n"
-					b.WriteString(objectString(m.Obj(), qf, nil))
+					b.WriteString(types.ObjectString(m.Obj(), qf))
 				}
 			}
 		}
@@ -321,7 +325,7 @@ func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Po
 	return rng, &HoverJSON{
 		Synopsis:          doc.Synopsis(docText),
 		FullDocumentation: docText,
-		SingleLine:        objectString(obj, qf, nil),
+		SingleLine:        singleLineSignature,
 		SymbolName:        linkName,
 		Signature:         signature,
 		LinkPath:          linkPath,
@@ -577,12 +581,10 @@ func hoverLit(pgf *ParsedGoFile, lit *ast.BasicLit, pos token.Pos) (protocol.Ran
 	}, nil
 }
 
-// objectString is a wrapper around the types.ObjectString function.
-// It handles adding more information to the object string.
-//
-// TODO(rfindley): this function does too much. We should lift the special
-// handling to callsites.
-func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signature) string {
+// inferredSignatureString is a wrapper around the types.ObjectString function
+// that adds more information to inferred signatures. It will return an empty string
+// if the passed types.Object is not a signature.
+func inferredSignatureString(obj types.Object, qf types.Qualifier, inferred *types.Signature) string {
 	// If the signature type was inferred, prefer the inferred signature with a
 	// comment showing the generic signature.
 	if sig, _ := obj.Type().(*types.Signature); sig != nil && typeparams.ForSignature(sig).Len() > 0 && inferred != nil {
@@ -597,21 +599,64 @@ func objectString(obj types.Object, qf types.Qualifier, inferred *types.Signatur
 		str += "// " + types.TypeString(sig, qf)
 		return str
 	}
+	return ""
+}
+
+// objectString is a wrapper around the types.ObjectString function.
+// It handles adding more information to the object string.
+// If spec is non-nil, it may be used to format additional declaration
+// syntax, and file must be the token.File describing its positions.
+func objectString(obj types.Object, qf types.Qualifier, declPos token.Pos, file *token.File, spec ast.Spec) string {
 	str := types.ObjectString(obj, qf)
+
 	switch obj := obj.(type) {
 	case *types.Const:
-		str = fmt.Sprintf("%s = %s", str, obj.Val())
+		var (
+			declaration = obj.Val().String() // default formatted declaration
+			comment     = ""                 // if non-empty, a clarifying comment
+		)
 
-		// Try to add a formatted duration as an inline comment
-		typ, ok := obj.Type().(*types.Named)
-		if !ok {
-			break
-		}
-		pkg := typ.Obj().Pkg()
-		if pkg.Path() == "time" && typ.Obj().Name() == "Duration" {
-			if d, ok := constant.Int64Val(obj.Val()); ok {
-				str += " // " + time.Duration(d).String()
+		// Try to use the original declaration.
+		switch obj.Val().Kind() {
+		case constant.String:
+			// Usually the original declaration of a string doesn't carry much information.
+			// Also strings can be very long. So, just use the constant's value.
+
+		default:
+			if spec, _ := spec.(*ast.ValueSpec); spec != nil {
+				for i, name := range spec.Names {
+					if declPos == name.Pos() {
+						if i < len(spec.Values) {
+							originalDeclaration := FormatNodeFile(file, spec.Values[i])
+							if originalDeclaration != declaration {
+								comment = declaration
+								declaration = originalDeclaration
+							}
+						}
+						break
+					}
+				}
 			}
+		}
+
+		// Special formatting cases.
+		switch typ := obj.Type().(type) {
+		case *types.Named:
+			// Try to add a formatted duration as an inline comment.
+			pkg := typ.Obj().Pkg()
+			if pkg.Path() == "time" && typ.Obj().Name() == "Duration" {
+				if d, ok := constant.Int64Val(obj.Val()); ok {
+					comment = time.Duration(d).String()
+				}
+			}
+		}
+		if comment == declaration {
+			comment = ""
+		}
+
+		str += " = " + declaration
+		if comment != "" {
+			str += " // " + comment
 		}
 	}
 	return str
@@ -706,28 +751,6 @@ func parseFull(ctx context.Context, snapshot Snapshot, fset *token.FileSet, pos 
 	}
 
 	return pgf, fullPos, nil
-}
-
-// extractFieldList recursively tries to extract a field list.
-// If it is not found, nil is returned.
-func extractFieldList(specType ast.Expr) *ast.FieldList {
-	switch t := specType.(type) {
-	case *ast.StructType:
-		return t.Fields
-	case *ast.InterfaceType:
-		return t.Methods
-	case *ast.ArrayType:
-		return extractFieldList(t.Elt)
-	case *ast.MapType:
-		// Map value has a greater chance to be a struct
-		if fields := extractFieldList(t.Value); fields != nil {
-			return fields
-		}
-		return extractFieldList(t.Key)
-	case *ast.ChanType:
-		return extractFieldList(t.Value)
-	}
-	return nil
 }
 
 func formatHover(h *HoverJSON, options *Options) (string, error) {

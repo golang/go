@@ -1,12 +1,86 @@
 This test checks hovering over constants.
+
+-- flags --
+-min_go=go1.17
+
 -- go.mod --
 module mod.com
 
-go 1.18
+go 1.17
+
 -- c.go --
 package c
 
+import (
+	"math"
+	"time"
+)
+
 const X = 0 //@hover("X", "X", bX)
+
+// dur is a constant of type time.Duration.
+const dur = 15*time.Minute + 10*time.Second + 350*time.Millisecond //@hover("dur", "dur", dur)
+
+// MaxFloat32 is used in another package.
+const MaxFloat32 = 0x1p127 * (1 + (1 - 0x1p-23))
+
+// Numbers.
+func _() {
+	const hex, bin = 0xe34e, 0b1001001
+
+	const (
+		// no inline comment
+		decimal = 153
+
+		numberWithUnderscore int64 = 10_000_000_000
+		octal                      = 0o777
+		expr                       = 2 << (0b111&0b101 - 2)
+		boolean                    = (55 - 3) == (26 * 2)
+	)
+
+	_ = decimal              //@hover("decimal", "decimal", decimalConst)
+	_ = hex                  //@hover("hex", "hex", hexConst)
+	_ = bin                  //@hover("bin", "bin", binConst)
+	_ = numberWithUnderscore //@hover("numberWithUnderscore", "numberWithUnderscore", numberWithUnderscoreConst)
+	_ = octal                //@hover("octal", "octal", octalConst)
+	_ = expr                 //@hover("expr", "expr", exprConst)
+	_ = boolean              //@hover("boolean", "boolean", boolConst)
+
+	const ln10 = 2.30258509299404568401799145468436420760110148862877297603332790
+
+	_ = ln10 //@hover("ln10", "ln10", ln10Const)
+}
+
+// Iota.
+func _() {
+	const (
+		a = 1 << iota
+		b
+	)
+
+	_ = a //@hover("a", "a", aIota)
+	_ = b //@hover("b", "b", bIota)
+}
+
+// Strings.
+func _() {
+	const (
+		str     = "hello" + " " + "world"
+		longStr = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget ipsum non nunc
+molestie mattis id quis augue. Mauris dictum tincidunt ipsum, in auctor arcu congue eu.
+Morbi hendrerit fringilla libero commodo varius. Vestibulum in enim rutrum, rutrum tellus
+aliquet, luctus enim. Nunc sem ex, consectetur id porta nec, placerat vel urna.`
+	)
+
+	_ = str     //@hover("str", "str", strConst)
+	_ = longStr //@hover("longStr", "longStr", longStrConst)
+}
+
+// Constants from other packages.
+func _() {
+	_ = math.Log2E //@hover("Log2E", "Log2E", log2eConst)
+}
+
 -- @bX/hover.md --
 ```go
 const X untyped int = 0
@@ -16,3 +90,68 @@ const X untyped int = 0
 
 
 [`c.X` on pkg.go.dev](https://pkg.go.dev/mod.com#X)
+-- @dur/hover.md --
+```go
+const dur time.Duration = 15*time.Minute + 10*time.Second + 350*time.Millisecond // 15m10.35s
+```
+
+dur is a constant of type time.Duration.
+-- @decimalConst/hover.md --
+```go
+const decimal untyped int = 153
+```
+
+no inline comment
+-- @hexConst/hover.md --
+```go
+const hex untyped int = 0xe34e // 58190
+```
+-- @binConst/hover.md --
+```go
+const bin untyped int = 0b1001001 // 73
+```
+-- @numberWithUnderscoreConst/hover.md --
+```go
+const numberWithUnderscore int64 = 10_000_000_000 // 10000000000
+```
+-- @octalConst/hover.md --
+```go
+const octal untyped int = 0o777 // 511
+```
+-- @exprConst/hover.md --
+```go
+const expr untyped int = 2 << (0b111&0b101 - 2) // 16
+```
+-- @boolConst/hover.md --
+```go
+const boolean untyped bool = (55 - 3) == (26 * 2) // true
+```
+-- @ln10Const/hover.md --
+```go
+const ln10 untyped float = 2.30258509299404568401799145468436420760110148862877297603332790 // 2.30259
+```
+-- @aIota/hover.md --
+```go
+const a untyped int = 1 << iota // 1
+```
+-- @bIota/hover.md --
+```go
+const b untyped int = 2
+```
+-- @strConst/hover.md --
+```go
+const str untyped string = "hello world"
+```
+-- @longStrConst/hover.md --
+```go
+const longStr untyped string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur e...
+```
+-- @log2eConst/hover.md --
+```go
+const math.Log2E untyped float = 1 / Ln2 // 1.4427
+```
+
+Mathematical constants.
+
+
+[`math.Log2E` on pkg.go.dev](https://pkg.go.dev/math#Log2E)

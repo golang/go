@@ -15,7 +15,7 @@ func _() {
 }
 -- @abc/hover.md --
 ```go
-const abc untyped int = 42
+const abc untyped int = 0x2a // 42
 ```
 
 @hover("b", "abc", abc),hover(" =", "abc", abc)
