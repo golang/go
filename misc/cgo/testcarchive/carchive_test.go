@@ -1247,3 +1247,57 @@ func TestPreemption(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+// Issue 59294. Test calling Go function from C after using some
+// stack space.
+func TestDeepStack(t *testing.T) {
+	t.Parallel()
+
+	if !testWork {
+		defer func() {
+			os.Remove("testp9" + exeSuffix)
+			os.Remove("libgo9.a")
+			os.Remove("libgo9.h")
+		}()
+	}
+
+	cmd := exec.Command("go", "build", "-buildmode=c-archive", "-o", "libgo9.a", "./libgo9")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo9.h")
+	checkArchive(t, "libgo9.a")
+
+	// build with -O0 so the C compiler won't optimize out the large stack frame
+	ccArgs := append(cc, "-O0", "-o", "testp9"+exeSuffix, "main9.c", "libgo9.a")
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	argv := cmdToRun("./testp9")
+	cmd = exec.Command(argv[0], argv[1:]...)
+	sb := new(strings.Builder)
+	cmd.Stdout = sb
+	cmd.Stderr = sb
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	timer := time.AfterFunc(time.Minute,
+		func() {
+			t.Error("test program timed out")
+			cmd.Process.Kill()
+		},
+	)
+	defer timer.Stop()
+
+	err = cmd.Wait()
+	t.Logf("%v\n%s", cmd.Args, sb)
+	if err != nil {
+		t.Error(err)
+	}
+}

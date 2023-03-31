@@ -32,3 +32,27 @@ doAdd(int max, int nthread)
 	for(i=0; i<nthread; i++)
 		pthread_join(thread_id[i], 0);		
 }
+
+static void*
+goDummyCallbackThread(void* p)
+{
+	int i, max;
+
+	max = *(int*)p;
+	for(i=0; i<max; i++)
+		goDummy();
+	return NULL;
+}
+
+int
+callGoInCThread(int max)
+{
+	pthread_t thread;
+
+	if (pthread_create(&thread, NULL, goDummyCallbackThread, (void*)(&max)) != 0)
+		return -1;
+	if (pthread_join(thread, NULL) != 0)
+		return -1;
+
+	return max;
+}
