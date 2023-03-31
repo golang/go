@@ -14,11 +14,14 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/astutil"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // TestPurgeFuncBodies tests PurgeFuncBodies by comparing it against a
 // (less efficient) reference implementation that purges after parsing.
 func TestPurgeFuncBodies(t *testing.T) {
+	testenv.NeedsGoBuild(t) // we need the source code for std
+
 	// Load a few standard packages.
 	config := packages.Config{Mode: packages.NeedCompiledGoFiles}
 	pkgs, err := packages.Load(&config, "encoding/...")
