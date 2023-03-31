@@ -76,7 +76,7 @@ and test commands:
 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 	-msan
 		enable interoperation with memory sanitizer.
-		Supported only on linux/amd64, linux/arm64, freebsd/amd64
+		Supported only on linux/amd64, linux/arm64, linux/loong64, freebsd/amd64
 		and only with Clang/LLVM as the host C compiler.
 		PIE build mode will be used on all platforms except linux/amd64.
 	-asan

@@ -461,8 +461,8 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
 TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	JMP	runtime·sigtramp(SB)
 
-// func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
-TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
+// func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
+TEXT runtime·sysMmap(SB),NOSPLIT|NOFRAME,$0
 	MOVV	addr+0(FP), R4
 	MOVV	n+8(FP), R5
 	MOVW	prot+16(FP), R6
@@ -483,8 +483,25 @@ ok:
 	MOVV	$0, err+40(FP)
 	RET
 
-// func munmap(addr unsafe.Pointer, n uintptr)
-TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
+// Call the function stored in _cgo_mmap using the GCC calling convention.
+// This must be called on the system stack.
+// func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr
+TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
+	MOVV	addr+0(FP), R4
+	MOVV	n+8(FP), R5
+	MOVW	prot+16(FP), R6
+	MOVW	flags+20(FP), R7
+	MOVW	fd+24(FP), R8
+	MOVW	off+28(FP), R9
+	MOVV	_cgo_mmap(SB), R13
+	SUBV	$16, R3		// reserve 16 bytes for sp-8 where fp may be saved.
+	JAL	(R13)
+	ADDV	$16, R3
+	MOVV	R4, ret+32(FP)
+	RET
+
+// func sysMunmap(addr unsafe.Pointer, n uintptr)
+TEXT runtime·sysMunmap(SB),NOSPLIT|NOFRAME,$0
 	MOVV	addr+0(FP), R4
 	MOVV	n+8(FP), R5
 	MOVV	$SYS_munmap, R11
@@ -492,6 +509,18 @@ TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
 	MOVW	$-4096, R5
 	BGEU	R5, R4, 2(PC)
 	MOVV	R0, 0xf3(R0)	// crash
+	RET
+
+// Call the function stored in _cgo_munmap using the GCC calling convention.
+// This must be called on the system stack.
+// func callCgoMunmap(addr unsafe.Pointer, n uintptr)
+TEXT runtime·callCgoMunmap(SB),NOSPLIT,$0
+	MOVV	addr+0(FP), R4
+	MOVV	n+8(FP), R5
+	MOVV	_cgo_munmap(SB), R13
+	SUBV	$16, R3		// reserve 16 bytes for sp-8 where fp may be saved.
+	JAL	(R13)
+	ADDV	$16, R3
 	RET
 
 // func madvise(addr unsafe.Pointer, n uintptr, flags int32)
