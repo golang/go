@@ -3,11 +3,13 @@
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
-#include "asm_ppc64x.h"
 
 // _rt0_ppc64_aix is a function descriptor of the entrypoint function
 // __start. This name is needed by cmd/link.
-DEFINE_PPC64X_FUNCDESC(_rt0_ppc64_aix, __start<>)
+DATA	_rt0_ppc64_aix+0(SB)/8, $__start<>(SB)
+DATA	_rt0_ppc64_aix+8(SB)/8, $TOC(SB)
+GLOBL	_rt0_ppc64_aix(SB), NOPTR, $16
+
 
 // The starting function must return in the loader to
 // initialise some libraries, especially libthread which
@@ -35,7 +37,11 @@ TEXT __start<>(SB),NOSPLIT,$-8
 	BL _main(SB)
 
 
-DEFINE_PPC64X_FUNCDESC(main, _main)
+DATA	main+0(SB)/8, $_main(SB)
+DATA	main+8(SB)/8, $TOC(SB)
+DATA	main+16(SB)/8, $0
+GLOBL	main(SB), NOPTR, $24
+
 TEXT _main(SB),NOSPLIT,$-8
 	MOVD $runtime·rt0_go(SB), R12
 	MOVD R12, CTR
@@ -175,7 +181,10 @@ done:
 	MOVD	R0, LR
 	RET
 
-DEFINE_PPC64X_FUNCDESC(_rt0_ppc64_aix_lib_go, __rt0_ppc64_aix_lib_go)
+DATA	_rt0_ppc64_aix_lib_go+0(SB)/8, $__rt0_ppc64_aix_lib_go(SB)
+DATA	_rt0_ppc64_aix_lib_go+8(SB)/8, $TOC(SB)
+DATA	_rt0_ppc64_aix_lib_go+16(SB)/8, $0
+GLOBL	_rt0_ppc64_aix_lib_go(SB), NOPTR, $24
 
 TEXT __rt0_ppc64_aix_lib_go(SB),NOSPLIT,$0
 	MOVD	_rt0_ppc64_aix_lib_argc<>(SB), R3
