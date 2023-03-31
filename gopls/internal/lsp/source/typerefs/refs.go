@@ -17,11 +17,9 @@ import (
 
 // declInfo holds information about a single declaration.
 type declInfo struct {
-	name    string          // declaration name, for debugging only
 	node    ast.Node        // "declaring node" for this decl, to be traversed
 	tparams map[string]bool // names declared by type parameters within this declaration
 	file    *ast.File       // file containing this decl, for local imports
-	methods []*declInfo     // method declarations for type declarations
 }
 
 // Refs analyzes local syntax of the provided ParsedGoFiles to extract
@@ -35,12 +33,17 @@ type declInfo struct {
 // does not) represent.
 func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.ImportPath]*source.Metadata, pkgIndex *PackageIndex) map[string][]Ref {
 	var (
-		// decls collects nodes that define top-level objects, to be walked
-		// later.
+		// decls collects declaration nodes that collectively define the type of
+		// each name in the package scope.
 		//
-		// TODO(rfindley): we may have duplicate decls with the same name for
-		// invalid code. We must handle this case by take the union of edges.
-		decls = make(map[string]*declInfo)
+		//  - For valid code, there may be multiple declarations recorded when that
+		//    name is a type that has methods.
+		//  - For invalid code, there may also be multiple declarations recorded due
+		//    to duplicate declarations.
+		//
+		// In either case, the algorithm is the same: we walk all declarations for
+		// each name to collect referring identifiers.
+		decls = make(map[string][]*declInfo)
 
 		// localImports holds local import information, per file. The value is a
 		// slice because multiple packages may be referenced by a given name in the
@@ -92,22 +95,11 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 						if name == "_" {
 							continue
 						}
-						info := decls[name] // TODO(rfindley): handle the case of duplicate decls.
-						if info == nil {
-							info = &declInfo{}
-							decls[name] = info
-						}
-						// Sanity check that the root node info has not been set.
-						//
-						// TODO(rfindley): this panic is incorrect in the presence of
-						// invalid code with duplicate decls.
-						if info.node != nil || info.tparams != nil {
-							panic(fmt.Sprintf("root node already set for %s.%s", id, name))
-						}
-						info.name = name
-						info.file = file
-						info.node = spec
-						info.tparams = tparamsMap(typeparams.ForTypeSpec(spec))
+						decls[name] = append(decls[name], &declInfo{
+							node:    spec,
+							tparams: tparamsMap(typeparams.ForTypeSpec(spec)),
+							file:    file,
+						})
 					}
 
 				case token.VAR, token.CONST:
@@ -117,8 +109,7 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 							if name.Name == "_" {
 								continue
 							}
-							// TODO(rfindley): handle dupes here too.
-							decls[name.Name] = &declInfo{node: spec, name: name.Name, file: file}
+							decls[name.Name] = append(decls[name.Name], &declInfo{node: spec, file: file})
 						}
 					}
 				}
@@ -127,40 +118,32 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 				if d.Name.Name == "_" {
 					continue
 				}
-				// TODO(rfindley): handle dupes here too.
 				// This check for NumFields() > 0 is consistent with go/types, which
 				// reports an error but treats the declaration like a normal function
 				// when Recv is non-nil but empty (as in func () f()).
 				if d.Recv.NumFields() > 0 {
 					// Method. Associate it with the receiver.
 					_, id, tparams := unpackRecv(d.Recv.List[0].Type)
-					recvInfo := decls[id.Name]
-					if recvInfo == nil {
-						recvInfo = &declInfo{}
-						decls[id.Name] = recvInfo
-					}
 					methodInfo := &declInfo{
-						name: d.Name.Name,
 						node: d,
 						file: file,
 					}
 					if len(tparams) > 0 {
 						methodInfo.tparams = make(map[string]bool)
-						for _, id := range tparams {
-							if id.Name != "_" {
-								methodInfo.tparams[id.Name] = true
+						for _, tparam := range tparams {
+							if tparam.Name != "_" {
+								methodInfo.tparams[tparam.Name] = true
 							}
 						}
 					}
-					recvInfo.methods = append(recvInfo.methods, methodInfo)
+					decls[id.Name] = append(decls[id.Name], methodInfo)
 				} else {
 					// Non-method.
-					decls[d.Name.Name] = &declInfo{
-						name:    d.Name.Name,
+					decls[d.Name.Name] = append(decls[d.Name.Name], &declInfo{
 						node:    d,
-						file:    file,
 						tparams: tparamsMap(typeparams.ForFuncType(d.Type)),
-					}
+						file:    file,
+					})
 				}
 			}
 		}
@@ -169,10 +152,7 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 	// mappedRefs maps each name in this package to the set
 	// of (pkg, name) pairs it references.
 	mappedRefs := make(map[string]map[source.PackageID]map[string]bool)
-	for name, rootInfo := range decls {
-		// Consider method declarations to be part of the type declaration.
-		infos := append([]*declInfo{rootInfo}, rootInfo.methods...)
-
+	for name, infos := range decls {
 		// recordEdge records the (id, name)->(id2, name) edge.
 		recordEdge := func(id2 source.PackageID, name2 string) {
 			pkgRefs, ok := mappedRefs[name]
@@ -206,23 +186,9 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 				//  var y = struct {F int}{}
 				if _, ok := decls[name]; ok {
 					recordEdge(id, name)
-					return
-				}
-
-				// name is not declared in the current package, so record edges to all
-				// imported objects it could refer to.
-
-				// Conservatively, if name is exported we record an edge for every
-				// dot-imported package.
-				//
-				// Even though it is an error for a local import name and
-				// dot-imported name to collide, we don't handle this collision
-				// here because it is so vanishingly rare to have a package
-				// qualifier that starts with a capital letter at the same time as
-				// having a dot import.
-				//
-				// Just record edges to both.
-				if token.IsExported(name) {
+				} else if token.IsExported(name) {
+					// Only record an edge to dot-imported packages if there was no edge
+					// to a local name. This assumes that there are no duplicate declarations.
 					for _, depID := range fileImports["."] {
 						// Conservatively, assume that this name comes from every
 						// dot-imported package.
@@ -230,8 +196,10 @@ func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.I
 					}
 				}
 
-				// Similarly, if sel is exported we record an edge for every matching
-				// import.
+				// Record an edge to an import if it matches the name, even if that
+				// name collides with a package level name. Unlike the case of dotted
+				// imports, we know the package is invalid here, and choose to fail
+				// conservatively.
 				if sel != "" && token.IsExported(sel) {
 					for _, depID := range fileImports[name] {
 						recordEdge(depID, sel)

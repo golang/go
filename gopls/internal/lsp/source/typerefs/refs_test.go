@@ -23,11 +23,12 @@ func TestRefs(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		label   string
-		srcs    []string            // source for the local package; package name must be p
-		imports map[string]string   // for simplicity: importPath -> pkgID/pkgName (we set pkgName == pkgID)
-		want    map[string][]string // decl name -> id.<decl name>
-		go118   bool                // test uses generics
+		label     string
+		srcs      []string            // source for the local package; package name must be p
+		imports   map[string]string   // for simplicity: importPath -> pkgID/pkgName (we set pkgName == pkgID)
+		want      map[string][]string // decl name -> id.<decl name>
+		go118     bool                // test uses generics
+		allowErrs bool                // whether we expect parsing errors
 	}{
 		{
 			label: "empty package",
@@ -291,7 +292,7 @@ type z interface{}
 `},
 			imports: map[string]string{"q": "q", "r": "r", "s": "t", "z": "z"},
 			want: map[string][]string{
-				"A": {"p.z", "q.Q", "r.R"},
+				"A": {"p.z", "q.Q", "r.R", "z.Z"},
 				"B": {"t.T"},
 				"y": {"q.V"},
 			},
@@ -383,6 +384,43 @@ type E int
 			},
 			go118: true,
 		},
+		{
+			label: "duplicate decls",
+			srcs: []string{`package p
+
+import "a"
+
+type a a.A
+type b int
+type C a.A
+func (C) Foo(x) {} // invalid parameter, but that does not matter
+type C b
+func (C) Bar(y) {} // invalid parameter, but that does not matter
+
+var x, y int
+`},
+			imports: map[string]string{"a": "a", "b": "b"}, // "b" import should not matter, since it isn't in this file
+			want: map[string][]string{
+				"a": {"a.A", "p.a"},
+				"C": {"a.A", "p.a", "p.b", "p.x", "p.y"},
+			},
+		},
+		{
+			label: "invalid decls",
+			srcs: []string{`package p
+
+type A B
+
+func () Foo(B){}
+
+var B
+`},
+			want: map[string][]string{
+				"A":   {"p.B"},
+				"Foo": {"p.B"},
+			},
+			allowErrs: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -395,7 +433,7 @@ type E int
 			for i, src := range test.srcs {
 				uri := span.URI(fmt.Sprintf("file:///%d.go", i))
 				pgf, _ := cache.ParseGoSrc(ctx, token.NewFileSet(), uri, []byte(src), source.ParseFull)
-				if pgf.ParseErr != nil {
+				if !test.allowErrs && pgf.ParseErr != nil {
 					t.Fatalf("ParseGoSrc(...) returned parse errors: %v", pgf.ParseErr)
 				}
 				pgfs = append(pgfs, pgf)
