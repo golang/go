@@ -447,18 +447,16 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	24(R1), R2
 	RET
 
-#ifdef GOARCH_ppc64le
+#ifdef GO_PPC64X_HAS_FUNCDESC
+DEFINE_PPC64X_FUNCDESC(runtime·sigtramp, sigtramp<>)
+// cgo isn't supported on ppc64, but we need to supply a cgoSigTramp function.
+DEFINE_PPC64X_FUNCDESC(runtime·cgoSigtramp, sigtramp<>)
+TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+#else
 // ppc64le doesn't need function descriptors
 // Save callee-save registers in the case of signal forwarding.
 // Same as on ARM64 https://golang.org/issue/31827 .
 TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
-#else
-// function descriptor for the real sigtramp
-TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
-	DWORD	$sigtramp<>(SB)
-	DWORD	$0
-	DWORD	$0
-TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 #endif
 	// Start with standard C stack frame layout and linkage.
 	MOVD    LR, R0
@@ -627,7 +625,6 @@ TEXT sigtramp<>(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 	RET
 
 #ifdef GOARCH_ppc64le
-// ppc64le doesn't need function descriptors
 TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
 	// The stack unwinder, presumably written in C, may not be able to
 	// handle Go frame correctly. So, this function is NOFRAME, and we
@@ -722,14 +719,6 @@ sigtrampnog:
 	MOVD	R12, CTR
 	MOVD	R10, LR // restore LR
 	JMP	(CTR)
-#else
-// function descriptor for the real sigtramp
-TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
-	DWORD	$cgoSigtramp<>(SB)
-	DWORD	$0
-	DWORD	$0
-TEXT cgoSigtramp<>(SB),NOSPLIT,$0
-	JMP	sigtramp<>(SB)
 #endif
 
 // Used by cgoSigtramp to inspect without clobbering R30/R31 via runtime.load_g.
