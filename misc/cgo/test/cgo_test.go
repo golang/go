@@ -104,7 +104,6 @@ func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
 func TestUnsignedInt(t *testing.T)           { testUnsignedInt(t) }
 func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
 
-func BenchmarkCgoCall(b *testing.B)      { benchCgoCall(b) }
-func BenchmarkGoString(b *testing.B)     { benchGoString(b) }
-func BenchmarkCGoCallback(b *testing.B)  { benchCallback(b) }
-func BenchmarkCGoInCThread(b *testing.B) { benchCGoInCthread(b) }
+func BenchmarkCgoCall(b *testing.B)     { benchCgoCall(b) }
+func BenchmarkGoString(b *testing.B)    { benchGoString(b) }
+func BenchmarkCGoCallback(b *testing.B) { benchCallback(b) }

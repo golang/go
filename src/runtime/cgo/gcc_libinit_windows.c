@@ -30,9 +30,6 @@ static CRITICAL_SECTION runtime_init_cs;
 static HANDLE runtime_init_wait;
 static int runtime_init_done;
 
-uintptr_t x_cgo_pthread_key_created;
-void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
-
 // Pre-initialize the runtime synchronization objects
 void
 _cgo_preinit_init() {
@@ -92,12 +89,6 @@ _cgo_wait_runtime_init_done(void) {
 		return arg.Context;
 	}
 	return 0;
-}
-
-// Should not be used since x_cgo_pthread_key_created will always be zero.
-void x_cgo_bindm(void* dummy) {
-	fprintf(stderr, "unexpected cgo_bindm on Windows\n");
-	abort();
 }
 
 void

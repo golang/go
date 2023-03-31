@@ -237,9 +237,6 @@ func noEscapePtr[T any](p *T) *T {
 // cgocallback is not called from Go, only from crosscall2.
 // This in turn calls cgocallbackg, which is where we'll find
 // pointer-declared arguments.
-//
-// When fn is nil (frame is saved g), call dropm instead,
-// this is used when the C thread is exiting.
 func cgocallback(fn, frame, ctxt uintptr)
 
 func gogo(buf *gobuf)
