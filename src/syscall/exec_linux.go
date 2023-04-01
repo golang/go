@@ -203,6 +203,7 @@ type cloneArgs struct {
 //
 //go:noinline
 //go:norace
+//go:nocheckptr
 func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid uintptr, err1 Errno, mapPipe [2]int, locked bool) {
 	// Defined in linux/prctl.h starting with Linux 4.3.
 	const (
