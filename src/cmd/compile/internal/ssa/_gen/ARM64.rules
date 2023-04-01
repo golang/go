@@ -2688,7 +2688,7 @@
 	&& x5.Uses == 1
 	&& x6.Uses == 1
 	&& clobber(x0, x1, x2, x3, x4, x5, x6)
-	=> (MOVDstore [i-7] {s} ptr (REV <w.Type> w) mem)
+	=> (MOVDstore [i-7] {s} ptr (REV <typ.UInt64> w) mem)
 (MOVBstore [7] {s} p w
 	x0:(MOVBstore [6] {s} p (SRLconst [8]  w)
 	x1:(MOVBstore [5] {s} p (SRLconst [16] w)
@@ -2708,7 +2708,7 @@
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
 	&& clobber(x0, x1, x2, x3, x4, x5, x6)
-	=> (MOVDstoreidx ptr0 idx0 (REV <w.Type> w) mem)
+	=> (MOVDstoreidx ptr0 idx0 (REV <typ.UInt64> w) mem)
 (MOVBstore [i] {s} ptr w
 	x0:(MOVBstore [i-1] {s} ptr (UBFX [armBFAuxInt(8,  24)] w)
 	x1:(MOVBstore [i-2] {s} ptr (UBFX [armBFAuxInt(16, 16)] w)
@@ -2717,7 +2717,7 @@
 	&& x1.Uses == 1
 	&& x2.Uses == 1
 	&& clobber(x0, x1, x2)
-	=> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
+	=> (MOVWstore [i-3] {s} ptr (REVW <typ.UInt32> w) mem)
 (MOVBstore [3] {s} p w
 	x0:(MOVBstore [2] {s} p (UBFX [armBFAuxInt(8, 24)] w)
 	x1:(MOVBstore [1] {s} p1:(ADD ptr1 idx1) (UBFX [armBFAuxInt(16, 16)] w)
@@ -2729,7 +2729,7 @@
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
 	&& clobber(x0, x1, x2)
-	=> (MOVWstoreidx ptr0 idx0 (REVW <w.Type> w) mem)
+	=> (MOVWstoreidx ptr0 idx0 (REVW <typ.UInt32> w) mem)
 (MOVBstoreidx ptr (ADDconst [3] idx) w
 	x0:(MOVBstoreidx ptr (ADDconst [2] idx) (UBFX [armBFAuxInt(8,  24)] w)
 	x1:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [armBFAuxInt(16, 16)] w)
@@ -2738,7 +2738,7 @@
 	&& x1.Uses == 1
 	&& x2.Uses == 1
 	&& clobber(x0, x1, x2)
-	=> (MOVWstoreidx ptr idx (REVW <w.Type> w) mem)
+	=> (MOVWstoreidx ptr idx (REVW <typ.UInt32> w) mem)
 (MOVBstoreidx ptr idx w
 	x0:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [armBFAuxInt(8,  24)] w)
 	x1:(MOVBstoreidx ptr (ADDconst [2] idx) (UBFX [armBFAuxInt(16, 16)] w)
@@ -2756,7 +2756,7 @@
 	&& x1.Uses == 1
 	&& x2.Uses == 1
 	&& clobber(x0, x1, x2)
-	=> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
+	=> (MOVWstore [i-3] {s} ptr (REVW <typ.UInt32> w) mem)
 (MOVBstore [3] {s} p w
 	x0:(MOVBstore [2] {s} p (SRLconst [8] (MOVDreg w))
 	x1:(MOVBstore [1] {s} p1:(ADD ptr1 idx1) (SRLconst [16] (MOVDreg w))
@@ -2768,7 +2768,7 @@
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
 	&& clobber(x0, x1, x2)
-	=> (MOVWstoreidx ptr0 idx0 (REVW <w.Type> w) mem)
+	=> (MOVWstoreidx ptr0 idx0 (REVW <typ.UInt32> w) mem)
 (MOVBstore [i] {s} ptr w
 	x0:(MOVBstore [i-1] {s} ptr (SRLconst [8]  w)
 	x1:(MOVBstore [i-2] {s} ptr (SRLconst [16] w)
@@ -2777,7 +2777,7 @@
 	&& x1.Uses == 1
 	&& x2.Uses == 1
 	&& clobber(x0, x1, x2)
-	=> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
+	=> (MOVWstore [i-3] {s} ptr (REVW <typ.UInt32> w) mem)
 (MOVBstore [3] {s} p w
 	x0:(MOVBstore [2] {s} p (SRLconst [8] w)
 	x1:(MOVBstore [1] {s} p1:(ADD ptr1 idx1) (SRLconst [16] w)
@@ -2789,31 +2789,31 @@
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
 	&& clobber(x0, x1, x2)
-	=> (MOVWstoreidx ptr0 idx0 (REVW <w.Type> w) mem)
+	=> (MOVWstoreidx ptr0 idx0 (REVW <typ.UInt32> w) mem)
 (MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] w) mem))
 	&& x.Uses == 1
 	&& clobber(x)
-	=> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
+	=> (MOVHstore [i-1] {s} ptr (REV16W <typ.UInt16> w) mem)
 (MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (SRLconst [8] w) mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& clobber(x)
-	=> (MOVHstoreidx ptr0 idx0 (REV16W <w.Type> w) mem)
+	=> (MOVHstoreidx ptr0 idx0 (REV16W <typ.UInt16> w) mem)
 (MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (UBFX [armBFAuxInt(8, 8)] w) mem))
 	&& x.Uses == 1
 	&& clobber(x)
-	=> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
+	=> (MOVHstore [i-1] {s} ptr (REV16W <typ.UInt16> w) mem)
 (MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (UBFX [armBFAuxInt(8, 8)] w) mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& clobber(x)
-	=> (MOVHstoreidx ptr0 idx0 (REV16W <w.Type> w) mem)
+	=> (MOVHstoreidx ptr0 idx0 (REV16W <typ.UInt16> w) mem)
 (MOVBstoreidx ptr (ADDconst [1] idx) w x:(MOVBstoreidx ptr idx (UBFX [armBFAuxInt(8, 8)] w) mem))
 	&& x.Uses == 1
 	&& clobber(x)
-	=> (MOVHstoreidx ptr idx (REV16W <w.Type> w) mem)
+	=> (MOVHstoreidx ptr idx (REV16W <typ.UInt16> w) mem)
 (MOVBstoreidx ptr idx w x:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [armBFAuxInt(8, 8)] w) mem))
 	&& x.Uses == 1
 	&& clobber(x)
@@ -2821,23 +2821,23 @@
 (MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVDreg w)) mem))
 	&& x.Uses == 1
 	&& clobber(x)
-	=> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
+	=> (MOVHstore [i-1] {s} ptr (REV16W <typ.UInt16> w) mem)
 (MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (SRLconst [8] (MOVDreg w)) mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& clobber(x)
-	=> (MOVHstoreidx ptr0 idx0 (REV16W <w.Type> w) mem)
+	=> (MOVHstoreidx ptr0 idx0 (REV16W <typ.UInt16> w) mem)
 (MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (UBFX [armBFAuxInt(8, 24)] w) mem))
 	&& x.Uses == 1
 	&& clobber(x)
-	=> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
+	=> (MOVHstore [i-1] {s} ptr (REV16W <typ.UInt16> w) mem)
 (MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (UBFX [armBFAuxInt(8, 24)] w) mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& clobber(x)
-	=> (MOVHstoreidx ptr0 idx0 (REV16W <w.Type> w) mem)
+	=> (MOVHstoreidx ptr0 idx0 (REV16W <typ.UInt16> w) mem)
 
 // FP simplification
 (FNEGS  (FMULS  x y)) => (FNMULS x y)

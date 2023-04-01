@@ -1758,13 +1758,13 @@
   x0:(MOVBstore [i-1] {s} p (SHRWconst [8] w) mem))
   && x0.Uses == 1
   && clobber(x0)
-  => (MOVWstore [i-1] {s} p (ROLWconst <w.Type> [8] w) mem)
+  => (MOVWstore [i-1] {s} p (ROLWconst <typ.UInt16> [8] w) mem)
 (MOVBstore [i] {s} p1 w
   x0:(MOVBstore [i] {s} p0 (SHRWconst [8] w) mem))
   && x0.Uses == 1
   && sequentialAddresses(p0, p1, 1)
   && clobber(x0)
-  => (MOVWstore [i] {s} p0 (ROLWconst <w.Type> [8] w) mem)
+  => (MOVWstore [i] {s} p0 (ROLWconst <typ.UInt16> [8] w) mem)
 
 // Combine stores + shifts into bswap and larger (unaligned) stores
 (MOVBstore [i] {s} p w
@@ -1775,7 +1775,7 @@
   && x1.Uses == 1
   && x2.Uses == 1
   && clobber(x0, x1, x2)
-  => (MOVLstore [i-3] {s} p (BSWAPL <w.Type> w) mem)
+  => (MOVLstore [i-3] {s} p (BSWAPL <typ.UInt32> w) mem)
 (MOVBstore [i] {s} p3 w
   x2:(MOVBstore [i] {s} p2 (SHRLconst [8] w)
   x1:(MOVBstore [i] {s} p1 (SHRLconst [16] w)
@@ -1787,7 +1787,7 @@
   && sequentialAddresses(p1, p2, 1)
   && sequentialAddresses(p2, p3, 1)
   && clobber(x0, x1, x2)
-  => (MOVLstore [i] {s} p0 (BSWAPL <w.Type> w) mem)
+  => (MOVLstore [i] {s} p0 (BSWAPL <typ.UInt32> w) mem)
 
 (MOVBstore [i] {s} p w
   x6:(MOVBstore [i-1] {s} p (SHRQconst [8] w)
@@ -1805,7 +1805,7 @@
   && x5.Uses == 1
   && x6.Uses == 1
   && clobber(x0, x1, x2, x3, x4, x5, x6)
-  => (MOVQstore [i-7] {s} p (BSWAPQ <w.Type> w) mem)
+  => (MOVQstore [i-7] {s} p (BSWAPQ <typ.UInt64> w) mem)
 (MOVBstore [i] {s} p7 w
   x6:(MOVBstore [i] {s} p6 (SHRQconst [8] w)
   x5:(MOVBstore [i] {s} p5 (SHRQconst [16] w)
@@ -1829,7 +1829,7 @@
   && sequentialAddresses(p5, p6, 1)
   && sequentialAddresses(p6, p7, 1)
   && clobber(x0, x1, x2, x3, x4, x5, x6)
-  => (MOVQstore [i] {s} p0 (BSWAPQ <w.Type> w) mem)
+  => (MOVQstore [i] {s} p0 (BSWAPQ <typ.UInt64> w) mem)
 
 // Combine constant stores into larger (unaligned) stores.
 (MOVBstoreconst [c] {s} p1 x:(MOVBstoreconst [a] {s} p0 mem))
