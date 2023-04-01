@@ -116,33 +116,31 @@ TEXT ·Xadd64(SB), NOSPLIT, $0-24
 	MOVV	R4, ret+16(FP)
 	RET
 
+// func Xchg(ptr *uint32, new uint32) uint32
 TEXT ·Xchg(SB), NOSPLIT, $0-20
 	MOVV	ptr+0(FP), R4
 	MOVW	new+8(FP), R5
-
-	DBAR
-	MOVV	R5, R6
-	LL	(R4), R7
-	SC	R6, (R4)
-	BEQ	R6, -3(PC)
-	MOVW	R7, ret+16(FP)
-	DBAR
+	AMSWAPDBW	R5, (R4), R6
+	MOVW	R6, ret+16(FP)
 	RET
 
+// func Xchg64(ptr *uint64, new uint64) uint64
 TEXT ·Xchg64(SB), NOSPLIT, $0-24
 	MOVV	ptr+0(FP), R4
 	MOVV	new+8(FP), R5
-
-	DBAR
-	MOVV	R5, R6
-	LLV	(R4), R7
-	SCV	R6, (R4)
-	BEQ	R6, -3(PC)
-	MOVV	R7, ret+16(FP)
-	DBAR
+	AMSWAPDBV	R5, (R4), R6
+	MOVV	R6, ret+16(FP)
 	RET
 
 TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
+	JMP	·Xchg64(SB)
+
+// func Xchgint32(ptr *int32, new int32) int32
+TEXT ·Xchgint32(SB), NOSPLIT, $0-20
+	JMP	·Xchg(SB)
+
+// func Xchgint64(ptr *int64, new int64) int64
+TEXT ·Xchgint64(SB), NOSPLIT, $0-24
 	JMP	·Xchg64(SB)
 
 TEXT ·StorepNoWB(SB), NOSPLIT, $0-16

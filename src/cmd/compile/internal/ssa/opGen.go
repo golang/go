@@ -25709,7 +25709,6 @@ var opcodeTable = [...]opInfo{
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
 		hasSideEffects:  true,
-		unsafePoint:     true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
@@ -25726,7 +25725,6 @@ var opcodeTable = [...]opInfo{
 		resultNotInArgs: true,
 		faultOnNilArg0:  true,
 		hasSideEffects:  true,
-		unsafePoint:     true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31

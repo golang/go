@@ -451,14 +451,8 @@ func init() {
 
 		// atomic exchange.
 		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>.
-		// DBAR
-		// LL	(Rarg0), Rout
-		// MOVV Rarg1, Rtmp
-		// SC	Rtmp, (Rarg0)
-		// BEQ	Rtmp, -3(PC)
-		// DBAR
-		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
-		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
 
 		// atomic add.
 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
