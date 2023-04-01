@@ -381,10 +381,10 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
 			if i >= ln {
 				// We didn't allocate the entire slice,
 				// due to using saferio.SliceCap.
-				// Append a value to grow the slice.
+				// Grow the slice for one more element.
 				// The slice is full, so this should
 				// bump up the capacity.
-				value.Set(reflect.Append(value, reflect.Zero(value.Type().Elem())))
+				value.Grow(1)
 			}
 			// Copy into s up to the capacity or n,
 			// whichever is less.
@@ -549,8 +549,8 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, value reflect.Value, 
 		}
 		if i >= ln {
 			// This is a slice that we only partially allocated.
-			// Grow it using append, up to length.
-			value.Set(reflect.Append(value, reflect.Zero(value.Type().Elem())))
+			// Grow it up to length.
+			value.Grow(1)
 			cp := value.Cap()
 			if cp > length {
 				cp = length
