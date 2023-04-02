@@ -1553,16 +1553,23 @@ func traceGoUnpark(gp *g, skip int) {
 }
 
 func traceGoSysCall() {
-	if tracefpunwindoff() {
-		traceEvent(traceEvGoSysCall, 1)
-	} else {
-		// The default unwinder starts unwinding from gp.syscallsp
-		// which is captured 3 frames above this frame. We could
-		// capture gp.syscallbp to allow frame pointer unwinding to
-		// behave the same, but skipping 3 more frames here is
-		// simpler.
-		traceEvent(traceEvGoSysCall, 4)
+	var skip int
+	switch {
+	case tracefpunwindoff():
+		// Unwind by skipping 1 frame relative to gp.syscallsp which is captured 3
+		// frames above this frame. For frame pointer unwinding we produce the same
+		// results by hard coding the number of frames in between our caller and the
+		// actual syscall, see cases below.
+		// TODO(felixge): Implement gp.syscallbp to avoid this workaround?
+		skip = 1
+	case GOOS == "solaris" || GOOS == "illumos":
+		// These platforms don't use a libc_read_trampoline.
+		skip = 3
+	default:
+		// Skip the extra trampoline frame used on most systems.
+		skip = 4
 	}
+	traceEvent(traceEvGoSysCall, skip)
 }
 
 func traceGoSysExit(ts int64) {
