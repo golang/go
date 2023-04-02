@@ -6,18 +6,17 @@
 
 package net
 
+import "testing"
+
 // forceGoDNS forces the resolver configuration to use the pure Go resolver
 // and returns a fixup function to restore the old settings.
 func forceGoDNS() func() {
 	c := systemConf()
-	oldGo := c.netGo
-	oldCgo := c.netCgo
+	oldResolver := c.resolver
 	fixup := func() {
-		c.netGo = oldGo
-		c.netCgo = oldCgo
+		c.resolver = oldResolver
 	}
-	c.netGo = true
-	c.netCgo = false
+	c.resolver = resolverGo
 	return fixup
 }
 
@@ -26,13 +25,27 @@ func forceGoDNS() func() {
 // (On non-Unix systems forceCgoDNS returns nil.)
 func forceCgoDNS() func() {
 	c := systemConf()
-	oldGo := c.netGo
-	oldCgo := c.netCgo
+	oldResolver := c.resolver
 	fixup := func() {
-		c.netGo = oldGo
-		c.netCgo = oldCgo
+		c.resolver = oldResolver
 	}
-	c.netGo = false
-	c.netCgo = true
+	c.resolver = resolverCgo
 	return fixup
+}
+
+func TestForceCgoDNS(t *testing.T) {
+	defer forceCgoDNS()()
+	order, _ := systemConf().hostLookupOrder(nil, "go.dev")
+	if order != hostLookupCgo {
+		t.Fatalf("expected cgo hostLookupOrder got: %v", order)
+	}
+}
+
+func TestForceGoDNS(t *testing.T) {
+	defer forceGoDNS()()
+	order, _ := systemConf().hostLookupOrder(nil, "go.dev")
+	if !(order == hostLookupFiles || order == hostLookupFilesDNS ||
+		order == hostLookupDNSFiles || order == hostLookupDNS) {
+		t.Fatalf("expected go hostLookupOrder got: %v", order)
+	}
 }

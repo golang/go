@@ -17,11 +17,7 @@ import (
 
 // conf represents a system's network configuration.
 type conf struct {
-	// forceCgoLookupHost forces CGO to always be used, if available.
-	forceCgoLookupHost bool
-
-	netGo  bool // go DNS resolution forced
-	netCgo bool // non-go DNS resolution forced (cgo, or win32)
+	resolver resolverType
 
 	// machine has an /etc/mdns.allow file
 	hasMDNSAllow bool
@@ -42,75 +38,104 @@ func systemConf() *conf {
 }
 
 func initConfVal() {
+	confVal.resolver = defaultResolver
+
 	dnsMode, debugLevel := goDebugNetDNS()
 	confVal.dnsDebugLevel = debugLevel
-	confVal.netGo = netGo || dnsMode == "go"
-	confVal.netCgo = netCgo || dnsMode == "cgo"
-	if !confVal.netGo && !confVal.netCgo && (runtime.GOOS == "windows" || runtime.GOOS == "plan9") {
-		// Neither of these platforms actually use cgo.
-		//
-		// The meaning of "cgo" mode in the net package is
-		// really "the native OS way", which for libc meant
-		// cgo on the original platforms that motivated
-		// PreferGo support before Windows and Plan9 got support,
-		// at which time the GODEBUG=netdns=go and GODEBUG=netdns=cgo
-		// names were already kinda locked in.
-		confVal.netCgo = true
-	}
 
+	goDebug := false
 	if confVal.dnsDebugLevel > 0 {
 		defer func() {
 			if confVal.dnsDebugLevel > 1 {
-				println("go package net: confVal.netCgo =", confVal.netCgo, " netGo =", confVal.netGo)
-			}
-			switch {
-			case confVal.netGo:
-				if netGo {
-					println("go package net: built with netgo build tag; using Go's DNS resolver")
+				if defaultResolver == resolverDynamic || defaultResolver == resolverCgo {
+					println("go package net: compiled with support for the go and cgo resolver")
 				} else {
-					println("go package net: GODEBUG setting forcing use of Go's resolver")
+					println("go package net: compiled with support for the go resolver")
 				}
-			case confVal.forceCgoLookupHost:
-				println("go package net: using cgo DNS resolver")
+			}
+
+			switch confVal.resolver {
+			case resolverGo:
+				if goDebug {
+					println("go package net: GODEBUG setting: forcing the use of Go resolver")
+				} else {
+					println("go package net: using the Go resolver")
+				}
+			case resolverCgo:
+				// In this case the Go resolver might be still used when PreferGo
+				// is set to true in the Resolver, so using the "preferred" word.
+				if goDebug {
+					println("go package net: GODEBUG setting: setting the preferred resolver to the Cgo resolver")
+				} else {
+					println("go package net: setting the preferred resolver to the Cgo resolver")
+				}
+			case resolverDynamic:
+				println("go package net: dynamic selection of the DNS resolver, preferring the Go resolver")
 			default:
-				println("go package net: dynamic selection of DNS resolver")
+				panic("unreachable")
 			}
 		}()
 	}
 
-	// Darwin pops up annoying dialog boxes if programs try to do
-	// their own DNS requests. So always use cgo instead, which
-	// avoids that.
-	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		confVal.forceCgoLookupHost = true
-		return
+	// Is only possible to change the resolver when
+	// compiled with support for both resolvers.
+	if confVal.resolver == resolverDynamic || confVal.resolver == resolverCgo {
+		if dnsMode == "go" {
+			goDebug = true
+			confVal.resolver = resolverGo
+		}
+		if dnsMode == "cgo" {
+			goDebug = true
+			confVal.resolver = resolverCgo
+		}
 	}
 
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		return
+	if confVal.resolver == resolverDynamic {
+		// Keep the list of unsupported GOOS for resolverDynamic
+		// in sysc with conf_test.go (testConfHostLookupOrder).
+
+		// Neither of these platforms actually use cgo.
+		// The meaning of "cgo" mode in the net package is
+		// really "the native OS way", which for libc meant
+		// cgo on the original platforms that motivated
+		//
+		// Darwin pops up annoying dialog boxes if programs try to do
+		// their own DNS requests. So always use cgo instead, which
+		// avoids that.
+		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" ||
+			runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+			confVal.resolver = resolverCgo
+			return
+		}
+
+		if runtime.GOOS == "android" {
+			confVal.resolver = resolverCgo
+			return
+		}
 	}
 
-	// If any environment-specified resolver options are specified,
-	// force cgo. Note that LOCALDOMAIN can change behavior merely
-	// by being specified with the empty string.
-	_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
-	if os.Getenv("RES_OPTIONS") != "" ||
-		os.Getenv("HOSTALIASES") != "" ||
-		confVal.netCgo ||
-		localDomainDefined {
-		confVal.forceCgoLookupHost = true
-		return
+	if confVal.resolver == resolverDynamic {
+		// If any environment-specified resolver options are specified,
+		// force cgo (when avaliable). Note that LOCALDOMAIN can change behavior merely
+		// by being specified with the empty string.
+		_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
+		if os.Getenv("RES_OPTIONS") != "" ||
+			os.Getenv("HOSTALIASES") != "" ||
+			localDomainDefined {
+			confVal.resolver = resolverCgo
+		}
+
+		// OpenBSD apparently lets you override the location of resolv.conf
+		// with ASR_CONFIG. If we notice that, defer to libc.
+		if runtime.GOOS == "openbsd" && os.Getenv("ASR_CONFIG") != "" {
+			confVal.resolver = resolverCgo
+		}
 	}
 
-	// OpenBSD apparently lets you override the location of resolv.conf
-	// with ASR_CONFIG. If we notice that, defer to libc.
-	if runtime.GOOS == "openbsd" && os.Getenv("ASR_CONFIG") != "" {
-		confVal.forceCgoLookupHost = true
-		return
-	}
-
-	if _, err := os.Stat("/etc/mdns.allow"); err == nil {
-		confVal.hasMDNSAllow = true
+	if runtime.GOOS != "openbsd" {
+		if _, err := os.Stat("/etc/mdns.allow"); err == nil {
+			confVal.hasMDNSAllow = true
+		}
 	}
 }
 
@@ -130,26 +155,45 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
 		}()
 	}
-	fallbackOrder := hostLookupCgo
-	if c.netGo || r.preferGo() {
-		switch c.goos {
-		case "windows":
+
+	switch {
+	case c.resolver == resolverGo || r.preferGo():
+		if c.goos == "windows" {
 			// TODO(bradfitz): implement files-based
 			// lookup on Windows too? I guess /etc/hosts
 			// kinda exists on Windows. But for now, only
 			// do DNS.
-			fallbackOrder = hostLookupDNS
-		default:
-			fallbackOrder = hostLookupFilesDNS
+			return hostLookupDNS, nil
 		}
+
+		if c.goos == "android" || c.goos == "plan9" {
+			return hostLookupFilesDNS, nil
+		}
+
+		order, conf := c.unixResolverOrder(r, hostname)
+		if order == hostLookupCgo {
+			// Something unsupported in the configuraion/hostname detected, but
+			// we don't have cgo support, so try with the go resolver instead,
+			// can't do any better at this point.
+			return hostLookupFilesDNS, conf
+		}
+		return order, conf
+	case c.resolver == resolverCgo:
+		return hostLookupCgo, nil
+	case c.resolver == resolverDynamic:
+		// Try to use the go resolver, but if for some reason
+		// we don't support it, use the cgo resolver.
+		return c.unixResolverOrder(r, hostname)
+	default:
+		panic("unreachable, unknown resolver")
 	}
-	if c.forceCgoLookupHost || c.goos == "android" || c.goos == "windows" || c.goos == "plan9" {
-		return fallbackOrder, nil
-	}
+}
+
+func (c *conf) unixResolverOrder(r *Resolver, hostname string) (ret hostLookupOrder, dnsConfig *dnsConfig) {
 	if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
 		// Don't deal with special form hostnames with backslashes
 		// or '%'.
-		return fallbackOrder, nil
+		return hostLookupCgo, nil
 	}
 
 	conf := getSystemDNSConfig()
@@ -158,11 +202,11 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		// had something important in it and defer to cgo.
 		// libc's resolver might then fail too, but at least
 		// it wasn't our fault.
-		return fallbackOrder, conf
+		return hostLookupCgo, conf
 	}
 
 	if conf.unknownOpt {
-		return fallbackOrder, conf
+		return hostLookupCgo, conf
 	}
 
 	// OpenBSD is unique and doesn't use nsswitch.conf.
@@ -175,6 +219,10 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			return hostLookupFiles, conf
 		}
 
+		if os.IsPermission(conf.err) {
+			return hostLookupCgo, conf
+		}
+
 		lookup := conf.lookup
 		if len(lookup) == 0 {
 			// https://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man5/resolv.conf.5
@@ -183,8 +231,8 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			// order is 'bind file'"
 			return hostLookupDNSFiles, conf
 		}
-		if len(lookup) < 1 || len(lookup) > 2 {
-			return fallbackOrder, conf
+		if len(lookup) > 2 {
+			return hostLookupCgo, conf
 		}
 		switch lookup[0] {
 		case "bind":
@@ -192,7 +240,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 				if lookup[1] == "file" {
 					return hostLookupDNSFiles, conf
 				}
-				return fallbackOrder, conf
+				return hostLookupCgo, conf
 			}
 			return hostLookupDNS, conf
 		case "file":
@@ -200,11 +248,11 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 				if lookup[1] == "bind" {
 					return hostLookupFilesDNS, conf
 				}
-				return fallbackOrder, conf
+				return hostLookupCgo, conf
 			}
 			return hostLookupFiles, conf
 		default:
-			return fallbackOrder, conf
+			return hostLookupCgo, conf
 		}
 	}
 
@@ -217,7 +265,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		// because Go's native resolver doesn't do mDNS or
 		// similar local resolution mechanisms, assume that
 		// libc might (via Avahi, etc) and use cgo.
-		return fallbackOrder, conf
+		return hostLookupCgo, conf
 	}
 
 	nss := getSystemNSS()
@@ -227,7 +275,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	if os.IsNotExist(nss.err) || (nss.err == nil && len(srcs) == 0) {
 		if c.goos == "solaris" {
 			// illumos defaults to "nis [NOTFOUND=return] files"
-			return fallbackOrder, conf
+			return hostLookupCgo, conf
 		}
 
 		return hostLookupFilesDNS, conf
@@ -236,7 +284,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		// We failed to parse or open nsswitch.conf, so
 		// conservatively assume we should use cgo if it's
 		// available.
-		return fallbackOrder, conf
+		return hostLookupCgo, conf
 	}
 
 	var mdnsSource, filesSource, dnsSource bool
@@ -244,17 +292,17 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	for _, src := range srcs {
 		if src.source == "myhostname" {
 			if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
-				return fallbackOrder, conf
+				return hostLookupCgo, conf
 			}
 			hn, err := getHostname()
 			if err != nil || stringsEqualFold(hostname, hn) {
-				return fallbackOrder, conf
+				return hostLookupCgo, conf
 			}
 			continue
 		}
 		if src.source == "files" || src.source == "dns" {
 			if !src.standardCriteria() {
-				return fallbackOrder, conf // non-standard; let libc deal with it.
+				return hostLookupCgo, conf // non-standard; let libc deal with it.
 			}
 			if src.source == "files" {
 				filesSource = true
@@ -274,14 +322,14 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			continue
 		}
 		// Some source we don't know how to deal with.
-		return fallbackOrder, conf
+		return hostLookupCgo, conf
 	}
 
 	// We don't parse mdns.allow files. They're rare. If one
 	// exists, it might list other TLDs (besides .local) or even
 	// '*', so just let libc deal with it.
 	if mdnsSource && c.hasMDNSAllow {
-		return fallbackOrder, conf
+		return hostLookupCgo, conf
 	}
 
 	// Cases where Go can handle it without cgo and C thread
@@ -300,7 +348,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	}
 
 	// Something weird. Let libc deal with it.
-	return fallbackOrder, conf
+	return hostLookupCgo, conf
 }
 
 var netdns = godebug.New("netdns")
