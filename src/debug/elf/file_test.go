@@ -7,6 +7,7 @@ package elf
 import (
 	"bytes"
 	"compress/gzip"
+	"compress/zlib"
 	"debug/dwarf"
 	"encoding/binary"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"path"
 	"reflect"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -1240,5 +1242,49 @@ func TestDynValue(t *testing.T) {
 
 	if len(vals) != 1 || vals[0] != 1 {
 		t.Errorf("DynValue(DT_VERNEEDNUM): got %v, want [1]", vals)
+	}
+}
+
+func TestIssue59208(t *testing.T) {
+	// corrupted dwarf data should raise invalid dwarf data instead of invalid zlib
+	const orig = "testdata/compressed-64.obj"
+	f, err := Open(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sec := f.Section(".debug_info")
+
+	data, err := os.ReadFile(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dn := make([]byte, len(data))
+	zoffset := sec.Offset + uint64(sec.compressionOffset)
+	copy(dn, data[:zoffset])
+
+	ozd, err := sec.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := bytes.NewBuffer(nil)
+	wr := zlib.NewWriter(buf)
+	// corrupt origin data same as COMPRESS_ZLIB
+	copy(ozd, []byte{1, 0, 0, 0})
+	wr.Write(ozd)
+	wr.Close()
+
+	copy(dn[zoffset:], buf.Bytes())
+	copy(dn[sec.Offset+sec.FileSize:], data[sec.Offset+sec.FileSize:])
+
+	nf, err := NewFile(bytes.NewReader(dn))
+	if err != nil {
+		t.Error(err)
+	}
+
+	const want = "decoding dwarf section info"
+	_, err = nf.DWARF()
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("DWARF = %v; want %q", err, want)
 	}
 }

@@ -137,20 +137,46 @@ func (s *Section) Open() io.ReadSeeker {
 	if s.Type == SHT_NOBITS {
 		return io.NewSectionReader(&nobitsSectionReader{}, 0, int64(s.Size))
 	}
+
+	var zrd func(io.Reader) (io.ReadCloser, error)
 	if s.Flags&SHF_COMPRESSED == 0 {
-		return io.NewSectionReader(s.sr, 0, 1<<63-1)
-	}
-	if s.compressionType == COMPRESS_ZLIB {
-		return &readSeekerFromReader{
-			reset: func() (io.Reader, error) {
-				fr := io.NewSectionReader(s.sr, s.compressionOffset, int64(s.FileSize)-s.compressionOffset)
-				return zlib.NewReader(fr)
-			},
-			size: int64(s.Size),
+
+		if !strings.HasPrefix(s.Name, ".zdebug") {
+			return io.NewSectionReader(s.sr, 0, 1<<63-1)
 		}
+
+		b := make([]byte, 12)
+		n, _ := s.sr.ReadAt(b, 0)
+		if n != 12 || string(b[:4]) != "ZLIB" {
+			return io.NewSectionReader(s.sr, 0, 1<<63-1)
+		}
+
+		s.compressionOffset = 12
+		s.compressionType = COMPRESS_ZLIB
+		s.Size = binary.BigEndian.Uint64(b[4:12])
+		zrd = zlib.NewReader
+
+	} else if s.Flags&SHF_ALLOC != 0 {
+		return errorReader{&FormatError{int64(s.Offset),
+			"SHF_COMPRESSED applies only to non-allocable sections", s.compressionType}}
 	}
-	err := &FormatError{int64(s.Offset), "unknown compression type", s.compressionType}
-	return errorReader{err}
+
+	switch s.compressionType {
+	case COMPRESS_ZLIB:
+		zrd = zlib.NewReader
+	}
+
+	if zrd == nil {
+		return errorReader{&FormatError{int64(s.Offset), "unknown compression type", s.compressionType}}
+	}
+
+	return &readSeekerFromReader{
+		reset: func() (io.Reader, error) {
+			fr := io.NewSectionReader(s.sr, s.compressionOffset, int64(s.FileSize)-s.compressionOffset)
+			return zrd(fr)
+		},
+		size: int64(s.Size),
+	}
 }
 
 // A ProgHeader represents a single ELF program header.
@@ -1308,44 +1334,6 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 		b, err := s.Data()
 		if err != nil && uint64(len(b)) < s.Size {
 			return nil, err
-		}
-		var dlen uint64
-		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
-			dlen = binary.BigEndian.Uint64(b[4:12])
-			s.compressionOffset = 12
-		}
-		if dlen == 0 && len(b) >= 12 && s.Flags&SHF_COMPRESSED != 0 &&
-			s.Flags&SHF_ALLOC == 0 &&
-			f.FileHeader.ByteOrder.Uint32(b[:]) == uint32(COMPRESS_ZLIB) {
-			s.compressionType = COMPRESS_ZLIB
-			switch f.FileHeader.Class {
-			case ELFCLASS32:
-				// Chdr32.Size offset
-				dlen = uint64(f.FileHeader.ByteOrder.Uint32(b[4:]))
-				s.compressionOffset = 12
-			case ELFCLASS64:
-				if len(b) < 24 {
-					return nil, errors.New("invalid compress header 64")
-				}
-				// Chdr64.Size offset
-				dlen = f.FileHeader.ByteOrder.Uint64(b[8:])
-				s.compressionOffset = 24
-			default:
-				return nil, fmt.Errorf("unsupported compress header:%s", f.FileHeader.Class)
-			}
-		}
-		if dlen > 0 {
-			r, err := zlib.NewReader(bytes.NewBuffer(b[s.compressionOffset:]))
-			if err != nil {
-				return nil, err
-			}
-			b, err = saferio.ReadData(r, dlen)
-			if err != nil {
-				return nil, err
-			}
-			if err := r.Close(); err != nil {
-				return nil, err
-			}
 		}
 
 		if f.Type == ET_EXEC {
