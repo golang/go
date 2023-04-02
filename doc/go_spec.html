@@ -7894,7 +7894,7 @@ which has no dependencies on uninitialized variables.
 More precisely, a package-level variable is considered <i>ready for
 initialization</i> if it is not yet initialized and either has
 no <a href="#Variable_declarations">initialization expression</a> or
-its initialization expression has no <i>dependencies</i> on uninitialized variables.
+its initialization expression has <i>dependencies</i> on uninitialized variables.
 Initialization proceeds by repeatedly initializing the next package-level
 variable that is earliest in declaration order and ready for initialization,
 until there are no variables ready for initialization.
