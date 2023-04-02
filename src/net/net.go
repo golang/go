@@ -110,8 +110,8 @@ func (r resolverType) String() string {
 
 const (
 	// Compiled with go and cgo resolver support.
-	// The preferred resolver is determined at runtime, depending
-	// on the OS and the OS specific settings.
+	// The preferred resolver is the go resolver, unless
+	// something unsupported is found.
 	resolverDynamic resolverType = iota
 
 	// Compiled without support for the cgo resolver.
