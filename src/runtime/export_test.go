@@ -1920,24 +1920,8 @@ func UserArenaClone[T any](s T) T {
 
 var AlignUp = alignUp
 
-// BlockUntilEmptyFinalizerQueue blocks until either the finalizer
-// queue is emptied (and the finalizers have executed) or the timeout
-// is reached. Returns true if the finalizer queue was emptied.
 func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
-	start := nanotime()
-	for nanotime()-start < timeout {
-		lock(&finlock)
-		// We know the queue has been drained when both finq is nil
-		// and the finalizer g has stopped executing.
-		empty := finq == nil
-		empty = empty && readgstatus(fing) == _Gwaiting && fing.waitreason == waitReasonFinalizerWait
-		unlock(&finlock)
-		if empty {
-			return true
-		}
-		Gosched()
-	}
-	return false
+	return blockUntilEmptyFinalizerQueue(timeout)
 }
 
 func FrameStartLine(f *Frame) int {
