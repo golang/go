@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Set the defaultResolver to resovlerCgo when the netcgo build tag is being used,
-// but not when the defaultResolver is being set by netgo.go, so that netgo
+// but not when the defaultResolver is being set by conf_netgo.go, so that netgo
 // always takes precendence over netcgo.
 
 //go:build netcgo && !(netgo || (!cgo && !darwin && !windows))
