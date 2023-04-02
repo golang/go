@@ -29,6 +29,23 @@ func TestKeys(t *testing.T) {
 	if !slices.Equal(got2, want) {
 		t.Errorf("Keys(%v) = %v, want %v", m2, got2, want)
 	}
+
+	// test for oldbucket code path
+	// We grow from 128 to 256 buckets at size 832 (6.5 * 128).
+	// Then we have to evacuate 128 buckets, which means we'll be done evacuation at 832+128=960 elements inserted.
+	// so 840 is a good number to test for oldbucket code path.
+	var want3 []int
+	var m = make(map[int]int)
+	for i := 0; i < 840; i++ {
+		want3 = append(want3, i)
+		m[i] = i
+	}
+
+	got3 := Keys(m)
+	sort.Ints(got3)
+	if !slices.Equal(got3, want3) {
+		t.Errorf("Keys(%v) = %v, want %v", m, got3, want3)
+	}
 }
 
 func TestValues(t *testing.T) {
@@ -214,5 +231,20 @@ func TestCloneWithMapAssign(t *testing.T) {
 		if m2[i] != m[i] {
 			t.Errorf("m2[%d] = %d, want %d", i, m2[i], m[i])
 		}
+	}
+}
+
+var keysArr []int
+
+func BenchmarkKeys(b *testing.B) {
+	m := make(map[int]int, 1000000)
+	for i := 0; i < 1000000; i++ {
+		m[i] = i
+	}
+	b.ResetTimer()
+
+	slice := make([]int, 0, len(m))
+	for i := 0; i < b.N; i++ {
+		keysForBenchmarking(m, slice)
 	}
 }
