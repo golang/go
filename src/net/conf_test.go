@@ -250,8 +250,6 @@ func TestConfHostLookupOrderResolvConf(t *testing.T) {
 		{"permission error", &dnsConfig{err: fs.ErrPermission}, "hosts: dns files", hostLookupDNSFiles, hostLookupDNSFiles},
 		{"permission error", &dnsConfig{err: fs.ErrPermission}, "hosts: files", hostLookupFiles, hostLookupFiles},
 
-		// TODO: shouldn't the go resolver (in case it is forced, resolverGo mode), try to parse
-		// the nsswitch.conf, and only when something unsupported found fallback to the hostLookupFilesDNS???
 		{"unknownOpt", &dnsConfig{unknownOpt: true}, "hosts: dns files", hostLookupCgo, hostLookupFilesDNS},
 		{"unknownOpt", &dnsConfig{unknownOpt: true}, "hosts: files", hostLookupCgo, hostLookupFilesDNS},
 		{"parsing error", &dnsConfig{err: errors.New("parsing error")}, "hosts: dns files", hostLookupCgo, hostLookupFilesDNS},
