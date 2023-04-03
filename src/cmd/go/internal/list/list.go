@@ -653,7 +653,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				} else {
 					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
 					if err != nil {
-						base.Errorf("can't load test package: %s", err)
+						base.Fatalf("can't load test package: %s", err)
 					}
 				}
 				if pmain != nil {
@@ -770,20 +770,22 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				delete(m, old)
 			}
 		}
-		// Recompute deps lists using new strings, from the leaves up.
-		for _, p := range all {
-			deps := make(map[string]bool)
-			for _, p1 := range p.Internal.Imports {
-				deps[p1.ImportPath] = true
-				for _, d := range p1.Deps {
-					deps[d] = true
+		if !pkgOpts.SuppressDeps {
+			// Recompute deps lists using new strings, from the leaves up.
+			for _, p := range all {
+				deps := make(map[string]bool)
+				for _, p1 := range p.Internal.Imports {
+					deps[p1.ImportPath] = true
+					for _, d := range p1.Deps {
+						deps[d] = true
+					}
 				}
+				p.Deps = make([]string, 0, len(deps))
+				for d := range deps {
+					p.Deps = append(p.Deps, d)
+				}
+				sort.Strings(p.Deps)
 			}
-			p.Deps = make([]string, 0, len(deps))
-			for d := range deps {
-				p.Deps = append(p.Deps, d)
-			}
-			sort.Strings(p.Deps)
 		}
 	}
 

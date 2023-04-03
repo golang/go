@@ -112,22 +112,12 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
 		p1 := loadImport(ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
-		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
-			// Same error that loadPackage returns (via reusePackage) in pkg.go.
-			// Can't change that code, because that code is only for loading the
-			// non-test copy of a package.
-			ptestErr = &PackageError{
-				ImportStack:   importCycleStack(p1, p.ImportPath),
-				Err:           errors.New("import cycle not allowed in test"),
-				IsImportCycle: true,
-			}
-		}
 		p.TestImports[i] = p1.ImportPath
 		imports = append(imports, p1)
 	}
 	var err error
 	p.TestEmbedFiles, testEmbed, err = resolveEmbed(p.Dir, p.TestEmbedPatterns)
-	if err != nil && ptestErr == nil {
+	if err != nil {
 		ptestErr = &PackageError{
 			ImportStack: stk.Copy(),
 			Err:         err,
@@ -208,7 +198,9 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath
 		ptest.Internal.PGOProfile = p.Internal.PGOProfile
 		ptest.Internal.Build.Directives = append(slices.Clip(p.Internal.Build.Directives), p.Internal.Build.TestDirectives...)
-		ptest.collectDeps()
+		if !opts.SuppressDeps {
+			ptest.collectDeps()
+		}
 	} else {
 		ptest = p
 	}
@@ -250,7 +242,9 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		if pxtestNeedsPtest {
 			pxtest.Internal.Imports = append(pxtest.Internal.Imports, ptest)
 		}
-		pxtest.collectDeps()
+		if !opts.SuppressDeps {
+			pxtest.collectDeps()
+		}
 	}
 
 	// Arrange for testing.Testing to report true.
@@ -341,7 +335,9 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		pmain.Imports = append(pmain.Imports, pxtest.ImportPath)
 		t.ImportXtest = true
 	}
-	pmain.collectDeps()
+	if !opts.SuppressDeps {
+		pmain.collectDeps()
+	}
 
 	// Sort and dedup pmain.Imports.
 	// Only matters for go list -test output.
@@ -357,7 +353,10 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	pmain.Internal.RawImports = str.StringList(pmain.Imports)
 
 	// Replace pmain's transitive dependencies with test copies, as necessary.
-	recompileForTest(pmain, p, ptest, pxtest)
+	cycleErr := recompileForTest(pmain, p, ptest, pxtest)
+	if cycleErr != nil {
+		ptest.Error = cycleErr
+	}
 
 	if cover != nil {
 		if cfg.Experiment.CoverageRedesign {
@@ -403,46 +402,6 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	return pmain, ptest, pxtest
 }
 
-// importCycleStack returns an import stack from p to the package whose import
-// path is target.
-func importCycleStack(p *Package, target string) []string {
-	// importerOf maps each import path to its importer nearest to p.
-	importerOf := map[string]string{p.ImportPath: ""}
-
-	// q is a breadth-first queue of packages to search for target.
-	// Every package added to q has a corresponding entry in pathTo.
-	//
-	// We search breadth-first for two reasons:
-	//
-	// 	1. We want to report the shortest cycle.
-	//
-	// 	2. If p contains multiple cycles, the first cycle we encounter might not
-	// 	   contain target. To ensure termination, we have to break all cycles
-	// 	   other than the first.
-	q := []*Package{p}
-
-	for len(q) > 0 {
-		p := q[0]
-		q = q[1:]
-		if path := p.ImportPath; path == target {
-			var stk []string
-			for path != "" {
-				stk = append(stk, path)
-				path = importerOf[path]
-			}
-			return stk
-		}
-		for _, dep := range p.Internal.Imports {
-			if _, ok := importerOf[dep.ImportPath]; !ok {
-				importerOf[dep.ImportPath] = p.ImportPath
-				q = append(q, dep)
-			}
-		}
-	}
-
-	panic("lost path to cycle")
-}
-
 // recompileForTest copies and replaces certain packages in pmain's dependency
 // graph. This is necessary for two reasons. First, if ptest is different than
 // preal, packages that import the package under test should get ptest instead
@@ -452,7 +411,7 @@ func importCycleStack(p *Package, target string) []string {
 // clear p.Internal.BuildInfo in the test copy to prevent link conflicts.
 // This may happen if both -coverpkg and the command line patterns include
 // multiple main packages.
-func recompileForTest(pmain, preal, ptest, pxtest *Package) {
+func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
 	// The "test copy" of preal is ptest.
 	// For each package that depends on preal, make a "test copy"
 	// that depends on ptest. And so on, up the dependency tree.
@@ -462,7 +421,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 			continue
 		}
 		// Copy on write.
-		didSplit := p == pmain || p == pxtest
+		didSplit := p == pmain || p == pxtest || p == ptest
 		split := func() {
 			if didSplit {
 				return
@@ -489,6 +448,10 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 		for i, imp := range p.Internal.Imports {
 			if p1 := testCopy[imp]; p1 != nil && p1 != imp {
 				split()
+
+				// If the test dependencies cause a cycle with pmain, this is
+				// where it is introduced.
+				// (There are no cycles in the graph until this assignment occurs.)
 				p.Internal.Imports[i] = p1
 			}
 		}
@@ -503,6 +466,49 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 			split()
 		}
 	}
+
+	// Do search to find cycle.
+	// importerOf maps each import path to its importer nearest to p.
+	importerOf := map[*Package]*Package{}
+	for _, p := range ptest.Internal.Imports {
+		importerOf[p] = nil
+	}
+
+	// q is a breadth-first queue of packages to search for target.
+	// Every package added to q has a corresponding entry in pathTo.
+	//
+	// We search breadth-first for two reasons:
+	//
+	// 	1. We want to report the shortest cycle.
+	//
+	// 	2. If p contains multiple cycles, the first cycle we encounter might not
+	// 	   contain target. To ensure termination, we have to break all cycles
+	// 	   other than the first.
+	q := slices.Clip(ptest.Internal.Imports)
+	for len(q) > 0 {
+		p := q[0]
+		q = q[1:]
+		if p == ptest {
+			var stk []string
+			for p != nil {
+				stk = append(stk, p.ImportPath)
+				p = importerOf[p]
+			}
+			return &PackageError{
+				ImportStack:   stk,
+				Err:           errors.New("import cycle not allowed in test"),
+				IsImportCycle: true,
+			}
+		}
+		for _, dep := range p.Internal.Imports {
+			if _, ok := importerOf[dep]; !ok {
+				importerOf[dep] = p
+				q = append(q, dep)
+			}
+		}
+	}
+
+	return nil
 }
 
 // isTestFunc tells whether fn has the type of a testing function. arg
