@@ -72,7 +72,7 @@ func typecheckrangeExpr(n *ir.RangeStmt) {
 
 	do := func(nn ir.Node, t *types.Type) {
 		if nn != nil {
-			if ir.DeclaredBy(nn, n) {
+			if ir.DeclaredBy(nn, n) && nn.Type() == nil {
 				nn.SetType(t)
 			} else if nn.Type() != nil {
 				if op, why := Assignop(t, nn.Type()); op == ir.OXXX {
