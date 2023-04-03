@@ -19,13 +19,16 @@ import (
 	"golang.org/x/tools/internal/testenv"
 )
 
+// TestRefs checks that the analysis reports, for each exported member
+// of the test package ("p"), its correct dependencies on exported
+// members of its direct imports (e.g. "ext").
 func TestRefs(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
 		label     string
 		srcs      []string            // source for the local package; package name must be p
-		imports   map[string]string   // for simplicity: importPath -> pkgID/pkgName (we set pkgName == pkgID)
+		imports   map[string]string   // for simplicity: importPath -> pkgID/pkgName (we set pkgName == pkgID); 'ext' is always available.
 		want      map[string][]string // decl name -> id.<decl name>
 		go118     bool                // test uses generics
 		allowErrs bool                // whether we expect parsing errors
@@ -39,25 +42,31 @@ func TestRefs(t *testing.T) {
 			srcs: []string{`
 package p
 
+import "ext"
+
 type A struct{ b B }
 type B func(c C) (d D)
-type C int
-type D int
+type C ext.C
+type D ext.D
 
 // Should not be referenced by field names.
-type b int
-type c int
-type d int
+type b ext.B_
+type c int.C_
+type d ext.D_
 `},
 			want: map[string][]string{
-				"A": {"p.B"},
-				"B": {"p.C", "p.D"},
+				"A": {"ext.C", "ext.D"},
+				"B": {"ext.C", "ext.D"},
+				"C": {"ext.C"},
+				"D": {"ext.D"},
 			},
 		},
 		{
 			label: "embedding",
 			srcs: []string{`
 package p
+
+import "ext"
 
 type A struct{
 	B
@@ -66,15 +75,17 @@ type A struct{
 	}
 	D
 }
-type B int
-type C int
+type B ext.B
+type C ext.C
 type D interface{
 	B
 }
 `},
 			want: map[string][]string{
-				"A": {"p.B", "p.C", "p.D"},
-				"D": {"p.B"},
+				"A": {"ext.B", "ext.C"},
+				"B": {"ext.B"},
+				"C": {"ext.C"},
+				"D": {"ext.B"},
 			},
 		},
 		{
@@ -82,17 +93,22 @@ type D interface{
 			srcs: []string{`
 package p
 
+import "ext"
+
 type A interface{
 	int | B | ~C
 	struct{D}
 }
 
-type B int
-type C int
-type D int
+type B ext.B
+type C ext.C
+type D ext.D
 `},
 			want: map[string][]string{
-				"A": {"p.B", "p.C", "p.D"},
+				"A": {"ext.B", "ext.C", "ext.D"},
+				"B": {"ext.B"},
+				"C": {"ext.C"},
+				"D": {"ext.D"},
 			},
 			go118: true,
 		},
@@ -101,8 +117,10 @@ type D int
 			srcs: []string{`
 package p
 
-type A int
-type B int
+import "ext"
+
+type A ext.A
+type B ext.B
 const C B = 2
 func F(A) B {
 	return C
@@ -111,26 +129,33 @@ var V = F(W)
 var W A
 `},
 			want: map[string][]string{
-				"C": {"p.B"},
-				"F": {"p.A", "p.B"},
-				"V": {"p.F", "p.W"}, // p.W edge can't be eliminated: F could be builtin or generic
-				"W": {"p.A"},
+				"A": {"ext.A"},
+				"B": {"ext.B"},
+				"C": {"ext.B"},
+				"F": {"ext.A", "ext.B"},
+				"V": {
+					"ext.A", // via F
+					"ext.B", // via W: can't be eliminated: F could be builtin or generic
+				},
+				"W": {"ext.A"},
 			},
 		},
 		{
 			label: "methods",
 			srcs: []string{`package p
 
-type A int
-type B int
+import "ext"
+
+type A ext.A
+type B ext.B
 `, `package p
 
 func (A) M(B)
 func (*B) M(A)
 `},
 			want: map[string][]string{
-				"A": {"p.B"},
-				"B": {"p.A"},
+				"A": {"ext.A", "ext.B"},
+				"B": {"ext.A", "ext.B"},
 			},
 		},
 		{
@@ -138,133 +163,143 @@ func (*B) M(A)
 			srcs: []string{`
 package p
 
-var a b = c // type does not depend on c
-type b int
-var c = d // type does depend on d
+import "ext"
+
+var A b = C // type does not depend on C
+type b ext.B
+var C = d // type does depend on D
 var d b
 
 var e = d + a
 
-var f = func() b { return e }
+var F = func() B { return E }
 
-var g = struct{
-	a b
-	_ [unsafe.Sizeof(g)]int
+var G = struct{
+	A b
+	_ [unsafe.Sizeof(ext.V)]int // array size + Sizeof creates edge to a var
+	_ [unsafe.Sizeof(G)]int // creates a self edge; doesn't affect output though
 }{}
 
-var h = (d + a + c*c)
+var H = (D + A + C*C)
 
-var i = (a+c).f
+var I = (A+C).F
 `},
 			want: map[string][]string{
-				"a": {"p.b"},
-				"c": {"p.d"},
-				"d": {"p.b"},
-				"e": {"p.a", "p.d"},
-				"f": {"p.b"},
-				"g": {"p.b", "p.g"}, // p.g edge could be skipped
-				"h": {"p.a", "p.c", "p.d"},
-				"i": {"p.a", "p.c"},
+				"A": {"ext.B"},
+				"C": {"ext.B"},          // via d
+				"G": {"ext.B", "ext.V"}, // via b,C
+				"H": {"ext.B"},          // via d,A,C
+				"I": {"ext.B"},
 			},
 		},
 		{
 			label: "builtins",
 			srcs: []string{`package p
 
-var A = new(B)
-type B struct{}
+import "ext"
 
-type C chan D
-type D int
+var A = new(b)
+type b struct{ ext.B }
 
-type S []T
-type T int
-var U = append(([]*S)(nil), new(T))
+type C chan d
+type d ext.D
 
-type X map[K]V
-type K int
-type V int
+type S []ext.S
+type t ext.T
+var U = append(([]*S)(nil), new(t))
 
-var Z = make(map[K]A)
+type X map[k]v
+type k ext.K
+type v ext.V
+
+var Z = make(map[k]A)
 
 // close, delete, and panic cannot occur outside of statements
 `},
 			want: map[string][]string{
-				"A": {"p.B"},
-				"C": {"p.D"},
-				"S": {"p.T"},
-				"U": {"p.S", "p.T"}, // p.T edge could be eliminated
-				"X": {"p.K", "p.V"},
-				"Z": {"p.A", "p.K"},
+				"A": {"ext.B"},
+				"C": {"ext.D"},
+				"S": {"ext.S"},
+				"U": {"ext.S", "ext.T"}, // ext.T edge could be eliminated
+				"X": {"ext.K", "ext.V"},
+				"Z": {"ext.B", "ext.K"},
 			},
 		},
 		{
 			label: "builtin shadowing",
 			srcs: []string{`package p
 
-var A = new(B)
+import "ext"
+
+var A = new(ext.B)
 func new() c
-type c int
+type c ext.C
 `},
 			want: map[string][]string{
-				"A":   {"p.new"},
-				"new": {"p.c"},
+				"A": {"ext.B", "ext.C"},
 			},
 		},
 		{
 			label: "named forwarding",
 			srcs: []string{`package p
 
+import "ext"
+
 type A B
-type B C
-type C int
+type B c
+type c ext.C
 `},
 			want: map[string][]string{
-				"A": {"p.B"},
-				"B": {"p.C"},
+				"A": {"ext.C"},
+				"B": {"ext.C"},
 			},
 		},
 		{
 			label: "aliases",
 			srcs: []string{`package p
 
+import "ext"
+
 type A = B
 type B = C
-type C = int
+type C = ext.C
 `},
 			want: map[string][]string{
-				"A": {"p.B"},
-				"B": {"p.C"},
+				"A": {"ext.C"},
+				"B": {"ext.C"},
+				"C": {"ext.C"},
 			},
 		},
 		{
 			label: "array length",
 			srcs: []string{`package p
 
+import "ext"
 import "unsafe"
 
-type A [unsafe.Sizeof(B{C})]int
-type A2 [unsafe.Sizeof(B{f:C})]int // use a KeyValueExpr
-type B struct{ f int }
-var C = 0
+type A [unsafe.Sizeof(ext.B{ext.C})]int
+type A2 [unsafe.Sizeof(ext.B{f:ext.C})]int // use a KeyValueExpr
 
 type D [unsafe.Sizeof(struct{ f E })]int
-type E int
+type E ext.E
 
 type F [3]G
-type G [C]int
+type G [ext.C]int
 `},
 			want: map[string][]string{
-				"A":  {"p.B"},
-				"A2": {"p.B"},
-				"D":  {"p.E"},
-				"F":  {"p.G"},
-				"G":  {"p.C"},
+				"A":  {"ext.B"}, // no ext.C: doesn't enter CompLit
+				"A2": {"ext.B"}, // ditto
+				"D":  {"ext.E"},
+				"E":  {"ext.E"},
+				"F":  {"ext.C"},
+				"G":  {"ext.C"},
 			},
 		},
 		{
 			label: "imports",
 			srcs: []string{`package p
+
+import "ext"
 
 import (
 	"q"
@@ -277,7 +312,7 @@ type A struct {
 	q.Q
 	r2.R
 	s.S // invalid ref
-	z.Z // note: shadowed below
+	z.Z // references both external z.Z as well as package-level type z
 }
 
 type B struct {
@@ -285,16 +320,16 @@ type B struct {
 	t.T
 }
 
-var x int = q.V
-var y = q.V.W
+var X int = q.V // X={}: no descent into RHS of 'var v T = rhs'
+var Y = q.V.W
 
-type z interface{}
+type z ext.Z
 `},
 			imports: map[string]string{"q": "q", "r": "r", "s": "t", "z": "z"},
 			want: map[string][]string{
-				"A": {"p.z", "q.Q", "r.R", "z.Z"},
+				"A": {"ext.Z", "q.Q", "r.R", "z.Z"},
 				"B": {"t.T"},
-				"y": {"q.V"},
+				"Y": {"q.V"},
 			},
 		},
 		{
@@ -326,11 +361,15 @@ type F Field
 var G = Field.X
 `, `package p
 
-type D interface{}
+import "ext"
+import "q"
+
+type D ext.D
 `},
 			imports: map[string]string{"q": "q"},
 			want: map[string][]string{
-				"B": {"p.D", "q.C"},
+				"B": {"ext.D", "q.C"},
+				"D": {"ext.D"},
 				"F": {"q.Field"},
 				"G": {"q.Field"},
 			},
@@ -339,31 +378,37 @@ type D interface{}
 			label: "typeparams",
 			srcs: []string{`package p
 
+import "ext"
+
 type A[T any] struct {
 	t T
 	b B
 }
 
-type B int
+type B ext.B
 
 func F1[T any](T, B)
 func F2[T C]()(T, B)
 
-type T int
+type T ext.T
 
-type C any
+type C ext.C
 
 func F3[T1 ~[]T2, T2 ~[]T3](t1 T1, t2 T2)
-type T3 any
+type T3 ext.T3
 `, `package p
 
 func (A[B]) M(C) {}
 `},
 			want: map[string][]string{
-				"A":  {"p.B", "p.C"},
-				"F1": {"p.B"},
-				"F2": {"p.B", "p.C"},
-				"F3": {"p.T3"},
+				"A":  {"ext.B", "ext.C"},
+				"B":  {"ext.B"},
+				"C":  {"ext.C"},
+				"F1": {"ext.B"},
+				"F2": {"ext.B", "ext.C"},
+				"F3": {"ext.T3"},
+				"T":  {"ext.T"},
+				"T3": {"ext.T3"},
 			},
 			go118: true,
 		},
@@ -371,16 +416,21 @@ func (A[B]) M(C) {}
 			label: "instances",
 			srcs: []string{`package p
 
-type A[T any] struct{}
-type B[T1, T2 any] struct{}
+import "ext"
+
+type A[T any] ext.A
+type B[T1, T2 any] ext.B
 
 type C A[int]
 type D B[int, A[E]]
-type E int
+type E ext.E
 `},
 			want: map[string][]string{
-				"C": {"p.A"},
-				"D": {"p.A", "p.B", "p.E"},
+				"A": {"ext.A"},
+				"B": {"ext.B"},
+				"C": {"ext.A"},
+				"D": {"ext.A", "ext.B", "ext.E"},
+				"E": {"ext.E"},
 			},
 			go118: true,
 		},
@@ -389,35 +439,41 @@ type E int
 			srcs: []string{`package p
 
 import "a"
+import "ext"
 
 type a a.A
-type b int
+type A a
+type b ext.B
 type C a.A
 func (C) Foo(x) {} // invalid parameter, but that does not matter
 type C b
 func (C) Bar(y) {} // invalid parameter, but that does not matter
 
-var x, y int
+var x ext.X
+var y ext.Y
 `},
 			imports: map[string]string{"a": "a", "b": "b"}, // "b" import should not matter, since it isn't in this file
 			want: map[string][]string{
-				"a": {"a.A", "p.a"},
-				"C": {"a.A", "p.a", "p.b", "p.x", "p.y"},
+				"A": {"a.A"},
+				"C": {"a.A", "ext.B", "ext.X", "ext.Y"},
 			},
 		},
 		{
 			label: "invalid decls",
 			srcs: []string{`package p
 
+import "ext"
+
 type A B
 
 func () Foo(B){}
 
-var B
+var B struct{ ext.B
 `},
 			want: map[string][]string{
-				"A":   {"p.B"},
-				"Foo": {"p.B"},
+				"A":   {"ext.B"},
+				"B":   {"ext.B"},
+				"Foo": {"ext.B"},
 			},
 			allowErrs: true,
 		},
@@ -439,7 +495,9 @@ var B
 				pgfs = append(pgfs, pgf)
 			}
 
-			imports := make(map[source.ImportPath]*source.Metadata)
+			imports := map[source.ImportPath]*source.Metadata{
+				"ext": {ID: "ext", Name: "ext"}, // this one comes for free
+			}
 			for path, m := range test.imports {
 				imports[source.ImportPath(path)] = &source.Metadata{
 					ID:   source.PackageID(m),
@@ -450,10 +508,14 @@ var B
 			index := typerefs.NewPackageIndex()
 			refs := typerefs.Refs(pgfs, "p", imports, index)
 
+			// TODO(adonovan): simplify the API once the
+			// new SCC-based optimization lands.
+			extrefs := typerefs.ExternalRefs(index, "p", refs)
+
 			got := make(map[string][]string)
-			for name, refs := range refs {
+			for name, refs := range extrefs {
 				var srefs []string
-				for _, ref := range refs {
+				for ref := range refs {
 					id, name := ref.Unpack(index)
 					srefs = append(srefs, fmt.Sprintf("%s.%s", id, name))
 				}

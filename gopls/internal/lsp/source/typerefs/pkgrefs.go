@@ -177,6 +177,40 @@ func (g *PackageGraph) buildPackage(ctx context.Context, id source.PackageID) (*
 	return p, nil
 }
 
+// ExternalRefs returns a new map whose keys are the exported symbols
+// of the package (of the specified id, pkgIndex, and refs). The
+// corresponding value of each key is the set of exported symbols
+// indirectly referenced by it.
+//
+// TODO(adonovan): simplify the API once the SCC-based optimization lands.
+func ExternalRefs(pkgIndex *PackageIndex, id source.PackageID, refs map[string][]Ref) map[string]map[Ref]bool {
+	// (This intrapackage recursion will go away in a follow-up CL.)
+	var visit func(name string, res map[Ref]bool, seen map[string]bool)
+	visit = func(name string, res map[Ref]bool, seen map[string]bool) {
+		if !seen[name] {
+			seen[name] = true
+			for _, ref := range refs[name] {
+				if pkgIndex.id(ref.pkg) == id {
+					visit(ref.name, res, seen) // intrapackage recursion
+				} else {
+					res[ref] = true // cross-package ref
+				}
+			}
+		}
+	}
+
+	results := make(map[string]map[Ref]bool)
+	for name := range refs {
+		if token.IsExported(name) {
+			res := make(map[Ref]bool)
+			seen := make(map[string]bool)
+			visit(name, res, seen)
+			results[name] = res
+		}
+	}
+	return results
+}
+
 // reachableByName computes the set of packages that are reachable through
 // references, starting with the declaration for name in package p.
 func (g *PackageGraph) reachableByName(ctx context.Context, p *Package, name string, set *PackageSet, seen map[string]bool) error {
