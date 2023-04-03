@@ -619,14 +619,14 @@
 	SHA256RNDS2		msg, state1, state0		\
 	sha256Msg1		(m,a)
 
-TEXT ·block(SB), 0, $536-32
+TEXT ·doBlock(SB), 0, $536-24
 	CMPB	·useSHA(SB), $1
 	JE	sha_ni
 	CMPB	·useAVX2(SB), $1
 	JE	avx2
 
-	MOVQ p_base+8(FP), SI
-	MOVQ p_len+16(FP), DX
+	MOVQ p+8(FP), SI
+	MOVQ n+16(FP), DX
 	SHRQ $6, DX
 	SHLQ $6, DX
 
@@ -741,8 +741,8 @@ end:
 
 avx2:
 	MOVQ dig+0(FP), CTX          // d.h[8]
-	MOVQ p_base+8(FP), INP
-	MOVQ p_len+16(FP), NUM_BYTES
+	MOVQ p+8(FP), INP
+	MOVQ n+16(FP), NUM_BYTES
 
 	LEAQ -64(INP)(NUM_BYTES*1), NUM_BYTES // Pointer to the last block
 	MOVQ NUM_BYTES, _INP_END(SP)
@@ -935,8 +935,8 @@ done_hash:
 
 sha_ni:
 	MOVQ		dig+0(FP), digestPtr		// init digest hash vector H0, H1,..., H7 pointer
-	MOVQ		p_base+8(FP), dataPtr		// init input data base pointer
-	MOVQ		p_len+16(FP), numBytes		// get number of input bytes to hash
+	MOVQ		p+8(FP), dataPtr		// init input data base pointer
+	MOVQ		n+16(FP), numBytes		// get number of input bytes to hash
 	SHRQ		$6, numBytes			// force modulo 64 input buffer length
 	SHLQ		$6, numBytes
 	CMPQ		numBytes, $0			// exit early for zero-length input buffer
