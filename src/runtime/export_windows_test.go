@@ -33,6 +33,6 @@ func NewContextStub() ContextStub {
 	var ctx context
 	ctx.set_ip(getcallerpc())
 	ctx.set_sp(getcallersp())
-	ctx.set_fp(getcallerfp())
+	ctx.set_fp(getfp())
 	return ContextStub{ctx}
 }

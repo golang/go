@@ -1826,7 +1826,7 @@ func PersistentAlloc(n uintptr) unsafe.Pointer {
 // FPCallers works like Callers and uses frame pointer unwinding to populate
 // pcBuf with the return addresses of the physical frames on the stack.
 func FPCallers(pcBuf []uintptr) int {
-	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), pcBuf)
+	return fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf)
 }
 
 var (

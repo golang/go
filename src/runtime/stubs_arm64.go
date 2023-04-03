@@ -22,6 +22,6 @@ func emptyfunc()
 func spillArgs()
 func unspillArgs()
 
-// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+// getfp returns the frame pointer register of its caller or 0 if not implemented.
 // TODO: Make this a compiler intrinsic
-func getcallerfp() uintptr
+func getfp() uintptr
