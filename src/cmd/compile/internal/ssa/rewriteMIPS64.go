@@ -6,6 +6,9 @@ import "cmd/compile/internal/types"
 
 func rewriteValueMIPS64(v *Value) bool {
 	switch v.Op {
+	case OpAbs:
+		v.Op = OpMIPS64ABSD
+		return true
 	case OpAdd16:
 		v.Op = OpMIPS64ADDV
 		return true

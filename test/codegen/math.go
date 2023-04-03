@@ -81,6 +81,7 @@ func abs(x, y float64) {
 	// riscv64:"FABSD\t"
 	// wasm:"F64Abs"
 	// arm/6:"ABSD\t"
+	// mips64/hardfloat:"ABSD\t"
 	sink64[0] = math.Abs(x)
 
 	// amd64:"BTRQ\t[$]63","PXOR"    (TODO: this should be BTSQ)
