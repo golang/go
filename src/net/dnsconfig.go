@@ -46,6 +46,7 @@ func (c *dnsConfig) serverOffset() uint32 {
 	return 0
 }
 
+// See resolv.conf(5) on a Linux machine.
 func parseResolvConf(filename string) *dnsConfig {
 	conf := &dnsConfig{
 		ndots:    1,

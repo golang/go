@@ -8,7 +8,6 @@
 
 package net
 
-// See resolv.conf(5) on a Linux machine.
 func dnsReadConfig(filename string) *dnsConfig {
 	return parseResolvConf(filename)
 }
