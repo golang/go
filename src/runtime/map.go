@@ -1657,3 +1657,68 @@ func copyKeys(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
 		b = b.overflow(t)
 	}
 }
+
+// values for implementing maps.values
+//
+//go:linkname values maps.values
+func values(m any, p unsafe.Pointer) {
+	e := efaceOf(&m)
+	t := (*maptype)(unsafe.Pointer(e._type))
+	h := (*hmap)(e.data)
+	if h == nil || h.count == 0 {
+		return
+	}
+	s := (*slice)(p)
+	r := int(fastrand())
+	offset := uint8(r >> h.B & (bucketCnt - 1))
+	if h.B == 0 {
+		copyValues(t, h, (*bmap)(h.buckets), s, offset)
+		return
+	}
+	arraySize := int(bucketShift(h.B))
+	buckets := h.buckets
+	for i := 0; i < arraySize; i++ {
+		bucket := (i + r) & (arraySize - 1)
+		b := (*bmap)(add(buckets, uintptr(bucket)*uintptr(t.BucketSize)))
+		copyValues(t, h, b, s, offset)
+	}
+
+	if h.growing() {
+		oldArraySize := int(h.noldbuckets())
+		for i := 0; i < oldArraySize; i++ {
+			bucket := (i + r) & (oldArraySize - 1)
+			b := (*bmap)(add(h.oldbuckets, uintptr(bucket)*uintptr(t.BucketSize)))
+			if evacuated(b) {
+				continue
+			}
+			copyValues(t, h, b, s, offset)
+		}
+	}
+	return
+}
+
+func copyValues(t *maptype, h *hmap, b *bmap, s *slice, offset uint8) {
+	for b != nil {
+		for i := uintptr(0); i < bucketCnt; i++ {
+			offi := (i + uintptr(offset)) & (bucketCnt - 1)
+			if isEmpty(b.tophash[offi]) {
+				continue
+			}
+
+			if h.flags&hashWriting != 0 {
+				fatal("concurrent map read and map write")
+			}
+
+			ele := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.KeySize)+offi*uintptr(t.ValueSize))
+			if t.IndirectElem() {
+				ele = *((*unsafe.Pointer)(ele))
+			}
+			if s.len >= s.cap {
+				fatal("concurrent map read and map write")
+			}
+			typedmemmove(t.Elem, add(s.array, uintptr(s.len)*uintptr(t.ValueSize)), ele)
+			s.len++
+		}
+		b = b.overflow(t)
+	}
+}
