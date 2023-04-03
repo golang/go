@@ -195,7 +195,6 @@ func TestBuildPackageGraph(t *testing.T) {
 		}
 		fmt.Printf("%52s%8.1f%8.1f%8.1f%8.1f%8.1f%8.1f\n", "averages:", avg(imports), avg(importedBy), avg(reaches), avg(reachedBy), avg(loads), avg(loadedBy))
 	}
-
 }
 
 func importMap(id PackageID, meta MetadataSource) map[PackagePath]PackageID {

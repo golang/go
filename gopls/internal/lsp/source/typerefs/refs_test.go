@@ -505,19 +505,11 @@ var B struct{ ext.B
 				}
 			}
 
-			index := typerefs.NewPackageIndex()
-			refs := typerefs.Refs(pgfs, "p", imports, index)
-
-			// TODO(adonovan): simplify the API once the
-			// new SCC-based optimization lands.
-			extrefs := typerefs.ExternalRefs(index, "p", refs)
-
 			got := make(map[string][]string)
-			for name, refs := range extrefs {
+			for name, refs := range typerefs.Refs(pgfs, "p", imports) {
 				var srefs []string
-				for ref := range refs {
-					id, name := ref.Unpack(index)
-					srefs = append(srefs, fmt.Sprintf("%s.%s", id, name))
+				for _, ref := range refs {
+					srefs = append(srefs, fmt.Sprintf("%s.%s", ref.PkgID, ref.Name))
 				}
 				sort.Strings(srefs)
 				got[name] = srefs

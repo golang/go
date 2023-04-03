@@ -6,7 +6,6 @@ package typerefs
 
 import (
 	"context"
-	"go/token"
 	"runtime"
 	"sync"
 
@@ -24,40 +23,18 @@ const (
 
 // A Package holds reference information for a single package.
 type Package struct {
-	idx packageIdx // memoized index of this package's ID, to save map lookups
+	// metadata holds metadata about this package and its dependencies.
+	metadata *source.Metadata
 
-	// Metadata holds metadata about this package and its dependencies.
-	Metadata *source.Metadata
-
-	// Refs records syntactic edges between declarations in this package and
-	// declarations in this package or another package. See the package
-	// documentation for a detailed description of what these edges do (and do
-	// not) represent.
-	Refs map[string][]Ref
-
-	// TransitiveRefs records, for each declaration in the package, the
+	// transitiveRefs records, for each exported declaration in the package, the
 	// transitive set of packages within the containing graph that are
 	// transitively reachable through references, starting with the given decl.
-	TransitiveRefs map[string]*PackageSet
+	transitiveRefs map[string]*PackageSet
 
 	// ReachesViaDeps records the set of packages in the containing graph whose
 	// syntax may affect the current package's types. See the package
 	// documentation for more details of what this means.
 	ReachesByDeps *PackageSet
-}
-
-// A Ref is a referenced declaration.
-//
-// Unpack it using the Unpack method, with the PackageIndex instance that was
-// used to construct the references.
-type Ref struct {
-	pkg  packageIdx
-	name string
-}
-
-// UnpackRef unpacks the actual PackageID an name encoded in ref.
-func (r Ref) Unpack(index *PackageIndex) (PackageID source.PackageID, name string) {
-	return index.id(r.pkg), r.name
 }
 
 // A PackageGraph represents a fully analyzed graph of packages and their
@@ -139,13 +116,11 @@ func (g *PackageGraph) Package(ctx context.Context, id source.PackageID) (*Packa
 // only be called from Package.
 func (g *PackageGraph) buildPackage(ctx context.Context, id source.PackageID) (*Package, error) {
 	p := &Package{
-		idx:            g.pkgIndex.idx(id),
-		Metadata:       g.meta.Metadata(id),
-		Refs:           make(map[string][]Ref),
-		TransitiveRefs: make(map[string]*PackageSet),
+		metadata:       g.meta.Metadata(id),
+		transitiveRefs: make(map[string]*PackageSet),
 	}
 	var files []*source.ParsedGoFile
-	for _, filename := range p.Metadata.CompiledGoFiles {
+	for _, filename := range p.metadata.CompiledGoFiles {
 		f, err := g.parse(ctx, filename)
 		if err != nil {
 			return nil, err
@@ -153,97 +128,66 @@ func (g *PackageGraph) buildPackage(ctx context.Context, id source.PackageID) (*
 		files = append(files, f)
 	}
 	imports := make(map[source.ImportPath]*source.Metadata)
-	for impPath, depID := range p.Metadata.DepsByImpPath {
+	for impPath, depID := range p.metadata.DepsByImpPath {
 		if depID != "" {
 			imports[impPath] = g.meta.Metadata(depID)
 		}
 	}
-	p.Refs = Refs(files, id, imports, g.pkgIndex)
 
-	// Compute packages reachable from each exported symbol of this package.
-	for name := range p.Refs {
-		if token.IsExported(name) {
-			set := g.pkgIndex.New()
-			g.reachableByName(ctx, p, name, set, make(map[string]bool))
-			p.TransitiveRefs[name] = set
+	// Compute the symbol-level dependencies through this package.
+	//
+	// refs records syntactic edges between declarations in this
+	// package and declarations in this package or another
+	// package. See the package documentation for a detailed
+	// description of what these edges do (and do not) represent.
+	//
+	// TODO(adonovan): opt: serialize and deserialize the refs
+	// result computed above and persist it in the filecache.
+	refs := Refs(files, id, imports)
+
+	//      This point separates the local preprocessing
+	//  --  of a single package (above) from the global   --
+	//      transitive reachability query (below).
+
+	// Now compute the transitive closure of packages reachable
+	// from any exported symbol of this package.
+	//
+	// TODO(adonovan): opt: many elements of refs[name] are
+	// identical, so this does redundant work. Choose a data type
+	// for the result of Refs() that expresses the M:N structure
+	// explicitly.
+	for name, nodes := range refs {
+		set := g.pkgIndex.New()
+
+		// The nodes slice is sorted by (package, name),
+		// so we can economize by calling g.Package only
+		// when the package id changes.
+		depP := p
+		for _, node := range nodes {
+			assert(node.PkgID != id, "intra-package edge")
+			if depP.metadata.ID != node.PkgID {
+				// package changed
+				var err error
+				depP, err = g.Package(ctx, node.PkgID)
+				if err != nil {
+					return nil, err
+				}
+			}
+			set.add(g.pkgIndex.idx(node.PkgID))
+			set.Union(depP.transitiveRefs[node.Name])
 		}
+		p.transitiveRefs[name] = set
 	}
 
-	var err error
-	p.ReachesByDeps, err = g.reachesByDeps(ctx, p.Metadata)
+	// Finally compute the union of transitiveRefs
+	// across the direct deps of this package.
+	byDeps, err := g.reachesByDeps(ctx, p.metadata)
 	if err != nil {
 		return nil, err
 	}
+	p.ReachesByDeps = byDeps
+
 	return p, nil
-}
-
-// ExternalRefs returns a new map whose keys are the exported symbols
-// of the package (of the specified id, pkgIndex, and refs). The
-// corresponding value of each key is the set of exported symbols
-// indirectly referenced by it.
-//
-// TODO(adonovan): simplify the API once the SCC-based optimization lands.
-func ExternalRefs(pkgIndex *PackageIndex, id source.PackageID, refs map[string][]Ref) map[string]map[Ref]bool {
-	// (This intrapackage recursion will go away in a follow-up CL.)
-	var visit func(name string, res map[Ref]bool, seen map[string]bool)
-	visit = func(name string, res map[Ref]bool, seen map[string]bool) {
-		if !seen[name] {
-			seen[name] = true
-			for _, ref := range refs[name] {
-				if pkgIndex.id(ref.pkg) == id {
-					visit(ref.name, res, seen) // intrapackage recursion
-				} else {
-					res[ref] = true // cross-package ref
-				}
-			}
-		}
-	}
-
-	results := make(map[string]map[Ref]bool)
-	for name := range refs {
-		if token.IsExported(name) {
-			res := make(map[Ref]bool)
-			seen := make(map[string]bool)
-			visit(name, res, seen)
-			results[name] = res
-		}
-	}
-	return results
-}
-
-// reachableByName computes the set of packages that are reachable through
-// references, starting with the declaration for name in package p.
-func (g *PackageGraph) reachableByName(ctx context.Context, p *Package, name string, set *PackageSet, seen map[string]bool) error {
-	if seen[name] {
-		return nil
-	}
-	seen[name] = true
-
-	// Opt: when we compact reachable edges inside the Refs algorithm, we handle
-	// all edges to a given package in a batch, so they should be adjacent to
-	// each other in the resulting slice. Therefore remembering the last P here
-	// can save on lookups.
-	depP := p
-	for _, node := range p.Refs[name] {
-		if node.pkg == p.idx {
-			// same package
-			g.reachableByName(ctx, p, node.name, set, seen)
-		} else {
-			// cross-package ref
-			if depP.idx != node.pkg {
-				id := g.pkgIndex.id(node.pkg)
-				var err error
-				depP, err = g.Package(ctx, id)
-				if err != nil {
-					return err
-				}
-			}
-			set.add(node.pkg)
-			set.Union(depP.TransitiveRefs[node.name])
-		}
-	}
-
-	return nil
 }
 
 // reachesByDeps computes the set of packages that are reachable through
@@ -255,11 +199,9 @@ func (g *PackageGraph) reachesByDeps(ctx context.Context, m *source.Metadata) (*
 		if err != nil {
 			return nil, err
 		}
-		transitive.add(dep.idx)
-		for name, set := range dep.TransitiveRefs {
-			if token.IsExported(name) {
-				transitive.Union(set)
-			}
+		transitive.add(g.pkgIndex.idx(dep.metadata.ID))
+		for _, set := range dep.transitiveRefs {
+			transitive.Union(set)
 		}
 	}
 	return transitive, nil

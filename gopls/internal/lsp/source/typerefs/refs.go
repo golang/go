@@ -9,235 +9,306 @@ import (
 	"go/ast"
 	"go/token"
 	"sort"
-	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/internal/typeparams"
 )
 
-// declInfo holds information about a single declaration.
-type declInfo struct {
-	node    ast.Node        // "declaring node" for this decl, to be traversed
-	tparams map[string]bool // names declared by type parameters within this declaration
-	file    *ast.File       // file containing this decl, for local imports
+const debug = false
+
+// declNode holds information about a package-level declaration
+// (or more than one with the same name, in ill-typed code).
+//
+// It is a node in the symbol reference graph, whose outgoing edges
+// are of two kinds: intRefs and extRefs.
+type declNode struct {
+	name string
+	rep  *declNode // canonical representative of this SCC (initially self)
+
+	// outgoing graph edges
+	extRefs      map[Ref]bool       // to imported symbols
+	intRefs      map[*declNode]bool // to symbols in this package
+	extRefsSlice []Ref              // sorted keys of extRefs; populated at the end
+
+	// Tarjan's SCC algorithm
+	index, lowlink int32 // Tarjan numbering
+	scc            int32 // -ve => on stack; 0 => unvisited; +ve => node is root of a found SCC
 }
 
-// Refs analyzes local syntax of the provided ParsedGoFiles to extract
-// references between types used in top-level declarations and other
-// declarations.
-//
-// The provided pkgIndex is used for efficient representation of references,
-// and must be used to unpack the resulting references.
+// A Ref is a reference to an external (imported) symbol.
+type Ref struct {
+	PkgID source.PackageID
+	Name  string
+}
+
+// Refs analyzes all referring identifiers in the ParsedGoFile syntax,
+// constructs a reference graph, and uses it to compute the
+// reachability from each exported symbol (keys of the result map) in
+// the package to the set of exported symbols of directly imported
+// packages (values of the result map).
 //
 // See the package documentation for more details as to what a ref does (and
 // does not) represent.
-func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.ImportPath]*source.Metadata, pkgIndex *PackageIndex) map[string][]Ref {
-	var (
-		// decls collects declaration nodes that collectively define the type of
-		// each name in the package scope.
-		//
-		//  - For valid code, there may be multiple declarations recorded when that
-		//    name is a type that has methods.
-		//  - For invalid code, there may also be multiple declarations recorded due
-		//    to duplicate declarations.
-		//
-		// In either case, the algorithm is the same: we walk all declarations for
-		// each name to collect referring identifiers.
-		decls = make(map[string][]*declInfo)
-
-		// localImports holds local import information, per file. The value is a
-		// slice because multiple packages may be referenced by a given name in the
-		// presence of type errors (or multiple dot imports, which are keyed by
-		// ".").
-		localImports = make(map[*ast.File]map[string][]source.PackageID)
-	)
-
-	// Scan top-level declarations once to collect local import names and
-	// declInfo for each non-import declaration.
+//
+// The resulting map may have multiple keys with the same (slice) value,
+// if two package members reach the same set of external symbols.
+//
+// References are ordered by (package, name).
+func Refs(pgfs []*source.ParsedGoFile, id source.PackageID, imports map[source.ImportPath]*source.Metadata) map[string][]Ref {
+	// First pass: gather package-level names and create a declNode for each.
+	//
+	// In ill-typed code, there may be multiple declarations of the
+	// same name; a single declInfo node will represent them all.
+	decls := make(map[string]*declNode)
+	addDecl := func(id *ast.Ident) {
+		if name := id.Name; name != "_" && decls[name] == nil {
+			node := &declNode{name: name}
+			node.rep = node
+			decls[name] = node
+		}
+	}
 	for _, pgf := range pgfs {
-		file := pgf.File
-		fileImports := make(map[string][]source.PackageID)
-		localImports[file] = fileImports
-
-		for _, d := range file.Decls {
+		for _, d := range pgf.File.Decls {
 			switch d := d.(type) {
 			case *ast.GenDecl:
 				switch d.Tok {
-				case token.IMPORT:
-					// Record local import names for this file.
-					for _, spec := range d.Specs {
-						spec := spec.(*ast.ImportSpec)
-						path := source.UnquoteImportPath(spec)
-						if path == "" {
-							continue
-						}
-						dep := imports[path]
-						if dep == nil {
-							// Note here that we don't try to "guess" the name of an import
-							// based on e.g. its importPath. Doing so would only result in
-							// edges that don't go anywhere.
-							continue
-						}
-						name := string(dep.Name)
-						if spec.Name != nil {
-							if spec.Name.Name == "_" {
-								continue
-							}
-							name = spec.Name.Name // possibly "."
-						}
-						fileImports[name] = append(fileImports[name], dep.ID)
-					}
-
 				case token.TYPE:
 					for _, spec := range d.Specs {
-						spec := spec.(*ast.TypeSpec)
-						name := spec.Name.Name
-						if name == "_" {
-							continue
-						}
-						decls[name] = append(decls[name], &declInfo{
-							node:    spec,
-							tparams: tparamsMap(typeparams.ForTypeSpec(spec)),
-							file:    file,
-						})
+						addDecl(spec.(*ast.TypeSpec).Name)
 					}
 
 				case token.VAR, token.CONST:
 					for _, spec := range d.Specs {
-						spec := spec.(*ast.ValueSpec)
-						for _, name := range spec.Names {
-							if name.Name == "_" {
-								continue
-							}
-							decls[name.Name] = append(decls[name.Name], &declInfo{node: spec, file: file})
+						for _, ident := range spec.(*ast.ValueSpec).Names {
+							addDecl(ident)
 						}
 					}
 				}
 
 			case *ast.FuncDecl:
-				if d.Name.Name == "_" {
-					continue
-				}
-				// This check for NumFields() > 0 is consistent with go/types, which
-				// reports an error but treats the declaration like a normal function
-				// when Recv is non-nil but empty (as in func () f()).
-				if d.Recv.NumFields() > 0 {
-					// Method. Associate it with the receiver.
-					_, id, tparams := unpackRecv(d.Recv.List[0].Type)
-					methodInfo := &declInfo{
-						node: d,
-						file: file,
-					}
-					if len(tparams) > 0 {
-						methodInfo.tparams = make(map[string]bool)
-						for _, tparam := range tparams {
-							if tparam.Name != "_" {
-								methodInfo.tparams[tparam.Name] = true
-							}
-						}
-					}
-					decls[id.Name] = append(decls[id.Name], methodInfo)
-				} else {
-					// Non-method.
-					decls[d.Name.Name] = append(decls[d.Name.Name], &declInfo{
-						node:    d,
-						tparams: tparamsMap(typeparams.ForFuncType(d.Type)),
-						file:    file,
-					})
+				// non-method functions
+				if d.Recv.NumFields() == 0 {
+					addDecl(d.Name)
 				}
 			}
 		}
 	}
 
-	// mappedRefs maps each name in this package to the set
-	// of (pkg, name) pairs it references.
-	mappedRefs := make(map[string]map[source.PackageID]map[string]bool)
-	for name, infos := range decls {
-		// recordEdge records the (id, name)->(id2, name) edge.
-		recordEdge := func(id2 source.PackageID, name2 string) {
-			pkgRefs, ok := mappedRefs[name]
-			if !ok {
-				pkgRefs = make(map[source.PackageID]map[string]bool)
-				mappedRefs[name] = pkgRefs
-			}
-			names, ok := pkgRefs[id2]
-			if !ok {
-				names = make(map[string]bool)
-				pkgRefs[id2] = names
-			}
-			names[name2] = true
+	// Second pass: process files to collect referring identifiers.
+	for _, pgf := range pgfs {
+		visitFile(pgf.File, imports, decls)
+	}
+
+	// Find the strong components of the declNode graph
+	// using Tarjan's algorithm, and coalesce each component.
+	//
+	// (This is the first of several graph optimizations inspired
+	// by the Hardekopf and Lin algorithm used by the pointer
+	// analysis in golang.org/x/go/pointer/hvn.go.)
+	tj := tarjan{index: 1}
+	for _, decl := range decls {
+		if decl.index == 0 { // unvisited
+			tj.visit(decl)
+		}
+	}
+
+	// Populate the result map with the reachability
+	// of each exported package member.
+	edges := make(map[string][]Ref)
+	for name, decl := range decls {
+		if !ast.IsExported(name) {
+			continue
 		}
 
-		for _, info := range infos {
-			fileImports := localImports[info.file]
-
-			// Visit each reference to name or name.sel.
-			visitDeclOrSpec(info.node, func(name, sel string) {
-				if info.tparams[name] {
-					return
+		// Many decls may have the same representative.
+		// They will share (alias) the same result slice.
+		decl = decl.find()
+		if decl.extRefsSlice == nil {
+			refs := make([]Ref, 0, len(decl.extRefs))
+			for ref := range decl.extRefs {
+				refs = append(refs, ref)
+			}
+			sort.Slice(refs, func(i, j int) bool {
+				x, y := refs[i], refs[j]
+				if x.PkgID != y.PkgID {
+					return x.PkgID < y.PkgID
 				}
-
-				// If name is declared in the package scope, record an edge whether or
-				// not sel is empty. A field or method selector may affect the type of
-				// the current decl via initializers:
-				//
-				//  package p
-				//  var x = y.F
-				//  var y = struct {F int}{}
-				if _, ok := decls[name]; ok {
-					recordEdge(id, name)
-				} else if token.IsExported(name) {
-					// Only record an edge to dot-imported packages if there was no edge
-					// to a local name. This assumes that there are no duplicate declarations.
-					for _, depID := range fileImports["."] {
-						// Conservatively, assume that this name comes from every
-						// dot-imported package.
-						recordEdge(depID, name)
-					}
-				}
-
-				// Record an edge to an import if it matches the name, even if that
-				// name collides with a package level name. Unlike the case of dotted
-				// imports, we know the package is invalid here, and choose to fail
-				// conservatively.
-				if sel != "" && token.IsExported(sel) {
-					for _, depID := range fileImports[name] {
-						recordEdge(depID, sel)
-					}
-				}
+				return x.Name < y.Name
 			})
+			decl.extRefsSlice = refs
+		}
+		if len(decl.extRefsSlice) > 0 {
+			edges[name] = decl.extRefsSlice
 		}
 	}
 
 	if trace {
 		fmt.Printf("%s\n", id)
 		var names []string
-		for name := range mappedRefs {
+		for name := range edges {
 			names = append(names, name)
 		}
 		sort.Strings(names)
 		for _, name := range names {
 			fmt.Printf("\t-> %s\n", name)
-			for id2, pkgRefs := range mappedRefs[name] {
-				var ns []string
-				for n := range pkgRefs {
-					ns = append(ns, n)
+			// Group symbols by package.
+			var prevID source.PackageID
+			for _, ref := range edges[name] {
+				if ref.PkgID != prevID {
+					prevID = ref.PkgID
+					fmt.Printf("\t\t-> %s:", ref.PkgID)
 				}
-				sort.Strings(ns)
-				fmt.Printf("\t\t-> %s.{%s}\n", id2, strings.Join(ns, ", "))
+				fmt.Printf(" %s", ref.Name)
+			}
+			fmt.Println()
+		}
+	}
+
+	return edges
+}
+
+// visitFile inspects the file syntax for referring identifiers, and
+// populates the internal and external references of decls.
+func visitFile(file *ast.File, imports map[source.ImportPath]*source.Metadata, decls map[string]*declNode) {
+	// Import information for this file. Multiple packages
+	// may be referenced by a given name in the presence
+	// of type errors (or multiple dot imports, which are
+	// keyed by ".").
+	fileImports := make(map[string][]source.PackageID)
+
+	// importEdge records a reference from decl to an imported symbol
+	// (pkgname.name). The package name may be ".".
+	importEdge := func(decl *declNode, pkgname, name string) {
+		if token.IsExported(name) {
+			for _, depID := range fileImports[pkgname] {
+				if decl.extRefs == nil {
+					decl.extRefs = make(map[Ref]bool)
+				}
+				decl.extRefs[Ref{depID, name}] = true
 			}
 		}
 	}
 
-	edges := make(map[string][]Ref)
-	for name, pkgRefs := range mappedRefs {
-		for id, names := range pkgRefs {
-			for name2 := range names {
-				edges[name] = append(edges[name], Ref{pkgIndex.idx(id), name2})
+	// visit finds refs within node and builds edges from fromId's decl.
+	// References to the type parameters are ignored.
+	visit := func(fromId *ast.Ident, node ast.Node, tparams map[string]bool) {
+		if fromId.Name == "_" {
+			return
+		}
+		from := decls[fromId.Name]
+
+		// Visit each reference to name or name.sel.
+		visitDeclOrSpec(node, func(name, sel string) {
+			// Ignore references to type parameters.
+			if tparams[name] {
+				return
+			}
+
+			// If name is declared in the package scope,
+			// record an edge whether or not sel is empty.
+			// A field or method selector may affect the
+			// type of the current decl via initializers:
+			//
+			//  package p
+			//  var x = y.F
+			//  var y = struct{ F int }{}
+			if to, ok := decls[name]; ok {
+				if from.intRefs == nil {
+					from.intRefs = make(map[*declNode]bool)
+				}
+				from.intRefs[to] = true
+
+			} else {
+				// Only record an edge to dot-imported packages
+				// if there was no edge to a local name.
+				// This assumes that there are no duplicate declarations.
+				// We conservatively, assume that this name comes from
+				// every dot-imported package.
+				importEdge(from, ".", name)
+			}
+
+			// Record an edge to an import if it matches the name, even if that
+			// name collides with a package level name. Unlike the case of dotted
+			// imports, we know the package is invalid here, and choose to fail
+			// conservatively.
+			if sel != "" {
+				importEdge(from, name, sel)
+			}
+		})
+	}
+
+	// Visit the declarations and gather reference edges.
+	for _, d := range file.Decls {
+		switch d := d.(type) {
+		case *ast.GenDecl:
+			switch d.Tok {
+			case token.IMPORT:
+				// Record local import names for this file.
+				for _, spec := range d.Specs {
+					spec := spec.(*ast.ImportSpec)
+					path := source.UnquoteImportPath(spec)
+					if path == "" {
+						continue
+					}
+					dep := imports[path]
+					if dep == nil {
+						// Note here that we don't try to "guess"
+						// the name of an import based on e.g.
+						// its importPath. Doing so would only
+						// result in edges that don't go anywhere.
+						continue
+					}
+					name := string(dep.Name)
+					if spec.Name != nil {
+						if spec.Name.Name == "_" {
+							continue
+						}
+						name = spec.Name.Name // possibly "."
+					}
+					fileImports[name] = append(fileImports[name], dep.ID)
+				}
+
+			case token.TYPE:
+				for _, spec := range d.Specs {
+					spec := spec.(*ast.TypeSpec)
+					tparams := tparamsMap(typeparams.ForTypeSpec(spec))
+					visit(spec.Name, spec, tparams)
+				}
+
+			case token.VAR, token.CONST:
+				for _, spec := range d.Specs {
+					spec := spec.(*ast.ValueSpec)
+					for _, name := range spec.Names {
+						visit(name, spec, nil)
+					}
+				}
+			}
+
+		case *ast.FuncDecl:
+			// This check for NumFields() > 0 is consistent with go/types,
+			// which reports an error but treats the declaration like a
+			// normal function when Recv is non-nil but empty
+			// (as in func () f()).
+			if d.Recv.NumFields() > 0 {
+				// Method. Associate it with the receiver.
+				_, id, typeParams := unpackRecv(d.Recv.List[0].Type)
+				var tparams map[string]bool
+				if len(typeParams) > 0 {
+					tparams = make(map[string]bool)
+					for _, tparam := range typeParams {
+						if tparam.Name != "_" {
+							tparams[tparam.Name] = true
+						}
+					}
+				}
+				visit(id, d, tparams)
+			} else {
+				// Non-method.
+				tparams := tparamsMap(typeparams.ForFuncType(d.Type))
+				visit(d.Name, d, tparams)
 			}
 		}
 	}
-	return edges
 }
 
 // tparamsMap returns a set recording each name declared by the provided field
@@ -480,4 +551,145 @@ L: // unpack receiver type
 	}
 
 	return
+}
+
+// -- strong component graph construction (plundered from go/pointer) --
+
+type tarjan struct {
+	index int32
+	stack []*declNode
+}
+
+// visit implements the depth-first search of Tarjan's SCC algorithm.
+// Precondition: x is canonical.
+func (tj *tarjan) visit(x *declNode) {
+	checkCanonical(x)
+	x.index = tj.index
+	x.lowlink = tj.index
+	tj.index++
+
+	tj.stack = append(tj.stack, x) // push
+	assert(x.scc == 0, "node revisited")
+	x.scc = -1
+
+	for y := range x.intRefs {
+		// Loop invariant: x is canonical.
+
+		y := y.find()
+
+		if x == y {
+			continue // nodes already coalesced
+		}
+
+		switch {
+		case y.scc > 0:
+			// y is already a collapsed SCC
+
+		case y.scc < 0:
+			// y is on the stack, and thus in the current SCC.
+			if y.index < x.lowlink {
+				x.lowlink = y.index
+			}
+
+		default:
+			// y is unvisited; visit it now.
+			tj.visit(y)
+			// Note: x and y are now non-canonical.
+
+			x = x.find()
+
+			if y.lowlink < x.lowlink {
+				x.lowlink = y.lowlink
+			}
+		}
+	}
+	checkCanonical(x)
+
+	// Is x the root of an SCC?
+	if x.lowlink == x.index {
+		// Coalesce all nodes in the SCC.
+		for {
+			// Pop y from stack.
+			i := len(tj.stack) - 1
+			y := tj.stack[i]
+			tj.stack = tj.stack[:i]
+
+			checkCanonical(x)
+			checkCanonical(y)
+
+			if x == y {
+				// SCC is complete.
+				x.scc = 1
+				labelSCC(x)
+				break
+			}
+			coalesce(x, y)
+		}
+	}
+}
+
+// labelSCC computes an equivalence label for a new SC node.
+// Precondition: x is canonical.
+func labelSCC(x *declNode) {
+	// Compute union of extrefs over edges.
+	// Find all extRefs coming in to the coalesced SCC node.
+	for y := range x.intRefs {
+		y := y.find()
+		if y == x {
+			continue // already coalesced
+		}
+		for z := range y.extRefs {
+			if x.extRefs == nil {
+				x.extRefs = make(map[Ref]bool)
+			}
+			x.extRefs[z] = true // extRefs: x U= y
+		}
+	}
+
+	// TODO(adonovan): opt: implement PE algorithm here.
+}
+
+// coalesce combines two nodes in the strong component graph.
+// Precondition: x and y are canonical.
+func coalesce(x, y *declNode) {
+	// x becomes y's canonical representative.
+	y.rep = x
+
+	// x accumulates y's internal references.
+	for z := range y.intRefs {
+		x.intRefs[z] = true
+	}
+	y.intRefs = nil
+
+	// x accumulates y's external references.
+	for z := range y.extRefs {
+		if x.extRefs == nil {
+			x.extRefs = make(map[Ref]bool)
+		}
+		x.extRefs[z] = true
+	}
+	y.extRefs = nil
+}
+
+// find returns the canonical node decl.
+// (The nodes form a disjoint set forest.)
+func (decl *declNode) find() *declNode {
+	rep := decl.rep
+	if rep != decl {
+		rep = rep.find()
+		decl.rep = rep // simple path compression
+	}
+	return rep
+}
+
+func checkCanonical(x *declNode) {
+	if debug {
+		assert(x == x.find(), "not canonical")
+	}
+}
+
+func assert(cond bool, msg string) {
+	if debug && !cond {
+		panic(msg)
+	}
 }

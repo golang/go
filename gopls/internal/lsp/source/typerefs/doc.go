@@ -59,6 +59,51 @@
 // analysis. Notably, we also skip identifiers that refer to type parameters in
 // generic declarations.
 //
+// # Graph optimizations
+//
+// The references extracted from the syntax are used to construct
+// edges between declNodes. Edges are of two kinds: internal
+// references, from one package-level declaration to another; and
+// external references, from a symbol in this package to a symbol
+// imported from a direct dependency.
+//
+// Once the symbol reference graph is constructed, we find its
+// strongly connected components (SCCs) using Tarjan's algorithm. A
+// node from each SCC is chosen arbitrarily to be its representative,
+// and all the edges (internal and external) of the SCC are
+// accumulated into the representative, thus forming the strong
+// component graph, which is acyclic. This property simplifies the
+// logic and improves the efficiency of the reachability query.
+//
+// TODO(adonovan): opt: subsequent planned optimizations include:
+//
+//   - The Hash-Value Numbering optimization described in
+//     Hardekopf and Lin; see golang.org/x/go/pointer/hvn.go for an
+//     implementation. (Like pointer analysis, our problem is
+//     fundamentally one of graph reachability.)
+//
+//     The "pointer equivalence" (PE) portion of this algorithm uses a
+//     hash table to create a mapping from unique sets of external
+//     references to small integers. Each of the n external symbols
+//     referenced by the package is assigned a integer from 1 to n;
+//     this number stands for a singleton set. Higher numbers refer to
+//     unions of strictly smaller sets. The PE algorithm allows us to
+//     coalesce redundant graph nodes. For example, all functions that
+//     ultimately reference only {fmt.Println,fmt.Sprintf} would be
+//     marked as equivalent to each other, and to the union of
+//     the sets of {fmt.Sprint} and {fmt.Println}.
+//
+//     This reduces the worst-case size of the Refs() result. Consider
+//     M decls that each reference type t, which references N imported
+//     types. The source code has O(M + N) lines but the Refs result
+//     is current O(M*N). Preserving the essential structure of the
+//     reference graph (as a DAG of union operations) will reduce the
+//     asymptote.
+//
+//   - Serializing the SC graph obtained each package and saving it in
+//     the file cache. Once we have a DAG of unions, we can serialize
+//     it easily and amortize the cost of the local preprocessing.
+//
 // # API
 //
 // The main entry point for this analysis is the [Refs] function, which
