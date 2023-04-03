@@ -275,7 +275,7 @@ func (conf *resolvConfTest) writeAndUpdateWithLastCheckedTime(lines []string, la
 }
 
 func (conf *resolvConfTest) forceUpdate(name string, lastChecked time.Time) error {
-	dnsConf := dnsReadConfig(name)
+	dnsConf := parseResolvConf(name)
 	if !conf.forceUpdateConf(dnsConf, lastChecked) {
 		return fmt.Errorf("tryAcquireSema for %s failed", name)
 	}
