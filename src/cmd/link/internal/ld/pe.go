@@ -888,10 +888,8 @@ func (f *peFile) writeFileHeader(ctxt *Link) {
 	// much more beneficial than having build timestamp in the header.
 	fh.TimeDateStamp = 0
 
-	if ctxt.LinkMode == LinkExternal {
-		fh.Characteristics = pe.IMAGE_FILE_LINE_NUMS_STRIPPED
-	} else {
-		fh.Characteristics = pe.IMAGE_FILE_EXECUTABLE_IMAGE | pe.IMAGE_FILE_DEBUG_STRIPPED
+	if ctxt.LinkMode != LinkExternal {
+		fh.Characteristics = pe.IMAGE_FILE_EXECUTABLE_IMAGE
 		switch ctxt.Arch.Family {
 		case sys.AMD64, sys.I386:
 			if ctxt.BuildMode != BuildModePIE {
