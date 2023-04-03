@@ -260,9 +260,13 @@ func download(ctx context.Context, arg string, parent *load.Package, stk *load.I
 	load1 := func(path string, mode int) *load.Package {
 		if parent == nil {
 			mode := 0 // don't do module or vendor resolution
-			return load.LoadImport(ctx, load.PackageOpts{}, path, base.Cwd(), nil, stk, nil, mode)
+			return load.LoadPackage(ctx, load.PackageOpts{}, path, base.Cwd(), stk, nil, mode)
 		}
-		return load.LoadImport(ctx, load.PackageOpts{}, path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+		p, err := load.LoadImport(ctx, load.PackageOpts{}, path, parent.Dir, parent, stk, nil, mode|load.ResolveModule)
+		if err != nil {
+			base.Errorf("%s", err)
+		}
+		return p
 	}
 
 	p := load1(arg, mode)

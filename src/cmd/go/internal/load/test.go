@@ -111,7 +111,10 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	stk.Push(p.ImportPath + " (test)")
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
-		p1 := loadImport(ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
+		p1, err := loadImport(ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
+		if err != nil && ptestErr == nil {
+			ptestErr = err
+		}
 		p.TestImports[i] = p1.ImportPath
 		imports = append(imports, p1)
 	}
@@ -131,7 +134,10 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	pxtestNeedsPtest := false
 	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
-		p1 := loadImport(ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
+		p1, err := loadImport(ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
+		if err != nil && pxtestErr == nil {
+			pxtestErr = err
+		}
 		if p1.ImportPath == p.ImportPath {
 			pxtestNeedsPtest = true
 		} else {
@@ -288,7 +294,10 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		if dep == ptest.ImportPath {
 			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
 		} else {
-			p1 := loadImport(ctx, opts, pre, dep, "", nil, &stk, nil, 0)
+			p1, err := loadImport(ctx, opts, pre, dep, "", nil, &stk, nil, 0)
+			if err != nil && pmain.Error == nil {
+				pmain.Error = err
+			}
 			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
 		}
 	}

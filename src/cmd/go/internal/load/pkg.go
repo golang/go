@@ -641,7 +641,7 @@ func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
 		})
 		packageDataCache.Delete(p.ImportPath)
 	}
-	return LoadImport(context.TODO(), PackageOpts{}, arg, base.Cwd(), nil, stk, nil, 0)
+	return LoadPackage(context.TODO(), PackageOpts{}, arg, base.Cwd(), stk, nil, 0)
 }
 
 // dirToImportPath returns the pseudo-import path we use for a package
@@ -702,11 +702,23 @@ const (
 // LoadImport does not set tool flags and should only be used by
 // this package, as part of a bigger load operation, and by GOPATH-based "go get".
 // TODO(rsc): When GOPATH-based "go get" is removed, unexport this function.
-func LoadImport(ctx context.Context, opts PackageOpts, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+// The returned PackageError, if any, describes why parent is not allowed
+// to import the named package, with the error referring to importPos.
+// The PackageError can only be non-nil when parent is not nil.
+func LoadImport(ctx context.Context, opts PackageOpts, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) (*Package, *PackageError) {
 	return loadImport(ctx, opts, nil, path, srcDir, parent, stk, importPos, mode)
 }
 
-func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
+// LoadPackage does Load import, but without a parent package load contezt
+func LoadPackage(ctx context.Context, opts PackageOpts, path, srcDir string, stk *ImportStack, importPos []token.Position, mode int) *Package {
+	p, err := loadImport(ctx, opts, nil, path, srcDir, nil, stk, importPos, mode)
+	if err != nil {
+		base.Fatalf("internal error: loadImport of %q with nil parent returned an error", path)
+	}
+	return p
+}
+
+func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) (*Package, *PackageError) {
 	ctx, span := trace.StartSpan(ctx, "modload.loadImport "+path)
 	defer span.Done()
 
@@ -744,7 +756,7 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 			defer stk.Pop()
 		}
 		p.setLoadPackageDataError(err, path, stk, nil)
-		return p
+		return p, nil
 	}
 
 	setCmdline := func(p *Package) {
@@ -787,44 +799,42 @@ func loadImport(ctx context.Context, opts PackageOpts, pre *preload, path, srcDi
 	}
 
 	// Checked on every import because the rules depend on the code doing the importing.
-	if perr := disallowInternal(ctx, srcDir, parent, parentPath, p, stk); perr != p {
-		perr.Error.setPos(importPos)
-		return perr
+	if perr := disallowInternal(ctx, srcDir, parent, parentPath, p, stk); perr != nil {
+		perr.setPos(importPos)
+		return p, perr
 	}
 	if mode&ResolveImport != 0 {
-		if perr := disallowVendor(srcDir, path, parentPath, p, stk); perr != p {
-			perr.Error.setPos(importPos)
-			return perr
+		if perr := disallowVendor(srcDir, path, parentPath, p, stk); perr != nil {
+			perr.setPos(importPos)
+			return p, perr
 		}
 	}
 
 	if p.Name == "main" && parent != nil && parent.Dir != p.Dir {
-		perr := *p
-		perr.Error = &PackageError{
+		perr := &PackageError{
 			ImportStack: stk.Copy(),
 			Err:         ImportErrorf(path, "import %q is a program, not an importable package", path),
 		}
-		perr.Error.setPos(importPos)
-		return &perr
+		perr.setPos(importPos)
+		return p, perr
 	}
 
 	if p.Internal.Local && parent != nil && !parent.Internal.Local {
-		perr := *p
 		var err error
 		if path == "." {
 			err = ImportErrorf(path, "%s: cannot import current directory", path)
 		} else {
 			err = ImportErrorf(path, "local import %q in non-local package", path)
 		}
-		perr.Error = &PackageError{
+		perr := &PackageError{
 			ImportStack: stk.Copy(),
 			Err:         err,
 		}
-		perr.Error.setPos(importPos)
-		return &perr
+		perr.setPos(importPos)
+		return p, perr
 	}
 
-	return p
+	return p, nil
 }
 
 // loadPackageData loads information needed to construct a *Package. The result
@@ -1457,7 +1467,7 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
 // is allowed to import p.
 // If the import is allowed, disallowInternal returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
-func disallowInternal(ctx context.Context, srcDir string, importer *Package, importerPath string, p *Package, stk *ImportStack) *Package {
+func disallowInternal(ctx context.Context, srcDir string, importer *Package, importerPath string, p *Package, stk *ImportStack) *PackageError {
 	// golang.org/s/go14internal:
 	// An import of a path containing the element “internal”
 	// is disallowed if the importing code is outside the tree
@@ -1465,7 +1475,7 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 
 	// There was an error loading the package; stop here.
 	if p.Error != nil {
-		return p
+		return nil
 	}
 
 	// The generated 'testmain' package is allowed to access testing/internal/...,
@@ -1473,32 +1483,32 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 	// (it's actually in a temporary directory outside any Go tree).
 	// This cleans up a former kludge in passing functionality to the testing package.
 	if str.HasPathPrefix(p.ImportPath, "testing/internal") && importerPath == "testmain" {
-		return p
+		return nil
 	}
 
 	// We can't check standard packages with gccgo.
 	if cfg.BuildContext.Compiler == "gccgo" && p.Standard {
-		return p
+		return nil
 	}
 
 	// The sort package depends on internal/reflectlite, but during bootstrap
 	// the path rewriting causes the normal internal checks to fail.
 	// Instead, just ignore the internal rules during bootstrap.
 	if p.Standard && strings.HasPrefix(importerPath, "bootstrap/") {
-		return p
+		return nil
 	}
 
 	// importerPath is empty: we started
 	// with a name given on the command line, not an
 	// import. Anything listed on the command line is fine.
 	if importerPath == "" {
-		return p
+		return nil
 	}
 
 	// Check for "internal" element: three cases depending on begin of string and/or end of string.
 	i, ok := findInternal(p.ImportPath)
 	if !ok {
-		return p
+		return nil
 	}
 
 	// Internal is present.
@@ -1511,14 +1521,14 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 		parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
 
 		if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
-			return p
+			return nil
 		}
 
 		// Look for symlinks before reporting error.
 		srcDir = expandPath(srcDir)
 		parent = expandPath(parent)
 		if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
-			return p
+			return nil
 		}
 	} else {
 		// p is in a module, so make it available based on the importer's import path instead
@@ -1533,19 +1543,17 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
 		}
 		parentOfInternal := p.ImportPath[:i]
 		if str.HasPathPrefix(importerPath, parentOfInternal) {
-			return p
+			return nil
 		}
 	}
 
 	// Internal is present, and srcDir is outside parent's tree. Not allowed.
-	perr := *p
-	perr.Error = &PackageError{
+	perr := &PackageError{
 		alwaysPrintStack: true,
 		ImportStack:      stk.Copy(),
 		Err:              ImportErrorf(p.ImportPath, "use of internal package "+p.ImportPath+" not allowed"),
 	}
-	perr.Incomplete = true
-	return &perr
+	return perr
 }
 
 // findInternal looks for the final "internal" path element in the given import path.
@@ -1569,31 +1577,29 @@ func findInternal(path string) (index int, ok bool) {
 
 // disallowVendor checks that srcDir is allowed to import p as path.
 // If the import is allowed, disallowVendor returns the original package p.
-// If not, it returns a new package containing just an appropriate error.
-func disallowVendor(srcDir string, path string, importerPath string, p *Package, stk *ImportStack) *Package {
+// If not, it returns a PackageError.
+func disallowVendor(srcDir string, path string, importerPath string, p *Package, stk *ImportStack) *PackageError {
 	// If the importerPath is empty, we started
 	// with a name given on the command line, not an
 	// import. Anything listed on the command line is fine.
 	if importerPath == "" {
-		return p
+		return nil
 	}
 
-	if perr := disallowVendorVisibility(srcDir, p, importerPath, stk); perr != p {
+	if perr := disallowVendorVisibility(srcDir, p, importerPath, stk); perr != nil {
 		return perr
 	}
 
 	// Paths like x/vendor/y must be imported as y, never as x/vendor/y.
 	if i, ok := FindVendor(path); ok {
-		perr := *p
-		perr.Error = &PackageError{
+		perr := &PackageError{
 			ImportStack: stk.Copy(),
 			Err:         ImportErrorf(path, "%s must be imported as %s", path, path[i+len("vendor/"):]),
 		}
-		perr.Incomplete = true
-		return &perr
+		return perr
 	}
 
-	return p
+	return nil
 }
 
 // disallowVendorVisibility checks that srcDir is allowed to import p.
@@ -1601,19 +1607,19 @@ func disallowVendor(srcDir string, path string, importerPath string, p *Package,
 // is not subject to the rules, only subdirectories of vendor.
 // This allows people to have packages and commands named vendor,
 // for maximal compatibility with existing source trees.
-func disallowVendorVisibility(srcDir string, p *Package, importerPath string, stk *ImportStack) *Package {
+func disallowVendorVisibility(srcDir string, p *Package, importerPath string, stk *ImportStack) *PackageError {
 	// The stack does not include p.ImportPath.
 	// If there's nothing on the stack, we started
 	// with a name given on the command line, not an
 	// import. Anything listed on the command line is fine.
 	if importerPath == "" {
-		return p
+		return nil
 	}
 
 	// Check for "vendor" element.
 	i, ok := FindVendor(p.ImportPath)
 	if !ok {
-		return p
+		return nil
 	}
 
 	// Vendor is present.
@@ -1623,28 +1629,27 @@ func disallowVendorVisibility(srcDir string, p *Package, importerPath string, st
 	}
 	truncateTo := i + len(p.Dir) - len(p.ImportPath)
 	if truncateTo < 0 || len(p.Dir) < truncateTo {
-		return p
+		return nil
 	}
 	parent := p.Dir[:truncateTo]
 	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
-		return p
+		return nil
 	}
 
 	// Look for symlinks before reporting error.
 	srcDir = expandPath(srcDir)
 	parent = expandPath(parent)
 	if str.HasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
-		return p
+		return nil
 	}
 
 	// Vendor is present, and srcDir is outside parent's tree. Not allowed.
-	perr := *p
-	perr.Error = &PackageError{
+
+	perr := &PackageError{
 		ImportStack: stk.Copy(),
 		Err:         errors.New("use of vendored package not allowed"),
 	}
-	perr.Incomplete = true
-	return &perr
+	return perr
 }
 
 // FindVendor looks for the last non-terminating "vendor" path element in the given import path.
@@ -1994,7 +1999,11 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		if path == "C" {
 			continue
 		}
-		p1 := LoadImport(ctx, opts, path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport)
+		p1, err := LoadImport(ctx, opts, path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport)
+		if err != nil && p.Error == nil {
+			p.Error = err
+			p.Incomplete = true
+		}
 
 		path = p1.ImportPath
 		importPaths[i] = path
@@ -2758,7 +2767,12 @@ func TestPackageList(ctx context.Context, opts PackageOpts, roots []*Package) []
 	}
 	walkTest := func(root *Package, path string) {
 		var stk ImportStack
-		p1 := LoadImport(ctx, opts, path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
+		p1, err := LoadImport(ctx, opts, path, root.Dir, root, &stk, root.Internal.Build.TestImportPos[path], ResolveImport)
+		if err != nil && root.Error == nil {
+			// Assign error importing the package to the importer.
+			root.Error = err
+			root.Incomplete = true
+		}
 		if p1.Error == nil {
 			walk(p1)
 		}
@@ -2780,8 +2794,16 @@ func TestPackageList(ctx context.Context, opts PackageOpts, roots []*Package) []
 // dependencies (like sync/atomic for coverage).
 // TODO(jayconrod): delete this function and set flags automatically
 // in LoadImport instead.
-func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) *Package {
-	p := LoadImport(context.TODO(), PackageOpts{}, path, srcDir, parent, stk, importPos, mode)
+func LoadImportWithFlags(path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) (*Package, *PackageError) {
+	p, err := LoadImport(context.TODO(), PackageOpts{}, path, srcDir, parent, stk, importPos, mode)
+	setToolFlags(p)
+	return p, err
+}
+
+// LoadPackageWithFlags is the same as LoadImportWithFlags but without a parent.
+// It's then guaranteed to not return an error
+func LoadPackageWithFlags(path, srcDir string, stk *ImportStack, importPos []token.Position, mode int) *Package {
+	p := LoadPackage(context.TODO(), PackageOpts{}, path, srcDir, stk, importPos, mode)
 	setToolFlags(p)
 	return p
 }
@@ -2891,7 +2913,10 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
 				// a literal and also a non-literal pattern.
 				mode |= cmdlinePkgLiteral
 			}
-			p := loadImport(ctx, opts, pre, pkg, base.Cwd(), nil, &stk, nil, mode)
+			p, perr := loadImport(ctx, opts, pre, pkg, base.Cwd(), nil, &stk, nil, mode)
+			if perr != nil {
+				base.Fatalf("internal error: loadImport of %q with nil parent returned an error", pkg)
+			}
 			p.Match = append(p.Match, m.Pattern())
 			if seenPkg[p] {
 				continue
@@ -3364,7 +3389,10 @@ func EnsureImport(p *Package, pkg string) {
 		}
 	}
 
-	p1 := LoadImportWithFlags(pkg, p.Dir, p, &ImportStack{}, nil, 0)
+	p1, err := LoadImportWithFlags(pkg, p.Dir, p, &ImportStack{}, nil, 0)
+	if err != nil {
+		base.Fatalf("load %s: %v", pkg, err)
+	}
 	if p1.Error != nil {
 		base.Fatalf("load %s: %v", pkg, p1.Error)
 	}
