@@ -256,10 +256,6 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpLOONG64DIVV(v)
 	case OpLOONG64DIVVU:
 		return rewriteValueLOONG64_OpLOONG64DIVVU(v)
-	case OpLOONG64LoweredAtomicAdd32:
-		return rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd32(v)
-	case OpLOONG64LoweredAtomicAdd64:
-		return rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd64(v)
 	case OpLOONG64MASKEQZ:
 		return rewriteValueLOONG64_OpLOONG64MASKEQZ(v)
 	case OpLOONG64MASKNEZ:
@@ -1690,54 +1686,6 @@ func rewriteValueLOONG64_OpLOONG64DIVVU(v *Value) bool {
 		}
 		v.reset(OpLOONG64MOVVconst)
 		v.AuxInt = int64ToAuxInt(int64(uint64(c) / uint64(d)))
-		return true
-	}
-	return false
-}
-func rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd32(v *Value) bool {
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (LoweredAtomicAdd32 ptr (MOVVconst [c]) mem)
-	// cond: is32Bit(c)
-	// result: (LoweredAtomicAddconst32 [int32(c)] ptr mem)
-	for {
-		ptr := v_0
-		if v_1.Op != OpLOONG64MOVVconst {
-			break
-		}
-		c := auxIntToInt64(v_1.AuxInt)
-		mem := v_2
-		if !(is32Bit(c)) {
-			break
-		}
-		v.reset(OpLOONG64LoweredAtomicAddconst32)
-		v.AuxInt = int32ToAuxInt(int32(c))
-		v.AddArg2(ptr, mem)
-		return true
-	}
-	return false
-}
-func rewriteValueLOONG64_OpLOONG64LoweredAtomicAdd64(v *Value) bool {
-	v_2 := v.Args[2]
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (LoweredAtomicAdd64 ptr (MOVVconst [c]) mem)
-	// cond: is32Bit(c)
-	// result: (LoweredAtomicAddconst64 [c] ptr mem)
-	for {
-		ptr := v_0
-		if v_1.Op != OpLOONG64MOVVconst {
-			break
-		}
-		c := auxIntToInt64(v_1.AuxInt)
-		mem := v_2
-		if !(is32Bit(c)) {
-			break
-		}
-		v.reset(OpLOONG64LoweredAtomicAddconst64)
-		v.AuxInt = int64ToAuxInt(c)
-		v.AddArg2(ptr, mem)
 		return true
 	}
 	return false

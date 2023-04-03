@@ -79,6 +79,9 @@ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
 TEXT ·Loadint64(SB), NOSPLIT, $0-16
 	JMP	·Load64(SB)
 
+TEXT ·Xaddint32(SB),NOSPLIT,$0-20
+	JMP	·Xadd(SB)
+
 TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 	JMP	·Xadd64(SB)
 
@@ -92,34 +95,25 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
 TEXT ·Casp1(SB), NOSPLIT, $0-25
 	JMP	·Cas64(SB)
 
-// uint32 xadd(uint32 volatile *ptr, int32 delta)
+// uint32 Xadd(uint32 volatile *ptr, int32 delta)
 // Atomically:
 //	*val += delta;
 //	return *val;
 TEXT ·Xadd(SB), NOSPLIT, $0-20
 	MOVV	ptr+0(FP), R4
 	MOVW	delta+8(FP), R5
-	DBAR
-	LL	(R4), R6
-	ADDU	R6, R5, R7
-	MOVV	R7, R6
-	SC	R7, (R4)
-	BEQ	R7, -4(PC)
-	MOVW	R6, ret+16(FP)
-	DBAR
+	AMADDDBW	R5, (R4), R6
+	ADDV	R6, R5, R4
+	MOVW	R4, ret+16(FP)
 	RET
 
+// func Xadd64(ptr *uint64, delta int64) uint64
 TEXT ·Xadd64(SB), NOSPLIT, $0-24
 	MOVV	ptr+0(FP), R4
 	MOVV	delta+8(FP), R5
-	DBAR
-	LLV	(R4), R6
-	ADDVU	R6, R5, R7
-	MOVV	R7, R6
-	SCV	R7, (R4)
-	BEQ	R7, -4(PC)
-	MOVV	R6, ret+16(FP)
-	DBAR
+	AMADDDBV	R5, (R4), R6
+	ADDV	R6, R5, R4
+	MOVV	R4, ret+16(FP)
 	RET
 
 TEXT ·Xchg(SB), NOSPLIT, $0-20
