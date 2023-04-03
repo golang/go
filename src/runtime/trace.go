@@ -906,7 +906,7 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 		// Fast path: Unwind using frame pointers.
 		pcBuf[0] = uintptr(skip)
 		if curgp == gp {
-			nstk += fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf[1:])
+			nstk += fpTracebackPCs(unsafe.Pointer(getfp()), skip, pcBuf[1:])
 		} else if curgp != nil {
 			// We're called on the g0 stack through mcall(fn) or systemstack(fn). To
 			// behave like gcallers above, we start unwinding from sched.bp, which
