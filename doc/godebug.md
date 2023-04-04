@@ -130,7 +130,19 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
 Go 1.21 made it a run-time error to call `panic` with a nil interface value,
 controlled by the [`panicnil` setting](/pkg/builtin/#panic).
-There is no plan to remove this setting.
+
+Go 1.21 made it an error for html/template actions to appear inside of an ECMAScript 6
+template literal, controlled by the
+[`jstmpllitinterp` setting](/pkg/html/template#hdr-Security_Model).
+This behavior was backported to Go 1.19.8+ and Go 1.20.3+.
+
+Go 1.21 introduced a limit on the maximum number of MIME headers and multipart
+forms, controlled by the
+[`multipartmaxheaders` and `multipartmaxparts` settings](/pkg/mime/multipart#hdr-Limits)
+respectively.
+This behavior was backported to Go 1.19.8+ and Go 1.20.3+.
+
+There is no plan to remove any of these settings.
 
 ### Go 1.20
 

@@ -231,5 +231,12 @@ Least Surprise Property:
 "A developer (or code reviewer) familiar with HTML, CSS, and JavaScript, who
 knows that contextual autoescaping happens should be able to look at a {{.}}
 and correctly infer what sanitization happens."
+
+As a consequence of the Least Surprise Property, template actions within an
+ECMAScript 6 template literal are disabled by default.
+Handling string interpolation within these literals is rather complex resulting
+in no clear safe way to support it.
+To re-enable template actions within ECMAScript 6 template literals, use the
+GODEBUG=jstmpllitinterp=1 environment variable.
 */
 package template
