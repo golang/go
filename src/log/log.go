@@ -17,6 +17,7 @@ package log
 import (
 	"fmt"
 	"io"
+	"log/internal"
 	"os"
 	"runtime"
 	"sync"
@@ -191,12 +192,14 @@ func putBuffer(p *[]byte) {
 // paths it will be 2.
 func (l *Logger) Output(calldepth int, s string) error {
 	calldepth++ // +1 for this frame.
-	return l.output(calldepth, func(b []byte) []byte {
+	return l.output(0, calldepth, func(b []byte) []byte {
 		return append(b, s...)
 	})
 }
 
-func (l *Logger) output(calldepth int, appendOutput func([]byte) []byte) error {
+// output can take either a calldepth or a pc to get source line information.
+// It uses the pc if it is non-zero.
+func (l *Logger) output(pc uintptr, calldepth int, appendOutput func([]byte) []byte) error {
 	if l.isDiscard.Load() {
 		return nil
 	}
@@ -211,11 +214,21 @@ func (l *Logger) output(calldepth int, appendOutput func([]byte) []byte) error {
 	var file string
 	var line int
 	if flag&(Lshortfile|Llongfile) != 0 {
-		var ok bool
-		_, file, line, ok = runtime.Caller(calldepth)
-		if !ok {
-			file = "???"
-			line = 0
+		if pc == 0 {
+			var ok bool
+			_, file, line, ok = runtime.Caller(calldepth)
+			if !ok {
+				file = "???"
+				line = 0
+			}
+		} else {
+			fs := runtime.CallersFrames([]uintptr{pc})
+			f, _ := fs.Next()
+			file = f.File
+			if file == "" {
+				file = "???"
+			}
+			line = f.Line
 		}
 	}
 
@@ -233,10 +246,18 @@ func (l *Logger) output(calldepth int, appendOutput func([]byte) []byte) error {
 	return err
 }
 
+func init() {
+	internal.DefaultOutput = func(pc uintptr, data []byte) error {
+		return std.output(pc, 0, func(buf []byte) []byte {
+			return append(buf, data...)
+		})
+	}
+}
+
 // Print calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Print.
 func (l *Logger) Print(v ...any) {
-	l.output(2, func(b []byte) []byte {
+	l.output(0, 2, func(b []byte) []byte {
 		return fmt.Append(b, v...)
 	})
 }
@@ -244,7 +265,7 @@ func (l *Logger) Print(v ...any) {
 // Printf calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Printf.
 func (l *Logger) Printf(format string, v ...any) {
-	l.output(2, func(b []byte) []byte {
+	l.output(0, 2, func(b []byte) []byte {
 		return fmt.Appendf(b, format, v...)
 	})
 }
@@ -252,7 +273,7 @@ func (l *Logger) Printf(format string, v ...any) {
 // Println calls l.Output to print to the logger.
 // Arguments are handled in the manner of fmt.Println.
 func (l *Logger) Println(v ...any) {
-	l.output(2, func(b []byte) []byte {
+	l.output(0, 2, func(b []byte) []byte {
 		return fmt.Appendln(b, v...)
 	})
 }
@@ -365,7 +386,7 @@ func Writer() io.Writer {
 // Print calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Print.
 func Print(v ...any) {
-	std.output(2, func(b []byte) []byte {
+	std.output(0, 2, func(b []byte) []byte {
 		return fmt.Append(b, v...)
 	})
 }
@@ -373,7 +394,7 @@ func Print(v ...any) {
 // Printf calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Printf.
 func Printf(format string, v ...any) {
-	std.output(2, func(b []byte) []byte {
+	std.output(0, 2, func(b []byte) []byte {
 		return fmt.Appendf(b, format, v...)
 	})
 }
@@ -381,7 +402,7 @@ func Printf(format string, v ...any) {
 // Println calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Println.
 func Println(v ...any) {
-	std.output(2, func(b []byte) []byte {
+	std.output(0, 2, func(b []byte) []byte {
 		return fmt.Appendln(b, v...)
 	})
 }

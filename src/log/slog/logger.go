@@ -7,6 +7,7 @@ package slog
 import (
 	"context"
 	"log"
+	loginternal "log/internal"
 	"log/slog/internal"
 	"runtime"
 	"sync/atomic"
@@ -16,7 +17,7 @@ import (
 var defaultLogger atomic.Value
 
 func init() {
-	defaultLogger.Store(New(newDefaultHandler(log.Output)))
+	defaultLogger.Store(New(newDefaultHandler(loginternal.DefaultOutput)))
 }
 
 // Default returns the default Logger.

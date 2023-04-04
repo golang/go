@@ -11,6 +11,7 @@ import (
 	"internal/testenv"
 	"io"
 	"log"
+	loginternal "log/internal"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -70,7 +71,7 @@ func TestConnections(t *testing.T) {
 	// tests might change the default logger using SetDefault. Also ensure we
 	// restore the default logger at the end of the test.
 	currentLogger := Default()
-	SetDefault(New(newDefaultHandler(log.Output)))
+	SetDefault(New(newDefaultHandler(loginternal.DefaultOutput)))
 	t.Cleanup(func() {
 		SetDefault(currentLogger)
 	})
@@ -94,16 +95,8 @@ func TestConnections(t *testing.T) {
 
 	t.Run("wrap default handler", func(t *testing.T) {
 		// It should be possible to wrap the default handler and get the right output.
-		// But because the call depth to log.Output is hard-coded, the source line is wrong.
-		// We want to use the pc inside the Record, but there is no way to give that to
-		// the log package.
-		//
-		// TODO(jba): when slog lives under log in the standard library, we can
-		// move the bulk of log.Logger.Output to a function in an internal
-		// package, so both log and slog can call it.
-		//
-		// While slog lives in exp, we punt.
-		t.Skip("skip until this package is in the standard library")
+		// This works because the default handler uses the pc in the Record
+		// to get the source line, rather than a call depth.
 		logger := New(wrappingHandler{Default().Handler()})
 		logger.Info("msg", "d", 4)
 		checkLogOutput(t, logbuf.String(), `logger_test.go:\d+: INFO msg d=4`)

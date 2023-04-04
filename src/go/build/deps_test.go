@@ -45,6 +45,7 @@ var depsRules = `
 	  internal/cpu, internal/goarch,
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace, internal/platform,
+	  log/internal,
 	  maps, slices, unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
@@ -369,7 +370,7 @@ var depsRules = `
 	< NET;
 
 	# logging - most packages should not import; http and up is allowed
-	FMT
+	FMT, log/internal
 	< log;
 
 	log, log/slog !< crypto/tls, database/sql, go/importer, testing;
@@ -382,7 +383,7 @@ var depsRules = `
 
 	FMT,
 	encoding, encoding/json,
-	log,
+	log, log/internal,
 	log/slog/internal, log/slog/internal/buffer,
 	slices
 	< log/slog

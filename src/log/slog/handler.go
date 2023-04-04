@@ -87,11 +87,11 @@ type Handler interface {
 
 type defaultHandler struct {
 	ch *commonHandler
-	// log.Output, except for testing
-	output func(calldepth int, message string) error
+	// internal.DefaultOutput, except for testing
+	output func(pc uintptr, data []byte) error
 }
 
-func newDefaultHandler(output func(int, string) error) *defaultHandler {
+func newDefaultHandler(output func(uintptr, []byte) error) *defaultHandler {
 	return &defaultHandler{
 		ch:     &commonHandler{json: false},
 		output: output,
@@ -113,9 +113,7 @@ func (h *defaultHandler) Handle(ctx context.Context, r Record) error {
 	state := h.ch.newHandleState(buf, true, " ", nil)
 	defer state.free()
 	state.appendNonBuiltIns(r)
-
-	// skip [h.output, defaultHandler.Handle, handlerWriter.Write, log.Output]
-	return h.output(4, buf.String())
+	return h.output(r.PC, *buf)
 }
 
 func (h *defaultHandler) WithAttrs(as []Attr) Handler {

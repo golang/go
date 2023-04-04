@@ -85,8 +85,8 @@ func TestDefaultHandle(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var got string
-			var h Handler = newDefaultHandler(func(_ int, s string) error {
-				got = s
+			var h Handler = newDefaultHandler(func(_ uintptr, b []byte) error {
+				got = string(b)
 				return nil
 			})
 			if test.with != nil {
