@@ -229,6 +229,19 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
 		}
 	})
 
+	// Rewalk post-inlining functions to check for closures that are
+	// still visible but were (over-agressively) marked as dead, and
+	// undo that marking here. See #59404 for more context.
+	ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
+		for _, n := range list {
+			ir.Visit(n, func(node ir.Node) {
+				if clo, ok := node.(*ir.ClosureExpr); ok && clo.Func.IsHiddenClosure() {
+					clo.Func.SetIsDeadcodeClosure(false)
+				}
+			})
+		}
+	})
+
 	if p != nil {
 		pgoInlineEpilogue(p, decls)
 	}
@@ -883,6 +896,30 @@ func inlnode(n ir.Node, maxCost int32, inlCalls *[]*ir.InlinedCallExpr, edit fun
 		}
 		if fn := inlCallee(call.X, profile); fn != nil && typecheck.HaveInlineBody(fn) {
 			n = mkinlcall(call, fn, maxCost, inlCalls, edit)
+			if fn.IsHiddenClosure() {
+				// Visit function to pick out any contained hidden
+				// closures to mark them as dead, since they will no
+				// longer be reachable (if we leave them live, they
+				// will get skipped during escape analysis, which
+				// could mean that go/defer statements don't get
+				// desugared, causing later problems in walk). See
+				// #59404 for more context. Note also that the code
+				// below can sometimes be too aggressive (marking a closure
+				// dead even though it was captured by a local var).
+				// In this case we'll undo the dead marking in a cleanup
+				// pass that happens at the end of InlineDecls.
+				var vis func(node ir.Node)
+				vis = func(node ir.Node) {
+					if clo, ok := node.(*ir.ClosureExpr); ok && clo.Func.IsHiddenClosure() && !clo.Func.IsDeadcodeClosure() {
+						if base.Flag.LowerM > 2 {
+							fmt.Printf("%v: closure %v marked as dead\n", ir.Line(clo.Func), clo.Func)
+						}
+						clo.Func.SetIsDeadcodeClosure(true)
+						ir.Visit(clo.Func, vis)
+					}
+				}
+				ir.Visit(fn, vis)
+			}
 		}
 	}
 
