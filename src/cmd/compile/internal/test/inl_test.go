@@ -180,19 +180,15 @@ func TestIntendedInlining(t *testing.T) {
 		"net": {
 			"(*UDPConn).ReadFromUDP",
 		},
-		// These testpoints commented out for now, since CL 479095
-		// had to be reverted. We can re-enable this once we roll
-		// forward with a new version of 479095.
-		/*
-			"sync": {
-				// Both OnceFunc and its returned closure need to be inlinable so
-				// that the returned closure can be inlined into the caller of OnceFunc.
-				"OnceFunc",
-				"OnceFunc.func2", // The returned closure.
-				// TODO(austin): It would be good to check OnceValue and OnceValues,
-				// too, but currently they aren't reported because they have type
-				// parameters and aren't instantiated in sync.
-			}, */
+		"sync": {
+			// Both OnceFunc and its returned closure need to be inlinable so
+			// that the returned closure can be inlined into the caller of OnceFunc.
+			"OnceFunc",
+			"OnceFunc.func2", // The returned closure.
+			// TODO(austin): It would be good to check OnceValue and OnceValues,
+			// too, but currently they aren't reported because they have type
+			// parameters and aren't instantiated in sync.
+		},
 		"sync/atomic": {
 			// (*Bool).CompareAndSwap handled below.
 			"(*Bool).Load",
