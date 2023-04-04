@@ -740,9 +740,6 @@ func (s *snapshot) MethodSets(ctx context.Context, ids ...PackageID) ([]*methods
 }
 
 func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source.Metadata, error) {
-	ctx, done := event.Start(ctx, "cache.snapshot.MetadataForFile")
-	defer done()
-
 	s.mu.Lock()
 
 	// Start with the set of package associations derived from the last load.
