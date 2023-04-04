@@ -8,7 +8,7 @@ type T int
 
 func (T) m() { println("m") }
 
-type I interface { m() }
+type I interface{ m() }
 
 func F() {
 	i.m()

@@ -20,8 +20,9 @@ func Run(gen, x, y int, a []int32) {
 // Keep the channels visible from Go.
 var chans [4]chan bool
 
-//export GoStart
 // Double return value is just for testing.
+//
+//export GoStart
 func GoStart(i, xdim, ydim, xstart, xend, ystart, yend C.int, a *C.int, n *C.int) (int, int) {
 	c := make(chan bool, int(C.MYCONST))
 	go func() {

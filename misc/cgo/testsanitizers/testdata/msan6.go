@@ -32,6 +32,7 @@ import "C"
 
 // allocateStack extends the stack so that stack copying doesn't
 // confuse the msan data structures.
+//
 //go:noinline
 func allocateStack(i int) int {
 	if i == 0 {
@@ -43,6 +44,7 @@ func allocateStack(i int) int {
 // F1 marks a chunk of stack as uninitialized.
 // C.f returns an uninitialized struct on the stack, so msan will mark
 // the stack as uninitialized.
+//
 //go:noinline
 func F1() uintptr {
 	s := C.f()
@@ -51,6 +53,7 @@ func F1() uintptr {
 
 // F2 allocates a struct on the stack and converts it to an empty interface,
 // which will call msanread and see that the data appears uninitialized.
+//
 //go:noinline
 func F2() interface{} {
 	return C.S{}

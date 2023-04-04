@@ -25,6 +25,7 @@ import (
 var sigioCount int32
 
 // Catch SIGIO.
+//
 //export GoCatchSIGIO
 func GoCatchSIGIO() {
 	c := make(chan os.Signal, 1)
@@ -37,12 +38,14 @@ func GoCatchSIGIO() {
 }
 
 // Raise SIGIO.
+//
 //export GoRaiseSIGIO
 func GoRaiseSIGIO(p *C.pthread_t) {
 	C.CRaiseSIGIO(p)
 }
 
 // Return the number of SIGIO signals seen.
+//
 //export SIGIOCount
 func SIGIOCount() C.int {
 	return C.int(atomic.LoadInt32(&sigioCount))
