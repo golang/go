@@ -1266,6 +1266,17 @@ func (t *tester) registerCgoTests() {
 				}
 			}
 
+			// Doing a static link with boringcrypto gets
+			// a C linker warning on Linux.
+			// in function `bio_ip_and_port_to_socket_and_addr':
+			// warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+			if staticCheck.pre == nil && goos == "linux" && strings.Contains(goexperiment, "boringcrypto") {
+				staticCheck.pre = func(*distTest) bool {
+					fmt.Println("skipping static linking check on Linux when using boringcrypto to avoid C linker warning about getaddrinfo")
+					return false
+				}
+			}
+
 			// Static linking tests
 			if goos != "android" && p != "netbsd/arm" {
 				// TODO(#56629): Why does this fail on netbsd-arm?
