@@ -299,9 +299,11 @@ func (conf *resolvConfTest) servers() []string {
 }
 
 func (conf *resolvConfTest) teardown() error {
-	err := conf.forceUpdate("/etc/resolv.conf", time.Time{})
-	os.RemoveAll(conf.dir)
-	return err
+	defer os.RemoveAll(conf.dir)
+	if !conf.forceUpdateConf(dnsReadConfig("/etc/resolv.conf"), time.Time{}) {
+		return fmt.Errorf("tryAcquireSema failed")
+	}
+	return nil
 }
 
 var updateResolvConfTests = []struct {
@@ -335,6 +337,7 @@ func TestUpdateResolvConf(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	defer conf.teardown()
 
 	for i, tt := range updateResolvConfTests {
