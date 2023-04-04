@@ -42,6 +42,18 @@ You can achieve this by adding the right version of `go` to your `PATH`
 (`export PATH=$HOME/go/bin:$PATH` on Unix systems) or by configuring your
 editor.
 
+To work on both `std` and `cmd` simultaneously, add a `go.work` file to
+`GOROOT/src`:
+
+```
+cd $(go env GOROOT)/src
+go work init . cmd
+```
+
+Note that you must work inside the `GOROOT/src` subdirectory, as the `go`
+command does not recognize `go.work` files in a parent of `GOROOT/src`
+(https://go.dev/issue/59429).
+
 ## Working with generic code
 
 Gopls has support for editing generic Go code. To enable this support, you need
@@ -55,7 +67,6 @@ $ go install golang.org/x/tools/gopls@latest
 
 It is strongly recommended that you install the latest version of `gopls`, or
 the latest **unstable** version as [described above](#installing-unreleased-versions).
-We're still working on improving our generics support.
 
 The `gopls` built with these instructions understands generic code. See the
 [generics tutorial](https://go.dev/doc/tutorial/generics) for more information
