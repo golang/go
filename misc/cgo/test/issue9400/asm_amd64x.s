@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build amd64 amd64p32
-// +build gc
+//go:build (amd64 || amd64p32) && gc
 
 #include "textflag.h"
 

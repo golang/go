@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build aix || dragonfly || freebsd || linux || netbsd || solaris
-// +build aix dragonfly freebsd linux netbsd solaris
 
 package cgosotest
 
