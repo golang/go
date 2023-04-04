@@ -337,7 +337,6 @@ func TestUpdateResolvConf(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	defer conf.teardown()
 
 	for i, tt := range updateResolvConfTests {
