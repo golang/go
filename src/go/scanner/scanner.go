@@ -255,7 +255,8 @@ func (s *Scanner) updateLineInfo(next, offs int, text []byte) {
 
 	// Put a cap on the maximum size of line and column numbers.
 	// 30 bits allows for some additional space before wrapping an int32.
-	const maxLineCol = 1<<30 - 1
+	// Keep this consistent with cmd/compile/internal/syntax.PosMax.
+	const maxLineCol = 1 << 30
 	var line, col int
 	i2, n2, ok2 := trailingDigits(text[:i-1])
 	if ok2 {
