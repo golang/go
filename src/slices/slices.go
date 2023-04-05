@@ -127,6 +127,15 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 	return s2
 }
 
+// Mutate replaces all elements of s with the return of f.
+func Mutate[S ~[]E, E any, F any](s S, mutator func(int, E) F) []F {
+	for i, val := range(s) {
+		s[i] = mutator(i, val)
+	}
+
+	return mutated
+}
+
 // Clone returns a copy of the slice.
 // The elements are copied using assignment, so this is a shallow clone.
 func Clone[S ~[]E, E any](s S) S {
