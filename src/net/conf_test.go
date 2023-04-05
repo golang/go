@@ -25,6 +25,20 @@ type nssHostTest struct {
 	want      hostLookupOrder
 }
 
+func nssStr(t *testing.T, s string) *nssConf {
+	f, err := os.CreateTemp(t.TempDir(), "nss")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(s); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return parseNSSConfFile(f.Name())
+}
+
 // represents a dnsConfig returned by parsing a nonexistent resolv.conf
 var defaultResolvConf = &dnsConfig{
 	servers:  defaultNS,
@@ -332,6 +346,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			},
 		},
 	}
+
 	origGetHostname := getHostname
 	defer func() { getHostname = origGetHostname }()
 	defer setSystemNSS(getSystemNSS(), 0)
@@ -340,6 +355,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conf.teardown()
+
 	for _, tt := range tests {
 		if !conf.forceUpdateConf(tt.resolv, time.Now().Add(time.Hour)) {
 			t.Errorf("%s: failed to change resolv config", tt.name)
@@ -347,26 +363,13 @@ func TestConfHostLookupOrder(t *testing.T) {
 		for _, ht := range tt.hostTests {
 			getHostname = func() (string, error) { return ht.localhost, nil }
 			setSystemNSS(tt.nss, time.Hour)
+
 			gotOrder, _ := tt.c.hostLookupOrder(tt.resolver, ht.host)
 			if gotOrder != ht.want {
 				t.Errorf("%s: hostLookupOrder(%q) = %v; want %v", tt.name, ht.host, gotOrder, ht.want)
 			}
 		}
 	}
-}
-
-func nssStr(t *testing.T, s string) *nssConf {
-	f, err := os.CreateTemp(t.TempDir(), "nss")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.WriteString(s); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return parseNSSConfFile(f.Name())
 }
 
 type lookupOrderTest struct {
