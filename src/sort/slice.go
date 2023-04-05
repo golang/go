@@ -18,6 +18,8 @@ import (
 //
 // The less function must satisfy the same requirements as
 // the Interface type's Less method.
+//
+// It uses reflection and is less performant than Sort.
 func Slice(x any, less func(i, j int) bool) {
 	rv := reflectlite.ValueOf(x)
 	swap := reflectlite.Swapper(x)
@@ -32,6 +34,8 @@ func Slice(x any, less func(i, j int) bool) {
 //
 // The less function must satisfy the same requirements as
 // the Interface type's Less method.
+//
+// It uses reflection and is less performant than Sort.
 func SliceStable(x any, less func(i, j int) bool) {
 	rv := reflectlite.ValueOf(x)
 	swap := reflectlite.Swapper(x)
@@ -40,6 +44,8 @@ func SliceStable(x any, less func(i, j int) bool) {
 
 // SliceIsSorted reports whether the slice x is sorted according to the provided less function.
 // It panics if x is not a slice.
+//
+// It uses reflection and is less performant than IsSorted.
 func SliceIsSorted(x any, less func(i, j int) bool) bool {
 	rv := reflectlite.ValueOf(x)
 	n := rv.Len()
