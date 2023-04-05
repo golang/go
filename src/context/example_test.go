@@ -6,7 +6,10 @@ package context_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
+	"sync"
 	"time"
 )
 
@@ -117,4 +120,105 @@ func ExampleWithValue() {
 	// Output:
 	// found value: Go
 	// key not found: color
+}
+
+// This example uses AfterFunc to define a function which waits on a sync.Cond,
+// stopping the wait when a context is canceled.
+func ExampleAfterFunc_cond() {
+	waitOnCond := func(ctx context.Context, cond *sync.Cond) error {
+		stopf := context.AfterFunc(ctx, cond.Broadcast)
+		defer stopf()
+		cond.Wait()
+		return ctx.Err()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
+
+	var mu sync.Mutex
+	cond := sync.NewCond(&mu)
+
+	mu.Lock()
+	err := waitOnCond(ctx, cond)
+	fmt.Println(err)
+
+	// Output:
+	// context deadline exceeded
+}
+
+// This example uses AfterFunc to define a function which reads from a net.Conn,
+// stopping the read when a context is canceled.
+func ExampleAfterFunc_connection() {
+	readFromConn := func(ctx context.Context, conn net.Conn, b []byte) (n int, err error) {
+		stopc := make(chan struct{})
+		stop := context.AfterFunc(ctx, func() {
+			conn.SetReadDeadline(time.Now())
+			close(stopc)
+		})
+		n, err = conn.Read(b)
+		if !stop() {
+			// The AfterFunc was started.
+			// Wait for it to complete, and reset the Conn's deadline.
+			<-stopc
+			conn.SetReadDeadline(time.Time{})
+			return n, ctx.Err()
+		}
+		return n, err
+	}
+
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer listener.Close()
+
+	conn, err := net.Dial(listener.Addr().Network(), listener.Addr().String())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
+
+	b := make([]byte, 1024)
+	_, err = readFromConn(ctx, conn, b)
+	fmt.Println(err)
+
+	// Output:
+	// context deadline exceeded
+}
+
+// This example uses AfterFunc to define a function which combines
+// the cancellation signals of two Contexts.
+func ExampleAfterFunc_merge() {
+	// mergeCancel returns a context that contains the values of ctx,
+	// and which is canceled when either ctx or cancelCtx is canceled.
+	mergeCancel := func(ctx, cancelCtx context.Context) (context.Context, context.CancelFunc) {
+		ctx, cancel := context.WithCancelCause(ctx)
+		stop := context.AfterFunc(cancelCtx, func() {
+			cancel(context.Cause(cancelCtx))
+		})
+		return ctx, func() {
+			stop()
+			cancel(context.Canceled)
+		}
+	}
+
+	ctx1, cancel1 := context.WithCancelCause(context.Background())
+	defer cancel1(errors.New("ctx1 canceled"))
+
+	ctx2, cancel2 := context.WithCancelCause(context.Background())
+
+	mergedCtx, mergedCancel := mergeCancel(ctx1, ctx2)
+	defer mergedCancel()
+
+	cancel2(errors.New("ctx2 canceled"))
+	<-mergedCtx.Done()
+	fmt.Println(context.Cause(mergedCtx))
+
+	// Output:
+	// ctx2 canceled
 }

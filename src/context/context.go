@@ -269,8 +269,8 @@ func withCancel(parent Context) *cancelCtx {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	c := &cancelCtx{Context: parent}
-	propagateCancel(parent, c)
+	c := &cancelCtx{}
+	c.propagateCancel(parent, c)
 	return c
 }
 
@@ -289,47 +289,71 @@ func Cause(c Context) error {
 	return nil
 }
 
-// goroutines counts the number of goroutines ever created; for testing.
-var goroutines atomic.Int32
-
-// propagateCancel arranges for child to be canceled when parent is.
-func propagateCancel(parent Context, child canceler) {
-	done := parent.Done()
-	if done == nil {
-		return // parent is never canceled
+// AfterFunc arranges to call f in its own goroutine after ctx is done
+// (cancelled or timed out).
+// If ctx is already done, AfterFunc calls f immediately in its own goroutine.
+//
+// Multiple calls to AfterFunc on a context operate independently;
+// one does not replace another.
+//
+// Calling the returned stop function stops the association of ctx with f.
+// It returns true if the call stopped f from being run.
+// If stop returns false,
+// either the context is done and f has been started in its own goroutine;
+// or f was already stopped.
+// The stop function does not wait for f to complete before returning.
+// If the caller needs to know whether f is completed,
+// it must coordinate with f explicitly.
+//
+// If ctx has a "AfterFunc(func()) func() bool" method,
+// AfterFunc will use it to schedule the call.
+func AfterFunc(ctx Context, f func()) (stop func() bool) {
+	a := &afterFuncCtx{
+		f: f,
 	}
-
-	select {
-	case <-done:
-		// parent is already canceled
-		child.cancel(false, parent.Err(), Cause(parent))
-		return
-	default:
-	}
-
-	if p, ok := parentCancelCtx(parent); ok {
-		p.mu.Lock()
-		if p.err != nil {
-			// parent has already been canceled
-			child.cancel(false, p.err, p.cause)
-		} else {
-			if p.children == nil {
-				p.children = make(map[canceler]struct{})
-			}
-			p.children[child] = struct{}{}
+	a.cancelCtx.propagateCancel(ctx, a)
+	return func() bool {
+		stopped := false
+		a.once.Do(func() {
+			stopped = true
+		})
+		if stopped {
+			a.cancel(true, Canceled, nil)
 		}
-		p.mu.Unlock()
-	} else {
-		goroutines.Add(1)
-		go func() {
-			select {
-			case <-parent.Done():
-				child.cancel(false, parent.Err(), Cause(parent))
-			case <-child.Done():
-			}
-		}()
+		return stopped
 	}
 }
+
+type afterFuncer interface {
+	AfterFunc(func()) func() bool
+}
+
+type afterFuncCtx struct {
+	cancelCtx
+	once sync.Once // either starts running f or stops f from running
+	f    func()
+}
+
+func (a *afterFuncCtx) cancel(removeFromParent bool, err, cause error) {
+	a.cancelCtx.cancel(false, err, cause)
+	if removeFromParent {
+		removeChild(a.Context, a)
+	}
+	a.once.Do(func() {
+		go a.f()
+	})
+}
+
+// A stopCtx is used as the parent context of a cancelCtx when
+// an AfterFunc has been registered with the parent.
+// It holds the stop function used to unregister the AfterFunc.
+type stopCtx struct {
+	Context
+	stop func() bool
+}
+
+// goroutines counts the number of goroutines ever created; for testing.
+var goroutines atomic.Int32
 
 // &cancelCtxKey is the key that a cancelCtx returns itself for.
 var cancelCtxKey int
@@ -358,6 +382,10 @@ func parentCancelCtx(parent Context) (*cancelCtx, bool) {
 
 // removeChild removes a context from its parent.
 func removeChild(parent Context, child canceler) {
+	if s, ok := parent.(stopCtx); ok {
+		s.stop()
+		return
+	}
 	p, ok := parentCancelCtx(parent)
 	if !ok {
 		return
@@ -422,6 +450,64 @@ func (c *cancelCtx) Err() error {
 	err := c.err
 	c.mu.Unlock()
 	return err
+}
+
+// propagateCancel arranges for child to be canceled when parent is.
+// It sets the parent context of cancelCtx.
+func (c *cancelCtx) propagateCancel(parent Context, child canceler) {
+	c.Context = parent
+
+	done := parent.Done()
+	if done == nil {
+		return // parent is never canceled
+	}
+
+	select {
+	case <-done:
+		// parent is already canceled
+		child.cancel(false, parent.Err(), Cause(parent))
+		return
+	default:
+	}
+
+	if p, ok := parentCancelCtx(parent); ok {
+		// parent is a *cancelCtx, or derives from one.
+		p.mu.Lock()
+		if p.err != nil {
+			// parent has already been canceled
+			child.cancel(false, p.err, p.cause)
+		} else {
+			if p.children == nil {
+				p.children = make(map[canceler]struct{})
+			}
+			p.children[child] = struct{}{}
+		}
+		p.mu.Unlock()
+		return
+	}
+
+	if a, ok := parent.(afterFuncer); ok {
+		// parent implements an AfterFunc method.
+		c.mu.Lock()
+		stop := a.AfterFunc(func() {
+			child.cancel(false, parent.Err(), Cause(parent))
+		})
+		c.Context = stopCtx{
+			Context: parent,
+			stop:    stop,
+		}
+		c.mu.Unlock()
+		return
+	}
+
+	goroutines.Add(1)
+	go func() {
+		select {
+		case <-parent.Done():
+			child.cancel(false, parent.Err(), Cause(parent))
+		case <-child.Done():
+		}
+	}()
 }
 
 type stringer interface {
@@ -533,10 +619,9 @@ func WithDeadlineCause(parent Context, d time.Time, cause error) (Context, Cance
 		return WithCancel(parent)
 	}
 	c := &timerCtx{
-		cancelCtx: cancelCtx{Context: parent},
-		deadline:  d,
+		deadline: d,
 	}
-	propagateCancel(parent, c)
+	c.cancelCtx.propagateCancel(parent, c)
 	dur := time.Until(d)
 	if dur <= 0 {
 		c.cancel(true, DeadlineExceeded, cause) // deadline has already passed

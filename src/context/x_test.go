@@ -502,6 +502,24 @@ func TestWithCancelCanceledParent(t *testing.T) {
 	}
 }
 
+func TestWithCancelSimultaneouslyCanceledParent(t *testing.T) {
+	// Cancel the parent goroutine concurrently with creating a child.
+	for i := 0; i < 100; i++ {
+		parent, pcancel := WithCancelCause(Background())
+		cause := fmt.Errorf("Because!")
+		go pcancel(cause)
+
+		c, _ := WithCancel(parent)
+		<-c.Done()
+		if got, want := c.Err(), Canceled; got != want {
+			t.Errorf("child not canceled; got = %v, want = %v", got, want)
+		}
+		if got, want := Cause(c), cause; got != want {
+			t.Errorf("child has wrong cause; got = %v, want = %v", got, want)
+		}
+	}
+}
+
 func TestWithValueChecksKey(t *testing.T) {
 	panicVal := recoveredValue(func() { WithValue(Background(), []byte("foo"), "bar") })
 	if panicVal == nil {
@@ -814,5 +832,125 @@ func TestWithoutCancel(t *testing.T) {
 	}
 	if v := ctx.Value(key); v != value {
 		t.Errorf("ctx.Value(%q) = %q want %q", key, v, value)
+	}
+}
+
+type customDoneContext struct {
+	Context
+	donec chan struct{}
+}
+
+func (c *customDoneContext) Done() <-chan struct{} {
+	return c.donec
+}
+
+func TestCustomContextPropagation(t *testing.T) {
+	cause := errors.New("TestCustomContextPropagation")
+	donec := make(chan struct{})
+	ctx1, cancel1 := WithCancelCause(Background())
+	ctx2 := &customDoneContext{
+		Context: ctx1,
+		donec:   donec,
+	}
+	ctx3, cancel3 := WithCancel(ctx2)
+	defer cancel3()
+
+	cancel1(cause)
+	close(donec)
+
+	<-ctx3.Done()
+	if got, want := ctx3.Err(), Canceled; got != want {
+		t.Errorf("child not canceled; got = %v, want = %v", got, want)
+	}
+	if got, want := Cause(ctx3), cause; got != want {
+		t.Errorf("child has wrong cause; got = %v, want = %v", got, want)
+	}
+}
+
+func TestAfterFuncCalledAfterCancel(t *testing.T) {
+	ctx, cancel := WithCancel(Background())
+	donec := make(chan struct{})
+	stop := AfterFunc(ctx, func() {
+		close(donec)
+	})
+	select {
+	case <-donec:
+		t.Fatalf("AfterFunc called before context is done")
+	case <-time.After(shortDuration):
+	}
+	cancel()
+	select {
+	case <-donec:
+	case <-time.After(veryLongDuration):
+		t.Fatalf("AfterFunc not called after context is canceled")
+	}
+	if stop() {
+		t.Fatalf("stop() = true, want false")
+	}
+}
+
+func TestAfterFuncCalledAfterTimeout(t *testing.T) {
+	ctx, cancel := WithTimeout(Background(), shortDuration)
+	defer cancel()
+	donec := make(chan struct{})
+	AfterFunc(ctx, func() {
+		close(donec)
+	})
+	select {
+	case <-donec:
+	case <-time.After(veryLongDuration):
+		t.Fatalf("AfterFunc not called after context is canceled")
+	}
+}
+
+func TestAfterFuncCalledImmediately(t *testing.T) {
+	ctx, cancel := WithCancel(Background())
+	cancel()
+	donec := make(chan struct{})
+	AfterFunc(ctx, func() {
+		close(donec)
+	})
+	select {
+	case <-donec:
+	case <-time.After(veryLongDuration):
+		t.Fatalf("AfterFunc not called for already-canceled context")
+	}
+}
+
+func TestAfterFuncNotCalledAfterStop(t *testing.T) {
+	ctx, cancel := WithCancel(Background())
+	donec := make(chan struct{})
+	stop := AfterFunc(ctx, func() {
+		close(donec)
+	})
+	if !stop() {
+		t.Fatalf("stop() = false, want true")
+	}
+	cancel()
+	select {
+	case <-donec:
+		t.Fatalf("AfterFunc called for already-canceled context")
+	case <-time.After(shortDuration):
+	}
+	if stop() {
+		t.Fatalf("stop() = true, want false")
+	}
+}
+
+// This test verifies that cancelling a context does not block waiting for AfterFuncs to finish.
+func TestAfterFuncCalledAsynchronously(t *testing.T) {
+	ctx, cancel := WithCancel(Background())
+	donec := make(chan struct{})
+	stop := AfterFunc(ctx, func() {
+		// The channel send blocks until donec is read from.
+		donec <- struct{}{}
+	})
+	defer stop()
+	cancel()
+	// After cancel returns, read from donec and unblock the AfterFunc.
+	select {
+	case <-donec:
+	case <-time.After(veryLongDuration):
+		t.Fatalf("AfterFunc not called after context is canceled")
 	}
 }

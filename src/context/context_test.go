@@ -44,12 +44,15 @@ func XTestParentFinishesChild(t testingT) {
 	// Context tree:
 	// parent -> cancelChild
 	// parent -> valueChild -> timerChild
+	// parent -> afterChild
 	parent, cancel := WithCancel(Background())
 	cancelChild, stop := WithCancel(parent)
 	defer stop()
 	valueChild := WithValue(parent, "key", "value")
 	timerChild, stop := WithTimeout(valueChild, veryLongDuration)
 	defer stop()
+	afterStop := AfterFunc(parent, func() {})
+	defer afterStop()
 
 	select {
 	case x := <-parent.Done():
@@ -63,13 +66,20 @@ func XTestParentFinishesChild(t testingT) {
 	default:
 	}
 
-	// The parent's children should contain the two cancelable children.
+	// The parent's children should contain the three cancelable children.
 	pc := parent.(*cancelCtx)
 	cc := cancelChild.(*cancelCtx)
 	tc := timerChild.(*timerCtx)
 	pc.mu.Lock()
-	if len(pc.children) != 2 || !contains(pc.children, cc) || !contains(pc.children, tc) {
-		t.Errorf("bad linkage: pc.children = %v, want %v and %v",
+	var ac *afterFuncCtx
+	for c := range pc.children {
+		if a, ok := c.(*afterFuncCtx); ok {
+			ac = a
+			break
+		}
+	}
+	if len(pc.children) != 3 || !contains(pc.children, cc) || !contains(pc.children, tc) || ac == nil {
+		t.Errorf("bad linkage: pc.children = %v, want %v, %v, and an afterFunc",
 			pc.children, cc, tc)
 	}
 	pc.mu.Unlock()
@@ -79,6 +89,9 @@ func XTestParentFinishesChild(t testingT) {
 	}
 	if p, ok := parentCancelCtx(tc.Context); !ok || p != pc {
 		t.Errorf("bad linkage: parentCancelCtx(timerChild.Context) = %v, %v want %v, true", p, ok, pc)
+	}
+	if p, ok := parentCancelCtx(ac.Context); !ok || p != pc {
+		t.Errorf("bad linkage: parentCancelCtx(afterChild.Context) = %v, %v want %v, true", p, ok, pc)
 	}
 
 	cancel()
@@ -197,6 +210,13 @@ func XTestCancelRemoves(t testingT) {
 	checkChildren("with WithTimeout child ", ctx, 1)
 	cancel()
 	checkChildren("after canceling WithTimeout child", ctx, 0)
+
+	ctx, _ = WithCancel(Background())
+	checkChildren("after creation", ctx, 0)
+	stop := AfterFunc(ctx, func() {})
+	checkChildren("with AfterFunc child ", ctx, 1)
+	stop()
+	checkChildren("after stopping AfterFunc child ", ctx, 0)
 }
 
 type myCtx struct {
