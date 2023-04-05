@@ -34,7 +34,7 @@ var HelpPackages = &base.Command{
 	Long: `
 Many commands apply to a set of packages:
 
-	go action [packages]
+	go <action> [packages]
 
 Usually, [packages] is a list of import paths.
 
