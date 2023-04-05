@@ -4,17 +4,18 @@ package basiclit
 
 func _() {
 	_ = 'a' //@hover("'a'", "'a'", latinA)
-	_ = 0x61 //@hover("0x61", "0x61", latinA)
+	_ = 0x61 //@hover("0x61", "0x61", latinAHex)
 
 	_ = '\u2211' //@hover("'\\u2211'", "'\\u2211'", summation)
-	_ = 0x2211 //@hover("0x2211", "0x2211", summation)
+	_ = 0x2211 //@hover("0x2211", "0x2211", summationHex)
 	_ = "foo \u2211 bar" //@hover("\\u2211", "\\u2211", summation)
 
 	_ = '\a' //@hover("'\\a'", "'\\a'", control)
 	_ = "foo \a bar" //@hover("\\a", "\\a", control)
 
 	_ = '\U0001F30A' //@hover("'\\U0001F30A'", "'\\U0001F30A'", waterWave)
-	_ = 0x0001F30A //@hover("0x0001F30A", "0x0001F30A", waterWave)
+	_ = 0x0001F30A //@hover("0x0001F30A", "0x0001F30A", waterWaveHex)
+	_ = 0X0001F30A //@hover("0X0001F30A", "0X0001F30A", waterWaveHex)
 	_ = "foo \U0001F30A bar" //@hover("\\U0001F30A", "\\U0001F30A", waterWave)
 
 	_ = '\x7E' //@hover("'\\x7E'", "'\\x7E'", tilde)
@@ -44,17 +45,37 @@ func _() {
 	_ = 1.2 //@hover("1.2", _, _)
 	_ = 1.2i //@hover("1.2i", _, _)
 	_ = 0123 //@hover("0123", _, _)
-	_ = 0x1234567890 //@hover("0x1234567890", _, _)
+	_ = 0b1001 //@hover("0b", "0b1001", binaryNumber)
+	_ = 0B1001 //@hover("0B", "0B1001", binaryNumber)
+	_ = 0o77 //@hover("0o", "0o77", octalNumber)
+	_ = 0O77 //@hover("0O", "0O77", octalNumber)
+	_ = 0x1234567890 //@hover("0x1234567890", "0x1234567890", hexNumber)
+	_ = 0X1234567890 //@hover("0X1234567890", "0X1234567890", hexNumber)
+	_ = 0x1000000000000000000 //@hover("0x1", "0x1000000000000000000", bigHex)
 )
+-- @bigHex/hover.md --
+4722366482869645213696
+-- @binaryNumber/hover.md --
+9
 -- @control/hover.md --
 U+0007, control
+-- @hexNumber/hover.md --
+78187493520
 -- @latinA/hover.md --
 'a', U+0061, LATIN SMALL LETTER A
+-- @latinAHex/hover.md --
+97, 'a', U+0061, LATIN SMALL LETTER A
 -- @leftCurly/hover.md --
 '{', U+007B, LEFT CURLY BRACKET
+-- @octalNumber/hover.md --
+63
 -- @summation/hover.md --
 '∑', U+2211, N-ARY SUMMATION
+-- @summationHex/hover.md --
+8721, '∑', U+2211, N-ARY SUMMATION
 -- @tilde/hover.md --
 '~', U+007E, TILDE
 -- @waterWave/hover.md --
 '🌊', U+1F30A, WATER WAVE
+-- @waterWaveHex/hover.md --
+127754, '🌊', U+1F30A, WATER WAVE
