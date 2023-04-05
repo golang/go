@@ -26,7 +26,7 @@ type net_op struct {
 }
 
 type overlappedEntry struct {
-	key      uintptr
+	key      *pollDesc
 	op       *net_op // In reality it's *overlapped, but we cast it to *net_op anyway.
 	internal uintptr
 	qty      uint32
@@ -51,7 +51,7 @@ func netpollIsPollDescriptor(fd uintptr) bool {
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
-	if stdcall4(_CreateIoCompletionPort, fd, iocphandle, 0, 0) == 0 {
+	if stdcall4(_CreateIoCompletionPort, fd, iocphandle, uintptr(unsafe.Pointer(pd)), 0) == 0 {
 		return int32(getlasterror())
 	}
 	return 0
@@ -128,7 +128,7 @@ func netpoll(delay int64) gList {
 	mp.blocked = false
 	for i = 0; i < n; i++ {
 		op = entries[i].op
-		if op != nil {
+		if op != nil && op.pd == entries[i].key {
 			errno = 0
 			qty = 0
 			if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {

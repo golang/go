@@ -127,6 +127,12 @@ type IpAdapterAddresses struct {
 	/* more fields might be present here. */
 }
 
+type SecurityAttributes struct {
+	Length             uint16
+	SecurityDescriptor uintptr
+	InheritHandle      bool
+}
+
 type FILE_BASIC_INFO struct {
 	CreationTime   syscall.Filetime
 	LastAccessTime syscall.Filetime
@@ -370,6 +376,7 @@ func ErrorLoadingGetTempPath2() error {
 
 //sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
 //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
+//sys	CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle syscall.Handle, err error) = kernel32.CreateEventW
 
 //sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036
 
