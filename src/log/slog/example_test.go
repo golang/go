@@ -17,9 +17,7 @@ func ExampleGroup() {
 	// ...
 
 	logger := slog.New(slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}.NewTextHandler(os.Stdout))
-	slog.SetDefault(logger)
-
-	slog.Info("finished",
+	logger.Info("finished",
 		slog.Group("req",
 			slog.String("method", r.Method),
 			slog.String("url", r.URL.String())),
