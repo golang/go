@@ -7,6 +7,7 @@
 package ld
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -26,7 +27,7 @@ func TestFallocate(t *testing.T) {
 	// Try fallocate first.
 	for {
 		err = out.fallocate(1 << 10)
-		if err == syscall.EOPNOTSUPP { // The underlying file system may not support fallocate
+		if errors.Is(err, errors.ErrUnsupported) || err == errNoFallocate { // The underlying file system may not support fallocate
 			t.Skip("fallocate is not supported")
 		}
 		if err == syscall.EINTR {
