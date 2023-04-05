@@ -68,11 +68,11 @@ type PackageSet struct {
 type blockType = uint // type of each sparse vector element
 const blockSize = bits.UintSize
 
-// New creates a new PackageSet bound to this PackageIndex instance.
+// NewSet creates a new PackageSet bound to this PackageIndex instance.
 //
 // PackageSets may only be combined with other PackageSets from the same
 // instance.
-func (s *PackageIndex) New() *PackageSet {
+func (s *PackageIndex) NewSet() *PackageSet {
 	return &PackageSet{
 		parent: s,
 		sparse: make(map[int]blockType),

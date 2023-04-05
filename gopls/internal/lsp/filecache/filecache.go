@@ -72,8 +72,9 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 		return nil, ErrNotFound // cache entry is incomplete (or too long!)
 	}
 
-	// Check for corruption and print the entire file content as
-	// this may help us observe the pattern. See issue #59289.
+	// Check for corruption and print the entire file content; see
+	// issue #59289. TODO(adonovan): stop printing the entire file
+	// once we've seen enough reports to understand the pattern.
 	if binary.LittleEndian.Uint32(checksum) != crc32.ChecksumIEEE(value) {
 		return nil, bug.Errorf("internal error in filecache.Get(%q, %x): invalid checksum at end of %d-byte file %s:\n%q",
 			kind, key, len(data), name, data)
@@ -119,9 +120,10 @@ func Set(kind string, key [32]byte, value []byte) error {
 	// assumed due to a nonatomicity problem in the file system.
 	// Ideally the macOS kernel would be fixed, or lockedfile
 	// would implement a workaround (since its job is to provide
-	// reliable atomic file replacement atop kernels that don't),
-	// but for now we add an extra integrity check: a 32-bit
-	// checksum at the end.
+	// reliable the mutual exclusion primitive that allows
+	// cooperating gopls processes to implement transactional
+	// file replacement), but for now we add an extra integrity
+	// check: a 32-bit checksum at the end.
 	var checksum [4]byte
 	binary.LittleEndian.PutUint32(checksum[:], crc32.ChecksumIEEE(value))
 

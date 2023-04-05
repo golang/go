@@ -477,6 +477,23 @@ var B struct{ ext.B
 			},
 			allowErrs: true,
 		},
+		{
+			label: "SCC special case",
+			srcs: []string{`package p
+
+import "ext"
+
+type X Y
+type Y struct { Z; *X }
+type Z map[ext.A]ext.B
+`},
+			want: map[string][]string{
+				"X": {"ext.A", "ext.B"},
+				"Y": {"ext.A", "ext.B"},
+				"Z": {"ext.A", "ext.B"},
+			},
+			allowErrs: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -505,14 +522,21 @@ var B struct{ ext.B
 				}
 			}
 
+			data := typerefs.Encode(pgfs, "p", imports)
+
 			got := make(map[string][]string)
-			for name, refs := range typerefs.Refs(pgfs, "p", imports) {
-				var srefs []string
-				for _, ref := range refs {
-					srefs = append(srefs, fmt.Sprintf("%s.%s", ref.PkgID, ref.Name))
+			index := typerefs.NewPackageIndex()
+			for _, class := range typerefs.Decode(index, "p", data) {
+				// We redundantly expand out the name x refs cross product
+				// here since that's what the existing tests expect.
+				for _, name := range class.Decls {
+					var syms []string
+					for _, sym := range class.Refs {
+						syms = append(syms, fmt.Sprintf("%s.%s", sym.PackageID(index), sym.Name))
+					}
+					sort.Strings(syms)
+					got[name] = syms
 				}
-				sort.Strings(srefs)
-				got[name] = srefs
 			}
 
 			if diff := cmp.Diff(test.want, got); diff != "" {

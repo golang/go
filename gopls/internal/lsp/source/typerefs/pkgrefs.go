@@ -19,6 +19,9 @@ const (
 	//
 	// Warning: produces a lot of output! Best to run with small package queries.
 	trace = false
+
+	// debug enables additional assertions.
+	debug = false
 )
 
 // A Package holds reference information for a single package.
@@ -135,48 +138,48 @@ func (g *PackageGraph) buildPackage(ctx context.Context, id source.PackageID) (*
 	}
 
 	// Compute the symbol-level dependencies through this package.
-	//
-	// refs records syntactic edges between declarations in this
-	// package and declarations in this package or another
-	// package. See the package documentation for a detailed
-	// description of what these edges do (and do not) represent.
-	//
-	// TODO(adonovan): opt: serialize and deserialize the refs
-	// result computed above and persist it in the filecache.
-	refs := Refs(files, id, imports)
+	// TODO(adonovan): opt: persist this in the filecache, keyed
+	// by hash(id, CompiledGoFiles, imports).
+	data := Encode(files, id, imports)
 
 	//      This point separates the local preprocessing
 	//  --  of a single package (above) from the global   --
 	//      transitive reachability query (below).
 
+	// classes records syntactic edges between declarations in this
+	// package and declarations in this package or another
+	// package. See the package documentation for a detailed
+	// description of what these edges do (and do not) represent.
+	classes := Decode(g.pkgIndex, id, data)
+
+	idx := g.pkgIndex.idx(id)
+
 	// Now compute the transitive closure of packages reachable
 	// from any exported symbol of this package.
-	//
-	// TODO(adonovan): opt: many elements of refs[name] are
-	// identical, so this does redundant work. Choose a data type
-	// for the result of Refs() that expresses the M:N structure
-	// explicitly.
-	for name, nodes := range refs {
-		set := g.pkgIndex.New()
+	for _, class := range classes {
+		set := g.pkgIndex.NewSet()
 
-		// The nodes slice is sorted by (package, name),
+		// The Refs slice is sorted by (PackageID, name),
 		// so we can economize by calling g.Package only
 		// when the package id changes.
 		depP := p
-		for _, node := range nodes {
-			assert(node.PkgID != id, "intra-package edge")
-			if depP.metadata.ID != node.PkgID {
+		for _, sym := range class.Refs {
+			assert(sym.pkgIdx != idx, "intra-package edge")
+			symPkgID := g.pkgIndex.id(sym.pkgIdx)
+			if depP.metadata.ID != symPkgID {
 				// package changed
 				var err error
-				depP, err = g.Package(ctx, node.PkgID)
+				depP, err = g.Package(ctx, symPkgID)
 				if err != nil {
 					return nil, err
 				}
 			}
-			set.add(g.pkgIndex.idx(node.PkgID))
-			set.Union(depP.transitiveRefs[node.Name])
+			set.add(sym.pkgIdx)
+			set.Union(depP.transitiveRefs[sym.Name])
 		}
-		p.transitiveRefs[name] = set
+		for _, name := range class.Decls {
+			p.transitiveRefs[name] = set
+		}
 	}
 
 	// Finally compute the union of transitiveRefs
@@ -193,7 +196,7 @@ func (g *PackageGraph) buildPackage(ctx context.Context, id source.PackageID) (*
 // reachesByDeps computes the set of packages that are reachable through
 // dependencies of the package m.
 func (g *PackageGraph) reachesByDeps(ctx context.Context, m *source.Metadata) (*PackageSet, error) {
-	transitive := g.pkgIndex.New()
+	transitive := g.pkgIndex.NewSet()
 	for _, depID := range m.DepsByPkgPath {
 		dep, err := g.Package(ctx, depID)
 		if err != nil {

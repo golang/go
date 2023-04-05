@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package typerefs extracts from Go syntax a graph of symbol-level
-// dependencies, for the purpose of precise invalidation of package data.
+// Package typerefs extracts symbol-level reachability information
+// from the syntax of a Go package.
 //
 // # Background
 //
@@ -15,8 +15,8 @@
 // More precisely, for each package P we define the set of "reachable" packages
 // from P as the set of packages that may affect the (deep) export data of the
 // direct dependencies of P. By this definition, the complement of this set
-// cannot affect any information derived from type checking P (e.g.
-// diagnostics, cross references, or method sets). Therefore we need not
+// cannot affect any information derived from type checking P, such as
+// diagnostics, cross references, or method sets. Therefore we need not
 // invalidate any results for P when a package in the complement of this set
 // changes.
 //
@@ -26,11 +26,12 @@
 // dotted identifiers referenced in the declaration of D, that may affect
 // the type of D. However, these references reflect only local knowledge of the
 // package and its dependency metadata, and do not depend on any analysis of
-// the dependencies themselves.
+// the dependencies themselves. This allows the reference information for
+// a package to be cached independent of all others.
 //
 // Specifically, if a referring identifier I appears in the declaration, we
 // record an edge from D to each object possibly referenced by I. We search for
-// references within type syntax, but do not actual type-check, so we can't
+// references within type syntax, but do not actually type-check, so we can't
 // reliably determine whether an expression is a type or a term, or whether a
 // function is a builtin or generic. For example, the type of x in var x =
 // p.F(W) only depends on W if p.F is a builtin or generic function, which we
@@ -39,15 +40,16 @@
 //
 //   - If I is declared in the current package, record a reference to its
 //     declaration.
-//   - Else, if there are any dot-imported imports in the current file and I is
-//     exported, record a (possibly dangling) edge to the corresponding
-//     declaration in each dot-imported package.
+//   - Otherwise, if there are any dot imports in the current
+//     file and I is exported, record a (possibly dangling) edge to
+//     the corresponding declaration in each dot-imported package.
 //
 // If a dotted identifier q.I appears in the declaration, we
 // perform a similar operation:
+//
 //   - If q is declared in the current package, we record a reference to that
 //     object. It may be a var or const that has a field or method I.
-//   - Else, if q is a valid import name based on imports in the current file
+//   - Otherwise, if q is a valid import name based on imports in the current file
 //     and the provided metadata for dependency package names, record a
 //     reference to the object I in that package.
 //   - Additionally, handle the case where Q is exported, and Q.I may refer to
@@ -62,56 +64,49 @@
 // # Graph optimizations
 //
 // The references extracted from the syntax are used to construct
-// edges between declNodes. Edges are of two kinds: internal
-// references, from one package-level declaration to another; and
-// external references, from a symbol in this package to a symbol
-// imported from a direct dependency.
+// edges between nodes representing declarations. Edges are of two
+// kinds: internal references, from one package-level declaration to
+// another; and external references, from a symbol in this package to
+// a symbol imported from a direct dependency.
 //
 // Once the symbol reference graph is constructed, we find its
-// strongly connected components (SCCs) using Tarjan's algorithm. A
-// node from each SCC is chosen arbitrarily to be its representative,
-// and all the edges (internal and external) of the SCC are
-// accumulated into the representative, thus forming the strong
-// component graph, which is acyclic. This property simplifies the
-// logic and improves the efficiency of the reachability query.
+// strongly connected components (SCCs) using Tarjan's algorithm.
+// As we coalesce the nodes of each SCC we compute the union of
+// external references reached by each package-level declaration.
+// The final result is the mapping from each exported package-level
+// declaration to the set of external (imported) declarations that it
+// reaches.
 //
-// TODO(adonovan): opt: subsequent planned optimizations include:
+// Because it is common for many package members to have the same
+// reachability, the result takes the form of a set of equivalence
+// classes, each mapping a set of package-level declarations to a set
+// of external symbols. We use a hash table to canonicalize sets so that
+// repeated occurrences of the same set (which are common) are only
+// represented once in memory or in the file system.
+// For example, all declarations that ultimately reference only
+// {fmt.Println,strings.Join} would be classed as equivalent.
 //
-//   - The Hash-Value Numbering optimization described in
-//     Hardekopf and Lin; see golang.org/x/go/pointer/hvn.go for an
-//     implementation. (Like pointer analysis, our problem is
-//     fundamentally one of graph reachability.)
-//
-//     The "pointer equivalence" (PE) portion of this algorithm uses a
-//     hash table to create a mapping from unique sets of external
-//     references to small integers. Each of the n external symbols
-//     referenced by the package is assigned a integer from 1 to n;
-//     this number stands for a singleton set. Higher numbers refer to
-//     unions of strictly smaller sets. The PE algorithm allows us to
-//     coalesce redundant graph nodes. For example, all functions that
-//     ultimately reference only {fmt.Println,fmt.Sprintf} would be
-//     marked as equivalent to each other, and to the union of
-//     the sets of {fmt.Sprint} and {fmt.Println}.
-//
-//     This reduces the worst-case size of the Refs() result. Consider
-//     M decls that each reference type t, which references N imported
-//     types. The source code has O(M + N) lines but the Refs result
-//     is current O(M*N). Preserving the essential structure of the
-//     reference graph (as a DAG of union operations) will reduce the
-//     asymptote.
-//
-//   - Serializing the SC graph obtained each package and saving it in
-//     the file cache. Once we have a DAG of unions, we can serialize
-//     it easily and amortize the cost of the local preprocessing.
+// This approach was inspired by the Hash-Value Numbering (HVN)
+// optimization described by Hardekopf and Lin. See
+// golang.org/x/tools/go/pointer/hvn.go for an implementation. (Like
+// pointer analysis, this problem is fundamentally one of graph
+// reachability.) The HVN algorithm takes the compression a step
+// further by preserving the topology of the SCC DAG, in which edges
+// represent "is a superset of" constraints. Redundant edges that
+// don't increase the solution can be deleted. We could apply the same
+// technique here to further reduce the worst-case size of the result,
+// but the current implementation seems adequate.
 //
 // # API
 //
-// The main entry point for this analysis is the [Refs] function, which
-// implements the aforementioned syntactic analysis for a set of files
-// constituting a package.
+// The main entry point for this analysis is the [Encode] function,
+// which implements the analysis described above for one package, and
+// encodes the result as a binary message.
 //
-// These references use shared state to efficiently represent references, by
-// way of the [PackageIndex] and [PackageSet] types.
+// The [Decode] function decodes the message into a usable form: a set
+// of equivalence classes. The decoder uses a shared [PackageIndex] to
+// enable more compact representations of sets of packages
+// ([PackageSet]) during the global reacahability computation.
 //
 // The [BuildPackageGraph] constructor implements a whole-graph analysis similar
 // to that which will be implemented by gopls, but for various reasons the
@@ -120,7 +115,7 @@
 // BuildPackageGraph and its test serve to verify the syntactic analysis, and
 // may serve as a proving ground for new optimizations of the whole-graph analysis.
 //
-// # Comparison with export data
+// # Export data is insufficient
 //
 // At first it may seem that the simplest way to implement this analysis would
 // be to consider the types.Packages of the dependencies of P, for example
