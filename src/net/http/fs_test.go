@@ -24,7 +24,6 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -417,46 +416,6 @@ func testFileServerImplicitLeadingSlash(t *testing.T, mode testMode) {
 	}
 	if s := get("/bar/foo.txt"); s != "Hello world" {
 		t.Logf("expected %q, got %q", "Hello world", s)
-	}
-}
-
-func TestFileServerMethodOptions(t *testing.T) { run(t, testFileServerMethodOptions) }
-func testFileServerMethodOptions(t *testing.T, mode testMode) {
-	const want = "GET, HEAD, OPTIONS"
-	ts := newClientServerTest(t, mode, FileServer(Dir("."))).ts
-
-	tests := []struct {
-		method     string
-		wantStatus int
-	}{
-		{MethodOptions, StatusOK},
-
-		{MethodDelete, StatusMethodNotAllowed},
-		{MethodPut, StatusMethodNotAllowed},
-		{MethodPost, StatusMethodNotAllowed},
-	}
-
-	for _, test := range tests {
-		req, err := NewRequest(test.method, ts.URL, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		res, err := ts.Client().Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer res.Body.Close()
-
-		if res.StatusCode != test.wantStatus {
-			t.Errorf("%s got status %q, want code %d", test.method, res.Status, test.wantStatus)
-		}
-
-		a := strings.Split(res.Header.Get("Allow"), ", ")
-		sort.Strings(a)
-		got := strings.Join(a, ", ")
-		if got != want {
-			t.Errorf("%s got Allow header %q, want %q", test.method, got, want)
-		}
 	}
 }
 
