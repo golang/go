@@ -338,18 +338,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		r := v.Args[1].Reg()
 		var j1 *obj.Prog
 
+		var opCMP, opNEG, opSXD obj.As
+		switch v.Op {
+		case ssa.OpAMD64DIVQ:
+			opCMP, opNEG, opSXD = x86.ACMPQ, x86.ANEGQ, x86.ACQO
+		case ssa.OpAMD64DIVL:
+			opCMP, opNEG, opSXD = x86.ACMPL, x86.ANEGL, x86.ACDQ
+		case ssa.OpAMD64DIVW:
+			opCMP, opNEG, opSXD = x86.ACMPW, x86.ANEGW, x86.ACWD
+		}
+
 		// CPU faults upon signed overflow, which occurs when the most
 		// negative int is divided by -1. Handle divide by -1 as a special case.
 		if ssa.DivisionNeedsFixUp(v) {
-			var c *obj.Prog
-			switch v.Op {
-			case ssa.OpAMD64DIVQ:
-				c = s.Prog(x86.ACMPQ)
-			case ssa.OpAMD64DIVL:
-				c = s.Prog(x86.ACMPL)
-			case ssa.OpAMD64DIVW:
-				c = s.Prog(x86.ACMPW)
-			}
+			c := s.Prog(opCMP)
 			c.From.Type = obj.TYPE_REG
 			c.From.Reg = r
 			c.To.Type = obj.TYPE_CONST
@@ -358,17 +360,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			j1.To.Type = obj.TYPE_BRANCH
 		}
 
-		// Sign extend dividend.
-		switch v.Op {
-		case ssa.OpAMD64DIVQ:
-			s.Prog(x86.ACQO)
-		case ssa.OpAMD64DIVL:
-			s.Prog(x86.ACDQ)
-		case ssa.OpAMD64DIVW:
-			s.Prog(x86.ACWD)
-		}
-
-		// Issue divide.
+		// Sign extend dividend and perform division.
+		s.Prog(opSXD)
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
@@ -380,15 +373,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 			// Issue -1 fixup code.
 			// n / -1 = -n
-			var n1 *obj.Prog
-			switch v.Op {
-			case ssa.OpAMD64DIVQ:
-				n1 = s.Prog(x86.ANEGQ)
-			case ssa.OpAMD64DIVL:
-				n1 = s.Prog(x86.ANEGL)
-			case ssa.OpAMD64DIVW:
-				n1 = s.Prog(x86.ANEGW)
-			}
+			n1 := s.Prog(opNEG)
 			n1.To.Type = obj.TYPE_REG
 			n1.To.Reg = x86.REG_AX
 
