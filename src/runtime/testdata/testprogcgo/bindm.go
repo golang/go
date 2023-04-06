@@ -10,35 +10,7 @@
 package main
 
 /*
-#include <stdint.h>
-#include <pthread.h>
-#include <unistd.h>
-
-extern void GoCheckBindM();
-
-#define CTHREADS 2
-#define CHECKCALLS 100
-
-static void* checkBindMThread(void* thread) {
-	int i;
-	for (i = 0; i < CHECKCALLS; i++) {
-		GoCheckBindM((uintptr_t)thread);
-		usleep(1);
-	}
-	return NULL;
-}
-
-static void CheckBindM() {
-	int i;
-	pthread_t s[CTHREADS];
-
-	for (i = 0; i < CTHREADS; i++) {
-		pthread_create(&s[i], NULL, checkBindMThread, &s[i]);
-	}
-	for (i = 0; i < CTHREADS; i++) {
-		pthread_join(s[i], NULL);
-	}
-}
+extern void CheckBindM();
 */
 import "C"
 
