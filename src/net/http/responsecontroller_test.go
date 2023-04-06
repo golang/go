@@ -156,7 +156,9 @@ func TestResponseControllerSetPastReadDeadline(t *testing.T) {
 }
 func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
 	readc := make(chan struct{})
+	donec := make(chan struct{})
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		defer close(donec)
 		ctl := NewResponseController(w)
 		b := make([]byte, 3)
 		n, err := io.ReadFull(r.Body, b)
@@ -192,10 +194,15 @@ func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		defer pw.Close()
 		pw.Write([]byte("one"))
-		<-readc
+		select {
+		case <-readc:
+		case <-donec:
+			t.Errorf("server handler unexpectedly exited without closing readc")
+			return
+		}
 		pw.Write([]byte("two"))
-		pw.Close()
 	}()
 	defer wg.Wait()
 	res, err := cst.c.Post(cst.ts.URL, "text/foo", pr)
