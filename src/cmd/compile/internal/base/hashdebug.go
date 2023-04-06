@@ -138,6 +138,10 @@ func DebugHashMatch(pkgAndName string) bool {
 	return hashDebug.DebugHashMatch(pkgAndName)
 }
 
+func DebugHashMatchPos(pos src.XPos) bool {
+	return hashDebug.DebugHashMatchPos(pos)
+}
+
 // HasDebugHash returns true if Flags.Gossahash is non-empty, which
 // results in hashDebug being not-nil.  I.e., if !HasDebugHash(),
 // there is no need to create the string for hashing and testing.
@@ -317,7 +321,7 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
 // locking is also more frequent and more granular.
 // Note that the default answer for no environment variable (d == nil)
 // is "yes", do the thing.
-func (d *HashDebug) DebugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
+func (d *HashDebug) DebugHashMatchPos(pos src.XPos) bool {
 	if d == nil {
 		return true
 	}
@@ -325,7 +329,7 @@ func (d *HashDebug) DebugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
 		return false
 	}
 	// Written this way to make inlining likely.
-	return d.debugHashMatchPos(ctxt, pos)
+	return d.debugHashMatchPos(Ctxt, pos)
 }
 
 func (d *HashDebug) debugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {

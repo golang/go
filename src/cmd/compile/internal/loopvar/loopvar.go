@@ -71,7 +71,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 		// subject to hash-variable debugging.
 		maybeReplaceVar := func(k ir.Node, x *ir.RangeStmt) ir.Node {
 			if n, ok := k.(*ir.Name); ok && possiblyLeaked[n] {
-				if base.LoopVarHash.DebugHashMatchPos(base.Ctxt, n.Pos()) {
+				if base.LoopVarHash.DebugHashMatchPos(n.Pos()) {
 					// Rename the loop key, prefix body with assignment from loop key
 					transformed = append(transformed, n)
 					tk := typecheck.Temp(n.Type())
@@ -167,7 +167,7 @@ func ForCapture(fn *ir.Func) []*ir.Name {
 				forAllDefInInit(x, func(z ir.Node) {
 					if n, ok := z.(*ir.Name); ok && possiblyLeaked[n] {
 						// Hash on n.Pos() for most precise failure location.
-						if base.LoopVarHash.DebugHashMatchPos(base.Ctxt, n.Pos()) {
+						if base.LoopVarHash.DebugHashMatchPos(n.Pos()) {
 							leaked = append(leaked, n)
 						}
 					}

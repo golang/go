@@ -808,6 +808,5 @@ func (f *Func) useFMA(v *Value) bool {
 	if base.FmaHash == nil {
 		return true
 	}
-	ctxt := v.Block.Func.Config.Ctxt()
-	return base.FmaHash.DebugHashMatchPos(ctxt, v.Pos)
+	return base.FmaHash.DebugHashMatchPos(v.Pos)
 }
