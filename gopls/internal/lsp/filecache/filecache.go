@@ -26,6 +26,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log"
 	"os"
@@ -35,6 +36,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/lockedfile"
 )
 
@@ -62,13 +64,20 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 
 	// Verify that the Write was complete
 	// by checking the recorded length.
-	if len(data) < 8 {
+	if len(data) < 8+4 {
 		return nil, ErrNotFound // cache entry is incomplete
 	}
-	if length := binary.LittleEndian.Uint64(data); int(length) != len(data)-8 {
+	length, value, checksum := data[:8], data[8:len(data)-4], data[len(data)-4:]
+	if binary.LittleEndian.Uint64(length) != uint64(len(value)) {
 		return nil, ErrNotFound // cache entry is incomplete (or too long!)
 	}
-	data = data[8:]
+
+	// Check for corruption and print the entire file content as
+	// this may help us observe the pattern. See issue #59289.
+	if binary.LittleEndian.Uint32(checksum) != crc32.ChecksumIEEE(value) {
+		return nil, bug.Errorf("internal error in filecache.Get(%q, %x): invalid checksum at end of %d-byte file %s:\n%q",
+			kind, key, len(data), name, data)
+	}
 
 	// Update file time for use by LRU eviction.
 	// (This turns every read into a write operation.
@@ -84,7 +93,7 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to update access time: %w", err)
 	}
 
-	return data, nil
+	return value, nil
 }
 
 // ErrNotFound is the distinguished error
@@ -104,15 +113,28 @@ func Set(kind string, key [32]byte, value []byte) error {
 	// the expected length first and verify it in Get.
 	var length [8]byte
 	binary.LittleEndian.PutUint64(length[:], uint64(len(value)))
-	header := bytes.NewReader(length[:])
-	payload := bytes.NewReader(value)
+
+	// Occasional file corruption (presence of zero bytes in JSON
+	// files) has been reported on macOS (see issue #59289),
+	// assumed due to a nonatomicity problem in the file system.
+	// Ideally the macOS kernel would be fixed, or lockedfile
+	// would implement a workaround (since its job is to provide
+	// reliable atomic file replacement atop kernels that don't),
+	// but for now we add an extra integrity check: a 32-bit
+	// checksum at the end.
+	var checksum [4]byte
+	binary.LittleEndian.PutUint32(checksum[:], crc32.ChecksumIEEE(value))
 
 	// Windows doesn't support atomic rename--we tried MoveFile,
 	// MoveFileEx, ReplaceFileEx, and SetFileInformationByHandle
 	// of RenameFileInfo, all to no avail--so instead we use
 	// advisory file locking, which is only about 2x slower even
 	// on POSIX platforms with atomic rename.
-	return lockedfile.Write(name, io.MultiReader(header, payload), 0600)
+	return lockedfile.Write(name, io.MultiReader(
+		bytes.NewReader(length[:]),
+		bytes.NewReader(value),
+		bytes.NewReader(checksum[:])),
+		0600)
 }
 
 var budget int64 = 1e9 // 1GB
