@@ -430,7 +430,7 @@ func testConfHostLookupOrderNsswitch(t *testing.T, tests []lookupOrderTest) {
 				}
 
 				// Plan9, android, windows don't care about
-				// the possible system configuration or any runtime informations,
+				// the possible system configuration or any runtime information,
 				// so run all tests that where designed for other platforms,
 				// but just assert that it always returns the same order.
 				if os == "plan9" || os == "android" {
