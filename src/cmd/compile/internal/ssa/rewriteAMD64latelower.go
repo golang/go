@@ -51,9 +51,8 @@ func rewriteValueAMD64latelower_OpAMD64LEAL1(v *Value) bool {
 	b := v.Block
 	// match: (LEAL1 <t> [c] {s} x y)
 	// cond: isPtr(x.Type) && c != 0 && s == nil
-	// result: (ADDL x (ADDLconst <t> [c] y))
+	// result: (ADDL x (ADDLconst <y.Type> [c] y))
 	for {
-		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -63,7 +62,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAL1(v *Value) bool {
 				continue
 			}
 			v.reset(OpAMD64ADDL)
-			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, t)
+			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, y.Type)
 			v0.AuxInt = int32ToAuxInt(c)
 			v0.AddArg(y)
 			v.AddArg2(x, v0)
@@ -73,9 +72,8 @@ func rewriteValueAMD64latelower_OpAMD64LEAL1(v *Value) bool {
 	}
 	// match: (LEAL1 <t> [c] {s} x y)
 	// cond: !isPtr(x.Type) && c != 0 && s == nil
-	// result: (ADDL y (ADDLconst <t> [c] x))
+	// result: (ADDL y (ADDLconst <x.Type> [c] x))
 	for {
-		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -85,7 +83,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAL1(v *Value) bool {
 				continue
 			}
 			v.reset(OpAMD64ADDL)
-			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, t)
+			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, x.Type)
 			v0.AuxInt = int32ToAuxInt(c)
 			v0.AddArg(x)
 			v.AddArg2(y, v0)
@@ -101,7 +99,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAL2(v *Value) bool {
 	b := v.Block
 	// match: (LEAL2 <t> [c] {s} x y)
 	// cond: !isPtr(t) && c != 0 && s == nil
-	// result: (ADDLconst [c] (LEAL2 <t> x y))
+	// result: (ADDLconst [c] (LEAL2 <x.Type> x y))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
@@ -113,7 +111,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAL2(v *Value) bool {
 		}
 		v.reset(OpAMD64ADDLconst)
 		v.AuxInt = int32ToAuxInt(c)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, t)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAL2, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -126,7 +124,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAL4(v *Value) bool {
 	b := v.Block
 	// match: (LEAL4 <t> [c] {s} x y)
 	// cond: !isPtr(t) && c != 0 && s == nil
-	// result: (ADDLconst [c] (LEAL4 <t> x y))
+	// result: (ADDLconst [c] (LEAL4 <x.Type> x y))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
@@ -138,7 +136,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAL4(v *Value) bool {
 		}
 		v.reset(OpAMD64ADDLconst)
 		v.AuxInt = int32ToAuxInt(c)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, t)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAL4, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -151,7 +149,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAL8(v *Value) bool {
 	b := v.Block
 	// match: (LEAL8 <t> [c] {s} x y)
 	// cond: !isPtr(t) && c != 0 && s == nil
-	// result: (ADDLconst [c] (LEAL8 <t> x y))
+	// result: (ADDLconst [c] (LEAL8 <x.Type> x y))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
@@ -163,7 +161,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAL8(v *Value) bool {
 		}
 		v.reset(OpAMD64ADDLconst)
 		v.AuxInt = int32ToAuxInt(c)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, t)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAL8, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -176,9 +174,8 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ1(v *Value) bool {
 	b := v.Block
 	// match: (LEAQ1 <t> [c] {s} x y)
 	// cond: isPtr(x.Type) && c != 0 && s == nil
-	// result: (ADDQ x (ADDQconst <t> [c] y))
+	// result: (ADDQ x (ADDQconst <y.Type> [c] y))
 	for {
-		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -188,7 +185,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ1(v *Value) bool {
 				continue
 			}
 			v.reset(OpAMD64ADDQ)
-			v0 := b.NewValue0(v.Pos, OpAMD64ADDQconst, t)
+			v0 := b.NewValue0(v.Pos, OpAMD64ADDQconst, y.Type)
 			v0.AuxInt = int32ToAuxInt(c)
 			v0.AddArg(y)
 			v.AddArg2(x, v0)
@@ -198,9 +195,8 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ1(v *Value) bool {
 	}
 	// match: (LEAQ1 <t> [c] {s} x y)
 	// cond: !isPtr(x.Type) && c != 0 && s == nil
-	// result: (ADDQ y (ADDQconst <t> [c] x))
+	// result: (ADDQ y (ADDQconst <x.Type> [c] x))
 	for {
-		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -210,7 +206,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ1(v *Value) bool {
 				continue
 			}
 			v.reset(OpAMD64ADDQ)
-			v0 := b.NewValue0(v.Pos, OpAMD64ADDQconst, t)
+			v0 := b.NewValue0(v.Pos, OpAMD64ADDQconst, x.Type)
 			v0.AuxInt = int32ToAuxInt(c)
 			v0.AddArg(x)
 			v.AddArg2(y, v0)
@@ -226,7 +222,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ2(v *Value) bool {
 	b := v.Block
 	// match: (LEAQ2 <t> [c] {s} x y)
 	// cond: !isPtr(t) && c != 0 && s == nil
-	// result: (ADDQconst [c] (LEAQ2 <t> x y))
+	// result: (ADDQconst [c] (LEAQ2 <x.Type> x y))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
@@ -238,7 +234,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ2(v *Value) bool {
 		}
 		v.reset(OpAMD64ADDQconst)
 		v.AuxInt = int32ToAuxInt(c)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, t)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ2, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -251,7 +247,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ4(v *Value) bool {
 	b := v.Block
 	// match: (LEAQ4 <t> [c] {s} x y)
 	// cond: !isPtr(t) && c != 0 && s == nil
-	// result: (ADDQconst [c] (LEAQ4 <t> x y))
+	// result: (ADDQconst [c] (LEAQ4 <x.Type> x y))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
@@ -263,7 +259,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ4(v *Value) bool {
 		}
 		v.reset(OpAMD64ADDQconst)
 		v.AuxInt = int32ToAuxInt(c)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, t)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ4, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -276,7 +272,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ8(v *Value) bool {
 	b := v.Block
 	// match: (LEAQ8 <t> [c] {s} x y)
 	// cond: !isPtr(t) && c != 0 && s == nil
-	// result: (ADDQconst [c] (LEAQ8 <t> x y))
+	// result: (ADDQconst [c] (LEAQ8 <x.Type> x y))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
@@ -288,7 +284,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAQ8(v *Value) bool {
 		}
 		v.reset(OpAMD64ADDQconst)
 		v.AuxInt = int32ToAuxInt(c)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, t)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAQ8, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -301,9 +297,8 @@ func rewriteValueAMD64latelower_OpAMD64LEAW1(v *Value) bool {
 	b := v.Block
 	// match: (LEAW1 <t> [c] {s} x y)
 	// cond: isPtr(x.Type) && c != 0 && s == nil
-	// result: (ADDL x (ADDLconst <t> [c] y))
+	// result: (ADDL x (ADDLconst <y.Type> [c] y))
 	for {
-		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -313,7 +308,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAW1(v *Value) bool {
 				continue
 			}
 			v.reset(OpAMD64ADDL)
-			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, t)
+			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, y.Type)
 			v0.AuxInt = int32ToAuxInt(c)
 			v0.AddArg(y)
 			v.AddArg2(x, v0)
@@ -323,9 +318,8 @@ func rewriteValueAMD64latelower_OpAMD64LEAW1(v *Value) bool {
 	}
 	// match: (LEAW1 <t> [c] {s} x y)
 	// cond: !isPtr(x.Type) && c != 0 && s == nil
-	// result: (ADDL y (ADDLconst <t> [c] x))
+	// result: (ADDL y (ADDLconst <x.Type> [c] x))
 	for {
-		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
 		s := auxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -335,7 +329,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAW1(v *Value) bool {
 				continue
 			}
 			v.reset(OpAMD64ADDL)
-			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, t)
+			v0 := b.NewValue0(v.Pos, OpAMD64ADDLconst, x.Type)
 			v0.AuxInt = int32ToAuxInt(c)
 			v0.AddArg(x)
 			v.AddArg2(y, v0)
@@ -351,7 +345,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAW2(v *Value) bool {
 	b := v.Block
 	// match: (LEAW2 <t> [c] {s} x y)
 	// cond: !isPtr(t) && c != 0 && s == nil
-	// result: (ADDLconst [c] (LEAW2 <t> x y))
+	// result: (ADDLconst [c] (LEAW2 <x.Type> x y))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
@@ -363,7 +357,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAW2(v *Value) bool {
 		}
 		v.reset(OpAMD64ADDLconst)
 		v.AuxInt = int32ToAuxInt(c)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAW2, t)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAW2, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -376,7 +370,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAW4(v *Value) bool {
 	b := v.Block
 	// match: (LEAW4 <t> [c] {s} x y)
 	// cond: !isPtr(t) && c != 0 && s == nil
-	// result: (ADDLconst [c] (LEAW4 <t> x y))
+	// result: (ADDLconst [c] (LEAW4 <x.Type> x y))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
@@ -388,7 +382,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAW4(v *Value) bool {
 		}
 		v.reset(OpAMD64ADDLconst)
 		v.AuxInt = int32ToAuxInt(c)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAW4, t)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAW4, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -401,7 +395,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAW8(v *Value) bool {
 	b := v.Block
 	// match: (LEAW8 <t> [c] {s} x y)
 	// cond: !isPtr(t) && c != 0 && s == nil
-	// result: (ADDLconst [c] (LEAW8 <t> x y))
+	// result: (ADDLconst [c] (LEAW8 <x.Type> x y))
 	for {
 		t := v.Type
 		c := auxIntToInt32(v.AuxInt)
@@ -413,7 +407,7 @@ func rewriteValueAMD64latelower_OpAMD64LEAW8(v *Value) bool {
 		}
 		v.reset(OpAMD64ADDLconst)
 		v.AuxInt = int32ToAuxInt(c)
-		v0 := b.NewValue0(v.Pos, OpAMD64LEAW8, t)
+		v0 := b.NewValue0(v.Pos, OpAMD64LEAW8, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
