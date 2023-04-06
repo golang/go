@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -87,6 +88,21 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
 			if _, err := Run(r.dir, "git", "remote", "add", "origin", "--", r.remote); err != nil {
 				os.RemoveAll(r.dir)
 				return nil, err
+			}
+			if runtime.GOOS == "windows" {
+				// Git for Windows by default does not support paths longer than
+				// MAX_PATH (260 characters) because that may interfere with navigation
+				// in some Windows programs. However, cmd/go should be able to handle
+				// long paths just fine, and we expect people to use 'go clean' to
+				// manipulate the module cache, so it should be harmless to set here,
+				// and in some cases may be necessary in order to download modules with
+				// long branch names.
+				//
+				// See https://github.com/git-for-windows/git/wiki/Git-cannot-create-a-file-or-directory-with-a-long-path.
+				if _, err := Run(r.dir, "git", "config", "core.longpaths", "true"); err != nil {
+					os.RemoveAll(r.dir)
+					return nil, err
+				}
 			}
 		}
 		r.remoteURL = r.remote
