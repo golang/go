@@ -1476,6 +1476,7 @@ var unaryDst = map[obj.As]bool{
 	ARDFSBASEQ:  true,
 	ARDGSBASEL:  true,
 	ARDGSBASEQ:  true,
+	ARDPID:      true,
 	ARDRANDL:    true,
 	ARDRANDQ:    true,
 	ARDRANDW:    true,

@@ -144,4 +144,7 @@ TEXT errors(SB),$0
 	VMOVDQA32.Z Z0, Z1               // ERROR "mask register must be specified for .Z instructions"
 	VMOVDQA32.Z Z0, K0, Z1           // ERROR "invalid instruction"
 	VMOVDQA32.Z Z0, K1, Z1           // ok
+
+	RDPID (BX)			 // ERROR "invalid instruction"
+
 	RET
