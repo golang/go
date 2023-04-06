@@ -120,7 +120,7 @@ const (
 
 	// Compiled with support for both the cgo and go resolver.
 	// The cgo resolver is preferrd over the go resolver,
-	// unless explicity forced by (*Resolver).PreferGo = true.
+	// unless explicitly forced by (*Resolver).PreferGo = true.
 	resolverCgo
 )
 

@@ -494,7 +494,7 @@ func TestConfHostLookupOrderNsswitch(t *testing.T) {
 		orderResovlerDynamic hostLookupOrder
 		orderResovlerGo      hostLookupOrder
 
-		// solaris has different handing for emtpy (hosts) and non-existent nsswitch.conf.
+		// solaris has different handing for empty (hosts) and non-existent nsswitch.conf.
 		solarisResolverDynamic hostLookupOrder
 	}{
 		{"", "hosts: files dns", hostLookupFilesDNS, hostLookupFilesDNS, hostLookupFilesDNS},

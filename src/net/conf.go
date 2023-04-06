@@ -112,7 +112,7 @@ func initConfVal() {
 
 	if confVal.resolver == resolverDynamic {
 		// If any environment-specified resolver options are specified,
-		// force cgo (when avaliable). Note that LOCALDOMAIN can change behavior merely
+		// force cgo (when available). Note that LOCALDOMAIN can change behavior merely
 		// by being specified with the empty string.
 		_, localDomainDefined := syscall.Getenv("LOCALDOMAIN")
 		if os.Getenv("RES_OPTIONS") != "" ||
@@ -168,7 +168,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 
 		order, conf := c.unixResolverOrder(r, hostname)
 		if order == hostLookupCgo {
-			// Something unsupported in the configuraion/hostname detected, but
+			// Something unsupported in the configuration/hostname detected, but
 			// we don't have cgo support, so try with the go resolver instead,
 			// can't do any better at this point.
 			return hostLookupFilesDNS, conf
