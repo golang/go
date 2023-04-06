@@ -47,17 +47,13 @@ func initConfVal() {
 	if confVal.dnsDebugLevel > 0 {
 		defer func() {
 			if confVal.dnsDebugLevel > 1 {
-				if defaultResolver == resolverDynamic || defaultResolver == resolverCgo {
-					println("go package net: compiled with support for the go and cgo resolver")
-				} else {
-					println("go package net: compiled with support for the go resolver")
-				}
+				println("go package net: default resolver is ", defaultResolver.String())
 			}
 
 			switch confVal.resolver {
 			case resolverGo:
 				if goDebug {
-					println("go package net: GODEBUG setting: forcing the use of Go resolver")
+					println("go package net: GODEBUG setting forcing use of Go's resolver")
 				} else {
 					println("go package net: using the Go resolver")
 				}
