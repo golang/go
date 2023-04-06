@@ -847,7 +847,7 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags unwindFlags) {
 	// Rejected approaches:
 	//
 	// - Do two passes where the first pass just counts and the second pass does
-	//   all the printing. This is undesireable if the stack is corrupted or changing
+	//   all the printing. This is undesirable if the stack is corrupted or changing
 	//   because we won't see a partial stack if we panic.
 	//
 	// - Keep a ring buffer of the last N logical frames and use this to print
@@ -912,7 +912,7 @@ func traceback1(pc, sp, lr uintptr, gp *g, flags unwindFlags) {
 // logical frames, after which it prints at most "max" logical frames. It
 // returns n, which is the number of logical frames skipped and printed, and
 // lastN, which is the number of logical frames skipped or printed just in the
-// phyiscal frame that u references.
+// physical frame that u references.
 func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 	// commitFrame commits to a logical frame and returns whether this frame
 	// should be printed and whether iteration should stop.
