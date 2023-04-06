@@ -306,7 +306,7 @@ func (c *Cache) used(file string) {
 }
 
 // Trim removes old cache entries that are likely not to be reused.
-func (c *Cache) Trim() {
+func (c *Cache) Trim() error {
 	now := c.now()
 
 	// We maintain in dir/trim.txt the time of the last completed cache trim.
@@ -320,7 +320,7 @@ func (c *Cache) Trim() {
 		if t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
 			lastTrim := time.Unix(t, 0)
 			if d := now.Sub(lastTrim); d < trimInterval && d > -mtimeInterval {
-				return
+				return nil
 			}
 		}
 	}
@@ -339,8 +339,10 @@ func (c *Cache) Trim() {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "%d", now.Unix())
 	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0666); err != nil {
-		return
+		return err
 	}
+
+	return nil
 }
 
 // trimSubdir trims a single cache subdirectory.

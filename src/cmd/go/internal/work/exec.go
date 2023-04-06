@@ -75,7 +75,11 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 	if !b.IsCmdList {
 		// If we're doing real work, take time at the end to trim the cache.
 		c := cache.Default()
-		defer c.Trim()
+		defer func() {
+			if err := c.Trim(); err != nil {
+				base.Fatalf("go: failed to trim cache: %v", err)
+			}
+		}()
 	}
 
 	// Build list of all actions, assigning depth-first post-order priority.
