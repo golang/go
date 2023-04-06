@@ -87,15 +87,39 @@ func testServeFile(t *testing.T, mode testMode) {
 	if req.URL, err = url.Parse(ts.URL); err != nil {
 		t.Fatal("ParseURL:", err)
 	}
-	req.Method = "GET"
 
-	// straight GET
-	_, body := getBody(t, "straight get", req, c)
-	if !bytes.Equal(body, file) {
-		t.Fatalf("body mismatch: got %q, want %q", body, file)
+	// Get contents via various methods.
+	//
+	// See https://go.dev/issue/59471 for a proposal to limit the set of methods handled.
+	// For now, test the historical behavior.
+	for _, method := range []string{
+		MethodGet,
+		MethodPost,
+		MethodPut,
+		MethodPatch,
+		MethodDelete,
+		MethodOptions,
+		MethodTrace,
+	} {
+		req.Method = method
+		_, body := getBody(t, method, req, c)
+		if !bytes.Equal(body, file) {
+			t.Fatalf("body mismatch for %v request: got %q, want %q", method, body, file)
+		}
+	}
+
+	// HEAD request.
+	req.Method = MethodHead
+	resp, body := getBody(t, "HEAD", req, c)
+	if len(body) != 0 {
+		t.Fatalf("body mismatch for HEAD request: got %q, want empty", body)
+	}
+	if got, want := resp.Header.Get("Content-Length"), fmt.Sprint(len(file)); got != want {
+		t.Fatalf("Content-Length mismatch for HEAD request: got %v, want %v", got, want)
 	}
 
 	// Range tests
+	req.Method = MethodGet
 Cases:
 	for _, rt := range ServeFileRangeTests {
 		if rt.r != "" {
@@ -1519,5 +1543,54 @@ func testServeFileRejectsInvalidSuffixLengths(t *testing.T, mode testMode) {
 				t.Fatalf("Content mismatch:\nGot:  %q\nWant: %q", g, w)
 			}
 		})
+	}
+}
+
+func TestFileServerMethods(t *testing.T) {
+	run(t, testFileServerMethods)
+}
+func testFileServerMethods(t *testing.T, mode testMode) {
+	ts := newClientServerTest(t, mode, FileServer(Dir("testdata"))).ts
+
+	file, err := os.ReadFile(testFile)
+	if err != nil {
+		t.Fatal("reading file:", err)
+	}
+
+	// Get contents via various methods.
+	//
+	// See https://go.dev/issue/59471 for a proposal to limit the set of methods handled.
+	// For now, test the historical behavior.
+	for _, method := range []string{
+		MethodGet,
+		MethodHead,
+		MethodPost,
+		MethodPut,
+		MethodPatch,
+		MethodDelete,
+		MethodOptions,
+		MethodTrace,
+	} {
+		req, _ := NewRequest(method, ts.URL+"/file", nil)
+		t.Log(req.URL)
+		res, err := ts.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantBody := file
+		if method == MethodHead {
+			wantBody = nil
+		}
+		if !bytes.Equal(body, wantBody) {
+			t.Fatalf("%v: got body %q, want %q", method, body, wantBody)
+		}
+		if got, want := res.Header.Get("Content-Length"), fmt.Sprint(len(file)); got != want {
+			t.Fatalf("%v: got Content-Length %q, want %q", method, got, want)
+		}
 	}
 }
