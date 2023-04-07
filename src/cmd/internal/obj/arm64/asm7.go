@@ -1015,8 +1015,9 @@ var sysInstFields = map[SpecialOperand]struct {
 // Used for padding NOOP instruction
 const OP_NOOP = 0xd503201f
 
-// align code to a certain length by padding bytes.
-func pcAlignPadLength(pc int64, alignedValue int64, ctxt *obj.Link) int {
+// pcAlignPadLength returns the number of bytes required to align pc to alignedValue,
+// reporting an error if alignedValue is not a power of two or is out of range.
+func pcAlignPadLength(ctxt *obj.Link, pc int64, alignedValue int64) int {
 	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
 		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", alignedValue)
 	}
@@ -1075,7 +1076,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			switch p.As {
 			case obj.APCALIGN:
 				alignedValue := p.From.Offset
-				m = pcAlignPadLength(pc, alignedValue, ctxt)
+				m = pcAlignPadLength(ctxt, pc, alignedValue)
 				// Update the current text symbol alignment value.
 				if int32(alignedValue) > cursym.Func().Align {
 					cursym.Func().Align = int32(alignedValue)
@@ -1150,7 +1151,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				switch p.As {
 				case obj.APCALIGN:
 					alignedValue := p.From.Offset
-					m = pcAlignPadLength(pc, alignedValue, ctxt)
+					m = pcAlignPadLength(ctxt, pc, alignedValue)
 					break
 				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
 					continue
@@ -1183,7 +1184,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 		if p.As == obj.APCALIGN {
 			alignedValue := p.From.Offset
-			v := pcAlignPadLength(p.Pc, alignedValue, c.ctxt)
+			v := pcAlignPadLength(c.ctxt, p.Pc, alignedValue)
 			for i = 0; i < int(v/4); i++ {
 				// emit ANOOP instruction by the padding size
 				c.ctxt.Arch.ByteOrder.PutUint32(bp, OP_NOOP)
