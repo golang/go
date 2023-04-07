@@ -3402,9 +3402,13 @@ func (c byteFromChanReader) Read(p []byte) (n int, err error) {
 // questionable state.
 // golang.org/issue/7569
 func TestTransportNoReuseAfterEarlyResponse(t *testing.T) {
-	run(t, testTransportNoReuseAfterEarlyResponse, []testMode{http1Mode})
+	run(t, testTransportNoReuseAfterEarlyResponse, []testMode{http1Mode}, testNotParallel)
 }
 func testTransportNoReuseAfterEarlyResponse(t *testing.T, mode testMode) {
+	defer func(d time.Duration) {
+		*MaxWriteWaitBeforeConnReuse = d
+	}(*MaxWriteWaitBeforeConnReuse)
+	*MaxWriteWaitBeforeConnReuse = 10 * time.Millisecond
 	var sconn struct {
 		sync.Mutex
 		c net.Conn
@@ -3631,13 +3635,13 @@ func testRetryRequestsOnError(t *testing.T, mode testMode) {
 				req := tc.req()
 				res, err := c.Do(req)
 				if err != nil {
-					if time.Since(t0) < MaxWriteWaitBeforeConnReuse/2 {
+					if time.Since(t0) < *MaxWriteWaitBeforeConnReuse/2 {
 						mu.Lock()
 						got := logbuf.String()
 						mu.Unlock()
 						t.Fatalf("i=%d: Do = %v; log:\n%s", i, err, got)
 					}
-					t.Skipf("connection likely wasn't recycled within %d, interfering with actual test; skipping", MaxWriteWaitBeforeConnReuse)
+					t.Skipf("connection likely wasn't recycled within %d, interfering with actual test; skipping", *MaxWriteWaitBeforeConnReuse)
 				}
 				res.Body.Close()
 				if res.Request != req {

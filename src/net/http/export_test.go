@@ -36,7 +36,7 @@ var (
 	Export_is408Message               = is408Message
 )
 
-const MaxWriteWaitBeforeConnReuse = maxWriteWaitBeforeConnReuse
+var MaxWriteWaitBeforeConnReuse = &maxWriteWaitBeforeConnReuse
 
 func init() {
 	// We only want to pay for this cost during testing.
