@@ -34,7 +34,8 @@ func Example_wrapping() {
 		}
 		// Remove the directory from the source's filename.
 		if a.Key == slog.SourceKey {
-			a.Value = slog.StringValue(filepath.Base(a.Value.String()))
+			source := a.Value.Any().(*slog.Source)
+			source.File = filepath.Base(source.File)
 		}
 		return a
 	}
@@ -42,5 +43,5 @@ func Example_wrapping() {
 	Infof(logger, "message, %s", "formatted")
 
 	// Output:
-	// level=INFO source=example_wrap_test.go:42 msg="message, formatted"
+	// level=INFO source=example_wrap_test.go:43 msg="message, formatted"
 }

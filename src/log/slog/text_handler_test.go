@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -121,32 +120,6 @@ func (t text) MarshalText() ([]byte, error) {
 		return nil, errors.New("text: empty string")
 	}
 	return []byte(fmt.Sprintf("text{%q}", t.s)), nil
-}
-
-func TestTextHandlerSource(t *testing.T) {
-	var buf bytes.Buffer
-	h := HandlerOptions{AddSource: true}.NewTextHandler(&buf)
-	r := NewRecord(testTime, LevelInfo, "m", callerPC(2))
-	if err := h.Handle(context.Background(), r); err != nil {
-		t.Fatal(err)
-	}
-	if got := buf.String(); !sourceRegexp.MatchString(got) {
-		t.Errorf("got\n%q\nwanted to match %s", got, sourceRegexp)
-	}
-}
-
-var sourceRegexp = regexp.MustCompile(`source="?([A-Z]:)?[^:]+text_handler_test\.go:\d+"? msg`)
-
-func TestSourceRegexp(t *testing.T) {
-	for _, s := range []string{
-		`source=/tmp/path/to/text_handler_test.go:23 msg=m`,
-		`source=C:\windows\path\text_handler_test.go:23 msg=m"`,
-		`source="/tmp/tmp.XcGZ9cG9Xb/with spaces/exp/slog/text_handler_test.go:95" msg=m`,
-	} {
-		if !sourceRegexp.MatchString(s) {
-			t.Errorf("failed to match %s", s)
-		}
-	}
 }
 
 func TestTextHandlerPreformatted(t *testing.T) {

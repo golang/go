@@ -155,23 +155,20 @@ func TestAttrs(t *testing.T) {
 	check(attrsSlice(h.r), Int("c", 3))
 }
 
-func sourceLine(r Record) (string, int) {
-	f := r.frame()
-	return f.File, f.Line
-}
-
 func TestCallDepth(t *testing.T) {
 	h := &captureHandler{}
 	var startLine int
 
 	check := func(count int) {
 		t.Helper()
+		const wantFunc = "log/slog.TestCallDepth"
 		const wantFile = "logger_test.go"
 		wantLine := startLine + count*2
-		gotFile, gotLine := sourceLine(h.r)
-		gotFile = filepath.Base(gotFile)
-		if gotFile != wantFile || gotLine != wantLine {
-			t.Errorf("got (%s, %d), want (%s, %d)", gotFile, gotLine, wantFile, wantLine)
+		got := h.r.source()
+		gotFile := filepath.Base(got.File)
+		if got.Function != wantFunc || gotFile != wantFile || got.Line != wantLine {
+			t.Errorf("got (%s, %s, %d), want (%s, %s, %d)",
+				got.Function, gotFile, got.Line, wantFunc, wantFile, wantLine)
 		}
 	}
 

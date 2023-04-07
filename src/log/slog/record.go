@@ -63,15 +63,6 @@ func NewRecord(t time.Time, level Level, msg string, pc uintptr) Record {
 	}
 }
 
-// frame returns the runtime.Frame of the log event.
-// If the Record was created without the necessary information,
-// or if the location is unavailable, it returns a zero Frame.
-func (r Record) frame() runtime.Frame {
-	fs := runtime.CallersFrames([]uintptr{r.PC})
-	f, _ := fs.Next()
-	return f
-}
-
 // Clone returns a copy of the record with no shared state.
 // The original record and the clone can both be modified
 // without interfering with each other.
@@ -167,5 +158,49 @@ func argsToAttr(args []any) (Attr, []any) {
 
 	default:
 		return Any(badKey, x), args[1:]
+	}
+}
+
+// Source describes the location of a line of source code.
+type Source struct {
+	// Function is the package path-qualified function name containing the
+	// source line. If non-empty, this string uniquely identifies a single
+	// function in the program. This may be the empty string if not known.
+	Function string
+	// File and Line are the file name and line number (1-based) of the source
+	// line. These may be the empty string and zero, respectively, if not known.
+	File string
+	Line int
+}
+
+// attrs returns the non-zero fields of s as a slice of attrs.
+// It is similar to a LogValue method, but we don't want Source
+// to implement LogValuer because it would be resolved before
+// the ReplaceAttr function was called.
+func (s *Source) group() Value {
+	var as []Attr
+	if s.Function != "" {
+		as = append(as, String("function", s.Function))
+	}
+	if s.File != "" {
+		as = append(as, String("file", s.File))
+	}
+	if s.Line != 0 {
+		as = append(as, Int("line", s.Line))
+	}
+	return GroupValue(as...)
+}
+
+// source returns a Source for the log event.
+// If the Record was created without the necessary information,
+// or if the location is unavailable, it returns a non-nil *Source
+// with zero fields.
+func (r Record) source() *Source {
+	fs := runtime.CallersFrames([]uintptr{r.PC})
+	f, _ := fs.Next()
+	return &Source{
+		Function: f.Function,
+		File:     f.File,
+		Line:     f.Line,
 	}
 }

@@ -127,10 +127,8 @@ func (h *defaultHandler) WithGroup(name string) Handler {
 // HandlerOptions are options for a TextHandler or JSONHandler.
 // A zero HandlerOptions consists entirely of default values.
 type HandlerOptions struct {
-	// When AddSource is true, the handler adds a ("source", "file:line")
-	// attribute to the output indicating the source code position of the log
-	// statement. AddSource is false by default to skip the cost of computing
-	// this information.
+	// AddSource causes the handler to compute the source code position
+	// of the log statement and add a SourceKey attribute to the output.
 	AddSource bool
 
 	// Level reports the minimum record level that will be logged.
@@ -282,22 +280,7 @@ func (h *commonHandler) handle(r Record) error {
 	}
 	// source
 	if h.opts.AddSource {
-		frame := r.frame()
-		if frame.File != "" {
-			key := SourceKey
-			if rep == nil {
-				state.appendKey(key)
-				state.appendSource(frame.File, frame.Line)
-			} else {
-				buf := buffer.New()
-				buf.WriteString(frame.File) // TODO: escape?
-				buf.WriteByte(':')
-				buf.WritePosInt(frame.Line)
-				s := buf.String()
-				buf.Free()
-				state.appendAttr(String(key, s))
-			}
-		}
+		state.appendAttr(Any(SourceKey, r.source()))
 	}
 	key = MessageKey
 	msg := r.Message
@@ -452,6 +435,16 @@ func (s *handleState) appendAttr(a Attr) {
 	if a.isEmpty() {
 		return
 	}
+	// Special case: Source.
+	if v := a.Value; v.Kind() == KindAny {
+		if src, ok := v.Any().(*Source); ok {
+			if s.h.json {
+				a.Value = src.group()
+			} else {
+				a.Value = StringValue(fmt.Sprintf("%s:%d", src.File, src.Line))
+			}
+		}
+	}
 	if a.Value.Kind() == KindGroup {
 		attrs := a.Value.Group()
 		// Output only non-empty groups.
@@ -491,26 +484,6 @@ func (s *handleState) appendKey(key string) {
 		s.buf.WriteByte('=')
 	}
 	s.sep = s.h.attrSep()
-}
-
-func (s *handleState) appendSource(file string, line int) {
-	if s.h.json {
-		s.buf.WriteByte('"')
-		*s.buf = appendEscapedJSONString(*s.buf, file)
-		s.buf.WriteByte(':')
-		s.buf.WritePosInt(line)
-		s.buf.WriteByte('"')
-	} else {
-		// text
-		if needsQuoting(file) {
-			s.appendString(file + ":" + strconv.Itoa(line))
-		} else {
-			// common case: no quoting needed.
-			s.appendString(file)
-			s.buf.WriteByte(':')
-			s.buf.WritePosInt(line)
-		}
-	}
 }
 
 func (s *handleState) appendString(str string) {
