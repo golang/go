@@ -297,7 +297,7 @@ func (f FS) readDir(dir string) []file {
 
 // Open opens the named file for reading and returns it as an fs.File.
 //
-// The returned file implements io.Seeker when the file is not a directory.
+// The returned file implements io.Seeker and io.ReaderAt when the file is not a directory.
 func (f FS) Open(name string) (fs.File, error) {
 	file := f.lookup(name)
 	if file == nil {
