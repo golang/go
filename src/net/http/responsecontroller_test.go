@@ -199,8 +199,12 @@ func testResponseControllerSetPastReadDeadline(t *testing.T, mode testMode) {
 		select {
 		case <-readc:
 		case <-donec:
-			t.Errorf("server handler unexpectedly exited without closing readc")
-			return
+			select {
+			case <-readc:
+			default:
+				t.Errorf("server handler unexpectedly exited without closing readc")
+				return
+			}
 		}
 		pw.Write([]byte("two"))
 	}()
