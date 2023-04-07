@@ -217,29 +217,6 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	reflect_typedmemmove(typ, dst, src)
 }
 
-// reflect_typedmemmovepartial is like typedmemmove but assumes that
-// dst and src point off bytes into the value and only copies size bytes.
-// off must be a multiple of goarch.PtrSize.
-//
-//go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
-func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if writeBarrier.needed && typ.ptrdata > off && size >= goarch.PtrSize {
-		if off&(goarch.PtrSize-1) != 0 {
-			panic("reflect: internal error: misaligned offset")
-		}
-		pwsize := alignDown(size, goarch.PtrSize)
-		if poff := typ.ptrdata - off; pwsize > poff {
-			pwsize = poff
-		}
-		bulkBarrierPreWrite(uintptr(dst), uintptr(src), pwsize)
-	}
-
-	memmove(dst, src, size)
-	if goexperiment.CgoCheck2 {
-		cgoCheckMemmove2(typ, dst, src, off, size)
-	}
-}
-
 // reflectcallmove is invoked by reflectcall to copy the return values
 // out of the stack and into the heap, invoking the necessary write
 // barriers. dst, src, and size describe the return value area to

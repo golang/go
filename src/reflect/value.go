@@ -3832,12 +3832,6 @@ func memmove(dst, src unsafe.Pointer, size uintptr)
 //go:noescape
 func typedmemmove(t *rtype, dst, src unsafe.Pointer)
 
-// typedmemmovepartial is like typedmemmove but assumes that
-// dst and src point off bytes into the value and only copies size bytes.
-//
-//go:noescape
-func typedmemmovepartial(t *rtype, dst, src unsafe.Pointer, off, size uintptr)
-
 // typedmemclr zeros the value at ptr of type t.
 //
 //go:noescape
