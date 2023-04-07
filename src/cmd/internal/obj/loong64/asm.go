@@ -1230,6 +1230,7 @@ func buildop(ctxt *obj.Link) {
 
 		case ACLO:
 			opset(ACLZ, r0)
+			opset(ACPUCFG, r0)
 
 		case ATEQ:
 			opset(ATNE, r0)
@@ -1420,14 +1421,15 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_12IRR(c.opirr(-p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 9: // sll r1,[r2],r3
-		if p.As != ACLO && p.As != ACLZ {
+		switch p.As {
+		case ACLO, ACLZ, ACPUCFG:
+			o1 = OP_RR(c.oprr(p.As), uint32(p.From.Reg), uint32(p.To.Reg))
+		default:
 			r := int(p.Reg)
 			if r == 0 {
 				r = int(p.To.Reg)
 			}
 			o1 = OP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(r), uint32(p.To.Reg))
-		} else { // clo r1,r2
-			o1 = OP_RR(c.oprr(p.As), uint32(p.From.Reg), uint32(p.To.Reg))
 		}
 
 	case 10: // add $con,[r1],r2 ==> mov $con, t; add t,[r1],r2
@@ -2091,6 +2093,8 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 		return 0x4 << 10
 	case ACLZ:
 		return 0x5 << 10
+	case ACPUCFG:
+		return 0x1b << 10
 	case ARDTIMELW:
 		return 0x18 << 10
 	case ARDTIMEHW:
