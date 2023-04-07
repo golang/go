@@ -1,5 +1,5 @@
-//go:build go1.11
-// +build go1.11
+//go:build go1.11 && !go1.21
+// +build go1.11,!go1.21
 
 package bad
 
