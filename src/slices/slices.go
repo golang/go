@@ -109,6 +109,32 @@ func Delete[S ~[]E, E any](s S, i, j int) S {
 	return append(s[:i], s[j:]...)
 }
 
+// DeleteFunc removes any elements from s for which del returns true,
+// returning the modified slice.
+// DeleteFunc modifies the contents of the slice s;
+// it does not create a new slice.
+// When DeleteFunc removes m elements, it might not modify the elements
+// s[len(s)-m:len(s)]. If those elements contain pointers you might consider
+// zeroing those elements so that objects they reference can be garbage
+// collected.
+func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
+	// Don't start copying elements until we find one to delete.
+	for i, v := range s {
+		if del(v) {
+			j := i
+			for i++; i < len(s); i++ {
+				v = s[i]
+				if !del(v) {
+					s[j] = v
+					j++
+				}
+			}
+			return s[:j]
+		}
+	}
+	return s
+}
+
 // Replace replaces the elements s[i:j] by the given v, and returns the
 // modified slice. Replace panics if s[i:j] is not a valid slice of s.
 func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
