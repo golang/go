@@ -207,6 +207,9 @@ var profileDecoder = []decoder{
 // suffix X) and populates the corresponding exported fields.
 // The unexported fields are cleared up to facilitate testing.
 func (p *Profile) postDecode() error {
+	if p.Empty() {
+		return nil
+	}
 	var err error
 
 	mappings := make(map[uint64]*Mapping)
@@ -291,7 +294,7 @@ func (p *Profile) postDecode() error {
 	p.commentX = nil
 	p.DefaultSampleType, err = getString(p.stringTable, &p.defaultSampleTypeX, err)
 	p.stringTable = nil
-	return nil
+	return err
 }
 
 func (p *ValueType) decoder() []decoder {
