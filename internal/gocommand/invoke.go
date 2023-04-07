@@ -8,6 +8,7 @@ package gocommand
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -253,7 +254,8 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) error {
 
 	// If we're interested in debugging hanging Go commands, stop waiting after a
 	// minute and panic with interesting information.
-	if DebugHangingGoCommands {
+	debug := DebugHangingGoCommands
+	if debug {
 		select {
 		case err := <-resChan:
 			return err
@@ -274,19 +276,25 @@ func runCmdContext(ctx context.Context, cmd *exec.Cmd) error {
 	select {
 	case err := <-resChan:
 		return err
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
+		// (We used to wait only 1s but this proved
+		// fragile on loaded builder machines.)
 	}
 
 	// Didn't shut down in response to interrupt. Kill it hard.
 	// TODO(rfindley): per advice from bcmills@, it may be better to send SIGQUIT
 	// on certain platforms, such as unix.
-	if err := cmd.Process.Kill(); err != nil && DebugHangingGoCommands {
-		// Don't panic here as this reliably fails on windows with EINVAL.
-		log.Printf("error killing the Go command: %v", err)
+	if err := cmd.Process.Kill(); err != nil && debug {
+		if errors.Is(err, os.ErrProcessDone) {
+			debug = false // no need to dump the process tree
+		} else {
+			// Don't panic here as this reliably fails on windows with EINVAL.
+			log.Printf("error killing the Go command: %v", err)
+		}
 	}
 
 	// See above: don't wait indefinitely if we're debugging hanging Go commands.
-	if DebugHangingGoCommands {
+	if debug {
 		select {
 		case err := <-resChan:
 			return err
