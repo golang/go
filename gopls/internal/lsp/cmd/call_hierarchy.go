@@ -47,9 +47,9 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 	defer conn.terminate(ctx)
 
 	from := span.Parse(args[0])
-	file := conn.openFile(ctx, from.URI())
-	if file.err != nil {
-		return file.err
+	file, err := conn.openFile(ctx, from.URI())
+	if err != nil {
+		return err
 	}
 
 	loc, err := file.mapper.SpanLocation(from)
@@ -111,27 +111,29 @@ func (c *callHierarchy) Run(ctx context.Context, args ...string) error {
 // callItemPrintString returns a protocol.CallHierarchyItem object represented as a string.
 // item and call ranges (protocol.Range) are converted to user friendly spans (1-indexed).
 func callItemPrintString(ctx context.Context, conn *connection, item protocol.CallHierarchyItem, callsURI protocol.DocumentURI, calls []protocol.Range) (string, error) {
-	itemFile := conn.openFile(ctx, item.URI.SpanURI())
-	if itemFile.err != nil {
-		return "", itemFile.err
+	itemFile, err := conn.openFile(ctx, item.URI.SpanURI())
+	if err != nil {
+		return "", err
 	}
-	itemSpan, err := itemFile.mapper.LocationSpan(protocol.Location{URI: item.URI, Range: item.Range})
+	itemSpan, err := itemFile.mapper.RangeSpan(item.Range)
 	if err != nil {
 		return "", err
 	}
 
-	callsFile := conn.openFile(ctx, callsURI.SpanURI())
-	if callsURI != "" && callsFile.err != nil {
-		return "", callsFile.err
-	}
 	var callRanges []string
-	for _, rng := range calls {
-		call, err := callsFile.mapper.RangeSpan(rng)
+	if callsURI != "" {
+		callsFile, err := conn.openFile(ctx, callsURI.SpanURI())
 		if err != nil {
 			return "", err
 		}
-		callRange := fmt.Sprintf("%d:%d-%d", call.Start().Line(), call.Start().Column(), call.End().Column())
-		callRanges = append(callRanges, callRange)
+		for _, rng := range calls {
+			call, err := callsFile.mapper.RangeSpan(rng)
+			if err != nil {
+				return "", err
+			}
+			callRange := fmt.Sprintf("%d:%d-%d", call.Start().Line(), call.Start().Column(), call.End().Column())
+			callRanges = append(callRanges, callRange)
+		}
 	}
 
 	printString := fmt.Sprintf("function %s in %v", item.Name, itemSpan)

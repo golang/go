@@ -97,10 +97,6 @@ func compare(a, b Span) int {
 	return comparePoint(a.v.End, b.v.End)
 }
 
-func ComparePoint(a, b Point) int {
-	return comparePoint(a.v, b.v)
-}
-
 func comparePoint(a, b point) int {
 	if !a.hasPosition() {
 		if a.Offset < b.Offset {

@@ -17,7 +17,7 @@ package cmdtest
 //
 // TODO(adonovan):
 // - Use markers to represent positions in the input and in assertions.
-// - Coverage of cross-cutting things like cwd, enviro, span parsing, etc.
+// - Coverage of cross-cutting things like cwd, environ, span parsing, etc.
 // - Subcommands that accept -write and -diff flags should implement
 //   them consistently wrt the default behavior; factor their tests.
 // - Add missing test for 'vulncheck' subcommand.

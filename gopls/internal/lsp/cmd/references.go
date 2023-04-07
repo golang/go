@@ -51,9 +51,9 @@ func (r *references) Run(ctx context.Context, args ...string) error {
 	defer conn.terminate(ctx)
 
 	from := span.Parse(args[0])
-	file := conn.openFile(ctx, from.URI())
-	if file.err != nil {
-		return file.err
+	file, err := conn.openFile(ctx, from.URI())
+	if err != nil {
+		return err
 	}
 	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
@@ -71,7 +71,10 @@ func (r *references) Run(ctx context.Context, args ...string) error {
 	}
 	var spans []string
 	for _, l := range locations {
-		f := conn.openFile(ctx, fileURI(l.URI))
+		f, err := conn.openFile(ctx, fileURI(l.URI))
+		if err != nil {
+			return err
+		}
 		// convert location to span for user-friendly 1-indexed line
 		// and column numbers
 		span, err := f.mapper.LocationSpan(l)

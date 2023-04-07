@@ -294,7 +294,7 @@ func (s *snapshot) extractGoCommandErrors(ctx context.Context, goCmdError error)
 	}
 
 	type locatedErr struct {
-		spn span.Span
+		loc protocol.Location
 		msg string
 	}
 	diagLocations := map[*source.ParsedModule]locatedErr{}
@@ -335,13 +335,13 @@ func (s *snapshot) extractGoCommandErrors(ctx context.Context, goCmdError error)
 				// file/position information, so don't even try to find it.
 				continue
 			}
-			spn, found, err := s.matchErrorToModule(ctx, pm, msg)
+			loc, found, err := s.matchErrorToModule(ctx, pm, msg)
 			if err != nil {
 				event.Error(ctx, "matching error to module", err)
 				continue
 			}
 			le := locatedErr{
-				spn: spn,
+				loc: loc,
 				msg: msg,
 			}
 			if found {
@@ -359,7 +359,7 @@ func (s *snapshot) extractGoCommandErrors(ctx context.Context, goCmdError error)
 
 	var srcErrs []*source.Diagnostic
 	for pm, le := range diagLocations {
-		diag, err := s.goCommandDiagnostic(pm, le.spn, le.msg)
+		diag, err := s.goCommandDiagnostic(pm, le.loc, le.msg)
 		if err != nil {
 			event.Error(ctx, "building go command diagnostic", err)
 			continue
@@ -380,7 +380,7 @@ var moduleVersionInErrorRe = regexp.MustCompile(`[:\s]([+-._~0-9A-Za-z]+)@([+-._
 //
 // It returns the location of a reference to the one of the modules and true
 // if one exists. If none is found it returns a fallback location and false.
-func (s *snapshot) matchErrorToModule(ctx context.Context, pm *source.ParsedModule, goCmdError string) (span.Span, bool, error) {
+func (s *snapshot) matchErrorToModule(ctx context.Context, pm *source.ParsedModule, goCmdError string) (protocol.Location, bool, error) {
 	var reference *modfile.Line
 	matches := moduleVersionInErrorRe.FindAllStringSubmatch(goCmdError, -1)
 
@@ -399,25 +399,21 @@ func (s *snapshot) matchErrorToModule(ctx context.Context, pm *source.ParsedModu
 		// No match for the module path was found in the go.mod file.
 		// Show the error on the module declaration, if one exists, or
 		// just the first line of the file.
-		if pm.File.Module == nil {
-			return span.New(pm.URI, span.NewPoint(1, 1, 0), span.Point{}), false, nil
+		var start, end int
+		if pm.File.Module != nil {
+			syntax := pm.File.Module.Syntax
+			start, end = syntax.Start.Byte, syntax.End.Byte
 		}
-		syntax := pm.File.Module.Syntax
-		spn, err := pm.Mapper.OffsetSpan(syntax.Start.Byte, syntax.End.Byte)
-		return spn, false, err
+		loc, err := pm.Mapper.OffsetLocation(start, end)
+		return loc, false, err
 	}
 
-	spn, err := pm.Mapper.OffsetSpan(reference.Start.Byte, reference.End.Byte)
-	return spn, true, err
+	loc, err := pm.Mapper.OffsetLocation(reference.Start.Byte, reference.End.Byte)
+	return loc, true, err
 }
 
 // goCommandDiagnostic creates a diagnostic for a given go command error.
-func (s *snapshot) goCommandDiagnostic(pm *source.ParsedModule, spn span.Span, goCmdError string) (*source.Diagnostic, error) {
-	rng, err := pm.Mapper.SpanRange(spn)
-	if err != nil {
-		return nil, err
-	}
-
+func (s *snapshot) goCommandDiagnostic(pm *source.ParsedModule, loc protocol.Location, goCmdError string) (*source.Diagnostic, error) {
 	matches := moduleVersionInErrorRe.FindAllStringSubmatch(goCmdError, -1)
 	var innermost *module.Version
 	for i := len(matches) - 1; i >= 0; i-- {
@@ -437,7 +433,7 @@ func (s *snapshot) goCommandDiagnostic(pm *source.ParsedModule, spn span.Span, g
 		}
 		return &source.Diagnostic{
 			URI:      pm.URI,
-			Range:    rng,
+			Range:    loc.Range,
 			Severity: protocol.SeverityError,
 			Source:   source.ListError,
 			Message: `Inconsistent vendoring detected. Please re-run "go mod vendor".
@@ -464,7 +460,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 		}
 		return &source.Diagnostic{
 			URI:      pm.URI,
-			Range:    rng,
+			Range:    loc.Range,
 			Severity: protocol.SeverityError,
 			Source:   source.ListError,
 			Message:  msg,
@@ -485,7 +481,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 		}
 		return &source.Diagnostic{
 			URI:            pm.URI,
-			Range:          rng,
+			Range:          loc.Range,
 			Severity:       protocol.SeverityError,
 			Message:        fmt.Sprintf("%v@%v has not been downloaded", innermost.Path, innermost.Version),
 			Source:         source.ListError,
@@ -494,7 +490,7 @@ See https://github.com/golang/go/issues/39164 for more detail on this issue.`,
 	default:
 		return &source.Diagnostic{
 			URI:      pm.URI,
-			Range:    rng,
+			Range:    loc.Range,
 			Severity: protocol.SeverityError,
 			Source:   source.ListError,
 			Message:  goCmdError,

@@ -80,9 +80,9 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	}
 	defer conn.terminate(ctx)
 	from := span.Parse(args[0])
-	file := conn.openFile(ctx, from.URI())
-	if file.err != nil {
-		return file.err
+	file, err := conn.openFile(ctx, from.URI())
+	if err != nil {
+		return err
 	}
 	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
@@ -99,9 +99,9 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if len(locs) == 0 {
 		return fmt.Errorf("%v: not an identifier", from)
 	}
-	file = conn.openFile(ctx, fileURI(locs[0].URI))
-	if file.err != nil {
-		return fmt.Errorf("%v: %v", from, file.err)
+	file, err = conn.openFile(ctx, fileURI(locs[0].URI))
+	if err != nil {
+		return fmt.Errorf("%v: %v", from, err)
 	}
 	definition, err := file.mapper.LocationSpan(locs[0])
 	if err != nil {

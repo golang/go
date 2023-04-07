@@ -82,9 +82,9 @@ func (c *semtok) Run(ctx context.Context, args ...string) error {
 	}
 	defer conn.terminate(ctx)
 	uri := span.URIFromPath(args[0])
-	file := conn.openFile(ctx, uri)
-	if file.err != nil {
-		return file.err
+	file, err := conn.openFile(ctx, uri)
+	if err != nil {
+		return err
 	}
 
 	buf, err := ioutil.ReadFile(args[0])

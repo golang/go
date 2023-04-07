@@ -48,9 +48,9 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 	for _, arg := range args {
 		uri := span.URIFromPath(arg)
 		uris = append(uris, uri)
-		file := conn.openFile(ctx, uri)
-		if file.err != nil {
-			return file.err
+		file, err := conn.openFile(ctx, uri)
+		if err != nil {
+			return err
 		}
 		checking[uri] = file
 	}

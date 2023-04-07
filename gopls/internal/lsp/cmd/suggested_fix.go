@@ -57,9 +57,9 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 
 	from := span.Parse(args[0])
 	uri := from.URI()
-	file := conn.openFile(ctx, uri)
-	if file.err != nil {
-		return file.err
+	file, err := conn.openFile(ctx, uri)
+	if err != nil {
+		return err
 	}
 
 	if err := conn.diagnoseFiles(ctx, []span.URI{uri}); err != nil {
@@ -116,14 +116,11 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 			}
 			continue
 		}
-		// If the span passed in has a position, then we need to find
-		// the codeaction that has the same range as the passed in span.
+
+		// The provided span has a position (not just offsets).
+		// Find the code action that has the same range as it.
 		for _, diag := range a.Diagnostics {
-			spn, err := file.mapper.RangeSpan(diag.Range)
-			if err != nil {
-				continue
-			}
-			if span.ComparePoint(from.Start(), spn.Start()) == 0 {
+			if diag.Range.Start == rng.Start {
 				for _, c := range a.Edit.DocumentChanges {
 					if c.TextDocumentEdit != nil {
 						if fileURI(c.TextDocumentEdit.TextDocument.URI) == uri {

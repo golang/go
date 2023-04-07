@@ -837,17 +837,16 @@ func (e *encoded) findKeyword(keyword string, start, end token.Pos) token.Pos {
 }
 
 func (e *encoded) init() error {
-	e.start = token.Pos(e.pgf.Tok.Base())
-	e.end = e.start + token.Pos(e.pgf.Tok.Size())
-	if e.rng == nil {
-		return nil
+	if e.rng != nil {
+		var err error
+		e.start, e.end, err = e.pgf.RangePos(*e.rng)
+		if err != nil {
+			return fmt.Errorf("range span (%w) error for %s", err, e.pgf.File.Name)
+		}
+	} else {
+		tok := e.pgf.Tok
+		e.start, e.end = tok.Pos(0), tok.Pos(tok.Size()) // entire file
 	}
-	span, err := e.pgf.Mapper.RangeSpan(*e.rng)
-	if err != nil {
-		return fmt.Errorf("range span (%w) error for %s", err, e.pgf.File.Name)
-	}
-	e.end = e.start + token.Pos(span.End().Offset())
-	e.start += token.Pos(span.Start().Offset())
 	return nil
 }
 

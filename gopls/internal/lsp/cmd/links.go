@@ -53,9 +53,9 @@ func (l *links) Run(ctx context.Context, args ...string) error {
 
 	from := span.Parse(args[0])
 	uri := from.URI()
-	file := conn.openFile(ctx, uri)
-	if file.err != nil {
-		return file.err
+
+	if _, err := conn.openFile(ctx, uri); err != nil {
+		return err
 	}
 	results, err := conn.DocumentLink(ctx, &protocol.DocumentLinkParams{
 		TextDocument: protocol.TextDocumentIdentifier{

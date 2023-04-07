@@ -37,30 +37,30 @@ func LinknameDefinition(ctx context.Context, snapshot Snapshot, fh FileHandle, p
 //
 // If the position is not in the second argument of a go:linkname directive, or parsing fails, it returns "", "".
 func parseLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (pkgPath, name string) {
+	// TODO(adonovan): opt: parsing isn't necessary here.
+	// We're only looking for a line comment.
 	pgf, err := snapshot.ParseGo(ctx, fh, ParseFull)
 	if err != nil {
 		return "", ""
 	}
 
-	span, err := pgf.Mapper.PositionPoint(pos)
+	offset, err := pgf.Mapper.PositionOffset(pos)
 	if err != nil {
 		return "", ""
 	}
-	atLine := span.Line()
-	atColumn := span.Column()
 
 	// Looking for pkgpath in '//go:linkname f pkgpath.g'.
 	// (We ignore 1-arg linkname directives.)
-	directive, column := findLinknameOnLine(pgf, atLine)
+	directive, end := findLinknameAtOffset(pgf, offset)
 	parts := strings.Fields(directive)
 	if len(parts) != 3 {
 		return "", ""
 	}
 
 	// Inside 2nd arg [start, end]?
-	end := column + len(directive)
+	// (Assumes no trailing spaces.)
 	start := end - len(parts[2])
-	if !(start <= atColumn && atColumn <= end) {
+	if !(start <= offset && offset <= end) {
 		return "", ""
 	}
 	linkname := parts[2]
@@ -73,15 +73,16 @@ func parseLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	return linkname[:dot], linkname[dot+1:]
 }
 
-// findLinknameOnLine returns the first linkname directive on line and the column it starts at.
-// Returns "", 0 if no linkname directive is found on the line.
-func findLinknameOnLine(pgf *ParsedGoFile, line int) (string, int) {
+// findLinknameAtOffset returns the first linkname directive on line and its end offset.
+// Returns "", 0 if the offset is not in a linkname directive.
+func findLinknameAtOffset(pgf *ParsedGoFile, offset int) (string, int) {
 	for _, grp := range pgf.File.Comments {
 		for _, com := range grp.List {
 			if strings.HasPrefix(com.Text, "//go:linkname") {
 				p := safetoken.Position(pgf.Tok, com.Pos())
-				if p.Line == line {
-					return com.Text, p.Column
+				end := p.Offset + len(com.Text)
+				if p.Offset <= offset && offset < end {
+					return com.Text, end
 				}
 			}
 		}

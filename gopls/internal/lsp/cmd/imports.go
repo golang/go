@@ -57,9 +57,9 @@ func (t *imports) Run(ctx context.Context, args ...string) error {
 
 	from := span.Parse(args[0])
 	uri := from.URI()
-	file := conn.openFile(ctx, uri)
-	if file.err != nil {
-		return file.err
+	file, err := conn.openFile(ctx, uri)
+	if err != nil {
+		return err
 	}
 	actions, err := conn.CodeAction(ctx, &protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{

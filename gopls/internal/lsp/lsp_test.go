@@ -374,15 +374,14 @@ func foldRanges(m *protocol.Mapper, contents string, ranges []protocol.FoldingRa
 	// TODO(adonovan): factor to use diff.ApplyEdits, which validates the input.
 	for i := len(ranges) - 1; i >= 0; i-- {
 		r := ranges[i]
-		start, err := m.PositionPoint(protocol.Position{Line: r.StartLine, Character: r.StartCharacter})
+		start, end, err := m.RangeOffsets(protocol.Range{
+			Start: protocol.Position{Line: r.StartLine, Character: r.StartCharacter},
+			End:   protocol.Position{Line: r.EndLine, Character: r.EndCharacter},
+		})
 		if err != nil {
 			return "", err
 		}
-		end, err := m.PositionPoint(protocol.Position{Line: r.EndLine, Character: r.EndCharacter})
-		if err != nil {
-			return "", err
-		}
-		res = res[:start.Offset()] + foldedText + res[end.Offset():]
+		res = res[:start] + foldedText + res[end:]
 	}
 	return res, nil
 }

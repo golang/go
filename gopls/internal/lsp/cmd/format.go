@@ -58,9 +58,9 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 	defer conn.terminate(ctx)
 	for _, arg := range args {
 		spn := span.Parse(arg)
-		file := conn.openFile(ctx, spn.URI())
-		if file.err != nil {
-			return file.err
+		file, err := conn.openFile(ctx, spn.URI())
+		if err != nil {
+			return err
 		}
 		filename := spn.URI().Filename()
 		loc, err := file.mapper.SpanLocation(spn)

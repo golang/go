@@ -61,9 +61,9 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 	defer conn.terminate(ctx)
 
 	from := span.Parse(args[0])
-	file := conn.openFile(ctx, from.URI())
-	if file.err != nil {
-		return file.err
+	file, err := conn.openFile(ctx, from.URI())
+	if err != nil {
+		return err
 	}
 	loc, err := file.mapper.SpanLocation(from)
 	if err != nil {
@@ -92,7 +92,10 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 
 	for _, u := range orderedURIs {
 		uri := span.URIFromURI(u)
-		cmdFile := conn.openFile(ctx, uri)
+		cmdFile, err := conn.openFile(ctx, uri)
+		if err != nil {
+			return err
+		}
 		filename := cmdFile.uri.Filename()
 
 		newContent, renameEdits, err := source.ApplyProtocolEdits(cmdFile.mapper, edits[uri])

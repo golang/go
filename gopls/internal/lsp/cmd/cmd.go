@@ -402,7 +402,6 @@ type cmdFile struct {
 	uri         span.URI
 	mapper      *protocol.Mapper
 	err         error
-	open        bool
 	diagnostics []protocol.Diagnostic
 }
 
@@ -572,19 +571,16 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 func (c *cmdClient) openFile(ctx context.Context, uri span.URI) *cmdFile {
 	c.filesMu.Lock()
 	defer c.filesMu.Unlock()
-
-	file := c.getFile(ctx, uri)
-	if file.err != nil || file.open {
-		return file
-	}
-	file.open = true
-	return file
+	return c.getFile(ctx, uri)
 }
 
-func (c *connection) openFile(ctx context.Context, uri span.URI) *cmdFile {
+// TODO(adonovan): provide convenience helpers to:
+// - map a (URI, protocol.Range) to a MappedRange;
+// - parse a command-line argument to a MappedRange.
+func (c *connection) openFile(ctx context.Context, uri span.URI) (*cmdFile, error) {
 	file := c.Client.openFile(ctx, uri)
 	if file.err != nil {
-		return file
+		return nil, file.err
 	}
 
 	p := &protocol.DidOpenTextDocumentParams{
@@ -596,9 +592,11 @@ func (c *connection) openFile(ctx context.Context, uri span.URI) *cmdFile {
 		},
 	}
 	if err := c.Server.DidOpen(ctx, p); err != nil {
+		// TODO(adonovan): is this assignment concurrency safe?
 		file.err = fmt.Errorf("%v: %v", uri, err)
+		return nil, file.err
 	}
-	return file
+	return file, nil
 }
 
 func (c *connection) semanticTokens(ctx context.Context, p *protocol.SemanticTokensRangeParams) (*protocol.SemanticTokens, error) {

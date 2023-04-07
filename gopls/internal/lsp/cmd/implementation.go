@@ -47,9 +47,9 @@ func (i *implementation) Run(ctx context.Context, args ...string) error {
 	defer conn.terminate(ctx)
 
 	from := span.Parse(args[0])
-	file := conn.openFile(ctx, from.URI())
-	if file.err != nil {
-		return file.err
+	file, err := conn.openFile(ctx, from.URI())
+	if err != nil {
+		return err
 	}
 
 	loc, err := file.mapper.SpanLocation(from)
@@ -67,7 +67,10 @@ func (i *implementation) Run(ctx context.Context, args ...string) error {
 
 	var spans []string
 	for _, impl := range implementations {
-		f := conn.openFile(ctx, fileURI(impl.URI))
+		f, err := conn.openFile(ctx, fileURI(impl.URI))
+		if err != nil {
+			return err
+		}
 		span, err := f.mapper.LocationSpan(impl)
 		if err != nil {
 			return err
