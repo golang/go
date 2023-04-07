@@ -134,7 +134,12 @@ func (f *elfFile) goarch() string {
 func (f *elfFile) loadAddress() (uint64, error) {
 	for _, p := range f.elf.Progs {
 		if p.Type == elf.PT_LOAD && p.Flags&elf.PF_X != 0 {
-			return p.Vaddr, nil
+			// The memory mapping that contains the segment
+			// starts at an aligned address. Apparently this
+			// is what pprof expects, as it uses this and the
+			// start address of the mapping to compute PC
+			// delta.
+			return p.Vaddr - p.Vaddr%p.Align, nil
 		}
 	}
 	return 0, fmt.Errorf("unknown load address")
