@@ -136,7 +136,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 
 	// Loop through all the arguments, checking each one.
 	// If no error is returned simply increment the index
-	// and continue. However if driver.ErrRemoveArgument
+	// and continue. However, if driver.ErrRemoveArgument
 	// is returned the argument is not included in the query
 	// argument list.
 	var err error
@@ -161,7 +161,7 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 		//
 		// The only time a Column Converter is called is first
 		// or after NamedValueConverter. If first it is handled before
-		// the nextCheck label. Thus for repeats tries only when the
+		// the nextCheck label. Thus, for repeats tries only when the
 		// NamedValueConverter is selected should the Column Converter
 		// be used in the retry.
 		checker := defaultCheckNamedValue
