@@ -233,12 +233,9 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 	}
 
 	fileSet := token.NewFileSet()
-	fragmentOk := false
-	if info == nil {
-		// If we are formatting stdin, we accept a program fragment in lieu of a
-		// complete source file.
-		fragmentOk = true
-	}
+	// If we are formatting stdin, we accept a program fragment in lieu of a
+	// complete source file.
+	fragmentOk := info == nil
 	file, sourceAdj, indentAdj, err := parse(fileSet, filename, src, fragmentOk)
 	if err != nil {
 		return err
