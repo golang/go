@@ -58,19 +58,24 @@ func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *T
 			err = p1.Error
 			break
 		}
-		if len(p1.DepsErrors) > 0 {
-			perr := p1.DepsErrors[0]
-			err = perr
+		if p1.Incomplete {
+			ps := PackageList([]*Package{p1})
+			for _, p := range ps {
+				if p.Error != nil {
+					err = p.Error
+					break
+				}
+			}
 			break
 		}
 	}
-	if pmain.Error != nil || len(pmain.DepsErrors) > 0 {
+	if pmain.Error != nil || pmain.Incomplete {
 		pmain = nil
 	}
-	if ptest.Error != nil || len(ptest.DepsErrors) > 0 {
+	if ptest.Error != nil || ptest.Incomplete {
 		ptest = nil
 	}
-	if pxtest != nil && (pxtest.Error != nil || len(pxtest.DepsErrors) > 0) {
+	if pxtest != nil && (pxtest.Error != nil || pxtest.Incomplete) {
 		pxtest = nil
 	}
 	return pmain, ptest, pxtest, err
@@ -108,12 +113,17 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	var imports, ximports []*Package
 	var stk ImportStack
 	var testEmbed, xtestEmbed map[string][]string
+	var incomplete bool
 	stk.Push(p.ImportPath + " (test)")
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
 		p1, err := loadImport(ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
 		if err != nil && ptestErr == nil {
 			ptestErr = err
+			incomplete = true
+		}
+		if p1.Incomplete {
+			incomplete = true
 		}
 		p.TestImports[i] = p1.ImportPath
 		imports = append(imports, p1)
@@ -125,6 +135,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 			ImportStack: stk.Copy(),
 			Err:         err,
 		}
+		incomplete = true
 		embedErr := err.(*EmbedError)
 		ptestErr.setPos(p.Internal.Build.TestEmbedPatternPos[embedErr.Pattern])
 	}
@@ -132,11 +143,15 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 
 	stk.Push(p.ImportPath + "_test")
 	pxtestNeedsPtest := false
+	var pxtestIncomplete bool
 	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
 		p1, err := loadImport(ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
 		if err != nil && pxtestErr == nil {
 			pxtestErr = err
+		}
+		if p1.Incomplete {
+			pxtestIncomplete = true
 		}
 		if p1.ImportPath == p.ImportPath {
 			pxtestNeedsPtest = true
@@ -154,6 +169,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		embedErr := err.(*EmbedError)
 		pxtestErr.setPos(p.Internal.Build.XTestEmbedPatternPos[embedErr.Pattern])
 	}
+	pxtestIncomplete = pxtestIncomplete || pxtestErr != nil
 	stk.Pop()
 
 	// Test package.
@@ -161,6 +177,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		ptest = new(Package)
 		*ptest = *p
 		ptest.Error = ptestErr
+		ptest.Incomplete = incomplete
 		ptest.ForTest = p.ImportPath
 		ptest.GoFiles = nil
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
@@ -204,9 +221,6 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		ptest.Internal.OrigImportPath = p.Internal.OrigImportPath
 		ptest.Internal.PGOProfile = p.Internal.PGOProfile
 		ptest.Internal.Build.Directives = append(slices.Clip(p.Internal.Build.Directives), p.Internal.Build.TestDirectives...)
-		if !opts.SuppressDeps {
-			ptest.collectDeps()
-		}
 	} else {
 		ptest = p
 	}
@@ -225,6 +239,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 				ForTest:    p.ImportPath,
 				Module:     p.Module,
 				Error:      pxtestErr,
+				Incomplete: pxtestIncomplete,
 				EmbedFiles: p.XTestEmbedFiles,
 			},
 			Internal: PackageInternal{
@@ -247,9 +262,6 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		}
 		if pxtestNeedsPtest {
 			pxtest.Internal.Imports = append(pxtest.Internal.Imports, ptest)
-		}
-		if !opts.SuppressDeps {
-			pxtest.collectDeps()
 		}
 	}
 
@@ -297,6 +309,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 			p1, err := loadImport(ctx, opts, pre, dep, "", nil, &stk, nil, 0)
 			if err != nil && pmain.Error == nil {
 				pmain.Error = err
+				pmain.Incomplete = true
 			}
 			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
 		}
@@ -344,9 +357,6 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 		pmain.Imports = append(pmain.Imports, pxtest.ImportPath)
 		t.ImportXtest = true
 	}
-	if !opts.SuppressDeps {
-		pmain.collectDeps()
-	}
 
 	// Sort and dedup pmain.Imports.
 	// Only matters for go list -test output.
@@ -365,6 +375,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	cycleErr := recompileForTest(pmain, p, ptest, pxtest)
 	if cycleErr != nil {
 		ptest.Error = cycleErr
+		ptest.Incomplete = true
 	}
 
 	if cover != nil {
@@ -403,6 +414,7 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	data, err := formatTestmain(t)
 	if err != nil && pmain.Error == nil {
 		pmain.Error = &PackageError{Err: err}
+		pmain.Incomplete = true
 	}
 	// Set TestmainGo even if it is empty: the presence of a TestmainGo
 	// indicates that this package is, in fact, a test main.

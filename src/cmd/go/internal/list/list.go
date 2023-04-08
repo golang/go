@@ -598,17 +598,12 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go list -export cannot be used with -find")
 	}
 
+	suppressDeps := !listJsonFields.needAny("Deps", "DepsErrors")
+
 	pkgOpts := load.PackageOpts{
-		IgnoreImports:   *listFind,
-		ModResolveTests: *listTest,
-		AutoVCS:         true,
-		// SuppressDeps is set if the user opts to explicitly ask for the json fields they
-		// need, don't ask for Deps or DepsErrors. It's not set when using a template string,
-		// even if *listFmt doesn't contain .Deps because Deps are used to find import cycles
-		// for test variants of packages and users who have been providing format strings
-		// might not expect those errors to stop showing up.
-		// See issue #52443.
-		SuppressDeps:       !listJsonFields.needAny("Deps", "DepsErrors"),
+		IgnoreImports:      *listFind,
+		ModResolveTests:    *listTest,
+		AutoVCS:            true,
 		SuppressBuildInfo:  !*listExport && !listJsonFields.needAny("Stale", "StaleReason"),
 		SuppressEmbedFiles: !*listExport && !listJsonFields.needAny("EmbedFiles", "TestEmbedFiles", "XTestEmbedFiles"),
 	}
@@ -770,22 +765,17 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				delete(m, old)
 			}
 		}
-		if !pkgOpts.SuppressDeps {
-			// Recompute deps lists using new strings, from the leaves up.
-			for _, p := range all {
-				deps := make(map[string]bool)
-				for _, p1 := range p.Internal.Imports {
-					deps[p1.ImportPath] = true
-					for _, d := range p1.Deps {
-						deps[d] = true
-					}
-				}
-				p.Deps = make([]string, 0, len(deps))
-				for d := range deps {
-					p.Deps = append(p.Deps, d)
-				}
-				sort.Strings(p.Deps)
-			}
+	}
+
+	if !suppressDeps {
+		all := pkgs
+		if !*listDeps {
+			// if *listDeps, then all is already in PackageList order.
+			all = load.PackageList(pkgs)
+		}
+		// Recompute deps lists using new strings, from the leaves up.
+		for _, p := range all {
+			collectDeps(p)
 		}
 	}
 
@@ -886,6 +876,48 @@ func loadPackageList(roots []*load.Package) []*load.Package {
 	}
 
 	return pkgs
+}
+
+// collectDeps populates p.Deps and p.DepsErrors by iterating over
+// p.Internal.Imports.
+//
+// TODO(jayconrod): collectDeps iterates over transitive imports for every
+// package. We should only need to visit direct imports.
+func collectDeps(p *load.Package) {
+	deps := make(map[string]*load.Package)
+	var q []*load.Package
+	q = append(q, p.Internal.Imports...)
+	for i := 0; i < len(q); i++ {
+		p1 := q[i]
+		path := p1.ImportPath
+		// The same import path could produce an error or not,
+		// depending on what tries to import it.
+		// Prefer to record entries with errors, so we can report them.
+		p0 := deps[path]
+		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
+			deps[path] = p1
+			for _, p2 := range p1.Internal.Imports {
+				if deps[p2.ImportPath] != p2 {
+					q = append(q, p2)
+				}
+			}
+		}
+	}
+
+	p.Deps = make([]string, 0, len(deps))
+	for dep := range deps {
+		p.Deps = append(p.Deps, dep)
+	}
+	sort.Strings(p.Deps)
+	for _, dep := range p.Deps {
+		p1 := deps[dep]
+		if p1 == nil {
+			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
+		}
+		if p1.Error != nil {
+			p.DepsErrors = append(p.DepsErrors, p1.Error)
+		}
+	}
 }
 
 // TrackingWriter tracks the last byte written on every write so

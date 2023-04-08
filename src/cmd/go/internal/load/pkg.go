@@ -127,7 +127,7 @@ type PackagePublic struct {
 	// Error information
 	// Incomplete is above, packed into the other bools
 	Error      *PackageError   `json:",omitempty"` // error loading this package (not dependencies)
-	DepsErrors []*PackageError `json:",omitempty"` // errors loading dependencies
+	DepsErrors []*PackageError `json:",omitempty"` // errors loading dependencies, collected by go list before output
 
 	// Test information
 	// If you add to this list you MUST add to p.AllFiles (below) too.
@@ -336,6 +336,7 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 		Pos:         pos,
 		Err:         err,
 	}
+	p.Incomplete = true
 
 	if path != stk.Top() {
 		p.Error.setPos(importPos)
@@ -1776,6 +1777,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 				ImportStack: stk.Copy(),
 				Err:         err,
 			}
+			p.Incomplete = true
 
 			// Add the importer's position information if the import position exists, and
 			// the current package being examined is the importer.
@@ -2017,10 +2019,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		}
 	}
 	p.Internal.Imports = imports
-	if !opts.SuppressDeps {
-		p.collectDeps()
-	}
-	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && len(p.DepsErrors) == 0 && !opts.SuppressBuildInfo {
+	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && !p.Incomplete && !opts.SuppressBuildInfo {
 		// TODO(bcmills): loading VCS metadata can be fairly slow.
 		// Consider starting this as a background goroutine and retrieving the result
 		// asynchronously when we're actually ready to build the package, or when we
@@ -2256,48 +2255,6 @@ func isBadEmbedName(name string) bool {
 	return false
 }
 
-// collectDeps populates p.Deps and p.DepsErrors by iterating over
-// p.Internal.Imports.
-//
-// TODO(jayconrod): collectDeps iterates over transitive imports for every
-// package. We should only need to visit direct imports.
-func (p *Package) collectDeps() {
-	deps := make(map[string]*Package)
-	var q []*Package
-	q = append(q, p.Internal.Imports...)
-	for i := 0; i < len(q); i++ {
-		p1 := q[i]
-		path := p1.ImportPath
-		// The same import path could produce an error or not,
-		// depending on what tries to import it.
-		// Prefer to record entries with errors, so we can report them.
-		p0 := deps[path]
-		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
-			deps[path] = p1
-			for _, p2 := range p1.Internal.Imports {
-				if deps[p2.ImportPath] != p2 {
-					q = append(q, p2)
-				}
-			}
-		}
-	}
-
-	p.Deps = make([]string, 0, len(deps))
-	for dep := range deps {
-		p.Deps = append(p.Deps, dep)
-	}
-	sort.Strings(p.Deps)
-	for _, dep := range p.Deps {
-		p1 := deps[dep]
-		if p1 == nil {
-			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
-		}
-		if p1.Error != nil {
-			p.DepsErrors = append(p.DepsErrors, p1.Error)
-		}
-	}
-}
-
 // vcsStatusCache maps repository directories (string)
 // to their VCS information.
 var vcsStatusCache par.ErrCache[string, vcs.Status]
@@ -2314,6 +2271,7 @@ func (p *Package) setBuildInfo(autoVCS bool) {
 	setPkgErrorf := func(format string, args ...any) {
 		if p.Error == nil {
 			p.Error = &PackageError{Err: fmt.Errorf(format, args...)}
+			p.Incomplete = true
 		}
 	}
 
@@ -2836,12 +2794,6 @@ type PackageOpts struct {
 	// when -buildvcs=auto (the default).
 	AutoVCS bool
 
-	// SuppressDeps is true if the caller does not need Deps and DepsErrors to be populated
-	// on the package. TestPackagesAndErrors examines the  Deps field to determine if the test
-	// variant has an import cycle, so SuppressDeps should not be set if TestPackagesAndErrors
-	// will be called on the package.
-	SuppressDeps bool
-
 	// SuppressBuildInfo is true if the caller does not need p.Stale, p.StaleReason, or p.Internal.BuildInfo
 	// to be populated on the package.
 	SuppressBuildInfo bool
@@ -3037,20 +2989,17 @@ func setPGOProfilePath(pkgs []*Package) {
 // CheckPackageErrors prints errors encountered loading pkgs and their
 // dependencies, then exits with a non-zero status if any errors were found.
 func CheckPackageErrors(pkgs []*Package) {
-	printed := map[*PackageError]bool{}
+	var anyIncomplete bool
 	for _, pkg := range pkgs {
-		if pkg.Error != nil {
-			base.Errorf("%v", pkg.Error)
-			printed[pkg.Error] = true
+		if pkg.Incomplete {
+			anyIncomplete = true
 		}
-		for _, err := range pkg.DepsErrors {
-			// Since these are errors in dependencies,
-			// the same error might show up multiple times,
-			// once in each package that depends on it.
-			// Only print each once.
-			if !printed[err] {
-				printed[err] = true
-				base.Errorf("%v", err)
+	}
+	if anyIncomplete {
+		all := PackageList(pkgs)
+		for _, p := range all {
+			if p.Error != nil {
+				base.Errorf("%v", p.Error)
 			}
 		}
 	}
@@ -3118,6 +3067,7 @@ func mainPackagesOnly(pkgs []*Package, matches []*search.Match) []*Package {
 		if treatAsMain[pkg.ImportPath] {
 			if pkg.Error == nil {
 				pkg.Error = &PackageError{Err: &mainPackageError{importPath: pkg.ImportPath}}
+				pkg.Incomplete = true
 			}
 			mains = append(mains, pkg)
 		}
@@ -3178,6 +3128,7 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
 			pkg.Error = &PackageError{
 				Err: fmt.Errorf("named files must be .go files: %s", pkg.Name),
 			}
+			pkg.Incomplete = true
 			return pkg
 		}
 	}
@@ -3247,6 +3198,7 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
 
 	if opts.MainOnly && pkg.Name != "main" && pkg.Error == nil {
 		pkg.Error = &PackageError{Err: &mainPackageError{importPath: pkg.ImportPath}}
+		pkg.Incomplete = true
 	}
 	setToolFlags(pkg)
 
@@ -3369,6 +3321,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args 
 		}
 		if pkgErr != nil && pkg.Error == nil {
 			pkg.Error = &PackageError{Err: pkgErr}
+			pkg.Incomplete = true
 		}
 	}
 
