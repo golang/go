@@ -6,6 +6,7 @@ package embedtest
 
 import (
 	"embed"
+	"io"
 	"reflect"
 	"testing"
 	"testing/fstest"
@@ -175,4 +176,64 @@ func TestAliases(t *testing.T) {
 	check(helloEUint8)
 	check(helloBytes)
 	check(helloString)
+}
+
+func TestOffset(t *testing.T) {
+	file, err := testDirAll.Open("testdata/hello.txt")
+	if err != nil {
+		t.Fatal("Open:", err)
+	}
+
+	const want = "hello, world\n"
+
+	t.Run("Read", func(t *testing.T) {
+		got := make([]byte, len(want))
+		n, err := file.Read(got)
+		if err != nil {
+			t.Fatal("Read:", err)
+		}
+		if n != len(want) {
+			t.Fatal("Read:", n)
+		}
+		if string(got) != want {
+			t.Fatalf("Read: %q", got)
+		}
+	})
+
+	t.Run("EOF", func(t *testing.T) {
+		var buf [1]byte
+		n, err := file.Read(buf[:])
+		if err != io.EOF {
+			t.Fatal("Read:", err)
+		}
+		if n != 0 {
+			t.Fatal("Read:", n)
+		}
+	})
+
+	t.Run("Offset", func(t *testing.T) {
+		seeker := file.(io.Seeker)
+		n, err := seeker.Seek(0, io.SeekCurrent)
+		if err != nil {
+			t.Fatal("Read:", err)
+		}
+		if n != int64(len(want)) {
+			t.Fatal("Read:", n)
+		}
+	})
+
+	t.Run("ReadAt", func(t *testing.T) {
+		at := file.(io.ReaderAt)
+		got := make([]byte, len(want))
+		n, err := at.ReadAt(got, 0)
+		if err != nil {
+			t.Fatal("ReadAt:", err)
+		}
+		if n != len(want) {
+			t.Fatal("ReadAt:", n)
+		}
+		if string(got) != want {
+			t.Fatalf("ReadAt: %q", got)
+		}
+	})
 }
