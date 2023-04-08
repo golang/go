@@ -80,6 +80,10 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return err
 	}
+	if file.diagnostics == nil {
+		// LSP requires a slice, not a nil.
+		file.diagnostics = []protocol.Diagnostic{}
+	}
 	p := protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.URIFromSpanURI(uri),

@@ -159,7 +159,7 @@ func (c *commandHandler) ApplyFix(ctx context.Context, args command.ApplyFixArgs
 		if err != nil {
 			return err
 		}
-		var changes []protocol.DocumentChanges
+		changes := []protocol.DocumentChanges{} // must be a slice
 		for _, edit := range edits {
 			edit := edit
 			changes = append(changes, protocol.DocumentChanges{
@@ -376,7 +376,7 @@ func (c *commandHandler) RemoveDependency(ctx context.Context, args command.Remo
 									URI: protocol.URIFromSpanURI(deps.fh.URI()),
 								},
 							},
-							Edits: edits,
+							Edits: nonNilSliceTextEdit(edits),
 						},
 					},
 				},
@@ -591,7 +591,7 @@ func (s *Server) runGoModUpdateCommands(ctx context.Context, snapshot source.Sna
 	if len(changes) == 0 {
 		return nil
 	}
-	var documentChanges []protocol.DocumentChanges
+	documentChanges := []protocol.DocumentChanges{} // must be a slice
 	for _, change := range changes {
 		change := change
 		documentChanges = append(documentChanges, protocol.DocumentChanges{

@@ -129,6 +129,7 @@ func parseDetailsFile(filename string, options *Options) (span.URI, []*Diagnosti
 		if err := dec.Decode(d); err != nil {
 			return "", nil, err
 		}
+		d.Tags = []protocol.DiagnosticTag{} // must be an actual slice
 		msg := d.Code.(string)
 		if msg != "" {
 			msg = fmt.Sprintf("%s(%s)", msg, d.Message)

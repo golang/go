@@ -134,7 +134,7 @@ func toProtocolCompletionItems(candidates []completion.CompletionItem, rng proto
 
 			Preselect:     i == 0,
 			Documentation: doc,
-			Tags:          candidate.Tags,
+			Tags:          nonNilSliceCompletionItemTag(candidate.Tags),
 			Deprecated:    candidate.Deprecated,
 		}
 		items = append(items, item)

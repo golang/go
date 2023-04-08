@@ -80,20 +80,3 @@ func (s *Server) didChangeConfiguration(ctx context.Context, _ *protocol.DidChan
 
 	return nil
 }
-
-func semanticTokenRegistration(tokenTypes, tokenModifiers []string) protocol.Registration {
-	return protocol.Registration{
-		ID:     "textDocument/semanticTokens",
-		Method: "textDocument/semanticTokens",
-		RegisterOptions: &protocol.SemanticTokensOptions{
-			Legend: protocol.SemanticTokensLegend{
-				// TODO(pjw): trim these to what we use (and an unused one
-				// at position 0 of TokTypes, to catch typos)
-				TokenTypes:     tokenTypes,
-				TokenModifiers: tokenModifiers,
-			},
-			Full:  &protocol.Or_SemanticTokensOptions_full{Value: true},
-			Range: &protocol.Or_SemanticTokensOptions_range{Value: true},
-		},
-	}
-}

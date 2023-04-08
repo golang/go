@@ -793,7 +793,7 @@ func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnost
 			Range:              diag.Range,
 			Severity:           diag.Severity,
 			Source:             string(diag.Source),
-			Tags:               diag.Tags,
+			Tags:               emptySliceDiagnosticTag(diag.Tags),
 			RelatedInformation: diag.Related,
 		}
 		if diag.Code != "" {

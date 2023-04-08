@@ -336,7 +336,7 @@ func protocolEditsFromSource(src []byte, edits []diff.Edit) ([]protocol.TextEdit
 	return result, nil
 }
 
-// ToProtocolEdits converts diff.Edits to LSP TextEdits.
+// ToProtocolEdits converts diff.Edits to a non-nil slice of LSP TextEdits.
 // See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textEditArray
 func ToProtocolEdits(m *protocol.Mapper, edits []diff.Edit) ([]protocol.TextEdit, error) {
 	// LSP doesn't require TextEditArray to be sorted:

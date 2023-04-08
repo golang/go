@@ -123,7 +123,7 @@ func Completion(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 
 	sort.Strings(completions)
 
-	var items []protocol.CompletionItem
+	items := []protocol.CompletionItem{} // must be a slice
 	for _, c := range completions {
 		items = append(items, protocol.CompletionItem{
 			Label:      c,

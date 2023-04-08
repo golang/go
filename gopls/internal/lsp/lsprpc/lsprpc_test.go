@@ -6,6 +6,7 @@ package lsprpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strings"
@@ -341,5 +342,32 @@ func TestListenParsing(t *testing.T) {
 		if gotAddr != test.wantAddr {
 			t.Errorf("addr = %q, want %q", gotAddr, test.wantAddr)
 		}
+	}
+}
+
+// For #59479, verify that empty slices are serialized as [].
+func TestEmptySlices(t *testing.T) {
+	// The LSP would prefer that empty slices be sent as [] rather than null.
+	const bad = `{"a":null}`
+	const good = `{"a":[]}`
+	var x struct {
+		A []string `json:"a"`
+	}
+	buf, _ := json.Marshal(x)
+	if string(buf) != bad {
+		// uninitialized is ezpected to give null
+		t.Errorf("unexpectedly got %s, want %s", buf, bad)
+	}
+	x.A = make([]string, 0)
+	buf, _ = json.Marshal(x)
+	if string(buf) != good {
+		// expect []
+		t.Errorf("unexpectedly got %s, want %s", buf, good)
+	}
+	x.A = []string{}
+	buf, _ = json.Marshal(x)
+	if string(buf) != good {
+		// expect []
+		t.Errorf("unexpectedly got %s, want %s", buf, good)
 	}
 }

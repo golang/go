@@ -405,7 +405,7 @@ func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol
 						URI: protocol.URIFromSpanURI(fh.URI()),
 					},
 				},
-				Edits: edits,
+				Edits: nonNilSliceTextEdit(edits),
 			},
 		},
 	}
@@ -437,7 +437,7 @@ func codeActionsMatchingDiagnostics(ctx context.Context, snapshot source.Snapsho
 func codeActionsForDiagnostic(ctx context.Context, snapshot source.Snapshot, sd *source.Diagnostic, pd *protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	var actions []protocol.CodeAction
 	for _, fix := range sd.SuggestedFixes {
-		var changes []protocol.DocumentChanges
+		changes := []protocol.DocumentChanges{} // must be a slice
 		for uri, edits := range fix.Edits {
 			fh, err := snapshot.ReadFile(ctx, uri)
 			if err != nil {

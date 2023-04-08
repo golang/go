@@ -118,6 +118,7 @@ func expected(t *testing.T, test tests.Completion, items tests.CompletionItems) 
 			Label:  item.Label,
 			Kind:   item.Kind,
 			Detail: item.Detail,
+			Tags:   []protocol.CompletionItemTag{}, // must be a slice
 			Documentation: &protocol.Or_CompletionItem_documentation{
 				Value: item.Documentation,
 			},

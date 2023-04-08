@@ -31,7 +31,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 		return nil, err
 	}
 
-	var docChanges []protocol.DocumentChanges
+	docChanges := []protocol.DocumentChanges{} // must be a slice
 	for uri, e := range edits {
 		fh, err := snapshot.ReadFile(ctx, uri)
 		if err != nil {

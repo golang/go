@@ -152,7 +152,7 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 			DocumentSymbolProvider:     &protocol.Or_ServerCapabilities_documentSymbolProvider{Value: true},
 			WorkspaceSymbolProvider:    &protocol.Or_ServerCapabilities_workspaceSymbolProvider{Value: true},
 			ExecuteCommandProvider: &protocol.ExecuteCommandOptions{
-				Commands: options.SupportedCommands,
+				Commands: nonNilSliceString(options.SupportedCommands),
 			},
 			FoldingRangeProvider:      &protocol.Or_ServerCapabilities_foldingRangeProvider{Value: true},
 			HoverProvider:             &protocol.Or_ServerCapabilities_hoverProvider{Value: true},
@@ -166,8 +166,8 @@ See https://github.com/golang/go/issues/45732 for more information.`,
 				Range: &protocol.Or_SemanticTokensOptions_range{Value: true},
 				Full:  &protocol.Or_SemanticTokensOptions_full{Value: true},
 				Legend: protocol.SemanticTokensLegend{
-					TokenTypes:     s.session.Options().SemanticTypes,
-					TokenModifiers: s.session.Options().SemanticMods,
+					TokenTypes:     nonNilSliceString(s.session.Options().SemanticTypes),
+					TokenModifiers: nonNilSliceString(s.session.Options().SemanticMods),
 				},
 			},
 			SignatureHelpProvider: &protocol.SignatureHelpOptions{
@@ -452,7 +452,7 @@ func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, patterns 
 	for k := range s.watchedGlobPatterns {
 		delete(s.watchedGlobPatterns, k)
 	}
-	var watchers []protocol.FileSystemWatcher
+	watchers := []protocol.FileSystemWatcher{} // must be a slice
 	val := protocol.WatchChange | protocol.WatchDelete | protocol.WatchCreate
 	for pattern := range patterns {
 		watchers = append(watchers, protocol.FileSystemWatcher{
@@ -628,4 +628,32 @@ func (s *Server) exit(ctx context.Context) error {
 	// we don't terminate the process on a normal exit, we just allow it to
 	// close naturally if needed after the connection is closed.
 	return nil
+}
+
+// TODO: when we can assume go1.18, replace with generic
+// (after retiring support for go1.17)
+func nonNilSliceString(x []string) []string {
+	if x == nil {
+		return []string{}
+	}
+	return x
+}
+func nonNilSliceTextEdit(x []protocol.TextEdit) []protocol.TextEdit {
+	if x == nil {
+		return []protocol.TextEdit{}
+	}
+
+	return x
+}
+func nonNilSliceCompletionItemTag(x []protocol.CompletionItemTag) []protocol.CompletionItemTag {
+	if x == nil {
+		return []protocol.CompletionItemTag{}
+	}
+	return x
+}
+func emptySliceDiagnosticTag(x []protocol.DiagnosticTag) []protocol.DiagnosticTag {
+	if x == nil {
+		return []protocol.DiagnosticTag{}
+	}
+	return x
 }
