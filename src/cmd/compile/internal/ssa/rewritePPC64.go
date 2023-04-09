@@ -1702,13 +1702,13 @@ func rewriteValuePPC64_OpEq16(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Eq16 x y)
-	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// cond: x.Type.IsSigned() && y.Type.IsSigned()
 	// result: (Equal (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			y := v_1
-			if !(isSigned(x.Type) && isSigned(y.Type)) {
+			if !(x.Type.IsSigned() && y.Type.IsSigned()) {
 				continue
 			}
 			v.reset(OpPPC64Equal)
@@ -1809,13 +1809,13 @@ func rewriteValuePPC64_OpEq8(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Eq8 x y)
-	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// cond: x.Type.IsSigned() && y.Type.IsSigned()
 	// result: (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			y := v_1
-			if !(isSigned(x.Type) && isSigned(y.Type)) {
+			if !(x.Type.IsSigned() && y.Type.IsSigned()) {
 				continue
 			}
 			v.reset(OpPPC64Equal)
@@ -2310,13 +2310,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is32BitInt(t) && isSigned(t)
+	// cond: is32BitInt(t) && t.IsSigned()
 	// result: (MOVWload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is32BitInt(t) && isSigned(t)) {
+		if !(is32BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVWload)
@@ -2324,13 +2324,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is32BitInt(t) && !isSigned(t)
+	// cond: is32BitInt(t) && !t.IsSigned()
 	// result: (MOVWZload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is32BitInt(t) && !isSigned(t)) {
+		if !(is32BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVWZload)
@@ -2338,13 +2338,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is16BitInt(t) && isSigned(t)
+	// cond: is16BitInt(t) && t.IsSigned()
 	// result: (MOVHload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is16BitInt(t) && isSigned(t)) {
+		if !(is16BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVHload)
@@ -2352,13 +2352,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is16BitInt(t) && !isSigned(t)
+	// cond: is16BitInt(t) && !t.IsSigned()
 	// result: (MOVHZload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is16BitInt(t) && !isSigned(t)) {
+		if !(is16BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVHZload)
@@ -2380,13 +2380,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is8BitInt(t) && isSigned(t)
+	// cond: is8BitInt(t) && t.IsSigned()
 	// result: (MOVBreg (MOVBZload ptr mem))
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is8BitInt(t) && isSigned(t)) {
+		if !(is8BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)
@@ -2396,13 +2396,13 @@ func rewriteValuePPC64_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is8BitInt(t) && !isSigned(t)
+	// cond: is8BitInt(t) && !t.IsSigned()
 	// result: (MOVBZload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is8BitInt(t) && !isSigned(t)) {
+		if !(is8BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVBZload)
@@ -3617,13 +3617,13 @@ func rewriteValuePPC64_OpNeq16(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Neq16 x y)
-	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// cond: x.Type.IsSigned() && y.Type.IsSigned()
 	// result: (NotEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			y := v_1
-			if !(isSigned(x.Type) && isSigned(y.Type)) {
+			if !(x.Type.IsSigned() && y.Type.IsSigned()) {
 				continue
 			}
 			v.reset(OpPPC64NotEqual)
@@ -3724,13 +3724,13 @@ func rewriteValuePPC64_OpNeq8(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Neq8 x y)
-	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// cond: x.Type.IsSigned() && y.Type.IsSigned()
 	// result: (NotEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			y := v_1
-			if !(isSigned(x.Type) && isSigned(y.Type)) {
+			if !(x.Type.IsSigned() && y.Type.IsSigned()) {
 				continue
 			}
 			v.reset(OpPPC64NotEqual)
@@ -6649,7 +6649,7 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVBZreg x:(Arg <t>))
-	// cond: is8BitInt(t) && !isSigned(t)
+	// cond: is8BitInt(t) && !t.IsSigned()
 	// result: x
 	for {
 		x := v_0
@@ -6657,7 +6657,7 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
 			break
 		}
 		t := x.Type
-		if !(is8BitInt(t) && !isSigned(t)) {
+		if !(is8BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.copyOf(x)
@@ -6859,7 +6859,7 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVBreg x:(Arg <t>))
-	// cond: is8BitInt(t) && isSigned(t)
+	// cond: is8BitInt(t) && t.IsSigned()
 	// result: x
 	for {
 		x := v_0
@@ -6867,7 +6867,7 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
 			break
 		}
 		t := x.Type
-		if !(is8BitInt(t) && isSigned(t)) {
+		if !(is8BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.copyOf(x)
@@ -8818,7 +8818,7 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVHZreg x:(Arg <t>))
-	// cond: (is8BitInt(t) || is16BitInt(t)) && !isSigned(t)
+	// cond: (is8BitInt(t) || is16BitInt(t)) && !t.IsSigned()
 	// result: x
 	for {
 		x := v_0
@@ -8826,7 +8826,7 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 			break
 		}
 		t := x.Type
-		if !((is8BitInt(t) || is16BitInt(t)) && !isSigned(t)) {
+		if !((is8BitInt(t) || is16BitInt(t)) && !t.IsSigned()) {
 			break
 		}
 		v.copyOf(x)
@@ -9191,7 +9191,7 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVHreg x:(Arg <t>))
-	// cond: (is8BitInt(t) || is16BitInt(t)) && isSigned(t)
+	// cond: (is8BitInt(t) || is16BitInt(t)) && t.IsSigned()
 	// result: x
 	for {
 		x := v_0
@@ -9199,7 +9199,7 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
 			break
 		}
 		t := x.Type
-		if !((is8BitInt(t) || is16BitInt(t)) && isSigned(t)) {
+		if !((is8BitInt(t) || is16BitInt(t)) && t.IsSigned()) {
 			break
 		}
 		v.copyOf(x)
@@ -10155,7 +10155,7 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWZreg x:(Arg <t>))
-	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t)
+	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !t.IsSigned()
 	// result: x
 	for {
 		x := v_0
@@ -10163,7 +10163,7 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 			break
 		}
 		t := x.Type
-		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t)) {
+		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !t.IsSigned()) {
 			break
 		}
 		v.copyOf(x)
@@ -10549,7 +10549,7 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(Arg <t>))
-	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t)
+	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && t.IsSigned()
 	// result: x
 	for {
 		x := v_0
@@ -10557,7 +10557,7 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 			break
 		}
 		t := x.Type
-		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t)) {
+		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && t.IsSigned()) {
 			break
 		}
 		v.copyOf(x)
@@ -16150,12 +16150,12 @@ func rewriteValuePPC64_OpStore(v *Value) bool {
 func rewriteValuePPC64_OpTrunc16to8(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc16to8 <t> x)
-	// cond: isSigned(t)
+	// cond: t.IsSigned()
 	// result: (MOVBreg x)
 	for {
 		t := v.Type
 		x := v_0
-		if !(isSigned(t)) {
+		if !(t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)
@@ -16174,12 +16174,12 @@ func rewriteValuePPC64_OpTrunc16to8(v *Value) bool {
 func rewriteValuePPC64_OpTrunc32to16(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc32to16 <t> x)
-	// cond: isSigned(t)
+	// cond: t.IsSigned()
 	// result: (MOVHreg x)
 	for {
 		t := v.Type
 		x := v_0
-		if !(isSigned(t)) {
+		if !(t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVHreg)
@@ -16198,12 +16198,12 @@ func rewriteValuePPC64_OpTrunc32to16(v *Value) bool {
 func rewriteValuePPC64_OpTrunc32to8(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc32to8 <t> x)
-	// cond: isSigned(t)
+	// cond: t.IsSigned()
 	// result: (MOVBreg x)
 	for {
 		t := v.Type
 		x := v_0
-		if !(isSigned(t)) {
+		if !(t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)
@@ -16222,12 +16222,12 @@ func rewriteValuePPC64_OpTrunc32to8(v *Value) bool {
 func rewriteValuePPC64_OpTrunc64to16(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to16 <t> x)
-	// cond: isSigned(t)
+	// cond: t.IsSigned()
 	// result: (MOVHreg x)
 	for {
 		t := v.Type
 		x := v_0
-		if !(isSigned(t)) {
+		if !(t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVHreg)
@@ -16246,12 +16246,12 @@ func rewriteValuePPC64_OpTrunc64to16(v *Value) bool {
 func rewriteValuePPC64_OpTrunc64to32(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to32 <t> x)
-	// cond: isSigned(t)
+	// cond: t.IsSigned()
 	// result: (MOVWreg x)
 	for {
 		t := v.Type
 		x := v_0
-		if !(isSigned(t)) {
+		if !(t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVWreg)
@@ -16270,12 +16270,12 @@ func rewriteValuePPC64_OpTrunc64to32(v *Value) bool {
 func rewriteValuePPC64_OpTrunc64to8(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to8 <t> x)
-	// cond: isSigned(t)
+	// cond: t.IsSigned()
 	// result: (MOVBreg x)
 	for {
 		t := v.Type
 		x := v_0
-		if !(isSigned(t)) {
+		if !(t.IsSigned()) {
 			break
 		}
 		v.reset(OpPPC64MOVBreg)

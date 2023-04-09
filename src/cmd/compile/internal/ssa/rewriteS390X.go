@@ -2346,13 +2346,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is32BitInt(t) && isSigned(t)
+	// cond: is32BitInt(t) && t.IsSigned()
 	// result: (MOVWload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is32BitInt(t) && isSigned(t)) {
+		if !(is32BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVWload)
@@ -2360,13 +2360,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is32BitInt(t) && !isSigned(t)
+	// cond: is32BitInt(t) && !t.IsSigned()
 	// result: (MOVWZload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is32BitInt(t) && !isSigned(t)) {
+		if !(is32BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVWZload)
@@ -2374,13 +2374,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is16BitInt(t) && isSigned(t)
+	// cond: is16BitInt(t) && t.IsSigned()
 	// result: (MOVHload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is16BitInt(t) && isSigned(t)) {
+		if !(is16BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVHload)
@@ -2388,13 +2388,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is16BitInt(t) && !isSigned(t)
+	// cond: is16BitInt(t) && !t.IsSigned()
 	// result: (MOVHZload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is16BitInt(t) && !isSigned(t)) {
+		if !(is16BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVHZload)
@@ -2402,13 +2402,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is8BitInt(t) && isSigned(t)
+	// cond: is8BitInt(t) && t.IsSigned()
 	// result: (MOVBload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is8BitInt(t) && isSigned(t)) {
+		if !(is8BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVBload)
@@ -2416,13 +2416,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (t.IsBoolean() || (is8BitInt(t) && !isSigned(t)))
+	// cond: (t.IsBoolean() || (is8BitInt(t) && !t.IsSigned()))
 	// result: (MOVBZload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) {
+		if !(t.IsBoolean() || (is8BitInt(t) && !t.IsSigned())) {
 			break
 		}
 		v.reset(OpS390XMOVBZload)

@@ -234,8 +234,8 @@
 (Load <t> ptr mem) && is64BitFloat(t) => (MOVSDload ptr mem)
 
 // Lowering stores
-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVSDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVSSstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (MOVSDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (MOVSSstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVQstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVLstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVWstore ptr val mem)

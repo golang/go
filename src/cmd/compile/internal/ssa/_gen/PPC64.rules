@@ -84,11 +84,11 @@
 (ZeroExt16to(32|64) ...) => (MOVHZreg ...)
 (ZeroExt32to64 ...) => (MOVWZreg ...)
 
-(Trunc(16|32|64)to8 <t> x) && isSigned(t) => (MOVBreg x)
+(Trunc(16|32|64)to8 <t> x) && t.IsSigned() => (MOVBreg x)
 (Trunc(16|32|64)to8  x) => (MOVBZreg x)
-(Trunc(32|64)to16 <t> x) && isSigned(t) => (MOVHreg x)
+(Trunc(32|64)to16 <t> x) && t.IsSigned() => (MOVHreg x)
 (Trunc(32|64)to16 x) => (MOVHZreg x)
-(Trunc64to32 <t> x) && isSigned(t) => (MOVWreg x)
+(Trunc64to32 <t> x) && t.IsSigned() => (MOVWreg x)
 (Trunc64to32 x) => (MOVWZreg x)
 
 // Lowering constants
@@ -274,14 +274,14 @@
 // Lowering comparisons
 (EqB x y)  => (Select0 <typ.Int> (ANDCCconst [1] (EQV x y)))
 // Sign extension dependence on operand sign sets up for sign/zero-extension elision later
-(Eq(8|16) x y) && isSigned(x.Type) && isSigned(y.Type) => (Equal (CMPW (SignExt(8|16)to32 x) (SignExt(8|16)to32 y)))
+(Eq(8|16) x y) && x.Type.IsSigned() && y.Type.IsSigned() => (Equal (CMPW (SignExt(8|16)to32 x) (SignExt(8|16)to32 y)))
 (Eq(8|16) x y) => (Equal (CMPW (ZeroExt(8|16)to32 x) (ZeroExt(8|16)to32 y)))
 (Eq(32|64|Ptr) x y) => (Equal ((CMPW|CMP|CMP) x y))
 (Eq(32|64)F x y) => (Equal (FCMPU x y))
 
 (NeqB ...) => (XOR ...)
 // Like Eq8 and Eq16, prefer sign extension likely to enable later elision.
-(Neq(8|16) x y) && isSigned(x.Type) && isSigned(y.Type) => (NotEqual (CMPW (SignExt(8|16)to32 x) (SignExt(8|16)to32 y)))
+(Neq(8|16) x y) && x.Type.IsSigned() && y.Type.IsSigned() => (NotEqual (CMPW (SignExt(8|16)to32 x) (SignExt(8|16)to32 y)))
 (Neq(8|16) x y)  => (NotEqual (CMPW (ZeroExt(8|16)to32 x) (ZeroExt(8|16)to32 y)))
 (Neq(32|64|Ptr) x y) => (NotEqual ((CMPW|CMP|CMP) x y))
 (Neq(32|64)F x y) => (NotEqual (FCMPU x y))
@@ -419,19 +419,19 @@
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
-(Load <t> ptr mem) && is32BitInt(t) && isSigned(t) => (MOVWload ptr mem)
-(Load <t> ptr mem) && is32BitInt(t) && !isSigned(t) => (MOVWZload ptr mem)
-(Load <t> ptr mem) && is16BitInt(t) && isSigned(t) => (MOVHload ptr mem)
-(Load <t> ptr mem) && is16BitInt(t) && !isSigned(t) => (MOVHZload ptr mem)
+(Load <t> ptr mem) && is32BitInt(t) &&  t.IsSigned() => (MOVWload ptr mem)
+(Load <t> ptr mem) && is32BitInt(t) && !t.IsSigned() => (MOVWZload ptr mem)
+(Load <t> ptr mem) && is16BitInt(t) &&  t.IsSigned() => (MOVHload ptr mem)
+(Load <t> ptr mem) && is16BitInt(t) && !t.IsSigned() => (MOVHZload ptr mem)
 (Load <t> ptr mem) && t.IsBoolean() => (MOVBZload ptr mem)
-(Load <t> ptr mem) && is8BitInt(t) && isSigned(t) => (MOVBreg (MOVBZload ptr mem)) // PPC has no signed-byte load.
-(Load <t> ptr mem) && is8BitInt(t) && !isSigned(t) => (MOVBZload ptr mem)
+(Load <t> ptr mem) && is8BitInt(t) &&  t.IsSigned() => (MOVBreg (MOVBZload ptr mem)) // PPC has no signed-byte load.
+(Load <t> ptr mem) && is8BitInt(t) && !t.IsSigned() => (MOVBZload ptr mem)
 
 (Load <t> ptr mem) && is32BitFloat(t) => (FMOVSload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
 
-(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (FMOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (FMOVSstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVSstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
@@ -804,12 +804,12 @@
 (MOV(B|W)Zreg x:(Select0 (LoweredAtomicLoad(8|32) _ _))) => x
 
 // don't extend if argument is already extended
-(MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) => x
-(MOVBZreg x:(Arg <t>)) && is8BitInt(t) && !isSigned(t) => x
-(MOVHreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && isSigned(t) => x
-(MOVHZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && !isSigned(t) => x
-(MOVWreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t) => x
-(MOVWZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t) => x
+(MOVBreg x:(Arg <t>)) && is8BitInt(t) && t.IsSigned() => x
+(MOVBZreg x:(Arg <t>)) && is8BitInt(t) && !t.IsSigned() => x
+(MOVHreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && t.IsSigned() => x
+(MOVHZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && !t.IsSigned() => x
+(MOVWreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && t.IsSigned() => x
+(MOVWZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !t.IsSigned() => x
 
 (MOVBZreg (MOVDconst [c]))  => (MOVDconst [int64(uint8(c))])
 (MOVBreg (MOVDconst [c]))  => (MOVDconst [int64(int8(c))])

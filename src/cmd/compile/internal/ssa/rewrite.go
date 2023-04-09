@@ -235,10 +235,6 @@ func isPtr(t *types.Type) bool {
 	return t.IsPtrShaped()
 }
 
-func isSigned(t *types.Type) bool {
-	return t.IsSigned()
-}
-
 // mergeSym merges two symbolic offsets. There is no real merging of
 // offsets, we just pick the non-nil one.
 func mergeSym(x, y Sym) Sym {

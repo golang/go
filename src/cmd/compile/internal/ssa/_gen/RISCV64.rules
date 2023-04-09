@@ -282,16 +282,16 @@
 (Neq32F ...) => (FNES ...)
 
 // Loads
-(Load <t> ptr mem) &&  t.IsBoolean()                  => (MOVBUload ptr mem)
-(Load <t> ptr mem) && ( is8BitInt(t) &&  isSigned(t)) => (MOVBload  ptr mem)
-(Load <t> ptr mem) && ( is8BitInt(t) && !isSigned(t)) => (MOVBUload ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) &&  isSigned(t)) => (MOVHload  ptr mem)
-(Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) => (MOVHUload ptr mem)
-(Load <t> ptr mem) && (is32BitInt(t) &&  isSigned(t)) => (MOVWload  ptr mem)
-(Load <t> ptr mem) && (is32BitInt(t) && !isSigned(t)) => (MOVWUload ptr mem)
-(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t))     => (MOVDload  ptr mem)
-(Load <t> ptr mem) &&  is32BitFloat(t)                => (FMOVWload ptr mem)
-(Load <t> ptr mem) &&  is64BitFloat(t)                => (FMOVDload ptr mem)
+(Load <t> ptr mem) &&  t.IsBoolean()                   => (MOVBUload ptr mem)
+(Load <t> ptr mem) && ( is8BitInt(t) &&  t.IsSigned()) => (MOVBload  ptr mem)
+(Load <t> ptr mem) && ( is8BitInt(t) && !t.IsSigned()) => (MOVBUload ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) &&  t.IsSigned()) => (MOVHload  ptr mem)
+(Load <t> ptr mem) && (is16BitInt(t) && !t.IsSigned()) => (MOVHUload ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) &&  t.IsSigned()) => (MOVWload  ptr mem)
+(Load <t> ptr mem) && (is32BitInt(t) && !t.IsSigned()) => (MOVWUload ptr mem)
+(Load <t> ptr mem) && (is64BitInt(t) || isPtr(t))      => (MOVDload  ptr mem)
+(Load <t> ptr mem) &&  is32BitFloat(t)                 => (FMOVWload ptr mem)
+(Load <t> ptr mem) &&  is64BitFloat(t)                 => (FMOVDload ptr mem)
 
 // Stores
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
