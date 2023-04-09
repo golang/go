@@ -237,10 +237,10 @@
 // stores
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVVstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVFstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVVstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVFstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVDstore ptr val mem)
 
 // zeroing
 (Zero [0] _ mem) => mem

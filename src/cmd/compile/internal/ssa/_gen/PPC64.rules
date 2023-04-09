@@ -430,11 +430,10 @@
 (Load <t> ptr mem) && is32BitFloat(t) => (FMOVSload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
 
-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && is32BitFloat(val.Type) => (FMOVDstore ptr val mem) // glitch from (Cvt32Fto64F x) => x -- type is wrong
-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (FMOVSstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && is32BitInt(val.Type) => (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (FMOVSstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 

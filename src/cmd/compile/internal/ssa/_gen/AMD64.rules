@@ -234,12 +234,10 @@
 (Load <t> ptr mem) && is64BitFloat(t) => (MOVSDload ptr mem)
 
 // Lowering stores
-// These more-specific FP versions of Store pattern should come first.
-(Store {t} ptr val mem) && t.Size() == 8 && is64BitFloat(val.Type) => (MOVSDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && is32BitFloat(val.Type) => (MOVSSstore ptr val mem)
-
-(Store {t} ptr val mem) && t.Size() == 8 => (MOVQstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 => (MOVLstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && t.IsFloat() => (MOVSDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && t.IsFloat() => (MOVSSstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVQstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVLstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVWstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 

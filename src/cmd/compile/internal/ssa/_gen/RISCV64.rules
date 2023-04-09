@@ -296,10 +296,10 @@
 // Stores
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 && !is32BitFloat(val.Type) => (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && !is64BitFloat(val.Type) => (MOVDstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 4 &&  is32BitFloat(val.Type) => (FMOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 &&  is64BitFloat(val.Type) => (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVWstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
 
 // We need to fold MOVaddr into the LD/MOVDstore ops so that the live variable analysis
 // knows what variables are being read/written by the ops.
