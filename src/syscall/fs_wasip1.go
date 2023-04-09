@@ -118,23 +118,23 @@ func fd_filestat_set_size(fd int32, set_size filesize) Errno
 //
 //go:wasmimport wasi_snapshot_preview1 fd_pread
 //go:noescape
-func fd_pread(fd int32, iovs *iovec, iovsLen size, offset filesize, nread *size) Errno
+func fd_pread(fd int32, iovs unsafe.Pointer, iovsLen size, offset filesize, nread unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 fd_pwrite
 //go:noescape
-func fd_pwrite(fd int32, iovs *iovec, iovsLen size, offset filesize, nwritten *size) Errno
+func fd_pwrite(fd int32, iovs unsafe.Pointer, iovsLen size, offset filesize, nwritten unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 fd_read
 //go:noescape
-func fd_read(fd int32, iovs *iovec, iovsLen size, nread *size) Errno
+func fd_read(fd int32, iovs unsafe.Pointer, iovsLen size, nread unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 fd_readdir
 //go:noescape
-func fd_readdir(fd int32, buf *byte, bufLen size, cookie dircookie, nwritten *size) Errno
+func fd_readdir(fd int32, buf unsafe.Pointer, bufLen size, cookie dircookie, nwritten unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 fd_seek
 //go:noescape
-func fd_seek(fd int32, offset filedelta, whence uint32, newoffset *filesize) Errno
+func fd_seek(fd int32, offset filedelta, whence uint32, newoffset unsafe.Pointer) Errno
 
 // https://github.com/WebAssembly/WASI/blob/a2b96e81c0586125cc4dc79a5be0b78d9a059925/legacy/preview1/docs.md#-fd_fdstat_set_rightsfd-fd-fs_rights_base-rights-fs_rights_inheriting-rights---result-errno
 //
@@ -144,11 +144,11 @@ func fd_fdstat_set_rights(fd int32, rightsBase rights, rightsInheriting rights) 
 
 //go:wasmimport wasi_snapshot_preview1 fd_filestat_get
 //go:noescape
-func fd_filestat_get(fd int32, buf *Stat_t) Errno
+func fd_filestat_get(fd int32, buf unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 fd_write
 //go:noescape
-func fd_write(fd int32, iovs *iovec, iovsLen size, nwritten *size) Errno
+func fd_write(fd int32, iovs unsafe.Pointer, iovsLen size, nwritten unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 fd_sync
 //go:noescape
@@ -156,47 +156,47 @@ func fd_sync(fd int32) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_create_directory
 //go:noescape
-func path_create_directory(fd int32, path *byte, pathLen size) Errno
+func path_create_directory(fd int32, path unsafe.Pointer, pathLen size) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_filestat_get
 //go:noescape
-func path_filestat_get(fd int32, flags lookupflags, path *byte, pathLen size, buf *Stat_t) Errno
+func path_filestat_get(fd int32, flags lookupflags, path unsafe.Pointer, pathLen size, buf unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_filestat_set_times
 //go:noescape
-func path_filestat_set_times(fd int32, flags lookupflags, path *byte, pathLen size, atim timestamp, mtim timestamp, fstflags fstflags) Errno
+func path_filestat_set_times(fd int32, flags lookupflags, path unsafe.Pointer, pathLen size, atim timestamp, mtim timestamp, fstflags fstflags) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_link
 //go:noescape
-func path_link(oldFd int32, oldFlags lookupflags, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) Errno
+func path_link(oldFd int32, oldFlags lookupflags, oldPath unsafe.Pointer, oldPathLen size, newFd int32, newPath unsafe.Pointer, newPathLen size) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_readlink
 //go:noescape
-func path_readlink(fd int32, path *byte, pathLen size, buf *byte, bufLen size, nwritten *size) Errno
+func path_readlink(fd int32, path unsafe.Pointer, pathLen size, buf unsafe.Pointer, bufLen size, nwritten unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_remove_directory
 //go:noescape
-func path_remove_directory(fd int32, path *byte, pathLen size) Errno
+func path_remove_directory(fd int32, path unsafe.Pointer, pathLen size) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_rename
 //go:noescape
-func path_rename(oldFd int32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) Errno
+func path_rename(oldFd int32, oldPath unsafe.Pointer, oldPathLen size, newFd int32, newPath unsafe.Pointer, newPathLen size) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_symlink
 //go:noescape
-func path_symlink(oldPath *byte, oldPathLen size, fd int32, newPath *byte, newPathLen size) Errno
+func path_symlink(oldPath unsafe.Pointer, oldPathLen size, fd int32, newPath unsafe.Pointer, newPathLen size) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_unlink_file
 //go:noescape
-func path_unlink_file(fd int32, path *byte, pathLen size) Errno
+func path_unlink_file(fd int32, path unsafe.Pointer, pathLen size) Errno
 
 //go:wasmimport wasi_snapshot_preview1 path_open
 //go:noescape
-func path_open(rootFD int32, dirflags lookupflags, path *byte, pathLen size, oflags oflags, fsRightsBase rights, fsRightsInheriting rights, fsFlags fdflags, fd *int32) Errno
+func path_open(rootFD int32, dirflags lookupflags, path unsafe.Pointer, pathLen size, oflags oflags, fsRightsBase rights, fsRightsInheriting rights, fsFlags fdflags, fd unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 random_get
 //go:noescape
-func random_get(buf *byte, bufLen size) Errno
+func random_get(buf unsafe.Pointer, bufLen size) Errno
 
 type preopentype = uint8
 
@@ -215,11 +215,11 @@ type prestat struct {
 
 //go:wasmimport wasi_snapshot_preview1 fd_prestat_get
 //go:noescape
-func fd_prestat_get(fd int32, prestat *prestat) Errno
+func fd_prestat_get(fd int32, prestat unsafe.Pointer) Errno
 
 //go:wasmimport wasi_snapshot_preview1 fd_prestat_dir_name
 //go:noescape
-func fd_prestat_dir_name(fd int32, path *byte, pathLen size) Errno
+func fd_prestat_dir_name(fd int32, path unsafe.Pointer, pathLen size) Errno
 
 type opendir struct {
 	fd   int32
@@ -246,7 +246,7 @@ func init() {
 	for preopenFd := int32(3); ; preopenFd++ {
 		var prestat prestat
 
-		errno := fd_prestat_get(preopenFd, &prestat)
+		errno := fd_prestat_get(preopenFd, unsafe.Pointer(&prestat))
 		if errno == EBADF {
 			break
 		}
@@ -260,7 +260,7 @@ func init() {
 			dirNameBuf = make([]byte, prestat.dir.prNameLen)
 		}
 
-		errno = fd_prestat_dir_name(preopenFd, &dirNameBuf[0], prestat.dir.prNameLen)
+		errno = fd_prestat_dir_name(preopenFd, unsafe.Pointer(&dirNameBuf[0]), prestat.dir.prNameLen)
 		if errno != 0 {
 			panic("fd_prestat_dir_name: " + errno.Error())
 		}
@@ -388,7 +388,7 @@ func hasSuffix(s, x string) bool {
 //
 // If the path argument is not absolute, it is first appended to the current
 // working directory before resolution.
-func preparePath(path string) (int32, *byte, size) {
+func preparePath(path string) (int32, unsafe.Pointer, size) {
 	var dirFd = int32(-1)
 	var dirName string
 
@@ -412,7 +412,7 @@ func preparePath(path string) (int32, *byte, size) {
 		path = "."
 	}
 
-	return dirFd, unsafe.StringData(path), size(len(path))
+	return dirFd, stringPointer(path), size(len(path))
 }
 
 func Open(path string, openmode int, perm uint32) (int, error) {
@@ -439,7 +439,7 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		LOOKUP_SYMLINK_FOLLOW,
 		pathPtr,
 		pathLen,
-		&fi,
+		unsafe.Pointer(&fi),
 	); errno != 0 && errno != ENOENT {
 		return -1, errnoErr(errno)
 	}
@@ -483,7 +483,7 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		rights,
 		fullRights,
 		fdflags,
-		&fd,
+		unsafe.Pointer(&fd),
 	)
 	return int(fd), errnoErr(errno)
 }
@@ -508,7 +508,7 @@ func Mkdir(path string, perm uint32) error {
 
 func ReadDir(fd int, buf []byte, cookie dircookie) (int, error) {
 	var nwritten size
-	errno := fd_readdir(int32(fd), &buf[0], size(len(buf)), cookie, &nwritten)
+	errno := fd_readdir(int32(fd), unsafe.Pointer(&buf[0]), size(len(buf)), cookie, unsafe.Pointer(&nwritten))
 	return int(nwritten), errnoErr(errno)
 }
 
@@ -534,7 +534,7 @@ func Stat(path string, st *Stat_t) error {
 		return EINVAL
 	}
 	dirFd, pathPtr, pathLen := preparePath(path)
-	errno := path_filestat_get(dirFd, LOOKUP_SYMLINK_FOLLOW, pathPtr, pathLen, st)
+	errno := path_filestat_get(dirFd, LOOKUP_SYMLINK_FOLLOW, pathPtr, pathLen, unsafe.Pointer(st))
 	setDefaultMode(st)
 	return errnoErr(errno)
 }
@@ -544,13 +544,13 @@ func Lstat(path string, st *Stat_t) error {
 		return EINVAL
 	}
 	dirFd, pathPtr, pathLen := preparePath(path)
-	errno := path_filestat_get(dirFd, 0, pathPtr, pathLen, st)
+	errno := path_filestat_get(dirFd, 0, pathPtr, pathLen, unsafe.Pointer(st))
 	setDefaultMode(st)
 	return errnoErr(errno)
 }
 
 func Fstat(fd int, st *Stat_t) error {
-	errno := fd_filestat_get(int32(fd), st)
+	errno := fd_filestat_get(int32(fd), unsafe.Pointer(st))
 	setDefaultMode(st)
 	return errnoErr(errno)
 }
@@ -676,7 +676,7 @@ func Chdir(path string) error {
 
 	var stat Stat_t
 	dirFd, pathPtr, pathLen := preparePath(path)
-	errno := path_filestat_get(dirFd, LOOKUP_SYMLINK_FOLLOW, pathPtr, pathLen, &stat)
+	errno := path_filestat_get(dirFd, LOOKUP_SYMLINK_FOLLOW, pathPtr, pathLen, unsafe.Pointer(&stat))
 	if errno != 0 {
 		return errnoErr(errno)
 	}
@@ -700,9 +700,9 @@ func Readlink(path string, buf []byte) (n int, err error) {
 		dirFd,
 		pathPtr,
 		pathLen,
-		&buf[0],
+		unsafe.Pointer(&buf[0]),
 		size(len(buf)),
-		&nwritten,
+		unsafe.Pointer(&nwritten),
 	)
 	// For some reason wasmtime returns ERANGE when the output buffer is
 	// shorter than the symbolic link value. os.Readlink expects a nil
@@ -736,7 +736,7 @@ func Symlink(path, link string) error {
 	}
 	dirFd, pathPtr, pathlen := preparePath(link)
 	errno := path_symlink(
-		unsafe.StringData(path),
+		stringPointer(path),
 		size(len(path)),
 		dirFd,
 		pathPtr,
@@ -750,44 +750,52 @@ func Fsync(fd int) error {
 	return errnoErr(errno)
 }
 
-func makeIOVec(b []byte) *iovec {
-	return &iovec{
-		buf:    uintptr32(uintptr(unsafe.Pointer(unsafe.SliceData(b)))),
+func bytesPointer(b []byte) unsafe.Pointer {
+	return unsafe.Pointer(unsafe.SliceData(b))
+}
+
+func stringPointer(s string) unsafe.Pointer {
+	return unsafe.Pointer(unsafe.StringData(s))
+}
+
+func makeIOVec(b []byte) unsafe.Pointer {
+	return unsafe.Pointer(&iovec{
+		buf:    uintptr32(uintptr(bytesPointer(b))),
 		bufLen: size(len(b)),
-	}
+	})
 }
 
 func Read(fd int, b []byte) (int, error) {
 	var nread size
-	errno := fd_read(int32(fd), makeIOVec(b), 1, &nread)
+	errno := fd_read(int32(fd), makeIOVec(b), 1, unsafe.Pointer(&nread))
 	runtime.KeepAlive(b)
 	return int(nread), errnoErr(errno)
 }
 
 func Write(fd int, b []byte) (int, error) {
 	var nwritten size
-	errno := fd_write(int32(fd), makeIOVec(b), 1, &nwritten)
+	errno := fd_write(int32(fd), makeIOVec(b), 1, unsafe.Pointer(&nwritten))
 	runtime.KeepAlive(b)
 	return int(nwritten), errnoErr(errno)
 }
 
 func Pread(fd int, b []byte, offset int64) (int, error) {
 	var nread size
-	errno := fd_pread(int32(fd), makeIOVec(b), 1, filesize(offset), &nread)
+	errno := fd_pread(int32(fd), makeIOVec(b), 1, filesize(offset), unsafe.Pointer(&nread))
 	runtime.KeepAlive(b)
 	return int(nread), errnoErr(errno)
 }
 
 func Pwrite(fd int, b []byte, offset int64) (int, error) {
 	var nwritten size
-	errno := fd_pwrite(int32(fd), makeIOVec(b), 1, filesize(offset), &nwritten)
+	errno := fd_pwrite(int32(fd), makeIOVec(b), 1, filesize(offset), unsafe.Pointer(&nwritten))
 	runtime.KeepAlive(b)
 	return int(nwritten), errnoErr(errno)
 }
 
 func Seek(fd int, offset int64, whence int) (int64, error) {
 	var newoffset filesize
-	errno := fd_seek(int32(fd), filedelta(offset), uint32(whence), &newoffset)
+	errno := fd_seek(int32(fd), filedelta(offset), uint32(whence), unsafe.Pointer(&newoffset))
 	return int64(newoffset), errnoErr(errno)
 }
 
@@ -804,6 +812,6 @@ func Pipe(fd []int) error {
 }
 
 func RandomGet(b []byte) error {
-	errno := random_get(unsafe.SliceData(b), size(len(b)))
+	errno := random_get(bytesPointer(b), size(len(b)))
 	return errnoErr(errno)
 }

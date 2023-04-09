@@ -48,31 +48,31 @@ func exit(code int32)
 
 //go:wasmimport wasi_snapshot_preview1 args_get
 //go:noescape
-func args_get(argv *uintptr32, argvBuf *byte) errno
+func args_get(argv, argvBuf unsafe.Pointer) errno
 
 //go:wasmimport wasi_snapshot_preview1 args_sizes_get
 //go:noescape
-func args_sizes_get(argc *size, argvBufLen *size) errno
+func args_sizes_get(argc, argvBufLen unsafe.Pointer) errno
 
 //go:wasmimport wasi_snapshot_preview1 clock_time_get
 //go:noescape
-func clock_time_get(clock_id clockid, precision timestamp, time *timestamp) errno
+func clock_time_get(clock_id clockid, precision timestamp, time unsafe.Pointer) errno
 
 //go:wasmimport wasi_snapshot_preview1 environ_get
 //go:noescape
-func environ_get(environ *uintptr32, environBuf *byte) errno
+func environ_get(environ, environBuf unsafe.Pointer) errno
 
 //go:wasmimport wasi_snapshot_preview1 environ_sizes_get
 //go:noescape
-func environ_sizes_get(environCount *size, environBufLen *size) errno
+func environ_sizes_get(environCount, environBufLen unsafe.Pointer) errno
 
 //go:wasmimport wasi_snapshot_preview1 fd_write
 //go:noescape
-func fd_write(fd int32, iovs *iovec, iovsLen size, nwritten *size) errno
+func fd_write(fd int32, iovs unsafe.Pointer, iovsLen size, nwritten unsafe.Pointer) errno
 
 //go:wasmimport wasi_snapshot_preview1 random_get
 //go:noescape
-func random_get(buf *byte, bufLen size) errno
+func random_get(buf unsafe.Pointer, bufLen size) errno
 
 type eventtype = uint8
 
@@ -140,7 +140,7 @@ func (u *subscriptionUnion) subscriptionClock() *subscriptionClock {
 
 //go:wasmimport wasi_snapshot_preview1 poll_oneoff
 //go:noescape
-func poll_oneoff(in *subscription, out *event, nsubscriptions size, nevents *size) errno
+func poll_oneoff(in, out unsafe.Pointer, nsubscriptions size, nevents unsafe.Pointer) errno
 
 func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	iov := iovec{
@@ -148,7 +148,7 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 		bufLen: size(n),
 	}
 	var nwritten size
-	if fd_write(int32(fd), &iov, 1, &nwritten) != 0 {
+	if fd_write(int32(fd), unsafe.Pointer(&iov), 1, unsafe.Pointer(&nwritten)) != 0 {
 		throw("fd_write failed")
 	}
 	return int32(nwritten)
@@ -167,13 +167,13 @@ func usleep(usec uint32) {
 	subscription.timeout = timestamp(usec) * 1e3
 	subscription.precision = 1e3
 
-	if poll_oneoff(&in, &out, 1, &nevents) != 0 {
+	if poll_oneoff(unsafe.Pointer(&in), unsafe.Pointer(&out), 1, unsafe.Pointer(&nevents)) != 0 {
 		throw("wasi_snapshot_preview1.poll_oneoff")
 	}
 }
 
 func getRandomData(r []byte) {
-	if random_get(&r[0], size(len(r))) != 0 {
+	if random_get(unsafe.Pointer(&r[0]), size(len(r))) != 0 {
 		throw("random_get failed")
 	}
 }
@@ -182,7 +182,7 @@ func goenvs() {
 	// arguments
 	var argc size
 	var argvBufLen size
-	if args_sizes_get(&argc, &argvBufLen) != 0 {
+	if args_sizes_get(unsafe.Pointer(&argc), unsafe.Pointer(&argvBufLen)) != 0 {
 		throw("args_sizes_get failed")
 	}
 
@@ -190,7 +190,7 @@ func goenvs() {
 	if argc > 0 {
 		argv := make([]uintptr32, argc)
 		argvBuf := make([]byte, argvBufLen)
-		if args_get(&argv[0], &argvBuf[0]) != 0 {
+		if args_get(unsafe.Pointer(&argv[0]), unsafe.Pointer(&argvBuf[0])) != 0 {
 			throw("args_get failed")
 		}
 
@@ -207,7 +207,7 @@ func goenvs() {
 	// environment
 	var environCount size
 	var environBufLen size
-	if environ_sizes_get(&environCount, &environBufLen) != 0 {
+	if environ_sizes_get(unsafe.Pointer(&environCount), unsafe.Pointer(&environBufLen)) != 0 {
 		throw("environ_sizes_get failed")
 	}
 
@@ -215,7 +215,7 @@ func goenvs() {
 	if environCount > 0 {
 		environ := make([]uintptr32, environCount)
 		environBuf := make([]byte, environBufLen)
-		if environ_get(&environ[0], &environBuf[0]) != 0 {
+		if environ_get(unsafe.Pointer(&environ[0]), unsafe.Pointer(&environBuf[0])) != 0 {
 			throw("environ_get failed")
 		}
 
@@ -236,7 +236,7 @@ func walltime() (sec int64, nsec int32) {
 
 func walltime1() (sec int64, nsec int32) {
 	var time timestamp
-	if clock_time_get(clockRealtime, 0, &time) != 0 {
+	if clock_time_get(clockRealtime, 0, unsafe.Pointer(&time)) != 0 {
 		throw("clock_time_get failed")
 	}
 	return int64(time / 1000000000), int32(time % 1000000000)
@@ -244,7 +244,7 @@ func walltime1() (sec int64, nsec int32) {
 
 func nanotime1() int64 {
 	var time timestamp
-	if clock_time_get(clockMonotonic, 0, &time) != 0 {
+	if clock_time_get(clockMonotonic, 0, unsafe.Pointer(&time)) != 0 {
 		throw("clock_time_get failed")
 	}
 	return int64(time)

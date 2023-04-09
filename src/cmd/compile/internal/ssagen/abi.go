@@ -366,23 +366,48 @@ func CreateWasmImportWrapper(fn *ir.Func) bool {
 	return true
 }
 
-func toWasmFields(result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
+func paramsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
 	wfs := make([]obj.WasmField, len(abiParams))
 	for i, p := range abiParams {
 		t := p.Type
-		switch {
-		case t.IsInteger() && t.Size() == 4:
+		switch t.Kind() {
+		case types.TINT32, types.TUINT32:
 			wfs[i].Type = obj.WasmI32
-		case t.IsInteger() && t.Size() == 8:
+		case types.TINT64, types.TUINT64:
 			wfs[i].Type = obj.WasmI64
-		case t.IsFloat() && t.Size() == 4:
+		case types.TFLOAT32:
 			wfs[i].Type = obj.WasmF32
-		case t.IsFloat() && t.Size() == 8:
+		case types.TFLOAT64:
 			wfs[i].Type = obj.WasmF64
-		case t.IsPtr():
+		case types.TUNSAFEPTR:
 			wfs[i].Type = obj.WasmPtr
 		default:
-			base.Fatalf("wasm import has bad function signature")
+			base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: unsupported parameter type %s", f.WasmImport.Module, f.WasmImport.Name, t.String())
+		}
+		wfs[i].Offset = p.FrameOffset(result)
+	}
+	return wfs
+}
+
+func resultsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
+	if len(abiParams) > 1 {
+		base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: too many return values", f.WasmImport.Module, f.WasmImport.Name)
+		return nil
+	}
+	wfs := make([]obj.WasmField, len(abiParams))
+	for i, p := range abiParams {
+		t := p.Type
+		switch t.Kind() {
+		case types.TINT32, types.TUINT32:
+			wfs[i].Type = obj.WasmI32
+		case types.TINT64, types.TUINT64:
+			wfs[i].Type = obj.WasmI64
+		case types.TFLOAT32:
+			wfs[i].Type = obj.WasmF32
+		case types.TFLOAT64:
+			wfs[i].Type = obj.WasmF64
+		default:
+			base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: unsupported result type %s", f.WasmImport.Module, f.WasmImport.Name, t.String())
 		}
 		wfs[i].Offset = p.FrameOffset(result)
 	}
@@ -419,8 +444,8 @@ func setupWasmABI(f *ir.Func) {
 		// 	(import "a_module" "add" (func (param i32 i32) (result i32)))
 		abiConfig := AbiForBodylessFuncStackMap(f)
 		abiInfo := abiConfig.ABIAnalyzeFuncType(f.Type().FuncType())
-		wi.Params = toWasmFields(abiInfo, abiInfo.InParams())
-		wi.Results = toWasmFields(abiInfo, abiInfo.OutParams())
+		wi.Params = paramsToWasmFields(f, abiInfo, abiInfo.InParams())
+		wi.Results = resultsToWasmFields(f, abiInfo, abiInfo.OutParams())
 	}
 	f.LSym.Func().WasmImport = &wi
 }
