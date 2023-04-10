@@ -867,6 +867,14 @@ func prove(f *Func) {
 					logicVars = make(map[*Block][]*Value)
 				}
 				logicVars[b] = append(logicVars[b], v)
+			case OpOr64, OpOr32, OpOr16, OpOr8:
+				// TODO: investigate how to always add facts without much slowdown, see issue #57959.
+				if v.Args[0].isGenericIntConst() {
+					ft.update(b, v, v.Args[0], unsigned, gt|eq)
+				}
+				if v.Args[1].isGenericIntConst() {
+					ft.update(b, v, v.Args[1], unsigned, gt|eq)
+				}
 			case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
 				OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
 				OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
