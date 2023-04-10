@@ -289,6 +289,9 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - parallelize/optimize test execution
 //   - reorganize regtest packages (and rename to just 'test'?)
 //   - Rename the files .txtar.
+//   - Provide some means by which locations in the standard library
+//     (or builtin.go) can be named, so that, for example, we can we
+//     can assert that MyError implements the built-in error type.
 //
 // Existing marker tests (in ../testdata) to port:
 //   - CallHierarchy

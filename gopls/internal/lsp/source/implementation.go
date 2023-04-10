@@ -30,7 +30,6 @@ import (
 //
 // TODO(adonovan):
 // - Audit to ensure robustness in face of type errors.
-// - Support 'error' and 'error.Error', which were also lacking from the old implementation.
 // - Eliminate false positives due to 'tricky' cases of the global algorithm.
 // - Ensure we have test coverage of:
 //      type aliases
@@ -388,7 +387,36 @@ func localImplementations(ctx context.Context, snapshot Snapshot, pkg Package, q
 		locs = append(locs, loc)
 	}
 
+	// Special case: for types that satisfy error, report builtin.go (see #59527).
+	if types.Implements(queryType, errorInterfaceType) {
+		loc, err := errorLocation(ctx, snapshot)
+		if err != nil {
+			return nil, err
+		}
+		locs = append(locs, loc)
+	}
+
 	return locs, nil
+}
+
+var errorInterfaceType = types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
+
+// errorLocation returns the location of the 'error' type in builtin.go.
+func errorLocation(ctx context.Context, snapshot Snapshot) (protocol.Location, error) {
+	pgf, err := snapshot.BuiltinFile(ctx)
+	if err != nil {
+		return protocol.Location{}, err
+	}
+	for _, decl := range pgf.File.Decls {
+		if decl, ok := decl.(*ast.GenDecl); ok {
+			for _, spec := range decl.Specs {
+				if spec, ok := spec.(*ast.TypeSpec); ok && spec.Name.Name == "error" {
+					return pgf.NodeLocation(spec.Name)
+				}
+			}
+		}
+	}
+	return protocol.Location{}, fmt.Errorf("built-in error type not found")
 }
 
 // concreteImplementsIntf returns true if a is an interface type implemented by

@@ -7,6 +7,8 @@ package misc
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -315,11 +317,11 @@ func _() {
 			// - inside the foo.mod/bar [foo.mod/bar.test] test variant package
 			// - from the foo.mod/bar_test [foo.mod/bar.test] x_test package
 			// - from the foo.mod/foo package
-			{"Blah", []string{"bar/bar.go", "bar/bar_test.go", "bar/bar_x_test.go", "foo/foo.go"}},
+			{"Blah", []string{"bar/bar.go:3", "bar/bar_test.go:7", "bar/bar_x_test.go:12", "foo/foo.go:12"}},
 
 			// Foo is referenced in bar_x_test.go via the intermediate test variant
 			// foo.mod/foo [foo.mod/bar.test].
-			{"Foo", []string{"bar/bar_x_test.go", "foo/foo.go"}},
+			{"Foo", []string{"bar/bar_x_test.go:13", "foo/foo.go:5"}},
 		}
 
 		for _, test := range refTests {
@@ -339,11 +341,11 @@ func _() {
 			// InterfaceM is implemented both in foo.mod/bar [foo.mod/bar.test] (which
 			// doesn't import foo), and in foo.mod/bar_test [foo.mod/bar.test], which
 			// imports the test variant of foo.
-			{"InterfaceM", []string{"bar/bar_test.go", "bar/bar_x_test.go"}},
+			{"InterfaceM", []string{"bar/bar_test.go:3", "bar/bar_x_test.go:8"}},
 
 			// A search within the ordinary package to should find implementations
 			// (Fer) within the augmented test package.
-			{"InterfaceF", []string{"foo/foo_test.go"}},
+			{"InterfaceF", []string{"foo/foo_test.go:3"}},
 		}
 
 		for _, test := range implTests {
@@ -503,19 +505,78 @@ func F() {} // declaration
 		env.OpenFile("a/a.go")
 		refLoc := env.RegexpSearch("a/a.go", "F")
 		got := fileLocations(env, env.References(refLoc))
-		want := []string{"a/a.go", "b/b.go", "lib/lib.go"}
+		want := []string{"a/a.go:5", "b/b.go:5", "lib/lib.go:3"}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("incorrect References (-want +got):\n%s", diff)
 		}
 	})
 }
 
-// fileLocations returns a new sorted array of the relative
-// file name of each location. Duplicates are not removed.
+// Test an 'implementation' query on a type that implements 'error'.
+// (Unfortunately builtin locations cannot be expressed using @loc
+// in the marker test framework.)
+func TestImplementationsOfError(t *testing.T) {
+	const src = `
+-- go.mod --
+module example.com
+go 1.12
+
+-- a.go --
+package a
+
+type Error2 interface {
+	Error() string
+}
+
+type MyError int
+func (MyError) Error() string { return "" }
+
+type MyErrorPtr int
+func (*MyErrorPtr) Error() string { return "" }
+`
+	Run(t, src, func(t *testing.T, env *Env) {
+		env.OpenFile("a.go")
+
+		for _, test := range []struct {
+			re   string
+			want []string
+		}{
+			// error type
+			{"Error2", []string{"a.go:10", "a.go:7", "std:builtin/builtin.go"}},
+			{"MyError", []string{"a.go:3", "std:builtin/builtin.go"}},
+			{"MyErrorPtr", []string{"a.go:3", "std:builtin/builtin.go"}},
+			// error.Error method
+			{"(Error).. string", []string{"a.go:11", "a.go:8", "std:builtin/builtin.go"}},
+			{"MyError. (Error)", []string{"a.go:4", "std:builtin/builtin.go"}},
+			{"MyErrorPtr. (Error)", []string{"a.go:4", "std:builtin/builtin.go"}},
+		} {
+			matchLoc := env.RegexpSearch("a.go", test.re)
+			impls := env.Implementations(matchLoc)
+			got := fileLocations(env, impls)
+			if !reflect.DeepEqual(got, test.want) {
+				t.Errorf("Implementations(%q) = %q, want %q",
+					test.re, got, test.want)
+			}
+		}
+	})
+}
+
+// fileLocations returns a new sorted array of the
+// relative file name and line number of each location.
+// Duplicates are not removed.
+// Standard library filenames are abstracted for robustness.
 func fileLocations(env *regtest.Env, locs []protocol.Location) []string {
 	got := make([]string, 0, len(locs))
 	for _, loc := range locs {
-		got = append(got, env.Sandbox.Workdir.URIToPath(loc.URI))
+		path := env.Sandbox.Workdir.URIToPath(loc.URI) // (slashified)
+		if i := strings.Index(path, "/src/"); i >= 0 && filepath.IsAbs(path) {
+			// Absolute path with "src" segment: assume it's in GOROOT.
+			// Strip directory and don't add line/column since they are fragile.
+			path = "std:" + path[i+len("/src/"):]
+		} else {
+			path = fmt.Sprintf("%s:%d", path, loc.Range.Start.Line+1)
+		}
+		got = append(got, path)
 	}
 	sort.Strings(got)
 	return got
