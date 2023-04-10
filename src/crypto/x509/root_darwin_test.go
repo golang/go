@@ -33,6 +33,7 @@ func TestPlatformVerifier(t *testing.T) {
 		verifyTime  time.Time
 		verifyEKU   []x509.ExtKeyUsage
 		expectedErr string
+		skip        string
 	}{
 		{
 			// whatever google.com serves should, hopefully, be trusted
@@ -64,11 +65,13 @@ func TestPlatformVerifier(t *testing.T) {
 			name:        "revoked leaf",
 			host:        "revoked.badssl.com",
 			expectedErr: "x509: “revoked.badssl.com” certificate is revoked",
+			skip:        "skipping; broken on recent versions of macOS. See issue 57428.",
 		},
 		{
 			name:        "leaf missing SCTs",
 			host:        "no-sct.badssl.com",
 			expectedErr: "x509: “no-sct.badssl.com” certificate is not standards compliant",
+			skip:        "skipping; broken on recent versions of macOS. See issue 57428.",
 		},
 		{
 			name:        "expired leaf (custom time)",
@@ -91,6 +94,10 @@ func TestPlatformVerifier(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip != "" {
+				t.Skip(tc.skip)
+			}
+
 			chain := getChain(tc.host)
 			var opts x509.VerifyOptions
 			if len(chain) > 1 {
