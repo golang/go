@@ -598,8 +598,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("go list -export cannot be used with -find")
 	}
 
-	suppressDeps := !listJsonFields.needAny("Deps", "DepsErrors")
-
 	pkgOpts := load.PackageOpts{
 		IgnoreImports:      *listFind,
 		ModResolveTests:    *listTest,
@@ -767,15 +765,28 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
-	if !suppressDeps {
+	if listJsonFields.needAny("Deps", "DepsErrors") {
 		all := pkgs
+		// Make sure we iterate through packages in a postorder traversal,
+		// which load.PackageList guarantees. If *listDeps, then all is
+		// already in PackageList order. Otherwise, calling load.PackageList
+		// provides the guarantee. In the case of an import cycle, the last package
+		// visited in the cycle, importing the first encountered package in the cycle,
+		// is visited first. The cycle import error will be bubbled up in the traversal
+		// order up to the first package in the cycle, covering all the packages
+		// in the cycle.
 		if !*listDeps {
-			// if *listDeps, then all is already in PackageList order.
 			all = load.PackageList(pkgs)
 		}
-		// Recompute deps lists using new strings, from the leaves up.
-		for _, p := range all {
-			collectDeps(p)
+		if listJsonFields.needAny("Deps") {
+			for _, p := range all {
+				collectDeps(p)
+			}
+		}
+		if listJsonFields.needAny("DepsErrors") {
+			for _, p := range all {
+				collectDepsErrors(p)
+			}
 		}
 	}
 
@@ -878,29 +889,15 @@ func loadPackageList(roots []*load.Package) []*load.Package {
 	return pkgs
 }
 
-// collectDeps populates p.Deps and p.DepsErrors by iterating over
-// p.Internal.Imports.
-//
-// TODO(jayconrod): collectDeps iterates over transitive imports for every
-// package. We should only need to visit direct imports.
+// collectDeps populates p.Deps by iterating over p.Internal.Imports.
+// collectDeps must be called on all of p's Imports before being called on p.
 func collectDeps(p *load.Package) {
-	deps := make(map[string]*load.Package)
-	var q []*load.Package
-	q = append(q, p.Internal.Imports...)
-	for i := 0; i < len(q); i++ {
-		p1 := q[i]
-		path := p1.ImportPath
-		// The same import path could produce an error or not,
-		// depending on what tries to import it.
-		// Prefer to record entries with errors, so we can report them.
-		p0 := deps[path]
-		if p0 == nil || p1.Error != nil && (p0.Error == nil || len(p0.Error.ImportStack) > len(p1.Error.ImportStack)) {
-			deps[path] = p1
-			for _, p2 := range p1.Internal.Imports {
-				if deps[p2.ImportPath] != p2 {
-					q = append(q, p2)
-				}
-			}
+	deps := make(map[string]bool)
+
+	for _, p := range p.Internal.Imports {
+		deps[p.ImportPath] = true
+		for _, q := range p.Deps {
+			deps[q] = true
 		}
 	}
 
@@ -909,15 +906,34 @@ func collectDeps(p *load.Package) {
 		p.Deps = append(p.Deps, dep)
 	}
 	sort.Strings(p.Deps)
-	for _, dep := range p.Deps {
-		p1 := deps[dep]
-		if p1 == nil {
-			panic("impossible: missing entry in package cache for " + dep + " imported by " + p.ImportPath)
+}
+
+// collectDeps populates p.DepsErrors by iterating over p.Internal.Imports.
+// collectDepsErrors must be called on all of p's Imports before being called on p.
+func collectDepsErrors(p *load.Package) {
+	depsErrors := make(map[*load.PackageError]bool)
+
+	for _, p := range p.Internal.Imports {
+		if p.Error != nil {
+			depsErrors[p.Error] = true
 		}
-		if p1.Error != nil {
-			p.DepsErrors = append(p.DepsErrors, p1.Error)
+		for _, q := range p.DepsErrors {
+			depsErrors[q] = true
 		}
 	}
+
+	p.DepsErrors = make([]*load.PackageError, 0, len(depsErrors))
+	for deperr := range depsErrors {
+		p.DepsErrors = append(p.DepsErrors, deperr)
+	}
+	// Sort packages by the package on the top of the stack, which should be
+	// the package the error was produced for. Each package can have at most
+	// one error set on it.
+	sort.Slice(p.DepsErrors, func(i, j int) bool {
+		stki, stkj := p.DepsErrors[i].ImportStack, p.DepsErrors[j].ImportStack
+		pathi, pathj := stki[len(stki)-1], stkj[len(stkj)-1]
+		return pathi < pathj
+	})
 }
 
 // TrackingWriter tracks the last byte written on every write so
