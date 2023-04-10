@@ -5,7 +5,7 @@ package bad
 
 // TODO(matloob): uncomment this and remove the space between the // and the @diag
 // once the changes that produce the new go list error are submitted.
-// import _ "golang.org/lsptests/assign/internal/secret" // @diag("\"golang.org/lsptests/assign/internal/secret\"", "compiler", "could not import golang.org/lsptests/assign/internal/secret \\(invalid use of internal package \"golang.org/lsptests/assign/internal/secret\"\\)", "error"),diag("_", "go list", "use of internal package golang.org/lsptests/assign/internal/secret not allowed", "error")
+import _ "golang.org/lsptests/assign/internal/secret" //@diag("\"golang.org/lsptests/assign/internal/secret\"", "compiler", "could not import golang.org/lsptests/assign/internal/secret \\(invalid use of internal package \"golang.org/lsptests/assign/internal/secret\"\\)", "error"),diag("_", "go list", "use of internal package golang.org/lsptests/assign/internal/secret not allowed", "error")
 
 func stuff() { //@item(stuff, "stuff", "func()", "func")
 	x := "heeeeyyyy"
