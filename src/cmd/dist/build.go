@@ -1562,7 +1562,7 @@ func cmdbootstrap() {
 
 	// Check that there are no new files in $GOROOT/bin other than
 	// go and gofmt and $GOOS_$GOARCH (target bin when cross-compiling).
-	binFiles, _ := filepath.Glob(pathf("%s/bin/*", goroot))
+	binFiles, err := filepath.Glob(pathf("%s/bin/*", goroot))
 	if err != nil {
 		fatalf("glob: %v", err)
 	}
