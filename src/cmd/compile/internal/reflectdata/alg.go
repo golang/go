@@ -580,7 +580,7 @@ func eqFunc(t *types.Type) *ir.Func {
 		if len(flatConds) == 0 {
 			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(base.Pos, true)))
 		} else {
-			for _, c := range flatConds {
+			for _, c := range flatConds[:len(flatConds)-1] {
 				// if cond {} else { goto neq }
 				n := ir.NewIfStmt(base.Pos, c, nil, nil)
 				n.Else.Append(ir.NewBranchStmt(base.Pos, ir.OGOTO, neq))
