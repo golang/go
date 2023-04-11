@@ -120,18 +120,10 @@ func (d *digest) Size() int { return Size }
 func (d *digest) BlockSize() int { return BlockSize }
 
 func (d *digest) Write(p []byte) (nn int, err error) {
-	boringUnreachable()
 	nn = len(p)
 	d.len += uint64(nn)
-	if d.nx > 0 {
-		n := copy(d.x[d.nx:], p)
-		d.nx += n
-		if d.nx == chunk {
-			block(d, d.x[:])
-			d.nx = 0
-		}
-		p = p[n:]
-	}
+	n := fillChunk(d, p)
+	p = p[n:]
 	if len(p) >= chunk {
 		n := len(p) &^ (chunk - 1)
 		block(d, p[:n])
@@ -141,6 +133,55 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 		d.nx = copy(d.x[:], p)
 	}
 	return
+}
+
+func (d *digest) WriteString(s string) (nn int, err error) {
+	nn = len(s)
+	d.len += uint64(nn)
+	n := fillChunk(d, s)
+
+	// This duplicates the code in Write, except that it calls
+	// blockString rather than block. It would be nicer to pass
+	// in a func, but as of this writing (Go 1.20) that causes
+	// memory allocations that we want to avoid.
+
+	s = s[n:]
+	if len(s) >= chunk {
+		n := len(s) &^ (chunk - 1)
+		blockString(d, s[:n])
+		s = s[n:]
+	}
+	if len(s) > 0 {
+		d.nx = copy(d.x[:], s)
+	}
+	return
+}
+
+// fillChunk fills the remainder of the current chunk, if any.
+func fillChunk[S []byte | string](d *digest, p S) int {
+	boringUnreachable()
+	if d.nx == 0 {
+		return 0
+	}
+	n := copy(d.x[d.nx:], p)
+	d.nx += n
+	if d.nx == chunk {
+		block(d, d.x[:])
+		d.nx = 0
+	}
+	return n
+}
+
+func (d *digest) WriteByte(c byte) error {
+	boringUnreachable()
+	d.len++
+	d.x[d.nx] = c
+	d.nx++
+	if d.nx == chunk {
+		block(d, d.x[:])
+		d.nx = 0
+	}
+	return nil
 }
 
 func (d *digest) Sum(in []byte) []byte {

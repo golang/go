@@ -4,7 +4,10 @@
 
 package sha1
 
-import "internal/cpu"
+import (
+	"internal/cpu"
+	"unsafe"
+)
 
 var k = []uint32{
 	0x5A827999,
@@ -14,13 +17,22 @@ var k = []uint32{
 }
 
 //go:noescape
-func sha1block(h []uint32, p []byte, k []uint32)
+func sha1block(h []uint32, p *byte, n int, k []uint32)
 
 func block(dig *digest, p []byte) {
 	if !cpu.ARM64.HasSHA1 {
 		blockGeneric(dig, p)
 	} else {
 		h := dig.h[:]
-		sha1block(h, p, k)
+		sha1block(h, unsafe.SliceData(p), len(p), k)
+	}
+}
+
+func blockString(dig *digest, s string) {
+	if !cpu.ARM64.HasSHA1 {
+		blockGeneric(dig, s)
+	} else {
+		h := dig.h[:]
+		sha1block(h, unsafe.StringData(s), len(s), k)
 	}
 }

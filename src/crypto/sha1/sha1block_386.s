@@ -98,11 +98,11 @@
 	FUNC4(a, b, c, d, e); \
 	MIX(a, b, c, d, e, 0xCA62C1D6)
 
-// func block(dig *digest, p []byte)
-TEXT ·block(SB),NOSPLIT,$92-16
+// func doBlock(dig *digest, p *byte, n int)
+TEXT ·doBlock(SB),NOSPLIT,$92-12
 	MOVL	dig+0(FP),	BP
 	MOVL	p+4(FP),	SI
-	MOVL	p_len+8(FP),	DX
+	MOVL	n+8(FP),	DX
 	SHRL	$6,		DX
 	SHLL	$6,		DX
 
