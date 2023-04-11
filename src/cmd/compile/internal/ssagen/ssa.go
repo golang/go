@@ -7877,10 +7877,6 @@ func (e *ssafn) CanSSA(t *types.Type) bool {
 	return TypeOK(t)
 }
 
-func (e *ssafn) Line(pos src.XPos) string {
-	return base.FmtPos(pos)
-}
-
 // Logf logs a message from the compiler.
 func (e *ssafn) Logf(msg string, args ...interface{}) {
 	if e.log {
@@ -7932,16 +7928,12 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
 	return nil
 }
 
-func (e *ssafn) SetWBPos(pos src.XPos) {
-	e.curfn.SetWBPos(pos)
-}
-
 func (e *ssafn) MyImportPath() string {
 	return base.Ctxt.Pkgpath
 }
 
-func (e *ssafn) LSym() string {
-	return e.curfn.LSym.Name
+func (e *ssafn) Func() *ir.Func {
+	return e.curfn
 }
 
 func clobberBase(n ir.Node) ir.Node {

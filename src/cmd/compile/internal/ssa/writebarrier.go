@@ -406,7 +406,7 @@ func writebarrier(f *Func) {
 				// Save old value to write buffer.
 				addEntry(oldVal)
 			}
-			f.fe.SetWBPos(pos)
+			f.fe.Func().SetWBPos(pos)
 			nWBops--
 		}
 
@@ -419,7 +419,7 @@ func writebarrier(f *Func) {
 				// zeroWB(&typ, dst)
 				taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 				memThen = wbcall(pos, bThen, wbZero, sp, memThen, taddr, dst)
-				f.fe.SetWBPos(pos)
+				f.fe.Func().SetWBPos(pos)
 				nWBops--
 			case OpMoveWB:
 				dst := w.Args[0]
@@ -436,7 +436,7 @@ func writebarrier(f *Func) {
 				// moveWB(&typ, dst, src)
 				taddr := b.NewValue1A(pos, OpAddr, b.Func.Config.Types.Uintptr, typ, sb)
 				memThen = wbcall(pos, bThen, wbMove, sp, memThen, taddr, dst, src)
-				f.fe.SetWBPos(pos)
+				f.fe.Func().SetWBPos(pos)
 				nWBops--
 			}
 		}

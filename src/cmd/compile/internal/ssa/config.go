@@ -136,9 +136,10 @@ type Logger interface {
 }
 
 type Frontend interface {
-	CanSSA(t *types.Type) bool
-
 	Logger
+
+	// CanSSA reports whether variabbles of type t are SSA-able.
+	CanSSA(t *types.Type) bool
 
 	// StringData returns a symbol pointing to the given string's contents.
 	StringData(string) *obj.LSym
@@ -151,9 +152,6 @@ type Frontend interface {
 	// for the parts of that compound type.
 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
 
-	// Line returns a string describing the given position.
-	Line(src.XPos) string
-
 	// AllocFrame assigns frame offsets to all live auto variables.
 	AllocFrame(f *Func)
 
@@ -164,15 +162,11 @@ type Frontend interface {
 	// UseWriteBarrier reports whether write barrier is enabled
 	UseWriteBarrier() bool
 
-	// SetWBPos indicates that a write barrier has been inserted
-	// in this function at position pos.
-	SetWBPos(pos src.XPos)
-
 	// MyImportPath provides the import name (roughly, the package) for the function being compiled.
 	MyImportPath() string
 
-	// LSym returns the linker symbol of the function being compiled.
-	LSym() string
+	// Func returns the ir.Func of the function being compiled.
+	Func() *ir.Func
 }
 
 // NewConfig returns a new configuration object for the given architecture.

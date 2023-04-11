@@ -1992,7 +1992,7 @@ func logicFlags32(x int32) flagConstant {
 }
 
 func makeJumpTableSym(b *Block) *obj.LSym {
-	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.LSym(), b.ID))
+	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.fe.Func().LSym.Name, b.ID))
 	s.Set(obj.AttrDuplicateOK, true)
 	s.Set(obj.AttrLocal, true)
 	return s
