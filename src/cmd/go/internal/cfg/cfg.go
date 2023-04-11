@@ -141,6 +141,7 @@ func defaultContext() build.Context {
 		// (1) environment, (2) go/env file, (3) runtime constants,
 		// while go/build.Default.GOOS/GOARCH are derived from the preference list
 		// (1) environment, (2) runtime constants.
+		//
 		// We know ctxt.GOOS/GOARCH == runtime.GOOS/GOARCH;
 		// no matter how that happened, go/build.Default will make the
 		// same decision (either the environment variables are set explicitly

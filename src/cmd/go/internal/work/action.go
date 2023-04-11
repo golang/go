@@ -14,6 +14,7 @@ import (
 	"debug/elf"
 	"encoding/json"
 	"fmt"
+	"internal/platform"
 	"os"
 	"path/filepath"
 	"strings"
@@ -355,7 +356,7 @@ func closeBuilders() {
 }
 
 func CheckGOOSARCHPair(goos, goarch string) error {
-	if _, ok := cfg.OSArchSupportsCgo[goos+"/"+goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
+	if !platform.BuildModeSupported(cfg.BuildContext.Compiler, "default", goos, goarch) {
 		return fmt.Errorf("unsupported GOOS/GOARCH pair %s/%s", goos, goarch)
 	}
 	return nil

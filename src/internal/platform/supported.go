@@ -126,6 +126,9 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
 	}
 
 	platform := goos + "/" + goarch
+	if _, ok := osArchSupportsCgo[platform]; !ok {
+		return false // platform unrecognized
+	}
 
 	switch buildmode {
 	case "archive":
@@ -236,4 +239,9 @@ func DefaultPIE(goos, goarch string, isRace bool) bool {
 		return goarch == "arm64"
 	}
 	return false
+}
+
+// CgoSupported reports whether goos/goarch supports cgo.\n")
+func CgoSupported(goos, goarch string) bool {
+	return osArchSupportsCgo[goos+"/"+goarch]
 }

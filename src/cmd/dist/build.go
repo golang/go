@@ -626,13 +626,15 @@ var deptab = []struct {
 }{
 	{"cmd/go/internal/cfg", []string{
 		"zdefaultcc.go",
+	}},
+	{"go/build", []string{
+		"zcgo.go",
+	}},
+	{"internal/platform", []string{
 		"zosarch.go",
 	}},
 	{"runtime/internal/sys", []string{
 		"zversion.go",
-	}},
-	{"go/build", []string{
-		"zcgo.go",
 	}},
 	{"time/tzdata", []string{
 		"zzipdata.go",
@@ -650,10 +652,10 @@ var gentab = []struct {
 	nameprefix string
 	gen        func(string, string)
 }{
+	{"zcgo.go", mkzcgo},
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zosarch.go", mkzosarch},
 	{"zversion.go", mkzversion},
-	{"zcgo.go", mkzcgo},
 	{"zzipdata.go", mktzdata},
 
 	// not generated anymore, but delete the file if we see it
@@ -1196,6 +1198,7 @@ var cleanlist = []string{
 	"runtime/internal/sys",
 	"cmd/cgo",
 	"cmd/go/internal/cfg",
+	"internal/platform",
 	"go/build",
 }
 
