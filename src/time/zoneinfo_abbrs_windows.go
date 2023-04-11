@@ -34,7 +34,6 @@ var abbrs = map[string]abbr{
 	"Venezuela Standard Time":         {"-04", "-04"},     // America/Caracas
 	"SA Eastern Standard Time":        {"-03", "-03"},     // America/Cayenne
 	"Central Standard Time":           {"CST", "CDT"},     // America/Chicago
-	"Mountain Standard Time (Mexico)": {"CST", "CST"},     // America/Chihuahua
 	"Central Brazilian Standard Time": {"-04", "-04"},     // America/Cuiaba
 	"Mountain Standard Time":          {"MST", "MDT"},     // America/Denver
 	"Greenland Standard Time":         {"-03", "-02"},     // America/Godthab
@@ -45,6 +44,7 @@ var abbrs = map[string]abbr{
 	"US Eastern Standard Time":        {"EST", "EDT"},     // America/Indianapolis
 	"SA Western Standard Time":        {"-04", "-04"},     // America/La_Paz
 	"Pacific Standard Time":           {"PST", "PDT"},     // America/Los_Angeles
+	"Mountain Standard Time (Mexico)": {"MST", "MST"},     // America/Mazatlan
 	"Central Standard Time (Mexico)":  {"CST", "CST"},     // America/Mexico_City
 	"Saint Pierre Standard Time":      {"-03", "-02"},     // America/Miquelon
 	"Montevideo Standard Time":        {"-03", "-03"},     // America/Montevideo
