@@ -627,9 +627,6 @@ func (g *Golden) Get(t testing.TB, name string, updated []byte) ([]byte, bool) {
 //
 // See the documentation for RunMarkerTests for more details on the test data
 // archive.
-//
-// TODO(rfindley): this test could sanity check the results. For example, it is
-// too easy to write "// @" instead of "//@", which we will happy skip silently.
 func loadMarkerTests(dir string) ([]*markerTest, error) {
 	var tests []*markerTest
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -638,6 +635,7 @@ func loadMarkerTests(dir string) ([]*markerTest, error) {
 			if err != nil {
 				return err
 			}
+
 			name := strings.TrimPrefix(path, dir+string(filepath.Separator))
 			test, err := loadMarkerTest(name, content)
 			if err != nil {
@@ -708,6 +706,14 @@ func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 			if err != nil {
 				return nil, fmt.Errorf("parsing notes in %q: %v", file.Name, err)
 			}
+
+			// Reject common misspelling: "// @mark".
+			// TODO(adonovan): permit "// @" within a string. Detect multiple spaces.
+			if i := bytes.Index(file.Data, []byte("// @")); i >= 0 {
+				line := 1 + bytes.Count(file.Data[:i], []byte("\n"))
+				return nil, fmt.Errorf("%s:%d: unwanted space before marker (// @)", file.Name, line)
+			}
+
 			test.notes = append(test.notes, notes...)
 			test.files[file.Name] = file.Data
 		}
