@@ -172,6 +172,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 }
 
 //sys	ioctl(fd int, req uint, arg uintptr) (err error)
+//sys	ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_IOCTL
 
 //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
 
@@ -325,7 +326,6 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sysnb	Setreuid(ruid int, euid int) (err error)
 //sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
 //sysnb	Setresuid(ruid int, euid int, suid int) (err error)
-//sysnb	Setrlimit(which int, lim *Rlimit) (err error)
 //sysnb	Setsid() (pid int, err error)
 //sysnb	Settimeofday(tp *Timeval) (err error)
 //sysnb	Setuid(uid int) (err error)

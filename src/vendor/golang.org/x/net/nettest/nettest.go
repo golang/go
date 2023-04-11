@@ -126,12 +126,6 @@ func TestableNetwork(network string) bool {
 		switch runtime.GOOS {
 		case "aix", "android", "fuchsia", "hurd", "darwin", "ios", "js", "nacl", "plan9", "windows", "zos":
 			return false
-		case "netbsd":
-			// It passes on amd64 at least. 386 fails
-			// (Issue 22927). arm is unknown.
-			if runtime.GOARCH == "386" {
-				return false
-			}
 		}
 	}
 	switch ss[0] {

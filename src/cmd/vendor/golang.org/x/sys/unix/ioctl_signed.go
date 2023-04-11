@@ -1,14 +1,13 @@
-// Copyright 2020 The Go Authors. All rights reserved.
+// Copyright 2018 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build zos && s390x
-// +build zos,s390x
+//go:build aix || solaris
+// +build aix solaris
 
 package unix
 
 import (
-	"runtime"
 	"unsafe"
 )
 
@@ -19,6 +18,15 @@ import (
 // on fd, using the specified request number.
 func IoctlSetInt(fd int, req int, value int) error {
 	return ioctl(fd, req, uintptr(value))
+}
+
+// IoctlSetPointerInt performs an ioctl operation which sets an
+// integer value on fd, using the specified request number. The ioctl
+// argument is called with a pointer to the integer value, rather than
+// passing the integer value directly.
+func IoctlSetPointerInt(fd int, req int, value int) error {
+	v := int32(value)
+	return ioctlPtr(fd, req, unsafe.Pointer(&v))
 }
 
 // IoctlSetWinsize performs an ioctl on fd with a *Winsize argument.
@@ -32,14 +40,10 @@ func IoctlSetWinsize(fd int, req int, value *Winsize) error {
 
 // IoctlSetTermios performs an ioctl on fd with a *Termios.
 //
-// The req value is expected to be TCSETS, TCSETSW, or TCSETSF
+// The req value will usually be TCSETA or TIOCSETA.
 func IoctlSetTermios(fd int, req int, value *Termios) error {
-	if (req != TCSETS) && (req != TCSETSW) && (req != TCSETSF) {
-		return ENOSYS
-	}
-	err := Tcsetattr(fd, int(req), value)
-	runtime.KeepAlive(value)
-	return err
+	// TODO: if we get the chance, remove the req parameter.
+	return ioctlPtr(fd, req, unsafe.Pointer(value))
 }
 
 // IoctlGetInt performs an ioctl operation which gets an integer value
@@ -59,14 +63,8 @@ func IoctlGetWinsize(fd int, req int) (*Winsize, error) {
 	return &value, err
 }
 
-// IoctlGetTermios performs an ioctl on fd with a *Termios.
-//
-// The req value is expected to be TCGETS
 func IoctlGetTermios(fd int, req int) (*Termios, error) {
 	var value Termios
-	if req != TCGETS {
-		return &value, ENOSYS
-	}
-	err := Tcgetattr(fd, &value)
+	err := ioctlPtr(fd, req, unsafe.Pointer(&value))
 	return &value, err
 }

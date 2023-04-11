@@ -456,36 +456,60 @@ type Ucred struct {
 }
 
 type TCPInfo struct {
-	State          uint8
-	Ca_state       uint8
-	Retransmits    uint8
-	Probes         uint8
-	Backoff        uint8
-	Options        uint8
-	Rto            uint32
-	Ato            uint32
-	Snd_mss        uint32
-	Rcv_mss        uint32
-	Unacked        uint32
-	Sacked         uint32
-	Lost           uint32
-	Retrans        uint32
-	Fackets        uint32
-	Last_data_sent uint32
-	Last_ack_sent  uint32
-	Last_data_recv uint32
-	Last_ack_recv  uint32
-	Pmtu           uint32
-	Rcv_ssthresh   uint32
-	Rtt            uint32
-	Rttvar         uint32
-	Snd_ssthresh   uint32
-	Snd_cwnd       uint32
-	Advmss         uint32
-	Reordering     uint32
-	Rcv_rtt        uint32
-	Rcv_space      uint32
-	Total_retrans  uint32
+	State           uint8
+	Ca_state        uint8
+	Retransmits     uint8
+	Probes          uint8
+	Backoff         uint8
+	Options         uint8
+	Rto             uint32
+	Ato             uint32
+	Snd_mss         uint32
+	Rcv_mss         uint32
+	Unacked         uint32
+	Sacked          uint32
+	Lost            uint32
+	Retrans         uint32
+	Fackets         uint32
+	Last_data_sent  uint32
+	Last_ack_sent   uint32
+	Last_data_recv  uint32
+	Last_ack_recv   uint32
+	Pmtu            uint32
+	Rcv_ssthresh    uint32
+	Rtt             uint32
+	Rttvar          uint32
+	Snd_ssthresh    uint32
+	Snd_cwnd        uint32
+	Advmss          uint32
+	Reordering      uint32
+	Rcv_rtt         uint32
+	Rcv_space       uint32
+	Total_retrans   uint32
+	Pacing_rate     uint64
+	Max_pacing_rate uint64
+	Bytes_acked     uint64
+	Bytes_received  uint64
+	Segs_out        uint32
+	Segs_in         uint32
+	Notsent_bytes   uint32
+	Min_rtt         uint32
+	Data_segs_in    uint32
+	Data_segs_out   uint32
+	Delivery_rate   uint64
+	Busy_time       uint64
+	Rwnd_limited    uint64
+	Sndbuf_limited  uint64
+	Delivered       uint32
+	Delivered_ce    uint32
+	Bytes_sent      uint64
+	Bytes_retrans   uint64
+	Dsack_dups      uint32
+	Reord_seen      uint32
+	Rcv_ooopack     uint32
+	Snd_wnd         uint32
+	Rcv_wnd         uint32
+	Rehash          uint32
 }
 
 type CanFilter struct {
@@ -528,7 +552,7 @@ const (
 	SizeofIPv6MTUInfo       = 0x20
 	SizeofICMPv6Filter      = 0x20
 	SizeofUcred             = 0xc
-	SizeofTCPInfo           = 0x68
+	SizeofTCPInfo           = 0xf0
 	SizeofCanFilter         = 0x8
 	SizeofTCPRepairOpt      = 0x8
 )
@@ -1043,6 +1067,7 @@ const (
 	PerfBitCommExec                      = CBitFieldMaskBit24
 	PerfBitUseClockID                    = CBitFieldMaskBit25
 	PerfBitContextSwitch                 = CBitFieldMaskBit26
+	PerfBitWriteBackward                 = CBitFieldMaskBit27
 )
 
 const (
@@ -1239,7 +1264,7 @@ type TCPMD5Sig struct {
 	Flags     uint8
 	Prefixlen uint8
 	Keylen    uint16
-	_         uint32
+	Ifindex   int32
 	Key       [80]uint8
 }
 
@@ -1939,7 +1964,11 @@ const (
 	NFT_MSG_GETOBJ                    = 0x13
 	NFT_MSG_DELOBJ                    = 0x14
 	NFT_MSG_GETOBJ_RESET              = 0x15
-	NFT_MSG_MAX                       = 0x19
+	NFT_MSG_NEWFLOWTABLE              = 0x16
+	NFT_MSG_GETFLOWTABLE              = 0x17
+	NFT_MSG_DELFLOWTABLE              = 0x18
+	NFT_MSG_GETRULE_RESET             = 0x19
+	NFT_MSG_MAX                       = 0x1a
 	NFTA_LIST_UNSPEC                  = 0x0
 	NFTA_LIST_ELEM                    = 0x1
 	NFTA_HOOK_UNSPEC                  = 0x0
@@ -2443,9 +2472,11 @@ const (
 	SOF_TIMESTAMPING_OPT_STATS    = 0x1000
 	SOF_TIMESTAMPING_OPT_PKTINFO  = 0x2000
 	SOF_TIMESTAMPING_OPT_TX_SWHW  = 0x4000
+	SOF_TIMESTAMPING_BIND_PHC     = 0x8000
+	SOF_TIMESTAMPING_OPT_ID_TCP   = 0x10000
 
-	SOF_TIMESTAMPING_LAST = 0x8000
-	SOF_TIMESTAMPING_MASK = 0xffff
+	SOF_TIMESTAMPING_LAST = 0x10000
+	SOF_TIMESTAMPING_MASK = 0x1ffff
 
 	SCM_TSTAMP_SND   = 0x0
 	SCM_TSTAMP_SCHED = 0x1
@@ -3265,7 +3296,7 @@ const (
 	DEVLINK_ATTR_LINECARD_SUPPORTED_TYPES              = 0xae
 	DEVLINK_ATTR_NESTED_DEVLINK                        = 0xaf
 	DEVLINK_ATTR_SELFTESTS                             = 0xb0
-	DEVLINK_ATTR_MAX                                   = 0xb0
+	DEVLINK_ATTR_MAX                                   = 0xb3
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_NONE              = 0x0
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX           = 0x1
 	DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT               = 0x0
@@ -3281,7 +3312,8 @@ const (
 	DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR                 = 0x1
 	DEVLINK_PORT_FN_ATTR_STATE                         = 0x2
 	DEVLINK_PORT_FN_ATTR_OPSTATE                       = 0x3
-	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x3
+	DEVLINK_PORT_FN_ATTR_CAPS                          = 0x4
+	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x4
 )
 
 type FsverityDigest struct {
@@ -3572,7 +3604,8 @@ const (
 	ETHTOOL_MSG_MODULE_SET                    = 0x23
 	ETHTOOL_MSG_PSE_GET                       = 0x24
 	ETHTOOL_MSG_PSE_SET                       = 0x25
-	ETHTOOL_MSG_USER_MAX                      = 0x25
+	ETHTOOL_MSG_RSS_GET                       = 0x26
+	ETHTOOL_MSG_USER_MAX                      = 0x26
 	ETHTOOL_MSG_KERNEL_NONE                   = 0x0
 	ETHTOOL_MSG_STRSET_GET_REPLY              = 0x1
 	ETHTOOL_MSG_LINKINFO_GET_REPLY            = 0x2
@@ -3611,7 +3644,8 @@ const (
 	ETHTOOL_MSG_MODULE_GET_REPLY              = 0x23
 	ETHTOOL_MSG_MODULE_NTF                    = 0x24
 	ETHTOOL_MSG_PSE_GET_REPLY                 = 0x25
-	ETHTOOL_MSG_KERNEL_MAX                    = 0x25
+	ETHTOOL_MSG_RSS_GET_REPLY                 = 0x26
+	ETHTOOL_MSG_KERNEL_MAX                    = 0x26
 	ETHTOOL_A_HEADER_UNSPEC                   = 0x0
 	ETHTOOL_A_HEADER_DEV_INDEX                = 0x1
 	ETHTOOL_A_HEADER_DEV_NAME                 = 0x2
@@ -3679,7 +3713,8 @@ const (
 	ETHTOOL_A_LINKSTATE_SQI_MAX               = 0x4
 	ETHTOOL_A_LINKSTATE_EXT_STATE             = 0x5
 	ETHTOOL_A_LINKSTATE_EXT_SUBSTATE          = 0x6
-	ETHTOOL_A_LINKSTATE_MAX                   = 0x6
+	ETHTOOL_A_LINKSTATE_EXT_DOWN_CNT          = 0x7
+	ETHTOOL_A_LINKSTATE_MAX                   = 0x7
 	ETHTOOL_A_DEBUG_UNSPEC                    = 0x0
 	ETHTOOL_A_DEBUG_HEADER                    = 0x1
 	ETHTOOL_A_DEBUG_MSGMASK                   = 0x2
@@ -4409,7 +4444,7 @@ const (
 	NL80211_ATTR_MAC_HINT                                   = 0xc8
 	NL80211_ATTR_MAC_MASK                                   = 0xd7
 	NL80211_ATTR_MAX_AP_ASSOC_STA                           = 0xca
-	NL80211_ATTR_MAX                                        = 0x140
+	NL80211_ATTR_MAX                                        = 0x141
 	NL80211_ATTR_MAX_CRIT_PROT_DURATION                     = 0xb4
 	NL80211_ATTR_MAX_CSA_COUNTERS                           = 0xce
 	NL80211_ATTR_MAX_MATCH_SETS                             = 0x85
@@ -4552,6 +4587,7 @@ const (
 	NL80211_ATTR_SUPPORT_MESH_AUTH                          = 0x73
 	NL80211_ATTR_SURVEY_INFO                                = 0x54
 	NL80211_ATTR_SURVEY_RADIO_STATS                         = 0xda
+	NL80211_ATTR_TD_BITMAP                                  = 0x141
 	NL80211_ATTR_TDLS_ACTION                                = 0x88
 	NL80211_ATTR_TDLS_DIALOG_TOKEN                          = 0x89
 	NL80211_ATTR_TDLS_EXTERNAL_SETUP                        = 0x8c
@@ -5751,4 +5787,26 @@ const (
 const (
 	AUDIT_NLGRP_NONE    = 0x0
 	AUDIT_NLGRP_READLOG = 0x1
+)
+
+const (
+	TUN_F_CSUM    = 0x1
+	TUN_F_TSO4    = 0x2
+	TUN_F_TSO6    = 0x4
+	TUN_F_TSO_ECN = 0x8
+	TUN_F_UFO     = 0x10
+)
+
+const (
+	VIRTIO_NET_HDR_F_NEEDS_CSUM = 0x1
+	VIRTIO_NET_HDR_F_DATA_VALID = 0x2
+	VIRTIO_NET_HDR_F_RSC_INFO   = 0x4
+)
+
+const (
+	VIRTIO_NET_HDR_GSO_NONE  = 0x0
+	VIRTIO_NET_HDR_GSO_TCPV4 = 0x1
+	VIRTIO_NET_HDR_GSO_UDP   = 0x3
+	VIRTIO_NET_HDR_GSO_TCPV6 = 0x4
+	VIRTIO_NET_HDR_GSO_ECN   = 0x80
 )

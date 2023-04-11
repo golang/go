@@ -66,6 +66,7 @@ includes_Darwin='
 #include <sys/ptrace.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <sys/sockio.h>
 #include <sys/sys_domain.h>
@@ -521,6 +522,7 @@ ccflags="$@"
 		$2 ~ /^NFC_(GENL|PROTO|COMM|RF|SE|DIRECTION|LLCP|SOCKPROTO)_/ ||
 		$2 ~ /^NFC_.*_(MAX)?SIZE$/ ||
 		$2 ~ /^RAW_PAYLOAD_/ ||
+		$2 ~ /^[US]F_/ ||
 		$2 ~ /^TP_STATUS_/ ||
 		$2 ~ /^FALLOC_/ ||
 		$2 ~ /^ICMPV?6?_(FILTER|SEC)/ ||

@@ -2229,10 +2229,10 @@ const (
 	JobObjectExtendedLimitInformation           = 9
 	JobObjectGroupInformation                   = 11
 	JobObjectGroupInformationEx                 = 14
-	JobObjectLimitViolationInformation2         = 35
+	JobObjectLimitViolationInformation2         = 34
 	JobObjectNetRateControlInformation          = 32
 	JobObjectNotificationLimitInformation       = 12
-	JobObjectNotificationLimitInformation2      = 34
+	JobObjectNotificationLimitInformation2      = 33
 	JobObjectSecurityLimitInformation           = 5
 )
 

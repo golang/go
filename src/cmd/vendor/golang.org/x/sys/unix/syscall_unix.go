@@ -587,3 +587,10 @@ func emptyIovecs(iov []Iovec) bool {
 	}
 	return true
 }
+
+// Setrlimit sets a resource limit.
+func Setrlimit(resource int, rlim *Rlimit) error {
+	// Just call the syscall version, because as of Go 1.21
+	// it will affect starting a new process.
+	return syscall.Setrlimit(resource, (*syscall.Rlimit)(rlim))
+}

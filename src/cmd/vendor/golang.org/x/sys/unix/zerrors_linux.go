@@ -70,6 +70,7 @@ const (
 	ALG_SET_DRBG_ENTROPY                        = 0x6
 	ALG_SET_IV                                  = 0x2
 	ALG_SET_KEY                                 = 0x1
+	ALG_SET_KEY_BY_KEY_SERIAL                   = 0x7
 	ALG_SET_OP                                  = 0x3
 	ANON_INODE_FS_MAGIC                         = 0x9041934
 	ARPHRD_6LOWPAN                              = 0x339
@@ -774,6 +775,8 @@ const (
 	DEVLINK_GENL_MCGRP_CONFIG_NAME              = "config"
 	DEVLINK_GENL_NAME                           = "devlink"
 	DEVLINK_GENL_VERSION                        = 0x1
+	DEVLINK_PORT_FN_CAP_MIGRATABLE              = 0x2
+	DEVLINK_PORT_FN_CAP_ROCE                    = 0x1
 	DEVLINK_SB_THRESHOLD_TO_ALPHA_MAX           = 0x14
 	DEVLINK_SUPPORTED_FLASH_OVERWRITE_SECTIONS  = 0x3
 	DEVMEM_MAGIC                                = 0x454d444d
@@ -1262,6 +1265,8 @@ const (
 	FSCRYPT_MODE_AES_256_CTS                    = 0x4
 	FSCRYPT_MODE_AES_256_HCTR2                  = 0xa
 	FSCRYPT_MODE_AES_256_XTS                    = 0x1
+	FSCRYPT_MODE_SM4_CTS                        = 0x8
+	FSCRYPT_MODE_SM4_XTS                        = 0x7
 	FSCRYPT_POLICY_FLAGS_PAD_16                 = 0x2
 	FSCRYPT_POLICY_FLAGS_PAD_32                 = 0x3
 	FSCRYPT_POLICY_FLAGS_PAD_4                  = 0x0
@@ -1280,8 +1285,6 @@ const (
 	FS_ENCRYPTION_MODE_AES_256_GCM              = 0x2
 	FS_ENCRYPTION_MODE_AES_256_XTS              = 0x1
 	FS_ENCRYPTION_MODE_INVALID                  = 0x0
-	FS_ENCRYPTION_MODE_SPECK128_256_CTS         = 0x8
-	FS_ENCRYPTION_MODE_SPECK128_256_XTS         = 0x7
 	FS_IOC_ADD_ENCRYPTION_KEY                   = 0xc0506617
 	FS_IOC_GET_ENCRYPTION_KEY_STATUS            = 0xc080661a
 	FS_IOC_GET_ENCRYPTION_POLICY_EX             = 0xc0096616
@@ -1770,6 +1773,7 @@ const (
 	LANDLOCK_ACCESS_FS_REFER                    = 0x2000
 	LANDLOCK_ACCESS_FS_REMOVE_DIR               = 0x10
 	LANDLOCK_ACCESS_FS_REMOVE_FILE              = 0x20
+	LANDLOCK_ACCESS_FS_TRUNCATE                 = 0x4000
 	LANDLOCK_ACCESS_FS_WRITE_FILE               = 0x2
 	LANDLOCK_CREATE_RULESET_VERSION             = 0x1
 	LINUX_REBOOT_CMD_CAD_OFF                    = 0x0
@@ -1809,6 +1813,7 @@ const (
 	LWTUNNEL_IP_OPT_GENEVE_MAX                  = 0x3
 	LWTUNNEL_IP_OPT_VXLAN_MAX                   = 0x1
 	MADV_COLD                                   = 0x14
+	MADV_COLLAPSE                               = 0x19
 	MADV_DODUMP                                 = 0x11
 	MADV_DOFORK                                 = 0xb
 	MADV_DONTDUMP                               = 0x10
@@ -2163,6 +2168,7 @@ const (
 	PACKET_FANOUT_DATA                          = 0x16
 	PACKET_FANOUT_EBPF                          = 0x7
 	PACKET_FANOUT_FLAG_DEFRAG                   = 0x8000
+	PACKET_FANOUT_FLAG_IGNORE_OUTGOING          = 0x4000
 	PACKET_FANOUT_FLAG_ROLLOVER                 = 0x1000
 	PACKET_FANOUT_FLAG_UNIQUEID                 = 0x2000
 	PACKET_FANOUT_HASH                          = 0x0
