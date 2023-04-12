@@ -958,6 +958,11 @@ func reassigned(name *Name) bool {
 			if isName(OuterValue(n.X)) {
 				return true
 			}
+		case ORANGE:
+			n := n.(*RangeStmt)
+			if isName(n.Key) || isName(n.Value) {
+				return true
+			}
 		case OCLOSURE:
 			n := n.(*ClosureExpr)
 			if Any(n.Func, do) {
