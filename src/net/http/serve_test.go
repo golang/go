@@ -5519,9 +5519,6 @@ func testServerShutdownStateNew(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("test takes 5-6 seconds; skipping in short mode")
 	}
-	// The run helper runs the test in parallel only in short mode by default.
-	// Since this test has a very long latency, always run it in parallel.
-	t.Parallel()
 
 	var connAccepted sync.WaitGroup
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {

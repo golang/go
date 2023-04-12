@@ -108,11 +108,30 @@ func runningBenchmarks() bool {
 	return false
 }
 
+var leakReported bool
+
 func afterTest(t testing.TB) {
 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
 	if testing.Short() {
 		return
 	}
+	if leakReported {
+		// To avoid confusion, only report the first leak of each test run.
+		// After the first leak has been reported, we can't tell whether the leaked
+		// goroutines are a new leak from a subsequent test or just the same
+		// goroutines from the first leak still hanging around, and we may add a lot
+		// of latency waiting for them to exit at the end of each test.
+		return
+	}
+
+	// We shouldn't be running the leak check for parallel tests, because we might
+	// report the goroutines from a test that is still running as a leak from a
+	// completely separate test that has just finished. So we use non-atomic loads
+	// and stores for the leakReported variable, and store every time we start a
+	// leak check so that the race detector will flag concurrent leak checks as a
+	// race even if we don't detect any leaks.
+	leakReported = true
+
 	var bad string
 	badSubstring := map[string]string{
 		").readLoop(":  "a Transport",
@@ -132,6 +151,7 @@ func afterTest(t testing.TB) {
 			}
 		}
 		if bad == "" {
+			leakReported = false
 			return
 		}
 		// Bad stuff found, but goroutines might just still be
