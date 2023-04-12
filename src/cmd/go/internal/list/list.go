@@ -14,10 +14,14 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
+
+	"golang.org/x/sync/semaphore"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
@@ -637,21 +641,43 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 	if *listTest {
 		c := cache.Default()
 		// Add test binaries to packages to be listed.
+
+		var wg sync.WaitGroup
+		sema := semaphore.NewWeighted(int64(runtime.GOMAXPROCS(0)))
+		type testPackageSet struct {
+			p, pmain, ptest, pxtest *load.Package
+		}
+		var testPackages []testPackageSet
 		for _, p := range pkgs {
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
 				var pmain, ptest, pxtest *load.Package
 				var err error
 				if *listE {
-					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, pkgOpts, p, nil)
+					sema.Acquire(ctx, 1)
+					wg.Add(1)
+					done := func() {
+						sema.Release(1)
+						wg.Done()
+					}
+					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, done, pkgOpts, p, nil)
 				} else {
 					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
 					if err != nil {
 						base.Fatalf("can't load test package: %s", err)
 					}
 				}
-				if pmain != nil {
-					pkgs = append(pkgs, pmain)
-					data := *pmain.Internal.TestmainGo
+				testPackages = append(testPackages, testPackageSet{p, pmain, ptest, pxtest})
+			}
+		}
+		wg.Wait()
+		for _, pkgset := range testPackages {
+			p, pmain, ptest, pxtest := pkgset.p, pkgset.pmain, pkgset.ptest, pkgset.pxtest
+			if pmain != nil {
+				pkgs = append(pkgs, pmain)
+				data := *pmain.Internal.TestmainGo
+				sema.Acquire(ctx, 1)
+				wg.Add(1)
+				go func() {
 					h := cache.NewHash("testmain")
 					h.Write([]byte("testmain\n"))
 					h.Write(data)
@@ -660,15 +686,20 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 						base.Fatalf("%s", err)
 					}
 					pmain.GoFiles[0] = c.OutputFile(out)
-				}
-				if ptest != nil && ptest != p {
-					pkgs = append(pkgs, ptest)
-				}
-				if pxtest != nil {
-					pkgs = append(pkgs, pxtest)
-				}
+					sema.Release(1)
+					wg.Done()
+				}()
+
+			}
+			if ptest != nil && ptest != p {
+				pkgs = append(pkgs, ptest)
+			}
+			if pxtest != nil {
+				pkgs = append(pkgs, pxtest)
 			}
 		}
+
+		wg.Wait()
 	}
 
 	// Remember which packages are named on the command line.

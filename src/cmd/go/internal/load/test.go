@@ -48,7 +48,7 @@ type TestCover struct {
 // an error if the test packages or their dependencies have errors.
 // Only test packages without errors are returned.
 func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
-	pmain, ptest, pxtest = TestPackagesAndErrors(ctx, opts, p, cover)
+	pmain, ptest, pxtest = TestPackagesAndErrors(ctx, nil, opts, p, cover)
 	for _, p1 := range []*Package{ptest, pxtest, pmain} {
 		if p1 == nil {
 			// pxtest may be nil
@@ -92,14 +92,13 @@ func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *T
 // package p need not be instrumented for coverage or any other reason),
 // then the returned ptest == p.
 //
-// An error is returned if the testmain source cannot be completely generated
-// (for example, due to a syntax error in a test file). No error will be
-// returned for errors loading packages, but the Error or DepsError fields
-// of the returned packages may be set.
+// If done is non-nil, TestPackagesAndErrors will finish filling out the returned
+// package structs in a goroutine and call done once finished. The members of the
+// returned packages should not be accessed until done is called.
 //
 // The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
 // or else there's no point in any of this.
-func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
+func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
 	ctx, span := trace.StartSpan(ctx, "load.TestPackagesAndErrors")
 	defer span.Done()
 
@@ -316,109 +315,120 @@ func TestPackagesAndErrors(ctx context.Context, opts PackageOpts, p *Package, co
 	}
 	stk.Pop()
 
-	if cover != nil && cover.Pkgs != nil && !cfg.Experiment.CoverageRedesign {
-		// Add imports, but avoid duplicates.
-		seen := map[*Package]bool{p: true, ptest: true}
-		for _, p1 := range pmain.Internal.Imports {
-			seen[p1] = true
-		}
-		for _, p1 := range cover.Pkgs {
-			if seen[p1] {
-				// Don't add duplicate imports.
-				continue
+	parallelizablePart := func() {
+		if cover != nil && cover.Pkgs != nil && !cfg.Experiment.CoverageRedesign {
+			// Add imports, but avoid duplicates.
+			seen := map[*Package]bool{p: true, ptest: true}
+			for _, p1 := range pmain.Internal.Imports {
+				seen[p1] = true
 			}
-			seen[p1] = true
-			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
+			for _, p1 := range cover.Pkgs {
+				if seen[p1] {
+					// Don't add duplicate imports.
+					continue
+				}
+				seen[p1] = true
+				pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
+			}
 		}
-	}
 
-	allTestImports := make([]*Package, 0, len(pmain.Internal.Imports)+len(imports)+len(ximports))
-	allTestImports = append(allTestImports, pmain.Internal.Imports...)
-	allTestImports = append(allTestImports, imports...)
-	allTestImports = append(allTestImports, ximports...)
-	setToolFlags(allTestImports...)
+		allTestImports := make([]*Package, 0, len(pmain.Internal.Imports)+len(imports)+len(ximports))
+		allTestImports = append(allTestImports, pmain.Internal.Imports...)
+		allTestImports = append(allTestImports, imports...)
+		allTestImports = append(allTestImports, ximports...)
+		setToolFlags(allTestImports...)
 
-	// Do initial scan for metadata needed for writing _testmain.go
-	// Use that metadata to update the list of imports for package main.
-	// The list of imports is used by recompileForTest and by the loop
-	// afterward that gathers t.Cover information.
-	t, err := loadTestFuncs(ptest)
-	if err != nil && pmain.Error == nil {
-		pmain.setLoadPackageDataError(err, p.ImportPath, &stk, nil)
-	}
-	t.Cover = cover
-	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
-		pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
-		pmain.Imports = append(pmain.Imports, ptest.ImportPath)
-		t.ImportTest = true
-	}
-	if pxtest != nil {
-		pmain.Internal.Imports = append(pmain.Internal.Imports, pxtest)
-		pmain.Imports = append(pmain.Imports, pxtest.ImportPath)
-		t.ImportXtest = true
-	}
-
-	// Sort and dedup pmain.Imports.
-	// Only matters for go list -test output.
-	sort.Strings(pmain.Imports)
-	w := 0
-	for _, path := range pmain.Imports {
-		if w == 0 || path != pmain.Imports[w-1] {
-			pmain.Imports[w] = path
-			w++
+		// Do initial scan for metadata needed for writing _testmain.go
+		// Use that metadata to update the list of imports for package main.
+		// The list of imports is used by recompileForTest and by the loop
+		// afterward that gathers t.Cover information.
+		t, err := loadTestFuncs(p)
+		if err != nil && pmain.Error == nil {
+			pmain.setLoadPackageDataError(err, p.ImportPath, &stk, nil)
 		}
-	}
-	pmain.Imports = pmain.Imports[:w]
-	pmain.Internal.RawImports = str.StringList(pmain.Imports)
-
-	// Replace pmain's transitive dependencies with test copies, as necessary.
-	cycleErr := recompileForTest(pmain, p, ptest, pxtest)
-	if cycleErr != nil {
-		ptest.Error = cycleErr
-		ptest.Incomplete = true
-	}
-
-	if cover != nil {
-		if cfg.Experiment.CoverageRedesign {
-			// Here ptest needs to inherit the proper coverage mode (since
-			// it contains p's Go files), whereas pmain contains only
-			// test harness code (don't want to instrument it, and
-			// we don't want coverage hooks in the pkg init).
-			ptest.Internal.CoverMode = p.Internal.CoverMode
-			pmain.Internal.CoverMode = "testmain"
+		t.Cover = cover
+		if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
+			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
+			pmain.Imports = append(pmain.Imports, ptest.ImportPath)
+			t.ImportTest = true
 		}
-		// Should we apply coverage analysis locally, only for this
-		// package and only for this test? Yes, if -cover is on but
-		// -coverpkg has not specified a list of packages for global
-		// coverage.
-		if cover.Local {
-			ptest.Internal.CoverMode = cover.Mode
+		if pxtest != nil {
+			pmain.Internal.Imports = append(pmain.Internal.Imports, pxtest)
+			pmain.Imports = append(pmain.Imports, pxtest.ImportPath)
+			t.ImportXtest = true
+		}
+
+		// Sort and dedup pmain.Imports.
+		// Only matters for go list -test output.
+		sort.Strings(pmain.Imports)
+		w := 0
+		for _, path := range pmain.Imports {
+			if w == 0 || path != pmain.Imports[w-1] {
+				pmain.Imports[w] = path
+				w++
+			}
+		}
+		pmain.Imports = pmain.Imports[:w]
+		pmain.Internal.RawImports = str.StringList(pmain.Imports)
+
+		// Replace pmain's transitive dependencies with test copies, as necessary.
+		cycleErr := recompileForTest(pmain, p, ptest, pxtest)
+		if cycleErr != nil {
+			ptest.Error = cycleErr
+			ptest.Incomplete = true
+		}
+
+		if cover != nil {
+			if cfg.Experiment.CoverageRedesign {
+				// Here ptest needs to inherit the proper coverage mode (since
+				// it contains p's Go files), whereas pmain contains only
+				// test harness code (don't want to instrument it, and
+				// we don't want coverage hooks in the pkg init).
+				ptest.Internal.CoverMode = p.Internal.CoverMode
+				pmain.Internal.CoverMode = "testmain"
+			}
+			// Should we apply coverage analysis locally, only for this
+			// package and only for this test? Yes, if -cover is on but
+			// -coverpkg has not specified a list of packages for global
+			// coverage.
+			if cover.Local {
+				ptest.Internal.CoverMode = cover.Mode
+
+				if !cfg.Experiment.CoverageRedesign {
+					var coverFiles []string
+					coverFiles = append(coverFiles, ptest.GoFiles...)
+					coverFiles = append(coverFiles, ptest.CgoFiles...)
+					ptest.Internal.CoverVars = DeclareCoverVars(ptest, coverFiles...)
+				}
+			}
 
 			if !cfg.Experiment.CoverageRedesign {
-				var coverFiles []string
-				coverFiles = append(coverFiles, ptest.GoFiles...)
-				coverFiles = append(coverFiles, ptest.CgoFiles...)
-				ptest.Internal.CoverVars = DeclareCoverVars(ptest, coverFiles...)
-			}
-		}
-
-		if !cfg.Experiment.CoverageRedesign {
-			for _, cp := range pmain.Internal.Imports {
-				if len(cp.Internal.CoverVars) > 0 {
-					t.Cover.Vars = append(t.Cover.Vars, coverInfo{cp, cp.Internal.CoverVars})
+				for _, cp := range pmain.Internal.Imports {
+					if len(cp.Internal.CoverVars) > 0 {
+						t.Cover.Vars = append(t.Cover.Vars, coverInfo{cp, cp.Internal.CoverVars})
+					}
 				}
 			}
 		}
+
+		data, err := formatTestmain(t)
+		if err != nil && pmain.Error == nil {
+			pmain.Error = &PackageError{Err: err}
+			pmain.Incomplete = true
+		}
+		// Set TestmainGo even if it is empty: the presence of a TestmainGo
+		// indicates that this package is, in fact, a test main.
+		pmain.Internal.TestmainGo = &data
 	}
 
-	data, err := formatTestmain(t)
-	if err != nil && pmain.Error == nil {
-		pmain.Error = &PackageError{Err: err}
-		pmain.Incomplete = true
+	if done != nil {
+		go func() {
+			parallelizablePart()
+			done()
+		}()
+	} else {
+		parallelizablePart()
 	}
-	// Set TestmainGo even if it is empty: the presence of a TestmainGo
-	// indicates that this package is, in fact, a test main.
-	pmain.Internal.TestmainGo = &data
 
 	return pmain, ptest, pxtest
 }
