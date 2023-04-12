@@ -88,7 +88,11 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 		copy(s2[i:], v)
 		return s2
 	}
-	s2 := make(S, tot)
+	// Use append rather than make so that we bump the size of
+	// the slice up to the next storage class.
+	// This is what Grow does but we don't call Grow because
+	// that might copy the values twice.
+	s2 := append(S(nil), make(S, tot)...)
 	copy(s2, s[:i])
 	copy(s2[i:], v)
 	copy(s2[i+len(v):], s[i:])
