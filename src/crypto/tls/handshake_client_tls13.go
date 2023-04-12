@@ -259,7 +259,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 			transcript := hs.suite.hash.New()
 			transcript.Write([]byte{typeMessageHash, 0, 0, uint8(len(chHash))})
 			transcript.Write(chHash)
-			if err := transcriptMsg(hs.serverHello, hs.transcript); err != nil {
+			if err := transcriptMsg(hs.serverHello, transcript); err != nil {
 				return err
 			}
 			helloBytes, err := hs.hello.marshalWithoutBinders()
