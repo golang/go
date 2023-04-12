@@ -47,11 +47,12 @@ func (h *fastTextHandler) Handle(_ context.Context, r slog.Record) error {
 	buf.WriteByte(' ')
 	buf.WriteString("msg=")
 	buf.WriteString(r.Message)
-	r.Attrs(func(a slog.Attr) {
+	r.Attrs(func(a slog.Attr) bool {
 		buf.WriteByte(' ')
 		buf.WriteString(a.Key)
 		buf.WriteByte('=')
 		h.appendValue(buf, a.Value)
+		return true
 	})
 	buf.WriteByte('\n')
 	_, err := h.w.Write(*buf)

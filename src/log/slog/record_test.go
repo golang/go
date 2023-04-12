@@ -23,6 +23,17 @@ func TestRecordAttrs(t *testing.T) {
 	if got := attrsSlice(r); !attrsEqual(got, as) {
 		t.Errorf("got %v, want %v", got, as)
 	}
+
+	// Early return.
+	var got []Attr
+	r.Attrs(func(a Attr) bool {
+		got = append(got, a)
+		return len(got) < 2
+	})
+	want := as[:2]
+	if !attrsEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
 }
 
 func TestRecordSourceLine(t *testing.T) {
@@ -102,7 +113,7 @@ func newRecordWithAttrs(as []Attr) Record {
 
 func attrsSlice(r Record) []Attr {
 	s := make([]Attr, 0, r.NumAttrs())
-	r.Attrs(func(a Attr) { s = append(s, a) })
+	r.Attrs(func(a Attr) bool { s = append(s, a); return true })
 	return s
 }
 
@@ -157,7 +168,7 @@ func BenchmarkRecord(b *testing.B) {
 		for j := 0; j < nAttrs; j++ {
 			r.AddAttrs(Int("k", j))
 		}
-		r.Attrs(func(b Attr) { a = b })
+		r.Attrs(func(b Attr) bool { a = b; return true })
 	}
 	_ = a
 }

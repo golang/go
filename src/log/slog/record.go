@@ -86,13 +86,18 @@ func (r Record) NumAttrs() int {
 }
 
 // Attrs calls f on each Attr in the Record.
+// Iteration stops if f returns false.
 // The Attrs are already resolved.
-func (r Record) Attrs(f func(Attr)) {
+func (r Record) Attrs(f func(Attr) bool) {
 	for i := 0; i < r.nFront; i++ {
-		f(r.front[i])
+		if !f(r.front[i]) {
+			return
+		}
 	}
 	for _, a := range r.back {
-		f(a)
+		if !f(a) {
+			return
+		}
 	}
 }
 

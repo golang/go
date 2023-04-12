@@ -37,6 +37,6 @@ func TestHandlers(t *testing.T) {
 
 func attrSlice(r slog.Record) []slog.Attr {
 	var as []slog.Attr
-	r.Attrs(func(a slog.Attr) { as = append(as, a) })
+	r.Attrs(func(a slog.Attr) bool { as = append(as, a); return true })
 	return as
 }

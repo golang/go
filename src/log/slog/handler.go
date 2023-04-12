@@ -330,8 +330,9 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 	defer s.prefix.Free()
 	s.prefix.WriteString(s.h.groupPrefix)
 	s.openGroups()
-	r.Attrs(func(a Attr) {
+	r.Attrs(func(a Attr) bool {
 		s.appendAttr(a)
+		return true
 	})
 	if s.h.json {
 		// Close all open groups.
