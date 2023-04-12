@@ -428,6 +428,20 @@ func (h *sha384Hash) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+func (h *sha384Hash) WriteString(s string) (int, error) {
+	if len(s) > 0 && C._goboringcrypto_SHA384_Update(h.noescapeCtx(), unsafe.Pointer(unsafe.StringData(s)), C.size_t(len(s))) == 0 {
+		panic("boringcrypto: SHA384_Update failed")
+	}
+	return len(s), nil
+}
+
+func (h *sha384Hash) WriteByte(c byte) error {
+	if C._goboringcrypto_SHA384_Update(h.noescapeCtx(), unsafe.Pointer(&c), 1) == 0 {
+		panic("boringcrypto: SHA384_Update failed")
+	}
+	return nil
+}
+
 func (h0 *sha384Hash) sum(dst []byte) []byte {
 	h := *h0 // make copy so future Write+Sum is valid
 	if C._goboringcrypto_SHA384_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {
@@ -464,6 +478,20 @@ func (h *sha512Hash) Write(p []byte) (int, error) {
 		panic("boringcrypto: SHA512_Update failed")
 	}
 	return len(p), nil
+}
+
+func (h *sha512Hash) WriteString(s string) (int, error) {
+	if len(s) > 0 && C._goboringcrypto_SHA512_Update(h.noescapeCtx(), unsafe.Pointer(unsafe.StringData(s)), C.size_t(len(s))) == 0 {
+		panic("boringcrypto: SHA512_Update failed")
+	}
+	return len(s), nil
+}
+
+func (h *sha512Hash) WriteByte(c byte) error {
+	if C._goboringcrypto_SHA512_Update(h.noescapeCtx(), unsafe.Pointer(&c), 1) == 0 {
+		panic("boringcrypto: SHA512_Update failed")
+	}
+	return nil
 }
 
 func (h0 *sha512Hash) sum(dst []byte) []byte {
