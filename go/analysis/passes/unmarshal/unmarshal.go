@@ -36,6 +36,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		return nil, nil
 	}
 
+	// Note: (*"encoding/json".Decoder).Decode, (* "encoding/gob".Decoder).Decode
+	// and (* "encoding/xml".Decoder).Decode are methods and can be a typeutil.Callee
+	// without directly importing their packages. So we cannot just skip this package
+	// when !analysisutil.Imports(pass.Pkg, "encoding/...").
+	// TODO(taking): Consider using a prepass to collect typeutil.Callees.
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -50,6 +56,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		// Classify the callee (without allocating memory).
 		argidx := -1
+
 		recv := fn.Type().(*types.Signature).Recv()
 		if fn.Name() == "Unmarshal" && recv == nil {
 			// "encoding/json".Unmarshal

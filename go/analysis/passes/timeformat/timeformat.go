@@ -43,6 +43,11 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
+	// Note: (time.Time).Format is a method and can be a typeutil.Callee
+	// without directly importing "time". So we cannot just skip this package
+	// when !analysisutil.Imports(pass.Pkg, "time").
+	// TODO(taking): Consider using a prepass to collect typeutil.Callees.
+
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{

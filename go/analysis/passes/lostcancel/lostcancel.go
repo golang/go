@@ -48,7 +48,7 @@ var contextPackage = "context"
 // checkLostCancel analyzes a single named or literal function.
 func run(pass *analysis.Pass) (interface{}, error) {
 	// Fast path: bypass check if file doesn't use context.WithCancel.
-	if !hasImport(pass.Pkg, contextPackage) {
+	if !analysisutil.Imports(pass.Pkg, contextPackage) {
 		return nil, nil
 	}
 
@@ -178,15 +178,6 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 }
 
 func isCall(n ast.Node) bool { _, ok := n.(*ast.CallExpr); return ok }
-
-func hasImport(pkg *types.Package, path string) bool {
-	for _, imp := range pkg.Imports() {
-		if imp.Path() == path {
-			return true
-		}
-	}
-	return false
-}
 
 // isContextWithCancel reports whether n is one of the qualified identifiers
 // context.With{Cancel,Timeout,Deadline}.
