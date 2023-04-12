@@ -7,6 +7,7 @@ package slog
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -185,6 +186,20 @@ func TestLogValue(t *testing.T) {
 	if !attrsEqual(got2, want2) {
 		t.Errorf("got %v, want %v", got2, want2)
 	}
+
+	// Verify that panics in Resolve are caught and turn into errors.
+	v = AnyValue(panickingLogValue{})
+	got = v.Resolve().Any()
+	gotErr, ok := got.(error)
+	if !ok {
+		t.Errorf("expected error, got %T", got)
+	}
+	// The error should provide some context information.
+	// We'll just check that this function name appears in it.
+	fmt.Println(got)
+	if got, want := gotErr.Error(), "TestLogValue"; !strings.Contains(got, want) {
+		t.Errorf("got %q, want substring %q", got, want)
+	}
 }
 
 func TestZeroTime(t *testing.T) {
@@ -200,6 +215,10 @@ type replace struct {
 }
 
 func (r *replace) LogValue() Value { return r.v }
+
+type panickingLogValue struct{}
+
+func (panickingLogValue) LogValue() Value { panic("bad") }
 
 // A Value with "unsafe" strings is significantly faster:
 // safe:  1785 ns/op, 0 allocs
