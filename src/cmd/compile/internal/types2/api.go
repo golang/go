@@ -174,7 +174,7 @@ type Config struct {
 	// partially instantiated generic functions may be assigned
 	// (incl. returned) to variables of function type and type
 	// inference will attempt to infer the missing type arguments.
-	// Experimental. Needs a proposal.
+	// See proposal go.dev/issue/59338.
 	EnableReverseTypeInference bool
 }
 

@@ -39,6 +39,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"internal/testenv"
+	"internal/types/errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -295,9 +296,9 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
 	}
 }
 
-func readCode(err Error) int {
+func readCode(err Error) errors.Code {
 	v := reflect.ValueOf(err)
-	return int(v.FieldByName("go116code").Int())
+	return errors.Code(v.FieldByName("go116code").Int())
 }
 
 // boolFieldAddr(conf, name) returns the address of the boolean field conf.<name>.

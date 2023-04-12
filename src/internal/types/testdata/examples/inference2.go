@@ -10,11 +10,13 @@
 
 package p
 
-func f1[P any](P)      {}
-func f2[P any]() P     { var x P; return x }
-func f3[P, Q any](P) Q { var x Q; return x }
-func f4[P any](P, P)   {}
-func f5[P any](P) []P  { return nil }
+func f1[P any](P)        {}
+func f2[P any]() P       { var x P; return x }
+func f3[P, Q any](P) Q   { var x Q; return x }
+func f4[P any](P, P)     {}
+func f5[P any](P) []P    { return nil }
+func f6[P any](int) P    { var x P; return x }
+func f7[P any](P) string { return "" }
 
 // initialization expressions
 var (
@@ -71,3 +73,22 @@ func _() func(string) []int {
 
 func _() (_, _ func(int)) { return f1, f1 }
 func _() (_, _ func(int)) { return f1, f2 /* ERROR "cannot infer P" */ }
+
+// Argument passing
+func g1(func(int))                           {}
+func g2(func(int, int))                      {}
+func g3(func(int) string)                    {}
+func g4[P any](func(P) string)               {}
+func g5[P, Q any](func(P) string, func(P) Q) {}
+func g6(func(int), func(string))             {}
+
+func _() {
+	g1(f1)
+	g1(f2 /* ERROR "cannot infer P" */)
+	g2(f4)
+	g4(f6)
+	g5(f6, f7)
+
+	// TODO(gri) this should work (requires type parameter renaming for f1)
+	g6(f1, f1 /* ERROR "type func[P any](P) of f1 does not match func(string)" */)
+}

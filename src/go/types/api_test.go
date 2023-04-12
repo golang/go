@@ -550,18 +550,57 @@ type T[P any] []P
 		{`package issue51803; func foo[T any](T) {}; func _() { foo[int]( /* leave arg away on purpose */ ) }`,
 			[]testInst{{`foo`, []string{`int`}, `func(int)`}},
 		},
+
+		// reverse type parameter inference
+		{`package reverse1a; var f func(int) = g; func g[P any](P) {}`,
+			[]testInst{{`g`, []string{`int`}, `func(int)`}},
+		},
+		{`package reverse1b; func f(func(int)) {}; func g[P any](P) {}; func _() { f(g) }`,
+			[]testInst{{`g`, []string{`int`}, `func(int)`}},
+		},
+		{`package reverse2a; var f func(int) string = g; func g[P, Q any](P) Q { var q Q; return q }`,
+			[]testInst{{`g`, []string{`int`, `string`}, `func(int) string`}},
+		},
+		{`package reverse2b; func f(func(int) string) {}; func g[P, Q any](P) Q { var q Q; return q }; func _() { f(g) }`,
+			[]testInst{{`g`, []string{`int`, `string`}, `func(int) string`}},
+		},
+		// reverse3a not possible (cannot assign to generic function outside of argument passing)
+		{`package reverse3b; func f[R any](func(int) R) {}; func g[P any](P) string { return "" }; func _() { f(g) }`,
+			[]testInst{
+				{`f`, []string{`string`}, `func(func(int) string)`},
+				{`g`, []string{`int`}, `func(int) string`},
+			},
+		},
+		{`package reverse4a; var _, _ func([]int, *float32) = g, h; func g[P, Q any]([]P, *Q) {}; func h[R any]([]R, *float32) {}`,
+			[]testInst{
+				{`g`, []string{`int`, `float32`}, `func([]int, *float32)`},
+				{`h`, []string{`int`}, `func([]int, *float32)`},
+			},
+		},
+		{`package reverse4b; func f(_, _ func([]int, *float32)) {}; func g[P, Q any]([]P, *Q) {}; func h[R any]([]R, *float32) {}; func _() { f(g, h) }`,
+			[]testInst{
+				{`g`, []string{`int`, `float32`}, `func([]int, *float32)`},
+				{`h`, []string{`int`}, `func([]int, *float32)`},
+			},
+		},
 	}
 
 	for _, test := range tests {
 		imports := make(testImporter)
 		conf := Config{
 			Importer: imports,
-			Error:    func(error) {}, // ignore errors
+			// Unexported field: set below with boolFieldAddr
+			// _EnableReverseTypeInference: true,
 		}
+		*boolFieldAddr(&conf, "_EnableReverseTypeInference") = true
 		instMap := make(map[*ast.Ident]Instance)
 		useMap := make(map[*ast.Ident]Object)
 		makePkg := func(src string) *Package {
-			pkg, _ := typecheck(src, &conf, &Info{Instances: instMap, Uses: useMap})
+			pkg, err := typecheck(src, &conf, &Info{Instances: instMap, Uses: useMap})
+			// allow error for issue51803
+			if err != nil && (pkg == nil || pkg.Name() != "issue51803") {
+				t.Fatal(err)
+			}
 			imports[pkg.Name()] = pkg
 			return pkg
 		}
