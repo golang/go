@@ -4250,6 +4250,21 @@ func testTransportFlushesRequestHeader(t *testing.T, mode testMode) {
 	<-gotRes
 }
 
+type wgReadCloser struct {
+	io.Reader
+	wg     *sync.WaitGroup
+	closed bool
+}
+
+func (c *wgReadCloser) Close() error {
+	if c.closed {
+		return net.ErrClosed
+	}
+	c.closed = true
+	c.wg.Done()
+	return nil
+}
+
 // Issue 11745.
 func TestTransportPrefersResponseOverWriteError(t *testing.T) {
 	run(t, testTransportPrefersResponseOverWriteError)
@@ -4271,12 +4286,29 @@ func testTransportPrefersResponseOverWriteError(t *testing.T, mode testMode) {
 
 	fail := 0
 	count := 100
+
 	bigBody := strings.Repeat("a", contentLengthLimit*2)
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	getBody := func() (io.ReadCloser, error) {
+		wg.Add(1)
+		body := &wgReadCloser{
+			Reader: strings.NewReader(bigBody),
+			wg:     &wg,
+		}
+		return body, nil
+	}
+
 	for i := 0; i < count; i++ {
-		req, err := NewRequest("PUT", ts.URL, strings.NewReader(bigBody))
+		reqBody, _ := getBody()
+		req, err := NewRequest("PUT", ts.URL, reqBody)
 		if err != nil {
+			reqBody.Close()
 			t.Fatal(err)
 		}
+		req.ContentLength = int64(len(bigBody))
+		req.GetBody = getBody
+
 		resp, err := c.Do(req)
 		if err != nil {
 			fail++

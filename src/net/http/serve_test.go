@@ -6546,9 +6546,30 @@ func testMaxBytesHandler(t *testing.T, mode testMode, maxSize, requestSize int64
 	defer ts.Close()
 
 	c := ts.Client()
+
+	body := strings.Repeat("a", int(requestSize))
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	getBody := func() (io.ReadCloser, error) {
+		wg.Add(1)
+		body := &wgReadCloser{
+			Reader: strings.NewReader(body),
+			wg:     &wg,
+		}
+		return body, nil
+	}
+	reqBody, _ := getBody()
+	req, err := NewRequest("POST", ts.URL, reqBody)
+	if err != nil {
+		reqBody.Close()
+		t.Fatal(err)
+	}
+	req.ContentLength = int64(len(body))
+	req.GetBody = getBody
+	req.Header.Set("Content-Type", "text/plain")
+
 	var buf strings.Builder
-	body := strings.NewReader(strings.Repeat("a", int(requestSize)))
-	res, err := c.Post(ts.URL, "text/plain", body)
+	res, err := c.Do(req)
 	if err != nil {
 		t.Errorf("unexpected connection error: %v", err)
 	} else {
