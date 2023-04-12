@@ -485,7 +485,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 				prog.Reg = p.getRegister(prog, op, &a[1])
 			} else {
 				// Compare register with immediate and jump.
-				prog.SetFrom3(a[1])
+				prog.AddRestSource(a[1])
 			}
 			break
 		}
@@ -508,7 +508,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			// 4-operand compare-and-branch.
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.SetFrom3(a[2])
+			prog.AddRestSource(a[2])
 			target = &a[3]
 			break
 		}
@@ -682,7 +682,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if arch.IsARMBFX(op) {
 				// a[0] and a[1] must be constants, a[2] must be a register
 				prog.From = a[0]
-				prog.SetFrom3(a[1])
+				prog.AddRestSource(a[1])
 				prog.To = a[2]
 				break
 			}
@@ -692,7 +692,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.To = a[2]
 		case sys.AMD64:
 			prog.From = a[0]
-			prog.SetFrom3(a[1])
+			prog.AddRestSource(a[1])
 			prog.To = a[2]
 		case sys.ARM64:
 			switch {
@@ -708,7 +708,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			case arch.IsARM64TBL(op):
 				// one of its inputs does not fit into prog.Reg.
 				prog.From = a[0]
-				prog.SetFrom3(a[1])
+				prog.AddRestSource(a[1])
 				prog.To = a[2]
 			case arch.IsARM64CASP(op):
 				prog.From = a[0]
@@ -721,7 +721,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				}
 				// For ARM64 CASP-like instructions, its 2nd destination operand is register pair(Rt, Rt+1) that can
 				// not fit into prog.RegTo2, so save it to the prog.RestArgs.
-				prog.SetTo2(a[2])
+				prog.AddRestDest(a[2])
 			default:
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
@@ -729,7 +729,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			}
 		case sys.I386:
 			prog.From = a[0]
-			prog.SetFrom3(a[1])
+			prog.AddRestSource(a[1])
 			prog.To = a[2]
 		case sys.PPC64:
 			if arch.IsPPC64CMP(op) {
@@ -744,12 +744,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.To = a[2]
 
 			// If the second argument is not a register argument, it must be
-			// passed RestArgs/SetFrom3
+			// passed RestArgs/AddRestSource
 			switch a[1].Type {
 			case obj.TYPE_REG:
 				prog.Reg = p.getRegister(prog, op, &a[1])
 			default:
-				prog.SetFrom3(a[1])
+				prog.AddRestSource(a[1])
 			}
 		case sys.RISCV64:
 			// RISCV64 instructions with one input and two outputs.
@@ -771,7 +771,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if a[1].Type == obj.TYPE_REG {
 				prog.Reg = p.getRegister(prog, op, &a[1])
 			} else {
-				prog.SetFrom3(a[1])
+				prog.AddRestSource(a[1])
 			}
 			prog.To = a[2]
 		default:
@@ -783,7 +783,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			if arch.IsARMBFX(op) {
 				// a[0] and a[1] must be constants, a[2] and a[3] must be registers
 				prog.From = a[0]
-				prog.SetFrom3(a[1])
+				prog.AddRestSource(a[1])
 				prog.Reg = p.getRegister(prog, op, &a[2])
 				prog.To = a[3]
 				break
@@ -804,14 +804,14 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		}
 		if p.arch.Family == sys.AMD64 {
 			prog.From = a[0]
-			prog.SetRestArgs([]obj.Addr{a[1], a[2]})
+			prog.AddRestSourceArgs([]obj.Addr{a[1], a[2]})
 			prog.To = a[3]
 			break
 		}
 		if p.arch.Family == sys.ARM64 {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.SetFrom3(a[2])
+			prog.AddRestSource(a[2])
 			prog.To = a[3]
 			break
 		}
@@ -819,20 +819,20 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.From = a[0]
 			prog.To = a[3]
 			// If the second argument is not a register argument, it must be
-			// passed RestArgs/SetFrom3
+			// passed RestArgs/AddRestSource
 			if a[1].Type == obj.TYPE_REG {
 				prog.Reg = p.getRegister(prog, op, &a[1])
-				prog.SetRestArgs([]obj.Addr{a[2]})
+				prog.AddRestSource(a[2])
 			} else {
 				// Don't set prog.Reg if a1 isn't a reg arg.
-				prog.SetRestArgs([]obj.Addr{a[1], a[2]})
+				prog.AddRestSourceArgs([]obj.Addr{a[1], a[2]})
 			}
 			break
 		}
 		if p.arch.Family == sys.RISCV64 {
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.SetRestArgs([]obj.Addr{a[2]})
+			prog.AddRestSource(a[2])
 			prog.To = a[3]
 			break
 		}
@@ -843,7 +843,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			}
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.SetFrom3(a[2])
+			prog.AddRestSource(a[2])
 			prog.To = a[3]
 			break
 		}
@@ -854,19 +854,19 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.From = a[0]
 			// Second arg is always a register type on ppc64.
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.SetRestArgs([]obj.Addr{a[2], a[3]})
+			prog.AddRestSourceArgs([]obj.Addr{a[2], a[3]})
 			prog.To = a[4]
 			break
 		}
 		if p.arch.Family == sys.AMD64 {
 			prog.From = a[0]
-			prog.SetRestArgs([]obj.Addr{a[1], a[2], a[3]})
+			prog.AddRestSourceArgs([]obj.Addr{a[1], a[2], a[3]})
 			prog.To = a[4]
 			break
 		}
 		if p.arch.Family == sys.S390X {
 			prog.From = a[0]
-			prog.SetRestArgs([]obj.Addr{a[1], a[2], a[3]})
+			prog.AddRestSourceArgs([]obj.Addr{a[1], a[2], a[3]})
 			prog.To = a[4]
 			break
 		}
@@ -896,7 +896,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			prog.From = a[0]
 			// Second arg is always a register type on ppc64.
 			prog.Reg = p.getRegister(prog, op, &a[1])
-			prog.SetRestArgs([]obj.Addr{a[2], a[3], a[4]})
+			prog.AddRestSourceArgs([]obj.Addr{a[2], a[3], a[4]})
 			prog.To = a[5]
 			break
 		}

@@ -301,7 +301,7 @@ type Prog struct {
 	Ctxt     *Link     // linker context
 	Link     *Prog     // next Prog in linked list
 	From     Addr      // first source operand
-	RestArgs []AddrPos // can pack any operands that not fit into {Prog.From, Prog.To}
+	RestArgs []AddrPos // can pack any operands that not fit into {Prog.From, Prog.To}, same kinds of operands are saved in order
 	To       Addr      // destination operand (second is RegTo2 below)
 	Pool     *Prog     // constant pool entry, for arm,arm64 back ends
 	Forwd    *Prog     // for x86 back end
@@ -336,69 +336,63 @@ const (
 
 // From3Type returns p.GetFrom3().Type, or TYPE_NONE when
 // p.GetFrom3() returns nil.
-//
-// Deprecated: for the same reasons as Prog.GetFrom3.
 func (p *Prog) From3Type() AddrType {
-	if p.RestArgs == nil {
+	from3 := p.GetFrom3()
+	if from3 == nil {
 		return TYPE_NONE
 	}
-	return p.RestArgs[0].Type
+	return from3.Type
 }
 
 // GetFrom3 returns second source operand (the first is Prog.From).
+// The same kinds of operands are saved in order so GetFrom3 actually
+// return the first source operand in p.RestArgs.
 // In combination with Prog.From and Prog.To it makes common 3 operand
 // case easier to use.
-//
-// Should be used only when RestArgs is set with SetFrom3.
-//
-// Deprecated: better use RestArgs directly or define backend-specific getters.
-// Introduced to simplify transition to []Addr.
-// Usage of this is discouraged due to fragility and lack of guarantees.
 func (p *Prog) GetFrom3() *Addr {
-	if p.RestArgs == nil {
-		return nil
+	for i := range p.RestArgs {
+		if p.RestArgs[i].Pos == Source {
+			return &p.RestArgs[i].Addr
+		}
 	}
-	return &p.RestArgs[0].Addr
+	return nil
 }
 
-// SetFrom3 assigns []Args{{a, 0}} to p.RestArgs.
-// In pair with Prog.GetFrom3 it can help in emulation of Prog.From3.
-//
-// Deprecated: for the same reasons as Prog.GetFrom3.
-func (p *Prog) SetFrom3(a Addr) {
-	p.RestArgs = []AddrPos{{a, Source}}
+// AddRestSource assigns []Args{{a, Source}} to p.RestArgs.
+func (p *Prog) AddRestSource(a Addr) {
+	p.RestArgs = append(p.RestArgs, AddrPos{a, Source})
 }
 
-// SetFrom3Reg calls p.SetFrom3 with a register Addr containing reg.
-//
-// Deprecated: for the same reasons as Prog.GetFrom3.
-func (p *Prog) SetFrom3Reg(reg int16) {
-	p.SetFrom3(Addr{Type: TYPE_REG, Reg: reg})
+// AddRestSourceReg calls p.AddRestSource with a register Addr containing reg.
+func (p *Prog) AddRestSourceReg(reg int16) {
+	p.AddRestSource(Addr{Type: TYPE_REG, Reg: reg})
 }
 
-// SetFrom3Const calls p.SetFrom3 with a const Addr containing x.
-//
-// Deprecated: for the same reasons as Prog.GetFrom3.
-func (p *Prog) SetFrom3Const(off int64) {
-	p.SetFrom3(Addr{Type: TYPE_CONST, Offset: off})
+// AddRestSourceConst calls p.AddRestSource with a const Addr containing off.
+func (p *Prog) AddRestSourceConst(off int64) {
+	p.AddRestSource(Addr{Type: TYPE_CONST, Offset: off})
 }
 
-// SetTo2 assigns []Args{{a, 1}} to p.RestArgs when the second destination
+// AddRestDest assigns []Args{{a, Destination}} to p.RestArgs when the second destination
 // operand does not fit into prog.RegTo2.
-func (p *Prog) SetTo2(a Addr) {
-	p.RestArgs = []AddrPos{{a, Destination}}
+func (p *Prog) AddRestDest(a Addr) {
+	p.RestArgs = append(p.RestArgs, AddrPos{a, Destination})
 }
 
 // GetTo2 returns the second destination operand.
+// The same kinds of operands are saved in order so GetTo2 actually
+// return the first destination operand in Prog.RestArgs[]
 func (p *Prog) GetTo2() *Addr {
-	if p.RestArgs == nil {
-		return nil
+	for i := range p.RestArgs {
+		if p.RestArgs[i].Pos == Destination {
+			return &p.RestArgs[i].Addr
+		}
 	}
-	return &p.RestArgs[0].Addr
+	return nil
 }
 
-// SetRestArgs assigns more than one source operands to p.RestArgs.
-func (p *Prog) SetRestArgs(args []Addr) {
+// AddRestSourceArgs assigns more than one source operands to p.RestArgs.
+func (p *Prog) AddRestSourceArgs(args []Addr) {
 	for i := range args {
 		p.RestArgs = append(p.RestArgs, AddrPos{args[i], Source})
 	}
