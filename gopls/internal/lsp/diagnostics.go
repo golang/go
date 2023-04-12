@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/tools/gopls/internal/lsp/debug/log"
 	"golang.org/x/tools/gopls/internal/lsp/mod"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -27,6 +26,10 @@ import (
 	"golang.org/x/tools/internal/event/tag"
 	"golang.org/x/tools/internal/xcontext"
 )
+
+// TODO(rfindley): simplify this very complicated logic for publishing
+// diagnostics. While doing so, ensure that we can test subtle logic such as
+// for multi-pass diagnostics.
 
 // diagnosticSource differentiates different sources of diagnostics.
 //
@@ -85,7 +88,7 @@ type fileReports struct {
 	mustPublish bool
 
 	// The last stored diagnostics for each diagnostic source.
-	reports map[diagnosticSource]diagnosticReport
+	reports map[diagnosticSource]*diagnosticReport
 }
 
 func (d diagnosticSource) String() string {
@@ -114,17 +117,35 @@ func (d diagnosticSource) String() string {
 }
 
 // hashDiagnostics computes a hash to identify diags.
+//
+// hashDiagnostics mutates its argument (via sorting).
 func hashDiagnostics(diags ...*source.Diagnostic) string {
+	if len(diags) == 0 {
+		return emptyDiagnosticsHash
+	}
+	return computeDiagnosticHash(diags...)
+}
+
+// opt: pre-computed hash for empty diagnostics
+var emptyDiagnosticsHash = computeDiagnosticHash()
+
+// computeDiagnosticHash should only be called from hashDiagnostics.
+//
+// TODO(rfindley): this should use source.Hash.
+func computeDiagnosticHash(diags ...*source.Diagnostic) string {
 	source.SortDiagnostics(diags)
 	h := sha256.New()
 	for _, d := range diags {
 		for _, t := range d.Tags {
-			fmt.Fprintf(h, "%s", t)
+			fmt.Fprintf(h, "tag: %s\n", t)
 		}
 		for _, r := range d.Related {
-			fmt.Fprintf(h, "%s%s%s", r.Location.URI.SpanURI(), r.Message, r.Location.Range)
+			fmt.Fprintf(h, "related: %s %s %s\n", r.Location.URI.SpanURI(), r.Message, r.Location.Range)
 		}
-		fmt.Fprintf(h, "%s%s%s%s", d.Message, d.Range, d.Severity, d.Source)
+		fmt.Fprintf(h, "message: %s\n", d.Message)
+		fmt.Fprintf(h, "range: %s\n", d.Range)
+		fmt.Fprintf(h, "severity: %s\n", d.Severity)
+		fmt.Fprintf(h, "source: %s\n", d.Source)
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
@@ -171,6 +192,9 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 		//
 		// TODO(rfindley): it would be cleaner to simply put the diagnostic
 		// debouncer on the view, and remove the "key" argument to debouncing.
+		//
+		// TODO(rfindley): debounce should accept a context, so that we don't hold onto
+		// the snapshot when the BackgroundContext is cancelled.
 		if ok := <-s.diagDebouncer.debounce(snapshot.View().Name(), snapshot.SequenceID(), time.After(delay)); ok {
 			s.diagnose(ctx, snapshot, analyzeOpenPackages)
 			s.publishDiagnostics(ctx, true, snapshot)
@@ -280,7 +304,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	// Diagnose go.work file.
 	workReports, workErr := work.Diagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
-		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
 	store(workSource, "diagnosing go.work file", workReports, workErr, true)
@@ -288,7 +311,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	// Diagnose go.mod file.
 	modReports, modErr := mod.Diagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
-		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
 	store(modParseSource, "diagnosing go.mod file", modReports, modErr, true)
@@ -296,7 +318,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	// Diagnose go.mod upgrades.
 	upgradeReports, upgradeErr := mod.UpgradeDiagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
-		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
 	store(modCheckUpgradesSource, "diagnosing go.mod upgrades", upgradeReports, upgradeErr, true)
@@ -304,7 +325,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	// Diagnose vulnerabilities.
 	vulnReports, vulnErr := mod.VulnerabilityDiagnostics(ctx, snapshot)
 	if ctx.Err() != nil {
-		log.Trace.Log(ctx, "diagnose cancelled")
 		return
 	}
 	store(modVulncheckSource, "diagnosing vulnerabilities", vulnReports, vulnErr, false)
@@ -479,8 +499,26 @@ func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toD
 		s.storeDiagnostics(snapshot, uri, analysisSource, adiags2, true)
 	}
 
+	// golang/go#59587: guarantee that we store type-checking diagnostics for every compiled
+	// package file.
+	//
+	// Without explicitly storing empty diagnostics, the eager diagnostics
+	// publication for changed files will not publish anything for files with
+	// empty diagnostics.
+	storedPkgDiags := make(map[span.URI]bool)
+	for _, m := range toDiagnose {
+		for _, uri := range m.CompiledGoFiles {
+			s.storeDiagnostics(snapshot, uri, typeCheckSource, pkgDiags[uri], true)
+			storedPkgDiags[uri] = true
+		}
+	}
 	// Store the package diagnostics.
 	for uri, diags := range pkgDiags {
+		if storedPkgDiags[uri] {
+			continue
+		}
+		// builtin.go exists only for documentation purposes, and is not valid Go code.
+		// Don't report distracting errors
 		if snapshot.IsBuiltin(ctx, uri) {
 			bug.Reportf("type checking reported diagnostics for the builtin file: %v", diags)
 			continue
@@ -549,7 +587,7 @@ func (s *Server) mustPublishDiagnostics(uri span.URI) {
 	if s.diagnostics[uri] == nil {
 		s.diagnostics[uri] = &fileReports{
 			publishedHash: hashDiagnostics(), // Hash for 0 diagnostics.
-			reports:       map[diagnosticSource]diagnosticReport{},
+			reports:       map[diagnosticSource]*diagnosticReport{},
 		}
 	}
 	s.diagnostics[uri].mustPublish = true
@@ -557,6 +595,8 @@ func (s *Server) mustPublishDiagnostics(uri span.URI) {
 
 // storeDiagnostics stores results from a single diagnostic source. If merge is
 // true, it merges results into any existing results for this snapshot.
+//
+// Mutates (sorts) diags.
 //
 // TODO(hyangah): investigate whether we can unconditionally overwrite previous report.diags
 // with the new diags and eliminate the need for the `merge` flag.
@@ -573,10 +613,14 @@ func (s *Server) storeDiagnostics(snapshot source.Snapshot, uri span.URI, dsourc
 	if s.diagnostics[uri] == nil {
 		s.diagnostics[uri] = &fileReports{
 			publishedHash: hashDiagnostics(), // Hash for 0 diagnostics.
-			reports:       map[diagnosticSource]diagnosticReport{},
+			reports:       map[diagnosticSource]*diagnosticReport{},
 		}
 	}
 	report := s.diagnostics[uri].reports[dsource]
+	if report == nil {
+		report = new(diagnosticReport)
+		s.diagnostics[uri].reports[dsource] = report
+	}
 	// Don't set obsolete diagnostics.
 	if report.snapshotID > snapshot.GlobalID() {
 		return
@@ -588,7 +632,6 @@ func (s *Server) storeDiagnostics(snapshot source.Snapshot, uri span.URI, dsourc
 	for _, d := range diags {
 		report.diags[hashDiagnostics(d)] = d
 	}
-	s.diagnostics[uri].reports[dsource] = report
 }
 
 // clearDiagnosticSource clears all diagnostics for a given source type. It is
@@ -735,6 +778,7 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 				diags = append(diags, d)
 				reportDiags = append(reportDiags, d)
 			}
+
 			hash := hashDiagnostics(reportDiags...)
 			if hash != report.publishedHash {
 				anyReportsChanged = true
@@ -748,7 +792,6 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 			continue
 		}
 
-		source.SortDiagnostics(diags)
 		hash := hashDiagnostics(diags...)
 		if hash == r.publishedHash && !r.mustPublish {
 			// Update snapshotID to be the latest snapshot for which this diagnostic
@@ -768,15 +811,22 @@ func (s *Server) publishDiagnostics(ctx context.Context, final bool, snapshot so
 			r.publishedHash = hash
 			r.mustPublish = false // diagnostics have been successfully published
 			r.publishedSnapshotID = snapshot.GlobalID()
-			for dsource, hash := range reportHashes {
-				report := r.reports[dsource]
-				report.publishedHash = hash
-				r.reports[dsource] = report
+			// When we publish diagnostics for a file, we must update the
+			// publishedHash for every report, not just the reports that were
+			// published. Eliding a report is equivalent to publishing empty
+			// diagnostics.
+			for dsource, report := range r.reports {
+				if hash, ok := reportHashes[dsource]; ok {
+					report.publishedHash = hash
+				} else {
+					// The report was not (yet) stored for this snapshot. Record that we
+					// published no diagnostics from this source.
+					report.publishedHash = hashDiagnostics()
+				}
 			}
 		} else {
 			if ctx.Err() != nil {
 				// Publish may have failed due to a cancelled context.
-				log.Trace.Log(ctx, "publish cancelled")
 				return
 			}
 			event.Error(ctx, "publishReports: failed to deliver diagnostic", err, tag.URI.Of(uri))
@@ -852,7 +902,7 @@ func (s *Server) Diagnostics() map[string][]string {
 	return ans
 }
 
-func auxStr(v *source.Diagnostic, d diagnosticReport, typ diagnosticSource) string {
+func auxStr(v *source.Diagnostic, d *diagnosticReport, typ diagnosticSource) string {
 	// Tags? RelatedInformation?
 	msg := fmt.Sprintf("(%s)%q(source:%q,code:%q,severity:%s,snapshot:%d,type:%s)",
 		v.Range, v.Message, v.Source, v.Code, v.Severity, d.snapshotID, typ)

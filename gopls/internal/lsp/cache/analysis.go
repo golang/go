@@ -262,8 +262,10 @@ type analyzeSummary struct {
 // TODO(adonovan): generalize and move to a library when we can use generics.
 type actionsMap map[string]*actionSummary
 
-var _ gob.GobEncoder = (actionsMap)(nil)
-var _ gob.GobDecoder = (*actionsMap)(nil)
+var (
+	_ gob.GobEncoder = (actionsMap)(nil)
+	_ gob.GobDecoder = (*actionsMap)(nil)
+)
 
 type actionsMapEntry struct {
 	K string
@@ -443,10 +445,8 @@ func analyzeImpl(ctx context.Context, snapshot *snapshot, analyzers []*analysis.
 	if data, err := filecache.Get(cacheKind, key); err == nil {
 		// cache hit
 		mustDecode(data, &summary)
-
 	} else if err != filecache.ErrNotFound {
 		return nil, bug.Errorf("internal error reading shared cache: %v", err)
-
 	} else {
 		// Cache miss: do the work.
 		var err error
@@ -566,7 +566,6 @@ func analysisCacheKey(analyzers []*analysis.Analyzer, m *source.Metadata, compil
 // actuallyAnalyze implements the cache-miss case.
 // This function does not access the snapshot.
 func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *source.Metadata, vdeps map[PackageID]*analyzeSummary, compiledGoFiles []source.FileHandle) (*analyzeSummary, error) {
-
 	// Create a local FileSet for processing this package only.
 	fset := token.NewFileSet()
 
@@ -952,7 +951,7 @@ func (act *action) exec() (interface{}, *actionSummary, error) {
 	}
 
 	// Gather analysis Result values from horizontal dependencies.
-	var inputs = make(map[*analysis.Analyzer]interface{})
+	inputs := make(map[*analysis.Analyzer]interface{})
 	for _, dep := range act.hdeps {
 		inputs[dep.a] = dep.result
 	}
