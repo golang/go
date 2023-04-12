@@ -367,6 +367,7 @@ var allDesc = []Description{
 		Name:        "/sched/latencies:seconds",
 		Description: "Distribution of the time goroutines have spent in the scheduler in a runnable state before actually running.",
 		Kind:        KindFloat64Histogram,
+		Cumulative:  true,
 	},
 	{
 		Name:        "/sync/mutex/wait/total:seconds",
