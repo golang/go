@@ -336,19 +336,16 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	// Generally, cycles may occur across multiple type parameters and inferred types
 	// (for instance, consider [P interface{ *Q }, Q interface{ func(P) }]).
 	// We eliminate cycles by walking the graphs for all type parameters. If a cycle
-	// through a type parameter is detected, cycleFinder nils out the respective type
-	// which kills the cycle; this also means that the respective type could not be
-	// inferred.
+	// through a type parameter is detected, killCycles nils out the respective type
+	// (in the inferred list) which kills the cycle, and marks the corresponding type
+	// parameter as not inferred.
 	//
 	// TODO(gri) If useful, we could report the respective cycle as an error. We don't
 	//           do this now because type inference will fail anyway, and furthermore,
 	//           constraints with cycles of this kind cannot currently be satisfied by
 	//           any user-supplied type. But should that change, reporting an error
 	//           would be wrong.
-	w := cycleFinder{tparams, inferred, make(map[Type]bool)}
-	for _, t := range tparams {
-		w.typ(t) // t != nil
-	}
+	killCycles(tparams, inferred)
 
 	// dirty tracks the indices of all types that may still contain type parameters.
 	// We know that nil type entries and entries corresponding to provided (non-nil)
@@ -603,6 +600,20 @@ func coreTerm(tpar *TypeParam) (*term, bool) {
 	return nil, false
 }
 
+// killCycles walks through the given type parameters and looks for cycles
+// created by type parameters whose inferred types refer back to that type
+// parameter, either directly or indirectly. If such a cycle is detected,
+// it is killed by setting the corresponding inferred type to nil.
+//
+// TODO(gri) Determine if we can simply abort inference as soon as we have
+// found a single cycle.
+func killCycles(tparams []*TypeParam, inferred []Type) {
+	w := cycleFinder{tparams, inferred, make(map[Type]bool)}
+	for _, t := range tparams {
+		w.typ(t) // t != nil
+	}
+}
+
 type cycleFinder struct {
 	tparams []*TypeParam
 	types   []Type
@@ -612,7 +623,7 @@ type cycleFinder struct {
 func (w *cycleFinder) typ(typ Type) {
 	if w.seen[typ] {
 		// We have seen typ before. If it is one of the type parameters
-		// in tparams, iterative substitution will lead to infinite expansion.
+		// in w.tparams, iterative substitution will lead to infinite expansion.
 		// Nil out the corresponding type which effectively kills the cycle.
 		if tpar, _ := typ.(*TypeParam); tpar != nil {
 			if i := tparamIndex(w.tparams, tpar); i >= 0 {
