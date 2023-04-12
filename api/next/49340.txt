@@ -1,0 +1,5 @@
+pkg reflect, method (*Caller) Call([]Value, []Value) #49340
+pkg reflect, method (*Caller) CallSlice([]Value, []Value) #49340
+pkg reflect, method (*Caller) Type() Type #49340
+pkg reflect, method (Value) Caller() *Caller #49340
+pkg reflect, type Caller struct #49340
