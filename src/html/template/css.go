@@ -238,7 +238,7 @@ func cssValueFilter(args ...any) string {
 	// inside a string that might embed JavaScript source.
 	for i, c := range b {
 		switch c {
-		case 0, '"', '\'', '(', ')', '/', ';', '@', '[', '\\', ']', '`', '{', '}':
+		case 0, '"', '\'', '(', ')', '/', ';', '@', '[', '\\', ']', '`', '{', '}', '<', '>':
 			return filterFailsafe
 		case '-':
 			// Disallow <!-- or -->.
