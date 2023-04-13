@@ -8410,3 +8410,19 @@ func TestClear(t *testing.T) {
 		})
 	}
 }
+
+func TestCaller_CallReusesOutValues(t *testing.T) {
+	fn := func() int {
+		return 27
+	}
+
+	var i int
+	v := ValueOf(&i).Elem()
+	out := []Value{v}
+
+	ValueOf(fn).Caller().Call([]Value{}, out)
+
+	if i != 27 {
+		t.Errorf("unexpected result for output value; got %d, want 27", i)
+	}
+}
