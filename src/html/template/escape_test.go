@@ -678,6 +678,21 @@ func TestEscape(t *testing.T) {
 			`<img srcset={{",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"}}>`,
 			`<img srcset=,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,>`,
 		},
+		{
+			"unquoted empty attribute value (plaintext)",
+			"<p name={{.U}}>",
+			"<p name=ZgotmplZ>",
+		},
+		{
+			"unquoted empty attribute value (url)",
+			"<p href={{.U}}>",
+			"<p href=ZgotmplZ>",
+		},
+		{
+			"quoted empty attribute value",
+			"<p name=\"{{.U}}\">",
+			"<p name=\"\">",
+		},
 	}
 
 	for _, test := range tests {
