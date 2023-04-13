@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -842,6 +843,16 @@ func TestWalkSymlinkRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	abslink := filepath.Join(td, "abslink")
+	if err := os.Symlink(dir, abslink); err != nil {
+		t.Fatal(err)
+	}
+
+	linklink := filepath.Join(td, "linklink")
+	if err := os.Symlink("link", linklink); err != nil {
+		t.Fatal(err)
+	}
+
 	// Per https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12:
 	// “A pathname that contains at least one non- <slash> character and that ends
 	// with one or more trailing <slash> characters shall not be resolved
@@ -854,9 +865,10 @@ func TestWalkSymlinkRoot(t *testing.T) {
 	// but if it does end in a slash, Walk should walk the directory to which the symlink
 	// refers (since it must be fully resolved before walking).
 	for _, tt := range []struct {
-		desc string
-		root string
-		want []string
+		desc      string
+		root      string
+		want      []string
+		buggyGOOS []string
 	}{
 		{
 			desc: "no slash",
@@ -867,6 +879,27 @@ func TestWalkSymlinkRoot(t *testing.T) {
 			desc: "slash",
 			root: link + string(filepath.Separator),
 			want: []string{link, filepath.Join(link, "foo")},
+		},
+		{
+			desc: "abs no slash",
+			root: abslink,
+			want: []string{abslink},
+		},
+		{
+			desc: "abs with slash",
+			root: abslink + string(filepath.Separator),
+			want: []string{abslink, filepath.Join(abslink, "foo")},
+		},
+		{
+			desc: "double link no slash",
+			root: linklink,
+			want: []string{linklink},
+		},
+		{
+			desc:      "double link with slash",
+			root:      linklink + string(filepath.Separator),
+			want:      []string{linklink, filepath.Join(linklink, "foo")},
+			buggyGOOS: []string{"darwin"}, // https://go.dev/issue/59586
 		},
 	} {
 		tt := tt
@@ -885,7 +918,12 @@ func TestWalkSymlinkRoot(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(walked, tt.want) {
-				t.Errorf("Walk(%#q) visited %#q; want %#q", tt.root, walked, tt.want)
+				t.Logf("Walk(%#q) visited %#q; want %#q", tt.root, walked, tt.want)
+				if slices.Contains(tt.buggyGOOS, runtime.GOOS) {
+					t.Logf("(ignoring known bug on %v)", runtime.GOOS)
+				} else {
+					t.Fail()
+				}
 			}
 		})
 	}
