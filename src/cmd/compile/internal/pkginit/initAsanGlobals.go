@@ -79,12 +79,12 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
 		// Assign globals[i].size.
 		g := n.(*ir.Name)
 		size := g.Type().Size()
-		c = tconv(ir.NewInt(base.Pos, size), types.Types[types.TUINTPTR])
+		c = typecheck.DefaultLit(ir.NewInt(base.Pos, size), types.Types[types.TUINTPTR])
 		setField("size", c, i)
 		// Assign globals[i].sizeWithRedzone.
 		rzSize := GetRedzoneSizeForGlobal(size)
 		sizeWithRz := rzSize + size
-		c = tconv(ir.NewInt(base.Pos, sizeWithRz), types.Types[types.TUINTPTR])
+		c = typecheck.DefaultLit(ir.NewInt(base.Pos, sizeWithRz), types.Types[types.TUINTPTR])
 		setField("sizeWithRedzone", c, i)
 		// The C string type is terminated by a null character "\0", Go should use three-digit
 		// octal "\000" or two-digit hexadecimal "\x00" to create null terminated string.

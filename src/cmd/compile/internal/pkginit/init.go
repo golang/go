@@ -144,7 +144,7 @@ func Task() *ir.Name {
 			asancall := ir.NewCallExpr(base.Pos, ir.OCALL, asanf, nil)
 			asancall.Args.Append(typecheck.ConvNop(typecheck.NodAddr(
 				ir.NewIndexExpr(base.Pos, globals, ir.NewInt(base.Pos, 0))), types.Types[types.TUNSAFEPTR]))
-			asancall.Args.Append(typecheck.ConvNop(ir.NewInt(base.Pos, int64(ni)), types.Types[types.TUINTPTR]))
+			asancall.Args.Append(typecheck.DefaultLit(ir.NewInt(base.Pos, int64(ni)), types.Types[types.TUINTPTR]))
 
 			fnInit.Body.Append(asancall)
 			typecheck.FinishFuncBody()
