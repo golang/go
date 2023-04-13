@@ -184,7 +184,7 @@ func TestOffset(t *testing.T) {
 		t.Fatal("Open:", err)
 	}
 
-	const want = "hello, world\n"
+	want := "hello, world\n"
 
 	// Read the entire file.
 	got := make([]byte, len(want))
@@ -227,9 +227,24 @@ func TestOffset(t *testing.T) {
 		t.Fatal("ReadAt:", err)
 	}
 	if n != len(want) {
-		t.Fatal("ReadAt:", n)
+		t.Fatalf("ReadAt: got %d bytes, want %d bytes", n, len(want))
 	}
 	if string(got) != want {
-		t.Fatalf("ReadAt: %q", got)
+		t.Fatalf("ReadAt: got %q, want %q", got, want)
+	}
+
+	// Use ReadAt with non-zero offset.
+	off = int64(7)
+	want = want[off:]
+	got = make([]byte, len(want))
+	n, err = at.ReadAt(got, off)
+	if err != nil {
+		t.Fatal("ReadAt:", err)
+	}
+	if n != len(want) {
+		t.Fatalf("ReadAt: got %d bytes, want %d bytes", n, len(want))
+	}
+	if string(got) != want {
+		t.Fatalf("ReadAt: got %q, want %q", got, want)
 	}
 }
