@@ -1284,18 +1284,18 @@ func (re *Regexp) Split(s string, n int) []string {
 	return strings
 }
 
-// MarshalText implements the encoding.TextMarshaler interface. The output
+// MarshalText implements [encoding.TextMarshaler]. The output
 // matches that of calling the [Regexp.String] method.
 //
 // Note that the output is lossy in some cases: This method does not indicate
-// POSIX regular expressions (i.e. those compiled by calling CompilePOSIX), or
+// POSIX regular expressions (i.e. those compiled by calling [CompilePOSIX]), or
 // those for which the [Regexp.Longest] method has been called.
 func (re *Regexp) MarshalText() ([]byte, error) {
 	return []byte(re.String()), nil
 }
 
-// MarshalText implements the encoding.TextUnmarshaler interface by calling
-// Compile on the encoded value.
+// UnmarshalText implements [encoding.TextUnmarshaler] by calling
+// [Compile] on the encoded value.
 func (re *Regexp) UnmarshalText(text []byte) error {
 	newRE, err := Compile(string(text))
 	if err != nil {
