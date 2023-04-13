@@ -1407,6 +1407,12 @@ func (ctxt *Link) hostlink() {
 	case objabi.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
 		argv = append(argv, "-pthread")
+		if ctxt.Arch.InFamily(sys.ARM64) {
+			// Disable execute-only on openbsd/arm64 - the Go arm64 assembler
+			// currently stores constants in the text section rather than in rodata.
+			// See issue #59615.
+			argv = append(argv, "-Wl,--no-execute-only")
+		}
 	case objabi.Hwindows:
 		if windowsgui {
 			argv = append(argv, "-mwindows")
