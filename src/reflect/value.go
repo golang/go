@@ -443,18 +443,18 @@ func (c *Caller) Type() Type {
 }
 
 // Call calls the function c with the input arguments in and output result slice out.
-// For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]).
+// For example, if len(in) == 3, c.Call(in) represents the Go call c(in[0], in[1], in[2]).
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
-// If v is a variadic function, Call creates the variadic slice parameter
+// If c is a variadic function, Call creates the variadic slice parameter
 // itself, copying in the corresponding values.
 func (c *Caller) Call(in, out []Value) {
 	c.call("Call", in, out)
 }
 
 // CallSlice calls the variadic function c with the input arguments in and output result slice out,
-// assigning the slice in[len(in)-1] to v's final variadic argument.
-// For example, if len(in) == 3, v.CallSlice(in) represents the Go call v(in[0], in[1], in[2]...).
+// assigning the slice in[len(in)-1] to c's final variadic argument.
+// For example, if len(in) == 3, c.CallSlice(in) represents the Go call c(in[0], in[1], in[2]...).
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
 func (c *Caller) CallSlice(in, out []Value) {
