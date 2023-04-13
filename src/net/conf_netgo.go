@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Set the defaultResolver to resolverGo if the netgo build tag is being used, or the
-// C library DNS routines are not available. Note that the C library
-// routines are always available on Darwin and Windows.
+// Set the defaultResolver to resolverGo when the netgo build tag is being used.
 
-//go:build netgo || (!cgo && !darwin && !windows)
+//go:build netgo
 
 package net
 

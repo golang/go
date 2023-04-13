@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Set the defaultResolver to resovlerCgo when the netcgo build tag is being used.
+// Set the defaultResolver to resolverCgo when the netcgo build tag is being used.
 
 //go:build netcgo
 

@@ -40,6 +40,14 @@ func systemConf() *conf {
 func initConfVal() {
 	confVal.resolver = defaultResolver
 
+	// When build without support for cgo, force the go resolver, unless
+	// "cgo" resolver is avaliable without the cgo support.
+	if !cgoBuild {
+		if runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
+			confVal.resolver = resolverGo
+		}
+	}
+
 	dnsMode, debugLevel := goDebugNetDNS()
 	confVal.dnsDebugLevel = debugLevel
 
@@ -47,7 +55,7 @@ func initConfVal() {
 	if confVal.dnsDebugLevel > 0 {
 		defer func() {
 			if confVal.dnsDebugLevel > 1 {
-				println("go package net: default resolver is ", defaultResolver.String())
+				println("go package net: confVal.resolver is ", confVal.resolver.String())
 			}
 
 			switch confVal.resolver {

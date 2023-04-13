@@ -125,7 +125,8 @@ const (
 )
 
 // defaultResolver directs the default resovler to be used.
-// updated by conf_netgo.go and conf_netcgo.go depending on the build tags.
+// updated by conf_netgo.go and conf_netcgo.go depending on the
+// netgo and netcgo build tags.
 var defaultResolver resolverType = resolverDynamic
 
 // Addr represents a network end point address.
