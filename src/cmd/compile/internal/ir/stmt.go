@@ -220,7 +220,6 @@ type ForStmt struct {
 	Cond         Node
 	Post         Node
 	Body         Nodes
-	HasBreak     bool
 	DistinctVars bool
 }
 
@@ -350,7 +349,6 @@ type RangeStmt struct {
 	Key          Node
 	Value        Node
 	Body         Nodes
-	HasBreak     bool
 	DistinctVars bool
 	Prealloc     *Name
 
@@ -391,9 +389,8 @@ func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
 // A SelectStmt is a block: { Cases }.
 type SelectStmt struct {
 	miniStmt
-	Label    *types.Sym
-	Cases    []*CommClause
-	HasBreak bool
+	Label *types.Sym
+	Cases []*CommClause
 
 	// TODO(rsc): Instead of recording here, replace with a block?
 	Compiled Nodes // compiled form, after walkSelect
@@ -423,10 +420,9 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
 // A SwitchStmt is a switch statement: switch Init; Tag { Cases }.
 type SwitchStmt struct {
 	miniStmt
-	Tag      Node
-	Cases    []*CaseClause
-	Label    *types.Sym
-	HasBreak bool
+	Tag   Node
+	Cases []*CaseClause
+	Label *types.Sym
 
 	// TODO(rsc): Instead of recording here, replace with a block?
 	Compiled Nodes // compiled form, after walkSwitch
