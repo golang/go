@@ -496,3 +496,52 @@ func TestIssue56006EmitDataRaceCoverRunningGoroutine(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue59563TruncatedCoverPkgAll(t *testing.T) {
+	if testing.Short() {
+		t.Skipf("skipping test: too long for short mode")
+	}
+	testenv.MustHaveGoRun(t)
+
+	tmpdir := t.TempDir()
+	ppath := filepath.Join(tmpdir, "foo.cov")
+
+	cmd := exec.Command(testenv.GoToolPath(t), "test", "-coverpkg=all", "-coverprofile="+ppath)
+	cmd.Dir = filepath.Join("testdata", "issue59563")
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go test -cover failed: %v", err)
+	}
+
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "cover", "-func="+ppath)
+	b, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go tool cover -func failed: %v", err)
+	}
+
+	lines := strings.Split(string(b), "\n")
+	nfound := 0
+	bad := false
+	for _, line := range lines {
+		f := strings.Fields(line)
+		if len(f) == 0 {
+			continue
+		}
+		if !strings.HasPrefix(f[0], "runtime/coverage/testdata/issue59563/repro.go") {
+			continue
+		}
+		nfound++
+		want := "100.0%"
+		if f[len(f)-1] != want {
+			t.Errorf("wanted %s got: %q\n", want, line)
+			bad = true
+		}
+	}
+	if nfound != 2 {
+		t.Errorf("wanted 2 found, got %d\n", nfound)
+		bad = true
+	}
+	if bad {
+		t.Logf("func output:\n%s\n", string(b))
+	}
+}

@@ -26,7 +26,9 @@ import (
 type CoverageDataWriter struct {
 	stab    *stringtab.Writer
 	w       *bufio.Writer
+	csh     coverage.CounterSegmentHeader
 	tmp     []byte
+	nfuncs  uint64
 	cflavor coverage.CounterFlavor
 	segs    uint32
 	debug   bool
@@ -47,13 +49,10 @@ func NewCoverageDataWriter(w io.Writer, flav coverage.CounterFlavor) *CoverageDa
 
 // CounterVisitor describes a helper object used during counter file
 // writing; when writing counter data files, clients pass a
-// CounterVisitor to the write/emit routines. The writers will then
-// first invoke the visitor's NumFuncs() method to find out how many
-// function's worth of data to write, then it will invoke VisitFuncs.
-// The expectation is that the VisitFuncs method will then invoke the
-// callback "f" with data for each function to emit to the file.
+// CounterVisitor to the write/emit routines, then the expectation is
+// that the VisitFuncs method will then invoke the callback "f" with
+// data for each function to emit to the file.
 type CounterVisitor interface {
-	NumFuncs() (int, error)
 	VisitFuncs(f CounterVisitorFn) error
 }
 
@@ -86,23 +85,35 @@ func padToFourByteBoundary(ws *slicewriter.WriteSeeker) error {
 	return nil
 }
 
-func (cfw *CoverageDataWriter) writeSegmentPreamble(args map[string]string, visitor CounterVisitor) error {
-	var csh coverage.CounterSegmentHeader
-	if nf, err := visitor.NumFuncs(); err != nil {
-		return err
-	} else {
-		csh.FcnEntries = uint64(nf)
+func (cfw *CoverageDataWriter) patchSegmentHeader(ws *slicewriter.WriteSeeker) error {
+	if _, err := ws.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("error seeking in patchSegmentHeader: %v", err)
 	}
+	cfw.csh.FcnEntries = cfw.nfuncs
+	cfw.nfuncs = 0
+	if cfw.debug {
+		fmt.Fprintf(os.Stderr, "=-= writing counter segment header: %+v", cfw.csh)
+	}
+	if err := binary.Write(ws, binary.LittleEndian, cfw.csh); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfw *CoverageDataWriter) writeSegmentPreamble(args map[string]string, ws *slicewriter.WriteSeeker) error {
+	if err := binary.Write(ws, binary.LittleEndian, cfw.csh); err != nil {
+		return err
+	}
+	hdrsz := uint32(len(ws.BytesWritten()))
 
 	// Write string table and args to a byte slice (since we need
 	// to capture offsets at various points), then emit the slice
 	// once we are done.
 	cfw.stab.Freeze()
-	ws := &slicewriter.WriteSeeker{}
 	if err := cfw.stab.Write(ws); err != nil {
 		return err
 	}
-	csh.StrTabLen = uint32(len(ws.BytesWritten()))
+	cfw.csh.StrTabLen = uint32(len(ws.BytesWritten())) - hdrsz
 
 	akeys := make([]string, 0, len(args))
 	for k := range args {
@@ -138,21 +149,8 @@ func (cfw *CoverageDataWriter) writeSegmentPreamble(args map[string]string, visi
 	if err := padToFourByteBoundary(ws); err != nil {
 		return err
 	}
-	csh.ArgsLen = uint32(len(ws.BytesWritten())) - csh.StrTabLen
+	cfw.csh.ArgsLen = uint32(len(ws.BytesWritten())) - (cfw.csh.StrTabLen + hdrsz)
 
-	if cfw.debug {
-		fmt.Fprintf(os.Stderr, "=-= counter segment header: %+v", csh)
-		fmt.Fprintf(os.Stderr, " FcnEntries=0x%x StrTabLen=0x%x ArgsLen=0x%x\n",
-			csh.FcnEntries, csh.StrTabLen, csh.ArgsLen)
-	}
-
-	// At this point we can now do the actual write.
-	if err := binary.Write(cfw.w, binary.LittleEndian, csh); err != nil {
-		return err
-	}
-	if err := cfw.writeBytes(ws.BytesWritten()); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -169,10 +167,18 @@ func (cfw *CoverageDataWriter) AppendSegment(args map[string]string, visitor Cou
 		cfw.stab.Lookup(v)
 	}
 
-	if err = cfw.writeSegmentPreamble(args, visitor); err != nil {
+	var swws slicewriter.WriteSeeker
+	ws := &swws
+	if err = cfw.writeSegmentPreamble(args, ws); err != nil {
 		return err
 	}
-	if err = cfw.writeCounters(visitor); err != nil {
+	if err = cfw.writeCounters(visitor, ws); err != nil {
+		return err
+	}
+	if err = cfw.patchSegmentHeader(ws); err != nil {
+		return err
+	}
+	if err := cfw.writeBytes(ws.BytesWritten()); err != nil {
 		return err
 	}
 	if err = cfw.writeFooter(); err != nil {
@@ -214,7 +220,7 @@ func (cfw *CoverageDataWriter) writeBytes(b []byte) error {
 	return nil
 }
 
-func (cfw *CoverageDataWriter) writeCounters(visitor CounterVisitor) error {
+func (cfw *CoverageDataWriter) writeCounters(visitor CounterVisitor, ws *slicewriter.WriteSeeker) error {
 	// Notes:
 	// - this version writes everything little-endian, which means
 	//   a call is needed to encode every value (expensive)
@@ -237,7 +243,7 @@ func (cfw *CoverageDataWriter) writeCounters(visitor CounterVisitor) error {
 		} else {
 			panic("internal error: bad counter flavor")
 		}
-		if sz, err := cfw.w.Write(buf); err != nil {
+		if sz, err := ws.Write(buf); err != nil {
 			return err
 		} else if sz != towr {
 			return fmt.Errorf("writing counters: short write")
@@ -247,6 +253,7 @@ func (cfw *CoverageDataWriter) writeCounters(visitor CounterVisitor) error {
 
 	// Write out entries for each live function.
 	emitter := func(pkid uint32, funcid uint32, counters []uint32) error {
+		cfw.nfuncs++
 		if err := wrval(uint32(len(counters))); err != nil {
 			return err
 		}
