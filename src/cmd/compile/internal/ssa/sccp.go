@@ -150,15 +150,16 @@ func isDivByZero(op Op, divisor *Value) bool {
 	return false
 }
 
-// buildDefUses builds def-use chain for some values early, because once lattice of value
-// is changed, all uses would be added into re-visit uses worklist, we rely heavily on
-// the def-use chain in subsequent propagation.
+// buildDefUses builds def-use chain for some values early, because once the lattice of
+// a value is changed, we need to update lattices of use. But we don't need all uses of
+// it, only uses that can become constants would be added into re-visit worklist since
+// no matter how many times they are revisited, their lattice remains unchanged(Bottom)
 func (t *worklist) buildDefUses() {
 	for _, block := range t.f.Blocks {
 		for _, val := range block.Values {
 			for _, arg := range val.Args {
-				if possibleConst(arg) {
-					// for every value, find their uses
+				// find its uses, only uses that can become constant takes into account
+				if possibleConst(arg) && possibleConst(val) {
 					if _, exist := t.defUse[arg]; !exist {
 						t.defUse[arg] = make([]*Value, 0)
 					}
@@ -172,14 +173,6 @@ func (t *worklist) buildDefUses() {
 				t.defBlock[ctl] = make([]*Block, 0)
 			}
 			t.defBlock[ctl] = append(t.defBlock[ctl], block)
-		}
-	}
-	// verify def-use chains
-	for key, value := range t.defUse {
-		if int(key.Uses) != (len(value) + len(t.defBlock[key])) {
-			fmt.Printf("%v\n", t.f.String())
-			t.f.Fatalf("def-use chain of %v is problematic: expect %v but got%v\n",
-				key.LongString(), key.Uses, value)
 		}
 	}
 }
@@ -272,6 +265,11 @@ func computeConstValue(f *Func, val *Value, args ...*Value) (*Value, bool) {
 }
 
 func (t *worklist) visitValue(val *Value) {
+	if !possibleConst(val) {
+		// fast fail
+		return
+	}
+
 	var oldLt = t.getLatticeCell(val)
 	defer func() {
 		// re-visit all uses of value if its lattice is changed
@@ -462,6 +460,8 @@ func sccp(f *Func) {
 	t.defUse = make(map[*Value][]*Value)
 	t.defBlock = make(map[*Value][]*Block)
 	t.latticeCells = make(map[*Value]lattice)
+
+	// build it early since we rely heavily on the def-use chain later
 	t.buildDefUses()
 
 	var visitedBlock = f.newSparseSet(f.NumBlocks())
