@@ -1562,6 +1562,34 @@ var _ = a.C2
 	makePkg("main", mainSrc) // don't crash when type-checking this package
 }
 
+func TestIssue59603(t *testing.T) {
+	fset := token.NewFileSet()
+	imports := make(testImporter)
+	conf := Config{
+		Error:    func(err error) { t.Log(err) }, // don't exit after first error
+		Importer: imports,
+	}
+	makePkg := func(path, src string) {
+		f := mustParse(fset, path, src)
+		pkg, _ := conf.Check(path, fset, []*ast.File{f}, nil) // errors logged via conf.Error
+		imports[path] = pkg
+	}
+
+	const libSrc = `
+package a
+const C = foo
+`
+
+	const mainSrc = `
+package main
+import "a"
+const _ = a.C
+`
+
+	makePkg("a", libSrc)
+	makePkg("main", mainSrc) // don't crash when type-checking this package
+}
+
 func TestLookupFieldOrMethodOnNil(t *testing.T) {
 	// LookupFieldOrMethod on a nil type is expected to produce a run-time panic.
 	defer func() {
