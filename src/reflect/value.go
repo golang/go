@@ -688,14 +688,7 @@ func (c *Caller) call(op string, in, out []Value) {
 		}
 
 		// All that's left is values passed in registers that we need to
-		// create space for and copy values back into.
-		//
-		// TODO(mknyszek): We make a new allocation for each register-allocated
-		// value, but previously we could always point into the heap-allocated
-		// stack frame. This is a regression that could be fixed by adding
-		// additional space to the allocated stack frame and storing the
-		// register-allocated return values into the allocated stack frame and
-		// referring there in the resulting Value.
+		// potentially create space for and copy values back into.
 		if s == nil || v.flag&flagIndir == 0 {
 			s = unsafe_New(tv.common())
 			out[i] = Value{tv.common(), s, flagIndir | flag(tv.Kind())}
