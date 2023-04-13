@@ -496,10 +496,6 @@ func EvalConst(n ir.Node) ir.Node {
 			}
 		}
 
-	case ir.OALIGNOF, ir.OOFFSETOF, ir.OSIZEOF:
-		n := n.(*ir.UnaryExpr)
-		return OrigInt(n, evalunsafe(n))
-
 	case ir.OREAL:
 		n := n.(*ir.UnaryExpr)
 		nl := n.X
