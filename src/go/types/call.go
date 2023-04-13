@@ -94,8 +94,11 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
 			}
 		}
 
+		// Rename type parameters to avoid problems with recursive instantiations.
 		// Note that NewTuple(params...) below is nil if len(params) == 0, as desired.
-		targs = check.infer(atPos(pos), sig.TypeParams().list(), targs, NewTuple(params...), args)
+		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
+
+		targs = check.infer(atPos(pos), tparams, targs, params2, args)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
@@ -460,7 +463,12 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 				check.softErrorf(inNode(call, call.Lparen), UnsupportedFeature, "implicit function instantiation requires go1.18 or later")
 			}
 		}
-		targs := check.infer(call, sig.TypeParams().list(), targs, sigParams, args)
+
+		// Rename type parameters to avoid problems with recursive calls.
+		var tparams []*TypeParam
+		tparams, sigParams = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
+
+		targs := check.infer(call, tparams, targs, sigParams, args)
 		if targs == nil {
 			return // error already reported
 		}
@@ -474,7 +482,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 		// need to compute it from the adjusted list; otherwise we can
 		// simply use the result signature's parameter list.
 		if adjusted {
-			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(sig.TypeParams().list(), targs), nil, check.context()).(*Tuple)
+			sigParams = check.subst(call.Pos(), sigParams, makeSubstMap(tparams, targs), nil, check.context()).(*Tuple)
 		} else {
 			sigParams = rsig.params
 		}

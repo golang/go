@@ -51,13 +51,6 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	}
 	// len(targs) < n
 
-	// Rename type parameters to avoid conflicts in recursive instantiation scenarios.
-	tparams, params = check.renameTParams(posn.Pos(), tparams, params)
-
-	if traceInference {
-		check.dump("-- rename: %s%s ➞ %s\n", tparams, params, targs)
-	}
-
 	// Make sure we have a "full" list of type arguments, some of which may
 	// be nil (unknown). Make a copy so as to not clobber the incoming slice.
 	if len(targs) < n {
@@ -392,6 +385,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 // renameTParams renames the type parameters in a function signature described by its
 // type and ordinary parameters (tparams and params) such that each type parameter is
 // given a new identity. renameTParams returns the new type and ordinary parameters.
+// The positions is only used for debug traces.
 func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, params *Tuple) ([]*TypeParam, *Tuple) {
 	// For the purpose of type inference we must differentiate type parameters
 	// occurring in explicit type or value function arguments from the type
@@ -420,6 +414,10 @@ func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, params 
 	//
 	// Type parameter renaming turns the first example into the second
 	// example by renaming the type parameter P into P2.
+	if len(tparams) == 0 {
+		return nil, params // nothing to do
+	}
+
 	tparams2 := make([]*TypeParam, len(tparams))
 	for i, tparam := range tparams {
 		tname := NewTypeName(tparam.Obj().Pos(), tparam.Obj().Pkg(), tparam.Obj().Name(), nil)
