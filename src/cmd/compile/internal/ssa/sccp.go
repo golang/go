@@ -61,11 +61,64 @@ type worklist struct {
 	uses         []*Value            // uses for re-visiting because lattice of def is changed
 	visited      map[edge]bool       // visited edges
 	latticeCells map[*Value]lattice  // constant lattices
-	defUse       map[*Value][]*Value // def-use chains
+	defUse       map[*Value][]*Value // def-use chains for some values
 	defBlock     map[*Value][]*Block // use blocks of def
 }
 
+func possibleConst(val *Value) bool {
+	switch val.Op {
+	case OpConst64, OpConst32, OpConst16, OpConst8,
+		OpConstBool, OpConst32F, OpConst64F:
+		fallthrough
+	case OpCopy:
+		fallthrough
+	case OpPhi:
+		fallthrough
+	case
+		OpNeg8, OpNeg16, OpNeg32, OpNeg64, OpNeg32F, OpNeg64F,
+		OpCom8, OpCom16, OpCom32, OpCom64,
+		OpFloor, OpCeil, OpTrunc, OpRoundToEven,
+		OpNot:
+		fallthrough
+	case
+		OpAdd64, OpAdd32, OpAdd16, OpAdd8,
+		OpAdd32F, OpAdd64F,
+		OpSub64, OpSub32, OpSub16, OpSub8,
+		OpSub32F, OpSub64F,
+		OpMul64, OpMul32, OpMul16, OpMul8,
+		OpMul32F, OpMul64F,
+		OpDiv32F, OpDiv64F,
+		OpDiv8, OpDiv16, OpDiv32, OpDiv64,
+		OpDiv8u, OpDiv16u, OpDiv32u, OpDiv64u,
+		OpMod8, OpMod16, OpMod32, OpMod64,
+		OpMod8u, OpMod16u, OpMod32u, OpMod64u,
+		OpEq64, OpEq32, OpEq16, OpEq8,
+		OpEq32F, OpEq64F,
+		OpLess64, OpLess32, OpLess16, OpLess8,
+		OpLess64U, OpLess32U, OpLess16U, OpLess8U,
+		OpLess32F, OpLess64F,
+		OpLeq64, OpLeq32, OpLeq16, OpLeq8,
+		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U,
+		OpLeq32F, OpLeq64F,
+		OpEqB, OpNeqB,
+		OpLsh64x64, OpRsh64x64, OpRsh64Ux64, OpLsh32x64,
+		OpRsh32x64, OpRsh32Ux64, OpLsh16x64, OpRsh16x64,
+		OpRsh16Ux64, OpLsh8x64, OpRsh8x64, OpRsh8Ux64,
+		OpIsInBounds, OpIsSliceInBounds,
+		OpAnd8, OpAnd16, OpAnd32, OpAnd64,
+		OpOr8, OpOr16, OpOr32, OpOr64,
+		OpXor8, OpXor16, OpXor32, OpXor64:
+		return true
+	default:
+		return false
+	}
+}
+
 func (t *worklist) getLatticeCell(val *Value) lattice {
+	if !possibleConst(val) {
+		// they are always worst
+		return lattice{bottom, nil}
+	}
 	lt, exist := t.latticeCells[val]
 	if !exist {
 		return lattice{top, nil} // optimistically for un-visited value
@@ -97,18 +150,20 @@ func isDivByZero(op Op, divisor *Value) bool {
 	return false
 }
 
-// buildDefUses builds def-use chain for all values early, because once lattice of value
+// buildDefUses builds def-use chain for some values early, because once lattice of value
 // is changed, all uses would be added into re-visit uses worklist, we rely heavily on
 // the def-use chain in subsequent propagation.
 func (t *worklist) buildDefUses() {
 	for _, block := range t.f.Blocks {
 		for _, val := range block.Values {
 			for _, arg := range val.Args {
-				// for every value, find their uses
-				if _, exist := t.defUse[arg]; !exist {
-					t.defUse[arg] = make([]*Value, 0)
+				if possibleConst(arg) {
+					// for every value, find their uses
+					if _, exist := t.defUse[arg]; !exist {
+						t.defUse[arg] = make([]*Value, 0)
+					}
+					t.defUse[arg] = append(t.defUse[arg], val)
 				}
-				t.defUse[arg] = append(t.defUse[arg], val)
 			}
 		}
 		for _, ctl := range block.ControlValues() {
@@ -221,7 +276,7 @@ func (t *worklist) visitValue(val *Value) {
 	defer func() {
 		// re-visit all uses of value if its lattice is changed
 		var newLt = t.getLatticeCell(val)
-		if newLt.tag != oldLt.tag || newLt.val != oldLt.val {
+		if newLt != oldLt {
 			t.addUses(val)
 		}
 	}()
@@ -313,12 +368,12 @@ func (t *worklist) visitValue(val *Value) {
 			t.latticeCells[val] = worstLt
 		}
 	default:
-		t.latticeCells[val] = worstLt
+		// Any other type of value cannot be a constant, they are always worst(Bottom)
 	}
 }
 
 // propagate propagates constants facts through CFG. If the block has single successor,
-// add the successor anyway. If the block has multiply successors, only add the branch
+// add the successor anyway. If the block has multiple successors, only add the branch
 // destination corresponding to lattice value of condition value.
 func (t *worklist) propagate(block *Block) {
 	switch block.Kind {

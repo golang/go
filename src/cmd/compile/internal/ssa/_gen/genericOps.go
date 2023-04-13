@@ -644,7 +644,7 @@ var genericOps = []opData{
 //       If   [boolean Value]      [then, else]
 //    First                []   [always, never]
 //    Defer             [mem]  [nopanic, panic]                  (control opcode should be OpStaticCall to runtime.deferproc)
-//JumpTable   [boolean Value]  [succ1,succ2,..]
+//JumpTable   [integer Value]  [succ1,succ2,..]
 
 var genericBlocks = []blockData{
 	{name: "Plain"},                  // a single successor
