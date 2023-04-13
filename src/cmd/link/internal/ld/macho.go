@@ -868,7 +868,7 @@ func asmbMacho(ctxt *Link) {
 		if int64(len(data)) != codesigOff {
 			panic("wrong size")
 		}
-		codesign.Sign(ldr.Data(cs), bytes.NewReader(data), "a.out", codesigOff, int64(Segtext.Fileoff), int64(Segtext.Filelen), ctxt.IsExe() || ctxt.IsPIE())
+		codesign.Sign(ldr.Data(cs), bytes.NewReader(data), codesigOff, 0, v, ctxt.IsExe() || ctxt.IsPIE(), ctxt.signOpts)
 		ctxt.Out.SeekSet(codesigOff)
 		ctxt.Out.Write(ldr.Data(cs))
 	}
@@ -1470,7 +1470,8 @@ func machoCodeSigSym(ctxt *Link, codeSize int64) loader.Sym {
 	if !ctxt.NeedCodeSign() || ctxt.IsExternal() {
 		return cs.Sym()
 	}
-	sz := codesign.Size(codeSize, "a.out")
+	sz := codesign.Size(codeSize, ctxt.signOpts)
+
 	cs.Grow(sz)
 	cs.SetSize(sz)
 	return cs.Sym()
@@ -1534,7 +1535,7 @@ func machoCodeSign(ctxt *Link, fname string) error {
 		return fmt.Errorf("unexpected content after code signature")
 	}
 
-	sz := codesign.Size(sigOff, "a.out")
+	sz := codesign.Size(sigOff, ctxt.signOpts)
 	if sz != sigSz {
 		// Update the load command,
 		var tmp [8]byte
@@ -1558,7 +1559,7 @@ func machoCodeSign(ctxt *Link, fname string) error {
 	}
 
 	cs := make([]byte, sz)
-	codesign.Sign(cs, f, "a.out", sigOff, int64(textSeg.Offset), int64(textSeg.Filesz), ctxt.IsExe() || ctxt.IsPIE())
+	codesign.Sign(cs, f, sigOff, int64(textSeg.Offset), int64(textSeg.Filesz), ctxt.IsExe() || ctxt.IsPIE(), ctxt.signOpts)
 	_, err = f.WriteAt(cs, sigOff)
 	if err != nil {
 		return err

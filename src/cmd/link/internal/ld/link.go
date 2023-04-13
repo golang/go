@@ -32,6 +32,7 @@ package ld
 
 import (
 	"bufio"
+	"cmd/internal/codesign"
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
@@ -94,6 +95,9 @@ type Link struct {
 	// you can create a symbol, and just a generation function will be called
 	// after the symbol's been created in the output mmap.
 	generatorSyms map[loader.Sym]generatorFunc
+
+	// signOpts are options for the mach-o signing process.
+	signOpts codesign.Options
 }
 
 type cgodata struct {
