@@ -96,7 +96,7 @@ func (f flag) ro() flag {
 // v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
 // if v.Kind() == Pointer, the base type must not be not-in-heap.
 func (v Value) pointer() unsafe.Pointer {
-	if v.typ.Size_ != goarch.PtrSize || !v.typ.pointers() {
+	if v.typ.Size() != goarch.PtrSize || !v.typ.pointers() {
 		panic("can't call pointer on a non-pointer Value")
 	}
 	if v.flag&flagIndir != 0 {
@@ -474,7 +474,7 @@ func (v Value) call(op string, in []Value) []Value {
 
 	// Allocate a chunk of memory for frame if needed.
 	var stackArgs unsafe.Pointer
-	if frametype.Size_ != 0 {
+	if frametype.Size() != 0 {
 		if nout == 0 {
 			stackArgs = framePool.Get().(unsafe.Pointer)
 		} else {
@@ -483,7 +483,7 @@ func (v Value) call(op string, in []Value) []Value {
 			stackArgs = unsafe_New(frametype)
 		}
 	}
-	frameSize := frametype.Size_
+	frameSize := frametype.Size()
 
 	if debugReflectCall {
 		println("reflect.call", t.String())
@@ -583,7 +583,7 @@ func (v Value) call(op string, in []Value) []Value {
 	}
 
 	// Call.
-	call(frametype, fn, stackArgs, uint32(frametype.Size_), uint32(abid.retOffset), uint32(frameSize), &regArgs)
+	call(frametype, fn, stackArgs, uint32(frametype.Size()), uint32(abid.retOffset), uint32(frameSize), &regArgs)
 
 	// For testing; see TestCallMethodJump.
 	if callGC {
@@ -725,7 +725,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 				// and we cannot let f keep a reference to the stack frame
 				// after this function returns, not even a read-only reference.
 				v.ptr = unsafe_New(typ)
-				if typ.Size_ > 0 {
+				if typ.Size() > 0 {
 					typedmemmove(typ, v.ptr, add(ptr, st.stkOff, "typ.size > 0"))
 				}
 				v.flag |= flagIndir
@@ -787,7 +787,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 				panic("reflect: function created by MakeFunc using " + funcName(f) +
 					" returned value obtained from unexported field")
 			}
-			if typ.Size_ == 0 {
+			if typ.Size() == 0 {
 				continue
 			}
 
@@ -1088,7 +1088,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 		}
 	}
 
-	methodFrameSize := methodFrameType.Size_
+	methodFrameSize := methodFrameType.Size()
 	// TODO(mknyszek): Remove this when we no longer have
 	// caller reserved spill space.
 	methodFrameSize = align(methodFrameSize, goarch.PtrSize)
@@ -1100,7 +1100,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 	// Call.
 	// Call copies the arguments from scratch to the stack, calls fn,
 	// and then copies the results back into scratch.
-	call(methodFrameType, methodFn, methodFrame, uint32(methodFrameType.Size_), uint32(methodABI.retOffset), uint32(methodFrameSize), &methodRegs)
+	call(methodFrameType, methodFn, methodFrame, uint32(methodFrameType.Size()), uint32(methodABI.retOffset), uint32(methodFrameSize), &methodRegs)
 
 	// Copy return values.
 	//
@@ -1114,7 +1114,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 	if valueRegs != nil {
 		*valueRegs = methodRegs
 	}
-	if retSize := methodFrameType.Size_ - methodABI.retOffset; retSize > 0 {
+	if retSize := methodFrameType.Size() - methodABI.retOffset; retSize > 0 {
 		valueRet := add(valueFrame, valueABI.retOffset, "valueFrame's size > retOffset")
 		methodRet := add(methodFrame, methodABI.retOffset, "methodFrame's size > retOffset")
 		// This copies to the stack. Write barriers are not needed.
@@ -1394,8 +1394,8 @@ func (v Value) Index(i int) Value {
 		if uint(i) >= uint(tt.Len) {
 			panic("reflect: array index out of range")
 		}
-		typ := (*rtype)(tt.Elem)
-		offset := uintptr(i) * typ.Size_
+		typ := toRType(tt.Elem)
+		offset := uintptr(i) * typ.Size()
 
 		// Either flagIndir is set and v.ptr points at array,
 		// or flagIndir is not set and v.ptr is the actual array data.
@@ -1415,7 +1415,7 @@ func (v Value) Index(i int) Value {
 		}
 		tt := (*sliceType)(unsafe.Pointer(v.typ))
 		typ := tt.elem
-		val := arrayAt(s.Data, i, typ.Size_, "i < s.Len")
+		val := arrayAt(s.Data, i, typ.Size(), "i < s.Len")
 		fl := flagAddr | flagIndir | v.flag.ro() | flag(typ.Kind())
 		return Value{typ, val, fl}
 
@@ -1582,11 +1582,11 @@ func (v Value) IsZero() bool {
 		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
 	case Array:
 		// If the type is comparable, then compare directly with zero.
-		if v.typ.Equal != nil && v.typ.Size_ <= maxZero {
+		if v.typ.t.Equal != nil && v.typ.Size() <= maxZero {
 			if v.flag&flagIndir == 0 {
 				return v.ptr == nil
 			}
-			return v.typ.Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+			return v.typ.t.Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
 		}
 
 		n := v.Len()
@@ -1602,11 +1602,11 @@ func (v Value) IsZero() bool {
 		return v.Len() == 0
 	case Struct:
 		// If the type is comparable, then compare directly with zero.
-		if v.typ.Equal != nil && v.typ.Size_ <= maxZero {
+		if v.typ.t.Equal != nil && v.typ.Size() <= maxZero {
 			if v.flag&flagIndir == 0 {
 				return v.ptr == nil
 			}
-			return v.typ.Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
+			return v.typ.t.Equal(v.ptr, unsafe.Pointer(&zeroVal[0]))
 		}
 
 		n := v.NumField()
@@ -1733,7 +1733,7 @@ func (v Value) MapIndex(key Value) Value {
 	// of unexported fields.
 
 	var e unsafe.Pointer
-	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.Size_ <= maxValSize {
+	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.Size() <= maxValSize {
 		k := *(*string)(key.ptr)
 		e = mapaccess_faststr(v.typ, v.pointer(), k)
 	} else {
@@ -2082,7 +2082,7 @@ func (v Value) OverflowInt(x int64) bool {
 	k := v.kind()
 	switch k {
 	case Int, Int8, Int16, Int32, Int64:
-		bitSize := v.typ.Size_ * 8
+		bitSize := v.typ.Size() * 8
 		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
 		return x != trunc
 	}
@@ -2095,7 +2095,7 @@ func (v Value) OverflowUint(x uint64) bool {
 	k := v.kind()
 	switch k {
 	case Uint, Uintptr, Uint8, Uint16, Uint32, Uint64:
-		bitSize := v.typ.Size_ * 8
+		bitSize := v.typ.Size() * 8
 		trunc := (x << (64 - bitSize)) >> (64 - bitSize)
 		return x != trunc
 	}
@@ -2124,7 +2124,7 @@ func (v Value) Pointer() uintptr {
 	k := v.kind()
 	switch k {
 	case Pointer:
-		if v.typ.PtrBytes == 0 {
+		if v.typ.t.PtrBytes == 0 {
 			val := *(*uintptr)(v.ptr)
 			// Since it is a not-in-heap pointer, all pointers to the heap are
 			// forbidden! See comment in Value.Elem and issue #48399.
@@ -2361,7 +2361,7 @@ func (v Value) SetMapIndex(key, elem Value) {
 	key.mustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ))
 
-	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.Size_ <= maxValSize {
+	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.Size() <= maxValSize {
 		k := *(*string)(key.ptr)
 		if elem.typ == nil {
 			mapdelete_faststr(v.typ, v.pointer(), k)
@@ -2700,7 +2700,7 @@ func (v Value) UnsafePointer() unsafe.Pointer {
 	k := v.kind()
 	switch k {
 	case Pointer:
-		if v.typ.PtrBytes == 0 {
+		if v.typ.t.PtrBytes == 0 {
 			// Since it is a not-in-heap pointer, all pointers to the heap are
 			// forbidden! See comment in Value.Elem and issue #48399.
 			if !verifyNotInHeapPtr(*(*uintptr)(v.ptr)) {
@@ -3179,7 +3179,7 @@ func Zero(typ Type) Value {
 	fl := flag(t.Kind())
 	if ifaceIndir(t) {
 		var p unsafe.Pointer
-		if t.Size_ <= maxZero {
+		if t.Size() <= maxZero {
 			p = unsafe.Pointer(&zeroVal[0])
 		} else {
 			p = unsafe_New(t)
@@ -3513,7 +3513,7 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 func makeInt(f flag, bits uint64, t Type) Value {
 	typ := t.common()
 	ptr := unsafe_New(typ)
-	switch typ.Size_ {
+	switch typ.Size() {
 	case 1:
 		*(*uint8)(ptr) = uint8(bits)
 	case 2:
@@ -3531,7 +3531,7 @@ func makeInt(f flag, bits uint64, t Type) Value {
 func makeFloat(f flag, v float64, t Type) Value {
 	typ := t.common()
 	ptr := unsafe_New(typ)
-	switch typ.Size_ {
+	switch typ.Size() {
 	case 4:
 		*(*float32)(ptr) = float32(v)
 	case 8:
@@ -3553,7 +3553,7 @@ func makeFloat32(f flag, v float32, t Type) Value {
 func makeComplex(f flag, v complex128, t Type) Value {
 	typ := t.common()
 	ptr := unsafe_New(typ)
-	switch typ.Size_ {
+	switch typ.Size() {
 	case 8:
 		*(*complex64)(ptr) = complex64(v)
 	case 16:
