@@ -61,7 +61,10 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	ev[0].flags = _EV_ADD | _EV_CLEAR
 	ev[0].fflags = 0
 	ev[0].data = 0
-	ev[0].udata = (*byte)(unsafe.Pointer(pd))
+
+	//because the pollDesc address is 3-bit align
+	//so put pd.fid in the lowest 3-bit and register it into kqueue
+	ev[0].udata = (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(pd)) | uintptr(pd.fid&pdAddrAlign)))
 	ev[1] = ev[0]
 	ev[1].filter = _EVFILT_WRITE
 	n := kevent(kq, &ev[0], 2, nil, 0, nil)
@@ -160,6 +163,14 @@ retry:
 			continue
 		}
 
+		//get the correct address
+		pd := (*pollDesc)(unsafe.Pointer(uintptr(unsafe.Pointer(ev.udata)) ^ pdAddrAlign))
+
+		//if the lowest 3 bits are not equal to pd.fid, ignore the expired event
+		if (uint8(uintptr(unsafe.Pointer(ev.udata))) & pdAddrAlign) != pd.fid {
+			continue
+		}
+
 		var mode int32
 		switch ev.filter {
 		case _EVFILT_READ:
@@ -181,7 +192,6 @@ retry:
 			mode += 'w'
 		}
 		if mode != 0 {
-			pd := (*pollDesc)(unsafe.Pointer(ev.udata))
 			pd.setEventErr(ev.flags == _EV_ERROR)
 			netpollready(&toRun, pd, mode)
 		}
