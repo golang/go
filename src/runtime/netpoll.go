@@ -67,6 +67,11 @@ const (
 
 const pollBlockSize = 4 * 1024
 
+const (
+	//0b:00000111
+	pdAddrAlign uint8 = 0x7
+)
+
 // Network poller descriptor.
 //
 // No heap pointers.
@@ -74,6 +79,7 @@ type pollDesc struct {
 	_    sys.NotInHeap
 	link *pollDesc // in pollcache, protected by pollcache.lock
 	fd   uintptr   // constant for pollDesc usage lifetime
+	fid  uint8     // a increasing id for detecting expired poll events
 
 	// atomicInfo holds bits from closing, rd, and wd,
 	// which are only ever written while holding the lock,
@@ -226,6 +232,7 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 		throw("runtime: blocked read on free polldesc")
 	}
 	pd.fd = fd
+	pd.fid++
 	pd.closing = false
 	pd.setEventErr(false)
 	pd.rseq++
@@ -625,10 +632,12 @@ func (c *pollCache) alloc() *pollDesc {
 		}
 		// Must be in non-GC memory because can be referenced
 		// only from epoll/kqueue internals.
-		mem := persistentalloc(n*pdSize, 0, &memstats.other_sys)
+		// set 8-byte alignment to prevent bugs, even though 8 and 0 are equivalent
+		mem := persistentalloc(n*pdSize, uintptr(pdAddrAlign+1), &memstats.other_sys)
 		for i := uintptr(0); i < n; i++ {
 			pd := (*pollDesc)(add(mem, i*pdSize))
 			pd.link = c.first
+			pd.fid = 0
 			c.first = pd
 		}
 	}

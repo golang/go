@@ -52,7 +52,10 @@ func netpollIsPollDescriptor(fd uintptr) bool {
 func netpollopen(fd uintptr, pd *pollDesc) uintptr {
 	var ev syscall.EpollEvent
 	ev.Events = syscall.EPOLLIN | syscall.EPOLLOUT | syscall.EPOLLRDHUP | syscall.EPOLLET
-	*(**pollDesc)(unsafe.Pointer(&ev.Data)) = pd
+
+	//because the pollDesc address is 3-bit align
+	//so put pd.fid in the lowest 3-bit and register it into epoll
+	*(**pollDesc)(unsafe.Pointer(&ev.Data)) = (*pollDesc)(unsafe.Pointer((uintptr(unsafe.Pointer(pd)) | uintptr(pd.fid&pdAddrAlign))))
 	return syscall.EpollCtl(epfd, syscall.EPOLL_CTL_ADD, int32(fd), &ev)
 }
 
@@ -150,6 +153,16 @@ retry:
 			continue
 		}
 
+		pd := *(**pollDesc)(unsafe.Pointer(&ev.Data))
+
+		//if the lowest 3 bits are not equal to pd.fid, ignore the expired event
+		if (uint8(uintptr(unsafe.Pointer(pd))) & pdAddrAlign) != pd.fid {
+			continue
+		}
+
+		//get the correct address
+		pd = (*pollDesc)(unsafe.Pointer((uintptr(unsafe.Pointer(pd)) ^ uintptr(pdAddrAlign))))
+
 		var mode int32
 		if ev.Events&(syscall.EPOLLIN|syscall.EPOLLRDHUP|syscall.EPOLLHUP|syscall.EPOLLERR) != 0 {
 			mode += 'r'
@@ -158,7 +171,6 @@ retry:
 			mode += 'w'
 		}
 		if mode != 0 {
-			pd := *(**pollDesc)(unsafe.Pointer(&ev.Data))
 			pd.setEventErr(ev.Events == syscall.EPOLLERR)
 			netpollready(&toRun, pd, mode)
 		}
