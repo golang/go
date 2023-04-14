@@ -405,6 +405,10 @@ func mallocinit() {
 		throw("bad pagesPerReclaimerChunk")
 	}
 
+	if minTagBits > taggedPointerBits {
+		throw("taggedPointerbits too small")
+	}
+
 	// Initialize the heap.
 	mheap_.init()
 	mcache0 = allocmcache()

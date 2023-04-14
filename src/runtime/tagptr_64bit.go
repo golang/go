@@ -6,7 +6,11 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/goarch"
+	"internal/goos"
+	"unsafe"
+)
 
 const (
 	// addrBits is the number of bits needed to represent a virtual address.
@@ -27,44 +31,59 @@ const (
 	// In addition to the 16 bits taken from the top, we can take 3 from the
 	// bottom, because node must be pointer-aligned, giving a total of 19 bits
 	// of count.
-	cntBits = 64 - addrBits + 3
+	tagBits = 64 - addrBits + 3
 
 	// On AIX, 64-bit addresses are split into 36-bit segment number and 28-bit
 	// offset in segment.  Segment numbers in the range 0x0A0000000-0x0AFFFFFFF(LSA)
 	// are available for mmap.
-	// We assume all lfnode addresses are from memory allocated with mmap.
+	// We assume all tagged addresses are from memory allocated with mmap.
 	// We use one bit to distinguish between the two ranges.
 	aixAddrBits = 57
-	aixCntBits  = 64 - aixAddrBits + 3
+	aixTagBits  = 64 - aixAddrBits + 3
 
 	// riscv64 SV57 mode gives 56 bits of userspace VA.
-	// lfstack code supports it, but broader support for SV57 mode is incomplete,
+	// tagged pointer code supports it,
+	// but broader support for SV57 mode is incomplete,
 	// and there may be other issues (see #54104).
 	riscv64AddrBits = 56
-	riscv64CntBits  = 64 - riscv64AddrBits + 3
+	riscv64TagBits  = 64 - riscv64AddrBits + 3
 )
 
-func lfstackPack(node *lfnode, cnt uintptr) uint64 {
-	if GOARCH == "ppc64" && GOOS == "aix" {
-		return uint64(uintptr(unsafe.Pointer(node)))<<(64-aixAddrBits) | uint64(cnt&(1<<aixCntBits-1))
+// The number of bits stored in the numeric tag of a taggedPointer
+const taggedPointerBits = (goos.IsAix * aixTagBits) + (goarch.IsRiscv64 * riscv64TagBits) + ((1 - goos.IsAix) * (1 - goarch.IsRiscv64) * tagBits)
+
+// taggedPointerPack created a taggedPointer from a pointer and a tag.
+// Tag bits that don't fit in the result are discarded.
+func taggedPointerPack(ptr unsafe.Pointer, tag uintptr) taggedPointer {
+	if GOOS == "aix" {
+		if GOARCH != "ppc64" {
+			throw("check this code for aix on non-ppc64")
+		}
+		return taggedPointer(uint64(uintptr(ptr))<<(64-aixAddrBits) | uint64(tag&(1<<aixTagBits-1)))
 	}
 	if GOARCH == "riscv64" {
-		return uint64(uintptr(unsafe.Pointer(node)))<<(64-riscv64AddrBits) | uint64(cnt&(1<<riscv64CntBits-1))
+		return taggedPointer(uint64(uintptr(ptr))<<(64-riscv64AddrBits) | uint64(tag&(1<<riscv64TagBits-1)))
 	}
-	return uint64(uintptr(unsafe.Pointer(node)))<<(64-addrBits) | uint64(cnt&(1<<cntBits-1))
+	return taggedPointer(uint64(uintptr(ptr))<<(64-addrBits) | uint64(tag&(1<<tagBits-1)))
 }
 
-func lfstackUnpack(val uint64) *lfnode {
+// Pointer returns the pointer from a taggedPointer.
+func (tp taggedPointer) pointer() unsafe.Pointer {
 	if GOARCH == "amd64" {
 		// amd64 systems can place the stack above the VA hole, so we need to sign extend
 		// val before unpacking.
-		return (*lfnode)(unsafe.Pointer(uintptr(int64(val) >> cntBits << 3)))
+		return unsafe.Pointer(uintptr(int64(tp) >> tagBits << 3))
 	}
-	if GOARCH == "ppc64" && GOOS == "aix" {
-		return (*lfnode)(unsafe.Pointer(uintptr((val >> aixCntBits << 3) | 0xa<<56)))
+	if GOOS == "aix" {
+		return unsafe.Pointer(uintptr((tp >> aixTagBits << 3) | 0xa<<56))
 	}
 	if GOARCH == "riscv64" {
-		return (*lfnode)(unsafe.Pointer(uintptr(val >> riscv64CntBits << 3)))
+		return unsafe.Pointer(uintptr(tp >> riscv64TagBits << 3))
 	}
-	return (*lfnode)(unsafe.Pointer(uintptr(val >> cntBits << 3)))
+	return unsafe.Pointer(uintptr(tp >> tagBits << 3))
+}
+
+// Tag returns the tag from a taggedPointer.
+func (tp taggedPointer) tag() uintptr {
+	return uintptr(tp & (1<<taggedPointerBits - 1))
 }
