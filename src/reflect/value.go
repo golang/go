@@ -357,9 +357,9 @@ func (v Value) CanSet() bool {
 	return v.flag&(flagAddr|flagRO) == flagAddr
 }
 
-// Caller creates a function caller for function v.
-// The Caller caches information about the function making
-// calls more efficient.
+// Caller creates a function caller for the function v.
+// The returned Caller caches information about the function making
+// repeated calls more efficient.
 // Caller panics if v's Kind is not Func.
 func (v Value) Caller() *Caller {
 	v.mustBe(Func)
@@ -379,10 +379,6 @@ func (v Value) Caller() *Caller {
 		fn = *(*unsafe.Pointer)(v.ptr)
 	} else {
 		fn = v.ptr
-	}
-
-	if fn == nil {
-		panic("Caller: call of nil function")
 	}
 
 	frametype, framePool, abid := funcLayout(t, rcvrtype)
@@ -406,6 +402,9 @@ func (v Value) Caller() *Caller {
 // If v is a variadic function, Call creates the variadic slice parameter
 // itself, copying in the corresponding values.
 func (v Value) Call(in []Value) []Value {
+	v.mustBe(Func)
+	v.mustBeExported()
+
 	c := v.Caller()
 	out := make([]Value, v.Type().NumOut())
 	c.Call(in, out)
@@ -420,6 +419,9 @@ func (v Value) Call(in []Value) []Value {
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
 func (v Value) CallSlice(in []Value) []Value {
+	v.mustBe(Func)
+	v.mustBeExported()
+
 	c := v.Caller()
 	out := make([]Value, v.Type().NumOut())
 	c.CallSlice(in, out)
@@ -427,7 +429,7 @@ func (v Value) CallSlice(in []Value) []Value {
 }
 
 // Caller is a function wrapper that caches details about a function
-// to make calls more efficient.
+// to make repeated calls more efficient.
 type Caller struct {
 	t         *funcType
 	fn        unsafe.Pointer
@@ -449,6 +451,10 @@ func (c *Caller) Type() Type {
 // If c is a variadic function, Call creates the variadic slice parameter
 // itself, copying in the corresponding values.
 func (c *Caller) Call(in, out []Value) {
+	if c.fn == nil {
+		panic("Caller: call of nil function")
+	}
+
 	c.call("Call", in, out)
 }
 
@@ -458,6 +464,10 @@ func (c *Caller) Call(in, out []Value) {
 // As in Go, each input argument must be assignable to the
 // type of the function's corresponding input parameter.
 func (c *Caller) CallSlice(in, out []Value) {
+	if c.fn == nil {
+		panic("Caller: call of nil function")
+	}
+
 	c.call("CallSlice", in, out)
 }
 
@@ -529,6 +539,7 @@ func (c *Caller) call(op string, in, out []Value) {
 	if nin != c.t.NumIn() {
 		panic("reflect.Caller.Call: wrong argument count")
 	}
+	nout := c.t.NumOut()
 
 	// Register argument space.
 	var regArgs abi.RegArgs
@@ -536,7 +547,13 @@ func (c *Caller) call(op string, in, out []Value) {
 	// Allocate a chunk of memory for frame if needed.
 	var stackArgs unsafe.Pointer
 	if c.frametype.size != 0 {
-		stackArgs = c.framePool.Get().(unsafe.Pointer)
+		if nout == 0 {
+			stackArgs = c.framePool.Get().(unsafe.Pointer)
+		} else {
+			// Can't use pool if the function has return values.
+			// We will leak pointer to args in ret, so its lifetime is not scoped.
+			stackArgs = unsafe_New(c.frametype)
+		}
 	}
 	frameSize := c.frametype.size
 
@@ -645,76 +662,83 @@ func (c *Caller) call(op string, in, out []Value) {
 		runtime.GC()
 	}
 
-	// Wrap Values around return values in args.
-	for i, v := range out {
-		tv := c.t.Out(i)
-		if tv.Size() == 0 {
-			// For zero-sized return value, args+off may point to the next object.
-			// In this case, return the zero value instead.
-			out[i] = Zero(tv)
-			continue
+	if nout == 0 {
+		if stackArgs != nil {
+			typedmemclr(c.frametype, stackArgs)
+			c.framePool.Put(stackArgs)
+		}
+	} else {
+		if stackArgs != nil {
+			// Zero the now unused input area of args,
+			// because the Values returned by this function contain pointers to the args object,
+			// and will thus keep the args object alive indefinitely.
+			typedmemclrpartial(c.frametype, stackArgs, 0, c.abid.retOffset)
 		}
 
-		s := v.ptr
-		if s != nil && v.typ != tv {
-			panic("reflect: cannot use " + v.typ.String() + " as type " + tv.String() + " in " + op)
-		}
+		// Wrap Values around return values in args.
+		for i, v := range out {
+			tv := c.t.Out(i)
+			if tv.Size() == 0 {
+				// For zero-sized return value, args+off may point to the next object.
+				// In this case, return the zero value instead.
+				out[i] = Zero(tv)
+				continue
+			}
 
-		steps := c.abid.ret.stepsForValue(i)
-		if st := steps[0]; st.kind == abiStepStack {
-			// This value is on the stack. If part of a value is stack
-			// allocated, the entire value is according to the ABI.
-			addr := add(stackArgs, st.stkOff, "tv.Size() != 0")
-			if s == nil || out[i].flag&flagIndir == 0 {
-				// Make space for the value to be copied into so the stack
-				// can be reused.
+			s := v.ptr
+			if s != nil && v.flag&flagIndir != 0 && v.typ != tv {
+				panic("reflect: cannot use " + v.typ.String() + " as type " + tv.String() + " in " + op)
+			}
+
+			steps := c.abid.ret.stepsForValue(i)
+			if st := steps[0]; st.kind == abiStepStack {
+				// This value is on the stack. If part of a value is stack
+				// allocated, the entire value is according to the ABI.
+				addr := add(stackArgs, st.stkOff, "tv.Size() != 0")
+				if s != nil && v.flag&flagIndir != 0 {
+					typedmemmove(c.t.Out(i).(*rtype), s, addr)
+					continue
+				}
+				out[i] = Value{tv.common(), addr, flagIndir | flag(tv.Kind())}
+				continue
+			}
+
+			// Handle pointers passed in registers.
+			if !ifaceIndir(tv.common()) {
+				// Pointer-valued data gets put directly
+				// into v.ptr.
+				if steps[0].kind != abiStepPointer {
+					print("kind=", steps[0].kind, ", type=", tv.String(), "\n")
+					panic("mismatch between ABI description and types")
+				}
+				out[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(tv.Kind())}
+				continue
+			}
+
+			// All that's left is values passed in registers that we need to
+			// potentially create space for and copy values back into.
+			if s == nil || v.flag&flagIndir == 0 {
 				s = unsafe_New(tv.common())
 				out[i] = Value{tv.common(), s, flagIndir | flag(tv.Kind())}
 			}
-			typedmemmove(c.t.Out(i).(*rtype), s, addr)
-			continue
-		}
-
-		// Handle pointers passed in registers.
-		if !ifaceIndir(tv.common()) {
-			// Pointer-valued data gets put directly
-			// into v.ptr.
-			if steps[0].kind != abiStepPointer {
-				print("kind=", steps[0].kind, ", type=", tv.String(), "\n")
-				panic("mismatch between ABI description and types")
-			}
-			out[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(tv.Kind())}
-			continue
-		}
-
-		// All that's left is values passed in registers that we need to
-		// potentially create space for and copy values back into.
-		if s == nil || v.flag&flagIndir == 0 {
-			s = unsafe_New(tv.common())
-			out[i] = Value{tv.common(), s, flagIndir | flag(tv.Kind())}
-		}
-		for _, st := range steps {
-			switch st.kind {
-			case abiStepIntReg:
-				offset := add(s, st.offset, "precomputed value offset")
-				intFromReg(&regArgs, st.ireg, st.size, offset)
-			case abiStepPointer:
-				s := add(s, st.offset, "precomputed value offset")
-				*((*unsafe.Pointer)(s)) = regArgs.Ptrs[st.ireg]
-			case abiStepFloatReg:
-				offset := add(s, st.offset, "precomputed value offset")
-				floatFromReg(&regArgs, st.freg, st.size, offset)
-			case abiStepStack:
-				panic("register-based return value has stack component")
-			default:
-				panic("unknown ABI part kind")
+			for _, st := range steps {
+				switch st.kind {
+				case abiStepIntReg:
+					offset := add(s, st.offset, "precomputed value offset")
+					intFromReg(&regArgs, st.ireg, st.size, offset)
+				case abiStepPointer:
+					s := add(s, st.offset, "precomputed value offset")
+					*((*unsafe.Pointer)(s)) = regArgs.Ptrs[st.ireg]
+				case abiStepFloatReg:
+					offset := add(s, st.offset, "precomputed value offset")
+					floatFromReg(&regArgs, st.freg, st.size, offset)
+				case abiStepStack:
+					panic("register-based return value has stack component")
+				default:
+					panic("unknown ABI part kind")
+				}
 			}
 		}
-	}
-
-	if stackArgs != nil {
-		typedmemclr(c.frametype, stackArgs)
-		c.framePool.Put(stackArgs)
 	}
 }
 

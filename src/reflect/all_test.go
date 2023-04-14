@@ -3990,8 +3990,8 @@ func TestValuePanic(t *testing.T) {
 	shouldPanic("reflect.Value.Addr of unaddressable value", func() { vo(0).Addr() })
 	shouldPanic("call of reflect.Value.Bool on float64 Value", func() { vo(0.0).Bool() })
 	shouldPanic("call of reflect.Value.Bytes on string Value", func() { vo("").Bytes() })
-	shouldPanic("call of reflect.Value.Caller on bool Value", func() { vo(true).Call(nil) })
-	shouldPanic("call of reflect.Value.Caller on int Value", func() { vo(0).CallSlice(nil) })
+	shouldPanic("call of reflect.Value.Call on bool Value", func() { vo(true).Call(nil) })
+	shouldPanic("call of reflect.Value.CallSlice on int Value", func() { vo(0).CallSlice(nil) })
 	shouldPanic("call of reflect.Value.Close on string Value", func() { vo("").Close() })
 	shouldPanic("call of reflect.Value.Complex on float64 Value", func() { vo(0.0).Complex() })
 	shouldPanic("call of reflect.Value.Elem on bool Value", func() { vo(false).Elem() })
@@ -8425,4 +8425,17 @@ func TestCaller_CallReusesOutValues(t *testing.T) {
 	if i != 27 {
 		t.Errorf("unexpected result for output value; got %d, want 27", i)
 	}
+}
+
+func TestCaller_CallAllocations(t *testing.T) {
+	fn := func() int {
+		return 27
+	}
+	c := ValueOf(fn).Caller()
+
+	out := make([]Value, c.Type().NumOut())
+
+	noAlloc(t, 100, func(int) {
+		c.Call([]Value{}, out)
+	})
 }
