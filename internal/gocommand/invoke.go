@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -216,6 +217,18 @@ func (i *Invocation) run(ctx context.Context, stdout, stderr io.Writer) error {
 	cmd := exec.Command("go", goArgs...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
+
+	// cmd.WaitDelay was added only in go1.20 (see #50436).
+	if waitDelay := reflect.ValueOf(cmd).Elem().FieldByName("WaitDelay"); waitDelay.IsValid() {
+		// https://go.dev/issue/59541: don't wait forever copying stderr
+		// after the command has exited.
+		// After CL 484741 we copy stdout manually, so we we'll stop reading that as
+		// soon as ctx is done. However, we also don't want to wait around forever
+		// for stderr. Give a much-longer-than-reasonable delay and then assume that
+		// something has wedged in the kernel or runtime.
+		waitDelay.Set(reflect.ValueOf(30 * time.Second))
+	}
+
 	// On darwin the cwd gets resolved to the real path, which breaks anything that
 	// expects the working directory to keep the original path, including the
 	// go command when dealing with modules.
@@ -230,6 +243,7 @@ func (i *Invocation) run(ctx context.Context, stdout, stderr io.Writer) error {
 		cmd.Env = append(cmd.Env, "PWD="+i.WorkingDir)
 		cmd.Dir = i.WorkingDir
 	}
+
 	defer func(start time.Time) { log("%s for %v", time.Since(start), cmdDebugStr(cmd)) }(time.Now())
 
 	return runCmdContext(ctx, cmd)
