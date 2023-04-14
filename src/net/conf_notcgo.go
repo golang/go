@@ -6,5 +6,5 @@
 
 package net
 
-// cgoBuild correspons to the cgo build tag.
+// cgoBuild corresponds to the cgo build tag.
 const cgoBuild = false

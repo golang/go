@@ -115,16 +115,16 @@ const (
 	resolverDynamic resolverType = iota
 
 	// Compiled without support for the cgo resolver.
-	// The go resolver must be always used.
+	// The go resolver must always be used.
 	resolverGo
 
 	// Compiled with support for both the cgo and go resolver.
-	// The cgo resolver is preferrd over the go resolver,
+	// The cgo resolver is preferred over the go resolver,
 	// unless explicitly forced by (*Resolver).PreferGo = true.
 	resolverCgo
 )
 
-// defaultResolver directs the default resovler to be used.
+// defaultResolver directs the default resolver to be used.
 // updated by conf_netgo.go and conf_netcgo.go depending on the
 // netgo and netcgo build tags.
 var defaultResolver resolverType = resolverDynamic
