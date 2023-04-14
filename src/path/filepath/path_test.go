@@ -899,7 +899,7 @@ func TestWalkSymlinkRoot(t *testing.T) {
 			desc:      "double link with slash",
 			root:      linklink + string(filepath.Separator),
 			want:      []string{linklink, filepath.Join(linklink, "foo")},
-			buggyGOOS: []string{"darwin"}, // https://go.dev/issue/59586
+			buggyGOOS: []string{"darwin", "ios"}, // https://go.dev/issue/59586
 		},
 	} {
 		tt := tt
