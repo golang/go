@@ -59,7 +59,7 @@ func TestIssue59124(t *testing.T) {
 	const stuff = `
 -- go.mod --
 module foo
-go 1.29
+go 1.19
 -- a.go --
 //line foo.y:102
 package main
