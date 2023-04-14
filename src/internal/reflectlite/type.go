@@ -75,45 +75,25 @@ type Type interface {
 
 // A Kind represents the specific kind of type that a Type represents.
 // The zero Kind is not a valid kind.
-type Kind uint
+type Kind = abi.Kind
+
+const Ptr = abi.Pointer
 
 const (
-	Invalid Kind = iota
-	Bool
-	Int
-	Int8
-	Int16
-	Int32
-	Int64
-	Uint
-	Uint8
-	Uint16
-	Uint32
-	Uint64
-	Uintptr
-	Float32
-	Float64
-	Complex64
-	Complex128
-	Array
-	Chan
-	Func
-	Interface
-	Map
-	Pointer
-	Slice
-	String
-	Struct
-	UnsafePointer
+	// Import-and-export these constants as necessary
+	Interface = abi.Interface
+	Slice     = abi.Slice
+	String    = abi.String
+	Struct    = abi.Struct
 )
-
-const Ptr = Pointer
 
 type nameOff = abi.NameOff
 type typeOff = abi.TypeOff
 type textOff = abi.TextOff
 
-type rtype abi.Type
+type rtype struct {
+	abi.Type
+}
 
 // uncommonType is present only for defined types or types with methods
 // (if T is a defined type, the uncommonTypes for T and *T have methods).
@@ -304,50 +284,6 @@ func (n name) pkgPath() string {
  * The compiler does not know about the data structures and methods below.
  */
 
-const (
-	kindDirectIface = 1 << 5
-	kindGCProg      = 1 << 6 // Type.gc points to GC program
-	kindMask        = (1 << 5) - 1
-)
-
-// String returns the name of k.
-func (k Kind) String() string {
-	if int(k) < len(kindNames) {
-		return kindNames[k]
-	}
-	return kindNames[0]
-}
-
-var kindNames = []string{
-	Invalid:       "invalid",
-	Bool:          "bool",
-	Int:           "int",
-	Int8:          "int8",
-	Int16:         "int16",
-	Int32:         "int32",
-	Int64:         "int64",
-	Uint:          "uint",
-	Uint8:         "uint8",
-	Uint16:        "uint16",
-	Uint32:        "uint32",
-	Uint64:        "uint64",
-	Uintptr:       "uintptr",
-	Float32:       "float32",
-	Float64:       "float64",
-	Complex64:     "complex64",
-	Complex128:    "complex128",
-	Array:         "array",
-	Chan:          "chan",
-	Func:          "func",
-	Interface:     "interface",
-	Map:           "map",
-	Ptr:           "ptr",
-	Slice:         "slice",
-	String:        "string",
-	Struct:        "struct",
-	UnsafePointer: "unsafe.Pointer",
-}
-
 // resolveNameOff resolves a name offset from a base pointer.
 // The (*rtype).nameOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
@@ -367,61 +303,7 @@ func (t *rtype) typeOff(off typeOff) *rtype {
 }
 
 func (t *rtype) uncommon() *uncommonType {
-	if t.TFlag&abi.TFlagUncommon == 0 {
-		return nil
-	}
-	switch t.Kind() {
-	case Struct:
-		return &(*structTypeUncommon)(unsafe.Pointer(t)).u
-	case Ptr:
-		type u struct {
-			ptrType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Func:
-		type u struct {
-			funcType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Slice:
-		type u struct {
-			sliceType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Array:
-		type u struct {
-			arrayType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Chan:
-		type u struct {
-			chanType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Map:
-		type u struct {
-			mapType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case Interface:
-		type u struct {
-			interfaceType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	default:
-		type u struct {
-			rtype
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	}
+	return t.Uncommon()
 }
 
 func (t *rtype) String() string {
@@ -431,10 +313,6 @@ func (t *rtype) String() string {
 	}
 	return s
 }
-
-func (t *rtype) Size() uintptr { return t.Size_ }
-
-func (t *rtype) Kind() Kind { return Kind(t.Kind_ & kindMask) }
 
 func (t *rtype) pointers() bool { return t.PtrBytes != 0 }
 
@@ -491,28 +369,32 @@ func (t *rtype) Name() string {
 }
 
 func (t *rtype) chanDir() chanDir {
-	if t.Kind() != Chan {
+	if t.Kind() != abi.Chan {
 		panic("reflect: chanDir of non-chan type")
 	}
 	tt := (*chanType)(unsafe.Pointer(t))
 	return chanDir(tt.dir)
 }
 
+func toRType(t *abi.Type) *rtype {
+	return (*rtype)(unsafe.Pointer(t))
+}
+
 func (t *rtype) Elem() Type {
 	switch t.Kind() {
-	case Array:
+	case abi.Array:
 		tt := (*arrayType)(unsafe.Pointer(t))
-		return toType((*rtype)(tt.Elem))
-	case Chan:
+		return toType(toRType(tt.Elem))
+	case abi.Chan:
 		tt := (*chanType)(unsafe.Pointer(t))
 		return toType(tt.elem)
-	case Map:
+	case abi.Map:
 		tt := (*mapType)(unsafe.Pointer(t))
 		return toType(tt.elem)
-	case Ptr:
+	case abi.Pointer:
 		tt := (*ptrType)(unsafe.Pointer(t))
 		return toType(tt.elem)
-	case Slice:
+	case abi.Slice:
 		tt := (*sliceType)(unsafe.Pointer(t))
 		return toType(tt.elem)
 	}
@@ -520,7 +402,7 @@ func (t *rtype) Elem() Type {
 }
 
 func (t *rtype) In(i int) Type {
-	if t.Kind() != Func {
+	if t.Kind() != abi.Func {
 		panic("reflect: In of non-func type")
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
@@ -528,7 +410,7 @@ func (t *rtype) In(i int) Type {
 }
 
 func (t *rtype) Key() Type {
-	if t.Kind() != Map {
+	if t.Kind() != abi.Map {
 		panic("reflect: Key of non-map type")
 	}
 	tt := (*mapType)(unsafe.Pointer(t))
@@ -536,7 +418,7 @@ func (t *rtype) Key() Type {
 }
 
 func (t *rtype) Len() int {
-	if t.Kind() != Array {
+	if t.Kind() != abi.Array {
 		panic("reflect: Len of non-array type")
 	}
 	tt := (*arrayType)(unsafe.Pointer(t))
@@ -544,7 +426,7 @@ func (t *rtype) Len() int {
 }
 
 func (t *rtype) NumField() int {
-	if t.Kind() != Struct {
+	if t.Kind() != abi.Struct {
 		panic("reflect: NumField of non-struct type")
 	}
 	tt := (*structType)(unsafe.Pointer(t))
@@ -552,7 +434,7 @@ func (t *rtype) NumField() int {
 }
 
 func (t *rtype) NumIn() int {
-	if t.Kind() != Func {
+	if t.Kind() != abi.Func {
 		panic("reflect: NumIn of non-func type")
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
@@ -560,7 +442,7 @@ func (t *rtype) NumIn() int {
 }
 
 func (t *rtype) NumOut() int {
-	if t.Kind() != Func {
+	if t.Kind() != abi.Func {
 		panic("reflect: NumOut of non-func type")
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
@@ -568,7 +450,7 @@ func (t *rtype) NumOut() int {
 }
 
 func (t *rtype) Out(i int) Type {
-	if t.Kind() != Func {
+	if t.Kind() != abi.Func {
 		panic("reflect: Out of non-func type")
 	}
 	tt := (*funcType)(unsafe.Pointer(t))
@@ -771,16 +653,16 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 
 	// Non-composite types of equal kind have same underlying type
 	// (the predefined instance of the type).
-	if Bool <= kind && kind <= Complex128 || kind == String || kind == UnsafePointer {
+	if abi.Bool <= kind && kind <= abi.Complex128 || kind == abi.String || kind == abi.UnsafePointer {
 		return true
 	}
 
 	// Composite types.
 	switch kind {
-	case Array:
+	case abi.Array:
 		return T.Len() == V.Len() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
-	case Chan:
+	case abi.Chan:
 		// Special case:
 		// x is a bidirectional channel value, T is a channel type,
 		// and x's type V and T have identical element types.
@@ -791,7 +673,7 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 		// Otherwise continue test for identical underlying type.
 		return V.chanDir() == T.chanDir() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
-	case Func:
+	case abi.Func:
 		t := (*funcType)(unsafe.Pointer(T))
 		v := (*funcType)(unsafe.Pointer(V))
 		if t.outCount != v.outCount || t.inCount != v.inCount {
@@ -819,13 +701,13 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 		// need a run time conversion.
 		return false
 
-	case Map:
+	case abi.Map:
 		return haveIdenticalType(T.Key(), V.Key(), cmpTags) && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
-	case Ptr, Slice:
+	case Ptr, abi.Slice:
 		return haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
-	case Struct:
+	case abi.Struct:
 		t := (*structType)(unsafe.Pointer(T))
 		v := (*structType)(unsafe.Pointer(V))
 		if len(t.fields) != len(v.fields) {
@@ -878,5 +760,5 @@ func toType(t *rtype) Type {
 
 // ifaceIndir reports whether t is stored indirectly in an interface value.
 func ifaceIndir(t *rtype) bool {
-	return t.Kind_&kindDirectIface == 0
+	return t.Kind_&abi.KindDirectIface == 0
 }

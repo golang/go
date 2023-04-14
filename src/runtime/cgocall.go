@@ -466,11 +466,11 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			if at.Len != 1 {
 				throw("can't happen")
 			}
-			cgoCheckArg((*_type)(at.Elem), p, at.Elem.Kind_&kindDirectIface == 0, top, msg)
+			cgoCheckArg(toType(at.Elem), p, at.Elem.Kind_&kindDirectIface == 0, top, msg)
 			return
 		}
 		for i := uintptr(0); i < at.Len; i++ {
-			cgoCheckArg((*_type)(at.Elem), p, true, top, msg)
+			cgoCheckArg(toType(at.Elem), p, true, top, msg)
 			p = add(p, at.Elem.Size_)
 		}
 	case kindChan, kindMap:

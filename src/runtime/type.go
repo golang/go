@@ -19,7 +19,9 @@ type textOff = abi.TextOff
 // ../cmd/compile/internal/reflectdata/reflect.go:/^func.dcommontype and
 // ../reflect/type.go:/^type.rtype.
 // ../internal/reflectlite/type.go:/^type.rtype.
-type _type abi.Type
+type _type struct {
+	abi.Type
+}
 
 func (t *_type) string() string {
 	s := t.nameOff(t.Str).name()
@@ -30,65 +32,7 @@ func (t *_type) string() string {
 }
 
 func (t *_type) uncommon() *uncommontype {
-	if t.TFlag&abi.TFlagUncommon == 0 {
-		return nil
-	}
-	switch t.Kind_ & kindMask {
-	case kindStruct:
-		type u struct {
-			structtype
-			u uncommontype
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case kindPtr:
-		type u struct {
-			ptrtype
-			u uncommontype
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case kindFunc:
-		type u struct {
-			functype
-			u uncommontype
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case kindSlice:
-		type u struct {
-			slicetype
-			u uncommontype
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case kindArray:
-		type u struct {
-			arraytype
-			u uncommontype
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case kindChan:
-		type u struct {
-			chantype
-			u uncommontype
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case kindMap:
-		type u struct {
-			maptype
-			u uncommontype
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	case kindInterface:
-		type u struct {
-			interfacetype
-			u uncommontype
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	default:
-		type u struct {
-			_type
-			u uncommontype
-		}
-		return &(*u)(unsafe.Pointer(t)).u
-	}
+	return t.Uncommon()
 }
 
 func (t *_type) name() string {
@@ -500,6 +444,10 @@ type _typePair struct {
 	t2 *_type
 }
 
+func toType(t *abi.Type) *_type {
+	return (*_type)(unsafe.Pointer(t))
+}
+
 // typesEqual reports whether two types are equal.
 //
 // Everywhere in the runtime and reflect packages, it is assumed that
@@ -554,7 +502,7 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 	case kindArray:
 		at := (*arraytype)(unsafe.Pointer(t))
 		av := (*arraytype)(unsafe.Pointer(v))
-		return typesEqual((*_type)(at.Elem), (*_type)(av.Elem), seen) && at.Len == av.Len
+		return typesEqual(toType(at.Elem), toType(av.Elem), seen) && at.Len == av.Len
 	case kindChan:
 		ct := (*chantype)(unsafe.Pointer(t))
 		cv := (*chantype)(unsafe.Pointer(v))

@@ -174,7 +174,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 	case kindArray:
 		a := (*arraytype)(unsafe.Pointer(t))
 		for i := uintptr(0); i < a.Len; i++ {
-			h = typehash((*_type)(a.Elem), add(p, i*a.Elem.Size_), h)
+			h = typehash(toType(a.Elem), add(p, i*a.Elem.Size_), h)
 		}
 		return h
 	case kindStruct:

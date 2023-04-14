@@ -19,7 +19,6 @@ import (
 )
 
 var typeNames = []string{
-	"rtype",
 	"uncommonType",
 	"arrayType",
 	"chanType",
@@ -115,7 +114,7 @@ func TestMirrorWithReflect(t *testing.T) {
 	wg.Wait()
 
 	if len(rl.m) != len(r.m) {
-		t.Fatalf("number of types mismatch, reflect: %d, reflectlite: %d", len(r.m), len(rl.m))
+		t.Fatalf("number of types mismatch, reflect: %d, reflectlite: %d (%+v, %+v)", len(r.m), len(rl.m), r.m, rl.m)
 	}
 
 	for typName := range r.m {
