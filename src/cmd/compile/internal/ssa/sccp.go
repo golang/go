@@ -24,7 +24,7 @@ import (
 //
 // It starts with optimistically assuming that all SSA values are initially Top
 // and then propagates constant facts only along reachable control flow paths.
-// Due to certain basic blocks being never accessed, some inputs of phi become
+// Since some basic blocks are not visited yet, corresponding inputs of phi become
 // Top, we use the meet(args...) for phi to compute its lattice.
 //
 // 	  Top ∩ any = any
@@ -75,23 +75,40 @@ func possibleConst(val *Value) bool {
 	case OpPhi:
 		fallthrough
 	case
+		// negate
 		OpNeg8, OpNeg16, OpNeg32, OpNeg64, OpNeg32F, OpNeg64F,
 		OpCom8, OpCom16, OpCom32, OpCom64,
+		// math
 		OpFloor, OpCeil, OpTrunc, OpRoundToEven,
+		// conversion
+		OpTrunc16to8, OpTrunc32to8, OpTrunc32to16, OpTrunc64to8,
+		OpTrunc64to16, OpTrunc64to32, OpCvt32to32F, OpCvt32to64F,
+		OpCvt64to32F, OpCvt64to64F, OpCvt32Fto32, OpCvt32Fto64,
+		OpCvt64Fto32, OpCvt64Fto64, OpCvt32Fto64F, OpCvt64Fto32F,
+		OpCvtBoolToUint8,
+		OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64, OpZeroExt16to32,
+		OpZeroExt16to64, OpZeroExt32to64, OpSignExt8to16, OpSignExt8to32,
+		OpSignExt8to64, OpSignExt16to32, OpSignExt16to64, OpSignExt32to64,
+		// not
 		OpNot:
 		fallthrough
 	case
+		// add
 		OpAdd64, OpAdd32, OpAdd16, OpAdd8,
 		OpAdd32F, OpAdd64F,
+		// sub
 		OpSub64, OpSub32, OpSub16, OpSub8,
 		OpSub32F, OpSub64F,
+		// mul
 		OpMul64, OpMul32, OpMul16, OpMul8,
 		OpMul32F, OpMul64F,
+		// div
 		OpDiv32F, OpDiv64F,
 		OpDiv8, OpDiv16, OpDiv32, OpDiv64,
 		OpDiv8u, OpDiv16u, OpDiv32u, OpDiv64u,
 		OpMod8, OpMod16, OpMod32, OpMod64,
 		OpMod8u, OpMod16u, OpMod32u, OpMod64u,
+		// compare
 		OpEq64, OpEq32, OpEq16, OpEq8,
 		OpEq32F, OpEq64F,
 		OpLess64, OpLess32, OpLess16, OpLess8,
@@ -101,10 +118,13 @@ func possibleConst(val *Value) bool {
 		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U,
 		OpLeq32F, OpLeq64F,
 		OpEqB, OpNeqB,
+		// shift
 		OpLsh64x64, OpRsh64x64, OpRsh64Ux64, OpLsh32x64,
 		OpRsh32x64, OpRsh32Ux64, OpLsh16x64, OpRsh16x64,
 		OpRsh16Ux64, OpLsh8x64, OpRsh8x64, OpRsh8Ux64,
+		// inbound safety check
 		OpIsInBounds, OpIsSliceInBounds,
+		// bit
 		OpAnd8, OpAnd16, OpAnd32, OpAnd64,
 		OpOr8, OpOr16, OpOr32, OpOr64,
 		OpXor8, OpXor16, OpXor32, OpXor64:
@@ -158,10 +178,10 @@ func (t *worklist) buildDefUses() {
 	for _, block := range t.f.Blocks {
 		for _, val := range block.Values {
 			for _, arg := range val.Args {
-				// find its uses, only uses that can become constant takes into account
+				// find its uses, only uses that can become constants take into account
 				if possibleConst(arg) && possibleConst(val) {
 					if _, exist := t.defUse[arg]; !exist {
-						t.defUse[arg] = make([]*Value, 0)
+						t.defUse[arg] = make([]*Value, 0, arg.Uses)
 					}
 					t.defUse[arg] = append(t.defUse[arg], val)
 				}
@@ -298,6 +318,15 @@ func (t *worklist) visitValue(val *Value) {
 		OpCom8, OpCom16, OpCom32, OpCom64,
 		// math
 		OpFloor, OpCeil, OpTrunc, OpRoundToEven,
+		// conversion
+		OpTrunc16to8, OpTrunc32to8, OpTrunc32to16, OpTrunc64to8,
+		OpTrunc64to16, OpTrunc64to32, OpCvt32to32F, OpCvt32to64F,
+		OpCvt64to32F, OpCvt64to64F, OpCvt32Fto32, OpCvt32Fto64,
+		OpCvt64Fto32, OpCvt64Fto64, OpCvt32Fto64F, OpCvt64Fto32F,
+		OpCvtBoolToUint8,
+		OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64, OpZeroExt16to32,
+		OpZeroExt16to64, OpZeroExt32to64, OpSignExt8to16, OpSignExt8to32,
+		OpSignExt8to64, OpSignExt16to32, OpSignExt16to64, OpSignExt32to64,
 		// not
 		OpNot:
 		var lt1 = t.getLatticeCell(val.Args[0])
