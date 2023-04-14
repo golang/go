@@ -37,6 +37,9 @@
 (Mod8 x y) => (Select0 (DIV (SignExt8to32 x) (SignExt8to32 y)))
 (Mod8u x y) => (Select0 (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y)))
 
+// math package intrinsics
+(Abs ...) => (ABSD ...)
+
 // (x + y) / 2 with x>=y  becomes  (x - y) / 2 + y
 (Avg32u <t> x y) => (ADD (SRLconst <t> (SUB <t> x y) [1]) y)
 
