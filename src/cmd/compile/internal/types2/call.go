@@ -24,7 +24,13 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 	assert(tsig != nil || inst != nil)
 
 	if !check.allowVersion(check.pkg, pos, 1, 18) {
-		check.versionErrorf(inst.Pos(), "go1.18", "function instantiation")
+		var posn poser
+		if inst != nil {
+			posn = inst.Pos()
+		} else {
+			posn = pos
+		}
+		check.versionErrorf(posn, "go1.18", "function instantiation")
 	}
 
 	// targs and xlist are the type arguments and corresponding type expressions, or nil.

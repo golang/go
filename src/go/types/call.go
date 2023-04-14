@@ -26,7 +26,13 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
 	assert(tsig != nil || ix != nil)
 
 	if !check.allowVersion(check.pkg, pos, 1, 18) {
-		check.softErrorf(inNode(ix.Orig, ix.Lbrack), UnsupportedFeature, "function instantiation requires go1.18 or later")
+		var posn positioner
+		if ix != nil {
+			posn = inNode(ix.Orig, ix.Lbrack)
+		} else {
+			posn = atPos(pos)
+		}
+		check.softErrorf(posn, UnsupportedFeature, "function instantiation requires go1.18 or later")
 	}
 
 	// targs and xlist are the type arguments and corresponding type expressions, or nil.
