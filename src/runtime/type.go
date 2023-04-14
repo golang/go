@@ -278,11 +278,7 @@ func (mt *maptype) hashMightPanic() bool { // true if hash function might panic
 
 type arraytype = abi.ArrayType
 
-type chantype struct {
-	typ  _type
-	elem *_type
-	dir  uintptr
-}
+type chantype = abi.ChanType
 
 type slicetype struct {
 	typ  _type
@@ -506,7 +502,7 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 	case kindChan:
 		ct := (*chantype)(unsafe.Pointer(t))
 		cv := (*chantype)(unsafe.Pointer(v))
-		return ct.dir == cv.dir && typesEqual(ct.elem, cv.elem, seen)
+		return ct.Dir == cv.Dir && typesEqual(toType(ct.Elem), toType(cv.Elem), seen)
 	case kindFunc:
 		ft := (*functype)(unsafe.Pointer(t))
 		fv := (*functype)(unsafe.Pointer(v))

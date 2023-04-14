@@ -70,7 +70,7 @@ func makechan64(t *chantype, size int64) *hchan {
 }
 
 func makechan(t *chantype, size int) *hchan {
-	elem := t.elem
+	elem := t.Elem
 
 	// compiler checks this but be safe.
 	if elem.Size_ >= 1<<16 {
@@ -104,11 +104,11 @@ func makechan(t *chantype, size int) *hchan {
 	default:
 		// Elements contain pointers.
 		c = new(hchan)
-		c.buf = mallocgc(mem, elem, true)
+		c.buf = mallocgc(mem, toType(elem), true)
 	}
 
 	c.elemsize = uint16(elem.Size_)
-	c.elemtype = elem
+	c.elemtype = toType(elem)
 	c.dataqsiz = uint(size)
 	lockInit(&c.lock, lockRankHchan)
 

@@ -114,11 +114,7 @@ const (
 type arrayType = abi.ArrayType
 
 // chanType represents a channel type.
-type chanType struct {
-	rtype
-	elem *rtype  // channel element type
-	dir  uintptr // channel direction (chanDir)
-}
+type chanType = abi.ChanType
 
 // funcType represents a function type.
 //
@@ -373,7 +369,7 @@ func (t *rtype) chanDir() chanDir {
 		panic("reflect: chanDir of non-chan type")
 	}
 	tt := (*chanType)(unsafe.Pointer(t))
-	return chanDir(tt.dir)
+	return chanDir(tt.Dir)
 }
 
 func toRType(t *abi.Type) *rtype {
@@ -387,7 +383,7 @@ func (t *rtype) Elem() Type {
 		return toType(toRType(tt.Elem))
 	case abi.Chan:
 		tt := (*chanType)(unsafe.Pointer(t))
-		return toType(tt.elem)
+		return toType(toRType(tt.Elem))
 	case abi.Map:
 		tt := (*mapType)(unsafe.Pointer(t))
 		return toType(tt.elem)

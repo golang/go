@@ -2175,14 +2175,15 @@ func (v Value) Recv() (x Value, ok bool) {
 // v is known to be a channel.
 func (v Value) recv(nb bool) (val Value, ok bool) {
 	tt := (*chanType)(unsafe.Pointer(v.typ))
-	if ChanDir(tt.dir)&RecvDir == 0 {
+	if ChanDir(tt.Dir)&RecvDir == 0 {
 		panic("reflect: recv on send-only channel")
 	}
-	t := tt.elem
-	val = Value{t, nil, flag(t.Kind())}
+	t := tt.Elem
+	rt := toRType(t)
+	val = Value{rt, nil, flag(t.Kind())}
 	var p unsafe.Pointer
-	if ifaceIndir(t) {
-		p = unsafe_New(t)
+	if ifaceIndir(rt) {
+		p = unsafe_New(rt)
 		val.ptr = p
 		val.flag |= flagIndir
 	} else {
@@ -2208,11 +2209,11 @@ func (v Value) Send(x Value) {
 // v is known to be a channel.
 func (v Value) send(x Value, nb bool) (selected bool) {
 	tt := (*chanType)(unsafe.Pointer(v.typ))
-	if ChanDir(tt.dir)&SendDir == 0 {
+	if ChanDir(tt.Dir)&SendDir == 0 {
 		panic("reflect: send on recv-only channel")
 	}
 	x.mustBeExported()
-	x = x.assignTo("reflect.Value.Send", tt.elem, nil)
+	x = x.assignTo("reflect.Value.Send", toRType(tt.Elem), nil)
 	var p unsafe.Pointer
 	if x.flag&flagIndir != 0 {
 		p = x.ptr
@@ -3028,17 +3029,17 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 			ch.mustBe(Chan)
 			ch.mustBeExported()
 			tt := (*chanType)(unsafe.Pointer(ch.typ))
-			if ChanDir(tt.dir)&SendDir == 0 {
+			if ChanDir(tt.Dir)&SendDir == 0 {
 				panic("reflect.Select: SendDir case using recv-only channel")
 			}
 			rc.ch = ch.pointer()
-			rc.typ = &tt.rtype
+			rc.typ = toRType(&tt.Type)
 			v := c.Send
 			if !v.IsValid() {
 				panic("reflect.Select: SendDir case missing Send value")
 			}
 			v.mustBeExported()
-			v = v.assignTo("reflect.Select", tt.elem, nil)
+			v = v.assignTo("reflect.Select", toRType(tt.Elem), nil)
 			if v.flag&flagIndir != 0 {
 				rc.val = v.ptr
 			} else {
@@ -3056,25 +3057,26 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 			ch.mustBe(Chan)
 			ch.mustBeExported()
 			tt := (*chanType)(unsafe.Pointer(ch.typ))
-			if ChanDir(tt.dir)&RecvDir == 0 {
+			if ChanDir(tt.Dir)&RecvDir == 0 {
 				panic("reflect.Select: RecvDir case using send-only channel")
 			}
 			rc.ch = ch.pointer()
-			rc.typ = &tt.rtype
-			rc.val = unsafe_New(tt.elem)
+			rc.typ = toRType(&tt.Type)
+			rc.val = unsafe_New(toRType(tt.Elem))
 		}
 	}
 
 	chosen, recvOK = rselect(runcases)
 	if runcases[chosen].dir == SelectRecv {
 		tt := (*chanType)(unsafe.Pointer(runcases[chosen].typ))
-		t := tt.elem
+		t := tt.Elem
+		rt := toRType(t)
 		p := runcases[chosen].val
 		fl := flag(t.Kind())
-		if ifaceIndir(t) {
-			recv = Value{t, p, fl | flagIndir}
+		if ifaceIndir(rt) {
+			recv = Value{rt, p, fl | flagIndir}
 		} else {
-			recv = Value{t, *(*unsafe.Pointer)(p), fl}
+			recv = Value{rt, *(*unsafe.Pointer)(p), fl}
 		}
 	}
 	return chosen, recv, recvOK

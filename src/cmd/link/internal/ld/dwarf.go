@@ -1804,7 +1804,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	for _, typ := range []string{
 		"type:runtime._type",
 		"type:internal/abi.ArrayType",
-		"type:runtime.chantype",
+		"type:internal/abi.ChanType",
 		"type:runtime.functype",
 		"type:runtime.maptype",
 		"type:runtime.ptrtype",

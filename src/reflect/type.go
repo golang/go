@@ -302,11 +302,7 @@ const (
 type arrayType = abi.ArrayType
 
 // chanType represents a channel type.
-type chanType struct {
-	rtype
-	elem *rtype  // channel element type
-	dir  uintptr // channel direction (ChanDir)
-}
+type chanType = abi.ChanType
 
 // funcType represents a function type.
 //
@@ -803,7 +799,7 @@ func (t *rtype) ChanDir() ChanDir {
 		panic("reflect: ChanDir of non-chan type " + t.String())
 	}
 	tt := (*chanType)(unsafe.Pointer(t))
-	return ChanDir(tt.dir)
+	return ChanDir(tt.Dir)
 }
 
 func (t *rtype) IsVariadic() bool {
@@ -825,7 +821,7 @@ func (t *rtype) Elem() Type {
 		return toType(toRType(tt.Elem))
 	case Chan:
 		tt := (*chanType)(unsafe.Pointer(t))
-		return toType(tt.elem)
+		return toType(toRType(tt.Elem))
 	case Map:
 		tt := (*mapType)(unsafe.Pointer(t))
 		return toType(tt.elem)
@@ -1759,7 +1755,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	}
 	for _, tt := range typesByString(s) {
 		ch := (*chanType)(unsafe.Pointer(tt))
-		if ch.elem == typ && ch.dir == uintptr(dir) {
+		if ch.Elem == &typ.t && ch.Dir == abi.ChanDir(dir) {
 			ti, _ := lookupCache.LoadOrStore(ckey, tt)
 			return ti.(Type)
 		}
@@ -1769,13 +1765,13 @@ func ChanOf(dir ChanDir, t Type) Type {
 	var ichan any = (chan unsafe.Pointer)(nil)
 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
 	ch := *prototype
-	ch.t.TFlag = abi.TFlagRegularMemory
-	ch.dir = uintptr(dir)
-	ch.t.Str = resolveReflectName(newName(s, "", false, false))
-	ch.t.Hash = fnv1(typ.t.Hash, 'c', byte(dir))
-	ch.elem = typ
+	ch.TFlag = abi.TFlagRegularMemory
+	ch.Dir = abi.ChanDir(dir)
+	ch.Str = resolveReflectName(newName(s, "", false, false))
+	ch.Hash = fnv1(typ.t.Hash, 'c', byte(dir))
+	ch.Elem = &typ.t
 
-	ti, _ := lookupCache.LoadOrStore(ckey, &ch.rtype)
+	ti, _ := lookupCache.LoadOrStore(ckey, toRType(&ch.Type))
 	return ti.(Type)
 }
 
