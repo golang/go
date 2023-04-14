@@ -175,14 +175,11 @@ func TestLogValue(t *testing.T) {
 		t.Errorf("expected error, got %T", got)
 	}
 
-	// Test Resolve group.
-	r = &replace{GroupValue(
-		Int("a", 1),
-		Group("b", Any("c", &replace{StringValue("d")})),
-	)}
-	v = AnyValue(r)
+	// Groups are not recursively resolved.
+	c := Any("c", &replace{StringValue("d")})
+	v = AnyValue(&replace{GroupValue(Int("a", 1), Group("b", c))})
 	got2 := v.Resolve().Any().([]Attr)
-	want2 := []Attr{Int("a", 1), Group("b", String("c", "d"))}
+	want2 := []Attr{Int("a", 1), Group("b", c)}
 	if !attrsEqual(got2, want2) {
 		t.Errorf("got %v, want %v", got2, want2)
 	}
@@ -196,7 +193,6 @@ func TestLogValue(t *testing.T) {
 	}
 	// The error should provide some context information.
 	// We'll just check that this function name appears in it.
-	fmt.Println(got)
 	if got, want := gotErr.Error(), "TestLogValue"; !strings.Contains(got, want) {
 		t.Errorf("got %q, want substring %q", got, want)
 	}

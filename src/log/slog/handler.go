@@ -50,6 +50,7 @@ type Handler interface {
 	// Handle methods that produce output should observe the following rules:
 	//   - If r.Time is the zero time, ignore the time.
 	//   - If r.PC is zero, ignore it.
+	//   - Attr's values should be resolved.
 	//   - If an Attr's key and value are both the zero value, ignore the Attr.
 	//     This can be tested with attr.Equal(Attr{}).
 	//   - If a group's key is empty, inline the group's Attrs.
@@ -60,7 +61,6 @@ type Handler interface {
 	// WithAttrs returns a new Handler whose attributes consist of
 	// both the receiver's attributes and the arguments.
 	// The Handler owns the slice: it may retain, modify or discard it.
-	// [Logger.With] will resolve the Attrs.
 	WithAttrs(attrs []Attr) Handler
 
 	// WithGroup returns a new Handler with the given group appended to
@@ -443,11 +443,11 @@ func (s *handleState) appendAttr(a Attr) {
 		if s.groups != nil {
 			gs = *s.groups
 		}
-		a = rep(gs, a)
-		// Although all attributes in the Record are already resolved,
-		// This one came from the user, so it may not have been.
+		// Resolve before calling ReplaceAttr, so the user doesn't have to.
 		a.Value = a.Value.Resolve()
+		a = rep(gs, a)
 	}
+	a.Value = a.Value.Resolve()
 	// Elide empty Attrs.
 	if a.isEmpty() {
 		return

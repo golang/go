@@ -142,7 +142,7 @@ func appendJSONValue(s *handleState, v Value) error {
 			return appendJSONMarshal(s.buf, a)
 		}
 	default:
-		panic(fmt.Sprintf("bad kind: %d", v.Kind()))
+		panic(fmt.Sprintf("bad kind: %s", v.Kind()))
 	}
 	return nil
 }

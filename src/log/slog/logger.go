@@ -89,7 +89,7 @@ func (l *Logger) clone() *Logger {
 func (l *Logger) Handler() Handler { return l.handler }
 
 // With returns a new Logger that includes the given arguments, converted to
-// Attrs as in [Logger.Log] and resolved.
+// Attrs as in [Logger.Log].
 // The Attrs will be added to each output from the Logger.
 // The new Logger shares the old Logger's context.
 // The new Logger's handler is the result of calling WithAttrs on the receiver's

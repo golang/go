@@ -235,6 +235,16 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantJSON: `{"msg":"message","a":1,"name":{"first":"Ren","last":"Hoek"},"b":2}`,
 		},
 		{
+			// Test resolution when there is no ReplaceAttr function.
+			name: "resolve",
+			attrs: []Attr{
+				Any("", &replace{Value{}}), // should be elided
+				Any("name", logValueName{"Ren", "Hoek"}),
+			},
+			wantText: "time=2000-01-02T03:04:05.000Z level=INFO msg=message name.first=Ren name.last=Hoek",
+			wantJSON: `{"time":"2000-01-02T03:04:05Z","level":"INFO","msg":"message","name":{"first":"Ren","last":"Hoek"}}`,
+		},
+		{
 			name:     "with-group",
 			replace:  removeKeys(TimeKey, LevelKey),
 			with:     func(h Handler) Handler { return h.WithAttrs(preAttrs).WithGroup("s") },

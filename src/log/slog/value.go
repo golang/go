@@ -438,19 +438,12 @@ const maxLogValues = 100
 
 // Resolve repeatedly calls LogValue on v while it implements LogValuer,
 // and returns the result.
-// If v resolves to a group, the group's attributes' values are also resolved.
+// If v resolves to a group, the group's attributes' values are not recursively
+// resolved.
 // If the number of LogValue calls exceeds a threshold, a Value containing an
 // error is returned.
 // Resolve's return value is guaranteed not to be of Kind KindLogValuer.
-func (v Value) Resolve() Value {
-	v = v.resolve()
-	if v.Kind() == KindGroup {
-		resolveAttrs(v.Group())
-	}
-	return v
-}
-
-func (v Value) resolve() (rv Value) {
+func (v Value) Resolve() (rv Value) {
 	orig := v
 	defer func() {
 		if r := recover(); r != nil {
@@ -490,12 +483,4 @@ func stack(skip, nFrames int) string {
 		}
 	}
 	return b.String()
-}
-
-// resolveAttrs replaces the values of the given Attrs with their
-// resolutions.
-func resolveAttrs(as []Attr) {
-	for i, a := range as {
-		as[i].Value = a.Value.Resolve()
-	}
 }
