@@ -51,6 +51,7 @@ func netpollIsPollDescriptor(fd uintptr) bool {
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
+	// TODO(iant): Consider using taggedPointer on 64-bit systems.
 	if stdcall4(_CreateIoCompletionPort, fd, iocphandle, uintptr(unsafe.Pointer(pd)), 0) == 0 {
 		return int32(getlasterror())
 	}

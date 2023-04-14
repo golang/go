@@ -9,6 +9,7 @@ package runtime
 // Integrated network poller (kqueue-based implementation).
 
 import (
+	"internal/goarch"
 	"runtime/internal/atomic"
 	"unsafe"
 )
@@ -61,7 +62,17 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	ev[0].flags = _EV_ADD | _EV_CLEAR
 	ev[0].fflags = 0
 	ev[0].data = 0
-	ev[0].udata = (*byte)(unsafe.Pointer(pd))
+
+	if goarch.PtrSize == 4 {
+		// We only have a pointer-sized field to store into,
+		// so on a 32-bit system we get no sequence protection.
+		// TODO(iant): If we notice any problems we could at leaset
+		// steal the low-order 2 bits for a tiny sequence number.
+		ev[0].udata = (*byte)(unsafe.Pointer(pd))
+	} else {
+		tp := taggedPointerPack(unsafe.Pointer(pd), pd.fdseq.Load())
+		ev[0].udata = (*byte)(unsafe.Pointer(uintptr(tp)))
+	}
 	ev[1] = ev[0]
 	ev[1].filter = _EVFILT_WRITE
 	n := kevent(kq, &ev[0], 2, nil, 0, nil)
@@ -181,8 +192,22 @@ retry:
 			mode += 'w'
 		}
 		if mode != 0 {
-			pd := (*pollDesc)(unsafe.Pointer(ev.udata))
-			pd.setEventErr(ev.flags == _EV_ERROR)
+			var pd *pollDesc
+			var tag uintptr
+			if goarch.PtrSize == 4 {
+				// No sequence protection on 32-bit systems.
+				// See netpollopen for details.
+				pd = (*pollDesc)(unsafe.Pointer(ev.udata))
+				tag = 0
+			} else {
+				tp := taggedPointer(uintptr(unsafe.Pointer(ev.udata)))
+				pd = (*pollDesc)(tp.pointer())
+				tag = tp.tag()
+				if pd.fdseq.Load() != tag {
+					continue
+				}
+			}
+			pd.setEventErr(ev.flags == _EV_ERROR, tag)
 			netpollready(&toRun, pd, mode)
 		}
 	}

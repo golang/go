@@ -7,8 +7,13 @@
 package os_test
 
 import (
+	"errors"
+	"internal/testenv"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"syscall"
 	"testing"
 )
@@ -58,4 +63,95 @@ func TestFifoEOF(t *testing.T) {
 	}
 
 	testPipeEOF(t, r, w)
+}
+
+// Issue #59545.
+func TestNonPollable(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test with tight loops in short mode")
+	}
+
+	// We need to open a non-pollable file.
+	// This is almost certainly Linux-specific,
+	// but if other systems have non-pollable files,
+	// we can add them here.
+	const nonPollable = "/dev/net/tun"
+
+	f, err := os.OpenFile(nonPollable, os.O_RDWR, 0)
+	if err != nil {
+		if errors.Is(err, fs.ErrExist) || errors.Is(err, fs.ErrPermission) || testenv.SyscallIsNotSupported(err) {
+			t.Skipf("can't open %q: %v", nonPollable, err)
+		}
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// On a Linux laptop, before the problem was fixed,
+	// this test failed about 50% of the time with this
+	// number of iterations.
+	// It takes about 1/2 second when it passes.
+	const attempts = 20000
+
+	start := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
+	go func() {
+		defer wg.Done()
+		close(start)
+		for i := 0; i < attempts; i++ {
+			f, err := os.OpenFile(nonPollable, os.O_RDWR, 0)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			if err := f.Close(); err != nil {
+				t.Error(err)
+				return
+			}
+		}
+	}()
+
+	dir := t.TempDir()
+	<-start
+	for i := 0; i < attempts; i++ {
+		name := filepath.Join(dir, strconv.Itoa(i))
+		if err := syscall.Mkfifo(name, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		// The problem only occurs if we use O_NONBLOCK here.
+		rd, err := os.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK, 0o600)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wr, err := os.OpenFile(name, os.O_WRONLY|syscall.O_NONBLOCK, 0o600)
+		if err != nil {
+			t.Fatal(err)
+		}
+		const msg = "message"
+		if _, err := wr.Write([]byte(msg)); err != nil {
+			if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.ENOBUFS) {
+				t.Logf("ignoring write error %v", err)
+				rd.Close()
+				wr.Close()
+				continue
+			}
+			t.Fatalf("write to fifo %d failed: %v", i, err)
+		}
+		if _, err := rd.Read(make([]byte, len(msg))); err != nil {
+			if errors.Is(err, syscall.EAGAIN) || errors.Is(err, syscall.ENOBUFS) {
+				t.Logf("ignoring read error %v", err)
+				rd.Close()
+				wr.Close()
+				continue
+			}
+			t.Fatalf("read from fifo %d failed; %v", i, err)
+		}
+		if err := rd.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := wr.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

@@ -71,9 +71,10 @@ const pollBlockSize = 4 * 1024
 //
 // No heap pointers.
 type pollDesc struct {
-	_    sys.NotInHeap
-	link *pollDesc // in pollcache, protected by pollcache.lock
-	fd   uintptr   // constant for pollDesc usage lifetime
+	_     sys.NotInHeap
+	link  *pollDesc      // in pollcache, protected by pollcache.lock
+	fd    uintptr        // constant for pollDesc usage lifetime
+	fdseq atomic.Uintptr // protects against stale pollDesc
 
 	// atomicInfo holds bits from closing, rd, and wd,
 	// which are only ever written while holding the lock,
@@ -120,6 +121,12 @@ const (
 	pollEventErr
 	pollExpiredReadDeadline
 	pollExpiredWriteDeadline
+	pollFDSeq // 20 bit field, low 20 bits of fdseq field
+)
+
+const (
+	pollFDSeqBits = 20                   // number of bits in pollFDSeq
+	pollFDSeqMask = 1<<pollFDSeqBits - 1 // mask for pollFDSeq
 )
 
 func (i pollInfo) closing() bool              { return i&pollClosing != 0 }
@@ -150,6 +157,7 @@ func (pd *pollDesc) publishInfo() {
 	if pd.wd < 0 {
 		info |= pollExpiredWriteDeadline
 	}
+	info |= uint32(pd.fdseq.Load()&pollFDSeqMask) << pollFDSeq
 
 	// Set all of x except the pollEventErr bit.
 	x := pd.atomicInfo.Load()
@@ -159,10 +167,21 @@ func (pd *pollDesc) publishInfo() {
 }
 
 // setEventErr sets the result of pd.info().eventErr() to b.
-func (pd *pollDesc) setEventErr(b bool) {
+// We only change the error bit if seq == 0 or if seq matches pollFDSeq
+// (issue #59545).
+func (pd *pollDesc) setEventErr(b bool, seq uintptr) {
+	mSeq := uint32(seq & pollFDSeqMask)
 	x := pd.atomicInfo.Load()
+	xSeq := (x >> pollFDSeq) & pollFDSeqMask
+	if seq != 0 && xSeq != mSeq {
+		return
+	}
 	for (x&pollEventErr != 0) != b && !pd.atomicInfo.CompareAndSwap(x, x^pollEventErr) {
 		x = pd.atomicInfo.Load()
+		xSeq := (x >> pollFDSeq) & pollFDSeqMask
+		if seq != 0 && xSeq != mSeq {
+			return
+		}
 	}
 }
 
@@ -226,8 +245,12 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 		throw("runtime: blocked read on free polldesc")
 	}
 	pd.fd = fd
+	if pd.fdseq.Load() == 0 {
+		// The value 0 is special in setEventErr, so don't use it.
+		pd.fdseq.Store(1)
+	}
 	pd.closing = false
-	pd.setEventErr(false)
+	pd.setEventErr(false, 0)
 	pd.rseq++
 	pd.rg.Store(pdNil)
 	pd.rd = 0
@@ -264,6 +287,12 @@ func poll_runtime_pollClose(pd *pollDesc) {
 }
 
 func (c *pollCache) free(pd *pollDesc) {
+	// Increment the fdseq field, so that any currently
+	// running netpoll calls will not mark pd as ready.
+	fdseq := pd.fdseq.Load()
+	fdseq = (fdseq + 1) & (1<<taggedPointerBits - 1)
+	pd.fdseq.Store(fdseq)
+
 	lock(&c.lock)
 	pd.link = c.first
 	c.first = pd
