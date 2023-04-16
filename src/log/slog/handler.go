@@ -40,7 +40,7 @@ type Handler interface {
 	Enabled(context.Context, Level) bool
 
 	// Handle handles the Record.
-	// It will only be called Enabled returns true.
+	// It will only be called when Enabled returns true.
 	// The Context argument is as for Enabled.
 	// It is present solely to provide Handlers access to the context's values.
 	// Canceling the context should not affect record processing.
@@ -401,7 +401,6 @@ func (s *handleState) openGroup(name string) {
 	if s.groups != nil {
 		*s.groups = append(*s.groups, name)
 	}
-
 }
 
 // closeGroup ends the group with the given name.

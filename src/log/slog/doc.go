@@ -64,7 +64,7 @@ produces this output:
 
 	{"time":"2022-11-08T15:28:26.000000000-05:00","level":"INFO","msg":"hello","count":3}
 
-Both [TextHandler] and [JSONHandler] can be configured with a [HandlerOptions].
+Both [TextHandler] and [JSONHandler] can be configured with [HandlerOptions].
 There are options for setting the minimum level (see Levels, below),
 displaying the source file and line of the log call, and
 modifying attributes before they are logged.
@@ -199,7 +199,7 @@ so even if it uses the common key "id", the log line will have distinct keys.
 
 Some handlers may wish to include information from the [context.Context] that is
 available at the call site. One example of such information
-is the identifier for the current span when tracing is is enabled.
+is the identifier for the current span when tracing is enabled.
 
 The [Logger.Log] and [Logger.LogAttrs] methods take a context as a first
 argument, as do their corresponding top-level functions.
