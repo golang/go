@@ -747,3 +747,44 @@ func cmpToCmnGreaterThanEqual(a, b, c, d int) int {
 	}
 	return c1 + c2 + c3 + c4
 }
+
+func cmp1(val string) bool {
+	var z string
+	// amd64:-".*memequal"
+	return z == val
+}
+
+func cmp2(val string) bool {
+	var z string
+	// amd64:-".*memequal"
+	return val == z
+}
+
+func cmp3(val string) bool {
+	z := "food"
+	// amd64:-".*memequal"
+	return z == val
+}
+
+func cmp4(val string) bool {
+	z := "food"
+	// amd64:-".*memequal"
+	return val == z
+}
+
+func cmp5[T comparable](val T) bool {
+	var z T
+	// amd64:-".*memequal"
+	return z == val
+}
+
+func cmp6[T comparable](val T) bool {
+	var z T
+	// amd64:-".*memequal"
+	return val == z
+}
+
+func cmp7() {
+	cmp5[string]("") // force instantiation
+	cmp6[string]("") // force instantiation
+}
