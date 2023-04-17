@@ -136,7 +136,7 @@ o2/covcounters.aaf2f89992379705dac844c0a2a1d45f.42.3 o:1
 		dbad := "/dev/null"
 		_, err = pods.CollectPods([]string{dbad}, true)
 		if err == nil {
-			t.Errorf("exected error due to unreadable dir")
+			t.Errorf("executed error due to unreadable dir")
 		}
 	}
 }
