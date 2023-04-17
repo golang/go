@@ -448,7 +448,7 @@ func (mg *ModuleGraph) WalkBreadthFirst(f func(m module.Version)) {
 }
 
 // BuildList returns the selected versions of all modules present in the graph,
-// beginning with Target.
+// beginning with the main modules.
 //
 // The order of the remaining elements in the list is deterministic
 // but arbitrary.

@@ -58,7 +58,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Use a slice of result channels, so that the output is deterministic.
 	const defaultGoVersion = ""
-	mods := modload.LoadModGraph(ctx, defaultGoVersion).BuildList()[1:]
+	mods := modload.LoadModGraph(ctx, defaultGoVersion).BuildList()[modload.MainModules.Len():]
 	errsChans := make([]<-chan []error, len(mods))
 
 	for i, mod := range mods {
