@@ -232,15 +232,15 @@ func main() {
 
 	{
 		c := 3
-		func() { // ERROR "can inline main.func26"
+		func() { // ERROR "func literal does not escape"
 			c = 4
-			func() {
+			func() { // ERROR "func literal does not escape"
 				if c != 4 {
 					ppanic("c != 4")
 				}
 				recover() // prevent inlining
 			}()
-		}() // ERROR "inlining call to main.func26" "func literal does not escape"
+		}()
 		if c != 4 {
 			ppanic("c != 4")
 		}
@@ -248,37 +248,33 @@ func main() {
 
 	{
 		a := 2
-		// This has an unfortunate exponential growth, where as we visit each
-		// function, we inline the inner closure, and that constructs a new
-		// function for any closures inside the inner function, and then we
-		// revisit those. E.g., func34 and func36 are constructed by the inliner.
-		if r := func(x int) int { // ERROR "can inline main.func27"
+		if r := func(x int) int { // ERROR "func literal does not escape"
 			b := 3
-			return func(y int) int { // ERROR "can inline main.func27.1" "can inline main.func34"
+			return func(y int) int { // ERROR "can inline main.func27.1"
 				c := 5
-				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.(func)?2" "can inline main.func34.1" "can inline main.func36"
+				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.(func)?2"
 					return a*x + b*y + c*z
 				}(10) // ERROR "inlining call to main.func27.1.1"
 			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.(func)?2"
-		}(1000); r != 2350 { // ERROR "inlining call to main.func27" "inlining call to main.func34" "inlining call to main.func36"
+		}(1000); r != 2350 {
 			ppanic("r != 2350")
 		}
 	}
 
 	{
 		a := 2
-		if r := func(x int) int { // ERROR "can inline main.func28"
+		if r := func(x int) int { // ERROR "func literal does not escape"
 			b := 3
-			return func(y int) int { // ERROR "can inline main.func28.1" "can inline main.func35"
+			return func(y int) int { // ERROR "can inline main.func28.1"
 				c := 5
-				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.(func)?2" "can inline main.func35.1" "can inline main.func37"
+				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.(func)?2"
 					a = a * x
 					b = b * y
 					c = c * z
 				}(10) // ERROR "inlining call to main.func28.1.1"
 				return a + c
 			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.(func)?2"
-		}(1000); r != 2350 { // ERROR "inlining call to main.func28" "inlining call to main.func35" "inlining call to main.func37"
+		}(1000); r != 2350 {
 			ppanic("r != 2350")
 		}
 		if a != 2000 {

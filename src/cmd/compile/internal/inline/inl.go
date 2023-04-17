@@ -506,8 +506,6 @@ func (v *hairyVisitor) tooHairy(fn *ir.Func) bool {
 	return false
 }
 
-// doNode visits n and its children, updates the state in v, and returns true if
-// n makes the current function too hairy for inlining.
 func (v *hairyVisitor) doNode(n ir.Node) bool {
 	if n == nil {
 		return false
@@ -639,10 +637,13 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 		// TODO(danscales): Maybe make budget proportional to number of closure
 		// variables, e.g.:
 		//v.budget -= int32(len(n.(*ir.ClosureExpr).Func.ClosureVars) * 3)
-		// TODO(austin): However, if we're able to inline this closure into
-		// v.curFunc, then we actually pay nothing for the closure captures. We
-		// should try to account for that if we're going to account for captures.
 		v.budget -= 15
+		// Scan body of closure (which DoChildren doesn't automatically
+		// do) to check for disallowed ops in the body and include the
+		// body in the budget.
+		if doList(n.(*ir.ClosureExpr).Func.Body, v.do) {
+			return true
+		}
 
 	case ir.OGO,
 		ir.ODEFER,
