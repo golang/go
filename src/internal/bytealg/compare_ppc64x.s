@@ -118,7 +118,7 @@ cmp64:	// >= 64B
 	MOVD	$32,R11		// set offsets to load into vector
 	MOVD	$48,R12		// set offsets to load into vector
 
-	PCALIGN	$32
+	PCALIGN	$16
 cmp64_loop:
 	LXVD2X	(R5)(R0),V3	// load bytes of A at offset 0 into vector
 	LXVD2X	(R6)(R0),V4	// load bytes of B at offset 0 into vector

@@ -674,7 +674,7 @@ index2to16:
 #else
 	MOVD	$3, R17             // Number of bytes beyond 16
 #endif
-	PCALIGN  $32
+	PCALIGN  $16
 
 index2to16loop:
 
@@ -776,7 +776,7 @@ short:
 	MTVSRD   R10, V8           // Set up shift
 	VSLDOI   $8, V8, V8, V8
 	VSLO     V1, V8, V1        // Shift by start byte
-	PCALIGN  $32
+	PCALIGN  $16
 index2to16next:
 	VAND       V1, SEPMASK, V2 // Just compare size of sep
 	VCMPEQUBCC V0, V2, V3      // Compare sep and partial string

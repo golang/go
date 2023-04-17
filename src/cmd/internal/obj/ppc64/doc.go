@@ -187,8 +187,15 @@ exists in PPC64 assembler and is frequently used by PPC64 assembler writers.
 PCALIGN $16
 PCALIGN $8
 
-Functions in Go are aligned to 16 bytes, as is the case in all other compilers
-for PPC64.
+By default, functions in Go are aligned to 16 bytes, as is the case in all
+other compilers for PPC64. If there is a PCALIGN directive requesting alignment
+greater than 16, then the alignment of the containing function must be
+promoted to that same alignment or greater.
+
+The behavior of PCALIGN is changed in Go 1.21 to be more straightforward to
+ensure the alignment required for some instructions in power10. The acceptable
+values are 8, 16, 32 and 64, and the use of those values will always provide the
+specified alignment.
 
 6. Shift instructions
 

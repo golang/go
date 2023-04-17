@@ -61,7 +61,7 @@ setup64:
 	MOVD	$48, R16
 	ANDCC	$0x3F, R5, R5	// len%64==0?
 
-	PCALIGN $32
+	PCALIGN $16
 loop64:
 	LXVD2X	(R8+R0), V0
 	LXVD2X	(R4+R0), V1

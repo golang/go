@@ -585,40 +585,17 @@ var buildOpCfg = ""    // Save the os/cpu/arch tuple used to configure the assem
 
 // padding bytes to add to align code as requested.
 func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
-	// For 16 and 32 byte alignment, there is a tradeoff
-	// between aligning the code and adding too many NOPs.
 	switch a {
-	case 8:
-		if pc&7 != 0 {
-			return 4
+	case 8, 16, 32, 64:
+		// By default function alignment is 16. If an alignment > 16 is
+		// requested then the function alignment must also be promoted.
+		// The function alignment is not promoted on AIX at this time.
+		// TODO: Investigate AIX function alignment.
+		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < int32(a) {
+			cursym.Func().Align = int32(a)
 		}
-	case 16:
-		// Align to 16 bytes if possible but add at
-		// most 2 NOPs.
-		switch pc & 15 {
-		case 4, 12:
-			return 4
-		case 8:
-			return 8
-		}
-	case 32:
-		// Align to 32 bytes if possible but add at
-		// most 3 NOPs.
-		switch pc & 31 {
-		case 4, 20:
-			return 12
-		case 8, 24:
-			return 8
-		case 12, 28:
-			return 4
-		}
-		// When 32 byte alignment is requested on Linux,
-		// promote the function's alignment to 32. On AIX
-		// the function alignment is not changed which might
-		// result in 16 byte alignment but that is still fine.
-		// TODO: alignment on AIX
-		if ctxt.Headtype != objabi.Haix && cursym.Func().Align < 32 {
-			cursym.Func().Align = 32
+		if pc&(a-1) != 0 {
+			return int(a - (pc & (a - 1)))
 		}
 	default:
 		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)

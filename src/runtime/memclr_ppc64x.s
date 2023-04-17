@@ -149,7 +149,7 @@ zero512setup:  // setup for dcbz loop
 	MOVD $128, R9   // index regs for 128 bytes
 	MOVD $256, R10
 	MOVD $384, R11
-	PCALIGN $32
+	PCALIGN $16
 zero512:
 	DCBZ (R3+R0)        // clear first chunk
 	DCBZ (R3+R9)        // clear second chunk

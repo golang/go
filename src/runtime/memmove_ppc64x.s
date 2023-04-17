@@ -77,7 +77,7 @@ forward64setup:
 	MOVD	OCTWORDS, CTR		// Number of 64 byte chunks
 	MOVD	$32, IDX32
 	MOVD	$48, IDX48
-	PCALIGN	$32
+	PCALIGN	$16
 
 forward64:
 	LXVD2X	(R0)(SRC), VS32		// load 64 bytes
@@ -206,7 +206,7 @@ backward32setup:
 	ANDCC   $3,DWORDS		// Compute remaining DWORDS and compare to 0
 	MOVD	QWORDS, CTR		// set up loop ctr
 	MOVD	$16, IDX16		// 32 bytes at a time
-	PCALIGN	$32
+	PCALIGN	$16
 
 backward32loop:
 	SUB	$32, TGT
