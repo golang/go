@@ -18,15 +18,8 @@ x_cgo_getstackbound(G *g)
 	void *addr;
 	size_t size;
 
-#if defined(__GLIBC__) || (defined(__sun) && !defined(__illumos__))
-	// pthread_getattr_np is a GNU extension supported in glibc.
-	// Solaris is not glibc but does support pthread_getattr_np
-	// (and the fallback doesn't work...). Illumos does not.
+#if defined(__GLIBC__) || defined(__sun)
 	pthread_getattr_np(pthread_self(), &attr);  // GNU extension
-	pthread_attr_getstack(&attr, &addr, &size); // low address
-#elif defined(__illumos__)
-	pthread_attr_init(&attr);
-	pthread_attr_get_np(pthread_self(), &attr);
 	pthread_attr_getstack(&attr, &addr, &size); // low address
 #else
 	pthread_attr_init(&attr);
