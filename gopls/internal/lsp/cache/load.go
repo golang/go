@@ -243,9 +243,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	meta := s.meta.Clone(updates)
 	workspacePackages := computeWorkspacePackagesLocked(s, meta)
 	for _, update := range updates {
-		if err := computeLoadDiagnostics(ctx, update, meta, lockedSnapshot{s}, workspacePackages); err != nil {
-			return err
-		}
+		computeLoadDiagnostics(ctx, update, meta, lockedSnapshot{s}, workspacePackages)
 	}
 	s.meta = meta
 	s.workspacePackages = workspacePackages
@@ -587,7 +585,7 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 // computeLoadDiagnostics computes and sets m.Diagnostics for the given metadata m.
 //
 // It should only be called during metadata construction in snapshot.load.
-func computeLoadDiagnostics(ctx context.Context, m *source.Metadata, meta *metadataGraph, fs source.FileSource, workspacePackages map[PackageID]PackagePath) error {
+func computeLoadDiagnostics(ctx context.Context, m *source.Metadata, meta *metadataGraph, fs source.FileSource, workspacePackages map[PackageID]PackagePath) {
 	for _, packagesErr := range m.Errors {
 		// Filter out parse errors from go list. We'll get them when we
 		// actually parse, and buggy overlay support may generate spurious
@@ -615,10 +613,8 @@ func computeLoadDiagnostics(ctx context.Context, m *source.Metadata, meta *metad
 			// not normally fail.
 			event.Error(ctx, "unable to compute deps errors", err, tag.Package.Of(string(m.ID)))
 		}
-		return nil
 	}
 	m.Diagnostics = append(m.Diagnostics, depsDiags...)
-	return nil
 }
 
 // containsPackageLocked reports whether p is a workspace package for the
