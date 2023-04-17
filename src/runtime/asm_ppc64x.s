@@ -744,26 +744,11 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
 	BL	runtime·save_g(SB)
 	RET
 
-#ifdef GOARCH_ppc64
-#ifdef GOOS_aix
-DATA    setg_gcc<>+0(SB)/8, $_setg_gcc<>(SB)
-DATA    setg_gcc<>+8(SB)/8, $TOC(SB)
-DATA    setg_gcc<>+16(SB)/8, $0
-GLOBL   setg_gcc<>(SB), NOPTR, $24
-#else
-TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
-	DWORD	$_setg_gcc<>(SB)
-	DWORD	$0
-	DWORD	$0
-#endif
-#endif
-
-// void setg_gcc(G*); set g in C TLS.
-// Must obey the gcc calling convention.
-#ifdef GOARCH_ppc64le
-TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
-#else
+#ifdef GO_PPC64X_HAS_FUNCDESC
+DEFINE_PPC64X_FUNCDESC(setg_gcc<>, _setg_gcc<>)
 TEXT _setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
+#else
+TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
 #endif
 	// The standard prologue clobbers R31, which is callee-save in
 	// the C ABI, so we have to use $-8-0 and save LR ourselves.
