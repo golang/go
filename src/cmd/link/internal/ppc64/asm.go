@@ -45,8 +45,8 @@ import (
 	"strings"
 )
 
-// The build configuration supports PC-relative instructions and relocations.
-var hasPCrel = buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux" && buildcfg.GOARCH == "ppc64le"
+// The build configuration supports PC-relative instructions and relocations (limited to tested targets).
+var hasPCrel = buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux"
 
 func genpltstub(ctxt *ld.Link, ldr *loader.Loader, r loader.Reloc, s loader.Sym) (sym loader.Sym, firstUse bool) {
 	// The ppc64 ABI PLT has similar concepts to other

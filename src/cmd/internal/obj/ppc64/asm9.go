@@ -1300,9 +1300,8 @@ func opset(a, b0 obj.As) {
 
 // Build the opcode table
 func buildop(ctxt *obj.Link) {
-	// PC-rel relocation support is available only for targets which support
-	// ELFv2 1.5 (only power10/ppc64le/linux today).
-	pfxEnabled = buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux" && buildcfg.GOARCH == "ppc64le"
+	// Limit PC-relative prefix instruction usage to supported and tested targets.
+	pfxEnabled = buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux"
 	cfg := fmt.Sprintf("power%d/%s/%s", buildcfg.GOPPC64, buildcfg.GOARCH, buildcfg.GOOS)
 	if cfg == buildOpCfg {
 		// Already initialized to correct OS/cpu; stop now.
