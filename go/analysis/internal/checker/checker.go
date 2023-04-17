@@ -773,6 +773,15 @@ func (act *action) execOnce() {
 			}
 		}
 	}
+	if err == nil { // resolve diagnostic URLs
+		for i := range act.diagnostics {
+			if url, uerr := analysisflags.ResolveURL(act.a, act.diagnostics[i]); uerr == nil {
+				act.diagnostics[i].URL = url
+			} else {
+				err = uerr // keep the last error
+			}
+		}
+	}
 	act.err = err
 
 	// disallow calls after Run

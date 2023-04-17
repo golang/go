@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
@@ -212,3 +213,42 @@ func Foo(s string) int {
 type EmptyFact struct{}
 
 func (f *EmptyFact) AFact() {}
+
+func TestURL(t *testing.T) {
+	// TestURL test that URLs get forwarded to diagnostics by internal/checker.
+	testenv.NeedsGoPackages(t)
+
+	files := map[string]string{
+		"p/test.go": `package p // want "package name is p"`,
+	}
+	pkgname := &analysis.Analyzer{
+		Name: "pkgname",
+		Doc:  "trivial analyzer that reports package names",
+		URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/internal/checker",
+		Run: func(p *analysis.Pass) (interface{}, error) {
+			for _, f := range p.Files {
+				p.ReportRangef(f.Name, "package name is %s", f.Name.Name)
+			}
+			return nil, nil
+		},
+	}
+
+	testdata, cleanup, err := analysistest.WriteFiles(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	path := filepath.Join(testdata, "src/p/test.go")
+	results := analysistest.Run(t, testdata, pkgname, "file="+path)
+
+	var urls []string
+	for _, r := range results {
+		for _, d := range r.Diagnostics {
+			urls = append(urls, d.URL)
+		}
+	}
+	want := []string{"https://pkg.go.dev/golang.org/x/tools/go/analysis/internal/checker"}
+	if !reflect.DeepEqual(urls, want) {
+		t.Errorf("Expected Diagnostics.URLs %v. got %v", want, urls)
+	}
+}

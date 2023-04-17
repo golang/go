@@ -357,6 +357,16 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 
 			t0 := time.Now()
 			act.result, act.err = a.Run(pass)
+
+			if act.err == nil { // resolve URLs on diagnostics.
+				for i := range act.diagnostics {
+					if url, uerr := analysisflags.ResolveURL(a, act.diagnostics[i]); uerr == nil {
+						act.diagnostics[i].URL = url
+					} else {
+						act.err = uerr // keep the last error
+					}
+				}
+			}
 			if false {
 				log.Printf("analysis %s = %s", pass, time.Since(t0))
 			}
