@@ -1252,7 +1252,7 @@ func cmdenv() {
 	windows := flag.Bool("w", gohostos == "windows", "emit windows syntax")
 	xflagparse(0)
 
-	format := "%s=\"%s\"\n"
+	format := "%s=\"%s\";\n" // Include ; to separate variables when 'dist env' output is used with eval.
 	switch {
 	case *plan9:
 		format = "%s='%s'\n"
@@ -1299,6 +1299,17 @@ func cmdenv() {
 			sep = ";"
 		}
 		xprintf(format, "PATH", fmt.Sprintf("%s%s%s", gorootBin, sep, os.Getenv("PATH")))
+
+		// Also include $DIST_UNMODIFIED_PATH with the original $PATH
+		// for the internal needs of "dist banner", along with export
+		// so that it reaches the dist process. See its comment below.
+		var exportFormat string
+		if !*windows && !*plan9 {
+			exportFormat = "export " + format
+		} else {
+			exportFormat = format
+		}
+		xprintf(exportFormat, "DIST_UNMODIFIED_PATH", os.Getenv("PATH"))
 	}
 }
 
@@ -1897,7 +1908,15 @@ func banner() {
 		if gohostos == "windows" {
 			pathsep = ";"
 		}
-		if !strings.Contains(pathsep+os.Getenv("PATH")+pathsep, pathsep+gorootBin+pathsep) {
+		path := os.Getenv("PATH")
+		if p, ok := os.LookupEnv("DIST_UNMODIFIED_PATH"); ok {
+			// Scripts that modify $PATH and then run dist should also provide
+			// dist with an unmodified copy of $PATH via $DIST_UNMODIFIED_PATH.
+			// Use it here when determining if the user still needs to update
+			// their $PATH. See go.dev/issue/42563.
+			path = p
+		}
+		if !strings.Contains(pathsep+path+pathsep, pathsep+gorootBin+pathsep) {
 			xprintf("*** You need to add %s to your PATH.\n", gorootBin)
 		}
 	}
