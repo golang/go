@@ -3573,7 +3573,7 @@ func preemptPark(gp *g) {
 		if !f.valid() {
 			throw("preempt at unknown pc")
 		}
-		if f.flag&funcFlag_SPWRITE != 0 {
+		if f.flag&abi.FuncFlagSPWrite != 0 {
 			println("runtime: unexpected SPWRITE function", funcname(f), "in async preempt")
 			throw("preempt SPWRITE")
 		}

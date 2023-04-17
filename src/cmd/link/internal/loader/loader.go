@@ -1995,7 +1995,7 @@ func (fi *FuncInfo) FuncID() abi.FuncID {
 	return (*goobj.FuncInfo)(nil).ReadFuncID(fi.data)
 }
 
-func (fi *FuncInfo) FuncFlag() objabi.FuncFlag {
+func (fi *FuncInfo) FuncFlag() abi.FuncFlag {
 	return (*goobj.FuncInfo)(nil).ReadFuncFlag(fi.data)
 }
 
@@ -2027,7 +2027,7 @@ func (fi *FuncInfo) File(k int) goobj.CUFileIndex {
 // is an entry point, meaning that unwinders should stop when they hit
 // this function.
 func (fi *FuncInfo) TopFrame() bool {
-	return (fi.FuncFlag() & objabi.FuncFlag_TOPFRAME) != 0
+	return (fi.FuncFlag() & abi.FuncFlagTopFrame) != 0
 }
 
 type InlTreeNode struct {

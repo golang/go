@@ -335,32 +335,6 @@ const (
 	_PCDATA_RestartAtEntry = -5
 )
 
-// A FuncFlag holds bits about a function.
-// This list must match the list in cmd/internal/objabi/funcid.go.
-type funcFlag uint8
-
-const (
-	// TOPFRAME indicates a function that appears at the top of its stack.
-	// The traceback routine stop at such a function and consider that a
-	// successful, complete traversal of the stack.
-	// Examples of TOPFRAME functions include goexit, which appears
-	// at the top of a user goroutine stack, and mstart, which appears
-	// at the top of a system goroutine stack.
-	funcFlag_TOPFRAME funcFlag = 1 << iota
-
-	// SPWRITE indicates a function that writes an arbitrary value to SP
-	// (any write other than adding or subtracting a constant amount).
-	// The traceback routines cannot encode such changes into the
-	// pcsp tables, so the function traceback cannot safely unwind past
-	// SPWRITE functions. Stopping at an SPWRITE function is considered
-	// to be an incomplete unwinding of the stack. In certain contexts
-	// (in particular garbage collector stack scans) that is a fatal error.
-	funcFlag_SPWRITE
-
-	// ASM indicates that a function was implemented in assembly.
-	funcFlag_ASM
-)
-
 // pcHeader holds data used by the pclntab lookups.
 type pcHeader struct {
 	magic          uint32  // 0xFFFFFFF1

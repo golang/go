@@ -35,6 +35,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"internal/abi"
 	"log"
 	"math"
 	"path"
@@ -867,8 +868,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		default:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SP && p.As != ACMPL && p.As != ACMPQ {
 				f := cursym.Func()
-				if f.FuncFlag&objabi.FuncFlag_SPWRITE == 0 {
-					f.FuncFlag |= objabi.FuncFlag_SPWRITE
+				if f.FuncFlag&abi.FuncFlagSPWrite == 0 {
+					f.FuncFlag |= abi.FuncFlagSPWrite
 					if ctxt.Debugvlog || !ctxt.IsAsm {
 						ctxt.Logf("auto-SPWRITE: %s %v\n", cursym.Name, p)
 						if !ctxt.IsAsm {

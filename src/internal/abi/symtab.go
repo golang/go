@@ -4,6 +4,31 @@
 
 package abi
 
+// A FuncFlag records bits about a function, passed to the runtime.
+type FuncFlag uint8
+
+const (
+	// FuncFlagTopFrame indicates a function that appears at the top of its stack.
+	// The traceback routine stop at such a function and consider that a
+	// successful, complete traversal of the stack.
+	// Examples of TopFrame functions include goexit, which appears
+	// at the top of a user goroutine stack, and mstart, which appears
+	// at the top of a system goroutine stack.
+	FuncFlagTopFrame FuncFlag = 1 << iota
+
+	// FuncFlagSPWrite indicates a function that writes an arbitrary value to SP
+	// (any write other than adding or subtracting a constant amount).
+	// The traceback routines cannot encode such changes into the
+	// pcsp tables, so the function traceback cannot safely unwind past
+	// SPWrite functions. Stopping at an SPWrite function is considered
+	// to be an incomplete unwinding of the stack. In certain contexts
+	// (in particular garbage collector stack scans) that is a fatal error.
+	FuncFlagSPWrite
+
+	// FuncFlagAsm indicates that a function was implemented in assembly.
+	FuncFlagAsm
+)
+
 // A FuncID identifies particular functions that need to be treated
 // specially by the runtime.
 // Note that in some situations involving plugins, there may be multiple

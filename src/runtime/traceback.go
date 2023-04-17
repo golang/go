@@ -270,13 +270,13 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 		// but it carefully arranges that during the transition BOTH stacks
 		// have cgocallback frame valid for unwinding through.
 		// So we don't need to exclude it with the other SP-writing functions.
-		flag &^= funcFlag_SPWRITE
+		flag &^= abi.FuncFlagSPWrite
 	}
 	if isSyscall {
 		// Some Syscall functions write to SP, but they do so only after
 		// saving the entry PC/SP using entersyscall.
 		// Since we are using the entry PC/SP, the later SP write doesn't matter.
-		flag &^= funcFlag_SPWRITE
+		flag &^= abi.FuncFlagSPWrite
 	}
 
 	// Found an actual function.
@@ -315,14 +315,14 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 					// systemstack doesn't have an SP delta (the CALL
 					// instruction opens the frame), therefore no way
 					// to check.
-					flag &^= funcFlag_SPWRITE
+					flag &^= abi.FuncFlagSPWrite
 					break
 				}
 				gp = gp.m.curg
 				u.g.set(gp)
 				frame.sp = gp.sched.sp
 				u.cgoCtxt = len(gp.cgoCtxt) - 1
-				flag &^= funcFlag_SPWRITE
+				flag &^= abi.FuncFlagSPWrite
 			}
 		}
 		frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &u.cache))
@@ -333,10 +333,10 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 	}
 
 	// Derive link register.
-	if flag&funcFlag_TOPFRAME != 0 {
+	if flag&abi.FuncFlagTopFrame != 0 {
 		// This function marks the top of the stack. Stop the traceback.
 		frame.lr = 0
-	} else if flag&funcFlag_SPWRITE != 0 {
+	} else if flag&abi.FuncFlagSPWrite != 0 {
 		// The function we are in does a write to SP that we don't know
 		// how to encode in the spdelta table. Examples include context
 		// switch routines like runtime.gogo but also any code that switches

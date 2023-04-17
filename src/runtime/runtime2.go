@@ -903,7 +903,7 @@ type _func struct {
 	cuOffset  uint32     // runtime.cutab offset of this function's CU
 	startLine int32      // line number of start of function (func keyword/TEXT directive)
 	funcID    abi.FuncID // set for certain special runtime functions
-	flag      funcFlag
+	flag      abi.FuncFlag
 	_         [1]byte // pad
 	nfuncdata uint8   // must be last, must end on a uint32-aligned boundary
 

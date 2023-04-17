@@ -15,6 +15,7 @@ import (
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
+	"internal/abi"
 	"io"
 	"log"
 	"os"
@@ -841,10 +842,10 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	if s.NoSplit() {
 		fmt.Fprintf(ctxt.Bso, "nosplit ")
 	}
-	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
+	if s.Func() != nil && s.Func().FuncFlag&abi.FuncFlagTopFrame != 0 {
 		fmt.Fprintf(ctxt.Bso, "topframe ")
 	}
-	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_ASM != 0 {
+	if s.Func() != nil && s.Func().FuncFlag&abi.FuncFlagAsm != 0 {
 		fmt.Fprintf(ctxt.Bso, "asm ")
 	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)

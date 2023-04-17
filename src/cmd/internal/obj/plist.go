@@ -8,6 +8,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
+	"internal/abi"
 	"strings"
 )
 
@@ -204,13 +205,13 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 	ctxt.dwarfSym(s)
 }
 
-func (ctxt *Link) toFuncFlag(flag int) objabi.FuncFlag {
-	var out objabi.FuncFlag
+func (ctxt *Link) toFuncFlag(flag int) abi.FuncFlag {
+	var out abi.FuncFlag
 	if flag&TOPFRAME != 0 {
-		out |= objabi.FuncFlag_TOPFRAME
+		out |= abi.FuncFlagTopFrame
 	}
 	if ctxt.IsAsm {
-		out |= objabi.FuncFlag_ASM
+		out |= abi.FuncFlagAsm
 	}
 	return out
 }

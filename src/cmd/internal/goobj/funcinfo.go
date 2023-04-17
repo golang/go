@@ -6,7 +6,6 @@ package goobj
 
 import (
 	"bytes"
-	"cmd/internal/objabi"
 	"encoding/binary"
 	"internal/abi"
 )
@@ -21,7 +20,7 @@ type FuncInfo struct {
 	Args      uint32
 	Locals    uint32
 	FuncID    abi.FuncID
-	FuncFlag  objabi.FuncFlag
+	FuncFlag  abi.FuncFlag
 	StartLine int32
 	File      []CUFileIndex
 	InlTree   []InlTreeNode
@@ -92,7 +91,7 @@ func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32
 
 func (*FuncInfo) ReadFuncID(b []byte) abi.FuncID { return abi.FuncID(b[8]) }
 
-func (*FuncInfo) ReadFuncFlag(b []byte) objabi.FuncFlag { return objabi.FuncFlag(b[9]) }
+func (*FuncInfo) ReadFuncFlag(b []byte) abi.FuncFlag { return abi.FuncFlag(b[9]) }
 
 func (*FuncInfo) ReadStartLine(b []byte) int32 { return int32(binary.LittleEndian.Uint32(b[12:])) }
 

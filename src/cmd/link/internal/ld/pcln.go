@@ -706,7 +706,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		off = sb.SetUint8(ctxt.Arch, off, uint8(funcID))
 
 		// flag uint8
-		var flag objabi.FuncFlag
+		var flag abi.FuncFlag
 		if fi.Valid() {
 			flag = fi.FuncFlag()
 		}

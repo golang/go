@@ -9,16 +9,6 @@ import (
 	"strings"
 )
 
-// A FuncFlag records bits about a function, passed to the runtime.
-type FuncFlag uint8
-
-// Note: This list must match the list in runtime/symtab.go.
-const (
-	FuncFlag_TOPFRAME = 1 << iota
-	FuncFlag_SPWRITE
-	FuncFlag_ASM
-)
-
 var funcIDs = map[string]abi.FuncID{
 	"abort":              abi.FuncID_abort,
 	"asmcgocall":         abi.FuncID_asmcgocall,
