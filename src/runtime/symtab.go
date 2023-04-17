@@ -296,45 +296,6 @@ func (f *_func) funcInfo() funcInfo {
 	return funcInfo{f, mod}
 }
 
-// PCDATA and FUNCDATA table indexes.
-//
-// See funcdata.h and ../cmd/internal/objabi/funcdata.go.
-const (
-	_PCDATA_UnsafePoint   = 0
-	_PCDATA_StackMapIndex = 1
-	_PCDATA_InlTreeIndex  = 2
-	_PCDATA_ArgLiveIndex  = 3
-
-	_FUNCDATA_ArgsPointerMaps    = 0
-	_FUNCDATA_LocalsPointerMaps  = 1
-	_FUNCDATA_StackObjects       = 2
-	_FUNCDATA_InlTree            = 3
-	_FUNCDATA_OpenCodedDeferInfo = 4
-	_FUNCDATA_ArgInfo            = 5
-	_FUNCDATA_ArgLiveInfo        = 6
-	_FUNCDATA_WrapInfo           = 7
-
-	_ArgsSizeUnknown = -0x80000000
-)
-
-const (
-	// PCDATA_UnsafePoint values.
-	_PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
-	_PCDATA_UnsafePointUnsafe = -2 // Unsafe for async preemption
-
-	// _PCDATA_Restart1(2) apply on a sequence of instructions, within
-	// which if an async preemption happens, we should back off the PC
-	// to the start of the sequence when resume.
-	// We need two so we can distinguish the start/end of the sequence
-	// in case that two sequences are next to each other.
-	_PCDATA_Restart1 = -3
-	_PCDATA_Restart2 = -4
-
-	// Like _PCDATA_RestartAtEntry, but back to function entry if async
-	// preempted.
-	_PCDATA_RestartAtEntry = -5
-)
-
 // pcHeader holds data used by the pclntab lookups.
 type pcHeader struct {
 	magic          uint32  // 0xFFFFFFF1

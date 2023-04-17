@@ -27,9 +27,10 @@ import (
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+
+	rtabi "internal/abi"
 )
 
 var ssaConfig *ssa.Config
@@ -6726,7 +6727,7 @@ func emitArgInfo(e *ssafn, f *ssa.Func, pp *objw.Progs) {
 
 	// Emit a funcdata pointing at the arg info data.
 	p := pp.Prog(obj.AFUNCDATA)
-	p.From.SetConst(objabi.FUNCDATA_ArgInfo)
+	p.From.SetConst(rtabi.FUNCDATA_ArgInfo)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = x
@@ -6893,7 +6894,7 @@ func emitWrappedFuncInfo(e *ssafn, pp *objw.Progs) {
 
 	// Emit a funcdata pointing at the wrap info data.
 	p := pp.Prog(obj.AFUNCDATA)
-	p.From.SetConst(objabi.FUNCDATA_WrapInfo)
+	p.From.SetConst(rtabi.FUNCDATA_WrapInfo)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = x
@@ -6915,7 +6916,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		// This function uses open-coded defers -- write out the funcdata
 		// info that we computed at the end of genssa.
 		p := pp.Prog(obj.AFUNCDATA)
-		p.From.SetConst(objabi.FUNCDATA_OpenCodedDeferInfo)
+		p.From.SetConst(rtabi.FUNCDATA_OpenCodedDeferInfo)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = openDeferInfo
@@ -6987,7 +6988,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		if idx, ok := argLiveBlockMap[b.ID]; ok && idx != argLiveIdx {
 			argLiveIdx = idx
 			p := s.pp.Prog(obj.APCDATA)
-			p.From.SetConst(objabi.PCDATA_ArgLiveIndex)
+			p.From.SetConst(rtabi.PCDATA_ArgLiveIndex)
 			p.To.SetConst(int64(idx))
 		}
 
@@ -7051,7 +7052,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			if idx, ok := argLiveValueMap[v.ID]; ok && idx != argLiveIdx {
 				argLiveIdx = idx
 				p := s.pp.Prog(obj.APCDATA)
-				p.From.SetConst(objabi.PCDATA_ArgLiveIndex)
+				p.From.SetConst(rtabi.PCDATA_ArgLiveIndex)
 				p.To.SetConst(int64(idx))
 			}
 

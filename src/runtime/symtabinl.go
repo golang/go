@@ -53,7 +53,7 @@ type inlineFrame struct {
 // only ever used for symbolic debugging. If things go really wrong, it'll just
 // fall back to the outermost frame.
 func newInlineUnwinder(f funcInfo, pc uintptr, cache *pcvalueCache) (inlineUnwinder, inlineFrame) {
-	inldata := funcdata(f, _FUNCDATA_InlTree)
+	inldata := funcdata(f, abi.FUNCDATA_InlTree)
 	if inldata == nil {
 		return inlineUnwinder{f: f}, inlineFrame{pc: pc, index: -1}
 	}
@@ -67,7 +67,7 @@ func (u *inlineUnwinder) resolveInternal(pc uintptr) inlineFrame {
 		pc: pc,
 		// Conveniently, this returns -1 if there's an error, which is the same
 		// value we use for the outermost frame.
-		index: pcdatavalue1(u.f, _PCDATA_InlTreeIndex, pc, u.cache, false),
+		index: pcdatavalue1(u.f, abi.PCDATA_InlTreeIndex, pc, u.cache, false),
 	}
 }
 

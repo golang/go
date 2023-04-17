@@ -664,13 +664,13 @@ func printArgs(f funcInfo, argp unsafe.Pointer, pc uintptr) {
 		maxLen   = (maxDepth*3+2)*limit + 1 // max length of _FUNCDATA_ArgInfo (see the compiler side for reasoning)
 	)
 
-	p := (*[maxLen]uint8)(funcdata(f, _FUNCDATA_ArgInfo))
+	p := (*[maxLen]uint8)(funcdata(f, abi.FUNCDATA_ArgInfo))
 	if p == nil {
 		return
 	}
 
-	liveInfo := funcdata(f, _FUNCDATA_ArgLiveInfo)
-	liveIdx := pcdatavalue(f, _PCDATA_ArgLiveIndex, pc, nil)
+	liveInfo := funcdata(f, abi.FUNCDATA_ArgLiveInfo)
+	liveIdx := pcdatavalue(f, abi.PCDATA_ArgLiveIndex, pc, nil)
 	startOffset := uint8(0xff) // smallest offset that needs liveness info (slots with a lower offset is always live)
 	if liveInfo != nil {
 		startOffset = *(*uint8)(liveInfo)

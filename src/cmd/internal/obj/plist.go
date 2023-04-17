@@ -58,12 +58,12 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			}
 			switch p.To.Sym.Name {
 			case "go_args_stackmap":
-				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_ArgsPointerMaps {
+				if p.From.Type != TYPE_CONST || p.From.Offset != abi.FUNCDATA_ArgsPointerMaps {
 					ctxt.Diag("%s: FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps", p.Pos)
 				}
 				p.To.Sym = ctxt.LookupDerived(curtext, curtext.Name+".args_stackmap")
 			case "no_pointers_stackmap":
-				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_LocalsPointerMaps {
+				if p.From.Type != TYPE_CONST || p.From.Offset != abi.FUNCDATA_LocalsPointerMaps {
 					ctxt.Diag("%s: FUNCDATA use of no_pointers_stackmap(SB) without FUNCDATA_LocalsPointerMaps", p.Pos)
 				}
 				// funcdata for functions with no local variables in frame.
@@ -110,10 +110,10 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			foundArgMap, foundArgInfo := false, false
 			for p := s.Func().Text; p != nil; p = p.Link {
 				if p.As == AFUNCDATA && p.From.Type == TYPE_CONST {
-					if p.From.Offset == objabi.FUNCDATA_ArgsPointerMaps {
+					if p.From.Offset == abi.FUNCDATA_ArgsPointerMaps {
 						foundArgMap = true
 					}
-					if p.From.Offset == objabi.FUNCDATA_ArgInfo {
+					if p.From.Offset == abi.FUNCDATA_ArgInfo {
 						foundArgInfo = true
 					}
 					if foundArgMap && foundArgInfo {
@@ -125,7 +125,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 				p := Appendp(s.Func().Text, newprog)
 				p.As = AFUNCDATA
 				p.From.Type = TYPE_CONST
-				p.From.Offset = objabi.FUNCDATA_ArgsPointerMaps
+				p.From.Offset = abi.FUNCDATA_ArgsPointerMaps
 				p.To.Type = TYPE_MEM
 				p.To.Name = NAME_EXTERN
 				p.To.Sym = ctxt.LookupDerived(s, s.Name+".args_stackmap")
@@ -134,7 +134,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 				p := Appendp(s.Func().Text, newprog)
 				p.As = AFUNCDATA
 				p.From.Type = TYPE_CONST
-				p.From.Offset = objabi.FUNCDATA_ArgInfo
+				p.From.Offset = abi.FUNCDATA_ArgInfo
 				p.To.Type = TYPE_MEM
 				p.To.Name = NAME_EXTERN
 				p.To.Sym = ctxt.LookupDerived(s, fmt.Sprintf("%s.arginfo%d", s.Name, s.ABI()))
@@ -261,7 +261,7 @@ func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata.Pos = s.Func().Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.From.Offset = abi.PCDATA_StackMapIndex
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 
@@ -274,7 +274,7 @@ func (ctxt *Link) EmitEntryUnsafePoint(s *LSym, p *Prog, newprog ProgAlloc) *Pro
 	pcdata.Pos = s.Func().Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_UnsafePoint
+	pcdata.From.Offset = abi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1
 
@@ -289,9 +289,9 @@ func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_UnsafePoint
+	pcdata.From.Offset = abi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
-	pcdata.To.Offset = objabi.PCDATA_UnsafePointUnsafe
+	pcdata.To.Offset = abi.UnsafePointUnsafe
 
 	return pcdata
 }
@@ -304,7 +304,7 @@ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_UnsafePoint
+	pcdata.From.Offset = abi.PCDATA_UnsafePoint
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = oldval
 
@@ -330,11 +330,11 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, is
 	prevPcdata := int64(-1) // entry PC data value
 	prevRestart := int64(0)
 	for p := prev.Link; p != nil; p, prev = p.Link, p {
-		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_UnsafePoint {
+		if p.As == APCDATA && p.From.Offset == abi.PCDATA_UnsafePoint {
 			prevPcdata = p.To.Offset
 			continue
 		}
-		if prevPcdata == objabi.PCDATA_UnsafePointUnsafe {
+		if prevPcdata == abi.UnsafePointUnsafe {
 			continue // already unsafe
 		}
 		if isUnsafePoint(p) {
@@ -353,15 +353,15 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, is
 			continue
 		}
 		if isRestartable(p) {
-			val := int64(objabi.PCDATA_Restart1)
+			val := int64(abi.UnsafePointRestart1)
 			if val == prevRestart {
-				val = objabi.PCDATA_Restart2
+				val = abi.UnsafePointRestart2
 			}
 			prevRestart = val
 			q := Appendp(prev, newprog)
 			q.As = APCDATA
 			q.From.Type = TYPE_CONST
-			q.From.Offset = objabi.PCDATA_UnsafePoint
+			q.From.Offset = abi.PCDATA_UnsafePoint
 			q.To.Type = TYPE_CONST
 			q.To.Offset = val
 			q.Pc = p.Pc
@@ -378,7 +378,7 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint, is
 			p = Appendp(p, newprog)
 			p.As = APCDATA
 			p.From.Type = TYPE_CONST
-			p.From.Offset = objabi.PCDATA_UnsafePoint
+			p.From.Offset = abi.PCDATA_UnsafePoint
 			p.To.Type = TYPE_CONST
 			p.To.Offset = prevPcdata
 			p.Pc = p.Link.Pc

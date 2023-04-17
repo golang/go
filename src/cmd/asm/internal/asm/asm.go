@@ -6,6 +6,7 @@ package asm
 
 import (
 	"fmt"
+	"internal/abi"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -16,7 +17,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/ppc64"
 	"cmd/internal/obj/x86"
-	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
 
@@ -169,7 +169,7 @@ func (p *Parser) asmText(operands [][]lex.Token) {
 		frameSize = -frameSize
 	}
 	op = op[1:]
-	argSize := int64(objabi.ArgsSizeUnknown)
+	argSize := int64(abi.ArgsSizeUnknown)
 	if len(op) > 0 {
 		// There is an argument size. It must be a minus sign followed by a non-negative integer literal.
 		if len(op) != 2 || op[0].ScanToken != '-' || op[1].ScanToken != scanner.Int {

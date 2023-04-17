@@ -396,14 +396,14 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		// use the LR for unwinding, which will be bad.
 		return false, 0
 	}
-	up, startpc := pcdatavalue2(f, _PCDATA_UnsafePoint, pc)
-	if up == _PCDATA_UnsafePointUnsafe {
+	up, startpc := pcdatavalue2(f, abi.PCDATA_UnsafePoint, pc)
+	if up == abi.UnsafePointUnsafe {
 		// Unsafe-point marked by compiler. This includes
 		// atomic sequences (e.g., write barrier) and nosplit
 		// functions (except at calls).
 		return false, 0
 	}
-	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || f.flag&abi.FuncFlagAsm != 0 {
+	if fd := funcdata(f, abi.FUNCDATA_LocalsPointerMaps); fd == nil || f.flag&abi.FuncFlagAsm != 0 {
 		// This is assembly code. Don't assume it's well-formed.
 		// TODO: Empirically we still need the fd == nil check. Why?
 		//
@@ -432,14 +432,14 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
 		return false, 0
 	}
 	switch up {
-	case _PCDATA_Restart1, _PCDATA_Restart2:
+	case abi.UnsafePointRestart1, abi.UnsafePointRestart2:
 		// Restartable instruction sequence. Back off PC to
 		// the start PC.
 		if startpc == 0 || startpc > pc || pc-startpc > 20 {
 			throw("bad restart PC")
 		}
 		return true, startpc
-	case _PCDATA_RestartAtEntry:
+	case abi.UnsafePointRestartAtEntry:
 		// Restart from the function entry at resumption.
 		return true, f.entry()
 	}

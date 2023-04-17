@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 const (
 	debugCallSystemStack = "executing on Go runtime stack"
@@ -80,8 +83,8 @@ func debugCallCheck(pc uintptr) string {
 		if pc != f.entry() {
 			pc--
 		}
-		up := pcdatavalue(f, _PCDATA_UnsafePoint, pc, nil)
-		if up != _PCDATA_UnsafePointSafe {
+		up := pcdatavalue(f, abi.PCDATA_UnsafePoint, pc, nil)
+		if up != abi.UnsafePointSafe {
 			// Not at a safe point.
 			ret = debugCallUnsafePoint
 		}

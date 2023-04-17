@@ -6,6 +6,7 @@ package liveness
 
 import (
 	"fmt"
+	"internal/abi"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
@@ -13,7 +14,6 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
-	"cmd/internal/objabi"
 )
 
 // Argument liveness tracking.
@@ -221,7 +221,7 @@ func ArgLiveness(fn *ir.Func, f *ssa.Func, pp *objw.Progs) (blockIdx, valueIdx m
 	//lv.print()
 
 	p := pp.Prog(obj.AFUNCDATA)
-	p.From.SetConst(objabi.FUNCDATA_ArgLiveInfo)
+	p.From.SetConst(abi.FUNCDATA_ArgLiveInfo)
 	p.To.Type = obj.TYPE_MEM
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = lsym

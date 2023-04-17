@@ -654,7 +654,7 @@ func addOneOpenDeferFrame(gp *g, pc uintptr, sp unsafe.Pointer) {
 				continue
 			}
 			f := frame.fn
-			fd := funcdata(f, _FUNCDATA_OpenCodedDeferInfo)
+			fd := funcdata(f, abi.FUNCDATA_OpenCodedDeferInfo)
 			if fd == nil {
 				continue
 			}

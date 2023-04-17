@@ -1701,7 +1701,7 @@ func startPCforTrace(pc uintptr) uintptr {
 	if !f.valid() {
 		return pc // may happen for locked g in extra M since its pc is 0.
 	}
-	w := funcdata(f, _FUNCDATA_WrapInfo)
+	w := funcdata(f, abi.FUNCDATA_WrapInfo)
 	if w == nil {
 		return pc // not a wrapper
 	}
