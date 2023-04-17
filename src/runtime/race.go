@@ -175,7 +175,7 @@ func raceSymbolizeCode(ctx *symbolizeCodeContext) {
 		u, uf := newInlineUnwinder(fi, pc, nil)
 		for ; uf.valid(); uf = u.next(uf) {
 			sf := u.srcFunc(uf)
-			if sf.funcID == funcID_wrapper {
+			if sf.funcID == abi.FuncIDWrapper {
 				// ignore wrappers
 				continue
 			}

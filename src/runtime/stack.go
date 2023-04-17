@@ -663,7 +663,7 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 	if stackDebug >= 2 {
 		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
 	}
-	if f.funcID == funcID_systemstack_switch {
+	if f.funcID == abi.FuncID_systemstack_switch {
 		// A special routine at the bottom of stack of a goroutine that does a systemstack call.
 		// We will allow it to be copied even though we don't
 		// have full GC info for it (because it is written in asm).
@@ -1204,7 +1204,7 @@ func shrinkstack(gp *g) {
 		return
 	}
 	f := findfunc(gp.startpc)
-	if f.valid() && f.funcID == funcID_gcBgMarkWorker {
+	if f.valid() && f.funcID == abi.FuncID_gcBgMarkWorker {
 		// We're not allowed to shrink the gcBgMarkWorker
 		// stack (see gcBgMarkWorker for explanation).
 		return

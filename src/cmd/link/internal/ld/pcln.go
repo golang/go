@@ -11,6 +11,7 @@ import (
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"fmt"
+	"internal/abi"
 	"internal/buildcfg"
 	"os"
 	"path/filepath"
@@ -168,7 +169,7 @@ func genInlTreeSym(ctxt *Link, cu *sym.CompilationUnit, fi loader.FuncInfo, arch
 		}
 
 		inlFunc := ldr.FuncInfo(call.Func)
-		var funcID objabi.FuncID
+		var funcID abi.FuncID
 		startLine := int32(0)
 		if inlFunc.Valid() {
 			funcID = inlFunc.FuncID()
@@ -698,7 +699,7 @@ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSym
 		off = sb.SetUint32(ctxt.Arch, off, uint32(startLine))
 
 		// funcID uint8
-		var funcID objabi.FuncID
+		var funcID abi.FuncID
 		if fi.Valid() {
 			funcID = fi.FuncID()
 		}

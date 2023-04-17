@@ -39,6 +39,7 @@ import (
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
+	"internal/abi"
 	"sync"
 	"sync/atomic"
 )
@@ -476,7 +477,7 @@ type FuncInfo struct {
 	Args      int32
 	Locals    int32
 	Align     int32
-	FuncID    objabi.FuncID
+	FuncID    abi.FuncID
 	FuncFlag  objabi.FuncFlag
 	StartLine int32
 	Text      *Prog

@@ -13,6 +13,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -1286,7 +1287,7 @@ func fpunwindExpand(pcBuf []uintptr) []uintptr {
 
 	var (
 		cache      pcvalueCache
-		lastFuncID = funcID_normal
+		lastFuncID = abi.FuncIDNormal
 		newPCBuf   = make([]uintptr, 0, traceStackSize)
 		skip       = pcBuf[0]
 		// skipOrAdd skips or appends retPC to newPCBuf and returns true if more
@@ -1317,7 +1318,7 @@ outer:
 		u, uf := newInlineUnwinder(fi, callPC, &cache)
 		for ; uf.valid(); uf = u.next(uf) {
 			sf := u.srcFunc(uf)
-			if sf.funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
+			if sf.funcID == abi.FuncIDWrapper && elideWrapperCalling(lastFuncID) {
 				// ignore wrappers
 			} else if more := skipOrAdd(uf.pc + 1); !more {
 				break outer

@@ -70,7 +70,7 @@ func XTestInlineUnwinder(t TestingT) {
 			if start != wantStart[name] {
 				t.Errorf("tiuTest+%#x: want startLine %d, got %d", pc-pc1, wantStart[name], start)
 			}
-			if sf.funcID != funcID_normal {
+			if sf.funcID != abi.FuncIDNormal {
 				t.Errorf("tiuTest+%#x: bad funcID %v", pc-pc1, sf.funcID)
 			}
 

@@ -14,6 +14,7 @@ import (
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
+	"internal/abi"
 	"io"
 	"log"
 	"math/bits"
@@ -1990,7 +1991,7 @@ func (fi *FuncInfo) Locals() int {
 	return int((*goobj.FuncInfo)(nil).ReadLocals(fi.data))
 }
 
-func (fi *FuncInfo) FuncID() objabi.FuncID {
+func (fi *FuncInfo) FuncID() abi.FuncID {
 	return (*goobj.FuncInfo)(nil).ReadFuncID(fi.data)
 }
 

@@ -4,9 +4,11 @@
 
 package runtime
 
+import "internal/abi"
+
 // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
 type inlinedCall struct {
-	funcID    funcID // type of the called function
+	funcID    abi.FuncID // type of the called function
 	_         [3]byte
 	nameOff   int32 // offset into pclntab for name of called function
 	parentPc  int32 // position of an instruction whose source position is the call site (offset from entry)

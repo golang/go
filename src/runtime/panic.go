@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"runtime/internal/atomic"
 	"runtime/internal/sys"
@@ -1400,5 +1401,5 @@ func isAbortPC(pc uintptr) bool {
 	if !f.valid() {
 		return false
 	}
-	return f.funcID == funcID_abort
+	return f.funcID == abi.FuncID_abort
 }
