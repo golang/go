@@ -17,6 +17,14 @@ static pthread_cond_t runtime_init_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t runtime_init_mu = PTHREAD_MUTEX_INITIALIZER;
 static int runtime_init_done;
 
+// pthread_g is a pthread specific key, for storing the g that binded to the C thread.
+// The registered pthread_key_destructor will dropm, when the pthread-specified value g is not NULL,
+// while a C thread is exiting.
+static pthread_key_t pthread_g;
+static void pthread_key_destructor(void* g);
+uintptr_t x_cgo_pthread_key_created;
+void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
+
 // The context function, used when tracing back C calls into Go.
 static void (*cgo_context_function)(struct context_arg*);
 
@@ -39,6 +47,12 @@ _cgo_wait_runtime_init_done(void) {
 		pthread_cond_wait(&runtime_init_cond, &runtime_init_mu);
 	}
 
+	// The key and x_cgo_pthread_key_created are for the whole program,
+	// whereas the specific and destructor is per thread.
+	if (x_cgo_pthread_key_created == 0 && pthread_key_create(&pthread_g, pthread_key_destructor) == 0) {
+		x_cgo_pthread_key_created = 1;
+	}
+
 	// TODO(iant): For the case of a new C thread calling into Go, such
 	// as when using -buildmode=c-archive, we know that Go runtime
 	// initialization is complete but we do not know that all Go init
@@ -59,6 +73,16 @@ _cgo_wait_runtime_init_done(void) {
 		return arg.Context;
 	}
 	return 0;
+}
+
+// Store the g into a thread-specific value associated with the pthread key pthread_g.
+// And pthread_key_destructor will dropm when the thread is exiting.
+void x_cgo_bindm(void* g) {
+	// We assume this will always succeed, otherwise, there might be extra M leaking,
+	// when a C thread exits after a cgo call.
+	// We only invoke this function once per thread in runtime.needAndBindM,
+	// and the next calls just reuse the bound m.
+	pthread_setspecific(pthread_g, g);
 }
 
 void
@@ -109,4 +133,15 @@ _cgo_try_pthread_create(pthread_t* thread, const pthread_attr_t* attr, void* (*p
 		nanosleep(&ts, nil);
 	}
 	return EAGAIN;
+}
+
+static void
+pthread_key_destructor(void* g) {
+	if (x_crosscall2_ptr != NULL) {
+		// fn == NULL means dropm.
+		// We restore g by using the stored g, before dropm in runtime.cgocallback,
+		// since the g stored in the TLS by Go might be cleared in some platforms,
+		// before this destructor invoked.
+		x_crosscall2_ptr(NULL, g, 0, 0);
+	}
 }

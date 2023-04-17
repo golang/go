@@ -826,3 +826,16 @@ func TestDestructorCallbackRace(t *testing.T) {
 		t.Errorf("expected %q, but got:\n%s", want, got)
 	}
 }
+
+func TestEnsureBindM(t *testing.T) {
+	t.Parallel()
+	switch runtime.GOOS {
+	case "windows", "plan9":
+		t.Skipf("skipping bindm test on %s", runtime.GOOS)
+	}
+	got := runTestProg(t, "testprogcgo", "EnsureBindM")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q, got %v", want, got)
+	}
+}
