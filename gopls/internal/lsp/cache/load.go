@@ -203,32 +203,32 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 
 	s.mu.Lock()
 
+	// Assert the invariant s.packages.Get(id).m == s.meta.metadata[id].
+	s.packages.Range(func(k, v interface{}) {
+		id, ph := k.(PackageID), v.(*packageHandle)
+		if s.meta.metadata[id] != ph.m {
+			panic("inconsistent metadata")
+		}
+	})
+
 	// Compute the minimal metadata updates (for Clone)
-	// required to preserve this invariant:
-	// for all id, s.packages.Get(id).m == s.meta.metadata[id].
-	var files []span.URI
+	// required to preserve the above invariant.
+	var files []span.URI // files to preload
 	seenFiles := make(map[span.URI]bool)
 	updates := make(map[PackageID]*source.Metadata)
 	for _, m := range newMetadata {
 		if existing := s.meta.metadata[m.ID]; existing == nil {
+			// Record any new files we should pre-load.
 			for _, uri := range m.CompiledGoFiles {
 				if !seenFiles[uri] {
-					files = append(files, uri)
 					seenFiles[uri] = true
+					files = append(files, uri)
 				}
 			}
 			updates[m.ID] = m
 			delete(s.shouldLoad, m.ID)
 		}
 	}
-	// Assert the invariant.
-	s.packages.Range(func(k, v interface{}) {
-		id, ph := k.(PackageID), v.(*packageHandle)
-		if s.meta.metadata[id] != ph.m {
-			// TODO(adonovan): upgrade to unconditional panic after Jan 2023.
-			bug.Reportf("inconsistent metadata")
-		}
-	})
 
 	event.Log(ctx, fmt.Sprintf("%s: updating metadata for %d packages", eventName, len(updates)))
 
@@ -559,6 +559,15 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 		// report which nodes were synthesized.
 		if importPath != "unsafe" && len(imported.CompiledGoFiles) == 0 {
 			depsByImpPath[importPath] = "" // missing
+			continue
+		}
+
+		// Don't record self-import edges.
+		// (This simplifies metadataGraph's cycle check.)
+		if PackageID(imported.ID) == id {
+			if len(pkg.Errors) == 0 {
+				bug.Reportf("self-import without error in package %s", id)
+			}
 			continue
 		}
 

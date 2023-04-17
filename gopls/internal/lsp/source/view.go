@@ -510,6 +510,7 @@ type TidiedModule struct {
 }
 
 // Metadata represents package metadata retrieved from go/packages.
+// The Deps* maps do not contain self-import edges.
 type Metadata struct {
 	ID              PackageID
 	PkgPath         PackagePath
@@ -518,7 +519,7 @@ type Metadata struct {
 	CompiledGoFiles []span.URI
 	ForTest         PackagePath // package path under test, or ""
 	TypesSizes      types.Sizes
-	Errors          []packages.Error
+	Errors          []packages.Error          // must be set for packages in import cycles
 	DepsByImpPath   map[ImportPath]PackageID  // may contain dups; empty ID => missing
 	DepsByPkgPath   map[PackagePath]PackageID // values are unique and non-empty
 	Module          *packages.Module
