@@ -416,20 +416,6 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
 func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 	assert(obj.typ == nil)
 
-	// If we have undefined variable types due to errors,
-	// mark variables as used to avoid follow-on errors.
-	// Matches compiler behavior.
-	defer func() {
-		if obj.typ == Typ[Invalid] {
-			obj.used = true
-		}
-		for _, lhs := range lhs {
-			if lhs.typ == Typ[Invalid] {
-				lhs.used = true
-			}
-		}
-	}()
-
 	// determine type, if any
 	if typ != nil {
 		obj.typ = check.varType(typ)

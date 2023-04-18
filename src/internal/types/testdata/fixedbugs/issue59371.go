@@ -12,9 +12,6 @@ func _() {
 
 func _() {
 	var ok = undef /* ERROR "undefined: undef" */
-	x, ok := m[0] // must not crash
-	_ = x
-	// The next line is only needed for go/types, not types2.
-	// TODO(gri) find cause and fix
-	_ = ok
+	x, ok := m[0]  // must not crash
+	_, _ = x, ok
 }
