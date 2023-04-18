@@ -511,9 +511,9 @@ func sccp(f *Func) {
 
 	// apply optimizations based on discovered constants
 	var constCnt, rewireCnt = t.replaceConst()
-	// if f.pass.debug > 0 {
-	if constCnt > 0 || rewireCnt > 0 {
-		fmt.Printf("Phase SCCP for %v : %v constants, %v dce\n", f.Name, constCnt, rewireCnt)
+	if f.pass.debug > 0 {
+		if constCnt > 0 || rewireCnt > 0 {
+			fmt.Printf("Phase SCCP for %v : %v constants, %v dce\n", f.Name, constCnt, rewireCnt)
+		}
 	}
-	// }
 }
