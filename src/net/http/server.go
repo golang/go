@@ -1154,8 +1154,11 @@ func (w *response) WriteHeader(code int) {
 	}
 	checkWriteHeaderCode(code)
 
-	// Handle informational headers
-	if code >= 100 && code <= 199 {
+	// Handle informational headers.
+	//
+	// We shouldn't send any further headers after 101 Switching Protocols,
+	// so it takes the non-informational path.
+	if code >= 100 && code <= 199 && code != StatusSwitchingProtocols {
 		// Prevent a potential race with an automatically-sent 100 Continue triggered by Request.Body.Read()
 		if code == 100 && w.canWriteContinue.Load() {
 			w.writeContinueMu.Lock()
