@@ -1,0 +1,11 @@
+print workspace statistics
+
+Usage:
+  gopls [flags] stats
+
+Load the workspace for the current directory, and output a JSON summary of
+workspace information relevant to performance. As a side effect, this command
+populates the gopls file cache for the current workspace.
+
+Example:
+  $ gopls stats

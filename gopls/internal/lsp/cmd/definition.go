@@ -74,7 +74,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 			o.PreferredContentFormat = protocol.Markdown
 		}
 	}
-	conn, err := d.app.connect(ctx)
+	conn, err := d.app.connect(ctx, nil)
 	if err != nil {
 		return err
 	}

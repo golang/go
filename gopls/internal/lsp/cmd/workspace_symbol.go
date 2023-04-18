@@ -58,7 +58,7 @@ func (r *workspaceSymbol) Run(ctx context.Context, args ...string) error {
 		}
 	}
 
-	conn, err := r.app.connect(ctx)
+	conn, err := r.app.connect(ctx, nil)
 	if err != nil {
 		return err
 	}

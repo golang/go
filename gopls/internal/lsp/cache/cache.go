@@ -76,3 +76,9 @@ var cacheIndex, sessionIndex, viewIndex int64
 
 func (c *Cache) ID() string                     { return c.id }
 func (c *Cache) MemStats() map[reflect.Type]int { return c.store.Stats() }
+
+// FileStats returns information about the set of files stored in the cache.
+// It is intended for debugging only.
+func (c *Cache) FileStats() (files, largest, errs int) {
+	return c.fileStats()
+}

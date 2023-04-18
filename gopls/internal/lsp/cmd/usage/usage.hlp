@@ -35,6 +35,7 @@ Features
   rename            rename selected identifier
   semtok            show semantic tokens for the specified file
   signature         display selected identifier's signature
+  stats             print workspace statistics
   fix               apply suggested fixes
   symbols           display selected file's symbols
   workspace_symbol  search symbols in workspace

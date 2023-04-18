@@ -51,7 +51,7 @@ func (c *format) Run(ctx context.Context, args ...string) error {
 		return nil
 	}
 	// now we ready to kick things off
-	conn, err := c.app.connect(ctx)
+	conn, err := c.app.connect(ctx, nil)
 	if err != nil {
 		return err
 	}

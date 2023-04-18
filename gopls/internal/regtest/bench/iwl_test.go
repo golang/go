@@ -68,6 +68,7 @@ func doIWL(b *testing.B, gopath string, repo *repo, file string) {
 		env.ExecuteCommand(params, &memstats)
 		b.ReportMetric(float64(memstats.HeapAlloc), "alloc_bytes")
 		b.ReportMetric(float64(memstats.HeapInUse), "in_use_bytes")
+		b.ReportMetric(float64(memstats.TotalAlloc), "total_alloc_bytes")
 		b.StartTimer()
 	}
 }

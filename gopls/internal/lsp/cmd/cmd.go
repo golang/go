@@ -274,6 +274,7 @@ func (app *Application) featureCommands() []tool.Application {
 		&rename{app: app},
 		&semtok{app: app},
 		&signature{app: app},
+		&stats{app: app},
 		&suggestedFix{app: app},
 		&symbols{app: app},
 		&workspaceSymbol{app: app},
@@ -286,10 +287,13 @@ var (
 	internalConnections = make(map[string]*connection)
 )
 
-func (app *Application) connect(ctx context.Context) (*connection, error) {
+// connect creates and initializes a new in-process gopls session.
+//
+// If onProgress is set, it is called for each new progress notification.
+func (app *Application) connect(ctx context.Context, onProgress func(*protocol.ProgressParams)) (*connection, error) {
 	switch {
 	case app.Remote == "":
-		connection := newConnection(app)
+		connection := newConnection(app, onProgress)
 		connection.Server = lsp.NewServer(cache.NewSession(ctx, cache.New(nil), app.options), connection.Client)
 		ctx = protocol.WithClient(ctx, connection.Client)
 		return connection, connection.initialize(ctx, app.options)
@@ -327,7 +331,7 @@ func CloseTestConnections(ctx context.Context) {
 }
 
 func (app *Application) connectRemote(ctx context.Context, remote string) (*connection, error) {
-	connection := newConnection(app)
+	connection := newConnection(app, nil)
 	conn, err := lsprpc.ConnectToRemote(ctx, remote)
 	if err != nil {
 		return nil, err
@@ -370,6 +374,13 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 	params.Capabilities.TextDocument.SemanticTokens.Requests.Full.Value = true
 	params.Capabilities.TextDocument.SemanticTokens.TokenTypes = lsp.SemanticTypes()
 	params.Capabilities.TextDocument.SemanticTokens.TokenModifiers = lsp.SemanticModifiers()
+
+	// If the subcommand has registered a progress handler, report the progress
+	// capability.
+	if c.Client.onProgress != nil {
+		params.Capabilities.Window.WorkDoneProgress = true
+	}
+
 	params.InitializationOptions = map[string]interface{}{
 		"symbolMatcher": matcherString[opts.SymbolMatcher],
 	}
@@ -389,7 +400,8 @@ type connection struct {
 
 type cmdClient struct {
 	protocol.Server
-	app *Application
+	app        *Application
+	onProgress func(*protocol.ProgressParams)
 
 	diagnosticsMu   sync.Mutex
 	diagnosticsDone chan struct{}
@@ -405,11 +417,12 @@ type cmdFile struct {
 	diagnostics []protocol.Diagnostic
 }
 
-func newConnection(app *Application) *connection {
+func newConnection(app *Application, onProgress func(*protocol.ProgressParams)) *connection {
 	return &connection{
 		Client: &cmdClient{
-			app:   app,
-			files: make(map[span.URI]*cmdFile),
+			app:        app,
+			onProgress: onProgress,
+			files:      make(map[span.URI]*cmdFile),
 		},
 	}
 }
@@ -521,7 +534,10 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 	return nil
 }
 
-func (c *cmdClient) Progress(context.Context, *protocol.ProgressParams) error {
+func (c *cmdClient) Progress(_ context.Context, params *protocol.ProgressParams) error {
+	if c.onProgress != nil {
+		c.onProgress(params)
+	}
 	return nil
 }
 

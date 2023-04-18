@@ -678,6 +678,58 @@ const c = 0
 	}
 }
 
+func TestStats(t *testing.T) {
+	t.Parallel()
+
+	tree := writeTree(t, `
+-- go.mod --
+module example.com
+go 1.18
+
+-- a.go --
+package a
+-- b/b.go --
+package b
+-- testdata/foo.go --
+package foo
+`)
+
+	res := gopls(t, tree, "stats")
+	res.checkExit(true)
+
+	var stats cmd.GoplsStats
+	if err := json.Unmarshal([]byte(res.stdout), &stats); err != nil {
+		t.Fatalf("failed to unmarshal JSON output of stats command: %v", err)
+	}
+
+	// a few sanity checks
+	checks := []struct {
+		field string
+		got   int
+		want  int
+	}{
+		{
+			"WorkspaceStats.Views[0].WorkspaceModules",
+			stats.WorkspaceStats.Views[0].WorkspacePackages.Modules,
+			1,
+		},
+		{
+			"WorkspaceStats.Views[0].WorkspacePackages",
+			stats.WorkspaceStats.Views[0].WorkspacePackages.Packages,
+			2,
+		},
+		{"DirStats.Files", stats.DirStats.Files, 4},
+		{"DirStats.GoFiles", stats.DirStats.GoFiles, 2},
+		{"DirStats.ModFiles", stats.DirStats.ModFiles, 1},
+		{"DirStats.TestdataFiles", stats.DirStats.TestdataFiles, 1},
+	}
+	for _, check := range checks {
+		if check.got != check.want {
+			t.Errorf("stats.%s = %d, want %d", check.field, check.got, check.want)
+		}
+	}
+}
+
 // TestFix tests the 'fix' subcommand (../suggested_fix.go).
 func TestFix(t *testing.T) {
 	t.Parallel()

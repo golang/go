@@ -44,7 +44,7 @@ func (r *prepareRename) Run(ctx context.Context, args ...string) error {
 		return tool.CommandLineErrorf("prepare_rename expects 1 argument (file)")
 	}
 
-	conn, err := r.app.connect(ctx)
+	conn, err := r.app.connect(ctx, nil)
 	if err != nil {
 		return err
 	}

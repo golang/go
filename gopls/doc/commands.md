@@ -236,6 +236,7 @@ Result:
 {
 	"HeapAlloc": uint64,
 	"HeapInUse": uint64,
+	"TotalAlloc": uint64,
 }
 ```
 
@@ -461,6 +462,42 @@ Args:
 {
 	// The file URI.
 	"URI": string,
+}
+```
+
+### **fetch workspace statistics**
+Identifier: `gopls.workspace_stats`
+
+Query statistics about workspace builds, modules, packages, and files.
+
+This command is intended for internal use only, by the gopls stats
+command.
+
+Result:
+
+```
+{
+	"Files": {
+		"Total": int,
+		"Largest": int,
+		"Errs": int,
+	},
+	"Views": []{
+		"GoCommandVersion": string,
+		"AllPackages": {
+			"Packages": int,
+			"LargestPackage": int,
+			"CompiledGoFiles": int,
+			"Modules": int,
+		},
+		"WorkspacePackages": {
+			"Packages": int,
+			"LargestPackage": int,
+			"CompiledGoFiles": int,
+			"Modules": int,
+		},
+		"Diagnostics": int,
+	},
 }
 ```
 

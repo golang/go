@@ -40,7 +40,7 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 	checking := map[span.URI]*cmdFile{}
 	var uris []span.URI
 	// now we ready to kick things off
-	conn, err := c.app.connect(ctx)
+	conn, err := c.app.connect(ctx, nil)
 	if err != nil {
 		return err
 	}

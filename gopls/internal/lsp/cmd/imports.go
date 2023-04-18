@@ -49,7 +49,7 @@ func (t *imports) Run(ctx context.Context, args ...string) error {
 	if len(args) != 1 {
 		return tool.CommandLineErrorf("imports expects 1 argument")
 	}
-	conn, err := t.app.connect(ctx)
+	conn, err := t.app.connect(ctx, nil)
 	if err != nil {
 		return err
 	}

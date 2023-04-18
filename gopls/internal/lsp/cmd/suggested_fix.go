@@ -55,7 +55,7 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	if len(args) < 1 {
 		return tool.CommandLineErrorf("fix expects at least 1 argument")
 	}
-	conn, err := s.app.connect(ctx)
+	conn, err := s.app.connect(ctx, nil)
 	if err != nil {
 		return err
 	}

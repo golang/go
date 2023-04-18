@@ -731,7 +731,7 @@ var GeneratedAPIJSON = &APIJSON{
 			Command:   "gopls.mem_stats",
 			Title:     "fetch memory statistics",
 			Doc:       "Call runtime.GC multiple times and return memory statistics as reported by\nruntime.MemStats.\n\nThis command is used for benchmarking, and may change in the future.",
-			ResultDoc: "{\n\t\"HeapAlloc\": uint64,\n\t\"HeapInUse\": uint64,\n}",
+			ResultDoc: "{\n\t\"HeapAlloc\": uint64,\n\t\"HeapInUse\": uint64,\n\t\"TotalAlloc\": uint64,\n}",
 		},
 		{
 			Command: "gopls.regenerate_cgo",
@@ -806,6 +806,12 @@ var GeneratedAPIJSON = &APIJSON{
 			Title:   "Run go mod vendor",
 			Doc:     "Runs `go mod vendor` for a module.",
 			ArgDoc:  "{\n\t// The file URI.\n\t\"URI\": string,\n}",
+		},
+		{
+			Command:   "gopls.workspace_stats",
+			Title:     "fetch workspace statistics",
+			Doc:       "Query statistics about workspace builds, modules, packages, and files.\n\nThis command is intended for internal use only, by the gopls stats\ncommand.",
+			ResultDoc: "{\n\t\"Files\": {\n\t\t\"Total\": int,\n\t\t\"Largest\": int,\n\t\t\"Errs\": int,\n\t},\n\t\"Views\": []{\n\t\t\"GoCommandVersion\": string,\n\t\t\"AllPackages\": {\n\t\t\t\"Packages\": int,\n\t\t\t\"LargestPackage\": int,\n\t\t\t\"CompiledGoFiles\": int,\n\t\t\t\"Modules\": int,\n\t\t},\n\t\t\"WorkspacePackages\": {\n\t\t\t\"Packages\": int,\n\t\t\t\"LargestPackage\": int,\n\t\t\t\"CompiledGoFiles\": int,\n\t\t\t\"Modules\": int,\n\t\t},\n\t\t\"Diagnostics\": int,\n\t},\n}",
 		},
 	},
 	Lenses: []*LensJSON{

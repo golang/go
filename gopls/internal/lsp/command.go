@@ -23,6 +23,7 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/gopls/internal/govulncheck"
+	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
 	"golang.org/x/tools/gopls/internal/lsp/progress"
@@ -954,7 +955,86 @@ func (c *commandHandler) MemStats(ctx context.Context) (command.MemStatsResult, 
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	return command.MemStatsResult{
-		HeapAlloc: m.HeapAlloc,
-		HeapInUse: m.HeapInuse,
+		HeapAlloc:  m.HeapAlloc,
+		HeapInUse:  m.HeapInuse,
+		TotalAlloc: m.TotalAlloc,
 	}, nil
+}
+
+// WorkspaceStats implements the WorkspaceStats command, reporting information
+// about the current state of the loaded workspace for the current session.
+func (c *commandHandler) WorkspaceStats(ctx context.Context) (command.WorkspaceStatsResult, error) {
+	var res command.WorkspaceStatsResult
+	res.Files.Total, res.Files.Largest, res.Files.Errs = c.s.session.Cache().FileStats()
+
+	for _, view := range c.s.session.Views() {
+		vs, err := collectViewStats(ctx, view)
+		if err != nil {
+			return res, err
+		}
+		res.Views = append(res.Views, vs)
+	}
+	return res, nil
+}
+
+func collectViewStats(ctx context.Context, view *cache.View) (command.ViewStats, error) {
+	s, release, err := view.Snapshot()
+	if err != nil {
+		return command.ViewStats{}, err
+	}
+	defer release()
+
+	allMD, err := s.AllMetadata(ctx)
+	if err != nil {
+		return command.ViewStats{}, err
+	}
+	allPackages := collectPackageStats(allMD)
+
+	wsMD, err := s.ActiveMetadata(ctx)
+	if err != nil {
+		return command.ViewStats{}, err
+	}
+	workspacePackages := collectPackageStats(wsMD)
+
+	var ids []source.PackageID
+	for _, m := range wsMD {
+		ids = append(ids, m.ID)
+	}
+
+	diags, err := s.PackageDiagnostics(ctx, ids...)
+	if err != nil {
+		return command.ViewStats{}, err
+	}
+
+	ndiags := 0
+	for _, d := range diags {
+		ndiags += len(d)
+	}
+
+	return command.ViewStats{
+		GoCommandVersion:  view.GoVersionString(),
+		AllPackages:       allPackages,
+		WorkspacePackages: workspacePackages,
+		Diagnostics:       ndiags,
+	}, nil
+}
+
+func collectPackageStats(md []*source.Metadata) command.PackageStats {
+	var stats command.PackageStats
+	stats.Packages = len(md)
+	modules := make(map[string]bool)
+
+	for _, m := range md {
+		n := len(m.CompiledGoFiles)
+		stats.CompiledGoFiles += n
+		if n > stats.LargestPackage {
+			stats.LargestPackage = n
+		}
+		if m.Module != nil {
+			modules[m.Module.Path] = true
+		}
+	}
+	stats.Modules = len(modules)
+
+	return stats
 }

@@ -34,7 +34,7 @@ func TestCapabilities(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	app := New("gopls-test", tmpDir, os.Environ(), nil)
-	c := newConnection(app)
+	c := newConnection(app, nil)
 	ctx := context.Background()
 	defer c.terminate(ctx)
 

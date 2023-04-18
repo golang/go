@@ -76,7 +76,7 @@ func (c *semtok) Run(ctx context.Context, args ...string) error {
 		origOptions(opts)
 		opts.SemanticTokens = true
 	}
-	conn, err := c.app.connect(ctx)
+	conn, err := c.app.connect(ctx, nil)
 	if err != nil {
 		return err
 	}

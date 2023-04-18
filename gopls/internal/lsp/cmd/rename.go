@@ -54,7 +54,7 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 	if len(args) != 2 {
 		return tool.CommandLineErrorf("definition expects 2 arguments (position, new name)")
 	}
-	conn, err := r.app.connect(ctx)
+	conn, err := r.app.connect(ctx, nil)
 	if err != nil {
 		return err
 	}

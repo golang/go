@@ -16,6 +16,7 @@ func ID(name string) string {
 
 type Command string
 
+// ID returns the command identifier to use in the executeCommand request.
 func (c Command) ID() string {
 	return ID(string(c))
 }

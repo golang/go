@@ -116,6 +116,28 @@ func (fs *memoizedFS) ReadFile(ctx context.Context, uri span.URI) (source.FileHa
 	return fh, nil
 }
 
+// fileStats returns information about the set of files stored in fs. It is
+// intended for debugging only.
+func (fs *memoizedFS) fileStats() (files, largest, errs int) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	files = len(fs.filesByID)
+	largest = 0
+	errs = 0
+
+	for _, files := range fs.filesByID {
+		rep := files[0]
+		if len(rep.content) > largest {
+			largest = len(rep.content)
+		}
+		if rep.err != nil {
+			errs++
+		}
+	}
+	return files, largest, errs
+}
+
 // ioLimit limits the number of parallel file reads per process.
 var ioLimit = make(chan struct{}, 128)
 
