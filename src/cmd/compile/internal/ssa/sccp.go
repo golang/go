@@ -156,20 +156,6 @@ func isConst(val *Value) bool {
 	}
 }
 
-func isDivByZero(op Op, divisor *Value) bool {
-	switch op {
-	case OpDiv32F, OpDiv64F,
-		OpDiv8, OpDiv16, OpDiv32, OpDiv64,
-		OpMod8, OpMod16, OpMod32, OpMod64,
-		OpDiv8u, OpDiv16u, OpDiv32u, OpDiv64u,
-		OpMod8u, OpMod16u, OpMod32u, OpMod64u:
-		if divisor.AuxInt == 0 {
-			return true
-		}
-	}
-	return false
-}
-
 // buildDefUses builds def-use chain for some values early, because once the lattice of
 // a value is changed, we need to update lattices of use. But we don't need all uses of
 // it, only uses that can become constants would be added into re-visit worklist since
@@ -251,41 +237,46 @@ func (t *worklist) visitPhi(val *Value) {
 	t.latticeCells[val] = meet(argLattice)
 }
 
-func computeConstValue(f *Func, val *Value, args ...*Value) (*Value, bool) {
+func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 	// In general, we need to perform constant evaluation based on two constant lattices:
 	//
 	//  var res = lattice{constant, nil}
 	// 	switch op {
-	// 	case OpAdd16 :
-	// 		res.val = newConst(argLt1.val.AuxInt16() + argLt2.val.AuxInt16())
+	// 	case OpAdd16:
+	//		res.val = newConst(argLt1.val.AuxInt16() + argLt2.val.AuxInt16())
 	// 	case OpAdd32:
 	// 		res.val = newConst(argLt1.val.AuxInt32() + argLt2.val.AuxInt32())
-	// 		...
+	//  case OpDiv8:
+	//		if !isDivideByZero(argLt2.val.AuxInt8()) {
+	//			res.val = newConst(argLt1.val.AuxInt8() / argLt2.val.AuxInt8())
+	//		}
+	//  ...
 	// 	}
 	//
-	// However, this wouold create a huge switch for all opcodes that can be evaluted during
-	// compile time, it's fragile and error prone. We did a trick by reusing the existing rules
-	// in generic rules for compile-time evaluation. But generic rules rewrite original value,
-	// this behavior is undesired, because the lattice of values may change multiple times, once
-	// it was rewritten, we lose the opportunity to change it permanently, which can lead to
-	// errors. For example, We cannot change its value immediately after visiting Phi, because
-	// some of its input edges may still not be visited at this moment.
+	// However, this would create a huge switch for all opcodes that can be evaluted during
+	// compile time. Moreover, some operations can be evaluated only if its arguments
+	// satisfy additional conditions(e.g. divide by zero). It's fragile and error prone. We
+	// did a trick by reusing the existing rules in generic rules for compile-time evaluation.
+	// But generic rules rewrite original value, this behavior is undesired, because the lattice
+	// of values may change multiple times, once it was rewritten, we lose the opportunity to
+	// change it permanently, which can lead to errors. For example, We cannot change its value
+	// immediately after visiting Phi, because some of its input edges may still not be visited
+	// at this moment.
 	var constValue = f.newValue(val.Op, val.Type, f.Entry, val.Pos)
 	constValue.AddArgs(args...)
 	var matched = rewriteValuegeneric(constValue)
 	if matched {
-		if !isConst(constValue) {
-			// If we are able to match the above selected opcodes in generic rules
-			// the rewrited value must be a constant value
-			f.Fatalf("%v must be a constant value, missing or matched unexpected generic rule?",
-				val.LongString())
+		if isConst(constValue) {
+			return lattice{constant, constValue}
 		}
 	}
-	return constValue, matched
+	// Either we can not match generic rules for given value or it does not satisfy additional
+	// constraints(e.g. divide by zero)
+	return lattice{bottom, nil}
 }
 
 func (t *worklist) visitValue(val *Value) {
-	if !possibleConst(val) {
+	if !possibleConst(val) || (val.Op == OpCopy && !possibleConst(val.Args[0])) {
 		// fast fail
 		return
 	}
@@ -335,13 +326,7 @@ func (t *worklist) visitValue(val *Value) {
 			return
 		}
 
-		// here we take a shortcut by reusing generic rules to fold constants
-		var constValue, matched = computeConstValue(t.f, val, lt1.val)
-		if matched {
-			t.latticeCells[val] = lattice{constant, constValue}
-		} else {
-			t.latticeCells[val] = worstLt
-		}
+		t.latticeCells[val] = computeLattice(t.f, val, lt1.val)
 	// fold 2-input operations
 	case
 		// add
@@ -382,18 +367,13 @@ func (t *worklist) visitValue(val *Value) {
 		OpXor8, OpXor16, OpXor32, OpXor64:
 		var lt1 = t.getLatticeCell(val.Args[0])
 		var lt2 = t.getLatticeCell(val.Args[1])
-		if lt1.tag != constant || lt2.tag != constant || isDivByZero(val.Op, lt2.val) {
+		if lt1.tag != constant || lt2.tag != constant {
 			t.latticeCells[val] = worstLt
 			return
 		}
 
 		// here we take a shortcut by reusing generic rules to fold constants
-		var constValue, matched = computeConstValue(t.f, val, lt1.val, lt2.val)
-		if matched {
-			t.latticeCells[val] = lattice{constant, constValue}
-		} else {
-			t.latticeCells[val] = worstLt
-		}
+		t.latticeCells[val] = computeLattice(t.f, val, lt1.val, lt2.val)
 	default:
 		// Any other type of value cannot be a constant, they are always worst(Bottom)
 	}
@@ -531,9 +511,9 @@ func sccp(f *Func) {
 
 	// apply optimizations based on discovered constants
 	var constCnt, rewireCnt = t.replaceConst()
-	if f.pass.debug > 0 {
-		if constCnt > 0 || rewireCnt > 0 {
-			fmt.Printf("Phase SCCP for %v : %v constants, %v dce\n", f.Name, constCnt, rewireCnt)
-		}
+	// if f.pass.debug > 0 {
+	if constCnt > 0 || rewireCnt > 0 {
+		fmt.Printf("Phase SCCP for %v : %v constants, %v dce\n", f.Name, constCnt, rewireCnt)
 	}
+	// }
 }
