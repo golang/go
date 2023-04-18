@@ -17,7 +17,7 @@ import (
 // if necessary by attempting to convert untyped values to the appropriate
 // type. context describes the context in which the assignment takes place.
 // Use T == nil to indicate assignment to an untyped blank identifier.
-// x.mode is set to invalid if the assignment failed.
+// If the assignment check fails, x.mode is set to invalid.
 func (check *Checker) assignment(x *operand, T Type, context string) {
 	check.singleValue(x)
 
@@ -73,6 +73,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 			check.updateExprType(x.expr, newType, false)
 		}
 	}
+	// x.typ is typed
 
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
 	if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
@@ -133,11 +134,14 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 // initVar checks the initialization lhs = x in a variable declaration.
 // If lhs doesn't have a type yet, it is given the type of x,
 // or Typ[Invalid] in case of an error.
+// If the initialization check fails, x.mode is set to invalid.
 func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
 		}
+		x.mode = invalid
+		return
 	}
 
 	// If lhs doesn't have a type yet, use the type of x.
@@ -148,6 +152,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 			if typ == Typ[UntypedNil] {
 				check.errorf(x, UntypedNilUse, "use of untyped nil in %s", context)
 				lhs.typ = Typ[Invalid]
+				x.mode = invalid
 				return
 			}
 			typ = Default(typ)
@@ -225,19 +230,20 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
 
 // assignVar checks the assignment lhs = rhs (if x == nil), or lhs = x (if x != nil).
 // If x != nil, it must be the evaluation of rhs (and rhs will be ignored).
+// If the assignment check fails and x != nil, x.mode is set to invalid.
 func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand) {
 	T := check.lhsVar(lhs) // nil if lhs is _
 	if T == Typ[Invalid] {
 		check.use(rhs)
+		if x != nil {
+			x.mode = invalid
+		}
 		return
 	}
 
 	if x == nil {
 		x = new(operand)
 		check.expr(T, x, rhs)
-	}
-	if x.mode == invalid {
-		return
 	}
 
 	context := "assignment"
@@ -394,7 +400,9 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
 		for i, lhs := range lhs {
 			check.initVar(lhs, rhs[i], context)
 		}
-		if commaOk {
+		// Only record comma-ok expression if both initializations succeeded
+		// (go.dev/issue/59371).
+		if commaOk && rhs[0].mode != invalid && rhs[1].mode != invalid {
 			check.recordCommaOkTypes(orig_rhs[0], rhs)
 		}
 		return
@@ -456,7 +464,9 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
 		for i, lhs := range lhs {
 			check.assignVar(lhs, nil, rhs[i])
 		}
-		if commaOk {
+		// Only record comma-ok expression if both assignments succeeded
+		// (go.dev/issue/59371).
+		if commaOk && rhs[0].mode != invalid && rhs[1].mode != invalid {
 			check.recordCommaOkTypes(orig_rhs[0], rhs)
 		}
 		return
