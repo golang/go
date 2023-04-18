@@ -87,8 +87,8 @@ func BenchmarkIntSet(b *testing.B) {
 func TestFloat(t *testing.T) {
 	RemoveAll()
 	reqs := NewFloat("requests-float")
-	if reqs.f != 0.0 {
-		t.Errorf("reqs.f = %v, want 0", reqs.f)
+	if reqs.f.Load() != 0.0 {
+		t.Errorf("reqs.f = %v, want 0", reqs.f.Load())
 	}
 	if reqs != Get("requests-float").(*Float) {
 		t.Errorf("Get() failed.")
@@ -258,6 +258,29 @@ func TestMapCounter(t *testing.T) {
 	}
 	if x != 3 {
 		t.Errorf("red = %v, want 3", x)
+	}
+}
+
+func TestMapNil(t *testing.T) {
+	RemoveAll()
+	const key = "key"
+	m := NewMap("issue527719")
+	m.Set(key, nil)
+	s := m.String()
+	var j any
+	if err := json.Unmarshal([]byte(s), &j); err != nil {
+		t.Fatalf("m.String() == %q isn't valid JSON: %v", s, err)
+	}
+	m2, ok := j.(map[string]any)
+	if !ok {
+		t.Fatalf("m.String() produced %T, wanted a map", j)
+	}
+	v, ok := m2[key]
+	if !ok {
+		t.Fatalf("missing %q in %v", key, m2)
+	}
+	if v != nil {
+		t.Fatalf("m[%q] = %v, want nil", key, v)
 	}
 }
 

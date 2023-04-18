@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix || (js && wasm)
+//go:build unix || (js && wasm) || wasip1
 
 package os
 
@@ -110,10 +110,20 @@ func NewFile(fd uintptr, name string) *File {
 type newFileKind int
 
 const (
+	// kindNewFile means that the descriptor was passed to us via NewFile.
 	kindNewFile newFileKind = iota
+	// kindOpenFile means that the descriptor was opened using
+	// Open, Create, or OpenFile.
 	kindOpenFile
+	// kindPipe means that the descriptor was opened using Pipe.
 	kindPipe
+	// kindNonBlock means that the descriptor was passed to us via NewFile,
+	// and the descriptor is already in non-blocking mode.
 	kindNonBlock
+	// kindNoPoll means that we should not put the descriptor into
+	// non-blocking mode, because we know it is not a pipe or FIFO.
+	// Used by openFdAt for directories.
+	kindNoPoll
 )
 
 // newFile is like NewFile, but if called from OpenFile or Pipe
@@ -168,18 +178,28 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 		}
 	}
 
-	if err := f.pfd.Init("file", pollable); err != nil {
-		// An error here indicates a failure to register
-		// with the netpoll system. That can happen for
-		// a file descriptor that is not supported by
-		// epoll/kqueue; for example, disk files on
-		// Linux systems. We assume that any real error
-		// will show up in later I/O.
-	} else if pollable {
-		// We successfully registered with netpoll, so put
-		// the file into nonblocking mode.
-		if err := syscall.SetNonblock(fdi, true); err == nil {
+	clearNonBlock := false
+	if pollable {
+		if kind == kindNonBlock {
 			f.nonblock = true
+		} else if err := syscall.SetNonblock(fdi, true); err == nil {
+			f.nonblock = true
+			clearNonBlock = true
+		} else {
+			pollable = false
+		}
+	}
+
+	// An error here indicates a failure to register
+	// with the netpoll system. That can happen for
+	// a file descriptor that is not supported by
+	// epoll/kqueue; for example, disk files on
+	// Linux systems. We assume that any real error
+	// will show up in later I/O.
+	// We do restore the blocking behavior if it was set by us.
+	if pollErr := f.pfd.Init("file", pollable); pollErr != nil && clearNonBlock {
+		if err := syscall.SetNonblock(fdi, false); err == nil {
+			f.nonblock = false
 		}
 	}
 
@@ -211,9 +231,10 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	}
 
 	var r int
+	var s poll.SysFile
 	for {
 		var e error
-		r, e = syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+		r, s, e = open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
 		if e == nil {
 			break
 		}
@@ -237,7 +258,9 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return newFile(uintptr(r), name, kindOpenFile), nil
+	f := newFile(uintptr(r), name, kindOpenFile)
+	f.pfd.SysFile = s
+	return f, nil
 }
 
 func (file *file) close() error {
@@ -379,7 +402,7 @@ func Readlink(name string) (string, error) {
 			}
 		}
 		// buffer too small
-		if runtime.GOOS == "aix" && e == syscall.ERANGE {
+		if (runtime.GOOS == "aix" || runtime.GOOS == "wasip1") && e == syscall.ERANGE {
 			continue
 		}
 		if e != nil {

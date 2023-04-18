@@ -7,15 +7,40 @@
 package exec_test
 
 import (
+	"fmt"
+	"internal/testenv"
 	"io"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 )
 
+var (
+	quitSignal os.Signal = nil
+	pipeSignal os.Signal = syscall.SIGPIPE
+)
+
+func init() {
+	registerHelperCommand("pipehandle", cmdPipeHandle)
+}
+
+func cmdPipeHandle(args ...string) {
+	handle, _ := strconv.ParseUint(args[0], 16, 64)
+	pipe := os.NewFile(uintptr(handle), "")
+	_, err := fmt.Fprint(pipe, args[1])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "writing to pipe failed: %v\n", err)
+		os.Exit(1)
+	}
+	pipe.Close()
+}
+
 func TestPipePassing(t *testing.T) {
+	t.Parallel()
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Error(err)
@@ -43,7 +68,9 @@ func TestPipePassing(t *testing.T) {
 }
 
 func TestNoInheritHandles(t *testing.T) {
-	cmd := exec.Command("cmd", "/c exit 88")
+	t.Parallel()
+
+	cmd := testenv.Command(t, "cmd", "/c exit 88")
 	cmd.SysProcAttr = &syscall.SysProcAttr{NoInheritHandles: true}
 	err := cmd.Run()
 	exitError, ok := err.(*exec.ExitError)
@@ -52,5 +79,31 @@ func TestNoInheritHandles(t *testing.T) {
 	}
 	if exitError.ExitCode() != 88 {
 		t.Fatalf("got exit code %d; want 88", exitError.ExitCode())
+	}
+}
+
+// start a child process without the user code explicitly starting
+// with a copy of the parent's SYSTEMROOT.
+// (See issue 25210.)
+func TestChildCriticalEnv(t *testing.T) {
+	t.Parallel()
+	cmd := helperCommand(t, "echoenv", "SYSTEMROOT")
+
+	// Explicitly remove SYSTEMROOT from the command's environment.
+	var env []string
+	for _, kv := range cmd.Environ() {
+		k, _, ok := strings.Cut(kv, "=")
+		if !ok || !strings.EqualFold(k, "SYSTEMROOT") {
+			env = append(env, kv)
+		}
+	}
+	cmd.Env = env
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(out)) == "" {
+		t.Error("no SYSTEMROOT found")
 	}
 }

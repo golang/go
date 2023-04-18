@@ -9,3 +9,6 @@
 50:text/plain:*,v
 50:application/x-trash:*~
 30:example/do-not-use:*.t4
+10:example/glob-question-mark:*.foo?ar
+10:example/glob-asterisk:*.foo*r
+10:example/glob-range:*.foo[1-3]

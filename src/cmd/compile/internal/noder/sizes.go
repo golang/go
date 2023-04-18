@@ -25,6 +25,17 @@ func (s *gcSizes) Alignof(T types2.Type) int64 {
 		// is the same as unsafe.Alignof(x[0]), but at least 1."
 		return s.Alignof(t.Elem())
 	case *types2.Struct:
+		if t.NumFields() == 0 && types2.IsSyncAtomicAlign64(T) {
+			// Special case: sync/atomic.align64 is an
+			// empty struct we recognize as a signal that
+			// the struct it contains must be
+			// 64-bit-aligned.
+			//
+			// This logic is equivalent to the logic in
+			// cmd/compile/internal/types/size.go:calcStructOffset
+			return 8
+		}
+
 		// spec: "For a variable x of struct type: unsafe.Alignof(x)
 		// is the largest of the values unsafe.Alignof(x.f) for each
 		// field f of x, but at least 1."
@@ -67,13 +78,23 @@ func isComplex(T types2.Type) bool {
 
 func (s *gcSizes) Offsetsof(fields []*types2.Var) []int64 {
 	offsets := make([]int64, len(fields))
-	var o int64
+	var offs int64
 	for i, f := range fields {
+		if offs < 0 {
+			// all remaining offsets are too large
+			offsets[i] = -1
+			continue
+		}
+		// offs >= 0
 		typ := f.Type()
 		a := s.Alignof(typ)
-		o = types.Rnd(o, a)
-		offsets[i] = o
-		o += s.Sizeof(typ)
+		offs = types.RoundUp(offs, a) // possibly < 0 if align overflows
+		offsets[i] = offs
+		if d := s.Sizeof(typ); d >= 0 && offs >= 0 {
+			offs += d // ok to overflow to < 0
+		} else {
+			offs = -1
+		}
 	}
 	return offsets
 }
@@ -101,7 +122,20 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
 		}
 		// n > 0
 		// gc: Size includes alignment padding.
-		return s.Sizeof(t.Elem()) * n
+		esize := s.Sizeof(t.Elem())
+		if esize < 0 {
+			return -1 // array element too large
+		}
+		if esize == 0 {
+			return 0 // 0-size element
+		}
+		// esize > 0
+		// Final size is esize * n; and size must be <= maxInt64.
+		const maxInt64 = 1<<63 - 1
+		if esize > maxInt64/n {
+			return -1 // esize * n overflows
+		}
+		return esize * n
 	case *types2.Slice:
 		return int64(types.PtrSize) * 3
 	case *types2.Struct:
@@ -123,7 +157,7 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
 		}
 
 		// gc: Size includes alignment padding.
-		return types.Rnd(offsets[n-1]+last, s.Alignof(t))
+		return types.RoundUp(offsets[n-1]+last, s.Alignof(t)) // may overflow to < 0 which is ok
 	case *types2.Interface:
 		return int64(types.PtrSize) * 2
 	case *types2.Chan, *types2.Map, *types2.Pointer, *types2.Signature:
@@ -134,6 +168,7 @@ func (s *gcSizes) Sizeof(T types2.Type) int64 {
 }
 
 var basicSizes = [...]byte{
+	types2.Invalid:    1,
 	types2.Bool:       1,
 	types2.Int8:       1,
 	types2.Int16:      2,

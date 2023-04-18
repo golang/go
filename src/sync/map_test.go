@@ -17,14 +17,26 @@ import (
 type mapOp string
 
 const (
-	opLoad          = mapOp("Load")
-	opStore         = mapOp("Store")
-	opLoadOrStore   = mapOp("LoadOrStore")
-	opLoadAndDelete = mapOp("LoadAndDelete")
-	opDelete        = mapOp("Delete")
+	opLoad             = mapOp("Load")
+	opStore            = mapOp("Store")
+	opLoadOrStore      = mapOp("LoadOrStore")
+	opLoadAndDelete    = mapOp("LoadAndDelete")
+	opDelete           = mapOp("Delete")
+	opSwap             = mapOp("Swap")
+	opCompareAndSwap   = mapOp("CompareAndSwap")
+	opCompareAndDelete = mapOp("CompareAndDelete")
 )
 
-var mapOps = [...]mapOp{opLoad, opStore, opLoadOrStore, opLoadAndDelete, opDelete}
+var mapOps = [...]mapOp{
+	opLoad,
+	opStore,
+	opLoadOrStore,
+	opLoadAndDelete,
+	opDelete,
+	opSwap,
+	opCompareAndSwap,
+	opCompareAndDelete,
+}
 
 // mapCall is a quick.Generator for calls on mapInterface.
 type mapCall struct {
@@ -45,6 +57,21 @@ func (c mapCall) apply(m mapInterface) (any, bool) {
 		return m.LoadAndDelete(c.k)
 	case opDelete:
 		m.Delete(c.k)
+		return nil, false
+	case opSwap:
+		return m.Swap(c.k, c.v)
+	case opCompareAndSwap:
+		if m.CompareAndSwap(c.k, c.v, rand.Int()) {
+			m.Delete(c.k)
+			return c.v, true
+		}
+		return nil, false
+	case opCompareAndDelete:
+		if m.CompareAndDelete(c.k, c.v) {
+			if _, ok := m.Load(c.k); !ok {
+				return nil, true
+			}
+		}
 		return nil, false
 	default:
 		panic("invalid mapOp")
@@ -243,5 +270,13 @@ func TestMapRangeNestedCall(t *testing.T) { // Issue 46399
 
 	if length != 0 {
 		t.Fatalf("Unexpected sync.Map size, got %v want %v", length, 0)
+	}
+}
+
+func TestCompareAndSwap_NonExistingKey(t *testing.T) {
+	m := &sync.Map{}
+	if m.CompareAndSwap(m, nil, 42) {
+		// See https://go.dev/issue/51972#issuecomment-1126408637.
+		t.Fatalf("CompareAndSwap on an non-existing key succeeded")
 	}
 }

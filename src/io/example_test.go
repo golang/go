@@ -5,7 +5,6 @@
 package io_test
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -239,7 +238,7 @@ func ExampleSeeker_Seek() {
 func ExampleMultiWriter() {
 	r := strings.NewReader("some io.Reader stream to be read\n")
 
-	var buf1, buf2 bytes.Buffer
+	var buf1, buf2 strings.Builder
 	w := io.MultiWriter(&buf1, &buf2)
 
 	if _, err := io.Copy(w, r); err != nil {

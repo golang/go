@@ -33,8 +33,9 @@ package obj
 
 import (
 	"cmd/internal/goobj"
+	"cmd/internal/notsha256"
 	"cmd/internal/objabi"
-	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"internal/buildcfg"
 	"log"
@@ -84,7 +85,7 @@ func (ctxt *Link) LookupABI(name string, abi ABI) *LSym {
 	return ctxt.LookupABIInit(name, abi, nil)
 }
 
-// LookupABI looks up a symbol with the given ABI.
+// LookupABIInit looks up a symbol with the given ABI.
 // If it does not exist, it creates it and
 // passes it to init for one-time initialization.
 func (ctxt *Link) LookupABIInit(name string, abi ABI, init func(s *LSym)) *LSym {
@@ -175,7 +176,9 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 
 // GCLocalsSym generates a content-addressable sym containing data.
 func (ctxt *Link) GCLocalsSym(data []byte) *LSym {
-	return ctxt.LookupInit(fmt.Sprintf("gclocals·%x", md5.Sum(data)), func(lsym *LSym) {
+	sum := notsha256.Sum256(data)
+	str := base64.StdEncoding.EncodeToString(sum[:16])
+	return ctxt.LookupInit(fmt.Sprintf("gclocals·%s", str), func(lsym *LSym) {
 		lsym.P = data
 		lsym.Set(AttrContentAddressable, true)
 	})
@@ -346,6 +349,7 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 		}
 	}
 	lists := [][]*LSym{ctxt.Text, ctxt.Data}
+	files := ctxt.PosTable.FileTable()
 	for _, list := range lists {
 		for _, s := range list {
 			if flag&traverseDefs != 0 {
@@ -362,7 +366,7 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 					f := func(parent *LSym, aux *LSym) {
 						fn(aux)
 					}
-					ctxt.traverseFuncAux(flag, s, f)
+					ctxt.traverseFuncAux(flag, s, f, files)
 				}
 			}
 			if flag&traversePcdata != 0 && s.Type == objabi.STEXT {
@@ -379,7 +383,7 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 	}
 }
 
-func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent *LSym, aux *LSym)) {
+func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent *LSym, aux *LSym), files []string) {
 	fninfo := fsym.Func()
 	pc := &fninfo.Pcln
 	if flag&traverseAux == 0 {
@@ -392,7 +396,6 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 			fn(fsym, d)
 		}
 	}
-	files := ctxt.PosTable.FileTable()
 	usedFiles := make([]goobj.CUFileIndex, 0, len(pc.UsedFiles))
 	for f := range pc.UsedFiles {
 		usedFiles = append(usedFiles, f)
@@ -407,22 +410,22 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 		if call.Func != nil {
 			fn(fsym, call.Func)
 		}
-		f, _ := linkgetlineFromPos(ctxt, call.Pos)
+		f, _ := ctxt.getFileSymbolAndLine(call.Pos)
 		if filesym := ctxt.Lookup(f); filesym != nil {
 			fn(fsym, filesym)
 		}
 	}
 
-	dwsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym}
-	for _, dws := range dwsyms {
-		if dws == nil || dws.Size == 0 {
+	auxsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym, fninfo.WasmImportSym, fninfo.sehUnwindInfoSym}
+	for _, s := range auxsyms {
+		if s == nil || s.Size == 0 {
 			continue
 		}
-		fn(fsym, dws)
+		fn(fsym, s)
 		if flag&traverseRefs != 0 {
-			for _, r := range dws.R {
+			for _, r := range s.R {
 				if r.Sym != nil {
-					fn(dws, r.Sym)
+					fn(s, r.Sym)
 				}
 			}
 		}
@@ -432,6 +435,7 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent 
 // Traverse aux symbols, calling fn for each sym/aux pair.
 func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *LSym)) {
 	lists := [][]*LSym{ctxt.Text, ctxt.Data}
+	files := ctxt.PosTable.FileTable()
 	for _, list := range lists {
 		for _, s := range list {
 			if s.Gotype != nil {
@@ -442,7 +446,7 @@ func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *
 			if s.Type != objabi.STEXT {
 				continue
 			}
-			ctxt.traverseFuncAux(flag, s, fn)
+			ctxt.traverseFuncAux(flag, s, fn, files)
 		}
 	}
 }

@@ -133,6 +133,16 @@ type Func struct {
 	// For wrapper functions, WrappedFunc point to the original Func.
 	// Currently only used for go/defer wrappers.
 	WrappedFunc *Func
+
+	// WasmImport is used by the //go:wasmimport directive to store info about
+	// a WebAssembly function import.
+	WasmImport *WasmImport
+}
+
+// WasmImport stores metadata associated with the //go:wasmimport pragma.
+type WasmImport struct {
+	Module string
+	Name   string
 }
 
 func NewFunc(pos src.XPos) *Func {
@@ -147,9 +157,10 @@ func NewFunc(pos src.XPos) *Func {
 
 func (f *Func) isStmt() {}
 
-func (n *Func) copy() Node                         { panic(n.no("copy")) }
-func (n *Func) doChildren(do func(Node) bool) bool { return doNodes(n.Body, do) }
-func (n *Func) editChildren(edit func(Node) Node)  { editNodes(n.Body, edit) }
+func (n *Func) copy() Node                                  { panic(n.no("copy")) }
+func (n *Func) doChildren(do func(Node) bool) bool          { return doNodes(n.Body, do) }
+func (n *Func) editChildren(edit func(Node) Node)           { editNodes(n.Body, edit) }
+func (n *Func) editChildrenWithHidden(edit func(Node) Node) { editNodes(n.Body, edit) }
 
 func (f *Func) Type() *types.Type                { return f.Nname.Type() }
 func (f *Func) Sym() *types.Sym                  { return f.Nname.Sym() }
@@ -203,6 +214,7 @@ const (
 	funcInstrumentBody           // add race/msan/asan instrumentation during SSA construction
 	funcOpenCodedDeferDisallowed // can't do open-coded defers
 	funcClosureCalled            // closure is only immediately called; used by escape analysis
+	funcPackageInit              // compiler emitted .init func for package
 )
 
 type SymAndPos struct {
@@ -224,6 +236,7 @@ func (f *Func) ExportInline() bool             { return f.flags&funcExportInline
 func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
 func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
 func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalled != 0 }
+func (f *Func) IsPackageInit() bool            { return f.flags&funcPackageInit != 0 }
 
 func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
 func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
@@ -239,6 +252,7 @@ func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInlin
 func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
 func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
 func (f *Func) SetClosureCalled(b bool)            { f.flags.set(funcClosureCalled, b) }
+func (f *Func) SetIsPackageInit(b bool)            { f.flags.set(funcPackageInit, b) }
 
 func (f *Func) SetWBPos(pos src.XPos) {
 	if base.Debug.WB != 0 {
@@ -268,14 +282,15 @@ func PkgFuncName(f *Func) string {
 	s := f.Sym()
 	pkg := s.Pkg
 
-	p := base.Ctxt.Pkgpath
-	if pkg != nil && pkg.Path != "" {
-		p = pkg.Path
+	return pkg.Path + "." + s.Name
+}
+
+// IsEqOrHashFunc reports whether f is type eq/hash function.
+func IsEqOrHashFunc(f *Func) bool {
+	if f == nil || f.Nname == nil {
+		return false
 	}
-	if p == "" {
-		return s.Name
-	}
-	return p + "." + s.Name
+	return types.IsTypePkg(f.Sym().Pkg)
 }
 
 var CurFunc *Func
@@ -306,7 +321,7 @@ func MarkFunc(n *Name) {
 }
 
 // ClosureDebugRuntimeCheck applies boilerplate checks for debug flags
-// and compiling runtime
+// and compiling runtime.
 func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
 	if base.Debug.Closure > 0 {
 		if clo.Esc() == EscHeap {
@@ -316,7 +331,7 @@ func ClosureDebugRuntimeCheck(clo *ClosureExpr) {
 		}
 	}
 	if base.Flag.CompilingRuntime && clo.Esc() == EscHeap && !clo.IsGoWrap {
-		base.ErrorfAt(clo.Pos(), "heap-allocated closure %s, not allowed in runtime", FuncName(clo.Func))
+		base.ErrorfAt(clo.Pos(), 0, "heap-allocated closure %s, not allowed in runtime", FuncName(clo.Func))
 	}
 }
 
@@ -392,7 +407,7 @@ func NameClosure(clo *ClosureExpr, outerfn *Func) {
 	MarkFunc(name)
 }
 
-// UseClosure checks that the ginen function literal has been setup
+// UseClosure checks that the given function literal has been setup
 // correctly, and then returns it as an expression.
 // It must be called after clo.Func.ClosureVars has been set.
 func UseClosure(clo *ClosureExpr, pkg *Package) Node {

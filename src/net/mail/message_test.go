@@ -39,6 +39,19 @@ So, "Hello".
 		},
 		body: "This is a message just to say hello.\nSo, \"Hello\".\n",
 	},
+	{
+		// RFC 5965, Appendix B.1, a part of the multipart message (a header-only sub message)
+		in: `Feedback-Type: abuse
+User-Agent: SomeGenerator/1.0
+Version: 1
+`,
+		header: Header{
+			"Feedback-Type": []string{"abuse"},
+			"User-Agent":    []string{"SomeGenerator/1.0"},
+			"Version":       []string{"1"},
+		},
+		body: "",
+	},
 }
 
 func TestParsing(t *testing.T) {

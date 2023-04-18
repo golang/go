@@ -218,3 +218,13 @@ func TestNoUnicodeStrings(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+const redirectURL = "/thisaredirect细雪withasciilettersのけぶabcdefghijk.html"
+
+func BenchmarkHexEscapeNonASCII(b *testing.B) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		hexEscapeNonASCII(redirectURL)
+	}
+}

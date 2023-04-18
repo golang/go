@@ -5,9 +5,10 @@
 package pkginit
 
 import (
-	"bytes"
 	"container/heap"
 	"fmt"
+	"internal/types/errors"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -236,14 +237,14 @@ func reportInitLoopAndExit(l []*ir.Name) {
 	// TODO(mdempsky): Method values are printed as "T.m-fm"
 	// rather than "T.m". Figure out how to avoid that.
 
-	var msg bytes.Buffer
+	var msg strings.Builder
 	fmt.Fprintf(&msg, "initialization loop:\n")
 	for _, n := range l {
 		fmt.Fprintf(&msg, "\t%v: %v refers to\n", ir.Line(n), n)
 	}
 	fmt.Fprintf(&msg, "\t%v: %v", ir.Line(l[0]), l[0])
 
-	base.ErrorfAt(l[0].Pos(), msg.String())
+	base.ErrorfAt(l[0].Pos(), errors.InvalidInitCycle, msg.String())
 	base.ErrorExit()
 }
 
@@ -317,6 +318,15 @@ func (d *initDeps) foundDep(n *ir.Name) {
 	// Names without definitions aren't interesting as far as
 	// initialization ordering goes.
 	if n.Defn == nil {
+		return
+	}
+
+	// Treat coverage counter variables effectively as invisible with
+	// respect to init order. If we don't do this, then the
+	// instrumentation vars can perturb the order of initialization
+	// away from the order of the original uninstrumented program.
+	// See issue #56293 for more details.
+	if n.CoverageCounter() || n.CoverageAuxVar() {
 		return
 	}
 

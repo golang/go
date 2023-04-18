@@ -41,7 +41,7 @@ gettargets() {
 }
 
 selectedtargets() {
-	gettargets | egrep "$pattern"
+	gettargets | grep -E "$pattern"
 }
 
 # put linux first in the target list to get all the architectures up front.

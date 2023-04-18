@@ -5,7 +5,6 @@
 package ssa
 
 import (
-	"bytes"
 	"cmd/internal/src"
 	"fmt"
 	"hash/crc32"
@@ -152,7 +151,7 @@ func Compile(f *Func) {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
-		buf := new(bytes.Buffer)
+		buf := new(strings.Builder)
 		fmt.Fprintf(buf, "%s: ", f.Name)
 		for _, key := range keys {
 			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])
@@ -329,7 +328,7 @@ commas. For example:
 		switch flag {
 		case "on":
 			checkEnabled = val != 0
-			debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
+			debugPoset = checkEnabled // also turn on advanced self-checking in prove's data structure
 			return ""
 		case "off":
 			checkEnabled = val == 0
@@ -488,6 +487,7 @@ var passes = [...]pass{
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
 	{name: "lower", fn: lower, required: true},
 	{name: "addressing modes", fn: addressingModes, required: false},
+	{name: "late lower", fn: lateLower, required: true},
 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
 	{name: "lowered cse", fn: cse},
 	{name: "elim unread autos", fn: elimUnreadAutos},
@@ -496,7 +496,7 @@ var passes = [...]pass{
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
-	{name: "tighten", fn: tighten}, // move values closer to their uses
+	{name: "tighten", fn: tighten, required: true}, // move values closer to their uses
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
 	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
@@ -560,9 +560,14 @@ var passOrder = [...]constraint{
 	{"critical", "regalloc"},
 	// regalloc requires all the values in a block to be scheduled
 	{"schedule", "regalloc"},
+	// the rules in late lower run after the general rules.
+	{"lower", "late lower"},
+	// late lower may generate some values that need to be CSEed.
+	{"late lower", "lowered cse"},
 	// checkLower must run after lowering & subsequent dead code elim
 	{"lower", "checkLower"},
 	{"lowered deadcode", "checkLower"},
+	{"late lower", "checkLower"},
 	// late nilcheck needs instructions to be scheduled.
 	{"schedule", "late nilcheck"},
 	// flagalloc needs instructions to be scheduled.

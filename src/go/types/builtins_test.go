@@ -7,8 +7,6 @@ package types_test
 import (
 	"fmt"
 	"go/ast"
-	"go/importer"
-	"go/parser"
 	"testing"
 
 	. "go/types"
@@ -41,6 +39,9 @@ var builtinCalls = []struct {
 	{"len", `var m map[string]float32; _ = len(m)`, `func(map[string]float32) int`},
 	{"len", `type S []byte; var s S; _ = len(s)`, `func(p.S) int`},
 	{"len", `var s P; _ = len(s)`, `func(P) int`},
+
+	{"clear", `var m map[float64]int; clear(m)`, `func(map[float64]int)`},
+	{"clear", `var s []byte; clear(s)`, `func([]byte)`},
 
 	{"close", `var c chan int; close(c)`, `func(chan int)`},
 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
@@ -75,7 +76,7 @@ var builtinCalls = []struct {
 	{"make", `_ = make([]int, 10)`, `func([]int, int) []int`},
 	{"make", `type T []byte; _ = make(T, 10, 20)`, `func(p.T, int, int) p.T`},
 
-	// issue #37349
+	// go.dev/issue/37349
 	{"make", `              _ = make([]int, 0   )`, `func([]int, int) []int`},
 	{"make", `var l    int; _ = make([]int, l   )`, `func([]int, int) []int`},
 	{"make", `              _ = make([]int, 0, 0)`, `func([]int, int, int) []int`},
@@ -83,7 +84,7 @@ var builtinCalls = []struct {
 	{"make", `var    c int; _ = make([]int, 0, c)`, `func([]int, int, int) []int`},
 	{"make", `var l, c int; _ = make([]int, l, c)`, `func([]int, int, int) []int`},
 
-	// issue #37393
+	// go.dev/issue/37393
 	{"make", `                _ = make([]int       , 0   )`, `func([]int, int) []int`},
 	{"make", `var l    byte ; _ = make([]int8      , l   )`, `func([]int8, byte) []int8`},
 	{"make", `                _ = make([]int16     , 0, 0)`, `func([]int16, int, int) []int16`},
@@ -91,7 +92,7 @@ var builtinCalls = []struct {
 	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
 	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
 
-	// issue #45667
+	// go.dev/issue/45667
 	{"make", `const l uint = 1; _ = make([]int, l)`, `func([]int, uint) []int`},
 
 	{"new", `_ = new(int)`, `func(int) *int`},
@@ -129,6 +130,16 @@ var builtinCalls = []struct {
 
 	{"Slice", `var p *int; _ = unsafe.Slice(p, 1)`, `func(*int, int) []int`},
 	{"Slice", `var p *byte; var n uintptr; _ = unsafe.Slice(p, n)`, `func(*byte, uintptr) []byte`},
+	{"Slice", `type B *byte; var b B; _ = unsafe.Slice(b, 0)`, `func(*byte, int) []byte`},
+
+	{"SliceData", "var s []int; _ = unsafe.SliceData(s)", `func([]int) *int`},
+	{"SliceData", "type S []int; var s S; _ = unsafe.SliceData(s)", `func([]int) *int`},
+
+	{"String", `var p *byte; _ = unsafe.String(p, 1)`, `func(*byte, int) string`},
+	{"String", `type B *byte; var b B; _ = unsafe.String(b, 0)`, `func(*byte, int) string`},
+
+	{"StringData", `var s string; _ = unsafe.StringData(s)`, `func(string) *byte`},
+	{"StringData", `_ = unsafe.StringData("foo")`, `func(string) *byte`},
 
 	{"assert", `assert(true)`, `invalid type`},                                    // constant
 	{"assert", `type B bool; const pred B = 1 < 2; assert(pred)`, `invalid type`}, // constant
@@ -158,24 +169,12 @@ func TestBuiltinSignatures(t *testing.T) {
 	}
 }
 
-// parseGenericSrc in types2 is not necessary. We can just parse in testBuiltinSignature below.
-
 func testBuiltinSignature(t *testing.T, name, src0, want string) {
 	src := fmt.Sprintf(`package p; import "unsafe"; type _ unsafe.Pointer /* use unsafe */; func _[P ~[]byte]() { %s }`, src0)
-	f, err := parser.ParseFile(fset, "", src, 0)
-	if err != nil {
-		t.Errorf("%s: %s", src0, err)
-		return
-	}
 
-	conf := Config{Importer: importer.Default()}
 	uses := make(map[*ast.Ident]Object)
 	types := make(map[ast.Expr]TypeAndValue)
-	_, err = conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Uses: uses, Types: types})
-	if err != nil {
-		t.Errorf("%s: %s", src0, err)
-		return
-	}
+	mustTypecheck("p", src, nil, &Info{Uses: uses, Types: types})
 
 	// find called function
 	n := 0

@@ -6,15 +6,22 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"internal/coverage"
+	"internal/coverage/encodemeta"
+	"internal/coverage/slicewriter"
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 
 	"cmd/internal/edit"
 	"cmd/internal/objabi"
@@ -35,8 +42,16 @@ Display coverage percentages to stdout for each function:
 	go tool cover -func=c.out
 
 Finally, to generate modified source code with coverage annotations
-(what go test -cover does):
-	go tool cover -mode=set -var=CoverageVariableName program.go
+for a package (what go test -cover does):
+	go tool cover -mode=set -var=CoverageVariableName \
+		-pkgcfg=<config> -outfilelist=<file> file1.go ... fileN.go
+
+where -pkgcfg points to a file containing the package path,
+package name, module path, and related info from "go build",
+and -outfilelist points to a file containing the filenames
+of the instrumented output files (one per input file).
+See https://pkg.go.dev/internal/coverage#CoverPkgConfig for
+more on the package config.
 `
 
 func usage() {
@@ -48,12 +63,18 @@ func usage() {
 }
 
 var (
-	mode    = flag.String("mode", "", "coverage mode: set, count, atomic")
-	varVar  = flag.String("var", "GoCover", "name of coverage variable to generate")
-	output  = flag.String("o", "", "file for output; default: stdout")
-	htmlOut = flag.String("html", "", "generate HTML representation of coverage profile")
-	funcOut = flag.String("func", "", "output coverage profile information for each function")
+	mode        = flag.String("mode", "", "coverage mode: set, count, atomic")
+	varVar      = flag.String("var", "GoCover", "name of coverage variable to generate")
+	output      = flag.String("o", "", "file for output")
+	outfilelist = flag.String("outfilelist", "", "file containing list of output files (one per line) if -pkgcfg is in use")
+	htmlOut     = flag.String("html", "", "generate HTML representation of coverage profile")
+	funcOut     = flag.String("func", "", "output coverage profile information for each function")
+	pkgcfg      = flag.String("pkgcfg", "", "enable full-package instrumentation mode using params from specified config file")
 )
+
+var pkgconfig coverage.CoverPkgConfig
+
+var outputfiles []string // set when -pkgcfg is in use
 
 var profile string // The profile to read; the value of -html or -func
 
@@ -83,7 +104,7 @@ func main() {
 
 	// Generate coverage-annotated source.
 	if *mode != "" {
-		annotate(flag.Arg(0))
+		annotate(flag.Args())
 		return
 	}
 
@@ -127,19 +148,67 @@ func parseFlags() error {
 			counterStmt = incCounterStmt
 		case "atomic":
 			counterStmt = atomicCounterStmt
+		case "regonly", "testmain":
+			counterStmt = nil
 		default:
 			return fmt.Errorf("unknown -mode %v", *mode)
 		}
 
 		if flag.NArg() == 0 {
-			return fmt.Errorf("missing source file")
-		} else if flag.NArg() == 1 {
-			return nil
+			return fmt.Errorf("missing source file(s)")
+		} else {
+			if *pkgcfg != "" {
+				if *output != "" {
+					return fmt.Errorf("please use '-outfilelist' flag instead of '-o'")
+				}
+				var err error
+				if outputfiles, err = readOutFileList(*outfilelist); err != nil {
+					return err
+				}
+				numInputs := len(flag.Args())
+				numOutputs := len(outputfiles)
+				if numOutputs != numInputs {
+					return fmt.Errorf("number of output files (%d) not equal to number of input files (%d)", numOutputs, numInputs)
+				}
+				if err := readPackageConfig(*pkgcfg); err != nil {
+					return err
+				}
+				return nil
+			} else {
+				if *outfilelist != "" {
+					return fmt.Errorf("'-outfilelist' flag applicable only when -pkgcfg used")
+				}
+			}
+			if flag.NArg() == 1 {
+				return nil
+			}
 		}
 	} else if flag.NArg() == 0 {
 		return nil
 	}
 	return fmt.Errorf("too many arguments")
+}
+
+func readOutFileList(path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading -outfilelist file %q: %v", path, err)
+	}
+	return strings.Split(strings.TrimSpace(string(data)), "\n"), nil
+}
+
+func readPackageConfig(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("error reading pkgconfig file %q: %v", path, err)
+	}
+	if err := json.Unmarshal(data, &pkgconfig); err != nil {
+		return fmt.Errorf("error reading pkgconfig file %q: %v", path, err)
+	}
+	if pkgconfig.Granularity != "perblock" && pkgconfig.Granularity != "perfunc" {
+		return fmt.Errorf(`%s: pkgconfig requires perblock/perfunc value`, path)
+	}
+	return nil
 }
 
 // Block represents the information about a basic block to be recorded in the analysis.
@@ -151,6 +220,18 @@ type Block struct {
 	numStmt   int
 }
 
+// Package holds package-specific state.
+type Package struct {
+	mdb            *encodemeta.CoverageMetaDataBuilder
+	counterLengths []int
+}
+
+// Function holds func-specific state.
+type Func struct {
+	units      []coverage.CoverableUnit
+	counterVar string
+}
+
 // File is a wrapper for the state of a file used in the parser.
 // The basic parse tree walker is a method of this type.
 type File struct {
@@ -160,6 +241,9 @@ type File struct {
 	blocks  []Block
 	content []byte
 	edit    *edit.Buffer
+	mdb     *encodemeta.CoverageMetaDataBuilder
+	fn      Func
+	pkg     *Package
 }
 
 // findText finds text in the original source, starting at pos.
@@ -294,14 +378,228 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		}
 	case *ast.FuncDecl:
 		// Don't annotate functions with blank names - they cannot be executed.
-		if n.Name.Name == "_" {
+		// Similarly for bodyless funcs.
+		if n.Name.Name == "_" || n.Body == nil {
 			return nil
 		}
+		fname := n.Name.Name
+		// Skip AddUint32 and StoreUint32 if we're instrumenting
+		// sync/atomic itself in atomic mode (out of an abundance of
+		// caution), since as part of the instrumentation process we
+		// add calls to AddUint32/StoreUint32, and we don't want to
+		// somehow create an infinite loop.
+		//
+		// Note that in the current implementation (Go 1.20) both
+		// routines are assembly stubs that forward calls to the
+		// runtime/internal/atomic equivalents, hence the infinite
+		// loop scenario is purely theoretical (maybe if in some
+		// future implementation one of these functions might be
+		// written in Go). See #57445 for more details.
+		if atomicOnAtomic() && (fname == "AddUint32" || fname == "StoreUint32") {
+			return nil
+		}
+		// Determine proper function or method name.
+		if r := n.Recv; r != nil && len(r.List) == 1 {
+			t := r.List[0].Type
+			star := ""
+			if p, _ := t.(*ast.StarExpr); p != nil {
+				t = p.X
+				star = "*"
+			}
+			if p, _ := t.(*ast.Ident); p != nil {
+				fname = star + p.Name + "." + fname
+			}
+		}
+		walkBody := true
+		if *pkgcfg != "" {
+			f.preFunc(n, fname)
+			if pkgconfig.Granularity == "perfunc" {
+				walkBody = false
+			}
+		}
+		if walkBody {
+			ast.Walk(f, n.Body)
+		}
+		if *pkgcfg != "" {
+			flit := false
+			f.postFunc(n, fname, flit, n.Body)
+		}
+		return nil
+	case *ast.FuncLit:
+		// For function literals enclosed in functions, just glom the
+		// code for the literal in with the enclosing function (for now).
+		if f.fn.counterVar != "" {
+			return f
+		}
+
+		// Hack: function literals aren't named in the go/ast representation,
+		// and we don't know what name the compiler will choose. For now,
+		// just make up a descriptive name.
+		pos := n.Pos()
+		p := f.fset.File(pos).Position(pos)
+		fname := fmt.Sprintf("func.L%d.C%d", p.Line, p.Column)
+		if *pkgcfg != "" {
+			f.preFunc(n, fname)
+		}
+		if pkgconfig.Granularity != "perfunc" {
+			ast.Walk(f, n.Body)
+		}
+		if *pkgcfg != "" {
+			flit := true
+			f.postFunc(n, fname, flit, n.Body)
+		}
+		return nil
 	}
 	return f
 }
 
-func annotate(name string) {
+func mkCounterVarName(idx int) string {
+	return fmt.Sprintf("%s_%d", *varVar, idx)
+}
+
+func mkPackageIdVar() string {
+	return *varVar + "P"
+}
+
+func mkMetaVar() string {
+	return *varVar + "M"
+}
+
+func mkPackageIdExpression() string {
+	ppath := pkgconfig.PkgPath
+	if hcid := coverage.HardCodedPkgID(ppath); hcid != -1 {
+		return fmt.Sprintf("uint32(%d)", uint32(hcid))
+	}
+	return mkPackageIdVar()
+}
+
+func (f *File) preFunc(fn ast.Node, fname string) {
+	f.fn.units = f.fn.units[:0]
+
+	// create a new counter variable for this function.
+	cv := mkCounterVarName(len(f.pkg.counterLengths))
+	f.fn.counterVar = cv
+}
+
+func (f *File) postFunc(fn ast.Node, funcname string, flit bool, body *ast.BlockStmt) {
+
+	// Tack on single counter write if we are in "perfunc" mode.
+	singleCtr := ""
+	if pkgconfig.Granularity == "perfunc" {
+		singleCtr = "; " + f.newCounter(fn.Pos(), fn.Pos(), 1)
+	}
+
+	// record the length of the counter var required.
+	nc := len(f.fn.units) + coverage.FirstCtrOffset
+	f.pkg.counterLengths = append(f.pkg.counterLengths, nc)
+
+	// FIXME: for windows, do we want "\" and not "/"? Need to test here.
+	// Currently filename is formed as packagepath + "/" + basename.
+	fnpos := f.fset.Position(fn.Pos())
+	ppath := pkgconfig.PkgPath
+	filename := ppath + "/" + filepath.Base(fnpos.Filename)
+
+	// The convention for cmd/cover is that if the go command that
+	// kicks off coverage specifies a local import path (e.g. "go test
+	// -cover ./thispackage"), the tool will capture full pathnames
+	// for source files instead of relative paths, which tend to work
+	// more smoothly for "go tool cover -html". See also issue #56433
+	// for more details.
+	if pkgconfig.Local {
+		filename = f.name
+	}
+
+	// Hand off function to meta-data builder.
+	fd := coverage.FuncDesc{
+		Funcname: funcname,
+		Srcfile:  filename,
+		Units:    f.fn.units,
+		Lit:      flit,
+	}
+	funcId := f.mdb.AddFunc(fd)
+
+	hookWrite := func(cv string, which int, val string) string {
+		return fmt.Sprintf("%s[%d] = %s", cv, which, val)
+	}
+	if *mode == "atomic" {
+		hookWrite = func(cv string, which int, val string) string {
+			return fmt.Sprintf("%sStoreUint32(&%s[%d], %s)",
+				atomicPackagePrefix(), cv, which, val)
+		}
+	}
+
+	// Generate the registration hook sequence for the function. This
+	// sequence looks like
+	//
+	//   counterVar[0] = <num_units>
+	//   counterVar[1] = pkgId
+	//   counterVar[2] = fnId
+	//
+	cv := f.fn.counterVar
+	regHook := hookWrite(cv, 0, strconv.Itoa(len(f.fn.units))) + " ; " +
+		hookWrite(cv, 1, mkPackageIdExpression()) + " ; " +
+		hookWrite(cv, 2, strconv.Itoa(int(funcId))) + singleCtr
+
+	// Insert the registration sequence into the function. We want this sequence to
+	// appear before any counter updates, so use a hack to ensure that this edit
+	// applies before the edit corresponding to the prolog counter update.
+
+	boff := f.offset(body.Pos())
+	ipos := f.fset.File(body.Pos()).Pos(boff)
+	ip := f.offset(ipos)
+	f.edit.Replace(ip, ip+1, string(f.content[ipos-1])+regHook+" ; ")
+
+	f.fn.counterVar = ""
+}
+
+func annotate(names []string) {
+	var p *Package
+	if *pkgcfg != "" {
+		pp := pkgconfig.PkgPath
+		pn := pkgconfig.PkgName
+		mp := pkgconfig.ModulePath
+		mdb, err := encodemeta.NewCoverageMetaDataBuilder(pp, pn, mp)
+		if err != nil {
+			log.Fatalf("creating coverage meta-data builder: %v\n", err)
+		}
+		p = &Package{
+			mdb: mdb,
+		}
+	}
+	// TODO: process files in parallel here if it matters.
+	for k, name := range names {
+		last := false
+		if k == len(names)-1 {
+			last = true
+		}
+
+		fd := os.Stdout
+		isStdout := true
+		if *pkgcfg != "" {
+			var err error
+			fd, err = os.Create(outputfiles[k])
+			if err != nil {
+				log.Fatalf("cover: %s", err)
+			}
+			isStdout = false
+		} else if *output != "" {
+			var err error
+			fd, err = os.Create(*output)
+			if err != nil {
+				log.Fatalf("cover: %s", err)
+			}
+			isStdout = false
+		}
+		p.annotateFile(name, fd, last)
+		if !isStdout {
+			if err := fd.Close(); err != nil {
+				log.Fatalf("cover: %s", err)
+			}
+		}
+	}
+}
+
+func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
 	fset := token.NewFileSet()
 	content, err := os.ReadFile(name)
 	if err != nil {
@@ -319,34 +617,52 @@ func annotate(name string) {
 		edit:    edit.NewBuffer(content),
 		astFile: parsedFile,
 	}
+	if p != nil {
+		file.mdb = p.mdb
+		file.pkg = p
+	}
+
 	if *mode == "atomic" {
 		// Add import of sync/atomic immediately after package clause.
 		// We do this even if there is an existing import, because the
 		// existing import may be shadowed at any given place we want
 		// to refer to it, and our name (_cover_atomic_) is less likely to
-		// be shadowed.
-		file.edit.Insert(file.offset(file.astFile.Name.End()),
-			fmt.Sprintf("; import %s %q", atomicPackageName, atomicPackagePath))
-	}
-
-	ast.Walk(file, file.astFile)
-	newContent := file.edit.Bytes()
-
-	fd := os.Stdout
-	if *output != "" {
-		var err error
-		fd, err = os.Create(*output)
-		if err != nil {
-			log.Fatalf("cover: %s", err)
+		// be shadowed. The one exception is if we're visiting the
+		// sync/atomic package itself, in which case we can refer to
+		// functions directly without an import prefix. See also #57445.
+		if pkgconfig.PkgPath != "sync/atomic" {
+			file.edit.Insert(file.offset(file.astFile.Name.End()),
+				fmt.Sprintf("; import %s %q", atomicPackageName, atomicPackagePath))
 		}
 	}
+	if pkgconfig.PkgName == "main" {
+		file.edit.Insert(file.offset(file.astFile.Name.End()),
+			"; import _ \"runtime/coverage\"")
+	}
 
-	fmt.Fprintf(fd, "//line %s:1\n", name)
+	if counterStmt != nil {
+		ast.Walk(file, file.astFile)
+	}
+	newContent := file.edit.Bytes()
+
+	fmt.Fprintf(fd, "//line %s:1:1\n", name)
 	fd.Write(newContent)
 
-	// After printing the source tree, add some declarations for the counters etc.
-	// We could do this by adding to the tree, but it's easier just to print the text.
+	// After printing the source tree, add some declarations for the
+	// counters etc. We could do this by adding to the tree, but it's
+	// easier just to print the text.
 	file.addVariables(fd)
+
+	// Emit a reference to the atomic package to avoid
+	// import and not used error when there's no code in a file.
+	if *mode == "atomic" {
+		fmt.Fprintf(fd, "\nvar _ = %sLoadUint32\n", atomicPackagePrefix())
+	}
+
+	// Last file? Emit meta-data and converage config.
+	if last {
+		p.emitMetaData(fd)
+	}
 }
 
 // setCounterStmt returns the expression: __count[23] = 1.
@@ -361,13 +677,34 @@ func incCounterStmt(f *File, counter string) string {
 
 // atomicCounterStmt returns the expression: atomic.AddUint32(&__count[23], 1)
 func atomicCounterStmt(f *File, counter string) string {
-	return fmt.Sprintf("%s.AddUint32(&%s, 1)", atomicPackageName, counter)
+	return fmt.Sprintf("%sAddUint32(&%s, 1)", atomicPackagePrefix(), counter)
 }
 
 // newCounter creates a new counter expression of the appropriate form.
 func (f *File) newCounter(start, end token.Pos, numStmt int) string {
-	stmt := counterStmt(f, fmt.Sprintf("%s.Count[%d]", *varVar, len(f.blocks)))
-	f.blocks = append(f.blocks, Block{start, end, numStmt})
+	var stmt string
+	if *pkgcfg != "" {
+		slot := len(f.fn.units) + coverage.FirstCtrOffset
+		if f.fn.counterVar == "" {
+			panic("internal error: counter var unset")
+		}
+		stmt = counterStmt(f, fmt.Sprintf("%s[%d]", f.fn.counterVar, slot))
+		stpos := f.fset.Position(start)
+		enpos := f.fset.Position(end)
+		stpos, enpos = dedup(stpos, enpos)
+		unit := coverage.CoverableUnit{
+			StLine:  uint32(stpos.Line),
+			StCol:   uint32(stpos.Column),
+			EnLine:  uint32(enpos.Line),
+			EnCol:   uint32(enpos.Column),
+			NxStmts: uint32(numStmt),
+		}
+		f.fn.units = append(f.fn.units, unit)
+	} else {
+		stmt = counterStmt(f, fmt.Sprintf("%s.Count[%d]", *varVar,
+			len(f.blocks)))
+		f.blocks = append(f.blocks, Block{start, end, numStmt})
+	}
 	return stmt
 }
 
@@ -621,6 +958,9 @@ func (f *File) offset(pos token.Pos) int {
 
 // addVariables adds to the end of the file the declarations to set up the counter and position variables.
 func (f *File) addVariables(w io.Writer) {
+	if *pkgcfg != "" {
+		return
+	}
 	// Self-check: Verify that the instrumented basic blocks are disjoint.
 	t := make([]block1, len(f.blocks))
 	for i := range f.blocks {
@@ -683,12 +1023,6 @@ func (f *File) addVariables(w io.Writer) {
 
 	// Close the struct initialization.
 	fmt.Fprintf(w, "}\n")
-
-	// Emit a reference to the atomic package to avoid
-	// import and not used error when there's no code in a file.
-	if *mode == "atomic" {
-		fmt.Fprintf(w, "var _ = %s.LoadUint32\n", atomicPackageName)
-	}
 }
 
 // It is possible for positions to repeat when there is a line
@@ -726,4 +1060,77 @@ func dedup(p1, p2 token.Position) (r1, r2 token.Position) {
 	seenPos2[key] = true
 
 	return key.p1, key.p2
+}
+
+func (p *Package) emitMetaData(w io.Writer) {
+	if *pkgcfg == "" {
+		return
+	}
+
+	// Something went wrong if regonly/testmain mode is in effect and
+	// we have instrumented functions.
+	if counterStmt == nil && len(p.counterLengths) != 0 {
+		panic("internal error: seen functions with regonly/testmain")
+	}
+
+	// Emit package ID var.
+	fmt.Fprintf(w, "\nvar %sP uint32\n", *varVar)
+
+	// Emit all of the counter variables.
+	for k := range p.counterLengths {
+		cvn := mkCounterVarName(k)
+		fmt.Fprintf(w, "var %s [%d]uint32\n", cvn, p.counterLengths[k])
+	}
+
+	// Emit encoded meta-data.
+	var sws slicewriter.WriteSeeker
+	digest, err := p.mdb.Emit(&sws)
+	if err != nil {
+		log.Fatalf("encoding meta-data: %v", err)
+	}
+	p.mdb = nil
+	fmt.Fprintf(w, "var %s = [...]byte{\n", mkMetaVar())
+	payload := sws.BytesWritten()
+	for k, b := range payload {
+		fmt.Fprintf(w, " 0x%x,", b)
+		if k != 0 && k%8 == 0 {
+			fmt.Fprintf(w, "\n")
+		}
+	}
+	fmt.Fprintf(w, "}\n")
+
+	fixcfg := coverage.CoverFixupConfig{
+		Strategy:           "normal",
+		MetaVar:            mkMetaVar(),
+		MetaLen:            len(payload),
+		MetaHash:           fmt.Sprintf("%x", digest),
+		PkgIdVar:           mkPackageIdVar(),
+		CounterPrefix:      *varVar,
+		CounterGranularity: pkgconfig.Granularity,
+		CounterMode:        *mode,
+	}
+	fixdata, err := json.Marshal(fixcfg)
+	if err != nil {
+		log.Fatalf("marshal fixupcfg: %v", err)
+	}
+	if err := os.WriteFile(pkgconfig.OutConfig, fixdata, 0666); err != nil {
+		log.Fatalf("error writing %s: %v", pkgconfig.OutConfig, err)
+	}
+}
+
+// atomicOnAtomic returns true if we're instrumenting
+// the sync/atomic package AND using atomic mode.
+func atomicOnAtomic() bool {
+	return *mode == "atomic" && pkgconfig.PkgPath == "sync/atomic"
+}
+
+// atomicPackagePrefix returns the import path prefix used to refer to
+// our special import of sync/atomic; this is either set to the
+// constant atomicPackageName plus a dot or the empty string if we're
+// instrumenting the sync/atomic package itself.
+func atomicPackagePrefix() string {
+	if atomicOnAtomic() {
+		return ""
+	}
+	return atomicPackageName + "."
 }

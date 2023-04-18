@@ -7,7 +7,10 @@
 
 package route
 
-import "runtime"
+import (
+	"runtime"
+	"syscall"
+)
 
 func (w *wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
 	if len(b) < w.bodyOff {
@@ -18,13 +21,13 @@ func (w *wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error)
 		return nil, errInvalidMessage
 	}
 	attrs := uint(nativeEndian.Uint32(b[4:8]))
-	if attrs&sysRTA_IFP == 0 {
+	if attrs&syscall.RTA_IFP == 0 {
 		return nil, nil
 	}
 	m := &InterfaceMessage{
 		Version: int(b[2]),
 		Type:    int(b[3]),
-		Addrs:   make([]Addr, sysRTAX_MAX),
+		Addrs:   make([]Addr, syscall.RTAX_MAX),
 		Flags:   int(nativeEndian.Uint32(b[8:12])),
 		Index:   int(nativeEndian.Uint16(b[12:14])),
 		extOff:  w.extOff,
@@ -34,7 +37,7 @@ func (w *wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error)
 	if err != nil {
 		return nil, err
 	}
-	m.Addrs[sysRTAX_IFP] = a
+	m.Addrs[syscall.RTAX_IFP] = a
 	m.Name = a.(*LinkAddr).Name
 	return m, nil
 }

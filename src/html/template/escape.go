@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"internal/godebug"
 	"io"
 	"text/template"
 	"text/template/parse"
@@ -160,6 +161,8 @@ func (e *escaper) escape(c context, n parse.Node) context {
 	panic("escaping " + n.String() + " is unimplemented")
 }
 
+var debugAllowActionJSTmpl = godebug.New("jstmpllitinterp")
+
 // escapeAction escapes an action template node.
 func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	if len(n.Pipe.Decl) != 0 {
@@ -223,6 +226,16 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		c.jsCtx = jsCtxDivOp
 	case stateJSDqStr, stateJSSqStr:
 		s = append(s, "_html_template_jsstrescaper")
+	case stateJSBqStr:
+		if debugAllowActionJSTmpl.Value() == "1" {
+			debugAllowActionJSTmpl.IncNonDefault()
+			s = append(s, "_html_template_jsstrescaper")
+		} else {
+			return context{
+				state: stateError,
+				err:   errorf(errJSTmplLit, n, n.Line, "%s appears in a JS template literal", n),
+			}
+		}
 	case stateJSRegexp:
 		s = append(s, "_html_template_jsregexpescaper")
 	case stateCSS:

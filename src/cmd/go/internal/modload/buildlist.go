@@ -9,6 +9,7 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
+	"cmd/go/internal/slices"
 	"context"
 	"fmt"
 	"os"
@@ -22,11 +23,6 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
-
-// capVersionSlice returns s with its cap reduced to its length.
-func capVersionSlice(s []module.Version) []module.Version {
-	return s[:len(s):len(s)]
-}
 
 // A Requirements represents a logically-immutable set of root module requirements.
 type Requirements struct {
@@ -73,8 +69,8 @@ type Requirements struct {
 	// nested module back into a parent module).
 	direct map[string]bool
 
-	graphOnce sync.Once    // guards writes to (but not reads from) graph
-	graph     atomic.Value // cachedGraph
+	graphOnce sync.Once // guards writes to (but not reads from) graph
+	graph     atomic.Pointer[cachedGraph]
 }
 
 // A cachedGraph is a non-nil *ModuleGraph, together with any error discovered
@@ -108,7 +104,7 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
 	if pruning == workspace {
 		return &Requirements{
 			pruning:        pruning,
-			rootModules:    capVersionSlice(rootModules),
+			rootModules:    slices.Clip(rootModules),
 			maxRootVersion: nil,
 			direct:         direct,
 		}
@@ -135,7 +131,7 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
 
 	rs := &Requirements{
 		pruning:        pruning,
-		rootModules:    capVersionSlice(rootModules),
+		rootModules:    slices.Clip(rootModules),
 		maxRootVersion: make(map[string]string, len(rootModules)),
 		direct:         direct,
 	}
@@ -199,7 +195,7 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 			mg.g.Require(vendorMod, vendorList)
 		}
 
-		rs.graph.Store(cachedGraph{mg, nil})
+		rs.graph.Store(&cachedGraph{mg, nil})
 	})
 }
 
@@ -240,9 +236,9 @@ func (rs *Requirements) hasRedundantRoot() bool {
 func (rs *Requirements) Graph(ctx context.Context) (*ModuleGraph, error) {
 	rs.graphOnce.Do(func() {
 		mg, mgErr := readModGraph(ctx, rs.pruning, rs.rootModules)
-		rs.graph.Store(cachedGraph{mg, mgErr})
+		rs.graph.Store(&cachedGraph{mg, mgErr})
 	})
-	cached := rs.graph.Load().(cachedGraph)
+	cached := rs.graph.Load()
 	return cached.mg, cached.err
 }
 
@@ -259,17 +255,10 @@ func (rs *Requirements) IsDirect(path string) bool {
 // transitive dependencies of non-root (implicit) dependencies.
 type ModuleGraph struct {
 	g         *mvs.Graph
-	loadCache par.Cache // module.Version → summaryError
+	loadCache par.ErrCache[module.Version, *modFileSummary]
 
 	buildListOnce sync.Once
 	buildList     []module.Version
-}
-
-// A summaryError is either a non-nil modFileSummary or a non-nil error
-// encountered while reading or parsing that summary.
-type summaryError struct {
-	summary *modFileSummary
-	err     error
 }
 
 var readModGraphDebugOnce sync.Once
@@ -326,7 +315,7 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 	// It does not load the transitive requirements of m even if the go version in
 	// m's go.mod file indicates that it supports graph pruning.
 	loadOne := func(m module.Version) (*modFileSummary, error) {
-		cached := mg.loadCache.Do(m, func() any {
+		return mg.loadCache.Do(m, func() (*modFileSummary, error) {
 			summary, err := goModSummary(m)
 
 			mu.Lock()
@@ -337,10 +326,8 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 			}
 			mu.Unlock()
 
-			return summaryError{summary, err}
-		}).(summaryError)
-
-		return cached.summary, cached.err
+			return summary, err
+		})
 	}
 
 	var enqueue func(m module.Version, pruning modPruning)
@@ -397,7 +384,6 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 		seen := map[module.Version]bool{}
 		for _, m := range roots {
 			hasDepsInAll[m.Path] = true
-			seen[m] = true
 		}
 		// This loop will terminate because it will call enqueue on each version of
 		// each dependency of the modules in hasDepsInAll at most once (and only
@@ -406,11 +392,11 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
 			needsEnqueueing := map[module.Version]bool{}
 			for p := range hasDepsInAll {
 				m := module.Version{Path: p, Version: mg.g.Selected(p)}
-				reqs, ok := mg.g.RequiredBy(m)
-				if !ok {
+				if !seen[m] {
 					needsEnqueueing[m] = true
 					continue
 				}
+				reqs, _ := mg.g.RequiredBy(m)
 				for _, r := range reqs {
 					s := module.Version{Path: r.Path, Version: mg.g.Selected(r.Path)}
 					if cmpVersion(s.Version, r.Version) > 0 && !seen[s] {
@@ -462,7 +448,7 @@ func (mg *ModuleGraph) WalkBreadthFirst(f func(m module.Version)) {
 }
 
 // BuildList returns the selected versions of all modules present in the graph,
-// beginning with Target.
+// beginning with the main modules.
 //
 // The order of the remaining elements in the list is deterministic
 // but arbitrary.
@@ -471,18 +457,18 @@ func (mg *ModuleGraph) WalkBreadthFirst(f func(m module.Version)) {
 // and may rely on it not to be modified.
 func (mg *ModuleGraph) BuildList() []module.Version {
 	mg.buildListOnce.Do(func() {
-		mg.buildList = capVersionSlice(mg.g.BuildList())
+		mg.buildList = slices.Clip(mg.g.BuildList())
 	})
 	return mg.buildList
 }
 
 func (mg *ModuleGraph) findError() error {
 	errStack := mg.g.FindPath(func(m module.Version) bool {
-		cached := mg.loadCache.Get(m)
-		return cached != nil && cached.(summaryError).err != nil
+		_, err := mg.loadCache.Get(m)
+		return err != nil && err != par.ErrCacheEntryNotFound
 	})
 	if len(errStack) > 0 {
-		err := mg.loadCache.Get(errStack[len(errStack)-1]).(summaryError).err
+		_, err := mg.loadCache.Get(errStack[len(errStack)-1])
 		var noUpgrade func(from, to module.Version) bool
 		return mvs.NewBuildListError(err, errStack, noUpgrade)
 	}

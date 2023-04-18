@@ -18,14 +18,14 @@ env GIT_ASKPASS=$PWD/replace.exe
 
 # Test that 'go get -u' reports moved git packages.
 
-[exec:git] go get -d rsc.io/pdf
-[exec:git] go get -d -u rsc.io/pdf
-[exec:git] exec ./replace.exe pdf rsc.io/pdf/.git/config
+[git] go get -d rsc.io/pdf
+[git] go get -d -u rsc.io/pdf
+[git] exec ./replace.exe pdf rsc.io/pdf/.git/config
 
-[exec:git] ! go get -d -u rsc.io/pdf
-[exec:git] stderr 'is a custom import path for'
-[exec:git] ! go get -d -f -u rsc.io/pdf
-[exec:git] stderr 'validating server certificate|[nN]ot [fF]ound'
+[git] ! go get -d -u rsc.io/pdf
+[git] stderr 'is a custom import path for'
+[git] ! go get -d -f -u rsc.io/pdf
+[git] stderr 'validating server certificate|[nN]ot [fF]ound'
 
 
 # Test that 'go get -u' reports moved Mercurial packages.

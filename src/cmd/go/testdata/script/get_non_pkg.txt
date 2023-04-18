@@ -1,5 +1,5 @@
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 env GOBIN=$WORK/tmp/gobin
 env GO111MODULE=off

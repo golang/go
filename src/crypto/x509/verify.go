@@ -7,6 +7,7 @@ package x509
 import (
 	"bytes"
 	"crypto"
+	"crypto/x509/pkix"
 	"errors"
 	"fmt"
 	"net"
@@ -598,25 +599,6 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		leaf = currentChain[0]
 	}
 
-	if (len(c.ExtKeyUsage) > 0 || len(c.UnknownExtKeyUsage) > 0) && len(opts.KeyUsages) > 0 {
-		acceptableUsage := false
-		um := make(map[ExtKeyUsage]bool, len(opts.KeyUsages))
-		for _, u := range opts.KeyUsages {
-			um[u] = true
-		}
-		if !um[ExtKeyUsageAny] {
-			for _, u := range c.ExtKeyUsage {
-				if u == ExtKeyUsageAny || um[u] {
-					acceptableUsage = true
-					break
-				}
-			}
-			if !acceptableUsage {
-				return CertificateInvalidError{c, IncompatibleUsage, ""}
-			}
-		}
-	}
-
 	if (certType == intermediateCertificate || certType == rootCertificate) &&
 		c.hasNameConstraints() {
 		toCheck := []*Certificate{}
@@ -724,6 +706,13 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		}
 	}
 
+	if !boringAllowCert(c) {
+		// IncompatibleUsage is not quite right here,
+		// but it's also the "no chains found" error
+		// and is close enough.
+		return CertificateInvalidError{c, IncompatibleUsage, ""}
+	}
+
 	return nil
 }
 
@@ -756,6 +745,8 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 // Certificates that use SHA1WithRSA and ECDSAWithSHA1 signatures are not supported,
 // and will not be used to build chains.
 //
+// Certificates other than c in the returned chains should not be modified.
+//
 // WARNING: this function doesn't do any revocation checking.
 func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
 	// Platform-specific verification needs the ASN.1 contents so
@@ -775,7 +766,10 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 
 	// Use platform verifiers, where available, if Roots is from SystemCertPool.
 	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		if opts.Roots == nil {
+		// Don't use the system verifier if the system pool was replaced with a non-system pool,
+		// i.e. if SetFallbackRoots was called with x509usefallbackroots=1.
+		systemPool := systemRootsPool()
+		if opts.Roots == nil && (systemPool == nil || systemPool.systemPool) {
 			return c.systemVerify(&opts)
 		}
 		if opts.Roots != nil && opts.Roots.systemPool {
@@ -796,10 +790,6 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
-	if len(opts.KeyUsages) == 0 {
-		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
-	}
-
 	err = c.isValid(leafCertificate, nil, &opts)
 	if err != nil {
 		return
@@ -812,10 +802,40 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
 		}
 	}
 
+	var candidateChains [][]*Certificate
 	if opts.Roots.contains(c) {
-		return [][]*Certificate{{c}}, nil
+		candidateChains = [][]*Certificate{{c}}
+	} else {
+		candidateChains, err = c.buildChains([]*Certificate{c}, nil, &opts)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return c.buildChains([]*Certificate{c}, nil, &opts)
+
+	if len(opts.KeyUsages) == 0 {
+		opts.KeyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+	}
+
+	for _, eku := range opts.KeyUsages {
+		if eku == ExtKeyUsageAny {
+			// If any key usage is acceptable, no need to check the chain for
+			// key usages.
+			return candidateChains, nil
+		}
+	}
+
+	chains = make([][]*Certificate, 0, len(candidateChains))
+	for _, candidate := range candidateChains {
+		if checkChainForKeyUsage(candidate, opts.KeyUsages) {
+			chains = append(chains, candidate)
+		}
+	}
+
+	if len(chains) == 0 {
+		return nil, CertificateInvalidError{c, IncompatibleUsage, ""}
+	}
+
+	return chains, nil
 }
 
 func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
@@ -823,6 +843,50 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate 
 	copy(n, chain)
 	n[len(chain)] = cert
 	return n
+}
+
+// alreadyInChain checks whether a candidate certificate is present in a chain.
+// Rather than doing a direct byte for byte equivalency check, we check if the
+// subject, public key, and SAN, if present, are equal. This prevents loops that
+// are created by mutual cross-signatures, or other cross-signature bridge
+// oddities.
+func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
+	type pubKeyEqual interface {
+		Equal(crypto.PublicKey) bool
+	}
+
+	var candidateSAN *pkix.Extension
+	for _, ext := range candidate.Extensions {
+		if ext.Id.Equal(oidExtensionSubjectAltName) {
+			candidateSAN = &ext
+			break
+		}
+	}
+
+	for _, cert := range chain {
+		if !bytes.Equal(candidate.RawSubject, cert.RawSubject) {
+			continue
+		}
+		if !candidate.PublicKey.(pubKeyEqual).Equal(cert.PublicKey) {
+			continue
+		}
+		var certSAN *pkix.Extension
+		for _, ext := range cert.Extensions {
+			if ext.Id.Equal(oidExtensionSubjectAltName) {
+				certSAN = &ext
+				break
+			}
+		}
+		if candidateSAN == nil && certSAN == nil {
+			return true
+		} else if candidateSAN == nil || certSAN == nil {
+			return false
+		}
+		if bytes.Equal(candidateSAN.Value, certSAN.Value) {
+			return true
+		}
+	}
+	return false
 }
 
 // maxChainSignatureChecks is the maximum number of CheckSignatureFrom calls
@@ -837,18 +901,9 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 		hintCert *Certificate
 	)
 
-	type pubKeyEqual interface {
-		Equal(crypto.PublicKey) bool
-	}
-
 	considerCandidate := func(certType int, candidate *Certificate) {
-		for _, cert := range currentChain {
-			// If a certificate already appeared in the chain we've built, don't
-			// reconsider it. This prevents loops, for isntance those created by
-			// mutual cross-signatures, or other cross-signature bridges oddities.
-			if bytes.Equal(cert.RawSubject, candidate.RawSubject) && cert.PublicKey.(pubKeyEqual).Equal(candidate.PublicKey) {
-				return
-			}
+		if alreadyInChain(candidate, currentChain) {
+			return
 		}
 
 		if sigChecks == nil {
@@ -870,6 +925,10 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 
 		err = candidate.isValid(certType, currentChain, opts)
 		if err != nil {
+			if hintErr == nil {
+				hintErr = err
+				hintCert = candidate
+			}
 			return
 		}
 

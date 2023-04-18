@@ -56,7 +56,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVW.CS R8, (R8)
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0-4
 	MOVW wait+0(FP), R0
 	// We're done using the stack.
@@ -288,7 +288,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R4, R13
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$0
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
 	// Reserve space for callee-save registers and arguments.
 	MOVM.DB.W [R4-R11], (R13)
 	SUB	$16, R13

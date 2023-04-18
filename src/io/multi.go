@@ -42,7 +42,7 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
 }
 
 func (mr *multiReader) WriteTo(w Writer) (sum int64, err error) {
-	return mr.writeToWithBuffer(w, make([]byte, 1024 * 32))
+	return mr.writeToWithBuffer(w, make([]byte, 1024*32))
 }
 
 func (mr *multiReader) writeToWithBuffer(w Writer, buf []byte) (sum int64, err error) {

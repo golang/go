@@ -21,7 +21,7 @@ var ErrProcessDone = errors.New("os: process already finished")
 type Process struct {
 	Pid    int
 	handle uintptr      // handle is accessed atomically on Windows
-	isdone uint32       // process has been successfully waited on, non zero if true
+	isdone atomic.Bool  // process has been successfully waited on
 	sigMu  sync.RWMutex // avoid race between wait and signal
 }
 
@@ -32,11 +32,11 @@ func newProcess(pid int, handle uintptr) *Process {
 }
 
 func (p *Process) setDone() {
-	atomic.StoreUint32(&p.isdone, 1)
+	p.isdone.Store(true)
 }
 
 func (p *Process) done() bool {
-	return atomic.LoadUint32(&p.isdone) > 0
+	return p.isdone.Load()
 }
 
 // ProcAttr holds the attributes that will be applied to a new process

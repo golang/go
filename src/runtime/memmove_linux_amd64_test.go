@@ -6,7 +6,6 @@ package runtime_test
 
 import (
 	"os"
-	"reflect"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -45,11 +44,7 @@ func TestMemmoveOverflow(t *testing.T) {
 		defer syscall.Syscall(syscall.SYS_MUNMAP, base+off, 65536, 0)
 	}
 
-	var s []byte
-	sp := (*reflect.SliceHeader)(unsafe.Pointer(&s))
-	sp.Data = base
-	sp.Len, sp.Cap = 3<<30, 3<<30
-
+	s := unsafe.Slice((*byte)(unsafe.Pointer(base)), 3<<30)
 	n := copy(s[1:], s)
 	if n != 3<<30-1 {
 		t.Fatalf("copied %d bytes, expected %d", n, 3<<30-1)

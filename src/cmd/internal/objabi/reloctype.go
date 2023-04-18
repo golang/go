@@ -154,6 +154,22 @@ const (
 	// adrp followed by another add instruction.
 	R_ARM64_PCREL
 
+	// R_ARM64_PCREL_LDST8 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD8 or ST8 instruction.
+	R_ARM64_PCREL_LDST8
+
+	// R_ARM64_PCREL_LDST16 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD16 or ST16 instruction.
+	R_ARM64_PCREL_LDST16
+
+	// R_ARM64_PCREL_LDST32 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD32 or ST32 instruction.
+	R_ARM64_PCREL_LDST32
+
+	// R_ARM64_PCREL_LDST64 resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by a LD64 or ST64 instruction.
+	R_ARM64_PCREL_LDST64
+
 	// R_ARM64_LDST8 sets a LD/ST immediate value to bits [11:0] of a local address.
 	R_ARM64_LDST8
 
@@ -192,6 +208,15 @@ const (
 	// (usually called RB in X-form instructions) is assumed to be R13.
 	R_POWER_TLS
 
+	// R_POWER_TLS_IE_PCREL34 is similar to R_POWER_TLS_IE, but marks a single MOVD
+	// which has been assembled as a single prefixed load doubleword without using the
+	// TOC.
+	R_POWER_TLS_IE_PCREL34
+
+	// R_POWER_TLS_LE_TPREL34 is similar to R_POWER_TLS_LE, but computes an offset from
+	// the thread pointer in one prefixed instruction.
+	R_POWER_TLS_LE_TPREL34
+
 	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
 	// instruction is a "DS-form" instruction, which has an immediate field occupying
 	// bits [15:2] of the instruction word. Bits [15:2] of the address of the
@@ -199,10 +224,13 @@ const (
 	// bits of the address are not 0.
 	R_ADDRPOWER_DS
 
-	// R_ADDRPOWER_PCREL relocates a D-form, DS-form instruction sequence like
-	// R_ADDRPOWER_DS but inserts the offset of the GOT slot for the referenced symbol
-	// from the TOC rather than the symbol's address.
+	// R_ADDRPOWER_GOT relocates a D-form + DS-form instruction sequence by inserting
+	// a relative displacement of referenced symbol's GOT entry to the TOC pointer.
 	R_ADDRPOWER_GOT
+
+	// R_ADDRPOWER_GOT_PCREL34 is identical to R_ADDRPOWER_GOT, but uses a PC relative
+	// sequence to generate a GOT symbol addresss.
+	R_ADDRPOWER_GOT_PCREL34
 
 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
 	// inserts the displacement from the place being relocated to the address of the
@@ -214,10 +242,20 @@ const (
 	// rather than the symbol's address.
 	R_ADDRPOWER_TOCREL
 
-	// R_ADDRPOWER_TOCREL relocates a D-form, DS-form instruction sequence like
+	// R_ADDRPOWER_TOCREL_DS relocates a D-form, DS-form instruction sequence like
 	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the
 	// relocated symbol rather than the symbol's address.
 	R_ADDRPOWER_TOCREL_DS
+
+	// R_ADDRPOWER_D34 relocates a single prefixed D-form load/store operation.  All
+	// prefixed forms are D form. The high 18 bits are stored in the prefix,
+	// and the low 16 are stored in the suffix. The address is absolute.
+	R_ADDRPOWER_D34
+
+	// R_ADDRPOWER_PCREL34 relates a single prefixed D-form load/store/add operation.
+	// All prefixed forms are D form. The resulting address is relative to the
+	// PC. It is a signed 34 bit offset.
+	R_ADDRPOWER_PCREL34
 
 	// RISC-V.
 
@@ -250,6 +288,37 @@ const (
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
 	R_PCRELDBL
 
+	// Loong64.
+
+	// R_ADDRLOONG64 resolves to the low 12 bits of an external address, by encoding
+	// it into the instruction.
+	R_ADDRLOONG64
+
+	// R_ADDRLOONG64U resolves to the sign-adjusted "upper" 20 bits (bit 5-24) of an
+	// external address, by encoding it into the instruction.
+	R_ADDRLOONG64U
+
+	// R_ADDRLOONG64TLS resolves to the low 12 bits of a TLS address (offset from
+	// thread pointer), by encoding it into the instruction.
+	R_ADDRLOONG64TLS
+
+	// R_ADDRLOONG64TLSU resolves to the high 20 bits of a TLS address (offset from
+	// thread pointer), by encoding it into the instruction.
+	R_ADDRLOONG64TLSU
+
+	// R_CALLLOONG64 resolves to non-PC-relative target address of a CALL (BL/JIRL)
+	// instruction, by encoding the address into the instruction.
+	R_CALLLOONG64
+
+	// R_LOONG64_TLS_IE_PCREL_HI and R_LOONG64_TLS_IE_LO relocates a pcalau12i, ld.d
+	// pair to compute the address of the GOT slot of the tls symbol.
+	R_LOONG64_TLS_IE_PCREL_HI
+	R_LOONG64_TLS_IE_LO
+
+	// R_JMPLOONG64 resolves to non-PC-relative target address of a JMP instruction,
+	// by encoding the address into the instruction.
+	R_JMPLOONG64
+
 	// R_ADDRMIPSU (only used on mips/mips64) resolves to the sign-adjusted "upper" 16
 	// bits (bit 16-31) of an external address, by encoding it into the instruction.
 	R_ADDRMIPSU
@@ -269,6 +338,16 @@ const (
 	// in a symbol and target any symbols.
 	R_XCOFFREF
 
+	// R_PEIMAGEOFF resolves to a 32-bit offset from the start address of where
+	// the executable file is mapped in memory.
+	R_PEIMAGEOFF
+
+	// R_INITORDER specifies an ordering edge between two inittask records.
+	// (From one p..inittask record to another one.)
+	// This relocation does not apply any changes to the actual data, it is
+	// just used in the linker to order the inittask records appropriately.
+	R_INITORDER
+
 	// R_WEAK marks the relocation as a weak reference.
 	// A weak relocation does not make the symbol it refers to reachable,
 	// and is only honored by the linker if the symbol is in some other way
@@ -286,7 +365,7 @@ const (
 // the target address in register or memory.
 func (r RelocType) IsDirectCall() bool {
 	switch r {
-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER, R_RISCV_CALL, R_RISCV_CALL_TRAMP:
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLLOONG64, R_CALLMIPS, R_CALLPOWER, R_RISCV_CALL, R_RISCV_CALL_TRAMP:
 		return true
 	}
 	return false
@@ -300,6 +379,8 @@ func (r RelocType) IsDirectCall() bool {
 func (r RelocType) IsDirectJump() bool {
 	switch r {
 	case R_JMPMIPS:
+		return true
+	case R_JMPLOONG64:
 		return true
 	}
 	return false

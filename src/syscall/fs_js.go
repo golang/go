@@ -544,7 +544,7 @@ func recoverErr(errPtr *error) {
 	}
 }
 
-// mapJSError maps an error given by Node.js to the appropriate Go error
+// mapJSError maps an error given by Node.js to the appropriate Go error.
 func mapJSError(jsErr js.Value) error {
 	errno, ok := errnoByCode[jsErr.Get("code").String()]
 	if !ok {

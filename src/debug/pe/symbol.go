@@ -6,7 +6,9 @@ package pe
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"unsafe"
 )
@@ -23,6 +25,29 @@ type COFFSymbol struct {
 	NumberOfAuxSymbols uint8
 }
 
+// readCOFFSymbols reads in the symbol table for a PE file, returning
+// a slice of COFFSymbol objects. The PE format includes both primary
+// symbols (whose fields are described by COFFSymbol above) and
+// auxiliary symbols; all symbols are 18 bytes in size. The auxiliary
+// symbols for a given primary symbol are placed following it in the
+// array, e.g.
+//
+//	...
+//	k+0:  regular sym k
+//	k+1:    1st aux symbol for k
+//	k+2:    2nd aux symbol for k
+//	k+3:  regular sym k+3
+//	k+4:    1st aux symbol for k+3
+//	k+5:  regular sym k+5
+//	k+6:  regular sym k+6
+//
+// The PE format allows for several possible aux symbol formats. For
+// more info see:
+//
+//	https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records
+//
+// At the moment this package only provides APIs for looking at
+// aux symbols of format 5 (associated with section definition symbols).
 func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
 	if fh.PointerToSymbolTable == 0 {
 		return nil, nil
@@ -34,10 +59,38 @@ func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fail to seek to symbol table: %v", err)
 	}
-	syms := make([]COFFSymbol, fh.NumberOfSymbols)
-	err = binary.Read(r, binary.LittleEndian, syms)
-	if err != nil {
-		return nil, fmt.Errorf("fail to read symbol table: %v", err)
+	c := saferio.SliceCap((*COFFSymbol)(nil), uint64(fh.NumberOfSymbols))
+	if c < 0 {
+		return nil, errors.New("too many symbols; file may be corrupt")
+	}
+	syms := make([]COFFSymbol, 0, c)
+	naux := 0
+	for k := uint32(0); k < fh.NumberOfSymbols; k++ {
+		var sym COFFSymbol
+		if naux == 0 {
+			// Read a primary symbol.
+			err = binary.Read(r, binary.LittleEndian, &sym)
+			if err != nil {
+				return nil, fmt.Errorf("fail to read symbol table: %v", err)
+			}
+			// Record how many auxiliary symbols it has.
+			naux = int(sym.NumberOfAuxSymbols)
+		} else {
+			// Read an aux symbol. At the moment we assume all
+			// aux symbols are format 5 (obviously this doesn't always
+			// hold; more cases will be needed below if more aux formats
+			// are supported in the future).
+			naux--
+			aux := (*COFFSymbolAuxFormat5)(unsafe.Pointer(&sym))
+			err = binary.Read(r, binary.LittleEndian, aux)
+			if err != nil {
+				return nil, fmt.Errorf("fail to read symbol table: %v", err)
+			}
+		}
+		syms = append(syms, sym)
+	}
+	if naux != 0 {
+		return nil, fmt.Errorf("fail to read symbol table: %d aux symbols unread", naux)
 	}
 	return syms, nil
 }
@@ -127,7 +180,7 @@ const (
 	IMAGE_COMDAT_SELECT_LARGEST      = 6
 )
 
-// COFFSymbolReadSectionDefAux returns a blob of axiliary information
+// COFFSymbolReadSectionDefAux returns a blob of auxiliary information
 // (including COMDAT info) for a section definition symbol. Here 'idx'
 // is the index of a section symbol in the main COFFSymbol array for
 // the File. Return value is a pointer to the appropriate aux symbol
@@ -136,10 +189,9 @@ const (
 // auxiliary symbols: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records
 // COMDAT sections: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#comdat-sections-object-only
 // auxiliary info for section definitions: https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-format-5-section-definitions
-//
 func (f *File) COFFSymbolReadSectionDefAux(idx int) (*COFFSymbolAuxFormat5, error) {
 	var rv *COFFSymbolAuxFormat5
-	if idx < 0 || idx > len(f.COFFSymbols) {
+	if idx < 0 || idx >= len(f.COFFSymbols) {
 		return rv, fmt.Errorf("invalid symbol index")
 	}
 	pesym := &f.COFFSymbols[idx]

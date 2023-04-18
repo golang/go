@@ -7,7 +7,7 @@ env GOSUMDB=off
 # to 'go get', when using a repo with go.mod in a sub directory.
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 # For this test repository go.mod resides in sub/ (only):
 #  master is not tagged

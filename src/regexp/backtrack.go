@@ -163,7 +163,7 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 		}
 	Skip:
 
-		inst := re.prog.Inst[pc]
+		inst := &re.prog.Inst[pc]
 
 		switch inst.Op {
 		default:

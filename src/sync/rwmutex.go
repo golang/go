@@ -25,12 +25,20 @@ import (
 // recursive read locking. This is to ensure that the lock eventually becomes
 // available; a blocked Lock call excludes new readers from acquiring the
 // lock.
+//
+// In the terminology of the Go memory model,
+// the n'th call to Unlock “synchronizes before” the m'th call to Lock
+// for any n < m, just as for Mutex.
+// For any call to RLock, there exists an n such that
+// the n'th call to Unlock “synchronizes before” that call to RLock,
+// and the corresponding call to RUnlock “synchronizes before”
+// the n+1'th call to Lock.
 type RWMutex struct {
-	w           Mutex  // held if there are pending writers
-	writerSem   uint32 // semaphore for writers to wait for completing readers
-	readerSem   uint32 // semaphore for readers to wait for completing writers
-	readerCount int32  // number of pending readers
-	readerWait  int32  // number of departing readers
+	w           Mutex        // held if there are pending writers
+	writerSem   uint32       // semaphore for writers to wait for completing readers
+	readerSem   uint32       // semaphore for readers to wait for completing writers
+	readerCount atomic.Int32 // number of pending readers
+	readerWait  atomic.Int32 // number of departing readers
 }
 
 const rwmutexMaxReaders = 1 << 30
@@ -58,9 +66,9 @@ func (rw *RWMutex) RLock() {
 		_ = rw.w.state
 		race.Disable()
 	}
-	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
+	if rw.readerCount.Add(1) < 0 {
 		// A writer is pending, wait for it.
-		runtime_SemacquireMutex(&rw.readerSem, false, 0)
+		runtime_SemacquireRWMutexR(&rw.readerSem, false, 0)
 	}
 	if race.Enabled {
 		race.Enable()
@@ -79,14 +87,14 @@ func (rw *RWMutex) TryRLock() bool {
 		race.Disable()
 	}
 	for {
-		c := atomic.LoadInt32(&rw.readerCount)
+		c := rw.readerCount.Load()
 		if c < 0 {
 			if race.Enabled {
 				race.Enable()
 			}
 			return false
 		}
-		if atomic.CompareAndSwapInt32(&rw.readerCount, c, c+1) {
+		if rw.readerCount.CompareAndSwap(c, c+1) {
 			if race.Enabled {
 				race.Enable()
 				race.Acquire(unsafe.Pointer(&rw.readerSem))
@@ -106,7 +114,7 @@ func (rw *RWMutex) RUnlock() {
 		race.ReleaseMerge(unsafe.Pointer(&rw.writerSem))
 		race.Disable()
 	}
-	if r := atomic.AddInt32(&rw.readerCount, -1); r < 0 {
+	if r := rw.readerCount.Add(-1); r < 0 {
 		// Outlined slow-path to allow the fast-path to be inlined
 		rw.rUnlockSlow(r)
 	}
@@ -118,10 +126,10 @@ func (rw *RWMutex) RUnlock() {
 func (rw *RWMutex) rUnlockSlow(r int32) {
 	if r+1 == 0 || r+1 == -rwmutexMaxReaders {
 		race.Enable()
-		throw("sync: RUnlock of unlocked RWMutex")
+		fatal("sync: RUnlock of unlocked RWMutex")
 	}
 	// A writer is pending.
-	if atomic.AddInt32(&rw.readerWait, -1) == 0 {
+	if rw.readerWait.Add(-1) == 0 {
 		// The last reader unblocks the writer.
 		runtime_Semrelease(&rw.writerSem, false, 1)
 	}
@@ -138,10 +146,10 @@ func (rw *RWMutex) Lock() {
 	// First, resolve competition with other writers.
 	rw.w.Lock()
 	// Announce to readers there is a pending writer.
-	r := atomic.AddInt32(&rw.readerCount, -rwmutexMaxReaders) + rwmutexMaxReaders
+	r := rw.readerCount.Add(-rwmutexMaxReaders) + rwmutexMaxReaders
 	// Wait for active readers.
-	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
-		runtime_SemacquireMutex(&rw.writerSem, false, 0)
+	if r != 0 && rw.readerWait.Add(r) != 0 {
+		runtime_SemacquireRWMutex(&rw.writerSem, false, 0)
 	}
 	if race.Enabled {
 		race.Enable()
@@ -166,7 +174,7 @@ func (rw *RWMutex) TryLock() bool {
 		}
 		return false
 	}
-	if !atomic.CompareAndSwapInt32(&rw.readerCount, 0, -rwmutexMaxReaders) {
+	if !rw.readerCount.CompareAndSwap(0, -rwmutexMaxReaders) {
 		rw.w.Unlock()
 		if race.Enabled {
 			race.Enable()
@@ -195,10 +203,10 @@ func (rw *RWMutex) Unlock() {
 	}
 
 	// Announce to readers there is no active writer.
-	r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
+	r := rw.readerCount.Add(rwmutexMaxReaders)
 	if r >= rwmutexMaxReaders {
 		race.Enable()
-		throw("sync: Unlock of unlocked RWMutex")
+		fatal("sync: Unlock of unlocked RWMutex")
 	}
 	// Unblock blocked readers, if any.
 	for i := 0; i < int(r); i++ {

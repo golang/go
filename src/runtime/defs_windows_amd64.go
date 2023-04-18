@@ -70,6 +70,11 @@ func (c *context) set_lr(x uintptr) {}
 func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
 func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
 
+func prepareContextForSigResume(c *context) {
+	c.r8 = c.rsp
+	c.r9 = c.rip
+}
+
 func dumpregs(r *context) {
 	print("rax     ", hex(r.rax), "\n")
 	print("rbx     ", hex(r.rbx), "\n")

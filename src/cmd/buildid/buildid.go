@@ -53,6 +53,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// <= go 1.7 doesn't embed the contentID or actionID, so no slash is present
+	if !strings.Contains(id, "/") {
+		log.Fatalf("%s: build ID is a legacy format...binary too old for this tool", file)
+	}
+
 	newID := id[:strings.LastIndex(id, "/")] + "/" + buildid.HashToString(hash)
 	if len(newID) != len(id) {
 		log.Fatalf("%s: build ID length mismatch %q vs %q", file, id, newID)

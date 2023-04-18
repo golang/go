@@ -152,16 +152,16 @@ func semacreate(mp *m) {
 
 //go:nosplit
 func semasleep(ns int64) int32 {
-	_g_ := getg()
+	gp := getg()
 	var deadline int64
 	if ns >= 0 {
 		deadline = nanotime() + ns
 	}
 
 	for {
-		v := atomic.Load(&_g_.m.waitsemacount)
+		v := atomic.Load(&gp.m.waitsemacount)
 		if v > 0 {
-			if atomic.Cas(&_g_.m.waitsemacount, v, v-1) {
+			if atomic.Cas(&gp.m.waitsemacount, v, v-1) {
 				return 0 // semaphore acquired
 			}
 			continue
@@ -178,7 +178,7 @@ func semasleep(ns int64) int32 {
 			ts.setNsec(wait)
 			tsp = &ts
 		}
-		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
+		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&gp.m.waitsemacount), nil)
 		if ret == _ETIMEDOUT {
 			return -1
 		}
@@ -227,11 +227,15 @@ func newosproc(mp *m) {
 
 	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, abi.FuncPCABI0(netbsdMstart))
 
-	ret := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
+	ret := retryOnEAGAIN(func() int32 {
+		errno := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
+		// lwp_create returns negative errno
+		return -errno
+	})
 	sigprocmask(_SIG_SETMASK, &oset, nil)
-	if ret < 0 {
-		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
-		if ret == -_EAGAIN {
+	if ret != 0 {
+		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", ret, ")\n")
+		if ret == _EAGAIN {
 			println("runtime: may need to increase max user processes (ulimit -p)")
 		}
 		throw("runtime.newosproc")
@@ -242,7 +246,7 @@ func newosproc(mp *m) {
 // It is written in assembly, uses ABI0, is marked TOPFRAME, and calls netbsdMstart0.
 func netbsdMstart()
 
-// netbsdMStart0 is the function call that starts executing a newly
+// netbsdMstart0 is the function call that starts executing a newly
 // created thread. On NetBSD, a new thread inherits the signal stack
 // of the creating thread. That confuses minit, so we remove that
 // signal stack here before calling the regular mstart. It's a bit
@@ -289,8 +293,8 @@ func mpreinit(mp *m) {
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, cannot allocate memory.
 func minit() {
-	_g_ := getg()
-	_g_.m.procid = uint64(lwp_self())
+	gp := getg()
+	gp.m.procid = uint64(lwp_self())
 
 	// On NetBSD a thread created by pthread_create inherits the
 	// signal stack of the creating thread. We always create a
@@ -299,8 +303,8 @@ func minit() {
 	// created in C that calls sigaltstack and then calls a Go
 	// function, because we will lose track of the C code's
 	// sigaltstack, but it's the best we can do.
-	signalstack(&_g_.m.gsignal.stack)
-	_g_.m.newSigstack = true
+	signalstack(&gp.m.gsignal.stack)
+	gp.m.newSigstack = true
 
 	minitSignalMask()
 }
@@ -352,7 +356,7 @@ func getsig(i uint32) uintptr {
 	return sa.sa_sigaction
 }
 
-// setSignaltstackSP sets the ss_sp field of a stackt.
+// setSignalstackSP sets the ss_sp field of a stackt.
 //
 //go:nosplit
 func setSignalstackSP(s *stackt, sp uintptr) {
@@ -398,8 +402,9 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
-	sysauxv(auxv[:])
+	auxvp := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*goarch.PtrSize))
+	pairs := sysauxv(auxvp[:])
+	auxv = auxvp[: pairs*2 : pairs*2]
 }
 
 const (
@@ -407,14 +412,16 @@ const (
 	_AT_PAGESZ = 6 // Page size in bytes
 )
 
-func sysauxv(auxv []uintptr) {
-	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+func sysauxv(auxv []uintptr) (pairs int) {
+	var i int
+	for i = 0; auxv[i] != _AT_NULL; i += 2 {
 		tag, val := auxv[i], auxv[i+1]
 		switch tag {
 		case _AT_PAGESZ:
 			physPageSize = val
 		}
 	}
+	return i / 2
 }
 
 // raise sends signal to the calling thread.

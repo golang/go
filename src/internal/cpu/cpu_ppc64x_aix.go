@@ -8,13 +8,17 @@ package cpu
 
 const (
 	// getsystemcfg constants
-	_SC_IMPL     = 2
-	_IMPL_POWER9 = 0x20000
+	_SC_IMPL      = 2
+	_IMPL_POWER8  = 0x10000
+	_IMPL_POWER9  = 0x20000
+	_IMPL_POWER10 = 0x40000
 )
 
 func osinit() {
 	impl := getsystemcfg(_SC_IMPL)
+	PPC64.IsPOWER8 = isSet(impl, _IMPL_POWER8)
 	PPC64.IsPOWER9 = isSet(impl, _IMPL_POWER9)
+	PPC64.IsPOWER10 = isSet(impl, _IMPL_POWER10)
 }
 
 // getsystemcfg is defined in runtime/os2_aix.go

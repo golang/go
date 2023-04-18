@@ -144,15 +144,18 @@ func TestRewrite(t *testing.T) {
 	match = append(match, "gofmt.go", "gofmt_test.go")
 
 	for _, in := range match {
-		out := in // for files where input and output are identical
-		if strings.HasSuffix(in, ".input") {
-			out = in[:len(in)-len(".input")] + ".golden"
-		}
-		runTest(t, in, out)
-		if in != out {
-			// Check idempotence.
-			runTest(t, out, out)
-		}
+		name := filepath.Base(in)
+		t.Run(name, func(t *testing.T) {
+			out := in // for files where input and output are identical
+			if strings.HasSuffix(in, ".input") {
+				out = in[:len(in)-len(".input")] + ".golden"
+			}
+			runTest(t, in, out)
+			if in != out && !t.Failed() {
+				// Check idempotence.
+				runTest(t, out, out)
+			}
+		})
 	}
 }
 

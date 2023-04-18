@@ -9,14 +9,12 @@ import (
 	"cmd/internal/objabi"
 	"fmt"
 	"sort"
+	"strconv"
 	"sync"
 )
 
 // pkgMap maps a package path to a package.
 var pkgMap = make(map[string]*Pkg)
-
-// MaxPkgHeight is a height greater than any likely package height.
-const MaxPkgHeight = 1e9
 
 type Pkg struct {
 	Path    string // string literal used in import statement, e.g. "runtime/internal/sys"
@@ -24,12 +22,6 @@ type Pkg struct {
 	Prefix  string // escaped path for use in symbol table
 	Syms    map[string]*Sym
 	Pathsym *obj.LSym
-
-	// Height is the package's height in the import graph. Leaf
-	// packages (i.e., packages with no imports) have height 0,
-	// and all other packages have height 1 plus the maximum
-	// height of their imported packages.
-	Height int
 
 	Direct bool // imported directly
 }
@@ -119,6 +111,15 @@ func (pkg *Pkg) LookupBytes(name []byte) *Sym {
 	}
 	str := InternString(name)
 	return pkg.Lookup(str)
+}
+
+// LookupNum looks up the symbol starting with prefix and ending with
+// the decimal n. If prefix is too long, LookupNum panics.
+func (pkg *Pkg) LookupNum(prefix string, n int) *Sym {
+	var buf [20]byte // plenty long enough for all current users
+	copy(buf[:], prefix)
+	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
+	return pkg.LookupBytes(b)
 }
 
 var (

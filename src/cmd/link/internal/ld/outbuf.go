@@ -21,7 +21,7 @@ const outbufMode = 0775
 
 // OutBuf is a buffered file writer.
 //
-// It is simlar to the Writer in cmd/internal/bio with a few small differences.
+// It is similar to the Writer in cmd/internal/bio with a few small differences.
 //
 // First, it tracks the output architecture and uses it to provide
 // endian helpers.

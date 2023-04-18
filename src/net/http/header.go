@@ -43,7 +43,8 @@ func (h Header) Set(key, value string) {
 // Get gets the first value associated with the given key. If
 // there are no values associated with the key, Get returns "".
 // It is case insensitive; textproto.CanonicalMIMEHeaderKey is
-// used to canonicalize the provided key. To use non-canonical keys,
+// used to canonicalize the provided key. Get assumes that all
+// keys are stored in canonical form. To use non-canonical keys,
 // access the map directly.
 func (h Header) Get(key string) string {
 	return textproto.MIMEHeader(h).Get(key)
@@ -103,6 +104,12 @@ func (h Header) Clone() Header {
 	sv := make([]string, nv) // shared backing array for headers' values
 	h2 := make(Header, len(h))
 	for k, vv := range h {
+		if vv == nil {
+			// Preserve nil values. ReverseProxy distinguishes
+			// between nil and zero-length header values.
+			h2[k] = nil
+			continue
+		}
 		n := copy(sv, vv)
 		h2[k] = sv[:n:n]
 		sv = sv[n:]

@@ -6,6 +6,7 @@ package ecdsa
 
 import (
 	"bufio"
+	"bytes"
 	"compress/bzip2"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -30,6 +31,7 @@ func testAllCurves(t *testing.T, f func(*testing.T, elliptic.Curve)) {
 		{"P224", elliptic.P224()},
 		{"P384", elliptic.P384()},
 		{"P521", elliptic.P521()},
+		{"P256/Generic", genericParamsForCurve(elliptic.P256())},
 	}
 	if testing.Short() {
 		tests = tests[:1]
@@ -41,6 +43,15 @@ func testAllCurves(t *testing.T, f func(*testing.T, elliptic.Curve)) {
 			f(t, curve)
 		})
 	}
+}
+
+// genericParamsForCurve returns the dereferenced CurveParams for
+// the specified curve. This is used to avoid the logic for
+// upgrading a curve to its specific implementation, forcing
+// usage of the generic implementation.
+func genericParamsForCurve(c elliptic.Curve) *elliptic.CurveParams {
+	d := *(c.Params())
+	return &d
 }
 
 func TestKeyGeneration(t *testing.T) {
@@ -327,27 +338,187 @@ func testZeroHashSignature(t *testing.T, curve elliptic.Curve) {
 	}
 }
 
-func benchmarkAllCurves(t *testing.B, f func(*testing.B, elliptic.Curve)) {
+func TestRandomPoint(t *testing.T) {
+	t.Run("P-224", func(t *testing.T) { testRandomPoint(t, p224()) })
+	t.Run("P-256", func(t *testing.T) { testRandomPoint(t, p256()) })
+	t.Run("P-384", func(t *testing.T) { testRandomPoint(t, p384()) })
+	t.Run("P-521", func(t *testing.T) { testRandomPoint(t, p521()) })
+}
+
+func testRandomPoint[Point nistPoint[Point]](t *testing.T, c *nistCurve[Point]) {
+	t.Cleanup(func() { testingOnlyRejectionSamplingLooped = nil })
+	var loopCount int
+	testingOnlyRejectionSamplingLooped = func() { loopCount++ }
+
+	// A sequence of all ones will generate 2^N-1, which should be rejected.
+	// (Unless, for example, we are masking too many bits.)
+	r := io.MultiReader(bytes.NewReader(bytes.Repeat([]byte{0xff}, 100)), rand.Reader)
+	if k, p, err := randomPoint(c, r); err != nil {
+		t.Fatal(err)
+	} else if k.IsZero() == 1 {
+		t.Error("k is zero")
+	} else if p.Bytes()[0] != 4 {
+		t.Error("p is infinity")
+	}
+	if loopCount == 0 {
+		t.Error("overflow was not rejected")
+	}
+	loopCount = 0
+
+	// A sequence of all zeroes will generate zero, which should be rejected.
+	r = io.MultiReader(bytes.NewReader(bytes.Repeat([]byte{0}, 100)), rand.Reader)
+	if k, p, err := randomPoint(c, r); err != nil {
+		t.Fatal(err)
+	} else if k.IsZero() == 1 {
+		t.Error("k is zero")
+	} else if p.Bytes()[0] != 4 {
+		t.Error("p is infinity")
+	}
+	if loopCount == 0 {
+		t.Error("zero was not rejected")
+	}
+	loopCount = 0
+
+	// P-256 has a 2⁻³² chance or randomly hitting a rejection. For P-224 it's
+	// 2⁻¹¹², for P-384 it's 2⁻¹⁹⁴, and for P-521 it's 2⁻²⁶², so if we hit in
+	// tests, something is horribly wrong. (For example, we are masking the
+	// wrong bits.)
+	if c.curve == elliptic.P256() {
+		return
+	}
+	if k, p, err := randomPoint(c, rand.Reader); err != nil {
+		t.Fatal(err)
+	} else if k.IsZero() == 1 {
+		t.Error("k is zero")
+	} else if p.Bytes()[0] != 4 {
+		t.Error("p is infinity")
+	}
+	if loopCount > 0 {
+		t.Error("unexpected rejection")
+	}
+}
+
+func TestZeroSignature(t *testing.T) {
+	testAllCurves(t, testZeroSignature)
+}
+
+func testZeroSignature(t *testing.T, curve elliptic.Curve) {
+	privKey, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+
+	if Verify(&privKey.PublicKey, make([]byte, 64), big.NewInt(0), big.NewInt(0)) {
+		t.Errorf("Verify with r,s=0 succeeded: %T", curve)
+	}
+}
+
+func TestNegtativeSignature(t *testing.T) {
+	testAllCurves(t, testNegativeSignature)
+}
+
+func testNegativeSignature(t *testing.T, curve elliptic.Curve) {
+	zeroHash := make([]byte, 64)
+
+	privKey, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	r, s, err := Sign(rand.Reader, privKey, zeroHash)
+	if err != nil {
+		panic(err)
+	}
+
+	r = r.Neg(r)
+	if Verify(&privKey.PublicKey, zeroHash, r, s) {
+		t.Errorf("Verify with r=-r succeeded: %T", curve)
+	}
+}
+
+func TestRPlusNSignature(t *testing.T) {
+	testAllCurves(t, testRPlusNSignature)
+}
+
+func testRPlusNSignature(t *testing.T, curve elliptic.Curve) {
+	zeroHash := make([]byte, 64)
+
+	privKey, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	r, s, err := Sign(rand.Reader, privKey, zeroHash)
+	if err != nil {
+		panic(err)
+	}
+
+	r = r.Add(r, curve.Params().N)
+	if Verify(&privKey.PublicKey, zeroHash, r, s) {
+		t.Errorf("Verify with r=r+n succeeded: %T", curve)
+	}
+}
+
+func TestRMinusNSignature(t *testing.T) {
+	testAllCurves(t, testRMinusNSignature)
+}
+
+func testRMinusNSignature(t *testing.T, curve elliptic.Curve) {
+	zeroHash := make([]byte, 64)
+
+	privKey, err := GenerateKey(curve, rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	r, s, err := Sign(rand.Reader, privKey, zeroHash)
+	if err != nil {
+		panic(err)
+	}
+
+	r = r.Sub(r, curve.Params().N)
+	if Verify(&privKey.PublicKey, zeroHash, r, s) {
+		t.Errorf("Verify with r=r-n succeeded: %T", curve)
+	}
+}
+
+func randomPointForCurve(curve elliptic.Curve, rand io.Reader) error {
+	switch curve.Params() {
+	case elliptic.P224().Params():
+		_, _, err := randomPoint(p224(), rand)
+		return err
+	case elliptic.P256().Params():
+		_, _, err := randomPoint(p256(), rand)
+		return err
+	case elliptic.P384().Params():
+		_, _, err := randomPoint(p384(), rand)
+		return err
+	case elliptic.P521().Params():
+		_, _, err := randomPoint(p521(), rand)
+		return err
+	default:
+		panic("unknown curve")
+	}
+}
+
+func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
 	tests := []struct {
 		name  string
 		curve elliptic.Curve
 	}{
 		{"P256", elliptic.P256()},
-		{"P224", elliptic.P224()},
 		{"P384", elliptic.P384()},
 		{"P521", elliptic.P521()},
 	}
 	for _, test := range tests {
 		curve := test.curve
-		t.Run(test.name, func(t *testing.B) {
-			f(t, curve)
+		b.Run(test.name, func(b *testing.B) {
+			f(b, curve)
 		})
 	}
 }
 
 func BenchmarkSign(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
-		priv, err := GenerateKey(curve, rand.Reader)
+		r := bufio.NewReaderSize(rand.Reader, 1<<15)
+		priv, err := GenerateKey(curve, r)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -356,7 +527,7 @@ func BenchmarkSign(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			sig, err := SignASN1(rand.Reader, priv, hashed)
+			sig, err := SignASN1(r, priv, hashed)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -368,12 +539,13 @@ func BenchmarkSign(b *testing.B) {
 
 func BenchmarkVerify(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
-		priv, err := GenerateKey(curve, rand.Reader)
+		r := bufio.NewReaderSize(rand.Reader, 1<<15)
+		priv, err := GenerateKey(curve, r)
 		if err != nil {
 			b.Fatal(err)
 		}
 		hashed := []byte("testing")
-		r, s, err := Sign(rand.Reader, priv, hashed)
+		sig, err := SignASN1(r, priv, hashed)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -381,7 +553,7 @@ func BenchmarkVerify(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			if !Verify(&priv.PublicKey, hashed, r, s) {
+			if !VerifyASN1(&priv.PublicKey, hashed, sig) {
 				b.Fatal("verify failed")
 			}
 		}
@@ -390,10 +562,11 @@ func BenchmarkVerify(b *testing.B) {
 
 func BenchmarkGenerateKey(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve elliptic.Curve) {
+		r := bufio.NewReaderSize(rand.Reader, 1<<15)
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			if _, err := GenerateKey(curve, rand.Reader); err != nil {
+			if _, err := GenerateKey(curve, r); err != nil {
 				b.Fatal(err)
 			}
 		}

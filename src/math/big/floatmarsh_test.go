@@ -9,6 +9,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"io"
+	"strings"
 	"testing"
 )
 
@@ -134,6 +135,39 @@ func TestFloatJSONEncoding(t *testing.T) {
 					t.Errorf("JSON encoding of %v (prec = %d) failed: got %v want %v", &tx, prec, &rx, &tx)
 				}
 			}
+		}
+	}
+}
+
+func TestFloatGobDecodeShortBuffer(t *testing.T) {
+	for _, tc := range [][]byte{
+		[]byte{0x1, 0x0, 0x0, 0x0},
+		[]byte{0x1, 0xfa, 0x0, 0x0, 0x0, 0x0},
+	} {
+		err := NewFloat(0).GobDecode(tc)
+		if err == nil {
+			t.Error("expected GobDecode to return error for malformed input")
+		}
+	}
+}
+
+func TestFloatGobDecodeInvalid(t *testing.T) {
+	for _, tc := range []struct {
+		buf []byte
+		msg string
+	}{
+		{
+			[]byte{0x1, 0x2a, 0x20, 0x20, 0x20, 0x20, 0x0, 0x20, 0x20, 0x20, 0x0, 0x20, 0x20, 0x20, 0x20, 0x0, 0x0, 0x0, 0x0, 0xc},
+			"Float.GobDecode: msb not set in last word",
+		},
+		{
+			[]byte{1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			"Float.GobDecode: nonzero finite number with empty mantissa",
+		},
+	} {
+		err := NewFloat(0).GobDecode(tc.buf)
+		if err == nil || !strings.HasPrefix(err.Error(), tc.msg) {
+			t.Errorf("expected GobDecode error prefix: %s, got: %v", tc.msg, err)
 		}
 	}
 }

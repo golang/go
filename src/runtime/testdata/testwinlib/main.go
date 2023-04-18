@@ -11,6 +11,7 @@ package main
 import "C"
 
 // CallMeBack call backs C code.
+//
 //export CallMeBack
 func CallMeBack(callback C.callmeBackFunc) {
 	C.bridgeCallback(callback)
@@ -21,6 +22,7 @@ func CallMeBack(callback C.callmeBackFunc) {
 // validate that it does not crash the program before another handler could take an action.
 // The idea here is to reproduce what happens when you attach a debugger to a running program.
 // It also simulate the behavior of the .Net debugger, which register its exception/continue handlers lazily.
+//
 //export Dummy
 func Dummy() int {
 	return 42

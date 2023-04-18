@@ -26,6 +26,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/robustio"
+	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/module"
@@ -33,7 +34,7 @@ import (
 	modzip "golang.org/x/mod/zip"
 )
 
-var downloadCache par.Cache
+var downloadCache par.ErrCache[module.Version, string] // version → directory
 
 // Download downloads the specific module version to the
 // local download cache and returns the name of the directory
@@ -44,19 +45,14 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 	}
 
 	// The par.Cache here avoids duplicate work.
-	type cached struct {
-		dir string
-		err error
-	}
-	c := downloadCache.Do(mod, func() any {
+	return downloadCache.Do(mod, func() (string, error) {
 		dir, err := download(ctx, mod)
 		if err != nil {
-			return cached{"", err}
+			return "", err
 		}
 		checkMod(mod)
-		return cached{dir, nil}
-	}).(cached)
-	return c.dir, c.err
+		return dir, nil
+	})
 }
 
 func download(ctx context.Context, mod module.Version) (dir string, err error) {
@@ -102,7 +98,7 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	// active.
 	parentDir := filepath.Dir(dir)
 	tmpPrefix := filepath.Base(dir) + ".tmp-"
-	if old, err := filepath.Glob(filepath.Join(parentDir, tmpPrefix+"*")); err == nil {
+	if old, err := filepath.Glob(filepath.Join(str.QuoteGlob(parentDir), str.QuoteGlob(tmpPrefix)+"*")); err == nil {
 		for _, path := range old {
 			RemoveAll(path) // best effort
 		}
@@ -155,46 +151,52 @@ func download(ctx context.Context, mod module.Version) (dir string, err error) {
 	return dir, nil
 }
 
-var downloadZipCache par.Cache
+var downloadZipCache par.ErrCache[module.Version, string]
 
 // DownloadZip downloads the specific module version to the
 // local zip cache and returns the name of the zip file.
 func DownloadZip(ctx context.Context, mod module.Version) (zipfile string, err error) {
 	// The par.Cache here avoids duplicate work.
-	type cached struct {
-		zipfile string
-		err     error
-	}
-	c := downloadZipCache.Do(mod, func() any {
+	return downloadZipCache.Do(mod, func() (string, error) {
 		zipfile, err := CachePath(mod, "zip")
 		if err != nil {
-			return cached{"", err}
+			return "", err
 		}
 		ziphashfile := zipfile + "hash"
 
 		// Return without locking if the zip and ziphash files exist.
 		if _, err := os.Stat(zipfile); err == nil {
 			if _, err := os.Stat(ziphashfile); err == nil {
-				return cached{zipfile, nil}
+				return zipfile, nil
 			}
 		}
 
 		// The zip or ziphash file does not exist. Acquire the lock and create them.
 		if cfg.CmdName != "mod download" {
-			fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, mod.Version)
+			vers := mod.Version
+			if mod.Path == "golang.org/toolchain" {
+				// Shorten v0.0.1-go1.13.1.darwin-amd64 to go1.13.1.darwin-amd64
+				_, vers, _ = strings.Cut(vers, "-")
+				if i := strings.LastIndex(vers, "."); i >= 0 {
+					goos, goarch, _ := strings.Cut(vers[i+1:], "-")
+					vers = vers[:i] + " (" + goos + "/" + goarch + ")"
+				}
+				fmt.Fprintf(os.Stderr, "go: downloading %s\n", vers)
+			} else {
+				fmt.Fprintf(os.Stderr, "go: downloading %s %s\n", mod.Path, vers)
+			}
 		}
 		unlock, err := lockVersion(mod)
 		if err != nil {
-			return cached{"", err}
+			return "", err
 		}
 		defer unlock()
 
 		if err := downloadZip(ctx, mod, zipfile); err != nil {
-			return cached{"", err}
+			return "", err
 		}
-		return cached{zipfile, nil}
-	}).(cached)
-	return c.zipfile, c.err
+		return zipfile, nil
+	})
 }
 
 func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err error) {
@@ -224,7 +226,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// This is only safe to do because the lock file ensures that their
 	// writers are no longer active.
 	tmpPattern := filepath.Base(zipfile) + "*.tmp"
-	if old, err := filepath.Glob(filepath.Join(filepath.Dir(zipfile), tmpPattern)); err == nil {
+	if old, err := filepath.Glob(filepath.Join(str.QuoteGlob(filepath.Dir(zipfile)), tmpPattern)); err == nil {
 		for _, path := range old {
 			os.Remove(path) // best effort
 		}
@@ -241,7 +243,7 @@ func downloadZip(ctx context.Context, mod module.Version, zipfile string) (err e
 	// contents of the file (by hashing it) before we commit it. Because the file
 	// is zip-compressed, we need an actual file — or at least an io.ReaderAt — to
 	// validate it: we can't just tee the stream as we write it.
-	f, err := os.CreateTemp(filepath.Dir(zipfile), tmpPattern)
+	f, err := tempFile(filepath.Dir(zipfile), filepath.Base(zipfile), 0666)
 	if err != nil {
 		return err
 	}
@@ -407,7 +409,7 @@ type modSumStatus struct {
 }
 
 // Reset resets globals in the modfetch package, so previous loads don't affect
-// contents of go.sum files
+// contents of go.sum files.
 func Reset() {
 	GoSumFile = ""
 	WorkspaceGoSumFiles = nil
@@ -415,8 +417,8 @@ func Reset() {
 	// Uses of lookupCache and downloadCache both can call checkModSum,
 	// which in turn sets the used bit on goSum.status for modules.
 	// Reset them so used can be computed properly.
-	lookupCache = par.Cache{}
-	downloadCache = par.Cache{}
+	lookupCache = par.Cache[lookupCacheKey, Repo]{}
+	downloadCache = par.ErrCache[module.Version, string]{}
 
 	// Clear all fields on goSum. It will be initialized later
 	goSum.mu.Lock()
@@ -697,9 +699,9 @@ func addModSumLocked(mod module.Version, h string) {
 func checkSumDB(mod module.Version, h string) error {
 	modWithoutSuffix := mod
 	noun := "module"
-	if strings.HasSuffix(mod.Version, "/go.mod") {
+	if before, found := strings.CutSuffix(mod.Version, "/go.mod"); found {
 		noun = "go.mod"
-		modWithoutSuffix.Version = strings.TrimSuffix(mod.Version, "/go.mod")
+		modWithoutSuffix.Version = before
 	}
 
 	db, lines, err := lookupSumDB(mod)
@@ -832,6 +834,7 @@ Outer:
 		for _, m := range mods {
 			list := goSum.m[m]
 			sort.Strings(list)
+			str.Uniq(&list)
 			for _, h := range list {
 				st := goSum.status[modSum{m, h}]
 				if (!st.dirty || (st.used && keep[m])) && !sumInWorkspaceModulesLocked(m) {

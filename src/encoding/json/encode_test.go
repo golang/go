@@ -12,9 +12,9 @@ import (
 	"math"
 	"reflect"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"testing"
-	"unicode"
 )
 
 type Optionals struct {
@@ -700,54 +700,6 @@ func TestDuplicatedFieldDisappears(t *testing.T) {
 	}
 }
 
-func TestStringBytes(t *testing.T) {
-	t.Parallel()
-	// Test that encodeState.stringBytes and encodeState.string use the same encoding.
-	var r []rune
-	for i := '\u0000'; i <= unicode.MaxRune; i++ {
-		if testing.Short() && i > 1000 {
-			i = unicode.MaxRune
-		}
-		r = append(r, i)
-	}
-	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
-
-	for _, escapeHTML := range []bool{true, false} {
-		es := &encodeState{}
-		es.string(s, escapeHTML)
-
-		esBytes := &encodeState{}
-		esBytes.stringBytes([]byte(s), escapeHTML)
-
-		enc := es.Buffer.String()
-		encBytes := esBytes.Buffer.String()
-		if enc != encBytes {
-			i := 0
-			for i < len(enc) && i < len(encBytes) && enc[i] == encBytes[i] {
-				i++
-			}
-			enc = enc[i:]
-			encBytes = encBytes[i:]
-			i = 0
-			for i < len(enc) && i < len(encBytes) && enc[len(enc)-i-1] == encBytes[len(encBytes)-i-1] {
-				i++
-			}
-			enc = enc[:len(enc)-i]
-			encBytes = encBytes[:len(encBytes)-i]
-
-			if len(enc) > 20 {
-				enc = enc[:20] + "..."
-			}
-			if len(encBytes) > 20 {
-				encBytes = encBytes[:20] + "..."
-			}
-
-			t.Errorf("with escapeHTML=%t, encodings differ at %#q vs %#q",
-				escapeHTML, enc, encBytes)
-		}
-	}
-}
-
 func TestIssue10281(t *testing.T) {
 	type Foo struct {
 		N Number
@@ -757,6 +709,41 @@ func TestIssue10281(t *testing.T) {
 	b, err := Marshal(&x)
 	if err == nil {
 		t.Errorf("Marshal(&x) = %#q; want error", b)
+	}
+}
+
+func TestMarshalErrorAndReuseEncodeState(t *testing.T) {
+	// Disable the GC temporarily to prevent encodeState's in Pool being cleaned away during the test.
+	percent := debug.SetGCPercent(-1)
+	defer debug.SetGCPercent(percent)
+
+	// Trigger an error in Marshal with cyclic data.
+	type Dummy struct {
+		Name string
+		Next *Dummy
+	}
+	dummy := Dummy{Name: "Dummy"}
+	dummy.Next = &dummy
+	if b, err := Marshal(dummy); err == nil {
+		t.Errorf("Marshal(dummy) = %#q; want error", b)
+	}
+
+	type Data struct {
+		A string
+		I int
+	}
+	data := Data{A: "a", I: 1}
+	b, err := Marshal(data)
+	if err != nil {
+		t.Errorf("Marshal(%v) = %v", data, err)
+	}
+
+	var data2 Data
+	if err := Unmarshal(b, &data2); err != nil {
+		t.Errorf("Unmarshal(%v) = %v", data2, err)
+	}
+	if data2 != data {
+		t.Errorf("expect: %v, but get: %v", data, data2)
 	}
 }
 

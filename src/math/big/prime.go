@@ -103,7 +103,7 @@ NextRandom:
 			x = x.random(rand, nm3, nm3Len)
 			x = x.add(x, natTwo)
 		}
-		y = y.expNN(x, q, n)
+		y = y.expNN(x, q, n, false)
 		if y.cmp(natOne) == 0 || y.cmp(nm1) == 0 {
 			continue
 		}
@@ -141,7 +141,7 @@ NextRandom:
 //
 // Jacobsen, "Pseudoprime Statistics, Tables, and Data", http://ntheory.org/pseudoprimes.html.
 //
-// Nicely, "The Baillie-PSW Primality Test", http://www.trnicely.net/misc/bpsw.html.
+// Nicely, "The Baillie-PSW Primality Test", https://web.archive.org/web/20191121062007/http://www.trnicely.net/misc/bpsw.html.
 // (Note that Nicely's definition of the "extra strong" test gives the wrong Jacobi condition,
 // as pointed out by Jacobsen.)
 //

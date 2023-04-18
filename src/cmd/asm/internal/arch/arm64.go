@@ -12,7 +12,6 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
 	"errors"
-	"fmt"
 )
 
 var arm64LS = map[string]uint8{
@@ -47,6 +46,11 @@ var arm64Jump = map[string]bool{
 	"JMP":   true,
 	"TBNZ":  true,
 	"TBZ":   true,
+
+	// ADR isn't really a jump, but it takes a PC or label reference,
+	// which needs to patched like a jump.
+	"ADR":  true,
+	"ADRP": true,
 }
 
 func jumpArm64(word string) bool {
@@ -61,8 +65,7 @@ func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
 		// Generate the mapping automatically when the first time the function is called.
 		arm64SpecialOperand = map[string]arm64.SpecialOperand{}
 		for opd := arm64.SPOP_BEGIN; opd < arm64.SPOP_END; opd++ {
-			s := fmt.Sprintf("%s", opd)
-			arm64SpecialOperand[s] = opd
+			arm64SpecialOperand[opd.String()] = opd
 		}
 
 		// Handle some special cases.
@@ -79,6 +82,16 @@ func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
 		return opd
 	}
 	return arm64.SPOP_END
+}
+
+// IsARM64ADR reports whether the op (as defined by an arm64.A* constant) is
+// one of the comparison instructions that require special handling.
+func IsARM64ADR(op obj.As) bool {
+	switch op {
+	case arm64.AADR, arm64.AADRP:
+		return true
+	}
+	return false
 }
 
 // IsARM64CMP reports whether the op (as defined by an arm64.A* constant) is
@@ -105,10 +118,7 @@ func IsARM64STLXR(op obj.As) bool {
 		return true
 	}
 	// LDADDx/SWPx/CASx atomic instructions
-	if arm64.IsAtomicInstruction(op) {
-		return true
-	}
-	return false
+	return arm64.IsAtomicInstruction(op)
 }
 
 // IsARM64TBL reports whether the op (as defined by an arm64.A*
@@ -116,7 +126,7 @@ func IsARM64STLXR(op obj.As) bool {
 // inputs does not fit into prog.Reg, so require special handling.
 func IsARM64TBL(op obj.As) bool {
 	switch op {
-	case arm64.AVTBL, arm64.AVMOVQ:
+	case arm64.AVTBL, arm64.AVTBX, arm64.AVMOVQ:
 		return true
 	}
 	return false

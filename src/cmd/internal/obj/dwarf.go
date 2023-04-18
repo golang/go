@@ -58,7 +58,7 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
 			continue
 		}
 		newStmt := p.Pos.IsStmt() != src.PosNotStmt
-		newName, newLine := linkgetlineFromPos(ctxt, p.Pos)
+		newName, newLine := ctxt.getFileSymbolAndLine(p.Pos)
 
 		// Output debug info.
 		wrote := false
@@ -335,7 +335,7 @@ func (s *LSym) Length(dwarfContext interface{}) int64 {
 func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
 	p := fn.Func().Text
 	if p != nil {
-		f, _ := linkgetlineFromPos(ctxt, p.Pos)
+		f, _ := ctxt.getFileSymbolAndLine(p.Pos)
 		fsym := ctxt.Lookup(f)
 		return fsym
 	}
@@ -353,7 +353,9 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 	var scopes []dwarf.Scope
 	var inlcalls dwarf.InlCalls
 	if ctxt.DebugInfo != nil {
-		scopes, inlcalls = ctxt.DebugInfo(s, info, curfn)
+		// Don't need startPos because s.Func().StartLine is populated,
+		// as s is in this package.
+		scopes, inlcalls, _ = ctxt.DebugInfo(s, info, curfn)
 	}
 	var err error
 	dwctxt := dwCtxt{ctxt}
@@ -368,6 +370,7 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 		Absfn:         absfunc,
 		StartPC:       s,
 		Size:          s.Size,
+		StartLine:     s.Func().StartLine,
 		External:      !s.Static(),
 		Scopes:        scopes,
 		InlCalls:      inlcalls,
@@ -408,15 +411,7 @@ func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
 	if myimportpath == "" || varSym.Local() {
 		return
 	}
-	var varname string
-	if varSym.Pkg == "_" {
-		// The frontend uses package "_" to mark symbols that should not
-		// be referenced by index, e.g. linkname'd symbols.
-		varname = varSym.Name
-	} else {
-		// Convert "".<name> into a fully qualified package.sym name.
-		varname = objabi.PathToPrefix(myimportpath) + varSym.Name[len(`""`):]
-	}
+	varname := varSym.Name
 	dieSymName := dwarf.InfoPrefix + varname
 	dieSym := ctxt.LookupInit(dieSymName, func(s *LSym) {
 		s.Type = objabi.SDWARFVAR
@@ -435,15 +430,15 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
 	if s.Func() == nil {
 		s.NewFuncInfo()
 	}
-	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
+	scopes, _, startPos := ctxt.DebugInfo(s, absfn, curfn)
+	_, startLine := ctxt.getFileSymbolAndLine(startPos)
 	dwctxt := dwCtxt{ctxt}
-	filesym := ctxt.fileSymbol(s)
 	fnstate := dwarf.FnState{
 		Name:          s.Name,
 		Importpath:    myimportpath,
 		Info:          absfn,
-		Filesym:       filesym,
 		Absfn:         absfn,
+		StartLine:     startLine,
 		External:      !s.Static(),
 		Scopes:        scopes,
 		UseBASEntries: ctxt.UseBASEntries,

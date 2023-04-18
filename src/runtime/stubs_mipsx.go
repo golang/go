@@ -9,3 +9,6 @@ package runtime
 // Called from assembly only; declared for go vet.
 func load_g()
 func save_g()
+
+// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+func getcallerfp() uintptr { return 0 }

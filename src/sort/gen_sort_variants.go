@@ -84,9 +84,6 @@ func main() {
 			ExtraArg:   "",
 			DataType:   "[]E",
 			Funcs: template.FuncMap{
-				"GreaterOrEqual": func(name, i, j string) string {
-					return fmt.Sprintf("(%s[%s] >= %s[%s])", name, i, name, j)
-				},
 				"Less": func(name, i, j string) string {
 					return fmt.Sprintf("(%s[%s] < %s[%s])", name, i, name, j)
 				},
@@ -106,9 +103,6 @@ func main() {
 			ExtraArg:   ", less",
 			DataType:   "[]E",
 			Funcs: template.FuncMap{
-				"GreaterOrEqual": func(name, i, j string) string {
-					return fmt.Sprintf("!less(%s[%s], %s[%s])", name, i, name, j)
-				},
 				"Less": func(name, i, j string) string {
 					return fmt.Sprintf("less(%s[%s], %s[%s])", name, i, name, j)
 				},
@@ -129,9 +123,6 @@ func main() {
 			ExtraArg:   "",
 			DataType:   "Interface",
 			Funcs: template.FuncMap{
-				"GreaterOrEqual": func(name, i, j string) string {
-					return fmt.Sprintf("!%s.Less(%s, %s)", name, i, j)
-				},
 				"Less": func(name, i, j string) string {
 					return fmt.Sprintf("%s.Less(%s, %s)", name, i, j)
 				},
@@ -152,9 +143,6 @@ func main() {
 			ExtraArg:   "",
 			DataType:   "lessSwap",
 			Funcs: template.FuncMap{
-				"GreaterOrEqual": func(name, i, j string) string {
-					return fmt.Sprintf("!%s.Less(%s, %s)", name, i, j)
-				},
 				"Less": func(name, i, j string) string {
 					return fmt.Sprintf("%s.Less(%s, %s)", name, i, j)
 				},
@@ -222,7 +210,7 @@ func siftDown{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, lo, hi, first int
 		if child+1 < hi && {{Less "data" "first+child" "first+child+1"}} {
 			child++
 		}
-		if {{GreaterOrEqual "data" "first+root" "first+child"}} {
+		if !{{Less "data" "first+root" "first+child"}} {
 			return
 		}
 		{{Swap "data" "first+root" "first+child"}}
@@ -300,7 +288,7 @@ func pdqsort{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, limit int {{
 
 		// Probably the slice contains many duplicate elements, partition the slice into
 		// elements equal to and elements greater than the pivot.
-		if a > 0 && {{GreaterOrEqual "data" "a-1" "pivot"}} {
+		if a > 0 && !{{Less "data" "a-1" "pivot"}} {
 			mid := partitionEqual{{.FuncSuffix}}(data, a, b, pivot {{.ExtraArg}})
 			a = mid
 			continue
@@ -334,7 +322,7 @@ func partition{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, pivot int 
 	for i <= j && {{Less "data" "i" "a"}} {
 		i++
 	}
-	for i <= j && {{GreaterOrEqual "data" "j" "a"}} {
+	for i <= j && !{{Less "data" "j" "a"}} {
 		j--
 	}
 	if i > j {
@@ -349,7 +337,7 @@ func partition{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, pivot int 
 		for i <= j && {{Less "data" "i" "a"}} {
 			i++
 		}
-		for i <= j && {{GreaterOrEqual "data" "j" "a"}} {
+		for i <= j && !{{Less "data" "j" "a"}} {
 			j--
 		}
 		if i > j {
@@ -370,7 +358,7 @@ func partitionEqual{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b, pivot
 	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
 
 	for {
-		for i <= j && {{GreaterOrEqual "data" "a" "i"}} {
+		for i <= j && !{{Less "data" "a" "i"}} {
 			i++
 		}
 		for i <= j && {{Less "data" "a" "j"}} {
@@ -394,7 +382,7 @@ func partialInsertionSort{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b 
 	)
 	i := a + 1
 	for j := 0; j < maxSteps; j++ {
-		for i < b && {{GreaterOrEqual "data" "i" "i-1"}} {
+		for i < b && !{{Less "data" "i" "i-1"}} {
 			i++
 		}
 
@@ -411,7 +399,7 @@ func partialInsertionSort{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b 
 		// Shift the smaller one to the left.
 		if i-a >= 2 {
 			for j := i - 1; j >= 1; j-- {
-				if {{GreaterOrEqual "data" "j" "j-1"}} {
+				if !{{Less "data" "j" "j-1"}} {
 					break
 				}
 				{{Swap "data" "j" "j-1"}}
@@ -420,7 +408,7 @@ func partialInsertionSort{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, b 
 		// Shift the greater one to the right.
 		if b-i >= 2 {
 			for j := i + 1; j < b; j++ {
-				if {{GreaterOrEqual "data" "j" "j-1"}} {
+				if !{{Less "data" "j" "j-1"}} {
 					break
 				}
 				{{Swap "data" "j" "j-1"}}
@@ -606,7 +594,7 @@ func symMerge{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, m, b int {{.Ex
 		j := m
 		for i < j {
 			h := int(uint(i+j) >> 1)
-			if {{GreaterOrEqual "data" "m" "h"}} {
+			if !{{Less "data" "m" "h"}} {
 				i = h + 1
 			} else {
 				j = h
@@ -633,7 +621,7 @@ func symMerge{{.FuncSuffix}}{{.TypeParam}}(data {{.DataType}}, a, m, b int {{.Ex
 
 	for start < r {
 		c := int(uint(start+r) >> 1)
-		if {{GreaterOrEqual "data" "p-c" "c"}} {
+		if !{{Less "data" "p-c" "c"}} {
 			start = c + 1
 		} else {
 			r = c

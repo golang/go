@@ -78,8 +78,10 @@ func revcomp(data []byte) {
 }
 
 func BenchmarkRevcomp(b *testing.B) {
-	b.SetBytes(int64(len(fastabytes)))
+	bytes := makefasta()
+	b.ResetTimer()
+	b.SetBytes(int64(len(bytes)))
 	for i := 0; i < b.N; i++ {
-		revcomp(fastabytes)
+		revcomp(bytes)
 	}
 }

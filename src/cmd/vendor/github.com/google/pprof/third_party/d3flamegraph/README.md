@@ -25,7 +25,7 @@ A demonstration of building a custom D3 4.0 bundle using ES2015 modules and Roll
 
 ## Old version of d3-pprof
 
-A previous verison of d3-flame-graph bundled for pprof used Rollup instead of
+A previous version of d3-flame-graph bundled for pprof used Rollup instead of
 Webpack. This has now been migrated directly into this directory.
 
 The repository configuring Rollup was here:

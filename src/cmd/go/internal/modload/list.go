@@ -5,17 +5,22 @@
 package modload
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/search"
+	"cmd/internal/pkgpattern"
 
 	"golang.org/x/mod/module"
 )
@@ -34,13 +39,44 @@ const (
 // along with any error preventing additional matches from being identified.
 //
 // The returned slice can be nonempty even if the error is non-nil.
-func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.ModulePublic, error) {
-	rs, mods, err := listModules(ctx, LoadModFile(ctx), args, mode)
+func ListModules(ctx context.Context, args []string, mode ListMode, reuseFile string) ([]*modinfo.ModulePublic, error) {
+	var reuse map[module.Version]*modinfo.ModulePublic
+	if reuseFile != "" {
+		data, err := os.ReadFile(reuseFile)
+		if err != nil {
+			return nil, err
+		}
+		dec := json.NewDecoder(bytes.NewReader(data))
+		reuse = make(map[module.Version]*modinfo.ModulePublic)
+		for {
+			var m modinfo.ModulePublic
+			if err := dec.Decode(&m); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return nil, fmt.Errorf("parsing %s: %v", reuseFile, err)
+			}
+			if m.Origin == nil || !m.Origin.Checkable() {
+				// Nothing to check to validate reuse.
+				continue
+			}
+			m.Reuse = true
+			reuse[module.Version{Path: m.Path, Version: m.Version}] = &m
+			if m.Query != "" {
+				reuse[module.Version{Path: m.Path, Version: m.Query}] = &m
+			}
+		}
+	}
+
+	rs, mods, err := listModules(ctx, LoadModFile(ctx), args, mode, reuse)
 
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 	if mode != 0 {
 		for _, m := range mods {
+			if m.Reuse {
+				continue
+			}
 			add := func(m *modinfo.ModulePublic) {
 				sem <- token{}
 				go func() {
@@ -80,11 +116,11 @@ func ListModules(ctx context.Context, args []string, mode ListMode) ([]*modinfo.
 	return mods, err
 }
 
-func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
+func listModules(ctx context.Context, rs *Requirements, args []string, mode ListMode, reuse map[module.Version]*modinfo.ModulePublic) (_ *Requirements, mods []*modinfo.ModulePublic, mgErr error) {
 	if len(args) == 0 {
 		var ms []*modinfo.ModulePublic
 		for _, m := range MainModules.Versions() {
-			ms = append(ms, moduleInfo(ctx, rs, m, mode))
+			ms = append(ms, moduleInfo(ctx, rs, m, mode, reuse))
 		}
 		return rs, ms, nil
 	}
@@ -104,9 +140,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			}
 			continue
 		}
-		if i := strings.Index(arg, "@"); i >= 0 {
-			path := arg[:i]
-			vers := arg[i+1:]
+		if path, vers, found := strings.Cut(arg, "@"); found {
 			if vers == "upgrade" || vers == "patch" {
 				if _, ok := rs.rootSelected(path); !ok || rs.pruning == unpruned {
 					needFullGraph = true
@@ -132,10 +166,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 
 	matchedModule := map[module.Version]bool{}
 	for _, arg := range args {
-		if i := strings.Index(arg, "@"); i >= 0 {
-			path := arg[:i]
-			vers := arg[i+1:]
-
+		if path, vers, found := strings.Cut(arg, "@"); found {
 			var current string
 			if mg == nil {
 				current, _ = rs.rootSelected(path)
@@ -157,12 +188,17 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 				// specific revision or used 'go list -retracted'.
 				allowed = nil
 			}
-			info, err := Query(ctx, path, vers, current, allowed)
+			info, err := queryReuse(ctx, path, vers, current, allowed, reuse)
 			if err != nil {
+				var origin *codehost.Origin
+				if info != nil {
+					origin = info.Origin
+				}
 				mods = append(mods, &modinfo.ModulePublic{
 					Path:    path,
 					Version: vers,
 					Error:   modinfoError(path, vers, err),
+					Origin:  origin,
 				})
 				continue
 			}
@@ -171,7 +207,11 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 			// *Requirements instead.
 			var noRS *Requirements
 
-			mod := moduleInfo(ctx, noRS, module.Version{Path: path, Version: info.Version}, mode)
+			mod := moduleInfo(ctx, noRS, module.Version{Path: path, Version: info.Version}, mode, reuse)
+			if vers != mod.Version {
+				mod.Query = vers
+			}
+			mod.Origin = info.Origin
 			mods = append(mods, mod)
 			continue
 		}
@@ -181,7 +221,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 		if arg == "all" {
 			match = func(string) bool { return true }
 		} else if strings.Contains(arg, "...") {
-			match = search.MatchPattern(arg)
+			match = pkgpattern.MatchPattern(arg)
 		} else {
 			var v string
 			if mg == nil {
@@ -200,7 +240,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 				continue
 			}
 			if v != "none" {
-				mods = append(mods, moduleInfo(ctx, rs, module.Version{Path: arg, Version: v}, mode))
+				mods = append(mods, moduleInfo(ctx, rs, module.Version{Path: arg, Version: v}, mode, reuse))
 			} else if cfg.BuildMod == "vendor" {
 				// In vendor mode, we can't determine whether a missing module is “a
 				// known dependency” because the module graph is incomplete.
@@ -229,7 +269,7 @@ func listModules(ctx context.Context, rs *Requirements, args []string, mode List
 				matched = true
 				if !matchedModule[m] {
 					matchedModule[m] = true
-					mods = append(mods, moduleInfo(ctx, rs, m, mode))
+					mods = append(mods, moduleInfo(ctx, rs, m, mode, reuse))
 				}
 			}
 		}

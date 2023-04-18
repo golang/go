@@ -95,6 +95,7 @@ cmp -q paths-a.exe paths-b.exe
 # Same sequence of tests but with gccgo.
 # gccgo does not support builds in module mode.
 [!exec:gccgo] stop
+[cross] stop  # gccgo can't necessarily cross-compile
 env GOPATH=$WORK/a
 
 # A binary built with gccgo without -trimpath should contain the current

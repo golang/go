@@ -284,7 +284,7 @@ func TestGCTestIsReachable(t *testing.T) {
 	runtime.KeepAlive(half)
 }
 
-var pointerClassSink *int
+var pointerClassBSS *int
 var pointerClassData = 42
 
 func TestGCTestPointerClass(t *testing.T) {
@@ -300,10 +300,9 @@ func TestGCTestPointerClass(t *testing.T) {
 	}
 	var onStack int
 	var notOnStack int
-	pointerClassSink = &notOnStack
 	check(unsafe.Pointer(&onStack), "stack")
-	check(unsafe.Pointer(&notOnStack), "heap")
-	check(unsafe.Pointer(&pointerClassSink), "bss")
+	check(unsafe.Pointer(runtime.Escape(&notOnStack)), "heap")
+	check(unsafe.Pointer(&pointerClassBSS), "bss")
 	check(unsafe.Pointer(&pointerClassData), "data")
 	check(nil, "other")
 }
@@ -614,14 +613,13 @@ func BenchmarkReadMemStats(b *testing.B) {
 	for i := range x {
 		x[i] = new([1024]byte)
 	}
-	hugeSink = x
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		runtime.ReadMemStats(&ms)
 	}
 
-	hugeSink = nil
+	runtime.KeepAlive(x)
 }
 
 func applyGCLoad(b *testing.B) func() {
@@ -691,7 +689,7 @@ func BenchmarkReadMemStatsLatency(b *testing.B) {
 		time.Sleep(100 * time.Millisecond)
 		start := time.Now()
 		runtime.ReadMemStats(&ms)
-		latencies = append(latencies, time.Now().Sub(start))
+		latencies = append(latencies, time.Since(start))
 	}
 	// Make sure to stop the timer before we wait! The load created above
 	// is very heavy-weight and not easy to stop, so we could end up
@@ -905,4 +903,32 @@ func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {
 	}
 	*n--
 	countpwg(n, ready, teardown)
+}
+
+func TestMemoryLimit(t *testing.T) {
+	if testing.Short() {
+		t.Skip("stress test that takes time to run")
+	}
+	if runtime.NumCPU() < 4 {
+		t.Skip("want at least 4 CPUs for this test")
+	}
+	got := runTestProg(t, "testprog", "GCMemoryLimit")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
+}
+
+func TestMemoryLimitNoGCPercent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("stress test that takes time to run")
+	}
+	if runtime.NumCPU() < 4 {
+		t.Skip("want at least 4 CPUs for this test")
+	}
+	got := runTestProg(t, "testprog", "GCMemoryLimitNoGCPercent")
+	want := "OK\n"
+	if got != want {
+		t.Fatalf("expected %q, but got %q", want, got)
+	}
 }

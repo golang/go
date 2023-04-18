@@ -42,7 +42,7 @@ func main() {
 -- b/go.mod --
 go 1.18
 
-module example.com/hi
+module example.com/hi2
 
 require "rsc.io/quote" v1.5.2
 -- b/go.sum --

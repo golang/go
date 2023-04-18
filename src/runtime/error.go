@@ -151,7 +151,7 @@ var boundsErrorFmts = [...]string{
 	boundsSlice3Acap: "slice bounds out of range [::%x] with capacity %y",
 	boundsSlice3B:    "slice bounds out of range [:%x:%y]",
 	boundsSlice3C:    "slice bounds out of range [%x:%y:]",
-	boundsConvert:    "cannot convert slice with length %y to pointer to array with length %x",
+	boundsConvert:    "cannot convert slice with length %y to array or pointer to array with length %x",
 }
 
 // boundsNegErrorFmts are overriding formats if x is negative. In this case there's no need to report y.

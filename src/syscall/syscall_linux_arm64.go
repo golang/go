@@ -6,20 +6,21 @@ package syscall
 
 import "unsafe"
 
-const _SYS_setgroups = SYS_SETGROUPS
-
-func EpollCreate(size int) (fd int, err error) {
-	if size <= 0 {
-		return -1, EINVAL
-	}
-	return EpollCreate1(0)
-}
+const (
+	_SYS_setgroups  = SYS_SETGROUPS
+	_SYS_clone3     = 435
+	_SYS_faccessat2 = 439
+)
 
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstat(fd int, stat *Stat_t) (err error)
-//sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
 //sys	fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error)
+
+func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
+	return fstatat(fd, path, stat, flags)
+}
+
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
@@ -35,12 +36,12 @@ func EpollCreate(size int) (fd int, err error) {
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
 //sys	Setfsuid(uid int) (err error)
-//sysnb	setrlimit(resource int, rlim *Rlimit) (err error)
+//sysnb	setrlimit1(resource int, rlim *Rlimit) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
 
 func Stat(path string, stat *Stat_t) (err error) {
-	return Fstatat(_AT_FDCWD, path, stat, 0)
+	return fstatat(_AT_FDCWD, path, stat, 0)
 }
 
 func Lchown(path string, uid int, gid int) (err error) {
@@ -48,7 +49,7 @@ func Lchown(path string, uid int, gid int) (err error) {
 }
 
 func Lstat(path string, stat *Stat_t) (err error) {
-	return Fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
+	return fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
 }
 
 //sys	Statfs(path string, buf *Statfs_t) (err error)
@@ -147,13 +148,23 @@ func Getrlimit(resource int, rlim *Rlimit) error {
 	return getrlimit(resource, rlim)
 }
 
-// Setrlimit prefers the prlimit64 system call. See issue 38604.
-func Setrlimit(resource int, rlim *Rlimit) error {
+// setrlimit prefers the prlimit64 system call. See issue 38604.
+func setrlimit(resource int, rlim *Rlimit) error {
 	err := prlimit(0, resource, rlim, nil)
 	if err != ENOSYS {
 		return err
 	}
-	return setrlimit(resource, rlim)
+	return setrlimit1(resource, rlim)
+}
+
+//go:nosplit
+func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+	if errno != ENOSYS {
+		return errno
+	}
+	_, _, errno = RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+	return errno
 }
 
 func (r *PtraceRegs) PC() uint64 { return r.Pc }
@@ -182,5 +193,3 @@ func Pause() error {
 	_, err := ppoll(nil, 0, nil, nil)
 	return err
 }
-
-func rawVforkSyscall(trap, a1 uintptr) (r1 uintptr, err Errno)

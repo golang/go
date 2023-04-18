@@ -14,7 +14,7 @@ type I3 interface{ int } // ERROR "interface"
 type S struct { // GC_ERROR "invalid recursive type"
 	x interface{ S } // GCCGO_ERROR "interface"
 }
-type I4 interface { // GC_ERROR "invalid recursive type I4\n\tLINE:.* I4 refers to\n\tLINE:.* I4$"
+type I4 interface { // GC_ERROR "invalid recursive type: I4 refers to itself"
 	I4 // GCCGO_ERROR "interface"
 }
 

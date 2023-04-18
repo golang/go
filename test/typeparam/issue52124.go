@@ -6,7 +6,9 @@
 
 package p
 
-type I interface{ any | int }
+type Any any
+
+type I interface{ Any | int }
 
 var (
 	X I = 42

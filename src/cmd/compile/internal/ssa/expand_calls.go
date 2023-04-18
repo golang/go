@@ -1090,7 +1090,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 	if v.Op == OpTailLECall {
 		// For tail call, we unwind the frame before the call so we'll use the caller's
 		// SP.
-		sp = x.f.Entry.NewValue0(src.NoXPos, OpGetCallerSP, x.typs.Uintptr)
+		sp = x.f.Entry.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
 	}
 	for i, a := range v.Args[firstArg : len(v.Args)-1] { // skip leading non-parameter SSA Args and trailing mem SSA Arg.
 		oldArgs = append(oldArgs, a)
@@ -1108,7 +1108,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 				a0 := a.Args[0]
 				if a0.Op == OpLocalAddr {
 					n := a0.Aux.(*ir.Name)
-					if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.FixedFrameSize() == aOffset {
+					if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.Arch.FixedFrameSize == aOffset {
 						continue
 					}
 				}
@@ -1129,7 +1129,7 @@ func (x *expandState) rewriteArgs(v *Value, firstArg int) {
 				// It's common for a tail call passing the same arguments (e.g. method wrapper),
 				// so this would be a self copy. Detect this and optimize it out.
 				n := a.Aux.(*ir.Name)
-				if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.FixedFrameSize() == aOffset {
+				if n.Class == ir.PPARAM && n.FrameOffset()+x.f.Config.ctxt.Arch.FixedFrameSize == aOffset {
 					continue
 				}
 			}
@@ -1742,7 +1742,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 			toReplace.Type = t
 			w = toReplace
 		} else {
-			w = baseArg.Block.NewValue0IA(pos, OpArg, t, auxInt, aux)
+			w = baseArg.Block.NewValue0IA(baseArg.Pos, OpArg, t, auxInt, aux)
 		}
 		x.commonArgs[key] = w
 		if toReplace != nil {
@@ -1773,7 +1773,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 		toReplace.Type = t
 		w = toReplace
 	} else {
-		w = baseArg.Block.NewValue0IA(pos, op, t, auxInt, aux)
+		w = baseArg.Block.NewValue0IA(baseArg.Pos, op, t, auxInt, aux)
 	}
 	x.commonArgs[key] = w
 	if toReplace != nil {
@@ -1786,7 +1786,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
 
 }
 
-// argOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
+// ArgOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
 // arg register index.
 func ArgOpAndRegisterFor(r abi.RegIndex, abiConfig *abi.ABIConfig) (Op, int64) {
 	i := abiConfig.FloatIndexFor(r)

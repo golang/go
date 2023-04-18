@@ -252,10 +252,10 @@ func main() {
 			b := 3
 			return func(y int) int { // ERROR "can inline main.func27.1"
 				c := 5
-				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.2"
+				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.(func)?2"
 					return a*x + b*y + c*z
 				}(10) // ERROR "inlining call to main.func27.1.1"
-			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.2"
+			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.(func)?2"
 		}(1000); r != 2350 {
 			ppanic("r != 2350")
 		}
@@ -267,13 +267,13 @@ func main() {
 			b := 3
 			return func(y int) int { // ERROR "can inline main.func28.1"
 				c := 5
-				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.2"
+				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.(func)?2"
 					a = a * x
 					b = b * y
 					c = c * z
 				}(10) // ERROR "inlining call to main.func28.1.1"
 				return a + c
-			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.2"
+			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.(func)?2"
 		}(1000); r != 2350 {
 			ppanic("r != 2350")
 		}

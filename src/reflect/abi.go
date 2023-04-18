@@ -237,7 +237,7 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 		st := (*structType)(unsafe.Pointer(t))
 		for i := range st.fields {
 			f := &st.fields[i]
-			if !a.regAssign(f.typ, offset+f.offset()) {
+			if !a.regAssign(f.typ, offset+f.offset) {
 				return false
 			}
 		}

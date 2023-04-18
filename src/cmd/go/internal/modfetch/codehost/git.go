@@ -6,14 +6,17 @@ package codehost
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"fmt"
-	exec "internal/execabs"
 	"io"
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,24 +47,17 @@ func (notExistError) Is(err error) bool { return err == fs.ErrNotExist }
 
 const gitWorkDirType = "git3"
 
-var gitRepoCache par.Cache
+var gitRepoCache par.ErrCache[gitCacheKey, Repo]
+
+type gitCacheKey struct {
+	remote  string
+	localOK bool
+}
 
 func newGitRepoCached(remote string, localOK bool) (Repo, error) {
-	type key struct {
-		remote  string
-		localOK bool
-	}
-	type cached struct {
-		repo Repo
-		err  error
-	}
-
-	c := gitRepoCache.Do(key{remote, localOK}, func() any {
-		repo, err := newGitRepo(remote, localOK)
-		return cached{repo, err}
-	}).(cached)
-
-	return c.repo, c.err
+	return gitRepoCache.Do(gitCacheKey{remote, localOK}, func() (Repo, error) {
+		return newGitRepo(remote, localOK)
+	})
 }
 
 func newGitRepo(remote string, localOK bool) (Repo, error) {
@@ -92,6 +88,21 @@ func newGitRepo(remote string, localOK bool) (Repo, error) {
 			if _, err := Run(r.dir, "git", "remote", "add", "origin", "--", r.remote); err != nil {
 				os.RemoveAll(r.dir)
 				return nil, err
+			}
+			if runtime.GOOS == "windows" {
+				// Git for Windows by default does not support paths longer than
+				// MAX_PATH (260 characters) because that may interfere with navigation
+				// in some Windows programs. However, cmd/go should be able to handle
+				// long paths just fine, and we expect people to use 'go clean' to
+				// manipulate the module cache, so it should be harmless to set here,
+				// and in some cases may be necessary in order to download modules with
+				// long branch names.
+				//
+				// See https://github.com/git-for-windows/git/wiki/Git-cannot-create-a-file-or-directory-with-a-long-path.
+				if _, err := Run(r.dir, "git", "config", "core.longpaths", "true"); err != nil {
+					os.RemoveAll(r.dir)
+					return nil, err
+				}
 			}
 		}
 		r.remoteURL = r.remote
@@ -130,7 +141,7 @@ type gitRepo struct {
 
 	fetchLevel int
 
-	statCache par.Cache
+	statCache par.ErrCache[string, *RevInfo]
 
 	refsOnce sync.Once
 	// refs maps branch and tag refs (e.g., "HEAD", "refs/heads/master")
@@ -167,6 +178,57 @@ func (r *gitRepo) loadLocalTags() {
 			r.localTags[line] = true
 		}
 	}
+}
+
+func (r *gitRepo) CheckReuse(old *Origin, subdir string) error {
+	if old == nil {
+		return fmt.Errorf("missing origin")
+	}
+	if old.VCS != "git" || old.URL != r.remoteURL {
+		return fmt.Errorf("origin moved from %v %q to %v %q", old.VCS, old.URL, "git", r.remoteURL)
+	}
+	if old.Subdir != subdir {
+		return fmt.Errorf("origin moved from %v %q %q to %v %q %q", old.VCS, old.URL, old.Subdir, "git", r.remoteURL, subdir)
+	}
+
+	// Note: Can have Hash with no Ref and no TagSum and no RepoSum,
+	// meaning the Hash simply has to remain in the repo.
+	// In that case we assume it does in the absence of any real way to check.
+	// But if neither Hash nor TagSum is present, we have nothing to check,
+	// which we take to mean we didn't record enough information to be sure.
+	if old.Hash == "" && old.TagSum == "" && old.RepoSum == "" {
+		return fmt.Errorf("non-specific origin")
+	}
+
+	r.loadRefs()
+	if r.refsErr != nil {
+		return r.refsErr
+	}
+
+	if old.Ref != "" {
+		hash, ok := r.refs[old.Ref]
+		if !ok {
+			return fmt.Errorf("ref %q deleted", old.Ref)
+		}
+		if hash != old.Hash {
+			return fmt.Errorf("ref %q moved from %s to %s", old.Ref, old.Hash, hash)
+		}
+	}
+	if old.TagSum != "" {
+		tags, err := r.Tags(old.TagPrefix)
+		if err != nil {
+			return err
+		}
+		if tags.Origin.TagSum != old.TagSum {
+			return fmt.Errorf("tags changed")
+		}
+	}
+	if old.RepoSum != "" {
+		if r.repoSum(r.refs) != old.RepoSum {
+			return fmt.Errorf("refs changed")
+		}
+	}
+	return nil
 }
 
 // loadRefs loads heads and tags references from the remote into the map r.refs.
@@ -209,8 +271,8 @@ func (r *gitRepo) loadRefs() (map[string]string, error) {
 			}
 		}
 		for ref, hash := range refs {
-			if strings.HasSuffix(ref, "^{}") { // record unwrapped annotated tag as value of tag
-				refs[strings.TrimSuffix(ref, "^{}")] = hash
+			if k, found := strings.CutSuffix(ref, "^{}"); found { // record unwrapped annotated tag as value of tag
+				refs[k] = hash
 				delete(refs, ref)
 			}
 		}
@@ -219,14 +281,21 @@ func (r *gitRepo) loadRefs() (map[string]string, error) {
 	return r.refs, r.refsErr
 }
 
-func (r *gitRepo) Tags(prefix string) ([]string, error) {
+func (r *gitRepo) Tags(prefix string) (*Tags, error) {
 	refs, err := r.loadRefs()
 	if err != nil {
 		return nil, err
 	}
 
-	tags := []string{}
-	for ref := range refs {
+	tags := &Tags{
+		Origin: &Origin{
+			VCS:       "git",
+			URL:       r.remoteURL,
+			TagPrefix: prefix,
+		},
+		List: []Tag{},
+	}
+	for ref, hash := range refs {
 		if !strings.HasPrefix(ref, "refs/tags/") {
 			continue
 		}
@@ -234,10 +303,50 @@ func (r *gitRepo) Tags(prefix string) ([]string, error) {
 		if !strings.HasPrefix(tag, prefix) {
 			continue
 		}
-		tags = append(tags, tag)
+		tags.List = append(tags.List, Tag{tag, hash})
 	}
-	sort.Strings(tags)
+	sort.Slice(tags.List, func(i, j int) bool {
+		return tags.List[i].Name < tags.List[j].Name
+	})
+
+	dir := prefix[:strings.LastIndex(prefix, "/")+1]
+	h := sha256.New()
+	for _, tag := range tags.List {
+		if isOriginTag(strings.TrimPrefix(tag.Name, dir)) {
+			fmt.Fprintf(h, "%q %s\n", tag.Name, tag.Hash)
+		}
+	}
+	tags.Origin.TagSum = "t1:" + base64.StdEncoding.EncodeToString(h.Sum(nil))
 	return tags, nil
+}
+
+// repoSum returns a checksum of the entire repo state,
+// which can be checked (as Origin.RepoSum) to cache
+// the absence of a specific module version.
+// The caller must supply refs, the result of a successful r.loadRefs.
+func (r *gitRepo) repoSum(refs map[string]string) string {
+	var list []string
+	for ref := range refs {
+		list = append(list, ref)
+	}
+	sort.Strings(list)
+	h := sha256.New()
+	for _, ref := range list {
+		fmt.Fprintf(h, "%q %s\n", ref, refs[ref])
+	}
+	return "r1:" + base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
+// unknownRevisionInfo returns a RevInfo containing an Origin containing a RepoSum of refs,
+// for use when returning an UnknownRevisionError.
+func (r *gitRepo) unknownRevisionInfo(refs map[string]string) *RevInfo {
+	return &RevInfo{
+		Origin: &Origin{
+			VCS:     "git",
+			URL:     r.remoteURL,
+			RepoSum: r.repoSum(refs),
+		},
+	}
 }
 
 func (r *gitRepo) Latest() (*RevInfo, error) {
@@ -248,7 +357,22 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
 	if refs["HEAD"] == "" {
 		return nil, ErrNoCommits
 	}
-	return r.Stat(refs["HEAD"])
+	statInfo, err := r.Stat(refs["HEAD"])
+	if err != nil {
+		return nil, err
+	}
+
+	// Stat may return cached info, so make a copy to modify here.
+	info := new(RevInfo)
+	*info = *statInfo
+	info.Origin = new(Origin)
+	if statInfo.Origin != nil {
+		*info.Origin = *statInfo.Origin
+	}
+	info.Origin.Ref = "HEAD"
+	info.Origin.Hash = refs["HEAD"]
+
+	return info, nil
 }
 
 // findRef finds some ref name for the given hash,
@@ -278,7 +402,7 @@ const minHashDigits = 7
 
 // stat stats the given rev in the local repository,
 // or else it fetches more info from the remote repository and tries again.
-func (r *gitRepo) stat(rev string) (*RevInfo, error) {
+func (r *gitRepo) stat(rev string) (info *RevInfo, err error) {
 	if r.local {
 		return r.statLocal(rev, rev)
 	}
@@ -345,8 +469,18 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 			hash = rev
 		}
 	} else {
-		return nil, &UnknownRevisionError{Rev: rev}
+		return r.unknownRevisionInfo(refs), &UnknownRevisionError{Rev: rev}
 	}
+
+	defer func() {
+		if info != nil {
+			info.Origin.Hash = info.Name
+			// There's a ref = hash below; don't write that hash down as Origin.Ref.
+			if ref != info.Origin.Hash {
+				info.Origin.Ref = ref
+			}
+		}
+	}()
 
 	// Protect r.fetchLevel and the "fetch more and more" sequence.
 	unlock, err := r.mu.Lock()
@@ -361,9 +495,9 @@ func (r *gitRepo) stat(rev string) (*RevInfo, error) {
 	// Either way, try a local stat before falling back to network I/O.
 	if !didStatLocal {
 		if info, err := r.statLocal(rev, hash); err == nil {
-			if strings.HasPrefix(ref, "refs/tags/") {
+			if after, found := strings.CutPrefix(ref, "refs/tags/"); found {
 				// Make sure tag exists, so it will be in localTags next time the go command is run.
-				Run(r.dir, "git", "tag", strings.TrimPrefix(ref, "refs/tags/"), hash)
+				Run(r.dir, "git", "tag", after, hash)
 			}
 			return info, nil
 		}
@@ -444,12 +578,17 @@ func (r *gitRepo) fetchRefsLocked() error {
 	return nil
 }
 
-// statLocal returns a RevInfo describing rev in the local git repository.
+// statLocal returns a new RevInfo describing rev in the local git repository.
 // It uses version as info.Version.
 func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
-	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "-n1", "--format=format:%H %ct %D", rev, "--")
+	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
 	if err != nil {
-		return nil, &UnknownRevisionError{Rev: rev}
+		// Return info with Origin.RepoSum if possible to allow caching of negative lookup.
+		var info *RevInfo
+		if refs, err := r.loadRefs(); err == nil {
+			info = r.unknownRevisionInfo(refs)
+		}
+		return info, &UnknownRevisionError{Rev: rev}
 	}
 	f := strings.Fields(string(out))
 	if len(f) < 2 {
@@ -465,10 +604,18 @@ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
 	}
 
 	info := &RevInfo{
+		Origin: &Origin{
+			VCS:  "git",
+			URL:  r.remoteURL,
+			Hash: hash,
+		},
 		Name:    hash,
 		Short:   ShortenSHA1(hash),
 		Time:    time.Unix(t, 0).UTC(),
 		Version: hash,
+	}
+	if !strings.HasPrefix(hash, rev) {
+		info.Origin.Ref = rev
 	}
 
 	// Add tags. Output looks like:
@@ -499,15 +646,9 @@ func (r *gitRepo) Stat(rev string) (*RevInfo, error) {
 	if rev == "latest" {
 		return r.Latest()
 	}
-	type cached struct {
-		info *RevInfo
-		err  error
-	}
-	c := r.statCache.Do(rev, func() any {
-		info, err := r.stat(rev)
-		return cached{info, err}
-	}).(cached)
-	return c.info, c.err
+	return r.statCache.Do(rev, func() (*RevInfo, error) {
+		return r.stat(rev)
+	})
 }
 
 func (r *gitRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
@@ -523,7 +664,7 @@ func (r *gitRepo) ReadFile(rev, file string, maxSize int64) ([]byte, error) {
 	return out, nil
 }
 
-func (r *gitRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag string, err error) {
+func (r *gitRepo) RecentTag(rev, prefix string, allowed func(tag string) bool) (tag string, err error) {
 	info, err := r.Stat(rev)
 	if err != nil {
 		return "", err
@@ -553,15 +694,11 @@ func (r *gitRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag 
 			if !strings.HasPrefix(line, prefix) {
 				continue
 			}
-
-			semtag := line[len(prefix):]
-			// Consider only tags that are valid and complete (not just major.minor prefixes).
-			// NOTE: Do not replace the call to semver.Compare with semver.Max.
-			// We want to return the actual tag, not a canonicalized version of it,
-			// and semver.Max currently canonicalizes (see golang.org/issue/32700).
-			if c := semver.Canonical(semtag); c == "" || !strings.HasPrefix(semtag, c) || !allowed(semtag) {
+			if !allowed(line) {
 				continue
 			}
+
+			semtag := line[len(prefix):]
 			if semver.Compare(semtag, highest) > 0 {
 				highest = semtag
 			}
@@ -584,7 +721,7 @@ func (r *gitRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag 
 	if err != nil {
 		return "", err
 	}
-	if len(tags) == 0 {
+	if len(tags.List) == 0 {
 		return "", nil
 	}
 
@@ -638,7 +775,7 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if len(tags) == 0 {
+	if len(tags.List) == 0 {
 		return false, nil
 	}
 

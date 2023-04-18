@@ -12,7 +12,7 @@ go get -d
 go get -t -d
 
 [!net] stop
-[!exec:git] stop
+[!git] stop
 
 cd $GOPATH/src
 

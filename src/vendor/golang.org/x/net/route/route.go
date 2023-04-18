@@ -111,7 +111,7 @@ func FetchRIB(af int, typ RIBType, arg int) ([]byte, error) {
 	try := 0
 	for {
 		try++
-		mib := [6]int32{sysCTL_NET, sysAF_ROUTE, 0, int32(af), int32(typ), int32(arg)}
+		mib := [6]int32{syscall.CTL_NET, syscall.AF_ROUTE, 0, int32(af), int32(typ), int32(arg)}
 		n := uintptr(0)
 		if err := sysctl(mib[:], nil, &n, nil, 0); err != nil {
 			return nil, os.NewSyscallError("sysctl", err)

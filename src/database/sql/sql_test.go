@@ -9,6 +9,8 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"internal/race"
+	"internal/testenv"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -449,6 +451,16 @@ func TestQueryContextWait(t *testing.T) {
 // TestTxContextWait tests the transaction behavior when the tx context is canceled
 // during execution of the query.
 func TestTxContextWait(t *testing.T) {
+	testContextWait(t, false)
+}
+
+// TestTxContextWaitNoDiscard is the same as TestTxContextWait, but should not discard
+// the final connection.
+func TestTxContextWaitNoDiscard(t *testing.T) {
+	testContextWait(t, true)
+}
+
+func testContextWait(t *testing.T, keepConnOnRollback bool) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
 
@@ -458,7 +470,7 @@ func TestTxContextWait(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tx.keepConnOnRollback = false
+	tx.keepConnOnRollback = keepConnOnRollback
 
 	tx.dc.ci.(*fakeConn).waiter = func(c context.Context) {
 		cancel()
@@ -472,36 +484,11 @@ func TestTxContextWait(t *testing.T) {
 		t.Fatalf("expected QueryContext to error with context canceled but returned %v", err)
 	}
 
-	waitForFree(t, db, 0)
-}
-
-// TestTxContextWaitNoDiscard is the same as TestTxContextWait, but should not discard
-// the final connection.
-func TestTxContextWaitNoDiscard(t *testing.T) {
-	db := newTestDB(t, "people")
-	defer closeDB(t, db)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Millisecond)
-	defer cancel()
-
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		// Guard against the context being canceled before BeginTx completes.
-		if err == context.DeadlineExceeded {
-			t.Skip("tx context canceled prior to first use")
-		}
-		t.Fatal(err)
+	if keepConnOnRollback {
+		waitForFree(t, db, 1)
+	} else {
+		waitForFree(t, db, 0)
 	}
-
-	// This will trigger the *fakeConn.Prepare method which will take time
-	// performing the query. The ctxDriverPrepare func will check the context
-	// after this and close the rows and return an error.
-	_, err = tx.QueryContext(ctx, "WAIT|1s|SELECT|people|age,name|")
-	if err != context.DeadlineExceeded {
-		t.Fatalf("expected QueryContext to error with context deadline exceeded but returned %v", err)
-	}
-
-	waitForFree(t, db, 1)
 }
 
 // TestUnsupportedOptions checks that the database fails when a driver that
@@ -2636,6 +2623,39 @@ func TestRowsImplicitClose(t *testing.T) {
 	}
 }
 
+func TestRowsCloseError(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer db.Close()
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	type row struct {
+		age  int
+		name string
+	}
+	got := []row{}
+
+	rc, ok := rows.rowsi.(*rowsCursor)
+	if !ok {
+		t.Fatal("not using *rowsCursor")
+	}
+	rc.closeErr = errors.New("rowsCursor: failed to close")
+
+	for rows.Next() {
+		var r row
+		err = rows.Scan(&r.age, &r.name)
+		if err != nil {
+			t.Fatalf("Scan: %v", err)
+		}
+		got = append(got, r)
+	}
+	err = rows.Err()
+	if err != rc.closeErr {
+		t.Fatalf("unexpected err: got %v, want %v", err, rc.closeErr)
+	}
+}
+
 func TestStmtCloseOrder(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -2986,7 +3006,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
 }
 
 // TestIssue20575 ensures the Rows from query does not block
-// closing a transaction. Ensure Rows is closed while closing a trasaction.
+// closing a transaction. Ensure Rows is closed while closing a transaction.
 func TestIssue20575(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -4564,4 +4584,36 @@ func BenchmarkManyConcurrentQueries(b *testing.B) {
 			rows.Close()
 		}
 	})
+}
+
+func TestGrabConnAllocs(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping allocation test when using race detector")
+	}
+	c := new(Conn)
+	ctx := context.Background()
+	n := int(testing.AllocsPerRun(1000, func() {
+		_, release, err := c.grabConn(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		release(nil)
+	}))
+	if n > 0 {
+		t.Fatalf("Conn.grabConn allocated %v objects; want 0", n)
+	}
+}
+
+func BenchmarkGrabConn(b *testing.B) {
+	b.ReportAllocs()
+	c := new(Conn)
+	ctx := context.Background()
+	for i := 0; i < b.N; i++ {
+		_, release, err := c.grabConn(ctx)
+		if err != nil {
+			b.Fatal(err)
+		}
+		release(nil)
+	}
 }

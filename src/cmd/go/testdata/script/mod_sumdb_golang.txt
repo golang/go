@@ -12,7 +12,7 @@ stdout '^sum.golang.org$'
 # Download direct from github.
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 env GOSUMDB=sum.golang.org
 env GOPROXY=direct
 

@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"internal/goroot"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -18,6 +17,8 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modfetch/codehost"
+	"cmd/go/internal/modindex"
 	"cmd/go/internal/modinfo"
 	"cmd/go/internal/search"
 
@@ -39,7 +40,7 @@ func findStandardImportPath(path string) string {
 		panic("findStandardImportPath called with empty path")
 	}
 	if search.IsStandardImportPath(path) {
-		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+		if modindex.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 			return filepath.Join(cfg.GOROOT, "src", path)
 		}
 	}
@@ -60,7 +61,26 @@ func PackageModuleInfo(ctx context.Context, pkgpath string) *modinfo.ModulePubli
 	}
 
 	rs := LoadModFile(ctx)
-	return moduleInfo(ctx, rs, m, 0)
+	return moduleInfo(ctx, rs, m, 0, nil)
+}
+
+// PackageModRoot returns the module root directory for the module that provides
+// a given package. If modules are not enabled or if the package is in the
+// standard library or if the package was not successfully loaded with
+// LoadPackages or ImportFromFiles, the empty string is returned.
+func PackageModRoot(ctx context.Context, pkgpath string) string {
+	if isStandardImportPath(pkgpath) || !Enabled() || cfg.BuildMod == "vendor" {
+		return ""
+	}
+	m, ok := findModule(loaded, pkgpath)
+	if !ok {
+		return ""
+	}
+	root, _, err := fetch(ctx, m)
+	if err != nil {
+		return ""
+	}
+	return root
 }
 
 func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
@@ -68,9 +88,9 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return nil
 	}
 
-	if i := strings.Index(path, "@"); i >= 0 {
-		m := module.Version{Path: path[:i], Version: path[i+1:]}
-		return moduleInfo(ctx, nil, m, 0)
+	if path, vers, found := strings.Cut(path, "@"); found {
+		m := module.Version{Path: path, Version: vers}
+		return moduleInfo(ctx, nil, m, 0, nil)
 	}
 
 	rs := LoadModFile(ctx)
@@ -99,7 +119,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		}
 	}
 
-	return moduleInfo(ctx, rs, module.Version{Path: path, Version: v}, 0)
+	return moduleInfo(ctx, rs, module.Version{Path: path, Version: v}, 0, nil)
 }
 
 // addUpdate fills in m.Update if an updated version is available.
@@ -110,9 +130,14 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 
 	info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed)
 	var noVersionErr *NoMatchingVersionError
-	if errors.Is(err, fs.ErrNotExist) || errors.As(err, &noVersionErr) {
+	if errors.Is(err, ErrDisallowed) ||
+		errors.Is(err, fs.ErrNotExist) ||
+		errors.As(err, &noVersionErr) {
 		// Ignore "not found" and "no matching version" errors.
 		// This means the proxy has no matching version or no versions at all.
+		//
+		// Ignore "disallowed" errors. This means the current version is
+		// excluded or retracted and there are no higher allowed versions.
 		//
 		// We should report other errors though. An attacker that controls the
 		// network shouldn't be able to hide versions by interfering with
@@ -136,6 +161,49 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 	}
 }
 
+// mergeOrigin merges two origins,
+// returning and possibly modifying one of its arguments.
+// If the two origins conflict, mergeOrigin returns a non-specific one
+// that will not pass CheckReuse.
+// If m1 or m2 is nil, the other is returned unmodified.
+// But if m1 or m2 is non-nil and uncheckable, the result is also uncheckable,
+// to preserve uncheckability.
+func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
+	if m1 == nil {
+		return m2
+	}
+	if m2 == nil {
+		return m1
+	}
+	if !m1.Checkable() {
+		return m1
+	}
+	if !m2.Checkable() {
+		return m2
+	}
+
+	merged := new(codehost.Origin)
+	*merged = *m1 // Clone to avoid overwriting fields in cached results.
+
+	if m2.TagSum != "" {
+		if m1.TagSum != "" && (m1.TagSum != m2.TagSum || m1.TagPrefix != m2.TagPrefix) {
+			merged.ClearCheckable()
+			return merged
+		}
+		merged.TagSum = m2.TagSum
+		merged.TagPrefix = m2.TagPrefix
+	}
+	if m2.Hash != "" {
+		if m1.Hash != "" && (m1.Hash != m2.Hash || m1.Ref != m2.Ref) {
+			merged.ClearCheckable()
+			return merged
+		}
+		merged.Hash = m2.Hash
+		merged.Ref = m2.Ref
+	}
+	return merged
+}
+
 // addVersions fills in m.Versions with the list of known versions.
 // Excluded versions will be omitted. If listRetracted is false, retracted
 // versions will also be omitted.
@@ -144,11 +212,12 @@ func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted boo
 	if listRetracted {
 		allowed = CheckExclusions
 	}
-	var err error
-	m.Versions, err = versions(ctx, m.Path, allowed)
+	v, origin, err := versions(ctx, m.Path, allowed)
 	if err != nil && m.Error == nil {
 		m.Error = &modinfo.ModuleError{Err: err.Error()}
 	}
+	m.Versions = v
+	m.Origin = mergeOrigin(m.Origin, origin)
 }
 
 // addRetraction fills in m.Retracted if the module was retracted by its author.
@@ -210,7 +279,7 @@ func addDeprecation(ctx context.Context, m *modinfo.ModulePublic) {
 // moduleInfo returns information about module m, loaded from the requirements
 // in rs (which may be nil to indicate that m was not loaded from a requirement
 // graph).
-func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode ListMode) *modinfo.ModulePublic {
+func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode ListMode, reuse map[module.Version]*modinfo.ModulePublic) *modinfo.ModulePublic {
 	if m.Version == "" && MainModules.Contains(m.Path) {
 		info := &modinfo.ModulePublic{
 			Path:    m.Path,
@@ -240,8 +309,17 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 
 	// completeFromModCache fills in the extra fields in m using the module cache.
 	completeFromModCache := func(m *modinfo.ModulePublic) {
+		if old := reuse[module.Version{Path: m.Path, Version: m.Version}]; old != nil {
+			if err := checkReuse(ctx, m.Path, old.Origin); err == nil {
+				*m = *old
+				m.Query = ""
+				m.Dir = ""
+				return
+			}
+		}
+
 		checksumOk := func(suffix string) bool {
-			return rs == nil || m.Version == "" || cfg.BuildMod == "mod" ||
+			return rs == nil || m.Version == "" || !mustHaveSums() ||
 				modfetch.HaveSum(module.Version{Path: m.Path, Version: m.Version + suffix})
 		}
 
@@ -339,7 +417,7 @@ func moduleInfo(ctx context.Context, rs *Requirements, m module.Version, mode Li
 // If the package was loaded, its containing module and true are returned.
 // Otherwise, module.Version{} and false are returned.
 func findModule(ld *loader, path string) (module.Version, bool) {
-	if pkg, ok := ld.pkgCache.Get(path).(*loadPkg); ok {
+	if pkg, ok := ld.pkgCache.Get(path); ok {
 		return pkg.mod, pkg.mod != module.Version{}
 	}
 	return module.Version{}, false
@@ -352,12 +430,12 @@ func ModInfoProg(info string, isgccgo bool) []byte {
 	// look at the module info in their init functions (see issue 29628),
 	// which won't work. See also issue 30344.
 	if isgccgo {
-		return []byte(fmt.Sprintf(`package main
+		return fmt.Appendf(nil, `package main
 import _ "unsafe"
 //go:linkname __set_debug_modinfo__ runtime.setmodinfo
 func __set_debug_modinfo__(string)
 func init() { __set_debug_modinfo__(%q) }
-`, ModInfoData(info)))
+`, ModInfoData(info))
 	}
 	return nil
 }

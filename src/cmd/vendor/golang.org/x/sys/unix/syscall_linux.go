@@ -13,6 +13,7 @@ package unix
 
 import (
 	"encoding/binary"
+	"strconv"
 	"syscall"
 	"time"
 	"unsafe"
@@ -233,7 +234,7 @@ func Futimesat(dirfd int, path string, tv []Timeval) error {
 func Futimes(fd int, tv []Timeval) (err error) {
 	// Believe it or not, this is the best we can do on Linux
 	// (and is what glibc does).
-	return Utimes("/proc/self/fd/"+itoa(fd), tv)
+	return Utimes("/proc/self/fd/"+strconv.Itoa(fd), tv)
 }
 
 const ImplementsGetwd = true
@@ -365,6 +366,8 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 	}
 	return
 }
+
+//sys	Waitid(idType int, id int, info *Siginfo, options int, rusage *Rusage) (err error)
 
 func Mkfifo(path string, mode uint32) error {
 	return Mknod(path, mode|S_IFIFO, 0)
@@ -510,24 +513,24 @@ func (sa *SockaddrL2) sockaddr() (unsafe.Pointer, _Socklen, error) {
 //
 // Server example:
 //
-//      fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
-//      _ = unix.Bind(fd, &unix.SockaddrRFCOMM{
-//      	Channel: 1,
-//      	Addr:    [6]uint8{0, 0, 0, 0, 0, 0}, // BDADDR_ANY or 00:00:00:00:00:00
-//      })
-//      _ = Listen(fd, 1)
-//      nfd, sa, _ := Accept(fd)
-//      fmt.Printf("conn addr=%v fd=%d", sa.(*unix.SockaddrRFCOMM).Addr, nfd)
-//      Read(nfd, buf)
+//	fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
+//	_ = unix.Bind(fd, &unix.SockaddrRFCOMM{
+//		Channel: 1,
+//		Addr:    [6]uint8{0, 0, 0, 0, 0, 0}, // BDADDR_ANY or 00:00:00:00:00:00
+//	})
+//	_ = Listen(fd, 1)
+//	nfd, sa, _ := Accept(fd)
+//	fmt.Printf("conn addr=%v fd=%d", sa.(*unix.SockaddrRFCOMM).Addr, nfd)
+//	Read(nfd, buf)
 //
 // Client example:
 //
-//      fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
-//      _ = Connect(fd, &SockaddrRFCOMM{
-//      	Channel: 1,
-//      	Addr:    [6]byte{0x11, 0x22, 0x33, 0xaa, 0xbb, 0xcc}, // CC:BB:AA:33:22:11
-//      })
-//      Write(fd, []byte(`hello`))
+//	fd, _ := Socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
+//	_ = Connect(fd, &SockaddrRFCOMM{
+//		Channel: 1,
+//		Addr:    [6]byte{0x11, 0x22, 0x33, 0xaa, 0xbb, 0xcc}, // CC:BB:AA:33:22:11
+//	})
+//	Write(fd, []byte(`hello`))
 type SockaddrRFCOMM struct {
 	// Addr represents a bluetooth address, byte ordering is little-endian.
 	Addr [6]uint8
@@ -554,12 +557,12 @@ func (sa *SockaddrRFCOMM) sockaddr() (unsafe.Pointer, _Socklen, error) {
 // The SockaddrCAN struct must be bound to the socket file descriptor
 // using Bind before the CAN socket can be used.
 //
-//      // Read one raw CAN frame
-//      fd, _ := Socket(AF_CAN, SOCK_RAW, CAN_RAW)
-//      addr := &SockaddrCAN{Ifindex: index}
-//      Bind(fd, addr)
-//      frame := make([]byte, 16)
-//      Read(fd, frame)
+//	// Read one raw CAN frame
+//	fd, _ := Socket(AF_CAN, SOCK_RAW, CAN_RAW)
+//	addr := &SockaddrCAN{Ifindex: index}
+//	Bind(fd, addr)
+//	frame := make([]byte, 16)
+//	Read(fd, frame)
 //
 // The full SocketCAN documentation can be found in the linux kernel
 // archives at: https://www.kernel.org/doc/Documentation/networking/can.txt
@@ -630,13 +633,13 @@ func (sa *SockaddrCANJ1939) sockaddr() (unsafe.Pointer, _Socklen, error) {
 // Here is an example of using an AF_ALG socket with SHA1 hashing.
 // The initial socket setup process is as follows:
 //
-//      // Open a socket to perform SHA1 hashing.
-//      fd, _ := unix.Socket(unix.AF_ALG, unix.SOCK_SEQPACKET, 0)
-//      addr := &unix.SockaddrALG{Type: "hash", Name: "sha1"}
-//      unix.Bind(fd, addr)
-//      // Note: unix.Accept does not work at this time; must invoke accept()
-//      // manually using unix.Syscall.
-//      hashfd, _, _ := unix.Syscall(unix.SYS_ACCEPT, uintptr(fd), 0, 0)
+//	// Open a socket to perform SHA1 hashing.
+//	fd, _ := unix.Socket(unix.AF_ALG, unix.SOCK_SEQPACKET, 0)
+//	addr := &unix.SockaddrALG{Type: "hash", Name: "sha1"}
+//	unix.Bind(fd, addr)
+//	// Note: unix.Accept does not work at this time; must invoke accept()
+//	// manually using unix.Syscall.
+//	hashfd, _, _ := unix.Syscall(unix.SYS_ACCEPT, uintptr(fd), 0, 0)
 //
 // Once a file descriptor has been returned from Accept, it may be used to
 // perform SHA1 hashing. The descriptor is not safe for concurrent use, but
@@ -645,39 +648,39 @@ func (sa *SockaddrCANJ1939) sockaddr() (unsafe.Pointer, _Socklen, error) {
 // When hashing a small byte slice or string, a single Write and Read may
 // be used:
 //
-//      // Assume hashfd is already configured using the setup process.
-//      hash := os.NewFile(hashfd, "sha1")
-//      // Hash an input string and read the results. Each Write discards
-//      // previous hash state. Read always reads the current state.
-//      b := make([]byte, 20)
-//      for i := 0; i < 2; i++ {
-//          io.WriteString(hash, "Hello, world.")
-//          hash.Read(b)
-//          fmt.Println(hex.EncodeToString(b))
-//      }
-//      // Output:
-//      // 2ae01472317d1935a84797ec1983ae243fc6aa28
-//      // 2ae01472317d1935a84797ec1983ae243fc6aa28
+//	// Assume hashfd is already configured using the setup process.
+//	hash := os.NewFile(hashfd, "sha1")
+//	// Hash an input string and read the results. Each Write discards
+//	// previous hash state. Read always reads the current state.
+//	b := make([]byte, 20)
+//	for i := 0; i < 2; i++ {
+//	    io.WriteString(hash, "Hello, world.")
+//	    hash.Read(b)
+//	    fmt.Println(hex.EncodeToString(b))
+//	}
+//	// Output:
+//	// 2ae01472317d1935a84797ec1983ae243fc6aa28
+//	// 2ae01472317d1935a84797ec1983ae243fc6aa28
 //
 // For hashing larger byte slices, or byte streams such as those read from
 // a file or socket, use Sendto with MSG_MORE to instruct the kernel to update
 // the hash digest instead of creating a new one for a given chunk and finalizing it.
 //
-//      // Assume hashfd and addr are already configured using the setup process.
-//      hash := os.NewFile(hashfd, "sha1")
-//      // Hash the contents of a file.
-//      f, _ := os.Open("/tmp/linux-4.10-rc7.tar.xz")
-//      b := make([]byte, 4096)
-//      for {
-//          n, err := f.Read(b)
-//          if err == io.EOF {
-//              break
-//          }
-//          unix.Sendto(hashfd, b[:n], unix.MSG_MORE, addr)
-//      }
-//      hash.Read(b)
-//      fmt.Println(hex.EncodeToString(b))
-//      // Output: 85cdcad0c06eef66f805ecce353bec9accbeecc5
+//	// Assume hashfd and addr are already configured using the setup process.
+//	hash := os.NewFile(hashfd, "sha1")
+//	// Hash the contents of a file.
+//	f, _ := os.Open("/tmp/linux-4.10-rc7.tar.xz")
+//	b := make([]byte, 4096)
+//	for {
+//	    n, err := f.Read(b)
+//	    if err == io.EOF {
+//	        break
+//	    }
+//	    unix.Sendto(hashfd, b[:n], unix.MSG_MORE, addr)
+//	}
+//	hash.Read(b)
+//	fmt.Println(hex.EncodeToString(b))
+//	// Output: 85cdcad0c06eef66f805ecce353bec9accbeecc5
 //
 // For more information, see: http://www.chronox.de/crypto-API/crypto/userspace-if.html.
 type SockaddrALG struct {
@@ -1012,8 +1015,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 		for n < len(pp.Path) && pp.Path[n] != 0 {
 			n++
 		}
-		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
-		sa.Name = string(bytes)
+		sa.Name = string(unsafe.Slice((*byte)(unsafe.Pointer(&pp.Path[0])), n))
 		return sa, nil
 
 	case AF_INET:
@@ -1362,6 +1364,10 @@ func SetsockoptTCPRepairOpt(fd, level, opt int, o []TCPRepairOpt) (err error) {
 	return setsockopt(fd, level, opt, unsafe.Pointer(&o[0]), uintptr(SizeofTCPRepairOpt*len(o)))
 }
 
+func SetsockoptTCPMD5Sig(fd, level, opt int, s *TCPMD5Sig) error {
+	return setsockopt(fd, level, opt, unsafe.Pointer(s), unsafe.Sizeof(*s))
+}
+
 // Keyctl Commands (http://man7.org/linux/man-pages/man2/keyctl.2.html)
 
 // KeyctlInt calls keyctl commands in which each argument is an int.
@@ -1497,18 +1503,13 @@ func KeyctlRestrictKeyring(ringid int, keyType string, restriction string) error
 //sys	keyctlRestrictKeyringByType(cmd int, arg2 int, keyType string, restriction string) (err error) = SYS_KEYCTL
 //sys	keyctlRestrictKeyring(cmd int, arg2 int) (err error) = SYS_KEYCTL
 
-func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
+func recvmsgRaw(fd int, iov []Iovec, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
 	var msg Msghdr
 	msg.Name = (*byte)(unsafe.Pointer(rsa))
 	msg.Namelen = uint32(SizeofSockaddrAny)
-	var iov Iovec
-	if len(p) > 0 {
-		iov.Base = &p[0]
-		iov.SetLen(len(p))
-	}
 	var dummy byte
 	if len(oob) > 0 {
-		if len(p) == 0 {
+		if emptyIovecs(iov) {
 			var sockType int
 			sockType, err = GetsockoptInt(fd, SOL_SOCKET, SO_TYPE)
 			if err != nil {
@@ -1516,15 +1517,19 @@ func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn 
 			}
 			// receive at least one normal byte
 			if sockType != SOCK_DGRAM {
-				iov.Base = &dummy
-				iov.SetLen(1)
+				var iova [1]Iovec
+				iova[0].Base = &dummy
+				iova[0].SetLen(1)
+				iov = iova[:]
 			}
 		}
 		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
 	}
-	msg.Iov = &iov
-	msg.Iovlen = 1
+	if len(iov) > 0 {
+		msg.Iov = &iov[0]
+		msg.SetIovlen(len(iov))
+	}
 	if n, err = recvmsg(fd, &msg, flags); err != nil {
 		return
 	}
@@ -1533,18 +1538,15 @@ func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn 
 	return
 }
 
-func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
+func sendmsgN(fd int, iov []Iovec, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags int) (n int, err error) {
 	var msg Msghdr
 	msg.Name = (*byte)(ptr)
 	msg.Namelen = uint32(salen)
-	var iov Iovec
-	if len(p) > 0 {
-		iov.Base = &p[0]
-		iov.SetLen(len(p))
-	}
 	var dummy byte
+	var empty bool
 	if len(oob) > 0 {
-		if len(p) == 0 {
+		empty = emptyIovecs(iov)
+		if empty {
 			var sockType int
 			sockType, err = GetsockoptInt(fd, SOL_SOCKET, SO_TYPE)
 			if err != nil {
@@ -1552,19 +1554,23 @@ func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags i
 			}
 			// send at least one normal byte
 			if sockType != SOCK_DGRAM {
-				iov.Base = &dummy
-				iov.SetLen(1)
+				var iova [1]Iovec
+				iova[0].Base = &dummy
+				iova[0].SetLen(1)
+				iov = iova[:]
 			}
 		}
 		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
 	}
-	msg.Iov = &iov
-	msg.Iovlen = 1
+	if len(iov) > 0 {
+		msg.Iov = &iov[0]
+		msg.SetIovlen(len(iov))
+	}
 	if n, err = sendmsg(fd, &msg, flags); err != nil {
 		return 0, err
 	}
-	if len(oob) > 0 && len(p) == 0 {
+	if len(oob) > 0 && empty {
 		n = 0
 	}
 	return n, nil
@@ -1576,6 +1582,7 @@ func BindToDevice(fd int, device string) (err error) {
 }
 
 //sys	ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
+//sys	ptracePtr(request int, pid int, addr uintptr, data unsafe.Pointer) (err error) = SYS_PTRACE
 
 func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, err error) {
 	// The peek requests are machine-size oriented, so we wrap it
@@ -1593,7 +1600,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, err erro
 	// boundary.
 	n := 0
 	if addr%SizeofPtr != 0 {
-		err = ptrace(req, pid, addr-addr%SizeofPtr, uintptr(unsafe.Pointer(&buf[0])))
+		err = ptracePtr(req, pid, addr-addr%SizeofPtr, unsafe.Pointer(&buf[0]))
 		if err != nil {
 			return 0, err
 		}
@@ -1605,7 +1612,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, err erro
 	for len(out) > 0 {
 		// We use an internal buffer to guarantee alignment.
 		// It's not documented if this is necessary, but we're paranoid.
-		err = ptrace(req, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])))
+		err = ptracePtr(req, pid, addr+uintptr(n), unsafe.Pointer(&buf[0]))
 		if err != nil {
 			return n, err
 		}
@@ -1637,7 +1644,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 	n := 0
 	if addr%SizeofPtr != 0 {
 		var buf [SizeofPtr]byte
-		err = ptrace(peekReq, pid, addr-addr%SizeofPtr, uintptr(unsafe.Pointer(&buf[0])))
+		err = ptracePtr(peekReq, pid, addr-addr%SizeofPtr, unsafe.Pointer(&buf[0]))
 		if err != nil {
 			return 0, err
 		}
@@ -1664,7 +1671,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
 	// Trailing edge.
 	if len(data) > 0 {
 		var buf [SizeofPtr]byte
-		err = ptrace(peekReq, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])))
+		err = ptracePtr(peekReq, pid, addr+uintptr(n), unsafe.Pointer(&buf[0]))
 		if err != nil {
 			return n, err
 		}
@@ -1693,11 +1700,11 @@ func PtracePokeUser(pid int, addr uintptr, data []byte) (count int, err error) {
 }
 
 func PtraceGetRegs(pid int, regsout *PtraceRegs) (err error) {
-	return ptrace(PTRACE_GETREGS, pid, 0, uintptr(unsafe.Pointer(regsout)))
+	return ptracePtr(PTRACE_GETREGS, pid, 0, unsafe.Pointer(regsout))
 }
 
 func PtraceSetRegs(pid int, regs *PtraceRegs) (err error) {
-	return ptrace(PTRACE_SETREGS, pid, 0, uintptr(unsafe.Pointer(regs)))
+	return ptracePtr(PTRACE_SETREGS, pid, 0, unsafe.Pointer(regs))
 }
 
 func PtraceSetOptions(pid int, options int) (err error) {
@@ -1706,7 +1713,7 @@ func PtraceSetOptions(pid int, options int) (err error) {
 
 func PtraceGetEventMsg(pid int) (msg uint, err error) {
 	var data _C_long
-	err = ptrace(PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)))
+	err = ptracePtr(PTRACE_GETEVENTMSG, pid, 0, unsafe.Pointer(&data))
 	msg = uint(data)
 	return
 }
@@ -1797,6 +1804,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
 //sysnb	Capset(hdr *CapUserHeader, data *CapUserData) (err error)
 //sys	Chdir(path string) (err error)
 //sys	Chroot(path string) (err error)
+//sys	ClockAdjtime(clockid int32, buf *Timex) (state int, err error)
 //sys	ClockGetres(clockid int32, res *Timespec) (err error)
 //sys	ClockGettime(clockid int32, time *Timespec) (err error)
 //sys	ClockNanosleep(clockid int32, flags int, request *Timespec, remain *Timespec) (err error)
@@ -1827,6 +1835,9 @@ func Dup2(oldfd, newfd int) error {
 //sys	Fremovexattr(fd int, attr string) (err error)
 //sys	Fsetxattr(fd int, attr string, dest []byte, flags int) (err error)
 //sys	Fsync(fd int) (err error)
+//sys	Fsmount(fd int, flags int, mountAttrs int) (fsfd int, err error)
+//sys	Fsopen(fsName string, flags int) (fd int, err error)
+//sys	Fspick(dirfd int, pathName string, flags int) (fd int, err error)
 //sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
 //sysnb	Getpgid(pid int) (pgid int, err error)
 
@@ -1857,10 +1868,11 @@ func Getpgrp() (pid int) {
 //sys	MemfdCreate(name string, flags int) (fd int, err error)
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
+//sys	MoveMount(fromDirfd int, fromPathName string, toDirfd int, toPathName string, flags int) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+//sys	OpenTree(dfd int, fileName string, flags uint) (r int, err error)
 //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
-//sysnb	Prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
 //sys	Prctl(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uintptr) (err error)
 //sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error) = SYS_PSELECT6
 //sys	read(fd int, p []byte) (n int, err error)
@@ -1874,6 +1886,15 @@ func Getpgrp() (pid int) {
 //sysnb	Settimeofday(tv *Timeval) (err error)
 //sys	Setns(fd int, nstype int) (err error)
 
+//go:linkname syscall_prlimit syscall.prlimit
+func syscall_prlimit(pid, resource int, newlimit, old *syscall.Rlimit) error
+
+func Prlimit(pid, resource int, newlimit, old *Rlimit) error {
+	// Just call the syscall version, because as of Go 1.21
+	// it will affect starting a new process.
+	return syscall_prlimit(pid, resource, (*syscall.Rlimit)(newlimit), (*syscall.Rlimit)(old))
+}
+
 // PrctlRetInt performs a prctl operation specified by option and further
 // optional arguments arg2 through arg5 depending on option. It returns a
 // non-negative integer that is returned by the prctl syscall.
@@ -1885,17 +1906,28 @@ func PrctlRetInt(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uint
 	return int(ret), nil
 }
 
-// issue 1435.
-// On linux Setuid and Setgid only affects the current thread, not the process.
-// This does not match what most callers expect so we must return an error
-// here rather than letting the caller think that the call succeeded.
-
 func Setuid(uid int) (err error) {
-	return EOPNOTSUPP
+	return syscall.Setuid(uid)
 }
 
-func Setgid(uid int) (err error) {
-	return EOPNOTSUPP
+func Setgid(gid int) (err error) {
+	return syscall.Setgid(gid)
+}
+
+func Setreuid(ruid, euid int) (err error) {
+	return syscall.Setreuid(ruid, euid)
+}
+
+func Setregid(rgid, egid int) (err error) {
+	return syscall.Setregid(rgid, egid)
+}
+
+func Setresuid(ruid, euid, suid int) (err error) {
+	return syscall.Setresuid(ruid, euid, suid)
+}
+
+func Setresgid(rgid, egid, sgid int) (err error) {
+	return syscall.Setresgid(rgid, egid, sgid)
 }
 
 // SetfsgidRetGid sets fsgid for current thread and returns previous fsgid set.
@@ -1954,36 +1986,46 @@ func Signalfd(fd int, sigmask *Sigset_t, flags int) (newfd int, err error) {
 //sys	preadv2(fd int, iovs []Iovec, offs_l uintptr, offs_h uintptr, flags int) (n int, err error) = SYS_PREADV2
 //sys	pwritev2(fd int, iovs []Iovec, offs_l uintptr, offs_h uintptr, flags int) (n int, err error) = SYS_PWRITEV2
 
-func bytes2iovec(bs [][]byte) []Iovec {
-	iovecs := make([]Iovec, len(bs))
-	for i, b := range bs {
-		iovecs[i].SetLen(len(b))
+// minIovec is the size of the small initial allocation used by
+// Readv, Writev, etc.
+//
+// This small allocation gets stack allocated, which lets the
+// common use case of len(iovs) <= minIovs avoid more expensive
+// heap allocations.
+const minIovec = 8
+
+// appendBytes converts bs to Iovecs and appends them to vecs.
+func appendBytes(vecs []Iovec, bs [][]byte) []Iovec {
+	for _, b := range bs {
+		var v Iovec
+		v.SetLen(len(b))
 		if len(b) > 0 {
-			iovecs[i].Base = &b[0]
+			v.Base = &b[0]
 		} else {
-			iovecs[i].Base = (*byte)(unsafe.Pointer(&_zero))
+			v.Base = (*byte)(unsafe.Pointer(&_zero))
 		}
+		vecs = append(vecs, v)
 	}
-	return iovecs
+	return vecs
 }
 
-// offs2lohi splits offs into its lower and upper unsigned long. On 64-bit
-// systems, hi will always be 0. On 32-bit systems, offs will be split in half.
-// preadv/pwritev chose this calling convention so they don't need to add a
-// padding-register for alignment on ARM.
+// offs2lohi splits offs into its low and high order bits.
 func offs2lohi(offs int64) (lo, hi uintptr) {
-	return uintptr(offs), uintptr(uint64(offs) >> SizeofLong)
+	const longBits = SizeofLong * 8
+	return uintptr(offs), uintptr(uint64(offs) >> (longBits - 1) >> 1) // two shifts to avoid false positive in vet
 }
 
 func Readv(fd int, iovs [][]byte) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	n, err = readv(fd, iovecs)
 	readvRacedetect(iovecs, n, err)
 	return n, err
 }
 
 func Preadv(fd int, iovs [][]byte, offset int64) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	lo, hi := offs2lohi(offset)
 	n, err = preadv(fd, iovecs, lo, hi)
 	readvRacedetect(iovecs, n, err)
@@ -1991,7 +2033,8 @@ func Preadv(fd int, iovs [][]byte, offset int64) (n int, err error) {
 }
 
 func Preadv2(fd int, iovs [][]byte, offset int64, flags int) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	lo, hi := offs2lohi(offset)
 	n, err = preadv2(fd, iovecs, lo, hi, flags)
 	readvRacedetect(iovecs, n, err)
@@ -2018,7 +2061,8 @@ func readvRacedetect(iovecs []Iovec, n int, err error) {
 }
 
 func Writev(fd int, iovs [][]byte) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	if raceenabled {
 		raceReleaseMerge(unsafe.Pointer(&ioSync))
 	}
@@ -2028,7 +2072,8 @@ func Writev(fd int, iovs [][]byte) (n int, err error) {
 }
 
 func Pwritev(fd int, iovs [][]byte, offset int64) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	if raceenabled {
 		raceReleaseMerge(unsafe.Pointer(&ioSync))
 	}
@@ -2039,7 +2084,8 @@ func Pwritev(fd int, iovs [][]byte, offset int64) (n int, err error) {
 }
 
 func Pwritev2(fd int, iovs [][]byte, offset int64, flags int) (n int, err error) {
-	iovecs := bytes2iovec(iovs)
+	iovecs := make([]Iovec, 0, minIovec)
+	iovecs = appendBytes(iovecs, iovs)
 	if raceenabled {
 		raceReleaseMerge(unsafe.Pointer(&ioSync))
 	}
@@ -2120,6 +2166,14 @@ func isGroupMember(gid int) bool {
 	return false
 }
 
+func isCapDacOverrideSet() bool {
+	hdr := CapUserHeader{Version: LINUX_CAPABILITY_VERSION_3}
+	data := [2]CapUserData{}
+	err := Capget(&hdr, &data[0])
+
+	return err == nil && data[0].Effective&(1<<CAP_DAC_OVERRIDE) != 0
+}
+
 //sys	faccessat(dirfd int, path string, mode uint32) (err error)
 //sys	Faccessat2(dirfd int, path string, mode uint32, flags int) (err error)
 
@@ -2155,6 +2209,12 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 	var uid int
 	if flags&AT_EACCESS != 0 {
 		uid = Geteuid()
+		if uid != 0 && isCapDacOverrideSet() {
+			// If CAP_DAC_OVERRIDE is set, file access check is
+			// done by the kernel in the same way as for root
+			// (see generic_permission() in the Linux sources).
+			uid = 0
+		}
 	} else {
 		uid = Getuid()
 	}
@@ -2182,7 +2242,7 @@ func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
 			gid = Getgid()
 		}
 
-		if uint32(gid) == st.Gid || isGroupMember(gid) {
+		if uint32(gid) == st.Gid || isGroupMember(int(st.Gid)) {
 			fmode = (st.Mode >> 3) & 7
 		} else {
 			fmode = st.Mode & 7
@@ -2234,7 +2294,7 @@ func (fh *FileHandle) Bytes() []byte {
 	if n == 0 {
 		return nil
 	}
-	return (*[1 << 30]byte)(unsafe.Pointer(uintptr(unsafe.Pointer(&fh.fileHandle.Type)) + 4))[:n:n]
+	return unsafe.Slice((*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(&fh.fileHandle.Type))+4)), n)
 }
 
 // NameToHandleAt wraps the name_to_handle_at system call; it obtains
@@ -2297,6 +2357,7 @@ type RemoteIovec struct {
 
 //sys	PidfdOpen(pid int, flags int) (fd int, err error) = SYS_PIDFD_OPEN
 //sys	PidfdGetfd(pidfd int, targetfd int, flags int) (fd int, err error) = SYS_PIDFD_GETFD
+//sys	PidfdSendSignal(pidfd int, sig Signal, info *Siginfo, flags int) (err error) = SYS_PIDFD_SEND_SIGNAL
 
 //sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
 //sys	shmctl(id int, cmd int, buf *SysvShmDesc) (result int, err error)
@@ -2347,6 +2408,16 @@ func Setitimer(which ItimerWhich, it Itimerval) (Itimerval, error) {
 	}
 
 	return prev, nil
+}
+
+//sysnb	rtSigprocmask(how int, set *Sigset_t, oldset *Sigset_t, sigsetsize uintptr) (err error) = SYS_RT_SIGPROCMASK
+
+func PthreadSigmask(how int, set, oldset *Sigset_t) error {
+	if oldset != nil {
+		// Explicitly clear in case Sigset_t is larger than _C__NSIG.
+		*oldset = Sigset_t{}
+	}
+	return rtSigprocmask(how, set, oldset, _C__NSIG/8)
 }
 
 /*
@@ -2407,7 +2478,6 @@ func Setitimer(which ItimerWhich, it Itimerval) (Itimerval, error) {
 // RestartSyscall
 // RtSigaction
 // RtSigpending
-// RtSigprocmask
 // RtSigqueueinfo
 // RtSigreturn
 // RtSigsuspend
@@ -2445,5 +2515,4 @@ func Setitimer(which ItimerWhich, it Itimerval) (Itimerval, error) {
 // Vfork
 // Vhangup
 // Vserver
-// Waitid
 // _Sysctl

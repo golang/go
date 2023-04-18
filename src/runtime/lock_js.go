@@ -6,9 +6,7 @@
 
 package runtime
 
-import (
-	_ "unsafe"
-)
+import _ "unsafe" // for go:linkname
 
 // js/wasm has no support for threads yet. There is no preemption.
 
@@ -144,8 +142,12 @@ func notetsleepg(n *note, ns int64) bool {
 }
 
 // checkTimeouts resumes goroutines that are waiting on a note which has reached its deadline.
+// TODO(drchase): need to understand if write barriers are really okay in this context.
+//
+//go:yeswritebarrierrec
 func checkTimeouts() {
 	now := nanotime()
+	// TODO: map iteration has the write barriers in it; is that okay?
 	for n, nt := range notesWithTimeout {
 		if n.key == note_cleared && now >= nt.deadline {
 			n.key = note_timeout
@@ -175,6 +177,9 @@ var idleID int32
 // If an event handler returned, we resume it and it will pause the execution.
 // beforeIdle either returns the specific goroutine to schedule next or
 // indicates with otherReady that some goroutine became ready.
+// TODO(drchase): need to understand if write barriers are really okay in this context.
+//
+//go:yeswritebarrierrec
 func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
 	delay := int64(-1)
 	if pollUntil != 0 {
@@ -196,6 +201,7 @@ func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
 	}
 
 	if len(events) == 0 {
+		// TODO: this is the line that requires the yeswritebarrierrec
 		go handleAsyncEvent()
 		return nil, true
 	}
@@ -224,9 +230,13 @@ func pause(newsp uintptr)
 
 // scheduleTimeoutEvent tells the WebAssembly environment to trigger an event after ms milliseconds.
 // It returns a timer id that can be used with clearTimeoutEvent.
+//
+//go:wasmimport gojs runtime.scheduleTimeoutEvent
 func scheduleTimeoutEvent(ms int64) int32
 
 // clearTimeoutEvent clears a timeout event scheduled by scheduleTimeoutEvent.
+//
+//go:wasmimport gojs runtime.clearTimeoutEvent
 func clearTimeoutEvent(id int32)
 
 // handleEvent gets invoked on a call from JavaScript into Go. It calls the event handler of the syscall/js package

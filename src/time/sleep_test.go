@@ -65,9 +65,9 @@ func TestAfterFunc(t *testing.T) {
 }
 
 func TestAfterStress(t *testing.T) {
-	stop := uint32(0)
+	var stop atomic.Bool
 	go func() {
-		for atomic.LoadUint32(&stop) == 0 {
+		for !stop.Load() {
 			runtime.GC()
 			// Yield so that the OS can wake up the timer thread,
 			// so that it can generate channel sends for the main goroutine,
@@ -80,7 +80,7 @@ func TestAfterStress(t *testing.T) {
 		<-ticker.C
 	}
 	ticker.Stop()
-	atomic.StoreUint32(&stop, 1)
+	stop.Store(true)
 }
 
 func benchmark(b *testing.B, bench func(n int)) {

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"internal/abi"
 	"io"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -46,10 +45,11 @@ type profileBuilder struct {
 
 type memMap struct {
 	// initialized as reading mapping
-	start         uintptr
-	end           uintptr
-	offset        uint64
-	file, buildID string
+	start   uintptr // Address at which the binary (or DLL) is loaded into memory.
+	end     uintptr // The limit of the address range occupied by this mapping.
+	offset  uint64  // Offset in the binary that corresponds to the first mapped address.
+	file    string  // The object this entry is loaded from.
+	buildID string  // A string that uniquely identifies a particular program version with high probability.
 
 	funcs symbolizeFlag
 	fake  bool // map entry was faked; /proc/self/maps wasn't available
@@ -197,7 +197,7 @@ func (b *profileBuilder) pbMapping(tag int, id, base, limit, offset uint64, file
 	// TODO: we set HasFunctions if all symbols from samples were symbolized (hasFuncs).
 	// Decide what to do about HasInlineFrames and HasLineNumbers.
 	// Also, another approach to handle the mapping entry with
-	// incomplete symbolization results is to dupliace the mapping
+	// incomplete symbolization results is to duplicate the mapping
 	// entry (but with different Has* fields values) and use
 	// different entries for symbolized locations and unsymbolized locations.
 	if hasFuncs {
@@ -230,7 +230,7 @@ func allFrames(addr uintptr) ([]runtime.Frame, symbolizeFlag) {
 		frame.PC = addr - 1
 	}
 	ret := []runtime.Frame{frame}
-	for frame.Function != "runtime.goexit" && more == true {
+	for frame.Function != "runtime.goexit" && more {
 		frame, more = frames.Next()
 		ret = append(ret, frame)
 	}
@@ -246,9 +246,10 @@ type locInfo struct {
 	// https://github.com/golang/go/blob/d6f2f833c93a41ec1c68e49804b8387a06b131c5/src/runtime/traceback.go#L347-L368
 	pcs []uintptr
 
-	// results of allFrames call for this PC
-	frames          []runtime.Frame
-	symbolizeResult symbolizeFlag
+	// firstPCFrames and firstPCSymbolizeResult hold the results of the
+	// allFrames call for the first (leaf-most) PC this locInfo represents
+	firstPCFrames          []runtime.Frame
+	firstPCSymbolizeResult symbolizeFlag
 }
 
 // newProfileBuilder returns a new profileBuilder.
@@ -394,6 +395,10 @@ func (b *profileBuilder) build() {
 // location ID slice, locs. The addresses in the stack are return PCs or 1 + the PC of
 // an inline marker as the runtime traceback function returns.
 //
+// It may return an empty slice even if locs is non-empty, for example if locs consists
+// solely of runtime.goexit. We still count these empty stacks in profiles in order to
+// get the right cumulative sample count.
+//
 // It may emit to b.pb, so there must be no message encoding in progress.
 func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLocs []uint64) {
 	b.deck.reset()
@@ -416,7 +421,7 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 			// stack by trying to add it to the inlining deck before assuming
 			// that the deck is complete.
 			if len(b.deck.pcs) > 0 {
-				if added := b.deck.tryAdd(addr, l.frames, l.symbolizeResult); added {
+				if added := b.deck.tryAdd(addr, l.firstPCFrames, l.firstPCSymbolizeResult); added {
 					stk = stk[1:]
 					continue
 				}
@@ -520,12 +525,21 @@ type pcDeck struct {
 	pcs             []uintptr
 	frames          []runtime.Frame
 	symbolizeResult symbolizeFlag
+
+	// firstPCFrames indicates the number of frames associated with the first
+	// (leaf-most) PC in the deck
+	firstPCFrames int
+	// firstPCSymbolizeResult holds the results of the allFrames call for the
+	// first (leaf-most) PC in the deck
+	firstPCSymbolizeResult symbolizeFlag
 }
 
 func (d *pcDeck) reset() {
 	d.pcs = d.pcs[:0]
 	d.frames = d.frames[:0]
 	d.symbolizeResult = 0
+	d.firstPCFrames = 0
+	d.firstPCSymbolizeResult = 0
 }
 
 // tryAdd tries to add the pc and Frames expanded from it (most likely one,
@@ -554,6 +568,10 @@ func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symb
 	d.pcs = append(d.pcs, pc)
 	d.frames = append(d.frames, frames...)
 	d.symbolizeResult |= symbolizeResult
+	if len(d.pcs) == 1 {
+		d.firstPCFrames = len(d.frames)
+		d.firstPCSymbolizeResult = symbolizeResult
+	}
 	return true
 }
 
@@ -576,15 +594,16 @@ func (b *profileBuilder) emitLocation() uint64 {
 	type newFunc struct {
 		id         uint64
 		name, file string
+		startLine  int64
 	}
 	newFuncs := make([]newFunc, 0, 8)
 
 	id := uint64(len(b.locs)) + 1
 	b.locs[addr] = locInfo{
-		id:              id,
-		pcs:             append([]uintptr{}, b.deck.pcs...),
-		symbolizeResult: b.deck.symbolizeResult,
-		frames:          append([]runtime.Frame{}, b.deck.frames...),
+		id:                     id,
+		pcs:                    append([]uintptr{}, b.deck.pcs...),
+		firstPCSymbolizeResult: b.deck.firstPCSymbolizeResult,
+		firstPCFrames:          append([]runtime.Frame{}, b.deck.frames[:b.deck.firstPCFrames]...),
 	}
 
 	start := b.pb.startMessage()
@@ -596,7 +615,12 @@ func (b *profileBuilder) emitLocation() uint64 {
 		if funcID == 0 {
 			funcID = uint64(len(b.funcs)) + 1
 			b.funcs[frame.Function] = int(funcID)
-			newFuncs = append(newFuncs, newFunc{funcID, frame.Function, frame.File})
+			newFuncs = append(newFuncs, newFunc{
+				id:        funcID,
+				name:      frame.Function,
+				file:      frame.File,
+				startLine: int64(runtime_FrameStartLine(&frame)),
+			})
 		}
 		b.pbLine(tagLocation_Line, funcID, int64(frame.Line))
 	}
@@ -619,25 +643,12 @@ func (b *profileBuilder) emitLocation() uint64 {
 		b.pb.int64Opt(tagFunction_Name, b.stringIndex(fn.name))
 		b.pb.int64Opt(tagFunction_SystemName, b.stringIndex(fn.name))
 		b.pb.int64Opt(tagFunction_Filename, b.stringIndex(fn.file))
+		b.pb.int64Opt(tagFunction_StartLine, fn.startLine)
 		b.pb.endMessage(tagProfile_Function, start)
 	}
 
 	b.flush()
 	return id
-}
-
-// readMapping reads /proc/self/maps and writes mappings to b.pb.
-// It saves the address ranges of the mappings in b.mem for use
-// when emitting locations.
-func (b *profileBuilder) readMapping() {
-	data, _ := os.ReadFile("/proc/self/maps")
-	parseProcSelfMaps(data, b.addMapping)
-	if len(b.mem) == 0 { // pprof expects a map entry, so fake one.
-		b.addMappingEntry(0, 0, 0, "", "", true)
-		// TODO(hyangah): make addMapping return *memMap or
-		// take a memMap struct, and get rid of addMappingEntry
-		// that takes a bunch of positional arguments.
-	}
 }
 
 var space = []byte(" ")
@@ -721,13 +732,12 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
 			continue
 		}
 
-		// TODO: pprof's remapMappingIDs makes two adjustments:
+		// TODO: pprof's remapMappingIDs makes one adjustment:
 		// 1. If there is an /anon_hugepage mapping first and it is
 		// consecutive to a next mapping, drop the /anon_hugepage.
-		// 2. If start-offset = 0x400000, change start to 0x400000 and offset to 0.
-		// There's no indication why either of these is needed.
-		// Let's try not doing these and see what breaks.
-		// If we do need them, they would go here, before we
+		// There's no indication why this is needed.
+		// Let's try not doing this and see what breaks.
+		// If we do need it, it would go here, before we
 		// enter the mappings into b.mem in the first place.
 
 		buildID, _ := elfBuildID(file)

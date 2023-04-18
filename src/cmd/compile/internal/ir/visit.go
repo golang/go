@@ -184,3 +184,15 @@ func EditChildren(n Node, edit func(Node) Node) {
 	}
 	n.editChildren(edit)
 }
+
+// EditChildrenWithHidden is like EditChildren, but also edits
+// Node-typed fields tagged with `mknode:"-"`.
+//
+// TODO(mdempsky): Remove the `mknode:"-"` tags so this function can
+// go away.
+func EditChildrenWithHidden(n Node, edit func(Node) Node) {
+	if n == nil {
+		return
+	}
+	n.editChildrenWithHidden(edit)
+}

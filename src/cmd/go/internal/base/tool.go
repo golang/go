@@ -9,28 +9,14 @@ import (
 	"go/build"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"cmd/go/internal/cfg"
 )
 
-// Configuration for finding tool binaries.
-var (
-	ToolGOOS      = runtime.GOOS
-	ToolGOARCH    = runtime.GOARCH
-	ToolIsWindows = ToolGOOS == "windows"
-	ToolDir       = build.ToolDir
-)
-
-const ToolWindowsExtension = ".exe"
-
 // Tool returns the path to the named tool (for example, "vet").
 // If the tool cannot be found, Tool exits the process.
 func Tool(toolName string) string {
-	toolPath := filepath.Join(ToolDir, toolName)
-	if ToolIsWindows {
-		toolPath += ToolWindowsExtension
-	}
+	toolPath := filepath.Join(build.ToolDir, toolName) + cfg.ToolExeSuffix()
 	if len(cfg.BuildToolexec) > 0 {
 		return toolPath
 	}

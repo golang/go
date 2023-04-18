@@ -65,15 +65,17 @@ func _[_ t[t] | t[t]]() {}
 
 // Single-expression type parameter lists and those that don't start
 // with a (type parameter) name are considered array sizes.
-// The term must be a valid expression (it could be a type - and then
-// a type-checker will complain - but we don't allow ~ in the expr).
+// The term must be a valid expression (it could be a type incl. a
+// tilde term) but the type-checker will complain.
 type (
         _[t] t
-        _[/* ERROR unexpected ~ */ ~t] t
         _[t|t] t
-        _[/* ERROR unexpected ~ */ ~t|t] t
-        _[t| /* ERROR unexpected ~ */ ~t] t
-        _[/* ERROR unexpected ~ */ ~t|~t] t
+
+        // These are invalid and the type-checker will complain.
+        _[~t] t
+        _[~t|t] t
+        _[t|~t] t
+        _[~t|~t] t
 )
 
 type (

@@ -30,6 +30,41 @@ type Itimerval struct {
 }
 
 const (
+	ADJ_OFFSET            = 0x1
+	ADJ_FREQUENCY         = 0x2
+	ADJ_MAXERROR          = 0x4
+	ADJ_ESTERROR          = 0x8
+	ADJ_STATUS            = 0x10
+	ADJ_TIMECONST         = 0x20
+	ADJ_TAI               = 0x80
+	ADJ_SETOFFSET         = 0x100
+	ADJ_MICRO             = 0x1000
+	ADJ_NANO              = 0x2000
+	ADJ_TICK              = 0x4000
+	ADJ_OFFSET_SINGLESHOT = 0x8001
+	ADJ_OFFSET_SS_READ    = 0xa001
+)
+
+const (
+	STA_PLL       = 0x1
+	STA_PPSFREQ   = 0x2
+	STA_PPSTIME   = 0x4
+	STA_FLL       = 0x8
+	STA_INS       = 0x10
+	STA_DEL       = 0x20
+	STA_UNSYNC    = 0x40
+	STA_FREQHOLD  = 0x80
+	STA_PPSSIGNAL = 0x100
+	STA_PPSJITTER = 0x200
+	STA_PPSWANDER = 0x400
+	STA_PPSERROR  = 0x800
+	STA_CLOCKERR  = 0x1000
+	STA_NANO      = 0x2000
+	STA_MODE      = 0x4000
+	STA_CLK       = 0x8000
+)
+
+const (
 	TIME_OK    = 0x0
 	TIME_INS   = 0x1
 	TIME_DEL   = 0x2
@@ -53,29 +88,30 @@ type StatxTimestamp struct {
 }
 
 type Statx_t struct {
-	Mask            uint32
-	Blksize         uint32
-	Attributes      uint64
-	Nlink           uint32
-	Uid             uint32
-	Gid             uint32
-	Mode            uint16
-	_               [1]uint16
-	Ino             uint64
-	Size            uint64
-	Blocks          uint64
-	Attributes_mask uint64
-	Atime           StatxTimestamp
-	Btime           StatxTimestamp
-	Ctime           StatxTimestamp
-	Mtime           StatxTimestamp
-	Rdev_major      uint32
-	Rdev_minor      uint32
-	Dev_major       uint32
-	Dev_minor       uint32
-	Mnt_id          uint64
-	_               uint64
-	_               [12]uint64
+	Mask             uint32
+	Blksize          uint32
+	Attributes       uint64
+	Nlink            uint32
+	Uid              uint32
+	Gid              uint32
+	Mode             uint16
+	_                [1]uint16
+	Ino              uint64
+	Size             uint64
+	Blocks           uint64
+	Attributes_mask  uint64
+	Atime            StatxTimestamp
+	Btime            StatxTimestamp
+	Ctime            StatxTimestamp
+	Mtime            StatxTimestamp
+	Rdev_major       uint32
+	Rdev_minor       uint32
+	Dev_major        uint32
+	Dev_minor        uint32
+	Mnt_id           uint64
+	Dio_mem_align    uint32
+	Dio_offset_align uint32
+	_                [12]uint64
 }
 
 type Fsid struct {
@@ -420,36 +456,60 @@ type Ucred struct {
 }
 
 type TCPInfo struct {
-	State          uint8
-	Ca_state       uint8
-	Retransmits    uint8
-	Probes         uint8
-	Backoff        uint8
-	Options        uint8
-	Rto            uint32
-	Ato            uint32
-	Snd_mss        uint32
-	Rcv_mss        uint32
-	Unacked        uint32
-	Sacked         uint32
-	Lost           uint32
-	Retrans        uint32
-	Fackets        uint32
-	Last_data_sent uint32
-	Last_ack_sent  uint32
-	Last_data_recv uint32
-	Last_ack_recv  uint32
-	Pmtu           uint32
-	Rcv_ssthresh   uint32
-	Rtt            uint32
-	Rttvar         uint32
-	Snd_ssthresh   uint32
-	Snd_cwnd       uint32
-	Advmss         uint32
-	Reordering     uint32
-	Rcv_rtt        uint32
-	Rcv_space      uint32
-	Total_retrans  uint32
+	State           uint8
+	Ca_state        uint8
+	Retransmits     uint8
+	Probes          uint8
+	Backoff         uint8
+	Options         uint8
+	Rto             uint32
+	Ato             uint32
+	Snd_mss         uint32
+	Rcv_mss         uint32
+	Unacked         uint32
+	Sacked          uint32
+	Lost            uint32
+	Retrans         uint32
+	Fackets         uint32
+	Last_data_sent  uint32
+	Last_ack_sent   uint32
+	Last_data_recv  uint32
+	Last_ack_recv   uint32
+	Pmtu            uint32
+	Rcv_ssthresh    uint32
+	Rtt             uint32
+	Rttvar          uint32
+	Snd_ssthresh    uint32
+	Snd_cwnd        uint32
+	Advmss          uint32
+	Reordering      uint32
+	Rcv_rtt         uint32
+	Rcv_space       uint32
+	Total_retrans   uint32
+	Pacing_rate     uint64
+	Max_pacing_rate uint64
+	Bytes_acked     uint64
+	Bytes_received  uint64
+	Segs_out        uint32
+	Segs_in         uint32
+	Notsent_bytes   uint32
+	Min_rtt         uint32
+	Data_segs_in    uint32
+	Data_segs_out   uint32
+	Delivery_rate   uint64
+	Busy_time       uint64
+	Rwnd_limited    uint64
+	Sndbuf_limited  uint64
+	Delivered       uint32
+	Delivered_ce    uint32
+	Bytes_sent      uint64
+	Bytes_retrans   uint64
+	Dsack_dups      uint32
+	Reord_seen      uint32
+	Rcv_ooopack     uint32
+	Snd_wnd         uint32
+	Rcv_wnd         uint32
+	Rehash          uint32
 }
 
 type CanFilter struct {
@@ -492,7 +552,7 @@ const (
 	SizeofIPv6MTUInfo       = 0x20
 	SizeofICMPv6Filter      = 0x20
 	SizeofUcred             = 0xc
-	SizeofTCPInfo           = 0x68
+	SizeofTCPInfo           = 0xf0
 	SizeofCanFilter         = 0x8
 	SizeofTCPRepairOpt      = 0x8
 )
@@ -754,6 +814,25 @@ const (
 	AT_SYMLINK_NOFOLLOW = 0x100
 
 	AT_EACCESS = 0x200
+
+	OPEN_TREE_CLONE = 0x1
+
+	MOVE_MOUNT_F_SYMLINKS   = 0x1
+	MOVE_MOUNT_F_AUTOMOUNTS = 0x2
+	MOVE_MOUNT_F_EMPTY_PATH = 0x4
+	MOVE_MOUNT_T_SYMLINKS   = 0x10
+	MOVE_MOUNT_T_AUTOMOUNTS = 0x20
+	MOVE_MOUNT_T_EMPTY_PATH = 0x40
+	MOVE_MOUNT_SET_GROUP    = 0x100
+
+	FSOPEN_CLOEXEC = 0x1
+
+	FSPICK_CLOEXEC          = 0x1
+	FSPICK_SYMLINK_NOFOLLOW = 0x2
+	FSPICK_NO_AUTOMOUNT     = 0x4
+	FSPICK_EMPTY_PATH       = 0x8
+
+	FSMOUNT_CLOEXEC = 0x1
 )
 
 type OpenHow struct {
@@ -926,6 +1005,9 @@ type PerfEventAttr struct {
 	Aux_watermark      uint32
 	Sample_max_stack   uint16
 	_                  uint16
+	Aux_sample_size    uint32
+	_                  uint32
+	Sig_data           uint64
 }
 
 type PerfEventMmapPage struct {
@@ -985,6 +1067,7 @@ const (
 	PerfBitCommExec                      = CBitFieldMaskBit24
 	PerfBitUseClockID                    = CBitFieldMaskBit25
 	PerfBitContextSwitch                 = CBitFieldMaskBit26
+	PerfBitWriteBackward                 = CBitFieldMaskBit27
 )
 
 const (
@@ -1077,7 +1160,8 @@ const (
 	PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT    = 0xf
 	PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT    = 0x10
 	PERF_SAMPLE_BRANCH_HW_INDEX_SHIFT     = 0x11
-	PERF_SAMPLE_BRANCH_MAX_SHIFT          = 0x12
+	PERF_SAMPLE_BRANCH_PRIV_SAVE_SHIFT    = 0x12
+	PERF_SAMPLE_BRANCH_MAX_SHIFT          = 0x13
 	PERF_SAMPLE_BRANCH_USER               = 0x1
 	PERF_SAMPLE_BRANCH_KERNEL             = 0x2
 	PERF_SAMPLE_BRANCH_HV                 = 0x4
@@ -1096,7 +1180,8 @@ const (
 	PERF_SAMPLE_BRANCH_NO_CYCLES          = 0x8000
 	PERF_SAMPLE_BRANCH_TYPE_SAVE          = 0x10000
 	PERF_SAMPLE_BRANCH_HW_INDEX           = 0x20000
-	PERF_SAMPLE_BRANCH_MAX                = 0x40000
+	PERF_SAMPLE_BRANCH_PRIV_SAVE          = 0x40000
+	PERF_SAMPLE_BRANCH_MAX                = 0x80000
 	PERF_BR_UNKNOWN                       = 0x0
 	PERF_BR_COND                          = 0x1
 	PERF_BR_UNCOND                        = 0x2
@@ -1108,7 +1193,12 @@ const (
 	PERF_BR_SYSRET                        = 0x8
 	PERF_BR_COND_CALL                     = 0x9
 	PERF_BR_COND_RET                      = 0xa
-	PERF_BR_MAX                           = 0xb
+	PERF_BR_ERET                          = 0xb
+	PERF_BR_IRQ                           = 0xc
+	PERF_BR_SERROR                        = 0xd
+	PERF_BR_NO_TX                         = 0xe
+	PERF_BR_EXTEND_ABI                    = 0xf
+	PERF_BR_MAX                           = 0x10
 	PERF_SAMPLE_REGS_ABI_NONE             = 0x0
 	PERF_SAMPLE_REGS_ABI_32               = 0x1
 	PERF_SAMPLE_REGS_ABI_64               = 0x2
@@ -1127,7 +1217,8 @@ const (
 	PERF_FORMAT_TOTAL_TIME_RUNNING        = 0x2
 	PERF_FORMAT_ID                        = 0x4
 	PERF_FORMAT_GROUP                     = 0x8
-	PERF_FORMAT_MAX                       = 0x10
+	PERF_FORMAT_LOST                      = 0x10
+	PERF_FORMAT_MAX                       = 0x20
 	PERF_IOC_FLAG_GROUP                   = 0x1
 	PERF_RECORD_MMAP                      = 0x1
 	PERF_RECORD_LOST                      = 0x2
@@ -1173,7 +1264,7 @@ type TCPMD5Sig struct {
 	Flags     uint8
 	Prefixlen uint8
 	Keylen    uint16
-	_         uint32
+	Ifindex   int32
 	Key       [80]uint8
 }
 
@@ -1442,6 +1533,11 @@ const (
 	IFLA_ALT_IFNAME                            = 0x35
 	IFLA_PERM_ADDRESS                          = 0x36
 	IFLA_PROTO_DOWN_REASON                     = 0x37
+	IFLA_PARENT_DEV_NAME                       = 0x38
+	IFLA_PARENT_DEV_BUS_NAME                   = 0x39
+	IFLA_GRO_MAX_SIZE                          = 0x3a
+	IFLA_TSO_MAX_SIZE                          = 0x3b
+	IFLA_TSO_MAX_SEGS                          = 0x3c
 	IFLA_PROTO_DOWN_REASON_UNSPEC              = 0x0
 	IFLA_PROTO_DOWN_REASON_MASK                = 0x1
 	IFLA_PROTO_DOWN_REASON_VALUE               = 0x2
@@ -1868,7 +1964,11 @@ const (
 	NFT_MSG_GETOBJ                    = 0x13
 	NFT_MSG_DELOBJ                    = 0x14
 	NFT_MSG_GETOBJ_RESET              = 0x15
-	NFT_MSG_MAX                       = 0x19
+	NFT_MSG_NEWFLOWTABLE              = 0x16
+	NFT_MSG_GETFLOWTABLE              = 0x17
+	NFT_MSG_DELFLOWTABLE              = 0x18
+	NFT_MSG_GETRULE_RESET             = 0x19
+	NFT_MSG_MAX                       = 0x1a
 	NFTA_LIST_UNSPEC                  = 0x0
 	NFTA_LIST_ELEM                    = 0x1
 	NFTA_HOOK_UNSPEC                  = 0x0
@@ -2372,9 +2472,11 @@ const (
 	SOF_TIMESTAMPING_OPT_STATS    = 0x1000
 	SOF_TIMESTAMPING_OPT_PKTINFO  = 0x2000
 	SOF_TIMESTAMPING_OPT_TX_SWHW  = 0x4000
+	SOF_TIMESTAMPING_BIND_PHC     = 0x8000
+	SOF_TIMESTAMPING_OPT_ID_TCP   = 0x10000
 
-	SOF_TIMESTAMPING_LAST = 0x8000
-	SOF_TIMESTAMPING_MASK = 0xffff
+	SOF_TIMESTAMPING_LAST = 0x10000
+	SOF_TIMESTAMPING_MASK = 0x1ffff
 
 	SCM_TSTAMP_SND   = 0x0
 	SCM_TSTAMP_SCHED = 0x1
@@ -2950,7 +3052,16 @@ const (
 	DEVLINK_CMD_TRAP_POLICER_NEW                       = 0x47
 	DEVLINK_CMD_TRAP_POLICER_DEL                       = 0x48
 	DEVLINK_CMD_HEALTH_REPORTER_TEST                   = 0x49
-	DEVLINK_CMD_MAX                                    = 0x4d
+	DEVLINK_CMD_RATE_GET                               = 0x4a
+	DEVLINK_CMD_RATE_SET                               = 0x4b
+	DEVLINK_CMD_RATE_NEW                               = 0x4c
+	DEVLINK_CMD_RATE_DEL                               = 0x4d
+	DEVLINK_CMD_LINECARD_GET                           = 0x4e
+	DEVLINK_CMD_LINECARD_SET                           = 0x4f
+	DEVLINK_CMD_LINECARD_NEW                           = 0x50
+	DEVLINK_CMD_LINECARD_DEL                           = 0x51
+	DEVLINK_CMD_SELFTESTS_GET                          = 0x52
+	DEVLINK_CMD_MAX                                    = 0x53
 	DEVLINK_PORT_TYPE_NOTSET                           = 0x0
 	DEVLINK_PORT_TYPE_AUTO                             = 0x1
 	DEVLINK_PORT_TYPE_ETH                              = 0x2
@@ -3179,7 +3290,13 @@ const (
 	DEVLINK_ATTR_RATE_NODE_NAME                        = 0xa8
 	DEVLINK_ATTR_RATE_PARENT_NODE_NAME                 = 0xa9
 	DEVLINK_ATTR_REGION_MAX_SNAPSHOTS                  = 0xaa
-	DEVLINK_ATTR_MAX                                   = 0xaa
+	DEVLINK_ATTR_LINECARD_INDEX                        = 0xab
+	DEVLINK_ATTR_LINECARD_STATE                        = 0xac
+	DEVLINK_ATTR_LINECARD_TYPE                         = 0xad
+	DEVLINK_ATTR_LINECARD_SUPPORTED_TYPES              = 0xae
+	DEVLINK_ATTR_NESTED_DEVLINK                        = 0xaf
+	DEVLINK_ATTR_SELFTESTS                             = 0xb0
+	DEVLINK_ATTR_MAX                                   = 0xb3
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_NONE              = 0x0
 	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX           = 0x1
 	DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT               = 0x0
@@ -3195,7 +3312,8 @@ const (
 	DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR                 = 0x1
 	DEVLINK_PORT_FN_ATTR_STATE                         = 0x2
 	DEVLINK_PORT_FN_ATTR_OPSTATE                       = 0x3
-	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x3
+	DEVLINK_PORT_FN_ATTR_CAPS                          = 0x4
+	DEVLINK_PORT_FUNCTION_ATTR_MAX                     = 0x4
 )
 
 type FsverityDigest struct {
@@ -3288,7 +3406,8 @@ const (
 	LWTUNNEL_ENCAP_SEG6_LOCAL = 0x7
 	LWTUNNEL_ENCAP_RPL        = 0x8
 	LWTUNNEL_ENCAP_IOAM6      = 0x9
-	LWTUNNEL_ENCAP_MAX        = 0x9
+	LWTUNNEL_ENCAP_XFRM       = 0xa
+	LWTUNNEL_ENCAP_MAX        = 0xa
 
 	MPLS_IPTUNNEL_UNSPEC = 0x0
 	MPLS_IPTUNNEL_DST    = 0x1
@@ -3483,7 +3602,10 @@ const (
 	ETHTOOL_MSG_PHC_VCLOCKS_GET               = 0x21
 	ETHTOOL_MSG_MODULE_GET                    = 0x22
 	ETHTOOL_MSG_MODULE_SET                    = 0x23
-	ETHTOOL_MSG_USER_MAX                      = 0x23
+	ETHTOOL_MSG_PSE_GET                       = 0x24
+	ETHTOOL_MSG_PSE_SET                       = 0x25
+	ETHTOOL_MSG_RSS_GET                       = 0x26
+	ETHTOOL_MSG_USER_MAX                      = 0x26
 	ETHTOOL_MSG_KERNEL_NONE                   = 0x0
 	ETHTOOL_MSG_STRSET_GET_REPLY              = 0x1
 	ETHTOOL_MSG_LINKINFO_GET_REPLY            = 0x2
@@ -3521,7 +3643,9 @@ const (
 	ETHTOOL_MSG_PHC_VCLOCKS_GET_REPLY         = 0x22
 	ETHTOOL_MSG_MODULE_GET_REPLY              = 0x23
 	ETHTOOL_MSG_MODULE_NTF                    = 0x24
-	ETHTOOL_MSG_KERNEL_MAX                    = 0x24
+	ETHTOOL_MSG_PSE_GET_REPLY                 = 0x25
+	ETHTOOL_MSG_RSS_GET_REPLY                 = 0x26
+	ETHTOOL_MSG_KERNEL_MAX                    = 0x26
 	ETHTOOL_A_HEADER_UNSPEC                   = 0x0
 	ETHTOOL_A_HEADER_DEV_INDEX                = 0x1
 	ETHTOOL_A_HEADER_DEV_NAME                 = 0x2
@@ -3580,7 +3704,8 @@ const (
 	ETHTOOL_A_LINKMODES_MASTER_SLAVE_CFG      = 0x7
 	ETHTOOL_A_LINKMODES_MASTER_SLAVE_STATE    = 0x8
 	ETHTOOL_A_LINKMODES_LANES                 = 0x9
-	ETHTOOL_A_LINKMODES_MAX                   = 0x9
+	ETHTOOL_A_LINKMODES_RATE_MATCHING         = 0xa
+	ETHTOOL_A_LINKMODES_MAX                   = 0xa
 	ETHTOOL_A_LINKSTATE_UNSPEC                = 0x0
 	ETHTOOL_A_LINKSTATE_HEADER                = 0x1
 	ETHTOOL_A_LINKSTATE_LINK                  = 0x2
@@ -3588,7 +3713,8 @@ const (
 	ETHTOOL_A_LINKSTATE_SQI_MAX               = 0x4
 	ETHTOOL_A_LINKSTATE_EXT_STATE             = 0x5
 	ETHTOOL_A_LINKSTATE_EXT_SUBSTATE          = 0x6
-	ETHTOOL_A_LINKSTATE_MAX                   = 0x6
+	ETHTOOL_A_LINKSTATE_EXT_DOWN_CNT          = 0x7
+	ETHTOOL_A_LINKSTATE_MAX                   = 0x7
 	ETHTOOL_A_DEBUG_UNSPEC                    = 0x0
 	ETHTOOL_A_DEBUG_HEADER                    = 0x1
 	ETHTOOL_A_DEBUG_MSGMASK                   = 0x2
@@ -3619,7 +3745,11 @@ const (
 	ETHTOOL_A_RINGS_RX_MINI                   = 0x7
 	ETHTOOL_A_RINGS_RX_JUMBO                  = 0x8
 	ETHTOOL_A_RINGS_TX                        = 0x9
-	ETHTOOL_A_RINGS_MAX                       = 0x9
+	ETHTOOL_A_RINGS_RX_BUF_LEN                = 0xa
+	ETHTOOL_A_RINGS_TCP_DATA_SPLIT            = 0xb
+	ETHTOOL_A_RINGS_CQE_SIZE                  = 0xc
+	ETHTOOL_A_RINGS_TX_PUSH                   = 0xd
+	ETHTOOL_A_RINGS_MAX                       = 0xd
 	ETHTOOL_A_CHANNELS_UNSPEC                 = 0x0
 	ETHTOOL_A_CHANNELS_HEADER                 = 0x1
 	ETHTOOL_A_CHANNELS_RX_MAX                 = 0x2
@@ -4168,6 +4298,9 @@ const (
 	NL80211_ACL_POLICY_DENY_UNLESS_LISTED                   = 0x1
 	NL80211_AC_VI                                           = 0x1
 	NL80211_AC_VO                                           = 0x0
+	NL80211_AP_SETTINGS_EXTERNAL_AUTH_SUPPORT               = 0x1
+	NL80211_AP_SETTINGS_SA_QUERY_OFFLOAD_SUPPORT            = 0x2
+	NL80211_AP_SME_SA_QUERY_OFFLOAD                         = 0x1
 	NL80211_ATTR_4ADDR                                      = 0x53
 	NL80211_ATTR_ACK                                        = 0x5c
 	NL80211_ATTR_ACK_SIGNAL                                 = 0x107
@@ -4176,6 +4309,7 @@ const (
 	NL80211_ATTR_AIRTIME_WEIGHT                             = 0x112
 	NL80211_ATTR_AKM_SUITES                                 = 0x4c
 	NL80211_ATTR_AP_ISOLATE                                 = 0x60
+	NL80211_ATTR_AP_SETTINGS_FLAGS                          = 0x135
 	NL80211_ATTR_AUTH_DATA                                  = 0x9c
 	NL80211_ATTR_AUTH_TYPE                                  = 0x35
 	NL80211_ATTR_BANDS                                      = 0xef
@@ -4207,6 +4341,9 @@ const (
 	NL80211_ATTR_COALESCE_RULE_DELAY                        = 0x1
 	NL80211_ATTR_COALESCE_RULE_MAX                          = 0x3
 	NL80211_ATTR_COALESCE_RULE_PKT_PATTERN                  = 0x3
+	NL80211_ATTR_COLOR_CHANGE_COLOR                         = 0x130
+	NL80211_ATTR_COLOR_CHANGE_COUNT                         = 0x12f
+	NL80211_ATTR_COLOR_CHANGE_ELEMS                         = 0x131
 	NL80211_ATTR_CONN_FAILED_REASON                         = 0x9b
 	NL80211_ATTR_CONTROL_PORT                               = 0x44
 	NL80211_ATTR_CONTROL_PORT_ETHERTYPE                     = 0x66
@@ -4233,6 +4370,7 @@ const (
 	NL80211_ATTR_DEVICE_AP_SME                              = 0x8d
 	NL80211_ATTR_DFS_CAC_TIME                               = 0x7
 	NL80211_ATTR_DFS_REGION                                 = 0x92
+	NL80211_ATTR_DISABLE_EHT                                = 0x137
 	NL80211_ATTR_DISABLE_HE                                 = 0x12d
 	NL80211_ATTR_DISABLE_HT                                 = 0x93
 	NL80211_ATTR_DISABLE_VHT                                = 0xaf
@@ -4240,6 +4378,8 @@ const (
 	NL80211_ATTR_DONT_WAIT_FOR_ACK                          = 0x8e
 	NL80211_ATTR_DTIM_PERIOD                                = 0xd
 	NL80211_ATTR_DURATION                                   = 0x57
+	NL80211_ATTR_EHT_CAPABILITY                             = 0x136
+	NL80211_ATTR_EML_CAPABILITY                             = 0x13d
 	NL80211_ATTR_EXT_CAPA                                   = 0xa9
 	NL80211_ATTR_EXT_CAPA_MASK                              = 0xaa
 	NL80211_ATTR_EXTERNAL_AUTH_ACTION                       = 0x104
@@ -4304,10 +4444,11 @@ const (
 	NL80211_ATTR_MAC_HINT                                   = 0xc8
 	NL80211_ATTR_MAC_MASK                                   = 0xd7
 	NL80211_ATTR_MAX_AP_ASSOC_STA                           = 0xca
-	NL80211_ATTR_MAX                                        = 0x133
+	NL80211_ATTR_MAX                                        = 0x141
 	NL80211_ATTR_MAX_CRIT_PROT_DURATION                     = 0xb4
 	NL80211_ATTR_MAX_CSA_COUNTERS                           = 0xce
 	NL80211_ATTR_MAX_MATCH_SETS                             = 0x85
+	NL80211_ATTR_MAX_NUM_AKM_SUITES                         = 0x13c
 	NL80211_ATTR_MAX_NUM_PMKIDS                             = 0x56
 	NL80211_ATTR_MAX_NUM_SCAN_SSIDS                         = 0x2b
 	NL80211_ATTR_MAX_NUM_SCHED_SCAN_PLANS                   = 0xde
@@ -4317,6 +4458,8 @@ const (
 	NL80211_ATTR_MAX_SCAN_PLAN_INTERVAL                     = 0xdf
 	NL80211_ATTR_MAX_SCAN_PLAN_ITERATIONS                   = 0xe0
 	NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN                      = 0x7c
+	NL80211_ATTR_MBSSID_CONFIG                              = 0x132
+	NL80211_ATTR_MBSSID_ELEMS                               = 0x133
 	NL80211_ATTR_MCAST_RATE                                 = 0x6b
 	NL80211_ATTR_MDID                                       = 0xb1
 	NL80211_ATTR_MEASUREMENT_DURATION                       = 0xeb
@@ -4326,6 +4469,11 @@ const (
 	NL80211_ATTR_MESH_PEER_AID                              = 0xed
 	NL80211_ATTR_MESH_SETUP                                 = 0x70
 	NL80211_ATTR_MGMT_SUBTYPE                               = 0x29
+	NL80211_ATTR_MLD_ADDR                                   = 0x13a
+	NL80211_ATTR_MLD_CAPA_AND_OPS                           = 0x13e
+	NL80211_ATTR_MLO_LINK_ID                                = 0x139
+	NL80211_ATTR_MLO_LINKS                                  = 0x138
+	NL80211_ATTR_MLO_SUPPORT                                = 0x13b
 	NL80211_ATTR_MNTR_FLAGS                                 = 0x17
 	NL80211_ATTR_MPATH_INFO                                 = 0x1b
 	NL80211_ATTR_MPATH_NEXT_HOP                             = 0x1a
@@ -4338,6 +4486,7 @@ const (
 	NL80211_ATTR_NETNS_FD                                   = 0xdb
 	NL80211_ATTR_NOACK_MAP                                  = 0x95
 	NL80211_ATTR_NSS                                        = 0x106
+	NL80211_ATTR_OBSS_COLOR_BITMAP                          = 0x12e
 	NL80211_ATTR_OFFCHANNEL_TX_OK                           = 0x6c
 	NL80211_ATTR_OPER_CLASS                                 = 0xd6
 	NL80211_ATTR_OPMODE_NOTIF                               = 0xc2
@@ -4364,6 +4513,7 @@ const (
 	NL80211_ATTR_PROTOCOL_FEATURES                          = 0xad
 	NL80211_ATTR_PS_STATE                                   = 0x5d
 	NL80211_ATTR_QOS_MAP                                    = 0xc7
+	NL80211_ATTR_RADAR_BACKGROUND                           = 0x134
 	NL80211_ATTR_RADAR_EVENT                                = 0xa8
 	NL80211_ATTR_REASON_CODE                                = 0x36
 	NL80211_ATTR_RECEIVE_MULTICAST                          = 0x121
@@ -4379,6 +4529,7 @@ const (
 	NL80211_ATTR_RESP_IE                                    = 0x4e
 	NL80211_ATTR_ROAM_SUPPORT                               = 0x83
 	NL80211_ATTR_RX_FRAME_TYPES                             = 0x64
+	NL80211_ATTR_RX_HW_TIMESTAMP                            = 0x140
 	NL80211_ATTR_RXMGMT_FLAGS                               = 0xbc
 	NL80211_ATTR_RX_SIGNAL_DBM                              = 0x97
 	NL80211_ATTR_S1G_CAPABILITY                             = 0x128
@@ -4436,6 +4587,7 @@ const (
 	NL80211_ATTR_SUPPORT_MESH_AUTH                          = 0x73
 	NL80211_ATTR_SURVEY_INFO                                = 0x54
 	NL80211_ATTR_SURVEY_RADIO_STATS                         = 0xda
+	NL80211_ATTR_TD_BITMAP                                  = 0x141
 	NL80211_ATTR_TDLS_ACTION                                = 0x88
 	NL80211_ATTR_TDLS_DIALOG_TOKEN                          = 0x89
 	NL80211_ATTR_TDLS_EXTERNAL_SETUP                        = 0x8c
@@ -4451,6 +4603,7 @@ const (
 	NL80211_ATTR_TSID                                       = 0xd2
 	NL80211_ATTR_TWT_RESPONDER                              = 0x116
 	NL80211_ATTR_TX_FRAME_TYPES                             = 0x63
+	NL80211_ATTR_TX_HW_TIMESTAMP                            = 0x13f
 	NL80211_ATTR_TX_NO_CCK_RATE                             = 0x87
 	NL80211_ATTR_TXQ_LIMIT                                  = 0x10a
 	NL80211_ATTR_TXQ_MEMORY_LIMIT                           = 0x10b
@@ -4524,13 +4677,19 @@ const (
 	NL80211_BAND_ATTR_RATES                                 = 0x2
 	NL80211_BAND_ATTR_VHT_CAPA                              = 0x8
 	NL80211_BAND_ATTR_VHT_MCS_SET                           = 0x7
+	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_MAC                    = 0x8
+	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_MCS_SET                = 0xa
+	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PHY                    = 0x9
+	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PPE                    = 0xb
 	NL80211_BAND_IFTYPE_ATTR_HE_6GHZ_CAPA                   = 0x6
 	NL80211_BAND_IFTYPE_ATTR_HE_CAP_MAC                     = 0x2
 	NL80211_BAND_IFTYPE_ATTR_HE_CAP_MCS_SET                 = 0x4
 	NL80211_BAND_IFTYPE_ATTR_HE_CAP_PHY                     = 0x3
 	NL80211_BAND_IFTYPE_ATTR_HE_CAP_PPE                     = 0x5
 	NL80211_BAND_IFTYPE_ATTR_IFTYPES                        = 0x1
-	NL80211_BAND_IFTYPE_ATTR_MAX                            = 0x7
+	NL80211_BAND_IFTYPE_ATTR_MAX                            = 0xb
+	NL80211_BAND_IFTYPE_ATTR_VENDOR_ELEMS                   = 0x7
+	NL80211_BAND_LC                                         = 0x5
 	NL80211_BAND_S1GHZ                                      = 0x4
 	NL80211_BITRATE_ATTR_2GHZ_SHORTPREAMBLE                 = 0x2
 	NL80211_BITRATE_ATTR_MAX                                = 0x2
@@ -4551,7 +4710,9 @@ const (
 	NL80211_BSS_FREQUENCY_OFFSET                            = 0x14
 	NL80211_BSS_INFORMATION_ELEMENTS                        = 0x6
 	NL80211_BSS_LAST_SEEN_BOOTTIME                          = 0xf
-	NL80211_BSS_MAX                                         = 0x14
+	NL80211_BSS_MAX                                         = 0x16
+	NL80211_BSS_MLD_ADDR                                    = 0x16
+	NL80211_BSS_MLO_LINK_ID                                 = 0x15
 	NL80211_BSS_PAD                                         = 0x10
 	NL80211_BSS_PARENT_BSSID                                = 0x12
 	NL80211_BSS_PARENT_TSF                                  = 0x11
@@ -4579,6 +4740,7 @@ const (
 	NL80211_CHAN_WIDTH_20                                   = 0x1
 	NL80211_CHAN_WIDTH_20_NOHT                              = 0x0
 	NL80211_CHAN_WIDTH_2                                    = 0x9
+	NL80211_CHAN_WIDTH_320                                  = 0xd
 	NL80211_CHAN_WIDTH_40                                   = 0x2
 	NL80211_CHAN_WIDTH_4                                    = 0xa
 	NL80211_CHAN_WIDTH_5                                    = 0x6
@@ -4588,8 +4750,11 @@ const (
 	NL80211_CMD_ABORT_SCAN                                  = 0x72
 	NL80211_CMD_ACTION                                      = 0x3b
 	NL80211_CMD_ACTION_TX_STATUS                            = 0x3c
+	NL80211_CMD_ADD_LINK                                    = 0x94
+	NL80211_CMD_ADD_LINK_STA                                = 0x96
 	NL80211_CMD_ADD_NAN_FUNCTION                            = 0x75
 	NL80211_CMD_ADD_TX_TS                                   = 0x69
+	NL80211_CMD_ASSOC_COMEBACK                              = 0x93
 	NL80211_CMD_ASSOCIATE                                   = 0x26
 	NL80211_CMD_AUTHENTICATE                                = 0x25
 	NL80211_CMD_CANCEL_REMAIN_ON_CHANNEL                    = 0x38
@@ -4597,6 +4762,10 @@ const (
 	NL80211_CMD_CHANNEL_SWITCH                              = 0x66
 	NL80211_CMD_CH_SWITCH_NOTIFY                            = 0x58
 	NL80211_CMD_CH_SWITCH_STARTED_NOTIFY                    = 0x6e
+	NL80211_CMD_COLOR_CHANGE_ABORTED                        = 0x90
+	NL80211_CMD_COLOR_CHANGE_COMPLETED                      = 0x91
+	NL80211_CMD_COLOR_CHANGE_REQUEST                        = 0x8e
+	NL80211_CMD_COLOR_CHANGE_STARTED                        = 0x8f
 	NL80211_CMD_CONNECT                                     = 0x2e
 	NL80211_CMD_CONN_FAILED                                 = 0x5b
 	NL80211_CMD_CONTROL_PORT_FRAME                          = 0x81
@@ -4645,8 +4814,9 @@ const (
 	NL80211_CMD_LEAVE_IBSS                                  = 0x2c
 	NL80211_CMD_LEAVE_MESH                                  = 0x45
 	NL80211_CMD_LEAVE_OCB                                   = 0x6d
-	NL80211_CMD_MAX                                         = 0x92
+	NL80211_CMD_MAX                                         = 0x98
 	NL80211_CMD_MICHAEL_MIC_FAILURE                         = 0x29
+	NL80211_CMD_MODIFY_LINK_STA                             = 0x97
 	NL80211_CMD_NAN_MATCH                                   = 0x78
 	NL80211_CMD_NEW_BEACON                                  = 0xf
 	NL80211_CMD_NEW_INTERFACE                               = 0x7
@@ -4659,6 +4829,7 @@ const (
 	NL80211_CMD_NEW_WIPHY                                   = 0x3
 	NL80211_CMD_NOTIFY_CQM                                  = 0x40
 	NL80211_CMD_NOTIFY_RADAR                                = 0x86
+	NL80211_CMD_OBSS_COLOR_COLLISION                        = 0x8d
 	NL80211_CMD_PEER_MEASUREMENT_COMPLETE                   = 0x85
 	NL80211_CMD_PEER_MEASUREMENT_RESULT                     = 0x84
 	NL80211_CMD_PEER_MEASUREMENT_START                      = 0x83
@@ -4674,6 +4845,8 @@ const (
 	NL80211_CMD_REGISTER_FRAME                              = 0x3a
 	NL80211_CMD_RELOAD_REGDB                                = 0x7e
 	NL80211_CMD_REMAIN_ON_CHANNEL                           = 0x37
+	NL80211_CMD_REMOVE_LINK                                 = 0x95
+	NL80211_CMD_REMOVE_LINK_STA                             = 0x98
 	NL80211_CMD_REQ_SET_REG                                 = 0x1b
 	NL80211_CMD_ROAM                                        = 0x2f
 	NL80211_CMD_SCAN_ABORTED                                = 0x23
@@ -4684,6 +4857,7 @@ const (
 	NL80211_CMD_SET_CHANNEL                                 = 0x41
 	NL80211_CMD_SET_COALESCE                                = 0x65
 	NL80211_CMD_SET_CQM                                     = 0x3f
+	NL80211_CMD_SET_FILS_AAD                                = 0x92
 	NL80211_CMD_SET_INTERFACE                               = 0x6
 	NL80211_CMD_SET_KEY                                     = 0xa
 	NL80211_CMD_SET_MAC_ACL                                 = 0x5d
@@ -4758,6 +4932,8 @@ const (
 	NL80211_EDMG_BW_CONFIG_MIN                              = 0x4
 	NL80211_EDMG_CHANNELS_MAX                               = 0x3c
 	NL80211_EDMG_CHANNELS_MIN                               = 0x1
+	NL80211_EHT_MAX_CAPABILITY_LEN                          = 0x33
+	NL80211_EHT_MIN_CAPABILITY_LEN                          = 0xd
 	NL80211_EXTERNAL_AUTH_ABORT                             = 0x1
 	NL80211_EXTERNAL_AUTH_START                             = 0x0
 	NL80211_EXT_FEATURE_4WAY_HANDSHAKE_AP_PSK               = 0x32
@@ -4774,6 +4950,7 @@ const (
 	NL80211_EXT_FEATURE_BEACON_RATE_HT                      = 0x7
 	NL80211_EXT_FEATURE_BEACON_RATE_LEGACY                  = 0x6
 	NL80211_EXT_FEATURE_BEACON_RATE_VHT                     = 0x8
+	NL80211_EXT_FEATURE_BSS_COLOR                           = 0x3a
 	NL80211_EXT_FEATURE_BSS_PARENT_TSF                      = 0x4
 	NL80211_EXT_FEATURE_CAN_REPLACE_PTK0                    = 0x1f
 	NL80211_EXT_FEATURE_CONTROL_PORT_NO_PREAUTH             = 0x2a
@@ -4785,6 +4962,7 @@ const (
 	NL80211_EXT_FEATURE_DFS_OFFLOAD                         = 0x19
 	NL80211_EXT_FEATURE_ENABLE_FTM_RESPONDER                = 0x20
 	NL80211_EXT_FEATURE_EXT_KEY_ID                          = 0x24
+	NL80211_EXT_FEATURE_FILS_CRYPTO_OFFLOAD                 = 0x3b
 	NL80211_EXT_FEATURE_FILS_DISCOVERY                      = 0x34
 	NL80211_EXT_FEATURE_FILS_MAX_CHANNEL_TIME               = 0x11
 	NL80211_EXT_FEATURE_FILS_SK_OFFLOAD                     = 0xe
@@ -4800,8 +4978,10 @@ const (
 	NL80211_EXT_FEATURE_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION  = 0x14
 	NL80211_EXT_FEATURE_OCE_PROBE_REQ_HIGH_TX_RATE          = 0x13
 	NL80211_EXT_FEATURE_OPERATING_CHANNEL_VALIDATION        = 0x31
+	NL80211_EXT_FEATURE_POWERED_ADDR_CHANGE                 = 0x3d
 	NL80211_EXT_FEATURE_PROTECTED_TWT                       = 0x2b
 	NL80211_EXT_FEATURE_PROT_RANGE_NEGO_AND_MEASURE         = 0x39
+	NL80211_EXT_FEATURE_RADAR_BACKGROUND                    = 0x3c
 	NL80211_EXT_FEATURE_RRM                                 = 0x1
 	NL80211_EXT_FEATURE_SAE_OFFLOAD_AP                      = 0x33
 	NL80211_EXT_FEATURE_SAE_OFFLOAD                         = 0x26
@@ -4868,12 +5048,14 @@ const (
 	NL80211_FREQUENCY_ATTR_GO_CONCURRENT                    = 0xf
 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY                      = 0xe
 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT                    = 0xf
-	NL80211_FREQUENCY_ATTR_MAX                              = 0x19
+	NL80211_FREQUENCY_ATTR_MAX                              = 0x1b
 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER                     = 0x6
 	NL80211_FREQUENCY_ATTR_NO_10MHZ                         = 0x11
 	NL80211_FREQUENCY_ATTR_NO_160MHZ                        = 0xc
 	NL80211_FREQUENCY_ATTR_NO_20MHZ                         = 0x10
+	NL80211_FREQUENCY_ATTR_NO_320MHZ                        = 0x1a
 	NL80211_FREQUENCY_ATTR_NO_80MHZ                         = 0xb
+	NL80211_FREQUENCY_ATTR_NO_EHT                           = 0x1b
 	NL80211_FREQUENCY_ATTR_NO_HE                            = 0x13
 	NL80211_FREQUENCY_ATTR_NO_HT40_MINUS                    = 0x9
 	NL80211_FREQUENCY_ATTR_NO_HT40_PLUS                     = 0xa
@@ -4973,6 +5155,12 @@ const (
 	NL80211_MAX_SUPP_HT_RATES                               = 0x4d
 	NL80211_MAX_SUPP_RATES                                  = 0x20
 	NL80211_MAX_SUPP_REG_RULES                              = 0x80
+	NL80211_MBSSID_CONFIG_ATTR_EMA                          = 0x5
+	NL80211_MBSSID_CONFIG_ATTR_INDEX                        = 0x3
+	NL80211_MBSSID_CONFIG_ATTR_MAX                          = 0x5
+	NL80211_MBSSID_CONFIG_ATTR_MAX_EMA_PROFILE_PERIODICITY  = 0x2
+	NL80211_MBSSID_CONFIG_ATTR_MAX_INTERFACES               = 0x1
+	NL80211_MBSSID_CONFIG_ATTR_TX_IFINDEX                   = 0x4
 	NL80211_MESHCONF_ATTR_MAX                               = 0x1f
 	NL80211_MESHCONF_AUTO_OPEN_PLINKS                       = 0x7
 	NL80211_MESHCONF_AWAKE_WINDOW                           = 0x1b
@@ -5135,6 +5323,7 @@ const (
 	NL80211_PMSR_FTM_FAILURE_UNSPECIFIED                    = 0x0
 	NL80211_PMSR_FTM_FAILURE_WRONG_CHANNEL                  = 0x3
 	NL80211_PMSR_FTM_REQ_ATTR_ASAP                          = 0x1
+	NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR                     = 0xd
 	NL80211_PMSR_FTM_REQ_ATTR_BURST_DURATION                = 0x5
 	NL80211_PMSR_FTM_REQ_ATTR_BURST_PERIOD                  = 0x4
 	NL80211_PMSR_FTM_REQ_ATTR_FTMS_PER_BURST                = 0x6
@@ -5211,12 +5400,36 @@ const (
 	NL80211_RADAR_PRE_CAC_EXPIRED                           = 0x4
 	NL80211_RATE_INFO_10_MHZ_WIDTH                          = 0xb
 	NL80211_RATE_INFO_160_MHZ_WIDTH                         = 0xa
+	NL80211_RATE_INFO_320_MHZ_WIDTH                         = 0x12
 	NL80211_RATE_INFO_40_MHZ_WIDTH                          = 0x3
 	NL80211_RATE_INFO_5_MHZ_WIDTH                           = 0xc
 	NL80211_RATE_INFO_80_MHZ_WIDTH                          = 0x8
 	NL80211_RATE_INFO_80P80_MHZ_WIDTH                       = 0x9
 	NL80211_RATE_INFO_BITRATE32                             = 0x5
 	NL80211_RATE_INFO_BITRATE                               = 0x1
+	NL80211_RATE_INFO_EHT_GI_0_8                            = 0x0
+	NL80211_RATE_INFO_EHT_GI_1_6                            = 0x1
+	NL80211_RATE_INFO_EHT_GI_3_2                            = 0x2
+	NL80211_RATE_INFO_EHT_GI                                = 0x15
+	NL80211_RATE_INFO_EHT_MCS                               = 0x13
+	NL80211_RATE_INFO_EHT_NSS                               = 0x14
+	NL80211_RATE_INFO_EHT_RU_ALLOC_106                      = 0x3
+	NL80211_RATE_INFO_EHT_RU_ALLOC_106P26                   = 0x4
+	NL80211_RATE_INFO_EHT_RU_ALLOC_242                      = 0x5
+	NL80211_RATE_INFO_EHT_RU_ALLOC_26                       = 0x0
+	NL80211_RATE_INFO_EHT_RU_ALLOC_2x996                    = 0xb
+	NL80211_RATE_INFO_EHT_RU_ALLOC_2x996P484                = 0xc
+	NL80211_RATE_INFO_EHT_RU_ALLOC_3x996                    = 0xd
+	NL80211_RATE_INFO_EHT_RU_ALLOC_3x996P484                = 0xe
+	NL80211_RATE_INFO_EHT_RU_ALLOC_484                      = 0x6
+	NL80211_RATE_INFO_EHT_RU_ALLOC_484P242                  = 0x7
+	NL80211_RATE_INFO_EHT_RU_ALLOC_4x996                    = 0xf
+	NL80211_RATE_INFO_EHT_RU_ALLOC_52                       = 0x1
+	NL80211_RATE_INFO_EHT_RU_ALLOC_52P26                    = 0x2
+	NL80211_RATE_INFO_EHT_RU_ALLOC_996                      = 0x8
+	NL80211_RATE_INFO_EHT_RU_ALLOC_996P484                  = 0x9
+	NL80211_RATE_INFO_EHT_RU_ALLOC_996P484P242              = 0xa
+	NL80211_RATE_INFO_EHT_RU_ALLOC                          = 0x16
 	NL80211_RATE_INFO_HE_1XLTF                              = 0x0
 	NL80211_RATE_INFO_HE_2XLTF                              = 0x1
 	NL80211_RATE_INFO_HE_4XLTF                              = 0x2
@@ -5235,7 +5448,7 @@ const (
 	NL80211_RATE_INFO_HE_RU_ALLOC_52                        = 0x1
 	NL80211_RATE_INFO_HE_RU_ALLOC_996                       = 0x5
 	NL80211_RATE_INFO_HE_RU_ALLOC                           = 0x11
-	NL80211_RATE_INFO_MAX                                   = 0x11
+	NL80211_RATE_INFO_MAX                                   = 0x16
 	NL80211_RATE_INFO_MCS                                   = 0x2
 	NL80211_RATE_INFO_SHORT_GI                              = 0x4
 	NL80211_RATE_INFO_VHT_MCS                               = 0x6
@@ -5259,6 +5472,7 @@ const (
 	NL80211_RRF_GO_CONCURRENT                               = 0x1000
 	NL80211_RRF_IR_CONCURRENT                               = 0x1000
 	NL80211_RRF_NO_160MHZ                                   = 0x10000
+	NL80211_RRF_NO_320MHZ                                   = 0x40000
 	NL80211_RRF_NO_80MHZ                                    = 0x8000
 	NL80211_RRF_NO_CCK                                      = 0x2
 	NL80211_RRF_NO_HE                                       = 0x20000
@@ -5531,4 +5745,68 @@ const (
 	NL80211_WPA_VERSION_1                                   = 0x1
 	NL80211_WPA_VERSION_2                                   = 0x2
 	NL80211_WPA_VERSION_3                                   = 0x4
+)
+
+const (
+	FRA_UNSPEC             = 0x0
+	FRA_DST                = 0x1
+	FRA_SRC                = 0x2
+	FRA_IIFNAME            = 0x3
+	FRA_GOTO               = 0x4
+	FRA_UNUSED2            = 0x5
+	FRA_PRIORITY           = 0x6
+	FRA_UNUSED3            = 0x7
+	FRA_UNUSED4            = 0x8
+	FRA_UNUSED5            = 0x9
+	FRA_FWMARK             = 0xa
+	FRA_FLOW               = 0xb
+	FRA_TUN_ID             = 0xc
+	FRA_SUPPRESS_IFGROUP   = 0xd
+	FRA_SUPPRESS_PREFIXLEN = 0xe
+	FRA_TABLE              = 0xf
+	FRA_FWMASK             = 0x10
+	FRA_OIFNAME            = 0x11
+	FRA_PAD                = 0x12
+	FRA_L3MDEV             = 0x13
+	FRA_UID_RANGE          = 0x14
+	FRA_PROTOCOL           = 0x15
+	FRA_IP_PROTO           = 0x16
+	FRA_SPORT_RANGE        = 0x17
+	FRA_DPORT_RANGE        = 0x18
+	FR_ACT_UNSPEC          = 0x0
+	FR_ACT_TO_TBL          = 0x1
+	FR_ACT_GOTO            = 0x2
+	FR_ACT_NOP             = 0x3
+	FR_ACT_RES3            = 0x4
+	FR_ACT_RES4            = 0x5
+	FR_ACT_BLACKHOLE       = 0x6
+	FR_ACT_UNREACHABLE     = 0x7
+	FR_ACT_PROHIBIT        = 0x8
+)
+
+const (
+	AUDIT_NLGRP_NONE    = 0x0
+	AUDIT_NLGRP_READLOG = 0x1
+)
+
+const (
+	TUN_F_CSUM    = 0x1
+	TUN_F_TSO4    = 0x2
+	TUN_F_TSO6    = 0x4
+	TUN_F_TSO_ECN = 0x8
+	TUN_F_UFO     = 0x10
+)
+
+const (
+	VIRTIO_NET_HDR_F_NEEDS_CSUM = 0x1
+	VIRTIO_NET_HDR_F_DATA_VALID = 0x2
+	VIRTIO_NET_HDR_F_RSC_INFO   = 0x4
+)
+
+const (
+	VIRTIO_NET_HDR_GSO_NONE  = 0x0
+	VIRTIO_NET_HDR_GSO_TCPV4 = 0x1
+	VIRTIO_NET_HDR_GSO_UDP   = 0x3
+	VIRTIO_NET_HDR_GSO_TCPV6 = 0x4
+	VIRTIO_NET_HDR_GSO_ECN   = 0x80
 )

@@ -23,7 +23,8 @@ const (
 	_MAP_PRIVATE = 0x2
 	_MAP_FIXED   = 0x10
 
-	_MADV_FREE = 0x5
+	_MADV_DONTNEED = 0x4
+	_MADV_FREE     = 0x5
 
 	_SA_SIGINFO = 0x8
 	_SA_RESTART = 0x4
@@ -90,7 +91,10 @@ const (
 
 	_MAXHOSTNAMELEN = 0x100
 
+	_O_WRONLY   = 0x1
 	_O_NONBLOCK = 0x80
+	_O_TRUNC    = 0x200
+	_O_CREAT    = 0x100
 	_O_CLOEXEC  = 0x800000
 	_FD_CLOEXEC = 0x1
 	_F_GETFL    = 0x3

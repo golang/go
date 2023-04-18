@@ -13,8 +13,7 @@ import (
 	"fmt"
 	"internal/buildcfg"
 	"internal/testenv"
-	"io/ioutil"
-	"os/exec"
+	"os"
 	"testing"
 )
 
@@ -28,7 +27,7 @@ func TestLargeText(t *testing.T) {
 	const FN = 4
 	tmpdir := t.TempDir()
 
-	if err := ioutil.WriteFile(tmpdir+"/go.mod", []byte("module big_test\n"), 0666); err != nil {
+	if err := os.WriteFile(tmpdir+"/go.mod", []byte("module big_test\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -50,7 +49,7 @@ func TestLargeText(t *testing.T) {
 			fmt.Fprintf(&w, inst)
 		}
 		fmt.Fprintf(&w, "\tRET\n")
-		err := ioutil.WriteFile(tmpdir+"/"+testname+".s", w.Bytes(), 0666)
+		err := os.WriteFile(tmpdir+"/"+testname+".s", w.Bytes(), 0666)
 		if err != nil {
 			t.Fatalf("can't write output: %v\n", err)
 		}
@@ -77,19 +76,19 @@ func TestLargeText(t *testing.T) {
 	fmt.Fprintf(&w, "\t}\n")
 	fmt.Fprintf(&w, "\tfmt.Printf(\"PASS\\n\")\n")
 	fmt.Fprintf(&w, "}")
-	err := ioutil.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
+	err := os.WriteFile(tmpdir+"/bigfn.go", w.Bytes(), 0666)
 	if err != nil {
 		t.Fatalf("can't write output: %v\n", err)
 	}
 
 	// Build and run with internal linking.
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext")
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "bigtext")
 	cmd.Dir = tmpdir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Build failed for big text program with internal linking: %v, output: %s", err, out)
 	}
-	cmd = exec.Command("./bigtext")
+	cmd = testenv.Command(t, "./bigtext")
 	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -97,13 +96,13 @@ func TestLargeText(t *testing.T) {
 	}
 
 	// Build and run with external linking
-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext", "-ldflags", "'-linkmode=external'")
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "build", "-o", "bigtext", "-ldflags", "-linkmode=external")
 	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Build failed for big text program with external linking: %v, output: %s", err, out)
 	}
-	cmd = exec.Command("./bigtext")
+	cmd = testenv.Command(t, "./bigtext")
 	cmd.Dir = tmpdir
 	out, err = cmd.CombinedOutput()
 	if err != nil {

@@ -6,6 +6,7 @@ package base
 
 import (
 	"flag"
+	"os"
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
@@ -55,6 +56,13 @@ func (f explicitStringFlag) Set(v string) error {
 func AddBuildFlagsNX(flags *flag.FlagSet) {
 	flags.BoolVar(&cfg.BuildN, "n", false, "")
 	flags.BoolVar(&cfg.BuildX, "x", false, "")
+}
+
+// AddChdirFlag adds the -C flag to the flag set.
+func AddChdirFlag(flags *flag.FlagSet) {
+	// The usage message is never printed, but it's used in chdir_test.go
+	// to identify that the -C flag is from AddChdirFlag.
+	flags.Func("C", "AddChdirFlag", os.Chdir)
 }
 
 // AddModFlag adds the -mod build flag to the flag set.

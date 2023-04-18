@@ -15,9 +15,11 @@ import (
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
+	"debug/plan9obj"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/saferio"
 	"internal/xcoff"
 	"io"
 	"io/fs"
@@ -124,12 +126,24 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 			return "", "", errUnrecognizedFormat
 		}
 		x = &machoExe{f}
+	case bytes.HasPrefix(ident, []byte("\xCA\xFE\xBA\xBE")) || bytes.HasPrefix(ident, []byte("\xCA\xFE\xBA\xBF")):
+		f, err := macho.NewFatFile(r)
+		if err != nil || len(f.Arches) == 0 {
+			return "", "", errUnrecognizedFormat
+		}
+		x = &machoExe{f.Arches[0].File}
 	case bytes.HasPrefix(ident, []byte{0x01, 0xDF}) || bytes.HasPrefix(ident, []byte{0x01, 0xF7}):
 		f, err := xcoff.NewFile(r)
 		if err != nil {
 			return "", "", errUnrecognizedFormat
 		}
 		x = &xcoffExe{f}
+	case hasPlan9Magic(ident):
+		f, err := plan9obj.NewFile(r)
+		if err != nil {
+			return "", "", errUnrecognizedFormat
+		}
+		x = &plan9objExe{f}
 	default:
 		return "", "", errUnrecognizedFormat
 	}
@@ -157,7 +171,7 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 			data = data[i:]
 			break
 		}
-		data = data[(i+buildInfoAlign-1)&^buildInfoAlign:]
+		data = data[(i+buildInfoAlign-1)&^(buildInfoAlign-1):]
 	}
 
 	// Decode the blob.
@@ -185,8 +199,10 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 		var readPtr func([]byte) uint64
 		if ptrSize == 4 {
 			readPtr = func(b []byte) uint64 { return uint64(bo.Uint32(b)) }
-		} else {
+		} else if ptrSize == 8 {
 			readPtr = bo.Uint64
+		} else {
+			return "", "", errNotGoExe
 		}
 		vers = readString(x, ptrSize, readPtr, readPtr(data[16:]))
 		mod = readString(x, ptrSize, readPtr, readPtr(data[16+ptrSize:]))
@@ -203,6 +219,17 @@ func readRawBuildInfo(r io.ReaderAt) (vers, mod string, err error) {
 	}
 
 	return vers, mod, nil
+}
+
+func hasPlan9Magic(magic []byte) bool {
+	if len(magic) >= 4 {
+		m := binary.BigEndian.Uint32(magic)
+		switch m {
+		case plan9obj.Magic386, plan9obj.MagicAMD64, plan9obj.MagicARM:
+			return true
+		}
+	}
+	return false
 }
 
 func decodeString(data []byte) (s string, rest []byte) {
@@ -240,12 +267,7 @@ func (x *elfExe) ReadData(addr, size uint64) ([]byte, error) {
 			if n > size {
 				n = size
 			}
-			data := make([]byte, n)
-			_, err := prog.ReadAt(data, int64(addr-prog.Vaddr))
-			if err != nil {
-				return nil, err
-			}
-			return data, nil
+			return saferio.ReadDataAt(prog, n, int64(addr-prog.Vaddr))
 		}
 	}
 	return nil, errUnrecognizedFormat
@@ -288,12 +310,7 @@ func (x *peExe) ReadData(addr, size uint64) ([]byte, error) {
 			if n > size {
 				n = size
 			}
-			data := make([]byte, n)
-			_, err := sect.ReadAt(data, int64(addr-uint64(sect.VirtualAddress)))
-			if err != nil {
-				return nil, errUnrecognizedFormat
-			}
-			return data, nil
+			return saferio.ReadDataAt(sect, n, int64(addr-uint64(sect.VirtualAddress)))
 		}
 	}
 	return nil, errUnrecognizedFormat
@@ -340,12 +357,7 @@ func (x *machoExe) ReadData(addr, size uint64) ([]byte, error) {
 			if n > size {
 				n = size
 			}
-			data := make([]byte, n)
-			_, err := seg.ReadAt(data, int64(addr-seg.Addr))
-			if err != nil {
-				return nil, err
-			}
-			return data, nil
+			return saferio.ReadDataAt(seg, n, int64(addr-seg.Addr))
 		}
 	}
 	return nil, errUnrecognizedFormat
@@ -376,22 +388,45 @@ type xcoffExe struct {
 
 func (x *xcoffExe) ReadData(addr, size uint64) ([]byte, error) {
 	for _, sect := range x.f.Sections {
-		if uint64(sect.VirtualAddress) <= addr && addr <= uint64(sect.VirtualAddress+sect.Size-1) {
-			n := uint64(sect.VirtualAddress+sect.Size) - addr
+		if sect.VirtualAddress <= addr && addr <= sect.VirtualAddress+sect.Size-1 {
+			n := sect.VirtualAddress + sect.Size - addr
 			if n > size {
 				n = size
 			}
-			data := make([]byte, n)
-			_, err := sect.ReadAt(data, int64(addr-uint64(sect.VirtualAddress)))
-			if err != nil {
-				return nil, err
-			}
-			return data, nil
+			return saferio.ReadDataAt(sect, n, int64(addr-sect.VirtualAddress))
 		}
 	}
-	return nil, fmt.Errorf("address not mapped")
+	return nil, errors.New("address not mapped")
 }
 
 func (x *xcoffExe) DataStart() uint64 {
-	return x.f.SectionByType(xcoff.STYP_DATA).VirtualAddress
+	if s := x.f.SectionByType(xcoff.STYP_DATA); s != nil {
+		return s.VirtualAddress
+	}
+	return 0
+}
+
+// plan9objExe is the Plan 9 a.out implementation of the exe interface.
+type plan9objExe struct {
+	f *plan9obj.File
+}
+
+func (x *plan9objExe) DataStart() uint64 {
+	if s := x.f.Section("data"); s != nil {
+		return uint64(s.Offset)
+	}
+	return 0
+}
+
+func (x *plan9objExe) ReadData(addr, size uint64) ([]byte, error) {
+	for _, sect := range x.f.Sections {
+		if uint64(sect.Offset) <= addr && addr <= uint64(sect.Offset+sect.Size-1) {
+			n := uint64(sect.Offset+sect.Size) - addr
+			if n > size {
+				n = size
+			}
+			return saferio.ReadDataAt(sect, n, int64(addr-uint64(sect.Offset)))
+		}
+	}
+	return nil, errors.New("address not mapped")
 }

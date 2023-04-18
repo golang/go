@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js
+//go:build !js && !wasip1
 
 package net
 
@@ -24,18 +24,17 @@ var dialTimeoutTests = []struct {
 	delta   time.Duration // for deadline
 
 	guard time.Duration
-	max   time.Duration
 }{
 	// Tests that dial timeouts, deadlines in the past work.
-	{-5 * time.Second, 0, -5 * time.Second, 100 * time.Millisecond},
-	{0, -5 * time.Second, -5 * time.Second, 100 * time.Millisecond},
-	{-5 * time.Second, 5 * time.Second, -5 * time.Second, 100 * time.Millisecond}, // timeout over deadline
-	{-1 << 63, 0, time.Second, 100 * time.Millisecond},
-	{0, -1 << 63, time.Second, 100 * time.Millisecond},
+	{-5 * time.Second, 0, -5 * time.Second},
+	{0, -5 * time.Second, -5 * time.Second},
+	{-5 * time.Second, 5 * time.Second, -5 * time.Second}, // timeout over deadline
+	{-1 << 63, 0, time.Second},
+	{0, -1 << 63, time.Second},
 
-	{50 * time.Millisecond, 0, 100 * time.Millisecond, time.Second},
-	{0, 50 * time.Millisecond, 100 * time.Millisecond, time.Second},
-	{50 * time.Millisecond, 5 * time.Second, 100 * time.Millisecond, time.Second}, // timeout over deadline
+	{50 * time.Millisecond, 0, 100 * time.Millisecond},
+	{0, 50 * time.Millisecond, 100 * time.Millisecond},
+	{50 * time.Millisecond, 5 * time.Second, 100 * time.Millisecond}, // timeout over deadline
 }
 
 func TestDialTimeout(t *testing.T) {
@@ -59,35 +58,25 @@ func TestDialTimeout(t *testing.T) {
 			})
 		}
 
-		ch := make(chan error)
 		d := Dialer{Timeout: tt.timeout}
 		if tt.delta != 0 {
 			d.Deadline = time.Now().Add(tt.delta)
 		}
-		max := time.NewTimer(tt.max)
-		defer max.Stop()
-		go func() {
-			// This dial never starts to send any TCP SYN
-			// segment because of above socket filter and
-			// test hook.
-			c, err := d.Dial("tcp", "127.0.0.1:0")
-			if err == nil {
-				err = fmt.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
-				c.Close()
-			}
-			ch <- err
-		}()
 
-		select {
-		case <-max.C:
-			t.Fatalf("#%d: Dial didn't return in an expected time", i)
-		case err := <-ch:
-			if perr := parseDialError(err); perr != nil {
-				t.Errorf("#%d: %v", i, perr)
-			}
-			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
-				t.Fatalf("#%d: %v", i, err)
-			}
+		// This dial never starts to send any TCP SYN
+		// segment because of above socket filter and
+		// test hook.
+		c, err := d.Dial("tcp", "127.0.0.1:0")
+		if err == nil {
+			err = fmt.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
+			c.Close()
+		}
+
+		if perr := parseDialError(err); perr != nil {
+			t.Errorf("#%d: %v", i, perr)
+		}
+		if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+			t.Fatalf("#%d: %v", i, err)
 		}
 	}
 }
@@ -243,8 +232,7 @@ func TestAcceptTimeoutMustNotReturn(t *testing.T) {
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
 
-	max := time.NewTimer(100 * time.Millisecond)
-	defer max.Stop()
+	maxch := make(chan *time.Timer)
 	ch := make(chan error)
 	go func() {
 		if err := ln.(*TCPListener).SetDeadline(time.Now().Add(-5 * time.Second)); err != nil {
@@ -253,9 +241,13 @@ func TestAcceptTimeoutMustNotReturn(t *testing.T) {
 		if err := ln.(*TCPListener).SetDeadline(noDeadline); err != nil {
 			t.Error(err)
 		}
+		maxch <- time.NewTimer(100 * time.Millisecond)
 		_, err := ln.Accept()
 		ch <- err
 	}()
+
+	max := <-maxch
+	defer max.Stop()
 
 	select {
 	case err := <-ch:
@@ -280,6 +272,7 @@ var readTimeoutTests = []struct {
 	{50 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadTimeout(t *testing.T) {
 	handler := func(ls *localServer, ln Listener) {
 		c, err := ln.Accept()
@@ -331,6 +324,7 @@ func TestReadTimeout(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadTimeoutMustNotReturn(t *testing.T) {
 	t.Parallel()
 
@@ -348,8 +342,7 @@ func TestReadTimeoutMustNotReturn(t *testing.T) {
 	}
 	defer c.Close()
 
-	max := time.NewTimer(100 * time.Millisecond)
-	defer max.Stop()
+	maxch := make(chan *time.Timer)
 	ch := make(chan error)
 	go func() {
 		if err := c.SetDeadline(time.Now().Add(-5 * time.Second)); err != nil {
@@ -361,10 +354,14 @@ func TestReadTimeoutMustNotReturn(t *testing.T) {
 		if err := c.SetReadDeadline(noDeadline); err != nil {
 			t.Error(err)
 		}
+		maxch <- time.NewTimer(100 * time.Millisecond)
 		var b [1]byte
 		_, err := c.Read(b[:])
 		ch <- err
 	}()
+
+	max := <-maxch
+	defer max.Stop()
 
 	select {
 	case err := <-ch:
@@ -460,6 +457,7 @@ var writeTimeoutTests = []struct {
 	{10 * time.Millisecond, [2]error{nil, os.ErrDeadlineExceeded}},
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestWriteTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -500,6 +498,7 @@ func TestWriteTimeout(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestWriteTimeoutMustNotReturn(t *testing.T) {
 	t.Parallel()
 
@@ -517,8 +516,7 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 	}
 	defer c.Close()
 
-	max := time.NewTimer(100 * time.Millisecond)
-	defer max.Stop()
+	maxch := make(chan *time.Timer)
 	ch := make(chan error)
 	go func() {
 		if err := c.SetDeadline(time.Now().Add(-5 * time.Second)); err != nil {
@@ -530,6 +528,7 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 		if err := c.SetWriteDeadline(noDeadline); err != nil {
 			t.Error(err)
 		}
+		maxch <- time.NewTimer(100 * time.Millisecond)
 		var b [1]byte
 		for {
 			if _, err := c.Write(b[:]); err != nil {
@@ -538,6 +537,9 @@ func TestWriteTimeoutMustNotReturn(t *testing.T) {
 			}
 		}
 	}()
+
+	max := <-maxch
+	defer max.Stop()
 
 	select {
 	case err := <-ch:
@@ -676,6 +678,7 @@ func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
 	return next, true
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadTimeoutFluctuation(t *testing.T) {
 	ln := newLocalListener(t, "tcp")
 	defer ln.Close()
@@ -732,6 +735,7 @@ func TestReadTimeoutFluctuation(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadFromTimeoutFluctuation(t *testing.T) {
 	c1 := newLocalPacketListener(t, "udp")
 	defer c1.Close()
@@ -867,11 +871,13 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestVariousDeadlines(t *testing.T) {
 	t.Parallel()
 	testVariousDeadlines(t)
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestVariousDeadlines1Proc(t *testing.T) {
 	// Cannot use t.Parallel - modifies global GOMAXPROCS.
 	if testing.Short() {
@@ -881,6 +887,7 @@ func TestVariousDeadlines1Proc(t *testing.T) {
 	testVariousDeadlines(t)
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestVariousDeadlines4Proc(t *testing.T) {
 	// Cannot use t.Parallel - modifies global GOMAXPROCS.
 	if testing.Short() {
@@ -890,25 +897,7 @@ func TestVariousDeadlines4Proc(t *testing.T) {
 	testVariousDeadlines(t)
 }
 
-type neverEnding byte
-
-func (b neverEnding) Read(p []byte) (int, error) {
-	for i := range p {
-		p[i] = byte(b)
-	}
-	return len(p), nil
-}
-
 func testVariousDeadlines(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test on plan9; see golang.org/issue/26945")
-	}
-	type result struct {
-		n   int64
-		err error
-		d   time.Duration
-	}
-
 	handler := func(ls *localServer, ln Listener) {
 		for {
 			c, err := ln.Accept()
@@ -1058,6 +1047,7 @@ func TestReadWriteProlongedTimeout(t *testing.T) {
 	}
 }
 
+// There is a very similar copy of this in os/timeout_test.go.
 func TestReadWriteDeadlineRace(t *testing.T) {
 	t.Parallel()
 

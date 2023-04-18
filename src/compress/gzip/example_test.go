@@ -160,6 +160,10 @@ func Example_compressingReader() {
 	// httpWriter is the body of the HTTP request, as an io.Writer.
 	bodyReader, httpWriter := io.Pipe()
 
+	// Make sure that bodyReader is always closed, so that the
+	// goroutine below will always exit.
+	defer bodyReader.Close()
+
 	// gzipWriter compresses data to httpWriter.
 	gzipWriter := gzip.NewWriter(httpWriter)
 
@@ -197,7 +201,6 @@ func Example_compressingReader() {
 
 	// Note that passing req to http.Client.Do promises that it
 	// will close the body, in this case bodyReader.
-	// That ensures that the goroutine will exit.
 	resp, err := ts.Client().Do(req)
 	if err != nil {
 		log.Fatal(err)

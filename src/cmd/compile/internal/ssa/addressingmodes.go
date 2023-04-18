@@ -196,7 +196,7 @@ var combine = map[[2]Op]Op{
 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ8}: OpAMD64MOVQstoreconstidx8,
 
 	// These instructions are re-split differently for performance, see needSplit above.
-	// TODO if 386 versions are created, also update needSplit and gen/386splitload.rules
+	// TODO if 386 versions are created, also update needSplit and _gen/386splitload.rules
 	[2]Op{OpAMD64CMPBload, OpAMD64ADDQ}: OpAMD64CMPBloadidx1,
 	[2]Op{OpAMD64CMPWload, OpAMD64ADDQ}: OpAMD64CMPWloadidx1,
 	[2]Op{OpAMD64CMPLload, OpAMD64ADDQ}: OpAMD64CMPLloadidx1,

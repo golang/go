@@ -4,7 +4,7 @@
 # Remove 'go' from $PATH. (It can still be located via $GOROOT/bin/go, and the
 # test script's built-in 'go' command still knows where to find it.)
 env PATH=''
-[plan9] env path=''
+[GOOS:plan9] env path=''
 
 go doc p.X
 

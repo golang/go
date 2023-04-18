@@ -32,22 +32,22 @@
 package ld
 
 import (
-	"cmd/internal/goobj"
-	"cmd/link/internal/loader"
-	"cmd/link/internal/sym"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"cmd/internal/goobj"
+	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 )
 
 func (ctxt *Link) readImportCfg(file string) {
 	ctxt.PackageFile = make(map[string]string)
 	ctxt.PackageShlib = make(map[string]string)
-	data, err := ioutil.ReadFile(file)
+	data, err := os.ReadFile(file)
 	if err != nil {
 		log.Fatalf("-importcfg: %v", err)
 	}
@@ -196,7 +196,7 @@ func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint
 	l.Fingerprint = fingerprint
 	if shlib != "" {
 		if strings.HasSuffix(shlib, ".shlibname") {
-			data, err := ioutil.ReadFile(shlib)
+			data, err := os.ReadFile(shlib)
 			if err != nil {
 				Errorf(nil, "cannot read %s: %v", shlib, err)
 			}
@@ -232,7 +232,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 
 	// Create a new init func text symbol. Caller will populate this
 	// sym with arch-specific content.
-	ifs := ctxt.loader.LookupOrCreateSym("go.link.addmoduledata", 0)
+	ifs := ctxt.loader.LookupOrCreateSym("go:link.addmoduledata", 0)
 	initfunc := ctxt.loader.MakeSymbolUpdater(ifs)
 	ctxt.loader.SetAttrReachable(ifs, true)
 	ctxt.loader.SetAttrLocal(ifs, true)
@@ -245,7 +245,7 @@ func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
 	ctxt.Textp = append(ctxt.Textp, initfunc.Sym())
 
 	// Create an init array entry
-	amdi := ctxt.loader.LookupOrCreateSym("go.link.addmoduledatainit", 0)
+	amdi := ctxt.loader.LookupOrCreateSym("go:link.addmoduledatainit", 0)
 	initarray_entry := ctxt.loader.MakeSymbolUpdater(amdi)
 	ctxt.loader.SetAttrReachable(amdi, true)
 	ctxt.loader.SetAttrLocal(amdi, true)

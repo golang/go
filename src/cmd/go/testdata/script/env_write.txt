@@ -4,14 +4,14 @@ env GO111MODULE=off
 env AppData=$HOME/windowsappdata
 env home=$HOME/plan9home
 go env GOENV
-[aix] stdout $HOME/.config/go/env
-[darwin] stdout $HOME'/Library/Application Support/go/env'
-[freebsd] stdout $HOME/.config/go/env
-[linux] stdout $HOME/.config/go/env
-[netbsd] stdout $HOME/.config/go/env
-[openbsd] stdout $HOME/.config/go/env
-[plan9] stdout $HOME/plan9home/lib/go/env
-[windows] stdout $HOME\\windowsappdata\\go\\env
+[GOOS:aix] stdout $HOME/.config/go/env
+[GOOS:darwin] stdout $HOME'/Library/Application Support/go/env'
+[GOOS:freebsd] stdout $HOME/.config/go/env
+[GOOS:linux] stdout $HOME/.config/go/env
+[GOOS:netbsd] stdout $HOME/.config/go/env
+[GOOS:openbsd] stdout $HOME/.config/go/env
+[GOOS:plan9] stdout $HOME/plan9home/lib/go/env
+[GOOS:windows] stdout $HOME\\windowsappdata\\go\\env
 
 # Now override it to something writable.
 env GOENV=$WORK/envdir/go/env
@@ -36,7 +36,7 @@ stderr 'go: ''go env -u'' requires an argument'
 
 # go env -w changes default setting
 env root=
-[windows] env root=c:
+[GOOS:windows] env root=c:
 env GOPATH=
 go env -w GOPATH=$root/non-exist/gopath
 ! stderr .+
@@ -115,43 +115,43 @@ stderr 'go: GOTMPDIR must be an absolute path'
 
 # go env -w should accept absolute GOTMPDIR value
 # and should not create it
-[windows] go env -w GOTMPDIR=$WORK\x\y\z
-[!windows] go env -w GOTMPDIR=$WORK/x/y/z
+[GOOS:windows] go env -w GOTMPDIR=$WORK\x\y\z
+[!GOOS:windows] go env -w GOTMPDIR=$WORK/x/y/z
 ! exists $WORK/x/y/z
 # we should be able to clear an env
 go env -u GOTMPDIR
 go env GOTMPDIR
 stdout ^$
 
-[windows] go env -w GOTMPDIR=$WORK\x\y\z
-[!windows] go env -w GOTMPDIR=$WORK/x/y/z
+[GOOS:windows] go env -w GOTMPDIR=$WORK\x\y\z
+[!GOOS:windows] go env -w GOTMPDIR=$WORK/x/y/z
 go env -w GOTMPDIR=
 go env GOTMPDIR
 stdout ^$
 
 # go env -w rejects relative CC values
-[!windows] go env -w CC=/usr/bin/clang
+[!GOOS:windows] go env -w CC=/usr/bin/clang
 go env -w CC=clang
-[!windows] ! go env -w CC=./clang
-[!windows] ! go env -w CC=bin/clang
-[!windows] stderr 'go: CC entry is relative; must be absolute path'
+[!GOOS:windows] ! go env -w CC=./clang
+[!GOOS:windows] ! go env -w CC=bin/clang
+[!GOOS:windows] stderr 'go: CC entry is relative; must be absolute path'
 
-[windows] go env -w CC=$WORK\bin\clang
-[windows] ! go env -w CC=.\clang
-[windows] ! go env -w CC=bin\clang
-[windows] stderr 'go: CC entry is relative; must be absolute path'
+[GOOS:windows] go env -w CC=$WORK\bin\clang
+[GOOS:windows] ! go env -w CC=.\clang
+[GOOS:windows] ! go env -w CC=bin\clang
+[GOOS:windows] stderr 'go: CC entry is relative; must be absolute path'
 
 # go env -w rejects relative CXX values
-[!windows] go env -w CC=/usr/bin/cpp
+[!GOOS:windows] go env -w CC=/usr/bin/cpp
 go env -w CXX=cpp
-[!windows] ! go env -w CXX=./cpp
-[!windows] ! go env -w CXX=bin/cpp
-[!windows] stderr 'go: CXX entry is relative; must be absolute path'
+[!GOOS:windows] ! go env -w CXX=./cpp
+[!GOOS:windows] ! go env -w CXX=bin/cpp
+[!GOOS:windows] stderr 'go: CXX entry is relative; must be absolute path'
 
-[windows] go env -w CXX=$WORK\bin\cpp
-[windows] ! go env -w CXX=.\cpp
-[windows] ! go env -w CXX=bin\cpp
-[windows] stderr 'go: CXX entry is relative; must be absolute path'
+[GOOS:windows] go env -w CXX=$WORK\bin\cpp
+[GOOS:windows] ! go env -w CXX=.\cpp
+[GOOS:windows] ! go env -w CXX=bin\cpp
+[GOOS:windows] stderr 'go: CXX entry is relative; must be absolute path'
 
 # go env -w/-u checks validity of GOOS/ARCH combinations
 env GOOS=

@@ -52,6 +52,11 @@ func TestShared(t *testing.T) {
 			t.Logf("skipping %s test on %s/%s; -msan option is not supported.", name, GOOS, GOARCH)
 			continue
 		}
+		if tc.sanitizer == "thread" && !compilerRequiredTsanVersion(GOOS, GOARCH) {
+			t.Logf("skipping %s test on %s/%s; compiler version too old for -tsan.", name, GOOS, GOARCH)
+			continue
+		}
+
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			config := configure(tc.sanitizer)

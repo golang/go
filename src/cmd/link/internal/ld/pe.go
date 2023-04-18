@@ -98,22 +98,23 @@ const (
 // See https://docs.microsoft.com/en-us/windows/win32/debug/pe-format.
 // TODO(crawshaw): add these constants to debug/pe.
 const (
-	// TODO: the Microsoft doco says IMAGE_SYM_DTYPE_ARRAY is 3 and IMAGE_SYM_DTYPE_FUNCTION is 2
 	IMAGE_SYM_TYPE_NULL      = 0
 	IMAGE_SYM_TYPE_STRUCT    = 8
-	IMAGE_SYM_DTYPE_FUNCTION = 0x20
-	IMAGE_SYM_DTYPE_ARRAY    = 0x30
+	IMAGE_SYM_DTYPE_FUNCTION = 2
+	IMAGE_SYM_DTYPE_ARRAY    = 3
 	IMAGE_SYM_CLASS_EXTERNAL = 2
 	IMAGE_SYM_CLASS_STATIC   = 3
 
-	IMAGE_REL_I386_DIR32  = 0x0006
-	IMAGE_REL_I386_SECREL = 0x000B
-	IMAGE_REL_I386_REL32  = 0x0014
+	IMAGE_REL_I386_DIR32   = 0x0006
+	IMAGE_REL_I386_DIR32NB = 0x0007
+	IMAGE_REL_I386_SECREL  = 0x000B
+	IMAGE_REL_I386_REL32   = 0x0014
 
-	IMAGE_REL_AMD64_ADDR64 = 0x0001
-	IMAGE_REL_AMD64_ADDR32 = 0x0002
-	IMAGE_REL_AMD64_REL32  = 0x0004
-	IMAGE_REL_AMD64_SECREL = 0x000B
+	IMAGE_REL_AMD64_ADDR64   = 0x0001
+	IMAGE_REL_AMD64_ADDR32   = 0x0002
+	IMAGE_REL_AMD64_ADDR32NB = 0x0003
+	IMAGE_REL_AMD64_REL32    = 0x0004
+	IMAGE_REL_AMD64_SECREL   = 0x000B
 
 	IMAGE_REL_ARM_ABSOLUTE = 0x0000
 	IMAGE_REL_ARM_ADDR32   = 0x0001
@@ -152,6 +153,7 @@ const (
 
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."
+// See IMAGE_DOS_HEADER in the Windows SDK for the format of the header used here.
 var dosstub = []uint8{
 	0x4d,
 	0x5a,
@@ -159,9 +161,9 @@ var dosstub = []uint8{
 	0x00,
 	0x03,
 	0x00,
+	0x00,
+	0x00,
 	0x04,
-	0x00,
-	0x00,
 	0x00,
 	0x00,
 	0x00,
@@ -723,25 +725,47 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 
 		// Only windows/386 requires underscore prefix on external symbols.
 		if ctxt.Is386() && ctxt.IsExternal() &&
-			(t == sym.SHOSTOBJ || t == sym.SUNDEFEXT || ldr.AttrCgoExport(s)) {
+			(t == sym.SHOSTOBJ || t == sym.SUNDEFEXT || ldr.AttrCgoExport(s) ||
+				// TODO(cuonglm): remove this hack
+				//
+				// Previously, windows/386 requires underscore prefix on external symbols,
+				// but that's only applied for SHOSTOBJ/SUNDEFEXT or cgo export symbols.
+				// "go.buildid" is STEXT, "type.*" is STYPE, thus they are not prefixed
+				// with underscore.
+				//
+				// In external linking mode, the external linker can't resolve them as
+				// external symbols. But we are lucky that they have "." in their name,
+				// so the external linker see them as Forwarder RVA exports. See:
+				//
+				//  - https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#export-address-table
+				//  - https://sourceware.org/git/?p=binutils-gdb.git;a=blob;f=ld/pe-dll.c;h=e7b82ba6ffadf74dc1b9ee71dc13d48336941e51;hb=HEAD#l972)
+				//
+				// CL 317917 changes "." to ":" in symbols name, so theses symbols can not be
+				// found by external linker anymore. So a hacky way is adding the
+				// underscore prefix for these 2 symbols. I don't have enough knowledge to
+				// verify whether adding the underscore for all STEXT/STYPE symbols are
+				// fine, even if it could be, that would be done in future CL.
+				name == "go:buildid" || name == "type:*") {
 			name = "_" + name
 		}
 
 		name = mangleABIName(ctxt, ldr, s, name)
 
-		var peSymType uint16
-		if ctxt.IsExternal() {
-			peSymType = IMAGE_SYM_TYPE_NULL
-		} else {
-			// TODO: fix IMAGE_SYM_DTYPE_ARRAY value and use following expression, instead of 0x0308
-			// peSymType = IMAGE_SYM_DTYPE_ARRAY<<8 + IMAGE_SYM_TYPE_STRUCT
-			peSymType = 0x0308 // "array of structs"
+		var peSymType uint16 = IMAGE_SYM_TYPE_NULL
+		switch t {
+		case sym.STEXT, sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
+			// Microsoft's PE documentation is contradictory. It says that the symbol's complex type
+			// is stored in the pesym.Type most significant byte, but MSVC, LLVM, and mingw store it
+			// in the 4 high bits of the less significant byte. Also, the PE documentation says that
+			// the basic type for a function should be IMAGE_SYM_TYPE_VOID,
+			// but the reality is that it uses IMAGE_SYM_TYPE_NULL instead.
+			peSymType = IMAGE_SYM_DTYPE_FUNCTION<<4 + IMAGE_SYM_TYPE_NULL
 		}
 		sect, value, err := f.mapToPESection(ldr, s, ctxt.LinkMode)
 		if err != nil {
-			if t == sym.SDYNIMPORT || t == sym.SHOSTOBJ || t == sym.SUNDEFEXT {
-				peSymType = IMAGE_SYM_DTYPE_FUNCTION
-			} else {
+			switch t {
+			case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
+			default:
 				ctxt.Errorf(s, "addpesym: %v", err)
 			}
 		}
@@ -780,7 +804,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		if ldr.AttrNotInSymbolTable(s) {
 			return false
 		}
-		name := ldr.RawSymName(s) // TODO: try not to read the name
+		name := ldr.SymName(s) // TODO: try not to read the name
 		if name == "" || name[0] == '.' {
 			return false
 		}
@@ -864,10 +888,8 @@ func (f *peFile) writeFileHeader(ctxt *Link) {
 	// much more beneficial than having build timestamp in the header.
 	fh.TimeDateStamp = 0
 
-	if ctxt.LinkMode == LinkExternal {
-		fh.Characteristics = pe.IMAGE_FILE_LINE_NUMS_STRIPPED
-	} else {
-		fh.Characteristics = pe.IMAGE_FILE_EXECUTABLE_IMAGE | pe.IMAGE_FILE_DEBUG_STRIPPED
+	if ctxt.LinkMode != LinkExternal {
+		fh.Characteristics = pe.IMAGE_FILE_EXECUTABLE_IMAGE
 		switch ctxt.Arch.Family {
 		case sys.AMD64, sys.I386:
 			if ctxt.BuildMode != BuildModePIE {

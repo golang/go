@@ -1,6 +1,6 @@
 env GO111MODULE=off
 
-[!gc] skip 'using -gcflags and -ldflags'
+[!compiler:gc] skip 'using -gcflags and -ldflags'
 [short] skip
 
 env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
@@ -33,6 +33,10 @@ stderr 'compile.* -p z3.* -e '
 # this particular -gcflags argument made the compiler crash
 ! go build -gcflags=-d=ssa/ z1
 stderr 'PhaseOptions usage'
+
+# check for valid -ldflags parameter
+! go build '-ldflags="-X main.X=Hello"'
+stderr 'invalid value'
 
 # -ldflags for implicit test package applies to test binary
 go test -c -n -gcflags=-N -ldflags=-X=x.y=z z1

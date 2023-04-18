@@ -16,6 +16,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"unsafe"
 )
 
@@ -169,9 +170,29 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	// barrier, so at worst we've unnecessarily greyed the old
 	// pointer that was in src.
 	memmove(dst, src, typ.size)
-	if writeBarrier.cgo {
-		cgoCheckMemmove(typ, dst, src, 0, typ.size)
+	if goexperiment.CgoCheck2 {
+		cgoCheckMemmove2(typ, dst, src, 0, typ.size)
 	}
+}
+
+// wbZero performs the write barrier operations necessary before
+// zeroing a region of memory at address dst of type typ.
+// Does not actually do the zeroing.
+//
+//go:nowritebarrierrec
+//go:nosplit
+func wbZero(typ *_type, dst unsafe.Pointer) {
+	bulkBarrierPreWrite(uintptr(dst), 0, typ.ptrdata)
+}
+
+// wbMove performs the write barrier operations necessary before
+// copying a region of memory from src to dst of type typ.
+// Does not actually do the copying.
+//
+//go:nowritebarrierrec
+//go:nosplit
+func wbMove(typ *_type, dst, src unsafe.Pointer) {
+	bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.ptrdata)
 }
 
 //go:linkname reflect_typedmemmove reflect.typedmemmove
@@ -194,29 +215,6 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:linkname reflectlite_typedmemmove internal/reflectlite.typedmemmove
 func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	reflect_typedmemmove(typ, dst, src)
-}
-
-// typedmemmovepartial is like typedmemmove but assumes that
-// dst and src point off bytes into the value and only copies size bytes.
-// off must be a multiple of goarch.PtrSize.
-//
-//go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
-func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if writeBarrier.needed && typ.ptrdata > off && size >= goarch.PtrSize {
-		if off&(goarch.PtrSize-1) != 0 {
-			panic("reflect: internal error: misaligned offset")
-		}
-		pwsize := alignDown(size, goarch.PtrSize)
-		if poff := typ.ptrdata - off; pwsize > poff {
-			pwsize = poff
-		}
-		bulkBarrierPreWrite(uintptr(dst), uintptr(src), pwsize)
-	}
-
-	memmove(dst, src, size)
-	if writeBarrier.cgo {
-		cgoCheckMemmove(typ, dst, src, off, size)
-	}
 }
 
 // reflectcallmove is invoked by reflectcall to copy the return values
@@ -272,7 +270,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 		asanread(srcPtr, uintptr(n)*typ.size)
 	}
 
-	if writeBarrier.cgo {
+	if goexperiment.CgoCheck2 {
 		cgoCheckSliceCopy(typ, dstPtr, srcPtr, n)
 	}
 
@@ -311,6 +309,8 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 // If the caller knows that typ has pointers, it can alternatively
 // call memclrHasPointers.
 //
+// TODO: A "go:nosplitrec" annotation would be perfect for this.
+//
 //go:nosplit
 func typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	if writeBarrier.needed && typ.ptrdata != 0 {
@@ -326,6 +326,15 @@ func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
 
 //go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
 func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
+	if writeBarrier.needed && typ.ptrdata != 0 {
+		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+	}
+	memclrNoHeapPointers(ptr, size)
+}
+
+//go:linkname reflect_typedarrayclear reflect.typedarrayclear
+func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
+	size := typ.size * uintptr(len)
 	if writeBarrier.needed && typ.ptrdata != 0 {
 		bulkBarrierPreWrite(uintptr(ptr), 0, size)
 	}

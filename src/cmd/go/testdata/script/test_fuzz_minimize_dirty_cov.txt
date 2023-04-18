@@ -10,8 +10,8 @@
 [!fuzz-instrumented] skip
 
 env GOCACHE=$WORK/gocache
-go test -fuzz=FuzzCovMin -fuzztime=25s -test.fuzzcachedir=$GOCACHE/fuzz
-go run check_file/main.go $GOCACHE/fuzz/FuzzCovMin abcd
+go test -fuzz=FuzzCovMin -fuzztime=500000x -test.fuzzcachedir=$GOCACHE/fuzz
+go run check_file/main.go $GOCACHE/fuzz/FuzzCovMin ab
 
 -- go.mod --
 module test
@@ -22,8 +22,9 @@ package covmin
 import "testing"
 
 func FuzzCovMin(f *testing.F) {
+	f.Add([]byte("aa"))
 	f.Fuzz(func(t *testing.T, data []byte) {
-		if len(data) >= 4 && data[0] == 'a' && data[1] == 'b' && data[2] == 'c' && data[3] == 'd' {
+		if len(data) == 2 && data[0] == 'a' && data[1] == 'b' {
 			return
 		}
 	})

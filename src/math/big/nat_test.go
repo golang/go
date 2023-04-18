@@ -523,6 +523,12 @@ var expNNTests = []struct {
 		"444747819283133684179",
 		"42",
 	},
+	{"375", "249", "388", "175"},
+	{"375", "18446744073709551801", "388", "175"},
+	{"0", "0x40000000000000", "0x200", "0"},
+	{"0xeffffff900002f00", "0x40000000000000", "0x200", "0"},
+	{"5", "1435700818", "72", "49"},
+	{"0xffff", "0x300030003000300030003000300030003000302a3000300030003000300030003000300030003000300030003000300030003030623066307f3030783062303430383064303630343036", "0x300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", "0xa3f94c08b0b90e87af637cacc9383f7ea032352b8961fc036a52b659b6c9b33491b335ffd74c927f64ddd62cfca0001"},
 }
 
 func TestExpNN(t *testing.T) {
@@ -536,11 +542,27 @@ func TestExpNN(t *testing.T) {
 			m = natFromString(test.m)
 		}
 
-		z := nat(nil).expNN(x, y, m)
+		z := nat(nil).expNN(x, y, m, false)
 		if z.cmp(out) != 0 {
 			t.Errorf("#%d got %s want %s", i, z.utoa(10), out.utoa(10))
 		}
 	}
+}
+
+func FuzzExpMont(f *testing.F) {
+	f.Fuzz(func(t *testing.T, x1, x2, x3, y1, y2, y3, m1, m2, m3 uint) {
+		if m1 == 0 && m2 == 0 && m3 == 0 {
+			return
+		}
+		x := new(Int).SetBits([]Word{Word(x1), Word(x2), Word(x3)})
+		y := new(Int).SetBits([]Word{Word(y1), Word(y2), Word(y3)})
+		m := new(Int).SetBits([]Word{Word(m1), Word(m2), Word(m3)})
+		out := new(Int).Exp(x, y, m)
+		want := new(Int).expSlow(x, y, m)
+		if out.Cmp(want) != 0 {
+			t.Errorf("x = %#x\ny=%#x\nz=%#x\nout=%#x\nwant=%#x\ndc: 16o 16i %X %X %X |p", x, y, m, out, want, x, y, m)
+		}
+	})
 }
 
 func BenchmarkExp3Power(b *testing.B) {
@@ -729,6 +751,54 @@ func BenchmarkNatSqr(b *testing.B) {
 		}
 		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
 			benchmarkNatSqr(b, n)
+		})
+	}
+}
+
+var subMod2NTests = []struct {
+	x string
+	y string
+	n uint
+	z string
+}{
+	{"1", "2", 0, "0"},
+	{"1", "0", 1, "1"},
+	{"0", "1", 1, "1"},
+	{"3", "5", 3, "6"},
+	{"5", "3", 3, "2"},
+	// 2^65, 2^66-1, 2^65 - (2^66-1) + 2^67
+	{"36893488147419103232", "73786976294838206463", 67, "110680464442257309697"},
+	// 2^66-1, 2^65, 2^65-1
+	{"73786976294838206463", "36893488147419103232", 67, "36893488147419103231"},
+}
+
+func TestNatSubMod2N(t *testing.T) {
+	for _, mode := range []string{"noalias", "aliasX", "aliasY"} {
+		t.Run(mode, func(t *testing.T) {
+			for _, tt := range subMod2NTests {
+				x0 := natFromString(tt.x)
+				y0 := natFromString(tt.y)
+				want := natFromString(tt.z)
+				x := nat(nil).set(x0)
+				y := nat(nil).set(y0)
+				var z nat
+				switch mode {
+				case "aliasX":
+					z = x
+				case "aliasY":
+					z = y
+				}
+				z = z.subMod2N(x, y, tt.n)
+				if z.cmp(want) != 0 {
+					t.Fatalf("subMod2N(%d, %d, %d) = %d, want %d", x0, y0, tt.n, z, want)
+				}
+				if mode != "aliasX" && x.cmp(x0) != 0 {
+					t.Fatalf("subMod2N(%d, %d, %d) modified x", x0, y0, tt.n)
+				}
+				if mode != "aliasY" && y.cmp(y0) != 0 {
+					t.Fatalf("subMod2N(%d, %d, %d) modified y", x0, y0, tt.n)
+				}
+			}
 		})
 	}
 }

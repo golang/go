@@ -342,7 +342,6 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
 // not do so with gccgo, and nor do some other build systems.
 // TODO(adonovan): eliminate the redundant facts once this restriction
 // is lifted.
-//
 var isPrint = stringSet{
 	"fmt.Errorf":   true,
 	"fmt.Fprint":   true,
@@ -584,7 +583,6 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 	argNum := firstArg
 	maxArgNum := firstArg
 	anyIndex := false
-	anyW := false
 	for i, w := 0, 0; i < len(format); i += w {
 		w = 1
 		if format[i] != '%' {
@@ -607,11 +605,6 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
 				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", state.name)
 				return
 			}
-			if anyW {
-				pass.Reportf(call.Pos(), "%s call has more than one error-wrapping directive %%w", state.name)
-				return
-			}
-			anyW = true
 		}
 		if len(state.argNums) > 0 {
 			// Continue with the next sequential argument.
@@ -673,12 +666,13 @@ func (s *formatState) parseIndex() bool {
 	s.scanNum()
 	ok := true
 	if s.nbytes == len(s.format) || s.nbytes == start || s.format[s.nbytes] != ']' {
-		ok = false
-		s.nbytes = strings.Index(s.format, "]")
+		ok = false // syntax error is either missing "]" or invalid index.
+		s.nbytes = strings.Index(s.format[start:], "]")
 		if s.nbytes < 0 {
 			s.pass.ReportRangef(s.call, "%s format %s is missing closing ]", s.name, s.format)
 			return false
 		}
+		s.nbytes = s.nbytes + start
 	}
 	arg32, err := strconv.ParseInt(s.format[start:s.nbytes], 10, 32)
 	if err != nil || !ok || arg32 <= 0 || arg32 > int64(len(s.call.Args)-s.firstArg) {
@@ -931,9 +925,9 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 // recursiveStringer reports whether the argument e is a potential
 // recursive call to stringer or is an error, such as t and &t in these examples:
 //
-// 	func (t *T) String() string { printf("%s",  t) }
-// 	func (t  T) Error() string { printf("%s",  t) }
-// 	func (t  T) String() string { printf("%s", &t) }
+//	func (t *T) String() string { printf("%s",  t) }
+//	func (t  T) Error() string { printf("%s",  t) }
+//	func (t  T) String() string { printf("%s", &t) }
 func recursiveStringer(pass *analysis.Pass, e ast.Expr) (string, bool) {
 	typ := pass.TypesInfo.Types[e].Type
 
@@ -951,11 +945,16 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) (string, bool) {
 		return "", false
 	}
 
+	// inScope returns true if e is in the scope of f.
+	inScope := func(e ast.Expr, f *types.Func) bool {
+		return f.Scope() != nil && f.Scope().Contains(e.Pos())
+	}
+
 	// Is the expression e within the body of that String or Error method?
 	var method *types.Func
-	if strOk && strMethod.Pkg() == pass.Pkg && strMethod.Scope().Contains(e.Pos()) {
+	if strOk && strMethod.Pkg() == pass.Pkg && inScope(e, strMethod) {
 		method = strMethod
-	} else if errOk && errMethod.Pkg() == pass.Pkg && errMethod.Scope().Contains(e.Pos()) {
+	} else if errOk && errMethod.Pkg() == pass.Pkg && inScope(e, errMethod) {
 		method = errMethod
 	} else {
 		return "", false

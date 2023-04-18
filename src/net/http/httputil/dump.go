@@ -59,7 +59,7 @@ func (b neverEnding) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// outGoingLength is a copy of the unexported
+// outgoingLength is a copy of the unexported
 // (*http.Request).outgoingLength method.
 func outgoingLength(req *http.Request) int64 {
 	if req.Body == nil || req.Body == http.NoBody {
@@ -257,9 +257,6 @@ func DumpRequest(req *http.Request, body bool) ([]byte, error) {
 	chunked := len(req.TransferEncoding) > 0 && req.TransferEncoding[0] == "chunked"
 	if len(req.TransferEncoding) > 0 {
 		fmt.Fprintf(&b, "Transfer-Encoding: %s\r\n", strings.Join(req.TransferEncoding, ","))
-	}
-	if req.Close {
-		fmt.Fprintf(&b, "Connection: close\r\n")
 	}
 
 	err = req.Header.WriteSubset(&b, reqWriteExcludeHeaderDump)

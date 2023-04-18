@@ -134,14 +134,13 @@ func (p *textPrinter) block(out *bytes.Buffer, x Block) {
 }
 
 // text prints the text sequence x to out.
-// TODO: Wrap lines.
 func (p *textPrinter) text(out *bytes.Buffer, indent string, x []Text) {
 	p.oneLongLine(&p.long, x)
 	words := strings.Fields(p.long.String())
 	p.long.Reset()
 
 	var seq []int
-	if p.width < 0 {
+	if p.width < 0 || len(words) == 0 {
 		seq = []int{0, len(words)} // one long line
 	} else {
 		seq = wrap(words, p.width-utf8.RuneCountInString(indent))

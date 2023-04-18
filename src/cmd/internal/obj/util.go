@@ -202,6 +202,7 @@ func (p *Prog) WriteInstructionString(w io.Writer) {
 	if p.To.Type != TYPE_NONE {
 		io.WriteString(w, sep)
 		WriteDconv(w, p, &p.To)
+		sep = ", "
 	}
 	if p.RegTo2 != REG_NONE {
 		fmt.Fprintf(w, "%s%v", sep, Rconv(int(p.RegTo2)))
@@ -233,7 +234,7 @@ func Dconv(p *Prog, a *Addr) string {
 	return buf.String()
 }
 
-// DconvDconvWithABIDetail accepts an argument 'a' within a prog 'p'
+// DconvWithABIDetail accepts an argument 'a' within a prog 'p'
 // and returns a string with a formatted version of the argument, in
 // which text symbols are rendered with explicit ABI selectors.
 func DconvWithABIDetail(p *Prog, a *Addr) string {
@@ -507,15 +508,16 @@ var regSpace []regSet
 const (
 	// Because of masking operations in the encodings, each register
 	// space should start at 0 modulo some power of 2.
-	RBase386   = 1 * 1024
-	RBaseAMD64 = 2 * 1024
-	RBaseARM   = 3 * 1024
-	RBasePPC64 = 4 * 1024  // range [4k, 8k)
-	RBaseARM64 = 8 * 1024  // range [8k, 13k)
-	RBaseMIPS  = 13 * 1024 // range [13k, 14k)
-	RBaseS390X = 14 * 1024 // range [14k, 15k)
-	RBaseRISCV = 15 * 1024 // range [15k, 16k)
-	RBaseWasm  = 16 * 1024
+	RBase386     = 1 * 1024
+	RBaseAMD64   = 2 * 1024
+	RBaseARM     = 3 * 1024
+	RBasePPC64   = 4 * 1024  // range [4k, 8k)
+	RBaseARM64   = 8 * 1024  // range [8k, 13k)
+	RBaseMIPS    = 13 * 1024 // range [13k, 14k)
+	RBaseS390X   = 14 * 1024 // range [14k, 15k)
+	RBaseRISCV   = 15 * 1024 // range [15k, 16k)
+	RBaseWasm    = 16 * 1024
+	RBaseLOONG64 = 17 * 1024
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register

@@ -33,6 +33,7 @@ func TestPlatformVerifier(t *testing.T) {
 		verifyTime  time.Time
 		verifyEKU   []x509.ExtKeyUsage
 		expectedErr string
+		skip        string
 	}{
 		{
 			// whatever google.com serves should, hopefully, be trusted
@@ -42,39 +43,41 @@ func TestPlatformVerifier(t *testing.T) {
 		{
 			name:        "expired leaf",
 			host:        "expired.badssl.com",
-			expectedErr: "x509: “*.badssl.com” certificate is expired",
+			expectedErr: "x509: certificate has expired or is not yet valid: “*.badssl.com” certificate is expired",
 		},
 		{
 			name:        "wrong host for leaf",
 			host:        "wrong.host.badssl.com",
 			verifyName:  "wrong.host.badssl.com",
-			expectedErr: "x509: “*.badssl.com” certificate name does not match input",
+			expectedErr: "x509: certificate is valid for *.badssl.com, badssl.com, not wrong.host.badssl.com",
 		},
 		{
 			name:        "self-signed leaf",
 			host:        "self-signed.badssl.com",
-			expectedErr: "x509: “*.badssl.com” certificate is not trusted",
+			expectedErr: "x509: certificate signed by unknown authority",
 		},
 		{
 			name:        "untrusted root",
 			host:        "untrusted-root.badssl.com",
-			expectedErr: "x509: “BadSSL Untrusted Root Certificate Authority” certificate is not trusted",
+			expectedErr: "x509: certificate signed by unknown authority",
 		},
 		{
 			name:        "revoked leaf",
 			host:        "revoked.badssl.com",
 			expectedErr: "x509: “revoked.badssl.com” certificate is revoked",
+			skip:        "skipping; broken on recent versions of macOS. See issue 57428.",
 		},
 		{
 			name:        "leaf missing SCTs",
 			host:        "no-sct.badssl.com",
 			expectedErr: "x509: “no-sct.badssl.com” certificate is not standards compliant",
+			skip:        "skipping; broken on recent versions of macOS. See issue 57428.",
 		},
 		{
 			name:        "expired leaf (custom time)",
 			host:        "google.com",
 			verifyTime:  time.Time{}.Add(time.Hour),
-			expectedErr: "x509: “*.google.com” certificate is expired",
+			expectedErr: "x509: certificate has expired or is not yet valid: “*.google.com” certificate is expired",
 		},
 		{
 			name:       "valid chain (custom time)",
@@ -91,6 +94,10 @@ func TestPlatformVerifier(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip != "" {
+				t.Skip(tc.skip)
+			}
+
 			chain := getChain(tc.host)
 			var opts x509.VerifyOptions
 			if len(chain) > 1 {

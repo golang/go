@@ -8,8 +8,6 @@ import "runtime"
 
 // Not a benchmark; input for revcomp.
 
-var fastabytes = makefasta()
-
 func makefasta() []byte {
 	var n int = 25e6
 	if runtime.GOARCH == "arm" || runtime.GOARCH == "mips" || runtime.GOARCH == "mips64" {

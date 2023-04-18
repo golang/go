@@ -1,5 +1,3 @@
-// UNREVIEWED
-
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -12,12 +10,12 @@ import (
 	"cmd/compile/internal/syntax"
 )
 
-// This file defines helper functions useful for satisfying toolstash
-// -cmp when compared against the legacy frontend behavior, but can be
-// removed after that's no longer a concern.
-
 // typeExprEndPos returns the position that noder would leave base.Pos
 // after parsing the given type expression.
+//
+// Deprecated: This function exists to emulate position semantics from
+// Go 1.17, necessary for compatibility with the backend DWARF
+// generation logic that assigns variables to their appropriate scope.
 func typeExprEndPos(expr0 syntax.Expr) syntax.Pos {
 	for {
 		switch expr := expr0.(type) {

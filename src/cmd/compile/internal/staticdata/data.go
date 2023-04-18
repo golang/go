@@ -5,11 +5,10 @@
 package staticdata
 
 import (
-	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"go/constant"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -20,6 +19,7 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
+	"cmd/internal/notsha256"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
@@ -60,9 +60,15 @@ func InitSliceBytes(nam *ir.Name, off int64, s string) {
 }
 
 const (
-	stringSymPrefix  = "go.string."
-	stringSymPattern = ".gostring.%d.%x"
+	stringSymPrefix  = "go:string."
+	stringSymPattern = ".gostring.%d.%s"
 )
+
+// shortHashString converts the hash to a string for use with stringSymPattern.
+// We cut it to 16 bytes and then base64-encode to make it even smaller.
+func shortHashString(hash []byte) string {
+	return base64.StdEncoding.EncodeToString(hash[:16])
+}
 
 // StringSym returns a symbol containing the string s.
 // The symbol contains the string data, not a string header.
@@ -73,9 +79,9 @@ func StringSym(pos src.XPos, s string) (data *obj.LSym) {
 		// Indulge in some paranoia by writing the length of s, too,
 		// as protection against length extension attacks.
 		// Same pattern is known to fileStringSym below.
-		h := sha256.New()
+		h := notsha256.New()
 		io.WriteString(h, s)
-		symname = fmt.Sprintf(stringSymPattern, len(s), h.Sum(nil))
+		symname = fmt.Sprintf(stringSymPattern, len(s), shortHashString(h.Sum(nil)))
 	} else {
 		// Small strings get named directly by their contents.
 		symname = strconv.Quote(s)
@@ -117,7 +123,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	}
 	size := info.Size()
 	if size <= 1*1024 {
-		data, err := ioutil.ReadAll(f)
+		data, err := io.ReadAll(f)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -131,7 +137,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 			sym = slicedata(pos, string(data)).Linksym()
 		}
 		if len(hash) > 0 {
-			sum := sha256.Sum256(data)
+			sum := notsha256.Sum256(data)
 			copy(hash, sum[:])
 		}
 		return sym, size, nil
@@ -148,7 +154,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 	// Compute hash if needed for read-only content hashing or if the caller wants it.
 	var sum []byte
 	if readonly || len(hash) > 0 {
-		h := sha256.New()
+		h := notsha256.New()
 		n, err := io.Copy(h, f)
 		if err != nil {
 			return nil, 0, err
@@ -162,7 +168,7 @@ func fileStringSym(pos src.XPos, file string, readonly bool, hash []byte) (*obj.
 
 	var symdata *obj.LSym
 	if readonly {
-		symname := fmt.Sprintf(stringSymPattern, size, sum)
+		symname := fmt.Sprintf(stringSymPattern, size, shortHashString(sum))
 		symdata = base.Ctxt.Lookup(stringSymPrefix + symname)
 		if !symdata.OnList() {
 			info := symdata.NewFileInfo()
@@ -208,7 +214,7 @@ func dstringdata(s *obj.LSym, off int, t string, pos src.XPos, what string) int 
 	// causing a cryptic error message by the linker. Check for oversize objects here
 	// and provide a useful error message instead.
 	if int64(len(t)) > 2e9 {
-		base.ErrorfAt(pos, "%v with length %v is too big", what, len(t))
+		base.ErrorfAt(pos, 0, "%v with length %v is too big", what, len(t))
 		return 0
 	}
 
@@ -259,6 +265,14 @@ func WriteFuncSyms() {
 	for _, nam := range funcsyms {
 		s := nam.Sym()
 		sf := s.Pkg.Lookup(ir.FuncSymName(s)).Linksym()
+
+		// While compiling package runtime, we might try to create
+		// funcsyms for functions from both types.LocalPkg and
+		// ir.Pkgs.Runtime.
+		if base.Flag.CompilingRuntime && sf.OnList() {
+			continue
+		}
+
 		// Function values must always reference ABIInternal
 		// entry points.
 		target := s.Linksym()

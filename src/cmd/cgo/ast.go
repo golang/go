@@ -52,8 +52,8 @@ func (f *File) ParseGo(abspath string, src []byte) {
 	// and reprinting.
 	// In cgo mode, we ignore ast2 and just apply edits directly
 	// the text behind ast1. In godefs mode we modify and print ast2.
-	ast1 := parse(abspath, src, parser.ParseComments)
-	ast2 := parse(abspath, src, 0)
+	ast1 := parse(abspath, src, parser.SkipObjectResolution|parser.ParseComments)
+	ast2 := parse(abspath, src, parser.SkipObjectResolution)
 
 	f.Package = ast1.Name.Name
 	f.Name = make(map[string]*Name)
@@ -409,6 +409,9 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 	case *ast.StructType:
 		f.walk(n.Fields, ctxField, visit)
 	case *ast.FuncType:
+		if tparams := funcTypeTypeParams(n); tparams != nil {
+			f.walk(tparams, ctxParam, visit)
+		}
 		f.walk(n.Params, ctxParam, visit)
 		if n.Results != nil {
 			f.walk(n.Results, ctxParam, visit)
@@ -496,6 +499,9 @@ func (f *File) walk(x interface{}, context astContext, visit func(*File, interfa
 			f.walk(n.Values, ctxExpr, visit)
 		}
 	case *ast.TypeSpec:
+		if tparams := typeSpecTypeParams(n); tparams != nil {
+			f.walk(tparams, ctxParam, visit)
+		}
 		f.walk(&n.Type, ctxType, visit)
 
 	case *ast.BadDecl:

@@ -55,9 +55,13 @@ func asanunpoison(addr unsafe.Pointer, sz uintptr)
 //go:noescape
 func asanpoison(addr unsafe.Pointer, sz uintptr)
 
+//go:noescape
+func asanregisterglobals(addr unsafe.Pointer, n uintptr)
+
 // These are called from asan_GOARCH.s
 //
 //go:cgo_import_static __asan_read_go
 //go:cgo_import_static __asan_write_go
 //go:cgo_import_static __asan_unpoison_go
 //go:cgo_import_static __asan_poison_go
+//go:cgo_import_static __asan_register_globals_go

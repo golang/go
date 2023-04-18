@@ -5,7 +5,6 @@
 package asm
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 
@@ -81,7 +80,7 @@ func TestErroneous(t *testing.T) {
 	// Note these errors should be independent of the architecture.
 	// Just run the test with amd64.
 	parser := newParser("amd64")
-	var buf bytes.Buffer
+	var buf strings.Builder
 	parser.errorWriter = &buf
 
 	for _, cat := range testcats {

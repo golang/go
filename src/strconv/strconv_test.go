@@ -66,6 +66,68 @@ func TestCountMallocs(t *testing.T) {
 	}
 }
 
+// Sink makes sure the compiler cannot optimize away the benchmarks.
+var Sink struct {
+	Bool       bool
+	Int        int
+	Int64      int64
+	Uint64     uint64
+	Float64    float64
+	Complex128 complex128
+	Error      error
+	Bytes      []byte
+}
+
+func TestAllocationsFromBytes(t *testing.T) {
+	const runsPerTest = 100
+	bytes := struct{ Bool, Number, String, Buffer []byte }{
+		Bool:   []byte("false"),
+		Number: []byte("123456789"),
+		String: []byte("hello, world!"),
+		Buffer: make([]byte, 1024),
+	}
+
+	checkNoAllocs := func(f func()) func(t *testing.T) {
+		return func(t *testing.T) {
+			t.Helper()
+			if allocs := testing.AllocsPerRun(runsPerTest, f); allocs != 0 {
+				t.Errorf("got %v allocs, want 0 allocs", allocs)
+			}
+		}
+	}
+
+	t.Run("Atoi", checkNoAllocs(func() {
+		Sink.Int, Sink.Error = Atoi(string(bytes.Number))
+	}))
+	t.Run("ParseBool", checkNoAllocs(func() {
+		Sink.Bool, Sink.Error = ParseBool(string(bytes.Bool))
+	}))
+	t.Run("ParseInt", checkNoAllocs(func() {
+		Sink.Int64, Sink.Error = ParseInt(string(bytes.Number), 10, 64)
+	}))
+	t.Run("ParseUint", checkNoAllocs(func() {
+		Sink.Uint64, Sink.Error = ParseUint(string(bytes.Number), 10, 64)
+	}))
+	t.Run("ParseFloat", checkNoAllocs(func() {
+		Sink.Float64, Sink.Error = ParseFloat(string(bytes.Number), 64)
+	}))
+	t.Run("ParseComplex", checkNoAllocs(func() {
+		Sink.Complex128, Sink.Error = ParseComplex(string(bytes.Number), 128)
+	}))
+	t.Run("CanBackquote", checkNoAllocs(func() {
+		Sink.Bool = CanBackquote(string(bytes.String))
+	}))
+	t.Run("AppendQuote", checkNoAllocs(func() {
+		Sink.Bytes = AppendQuote(bytes.Buffer[:0], string(bytes.String))
+	}))
+	t.Run("AppendQuoteToASCII", checkNoAllocs(func() {
+		Sink.Bytes = AppendQuoteToASCII(bytes.Buffer[:0], string(bytes.String))
+	}))
+	t.Run("AppendQuoteToGraphic", checkNoAllocs(func() {
+		Sink.Bytes = AppendQuoteToGraphic(bytes.Buffer[:0], string(bytes.String))
+	}))
+}
+
 func TestErrorPrefixes(t *testing.T) {
 	_, errInt := Atoi("INVALID")
 	_, errBool := ParseBool("INVALID")

@@ -22,14 +22,14 @@
 // The type names for these types are as follows. Because we truncate
 // the name at depth 250, the last few names are all identical:
 //
-//     type.[]*"".pwn
-//     type.[][]*"".pwn
+//     type:[]*"".pwn
+//     type:[][]*"".pwn
 //     ...
-//     type.[][]...[][]*pwn       - 249 total "[]"
-//     type.[][]...[][][]*<...>   - 250 total "[]"
-//     type.[][]...[][][][]<...>  - 251 total "[]"
-//     type.[][]...[][][][]<...>  - 252 total "[]" (but only 251 "[]" in the name)
-//     type.[][]...[][][][]<...>  - 253 total "[]" (but only 251 "[]" in the name)
+//     type:[][]...[][]*pwn       - 249 total "[]"
+//     type:[][]...[][][]*<...>   - 250 total "[]"
+//     type:[][]...[][][][]<...>  - 251 total "[]"
+//     type:[][]...[][][][]<...>  - 252 total "[]" (but only 251 "[]" in the name)
+//     type:[][]...[][][][]<...>  - 253 total "[]" (but only 251 "[]" in the name)
 //
 // Because the names of the last 3 types are all identical, the
 // compiler will generate only a single runtime.slicetype data
@@ -37,7 +37,7 @@
 // generates just the 251-entry one. There aren't any
 // runtime.slicetypes generated for the final two types.
 //
-// The compiler passes type.[]...[]<...> (251 total "[]") to
+// The compiler passes type:[]...[]<...> (251 total "[]") to
 // fmt.Sprintf (instead of the correct 253 one). But the data
 // structure at runtime actually has 253 nesting levels. So we end up
 // calling String on something that is of type [][]*pwn instead of

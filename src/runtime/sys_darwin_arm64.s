@@ -176,7 +176,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	BL	(R11)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$176
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
 	// Save callee-save registers in the case of signal forwarding.
 	// Please refer to https://golang.org/issue/31827 .
 	SAVE_R19_TO_R28(8*4)
@@ -458,6 +458,12 @@ TEXT runtime·pthread_setspecific_trampoline(SB),NOSPLIT,$0
 	BL	libc_pthread_setspecific(SB)
 	RET
 
+TEXT runtime·osinit_hack_trampoline(SB),NOSPLIT,$0
+	MOVD	$0, R0	// arg 1 val
+	BL	libc_notify_is_valid_token(SB)
+	BL	libc_xpc_date_create_from_current(SB)
+	RET
+
 // syscall calls a function in libc on behalf of the syscall package.
 // syscall takes a pointer to a struct like:
 // struct {
@@ -666,6 +672,63 @@ TEXT runtime·syscall6X(SB),NOSPLIT,$0
 	MOVD	(RSP), R2	// pop structure pointer
 	ADD	$16, RSP
 	MOVD	R0, 72(R2)	// save err
+ok:
+	RET
+
+// syscall9 calls a function in libc on behalf of the syscall package.
+// syscall9 takes a pointer to a struct like:
+// struct {
+//	fn    uintptr
+//	a1    uintptr
+//	a2    uintptr
+//	a3    uintptr
+//	a4    uintptr
+//	a5    uintptr
+//	a6    uintptr
+//	a7    uintptr
+//	a8    uintptr
+//	a9    uintptr
+//	r1    uintptr
+//	r2    uintptr
+//	err   uintptr
+// }
+// syscall9 must be called on the g0 stack with the
+// C calling convention (use libcCall).
+TEXT runtime·syscall9(SB),NOSPLIT,$0
+	SUB	$16, RSP	// push structure pointer
+	MOVD	R0, 8(RSP)
+
+	MOVD	0(R0), R12	// fn
+	MOVD	16(R0), R1	// a2
+	MOVD	24(R0), R2	// a3
+	MOVD	32(R0), R3	// a4
+	MOVD	40(R0), R4	// a5
+	MOVD	48(R0), R5	// a6
+	MOVD	56(R0), R6	// a7
+	MOVD	64(R0), R7	// a8
+	MOVD	72(R0), R8	// a9
+	MOVD	8(R0), R0	// a1
+
+	// If fn is declared as vararg, we have to pass the vararg arguments on the stack.
+	// See syscall above. The only function this applies to is openat, for which the 4th
+	// arg must be on the stack.
+	MOVD	R3, (RSP)
+
+	BL	(R12)
+
+	MOVD	8(RSP), R2	// pop structure pointer
+	ADD	$16, RSP
+	MOVD	R0, 80(R2)	// save r1
+	MOVD	R1, 88(R2)	// save r2
+	CMPW	$-1, R0
+	BNE	ok
+	SUB	$16, RSP	// push structure pointer
+	MOVD	R2, 8(RSP)
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	MOVD	8(RSP), R2	// pop structure pointer
+	ADD	$16, RSP
+	MOVD	R0, 96(R2)	// save err
 ok:
 	RET
 

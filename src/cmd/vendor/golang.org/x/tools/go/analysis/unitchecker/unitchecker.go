@@ -6,13 +6,13 @@
 // driver that analyzes a single compilation unit during a build.
 // It is invoked by a build system such as "go vet":
 //
-//   $ go vet -vettool=$(which vet)
+//	$ go vet -vettool=$(which vet)
 //
 // It supports the following command-line protocol:
 //
-//      -V=full         describe executable               (to the build tool)
-//      -flags          describe flags                    (to the build tool)
-//      foo.cfg         description of compilation unit (from the build tool)
+//	-V=full         describe executable               (to the build tool)
+//	-flags          describe flags                    (to the build tool)
+//	foo.cfg         description of compilation unit (from the build tool)
 //
 // This package does not depend on go/packages.
 // If you need a standalone tool, use multichecker,
@@ -50,7 +50,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
-	"golang.org/x/tools/go/analysis/internal/facts"
+	"golang.org/x/tools/internal/facts"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -79,11 +79,10 @@ type Config struct {
 //
 // The protocol required by 'go vet -vettool=...' is that the tool must support:
 //
-//      -flags          describe flags in JSON
-//      -V=full         describe executable for build caching
-//      foo.cfg         perform separate modular analyze on the single
-//                      unit described by a JSON config file foo.cfg.
-//
+//	-flags          describe flags in JSON
+//	-V=full         describe executable for build caching
+//	foo.cfg         perform separate modular analyze on the single
+//	                unit described by a JSON config file foo.cfg.
 func Main(analyzers ...*analysis.Analyzer) {
 	progname := filepath.Base(os.Args[0])
 	log.SetFlags(0)
@@ -250,6 +249,10 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	// In VetxOnly mode, analyzers are only for their facts,
 	// so we can skip any analysis that neither produces facts
 	// nor depends on any analysis that produces facts.
+	//
+	// TODO(adonovan): fix: the command (and logic!) here are backwards.
+	// It should say "...nor is required by any...". (Issue 443099)
+	//
 	// Also build a map to hold working state and result.
 	type action struct {
 		once        sync.Once
@@ -288,13 +291,13 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 	analyzers = filtered
 
 	// Read facts from imported packages.
-	read := func(path string) ([]byte, error) {
-		if vetx, ok := cfg.PackageVetx[path]; ok {
+	read := func(imp *types.Package) ([]byte, error) {
+		if vetx, ok := cfg.PackageVetx[imp.Path()]; ok {
 			return ioutil.ReadFile(vetx)
 		}
 		return nil, nil // no .vetx file, no facts
 	}
-	facts, err := facts.Decode(pkg, read)
+	facts, err := facts.NewDecoder(pkg).Decode(read)
 	if err != nil {
 		return nil, err
 	}
@@ -341,6 +344,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
 				Pkg:               pkg,
 				TypesInfo:         info,
 				TypesSizes:        tc.Sizes,
+				TypeErrors:        nil, // unitchecker doesn't RunDespiteErrors
 				ResultOf:          inputs,
 				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
 				ImportObjectFact:  facts.ImportObjectFact,

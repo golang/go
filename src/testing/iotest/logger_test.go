@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"testing"
 )
 
@@ -32,12 +33,12 @@ func TestWriteLogger(t *testing.T) {
 		log.SetOutput(olw)
 	}()
 
-	lOut := new(bytes.Buffer)
+	lOut := new(strings.Builder)
 	log.SetPrefix("lw: ")
 	log.SetOutput(lOut)
 	log.SetFlags(0)
 
-	lw := new(bytes.Buffer)
+	lw := new(strings.Builder)
 	wl := NewWriteLogger("write:", lw)
 	if _, err := wl.Write([]byte("Hello, World!")); err != nil {
 		t.Fatalf("Unexpectedly failed to write: %v", err)
@@ -64,7 +65,7 @@ func TestWriteLogger_errorOnWrite(t *testing.T) {
 		log.SetOutput(olw)
 	}()
 
-	lOut := new(bytes.Buffer)
+	lOut := new(strings.Builder)
 	log.SetPrefix("lw: ")
 	log.SetOutput(lOut)
 	log.SetFlags(0)
@@ -93,7 +94,7 @@ func TestReadLogger(t *testing.T) {
 		log.SetOutput(olw)
 	}()
 
-	lOut := new(bytes.Buffer)
+	lOut := new(strings.Builder)
 	log.SetPrefix("lr: ")
 	log.SetOutput(lOut)
 	log.SetFlags(0)
@@ -130,7 +131,7 @@ func TestReadLogger_errorOnRead(t *testing.T) {
 		log.SetOutput(olw)
 	}()
 
-	lOut := new(bytes.Buffer)
+	lOut := new(strings.Builder)
 	log.SetPrefix("lr: ")
 	log.SetOutput(lOut)
 	log.SetFlags(0)

@@ -258,6 +258,13 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	UNDEF
 
 TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
+	// Force SPWRITE. This function doesn't actually write SP,
+	// but it is called with a special calling convention where
+	// the caller doesn't save LR on stack but passes it as a
+	// register (R3), and the unwinder currently doesn't understand.
+	// Make it SPWRITE to stop unwinding. (See issue 54332)
+	MOVV	R29, R29
+
 	MOVV	R0, REGCTXT
 	JMP	runtime·morestack(SB)
 
@@ -624,45 +631,43 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	MOVB	R1, ret+0(FP)
 	RET
 
-// gcWriteBarrier performs a heap pointer write and informs the GC.
+// gcWriteBarrier informs the GC about heap pointer writes.
 //
-// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
-// - R20 is the destination of the write
-// - R21 is the value being written at R20.
+// gcWriteBarrier does NOT follow the Go ABI. It accepts the
+// number of bytes of buffer needed in R25, and returns a pointer
+// to the buffer space in R25.
 // It clobbers R23 (the linker temp register).
 // The act of CALLing gcWriteBarrier will clobber R31 (LR).
 // It does not clobber any other general-purpose registers,
 // but may clobber others (e.g., floating point registers).
-TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$192
+TEXT gcWriteBarrier<>(SB),NOSPLIT,$192
 	// Save the registers clobbered by the fast path.
 	MOVV	R1, 184(R29)
 	MOVV	R2, 192(R29)
+retry:
 	MOVV	g_m(g), R1
 	MOVV	m_p(R1), R1
 	MOVV	(p_wbBuf+wbBuf_next)(R1), R2
+	MOVV	(p_wbBuf+wbBuf_end)(R1), R23 // R23 is linker temp register
 	// Increment wbBuf.next position.
-	ADDV	$16, R2
-	MOVV	R2, (p_wbBuf+wbBuf_next)(R1)
-	MOVV	(p_wbBuf+wbBuf_end)(R1), R1
-	MOVV	R1, R23		// R23 is linker temp register
-	// Record the write.
-	MOVV	R21, -16(R2)	// Record value
-	MOVV	(R20), R1	// TODO: This turns bad writes into bad reads.
-	MOVV	R1, -8(R2)	// Record *slot
+	ADDV	R25, R2
 	// Is the buffer full?
-	BEQ	R2, R23, flush
-ret:
+	SGTU	R2, R23, R23
+	BNE	R23, flush
+	// Commit to the larger buffer.
+	MOVV	R2, (p_wbBuf+wbBuf_next)(R1)
+	// Make return value (the original next position)
+	SUBV	R25, R2, R25
+	// Restore registers.
 	MOVV	184(R29), R1
 	MOVV	192(R29), R2
-	// Do the write.
-	MOVV	R21, (R20)
 	RET
 
 flush:
 	// Save all general purpose registers since these could be
 	// clobbered by wbBufFlush and were not saved by the caller.
-	MOVV	R20, 8(R29)	// Also first argument to wbBufFlush
-	MOVV	R21, 16(R29)	// Also second argument to wbBufFlush
+	MOVV	R20, 8(R29)
+	MOVV	R21, 16(R29)
 	// R1 already saved
 	// R2 already saved
 	MOVV	R3, 24(R29)
@@ -695,7 +700,6 @@ flush:
 	// R30 is g.
 	// R31 is LR, which was saved by the prologue.
 
-	// This takes arguments R20 and R21.
 	CALL	runtime·wbBufFlush(SB)
 
 	MOVV	8(R29), R20
@@ -720,7 +724,32 @@ flush:
 	MOVV	160(R29), R22
 	MOVV	168(R29), R24
 	MOVV	176(R29), R25
-	JMP	ret
+	JMP	retry
+
+TEXT runtime·gcWriteBarrier1<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$8, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier2<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$16, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier3<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$24, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier4<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$32, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier5<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$40, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier6<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$48, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier7<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$56, R25
+	JMP	gcWriteBarrier<>(SB)
+TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+	MOVV	$64, R25
+	JMP	gcWriteBarrier<>(SB)
 
 // Note: these functions use a special calling convention to save generated code space.
 // Arguments are passed in registers, but the space for those arguments are allocated

@@ -1,4 +1,4 @@
-[gccgo] skip 'gccgo has no cover tool'
+[compiler:gccgo] skip 'gccgo has no cover tool'
 [short] skip
 
 go test -short -coverpkg=strings strings regexp

@@ -643,7 +643,7 @@ func (c *fakeConn) PrepareContext(ctx context.Context, query string) (driver.Stm
 	}
 
 	if c.stickyBad || (hookPrepareBadConn != nil && hookPrepareBadConn()) {
-		return nil, fakeError{Message: "Preapre: Sticky Bad", Wrapped: driver.ErrBadConn}
+		return nil, fakeError{Message: "Prepare: Sticky Bad", Wrapped: driver.ErrBadConn}
 	}
 
 	c.touchMem()
@@ -1089,6 +1089,9 @@ type rowsCursor struct {
 	// This is separate from the fakeConn.line to allow for drivers that
 	// can start multiple queries on the same transaction at the same time.
 	line int64
+
+	// closeErr is returned when rowsCursor.Close
+	closeErr error
 }
 
 func (rc *rowsCursor) touchMem() {
@@ -1100,7 +1103,7 @@ func (rc *rowsCursor) Close() error {
 	rc.touchMem()
 	rc.parentMem.touchMem()
 	rc.closed = true
-	return nil
+	return rc.closeErr
 }
 
 func (rc *rowsCursor) Columns() []string {

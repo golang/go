@@ -10,6 +10,8 @@
 // The execution trace captures a wide range of execution events such as
 // goroutine creation/blocking/unblocking, syscall enter/exit/block,
 // GC-related events, changes of heap size, processor start/stop, etc.
+// When CPU profiling is active, the execution tracer makes an effort to
+// include those samples as well.
 // A precise nanosecond-precision timestamp and a stack trace is
 // captured for most events. The generated trace can be interpreted
 // using `go tool trace`.
@@ -132,7 +134,7 @@ func Start(w io.Writer) error {
 			w.Write(data)
 		}
 	}()
-	atomic.StoreInt32(&tracing.enabled, 1)
+	tracing.enabled.Store(true)
 	return nil
 }
 
@@ -141,12 +143,12 @@ func Start(w io.Writer) error {
 func Stop() {
 	tracing.Lock()
 	defer tracing.Unlock()
-	atomic.StoreInt32(&tracing.enabled, 0)
+	tracing.enabled.Store(false)
 
 	runtime.StopTrace()
 }
 
 var tracing struct {
-	sync.Mutex       // gate mutators (Start, Stop)
-	enabled    int32 // accessed via atomic
+	sync.Mutex // gate mutators (Start, Stop)
+	enabled    atomic.Bool
 }

@@ -51,7 +51,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -619,7 +618,7 @@ func (e *UnrecognizedVCSError) Error() string {
 	return fmt.Sprintf("could not find a recognized version control system at %q", e.RepoRoot)
 }
 
-// filterGitIgnored filters out any files that are git ignored in the directory.
+// filesInGitRepo filters out any files that are git ignored in the directory.
 func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 	stderr := bytes.Buffer{}
 	stdout := bytes.Buffer{}
@@ -641,6 +640,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 		cmd.Args = append(cmd.Args, subdir)
 	}
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "PWD="+dir)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
@@ -679,11 +679,12 @@ func isGitRepo(dir string) bool {
 	stdout := &bytes.Buffer{}
 	cmd := exec.Command("git", "rev-parse", "--git-dir")
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "PWD="+dir)
 	cmd.Stdout = stdout
 	if err := cmd.Run(); err != nil {
 		return false
 	}
-	gitDir := strings.TrimSpace(string(stdout.Bytes()))
+	gitDir := strings.TrimSpace(stdout.String())
 	if !filepath.IsAbs(gitDir) {
 		gitDir = filepath.Join(dir, gitDir)
 	}
@@ -751,7 +752,7 @@ func Unzip(dir string, m module.Version, zipFile string) (err error) {
 
 	// Check that the directory is empty. Don't create it yet in case there's
 	// an error reading the zip.
-	if files, _ := ioutil.ReadDir(dir); len(files) > 0 {
+	if files, _ := os.ReadDir(dir); len(files) > 0 {
 		return fmt.Errorf("target directory %v exists and is not empty", dir)
 	}
 
@@ -931,7 +932,9 @@ func (e *zipError) Unwrap() error {
 }
 
 // strToFold returns a string with the property that
+//
 //	strings.EqualFold(s, t) iff strToFold(s) == strToFold(t)
+//
 // This lets us test a large set of strings for fold-equivalent
 // duplicates without making a quadratic number of calls
 // to EqualFold. Note that strings.ToUpper and strings.ToLower

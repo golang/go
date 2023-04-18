@@ -14,7 +14,7 @@ grep example.com/m go.alt.mod
 # 'go env GOMOD' should print the path to the real file.
 # 'go env' does not recognize the '-modfile' flag.
 go env GOMOD
-stdout '^\$WORK[/\\]gopath[/\\]src[/\\]go.mod$'
+stdout '^'$WORK${/}gopath${/}src${/}'go\.mod$'
 
 # 'go list -m' should print the effective go.mod file as GoMod though.
 go list -m -f '{{.GoMod}}'

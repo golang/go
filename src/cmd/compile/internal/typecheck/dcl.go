@@ -6,6 +6,7 @@ package typecheck
 
 import (
 	"fmt"
+	"internal/types/errors"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -16,19 +17,24 @@ import (
 
 var DeclContext ir.Class = ir.PEXTERN // PEXTERN/PAUTO
 
-func DeclFunc(sym *types.Sym, tfn ir.Ntype) *ir.Func {
-	if tfn.Op() != ir.OTFUNC {
-		base.Fatalf("expected OTFUNC node, got %v", tfn)
-	}
-
+func DeclFunc(sym *types.Sym, recv *ir.Field, params, results []*ir.Field) *ir.Func {
 	fn := ir.NewFunc(base.Pos)
 	fn.Nname = ir.NewNameAt(base.Pos, sym)
 	fn.Nname.Func = fn
 	fn.Nname.Defn = fn
-	fn.Nname.Ntype = tfn
 	ir.MarkFunc(fn.Nname)
 	StartFuncBody(fn)
-	fn.Nname.Ntype = typecheckNtype(fn.Nname.Ntype)
+
+	var recv1 *types.Field
+	if recv != nil {
+		recv1 = declareParam(ir.PPARAM, -1, recv)
+	}
+
+	typ := types.NewSignature(recv1, declareParams(ir.PPARAM, params), declareParams(ir.PPARAMOUT, results))
+	checkdupfields("argument", typ.Recvs().FieldSlice(), typ.Params().FieldSlice(), typ.Results().FieldSlice())
+	fn.Nname.SetType(typ)
+	fn.Nname.SetTypecheck(1)
+
 	return fn
 }
 
@@ -43,17 +49,18 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 
 	// kludgy: TypecheckAllowed means we're past parsing. Eg reflectdata.methodWrapper may declare out of package names later.
 	if !inimport && !TypecheckAllowed && s.Pkg != types.LocalPkg {
-		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
+		base.ErrorfAt(n.Pos(), 0, "cannot declare name %v", s)
 	}
 
 	if ctxt == ir.PEXTERN {
 		if s.Name == "init" {
-			base.ErrorfAt(n.Pos(), "cannot declare init - must be func")
+			base.ErrorfAt(n.Pos(), errors.InvalidInitDecl, "cannot declare init - must be func")
 		}
 		if s.Name == "main" && s.Pkg.Name == "main" {
-			base.ErrorfAt(n.Pos(), "cannot declare main - must be func")
+			base.ErrorfAt(n.Pos(), errors.InvalidMainDecl, "cannot declare main - must be func")
 		}
 		Target.Externs = append(Target.Externs, n)
+		s.Def = n
 	} else {
 		if ir.CurFunc == nil && ctxt == ir.PAUTO {
 			base.Pos = n.Pos()
@@ -62,7 +69,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		if ir.CurFunc != nil && ctxt != ir.PFUNC && n.Op() == ir.ONAME {
 			ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
 		}
-		types.Pushdcl(s)
 		n.Curfn = ir.CurFunc
 	}
 
@@ -70,7 +76,6 @@ func Declare(n *ir.Name, ctxt ir.Class) {
 		n.SetFrameOffset(0)
 	}
 
-	s.Def = n
 	n.Class = ctxt
 	if ctxt == ir.PFUNC {
 		n.Sym().SetFunc(true)
@@ -102,14 +107,6 @@ func StartFuncBody(fn *ir.Func) {
 	funcStack = append(funcStack, funcStackEnt{ir.CurFunc, DeclContext})
 	ir.CurFunc = fn
 	DeclContext = ir.PAUTO
-
-	types.Markdcl()
-
-	if fn.Nname.Ntype != nil {
-		funcargs(fn.Nname.Ntype.(*ir.FuncType))
-	} else {
-		funcargs2(fn.Type())
-	}
 }
 
 // finish the body.
@@ -117,7 +114,6 @@ func StartFuncBody(fn *ir.Func) {
 // returns in extern-declaration context.
 func FinishFuncBody() {
 	// change the declaration context from auto to previous context
-	types.Popdcl()
 	var e funcStackEnt
 	funcStack, e = funcStack[:len(funcStack)-1], funcStack[len(funcStack)-1]
 	ir.CurFunc, DeclContext = e.curfn, e.dclcontext
@@ -159,7 +155,7 @@ func checkdupfields(what string, fss ...[]*types.Field) {
 				continue
 			}
 			if seen[f.Sym] {
-				base.ErrorfAt(f.Pos, "duplicate %s %s", what, f.Sym.Name)
+				base.ErrorfAt(f.Pos, errors.DuplicateFieldAndMethod, "duplicate %s %s", what, f.Sym.Name)
 				continue
 			}
 			seen[f.Sym] = true
@@ -195,83 +191,51 @@ type funcStackEnt struct {
 	dclcontext ir.Class
 }
 
-func funcarg(n *ir.Field, ctxt ir.Class) {
-	if n.Sym == nil {
-		return
+func declareParams(ctxt ir.Class, l []*ir.Field) []*types.Field {
+	fields := make([]*types.Field, len(l))
+	for i, n := range l {
+		fields[i] = declareParam(ctxt, i, n)
 	}
-
-	name := ir.NewNameAt(n.Pos, n.Sym)
-	n.Decl = name
-	name.Ntype = n.Ntype
-	Declare(name, ctxt)
+	return fields
 }
 
-func funcarg2(f *types.Field, ctxt ir.Class) {
-	if f.Sym == nil {
-		return
-	}
-	n := ir.NewNameAt(f.Pos, f.Sym)
-	f.Nname = n
-	n.SetType(f.Type)
-	Declare(n, ctxt)
-}
+func declareParam(ctxt ir.Class, i int, param *ir.Field) *types.Field {
+	f := types.NewField(param.Pos, param.Sym, param.Type)
+	f.SetIsDDD(param.IsDDD)
 
-func funcargs(nt *ir.FuncType) {
-	if nt.Op() != ir.OTFUNC {
-		base.Fatalf("funcargs %v", nt.Op())
-	}
-
-	// declare the receiver and in arguments.
-	if nt.Recv != nil {
-		funcarg(nt.Recv, ir.PPARAM)
-	}
-	for _, n := range nt.Params {
-		funcarg(n, ir.PPARAM)
-	}
-
-	// declare the out arguments.
-	for i, n := range nt.Results {
-		if n.Sym == nil {
+	sym := param.Sym
+	if ctxt == ir.PPARAMOUT {
+		if sym == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			n.Sym = LookupNum("~r", i)
-		} else if n.Sym.IsBlank() {
+			sym = LookupNum("~r", i)
+		} else if sym.IsBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
 			// The name must be different from ~r above because if you have
 			//	func f() (_ int)
 			//	func g() int
 			// f is allowed to use a plain 'return' with no arguments, while g is not.
 			// So the two cases must be distinguished.
-			n.Sym = LookupNum("~b", i)
+			sym = LookupNum("~b", i)
 		}
-
-		funcarg(n, ir.PPARAMOUT)
-	}
-}
-
-// Same as funcargs, except run over an already constructed TFUNC.
-// This happens during import, where the hidden_fndcl rule has
-// used functype directly to parse the function's type.
-func funcargs2(t *types.Type) {
-	if t.Kind() != types.TFUNC {
-		base.Fatalf("funcargs2 %v", t)
 	}
 
-	for _, f := range t.Recvs().Fields().Slice() {
-		funcarg2(f, ir.PPARAM)
+	if sym != nil {
+		name := ir.NewNameAt(param.Pos, sym)
+		name.SetType(f.Type)
+		name.SetTypecheck(1)
+		Declare(name, ctxt)
+
+		f.Nname = name
 	}
-	for _, f := range t.Params().Fields().Slice() {
-		funcarg2(f, ir.PPARAM)
-	}
-	for _, f := range t.Results().Fields().Slice() {
-		funcarg2(f, ir.PPARAMOUT)
-	}
+
+	return f
 }
 
 func Temp(t *types.Type) *ir.Name {
 	return TempAt(base.Pos, ir.CurFunc, t)
 }
 
-// make a new Node off the books
+// make a new Node off the books.
 func TempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
 	if curfn == nil {
 		base.Fatalf("no curfn for TempAt")
@@ -338,12 +302,6 @@ func autotmpname(n int) string {
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
 func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
-	if sig.HasTParam() {
-		base.Fatalf("NewMethodType with type parameters in signature %+v", sig)
-	}
-	if recv != nil && recv.HasTParam() {
-		base.Fatalf("NewMethodType with type parameters in receiver %+v", recv)
-	}
 	nrecvs := 0
 	if recv != nil {
 		nrecvs++
@@ -367,5 +325,5 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
 		results[i] = types.NewField(base.Pos, nil, t.Type)
 	}
 
-	return types.NewSignature(types.LocalPkg, nil, nil, params, results)
+	return types.NewSignature(nil, params, results)
 }

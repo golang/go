@@ -10,7 +10,6 @@ import (
 	"internal/testenv"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 )
@@ -24,15 +23,12 @@ func TestForCompiler(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
 	const thePackage = "math/big"
-	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f={{context.Compiler}}:{{.Target}}", thePackage).CombinedOutput()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "list", "-export", "-f={{context.Compiler}}:{{.Export}}", thePackage).CombinedOutput()
 	if err != nil {
 		t.Fatalf("go list %s: %v\n%s", thePackage, err, out)
 	}
-	target := strings.TrimSpace(string(out))
-	compiler, target, _ := strings.Cut(target, ":")
-	if !strings.HasSuffix(target, ".a") {
-		t.Fatalf("unexpected package %s target %q (not *.a)", thePackage, target)
-	}
+	export := strings.TrimSpace(string(out))
+	compiler, target, _ := strings.Cut(export, ":")
 
 	if compiler == "gccgo" {
 		t.Skip("golang.org/issue/22500")
@@ -67,6 +63,14 @@ func TestForCompiler(t *testing.T) {
 	})
 
 	t.Run("LookupCustom", func(t *testing.T) {
+		// TODO(mdempsky): Decide whether to remove this test, or to fix
+		// support for it in unified IR. It's not clear that we actually
+		// need to support importing "math/big" as "math/bigger", for
+		// example. cmd/link no longer supports that.
+		if true /* was buildcfg.Experiment.Unified */ {
+			t.Skip("not supported by GOEXPERIMENT=unified; see go.dev/cl/406319")
+		}
+
 		lookup := func(path string) (io.ReadCloser, error) {
 			if path != "math/bigger" {
 				t.Fatalf("lookup called with unexpected path %q", path)

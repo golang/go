@@ -1,0 +1,30 @@
+-- input --
+Text.
+
+1. Not a list
+2. because it is
+3. unindented.
+
+4. This one
+  is a list
+  because of the indented text.
+5. More wrapped
+  items.
+6. And unwrapped.
+
+7. The blank line stops the heuristic.
+-- gofmt --
+Text.
+
+1. Not a list
+2. because it is
+3. unindented.
+
+ 4. This one
+    is a list
+    because of the indented text.
+ 5. More wrapped
+    items.
+ 6. And unwrapped.
+
+7. The blank line stops the heuristic.

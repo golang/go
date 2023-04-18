@@ -207,24 +207,13 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		base.Pos = lno
 	}()
 
-	if n.Ntype == nil {
-		base.ErrorfAt(n.Pos(), "missing type in composite literal")
-		n.SetType(nil)
-		return n
-	}
-
 	// Save original node (including n.Right)
 	n.SetOrig(ir.Copy(n))
 
-	ir.SetPos(n.Ntype)
+	ir.SetPos(n)
 
-	n.Ntype = typecheckNtype(n.Ntype)
-	t := n.Ntype.Type()
-	if t == nil {
-		n.SetType(nil)
-		return n
-	}
-	n.SetType(t)
+	t := n.Type()
+	base.AssertfAt(t != nil, n.Pos(), "missing type in composite literal")
 
 	switch t.Kind() {
 	default:
@@ -234,12 +223,10 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 	case types.TARRAY:
 		typecheckarraylit(t.Elem(), t.NumElem(), n.List, "array literal")
 		n.SetOp(ir.OARRAYLIT)
-		n.Ntype = nil
 
 	case types.TSLICE:
 		length := typecheckarraylit(t.Elem(), -1, n.List, "slice literal")
 		n.SetOp(ir.OSLICELIT)
-		n.Ntype = nil
 		n.Len = length
 
 	case types.TMAP:
@@ -253,18 +240,15 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 			l := l.(*ir.KeyExpr)
 
 			r := l.Key
-			r = pushtype(r, t.Key())
 			r = Expr(r)
 			l.Key = AssignConv(r, t.Key(), "map key")
 
 			r = l.Value
-			r = pushtype(r, t.Elem())
 			r = Expr(r)
 			l.Value = AssignConv(r, t.Elem(), "map value")
 		}
 
 		n.SetOp(ir.OMAPLIT)
-		n.Ntype = nil
 
 	case types.TSTRUCT:
 		// Need valid field offsets for Xoffset below.
@@ -345,7 +329,6 @@ func tcCompLit(n *ir.CompLitExpr) (res ir.Node) {
 		}
 
 		n.SetOp(ir.OSTRUCTLIT)
-		n.Ntype = nil
 	}
 
 	return n
@@ -549,14 +532,7 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 		return n
 	}
 
-	if n.Ntype != nil {
-		n.Ntype = typecheckNtype(n.Ntype)
-		n.SetType(n.Ntype.Type())
-		n.Ntype = nil
-		if n.Type() == nil {
-			return n
-		}
-	}
+	base.AssertfAt(n.Type() != nil, n.Pos(), "missing type: %v", n)
 
 	if n.Type() != nil && !n.Type().IsInterface() {
 		var missing, have *types.Field
@@ -680,6 +656,40 @@ func tcLenCap(n *ir.UnaryExpr) ir.Node {
 	}
 
 	n.SetType(types.Types[types.TINT])
+	return n
+}
+
+// tcUnsafeData typechecks an OUNSAFESLICEDATA or OUNSAFESTRINGDATA node.
+func tcUnsafeData(n *ir.UnaryExpr) ir.Node {
+	n.X = Expr(n.X)
+	n.X = DefaultLit(n.X, nil)
+	l := n.X
+	t := l.Type()
+	if t == nil {
+		n.SetType(nil)
+		return n
+	}
+
+	var kind types.Kind
+	if n.Op() == ir.OUNSAFESLICEDATA {
+		kind = types.TSLICE
+	} else {
+		/* kind is string */
+		kind = types.TSTRING
+	}
+
+	if t.Kind() != kind {
+		base.Errorf("invalid argument %L for %v", l, n.Op())
+		n.SetType(nil)
+		return n
+	}
+
+	if kind == types.TSTRING {
+		t = types.ByteType
+	} else {
+		t = t.Elem()
+	}
+	n.SetType(types.NewPtr(t))
 	return n
 }
 
@@ -836,6 +846,31 @@ func tcSliceHeader(n *ir.SliceHeaderExpr) ir.Node {
 	return n
 }
 
+// tcStringHeader typechecks an OSTRINGHEADER node.
+func tcStringHeader(n *ir.StringHeaderExpr) ir.Node {
+	t := n.Type()
+	if t == nil {
+		base.Fatalf("no type specified for OSTRINGHEADER")
+	}
+
+	if !t.IsString() {
+		base.Fatalf("invalid type %v for OSTRINGHEADER", n.Type())
+	}
+
+	if n.Ptr == nil || n.Ptr.Type() == nil || !n.Ptr.Type().IsUnsafePtr() {
+		base.Fatalf("need unsafe.Pointer for OSTRINGHEADER")
+	}
+
+	n.Ptr = Expr(n.Ptr)
+	n.Len = DefaultLit(Expr(n.Len), types.Types[types.TINT])
+
+	if ir.IsConst(n.Len, constant.Int) && ir.Int64Val(n.Len) < 0 {
+		base.Fatalf("len for OSTRINGHEADER must be non-negative")
+	}
+
+	return n
+}
+
 // tcStar typechecks an ODEREF node, which may be an expression or a type.
 func tcStar(n *ir.StarExpr, top int) ir.Node {
 	n.X = typecheck(n.X, ctxExpr|ctxType)
@@ -845,11 +880,11 @@ func tcStar(n *ir.StarExpr, top int) ir.Node {
 		n.SetType(nil)
 		return n
 	}
+
+	// TODO(mdempsky): Remove (along with ctxType above) once I'm
+	// confident this code path isn't needed any more.
 	if l.Op() == ir.OTYPE {
-		n.SetOTYPE(types.NewPtr(l.Type()))
-		// Ensure l.Type gets CalcSize'd for the backend. Issue 20174.
-		types.CheckSize(l.Type())
-		return n
+		base.Fatalf("unexpected type in deref expression: %v", l)
 	}
 
 	if !t.IsPtr() {

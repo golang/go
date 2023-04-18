@@ -8,12 +8,12 @@
 package p
 
 var _ = []int{
-	0/* ERROR HERE "missing ','" */
+	0/* ERROR AFTER "missing ','" */
 }
 
 var _ = []int{
 	0,
 	1,
 	2,
-	3/* ERROR HERE "missing ','" */
+	3/* ERROR AFTER "missing ','" */
 }

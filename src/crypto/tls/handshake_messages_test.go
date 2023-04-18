@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"encoding/hex"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -37,6 +38,15 @@ var tests = []any{
 	&certificateMsgTLS13{},
 }
 
+func mustMarshal(t *testing.T, msg handshakeMessage) []byte {
+	t.Helper()
+	b, err := msg.marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
 func TestMarshalUnmarshal(t *testing.T) {
 	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -55,7 +65,7 @@ func TestMarshalUnmarshal(t *testing.T) {
 			}
 
 			m1 := v.Interface().(handshakeMessage)
-			marshaled := m1.marshal()
+			marshaled := mustMarshal(t, m1)
 			m2 := iface.(handshakeMessage)
 			if !m2.unmarshal(marshaled) {
 				t.Errorf("#%d failed to unmarshal %#v %x", i, m1, marshaled)
@@ -147,10 +157,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
 	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
@@ -369,10 +379,10 @@ func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.V
 		m.scts = true
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms()
 	}
 	if rand.Intn(10) > 5 {
 		m.certificateAuthorities = make([][]byte, 3)
@@ -408,12 +418,12 @@ func TestRejectEmptySCTList(t *testing.T) {
 
 	var random [32]byte
 	sct := []byte{0x42, 0x42, 0x42, 0x42}
-	serverHello := serverHelloMsg{
+	serverHello := &serverHelloMsg{
 		vers:   VersionTLS12,
 		random: random[:],
 		scts:   [][]byte{sct},
 	}
-	serverHelloBytes := serverHello.marshal()
+	serverHelloBytes := mustMarshal(t, serverHello)
 
 	var serverHelloCopy serverHelloMsg
 	if !serverHelloCopy.unmarshal(serverHelloBytes) {
@@ -451,15 +461,35 @@ func TestRejectEmptySCT(t *testing.T) {
 	// not be zero length.
 
 	var random [32]byte
-	serverHello := serverHelloMsg{
+	serverHello := &serverHelloMsg{
 		vers:   VersionTLS12,
 		random: random[:],
 		scts:   [][]byte{nil},
 	}
-	serverHelloBytes := serverHello.marshal()
+	serverHelloBytes := mustMarshal(t, serverHello)
 
 	var serverHelloCopy serverHelloMsg
 	if serverHelloCopy.unmarshal(serverHelloBytes) {
 		t.Fatal("Unmarshaled ServerHello with zero-length SCT")
+	}
+}
+
+func TestRejectDuplicateExtensions(t *testing.T) {
+	clientHelloBytes, err := hex.DecodeString("010000440303000000000000000000000000000000000000000000000000000000000000000000000000001c0000000a000800000568656c6c6f0000000a000800000568656c6c6f")
+	if err != nil {
+		t.Fatalf("failed to decode test ClientHello: %s", err)
+	}
+	var clientHelloCopy clientHelloMsg
+	if clientHelloCopy.unmarshal(clientHelloBytes) {
+		t.Error("Unmarshaled ClientHello with duplicate extensions")
+	}
+
+	serverHelloBytes, err := hex.DecodeString("02000030030300000000000000000000000000000000000000000000000000000000000000000000000000080005000000050000")
+	if err != nil {
+		t.Fatalf("failed to decode test ServerHello: %s", err)
+	}
+	var serverHelloCopy serverHelloMsg
+	if serverHelloCopy.unmarshal(serverHelloBytes) {
+		t.Fatal("Unmarshaled ServerHello with duplicate extensions")
 	}
 }

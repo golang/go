@@ -1,0 +1,24 @@
+handle git
+
+env GIT_AUTHOR_NAME='Bryan C. Mills'
+env GIT_AUTHOR_EMAIL='bcmills@google.com'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2019-10-07T14:15:32-04:00
+git add go.mod
+git commit -m 'add go.mod file without go source files'
+git branch -m master
+git tag v2.0.0
+
+git log --oneline --decorate=short
+cmp stdout .git-log
+
+-- .git-log --
+122733c (HEAD -> master, tag: v2.0.0) add go.mod file without go source files
+-- go.mod --
+module vcs-test.golang.org/git/empty-v2-without-v1.git/v2
+
+go 1.14

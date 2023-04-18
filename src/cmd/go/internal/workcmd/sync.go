@@ -41,6 +41,7 @@ for more information.
 }
 
 func init() {
+	base.AddChdirFlag(&cmdSync.Flag)
 	base.AddModCommonFlags(&cmdSync.Flag)
 }
 

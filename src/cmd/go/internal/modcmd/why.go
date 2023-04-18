@@ -58,6 +58,7 @@ var (
 
 func init() {
 	cmdWhy.Run = runWhy // break init cycle
+	base.AddChdirFlag(&cmdWhy.Flag)
 	base.AddModCommonFlags(&cmdWhy.Flag)
 }
 
@@ -82,7 +83,7 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 			}
 		}
 
-		mods, err := modload.ListModules(ctx, args, 0)
+		mods, err := modload.ListModules(ctx, args, 0, "")
 		if err != nil {
 			base.Fatalf("go: %v", err)
 		}

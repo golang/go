@@ -8,9 +8,8 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
-	exec "internal/execabs"
-	"io/ioutil"
 	"os"
+	"os/exec"
 )
 
 // run runs the command argv, feeding in stdin on standard input.
@@ -21,13 +20,13 @@ func run(stdin []byte, argv []string) (stdout, stderr []byte, ok bool) {
 		// Some compilers have trouble with standard input.
 		// Others have trouble with -xc.
 		// Avoid both problems by writing a file with a .c extension.
-		f, err := ioutil.TempFile("", "cgo-gcc-input-")
+		f, err := os.CreateTemp("", "cgo-gcc-input-")
 		if err != nil {
 			fatalf("%s", err)
 		}
 		name := f.Name()
 		f.Close()
-		if err := ioutil.WriteFile(name+".c", stdin, 0666); err != nil {
+		if err := os.WriteFile(name+".c", stdin, 0666); err != nil {
 			os.Remove(name)
 			fatalf("%s", err)
 		}
@@ -106,30 +105,10 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "\n")
 }
 
-// isName reports whether s is a valid C identifier
-func isName(s string) bool {
-	for i, v := range s {
-		if v != '_' && (v < 'A' || v > 'Z') && (v < 'a' || v > 'z') && (v < '0' || v > '9') {
-			return false
-		}
-		if i == 0 && '0' <= v && v <= '9' {
-			return false
-		}
-	}
-	return s != ""
-}
-
 func creat(name string) *os.File {
 	f, err := os.Create(name)
 	if err != nil {
 		fatalf("%s", err)
 	}
 	return f
-}
-
-func slashToUnderscore(c rune) rune {
-	if c == '/' || c == '\\' || c == ':' {
-		c = '_'
-	}
-	return c
 }

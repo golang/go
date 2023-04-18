@@ -23,7 +23,7 @@ import (
 	"cmd/internal/src"
 )
 
-func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
+func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) (scopes []dwarf.Scope, inlcalls dwarf.InlCalls, startPos src.XPos) {
 	fn := curfn.(*ir.Func)
 
 	if fn.Nname != nil {
@@ -91,6 +91,11 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 				continue
 			}
 			apdecls = append(apdecls, n)
+			if n.Type().Kind() == types.TSSA {
+				// Can happen for TypeInt128 types. This only happens for
+				// spill locations, so not a huge deal.
+				continue
+			}
 			fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
 		}
 	}
@@ -102,7 +107,7 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 	// the function symbol to insure that the type included in DWARF
 	// processing during linking.
 	typesyms := []*obj.LSym{}
-	for t, _ := range fnsym.Func().Autot {
+	for t := range fnsym.Func().Autot {
 		typesyms = append(typesyms, t)
 	}
 	sort.Sort(obj.BySymName(typesyms))
@@ -119,12 +124,11 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
 		varScopes = append(varScopes, findScope(fn.Marks, pos))
 	}
 
-	scopes := assembleScopes(fnsym, fn, dwarfVars, varScopes)
-	var inlcalls dwarf.InlCalls
+	scopes = assembleScopes(fnsym, fn, dwarfVars, varScopes)
 	if base.Flag.GenDwarfInl > 0 {
 		inlcalls = assembleInlines(fnsym, dwarfVars)
 	}
-	return scopes, inlcalls
+	return scopes, inlcalls, fn.Pos()
 }
 
 func declPos(decl *ir.Name) src.XPos {
@@ -145,6 +149,21 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		decls, vars, selected = createABIVars(fnsym, fn, apDecls)
 	} else {
 		decls, vars, selected = createSimpleVars(fnsym, apDecls)
+	}
+	if fn.DebugInfo != nil {
+		// Recover zero sized variables eliminated by the stackframe pass
+		for _, n := range fn.DebugInfo.(*ssa.FuncDebug).OptDcl {
+			if n.Class != ir.PAUTO {
+				continue
+			}
+			types.CalcSize(n.Type())
+			if n.Type().Size() == 0 {
+				decls = append(decls, n)
+				vars = append(vars, createSimpleVar(fnsym, n))
+				vars[len(vars)-1].StackOffset = 0
+				fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+			}
+		}
 	}
 
 	dcl := apDecls
@@ -339,7 +358,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 
 	localAutoOffset := func() int64 {
 		offs = n.FrameOffset()
-		if base.Ctxt.FixedFrameSize() == 0 {
+		if base.Ctxt.Arch.FixedFrameSize == 0 {
 			offs -= int64(types.PtrSize)
 		}
 		if buildcfg.FramePointerEnabled {
@@ -357,7 +376,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
 		if n.IsOutputParamInRegisters() {
 			offs = localAutoOffset()
 		} else {
-			offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+			offs = n.FrameOffset() + base.Ctxt.Arch.FixedFrameSize
 		}
 
 	default:
@@ -466,7 +485,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var 
 
 	gotype := reflectdata.TypeLinksym(n.Type())
 	delete(fnsym.Func().Autot, gotype)
-	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
+	typename := dwarf.InfoPrefix + gotype.Name[len("type:"):]
 	inlIndex := 0
 	if base.Flag.GenDwarfInl > 1 {
 		if n.InlFormal() || n.InlLocal() {

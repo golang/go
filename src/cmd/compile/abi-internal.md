@@ -32,19 +32,19 @@ specification](/doc/go_spec.html#Size_and_alignment_guarantees).
 Those that aren't guaranteed may change in future versions of Go (for
 example, we've considered changing the alignment of int64 on 32-bit).
 
-| Type | 64-bit |       | 32-bit |       |
-| ---  | ---    | ---   | ---    | ---   |
-|      | Size   | Align | Size   | Align |
-| bool, uint8, int8  | 1  | 1 | 1  | 1 |
-| uint16, int16      | 2  | 2 | 2  | 2 |
-| uint32, int32      | 4  | 4 | 4  | 4 |
-| uint64, int64      | 8  | 8 | 8  | 4 |
-| int, uint          | 8  | 8 | 4  | 4 |
-| float32            | 4  | 4 | 4  | 4 |
-| float64            | 8  | 8 | 8  | 4 |
-| complex64          | 8  | 4 | 8  | 4 |
-| complex128         | 16 | 8 | 16 | 4 |
-| uintptr, *T, unsafe.Pointer | 8 | 8 | 4 | 4 |
+| Type                        | 64-bit |       | 32-bit |       |
+|-----------------------------|--------|-------|--------|-------|
+|                             | Size   | Align | Size   | Align |
+| bool, uint8, int8           | 1      | 1     | 1      | 1     |
+| uint16, int16               | 2      | 2     | 2      | 2     |
+| uint32, int32               | 4      | 4     | 4      | 4     |
+| uint64, int64               | 8      | 8     | 8      | 4     |
+| int, uint                   | 8      | 8     | 4      | 4     |
+| float32                     | 4      | 4     | 4      | 4     |
+| float64                     | 8      | 8     | 8      | 4     |
+| complex64                   | 8      | 4     | 8      | 4     |
+| complex128                  | 16     | 8     | 16     | 4     |
+| uintptr, *T, unsafe.Pointer | 8      | 8     | 4      | 4     |
 
 The types `byte` and `rune` are aliases for `uint8` and `int32`,
 respectively, and hence have the same size and alignment as these

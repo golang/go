@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux && (386 || amd64 || arm || arm64 || mips64 || mips64le || ppc64 || ppc64le || riscv64)
+//go:build linux && (386 || amd64 || arm || arm64 || loong64 || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x)
 
 package runtime
 
@@ -232,9 +232,11 @@ func vdsoParseSymbols(info *vdsoInfo, version int32) {
 	if !info.isGNUHash {
 		// Old-style DT_HASH table.
 		for _, k := range vdsoSymbolKeys {
-			for chain := info.bucket[k.symHash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
-				if apply(chain, k) {
-					break
+			if len(info.bucket) > 0 {
+				for chain := info.bucket[k.symHash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
+					if apply(chain, k) {
+						break
+					}
 				}
 			}
 		}

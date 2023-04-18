@@ -171,6 +171,8 @@ func TestLookupEnv(t *testing.T) {
 // Check that they are properly reported by LookupEnv and can be set by SetEnv.
 // See https://golang.org/issue/49886.
 func TestEnvironConsistency(t *testing.T) {
+	t.Parallel()
+
 	for _, kv := range Environ() {
 		i := strings.Index(kv, "=")
 		if i == 0 {

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -32,7 +33,7 @@ func svnParseStat(rev, out string) (*RevInfo, error) {
 	}
 
 	info := &RevInfo{
-		Name:    fmt.Sprintf("%d", log.Logentry.Revision),
+		Name:    strconv.FormatInt(log.Logentry.Revision, 10),
 		Short:   fmt.Sprintf("%012d", log.Logentry.Revision),
 		Time:    t.UTC(),
 		Version: rev,

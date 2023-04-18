@@ -3,12 +3,15 @@
 // license that can be found in the LICENSE file.
 
 #include "go_asm.h"
+#include "asm_amd64.h"
 #include "textflag.h"
 
 TEXT ·Count(SB),NOSPLIT,$0-40
+#ifndef hasPOPCNT
 	CMPB	internal∕cpu·X86+const_offsetX86HasPOPCNT(SB), $1
 	JEQ	2(PC)
 	JMP	·countGeneric(SB)
+#endif
 	MOVQ	b_base+0(FP), SI
 	MOVQ	b_len+8(FP), BX
 	MOVB	c+24(FP), AL
@@ -16,9 +19,11 @@ TEXT ·Count(SB),NOSPLIT,$0-40
 	JMP	countbody<>(SB)
 
 TEXT ·CountString(SB),NOSPLIT,$0-32
+#ifndef hasPOPCNT
 	CMPB	internal∕cpu·X86+const_offsetX86HasPOPCNT(SB), $1
 	JEQ	2(PC)
 	JMP	·countGenericString(SB)
+#endif
 	MOVQ	s_base+0(FP), SI
 	MOVQ	s_len+8(FP), BX
 	MOVB	c+16(FP), AL
@@ -151,8 +156,10 @@ endofpage:
 	RET
 
 avx2:
+#ifndef hasAVX2
 	CMPB   internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JNE sse
+#endif
 	MOVD AX, X0
 	LEAQ -32(SI)(BX*1), R11
 	VPBROADCASTB  X0, Y1

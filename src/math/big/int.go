@@ -22,6 +22,14 @@ import (
 // an existing (or newly allocated) Int must be set to
 // a new value using the Int.Set method; shallow copies
 // of Ints are not supported and may lead to errors.
+//
+// Note that methods may leak the Int's value through timing side-channels.
+// Because of this and because of the scope and complexity of the
+// implementation, Int is not well-suited to implement cryptographic operations.
+// The standard library avoids exposing non-trivial Int methods to
+// attacker-controlled inputs and the determination of whether a bug in math/big
+// is considered a security vulnerability might depend on the impact on the
+// standard library.
 type Int struct {
 	neg bool // sign
 	abs nat  // absolute value of the integer
@@ -35,6 +43,9 @@ var intOne = &Int{false, natOne}
 //	 0 if x == 0
 //	+1 if x >  0
 func (x *Int) Sign() int {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	if len(x.abs) == 0 {
 		return 0
 	}
@@ -65,7 +76,20 @@ func (z *Int) SetUint64(x uint64) *Int {
 
 // NewInt allocates and returns a new Int set to x.
 func NewInt(x int64) *Int {
-	return new(Int).SetInt64(x)
+	// This code is arranged to be inlineable and produce
+	// zero allocations when inlined. See issue 29951.
+	u := uint64(x)
+	if x < 0 {
+		u = -u
+	}
+	var abs []Word
+	if x == 0 {
+	} else if _W == 32 && u>>32 != 0 {
+		abs = []Word{Word(u), Word(u >> 32)}
+	} else {
+		abs = []Word{Word(u)}
+	}
+	return &Int{neg: x < 0, abs: abs}
 }
 
 // Set sets z to x and returns z.
@@ -83,6 +107,9 @@ func (z *Int) Set(x *Int) *Int {
 // Bits is intended to support implementation of missing low-level Int
 // functionality outside this package; it should be avoided otherwise.
 func (x *Int) Bits() []Word {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	return x.abs
 }
 
@@ -192,16 +219,46 @@ func (z *Int) MulRange(a, b int64) *Int {
 	return z
 }
 
-// Binomial sets z to the binomial coefficient of (n, k) and returns z.
+// Binomial sets z to the binomial coefficient C(n, k) and returns z.
 func (z *Int) Binomial(n, k int64) *Int {
-	// reduce the number of multiplications by reducing k
-	if n/2 < k && k <= n {
-		k = n - k // Binomial(n, k) == Binomial(n, n-k)
+	if k > n {
+		return z.SetInt64(0)
 	}
-	var a, b Int
-	a.MulRange(n-k+1, n)
-	b.MulRange(1, k)
-	return z.Quo(&a, &b)
+	// reduce the number of multiplications by reducing k
+	if k > n-k {
+		k = n - k // C(n, k) == C(n, n-k)
+	}
+	// C(n, k) == n * (n-1) * ... * (n-k+1) / k * (k-1) * ... * 1
+	//         == n * (n-1) * ... * (n-k+1) / 1 * (1+1) * ... * k
+	//
+	// Using the multiplicative formula produces smaller values
+	// at each step, requiring fewer allocations and computations:
+	//
+	// z = 1
+	// for i := 0; i < k; i = i+1 {
+	//     z *= n-i
+	//     z /= i+1
+	// }
+	//
+	// finally to avoid computing i+1 twice per loop:
+	//
+	// z = 1
+	// i := 0
+	// for i < k {
+	//     z *= n-i
+	//     i++
+	//     z /= i
+	// }
+	var N, K, i, t Int
+	N.SetInt64(n)
+	K.SetInt64(k)
+	z.Set(intOne)
+	for i.Cmp(&K) < 0 {
+		z.Mul(z, t.Sub(&N, &i))
+		i.Add(&i, intOne)
+		z.Quo(z, &i)
+	}
+	return z
 }
 
 // Quo sets z to the quotient x/y for y != 0 and returns z.
@@ -393,6 +450,26 @@ func (x *Int) IsUint64() bool {
 	return !x.neg && len(x.abs) <= 64/_W
 }
 
+// ToFloat64 returns the float64 value nearest x,
+// and an indication of any rounding that occurred.
+func (x *Int) ToFloat64() (float64, Accuracy) {
+	n := x.abs.bitLen() // NB: still uses slow crypto impl!
+	if n == 0 {
+		return 0.0, Exact
+	}
+
+	// Fast path: no more than 53 significant bits.
+	if n <= 53 || n < 64 && n-int(x.abs.trailingZeroBits()) <= 53 {
+		f := float64(low64(x.abs))
+		if x.neg {
+			f = -f
+		}
+		return f, Exact
+	}
+
+	return new(Float).SetInt(x).Float64()
+}
+
 // SetString sets z to the value of s, interpreted in the given base,
 // and returns z and a boolean indicating success. The entire string
 // (not just a prefix) must be valid for success. If SetString fails,
@@ -444,6 +521,9 @@ func (z *Int) SetBytes(buf []byte) *Int {
 //
 // To use a fixed length slice, or a preallocated one, use FillBytes.
 func (x *Int) Bytes() []byte {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	buf := make([]byte, len(x.abs)*_S)
 	return buf[x.abs.bytes(buf):]
 }
@@ -464,6 +544,9 @@ func (x *Int) FillBytes(buf []byte) []byte {
 // BitLen returns the length of the absolute value of x in bits.
 // The bit length of 0 is 0.
 func (x *Int) BitLen() int {
+	// This function is used in cryptographic operations. It must not leak
+	// anything but the Int's sign and bit size through side-channels. Any
+	// changes must be reviewed by a security expert.
 	return x.abs.bitLen()
 }
 
@@ -480,6 +563,14 @@ func (x *Int) TrailingZeroBits() uint {
 // Modular exponentiation of inputs of a particular size is not a
 // cryptographically constant-time operation.
 func (z *Int) Exp(x, y, m *Int) *Int {
+	return z.exp(x, y, m, false)
+}
+
+func (z *Int) expSlow(x, y, m *Int) *Int {
+	return z.exp(x, y, m, true)
+}
+
+func (z *Int) exp(x, y, m *Int, slow bool) *Int {
 	// See Knuth, volume 2, section 4.6.3.
 	xWords := x.abs
 	if y.neg {
@@ -497,10 +588,13 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 
 	var mWords nat
 	if m != nil {
+		if z == m || alias(z.abs, m.abs) {
+			m = new(Int).Set(m)
+		}
 		mWords = m.abs // m.abs may be nil for m == 0
 	}
 
-	z.abs = z.abs.expNN(xWords, yWords, mWords)
+	z.abs = z.abs.expNN(xWords, yWords, mWords, slow)
 	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
 	if z.neg && len(mWords) > 0 {
 		// make modulus result positive
@@ -617,7 +711,7 @@ func lehmerSimulate(A, B *Int) (u0, u1, v0, v1 Word, even bool) {
 // where the signs of u0, u1, v0, v1 are given by even
 // For even == true: u0, v1 >= 0 && u1, v0 <= 0
 // For even == false: u0, v1 <= 0 && u1, v0 >= 0
-// q, r, s, t are temporary variables to avoid allocations in the multiplication
+// q, r, s, t are temporary variables to avoid allocations in the multiplication.
 func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
 
 	t.abs = t.abs.setWord(u0)
@@ -641,7 +735,7 @@ func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
 }
 
 // euclidUpdate performs a single step of the Euclidean GCD algorithm
-// if extended is true, it also updates the cosequence Ua, Ub
+// if extended is true, it also updates the cosequence Ua, Ub.
 func euclidUpdate(A, B, Ua, Ub, q, r, s, t *Int, extended bool) {
 	q, r = q.QuoRem(A, B, r)
 
@@ -790,11 +884,13 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 // As this uses the math/rand package, it must not be used for
 // security-sensitive work. Use crypto/rand.Int instead.
 func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
-	z.neg = false
+	// z.neg is not modified before the if check, because z and n might alias.
 	if n.neg || len(n.abs) == 0 {
+		z.neg = false
 		z.abs = nil
 		return z
 	}
+	z.neg = false
 	z.abs = z.abs.random(rnd, n.abs, n.abs.bitLen())
 	return z
 }
@@ -802,7 +898,7 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 // ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
 // and returns z. If g and n are not relatively prime, g has no multiplicative
 // inverse in the ring ℤ/nℤ.  In this case, z is unchanged and the return value
-// is nil.
+// is nil. If n == 0, a division-by-zero run-time panic occurs.
 func (z *Int) ModInverse(g, n *Int) *Int {
 	// GCD expects parameters a and b to be > 0.
 	if n.neg {
@@ -831,11 +927,16 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 	return z
 }
 
+func (z nat) modInverse(g, n nat) nat {
+	// TODO(rsc): ModInverse should be implemented in terms of this function.
+	return (&Int{abs: z}).ModInverse(&Int{abs: g}, &Int{abs: n}).abs
+}
+
 // Jacobi returns the Jacobi symbol (x/y), either +1, -1, or 0.
 // The y argument must be an odd integer.
 func Jacobi(x, y *Int) int {
 	if len(y.abs) == 0 || y.abs[0]&1 == 0 {
-		panic(fmt.Sprintf("big: invalid 2nd argument to Int.Jacobi: need odd integer but got %s", y))
+		panic(fmt.Sprintf("big: invalid 2nd argument to Int.Jacobi: need odd integer but got %s", y.String()))
 	}
 
 	// We use the formulation described in chapter 2, section 2.4,
@@ -901,7 +1002,7 @@ func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
 	return z
 }
 
-// modSqrt5Mod8 uses Atkin's observation that 2 is not a square mod p
+// modSqrt5Mod8Prime uses Atkin's observation that 2 is not a square mod p
 //
 //	alpha ==  (2*a)^((p-5)/8)    mod p
 //	beta  ==  2*a*alpha^2        mod p  is a square root of -1
@@ -979,7 +1080,7 @@ func (z *Int) modSqrtTonelliShanks(x, p *Int) *Int {
 // ModSqrt sets z to a square root of x mod p if such a square root exists, and
 // returns z. The modulus p must be an odd prime. If x is not a square mod p,
 // ModSqrt leaves z unchanged and returns nil. This function panics if p is
-// not an odd integer.
+// not an odd integer, its behavior is undefined if p is odd but not prime.
 func (z *Int) ModSqrt(x, p *Int) *Int {
 	switch Jacobi(x, p) {
 	case -1:

@@ -21,14 +21,20 @@ package cgo
 #cgo openbsd LDFLAGS: -lpthread
 #cgo aix LDFLAGS: -Wl,-berok
 #cgo solaris LDFLAGS: -lxnet
-#cgo illumos LDFLAGS: -lsocket
+#cgo solaris LDFLAGS: -lsocket
 
-// Issue 35247.
-#cgo darwin CFLAGS: -Wno-nullability-completeness
-
-#cgo CFLAGS: -Wall -Werror
+// Use -fno-stack-protector to avoid problems locating the
+// proper support functions. See issues #52919, #54313, #58385.
+#cgo CFLAGS: -Wall -Werror -fno-stack-protector
 
 #cgo solaris CPPFLAGS: -D_POSIX_PTHREAD_SEMANTICS
 
 */
 import "C"
+
+import "runtime/internal/sys"
+
+// Incomplete is used specifically for the semantics of incomplete C types.
+type Incomplete struct {
+	_ sys.NotInHeap
+}

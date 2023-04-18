@@ -147,9 +147,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		if targType == sym.SDYNIMPORT {
 			ldr.Errorf(s, "unexpected R_386_PC32 relocation for dynamic symbol %s", ldr.SymName(targ))
 		}
-		// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
-		// sense and should be removed when someone has thought about it properly.
-		if (targType == 0 || targType == sym.SXREF) && !ldr.AttrVisibilityHidden(targ) {
+		if targType == 0 || targType == sym.SXREF {
 			ldr.Errorf(s, "unknown symbol %s in pcrel", ldr.SymName(targ))
 		}
 		su := ldr.MakeSymbolUpdater(s)
@@ -400,6 +398,9 @@ func pereloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 
 	case objabi.R_ADDR:
 		v = ld.IMAGE_REL_I386_DIR32
+
+	case objabi.R_PEIMAGEOFF:
+		v = ld.IMAGE_REL_I386_DIR32NB
 
 	case objabi.R_CALL,
 		objabi.R_PCREL:

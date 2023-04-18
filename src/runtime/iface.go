@@ -272,7 +272,7 @@ func panicdottypeI(have *itab, want, iface *_type) {
 	panicdottypeE(t, want, iface)
 }
 
-// panicnildottype is called when doing a i.(T) conversion and the interface i is nil.
+// panicnildottype is called when doing an i.(T) conversion and the interface i is nil.
 // want = the static type we're trying to convert to.
 func panicnildottype(want *_type) {
 	panic(&TypeAssertionError{nil, nil, want, ""})

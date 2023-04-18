@@ -19,7 +19,7 @@ func zeroRange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
 	}
 
 	// Adjust the frame to account for LR.
-	off += base.Ctxt.FixedFrameSize()
+	off += base.Ctxt.Arch.FixedFrameSize
 
 	if cnt < int64(4*types.PtrSize) {
 		for i := int64(0); i < cnt; i += int64(types.PtrSize) {

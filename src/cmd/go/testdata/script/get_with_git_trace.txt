@@ -3,7 +3,7 @@ env GO111MODULE=off
 env GIT_TRACE=1
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 # go get should be success when GIT_TRACE set
 go get golang.org/x/text

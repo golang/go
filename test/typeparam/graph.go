@@ -36,7 +36,7 @@ type _Graph[_Node _NodeC[_Edge], _Edge _EdgeC[_Node]] struct {
 	nodes []_Node
 }
 
-// _NodeC is the contraints on a node in a graph, given the _Edge type.
+// _NodeC is the constraints on a node in a graph, given the _Edge type.
 type _NodeC[_Edge any] interface {
 	comparable
 	Edges() []_Edge

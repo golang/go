@@ -15,11 +15,11 @@ import (
 // in http://msdn.microsoft.com/en-us/library/ms880421.
 // This function returns "" (2 double quotes) if s is empty.
 // Alternatively, these transformations are done:
-// - every back slash (\) is doubled, but only if immediately
-//   followed by double quote (");
-// - every double quote (") is escaped by back slash (\);
-// - finally, s is wrapped with double quotes (arg -> "arg"),
-//   but only if there is space or tab inside s.
+//   - every back slash (\) is doubled, but only if immediately
+//     followed by double quote (");
+//   - every double quote (") is escaped by back slash (\);
+//   - finally, s is wrapped with double quotes (arg -> "arg"),
+//     but only if there is space or tab inside s.
 func EscapeArg(s string) string {
 	if len(s) == 0 {
 		return "\"\""

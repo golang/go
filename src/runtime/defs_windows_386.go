@@ -56,6 +56,11 @@ func (c *context) set_lr(x uintptr) {}
 func (c *context) set_ip(x uintptr) { c.eip = uint32(x) }
 func (c *context) set_sp(x uintptr) { c.esp = uint32(x) }
 
+func prepareContextForSigResume(c *context) {
+	c.edx = c.esp
+	c.ecx = c.eip
+}
+
 func dumpregs(r *context) {
 	print("eax     ", hex(r.eax), "\n")
 	print("ebx     ", hex(r.ebx), "\n")

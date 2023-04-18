@@ -120,7 +120,10 @@ const (
 	F_SETFL    = C.F_SETFL
 	FD_CLOEXEC = C.FD_CLOEXEC
 
+	O_WRONLY   = C.O_WRONLY
 	O_NONBLOCK = C.O_NONBLOCK
+	O_CREAT    = C.O_CREAT
+	O_TRUNC    = C.O_TRUNC
 )
 
 type StackT C.struct_sigaltstack

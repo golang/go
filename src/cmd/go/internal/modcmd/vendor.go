@@ -61,6 +61,7 @@ func init() {
 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
 	cmdVendor.Flag.BoolVar(&vendorE, "e", false, "")
 	cmdVendor.Flag.StringVar(&vendorO, "o", "", "")
+	base.AddChdirFlag(&cmdVendor.Flag)
 	base.AddModCommonFlags(&cmdVendor.Flag)
 }
 
@@ -210,6 +211,9 @@ func moduleLine(m, r module.Version) string {
 		b.WriteString(m.Version)
 	}
 	if r.Path != "" {
+		if str.HasFilePathPrefix(filepath.Clean(r.Path), "vendor") {
+			base.Fatalf("go: replacement path %s inside vendor directory", r.Path)
+		}
 		b.WriteString(" => ")
 		b.WriteString(r.Path)
 		if r.Version != "" {
@@ -222,20 +226,25 @@ func moduleLine(m, r module.Version) string {
 }
 
 func vendorPkg(vdir, pkg string) {
-	// TODO(#42504): Instead of calling modload.ImportMap then build.ImportDir,
-	// just call load.PackagesAndErrors. To do that, we need to add a good way
-	// to ignore build constraints.
-	realPath := modload.ImportMap(pkg)
-	if realPath != pkg && modload.ImportMap(realPath) != "" {
+	src, realPath, _ := modload.Lookup("", false, pkg)
+	if src == "" {
+		base.Errorf("internal error: no pkg for %s\n", pkg)
+		return
+	}
+	if realPath != pkg {
+		// TODO(#26904): Revisit whether this behavior still makes sense.
+		// This should actually be impossible today, because the import map is the
+		// identity function for packages outside of the standard library.
+		//
+		// Part of the purpose of the vendor directory is to allow the packages in
+		// the module to continue to build in GOPATH mode, and GOPATH-mode users
+		// won't know about replacement aliasing. How important is it to maintain
+		// compatibility?
 		fmt.Fprintf(os.Stderr, "warning: %s imported as both %s and %s; making two copies.\n", realPath, realPath, pkg)
 	}
 
 	copiedFiles := make(map[string]bool)
 	dst := filepath.Join(vdir, pkg)
-	src := modload.PackageDir(realPath)
-	if src == "" {
-		fmt.Fprintf(os.Stderr, "internal error: no pkg for %s -> %s\n", pkg, realPath)
-	}
 	copyDir(dst, src, matchPotentialSourceFile, copiedFiles)
 	if m := modload.PackageModule(realPath); m.Path != "" {
 		copyMetadata(m.Path, realPath, dst, src, copiedFiles)

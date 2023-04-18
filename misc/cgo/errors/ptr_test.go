@@ -434,7 +434,22 @@ var ptrTests = []ptrTest{
 }
 
 func TestPointerChecks(t *testing.T) {
-	dir, exe := buildPtrTests(t)
+	var gopath string
+	var dir string
+	if *tmp != "" {
+		gopath = *tmp
+		dir = ""
+	} else {
+		d, err := os.MkdirTemp("", filepath.Base(t.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir = d
+		gopath = d
+	}
+
+	exe := buildPtrTests(t, gopath, false)
+	exe2 := buildPtrTests(t, gopath, true)
 
 	// We (TestPointerChecks) return before the parallel subtest functions do,
 	// so we can't just defer os.RemoveAll(dir). Instead we have to wait for
@@ -451,24 +466,12 @@ func TestPointerChecks(t *testing.T) {
 					os.RemoveAll(dir)
 				}
 			}()
-			testOne(t, pt, exe)
+			testOne(t, pt, exe, exe2)
 		})
 	}
 }
 
-func buildPtrTests(t *testing.T) (dir, exe string) {
-	var gopath string
-	if *tmp != "" {
-		gopath = *tmp
-		dir = ""
-	} else {
-		d, err := os.MkdirTemp("", filepath.Base(t.Name()))
-		if err != nil {
-			t.Fatal(err)
-		}
-		dir = d
-		gopath = d
-	}
+func buildPtrTests(t *testing.T, gopath string, cgocheck2 bool) (exe string) {
 
 	src := filepath.Join(gopath, "src", "ptrtest")
 	if err := os.MkdirAll(src, 0777); err != nil {
@@ -541,15 +544,31 @@ func buildPtrTests(t *testing.T) (dir, exe string) {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command("go", "build", "-o", "ptrtest.exe")
+	exeName := "ptrtest.exe"
+	if cgocheck2 {
+		exeName = "ptrtest2.exe"
+	}
+	cmd := exec.Command("go", "build", "-o", exeName)
 	cmd.Dir = src
 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+	if cgocheck2 {
+		found := false
+		for i, e := range cmd.Env {
+			if strings.HasPrefix(e, "GOEXPERIMENT=") {
+				cmd.Env[i] = e + ",cgocheck2"
+				found = true
+			}
+		}
+		if !found {
+			cmd.Env = append(cmd.Env, "GOEXPERIMENT=cgocheck2")
+		}
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
 
-	return dir, filepath.Join(src, "ptrtest.exe")
+	return filepath.Join(src, exeName)
 }
 
 const ptrTestMain = `
@@ -566,7 +585,7 @@ func main() {
 
 var csem = make(chan bool, 16)
 
-func testOne(t *testing.T, pt ptrTest, exe string) {
+func testOne(t *testing.T, pt ptrTest, exe, exe2 string) {
 	t.Parallel()
 
 	// Run the tests in parallel, but don't run too many
@@ -574,7 +593,12 @@ func testOne(t *testing.T, pt ptrTest, exe string) {
 	runcmd := func(cgocheck string) ([]byte, error) {
 		csem <- true
 		defer func() { <-csem }()
-		cmd := exec.Command(exe, pt.name)
+		x := exe
+		if cgocheck == "2" {
+			x = exe2
+			cgocheck = "1"
+		}
+		cmd := exec.Command(x, pt.name)
 		cmd.Env = append(os.Environ(), "GODEBUG=cgocheck="+cgocheck)
 		return cmd.CombinedOutput()
 	}

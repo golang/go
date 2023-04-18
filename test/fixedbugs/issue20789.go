@@ -10,4 +10,4 @@
 // there yet, so put it here for now. See also #20800.)
 
 package e
-func([<-chan<-[func u){go // ERROR "unexpected u", ERROR "must be function call"
+func([<-chan<-[func u){go // ERROR "unexpected u"

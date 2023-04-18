@@ -14,8 +14,10 @@
 // distinct but logically equivalent.
 //
 // A single object may have multiple paths. In this example,
-//     type A struct{ X int }
-//     type B A
+//
+//	type A struct{ X int }
+//	type B A
+//
 // the field X has two paths due to its membership of both A and B.
 // The For(obj) function always returns one of these paths, arbitrarily
 // but consistently.
@@ -45,30 +47,30 @@ type Path string
 // The sequences represent a path through the package/object/type graph.
 // We classify these operators by their type:
 //
-//   PO package->object	Package.Scope.Lookup
-//   OT  object->type 	Object.Type
-//   TT    type->type 	Type.{Elem,Key,Params,Results,Underlying} [EKPRU]
-//   TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
+//	PO package->object	Package.Scope.Lookup
+//	OT  object->type 	Object.Type
+//	TT    type->type 	Type.{Elem,Key,Params,Results,Underlying} [EKPRU]
+//	TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
 //
 // All valid paths start with a package and end at an object
 // and thus may be defined by the regular language:
 //
-//   objectpath = PO (OT TT* TO)*
+//	objectpath = PO (OT TT* TO)*
 //
 // The concrete encoding follows directly:
-// - The only PO operator is Package.Scope.Lookup, which requires an identifier.
-// - The only OT operator is Object.Type,
-//   which we encode as '.' because dot cannot appear in an identifier.
-// - The TT operators are encoded as [EKPRUTC];
-//   one of these (TypeParam) requires an integer operand,
-//   which is encoded as a string of decimal digits.
-// - The TO operators are encoded as [AFMO];
-//   three of these (At,Field,Method) require an integer operand,
-//   which is encoded as a string of decimal digits.
-//   These indices are stable across different representations
-//   of the same package, even source and export data.
-//   The indices used are implementation specific and may not correspond to
-//   the argument to the go/types function.
+//   - The only PO operator is Package.Scope.Lookup, which requires an identifier.
+//   - The only OT operator is Object.Type,
+//     which we encode as '.' because dot cannot appear in an identifier.
+//   - The TT operators are encoded as [EKPRUTC];
+//     one of these (TypeParam) requires an integer operand,
+//     which is encoded as a string of decimal digits.
+//   - The TO operators are encoded as [AFMO];
+//     three of these (At,Field,Method) require an integer operand,
+//     which is encoded as a string of decimal digits.
+//     These indices are stable across different representations
+//     of the same package, even source and export data.
+//     The indices used are implementation specific and may not correspond to
+//     the argument to the go/types function.
 //
 // In the example below,
 //
@@ -81,15 +83,14 @@ type Path string
 // field X has the path "T.UM0.RA1.F0",
 // representing the following sequence of operations:
 //
-//    p.Lookup("T")					T
-//    .Type().Underlying().Method(0).			f
-//    .Type().Results().At(1)				b
-//    .Type().Field(0)					X
+//	p.Lookup("T")					T
+//	.Type().Underlying().Method(0).			f
+//	.Type().Results().At(1)				b
+//	.Type().Field(0)					X
 //
 // The encoding is not maximally compact---every R or P is
 // followed by an A, for example---but this simplifies the
 // encoder and decoder.
-//
 const (
 	// object->type operators
 	opType = '.' // .Type()		  (Object)
@@ -136,10 +137,10 @@ const (
 //
 // For(X) would return a path that denotes the following sequence of operations:
 //
-//    p.Scope().Lookup("T")				(TypeName T)
-//    .Type().Underlying().Method(0).			(method Func f)
-//    .Type().Results().At(1)				(field Var b)
-//    .Type().Field(0)					(field Var X)
+//	p.Scope().Lookup("T")				(TypeName T)
+//	.Type().Underlying().Method(0).			(method Func f)
+//	.Type().Results().At(1)				(field Var b)
+//	.Type().Field(0)					(field Var X)
 //
 // where p is the package (*types.Package) to which X belongs.
 func For(obj types.Object) (Path, error) {
@@ -223,10 +224,11 @@ func For(obj types.Object) (Path, error) {
 		if recv := obj.Type().(*types.Signature).Recv(); recv == nil {
 			return "", fmt.Errorf("func is not a method: %v", obj)
 		}
-		// TODO(adonovan): opt: if the method is concrete,
-		// do a specialized version of the rest of this function so
-		// that it's O(1) not O(|scope|).  Basically 'find' is needed
-		// only for struct fields and interface methods.
+
+		if path, ok := concreteMethod(obj); ok {
+			// Fast path for concrete methods that avoids looping over scope.
+			return path, nil
+		}
 
 	default:
 		panic(obj)
@@ -313,6 +315,97 @@ func appendOpArg(path []byte, op byte, arg int) []byte {
 	path = append(path, op)
 	path = strconv.AppendInt(path, int64(arg), 10)
 	return path
+}
+
+// concreteMethod returns the path for meth, which must have a non-nil receiver.
+// The second return value indicates success and may be false if the method is
+// an interface method or if it is an instantiated method.
+//
+// This function is just an optimization that avoids the general scope walking
+// approach. You are expected to fall back to the general approach if this
+// function fails.
+func concreteMethod(meth *types.Func) (Path, bool) {
+	// Concrete methods can only be declared on package-scoped named types. For
+	// that reason we can skip the expensive walk over the package scope: the
+	// path will always be package -> named type -> method. We can trivially get
+	// the type name from the receiver, and only have to look over the type's
+	// methods to find the method index.
+	//
+	// Methods on generic types require special consideration, however. Consider
+	// the following package:
+	//
+	// 	L1: type S[T any] struct{}
+	// 	L2: func (recv S[A]) Foo() { recv.Bar() }
+	// 	L3: func (recv S[B]) Bar() { }
+	// 	L4: type Alias = S[int]
+	// 	L5: func _[T any]() { var s S[int]; s.Foo() }
+	//
+	// The receivers of methods on generic types are instantiations. L2 and L3
+	// instantiate S with the type-parameters A and B, which are scoped to the
+	// respective methods. L4 and L5 each instantiate S with int. Each of these
+	// instantiations has its own method set, full of methods (and thus objects)
+	// with receivers whose types are the respective instantiations. In other
+	// words, we have
+	//
+	// S[A].Foo, S[A].Bar
+	// S[B].Foo, S[B].Bar
+	// S[int].Foo, S[int].Bar
+	//
+	// We may thus be trying to produce object paths for any of these objects.
+	//
+	// S[A].Foo and S[B].Bar are the origin methods, and their paths are S.Foo
+	// and S.Bar, which are the paths that this function naturally produces.
+	//
+	// S[A].Bar, S[B].Foo, and both methods on S[int] are instantiations that
+	// don't correspond to the origin methods. For S[int], this is significant.
+	// The most precise object path for S[int].Foo, for example, is Alias.Foo,
+	// not S.Foo. Our function, however, would produce S.Foo, which would
+	// resolve to a different object.
+	//
+	// For S[A].Bar and S[B].Foo it could be argued that S.Bar and S.Foo are
+	// still the correct paths, since only the origin methods have meaningful
+	// paths. But this is likely only true for trivial cases and has edge cases.
+	// Since this function is only an optimization, we err on the side of giving
+	// up, deferring to the slower but definitely correct algorithm. Most users
+	// of objectpath will only be giving us origin methods, anyway, as referring
+	// to instantiated methods is usually not useful.
+
+	if typeparams.OriginMethod(meth) != meth {
+		return "", false
+	}
+
+	recvT := meth.Type().(*types.Signature).Recv().Type()
+	if ptr, ok := recvT.(*types.Pointer); ok {
+		recvT = ptr.Elem()
+	}
+
+	named, ok := recvT.(*types.Named)
+	if !ok {
+		return "", false
+	}
+
+	if types.IsInterface(named) {
+		// Named interfaces don't have to be package-scoped
+		//
+		// TODO(dominikh): opt: if scope.Lookup(name) == named, then we can apply this optimization to interface
+		// methods, too, I think.
+		return "", false
+	}
+
+	// Preallocate space for the name, opType, opMethod, and some digits.
+	name := named.Obj().Name()
+	path := make([]byte, 0, len(name)+8)
+	path = append(path, name...)
+	path = append(path, opType)
+	canonical := canonicalize(named)
+	for i, m := range canonical {
+		if m == meth {
+			path = appendOpArg(path, opMethod, i)
+			return Path(path), true
+		}
+	}
+
+	panic(fmt.Sprintf("couldn't find method %s on type %s", meth, named))
 }
 
 // find finds obj within type T, returning the path to it, or nil if not found.

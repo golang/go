@@ -107,7 +107,7 @@ func (s *TestServer) Lookup(ctx context.Context, m module.Version) (int64, error
 		s.lookup = make(map[string]int64)
 	}
 	s.lookup[key] = id
-	hashes, err := tlog.StoredHashesForRecordHash(id, tlog.RecordHash([]byte(data)), s.hashes)
+	hashes, err := tlog.StoredHashesForRecordHash(id, tlog.RecordHash(data), s.hashes)
 	if err != nil {
 		panic(err)
 	}

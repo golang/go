@@ -29,7 +29,6 @@ type (
         _ [P*T-T, /* ERROR "unexpected comma" */ ]struct{}
         _ [10, /* ERROR "unexpected comma" */ ]struct{}
 
-        // These should be parsed as generic type declarations.
-        _[P *struct /* ERROR "expected expression" */ {}|int] struct{}
-        _[P *struct /* ERROR "expected expression" */ {}|int|string] struct{}
+        _[P *struct{}|int] struct{}
+        _[P *struct{}|int|string] struct{}
 )

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/token"
 	"go/types"
+	"internal/pkgbits"
 	"sync"
 )
 
@@ -155,12 +156,28 @@ type anyType struct{}
 func (t anyType) Underlying() types.Type { return t }
 func (t anyType) String() string         { return "any" }
 
+// See cmd/compile/internal/noder.derivedInfo.
 type derivedInfo struct {
-	idx    int
+	idx    pkgbits.Index
 	needed bool
 }
 
+// See cmd/compile/internal/noder.typeInfo.
 type typeInfo struct {
-	idx     int
+	idx     pkgbits.Index
 	derived bool
+}
+
+// See cmd/compile/internal/types.SplitVargenSuffix.
+func splitVargenSuffix(name string) (base, suffix string) {
+	i := len(name)
+	for i > 0 && name[i-1] >= '0' && name[i-1] <= '9' {
+		i--
+	}
+	const dot = "·"
+	if i >= len(dot) && name[i-len(dot):i] == dot {
+		i -= len(dot)
+		return name[:i], name[i:]
+	}
+	return name, ""
 }

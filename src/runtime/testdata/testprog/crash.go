@@ -122,13 +122,13 @@ func NilPanic() {
 	panic(nil)
 }
 
-type exampleCircleStartError struct {}
+type exampleCircleStartError struct{}
 
 func (e exampleCircleStartError) Error() string {
 	panic(exampleCircleEndError{})
 }
 
-type exampleCircleEndError struct {}
+type exampleCircleEndError struct{}
 
 func (e exampleCircleEndError) Error() string {
 	panic(exampleCircleStartError{})

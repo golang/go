@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !race
+
 package maphash
 
 import (
@@ -17,6 +19,9 @@ import (
 // Smhasher is a torture test for hash functions.
 // https://code.google.com/p/smhasher/
 // This code is a port of some of the Smhasher tests to Go.
+
+// Note: due to the long running time of these tests, they are
+// currently disabled in -race mode.
 
 var fixedSeed = MakeSeed()
 

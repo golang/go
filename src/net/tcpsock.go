@@ -167,8 +167,10 @@ func (c *TCPConn) CloseWrite() error {
 // If sec == 0, the operating system discards any unsent or
 // unacknowledged data.
 //
-// If sec > 0, the data is sent in the background as with sec < 0. On
-// some operating systems after sec seconds have elapsed any remaining
+// If sec > 0, the data is sent in the background as with sec < 0.
+// On some operating systems including Linux, this may cause Close to block
+// until all data has been sent or discarded.
+// On some operating systems after sec seconds have elapsed any remaining
 // unsent data may be discarded.
 func (c *TCPConn) SetLinger(sec int) error {
 	if !c.ok() {
@@ -217,10 +219,35 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
 	return nil
 }
 
-func newTCPConn(fd *netFD) *TCPConn {
-	c := &TCPConn{conn{fd}}
-	setNoDelay(c.fd, true)
-	return c
+// MultipathTCP reports whether the ongoing connection is using MPTCP.
+//
+// If Multipath TCP is not supported by the host, by the other peer or
+// intentionally / accidentally filtered out by a device in between, a
+// fallback to TCP will be done. This method does its best to check if
+// MPTCP is still being used or not.
+//
+// On Linux, more conditions are verified on kernels >= v5.16, improving
+// the results.
+func (c *TCPConn) MultipathTCP() (bool, error) {
+	if !c.ok() {
+		return false, syscall.EINVAL
+	}
+	return isUsingMultipathTCP(c.fd), nil
+}
+
+func newTCPConn(fd *netFD, keepAlive time.Duration, keepAliveHook func(time.Duration)) *TCPConn {
+	setNoDelay(fd, true)
+	if keepAlive == 0 {
+		keepAlive = defaultTCPKeepAlive
+	}
+	if keepAlive > 0 {
+		setKeepAlive(fd, true)
+		setKeepAlivePeriod(fd, keepAlive)
+		if keepAliveHook != nil {
+			keepAliveHook(keepAlive)
+		}
+	}
+	return &TCPConn{conn{fd}}
 }
 
 // DialTCP acts like Dial for TCP networks.

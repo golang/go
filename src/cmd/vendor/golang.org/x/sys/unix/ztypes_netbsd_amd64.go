@@ -499,6 +499,90 @@ type Utsname struct {
 	Machine  [256]byte
 }
 
+const SizeofUvmexp = 0x278
+
+type Uvmexp struct {
+	Pagesize           int64
+	Pagemask           int64
+	Pageshift          int64
+	Npages             int64
+	Free               int64
+	Active             int64
+	Inactive           int64
+	Paging             int64
+	Wired              int64
+	Zeropages          int64
+	Reserve_pagedaemon int64
+	Reserve_kernel     int64
+	Freemin            int64
+	Freetarg           int64
+	Inactarg           int64
+	Wiredmax           int64
+	Nswapdev           int64
+	Swpages            int64
+	Swpginuse          int64
+	Swpgonly           int64
+	Nswget             int64
+	Unused1            int64
+	Cpuhit             int64
+	Cpumiss            int64
+	Faults             int64
+	Traps              int64
+	Intrs              int64
+	Swtch              int64
+	Softs              int64
+	Syscalls           int64
+	Pageins            int64
+	Swapins            int64
+	Swapouts           int64
+	Pgswapin           int64
+	Pgswapout          int64
+	Forks              int64
+	Forks_ppwait       int64
+	Forks_sharevm      int64
+	Pga_zerohit        int64
+	Pga_zeromiss       int64
+	Zeroaborts         int64
+	Fltnoram           int64
+	Fltnoanon          int64
+	Fltpgwait          int64
+	Fltpgrele          int64
+	Fltrelck           int64
+	Fltrelckok         int64
+	Fltanget           int64
+	Fltanretry         int64
+	Fltamcopy          int64
+	Fltnamap           int64
+	Fltnomap           int64
+	Fltlget            int64
+	Fltget             int64
+	Flt_anon           int64
+	Flt_acow           int64
+	Flt_obj            int64
+	Flt_prcopy         int64
+	Flt_przero         int64
+	Pdwoke             int64
+	Pdrevs             int64
+	Unused4            int64
+	Pdfreed            int64
+	Pdscans            int64
+	Pdanscan           int64
+	Pdobscan           int64
+	Pdreact            int64
+	Pdbusy             int64
+	Pdpageouts         int64
+	Pdpending          int64
+	Pddeact            int64
+	Anonpages          int64
+	Filepages          int64
+	Execpages          int64
+	Colorhit           int64
+	Colormiss          int64
+	Ncolors            int64
+	Bootpages          int64
+	Poolpages          int64
+}
+
 const SizeofClockinfo = 0x14
 
 type Clockinfo struct {

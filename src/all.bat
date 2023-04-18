@@ -13,9 +13,9 @@ goto end
 :ok
 
 set OLDPATH=%PATH%
-call make.bat --no-banner --no-local
+call .\make.bat --no-banner --no-local
 if %GOBUILDFAIL%==1 goto end
-call run.bat --no-rebuild --no-local
+call .\run.bat --no-rebuild --no-local
 if %GOBUILDFAIL%==1 goto end
 :: we must restore %PATH% before running "dist banner" so that the latter
 :: can get the original %PATH% and give suggestion to add %GOROOT%/bin

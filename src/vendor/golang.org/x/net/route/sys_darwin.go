@@ -4,9 +4,11 @@
 
 package route
 
+import "syscall"
+
 func (typ RIBType) parseable() bool {
 	switch typ {
-	case sysNET_RT_STAT, sysNET_RT_TRASH:
+	case syscall.NET_RT_STAT, syscall.NET_RT_TRASH:
 		return false
 	default:
 		return true
@@ -66,22 +68,22 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
 	ifmam2.parse = ifmam2.parseInterfaceMulticastAddrMessage
 	// Darwin kernels require 32-bit aligned access to routing facilities.
 	return 4, map[int]*wireFormat{
-		sysRTM_ADD:       rtm,
-		sysRTM_DELETE:    rtm,
-		sysRTM_CHANGE:    rtm,
-		sysRTM_GET:       rtm,
-		sysRTM_LOSING:    rtm,
-		sysRTM_REDIRECT:  rtm,
-		sysRTM_MISS:      rtm,
-		sysRTM_LOCK:      rtm,
-		sysRTM_RESOLVE:   rtm,
-		sysRTM_NEWADDR:   ifam,
-		sysRTM_DELADDR:   ifam,
-		sysRTM_IFINFO:    ifm,
-		sysRTM_NEWMADDR:  ifmam,
-		sysRTM_DELMADDR:  ifmam,
-		sysRTM_IFINFO2:   ifm2,
-		sysRTM_NEWMADDR2: ifmam2,
-		sysRTM_GET2:      rtm2,
+		syscall.RTM_ADD:       rtm,
+		syscall.RTM_DELETE:    rtm,
+		syscall.RTM_CHANGE:    rtm,
+		syscall.RTM_GET:       rtm,
+		syscall.RTM_LOSING:    rtm,
+		syscall.RTM_REDIRECT:  rtm,
+		syscall.RTM_MISS:      rtm,
+		syscall.RTM_LOCK:      rtm,
+		syscall.RTM_RESOLVE:   rtm,
+		syscall.RTM_NEWADDR:   ifam,
+		syscall.RTM_DELADDR:   ifam,
+		syscall.RTM_IFINFO:    ifm,
+		syscall.RTM_NEWMADDR:  ifmam,
+		syscall.RTM_DELMADDR:  ifmam,
+		syscall.RTM_IFINFO2:   ifm2,
+		syscall.RTM_NEWMADDR2: ifmam2,
+		syscall.RTM_GET2:      rtm2,
 	}
 }

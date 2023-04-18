@@ -15,10 +15,12 @@ the compiler. Roughly speaking, these translate to the first two and last two
 phases we are going to list here. A third term, "middle-end", often refers to
 much of the work that happens in the second phase.
 
-Note that the `go/*` family of packages, such as `go/parser` and `go/types`,
-have no relation to the compiler. Since the compiler was initially written in C,
-the `go/*` packages were developed to enable writing tools working with Go code,
-such as `gofmt` and `vet`.
+Note that the `go/*` family of packages, such as `go/parser` and
+`go/types`, are mostly unused by the compiler. Since the compiler was
+initially written in C, the `go/*` packages were developed to enable
+writing tools working with Go code, such as `gofmt` and `vet`.
+However, over time the compiler's internal APIs have slowly evolved to
+be more familiar to users of the `go/*` packages.
 
 It should be clarified that the name "gc" stands for "Go compiler", and has
 little to do with uppercase "GC", which stands for garbage collection.
@@ -36,33 +38,71 @@ nodes corresponding to the various elements of the source such as expressions,
 declarations, and statements. The syntax tree also includes position information
 which is used for error reporting and the creation of debugging information.
 
-### 2. Type-checking and AST transformations
+### 2. Type checking
 
-* `cmd/compile/internal/gc` (create compiler AST, type checking, AST transformations)
+* `cmd/compile/internal/types2` (type checking)
 
-The gc package includes its own AST definition carried over from when it was written
-in C. All of its code is written in terms of this AST, so the first thing that the gc
-package must do is convert the syntax package's syntax tree to the compiler's
-AST representation. This extra step may be refactored away in the future.
+The types2 package is a port of `go/types` to use the syntax package's
+AST instead of `go/ast`.
 
-The gc AST is then type-checked. The first steps are name resolution and type
-inference, which determine which object belongs to which identifier, and what
-type each expression has. Type-checking includes certain extra checks, such as
-"declared and not used" as well as determining whether or not a function
-terminates.
+### 3. IR construction ("noding")
 
-Certain transformations are also done on the AST. Some nodes are refined based
-on type information, such as string additions being split from the arithmetic
-addition node type. Some other examples are dead code elimination, function call
+* `cmd/compile/internal/types` (compiler types)
+* `cmd/compile/internal/ir` (compiler AST)
+* `cmd/compile/internal/typecheck` (AST transformations)
+* `cmd/compile/internal/noder` (create compiler AST)
+
+The compiler middle end uses its own AST definition and representation of Go
+types carried over from when it was written in C. All of its code is written in
+terms of these, so the next step after type checking is to convert the syntax
+and types2 representations to ir and types. This process is referred to as
+"noding."
+
+There are currently two noding implementations:
+
+1. irgen (aka "-G=3" or sometimes "noder2") is the implementation used starting
+   with Go 1.18, and
+
+2. Unified IR is another, in-development implementation (enabled with
+   `GOEXPERIMENT=unified`), which also implements import/export and inlining.
+
+Up through Go 1.18, there was a third noding implementation (just
+"noder" or "-G=0"), which directly converted the pre-type-checked
+syntax representation into IR and then invoked package typecheck's
+type checker. This implementation was removed after Go 1.18, so now
+package typecheck is only used for IR transformations.
+
+### 4. Middle end
+
+* `cmd/compile/internal/deadcode` (dead code elimination)
+* `cmd/compile/internal/inline` (function call inlining)
+* `cmd/compile/internal/devirtualize` (devirtualization of known interface method calls)
+* `cmd/compile/internal/escape` (escape analysis)
+
+Several optimization passes are performed on the IR representation:
+dead code elimination, (early) devirtualization, function call
 inlining, and escape analysis.
 
-### 3. Generic SSA
+### 5. Walk
 
-* `cmd/compile/internal/gc` (converting to SSA)
+* `cmd/compile/internal/walk` (order of evaluation, desugaring)
+
+The final pass over the IR representation is "walk," which serves two purposes:
+
+1. It decomposes complex statements into individual, simpler statements,
+   introducing temporary variables and respecting order of evaluation. This step
+   is also referred to as "order."
+
+2. It desugars higher-level Go constructs into more primitive ones. For example,
+   `switch` statements are turned into binary search or jump tables, and
+   operations on maps and channels are replaced with runtime calls.
+
+### 6. Generic SSA
+
 * `cmd/compile/internal/ssa` (SSA passes and rules)
+* `cmd/compile/internal/ssagen` (converting IR to SSA)
 
-
-In this phase, the AST is converted into Static Single Assignment (SSA) form, a
+In this phase, IR is converted into Static Single Assignment (SSA) form, a
 lower-level intermediate representation with specific properties that make it
 easier to implement optimizations and to eventually generate machine code from
 it.
@@ -84,7 +124,7 @@ unneeded nil checks, and removal of unused branches. The generic rewrite rules
 mainly concern expressions, such as replacing some expressions with constant
 values, and optimizing multiplications and float operations.
 
-### 4. Generating machine code
+### 7. Generating machine code
 
 * `cmd/compile/internal/ssa` (SSA lowering and arch-specific passes)
 * `cmd/internal/obj` (machine code generation)

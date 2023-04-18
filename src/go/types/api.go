@@ -31,6 +31,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
+	. "internal/types/errors"
 )
 
 // An Error describes a type-checking error; it implements the error interface.
@@ -48,7 +49,7 @@ type Error struct {
 	// to preview this feature may read go116code using reflection (see
 	// errorcodes_test.go), but beware that there is no guarantee of future
 	// compatibility.
-	go116code  errorCode
+	go116code  Code
 	go116start token.Pos
 	go116end   token.Pos
 }
@@ -142,6 +143,9 @@ type Config struct {
 	// It is an error to set both FakeImportC and go115UsesCgo.
 	go115UsesCgo bool
 
+	// If _Trace is set, a debug trace is printed to stdout.
+	_Trace bool
+
 	// If Error != nil, it is called with each error found
 	// during type checking; err has dynamic type Error.
 	// Secondary errors (for instance, to enumerate all types
@@ -166,6 +170,13 @@ type Config struct {
 	// If DisableUnusedImportCheck is set, packages are not checked
 	// for unused imports.
 	DisableUnusedImportCheck bool
+
+	// If _EnableReverseTypeInference is set, uninstantiated and
+	// partially instantiated generic functions may be assigned
+	// (incl. returned) to variables of function type and type
+	// inference will attempt to infer the missing type arguments.
+	// Experimental. Needs a proposal.
+	_EnableReverseTypeInference bool
 }
 
 func srcimporter_setUsesCgo(conf *Config) {
@@ -413,24 +424,25 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 //
-// The behavior of AssertableTo is undefined in two cases:
-//  - if V is a generalized interface; i.e., an interface that may only be used
-//    as a type constraint in Go code
-//  - if T is an uninstantiated generic type
+// The behavior of AssertableTo is unspecified in three cases:
+//   - if T is Typ[Invalid]
+//   - if V is a generalized interface; i.e., an interface that may only be used
+//     as a type constraint in Go code
+//   - if T is an uninstantiated generic type
 func AssertableTo(V *Interface, T Type) bool {
 	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
 	// handling here.
 	if T.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).newAssertableTo(V, T) == nil
+	return (*Checker)(nil).newAssertableTo(nopos, V, T, nil)
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable
 // of type T.
 //
-// The behavior of AssignableTo is undefined if V or T is an uninstantiated
-// generic type.
+// The behavior of AssignableTo is unspecified if V or T is Typ[Invalid] or an
+// uninstantiated generic type.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	ok, _ := x.assignableTo(nil, T, nil) // check not needed for non-constant x
@@ -440,8 +452,8 @@ func AssignableTo(V, T Type) bool {
 // ConvertibleTo reports whether a value of type V is convertible to a value of
 // type T.
 //
-// The behavior of ConvertibleTo is undefined if V or T is an uninstantiated
-// generic type.
+// The behavior of ConvertibleTo is unspecified if V or T is Typ[Invalid] or an
+// uninstantiated generic type.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
 	return x.convertibleTo(nil, T, nil) // check not needed for non-constant x
@@ -449,8 +461,8 @@ func ConvertibleTo(V, T Type) bool {
 
 // Implements reports whether type V implements interface T.
 //
-// The behavior of Implements is undefined if V is an uninstantiated generic
-// type.
+// The behavior of Implements is unspecified if V is Typ[Invalid] or an uninstantiated
+// generic type.
 func Implements(V Type, T *Interface) bool {
 	if T.Empty() {
 		// All types (even Typ[Invalid]) implement the empty interface.
@@ -461,17 +473,28 @@ func Implements(V Type, T *Interface) bool {
 	if V.Underlying() == Typ[Invalid] {
 		return false
 	}
-	return (*Checker)(nil).implements(V, T) == nil
+	return (*Checker)(nil).implements(0, V, T, false, nil)
+}
+
+// Satisfies reports whether type V satisfies the constraint T.
+//
+// The behavior of Satisfies is unspecified if V is Typ[Invalid] or an uninstantiated
+// generic type.
+func Satisfies(V Type, T *Interface) bool {
+	return (*Checker)(nil).implements(0, V, T, true, nil)
 }
 
 // Identical reports whether x and y are identical types.
 // Receivers of Signature types are ignored.
 func Identical(x, y Type) bool {
-	return identical(x, y, true, nil)
+	var c comparer
+	return c.identical(x, y, nil)
 }
 
 // IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
 // Receivers of Signature types are ignored.
 func IdenticalIgnoreTags(x, y Type) bool {
-	return identical(x, y, false, nil)
+	var c comparer
+	c.ignoreTags = true
+	return c.identical(x, y, nil)
 }

@@ -32,7 +32,6 @@ import (
 	"flag"
 	"fmt"
 	"internal/testenv"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -162,7 +161,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
 		} else {
 			t.Errorf("%s:%s: unexpected error: %s", filename, orig, e.Msg)
 		}
-	}, nil, 0)
+	}, nil, CheckBranches)
 
 	if *print {
 		fmt.Println()
@@ -178,7 +177,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
 func TestSyntaxErrors(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // we need access to source (testdata)
 
-	list, err := ioutil.ReadDir(testdata)
+	list, err := os.ReadDir(testdata)
 	if err != nil {
 		t.Fatal(err)
 	}

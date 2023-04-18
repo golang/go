@@ -1,0 +1,36 @@
+{"DocLinkBaseURL": "https://pkg.go.dev"}
+-- input --
+Cool things:
+
+  - Foo
+  - [Go] is great
+    
+    [Go]: https://go.dev/
+  - Bar
+
+-- text --
+Cool things:
+
+  - Foo
+
+  - Go is great
+
+  - Bar
+
+[Go]: https://go.dev/
+-- markdown --
+Cool things:
+
+  - Foo
+
+  - [Go](https://go.dev/) is great
+
+  - Bar
+
+-- html --
+<p>Cool things:
+<ul>
+<li><p>Foo
+<li><p><a href="https://go.dev/">Go</a> is great
+<li><p>Bar
+</ul>

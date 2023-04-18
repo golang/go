@@ -14,7 +14,8 @@ import (
 	"cmd/go/internal/cfg"
 )
 
-// Default returns the default cache to use, or nil if no cache should be used.
+// Default returns the default cache to use.
+// It never returns nil.
 func Default() *Cache {
 	defaultOnce.Do(initDefaultCache)
 	return defaultCache

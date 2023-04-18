@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"cmd/go/internal/lockedfile"
+	"cmd/go/internal/mmap"
 )
 
 // An ActionID is a cache action key, the hash of a complete description of a
@@ -244,6 +245,24 @@ func (c *Cache) GetBytes(id ActionID) ([]byte, Entry, error) {
 	return data, entry, nil
 }
 
+// GetMmap looks up the action ID in the cache and returns
+// the corresponding output bytes.
+// GetMmap should only be used for data that can be expected to fit in memory.
+func (c *Cache) GetMmap(id ActionID) ([]byte, Entry, error) {
+	entry, err := c.Get(id)
+	if err != nil {
+		return nil, entry, err
+	}
+	md, err := mmap.Mmap(c.OutputFile(entry.OutputID))
+	if err != nil {
+		return nil, Entry{}, err
+	}
+	if int64(len(md.Data)) != entry.Size {
+		return nil, Entry{}, &entryNotFoundError{Err: errors.New("file incomplete")}
+	}
+	return md.Data, entry, nil
+}
+
 // OutputFile returns the name of the cache file storing output with the given OutputID.
 func (c *Cache) OutputFile(out OutputID) string {
 	file := c.fileName(out, "d")
@@ -287,7 +306,7 @@ func (c *Cache) used(file string) {
 }
 
 // Trim removes old cache entries that are likely not to be reused.
-func (c *Cache) Trim() {
+func (c *Cache) Trim() error {
 	now := c.now()
 
 	// We maintain in dir/trim.txt the time of the last completed cache trim.
@@ -301,7 +320,7 @@ func (c *Cache) Trim() {
 		if t, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
 			lastTrim := time.Unix(t, 0)
 			if d := now.Sub(lastTrim); d < trimInterval && d > -mtimeInterval {
-				return
+				return nil
 			}
 		}
 	}
@@ -320,8 +339,10 @@ func (c *Cache) Trim() {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "%d", now.Unix())
 	if err := lockedfile.Write(filepath.Join(c.dir, "trim.txt"), &b, 0666); err != nil {
-		return
+		return err
 	}
+
+	return nil
 }
 
 // trimSubdir trims a single cache subdirectory.

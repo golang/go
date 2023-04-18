@@ -227,6 +227,15 @@ func real(c ComplexType) FloatType
 // the type of c.
 func imag(c ComplexType) FloatType
 
+// The clear built-in function clears maps and slices.
+// For maps, clear deletes all entries, resulting in an empty map.
+// For slices, clear sets all elements up to the length of the slice
+// to the zero value of the respective element type. If the argument
+// type is a type parameter, the type parameter's type set must
+// contain only map or slice types, and clear performs the operation
+// implied by the type argument.
+func clear[T ~[]Type | ~map[Type]Type1](t T)
+
 // The close built-in function closes a channel, which must be either
 // bidirectional or send-only. It should be executed only by the sender,
 // never the receiver, and has the effect of shutting down the channel after
@@ -236,7 +245,7 @@ func imag(c ComplexType) FloatType
 //
 //	x, ok := <-c
 //
-// will also set ok to false for a closed channel.
+// will also set ok to false for a closed and empty channel.
 func close(c chan<- Type)
 
 // The panic built-in function stops normal execution of the current
@@ -249,6 +258,10 @@ func close(c chan<- Type)
 // that point, the program is terminated with a non-zero exit code. This
 // termination sequence is called panicking and can be controlled by the
 // built-in function recover.
+//
+// Starting in Go 1.21, calling panic with a nil interface value or an
+// untyped nil causes a run-time error (a different panic).
+// The GODEBUG setting panicnil=1 disables the run-time error.
 func panic(v any)
 
 // The recover built-in function allows a program to manage behavior of a

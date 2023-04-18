@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -49,9 +50,6 @@ var cleantests = []PathTest{
 
 	// Remove doubled slash
 	{"abc//def//ghi", "abc/def/ghi"},
-	{"//abc", "/abc"},
-	{"///abc", "/abc"},
-	{"//abc//", "/abc"},
 	{"abc//", "abc"},
 
 	// Remove . elements
@@ -76,6 +74,13 @@ var cleantests = []PathTest{
 	{"abc/../../././../def", "../../def"},
 }
 
+var nonwincleantests = []PathTest{
+	// Remove leading doubled slash
+	{"//abc", "/abc"},
+	{"///abc", "/abc"},
+	{"//abc//", "/abc"},
+}
+
 var wincleantests = []PathTest{
 	{`c:`, `c:.`},
 	{`c:\`, `c:\`},
@@ -86,13 +91,29 @@ var wincleantests = []PathTest{
 	{`c:..\abc`, `c:..\abc`},
 	{`\`, `\`},
 	{`/`, `\`},
-	{`\\i\..\c$`, `\c$`},
-	{`\\i\..\i\c$`, `\i\c$`},
-	{`\\i\..\I\c$`, `\I\c$`},
+	{`\\i\..\c$`, `\\i\..\c$`},
+	{`\\i\..\i\c$`, `\\i\..\i\c$`},
+	{`\\i\..\I\c$`, `\\i\..\I\c$`},
 	{`\\host\share\foo\..\bar`, `\\host\share\bar`},
 	{`//host/share/foo/../baz`, `\\host\share\baz`},
+	{`\\host\share\foo\..\..\..\..\bar`, `\\host\share\bar`},
+	{`\\.\C:\a\..\..\..\..\bar`, `\\.\C:\bar`},
+	{`\\.\C:\\\\a`, `\\.\C:\a`},
 	{`\\a\b\..\c`, `\\a\b\c`},
 	{`\\a\b`, `\\a\b`},
+	{`.\c:`, `.\c:`},
+	{`.\c:\foo`, `.\c:\foo`},
+	{`.\c:foo`, `.\c:foo`},
+	{`//abc`, `\\abc`},
+	{`///abc`, `\\\abc`},
+	{`//abc//`, `\\abc\\`},
+
+	// Don't allow cleaning to move an element with a colon to the start of the path.
+	{`a/../c:`, `.\c:`},
+	{`a\..\c:`, `.\c:`},
+	{`a/../c:/a`, `.\c:\a`},
+	{`a/../../c:`, `..\c:`},
+	{`foo:bar`, `foo:bar`},
 }
 
 func TestClean(t *testing.T) {
@@ -102,6 +123,8 @@ func TestClean(t *testing.T) {
 			tests[i].result = filepath.FromSlash(tests[i].result)
 		}
 		tests = append(tests, wincleantests...)
+	} else {
+		tests = append(tests, nonwincleantests...)
 	}
 	for _, test := range tests {
 		if s := filepath.Clean(test.path); s != test.result {
@@ -124,6 +147,64 @@ func TestClean(t *testing.T) {
 		allocs := testing.AllocsPerRun(100, func() { filepath.Clean(test.result) })
 		if allocs > 0 {
 			t.Errorf("Clean(%q): %v allocs, want zero", test.result, allocs)
+		}
+	}
+}
+
+type IsLocalTest struct {
+	path    string
+	isLocal bool
+}
+
+var islocaltests = []IsLocalTest{
+	{"", false},
+	{".", true},
+	{"..", false},
+	{"../a", false},
+	{"/", false},
+	{"/a", false},
+	{"/a/../..", false},
+	{"a", true},
+	{"a/../a", true},
+	{"a/", true},
+	{"a/.", true},
+	{"a/./b/./c", true},
+}
+
+var winislocaltests = []IsLocalTest{
+	{"NUL", false},
+	{"nul", false},
+	{"nul.", false},
+	{"com1", false},
+	{"./nul", false},
+	{`\`, false},
+	{`\a`, false},
+	{`C:`, false},
+	{`C:\a`, false},
+	{`..\a`, false},
+	{`a/../c:`, false},
+	{`CONIN$`, false},
+	{`conin$`, false},
+	{`CONOUT$`, false},
+	{`conout$`, false},
+	{`dollar$`, true}, // not a special file name
+}
+
+var plan9islocaltests = []IsLocalTest{
+	{"#a", false},
+}
+
+func TestIsLocal(t *testing.T) {
+	tests := islocaltests
+	if runtime.GOOS == "windows" {
+		tests = append(tests, winislocaltests...)
+	}
+	if runtime.GOOS == "plan9" {
+		tests = append(tests, plan9islocaltests...)
+	}
+	for _, test := range tests {
+		if got := filepath.IsLocal(test.path); got != test.isLocal {
+			t.Errorf("IsLocal(%q) = %v, want %v", test.path, got, test.isLocal)
 		}
 	}
 }
@@ -254,14 +335,19 @@ var jointests = []JoinTest{
 	{[]string{"/", "a"}, "/a"},
 	{[]string{"/", "a/b"}, "/a/b"},
 	{[]string{"/", ""}, "/"},
-	{[]string{"//", "a"}, "/a"},
 	{[]string{"/a", "b"}, "/a/b"},
+	{[]string{"a", "/b"}, "a/b"},
+	{[]string{"/a", "/b"}, "/a/b"},
 	{[]string{"a/", "b"}, "a/b"},
 	{[]string{"a/", ""}, "a"},
 	{[]string{"", ""}, ""},
 
 	// three parameters
 	{[]string{"/", "a", "b"}, "/a/b"},
+}
+
+var nonwinjointests = []JoinTest{
+	{[]string{"//", "a"}, "/a"},
 }
 
 var winjointests = []JoinTest{
@@ -276,6 +362,8 @@ var winjointests = []JoinTest{
 	{[]string{`C:`, ``, ``, `b`}, `C:b`},
 	{[]string{`C:`, ``}, `C:.`},
 	{[]string{`C:`, ``, ``}, `C:.`},
+	{[]string{`C:`, `\a`}, `C:\a`},
+	{[]string{`C:`, ``, `\a`}, `C:\a`},
 	{[]string{`C:.`, `a`}, `C:a`},
 	{[]string{`C:a`, `b`}, `C:a\b`},
 	{[]string{`C:a`, `b`, `d`}, `C:a\b\d`},
@@ -285,17 +373,20 @@ var winjointests = []JoinTest{
 	{[]string{`\`}, `\`},
 	{[]string{`\`, ``}, `\`},
 	{[]string{`\`, `a`}, `\a`},
-	{[]string{`\\`, `a`}, `\a`},
+	{[]string{`\\`, `a`}, `\\a`},
 	{[]string{`\`, `a`, `b`}, `\a\b`},
-	{[]string{`\\`, `a`, `b`}, `\a\b`},
+	{[]string{`\\`, `a`, `b`}, `\\a\b`},
 	{[]string{`\`, `\\a\b`, `c`}, `\a\b\c`},
-	{[]string{`\\a`, `b`, `c`}, `\a\b\c`},
-	{[]string{`\\a\`, `b`, `c`}, `\a\b\c`},
+	{[]string{`\\a`, `b`, `c`}, `\\a\b\c`},
+	{[]string{`\\a\`, `b`, `c`}, `\\a\b\c`},
+	{[]string{`//`, `a`}, `\\a`},
 }
 
 func TestJoin(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		jointests = append(jointests, winjointests...)
+	} else {
+		jointests = append(jointests, nonwinjointests...)
 	}
 	for _, test := range jointests {
 		expected := filepath.FromSlash(test.path)
@@ -522,8 +613,9 @@ func testWalk(t *testing.T, walk func(string, fs.WalkDirFunc) error, errVisit in
 		// Test permission errors. Only possible if we're not root
 		// and only on some file systems (AFS, FAT).  To avoid errors during
 		// all.bash on those file systems, skip during go test -short.
-		if runtime.GOOS == "windows" {
-			t.Skip("skipping on Windows")
+		// Chmod is not supported on wasip1.
+		if runtime.GOOS == "windows" || runtime.GOOS == "wasip1" {
+			t.Skip("skipping on " + runtime.GOOS)
 		}
 		if os.Getuid() == 0 {
 			t.Skip("skipping as root")
@@ -635,6 +727,64 @@ func TestWalkSkipDirOnFile(t *testing.T) {
 	})
 }
 
+func TestWalkSkipAllOnFile(t *testing.T) {
+	td := t.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(td, "dir", "subdir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(td, "dir2"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	touch(t, filepath.Join(td, "dir", "foo1"))
+	touch(t, filepath.Join(td, "dir", "foo2"))
+	touch(t, filepath.Join(td, "dir", "subdir", "foo3"))
+	touch(t, filepath.Join(td, "dir", "foo4"))
+	touch(t, filepath.Join(td, "dir2", "bar"))
+	touch(t, filepath.Join(td, "last"))
+
+	remainingWereSkipped := true
+	walker := func(path string) error {
+		if strings.HasSuffix(path, "foo2") {
+			return filepath.SkipAll
+		}
+
+		if strings.HasSuffix(path, "foo3") ||
+			strings.HasSuffix(path, "foo4") ||
+			strings.HasSuffix(path, "bar") ||
+			strings.HasSuffix(path, "last") {
+			remainingWereSkipped = false
+		}
+		return nil
+	}
+
+	walkFn := func(path string, _ fs.FileInfo, _ error) error { return walker(path) }
+	walkDirFn := func(path string, _ fs.DirEntry, _ error) error { return walker(path) }
+
+	check := func(t *testing.T, walk func(root string) error, root string) {
+		t.Helper()
+		remainingWereSkipped = true
+		if err := walk(root); err != nil {
+			t.Fatal(err)
+		}
+		if !remainingWereSkipped {
+			t.Errorf("SkipAll on file foo2 did not block processing of remaining files and directories")
+		}
+	}
+
+	t.Run("Walk", func(t *testing.T) {
+		Walk := func(_ string) error { return filepath.Walk(td, walkFn) }
+		check(t, Walk, td)
+		check(t, Walk, filepath.Join(td, "dir"))
+	})
+	t.Run("WalkDir", func(t *testing.T) {
+		WalkDir := func(_ string) error { return filepath.WalkDir(td, walkDirFn) }
+		check(t, WalkDir, td)
+		check(t, WalkDir, filepath.Join(td, "dir"))
+	})
+}
+
 func TestWalkFileError(t *testing.T) {
 	td := t.TempDir()
 
@@ -675,6 +825,107 @@ func TestWalkFileError(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Walked %#v; want %#v", got, want)
+	}
+}
+
+func TestWalkSymlinkRoot(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
+	td := t.TempDir()
+	dir := filepath.Join(td, "dir")
+	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	touch(t, filepath.Join(dir, "foo"))
+
+	link := filepath.Join(td, "link")
+	if err := os.Symlink("dir", link); err != nil {
+		t.Fatal(err)
+	}
+
+	abslink := filepath.Join(td, "abslink")
+	if err := os.Symlink(dir, abslink); err != nil {
+		t.Fatal(err)
+	}
+
+	linklink := filepath.Join(td, "linklink")
+	if err := os.Symlink("link", linklink); err != nil {
+		t.Fatal(err)
+	}
+
+	// Per https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12:
+	// “A pathname that contains at least one non- <slash> character and that ends
+	// with one or more trailing <slash> characters shall not be resolved
+	// successfully unless the last pathname component before the trailing <slash>
+	// characters names an existing directory [...].”
+	//
+	// Since Walk does not traverse symlinks itself, its behavior should depend on
+	// whether the path passed to Walk ends in a slash: if it does not end in a slash,
+	// Walk should report the symlink itself (since it is the last pathname component);
+	// but if it does end in a slash, Walk should walk the directory to which the symlink
+	// refers (since it must be fully resolved before walking).
+	for _, tt := range []struct {
+		desc      string
+		root      string
+		want      []string
+		buggyGOOS []string
+	}{
+		{
+			desc: "no slash",
+			root: link,
+			want: []string{link},
+		},
+		{
+			desc: "slash",
+			root: link + string(filepath.Separator),
+			want: []string{link, filepath.Join(link, "foo")},
+		},
+		{
+			desc: "abs no slash",
+			root: abslink,
+			want: []string{abslink},
+		},
+		{
+			desc: "abs with slash",
+			root: abslink + string(filepath.Separator),
+			want: []string{abslink, filepath.Join(abslink, "foo")},
+		},
+		{
+			desc: "double link no slash",
+			root: linklink,
+			want: []string{linklink},
+		},
+		{
+			desc:      "double link with slash",
+			root:      linklink + string(filepath.Separator),
+			want:      []string{linklink, filepath.Join(linklink, "foo")},
+			buggyGOOS: []string{"darwin", "ios"}, // https://go.dev/issue/59586
+		},
+	} {
+		tt := tt
+		t.Run(tt.desc, func(t *testing.T) {
+			var walked []string
+			err := filepath.Walk(tt.root, func(path string, info fs.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				t.Logf("%#q: %v", path, info.Mode())
+				walked = append(walked, filepath.Clean(path))
+				return nil
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(walked, tt.want) {
+				t.Logf("Walk(%#q) visited %#q; want %#q", tt.root, walked, tt.want)
+				if slices.Contains(tt.buggyGOOS, runtime.GOOS) {
+					t.Logf("(ignoring known bug on %v)", runtime.GOOS)
+				} else {
+					t.Fail()
+				}
+			}
+		})
 	}
 }
 
@@ -725,7 +976,6 @@ var dirtests = []PathTest{
 	{".", "."},
 	{"/.", "/"},
 	{"/", "/"},
-	{"////", "/"},
 	{"/foo", "/"},
 	{"x/", "x"},
 	{"abc", "."},
@@ -733,6 +983,10 @@ var dirtests = []PathTest{
 	{"a/b/.x", "a/b"},
 	{"a/b/c.", "a/b"},
 	{"a/b/c.x", "a/b"},
+}
+
+var nonwindirtests = []PathTest{
+	{"////", "/"},
 }
 
 var windirtests = []PathTest{
@@ -745,6 +999,7 @@ var windirtests = []PathTest{
 	{`\\host\share\`, `\\host\share\`},
 	{`\\host\share\a`, `\\host\share\`},
 	{`\\host\share\a\b`, `\\host\share\a`},
+	{`\\\\`, `\\\\`},
 }
 
 func TestDir(t *testing.T) {
@@ -756,6 +1011,8 @@ func TestDir(t *testing.T) {
 		}
 		// add windows specific tests
 		tests = append(tests, windirtests...)
+	} else {
+		tests = append(tests, nonwindirtests...)
 	}
 	for _, test := range tests {
 		if s := filepath.Dir(test.path); s != test.result {
@@ -809,11 +1066,6 @@ func TestIsAbs(t *testing.T) {
 		for _, test := range isabstests {
 			tests = append(tests, IsAbsTest{"c:" + test.path, test.isAbs})
 		}
-		// Test reserved names.
-		tests = append(tests, IsAbsTest{os.DevNull, true})
-		tests = append(tests, IsAbsTest{"NUL", true})
-		tests = append(tests, IsAbsTest{"nul", true})
-		tests = append(tests, IsAbsTest{"CON", true})
 	} else {
 		tests = isabstests
 	}
@@ -1052,6 +1304,37 @@ func TestIssue13582(t *testing.T) {
 	}
 }
 
+// Issue 57905.
+func TestRelativeSymlinkToAbsolute(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+	// Not parallel: uses os.Chdir.
+
+	tmpDir := t.TempDir()
+	chdir(t, tmpDir)
+
+	// Create "link" in the current working directory as a symlink to an arbitrary
+	// absolute path. On macOS, this path is likely to begin with a symlink
+	// itself: generally either in /var (symlinked to "private/var") or /tmp
+	// (symlinked to "private/tmp").
+	if err := os.Symlink(tmpDir, "link"); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf(`os.Symlink(%q, "link")`, tmpDir)
+
+	p, err := filepath.EvalSymlinks("link")
+	if err != nil {
+		t.Fatalf(`EvalSymlinks("link"): %v`, err)
+	}
+	want, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatalf(`EvalSymlinks(%q): %v`, tmpDir, err)
+	}
+	if p != want {
+		t.Errorf(`EvalSymlinks("link") = %q; want %q`, p, want)
+	}
+	t.Logf(`EvalSymlinks("link") = %q`, p)
+}
+
 // Test directories relative to temporary directory.
 // The tests are run in absTestDirs[0].
 var absTestDirs = []string{
@@ -1271,24 +1554,30 @@ var volumenametests = []VolumeNameTest{
 	{`c:`, `c:`},
 	{`2:`, ``},
 	{``, ``},
-	{`\\\host`, ``},
-	{`\\\host\`, ``},
-	{`\\\host\share`, ``},
-	{`\\\host\\share`, ``},
-	{`\\host`, ``},
-	{`//host`, ``},
-	{`\\host\`, ``},
-	{`//host/`, ``},
+	{`\\\host`, `\\\host`},
+	{`\\\host\`, `\\\host`},
+	{`\\\host\share`, `\\\host`},
+	{`\\\host\\share`, `\\\host`},
+	{`\\host`, `\\host`},
+	{`//host`, `\\host`},
+	{`\\host\`, `\\host\`},
+	{`//host/`, `\\host\`},
 	{`\\host\share`, `\\host\share`},
-	{`//host/share`, `//host/share`},
+	{`//host/share`, `\\host\share`},
 	{`\\host\share\`, `\\host\share`},
-	{`//host/share/`, `//host/share`},
+	{`//host/share/`, `\\host\share`},
 	{`\\host\share\foo`, `\\host\share`},
-	{`//host/share/foo`, `//host/share`},
+	{`//host/share/foo`, `\\host\share`},
 	{`\\host\share\\foo\\\bar\\\\baz`, `\\host\share`},
-	{`//host/share//foo///bar////baz`, `//host/share`},
+	{`//host/share//foo///bar////baz`, `\\host\share`},
 	{`\\host\share\foo\..\bar`, `\\host\share`},
-	{`//host/share/foo/../bar`, `//host/share`},
+	{`//host/share/foo/../bar`, `\\host\share`},
+	{`//./NUL`, `\\.\NUL`},
+	{`//?/NUL`, `\\?\NUL`},
+	{`//./C:`, `\\.\C:`},
+	{`//./C:/a/b/c`, `\\.\C:`},
+	{`//./UNC/host/share/a/b/c`, `\\.\UNC\host\share`},
+	{`//./UNC/host`, `\\.\UNC\host`},
 }
 
 func TestVolumeName(t *testing.T) {

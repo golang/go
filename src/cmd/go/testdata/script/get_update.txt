@@ -3,7 +3,7 @@
 # former dependencies, not current ones.
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 env GO111MODULE=off
 
 # Rewind

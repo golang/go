@@ -33,8 +33,8 @@ func TestMain(m *testing.M) {
 	base.Ctxt.DiagFunc = base.Errorf
 	base.Ctxt.DiagFlush = base.FlushErrors
 	base.Ctxt.Bso = bufio.NewWriter(os.Stdout)
-	types.LocalPkg = types.NewPkg("", "local")
-	types.LocalPkg.Prefix = `""`
+	types.LocalPkg = types.NewPkg("p", "local")
+	types.LocalPkg.Prefix = "p"
 	types.PtrSize = ssagen.Arch.LinkArch.PtrSize
 	types.RegSize = ssagen.Arch.LinkArch.RegSize
 	typecheck.InitUniverse()
@@ -313,7 +313,7 @@ func TestABIUtilsInterfaces(t *testing.T) {
 	fldt := mkFuncType(types.FakeRecvType(), []*types.Type{},
 		[]*types.Type{types.Types[types.TSTRING]})
 	field := types.NewField(src.NoXPos, typecheck.Lookup("F"), fldt)
-	nei := types.NewInterface(types.LocalPkg, []*types.Field{field}, false)
+	nei := types.NewInterface([]*types.Field{field})
 	i16 := types.Types[types.TINT16]
 	tb := types.Types[types.TBOOL]
 	s1 := mkstruct([]*types.Type{i16, i16, tb})

@@ -112,6 +112,10 @@ func (t *Target) IsMIPS64() bool {
 	return t.Arch.Family == sys.MIPS64
 }
 
+func (t *Target) IsLOONG64() bool {
+	return t.Arch.Family == sys.Loong64
+}
+
 func (t *Target) IsPPC64() bool {
 	return t.Arch.Family == sys.PPC64
 }
@@ -170,6 +174,11 @@ func (t *Target) IsNetbsd() bool {
 func (t *Target) IsOpenbsd() bool {
 	t.mustSetHeadType()
 	return t.HeadType == objabi.Hopenbsd
+}
+
+func (t *Target) IsFreebsd() bool {
+	t.mustSetHeadType()
+	return t.HeadType == objabi.Hfreebsd
 }
 
 func (t *Target) mustSetHeadType() {

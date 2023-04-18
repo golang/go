@@ -128,7 +128,7 @@ func checkCopyLocksCallExpr(pass *analysis.Pass, ce *ast.CallExpr) {
 	}
 	if fun, ok := pass.TypesInfo.Uses[id].(*types.Builtin); ok {
 		switch fun.Name() {
-		case "new", "len", "cap", "Sizeof":
+		case "new", "len", "cap", "Sizeof", "Offsetof", "Alignof":
 			return
 		}
 	}

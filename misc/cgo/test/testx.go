@@ -18,7 +18,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 	"unsafe"
 )
 
@@ -30,8 +29,7 @@ extern void doAdd(int, int);
 void IntoC(void);
 
 // issue 1560
-// mysleep returns the absolute start time in ms.
-long long mysleep(int seconds);
+extern void Issue1560InC(void);
 
 // twoSleep returns the absolute start time of the first sleep
 // in ms.
@@ -183,35 +181,40 @@ func test1328(t *testing.T) {
 }
 
 // issue 1560
+// Test that C functions and Go functions run in parallel.
 
-var sleepDone = make(chan int64)
+var (
+	issue1560 int32
 
-// parallelSleep returns the absolute difference between the start time
-// of the two sleeps.
-func parallelSleep(n int) int64 {
-	t := int64(C.twoSleep(C.int(n))) - <-sleepDone
-	if t < 0 {
-		return -t
+	issue1560Ch = make(chan bool, 2)
+)
+
+//export Issue1560FromC
+func Issue1560FromC() {
+	for atomic.LoadInt32(&issue1560) != 1 {
+		runtime.Gosched()
 	}
-	return t
+	atomic.AddInt32(&issue1560, 1)
+	for atomic.LoadInt32(&issue1560) != 3 {
+		runtime.Gosched()
+	}
+	issue1560Ch <- true
 }
 
-//export BackgroundSleep
-func BackgroundSleep(n int32) {
-	go func() {
-		sleepDone <- int64(C.mysleep(C.int(n)))
-	}()
+func Issue1560FromGo() {
+	atomic.AddInt32(&issue1560, 1)
+	for atomic.LoadInt32(&issue1560) != 2 {
+		runtime.Gosched()
+	}
+	atomic.AddInt32(&issue1560, 1)
+	issue1560Ch <- true
 }
 
-func testParallelSleep(t *testing.T) {
-	sleepSec := 1
-	dt := time.Duration(parallelSleep(sleepSec)) * time.Millisecond
-	t.Logf("difference in start time for two sleep(%d) is %v", sleepSec, dt)
-	// bug used to run sleeps in serial, producing a 2*sleepSec-second delay.
-	// we detect if the start times of those sleeps are > 0.5*sleepSec-second.
-	if dt >= time.Duration(sleepSec)*time.Second/2 {
-		t.Fatalf("parallel %d-second sleeps slept for %f seconds", sleepSec, dt.Seconds())
-	}
+func test1560(t *testing.T) {
+	go Issue1560FromGo()
+	go C.Issue1560InC()
+	<-issue1560Ch
+	<-issue1560Ch
 }
 
 // issue 2462

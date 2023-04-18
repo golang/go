@@ -542,10 +542,7 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 			}
 
 		}
-		if regno == 31 {
-			return "ZR"
-		}
-		return fmt.Sprintf("R%d", regno)
+		return plan9gpr(a)
 
 	case RegSP:
 		regno := uint16(a) & 31
@@ -555,13 +552,7 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		return fmt.Sprintf("R%d", regno)
 
 	case RegExtshiftAmount:
-		reg := ""
-		regno := uint16(a.reg) & 31
-		if regno == 31 {
-			reg = "ZR"
-		} else {
-			reg = fmt.Sprintf("R%d", uint16(a.reg)&31)
-		}
+		reg := plan9gpr(a.reg)
 		extshift := ""
 		amount := ""
 		if a.extShift != ExtShift(0) {
@@ -614,19 +605,13 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 	case MemExtend:
 		base := ""
 		index := ""
-		indexreg := ""
 		regno := uint16(a.Base) & 31
 		if regno == 31 {
 			base = "(RSP)"
 		} else {
 			base = fmt.Sprintf("(R%d)", regno)
 		}
-		regno = uint16(a.Index) & 31
-		if regno == 31 {
-			indexreg = "ZR"
-		} else {
-			indexreg = fmt.Sprintf("R%d", regno)
-		}
+		indexreg := plan9gpr(a.Index)
 
 		if a.Extend == lsl {
 			// Refer to ARM reference manual, for byte load/store(register), the index
@@ -736,7 +721,22 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		if strings.Contains(a.String(), "#") {
 			return fmt.Sprintf("$%d", a)
 		}
+	case sysOp:
+		result := a.op.String()
+		if a.r != 0 {
+			result += ", " + plan9gpr(a.r)
+		}
+		return result
 	}
 
 	return strings.ToUpper(arg.String())
+}
+
+// Convert a general-purpose register to plan9 assembly format.
+func plan9gpr(r Reg) string {
+	regno := uint16(r) & 31
+	if regno == 31 {
+		return "ZR"
+	}
+	return fmt.Sprintf("R%d", regno)
 }

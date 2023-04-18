@@ -163,6 +163,15 @@ func NewBranchStmt(pos src.XPos, op Op, label *types.Sym) *BranchStmt {
 	return n
 }
 
+func (n *BranchStmt) SetOp(op Op) {
+	switch op {
+	default:
+		panic(n.no("SetOp " + op.String()))
+	case OBREAK, OCONTINUE, OFALL, OGOTO:
+		n.op = op
+	}
+}
+
 func (n *BranchStmt) Sym() *types.Sym { return n.Label }
 
 // A CaseClause is a case statement in a switch or select: case List: Body.
@@ -170,6 +179,17 @@ type CaseClause struct {
 	miniStmt
 	Var  *Name // declared variable for this case in type switch
 	List Nodes // list of expressions for switch, early select
+
+	// RTypes is a list of RType expressions, which are copied to the
+	// corresponding OEQ nodes that are emitted when switch statements
+	// are desugared. RTypes[i] must be non-nil if the emitted
+	// comparison for List[i] will be a mixed interface/concrete
+	// comparison; see reflectdata.CompareRType for details.
+	//
+	// Because mixed interface/concrete switch cases are rare, we allow
+	// len(RTypes) < len(List). Missing entries are implicitly nil.
+	RTypes Nodes
+
 	Body Nodes
 }
 
@@ -194,18 +214,16 @@ func NewCommStmt(pos src.XPos, comm Node, body []Node) *CommClause {
 }
 
 // A ForStmt is a non-range for loop: for Init; Cond; Post { Body }
-// Op can be OFOR or OFORUNTIL (!Cond).
 type ForStmt struct {
 	miniStmt
-	Label    *types.Sym
-	Cond     Node
-	Late     Nodes
-	Post     Node
-	Body     Nodes
-	HasBreak bool
+	Label        *types.Sym
+	Cond         Node
+	Post         Node
+	Body         Nodes
+	DistinctVars bool
 }
 
-func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt {
+func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node, distinctVars bool) *ForStmt {
 	n := &ForStmt{Cond: cond, Post: post}
 	n.pos = pos
 	n.op = OFOR
@@ -213,14 +231,8 @@ func NewForStmt(pos src.XPos, init Node, cond, post Node, body []Node) *ForStmt 
 		n.init = []Node{init}
 	}
 	n.Body = body
+	n.DistinctVars = distinctVars
 	return n
-}
-
-func (n *ForStmt) SetOp(op Op) {
-	if op != OFOR && op != OFORUNTIL {
-		panic(n.no("SetOp " + op.String()))
-	}
-	n.op = op
 }
 
 // A GoDeferStmt is a go or defer statement: go Call / defer Call.
@@ -264,11 +276,13 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
 }
 
 // A JumpTableStmt is used to implement switches. Its semantics are:
-//   tmp := jt.Idx
-//   if tmp == Cases[0] goto Targets[0]
-//   if tmp == Cases[1] goto Targets[1]
-//   ...
-//   if tmp == Cases[n] goto Targets[n]
+//
+//	tmp := jt.Idx
+//	if tmp == Cases[0] goto Targets[0]
+//	if tmp == Cases[1] goto Targets[1]
+//	...
+//	if tmp == Cases[n] goto Targets[n]
+//
 // Note that a JumpTableStmt is more like a multiway-goto than
 // a multiway-if. In particular, the case bodies are just
 // labels to jump to, not not full Nodes lists.
@@ -328,21 +342,31 @@ func (n *LabelStmt) Sym() *types.Sym { return n.Label }
 // A RangeStmt is a range loop: for Key, Value = range X { Body }
 type RangeStmt struct {
 	miniStmt
-	Label    *types.Sym
-	Def      bool
-	X        Node
-	Key      Node
-	Value    Node
-	Body     Nodes
-	HasBreak bool
-	Prealloc *Name
+	Label        *types.Sym
+	Def          bool
+	X            Node
+	RType        Node `mknode:"-"` // see reflectdata/helpers.go
+	Key          Node
+	Value        Node
+	Body         Nodes
+	DistinctVars bool
+	Prealloc     *Name
+
+	// When desugaring the RangeStmt during walk, the assignments to Key
+	// and Value may require OCONVIFACE operations. If so, these fields
+	// will be copied to their respective ConvExpr fields.
+	KeyTypeWord   Node `mknode:"-"`
+	KeySrcRType   Node `mknode:"-"`
+	ValueTypeWord Node `mknode:"-"`
+	ValueSrcRType Node `mknode:"-"`
 }
 
-func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node) *RangeStmt {
+func NewRangeStmt(pos src.XPos, key, value, x Node, body []Node, distinctVars bool) *RangeStmt {
 	n := &RangeStmt{X: x, Key: key, Value: value}
 	n.pos = pos
 	n.op = ORANGE
 	n.Body = body
+	n.DistinctVars = distinctVars
 	return n
 }
 
@@ -365,9 +389,8 @@ func NewReturnStmt(pos src.XPos, results []Node) *ReturnStmt {
 // A SelectStmt is a block: { Cases }.
 type SelectStmt struct {
 	miniStmt
-	Label    *types.Sym
-	Cases    []*CommClause
-	HasBreak bool
+	Label *types.Sym
+	Cases []*CommClause
 
 	// TODO(rsc): Instead of recording here, replace with a block?
 	Compiled Nodes // compiled form, after walkSelect
@@ -397,10 +420,9 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
 // A SwitchStmt is a switch statement: switch Init; Tag { Cases }.
 type SwitchStmt struct {
 	miniStmt
-	Tag      Node
-	Cases    []*CaseClause
-	Label    *types.Sym
-	HasBreak bool
+	Tag   Node
+	Cases []*CaseClause
+	Label *types.Sym
 
 	// TODO(rsc): Instead of recording here, replace with a block?
 	Compiled Nodes // compiled form, after walkSwitch

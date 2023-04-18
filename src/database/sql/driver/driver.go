@@ -192,9 +192,9 @@ type Execer interface {
 // DB.Exec will first prepare a query, execute the statement, and then
 // close the statement.
 //
-// ExecerContext may return ErrSkip.
+// ExecContext may return ErrSkip.
 //
-// ExecerContext must honor the context timeout and return when the context is canceled.
+// ExecContext must honor the context timeout and return when the context is canceled.
 type ExecerContext interface {
 	ExecContext(ctx context.Context, query string, args []NamedValue) (Result, error)
 }
@@ -219,9 +219,9 @@ type Queryer interface {
 // DB.Query will first prepare a query, execute the statement, and then
 // close the statement.
 //
-// QueryerContext may return ErrSkip.
+// QueryContext may return ErrSkip.
 //
-// QueryerContext must honor the context timeout and return when the context is canceled.
+// QueryContext must honor the context timeout and return when the context is canceled.
 type QueryerContext interface {
 	QueryContext(ctx context.Context, query string, args []NamedValue) (Rows, error)
 }

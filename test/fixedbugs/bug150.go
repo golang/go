@@ -19,5 +19,5 @@ func f() (a, b M) {
 }
 
 /*
-bugs/bug150.go:13: reorder2: too many funcation calls evaluating parameters
+bugs/bug150.go:13: reorder2: too many function calls evaluating parameters
 */

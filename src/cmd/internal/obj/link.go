@@ -37,6 +37,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -319,7 +320,7 @@ type Prog struct {
 	Isize    uint8     // for x86 back end: size of the instruction in bytes
 }
 
-// Pos indicates whether the oprand is the source or the destination.
+// AddrPos indicates whether the operand is the source or the destination.
 type AddrPos struct {
 	Addr
 	Pos OperandPos
@@ -442,6 +443,7 @@ const (
 	ABasePPC64
 	ABaseARM64
 	ABaseMIPS
+	ABaseLoong64
 	ABaseRISCV
 	ABaseS390X
 	ABaseWasm
@@ -471,16 +473,17 @@ type LSym struct {
 
 // A FuncInfo contains extra fields for STEXT symbols.
 type FuncInfo struct {
-	Args     int32
-	Locals   int32
-	Align    int32
-	FuncID   objabi.FuncID
-	FuncFlag objabi.FuncFlag
-	Text     *Prog
-	Autot    map[*LSym]struct{}
-	Pcln     Pcln
-	InlMarks []InlMark
-	spills   []RegSpill
+	Args      int32
+	Locals    int32
+	Align     int32
+	FuncID    objabi.FuncID
+	FuncFlag  objabi.FuncFlag
+	StartLine int32
+	Text      *Prog
+	Autot     map[*LSym]struct{}
+	Pcln      Pcln
+	InlMarks  []InlMark
+	spills    []RegSpill
 
 	dwarfInfoSym       *LSym
 	dwarfLocSym        *LSym
@@ -497,7 +500,11 @@ type FuncInfo struct {
 	WrapInfo           *LSym // for wrapper, info of wrapped function
 	JumpTables         []JumpTable
 
-	FuncInfoSym *LSym
+	FuncInfoSym   *LSym
+	WasmImportSym *LSym
+	WasmImport    *WasmImport
+
+	sehUnwindInfoSym *LSym
 }
 
 // JumpTable represents a table used for implementing multi-way
@@ -555,6 +562,75 @@ func (s *LSym) File() *FileInfo {
 	f, _ := (*s.Extra).(*FileInfo)
 	return f
 }
+
+// WasmImport represents a WebAssembly (WASM) imported function with
+// parameters and results translated into WASM types based on the Go function
+// declaration.
+type WasmImport struct {
+	// Module holds the WASM module name specified by the //go:wasmimport
+	// directive.
+	Module string
+	// Name holds the WASM imported function name specified by the
+	// //go:wasmimport directive.
+	Name string
+	// Params holds the imported function parameter fields.
+	Params []WasmField
+	// Results holds the imported function result fields.
+	Results []WasmField
+}
+
+func (wi *WasmImport) CreateSym(ctxt *Link) *LSym {
+	var sym LSym
+
+	var b [8]byte
+	writeByte := func(x byte) {
+		sym.WriteBytes(ctxt, sym.Size, []byte{x})
+	}
+	writeUint32 := func(x uint32) {
+		binary.LittleEndian.PutUint32(b[:], x)
+		sym.WriteBytes(ctxt, sym.Size, b[:4])
+	}
+	writeInt64 := func(x int64) {
+		binary.LittleEndian.PutUint64(b[:], uint64(x))
+		sym.WriteBytes(ctxt, sym.Size, b[:])
+	}
+	writeString := func(s string) {
+		writeUint32(uint32(len(s)))
+		sym.WriteString(ctxt, sym.Size, len(s), s)
+	}
+	writeString(wi.Module)
+	writeString(wi.Name)
+	writeUint32(uint32(len(wi.Params)))
+	for _, f := range wi.Params {
+		writeByte(byte(f.Type))
+		writeInt64(f.Offset)
+	}
+	writeUint32(uint32(len(wi.Results)))
+	for _, f := range wi.Results {
+		writeByte(byte(f.Type))
+		writeInt64(f.Offset)
+	}
+
+	return &sym
+}
+
+type WasmField struct {
+	Type WasmFieldType
+	// Offset holds the frame-pointer-relative locations for Go's stack-based
+	// ABI. This is used by the src/cmd/internal/wasm package to map WASM
+	// import parameters to the Go stack in a wrapper function.
+	Offset int64
+}
+
+type WasmFieldType byte
+
+const (
+	WasmI32 WasmFieldType = iota
+	WasmI64
+	WasmF32
+	WasmF64
+	WasmPtr
+)
 
 type InlMark struct {
 	// When unwinding from an instruction in an inlined body, mark
@@ -722,6 +798,9 @@ const (
 	// IsPcdata indicates this is a pcdata symbol.
 	AttrPcdata
 
+	// PkgInit indicates this is a compiler-generated package init func.
+	AttrPkgInit
+
 	// attrABIBase is the value at which the ABI is encoded in
 	// Attribute. This must be last; all bits after this are
 	// assumed to be an ABI value.
@@ -750,6 +829,7 @@ func (a *Attribute) UsedInIface() bool        { return a.load()&AttrUsedInIface 
 func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddressable != 0 }
 func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
 func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 }
+func (a *Attribute) IsPkgInit() bool          { return a.load()&AttrPkgInit != 0 }
 
 func (a *Attribute) Set(flag Attribute, value bool) {
 	for {
@@ -798,6 +878,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrIndexed, s: ""},
 	{bit: AttrContentAddressable, s: ""},
 	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
+	{bit: AttrPkgInit, s: "PKGINIT"},
 }
 
 // String formats a for printing in as part of a TEXT prog.
@@ -898,11 +979,12 @@ type Link struct {
 	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
+	Flag_noRefName     bool   // do not include referenced symbol names in object file
 	Retpoline          bool   // emit use of retpoline stubs for indirect jmp/call
 	Flag_maymorestack  string // If not "", call this function before stack checks
 	Bso                *bufio.Writer
 	Pathname           string
-	Pkgpath            string           // the current package's import path, "" if unknown
+	Pkgpath            string           // the current package's import path
 	hashmu             sync.Mutex       // protects hash, funchash
 	hash               map[string]*LSym // name -> sym mapping
 	funchash           map[string]*LSym // name -> sym mapping for ABIInternal syms
@@ -913,7 +995,7 @@ type Link struct {
 	Imports            []goobj.ImportedPkg
 	DiagFunc           func(string, ...interface{})
 	DiagFlush          func()
-	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
+	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls, src.XPos) // if non-nil, curfn is a *ir.Func
 	GenAbstractFunc    func(fn *LSym)
 	Errors             int
 
@@ -984,23 +1066,6 @@ func (fi *FuncInfo) UnspillRegisterArgs(last *Prog, pa ProgAlloc) *Prog {
 	return last
 }
 
-// The smallest possible offset from the hardware stack pointer to a local
-// variable on the stack. Architectures that use a link register save its value
-// on the stack in the function prologue and so always have a pointer between
-// the hardware stack pointer and the local variable area.
-func (ctxt *Link) FixedFrameSize() int64 {
-	switch ctxt.Arch.Family {
-	case sys.AMD64, sys.I386, sys.Wasm:
-		return 0
-	case sys.PPC64:
-		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
-		// just use that much stack always on ppc64x.
-		return int64(4 * ctxt.Arch.PtrSize)
-	default:
-		return int64(ctxt.Arch.PtrSize)
-	}
-}
-
 // LinkArch is the definition of a single architecture.
 type LinkArch struct {
 	*sys.Arch
@@ -1009,6 +1074,7 @@ type LinkArch struct {
 	Preprocess     func(*Link, *LSym, ProgAlloc)
 	Assemble       func(*Link, *LSym, ProgAlloc)
 	Progedit       func(*Link, *Prog, ProgAlloc)
+	SEH            func(*Link, *LSym) *LSym
 	UnaryDst       map[As]bool // Instruction takes one operand, a destination.
 	DWARFRegisters map[int16]int16
 }

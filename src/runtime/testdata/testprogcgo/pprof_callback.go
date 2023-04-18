@@ -27,8 +27,8 @@ import "C"
 import (
 	"fmt"
 	"os"
-	"runtime/pprof"
 	"runtime"
+	"runtime/pprof"
 	"time"
 )
 

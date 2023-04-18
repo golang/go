@@ -143,6 +143,8 @@ TEXT ·libc_mlockall_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_mlockall(SB)
 TEXT ·libc_mprotect_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_mprotect(SB)
+TEXT ·libc_msync_trampoline(SB),NOSPLIT,$0-0
+	JMP	libc_msync(SB)
 TEXT ·libc_munlock_trampoline(SB),NOSPLIT,$0-0
 	JMP	libc_munlock(SB)
 TEXT ·libc_munlockall_trampoline(SB),NOSPLIT,$0-0

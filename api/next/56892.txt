@@ -1,0 +1,1 @@
+pkg debug/elf, method (*File) DynValue(DynTag) ([]uint64, error) #56892

@@ -5,7 +5,6 @@
 package types2_test
 
 import (
-	"cmd/compile/internal/syntax"
 	"internal/testenv"
 	"strings"
 	"testing"
@@ -54,20 +53,10 @@ func TestIsAlias(t *testing.T) {
 }
 
 // TestEmbeddedMethod checks that an embedded method is represented by
-// the same Func Object as the original method. See also issue #34421.
+// the same Func Object as the original method. See also go.dev/issue/34421.
 func TestEmbeddedMethod(t *testing.T) {
 	const src = `package p; type I interface { error }`
-
-	// type-check src
-	f, err := parseSrc("", src)
-	if err != nil {
-		t.Fatalf("parse failed: %s", err)
-	}
-	var conf Config
-	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, nil)
-	if err != nil {
-		t.Fatalf("typecheck failed: %s", err)
-	}
+	pkg := mustTypecheck("p", src, nil, nil)
 
 	// get original error.Error method
 	eface := Universe.Lookup("error")
@@ -121,7 +110,7 @@ func TestObjectString(t *testing.T) {
 
 	for _, test := range testObjects {
 		src := "package p; " + test.src
-		pkg, err := makePkg(src)
+		pkg, err := typecheck(filename, src, nil, nil)
 		if err != nil {
 			t.Errorf("%s: %s", src, err)
 			continue

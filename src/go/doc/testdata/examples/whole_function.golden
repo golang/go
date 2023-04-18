@@ -1,0 +1,11 @@
+-- .Play --
+package main
+
+func Foo(x int) {
+}
+
+func main() {
+	fmt.Println("Hello, world!")
+}
+-- .Output --
+Hello, world!

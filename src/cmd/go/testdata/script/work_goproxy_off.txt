@@ -1,0 +1,59 @@
+go work init
+go work use . ./sub
+
+# Verify that the go.mod files for both modules in the workspace are tidy,
+# and add missing go.sum entries as needed.
+
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
+
+cd sub
+cp go.mod go.mod.orig
+go mod tidy
+cmp go.mod go.mod.orig
+cd ..
+
+go list -m all
+stdout '^rsc\.io/quote v1\.5\.1$'
+stdout '^rsc\.io/sampler v1\.3\.1$'
+
+# Now remove the module dependencies from the module cache.
+# Because one module upgrades a transitive dependency needed by another,
+# listing the modules in the workspace should error out.
+
+go clean -modcache
+env GOPROXY=off
+! go list -m all
+stderr '^go: rsc.io/sampler@v1.3.0: module lookup disabled by GOPROXY=off$'
+
+-- example.go --
+package example
+
+import _ "rsc.io/sampler"
+-- go.mod --
+module example
+
+go 1.19
+
+require rsc.io/sampler v1.3.0
+
+require (
+	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+	rsc.io/testonly v1.0.0 // indirect
+)
+-- sub/go.mod --
+module example/sub
+
+go 1.19
+
+require rsc.io/quote v1.5.1
+
+require (
+	golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
+	rsc.io/sampler v1.3.1 // indirect
+)
+-- sub/sub.go --
+package example
+
+import _ "rsc.io/quote"

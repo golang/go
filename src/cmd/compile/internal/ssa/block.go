@@ -119,7 +119,7 @@ func (e Edge) String() string {
 //	 Plain                []            [next]
 //	    If   [boolean Value]      [then, else]
 //	 Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
-type BlockKind int8
+type BlockKind int16
 
 // short form print
 func (b *Block) String() string {

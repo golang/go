@@ -74,6 +74,7 @@ func consume(v *[][]byte, n int64) {
 			return
 		}
 		n -= ln0
+		(*v)[0] = nil
 		*v = (*v)[1:]
 	}
 }

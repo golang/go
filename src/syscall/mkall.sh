@@ -88,11 +88,12 @@ run="sh"
 
 case "$1" in
 -syscalls)
-	for i in zsyscall*go
+	shift
+	for i in ${@:-zsyscall*go}
 	do
 		# Run the command line that appears in the first line
 		# of the generated file to regenerate it.
-		sed 1q $i | sed 's;^// ;;' | sh > _$i && gofmt < _$i > $i
+		sed 1q $i | sed 's;^// ;./;' | sh > _$i && gofmt < _$i > $i
 		rm _$i
 	done
 	exit 0
@@ -165,6 +166,13 @@ freebsd_arm64)
 	# API consistent between platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
+freebsd_riscv64)
+	mkerrors="$mkerrors"
+	mksysnum="curl -s 'https://cgit.freebsd.org/src/plain/sys/kern/syscalls.master?h=stable/12' | ./mksysnum_freebsd.pl"
+	# Let the type of C char be signed to make the bare syscall
+	# API consistent between platforms.
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
+	;;
 linux_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32"
@@ -198,6 +206,16 @@ linux_arm64)
 	# API consistent between platforms.
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs -- -fsigned-char"
 	;;
+linux_loong64)
+        GOOSARCH_in=syscall_linux_loong64.go
+        unistd_h=$(ls -1 /usr/include/asm/unistd.h /usr/include/asm-generic/unistd.h 2>/dev/null | head -1)
+        if [ "$unistd_h" = "" ]; then
+                echo >&2 cannot find unistd.h
+                exit 1
+        fi
+        mksysnum="./mksysnum_linux.pl $unistd_h"
+        mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+        ;;
 linux_mips)
 	GOOSARCH_in=syscall_linux_mipsx.go
 	unistd_h=/usr/include/asm/unistd.h

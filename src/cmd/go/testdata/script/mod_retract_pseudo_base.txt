@@ -3,7 +3,7 @@
 # Verifies golang.org/issue/41700.
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 env GOPROXY=direct
 env GOSUMDB=off
 go mod init m

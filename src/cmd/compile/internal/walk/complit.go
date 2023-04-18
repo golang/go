@@ -72,10 +72,6 @@ func isSimpleName(nn ir.Node) bool {
 	return n.OnStack()
 }
 
-func litas(l ir.Node, r ir.Node, init *ir.Nodes) {
-	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, l, r))
-}
-
 // initGenType is a bitmap indicating the types of generation that will occur for a static value.
 type initGenType uint8
 
@@ -208,7 +204,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 				}
 				r = kv.Value
 			}
-			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(k))
+			a := ir.NewIndexExpr(base.Pos, var_, ir.NewInt(base.Pos, k))
 			k++
 			if isBlank {
 				return ir.BlankNode, r
@@ -239,7 +235,18 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		case ir.OSLICELIT:
 			value := value.(*ir.CompLitExpr)
 			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
-				slicelit(ctxt, value, a, init)
+				var sinit ir.Nodes
+				slicelit(ctxt, value, a, &sinit)
+				if kind == initKindStatic {
+					// When doing static initialization, init statements may contain dynamic
+					// expression, which will be initialized later, causing liveness analysis
+					// confuses about variables lifetime. So making sure those expressions
+					// are ordered correctly here. See issue #52673.
+					orderBlock(&sinit, map[string][]*ir.Name{})
+					typecheck.Stmts(sinit)
+					walkStmtList(sinit)
+				}
+				init.Append(sinit...)
 				continue
 			}
 
@@ -262,9 +269,7 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		case initKindStatic:
 			genAsStatic(as)
 		case initKindDynamic, initKindLocalCode:
-			a = orderStmtInPlace(as, map[string][]*ir.Name{})
-			a = walkStmt(a)
-			init.Append(a)
+			appendWalkStmt(init, orderStmtInPlace(as, map[string][]*ir.Name{}))
 		default:
 			base.Fatalf("fixedlit: bad kind %d", kind)
 		}
@@ -372,7 +377,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 			}
 			value = kv.Value
 		}
-		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(index))
+		a := ir.NewIndexExpr(base.Pos, vauto, ir.NewInt(base.Pos, index))
 		a.SetBounded(true)
 		index++
 
@@ -400,27 +405,22 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 		// build list of vauto[c] = expr
 		ir.SetPos(value)
-		as := typecheck.Stmt(ir.NewAssignStmt(base.Pos, a, value))
-		as = orderStmtInPlace(as, map[string][]*ir.Name{})
-		as = walkStmt(as)
-		init.Append(as)
+		as := ir.NewAssignStmt(base.Pos, a, value)
+		appendWalkStmt(init, orderStmtInPlace(typecheck.Stmt(as), map[string][]*ir.Name{}))
 	}
 
 	// make slice out of heap (6)
 	a = ir.NewAssignStmt(base.Pos, var_, ir.NewSliceExpr(base.Pos, ir.OSLICE, vauto, nil, nil, nil))
-
-	a = typecheck.Stmt(a)
-	a = orderStmtInPlace(a, map[string][]*ir.Name{})
-	a = walkStmt(a)
-	init.Append(a)
+	appendWalkStmt(init, orderStmtInPlace(typecheck.Stmt(a), map[string][]*ir.Name{}))
 }
 
 func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// make the map var
-	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil)
+	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(base.Pos, n.Len+int64(len(n.List)))}
+	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
+	a.RType = n.RType
 	a.SetEsc(n.Esc())
-	a.Args = []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
-	litas(m, a, init)
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, m, a))
 
 	entries := n.List
 
@@ -470,17 +470,21 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 
 		kidx := ir.NewIndexExpr(base.Pos, vstatk, i)
 		kidx.SetBounded(true)
-		lhs := ir.NewIndexExpr(base.Pos, m, kidx)
 
-		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(0))
-		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(tk.NumElem()))
-		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(1)))
+		// typechecker rewrites OINDEX to OINDEXMAP
+		lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, kidx)).(*ir.IndexExpr)
+		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
+		lhs.RType = n.RType
+
+		zero := ir.NewAssignStmt(base.Pos, i, ir.NewInt(base.Pos, 0))
+		cond := ir.NewBinaryExpr(base.Pos, ir.OLT, i, ir.NewInt(base.Pos, tk.NumElem()))
+		incr := ir.NewAssignStmt(base.Pos, i, ir.NewBinaryExpr(base.Pos, ir.OADD, i, ir.NewInt(base.Pos, 1)))
 
 		var body ir.Node = ir.NewAssignStmt(base.Pos, lhs, rhs)
-		body = typecheck.Stmt(body) // typechecker rewrites OINDEX to OINDEXMAP
+		body = typecheck.Stmt(body)
 		body = orderStmtInPlace(body, map[string][]*ir.Name{})
 
-		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil)
+		loop := ir.NewForStmt(base.Pos, nil, cond, incr, nil, false)
 		loop.Body = []ir.Node{body}
 		loop.SetInit([]ir.Node{zero})
 
@@ -492,6 +496,7 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 	// Build list of var[c] = expr.
 	// Use temporaries so that mapassign1 can have addressable key, elem.
 	// TODO(josharian): avoid map key temporaries for mapfast_* assignments with literal keys.
+	// TODO(khr): assign these temps in order phase so we can reuse them across multiple maplits?
 	tmpkey := typecheck.Temp(m.Type().Key())
 	tmpelem := typecheck.Temp(m.Type().Elem())
 
@@ -506,14 +511,17 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, tmpelem, elem))
 
 		ir.SetPos(tmpelem)
-		var a ir.Node = ir.NewAssignStmt(base.Pos, ir.NewIndexExpr(base.Pos, m, tmpkey), tmpelem)
-		a = typecheck.Stmt(a) // typechecker rewrites OINDEX to OINDEXMAP
+
+		// typechecker rewrites OINDEX to OINDEXMAP
+		lhs := typecheck.AssignExpr(ir.NewIndexExpr(base.Pos, m, tmpkey)).(*ir.IndexExpr)
+		base.AssertfAt(lhs.Op() == ir.OINDEXMAP, lhs.Pos(), "want OINDEXMAP, have %+v", lhs)
+		lhs.RType = n.RType
+
+		var a ir.Node = ir.NewAssignStmt(base.Pos, lhs, tmpelem)
+		a = typecheck.Stmt(a)
 		a = orderStmtInPlace(a, map[string][]*ir.Name{})
 		appendWalkStmt(init, a)
 	}
-
-	appendWalkStmt(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, tmpkey))
-	appendWalkStmt(init, ir.NewUnaryExpr(base.Pos, ir.OVARKILL, tmpelem))
 }
 
 func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
@@ -621,6 +629,12 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 		// not a special composite literal assignment
 		return false
 	}
+	if x.Addrtaken() {
+		// If x is address-taken, the RHS may (implicitly) uses LHS.
+		// Not safe to do a special composite literal assignment
+		// (which may expand to multiple assignments).
+		return false
+	}
 
 	switch n.Y.Op() {
 	default:
@@ -629,7 +643,7 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
 		if ir.Any(n.Y, func(y ir.Node) bool { return ir.Uses(y, x) }) {
-			// not a special composite literal assignment
+			// not safe to do a special composite literal assignment if RHS uses LHS.
 			return false
 		}
 		anylit(n.Y, n.X, init)

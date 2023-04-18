@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/noder"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/pkginit"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -19,6 +20,7 @@ import (
 	"cmd/internal/objabi"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // These modes say which kind of object file to generate.
@@ -110,7 +112,6 @@ func dumpCompilerObj(bout *bio.Writer) {
 func dumpdata() {
 	numExterns := len(typecheck.Target.Externs)
 	numDecls := len(typecheck.Target.Decls)
-
 	dumpglobls(typecheck.Target.Externs)
 	reflectdata.CollectPTabs()
 	numExports := len(typecheck.Target.Exports)
@@ -147,7 +148,7 @@ func dumpdata() {
 	dumpglobls(typecheck.Target.Externs[numExterns:])
 
 	if reflectdata.ZeroSize > 0 {
-		zero := base.PkgLinksym("go.map", "zero", obj.ABI0)
+		zero := base.PkgLinksym("go:map", "zero", obj.ABI0)
 		objw.Global(zero, int32(reflectdata.ZeroSize), obj.DUPOK|obj.RODATA)
 		zero.Set(obj.AttrStatic, true)
 	}
@@ -194,6 +195,9 @@ func dumpGlobal(n *ir.Name) {
 	}
 	types.CalcSize(n.Type())
 	ggloblnod(n)
+	if n.CoverageCounter() || n.CoverageAuxVar() {
+		return
+	}
 	base.Ctxt.DwarfGlobal(base.Ctxt.Pkgpath, types.TypeSymName(n.Type()), n.Linksym())
 }
 
@@ -279,6 +283,17 @@ func addGCLocals() {
 
 func ggloblnod(nam *ir.Name) {
 	s := nam.Linksym()
+
+	// main_inittask and runtime_inittask in package runtime (and in
+	// test/initempty.go) aren't real variable declarations, but
+	// linknamed variables pointing to the compiler's generated
+	// .inittask symbol. The real symbol was already written out in
+	// pkginit.Task, so we need to avoid writing them out a second time
+	// here, otherwise base.Ctxt.Globl will fail.
+	if strings.HasSuffix(s.Name, "..inittask") && s.OnList() {
+		return
+	}
+
 	s.Gotype = reflectdata.TypeLinksym(nam.Type())
 	flags := 0
 	if nam.Readonly() {
@@ -287,9 +302,25 @@ func ggloblnod(nam *ir.Name) {
 	if nam.Type() != nil && !nam.Type().HasPointers() {
 		flags |= obj.NOPTR
 	}
-	base.Ctxt.Globl(s, nam.Type().Size(), flags)
-	if nam.LibfuzzerExtraCounter() {
-		s.Type = objabi.SLIBFUZZER_EXTRA_COUNTER
+	size := nam.Type().Size()
+	linkname := nam.Sym().Linkname
+	name := nam.Sym().Name
+
+	// We've skipped linkname'd globals's instrument, so we can skip them here as well.
+	if base.Flag.ASan && linkname == "" && pkginit.InstrumentGlobalsMap[name] != nil {
+		// Write the new size of instrumented global variables that have
+		// trailing redzones into object file.
+		rzSize := pkginit.GetRedzoneSizeForGlobal(size)
+		sizeWithRZ := rzSize + size
+		base.Ctxt.Globl(s, sizeWithRZ, flags)
+	} else {
+		base.Ctxt.Globl(s, size, flags)
+	}
+	if nam.Libfuzzer8BitCounter() {
+		s.Type = objabi.SLIBFUZZER_8BIT_COUNTER
+	}
+	if nam.CoverageCounter() {
+		s.Type = objabi.SCOVERAGE_COUNTER
 	}
 	if nam.Sym().Linkname != "" {
 		// Make sure linkname'd symbol is non-package. When a symbol is

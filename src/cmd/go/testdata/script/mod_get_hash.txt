@@ -2,7 +2,7 @@ env GO111MODULE=on
 env GOPROXY=direct
 env GOSUMDB=off
 [!net] skip
-[!exec:git] skip
+[!git] skip
 
 # fetch commit hash reachable from refs/heads/* and refs/tags/* is OK
 go list -m golang.org/x/time@8be79e1e0910c292df4e79c241bb7e8f7e725959 # on master branch

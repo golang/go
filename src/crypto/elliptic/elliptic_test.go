@@ -61,7 +61,13 @@ func TestOffCurve(t *testing.T) {
 		if curve.IsOnCurve(x, y) {
 			t.Errorf("point off curve is claimed to be on the curve")
 		}
-		b := Marshal(curve, x, y)
+
+		byteLen := (curve.Params().BitSize + 7) / 8
+		b := make([]byte, 1+2*byteLen)
+		b[0] = 4 // uncompressed point
+		x.FillBytes(b[1 : 1+byteLen])
+		y.FillBytes(b[1+byteLen : 1+2*byteLen])
+
 		x1, y1 := Unmarshal(curve, b)
 		if x1 != nil || y1 != nil {
 			t.Errorf("unmarshaling a point not on the curve succeeded")
@@ -73,49 +79,73 @@ func TestInfinity(t *testing.T) {
 	testAllCurves(t, testInfinity)
 }
 
+func isInfinity(x, y *big.Int) bool {
+	return x.Sign() == 0 && y.Sign() == 0
+}
+
 func testInfinity(t *testing.T, curve Curve) {
-	_, x, y, _ := GenerateKey(curve, rand.Reader)
-	x, y = curve.ScalarMult(x, y, curve.Params().N.Bytes())
-	if x.Sign() != 0 || y.Sign() != 0 {
+	x0, y0 := new(big.Int), new(big.Int)
+	xG, yG := curve.Params().Gx, curve.Params().Gy
+
+	if !isInfinity(curve.ScalarMult(xG, yG, curve.Params().N.Bytes())) {
 		t.Errorf("x^q != ∞")
 	}
-
-	x, y = curve.ScalarBaseMult([]byte{0})
-	if x.Sign() != 0 || y.Sign() != 0 {
-		t.Errorf("b^0 != ∞")
-		x.SetInt64(0)
-		y.SetInt64(0)
+	if !isInfinity(curve.ScalarMult(xG, yG, []byte{0})) {
+		t.Errorf("x^0 != ∞")
 	}
 
-	x2, y2 := curve.Double(x, y)
-	if x2.Sign() != 0 || y2.Sign() != 0 {
+	if !isInfinity(curve.ScalarMult(x0, y0, []byte{1, 2, 3})) {
+		t.Errorf("∞^k != ∞")
+	}
+	if !isInfinity(curve.ScalarMult(x0, y0, []byte{0})) {
+		t.Errorf("∞^0 != ∞")
+	}
+
+	if !isInfinity(curve.ScalarBaseMult(curve.Params().N.Bytes())) {
+		t.Errorf("b^q != ∞")
+	}
+	if !isInfinity(curve.ScalarBaseMult([]byte{0})) {
+		t.Errorf("b^0 != ∞")
+	}
+
+	if !isInfinity(curve.Double(x0, y0)) {
 		t.Errorf("2∞ != ∞")
 	}
+	// There is no other point of order two on the NIST curves (as they have
+	// cofactor one), so Double can't otherwise return the point at infinity.
 
-	baseX := curve.Params().Gx
-	baseY := curve.Params().Gy
-
-	x3, y3 := curve.Add(baseX, baseY, x, y)
-	if x3.Cmp(baseX) != 0 || y3.Cmp(baseY) != 0 {
+	nMinusOne := new(big.Int).Sub(curve.Params().N, big.NewInt(1))
+	x, y := curve.ScalarMult(xG, yG, nMinusOne.Bytes())
+	x, y = curve.Add(x, y, xG, yG)
+	if !isInfinity(x, y) {
+		t.Errorf("x^(q-1) + x != ∞")
+	}
+	x, y = curve.Add(xG, yG, x0, y0)
+	if x.Cmp(xG) != 0 || y.Cmp(yG) != 0 {
 		t.Errorf("x+∞ != x")
 	}
-
-	x4, y4 := curve.Add(x, y, baseX, baseY)
-	if x4.Cmp(baseX) != 0 || y4.Cmp(baseY) != 0 {
+	x, y = curve.Add(x0, y0, xG, yG)
+	if x.Cmp(xG) != 0 || y.Cmp(yG) != 0 {
 		t.Errorf("∞+x != x")
 	}
 
-	if curve.IsOnCurve(x, y) {
+	if curve.IsOnCurve(x0, y0) {
 		t.Errorf("IsOnCurve(∞) == true")
 	}
 
-	if xx, yy := Unmarshal(curve, Marshal(curve, x, y)); xx != nil || yy != nil {
+	if xx, yy := Unmarshal(curve, Marshal(curve, x0, y0)); xx != nil || yy != nil {
 		t.Errorf("Unmarshal(Marshal(∞)) did not return an error")
 	}
 	// We don't test UnmarshalCompressed(MarshalCompressed(∞)) because there are
 	// two valid points with x = 0.
 	if xx, yy := Unmarshal(curve, []byte{0x00}); xx != nil || yy != nil {
 		t.Errorf("Unmarshal(∞) did not return an error")
+	}
+	byteLen := (curve.Params().BitSize + 7) / 8
+	buf := make([]byte, byteLen*2+1)
+	buf[0] = 4 // Uncompressed format.
+	if xx, yy := Unmarshal(curve, buf); xx != nil || yy != nil {
+		t.Errorf("Unmarshal((0,0)) did not return an error")
 	}
 }
 
@@ -305,7 +335,7 @@ func TestLargeIsOnCurve(t *testing.T) {
 	})
 }
 
-func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
+func benchmarkAllCurves(b *testing.B, f func(*testing.B, Curve)) {
 	tests := []struct {
 		name  string
 		curve Curve
@@ -317,8 +347,8 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, Curve)) {
 	}
 	for _, test := range tests {
 		curve := test.curve
-		t.Run(test.name, func(t *testing.B) {
-			f(t, curve)
+		b.Run(test.name, func(b *testing.B) {
+			f(b, curve)
 		})
 	}
 }

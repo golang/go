@@ -198,7 +198,7 @@ greater than the max then the assembler sets it to the max for that size (31 for
 32 bit values, 63 for 64 bit values). If the shift count is in a register, then
 only the low 5 or 6 bits of the register will be used as the shift count. The
 Go compiler will add appropriate code to compare the shift value to achieve the
-the correct result, and the assembler does not add extra checking.
+correct result, and the assembler does not add extra checking.
 
 Examples:
 
@@ -250,5 +250,34 @@ Register names:
 	CRnGT represents CR bit 1 of CR field n. (0-7)
 	CRnEQ represents CR bit 2 of CR field n. (0-7)
 	CRnSO represents CR bit 3 of CR field n. (0-7)
+
+# GOPPC64 >= power10 and its effects on Go asm
+
+When GOPPC64=power10 is used to compile a Go program for ppc64le/linux, MOV*, FMOV*, and ADD
+opcodes which would require 2 or more machine instructions to emulate a 32 bit constant, or
+symbolic reference are implemented using prefixed instructions.
+
+A user who wishes granular control over the generated machine code is advised to use Go asm
+opcodes which explicitly translate to one PPC64 machine instruction. Most common opcodes
+are supported.
+
+Some examples of how pseudo-op assembly changes with GOPPC64:
+
+	Go asm                       GOPPC64 <= power9          GOPPC64 >= power10
+	MOVD mypackage·foo(SB), R3   addis r2, r3, ...          pld r3, ...
+	                             ld    r3, r3, ...
+
+	MOVD 131072(R3), R4          addis r31, r4, 2           pld r4, 131072(r3)
+	                             ld    r4, 0(R3)
+
+	ADD $131073, R3              lis  r31, 2                paddi r3, r3, 131073
+	                             addi r31, 1
+	                             add  r3,r31,r3
+
+	MOVD $131073, R3             lis  r3, 2                 pli r3, 131073
+	                             addi r3, 1
+
+	MOVD $mypackage·foo(SB), R3  addis r2, r3, ...          pla r3, ...
+	                             addi  r3, r3, ...
 */
 package ppc64

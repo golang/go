@@ -387,15 +387,12 @@ func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, n
 		case 16:
 			w.writeBits(int32(w.codegen[i]), 2)
 			i++
-			break
 		case 17:
 			w.writeBits(int32(w.codegen[i]), 3)
 			i++
-			break
 		case 18:
 			w.writeBits(int32(w.codegen[i]), 7)
 			i++
-			break
 		}
 	}
 }

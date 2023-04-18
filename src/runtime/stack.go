@@ -98,6 +98,7 @@ const (
 	// The guard leaves enough room for one _StackSmall frame plus
 	// a _StackLimit chain of NOSPLIT calls plus _StackSystem
 	// bytes for the OS.
+	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
 	_StackGuard = 928*sys.StackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
@@ -107,6 +108,7 @@ const (
 
 	// The maximum number of bytes that a chain of NOSPLIT
 	// functions can use.
+	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
 	_StackLimit = _StackGuard - _StackSystem - _StackSmall
 )
 
@@ -157,11 +159,11 @@ const (
 // There is a free list for each order.
 var stackpool [_NumStackOrders]struct {
 	item stackpoolItem
-	_    [cpu.CacheLinePadSize - unsafe.Sizeof(stackpoolItem{})%cpu.CacheLinePadSize]byte
+	_    [(cpu.CacheLinePadSize - unsafe.Sizeof(stackpoolItem{})%cpu.CacheLinePadSize) % cpu.CacheLinePadSize]byte
 }
 
-//go:notinheap
 type stackpoolItem struct {
+	_    sys.NotInHeap
 	mu   mutex
 	span mSpanList
 }
@@ -564,7 +566,7 @@ type adjustinfo struct {
 	sghi uintptr
 }
 
-// Adjustpointer checks whether *vpp is in the old stack described by adjinfo.
+// adjustpointer checks whether *vpp is in the old stack described by adjinfo.
 // If so, it rewrites *vpp to point into the new stack.
 func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
 	pp := (*uintptr)(vpp)
@@ -617,7 +619,7 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f 
 		}
 		b := *(addb(bv.bytedata, i/8))
 		for b != 0 {
-			j := uintptr(sys.Ctz8(b))
+			j := uintptr(sys.TrailingZeros8(b))
 			b &= b - 1
 			pp := (*uintptr)(add(scanp, (i+j)*goarch.PtrSize))
 		retry:
@@ -647,11 +649,10 @@ func adjustpointers(scanp unsafe.Pointer, bv *bitvector, adjinfo *adjustinfo, f 
 }
 
 // Note: the argument/return area is adjusted by the callee.
-func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
-	adjinfo := (*adjustinfo)(arg)
+func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 	if frame.continpc == 0 {
 		// Frame is dead.
-		return true
+		return
 	}
 	f := frame.fn
 	if stackDebug >= 2 {
@@ -661,10 +662,10 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		// A special routine at the bottom of stack of a goroutine that does a systemstack call.
 		// We will allow it to be copied even though we don't
 		// have full GC info for it (because it is written in asm).
-		return true
+		return
 	}
 
-	locals, args, objs := getStackMap(frame, &adjinfo.cache, true)
+	locals, args, objs := frame.getStackMap(&adjinfo.cache, true)
 
 	// Adjust local variables if stack frame has been allocated.
 	if locals.n > 0 {
@@ -734,8 +735,6 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 			}
 		}
 	}
-
-	return true
 }
 
 func adjustctxt(gp *g, adjinfo *adjustinfo) {
@@ -886,7 +885,7 @@ func copystack(gp *g, newsize uintptr) {
 	// Adjust sudogs, synchronizing with channel ops if necessary.
 	ncopy := used
 	if !gp.activeStackChans {
-		if newsize < old.hi-old.lo && atomic.Load8(&gp.parkingOnChan) != 0 {
+		if newsize < old.hi-old.lo && gp.parkingOnChan.Load() {
 			// It's not safe for someone to shrink this stack while we're actively
 			// parking on a channel, but it is safe to grow since we do that
 			// ourselves and explicitly don't want to synchronize with channels
@@ -929,7 +928,10 @@ func copystack(gp *g, newsize uintptr) {
 	gp.stktopsp += adjinfo.delta
 
 	// Adjust pointers in the new stack.
-	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, adjustframe, noescape(unsafe.Pointer(&adjinfo)), 0)
+	var u unwinder
+	for u.init(gp, 0); u.valid(); u.next() {
+		adjustframe(&u.frame, &adjinfo)
+	}
 
 	// free old stack
 	if stackPoisonCopy != 0 {
@@ -1150,7 +1152,7 @@ func isShrinkStackSafe(gp *g) bool {
 	// We also can't *shrink* the stack in the window between the
 	// goroutine calling gopark to park on a channel and
 	// gp.activeStackChans being set.
-	return gp.syscallsp == 0 && !gp.asyncSafePoint && atomic.Load8(&gp.parkingOnChan) == 0
+	return gp.syscallsp == 0 && !gp.asyncSafePoint && !gp.parkingOnChan.Load()
 }
 
 // Maybe shrink the stack being used by gp.
@@ -1247,146 +1249,6 @@ func freeStackSpans() {
 	unlock(&stackLarge.lock)
 }
 
-// getStackMap returns the locals and arguments live pointer maps, and
-// stack object list for frame.
-func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args bitvector, objs []stackObjectRecord) {
-	targetpc := frame.continpc
-	if targetpc == 0 {
-		// Frame is dead. Return empty bitvectors.
-		return
-	}
-
-	f := frame.fn
-	pcdata := int32(-1)
-	if targetpc != f.entry() {
-		// Back up to the CALL. If we're at the function entry
-		// point, we want to use the entry map (-1), even if
-		// the first instruction of the function changes the
-		// stack map.
-		targetpc--
-		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
-	}
-	if pcdata == -1 {
-		// We do not have a valid pcdata value but there might be a
-		// stackmap for this function. It is likely that we are looking
-		// at the function prologue, assume so and hope for the best.
-		pcdata = 0
-	}
-
-	// Local variables.
-	size := frame.varp - frame.sp
-	var minsize uintptr
-	switch goarch.ArchFamily {
-	case goarch.ARM64:
-		minsize = sys.StackAlign
-	default:
-		minsize = sys.MinFrameSize
-	}
-	if size > minsize {
-		stackid := pcdata
-		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
-		if stkmap == nil || stkmap.n <= 0 {
-			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
-			throw("missing stackmap")
-		}
-		// If nbit == 0, there's no work to do.
-		if stkmap.nbit > 0 {
-			if stackid < 0 || stackid >= stkmap.n {
-				// don't know where we are
-				print("runtime: pcdata is ", stackid, " and ", stkmap.n, " locals stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
-				throw("bad symbol table")
-			}
-			locals = stackmapdata(stkmap, stackid)
-			if stackDebug >= 3 && debug {
-				print("      locals ", stackid, "/", stkmap.n, " ", locals.n, " words ", locals.bytedata, "\n")
-			}
-		} else if stackDebug >= 3 && debug {
-			print("      no locals to adjust\n")
-		}
-	}
-
-	// Arguments.
-	if frame.arglen > 0 {
-		if frame.argmap != nil {
-			// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
-			// In this case, arglen specifies how much of the args section is actually live.
-			// (It could be either all the args + results, or just the args.)
-			args = *frame.argmap
-			n := int32(frame.arglen / goarch.PtrSize)
-			if n < args.n {
-				args.n = n // Don't use more of the arguments than arglen.
-			}
-		} else {
-			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
-			if stackmap == nil || stackmap.n <= 0 {
-				print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
-				throw("missing stackmap")
-			}
-			if pcdata < 0 || pcdata >= stackmap.n {
-				// don't know where we are
-				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " args stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
-				throw("bad symbol table")
-			}
-			if stackmap.nbit > 0 {
-				args = stackmapdata(stackmap, pcdata)
-			}
-		}
-	}
-
-	// stack objects.
-	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64") &&
-		unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
-		// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
-		// We don't actually use argmap in this case, but we need to fake the stack object
-		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset.
-		// This offset matches the assembly code on amd64 and arm64.
-		objs = methodValueCallFrameObjs[:]
-	} else {
-		p := funcdata(f, _FUNCDATA_StackObjects)
-		if p != nil {
-			n := *(*uintptr)(p)
-			p = add(p, goarch.PtrSize)
-			*(*slice)(unsafe.Pointer(&objs)) = slice{array: noescape(p), len: int(n), cap: int(n)}
-			// Note: the noescape above is needed to keep
-			// getStackMap from "leaking param content:
-			// frame".  That leak propagates up to getgcmask, then
-			// GCMask, then verifyGCInfo, which converts the stack
-			// gcinfo tests into heap gcinfo tests :(
-		}
-	}
-
-	return
-}
-
-var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjectinit
-
-func stkobjinit() {
-	var abiRegArgsEface any = abi.RegArgs{}
-	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
-	if abiRegArgsType.kind&kindGCProg != 0 {
-		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
-	}
-	// Set methodValueCallFrameObjs[0].gcdataoff so that
-	// stackObjectRecord.gcdata() will work correctly with it.
-	ptr := uintptr(unsafe.Pointer(&methodValueCallFrameObjs[0]))
-	var mod *moduledata
-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		if datap.gofunc <= ptr && ptr < datap.end {
-			mod = datap
-			break
-		}
-	}
-	if mod == nil {
-		throw("methodValueCallFrameObjs is not in a module")
-	}
-	methodValueCallFrameObjs[0] = stackObjectRecord{
-		off:       -int32(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
-		size:      int32(abiRegArgsType.size),
-		_ptrdata:  int32(abiRegArgsType.ptrdata),
-		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.gcdata)) - mod.rodata),
-	}
-}
-
 // A stackObjectRecord is generated by the compiler for each stack object in a stack frame.
 // This record must match the generator code in cmd/compile/internal/liveness/plive.go:emitStackObjects.
 type stackObjectRecord struct {
@@ -1434,4 +1296,50 @@ func (r *stackObjectRecord) gcdata() *byte {
 //go:linkname morestackc
 func morestackc() {
 	throw("attempt to execute system stack code on user stack")
+}
+
+// startingStackSize is the amount of stack that new goroutines start with.
+// It is a power of 2, and between _FixedStack and maxstacksize, inclusive.
+// startingStackSize is updated every GC by tracking the average size of
+// stacks scanned during the GC.
+var startingStackSize uint32 = _FixedStack
+
+func gcComputeStartingStackSize() {
+	if debug.adaptivestackstart == 0 {
+		return
+	}
+	// For details, see the design doc at
+	// https://docs.google.com/document/d/1YDlGIdVTPnmUiTAavlZxBI1d9pwGQgZT7IKFKlIXohQ/edit?usp=sharing
+	// The basic algorithm is to track the average size of stacks
+	// and start goroutines with stack equal to that average size.
+	// Starting at the average size uses at most 2x the space that
+	// an ideal algorithm would have used.
+	// This is just a heuristic to avoid excessive stack growth work
+	// early in a goroutine's lifetime. See issue 18138. Stacks that
+	// are allocated too small can still grow, and stacks allocated
+	// too large can still shrink.
+	var scannedStackSize uint64
+	var scannedStacks uint64
+	for _, p := range allp {
+		scannedStackSize += p.scannedStackSize
+		scannedStacks += p.scannedStacks
+		// Reset for next time
+		p.scannedStackSize = 0
+		p.scannedStacks = 0
+	}
+	if scannedStacks == 0 {
+		startingStackSize = _FixedStack
+		return
+	}
+	avg := scannedStackSize/scannedStacks + _StackGuard
+	// Note: we add _StackGuard to ensure that a goroutine that
+	// uses the average space will not trigger a growth.
+	if avg > uint64(maxstacksize) {
+		avg = uint64(maxstacksize)
+	}
+	if avg < _FixedStack {
+		avg = _FixedStack
+	}
+	// Note: maxstacksize fits in 30 bits, so avg also does.
+	startingStackSize = uint32(round2(int32(avg)))
 }

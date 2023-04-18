@@ -5,7 +5,6 @@
 package template
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -438,7 +437,7 @@ func basicKind(v reflect.Value) (kind, error) {
 
 // isNil returns true if v is the zero reflect.Value, or nil of its type.
 func isNil(v reflect.Value) bool {
-	if v == zero {
+	if !v.IsValid() {
 		return true
 	}
 	switch v.Kind() {
@@ -642,7 +641,7 @@ func HTMLEscapeString(s string) string {
 	if !strings.ContainsAny(s, "'\"&<>\000") {
 		return s
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	HTMLEscape(&b, []byte(s))
 	return b.String()
 }
@@ -725,7 +724,7 @@ func JSEscapeString(s string) string {
 	if strings.IndexFunc(s, jsIsSpecial) < 0 {
 		return s
 	}
-	var b bytes.Buffer
+	var b strings.Builder
 	JSEscape(&b, []byte(s))
 	return b.String()
 }

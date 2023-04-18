@@ -12,6 +12,7 @@ import (
 	"cmd/link/internal/sym"
 	"fmt"
 	"internal/buildcfg"
+	"strings"
 	"unicode"
 )
 
@@ -29,6 +30,8 @@ type deadcodePass struct {
 	dynlink            bool
 
 	methodsigstmp []methodsig // scratch buffer for decoding method signatures
+	pkginits      []loader.Sym
+	mapinitnoop   loader.Sym
 }
 
 func (d *deadcodePass) init() {
@@ -72,11 +75,11 @@ func (d *deadcodePass) init() {
 	// We redirect unreachable methods to it.
 	names = append(names, "runtime.unreachableMethod")
 	if d.ctxt.BuildMode == BuildModePlugin {
-		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go.plugin.tabs")
+		names = append(names, objabi.PathToPrefix(*flagPluginPath)+"..inittask", objabi.PathToPrefix(*flagPluginPath)+".main", "go:plugin.tabs")
 
 		// We don't keep the go.plugin.exports symbol,
 		// but we do keep the symbols it refers to.
-		exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
+		exportsIdx := d.ldr.Lookup("go:plugin.exports", 0)
 		if exportsIdx != 0 {
 			relocs := d.ldr.Relocs(exportsIdx)
 			for i := 0; i < relocs.Count(); i++ {
@@ -104,6 +107,14 @@ func (d *deadcodePass) init() {
 			d.ctxt.Logf("deadcode start dynexp: %s<%d>\n", d.ldr.SymName(s), d.ldr.SymVersion(s))
 		}
 		d.mark(s, 0)
+	}
+
+	d.mapinitnoop = d.ldr.Lookup("runtime.mapinitnoop", abiInternalVer)
+	if d.mapinitnoop == 0 {
+		panic("could not look up runtime.mapinitnoop")
+	}
+	if d.ctxt.mainInittasks != 0 {
+		d.mark(d.ctxt.mainInittasks, 0)
 	}
 }
 
@@ -200,6 +211,11 @@ func (d *deadcodePass) flood() {
 				}
 				d.genericIfaceMethod[name] = true
 				continue // don't mark referenced symbol - it is not needed in the final binary.
+			case objabi.R_INITORDER:
+				// inittasks has already run, so any R_INITORDER links are now
+				// superfluous - the only live inittask records are those which are
+				// in a scheduled list somewhere (e.g. runtime.moduledata.inittasks).
+				continue
 			}
 			rs := r.Sym()
 			if isgotype && usedInIface && d.ldr.IsGoType(rs) && !d.ldr.AttrUsedInIface(rs) {
@@ -228,6 +244,12 @@ func (d *deadcodePass) flood() {
 				continue
 			}
 			d.mark(a.Sym(), symIdx)
+		}
+		// Record sym if package init func (here naux != 0 is a cheap way
+		// to check first if it is a function symbol).
+		if naux != 0 && d.ldr.IsPkgInit(symIdx) {
+
+			d.pkginits = append(d.pkginits, symIdx)
 		}
 		// Some host object symbols have an outer object, which acts like a
 		// "carrier" symbol, or it holds all the symbols for a particular
@@ -258,6 +280,37 @@ func (d *deadcodePass) flood() {
 				}
 			}
 			d.markableMethods = append(d.markableMethods, methods...)
+		}
+	}
+}
+
+// mapinitcleanup walks all pkg init functions and looks for weak relocations
+// to mapinit symbols that are no longer reachable. It rewrites
+// the relocs to target a new no-op routine in the runtime.
+func (d *deadcodePass) mapinitcleanup() {
+	for _, idx := range d.pkginits {
+		relocs := d.ldr.Relocs(idx)
+		var su *loader.SymbolBuilder
+		for i := 0; i < relocs.Count(); i++ {
+			r := relocs.At(i)
+			rs := r.Sym()
+			if r.Weak() && r.Type().IsDirectCall() && !d.ldr.AttrReachable(rs) {
+				// double check to make sure target is indeed map.init
+				rsn := d.ldr.SymName(rs)
+				if !strings.Contains(rsn, "map.init") {
+					panic(fmt.Sprintf("internal error: expected map.init sym for weak call reloc, got %s -> %s", d.ldr.SymName(idx), rsn))
+				}
+				d.ldr.SetAttrReachable(d.mapinitnoop, true)
+				if d.ctxt.Debugvlog > 1 {
+					d.ctxt.Logf("deadcode: %s rewrite %s ref to %s\n",
+						d.ldr.SymName(idx), rsn,
+						d.ldr.SymName(d.mapinitnoop))
+				}
+				if su == nil {
+					su = d.ldr.MakeSymbolUpdater(idx)
+				}
+				su.SetRelocSym(i, d.mapinitnoop)
+			}
 		}
 	}
 }
@@ -369,6 +422,9 @@ func deadcode(ctxt *Link) {
 			break
 		}
 		d.flood()
+	}
+	if *flagPruneWeakMap {
+		d.mapinitcleanup()
 	}
 }
 

@@ -11,7 +11,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 const (
 	// The number of levels in the radix tree.
@@ -53,6 +56,10 @@ var levelLogPages = [summaryLevels]uint{
 	logPallocChunkPages,
 }
 
+// scavengeIndexArray is the backing store for p.scav.index.chunks.
+// On 32-bit platforms, it's small enough to just be a global.
+var scavengeIndexArray [((1 << heapAddrBits) / pallocChunkBytes) / 8]atomic.Uint8
+
 // See mpagealloc_64bit.go for details.
 func (p *pageAlloc) sysInit() {
 	// Calculate how much memory all our entries will take up.
@@ -71,7 +78,8 @@ func (p *pageAlloc) sysInit() {
 	}
 	// There isn't much. Just map it and mark it as used immediately.
 	sysMap(reservation, totalSize, p.sysStat)
-	sysUsed(reservation, totalSize)
+	sysUsed(reservation, totalSize, totalSize)
+	p.summaryMappedReady += totalSize
 
 	// Iterate over the reservation and cut it up into slices.
 	//
@@ -86,6 +94,9 @@ func (p *pageAlloc) sysInit() {
 
 		reservation = add(reservation, uintptr(entries)*pallocSumBytes)
 	}
+
+	// Set up the scavenge index.
+	p.scav.index.chunks = scavengeIndexArray[:]
 }
 
 // See mpagealloc_64bit.go for details.

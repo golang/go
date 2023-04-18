@@ -1,5 +1,5 @@
-// +build !nacl,!js,!gccgo
 // run
+//go:build !nacl && !js && !wasip1 && !gccgo
 
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -46,7 +46,8 @@ func main() {
 		Type   string
 		Input  string
 		Expect string
-	}{{"", "nil", "panic: nil"},
+	}{
+		{"", "nil", "panic: panic called with nil argument"},
 		{"errors.New", `"test"`, "panic: test"},
 		{"S", "S{}", "panic: s-stringer"},
 		{"byte", "8", "panic: 8"},

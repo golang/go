@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{.Title}}</title>
+  {{template "css" .}}
+</head>
+<body>
+  {{template "header" .}}
+  <div id="graph">
+    {{.HTMLBody}}
+  </div>
+  {{template "script" .}}
+  <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
+</body>
+</html>

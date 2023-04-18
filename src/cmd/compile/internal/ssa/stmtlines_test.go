@@ -1,3 +1,7 @@
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package ssa_test
 
 import (
@@ -71,8 +75,15 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
+	// Build cmd/go forcing DWARF enabled, as a large test case.
+	dir := t.TempDir()
+	out, err := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-w=0", "-o", dir+"/test.exe", "cmd/go").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build: %v\n%s", err, out)
+	}
+
 	lines := map[Line]bool{}
-	dw, err := open(testenv.GoToolPath(t))
+	dw, err := open(dir + "/test.exe")
 	must(err)
 	rdr := dw.Reader()
 	rdr.Seek(0)
@@ -89,7 +100,7 @@ func TestStmtLines(t *testing.T) {
 		if pkgname == "runtime" {
 			continue
 		}
-		if pkgname == "crypto/elliptic/internal/fiat" {
+		if pkgname == "crypto/internal/nistec/fiat" {
 			continue // golang.org/issue/49372
 		}
 		if e.Val(dwarf.AttrStmtList) == nil {
@@ -118,12 +129,17 @@ func TestStmtLines(t *testing.T) {
 		}
 	}
 
+	var m int
 	if runtime.GOARCH == "amd64" {
-		if len(nonStmtLines)*100 > len(lines) { // > 99% obtained on amd64, no backsliding
-			t.Errorf("Saw too many (amd64, > 1%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
-		}
-	} else if len(nonStmtLines)*100 > 2*len(lines) { // expect 98% elsewhere.
-		t.Errorf("Saw too many (not amd64, > 2%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", len(lines), len(nonStmtLines))
+		m = 1 // > 99% obtained on amd64, no backsliding
+	} else if runtime.GOARCH == "riscv64" {
+		m = 3 // XXX temporary update threshold to 97% for regabi
+	} else {
+		m = 2 // expect 98% elsewhere.
+	}
+
+	if len(nonStmtLines)*100 > m*len(lines) {
+		t.Errorf("Saw too many (%s, > %d%%) lines without statement marks, total=%d, nostmt=%d ('-run TestStmtLines -v' lists failing lines)\n", runtime.GOARCH, m, len(lines), len(nonStmtLines))
 	}
 	t.Logf("Saw %d out of %d lines without statement marks", len(nonStmtLines), len(lines))
 	if testing.Verbose() {

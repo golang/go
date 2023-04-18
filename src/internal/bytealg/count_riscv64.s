@@ -5,40 +5,43 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·Count(SB),NOSPLIT,$0-40
-	MOV	b_base+0(FP), A1
-	MOV	b_len+8(FP), A2
-	MOVBU	c+24(FP), A3	// byte to count
-	MOV	ZERO, A4	// count
-	ADD	A1, A2		// end
+TEXT ·Count<ABIInternal>(SB),NOSPLIT,$0-40
+	// X10 = b_base
+	// X11 = b_len
+	// X12 = b_cap (unused)
+	// X13 = byte to count (want in X12)
+	AND	$0xff, X13, X12
+	MOV	ZERO, X14	// count
+	ADD	X10, X11	// end
 
 loop:
-	BEQ	A1, A2, done
-	MOVBU	(A1), A5
-	ADD	$1, A1
-	BNE	A3, A5, loop
-	ADD	$1, A4
+	BEQ	X10, X11, done
+	MOVBU	(X10), X15
+	ADD	$1, X10
+	BNE	X12, X15, loop
+	ADD	$1, X14
 	JMP	loop
 
 done:
-	MOV	A4, ret+32(FP)
+	MOV	X14, X10
 	RET
 
-TEXT ·CountString(SB),NOSPLIT,$0-32
-	MOV	s_base+0(FP), A1
-	MOV	s_len+8(FP), A2
-	MOVBU	c+16(FP), A3	// byte to count
-	MOV	ZERO, A4	// count
-	ADD	A1, A2		// end
+TEXT ·CountString<ABIInternal>(SB),NOSPLIT,$0-32
+	// X10 = s_base
+	// X11 = s_len
+	// X12 = byte to count
+	AND	$0xff, X12
+	MOV	ZERO, X14	// count
+	ADD	X10, X11	// end
 
 loop:
-	BEQ	A1, A2, done
-	MOVBU	(A1), A5
-	ADD	$1, A1
-	BNE	A3, A5, loop
-	ADD	$1, A4
+	BEQ	X10, X11, done
+	MOVBU	(X10), X15
+	ADD	$1, X10
+	BNE	X12, X15, loop
+	ADD	$1, X14
 	JMP	loop
 
 done:
-	MOV	A4, ret+24(FP)
+	MOV	X14, X10
 	RET

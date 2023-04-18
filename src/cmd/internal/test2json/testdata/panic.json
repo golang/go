@@ -1,3 +1,4 @@
+{"Action":"start"}
 {"Action":"output","Test":"TestPanic","Output":"--- FAIL: TestPanic (0.00s)\n"}
 {"Action":"output","Test":"TestPanic","Output":"panic: oops [recovered]\n"}
 {"Action":"output","Test":"TestPanic","Output":"\tpanic: oops\n"}

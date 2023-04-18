@@ -49,9 +49,9 @@ func stripTabNL(r rune) rune {
 	return r
 }
 
-var tmpl = template.Must(template.New("main").Parse(strings.Map(stripTabNL, tmplText)))
+func makeTemplate(jsonbytes []byte, jsondata *JSONResponse) *template.Template {
+	tmpl := template.Must(template.New("main").Parse(strings.Map(stripTabNL, tmplText)))
 
-func init() {
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, &jsondata); err != nil {
 		panic(err)
@@ -60,17 +60,22 @@ func init() {
 		println(buf.Len(), len(jsonbytes))
 		panic("wrong output")
 	}
+	return tmpl
 }
 
-func tmplexec() {
-	if err := tmpl.Execute(io.Discard, &jsondata); err != nil {
+func tmplexec(tmpl *template.Template, jsondata *JSONResponse) {
+	if err := tmpl.Execute(io.Discard, jsondata); err != nil {
 		panic(err)
 	}
 }
 
 func BenchmarkTemplate(b *testing.B) {
+	jsonbytes := makeJsonBytes()
+	jsondata := makeJsonData(jsonbytes)
+	tmpl := makeTemplate(jsonbytes, jsondata)
+	b.ResetTimer()
 	b.SetBytes(int64(len(jsonbytes)))
 	for i := 0; i < b.N; i++ {
-		tmplexec()
+		tmplexec(tmpl, jsondata)
 	}
 }

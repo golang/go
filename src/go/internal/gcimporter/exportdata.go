@@ -40,7 +40,6 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 // file by reading from it. The reader must be positioned at the
 // start of the file before calling this function. The hdr result
 // is the string before the export data, either "$$" or "$$B".
-//
 func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
 	// Read first line to make sure this is an object file.
 	line, err := r.ReadSlice('\n')

@@ -17,6 +17,7 @@ import _ "unsafe" // for go:linkname
 //go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
 //go:cgo_import_dynamic libc_setgid setgid "libc.so"
 //go:cgo_import_dynamic libc_setgroups setgroups "libc.so"
+//go:cgo_import_dynamic libc_setrlimit setrlimit "libc.so"
 //go:cgo_import_dynamic libc_setsid setsid "libc.so"
 //go:cgo_import_dynamic libc_setuid setuid "libc.so"
 //go:cgo_import_dynamic libc_setpgid setpgid "libc.so"
@@ -34,6 +35,7 @@ import _ "unsafe" // for go:linkname
 //go:linkname libc_ioctl libc_ioctl
 //go:linkname libc_setgid libc_setgid
 //go:linkname libc_setgroups libc_setgroups
+//go:linkname libc_setrlimit libc_setrlimit
 //go:linkname libc_setsid libc_setsid
 //go:linkname libc_setuid libc_setuid
 //go:linkname libc_setpgid libc_setpgid

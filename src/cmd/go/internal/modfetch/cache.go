@@ -164,13 +164,16 @@ func SideLock() (unlock func(), err error) {
 }
 
 // A cachingRepo is a cache around an underlying Repo,
-// avoiding redundant calls to ModulePath, Versions, Stat, Latest, and GoMod (but not Zip).
+// avoiding redundant calls to ModulePath, Versions, Stat, Latest, and GoMod (but not CheckReuse or Zip).
 // It is also safe for simultaneous use by multiple goroutines
 // (so that it can be returned from Lookup multiple times).
 // It serializes calls to the underlying Repo.
 type cachingRepo struct {
-	path  string
-	cache par.Cache // cache for all operations
+	path          string
+	versionsCache par.ErrCache[string, *Versions]
+	statCache     par.ErrCache[string, *RevInfo]
+	latestCache   par.ErrCache[struct{}, *RevInfo]
+	gomodCache    par.ErrCache[string, []byte]
 
 	once     sync.Once
 	initRepo func() (Repo, error)
@@ -195,24 +198,26 @@ func (r *cachingRepo) repo() Repo {
 	return r.r
 }
 
+func (r *cachingRepo) CheckReuse(old *codehost.Origin) error {
+	return r.repo().CheckReuse(old)
+}
+
 func (r *cachingRepo) ModulePath() string {
 	return r.path
 }
 
-func (r *cachingRepo) Versions(prefix string) ([]string, error) {
-	type cached struct {
-		list []string
-		err  error
-	}
-	c := r.cache.Do("versions:"+prefix, func() any {
-		list, err := r.repo().Versions(prefix)
-		return cached{list, err}
-	}).(cached)
+func (r *cachingRepo) Versions(prefix string) (*Versions, error) {
+	v, err := r.versionsCache.Do(prefix, func() (*Versions, error) {
+		return r.repo().Versions(prefix)
+	})
 
-	if c.err != nil {
-		return nil, c.err
+	if err != nil {
+		return nil, err
 	}
-	return append([]string(nil), c.list...), nil
+	return &Versions{
+		Origin: v.Origin,
+		List:   append([]string(nil), v.List...),
+	}, nil
 }
 
 type cachedInfo struct {
@@ -221,10 +226,10 @@ type cachedInfo struct {
 }
 
 func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
-	c := r.cache.Do("stat:"+rev, func() any {
+	info, err := r.statCache.Do(rev, func() (*RevInfo, error) {
 		file, info, err := readDiskStat(r.path, rev)
 		if err == nil {
-			return cachedInfo{info, nil}
+			return info, err
 		}
 
 		info, err = r.repo().Stat(rev)
@@ -233,8 +238,8 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 			// then save the information under the proper version, for future use.
 			if info.Version != rev {
 				file, _ = CachePath(module.Version{Path: r.path, Version: info.Version}, "info")
-				r.cache.Do("stat:"+info.Version, func() any {
-					return cachedInfo{info, err}
+				r.statCache.Do(info.Version, func() (*RevInfo, error) {
+					return info, nil
 				})
 			}
 
@@ -242,99 +247,102 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 				fmt.Fprintf(os.Stderr, "go: writing stat cache: %v\n", err)
 			}
 		}
-		return cachedInfo{info, err}
-	}).(cachedInfo)
-
-	if c.err != nil {
-		return nil, c.err
+		return info, err
+	})
+	if info != nil {
+		copy := *info
+		info = &copy
 	}
-	info := *c.info
-	return &info, nil
+	return info, err
 }
 
 func (r *cachingRepo) Latest() (*RevInfo, error) {
-	c := r.cache.Do("latest:", func() any {
+	info, err := r.latestCache.Do(struct{}{}, func() (*RevInfo, error) {
 		info, err := r.repo().Latest()
 
 		// Save info for likely future Stat call.
 		if err == nil {
-			r.cache.Do("stat:"+info.Version, func() any {
-				return cachedInfo{info, err}
+			r.statCache.Do(info.Version, func() (*RevInfo, error) {
+				return info, nil
 			})
 			if file, _, err := readDiskStat(r.path, info.Version); err != nil {
 				writeDiskStat(file, info)
 			}
 		}
 
-		return cachedInfo{info, err}
-	}).(cachedInfo)
-
-	if c.err != nil {
-		return nil, c.err
+		return info, err
+	})
+	if info != nil {
+		copy := *info
+		info = &copy
 	}
-	info := *c.info
-	return &info, nil
+	return info, err
 }
 
 func (r *cachingRepo) GoMod(version string) ([]byte, error) {
-	type cached struct {
-		text []byte
-		err  error
-	}
-	c := r.cache.Do("gomod:"+version, func() any {
+	text, err := r.gomodCache.Do(version, func() ([]byte, error) {
 		file, text, err := readDiskGoMod(r.path, version)
 		if err == nil {
 			// Note: readDiskGoMod already called checkGoMod.
-			return cached{text, nil}
+			return text, nil
 		}
 
 		text, err = r.repo().GoMod(version)
 		if err == nil {
 			if err := checkGoMod(r.path, version, text); err != nil {
-				return cached{text, err}
+				return text, err
 			}
 			if err := writeDiskGoMod(file, text); err != nil {
 				fmt.Fprintf(os.Stderr, "go: writing go.mod cache: %v\n", err)
 			}
 		}
-		return cached{text, err}
-	}).(cached)
-
-	if c.err != nil {
-		return nil, c.err
+		return text, err
+	})
+	if err != nil {
+		return nil, err
 	}
-	return append([]byte(nil), c.text...), nil
+	return append([]byte(nil), text...), nil
 }
 
 func (r *cachingRepo) Zip(dst io.Writer, version string) error {
 	return r.repo().Zip(dst, version)
 }
 
-// InfoFile is like Lookup(path).Stat(version) but returns the name of the file
+// InfoFile is like Lookup(path).Stat(version) but also returns the name of the file
 // containing the cached information.
-func InfoFile(path, version string) (string, error) {
+func InfoFile(path, version string) (*RevInfo, string, error) {
 	if !semver.IsValid(version) {
-		return "", fmt.Errorf("invalid version %q", version)
+		return nil, "", fmt.Errorf("invalid version %q", version)
 	}
 
-	if file, _, err := readDiskStat(path, version); err == nil {
-		return file, nil
+	if file, info, err := readDiskStat(path, version); err == nil {
+		return info, file, nil
 	}
 
+	var info *RevInfo
+	var err2info map[error]*RevInfo
 	err := TryProxies(func(proxy string) error {
-		_, err := Lookup(proxy, path).Stat(version)
+		i, err := Lookup(proxy, path).Stat(version)
+		if err == nil {
+			info = i
+		} else {
+			if err2info == nil {
+				err2info = make(map[error]*RevInfo)
+			}
+			err2info[err] = info
+		}
 		return err
 	})
 	if err != nil {
-		return "", err
+		return err2info[err], "", err
 	}
 
 	// Stat should have populated the disk cache for us.
 	file, err := CachePath(module.Version{Path: path, Version: version}, "info")
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
-	return file, nil
+	return info, file, nil
 }
 
 // GoMod is like Lookup(path).GoMod(rev) but avoids the
@@ -561,6 +569,26 @@ func writeDiskStat(file string, info *RevInfo) error {
 	if file == "" {
 		return nil
 	}
+
+	if info.Origin != nil {
+		// Clean the origin information, which might have too many
+		// validation criteria, for example if we are saving the result of
+		// m@master as m@pseudo-version.
+		clean := *info
+		info = &clean
+		o := *info.Origin
+		info.Origin = &o
+
+		// Tags never matter if you are starting with a semver version,
+		// as we would be when finding this cache entry.
+		o.TagSum = ""
+		o.TagPrefix = ""
+		// Ref doesn't matter if you have a pseudoversion.
+		if module.IsPseudoVersion(info.Version) {
+			o.Ref = ""
+		}
+	}
+
 	js, err := json.Marshal(info)
 	if err != nil {
 		return err
@@ -670,8 +698,7 @@ func rewriteVersionList(dir string) (err error) {
 		// involved in module graph construction, many *.zip files
 		// will never be requested.
 		name := info.Name()
-		if strings.HasSuffix(name, ".mod") {
-			v := strings.TrimSuffix(name, ".mod")
+		if v, found := strings.CutSuffix(name, ".mod"); found {
 			if v != "" && module.CanonicalVersion(v) == v {
 				list = append(list, v)
 			}

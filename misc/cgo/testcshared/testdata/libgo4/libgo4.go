@@ -15,6 +15,7 @@ import (
 // RunGoroutines starts some goroutines that don't do anything.
 // The idea is to get some threads going, so that a signal will be delivered
 // to a thread started by Go.
+//
 //export RunGoroutines
 func RunGoroutines() {
 	for i := 0; i < 4; i++ {
@@ -28,6 +29,7 @@ func RunGoroutines() {
 var P *byte
 
 // TestSEGV makes sure that an invalid address turns into a run-time Go panic.
+//
 //export TestSEGV
 func TestSEGV() {
 	defer func() {

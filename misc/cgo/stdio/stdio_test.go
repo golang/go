@@ -44,20 +44,33 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
+// TestTestRun runs a cgo test that doesn't depend on non-standard libraries.
 func TestTestRun(t *testing.T) {
 	if os.Getenv("GOOS") == "android" {
 		t.Skip("subpackage stdio is not available on android")
 	}
-	out, err := exec.Command("go", "env", "GOROOT").Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	GOROOT := string(bytes.TrimSpace(out))
 
-	cmd := exec.Command("go", "run", filepath.Join(GOROOT, "test", "run.go"), "-", ".")
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
+	for _, file := range [...]string{
+		"chain.go",
+		"fib.go",
+		"hello.go",
+	} {
+		file := file
+		wantFile := strings.Replace(file, ".go", ".out", 1)
+		t.Run(file, func(t *testing.T) {
+			cmd := exec.Command("go", "run", file)
+			got, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("%v: %s\n%s", cmd, err, got)
+			}
+			got = bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n"))
+			want, err := os.ReadFile(wantFile)
+			if err != nil {
+				t.Fatal("reading golden output:", err)
+			}
+			if !bytes.Equal(got, want) {
+				t.Errorf("'%v' output does not match expected in %s. Instead saw:\n%s", cmd, wantFile, got)
+			}
+		})
 	}
-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
 }

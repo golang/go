@@ -1,5 +1,4 @@
-// Code generated from gen/AMD64splitload.rules; DO NOT EDIT.
-// generated with: cd gen; go run *.go
+// Code generated from _gen/AMD64splitload.rules using 'go generate'; DO NOT EDIT.
 
 package ssa
 

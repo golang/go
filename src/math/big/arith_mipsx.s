@@ -11,9 +11,6 @@
 // This file provides fast assembly versions for the elementary
 // arithmetic operations on vectors implemented in arith.go.
 
-TEXT ·mulWW(SB),NOSPLIT,$0
-	JMP	·mulWW_g(SB)
-
 TEXT ·addVV(SB),NOSPLIT,$0
 	JMP	·addVV_g(SB)
 

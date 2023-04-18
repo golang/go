@@ -22,7 +22,7 @@ import (
 import "C"
 
 func main() {
-	ch := make(chan os.Signal)
+	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGUSR1)
 
 	if err := exec.Command("true").Run(); err != nil {

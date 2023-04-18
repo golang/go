@@ -31,7 +31,7 @@ var exeSuffix string
 
 var GOOS, GOARCH, GOROOT string
 var installdir, androiddir string
-var libSuffix, libgoname string
+var libgoname string
 
 func TestMain(m *testing.M) {
 	os.Exit(testMain(m))
@@ -43,6 +43,12 @@ func testMain(m *testing.M) int {
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
 		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
 		os.Exit(0)
+	}
+	if runtime.GOOS == "linux" {
+		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+			fmt.Printf("SKIP - skipping failing test on alpine - go.dev/issue/19938\n")
+			os.Exit(0)
+		}
 	}
 
 	GOOS = goEnv("GOOS")
@@ -147,20 +153,14 @@ func testMain(m *testing.M) int {
 		log.Panic(err)
 	}
 
-	// Directory where cgo headers and outputs will be installed.
-	// The installation directory format varies depending on the platform.
-	output, err := exec.Command("go", "list",
-		"-buildmode=c-shared",
-		"-installsuffix", "testcshared",
-		"-f", "{{.Target}}",
-		"./libgo").CombinedOutput()
-	if err != nil {
-		log.Panicf("go list failed: %v\n%s", err, output)
-	}
-	target := string(bytes.TrimSpace(output))
-	libgoname = filepath.Base(target)
-	installdir = filepath.Dir(target)
-	libSuffix = strings.TrimPrefix(filepath.Ext(target), ".")
+	defer func() {
+		if installdir != "" {
+			err := os.RemoveAll(installdir)
+			if err != nil {
+				log.Panic(err)
+			}
+		}
+	}()
 
 	return m.Run()
 }
@@ -284,8 +284,13 @@ func createHeaders() error {
 	}
 
 	// Generate a C header file for libgo itself.
-	args = []string{"go", "install", "-buildmode=c-shared",
-		"-installsuffix", "testcshared", "./libgo"}
+	installdir, err = os.MkdirTemp("", "testcshared")
+	if err != nil {
+		return err
+	}
+	libgoname = "libgo.a"
+
+	args = []string{"go", "build", "-buildmode=c-shared", "-o", filepath.Join(installdir, libgoname), "./libgo"}
 	cmd = exec.Command(args[0], args[1:]...)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
@@ -318,30 +323,46 @@ func createHeaders() error {
 		if err != nil {
 			return fmt.Errorf("unable to find dlltool path: %v\n%s\n", err, out)
 		}
-		args := []string{strings.TrimSpace(string(out)), "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
-
-		// This is an unfortunate workaround for https://github.com/mstorsjo/llvm-mingw/issues/205 in which
-		// we basically reimplement the contents of the dlltool.sh wrapper: https://git.io/JZFlU
-		dlltoolContents, err := os.ReadFile(args[0])
-		if err != nil {
-			return fmt.Errorf("unable to read dlltool: %v\n", err)
-		}
-		if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
-			base, name := filepath.Split(args[0])
-			args[0] = filepath.Join(base, "llvm-dlltool")
-			var machine string
-			switch prefix, _, _ := strings.Cut(name, "-"); prefix {
-			case "i686":
-				machine = "i386"
-			case "x86_64":
-				machine = "i386:x86-64"
-			case "armv7":
-				machine = "arm"
-			case "aarch64":
-				machine = "arm64"
+		dlltoolpath := strings.TrimSpace(string(out))
+		if filepath.Ext(dlltoolpath) == "" {
+			// Some compilers report slash-separated paths without extensions
+			// instead of ordinary Windows paths.
+			// Try to find the canonical name for the path.
+			if lp, err := exec.LookPath(dlltoolpath); err == nil {
+				dlltoolpath = lp
 			}
-			if len(machine) > 0 {
-				args = append(args, "-m", machine)
+		}
+
+		args := []string{dlltoolpath, "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
+
+		if filepath.Ext(dlltoolpath) == "" {
+			// This is an unfortunate workaround for
+			// https://github.com/mstorsjo/llvm-mingw/issues/205 in which
+			// we basically reimplement the contents of the dlltool.sh
+			// wrapper: https://git.io/JZFlU.
+			// TODO(thanm): remove this workaround once we can upgrade
+			// the compilers on the windows-arm64 builder.
+			dlltoolContents, err := os.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("unable to read dlltool: %v\n", err)
+			}
+			if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
+				base, name := filepath.Split(args[0])
+				args[0] = filepath.Join(base, "llvm-dlltool")
+				var machine string
+				switch prefix, _, _ := strings.Cut(name, "-"); prefix {
+				case "i686":
+					machine = "i386"
+				case "x86_64":
+					machine = "i386:x86-64"
+				case "armv7":
+					machine = "arm"
+				case "aarch64":
+					machine = "arm64"
+				}
+				if len(machine) > 0 {
+					args = append(args, "-m", machine)
+				}
 			}
 		}
 
@@ -373,6 +394,7 @@ func createHeadersOnce(t *testing.T) {
 		headersErr = createHeaders()
 	})
 	if headersErr != nil {
+		t.Helper()
 		t.Fatal(headersErr)
 	}
 }
@@ -544,7 +566,7 @@ func TestUnexportedSymbols(t *testing.T) {
 
 	cmd := "testp2"
 	bin := cmdToRun(cmd)
-	libname := "libgo2." + libSuffix
+	libname := "libgo2.a"
 
 	run(t,
 		nil,
@@ -602,7 +624,7 @@ func TestMainExportedOnAndroid(t *testing.T) {
 }
 
 func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
-	libname := pkgname + "." + libSuffix
+	libname := pkgname + ".a"
 	run(t,
 		nil,
 		"go", "build",
@@ -705,12 +727,15 @@ func TestCachedInstall(t *testing.T) {
 	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "libgo", "libgo.go"), filepath.Join("libgo", "libgo.go"))
 	copyFile(t, filepath.Join(tmpdir, "src", "testcshared", "p", "p.go"), filepath.Join("p", "p.go"))
 
-	env := append(os.Environ(), "GOPATH="+tmpdir, "GOBIN="+filepath.Join(tmpdir, "bin"))
-
 	buildcmd := []string{"go", "install", "-x", "-buildmode=c-shared", "-installsuffix", "testcshared", "./libgo"}
 
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
 	cmd.Dir = filepath.Join(tmpdir, "src", "testcshared")
+	env := append(cmd.Environ(),
+		"GOPATH="+tmpdir,
+		"GOBIN="+filepath.Join(tmpdir, "bin"),
+		"GO111MODULE=off", // 'go install' only works in GOPATH mode
+	)
 	cmd.Env = env
 	t.Log(buildcmd)
 	out, err := cmd.CombinedOutput()
@@ -801,7 +826,7 @@ func TestGo2C2Go(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	lib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
+	lib := filepath.Join(tmpdir, "libtestgo2c2go.a")
 	var env []string
 	if GOOS == "windows" && strings.HasSuffix(lib, ".a") {
 		env = append(env, "CGO_LDFLAGS=-Wl,--out-implib,"+lib, "CGO_LDFLAGS_ALLOW=.*")

@@ -89,14 +89,12 @@ func NewMethodSet(T Type) *MethodSet {
 	// Start with typ as single entry at shallowest depth.
 	current := []embeddedType{{typ, nil, isPtr, false}}
 
-	// Named types that we have seen already, allocated lazily.
+	// seen tracks named types that we have seen already, allocated lazily.
 	// Used to avoid endless searches in case of recursive types.
-	// Since only Named types can be used for recursive types, we
-	// only need to track those.
-	// (If we ever allow type aliases to construct recursive types,
-	// we must use type identity rather than pointer equality for
-	// the map key comparison, as we do in consolidateMultiples.)
-	var seen map[*Named]bool
+	//
+	// We must use a lookup on identity rather than a simple map[*Named]bool as
+	// instantiated types may be identical but not equal.
+	var seen instanceLookup
 
 	// collect methods at current depth
 	for len(current) > 0 {
@@ -112,7 +110,7 @@ func NewMethodSet(T Type) *MethodSet {
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
 			if named, _ := typ.(*Named); named != nil {
-				if seen[named] {
+				if alt := seen.lookup(named); alt != nil {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
 					// were consolidated before). The type at that depth shadows
@@ -120,10 +118,7 @@ func NewMethodSet(T Type) *MethodSet {
 					// this one.
 					continue
 				}
-				if seen == nil {
-					seen = make(map[*Named]bool)
-				}
-				seen[named] = true
+				seen.add(named)
 
 				for i := 0; i < named.NumMethods(); i++ {
 					mset = mset.addOne(named.Method(i), concat(e.index, i), e.indirect, e.multiples)

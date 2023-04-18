@@ -5,7 +5,6 @@
 package template
 
 import (
-	"bytes"
 	"math"
 	"strings"
 	"testing"
@@ -292,7 +291,7 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
 				`0123456789:;\u003c=\u003e?` +
 				`@ABCDEFGHIJKLMNO` +
 				`PQRSTUVWXYZ[\\]^_` +
-				"`abcdefghijklmno" +
+				"\\u0060abcdefghijklmno" +
 				"pqrstuvwxyz{|}~\u007f" +
 				"\u00A0\u0100\\u2028\\u2029\ufeff\U0001D11E",
 		},
@@ -321,7 +320,7 @@ func TestEscapersOnLower7AndSelectHighCodepoints(t *testing.T) {
 
 		// Escape it rune by rune to make sure that any
 		// fast-path checking does not break escaping.
-		var buf bytes.Buffer
+		var buf strings.Builder
 		for _, c := range input {
 			buf.WriteString(test.escaper(string(c)))
 		}

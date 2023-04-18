@@ -18,7 +18,7 @@ TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT, $0-16
 	MOVQ	AX, DI	// DI = ptr
 	XORQ	AX, AX
 
-	// MOVOU seems always faster than REP STOSQ.
+	// MOVOU seems always faster than REP STOSQ when Enhanced REP STOSQ is not available.
 tail:
 	// BSR+branch table make almost all memmove/memclr benchmarks worse. Not worth doing.
 	TESTQ	BX, BX
@@ -41,9 +41,20 @@ tail:
 	CMPQ	BX, $256
 	JBE	_129through256
 
+	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
+	JNE	skip_erms
+
+	// If the size is less than 2kb, do not use ERMS as it has a big start-up cost.
+	// Table 3-4. Relative Performance of Memcpy() Using ERMSB Vs. 128-bit AVX
+	// in the Intel Optimization Guide shows better performance for ERMSB starting
+	// from 2KB. Benchmarks show the similar threshold for REP STOS vs AVX.
+	CMPQ    BX, $2048
+	JAE	loop_preheader_erms
+
+skip_erms:
 #ifndef hasAVX2
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
-	JE loop_preheader_avx2
+	JE	loop_preheader_avx2
 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
 
 loop:
@@ -71,12 +82,13 @@ loop:
 #endif
 
 loop_preheader_avx2:
-	VPXOR Y0, Y0, Y0
+	VPXOR X0, X0, X0
 	// For smaller sizes MOVNTDQ may be faster or slower depending on hardware.
 	// For larger sizes it is always faster, even on dual Xeons with 30M cache.
 	// TODO take into account actual LLC size. E. g. glibc uses LLC size/2.
 	CMPQ    BX, $0x2000000
-	JAE     loop_preheader_avx2_huge
+	JAE	loop_preheader_avx2_huge
+
 loop_avx2:
 	VMOVDQU	Y0, 0(DI)
 	VMOVDQU	Y0, 32(DI)
@@ -92,6 +104,29 @@ loop_avx2:
 	VMOVDQU  Y0, -128(DI)(BX*1)
 	VZEROUPPER
 	RET
+
+loop_preheader_erms:
+#ifndef hasAVX2
+	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+	JNE	loop_erms
+#endif
+
+	VPXOR X0, X0, X0
+	// At this point both ERMS and AVX2 is supported. While REP STOS can use a no-RFO
+	// write protocol, ERMS could show the same or slower performance comparing to
+	// Non-Temporal Stores when the size is bigger than LLC depending on hardware.
+	CMPQ	BX, $0x2000000
+	JAE	loop_preheader_avx2_huge
+
+loop_erms:
+	// STOSQ is used to guarantee that the whole zeroed pointer-sized word is visible
+	// for a memory subsystem as the GC requires this.
+	MOVQ	BX, CX
+	SHRQ	$3, CX
+	ANDQ	$7, BX
+	REP;	STOSQ
+	JMP	tail
+
 loop_preheader_avx2_huge:
 	// Align to 32 byte boundary
 	VMOVDQU  Y0, 0(DI)

@@ -22,6 +22,12 @@
 // fires. The go vet tool checks that CancelFuncs are used on all
 // control-flow paths.
 //
+// The WithCancelCause function returns a CancelCauseFunc, which
+// takes an error and records it as the cancellation cause. Calling
+// Cause on the canceled context or any of its children retrieves
+// the cause. If no cause is specified, Cause(ctx) returns the same
+// value as ctx.Err().
+//
 // Programs that use Contexts should follow these rules to keep interfaces
 // consistent across packages and enable static analysis tools to check context
 // propagation:
@@ -166,47 +172,44 @@ func (deadlineExceededError) Error() string   { return "context deadline exceede
 func (deadlineExceededError) Timeout() bool   { return true }
 func (deadlineExceededError) Temporary() bool { return true }
 
-// An emptyCtx is never canceled, has no values, and has no deadline. It is not
-// struct{}, since vars of this type must have distinct addresses.
-type emptyCtx int
+// An emptyCtx is never canceled, has no values, and has no deadline.
+// It is the common base of backgroundCtx and todoCtx.
+type emptyCtx struct{}
 
-func (*emptyCtx) Deadline() (deadline time.Time, ok bool) {
+func (emptyCtx) Deadline() (deadline time.Time, ok bool) {
 	return
 }
 
-func (*emptyCtx) Done() <-chan struct{} {
+func (emptyCtx) Done() <-chan struct{} {
 	return nil
 }
 
-func (*emptyCtx) Err() error {
+func (emptyCtx) Err() error {
 	return nil
 }
 
-func (*emptyCtx) Value(key any) any {
+func (emptyCtx) Value(key any) any {
 	return nil
 }
 
-func (e *emptyCtx) String() string {
-	switch e {
-	case background:
-		return "context.Background"
-	case todo:
-		return "context.TODO"
-	}
-	return "unknown empty Context"
+type backgroundCtx struct{ emptyCtx }
+
+func (backgroundCtx) String() string {
+	return "context.Background"
 }
 
-var (
-	background = new(emptyCtx)
-	todo       = new(emptyCtx)
-)
+type todoCtx struct{ emptyCtx }
+
+func (todoCtx) String() string {
+	return "context.TODO"
+}
 
 // Background returns a non-nil, empty Context. It is never canceled, has no
 // values, and has no deadline. It is typically used by the main function,
 // initialization, and tests, and as the top-level Context for incoming
 // requests.
 func Background() Context {
-	return background
+	return backgroundCtx{}
 }
 
 // TODO returns a non-nil, empty Context. Code should use context.TODO when
@@ -214,7 +217,7 @@ func Background() Context {
 // surrounding function has not yet been extended to accept a Context
 // parameter).
 func TODO() Context {
-	return todo
+	return todoCtx{}
 }
 
 // A CancelFunc tells an operation to abandon its work.
@@ -230,21 +233,64 @@ type CancelFunc func()
 // Canceling this context releases resources associated with it, so code should
 // call cancel as soon as the operations running in this Context complete.
 func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
+	c := withCancel(parent)
+	return c, func() { c.cancel(true, Canceled, nil) }
+}
+
+// A CancelCauseFunc behaves like a CancelFunc but additionally sets the cancellation cause.
+// This cause can be retrieved by calling Cause on the canceled Context or on
+// any of its derived Contexts.
+//
+// If the context has already been canceled, CancelCauseFunc does not set the cause.
+// For example, if childContext is derived from parentContext:
+//   - if parentContext is canceled with cause1 before childContext is canceled with cause2,
+//     then Cause(parentContext) == Cause(childContext) == cause1
+//   - if childContext is canceled with cause2 before parentContext is canceled with cause1,
+//     then Cause(parentContext) == cause1 and Cause(childContext) == cause2
+type CancelCauseFunc func(cause error)
+
+// WithCancelCause behaves like WithCancel but returns a CancelCauseFunc instead of a CancelFunc.
+// Calling cancel with a non-nil error (the "cause") records that error in ctx;
+// it can then be retrieved using Cause(ctx).
+// Calling cancel with nil sets the cause to Canceled.
+//
+// Example use:
+//
+//	ctx, cancel := context.WithCancelCause(parent)
+//	cancel(myError)
+//	ctx.Err() // returns context.Canceled
+//	context.Cause(ctx) // returns myError
+func WithCancelCause(parent Context) (ctx Context, cancel CancelCauseFunc) {
+	c := withCancel(parent)
+	return c, func(cause error) { c.cancel(true, Canceled, cause) }
+}
+
+func withCancel(parent Context) *cancelCtx {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
-	c := newCancelCtx(parent)
-	propagateCancel(parent, &c)
-	return &c, func() { c.cancel(true, Canceled) }
+	c := &cancelCtx{Context: parent}
+	propagateCancel(parent, c)
+	return c
 }
 
-// newCancelCtx returns an initialized cancelCtx.
-func newCancelCtx(parent Context) cancelCtx {
-	return cancelCtx{Context: parent}
+// Cause returns a non-nil error explaining why c was canceled.
+// The first cancellation of c or one of its parents sets the cause.
+// If that cancellation happened via a call to CancelCauseFunc(err),
+// then Cause returns err.
+// Otherwise Cause(c) returns the same value as c.Err().
+// Cause returns nil if c has not been canceled yet.
+func Cause(c Context) error {
+	if cc, ok := c.Value(&cancelCtxKey).(*cancelCtx); ok {
+		cc.mu.Lock()
+		defer cc.mu.Unlock()
+		return cc.cause
+	}
+	return nil
 }
 
 // goroutines counts the number of goroutines ever created; for testing.
-var goroutines int32
+var goroutines atomic.Int32
 
 // propagateCancel arranges for child to be canceled when parent is.
 func propagateCancel(parent Context, child canceler) {
@@ -256,7 +302,7 @@ func propagateCancel(parent Context, child canceler) {
 	select {
 	case <-done:
 		// parent is already canceled
-		child.cancel(false, parent.Err())
+		child.cancel(false, parent.Err(), Cause(parent))
 		return
 	default:
 	}
@@ -265,7 +311,7 @@ func propagateCancel(parent Context, child canceler) {
 		p.mu.Lock()
 		if p.err != nil {
 			// parent has already been canceled
-			child.cancel(false, p.err)
+			child.cancel(false, p.err, p.cause)
 		} else {
 			if p.children == nil {
 				p.children = make(map[canceler]struct{})
@@ -274,11 +320,11 @@ func propagateCancel(parent Context, child canceler) {
 		}
 		p.mu.Unlock()
 	} else {
-		atomic.AddInt32(&goroutines, +1)
+		goroutines.Add(1)
 		go func() {
 			select {
 			case <-parent.Done():
-				child.cancel(false, parent.Err())
+				child.cancel(false, parent.Err(), Cause(parent))
 			case <-child.Done():
 			}
 		}()
@@ -326,7 +372,7 @@ func removeChild(parent Context, child canceler) {
 // A canceler is a context type that can be canceled directly. The
 // implementations are *cancelCtx and *timerCtx.
 type canceler interface {
-	cancel(removeFromParent bool, err error)
+	cancel(removeFromParent bool, err, cause error)
 	Done() <-chan struct{}
 }
 
@@ -346,6 +392,7 @@ type cancelCtx struct {
 	done     atomic.Value          // of chan struct{}, created lazily, closed by first cancel call
 	children map[canceler]struct{} // set to nil by the first cancel call
 	err      error                 // set to non-nil by the first cancel call
+	cause    error                 // set to non-nil by the first cancel call
 }
 
 func (c *cancelCtx) Value(key any) any {
@@ -394,9 +441,13 @@ func (c *cancelCtx) String() string {
 
 // cancel closes c.done, cancels each of c's children, and, if
 // removeFromParent is true, removes c from its parent's children.
-func (c *cancelCtx) cancel(removeFromParent bool, err error) {
+// cancel sets c.cause to cause if this is the first time c is canceled.
+func (c *cancelCtx) cancel(removeFromParent bool, err, cause error) {
 	if err == nil {
 		panic("context: internal error: missing cancel error")
+	}
+	if cause == nil {
+		cause = err
 	}
 	c.mu.Lock()
 	if c.err != nil {
@@ -404,6 +455,7 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 		return // already canceled
 	}
 	c.err = err
+	c.cause = cause
 	d, _ := c.done.Load().(chan struct{})
 	if d == nil {
 		c.done.Store(closedchan)
@@ -412,7 +464,7 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 	}
 	for child := range c.children {
 		// NOTE: acquiring the child's lock while holding parent's lock.
-		child.cancel(false, err)
+		child.cancel(false, err, cause)
 	}
 	c.children = nil
 	c.mu.Unlock()
@@ -420,6 +472,40 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 	if removeFromParent {
 		removeChild(c.Context, c)
 	}
+}
+
+// WithoutCancel returns a copy of parent that is not canceled when parent is canceled.
+// The returned context returns no Deadline or Err, and its Done channel is nil.
+// Calling Cause on the returned context returns nil.
+func WithoutCancel(parent Context) Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
+	return withoutCancelCtx{parent}
+}
+
+type withoutCancelCtx struct {
+	c Context
+}
+
+func (withoutCancelCtx) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+func (withoutCancelCtx) Done() <-chan struct{} {
+	return nil
+}
+
+func (withoutCancelCtx) Err() error {
+	return nil
+}
+
+func (c withoutCancelCtx) Value(key any) any {
+	return value(c, key)
+}
+
+func (c withoutCancelCtx) String() string {
+	return contextName(c.c) + ".WithoutCancel"
 }
 
 // WithDeadline returns a copy of the parent context with the deadline adjusted
@@ -432,6 +518,13 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 // Canceling this context releases resources associated with it, so code should
 // call cancel as soon as the operations running in this Context complete.
 func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
+	return WithDeadlineCause(parent, d, nil)
+}
+
+// WithDeadlineCause behaves like WithDeadline but also sets the cause of the
+// returned Context when the deadline is exceeded. The returned CancelFunc does
+// not set the cause.
+func WithDeadlineCause(parent Context, d time.Time, cause error) (Context, CancelFunc) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
 	}
@@ -440,23 +533,23 @@ func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
 		return WithCancel(parent)
 	}
 	c := &timerCtx{
-		cancelCtx: newCancelCtx(parent),
+		cancelCtx: cancelCtx{Context: parent},
 		deadline:  d,
 	}
 	propagateCancel(parent, c)
 	dur := time.Until(d)
 	if dur <= 0 {
-		c.cancel(true, DeadlineExceeded) // deadline has already passed
-		return c, func() { c.cancel(false, Canceled) }
+		c.cancel(true, DeadlineExceeded, cause) // deadline has already passed
+		return c, func() { c.cancel(false, Canceled, nil) }
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.err == nil {
 		c.timer = time.AfterFunc(dur, func() {
-			c.cancel(true, DeadlineExceeded)
+			c.cancel(true, DeadlineExceeded, cause)
 		})
 	}
-	return c, func() { c.cancel(true, Canceled) }
+	return c, func() { c.cancel(true, Canceled, nil) }
 }
 
 // A timerCtx carries a timer and a deadline. It embeds a cancelCtx to
@@ -479,8 +572,8 @@ func (c *timerCtx) String() string {
 		time.Until(c.deadline).String() + "])"
 }
 
-func (c *timerCtx) cancel(removeFromParent bool, err error) {
-	c.cancelCtx.cancel(false, err)
+func (c *timerCtx) cancel(removeFromParent bool, err, cause error) {
+	c.cancelCtx.cancel(false, err, cause)
 	if removeFromParent {
 		// Remove this timerCtx from its parent cancelCtx's children.
 		removeChild(c.cancelCtx.Context, c)
@@ -505,6 +598,13 @@ func (c *timerCtx) cancel(removeFromParent bool, err error) {
 //	}
 func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 	return WithDeadline(parent, time.Now().Add(timeout))
+}
+
+// WithTimeoutCause behaves like WithTimeout but also sets the cause of the
+// returned Context when the timout expires. The returned CancelFunc does
+// not set the cause.
+func WithTimeoutCause(parent Context, timeout time.Duration, cause error) (Context, CancelFunc) {
+	return WithDeadlineCause(parent, time.Now().Add(timeout), cause)
 }
 
 // WithValue returns a copy of parent in which the value associated with key is
@@ -579,12 +679,19 @@ func value(c Context, key any) any {
 				return c
 			}
 			c = ctx.Context
+		case withoutCancelCtx:
+			if key == &cancelCtxKey {
+				// This implements Cause(ctx) == nil
+				// when ctx is created using WithoutCancel.
+				return nil
+			}
+			c = ctx.c
 		case *timerCtx:
 			if key == &cancelCtxKey {
 				return &ctx.cancelCtx
 			}
 			c = ctx.Context
-		case *emptyCtx:
+		case backgroundCtx, todoCtx:
 			return nil
 		default:
 			return c.Value(key)

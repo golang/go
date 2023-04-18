@@ -12,7 +12,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,7 +87,7 @@ func TestArgumentsPositions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s: %v\n%s", cmd, err, cmd.Stderr)
 	}
-	mainProcessed, err := ioutil.ReadFile(filepath.Join(dir, "issue42580.cgo1.go"))
+	mainProcessed, err := os.ReadFile(filepath.Join(dir, "issue42580.cgo1.go"))
 	if err != nil {
 		t.Fatal(err)
 	}

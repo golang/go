@@ -86,7 +86,7 @@ package runtime
 
 import (
 	"internal/goarch"
-	"runtime/internal/atomic"
+	"internal/goexperiment"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -259,7 +259,7 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 	// We must still stay on the same m.
 	defer unlockOSThread()
 
-	if gp.m.needextram || atomic.Load(&extraMWaiters) > 0 {
+	if gp.m.needextram || extraMWaiters.Load() > 0 {
 		gp.m.needextram = false
 		systemstack(newextram)
 	}
@@ -347,12 +347,12 @@ func unwindm(restore *bool) {
 	}
 }
 
-// called from assembly
+// called from assembly.
 func badcgocallback() {
 	throw("misaligned stack in cgocallback")
 }
 
-// called from (incomplete) assembly
+// called from (incomplete) assembly.
 func cgounimpl() {
 	throw("cgo not implemented")
 }
@@ -392,7 +392,7 @@ var racecgosync uint64 // represents possible synchronization in C code
 // cgoCheckPointer checks if the argument contains a Go pointer that
 // points to a Go pointer, and panics if it does.
 func cgoCheckPointer(ptr any, arg any) {
-	if debug.cgocheck == 0 {
+	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
 		return
 	}
 
@@ -536,7 +536,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			if f.typ.ptrdata == 0 {
 				continue
 			}
-			cgoCheckArg(f.typ, add(p, f.offset()), true, top, msg)
+			cgoCheckArg(f.typ, add(p, f.offset), true, top, msg)
 		}
 	case kindPtr, kindUnsafePointer:
 		if indir {
@@ -568,17 +568,16 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 		if base == 0 {
 			return
 		}
-		hbits := heapBitsForAddr(base)
 		n := span.elemsize
-		for i = uintptr(0); i < n; i += goarch.PtrSize {
-			if !hbits.morePointers() {
-				// No more possible pointers.
+		hbits := heapBitsForAddr(base, n)
+		for {
+			var addr uintptr
+			if hbits, addr = hbits.next(); addr == 0 {
 				break
 			}
-			if hbits.isPointer() && cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(base + i))) {
+			if cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(addr))) {
 				panic(errorString(msg))
 			}
-			hbits = hbits.next()
 		}
 
 		return
@@ -633,7 +632,7 @@ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
 // exported Go function. It panics if the result is or contains a Go
 // pointer.
 func cgoCheckResult(val any) {
-	if debug.cgocheck == 0 {
+	if !goexperiment.CgoCheck2 && debug.cgocheck == 0 {
 		return
 	}
 

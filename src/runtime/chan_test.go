@@ -629,6 +629,9 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
 	if runtime.GOOS == "netbsd" && runtime.GOARCH == "arm64" {
 		testenv.SkipFlaky(t, 49382)
 	}
+	if runtime.GOOS == "openbsd" {
+		testenv.SkipFlaky(t, 51482)
+	}
 
 	// The goal of this test is to trigger a "racy sudog adjustment"
 	// throw. Basically, there's a window between when a goroutine

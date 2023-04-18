@@ -249,7 +249,7 @@ func (lv *argLiveness) valueEffect(v *ssa.Value, live bitvec.BitVec) bool {
 func mayFault(v *ssa.Value) bool {
 	switch v.Op {
 	case ssa.OpLoadReg, ssa.OpStoreReg, ssa.OpCopy, ssa.OpPhi,
-		ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive,
+		ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive,
 		ssa.OpSelect0, ssa.OpSelect1, ssa.OpSelectN, ssa.OpMakeResult,
 		ssa.OpConvert, ssa.OpInlMark, ssa.OpGetG:
 		return false

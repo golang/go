@@ -12,7 +12,6 @@ import (
 	"go/importer"
 	"go/parser"
 	"go/token"
-	"internal/goexperiment"
 	"internal/testenv"
 	"strings"
 	"testing"
@@ -60,14 +59,14 @@ func testEval(t *testing.T, fset *token.FileSet, pkg *Package, pos token.Pos, ex
 func TestEvalBasic(t *testing.T) {
 	fset := token.NewFileSet()
 	for _, typ := range Typ[Bool : String+1] {
-		testEval(t, fset, nil, token.NoPos, typ.Name(), typ, "", "")
+		testEval(t, fset, nil, nopos, typ.Name(), typ, "", "")
 	}
 }
 
 func TestEvalComposite(t *testing.T) {
 	fset := token.NewFileSet()
 	for _, test := range independentTestTypes {
-		testEval(t, fset, nil, token.NoPos, test.src, nil, test.str, "")
+		testEval(t, fset, nil, nopos, test.src, nil, test.str, "")
 	}
 }
 
@@ -84,7 +83,7 @@ func TestEvalArith(t *testing.T) {
 	}
 	fset := token.NewFileSet()
 	for _, test := range tests {
-		testEval(t, fset, nil, token.NoPos, test, Typ[UntypedBool], "", "true")
+		testEval(t, fset, nil, nopos, test, Typ[UntypedBool], "", "true")
 	}
 }
 
@@ -209,7 +208,7 @@ func TestCheckExpr(t *testing.T) {
 	// expr is an identifier or selector expression that is passed
 	// to CheckExpr at the position of the comment, and object is
 	// the string form of the object it denotes.
-	src := `
+	const src = `
 package p
 
 import "fmt"
@@ -235,13 +234,6 @@ func f(a int, s string) S {
 
 	return S{}
 }`
-
-	// The unified IR importer always sets interface method receiver
-	// parameters to point to the Interface type, rather than the Named.
-	// See #49906.
-	if goexperiment.Unified {
-		src = strings.ReplaceAll(src, "func (fmt.Stringer).", "func (interface).")
-	}
 
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "p", src, parser.ParseComments)

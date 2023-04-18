@@ -2,7 +2,7 @@
 # go get foo.io (not foo.io/subdir) was not working consistently.
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 env GO111MODULE=off
 
 # go-get-issue-9357.appspot.com is running

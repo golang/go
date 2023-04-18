@@ -87,7 +87,11 @@ func ReadGCStats(stats *GCStats) {
 // SetGCPercent returns the previous setting.
 // The initial setting is the value of the GOGC environment variable
 // at startup, or 100 if the variable is not set.
-// A negative percentage disables garbage collection.
+// This setting may be effectively reduced in order to maintain a memory
+// limit.
+// A negative percentage effectively disables garbage collection, unless
+// the memory limit is reached.
+// See SetMemoryLimit for more details.
 func SetGCPercent(percent int) int {
 	return int(setGCPercent(int32(percent)))
 }
@@ -175,3 +179,60 @@ func WriteHeapDump(fd uintptr)
 // If SetTraceback is called with a level lower than that of the
 // environment variable, the call is ignored.
 func SetTraceback(level string)
+
+// SetMemoryLimit provides the runtime with a soft memory limit.
+//
+// The runtime undertakes several processes to try to respect this
+// memory limit, including adjustments to the frequency of garbage
+// collections and returning memory to the underlying system more
+// aggressively. This limit will be respected even if GOGC=off (or,
+// if SetGCPercent(-1) is executed).
+//
+// The input limit is provided as bytes, and includes all memory
+// mapped, managed, and not released by the Go runtime. Notably, it
+// does not account for space used by the Go binary and memory
+// external to Go, such as memory managed by the underlying system
+// on behalf of the process, or memory managed by non-Go code inside
+// the same process. Examples of excluded memory sources include: OS
+// kernel memory held on behalf of the process, memory allocated by
+// C code, and memory mapped by syscall.Mmap (because it is not
+// managed by the Go runtime).
+//
+// More specifically, the following expression accurately reflects
+// the value the runtime attempts to maintain as the limit:
+//
+//	runtime.MemStats.Sys - runtime.MemStats.HeapReleased
+//
+// or in terms of the runtime/metrics package:
+//
+//	/memory/classes/total:bytes - /memory/classes/heap/released:bytes
+//
+// A zero limit or a limit that's lower than the amount of memory
+// used by the Go runtime may cause the garbage collector to run
+// nearly continuously. However, the application may still make
+// progress.
+//
+// The memory limit is always respected by the Go runtime, so to
+// effectively disable this behavior, set the limit very high.
+// math.MaxInt64 is the canonical value for disabling the limit,
+// but values much greater than the available memory on the underlying
+// system work just as well.
+//
+// See https://go.dev/doc/gc-guide for a detailed guide explaining
+// the soft memory limit in more detail, as well as a variety of common
+// use-cases and scenarios.
+//
+// The initial setting is math.MaxInt64 unless the GOMEMLIMIT
+// environment variable is set, in which case it provides the initial
+// setting. GOMEMLIMIT is a numeric value in bytes with an optional
+// unit suffix. The supported suffixes include B, KiB, MiB, GiB, and
+// TiB. These suffixes represent quantities of bytes as defined by
+// the IEC 80000-13 standard. That is, they are based on powers of
+// two: KiB means 2^10 bytes, MiB means 2^20 bytes, and so on.
+//
+// SetMemoryLimit returns the previously set memory limit.
+// A negative input does not adjust the limit, and allows for
+// retrieval of the currently set memory limit.
+func SetMemoryLimit(limit int64) int64 {
+	return setMemoryLimit(limit)
+}

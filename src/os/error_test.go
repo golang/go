@@ -14,6 +14,8 @@ import (
 )
 
 func TestErrIsExist(t *testing.T) {
+	t.Parallel()
+
 	f, err := os.CreateTemp("", "_Go_ErrIsExist")
 	if err != nil {
 		t.Fatalf("open ErrIsExist tempfile: %s", err)
@@ -148,6 +150,8 @@ func TestIsPermission(t *testing.T) {
 }
 
 func TestErrPathNUL(t *testing.T) {
+	t.Parallel()
+
 	f, err := os.CreateTemp("", "_Go_ErrPathNUL\x00")
 	if err == nil {
 		f.Close()

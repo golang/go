@@ -8,6 +8,7 @@ import (
 	"bytes"
 	. "os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -22,6 +23,8 @@ func checkNamedSize(t *testing.T, path string, size int64) {
 }
 
 func TestReadFile(t *testing.T) {
+	t.Parallel()
+
 	filename := "rumpelstilzchen"
 	contents, err := ReadFile(filename)
 	if err == nil {
@@ -38,6 +41,8 @@ func TestReadFile(t *testing.T) {
 }
 
 func TestWriteFile(t *testing.T) {
+	t.Parallel()
+
 	f, err := CreateTemp("", "ioutil-test")
 	if err != nil {
 		t.Fatal(err)
@@ -67,6 +72,10 @@ func TestReadOnlyWriteFile(t *testing.T) {
 	if Getuid() == 0 {
 		t.Skipf("Root can write to read-only files anyway, so skip the read-only test.")
 	}
+	if runtime.GOOS == "wasip1" {
+		t.Skip("no support for file permissions on " + runtime.GOOS)
+	}
+	t.Parallel()
 
 	// We don't want to use CreateTemp directly, since that opens a file for us as 0600.
 	tempDir, err := MkdirTemp("", t.Name())
@@ -96,6 +105,8 @@ func TestReadOnlyWriteFile(t *testing.T) {
 }
 
 func TestReadDir(t *testing.T) {
+	t.Parallel()
+
 	dirname := "rumpelstilzchen"
 	_, err := ReadDir(dirname)
 	if err == nil {

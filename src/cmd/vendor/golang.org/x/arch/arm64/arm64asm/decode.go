@@ -684,17 +684,26 @@ func decodeArg(aop instArg, x uint32) Arg {
 		//TODO: system instruction
 		return nil
 
-	case arg_sysop_DC_SYS_CR_system:
-		//TODO: system instruction
-		return nil
-
 	case arg_sysop_SYS_CR_system:
 		//TODO: system instruction
 		return nil
 
-	case arg_sysop_TLBI_SYS_CR_system:
-		//TODO: system instruction
-		return nil
+	case arg_sysop_DC_SYS_CR_system, arg_sysop_TLBI_SYS_CR_system:
+		op1 := (x >> 16) & 7
+		cn := (x >> 12) & 15
+		cm := (x >> 8) & 15
+		op2 := (x >> 5) & 7
+		sysInst := sysInstFields{uint8(op1), uint8(cn), uint8(cm), uint8(op2)}
+		attrs := sysInst.getAttrs()
+		reg := int(x & 31)
+		if !attrs.hasOperand2 {
+			if reg == 31 {
+				return sysOp{sysInst, 0, false}
+			}
+			// This instruction is undefined if the Rt field is not set to 31.
+			return nil
+		}
+		return sysOp{sysInst, X0 + Reg(reg), true}
 
 	case arg_Bt:
 		return B0 + Reg(x&(1<<5-1))

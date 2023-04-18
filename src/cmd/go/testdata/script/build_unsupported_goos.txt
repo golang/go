@@ -1,4 +1,4 @@
-[gccgo] skip # gccgo assumes cross-compilation is always possible
+[compiler:gccgo] skip # gccgo assumes cross-compilation is always possible
 
 env GOOS=windwos
 

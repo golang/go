@@ -54,7 +54,6 @@ func NewServer(ops ServerOps) *Server {
 //	for _, path := range sumdb.ServerPaths {
 //		http.Handle(path, srv)
 //	}
-//
 var ServerPaths = []string{
 	"/lookup/",
 	"/latest",

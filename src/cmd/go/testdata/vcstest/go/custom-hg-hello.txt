@@ -1,0 +1,4 @@
+handle dir
+
+-- index.html --
+<meta name="go-import" content="vcs-test.golang.org/go/custom-hg-hello hg https://vcs-test.golang.org/hg/custom-hg-hello">

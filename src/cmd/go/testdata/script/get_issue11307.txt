@@ -1,7 +1,7 @@
 # go get -u was not working except in checkout directory
 
 [!net] skip
-[!exec:git] skip
+[!git] skip
 env GO111MODULE=off
 
 env GOPATH=$WORK/tmp/gopath

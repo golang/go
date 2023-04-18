@@ -47,19 +47,19 @@ func move_wide_preferred_4(sf, N, imms, immr uint32) bool {
 	return false
 }
 
-type Sys uint8
+type sys uint8
 
 const (
-	Sys_AT Sys = iota
-	Sys_DC
-	Sys_IC
-	Sys_TLBI
-	Sys_SYS
+	sys_AT sys = iota
+	sys_DC
+	sys_IC
+	sys_TLBI
+	sys_SYS
 )
 
-func sys_op_4(op1, crn, crm, op2 uint32) Sys {
-	// TODO: system instruction
-	return Sys_SYS
+func sys_op_4(op1, crn, crm, op2 uint32) sys {
+	sysInst := sysInstFields{uint8(op1), uint8(crn), uint8(crm), uint8(op2)}
+	return sysInst.getType()
 }
 
 func is_zero(x uint32) bool {

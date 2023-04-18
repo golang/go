@@ -516,6 +516,9 @@ func TestSetuidEtc(t *testing.T) {
 	if syscall.Getuid() != 0 {
 		t.Skip("skipping root only test")
 	}
+	if _, err := os.Stat("/etc/alpine-release"); err == nil {
+		t.Skip("skipping glibc test on alpine - go.dev/issue/19938")
+	}
 	vs := []struct {
 		call           string
 		fn             func() error

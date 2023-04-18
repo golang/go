@@ -10,9 +10,7 @@ import (
 	"testing"
 )
 
-// TODO(rfindley): use a testdata file or file from another package here, to
-// avoid a moving target.
-var src = readFile("parser.go")
+var src = readFile("../printer/nodes.go")
 
 func readFile(filename string) []byte {
 	data, err := os.ReadFile(filename)

@@ -11,6 +11,7 @@ import "testing"
 // These wrappers are here for gotest to find.
 
 func Test1328(t *testing.T)                  { test1328(t) }
+func Test1560(t *testing.T)                  { test1560(t) }
 func Test1635(t *testing.T)                  { test1635(t) }
 func Test3250(t *testing.T)                  { test3250(t) }
 func Test3729(t *testing.T)                  { test3729(t) }
@@ -33,7 +34,10 @@ func Test7978(t *testing.T)                  { test7978(t) }
 func Test8092(t *testing.T)                  { test8092(t) }
 func Test8517(t *testing.T)                  { test8517(t) }
 func Test8694(t *testing.T)                  { test8694(t) }
+func Test8756(t *testing.T)                  { test8756(t) }
 func Test8811(t *testing.T)                  { test8811(t) }
+func Test9026(t *testing.T)                  { test9026(t) }
+func Test9510(t *testing.T)                  { test9510(t) }
 func Test9557(t *testing.T)                  { test9557(t) }
 func Test10303(t *testing.T)                 { test10303(t, 10) }
 func Test11925(t *testing.T)                 { test11925(t) }
@@ -44,6 +48,7 @@ func Test17537(t *testing.T)                 { test17537(t) }
 func Test18126(t *testing.T)                 { test18126(t) }
 func Test18720(t *testing.T)                 { test18720(t) }
 func Test20129(t *testing.T)                 { test20129(t) }
+func Test20266(t *testing.T)                 { test20266(t) }
 func Test20369(t *testing.T)                 { test20369(t) }
 func Test20910(t *testing.T)                 { test20910(t) }
 func Test21708(t *testing.T)                 { test21708(t) }
@@ -54,6 +59,7 @@ func Test23356(t *testing.T)                 { test23356(t) }
 func Test24206(t *testing.T)                 { test24206(t) }
 func Test25143(t *testing.T)                 { test25143(t) }
 func Test26066(t *testing.T)                 { test26066(t) }
+func Test26213(t *testing.T)                 { test26213(t) }
 func Test27660(t *testing.T)                 { test27660(t) }
 func Test28896(t *testing.T)                 { test28896(t) }
 func Test30065(t *testing.T)                 { test30065(t) }
@@ -83,13 +89,13 @@ func TestNamedEnum(t *testing.T)             { testNamedEnum(t) }
 func TestCastToEnum(t *testing.T)            { testCastToEnum(t) }
 func TestErrno(t *testing.T)                 { testErrno(t) }
 func TestFpVar(t *testing.T)                 { testFpVar(t) }
+func TestGCC68255(t *testing.T)              { testGCC68255(t) }
 func TestHandle(t *testing.T)                { testHandle(t) }
 func TestHelpers(t *testing.T)               { testHelpers(t) }
 func TestLibgcc(t *testing.T)                { testLibgcc(t) }
 func TestMultipleAssign(t *testing.T)        { testMultipleAssign(t) }
 func TestNaming(t *testing.T)                { testNaming(t) }
 func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
-func TestParallelSleep(t *testing.T)         { testParallelSleep(t) }
 func TestPrintf(t *testing.T)                { testPrintf(t) }
 func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
 func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }

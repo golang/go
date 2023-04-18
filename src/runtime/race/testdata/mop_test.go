@@ -6,9 +6,9 @@ package race_test
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"os"
 	"runtime"
@@ -331,7 +331,8 @@ func TestRaceRange(t *testing.T) {
 	var x, y int
 	_ = x + y
 	done := make(chan bool, N)
-	for i, v := range a {
+	var i, v int // declare here (not in for stmt) so that i and v are shared w/ or w/o loop variable sharing change
+	for i, v = range a {
 		go func(i int) {
 			// we don't want a write-vs-write race
 			// so there is no array b here
@@ -1936,7 +1937,7 @@ func testRaceRead(t *testing.T, pread bool) {
 			err = nil
 		}
 	}()
-	h := sha1.New()
+	h := crc32.New(crc32.MakeTable(0x12345678))
 	for b := range in {
 		h.Write(b)
 	}

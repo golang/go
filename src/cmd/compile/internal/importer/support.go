@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/types2"
 	"fmt"
 	"go/token"
+	"internal/pkgbits"
 	"sync"
 )
 
@@ -138,12 +139,14 @@ type anyType struct{}
 func (t anyType) Underlying() types2.Type { return t }
 func (t anyType) String() string          { return "any" }
 
+// See cmd/compile/internal/noder.derivedInfo.
 type derivedInfo struct {
-	idx    int
+	idx    pkgbits.Index
 	needed bool
 }
 
+// See cmd/compile/internal/noder.typeInfo.
 type typeInfo struct {
-	idx     int
+	idx     pkgbits.Index
 	derived bool
 }

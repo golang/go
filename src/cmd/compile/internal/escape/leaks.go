@@ -94,7 +94,7 @@ func (l leaks) Encode() string {
 	return s
 }
 
-// parseLeaks parses a binary string representing a leaks
+// parseLeaks parses a binary string representing a leaks.
 func parseLeaks(s string) leaks {
 	var l leaks
 	if !strings.HasPrefix(s, "esc:") {

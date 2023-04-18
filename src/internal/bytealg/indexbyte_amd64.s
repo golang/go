@@ -115,8 +115,10 @@ endofpage:
 	RET
 
 avx2:
+#ifndef hasAVX2
 	CMPB   internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JNE sse
+#endif
 	MOVD AX, X0
 	LEAQ -32(SI)(BX*1), R11
 	VPBROADCASTB  X0, Y1

@@ -214,6 +214,11 @@ uint(18446744073709551615)`
 				}
 			}(),
 		},
+		{
+			desc: "windows new line",
+			in:   "go test fuzz v1\r\nint(0)\r\n",
+			want: "go test fuzz v1\nint(0)",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {

@@ -13,7 +13,7 @@ using different register names.
 
 Examples:
 
-	ADC R24, R14, R12          <=>     adc x12, x24
+	ADC R24, R14, R12          <=>     adc x12, x14, x24
 	ADDW R26->24, R21, R15     <=>     add w15, w21, w26, asr #24
 	FCMPS F2, F3               <=>     fcmp s3, s2
 	FCMPD F2, F3               <=>     fcmp d3, d2

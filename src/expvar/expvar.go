@@ -67,26 +67,26 @@ func (v *Int) Set(value int64) {
 
 // Float is a 64-bit float variable that satisfies the Var interface.
 type Float struct {
-	f uint64
+	f atomic.Uint64
 }
 
 func (v *Float) Value() float64 {
-	return math.Float64frombits(atomic.LoadUint64(&v.f))
+	return math.Float64frombits(v.f.Load())
 }
 
 func (v *Float) String() string {
 	return strconv.FormatFloat(
-		math.Float64frombits(atomic.LoadUint64(&v.f)), 'g', -1, 64)
+		math.Float64frombits(v.f.Load()), 'g', -1, 64)
 }
 
 // Add adds delta to v.
 func (v *Float) Add(delta float64) {
 	for {
-		cur := atomic.LoadUint64(&v.f)
+		cur := v.f.Load()
 		curVal := math.Float64frombits(cur)
 		nxtVal := curVal + delta
 		nxt := math.Float64bits(nxtVal)
-		if atomic.CompareAndSwapUint64(&v.f, cur, nxt) {
+		if v.f.CompareAndSwap(cur, nxt) {
 			return
 		}
 	}
@@ -94,7 +94,7 @@ func (v *Float) Add(delta float64) {
 
 // Set sets v to value.
 func (v *Float) Set(value float64) {
-	atomic.StoreUint64(&v.f, math.Float64bits(value))
+	v.f.Store(math.Float64bits(value))
 }
 
 // Map is a string-to-Var map variable that satisfies the Var interface.
@@ -118,7 +118,12 @@ func (v *Map) String() string {
 		if !first {
 			fmt.Fprintf(&b, ", ")
 		}
-		fmt.Fprintf(&b, "%q: %v", kv.Key, kv.Value)
+		fmt.Fprintf(&b, "%q: ", kv.Key)
+		if kv.Value != nil {
+			fmt.Fprintf(&b, "%v", kv.Value)
+		} else {
+			fmt.Fprint(&b, "null")
+		}
 		first = false
 	})
 	fmt.Fprintf(&b, "}")
@@ -224,7 +229,8 @@ func (v *Map) Do(f func(KeyValue)) {
 	defer v.keysMu.RUnlock()
 	for _, k := range v.keys {
 		i, _ := v.m.Load(k)
-		f(KeyValue{k, i.(Var)})
+		val, _ := i.(Var)
+		f(KeyValue{k, val})
 	}
 }
 

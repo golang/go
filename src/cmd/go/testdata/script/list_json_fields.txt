@@ -21,6 +21,38 @@ cmp stdout want-json-name.txt
 go list -json=ImportPath,Name,GoFiles,Imports
 cmp stdout want-json-multiple.txt
 
+# Test -json=<field> with Deps outputs the Deps field.
+go list -json=Deps
+stdout '"Deps": \['
+stdout '"errors",'
+
+# Test -json=<field> with *EmbedPatterns outputs embed patterns.
+cd embed
+go list -json=EmbedPatterns,TestEmbedPatterns,XTestEmbedPatterns
+stdout '"EmbedPatterns": \['
+stdout '"TestEmbedPatterns": \['
+stdout '"XTestEmbedPatterns": \['
+# Test -json=<field> with *EmbedFiles fails due to broken file reference.
+! go list -json=EmbedFiles
+stderr 'no matching files found'
+! go list -json=TestEmbedFiles
+stderr 'no matching files found'
+! go list -json=XTestEmbedFiles
+stderr 'no matching files found'
+cd ..
+
+[!git] skip
+
+# Test -json=<field> without Stale skips computing buildinfo
+cd repo
+exec git init
+# Control case: with -json=Stale cmd/go executes git status to compute buildinfo
+go list -json=Stale -x
+stderr 'git status'
+# Test case: without -json=Stale cmd/go skips git status
+go list -json=Name -x
+! stderr 'git status'
+
 -- go.mod --
 module example.com/a
 
@@ -50,3 +82,32 @@ example.com/a
 		"fmt"
 	]
 }
+-- repo/go.mod --
+module example.com/repo
+-- repo/main.go --
+package main
+
+func main() {}
+-- embed/go.mod --
+module example.com/embed
+-- embed/embed.go --
+package embed
+
+import _ "embed"
+
+//go:embed non-existing-file.txt
+var s string
+-- embed/embed_test.go --
+package embed
+
+import _ "embed"
+
+//go:embed non-existing-file.txt
+var s string
+-- embed/embed_xtest_test.go --
+package embed_test
+
+import _ "embed"
+
+//go:embed non-existing-file.txt
+var s string

@@ -61,7 +61,7 @@ The resolver decision can be overridden by setting the netdns value of the
 GODEBUG environment variable (see package runtime) to go or cgo, as in:
 
 	export GODEBUG=netdns=go    # force pure Go resolver
-	export GODEBUG=netdns=cgo   # force cgo resolver
+	export GODEBUG=netdns=cgo   # force native resolver (cgo, win32)
 
 The decision can also be forced while building the Go source tree
 by setting the netgo or netcgo build tag.
@@ -71,9 +71,14 @@ to print debugging information about its decisions.
 To force a particular resolver while also printing debugging information,
 join the two settings by a plus sign, as in GODEBUG=netdns=go+1.
 
+On macOS, if Go code that uses the net package is built with
+-buildmode=c-archive, linking the resulting archive into a C program
+requires passing -lresolv when linking the C code.
+
 On Plan 9, the resolver always accesses /net/cs and /net/dns.
 
-On Windows, the resolver always uses C library functions, such as GetAddrInfo and DnsQuery.
+On Windows, in Go 1.18.x and earlier, the resolver always used C
+library functions, such as GetAddrInfo and DnsQuery.
 */
 package net
 
@@ -497,7 +502,7 @@ var (
 	// immediate cancellation of dials.
 	aLongTimeAgo = time.Unix(1, 0)
 
-	// nonDeadline and noCancel are just zero values for
+	// noDeadline and noCancel are just zero values for
 	// readability with functions taking too many parameters.
 	noDeadline = time.Time{}
 	noCancel   = (chan struct{})(nil)
@@ -588,7 +593,9 @@ func (e InvalidAddrError) Temporary() bool { return false }
 //
 // TODO(iant): We could consider changing this to os.ErrDeadlineExceeded
 // in the future, if we make
-//   errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
+//
+//	errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
+//
 // return true.
 var errTimeout error = &timeoutError{}
 

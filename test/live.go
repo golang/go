@@ -1,4 +1,5 @@
 // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+//go:build !ppc64 && !ppc64le && !goexperiment.regabiargs
 // +build !ppc64,!ppc64le,!goexperiment.regabiargs
 
 // ppc64 needs a better tighten pass to make f18 pass
@@ -606,7 +607,7 @@ func f38(b bool) {
 			printnl()
 		case *fi38(2) = <-fc38(): // ERROR "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$" "stack object .autotmp_[0-9]+ string$"
 			printnl()
-		case *fi38(3), *fb38() = <-fc38(): // ERROR "stack object .autotmp_[0-9]+ string$" "live at call to fc38:( .autotmp_[0-9]+)+$" "live at call to fi38:( .autotmp_[0-9]+)+$"
+		case *fi38(3), *fb38() = <-fc38(): // ERROR "stack object .autotmp_[0-9]+ string$" "live at call to f[ibc]38:( .autotmp_[0-9]+)+$"
 			printnl()
 		}
 		printnl()
@@ -697,9 +698,9 @@ func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	defer func() {
 		recover()
 	}()
-	printint(0) // ERROR "live at call to printint: q r .autotmp_[0-9]+$"
+	printint(0) // ERROR "live at call to printint: .autotmp_[0-9]+ q r$"
 	r = q
-	return // ERROR "live at call to f41.func1: r .autotmp_[0-9]+$"
+	return // ERROR "live at call to f41.func1: .autotmp_[0-9]+ r$"
 }
 
 func f42() {
@@ -718,7 +719,7 @@ func f44(f func() [2]*int) interface{} { // ERROR "live at entry to f44: f"
 	type T struct {
 		s [1][2]*int
 	}
-	ret := T{}
+	ret := T{} // ERROR "stack object ret T"
 	ret.s[0] = f()
-	return ret // ERROR "stack object .autotmp_[0-9]+ T"
+	return ret
 }

@@ -11,11 +11,44 @@ import (
 	"time"
 )
 
-// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
-// See golang.org/issue/31510
 const (
+	// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
+	// See go.dev/issue/31510
 	defaultTCPKeepAlive = 15 * time.Second
+
+	// For the moment, MultiPath TCP is not used by default
+	// See go.dev/issue/56539
+	defaultMPTCPEnabled = false
 )
+
+// mptcpStatus is a tristate for Multipath TCP, see go.dev/issue/56539
+type mptcpStatus uint8
+
+const (
+	// The value 0 is the system default, linked to defaultMPTCPEnabled
+	mptcpUseDefault mptcpStatus = iota
+	mptcpEnabled
+	mptcpDisabled
+)
+
+func (m *mptcpStatus) get() bool {
+	switch *m {
+	case mptcpEnabled:
+		return true
+	case mptcpDisabled:
+		return false
+	}
+
+	return defaultMPTCPEnabled
+}
+
+func (m *mptcpStatus) set(use bool) {
+	if use {
+		*m = mptcpEnabled
+	} else {
+		*m = mptcpDisabled
+	}
+}
 
 // A Dialer contains options for connecting to an address.
 //
@@ -95,7 +128,24 @@ type Dialer struct {
 	// Network and address parameters passed to Control method are not
 	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
 	// will cause the Control function to be called with "tcp4" or "tcp6".
+	//
+	// Control is ignored if ControlContext is not nil.
 	Control func(network, address string, c syscall.RawConn) error
+
+	// If ControlContext is not nil, it is called after creating the network
+	// connection but before actually dialing.
+	//
+	// Network and address parameters passed to Control method are not
+	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
+	// will cause the Control function to be called with "tcp4" or "tcp6".
+	//
+	// If ControlContext is not nil, Control is ignored.
+	ControlContext func(ctx context.Context, network, address string, c syscall.RawConn) error
+
+	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
+	// used, any call to Dial with "tcp(4|6)" as network will use MPTCP if
+	// supported by the operating system.
+	mptcpStatus mptcpStatus
 }
 
 func (d *Dialer) dualStack() bool { return d.FallbackDelay >= 0 }
@@ -269,6 +319,24 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
 	return naddrs, nil
 }
 
+// MultipathTCP reports whether MPTCP will be used.
+//
+// This method doesn't check if MPTCP is supported by the operating
+// system or not.
+func (d *Dialer) MultipathTCP() bool {
+	return d.mptcpStatus.get()
+}
+
+// SetMultipathTCP directs the Dial methods to use, or not use, MPTCP,
+// if supported by the operating system. This method overrides the
+// system default.
+//
+// If MPTCP is not available on the host or not supported by the server,
+// the Dial methods will fall back to TCP.
+func (d *Dialer) SetMultipathTCP(use bool) {
+	d.mptcpStatus.set(use)
+}
+
 // Dial connects to the address on the named network.
 //
 // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
@@ -341,6 +409,7 @@ func DialTimeout(network, address string, timeout time.Duration) (Conn, error) {
 type sysDialer struct {
 	Dialer
 	network, address string
+	testHookDialTCP  func(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error)
 }
 
 // Dial connects to the address on the named network.
@@ -424,21 +493,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
 		primaries = addrs
 	}
 
-	c, err := sd.dialParallel(ctx, primaries, fallbacks)
-	if err != nil {
-		return nil, err
-	}
-
-	if tc, ok := c.(*TCPConn); ok && d.KeepAlive >= 0 {
-		setKeepAlive(tc.fd, true)
-		ka := d.KeepAlive
-		if d.KeepAlive == 0 {
-			ka = defaultTCPKeepAlive
-		}
-		setKeepAlivePeriod(tc.fd, ka)
-		testHookSetKeepAlive(ka)
-	}
-	return c, nil
+	return sd.dialParallel(ctx, primaries, fallbacks)
 }
 
 // dialParallel races two copies of dialSerial, giving the first a
@@ -578,7 +633,11 @@ func (sd *sysDialer) dialSingle(ctx context.Context, ra Addr) (c Conn, err error
 	switch ra := ra.(type) {
 	case *TCPAddr:
 		la, _ := la.(*TCPAddr)
-		c, err = sd.dialTCP(ctx, la, ra)
+		if sd.MultipathTCP() {
+			c, err = sd.dialMPTCP(ctx, la, ra)
+		} else {
+			c, err = sd.dialTCP(ctx, la, ra)
+		}
 	case *UDPAddr:
 		la, _ := la.(*UDPAddr)
 		c, err = sd.dialUDP(ctx, la, ra)
@@ -614,6 +673,29 @@ type ListenConfig struct {
 	// that do not support keep-alives ignore this field.
 	// If negative, keep-alives are disabled.
 	KeepAlive time.Duration
+
+	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
+	// used, any call to Listen with "tcp(4|6)" as network will use MPTCP if
+	// supported by the operating system.
+	mptcpStatus mptcpStatus
+}
+
+// MultipathTCP reports whether MPTCP will be used.
+//
+// This method doesn't check if MPTCP is supported by the operating
+// system or not.
+func (lc *ListenConfig) MultipathTCP() bool {
+	return lc.mptcpStatus.get()
+}
+
+// SetMultipathTCP directs the Listen method to use, or not use, MPTCP,
+// if supported by the operating system. This method overrides the
+// system default.
+//
+// If MPTCP is not available on the host or not supported by the client,
+// the Listen method will fall back to TCP.
+func (lc *ListenConfig) SetMultipathTCP(use bool) {
+	lc.mptcpStatus.set(use)
 }
 
 // Listen announces on the local network address.
@@ -634,7 +716,11 @@ func (lc *ListenConfig) Listen(ctx context.Context, network, address string) (Li
 	la := addrs.first(isIPv4)
 	switch la := la.(type) {
 	case *TCPAddr:
-		l, err = sl.listenTCP(ctx, la)
+		if sl.MultipathTCP() {
+			l, err = sl.listenMPTCP(ctx, la)
+		} else {
+			l, err = sl.listenTCP(ctx, la)
+		}
 	case *UnixAddr:
 		l, err = sl.listenUnix(ctx, la)
 	default:

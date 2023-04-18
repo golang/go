@@ -58,7 +58,7 @@ func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, 
 	var scope *Scope
 	if pkg == nil {
 		scope = Universe
-		pos = token.NoPos
+		pos = nopos
 	} else if !pos.IsValid() {
 		scope = pkg.scope
 	} else {
@@ -91,8 +91,8 @@ func CheckExpr(fset *token.FileSet, pkg *Package, pos token.Pos, expr ast.Expr, 
 
 	// evaluate node
 	var x operand
-	check.rawExpr(&x, expr, nil, true) // allow generic expressions
-	check.processDelayed(0)            // incl. all functions
+	check.rawExpr(nil, &x, expr, nil, true) // allow generic expressions
+	check.processDelayed(0)                 // incl. all functions
 	check.recordUntyped()
 
 	return nil

@@ -24,7 +24,7 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0
 	MOVV	R2, (R2)
 	RET
 
-// func exitThread(wait *uint32)
+// func exitThread(wait *atomic.Uint32)
 TEXT runtime·exitThread(SB),NOSPLIT,$0
 	MOVV	wait+0(FP), R4		// arg 1 - notdead
 	MOVV	$302, R2		// sys___threxit
@@ -237,7 +237,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	CALL	(R25)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$192
+TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$192
 	// initialize REGSB = PC&0xffffffff00000000
 	BGEZAL	R0, 1(PC)
 	SRLV	$32, R31, RSB
@@ -277,7 +277,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$0
 
 	// In parent, return.
 	BEQ	R2, 3(PC)
-	MOVW	R2, ret+40(FP)
+	MOVW	$0, ret+40(FP)
 	RET
 
 	// Initialise m, g.

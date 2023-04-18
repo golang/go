@@ -1,5 +1,4 @@
-// Code generated from gen/S390X.rules; DO NOT EDIT.
-// generated with: cd gen; go run *.go
+// Code generated from _gen/S390X.rules using 'go generate'; DO NOT EDIT.
 
 package ssa
 
@@ -2347,13 +2346,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is32BitInt(t) && isSigned(t)
+	// cond: is32BitInt(t) && t.IsSigned()
 	// result: (MOVWload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is32BitInt(t) && isSigned(t)) {
+		if !(is32BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVWload)
@@ -2361,13 +2360,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is32BitInt(t) && !isSigned(t)
+	// cond: is32BitInt(t) && !t.IsSigned()
 	// result: (MOVWZload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is32BitInt(t) && !isSigned(t)) {
+		if !(is32BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVWZload)
@@ -2375,13 +2374,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is16BitInt(t) && isSigned(t)
+	// cond: is16BitInt(t) && t.IsSigned()
 	// result: (MOVHload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is16BitInt(t) && isSigned(t)) {
+		if !(is16BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVHload)
@@ -2389,13 +2388,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is16BitInt(t) && !isSigned(t)
+	// cond: is16BitInt(t) && !t.IsSigned()
 	// result: (MOVHZload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is16BitInt(t) && !isSigned(t)) {
+		if !(is16BitInt(t) && !t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVHZload)
@@ -2403,13 +2402,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: is8BitInt(t) && isSigned(t)
+	// cond: is8BitInt(t) && t.IsSigned()
 	// result: (MOVBload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(is8BitInt(t) && isSigned(t)) {
+		if !(is8BitInt(t) && t.IsSigned()) {
 			break
 		}
 		v.reset(OpS390XMOVBload)
@@ -2417,13 +2416,13 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (t.IsBoolean() || (is8BitInt(t) && !isSigned(t)))
+	// cond: (t.IsBoolean() || (is8BitInt(t) && !t.IsSigned()))
 	// result: (MOVBZload ptr mem)
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) {
+		if !(t.IsBoolean() || (is8BitInt(t) && !t.IsSigned())) {
 			break
 		}
 		v.reset(OpS390XMOVBZload)
@@ -2461,17 +2460,44 @@ func rewriteValueS390X_OpLoad(v *Value) bool {
 	return false
 }
 func rewriteValueS390X_OpLocalAddr(v *Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (LocalAddr {sym} base _)
-	// result: (MOVDaddr {sym} base)
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (LocalAddr <t> {sym} base mem)
+	// cond: t.Elem().HasPointers()
+	// result: (MOVDaddr {sym} (SPanchored base mem))
 	for {
+		t := v.Type
 		sym := auxToSym(v.Aux)
 		base := v_0
+		mem := v_1
+		if !(t.Elem().HasPointers()) {
+			break
+		}
+		v.reset(OpS390XMOVDaddr)
+		v.Aux = symToAux(sym)
+		v0 := b.NewValue0(v.Pos, OpSPanchored, typ.Uintptr)
+		v0.AddArg2(base, mem)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (LocalAddr <t> {sym} base _)
+	// cond: !t.Elem().HasPointers()
+	// result: (MOVDaddr {sym} base)
+	for {
+		t := v.Type
+		sym := auxToSym(v.Aux)
+		base := v_0
+		if !(!t.Elem().HasPointers()) {
+			break
+		}
 		v.reset(OpS390XMOVDaddr)
 		v.Aux = symToAux(sym)
 		v.AddArg(base)
 		return true
 	}
+	return false
 }
 func rewriteValueS390X_OpLsh16x16(v *Value) bool {
 	v_1 := v.Args[1]
@@ -5260,8 +5286,8 @@ func rewriteValueS390X_OpRsh8x8(v *Value) bool {
 func rewriteValueS390X_OpS390XADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (ADD x (MOVDconst [c]))
-	// cond: is32Bit(c)
+	// match: (ADD x (MOVDconst <t> [c]))
+	// cond: is32Bit(c) && !t.IsPtr()
 	// result: (ADDconst [int32(c)] x)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -5269,31 +5295,13 @@ func rewriteValueS390X_OpS390XADD(v *Value) bool {
 			if v_1.Op != OpS390XMOVDconst {
 				continue
 			}
+			t := v_1.Type
 			c := auxIntToInt64(v_1.AuxInt)
-			if !(is32Bit(c)) {
+			if !(is32Bit(c) && !t.IsPtr()) {
 				continue
 			}
 			v.reset(OpS390XADDconst)
 			v.AuxInt = int32ToAuxInt(int32(c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (ADD (SLDconst x [c]) (SRDconst x [64-c]))
-	// result: (RISBGZ x {s390x.NewRotateParams(0, 63, c)})
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpS390XSLDconst {
-				continue
-			}
-			c := auxIntToUint8(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != OpS390XSRDconst || auxIntToUint8(v_1.AuxInt) != 64-c || x != v_1.Args[0] {
-				continue
-			}
-			v.reset(OpS390XRISBGZ)
-			v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(0, 63, c))
 			v.AddArg(x)
 			return true
 		}
@@ -5468,25 +5476,6 @@ func rewriteValueS390X_OpS390XADDW(v *Value) bool {
 			c := auxIntToInt64(v_1.AuxInt)
 			v.reset(OpS390XADDWconst)
 			v.AuxInt = int32ToAuxInt(int32(c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (ADDW (SLWconst x [c]) (SRWconst x [32-c]))
-	// result: (RLLconst x [c])
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpS390XSLWconst {
-				continue
-			}
-			c := auxIntToUint8(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != OpS390XSRWconst || auxIntToUint8(v_1.AuxInt) != 32-c || x != v_1.Args[0] {
-				continue
-			}
-			v.reset(OpS390XRLLconst)
-			v.AuxInt = uint8ToAuxInt(c)
 			v.AddArg(x)
 			return true
 		}
@@ -11689,25 +11678,6 @@ func rewriteValueS390X_OpS390XOR(v *Value) bool {
 		}
 		break
 	}
-	// match: (OR (SLDconst x [c]) (SRDconst x [64-c]))
-	// result: (RISBGZ x {s390x.NewRotateParams(0, 63, c)})
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpS390XSLDconst {
-				continue
-			}
-			c := auxIntToUint8(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != OpS390XSRDconst || auxIntToUint8(v_1.AuxInt) != 64-c || x != v_1.Args[0] {
-				continue
-			}
-			v.reset(OpS390XRISBGZ)
-			v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(0, 63, c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
 	// match: (OR (MOVDconst [-1<<63]) (LGDR <t> x))
 	// result: (LGDR <t> (LNDFR <x.Type> x))
 	for {
@@ -12382,25 +12352,6 @@ func rewriteValueS390X_OpS390XORW(v *Value) bool {
 			c := auxIntToInt64(v_1.AuxInt)
 			v.reset(OpS390XORWconst)
 			v.AuxInt = int32ToAuxInt(int32(c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (ORW (SLWconst x [c]) (SRWconst x [32-c]))
-	// result: (RLLconst x [c])
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpS390XSLWconst {
-				continue
-			}
-			c := auxIntToUint8(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != OpS390XSRWconst || auxIntToUint8(v_1.AuxInt) != 32-c || x != v_1.Args[0] {
-				continue
-			}
-			v.reset(OpS390XRLLconst)
-			v.AuxInt = uint8ToAuxInt(c)
 			v.AddArg(x)
 			return true
 		}
@@ -14972,25 +14923,6 @@ func rewriteValueS390X_OpS390XXOR(v *Value) bool {
 		}
 		break
 	}
-	// match: (XOR (SLDconst x [c]) (SRDconst x [64-c]))
-	// result: (RISBGZ x {s390x.NewRotateParams(0, 63, c)})
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpS390XSLDconst {
-				continue
-			}
-			c := auxIntToUint8(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != OpS390XSRDconst || auxIntToUint8(v_1.AuxInt) != 64-c || x != v_1.Args[0] {
-				continue
-			}
-			v.reset(OpS390XRISBGZ)
-			v.Aux = s390xRotateParamsToAux(s390x.NewRotateParams(0, 63, c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
 	// match: (XOR (MOVDconst [c]) (MOVDconst [d]))
 	// result: (MOVDconst [c^d])
 	for {
@@ -15063,25 +14995,6 @@ func rewriteValueS390X_OpS390XXORW(v *Value) bool {
 			c := auxIntToInt64(v_1.AuxInt)
 			v.reset(OpS390XXORWconst)
 			v.AuxInt = int32ToAuxInt(int32(c))
-			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (XORW (SLWconst x [c]) (SRWconst x [32-c]))
-	// result: (RLLconst x [c])
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpS390XSLWconst {
-				continue
-			}
-			c := auxIntToUint8(v_0.AuxInt)
-			x := v_0.Args[0]
-			if v_1.Op != OpS390XSRWconst || auxIntToUint8(v_1.AuxInt) != 32-c || x != v_1.Args[0] {
-				continue
-			}
-			v.reset(OpS390XRLLconst)
-			v.AuxInt = uint8ToAuxInt(c)
 			v.AddArg(x)
 			return true
 		}
@@ -15449,6 +15362,7 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
 		return true
 	}
 	// match: (Select0 (FADD (FMUL y z) x))
+	// cond: x.Block.Func.useFMA(v)
 	// result: (FMADD x y z)
 	for {
 		if v_0.Op != OpS390XFADD {
@@ -15464,6 +15378,9 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
 			z := v_0_0.Args[1]
 			y := v_0_0.Args[0]
 			x := v_0_1
+			if !(x.Block.Func.useFMA(v)) {
+				continue
+			}
 			v.reset(OpS390XFMADD)
 			v.AddArg3(x, y, z)
 			return true
@@ -15471,6 +15388,7 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
 		break
 	}
 	// match: (Select0 (FSUB (FMUL y z) x))
+	// cond: x.Block.Func.useFMA(v)
 	// result: (FMSUB x y z)
 	for {
 		if v_0.Op != OpS390XFSUB {
@@ -15483,11 +15401,15 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
 		}
 		z := v_0_0.Args[1]
 		y := v_0_0.Args[0]
+		if !(x.Block.Func.useFMA(v)) {
+			break
+		}
 		v.reset(OpS390XFMSUB)
 		v.AddArg3(x, y, z)
 		return true
 	}
 	// match: (Select0 (FADDS (FMULS y z) x))
+	// cond: x.Block.Func.useFMA(v)
 	// result: (FMADDS x y z)
 	for {
 		if v_0.Op != OpS390XFADDS {
@@ -15503,6 +15425,9 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
 			z := v_0_0.Args[1]
 			y := v_0_0.Args[0]
 			x := v_0_1
+			if !(x.Block.Func.useFMA(v)) {
+				continue
+			}
 			v.reset(OpS390XFMADDS)
 			v.AddArg3(x, y, z)
 			return true
@@ -15510,6 +15435,7 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
 		break
 	}
 	// match: (Select0 (FSUBS (FMULS y z) x))
+	// cond: x.Block.Func.useFMA(v)
 	// result: (FMSUBS x y z)
 	for {
 		if v_0.Op != OpS390XFSUBS {
@@ -15522,6 +15448,9 @@ func rewriteValueS390X_OpSelect0(v *Value) bool {
 		}
 		z := v_0_0.Args[1]
 		y := v_0_0.Args[0]
+		if !(x.Block.Func.useFMA(v)) {
+			break
+		}
 		v.reset(OpS390XFMSUBS)
 		v.AddArg3(x, y, z)
 		return true
@@ -15717,14 +15646,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Store {t} ptr val mem)
-	// cond: t.Size() == 8 && is64BitFloat(val.Type)
+	// cond: t.Size() == 8 && t.IsFloat()
 	// result: (FMOVDstore ptr val mem)
 	for {
 		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.Size() == 8 && is64BitFloat(val.Type)) {
+		if !(t.Size() == 8 && t.IsFloat()) {
 			break
 		}
 		v.reset(OpS390XFMOVDstore)
@@ -15732,14 +15661,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.Size() == 4 && is32BitFloat(val.Type)
+	// cond: t.Size() == 4 && t.IsFloat()
 	// result: (FMOVSstore ptr val mem)
 	for {
 		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.Size() == 4 && is32BitFloat(val.Type)) {
+		if !(t.Size() == 4 && t.IsFloat()) {
 			break
 		}
 		v.reset(OpS390XFMOVSstore)
@@ -15747,14 +15676,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.Size() == 8
+	// cond: t.Size() == 8 && !t.IsFloat()
 	// result: (MOVDstore ptr val mem)
 	for {
 		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.Size() == 8) {
+		if !(t.Size() == 8 && !t.IsFloat()) {
 			break
 		}
 		v.reset(OpS390XMOVDstore)
@@ -15762,14 +15691,14 @@ func rewriteValueS390X_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.Size() == 4
+	// cond: t.Size() == 4 && !t.IsFloat()
 	// result: (MOVWstore ptr val mem)
 	for {
 		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.Size() == 4) {
+		if !(t.Size() == 4 && !t.IsFloat()) {
 			break
 		}
 		v.reset(OpS390XMOVWstore)

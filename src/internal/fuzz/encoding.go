@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"math"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -106,8 +107,9 @@ func unmarshalCorpusFile(b []byte) ([]any, error) {
 	if len(lines) < 2 {
 		return nil, fmt.Errorf("must include version and at least one value")
 	}
-	if string(lines[0]) != encVersion1 {
-		return nil, fmt.Errorf("unknown encoding version: %s", lines[0])
+	version := strings.TrimSuffix(string(lines[0]), "\r")
+	if version != encVersion1 {
+		return nil, fmt.Errorf("unknown encoding version: %s", version)
 	}
 	var vals []any
 	for _, line := range lines[1:] {
@@ -336,7 +338,7 @@ func parseInt(val, typ string) (any, error) {
 	}
 }
 
-// parseInt returns an unsigned integer of value val and type typ.
+// parseUint returns an unsigned integer of value val and type typ.
 func parseUint(val, typ string) (any, error) {
 	switch typ {
 	case "uint":

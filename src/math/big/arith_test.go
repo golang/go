@@ -370,7 +370,7 @@ func TestShiftOverlap(t *testing.T) {
 func TestIssue31084(t *testing.T) {
 	// compute 10^n via 5^n << n.
 	const n = 165
-	p := nat(nil).expNN(nat{5}, nat{n}, nil)
+	p := nat(nil).expNN(nat{5}, nat{n}, nil, false)
 	p = p.shl(p, n)
 	got := string(p.utoa(10))
 	want := "1" + strings.Repeat("0", n)
@@ -558,7 +558,7 @@ var mulWWTests = []struct {
 
 func TestMulWW(t *testing.T) {
 	for i, test := range mulWWTests {
-		q, r := mulWW_g(test.x, test.y)
+		q, r := mulWW(test.x, test.y)
 		if q != test.q || r != test.r {
 			t.Errorf("#%d got (%x, %x) want (%x, %x)", i, q, r, test.q, test.r)
 		}

@@ -199,6 +199,9 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
 			flag = TypeXHeader
 		}
 		data := buf.String()
+		if len(data) > maxSpecialFileSize {
+			return ErrFieldTooLong
+		}
 		if err := tw.writeRawFile(name, data, flag, FormatPAX); err != nil || isGlobal {
 			return err // Global headers return here
 		}
@@ -516,7 +519,7 @@ func (fw regFileWriter) logicalRemaining() int64 {
 	return fw.nb
 }
 
-// logicalRemaining implements fileState.physicalRemaining.
+// physicalRemaining implements fileState.physicalRemaining.
 func (fw regFileWriter) physicalRemaining() int64 {
 	return fw.nb
 }

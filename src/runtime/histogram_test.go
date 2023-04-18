@@ -20,50 +20,54 @@ func TestTimeHistogram(t *testing.T) {
 	h := &dummyTimeHistogram
 
 	// Record exactly one sample in each bucket.
-	for i := 0; i < TimeHistNumSuperBuckets; i++ {
-		var base int64
-		if i > 0 {
-			base = int64(1) << (i + TimeHistSubBucketBits - 1)
-		}
-		for j := 0; j < TimeHistNumSubBuckets; j++ {
-			v := int64(j)
-			if i > 0 {
-				v <<= i - 1
-			}
-			h.Record(base + v)
+	for j := 0; j < TimeHistNumSubBuckets; j++ {
+		v := int64(j) << (TimeHistMinBucketBits - 1 - TimeHistSubBucketBits)
+		for k := 0; k < j; k++ {
+			// Record a number of times equal to the bucket index.
+			h.Record(v)
 		}
 	}
-	// Hit the underflow bucket.
+	for i := TimeHistMinBucketBits; i < TimeHistMaxBucketBits; i++ {
+		base := int64(1) << (i - 1)
+		for j := 0; j < TimeHistNumSubBuckets; j++ {
+			v := int64(j) << (i - 1 - TimeHistSubBucketBits)
+			for k := 0; k < (i+1-TimeHistMinBucketBits)*TimeHistNumSubBuckets+j; k++ {
+				// Record a number of times equal to the bucket index.
+				h.Record(base + v)
+			}
+		}
+	}
+	// Hit the underflow and overflow buckets.
 	h.Record(int64(-1))
+	h.Record(math.MaxInt64)
+	h.Record(math.MaxInt64)
 
 	// Check to make sure there's exactly one count in each
 	// bucket.
-	for i := uint(0); i < TimeHistNumSuperBuckets; i++ {
-		for j := uint(0); j < TimeHistNumSubBuckets; j++ {
+	for i := 0; i < TimeHistNumBuckets; i++ {
+		for j := 0; j < TimeHistNumSubBuckets; j++ {
 			c, ok := h.Count(i, j)
 			if !ok {
-				t.Errorf("hit underflow bucket unexpectedly: (%d, %d)", i, j)
-			} else if c != 1 {
-				t.Errorf("bucket (%d, %d) has count that is not 1: %d", i, j, c)
+				t.Errorf("unexpected invalid bucket: (%d, %d)", i, j)
+			} else if idx := uint64(i*TimeHistNumSubBuckets + j); c != idx {
+				t.Errorf("bucket (%d, %d) has count that is not %d: %d", i, j, idx, c)
 			}
 		}
 	}
-	c, ok := h.Count(TimeHistNumSuperBuckets, 0)
+	c, ok := h.Count(-1, 0)
 	if ok {
-		t.Errorf("expected to hit underflow bucket: (%d, %d)", TimeHistNumSuperBuckets, 0)
+		t.Errorf("expected to hit underflow bucket: (%d, %d)", -1, 0)
 	}
 	if c != 1 {
-		t.Errorf("underflow bucket has count that is not 1: %d", c)
+		t.Errorf("overflow bucket has count that is not 1: %d", c)
 	}
 
-	// Check overflow behavior.
-	// By hitting a high value, we should just be adding into the highest bucket.
-	h.Record(math.MaxInt64)
-	c, ok = h.Count(TimeHistNumSuperBuckets-1, TimeHistNumSubBuckets-1)
-	if !ok {
-		t.Error("hit underflow bucket in highest bucket unexpectedly")
-	} else if c != 2 {
-		t.Errorf("highest has count that is not 2: %d", c)
+	c, ok = h.Count(TimeHistNumBuckets+1, 0)
+	if ok {
+		t.Errorf("expected to hit overflow bucket: (%d, %d)", TimeHistNumBuckets+1, 0)
+	}
+	if c != 2 {
+		t.Errorf("overflow bucket has count that is not 2: %d", c)
 	}
 
 	dummyTimeHistogram = TimeHistogram{}
@@ -72,34 +76,32 @@ func TestTimeHistogram(t *testing.T) {
 func TestTimeHistogramMetricsBuckets(t *testing.T) {
 	buckets := TimeHistogramMetricsBuckets()
 
-	nonInfBucketsLen := TimeHistNumSubBuckets * TimeHistNumSuperBuckets
-	expBucketsLen := nonInfBucketsLen + 2 // Count -Inf and +Inf.
+	nonInfBucketsLen := TimeHistNumSubBuckets * TimeHistNumBuckets
+	expBucketsLen := nonInfBucketsLen + 3 // Count -Inf, the edge for the overflow bucket, and +Inf.
 	if len(buckets) != expBucketsLen {
 		t.Fatalf("unexpected length of buckets: got %d, want %d", len(buckets), expBucketsLen)
-	}
-	// Check the first non-Inf 2*TimeHistNumSubBuckets buckets in order, skipping the
-	// first bucket which should be -Inf (checked later).
-	//
-	// Because of the way this scheme works, the bottom TimeHistNumSubBuckets
-	// buckets are fully populated, and then the next TimeHistNumSubBuckets
-	// have the TimeHistSubBucketBits'th bit set, while the bottom are once
-	// again fully populated.
-	for i := 1; i <= 2*TimeHistNumSubBuckets+1; i++ {
-		if got, want := buckets[i], float64(i-1)/1e9; got != want {
-			t.Errorf("expected bucket %d to have value %e, got %e", i, want, got)
-		}
 	}
 	// Check some values.
 	idxToBucket := map[int]float64{
 		0:                 math.Inf(-1),
-		33:                float64(0x10<<1) / 1e9,
-		34:                float64(0x11<<1) / 1e9,
-		49:                float64(0x10<<2) / 1e9,
-		58:                float64(0x19<<2) / 1e9,
-		65:                float64(0x10<<3) / 1e9,
-		513:               float64(0x10<<31) / 1e9,
-		519:               float64(0x16<<31) / 1e9,
-		expBucketsLen - 2: float64(0x1f<<43) / 1e9,
+		1:                 0.0,
+		2:                 float64(0x040) / 1e9,
+		3:                 float64(0x080) / 1e9,
+		4:                 float64(0x0c0) / 1e9,
+		5:                 float64(0x100) / 1e9,
+		6:                 float64(0x140) / 1e9,
+		7:                 float64(0x180) / 1e9,
+		8:                 float64(0x1c0) / 1e9,
+		9:                 float64(0x200) / 1e9,
+		10:                float64(0x280) / 1e9,
+		11:                float64(0x300) / 1e9,
+		12:                float64(0x380) / 1e9,
+		13:                float64(0x400) / 1e9,
+		15:                float64(0x600) / 1e9,
+		81:                float64(0x8000000) / 1e9,
+		82:                float64(0xa000000) / 1e9,
+		108:               float64(0x380000000) / 1e9,
+		expBucketsLen - 2: float64(0x1<<47) / 1e9,
 		expBucketsLen - 1: math.Inf(1),
 	}
 	for idx, bucket := range idxToBucket {

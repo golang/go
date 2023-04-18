@@ -66,6 +66,10 @@ func GoSyntax(inst Inst, pc uint64, symname SymLookup) string {
 		s := inst.DataSize
 		if inst.MemBytes != 0 {
 			s = inst.MemBytes * 8
+		} else if inst.Args[1] == nil { // look for register-only 64-bit instruction, like PUSHQ AX
+			if r, ok := inst.Args[0].(Reg); ok && RAX <= r && r <= R15 {
+				s = 64
+			}
 		}
 		switch s {
 		case 8:

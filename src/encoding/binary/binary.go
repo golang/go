@@ -210,6 +210,10 @@ func (bigEndian) String() string { return "BigEndian" }
 
 func (bigEndian) GoString() string { return "binary.BigEndian" }
 
+func (nativeEndian) String() string { return "NativeEndian" }
+
+func (nativeEndian) GoString() string { return "binary.NativeEndian" }
+
 // Read reads structured binary data from r into data.
 // Data must be a pointer to a fixed-size value or a slice
 // of fixed-size values.
@@ -447,7 +451,7 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 	v := reflect.Indirect(reflect.ValueOf(data))
 	size := dataSize(v)
 	if size < 0 {
-		return errors.New("binary.Write: invalid type " + reflect.TypeOf(data).String())
+		return errors.New("binary.Write: some values are not fixed-sized in type " + reflect.TypeOf(data).String())
 	}
 	buf := make([]byte, size)
 	e := &encoder{order: order, buf: buf}

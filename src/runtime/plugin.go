@@ -7,7 +7,7 @@ package runtime
 import "unsafe"
 
 //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
-func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
+func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*initTask, errstr string) {
 	var md *moduledata
 	for pmd := firstmoduledata.next; pmd != nil; pmd = pmd.next {
 		if pmd.bad {
@@ -23,13 +23,13 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
 		throw("runtime: plugin has empty pluginpath")
 	}
 	if md.typemap != nil {
-		return "", nil, "plugin already loaded"
+		return "", nil, nil, "plugin already loaded"
 	}
 
 	for _, pmd := range activeModules() {
 		if pmd.pluginpath == md.pluginpath {
 			md.bad = true
-			return "", nil, "plugin already loaded"
+			return "", nil, nil, "plugin already loaded"
 		}
 
 		if inRange(pmd.text, pmd.etext, md.text, md.etext) ||
@@ -51,7 +51,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
 	for _, pkghash := range md.pkghashes {
 		if pkghash.linktimehash != *pkghash.runtimehash {
 			md.bad = true
-			return "", nil, "plugin was built with a different version of package " + pkghash.modulename
+			return "", nil, nil, "plugin was built with a different version of package " + pkghash.modulename
 		}
 	}
 
@@ -90,7 +90,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, errstr string) {
 		}
 		syms[name] = val
 	}
-	return md.pluginpath, syms, ""
+	return md.pluginpath, syms, md.inittasks, ""
 }
 
 func pluginftabverify(md *moduledata) {

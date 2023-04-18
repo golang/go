@@ -1,0 +1,38 @@
+-- input --
+To test, run this command:
+  go test -more
+
+Or, to test specific things, run this command:
+
+go test -more \
+  -pkg first/package \
+  -pkg second/package \
+  -pkg third/package
+
+Happy testing!
+-- gofmt --
+To test, run this command:
+
+	go test -more
+
+Or, to test specific things, run this command:
+
+	go test -more \
+	  -pkg first/package \
+	  -pkg second/package \
+	  -pkg third/package
+
+Happy testing!
+-- markdown --
+To test, run this command:
+
+	go test -more
+
+Or, to test specific things, run this command:
+
+	go test -more \
+	  -pkg first/package \
+	  -pkg second/package \
+	  -pkg third/package
+
+Happy testing!

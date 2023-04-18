@@ -109,8 +109,9 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
 }
 
 // AllPos returns a slice of the positions inlined at xpos, from
-// innermost (index zero) to outermost.  To avoid gratuitous allocation
-// the result is passed in and extended if necessary.
+// innermost (index zero) to outermost.  To avoid allocation
+// the input slice is truncated, and used for the result, extended
+// as necessary.
 func (ctxt *Link) AllPos(xpos src.XPos, result []src.Pos) []src.Pos {
 	pos := ctxt.InnermostPos(xpos)
 	result = result[:0]

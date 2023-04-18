@@ -95,9 +95,9 @@ func readInterface(i int) (*Interface, error) {
 			}
 		}
 
-		ifc.Flags = FlagUp | FlagBroadcast | FlagMulticast
+		ifc.Flags = FlagUp | FlagRunning | FlagBroadcast | FlagMulticast
 	} else {
-		ifc.Flags = FlagUp | FlagMulticast | FlagLoopback
+		ifc.Flags = FlagUp | FlagRunning | FlagMulticast | FlagLoopback
 	}
 
 	return ifc, nil

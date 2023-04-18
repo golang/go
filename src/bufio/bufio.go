@@ -70,7 +70,14 @@ func (b *Reader) Size() int { return len(b.buf) }
 // the buffered reader to read from r.
 // Calling Reset on the zero value of Reader initializes the internal buffer
 // to the default size.
+// Calling b.Reset(b) (that is, resetting a Reader to itself) does nothing.
 func (b *Reader) Reset(r io.Reader) {
+	// If a Reader r is passed to NewReader, NewReader will return r.
+	// Different layers of code may do that, and then later pass r
+	// to Reset. Avoid infinite recursion in that case.
+	if b == r {
+		return
+	}
 	if b.buf == nil {
 		b.buf = make([]byte, defaultBufSize)
 	}
@@ -203,7 +210,8 @@ func (b *Reader) Discard(n int) (discarded int, err error) {
 // The bytes are taken from at most one Read on the underlying Reader,
 // hence n may be less than len(p).
 // To read exactly len(p) bytes, use io.ReadFull(b, p).
-// At EOF, the count will be zero and err will be io.EOF.
+// If the underlying Reader can return a non-zero count with io.EOF,
+// then this Read method can do so as well; see the [io.Reader] docs.
 func (b *Reader) Read(p []byte) (n int, err error) {
 	n = len(p)
 	if n == 0 {
@@ -453,8 +461,7 @@ func (b *Reader) collectFragments(delim byte) (fullBuffers [][]byte, finalFragme
 		}
 
 		// Make a copy of the buffer.
-		buf := make([]byte, len(frag))
-		copy(buf, frag)
+		buf := bytes.Clone(frag)
 		fullBuffers = append(fullBuffers, buf)
 		totalLen += len(buf)
 	}
@@ -608,7 +615,14 @@ func (b *Writer) Size() int { return len(b.buf) }
 // resets b to write its output to w.
 // Calling Reset on the zero value of Writer initializes the internal buffer
 // to the default size.
+// Calling w.Reset(w) (that is, resetting a Writer to itself) does nothing.
 func (b *Writer) Reset(w io.Writer) {
+	// If a Writer w is passed to NewWriter, NewWriter will return w.
+	// Different layers of code may do that, and then later pass w
+	// to Reset. Avoid infinite recursion in that case.
+	if b == w {
+		return
+	}
 	if b.buf == nil {
 		b.buf = make([]byte, defaultBufSize)
 	}
@@ -731,13 +745,28 @@ func (b *Writer) WriteRune(r rune) (size int, err error) {
 // If the count is less than len(s), it also returns an error explaining
 // why the write is short.
 func (b *Writer) WriteString(s string) (int, error) {
+	var sw io.StringWriter
+	tryStringWriter := true
+
 	nn := 0
 	for len(s) > b.Available() && b.err == nil {
-		n := copy(b.buf[b.n:], s)
-		b.n += n
+		var n int
+		if b.Buffered() == 0 && sw == nil && tryStringWriter {
+			// Check at most once whether b.wr is a StringWriter.
+			sw, tryStringWriter = b.wr.(io.StringWriter)
+		}
+		if b.Buffered() == 0 && tryStringWriter {
+			// Large write, empty buffer, and the underlying writer supports
+			// WriteString: forward the write to the underlying StringWriter.
+			// This avoids an extra copy.
+			n, b.err = sw.WriteString(s)
+		} else {
+			n = copy(b.buf[b.n:], s)
+			b.n += n
+			b.Flush()
+		}
 		nn += n
 		s = s[n:]
-		b.Flush()
 	}
 	if b.err != nil {
 		return nn, b.err

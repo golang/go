@@ -7,6 +7,7 @@ package base
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -53,4 +54,18 @@ func RelPaths(paths []string) []string {
 func IsTestFile(file string) bool {
 	// We don't cover tests, only the code they test.
 	return strings.HasSuffix(file, "_test.go")
+}
+
+// IsNull reports whether the path is a common name for the null device.
+// It returns true for /dev/null on Unix, or NUL (case-insensitive) on Windows.
+func IsNull(path string) bool {
+	if path == os.DevNull {
+		return true
+	}
+	if runtime.GOOS == "windows" {
+		if strings.EqualFold(path, "NUL") {
+			return true
+		}
+	}
+	return false
 }

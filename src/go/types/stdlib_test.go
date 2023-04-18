@@ -40,7 +40,7 @@ func TestStdlib(t *testing.T) {
 
 	pkgCount := 0
 	duration := walkPkgDirs(filepath.Join(testenv.GOROOT(t), "src"), func(dir string, filenames []string) {
-		typecheck(t, dir, filenames)
+		typecheckFiles(t, dir, filenames)
 		pkgCount++
 	}, t.Error)
 
@@ -192,13 +192,25 @@ func TestStdFixed(t *testing.T) {
 		"issue22200b.go", // go/types does not have constraints on stack size
 		"issue25507.go",  // go/types does not have constraints on stack size
 		"issue20780.go",  // go/types does not have constraints on stack size
-		"bug251.go",      // issue #34333 which was exposed with fix for #34151
+		"bug251.go",      // go.dev/issue/34333 which was exposed with fix for go.dev/issue/34151
 		"issue42058a.go", // go/types does not have constraints on channel element size
 		"issue42058b.go", // go/types does not have constraints on channel element size
 		"issue48097.go",  // go/types doesn't check validity of //go:xxx directives, and non-init bodyless function
 		"issue48230.go",  // go/types doesn't check validity of //go:xxx directives
 		"issue49767.go",  // go/types does not have constraints on channel element size
 		"issue49814.go",  // go/types does not have constraints on array size
+		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+
+		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+		// However, go/types does not know about build constraints.
+		"bug514.go",
+		"issue40954.go",
+		"issue42032.go",
+		"issue42076.go",
+		"issue46903.go",
+		"issue51733.go",
+		"notinheap2.go",
+		"notinheap3.go",
 	)
 }
 
@@ -212,12 +224,13 @@ func TestStdKen(t *testing.T) {
 var excluded = map[string]bool{
 	"builtin": true,
 
-	// See #46027: some imports are missing for this submodule.
-	"crypto/ed25519/internal/edwards25519/field/_asm": true,
+	// See go.dev/issue/46027: some imports are missing for this submodule.
+	"crypto/internal/edwards25519/field/_asm": true,
+	"crypto/internal/bigmod/_asm":             true,
 }
 
-// typecheck typechecks the given package files.
-func typecheck(t *testing.T, path string, filenames []string) {
+// typecheckFiles typechecks the given package files.
+func typecheckFiles(t *testing.T, path string, filenames []string) {
 	fset := token.NewFileSet()
 
 	// parse package files

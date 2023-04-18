@@ -14,3 +14,6 @@ func save_g()
 
 //go:noescape
 func asmcgocall_no_g(fn, arg unsafe.Pointer)
+
+// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
+func getcallerfp() uintptr { return 0 }

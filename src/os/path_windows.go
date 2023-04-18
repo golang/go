@@ -11,7 +11,7 @@ const (
 
 // IsPathSeparator reports whether c is a directory separator character.
 func IsPathSeparator(c uint8) bool {
-	// NOTE: Windows accept / as path separator.
+	// NOTE: Windows accepts / as path separator.
 	return c == '\\' || c == '/'
 }
 

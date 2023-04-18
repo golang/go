@@ -43,6 +43,7 @@ var useR = cmdUse.Flag.Bool("r", false, "")
 func init() {
 	cmdUse.Run = runUse // break init cycle
 
+	base.AddChdirFlag(&cmdUse.Flag)
 	base.AddModCommonFlags(&cmdUse.Flag)
 }
 
@@ -130,7 +131,10 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		// Add or remove entries for any subdirectories that still exist.
-		fsys.Walk(useDir, func(path string, info fs.FileInfo, err error) error {
+		// If the root itself is a symlink to a directory,
+		// we want to follow it (see https://go.dev/issue/50807).
+		// Add a trailing separator to force that to happen.
+		fsys.Walk(str.WithFilePathSeparator(useDir), func(path string, info fs.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -149,7 +153,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 
 		// Remove entries for subdirectories that no longer exist.
 		// Because they don't exist, they will be skipped by Walk.
-		for absDir, _ := range haveDirs {
+		for absDir := range haveDirs {
 			if str.HasFilePathPrefix(absDir, absArg) {
 				if _, ok := keepDirs[absDir]; !ok {
 					keepDirs[absDir] = "" // Mark for deletion.
@@ -185,7 +189,7 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 // pathRel returns the absolute and canonical forms of dir for use in a
 // go.work file located in directory workDir.
 //
-// If dir is relative, it is intepreted relative to base.Cwd()
+// If dir is relative, it is interpreted relative to base.Cwd()
 // and its canonical form is relative to workDir if possible.
 // If dir is absolute or cannot be made relative to workDir,
 // its canonical form is absolute.

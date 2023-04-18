@@ -38,31 +38,28 @@ type VCSError struct {
 
 func (e *VCSError) Error() string { return e.Err.Error() }
 
+func (e *VCSError) Unwrap() error { return e.Err }
+
 func vcsErrorf(format string, a ...any) error {
 	return &VCSError{Err: fmt.Errorf(format, a...)}
 }
 
-func NewRepo(vcs, remote string) (Repo, error) {
-	type key struct {
-		vcs    string
-		remote string
-	}
-	type cached struct {
-		repo Repo
-		err  error
-	}
-	c := vcsRepoCache.Do(key{vcs, remote}, func() any {
-		repo, err := newVCSRepo(vcs, remote)
-		if err != nil {
-			err = &VCSError{err}
-		}
-		return cached{repo, err}
-	}).(cached)
-
-	return c.repo, c.err
+type vcsCacheKey struct {
+	vcs    string
+	remote string
 }
 
-var vcsRepoCache par.Cache
+func NewRepo(vcs, remote string) (Repo, error) {
+	return vcsRepoCache.Do(vcsCacheKey{vcs, remote}, func() (Repo, error) {
+		repo, err := newVCSRepo(vcs, remote)
+		if err != nil {
+			return nil, &VCSError{err}
+		}
+		return repo, nil
+	})
+}
+
+var vcsRepoCache par.ErrCache[vcsCacheKey, Repo]
 
 type vcsRepo struct {
 	mu lockedfile.Mutex // protects all commands, so we don't have to decide which are safe on a per-VCS basis
@@ -290,7 +287,11 @@ func (r *vcsRepo) loadBranches() {
 	}
 }
 
-func (r *vcsRepo) Tags(prefix string) ([]string, error) {
+func (r *vcsRepo) CheckReuse(old *Origin, subdir string) error {
+	return fmt.Errorf("vcs %s: CheckReuse: %w", r.cmd.vcs, errors.ErrUnsupported)
+}
+
+func (r *vcsRepo) Tags(prefix string) (*Tags, error) {
 	unlock, err := r.mu.Lock()
 	if err != nil {
 		return nil, err
@@ -298,14 +299,24 @@ func (r *vcsRepo) Tags(prefix string) ([]string, error) {
 	defer unlock()
 
 	r.tagsOnce.Do(r.loadTags)
-
-	tags := []string{}
+	tags := &Tags{
+		// None of the other VCS provide a reasonable way to compute TagSum
+		// without downloading the whole repo, so we only include VCS and URL
+		// in the Origin.
+		Origin: &Origin{
+			VCS: r.cmd.vcs,
+			URL: r.remote,
+		},
+		List: []Tag{},
+	}
 	for tag := range r.tags {
 		if strings.HasPrefix(tag, prefix) {
-			tags = append(tags, tag)
+			tags.List = append(tags.List, Tag{tag, ""})
 		}
 	}
-	sort.Strings(tags)
+	sort.Slice(tags.List, func(i, j int) bool {
+		return tags.List[i].Name < tags.List[j].Name
+	})
 	return tags, nil
 }
 
@@ -352,7 +363,16 @@ func (r *vcsRepo) statLocal(rev string) (*RevInfo, error) {
 	if err != nil {
 		return nil, &UnknownRevisionError{Rev: rev}
 	}
-	return r.cmd.parseStat(rev, string(out))
+	info, err := r.cmd.parseStat(rev, string(out))
+	if err != nil {
+		return nil, err
+	}
+	if info.Origin == nil {
+		info.Origin = new(Origin)
+	}
+	info.Origin.VCS = r.cmd.vcs
+	info.Origin.URL = r.remote
+	return info, nil
 }
 
 func (r *vcsRepo) Latest() (*RevInfo, error) {
@@ -392,7 +412,7 @@ func (r *vcsRepo) RecentTag(rev, prefix string, allowed func(string) bool) (tag 
 	}
 	defer unlock()
 
-	return "", vcsErrorf("RecentTag not implemented")
+	return "", vcsErrorf("vcs %s: RecentTag: %w", r.cmd.vcs, errors.ErrUnsupported)
 }
 
 func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
@@ -402,12 +422,12 @@ func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
 	}
 	defer unlock()
 
-	return false, vcsErrorf("DescendsFrom not implemented")
+	return false, vcsErrorf("vcs %s: DescendsFrom: %w", r.cmd.vcs, errors.ErrUnsupported)
 }
 
 func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
 	if r.cmd.readZip == nil && r.cmd.doReadZip == nil {
-		return nil, vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
+		return nil, vcsErrorf("vcs %s: ReadZip: %w", r.cmd.vcs, errors.ErrUnsupported)
 	}
 
 	unlock, err := r.mu.Lock()
@@ -468,7 +488,7 @@ func (d *deleteCloser) Close() error {
 }
 
 func hgParseStat(rev, out string) (*RevInfo, error) {
-	f := strings.Fields(string(out))
+	f := strings.Fields(out)
 	if len(f) < 3 {
 		return nil, vcsErrorf("unexpected response from hg log: %q", out)
 	}
@@ -491,6 +511,9 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 	sort.Strings(tags)
 
 	info := &RevInfo{
+		Origin: &Origin{
+			Hash: hash,
+		},
 		Name:    hash,
 		Short:   ShortenSHA1(hash),
 		Time:    time.Unix(t, 0).UTC(),
@@ -511,12 +534,12 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 		if line[0] == '-' {
 			continue
 		}
-		i := strings.Index(line, ":")
-		if i < 0 {
+		before, after, found := strings.Cut(line, ":")
+		if !found {
 			// End of header, start of commit message.
 			break
 		}
-		key, val := line[:i], strings.TrimSpace(line[i+1:])
+		key, val := before, strings.TrimSpace(after)
 		switch key {
 		case "revno":
 			if j := strings.Index(val, " "); j >= 0 {
@@ -544,7 +567,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
 	}
 
 	info := &RevInfo{
-		Name:    fmt.Sprintf("%d", revno),
+		Name:    strconv.FormatInt(revno, 10),
 		Short:   fmt.Sprintf("%012d", revno),
 		Time:    tm,
 		Version: rev,
@@ -559,7 +582,7 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
 			if len(f) != 5 || len(f[1]) != 40 || f[4] != "UTC" {
 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
 			}
-			t, err := time.Parse("2006-01-02 15:04:05", f[2]+" "+f[3])
+			t, err := time.Parse(time.DateTime, f[2]+" "+f[3])
 			if err != nil {
 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
 			}
@@ -569,6 +592,9 @@ func fossilParseStat(rev, out string) (*RevInfo, error) {
 				version = hash // extend to full hash
 			}
 			info := &RevInfo{
+				Origin: &Origin{
+					Hash: hash,
+				},
 				Name:    hash,
 				Short:   ShortenSHA1(hash),
 				Time:    t,

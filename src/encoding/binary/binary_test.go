@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unsafe"
 )
 
 type Struct struct {
@@ -539,6 +540,30 @@ func testReadInvalidDestination(t *testing.T, order ByteOrder) {
 	}
 }
 
+func TestNoFixedSize(t *testing.T) {
+	type Person struct {
+		Age    int
+		Weight float64
+		Height float64
+	}
+
+	person := Person{
+		Age:    27,
+		Weight: 67.3,
+		Height: 177.8,
+	}
+
+	buf := new(bytes.Buffer)
+	err := Write(buf, LittleEndian, &person)
+	if err == nil {
+		t.Fatal("binary.Write: unexpected success as size of type *binary.Person is not fixed")
+	}
+	errs := "binary.Write: some values are not fixed-sized in type *binary.Person"
+	if err.Error() != errs {
+		t.Fatalf("got %q, want %q", err, errs)
+	}
+}
+
 type byteSliceReader struct {
 	remain []byte
 }
@@ -829,5 +854,14 @@ func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		buf.Reset()
 		Write(w, BigEndian, slice)
+	}
+}
+
+func TestNativeEndian(t *testing.T) {
+	const val = 0x12345678
+	i := uint32(val)
+	s := unsafe.Slice((*byte)(unsafe.Pointer(&i)), unsafe.Sizeof(i))
+	if v := NativeEndian.Uint32(s); v != val {
+		t.Errorf("NativeEndian.Uint32 returned %#x, expected %#x", v, val)
 	}
 }

@@ -20,7 +20,6 @@ package goobj
 
 import (
 	"cmd/internal/bio"
-	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -31,7 +30,7 @@ import (
 // New object file format.
 //
 //    Header struct {
-//       Magic       [...]byte   // "\x00go118ld"
+//       Magic       [...]byte   // "\x00go120ld"
 //       Fingerprint [8]byte
 //       Flags       uint32
 //       Offsets     [...]uint32 // byte offset of each block below
@@ -135,7 +134,7 @@ import (
 // - If PkgIdx is PkgIdxHashed, SymIdx is the index of the symbol in the
 //   HashedDefs array.
 // - If PkgIdx is PkgIdxNone, SymIdx is the index of the symbol in the
-//   NonPkgDefs array (could natually overflow to NonPkgRefs array).
+//   NonPkgDefs array (could naturally overflow to NonPkgRefs array).
 // - Otherwise, SymIdx is the index of the symbol in some other package's
 //   SymbolDefs array.
 //
@@ -178,6 +177,7 @@ const (
 	PkgIdxHashed                        // Hashed (content-addressable) symbols
 	PkgIdxBuiltin                       // Predefined runtime symbols (ex: runtime.newobject)
 	PkgIdxSelf                          // Symbols defined in the current package
+	PkgIdxSpecial  = PkgIdxSelf         // Indices above it has special meanings
 	PkgIdxInvalid  = 0
 	// The index of other referenced packages starts from 1.
 )
@@ -215,7 +215,7 @@ type Header struct {
 	Offsets     [NBlk]uint32
 }
 
-const Magic = "\x00go118ld"
+const Magic = "\x00go120ld"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
@@ -281,10 +281,10 @@ const SymSize = stringRefSize + 2 + 1 + 1 + 1 + 4 + 4
 const SymABIstatic = ^uint16(0)
 
 const (
-	ObjFlagShared            = 1 << iota // this object is built with -shared
-	ObjFlagNeedNameExpansion             // the linker needs to expand `"".` to package path in symbol names
-	ObjFlagFromAssembly                  // object is from asm src, not go
-	ObjFlagUnlinkable                    // unlinkable package (linker will emit an error)
+	ObjFlagShared       = 1 << iota // this object is built with -shared
+	_                               // was ObjFlagNeedNameExpansion
+	ObjFlagFromAssembly             // object is from asm src, not go
+	ObjFlagUnlinkable               // unlinkable package (linker will emit an error)
 )
 
 // Sym.Flag
@@ -303,6 +303,7 @@ const (
 	SymFlagUsedInIface = 1 << iota
 	SymFlagItab
 	SymFlagDict
+	SymFlagPkgInit
 )
 
 // Returns the length of the name of the symbol.
@@ -333,6 +334,7 @@ func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
 func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
 func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
+func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
 
 func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
@@ -367,7 +369,7 @@ const Hash64Size = 8
 // Hash
 type HashType [HashSize]byte
 
-const HashSize = sha1.Size
+const HashSize = 16 // truncated SHA256
 
 // Relocation.
 //
@@ -440,6 +442,8 @@ const (
 	AuxPcline
 	AuxPcinline
 	AuxPcdata
+	AuxWasmImport
+	AuxSehUnwindInfo
 )
 
 func (a *Aux) Type() uint8 { return a[0] }
@@ -527,6 +531,8 @@ type Writer struct {
 	wr        *bio.Writer
 	stringMap map[string]uint32
 	off       uint32 // running offset
+
+	b [8]byte // scratch space for writing bytes
 }
 
 func NewWriter(wr *bio.Writer) *Writer {
@@ -565,23 +571,20 @@ func (w *Writer) Bytes(s []byte) {
 }
 
 func (w *Writer) Uint64(x uint64) {
-	var b [8]byte
-	binary.LittleEndian.PutUint64(b[:], x)
-	w.wr.Write(b[:])
+	binary.LittleEndian.PutUint64(w.b[:], x)
+	w.wr.Write(w.b[:])
 	w.off += 8
 }
 
 func (w *Writer) Uint32(x uint32) {
-	var b [4]byte
-	binary.LittleEndian.PutUint32(b[:], x)
-	w.wr.Write(b[:])
+	binary.LittleEndian.PutUint32(w.b[:4], x)
+	w.wr.Write(w.b[:4])
 	w.off += 4
 }
 
 func (w *Writer) Uint16(x uint16) {
-	var b [2]byte
-	binary.LittleEndian.PutUint16(b[:], x)
-	w.wr.Write(b[:])
+	binary.LittleEndian.PutUint16(w.b[:2], x)
+	w.wr.Write(w.b[:2])
 	w.off += 2
 }
 
@@ -872,7 +875,6 @@ func (r *Reader) Flags() uint32 {
 	return r.h.Flags
 }
 
-func (r *Reader) Shared() bool            { return r.Flags()&ObjFlagShared != 0 }
-func (r *Reader) NeedNameExpansion() bool { return r.Flags()&ObjFlagNeedNameExpansion != 0 }
-func (r *Reader) FromAssembly() bool      { return r.Flags()&ObjFlagFromAssembly != 0 }
-func (r *Reader) Unlinkable() bool        { return r.Flags()&ObjFlagUnlinkable != 0 }
+func (r *Reader) Shared() bool       { return r.Flags()&ObjFlagShared != 0 }
+func (r *Reader) FromAssembly() bool { return r.Flags()&ObjFlagFromAssembly != 0 }
+func (r *Reader) Unlinkable() bool   { return r.Flags()&ObjFlagUnlinkable != 0 }

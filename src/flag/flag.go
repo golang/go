@@ -49,10 +49,11 @@ The arguments are indexed from 0 through flag.NArg()-1.
 The following forms are permitted:
 
 	-flag
+	--flag   // double dashes are also permitted
 	-flag=x
 	-flag x  // non-boolean flags only
 
-One or two minus signs may be used; they are equivalent.
+One or two dashes may be used; they are equivalent.
 The last form is not permitted for boolean flags because the
 meaning of the command
 
@@ -336,6 +337,15 @@ func (f funcValue) Set(s string) error { return f(s) }
 
 func (f funcValue) String() string { return "" }
 
+// -- boolFunc Value
+type boolFuncValue func(string) error
+
+func (f boolFuncValue) Set(s string) error { return f(s) }
+
+func (f boolFuncValue) String() string { return "" }
+
+func (f boolFuncValue) IsBoolFlag() bool { return true }
+
 // Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
 //
@@ -549,9 +559,11 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
 	}
 	// No explicit name, so use type if we can find one.
 	name = "value"
-	switch flag.Value.(type) {
+	switch fv := flag.Value.(type) {
 	case boolFlag:
-		name = ""
+		if fv.IsBoolFlag() {
+			name = ""
+		}
 	case *durationValue:
 		name = "duration"
 	case *float64Value:
@@ -952,6 +964,20 @@ func Func(name, usage string, fn func(string) error) {
 	CommandLine.Func(name, usage, fn)
 }
 
+// BoolFunc defines a flag with the specified name and usage string without requiring values.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
+func (f *FlagSet) BoolFunc(name, usage string, fn func(string) error) {
+	f.Var(boolFuncValue(fn), name, usage)
+}
+
+// BoolFunc defines a flag with the specified name and usage string without requiring values.
+// Each time the flag is seen, fn is called with the value of the flag.
+// If fn returns a non-nil error, it will be treated as a flag value parsing error.
+func BoolFunc(name, usage string, fn func(string) error) {
+	CommandLine.BoolFunc(name, usage, fn)
+}
+
 // Var defines a flag with the specified name and usage string. The type and
 // value of the flag are represented by the first argument, of type Value, which
 // typically holds a user-defined implementation of Value. For instance, the
@@ -1053,9 +1079,9 @@ func (f *FlagSet) parseOne() (bool, error) {
 			break
 		}
 	}
-	m := f.formal
-	flag, alreadythere := m[name] // BUG
-	if !alreadythere {
+
+	flag, ok := f.formal[name]
+	if !ok {
 		if name == "help" || name == "h" { // special case for nice help message.
 			f.usage()
 			return false, ErrHelp

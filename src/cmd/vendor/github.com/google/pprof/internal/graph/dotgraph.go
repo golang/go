@@ -385,6 +385,9 @@ func multilinePrintableName(info *NodeInfo) string {
 	infoCopy := *info
 	infoCopy.Name = escapeForDot(ShortenFunctionName(infoCopy.Name))
 	infoCopy.Name = strings.Replace(infoCopy.Name, "::", `\n`, -1)
+	// Go type parameters are reported as "[...]" by Go pprof profiles.
+	// Keep this ellipsis rather than replacing with newlines below.
+	infoCopy.Name = strings.Replace(infoCopy.Name, "[...]", "[…]", -1)
 	infoCopy.Name = strings.Replace(infoCopy.Name, ".", `\n`, -1)
 	if infoCopy.File != "" {
 		infoCopy.File = filepath.Base(infoCopy.File)

@@ -430,42 +430,7 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	enc.freeEncoderState(state)
 }
 
-// isZero reports whether the value is the zero of its type.
-func isZero(val reflect.Value) bool {
-	switch val.Kind() {
-	case reflect.Array:
-		for i := 0; i < val.Len(); i++ {
-			if !isZero(val.Index(i)) {
-				return false
-			}
-		}
-		return true
-	case reflect.Map, reflect.Slice, reflect.String:
-		return val.Len() == 0
-	case reflect.Bool:
-		return !val.Bool()
-	case reflect.Complex64, reflect.Complex128:
-		return val.Complex() == 0
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Pointer:
-		return val.IsNil()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return val.Int() == 0
-	case reflect.Float32, reflect.Float64:
-		return val.Float() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return val.Uint() == 0
-	case reflect.Struct:
-		for i := 0; i < val.NumField(); i++ {
-			if !isZero(val.Field(i)) {
-				return false
-			}
-		}
-		return true
-	}
-	panic("unknown type in isZero " + val.Type().String())
-}
-
-// encGobEncoder encodes a value that implements the GobEncoder interface.
+// encodeGobEncoder encodes a value that implements the GobEncoder interface.
 // The data is sent as a byte array.
 func (enc *Encoder) encodeGobEncoder(b *encBuffer, ut *userTypeInfo, v reflect.Value) {
 	// TODO: should we catch panics from the called method?
@@ -577,7 +542,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 			op = func(i *encInstr, state *encoderState, sv reflect.Value) {
 				state.update(i)
 				// indirect through info to delay evaluation for recursive structs
-				enc := info.encoder.Load().(*encEngine)
+				enc := info.encoder.Load()
 				state.enc.encodeStruct(state.b, enc, sv)
 			}
 		case reflect.Interface:
@@ -615,7 +580,7 @@ func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 			}
 			v = v.Addr()
 		}
-		if !state.sendZero && isZero(v) {
+		if !state.sendZero && v.IsZero() {
 			return
 		}
 		state.update(i)
@@ -661,8 +626,8 @@ func getEncEngine(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
 	if err != nil {
 		error_(err)
 	}
-	enc, ok := info.encoder.Load().(*encEngine)
-	if !ok {
+	enc := info.encoder.Load()
+	if enc == nil {
 		enc = buildEncEngine(info, ut, building)
 	}
 	return enc
@@ -675,8 +640,8 @@ func buildEncEngine(info *typeInfo, ut *userTypeInfo, building map[*typeInfo]boo
 	}
 	info.encInit.Lock()
 	defer info.encInit.Unlock()
-	enc, ok := info.encoder.Load().(*encEngine)
-	if !ok {
+	enc := info.encoder.Load()
+	if enc == nil {
 		if building == nil {
 			building = make(map[*typeInfo]bool)
 		}

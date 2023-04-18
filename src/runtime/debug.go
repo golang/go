@@ -85,13 +85,13 @@ func debug_modinfo() string {
 //go:linkname mayMoreStackPreempt
 func mayMoreStackPreempt() {
 	// Don't do anything on the g0 or gsignal stack.
-	g := getg()
-	if g == g.m.g0 || g == g.m.gsignal {
+	gp := getg()
+	if gp == gp.m.g0 || gp == gp.m.gsignal {
 		return
 	}
 	// Force a preemption, unless the stack is already poisoned.
-	if g.stackguard0 < stackPoisonMin {
-		g.stackguard0 = stackPreempt
+	if gp.stackguard0 < stackPoisonMin {
+		gp.stackguard0 = stackPreempt
 	}
 }
 
@@ -104,12 +104,12 @@ func mayMoreStackPreempt() {
 //go:linkname mayMoreStackMove
 func mayMoreStackMove() {
 	// Don't do anything on the g0 or gsignal stack.
-	g := getg()
-	if g == g.m.g0 || g == g.m.gsignal {
+	gp := getg()
+	if gp == gp.m.g0 || gp == gp.m.gsignal {
 		return
 	}
 	// Force stack movement, unless the stack is already poisoned.
-	if g.stackguard0 < stackPoisonMin {
-		g.stackguard0 = stackForceMove
+	if gp.stackguard0 < stackPoisonMin {
+		gp.stackguard0 = stackForceMove
 	}
 }

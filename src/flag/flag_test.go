@@ -38,6 +38,7 @@ func TestEverything(t *testing.T) {
 	Float64("test_float64", 0, "float64 value")
 	Duration("test_duration", 0, "time.Duration value")
 	Func("test_func", "func value", func(string) error { return nil })
+	BoolFunc("test_boolfunc", "func", func(string) error { return nil })
 
 	m := make(map[string]*Flag)
 	desired := "0"
@@ -54,6 +55,8 @@ func TestEverything(t *testing.T) {
 				ok = true
 			case f.Name == "test_func" && f.Value.String() == "":
 				ok = true
+			case f.Name == "test_boolfunc" && f.Value.String() == "":
+				ok = true
 			}
 			if !ok {
 				t.Error("Visit: bad value", f.Value.String(), "for", f.Name)
@@ -61,7 +64,7 @@ func TestEverything(t *testing.T) {
 		}
 	}
 	VisitAll(visitor)
-	if len(m) != 9 {
+	if len(m) != 10 {
 		t.Error("VisitAll misses some flags")
 		for k, v := range m {
 			t.Log(k, *v)
@@ -85,9 +88,10 @@ func TestEverything(t *testing.T) {
 	Set("test_float64", "1")
 	Set("test_duration", "1s")
 	Set("test_func", "1")
+	Set("test_boolfunc", "")
 	desired = "1"
 	Visit(visitor)
-	if len(m) != 9 {
+	if len(m) != 10 {
 		t.Error("Visit fails after set")
 		for k, v := range m {
 			t.Log(k, *v)
@@ -356,9 +360,34 @@ func TestUserDefinedBool(t *testing.T) {
 	}
 }
 
+func TestUserDefinedBoolUsage(t *testing.T) {
+	var flags FlagSet
+	flags.Init("test", ContinueOnError)
+	var buf bytes.Buffer
+	flags.SetOutput(&buf)
+	var b boolFlagVar
+	flags.Var(&b, "b", "X")
+	b.count = 0
+	// b.IsBoolFlag() will return true and usage will look boolean.
+	flags.PrintDefaults()
+	got := buf.String()
+	want := "  -b\tX\n"
+	if got != want {
+		t.Errorf("false: want %q; got %q", want, got)
+	}
+	b.count = 4
+	// b.IsBoolFlag() will return false and usage will look non-boolean.
+	flags.PrintDefaults()
+	got = buf.String()
+	want = "  -b\tX\n  -b value\n    \tX\n"
+	if got != want {
+		t.Errorf("false: want %q; got %q", want, got)
+	}
+}
+
 func TestSetOutput(t *testing.T) {
 	var flags FlagSet
-	var buf bytes.Buffer
+	var buf strings.Builder
 	flags.SetOutput(&buf)
 	flags.Init("test", ContinueOnError)
 	flags.Parse([]string{"-unknown"})
@@ -488,7 +517,7 @@ panic calling String method on zero flag_test.zeroPanicker for flag ZP1: panic!
 
 func TestPrintDefaults(t *testing.T) {
 	fs := NewFlagSet("print defaults test", ContinueOnError)
-	var buf bytes.Buffer
+	var buf strings.Builder
 	fs.SetOutput(&buf)
 	fs.Bool("A", false, "for bootstrapping, allow 'any' type")
 	fs.Bool("Alongflagname", false, "disable bounds checking")
@@ -531,7 +560,7 @@ func TestIntFlagOverflow(t *testing.T) {
 // Issue 20998: Usage should respect CommandLine.output.
 func TestUsageOutput(t *testing.T) {
 	ResetForTesting(DefaultUsage)
-	var buf bytes.Buffer
+	var buf strings.Builder
 	CommandLine.SetOutput(&buf)
 	defer func(old []string) { os.Args = old }(os.Args)
 	os.Args = []string{"app", "-i=1", "-unknown"}
@@ -726,7 +755,7 @@ func TestInvalidFlags(t *testing.T) {
 		testName := fmt.Sprintf("FlagSet.Var(&v, %q, \"\")", test.flag)
 
 		fs := NewFlagSet("", ContinueOnError)
-		buf := bytes.NewBuffer(nil)
+		buf := &strings.Builder{}
 		fs.SetOutput(buf)
 
 		mustPanic(t, testName, test.errorMsg, func() {
@@ -758,7 +787,7 @@ func TestRedefinedFlags(t *testing.T) {
 		testName := fmt.Sprintf("flag redefined in FlagSet(%q)", test.flagSetName)
 
 		fs := NewFlagSet(test.flagSetName, ContinueOnError)
-		buf := bytes.NewBuffer(nil)
+		buf := &strings.Builder{}
 		fs.SetOutput(buf)
 
 		var v flagVar
@@ -770,5 +799,48 @@ func TestRedefinedFlags(t *testing.T) {
 		if msg := test.errorMsg + "\n"; msg != buf.String() {
 			t.Errorf("%s\n: unexpected output: expected %q, bug got %q", testName, msg, buf)
 		}
+	}
+}
+
+func TestUserDefinedBoolFunc(t *testing.T) {
+	flags := NewFlagSet("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
+	var ss []string
+	flags.BoolFunc("v", "usage", func(s string) error {
+		ss = append(ss, s)
+		return nil
+	})
+	if err := flags.Parse([]string{"-v", "", "-v", "1", "-v=2"}); err != nil {
+		t.Error(err)
+	}
+	if len(ss) != 1 {
+		t.Fatalf("got %d args; want 1 arg", len(ss))
+	}
+	want := "[true]"
+	if got := fmt.Sprint(ss); got != want {
+		t.Errorf("got %q; want %q", got, want)
+	}
+	// test usage
+	var buf strings.Builder
+	flags.SetOutput(&buf)
+	flags.Parse([]string{"-h"})
+	if usage := buf.String(); !strings.Contains(usage, "usage") {
+		t.Errorf("usage string not included: %q", usage)
+	}
+	// test BoolFunc error
+	flags = NewFlagSet("test", ContinueOnError)
+	flags.SetOutput(io.Discard)
+	flags.BoolFunc("v", "usage", func(s string) error {
+		return fmt.Errorf("test error")
+	})
+	// flag not set, so no error
+	if err := flags.Parse(nil); err != nil {
+		t.Error(err)
+	}
+	// flag set, expect error
+	if err := flags.Parse([]string{"-v", ""}); err == nil {
+		t.Error("got err == nil; want err != nil")
+	} else if errMsg := err.Error(); !strings.Contains(errMsg, "test error") {
+		t.Errorf(`got %q; error should contain "test error"`, errMsg)
 	}
 }

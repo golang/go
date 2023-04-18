@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 //go:build !windows
-// +build !windows
 
 // Issue 18146: pthread_create failure during syscall.Exec.
 

@@ -414,13 +414,9 @@ type ptrtype struct {
 }
 
 type structfield struct {
-	name       name
-	typ        *_type
-	offsetAnon uintptr
-}
-
-func (f *structfield) offset() uintptr {
-	return f.offsetAnon >> 1
+	name   name
+	typ    *_type
+	offset uintptr
 }
 
 type structtype struct {
@@ -443,6 +439,10 @@ func (n name) isExported() bool {
 	return (*n.bytes)&(1<<0) != 0
 }
 
+func (n name) isEmbedded() bool {
+	return (*n.bytes)&(1<<3) != 0
+}
+
 func (n name) readvarint(off int) (int, int) {
 	v := 0
 	for i := 0; ; i++ {
@@ -454,7 +454,7 @@ func (n name) readvarint(off int) (int, int) {
 	}
 }
 
-func (n name) name() (s string) {
+func (n name) name() string {
 	if n.bytes == nil {
 		return ""
 	}
@@ -462,22 +462,16 @@ func (n name) name() (s string) {
 	if l == 0 {
 		return ""
 	}
-	hdr := (*stringStruct)(unsafe.Pointer(&s))
-	hdr.str = unsafe.Pointer(n.data(1 + i))
-	hdr.len = l
-	return
+	return unsafe.String(n.data(1+i), l)
 }
 
-func (n name) tag() (s string) {
+func (n name) tag() string {
 	if *n.data(0)&(1<<1) == 0 {
 		return ""
 	}
 	i, l := n.readvarint(1)
 	i2, l2 := n.readvarint(1 + i + l)
-	hdr := (*stringStruct)(unsafe.Pointer(&s))
-	hdr.str = unsafe.Pointer(n.data(1 + i + l + i2))
-	hdr.len = l2
-	return
+	return unsafe.String(n.data(1+i+l+i2), l2)
 }
 
 func (n name) pkgPath() string {
@@ -703,7 +697,10 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 			if tf.name.tag() != vf.name.tag() {
 				return false
 			}
-			if tf.offsetAnon != vf.offsetAnon {
+			if tf.offset != vf.offset {
+				return false
+			}
+			if tf.name.isEmbedded() != vf.name.isEmbedded() {
 				return false
 			}
 		}

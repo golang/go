@@ -57,12 +57,13 @@
 //
 // # Build Constraints
 //
-// A build constraint, also known as a build tag, is a line comment that begins
+// A build constraint, also known as a build tag, is a condition under which a
+// file should be included in the package. Build constraints are given by a
+// line comment that begins
 //
 //	//go:build
 //
-// that lists the conditions under which a file should be included in the
-// package. Build constraints may also be part of a file's name
+// Build constraints may also be part of a file's name
 // (for example, source_windows.go will only be included if the target
 // operating system is windows).
 //

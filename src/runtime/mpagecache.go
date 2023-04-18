@@ -21,8 +21,7 @@ type pageCache struct {
 	scav  uint64  // 64-bit bitmap representing scavenged pages (1 means scavenged)
 }
 
-// empty returns true if the pageCache has any free pages, and false
-// otherwise.
+// empty reports whether the page cache has no free pages.
 func (c *pageCache) empty() bool {
 	return c.cache == 0
 }
@@ -143,7 +142,7 @@ func (p *pageAlloc) allocToCache() pageCache {
 		if addr == 0 {
 			// We failed to find adequate free space, so mark the searchAddr as OoM
 			// and return an empty pageCache.
-			p.searchAddr = maxSearchAddr
+			p.searchAddr = maxSearchAddr()
 			return pageCache{}
 		}
 		ci := chunkIndex(addr)

@@ -6,6 +6,7 @@ package obj
 
 import (
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"fmt"
 	"strings"
 )
@@ -57,12 +58,12 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			switch p.To.Sym.Name {
 			case "go_args_stackmap":
 				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_ArgsPointerMaps {
-					ctxt.Diag("FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps")
+					ctxt.Diag("%s: FUNCDATA use of go_args_stackmap(SB) without FUNCDATA_ArgsPointerMaps", p.Pos)
 				}
 				p.To.Sym = ctxt.LookupDerived(curtext, curtext.Name+".args_stackmap")
 			case "no_pointers_stackmap":
 				if p.From.Type != TYPE_CONST || p.From.Offset != objabi.FUNCDATA_LocalsPointerMaps {
-					ctxt.Diag("FUNCDATA use of no_pointers_stackmap(SB) without FUNCDATA_LocalsPointerMaps")
+					ctxt.Diag("%s: FUNCDATA use of no_pointers_stackmap(SB) without FUNCDATA_LocalsPointerMaps", p.Pos)
 				}
 				// funcdata for functions with no local variables in frame.
 				// Define two zero-length bitmaps, because the same index is used
@@ -156,24 +157,37 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 		if myimportpath != "" {
 			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
 		}
+		if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.SEH != nil {
+			s.Func().sehUnwindInfoSym = ctxt.Arch.SEH(ctxt, s)
+		}
 	}
 }
 
-func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 	if s == nil {
 		// func _() { }
 		return
 	}
 	if s.Func() != nil {
-		ctxt.Diag("InitTextSym double init for %s", s.Name)
+		ctxt.Diag("%s: symbol %s redeclared\n\t%s: other declaration of symbol %s", ctxt.PosTable.Pos(start), s.Name, ctxt.PosTable.Pos(s.Func().Text.Pos), s.Name)
+		return
 	}
 	s.NewFuncInfo()
 	if s.OnList() {
-		ctxt.Diag("symbol %s listed multiple times", s.Name)
+		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(start), s.Name)
+		return
 	}
+
+	// startLine should be the same line number that would be displayed via
+	// pcln, etc for the declaration (i.e., relative line number, as
+	// adjusted by //line).
+	_, startLine := ctxt.getFileSymbolAndLine(start)
+
+	// TODO(mdempsky): Remove once cmd/asm stops writing "" symbols.
 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
 	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
+	s.Func().StartLine = startLine
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
@@ -182,6 +196,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrABIWrapper, flag&ABIWRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+	s.Set(AttrPkgInit, flag&PKGINIT != 0)
 	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 
@@ -201,8 +216,12 @@ func (ctxt *Link) toFuncFlag(flag int) objabi.FuncFlag {
 }
 
 func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
+	ctxt.GloblPos(s, size, flag, src.NoXPos)
+}
+func (ctxt *Link) GloblPos(s *LSym, size int64, flag int, pos src.XPos) {
 	if s.OnList() {
-		ctxt.Diag("symbol %s listed multiple times", s.Name)
+		// TODO: print where the first declaration was.
+		ctxt.Diag("%s: symbol %s redeclared", ctxt.PosTable.Pos(pos), s.Name)
 	}
 	s.Set(AttrOnList, true)
 	ctxt.Data = append(ctxt.Data, s)
@@ -223,9 +242,6 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 		}
 	} else if flag&TLSBSS != 0 {
 		s.Type = objabi.STLSBSS
-	}
-	if strings.HasPrefix(s.Name, "\"\"."+StaticNamePref) {
-		s.Set(AttrStatic, true)
 	}
 }
 

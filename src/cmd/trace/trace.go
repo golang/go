@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmd/internal/traceviewer"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"internal/trace"
@@ -13,8 +14,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
@@ -22,11 +21,13 @@ import (
 	"time"
 )
 
+//go:embed static/trace_viewer_full.html static/webcomponents.min.js
+var staticContent embed.FS
+
 func init() {
 	http.HandleFunc("/trace", httpTrace)
 	http.HandleFunc("/jsontrace", httpJsonTrace)
-	http.HandleFunc("/trace_viewer_html", httpTraceViewerHTML)
-	http.HandleFunc("/webcomponents.min.js", webcomponentsJS)
+	http.Handle("/static/", http.FileServer(http.FS(staticContent)))
 }
 
 // httpTrace serves either whole trace (goid==0) or trace for goid goroutine.
@@ -50,19 +51,19 @@ func httpTrace(w http.ResponseWriter, r *http.Request) {
 var templTrace = `
 <html>
 <head>
-<script src="/webcomponents.min.js"></script>
+<script src="/static/webcomponents.min.js"></script>
 <script>
 'use strict';
 
 function onTraceViewerImportFail() {
   document.addEventListener('DOMContentLoaded', function() {
     document.body.textContent =
-    '/trace_viewer_full.html is missing. File a bug in https://golang.org/issue';
+    '/static/trace_viewer_full.html is missing. File a bug in https://golang.org/issue';
   });
 }
 </script>
 
-<link rel="import" href="/trace_viewer_html"
+<link rel="import" href="/static/trace_viewer_full.html"
       onerror="onTraceViewerImportFail(event)">
 
 <style type="text/css">
@@ -172,16 +173,6 @@ function onTraceViewerImportFail() {
 </body>
 </html>
 `
-
-// httpTraceViewerHTML serves static part of trace-viewer.
-// This URL is queried from templTrace HTML.
-func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "trace_viewer_full.html"))
-}
-
-func webcomponentsJS(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "webcomponents.min.js"))
-}
 
 // httpJsonTrace serves json trace, requested from within templTrace HTML.
 func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
@@ -319,14 +310,75 @@ type splitter struct {
 	Ranges []Range
 }
 
+// walkStackFrames calls fn for id and all of its parent frames from allFrames.
+func walkStackFrames(allFrames map[string]traceviewer.Frame, id int, fn func(id int)) {
+	for id != 0 {
+		f, ok := allFrames[strconv.Itoa(id)]
+		if !ok {
+			break
+		}
+		fn(id)
+		id = f.Parent
+	}
+}
+
+func stackFrameEncodedSize(id uint, f traceviewer.Frame) int {
+	// We want to know the marginal size of traceviewer.Data.Frames for
+	// each event. Running full JSON encoding of the map for each event is
+	// far too slow.
+	//
+	// Since the format is fixed, we can easily compute the size without
+	// encoding.
+	//
+	// A single entry looks like one of the following:
+	//
+	//   "1":{"name":"main.main:30"},
+	//   "10":{"name":"pkg.NewSession:173","parent":9},
+	//
+	// The parent is omitted if 0. The trailing comma is omitted from the
+	// last entry, but we don't need that much precision.
+	const (
+		baseSize = len(`"`) + len(`":{"name":"`) + len(`"},`)
+
+		// Don't count the trailing quote on the name, as that is
+		// counted in baseSize.
+		parentBaseSize = len(`,"parent":`)
+	)
+
+	size := baseSize
+
+	size += len(f.Name)
+
+	// Bytes for id (always positive).
+	for id > 0 {
+		size += 1
+		id /= 10
+	}
+
+	if f.Parent > 0 {
+		size += parentBaseSize
+		// Bytes for parent (always positive).
+		for f.Parent > 0 {
+			size += 1
+			f.Parent /= 10
+		}
+	}
+
+	return size
+}
+
 func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
 	type eventSz struct {
-		Time float64
-		Sz   int
+		Time   float64
+		Sz     int
+		Frames []int
 	}
 
 	var (
+		// data.Frames contains only the frames for required events.
 		data = traceviewer.Data{Frames: make(map[string]traceviewer.Frame)}
+
+		allFrames = make(map[string]traceviewer.Frame)
 
 		sizes []eventSz
 		cw    countingWriter
@@ -340,48 +392,95 @@ func splittingTraceConsumer(max int) (*splitter, traceConsumer) {
 		},
 		consumeViewerEvent: func(v *traceviewer.Event, required bool) {
 			if required {
-				// Store required events inside data
-				// so flush can include them in the required
-				// part of the trace.
+				// Store required events inside data so flush
+				// can include them in the required part of the
+				// trace.
 				data.Events = append(data.Events, v)
+				walkStackFrames(allFrames, v.Stack, func(id int) {
+					s := strconv.Itoa(id)
+					data.Frames[s] = allFrames[s]
+				})
+				walkStackFrames(allFrames, v.EndStack, func(id int) {
+					s := strconv.Itoa(id)
+					data.Frames[s] = allFrames[s]
+				})
 				return
 			}
 			enc := json.NewEncoder(&cw)
 			enc.Encode(v)
-			sizes = append(sizes, eventSz{v.Time, cw.size + 1}) // +1 for ",".
+			size := eventSz{Time: v.Time, Sz: cw.size + 1} // +1 for ",".
+			// Add referenced stack frames. Their size is computed
+			// in flush, where we can dedup across events.
+			walkStackFrames(allFrames, v.Stack, func(id int) {
+				size.Frames = append(size.Frames, id)
+			})
+			walkStackFrames(allFrames, v.EndStack, func(id int) {
+				size.Frames = append(size.Frames, id) // This may add duplicates. We'll dedup later.
+			})
+			sizes = append(sizes, size)
 			cw.size = 0
 		},
 		consumeViewerFrame: func(k string, v traceviewer.Frame) {
-			data.Frames[k] = v
+			allFrames[k] = v
 		},
 		flush: func() {
 			// Calculate size of the mandatory part of the trace.
-			// This includes stack traces and thread names.
+			// This includes thread names and stack frames for
+			// required events.
 			cw.size = 0
 			enc := json.NewEncoder(&cw)
 			enc.Encode(data)
-			minSize := cw.size
+			requiredSize := cw.size
 
-			// Then calculate size of each individual event
-			// and group them into ranges.
-			sum := minSize
-			start := 0
+			// Then calculate size of each individual event and
+			// their stack frames, grouping them into ranges. We
+			// only include stack frames relevant to the events in
+			// the range to reduce overhead.
+
+			var (
+				start = 0
+
+				eventsSize = 0
+
+				frames     = make(map[string]traceviewer.Frame)
+				framesSize = 0
+			)
 			for i, ev := range sizes {
-				if sum+ev.Sz > max {
-					startTime := time.Duration(sizes[start].Time * 1000)
-					endTime := time.Duration(ev.Time * 1000)
-					ranges = append(ranges, Range{
-						Name:      fmt.Sprintf("%v-%v", startTime, endTime),
-						Start:     start,
-						End:       i + 1,
-						StartTime: int64(startTime),
-						EndTime:   int64(endTime),
-					})
-					start = i + 1
-					sum = minSize
-				} else {
-					sum += ev.Sz + 1
+				eventsSize += ev.Sz
+
+				// Add required stack frames. Note that they
+				// may already be in the map.
+				for _, id := range ev.Frames {
+					s := strconv.Itoa(id)
+					_, ok := frames[s]
+					if ok {
+						continue
+					}
+					f := allFrames[s]
+					frames[s] = f
+					framesSize += stackFrameEncodedSize(uint(id), f)
 				}
+
+				total := requiredSize + framesSize + eventsSize
+				if total < max {
+					continue
+				}
+
+				// Reached max size, commit this range and
+				// start a new range.
+				startTime := time.Duration(sizes[start].Time * 1000)
+				endTime := time.Duration(ev.Time * 1000)
+				ranges = append(ranges, Range{
+					Name:      fmt.Sprintf("%v-%v", startTime, endTime),
+					Start:     start,
+					End:       i + 1,
+					StartTime: int64(startTime),
+					EndTime:   int64(endTime),
+				})
+				start = i + 1
+				frames = make(map[string]traceviewer.Frame)
+				framesSize = 0
+				eventsSize = 0
 			}
 			if len(ranges) <= 1 {
 				s.Ranges = nil
@@ -548,7 +647,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			oldState = info.state
 		}
 		if info.state != oldState && setGStateErr == nil {
-			setGStateErr = fmt.Errorf("expected G %d to be in state %d, but got state %d", g, oldState, newState)
+			setGStateErr = fmt.Errorf("expected G %d to be in state %d, but got state %d", g, oldState, info.state)
 		}
 		ctx.gstates[info.state]--
 		ctx.gstates[newState]++
@@ -580,7 +679,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 
 			fname := stk[0].Fn
 			info.name = fmt.Sprintf("G%v %s", newG, fname)
-			info.isSystemG = isSystemGoroutine(fname)
+			info.isSystemG = trace.IsSystemGoroutine(fname)
 
 			ctx.gcount++
 			setGState(ev, newG, gDead, gRunnable)
@@ -727,6 +826,11 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 			ctx.emitInstant(ev, "task start", "user event")
 		case trace.EvUserTaskEnd:
 			ctx.emitInstant(ev, "task end", "user event")
+		case trace.EvCPUSample:
+			if ev.P >= 0 {
+				// only show in this UI when there's an associated P
+				ctx.emitInstant(ev, "CPU profile sample", "")
+			}
 		}
 		// Emit any counter updates.
 		ctx.emitThreadCounters(ev)
@@ -769,10 +873,8 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
 	// Display task and its regions if we are in task-oriented presentation mode.
 	if ctx.mode&modeTaskOriented != 0 {
 		// sort tasks based on the task start time.
-		sortedTask := make([]*taskDesc, 0, len(ctx.tasks))
-		for _, task := range ctx.tasks {
-			sortedTask = append(sortedTask, task)
-		}
+		sortedTask := make([]*taskDesc, len(ctx.tasks))
+		copy(sortedTask, ctx.tasks)
 		sort.SliceStable(sortedTask, func(i, j int) bool {
 			ti, tj := sortedTask[i], sortedTask[j]
 			if ti.firstTimestamp() == tj.firstTimestamp() {
@@ -1133,12 +1235,6 @@ func (ctx *traceContext) buildBranch(parent frameNode, stk []*trace.Frame) int {
 	return ctx.buildBranch(node, stk)
 }
 
-func isSystemGoroutine(entryFn string) bool {
-	// This mimics runtime.isSystemGoroutine as closely as
-	// possible.
-	return entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
-}
-
 // firstTimestamp returns the timestamp of the first event record.
 func firstTimestamp() int64 {
 	res, _ := parseTrace()
@@ -1163,7 +1259,8 @@ type jsonWriter struct {
 }
 
 func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
-	frames := make(map[string]traceviewer.Frame)
+	allFrames := make(map[string]traceviewer.Frame)
+	requiredFrames := make(map[string]traceviewer.Frame)
 	enc := json.NewEncoder(w)
 	written := 0
 	index := int64(-1)
@@ -1181,6 +1278,14 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
 				// not in the range. Skip!
 				return
 			}
+			walkStackFrames(allFrames, v.Stack, func(id int) {
+				s := strconv.Itoa(id)
+				requiredFrames[s] = allFrames[s]
+			})
+			walkStackFrames(allFrames, v.EndStack, func(id int) {
+				s := strconv.Itoa(id)
+				requiredFrames[s] = allFrames[s]
+			})
 			if written == 0 {
 				io.WriteString(w, `"traceEvents": [`)
 			}
@@ -1193,11 +1298,11 @@ func viewerDataTraceConsumer(w io.Writer, start, end int64) traceConsumer {
 			written++
 		},
 		consumeViewerFrame: func(k string, v traceviewer.Frame) {
-			frames[k] = v
+			allFrames[k] = v
 		},
 		flush: func() {
 			io.WriteString(w, `], "stackFrames":`)
-			enc.Encode(frames)
+			enc.Encode(requiredFrames)
 			io.WriteString(w, `}`)
 		},
 	}

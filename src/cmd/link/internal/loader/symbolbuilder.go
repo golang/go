@@ -387,6 +387,10 @@ func (sb *SymbolBuilder) AddAddr(arch *sys.Arch, tgt Sym) int64 {
 	return sb.AddAddrPlus(arch, tgt, 0)
 }
 
+func (sb *SymbolBuilder) AddPEImageRelativeAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
+	return sb.addSymRef(tgt, add, objabi.R_PEIMAGEOFF, 4)
+}
+
 func (sb *SymbolBuilder) AddPCRelPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
 	return sb.addSymRef(tgt, add, objabi.R_PCREL, 4)
 }

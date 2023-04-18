@@ -148,21 +148,22 @@ func (v *Value) LongString() string {
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
 	}
-	var r []Location
-	if v.Block != nil {
-		r = v.Block.Func.RegAlloc
+	if v.Block == nil {
+		return s
 	}
+	r := v.Block.Func.RegAlloc
 	if int(v.ID) < len(r) && r[v.ID] != nil {
 		s += " : " + r[v.ID].String()
 	}
+	if reg := v.Block.Func.tempRegs[v.ID]; reg != nil {
+		s += " tmp=" + reg.String()
+	}
 	var names []string
-	if v.Block != nil {
-		for name, values := range v.Block.Func.NamedValues {
-			for _, value := range values {
-				if value == v {
-					names = append(names, name.String())
-					break // drop duplicates.
-				}
+	for name, values := range v.Block.Func.NamedValues {
+		for _, value := range values {
+			if value == v {
+				names = append(names, name.String())
+				break // drop duplicates.
 			}
 		}
 	}
@@ -488,6 +489,15 @@ func (v *Value) Reg1() int16 {
 	return reg.(*Register).objNum
 }
 
+// RegTmp returns the temporary register assigned to v, in cmd/internal/obj/$ARCH numbering.
+func (v *Value) RegTmp() int16 {
+	reg := v.Block.Func.tempRegs[v.ID]
+	if reg == nil {
+		v.Fatalf("nil tmp register for value: %s\n%s\n", v.LongString(), v.Block.Func)
+	}
+	return reg.objNum
+}
+
 func (v *Value) RegName() string {
 	reg := v.Block.Func.RegAlloc[v.ID]
 	if reg == nil {
@@ -520,7 +530,7 @@ func (v *Value) LackingPos() bool {
 	// The exact definition of LackingPos is somewhat heuristically defined and may change
 	// in the future, for example if some of these operations are generated more carefully
 	// with respect to their source position.
-	return v.Op == OpVarDef || v.Op == OpVarKill || v.Op == OpVarLive || v.Op == OpPhi ||
+	return v.Op == OpVarDef || v.Op == OpVarLive || v.Op == OpPhi ||
 		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
 }
 
@@ -543,9 +553,6 @@ func (v *Value) removeable() bool {
 	}
 	return true
 }
-
-// TODO(mdempsky): Shouldn't be necessary; see discussion at golang.org/cl/275756
-func (*Value) CanBeAnSSAAux() {}
 
 // AutoVar returns a *Name and int64 representing the auto variable and offset within it
 // where v should be spilled.

@@ -37,7 +37,7 @@ stderr '^go: golang.org/x/text: module lookup disabled by GOPROXY=off$'
 
 # GONOPROXY bypasses proxy
 [!net] skip
-[!exec:git] skip
+[!git] skip
 env GOPRIVATE=none
 env GONOPROXY='*/fortune'
 ! go get rsc.io/fortune # does not exist in real world, only on test proxy
