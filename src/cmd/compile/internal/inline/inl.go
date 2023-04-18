@@ -229,68 +229,21 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
 		}
 	})
 
-	// Perform a garbage collection of hidden closures functions that
-	// are no longer reachable from top-level functions following
-	// inlining. See #59404 and #59638 for more context.
-	garbageCollectUnreferencedHiddenClosures()
+	// Rewalk post-inlining functions to check for closures that are
+	// still visible but were (over-agressively) marked as dead, and
+	// undo that marking here. See #59404 for more context.
+	ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
+		for _, n := range list {
+			ir.Visit(n, func(node ir.Node) {
+				if clo, ok := node.(*ir.ClosureExpr); ok && clo.Func.IsHiddenClosure() {
+					clo.Func.SetIsDeadcodeClosure(false)
+				}
+			})
+		}
+	})
 
 	if p != nil {
 		pgoInlineEpilogue(p, decls)
-	}
-}
-
-// garbageCollectUnreferencedHiddenClosures makes a pass over all the
-// top-level (non-hidden-closure) functions looking for nested closure
-// functions that are reachable, then sweeps through the Target.Decls
-// list and marks any non-reachable hidden closure function as dead.
-// See issues #59404 and #59638 for more context.
-func garbageCollectUnreferencedHiddenClosures() {
-
-	liveFuncs := make(map[*ir.Func]bool)
-
-	var markLiveFuncs func(fn *ir.Func)
-	markLiveFuncs = func(fn *ir.Func) {
-		liveFuncs[fn] = true
-		var vis func(node ir.Node)
-		vis = func(node ir.Node) {
-			if clo, ok := node.(*ir.ClosureExpr); ok {
-				if !liveFuncs[clo.Func] {
-					liveFuncs[clo.Func] = true
-					markLiveFuncs(clo.Func)
-				}
-			}
-		}
-		ir.Visit(fn, vis)
-	}
-
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
-			if fn.IsHiddenClosure() {
-				continue
-			}
-			markLiveFuncs(fn)
-		}
-	}
-
-	for i := 0; i < len(typecheck.Target.Decls); i++ {
-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
-			if !fn.IsHiddenClosure() {
-				continue
-			}
-			if fn.IsDeadcodeClosure() {
-				continue
-			}
-			if liveFuncs[fn] {
-				continue
-			}
-			fn.SetIsDeadcodeClosure(true)
-			if base.Flag.LowerM > 2 {
-				fmt.Printf("%v: unreferenced closure %v marked as dead\n", ir.Line(fn), fn)
-			}
-			if fn.Inl != nil && fn.LSym == nil {
-				ir.InitLSym(fn, true)
-			}
-		}
 	}
 }
 
@@ -940,6 +893,30 @@ func inlnode(n ir.Node, bigCaller bool, inlCalls *[]*ir.InlinedCallExpr, edit fu
 		}
 		if fn := inlCallee(call.X, profile); fn != nil && typecheck.HaveInlineBody(fn) {
 			n = mkinlcall(call, fn, bigCaller, inlCalls, edit)
+			if fn.IsHiddenClosure() {
+				// Visit function to pick out any contained hidden
+				// closures to mark them as dead, since they will no
+				// longer be reachable (if we leave them live, they
+				// will get skipped during escape analysis, which
+				// could mean that go/defer statements don't get
+				// desugared, causing later problems in walk). See
+				// #59404 for more context. Note also that the code
+				// below can sometimes be too aggressive (marking a closure
+				// dead even though it was captured by a local var).
+				// In this case we'll undo the dead marking in a cleanup
+				// pass that happens at the end of InlineDecls.
+				var vis func(node ir.Node)
+				vis = func(node ir.Node) {
+					if clo, ok := node.(*ir.ClosureExpr); ok && clo.Func.IsHiddenClosure() && !clo.Func.IsDeadcodeClosure() {
+						if base.Flag.LowerM > 2 {
+							fmt.Printf("%v: closure %v marked as dead\n", ir.Line(clo.Func), clo.Func)
+						}
+						clo.Func.SetIsDeadcodeClosure(true)
+						ir.Visit(clo.Func, vis)
+					}
+				}
+				ir.Visit(fn, vis)
+			}
 		}
 	}
 
