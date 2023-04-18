@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -56,6 +57,7 @@ func TestDebouncer(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.label, func(t *testing.T) {
+			ctx := context.Background()
 			d := newDebouncer()
 
 			delays := make([]chan time.Time, len(test.events))
@@ -64,7 +66,7 @@ func TestDebouncer(t *testing.T) {
 			// Register the events in deterministic order, synchronously.
 			for i, e := range test.events {
 				delays[i] = make(chan time.Time, 1)
-				okcs[i] = d.debounce(e.key, e.order, delays[i])
+				okcs[i] = d.debounce(ctx, e.key, e.order, delays[i])
 			}
 
 			// Now see which event fired.
@@ -77,5 +79,19 @@ func TestDebouncer(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDebouncer_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	d := newDebouncer()
+	c := make(chan time.Time, 1)
+
+	okc := d.debounce(ctx, "", 0, c)
+	cancel()
+	if ok := <-okc; ok {
+		t.Error("<-debounce(ctx, ...) returned true after cancellation")
 	}
 }

@@ -342,6 +342,7 @@ func (e *Env) Await(expectations ...Expectation) {
 // unmeetable. If it was met, OnceMet checks that the state meets all
 // expectations in mustMeets.
 func (e *Env) OnceMet(precondition Expectation, mustMeets ...Expectation) {
+	e.T.Helper()
 	e.Await(OnceMet(precondition, mustMeets...))
 }
 

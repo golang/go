@@ -577,6 +577,7 @@ func (v *View) shutdown() {
 
 	v.snapshotMu.Lock()
 	if v.snapshot != nil {
+		v.snapshot.cancel()
 		v.releaseSnapshot()
 		v.destroy(v.snapshot, "View.shutdown")
 		v.snapshot = nil

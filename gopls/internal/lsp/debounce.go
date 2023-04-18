@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -28,7 +29,10 @@ func newDebouncer() *debouncer {
 // debounce returns a channel that receives a boolean reporting whether,
 // by the time the delay channel receives a value, this call is (or will be)
 // the most recent call with the highest order number for its key.
-func (d *debouncer) debounce(key string, order uint64, delay <-chan time.Time) <-chan bool {
+//
+// If ctx is done before the delay channel receives a value, the channel
+// reports false.
+func (d *debouncer) debounce(ctx context.Context, key string, order uint64, delay <-chan time.Time) <-chan bool {
 	okc := make(chan bool, 1)
 
 	d.mu.Lock()
@@ -63,6 +67,7 @@ func (d *debouncer) debounce(key string, order uint64, delay <-chan time.Time) <
 			}
 			d.mu.Unlock()
 		case <-done:
+		case <-ctx.Done():
 		}
 		okc <- ok
 	}()

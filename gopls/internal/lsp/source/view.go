@@ -308,6 +308,9 @@ func (m InvocationFlags) AllowNetwork() bool {
 // This is the level at which we maintain configuration like working directory
 // and build tags.
 type View interface {
+	// ID returns a globally unique identifier for this view.
+	ID() string
+
 	// Name returns the name this view was constructed with.
 	Name() string
 

@@ -150,6 +150,9 @@ func computeDiagnosticHash(diags ...*source.Diagnostic) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+// TODO(rfindley): is diagnoseDetached even necessary? We should always
+// eventually diagnose after a change. I don't see the value in ensuring that
+// the first diagnostics pass completes.
 func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
 	ctx := snapshot.BackgroundContext()
 	ctx = xcontext.Detach(ctx)
@@ -192,10 +195,7 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 		//
 		// TODO(rfindley): it would be cleaner to simply put the diagnostic
 		// debouncer on the view, and remove the "key" argument to debouncing.
-		//
-		// TODO(rfindley): debounce should accept a context, so that we don't hold onto
-		// the snapshot when the BackgroundContext is cancelled.
-		if ok := <-s.diagDebouncer.debounce(snapshot.View().Name(), snapshot.SequenceID(), time.After(delay)); ok {
+		if ok := <-s.diagDebouncer.debounce(ctx, snapshot.View().ID(), uint64(snapshot.GlobalID()), time.After(delay)); ok {
 			s.diagnose(ctx, snapshot, analyzeOpenPackages)
 			s.publishDiagnostics(ctx, true, snapshot)
 		}
