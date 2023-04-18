@@ -30,6 +30,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		// we may get here because of other problems (go.dev/issue/39634, crash 12)
 		// TODO(gri) do we need a new "generic" error code here?
 		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
+		x.mode = invalid
 		return
 	}
 
@@ -76,6 +77,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
 	if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
 		check.errorf(x, WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
+		x.mode = invalid
+		return
 	}
 
 	// spec: "If a left-hand side is the blank identifier, any typed or
