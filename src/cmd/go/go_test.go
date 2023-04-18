@@ -899,6 +899,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		"src/internal/coverage/rtcov",
 		"src/internal/cpu",
 		"src/internal/goarch",
+		"src/internal/godebugs",
 		"src/internal/goexperiment",
 		"src/internal/goos",
 		"src/internal/coverage/rtcov",
