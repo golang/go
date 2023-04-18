@@ -6844,23 +6844,25 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 		})
 		req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 		res, err := client.Do(req)
-		reqerrc <- err
-		if err == nil {
+		if err != nil {
+			reqerrc <- err
+		} else {
 			res.Body.Close()
 		}
 	}()
 
 	// Wait for the first request to receive a response and return the
 	// connection to the idle pool.
-	r1c := <-reqc
-	close(r1c)
+	select {
+	case err := <-reqerrc:
+		t.Fatalf("request 1: got err %v, want nil", err)
+	case r1c := <-reqc:
+		close(r1c)
+	}
 	var idlec chan struct{}
 	select {
 	case err := <-reqerrc:
-		if err != nil {
-			t.Fatalf("request 1: got err %v, want nil", err)
-		}
-		idlec = <-putidlec
+		t.Fatalf("request 1: got err %v, want nil", err)
 	case idlec = <-putidlec:
 	}
 
