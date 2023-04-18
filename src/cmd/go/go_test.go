@@ -2338,7 +2338,7 @@ func TestUpxCompression(t *testing.T) {
 	}
 }
 
-var gocacheverify = godebug.New("gocacheverify")
+var gocacheverify = godebug.New("#gocacheverify")
 
 func TestCacheListStale(t *testing.T) {
 	tooSlow(t, "links a binary")
