@@ -639,10 +639,16 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 	}
 
 	vers := uint16(hdr[1])<<8 | uint16(hdr[2])
+	expectedVers := c.vers
+	if expectedVers == VersionTLS13 {
+		// All TLS 1.3 records are expected to have 0x0303 (1.2) after
+		// the initial hello (RFC 8446 Section 5.1).
+		expectedVers = VersionTLS12
+	}
 	n := int(hdr[3])<<8 | int(hdr[4])
-	if c.haveVers && c.vers != VersionTLS13 && vers != c.vers {
+	if c.haveVers && vers != expectedVers {
 		c.sendAlert(alertProtocolVersion)
-		msg := fmt.Sprintf("received record with version %x when expecting version %x", vers, c.vers)
+		msg := fmt.Sprintf("received record with version %x when expecting version %x", vers, expectedVers)
 		return c.in.setErrorLocked(c.newRecordHeaderError(nil, msg))
 	}
 	if !c.haveVers {
