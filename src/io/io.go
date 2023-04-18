@@ -694,10 +694,6 @@ func (c nopCloserWriterTo) WriteTo(w Writer) (n int64, err error) {
 func ReadAll(r Reader) ([]byte, error) {
 	b := make([]byte, 0, 512)
 	for {
-		if len(b) == cap(b) {
-			// Add more capacity (let append pick how much).
-			b = append(b, 0)[:len(b)]
-		}
 		n, err := r.Read(b[len(b):cap(b)])
 		b = b[:len(b)+n]
 		if err != nil {
@@ -705,6 +701,11 @@ func ReadAll(r Reader) ([]byte, error) {
 				err = nil
 			}
 			return b, err
+		}
+
+		if len(b) == cap(b) {
+			// Add more capacity (let append pick how much).
+			b = append(b, 0)[:len(b)]
 		}
 	}
 }
