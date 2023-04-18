@@ -94,8 +94,10 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 }
 
 func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (port int, err error) {
-	cservice := make([]byte, len(service)+1)
-	copy(cservice, service)
+	cservice, err := syscall.ByteSliceFromString(service)
+	if err != nil {
+		return 0, &DNSError{Err: err.Error(), Name: network + "/" + service}
+	}
 	// Lowercase the C service name.
 	for i, b := range cservice[:len(service)] {
 		cservice[i] = lowerASCII(b)
@@ -147,10 +149,12 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 		*_C_ai_family(&hints) = _C_AF_INET6
 	}
 
-	h := make([]byte, len(name)+1)
-	copy(h, name)
+	h, err := syscall.BytePtrFromString(name)
+	if err != nil {
+		return nil, &DNSError{Err: err.Error(), Name: name}
+	}
 	var res *_C_struct_addrinfo
-	gerrno, err := _C_getaddrinfo((*_C_char)(unsafe.Pointer(&h[0])), nil, &hints, &res)
+	gerrno, err := _C_getaddrinfo((*_C_char)(unsafe.Pointer(h)), nil, &hints, &res)
 	if gerrno != 0 {
 		isErrorNoSuchHost := false
 		isTemporary := false
@@ -325,12 +329,14 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	buf := (*_C_uchar)(_C_malloc(uintptr(bufSize)))
 	defer _C_free(unsafe.Pointer(buf))
 
-	s := _C_CString(hostname)
-	defer _C_FreeCString(s)
+	s, err := syscall.BytePtrFromString(hostname)
+	if err != nil {
+		return nil, err
+	}
 
 	var size int
 	for {
-		size, _ = _C_res_nsearch(state, s, class, rtype, buf, bufSize)
+		size, _ = _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
 		if size <= 0 || size > 0xffff {
 			return nil, errors.New("res_nsearch failure")
 		}
