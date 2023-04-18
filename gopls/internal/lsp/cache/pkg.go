@@ -74,8 +74,11 @@ type loadScope interface {
 type (
 	fileLoadScope    span.URI // load packages containing a file (including command-line-arguments)
 	packageLoadScope string   // load a specific package (the value is its PackageID)
-	moduleLoadScope  string   // load packages in a specific module
-	viewLoadScope    span.URI // load the workspace
+	moduleLoadScope  struct {
+		dir        string // dir containing the go.mod file
+		modulePath string // parsed module path
+	}
+	viewLoadScope span.URI // load the workspace
 )
 
 // Implement the loadScope interface.

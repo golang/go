@@ -179,3 +179,76 @@ func Hello() int {
 		}
 	})
 }
+
+// Test for golang/go#59458. With lazy module loading, we may not need
+// transitively required modules.
+func TestNestedModuleLoading_Issue59458(t *testing.T) {
+	testenv.NeedsGo1Point(t, 17) // needs lazy module loading
+
+	// In this test, module b.com/nested requires b.com/other, which in turn
+	// requires b.com, but b.com/nested does not reach b.com through the package
+	// graph. Therefore, b.com/nested does not need b.com on 1.17 and later,
+	// thanks to graph pruning.
+	//
+	// We verify that we can load b.com/nested successfully. Previously, we
+	// couldn't, because loading the pattern b.com/nested/... matched the module
+	// b.com, which exists in the module graph but does not have a go.sum entry.
+
+	const proxy = `
+-- b.com@v1.2.3/go.mod --
+module b.com
+
+go 1.18
+-- b.com@v1.2.3/b/b.go --
+package b
+
+func Hello() {}
+
+-- b.com/other@v1.4.6/go.mod --
+module b.com/other
+
+go 1.18
+
+require b.com v1.2.3
+-- b.com/other@v1.4.6/go.sun --
+b.com v1.2.3 h1:AGjCxWRJLUuJiZ21IUTByr9buoa6+B6Qh5LFhVLKpn4=
+-- b.com/other@v1.4.6/bar/bar.go --
+package bar
+
+import "b.com/b"
+
+func _() {
+	b.Hello()
+}
+-- b.com/other@v1.4.6/foo/foo.go --
+package foo
+
+const Foo = 0
+`
+
+	const files = `
+-- go.mod --
+module b.com/nested
+
+go 1.18
+
+require b.com/other v1.4.6
+-- go.sum --
+b.com/other v1.4.6 h1:pHXSzGsk6DamYXp9uRdDB9A/ZQqAN9it+JudU0sBf94=
+b.com/other v1.4.6/go.mod h1:T0TYuGdAHw4p/l0+1P/yhhYHfZRia7PaadNVDu58OWM=
+-- nested.go --
+package nested
+
+import "b.com/other/foo"
+
+const C = foo.Foo
+`
+	WithOptions(
+		ProxyFiles(proxy),
+	).Run(t, files, func(t *testing.T, env *Env) {
+		env.OnceMet(
+			InitialWorkspaceLoad,
+			NoDiagnostics(),
+		)
+	})
+}

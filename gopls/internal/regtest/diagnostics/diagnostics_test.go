@@ -1814,7 +1814,8 @@ func main() {}
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("go.mod")
 		env.AfterChange(
-			LogMatching(protocol.Info, `.*query=\[builtin mod.com/...\].*`, 1, false),
+			// Check that we have only loaded "<dir>/..." once.
+			LogMatching(protocol.Info, `.*query=.*\.\.\..*`, 1, false),
 		)
 	})
 }

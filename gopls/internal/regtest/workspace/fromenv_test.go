@@ -5,6 +5,8 @@
 package workspace
 
 import (
+	"fmt"
+	"path/filepath"
 	"testing"
 
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
@@ -14,7 +16,12 @@ import (
 // Test that setting go.work via environment variables or settings works.
 func TestUseGoWorkOutsideTheWorkspace(t *testing.T) {
 	testenv.NeedsGo1Point(t, 18)
-	const files = `
+
+	// As discussed in
+	// https://github.com/golang/go/issues/59458#issuecomment-1513794691, we must
+	// use \-separated paths in go.work use directives for this test to work
+	// correctly on windows.
+	var files = fmt.Sprintf(`
 -- work/a/go.mod --
 module a.com
 
@@ -41,15 +48,19 @@ package c
 go 1.18
 
 use (
-	$SANDBOX_WORKDIR/work/a
-	$SANDBOX_WORKDIR/work/b
-	$SANDBOX_WORKDIR/other/c
+	%s
+	%s
+	%s
 )
-`
+`,
+		filepath.Join("$SANDBOX_WORKDIR", "work", "a"),
+		filepath.Join("$SANDBOX_WORKDIR", "work", "b"),
+		filepath.Join("$SANDBOX_WORKDIR", "other", "c"),
+	)
 
 	WithOptions(
 		WorkspaceFolders("work"), // use a nested workspace dir, so that GOWORK is outside the workspace
-		EnvVars{"GOWORK": "$SANDBOX_WORKDIR/config/go.work"},
+		EnvVars{"GOWORK": filepath.Join("$SANDBOX_WORKDIR", "config", "go.work")},
 	).Run(t, files, func(t *testing.T, env *Env) {
 		// When we have an explicit GOWORK set, we should get a file watch request.
 		env.OnceMet(
