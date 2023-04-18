@@ -712,7 +712,7 @@ func f() (int, string) { return 0, "" }
 		res.checkExit(true)
 		got := res.stdout
 		if got != want {
-			t.Errorf("fix: got <<%s>>, want <<%s>>", got, want)
+			t.Errorf("fix: got <<%s>>, want <<%s>>\nstderr:\n%s", got, want, res.stderr)
 		}
 	}
 	// TODO(adonovan): more tests:
@@ -800,16 +800,19 @@ func gopls(t *testing.T, dir string, args ...string) *result {
 		t.Fatalf("dir is not absolute: %s", dir)
 	}
 
-	cmd := exec.Command(os.Args[0], args...)
-	cmd.Env = append(os.Environ(), "ENTRYPOINT=goplsMain")
-	cmd.Dir = dir
-	cmd.Stdout = new(bytes.Buffer)
-	cmd.Stderr = new(bytes.Buffer)
+	goplsCmd := exec.Command(os.Args[0], args...)
+	goplsCmd.Env = append(os.Environ(),
+		"ENTRYPOINT=goplsMain",
+		fmt.Sprintf("%s=true", cmd.DebugSuggestedFixEnvVar),
+	)
+	goplsCmd.Dir = dir
+	goplsCmd.Stdout = new(bytes.Buffer)
+	goplsCmd.Stderr = new(bytes.Buffer)
 
-	cmdErr := cmd.Run()
+	cmdErr := goplsCmd.Run()
 
-	stdout := strings.ReplaceAll(fmt.Sprint(cmd.Stdout), dir, ".")
-	stderr := strings.ReplaceAll(fmt.Sprint(cmd.Stderr), dir, ".")
+	stdout := strings.ReplaceAll(fmt.Sprint(goplsCmd.Stdout), dir, ".")
+	stderr := strings.ReplaceAll(fmt.Sprint(goplsCmd.Stderr), dir, ".")
 	exitcode := 0
 	if cmdErr != nil {
 		if exitErr, ok := cmdErr.(*exec.ExitError); ok {

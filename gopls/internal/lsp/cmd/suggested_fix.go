@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -41,11 +42,16 @@ fix-flags:
 	printFlagDefaults(f)
 }
 
+const DebugSuggestedFixEnvVar = "_DEBUG_SUGGESTED_FIX"
+
 // Run performs diagnostic checks on the file specified and either;
 // - if -w is specified, updates the file in place;
 // - if -d is specified, prints out unified diffs of the changes; or
 // - otherwise, prints the new versions to stdout.
 func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
+	// For debugging golang/go#59475, enable some additional output.
+	var debug = os.Getenv(DebugSuggestedFixEnvVar) == "true"
+
 	if len(args) < 1 {
 		return tool.CommandLineErrorf("fix expects at least 1 argument")
 	}
@@ -84,6 +90,9 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 		// LSP requires a slice, not a nil.
 		file.diagnostics = []protocol.Diagnostic{}
 	}
+	if debug {
+		log.Printf("file diagnostics: %#v", file.diagnostics)
+	}
 	p := protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.URIFromSpanURI(uri),
@@ -98,6 +107,10 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return fmt.Errorf("%v: %v", from, err)
 	}
+	if debug {
+		log.Printf("code actions: %#v", actions)
+	}
+
 	var edits []protocol.TextEdit
 	for _, a := range actions {
 		if a.Command != nil {
