@@ -91,7 +91,7 @@ Use [coc.nvim], with the following `coc-settings.json` configuration:
 
 ```json
   "languageserver": {
-    "golang": {
+    "go": {
       "command": "gopls",
       "rootPatterns": ["go.work", "go.mod", ".vim/", ".git/", ".hg/"],
       "filetypes": ["go"],
