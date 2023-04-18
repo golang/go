@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -676,10 +677,6 @@ func TestRunVulncheckWarning(t *testing.T) {
 							"Upgrade to v1.0.6",
 							"Upgrade to latest",
 							"Reset govulncheck result",
-						},
-						relatedInfo: []vulnRelatedInfo{
-							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln1
-							{"x.go", uint32(lineX.Line), "[GO-2022-01]"}, // avuln.VulnData.Vuln2
 						},
 					},
 				},

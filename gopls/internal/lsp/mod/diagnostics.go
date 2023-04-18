@@ -309,7 +309,6 @@ func ModVulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot, 
 				Source:         diagSource,
 				Message:        getVulnMessage(req.Mod.Path, info, false, diagSource == source.Govulncheck),
 				SuggestedFixes: infoFixes,
-				Related:        relatedInfo,
 			})
 		}
 	}
