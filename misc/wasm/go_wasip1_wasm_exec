@@ -3,4 +3,15 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR}"/wazero $1 "${@:2}"
+case "$GOWASIRUNTIME" in
+	"wasmtime")
+		exec wasmtime run --dir=/ --env PWD="$PWD" --max-wasm-stack 1048576 "$1" -- "${@:2}"
+		;;
+	"wazero" | "")
+		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR}"/wazero "$1" "${@:2}"
+		;;
+	*)
+		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"
+		exit 1
+		;;
+esac
