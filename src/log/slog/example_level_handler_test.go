@@ -63,7 +63,7 @@ func (h *LevelHandler) Handler() slog.Handler {
 // Another typical use would be to decrease the log level (to LevelDebug, say)
 // during a part of the program that was suspected of containing a bug.
 func ExampleHandler_levelHandler() {
-	th := slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}.NewTextHandler(os.Stdout)
+	th := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime})
 	logger := slog.New(NewLevelHandler(slog.LevelWarn, th))
 	logger.Info("not printed")
 	logger.Warn("printed")

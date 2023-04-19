@@ -25,18 +25,17 @@ type JSONHandler struct {
 }
 
 // NewJSONHandler creates a JSONHandler that writes to w,
-// using the default options.
-func NewJSONHandler(w io.Writer) *JSONHandler {
-	return (HandlerOptions{}).NewJSONHandler(w)
-}
-
-// NewJSONHandler creates a JSONHandler with the given options that writes to w.
-func (opts HandlerOptions) NewJSONHandler(w io.Writer) *JSONHandler {
+// using the given options.
+// If opts is nil, the default options are used.
+func NewJSONHandler(w io.Writer, opts *HandlerOptions) *JSONHandler {
+	if opts == nil {
+		opts = &HandlerOptions{}
+	}
 	return &JSONHandler{
 		&commonHandler{
 			json: true,
 			w:    w,
-			opts: opts,
+			opts: *opts,
 		},
 	}
 }

@@ -39,7 +39,7 @@ func TestJSONHandler(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			h := test.opts.NewJSONHandler(&buf)
+			h := NewJSONHandler(&buf, &test.opts)
 			r := NewRecord(testTime, LevelInfo, "m", 0)
 			r.AddAttrs(Int("a", 1), Any("m", map[string]int{"b": 2}))
 			if err := h.Handle(context.Background(), r); err != nil {
@@ -171,7 +171,7 @@ func BenchmarkJSONHandler(b *testing.B) {
 		}},
 	} {
 		b.Run(bench.name, func(b *testing.B) {
-			l := New(bench.opts.NewJSONHandler(io.Discard)).With(
+			l := New(NewJSONHandler(io.Discard, &bench.opts)).With(
 				String("program", "my-test-program"),
 				String("package", "log/slog"),
 				String("traceID", "2039232309232309"),
@@ -236,7 +236,7 @@ func BenchmarkPreformatting(b *testing.B) {
 		{"struct file", outFile, structAttrs},
 	} {
 		b.Run(bench.name, func(b *testing.B) {
-			l := New(NewJSONHandler(bench.wc)).With(bench.attrs...)
+			l := New(NewJSONHandler(bench.wc, nil)).With(bench.attrs...)
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

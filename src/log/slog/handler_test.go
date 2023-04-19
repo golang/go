@@ -338,8 +338,8 @@ func TestJSONAndTextHandlers(t *testing.T) {
 				h    Handler
 				want string
 			}{
-				{"text", opts.NewTextHandler(&buf), test.wantText},
-				{"json", opts.NewJSONHandler(&buf), test.wantJSON},
+				{"text", NewTextHandler(&buf, &opts), test.wantText},
+				{"json", NewJSONHandler(&buf, &opts), test.wantJSON},
 			} {
 				t.Run(handler.name, func(t *testing.T) {
 					h := handler.h
@@ -419,7 +419,7 @@ func TestSecondWith(t *testing.T) {
 	// Verify that a second call to Logger.With does not corrupt
 	// the original.
 	var buf bytes.Buffer
-	h := HandlerOptions{ReplaceAttr: removeKeys(TimeKey)}.NewTextHandler(&buf)
+	h := NewTextHandler(&buf, &HandlerOptions{ReplaceAttr: removeKeys(TimeKey)})
 	logger := New(h).With(
 		String("app", "playground"),
 		String("role", "tester"),
@@ -445,14 +445,14 @@ func TestReplaceAttrGroups(t *testing.T) {
 
 	var got []ga
 
-	h := HandlerOptions{ReplaceAttr: func(gs []string, a Attr) Attr {
+	h := NewTextHandler(io.Discard, &HandlerOptions{ReplaceAttr: func(gs []string, a Attr) Attr {
 		v := a.Value.String()
 		if a.Key == TimeKey {
 			v = "<now>"
 		}
 		got = append(got, ga{strings.Join(gs, ","), a.Key, v})
 		return a
-	}}.NewTextHandler(io.Discard)
+	}})
 	New(h).
 		With(Int("a", 1)).
 		WithGroup("g1").

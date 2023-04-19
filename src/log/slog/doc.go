@@ -44,7 +44,7 @@ For more control over the output format, create a logger with a different handle
 This statement uses [New] to create a new logger with a TextHandler
 that writes structured records in text form to standard error:
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 [TextHandler] output is a sequence of key=value pairs, easily and unambiguously
 parsed by machine. This statement:
@@ -57,7 +57,7 @@ produces this output:
 
 The package also provides [JSONHandler], whose output is line-delimited JSON:
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	logger.Info("hello", "count", 3)
 
 produces this output:
@@ -149,7 +149,7 @@ a global LevelVar:
 
 Then use the LevelVar to construct a handler, and make it the default:
 
-	h := slog.HandlerOptions{Level: programLevel}.NewJSONHandler(os.Stderr)
+	h := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
 	slog.SetDefault(slog.New(h))
 
 Now the program can change its logging level with a single statement:

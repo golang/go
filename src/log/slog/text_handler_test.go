@@ -82,7 +82,7 @@ func TestTextHandler(t *testing.T) {
 			} {
 				t.Run(opts.name, func(t *testing.T) {
 					var buf bytes.Buffer
-					h := opts.opts.NewTextHandler(&buf)
+					h := NewTextHandler(&buf, &opts.opts)
 					r := NewRecord(testTime, LevelInfo, "a message", 0)
 					r.AddAttrs(test.attr)
 					if err := h.Handle(context.Background(), r); err != nil {
@@ -124,7 +124,7 @@ func (t text) MarshalText() ([]byte, error) {
 
 func TestTextHandlerPreformatted(t *testing.T) {
 	var buf bytes.Buffer
-	var h Handler = NewTextHandler(&buf)
+	var h Handler = NewTextHandler(&buf, nil)
 	h = h.WithAttrs([]Attr{Duration("dur", time.Minute), Bool("b", true)})
 	// Also test omitting time.
 	r := NewRecord(time.Time{}, 0 /* 0 Level is INFO */, "m", 0)
@@ -145,7 +145,7 @@ func TestTextHandlerAlloc(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		r.AddAttrs(Int("x = y", i))
 	}
-	var h Handler = NewTextHandler(io.Discard)
+	var h Handler = NewTextHandler(io.Discard, nil)
 	wantAllocs(t, 0, func() { h.Handle(context.Background(), r) })
 
 	h = h.WithGroup("s")

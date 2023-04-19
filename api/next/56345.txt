@@ -58,10 +58,8 @@ pkg log/slog, func IntValue(int) Value #56345
 pkg log/slog, func Log(context.Context, Level, string, ...interface{}) #56345
 pkg log/slog, func LogAttrs(context.Context, Level, string, ...Attr) #56345
 pkg log/slog, func New(Handler) *Logger #56345
-pkg log/slog, func NewJSONHandler(io.Writer) *JSONHandler #56345
 pkg log/slog, func NewLogLogger(Handler, Level) *log.Logger #56345
 pkg log/slog, func NewRecord(time.Time, Level, string, uintptr) Record #56345
-pkg log/slog, func NewTextHandler(io.Writer) *TextHandler #56345
 pkg log/slog, func SetDefault(*Logger) #56345
 pkg log/slog, func String(string, string) Attr #56345
 pkg log/slog, func StringValue(string) Value #56345
@@ -105,8 +103,6 @@ pkg log/slog, method (*TextHandler) WithAttrs([]Attr) Handler #56345
 pkg log/slog, method (*TextHandler) WithGroup(string) Handler #56345
 pkg log/slog, method (Attr) Equal(Attr) bool #56345
 pkg log/slog, method (Attr) String() string #56345
-pkg log/slog, method (HandlerOptions) NewJSONHandler(io.Writer) *JSONHandler #56345
-pkg log/slog, method (HandlerOptions) NewTextHandler(io.Writer) *TextHandler #56345
 pkg log/slog, method (Kind) String() string #56345
 pkg log/slog, method (Level) Level() Level #56345
 pkg log/slog, method (Level) MarshalJSON() ([]uint8, error) #56345
