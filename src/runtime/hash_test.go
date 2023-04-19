@@ -775,8 +775,11 @@ func TestCollisions(t *testing.T) {
 				a[j] = byte(n >> 8)
 				m[uint16(BytesHash(a[:], 0))] = struct{}{}
 			}
-			if len(m) <= 1<<15 {
-				t.Errorf("too many collisions i=%d j=%d outputs=%d out of 65536\n", i, j, len(m))
+			// N balls in N bins, for N=65536
+			avg := 41427
+			stdDev := 123
+			if len(m) < avg-40*stdDev || len(m) > avg+40*stdDev {
+				t.Errorf("bad number of collisions i=%d j=%d outputs=%d out of 65536\n", i, j, len(m))
 			}
 		}
 	}
