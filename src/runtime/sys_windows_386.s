@@ -181,7 +181,7 @@ TEXT tstart<>(SB),NOSPLIT,$8-4
 	MOVL	AX, (g_stack+stack_hi)(DX)
 	SUBL	$(64*1024), AX		// initial stack size (adjusted later)
 	MOVL	AX, (g_stack+stack_lo)(DX)
-	ADDL	$const__StackGuard, AX
+	ADDL	$const_stackGuard, AX
 	MOVL	AX, g_stackguard0(DX)
 	MOVL	AX, g_stackguard1(DX)
 

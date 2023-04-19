@@ -321,7 +321,7 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
 	// g0 stack bounds so we have room to print the traceback. If
 	// this somehow overflows the stack, the OS will trap it.
 	g0.stack.lo = 0
-	g0.stackguard0 = g0.stack.lo + _StackGuard
+	g0.stackguard0 = g0.stack.lo + stackGuard
 	g0.stackguard1 = g0.stackguard0
 
 	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")

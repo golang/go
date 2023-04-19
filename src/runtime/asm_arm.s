@@ -151,7 +151,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
 
 	// update stackguard after _cgo_init
 	MOVW	(g_stack+stack_lo)(g), R0
-	ADD	$const__StackGuard, R0
+	ADD	$const_stackGuard, R0
 	MOVW	R0, g_stackguard0(g)
 	MOVW	R0, g_stackguard1(g)
 
