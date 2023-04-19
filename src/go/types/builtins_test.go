@@ -174,7 +174,7 @@ func testBuiltinSignature(t *testing.T, name, src0, want string) {
 
 	uses := make(map[*ast.Ident]Object)
 	types := make(map[ast.Expr]TypeAndValue)
-	mustTypecheck("p", src, nil, &Info{Uses: uses, Types: types})
+	mustTypecheck(src, nil, &Info{Uses: uses, Types: types})
 
 	// find called function
 	n := 0

@@ -21,7 +21,7 @@ func checkMono(t *testing.T, body string) error {
 		Error:    func(err error) { fmt.Fprintln(&buf, err) },
 		Importer: importer.Default(),
 	}
-	typecheck("x", src, &conf, nil)
+	typecheck(src, &conf, nil)
 	if buf.Len() == 0 {
 		return nil
 	}
