@@ -1359,8 +1359,9 @@ func TestParseErrors(t *testing.T) {
 			}
 			continue
 		}
-		if err == nil || err == io.EOF {
-			t.Errorf("parse %s: have no error, expected a non-nil error", test.src)
+		// Inv: err != nil
+		if err == io.EOF {
+			t.Errorf("parse %s: unexpected EOF", test.src)
 			continue
 		}
 		if !strings.Contains(err.Error(), test.err) {

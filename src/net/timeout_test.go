@@ -812,10 +812,11 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 		t.Logf("SetWriteDeadline(+%v)", d)
 		t0 := time.Now()
 		deadline := t0.Add(d)
-		if err = c.SetWriteDeadline(deadline); err != nil {
+		if err := c.SetWriteDeadline(deadline); err != nil {
 			t.Fatalf("SetWriteDeadline(%v): %v", deadline, err)
 		}
 		var n int64
+		var err error
 		for {
 			var dn int
 			dn, err = c.Write([]byte("TIMEOUT TRANSMITTER"))
@@ -825,8 +826,8 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 			}
 		}
 		t1 := time.Now()
-
-		if err == nil || !err.(Error).Timeout() {
+		// Inv: err != nil
+		if !err.(Error).Timeout() {
 			t.Fatalf("Write did not return (any, timeout): (%d, %v)", n, err)
 		}
 		if perr := parseWriteError(err); perr != nil {

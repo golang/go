@@ -181,7 +181,7 @@ func TestSetBytes(t *testing.T) {
 			}
 			continue
 		}
-		if err == nil && tt.fail {
+		if tt.fail {
 			t.Errorf("%d: unexpected success", i)
 			continue
 		}

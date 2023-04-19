@@ -268,7 +268,7 @@ type panicReader struct{ panic bool }
 
 func (r panicReader) Read(p []byte) (int, error) {
 	if r.panic {
-		panic(nil)
+		panic("oops")
 	}
 	return 0, io.EOF
 }
