@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !plan9
-// +build !js,!plan9
+//go:build unix || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || windows
+// +build unix aix darwin dragonfly freebsd linux netbsd openbsd solaris windows
 
 package filelock_test
 

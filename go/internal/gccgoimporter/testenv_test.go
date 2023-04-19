@@ -8,45 +8,15 @@ package gccgoimporter
 
 import (
 	"runtime"
-	"strings"
 	"testing"
-)
 
-// HasGoBuild reports whether the current system can build programs with “go build”
-// and then run them with os.StartProcess or exec.Command.
-func HasGoBuild() bool {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		return false
-	case "darwin":
-		if strings.HasPrefix(runtime.GOARCH, "arm") {
-			return false
-		}
-	}
-	return true
-}
+	toolstestenv "golang.org/x/tools/internal/testenv"
+)
 
 // HasExec reports whether the current system can start new processes
 // using os.StartProcess or (more commonly) exec.Command.
 func HasExec() bool {
-	switch runtime.GOOS {
-	case "nacl", "js":
-		return false
-	case "darwin":
-		if strings.HasPrefix(runtime.GOARCH, "arm") {
-			return false
-		}
-	}
-	return true
-}
-
-// MustHaveGoBuild checks that the current system can build programs with “go build”
-// and then run them with os.StartProcess or exec.Command.
-// If not, MustHaveGoBuild calls t.Skip with an explanation.
-func MustHaveGoBuild(t *testing.T) {
-	if !HasGoBuild() {
-		t.Skipf("skipping test: 'go build' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	return toolstestenv.HasExec()
 }
 
 // MustHaveExec checks that the current system can start new processes
@@ -59,11 +29,7 @@ func MustHaveExec(t *testing.T) {
 }
 
 var testenv = struct {
-	HasGoBuild      func() bool
-	MustHaveGoBuild func(*testing.T)
-	MustHaveExec    func(*testing.T)
+	MustHaveExec func(*testing.T)
 }{
-	HasGoBuild:      HasGoBuild,
-	MustHaveGoBuild: MustHaveGoBuild,
-	MustHaveExec:    MustHaveExec,
+	MustHaveExec: MustHaveExec,
 }

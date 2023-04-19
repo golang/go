@@ -927,6 +927,7 @@ func testParseFileModifyAST(t *testing.T, exporter packagestest.Exporter) {
 
 func TestAdHocPackagesBadImport(t *testing.T) {
 	t.Parallel()
+	testenv.NeedsTool(t, "go")
 
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
 	// which are outside of $GOPATH and outside of a module.
@@ -2752,6 +2753,8 @@ func TestEmptyEnvironment(t *testing.T) {
 }
 
 func TestPackageLoadSingleFile(t *testing.T) {
+	testenv.NeedsTool(t, "go")
+
 	tmp, err := ioutil.TempDir("", "a")
 	if err != nil {
 		t.Fatal(err)

@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// js does not support inter-process file locking.
-//
-//go:build !js
-// +build !js
+//go:build unix || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || plan9 || windows
+// +build unix aix darwin dragonfly freebsd linux netbsd openbsd solaris plan9 windows
 
 package lockedfile_test
 

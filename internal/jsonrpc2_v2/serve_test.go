@@ -14,9 +14,11 @@ import (
 
 	jsonrpc2 "golang.org/x/tools/internal/jsonrpc2_v2"
 	"golang.org/x/tools/internal/stack/stacktest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestIdleTimeout(t *testing.T) {
+	testenv.NeedsLocalhostNet(t)
 	stacktest.NoLeak(t)
 
 	// Use a panicking time.AfterFunc instead of context.WithTimeout so that we
@@ -161,19 +163,20 @@ func TestServe(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		factory func(context.Context) (jsonrpc2.Listener, error)
+		factory func(context.Context, testing.TB) (jsonrpc2.Listener, error)
 	}{
-		{"tcp", func(ctx context.Context) (jsonrpc2.Listener, error) {
+		{"tcp", func(ctx context.Context, t testing.TB) (jsonrpc2.Listener, error) {
+			testenv.NeedsLocalhostNet(t)
 			return jsonrpc2.NetListener(ctx, "tcp", "localhost:0", jsonrpc2.NetListenOptions{})
 		}},
-		{"pipe", func(ctx context.Context) (jsonrpc2.Listener, error) {
+		{"pipe", func(ctx context.Context, t testing.TB) (jsonrpc2.Listener, error) {
 			return jsonrpc2.NetPipeListener(ctx)
 		}},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			fake, err := test.factory(ctx)
+			fake, err := test.factory(ctx, t)
 			if err != nil {
 				t.Fatal(err)
 			}

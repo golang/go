@@ -22,6 +22,7 @@ import (
 	"sync"
 	"testing"
 
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/typeparams"
 )
 
@@ -198,6 +199,8 @@ var exe struct {
 }
 
 func stringerPath(t *testing.T) string {
+	testenv.NeedsExec(t)
+
 	exe.once.Do(func() {
 		exe.path, exe.err = os.Executable()
 	})

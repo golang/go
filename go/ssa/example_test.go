@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !android && !ios && !js
-// +build !android,!ios,!js
+//go:build !android && !ios && (unix || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || plan9 || windows)
+// +build !android
+// +build !ios
+// +build unix aix darwin dragonfly freebsd linux netbsd openbsd solaris plan9 windows
 
 package ssa_test
 

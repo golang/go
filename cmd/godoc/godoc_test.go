@@ -46,8 +46,7 @@ var exe struct {
 }
 
 func godocPath(t *testing.T) string {
-	switch runtime.GOOS {
-	case "js", "ios":
+	if !testenv.HasExec() {
 		t.Skipf("skipping test that requires exec")
 	}
 

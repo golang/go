@@ -1192,6 +1192,8 @@ import _ "rsc.io/quote"
 
 // Tests that crud in the module cache is ignored.
 func TestInvalidModCache(t *testing.T) {
+	testenv.NeedsTool(t, "go")
+
 	dir, err := ioutil.TempDir("", t.Name())
 	if err != nil {
 		t.Fatal(err)

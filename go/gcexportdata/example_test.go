@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.7 && gc && !android && !ios && !js
-// +build go1.7,gc,!android,!ios,!js
+//go:build go1.7 && gc && !android && !ios && (unix || aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris || plan9 || windows)
+// +build go1.7
+// +build gc
+// +build !android
+// +build !ios
+// +build unix aix darwin dragonfly freebsd linux netbsd openbsd solaris plan9 windows
 
 package gcexportdata_test
 

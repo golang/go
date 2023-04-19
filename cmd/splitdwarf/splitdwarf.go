@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !js && !nacl && !plan9 && !solaris && !windows
-// +build !js,!nacl,!plan9,!solaris,!windows
+//go:build aix || darwin || dragonfly || freebsd || linux || netbsd || openbsd
+// +build aix darwin dragonfly freebsd linux netbsd openbsd
 
 /*
 Splitdwarf uncompresses and copies the DWARF segment of a Mach-O

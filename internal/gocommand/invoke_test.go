@@ -9,9 +9,12 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestGoVersion(t *testing.T) {
+	testenv.NeedsTool(t, "go")
+
 	inv := gocommand.Invocation{
 		Verb: "version",
 	}

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestMain(m *testing.M) {
@@ -30,6 +32,8 @@ var f2f struct {
 }
 
 func file2fuzz(t *testing.T, dir string, args []string, stdin string) (string, bool) {
+	testenv.NeedsExec(t)
+
 	f2f.once.Do(func() {
 		f2f.path, f2f.err = os.Executable()
 	})
