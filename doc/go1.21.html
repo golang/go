@@ -84,6 +84,27 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: complete this section
 </p>
 
+<dl id="context"><dt><a href="/pkg/context/">sync</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/40221, CL 479918 -->
+      The new <a href="/pkg/context/#WithoutCancel"><code>WithoutCancel</code></a>
+      function returns a copy of a context that is not canceled when the original
+      context is canceled.
+    </p>
+    <p><!-- https://go.dev/issue/56661, CL 449318 -->
+      The new <a href="/pkg/context/#WithDeadlineCause"><code>WithDeadlineCause</code></a>
+      and <a href="/pkg/context/#WithTimeoutCause"><code>WithTimeoutCause</code></a>
+      functions provide a way to set a context cancellation cause when a deadline or
+      timer expires. The cause may be retrieved with the
+      <a href="/pkg/context/#Cause"><code>Cause</code></a> function.
+    </p>
+    <p><!-- https://go.dev/issue/57928, CL 482695 -->
+      The new <a href="/pkg/context/#AfterFunc"><code>AfterFunc</code></a>
+      function registers a function to run after a context has been cancelled.
+    </p>
+  </dd>
+</dl>
+
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/56102, CL 451356 -->
