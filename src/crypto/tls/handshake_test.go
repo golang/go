@@ -41,9 +41,11 @@ import (
 // reference connection will always change.
 
 var (
-	update  = flag.Bool("update", false, "update golden files on failure")
-	fast    = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
-	keyFile = flag.String("keylog", "", "destination file for KeyLogWriter")
+	update     = flag.Bool("update", false, "update golden files on failure")
+	fast       = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
+	keyFile    = flag.String("keylog", "", "destination file for KeyLogWriter")
+	bogoMode   = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
+	bogoFilter = flag.String("bogo-filter", "", "BoGo test filter")
 )
 
 func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool), wait bool) {
@@ -326,7 +328,21 @@ func allCipherSuites() []uint16 {
 var testConfig *Config
 
 func TestMain(m *testing.M) {
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args)
+		flag.PrintDefaults()
+		if *bogoMode {
+			os.Exit(89)
+		}
+	}
+
 	flag.Parse()
+
+	if *bogoMode {
+		bogoShim()
+		os.Exit(0)
+	}
+
 	os.Exit(runMain(m))
 }
 
