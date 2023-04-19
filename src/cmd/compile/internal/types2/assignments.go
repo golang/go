@@ -235,9 +235,10 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand) {
 	T := check.lhsVar(lhs) // nil if lhs is _
 	if T == Typ[Invalid] {
-		check.use(rhs)
 		if x != nil {
 			x.mode = invalid
+		} else {
+			check.use(rhs)
 		}
 		return
 	}
