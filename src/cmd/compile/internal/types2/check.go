@@ -299,7 +299,10 @@ func (check *Checker) initFiles(files []*syntax.File) {
 			// build lines were ignored and code got the module's Go version.
 			// To work around this, downgrades are only allowed when the
 			// module's Go version is Go 1.21 or later.
-			if v.before(check.version) && check.version.before(version{1, 21}) {
+			// If there is no check.version, then we don't really know what Go version to apply.
+			// Legacy tools may do this, and they historically have accepted everything.
+			// Preserve that behavior by ignoring //go:build constraints entirely in that case.
+			if (v.before(check.version) && check.version.before(version{1, 21})) || check.version.equal(version{0, 0}) {
 				continue
 			}
 			if check.posVers == nil {

@@ -116,7 +116,7 @@ type Config struct {
 
 	// GoVersion describes the accepted Go language version. The string
 	// must follow the format "go%d.%d" (e.g. "go1.12") or it must be
-	// empty; an empty string indicates the latest language version.
+	// empty; an empty string disables Go language version checks.
 	// If the format is invalid, invoking the type checker will cause a
 	// panic.
 	GoVersion string
