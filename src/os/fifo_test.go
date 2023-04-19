@@ -79,7 +79,7 @@ func TestNonPollable(t *testing.T) {
 
 	f, err := os.OpenFile(nonPollable, os.O_RDWR, 0)
 	if err != nil {
-		if errors.Is(err, fs.ErrExist) || errors.Is(err, fs.ErrPermission) || testenv.SyscallIsNotSupported(err) {
+		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) || testenv.SyscallIsNotSupported(err) {
 			t.Skipf("can't open %q: %v", nonPollable, err)
 		}
 		t.Fatal(err)
