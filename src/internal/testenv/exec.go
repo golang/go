@@ -19,11 +19,65 @@ import (
 // HasExec reports whether the current system can start new processes
 // using os.StartProcess or (more commonly) exec.Command.
 func HasExec() bool {
+	tryExecOnce.Do(func() {
+		tryExecOk = tryExec()
+	})
+	return tryExecOk
+}
+
+var (
+	tryExec     = func() bool { return true }
+	tryExecOnce sync.Once
+	tryExecOk   bool
+)
+
+func init() {
 	switch runtime.GOOS {
 	case "wasip1", "js", "ios":
+	default:
+		// Assume that exec always works on non-mobile platforms and Android.
+		return
+	}
+
+	// ios has an exec syscall but on real iOS devices it might return a
+	// permission error. In an emulated environment (such as a Corellium host)
+	// it might succeed, so if we need to exec we'll just have to try it and
+	// find out.
+	//
+	// As of 2023-04-19 wasip1 and js don't have exec syscalls at all, but we
+	// may as well use the same path so that this branch can be tested without
+	// an ios environment.
+
+	if !testing.Testing() {
+		// This isn't a standard 'go test' binary, so we don't know how to
+		// self-exec in a way that should succeed without side effects.
+		// Just forget it.
+		tryExec = func() bool { return false }
+		return
+	}
+
+	// We know that this is a test executable.
+	// We should be able to run it with a no-op flag and the original test
+	// execution environment to check for overall exec support.
+
+	// Save the original environment during init for use in the check. A test
+	// binary may modify its environment before calling HasExec to change its
+	// behavior// (such as mimicking a command-line tool), and that modified
+	// environment might cause our self-test to behave unpredictably.
+	origEnv := os.Environ()
+
+	tryExec = func() bool {
+		exe, err := os.Executable()
+		if err != nil {
+			return false
+		}
+		cmd := exec.Command(exe, "-test.list=^$")
+		cmd.Env = origEnv
+		if err := cmd.Run(); err == nil {
+			tryExecOk = true
+		}
 		return false
 	}
-	return true
 }
 
 // MustHaveExec checks that the current system can start new processes
