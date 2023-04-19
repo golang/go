@@ -85,13 +85,6 @@ const (
 	_FixedStack6 = _FixedStack5 | (_FixedStack5 >> 16)
 	_FixedStack  = _FixedStack6 + 1
 
-	// Functions that need frames bigger than this use an extra
-	// instruction to do the stack split check, to avoid overflow
-	// in case SP - framesize wraps below zero.
-	// This value can be no bigger than the size of the unmapped
-	// space at zero.
-	_StackBig = 4096
-
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
 	//
@@ -101,15 +94,10 @@ const (
 	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
 	_StackGuard = 928*sys.StackGuardMultiplier + _StackSystem
 
-	// After a stack split check the SP is allowed to be this
-	// many bytes below the stack guard. This saves an instruction
-	// in the checking sequence for tiny frames.
-	_StackSmall = 128
-
 	// The maximum number of bytes that a chain of NOSPLIT
 	// functions can use.
 	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
-	_StackLimit = _StackGuard - _StackSystem - _StackSmall
+	_StackLimit = _StackGuard - _StackSystem - abi.StackSmall
 )
 
 const (
