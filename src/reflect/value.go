@@ -710,7 +710,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 
 	// Copy arguments into Values.
 	ptr := frame
-	in := make([]Value, 0, int(ftyp.inCount))
+	in := make([]Value, 0, int(ftyp.InCount))
 	for i, typ := range ftyp.in() {
 		if typ.Size() == 0 {
 			in = append(in, Zero(typ))
@@ -878,11 +878,11 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
 	i := methodIndex
 	if v.typ.Kind() == Interface {
 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
-		if uint(i) >= uint(len(tt.methods)) {
+		if uint(i) >= uint(len(tt.Methods)) {
 			panic("reflect: internal error: invalid method index")
 		}
-		m := &tt.methods[i]
-		if !tt.nameOff(m.Name).isExported() {
+		m := &tt.Methods[i]
+		if !tt.nameOff(m.Name).IsExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		iface := (*nonEmptyInterface)(v.ptr)
@@ -899,7 +899,7 @@ func methodReceiver(op string, v Value, methodIndex int) (rcvrtype *rtype, t *fu
 			panic("reflect: internal error: invalid method index")
 		}
 		m := ms[i]
-		if !v.typ.nameOff(m.Name).isExported() {
+		if !v.typ.nameOff(m.Name).IsExported() {
 			panic("reflect: " + op + " of unexported method")
 		}
 		ifn := v.typ.textOff(m.Ifn)
@@ -1253,7 +1253,7 @@ func (v Value) Elem() Value {
 			return Value{}
 		}
 		tt := (*ptrType)(unsafe.Pointer(v.typ))
-		typ := tt.elem
+		typ := tt.Elem
 		fl := v.flag&flagRO | flagIndir | flagAddr
 		fl |= flag(typ.Kind())
 		return Value{typ, ptr, fl}
@@ -1268,16 +1268,16 @@ func (v Value) Field(i int) Value {
 		panic(&ValueError{"reflect.Value.Field", v.kind()})
 	}
 	tt := (*structType)(unsafe.Pointer(v.typ))
-	if uint(i) >= uint(len(tt.fields)) {
+	if uint(i) >= uint(len(tt.Fields)) {
 		panic("reflect: Field index out of range")
 	}
-	field := &tt.fields[i]
-	typ := field.typ
+	field := &tt.Fields[i]
+	typ := field.Typ
 
 	// Inherit permission bits from v, but clear flagEmbedRO.
 	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
-	if !field.name.isExported() {
+	if !field.Name.IsExported() {
 		if field.embedded() {
 			fl |= flagEmbedRO
 		} else {
@@ -1289,7 +1289,7 @@ func (v Value) Field(i int) Value {
 	// In the former case, we want v.ptr + offset.
 	// In the latter case, we must have field.offset = 0,
 	// so v.ptr + field.offset is still the correct address.
-	ptr := add(v.ptr, field.offset, "same as non-reflect &v.field")
+	ptr := add(v.ptr, field.Offset, "same as non-reflect &v.field")
 	return Value{typ, ptr, fl}
 }
 
@@ -1414,7 +1414,7 @@ func (v Value) Index(i int) Value {
 			panic("reflect: slice index out of range")
 		}
 		tt := (*sliceType)(unsafe.Pointer(v.typ))
-		typ := tt.elem
+		typ := tt.Elem
 		val := arrayAt(s.Data, i, typ.Size(), "i < s.Len")
 		fl := flagAddr | flagIndir | v.flag.ro() | flag(typ.Kind())
 		return Value{typ, val, fl}
@@ -1733,11 +1733,11 @@ func (v Value) MapIndex(key Value) Value {
 	// of unexported fields.
 
 	var e unsafe.Pointer
-	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.Size() <= maxValSize {
+	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ && tt.Elem.Size() <= maxValSize {
 		k := *(*string)(key.ptr)
 		e = mapaccess_faststr(v.typ, v.pointer(), k)
 	} else {
-		key = key.assignTo("reflect.Value.MapIndex", tt.key, nil)
+		key = key.assignTo("reflect.Value.MapIndex", tt.Key, nil)
 		var k unsafe.Pointer
 		if key.flag&flagIndir != 0 {
 			k = key.ptr
@@ -1749,7 +1749,7 @@ func (v Value) MapIndex(key Value) Value {
 	if e == nil {
 		return Value{}
 	}
-	typ := tt.elem
+	typ := tt.Elem
 	fl := (v.flag | key.flag).ro()
 	fl |= flag(typ.Kind())
 	return copyVal(typ, fl, e)
@@ -1762,7 +1762,7 @@ func (v Value) MapIndex(key Value) Value {
 func (v Value) MapKeys() []Value {
 	v.mustBe(Map)
 	tt := (*mapType)(unsafe.Pointer(v.typ))
-	keyType := tt.key
+	keyType := tt.Key
 
 	fl := v.flag.ro() | flag(keyType.Kind())
 
@@ -1833,7 +1833,7 @@ func (iter *MapIter) Key() Value {
 	}
 
 	t := (*mapType)(unsafe.Pointer(iter.m.typ))
-	ktype := t.key
+	ktype := t.Key
 	return copyVal(ktype, iter.m.flag.ro()|flag(ktype.Kind()), iterkey)
 }
 
@@ -1857,7 +1857,7 @@ func (v Value) SetIterKey(iter *MapIter) {
 	}
 
 	t := (*mapType)(unsafe.Pointer(iter.m.typ))
-	ktype := t.key
+	ktype := t.Key
 
 	iter.m.mustBeExported() // do not let unexported m leak
 	key := Value{ktype, iterkey, iter.m.flag | flag(ktype.Kind()) | flagIndir}
@@ -1876,7 +1876,7 @@ func (iter *MapIter) Value() Value {
 	}
 
 	t := (*mapType)(unsafe.Pointer(iter.m.typ))
-	vtype := t.elem
+	vtype := t.Elem
 	return copyVal(vtype, iter.m.flag.ro()|flag(vtype.Kind()), iterelem)
 }
 
@@ -1900,7 +1900,7 @@ func (v Value) SetIterValue(iter *MapIter) {
 	}
 
 	t := (*mapType)(unsafe.Pointer(iter.m.typ))
-	vtype := t.elem
+	vtype := t.Elem
 
 	iter.m.mustBeExported() // do not let unexported m leak
 	elem := Value{vtype, iterelem, iter.m.flag | flag(vtype.Kind()) | flagIndir}
@@ -2040,7 +2040,7 @@ func (v Value) MethodByName(name string) Value {
 func (v Value) NumField() int {
 	v.mustBe(Struct)
 	tt := (*structType)(unsafe.Pointer(v.typ))
-	return len(tt.fields)
+	return len(tt.Fields)
 }
 
 // OverflowComplex reports whether the complex128 x cannot be represented by v's type.
@@ -2362,14 +2362,14 @@ func (v Value) SetMapIndex(key, elem Value) {
 	key.mustBeExported()
 	tt := (*mapType)(unsafe.Pointer(v.typ))
 
-	if (tt.key == stringType || key.kind() == String) && tt.key == key.typ && tt.elem.Size() <= maxValSize {
+	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ && tt.Elem.Size() <= maxValSize {
 		k := *(*string)(key.ptr)
 		if elem.typ == nil {
 			mapdelete_faststr(v.typ, v.pointer(), k)
 			return
 		}
 		elem.mustBeExported()
-		elem = elem.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
+		elem = elem.assignTo("reflect.Value.SetMapIndex", tt.Elem, nil)
 		var e unsafe.Pointer
 		if elem.flag&flagIndir != 0 {
 			e = elem.ptr
@@ -2380,7 +2380,7 @@ func (v Value) SetMapIndex(key, elem Value) {
 		return
 	}
 
-	key = key.assignTo("reflect.Value.SetMapIndex", tt.key, nil)
+	key = key.assignTo("reflect.Value.SetMapIndex", tt.Key, nil)
 	var k unsafe.Pointer
 	if key.flag&flagIndir != 0 {
 		k = key.ptr
@@ -2392,7 +2392,7 @@ func (v Value) SetMapIndex(key, elem Value) {
 		return
 	}
 	elem.mustBeExported()
-	elem = elem.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
+	elem = elem.assignTo("reflect.Value.SetMapIndex", tt.Elem, nil)
 	var e unsafe.Pointer
 	if elem.flag&flagIndir != 0 {
 		e = elem.ptr
@@ -2492,7 +2492,7 @@ func (v Value) Slice(i, j int) Value {
 	s.Len = j - i
 	s.Cap = cap - i
 	if cap-i > 0 {
-		s.Data = arrayAt(base, i, typ.elem.Size(), "i < cap")
+		s.Data = arrayAt(base, i, typ.Elem.Size(), "i < cap")
 	} else {
 		// do not advance pointer, to avoid pointing beyond end of slice
 		s.Data = base
@@ -2544,7 +2544,7 @@ func (v Value) Slice3(i, j, k int) Value {
 	s.Len = j - i
 	s.Cap = k - i
 	if k-i > 0 {
-		s.Data = arrayAt(base, i, typ.elem.Size(), "i < k <= cap")
+		s.Data = arrayAt(base, i, typ.Elem.Size(), "i < k <= cap")
 	} else {
 		// do not advance pointer, to avoid pointing beyond end of slice
 		s.Data = base
@@ -2620,10 +2620,10 @@ func (v Value) typeSlow() Type {
 	if v.typ.Kind() == Interface {
 		// Method on interface.
 		tt := (*interfaceType)(unsafe.Pointer(v.typ))
-		if uint(i) >= uint(len(tt.methods)) {
+		if uint(i) >= uint(len(tt.Methods)) {
 			panic("reflect: internal error: invalid method index")
 		}
-		m := &tt.methods[i]
+		m := &tt.Methods[i]
 		return v.typ.typeOff(m.Typ)
 	}
 	// Method on concrete type.
@@ -2836,7 +2836,7 @@ func (v Value) Clear() {
 	case Slice:
 		sh := *(*unsafeheader.Slice)(v.ptr)
 		st := (*sliceType)(unsafe.Pointer(v.typ))
-		typedarrayclear(st.elem, sh.Data, sh.Len)
+		typedarrayclear(st.Elem, sh.Data, sh.Len)
 	case Map:
 		mapclear(v.typ, v.pointer())
 	default:

@@ -100,7 +100,7 @@ func CachedBucketOf(m Type) Type {
 		panic("not map")
 	}
 	tt := (*mapType)(unsafe.Pointer(t))
-	return tt.bucket
+	return tt.Bucket
 }
 
 type EmbedWithUnexpMeth struct{}
@@ -122,10 +122,10 @@ func FirstMethodNameBytes(t Type) *byte {
 	}
 	m := ut.Methods()[0]
 	mname := t.(*rtype).nameOff(m.Name)
-	if *mname.data(0, "name flag field")&(1<<2) == 0 {
+	if *mname.DataChecked(0, "name flag field")&(1<<2) == 0 {
 		panic("method name does not have pkgPath *string")
 	}
-	return mname.bytes
+	return mname.Bytes
 }
 
 type OtherPkgFields struct {
@@ -136,7 +136,7 @@ type OtherPkgFields struct {
 func IsExported(t Type) bool {
 	typ := t.(*rtype)
 	n := typ.nameOff(typ.t.Str)
-	return n.isExported()
+	return n.IsExported()
 }
 
 func ResolveReflectName(s string) {

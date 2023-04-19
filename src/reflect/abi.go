@@ -235,9 +235,9 @@ func (a *abiSeq) regAssign(t *rtype, offset uintptr) bool {
 		}
 	case Struct:
 		st := (*structType)(unsafe.Pointer(t))
-		for i := range st.fields {
-			f := &st.fields[i]
-			if !a.regAssign(f.typ, offset+f.offset) {
+		for i := range st.Fields {
+			f := &st.Fields[i]
+			if !a.regAssign(f.Typ, offset+f.Offset) {
 				return false
 			}
 		}
