@@ -65,25 +65,25 @@ functions to make sure that this limit cannot be violated.
 */
 
 const (
-	// StackSystem is a number of additional bytes to add
+	// stackSystem is a number of additional bytes to add
 	// to each stack below the usual guard area for OS-specific
 	// purposes like signal handling. Used on Windows, Plan 9,
 	// and iOS because they do not use a separate stack.
-	_StackSystem = goos.IsWindows*512*goarch.PtrSize + goos.IsPlan9*512 + goos.IsIos*goarch.IsArm64*1024
+	stackSystem = goos.IsWindows*512*goarch.PtrSize + goos.IsPlan9*512 + goos.IsIos*goarch.IsArm64*1024
 
 	// The minimum size of stack used by Go code
-	_StackMin = 2048
+	stackMin = 2048
 
 	// The minimum stack size to allocate.
-	// The hackery here rounds FixedStack0 up to a power of 2.
-	_FixedStack0 = _StackMin + _StackSystem
-	_FixedStack1 = _FixedStack0 - 1
-	_FixedStack2 = _FixedStack1 | (_FixedStack1 >> 1)
-	_FixedStack3 = _FixedStack2 | (_FixedStack2 >> 2)
-	_FixedStack4 = _FixedStack3 | (_FixedStack3 >> 4)
-	_FixedStack5 = _FixedStack4 | (_FixedStack4 >> 8)
-	_FixedStack6 = _FixedStack5 | (_FixedStack5 >> 16)
-	_FixedStack  = _FixedStack6 + 1
+	// The hackery here rounds fixedStack0 up to a power of 2.
+	fixedStack0 = stackMin + stackSystem
+	fixedStack1 = fixedStack0 - 1
+	fixedStack2 = fixedStack1 | (fixedStack1 >> 1)
+	fixedStack3 = fixedStack2 | (fixedStack2 >> 2)
+	fixedStack4 = fixedStack3 | (fixedStack3 >> 4)
+	fixedStack5 = fixedStack4 | (fixedStack4 >> 8)
+	fixedStack6 = fixedStack5 | (fixedStack5 >> 16)
+	fixedStack  = fixedStack6 + 1
 
 	// stackNosplit is the maximum number of bytes that a chain of NOSPLIT
 	// functions can use.
@@ -96,7 +96,7 @@ const (
 	// The guard leaves enough room for a stackNosplit chain of NOSPLIT calls
 	// plus one stackSmall frame plus stackSystem bytes for the OS.
 	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
-	_StackGuard = stackNosplit + _StackSystem + abi.StackSmall
+	stackGuard = stackNosplit + stackSystem + abi.StackSmall
 )
 
 const (
@@ -204,7 +204,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 			throw("bad manualFreeList")
 		}
 		osStackAlloc(s)
-		s.elemsize = _FixedStack << order
+		s.elemsize = fixedStack << order
 		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
 			x := gclinkptr(s.base() + i)
 			x.ptr().next = s.manualFreeList
@@ -279,7 +279,7 @@ func stackcacherefill(c *mcache, order uint8) {
 		x := stackpoolalloc(order)
 		x.ptr().next = list
 		list = x
-		size += _FixedStack << order
+		size += fixedStack << order
 	}
 	unlock(&stackpool[order].item.mu)
 	c.stackcache[order].list = list
@@ -298,7 +298,7 @@ func stackcacherelease(c *mcache, order uint8) {
 		y := x.ptr().next
 		stackpoolfree(x, order)
 		x = y
-		size -= _FixedStack << order
+		size -= fixedStack << order
 	}
 	unlock(&stackpool[order].item.mu)
 	c.stackcache[order].list = x
@@ -358,10 +358,10 @@ func stackalloc(n uint32) stack {
 	// If we need a stack of a bigger size, we fall back on allocating
 	// a dedicated span.
 	var v unsafe.Pointer
-	if n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
+	if n < fixedStack<<_NumStackOrders && n < _StackCacheSize {
 		order := uint8(0)
 		n2 := n
-		for n2 > _FixedStack {
+		for n2 > fixedStack {
 			order++
 			n2 >>= 1
 		}
@@ -461,10 +461,10 @@ func stackfree(stk stack) {
 	if asanenabled {
 		asanpoison(v, n)
 	}
-	if n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
+	if n < fixedStack<<_NumStackOrders && n < _StackCacheSize {
 		order := uint8(0)
 		n2 := n
-		for n2 > _FixedStack {
+		for n2 > fixedStack {
 			order++
 			n2 >>= 1
 		}
@@ -928,7 +928,7 @@ func copystack(gp *g, newsize uintptr) {
 
 	// Swap out old stack for new one
 	gp.stack = new
-	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
+	gp.stackguard0 = new.lo + stackGuard // NOTE: might clobber a preempt request
 	gp.sched.sp = new.hi - used
 	gp.stktopsp += adjinfo.delta
 
@@ -1030,7 +1030,7 @@ func newstack() {
 		if !canPreemptM(thisg.m) {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
-			gp.stackguard0 = gp.stack.lo + _StackGuard
+			gp.stackguard0 = gp.stack.lo + stackGuard
 			gogo(&gp.sched) // never return
 		}
 	}
@@ -1086,7 +1086,7 @@ func newstack() {
 	// recheck the bounds on return.)
 	if f := findfunc(gp.sched.pc); f.valid() {
 		max := uintptr(funcMaxSPDelta(f))
-		needed := max + _StackGuard
+		needed := max + stackGuard
 		used := gp.stack.hi - gp.sched.sp
 		for newsize-used < needed {
 			newsize *= 2
@@ -1201,7 +1201,7 @@ func shrinkstack(gp *g) {
 	newsize := oldsize / 2
 	// Don't shrink the allocation below the minimum-sized stack
 	// allocation.
-	if newsize < _FixedStack {
+	if newsize < fixedStack {
 		return
 	}
 	// Compute how much of the stack is currently in use and only
@@ -1307,7 +1307,7 @@ func morestackc() {
 // It is a power of 2, and between _FixedStack and maxstacksize, inclusive.
 // startingStackSize is updated every GC by tracking the average size of
 // stacks scanned during the GC.
-var startingStackSize uint32 = _FixedStack
+var startingStackSize uint32 = fixedStack
 
 func gcComputeStartingStackSize() {
 	if debug.adaptivestackstart == 0 {
@@ -1333,17 +1333,17 @@ func gcComputeStartingStackSize() {
 		p.scannedStacks = 0
 	}
 	if scannedStacks == 0 {
-		startingStackSize = _FixedStack
+		startingStackSize = fixedStack
 		return
 	}
-	avg := scannedStackSize/scannedStacks + _StackGuard
-	// Note: we add _StackGuard to ensure that a goroutine that
+	avg := scannedStackSize/scannedStacks + stackGuard
+	// Note: we add stackGuard to ensure that a goroutine that
 	// uses the average space will not trigger a growth.
 	if avg > uint64(maxstacksize) {
 		avg = uint64(maxstacksize)
 	}
-	if avg < _FixedStack {
-		avg = _FixedStack
+	if avg < fixedStack {
+		avg = fixedStack
 	}
 	// Note: maxstacksize fits in 30 bits, so avg also does.
 	startingStackSize = uint32(round2(int32(avg)))

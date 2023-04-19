@@ -286,7 +286,7 @@ func check() {
 
 	testAtomic64()
 
-	if _FixedStack != round2(_FixedStack) {
+	if fixedStack != round2(fixedStack) {
 		throw("FixedStack is not power-of-2")
 	}
 

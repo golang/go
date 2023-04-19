@@ -172,7 +172,7 @@ func suspendG(gp *g) suspendGState {
 			// _Gscan bit and thus own the stack.
 			gp.preemptStop = false
 			gp.preempt = false
-			gp.stackguard0 = gp.stack.lo + _StackGuard
+			gp.stackguard0 = gp.stack.lo + stackGuard
 
 			// The goroutine was already at a safe-point
 			// and we've now locked that in.

@@ -186,7 +186,7 @@ nocpuinfo:
 	// update stackguard after _cgo_init
 	MOVL	$runtime·g0(SB), CX
 	MOVL	(g_stack+stack_lo)(CX), AX
-	ADDL	$const__StackGuard, AX
+	ADDL	$const_stackGuard, AX
 	MOVL	AX, g_stackguard0(CX)
 	MOVL	AX, g_stackguard1(CX)
 
