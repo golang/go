@@ -5,6 +5,14 @@
 package abi
 
 const (
+	// StackNosplitBase is the base maximum number of bytes that a chain of
+	// NOSPLIT functions can use.
+	//
+	// This value must be multiplied by the stack guard multiplier, so do not
+	// use it directly. See runtime/stack.go:stackNosplit and
+	// cmd/internal/objabi/stack.go:StackNosplit.
+	StackNosplitBase = 800
+
 	// We have three different sequences for stack bounds checks, depending on
 	// whether the stack frame of a function is small, big, or huge.
 

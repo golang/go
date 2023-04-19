@@ -9,18 +9,9 @@ import (
 	"internal/buildcfg"
 )
 
-// For the linkers. Must match Go definitions.
-
-const (
-	STACKSYSTEM = 0
-	StackSystem = STACKSYSTEM
-)
-
-func StackLimit(race bool) int {
-	// This arithmetic must match that in runtime/stack.go:{_StackGuard,_StackLimit}.
-	stackGuard := 928*stackGuardMultiplier(race) + StackSystem
-	stackLimit := stackGuard - StackSystem - abi.StackSmall
-	return stackLimit
+func StackNosplit(race bool) int {
+	// This arithmetic must match that in runtime/stack.go:stackNosplit.
+	return abi.StackNosplitBase * stackGuardMultiplier(race)
 }
 
 // stackGuardMultiplier returns a multiplier to apply to the default
