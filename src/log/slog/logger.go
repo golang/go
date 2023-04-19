@@ -95,16 +95,8 @@ func (l *Logger) Handler() Handler { return l.handler }
 // The new Logger's handler is the result of calling WithAttrs on the receiver's
 // handler.
 func (l *Logger) With(args ...any) *Logger {
-	var (
-		attr  Attr
-		attrs []Attr
-	)
-	for len(args) > 0 {
-		attr, args = argsToAttr(args)
-		attrs = append(attrs, attr)
-	}
 	c := l.clone()
-	c.handler = l.handler.WithAttrs(attrs)
+	c.handler = l.handler.WithAttrs(argsToAttrSlice(args))
 	return c
 }
 

@@ -164,11 +164,11 @@ How this qualification is displayed depends on the handler.
 [TextHandler] separates the group and attribute names with a dot.
 [JSONHandler] treats each group as a separate JSON object, with the group name as the key.
 
-Use [Group] to create a Group Attr from a name and a list of Attrs:
+Use [Group] to create a Group Attr from a name and a list of key-value pairs:
 
 	slog.Group("request",
-	    slog.String("method", r.Method),
-	    slog.Any("url", r.URL))
+	    "method", r.Method,
+	    "url", r.URL)
 
 TextHandler would display this group as
 

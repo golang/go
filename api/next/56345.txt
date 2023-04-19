@@ -47,7 +47,6 @@ pkg log/slog, func Error(string, ...interface{}) #56345
 pkg log/slog, func ErrorCtx(context.Context, string, ...interface{}) #56345
 pkg log/slog, func Float64(string, float64) Attr #56345
 pkg log/slog, func Float64Value(float64) Value #56345
-pkg log/slog, func Group(string, ...Attr) Attr #56345
 pkg log/slog, func GroupValue(...Attr) Value #56345
 pkg log/slog, func Info(string, ...interface{}) #56345
 pkg log/slog, func InfoCtx(context.Context, string, ...interface{}) #56345
