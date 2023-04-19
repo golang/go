@@ -1,3 +1,4 @@
+[!GOOS:windows] [!exec:/bin/sh] skip
 [!GOOS:windows] chmod 0755 $WORK/bin/go1.999testpath
 [!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
 [GOOS:plan9] env path=$WORK/bin${:}$path
@@ -5,7 +6,7 @@
 
 # Plain go version
 go version
-! stdout 999
+! stdout go1\.999
 
 # GOTOOLCHAIN from PATH
 env GOTOOLCHAIN=go1.999testpath
