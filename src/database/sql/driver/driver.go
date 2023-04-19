@@ -5,7 +5,7 @@
 // Package driver defines interfaces to be implemented by database
 // drivers as used by package sql.
 //
-// Most code should use package sql.
+// Most code should use the [database/sql] package.
 //
 // The driver interface has evolved over time. Drivers should implement
 // [Connector] and [DriverContext] interfaces.
@@ -30,11 +30,12 @@
 // and [RowsColumnTypePrecisionScale]. A given row value may also return a [Rows]
 // type, which may represent a database cursor value.
 //
-// Before a connection is returned to the connection pool after use, IsValid is
-// called if implemented. Before a connection is reused for another query,
-// ResetSession is called if implemented. If a connection is never returned to the
-// connection pool but immediately reused, then ResetSession is called prior to
-// reuse but IsValid is not called.
+// If a [Conn] implements [Validator], then the IsValid method is called
+// before returning the connection to the connection pool. If an entry in the
+// connection pool implements [SessionResetter], then ResetSession
+// is called before reusing the connection for another query. If a connection is
+// never returned to the connection pool but is immediately reused, then
+// ResetSession is called prior to reuse but IsValid is not called.
 package driver
 
 import (
@@ -94,12 +95,12 @@ type Driver interface {
 	Open(name string) (Conn, error)
 }
 
-// If a [Driver] implements [DriverContext], then sql.DB will call
+// If a [Driver] implements DriverContext, then [database/sql.DB] will call
 // OpenConnector to obtain a [Connector] and then invoke
 // that [Connector]'s Connect method to obtain each needed connection,
 // instead of invoking the [Driver]'s Open method for each connection.
 // The two-step sequence allows drivers to parse the name just once
-// and also provides access to per-Conn contexts.
+// and also provides access to per-[Conn] contexts.
 type DriverContext interface {
 	// OpenConnector must parse the name in the same format that Driver.Open
 	// parses the name parameter.
@@ -111,13 +112,13 @@ type DriverContext interface {
 // by multiple goroutines.
 //
 // A Connector can be passed to [database/sql.OpenDB], to allow drivers
-// to implement their own sql.DB constructors, or returned by
+// to implement their own [database/sql.DB] constructors, or returned by
 // [DriverContext]'s OpenConnector method, to allow drivers
 // access to context and to avoid repeated parsing of driver
 // configuration.
 //
 // If a Connector implements [io.Closer], the [database/sql.DB.Close]
-// method will call Close and return error (if any).
+// method will call the Close method and return error (if any).
 type Connector interface {
 	// Connect returns a connection to the database.
 	// Connect may return a cached connection (one previously
@@ -147,9 +148,9 @@ type Connector interface {
 // documented.
 var ErrSkip = errors.New("driver: skip fast-path; continue as if unimplemented")
 
-// ErrBadConn should be returned by a driver to signal to the sql
-// package that a [driver.Conn] is in a bad state (such as the server
-// having earlier closed the connection) and the sql package should
+// ErrBadConn should be returned by a driver to signal to the [database/sql]
+// package that a driver.[Conn] is in a bad state (such as the server
+// having earlier closed the connection) and the [database/sql] package should
 // retry on a new connection.
 //
 // To prevent duplicate operations, ErrBadConn should NOT be returned
@@ -157,7 +158,7 @@ var ErrSkip = errors.New("driver: skip fast-path; continue as if unimplemented")
 // performed the operation. Even if the server sends back an error,
 // you shouldn't return ErrBadConn.
 //
-// Errors will be checked using errors.Is. An error may
+// Errors will be checked using [errors.Is]. An error may
 // wrap ErrBadConn or implement the Is(error) bool method.
 var ErrBadConn = errors.New("driver: bad connection")
 
@@ -172,9 +173,9 @@ type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
-// Execer is an optional interface that may be implemented by a Conn.
+// Execer is an optional interface that may be implemented by a [Conn].
 //
-// If a [Conn] implements neither [ExecerContext] nor Execer,
+// If a [Conn] implements neither [ExecerContext] nor [Execer],
 // the [database/sql.DB.Exec] will first prepare a query, execute the statement,
 // and then close the statement.
 //
@@ -187,7 +188,7 @@ type Execer interface {
 
 // ExecerContext is an optional interface that may be implemented by a [Conn].
 //
-// If a Conn does not implement ExecerContext, the [database/sql.DB.Exec]
+// If a [Conn] does not implement [ExecerContext], the [database/sql.DB.Exec]
 // will fall back to [Execer]; if the Conn does not implement Execer either,
 // [database/sql.DB.Exec] will first prepare a query, execute the statement, and then
 // close the statement.
@@ -201,7 +202,7 @@ type ExecerContext interface {
 
 // Queryer is an optional interface that may be implemented by a [Conn].
 //
-// If a Conn implements neither [QueryerContext] nor Queryer,
+// If a [Conn] implements neither [QueryerContext] nor [Queryer],
 // the [database/sql.DB.Query] will first prepare a query, execute the statement,
 // and then close the statement.
 //
@@ -212,7 +213,7 @@ type Queryer interface {
 	Query(query string, args []Value) (Rows, error)
 }
 
-// QueryerContext is an optional interface that may be implemented by a Conn.
+// QueryerContext is an optional interface that may be implemented by a [Conn].
 //
 // If a [Conn] does not implement QueryerContext, the [database/sql.DB.Query]
 // will fall back to [Queryer]; if the [Conn] does not implement [Queryer] either,
@@ -263,7 +264,7 @@ type ConnPrepareContext interface {
 
 // IsolationLevel is the transaction isolation level stored in [TxOptions].
 //
-// This type should be considered identical to sql.IsolationLevel along
+// This type should be considered identical to [database/sql.IsolationLevel] along
 // with any values defined on it.
 type IsolationLevel int
 
@@ -379,18 +380,18 @@ type StmtQueryContext interface {
 }
 
 // ErrRemoveArgument may be returned from [NamedValueChecker] to instruct the
-// sql package to not pass the argument to the driver query interface.
+// [database/sql] package to not pass the argument to the driver query interface.
 // Return when accepting query specific options or structures that aren't
 // SQL query arguments.
 var ErrRemoveArgument = errors.New("driver: remove argument from query")
 
 // NamedValueChecker may be optionally implemented by [Conn] or [Stmt]. It provides
 // the driver more control to handle Go and database types beyond the default
-// Values types allowed.
+// [Value] types allowed.
 //
-// The sql package checks for value checkers in the following order,
-// stopping at the first found match: [database/sql.Stmt.NamedValueChecker],
-// Conn.NamedValueChecker, [database/sql.Stmt.ColumnConverter], [DefaultParameterConverter].
+// The [database/sql] package checks for value checkers in the following order,
+// stopping at the first found match: Stmt.NamedValueChecker, Conn.NamedValueChecker,
+// Stmt.ColumnConverter, [DefaultParameterConverter].
 //
 // If CheckNamedValue returns [ErrRemoveArgument], the [NamedValue] will not be included in
 // the final query arguments. This may be used to pass special options to
@@ -479,7 +480,7 @@ type RowsColumnTypeDatabaseTypeName interface {
 // RowsColumnTypeLength may be implemented by [Rows]. It should return the length
 // of the column type if the column is a variable length type. If the column is
 // not a variable length type ok should return false.
-// If length is not limited other than system limits, it should return math.MaxInt64.
+// If length is not limited other than system limits, it should return [math.MaxInt64].
 // The following are examples of returned values for various types:
 //
 //	TEXT          (math.MaxInt64, true)

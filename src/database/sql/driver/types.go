@@ -25,7 +25,7 @@ import (
 //   - converting a value as given from the database into one of the
 //     driver [Value] types.
 //
-//   - by the sql package, for converting from a driver's [Value] type
+//   - by the [database/sql] package, for converting from a driver's [Value] type
 //     to a user's type in a scan.
 type ValueConverter interface {
 	// ConvertValue converts a value to a driver Value.
@@ -35,7 +35,7 @@ type ValueConverter interface {
 // Valuer is the interface providing the Value method.
 //
 // Types implementing Valuer interface are able to convert
-// themselves to a driver Value.
+// themselves to a driver [Value].
 type Valuer interface {
 	// Value returns a driver Value.
 	// Value must not panic.
@@ -186,7 +186,7 @@ func IsValue(v any) bool {
 	return false
 }
 
-// IsScanValue is equivalent to IsValue.
+// IsScanValue is equivalent to [IsValue].
 // It exists for compatibility.
 func IsScanValue(v any) bool {
 	return IsValue(v)
@@ -202,9 +202,9 @@ func IsScanValue(v any) bool {
 // argument's underlying type is used to convert it to a [Value]:
 // underlying integer types are converted to int64, floats to float64,
 // bool, string, and []byte to themselves. If the argument is a nil
-// pointer, [defaultConverter.ConvertValue] returns a nil [Value].
+// pointer, defaultConverter.ConvertValue returns a nil [Value].
 // If the argument is a non-nil pointer, it is dereferenced and
-// [defaultConverter.ConvertValue] is called recursively. Other types
+// defaultConverter.ConvertValue is called recursively. Other types
 // are an error.
 var DefaultParameterConverter defaultConverter
 
