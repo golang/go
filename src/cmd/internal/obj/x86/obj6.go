@@ -642,7 +642,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	// TODO(rsc): Remove 'ctxt.Arch.Family == sys.AMD64 &&'.
-	if ctxt.Arch.Family == sys.AMD64 && autoffset < objabi.StackSmall && !p.From.Sym.NoSplit() {
+	if ctxt.Arch.Family == sys.AMD64 && autoffset < abi.StackSmall && !p.From.Sym.NoSplit() {
 		leaf := true
 	LeafSearch:
 		for q := p; q != nil; q = q.Link {
@@ -656,7 +656,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 				fallthrough
 			case obj.ADUFFCOPY, obj.ADUFFZERO:
-				if autoffset >= objabi.StackSmall-8 {
+				if autoffset >= abi.StackSmall-8 {
 					leaf = false
 					break LeafSearch
 				}
@@ -1088,7 +1088,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	p, rg = loadG(ctxt, cursym, p, newprog)
 
 	var q1 *obj.Prog
-	if framesize <= objabi.StackSmall {
+	if framesize <= abi.StackSmall {
 		// small stack: SP <= stackguard
 		//	CMPQ SP, stackguard
 		p = obj.Appendp(p, newprog)
@@ -1108,7 +1108,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		// cleared, but we'll still call morestack, which will double the stack
 		// unnecessarily. See issue #35470.
 		p = ctxt.StartUnsafePoint(p, newprog)
-	} else if framesize <= objabi.StackBig {
+	} else if framesize <= abi.StackBig {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAQ -xxx(SP), tmp
 		//	CMPQ tmp, stackguard
@@ -1117,7 +1117,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.As = lea
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = REG_SP
-		p.From.Offset = -(int64(framesize) - objabi.StackSmall)
+		p.From.Offset = -(int64(framesize) - abi.StackSmall)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = tmp
 
@@ -1160,7 +1160,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p = obj.Appendp(p, newprog)
 		p.As = sub
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) - objabi.StackSmall
+		p.From.Offset = int64(framesize) - abi.StackSmall
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = tmp
 
