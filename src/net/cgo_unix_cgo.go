@@ -56,7 +56,6 @@ type (
 )
 
 func _C_GoString(p *_C_char) string      { return C.GoString(p) }
-func _C_FreeCString(p *_C_char)          { C.free(unsafe.Pointer(p)) }
 func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
 func _C_free(p unsafe.Pointer)           { C.free(p) }
 
