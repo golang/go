@@ -74,7 +74,7 @@ type jsonMarshalerError struct {
 func (jsonMarshalerError) Error() string { return "oops" }
 
 func TestAppendJSONValue(t *testing.T) {
-	// On most values, jsonAppendAttrValue should agree with json.Marshal.
+	// jsonAppendAttrValue should always agree with json.Marshal.
 	for _, value := range []any{
 		"hello",
 		`"[{escape}]"`,
@@ -89,8 +89,9 @@ func TestAppendJSONValue(t *testing.T) {
 		testTime,
 		jsonMarshaler{"xyz"},
 		jsonMarshalerError{jsonMarshaler{"pqr"}},
+		LevelWarn,
 	} {
-		got := jsonValueString(t, AnyValue(value))
+		got := jsonValueString(AnyValue(value))
 		want, err := marshalJSON(value)
 		if err != nil {
 			t.Fatal(err)
@@ -117,24 +118,23 @@ func TestJSONAppendAttrValueSpecial(t *testing.T) {
 		value any
 		want  string
 	}{
-		{math.NaN(), `"NaN"`},
-		{math.Inf(+1), `"Infinity"`},
-		{math.Inf(-1), `"-Infinity"`},
-		{LevelWarn, `"WARN"`},
+		{math.NaN(), `"!ERROR:json: unsupported value: NaN"`},
+		{math.Inf(+1), `"!ERROR:json: unsupported value: +Inf"`},
+		{math.Inf(-1), `"!ERROR:json: unsupported value: -Inf"`},
+		{io.EOF, `"EOF"`},
 	} {
-		got := jsonValueString(t, AnyValue(test.value))
+		got := jsonValueString(AnyValue(test.value))
 		if got != test.want {
 			t.Errorf("%v: got %s, want %s", test.value, got, test.want)
 		}
 	}
 }
 
-func jsonValueString(t *testing.T, v Value) string {
-	t.Helper()
+func jsonValueString(v Value) string {
 	var buf []byte
 	s := &handleState{h: &commonHandler{json: true}, buf: (*buffer.Buffer)(&buf)}
 	if err := appendJSONValue(s, v); err != nil {
-		t.Fatal(err)
+		s.appendError(err)
 	}
 	return string(buf)
 }

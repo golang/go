@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog/internal/buffer"
-	"math"
 	"strconv"
 	"time"
 	"unicode/utf8"
@@ -75,12 +74,16 @@ func (h *JSONHandler) WithGroup(name string) Handler {
 // To modify these or other attributes, or remove them from the output, use
 // [HandlerOptions.ReplaceAttr].
 //
-// Values are formatted as with encoding/json.Marshal, with the following
-// exceptions:
-//   - Floating-point NaNs and infinities are formatted as one of the strings
-//     "NaN", "Infinity" or "-Infinity".
-//   - Levels are formatted as with Level.String.
-//   - HTML characters are not escaped.
+// Values are formatted as with an [encoding/json.Encoder] with SetEscapeHTML(false),
+// with two exceptions.
+//
+// First, an Attr whose Value is of type error is formatted as a string, by
+// calling its Error method. Only errors in Attrs receive this special treatment,
+// not errors embedded in structs, slices, maps or other data structures that
+// are processed by the encoding/json package.
+//
+// Second, an encoding failure does not cause Handle to return an error.
+// Instead, the error message is formatted as a string.
 //
 // Each call to Handle results in a single serialized call to io.Writer.Write.
 func (h *JSONHandler) Handle(_ context.Context, r Record) error {
@@ -108,22 +111,11 @@ func appendJSONValue(s *handleState, v Value) error {
 	case KindUint64:
 		*s.buf = strconv.AppendUint(*s.buf, v.Uint64(), 10)
 	case KindFloat64:
-		f := v.Float64()
-		// json.Marshal fails on special floats, so handle them here.
-		switch {
-		case math.IsInf(f, 1):
-			s.buf.WriteString(`"Infinity"`)
-		case math.IsInf(f, -1):
-			s.buf.WriteString(`"-Infinity"`)
-		case math.IsNaN(f):
-			s.buf.WriteString(`"NaN"`)
-		default:
-			// json.Marshal is funny about floats; it doesn't
-			// always match strconv.AppendFloat. So just call it.
-			// That's expensive, but floats are rare.
-			if err := appendJSONMarshal(s.buf, f); err != nil {
-				return err
-			}
+		// json.Marshal is funny about floats; it doesn't
+		// always match strconv.AppendFloat. So just call it.
+		// That's expensive, but floats are rare.
+		if err := appendJSONMarshal(s.buf, v.Float64()); err != nil {
+			return err
 		}
 	case KindBool:
 		*s.buf = strconv.AppendBool(*s.buf, v.Bool())
@@ -163,9 +155,7 @@ func appendJSONMarshal(buf *buffer.Buffer, v any) error {
 // It does not surround the string in quotation marks.
 //
 // Modified from encoding/json/encode.go:encodeState.string,
-// with escapeHTML set to true.
-//
-// TODO: review whether HTML escaping is necessary.
+// with escapeHTML set to false.
 func appendEscapedJSONString(buf []byte, s string) []byte {
 	char := func(b byte) { buf = append(buf, b) }
 	str := func(s string) { buf = append(buf, s...) }
