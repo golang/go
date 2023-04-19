@@ -321,6 +321,9 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat, test bool) {
 	// Set the mheapLock.
 	p.mheapLock = mheapLock
 
+	// Initialize the scavenge index.
+	p.scav.index.init()
+
 	// Set if we're in a test.
 	p.test = test
 	p.scav.index.test = test

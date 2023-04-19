@@ -1055,6 +1055,13 @@ type scavengeIndex struct {
 	test bool
 }
 
+// init initializes the scavengeIndex.
+func (s *scavengeIndex) init() {
+	s.searchAddrBg.Clear()
+	s.searchAddrForce.Clear()
+	s.freeHWM = minOffAddr
+}
+
 // find returns the highest chunk index that may contain pages available to scavenge.
 // It also returns an offset to start searching in the highest chunk.
 func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
