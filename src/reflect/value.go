@@ -438,15 +438,15 @@ func (v Value) call(op string, in []Value) []Value {
 		}
 	}
 	for i := 0; i < n; i++ {
-		if xt, targ := in[i].Type(), t.In(i); !xt.AssignableTo(targ) {
-			panic("reflect: " + op + " using " + xt.String() + " as type " + targ.String())
+		if xt, targ := in[i].Type(), t.In(i); !xt.AssignableTo(toRType(targ)) {
+			panic("reflect: " + op + " using " + xt.String() + " as type " + stringFor(targ))
 		}
 	}
 	if !isSlice && isVariadic {
 		// prepare slice for remaining values
 		m := len(in) - n
-		slice := MakeSlice(t.In(n), m, m)
-		elem := t.In(n).Elem()
+		slice := MakeSlice(toRType(t.In(n)), m, m)
+		elem := toRType(t.In(n)).Elem() // FIXME cast to slice type and Elem()
 		for i := 0; i < m; i++ {
 			x := in[n+i]
 			if xt := x.Type(); !xt.AssignableTo(elem) {
@@ -486,7 +486,7 @@ func (v Value) call(op string, in []Value) []Value {
 	frameSize := frametype.Size()
 
 	if debugReflectCall {
-		println("reflect.call", t.String())
+		println("reflect.call", stringFor(&t.Type))
 		abid.dump()
 	}
 
@@ -517,7 +517,7 @@ func (v Value) call(op string, in []Value) []Value {
 	// Handle arguments.
 	for i, v := range in {
 		v.mustBeExported()
-		targ := t.In(i).(*rtype)
+		targ := toRType(t.In(i))
 		// TODO(mknyszek): Figure out if it's possible to get some
 		// scratch space for this assignment check. Previously, it
 		// was possible to use space in the argument frame.
@@ -611,7 +611,7 @@ func (v Value) call(op string, in []Value) []Value {
 			if tv.Size() == 0 {
 				// For zero-sized return value, args+off may point to the next object.
 				// In this case, return the zero value instead.
-				ret[i] = Zero(tv)
+				ret[i] = Zero(toRType(tv))
 				continue
 			}
 			steps := abid.ret.stepsForValue(i)
@@ -620,7 +620,7 @@ func (v Value) call(op string, in []Value) []Value {
 				// allocated, the entire value is according to the ABI. So
 				// just make an indirection into the allocated frame.
 				fl := flagIndir | flag(tv.Kind())
-				ret[i] = Value{tv.common(), add(stackArgs, st.stkOff, "tv.Size() != 0"), fl}
+				ret[i] = Value{toRType(tv), add(stackArgs, st.stkOff, "tv.Size() != 0"), fl}
 				// Note: this does introduce false sharing between results -
 				// if any result is live, they are all live.
 				// (And the space for the args is live as well, but as we've
@@ -629,14 +629,14 @@ func (v Value) call(op string, in []Value) []Value {
 			}
 
 			// Handle pointers passed in registers.
-			if !ifaceIndir(tv.common()) {
+			if !ifaceIndir(toRType(tv)) {
 				// Pointer-valued data gets put directly
 				// into v.ptr.
 				if steps[0].kind != abiStepPointer {
-					print("kind=", steps[0].kind, ", type=", tv.String(), "\n")
+					print("kind=", steps[0].kind, ", type=", stringFor(tv), "\n")
 					panic("mismatch between ABI description and types")
 				}
-				ret[i] = Value{tv.common(), regArgs.Ptrs[steps[0].ireg], flag(tv.Kind())}
+				ret[i] = Value{toRType(tv), regArgs.Ptrs[steps[0].ireg], flag(tv.Kind())}
 				continue
 			}
 
@@ -649,7 +649,7 @@ func (v Value) call(op string, in []Value) []Value {
 			// additional space to the allocated stack frame and storing the
 			// register-allocated return values into the allocated stack frame and
 			// referring there in the resulting Value.
-			s := unsafe_New(tv.common())
+			s := unsafe_New(toRType(tv))
 			for _, st := range steps {
 				switch st.kind {
 				case abiStepIntReg:
@@ -667,7 +667,7 @@ func (v Value) call(op string, in []Value) []Value {
 					panic("unknown ABI part kind")
 				}
 			}
-			ret[i] = Value{tv.common(), s, flagIndir | flag(tv.Kind())}
+			ret[i] = Value{toRType(tv), s, flagIndir | flag(tv.Kind())}
 		}
 	}
 
@@ -711,7 +711,8 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 	// Copy arguments into Values.
 	ptr := frame
 	in := make([]Value, 0, int(ftyp.InCount))
-	for i, typ := range ftyp.in() {
+	for i, typ := range ftyp.InSlice() {
+		typ := toRType(typ) // FIXME cleanup this loop body
 		if typ.Size() == 0 {
 			in = append(in, Zero(typ))
 			continue
@@ -777,7 +778,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 
 	// Copy results back into argument frame and register space.
 	if numOut > 0 {
-		for i, typ := range ftyp.out() {
+		for i, typ := range ftyp.OutSlice() {
 			v := out[i]
 			if v.typ == nil {
 				panic("reflect: function created by MakeFunc using " + funcName(f) +
@@ -805,7 +806,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs 
 			// We must clear the destination before calling assignTo,
 			// in case assignTo writes (with memory barriers) to the
 			// target location used as scratch space. See issue 39541.
-			v = v.assignTo("reflect.MakeFunc", typ, nil)
+			v = v.assignTo("reflect.MakeFunc", toRType(typ), nil)
 		stepsLoop:
 			for _, st := range abid.ret.stepsForValue(i) {
 				switch st.kind {
@@ -991,7 +992,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 	}
 
 	// Translate the rest of the arguments.
-	for i, t := range valueFuncType.in() {
+	for i, t := range valueFuncType.InSlice() {
 		valueSteps := valueABI.call.stepsForValue(i)
 		methodSteps := methodABI.call.stepsForValue(i + 1)
 
@@ -1020,7 +1021,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool, regs *a
 				if vStep.size != mStep.size {
 					panic("method ABI and value ABI do not align")
 				}
-				typedmemmove(t,
+				typedmemmove(toRType(t),
 					add(methodFrame, mStep.stkOff, "precomputed stack offset"),
 					add(valueFrame, vStep.stkOff, "precomputed stack offset"))
 				continue

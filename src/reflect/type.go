@@ -315,11 +315,7 @@ type chanType = abi.ChanType
 //		uncommonType
 //		[2]*rtype    // [0] is in, [1] is out
 //	}
-type funcType struct {
-	rtype
-	InCount  uint16
-	OutCount uint16 // top bit is set if last input parameter is ...
-}
+type funcType = abi.FuncType
 
 // interfaceType represents an interface type.
 type interfaceType struct {
@@ -582,14 +578,14 @@ func (t *rtype) Method(i int) (m Method) {
 	fl := flag(Func)
 	mtyp := t.typeOff(p.Mtyp)
 	ft := (*funcType)(unsafe.Pointer(mtyp))
-	in := make([]Type, 0, 1+len(ft.in()))
+	in := make([]Type, 0, 1+ft.NumIn())
 	in = append(in, t)
-	for _, arg := range ft.in() {
-		in = append(in, arg)
+	for _, arg := range ft.InSlice() {
+		in = append(in, toRType(arg))
 	}
-	out := make([]Type, 0, len(ft.out()))
-	for _, ret := range ft.out() {
-		out = append(out, ret)
+	out := make([]Type, 0, ft.NumOut())
+	for _, ret := range ft.OutSlice() {
+		out = append(out, toRType(ret))
 	}
 	mt := FuncOf(in, out, ft.IsVariadic())
 	m.Type = mt
@@ -671,16 +667,8 @@ func (t *rtype) ChanDir() ChanDir {
 	if t.Kind() != Chan {
 		panic("reflect: ChanDir of non-chan type " + t.String())
 	}
-	tt := (*chanType)(unsafe.Pointer(t))
+	tt := (*abi.ChanType)(unsafe.Pointer(t))
 	return ChanDir(tt.Dir)
-}
-
-func (t *rtype) IsVariadic() bool {
-	if t.Kind() != Func {
-		panic("reflect: IsVariadic of non-func type " + t.String())
-	}
-	tt := (*funcType)(unsafe.Pointer(t))
-	return tt.OutCount&(1<<15) != 0
 }
 
 func toRType(t *abi.Type) *rtype {
@@ -740,14 +728,6 @@ func (t *rtype) FieldByNameFunc(match func(string) bool) (StructField, bool) {
 	return tt.FieldByNameFunc(match)
 }
 
-func (t *rtype) In(i int) Type {
-	if t.Kind() != Func {
-		panic("reflect: In of non-func type " + t.String())
-	}
-	tt := (*funcType)(unsafe.Pointer(t))
-	return toType(tt.in()[i])
-}
-
 func (t *rtype) Key() Type {
 	if t.Kind() != Map {
 		panic("reflect: Key of non-map type " + t.String())
@@ -772,51 +752,44 @@ func (t *rtype) NumField() int {
 	return len(tt.Fields)
 }
 
+func (t *rtype) In(i int) Type {
+	if t.Kind() != Func {
+		panic("reflect: In of non-func type " + t.String())
+	}
+	tt := (*abi.FuncType)(unsafe.Pointer(t))
+	return toType(toRType(tt.InSlice()[i]))
+}
+
 func (t *rtype) NumIn() int {
 	if t.Kind() != Func {
 		panic("reflect: NumIn of non-func type " + t.String())
 	}
-	tt := (*funcType)(unsafe.Pointer(t))
-	return int(tt.InCount)
+	tt := (*abi.FuncType)(unsafe.Pointer(t))
+	return tt.NumIn()
 }
 
 func (t *rtype) NumOut() int {
 	if t.Kind() != Func {
 		panic("reflect: NumOut of non-func type " + t.String())
 	}
-	tt := (*funcType)(unsafe.Pointer(t))
-	return len(tt.out())
+	tt := (*abi.FuncType)(unsafe.Pointer(t))
+	return tt.NumOut()
 }
 
 func (t *rtype) Out(i int) Type {
 	if t.Kind() != Func {
 		panic("reflect: Out of non-func type " + t.String())
 	}
-	tt := (*funcType)(unsafe.Pointer(t))
-	return toType(tt.out()[i])
+	tt := (*abi.FuncType)(unsafe.Pointer(t))
+	return toType(toRType(tt.OutSlice()[i]))
 }
 
-func (t *funcType) in() []*rtype {
-	uadd := unsafe.Sizeof(*t)
-	if t.t.TFlag&abi.TFlagUncommon != 0 {
-		uadd += unsafe.Sizeof(uncommonType{})
+func (t *rtype) IsVariadic() bool {
+	if t.Kind() != Func {
+		panic("reflect: IsVariadic of non-func type " + t.String())
 	}
-	if t.InCount == 0 {
-		return nil
-	}
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.InCount:t.InCount]
-}
-
-func (t *funcType) out() []*rtype {
-	uadd := unsafe.Sizeof(*t)
-	if t.t.TFlag&abi.TFlagUncommon != 0 {
-		uadd += unsafe.Sizeof(uncommonType{})
-	}
-	outCount := t.OutCount & (1<<15 - 1)
-	if outCount == 0 {
-		return nil
-	}
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.InCount : t.InCount+outCount : t.InCount+outCount]
+	tt := (*abi.FuncType)(unsafe.Pointer(t))
+	return tt.IsVariadic()
 }
 
 // add returns p+x.
@@ -1437,12 +1410,12 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 			return false
 		}
 		for i := 0; i < t.NumIn(); i++ {
-			if !haveIdenticalType(t.In(i), v.In(i), cmpTags) {
+			if !haveIdenticalType(toRType(t.In(i)), toRType(v.In(i)), cmpTags) {
 				return false
 			}
 		}
 		for i := 0; i < t.NumOut(); i++ {
-			if !haveIdenticalType(t.Out(i), v.Out(i), cmpTags) {
+			if !haveIdenticalType(toRType(t.Out(i)), toRType(v.Out(i)), cmpTags) {
 				return false
 			}
 		}
@@ -1792,8 +1765,8 @@ func FuncOf(in, out []Type, variadic bool) Type {
 		hash = fnv1(hash, byte(t.t.Hash>>24), byte(t.t.Hash>>16), byte(t.t.Hash>>8), byte(t.t.Hash))
 	}
 
-	ft.t.TFlag = 0
-	ft.t.Hash = hash
+	ft.TFlag = 0
+	ft.Hash = hash
 	ft.InCount = uint16(len(in))
 	ft.OutCount = uint16(len(out))
 	if variadic {
@@ -1803,7 +1776,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	// Look in cache.
 	if ts, ok := funcLookupCache.m.Load(hash); ok {
 		for _, t := range ts.([]*rtype) {
-			if haveIdenticalUnderlyingType(&ft.rtype, t, true) {
+			if haveIdenticalUnderlyingType(toRType(&ft.Type), t, true) {
 				return t
 			}
 		}
@@ -1814,7 +1787,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	defer funcLookupCache.Unlock()
 	if ts, ok := funcLookupCache.m.Load(hash); ok {
 		for _, t := range ts.([]*rtype) {
-			if haveIdenticalUnderlyingType(&ft.rtype, t, true) {
+			if haveIdenticalUnderlyingType(toRType(&ft.Type), t, true) {
 				return t
 			}
 		}
@@ -1832,22 +1805,25 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	// Look in known types for the same string representation.
 	str := funcStr(ft)
 	for _, tt := range typesByString(str) {
-		if haveIdenticalUnderlyingType(&ft.rtype, tt, true) {
+		if haveIdenticalUnderlyingType(toRType(&ft.Type), tt, true) {
 			return addToCache(tt)
 		}
 	}
 
 	// Populate the remaining fields of ft and store in cache.
-	ft.t.Str = resolveReflectName(newName(str, "", false, false))
-	ft.t.PtrToThis = 0
-	return addToCache(&ft.rtype)
+	ft.Str = resolveReflectName(newName(str, "", false, false))
+	ft.PtrToThis = 0
+	return addToCache(toRType(&ft.Type))
+}
+func stringFor(t *abi.Type) string {
+	return toRType(t).String()
 }
 
 // funcStr builds a string representation of a funcType.
 func funcStr(ft *funcType) string {
 	repr := make([]byte, 0, 64)
 	repr = append(repr, "func("...)
-	for i, t := range ft.in() {
+	for i, t := range ft.InSlice() {
 		if i > 0 {
 			repr = append(repr, ", "...)
 		}
@@ -1855,11 +1831,11 @@ func funcStr(ft *funcType) string {
 			repr = append(repr, "..."...)
 			repr = append(repr, (*sliceType)(unsafe.Pointer(t)).Elem.String()...)
 		} else {
-			repr = append(repr, t.String()...)
+			repr = append(repr, stringFor(t)...)
 		}
 	}
 	repr = append(repr, ')')
-	out := ft.out()
+	out := ft.OutSlice()
 	if len(out) == 1 {
 		repr = append(repr, ' ')
 	} else if len(out) > 1 {
@@ -1869,7 +1845,7 @@ func funcStr(ft *funcType) string {
 		if i > 0 {
 			repr = append(repr, ", "...)
 		}
-		repr = append(repr, t.String()...)
+		repr = append(repr, stringFor(t)...)
 	}
 	if len(out) > 1 {
 		repr = append(repr, ')')
@@ -2802,8 +2778,8 @@ var layoutCache sync.Map // map[layoutKey]layoutType
 // Currently, that's just size and the GC program. We also fill in
 // the name for possible debugging use.
 func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Pool, abid abiDesc) {
-	if t.Kind() != Func {
-		panic("reflect: funcLayout of non-func type " + t.String())
+	if t.Kind() != abi.Func {
+		panic("reflect: funcLayout of non-func type " + stringFor(&t.Type))
 	}
 	if rcvr != nil && rcvr.Kind() == Interface {
 		panic("reflect: funcLayout with interface receiver " + rcvr.String())
@@ -2833,9 +2809,9 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, framePool *sync.Poo
 
 	var s string
 	if rcvr != nil {
-		s = "methodargs(" + rcvr.String() + ")(" + t.String() + ")"
+		s = "methodargs(" + rcvr.String() + ")(" + stringFor(&t.Type) + ")"
 	} else {
-		s = "funcargs(" + t.String() + ")"
+		s = "funcargs(" + stringFor(&t.Type) + ")"
 	}
 	x.t.Str = resolveReflectName(newName(s, "", false, false))
 

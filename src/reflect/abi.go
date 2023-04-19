@@ -416,10 +416,10 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 			spill += goarch.PtrSize
 		}
 	}
-	for i, arg := range t.in() {
-		stkStep := in.addArg(arg)
+	for i, arg := range t.InSlice() {
+		stkStep := in.addArg(toRType(arg))
 		if stkStep != nil {
-			addTypeBits(stackPtrs, stkStep.stkOff, arg)
+			addTypeBits(stackPtrs, stkStep.stkOff, toRType(arg))
 		} else {
 			spill = align(spill, uintptr(arg.Align()))
 			spill += arg.Size()
@@ -449,10 +449,10 @@ func newAbiDesc(t *funcType, rcvr *rtype) abiDesc {
 	// Fake it by artificially extending stackBytes by
 	// the return offset.
 	out.stackBytes = retOffset
-	for i, res := range t.out() {
-		stkStep := out.addArg(res)
+	for i, res := range t.OutSlice() {
+		stkStep := out.addArg(toRType(res))
 		if stkStep != nil {
-			addTypeBits(stackPtrs, stkStep.stkOff, res)
+			addTypeBits(stackPtrs, stkStep.stkOff, toRType(res))
 		} else {
 			for _, st := range out.stepsForValue(i) {
 				if st.kind == abiStepPointer {

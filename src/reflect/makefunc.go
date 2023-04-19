@@ -126,7 +126,7 @@ func makeMethodValue(op string, v Value) Value {
 	// but we want Interface() and other operations to fail early.
 	methodReceiver(op, fv.rcvr, fv.method)
 
-	return Value{&ftyp.rtype, unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
+	return Value{toRType(&ftyp.Type), unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
 }
 
 func methodValueCallCodePtr() uintptr {
