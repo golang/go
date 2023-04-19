@@ -189,10 +189,6 @@ func execGoToolchain(gotoolchain, dir, exe string) {
 	// to allow testing this code even when not on Windows.
 	if godebug.New("#gotoolchainexec").Value() == "0" || runtime.GOOS == "windows" {
 		cmd := exec.Command(exe, os.Args[1:]...)
-		if runtime.GOOS == "windows" && strings.Contains(exe, "go1.999test") {
-			// See testdata/script/gotoolchain.txt.
-			cmd = exec.Command("cmd", "/c", "echo pretend we ran "+exe)
-		}
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
