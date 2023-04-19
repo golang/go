@@ -9,6 +9,7 @@ package runtime_test
 import (
 	"fmt"
 	"internal/goos"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -775,5 +776,41 @@ func TestCgoSigfwd(t *testing.T) {
 	got := runTestProg(t, "testprogcgo", "CgoSigfwd", "GO_TEST_CGOSIGFWD=1")
 	if want := "OK\n"; got != want {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
+	}
+}
+
+func TestDestructorCallback(t *testing.T) {
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "DestructorCallback")
+	if want := "OK\n"; got != want {
+		t.Errorf("expected %q, but got:\n%s", want, got)
+	}
+}
+
+func TestDestructorCallbackRace(t *testing.T) {
+	// This test requires building with -race,
+	// so it's somewhat slow.
+	if testing.Short() {
+		t.Skip("skipping test in -short mode")
+	}
+
+	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
+	}
+
+	t.Parallel()
+
+	exe, err := buildTestProg(t, "testprogcgo", "-race")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := testenv.CleanCmdEnv(exec.Command(exe, "DestructorCallback")).CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want := "OK\n"; string(got) != want {
+		t.Errorf("expected %q, but got:\n%s", want, got)
 	}
 }
