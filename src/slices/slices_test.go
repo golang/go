@@ -124,6 +124,16 @@ func TestEqualFunc(t *testing.T) {
 	}
 }
 
+func BenchmarkEqualFunc_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	xs := make([]Large, 1024)
+	ys := make([]Large, 1024)
+	for i := 0; i < b.N; i++ {
+		_ = EqualFunc(xs, ys, func(x, y Large) bool { return x == y })
+	}
+}
+
 var indexTests = []struct {
 	s    []int
 	v    int
@@ -170,6 +180,15 @@ func equalToIndex[T any](f func(T, T) bool, v1 T) func(T) bool {
 	}
 }
 
+func BenchmarkIndex_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	ss := make([]Large, 1024)
+	for i := 0; i < b.N; i++ {
+		_ = Index(ss, Large{1})
+	}
+}
+
 func TestIndexFunc(t *testing.T) {
 	for _, test := range indexTests {
 		if got := IndexFunc(test.s, equalToIndex(equal[int], test.v)); got != test.want {
@@ -183,6 +202,17 @@ func TestIndexFunc(t *testing.T) {
 	}
 	if got := IndexFunc(s1, equalToIndex(strings.EqualFold, "HI")); got != 0 {
 		t.Errorf("IndexFunc(%v, equalToIndex(strings.EqualFold, %q)) = %d, want %d", s1, "HI", got, 0)
+	}
+}
+
+func BenchmarkIndexFunc_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	ss := make([]Large, 1024)
+	for i := 0; i < b.N; i++ {
+		_ = IndexFunc(ss, func(e Large) bool {
+			return e == Large{1}
+		})
 	}
 }
 
@@ -468,7 +498,15 @@ func BenchmarkCompact(b *testing.B) {
 			}
 		})
 	}
+}
 
+func BenchmarkCompact_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	ss := make([]Large, 1024)
+	for i := 0; i < b.N; i++ {
+		_ = Compact(ss)
+	}
 }
 
 func TestCompactFunc(t *testing.T) {
@@ -484,6 +522,15 @@ func TestCompactFunc(t *testing.T) {
 	want := []string{"a", "B"}
 	if got := CompactFunc(copy, strings.EqualFold); !Equal(got, want) {
 		t.Errorf("CompactFunc(%v, strings.EqualFold) = %v, want %v", s1, got, want)
+	}
+}
+
+func BenchmarkCompactFunc_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	ss := make([]Large, 1024)
+	for i := 0; i < b.N; i++ {
+		_ = CompactFunc(ss, func(a, b Large) bool { return a == b })
 	}
 }
 
