@@ -7,7 +7,6 @@ package time_test
 import (
 	"fmt"
 	"runtime"
-	"std/time"
 	"sync"
 	"testing"
 	. "time"
@@ -153,7 +152,7 @@ func TestTickFunc(t *testing.T) {
 		mu sync.Mutex
 	)
 
-	TickFunc(1*time.Second, func(ticker *time.Ticker) {
+	TickFunc(1*Second, func(ticker *Ticker) {
 		mu.Lock()
 		r++
 		mu.Unlock()
@@ -174,7 +173,7 @@ func TestTickFunc(t *testing.T) {
 
 	func() {
 		// wait for 4 seconds
-		time.Sleep(4 * time.Second)
+		Sleep(4 * Second)
 
 		mu.Lock()
 		defer mu.Unlock()
