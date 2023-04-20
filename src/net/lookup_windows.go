@@ -14,6 +14,11 @@ import (
 	"unsafe"
 )
 
+// cgoAvailable set to true to indicate that the cgo resolver
+// is available on Windows. Note that on Windows the cgo resolver
+// does not actually use cgo.
+const cgoAvailable = true
+
 const (
 	_WSAHOST_NOT_FOUND = syscall.Errno(11001)
 	_WSATRY_AGAIN      = syscall.Errno(11002)

@@ -21,6 +21,10 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
+// cgoAvailable set to true to indicate that the cgo resolver
+// is available on this system.
+const cgoAvailable = true
+
 // An addrinfoErrno represents a getaddrinfo, getnameinfo-specific
 // error number. It's a signed number and a zero value is a non-error
 // by convention.
@@ -29,6 +33,9 @@ type addrinfoErrno int
 func (eai addrinfoErrno) Error() string   { return _C_gai_strerror(_C_int(eai)) }
 func (eai addrinfoErrno) Temporary() bool { return eai == _C_EAI_AGAIN }
 func (eai addrinfoErrno) Timeout() bool   { return false }
+
+// isAddrinfoErrno is just for testing purposes.
+func (eai addrinfoErrno) isAddrinfoErrno() {}
 
 // doBlockingWithCtx executes a blocking function in a separate goroutine when the provided
 // context is cancellable. It is intended for use with calls that don't support context

@@ -2,17 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (!cgo && !darwin) || netgo
+// This file holds stub versions of the cgo functions called on Unix systems.
+// We build this file if using the netgo build tag, or if cgo is not
+// enabled and we are using a Unix system other than Darwin.
+// Darwin is exempted because it always provides the cgo routines,
+// in cgo_unix_syscall.go.
+
+//go:build netgo || (!cgo && unix && !darwin)
 
 package net
 
 import "context"
 
-type addrinfoErrno int
-
-func (eai addrinfoErrno) Error() string   { return "<nil>" }
-func (eai addrinfoErrno) Temporary() bool { return false }
-func (eai addrinfoErrno) Timeout() bool   { return false }
+// cgoAvailable set to false to indicate that the cgo resolver
+// is not available on this system.
+const cgoAvailable = false
 
 func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error, completed bool) {
 	return nil, nil, false
