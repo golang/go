@@ -342,15 +342,22 @@ TestCases:
 				nosplit := m[3]
 				body := m[4]
 
-				// The limit was originally 128 but is now 800.
+				// The limit was originally 128 but is now 800 (928-128).
 				// Instead of rewriting the test cases above, adjust
 				// the first nosplit frame to use up the extra bytes.
 				// This isn't exactly right because we could have
 				// nosplit -> split -> nosplit, but it's good enough.
 				if !adjusted && nosplit != "" {
-					const stackNosplitBase = 800 // internal/abi.StackNosplitBase
 					adjusted = true
-					size += stackNosplitBase - 128
+					size += (928 - 128) - 128
+					// Noopt builds have a larger stackguard.
+					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
+					// This increase is included in objabi.StackGuard
+					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
+						if s == "-N" {
+							size += 928
+						}
+					}
 				}
 
 				if nosplit != "" {

@@ -61,7 +61,7 @@ func (ctxt *Link) doStackCheck() {
 	// The call to morestack in every splittable function ensures
 	// that there are at least StackLimit bytes available below SP
 	// when morestack returns.
-	limit := objabi.StackNosplit(*flagRace) - sc.callSize
+	limit := objabi.StackLimit(*flagRace) - sc.callSize
 	if buildcfg.GOARCH == "arm64" {
 		// Need an extra 8 bytes below SP to save FP.
 		limit -= 8

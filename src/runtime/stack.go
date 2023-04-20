@@ -85,18 +85,19 @@ const (
 	_FixedStack6 = _FixedStack5 | (_FixedStack5 >> 16)
 	_FixedStack  = _FixedStack6 + 1
 
-	// stackNosplit is the maximum number of bytes that a chain of NOSPLIT
-	// functions can use.
-	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackNosplit.
-	stackNosplit = abi.StackNosplitBase * sys.StackGuardMultiplier
-
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
 	//
-	// The guard leaves enough room for a stackNosplit chain of NOSPLIT calls
-	// plus one stackSmall frame plus stackSystem bytes for the OS.
+	// The guard leaves enough room for one _StackSmall frame plus
+	// a _StackLimit chain of NOSPLIT calls plus _StackSystem
+	// bytes for the OS.
 	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
-	_StackGuard = stackNosplit + _StackSystem + abi.StackSmall
+	_StackGuard = 928*sys.StackGuardMultiplier + _StackSystem
+
+	// The maximum number of bytes that a chain of NOSPLIT
+	// functions can use.
+	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
+	_StackLimit = _StackGuard - _StackSystem - abi.StackSmall
 )
 
 const (
@@ -1210,7 +1211,7 @@ func shrinkstack(gp *g) {
 	// down to the SP plus the stack guard space that ensures
 	// there's room for nosplit functions.
 	avail := gp.stack.hi - gp.stack.lo
-	if used := gp.stack.hi - gp.sched.sp + stackNosplit; used >= avail/4 {
+	if used := gp.stack.hi - gp.sched.sp + _StackLimit; used >= avail/4 {
 		return
 	}
 
