@@ -465,7 +465,7 @@ type LSym struct {
 	P      []byte
 	R      []Reloc
 
-	Extra *interface{} // *FuncInfo or *FileInfo, if present
+	Extra *interface{} // *FuncInfo, *FileInfo, or *TypeInfo, if present
 
 	Pkg    string
 	PkgIdx int32
@@ -562,6 +562,22 @@ func (s *LSym) File() *FileInfo {
 	}
 	f, _ := (*s.Extra).(*FileInfo)
 	return f
+}
+
+// A TypeInfo contains information for a symbol
+// that contains a runtime._type.
+type TypeInfo struct {
+	Type interface{} // a *cmd/compile/internal/types.Type
+}
+
+func (s *LSym) NewTypeInfo() *TypeInfo {
+	if s.Extra != nil {
+		panic(fmt.Sprintf("invalid use of LSym - NewTypeInfo with Extra of type %T", *s.Extra))
+	}
+	t := new(TypeInfo)
+	s.Extra = new(interface{})
+	*s.Extra = t
+	return t
 }
 
 // WasmImport represents a WebAssembly (WASM) imported function with

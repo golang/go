@@ -2061,6 +2061,10 @@
 	&& warnRule(fe.Debug_checknil(), v, "removed nil check")
 	=> (Invalid)
 
+// Addresses of globals are always non-nil.
+(NilCheck          (Addr {_} (SB))    _) => (Invalid)
+(NilCheck (Convert (Addr {_} (SB)) _) _) => (Invalid)
+
 // for late-expanded calls, recognize memequal applied to a single constant byte
 // Support is limited by 1, 2, 4, 8 byte sizes
 (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
@@ -2148,6 +2152,8 @@
 (NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) => (ConstBool [o1 != o2])
 (EqPtr  (Const(32|64) [c]) (Const(32|64) [d])) => (ConstBool [c == d])
 (NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) => (ConstBool [c != d])
+(EqPtr  (Convert (Addr {x} _) _) (Addr {y} _)) => (ConstBool [x==y])
+(NeqPtr (Convert (Addr {x} _) _) (Addr {y} _)) => (ConstBool [x!=y])
 
 (EqPtr  (LocalAddr _ _) (Addr _)) => (ConstBool [false])
 (EqPtr  (OffPtr (LocalAddr _ _)) (Addr _)) => (ConstBool [false])
@@ -2169,7 +2175,8 @@
 // Evaluate constant user nil checks.
 (IsNonNil (ConstNil)) => (ConstBool [false])
 (IsNonNil (Const(32|64) [c])) => (ConstBool [c != 0])
-(IsNonNil (Addr _)) => (ConstBool [true])
+(IsNonNil          (Addr _)   ) => (ConstBool [true])
+(IsNonNil (Convert (Addr _) _)) => (ConstBool [true])
 (IsNonNil (LocalAddr _ _)) => (ConstBool [true])
 
 // Inline small or disjoint runtime.memmove calls with constant length.
@@ -2212,11 +2219,7 @@
 	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 
 // De-virtualize late-expanded interface calls into late-expanded static calls.
-// Note that (ITab (IMake)) doesn't get rewritten until after the first opt pass,
-// so this rule should trigger reliably.
-// devirtLECall removes the first argument, adds the devirtualized symbol to the AuxCall, and changes the opcode
-(InterLECall [argsize] {auxCall} (Load (OffPtr [off] (ITab (IMake (Addr {itab} (SB)) _))) _) ___) && devirtLESym(v, auxCall, itab, off) !=
-    nil => devirtLECall(v, devirtLESym(v, auxCall, itab, off))
+(InterLECall [argsize] {auxCall} (Addr {fn} (SB)) ___) => devirtLECall(v, fn.(*obj.LSym))
 
 // Move and Zero optimizations.
 // Move source and destination may overlap.
@@ -2730,3 +2733,15 @@
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 4 && d.Type.Size() == 4 => (RotateLeft(64|32|16|8) x (Add32 <c.Type> c d))
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 2 && d.Type.Size() == 2 => (RotateLeft(64|32|16|8) x (Add16 <c.Type> c d))
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 1 && d.Type.Size() == 1 => (RotateLeft(64|32|16|8) x (Add8  <c.Type> c d))
+
+// Loading constant values from dictionaries and itabs.
+(Load <t> (OffPtr [off]                       (Addr {s} sb)       ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <t> (OffPtr [off]              (Convert (Addr {s} sb) _)    ) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <t> (OffPtr [off] (ITab (IMake          (Addr {s} sb)    _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {s} sb) _) _))) _) && t.IsUintptr() && isFixedSym(s, off) => (Addr {fixedSym(b.Func, s, off)} sb)
+
+// Loading constant values from runtime._type.hash.
+(Load <t> (OffPtr [off]                       (Addr {sym} _)       ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+(Load <t> (OffPtr [off]              (Convert (Addr {sym} _) _)    ) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+(Load <t> (OffPtr [off] (ITab (IMake          (Addr {sym} _)    _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])
+(Load <t> (OffPtr [off] (ITab (IMake (Convert (Addr {sym} _) _) _))) _) && t.IsInteger() && t.Size() == 4 && isFixed32(config, sym, off) => (Const32 [fixed32(config, sym, off)])

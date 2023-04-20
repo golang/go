@@ -844,7 +844,14 @@ func TypeLinksymLookup(name string) *obj.LSym {
 }
 
 func TypeLinksym(t *types.Type) *obj.LSym {
-	return TypeSym(t).Linksym()
+	lsym := TypeSym(t).Linksym()
+	signatmu.Lock()
+	if lsym.Extra == nil {
+		ti := lsym.NewTypeInfo()
+		ti.Type = t
+	}
+	signatmu.Unlock()
+	return lsym
 }
 
 // Deprecated: Use TypePtrAt instead.
@@ -1878,7 +1885,9 @@ func MarkTypeUsedInInterface(t *types.Type, from *obj.LSym) {
 		// Shape types shouldn't be put in interfaces, so we shouldn't ever get here.
 		base.Fatalf("shape types have no methods %+v", t)
 	}
-	tsym := TypeLinksym(t)
+	MarkTypeSymUsedInInterface(TypeLinksym(t), from)
+}
+func MarkTypeSymUsedInInterface(tsym *obj.LSym, from *obj.LSym) {
 	// Emit a marker relocation. The linker will know the type is converted
 	// to an interface if "from" is reachable.
 	r := obj.Addrel(from)

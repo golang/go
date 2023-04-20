@@ -3988,7 +3988,7 @@ func setBasePos(pos src.XPos) {
 //
 // N.B., this variable name is known to Delve:
 // https://github.com/go-delve/delve/blob/cb91509630529e6055be845688fd21eb89ae8714/pkg/proc/eval.go#L28
-const dictParamName = ".dict"
+const dictParamName = typecheck.LocalDictName
 
 // shapeSig returns a copy of fn's signature, except adding a
 // dictionary parameter and promoting the receiver parameter (if any)
