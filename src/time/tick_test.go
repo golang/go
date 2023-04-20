@@ -7,6 +7,8 @@ package time_test
 import (
 	"fmt"
 	"runtime"
+	"std/time"
+	"sync"
 	"testing"
 	. "time"
 )
@@ -143,6 +145,44 @@ func TestTickerResetLtZeroDuration(t *testing.T) {
 	}()
 	tk := NewTicker(Second)
 	tk.Reset(0)
+}
+
+func TestTickFunc(t *testing.T) {
+	var (
+		r  int
+		mu sync.Mutex
+	)
+
+	TickFunc(1*time.Second, func(ticker *time.Ticker) {
+		mu.Lock()
+		r++
+		mu.Unlock()
+
+		if r == 3 {
+			ticker.Stop()
+		}
+	})
+
+	func() {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if r != 0 {
+			t.Fatalf("expected r to be 0, got %d", r)
+		}
+	}()
+
+	func() {
+		// wait for 4 seconds
+		time.Sleep(4 * time.Second)
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		if r != 3 {
+			t.Fatalf("expected r to be 3, got %d", r)
+		}
+	}()
 }
 
 func BenchmarkTicker(b *testing.B) {

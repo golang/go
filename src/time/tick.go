@@ -69,3 +69,26 @@ func Tick(d Duration) <-chan Time {
 	}
 	return NewTicker(d).C
 }
+
+// TickFunc is a timer method that calls the f function every time the timer expires.
+// Its parameter is a pointer to the timer, so the f function can call the Stop
+// method of the timer to stop the timer.
+// If d <= 0, TickFunc will panic.
+// TickFunc will return a pointer to the timer so that the Stop method of the timer
+// can be called externally to stop the timer.
+func TickFunc(d Duration, f func(t *Ticker)) *Ticker {
+	if d <= 0 {
+		panic("non-positive interval for TickFunc")
+	}
+
+	t := NewTicker(d)
+
+	go func() {
+		for {
+			<-t.C
+			f(t)
+		}
+	}()
+
+	return t
+}
