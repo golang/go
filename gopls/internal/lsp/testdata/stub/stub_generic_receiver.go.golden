@@ -15,7 +15,7 @@ type genReader[T, Y any] struct {
 	Y Y
 }
 
-// ReadFrom implements io.ReaderFrom
+// ReadFrom implements io.ReaderFrom.
 func (*genReader[T, Y]) ReadFrom(r io.Reader) (n int64, err error) {
 	panic("unimplemented")
 }

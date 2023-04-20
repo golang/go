@@ -7,7 +7,7 @@ func main() {
 
 type customErr struct{}
 
-// Error implements error
+// Error implements error.
 func (*customErr) Error() string {
 	panic("unimplemented")
 }

@@ -18,7 +18,7 @@ var (
 
 type ignoredResetter struct{}
 
-// Reset implements zlib.Resetter
+// Reset implements zlib.Resetter.
 func (*ignoredResetter) Reset(r Reader, dict []byte) error {
 	panic("unimplemented")
 }

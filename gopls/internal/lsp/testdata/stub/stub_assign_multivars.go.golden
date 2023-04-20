@@ -11,7 +11,7 @@ func main() {
 
 type multiByteWriter struct{}
 
-// WriteByte implements io.ByteWriter
+// WriteByte implements io.ByteWriter.
 func (*multiByteWriter) WriteByte(c byte) error {
 	panic("unimplemented")
 }

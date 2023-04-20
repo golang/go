@@ -5,7 +5,7 @@ type I interface{ error }
 
 type C int
 
-// Error implements I
+// Error implements I.
 func (C) Error() string {
 	panic("unimplemented")
 }

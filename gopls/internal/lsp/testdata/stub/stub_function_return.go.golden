@@ -11,7 +11,7 @@ func newCloser() io.Closer {
 
 type closer struct{}
 
-// Close implements io.Closer
+// Close implements io.Closer.
 func (closer) Close() error {
 	panic("unimplemented")
 }

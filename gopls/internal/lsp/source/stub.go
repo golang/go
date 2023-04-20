@@ -162,7 +162,7 @@ func stub(ctx context.Context, snapshot Snapshot, si *stubmethods.StubInfo) (*to
 	// Format the new methods.
 	var newMethods bytes.Buffer
 	for _, method := range missing {
-		fmt.Fprintf(&newMethods, `// %s implements %s
+		fmt.Fprintf(&newMethods, `// %s implements %s.
 func (%s%s%s) %s%s {
 	panic("unimplemented")
 }

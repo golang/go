@@ -10,7 +10,7 @@ func main() {
 
 type byteWriter struct{}
 
-// WriteByte implements io.ByteWriter
+// WriteByte implements io.ByteWriter.
 func (*byteWriter) WriteByte(c byte) error {
 	panic("unimplemented")
 }

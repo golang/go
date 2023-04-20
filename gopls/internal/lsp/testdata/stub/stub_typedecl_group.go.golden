@@ -16,12 +16,12 @@ type (
 	B        int
 )
 
-// Close implements io.ReadCloser
+// Close implements io.ReadCloser.
 func (rdcloser) Close() error {
 	panic("unimplemented")
 }
 
-// Read implements io.ReadCloser
+// Read implements io.ReadCloser.
 func (rdcloser) Read(p []byte) (n int, err error) {
 	panic("unimplemented")
 }

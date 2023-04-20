@@ -16,7 +16,7 @@ package a
 
 type C int
 
-// Error implements error
+// Error implements error.
 func (C) Error() string {
 	panic("unimplemented")
 }

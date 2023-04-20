@@ -12,7 +12,7 @@ var _ io.ReaderFrom = &readerFrom{} //@suggestedfix("&readerFrom", "refactor.rew
 
 type readerFrom struct{}
 
-// ReadFrom implements io.ReaderFrom
+// ReadFrom implements io.ReaderFrom.
 func (*readerFrom) ReadFrom(r io.Reader) (n int64, err error) {
 	panic("unimplemented")
 }

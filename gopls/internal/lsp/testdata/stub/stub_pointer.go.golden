@@ -9,7 +9,7 @@ func getReaderFrom() io.ReaderFrom {
 
 type pointerImpl struct{}
 
-// ReadFrom implements io.ReaderFrom
+// ReadFrom implements io.ReaderFrom.
 func (*pointerImpl) ReadFrom(r io.Reader) (n int64, err error) {
 	panic("unimplemented")
 }

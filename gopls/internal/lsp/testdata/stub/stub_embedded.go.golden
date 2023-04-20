@@ -10,22 +10,22 @@ var _ embeddedInterface = (*embeddedConcrete)(nil) //@suggestedfix("(", "refacto
 
 type embeddedConcrete struct{}
 
-// Len implements embeddedInterface
+// Len implements embeddedInterface.
 func (*embeddedConcrete) Len() int {
 	panic("unimplemented")
 }
 
-// Less implements embeddedInterface
+// Less implements embeddedInterface.
 func (*embeddedConcrete) Less(i int, j int) bool {
 	panic("unimplemented")
 }
 
-// Read implements embeddedInterface
+// Read implements embeddedInterface.
 func (*embeddedConcrete) Read(p []byte) (n int, err error) {
 	panic("unimplemented")
 }
 
-// Swap implements embeddedInterface
+// Swap implements embeddedInterface.
 func (*embeddedConcrete) Swap(i int, j int) {
 	panic("unimplemented")
 }
