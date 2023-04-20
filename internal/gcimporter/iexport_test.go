@@ -33,6 +33,7 @@ import (
 	"golang.org/x/tools/go/gcexportdata"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/internal/gcimporter"
+	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/typeparams/genericfeatures"
 )
 
@@ -78,9 +79,7 @@ func TestIExportData_stdlib(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("gccgo standard library is inaccessible")
 	}
-	if runtime.GOOS == "android" {
-		t.Skipf("incomplete std lib on %s", runtime.GOOS)
-	}
+	testenv.NeedsGoBuild(t)
 	if isRace {
 		t.Skipf("stdlib tests take too long in race mode and flake on builders")
 	}

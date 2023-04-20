@@ -15,11 +15,18 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/internal/testenv"
 )
 
 // TestCapabilities does some minimal validation of the server's adherence to the LSP.
 // The checks in the test are added as changes are made and errors noticed.
 func TestCapabilities(t *testing.T) {
+	// TODO(bcmills): This test fails on js/wasm, which is not unexpected, but the
+	// failure mode is that the DidOpen call below reports "no views in session",
+	// which seems a little too cryptic.
+	// Is there some missing error reporting somewhere?
+	testenv.NeedsTool(t, "go")
+
 	tmpDir, err := ioutil.TempDir("", "fake")
 	if err != nil {
 		t.Fatal(err)

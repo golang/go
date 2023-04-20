@@ -23,6 +23,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestModfileRemainsUnchanged(t *testing.T) {
+	testenv.NeedsExec(t)
+
 	ctx := tests.Context(t)
 	session := cache.NewSession(ctx, cache.New(nil), nil)
 	options := source.DefaultOptions().Clone()

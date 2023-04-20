@@ -15,6 +15,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestSliceToArrayPointer(t *testing.T) {
@@ -24,6 +26,7 @@ func TestSliceToArrayPointer(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode; this test requires tons of memory; https://golang.org/issue/14113")
 	}
+	testenv.NeedsGoBuild(t)
 
 	wd, err := os.Getwd()
 	if err != nil {

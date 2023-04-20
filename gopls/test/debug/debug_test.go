@@ -22,6 +22,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
+	"golang.org/x/tools/internal/testenv"
 )
 
 var templates = map[string]struct {
@@ -43,9 +44,8 @@ var templates = map[string]struct {
 }
 
 func TestTemplates(t *testing.T) {
-	if runtime.GOOS == "android" {
-		t.Skip("this test is not supported for Android")
-	}
+	testenv.NeedsGoBuild(t)
+
 	cfg := &packages.Config{
 		Mode: packages.NeedTypesInfo | packages.LoadAllSyntax, // figure out what's necessary PJW
 	}

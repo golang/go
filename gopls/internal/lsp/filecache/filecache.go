@@ -53,7 +53,10 @@ func Start() {
 // possibly by another process.
 // Get returns ErrNotFound if the value was not found.
 func Get(kind string, key [32]byte) ([]byte, error) {
-	name := filename(kind, key)
+	name, err := filename(kind, key)
+	if err != nil {
+		return nil, err
+	}
 	data, err := lockedfile.Read(name)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -103,7 +106,10 @@ var ErrNotFound = fmt.Errorf("not found")
 
 // Set updates the value in the cache.
 func Set(kind string, key [32]byte, value []byte) error {
-	name := filename(kind, key)
+	name, err := filename(kind, key)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(name), 0700); err != nil {
 		return err
 	}
@@ -182,9 +188,13 @@ func SetBudget(new int64) (old int64) {
 // the entire gopls directory so that newer binaries can clean up
 // after older ones: in the development cycle especially, new
 // new versions may be created frequently.
-func filename(kind string, key [32]byte) string {
+func filename(kind string, key [32]byte) (string, error) {
 	hex := fmt.Sprintf("%x", key)
-	return filepath.Join(getCacheDir(), kind, hex[:2], hex)
+	dir, err := getCacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, kind, hex[:2], hex), nil
 }
 
 // getCacheDir returns the persistent cache directory of all processes
@@ -193,7 +203,7 @@ func filename(kind string, key [32]byte) string {
 // It must incorporate the hash of the executable so that we needn't
 // worry about incompatible changes to the file format or changes to
 // the algorithm that produced the index.
-func getCacheDir() string {
+func getCacheDir() (string, error) {
 	cacheDirOnce.Do(func() {
 		// Use user's preferred cache directory.
 		userDir := os.Getenv("GOPLSCACHE")
@@ -226,21 +236,22 @@ func getCacheDir() string {
 		// Compute the hash of this executable (~20ms) and create a subdirectory.
 		hash, err := hashExecutable()
 		if err != nil {
-			log.Fatalf("can't hash gopls executable: %v", err)
+			cacheDirErr = fmt.Errorf("can't hash gopls executable: %v", err)
 		}
 		// Use only 32 bits of the digest to avoid unwieldy filenames.
 		// It's not an adversarial situation.
 		cacheDir = filepath.Join(goplsDir, fmt.Sprintf("%x", hash[:4]))
 		if err := os.MkdirAll(cacheDir, 0700); err != nil {
-			log.Fatalf("can't create cache: %v", err)
+			cacheDirErr = fmt.Errorf("can't create cache: %v", err)
 		}
 	})
-	return cacheDir
+	return cacheDir, cacheDirErr
 }
 
 var (
 	cacheDirOnce sync.Once
-	cacheDir     string // only accessed by getCacheDir
+	cacheDir     string
+	cacheDirErr  error
 )
 
 func hashExecutable() (hash [32]byte, err error) {

@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/source/typerefs"
 	"golang.org/x/tools/gopls/internal/span"
 	"golang.org/x/tools/internal/packagesinternal"
+	"golang.org/x/tools/internal/testenv"
 )
 
 var (
@@ -67,6 +68,8 @@ func TestBuildPackageGraph(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping with -short: loading the packages can take a long time with a cold cache")
 	}
+	testenv.NeedsGoBuild(t) // for go/packages
+
 	t0 := time.Now()
 	exports, meta, err := load(*query, *verify)
 	if err != nil {

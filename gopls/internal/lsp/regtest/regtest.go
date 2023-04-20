@@ -104,6 +104,10 @@ func Main(m *testing.M, hook func(*source.Options)) {
 		os.Exit(0)
 	}
 
+	if !testenv.HasExec() {
+		fmt.Printf("skipping all tests: exec not supported on %s\n", runtime.GOOS)
+		os.Exit(0)
+	}
 	testenv.ExitIfSmallMachine()
 
 	// Disable GOPACKAGESDRIVER, as it can cause spurious test failures.

@@ -18,10 +18,12 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"testing"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/gopls/internal/lsp/filecache"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestBasics(t *testing.T) {
@@ -31,6 +33,10 @@ func TestBasics(t *testing.T) {
 
 	// Get of a never-seen key returns not found.
 	if _, err := filecache.Get(kind, key); err != filecache.ErrNotFound {
+		if strings.Contains(err.Error(), "operation not supported") ||
+			strings.Contains(err.Error(), "not implemented") {
+			t.Skipf("skipping: %v", err)
+		}
 		t.Errorf("Get of random key returned err=%q, want not found", err)
 	}
 
@@ -96,6 +102,10 @@ func TestConcurrency(t *testing.T) {
 		group.Go(func() error { return get(false) })
 	}
 	if err := group.Wait(); err != nil {
+		if strings.Contains(err.Error(), "operation not supported") ||
+			strings.Contains(err.Error(), "not implemented") {
+			t.Skipf("skipping: %v", err)
+		}
 		t.Fatal(err)
 	}
 
@@ -115,12 +125,17 @@ const (
 // It calls Set(A) in the parent, { Get(A); Set(B) } in the child
 // process, then Get(B) in the parent.
 func TestIPC(t *testing.T) {
+	testenv.NeedsExec(t)
+
 	keyA := uniqueKey()
 	keyB := uniqueKey()
 	value := []byte(testIPCValueA)
 
 	// Set keyA.
 	if err := filecache.Set(testIPCKind, keyA, value); err != nil {
+		if strings.Contains(err.Error(), "operation not supported") {
+			t.Skipf("skipping: %v", err)
+		}
 		t.Fatalf("Set: %v", err)
 	}
 

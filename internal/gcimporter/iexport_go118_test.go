@@ -72,6 +72,7 @@ func testExportSrc(t *testing.T, src []byte) {
 	if runtime.Compiler != "gc" {
 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
 	}
+	testenv.NeedsGoBuild(t)
 
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "g.go", src, 0)

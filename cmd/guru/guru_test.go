@@ -232,11 +232,13 @@ func TestGuru(t *testing.T) {
 		// TODO: make a lighter version of the tests for short mode?
 		t.Skipf("skipping in short mode")
 	}
-	switch runtime.GOOS {
-	case "android":
-		t.Skipf("skipping test on %q (no testdata dir)", runtime.GOOS)
-	case "windows":
-		t.Skipf("skipping test on %q (no /usr/bin/diff)", runtime.GOOS)
+
+	diffCmd := "/usr/bin/diff"
+	if runtime.GOOS == "plan9" {
+		diffCmd = "/bin/diff"
+	}
+	if _, err := exec.LookPath(diffCmd); err != nil {
+		t.Skipf("skipping test: %v", err)
 	}
 
 	for _, filename := range []string{
@@ -298,9 +300,9 @@ func TestGuru(t *testing.T) {
 			var cmd *exec.Cmd
 			switch runtime.GOOS {
 			case "plan9":
-				cmd = exec.Command("/bin/diff", "-c", golden, got)
+				cmd = exec.Command(diffCmd, "-c", golden, got)
 			default:
-				cmd = exec.Command("/usr/bin/diff", "-u", golden, got)
+				cmd = exec.Command(diffCmd, "-u", golden, got)
 			}
 			testenv.NeedsTool(t, cmd.Path)
 			buf := new(bytes.Buffer)
