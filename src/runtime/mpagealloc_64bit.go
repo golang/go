@@ -85,9 +85,6 @@ func (p *pageAlloc) sysInit(test bool) {
 		sl := notInHeapSlice{(*notInHeap)(r), 0, entries}
 		p.summary[l] = *(*[]pallocSum)(unsafe.Pointer(&sl))
 	}
-
-	// Set up the scavenge index.
-	p.scav.index.sysInit()
 }
 
 // sysGrow performs architecture-dependent operations on heap
@@ -249,10 +246,13 @@ func (s *scavengeIndex) sysGrow(base, limit uintptr, sysStat *sysMemStat) uintpt
 }
 
 // sysInit initializes the scavengeIndex' chunks array.
-func (s *scavengeIndex) sysInit() {
+//
+// Returns the amount of memory added to sysStat.
+func (s *scavengeIndex) sysInit(test bool, sysStat *sysMemStat) uintptr {
 	n := uintptr(1<<heapAddrBits) / pallocChunkBytes
 	nbytes := n * unsafe.Sizeof(atomicScavChunkData{})
 	r := sysReserve(nil, nbytes)
 	sl := notInHeapSlice{(*notInHeap)(r), int(n), int(n)}
 	s.chunks = *(*[]atomicScavChunkData)(unsafe.Pointer(&sl))
+	return 0 // All memory above is mapped Reserved.
 }

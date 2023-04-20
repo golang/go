@@ -1011,9 +1011,14 @@ type scavengeIndex struct {
 	// threshold it immediately becomes unavailable for scavenging in the current cycle as
 	// well as the next.
 	//
+	// [min, max) represents the range of chunks that is safe to access (i.e. will not cause
+	// a fault). As an optimization minHeapIdx represents the true minimum chunk that has been
+	// mapped, since min is likely rounded down to include the system page containing minHeapIdx.
+	//
 	// For a chunk size of 4 MiB this structure will only use 2 MiB for a 1 TiB contiguous heap.
-	chunks   []atomicScavChunkData
-	min, max atomic.Uintptr
+	chunks     []atomicScavChunkData
+	min, max   atomic.Uintptr
+	minHeapIdx atomic.Uintptr
 
 	// searchAddr* is the maximum address (in the offset address space, so we have a linear
 	// view of the address space; see mranges.go:offAddr) containing memory available to
@@ -1056,10 +1061,27 @@ type scavengeIndex struct {
 }
 
 // init initializes the scavengeIndex.
-func (s *scavengeIndex) init() {
+//
+// Returns the amount added to sysStat.
+func (s *scavengeIndex) init(test bool, sysStat *sysMemStat) uintptr {
 	s.searchAddrBg.Clear()
 	s.searchAddrForce.Clear()
 	s.freeHWM = minOffAddr
+	s.test = test
+	return s.sysInit(test, sysStat)
+}
+
+// sysGrow updates the index's backing store in response to a heap growth.
+//
+// Returns the amount of memory added to sysStat.
+func (s *scavengeIndex) grow(base, limit uintptr, sysStat *sysMemStat) uintptr {
+	// Update minHeapIdx. Note that even if there's no mapping work to do,
+	// we may still have a new, lower minimum heap address.
+	minHeapIdx := s.minHeapIdx.Load()
+	if baseIdx := uintptr(chunkIndex(base)); minHeapIdx == 0 || baseIdx < minHeapIdx {
+		s.minHeapIdx.Store(baseIdx)
+	}
+	return s.sysGrow(base, limit, sysStat)
 }
 
 // find returns the highest chunk index that may contain pages available to scavenge.
@@ -1077,8 +1099,9 @@ func (s *scavengeIndex) find(force bool) (chunkIdx, uint) {
 
 	// Starting from searchAddr's chunk, iterate until we find a chunk with pages to scavenge.
 	gen := s.gen
-	min := chunkIdx(s.min.Load())
+	min := chunkIdx(s.minHeapIdx.Load())
 	start := chunkIndex(uintptr(searchAddr))
+	// N.B. We'll never map the 0'th chunk, so minHeapIdx ensures this loop overflow.
 	for i := start; i >= min; i-- {
 		// Skip over chunks.
 		if !s.chunks[i].load().shouldScavenge(gen, force) {

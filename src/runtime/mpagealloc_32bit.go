@@ -93,18 +93,6 @@ func (p *pageAlloc) sysInit(test bool) {
 
 		reservation = add(reservation, uintptr(entries)*pallocSumBytes)
 	}
-
-	if test {
-		// Set up the scavenge index via sysAlloc so the test can free it later.
-		scavIndexSize := uintptr(len(scavengeIndexArray)) * unsafe.Sizeof(atomicScavChunkData{})
-		p.scav.index.chunks = ((*[(1 << heapAddrBits) / pallocChunkBytes]atomicScavChunkData)(sysAlloc(scavIndexSize, p.sysStat)))[:]
-		p.summaryMappedReady += scavIndexSize
-	} else {
-		// Set up the scavenge index.
-		p.scav.index.chunks = scavengeIndexArray[:]
-	}
-	p.scav.index.min.Store(1) // The 0th chunk is never going to be mapped for the heap.
-	p.scav.index.max.Store(uintptr(len(p.scav.index.chunks)))
 }
 
 // See mpagealloc_64bit.go for details.
@@ -126,4 +114,27 @@ func (p *pageAlloc) sysGrow(base, limit uintptr) {
 			p.summary[l] = p.summary[l][:hi]
 		}
 	}
+}
+
+// sysInit initializes the scavengeIndex' chunks array.
+//
+// Returns the amount of memory added to sysStat.
+func (s *scavengeIndex) sysInit(test bool, sysStat *sysMemStat) (mappedReady uintptr) {
+	if test {
+		// Set up the scavenge index via sysAlloc so the test can free it later.
+		scavIndexSize := uintptr(len(scavengeIndexArray)) * unsafe.Sizeof(atomicScavChunkData{})
+		s.chunks = ((*[(1 << heapAddrBits) / pallocChunkBytes]atomicScavChunkData)(sysAlloc(scavIndexSize, sysStat)))[:]
+		mappedReady = scavIndexSize
+	} else {
+		// Set up the scavenge index.
+		s.chunks = scavengeIndexArray[:]
+	}
+	s.min.Store(1) // The 0th chunk is never going to be mapped for the heap.
+	s.max.Store(uintptr(len(s.chunks)))
+	return
+}
+
+// sysGrow is a no-op on 32-bit platforms.
+func (s *scavengeIndex) sysGrow(base, limit uintptr, sysStat *sysMemStat) uintptr {
+	return 0
 }

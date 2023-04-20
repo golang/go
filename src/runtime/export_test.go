@@ -1641,6 +1641,7 @@ func NewScavengeIndex(min, max ChunkIdx) *ScavengeIndex {
 	s.i.chunks = make([]atomicScavChunkData, max)
 	s.i.min.Store(uintptr(min))
 	s.i.max.Store(uintptr(max))
+	s.i.minHeapIdx.Store(uintptr(min))
 	s.i.test = true
 	return s
 }
