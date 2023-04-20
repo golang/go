@@ -226,6 +226,9 @@ func (u unified) String() string {
 		}
 		if toCount > 1 {
 			fmt.Fprintf(b, " +%d,%d", hunk.ToLine, toCount)
+		} else if hunk.ToLine == 1 && toCount == 0 {
+			// Match odd GNU diff -u behavior adding to empty file.
+			fmt.Fprintf(b, " +0,0")
 		} else {
 			fmt.Fprintf(b, " +%d", hunk.ToLine)
 		}
