@@ -205,7 +205,7 @@ func (c *commandHandler) CheckUpgrades(ctx context.Context, args command.CheckUp
 		}
 		deps.snapshot.View().RegisterModuleUpgrades(args.URI.SpanURI(), upgrades)
 		// Re-diagnose the snapshot to publish the new module diagnostics.
-		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+		c.s.diagnoseSnapshot(deps.snapshot, nil, false, 0)
 		return nil
 	})
 }
@@ -236,7 +236,7 @@ func (c *commandHandler) ResetGoModDiagnostics(ctx context.Context, args command
 		}
 
 		// Re-diagnose the snapshot to remove the diagnostics.
-		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+		c.s.diagnoseSnapshot(deps.snapshot, nil, false, 0)
 		return nil
 	})
 }
@@ -713,7 +713,7 @@ func (c *commandHandler) ToggleGCDetails(ctx context.Context, args command.URIAr
 			c.s.gcOptimizationDetails[meta.ID] = struct{}{}
 		}
 		c.s.gcOptimizationDetailsMu.Unlock()
-		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+		c.s.diagnoseSnapshot(deps.snapshot, nil, false, 0)
 		return nil
 	})
 }
@@ -914,7 +914,7 @@ func (c *commandHandler) RunGovulncheck(ctx context.Context, args command.Vulnch
 		result.AsOf = time.Now()
 		deps.snapshot.View().SetVulnerabilities(args.URI.SpanURI(), &result)
 
-		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
+		c.s.diagnoseSnapshot(deps.snapshot, nil, false, 0)
 		vulns := result.Vulns
 		affecting := make([]string, 0, len(vulns))
 		for _, v := range vulns {

@@ -362,7 +362,7 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 		// Diagnose the newly created view asynchronously.
 		ndiagnose.Add(1)
 		go func() {
-			s.diagnoseDetached(snapshot)
+			s.diagnoseSnapshot(snapshot, nil, false, 0)
 			<-initialized
 			release()
 			ndiagnose.Done()
@@ -625,7 +625,7 @@ func (s *Server) exit(ctx context.Context) error {
 		// TODO: We should be able to do better than this.
 		os.Exit(1)
 	}
-	// we don't terminate the process on a normal exit, we just allow it to
+	// We don't terminate the process on a normal exit, we just allow it to
 	// close naturally if needed after the connection is closed.
 	return nil
 }

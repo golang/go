@@ -24,7 +24,6 @@ import (
 	"golang.org/x/tools/internal/bug"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/event/tag"
-	"golang.org/x/tools/internal/xcontext"
 )
 
 // TODO(rfindley): simplify this very complicated logic for publishing
@@ -150,34 +149,31 @@ func computeDiagnosticHash(diags ...*source.Diagnostic) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-// TODO(rfindley): is diagnoseDetached even necessary? We should always
-// eventually diagnose after a change. I don't see the value in ensuring that
-// the first diagnostics pass completes.
-func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
-	ctx := snapshot.BackgroundContext()
-	ctx = xcontext.Detach(ctx)
-	s.diagnose(ctx, snapshot, analyzeOpenPackages)
-	s.publishDiagnostics(ctx, true, snapshot)
-}
-
 func (s *Server) diagnoseSnapshots(snapshots map[source.Snapshot][]span.URI, onDisk bool) {
 	var diagnosticWG sync.WaitGroup
 	for snapshot, uris := range snapshots {
 		diagnosticWG.Add(1)
 		go func(snapshot source.Snapshot, uris []span.URI) {
 			defer diagnosticWG.Done()
-			s.diagnoseSnapshot(snapshot, uris, onDisk)
+			s.diagnoseSnapshot(snapshot, uris, onDisk, snapshot.View().Options().DiagnosticsDelay)
 		}(snapshot, uris)
 	}
 	diagnosticWG.Wait()
 }
 
-func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.URI, onDisk bool) {
+// diagnoseSnapshot computes and publishes diagnostics for the given snapshot.
+//
+// If delay is non-zero, computing diagnostics does not start until after this
+// delay has expired, to allow work to be cancelled by subsequent changes.
+//
+// If changedURIs is non-empty, it is a set of recently changed files that
+// should be diagnosed immediately, and onDisk reports whether these file
+// changes came from a change to on-disk files.
+func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.URI, onDisk bool, delay time.Duration) {
 	ctx := snapshot.BackgroundContext()
 	ctx, done := event.Start(ctx, "Server.diagnoseSnapshot", source.SnapshotLabels(snapshot)...)
 	defer done()
 
-	delay := snapshot.View().Options().DiagnosticsDelay
 	if delay > 0 {
 		// 2-phase diagnostics.
 		//
