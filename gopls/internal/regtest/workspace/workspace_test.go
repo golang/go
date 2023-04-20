@@ -647,7 +647,7 @@ use (
 		}
 
 		// This fails if guarded with a OnceMet(DoneWithSave(), ...), because it is
-		// debounced (and therefore not synchronous with the change).
+		// delayed (and therefore not synchronous with the change).
 		env.Await(NoDiagnostics(ForFile("modb/go.mod")))
 
 		// Test Formatting.

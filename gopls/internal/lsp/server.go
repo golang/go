@@ -35,7 +35,6 @@ func NewServer(session *cache.Session, client protocol.ClientCloser) *Server {
 		client:                client,
 		diagnosticsSema:       make(chan struct{}, concurrentAnalyses),
 		progress:              progress.NewTracker(client),
-		diagDebouncer:         newDebouncer(),
 	}
 }
 
@@ -104,9 +103,6 @@ type Server struct {
 	diagnosticsSema chan struct{}
 
 	progress *progress.Tracker
-
-	// diagDebouncer is used for debouncing diagnostics.
-	diagDebouncer *debouncer
 
 	// When the workspace fails to load, we show its status through a progress
 	// report with an error message.

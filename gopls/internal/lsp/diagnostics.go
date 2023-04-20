@@ -181,24 +181,17 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, changedURIs []span.U
 		// does not analyze) packages directly affected by
 		// file modifications.
 		//
-		// The second phase runs analysis on the entire snapshot,
-		// and is debounced by the configured delay.
+		// The second phase runs after the delay, and does everything.
 		s.diagnoseChangedFiles(ctx, snapshot, changedURIs, onDisk)
 		s.publishDiagnostics(ctx, false, snapshot)
 
-		// We debounce diagnostics separately for each view, using the snapshot
-		// local ID as logical ordering.
-		//
-		// TODO(rfindley): it would be cleaner to simply put the diagnostic
-		// debouncer on the view, and remove the "key" argument to debouncing.
-		if ok := <-s.diagDebouncer.debounce(ctx, snapshot.View().ID(), uint64(snapshot.GlobalID()), time.After(delay)); ok {
-			s.diagnose(ctx, snapshot, analyzeOpenPackages)
-			s.publishDiagnostics(ctx, true, snapshot)
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return
 		}
-		return
 	}
 
-	// Ignore possible workspace configuration warnings in the normal flow.
 	s.diagnose(ctx, snapshot, analyzeOpenPackages)
 	s.publishDiagnostics(ctx, true, snapshot)
 }
