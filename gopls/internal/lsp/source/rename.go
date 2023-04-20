@@ -116,7 +116,7 @@ func PrepareRename(ctx context.Context, snapshot Snapshot, f FileHandle, pp prot
 	// which means we return (nil, nil) at the protocol
 	// layer. This seems like a bug, or at best an exploitation of
 	// knowledge of VSCode-specific behavior. Can we avoid that?
-	pkg, pgf, err := PackageForFile(ctx, snapshot, f.URI(), NarrowestPackage)
+	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, f.URI())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -163,14 +163,10 @@ func prepareRenamePackageName(ctx context.Context, snapshot Snapshot, pgf *Parse
 	}
 
 	// Check validity of the metadata for the file's containing package.
-	fileMeta, err := snapshot.MetadataForFile(ctx, pgf.URI)
+	meta, err := NarrowestMetadataForFile(ctx, snapshot, pgf.URI)
 	if err != nil {
 		return nil, err
 	}
-	if len(fileMeta) == 0 {
-		return nil, fmt.Errorf("no packages found for file %q", pgf.URI)
-	}
-	meta := fileMeta[0]
 	if meta.Name == "main" {
 		return nil, fmt.Errorf("can't rename package \"main\"")
 	}
@@ -293,19 +289,41 @@ func Rename(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Po
 // renameOrdinary renames an ordinary (non-package) name throughout the workspace.
 func renameOrdinary(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position, newName string) (map[span.URI][]diff.Edit, error) {
 	// Type-check the referring package and locate the object(s).
-	// We choose the widest variant as, for non-exported
-	// identifiers, it is the only package we need.
-	pkg, pgf, err := PackageForFile(ctx, snapshot, f.URI(), WidestPackage)
-	if err != nil {
-		return nil, err
-	}
-	pos, err := pgf.PositionPos(pp)
-	if err != nil {
-		return nil, err
-	}
-	targets, _, err := objectsAt(pkg.GetTypesInfo(), pgf.File, pos)
-	if err != nil {
-		return nil, err
+	//
+	// Unlike PackageForFile, we choose the widest variant as,
+	// for non-exported identifiers, it is the only package we need.
+	// (In case you're wondering why 'references' doesn't also want
+	// the widest variant: it computes the union across all variants.)
+	var targets map[types.Object]ast.Node
+	var pkg Package
+	{
+		metas, err := snapshot.MetadataForFile(ctx, f.URI())
+		if err != nil {
+			return nil, err
+		}
+		RemoveIntermediateTestVariants(metas)
+		if len(metas) == 0 {
+			return nil, fmt.Errorf("no package metadata for file %s", f.URI())
+		}
+		widest := metas[len(metas)-1] // widest variant may include _test.go files
+		pkgs, err := snapshot.TypeCheck(ctx, widest.ID)
+		if err != nil {
+			return nil, err
+		}
+		pkg = pkgs[0]
+		pgf, err := pkg.File(f.URI())
+		if err != nil {
+			return nil, err // "can't happen"
+		}
+		pos, err := pgf.PositionPos(pp)
+		if err != nil {
+			return nil, err
+		}
+		objects, _, err := objectsAt(pkg.GetTypesInfo(), pgf.File, pos)
+		if err != nil {
+			return nil, err
+		}
+		targets = objects
 	}
 
 	// Pick a representative object arbitrarily.
@@ -444,6 +462,8 @@ func typeCheckReverseDependencies(ctx context.Context, snapshot Snapshot, declUR
 	if err != nil {
 		return nil, err
 	}
+	// variants must include ITVs for the reverse dependency
+	// computation, but they are filtered out before we typecheck.
 	allRdeps := make(map[PackageID]*Metadata)
 	for _, variant := range variants {
 		rdeps, err := snapshot.ReverseDependencies(ctx, variant.ID, transitive)
@@ -705,14 +725,10 @@ func renamePackage(ctx context.Context, s Snapshot, f FileHandle, newName Packag
 
 	// We need metadata for the relevant package and module paths.
 	// These should be the same for all packages containing the file.
-	metas, err := s.MetadataForFile(ctx, f.URI())
+	meta, err := NarrowestMetadataForFile(ctx, s, f.URI())
 	if err != nil {
 		return nil, err
 	}
-	if len(metas) == 0 {
-		return nil, fmt.Errorf("no packages found for file %q", f.URI())
-	}
-	meta := metas[0] // narrowest
 
 	oldPkgPath := meta.PkgPath
 	if meta.Module == nil {

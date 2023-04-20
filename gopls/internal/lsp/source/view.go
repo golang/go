@@ -178,7 +178,8 @@ type Snapshot interface {
 
 	// MetadataForFile returns a new slice containing metadata for each
 	// package containing the Go file identified by uri, ordered by the
-	// number of CompiledGoFiles (i.e. "narrowest" to "widest" package).
+	// number of CompiledGoFiles (i.e. "narrowest" to "widest" package),
+	// and secondarily by IsIntermediateTestVariant (false < true).
 	// The result may include tests and intermediate test variants of
 	// importable packages.
 	// It returns an error if the context was cancelled.
@@ -188,6 +189,11 @@ type Snapshot interface {
 	// and returns them in the same order as the ids.
 	// The resulting packages' types may belong to different importers,
 	// so types from different packages are incommensurable.
+	//
+	// There should never be any need to type-check an
+	// intermediate test variant (ITV) package. Callers should
+	// apply RemoveIntermediateTestVariants (or equivalent) before
+	// this method, or any of the potentially type-checking methods below.
 	TypeCheck(ctx context.Context, ids ...PackageID) ([]Package, error)
 
 	// PackageDiagnostics returns diagnostics for files contained in specified
@@ -215,6 +221,21 @@ type Snapshot interface {
 	GetCriticalError(ctx context.Context) *CriticalError
 }
 
+// NarrowestMetadataForFile returns metadata for the narrowest package
+// (the one with the fewest files) that encloses the specified file.
+// The result may be a test variant, but never an intermediate test variant.
+func NarrowestMetadataForFile(ctx context.Context, snapshot Snapshot, uri span.URI) (*Metadata, error) {
+	metas, err := snapshot.MetadataForFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	RemoveIntermediateTestVariants(metas)
+	if len(metas) == 0 {
+		return nil, fmt.Errorf("no package metadata for file %s", uri)
+	}
+	return metas[0], nil
+}
+
 type XrefIndex interface {
 	Lookup(targets map[PackagePath]map[objectpath.Path]struct{}) (locs []protocol.Location)
 }
@@ -225,28 +246,34 @@ func SnapshotLabels(snapshot Snapshot) []label.Label {
 	return []label.Label{tag.Snapshot.Of(snapshot.SequenceID()), tag.Directory.Of(snapshot.View().Folder())}
 }
 
-// PackageForFile is a convenience function that selects a package to
-// which this file belongs (narrowest or widest), type-checks it in
-// the requested mode (full or workspace), and returns it, along with
-// the parse tree of that file.
+// NarrowestPackageForFile is a convenience function that selects the
+// narrowest non-ITV package to which this file belongs, type-checks
+// it in the requested mode (full or workspace), and returns it, along
+// with the parse tree of that file.
+//
+// The "narrowest" package is the one with the fewest number of files
+// that includes the given file. This solves the problem of test
+// variants, as the test will have more files than the non-test package.
+// (Historically the preference was a parameter but widest was almost
+// never needed.)
+//
+// An intermediate test variant (ITV) package has identical source
+// to a regular package but resolves imports differently.
+// gopls should never need to type-check them.
 //
 // Type-checking is expensive. Call snapshot.ParseGo if all you need
 // is a parse tree, or snapshot.MetadataForFile if you only need metadata.
-func PackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, pkgSel PackageSelector) (Package, *ParsedGoFile, error) {
+func NarrowestPackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI) (Package, *ParsedGoFile, error) {
 	metas, err := snapshot.MetadataForFile(ctx, uri)
 	if err != nil {
 		return nil, nil, err
 	}
+	RemoveIntermediateTestVariants(metas)
 	if len(metas) == 0 {
 		return nil, nil, fmt.Errorf("no package metadata for file %s", uri)
 	}
-	switch pkgSel {
-	case NarrowestPackage:
-		metas = metas[:1]
-	case WidestPackage:
-		metas = metas[len(metas)-1:]
-	}
-	pkgs, err := snapshot.TypeCheck(ctx, metas[0].ID)
+	narrowest := metas[0]
+	pkgs, err := snapshot.TypeCheck(ctx, narrowest.ID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -257,23 +284,6 @@ func PackageForFile(ctx context.Context, snapshot Snapshot, uri span.URI, pkgSel
 	}
 	return pkg, pgf, err
 }
-
-// PackageSelector sets how a package is selected out from a set of packages
-// containing a given file.
-type PackageSelector int
-
-const (
-	// NarrowestPackage picks the "narrowest" package for a given file.
-	// By "narrowest" package, we mean the package with the fewest number of
-	// files that includes the given file. This solves the problem of test
-	// variants, as the test will have more files than the non-test package.
-	NarrowestPackage PackageSelector = iota
-
-	// WidestPackage returns the Package containing the most files.
-	// This is useful for something like diagnostics, where we'd prefer to
-	// offer diagnostics for as many files as possible.
-	WidestPackage
-)
 
 // InvocationFlags represents the settings of a particular go command invocation.
 // It is a mode, plus a set of flag bits.

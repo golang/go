@@ -811,13 +811,23 @@ func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source
 		s.unloadableFiles[uri] = struct{}{}
 	}
 
-	// Sort packages "narrowest" to "widest" (in practice: non-tests before tests).
+	// Sort packages "narrowest" to "widest" (in practice:
+	// non-tests before tests), and regular packages before
+	// their intermediate test variants (which have the same
+	// files but different imports).
 	sort.Slice(metas, func(i, j int) bool {
-		return len(metas[i].CompiledGoFiles) < len(metas[j].CompiledGoFiles)
+		x, y := metas[i], metas[j]
+		xfiles, yfiles := len(x.CompiledGoFiles), len(y.CompiledGoFiles)
+		if xfiles != yfiles {
+			return xfiles < yfiles
+		}
+		return boolLess(x.IsIntermediateTestVariant(), y.IsIntermediateTestVariant())
 	})
 
 	return metas, nil
 }
+
+func boolLess(x, y bool) bool { return !x && y } // false < true
 
 func (s *snapshot) ReverseDependencies(ctx context.Context, id PackageID, transitive bool) (map[PackageID]*source.Metadata, error) {
 	if err := s.awaitLoaded(ctx); err != nil {

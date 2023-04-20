@@ -171,7 +171,7 @@ func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI) ([]
 	// The widest package (possibly a test variant) has the
 	// greatest number of files and thus we choose it for the
 	// "internal" references.
-	widest := metas[len(metas)-1]
+	widest := metas[len(metas)-1] // may include _test.go files
 	for _, uri := range widest.CompiledGoFiles {
 		fh, err := snapshot.ReadFile(ctx, uri)
 		if err != nil {
@@ -204,7 +204,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	// declaration (e.g. because the _test.go files can change the
 	// meaning of a field or method selection), but the narrower
 	// package reports the more broadly referenced object.
-	pkg, pgf, err := PackageForFile(ctx, snapshot, uri, NarrowestPackage)
+	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +252,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	if len(variants) == 0 {
 		return nil, fmt.Errorf("no packages for file %q", declURI) // can't happen
 	}
+	// (variants must include ITVs for reverse depedency computation below.)
 
 	// Is object exported?
 	// If so, compute scope and targets of the global search.
@@ -415,6 +416,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 		for id := range globalScope {
 			globalIDs = append(globalIDs, id)
 		}
+		// TODO(adonovan): filter out ITVs?
 		indexes, err := snapshot.References(ctx, globalIDs...)
 		if err != nil {
 			return err
@@ -457,6 +459,7 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 		allIDs = append(allIDs, m.ID)
 	}
 	// Search the methodset index of each package in the workspace.
+	// TODO(adonovan): filter out ITVs?
 	indexes, err := snapshot.MethodSets(ctx, allIDs...)
 	if err != nil {
 		return err

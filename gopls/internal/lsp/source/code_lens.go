@@ -100,7 +100,7 @@ func TestsAndBenchmarks(ctx context.Context, snapshot Snapshot, fh FileHandle) (
 	if !strings.HasSuffix(fh.URI().Filename(), "_test.go") {
 		return out, nil
 	}
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
+	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, fh.URI())
 	if err != nil {
 		return out, err
 	}

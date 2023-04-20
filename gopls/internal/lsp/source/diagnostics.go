@@ -60,7 +60,7 @@ func Analyze(ctx context.Context, snapshot Snapshot, pkgid PackageID, includeCon
 // as used by the "gopls check" command.
 //
 // TODO(adonovan): factor in common with (*Server).codeAction, which
-// executes { PackageForFile; Analyze } too?
+// executes { NarrowestPackageForFile; Analyze } too?
 //
 // TODO(adonovan): opt: this function is called in a loop from the
 // "gopls/diagnoseFiles" nonstandard request handler. It would be more
@@ -71,7 +71,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (File
 	if err != nil {
 		return nil, nil, err
 	}
-	pkg, _, err := PackageForFile(ctx, snapshot, uri, NarrowestPackage)
+	pkg, _, err := NarrowestPackageForFile(ctx, snapshot, uri)
 	if err != nil {
 		return nil, nil, err
 	}

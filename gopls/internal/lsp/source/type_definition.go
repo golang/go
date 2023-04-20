@@ -18,7 +18,7 @@ func TypeDefinition(ctx context.Context, snapshot Snapshot, fh FileHandle, posit
 	ctx, done := event.Start(ctx, "source.TypeDefinition")
 	defer done()
 
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
+	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, fh.URI())
 	if err != nil {
 		return nil, err
 	}

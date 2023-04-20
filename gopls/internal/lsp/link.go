@@ -119,8 +119,8 @@ func goLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle
 		// This requires the import map from the package metadata. Ignore errors.
 		var depsByImpPath map[source.ImportPath]source.PackageID
 		if strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
-			if metas, _ := snapshot.MetadataForFile(ctx, fh.URI()); len(metas) > 0 {
-				depsByImpPath = metas[0].DepsByImpPath // 0 => narrowest package
+			if meta, err := source.NarrowestMetadataForFile(ctx, snapshot, fh.URI()); err == nil {
+				depsByImpPath = meta.DepsByImpPath
 			}
 		}
 

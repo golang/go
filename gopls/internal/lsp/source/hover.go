@@ -88,7 +88,7 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 // hovering at the position, it returns _, nil, nil: an error is only returned
 // if the position is valid but we fail to compute hover information.
 func hover(ctx context.Context, snapshot Snapshot, fh FileHandle, pp protocol.Position) (protocol.Range, *HoverJSON, error) {
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
+	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, fh.URI())
 	if err != nil {
 		return protocol.Range{}, nil, err
 	}

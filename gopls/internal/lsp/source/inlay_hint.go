@@ -82,7 +82,7 @@ func InlayHint(ctx context.Context, snapshot Snapshot, fh FileHandle, pRng proto
 	ctx, done := event.Start(ctx, "source.InlayHint")
 	defer done()
 
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
+	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, fh.URI())
 	if err != nil {
 		return nil, fmt.Errorf("getting file for InlayHint: %w", err)
 	}

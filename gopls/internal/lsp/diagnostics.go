@@ -245,10 +245,8 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 			// noisy to log (and we'll handle things later in the slow pass).
 			continue
 		}
+		source.RemoveIntermediateTestVariants(metas)
 		for _, m := range metas {
-			if m.IsIntermediateTestVariant() {
-				continue
-			}
 			toDiagnose[m.ID] = m
 		}
 	}
@@ -708,7 +706,7 @@ func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snaps
 
 	metas, _ := snapshot.MetadataForFile(ctx, fh.URI())
 	if len(metas) > 0 || ctx.Err() != nil {
-		return nil // no package, or cancelled
+		return nil // file has a package (or cancelled)
 	}
 	// Inv: file does not belong to a package we know about.
 	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseHeader)

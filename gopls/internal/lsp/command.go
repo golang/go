@@ -438,15 +438,11 @@ func (c *commandHandler) RunTests(ctx context.Context, args command.RunTestsArgs
 
 func (c *commandHandler) runTests(ctx context.Context, snapshot source.Snapshot, work *progress.WorkDone, uri protocol.DocumentURI, tests, benchmarks []string) error {
 	// TODO: fix the error reporting when this runs async.
-	metas, err := snapshot.MetadataForFile(ctx, uri.SpanURI())
+	meta, err := source.NarrowestMetadataForFile(ctx, snapshot, uri.SpanURI())
 	if err != nil {
 		return err
 	}
-	metas = source.RemoveIntermediateTestVariants(metas)
-	if len(metas) == 0 {
-		return fmt.Errorf("package could not be found for file: %s", uri.SpanURI().Filename())
-	}
-	pkgPath := string(metas[0].ForTest)
+	pkgPath := string(meta.ForTest)
 
 	// create output
 	buf := &bytes.Buffer{}
@@ -704,17 +700,16 @@ func (c *commandHandler) ToggleGCDetails(ctx context.Context, args command.URIAr
 		progress:    "Toggling GC Details",
 		forURI:      args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		metas, err := deps.snapshot.MetadataForFile(ctx, deps.fh.URI())
+		meta, err := source.NarrowestMetadataForFile(ctx, deps.snapshot, deps.fh.URI())
 		if err != nil {
 			return err
 		}
-		id := metas[0].ID // 0 => narrowest package
 		c.s.gcOptimizationDetailsMu.Lock()
-		if _, ok := c.s.gcOptimizationDetails[id]; ok {
-			delete(c.s.gcOptimizationDetails, id)
+		if _, ok := c.s.gcOptimizationDetails[meta.ID]; ok {
+			delete(c.s.gcOptimizationDetails, meta.ID)
 			c.s.clearDiagnosticSource(gcDetailsSource)
 		} else {
-			c.s.gcOptimizationDetails[id] = struct{}{}
+			c.s.gcOptimizationDetails[meta.ID] = struct{}{}
 		}
 		c.s.gcOptimizationDetailsMu.Unlock()
 		c.s.diagnoseSnapshot(deps.snapshot, nil, false)
@@ -766,14 +761,11 @@ func (c *commandHandler) ListImports(ctx context.Context, args command.URIArg) (
 				})
 			}
 		}
-		metas, err := deps.snapshot.MetadataForFile(ctx, args.URI.SpanURI())
+		meta, err := source.NarrowestMetadataForFile(ctx, deps.snapshot, args.URI.SpanURI())
 		if err != nil {
 			return err // e.g. cancelled
 		}
-		if len(metas) == 0 {
-			return fmt.Errorf("no package containing %v", args.URI.SpanURI())
-		}
-		for pkgPath := range metas[0].DepsByPkgPath { // 0 => narrowest package
+		for pkgPath := range meta.DepsByPkgPath {
 			result.PackageImports = append(result.PackageImports,
 				command.PackageImport{Path: string(pkgPath)})
 		}

@@ -91,7 +91,7 @@ func (s *Server) computeSemanticTokens(ctx context.Context, td protocol.TextDocu
 	if kind != source.Go {
 		return nil, nil
 	}
-	pkg, pgf, err := source.PackageForFile(ctx, snapshot, fh.URI(), source.NarrowestPackage)
+	pkg, pgf, err := source.NarrowestPackageForFile(ctx, snapshot, fh.URI())
 	if err != nil {
 		return nil, err
 	}

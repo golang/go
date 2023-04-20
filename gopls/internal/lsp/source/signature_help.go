@@ -23,7 +23,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, positi
 
 	// We need full type-checking here, as we must type-check function bodies in
 	// order to provide signature help at the requested position.
-	pkg, pgf, err := PackageForFile(ctx, snapshot, fh.URI(), NarrowestPackage)
+	pkg, pgf, err := NarrowestPackageForFile(ctx, snapshot, fh.URI())
 	if err != nil {
 		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %w", err)
 	}

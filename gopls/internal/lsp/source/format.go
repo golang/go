@@ -72,9 +72,9 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 		// Can this, for example, result in inconsistent formatting across saves,
 		// due to pending calls to packages.Load?
 		var langVersion, modulePath string
-		mds, err := snapshot.MetadataForFile(ctx, fh.URI())
-		if err == nil && len(mds) > 0 {
-			if mi := mds[0].Module; mi != nil {
+		meta, err := NarrowestMetadataForFile(ctx, snapshot, fh.URI())
+		if err == nil {
+			if mi := meta.Module; mi != nil {
 				langVersion = mi.GoVersion
 				modulePath = mi.Path
 			}

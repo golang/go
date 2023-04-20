@@ -331,17 +331,13 @@ func collectSymbols(ctx context.Context, views []View, matcherType SymbolMatcher
 			if seen[uri] {
 				continue
 			}
-			mds, err := snapshot.MetadataForFile(ctx, uri)
+			meta, err := NarrowestMetadataForFile(ctx, snapshot, uri)
 			if err != nil {
 				event.Error(ctx, fmt.Sprintf("missing metadata for %q", uri), err)
 				continue
 			}
-			if len(mds) == 0 {
-				// TODO: should use the bug reporting API
-				continue
-			}
 			seen[uri] = true
-			work = append(work, symbolFile{uri, mds[0], syms})
+			work = append(work, symbolFile{uri, meta, syms})
 		}
 	}
 
