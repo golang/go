@@ -245,7 +245,7 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 			// noisy to log (and we'll handle things later in the slow pass).
 			continue
 		}
-		source.RemoveIntermediateTestVariants(metas)
+		source.RemoveIntermediateTestVariants(&metas)
 		for _, m := range metas {
 			toDiagnose[m.ID] = m
 		}

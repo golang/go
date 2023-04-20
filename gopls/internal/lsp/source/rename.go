@@ -290,10 +290,11 @@ func Rename(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Po
 func renameOrdinary(ctx context.Context, snapshot Snapshot, f FileHandle, pp protocol.Position, newName string) (map[span.URI][]diff.Edit, error) {
 	// Type-check the referring package and locate the object(s).
 	//
-	// Unlike PackageForFile, we choose the widest variant as,
-	// for non-exported identifiers, it is the only package we need.
-	// (In case you're wondering why 'references' doesn't also want
-	// the widest variant: it computes the union across all variants.)
+	// Unlike NarrowestPackageForFile, this operation prefers the
+	// widest variant as, for non-exported identifiers, it is the
+	// only package we need. (In case you're wondering why
+	// 'references' doesn't also want the widest variant: it
+	// computes the union across all variants.)
 	var targets map[types.Object]ast.Node
 	var pkg Package
 	{
@@ -301,7 +302,7 @@ func renameOrdinary(ctx context.Context, snapshot Snapshot, f FileHandle, pp pro
 		if err != nil {
 			return nil, err
 		}
-		RemoveIntermediateTestVariants(metas)
+		RemoveIntermediateTestVariants(&metas)
 		if len(metas) == 0 {
 			return nil, fmt.Errorf("no package metadata for file %s", f.URI())
 		}

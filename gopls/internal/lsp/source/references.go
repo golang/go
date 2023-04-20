@@ -252,7 +252,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	if len(variants) == 0 {
 		return nil, fmt.Errorf("no packages for file %q", declURI) // can't happen
 	}
-	// (variants must include ITVs for reverse depedency computation below.)
+	// (variants must include ITVs for reverse dependency computation below.)
 
 	// Is object exported?
 	// If so, compute scope and targets of the global search.
@@ -413,10 +413,18 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	// Compute global references for selected reverse dependencies.
 	group.Go(func() error {
 		var globalIDs []PackageID
-		for id := range globalScope {
+		for id, m := range globalScope {
+			// Skip intermediate test variants.
+			//
+			// Strictly, an ITV's cross-reference index
+			// may have different objectpaths from the
+			// ordinary variant, but we ignore that. See
+			// explanation at IsIntermediateTestVariant.
+			if m.IsIntermediateTestVariant() {
+				continue
+			}
 			globalIDs = append(globalIDs, id)
 		}
-		// TODO(adonovan): filter out ITVs?
 		indexes, err := snapshot.References(ctx, globalIDs...)
 		if err != nil {
 			return err
@@ -454,12 +462,14 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 	if err != nil {
 		return err
 	}
+	// Discard ITVs to avoid redundant type-checking.
+	// (See explanation at IsIntermediateTestVariant.)
+	RemoveIntermediateTestVariants(&metas)
 	allIDs := make([]PackageID, 0, len(metas))
 	for _, m := range metas {
 		allIDs = append(allIDs, m.ID)
 	}
 	// Search the methodset index of each package in the workspace.
-	// TODO(adonovan): filter out ITVs?
 	indexes, err := snapshot.MethodSets(ctx, allIDs...)
 	if err != nil {
 		return err

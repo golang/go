@@ -88,7 +88,7 @@ func implementations(ctx context.Context, snapshot Snapshot, fh FileHandle, pp p
 	if err != nil {
 		return nil, err
 	}
-	RemoveIntermediateTestVariants(declMetas)
+	RemoveIntermediateTestVariants(&declMetas)
 	if len(declMetas) == 0 {
 		return nil, fmt.Errorf("no packages for file %s", declURI)
 	}
@@ -164,6 +164,7 @@ func implementations(ctx context.Context, snapshot Snapshot, fh FileHandle, pp p
 	if err != nil {
 		return nil, err
 	}
+	RemoveIntermediateTestVariants(&globalMetas)
 	globalIDs := make([]PackageID, 0, len(globalMetas))
 	for _, m := range globalMetas {
 		if m.PkgPath == declPkg.Metadata().PkgPath {
@@ -171,7 +172,6 @@ func implementations(ctx context.Context, snapshot Snapshot, fh FileHandle, pp p
 		}
 		globalIDs = append(globalIDs, m.ID)
 	}
-	// TODO(adonovan): filter out ITVs?
 	indexes, err := snapshot.MethodSets(ctx, globalIDs...)
 	if err != nil {
 		return nil, fmt.Errorf("querying method sets: %v", err)

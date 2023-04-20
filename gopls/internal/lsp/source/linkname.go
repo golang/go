@@ -101,7 +101,7 @@ func findLinkname(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pro
 	if err != nil {
 		return nil, err
 	}
-	metas = RemoveIntermediateTestVariants(metas)
+	RemoveIntermediateTestVariants(&metas)
 	for _, meta := range metas {
 		if meta.PkgPath == pkgPath {
 			pkgMeta = meta
