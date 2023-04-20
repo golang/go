@@ -10,6 +10,7 @@
 
 // Offsets into Thread Environment Block (pointer in GS)
 #define TEB_TlsSlots 0x1480
+#define TEB_ArbitraryPtr 0x28
 
 // void runtime·asmstdcall(void *c);
 TEXT runtime·asmstdcall(SB),NOSPLIT,$16
@@ -301,7 +302,11 @@ TEXT runtime·wintls(SB),NOSPLIT,$0
 	// Assert that slot is less than 64 so we can use _TEB->TlsSlots
 	CMPQ	CX, $64
 	JB	ok
-	CALL	runtime·abort(SB)
+
+	// Fallback to the TEB arbitrary pointer.
+	// TODO: don't use the arbitrary pointer (see go.dev/issue/59824)
+	MOVQ	$TEB_ArbitraryPtr, CX
+	JMP	settls
 ok:
 	// Convert the TLS index at CX into
 	// an offset from TEB_TlsSlots.
@@ -309,5 +314,6 @@ ok:
 
 	// Save offset from TLS into tls_g.
 	ADDQ	$TEB_TlsSlots, CX
+settls:
 	MOVQ	CX, runtime·tls_g(SB)
 	RET
