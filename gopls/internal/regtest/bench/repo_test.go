@@ -40,6 +40,7 @@ var repos = map[string]*repo{
 		name:   "kubernetes",
 		url:    "https://github.com/kubernetes/kubernetes",
 		commit: "v1.24.0",
+		short:  true,
 		inDir:  flag.String("kubernetes_dir", "", "if set, reuse this directory as kubernetes@v1.24.0"),
 	},
 
