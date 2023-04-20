@@ -39,7 +39,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 nocgo:
 	// update stackguard after _cgo_init
 	MOVV	(g_stack+stack_lo)(g), R19
-	ADDV	$const_stackGuard, R19
+	ADDV	$const__StackGuard, R19
 	MOVV	R19, g_stackguard0(g)
 	MOVV	R19, g_stackguard1(g)
 

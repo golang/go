@@ -993,7 +993,7 @@ func minit() {
 		throw("bad g0 stack")
 	}
 	g0.stack.lo = base
-	g0.stackguard0 = g0.stack.lo + stackGuard
+	g0.stackguard0 = g0.stack.lo + _StackGuard
 	g0.stackguard1 = g0.stackguard0
 	// Sanity check the SP.
 	stackcheck()

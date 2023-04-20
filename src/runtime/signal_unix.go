@@ -1307,8 +1307,8 @@ func setGsignalStack(st *stackt, old *gsignalStack) {
 	stsp := uintptr(unsafe.Pointer(st.ss_sp))
 	gp.m.gsignal.stack.lo = stsp
 	gp.m.gsignal.stack.hi = stsp + st.ss_size
-	gp.m.gsignal.stackguard0 = stsp + stackGuard
-	gp.m.gsignal.stackguard1 = stsp + stackGuard
+	gp.m.gsignal.stackguard0 = stsp + _StackGuard
+	gp.m.gsignal.stackguard1 = stsp + _StackGuard
 }
 
 // restoreGsignalStack restores the gsignal stack to the value it had

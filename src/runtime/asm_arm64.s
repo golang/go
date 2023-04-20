@@ -59,7 +59,7 @@ nocgo:
 	BL	runtime·save_g(SB)
 	// update stackguard after _cgo_init
 	MOVD	(g_stack+stack_lo)(g), R0
-	ADD	$const_stackGuard, R0
+	ADD	$const__StackGuard, R0
 	MOVD	R0, g_stackguard0(g)
 	MOVD	R0, g_stackguard1(g)
 
