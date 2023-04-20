@@ -31,6 +31,7 @@ package mips
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
 	"fmt"
@@ -773,7 +774,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
 	var q *obj.Prog
-	if framesize <= abi.StackSmall {
+	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
 		//	AGTU	SP, stackguard, R1
 		p = obj.Appendp(p, c.newprog)
@@ -786,8 +787,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Reg = REG_R1
 	} else {
 		// large stack: SP-framesize < stackguard-StackSmall
-		offset := int64(framesize) - abi.StackSmall
-		if framesize > abi.StackBig {
+		offset := int64(framesize) - objabi.StackSmall
+		if framesize > objabi.StackBig {
 			// Such a large stack we need to protect against underflow.
 			// The runtime guarantees SP > objabi.StackBig, but
 			// framesize is large enough that SP-framesize may

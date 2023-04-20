@@ -4,22 +4,21 @@
 
 package objabi
 
-import (
-	"internal/abi"
-	"internal/buildcfg"
-)
+import "internal/buildcfg"
 
 // For the linkers. Must match Go definitions.
 
 const (
 	STACKSYSTEM = 0
 	StackSystem = STACKSYSTEM
+	StackBig    = 4096
+	StackSmall  = 128
 )
 
 func StackLimit(race bool) int {
 	// This arithmetic must match that in runtime/stack.go:{_StackGuard,_StackLimit}.
 	stackGuard := 928*stackGuardMultiplier(race) + StackSystem
-	stackLimit := stackGuard - StackSystem - abi.StackSmall
+	stackLimit := stackGuard - StackSystem - StackSmall
 	return stackLimit
 }
 

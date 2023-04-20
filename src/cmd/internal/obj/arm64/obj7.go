@@ -169,7 +169,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
 	q := (*obj.Prog)(nil)
-	if framesize <= abi.StackSmall {
+	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
 		//	CMP	stackguard, SP
 
@@ -178,7 +178,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGRT1
 		p.Reg = REGSP
-	} else if framesize <= abi.StackBig {
+	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	SUB	$(framesize-StackSmall), SP, RT2
 		//	CMP	stackguard, RT2
@@ -186,7 +186,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 		p.As = ASUB
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) - abi.StackSmall
+		p.From.Offset = int64(framesize) - objabi.StackSmall
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGRT2
@@ -212,7 +212,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p = obj.Appendp(p, c.newprog)
 		p.As = ASUBS
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(framesize) - abi.StackSmall
+		p.From.Offset = int64(framesize) - objabi.StackSmall
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REGRT2
@@ -582,7 +582,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-			if p.Mark&LEAF != 0 && c.autosize < abi.StackSmall {
+			if p.Mark&LEAF != 0 && c.autosize < objabi.StackSmall {
 				// A leaf function with a small stack can be marked
 				// NOSPLIT, avoiding a stack check.
 				p.From.Sym.Set(obj.AttrNoSplit, true)

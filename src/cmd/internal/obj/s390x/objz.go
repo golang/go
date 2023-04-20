@@ -313,7 +313,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				autosize += int32(c.ctxt.Arch.FixedFrameSize)
 			}
 
-			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
+			if p.Mark&LEAF != 0 && autosize < objabi.StackSmall {
 				// A leaf function with a small stack can be marked
 				// NOSPLIT, avoiding a stack check.
 				p.From.Sym.Set(obj.AttrNoSplit, true)
@@ -662,7 +662,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 	// unnecessarily. See issue #35470.
 	p = c.ctxt.StartUnsafePoint(p, c.newprog)
 
-	if framesize <= abi.StackSmall {
+	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
 		//	CMPUBGE	stackguard, SP, label-of-call-to-morestack
 
@@ -678,8 +678,8 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
 
 	// large stack: SP-framesize < stackguard-StackSmall
 
-	offset := int64(framesize) - abi.StackSmall
-	if framesize > abi.StackBig {
+	offset := int64(framesize) - objabi.StackSmall
+	if framesize > objabi.StackBig {
 		// Such a large stack we need to protect against underflow.
 		// The runtime guarantees SP > objabi.StackBig, but
 		// framesize is large enough that SP-framesize may
