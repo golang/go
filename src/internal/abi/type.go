@@ -242,9 +242,9 @@ type ArrayType struct {
 }
 
 // Len returns the length of t if t is an array type, otherwise 0
-func (t *Type) Len() uintptr {
+func (t *Type) Len() int {
 	if t.Kind() == Array {
-		return (*ArrayType)(unsafe.Pointer(t)).Len
+		return int((*ArrayType)(unsafe.Pointer(t)).Len)
 	}
 	return 0
 }

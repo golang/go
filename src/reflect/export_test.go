@@ -5,6 +5,7 @@
 package reflect
 
 import (
+	"internal/abi"
 	"internal/goarch"
 	"sync"
 	"unsafe"
@@ -29,17 +30,17 @@ var CallGC = &callGC
 // takes up one byte, so that writing out test cases is a little clearer.
 // If ptrs is false, gc will be nil.
 func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, stack, gc, inReg, outReg []byte, ptrs bool) {
-	var ft *rtype
+	var ft *abi.Type
 	var abid abiDesc
 	if rcvr != nil {
-		ft, _, abid = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), rcvr.(*rtype))
+		ft, _, abid = funcLayout((*funcType)(unsafe.Pointer(t.common())), rcvr.common())
 	} else {
 		ft, _, abid = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), nil)
 	}
 	// Extract size information.
 	argSize = abid.stackCallArgsSize
 	retOffset = abid.retOffset
-	frametype = ft
+	frametype = toType(ft)
 
 	// Expand stack pointer bitmap into byte-map.
 	for i := uint32(0); i < abid.stackPtrs.n; i++ {
@@ -57,15 +58,15 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 		inReg = append(inReg, bool2byte(abid.inRegPtrs.Get(i)))
 		outReg = append(outReg, bool2byte(abid.outRegPtrs.Get(i)))
 	}
-	if ft.t.Kind_&kindGCProg != 0 {
+	if ft.Kind_&kindGCProg != 0 {
 		panic("can't handle gc programs")
 	}
 
 	// Expand frame type's GC bitmap into byte-map.
-	ptrs = ft.t.PtrBytes != 0
+	ptrs = ft.PtrBytes != 0
 	if ptrs {
-		nptrs := ft.t.PtrBytes / goarch.PtrSize
-		gcdata := ft.gcSlice(0, (nptrs+7)/8)
+		nptrs := ft.PtrBytes / goarch.PtrSize
+		gcdata := ft.GcSlice(0, (nptrs+7)/8)
 		for i := uintptr(0); i < nptrs; i++ {
 			gc = append(gc, gcdata[i/8]>>(i%8)&1)
 		}
@@ -91,7 +92,7 @@ var GCBits = gcbits
 func gcbits(any) []byte // provided by runtime
 
 func MapBucketOf(x, y Type) Type {
-	return bucketOf(x.(*rtype), y.(*rtype))
+	return toType(bucketOf(x.common(), y.common()))
 }
 
 func CachedBucketOf(m Type) Type {
@@ -100,7 +101,7 @@ func CachedBucketOf(m Type) Type {
 		panic("not map")
 	}
 	tt := (*mapType)(unsafe.Pointer(t))
-	return tt.Bucket
+	return toType(tt.Bucket)
 }
 
 type EmbedWithUnexpMeth struct{}
