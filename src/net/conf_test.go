@@ -421,9 +421,6 @@ func testConfHostLookupOrderNsswitch(t *testing.T, tests []lookupOrderTest) {
 		for _, os := range GOOSs {
 			expect := tt.expect
 			if expect != nil {
-				// All GOOS in this block of code don't use resolverDynamic.
-				// Keep this in sync with conf.go initConfVal.
-
 				if os == "ios" || os == "darwin" {
 					expect = maps.Clone(expect)
 					delete(expect, resolverDynamic)
@@ -450,6 +447,10 @@ func testConfHostLookupOrderNsswitch(t *testing.T, tests []lookupOrderTest) {
 
 			if tt.expectGOOS[os] != nil {
 				expect = tt.expectGOOS[os]
+			}
+
+			if _, ok := expect[resolverDynamic]; preferCgoOverGo(os) && ok {
+				t.Fatal("resolverDynamic found for GOOS that does not support it")
 			}
 
 			var localhost = tt.localhost

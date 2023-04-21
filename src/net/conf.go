@@ -15,6 +15,37 @@ import (
 	"syscall"
 )
 
+type resolverType uint8
+
+func (r resolverType) String() string {
+	switch r {
+	case resolverDynamic:
+		return "dynamic resolver"
+	case resolverGo:
+		return "go resolver"
+	case resolverCgo:
+		return "cgo resolver"
+	default:
+		return "unknown resolver"
+	}
+}
+
+const (
+	// Compiled with go and cgo resolver support.
+	// The preferred resolver is the go resolver, unless
+	// something unsupported is found.
+	resolverDynamic resolverType = iota
+
+	// Compiled without support for the cgo resolver.
+	// The go resolver must always be used.
+	resolverGo
+
+	// Compiled with support for both the cgo and go resolver.
+	// The cgo resolver is preferred over the go resolver,
+	// unless explicitly forced by (*Resolver).PreferGo = true.
+	resolverCgo
+)
+
 // conf represents a system's network configuration.
 type conf struct {
 	resolver resolverType
@@ -37,16 +68,44 @@ func systemConf() *conf {
 	return confVal
 }
 
-func initConfVal() {
-	confVal.resolver = defaultResolver
-
-	// When build without support for cgo, force the go resolver, unless
-	// "cgo" resolver is avaliable without the cgo support.
-	if !cgoBuild {
-		if runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
-			confVal.resolver = resolverGo
-		}
+// preferCgoOverGo reports whether the cgo resolver should
+// be peferred over the go one.
+func preferCgoOverGo(goos string) bool {
+	// Neither of these platforms actually use cgo.
+	// The meaning of "cgo" mode in the net package is
+	// really "the native OS way", which for libc meant
+	// cgo on the original platforms that motivated
+	//
+	// Darwin pops up annoying dialog boxes if programs try to do
+	// their own DNS requests. So always use cgo instead, which
+	// avoids that.
+	if goos == "darwin" || goos == "ios" || goos == "windows" || goos == "plan9" {
+		return true
 	}
+
+	if goos == "android" {
+		return true
+	}
+
+	return false
+}
+
+// buildTagsResolver returns a resolver that is
+// determined by build tags and the runtime.GOOS.
+func buildTagsResolver() resolverType {
+	if !dnsCgoAvail || buildTagNetGo {
+		return resolverGo
+	}
+
+	if buildTagNetCgo || preferCgoOverGo(runtime.GOOS) {
+		return resolverCgo
+	}
+
+	return resolverDynamic
+}
+
+func initConfVal() {
+	confVal.resolver = buildTagsResolver()
 
 	dnsMode, debugLevel := goDebugNetDNS()
 	confVal.dnsDebugLevel = debugLevel
@@ -91,30 +150,6 @@ func initConfVal() {
 		if dnsMode == "cgo" {
 			goDebug = true
 			confVal.resolver = resolverCgo
-		}
-	}
-
-	if confVal.resolver == resolverDynamic {
-		// Keep the list of unsupported GOOS for resolverDynamic
-		// in sysc with conf_test.go (testConfHostLookupOrder).
-
-		// Neither of these platforms actually use cgo.
-		// The meaning of "cgo" mode in the net package is
-		// really "the native OS way", which for libc meant
-		// cgo on the original platforms that motivated
-		//
-		// Darwin pops up annoying dialog boxes if programs try to do
-		// their own DNS requests. So always use cgo instead, which
-		// avoids that.
-		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" ||
-			runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-			confVal.resolver = resolverCgo
-			return
-		}
-
-		if runtime.GOOS == "android" {
-			confVal.resolver = resolverCgo
-			return
 		}
 	}
 

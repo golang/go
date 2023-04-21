@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (!cgo && !darwin) || netgo
+//go:build netgo || (!cgo && unix && !darwin)
 
 package net
 
 import "context"
 
-type addrinfoErrno int
-
-func (eai addrinfoErrno) Error() string   { return "<nil>" }
-func (eai addrinfoErrno) Temporary() bool { return false }
-func (eai addrinfoErrno) Timeout() bool   { return false }
+const dnsCgoAvail = false
 
 func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error, completed bool) {
 	return nil, nil, false

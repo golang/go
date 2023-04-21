@@ -13,6 +13,11 @@ import (
 	"os"
 )
 
+// dnsCgoAvail set to true to indicate that the cgo resolver
+// is available on plan9. Note that on plan9 the cgo resolver
+// does not actually use cgo.
+const dnsCgoAvail = true
+
 func query(ctx context.Context, filename, query string, bufSize int) (addrs []string, err error) {
 	queryAddrs := func() (addrs []string, err error) {
 		file, err := os.OpenFile(filename, os.O_RDWR, 0)
