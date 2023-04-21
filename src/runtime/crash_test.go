@@ -782,7 +782,7 @@ func TestG0StackOverflow(t *testing.T) {
 	testenv.MustHaveExec(t)
 
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "android":
+	case "android", "darwin", "dragonfly", "freebsd", "ios", "linux", "netbsd", "openbsd":
 		t.Skipf("g0 stack is wrong on pthread platforms (see golang.org/issue/26061)")
 	}
 
