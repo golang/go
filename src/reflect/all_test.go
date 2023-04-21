@@ -7215,11 +7215,11 @@ func join(b ...[]byte) []byte    { return bytes.Join(b, nil) }
 func lit(x ...byte) []byte       { return x }
 
 func TestTypeOfTypeOf(t *testing.T) {
-	// Check that all the type constructors return concrete *rtype implementations.
+	// Check that all the type constructors return concrete rtype implementations.
 	// It's difficult to test directly because the reflect package is only at arm's length.
-	// The easiest thing to do is just call a function that crashes if it doesn't get an *rtype.
+	// The easiest thing to do is just call a function that crashes if it doesn't get an rtype.
 	check := func(name string, typ Type) {
-		if underlying := TypeOf(typ).String(); underlying != "*reflect.rtype" {
+		if underlying := TypeOf(typ).String(); underlying != "reflect.rtype" {
 			t.Errorf("%v returned %v, not *reflect.rtype", name, underlying)
 		}
 	}

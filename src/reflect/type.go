@@ -279,22 +279,17 @@ const Ptr = Pointer
 // to describe a non-defined type with no methods.
 type uncommonType = abi.UncommonType
 
-// Embed this type to get common/uncommon
-type common struct {
-	abi.Type
-}
-
 // rtype is the common implementation of most values.
 // It is embedded in other struct types.
 type rtype struct {
-	t abi.Type
+	t *abi.Type
 }
 
-func (t *rtype) common() *abi.Type {
-	return &t.t
+func (t rtype) common() *abi.Type {
+	return t.t
 }
 
-func (t *rtype) uncommon() *abi.UncommonType {
+func (t rtype) uncommon() *abi.UncommonType {
 	return t.t.Uncommon()
 }
 
@@ -318,16 +313,6 @@ type arrayType = abi.ArrayType
 type chanType = abi.ChanType
 
 // funcType represents a function type.
-//
-// A *rtype for each in and out parameter is stored in an array that
-// directly follows the funcType (and possibly its uncommonType). So
-// a function type with one method, one input, and one output is:
-//
-//	struct {
-//		funcType
-//		uncommonType
-//		[2]*rtype    // [0] is in, [1] is out
-//	}
 type funcType = abi.FuncType
 
 // interfaceType represents an interface type.
@@ -476,17 +461,17 @@ var kindNames = []string{
 }
 
 // resolveNameOff resolves a name offset from a base pointer.
-// The (*rtype).nameOff method is a convenience wrapper for this function.
+// The (rtype).nameOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
 func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
 
-// resolveTypeOff resolves an *rtype offset from a base type.
-// The (*rtype).typeOff method is a convenience wrapper for this function.
+// resolveTypeOff resolves an rtype offset from a base type.
+// The (rtype).typeOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
 func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
 // resolveTextOff resolves a function pointer offset from a base type.
-// The (*rtype).textOff method is a convenience wrapper for this function.
+// The (rtype).textOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
 func resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
@@ -501,7 +486,7 @@ func resolveReflectName(n abi.Name) aNameOff {
 	return aNameOff(addReflectOff(unsafe.Pointer(n.Bytes)))
 }
 
-// resolveReflectType adds a *rtype to the reflection lookup map in the runtime.
+// resolveReflectType adds a type to the reflection lookup map in the runtime.
 // It returns a new typeOff that can be used to refer to the pointer.
 func resolveReflectType(t *abi.Type) aTypeOff {
 	return aTypeOff(addReflectOff(unsafe.Pointer(t)))
@@ -514,23 +499,23 @@ func resolveReflectText(ptr unsafe.Pointer) aTextOff {
 	return aTextOff(addReflectOff(ptr))
 }
 
-func (t *rtype) nameOff(off aNameOff) abi.Name {
-	return abi.Name{Bytes: (*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
+func (t rtype) nameOff(off aNameOff) abi.Name {
+	return abi.Name{Bytes: (*byte)(resolveNameOff(unsafe.Pointer(t.t), int32(off)))}
 }
 
-func (t *rtype) typeOff(off aTypeOff) *abi.Type {
-	return (*abi.Type)(resolveTypeOff(unsafe.Pointer(t), int32(off)))
+func (t rtype) typeOff(off aTypeOff) *abi.Type {
+	return (*abi.Type)(resolveTypeOff(unsafe.Pointer(t.t), int32(off)))
 }
 
-func (t *rtype) textOff(off aTextOff) unsafe.Pointer {
-	return resolveTextOff(unsafe.Pointer(t), int32(off))
+func (t rtype) textOff(off aTextOff) unsafe.Pointer {
+	return resolveTextOff(unsafe.Pointer(t.t), int32(off))
 }
 
 func textOffFor(t *abi.Type, off aTextOff) unsafe.Pointer {
 	return toRType(t).textOff(off)
 }
 
-func (t *rtype) String() string {
+func (t rtype) String() string {
 	s := t.nameOff(t.t.Str).Name()
 	if t.t.TFlag&abi.TFlagExtraStar != 0 {
 		return s[1:]
@@ -538,10 +523,10 @@ func (t *rtype) String() string {
 	return s
 }
 
-func (t *rtype) Size() uintptr { return t.t.Size() }
+func (t rtype) Size() uintptr { return t.t.Size() }
 
-func (t *rtype) Bits() int {
-	if t == nil {
+func (t rtype) Bits() int {
+	if t.t == nil {
 		panic("reflect: Bits of nil Type")
 	}
 	k := t.Kind()
@@ -551,13 +536,13 @@ func (t *rtype) Bits() int {
 	return int(t.t.Size_) * 8
 }
 
-func (t *rtype) Align() int { return t.t.Align() }
+func (t rtype) Align() int { return t.t.Align() }
 
-func (t *rtype) FieldAlign() int { return t.t.FieldAlign() }
+func (t rtype) FieldAlign() int { return t.t.FieldAlign() }
 
-func (t *rtype) Kind() Kind { return Kind(t.t.Kind()) }
+func (t rtype) Kind() Kind { return Kind(t.t.Kind()) }
 
-func (t *rtype) exportedMethods() []abi.Method {
+func (t rtype) exportedMethods() []abi.Method {
 	ut := t.uncommon()
 	if ut == nil {
 		return nil
@@ -565,17 +550,17 @@ func (t *rtype) exportedMethods() []abi.Method {
 	return ut.ExportedMethods()
 }
 
-func (t *rtype) NumMethod() int {
+func (t rtype) NumMethod() int {
 	if t.Kind() == Interface {
-		tt := (*interfaceType)(unsafe.Pointer(t))
+		tt := (*interfaceType)(unsafe.Pointer(t.t))
 		return tt.NumMethod()
 	}
 	return len(t.exportedMethods())
 }
 
-func (t *rtype) Method(i int) (m Method) {
+func (t rtype) Method(i int) (m Method) {
 	if t.Kind() == Interface {
-		tt := (*interfaceType)(unsafe.Pointer(t))
+		tt := (*interfaceType)(unsafe.Pointer(t.t))
 		return tt.Method(i)
 	}
 	methods := t.exportedMethods()
@@ -601,15 +586,15 @@ func (t *rtype) Method(i int) (m Method) {
 	m.Type = mt
 	tfn := t.textOff(p.Tfn)
 	fn := unsafe.Pointer(&tfn)
-	m.Func = Value{&mt.(*rtype).t, fn, fl}
+	m.Func = Value{mt.common(), fn, fl}
 
 	m.Index = i
 	return m
 }
 
-func (t *rtype) MethodByName(name string) (m Method, ok bool) {
+func (t rtype) MethodByName(name string) (m Method, ok bool) {
 	if t.Kind() == Interface {
-		tt := (*interfaceType)(unsafe.Pointer(t))
+		tt := (*interfaceType)(unsafe.Pointer(t.t))
 		return tt.MethodByName(name)
 	}
 	ut := t.uncommon()
@@ -639,7 +624,7 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 	return Method{}, false
 }
 
-func (t *rtype) PkgPath() string {
+func (t rtype) PkgPath() string {
 	if t.t.TFlag&abi.TFlagNamed == 0 {
 		return ""
 	}
@@ -654,7 +639,7 @@ func pkgPathFor(t *abi.Type) string {
 	return toRType(t).PkgPath()
 }
 
-func (t *rtype) Name() string {
+func (t rtype) Name() string {
 	if !t.t.HasName() {
 		return ""
 	}
@@ -677,16 +662,16 @@ func nameFor(t *abi.Type) string {
 	return toRType(t).Name()
 }
 
-func (t *rtype) ChanDir() ChanDir {
+func (t rtype) ChanDir() ChanDir {
 	if t.Kind() != Chan {
 		panic("reflect: ChanDir of non-chan type " + t.String())
 	}
-	tt := (*abi.ChanType)(unsafe.Pointer(t))
+	tt := (*abi.ChanType)(unsafe.Pointer(t.t))
 	return ChanDir(tt.Dir)
 }
 
-func toRType(t *abi.Type) *rtype {
-	return (*rtype)(unsafe.Pointer(t))
+func toRType(t *abi.Type) rtype {
+	return rtype{t}
 }
 
 func elem(t *abi.Type) *abi.Type {
@@ -697,103 +682,131 @@ func elem(t *abi.Type) *abi.Type {
 	panic("reflect: Elem of invalid type " + stringFor(t))
 }
 
-func (t *rtype) Elem() Type {
+func (t rtype) Elem() Type {
 	return toType(elem(t.common()))
 }
 
-func (t *rtype) Field(i int) StructField {
+func (t rtype) structType() *structType {
 	if t.Kind() != Struct {
+		return nil
+	}
+	return (*structType)(unsafe.Pointer(t.t))
+}
+
+func (t rtype) mapType() *mapType {
+	if t.Kind() != Map {
+		return nil
+	}
+	return (*mapType)(unsafe.Pointer(t.t))
+}
+
+func (t rtype) arrayType() *arrayType {
+	if t.Kind() != Array {
+		return nil
+	}
+	return (*arrayType)(unsafe.Pointer(t.t))
+}
+
+func (t rtype) funcType() *funcType {
+	if t.Kind() != Func {
+		return nil
+	}
+	return (*funcType)(unsafe.Pointer(t.t))
+}
+
+func (t rtype) Field(i int) StructField {
+	tt := t.structType()
+	if tt == nil {
 		panic("reflect: Field of non-struct type " + t.String())
 	}
-	tt := (*structType)(unsafe.Pointer(t))
 	return tt.Field(i)
 }
 
-func (t *rtype) FieldByIndex(index []int) StructField {
-	if t.Kind() != Struct {
+func (t rtype) FieldByIndex(index []int) StructField {
+	tt := t.structType()
+	if tt == nil {
 		panic("reflect: FieldByIndex of non-struct type " + t.String())
 	}
-	tt := (*structType)(unsafe.Pointer(t))
 	return tt.FieldByIndex(index)
 }
 
-func (t *rtype) FieldByName(name string) (StructField, bool) {
-	if t.Kind() != Struct {
+func (t rtype) FieldByName(name string) (StructField, bool) {
+	tt := t.structType()
+	if tt == nil {
 		panic("reflect: FieldByName of non-struct type " + t.String())
 	}
-	tt := (*structType)(unsafe.Pointer(t))
 	return tt.FieldByName(name)
 }
 
-func (t *rtype) FieldByNameFunc(match func(string) bool) (StructField, bool) {
-	if t.Kind() != Struct {
+func (t rtype) FieldByNameFunc(match func(string) bool) (StructField, bool) {
+	tt := t.structType()
+	if tt == nil {
 		panic("reflect: FieldByNameFunc of non-struct type " + t.String())
 	}
-	tt := (*structType)(unsafe.Pointer(t))
 	return tt.FieldByNameFunc(match)
 }
 
-func (t *rtype) Key() Type {
-	if t.Kind() != Map {
+func (t rtype) Key() Type {
+	tt := t.mapType()
+	if tt == nil {
 		panic("reflect: Key of non-map type " + t.String())
 	}
-	tt := (*mapType)(unsafe.Pointer(t))
 	return toType(tt.Key)
 }
 
-func (t *rtype) Len() int {
-	if t.Kind() != Array {
+func (t rtype) Len() int {
+	tt := t.arrayType()
+	if tt == nil {
 		panic("reflect: Len of non-array type " + t.String())
 	}
-	tt := (*arrayType)(unsafe.Pointer(t))
 	return int(tt.Len)
 }
 
-func (t *rtype) NumField() int {
-	if t.Kind() != Struct {
+func (t rtype) NumField() int {
+	tt := t.structType()
+	if tt == nil {
 		panic("reflect: NumField of non-struct type " + t.String())
 	}
-	tt := (*structType)(unsafe.Pointer(t))
 	return len(tt.Fields)
 }
 
-func (t *rtype) In(i int) Type {
-	if t.Kind() != Func {
+func (t rtype) In(i int) Type {
+	tt := t.funcType()
+	if tt == nil {
 		panic("reflect: In of non-func type " + t.String())
 	}
-	tt := (*abi.FuncType)(unsafe.Pointer(t))
 	return toType(tt.InSlice()[i])
 }
 
-func (t *rtype) NumIn() int {
-	if t.Kind() != Func {
+func (t rtype) NumIn() int {
+	tt := t.funcType()
+	if tt == nil {
 		panic("reflect: NumIn of non-func type " + t.String())
 	}
-	tt := (*abi.FuncType)(unsafe.Pointer(t))
 	return tt.NumIn()
 }
 
-func (t *rtype) NumOut() int {
-	if t.Kind() != Func {
+func (t rtype) NumOut() int {
+	tt := t.funcType()
+	if tt == nil {
 		panic("reflect: NumOut of non-func type " + t.String())
 	}
-	tt := (*abi.FuncType)(unsafe.Pointer(t))
 	return tt.NumOut()
 }
 
-func (t *rtype) Out(i int) Type {
-	if t.Kind() != Func {
+func (t rtype) Out(i int) Type {
+	tt := t.funcType()
+	if tt == nil {
 		panic("reflect: Out of non-func type " + t.String())
 	}
-	tt := (*abi.FuncType)(unsafe.Pointer(t))
 	return toType(tt.OutSlice()[i])
 }
 
-func (t *rtype) IsVariadic() bool {
-	if t.Kind() != Func {
+func (t rtype) IsVariadic() bool {
+	tt := t.funcType()
+	if tt == nil {
 		panic("reflect: IsVariadic of non-func type " + t.String())
 	}
-	tt := (*abi.FuncType)(unsafe.Pointer(t))
 	return tt.IsVariadic()
 }
 
@@ -1147,7 +1160,7 @@ func TypeOf(i any) Type {
 	return toType(eface.typ)
 }
 
-// rtypeOf directly extracts the *rtype of the provided value.
+// rtypeOf directly extracts the type of the provided value.
 func rtypeOf(i any) *abi.Type {
 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
 	return eface.typ
@@ -1166,11 +1179,11 @@ func PtrTo(t Type) Type { return PointerTo(t) }
 // PointerTo returns the pointer type with element t.
 // For example, if t represents type Foo, PointerTo(t) represents *Foo.
 func PointerTo(t Type) Type {
-	return toRType(t.(*rtype).ptrTo())
+	return toRType(t.(rtype).ptrTo())
 }
 
-func (t *rtype) ptrTo() *abi.Type {
-	at := &t.t
+func (t rtype) ptrTo() *abi.Type {
+	at := t.t
 	if at.PtrToThis != 0 {
 		return t.typeOff(at.PtrToThis)
 	}
@@ -1184,7 +1197,7 @@ func (t *rtype) ptrTo() *abi.Type {
 	s := "*" + t.String()
 	for _, tt := range typesByString(s) {
 		p := (*ptrType)(unsafe.Pointer(tt))
-		if p.Elem != &t.t {
+		if p.Elem != t.t {
 			continue
 		}
 		pi, _ := ptrMap.LoadOrStore(t, p)
@@ -1225,7 +1238,7 @@ func fnv1(x uint32, list ...byte) uint32 {
 	return x
 }
 
-func (t *rtype) Implements(u Type) bool {
+func (t rtype) Implements(u Type) bool {
 	if u == nil {
 		panic("reflect: nil type passed to Type.Implements")
 	}
@@ -1235,7 +1248,7 @@ func (t *rtype) Implements(u Type) bool {
 	return implements(u.common(), t.common())
 }
 
-func (t *rtype) AssignableTo(u Type) bool {
+func (t rtype) AssignableTo(u Type) bool {
 	if u == nil {
 		panic("reflect: nil type passed to Type.AssignableTo")
 	}
@@ -1243,14 +1256,14 @@ func (t *rtype) AssignableTo(u Type) bool {
 	return directlyAssignable(uu, t.common()) || implements(uu, t.common())
 }
 
-func (t *rtype) ConvertibleTo(u Type) bool {
+func (t rtype) ConvertibleTo(u Type) bool {
 	if u == nil {
 		panic("reflect: nil type passed to Type.ConvertibleTo")
 	}
 	return convertOp(u.common(), t.common()) != nil
 }
 
-func (t *rtype) Comparable() bool {
+func (t rtype) Comparable() bool {
 	return t.t.Equal != nil
 }
 
@@ -1482,14 +1495,14 @@ func haveIdenticalUnderlyingType(T, V *abi.Type, cmpTags bool) bool {
 
 // typelinks is implemented in package runtime.
 // It returns a slice of the sections in each module,
-// and a slice of *rtype offsets in each module.
+// and a slice of *abi.Type offsets in each module.
 //
 // The types in each module are sorted by string. That is, the first
 // two linked types of the first module are:
 //
 //	d0 := sections[0]
-//	t1 := (*rtype)(add(d0, offset[0][0]))
-//	t2 := (*rtype)(add(d0, offset[0][1]))
+//	t1 := (*abi.Type)(add(d0, offset[0][0]))
+//	t2 := (*abi.Type)(add(d0, offset[0][1]))
 //
 // and
 //
@@ -1545,7 +1558,7 @@ func typesByString(s string) []*abi.Type {
 }
 
 // The lookupCache caches ArrayOf, ChanOf, MapOf and SliceOf lookups.
-var lookupCache sync.Map // map[cacheKey]*rtype
+var lookupCache sync.Map // map[cacheKey]rtype
 
 // A cacheKey is the key for use in the lookupCache.
 // Four values describe any of the types we are looking for:
@@ -1563,7 +1576,7 @@ type cacheKey struct {
 var funcLookupCache struct {
 	sync.Mutex // Guards stores (but not loads) on m.
 
-	// m is a map[uint32][]*rtype keyed by the hash calculated in FuncOf.
+	// m is a map[uint32][]rtype keyed by the hash calculated in FuncOf.
 	// Elements of m are append-only and thus safe for concurrent reading.
 	m sync.Map
 }
@@ -1579,7 +1592,7 @@ func ChanOf(dir ChanDir, t Type) Type {
 	// Look in cache.
 	ckey := cacheKey{Chan, typ, nil, uintptr(dir)}
 	if ch, ok := lookupCache.Load(ckey); ok {
-		return ch.(*rtype)
+		return ch.(rtype)
 	}
 
 	// This restriction is imposed by the gc compiler and the runtime.
@@ -1754,13 +1767,13 @@ func FuncOf(in, out []Type, variadic bool) Type {
 
 	o := New(initFuncTypes(n)).Elem()
 	ft := (*funcType)(unsafe.Pointer(o.Field(0).Addr().Pointer()))
-	args := unsafe.Slice((**rtype)(unsafe.Pointer(o.Field(1).Addr().Pointer())), n)[0:0:n]
+	args := unsafe.Slice((*rtype)(unsafe.Pointer(o.Field(1).Addr().Pointer())), n)[0:0:n]
 	*ft = *prototype
 
 	// Build a hash and minimally populate ft.
 	var hash uint32
 	for _, in := range in {
-		t := in.(*rtype)
+		t := in.(rtype)
 		args = append(args, t)
 		hash = fnv1(hash, byte(t.t.Hash>>24), byte(t.t.Hash>>16), byte(t.t.Hash>>8), byte(t.t.Hash))
 	}
@@ -1769,7 +1782,7 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	}
 	hash = fnv1(hash, '.')
 	for _, out := range out {
-		t := out.(*rtype)
+		t := out.(rtype)
 		args = append(args, t)
 		hash = fnv1(hash, byte(t.t.Hash>>24), byte(t.t.Hash>>16), byte(t.t.Hash>>8), byte(t.t.Hash))
 	}
@@ -2006,10 +2019,6 @@ func bucketOf(ktyp, etyp *abi.Type) *abi.Type {
 	s := "bucket(" + stringFor(ktyp) + "," + stringFor(etyp) + ")"
 	b.Str = resolveReflectName(newName(s, "", false, false))
 	return b
-}
-
-func (t *rtype) gcSlice(begin, end uintptr) []byte {
-	return (*[1 << 30]byte)(unsafe.Pointer(t.t.GCData))[begin:end:end]
 }
 
 // emitGCMask writes the GC mask for [n]typ into out, starting at bit
@@ -2660,7 +2669,7 @@ func ArrayOf(length int, elem Type) Type {
 	array.Align_ = typ.Align_
 	array.FieldAlign_ = typ.FieldAlign_
 	array.Len = uintptr(length)
-	array.Slice = &(SliceOf(elem).(*rtype).t)
+	array.Slice = SliceOf(elem).common()
 
 	switch {
 	case typ.PtrBytes == 0 || array.Size_ == 0:
@@ -2754,9 +2763,9 @@ func appendVarint(x []byte, v uintptr) []byte {
 	return x
 }
 
-// toType converts from a *rtype to a Type that can be returned
+// toType converts from a *abi.Type to a Type that can be returned
 // to the client of package reflect. In gc, the only concern is that
-// a nil *rtype must be replaced by a nil Type, but in gccgo this
+// a nil *abi.Type must be replaced by a nil Type, but in gccgo this
 // function takes care of ensuring that multiple *rtype for the same
 // type are coalesced into a single Type.
 func toType(t *abi.Type) Type {

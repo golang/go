@@ -517,11 +517,11 @@ func (v Value) call(op string, in []Value) []Value {
 	// Handle arguments.
 	for i, v := range in {
 		v.mustBeExported()
-		targ := toRType(t.In(i))
+		targ := t.In(i)
 		// TODO(mknyszek): Figure out if it's possible to get some
 		// scratch space for this assignment check. Previously, it
 		// was possible to use space in the argument frame.
-		v = v.assignTo("reflect.Value.Call", &targ.t, nil)
+		v = v.assignTo("reflect.Value.Call", targ, nil)
 	stepsLoop:
 		for _, st := range abid.call.stepsForValue(i + inStart) {
 			switch st.kind {
@@ -529,7 +529,7 @@ func (v Value) call(op string, in []Value) []Value {
 				// Copy values to the "stack."
 				addr := add(stackArgs, st.stkOff, "precomputed stack arg offset")
 				if v.flag&flagIndir != 0 {
-					typedmemmove(&targ.t, addr, v.ptr)
+					typedmemmove(targ, addr, v.ptr)
 				} else {
 					*(*unsafe.Pointer)(addr) = v.ptr
 				}
@@ -2600,7 +2600,7 @@ func (v Value) TrySend(x Value) bool {
 // Type returns v's type.
 func (v Value) Type() Type {
 	if v.flag != 0 && v.flag&flagMethod == 0 {
-		return (*rtype)(unsafe.Pointer(v.typ)) // inline of toRType(v.typ), for own inlining in inline test
+		return rtype{v.typ} // inline of toRType(v.typ), for own inlining in inline test
 	}
 	return v.typeSlow()
 }
@@ -2929,7 +2929,7 @@ func Copy(dst, src Value) int {
 // This must match ../runtime/select.go:/runtimeSelect
 type runtimeSelect struct {
 	dir SelectDir      // SelectSend, SelectRecv or SelectDefault
-	typ *rtype         // channel type
+	typ *abi.Type      // channel type
 	ch  unsafe.Pointer // channel
 	val unsafe.Pointer // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
 }
@@ -3032,7 +3032,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 				panic("reflect.Select: SendDir case using recv-only channel")
 			}
 			rc.ch = ch.pointer()
-			rc.typ = toRType(&tt.Type)
+			rc.typ = &tt.Type
 			v := c.Send
 			if !v.IsValid() {
 				panic("reflect.Select: SendDir case missing Send value")
@@ -3060,7 +3060,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 				panic("reflect.Select: RecvDir case using send-only channel")
 			}
 			rc.ch = ch.pointer()
-			rc.typ = toRType(&tt.Type)
+			rc.typ = &tt.Type
 			rc.val = unsafe_New(tt.Elem)
 		}
 	}
@@ -3104,8 +3104,8 @@ func MakeSlice(typ Type, len, cap int) Value {
 		panic("reflect.MakeSlice: len > cap")
 	}
 
-	s := unsafeheader.Slice{Data: unsafe_NewArray(&(typ.Elem().(*rtype).t), cap), Len: len, Cap: cap}
-	return Value{&typ.(*rtype).t, unsafe.Pointer(&s), flagIndir | flag(Slice)}
+	s := unsafeheader.Slice{Data: unsafe_NewArray(typ.Elem().common(), cap), Len: len, Cap: cap}
+	return Value{typ.common(), unsafe.Pointer(&s), flagIndir | flag(Slice)}
 }
 
 // MakeChan creates a new channel with the specified type and buffer size.
@@ -3175,7 +3175,7 @@ func Zero(typ Type) Value {
 	if typ == nil {
 		panic("reflect: Zero(nil)")
 	}
-	t := &typ.(*rtype).t
+	t := typ.common()
 	fl := flag(t.Kind())
 	if t.IfaceIndir() {
 		var p unsafe.Pointer
@@ -3201,7 +3201,7 @@ func New(typ Type) Value {
 	if typ == nil {
 		panic("reflect: New(nil)")
 	}
-	t := &typ.(*rtype).t
+	t := typ.common()
 	pt := ptrTo(t)
 	if ifaceIndir(pt) {
 		// This is a pointer to a not-in-heap type.
@@ -3216,7 +3216,7 @@ func New(typ Type) Value {
 // specified type, using p as that pointer.
 func NewAt(typ Type, p unsafe.Pointer) Value {
 	fl := flag(Pointer)
-	t := typ.(*rtype)
+	t := typ.(rtype)
 	return Value{t.ptrTo(), p, fl}
 }
 
