@@ -109,12 +109,16 @@ func TestNonNewLogger(t *testing.T) {
 func TestOutputRace(t *testing.T) {
 	var b bytes.Buffer
 	l := New(&b, "", 0)
+	var wg sync.WaitGroup
+	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
+			defer wg.Done()
 			l.SetFlags(0)
 			l.Output(0, "")
 		}()
 	}
+	wg.Wait()
 }
 
 func TestFlagAndPrefixSetting(t *testing.T) {
