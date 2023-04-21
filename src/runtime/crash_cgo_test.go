@@ -368,8 +368,8 @@ func TestCgoPprofThreadNoTraceback(t *testing.T) {
 }
 
 func TestRaceProf(t *testing.T) {
-	if (runtime.GOOS != "linux" && runtime.GOOS != "freebsd") || runtime.GOARCH != "amd64" {
-		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
 	}
 
 	testenv.MustHaveGoRun(t)
@@ -396,10 +396,11 @@ func TestRaceProf(t *testing.T) {
 }
 
 func TestRaceSignal(t *testing.T) {
-	t.Parallel()
-	if (runtime.GOOS != "linux" && runtime.GOOS != "freebsd") || runtime.GOARCH != "amd64" {
-		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
 	}
+
+	t.Parallel()
 
 	testenv.MustHaveGoRun(t)
 
