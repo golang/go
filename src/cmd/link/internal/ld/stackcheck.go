@@ -42,7 +42,7 @@ const stackCheckCycle int16 = 1<<15 - 1
 
 // stackCheckIndirect is a sentinel Sym value used to represent the
 // target of an indirect/closure call.
-const stackCheckIndirect loader.Sym = -1
+const stackCheckIndirect loader.Sym = ^loader.Sym(0)
 
 // doStackCheck walks the call tree to check that there is always
 // enough stack space for call frames, especially for a chain of
