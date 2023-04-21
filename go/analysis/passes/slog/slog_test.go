@@ -15,5 +15,5 @@ import (
 func Test(t *testing.T) {
 	testenv.NeedsGo1Point(t, 21)
 	testdata := analysistest.TestData()
-	analysistest.Run(t, testdata, slog.Analyzer, "a")
+	analysistest.Run(t, testdata, slog.Analyzer, "a", "b")
 }
