@@ -142,7 +142,21 @@ func packageReferences(ctx context.Context, snapshot Snapshot, uri span.URI) ([]
 		if err != nil {
 			return nil, err
 		}
+
+		// Restrict search to workspace packages.
+		workspace, err := snapshot.WorkspaceMetadata(ctx)
+		if err != nil {
+			return nil, err
+		}
+		workspaceMap := make(map[PackageID]*Metadata, len(workspace))
+		for _, m := range workspace {
+			workspaceMap[m.ID] = m
+		}
+
 		for _, rdep := range rdeps {
+			if _, ok := workspaceMap[rdep.ID]; !ok {
+				continue
+			}
 			for _, uri := range rdep.CompiledGoFiles {
 				fh, err := snapshot.ReadFile(ctx, uri)
 				if err != nil {
@@ -257,9 +271,9 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	// Is object exported?
 	// If so, compute scope and targets of the global search.
 	var (
-		globalScope   = make(map[PackageID]*Metadata)
+		globalScope   = make(map[PackageID]*Metadata) // (excludes ITVs)
 		globalTargets map[PackagePath]map[objectpath.Path]unit
-		expansions    = make(map[*Metadata]unit) // packages that caused search expansion
+		expansions    = make(map[PackageID]unit) // packages that caused search expansion
 	)
 	// TODO(adonovan): what about generic functions? Need to consider both
 	// uninstantiated and instantiated. The latter have no objectpath. Use Origin?
@@ -267,6 +281,47 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 		pkgPath := variants[0].PkgPath // (all variants have same package path)
 		globalTargets = map[PackagePath]map[objectpath.Path]unit{
 			pkgPath: {path: {}}, // primary target
+		}
+
+		// Compute set of (non-ITV) workspace packages.
+		// We restrict references to this subset.
+		workspace, err := snapshot.WorkspaceMetadata(ctx)
+		if err != nil {
+			return nil, err
+		}
+		workspaceMap := make(map[PackageID]*Metadata, len(workspace))
+		workspaceIDs := make([]PackageID, 0, len(workspace))
+		for _, m := range workspace {
+			workspaceMap[m.ID] = m
+			workspaceIDs = append(workspaceIDs, m.ID)
+		}
+
+		// addRdeps expands the global scope to include the
+		// reverse dependencies of the specified package.
+		addRdeps := func(id PackageID, transitive bool) error {
+			rdeps, err := snapshot.ReverseDependencies(ctx, id, transitive)
+			if err != nil {
+				return err
+			}
+			for rdepID, rdep := range rdeps {
+				// Skip non-workspace packages.
+				//
+				// This means we also skip any expansion of the
+				// search that might be caused by a non-workspace
+				// package, possibly causing us to miss references
+				// to the expanded target set from workspace packages.
+				//
+				// TODO(adonovan): don't skip those expansions.
+				// The challenge is how to so without type-checking
+				// a lot of non-workspace packages not covered by
+				// the initial workspace load.
+				if _, ok := workspaceMap[rdepID]; !ok {
+					continue
+				}
+
+				globalScope[rdepID] = rdep
+			}
+			return nil
 		}
 
 		// How far need we search?
@@ -278,12 +333,8 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 		// (Each set is disjoint so there's no benefit to
 		// to combining the metadata graph traversals.)
 		for _, m := range variants {
-			rdeps, err := snapshot.ReverseDependencies(ctx, m.ID, transitive)
-			if err != nil {
+			if err := addRdeps(m.ID, transitive); err != nil {
 				return nil, err
-			}
-			for id, rdep := range rdeps {
-				globalScope[id] = rdep
 			}
 		}
 
@@ -297,7 +348,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 		// 'expansions' records the packages that declared
 		// such types.
 		if recv := effectiveReceiver(obj); recv != nil {
-			if err := expandMethodSearch(ctx, snapshot, obj.(*types.Func), recv, globalScope, globalTargets, expansions); err != nil {
+			if err := expandMethodSearch(ctx, snapshot, workspaceIDs, obj.(*types.Func), recv, addRdeps, globalTargets, expansions); err != nil {
 				return nil, err
 			}
 		}
@@ -388,18 +439,18 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	// Also compute local references within packages that declare
 	// corresponding methods (see above), which expand the global search.
 	// The target objects are identified by (PkgPath, objectpath).
-	for m := range expansions {
-		m := m
+	for id := range expansions {
+		id := id
 		group.Go(func() error {
 			// TODO(adonovan): opt: batch these TypeChecks.
-			pkgs, err := snapshot.TypeCheck(ctx, m.ID)
+			pkgs, err := snapshot.TypeCheck(ctx, id)
 			if err != nil {
 				return err
 			}
 			pkg := pkgs[0]
 
 			targets := make(map[types.Object]bool)
-			for objpath := range globalTargets[m.PkgPath] {
+			for objpath := range globalTargets[pkg.Metadata().PkgPath] {
 				obj, err := objectpath.Object(pkg.GetTypes(), objpath)
 				if err != nil {
 					return err // can't happen?
@@ -413,16 +464,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 	// Compute global references for selected reverse dependencies.
 	group.Go(func() error {
 		var globalIDs []PackageID
-		for id, m := range globalScope {
-			// Skip intermediate test variants.
-			//
-			// Strictly, an ITV's cross-reference index
-			// may have different objectpaths from the
-			// ordinary variant, but we ignore that. See
-			// explanation at IsIntermediateTestVariant.
-			if m.IsIntermediateTestVariant() {
-				continue
-			}
+		for id := range globalScope {
 			globalIDs = append(globalIDs, id)
 		}
 		indexes, err := snapshot.References(ctx, globalIDs...)
@@ -444,37 +486,28 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 }
 
 // expandMethodSearch expands the scope and targets of a global search
-// for an exported method to include all methods that correspond to
-// it through interface satisfaction.
+// for an exported method to include all methods in the workspace
+// that correspond to it through interface satisfaction.
 //
 // Each package that declares a corresponding type is added to
 // expansions so that we can also find local references to the type
 // within the package, which of course requires type checking.
 //
+// The scope is expanded by a sequence of calls (not concurrent) to addRdeps.
+//
 // recv is the method's effective receiver type, for method-set computations.
-func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Func, recv types.Type, scope map[PackageID]*Metadata, targets map[PackagePath]map[objectpath.Path]unit, expansions map[*Metadata]unit) error {
+func expandMethodSearch(ctx context.Context, snapshot Snapshot, workspaceIDs []PackageID, method *types.Func, recv types.Type, addRdeps func(id PackageID, transitive bool) error, targets map[PackagePath]map[objectpath.Path]unit, expansions map[PackageID]unit) error {
 	// Compute the method-set fingerprint used as a key to the global search.
 	key, hasMethods := methodsets.KeyOf(recv)
 	if !hasMethods {
 		return bug.Errorf("KeyOf(%s)={} yet %s is a method", recv, method)
 	}
-	metas, err := snapshot.AllMetadata(ctx)
-	if err != nil {
-		return err
-	}
-	// Discard ITVs to avoid redundant type-checking.
-	// (See explanation at IsIntermediateTestVariant.)
-	RemoveIntermediateTestVariants(&metas)
-	allIDs := make([]PackageID, 0, len(metas))
-	for _, m := range metas {
-		allIDs = append(allIDs, m.ID)
-	}
 	// Search the methodset index of each package in the workspace.
-	indexes, err := snapshot.MethodSets(ctx, allIDs...)
+	indexes, err := snapshot.MethodSets(ctx, workspaceIDs...)
 	if err != nil {
 		return err
 	}
-	var mu sync.Mutex // guards scope, targets, expansions
+	var mu sync.Mutex // guards addRdeps, targets, expansions
 	var group errgroup.Group
 	for i, index := range indexes {
 		i := i
@@ -486,20 +519,20 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, method *types.Fu
 				return nil
 			}
 
-			// Expand global search scope to include rdeps of this pkg.
-			rdeps, err := snapshot.ReverseDependencies(ctx, allIDs[i], true)
-			if err != nil {
-				return err
-			}
+			// We have discovered one or more corresponding types.
+			id := workspaceIDs[i]
 
 			mu.Lock()
 			defer mu.Unlock()
 
-			expansions[metas[i]] = unit{}
-
-			for _, rdep := range rdeps {
-				scope[rdep.ID] = rdep
+			// Expand global search scope to include rdeps of this pkg.
+			if err := addRdeps(id, true); err != nil {
+				return err
 			}
+
+			// Mark this package so that we search within it for
+			// local references to the additional types/methods.
+			expansions[id] = unit{}
 
 			// Add each corresponding method the to set of global search targets.
 			for _, res := range results {

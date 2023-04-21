@@ -323,8 +323,8 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	}
 	store(modVulncheckSource, "diagnosing vulnerabilities", vulnReports, vulnErr, false)
 
-	activeMetas, activeErr := snapshot.WorkspaceMetadata(ctx)
-	if s.shouldIgnoreError(ctx, snapshot, activeErr) {
+	workspace, err := snapshot.WorkspaceMetadata(ctx)
+	if s.shouldIgnoreError(ctx, snapshot, err) {
 		return
 	}
 	criticalErr := snapshot.CriticalError(ctx)
@@ -346,7 +346,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 
 	// If there are no workspace packages, there is nothing to diagnose and
 	// there are no orphaned files.
-	if len(activeMetas) == 0 {
+	if len(workspace) == 0 {
 		return
 	}
 
@@ -368,7 +368,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 		toDiagnose = make(map[source.PackageID]*source.Metadata)
 		toAnalyze  = make(map[source.PackageID]*source.Metadata)
 	)
-	for _, m := range activeMetas {
+	for _, m := range workspace {
 		var hasNonIgnored, hasOpenFile bool
 		for _, uri := range m.CompiledGoFiles {
 			seen[uri] = struct{}{}

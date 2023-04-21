@@ -170,7 +170,8 @@ type Snapshot interface {
 	ReverseDependencies(ctx context.Context, id PackageID, transitive bool) (map[PackageID]*Metadata, error)
 
 	// WorkspaceMetadata returns a new, unordered slice containing
-	// metadata for all packages in the workspace.
+	// metadata for all ordinary and test packages (but not
+	// intermediate test variants) in the workspace.
 	WorkspaceMetadata(ctx context.Context) ([]*Metadata, error)
 
 	// AllMetadata returns a new unordered array of metadata for all packages in the workspace.

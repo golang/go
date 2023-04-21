@@ -126,7 +126,7 @@ type snapshot struct {
 	analyses *persistent.Map // from analysisKey to analysisPromise
 
 	// workspacePackages contains the workspace's packages, which are loaded
-	// when the view is created.
+	// when the view is created. It contains no intermediate test variants.
 	workspacePackages map[PackageID]PackagePath
 
 	// shouldLoad tracks packages that need to be reloaded, mapping a PackageID

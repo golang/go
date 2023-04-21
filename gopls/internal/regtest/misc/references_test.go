@@ -13,7 +13,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"golang.org/x/tools/gopls/internal/lsp/regtest"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
+	"golang.org/x/tools/internal/testenv"
 )
 
 func TestStdlibReferences(t *testing.T) {
@@ -250,16 +252,6 @@ func _() {
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("foo/foo.go")
 
-		// Helper to map locations relative file paths.
-		fileLocations := func(locs []protocol.Location) []string {
-			var got []string
-			for _, loc := range locs {
-				got = append(got, env.Sandbox.Workdir.URIToPath(loc.URI))
-			}
-			sort.Strings(got)
-			return got
-		}
-
 		refTests := []struct {
 			re       string
 			wantRefs []string
@@ -280,7 +272,7 @@ func _() {
 			loc := env.RegexpSearch("foo/foo.go", test.re)
 			refs := env.References(loc)
 
-			got := fileLocations(refs)
+			got := fileLocations(env, refs)
 			if diff := cmp.Diff(test.wantRefs, got); diff != "" {
 				t.Errorf("References(%q) returned unexpected diff (-want +got):\n%s", test.re, diff)
 			}
@@ -304,7 +296,7 @@ func _() {
 			loc := env.RegexpSearch("foo/foo.go", test.re)
 			impls := env.Implementations(loc)
 
-			got := fileLocations(impls)
+			got := fileLocations(env, impls)
 			if diff := cmp.Diff(test.wantImpls, got); diff != "" {
 				t.Errorf("Implementations(%q) returned unexpected diff (-want +got):\n%s", test.re, diff)
 			}
@@ -396,4 +388,81 @@ var _ b.B
 		// b.B is once again defined in the module cache.
 		checkVendor(env.Implementations(refLoc), false)
 	})
+}
+
+// This test can't be expressed as a marker test because the marker
+// test framework opens all files (which is a bit of a hack), creating
+// a <command-line-arguments> package for packages that otherwise
+// wouldn't be found from the go.work file.
+func TestReferencesFromWorkspacePackages59674(t *testing.T) {
+	testenv.NeedsGo1Point(t, 18) // for go.work support
+	const src = `
+-- a/go.mod --
+module example.com/a
+go 1.12
+
+-- b/go.mod --
+module example.com/b
+go 1.12
+
+-- c/go.mod --
+module example.com/c
+go 1.12
+
+-- lib/go.mod --
+module example.com/lib
+go 1.12
+
+-- go.work --
+use ./a
+use ./b
+// don't use ./c
+use ./lib
+
+-- a/a.go --
+package a
+
+import "example.com/lib"
+
+var _ = lib.F // query here
+
+-- b/b.go --
+package b
+
+import "example.com/lib"
+
+var _ = lib.F // also found by references
+
+-- c/c.go --
+package c
+
+import "example.com/lib"
+
+var _ = lib.F // this reference should not be reported
+
+-- lib/lib.go --
+package lib
+
+func F() {} // declaration
+`
+	Run(t, src, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a.go")
+		refLoc := env.RegexpSearch("a/a.go", "F")
+		got := fileLocations(env, env.References(refLoc))
+		want := []string{"a/a.go", "b/b.go", "lib/lib.go"}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("incorrect References (-want +got):\n%s", diff)
+		}
+	})
+}
+
+// fileLocations returns a new sorted array of the relative
+// file name of each location. Duplicates are not removed.
+func fileLocations(env *regtest.Env, locs []protocol.Location) []string {
+	got := make([]string, 0, len(locs))
+	for _, loc := range locs {
+		got = append(got, env.Sandbox.Workdir.URIToPath(loc.URI))
+	}
+	sort.Strings(got)
+	return got
 }
