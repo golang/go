@@ -5194,6 +5194,7 @@ func checkdead() {
 	}
 	if run < 0 {
 		print("runtime: checkdead: nmidle=", sched.nmidle, " nmidlelocked=", sched.nmidlelocked, " mcount=", mcount(), " nmsys=", sched.nmsys, "\n")
+		unlock(&sched.lock)
 		throw("checkdead: inconsistent counts")
 	}
 
@@ -5211,6 +5212,7 @@ func checkdead() {
 			_Grunning,
 			_Gsyscall:
 			print("runtime: checkdead: find g ", gp.goid, " in status ", s, "\n")
+			unlock(&sched.lock)
 			throw("checkdead: runnable g")
 		}
 	})
@@ -5229,12 +5231,14 @@ func checkdead() {
 			if pp == nil {
 				// There should always be a free P since
 				// nothing is running.
+				unlock(&sched.lock)
 				throw("checkdead: no p for timer")
 			}
 			mp := mget()
 			if mp == nil {
 				// There should always be a free M since
 				// nothing is running.
+				unlock(&sched.lock)
 				throw("checkdead: no m for timer")
 			}
 			// M must be spinning to steal. We set this to be
