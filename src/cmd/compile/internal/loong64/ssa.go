@@ -340,18 +340,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 	case ssa.OpLOONG64DUFFZERO:
-		// runtime.duffzero expects start address - 8 in R19
-		p := s.Prog(loong64.ASUBVU)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 8
-		p.Reg = v.Args[0].Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = loong64.REG_R19
-		p = s.Prog(obj.ADUFFZERO)
+		// runtime.duffzero expects start address in R19
+		p := s.Prog(obj.ADUFFZERO)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Duffzero
 		p.To.Offset = v.AuxInt
+
 	case ssa.OpLOONG64LoweredZero:
 		// SUBV	$8, R19
 		// MOVV	R0, 8(R19)
