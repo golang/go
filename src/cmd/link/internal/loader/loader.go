@@ -220,23 +220,19 @@ type Loader struct {
 	attrLocal            Bitmap // "local" symbols, indexed by global index
 	attrNotInSymbolTable Bitmap // "not in symtab" symbols, indexed by global idx
 	attrUsedInIface      Bitmap // "used in interface" symbols, indexed by global idx
+	attrSpecial          Bitmap // "special" frame symbols, indexed by global idx
 	attrVisibilityHidden Bitmap // hidden symbols, indexed by ext sym index
 	attrDuplicateOK      Bitmap // dupOK symbols, indexed by ext sym index
 	attrShared           Bitmap // shared symbols, indexed by ext sym index
 	attrExternal         Bitmap // external symbols, indexed by ext sym index
+	generatedSyms        Bitmap // symbols that generate their content, indexed by ext sym idx
 
 	attrReadOnly         map[Sym]bool     // readonly data for this sym
-	attrSpecial          map[Sym]struct{} // "special" frame symbols
 	attrCgoExportDynamic map[Sym]struct{} // "cgo_export_dynamic" symbols
 	attrCgoExportStatic  map[Sym]struct{} // "cgo_export_static" symbols
-	generatedSyms        map[Sym]struct{} // symbols that generate their content
 
 	// Outer and Sub relations for symbols.
-	// TODO: figure out whether it's more efficient to just have these
-	// as fields on extSymPayload (note that this won't be a viable
-	// strategy if somewhere in the linker we set sub/outer for a
-	// non-external sym).
-	outer map[Sym]Sym
+	outer []Sym // indexed by global index
 	sub   map[Sym]Sym
 
 	dynimplib   map[Sym]string      // stores Dynimplib symbol attribute
@@ -318,7 +314,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		extReader:            extReader,
 		symsByName:           [2]map[string]Sym{make(map[string]Sym, 80000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
 		objByPkg:             make(map[string]uint32),
-		outer:                make(map[Sym]Sym),
 		sub:                  make(map[Sym]Sym),
 		dynimplib:            make(map[Sym]string),
 		dynimpvers:           make(map[Sym]string),
@@ -332,10 +327,8 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
 		dynid:                make(map[Sym]int32),
-		attrSpecial:          make(map[Sym]struct{}),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
-		generatedSyms:        make(map[Sym]struct{}),
 		deferReturnTramp:     make(map[Sym]bool),
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
@@ -496,6 +489,7 @@ func (l *Loader) newExtSym(name string, ver int) Sym {
 		l.extStart = i
 	}
 	l.growValues(int(i) + 1)
+	l.growOuter(int(i) + 1)
 	l.growAttrBitmaps(int(i) + 1)
 	pi := l.newPayload(name, ver)
 	l.objSyms = append(l.objSyms, objSym{l.extReader.objidx, uint32(pi)})
@@ -1010,17 +1004,16 @@ func (l *Loader) SetAttrExternal(i Sym, v bool) {
 // address (i.e. Value) computed by the usual mechanism of
 // data.go:dodata() & data.go:address().
 func (l *Loader) AttrSpecial(i Sym) bool {
-	_, ok := l.attrSpecial[i]
-	return ok
+	return l.attrSpecial.Has(i)
 }
 
 // SetAttrSpecial sets the "special" property for a symbol (see
 // AttrSpecial).
 func (l *Loader) SetAttrSpecial(i Sym, v bool) {
 	if v {
-		l.attrSpecial[i] = struct{}{}
+		l.attrSpecial.Set(i)
 	} else {
-		delete(l.attrSpecial, i)
+		l.attrSpecial.Unset(i)
 	}
 }
 
@@ -1072,8 +1065,10 @@ func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
 // generator symbol through the SetIsGeneratedSym. The functions for generator
 // symbols are kept in the Link context.
 func (l *Loader) IsGeneratedSym(i Sym) bool {
-	_, ok := l.generatedSyms[i]
-	return ok
+	if !l.IsExternal(i) {
+		return false
+	}
+	return l.generatedSyms.Has(l.extIndex(i))
 }
 
 // SetIsGeneratedSym marks symbols as generated symbols. Data shouldn't be
@@ -1084,9 +1079,9 @@ func (l *Loader) SetIsGeneratedSym(i Sym, v bool) {
 		panic("only external symbols can be generated")
 	}
 	if v {
-		l.generatedSyms[i] = struct{}{}
+		l.generatedSyms.Set(l.extIndex(i))
 	} else {
-		delete(l.generatedSyms, i)
+		l.generatedSyms.Unset(l.extIndex(i))
 	}
 }
 
@@ -1730,17 +1725,22 @@ func (l *Loader) AddInteriorSym(container Sym, interior Sym) {
 	l.outer[interior] = container
 }
 
-// OuterSym gets the outer symbol for host object loaded symbols.
+// OuterSym gets the outer/container symbol.
 func (l *Loader) OuterSym(i Sym) Sym {
-	// FIXME: add check for isExternal?
 	return l.outer[i]
 }
 
 // SubSym gets the subsymbol for host object loaded symbols.
 func (l *Loader) SubSym(i Sym) Sym {
-	// NB: note -- no check for l.isExternal(), since I am pretty sure
-	// that later phases in the linker set subsym for "type:" syms
 	return l.sub[i]
+}
+
+// growOuter grows the slice used to store outer symbol.
+func (l *Loader) growOuter(reqLen int) {
+	curLen := len(l.outer)
+	if reqLen > curLen {
+		l.outer = append(l.outer, make([]Sym, reqLen-curLen)...)
+	}
 }
 
 // SetCarrierSym declares that 'c' is the carrier or container symbol
@@ -1835,6 +1835,7 @@ func (l *Loader) growAttrBitmaps(reqLen int) {
 		l.attrLocal = growBitmap(reqLen, l.attrLocal)
 		l.attrNotInSymbolTable = growBitmap(reqLen, l.attrNotInSymbolTable)
 		l.attrUsedInIface = growBitmap(reqLen, l.attrUsedInIface)
+		l.attrSpecial = growBitmap(reqLen, l.attrSpecial)
 	}
 	l.growExtAttrBitmaps()
 }
@@ -1847,6 +1848,7 @@ func (l *Loader) growExtAttrBitmaps() {
 		l.attrDuplicateOK = growBitmap(extReqLen, l.attrDuplicateOK)
 		l.attrShared = growBitmap(extReqLen, l.attrShared)
 		l.attrExternal = growBitmap(extReqLen, l.attrExternal)
+		l.generatedSyms = growBitmap(extReqLen, l.generatedSyms)
 	}
 }
 
@@ -2219,6 +2221,7 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
 		loadObjRefs(l, o.r, arch)
 	}
 	l.values = make([]int64, l.NSym(), l.NSym()+1000) // +1000 make some room for external symbols
+	l.outer = make([]Sym, l.NSym(), l.NSym()+1000)
 }
 
 func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
