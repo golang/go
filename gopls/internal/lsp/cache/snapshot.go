@@ -859,21 +859,15 @@ func (s *snapshot) ReverseDependencies(ctx context.Context, id PackageID, transi
 	return rdeps, nil
 }
 
-func (s *snapshot) workspaceMetadata() (meta []*source.Metadata) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for id := range s.workspacePackages {
-		meta = append(meta, s.meta.metadata[id])
-	}
-	return meta
-}
-
 // -- Active package tracking --
 //
-// We say a package is "active" if any of its files are open. After
-// type-checking we keep active packages in memory. The activePackages
-// peristent map does bookkeeping for the set of active packages.
+// We say a package is "active" if any of its files are open.
+// This is an optimization: the "active" concept is an
+// implementation detail of the cache and is not exposed
+// in the source or Snapshot API.
+// After type-checking we keep active packages in memory.
+// The activePackages persistent map does bookkeeping for
+// the set of active packages.
 
 // getActivePackage returns a the memoized active package for id, if it exists.
 // If id is not active or has not yet been type-checked, it returns nil.
@@ -1100,11 +1094,19 @@ func (s *snapshot) knownFilesInDir(ctx context.Context, dir span.URI) []span.URI
 	return files
 }
 
-func (s *snapshot) ActiveMetadata(ctx context.Context) ([]*source.Metadata, error) {
+func (s *snapshot) WorkspaceMetadata(ctx context.Context) ([]*source.Metadata, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-	return s.workspaceMetadata(), nil
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	meta := make([]*source.Metadata, 0, len(s.workspacePackages))
+	for id := range s.workspacePackages {
+		meta = append(meta, s.meta.metadata[id])
+	}
+	return meta, nil
 }
 
 // Symbols extracts and returns symbol information for every file contained in
@@ -1257,14 +1259,6 @@ func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
 	return true
 }
 
-func (s *snapshot) isWorkspacePackage(id PackageID) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	_, ok := s.workspacePackages[id]
-	return ok
-}
-
 func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
 	s.view.markKnown(uri)
 
@@ -1383,7 +1377,7 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	return nil
 }
 
-func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
+func (s *snapshot) CriticalError(ctx context.Context) *source.CriticalError {
 	// If we couldn't compute workspace mod files, then the load below is
 	// invalid.
 	//
@@ -1400,7 +1394,7 @@ func (s *snapshot) GetCriticalError(ctx context.Context) *source.CriticalError {
 	// Even if packages didn't fail to load, we still may want to show
 	// additional warnings.
 	if loadErr == nil {
-		active, _ := s.ActiveMetadata(ctx)
+		active, _ := s.WorkspaceMetadata(ctx)
 		if msg := shouldShowAdHocPackagesWarning(s, active); msg != "" {
 			return &source.CriticalError{
 				MainError: errors.New(msg),
@@ -2079,7 +2073,6 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	if workspaceModeChanged {
 		result.workspacePackages = map[PackageID]PackagePath{}
 	}
-	result.dumpWorkspace("clone")
 	return result, release
 }
 

@@ -153,24 +153,28 @@ type Snapshot interface {
 	// IsBuiltin reports whether uri is part of the builtin package.
 	IsBuiltin(ctx context.Context, uri span.URI) bool
 
+	// CriticalError returns any critical errors in the workspace.
+	//
+	// A nil result may mean success, or context cancellation.
+	CriticalError(ctx context.Context) *CriticalError
+
+	// Symbols returns all symbols in the snapshot.
+	Symbols(ctx context.Context) (map[span.URI][]Symbol, error)
+
+	// -- package metadata --
+
 	// ReverseDependencies returns a new mapping whose entries are
 	// the ID and Metadata of each package in the workspace that
 	// directly or transitively depend on the package denoted by id,
 	// excluding id itself.
 	ReverseDependencies(ctx context.Context, id PackageID, transitive bool) (map[PackageID]*Metadata, error)
 
-	// ActiveMetadata returns a new, unordered slice containing
-	// metadata for all packages considered 'active' in the workspace.
-	//
-	// In normal memory mode, this is all workspace packages. In degraded memory
-	// mode, this is just the reverse transitive closure of open packages.
-	ActiveMetadata(ctx context.Context) ([]*Metadata, error)
+	// WorkspaceMetadata returns a new, unordered slice containing
+	// metadata for all packages in the workspace.
+	WorkspaceMetadata(ctx context.Context) ([]*Metadata, error)
 
 	// AllMetadata returns a new unordered array of metadata for all packages in the workspace.
 	AllMetadata(ctx context.Context) ([]*Metadata, error)
-
-	// Symbols returns all symbols in the snapshot.
-	Symbols(ctx context.Context) (map[span.URI][]Symbol, error)
 
 	// Metadata returns the metadata for the specified package,
 	// or nil if it was not found.
@@ -184,6 +188,8 @@ type Snapshot interface {
 	// importable packages.
 	// It returns an error if the context was cancelled.
 	MetadataForFile(ctx context.Context, uri span.URI) ([]*Metadata, error)
+
+	// -- package type-checking --
 
 	// TypeCheck parses and type-checks the specified packages,
 	// and returns them in the same order as the ids.
@@ -215,11 +221,6 @@ type Snapshot interface {
 	// If these indexes cannot be loaded from cache, the requested packages may
 	// be type-checked.
 	MethodSets(ctx context.Context, ids ...PackageID) ([]*methodsets.Index, error)
-
-	// GetCriticalError returns any critical errors in the workspace.
-	//
-	// A nil result may mean success, or context cancellation.
-	GetCriticalError(ctx context.Context) *CriticalError
 }
 
 // NarrowestMetadataForFile returns metadata for the narrowest package

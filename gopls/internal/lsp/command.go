@@ -990,7 +990,7 @@ func collectViewStats(ctx context.Context, view *cache.View) (command.ViewStats,
 	}
 	allPackages := collectPackageStats(allMD)
 
-	wsMD, err := s.ActiveMetadata(ctx)
+	wsMD, err := s.WorkspaceMetadata(ctx)
 	if err != nil {
 		return command.ViewStats{}, err
 	}

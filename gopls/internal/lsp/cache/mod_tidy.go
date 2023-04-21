@@ -61,7 +61,7 @@ func (s *snapshot) ModTidy(ctx context.Context, pm *source.ParsedModule) (*sourc
 			}
 		}
 
-		if criticalErr := s.GetCriticalError(ctx); criticalErr != nil {
+		if criticalErr := s.CriticalError(ctx); criticalErr != nil {
 			return &source.TidiedModule{
 				Diagnostics: criticalErr.Diagnostics,
 			}, nil
@@ -192,10 +192,15 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 		missingModuleFixes[req] = srcDiag.SuggestedFixes
 		diagnostics = append(diagnostics, srcDiag)
 	}
+
 	// Add diagnostics for missing modules anywhere they are imported in the
 	// workspace.
+	metas, err := snapshot.WorkspaceMetadata(ctx)
+	if err != nil {
+		return nil, err
+	}
 	// TODO(adonovan): opt: opportunities for parallelism abound.
-	for _, m := range snapshot.workspaceMetadata() {
+	for _, m := range metas {
 		// Read both lists of files of this package.
 		//
 		// Parallelism is not necessary here as the files will have already been

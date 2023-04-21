@@ -323,11 +323,11 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	}
 	store(modVulncheckSource, "diagnosing vulnerabilities", vulnReports, vulnErr, false)
 
-	activeMetas, activeErr := snapshot.ActiveMetadata(ctx)
+	activeMetas, activeErr := snapshot.WorkspaceMetadata(ctx)
 	if s.shouldIgnoreError(ctx, snapshot, activeErr) {
 		return
 	}
-	criticalErr := snapshot.GetCriticalError(ctx)
+	criticalErr := snapshot.CriticalError(ctx)
 	if ctx.Err() != nil { // must check ctx after GetCriticalError
 		return
 	}

@@ -244,7 +244,6 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 	s.workspacePackages = workspacePackages
 	s.resetActivePackagesLocked()
 
-	s.dumpWorkspace("load")
 	s.mu.Unlock()
 
 	// Opt: preLoad files in parallel.

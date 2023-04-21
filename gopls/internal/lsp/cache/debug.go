@@ -7,7 +7,6 @@ package cache
 import (
 	"fmt"
 	"os"
-	"sort"
 )
 
 // This file contains helpers that can be used to instrument code while
@@ -32,31 +31,5 @@ func debugf(format string, args ...interface{}) {
 func assert(cond bool, msg string) {
 	if !cond {
 		panic(msg)
-	}
-}
-
-// If debugEnabled is true, dumpWorkspace prints a summary of workspace
-// packages to stderr. If debugEnabled is false, it is a no-op.
-//
-// TODO(rfindley): this has served its purpose. Delete.
-func (s *snapshot) dumpWorkspace(context string) {
-	if !debugEnabled {
-		return
-	}
-
-	debugf("workspace (after %s):", context)
-	var ids []PackageID
-	for id := range s.workspacePackages {
-		ids = append(ids, id)
-	}
-
-	sort.Slice(ids, func(i, j int) bool {
-		return ids[i] < ids[j]
-	})
-
-	for _, id := range ids {
-		pkgPath := s.workspacePackages[id]
-		_, ok := s.meta.metadata[id]
-		debugf("  %s:%s (metadata: %t)", id, pkgPath, ok)
 	}
 }

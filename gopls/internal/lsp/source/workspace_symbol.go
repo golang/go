@@ -467,12 +467,12 @@ func matchFile(store *symbolStore, symbolizer symbolizer, matcher matcherFunc, r
 		// All factors are multiplicative, meaning if more than one applies they are
 		// multiplied together.
 		const (
-			// nonWorkspaceFactor is applied to symbols outside of any active
-			// workspace. Developers are less likely to want to jump to code that they
+			// nonWorkspaceFactor is applied to symbols outside the workspace.
+			// Developers are less likely to want to jump to code that they
 			// are not actively working on.
 			nonWorkspaceFactor = 0.5
-			// nonWorkspaceUnexportedFactor is applied to unexported symbols outside of
-			// any active workspace. Since one wouldn't usually jump to unexported
+			// nonWorkspaceUnexportedFactor is applied to unexported symbols outside
+			// the workspace. Since one wouldn't usually jump to unexported
 			// symbols to understand a package API, they are particularly irrelevant.
 			nonWorkspaceUnexportedFactor = 0.5
 			// every field or method nesting level to access the field decreases

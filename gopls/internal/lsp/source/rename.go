@@ -631,8 +631,9 @@ func renamePackageName(ctx context.Context, s Snapshot, f FileHandle, newName Pa
 	// Update any affected replace directives in go.mod files.
 	// TODO(adonovan): extract into its own function.
 	//
-	// TODO: should this operate on all go.mod files, irrespective of whether they are included in the workspace?
-	// Get all active mod files in the workspace
+	// Get all workspace modules.
+	// TODO(adonovan): should this operate on all go.mod files,
+	// irrespective of whether they are included in the workspace?
 	modFiles := s.ModFiles()
 	for _, m := range modFiles {
 		fh, err := s.ReadFile(ctx, m)

@@ -76,8 +76,8 @@ func testLSP(t *testing.T, datum *tests.Data) {
 	datum.ModfileFlagAvailable = len(snapshot.ModFiles()) > 0 && testenv.Go1Point() >= 14
 	release()
 
-	// Open all files for performance reasons. This is done because gopls only
-	// keeps active packages in memory for open files.
+	// Open all files for performance reasons, because gopls only
+	// keeps active packages (those with open files) in memory.
 	//
 	// In practice clients will only send document-oriented requests for open
 	// files.
