@@ -484,7 +484,7 @@ func parseT61String(bytes []byte) (ret string, err error) {
 	var buf strings.Builder
 	buf.Grow(len(bytes))
 	for _, v := range bytes {
-		// Every byte in ISO 8859-1 string corresponds exacly to an unicode code point.
+		// Every byte in ISO 8859-1 string corresponds exactly to an unicode code point.
 		buf.WriteRune(rune(v))
 	}
 	return buf.String(), nil

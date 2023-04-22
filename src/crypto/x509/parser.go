@@ -72,7 +72,7 @@ func parseASN1String(tag cryptobyte_asn1.Tag, value []byte) (string, error) {
 		var buf strings.Builder
 		buf.Grow(len(value))
 		for _, v := range value {
-			// Every byte in ISO 8859-1 string corresponds exacly to an unicode code point.
+			// Every byte in ISO 8859-1 string corresponds exactly to an unicode code point.
 			buf.WriteRune(rune(v))
 		}
 		return buf.String(), nil
