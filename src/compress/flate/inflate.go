@@ -267,6 +267,7 @@ type Reader interface {
 type decompressor struct {
 	// Input source.
 	r       Reader
+	bufR    *bufio.Reader // used if provided reader does not implement io.ByteReader
 	roffset int64
 
 	// Input bits, in top of b.
@@ -746,11 +747,18 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
 	}
 }
 
-func makeReader(r io.Reader) Reader {
+func (f *decompressor) makeReader(r io.Reader) {
 	if rr, ok := r.(Reader); ok {
-		return rr
+		f.bufR = nil
+		f.r = rr
+		return
 	}
-	return bufio.NewReader(r)
+	if f.bufR != nil {
+		f.bufR.Reset(r)
+	} else {
+		f.bufR = bufio.NewReader(r)
+	}
+	f.r = f.bufR
 }
 
 func fixedHuffmanDecoderInit() {
@@ -775,12 +783,13 @@ func fixedHuffmanDecoderInit() {
 
 func (f *decompressor) Reset(r io.Reader, dict []byte) error {
 	*f = decompressor{
-		r:        makeReader(r),
+		bufR:     f.bufR,
 		bits:     f.bits,
 		codebits: f.codebits,
 		dict:     f.dict,
 		step:     (*decompressor).nextBlock,
 	}
+	f.makeReader(r)
 	f.dict.init(maxMatchOffset, dict)
 	return nil
 }
@@ -797,7 +806,7 @@ func NewReader(r io.Reader) io.ReadCloser {
 	fixedHuffmanDecoderInit()
 
 	var f decompressor
-	f.r = makeReader(r)
+	f.makeReader(r)
 	f.bits = new([maxNumLit + maxNumDist]int)
 	f.codebits = new([numCodes]int)
 	f.step = (*decompressor).nextBlock
@@ -816,7 +825,7 @@ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	fixedHuffmanDecoderInit()
 
 	var f decompressor
-	f.r = makeReader(r)
+	f.makeReader(r)
 	f.bits = new([maxNumLit + maxNumDist]int)
 	f.codebits = new([numCodes]int)
 	f.step = (*decompressor).nextBlock
