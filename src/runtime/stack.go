@@ -650,20 +650,6 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 	if stackDebug >= 2 {
 		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
 	}
-	if f.funcID == abi.FuncID_systemstack_switch {
-		// A special routine at the bottom of stack of a goroutine that does a systemstack call.
-		// We will allow it to be copied even though we don't
-		// have full GC info for it (because it is written in asm).
-		return
-	}
-
-	locals, args, objs := frame.getStackMap(&adjinfo.cache, true)
-
-	// Adjust local variables if stack frame has been allocated.
-	if locals.n > 0 {
-		size := uintptr(locals.n) * goarch.PtrSize
-		adjustpointers(unsafe.Pointer(frame.varp-size), &locals, adjinfo, f)
-	}
 
 	// Adjust saved frame pointer if there is one.
 	if (goarch.ArchFamily == goarch.AMD64 || goarch.ArchFamily == goarch.ARM64) && frame.argp-frame.varp == 2*goarch.PtrSize {
@@ -685,6 +671,21 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 		// On ARM64, this is the frame pointer of the caller's caller saved
 		// by the caller in its frame (one word below its SP).
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
+	}
+
+	if f.funcID == abi.FuncID_systemstack_switch {
+		// A special routine at the bottom of stack of a goroutine that does a systemstack call.
+		// We will allow it to be copied even though we don't
+		// have full GC info for it (because it is written in asm).
+		return
+	}
+
+	locals, args, objs := frame.getStackMap(&adjinfo.cache, true)
+
+	// Adjust local variables if stack frame has been allocated.
+	if locals.n > 0 {
+		size := uintptr(locals.n) * goarch.PtrSize
+		adjustpointers(unsafe.Pointer(frame.varp-size), &locals, adjinfo, f)
 	}
 
 	// Adjust arguments.
