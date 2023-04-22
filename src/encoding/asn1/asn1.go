@@ -471,7 +471,7 @@ func parseIA5String(bytes []byte) (ret string, err error) {
 // parseT61String parses an ASN.1 T61String (8-bit clean string) from the given
 // byte slice and returns it.
 func parseT61String(bytes []byte) (ret string, err error) {
-	// man openss-x509:
+	// man openssl-x509:
 	//  The conversion to UTF8 format used with the name options assumes that T61Strings use the ISO8859-1
 	//  character set. This is wrong but Netscape and MSIE do this as do many certificates. So although this
 	//  is incorrect it is more likely to print the majority of certificates correctly.
