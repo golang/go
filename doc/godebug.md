@@ -182,6 +182,12 @@ Go 1.18 removed support for SHA1 in most X.509 certificates,
 controlled by the [`x509sha1` setting](/crypto/x509#InsecureAlgorithmError).
 This setting will be removed in a future release, Go 1.22 at the earliest.
 
+### Go 1.10
+
+Go 1.10 changed how build caching worked and added test caching, along
+with the [`gocacheverify`, `gocachehash`, and `gocachetest` settings](/cmd/go/#hdr-Build_and_test_caching).
+There is no plan to remove these settings.
+
 ### Go 1.6
 
 Go 1.6 introduced transparent support for HTTP/2,

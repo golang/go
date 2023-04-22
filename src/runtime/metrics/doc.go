@@ -234,6 +234,18 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the os/exec
 		package due to a non-default GODEBUG=execerrdot=... setting.
 
+	/godebug/non-default-behavior/gocachehash:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=gocachehash=... setting.
+
+	/godebug/non-default-behavior/gocachetest:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=gocachetest=... setting.
+
+	/godebug/non-default-behavior/gocacheverify:events
+		The number of non-default behaviors executed by the cmd/go
+		package due to a non-default GODEBUG=gocacheverify=... setting.
+
 	/godebug/non-default-behavior/http2client:events
 		The number of non-default behaviors executed by the net/http
 		package due to a non-default GODEBUG=http2client=... setting.

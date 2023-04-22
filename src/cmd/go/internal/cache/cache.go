@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"internal/godebug"
 	"io"
 	"io/fs"
 	"os"
@@ -115,20 +116,24 @@ var DebugTest = false
 
 func init() { initEnv() }
 
+var (
+	goCacheVerify = godebug.New("gocacheverify")
+	goDebugHash   = godebug.New("gocachehash")
+	goCacheTest   = godebug.New("gocachetest")
+)
+
 func initEnv() {
-	verify = false
-	debugHash = false
-	debug := strings.Split(os.Getenv("GODEBUG"), ",")
-	for _, f := range debug {
-		if f == "gocacheverify=1" {
-			verify = true
-		}
-		if f == "gocachehash=1" {
-			debugHash = true
-		}
-		if f == "gocachetest=1" {
-			DebugTest = true
-		}
+	if goCacheVerify.Value() == "1" {
+		goCacheVerify.IncNonDefault()
+		verify = true
+	}
+	if goDebugHash.Value() == "1" {
+		goDebugHash.IncNonDefault()
+		debugHash = true
+	}
+	if goCacheTest.Value() == "1" {
+		goCacheTest.IncNonDefault()
+		DebugTest = true
 	}
 }
 
