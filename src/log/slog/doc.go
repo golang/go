@@ -78,38 +78,6 @@ will cause the top-level functions like [Info] to use it.
 so that existing applications that use [log.Printf] and related functions
 will send log records to the logger's handler without needing to be rewritten.
 
-# Attrs and Values
-
-An [Attr] is a key-value pair. The Logger output methods accept Attrs as well as
-alternating keys and values. The statement
-
-	slog.Info("hello", slog.Int("count", 3))
-
-behaves the same as
-
-	slog.Info("hello", "count", 3)
-
-There are convenience constructors for [Attr] such as [Int], [String], and [Bool]
-for common types, as well as the function [Any] for constructing Attrs of any
-type.
-
-The value part of an Attr is a type called [Value].
-Like an [any], a Value can hold any Go value,
-but it can represent typical values, including all numbers and strings,
-without an allocation.
-
-For the most efficient log output, use [Logger.LogAttrs].
-It is similar to [Logger.Log] but accepts only Attrs, not alternating
-keys and values; this allows it, too, to avoid allocation.
-
-The call
-
-	logger.LogAttrs(nil, slog.LevelInfo, "hello", slog.Int("count", 3))
-
-is the most efficient way to achieve the same output as
-
-	slog.Info("hello", "count", 3)
-
 Some attributes are common to many log calls.
 For example, you may wish to include the URL or trace identifier of a server request
 with all log events arising from the request.
@@ -164,7 +132,7 @@ How this qualification is displayed depends on the handler.
 [TextHandler] separates the group and attribute names with a dot.
 [JSONHandler] treats each group as a separate JSON object, with the group name as the key.
 
-Use [Group] to create a Group Attr from a name and a list of key-value pairs:
+Use [Group] to create a Group attribute from a name and a list of key-value pairs:
 
 	slog.Group("request",
 	    "method", r.Method,
@@ -211,6 +179,38 @@ in "Ctx" do. For example,
 	slog.InfoCtx(ctx, "message")
 
 It is recommended to pass a context to an output method if one is available.
+
+# Attrs and Values
+
+An [Attr] is a key-value pair. The Logger output methods accept Attrs as well as
+alternating keys and values. The statement
+
+	slog.Info("hello", slog.Int("count", 3))
+
+behaves the same as
+
+	slog.Info("hello", "count", 3)
+
+There are convenience constructors for [Attr] such as [Int], [String], and [Bool]
+for common types, as well as the function [Any] for constructing Attrs of any
+type.
+
+The value part of an Attr is a type called [Value].
+Like an [any], a Value can hold any Go value,
+but it can represent typical values, including all numbers and strings,
+without an allocation.
+
+For the most efficient log output, use [Logger.LogAttrs].
+It is similar to [Logger.Log] but accepts only Attrs, not alternating
+keys and values; this allows it, too, to avoid allocation.
+
+The call
+
+	logger.LogAttrs(nil, slog.LevelInfo, "hello", slog.Int("count", 3))
+
+is the most efficient way to achieve the same output as
+
+	slog.Info("hello", "count", 3)
 
 # Customizing a type's logging behavior
 
