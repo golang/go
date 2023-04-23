@@ -8,7 +8,7 @@ package net
 
 func init() {
 	// When both netgo and netcgo build tags are being used
-	// at the same time, this unused string literal will
+	// at the same time this unused string literal will
 	// cause a compiler error with the contents of this string included.
 	"Do not use both netgo and netcgo build tags."
 }
