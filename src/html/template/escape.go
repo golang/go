@@ -758,7 +758,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 		} else if isComment(c.state) && c.delim == delimNone {
 			switch c.state {
 			case stateJSBlockCmt:
-				// https://es5.github.com/#x7.4:
+				// https://es5.github.io/#x7.4:
 				// "Comments behave like white space and are
 				// discarded except that, if a MultiLineComment
 				// contains a line terminator character, then
