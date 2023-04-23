@@ -71,11 +71,6 @@ func systemConf() *conf {
 // preferCgoOverGo reports whether the cgo resolver should
 // be peferred over the go one.
 func preferCgoOverGo(goos string) bool {
-	// Neither of these platforms actually use cgo.
-	// The meaning of "cgo" mode in the net package is
-	// really "the native OS way", which for libc meant
-	// cgo on the original platforms that motivated
-	//
 	// Darwin pops up annoying dialog boxes if programs try to do
 	// their own DNS requests. So always use cgo instead, which
 	// avoids that.
@@ -135,7 +130,7 @@ func initConfVal() {
 			case resolverDynamic:
 				println("go package net: dynamic selection of the DNS resolver, preferring the Go resolver")
 			default:
-				panic("unreachable")
+				panic("unreachable, unknown resolver")
 			}
 		}()
 	}
