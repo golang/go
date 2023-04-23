@@ -179,6 +179,8 @@ NONE < panic;
 # deadlock is not acquired while holding panic, but it also needs to be
 # below all other locks.
 panic < deadlock;
+# raceFini is only held while exiting.
+panic < raceFini;
 `
 
 // cyclicRanks lists lock ranks that allow multiple locks of the same

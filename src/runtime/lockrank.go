@@ -62,6 +62,7 @@ const (
 	lockRankTraceStackTab
 	lockRankPanic
 	lockRankDeadlock
+	lockRankRaceFini
 )
 
 // lockRankLeafRank is the rank of lock that does not have a declared rank,
@@ -115,6 +116,7 @@ var lockNames = []string{
 	lockRankTraceStackTab:  "traceStackTab",
 	lockRankPanic:          "panic",
 	lockRankDeadlock:       "deadlock",
+	lockRankRaceFini:       "raceFini",
 }
 
 func (rank lockRank) String() string {
@@ -181,4 +183,5 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankTraceStackTab:  {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankPollDesc, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankNetpollInit, lockRankHchan, lockRankNotifyList, lockRankSudog, lockRankRwmutexW, lockRankRwmutexR, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankGcBitsArenas, lockRankMspanSpecial, lockRankSpanSetSpine, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankTrace},
 	lockRankPanic:          {},
 	lockRankDeadlock:       {lockRankPanic, lockRankDeadlock},
+	lockRankRaceFini:       {lockRankPanic},
 }

@@ -115,6 +115,7 @@ var (
 	g0           g
 	mcache0      *mcache
 	raceprocctx0 uintptr
+	raceFiniLock mutex
 )
 
 // This slice records the initializing tasks that need to be
@@ -3773,6 +3774,11 @@ func reentersyscall(pc, sp uintptr) {
 	gp.syscallsp = sp
 	gp.syscallpc = pc
 	casgstatus(gp, _Grunning, _Gsyscall)
+	if staticLockRanking {
+		// When doing static lock ranking casgstatus can call
+		// systemstack which clobbers g.sched.
+		save(pc, sp)
+	}
 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
 		systemstack(func() {
 			print("entersyscall inconsistent ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
