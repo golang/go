@@ -35,7 +35,7 @@ func TestOver65kFiles(t *testing.T) {
 	for i := 0; i < nFiles; i++ {
 		_, err := w.CreateHeader(&FileHeader{
 			Name:   fmt.Sprintf("%d.dat", i),
-			Method: Deflate,
+			Method: Deflate, // test Issue 59775
 		})
 		if err != nil {
 			t.Fatalf("creating file %d: %v", i, err)
