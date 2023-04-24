@@ -1934,7 +1934,6 @@ func (m *M) Run() (code int) {
 				// in which case every test will run nothing and succeed,
 				// with no obvious way to detect this problem (since no tests are running).
 				// So make 'no tests to run' a hard failure when testing package testing itself.
-				// The compile-only builders use -run=^$ to run no tests, so allow that.
 				fmt.Print(chatty.prefix(), "FAIL: package testing must run tests\n")
 				testOk = false
 			}
