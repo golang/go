@@ -295,7 +295,7 @@ func (e *Engine) Execute(s *State, file string, script *bufio.Reader, log io.Wri
 				// Since the 'stop' command halts execution of the entire script,
 				// log its message separately from the section in which it appears.
 				err = endSection(true)
-				s.Logf("%v\n", s)
+				s.Logf("%v\n", stop)
 				if err == nil {
 					return nil
 				}
