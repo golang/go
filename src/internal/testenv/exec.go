@@ -74,7 +74,7 @@ func init() {
 		cmd := exec.Command(exe, "-test.list=^$")
 		cmd.Env = origEnv
 		if err := cmd.Run(); err == nil {
-			tryExecOk = true
+			return true
 		}
 		return false
 	}
