@@ -371,6 +371,10 @@ func TestRaceProf(t *testing.T) {
 	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
 		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
 	}
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping: test requires pthread support")
+		// TODO: Can this test be rewritten to use the C11 thread API instead?
+	}
 
 	testenv.MustHaveGoRun(t)
 
@@ -398,6 +402,13 @@ func TestRaceProf(t *testing.T) {
 func TestRaceSignal(t *testing.T) {
 	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
 		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
+	}
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping: test requires pthread support")
+		// TODO: Can this test be rewritten to use the C11 thread API instead?
+	}
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		testenv.SkipFlaky(t, 59807)
 	}
 
 	t.Parallel()
