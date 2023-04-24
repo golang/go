@@ -6,6 +6,7 @@
 package envcmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"cmd/go/internal/base"
@@ -413,9 +415,12 @@ func checkBuildConfig(add map[string]string, del map[string]bool) error {
 func PrintEnv(w io.Writer, env []cfg.EnvVar) {
 	for _, e := range env {
 		if e.Name != "TERM" {
+			if runtime.GOOS != "plan9" && bytes.Contains([]byte(e.Value), []byte{0}) {
+				base.Fatalf("go: internal error: encountered null byte in environment variable %s on non-plan9 platform", e.Name)
+			}
 			switch runtime.GOOS {
 			default:
-				fmt.Fprintf(w, "%s=\"%s\"\n", e.Name, e.Value)
+				fmt.Fprintf(w, "%s=%s\n", e.Name, shellQuote(e.Value))
 			case "plan9":
 				if strings.IndexByte(e.Value, '\x00') < 0 {
 					fmt.Fprintf(w, "%s='%s'\n", e.Name, strings.ReplaceAll(e.Value, "'", "''"))
@@ -426,15 +431,66 @@ func PrintEnv(w io.Writer, env []cfg.EnvVar) {
 						if x > 0 {
 							fmt.Fprintf(w, " ")
 						}
+						// TODO(#59979): Does this need to be quoted like above?
 						fmt.Fprintf(w, "%s", s)
 					}
 					fmt.Fprintf(w, ")\n")
 				}
 			case "windows":
-				fmt.Fprintf(w, "set %s=%s\n", e.Name, e.Value)
+				if hasNonGraphic(e.Value) {
+					base.Errorf("go: stripping unprintable or unescapable characters from %%%q%%", e.Name)
+				}
+				fmt.Fprintf(w, "set %s=%s\n", e.Name, batchEscape(e.Value))
 			}
 		}
 	}
+}
+
+func hasNonGraphic(s string) bool {
+	for _, c := range []byte(s) {
+		if c == '\r' || c == '\n' || (!unicode.IsGraphic(rune(c)) && !unicode.IsSpace(rune(c))) {
+			return true
+		}
+	}
+	return false
+}
+
+func shellQuote(s string) string {
+	var b bytes.Buffer
+	b.WriteByte('\'')
+	for _, x := range []byte(s) {
+		if x == '\'' {
+			// Close the single quoted string, add an escaped single quote,
+			// and start another single quoted string.
+			b.WriteString(`'\''`)
+		} else {
+			b.WriteByte(x)
+		}
+	}
+	b.WriteByte('\'')
+	return b.String()
+}
+
+func batchEscape(s string) string {
+	var b bytes.Buffer
+	for _, x := range []byte(s) {
+		if x == '\r' || x == '\n' || (!unicode.IsGraphic(rune(x)) && !unicode.IsSpace(rune(x))) {
+			b.WriteRune(unicode.ReplacementChar)
+			continue
+		}
+		switch x {
+		case '%':
+			b.WriteString("%%")
+		case '<', '>', '|', '&', '^':
+			// These are special characters that need to be escaped with ^. See
+			// https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/set_1.
+			b.WriteByte('^')
+			b.WriteByte(x)
+		default:
+			b.WriteByte(x)
+		}
+	}
+	return b.String()
 }
 
 func printEnvAsJSON(env []cfg.EnvVar) {
