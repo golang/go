@@ -8,5 +8,7 @@ env GO111MODULE=off
 ! go get -d vcs-test.golang.org/insecure/go/insecure
 stderr 'redirected .* to insecure URL'
 
+[short] stop 'builds a git repo'
+
 env GOINSECURE=vcs-test.golang.org/insecure/go/insecure
 go get -d vcs-test.golang.org/insecure/go/insecure
