@@ -193,13 +193,12 @@ func Check(t *testing.T) {
 	bw := bufio.NewWriter(os.Stdout)
 	defer bw.Flush()
 
-	var required []string
+	var required, optional []string
 	for _, file := range checkFiles {
 		required = append(required, fileFeatures(file, needApproval(file))...)
 	}
-	var optional []string
 	for _, file := range nextFiles {
-		optional = append(optional, fileFeatures(file, true)...)
+		required = append(required, fileFeatures(file, true)...)
 	}
 	exception := fileFeatures(filepath.Join(testenv.GOROOT(t), "api/except.txt"), false)
 
