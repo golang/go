@@ -92,6 +92,11 @@ func sysHugePageOS(v unsafe.Pointer, n uintptr) {
 }
 
 func sysNoHugePageOS(v unsafe.Pointer, n uintptr) {
+	if uintptr(v)&(physPageSize-1) != 0 {
+		// The Linux implementation requires that the address
+		// addr be page-aligned, and allows length to be zero.
+		throw("unaligned sysNoHugePageOS")
+	}
 	madvise(v, n, _MADV_NOHUGEPAGE)
 }
 
