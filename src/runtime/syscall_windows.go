@@ -200,7 +200,7 @@ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
 	}
 	// Pointer-sized types such as maps and channels are currently
 	// not supported.
-	panic("compileCallabck: type " + t.string() + " is currently not supported for use in system callbacks")
+	panic("compileCallback: type " + toRType(t).string() + " is currently not supported for use in system callbacks")
 }
 
 // assignReg attempts to assign a single register for an

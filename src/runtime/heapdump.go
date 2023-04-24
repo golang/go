@@ -194,11 +194,12 @@ func dumptype(t *_type) {
 	dumpint(tagType)
 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
 	dumpint(uint64(t.Size_))
-	if x := t.uncommon(); x == nil || t.nameOff(x.PkgPath).name() == "" {
-		dumpstr(t.string())
+	rt := toRType(t)
+	if x := t.Uncommon(); x == nil || rt.nameOff(x.PkgPath).name() == "" {
+		dumpstr(rt.string())
 	} else {
-		pkgpath := t.nameOff(x.PkgPath).name()
-		name := t.name()
+		pkgpath := rt.nameOff(x.PkgPath).name()
+		name := rt.name()
 		dumpint(uint64(uintptr(len(pkgpath)) + 1 + uintptr(len(name))))
 		dwrite(unsafe.Pointer(unsafe.StringData(pkgpath)), uintptr(len(pkgpath)))
 		dwritebyte('.')

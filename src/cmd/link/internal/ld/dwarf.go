@@ -1802,7 +1802,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 
 	// Needed by the prettyprinter code for interface inspection.
 	for _, typ := range []string{
-		"type:runtime._type",
+		"type:internal/abi.Type",
 		"type:internal/abi.ArrayType",
 		"type:internal/abi.ChanType",
 		"type:runtime.functype",

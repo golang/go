@@ -106,7 +106,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 		// typehash, but we want to report the topmost type in
 		// the error text (e.g. in a struct with a field of slice type
 		// we want to report the struct, not the slice).
-		panic(errorString("hash of unhashable type " + t.string()))
+		panic(errorString("hash of unhashable type " + toRType(t).string()))
 	}
 	if isDirectIface(t) {
 		return c1 * typehash(t, unsafe.Pointer(&a.data), h^c0)
@@ -123,7 +123,7 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 	}
 	if t.Equal == nil {
 		// See comment in interhash above.
-		panic(errorString("hash of unhashable type " + t.string()))
+		panic(errorString("hash of unhashable type " + toRType(t).string()))
 	}
 	if isDirectIface(t) {
 		return c1 * typehash(t, unsafe.Pointer(&a.data), h^c0)
@@ -174,7 +174,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 	case kindArray:
 		a := (*arraytype)(unsafe.Pointer(t))
 		for i := uintptr(0); i < a.Len; i++ {
-			h = typehash(toType(a.Elem), add(p, i*a.Elem.Size_), h)
+			h = typehash(a.Elem, add(p, i*a.Elem.Size_), h)
 		}
 		return h
 	case kindStruct:
@@ -189,7 +189,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 	default:
 		// Should never happen, as typehash should only be called
 		// with comparable types.
-		panic(errorString("hash of unhashable type " + t.string()))
+		panic(errorString("hash of unhashable type " + toRType(t).string()))
 	}
 }
 
@@ -247,7 +247,7 @@ func efaceeq(t *_type, x, y unsafe.Pointer) bool {
 	}
 	eq := t.Equal
 	if eq == nil {
-		panic(errorString("comparing uncomparable type " + t.string()))
+		panic(errorString("comparing uncomparable type " + toRType(t).string()))
 	}
 	if isDirectIface(t) {
 		// Direct interface types are ptr, chan, map, func, and single-element structs/arrays thereof.
@@ -264,7 +264,7 @@ func ifaceeq(tab *itab, x, y unsafe.Pointer) bool {
 	t := tab._type
 	eq := t.Equal
 	if eq == nil {
-		panic(errorString("comparing uncomparable type " + t.string()))
+		panic(errorString("comparing uncomparable type " + toRType(t).string()))
 	}
 	if isDirectIface(t) {
 		// See comment in efaceeq.

@@ -608,14 +608,14 @@ func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointe
 //
 //go:linkname reflect_resolveTypeOff reflect.resolveTypeOff
 func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+	return unsafe.Pointer(toRType((*_type)(rtype)).typeOff(typeOff(off)))
 }
 
 // reflect_resolveTextOff resolves a function pointer offset from a base type.
 //
 //go:linkname reflect_resolveTextOff reflect.resolveTextOff
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
-	return (*_type)(rtype).textOff(textOff(off))
+	return toRType((*_type)(rtype)).textOff(textOff(off))
 
 }
 
@@ -630,7 +630,7 @@ func reflectlite_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Po
 //
 //go:linkname reflectlite_resolveTypeOff internal/reflectlite.resolveTypeOff
 func reflectlite_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
+	return unsafe.Pointer(toRType((*_type)(rtype)).typeOff(typeOff(off)))
 }
 
 // reflect_addReflectOff adds a pointer to the reflection offset lookup map.

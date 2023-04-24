@@ -683,11 +683,11 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 		throw("runtime: typeBitsBulkBarrier without type")
 	}
 	if typ.Size_ != size {
-		println("runtime: typeBitsBulkBarrier with type ", typ.string(), " of size ", typ.Size_, " but memory size", size)
+		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " of size ", typ.Size_, " but memory size", size)
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
 	if typ.Kind_&kindGCProg != 0 {
-		println("runtime: typeBitsBulkBarrier with type ", typ.string(), " with GC prog")
+		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " with GC prog")
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
 	if !writeBarrier.needed {

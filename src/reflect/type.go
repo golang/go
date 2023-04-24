@@ -279,8 +279,7 @@ const Ptr = Pointer
 // to describe a non-defined type with no methods.
 type uncommonType = abi.UncommonType
 
-// rtype is the common implementation of most values.
-// It is embedded in other struct types.
+// rtype is a wrapper that allows us to define exactly the type.Reflect methods.
 type rtype struct {
 	t *abi.Type
 }

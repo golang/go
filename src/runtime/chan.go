@@ -104,11 +104,11 @@ func makechan(t *chantype, size int) *hchan {
 	default:
 		// Elements contain pointers.
 		c = new(hchan)
-		c.buf = mallocgc(mem, toType(elem), true)
+		c.buf = mallocgc(mem, elem, true)
 	}
 
 	c.elemsize = uint16(elem.Size_)
-	c.elemtype = toType(elem)
+	c.elemtype = elem
 	c.dataqsiz = uint(size)
 	lockInit(&c.lock, lockRankHchan)
 

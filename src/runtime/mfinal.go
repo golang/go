@@ -372,7 +372,7 @@ func SetFinalizer(obj any, finalizer any) {
 		throw("runtime.SetFinalizer: first argument is nil")
 	}
 	if etyp.Kind_&kindMask != kindPtr {
-		throw("runtime.SetFinalizer: first argument is " + etyp.string() + ", not pointer")
+		throw("runtime.SetFinalizer: first argument is " + toRType(etyp).string() + ", not pointer")
 	}
 	ot := (*ptrtype)(unsafe.Pointer(etyp))
 	if ot.elem == nil {
@@ -431,14 +431,14 @@ func SetFinalizer(obj any, finalizer any) {
 	}
 
 	if ftyp.Kind_&kindMask != kindFunc {
-		throw("runtime.SetFinalizer: second argument is " + ftyp.string() + ", not a function")
+		throw("runtime.SetFinalizer: second argument is " + toRType(ftyp).string() + ", not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(ftyp))
 	if ft.dotdotdot() {
-		throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string() + " because dotdotdot")
+		throw("runtime.SetFinalizer: cannot pass " + toRType(etyp).string() + " to finalizer " + toRType(ftyp).string() + " because dotdotdot")
 	}
 	if ft.inCount != 1 {
-		throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string())
+		throw("runtime.SetFinalizer: cannot pass " + toRType(etyp).string() + " to finalizer " + toRType(ftyp).string())
 	}
 	fint := ft.in()[0]
 	switch {
@@ -446,7 +446,7 @@ func SetFinalizer(obj any, finalizer any) {
 		// ok - same type
 		goto okarg
 	case fint.Kind_&kindMask == kindPtr:
-		if (fint.uncommon() == nil || etyp.uncommon() == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
+		if (fint.Uncommon() == nil || etyp.Uncommon() == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
 			// ok - not same type, but both pointers,
 			// one or the other is unnamed, and same element type, so assignable.
 			goto okarg
@@ -461,7 +461,7 @@ func SetFinalizer(obj any, finalizer any) {
 			goto okarg
 		}
 	}
-	throw("runtime.SetFinalizer: cannot pass " + etyp.string() + " to finalizer " + ftyp.string())
+	throw("runtime.SetFinalizer: cannot pass " + toRType(etyp).string() + " to finalizer " + toRType(ftyp).string())
 okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)

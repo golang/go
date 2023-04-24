@@ -155,7 +155,7 @@ import (
 // anywhere in the bulk barrier or memmove.
 //
 //go:nosplit
-func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+func typedmemmove(typ *abi.Type, dst, src unsafe.Pointer) {
 	if dst == src {
 		return
 	}

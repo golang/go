@@ -56,7 +56,7 @@ func TestRuntimeTypesPresent(t *testing.T) {
 	}
 
 	want := map[string]bool{
-		"runtime._type":          true,
+		"internal/abi.Type":      true,
 		"internal/abi.ArrayType": true,
 		"internal/abi.ChanType":  true,
 		"runtime.functype":       true,

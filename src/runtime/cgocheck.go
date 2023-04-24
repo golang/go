@@ -249,7 +249,7 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
 		at := (*arraytype)(unsafe.Pointer(typ))
 		for i := uintptr(0); i < at.Len; i++ {
 			if off < at.Elem.Size_ {
-				cgoCheckUsingType(toType(at.Elem), src, off, size)
+				cgoCheckUsingType(at.Elem, src, off, size)
 			}
 			src = add(src, at.Elem.Size_)
 			skipped := off

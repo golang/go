@@ -15,15 +15,14 @@ type nameOff = abi.NameOff
 type typeOff = abi.TypeOff
 type textOff = abi.TextOff
 
-// Needs to be in sync with ../cmd/link/internal/ld/decodesym.go:/^func.commonsize,
-// ../cmd/compile/internal/reflectdata/reflect.go:/^func.dcommontype and
-// ../reflect/type.go:/^type.rtype.
-// ../internal/reflectlite/type.go:/^type.rtype.
-type _type struct {
-	abi.Type
+type _type = abi.Type
+
+// rtype is a wrapper that allows us to define additional methods.
+type rtype struct {
+	*abi.Type // embedding is okay here (unlike reflect) because none of this is public
 }
 
-func (t *_type) string() string {
+func (t rtype) string() string {
 	s := t.nameOff(t.Str).name()
 	if t.TFlag&abi.TFlagExtraStar != 0 {
 		return s[1:]
@@ -31,11 +30,11 @@ func (t *_type) string() string {
 	return s
 }
 
-func (t *_type) uncommon() *uncommontype {
+func (t rtype) uncommon() *uncommontype {
 	return t.Uncommon()
 }
 
-func (t *_type) name() string {
+func (t rtype) name() string {
 	if t.TFlag&abi.TFlagNamed == 0 {
 		return ""
 	}
@@ -58,16 +57,16 @@ func (t *_type) name() string {
 // available. This is not the same as the reflect package's PkgPath
 // method, in that it returns the package path for struct and interface
 // types, not just named types.
-func (t *_type) pkgpath() string {
+func (t rtype) pkgpath() string {
 	if u := t.uncommon(); u != nil {
 		return t.nameOff(u.PkgPath).name()
 	}
 	switch t.Kind_ & kindMask {
 	case kindStruct:
-		st := (*structtype)(unsafe.Pointer(t))
+		st := (*structtype)(unsafe.Pointer(t.Type))
 		return st.pkgPath.name()
 	case kindInterface:
-		it := (*interfacetype)(unsafe.Pointer(t))
+		it := (*interfacetype)(unsafe.Pointer(t.Type))
 		return it.pkgpath.name()
 	}
 	return ""
@@ -137,8 +136,8 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
 	return name{(*byte)(res)}
 }
 
-func (t *_type) nameOff(off nameOff) name {
-	return resolveNameOff(unsafe.Pointer(t), off)
+func (t rtype) nameOff(off nameOff) name {
+	return resolveNameOff(unsafe.Pointer(t.Type), off)
 }
 
 func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
@@ -179,17 +178,17 @@ func resolveTypeOff(ptrInModule unsafe.Pointer, off typeOff) *_type {
 	return (*_type)(unsafe.Pointer(res))
 }
 
-func (t *_type) typeOff(off typeOff) *_type {
-	return resolveTypeOff(unsafe.Pointer(t), off)
+func (t rtype) typeOff(off typeOff) *_type {
+	return resolveTypeOff(unsafe.Pointer(t.Type), off)
 }
 
-func (t *_type) textOff(off textOff) unsafe.Pointer {
+func (t rtype) textOff(off textOff) unsafe.Pointer {
 	if off == -1 {
 		// -1 is the sentinel value for unreachable code.
 		// See cmd/link/internal/ld/data.go:relocsym.
 		return unsafe.Pointer(abi.FuncPCABIInternal(unreachableMethod))
 	}
-	base := uintptr(unsafe.Pointer(t))
+	base := uintptr(unsafe.Pointer(t.Type))
 	var md *moduledata
 	for next := &firstmoduledata; next != nil; next = next.next {
 		if base >= next.types && base < next.etypes {
@@ -440,8 +439,8 @@ type _typePair struct {
 	t2 *_type
 }
 
-func toType(t *abi.Type) *_type {
-	return (*_type)(unsafe.Pointer(t))
+func toRType(t *abi.Type) rtype {
+	return rtype{t}
 }
 
 // typesEqual reports whether two types are equal.
@@ -474,17 +473,18 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 	if kind != v.Kind_&kindMask {
 		return false
 	}
-	if t.string() != v.string() {
+	rt, rv := toRType(t), toRType(v)
+	if rt.string() != rv.string() {
 		return false
 	}
-	ut := t.uncommon()
-	uv := v.uncommon()
+	ut := t.Uncommon()
+	uv := v.Uncommon()
 	if ut != nil || uv != nil {
 		if ut == nil || uv == nil {
 			return false
 		}
-		pkgpatht := t.nameOff(ut.PkgPath).name()
-		pkgpathv := v.nameOff(uv.PkgPath).name()
+		pkgpatht := rt.nameOff(ut.PkgPath).name()
+		pkgpathv := rv.nameOff(uv.PkgPath).name()
 		if pkgpatht != pkgpathv {
 			return false
 		}
@@ -498,11 +498,11 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
 	case kindArray:
 		at := (*arraytype)(unsafe.Pointer(t))
 		av := (*arraytype)(unsafe.Pointer(v))
-		return typesEqual(toType(at.Elem), toType(av.Elem), seen) && at.Len == av.Len
+		return typesEqual(at.Elem, av.Elem, seen) && at.Len == av.Len
 	case kindChan:
 		ct := (*chantype)(unsafe.Pointer(t))
 		cv := (*chantype)(unsafe.Pointer(v))
-		return ct.Dir == cv.Dir && typesEqual(toType(ct.Elem), toType(cv.Elem), seen)
+		return ct.Dir == cv.Dir && typesEqual(ct.Elem, cv.Elem, seen)
 	case kindFunc:
 		ft := (*functype)(unsafe.Pointer(t))
 		fv := (*functype)(unsafe.Pointer(v))
