@@ -278,7 +278,12 @@ func ExitIfSmallMachine() {
 		// For now, we'll skip them instead.
 		fmt.Fprintf(os.Stderr, "skipping test: %s builder is too slow (https://golang.org/issue/49321)\n", b)
 	default:
-		return
+		switch runtime.GOOS {
+		case "android", "ios":
+			fmt.Fprintf(os.Stderr, "skipping test: assuming that %s is resource-constrained\n", runtime.GOOS)
+		default:
+			return
+		}
 	}
 	os.Exit(0)
 }
