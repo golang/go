@@ -72,9 +72,9 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/bug"
 )
 
 // A Mapper wraps the content of a file and provides mapping

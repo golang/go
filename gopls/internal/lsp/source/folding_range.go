@@ -11,9 +11,9 @@ import (
 	"sort"
 	"strings"
 
+	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
-	"golang.org/x/tools/internal/bug"
 )
 
 // FoldingRangeInfo holds range and kind info of folding for an ast.Node

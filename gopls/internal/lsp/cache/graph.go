@@ -8,9 +8,9 @@ import (
 	"sort"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 	"golang.org/x/tools/gopls/internal/span"
-	"golang.org/x/tools/internal/bug"
 )
 
 // A metadataGraph is an immutable and transitively closed import

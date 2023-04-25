@@ -36,7 +36,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"golang.org/x/tools/internal/bug"
+	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/internal/lockedfile"
 )
 
