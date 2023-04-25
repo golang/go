@@ -601,7 +601,7 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 //
 //go:linkname reflect_resolveNameOff reflect.resolveNameOff
 func reflect_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).Bytes)
 }
 
 // reflect_resolveTypeOff resolves an *rtype offset from a base type.
@@ -623,7 +623,7 @@ func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 //
 //go:linkname reflectlite_resolveNameOff internal/reflectlite.resolveNameOff
 func reflectlite_resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer {
-	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).bytes)
+	return unsafe.Pointer(resolveNameOff(ptrInModule, nameOff(off)).Bytes)
 }
 
 // reflectlite_resolveTypeOff resolves an *rtype offset from a base type.

@@ -186,13 +186,13 @@ func (p *abiDesc) tryRegAssignArg(t *_type, offset uintptr) bool {
 	case kindArray:
 		at := (*arraytype)(unsafe.Pointer(t))
 		if at.Len == 1 {
-			return p.tryRegAssignArg((*_type)(unsafe.Pointer(at.Elem)), offset) // TODO fix when runtime is fully commoned up w/ abi.Type
+			return p.tryRegAssignArg(at.Elem, offset) // TODO fix when runtime is fully commoned up w/ abi.Type
 		}
 	case kindStruct:
 		st := (*structtype)(unsafe.Pointer(t))
-		for i := range st.fields {
-			f := &st.fields[i]
-			if !p.tryRegAssignArg(f.typ, offset+f.offset) {
+		for i := range st.Fields {
+			f := &st.Fields[i]
+			if !p.tryRegAssignArg(f.Typ, offset+f.Offset) {
 				return false
 			}
 		}
@@ -276,7 +276,7 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 
 	// Check arguments and construct ABI translation.
 	var abiMap abiDesc
-	for _, t := range ft.in() {
+	for _, t := range ft.InSlice() {
 		abiMap.assignArg(t)
 	}
 	// The Go ABI aligns the result to the word size. src is
@@ -284,13 +284,13 @@ func compileCallback(fn eface, cdecl bool) (code uintptr) {
 	abiMap.dstStackSize = alignUp(abiMap.dstStackSize, goarch.PtrSize)
 	abiMap.retOffset = abiMap.dstStackSize
 
-	if len(ft.out()) != 1 {
+	if len(ft.OutSlice()) != 1 {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if ft.out()[0].Size_ != goarch.PtrSize {
+	if ft.OutSlice()[0].Size_ != goarch.PtrSize {
 		panic("compileCallback: expected function with one uintptr-sized result")
 	}
-	if k := ft.out()[0].Kind_ & kindMask; k == kindFloat32 || k == kindFloat64 {
+	if k := ft.OutSlice()[0].Kind_ & kindMask; k == kindFloat32 || k == kindFloat64 {
 		// In cdecl and stdcall, float results are returned in
 		// ST(0). In fastcall, they're returned in XMM0.
 		// Either way, it's not AX.

@@ -167,7 +167,7 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 		return strhash(p, h)
 	case kindInterface:
 		i := (*interfacetype)(unsafe.Pointer(t))
-		if len(i.mhdr) == 0 {
+		if len(i.Methods) == 0 {
 			return nilinterhash(p, h)
 		}
 		return interhash(p, h)
@@ -179,11 +179,11 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
 		return h
 	case kindStruct:
 		s := (*structtype)(unsafe.Pointer(t))
-		for _, f := range s.fields {
-			if f.name.isBlank() {
+		for _, f := range s.Fields {
+			if f.Name.IsBlank() {
 				continue
 			}
-			h = typehash(f.typ, add(p, f.offset), h)
+			h = typehash(f.Typ, add(p, f.Offset), h)
 		}
 		return h
 	default:

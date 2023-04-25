@@ -265,16 +265,16 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
 		}
 	case kindStruct:
 		st := (*structtype)(unsafe.Pointer(typ))
-		for _, f := range st.fields {
-			if off < f.typ.Size_ {
-				cgoCheckUsingType(f.typ, src, off, size)
+		for _, f := range st.Fields {
+			if off < f.Typ.Size_ {
+				cgoCheckUsingType(f.Typ, src, off, size)
 			}
-			src = add(src, f.typ.Size_)
+			src = add(src, f.Typ.Size_)
 			skipped := off
-			if skipped > f.typ.Size_ {
-				skipped = f.typ.Size_
+			if skipped > f.Typ.Size_ {
+				skipped = f.Typ.Size_
 			}
-			checked := f.typ.Size_ - skipped
+			checked := f.Typ.Size_ - skipped
 			off -= skipped
 			if size <= checked {
 				return

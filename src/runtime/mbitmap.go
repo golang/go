@@ -1417,7 +1417,7 @@ func getgcmask(ep any) (mask []byte) {
 		// data
 		if datap.data <= uintptr(p) && uintptr(p) < datap.edata {
 			bitmap := datap.gcdatamask.bytedata
-			n := (*ptrtype)(unsafe.Pointer(t)).elem.Size_
+			n := (*ptrtype)(unsafe.Pointer(t)).Elem.Size_
 			mask = make([]byte, n/goarch.PtrSize)
 			for i := uintptr(0); i < n; i += goarch.PtrSize {
 				off := (uintptr(p) + i - datap.data) / goarch.PtrSize
@@ -1429,7 +1429,7 @@ func getgcmask(ep any) (mask []byte) {
 		// bss
 		if datap.bss <= uintptr(p) && uintptr(p) < datap.ebss {
 			bitmap := datap.gcbssmask.bytedata
-			n := (*ptrtype)(unsafe.Pointer(t)).elem.Size_
+			n := (*ptrtype)(unsafe.Pointer(t)).Elem.Size_
 			mask = make([]byte, n/goarch.PtrSize)
 			for i := uintptr(0); i < n; i += goarch.PtrSize {
 				off := (uintptr(p) + i - datap.bss) / goarch.PtrSize
@@ -1477,7 +1477,7 @@ func getgcmask(ep any) (mask []byte) {
 				return
 			}
 			size := uintptr(locals.n) * goarch.PtrSize
-			n := (*ptrtype)(unsafe.Pointer(t)).elem.Size_
+			n := (*ptrtype)(unsafe.Pointer(t)).Elem.Size_
 			mask = make([]byte, n/goarch.PtrSize)
 			for i := uintptr(0); i < n; i += goarch.PtrSize {
 				off := (uintptr(p) + i - u.frame.varp + size) / goarch.PtrSize

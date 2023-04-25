@@ -423,7 +423,7 @@ func cgoCheckPointer(ptr any, arg any) {
 				break
 			}
 			pt := (*ptrtype)(unsafe.Pointer(t))
-			cgoCheckArg(pt.elem, p, true, false, cgoCheckPointerFail)
+			cgoCheckArg(pt.Elem, p, true, false, cgoCheckPointerFail)
 			return
 		case kindSlice:
 			// Check the slice rather than the pointer.
@@ -515,12 +515,12 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !top {
 			panic(errorString(msg))
 		}
-		if st.elem.PtrBytes == 0 {
+		if st.Elem.PtrBytes == 0 {
 			return
 		}
 		for i := 0; i < s.cap; i++ {
-			cgoCheckArg(st.elem, p, true, false, msg)
-			p = add(p, st.elem.Size_)
+			cgoCheckArg(st.Elem, p, true, false, msg)
+			p = add(p, st.Elem.Size_)
 		}
 	case kindString:
 		ss := (*stringStruct)(p)
@@ -533,17 +533,17 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 	case kindStruct:
 		st := (*structtype)(unsafe.Pointer(t))
 		if !indir {
-			if len(st.fields) != 1 {
+			if len(st.Fields) != 1 {
 				throw("can't happen")
 			}
-			cgoCheckArg(st.fields[0].typ, p, st.fields[0].typ.Kind_&kindDirectIface == 0, top, msg)
+			cgoCheckArg(st.Fields[0].Typ, p, st.Fields[0].Typ.Kind_&kindDirectIface == 0, top, msg)
 			return
 		}
-		for _, f := range st.fields {
-			if f.typ.PtrBytes == 0 {
+		for _, f := range st.Fields {
+			if f.Typ.PtrBytes == 0 {
 				continue
 			}
-			cgoCheckArg(f.typ, add(p, f.offset), true, top, msg)
+			cgoCheckArg(f.Typ, add(p, f.Offset), true, top, msg)
 		}
 	case kindPtr, kindUnsafePointer:
 		if indir {

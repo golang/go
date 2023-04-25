@@ -235,7 +235,7 @@ func BenchSetType(n int, x any) {
 	var p unsafe.Pointer
 	switch t.Kind_ & kindMask {
 	case kindPtr:
-		t = (*ptrtype)(unsafe.Pointer(t)).elem
+		t = (*ptrtype)(unsafe.Pointer(t)).Elem
 		size = t.Size_
 		p = e.data
 	case kindSlice:
@@ -243,7 +243,7 @@ func BenchSetType(n int, x any) {
 			ptr      unsafe.Pointer
 			len, cap uintptr
 		})(e.data)
-		t = (*slicetype)(unsafe.Pointer(t)).elem
+		t = (*slicetype)(unsafe.Pointer(t)).Elem
 		size = t.Size_ * slice.len
 		p = slice.ptr
 	}
@@ -602,7 +602,7 @@ func MapTombstoneCheck(m map[int]int) {
 	t := *(**maptype)(unsafe.Pointer(&i))
 
 	for x := 0; x < 1<<h.B; x++ {
-		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.bucketsize)))
+		b0 := (*bmap)(add(h.buckets, uintptr(x)*uintptr(t.BucketSize)))
 		n := 0
 		for b := b0; b != nil; b = b.overflow(t) {
 			for i := 0; i < bucketCnt; i++ {
@@ -1757,7 +1757,7 @@ func (a *UserArena) New(out *any) {
 	if typ.Kind_&kindMask != kindPtr {
 		panic("new result of non-ptr type")
 	}
-	typ = (*ptrtype)(unsafe.Pointer(typ)).elem
+	typ = (*ptrtype)(unsafe.Pointer(typ)).Elem
 	i.data = a.arena.new(typ)
 }
 

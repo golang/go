@@ -84,7 +84,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*ini
 		valp := (*[2]unsafe.Pointer)(unsafe.Pointer(&val))
 		(*valp)[0] = unsafe.Pointer(t)
 
-		name := symName.name()
+		name := symName.Name()
 		if t.Kind_&kindMask == kindFunc {
 			name = "." + name
 		}

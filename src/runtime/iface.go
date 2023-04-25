@@ -28,11 +28,11 @@ type itabTableType struct {
 
 func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
 	// compiler has provided some good hash codes for us.
-	return uintptr(inter.typ.Hash ^ typ.Hash)
+	return uintptr(inter.Type.Hash ^ typ.Hash)
 }
 
 func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
-	if len(inter.mhdr) == 0 {
+	if len(inter.Methods) == 0 {
 		throw("internal error - misuse of itab")
 	}
 
@@ -41,8 +41,8 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		if canfail {
 			return nil
 		}
-		name := toRType(&inter.typ).nameOff(inter.mhdr[0].Name)
-		panic(&TypeAssertionError{nil, typ, &inter.typ, name.name()})
+		name := toRType(&inter.Type).nameOff(inter.Methods[0].Name)
+		panic(&TypeAssertionError{nil, typ, &inter.Type, name.Name()})
 	}
 
 	var m *itab
@@ -64,7 +64,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	}
 
 	// Entry doesn't exist yet. Make a new entry & add it.
-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*goarch.PtrSize, 0, &memstats.other_sys))
+	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.Methods)-1)*goarch.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
 	// The hash is used in type switches. However, compiler statically generates itab's
@@ -89,7 +89,7 @@ finish:
 	// The cached result doesn't record which
 	// interface function was missing, so initialize
 	// the itab again to get the missing function name.
-	panic(&TypeAssertionError{concrete: typ, asserted: &inter.typ, missingMethod: m.init()})
+	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: m.init()})
 }
 
 // find finds the given interface/type pair in t.
@@ -198,7 +198,7 @@ func (m *itab) init() string {
 	// and interface names are unique,
 	// so can iterate over both in lock step;
 	// the loop is O(ni+nt) not O(ni*nt).
-	ni := len(inter.mhdr)
+	ni := len(inter.Methods)
 	nt := int(x.Mcount)
 	xmhdr := (*[1 << 16]abi.Method)(add(unsafe.Pointer(x), uintptr(x.Moff)))[:nt:nt]
 	j := 0
@@ -206,24 +206,24 @@ func (m *itab) init() string {
 	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
-		i := &inter.mhdr[k]
-		itype := toRType(&inter.typ).typeOff(i.Typ)
-		name := toRType(&inter.typ).nameOff(i.Name)
-		iname := name.name()
-		ipkg := name.pkgPath()
+		i := &inter.Methods[k]
+		itype := toRType(&inter.Type).typeOff(i.Typ)
+		name := toRType(&inter.Type).nameOff(i.Name)
+		iname := name.Name()
+		ipkg := pkgPath(name)
 		if ipkg == "" {
-			ipkg = inter.pkgpath.name()
+			ipkg = inter.PkgPath.Name()
 		}
 		for ; j < nt; j++ {
 			t := &xmhdr[j]
 			rtyp := toRType(typ)
 			tname := rtyp.nameOff(t.Name)
-			if rtyp.typeOff(t.Mtyp) == itype && tname.name() == iname {
-				pkgPath := tname.pkgPath()
+			if rtyp.typeOff(t.Mtyp) == itype && tname.Name() == iname {
+				pkgPath := pkgPath(tname)
 				if pkgPath == "" {
-					pkgPath = rtyp.nameOff(x.PkgPath).name()
+					pkgPath = rtyp.nameOff(x.PkgPath).Name()
 				}
-				if tname.isExported() || pkgPath == ipkg {
+				if tname.IsExported() || pkgPath == ipkg {
 					if m != nil {
 						ifn := rtyp.textOff(t.Ifn)
 						if k == 0 {
@@ -422,7 +422,7 @@ func convI2I(dst *interfacetype, src *itab) *itab {
 func assertI2I(inter *interfacetype, tab *itab) *itab {
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
+		panic(&TypeAssertionError{nil, nil, &inter.Type, ""})
 	}
 	if tab.inter == inter {
 		return tab
@@ -449,7 +449,7 @@ func assertI2I2(inter *interfacetype, i iface) (r iface) {
 func assertE2I(inter *interfacetype, t *_type) *itab {
 	if t == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{nil, nil, &inter.typ, ""})
+		panic(&TypeAssertionError{nil, nil, &inter.Type, ""})
 	}
 	return getitab(inter, t, false)
 }
