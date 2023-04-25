@@ -540,6 +540,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 		if sect.type_ == elf.SHT_PROGBITS {
 			sb.SetData(sect.base[:sect.size])
+			sb.SetExternal(true)
 		}
 
 		sb.SetSize(int64(sect.size))
