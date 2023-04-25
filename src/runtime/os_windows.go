@@ -131,8 +131,11 @@ var (
 	// Load ntdll.dll manually during startup, otherwise Mingw
 	// links wrong printf function to cgo executable (see issue
 	// 12030 for details).
-	_RtlGetCurrentPeb       stdFunction
-	_RtlGetNtVersionNumbers stdFunction
+	_NtCreateWaitCompletionPacket    stdFunction
+	_NtAssociateWaitCompletionPacket stdFunction
+	_NtCancelWaitCompletionPacket    stdFunction
+	_RtlGetCurrentPeb                stdFunction
+	_RtlGetNtVersionNumbers          stdFunction
 
 	// These are from non-kernel32.dll, so we prefer to LoadLibraryEx them.
 	_timeBeginPeriod,
@@ -161,7 +164,9 @@ type mOS struct {
 	waitsema   uintptr // semaphore for parking on locks
 	resumesema uintptr // semaphore to indicate suspend/resume
 
-	highResTimer uintptr // high resolution timer handle used in usleep
+	highResTimer   uintptr // high resolution timer handle used in usleep
+	waitIocpTimer  uintptr // high resolution timer handle used in netpoll
+	waitIocpHandle uintptr // wait completion handle used in netpoll
 
 	// preemptExtLock synchronizes preemptM with entry/exit from
 	// external C code.
@@ -249,6 +254,18 @@ func loadOptionalSyscalls() {
 	n32 := windowsLoadSystemLib(ntdlldll[:])
 	if n32 == 0 {
 		throw("ntdll.dll not found")
+	}
+	_NtCreateWaitCompletionPacket = windowsFindfunc(n32, []byte("NtCreateWaitCompletionPacket\000"))
+	if _NtCreateWaitCompletionPacket != nil {
+		// These functions should exists if NtCreateWaitCompletionPacket exists.
+		_NtAssociateWaitCompletionPacket = windowsFindfunc(n32, []byte("NtAssociateWaitCompletionPacket\000"))
+		if _NtAssociateWaitCompletionPacket == nil {
+			throw("NtCreateWaitCompletionPacket exists but NtAssociateWaitCompletionPacket does not")
+		}
+		_NtCancelWaitCompletionPacket = windowsFindfunc(n32, []byte("NtCancelWaitCompletionPacket\000"))
+		if _NtCancelWaitCompletionPacket == nil {
+			throw("NtCreateWaitCompletionPacket exists but NtCancelWaitCompletionPacket does not")
+		}
 	}
 	_RtlGetCurrentPeb = windowsFindfunc(n32, []byte("RtlGetCurrentPeb\000"))
 	_RtlGetNtVersionNumbers = windowsFindfunc(n32, []byte("RtlGetNtVersionNumbers\000"))
@@ -374,6 +391,13 @@ func osRelax(relax bool) uint32 {
 // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag is available.
 var haveHighResTimer = false
 
+// haveHighResSleep indicates that NtCreateWaitCompletionPacket
+// exists and haveHighResTimer is true.
+// NtCreateWaitCompletionPacket has been available since Windows 10,
+// but has just been publicly documented, so some platforms, like Wine,
+// doesn't support it yet.
+var haveHighResSleep = false
+
 // createHighResTimer calls CreateWaitableTimerEx with
 // CREATE_WAITABLE_TIMER_HIGH_RESOLUTION flag to create high
 // resolution timer. createHighResTimer returns new timer
@@ -397,6 +421,7 @@ func initHighResTimer() {
 	h := createHighResTimer()
 	if h != 0 {
 		haveHighResTimer = true
+		haveHighResSleep = _NtCreateWaitCompletionPacket != nil
 		stdcall1(_CloseHandle, h)
 	} else {
 		// Only load winmm.dll if we need it.
@@ -797,7 +822,7 @@ func sigblock(exiting bool) {
 }
 
 // Called to initialize a new m (including the bootstrap m).
-// Called on the new thread, cannot allocate memory.
+// Called on the new thread, cannot allocate Go memory.
 func minit() {
 	var thandle uintptr
 	if stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS) == 0 {
@@ -816,6 +841,19 @@ func minit() {
 		if mp.highResTimer == 0 {
 			print("runtime: CreateWaitableTimerEx failed; errno=", getlasterror(), "\n")
 			throw("CreateWaitableTimerEx when creating timer failed")
+		}
+	}
+	if mp.waitIocpHandle == 0 && haveHighResSleep {
+		mp.waitIocpTimer = createHighResTimer()
+		if mp.waitIocpTimer == 0 {
+			print("runtime: CreateWaitableTimerEx failed; errno=", getlasterror(), "\n")
+			throw("CreateWaitableTimerEx when creating timer failed")
+		}
+		const GENERIC_ALL = 0x10000000
+		errno := stdcall3(_NtCreateWaitCompletionPacket, uintptr(unsafe.Pointer(&mp.waitIocpHandle)), GENERIC_ALL, 0)
+		if mp.waitIocpHandle == 0 {
+			print("runtime: NtCreateWaitCompletionPacket failed; errno=", errno, "\n")
+			throw("NtCreateWaitCompletionPacket failed")
 		}
 	}
 	unlock(&mp.threadLock)
@@ -871,6 +909,14 @@ func mdestroy(mp *m) {
 	if mp.highResTimer != 0 {
 		stdcall1(_CloseHandle, mp.highResTimer)
 		mp.highResTimer = 0
+	}
+	if mp.waitIocpTimer != 0 {
+		stdcall1(_CloseHandle, mp.waitIocpTimer)
+		mp.waitIocpTimer = 0
+	}
+	if mp.waitIocpHandle != 0 {
+		stdcall1(_CloseHandle, mp.waitIocpHandle)
+		mp.waitIocpHandle = 0
 	}
 	if mp.waitsema != 0 {
 		stdcall1(_CloseHandle, mp.waitsema)

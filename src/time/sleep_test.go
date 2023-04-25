@@ -15,15 +15,33 @@ import (
 	"sync/atomic"
 	"testing"
 	. "time"
+	_ "unsafe" // for go:linkname
 )
 
+// haveHighResSleep is true if the system supports at least ~1ms sleeps.
+//
+//go:linkname haveHighResSleep runtime.haveHighResSleep
+var haveHighResSleep bool
+
+// adjustDelay returns an adjusted delay based on the system sleep resolution.
 // Go runtime uses different Windows timers for time.Now and sleeping.
 // These can tick at different frequencies and can arrive out of sync.
 // The effect can be seen, for example, as time.Sleep(100ms) is actually
 // shorter then 100ms when measured as difference between time.Now before and
 // after time.Sleep call. This was observed on Windows XP SP3 (windows/386).
-// windowsInaccuracy is to ignore such errors.
-const windowsInaccuracy = 17 * Millisecond
+func adjustDelay(t *testing.T, delay Duration) Duration {
+	if haveHighResSleep {
+		return delay
+	}
+	t.Log("adjusting delay for low resolution sleep")
+	switch runtime.GOOS {
+	case "windows":
+		return delay - 17*Millisecond
+	default:
+		t.Fatal("adjustDelay unimplemented on " + runtime.GOOS)
+		return 0
+	}
+}
 
 func TestSleep(t *testing.T) {
 	const delay = 100 * Millisecond
@@ -33,10 +51,7 @@ func TestSleep(t *testing.T) {
 	}()
 	start := Now()
 	Sleep(delay)
-	delayadj := delay
-	if runtime.GOOS == "windows" {
-		delayadj -= windowsInaccuracy
-	}
+	delayadj := adjustDelay(t, delay)
 	duration := Now().Sub(start)
 	if duration < delayadj {
 		t.Fatalf("Sleep(%s) slept for only %s", delay, duration)
@@ -247,10 +262,7 @@ func TestAfter(t *testing.T) {
 	const delay = 100 * Millisecond
 	start := Now()
 	end := <-After(delay)
-	delayadj := delay
-	if runtime.GOOS == "windows" {
-		delayadj -= windowsInaccuracy
-	}
+	delayadj := adjustDelay(t, delay)
 	if duration := Now().Sub(start); duration < delayadj {
 		t.Fatalf("After(%s) slept for only %d ns", delay, duration)
 	}
