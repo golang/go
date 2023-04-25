@@ -24,10 +24,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -419,4 +421,49 @@ func gc(goplsDir string) {
 			}
 		}
 	}
+}
+
+const bugKind = "bug" // reserved kind for gopls bug reports
+
+func init() {
+	// Register a handler to durably record this process's first
+	// assertion failure in the cache so that we can ask users to
+	// share this information via the stats command.
+	bug.Handle(func(bug bug.Bug) {
+		// Wait for cache init (bugs in tests happen early).
+		_, _ = getCacheDir()
+
+		value := []byte(fmt.Sprintf("%s: %+v", time.Now().Format(time.RFC3339), bug))
+		key := sha256.Sum256(value)
+		_ = Set(bugKind, key, value)
+	})
+}
+
+// BugReports returns a new unordered array of the contents
+// of all cached bug reports produced by this executable.
+func BugReports() [][]byte {
+	dir, err := getCacheDir()
+	if err != nil {
+		return nil // ignore initialization errors
+	}
+	var result [][]byte
+	_ = filepath.Walk(filepath.Join(dir, bugKind),
+		func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return nil // ignore readdir/stat errors
+			}
+			if !info.IsDir() {
+				var key [32]byte
+				n, err := hex.Decode(key[:], []byte(filepath.Base(path)))
+				if err != nil || n != len(key) {
+					return nil // ignore malformed file names
+				}
+				content, err := Get(bugKind, key)
+				if err == nil { // ignore read errors
+					result = append(result, content)
+				}
+			}
+			return nil
+		})
+	return result
 }

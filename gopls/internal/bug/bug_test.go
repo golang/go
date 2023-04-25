@@ -11,7 +11,7 @@ import (
 
 func resetForTesting() {
 	exemplars = nil
-	waiters = nil
+	handlers = nil
 }
 
 func TestListBugs(t *testing.T) {
@@ -44,19 +44,21 @@ func wantBugs(t *testing.T, want ...string) {
 	}
 }
 
-func TestBugNotification(t *testing.T) {
+func TestBugHandler(t *testing.T) {
 	defer resetForTesting()
 
 	Report("unseen")
 
-	notify1 := Notify()
-	notify2 := Notify()
+	// Both handlers are called, in order of registration, only once.
+	var got string
+	Handle(func(b Bug) { got += "1:" + b.Description })
+	Handle(func(b Bug) { got += "2:" + b.Description })
 
 	Report("seen")
 
-	for _, got := range []Bug{<-notify1, <-notify2} {
-		if got, want := got.Description, "seen"; got != want {
-			t.Errorf("Saw bug %q, want %q", got, want)
-		}
+	Report("again")
+
+	if want := "1:seen2:seen"; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/debug"
+	"golang.org/x/tools/gopls/internal/lsp/filecache"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 )
@@ -47,6 +48,15 @@ Example:
 }
 
 func (s *stats) Run(ctx context.Context, args ...string) error {
+
+	// This undocumented environment variable allows
+	// the cmd integration test to trigger a call to bug.Report.
+	if msg := os.Getenv("TEST_GOPLS_BUG"); msg != "" {
+		filecache.Start() // effect: register bug handler
+		goplsbug.Report(msg)
+		return nil
+	}
+
 	if s.app.Remote != "" {
 		// stats does not work with -remote.
 		// Other sessions on the daemon may interfere with results.
@@ -126,12 +136,15 @@ func (s *stats) Run(ctx context.Context, args ...string) error {
 	}
 	defer conn.terminate(ctx)
 
-	// bug.List only reports bugs that have been encountered in the current
-	// process, so only list bugs after the initial workspace load has completed.
-	//
-	// TODO(rfindley): persist bugs to the gopls cache, so that they can be
-	// interrogated.
-	stats.Bugs = goplsbug.List()
+	// Gather bug reports produced by any process using
+	// this executable and persisted in the cache.
+	stats.BugReports = []string{} // non-nil for JSON
+	do("Gathering bug reports", func() error {
+		for _, report := range filecache.BugReports() {
+			stats.BugReports = append(stats.BugReports, string(report))
+		}
+		return nil
+	})
 
 	if _, err := do("Querying memstats", func() error {
 		memStats, err := conn.ExecuteCommand(ctx, &protocol.ExecuteCommandParams{
@@ -184,7 +197,7 @@ type GoplsStats struct {
 	GoVersion                    string
 	GoplsVersion                 string
 	InitialWorkspaceLoadDuration string // in time.Duration string form
-	Bugs                         []goplsbug.Bug
+	BugReports                   []string
 	MemStats                     command.MemStatsResult
 	WorkspaceStats               command.WorkspaceStatsResult
 	DirStats                     dirStats

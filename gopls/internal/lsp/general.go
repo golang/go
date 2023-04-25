@@ -63,17 +63,17 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 
 	if options.ShowBugReports {
 		// Report the next bug that occurs on the server.
-		bugCh := bug.Notify()
-		go func() {
-			b := <-bugCh
+		bug.Handle(func(b bug.Bug) {
 			msg := &protocol.ShowMessageParams{
 				Type:    protocol.Error,
 				Message: fmt.Sprintf("A bug occurred on the server: %s\nLocation:%s", b.Description, b.Key),
 			}
-			if err := s.eventuallyShowMessage(context.Background(), msg); err != nil {
-				log.Printf("error showing bug: %v", err)
-			}
-		}()
+			go func() {
+				if err := s.eventuallyShowMessage(context.Background(), msg); err != nil {
+					log.Printf("error showing bug: %v", err)
+				}
+			}()
+		})
 	}
 
 	folders := params.WorkspaceFolders

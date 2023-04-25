@@ -1,6 +1,8 @@
 // Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Package cmdtest contains the test suite for the command line behavior of gopls.
 package cmdtest
 
 // This file defines integration tests of each gopls subcommand that
@@ -28,6 +30,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -694,6 +697,15 @@ package b
 package foo
 `)
 
+	// Trigger a bug report with a distinctive string
+	// and check that it was durably recorded.
+	oops := fmt.Sprintf("oops-%d", rand.Int())
+	{
+		env := []string{"TEST_GOPLS_BUG=" + oops}
+		res := goplsWithEnv(t, tree, env, "stats")
+		res.checkExit(true)
+	}
+
 	res := gopls(t, tree, "stats")
 	res.checkExit(true)
 
@@ -728,6 +740,22 @@ package foo
 			t.Errorf("stats.%s = %d, want %d", check.field, check.got, check.want)
 		}
 	}
+
+	// Check that we got a BugReport with the expected message.
+	{
+		got := fmt.Sprint(stats.BugReports)
+		wants := []string{
+			"cmd/stats.go", // File containing call to bug.Report
+			oops,           // Description
+		}
+		for _, want := range wants {
+			if !strings.Contains(got, want) {
+				t.Errorf("BugReports does not contain %q. Got:<<%s>>", want, got)
+				break
+			}
+		}
+	}
+
 }
 
 // TestFix tests the 'fix' subcommand (../suggested_fix.go).
@@ -814,7 +842,12 @@ func TestMain(m *testing.M) {
 
 // This function is a stand-in for gopls.main in ../../../../main.go.
 func goplsMain() {
-	bug.PanicOnBugs = true // (not in the production command)
+	// Panic on bugs (unlike the production gopls command),
+	// except in tests that inject calls to bug.Report.
+	if os.Getenv("TEST_GOPLS_BUG") == "" {
+		bug.PanicOnBugs = true
+	}
+
 	tool.Main(context.Background(), cmd.New("gopls", "", nil, hooks.Options), os.Args[1:])
 }
 
@@ -844,6 +877,10 @@ func writeTree(t *testing.T, archive string) string {
 
 // gopls executes gopls in a child process.
 func gopls(t *testing.T, dir string, args ...string) *result {
+	return goplsWithEnv(t, dir, nil, args...)
+}
+
+func goplsWithEnv(t *testing.T, dir string, env []string, args ...string) *result {
 	testenv.NeedsTool(t, "go")
 
 	// Catch inadvertent use of dir=".", which would make
@@ -857,6 +894,7 @@ func gopls(t *testing.T, dir string, args ...string) *result {
 		"ENTRYPOINT=goplsMain",
 		fmt.Sprintf("%s=true", cmd.DebugSuggestedFixEnvVar),
 	)
+	goplsCmd.Env = append(goplsCmd.Env, env...)
 	goplsCmd.Dir = dir
 	goplsCmd.Stdout = new(bytes.Buffer)
 	goplsCmd.Stderr = new(bytes.Buffer)
