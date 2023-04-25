@@ -53,6 +53,18 @@ var verifyTests = []verifyTest{
 		},
 	},
 	{
+		name:          "Valid (fqdn)",
+		leaf:          googleLeaf,
+		intermediates: []string{gtsIntermediate},
+		roots:         []string{gtsRoot},
+		currentTime:   1677615892,
+		dnsName:       "www.google.com.",
+
+		expectedChains: [][]string{
+			{"www.google.com", "GTS CA 1C3", "GTS Root R1"},
+		},
+	},
+	{
 		name:          "MixedCase",
 		leaf:          googleLeaf,
 		intermediates: []string{gtsIntermediate},
