@@ -267,7 +267,7 @@ type Reader interface {
 type decompressor struct {
 	// Input source.
 	r       Reader
-	bufR    *bufio.Reader // used if provided reader does not implement io.ByteReader
+	rBuf    *bufio.Reader // created if provided io.Reader does not implement io.ByteReader
 	roffset int64
 
 	// Input bits, in top of b.
@@ -749,16 +749,18 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
 
 func (f *decompressor) makeReader(r io.Reader) {
 	if rr, ok := r.(Reader); ok {
-		f.bufR = nil
+		f.rBuf = nil
 		f.r = rr
 		return
 	}
-	if f.bufR != nil {
-		f.bufR.Reset(r)
+	// Reuse rBuf if possible. Invariant: rBuf is always created (and owned) by decompressor.
+	if f.rBuf != nil {
+		f.rBuf.Reset(r)
 	} else {
-		f.bufR = bufio.NewReader(r)
+		// bufio.NewReader will not return r, as r does not implement flate.Reader, so it is not bufio.Reader.
+		f.rBuf = bufio.NewReader(r)
 	}
-	f.r = f.bufR
+	f.r = f.rBuf
 }
 
 func fixedHuffmanDecoderInit() {
@@ -783,7 +785,7 @@ func fixedHuffmanDecoderInit() {
 
 func (f *decompressor) Reset(r io.Reader, dict []byte) error {
 	*f = decompressor{
-		bufR:     f.bufR,
+		rBuf:     f.rBuf,
 		bits:     f.bits,
 		codebits: f.codebits,
 		dict:     f.dict,
