@@ -114,7 +114,7 @@ func runMain() (int, error) {
 	// "$GOROOT/src/mime/multipart" or "$GOPATH/src/golang.org/x/mobile".
 	// We extract everything after the $GOROOT or $GOPATH to run on the
 	// same relative directory on the target device.
-	importPath, isStd, err := pkgPath()
+	importPath, isStd, modPath, modDir, err := pkgPath()
 	if err != nil {
 		return 0, err
 	}
@@ -126,22 +126,40 @@ func runMain() (int, error) {
 		deviceCwd = path.Join(deviceGoroot, "src", importPath)
 	} else {
 		deviceCwd = path.Join(deviceGopath, "src", importPath)
-		if err := adb("exec-out", "mkdir", "-p", deviceCwd); err != nil {
-			return 0, err
-		}
-		if err := adbCopyTree(deviceCwd, importPath); err != nil {
-			return 0, err
-		}
-
-		// Copy .go files from the package.
-		goFiles, err := filepath.Glob("*.go")
-		if err != nil {
-			return 0, err
-		}
-		if len(goFiles) > 0 {
-			args := append(append([]string{"push"}, goFiles...), deviceCwd)
-			if err := adb(args...); err != nil {
+		if modDir != "" {
+			// In module mode, the user may reasonably expect the entire module
+			// to be present. Copy it over.
+			deviceModDir := path.Join(deviceGopath, "src", modPath)
+			if err := adb("exec-out", "mkdir", "-p", path.Dir(deviceModDir)); err != nil {
 				return 0, err
+			}
+			// We use a single recursive 'adb push' of the module root instead of
+			// walking the tree and copying it piecewise. If the directory tree
+			// contains nested modules this could push a lot of unnecessary contents,
+			// but for the golang.org/x repos it seems to be significantly (~2x)
+			// faster than copying one file at a time (via filepath.WalkDir),
+			// apparently due to high latency in 'adb' commands.
+			if err := adb("push", modDir, deviceModDir); err != nil {
+				return 0, err
+			}
+		} else {
+			if err := adb("exec-out", "mkdir", "-p", deviceCwd); err != nil {
+				return 0, err
+			}
+			if err := adbCopyTree(deviceCwd, importPath); err != nil {
+				return 0, err
+			}
+
+			// Copy .go files from the package.
+			goFiles, err := filepath.Glob("*.go")
+			if err != nil {
+				return 0, err
+			}
+			if len(goFiles) > 0 {
+				args := append(append([]string{"push"}, goFiles...), deviceCwd)
+				if err := adb(args...); err != nil {
+					return 0, err
+				}
 			}
 		}
 	}
@@ -198,34 +216,41 @@ func runMain() (int, error) {
 // pkgPath determines the package import path of the current working directory,
 // and indicates whether it is
 // and returns the path to the package source relative to $GOROOT (or $GOPATH).
-func pkgPath() (importPath string, isStd bool, err error) {
+func pkgPath() (importPath string, isStd bool, modPath, modDir string, err error) {
+	errorf := func(format string, args ...any) (string, bool, string, string, error) {
+		return "", false, "", "", fmt.Errorf(format, args...)
+	}
 	goTool, err := goTool()
 	if err != nil {
-		return "", false, err
+		return errorf("%w", err)
 	}
-	cmd := exec.Command(goTool, "list", "-e", "-f", "{{.ImportPath}}:{{.Standard}}", ".")
+	cmd := exec.Command(goTool, "list", "-e", "-f", "{{.ImportPath}}:{{.Standard}}{{with .Module}}:{{.Path}}:{{.Dir}}{{end}}", ".")
 	out, err := cmd.Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
-			return "", false, fmt.Errorf("%v: %s", cmd, ee.Stderr)
+			return errorf("%v: %s", cmd, ee.Stderr)
 		}
-		return "", false, fmt.Errorf("%v: %w", cmd, err)
+		return errorf("%v: %w", cmd, err)
 	}
 
-	s := string(bytes.TrimSpace(out))
-	importPath, isStdStr, ok := strings.Cut(s, ":")
-	if !ok {
-		return "", false, fmt.Errorf("%v: missing ':' in output: %q", cmd, out)
+	parts := strings.SplitN(string(bytes.TrimSpace(out)), ":", 4)
+	if len(parts) < 2 {
+		return errorf("%v: missing ':' in output: %q", cmd, out)
 	}
+	importPath = parts[0]
 	if importPath == "" || importPath == "." {
-		return "", false, fmt.Errorf("current directory does not have a Go import path")
+		return errorf("current directory does not have a Go import path")
 	}
-	isStd, err = strconv.ParseBool(isStdStr)
+	isStd, err = strconv.ParseBool(parts[1])
 	if err != nil {
-		return "", false, fmt.Errorf("%v: non-boolean .Standard in output: %q", cmd, out)
+		return errorf("%v: non-boolean .Standard in output: %q", cmd, out)
+	}
+	if len(parts) >= 4 {
+		modPath = parts[2]
+		modDir = parts[3]
 	}
 
-	return importPath, isStd, nil
+	return importPath, isStd, modPath, modDir, nil
 }
 
 // adbCopyTree copies testdata, go.mod, go.sum files from subdir
