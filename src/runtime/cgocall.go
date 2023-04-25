@@ -136,7 +136,6 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 
 	mp := getg().m
 	mp.ncgocall++
-	mp.ncgo++
 
 	// Reset traceback.
 	mp.cgoCallers[0] = 0
@@ -165,6 +164,14 @@ func cgocall(fn, arg unsafe.Pointer) int32 {
 	osPreemptExtEnter(mp)
 
 	mp.incgo = true
+	// We use ncgo as a check during execution tracing for whether there is
+	// any C on the call stack, which there will be after this point. If
+	// there isn't, we can use frame pointer unwinding to collect call
+	// stacks efficiently. This will be the case for the first Go-to-C call
+	// on a stack, so it's prefereable to update it here, after we emit a
+	// trace event in entersyscall above.
+	mp.ncgo++
+
 	errno := asmcgocall(fn, arg)
 
 	// Update accounting before exitsyscall because exitsyscall may

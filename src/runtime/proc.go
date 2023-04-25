@@ -868,8 +868,8 @@ func (mp *m) becomeSpinning() {
 	sched.needspinning.Store(0)
 }
 
-func (mp *m) incgocallback() bool {
-	return (!mp.incgo && mp.ncgo > 0) || mp.isextra
+func (mp *m) hasCgoOnStack() bool {
+	return mp.ncgo > 0 || mp.isextra
 }
 
 var fastrandseed uintptr

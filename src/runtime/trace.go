@@ -889,10 +889,10 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 	gp := getg()
 	curgp := mp.curg
 	nstk := 1
-	if tracefpunwindoff() || mp.incgocallback() {
+	if tracefpunwindoff() || mp.hasCgoOnStack() {
 		// Slow path: Unwind using default unwinder. Used when frame pointer
 		// unwinding is unavailable or disabled (tracefpunwindoff), or might
-		// produce incomplete results or crashes (incgocallback). Note that no
+		// produce incomplete results or crashes (hasCgoOnStack). Note that no
 		// cgo callback related crashes have been observed yet. The main
 		// motivation is to take advantage of a potentially registered cgo
 		// symbolizer.
