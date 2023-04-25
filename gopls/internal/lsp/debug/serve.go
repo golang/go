@@ -469,7 +469,7 @@ func (i *Instance) Serve(ctx context.Context, addr string) (string, error) {
 			http.Error(w, "OK", 200)
 		})
 		mux.HandleFunc("/_makeabug", func(w http.ResponseWriter, r *http.Request) {
-			bug.Report("bug here", nil)
+			bug.Report("bug here")
 			http.Error(w, "made a bug", http.StatusOK)
 		})
 

@@ -24,7 +24,7 @@ func TestBugNotification(t *testing.T) {
 		Settings{"showBugReports": true},
 	).Run(t, "", func(t *testing.T, env *Env) {
 		const desc = "got a bug"
-		bug.Report(desc, nil)
+		bug.Report(desc)
 		env.Await(ShownMessage(desc))
 	})
 }
