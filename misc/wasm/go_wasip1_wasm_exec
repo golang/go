@@ -8,7 +8,7 @@ case "$GOWASIRUNTIME" in
 		exec wasmtime run --dir=/ --env PWD="$PWD" --max-wasm-stack 1048576 "$1" -- "${@:2}"
 		;;
 	"wazero" | "")
-		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR}"/wazero "$1" "${@:2}"
+		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero "$1" "${@:2}"
 		;;
 	*)
 		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"
