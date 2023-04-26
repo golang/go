@@ -35,7 +35,7 @@ import (
 // they represent.
 type Value struct {
 	// typ holds the type of the value represented by a Value.
-	typ *rtype
+	typ *abi.Type
 
 	// Pointer-valued data or, if flagIndir is set, pointer to data.
 	// Valid when either flagIndir is set or typ.pointers() is true.
@@ -90,7 +90,7 @@ func (f flag) ro() flag {
 // pointer returns the underlying pointer represented by v.
 // v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
 func (v Value) pointer() unsafe.Pointer {
-	if v.typ.Size() != goarch.PtrSize || !v.typ.pointers() {
+	if v.typ.Size() != goarch.PtrSize || !v.typ.Pointers() {
 		panic("can't call pointer on a non-pointer Value")
 	}
 	if v.flag&flagIndir != 0 {
@@ -179,7 +179,7 @@ func methodName() string {
 
 // emptyInterface is the header for an interface{} value.
 type emptyInterface struct {
-	typ  *rtype
+	typ  *abi.Type
 	word unsafe.Pointer
 }
 
@@ -250,7 +250,7 @@ func (v Value) Elem() Value {
 			return Value{}
 		}
 		tt := (*ptrType)(unsafe.Pointer(v.typ))
-		typ := tt.elem
+		typ := tt.Elem
 		fl := v.flag&flagRO | flagIndir | flagAddr
 		fl |= flag(typ.Kind())
 		return Value{typ, ptr, fl}
@@ -380,7 +380,7 @@ func (v Value) Type() Type {
 		panic(&ValueError{"reflectlite.Value.Type", abi.Invalid})
 	}
 	// Method values not supported.
-	return v.typ
+	return toRType(v.typ)
 }
 
 /*
@@ -388,7 +388,7 @@ func (v Value) Type() Type {
  */
 
 // implemented in package runtime
-func unsafe_New(*rtype) unsafe.Pointer
+func unsafe_New(*abi.Type) unsafe.Pointer
 
 // ValueOf returns a new Value initialized to the concrete value
 // stored in the interface i. ValueOf(nil) returns the zero Value.
@@ -409,7 +409,7 @@ func ValueOf(i any) Value {
 // assignTo returns a value v that can be assigned directly to typ.
 // It panics if v is not assignable to typ.
 // For a conversion to an interface type, target is a suggested scratch space to use.
-func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value {
+func (v Value) assignTo(context string, dst *abi.Type, target unsafe.Pointer) Value {
 	// if v.flag&flagMethod != 0 {
 	// 	v = makeMethodValue(context, v)
 	// }
@@ -442,7 +442,7 @@ func (v Value) assignTo(context string, dst *rtype, target unsafe.Pointer) Value
 	}
 
 	// Failed.
-	panic(context + ": value of type " + v.typ.String() + " is not assignable to type " + dst.String())
+	panic(context + ": value of type " + toRType(v.typ).String() + " is not assignable to type " + toRType(dst).String())
 }
 
 // arrayAt returns the i-th element of p,
@@ -456,12 +456,12 @@ func arrayAt(p unsafe.Pointer, i int, eltSize uintptr, whySafe string) unsafe.Po
 	return add(p, uintptr(i)*eltSize, "i < len")
 }
 
-func ifaceE2I(t *rtype, src any, dst unsafe.Pointer)
+func ifaceE2I(t *abi.Type, src any, dst unsafe.Pointer)
 
 // typedmemmove copies a value of type t to dst from src.
 //
 //go:noescape
-func typedmemmove(t *rtype, dst, src unsafe.Pointer)
+func typedmemmove(t *abi.Type, dst, src unsafe.Pointer)
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that

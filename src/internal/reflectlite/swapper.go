@@ -31,7 +31,7 @@ func Swapper(slice any) func(i, j int) {
 		}
 	}
 
-	typ := v.Type().Elem().(*rtype)
+	typ := v.Type().Elem().common()
 	size := typ.Size()
 	hasPtr := typ.PtrBytes != 0
 
