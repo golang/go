@@ -435,6 +435,18 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		}
 
 		if len(mods) == 1 {
+			// We've found the unique module containing the package.
+			// However, in order to actually compile it we need to know what
+			// Go language version to use, which requires its go.mod file.
+			//
+			// If the module graph is pruned and this is a test-only dependency
+			// of a package in "all", we didn't necessarily load that file
+			// when we read the module graph, so do it now to be sure.
+			if cfg.BuildMod != "vendor" && mods[0].Path != "" && !MainModules.Contains(mods[0].Path) {
+				if _, err := goModSummary(mods[0]); err != nil {
+					return module.Version{}, "", "", nil, err
+				}
+			}
 			return mods[0], roots[0], dirs[0], altMods, nil
 		}
 

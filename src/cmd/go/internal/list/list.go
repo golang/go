@@ -649,7 +649,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 				} else {
 					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
 					if err != nil {
-						base.Fatalf("can't load test package: %s", err)
+						base.Fatalf("go: can't load test package: %s", err)
 					}
 				}
 				testPackages = append(testPackages, testPackageSet{p, pmain, ptest, pxtest})
