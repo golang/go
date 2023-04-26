@@ -317,9 +317,7 @@ func (opts *goTest) bgCommand(t *tester) *exec.Cmd {
 	// Combine the flags.
 	args := append([]string{"test"}, build...)
 	if t.compileOnly {
-		// We can't pass -c with multiple packages, so run the tests but
-		// tell them not to do anything.
-		args = append(args, "-run=^$")
+		args = append(args, "-c", "-o", os.DevNull)
 	} else {
 		args = append(args, run...)
 	}

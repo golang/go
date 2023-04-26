@@ -4,6 +4,13 @@
 
 package sha512
 
-import "internal/cpu"
+import (
+	"internal/cpu"
+	"unsafe"
+)
 
 var useAsm = cpu.S390X.HasSHA512
+
+func doBlockGeneric(dig *digest, p *byte, n int) {
+	blockGeneric(dig, unsafe.String(p, n))
+}

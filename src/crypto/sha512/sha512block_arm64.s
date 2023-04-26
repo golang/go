@@ -38,11 +38,11 @@
 	VADD	i3.D2, i1.D2, i4.D2 \
 	SHA512H2	i0.D2, i1, i3
 
-// func blockAsm(dig *digest, p []byte)
+// func blockAsm(dig *digest, p *byte, n int)
 TEXT ·blockAsm(SB),NOSPLIT,$0
 	MOVD	dig+0(FP), R0
-	MOVD	p_base+8(FP), R1
-	MOVD	p_len+16(FP), R2
+	MOVD	p+8(FP), R1
+	MOVD	n+16(FP), R2
 	MOVD	·_K+0(SB), R3
 
 	// long enough to prefetch

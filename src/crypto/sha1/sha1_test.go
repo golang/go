@@ -92,6 +92,14 @@ func TestGolden(t *testing.T) {
 			}
 			c.Reset()
 		}
+		bw := c.(io.ByteWriter)
+		for i := 0; i < len(g.in); i++ {
+			bw.WriteByte(g.in[i])
+		}
+		s = fmt.Sprintf("%x", c.Sum(nil))
+		if s != g.out {
+			t.Errorf("sha1[WriteByte](%s) = %s want %s", g.in, s, g.out)
+		}
 	}
 }
 
@@ -221,7 +229,8 @@ func TestAllocations(t *testing.T) {
 	if boring.Enabled {
 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
 	}
-	in := []byte("hello, world!")
+	const ins = "hello, world!"
+	in := []byte(ins)
 	out := make([]byte, 0, Size)
 	h := New()
 	n := int(testing.AllocsPerRun(10, func() {
@@ -231,6 +240,28 @@ func TestAllocations(t *testing.T) {
 	}))
 	if n > 0 {
 		t.Errorf("allocs = %d, want 0", n)
+	}
+
+	sw := h.(io.StringWriter)
+	n = int(testing.AllocsPerRun(10, func() {
+		h.Reset()
+		sw.WriteString(ins)
+		out = h.Sum(out[:0])
+	}))
+	if n > 0 {
+		t.Errorf("string allocs = %d, want 0", n)
+	}
+
+	bw := h.(io.ByteWriter)
+	n = int(testing.AllocsPerRun(10, func() {
+		h.Reset()
+		for _, b := range in {
+			bw.WriteByte(b)
+		}
+		out = h.Sum(out[:0])
+	}))
+	if n > 0 {
+		t.Errorf("byte allocs = %d, want 0", n)
 	}
 }
 

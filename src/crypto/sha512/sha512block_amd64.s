@@ -141,9 +141,9 @@
 	MSGSCHEDULE1(index); \
 	SHA512ROUND(index, const, a, b, c, d, e, f, g, h)
 
-TEXT ·blockAMD64(SB),0,$648-32
-	MOVQ	p_base+8(FP), SI
-	MOVQ	p_len+16(FP), DX
+TEXT ·blockAMD64(SB),0,$648-24
+	MOVQ	p+8(FP), SI
+	MOVQ	n+16(FP), DX
 	SHRQ	$7, DX
 	SHLQ	$7, DX
 
@@ -319,10 +319,10 @@ DATA MASK_YMM_LO<>+0x18(SB)/8, $0xFFFFFFFFFFFFFFFF
 
 GLOBL MASK_YMM_LO<>(SB), (NOPTR+RODATA), $32
 
-TEXT ·blockAVX2(SB), NOSPLIT, $56-32
+TEXT ·blockAVX2(SB), NOSPLIT, $56-24
 	MOVQ dig+0(FP), SI
-	MOVQ p_base+8(FP), DI
-	MOVQ p_len+16(FP), DX
+	MOVQ p+8(FP), DI
+	MOVQ n+16(FP), DX
 
 	SHRQ $7, DX
 	SHLQ $7, DX

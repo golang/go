@@ -6,5 +6,15 @@
 
 package sha512
 
+import "unsafe"
+
 //go:noescape
-func block(dig *digest, p []byte)
+func doBlock(dig *digest, p *byte, n int)
+
+func block(dig *digest, p []byte) {
+	doBlock(dig, unsafe.SliceData(p), len(p))
+}
+
+func blockString(dig *digest, s string) {
+	doBlock(dig, unsafe.StringData(s), len(s))
+}

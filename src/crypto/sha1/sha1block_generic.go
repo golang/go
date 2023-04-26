@@ -9,3 +9,7 @@ package sha1
 func block(dig *digest, p []byte) {
 	blockGeneric(dig, p)
 }
+
+func blockString(dig *digest, s string) {
+	blockGeneric(dig, s)
+}
