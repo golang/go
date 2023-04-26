@@ -673,10 +673,15 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 // ignoring all replacements that may apply to m and excludes that may apply to
 // its dependencies.
 //
-// rawGoModSummary cannot be used on the Target module.
+// rawGoModSummary cannot be used on the main module outside of workspace mode.
 func rawGoModSummary(m module.Version) (*modFileSummary, error) {
-	if m.Path == "" && MainModules.Contains(m.Path) {
-		panic("internal error: rawGoModSummary called on the Target module")
+	if m.Version == "" && !inWorkspaceMode() && MainModules.Contains(m.Path) {
+		// Calling rawGoModSummary implies that we are treating m as a module whose
+		// requirements aren't the roots of the module graph and can't be modified.
+		//
+		// If we are not in workspace mode, then the requirements of the main module
+		// are the roots of the module graph and we expect them to be kept consistent.
+		panic("internal error: rawGoModSummary called on a main module")
 	}
 	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
 		summary := new(modFileSummary)
@@ -724,19 +729,18 @@ var rawGoModSummaryCache par.ErrCache[module.Version, *modFileSummary]
 // rawGoModData returns the content of the go.mod file for module m, ignoring
 // all replacements that may apply to m.
 //
-// rawGoModData cannot be used on the Target module.
+// rawGoModData cannot be used on the main module outside of workspace mode.
 //
 // Unlike rawGoModSummary, rawGoModData does not cache its results in memory.
 // Use rawGoModSummary instead unless you specifically need these bytes.
 func rawGoModData(m module.Version) (name string, data []byte, err error) {
 	if m.Version == "" {
-		// m is a replacement module with only a file path.
-
 		dir := m.Path
 		if !filepath.IsAbs(dir) {
 			if inWorkspaceMode() && MainModules.Contains(m.Path) {
 				dir = MainModules.ModRoot(m)
 			} else {
+				// m is a replacement module with only a file path.
 				dir = filepath.Join(replaceRelativeTo(), dir)
 			}
 		}
