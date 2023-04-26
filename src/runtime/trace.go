@@ -917,7 +917,7 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 		// Fast path: Unwind using frame pointers.
 		pcBuf[0] = uintptr(skip)
 		if curgp == gp {
-			nstk += fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf[1:])
+			nstk += fpTracebackPCs(unsafe.Pointer(getcallerfp()), pcBuf[1:])
 		} else if curgp != nil {
 			// We're called on the g0 stack through mcall(fn) or systemstack(fn). To
 			// behave like gcallers above, we start unwinding from sched.bp, which
@@ -925,7 +925,7 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 			// address of the leaf frame is stored in sched.pc, which we manually
 			// capture here.
 			pcBuf[1] = curgp.sched.pc
-			nstk += 1 + fpTracebackPCs(unsafe.Pointer(curgp.sched.bp), skip, pcBuf[2:])
+			nstk += 1 + fpTracebackPCs(unsafe.Pointer(curgp.sched.bp), pcBuf[2:])
 		}
 	}
 	if nstk > 0 {
@@ -948,7 +948,7 @@ func tracefpunwindoff() bool {
 // returns the number of PCs written to pcBuf. The returned PCs correspond to
 // "physical frames" rather than "logical frames"; that is if A is inlined into
 // B, this will return a PC for only B.
-func fpTracebackPCs(fp unsafe.Pointer, skip int, pcBuf []uintptr) (i int) {
+func fpTracebackPCs(fp unsafe.Pointer, pcBuf []uintptr) (i int) {
 	for i = 0; i < len(pcBuf) && fp != nil; i++ {
 		// return addr sits one word above the frame pointer
 		pcBuf[i] = *(*uintptr)(unsafe.Pointer(uintptr(fp) + goarch.PtrSize))

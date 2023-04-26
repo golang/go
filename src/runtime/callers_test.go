@@ -443,7 +443,7 @@ func fpCallersCached(b *testing.B, n int) int {
 		pcs := make([]uintptr, 32)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			runtime.FPCallers(0, pcs)
+			runtime.FPCallers(pcs)
 		}
 		b.StopTimer()
 		return 0

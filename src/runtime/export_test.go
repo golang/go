@@ -437,7 +437,7 @@ func ShrinkStackAndVerifyFramePointers() {
 	})
 	// If our new stack contains frame pointers into the old stack, this will
 	// crash because the old stack has been poisoned.
-	FPCallers(0, make([]uintptr, 1024))
+	FPCallers(make([]uintptr, 1024))
 }
 
 // BlockOnSystemStack switches to the system stack, prints "x\n" to
@@ -1819,6 +1819,6 @@ func PersistentAlloc(n uintptr) unsafe.Pointer {
 
 // FPCallers works like Callers and uses frame pointer unwinding to populate
 // pcBuf with the return addresses of the physical frames on the stack.
-func FPCallers(skip int, pcBuf []uintptr) int {
-	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf)
+func FPCallers(pcBuf []uintptr) int {
+	return fpTracebackPCs(unsafe.Pointer(getcallerfp()), pcBuf)
 }
