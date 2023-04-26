@@ -676,13 +676,6 @@ func adjustframe(frame *stkframe, adjinfo *adjustinfo) {
 		adjustpointer(adjinfo, unsafe.Pointer(frame.varp))
 	}
 
-	if f.funcID == abi.FuncID_systemstack_switch {
-		// A special routine at the bottom of stack of a goroutine that does a systemstack call.
-		// We will allow it to be copied even though we don't
-		// have full GC info for it (because it is written in asm).
-		return
-	}
-
 	locals, args, objs := frame.getStackMap(&adjinfo.cache, true)
 
 	// Adjust local variables if stack frame has been allocated.
