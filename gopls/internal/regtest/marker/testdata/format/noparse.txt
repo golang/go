@@ -1,0 +1,27 @@
+This test checks that formatting does not run on code that has parse errors.
+
+-- parse.go --
+package noparse_format //@format(parse)
+
+func _() {
+f() //@diag("f", re"(undefined|undeclared name): f")
+}
+-- @parse --
+package noparse_format //@format(parse)
+
+func _() {
+	f() //@diag("f", re"(undefined|undeclared name): f")
+}
+-- noparse.go --
+package noparse_format //@format(noparse)
+
+// The nonewvars expectation asserts that the go/analysis framework ran.
+
+func what() {
+	var hi func()
+	if {		hi() //@diag(re"(){", re".*missing.*")
+	}
+	hi := nil //@diag(re"():=", re"no new variables")
+}
+-- @noparse --
+7:5: missing condition in if statement

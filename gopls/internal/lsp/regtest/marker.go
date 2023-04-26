@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"go/token"
@@ -129,6 +128,12 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //
 //   - def(src, dst location): perform a textDocument/definition request at
 //     the src location, and check the result points to the dst location.
+//
+//   - format(golden): perform a textDocument/format request for the enclosing
+//     file, and compare against the named golden file. If the formatting
+//     request succeeds, the golden file must contain the resulting formatted
+//     source. If the formatting request fails, the golden file must contain
+//     the error message.
 //
 //   - hover(src, dst location, g Golden): perform a textDocument/hover at the
 //     src location, and checks that the result is the dst location, with hover
@@ -417,6 +422,11 @@ type marker struct {
 	note *expect.Note
 }
 
+// server returns the LSP server for the marker test run.
+func (m marker) server() protocol.Server {
+	return m.run.env.Editor.Server
+}
+
 // errorf reports an error with a prefix indicating the position of the marker note.
 //
 // It formats the error message using mark.sprintf.
@@ -486,6 +496,7 @@ var markerFuncs = map[string]markerFunc{
 	"def":            makeMarkerFunc(defMarker),
 	"diag":           makeMarkerFunc(diagMarker),
 	"hover":          makeMarkerFunc(hoverMarker),
+	"format":         makeMarkerFunc(formatMarker),
 	"implementation": makeMarkerFunc(implementationMarker),
 	"loc":            makeMarkerFunc(locMarker),
 	"rename":         makeMarkerFunc(renameMarker),
@@ -1173,6 +1184,40 @@ func defMarker(mark marker, src, dst protocol.Location) {
 	}
 }
 
+// formatMarker implements the @format marker.
+func formatMarker(mark marker, golden *Golden) {
+	edits, err := mark.server().Formatting(mark.run.env.Ctx, &protocol.DocumentFormattingParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: mark.uri()},
+	})
+	var got []byte
+	if err != nil {
+		got = []byte(err.Error() + "\n") // all golden content is newline terminated
+	} else {
+		env := mark.run.env
+		filename := env.Sandbox.Workdir.URIToPath(mark.uri())
+		mapper, err := env.Editor.Mapper(filename)
+		if err != nil {
+			mark.errorf("Editor.Mapper(%s) failed: %v", filename, err)
+		}
+
+		got, _, err = source.ApplyProtocolEdits(mapper, edits)
+		if err != nil {
+			mark.errorf("ApplyProtocolEdits failed: %v", err)
+			return
+		}
+	}
+
+	want, ok := golden.Get(mark.run.env.T, "", got)
+	if !ok {
+		mark.errorf("missing golden file @%s", golden.id)
+		return
+	}
+
+	if diff := compare.Bytes(want, got); diff != "" {
+		mark.errorf("golden file @%s does not match format results:\n%s", golden.id, diff)
+	}
+}
+
 // hoverMarker implements the @hover marker, running textDocument/hover at the
 // given src location and asserting that the resulting hover is over the dst
 // location (typically a span surrounding src), and that the markdown content
@@ -1215,20 +1260,20 @@ func locMarker(mark marker, name expect.Identifier, loc protocol.Location) {
 // diagMarker implements the @diag marker. It eliminates diagnostics from
 // the observed set in mark.test.
 func diagMarker(mark marker, loc protocol.Location, re *regexp.Regexp) {
-	if _, err := removeDiagnostic(mark, loc, re); err != nil {
-		mark.errorf("%v", err)
+	if _, ok := removeDiagnostic(mark, loc, re); !ok {
+		mark.errorf("no diagnostic at %v matches %q", loc, re)
 	}
 }
 
-func removeDiagnostic(mark marker, loc protocol.Location, re *regexp.Regexp) (protocol.Diagnostic, error) {
+func removeDiagnostic(mark marker, loc protocol.Location, re *regexp.Regexp) (protocol.Diagnostic, bool) {
 	diags := mark.run.diags[loc]
 	for i, diag := range diags {
 		if re.MatchString(diag.Message) {
 			mark.run.diags[loc] = append(diags[:i], diags[i+1:]...)
-			return diag, nil
+			return diag, true
 		}
 	}
-	return protocol.Diagnostic{}, errors.New(mark.sprintf("no diagnostic at %v matches %q", loc, re))
+	return protocol.Diagnostic{}, false
 }
 
 // renameMarker implements the @rename(location, new, golden) marker.
@@ -1308,9 +1353,9 @@ func applyDocumentChanges(env *Env, changes []protocol.DocumentChanges) (map[str
 // action of the specified kind suggested by the matched diagnostic.
 func suggestedfixMarker(mark marker, loc protocol.Location, re *regexp.Regexp, actionKind string, golden *Golden) {
 	// Find and remove the matching diagnostic.
-	diag, err := removeDiagnostic(mark, loc, re)
-	if err != nil {
-		mark.errorf("%v", err)
+	diag, ok := removeDiagnostic(mark, loc, re)
+	if !ok {
+		mark.errorf("no diagnostic at %v matches %q", loc, re)
 		return
 	}
 
@@ -1398,7 +1443,7 @@ func suggestedfix(env *Env, loc protocol.Location, diag protocol.Diagnostic, act
 // refsMarker implements the @refs marker.
 func refsMarker(mark marker, src protocol.Location, want ...protocol.Location) {
 	refs := func(includeDeclaration bool, want []protocol.Location) error {
-		got, err := mark.run.env.Editor.Server.References(mark.run.env.Ctx, &protocol.ReferenceParams{
+		got, err := mark.server().References(mark.run.env.Ctx, &protocol.ReferenceParams{
 			TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(src),
 			Context: protocol.ReferenceContext{
 				IncludeDeclaration: includeDeclaration,
@@ -1428,7 +1473,7 @@ func refsMarker(mark marker, src protocol.Location, want ...protocol.Location) {
 
 // implementationMarker implements the @implementation marker.
 func implementationMarker(mark marker, src protocol.Location, want ...protocol.Location) {
-	got, err := mark.run.env.Editor.Server.Implementation(mark.run.env.Ctx, &protocol.ImplementationParams{
+	got, err := mark.server().Implementation(mark.run.env.Ctx, &protocol.ImplementationParams{
 		TextDocumentPositionParams: protocol.LocationTextDocumentPositionParams(src),
 	})
 	if err != nil {
@@ -1443,7 +1488,7 @@ func implementationMarker(mark marker, src protocol.Location, want ...protocol.L
 // symbolMarker implements the @symbol marker.
 func symbolMarker(mark marker, golden *Golden) {
 	// Retrieve information about all symbols in this file.
-	symbols, err := mark.run.env.Editor.Server.DocumentSymbol(mark.run.env.Ctx, &protocol.DocumentSymbolParams{
+	symbols, err := mark.server().DocumentSymbol(mark.run.env.Ctx, &protocol.DocumentSymbolParams{
 		TextDocument: protocol.TextDocumentIdentifier{URI: mark.uri()},
 	})
 	if err != nil {

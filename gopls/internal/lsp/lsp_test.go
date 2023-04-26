@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -384,39 +383,6 @@ func foldRanges(m *protocol.Mapper, contents string, ranges []protocol.FoldingRa
 		res = res[:start] + foldedText + res[end:]
 	}
 	return res, nil
-}
-
-func (r *runner) Format(t *testing.T, spn span.Span) {
-	uri := spn.URI()
-	filename := uri.Filename()
-	gofmted := r.data.Golden(t, "gofmt", filename, func() ([]byte, error) {
-		cmd := exec.Command("gofmt", filename)
-		out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
-		return out, nil
-	})
-
-	edits, err := r.server.Formatting(r.ctx, &protocol.DocumentFormattingParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(uri),
-		},
-	})
-	if err != nil {
-		if len(gofmted) > 0 {
-			t.Error(err)
-		}
-		return
-	}
-	m, err := r.data.Mapper(uri)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, _, err := source.ApplyProtocolEdits(m, edits)
-	if err != nil {
-		t.Error(err)
-	}
-	if diff := compare.Bytes(gofmted, got); diff != "" {
-		t.Errorf("format failed for %s (-want +got):\n%s", filename, diff)
-	}
 }
 
 func (r *runner) SemanticTokens(t *testing.T, spn span.Span) {

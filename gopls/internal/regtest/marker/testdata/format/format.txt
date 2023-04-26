@@ -1,0 +1,80 @@
+This test checks basic behavior of textDocument/formatting requests.
+
+-- go.mod --
+module mod.com
+
+go 1.18
+-- good.go --
+package format //@format(good)
+
+import (
+	"log"
+)
+
+func goodbye() {
+	log.Printf("byeeeee")
+}
+
+-- @good --
+package format //@format(good)
+
+import (
+	"log"
+)
+
+func goodbye() {
+	log.Printf("byeeeee")
+}
+-- bad.go --
+package format //@format(bad)
+
+import (
+	"runtime"
+	"fmt"
+	"log"
+)
+
+func hello() {
+
+
+
+
+	var x int //@diag("x", re"x declared (and|but) not used")
+}
+
+func hi() {
+	runtime.GOROOT()
+	fmt.Printf("")
+
+	log.Printf("")
+}
+-- @bad --
+package format //@format(bad)
+
+import (
+	"fmt"
+	"log"
+	"runtime"
+)
+
+func hello() {
+
+	var x int //@diag("x", re"x declared (and|but) not used")
+}
+
+func hi() {
+	runtime.GOROOT()
+	fmt.Printf("")
+
+	log.Printf("")
+}
+-- newline.go --
+package format //@format(newline)
+func _() {}
+-- @newline --
+package format //@format(newline)
+func _()       {}
+-- oneline.go --
+package format //@format(oneline)
+-- @oneline --
+package format //@format(oneline)

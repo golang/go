@@ -1,3 +1,0 @@
--- gofmt --
-package format //@format("package")
-
