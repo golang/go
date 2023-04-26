@@ -45,6 +45,13 @@ const (
 	// "// indirect" dependencies are added in a block separate from the direct
 	// ones. See https://golang.org/issue/45965.
 	separateIndirectVersionV = "v1.17"
+
+	// tidyGoModSumVersionV is the Go version (plus leading "v") at which
+	// 'go mod tidy' preserves go.mod checksums needed to build test dependencies
+	// of packages in "all", so that 'go test all' can be run without checksum
+	// errors.
+	// See https://go.dev/issue/56222.
+	tidyGoModSumVersionV = "v1.21"
 )
 
 // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
@@ -566,6 +573,8 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 		summary := &modFileSummary{
 			module: module.Version{Path: m.Path},
 		}
+
+		readVendorList(MainModules.mustGetSingleMainModule())
 		if vendorVersion[m.Path] != m.Version {
 			// This module is not vendored, so packages cannot be loaded from it and
 			// it cannot be relevant to the build.
@@ -574,8 +583,6 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 
 		// For every module other than the target,
 		// return the full list of modules from modules.txt.
-		readVendorList(MainModules.mustGetSingleMainModule())
-
 		// We don't know what versions the vendored module actually relies on,
 		// so assume that it requires everything.
 		summary.require = vendorList
@@ -583,10 +590,10 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
 	}
 
 	actual := resolveReplacement(m)
-	if HasModRoot() && cfg.BuildMod == "readonly" && !inWorkspaceMode() && actual.Version != "" {
+	if mustHaveSums() && actual.Version != "" {
 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
 		if !modfetch.HaveSum(key) {
-			suggestion := fmt.Sprintf("; to add it:\n\tgo mod download %s", m.Path)
+			suggestion := fmt.Sprintf(" for go.mod file; to add it:\n\tgo mod download %s", m.Path)
 			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
 		}
 	}
