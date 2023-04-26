@@ -2248,7 +2248,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 // at the very beginning of the text segment.
 // This “header” is read by cmd/go.
 func (ctxt *Link) textbuildid() {
-	if ctxt.IsELF || ctxt.BuildMode == BuildModePlugin || *flagBuildid == "" {
+	if ctxt.IsELF || *flagBuildid == "" {
 		return
 	}
 

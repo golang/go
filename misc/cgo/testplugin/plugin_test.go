@@ -116,11 +116,15 @@ func testMain(m *testing.M) int {
 	return m.Run()
 }
 
-func goCmd(t *testing.T, op string, args ...string) {
+func goCmd(t *testing.T, op string, args ...string) string {
 	if t != nil {
 		t.Helper()
 	}
-	run(t, filepath.Join(goroot, "bin", "go"), append([]string{op, "-gcflags", gcflags}, args...)...)
+	var flags []string
+	if op != "tool" {
+		flags = []string{"-gcflags", gcflags}
+	}
+	return run(t, filepath.Join(goroot, "bin", "go"), append(append([]string{op}, flags...), args...)...)
 }
 
 // escape converts a string to something suitable for a shell command line.
@@ -188,6 +192,14 @@ func TestDWARFSections(t *testing.T) {
 	// test that DWARF sections are emitted for plugins and programs importing "plugin"
 	goCmd(t, "run", "./checkdwarf/main.go", "plugin2.so", "plugin2.UnexportedNameReuse")
 	goCmd(t, "run", "./checkdwarf/main.go", "./host.exe", "main.main")
+}
+
+func TestBuildID(t *testing.T) {
+	// check that plugin has build ID.
+	b := goCmd(t, "tool", "buildid", "plugin1.so")
+	if len(b) == 0 {
+		t.Errorf("build id not found")
+	}
 }
 
 func TestRunHost(t *testing.T) {
