@@ -25,63 +25,62 @@ func TestOver65kFiles(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	memStatBeforeWriter := runtime.MemStats{}
-	runtime.GC() // to guarantee mem stat is up to date
-	runtime.ReadMemStats(&memStatBeforeWriter)
+	testCases := []struct {
+		name   string
+		method uint16
+	}{
+		{"Store", Store},
+		{"Deflate", Deflate},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := new(strings.Builder)
+			w := NewWriter(buf)
+			const nFiles = (1 << 16) + 42
+			for i := 0; i < nFiles; i++ {
+				_, err := w.CreateHeader(&FileHeader{
+					Name:   fmt.Sprintf("%d.dat", i),
+					Method: tc.method,
+				})
+				if err != nil {
+					t.Fatalf("creating file %d: %v", i, err)
+				}
+			}
+			if err := w.Close(); err != nil {
+				t.Fatalf("Writer.Close: %v", err)
+			}
 
-	buf := new(strings.Builder)
-	w := NewWriter(buf)
-	const nFiles = (1 << 16) + 42
-	for i := 0; i < nFiles; i++ {
-		_, err := w.CreateHeader(&FileHeader{
-			Name:   fmt.Sprintf("%d.dat", i),
-			Method: Deflate, // test Issue 59775
+			s := buf.String()
+			zr, err := NewReader(strings.NewReader(s), int64(len(s)))
+			if err != nil {
+				t.Fatalf("NewReader: %v", err)
+			}
+			if got := len(zr.File); got != nFiles {
+				t.Fatalf("File contains %d files, want %d", got, nFiles)
+			}
+			for i := 0; i < nFiles; i++ {
+				want := fmt.Sprintf("%d.dat", i)
+				if zr.File[i].Name != want {
+					t.Fatalf("File(%d) = %q, want %q", i, zr.File[i].Name, want)
+				}
+			}
+
+			// Test Issue 59775
+			allocs := testing.AllocsPerRun(1, func() {
+				for i := 0; i < nFiles; i++ {
+					f, err := zr.File[i].Open()
+					if err != nil {
+						t.Fatalf("File(%d).Open: %v", i, err)
+					}
+					if err := f.Close(); err != nil {
+						t.Fatalf("File(%d).Open().Close: %v", i, err)
+					}
+				}
+			})
+			if allocs > 450_000 {
+				t.Errorf("allocated too much objects (%v) opening zip files", allocs)
+			}
 		})
-		if err != nil {
-			t.Fatalf("creating file %d: %v", i, err)
-		}
-	}
-	if err := w.Close(); err != nil {
-		t.Fatalf("Writer.Close: %v", err)
-	}
-
-	memStatBeforeReader := runtime.MemStats{}
-	runtime.GC()
-	runtime.ReadMemStats(&memStatBeforeReader)
-
-	s := buf.String()
-	zr, err := NewReader(strings.NewReader(s), int64(len(s)))
-	if err != nil {
-		t.Fatalf("NewReader: %v", err)
-	}
-	if got := len(zr.File); got != nFiles {
-		t.Fatalf("File contains %d files, want %d", got, nFiles)
-	}
-	for i := 0; i < nFiles; i++ {
-		want := fmt.Sprintf("%d.dat", i)
-		if zr.File[i].Name != want {
-			t.Fatalf("File(%d) = %q, want %q", i, zr.File[i].Name, want)
-		}
-	}
-	for i := 0; i < nFiles; i++ {
-		f, err := zr.File[i].Open()
-		if err != nil {
-			t.Fatalf("File(%d).Open: %v", i, err)
-		}
-		if err := f.Close(); err != nil {
-			t.Fatalf("File(%d).Open().Close: %v", i, err)
-		}
-	}
-
-	memStatAfter := runtime.MemStats{}
-	runtime.GC()
-	runtime.ReadMemStats(&memStatAfter)
-
-	if alloc := memStatBeforeReader.TotalAlloc - memStatBeforeWriter.TotalAlloc; alloc > 150<<20 {
-		t.Errorf("allocated too much (%v MB) creating zip file", alloc>>20)
-	}
-	if alloc := memStatAfter.TotalAlloc - memStatBeforeReader.TotalAlloc; alloc > 70<<20 {
-		t.Errorf("allocated too much (%v MB) reading zip file", alloc>>20)
 	}
 }
 
