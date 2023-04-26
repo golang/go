@@ -12,6 +12,8 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/platform"
+	"internal/testenv"
 	"io"
 	"log"
 	"os"
@@ -91,6 +93,17 @@ func goCmd(t *testing.T, args ...string) string {
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
+	// TODO: Move all of this initialization stuff into a sync.Once that each
+	// test can use, where we can properly t.Skip.
+	if !platform.BuildModeSupported(runtime.Compiler, "shared", runtime.GOOS, runtime.GOARCH) {
+		fmt.Printf("SKIP - shared build mode not supported\n")
+		os.Exit(0)
+	}
+	if !testenv.HasCGO() {
+		fmt.Printf("SKIP - cgo not supported\n")
+		os.Exit(0)
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -531,6 +544,7 @@ func TestTrivialPIE(t *testing.T) {
 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-alpine") {
 		t.Skip("skipping on alpine until issue #54354 resolved")
 	}
+	testenv.MustHaveBuildMode(t, "pie")
 	name := "trivial_pie"
 	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./trivial")
 	defer os.Remove(name)
@@ -539,6 +553,8 @@ func TestTrivialPIE(t *testing.T) {
 }
 
 func TestCgoPIE(t *testing.T) {
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "pie")
 	name := "cgo_pie"
 	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./execgo")
 	defer os.Remove(name)

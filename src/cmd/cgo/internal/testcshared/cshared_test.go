@@ -12,6 +12,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"log"
 	"os"
 	"os/exec"
@@ -49,6 +50,11 @@ func testMain(m *testing.M) int {
 			fmt.Printf("SKIP - skipping failing test on alpine - go.dev/issue/19938\n")
 			os.Exit(0)
 		}
+	}
+	if !testenv.HasGoBuild() {
+		// Checking for "go build" is a proxy for whether or not we can run "go env".
+		fmt.Printf("SKIP - no go build")
+		os.Exit(0)
 	}
 
 	GOOS = goEnv("GOOS")
@@ -390,6 +396,10 @@ var (
 )
 
 func createHeadersOnce(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-shared")
+
 	headersOnce.Do(func() {
 		headersErr = createHeaders()
 	})
@@ -413,6 +423,9 @@ func cleanupAndroid() {
 
 // test0: exported symbols in shared lib are accessible.
 func TestExportedSymbols(t *testing.T) {
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveExec(t)
+
 	t.Parallel()
 
 	cmd := "testp0"
@@ -516,6 +529,10 @@ func TestNumberOfExportedFunctions(t *testing.T) {
 	if GOOS != "windows" {
 		t.Skip("skipping windows only test")
 	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-shared")
+
 	t.Parallel()
 
 	t.Run("OnlyExported", func(t *testing.T) {
@@ -528,12 +545,13 @@ func TestNumberOfExportedFunctions(t *testing.T) {
 
 // test1: shared library can be dynamically loaded and exported symbols are accessible.
 func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
-	t.Parallel()
-
 	if GOOS == "windows" {
-		t.Logf("Skipping on %s", GOOS)
-		return
+		t.Skipf("Skipping on %s", GOOS)
 	}
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveExec(t)
+
+	t.Parallel()
 
 	cmd := "testp1"
 	bin := cmdToRun(cmd)
@@ -557,12 +575,14 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 
 // test2: tests libgo2 which does not export any functions.
 func TestUnexportedSymbols(t *testing.T) {
-	t.Parallel()
-
 	if GOOS == "windows" {
-		t.Logf("Skipping on %s", GOOS)
-		return
+		t.Skipf("Skipping on %s", GOOS)
 	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-shared")
+
+	t.Parallel()
 
 	cmd := "testp2"
 	bin := cmdToRun(cmd)
@@ -597,6 +617,9 @@ func TestUnexportedSymbols(t *testing.T) {
 
 // test3: tests main.main is exported on android.
 func TestMainExportedOnAndroid(t *testing.T) {
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveExec(t)
+
 	t.Parallel()
 
 	switch GOOS {
@@ -624,6 +647,13 @@ func TestMainExportedOnAndroid(t *testing.T) {
 }
 
 func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
+	if GOOS == "windows" {
+		t.Skipf("Skipping on %s", GOOS)
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-shared")
+
 	libname := pkgname + ".a"
 	run(t,
 		nil,
@@ -655,33 +685,24 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 // test4: test signal handlers
 func TestSignalHandlers(t *testing.T) {
 	t.Parallel()
-	if GOOS == "windows" {
-		t.Logf("Skipping on %s", GOOS)
-		return
-	}
 	testSignalHandlers(t, "./libgo4", "main4.c", "testp4")
 }
 
 // test5: test signal handlers with os/signal.Notify
 func TestSignalHandlersWithNotify(t *testing.T) {
 	t.Parallel()
-	if GOOS == "windows" {
-		t.Logf("Skipping on %s", GOOS)
-		return
-	}
 	testSignalHandlers(t, "./libgo5", "main5.c", "testp5")
 }
 
 func TestPIE(t *testing.T) {
-	t.Parallel()
-
 	switch GOOS {
 	case "linux", "android":
 		break
 	default:
-		t.Logf("Skipping on %s", GOOS)
-		return
+		t.Skipf("Skipping on %s", GOOS)
 	}
+
+	t.Parallel()
 
 	createHeadersOnce(t)
 
@@ -717,6 +738,10 @@ func TestPIE(t *testing.T) {
 
 // Test that installing a second time recreates the header file.
 func TestCachedInstall(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-shared")
+
 	tmpdir, err := os.MkdirTemp("", "cshared")
 	if err != nil {
 		t.Fatal(err)
@@ -817,6 +842,9 @@ func TestGo2C2Go(t *testing.T) {
 	case "android":
 		t.Skip("test fails on android; issue 29087")
 	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-shared")
 
 	t.Parallel()
 
@@ -866,6 +894,8 @@ func TestGo2C2Go(t *testing.T) {
 }
 
 func TestIssue36233(t *testing.T) {
+	testenv.MustHaveCGO(t)
+
 	t.Parallel()
 
 	// Test that the export header uses GoComplex64 and GoComplex128

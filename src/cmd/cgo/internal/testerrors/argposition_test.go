@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,6 +66,9 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
 }
 
 func TestArgumentsPositions(t *testing.T) {
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveExec(t)
+
 	testdata, err := filepath.Abs("testdata")
 	if err != nil {
 		t.Fatal(err)

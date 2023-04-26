@@ -24,7 +24,6 @@ func RaceDetectorSupported(goos, goarch string) bool {
 
 // MSanSupported reports whether goos/goarch supports the memory
 // sanitizer option.
-// There is a copy of this function in misc/cgo/testsanitizers/cc_test.go.
 func MSanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":
@@ -38,7 +37,6 @@ func MSanSupported(goos, goarch string) bool {
 
 // ASanSupported reports whether goos/goarch supports the address
 // sanitizer option.
-// There is a copy of this function in misc/cgo/testsanitizers/cc_test.go.
 func ASanSupported(goos, goarch string) bool {
 	switch goos {
 	case "linux":

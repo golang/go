@@ -17,6 +17,7 @@ import (
 
 func TestFortran(t *testing.T) {
 	testenv.MustHaveGoRun(t)
+	testenv.MustHaveCGO(t)
 
 	// Find the FORTRAN compiler.
 	fc := os.Getenv("FC")

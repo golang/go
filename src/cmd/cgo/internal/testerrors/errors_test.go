@@ -24,6 +24,7 @@ func path(file string) string {
 func check(t *testing.T, file string) {
 	t.Run(file, func(t *testing.T) {
 		testenv.MustHaveGoBuild(t)
+		testenv.MustHaveCGO(t)
 		t.Parallel()
 
 		contents, err := os.ReadFile(path(file))
@@ -91,6 +92,8 @@ func expect(t *testing.T, file string, errors []*regexp.Regexp) {
 }
 
 func sizeofLongDouble(t *testing.T) int {
+	testenv.MustHaveGoRun(t)
+	testenv.MustHaveCGO(t)
 	cmd := exec.Command("go", "run", path("long_double_size.go"))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -137,6 +140,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
 		cflags := cflags
 		t.Run(cflags, func(t *testing.T) {
 			testenv.MustHaveGoBuild(t)
+			testenv.MustHaveCGO(t)
 			t.Parallel()
 
 			cmd := exec.Command("go", "build", path("issue14669.go"))
@@ -150,6 +154,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
 }
 
 func TestMallocCrashesOnNil(t *testing.T) {
+	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 

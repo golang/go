@@ -8,11 +8,15 @@ package sanitizers_test
 
 import (
 	"fmt"
+	"internal/platform"
+	"internal/testenv"
 	"strings"
 	"testing"
 )
 
 func TestASAN(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
 	goos, err := goEnv("GOOS")
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +26,7 @@ func TestASAN(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The asan tests require support for the -asan option.
-	if !aSanSupported(goos, goarch) {
+	if !platform.ASanSupported(goos, goarch) {
 		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
 	}
 	// The current implementation is only compatible with the ASan library from version
@@ -102,6 +106,8 @@ func TestASAN(t *testing.T) {
 }
 
 func TestASANLinkerX(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
 	// Test ASAN with linker's -X flag (see issue 56175).
 	goos, err := goEnv("GOOS")
 	if err != nil {
@@ -112,7 +118,7 @@ func TestASANLinkerX(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The asan tests require support for the -asan option.
-	if !aSanSupported(goos, goarch) {
+	if !platform.ASanSupported(goos, goarch) {
 		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
 	}
 	if !compilerRequiredAsanVersion(goos, goarch) {

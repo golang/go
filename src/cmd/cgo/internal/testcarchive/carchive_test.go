@@ -461,6 +461,8 @@ func checkELFArchiveObject(t *testing.T, arname string, off int64, obj io.Reader
 
 func TestInstall(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
 
 	if !testWork {
 		defer os.RemoveAll(filepath.Join(GOPATH, "pkg"))
@@ -504,6 +506,8 @@ func TestEarlySignalHandler(t *testing.T) {
 		t.Skip("skipping signal test on Windows")
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
 
 	if !testWork {
 		defer func() {
@@ -643,6 +647,9 @@ func checkSignalForwardingTest(t *testing.T) {
 	case "windows":
 		t.Skip("skipping signal test on Windows")
 	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
 }
 
 // buildSignalForwardingTest builds the executable used by the various
@@ -772,6 +779,8 @@ func TestOsSignal(t *testing.T) {
 		t.Skip("skipping signal test on Windows")
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
 
 	if !testWork {
 		defer func() {
@@ -811,6 +820,8 @@ func TestSigaltstack(t *testing.T) {
 		t.Skip("skipping signal test on Windows")
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
 
 	if !testWork {
 		defer func() {
@@ -860,10 +871,10 @@ func TestExtar(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("skipping -extar test when using gccgo")
 	}
-	if runtime.GOOS == "ios" {
-		t.Skip("shell scripts are not executable on iOS hosts")
-	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+	testenv.MustHaveExecPath(t, "bash") // This test uses a bash script
 
 	if !testWork {
 		defer func() {
@@ -907,6 +918,8 @@ func TestPIE(t *testing.T) {
 		t.Skipf("skipping PIE test on %s", GOOS)
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
 
 	libgoa := "libgo.a"
 	if runtime.Compiler == "gccgo" {
@@ -1002,6 +1015,8 @@ func TestSIGPROF(t *testing.T) {
 		t.Skipf("skipping SIGPROF test on %s; see https://golang.org/issue/19320", GOOS)
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
 
 	t.Parallel()
 
@@ -1116,6 +1131,9 @@ func TestCompileWithoutShared(t *testing.T) {
 // Test that installing a second time recreates the header file.
 func TestCachedInstall(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
 	if !testWork {
 		defer os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 	}
@@ -1156,6 +1174,9 @@ func TestCachedInstall(t *testing.T) {
 // Issue 35294.
 func TestManyCalls(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
 	t.Parallel()
 
 	if !testWork {
@@ -1215,6 +1236,8 @@ func TestPreemption(t *testing.T) {
 		t.Skip("skipping asynchronous preemption test with gccgo")
 	}
 	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
 
 	t.Parallel()
 

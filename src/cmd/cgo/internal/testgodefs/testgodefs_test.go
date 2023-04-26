@@ -32,6 +32,7 @@ var filePrefixes = []string{
 
 func TestGoDefs(t *testing.T) {
 	testenv.MustHaveGoRun(t)
+	testenv.MustHaveCGO(t)
 
 	testdata, err := filepath.Abs("testdata")
 	if err != nil {

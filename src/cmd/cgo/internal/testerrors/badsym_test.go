@@ -6,6 +6,8 @@ package errorstest
 
 import (
 	"bytes"
+	"cmd/internal/quoted"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,6 +41,9 @@ func main() {
 `
 
 func TestBadSymbol(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
 	dir := t.TempDir()
 
 	mkdir := func(base string) string {
@@ -167,7 +172,14 @@ func TestBadSymbol(t *testing.T) {
 }
 
 func cCompilerCmd(t *testing.T) []string {
-	cc := []string{goEnv(t, "CC")}
+	cc, err := quoted.Split(goEnv(t, "CC"))
+	if err != nil {
+		t.Skipf("parsing go env CC: %s", err)
+	}
+	if len(cc) == 0 {
+		t.Skipf("no C compiler")
+	}
+	testenv.MustHaveExecPath(t, cc[0])
 
 	out := goEnv(t, "GOGCCFLAGS")
 	quote := '\000'

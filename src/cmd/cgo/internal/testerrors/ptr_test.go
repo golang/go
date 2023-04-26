@@ -10,9 +10,11 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -434,6 +436,13 @@ var ptrTests = []ptrTest{
 }
 
 func TestPointerChecks(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	if runtime.GOOS == "windows" {
+		// TODO: Skip just the cases that fail?
+		t.Skipf("some tests fail to build on %s", runtime.GOOS)
+	}
+
 	var gopath string
 	var dir string
 	if *tmp != "" {

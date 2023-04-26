@@ -9,10 +9,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"internal/platform"
+	"internal/testenv"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -44,6 +47,17 @@ func prettyPrintf(format string, args ...interface{}) {
 }
 
 func testMain(m *testing.M) int {
+	// TODO: Move all of this initialization stuff into a sync.Once that each
+	// test can use, where we can properly t.Skip.
+	if !platform.BuildModeSupported(runtime.Compiler, "plugin", runtime.GOOS, runtime.GOARCH) {
+		fmt.Printf("SKIP - plugin build mode not supported\n")
+		os.Exit(0)
+	}
+	if !testenv.HasCGO() {
+		fmt.Printf("SKIP - cgo not supported\n")
+		os.Exit(0)
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)

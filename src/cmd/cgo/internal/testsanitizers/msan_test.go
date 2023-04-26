@@ -7,6 +7,7 @@
 package sanitizers_test
 
 import (
+	"internal/platform"
 	"strings"
 	"testing"
 )
@@ -21,7 +22,7 @@ func TestMSAN(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The msan tests require support for the -msan option.
-	if !mSanSupported(goos, goarch) {
+	if !platform.MSanSupported(goos, goarch) {
 		t.Skipf("skipping on %s/%s; -msan option is not supported.", goos, goarch)
 	}
 

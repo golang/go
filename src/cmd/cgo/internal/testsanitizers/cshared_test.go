@@ -8,12 +8,18 @@ package sanitizers_test
 
 import (
 	"fmt"
+	"internal/platform"
+	"internal/testenv"
 	"os"
 	"strings"
 	"testing"
 )
 
 func TestShared(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-shared")
+
 	t.Parallel()
 	requireOvercommit(t)
 
@@ -50,7 +56,7 @@ func TestShared(t *testing.T) {
 		tc := tc
 		name := strings.TrimSuffix(tc.src, ".go")
 		//The memory sanitizer tests require support for the -msan option.
-		if tc.sanitizer == "memory" && !mSanSupported(GOOS, GOARCH) {
+		if tc.sanitizer == "memory" && !platform.MSanSupported(GOOS, GOARCH) {
 			t.Logf("skipping %s test on %s/%s; -msan option is not supported.", name, GOOS, GOARCH)
 			continue
 		}
