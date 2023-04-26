@@ -37,7 +37,7 @@ func sysAllocOS(n uintptr) unsafe.Pointer {
 var adviseUnused = uint32(_MADV_FREE)
 
 func sysUnusedOS(v unsafe.Pointer, n uintptr) {
-	if uintptr(v)&(physPageSize-1) != 0 || n&(physPageSize-1) != 0 {
+	if (uintptr(v)|n)&(physPageSize-1) != 0 {
 		// madvise will round this to any physical page
 		// *covered* by this range, so an unaligned madvise
 		// will release more memory than intended.
