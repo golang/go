@@ -423,6 +423,23 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 	return
 }
 
+// ShrinkStackAndVerifyFramePointers attempts to shrink the stack of the current goroutine
+// and verifies that unwinding the new stack doesn't crash, even if the old
+// stack has been freed or reused (simulated via poisoning).
+func ShrinkStackAndVerifyFramePointers() {
+	before := stackPoisonCopy
+	defer func() { stackPoisonCopy = before }()
+	stackPoisonCopy = 1
+
+	gp := getg()
+	systemstack(func() {
+		shrinkstack(gp)
+	})
+	// If our new stack contains frame pointers into the old stack, this will
+	// crash because the old stack has been poisoned.
+	FPCallers(0, make([]uintptr, 1024))
+}
+
 // BlockOnSystemStack switches to the system stack, prints "x\n" to
 // stderr, and blocks in a stack containing
 // "runtime.blockOnSystemStackInternal".

@@ -939,3 +939,22 @@ func TestFramePointerAdjust(t *testing.T) {
 		t.Errorf("output:\n%s\n\nwant no output", output)
 	}
 }
+
+// TestSystemstackFramePointerAdjust is a regression test for issue 59692 that
+// ensures that the frame pointer of systemstack is correctly adjusted. See CL
+// 489015 for more details.
+func TestSystemstackFramePointerAdjust(t *testing.T) {
+	growAndShrinkStack(512, [1024]byte{})
+}
+
+// growAndShrinkStack grows the stack of the current goroutine in order to
+// shrink it again and verify that all frame pointers on the new stack have
+// been correctly adjusted. stackBallast is used to ensure we're not depending
+// on the current heuristics of stack shrinking too much.
+func growAndShrinkStack(n int, stackBallast [1024]byte) {
+	if n <= 0 {
+		return
+	}
+	growAndShrinkStack(n-1, stackBallast)
+	ShrinkStackAndVerifyFramePointers()
+}
