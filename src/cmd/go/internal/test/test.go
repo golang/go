@@ -1537,14 +1537,6 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 		}
 	}
 
-	if cache.Default() == nil {
-		if cache.DebugTest {
-			fmt.Fprintf(os.Stderr, "testcache: GOCACHE=off\n")
-		}
-		c.disableCache = true
-		return false
-	}
-
 	// The test cache result fetch is a two-level lookup.
 	//
 	// First, we use the content hash of the test binary
