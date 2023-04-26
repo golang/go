@@ -13,6 +13,7 @@ package debug_test
 import (
 	"go/ast"
 	"html/template"
+	"os"
 	"runtime"
 	"sort"
 	"strings"
@@ -44,11 +45,18 @@ var templates = map[string]struct {
 }
 
 func TestTemplates(t *testing.T) {
-	testenv.NeedsGoBuild(t)
+	testenv.NeedsGoPackages(t)
+	testenv.NeedsLocalXTools(t)
 
 	cfg := &packages.Config{
-		Mode: packages.NeedTypesInfo | packages.LoadAllSyntax, // figure out what's necessary PJW
+		Mode: packages.NeedTypes | packages.NeedSyntax | packages.NeedTypesInfo,
 	}
+	cfg.Env = os.Environ()
+	cfg.Env = append(cfg.Env,
+		"GOPACKAGESDRIVER=off",
+		"GOFLAGS=-mod=mod",
+	)
+
 	pkgs, err := packages.Load(cfg, "golang.org/x/tools/gopls/internal/lsp/debug")
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +115,9 @@ func TestTemplates(t *testing.T) {
 		// the FuncMap is an annoyance; should not be necessary
 		if err := templatecheck.CheckHTML(v.tmpl, v.data); err != nil {
 			t.Errorf("%s: %v", k, err)
+			continue
 		}
+		t.Logf("%s ok", k)
 	}
 }
 

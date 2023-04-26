@@ -12,6 +12,7 @@ import (
 	"go/build"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/goroot"
 
 	exec "golang.org/x/sys/execabs"
@@ -399,4 +401,42 @@ func GOROOT(t testing.TB) string {
 		t.Skip(err)
 	}
 	return path
+}
+
+// NeedsLocalXTools skips t if the golang.org/x/tools module is replaced and
+// its replacement directory does not exist (or does not contain the module).
+func NeedsLocalXTools(t testing.TB) {
+	t.Helper()
+
+	NeedsTool(t, "go")
+
+	cmd := Command(t, "go", "list", "-f", "{{with .Replace}}{{.Dir}}{{end}}", "-m", "golang.org/x/tools")
+	out, err := cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+			t.Skipf("skipping test: %v: %v\n%s", cmd, err, ee.Stderr)
+		}
+		t.Skipf("skipping test: %v: %v", cmd, err)
+	}
+
+	dir := string(bytes.TrimSpace(out))
+	if dir == "" {
+		// No replacement directory, and (since we didn't set -e) no error either.
+		// Maybe x/tools isn't replaced at all (as in a gopls release, or when
+		// using a go.work file that includes the x/tools module).
+		return
+	}
+
+	// We found the directory where x/tools would exist if we're in a clone of the
+	// repo. Is it there? (If not, we're probably in the module cache instead.)
+	modFilePath := filepath.Join(dir, "go.mod")
+	b, err := os.ReadFile(modFilePath)
+	if err != nil {
+		t.Skipf("skipping test: x/tools replacement not found: %v", err)
+	}
+	modulePath := modfile.ModulePath(b)
+
+	if want := "golang.org/x/tools"; modulePath != want {
+		t.Skipf("skipping test: %s module path is %q, not %q", modFilePath, modulePath, want)
+	}
 }

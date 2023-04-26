@@ -72,10 +72,19 @@ func TestWorkaroundIssue57490(t *testing.T) {
 // suggests alternatives.
 func TestGoplsSourceDoesNotCallTokenFileMethods(t *testing.T) {
 	testenv.NeedsGoPackages(t)
+	testenv.NeedsGo1Point(t, 18)
+	testenv.NeedsLocalXTools(t)
 
-	pkgs, err := packages.Load(&packages.Config{
+	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedModule | packages.NeedCompiledGoFiles | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedSyntax | packages.NeedImports | packages.NeedDeps,
-	}, "go/token", "golang.org/x/tools/gopls/...")
+	}
+	cfg.Env = os.Environ()
+	cfg.Env = append(cfg.Env,
+		"GOPACKAGESDRIVER=off",
+		"GOFLAGS=-mod=mod",
+	)
+
+	pkgs, err := packages.Load(cfg, "go/token", "golang.org/x/tools/gopls/...")
 	if err != nil {
 		t.Fatal(err)
 	}

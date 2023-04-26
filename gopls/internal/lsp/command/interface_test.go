@@ -14,7 +14,8 @@ import (
 )
 
 func TestGenerated(t *testing.T) {
-	testenv.NeedsGoBuild(t) // This is a lie. We actually need the source code.
+	testenv.NeedsGoPackages(t)
+	testenv.NeedsLocalXTools(t)
 
 	onDisk, err := ioutil.ReadFile("command_gen.go")
 	if err != nil {
