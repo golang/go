@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -46,8 +45,7 @@ func goCmd() string {
 	return "go"
 }
 
-// contexts are the default contexts which are scanned, unless
-// overridden by the -contexts flag.
+// contexts are the default contexts which are scanned.
 var contexts = []*build.Context{
 	{GOOS: "linux", GOARCH: "386", CgoEnabled: true},
 	{GOOS: "linux", GOARCH: "386"},
@@ -96,25 +94,6 @@ func contextName(c *build.Context) string {
 	return s
 }
 
-func parseContext(c string) *build.Context {
-	parts := strings.Split(c, "-")
-	if len(parts) < 2 {
-		log.Fatalf("bad context: %q", c)
-	}
-	bc := &build.Context{
-		GOOS:   parts[0],
-		GOARCH: parts[1],
-	}
-	if len(parts) == 3 {
-		if parts[2] == "cgo" {
-			bc.CgoEnabled = true
-		} else {
-			log.Fatalf("bad context: %q", c)
-		}
-	}
-	return bc
-}
-
 var internalPkg = regexp.MustCompile(`(^|/)internal($|/)`)
 
 var exitCode = 0
@@ -152,12 +131,7 @@ func Check(t *testing.T) {
 
 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
 	for _, w := range walkers {
-		pkgNames := w.stdPackages
-		if flag.NArg() > 0 {
-			pkgNames = flag.Args()
-		}
-
-		for _, name := range pkgNames {
+		for _, name := range w.stdPackages {
 			pkg, err := w.import_(name)
 			if _, nogo := err.(*build.NoGoError); nogo {
 				continue
@@ -193,7 +167,7 @@ func Check(t *testing.T) {
 	bw := bufio.NewWriter(os.Stdout)
 	defer bw.Flush()
 
-	var required, optional []string
+	var required []string
 	for _, file := range checkFiles {
 		required = append(required, fileFeatures(file, needApproval(file))...)
 	}
@@ -205,7 +179,7 @@ func Check(t *testing.T) {
 	if exitCode == 1 {
 		t.Errorf("API database problems found")
 	}
-	if !compareAPI(bw, features, required, optional, exception, false) {
+	if !compareAPI(bw, features, required, exception) {
 		t.Errorf("API differences found")
 	}
 }
@@ -251,12 +225,11 @@ func portRemoved(feature string) bool {
 		strings.Contains(feature, "(darwin-386-cgo)")
 }
 
-func compareAPI(w io.Writer, features, required, optional, exception []string, allowAdd bool) (ok bool) {
+func compareAPI(w io.Writer, features, required, exception []string) (ok bool) {
 	ok = true
 
-	optionalSet := set(optional)
-	exceptionSet := set(exception)
 	featureSet := set(features)
+	exceptionSet := set(exception)
 
 	sort.Strings(features)
 	sort.Strings(required)
@@ -267,7 +240,7 @@ func compareAPI(w io.Writer, features, required, optional, exception []string, a
 		return s
 	}
 
-	for len(required) > 0 || len(features) > 0 {
+	for len(features) > 0 || len(required) > 0 {
 		switch {
 		case len(features) == 0 || (len(required) > 0 && required[0] < features[0]):
 			feature := take(&required)
@@ -288,33 +261,15 @@ func compareAPI(w io.Writer, features, required, optional, exception []string, a
 			}
 		case len(required) == 0 || (len(features) > 0 && required[0] > features[0]):
 			newFeature := take(&features)
-			if optionalSet[newFeature] {
-				// Known added feature to the upcoming release.
-				// Delete it from the map so we can detect any upcoming features
-				// which were never seen.  (so we can clean up the nextFile)
-				delete(optionalSet, newFeature)
-			} else {
-				fmt.Fprintf(w, "+%s\n", newFeature)
-				if !allowAdd {
-					ok = false // we're in lock-down mode for next release
-				}
-			}
+			fmt.Fprintf(w, "+%s\n", newFeature)
+			ok = false // feature not in api/next/*
 		default:
 			take(&required)
 			take(&features)
 		}
 	}
 
-	// In next file, but not in API.
-	var missing []string
-	for feature := range optionalSet {
-		missing = append(missing, feature)
-	}
-	sort.Strings(missing)
-	for _, feature := range missing {
-		fmt.Fprintf(w, "±%s\n", feature)
-	}
-	return
+	return ok
 }
 
 // aliasReplacer applies type aliases to earlier API files,
