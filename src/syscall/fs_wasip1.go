@@ -432,29 +432,6 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		oflags |= OFLAG_EXCL
 	}
 
-	// Remove when https://github.com/bytecodealliance/wasmtime/pull/4967 is merged.
-	var fi Stat_t
-	if errno := path_filestat_get(
-		dirFd,
-		LOOKUP_SYMLINK_FOLLOW,
-		pathPtr,
-		pathLen,
-		unsafe.Pointer(&fi),
-	); errno != 0 && errno != ENOENT {
-		return -1, errnoErr(errno)
-	}
-	if fi.Filetype == FILETYPE_DIRECTORY {
-		oflags |= OFLAG_DIRECTORY
-		// WASM runtimes appear to return EINVAL when passing invalid
-		// combination of flags to open directories; however, TestOpenError
-		// in the os package expects EISDIR, so we precheck this condition
-		// here to emulate the expected behavior.
-		const invalidFlags = O_WRONLY | O_RDWR | O_CREATE | O_APPEND | O_TRUNC | O_EXCL
-		if (openmode & invalidFlags) != 0 {
-			return 0, EISDIR
-		}
-	}
-
 	var rights rights
 	switch openmode & (O_RDONLY | O_WRONLY | O_RDWR) {
 	case O_RDONLY:
