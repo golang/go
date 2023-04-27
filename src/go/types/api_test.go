@@ -24,12 +24,8 @@ import (
 // nopos indicates an unknown position
 var nopos token.Pos
 
-func parse(fset *token.FileSet, src string) (*ast.File, error) {
-	return parser.ParseFile(fset, pkgName(src), src, 0)
-}
-
 func mustParse(fset *token.FileSet, src string) *ast.File {
-	f, err := parse(fset, src)
+	f, err := parser.ParseFile(fset, pkgName(src), src, 0)
 	if err != nil {
 		panic(err) // so we don't need to pass *testing.T
 	}
@@ -38,10 +34,7 @@ func mustParse(fset *token.FileSet, src string) *ast.File {
 
 func typecheck(src string, conf *Config, info *Info) (*Package, error) {
 	fset := token.NewFileSet()
-	f, err := parse(fset, src)
-	if f == nil { // ignore errors unless f is nil
-		return nil, err
-	}
+	f := mustParse(fset, src)
 	if conf == nil {
 		conf = &Config{
 			Error:    func(err error) {}, // collect all errors
@@ -52,14 +45,7 @@ func typecheck(src string, conf *Config, info *Info) (*Package, error) {
 }
 
 func mustTypecheck(src string, conf *Config, info *Info) *Package {
-	fset := token.NewFileSet()
-	f := mustParse(fset, src)
-	if conf == nil {
-		conf = &Config{
-			Importer: importer.Default(),
-		}
-	}
-	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
+	pkg, err := typecheck(src, conf, info)
 	if err != nil {
 		panic(err) // so we don't need to pass *testing.T
 	}
@@ -339,10 +325,10 @@ func TestTypesInfo(t *testing.T) {
 		{`package issue47243_i; var x int32; var _ = 1 << (2 << x)`, `(2 << x)`, `untyped int`},
 		{`package issue47243_j; var x int32; var _ = 1 << (2 << x)`, `2`, `untyped int`},
 
-		// tests for broken code that doesn't parse or type-check
+		// tests for broken code that doesn't type-check
 		{broken + `x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
 		{broken + `x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
-		{broken + `x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
+		{broken + `x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a, f: b,}}`, `b`, `string`},
 		{broken + `x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
 		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},

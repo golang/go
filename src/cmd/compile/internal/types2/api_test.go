@@ -21,13 +21,8 @@ import (
 // nopos indicates an unknown position
 var nopos syntax.Pos
 
-func parse(src string) (*syntax.File, error) {
-	errh := func(error) {} // dummy error handler so that parsing continues in presence of errors
-	return syntax.Parse(syntax.NewFileBase(pkgName(src)), strings.NewReader(src), errh, nil, 0)
-}
-
 func mustParse(src string) *syntax.File {
-	f, err := parse(src)
+	f, err := syntax.Parse(syntax.NewFileBase(pkgName(src)), strings.NewReader(src), nil, nil, 0)
 	if err != nil {
 		panic(err) // so we don't need to pass *testing.T
 	}
@@ -35,10 +30,7 @@ func mustParse(src string) *syntax.File {
 }
 
 func typecheck(src string, conf *Config, info *Info) (*Package, error) {
-	f, err := parse(src)
-	if f == nil { // ignore errors unless f is nil
-		return nil, err
-	}
+	f := mustParse(src)
 	if conf == nil {
 		conf = &Config{
 			Error:    func(err error) {}, // collect all errors
@@ -49,13 +41,7 @@ func typecheck(src string, conf *Config, info *Info) (*Package, error) {
 }
 
 func mustTypecheck(src string, conf *Config, info *Info) *Package {
-	f := mustParse(src)
-	if conf == nil {
-		conf = &Config{
-			Importer: defaultImporter(),
-		}
-	}
-	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
+	pkg, err := typecheck(src, conf, info)
 	if err != nil {
 		panic(err) // so we don't need to pass *testing.T
 	}
@@ -339,7 +325,7 @@ func TestTypesInfo(t *testing.T) {
 		{`package issue47243_i; var x int32; var _ = 1 << (2 << x)`, `(2 << x)`, `untyped int`},
 		{`package issue47243_j; var x int32; var _ = 1 << (2 << x)`, `2`, `untyped int`},
 
-		// tests for broken code that doesn't parse or type-check
+		// tests for broken code that doesn't type-check
 		{brokenPkg + `x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
 		{brokenPkg + `x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
 		{brokenPkg + `x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a, f: b,}}`, `b`, `string`},
