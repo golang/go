@@ -109,7 +109,15 @@ func sysFreeOS(v unsafe.Pointer, n uintptr) {
 }
 
 func sysFaultOS(v unsafe.Pointer, n uintptr) {
-	mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+	if uintptr(v)&(physPageSize-1) != 0 {
+		// If MAP_FIXED is specified, addr must be page-aligned.
+		throw("unaligned sysFaultOS")
+	}
+	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE|_MAP_FIXED, -1, 0)
+	if p != v || err != 0 {
+		print("runtime: mmap(", v, ", ", n, ") returned ", p, ", ", err, "\n")
+		throw("runtime: cannot map pages in arena address space")
+	}
 }
 
 func sysReserveOS(v unsafe.Pointer, n uintptr) unsafe.Pointer {
