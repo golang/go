@@ -8,22 +8,12 @@
 package copyright
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 func TestToolsCopyright(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	tools := filepath.Dir(cwd)
-	if !strings.HasSuffix(filepath.Base(tools), "tools") {
-		t.Fatalf("current working directory is %s, expected tools", tools)
-	}
-	files, err := checkCopyright(tools)
+	files, err := checkCopyright("..")
 	if err != nil {
 		t.Fatal(err)
 	}
