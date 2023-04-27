@@ -2601,7 +2601,7 @@
 (SelectN [0] call:(StaticLECall {sym} a x)) && needRaceCleanup(sym, call) && clobber(call) => x
 (SelectN [0] call:(StaticLECall {sym} x)) && needRaceCleanup(sym, call) && clobber(call) => x
 
-// When rewriting append to growslice, we use as the the new length the result of
+// When rewriting append to growslice, we use as the new length the result of
 // growslice so that we don't have to spill/restore the new length around the growslice call.
 // The exception here is that if the new length is a constant, avoiding spilling it
 // is pointless and its constantness is sometimes useful for subsequent optimizations.
