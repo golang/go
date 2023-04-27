@@ -115,8 +115,8 @@ func lineEdits(src string, edits []Edit) ([]Edit, error) {
 	}
 
 	// Do all edits begin and end at the start of a line?
-	// TODO(adonovan): opt: is this fast path necessary?
-	// (Also, it complicates the result ownership.)
+	// TODO(adonovan, pjw): why does omitting this 'optimization'
+	// cause tests to fail? (TestDiff/insert-line,extra_newline)
 	for _, edit := range edits {
 		if edit.Start >= len(src) || // insertion at EOF
 			edit.Start > 0 && src[edit.Start-1] != '\n' || // not at line start
