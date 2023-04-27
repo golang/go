@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	. "fmt"
 )
 
 func _() {
@@ -20,8 +21,11 @@ func _() {
 	err.Error() // want `result of \(error\).Error call not used`
 
 	var buf bytes.Buffer
-	buf.String() // want `result of \(bytes.Buffer\).String call not used`
+	buf.String() // want `result of \(\*bytes.Buffer\).String call not used`
 
 	fmt.Sprint("")  // want "result of fmt.Sprint call not used"
 	fmt.Sprintf("") // want "result of fmt.Sprintf call not used"
+
+	Sprint("")  // want "result of fmt.Sprint call not used"
+	Sprintf("") // want "result of fmt.Sprintf call not used"
 }

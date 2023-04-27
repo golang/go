@@ -395,7 +395,7 @@ var GeneratedAPIJSON = &APIJSON{
 						},
 						{
 							Name:    "\"unsafeptr\"",
-							Doc:     "check for invalid conversions of uintptr to unsafe.Pointer\n\nThe unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer\nto convert integers to pointers. A conversion from uintptr to\nunsafe.Pointer is invalid if it implies that there is a uintptr-typed\nword in memory that holds a pointer value, because that word will be\ninvisible to stack copying and to the garbage collector.`",
+							Doc:     "check for invalid conversions of uintptr to unsafe.Pointer\n\nThe unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer\nto convert integers to pointers. A conversion from uintptr to\nunsafe.Pointer is invalid if it implies that there is a uintptr-typed\nword in memory that holds a pointer value, because that word will be\ninvisible to stack copying and to the garbage collector.",
 							Default: "true",
 						},
 						{
@@ -405,7 +405,7 @@ var GeneratedAPIJSON = &APIJSON{
 						},
 						{
 							Name:    "\"unusedresult\"",
-							Doc:     "check for unused results of calls to some functions\n\nSome functions like fmt.Errorf return a result and have no side effects,\nso it is always a mistake to discard the result. This analyzer reports\ncalls to certain functions in which the result of the call is ignored.\n\nThe set of functions may be controlled using flags.",
+							Doc:     "check for unused results of calls to some functions\n\nSome functions like fmt.Errorf return a result and have no side\neffects, so it is always a mistake to discard the result. Other\nfunctions may return an error that must not be ignored, or a cleanup\noperation that must be called. This analyzer reports calls to\nfunctions like these when the result of the call is ignored.\n\nThe set of functions may be controlled using flags.",
 							Default: "true",
 						},
 						{
@@ -1079,7 +1079,7 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 		{
 			Name:    "unsafeptr",
-			Doc:     "check for invalid conversions of uintptr to unsafe.Pointer\n\nThe unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer\nto convert integers to pointers. A conversion from uintptr to\nunsafe.Pointer is invalid if it implies that there is a uintptr-typed\nword in memory that holds a pointer value, because that word will be\ninvisible to stack copying and to the garbage collector.`",
+			Doc:     "check for invalid conversions of uintptr to unsafe.Pointer\n\nThe unsafeptr analyzer reports likely incorrect uses of unsafe.Pointer\nto convert integers to pointers. A conversion from uintptr to\nunsafe.Pointer is invalid if it implies that there is a uintptr-typed\nword in memory that holds a pointer value, because that word will be\ninvisible to stack copying and to the garbage collector.",
 			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unsafeptr",
 			Default: true,
 		},
@@ -1089,7 +1089,7 @@ var GeneratedAPIJSON = &APIJSON{
 		},
 		{
 			Name:    "unusedresult",
-			Doc:     "check for unused results of calls to some functions\n\nSome functions like fmt.Errorf return a result and have no side effects,\nso it is always a mistake to discard the result. This analyzer reports\ncalls to certain functions in which the result of the call is ignored.\n\nThe set of functions may be controlled using flags.",
+			Doc:     "check for unused results of calls to some functions\n\nSome functions like fmt.Errorf return a result and have no side\neffects, so it is always a mistake to discard the result. Other\nfunctions may return an error that must not be ignored, or a cleanup\noperation that must be called. This analyzer reports calls to\nfunctions like these when the result of the call is ignored.\n\nThe set of functions may be controlled using flags.",
 			URL:     "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/unusedresult",
 			Default: true,
 		},

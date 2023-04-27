@@ -19,10 +19,6 @@ import (
 	"golang.org/x/tools/internal/typeparams"
 )
 
-const Doc = `check for useless comparisons between functions and nil
-
-A useless comparison is one like f == nil as opposed to f() == nil.`
-
 //go:embed doc.go
 var doc string
 

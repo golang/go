@@ -23,7 +23,7 @@ func _[T any]() {
 	err.Error() // want `result of \(error\).Error call not used`
 
 	var buf bytes.Buffer
-	buf.String() // want `result of \(bytes.Buffer\).String call not used`
+	buf.String() // want `result of \(\*bytes.Buffer\).String call not used`
 
 	fmt.Sprint("")  // want "result of fmt.Sprint call not used"
 	fmt.Sprintf("") // want "result of fmt.Sprintf call not used"
@@ -32,10 +32,10 @@ func _[T any]() {
 	_ = userdefs.MustUse[int](2)
 
 	s := userdefs.SingleTypeParam[int]{X: 1}
-	s.String() // want `result of \(typeparams/userdefs.SingleTypeParam\[int\]\).String call not used`
+	s.String() // want `result of \(\*typeparams/userdefs.SingleTypeParam\[int\]\).String call not used`
 	_ = s.String()
 
 	m := userdefs.MultiTypeParam[int, string]{X: 1, Y: "one"}
-	m.String() // want `result of \(typeparams/userdefs.MultiTypeParam\[int, string\]\).String call not used`
+	m.String() // want `result of \(\*typeparams/userdefs.MultiTypeParam\[int, string\]\).String call not used`
 	_ = m.String()
 }
