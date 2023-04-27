@@ -230,7 +230,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		// For testing purposes only, recheck the GOOS.
 		// This lets TestConfHostLookupOrder test different
 		// GOOS values.
-		if c.goos != runtime.GOOS && goosPrefersCgo(c.goos) {
+		if goosPrefersCgo(c.goos) {
 			return hostLookupCgo, nil
 		}
 
