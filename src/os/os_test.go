@@ -633,7 +633,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
 	switch runtime.GOOS {
 	case "android":
 		dir = "/system/bin"
-	case "ios":
+	case "ios", "wasip1":
 		wd, err := Getwd()
 		if err != nil {
 			t.Fatal(err)
@@ -1490,7 +1490,7 @@ func TestChdirAndGetwd(t *testing.T) {
 		dirs = []string{"/system/bin"}
 	case "plan9":
 		dirs = []string{"/", "/usr"}
-	case "ios", "windows":
+	case "ios", "windows", "wasip1":
 		dirs = nil
 		for _, dir := range []string{t.TempDir(), t.TempDir()} {
 			// Expand symlinks so path equality tests work.
