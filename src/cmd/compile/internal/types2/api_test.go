@@ -49,7 +49,13 @@ func typecheck(path, src string, conf *Config, info *Info) (*Package, error) {
 }
 
 func mustTypecheck(path, src string, conf *Config, info *Info) *Package {
-	pkg, err := typecheck(path, src, conf, info)
+	f := mustParse(path, src)
+	if conf == nil {
+		conf = &Config{
+			Importer: defaultImporter(),
+		}
+	}
+	pkg, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, info)
 	if err != nil {
 		panic(err) // so we don't need to pass *testing.T
 	}

@@ -52,7 +52,14 @@ func typecheck(path, src string, conf *Config, info *Info) (*Package, error) {
 }
 
 func mustTypecheck(path, src string, conf *Config, info *Info) *Package {
-	pkg, err := typecheck(path, src, conf, info)
+	fset := token.NewFileSet()
+	f := mustParse(fset, path, src)
+	if conf == nil {
+		conf = &Config{
+			Importer: importer.Default(),
+		}
+	}
+	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 	if err != nil {
 		panic(err) // so we don't need to pass *testing.T
 	}
