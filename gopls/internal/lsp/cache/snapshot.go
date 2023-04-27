@@ -74,7 +74,7 @@ type snapshot struct {
 	// view.initializationSema.
 	initialized bool
 	// initializedErr holds the last error resulting from initialization. If
-	// initialization fails, we only retry when the the workspace modules change,
+	// initialization fails, we only retry when the workspace modules change,
 	// to avoid too many go/packages calls.
 	initializedErr *source.CriticalError
 
@@ -229,7 +229,7 @@ func (s *snapshot) awaitPromise(ctx context.Context, p *memoize.Promise) (interf
 // The destroyedBy argument is used for debugging.
 //
 // v.snapshotMu must be held while calling this function, in order to preserve
-// the invariants described by the the docstring for v.snapshot.
+// the invariants described by the docstring for v.snapshot.
 func (v *View) destroy(s *snapshot, destroyedBy string) {
 	v.snapshotWG.Add(1)
 	go func() {
@@ -1609,7 +1609,7 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	// mark the failures so we don't bother retrying until the file's
 	// content changes.
 	//
-	// TODO(rfindley): is it possible that the the load stopped early for an
+	// TODO(rfindley): is it possible that the load stopped early for an
 	// unrelated errors? If so, add a fallback?
 	//
 	// Check for context cancellation so that we don't incorrectly mark files

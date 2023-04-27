@@ -151,6 +151,6 @@ be recomputed.
 and can be found at
 http://www.xmailserver.org/diff2.pdf
 
-(There is a generic implementation of the algorithm the the repository with git hash
+(There is a generic implementation of the algorithm the repository with git hash
 b9ad7e4ade3a686d608e44475390ad428e60e7fc)
 */

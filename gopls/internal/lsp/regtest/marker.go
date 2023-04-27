@@ -128,7 +128,7 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     a 1:1 correspondence between observed diagnostics and diag annotations
 //
 //   - def(src, dst location): perform a textDocument/definition request at
-//     the src location, and check the the result points to the dst location.
+//     the src location, and check the result points to the dst location.
 //
 //   - hover(src, dst location, g Golden): perform a textDocument/hover at the
 //     src location, and checks that the result is the dst location, with hover

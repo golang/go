@@ -539,7 +539,7 @@ func (m *Metadata) String() string { return string(m.ID) }
 // import metadata (DepsBy{Imp,Pkg}Path).
 //
 // Such test variants arise when an x_test package (in this case net/url_test)
-// imports a package (in this case net/http) that itself imports the the
+// imports a package (in this case net/http) that itself imports the
 // non-x_test package (in this case net/url).
 //
 // This is done so that the forward transitive closure of net/url_test has

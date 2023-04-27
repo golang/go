@@ -66,7 +66,7 @@ func TestShallowStd(t *testing.T) {
 }
 
 // typecheck reads, parses, and type-checks a package.
-// It squirrels the export data in the the ppkg.ExportFile field.
+// It squirrels the export data in the ppkg.ExportFile field.
 func typecheck(t *testing.T, ppkg *packages.Package) {
 	if ppkg.PkgPath == "unsafe" {
 		return // unsafe is special

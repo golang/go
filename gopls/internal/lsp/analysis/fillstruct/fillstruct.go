@@ -168,7 +168,7 @@ func SuggestedFix(fset *token.FileSet, start, end token.Pos, content []byte, fil
 		return nil, fmt.Errorf("%s is not a (pointer to) struct type",
 			types.TypeString(typ, types.RelativeTo(pkg)))
 	}
-	// Inv: typ is the the possibly-named struct type.
+	// Inv: typ is the possibly-named struct type.
 
 	fieldCount := tStruct.NumFields()
 

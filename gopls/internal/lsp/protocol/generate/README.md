@@ -133,4 +133,4 @@ in the gopls code. Using more "or" types in gopls requires more elaborate, but s
 But even without all the adjustments, making this its own module would face problems; a number of
 dependencies would have to be factored out. And, it is fragile. The custom unmarshaling code knows what
 types it expects. A design that return an 'any' on unexpected types would match the json
-'ignore unexpected values' philosophy better, but the the Go code would need extra checking.
+'ignore unexpected values' philosophy better, but the Go code would need extra checking.

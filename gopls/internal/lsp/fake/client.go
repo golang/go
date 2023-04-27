@@ -14,7 +14,7 @@ import (
 )
 
 // ClientHooks are a set of optional hooks called during handling of
-// the corresponding client method (see protocol.Client for the the
+// the corresponding client method (see protocol.Client for the
 // LSP server-to-client RPCs) in order to make test expectations
 // awaitable.
 type ClientHooks struct {
