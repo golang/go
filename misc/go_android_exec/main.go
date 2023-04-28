@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-// +build ignore
-
 // This program can be used as go_android_GOARCH_exec by the Go tool.
 // It executes binaries on an android device using adb.
 package main
