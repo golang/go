@@ -1,0 +1,33 @@
+Test case for golang/go#59554: data corruption on formatting due to line
+directives.
+
+Note that gofumpt is needed for this test case, as it reformats var decls into
+short var decls.
+
+Note that gofumpt requires Go 1.18.
+
+-- flags --
+-min_go=go1.18
+
+-- settings.json --
+{
+	"formatting.gofumpt": true
+}
+-- main.go --
+package main //@format(main)
+
+func Match(data []byte) int {
+//line :1
+	var idx = ^uint(0)
+	_ = idx
+	return -1
+}
+-- @main --
+package main //@format(main)
+
+func Match(data []byte) int {
+//line :1
+	idx := ^uint(0)
+	_ = idx
+	return -1
+}
