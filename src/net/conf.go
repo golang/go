@@ -124,7 +124,7 @@ func initConfVal() {
 	}
 
 	// Some operating systems always prefer the cgo resolver.
-	if goosPrefersCgo(runtime.GOOS) {
+	if goosPrefersCgo() {
 		confVal.preferCgo = true
 		return
 	}
@@ -155,8 +155,8 @@ func initConfVal() {
 
 // goosPreferCgo reports whether the GOOS value passed in prefers
 // the cgo resolver.
-func goosPrefersCgo(goos string) bool {
-	switch goos {
+func goosPrefersCgo() bool {
+	switch runtime.GOOS {
 	// Historically on Windows and Plan 9 we prefer the
 	// cgo resolver (which doesn't use the cgo tool) rather than
 	// the go resolver. This is because originally these
@@ -226,13 +226,6 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 	} else {
 		// Neither resolver was explicitly requested
 		// and we have no preference.
-
-		// For testing purposes only, recheck the GOOS.
-		// This lets TestConfHostLookupOrder test different
-		// GOOS values.
-		if goosPrefersCgo(c.goos) {
-			return hostLookupCgo, nil
-		}
 
 		if bytealg.IndexByteString(hostname, '\\') != -1 || bytealg.IndexByteString(hostname, '%') != -1 {
 			// Don't deal with special form hostnames
