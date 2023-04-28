@@ -270,7 +270,7 @@ func (p *Profile) VisitIR(fn *ir.Func) {
 	if g.InEdges == nil {
 		g.InEdges = make(map[*IRNode][]*IREdge)
 	}
-	name := ir.PkgFuncName(fn)
+	name := ir.LinkFuncName(fn)
 	node := new(IRNode)
 	node.AST = fn
 	if g.IRNodes[name] == nil {
@@ -308,7 +308,7 @@ func (p *Profile) addIREdge(caller *IRNode, callername string, call ir.Node, cal
 	// Create an IRNode for the callee.
 	calleenode := new(IRNode)
 	calleenode.AST = callee
-	calleename := ir.PkgFuncName(callee)
+	calleename := ir.LinkFuncName(callee)
 
 	// Create key for NodeMapKey.
 	nodeinfo := NodeMapKey{
@@ -395,7 +395,7 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
 	funcs := make(map[string]struct{})
 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
 		for _, f := range list {
-			name := ir.PkgFuncName(f)
+			name := ir.LinkFuncName(f)
 			funcs[name] = struct{}{}
 		}
 	})
@@ -405,15 +405,15 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
 	for name := range funcs {
 		if n, ok := p.WeightedCG.IRNodes[name]; ok {
 			for _, e := range p.WeightedCG.OutEdges[n] {
-				if _, ok := nodes[ir.PkgFuncName(e.Src.AST)]; !ok {
-					nodes[ir.PkgFuncName(e.Src.AST)] = e.Src.AST
+				if _, ok := nodes[ir.LinkFuncName(e.Src.AST)]; !ok {
+					nodes[ir.LinkFuncName(e.Src.AST)] = e.Src.AST
 				}
-				if _, ok := nodes[ir.PkgFuncName(e.Dst.AST)]; !ok {
-					nodes[ir.PkgFuncName(e.Dst.AST)] = e.Dst.AST
+				if _, ok := nodes[ir.LinkFuncName(e.Dst.AST)]; !ok {
+					nodes[ir.LinkFuncName(e.Dst.AST)] = e.Dst.AST
 				}
 			}
-			if _, ok := nodes[ir.PkgFuncName(n.AST)]; !ok {
-				nodes[ir.PkgFuncName(n.AST)] = n.AST
+			if _, ok := nodes[ir.LinkFuncName(n.AST)]; !ok {
+				nodes[ir.LinkFuncName(n.AST)] = n.AST
 			}
 		}
 	}
@@ -424,16 +424,16 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
 			nodeweight := WeightInPercentage(n.Flat, p.TotalNodeWeight)
 			color := "black"
 			if ast.Inl != nil {
-				fmt.Printf("\"%v\" [color=%v,label=\"%v,freq=%.2f,inl_cost=%d\"];\n", ir.PkgFuncName(ast), color, ir.PkgFuncName(ast), nodeweight, ast.Inl.Cost)
+				fmt.Printf("\"%v\" [color=%v,label=\"%v,freq=%.2f,inl_cost=%d\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast), nodeweight, ast.Inl.Cost)
 			} else {
-				fmt.Printf("\"%v\" [color=%v, label=\"%v,freq=%.2f\"];\n", ir.PkgFuncName(ast), color, ir.PkgFuncName(ast), nodeweight)
+				fmt.Printf("\"%v\" [color=%v, label=\"%v,freq=%.2f\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast), nodeweight)
 			}
 		}
 	}
 	// Print edges.
 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
 		for _, f := range list {
-			name := ir.PkgFuncName(f)
+			name := ir.LinkFuncName(f)
 			if n, ok := p.WeightedCG.IRNodes[name]; ok {
 				for _, e := range p.WeightedCG.OutEdges[n] {
 					edgepercent := WeightInPercentage(e.Weight, p.TotalEdgeWeight)
@@ -443,7 +443,7 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
 						fmt.Printf("edge [color=black, style=solid];\n")
 					}
 
-					fmt.Printf("\"%v\" -> \"%v\" [label=\"%.2f\"];\n", ir.PkgFuncName(n.AST), ir.PkgFuncName(e.Dst.AST), edgepercent)
+					fmt.Printf("\"%v\" -> \"%v\" [label=\"%.2f\"];\n", ir.LinkFuncName(n.AST), ir.LinkFuncName(e.Dst.AST), edgepercent)
 				}
 			}
 		}

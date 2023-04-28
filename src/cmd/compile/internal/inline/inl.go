@@ -163,7 +163,7 @@ func pgoInlineEpilogue(p *pgo.Profile, decls []ir.Node) {
 	if base.Debug.PGOInline >= 2 {
 		ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
 			for _, f := range list {
-				name := ir.PkgFuncName(f)
+				name := ir.LinkFuncName(f)
 				if n, ok := p.WeightedCG.IRNodes[name]; ok {
 					p.RedirectEdges(n, inlinedCallSites)
 				}
@@ -352,7 +352,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 	// Update the budget for profile-guided inlining.
 	budget := int32(inlineMaxBudget)
 	if profile != nil {
-		if n, ok := profile.WeightedCG.IRNodes[ir.PkgFuncName(fn)]; ok {
+		if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
 			if _, ok := candHotCalleeMap[n]; ok {
 				budget = int32(inlineHotMaxBudget)
 				if base.Debug.PGOInline > 0 {
