@@ -387,7 +387,7 @@ func HasSymlink() bool {
 func MustHaveSymlink(t testing.TB) {
 	ok, reason := hasSymlink()
 	if !ok {
-		t.Skipf("skipping test: cannot make symlinks on %s/%s%s", runtime.GOOS, runtime.GOARCH, reason)
+		t.Skipf("skipping test: cannot make symlinks on %s/%s: %s", runtime.GOOS, runtime.GOARCH, reason)
 	}
 }
 
