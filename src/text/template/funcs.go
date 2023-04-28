@@ -23,7 +23,7 @@ import (
 // Execute returns that error.
 //
 // Errors returned by Execute wrap the underlying error; call errors.As to
-// uncover them.
+// unwrap them.
 //
 // When template execution invokes a function with an argument list, that list
 // must be assignable to the function's parameter types. Functions meant to
