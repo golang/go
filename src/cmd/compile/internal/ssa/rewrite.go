@@ -7,7 +7,6 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/logopt"
-	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/s390x"
@@ -20,7 +19,6 @@ import (
 	"math/bits"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type deadValueChoice bool
@@ -801,6 +799,25 @@ func loadLSymOffset(lsym *obj.LSym, offset int64) *obj.LSym {
 	return nil
 }
 
+// de-virtualize an InterLECall
+// 'sym' is the symbol for the itab.
+func devirtLESym(v *Value, aux Aux, sym Sym, offset int64) *obj.LSym {
+	n, ok := sym.(*obj.LSym)
+	if !ok {
+		return nil
+	}
+
+	lsym := loadLSymOffset(n, offset)
+	if f := v.Block.Func; f.pass.debug > 0 {
+		if lsym != nil {
+			f.Warnl(v.Pos, "de-virtualizing call")
+		} else {
+			f.Warnl(v.Pos, "couldn't de-virtualize call")
+		}
+	}
+	return lsym
+}
+
 func devirtLECall(v *Value, sym *obj.LSym) *Value {
 	v.Op = OpStaticLECall
 	auxcall := v.Aux.(*AuxCall)
@@ -810,9 +827,6 @@ func devirtLECall(v *Value, sym *obj.LSym) *Value {
 	copy(v.Args[0:], v.Args[1:])
 	v.Args[len(v.Args)-1] = nil // aid GC
 	v.Args = v.Args[:len(v.Args)-1]
-	if f := v.Block.Func; f.pass.debug > 0 {
-		f.Warnl(v.Pos, "de-virtualizing call")
-	}
 	return v
 }
 
@@ -1727,73 +1741,6 @@ func symIsROZero(sym Sym) bool {
 		}
 	}
 	return true
-}
-
-// isFixed32 returns true if the int32 at offset off in symbol sym
-// is known and constant.
-func isFixed32(c *Config, sym Sym, off int64) bool {
-	return isFixed(c, sym, off, 4)
-}
-
-// isFixed returns true if the range [off,off+size] of the symbol sym
-// is known and constant.
-func isFixed(c *Config, sym Sym, off, size int64) bool {
-	lsym := sym.(*obj.LSym)
-	if lsym.Extra == nil {
-		return false
-	}
-	if _, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-		if off == 2*c.PtrSize && size == 4 {
-			return true // type hash field
-		}
-	}
-	return false
-}
-func fixed32(c *Config, sym Sym, off int64) int32 {
-	lsym := sym.(*obj.LSym)
-	if ti, ok := (*lsym.Extra).(*obj.TypeInfo); ok {
-		if off == 2*c.PtrSize {
-			return int32(types.TypeHash(ti.Type.(*types.Type)))
-		}
-	}
-	base.Fatalf("fixed32 data not known for %s:%d", sym, off)
-	return 0
-}
-
-// isFixedSym returns true if the contents of sym at the given offset
-// is known and is the constant address of another symbol.
-func isFixedSym(sym Sym, off int64) bool {
-	lsym := sym.(*obj.LSym)
-	switch {
-	case lsym.Type == objabi.SRODATA:
-		// itabs, dictionaries
-	default:
-		return false
-	}
-	for _, r := range lsym.R {
-		if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
-			return true
-		}
-	}
-	return false
-}
-func fixedSym(f *Func, sym Sym, off int64) Sym {
-	lsym := sym.(*obj.LSym)
-	for _, r := range lsym.R {
-		if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off {
-			if strings.HasPrefix(r.Sym.Name, "type:") {
-				// In case we're loading a type out of a dictionary, we need to record
-				// that the containing function might put that type in an interface.
-				// That information is currently recorded in relocations in the dictionary,
-				// but if we perform this load at compile time then the dictionary
-				// might be dead.
-				reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
-			}
-			return r.Sym
-		}
-	}
-	base.Fatalf("fixedSym data not known for %s:%d", sym, off)
-	return nil
 }
 
 // read8 reads one byte from the read-only global sym at offset off.
