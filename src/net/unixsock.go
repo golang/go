@@ -201,13 +201,23 @@ func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
 // If laddr is non-nil, it is used as the local address for the
 // connection.
 func DialUnix(network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+	return DialUnixWithContext(context.Background(), network, laddr, raddr)
+}
+
+// DialUnixWithContext acts like Dial for Unix networks.
+//
+// The network must be a Unix network name; see func Dial for details.
+//
+// If laddr is non-nil, it is used as the local address for the
+// connection.
+func DialUnixWithContext(ctx context.Context, network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 	switch network {
 	case "unix", "unixgram", "unixpacket":
 	default:
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(network)}
 	}
 	sd := &sysDialer{network: network, address: raddr.String()}
-	c, err := sd.dialUnix(context.Background(), laddr, raddr)
+	c, err := sd.dialUnix(ctx, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}

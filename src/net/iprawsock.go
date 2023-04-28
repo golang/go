@@ -209,11 +209,22 @@ func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
 // If the IP field of raddr is nil or an unspecified IP address, the
 // local system is assumed.
 func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
+	return DialIPWithContext(context.Background(), network, laddr, raddr)
+}
+
+// DialIPWithContext acts like Dial for IP networks.
+//
+// The network must be an IP network name; see func Dial for details.
+//
+// If laddr is nil, a local address is automatically chosen.
+// If the IP field of raddr is nil or an unspecified IP address, the
+// local system is assumed.
+func DialIPWithContext(ctx context.Context, network string, laddr, raddr *IPAddr) (*IPConn, error) {
 	if raddr == nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
 	sd := &sysDialer{network: network, address: raddr.String()}
-	c, err := sd.dialIP(context.Background(), laddr, raddr)
+	c, err := sd.dialIP(ctx, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}

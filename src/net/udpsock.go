@@ -85,6 +85,25 @@ func (a *UDPAddr) opAddr() Addr {
 // See func Dial for a description of the network and address
 // parameters.
 func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
+	return ResolveUDPAddrWithContext(context.Background(), network, address)
+}
+
+// ResolveUDPAddrWithContext returns an address of UDP end point.
+//
+// The network must be a UDP network name.
+//
+// If the host in the address parameter is not a literal IP address or
+// the port is not a literal port number, ResolveUDPAddr resolves the
+// address to an address of UDP end point.
+// Otherwise, it parses the address as a pair of literal IP address
+// and port number.
+// The address parameter can use a host name, but this is not
+// recommended, because it will return at most one of the host name's
+// IP addresses.
+//
+// See func Dial for a description of the network and address
+// parameters.
+func ResolveUDPAddrWithContext(ctx context.Context, network, address string) (*UDPAddr, error) {
 	switch network {
 	case "udp", "udp4", "udp6":
 	case "": // a hint wildcard for Go 1.0 undocumented behavior
@@ -92,7 +111,7 @@ func ResolveUDPAddr(network, address string) (*UDPAddr, error) {
 	default:
 		return nil, UnknownNetworkError(network)
 	}
-	addrs, err := DefaultResolver.internetAddrList(context.Background(), network, address)
+	addrs, err := DefaultResolver.internetAddrList(ctx, network, address)
 	if err != nil {
 		return nil, err
 	}
@@ -280,14 +299,14 @@ func (c *UDPConn) WriteMsgUDPAddrPort(b, oob []byte, addr netip.AddrPort) (n, oo
 
 func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
 
-// DialUDP acts like Dial for UDP networks.
+// DialUDPWithContext acts like Dial for UDP networks.
 //
 // The network must be a UDP network name; see func Dial for details.
 //
 // If laddr is nil, a local address is automatically chosen.
 // If the IP field of raddr is nil or an unspecified IP address, the
 // local system is assumed.
-func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+func DialUDPWithContext(ctx context.Context, network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 	switch network {
 	case "udp", "udp4", "udp6":
 	default:
@@ -297,11 +316,22 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
 	}
 	sd := &sysDialer{network: network, address: raddr.String()}
-	c, err := sd.dialUDP(context.Background(), laddr, raddr)
+	c, err := sd.dialUDP(ctx, laddr, raddr)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
 	}
 	return c, nil
+}
+
+// DialUDP acts like Dial for UDP networks.
+//
+// The network must be a UDP network name; see func Dial for details.
+//
+// If laddr is nil, a local address is automatically chosen.
+// If the IP field of raddr is nil or an unspecified IP address, the
+// local system is assumed.
+func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+	return DialUDPWithContext(context.Background(), network, laddr, raddr)
 }
 
 // ListenUDP acts like ListenPacket for UDP networks.
@@ -314,6 +344,19 @@ func DialUDP(network string, laddr, raddr *UDPAddr) (*UDPConn, error) {
 // If the Port field of laddr is 0, a port number is automatically
 // chosen.
 func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
+	return ListenUDPWithContext(context.Background(), network, laddr)
+}
+
+// ListenUDPWithContext acts like ListenPacket for UDP networks.
+//
+// The network must be a UDP network name; see func Dial for details.
+//
+// If the IP field of laddr is nil or an unspecified IP address,
+// ListenUDP listens on all available IP addresses of the local system
+// except multicast IP addresses.
+// If the Port field of laddr is 0, a port number is automatically
+// chosen.
+func ListenUDPWithContext(ctx context.Context, network string, laddr *UDPAddr) (*UDPConn, error) {
 	switch network {
 	case "udp", "udp4", "udp6":
 	default:
@@ -323,7 +366,7 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
 		laddr = &UDPAddr{}
 	}
 	sl := &sysListener{network: network, address: laddr.String()}
-	c, err := sl.listenUDP(context.Background(), laddr)
+	c, err := sl.listenUDP(ctx, laddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
@@ -339,7 +382,7 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
 // local system including the group, multicast IP address.
 // If ifi is nil, ListenMulticastUDP uses the system-assigned
 // multicast interface, although this is not recommended because the
-// assignment depends on platforms and sometimes it might require
+// assignment depends on platforms, and sometimes it might require
 // routing configuration.
 // If the Port field of gaddr is 0, a port number is automatically
 // chosen.
@@ -351,6 +394,30 @@ func ListenUDP(network string, laddr *UDPAddr) (*UDPConn, error) {
 // Note that ListenMulticastUDP will set the IP_MULTICAST_LOOP socket option
 // to 0 under IPPROTO_IP, to disable loopback of multicast packets.
 func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+	return ListenMulticastUDPWithContext(context.Background(), network, ifi, gaddr)
+}
+
+// ListenMulticastUDPWithContext acts like ListenPacket for UDP networks but
+// takes a group address on a specific network interface.
+//
+// The network must be a UDP network name; see func Dial for details.
+//
+// ListenMulticastUDP listens on all available IP addresses of the
+// local system including the group, multicast IP address.
+// If ifi is nil, ListenMulticastUDP uses the system-assigned
+// multicast interface, although this is not recommended because the
+// assignment depends on platforms, and sometimes it might require
+// routing configuration.
+// If the Port field of gaddr is 0, a port number is automatically
+// chosen.
+//
+// ListenMulticastUDP is just for convenience of simple, small
+// applications. There are golang.org/x/net/ipv4 and
+// golang.org/x/net/ipv6 packages for general purpose uses.
+//
+// Note that ListenMulticastUDP will set the IP_MULTICAST_LOOP socket option
+// to 0 under IPPROTO_IP, to disable loopback of multicast packets.
+func ListenMulticastUDPWithContext(ctx context.Context, network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
 	switch network {
 	case "udp", "udp4", "udp6":
 	default:
@@ -360,7 +427,7 @@ func ListenMulticastUDP(network string, ifi *Interface, gaddr *UDPAddr) (*UDPCon
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: errMissingAddress}
 	}
 	sl := &sysListener{network: network, address: gaddr.String()}
-	c, err := sl.listenMulticastUDP(context.Background(), ifi, gaddr)
+	c, err := sl.listenMulticastUDP(ctx, ifi, gaddr)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: network, Source: nil, Addr: gaddr.opAddr(), Err: err}
 	}
