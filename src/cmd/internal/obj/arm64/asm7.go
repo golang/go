@@ -1384,6 +1384,25 @@ func roundUp(x, to uint32) uint32 {
 	return (x + to - 1) &^ (to - 1)
 }
 
+// splitImm24uScaled splits an immediate into a scaled 12 bit unsigned lo value
+// and an unscaled shifted 12 bit unsigned hi value. These are typically used
+// by adding or subtracting the hi value and using the lo value as the offset
+// for a load or store.
+func splitImm24uScaled(v int32, shift int) (int32, int32, error) {
+	if v < 0 {
+		return 0, 0, fmt.Errorf("%d is not a 24 bit unsigned immediate", v)
+	}
+	if v&((1<<shift)-1) != 0 {
+		return 0, 0, fmt.Errorf("%d is not a multiple of %d", v, 1<<shift)
+	}
+	lo := (v >> shift) & 0xfff
+	hi := v - (lo << shift)
+	if hi&^0xfff000 != 0 {
+		return 0, 0, fmt.Errorf("%d is too large for a scaled 24 bit unsigned immediate %x %x", v, lo, hi)
+	}
+	return hi, lo, nil
+}
+
 func (c *ctxt7) regoff(a *obj.Addr) int32 {
 	c.instoffset = 0
 	c.aclass(a)
@@ -3908,23 +3927,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		v := c.regoff(&p.To)
-		var hi int32
-		if v < 0 || (v&((1<<uint(s))-1)) != 0 {
-			// negative or unaligned offset, use constant pool
+		hi, lo, err := splitImm24uScaled(v, s)
+		if err != nil {
 			goto storeusepool
 		}
-
-		hi = v - (v & (0xFFF << uint(s)))
-		if hi&0xFFF != 0 {
-			c.ctxt.Diag("internal: miscalculated offset %d [%d]\n%v", v, s, p)
-		}
-		if hi&^0xFFF000 != 0 {
-			// hi doesn't fit into an ADD instruction
-			goto storeusepool
-		}
-
 		o1 = c.oaddi(p, AADD, hi, REGTMP, r)
-		o2 = c.olsr12u(p, c.opstr(p, p.As), ((v-hi)>>uint(s))&0xFFF, REGTMP, p.From.Reg)
+		o2 = c.olsr12u(p, c.opstr(p, p.As), lo, REGTMP, p.From.Reg)
 		break
 
 	storeusepool:
@@ -3952,23 +3960,12 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		v := c.regoff(&p.From)
-		var hi int32
-		if v < 0 || (v&((1<<uint(s))-1)) != 0 {
-			// negative or unaligned offset, use constant pool
+		hi, lo, err := splitImm24uScaled(v, s)
+		if err != nil {
 			goto loadusepool
 		}
-
-		hi = v - (v & (0xFFF << uint(s)))
-		if (hi & 0xFFF) != 0 {
-			c.ctxt.Diag("internal: miscalculated offset %d [%d]\n%v", v, s, p)
-		}
-		if hi&^0xFFF000 != 0 {
-			// hi doesn't fit into an ADD instruction
-			goto loadusepool
-		}
-
 		o1 = c.oaddi(p, AADD, hi, REGTMP, r)
-		o2 = c.olsr12u(p, c.opldr(p, p.As), ((v-hi)>>uint(s))&0xFFF, REGTMP, p.To.Reg)
+		o2 = c.olsr12u(p, c.opldr(p, p.As), lo, REGTMP, p.To.Reg)
 		break
 
 	loadusepool:
