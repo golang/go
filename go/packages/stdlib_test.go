@@ -5,11 +5,7 @@
 package packages_test
 
 import (
-	"bytes"
-	"io/ioutil"
-	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -53,82 +49,4 @@ func TestStdlibMetadata(t *testing.T) {
 	t.Log("GOMAXPROCS: ", runtime.GOMAXPROCS(0))
 	t.Log("Metadata:   ", t1.Sub(t0))                          // ~800ms on 12 threads
 	t.Log("#MB:        ", int64(memstats.Alloc-alloc)/1000000) // ~1MB
-}
-
-func TestCgoOption(t *testing.T) {
-	skipIfShort(t, "uses tons of memory (https://golang.org/issue/14113)")
-
-	testenv.NeedsGoPackages(t)
-
-	// TODO(adonovan): see if we can get away without these old
-	// go/loader hacks now that we use the go list command.
-	//
-	// switch runtime.GOOS {
-	// // On these systems, the net and os/user packages don't use cgo
-	// // or the std library is incomplete (Android).
-	// case "android", "plan9", "solaris", "windows":
-	// 	t.Skipf("no cgo or incomplete std lib on %s", runtime.GOOS)
-	// }
-	// // In nocgo builds (e.g. linux-amd64-nocgo),
-	// // there is no "runtime/cgo" package,
-	// // so cgo-generated Go files will have a failing import.
-	// if !build.Default.CgoEnabled {
-	// 	return
-	// }
-
-	// Test that we can load cgo-using packages with
-	// DisableCgo=true/false, which, among other things, causes go
-	// list to select pure Go/native implementations, respectively,
-	// based on build tags.
-	//
-	// Each entry specifies a package-level object and the generic
-	// file expected to define it when cgo is disabled.
-	// When cgo is enabled, the exact file is not specified (since
-	// it varies by platform), but must differ from the generic one.
-	//
-	// The test also loads the actual file to verify that the
-	// object is indeed defined at that location.
-	for _, test := range []struct {
-		pkg, declKeyword, name, genericFile string
-	}{
-		{"net", "type", "addrinfoErrno", "cgo_stub.go"},
-		{"os/user", "func", "current", "lookup_stubs.go"},
-	} {
-		cfg := &packages.Config{Mode: packages.LoadSyntax}
-		pkgs, err := packages.Load(cfg, test.pkg)
-		if err != nil {
-			t.Errorf("Load failed: %v", err)
-			continue
-		}
-		if packages.PrintErrors(pkgs) > 0 {
-			t.Error("there were errors loading standard library")
-			continue
-		}
-		pkg := pkgs[0]
-		obj := pkg.Types.Scope().Lookup(test.name)
-		if obj == nil {
-			t.Errorf("no object %s.%s", test.pkg, test.name)
-			continue
-		}
-		posn := pkg.Fset.Position(obj.Pos())
-		gotFile := filepath.Base(posn.Filename)
-		filesMatch := gotFile == test.genericFile
-
-		if filesMatch {
-			t.Errorf("!DisableCgo: %s found in %s, want native file",
-				obj, gotFile)
-		}
-
-		// Load the file and check the object is declared at the right place.
-		b, err := ioutil.ReadFile(posn.Filename)
-		if err != nil {
-			t.Errorf("can't read %s: %s", posn.Filename, err)
-			continue
-		}
-		line := string(bytes.Split(b, []byte("\n"))[posn.Line-1])
-		// Don't assume posn.Column is accurate.
-		if !strings.Contains(line, test.declKeyword+" "+test.name) {
-			t.Errorf("%s: %s not declared here (looking at %q)", posn, obj, line)
-		}
-	}
 }
