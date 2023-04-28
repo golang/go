@@ -1388,10 +1388,10 @@ func roundUp(x, to uint32) uint32 {
 	return (x + to - 1) &^ (to - 1)
 }
 
-func (c *ctxt7) regoff(a *obj.Addr) uint32 {
+func (c *ctxt7) regoff(a *obj.Addr) int32 {
 	c.instoffset = 0
 	c.aclass(a)
-	return uint32(c.instoffset)
+	return int32(c.instoffset)
 }
 
 func isSTLXRop(op obj.As) bool {
@@ -3371,7 +3371,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == obj.REG_NONE {
 			r = rt
 		}
-		v := int32(c.regoff(&p.From))
+		v := c.regoff(&p.From)
 		o1 = c.oaddi(p, int32(o1), v, r, rt)
 
 	case 3: /* op R<<n[,R],R (shifted register) */
@@ -3412,7 +3412,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = REGSP
 		}
 
-		v := int32(c.regoff(&p.From))
+		v := c.regoff(&p.From)
 		var op int32
 		if v < 0 {
 			v = -v
@@ -3706,7 +3706,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(rf&31) << 16) | (uint32(cond&15) << 12) | (uint32(p.Reg&31) << 5) | uint32(nzcv)
 
 	case 20: /* movT R,O(R) -> strT */
-		v := int32(c.regoff(&p.To))
+		v := c.regoff(&p.To)
 		sz := int32(1 << uint(movesize(p.As)))
 
 		rt, rf := p.To.Reg, p.From.Reg
@@ -3721,7 +3721,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 21: /* movT O(R),R -> ldrT */
-		v := int32(c.regoff(&p.From))
+		v := c.regoff(&p.From)
 		sz := int32(1 << uint(movesize(p.As)))
 
 		rt, rf := p.To.Reg, p.From.Reg
@@ -3894,7 +3894,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 
-		v := int32(c.regoff(&p.To))
+		v := c.regoff(&p.To)
 		var hi int32
 		if v < 0 || (v&((1<<uint(s))-1)) != 0 {
 			// negative or unaligned offset, use constant pool
@@ -3938,7 +3938,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 
-		v := int32(c.regoff(&p.From))
+		v := c.regoff(&p.From)
 		var hi int32
 		if v < 0 || (v&((1<<uint(s))-1)) != 0 {
 			// negative or unaligned offset, use constant pool
@@ -4239,8 +4239,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == obj.REG_NONE {
 			r = rt
 		}
-		o1 = c.oaddi(p, int32(op), int32(c.regoff(&p.From))&0x000fff, r, rt)
-		o2 = c.oaddi(p, int32(op), int32(c.regoff(&p.From))&0xfff000, rt, rt)
+		o1 = c.oaddi(p, int32(op), c.regoff(&p.From)&0x000fff, r, rt)
+		o2 = c.oaddi(p, int32(op), c.regoff(&p.From)&0xfff000, rt, rt)
 
 	case 50: /* sys/sysl */
 		o1 = c.opirr(p, p.As)
@@ -4489,7 +4489,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if rf == obj.REG_NONE {
 			c.ctxt.Diag("invalid ldp source: %v\n", p)
 		}
-		v := int32(c.regoff(&p.From))
+		v := c.regoff(&p.From)
 		o1 = c.opldpstp(p, o, v, rf, rt1, rt2, 1)
 
 	case 67: /* stp (r1, r2), O(R)!; stp (r1, r2), (R)O! */
@@ -4500,7 +4500,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if rt == obj.REG_NONE {
 			c.ctxt.Diag("invalid stp destination: %v\n", p)
 		}
-		v := int32(c.regoff(&p.To))
+		v := c.regoff(&p.To)
 		o1 = c.opldpstp(p, o, v, rt, rf1, rf2, 0)
 
 	case 68: /* movT $vconaddr(SB), reg -> adrp + add + reloc */
@@ -4670,7 +4670,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if rf == obj.REG_NONE {
 			c.ctxt.Diag("invalid ldp source: %v", p)
 		}
-		v := int32(c.regoff(&p.From))
+		v := c.regoff(&p.From)
 		o1 = c.oaddi12(p, v, REGTMP, rf)
 		o2 = c.opldpstp(p, o, 0, REGTMP, rt1, rt2, 1)
 
@@ -4708,7 +4708,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if rt == obj.REG_NONE {
 			c.ctxt.Diag("invalid stp destination: %v", p)
 		}
-		v := int32(c.regoff(&p.To))
+		v := c.regoff(&p.To)
 		o1 = c.oaddi12(p, v, REGTMP, rt)
 		o2 = c.opldpstp(p, o, 0, REGTMP, rf1, rf2, 0)
 
@@ -5265,7 +5265,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rf := int((p.To.Reg) & 31)
 		r := int(p.To.Index & 31)
 		index := int(p.From.Index)
-		offset := int32(c.regoff(&p.To))
+		offset := c.regoff(&p.To)
 
 		if o.scond == C_XPOST {
 			if (p.To.Index != 0) && (offset != 0) {
@@ -5337,7 +5337,7 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rf := int((p.From.Reg) & 31)
 		r := int(p.From.Index & 31)
 		index := int(p.To.Index)
-		offset := int32(c.regoff(&p.From))
+		offset := c.regoff(&p.From)
 
 		if o.scond == C_XPOST {
 			if (p.From.Index != 0) && (offset != 0) {
