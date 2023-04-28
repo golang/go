@@ -1744,7 +1744,13 @@ func testServerExpect(t *testing.T, mode testMode) {
 		// that doesn't send 100-continue expectations.
 		writeBody := test.contentLength != 0 && strings.ToLower(test.expectation) != "100-continue"
 
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		defer wg.Wait()
+
 		go func() {
+			defer wg.Done()
+
 			contentLen := fmt.Sprintf("Content-Length: %d", test.contentLength)
 			if test.chunked {
 				contentLen = "Transfer-Encoding: chunked"
