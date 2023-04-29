@@ -12,6 +12,7 @@ import (
 const (
 	_EACCES = 13
 	_EINVAL = 22
+	_ENOSYS = 38
 )
 
 // Don't split the stack as this method may be invoked without a valid G, which
@@ -34,7 +35,10 @@ func sysAllocOS(n uintptr) unsafe.Pointer {
 	return p
 }
 
-var adviseUnused = uint32(_MADV_FREE)
+var (
+	adviseUnused = uint32(_MADV_FREE)
+	madviseNX    uint32
+)
 
 func sysUnusedOS(v unsafe.Pointer, n uintptr) {
 	if uintptr(v)&(physPageSize-1) != 0 || n&(physPageSize-1) != 0 {
@@ -44,17 +48,32 @@ func sysUnusedOS(v unsafe.Pointer, n uintptr) {
 		throw("unaligned sysUnused")
 	}
 
-	var advise uint32
-	if debug.madvdontneed != 0 {
-		advise = _MADV_DONTNEED
+	if atomic.Load(&madviseNX) == 1 {
+		// Since Linux 3.18, support for madvise is optional.
+		// Fall back on mmap if it is nonexistent.
+		// _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE will unmap all the
+		// pages in the old mapping, and remap the memory region.
+		mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
 	} else {
-		advise = atomic.Load(&adviseUnused)
-	}
-	if errno := madvise(v, n, int32(advise)); advise == _MADV_FREE && errno != 0 {
-		// MADV_FREE was added in Linux 4.5. Fall back to MADV_DONTNEED if it is
-		// not supported.
-		atomic.Store(&adviseUnused, _MADV_DONTNEED)
-		madvise(v, n, _MADV_DONTNEED)
+		var advise uint32
+		if debug.madvdontneed != 0 {
+			advise = _MADV_DONTNEED
+		} else {
+			advise = atomic.Load(&adviseUnused)
+		}
+		if errno := madvise(v, n, int32(advise)); errno != 0 {
+			if errno == _ENOSYS {
+				// Since Linux 3.18, support for madvise is optional.
+				// Fall back on mmap if it is nonexistent.
+				atomic.Store(&madviseNX, 1)
+				mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+			} else if advise == _MADV_FREE {
+				// MADV_FREE was added in Linux 4.5. Fall back to MADV_DONTNEED if it is
+				// not supported.
+				atomic.Store(&adviseUnused, _MADV_DONTNEED)
+				madvise(v, n, _MADV_DONTNEED)
+			}
+		}
 	}
 
 	if debug.harddecommit > 0 {
