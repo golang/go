@@ -412,12 +412,11 @@ func (ctxt *Link) DwarfGlobal(myimportpath, typename string, varSym *LSym) {
 		return
 	}
 	varname := varSym.Name
-	dieSymName := dwarf.InfoPrefix + varname
-	dieSym := ctxt.LookupInit(dieSymName, func(s *LSym) {
-		s.Type = objabi.SDWARFVAR
-		s.Set(AttrDuplicateOK, true) // needed for shared linkage
-		ctxt.Data = append(ctxt.Data, s)
-	})
+	dieSym := &LSym{
+		Type: objabi.SDWARFVAR,
+	}
+	varSym.NewVarInfo().dwarfInfoSym = dieSym
+	ctxt.Data = append(ctxt.Data, dieSym)
 	typeSym := ctxt.Lookup(dwarf.InfoPrefix + typename)
 	dwarf.PutGlobal(dwCtxt{ctxt}, dieSym, typeSym, varSym, varname)
 }

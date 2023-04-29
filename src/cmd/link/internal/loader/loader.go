@@ -1685,6 +1685,15 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 	return
 }
 
+func (l *Loader) GetVarDwarfAuxSym(i Sym) Sym {
+	aux := l.aux1(i, goobj.AuxDwarfInfo)
+	if aux != 0 && l.SymType(aux) != sym.SDWARFVAR {
+		fmt.Println(l.SymName(i), l.SymType(i), l.SymType(aux), sym.SDWARFVAR)
+		panic("aux dwarf info sym with wrong type")
+	}
+	return aux
+}
+
 // AddInteriorSym sets up 'interior' as an interior symbol of
 // container/payload symbol 'container'. An interior symbol does not
 // itself have data, but gives a name to a subrange of the data in its

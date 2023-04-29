@@ -1936,21 +1936,13 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		if d.ldr.IsFileLocal(idx) {
 			continue
 		}
-		sn := d.ldr.SymName(idx)
-		if sn == "" {
-			// skip aux symbols
-			continue
-		}
 
 		// Find compiler-generated DWARF info sym for global in question,
 		// and tack it onto the appropriate unit.  Note that there are
 		// circumstances under which we can't find the compiler-generated
 		// symbol-- this typically happens as a result of compiler options
 		// (e.g. compile package X with "-dwarf=0").
-
-		// FIXME: use an aux sym or a relocation here instead of a
-		// name lookup.
-		varDIE := d.ldr.Lookup(dwarf.InfoPrefix+sn, 0)
+		varDIE := d.ldr.GetVarDwarfAuxSym(idx)
 		if varDIE != 0 {
 			unit := d.ldr.SymUnit(idx)
 			d.defgotype(gt)
