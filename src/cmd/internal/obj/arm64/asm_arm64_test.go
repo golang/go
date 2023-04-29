@@ -70,12 +70,10 @@ func TestSplitImm24uScaled(t *testing.T) {
 			wantLo: 0xfff,
 		},
 		{
-			// TODO(jsing): Fix splitting to make this fit.
-			v:       0x1000ffe,
-			shift:   1,
-			wantErr: true,
-			wantHi:  0xfff000,
-			wantLo:  0xfff,
+			v:      0x1000ffe,
+			shift:  1,
+			wantHi: 0xfff000,
+			wantLo: 0xfff,
 		},
 		{
 			v:       0x1001000,
@@ -100,12 +98,10 @@ func TestSplitImm24uScaled(t *testing.T) {
 			wantLo: 0xfff,
 		},
 		{
-			// TODO(jsing): Fix splitting to make this fit.
-			v:       0x1002ffc,
-			shift:   2,
-			wantErr: true,
-			wantHi:  0xfff000,
-			wantLo:  0xfff,
+			v:      0x1002ffc,
+			shift:  2,
+			wantHi: 0xfff000,
+			wantLo: 0xfff,
 		},
 		{
 			v:       0x1003000,
@@ -130,12 +126,10 @@ func TestSplitImm24uScaled(t *testing.T) {
 			wantLo: 0xfff,
 		},
 		{
-			// TODO(jsing): Fix splitting to make this fit.
-			v:       0x1006ff8,
-			shift:   3,
-			wantErr: true,
-			wantHi:  0xfff000,
-			wantLo:  0xfff,
+			v:      0x1006ff8,
+			shift:  3,
+			wantHi: 0xfff000,
+			wantLo: 0xfff,
 		},
 		{
 			v:       0x1007000,
@@ -160,7 +154,7 @@ func TestSplitImm24uScaled(t *testing.T) {
 		}
 	}
 	for shift := 0; shift <= 3; shift++ {
-		for v := int32(0); v < 0xfff000|0xfff<<shift; v = v + 1<<shift {
+		for v := int32(0); v < 0xfff000+0xfff<<shift; v = v + 1<<shift {
 			hi, lo, err := splitImm24uScaled(v, shift)
 			if err != nil {
 				t.Fatalf("splitImm24uScaled(%x, %x) failed: %v", v, shift, err)

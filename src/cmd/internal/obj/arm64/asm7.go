@@ -1420,13 +1420,20 @@ func splitImm24uScaled(v int32, shift int) (int32, int32, error) {
 	if v < 0 {
 		return 0, 0, fmt.Errorf("%d is not a 24 bit unsigned immediate", v)
 	}
+	if v > 0xfff000+0xfff<<shift {
+		return 0, 0, fmt.Errorf("%d is too large for a scaled 24 bit unsigned immediate", v)
+	}
 	if v&((1<<shift)-1) != 0 {
 		return 0, 0, fmt.Errorf("%d is not a multiple of %d", v, 1<<shift)
 	}
 	lo := (v >> shift) & 0xfff
 	hi := v - (lo << shift)
-	if hi&^0xfff000 != 0 {
-		return 0, 0, fmt.Errorf("%d is too large for a scaled 24 bit unsigned immediate %x %x", v, lo, hi)
+	if hi > 0xfff000 {
+		hi = 0xfff000
+		lo = (v - hi) >> shift
+	}
+	if hi & ^0xfff000 != 0 {
+		panic(fmt.Sprintf("bad split for %x with shift %v (%x, %x)", v, shift, hi, lo))
 	}
 	return hi, lo, nil
 }
@@ -1975,28 +1982,28 @@ func (c *ctxt7) loadStoreClass(p *obj.Prog, lsc int, v int64) int {
 		if cmp(C_UAUTO8K, lsc) || cmp(C_UOREG8K, lsc) {
 			return lsc
 		}
-		if v >= 0 && v <= 0xfffffe && v&1 == 0 {
+		if v >= 0 && v <= 0xfff000+0xfff<<1 && v&1 == 0 {
 			needsPool = false
 		}
 	case AMOVW, AMOVWU, AFMOVS:
 		if cmp(C_UAUTO16K, lsc) || cmp(C_UOREG16K, lsc) {
 			return lsc
 		}
-		if v >= 0 && v <= 0xfffffc && v&3 == 0 {
+		if v >= 0 && v <= 0xfff000+0xfff<<2 && v&3 == 0 {
 			needsPool = false
 		}
 	case AMOVD, AFMOVD:
 		if cmp(C_UAUTO32K, lsc) || cmp(C_UOREG32K, lsc) {
 			return lsc
 		}
-		if v >= 0 && v <= 0xfffff8 && v&7 == 0 {
+		if v >= 0 && v <= 0xfff000+0xfff<<3 && v&7 == 0 {
 			needsPool = false
 		}
 	case AFMOVQ:
 		if cmp(C_UAUTO64K, lsc) || cmp(C_UOREG64K, lsc) {
 			return lsc
 		}
-		if v >= 0 && v <= 0xfffff0 && v&15 == 0 {
+		if v >= 0 && v <= 0xfff000+0xfff<<4 && v&15 == 0 {
 			needsPool = false
 		}
 	}
