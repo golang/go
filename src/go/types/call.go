@@ -334,8 +334,8 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 	x.expr = call
 	check.hasCallOrRecv = true
 
-	// if type inference failed, a parametrized result must be invalidated
-	// (operands cannot have a parametrized type)
+	// if type inference failed, a parameterized result must be invalidated
+	// (operands cannot have a parameterized type)
 	if x.mode == value && sig.TypeParams().Len() > 0 && isParameterized(sig.TypeParams().list(), x.typ) {
 		x.mode = invalid
 	}
