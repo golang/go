@@ -741,8 +741,10 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) (loadEr
 	// If we're loading anything, ensure we also load builtin,
 	// since it provides fake definitions (and documentation)
 	// for types like int that are used everywhere.
+	// ("unsafe" is also needed since its sole GoFiles is
+	// derived from that of "builtin" via a workaround in load.)
 	if len(scopes) > 0 {
-		scopes = append(scopes, packageLoadScope("builtin"))
+		scopes = append(scopes, packageLoadScope("builtin"), packageLoadScope("unsafe"))
 	}
 	loadErr = s.load(ctx, true, scopes...)
 

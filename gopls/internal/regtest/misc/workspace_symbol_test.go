@@ -7,7 +7,7 @@ package misc
 import (
 	"testing"
 
-	"golang.org/x/tools/gopls/internal/lsp/protocol"
+	"github.com/google/go-cmp/cmp"
 	. "golang.org/x/tools/gopls/internal/lsp/regtest"
 	"golang.org/x/tools/gopls/internal/lsp/source"
 )
@@ -21,7 +21,7 @@ go 1.17
 -- a.go --
 package p
 
-const C1 = "a.go"
+const K1 = "a.go"
 -- exclude.go --
 
 //go:build exclude
@@ -29,23 +29,19 @@ const C1 = "a.go"
 
 package exclude
 
-const C2 = "exclude.go"
+const K2 = "exclude.go"
 `
 
+	// NB: the name K was chosen to avoid spurious
+	// matches in the always-present "unsafe" package.
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
-		syms := env.Symbol("C")
-		if got, want := len(syms), 1; got != want {
-			t.Errorf("got %d symbols, want %d", got, want)
-		}
+		checkSymbols(env, "K", "K1")
 
 		// Opening up an ignored file will result in an overlay with missing
 		// metadata, but this shouldn't break workspace symbols requests.
 		env.OpenFile("exclude.go")
-		syms = env.Symbol("C")
-		if got, want := len(syms), 1; got != want {
-			t.Errorf("got %d symbols, want %d", got, want)
-		}
+		checkSymbols(env, "K", "K1")
 	})
 }
 
@@ -71,15 +67,14 @@ const (
 	WithOptions(
 		Settings{"symbolMatcher": symbolMatcher},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		want := []string{
+		checkSymbols(env, "Foo",
 			"Foo",    // prefer exact segment matches first
 			"FooBar", // ...followed by exact word matches
 			"Fooex",  // shorter than Fooest, FooBar, lexically before Fooey
 			"Fooey",  // shorter than Fooest, Foobar
 			"Fooest",
-		}
-		got := env.Symbol("Foo")
-		compareSymbols(t, got, want...)
+			"unsafe.Offsetof", // a very fuzzy match
+		)
 	})
 }
 
@@ -102,23 +97,21 @@ const (
 	WithOptions(
 		Settings{"symbolMatcher": symbolMatcher},
 	).Run(t, files, func(t *testing.T, env *Env) {
-		compareSymbols(t, env.Symbol("ABC"), "ABC", "AxxBxxCxx")
-		compareSymbols(t, env.Symbol("'ABC"), "ABC")
-		compareSymbols(t, env.Symbol("^mod.com"), "mod.com/a.ABC", "mod.com/a.AxxBxxCxx")
-		compareSymbols(t, env.Symbol("^mod.com Axx"), "mod.com/a.AxxBxxCxx")
-		compareSymbols(t, env.Symbol("C$"), "ABC")
+		checkSymbols(env, "ABC", "ABC", "AxxBxxCxx")
+		checkSymbols(env, "'ABC", "ABC")
+		checkSymbols(env, "^mod.com", "mod.com/a.ABC", "mod.com/a.AxxBxxCxx")
+		checkSymbols(env, "^mod.com Axx", "mod.com/a.AxxBxxCxx")
+		checkSymbols(env, "C$", "ABC")
 	})
 }
 
-func compareSymbols(t *testing.T, got []protocol.SymbolInformation, want ...string) {
-	t.Helper()
-	if len(got) != len(want) {
-		t.Errorf("got %d symbols, want %d", len(got), len(want))
+func checkSymbols(env *Env, query string, want ...string) {
+	env.T.Helper()
+	var got []string
+	for _, info := range env.Symbol(query) {
+		got = append(got, info.Name)
 	}
-
-	for i := range got {
-		if got[i].Name != want[i] {
-			t.Errorf("got[%d] = %q, want %q", i, got[i].Name, want[i])
-		}
+	if diff := cmp.Diff(got, want); diff != "" {
+		env.T.Errorf("unexpected Symbol(%q) result (+want -got):\n%s", query, diff)
 	}
 }

@@ -144,6 +144,31 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 		return fmt.Errorf("packages.Load error: %w", err)
 	}
 
+	// Workaround for a bug (?) that has been in go/packages since
+	// the outset: Package("unsafe").GoFiles=[], whereas it should
+	// include unsafe/unsafe.go. Derive it from builtins.go.
+	//
+	// This workaround relies on the fact that we always add both
+	// builtins and unsafe to the set of scopes in the workspace load.
+	//
+	// TODO(adonovan): fix upstream in go/packages.
+	// (Does this need a proposal? Arguably not.)
+	{
+		var builtin, unsafe *packages.Package
+		for _, pkg := range pkgs {
+			if pkg.ID == "unsafe" {
+				unsafe = pkg
+			} else if pkg.ID == "builtin" {
+				builtin = pkg
+			}
+		}
+		if builtin != nil && unsafe != nil && len(builtin.GoFiles) == 1 {
+			unsafe.GoFiles = []string{
+				filepath.Join(filepath.Dir(builtin.GoFiles[0]), "../unsafe/unsafe.go"),
+			}
+		}
+	}
+
 	moduleErrs := make(map[string][]packages.Error) // module path -> errors
 	filterFunc := s.view.filterFunc()
 	newMetadata := make(map[PackageID]*source.Metadata)
@@ -453,6 +478,7 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 		//
 		// We should consider doing a more complete guard against import cycles
 		// elsewhere.
+		// [Update: we do! breakImportCycles in metadataGraph.Clone. Delete this.]
 		for _, prev := range path {
 			if prev == id {
 				return fmt.Errorf("import cycle detected: %q", id)

@@ -100,6 +100,60 @@ func _() {
 	})
 }
 
+func TestDefsRefsBuiltins(t *testing.T) {
+	testenv.NeedsGo1Point(t, 17) // for unsafe.{Add,Slice}
+	// TODO(adonovan): add unsafe.SliceData,String,StringData} in later go versions.
+	const files = `
+-- go.mod --
+module example.com
+go 1.16
+
+-- a.go --
+package a
+
+import "unsafe"
+
+const _ = iota
+var _ error
+var _ int
+var _ = append()
+var _ = unsafe.Pointer(nil)
+var _ = unsafe.Add(nil, nil)
+var _ = unsafe.Sizeof(0)
+var _ = unsafe.Alignof(0)
+var _ = unsafe.Slice(nil, 0)
+`
+
+	Run(t, files, func(t *testing.T, env *Env) {
+		env.OpenFile("a.go")
+		for _, name := range strings.Fields(
+			"iota error int nil append iota Pointer Sizeof Alignof Add Slice") {
+			loc := env.RegexpSearch("a.go", `\b`+name+`\b`)
+
+			// definition -> {builtin,unsafe}.go
+			def, err := env.Editor.GoToDefinition(env.Ctx, loc)
+			if err != nil {
+				t.Errorf("definition(%q) failed: %v", name, err)
+			} else if (!strings.HasSuffix(string(def.URI), "builtin.go") &&
+				!strings.HasSuffix(string(def.URI), "unsafe.go")) ||
+				def.Range.Start.Line == 0 {
+				t.Errorf("definition(%q) = %v, want {builtin,unsafe}.go",
+					name, def)
+			}
+
+			// "references to (builtin "Foo"|unsafe.Foo) are not supported"
+			_, err = env.Editor.References(env.Ctx, loc)
+			gotErr := fmt.Sprint(err)
+			if !strings.Contains(gotErr, "references to") ||
+				!strings.Contains(gotErr, "not supported") ||
+				!strings.Contains(gotErr, name) {
+				t.Errorf("references(%q) error: got %q, want %q",
+					name, gotErr, "references to ... are not supported")
+			}
+		}
+	})
+}
+
 func TestPackageReferences(t *testing.T) {
 	tests := []struct {
 		packageName  string

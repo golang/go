@@ -364,8 +364,6 @@ func hoverBuiltin(ctx context.Context, snapshot Snapshot, obj types.Object) (*Ho
 		return nil, err
 	}
 
-	// TODO(rfindley): add a test for jump to definition of error.Error (which is
-	// probably failing, considering it lacks special handling).
 	if obj.Name() == "Error" {
 		signature := obj.String()
 		return &HoverJSON{

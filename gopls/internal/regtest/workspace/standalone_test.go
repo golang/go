@@ -22,7 +22,7 @@ go 1.16
 -- lib/lib.go --
 package lib
 
-const C = 0
+const K = 0
 
 type I interface {
 	M()
@@ -37,13 +37,13 @@ import (
 	"mod.test/lib"
 )
 
-const C = 1
+const K = 1
 
 type Mer struct{}
 func (Mer) M()
 
 func main() {
-	println(lib.C + C)
+	println(lib.K + K)
 }
 `
 	WithOptions(
@@ -53,13 +53,18 @@ func main() {
 		Modes(Default),
 	).Run(t, files, func(t *testing.T, env *Env) {
 		// Initially, gopls should not know about the standalone file as it hasn't
-		// been opened. Therefore, we should only find one symbol 'C'.
-		syms := env.Symbol("C")
+		// been opened. Therefore, we should only find one symbol 'K'.
+		//
+		// (The choice of "K" is a little sleazy: it was originally "C" until
+		// we started adding "unsafe" to the workspace unconditionally, which
+		// caused a spurious match of "unsafe.Slice". But in practice every
+		// workspace depends on unsafe.)
+		syms := env.Symbol("K")
 		if got, want := len(syms), 1; got != want {
-			t.Errorf("got %d symbols, want %d", got, want)
+			t.Errorf("got %d symbols, want %d (%+v)", got, want, syms)
 		}
 
-		// Similarly, we should only find one reference to "C", and no
+		// Similarly, we should only find one reference to "K", and no
 		// implementations of I.
 		checkLocations := func(method string, gotLocations []protocol.Location, wantFiles ...string) {
 			var gotFiles []string
@@ -76,14 +81,14 @@ func main() {
 		env.OpenFile("lib/lib.go")
 		env.AfterChange(NoDiagnostics())
 
-		// Replacing C with D should not cause any workspace diagnostics, since we
+		// Replacing K with D should not cause any workspace diagnostics, since we
 		// haven't yet opened the standalone file.
-		env.RegexpReplace("lib/lib.go", "C", "D")
+		env.RegexpReplace("lib/lib.go", "K", "D")
 		env.AfterChange(NoDiagnostics())
-		env.RegexpReplace("lib/lib.go", "D", "C")
+		env.RegexpReplace("lib/lib.go", "D", "K")
 		env.AfterChange(NoDiagnostics())
 
-		refs := env.References(env.RegexpSearch("lib/lib.go", "C"))
+		refs := env.References(env.RegexpSearch("lib/lib.go", "K"))
 		checkLocations("References", refs, "lib/lib.go")
 
 		impls := env.Implementations(env.RegexpSearch("lib/lib.go", "I"))
@@ -95,56 +100,56 @@ func main() {
 
 		// Having opened the standalone file, we should find its symbols in the
 		// workspace.
-		syms = env.Symbol("C")
+		syms = env.Symbol("K")
 		if got, want := len(syms), 2; got != want {
 			t.Fatalf("got %d symbols, want %d", got, want)
 		}
 
-		foundMainC := false
+		foundMainK := false
 		var symNames []string
 		for _, sym := range syms {
 			symNames = append(symNames, sym.Name)
-			if sym.Name == "main.C" {
-				foundMainC = true
+			if sym.Name == "main.K" {
+				foundMainK = true
 			}
 		}
-		if !foundMainC {
-			t.Errorf("WorkspaceSymbol(\"C\") = %v, want containing main.C", symNames)
+		if !foundMainK {
+			t.Errorf("WorkspaceSymbol(\"K\") = %v, want containing main.K", symNames)
 		}
 
 		// We should resolve workspace definitions in the standalone file.
-		fileLoc := env.GoToDefinition(env.RegexpSearch("lib/ignore.go", "lib.(C)"))
+		fileLoc := env.GoToDefinition(env.RegexpSearch("lib/ignore.go", "lib.(K)"))
 		file := env.Sandbox.Workdir.URIToPath(fileLoc.URI)
 		if got, want := file, "lib/lib.go"; got != want {
-			t.Errorf("GoToDefinition(lib.C) = %v, want %v", got, want)
+			t.Errorf("GoToDefinition(lib.K) = %v, want %v", got, want)
 		}
 
 		// ...as well as intra-file definitions
-		loc := env.GoToDefinition(env.RegexpSearch("lib/ignore.go", "\\+ (C)"))
-		wantLoc := env.RegexpSearch("lib/ignore.go", "const (C)")
+		loc := env.GoToDefinition(env.RegexpSearch("lib/ignore.go", "\\+ (K)"))
+		wantLoc := env.RegexpSearch("lib/ignore.go", "const (K)")
 		if loc != wantLoc {
-			t.Errorf("GoToDefinition(C) = %v, want %v", loc, wantLoc)
+			t.Errorf("GoToDefinition(K) = %v, want %v", loc, wantLoc)
 		}
 
-		// Renaming "lib.C" to "lib.D" should cause a diagnostic in the standalone
+		// Renaming "lib.K" to "lib.D" should cause a diagnostic in the standalone
 		// file.
-		env.RegexpReplace("lib/lib.go", "C", "D")
-		env.AfterChange(Diagnostics(env.AtRegexp("lib/ignore.go", "lib.(C)")))
+		env.RegexpReplace("lib/lib.go", "K", "D")
+		env.AfterChange(Diagnostics(env.AtRegexp("lib/ignore.go", "lib.(K)")))
 
 		// Undoing the replacement should fix diagnostics
-		env.RegexpReplace("lib/lib.go", "D", "C")
+		env.RegexpReplace("lib/lib.go", "D", "K")
 		env.AfterChange(NoDiagnostics())
 
 		// Now that our workspace has no errors, we should be able to find
 		// references and rename.
-		refs = env.References(env.RegexpSearch("lib/lib.go", "C"))
+		refs = env.References(env.RegexpSearch("lib/lib.go", "K"))
 		checkLocations("References", refs, "lib/lib.go", "lib/ignore.go")
 
 		impls = env.Implementations(env.RegexpSearch("lib/lib.go", "I"))
 		checkLocations("Implementations", impls, "lib/ignore.go")
 
 		// Renaming should rename in the standalone package.
-		env.Rename(env.RegexpSearch("lib/lib.go", "C"), "D")
+		env.Rename(env.RegexpSearch("lib/lib.go", "K"), "D")
 		env.RegexpSearch("lib/ignore.go", "lib.D")
 	})
 }

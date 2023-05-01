@@ -246,13 +246,13 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 
 	// nil, error, error.Error, iota, or other built-in?
 	if obj.Pkg() == nil {
-		// For some reason, existing tests require that iota has no references,
-		// nor an error. TODO(adonovan): do something more principled.
-		if obj.Name() == "iota" {
-			return nil, nil
-		}
-
 		return nil, fmt.Errorf("references to builtin %q are not supported", obj.Name())
+	}
+	if !obj.Pos().IsValid() {
+		if obj.Pkg().Path() != "unsafe" {
+			bug.Reportf("references: object %v has no position", obj)
+		}
+		return nil, fmt.Errorf("references to unsafe.%s are not supported", obj.Name())
 	}
 
 	// Find metadata of all packages containing the object's defining file.
