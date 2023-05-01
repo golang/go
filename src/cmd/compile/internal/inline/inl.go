@@ -211,25 +211,15 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
 		// before performing any inlining, the results are less
 		// sensitive to the order within the SCC (see #58905 for an
 		// example).
-		if base.Debug.InlineSCCOnePass == 0 {
-			// Compute inlinability for all functions in the SCC ...
+
+		// First compute inlinability for all functions in the SCC ...
+		for _, n := range list {
+			doCanInline(n, recursive, numfns)
+		}
+		// ... then make a second pass to do inlining of calls.
+		if doInline {
 			for _, n := range list {
-				doCanInline(n, recursive, numfns)
-			}
-			// ... then make a second pass to do inlining of calls.
-			if doInline {
-				for _, n := range list {
-					InlineCalls(n, p)
-				}
-			}
-		} else {
-			// Legacy ordering to make it easier to triage any bugs
-			// or compile time issues that might crop up.
-			for _, n := range list {
-				doCanInline(n, recursive, numfns)
-				if doInline {
-					InlineCalls(n, p)
-				}
+				InlineCalls(n, p)
 			}
 		}
 	})
