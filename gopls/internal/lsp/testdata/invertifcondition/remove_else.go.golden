@@ -1,0 +1,19 @@
+-- suggestedfix_remove_else_8_2 --
+package invertifcondition
+
+import (
+	"fmt"
+)
+
+func RemoveElse() {
+	if false {
+		fmt.Println("B")
+		return
+	}
+
+	//@suggestedfix("if true", "refactor.rewrite", "")
+	fmt.Println("A")
+
+	fmt.Println("C")
+}
+

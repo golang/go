@@ -1,0 +1,18 @@
+-- suggestedfix_dont_remove_parens_11_3 --
+package invertifcondition
+
+import (
+	"fmt"
+)
+
+func DontRemoveParens() {
+	a := false
+	b := true
+	if (a ||
+		b) {
+		fmt.Println("B")
+	} else { //@suggestedfix("b", "refactor.rewrite", "")
+		fmt.Println("A")
+	}
+}
+

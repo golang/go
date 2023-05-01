@@ -1,0 +1,16 @@
+-- suggestedfix_boolean_fn_9_2 --
+package invertifcondition
+
+import (
+	"fmt"
+	"os"
+)
+
+func BooleanFn() {
+	if !os.IsPathSeparator('X') {
+		fmt.Println("B")
+	} else { //@suggestedfix("if os.IsPathSeparator('X')", "refactor.rewrite", "")
+		fmt.Println("A")
+	}
+}
+

@@ -1,0 +1,15 @@
+-- suggestedfix_semicolon_and_8_3 --
+package invertifcondition
+
+import (
+	"fmt"
+)
+
+func SemicolonAnd() {
+	if n, err := fmt.Println("x"); err == nil || n <= 0 {
+		fmt.Println("B")
+	} else { //@suggestedfix("f", "refactor.rewrite", "")
+		fmt.Println("A")
+	}
+}
+

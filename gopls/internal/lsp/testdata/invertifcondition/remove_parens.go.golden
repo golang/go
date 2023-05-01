@@ -1,0 +1,16 @@
+-- suggestedfix_remove_parens_9_2 --
+package invertifcondition
+
+import (
+	"fmt"
+)
+
+func RemoveParens() {
+	b := true
+	if b {
+		fmt.Println("B")
+	} else { //@suggestedfix("if", "refactor.rewrite", "")
+		fmt.Println("A")
+	}
+}
+

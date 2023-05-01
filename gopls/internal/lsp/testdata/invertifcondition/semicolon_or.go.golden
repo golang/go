@@ -1,0 +1,15 @@
+-- suggestedfix_semicolon_or_8_2 --
+package invertifcondition
+
+import (
+	"fmt"
+)
+
+func SemicolonOr() {
+	if n, err := fmt.Println("x"); err == nil && n >= 5 {
+		fmt.Println("B")
+	} else { //@suggestedfix(re"if n, err := fmt.Println..x..; err != nil .. n < 5", "refactor.rewrite", "")
+		fmt.Println("A")
+	}
+}
+

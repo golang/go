@@ -1,0 +1,16 @@
+-- suggestedfix_greater_than_9_2 --
+package invertifcondition
+
+import (
+	"fmt"
+	"os"
+)
+
+func GreaterThan() {
+	if len(os.Args) <= 2 {
+		fmt.Println("B")
+	} else { //@suggestedfix("i", "refactor.rewrite", "")
+		fmt.Println("A")
+	}
+}
+
