@@ -432,7 +432,7 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 				targets[obj] = true
 			}
 
-			return localReferences(pkg, targets, report)
+			return localReferences(pkg, targets, true, report)
 		})
 	}
 
@@ -453,11 +453,18 @@ func ordinaryReferences(ctx context.Context, snapshot Snapshot, uri span.URI, pp
 			for objpath := range globalTargets[pkg.Metadata().PkgPath] {
 				obj, err := objectpath.Object(pkg.GetTypes(), objpath)
 				if err != nil {
-					return err // can't happen?
+					// No such object, because it was
+					// declared only in the test variant.
+					continue
 				}
 				targets[obj] = true
 			}
-			return localReferences(pkg, targets, report)
+
+			// Don't include corresponding types or methods
+			// since expansions did that already, and we don't
+			// want (e.g.) concrete -> interface -> concrete.
+			const correspond = false
+			return localReferences(pkg, targets, correspond, report)
 		})
 	}
 
@@ -550,18 +557,22 @@ func expandMethodSearch(ctx context.Context, snapshot Snapshot, workspaceIDs []P
 	return group.Wait()
 }
 
-// localReferences traverses syntax and reports each reference to one of the target objects.
-func localReferences(pkg Package, targets map[types.Object]bool, report func(loc protocol.Location, isDecl bool)) error {
-	// If we're searching for references to a method, broaden the
-	// search to include references to corresponding methods of
-	// mutually assignable receiver types.
+// localReferences traverses syntax and reports each reference to one
+// of the target objects, or (if correspond is set) an object that
+// corresponds to one of them via interface satisfaction.
+func localReferences(pkg Package, targets map[types.Object]bool, correspond bool, report func(loc protocol.Location, isDecl bool)) error {
+	// If we're searching for references to a method optionally
+	// broaden the search to include references to corresponding
+	// methods of mutually assignable receiver types.
 	// (We use a slice, but objectsAt never returns >1 methods.)
 	var methodRecvs []types.Type
 	var methodName string // name of an arbitrary target, iff a method
-	for obj := range targets {
-		if t := effectiveReceiver(obj); t != nil {
-			methodRecvs = append(methodRecvs, t)
-			methodName = obj.Name()
+	if correspond {
+		for obj := range targets {
+			if t := effectiveReceiver(obj); t != nil {
+				methodRecvs = append(methodRecvs, t)
+				methodName = obj.Name()
+			}
 		}
 	}
 

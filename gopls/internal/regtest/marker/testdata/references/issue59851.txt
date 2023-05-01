@@ -1,0 +1,29 @@
+Regression test for 'references' bug golang/go#59851.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+type Iface interface {
+     Method()
+}
+
+type implOne struct{}
+
+func (implOne) Method() {} //@loc(def1, "Method"), refs(def1, def1, ref1, iref, ireftest)
+
+var _ = implOne.Method //@loc(ref1, "Method")
+var _ = Iface(nil).Method //@loc(iref, "Method")
+
+-- a/a_test.go --
+package a
+
+type implTwo struct{}
+
+func (implTwo) Method() {} //@loc(def2, "Method"), refs(def2, def2, iref, ref2, ireftest)
+
+var _ = implTwo.Method //@loc(ref2, "Method")
+var _ = Iface(nil).Method //@loc(ireftest, "Method")
