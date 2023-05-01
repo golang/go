@@ -1247,6 +1247,16 @@ func (l *Loader) Data(i Sym) []byte {
 	return r.Data(li)
 }
 
+// Returns the symbol content of the i-th symbol as a string. i is global index.
+func (l *Loader) DataString(i Sym) string {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		return string(pp.data)
+	}
+	r, li := l.toLocal(i)
+	return r.DataString(li)
+}
+
 // FreeData clears the symbol data of an external symbol, allowing the memory
 // to be freed earlier. No-op for non-external symbols.
 // i is global index.

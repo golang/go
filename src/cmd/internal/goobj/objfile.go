@@ -853,6 +853,15 @@ func (r *Reader) Data(i uint32) []byte {
 	return r.BytesAt(base+off, int(end-off))
 }
 
+// DataString returns the i-th symbol's data as a string.
+func (r *Reader) DataString(i uint32) string {
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + i*4
+	base := r.h.Offsets[BlkData]
+	off := r.uint32At(dataIdxOff)
+	end := r.uint32At(dataIdxOff + 4)
+	return r.StringAt(base+off, end-off)
+}
+
 // NRefName returns the number of referenced symbol names.
 func (r *Reader) NRefName() int {
 	return int(r.h.Offsets[BlkRefName+1]-r.h.Offsets[BlkRefName]) / RefNameSize

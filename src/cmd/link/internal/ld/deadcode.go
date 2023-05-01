@@ -487,7 +487,7 @@ func (d *deadcodePass) decodeIfaceMethod(ldr *loader.Loader, arch *sys.Arch, sym
 
 // Decode the method name stored in symbol symIdx. The symbol should contain just the bytes of a method name.
 func (d *deadcodePass) decodeGenericIfaceMethod(ldr *loader.Loader, symIdx loader.Sym) string {
-	return string(ldr.Data(symIdx))
+	return ldr.DataString(symIdx)
 }
 
 func (d *deadcodePass) decodetypeMethods(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs) []methodsig {
