@@ -121,7 +121,9 @@ func findNamedFunc(pkg *Package, pos token.Pos) *Function {
 				// Don't call Program.Method: avoid creating wrappers.
 				obj := mset.At(i).Obj().(*types.Func)
 				if obj.Pos() == pos {
-					return pkg.objects[obj].(*Function)
+					// obj from MethodSet may not be the origin type.
+					m := typeparams.OriginMethod(obj)
+					return pkg.objects[m].(*Function)
 				}
 			}
 		}

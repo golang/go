@@ -24,6 +24,7 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 func TestObjValueLookup(t *testing.T) {
@@ -383,6 +384,19 @@ func TestEnclosingFunction(t *testing.T) {
 		{`package main
 		  func init() { println(func(){print(900)}) }`,
 			"900", "main.init#1$1"},
+	}
+	if typeparams.Enabled {
+		tests = append(tests, struct {
+			input  string
+			substr string
+			fn     string
+		}{
+			`package main
+			type S[T any] struct{}
+			func (*S[T]) Foo() { println(1000) }
+			type P[T any] struct{ *S[T] }`,
+			"1000", "(*main.S[T]).Foo",
+		})
 	}
 	for _, test := range tests {
 		conf := loader.Config{Fset: token.NewFileSet()}
