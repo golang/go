@@ -1056,7 +1056,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
 		if strings.Contains(s, "%") {
 			m := printFormatRE.FindStringSubmatch(s)
 			if m != nil {
-				pass.ReportRangef(call, "%s call has possible formatting directive %s", fn.FullName(), m[0])
+				pass.ReportRangef(call, "%s call contains %s, possibly intended as Printf formatting directive", fn.FullName(), m[0])
 			}
 		}
 	}
