@@ -159,7 +159,10 @@ type Snapshot interface {
 	CriticalError(ctx context.Context) *CriticalError
 
 	// Symbols returns all symbols in the snapshot.
-	Symbols(ctx context.Context) (map[span.URI][]Symbol, error)
+	//
+	// If workspaceOnly is set, this only includes symbols from files in a
+	// workspace package. Otherwise, it returns symbols from all loaded packages.
+	Symbols(ctx context.Context, workspaceOnly bool) (map[span.URI][]Symbol, error)
 
 	// -- package metadata --
 

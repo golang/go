@@ -73,7 +73,6 @@ const (
 			"Fooex",  // shorter than Fooest, FooBar, lexically before Fooey
 			"Fooey",  // shorter than Fooest, Foobar
 			"Fooest",
-			"unsafe.Offsetof", // a very fuzzy match
 		)
 	})
 }

@@ -456,6 +456,22 @@ just "Foo.Field".
 
 Default: `"Dynamic"`.
 
+##### **symbolScope** *enum*
+
+symbolScope controls which packages are searched for workspace/symbol
+requests. The default value, "workspace", searches only workspace
+packages. The legacy behavior, "all", causes all loaded packages to be
+searched, including dependencies; this is more expensive and may return
+unwanted results.
+
+Must be one of:
+
+* `"all"` matches symbols in any loaded package, including
+dependencies.
+* `"workspace"` matches symbols in workspace packages only.
+
+Default: `"workspace"`.
+
 #### **verboseOutput** *bool*
 
 **This setting is for debugging purposes only.**

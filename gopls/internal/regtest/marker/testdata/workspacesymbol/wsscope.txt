@@ -1,0 +1,29 @@
+This test verifies behavior when "symbolScope" is set to the default value
+("workspace").
+
+-- settings.json --
+{
+	"symbolStyle": "full",
+	"symbolMatcher": "casesensitive"
+}
+
+-- go.mod --
+module mod.test/symbols
+
+go 1.18
+
+-- query.go --
+package symbols
+
+//@workspacesymbol("fmt.Println", println)
+
+-- fmt/fmt.go --
+package fmt
+
+import "fmt"
+
+func Println(s string) {
+	fmt.Println(s)
+}
+-- @println --
+fmt/fmt.go:5:6-13 mod.test/symbols/fmt.Println Function

@@ -143,6 +143,7 @@ func DefaultOptions() *Options {
 						ImportShortcut: BothShortcuts,
 						SymbolMatcher:  SymbolFastFuzzy,
 						SymbolStyle:    DynamicSymbols,
+						SymbolScope:    WorkspaceSymbolScope,
 					},
 					CompletionOptions: CompletionOptions{
 						Matcher:                        Fuzzy,
@@ -454,6 +455,13 @@ type NavigationOptions struct {
 	// }
 	// ```
 	SymbolStyle SymbolStyle `status:"advanced"`
+
+	// SymbolScope controls which packages are searched for workspace/symbol
+	// requests. The default value, "workspace", searches only workspace
+	// packages. The legacy behavior, "all", causes all loaded packages to be
+	// searched, including dependencies; this is more expensive and may return
+	// unwanted results.
+	SymbolScope SymbolScope
 }
 
 // UserOptions holds custom Gopls configuration (not part of the LSP) that is
@@ -617,6 +625,8 @@ const (
 	CaseSensitive   Matcher = "CaseSensitive"
 )
 
+// A SymbolMatcher controls the matching of symbols for workspace/symbol
+// requests.
 type SymbolMatcher string
 
 const (
@@ -626,6 +636,7 @@ const (
 	SymbolCaseSensitive   SymbolMatcher = "CaseSensitive"
 )
 
+// A SymbolStyle controls the formatting of symbols in workspace/symbol results.
 type SymbolStyle string
 
 const (
@@ -640,6 +651,17 @@ const (
 	// delimited suffix of the fully qualified symbol. i.e. "to/pkg.Foo.Field" or
 	// just "Foo.Field".
 	DynamicSymbols SymbolStyle = "Dynamic"
+)
+
+// A SymbolScope controls the search scope for workspace/symbol requests.
+type SymbolScope string
+
+const (
+	// WorkspaceSymbolScope matches symbols in workspace packages only.
+	WorkspaceSymbolScope SymbolScope = "workspace"
+	// AllSymbolScope matches symbols in any loaded package, including
+	// dependencies.
+	AllSymbolScope SymbolScope = "all"
 )
 
 type HoverKind string
@@ -967,6 +989,14 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 			string(DynamicSymbols),
 		); ok {
 			o.SymbolStyle = SymbolStyle(s)
+		}
+
+	case "symbolScope":
+		if s, ok := result.asOneOf(
+			string(WorkspaceSymbolScope),
+			string(AllSymbolScope),
+		); ok {
+			o.SymbolScope = SymbolScope(s)
 		}
 
 	case "hoverKind":

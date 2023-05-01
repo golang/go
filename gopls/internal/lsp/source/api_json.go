@@ -195,6 +195,23 @@ var GeneratedAPIJSON = &APIJSON{
 				Hierarchy: "ui.navigation",
 			},
 			{
+				Name: "symbolScope",
+				Type: "enum",
+				Doc:  "symbolScope controls which packages are searched for workspace/symbol\nrequests. The default value, \"workspace\", searches only workspace\npackages. The legacy behavior, \"all\", causes all loaded packages to be\nsearched, including dependencies; this is more expensive and may return\nunwanted results.\n",
+				EnumValues: []EnumValue{
+					{
+						Value: "\"all\"",
+						Doc:   "`\"all\"` matches symbols in any loaded package, including\ndependencies.\n",
+					},
+					{
+						Value: "\"workspace\"",
+						Doc:   "`\"workspace\"` matches symbols in workspace packages only.\n",
+					},
+				},
+				Default:   "\"workspace\"",
+				Hierarchy: "ui.navigation",
+			},
+			{
 				Name: "analyses",
 				Type: "map[string]bool",
 				Doc:  "analyses specify analyses that the user would like to enable or disable.\nA map of the names of analysis passes that should be enabled/disabled.\nA full list of analyzers that gopls uses can be found in\n[analyzers.md](https://github.com/golang/tools/blob/master/gopls/doc/analyzers.md).\n\nExample Usage:\n\n```json5\n...\n\"analyses\": {\n  \"unreachable\": false, // Disable the unreachable analyzer.\n  \"unusedparams\": true  // Enable the unusedparams analyzer.\n}\n...\n```\n",

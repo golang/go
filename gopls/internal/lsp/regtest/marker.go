@@ -882,14 +882,21 @@ func (run *markerTestRun) fmtPos(pos token.Pos) string {
 // archive-relative paths for files and including the line number in the full
 // archive file.
 func (run *markerTestRun) fmtLoc(loc protocol.Location) string {
-	return run.fmtLocDetails(loc, true)
+	formatted := run.fmtLocDetails(loc, true)
+	if formatted == "" {
+		run.env.T.Errorf("unable to find %s in test archive", loc)
+		return "<invalid location>"
+	}
+	return formatted
 }
 
 // See fmtLoc. If includeTxtPos is not set, the position in the full archive
 // file is omitted.
+//
+// If the location cannot be found within the archive, fmtLocDetails returns "".
 func (run *markerTestRun) fmtLocDetails(loc protocol.Location, includeTxtPos bool) string {
 	if loc == (protocol.Location{}) {
-		return "<missing location>"
+		return ""
 	}
 	lines := bytes.Count(run.test.archive.Comment, []byte("\n"))
 	var name string
@@ -903,8 +910,7 @@ func (run *markerTestRun) fmtLocDetails(loc protocol.Location, includeTxtPos boo
 		lines += bytes.Count(f.Data, []byte("\n"))
 	}
 	if name == "" {
-		run.env.T.Errorf("unable to find %s in test archive", loc)
-		return "<invalid location>"
+		return ""
 	}
 	m, err := run.env.Editor.Mapper(name)
 	if err != nil {
@@ -1675,6 +1681,11 @@ func workspaceSymbolMarker(mark marker, query string, golden *Golden) {
 		// Omit the txtar position of the symbol location; otherwise edits to the
 		// txtar archive lead to unexpected failures.
 		loc := mark.run.fmtLocDetails(s.Location, false)
+		// TODO(rfindley): can we do better here, by detecting if the location is
+		// relative to GOROOT?
+		if loc == "" {
+			loc = "<unknown>"
+		}
 		fmt.Fprintf(&got, "%s %s %s\n", loc, s.Name, s.Kind)
 	}
 

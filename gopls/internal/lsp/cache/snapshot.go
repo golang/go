@@ -1113,18 +1113,26 @@ func (s *snapshot) WorkspaceMetadata(ctx context.Context) ([]*source.Metadata, e
 // a loaded package. It awaits snapshot loading.
 //
 // TODO(rfindley): move this to the top of cache/symbols.go
-func (s *snapshot) Symbols(ctx context.Context) (map[span.URI][]source.Symbol, error) {
+func (s *snapshot) Symbols(ctx context.Context, workspaceOnly bool) (map[span.URI][]source.Symbol, error) {
 	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
 
-	// Build symbols for all loaded Go files.
-	s.mu.Lock()
-	meta := s.meta
-	s.mu.Unlock()
+	var (
+		meta []*source.Metadata
+		err  error
+	)
+	if workspaceOnly {
+		meta, err = s.WorkspaceMetadata(ctx)
+	} else {
+		meta, err = s.AllMetadata(ctx)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("loading metadata: %v", err)
+	}
 
 	goFiles := make(map[span.URI]struct{})
-	for _, m := range meta.metadata {
+	for _, m := range meta {
 		for _, uri := range m.GoFiles {
 			goFiles[uri] = struct{}{}
 		}
