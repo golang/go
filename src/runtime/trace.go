@@ -927,12 +927,10 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 	return uint64(id)
 }
 
-// tracefpunwindoff returns false if frame pointer unwinding for the tracer is
+// tracefpunwindoff returns true if frame pointer unwinding for the tracer is
 // disabled via GODEBUG or not supported by the architecture.
 func tracefpunwindoff() bool {
-	// compiler emits frame pointers for amd64 and arm64, but issue 58432 blocks
-	// arm64 support for now.
-	return debug.tracefpunwindoff != 0 || goarch.ArchFamily != goarch.AMD64
+	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64)
 }
 
 // fpTracebackPCs populates pcBuf with the return addresses for each frame and
