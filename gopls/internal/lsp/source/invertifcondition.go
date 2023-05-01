@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/gopls/internal/lsp/safetoken"
+	"golang.org/x/tools/internal/typeparams"
 )
 
 // invertIfCondition is a singleFileFixFunc that inverts an if/else statement
@@ -130,7 +131,7 @@ func invertCondition(fset *token.FileSet, cond ast.Expr, src []byte) ([]byte, er
 	oldText := string(src[condStart.Offset:condEnd.Offset])
 
 	switch expr := cond.(type) {
-	case *ast.Ident, *ast.ParenExpr, *ast.CallExpr, *ast.StarExpr, *ast.IndexExpr, *ast.IndexListExpr, *ast.SelectorExpr:
+	case *ast.Ident, *ast.ParenExpr, *ast.CallExpr, *ast.StarExpr, *ast.IndexExpr, *typeparams.IndexListExpr, *ast.SelectorExpr:
 		newText := "!" + oldText
 		if oldText == "true" {
 			newText = "false"
