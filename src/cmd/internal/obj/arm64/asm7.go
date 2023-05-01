@@ -591,38 +591,66 @@ var optab = []Optab{
 	{AFMOVQ, C_NSOREG, C_NONE, C_NONE, C_FREG, C_NONE, 21, 4, 0, 0, 0},
 
 	/* long displacement store */
-	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, LTO, 0},
-	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, LTO, 0},
-	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, LTO, 0},
-	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, LTO, 0},
-	{AMOVW, C_ZREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, LTO, 0},
-	{AMOVW, C_ZREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, LTO, 0},
-	{AMOVD, C_ZREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, LTO, 0},
-	{AMOVD, C_ZREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, LTO, 0},
+	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, 0, 0},
+	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LAUTOPOOL, C_NONE, 30, 8, REGSP, LTO, 0},
+	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, 0, 0},
+	{AMOVB, C_ZREG, C_NONE, C_NONE, C_LOREGPOOL, C_NONE, 30, 8, 0, LTO, 0},
+	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, 0, 0},
+	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LAUTOPOOL, C_NONE, 30, 8, REGSP, LTO, 0},
+	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, 0, 0},
+	{AMOVH, C_ZREG, C_NONE, C_NONE, C_LOREGPOOL, C_NONE, 30, 8, 0, LTO, 0},
+	{AMOVW, C_ZREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, 0, 0},
+	{AMOVW, C_ZREG, C_NONE, C_NONE, C_LAUTOPOOL, C_NONE, 30, 8, REGSP, LTO, 0},
+	{AMOVW, C_ZREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, 0, 0},
+	{AMOVW, C_ZREG, C_NONE, C_NONE, C_LOREGPOOL, C_NONE, 30, 8, 0, LTO, 0},
+	{AMOVD, C_ZREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, 0, 0},
+	{AMOVD, C_ZREG, C_NONE, C_NONE, C_LAUTOPOOL, C_NONE, 30, 8, REGSP, LTO, 0},
+	{AMOVD, C_ZREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, 0, 0},
+	{AMOVD, C_ZREG, C_NONE, C_NONE, C_LOREGPOOL, C_NONE, 30, 8, 0, LTO, 0},
 
-	{AFMOVS, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, LTO, 0},
-	{AFMOVS, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, LTO, 0},
-	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, LTO, 0},
-	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, LTO, 0},
-	{AFMOVQ, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, LTO, 0},
-	{AFMOVQ, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, LTO, 0},
+	{AFMOVS, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, 0, 0},
+	{AFMOVS, C_FREG, C_NONE, C_NONE, C_LAUTOPOOL, C_NONE, 30, 8, REGSP, LTO, 0},
+	{AFMOVS, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, 0, 0},
+	{AFMOVS, C_FREG, C_NONE, C_NONE, C_LOREGPOOL, C_NONE, 30, 8, 0, LTO, 0},
+	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LAUTOPOOL, C_NONE, 30, 8, REGSP, LTO, 0},
+	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, 0, 0},
+	{AFMOVD, C_FREG, C_NONE, C_NONE, C_LOREGPOOL, C_NONE, 30, 8, 0, LTO, 0},
+	{AFMOVQ, C_FREG, C_NONE, C_NONE, C_LAUTO, C_NONE, 30, 8, REGSP, 0, 0},
+	{AFMOVQ, C_FREG, C_NONE, C_NONE, C_LAUTOPOOL, C_NONE, 30, 8, REGSP, LTO, 0},
+	{AFMOVQ, C_FREG, C_NONE, C_NONE, C_LOREG, C_NONE, 30, 8, 0, 0, 0},
+	{AFMOVQ, C_FREG, C_NONE, C_NONE, C_LOREGPOOL, C_NONE, 30, 8, 0, LTO, 0},
 
 	/* long displacement load */
-	{AMOVB, C_LAUTO, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, LFROM, 0},
-	{AMOVB, C_LOREG, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, LFROM, 0},
-	{AMOVH, C_LAUTO, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, LFROM, 0},
-	{AMOVH, C_LOREG, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, LFROM, 0},
-	{AMOVW, C_LAUTO, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, LFROM, 0},
-	{AMOVW, C_LOREG, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, LFROM, 0},
-	{AMOVD, C_LAUTO, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, LFROM, 0},
-	{AMOVD, C_LOREG, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, LFROM, 0},
+	{AMOVB, C_LAUTO, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, 0, 0},
+	{AMOVB, C_LAUTOPOOL, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, LFROM, 0},
+	{AMOVB, C_LOREG, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, 0, 0},
+	{AMOVB, C_LOREGPOOL, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, LFROM, 0},
+	{AMOVH, C_LAUTO, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, 0, 0},
+	{AMOVH, C_LAUTOPOOL, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, LFROM, 0},
+	{AMOVH, C_LOREG, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, 0, 0},
+	{AMOVH, C_LOREGPOOL, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, LFROM, 0},
+	{AMOVW, C_LAUTO, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, 0, 0},
+	{AMOVW, C_LAUTOPOOL, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, LFROM, 0},
+	{AMOVW, C_LOREG, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, 0, 0},
+	{AMOVW, C_LOREGPOOL, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, LFROM, 0},
+	{AMOVD, C_LAUTO, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, 0, 0},
+	{AMOVD, C_LAUTOPOOL, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, REGSP, LFROM, 0},
+	{AMOVD, C_LOREG, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, 0, 0},
+	{AMOVD, C_LOREGPOOL, C_NONE, C_NONE, C_ZREG, C_NONE, 31, 8, 0, LFROM, 0},
 
-	{AFMOVS, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, REGSP, LFROM, 0},
-	{AFMOVS, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, 0, LFROM, 0},
-	{AFMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, REGSP, LFROM, 0},
-	{AFMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, 0, LFROM, 0},
-	{AFMOVQ, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, REGSP, LFROM, 0},
-	{AFMOVQ, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, 0, LFROM, 0},
+	{AFMOVS, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, REGSP, 0, 0},
+	{AFMOVS, C_LAUTOPOOL, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, REGSP, LFROM, 0},
+	{AFMOVS, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, 0, 0, 0},
+	{AFMOVS, C_LOREGPOOL, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, 0, LFROM, 0},
+	{AFMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, REGSP, 0, 0},
+	{AFMOVD, C_LAUTOPOOL, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, REGSP, LFROM, 0},
+	{AFMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, 0, 0, 0},
+	{AFMOVD, C_LOREGPOOL, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, 0, LFROM, 0},
+	{AFMOVQ, C_LAUTO, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, REGSP, 0, 0},
+	{AFMOVQ, C_LAUTOPOOL, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, REGSP, LFROM, 0},
+	{AFMOVQ, C_LOREG, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, 0, 0, 0},
+	{AFMOVQ, C_LOREGPOOL, C_NONE, C_NONE, C_FREG, C_NONE, 31, 8, 0, LFROM, 0},
 
 	/* pre/post-indexed load (unscaled, signed 9-bit offset) */
 	{AMOVD, C_LOREG, C_NONE, C_NONE, C_ZREG, C_NONE, 22, 4, 0, 0, C_XPOST},
@@ -1476,6 +1504,14 @@ func isNEGop(op obj.As) bool {
 	return false
 }
 
+func isMOVop(op obj.As) bool {
+	switch op {
+	case AMOVB, AMOVBU, AMOVH, AMOVHU, AMOVW, AMOVWU, AMOVD, AFMOVS, AFMOVD, AFMOVQ:
+		return true
+	}
+	return false
+}
+
 func isRegShiftOrExt(a *obj.Addr) bool {
 	return (a.Index-obj.RBaseARM64)&REG_EXT != 0 || (a.Index-obj.RBaseARM64)&REG_LSL != 0
 }
@@ -1912,6 +1948,63 @@ func (c *ctxt7) con64class(a *obj.Addr) int {
 	}
 }
 
+// loadStoreClass reclassifies a load or store operation based on its offset.
+func (c *ctxt7) loadStoreClass(p *obj.Prog, lsc int, v int64) int {
+	// Avoid reclassification of pre/post-indexed loads and stores.
+	if p.Scond == C_XPRE || p.Scond == C_XPOST {
+		return lsc
+	}
+	if cmp(C_NSAUTO, lsc) || cmp(C_NSOREG, lsc) {
+		return lsc
+	}
+
+	needsPool := true
+	switch p.As {
+	case AMOVB, AMOVBU:
+		if cmp(C_UAUTO4K, lsc) || cmp(C_UOREG4K, lsc) {
+			return lsc
+		}
+		if v >= 0 && v <= 0xffffff {
+			needsPool = false
+		}
+	case AMOVH, AMOVHU:
+		if cmp(C_UAUTO8K, lsc) || cmp(C_UOREG8K, lsc) {
+			return lsc
+		}
+		if v >= 0 && v <= 0xfffffe && v&1 == 0 {
+			needsPool = false
+		}
+	case AMOVW, AMOVWU, AFMOVS:
+		if cmp(C_UAUTO16K, lsc) || cmp(C_UOREG16K, lsc) {
+			return lsc
+		}
+		if v >= 0 && v <= 0xfffffc && v&3 == 0 {
+			needsPool = false
+		}
+	case AMOVD, AFMOVD:
+		if cmp(C_UAUTO32K, lsc) || cmp(C_UOREG32K, lsc) {
+			return lsc
+		}
+		if v >= 0 && v <= 0xfffff8 && v&7 == 0 {
+			needsPool = false
+		}
+	case AFMOVQ:
+		if cmp(C_UAUTO64K, lsc) || cmp(C_UOREG64K, lsc) {
+			return lsc
+		}
+		if v >= 0 && v <= 0xfffff0 && v&15 == 0 {
+			needsPool = false
+		}
+	}
+	if needsPool && cmp(C_LAUTO, lsc) {
+		return C_LAUTOPOOL
+	}
+	if needsPool && cmp(C_LOREG, lsc) {
+		return C_LOREGPOOL
+	}
+	return lsc
+}
+
 func (c *ctxt7) aclass(a *obj.Addr) int {
 	switch a.Type {
 	case obj.TYPE_NONE:
@@ -2135,6 +2228,12 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 				a1 = c.con64class(&p.From)
 			}
 		}
+		if p.From.Type == obj.TYPE_MEM {
+			if isMOVop(p.As) && (cmp(C_LAUTO, a1) || cmp(C_LOREG, a1)) {
+				// More specific classification of large offset loads and stores.
+				a1 = c.loadStoreClass(p, a1, c.instoffset)
+			}
+		}
 		p.From.Class = int8(a1)
 	}
 
@@ -2155,6 +2254,12 @@ func (c *ctxt7) oplook(p *obj.Prog) *Optab {
 	a4 := int(p.To.Class)
 	if a4 == 0 {
 		a4 = c.aclass(&p.To)
+		if p.To.Type == obj.TYPE_MEM {
+			if isMOVop(p.As) && (cmp(C_LAUTO, a4) || cmp(C_LOREG, a4)) {
+				// More specific classification of large offset loads and stores.
+				a4 = c.loadStoreClass(p, a4, c.instoffset)
+			}
+		}
 		p.To.Class = int8(a4)
 	}
 
@@ -3931,6 +4036,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if err != nil {
 			goto storeusepool
 		}
+		if p.Pool != nil {
+			c.ctxt.Diag("%v: unused constant in pool (%v)\n", p, v)
+		}
 		o1 = c.oaddi(p, AADD, hi, REGTMP, r)
 		o2 = c.olsr12u(p, c.opstr(p, p.As), lo, REGTMP, p.From.Reg)
 		break
@@ -3938,6 +4046,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	storeusepool:
 		if r == REGTMP || p.From.Reg == REGTMP {
 			c.ctxt.Diag("REGTMP used in large offset store: %v", p)
+		}
+		if p.Pool == nil {
+			c.ctxt.Diag("%v: constant is not in pool", p)
 		}
 		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
 		o2 = c.olsxrr(p, int32(c.opstrr(p, p.As, false)), int(p.From.Reg), int(r), REGTMP)
@@ -3964,11 +4075,17 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if err != nil {
 			goto loadusepool
 		}
+		if p.Pool != nil {
+			c.ctxt.Diag("%v: unused constant in pool (%v)\n", p, v)
+		}
 		o1 = c.oaddi(p, AADD, hi, REGTMP, r)
 		o2 = c.olsr12u(p, c.opldr(p, p.As), lo, REGTMP, p.To.Reg)
 		break
 
 	loadusepool:
+		if p.Pool == nil {
+			c.ctxt.Diag("%v: constant is not in pool", p)
+		}
 		if r == REGTMP || p.From.Reg == REGTMP {
 			c.ctxt.Diag("REGTMP used in large offset load: %v", p)
 		}
