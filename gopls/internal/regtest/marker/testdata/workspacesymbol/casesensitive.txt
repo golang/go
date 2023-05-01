@@ -1,0 +1,116 @@
+This file contains tests for symbol matches using the casesensitive matcher.
+
+For historical reasons, it also verifies general behavior of the symbol search.
+
+-- settings.json --
+{
+	"symbolMatcher": "casesensitive"
+}
+
+-- go.mod --
+module mod.test/casesensitive
+
+go 1.18
+
+-- main.go --
+package main
+
+//@workspacesymbol("main.main", main)
+//@workspacesymbol("p.Message", Message)
+//@workspacesymbol("main.myvar", myvar)
+//@workspacesymbol("main.myType", myType)
+//@workspacesymbol("main.myType.Blahblah", blahblah)
+//@workspacesymbol("main.myStruct", myStruct)
+//@workspacesymbol("main.myStruct.myStructField", myStructField)
+//@workspacesymbol("main.myInterface", myInterface)
+//@workspacesymbol("main.myInterface.DoSomeCoolStuff", DoSomeCoolStuff)
+//@workspacesymbol("main.embed.myStruct", embeddedStruct)
+//@workspacesymbol("main.embed.nestedStruct.nestedStruct2.int", int)
+//@workspacesymbol("main.embed.nestedInterface.myInterface", nestedInterface)
+//@workspacesymbol("main.embed.nestedInterface.nestedMethod", nestedMethod)
+//@workspacesymbol("dunk", dunk)
+//@workspacesymbol("Dunk", Dunk)
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+func main() { // function
+	fmt.Println("Hello")
+}
+
+var myvar int // variable
+
+type myType string // basic type
+
+type myDecoder json.Decoder // to use the encoding/json import
+
+func (m *myType) Blahblah() {} // method
+
+type myStruct struct { // struct type
+	myStructField int // struct field
+}
+
+type myInterface interface { // interface
+	DoSomeCoolStuff() string // interface method
+}
+
+type embed struct {
+	myStruct
+
+	nestedStruct struct {
+		nestedField int
+
+		nestedStruct2 struct {
+			int
+		}
+	}
+
+	nestedInterface interface {
+		myInterface
+		nestedMethod()
+	}
+}
+
+func Dunk() int { return 0 }
+
+func dunk() {}
+
+-- p/p.go --
+package p
+
+const Message = "Hello World." // constant
+-- @DoSomeCoolStuff --
+main.go:41:2-17 main.myInterface.DoSomeCoolStuff Method
+-- @Dunk --
+main.go:61:6-10 Dunk Function
+-- @Message --
+p/p.go:3:7-14 p.Message Constant
+-- @blahblah --
+main.go:34:18-26 main.myType.Blahblah Method
+-- @dunk --
+main.go:63:6-10 dunk Function
+-- @int --
+main.go:51:4-7 main.embed.nestedStruct.nestedStruct2.int Field
+-- @main --
+main.go:24:6-10 main.main Function
+-- @myInterface --
+main.go:40:6-17 main.myInterface Interface
+main.go:41:2-17 main.myInterface.DoSomeCoolStuff Method
+-- @myStruct --
+main.go:36:6-14 main.myStruct Struct
+main.go:37:2-15 main.myStruct.myStructField Field
+-- @myStructField --
+main.go:37:2-15 main.myStruct.myStructField Field
+-- @myType --
+main.go:30:6-12 main.myType Class
+main.go:34:18-26 main.myType.Blahblah Method
+-- @myvar --
+main.go:28:5-10 main.myvar Variable
+-- @nestedInterface --
+main.go:56:3-14 main.embed.nestedInterface.myInterface Interface
+-- @nestedMethod --
+main.go:57:3-15 main.embed.nestedInterface.nestedMethod Method
+-- @embeddedStruct --
+main.go:45:2-10 main.embed.myStruct Field

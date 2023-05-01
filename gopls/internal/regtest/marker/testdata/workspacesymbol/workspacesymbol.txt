@@ -1,0 +1,72 @@
+This test contains tests for basic functionality of the workspace/symbol
+request.
+
+TODO(rfindley): add a test for the legacy 'fuzzy' symbol matcher using setting ("symbolMatcher": "fuzzy"). This test uses the default matcher ("fastFuzzy").
+
+-- go.mod --
+module mod.test/symbols
+
+go 1.18
+
+-- query.go --
+package symbols
+
+//@workspacesymbol("rgop", rgop)
+//@workspacesymbol("randoma", randoma)
+//@workspacesymbol("randomb", randomb)
+
+-- a/a.go --
+package a
+
+var RandomGopherVariableA = "a"
+
+const RandomGopherConstantA = "a"
+
+const (
+	randomgopherinvariable = iota
+)
+
+-- a/a_test.go --
+package a
+
+var RandomGopherTestVariableA = "a"
+
+-- a/a_x_test.go --
+package a_test
+
+var RandomGopherXTestVariableA = "a"
+
+-- b/b.go --
+package b
+
+var RandomGopherVariableB = "b"
+
+type RandomGopherStructB struct {
+	Bar int
+}
+
+-- @rgop --
+b/b.go:5:6-25 RandomGopherStructB Struct
+a/a.go:5:7-28 RandomGopherConstantA Constant
+a/a.go:3:5-26 RandomGopherVariableA Variable
+b/b.go:3:5-26 RandomGopherVariableB Variable
+a/a_test.go:3:5-30 RandomGopherTestVariableA Variable
+a/a_x_test.go:3:5-31 RandomGopherXTestVariableA Variable
+a/a.go:8:2-24 randomgopherinvariable Constant
+b/b.go:6:2-5 RandomGopherStructB.Bar Field
+-- @randoma --
+a/a.go:5:7-28 RandomGopherConstantA Constant
+a/a.go:3:5-26 RandomGopherVariableA Variable
+b/b.go:3:5-26 RandomGopherVariableB Variable
+a/a.go:8:2-24 randomgopherinvariable Constant
+a/a_test.go:3:5-30 RandomGopherTestVariableA Variable
+a/a_x_test.go:3:5-31 RandomGopherXTestVariableA Variable
+b/b.go:6:2-5 RandomGopherStructB.Bar Field
+-- @randomb --
+b/b.go:5:6-25 RandomGopherStructB Struct
+a/a.go:3:5-26 RandomGopherVariableA Variable
+b/b.go:3:5-26 RandomGopherVariableB Variable
+a/a.go:8:2-24 randomgopherinvariable Constant
+a/a_test.go:3:5-30 RandomGopherTestVariableA Variable
+a/a_x_test.go:3:5-31 RandomGopherXTestVariableA Variable
+b/b.go:6:2-5 RandomGopherStructB.Bar Field

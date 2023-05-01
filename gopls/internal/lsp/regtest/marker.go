@@ -175,6 +175,14 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     location information. There is no point to using more than one
 //     @symbol marker in a given file.
 //
+//   - workspacesymbol(query, golden): makes a workspace/symbol request for the
+//     given query, formats the response with one symbol per line, and compares
+//     against the named golden file. As workspace symbols are by definition a
+//     workspace-wide request, the location of the workspace symbol marker does
+//     not matter. Each line is of the form:
+//
+//     location name kind
+//
 // # Argument conversion
 //
 // Marker arguments are first parsed by the go/expect package, which accepts
@@ -492,18 +500,19 @@ arity:
 // Marker funcs should not mutate the test environment (e.g. via opening files
 // or applying edits in the editor).
 var markerFuncs = map[string]markerFunc{
-	"complete":       makeMarkerFunc(completeMarker),
-	"def":            makeMarkerFunc(defMarker),
-	"diag":           makeMarkerFunc(diagMarker),
-	"hover":          makeMarkerFunc(hoverMarker),
-	"format":         makeMarkerFunc(formatMarker),
-	"implementation": makeMarkerFunc(implementationMarker),
-	"loc":            makeMarkerFunc(locMarker),
-	"rename":         makeMarkerFunc(renameMarker),
-	"renameerr":      makeMarkerFunc(renameErrMarker),
-	"suggestedfix":   makeMarkerFunc(suggestedfixMarker),
-	"symbol":         makeMarkerFunc(symbolMarker),
-	"refs":           makeMarkerFunc(refsMarker),
+	"complete":        makeMarkerFunc(completeMarker),
+	"def":             makeMarkerFunc(defMarker),
+	"diag":            makeMarkerFunc(diagMarker),
+	"hover":           makeMarkerFunc(hoverMarker),
+	"format":          makeMarkerFunc(formatMarker),
+	"implementation":  makeMarkerFunc(implementationMarker),
+	"loc":             makeMarkerFunc(locMarker),
+	"rename":          makeMarkerFunc(renameMarker),
+	"renameerr":       makeMarkerFunc(renameErrMarker),
+	"suggestedfix":    makeMarkerFunc(suggestedfixMarker),
+	"symbol":          makeMarkerFunc(symbolMarker),
+	"refs":            makeMarkerFunc(refsMarker),
+	"workspacesymbol": makeMarkerFunc(workspaceSymbolMarker),
 }
 
 // markerTest holds all the test data extracted from a test txtar archive.
@@ -863,6 +872,12 @@ func (run *markerTestRun) fmtPos(pos token.Pos) string {
 // archive-relative paths for files and including the line number in the full
 // archive file.
 func (run *markerTestRun) fmtLoc(loc protocol.Location) string {
+	return run.fmtLocDetails(loc, true)
+}
+
+// See fmtLoc. If includeTxtPos is not set, the position in the full archive
+// file is omitted.
+func (run *markerTestRun) fmtLocDetails(loc protocol.Location, includeTxtPos bool) string {
 	if loc == (protocol.Location{}) {
 		return "<missing location>"
 	}
@@ -904,7 +919,11 @@ func (run *markerTestRun) fmtLoc(loc protocol.Location) string {
 		}
 	}
 
-	return fmt.Sprintf("%s:%s (%s:%s)", name, innerSpan, run.test.name, outerSpan)
+	if includeTxtPos {
+		return fmt.Sprintf("%s:%s (%s:%s)", name, innerSpan, run.test.name, outerSpan)
+	} else {
+		return fmt.Sprintf("%s:%s", name, innerSpan)
+	}
 }
 
 // makeMarkerFunc uses reflection to create a markerFunc for the given func value.
@@ -1570,4 +1589,33 @@ func compareLocations(mark marker, got, want []protocol.Location) error {
 			len(got), len(want), diff)
 	}
 	return nil
+}
+
+func workspaceSymbolMarker(mark marker, query string, golden *Golden) {
+	params := &protocol.WorkspaceSymbolParams{
+		Query: query,
+	}
+
+	gotSymbols, err := mark.server().Symbol(mark.run.env.Ctx, params)
+	if err != nil {
+		mark.errorf("Symbol(%q) failed: %v", query, err)
+		return
+	}
+	var got bytes.Buffer
+	for _, s := range gotSymbols {
+		// Omit the txtar position of the symbol location; otherwise edits to the
+		// txtar archive lead to unexpected failures.
+		loc := mark.run.fmtLocDetails(s.Location, false)
+		fmt.Fprintf(&got, "%s %s %s\n", loc, s.Name, s.Kind)
+	}
+
+	want, ok := golden.Get(mark.run.env.T, "", got.Bytes())
+	if !ok {
+		mark.errorf("missing golden file @%s", golden.id)
+		return
+	}
+
+	if diff := compare.Bytes(want, got.Bytes()); diff != "" {
+		mark.errorf("Symbol(%q) mismatch:\n%s", query, diff)
+	}
 }

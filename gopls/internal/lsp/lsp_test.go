@@ -956,35 +956,6 @@ func applyTextDocumentEdits(r *runner, edits []protocol.DocumentChanges) (map[sp
 	return res, nil
 }
 
-func (r *runner) WorkspaceSymbols(t *testing.T, uri span.URI, query string, typ tests.WorkspaceSymbolsTestType) {
-	matcher := tests.WorkspaceSymbolsTestTypeToMatcher(typ)
-
-	original := r.server.session.Options()
-	modified := original
-	modified.SymbolMatcher = matcher
-	r.server.session.SetOptions(modified)
-	defer r.server.session.SetOptions(original)
-
-	params := &protocol.WorkspaceSymbolParams{
-		Query: query,
-	}
-	gotSymbols, err := r.server.Symbol(r.ctx, params)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := tests.WorkspaceSymbolsString(r.ctx, r.data, uri, gotSymbols)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got = filepath.ToSlash(tests.Normalize(got, r.normalizers))
-	want := string(r.data.Golden(t, fmt.Sprintf("workspace_symbol-%s-%s", strings.ToLower(string(matcher)), query), uri.Filename(), func() ([]byte, error) {
-		return []byte(got), nil
-	}))
-	if diff := compare.Text(want, got); diff != "" {
-		t.Error(diff)
-	}
-}
-
 func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.SignatureHelp) {
 	m, err := r.data.Mapper(spn.URI())
 	if err != nil {

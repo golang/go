@@ -87,7 +87,6 @@ type Highlights = map[span.Span][]span.Span
 type Renames = map[span.Span]string
 type PrepareRenames = map[span.Span]*source.PrepareItem
 type InlayHints = []span.Span
-type WorkspaceSymbols = map[WorkspaceSymbolsTestType]map[span.URI][]string
 type Signatures = map[span.Span]*protocol.SignatureHelp
 type Links = map[span.URI][]Link
 type AddImport = map[span.URI]string
@@ -118,7 +117,6 @@ type Data struct {
 	Renames                  Renames
 	InlayHints               InlayHints
 	PrepareRenames           PrepareRenames
-	WorkspaceSymbols         WorkspaceSymbols
 	Signatures               Signatures
 	Links                    Links
 	AddImport                AddImport
@@ -163,7 +161,6 @@ type Tests interface {
 	InlayHints(*testing.T, span.Span)
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
-	WorkspaceSymbols(*testing.T, span.URI, string, WorkspaceSymbolsTestType)
 	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
 	AddImport(*testing.T, span.URI, string)
@@ -197,19 +194,6 @@ const (
 
 	// CompletionRank candidates in test must be valid and in the right relative order.
 	CompletionRank
-)
-
-type WorkspaceSymbolsTestType int
-
-const (
-	// Default runs the standard workspace symbols tests.
-	WorkspaceSymbolsDefault = WorkspaceSymbolsTestType(iota)
-
-	// Fuzzy tests workspace symbols with fuzzy matching.
-	WorkspaceSymbolsFuzzy
-
-	// CaseSensitive tests workspace symbols with case sensitive.
-	WorkspaceSymbolsCaseSensitive
 )
 
 type Completion struct {
@@ -306,7 +290,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		SuggestedFixes:           make(SuggestedFixes),
 		FunctionExtractions:      make(FunctionExtractions),
 		MethodExtractions:        make(MethodExtractions),
-		WorkspaceSymbols:         make(WorkspaceSymbols),
 		Signatures:               make(Signatures),
 		Links:                    make(Links),
 		AddImport:                make(AddImport),
@@ -477,11 +460,8 @@ func load(t testing.TB, mode string, dir string) *Data {
 
 	// Collect names for the entries that require golden files.
 	if err := datum.Exported.Expect(map[string]interface{}{
-		"godef":                        datum.collectDefinitionNames,
-		"hoverdef":                     datum.collectDefinitionNames,
-		"workspacesymbol":              datum.collectWorkspaceSymbols(WorkspaceSymbolsDefault),
-		"workspacesymbolfuzzy":         datum.collectWorkspaceSymbols(WorkspaceSymbolsFuzzy),
-		"workspacesymbolcasesensitive": datum.collectWorkspaceSymbols(WorkspaceSymbolsCaseSensitive),
+		"godef":    datum.collectDefinitionNames,
+		"hoverdef": datum.collectDefinitionNames,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -764,30 +744,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
-	t.Run("WorkspaceSymbols", func(t *testing.T) {
-		t.Helper()
-
-		for _, typ := range []WorkspaceSymbolsTestType{
-			WorkspaceSymbolsDefault,
-			WorkspaceSymbolsCaseSensitive,
-			WorkspaceSymbolsFuzzy,
-		} {
-			for uri, cases := range data.WorkspaceSymbols[typ] {
-				for _, query := range cases {
-					name := query
-					if name == "" {
-						name = "EmptyQuery"
-					}
-					t.Run(name, func(t *testing.T) {
-						t.Helper()
-						tests.WorkspaceSymbols(t, uri, query, typ)
-					})
-				}
-			}
-		}
-
-	})
-
 	t.Run("SignatureHelp", func(t *testing.T) {
 		t.Helper()
 		for spn, expectedSignature := range data.Signatures {
@@ -892,15 +848,6 @@ func checkData(t *testing.T, data *Data) {
 		return count
 	}
 
-	countWorkspaceSymbols := func(c map[WorkspaceSymbolsTestType]map[span.URI][]string) (count int) {
-		for _, typs := range c {
-			for _, queries := range typs {
-				count += len(queries)
-			}
-		}
-		return count
-	}
-
 	fmt.Fprintf(buf, "CallHierarchyCount = %v\n", len(data.CallHierarchy))
 	fmt.Fprintf(buf, "CodeLensCount = %v\n", countCodeLens(data.CodeLens))
 	fmt.Fprintf(buf, "CompletionsCount = %v\n", countCompletions(data.Completions))
@@ -923,7 +870,6 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "InlayHintsCount = %v\n", len(data.InlayHints))
 	fmt.Fprintf(buf, "RenamesCount = %v\n", len(data.Renames))
 	fmt.Fprintf(buf, "PrepareRenamesCount = %v\n", len(data.PrepareRenames))
-	fmt.Fprintf(buf, "WorkspaceSymbolsCount = %v\n", countWorkspaceSymbols(data.WorkspaceSymbols))
 	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
 	fmt.Fprintf(buf, "SelectionRangesCount = %v\n", len(data.SelectionRanges))
@@ -1212,17 +1158,6 @@ func (data *Data) mustRange(spn span.Span) protocol.Range {
 		panic(fmt.Sprintf("converting span %s to range: %v", spn, err))
 	}
 	return rng
-}
-
-func (data *Data) collectWorkspaceSymbols(typ WorkspaceSymbolsTestType) func(*expect.Note, string) {
-	return func(note *expect.Note, query string) {
-		if data.WorkspaceSymbols[typ] == nil {
-			data.WorkspaceSymbols[typ] = make(map[span.URI][]string)
-		}
-		pos := safetoken.StartPosition(data.Exported.ExpectFileSet, note.Pos)
-		uri := span.URIFromPath(pos.Filename)
-		data.WorkspaceSymbols[typ][uri] = append(data.WorkspaceSymbols[typ][uri], query)
-	}
 }
 
 func (data *Data) collectSignatures(spn span.Span, signature string, activeParam int64) {

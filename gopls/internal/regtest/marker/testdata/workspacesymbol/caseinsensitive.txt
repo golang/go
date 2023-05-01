@@ -1,0 +1,26 @@
+This file contains test for symbol matches using the caseinsensitive matcher.
+
+-- settings.json --
+{
+	"symbolMatcher": "caseinsensitive"
+}
+
+-- go.mod --
+module mod.test/caseinsensitive
+
+go 1.18
+
+-- p.go --
+package caseinsensitive
+
+//@workspacesymbol("", blank)
+//@workspacesymbol("randomgophervar", randomgophervar)
+
+var RandomGopherVariableA int
+var randomgopherVariableB int
+var RandomGopherOtherVariable int
+
+-- @blank --
+-- @randomgophervar --
+p.go:6:5-26 RandomGopherVariableA Variable
+p.go:7:5-26 randomgopherVariableB Variable
