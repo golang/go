@@ -14,6 +14,7 @@ package net
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"syscall"
 	"unsafe"
@@ -66,15 +67,15 @@ func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (
 	}
 }
 
-func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error, completed bool) {
-	addrs, err, completed := cgoLookupIP(ctx, "ip", name)
+func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error) {
+	addrs, err := cgoLookupIP(ctx, "ip", name)
 	for _, addr := range addrs {
 		hosts = append(hosts, addr.String())
 	}
 	return
 }
 
-func cgoLookupPort(ctx context.Context, network, service string) (port int, err error, completed bool) {
+func cgoLookupPort(ctx context.Context, network, service string) (port int, err error) {
 	var hints _C_struct_addrinfo
 	switch network {
 	case "": // no hints
@@ -85,7 +86,7 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 		*_C_ai_socktype(&hints) = _C_SOCK_DGRAM
 		*_C_ai_protocol(&hints) = _C_IPPROTO_UDP
 	default:
-		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}, true
+		return 0, &DNSError{Err: "unknown network", Name: network + "/" + service}
 	}
 	switch ipVersion(network) {
 	case '4':
@@ -94,10 +95,9 @@ func cgoLookupPort(ctx context.Context, network, service string) (port int, err 
 		*_C_ai_family(&hints) = _C_AF_INET6
 	}
 
-	port, err = doBlockingWithCtx(ctx, func() (int, error) {
+	return doBlockingWithCtx(ctx, func() (int, error) {
 		return cgoLookupServicePort(&hints, network, service)
 	})
-	return port, err, true
 }
 
 func cgoLookupServicePort(hints *_C_struct_addrinfo, network, service string) (port int, err error) {
@@ -208,11 +208,10 @@ func cgoLookupHostIP(network, name string) (addrs []IPAddr, err error) {
 	return addrs, nil
 }
 
-func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
-	addrs, err = doBlockingWithCtx(ctx, func() ([]IPAddr, error) {
+func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error) {
+	return doBlockingWithCtx(ctx, func() ([]IPAddr, error) {
 		return cgoLookupHostIP(network, name)
 	})
-	return addrs, err, true
 }
 
 // These are roughly enough for the following:
@@ -228,20 +227,19 @@ const (
 	maxNameinfoLen = 4096
 )
 
-func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error, completed bool) {
+func cgoLookupPTR(ctx context.Context, addr string) (names []string, err error) {
 	ip, err := netip.ParseAddr(addr)
 	if err != nil {
-		return nil, &DNSError{Err: "invalid address", Name: addr}, true
+		return nil, &DNSError{Err: "invalid address", Name: addr}
 	}
 	sa, salen := cgoSockaddr(IP(ip.AsSlice()), ip.Zone())
 	if sa == nil {
-		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}, true
+		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}
 	}
 
-	names, err = doBlockingWithCtx(ctx, func() ([]string, error) {
+	return doBlockingWithCtx(ctx, func() ([]string, error) {
 		return cgoLookupAddrPTR(addr, sa, salen)
 	})
-	return names, err, true
 }
 
 func cgoLookupAddrPTR(addr string, sa *_C_struct_sockaddr, salen _C_socklen_t) (names []string, err error) {
@@ -300,7 +298,7 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 	}
 	cname, err = parseCNAMEFromResources(resources)
 	if err != nil {
-		return "", err, false
+		return
 	}
 	return cname, nil, true
 }
@@ -345,6 +343,7 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	for {
 		size, _ = _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
 		if size <= 0 || size > 0xffff {
+			fmt.Println(size)
 			return nil, errors.New("res_nsearch failure")
 		}
 		if size <= bufSize {

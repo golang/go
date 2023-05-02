@@ -18,22 +18,22 @@ import "context"
 // is not available on this system.
 const cgoAvailable = false
 
-func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error, completed bool) {
-	return nil, nil, false
+func cgoLookupHost(ctx context.Context, name string) (addrs []string, err error) {
+	panic("cgo stub: cgo not available")
 }
 
-func cgoLookupPort(ctx context.Context, network, service string) (port int, err error, completed bool) {
-	return 0, nil, false
+func cgoLookupPort(ctx context.Context, network, service string) (port int, err error) {
+	panic("cgo stub: cgo not available")
 }
 
-func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error, completed bool) {
-	return nil, nil, false
+func cgoLookupIP(ctx context.Context, network, name string) (addrs []IPAddr, err error) {
+	panic("cgo stub: cgo not available")
 }
 
 func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, completed bool) {
-	return "", nil, false
+	panic("cgo stub: cgo not available")
 }
 
-func cgoLookupPTR(ctx context.Context, addr string) (ptrs []string, err error, completed bool) {
-	return nil, nil, false
+func cgoLookupPTR(ctx context.Context, addr string) (ptrs []string, err error) {
+	panic("cgo stub: cgo not available")
 }
