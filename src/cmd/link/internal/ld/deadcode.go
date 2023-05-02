@@ -180,6 +180,14 @@ func (d *deadcodePass) flood() {
 				// converted to an interface, i.e. should have UsedInIface set. See the
 				// comment below for why we need to unset the Reachable bit and re-mark it.
 				rs := r.Sym()
+				if d.ldr.IsItab(rs) {
+					// This relocation can also point at an itab, in which case it
+					// means "the _type field of that itab".
+					rs = decodeItabType(d.ldr, d.ctxt.Arch, rs)
+				}
+				if !d.ldr.IsGoType(rs) && !d.ctxt.linkShared {
+					panic(fmt.Sprintf("R_USEIFACE in %s references %s which is not a type or itab", d.ldr.SymName(symIdx), d.ldr.SymName(rs)))
+				}
 				if !d.ldr.AttrUsedInIface(rs) {
 					d.ldr.SetAttrUsedInIface(rs, true)
 					if d.ldr.AttrReachable(rs) {
