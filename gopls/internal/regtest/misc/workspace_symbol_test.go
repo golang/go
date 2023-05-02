@@ -32,8 +32,6 @@ package exclude
 const K2 = "exclude.go"
 `
 
-	// NB: the name K was chosen to avoid spurious
-	// matches in the always-present "unsafe" package.
 	Run(t, files, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		checkSymbols(env, "K", "K1")
@@ -73,7 +71,6 @@ const (
 			"Fooex",  // shorter than Fooest, FooBar, lexically before Fooey
 			"Fooey",  // shorter than Fooest, Foobar
 			"Fooest",
-			"unsafe.Offsetof", // a very fuzzy match
 		)
 	})
 }

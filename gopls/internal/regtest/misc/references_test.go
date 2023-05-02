@@ -104,7 +104,7 @@ func _() {
 
 func TestDefsRefsBuiltins(t *testing.T) {
 	testenv.NeedsGo1Point(t, 17) // for unsafe.{Add,Slice}
-	// TODO(adonovan): add unsafe.SliceData,String,StringData} in later go versions.
+	// TODO(adonovan): add unsafe.{SliceData,String,StringData} in later go versions.
 	const files = `
 -- go.mod --
 module example.com

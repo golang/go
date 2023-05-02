@@ -217,7 +217,7 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 		id          string
 		wantName    string
 		wantKind    string
-		wantSrcs    string
+		wantSrcs    string // = {Go,Other,Embed}Files
 		wantIgnored string
 	}{
 		{"golang.org/fake/a", "a", "package", "a.go", ""},
@@ -227,7 +227,7 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 		{"container/list", "list", "package", "list.go", ""},
 		{"golang.org/fake/subdir/d", "d", "package", "d.go", ""},
 		{"golang.org/fake/subdir/d.test", "main", "command", "0.go", ""},
-		{"unsafe", "unsafe", "package", "", ""},
+		{"unsafe", "unsafe", "package", "unsafe.go", ""},
 	} {
 		p, ok := all[test.id]
 		if !ok {
@@ -250,10 +250,10 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
 		}
 
 		if srcs := strings.Join(srcs(p), " "); srcs != test.wantSrcs {
-			t.Errorf("%s.Srcs = [%s], want [%s]", test.id, srcs, test.wantSrcs)
+			t.Errorf("%s.{Go,Other,Embed}Files = [%s], want [%s]", test.id, srcs, test.wantSrcs)
 		}
 		if ignored := strings.Join(cleanPaths(p.IgnoredFiles), " "); ignored != test.wantIgnored {
-			t.Errorf("%s.Srcs = [%s], want [%s]", test.id, ignored, test.wantIgnored)
+			t.Errorf("%s.IgnoredFiles = [%s], want [%s]", test.id, ignored, test.wantIgnored)
 		}
 	}
 
@@ -2788,7 +2788,11 @@ func errorMessages(errors []packages.Error) []string {
 }
 
 func srcs(p *packages.Package) []string {
-	return cleanPaths(append(append(p.GoFiles[:len(p.GoFiles):len(p.GoFiles)], p.OtherFiles...), p.EmbedFiles...))
+	var files []string
+	files = append(files, p.GoFiles...)
+	files = append(files, p.OtherFiles...)
+	files = append(files, p.EmbedFiles...)
+	return cleanPaths(files)
 }
 
 // cleanPaths attempts to reduce path names to stable forms

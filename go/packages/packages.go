@@ -308,6 +308,9 @@ type Package struct {
 	TypeErrors []types.Error
 
 	// GoFiles lists the absolute file paths of the package's Go source files.
+	// It may include files that should not be compiled, for example because
+	// they contain non-matching build tags, are documentary pseudo-files such as
+	// unsafe/unsafe.go or builtin/builtin.go, or are subject to cgo preprocessing.
 	GoFiles []string
 
 	// CompiledGoFiles lists the absolute file paths of the package's source

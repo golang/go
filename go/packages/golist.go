@@ -625,7 +625,12 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 		}
 
 		if pkg.PkgPath == "unsafe" {
-			pkg.GoFiles = nil // ignore fake unsafe.go file
+			pkg.CompiledGoFiles = nil // ignore fake unsafe.go file (#59929)
+		} else if len(pkg.CompiledGoFiles) == 0 {
+			// Work around for pre-go.1.11 versions of go list.
+			// TODO(matloob): they should be handled by the fallback.
+			// Can we delete this?
+			pkg.CompiledGoFiles = pkg.GoFiles
 		}
 
 		// Assume go list emits only absolute paths for Dir.
@@ -661,13 +666,6 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 		}
 		if !p.DepOnly {
 			response.Roots = append(response.Roots, pkg.ID)
-		}
-
-		// Work around for pre-go.1.11 versions of go list.
-		// TODO(matloob): they should be handled by the fallback.
-		// Can we delete this?
-		if len(pkg.CompiledGoFiles) == 0 {
-			pkg.CompiledGoFiles = pkg.GoFiles
 		}
 
 		// Temporary work-around for golang/go#39986. Parse filenames out of
