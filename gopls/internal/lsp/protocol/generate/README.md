@@ -13,6 +13,7 @@ web page, or in the vscode-languageserver-node repository. This code uses the la
 exact version can be tied to a githash. By default, the command will download the `github.com/microsoft/vscode-languageserver-node` repository to a temporary directory.
 
 The specification has five sections
+
 1. Requests, which describe the Request and Response types for request methods (e.g., *textDocument/didChange*),
 2. Notifications, which describe the Request types for notification methods,
 3. Structures, which describe named struct-like types,
@@ -28,6 +29,7 @@ may need to be modified to avoid name collisions. (See the `disambiguate` map, a
 Finally, the specified types are Typescript types, which are quite different from Go types.
 
 ### Optionality
+
 The specification can mark fields in structs as Optional. The client distinguishes between missing
 fields and `null` fields in some cases. The Go translation for an optional type
 should be making sure the field's value
@@ -35,6 +37,7 @@ can be `nil`, and adding the json tag `,omitempty`. The former condition would b
 adding `*` to the field's type if the type is not a reference type.
 
 ### Types
+
 The specification uses a number of different types, only a few of which correspond directly to Go types.
 The specification's types are "base", "reference", "map", "literal", "stringLiteral", "tuple", "and", "or".
 The "base" types correspond directly to Go types, although some Go types needs to be chosen for `URI` and `DocumentUri`. (The "base" types`RegExp`, `BooleanLiteral`, `NumericLiteral` never occur.)
@@ -70,6 +73,7 @@ will have one of the permitted types. (`nil` is always allowed.) There are about
 have a single non-null component, and these are converted to the component type.
 
 ## Processing
+
 The code parses the json specification file, and scans all the types. It assigns names, as described
 above, to the types that are unnamed in the specification, and constructs Go equivalents as required.
 (Most of this code is in typenames.go.)
@@ -80,6 +84,7 @@ of the Request or Notification. tsjson.go contains the custom marshaling and unm
 And tsprotocol.go contains the type and const definitions.
 
 ### Accommodating gopls
+
 As the code generates output, mostly in generateoutput.go and main.go,
 it makes adjustments so that no changes are required to the existing Go code.
 (Organizing the computation this way makes the code's structure simpler, but results in
@@ -107,6 +112,7 @@ The solution is to make `LSPAny` an `interface{}`. Another instance is `_Initial
 whose type is an "or" of 3 stringLiterals, which just becomes a `string`.
 
 ### Checking
+
 `TestAll(t *testing.T)` checks that there are no unexpected fields in the json specification.
 
 While the code is executing, it checks that all the entries in the maps in tables.go are used.
@@ -119,6 +125,7 @@ that the older, more heuristic, code did not generate. (And the unused type `_In
 slightly between the new and the old, and is not worth fixing.)
 
 ### Some history
+
 The original stub code was written by hand, but with the protocol under active development, that
 couldn't last. The web page existed before the json specification, but it lagged the implementation
 and was hard to process by machine. So the earlier version of the generating code was written in Typescript, and
@@ -128,6 +135,7 @@ to pick out the elements of the protocol, and another set of overlapping heurist
 The output was functional, but idiosyncratic, and the code was fragile and barely maintainable.
 
 ### The future
+
 Most of the adjustments using the maps in tables.go could be removed by making changes, mostly to names,
 in the gopls code. Using more "or" types in gopls requires more elaborate, but stereotyped, changes.
 But even without all the adjustments, making this its own module would face problems; a number of

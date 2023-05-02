@@ -31,7 +31,7 @@ const vscodeRepo = "https://github.com/microsoft/vscode-languageserver-node"
 // For example, tag release/protocol/3.17.3 of the repo defines protocol version 3.17.0.
 // (Point releases are reflected in the git tag version even when they are cosmetic
 // and don't change the protocol.)
-var lspGitRef = "release/protocol/3.17.3-next.6"
+var lspGitRef = "release/protocol/3.17.4-next.0"
 
 var (
 	repodir   = flag.String("d", "", "directory containing clone of "+vscodeRepo)
