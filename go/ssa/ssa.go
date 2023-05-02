@@ -1535,12 +1535,25 @@ func (fn *Function) TypeParams() *typeparams.TypeParamList {
 // from fn.Origin().
 func (fn *Function) TypeArgs() []types.Type { return fn.typeargs }
 
-// Origin is the function fn is an instantiation of. Returns nil if fn is not
-// an instantiation.
+// Origin returns the generic function from which fn was instantiated,
+// or nil if fn is not an instantiation.
 func (fn *Function) Origin() *Function {
 	if fn.parent != nil && len(fn.typeargs) > 0 {
-		// Nested functions are BUILT at a different time than there instances.
-		return fn.parent.Origin().AnonFuncs[fn.anonIdx]
+		// Nested functions are BUILT at a different time than their instances.
+		// Build declared package if not yet BUILT. This is not an expected use
+		// case, but is simple and robust.
+		fn.declaredPackage().Build()
+	}
+	return origin(fn)
+}
+
+// origin is the function that fn is an instantiation of. Returns nil if fn is
+// not an instantiation.
+//
+// Precondition: fn and the origin function are done building.
+func origin(fn *Function) *Function {
+	if fn.parent != nil && len(fn.typeargs) > 0 {
+		return origin(fn.parent).AnonFuncs[fn.anonIdx]
 	}
 	return fn.topLevelOrigin
 }
