@@ -15,25 +15,24 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
 func TestMain(m *testing.M) {
-	// needed for initializing the test environment variables as testing.Short
-	// and HasExternalNetwork
 	flag.Parse()
 	if err := testMain(m); err != nil {
 		log.Fatal(err)
 	}
 }
 
-var gitrepo1, hgrepo1 string
+var gitrepo1, hgrepo1, vgotest1 string
 
 var altRepos = func() []string {
 	return []string{
@@ -45,8 +44,48 @@ var altRepos = func() []string {
 // TODO: Convert gitrepo1 to svn, bzr, fossil and add tests.
 // For now, at least the hgrepo1 tests check the general vcs.go logic.
 
-// localGitRepo is like gitrepo1 but allows archive access.
-var localGitRepo, localGitURL string
+// localGitRepo is like gitrepo1 but allows archive access
+// (although that doesn't really matter after CL 120041),
+// and has a file:// URL instead of http:// or https://
+// (which might still matter).
+var localGitRepo string
+
+// localGitURL initializes the repo in localGitRepo and returns its URL.
+func localGitURL(t testing.TB) string {
+	testenv.MustHaveExecPath(t, "git")
+	if runtime.GOOS == "android" && strings.HasSuffix(testenv.Builder(), "-corellium") {
+		testenv.SkipFlaky(t, 59940)
+	}
+
+	localGitURLOnce.Do(func() {
+		// Clone gitrepo1 into a local directory.
+		// If we use a file:// URL to access the local directory,
+		// then git starts up all the usual protocol machinery,
+		// which will let us test remote git archive invocations.
+		_, localGitURLErr = Run("", "git", "clone", "--mirror", gitrepo1, localGitRepo)
+		if localGitURLErr != nil {
+			return
+		}
+		_, localGitURLErr = Run(localGitRepo, "git", "config", "daemon.uploadarch", "true")
+	})
+
+	if localGitURLErr != nil {
+		t.Fatal(localGitURLErr)
+	}
+	// Convert absolute path to file URL. LocalGitRepo will not accept
+	// Windows absolute paths because they look like a host:path remote.
+	// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
+	if strings.HasPrefix(localGitRepo, "/") {
+		return "file://" + localGitRepo
+	} else {
+		return "file:///" + filepath.ToSlash(localGitRepo)
+	}
+}
+
+var (
+	localGitURLOnce sync.Once
+	localGitURLErr  error
+)
 
 func testMain(m *testing.M) (err error) {
 	cfg.BuildX = true
@@ -63,6 +102,7 @@ func testMain(m *testing.M) (err error) {
 
 	gitrepo1 = srv.HTTP.URL + "/git/gitrepo1"
 	hgrepo1 = srv.HTTP.URL + "/hg/hgrepo1"
+	vgotest1 = srv.HTTP.URL + "/git/vgotest1"
 
 	dir, err := os.MkdirTemp("", "gitrepo-test-")
 	if err != nil {
@@ -74,35 +114,12 @@ func testMain(m *testing.M) (err error) {
 		}
 	}()
 
+	localGitRepo = filepath.Join(dir, "gitrepo2")
+
 	// Redirect the module cache to a fresh directory to avoid crosstalk, and make
 	// it read/write so that the test can still clean it up easily when done.
 	cfg.GOMODCACHE = filepath.Join(dir, "modcache")
 	cfg.ModCacheRW = true
-
-	if !testing.Short() && testenv.HasExec() {
-		if _, err := exec.LookPath("git"); err == nil {
-			// Clone gitrepo1 into a local directory.
-			// If we use a file:// URL to access the local directory,
-			// then git starts up all the usual protocol machinery,
-			// which will let us test remote git archive invocations.
-			localGitRepo = filepath.Join(dir, "gitrepo2")
-			if _, err := Run("", "git", "clone", "--mirror", gitrepo1, localGitRepo); err != nil {
-				return err
-			}
-			if _, err := Run(localGitRepo, "git", "config", "daemon.uploadarch", "true"); err != nil {
-				return err
-			}
-
-			// Convert absolute path to file URL. LocalGitRepo will not accept
-			// Windows absolute paths because they look like a host:path remote.
-			// TODO(golang.org/issue/32456): use url.FromFilePath when implemented.
-			if strings.HasPrefix(localGitRepo, "/") {
-				localGitURL = "file://" + localGitRepo
-			} else {
-				localGitURL = "file:///" + filepath.ToSlash(localGitRepo)
-			}
-		}
-	}
 
 	m.Run()
 	return nil
@@ -110,8 +127,7 @@ func testMain(m *testing.M) (err error) {
 
 func testRepo(t *testing.T, remote string) (Repo, error) {
 	if remote == "localGitRepo" {
-		testenv.MustHaveExecPath(t, "git")
-		return LocalGitRepo(localGitURL)
+		return LocalGitRepo(localGitURL(t))
 	}
 	vcsName := "git"
 	for _, k := range []string{"hg"} {
@@ -119,13 +135,17 @@ func testRepo(t *testing.T, remote string) (Repo, error) {
 			vcsName = k
 		}
 	}
+	if testing.Short() && vcsName == "hg" {
+		t.Skipf("skipping hg test in short mode: hg is slow")
+	}
 	testenv.MustHaveExecPath(t, vcsName)
+	if runtime.GOOS == "android" && strings.HasSuffix(testenv.Builder(), "-corellium") {
+		testenv.SkipFlaky(t, 59940)
+	}
 	return NewRepo(vcsName, remote)
 }
 
 func TestTags(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
 	type tagsTest struct {
@@ -195,8 +215,6 @@ func TestTags(t *testing.T) {
 }
 
 func TestLatest(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
 	type latestTest struct {
@@ -260,15 +278,13 @@ func TestLatest(t *testing.T) {
 			tt.info = &info
 			o := *info.Origin
 			info.Origin = &o
-			o.URL = localGitURL
+			o.URL = localGitURL(t)
 			t.Run(path.Base(tt.repo), runTest(tt))
 		}
 	}
 }
 
 func TestReadFile(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
 	type readFileTest struct {
@@ -343,8 +359,6 @@ type zipFile struct {
 }
 
 func TestReadZip(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
 	type readZipTest struct {
@@ -535,7 +549,7 @@ func TestReadZip(t *testing.T) {
 		},
 
 		{
-			repo:   "https://github.com/rsc/vgotest1",
+			repo:   vgotest1,
 			rev:    "submod/v1.0.4",
 			subdir: "submod",
 			files: map[string]uint64{
@@ -564,8 +578,6 @@ var hgmap = map[string]string{
 }
 
 func TestStat(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExec(t)
 	t.Parallel()
 
 	type statTest struct {
