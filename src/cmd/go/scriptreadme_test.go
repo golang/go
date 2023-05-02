@@ -37,10 +37,6 @@ func checkScriptReadme(t *testing.T, engine *script.Engine, env []string) {
 	}
 	args.Conditions = conds.String()
 
-	if !testenv.HasExec() {
-		t.Skipf("updating script README requires os/exec")
-	}
-
 	doc := new(strings.Builder)
 	cmd := testenv.Command(t, testGo, "doc", "cmd/go/internal/script")
 	cmd.Env = env
