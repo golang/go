@@ -27,6 +27,12 @@ import (
 	"testing"
 )
 
+// Save the original environment during init for use in checks. A test
+// binary may modify its environment before calling HasExec to change its
+// behavior (such as mimicking a command-line tool), and that modified
+// environment might cause environment checks to behave erratically.
+var origEnv = os.Environ()
+
 // Builder reports the name of the builder running this test
 // (for example, "linux-amd64" or "windows-386-gce").
 // If the test is not running on the build infrastructure,
@@ -46,59 +52,62 @@ func HasGoBuild() bool {
 		return false
 	}
 
-	if !HasExec() {
-		// If we can't exec anything at all, we certainly can't exec 'go build'.
-		return false
-	}
+	goBuildOnce.Do(func() {
+		// To run 'go build', we need to be able to exec a 'go' command.
+		// We somewhat arbitrarily choose to exec 'go tool -n compile' because that
+		// also confirms that cmd/go can find the compiler. (Before CL 472096,
+		// we sometimes ended up with cmd/go installed in the test environment
+		// without a cmd/compile it could use to actually build things.)
+		cmd := exec.Command("go", "tool", "-n", "compile")
+		cmd.Env = origEnv
+		out, err := cmd.Output()
+		if err != nil {
+			goBuildErr = fmt.Errorf("%v: %w", cmd, err)
+			return
+		}
+		out = bytes.TrimSpace(out)
+		if len(out) == 0 {
+			goBuildErr = fmt.Errorf("%v: no tool reported", cmd)
+			return
+		}
+		if _, err := exec.LookPath(string(out)); err != nil {
+			goBuildErr = err
+			return
+		}
 
-	if platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, false) {
-		// We can assume that we always have a complete Go toolchain available.
-		// However, this platform requires a C linker to build even pure Go
-		// programs, including tests. Do we have one in the test environment?
-		// (On Android, for example, the device running the test might not have a
-		// C toolchain installed.)
-		//
-		// If CC is set explicitly, assume that we do. Otherwise, use 'go env CC'
-		// to determine which toolchain it would use by default.
-		if os.Getenv("CC") == "" {
-			if _, err := findCC(); err != nil {
-				return false
+		if platform.MustLinkExternal(runtime.GOOS, runtime.GOARCH, false) {
+			// We can assume that we always have a complete Go toolchain available.
+			// However, this platform requires a C linker to build even pure Go
+			// programs, including tests. Do we have one in the test environment?
+			// (On Android, for example, the device running the test might not have a
+			// C toolchain installed.)
+			//
+			// If CC is set explicitly, assume that we do. Otherwise, use 'go env CC'
+			// to determine which toolchain it would use by default.
+			if os.Getenv("CC") == "" {
+				cmd := exec.Command("go", "env", "CC")
+				cmd.Env = origEnv
+				out, err := cmd.Output()
+				if err != nil {
+					goBuildErr = fmt.Errorf("%v: %w", cmd, err)
+					return
+				}
+				out = bytes.TrimSpace(out)
+				if len(out) == 0 {
+					goBuildErr = fmt.Errorf("%v: no CC reported", cmd)
+					return
+				}
+				_, goBuildErr = exec.LookPath(string(out))
 			}
 		}
-	}
-
-	return true
-}
-
-func findCC() (string, error) {
-	ccOnce.Do(func() {
-		goTool, err := findGoTool()
-		if err != nil {
-			ccErr = err
-			return
-		}
-
-		cmd := exec.Command(goTool, "env", "CC")
-		out, err := cmd.Output()
-		out = bytes.TrimSpace(out)
-		if err != nil {
-			ccErr = fmt.Errorf("%v: %w", cmd, err)
-			return
-		} else if len(out) == 0 {
-			ccErr = fmt.Errorf("%v: no CC reported", cmd)
-			return
-		}
-
-		cc := string(out)
-		ccPath, ccErr = exec.LookPath(cc)
 	})
-	return ccPath, ccErr
+
+	return goBuildErr == nil
 }
 
 var (
-	ccOnce sync.Once
-	ccPath string
-	ccErr  error
+	goBuildOnce sync.Once
+	goBuildErr  error
 )
 
 // MustHaveGoBuild checks that the current system can build programs with “go build”
@@ -106,10 +115,12 @@ var (
 // If not, MustHaveGoBuild calls t.Skip with an explanation.
 func MustHaveGoBuild(t testing.TB) {
 	if os.Getenv("GO_GCFLAGS") != "" {
+		t.Helper()
 		t.Skipf("skipping test: 'go build' not compatible with setting $GO_GCFLAGS")
 	}
 	if !HasGoBuild() {
-		t.Skipf("skipping test: 'go build' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
+		t.Helper()
+		t.Skipf("skipping test: 'go build' unavailable: %v", goBuildErr)
 	}
 }
 
@@ -193,6 +204,9 @@ func findGOROOT() (string, error) {
 		// runs the test in the directory containing the packaged under test.) That
 		// means that if we start walking up the tree, we should eventually find
 		// GOROOT/src/go.mod, and we can report the parent directory of that.
+		//
+		// Notably, this works even if we can't run 'go env GOROOT' as a
+		// subprocess.
 
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -243,7 +257,8 @@ func findGOROOT() (string, error) {
 
 // GOROOT reports the path to the directory containing the root of the Go
 // project source tree. This is normally equivalent to runtime.GOROOT, but
-// works even if the test binary was built with -trimpath.
+// works even if the test binary was built with -trimpath and cannot exec
+// 'go env GOROOT'.
 //
 // If GOROOT cannot be found, GOROOT skips t if t is non-nil,
 // or panics otherwise.
@@ -264,32 +279,9 @@ func GoTool() (string, error) {
 	if !HasGoBuild() {
 		return "", errors.New("platform cannot run go tool")
 	}
-	return findGoTool()
-}
-
-func findGoTool() (string, error) {
 	goToolOnce.Do(func() {
-		goToolPath, goToolErr = func() (string, error) {
-			var exeSuffix string
-			if runtime.GOOS == "windows" {
-				exeSuffix = ".exe"
-			}
-			goroot, err := findGOROOT()
-			if err != nil {
-				return "", fmt.Errorf("cannot find go tool: %w", err)
-			}
-			path := filepath.Join(goroot, "bin", "go"+exeSuffix)
-			if _, err := os.Stat(path); err == nil {
-				return path, nil
-			}
-			goBin, err := exec.LookPath("go" + exeSuffix)
-			if err != nil {
-				return "", errors.New("cannot find go tool: " + err.Error())
-			}
-			return goBin, nil
-		}()
+		goToolPath, goToolErr = exec.LookPath("go")
 	})
-
 	return goToolPath, goToolErr
 }
 
@@ -319,9 +311,11 @@ func HasExternalNetwork() bool {
 // If not, MustHaveExternalNetwork calls t.Skip with an explanation.
 func MustHaveExternalNetwork(t testing.TB) {
 	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
+		t.Helper()
 		t.Skipf("skipping test: no external network on %s", runtime.GOOS)
 	}
 	if testing.Short() {
+		t.Helper()
 		t.Skipf("skipping test: no external network in -short mode")
 	}
 }
@@ -334,6 +328,7 @@ func HasCGO() bool {
 			return
 		}
 		cmd := exec.Command(goTool, "env", "CGO_ENABLED")
+		cmd.Env = origEnv
 		out, err := cmd.Output()
 		if err != nil {
 			panic(fmt.Sprintf("%v: %v", cmd, out))
