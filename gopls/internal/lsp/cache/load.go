@@ -221,9 +221,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 		if allFilesExcluded(pkg.GoFiles, filterFunc) {
 			continue
 		}
-		if err := buildMetadata(ctx, pkg, cfg, query, newMetadata, nil); err != nil {
-			return err
-		}
+		buildMetadata(newMetadata, pkg, cfg.Dir, query)
 	}
 
 	s.mu.Lock()
@@ -448,7 +446,7 @@ func (s *snapshot) applyCriticalErrorToFiles(ctx context.Context, msg string, fi
 // buildMetadata populates the updates map with metadata updates to
 // apply, based on the given pkg. It recurs through pkg.Imports to ensure that
 // metadata exists for all dependencies.
-func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Config, query []string, updates map[PackageID]*source.Metadata, path []PackageID) error {
+func buildMetadata(updates map[PackageID]*source.Metadata, pkg *packages.Package, loadDir string, query []string) {
 	// Allow for multiple ad-hoc packages in the workspace (see #47584).
 	pkgPath := PackagePath(pkg.PkgPath)
 	id := PackageID(pkg.ID)
@@ -465,26 +463,14 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 		pkgPath = PackagePath(pkg.PkgPath + suffix)
 	}
 
+	// Duplicate?
 	if _, ok := updates[id]; ok {
-		// If we've already seen this dependency, there may be an import cycle, or
-		// we may have reached the same package transitively via distinct paths.
-		// Check the path to confirm.
-
-		// TODO(rfindley): this doesn't look sufficient. Any single piece of new
-		// metadata could theoretically introduce import cycles in the metadata
-		// graph. What's the point of this limited check here (and is it even
-		// possible to get an import cycle in data from go/packages)? Consider
-		// simply returning, so that this function need not return an error.
-		//
-		// We should consider doing a more complete guard against import cycles
-		// elsewhere.
-		// [Update: we do! breakImportCycles in metadataGraph.Clone. Delete this.]
-		for _, prev := range path {
-			if prev == id {
-				return fmt.Errorf("import cycle detected: %q", id)
-			}
-		}
-		return nil
+		// A package was encountered twice due to shared
+		// subgraphs (common) or cycles (rare). Although "go
+		// list" usually breaks cycles, we don't rely on it.
+		// breakImportCycles in metadataGraph.Clone takes care
+		// of it later.
+		return
 	}
 
 	// Recreate the metadata rather than reusing it to avoid locking.
@@ -494,7 +480,7 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 		Name:       PackageName(pkg.Name),
 		ForTest:    PackagePath(packagesinternal.GetForTest(pkg)),
 		TypesSizes: pkg.TypesSizes,
-		LoadDir:    cfg.Dir,
+		LoadDir:    loadDir,
 		Module:     pkg.Module,
 		Errors:     pkg.Errors,
 		DepsErrors: packagesinternal.GetDepsErrors(pkg),
@@ -598,17 +584,13 @@ func buildMetadata(ctx context.Context, pkg *packages.Package, cfg *packages.Con
 
 		depsByImpPath[importPath] = PackageID(imported.ID)
 		depsByPkgPath[PackagePath(imported.PkgPath)] = PackageID(imported.ID)
-		if err := buildMetadata(ctx, imported, cfg, query, updates, append(path, id)); err != nil {
-			event.Error(ctx, "error in dependency", err)
-		}
+		buildMetadata(updates, imported, loadDir, query)
 	}
 	m.DepsByImpPath = depsByImpPath
 	m.DepsByPkgPath = depsByPkgPath
 
 	// m.Diagnostics is set later in the loading pass, using
 	// computeLoadDiagnostics.
-
-	return nil
 }
 
 // computeLoadDiagnostics computes and sets m.Diagnostics for the given metadata m.
