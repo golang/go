@@ -87,7 +87,7 @@ func (err *error_) String() string {
 // errorf adds formatted error information to err.
 // It may be called multiple times to provide additional information.
 func (err *error_) errorf(at poser, format string, args ...interface{}) {
-	err.desc = append(err.desc, errorDesc{posFor(at), format, args})
+	err.desc = append(err.desc, errorDesc{atPos(at), format, args})
 }
 
 func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...interface{}) string {
@@ -237,7 +237,7 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
 		return
 	}
 
-	pos := posFor(at)
+	pos := atPos(at)
 
 	// If we are encountering an error while evaluating an inherited
 	// constant initialization expression, pos is the position of in
@@ -293,8 +293,8 @@ func (check *Checker) versionErrorf(at poser, goVersion string, format string, a
 	check.err(at, UnsupportedFeature, msg, true)
 }
 
-// posFor reports the left (= start) position of at.
-func posFor(at poser) syntax.Pos {
+// atPos reports the left (= start) position of at.
+func atPos(at poser) syntax.Pos {
 	switch x := at.(type) {
 	case *operand:
 		if x.expr != nil {

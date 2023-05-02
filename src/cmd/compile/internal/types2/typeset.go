@@ -278,8 +278,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			assert(!isTypeParam(typ))
 			tset := computeInterfaceTypeSet(check, pos, u)
 			// If typ is local, an error was already reported where typ is specified/defined.
-			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, pos, 1, 18) {
-				check.versionErrorf(pos, "go1.18", "embedding constraint interface %s", typ)
+			if check != nil && check.isImportedConstraint(typ) && !check.allowVersionf(check.pkg, pos, 1, 18, "embedding constraint interface %s", typ) {
 				continue
 			}
 			comparable = tset.comparable
@@ -288,8 +287,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			}
 			terms = tset.terms
 		case *Union:
-			if check != nil && !check.allowVersion(check.pkg, pos, 1, 18) {
-				check.versionErrorf(pos, "go1.18", "embedding interface element %s", u)
+			if check != nil && !check.allowVersionf(check.pkg, pos, 1, 18, "embedding interface element %s", u) {
 				continue
 			}
 			tset := computeUnionTypeSet(check, unionSets, pos, u)
@@ -303,8 +301,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
 			if u == Typ[Invalid] {
 				continue
 			}
-			if check != nil && !check.allowVersion(check.pkg, pos, 1, 18) {
-				check.versionErrorf(pos, "go1.18", "embedding non-interface type %s", typ)
+			if check != nil && !check.allowVersionf(check.pkg, pos, 1, 18, "embedding non-interface type %s", typ) {
 				continue
 			}
 			terms = termlist{{false, typ}}

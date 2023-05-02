@@ -955,8 +955,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		// Check that RHS is otherwise at least of integer type.
 		switch {
 		case allInteger(y.typ):
-			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, x.Pos(), 1, 13) {
-				check.errorf(y, UnsupportedFeature, invalidOp+"signed shift count %s requires go1.13 or later", y)
+			if !allUnsigned(y.typ) && !check.allowVersionf(check.pkg, y, 1, 13, invalidOp+"signed shift count %s", y) {
 				x.mode = invalid
 				return
 			}

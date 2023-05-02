@@ -16,6 +16,6 @@ func f1(func(int))      {}
 func f2(int, func(int)) {}
 
 func _() {
-	f1( /* ERROR "implicitly instantiated function as argument requires go1.21 or later" */ g)
-	f2( /* ERROR "implicitly instantiated function as argument requires go1.21 or later" */ 0, g)
+	f1(g /* ERROR "implicitly instantiated function as argument requires go1.21 or later" */)
+	f2(0, g /* ERROR "implicitly instantiated function as argument requires go1.21 or later" */)
 }

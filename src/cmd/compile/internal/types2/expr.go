@@ -538,7 +538,7 @@ func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final boo
 		// The respective sub-expressions got their final types
 		// upon assignment or use.
 		if debug {
-			check.dump("%v: found old type(%s): %s (new: %s)", posFor(x), x, old.typ, typ)
+			check.dump("%v: found old type(%s): %s (new: %s)", atPos(x), x, old.typ, typ)
 			unreachable()
 		}
 		return
@@ -977,8 +977,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 		// Check that RHS is otherwise at least of integer type.
 		switch {
 		case allInteger(y.typ):
-			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, x.Pos(), 1, 13) {
-				check.versionErrorf(y, "go1.13", invalidOp+"signed shift count %s", y)
+			if !allUnsigned(y.typ) && !check.allowVersionf(check.pkg, y, 1, 13, invalidOp+"signed shift count %s", y) {
 				x.mode = invalid
 				return
 			}
@@ -1761,7 +1760,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
 		// types, which are comparatively rare.
 
 	default:
-		panic(fmt.Sprintf("%s: unknown expression type %T", posFor(e), e))
+		panic(fmt.Sprintf("%s: unknown expression type %T", atPos(e), e))
 	}
 
 	// everything went well

@@ -23,17 +23,13 @@ import (
 func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst *syntax.IndexExpr) {
 	assert(tsig != nil || inst != nil)
 
-	var versionErr bool  // set if version error was reported
-	var instErrPos poser // position for instantion error
+	var instErrPos poser
 	if inst != nil {
 		instErrPos = inst.Pos()
 	} else {
 		instErrPos = pos
 	}
-	if !check.allowVersion(check.pkg, pos, 1, 18) {
-		check.versionErrorf(instErrPos, "go1.18", "function instantiation")
-		versionErr = true
-	}
+	versionErr := !check.allowVersionf(check.pkg, instErrPos, 1, 18, "function instantiation")
 
 	// targs and xlist are the type arguments and corresponding type expressions, or nil.
 	var targs []Type
@@ -74,7 +70,7 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 			// of a synthetic function f where f's parameters are the parameters and results
 			// of x and where the arguments to the call of f are values of the parameter and
 			// result types of x.
-			if !versionErr && !check.allowVersion(check.pkg, pos, 1, 21) {
+			if !versionErr && !check.allowVersion(check.pkg, instErrPos, 1, 21) {
 				if inst != nil {
 					check.versionErrorf(instErrPos, "go1.21", "partially instantiated function in assignment")
 				} else {
@@ -296,9 +292,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		// is an error checking its arguments (for example, if an incorrect number
 		// of arguments is supplied).
 		if got == want && want > 0 {
-			if !check.allowVersion(check.pkg, x.Pos(), 1, 18) {
-				check.versionErrorf(inst.Pos(), "go1.18", "function instantiation")
-			}
+			check.allowVersionf(check.pkg, inst, 1, 18, "function instantiation")
 
 			sig = check.instantiateSignature(inst.Pos(), sig, targs, xlist)
 			assert(sig.TypeParams().Len() == 0) // signature is not generic anymore
@@ -489,9 +483,9 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	if n > 0 {
 		if !check.allowVersion(check.pkg, call.Pos(), 1, 18) {
 			if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
-				check.versionErrorf(iexpr.Pos(), "go1.18", "function instantiation")
+				check.versionErrorf(iexpr, "go1.18", "function instantiation")
 			} else {
-				check.versionErrorf(call.Pos(), "go1.18", "implicit function instantiation")
+				check.versionErrorf(call, "go1.18", "implicit function instantiation")
 			}
 		}
 		// rename type parameters to avoid problems with recursive calls
@@ -510,10 +504,8 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 			}
 		}
 	}
-	if len(genericArgs) > 0 && !check.allowVersion(check.pkg, call.Pos(), 1, 21) {
-		// at the moment we only support implicit instantiations of argument functions
-		check.versionErrorf(args[genericArgs[0]].Pos(), "go1.21", "implicitly instantiated function as argument")
-	}
+	// at the moment we only support implicit instantiations of argument functions
+	_ = len(genericArgs) > 0 && check.allowVersionf(check.pkg, args[genericArgs[0]], 1, 21, "implicitly instantiated function as argument")
 
 	// tparams holds the type parameters of the callee and generic function arguments, if any:
 	// the first n type parameters belong to the callee, followed by mi type parameters for each
@@ -673,7 +665,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *Named, w
 				x.typ = exp.typ
 				x.id = exp.id
 			default:
-				check.dump("%v: unexpected object %v", posFor(e.Sel), exp)
+				check.dump("%v: unexpected object %v", atPos(e.Sel), exp)
 				unreachable()
 			}
 			x.expr = e

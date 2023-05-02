@@ -245,7 +245,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			}
 			// check != nil
 			check.later(func() {
-				if !check.allowVersion(m.pkg, pos, 1, 14) || !Identical(m.typ, other.Type()) {
+				if !check.allowVersion(m.pkg, atPos(pos), 1, 14) || !Identical(m.typ, other.Type()) {
 					check.errorf(atPos(pos), DuplicateDecl, "duplicate method %s", m.name)
 					check.errorf(atPos(mpos[other.(*Func)]), DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
 				}
@@ -276,8 +276,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			assert(!isTypeParam(typ))
 			tset := computeInterfaceTypeSet(check, pos, u)
 			// If typ is local, an error was already reported where typ is specified/defined.
-			if check != nil && check.isImportedConstraint(typ) && !check.allowVersion(check.pkg, pos, 1, 18) {
-				check.errorf(atPos(pos), UnsupportedFeature, "embedding constraint interface %s requires go1.18 or later", typ)
+			if check != nil && check.isImportedConstraint(typ) && !check.allowVersionf(check.pkg, atPos(pos), 1, 18, "embedding constraint interface %s", typ) {
 				continue
 			}
 			comparable = tset.comparable
@@ -286,8 +285,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			}
 			terms = tset.terms
 		case *Union:
-			if check != nil && !check.allowVersion(check.pkg, pos, 1, 18) {
-				check.errorf(atPos(pos), UnsupportedFeature, "embedding interface element %s requires go1.18 or later", u)
+			if check != nil && !check.allowVersionf(check.pkg, atPos(pos), 1, 18, "embedding interface element %s", u) {
 				continue
 			}
 			tset := computeUnionTypeSet(check, unionSets, pos, u)
@@ -301,8 +299,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
 			if u == Typ[Invalid] {
 				continue
 			}
-			if check != nil && !check.allowVersion(check.pkg, pos, 1, 18) {
-				check.errorf(atPos(pos), UnsupportedFeature, "embedding non-interface type %s requires go1.18 or later", typ)
+			if check != nil && !check.allowVersionf(check.pkg, atPos(pos), 1, 18, "embedding non-interface type %s", typ) {
 				continue
 			}
 			terms = termlist{{false, typ}}

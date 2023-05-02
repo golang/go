@@ -7,6 +7,7 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -41,7 +42,7 @@ func (check *Checker) langCompat(lit *syntax.BasicLit) {
 
 // allowVersion reports whether the given package
 // is allowed to use version major.minor.
-func (check *Checker) allowVersion(pkg *Package, pos syntax.Pos, major, minor int) bool {
+func (check *Checker) allowVersion(pkg *Package, at poser, major, minor int) bool {
 	// We assume that imported packages have all been checked,
 	// so we only have to check for the local package.
 	if pkg != check.pkg {
@@ -50,7 +51,7 @@ func (check *Checker) allowVersion(pkg *Package, pos syntax.Pos, major, minor in
 
 	// If the source file declares its Go version, use that to decide.
 	if check.posVers != nil {
-		if v, ok := check.posVers[base(pos)]; ok && v.major >= 1 {
+		if v, ok := check.posVers[base(at.Pos())]; ok && v.major >= 1 {
 			return v.major > major || v.major == major && v.minor >= minor
 		}
 	}
@@ -58,6 +59,16 @@ func (check *Checker) allowVersion(pkg *Package, pos syntax.Pos, major, minor in
 	// Otherwise fall back to the version in the checker.
 	ma, mi := check.version.major, check.version.minor
 	return ma == 0 && mi == 0 || ma > major || ma == major && mi >= minor
+}
+
+// allowVersionf is like allowVersion but also accepts a format string and arguments
+// which are used to report a version error if allowVersion returns false.
+func (check *Checker) allowVersionf(pkg *Package, at poser, major, minor int, format string, args ...interface{}) bool {
+	if !check.allowVersion(pkg, at, major, minor) {
+		check.versionErrorf(at, fmt.Sprintf("go%d.%d", major, minor), format, args...)
+		return false
+	}
+	return true
 }
 
 // base finds the underlying PosBase of the source file containing pos,
