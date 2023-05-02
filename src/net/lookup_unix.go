@@ -56,11 +56,7 @@ func lookupProtocol(_ context.Context, name string) (int, error) {
 func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
 	order, conf := systemConf().hostLookupOrder(r, host)
 	if order == hostLookupCgo {
-		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
-			return addrs, err
-		}
-		// cgo not available (or netgo); fall back to Go's DNS resolver
-		order = hostLookupFilesDNS
+		return cgoLookupHost(ctx, host)
 	}
 	return r.goLookupHostOrder(ctx, host, order, conf)
 }
@@ -71,11 +67,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 	}
 	order, conf := systemConf().hostLookupOrder(r, host)
 	if order == hostLookupCgo {
-		if addrs, err, ok := cgoLookupIP(ctx, network, host); ok {
-			return addrs, err
-		}
-		// cgo not available (or netgo); fall back to Go's DNS resolver
-		order = hostLookupFilesDNS
+		return cgoLookupIP(ctx, network, host)
 	}
 	ips, _, err := r.goLookupIPCNAMEOrder(ctx, network, host, order, conf)
 	return ips, err
@@ -85,16 +77,15 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 	// Port lookup is not a DNS operation.
 	// Prefer the cgo resolver if possible.
 	if !systemConf().mustUseGoResolver(r) {
-		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
-			if err != nil {
-				// Issue 18213: if cgo fails, first check to see whether we
-				// have the answer baked-in to the net package.
-				if port, err := goLookupPort(network, service); err == nil {
-					return port, nil
-				}
+		port, err := cgoLookupPort(ctx, network, service)
+		if err != nil {
+			// Issue 18213: if cgo fails, first check to see whether we
+			// have the answer baked-in to the net package.
+			if port, err := goLookupPort(network, service); err == nil {
+				return port, nil
 			}
-			return port, err
 		}
+		return port, err
 	}
 	return goLookupPort(network, service)
 }
@@ -128,9 +119,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
 	order, conf := systemConf().hostLookupOrder(r, "")
 	if order == hostLookupCgo {
-		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
-			return ptrs, err
-		}
+		return cgoLookupPTR(ctx, addr)
 	}
 	return r.goLookupPTR(ctx, addr, conf)
 }
