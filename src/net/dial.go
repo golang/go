@@ -125,7 +125,7 @@ type Dialer struct {
 	// If Control is not nil, it is called after creating the network
 	// connection but before actually dialing.
 	//
-	// Network and address parameters passed to Control method are not
+	// Network and address parameters passed to Control function are not
 	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
 	// will cause the Control function to be called with "tcp4" or "tcp6".
 	//
@@ -135,9 +135,9 @@ type Dialer struct {
 	// If ControlContext is not nil, it is called after creating the network
 	// connection but before actually dialing.
 	//
-	// Network and address parameters passed to Control method are not
+	// Network and address parameters passed to ControlContext function are not
 	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
-	// will cause the Control function to be called with "tcp4" or "tcp6".
+	// will cause the ControlContext function to be called with "tcp4" or "tcp6".
 	//
 	// If ControlContext is not nil, Control is ignored.
 	ControlContext func(ctx context.Context, network, address string, c syscall.RawConn) error
