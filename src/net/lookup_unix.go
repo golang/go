@@ -96,7 +96,6 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
 			return cname, err
 		}
-
 	}
 	return r.goLookupCNAME(ctx, name, order, conf)
 }

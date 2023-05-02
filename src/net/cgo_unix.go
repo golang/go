@@ -14,7 +14,6 @@ package net
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/netip"
 	"syscall"
 	"unsafe"
@@ -69,10 +68,13 @@ func doBlockingWithCtx[T any](ctx context.Context, blocking func() (T, error)) (
 
 func cgoLookupHost(ctx context.Context, name string) (hosts []string, err error) {
 	addrs, err := cgoLookupIP(ctx, "ip", name)
+	if err != nil {
+		return nil, err
+	}
 	for _, addr := range addrs {
 		hosts = append(hosts, addr.String())
 	}
-	return
+	return hosts, nil
 }
 
 func cgoLookupPort(ctx context.Context, network, service string) (port int, err error) {
@@ -298,7 +300,7 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error, 
 	}
 	cname, err = parseCNAMEFromResources(resources)
 	if err != nil {
-		return
+		return "", err, false
 	}
 	return cname, nil, true
 }
@@ -343,7 +345,6 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	for {
 		size, _ = _C_res_nsearch(state, (*_C_char)(unsafe.Pointer(s)), class, rtype, buf, bufSize)
 		if size <= 0 || size > 0xffff {
-			fmt.Println(size)
 			return nil, errors.New("res_nsearch failure")
 		}
 		if size <= bufSize {
