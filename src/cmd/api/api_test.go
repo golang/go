@@ -20,32 +20,11 @@ import (
 var flagCheck = flag.Bool("check", false, "run API checks")
 
 func TestMain(m *testing.M) {
-	if !testenv.HasExec() {
-		os.Stdout.WriteString("skipping test: platform cannot exec")
-		os.Exit(0)
-	}
-	if !testenv.HasGoBuild() {
-		os.Stdout.WriteString("skipping test: platform cannot 'go build' to import std packages")
-		os.Exit(0)
-	}
-
 	flag.Parse()
 	for _, c := range contexts {
 		c.Compiler = build.Default.Compiler
 	}
 	build.Default.GOROOT = testenv.GOROOT(nil)
-
-	// Warm up the import cache in parallel.
-	var wg sync.WaitGroup
-	for _, context := range contexts {
-		context := context
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			_ = NewWalker(context, filepath.Join(testenv.GOROOT(nil), "src"))
-		}()
-	}
-	wg.Wait()
 
 	os.Exit(m.Run())
 }
@@ -59,6 +38,9 @@ func TestGolden(t *testing.T) {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")
 	}
+
+	testenv.MustHaveGoBuild(t)
+
 	td, err := os.Open("testdata/src/pkg")
 	if err != nil {
 		t.Fatal(err)
@@ -232,6 +214,20 @@ func TestIssue21181(t *testing.T) {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")
 	}
+	testenv.MustHaveGoBuild(t)
+
+	// Warm up the import cache in parallel.
+	var wg sync.WaitGroup
+	for _, context := range contexts {
+		context := context
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_ = NewWalker(context, filepath.Join(testenv.GOROOT(nil), "src"))
+		}()
+	}
+	wg.Wait()
+
 	for _, context := range contexts {
 		w := NewWalker(context, "testdata/src/issue21181")
 		pkg, err := w.import_("p")
@@ -248,6 +244,7 @@ func TestIssue29837(t *testing.T) {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")
 	}
+	testenv.MustHaveGoBuild(t)
 	for _, context := range contexts {
 		w := NewWalker(context, "testdata/src/issue29837")
 		_, err := w.ImportFrom("p", "", 0)
@@ -262,6 +259,7 @@ func TestIssue41358(t *testing.T) {
 		// slow, not worth repeating in -check
 		t.Skip("skipping with -check set")
 	}
+	testenv.MustHaveGoBuild(t)
 	context := new(build.Context)
 	*context = build.Default
 	context.Dir = filepath.Join(testenv.GOROOT(t), "src")
@@ -278,5 +276,6 @@ func TestCheck(t *testing.T) {
 	if !*flagCheck {
 		t.Skip("-check not specified")
 	}
+	testenv.MustHaveGoBuild(t)
 	Check(t)
 }
