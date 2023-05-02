@@ -1005,3 +1005,77 @@ func TestIssue58491Rec(t *testing.T) {
 		t.Error("Failed to find any Named to struct types")
 	}
 }
+
+// TestSyntax ensures that a function's Syntax is available when
+// debug info is enabled.
+func TestSyntax(t *testing.T) {
+	if !typeparams.Enabled {
+		t.Skip("TestSyntax uses type parameters.")
+	}
+
+	const input = `package p
+
+	type P int
+	func (x *P) g() *P { return x }
+
+	func F[T ~int]() *T {
+		type S1 *T
+		type S2 *T
+		type S3 *T
+		f1 := func() S1 {
+			f2 := func() S2 {
+				return S2(nil)
+			}
+			return S1(f2())
+		}
+		f3 := func() S3 {
+			return S3(f1())
+		}
+		return (*T)(f3())
+	}
+	var _ = F[int]
+	`
+
+	// Parse
+	var conf loader.Config
+	f, err := conf.ParseFile("<input>", input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	conf.CreateFromFiles("p", f)
+
+	// Load
+	lprog, err := conf.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Create and build SSA
+	prog := ssautil.CreateProgram(lprog, ssa.GlobalDebug|ssa.InstantiateGenerics)
+	prog.Build()
+
+	// Collect syntax information for all of the functions.
+	got := make(map[string]string)
+	for fn := range ssautil.AllFunctions(prog) {
+		if fn.Name() == "init" {
+			continue
+		}
+		syntax := fn.Syntax()
+		got[fn.Name()] = fmt.Sprintf("%T : %s @ %d", syntax, fn.Signature, prog.Fset.Position(syntax.Pos()).Line)
+	}
+
+	want := map[string]string{
+		"g":          "*ast.FuncDecl : func() *p.P @ 4",
+		"F":          "*ast.FuncDecl : func[T ~int]() *T @ 6",
+		"F$1":        "*ast.FuncLit : func() p.S1 @ 10",
+		"F$1$1":      "*ast.FuncLit : func() p.S2 @ 11",
+		"F$2":        "*ast.FuncLit : func() p.S3 @ 16",
+		"F[int]":     "*ast.FuncDecl : func() *int @ 6",
+		"F[int]$1":   "*ast.FuncLit : func() p.S1 @ 10",
+		"F[int]$1$1": "*ast.FuncLit : func() p.S2 @ 11",
+		"F[int]$2":   "*ast.FuncLit : func() p.S3 @ 16",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Expected the functions with signature to be:\n\t%#v.\n Got:\n\t%#v", want, got)
+	}
+}
