@@ -50,8 +50,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
 			}
 			base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
 		},
-		Importer: &importer,
-		Sizes:    &gcSizes{},
+		Importer:                   &importer,
+		Sizes:                      &gcSizes{},
+		EnableReverseTypeInference: true,
 	}
 	info := &types2.Info{
 		StoreTypesInSyntax: true,

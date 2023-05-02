@@ -139,7 +139,11 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		// parse and type-check file
 		file, err := parser.ParseFile(fset, filename, nil, 0)
 		if err == nil {
-			conf := Config{GoVersion: goVersion, Importer: stdLibImporter}
+			conf := Config{
+				GoVersion: goVersion,
+				Importer:  stdLibImporter,
+			}
+			*boolFieldAddr(&conf, "_EnableReverseTypeInference") = true
 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
 		}
 
@@ -267,6 +271,7 @@ func typecheckFiles(t *testing.T, path string, filenames []string) {
 		},
 		Importer: stdLibImporter,
 	}
+	*boolFieldAddr(&conf, "_EnableReverseTypeInference") = true
 	info := Info{Uses: make(map[*ast.Ident]Object)}
 	conf.Check(path, fset, files, &info)
 
