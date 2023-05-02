@@ -171,6 +171,20 @@ func runtime_FrameStartLine(f *Frame) int {
 	return f.startLine
 }
 
+// runtime_FrameSymbolName returns the full symbol name of the function in a Frame.
+// For generic functions this differs from f.Function in that this doesn't replace
+// the shape name to "...".
+//
+//go:linkname runtime_FrameSymbolName runtime/pprof.runtime_FrameSymbolName
+func runtime_FrameSymbolName(f *Frame) string {
+	if !f.funcInfo.valid() {
+		return f.Function
+	}
+	u, uf := newInlineUnwinder(f.funcInfo, f.PC, nil)
+	sf := u.srcFunc(uf)
+	return sf.name()
+}
+
 // runtime_expandFinalInlineFrame expands the final pc in stk to include all
 // "callers" if pc is inline.
 //
