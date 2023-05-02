@@ -192,11 +192,11 @@ func (c *conf) mustUseGoResolver(r *Resolver) bool {
 // The provided Resolver is optional. nil means to not consider its options.
 // It also returns dnsConfig when it was used to determine the lookup order.
 func (c *conf) addrLookupOrder(r *Resolver, addr string) (ret hostLookupOrder, dnsConf *dnsConfig) {
-	defer func() {
-		if c.dnsDebugLevel > 1 {
+	if c.dnsDebugLevel > 1 {
+		defer func() {
 			print("go package net: addrLookupOrder(", addr, ") = ", ret.String(), "\n")
-		}
-	}()
+		}()
+	}
 	return c.lookupOrder(r, true, "")
 }
 
@@ -204,11 +204,11 @@ func (c *conf) addrLookupOrder(r *Resolver, addr string) (ret hostLookupOrder, d
 // The provided Resolver is optional. nil means to not consider its options.
 // It also returns dnsConfig when it was used to determine the lookup order.
 func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, dnsConf *dnsConfig) {
-	defer func() {
-		if c.dnsDebugLevel > 1 {
+	if c.dnsDebugLevel > 1 {
+		defer func() {
 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
-		}
-	}()
+		}()
+	}
 	return c.lookupOrder(r, false, hostname)
 }
 
