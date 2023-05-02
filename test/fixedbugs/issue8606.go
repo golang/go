@@ -71,6 +71,7 @@ func main() {
 		{true, T3{i: b, s: "fooz"}, T3{i: b, s: "bar"}},
 		{false, T3{s: "fooz", j: b}, T3{s: "bar", j: b}},
 		{true, A{s1, s2}, A{s2, s1}},
+		{true, s1, s2},
 	} {
 		f := func() {
 			defer func() {
