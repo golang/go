@@ -780,6 +780,10 @@ func (f *fileListEntry) ModTime() time.Time {
 
 func (f *fileListEntry) Info() (fs.FileInfo, error) { return f, nil }
 
+func (f *fileListEntry) String() string {
+	return fs.FormatDirEntry(f)
+}
+
 // toValidName coerces name to be a valid name for fs.FS.Open.
 func toValidName(name string) string {
 	name = strings.ReplaceAll(name, `\`, `/`)

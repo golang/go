@@ -48,6 +48,10 @@ func (i fileInfo) IsDir() bool        { return false }
 func (i fileInfo) Size() int64        { return i.f.Size }
 func (i fileInfo) Sys() any           { return nil }
 
+func (i fileInfo) String() string {
+	return fs.FormatFileInfo(i)
+}
+
 // NewArchive returns a new Archive containing all the files in the directory dir.
 // The archive can be amended afterward using methods like Add and Filter.
 func NewArchive(dir string) (*Archive, error) {

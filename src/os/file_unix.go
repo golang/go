@@ -9,6 +9,7 @@ package os
 import (
 	"internal/poll"
 	"internal/syscall/unix"
+	"io/fs"
 	"runtime"
 	"syscall"
 )
@@ -430,6 +431,10 @@ func (d *unixDirent) Info() (FileInfo, error) {
 		return d.info, nil
 	}
 	return lstat(d.parent + "/" + d.name)
+}
+
+func (d *unixDirent) String() string {
+	return fs.FormatDirEntry(d)
 }
 
 func newUnixDirent(parent, name string, typ FileMode) (DirEntry, error) {
