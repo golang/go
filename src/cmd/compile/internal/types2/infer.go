@@ -498,9 +498,13 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 	case *Pointer:
 		return w.isParameterized(t.base)
 
-	// case *Tuple:
-	//      This case should not occur because tuples only appear
-	//      in signatures where they are handled explicitly.
+	case *Tuple:
+		// This case does not occur from within isParameterized
+		// because tuples only appear in signatures where they
+		// are handled explicitly. But isParameterized is also
+		// called by Checker.callExpr with a function result tuple
+		// if instantiation failed (go.dev/issue/59890).
+		return t != nil && w.varList(t.vars)
 
 	case *Signature:
 		// t.tparams may not be nil if we are looking at a signature

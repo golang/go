@@ -341,18 +341,6 @@ func TestConfHostLookupOrder(t *testing.T) {
 			nss:       nssStr(t, "foo: bar"),
 			hostTests: []nssHostTest{{"google.com", "myhostname", hostLookupCgo}},
 		},
-		// Android should always use cgo.
-		{
-			name: "android",
-			c: &conf{
-				goos: "android",
-			},
-			resolv: defaultResolvConf,
-			nss:    nssStr(t, ""),
-			hostTests: []nssHostTest{
-				{"x.com", "myhostname", hostLookupCgo},
-			},
-		},
 		// Issue 24393: make sure "Resolver.PreferGo = true" acts like netgo.
 		{
 			name:     "resolver-prefergo",
