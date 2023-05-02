@@ -1,0 +1,42 @@
+This test verifies the fix for golang/go#44813: extraction failure when there
+are blank identifiers.
+
+-- go.mod --
+module mod.test/extract
+
+go 1.18
+
+-- p.go --
+package extract
+
+import "fmt"
+
+func main() {
+	x := []rune{} //@codeaction("refactor.extract", "x", end, ext)
+	s := "HELLO"
+	for _, c := range s {
+		x = append(x, c)
+	} //@loc(end, "}")
+	fmt.Printf("%x\n", x)
+}
+
+-- @ext/p.go --
+package extract
+
+import "fmt"
+
+func main() {
+	//@codeaction("refactor.extract", "x", end, ext)
+	x := newFunction() //@loc(end, "}")
+	fmt.Printf("%x\n", x)
+}
+
+func newFunction() []rune {
+	x := []rune{}
+	s := "HELLO"
+	for _, c := range s {
+		x = append(x, c)
+	}
+	return x
+}
+

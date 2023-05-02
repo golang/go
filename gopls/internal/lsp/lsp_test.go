@@ -549,58 +549,6 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.S
 	}
 }
 
-func (r *runner) FunctionExtraction(t *testing.T, start span.Span, end span.Span) {
-	uri := start.URI()
-	m, err := r.data.Mapper(uri)
-	if err != nil {
-		t.Fatal(err)
-	}
-	spn := span.New(start.URI(), start.Start(), end.End())
-	rng, err := m.SpanRange(spn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	actionsRaw, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(uri),
-		},
-		Range: rng,
-		Context: protocol.CodeActionContext{
-			Only: []protocol.CodeActionKind{"refactor.extract"},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	var actions []protocol.CodeAction
-	for _, action := range actionsRaw {
-		if action.Command.Title == "Extract function" {
-			actions = append(actions, action)
-		}
-	}
-	// Hack: We assume that we only get one code action per range.
-	// TODO(rstambler): Support multiple code actions per test.
-	if len(actions) == 0 || len(actions) > 1 {
-		t.Fatalf("unexpected number of code actions, want 1, got %v", len(actions))
-	}
-	_, err = r.server.ExecuteCommand(r.ctx, &protocol.ExecuteCommandParams{
-		Command:   actions[0].Command.Command,
-		Arguments: actions[0].Command.Arguments,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := <-r.editRecv
-	for u, got := range res {
-		want := r.data.Golden(t, "functionextraction_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
-			return got, nil
-		})
-		if diff := compare.Bytes(want, got); diff != "" {
-			t.Errorf("function extraction failed for %s:\n%s", u.Filename(), diff)
-		}
-	}
-}
-
 func (r *runner) MethodExtraction(t *testing.T, start span.Span, end span.Span) {
 	uri := start.URI()
 	m, err := r.data.Mapper(uri)

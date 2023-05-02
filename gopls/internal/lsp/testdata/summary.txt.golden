@@ -13,7 +13,6 @@ FoldingRangesCount = 2
 ImportCount = 8
 SemanticTokenCount = 3
 SuggestedFixCount = 76
-FunctionExtractionCount = 27
 MethodExtractionCount = 6
 DefinitionsCount = 46
 TypeDefinitionsCount = 18

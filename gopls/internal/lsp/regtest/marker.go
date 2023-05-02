@@ -119,6 +119,11 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //
 // The following markers are supported within marker tests:
 //
+//   - codeaction(kind, start, end, golden): specifies a codeaction to request
+//     for the given range. To support multi-line ranges, the range is defined
+//     to be between start.Start and end.End. The golden directory contains
+//     changed file content after the code action is applied.
+//
 //   - complete(location, ...labels): specifies expected completion results at
 //     the given location.
 //
@@ -500,6 +505,7 @@ arity:
 // Marker funcs should not mutate the test environment (e.g. via opening files
 // or applying edits in the editor).
 var markerFuncs = map[string]markerFunc{
+	"codeaction":      makeMarkerFunc(codeActionMarker),
 	"complete":        makeMarkerFunc(completeMarker),
 	"def":             makeMarkerFunc(defMarker),
 	"diag":            makeMarkerFunc(diagMarker),
@@ -1366,6 +1372,22 @@ func applyDocumentChanges(env *Env, changes []protocol.DocumentChanges) (map[str
 	return result, nil
 }
 
+func codeActionMarker(mark marker, actionKind string, start, end protocol.Location, golden *Golden) {
+	// Request the range from start.Start to end.End.
+	loc := start
+	loc.Range.End = end.Range.End
+
+	// Apply the fix it suggests.
+	changed, err := codeAction(mark.run.env, loc.URI, loc.Range, actionKind, nil)
+	if err != nil {
+		mark.errorf("suggestedfix failed: %v. (Use @suggestedfixerr for expected errors.)", err)
+		return
+	}
+
+	// Check the file state.
+	checkChangedFiles(mark, changed, golden)
+}
+
 // suggestedfixMarker implements the @suggestedfix(location, regexp,
 // kind, golden) marker. It acts like @diag(location, regexp), to set
 // the expectation of a diagnostic, but then it applies the first code
@@ -1379,7 +1401,7 @@ func suggestedfixMarker(mark marker, loc protocol.Location, re *regexp.Regexp, a
 	}
 
 	// Apply the fix it suggests.
-	changed, err := suggestedfix(mark.run.env, loc, diag, actionKind)
+	changed, err := codeAction(mark.run.env, loc.URI, diag.Range, actionKind, &diag)
 	if err != nil {
 		mark.errorf("suggestedfix failed: %v. (Use @suggestedfixerr for expected errors.)", err)
 		return
@@ -1389,19 +1411,29 @@ func suggestedfixMarker(mark marker, loc protocol.Location, re *regexp.Regexp, a
 	checkChangedFiles(mark, changed, golden)
 }
 
-func suggestedfix(env *Env, loc protocol.Location, diag protocol.Diagnostic, actionKind string) (map[string][]byte, error) {
-
+// codeAction executes a textDocument/codeAction request for the specified
+// location and kind. If diag is non-nil, it is used as the code action
+// context.
+//
+// The resulting map contains resulting file contents after the code action is
+// applied. Currently, this function does not support code actions that return
+// edits directly; it only supports code action commands.
+func codeAction(env *Env, uri protocol.DocumentURI, rng protocol.Range, actionKind string, diag *protocol.Diagnostic) (map[string][]byte, error) {
 	// Request all code actions that apply to the diagnostic.
 	// (The protocol supports filtering using Context.Only={actionKind}
 	// but we can give a better error if we don't filter.)
-	actions, err := env.Editor.Server.CodeAction(env.Ctx, &protocol.CodeActionParams{
-		TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
-		Range:        diag.Range,
+	params := &protocol.CodeActionParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+		Range:        rng,
 		Context: protocol.CodeActionContext{
-			Only:        nil, // => all kinds
-			Diagnostics: []protocol.Diagnostic{diag},
+			Only: nil, // => all kinds
 		},
-	})
+	}
+	if diag != nil {
+		params.Context.Diagnostics = []protocol.Diagnostic{*diag}
+	}
+
+	actions, err := env.Editor.Server.CodeAction(env.Ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1426,7 +1458,7 @@ func suggestedfix(env *Env, loc protocol.Location, diag protocol.Diagnostic, act
 	// action.Edit.DocumentChanges) doesn't compose, for now we
 	// assert that all commands used in the @suggestedfix tests
 	// return only a command.
-	if action.Edit.DocumentChanges != nil {
+	if action.Edit != nil && action.Edit.DocumentChanges != nil {
 		env.T.Errorf("internal error: discarding unexpected CodeAction{Kind=%s, Title=%q}.Edit.DocumentChanges", action.Kind, action.Title)
 	}
 	if action.Command == nil {

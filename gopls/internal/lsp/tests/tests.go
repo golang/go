@@ -80,7 +80,6 @@ type FoldingRanges = []span.Span
 type Imports = []span.Span
 type SemanticTokens = []span.Span
 type SuggestedFixes = map[span.Span][]SuggestedFix
-type FunctionExtractions = map[span.Span]span.Span
 type MethodExtractions = map[span.Span]span.Span
 type Definitions = map[span.Span]Definition
 type Highlights = map[span.Span][]span.Span
@@ -110,7 +109,6 @@ type Data struct {
 	Imports                  Imports
 	SemanticTokens           SemanticTokens
 	SuggestedFixes           SuggestedFixes
-	FunctionExtractions      FunctionExtractions
 	MethodExtractions        MethodExtractions
 	Definitions              Definitions
 	Highlights               Highlights
@@ -154,7 +152,6 @@ type Tests interface {
 	Import(*testing.T, span.Span)
 	SemanticTokens(*testing.T, span.Span)
 	SuggestedFix(*testing.T, span.Span, []SuggestedFix, int)
-	FunctionExtraction(*testing.T, span.Span, span.Span)
 	MethodExtraction(*testing.T, span.Span, span.Span)
 	Definition(*testing.T, span.Span, Definition)
 	Highlight(*testing.T, span.Span, []span.Span)
@@ -288,7 +285,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		Renames:                  make(Renames),
 		PrepareRenames:           make(PrepareRenames),
 		SuggestedFixes:           make(SuggestedFixes),
-		FunctionExtractions:      make(FunctionExtractions),
 		MethodExtractions:        make(MethodExtractions),
 		Signatures:               make(Signatures),
 		Links:                    make(Links),
@@ -448,7 +444,6 @@ func load(t testing.TB, mode string, dir string) *Data {
 		"signature":      datum.collectSignatures,
 		"link":           datum.collectLinks,
 		"suggestedfix":   datum.collectSuggestedFixes,
-		"extractfunc":    datum.collectFunctionExtractions,
 		"extractmethod":  datum.collectMethodExtractions,
 		"incomingcalls":  datum.collectIncomingCalls,
 		"outgoingcalls":  datum.collectOutgoingCalls,
@@ -663,20 +658,6 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
-	t.Run("FunctionExtraction", func(t *testing.T) {
-		t.Helper()
-		for start, end := range data.FunctionExtractions {
-			// Check if we should skip this spn if the -modfile flag is not available.
-			if shouldSkip(data, start.URI()) {
-				continue
-			}
-			t.Run(SpanName(start), func(t *testing.T) {
-				t.Helper()
-				tests.FunctionExtraction(t, start, end)
-			})
-		}
-	})
-
 	t.Run("MethodExtraction", func(t *testing.T) {
 		t.Helper()
 		for start, end := range data.MethodExtractions {
@@ -862,7 +843,6 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "ImportCount = %v\n", len(data.Imports))
 	fmt.Fprintf(buf, "SemanticTokenCount = %v\n", len(data.SemanticTokens))
 	fmt.Fprintf(buf, "SuggestedFixCount = %v\n", len(data.SuggestedFixes))
-	fmt.Fprintf(buf, "FunctionExtractionCount = %v\n", len(data.FunctionExtractions))
 	fmt.Fprintf(buf, "MethodExtractionCount = %v\n", len(data.MethodExtractions))
 	fmt.Fprintf(buf, "DefinitionsCount = %v\n", definitionCount)
 	fmt.Fprintf(buf, "TypeDefinitionsCount = %v\n", typeDefinitionCount)
@@ -1049,12 +1029,6 @@ func (data *Data) collectSemanticTokens(spn span.Span) {
 
 func (data *Data) collectSuggestedFixes(spn span.Span, actionKind, fix string) {
 	data.SuggestedFixes[spn] = append(data.SuggestedFixes[spn], SuggestedFix{actionKind, fix})
-}
-
-func (data *Data) collectFunctionExtractions(start span.Span, end span.Span) {
-	if _, ok := data.FunctionExtractions[start]; !ok {
-		data.FunctionExtractions[start] = end
-	}
 }
 
 func (data *Data) collectMethodExtractions(start span.Span, end span.Span) {
