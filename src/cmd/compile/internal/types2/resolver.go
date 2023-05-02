@@ -406,7 +406,7 @@ func (check *Checker) collectObjects() {
 				}
 
 			case *syntax.TypeDecl:
-				_ = len(s.TParamList) != 0 && check.allowVersionf(pkg, s.TParamList[0], 1, 18, "type parameter")
+				_ = len(s.TParamList) != 0 && check.allowVersionf(pkg, s.TParamList[0], go1_18, "type parameter")
 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Value, nil)
 				check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, tdecl: s})
 
@@ -453,7 +453,7 @@ func (check *Checker) collectObjects() {
 					}
 					check.recordDef(s.Name, obj)
 				}
-				_ = len(s.TParamList) != 0 && !hasTParamError && check.allowVersionf(pkg, s.TParamList[0], 1, 18, "type parameter")
+				_ = len(s.TParamList) != 0 && !hasTParamError && check.allowVersionf(pkg, s.TParamList[0], go1_18, "type parameter")
 				info := &declInfo{file: fileScope, fdecl: s}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the

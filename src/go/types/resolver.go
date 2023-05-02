@@ -386,7 +386,7 @@ func (check *Checker) collectObjects() {
 					check.declarePkgObj(name, obj, di)
 				}
 			case typeDecl:
-				_ = d.spec.TypeParams.NumFields() != 0 && check.allowVersionf(pkg, d.spec.TypeParams.List[0], 1, 18, "type parameter")
+				_ = d.spec.TypeParams.NumFields() != 0 && check.allowVersionf(pkg, d.spec.TypeParams.List[0], go1_18, "type parameter")
 				obj := NewTypeName(d.spec.Name.Pos(), pkg, d.spec.Name.Name, nil)
 				check.declarePkgObj(d.spec.Name, obj, &declInfo{file: fileScope, tdecl: d.spec})
 			case funcDecl:
@@ -442,7 +442,7 @@ func (check *Checker) collectObjects() {
 					}
 					check.recordDef(d.decl.Name, obj)
 				}
-				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.allowVersionf(pkg, d.decl.Type.TypeParams.List[0], 1, 18, "type parameter")
+				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.allowVersionf(pkg, d.decl.Type.TypeParams.List[0], go1_18, "type parameter")
 				info := &declInfo{file: fileScope, fdecl: d.decl}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the

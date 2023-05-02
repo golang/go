@@ -306,10 +306,10 @@ func (check *Checker) softErrorf(at positioner, code Code, format string, args .
 	check.report(err)
 }
 
-func (check *Checker) versionErrorf(at positioner, goVersion string, format string, args ...interface{}) {
+func (check *Checker) versionErrorf(at positioner, v version, format string, args ...interface{}) {
 	msg := check.sprintf(format, args...)
 	var err *error_
-	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, goVersion)
+	err = newErrorf(at, UnsupportedFeature, "%s requires %s or later", msg, v)
 	check.report(err)
 }
 

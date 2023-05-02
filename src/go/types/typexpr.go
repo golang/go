@@ -43,7 +43,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		}
 		return
 	case universeAny, universeComparable:
-		if !check.allowVersionf(check.pkg, e, 1, 18, "predeclared %s", e.Name) {
+		if !check.allowVersionf(check.pkg, e, go1_18, "predeclared %s", e.Name) {
 			return // avoid follow-on errors
 		}
 	}
@@ -272,7 +272,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
 
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		ix := typeparams.UnpackIndexExpr(e)
-		check.allowVersionf(check.pkg, inNode(e, ix.Lbrack), 1, 18, "type instantiation")
+		check.allowVersionf(check.pkg, inNode(e, ix.Lbrack), go1_18, "type instantiation")
 		return check.instantiatedType(ix, def)
 
 	case *ast.ParenExpr:
