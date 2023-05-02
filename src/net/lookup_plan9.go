@@ -207,7 +207,11 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 	return
 }
 
-func (*Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+func (r *Resolver) lookupPort(ctx context.Context, network, service string) (port int, err error) {
+	if r.preferGoOverPlan9() {
+		return lookupPortMap(network, service)
+	}
+
 	switch network {
 	case "tcp4", "tcp6":
 		network = "tcp"
