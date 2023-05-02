@@ -129,7 +129,7 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		ci.frames = append(ci.frames, Frame{
 			PC:        pc,
 			Func:      f,
-			Function:  sf.name(),
+			Function:  funcNameForPrint(sf.name()),
 			Entry:     entry,
 			startLine: int(sf.startLine),
 			funcInfo:  funcInfo,
@@ -669,9 +669,9 @@ func (f *Func) Name() string {
 	fn := f.raw()
 	if fn.isInlined() { // inlined version
 		fi := (*funcinl)(unsafe.Pointer(fn))
-		return fi.name
+		return funcNameForPrint(fi.name)
 	}
-	return funcname(f.funcInfo())
+	return funcNameForPrint(funcname(f.funcInfo()))
 }
 
 // Entry returns the entry address of the function.
@@ -929,7 +929,7 @@ func funcname(f funcInfo) string {
 }
 
 func funcpkgpath(f funcInfo) string {
-	name := funcname(f)
+	name := funcNameForPrint(funcname(f))
 	i := len(name) - 1
 	for ; i > 0; i-- {
 		if name[i] == '/' {

@@ -304,7 +304,7 @@ func printanycustomtype(i any) {
 // It is called from the generated wrapper code.
 func panicwrap() {
 	pc := getcallerpc()
-	name := funcname(findfunc(pc))
+	name := funcNameForPrint(funcname(findfunc(pc)))
 	// name is something like "main.(*T).F".
 	// We want to extract pkg ("main"), typ ("T"), and meth ("F").
 	// Do it by finding the parens.
