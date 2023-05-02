@@ -1041,8 +1041,8 @@
 //
 // The -retracted flag causes list to report information about retracted
 // module versions. When -retracted is used with -f or -json, the Retracted
-// field will be set to a string explaining why the version was retracted.
-// The string is taken from comments on the retract directive in the
+// field will be set to a string slice explaining why the version was retracted.
+// The strings are taken from comments on the retract directive in the
 // module's go.mod file. When -retracted is used with -versions, retracted
 // versions are listed together with unretracted versions. The -retracted
 // flag may be used with or without -m.
