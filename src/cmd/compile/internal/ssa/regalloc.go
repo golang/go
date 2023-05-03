@@ -602,11 +602,6 @@ func isLeaf(f *Func) bool {
 	return true
 }
 
-// needRegister reports whether v needs a register.
-func (v *Value) needRegister() bool {
-	return !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && !v.Type.IsTuple()
-}
-
 func (s *regAllocState) init(f *Func) {
 	s.f = f
 	s.f.RegAlloc = s.f.Cache.locs[:0]
@@ -707,7 +702,7 @@ func (s *regAllocState) init(f *Func) {
 	s.copies = make(map[*Value]bool)
 	for _, b := range s.visitOrder {
 		for _, v := range b.Values {
-			if v.needRegister() {
+			if !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && !v.Type.IsTuple() {
 				s.values[v.ID].needReg = true
 				s.values[v.ID].rematerializeable = v.rematerializeable()
 				s.orig[v.ID] = v
