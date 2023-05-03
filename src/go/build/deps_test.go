@@ -68,6 +68,7 @@ var depsRules = `
 	< sync/atomic
 	< internal/race
 	< sync
+	< internal/bisect
 	< internal/godebug
 	< internal/reflectlite
 	< errors

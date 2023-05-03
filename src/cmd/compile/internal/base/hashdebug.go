@@ -296,7 +296,7 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
 
 	hash := hashOf(pkgAndName, param)
 	if d.bisect != nil {
-		if d.bisect.ShouldReport(hash) {
+		if d.bisect.ShouldPrint(hash) {
 			d.logDebugHashMatch(d.name, pkgAndName, hash, param)
 		}
 		return d.bisect.ShouldEnable(hash)
@@ -324,14 +324,14 @@ func (d *HashDebug) DebugHashMatchPos(pos src.XPos) bool {
 func (d *HashDebug) debugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
 	// TODO: When we remove the old d.match code, we can use
 	// d.bisect.Hash instead of the locked buffer, and we can
-	// use d.bisect.Visible to decide whether to format a string.
+	// use d.bisect.MarkerOnly to decide whether to format a string.
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	b := d.bytesForPos(ctxt, pos)
 	hash := hashOfBytes(b, 0)
 	if d.bisect != nil {
-		if d.bisect.ShouldReport(hash) {
+		if d.bisect.ShouldPrint(hash) {
 			d.logDebugHashMatchLocked(d.name, string(b), hash, 0)
 		}
 		return d.bisect.ShouldEnable(hash)
