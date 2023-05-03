@@ -277,20 +277,6 @@ func (h *sha256Hash) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (h *sha256Hash) WriteString(s string) (int, error) {
-	if len(s) > 0 && C._goboringcrypto_SHA256_Update(h.noescapeCtx(), unsafe.Pointer(unsafe.StringData(s)), C.size_t(len(s))) == 0 {
-		panic("boringcrypto: SHA256_Update failed")
-	}
-	return len(s), nil
-}
-
-func (h *sha256Hash) WriteByte(c byte) error {
-	if C._goboringcrypto_SHA256_Update(h.noescapeCtx(), unsafe.Pointer(&c), 1) == 0 {
-		panic("boringcrypto: SHA256_Update failed")
-	}
-	return nil
-}
-
 func (h0 *sha256Hash) sum(dst []byte) []byte {
 	h := *h0 // make copy so future Write+Sum is valid
 	if C._goboringcrypto_SHA256_Final((*C.uint8_t)(noescape(unsafe.Pointer(&h.out[0]))), h.noescapeCtx()) == 0 {

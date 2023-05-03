@@ -4,13 +4,6 @@
 
 package sha256
 
-import (
-	"internal/cpu"
-	"unsafe"
-)
+import "internal/cpu"
 
 var useAsm = cpu.S390X.HasSHA256
-
-func doBlockGeneric(dig *digest, p *byte, n int) {
-	blockGeneric(dig, unsafe.String(p, n))
-}

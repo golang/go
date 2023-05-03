@@ -4,10 +4,10 @@
 
 #include "textflag.h"
 
-// func doBlock(dig *digest, p *byte, n int)
-TEXT ·doBlock(SB), NOSPLIT|NOFRAME, $0-24
+// func block(dig *digest, p []byte)
+TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
 	MOVBZ  ·useAsm(SB), R4
-	LMG    dig+0(FP), R1, R3            // R2 = p, R3 = n
+	LMG    dig+0(FP), R1, R3            // R2 = &p[0], R3 = len(p)
 	MOVBZ  $2, R0                       // SHA-256 function code
 	CMPBEQ R4, $0, generic
 
@@ -17,4 +17,4 @@ loop:
 	RET
 
 generic:
-	BR ·doBlockGeneric(SB)
+	BR ·blockGeneric(SB)
