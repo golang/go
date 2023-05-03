@@ -1,0 +1,67 @@
+{"Fail": "amber || apricot", "Bisect": {"Count": 2}}
+-- stdout --
+--- change set #1 (enabling changes causes failure)
+amber
+---
+--- change set #2 (enabling changes causes failure)
+apricot
+---
+-- stderr --
+bisect: checking target with all changes disabled
+bisect: run test n... ok (90 matches)
+bisect: run test n... ok (90 matches)
+bisect: checking target with all changes enabled
+bisect: run test y... FAIL (90 matches)
+bisect: run test y... FAIL (90 matches)
+bisect: target succeeds with no changes, fails with all changes
+bisect: searching for minimal set of changes to enable to cause failure
+bisect: run test +0... FAIL (45 matches)
+bisect: run test +0... FAIL (45 matches)
+bisect: run test +00... ok (23 matches)
+bisect: run test +00... ok (23 matches)
+bisect: run test +10... FAIL (22 matches)
+bisect: run test +10... FAIL (22 matches)
+bisect: run test +010... FAIL (11 matches)
+bisect: run test +010... FAIL (11 matches)
+bisect: run test +0010... FAIL (6 matches)
+bisect: run test +0010... FAIL (6 matches)
+bisect: run test +00010... FAIL (3 matches)
+bisect: run test +00010... FAIL (3 matches)
+bisect: run test +000010... FAIL (2 matches)
+bisect: run test +000010... FAIL (2 matches)
+bisect: run test +0000010... FAIL (1 matches)
+bisect: run test +0000010... FAIL (1 matches)
+bisect: confirming failing change set
+bisect: run test v+0000010... FAIL (1 matches)
+bisect: run test v+0000010... FAIL (1 matches)
+bisect: FOUND failing change set
+bisect: checking for more failures
+bisect: run test -0000010... FAIL (89 matches)
+bisect: run test -0000010... FAIL (89 matches)
+bisect: target still fails; searching for more bad changes
+bisect: run test +0-0000010... FAIL (44 matches)
+bisect: run test +0-0000010... FAIL (44 matches)
+bisect: run test +00-0000010... ok (23 matches)
+bisect: run test +00-0000010... ok (23 matches)
+bisect: run test +10-0000010... FAIL (21 matches)
+bisect: run test +10-0000010... FAIL (21 matches)
+bisect: run test +010-0000010... ok (10 matches)
+bisect: run test +010-0000010... ok (10 matches)
+bisect: run test +110-0000010... FAIL (11 matches)
+bisect: run test +110-0000010... FAIL (11 matches)
+bisect: run test +0110-0000010... FAIL (6 matches)
+bisect: run test +0110-0000010... FAIL (6 matches)
+bisect: run test +00110-0000010... FAIL (3 matches)
+bisect: run test +00110-0000010... FAIL (3 matches)
+bisect: run test +000110-0000010... FAIL (2 matches)
+bisect: run test +000110-0000010... FAIL (2 matches)
+bisect: run test +0000110-0000010... FAIL (1 matches)
+bisect: run test +0000110-0000010... FAIL (1 matches)
+bisect: confirming failing change set
+bisect: run test v+0000110-0000010... FAIL (1 matches)
+bisect: run test v+0000110-0000010... FAIL (1 matches)
+bisect: FOUND failing change set
+bisect: checking for more failures
+bisect: run test -0000110-0000010... ok (88 matches)
+bisect: run test -0000110-0000010... ok (88 matches)
+bisect: target succeeds with all remaining changes enabled

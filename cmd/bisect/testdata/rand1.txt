@@ -1,0 +1,24 @@
+{"Fail": "blue && random"}
+-- stdout --
+-- stderr --
+bisect: checking target with all changes disabled
+bisect: run test n... ok (90 matches)
+bisect: checking target with all changes enabled
+bisect: run test y... FAIL (90 matches)
+bisect: target succeeds with no changes, fails with all changes
+bisect: searching for minimal set of changes to enable to cause failure
+bisect: run test +0... ok (45 matches)
+bisect: run test +1... FAIL (45 matches)
+bisect: run test +01... FAIL (23 matches)
+bisect: run test +001... ok (12 matches)
+bisect: run test +101... FAIL (11 matches)
+bisect: run test +0101... ok (6 matches)
+bisect: run test +1101... FAIL (5 matches)
+bisect: run test +01101... ok (3 matches)
+bisect: run test +11101... ok (2 matches)
+bisect: run test +01101+11101... FAIL (3 matches)
+bisect: run test +001101+11101... ok (2 matches)
+bisect: run test +101101+11101... ok (1 matches)
+bisect: run test +001101+11101+101101... ok (2 matches)
+bisect: fatal error: target fails inconsistently
+<bisect failed>
