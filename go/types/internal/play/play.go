@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/token"
 	"go/types"
 	"io"
@@ -167,6 +168,10 @@ func handleSelectJSON(w http.ResponseWriter, req *http.Request) {
 
 	// Syntax debug output.
 	ast.Fprint(out, fset, path[0], nil) // ignore errors
+	fmt.Fprintf(out, "\n")
+
+	// Pretty-print of selected syntax.
+	format.Node(out, fset, path[0])
 
 	// Clean up the messy temp file name.
 	outStr := strings.ReplaceAll(out.String(), f.Name(), "play.go")
@@ -263,4 +268,5 @@ function onLoad() {
 const mainCSS = `
 textarea { width: 6in; }
 body { color: gray; }
+div#out { font-family: monospace; font-size: 80%; }
 `
