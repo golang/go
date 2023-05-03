@@ -241,7 +241,17 @@ func DefaultPIE(goos, goarch string, isRace bool) bool {
 	return false
 }
 
-// CgoSupported reports whether goos/goarch supports cgo.\n")
+// CgoSupported reports whether goos/goarch supports cgo.
 func CgoSupported(goos, goarch string) bool {
 	return osArchSupportsCgo[goos+"/"+goarch]
+}
+
+// ExecutableHasDWARF reports whether the linked executable includes DWARF
+// symbols on goos/goarch.
+func ExecutableHasDWARF(goos, goarch string) bool {
+	switch goos {
+	case "plan9", "ios":
+		return false
+	}
+	return true
 }

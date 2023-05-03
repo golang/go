@@ -55,8 +55,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
 	}
 
 	t.Parallel()
