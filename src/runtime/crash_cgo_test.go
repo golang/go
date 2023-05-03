@@ -643,6 +643,10 @@ func TestSegv(t *testing.T) {
 		}
 
 		t.Run(test, func(t *testing.T) {
+			if test == "SegvInCgo" && runtime.GOOS == "ios" {
+				testenv.SkipFlaky(t, 59947) // Don't even try, in case it times out.
+			}
+
 			t.Parallel()
 			got := runTestProg(t, "testprogcgo", test)
 			t.Log(got)
