@@ -492,7 +492,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 			check.validType(t)
 		}
 		// If typ is local, an error was already reported where typ is specified/defined.
-		_ = check.isImportedConstraint(rhs) && check.allowVersionf(check.pkg, tdecl.Type, go1_18, "using type constraint %s", rhs)
+		_ = check.isImportedConstraint(rhs) && check.verifyVersionf(check.pkg, tdecl.Type, go1_18, "using type constraint %s", rhs)
 	}).describef(obj, "validType(%s)", obj.Name())
 
 	alias := tdecl.Alias
@@ -505,7 +505,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
 
 	// alias declaration
 	if alias {
-		check.allowVersionf(check.pkg, tdecl, go1_9, "type aliases")
+		check.verifyVersionf(check.pkg, tdecl, go1_9, "type aliases")
 		check.brokenAlias(obj)
 		rhs = check.typ(tdecl.Type)
 		check.validAlias(obj, rhs)

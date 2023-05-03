@@ -235,7 +235,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Clear:
 		// clear(m)
-		if !check.allowVersionf(check.pkg, call.Fun, go1_21, "clear") {
+		if !check.verifyVersionf(check.pkg, call.Fun, go1_21, "clear") {
 			return
 		}
 
@@ -626,7 +626,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Add:
 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
-		if !check.allowVersionf(check.pkg, call.Fun, go1_17, "unsafe.Add") {
+		if !check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Add") {
 			return
 		}
 
@@ -761,7 +761,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Slice:
 		// unsafe.Slice(ptr *T, len IntegerType) []T
-		if !check.allowVersionf(check.pkg, call.Fun, go1_17, "unsafe.Slice") {
+		if !check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Slice") {
 			return
 		}
 
@@ -785,7 +785,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _SliceData:
 		// unsafe.SliceData(slice []T) *T
-		if !check.allowVersionf(check.pkg, call.Fun, go1_20, "unsafe.SliceData") {
+		if !check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.SliceData") {
 			return
 		}
 
@@ -803,7 +803,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _String:
 		// unsafe.String(ptr *byte, len IntegerType) string
-		if !check.allowVersionf(check.pkg, call.Fun, go1_20, "unsafe.String") {
+		if !check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.String") {
 			return
 		}
 
@@ -826,7 +826,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _StringData:
 		// unsafe.StringData(str string) *byte
-		if !check.allowVersionf(check.pkg, call.Fun, go1_20, "unsafe.StringData") {
+		if !check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.StringData") {
 			return
 		}
 
