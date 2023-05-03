@@ -2006,10 +2006,11 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 	if altLinker != "" {
 		flags = append(flags, "-fuse-ld="+altLinker)
 	}
-	flags = append(flags, flag, "trivial.c")
+	trivialPath := filepath.Join(*flagTmpdir, "trivial.c")
+	outPath := filepath.Join(*flagTmpdir, "a.out")
+	flags = append(flags, "-o", outPath, flag, trivialPath)
 
 	cmd := exec.Command(linker, flags...)
-	cmd.Dir = *flagTmpdir
 	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
 	out, err := cmd.CombinedOutput()
 	// GCC says "unrecognized command line option ‘-no-pie’"
