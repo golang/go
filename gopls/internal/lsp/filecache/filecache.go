@@ -33,6 +33,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -81,7 +82,16 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 	// issue #59289. TODO(adonovan): stop printing the entire file
 	// once we've seen enough reports to understand the pattern.
 	if binary.LittleEndian.Uint32(checksum) != crc32.ChecksumIEEE(value) {
-		return nil, bug.Errorf("internal error in filecache.Get(%q, %x): invalid checksum at end of %d-byte file %s:\n%q",
+		// Darwin has repeatedly displayed a problem (#59895)
+		// whereby the checksum portion (and only it) is zero,
+		// which suggests a bug in its file system . Don't
+		// panic, but keep an eye on other failures for now.
+		errorf := bug.Errorf
+		if binary.LittleEndian.Uint32(checksum) == 0 && runtime.GOOS == "darwin" {
+			errorf = fmt.Errorf
+		}
+
+		return nil, errorf("internal error in filecache.Get(%q, %x): invalid checksum at end of %d-byte file %s:\n%q",
 			kind, key, len(data), name, data)
 	}
 
