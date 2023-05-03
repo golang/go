@@ -21,15 +21,13 @@ func main() {
 		panic(2)
 	}
 
-	// Disabled for now - requires some noder work
-	// TODO fix this
-	// if g3(g1, 3) != g1(3) {
-	// 	panic(3)
-	// }
+	if g3(g1, 3) != g1(3) {
+		panic(3)
+	}
 
-	// if g4(g2, 4) != "" {
-	// 	panic(4)
-	// }
+	if g4(g2, 4) != "" {
+		panic(4)
+	}
 }
 
 func g1[P any](x P) P    { return x }
