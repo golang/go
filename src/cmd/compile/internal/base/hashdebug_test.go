@@ -11,28 +11,22 @@ import (
 )
 
 func TestHashDebugGossahashY(t *testing.T) {
-	hd := NewHashDebug("GOSSAHASH", "y", nil)
+	hd := NewHashDebug("GOSSAHASH", "y", new(bufferWithSync))
 	if hd == nil {
 		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=y")
 	}
-	if !hd.yes {
-		t.Errorf("NewHashDebug should return hd.yes==true for GOSSASHASH=y")
-	}
-	if hd.no {
-		t.Errorf("NewHashDebug should not return hd.no==true for GOSSASHASH=y")
+	if !hd.DebugHashMatch("anything") {
+		t.Errorf("NewHashDebug should return yes for everything for GOSSASHASH=y")
 	}
 }
 
 func TestHashDebugGossahashN(t *testing.T) {
-	hd := NewHashDebug("GOSSAHASH", "n", nil)
+	hd := NewHashDebug("GOSSAHASH", "n", new(bufferWithSync))
 	if hd == nil {
 		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=n")
 	}
-	if !hd.no {
-		t.Errorf("NewHashDebug should return hd.no==true GOSSASHASH=n")
-	}
-	if hd.yes {
-		t.Errorf("NewHashDebug should not return hd.yes==true for GOSSASHASH=n")
+	if hd.DebugHashMatch("anything") {
+		t.Errorf("NewHashDebug should return no for everything for GOSSASHASH=n")
 	}
 }
 
@@ -73,6 +67,7 @@ func TestHashMatch(t *testing.T) {
 		t.Errorf("GOSSAHASH=0011 should have matched for 'bar'")
 	}
 	wantPrefix(t, msg, "GOSSAHASH triggered bar ")
+	wantContains(t, msg, "\nbar [bisect-match ")
 }
 
 func TestHashMatchParam(t *testing.T) {
@@ -85,6 +80,7 @@ func TestHashMatchParam(t *testing.T) {
 		t.Errorf("GOSSAHASH=1010 should have matched for 'bar', 1")
 	}
 	wantPrefix(t, msg, "GOSSAHASH triggered bar:1 ")
+	wantContains(t, msg, "\nbar:1 [bisect-match ")
 }
 
 func TestYMatch(t *testing.T) {
@@ -96,7 +92,8 @@ func TestYMatch(t *testing.T) {
 	if !check {
 		t.Errorf("GOSSAHASH=y should have matched for 'bar'")
 	}
-	wantPrefix(t, msg, "GOSSAHASH triggered bar y")
+	wantPrefix(t, msg, "GOSSAHASH triggered bar 110101000010000100000011")
+	wantContains(t, msg, "\nbar [bisect-match ")
 }
 
 func TestNMatch(t *testing.T) {
@@ -108,9 +105,8 @@ func TestNMatch(t *testing.T) {
 	if check {
 		t.Errorf("GOSSAHASH=n should NOT have matched for 'bar'")
 	}
-	if msg != "" {
-		t.Errorf("Message should have been empty, instead %s", msg)
-	}
+	wantPrefix(t, msg, "GOSSAHASH triggered bar 110101000010000100000011")
+	wantContains(t, msg, "\nbar [bisect-match ")
 }
 
 func TestHashNoMatch(t *testing.T) {
@@ -159,6 +155,12 @@ func (ws *bufferWithSync) String() string {
 
 func wantPrefix(t *testing.T, got, want string) {
 	if !strings.HasPrefix(got, want) {
-		t.Errorf("Want %s, got %s", want, got)
+		t.Errorf("want prefix %q, got:\n%s", want, got)
+	}
+}
+
+func wantContains(t *testing.T, got, want string) {
+	if !strings.Contains(got, want) {
+		t.Errorf("want contains %q, got:\n%s", want, got)
 	}
 }

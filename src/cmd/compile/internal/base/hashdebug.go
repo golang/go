@@ -10,6 +10,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
+	"internal/bisect"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,7 +41,7 @@ type HashDebug struct {
 	bytesTmp         bytes.Buffer
 	matches          []hashAndMask // A hash matches if one of these matches.
 	excludes         []hashAndMask // explicitly excluded hash suffixes
-	yes, no          bool
+	bisect           *bisect.Matcher
 	fileSuffixOnly   bool // for Pos hashes, remove the directory prefix.
 	inlineSuffixOnly bool // for Pos hashes, remove all but the most inline position.
 }
@@ -173,12 +174,12 @@ func NewHashDebug(ev, s string, file writeSyncer) *HashDebug {
 	}
 
 	hd := &HashDebug{name: ev, logfile: file}
-	switch s[0] {
-	case 'y', 'Y':
-		hd.yes = true
-		return hd
-	case 'n', 'N':
-		hd.no = true
+	if !strings.Contains(s, "/") {
+		m, err := bisect.New(s)
+		if err != nil {
+			Fatalf("%s: %v", ev, err)
+		}
+		hd.bisect = m
 		return hd
 	}
 	ss := strings.Split(s, "/")
@@ -292,23 +293,16 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
 	if d == nil {
 		return true
 	}
-	if d.no {
-		return false
-	}
-
-	if d.yes {
-		d.logDebugHashMatch(d.name, pkgAndName, "y", param)
-		return true
-	}
 
 	hash := hashOf(pkgAndName, param)
-
-	// Return false for explicitly excluded hashes
-	if d.excluded(hash) {
-		return false
+	if d.bisect != nil {
+		if d.bisect.ShouldReport(hash) {
+			d.logDebugHashMatch(d.name, pkgAndName, hash, param)
+		}
+		return d.bisect.ShouldEnable(hash)
 	}
 	if m := d.match(hash); m != nil {
-		d.logDebugHashMatch(m.name, pkgAndName, hashString(hash), param)
+		d.logDebugHashMatch(m.name, pkgAndName, hash, param)
 		return true
 	}
 	return false
@@ -316,41 +310,39 @@ func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
 
 // DebugHashMatchPos is similar to DebugHashMatchParam, but for hash computation
 // it uses the source position including all inlining information instead of
-// package name and path. The output trigger string is prefixed with "POS=" so
-// that tools processing the output can reliably tell the difference. The mutex
-// locking is also more frequent and more granular.
+// package name and path. The mutex locking is more frequent and more granular.
 // Note that the default answer for no environment variable (d == nil)
 // is "yes", do the thing.
 func (d *HashDebug) DebugHashMatchPos(pos src.XPos) bool {
 	if d == nil {
 		return true
 	}
-	if d.no {
-		return false
-	}
 	// Written this way to make inlining likely.
 	return d.debugHashMatchPos(Ctxt, pos)
 }
 
 func (d *HashDebug) debugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
+	// TODO: When we remove the old d.match code, we can use
+	// d.bisect.Hash instead of the locked buffer, and we can
+	// use d.bisect.Visible to decide whether to format a string.
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	b := d.bytesForPos(ctxt, pos)
-
-	if d.yes {
-		d.logDebugHashMatchLocked(d.name, string(b), "y", 0)
-		return true
-	}
-
 	hash := hashOfBytes(b, 0)
+	if d.bisect != nil {
+		if d.bisect.ShouldReport(hash) {
+			d.logDebugHashMatchLocked(d.name, string(b), hash, 0)
+		}
+		return d.bisect.ShouldEnable(hash)
+	}
 
 	// Return false for explicitly excluded hashes
 	if d.excluded(hash) {
 		return false
 	}
 	if m := d.match(hash); m != nil {
-		d.logDebugHashMatchLocked(m.name, "POS="+string(b), hashString(hash), 0)
+		d.logDebugHashMatchLocked(m.name, string(b), hash, 0)
 		return true
 	}
 	return false
@@ -381,13 +373,13 @@ func (d *HashDebug) bytesForPos(ctxt *obj.Link, pos src.XPos) []byte {
 	return b.Bytes()
 }
 
-func (d *HashDebug) logDebugHashMatch(varname, name, hstr string, param uint64) {
+func (d *HashDebug) logDebugHashMatch(varname, name string, hash, param uint64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.logDebugHashMatchLocked(varname, name, hstr, param)
+	d.logDebugHashMatchLocked(varname, name, hash, param)
 }
 
-func (d *HashDebug) logDebugHashMatchLocked(varname, name, hstr string, param uint64) {
+func (d *HashDebug) logDebugHashMatchLocked(varname, name string, hash, param uint64) {
 	file := d.logfile
 	if file == nil {
 		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
@@ -403,6 +395,7 @@ func (d *HashDebug) logDebugHashMatchLocked(varname, name, hstr string, param ui
 		}
 		d.logfile = file
 	}
+	hstr := hashString(hash)
 	if len(hstr) > 24 {
 		hstr = hstr[len(hstr)-24:]
 	}
@@ -411,6 +404,12 @@ func (d *HashDebug) logDebugHashMatchLocked(varname, name, hstr string, param ui
 		fmt.Fprintf(file, "%s triggered %s %s\n", varname, name, hstr)
 	} else {
 		fmt.Fprintf(file, "%s triggered %s:%d %s\n", varname, name, param, hstr)
+	}
+	// Print new bisect version too.
+	if param == 0 {
+		fmt.Fprintf(file, "%s %s\n", name, bisect.Marker(hash))
+	} else {
+		fmt.Fprintf(file, "%s:%d %s\n", name, param, bisect.Marker(hash))
 	}
 	file.Sync()
 }

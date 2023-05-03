@@ -193,7 +193,7 @@ func TestLoopVarHashes(t *testing.T) {
 	m := f("000100000010011111101100")
 	t.Logf(m)
 
-	mCount := strings.Count(m, "loopvarhash triggered POS=main.go:27:6")
+	mCount := strings.Count(m, "loopvarhash triggered main.go:27:6")
 	otherCount := strings.Count(m, "loopvarhash")
 	if mCount < 1 {
 		t.Errorf("Did not see expected value of m compile")
