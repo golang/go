@@ -1,0 +1,30 @@
+This test verifies that gopls does not panic when encountering the go/types
+bug described in golang/go#59944: the Bindingf function is not included in
+the methodset of its receiver type.
+
+Adapted from the code in question from the issue.
+
+-- go.mod --
+module example.com
+
+go 1.12
+
+-- cgo.go --
+package x
+
+import "fmt"
+
+/*
+struct layout {
+	int field;
+};
+*/
+import "C"
+
+type Layout = C.struct_layout
+
+// Bindingf is a printf wrapper. This was necessary to trigger the panic in
+// objectpath while encoding facts.
+func (l *Layout) Bindingf(format string, args ...interface{}) {
+	fmt.Printf(format, args...)
+}
