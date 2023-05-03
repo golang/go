@@ -1959,6 +1959,10 @@ func (c *ctxt7) loadStoreClass(p *obj.Prog, lsc int, v int64) int {
 	}
 
 	needsPool := true
+	if v >= -4095 && v <= 4095 {
+		needsPool = false
+	}
+
 	switch p.As {
 	case AMOVB, AMOVBU:
 		if cmp(C_UAUTO4K, lsc) || cmp(C_UOREG4K, lsc) {
@@ -4015,10 +4019,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= uint32(p.From.Reg&31)<<5 | uint32(p.To.Reg&31)
 
 	case 30: /* movT R,L(R) -> strT */
-		// if offset L can be split into hi+lo, and both fit into instructions, do
+		// If offset L fits in a 12 bit unsigned immediate:
+		//	add $L, R, Rtmp  or  sub $L, R, Rtmp
+		//	str R, (Rtmp)
+		// Otherwise, if offset L can be split into hi+lo, and both fit into instructions:
 		//	add $hi, R, Rtmp
 		//	str R, lo(Rtmp)
-		// otherwise, use constant pool
+		// Otherwise, use constant pool:
 		//	mov $L, Rtmp (from constant pool)
 		//	str R, (R+Rtmp)
 		s := movesize(o.as)
@@ -4032,6 +4039,20 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		v := c.regoff(&p.To)
+		if v >= -256 && v <= 256 {
+			c.ctxt.Diag("%v: bad type for offset %d (should be 9 bit signed immediate store)", p, v)
+		}
+		if v >= 0 && v <= 4095 && v&((1<<int32(s))-1) == 0 {
+			c.ctxt.Diag("%v: bad type for offset %d (should be 12 bit unsigned immediate store)", p, v)
+		}
+
+		// Handle smaller unaligned and negative offsets via addition or subtraction.
+		if v >= -4095 && v <= 4095 {
+			o1 = c.oaddi12(p, v, REGTMP, int16(r))
+			o2 = c.olsr12u(p, c.opstr(p, p.As), 0, REGTMP, p.From.Reg)
+			break
+		}
+
 		hi, lo, err := splitImm24uScaled(v, s)
 		if err != nil {
 			goto storeusepool
@@ -4054,10 +4075,13 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o2 = c.olsxrr(p, int32(c.opstrr(p, p.As, false)), int(p.From.Reg), int(r), REGTMP)
 
 	case 31: /* movT L(R), R -> ldrT */
-		// if offset L can be split into hi+lo, and both fit into instructions, do
+		// If offset L fits in a 12 bit unsigned immediate:
+		//	add $L, R, Rtmp  or  sub $L, R, Rtmp
+		//	ldr R, (Rtmp)
+		// Otherwise, if offset L can be split into hi+lo, and both fit into instructions:
 		//	add $hi, R, Rtmp
 		//	ldr lo(Rtmp), R
-		// otherwise, use constant pool
+		// Otherwise, use constant pool:
 		//	mov $L, Rtmp (from constant pool)
 		//	ldr (R+Rtmp), R
 		s := movesize(o.as)
@@ -4071,6 +4095,20 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		v := c.regoff(&p.From)
+		if v >= -256 && v <= 256 {
+			c.ctxt.Diag("%v: bad type for offset %d (should be 9 bit signed immediate load)", p, v)
+		}
+		if v >= 0 && v <= 4095 && v&((1<<int32(s))-1) == 0 {
+			c.ctxt.Diag("%v: bad type for offset %d (should be 12 bit unsigned immediate load)", p, v)
+		}
+
+		// Handle smaller unaligned and negative offsets via addition or subtraction.
+		if v >= -4095 && v <= 4095 {
+			o1 = c.oaddi12(p, v, REGTMP, int16(r))
+			o2 = c.olsr12u(p, c.opldr(p, p.As), 0, REGTMP, p.To.Reg)
+			break
+		}
+
 		hi, lo, err := splitImm24uScaled(v, s)
 		if err != nil {
 			goto loadusepool

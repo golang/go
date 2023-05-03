@@ -557,7 +557,38 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	FMOVQ	65520(R10), F10 // 4afdff3d
 	FMOVQ	64(RSP), F11    // eb13c03d
 
-// large aligned offset, use two instructions(add+ldr/store).
+// medium offsets that either fit a single instruction or can use add+ldr/str
+	MOVD -4095(R17), R3                        // 3bfe3fd1630340f9
+	MOVD -391(R17), R3                         // 3b1e06d1630340f9
+	MOVD -257(R17), R3                         // 3b0604d1630340f9
+	MOVD -256(R17), R3                         // 230250f8
+	MOVD 255(R17), R3                          // 23f24ff8
+	MOVD 256(R17), R3                          // 238240f9
+	MOVD 257(R17), R3                          // 3b060491630340f9
+	MOVD 391(R17), R3                          // 3b1e0691630340f9
+	MOVD 4095(R17), R3                         // 3bfe3f91630340f9
+
+	MOVD R0, -4095(R17)                        // 3bfe3fd1600300f9
+	MOVD R0, -391(R17)                         // 3b1e06d1600300f9
+	MOVD R0, -257(R17)                         // 3b0604d1600300f9
+	MOVD R0, -256(R17)                         // 200210f8
+	MOVD R0, 255(R17)                          // 20f20ff8
+	MOVD R0, 256(R17)                          // 208200f9
+	MOVD R0, 257(R17)                          // 3b060491600300f9
+	MOVD R0, 391(R17)                          // 3b1e0691600300f9
+	MOVD R0, 4095(R17)                         // 3bfe3f91600300f9
+	MOVD R0, 4096(R17)                         // 200208f9
+	MOVD R3, -4095(R17)                        // 3bfe3fd1630300f9
+	MOVD R3, -391(R17)                         // 3b1e06d1630300f9
+	MOVD R3, -257(R17)                         // 3b0604d1630300f9
+	MOVD R3, -256(R17)                         // 230210f8
+	MOVD R3, 255(R17)                          // 23f20ff8
+	MOVD R3, 256(R17)                          // 238200f9
+	MOVD R3, 257(R17)                          // 3b060491630300f9
+	MOVD R3, 391(R17)                          // 3b1e0691630300f9
+	MOVD R3, 4095(R17)                         // 3bfe3f91630300f9
+
+// large aligned offset, use two instructions(add+ldr/str).
 	MOVB	R1, 0x1001(R2) 		// MOVB		R1, 4097(R2)		// 5b04409161070039
 	MOVB	R1, 0xffffff(R2)	// MOVB		R1, 16777215(R2)	// 5bfc7f9161ff3f39
 	MOVH	R1, 0x2002(R2)		// MOVH		R1, 8194(R2)		// 5b08409161070079
