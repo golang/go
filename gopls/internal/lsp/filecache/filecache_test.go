@@ -60,6 +60,9 @@ func TestBasics(t *testing.T) {
 
 // TestConcurrency exercises concurrent access to the same entry.
 func TestConcurrency(t *testing.T) {
+	if os.Getenv("GO_BUILDER_NAME") == "plan9-arm" {
+		t.Skip(`skipping on plan9-arm builder due to golang/go#58748: failing with 'mount rpc error'`)
+	}
 	const kind = "TestConcurrency"
 	key := uniqueKey()
 	const N = 100 // concurrency level
