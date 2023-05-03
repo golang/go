@@ -853,8 +853,6 @@ var optab = []Optab{
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0}, // same as AB/ABL
 	{obj.APCALIGN, C_LCON, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0},  // align code
-
-	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0},
 }
 
 // Valid pstate field values, and value to use in instruction.
@@ -2596,29 +2594,27 @@ func buildop(ctxt *obj.Link) {
 		return
 	}
 
-	var n int
 	for i := 0; i < C_GOK; i++ {
-		for n = 0; n < C_GOK; n++ {
-			if cmp(n, i) {
-				xcmp[i][n] = true
+		for j := 0; j < C_GOK; j++ {
+			if cmp(j, i) {
+				xcmp[i][j] = true
 			}
 		}
 	}
-	for n = 0; optab[n].as != obj.AXXX; n++ {
-	}
-	sort.Sort(ocmp(optab[:n]))
-	for i := 0; i < n; i++ {
-		r := optab[i].as
-		start := i
-		for optab[i].as == r {
-			i++
+
+	sort.Sort(ocmp(optab))
+	for i := 0; i < len(optab); i++ {
+		as, start := optab[i].as, i
+		for ; i < len(optab)-1; i++ {
+			if optab[i+1].as != as {
+				break
+			}
 		}
-		t := optab[start:i]
-		i--
-		oprangeset(r, t)
-		switch r {
+		t := optab[start : i+1]
+		oprangeset(as, t)
+		switch as {
 		default:
-			ctxt.Diag("unknown op in build: %v", r)
+			ctxt.Diag("unknown op in build: %v", as)
 			ctxt.DiagFlush()
 			log.Fatalf("bad code")
 
