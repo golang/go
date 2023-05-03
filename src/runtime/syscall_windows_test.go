@@ -647,26 +647,51 @@ func TestZeroDivisionException(t *testing.T) {
 	}
 }
 
-func TestWERDialogue(t *testing.T) {
+func testRaiseException(t *testing.T, exitcode int) {
+	t.Helper()
+	const EXCEPTION_NONCONTINUABLE = 1
+	mod := syscall.MustLoadDLL("kernel32.dll")
+	proc := mod.MustFindProc("RaiseException")
+	proc.Call(uintptr(exitcode), EXCEPTION_NONCONTINUABLE, 0, 0)
+	t.Fatal("RaiseException should not return")
+}
+
+func TestCrashExitCode(t *testing.T) {
 	const exitcode = 0xbad
-	if os.Getenv("TEST_WER_DIALOGUE") == "1" {
-		const EXCEPTION_NONCONTINUABLE = 1
-		mod := syscall.MustLoadDLL("kernel32.dll")
-		proc := mod.MustFindProc("RaiseException")
-		proc.Call(exitcode, EXCEPTION_NONCONTINUABLE, 0, 0)
-		t.Fatal("RaiseException should not return")
-		return
+	if os.Getenv("TEST_CRASH_EXIT_CODE") == "1" {
+		testRaiseException(t, exitcode)
 	}
-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestWERDialogue"))
-	cmd.Env = append(cmd.Env, "TEST_WER_DIALOGUE=1", "GOTRACEBACK=wer")
-	// Child process should not open WER dialogue, but return immediately instead.
-	_, err := cmd.CombinedOutput()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, "-test.run=TestCrashExitCode"))
+	cmd.Env = append(cmd.Env, "TEST_CRASH_EXIT_CODE=1", "GOTRACEBACK=crash")
+	_, err = cmd.CombinedOutput()
 	if err == nil {
 		t.Error("test program succeeded unexpectedly")
 	} else if ee, ok := err.(*exec.ExitError); !ok {
 		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
 	} else if got := ee.ExitCode(); got != exitcode {
 		t.Fatalf("got exit code %d; want %d", got, exitcode)
+	}
+}
+
+func TestWERDialogue(t *testing.T) {
+	if os.Getenv("TEST_WER_DIALOGUE") == "1" {
+		testRaiseException(t, 0xbad)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, "-test.run=TestWERDialogue"))
+	cmd.Env = append(cmd.Env, "TEST_WER_DIALOGUE=1", "GOTRACEBACK=wer")
+	// Child process should not open WER dialogue, but return immediately instead.
+	// The exit code can't be reliably tested here because WER can change it.
+	_, err = cmd.CombinedOutput()
+	if err == nil {
+		t.Error("test program succeeded unexpectedly")
 	}
 }
 
