@@ -527,7 +527,10 @@ func TestIssue59563TruncatedCoverPkgAll(t *testing.T) {
 		if len(f) == 0 {
 			continue
 		}
-		if !strings.HasPrefix(f[0], "runtime/coverage/testdata/issue59563/repro.go") {
+		// We're only interested in the specific function "large" for
+		// the testcase being built. See the #59563 for details on why
+		// size matters.
+		if !(strings.HasPrefix(f[0], "runtime/coverage/testdata/issue59563/repro.go") && strings.Contains(line, "large")) {
 			continue
 		}
 		nfound++
@@ -537,8 +540,8 @@ func TestIssue59563TruncatedCoverPkgAll(t *testing.T) {
 			bad = true
 		}
 	}
-	if nfound != 2 {
-		t.Errorf("wanted 2 found, got %d\n", nfound)
+	if nfound != 1 {
+		t.Errorf("wanted 1 found, got %d\n", nfound)
 		bad = true
 	}
 	if bad {
