@@ -530,7 +530,7 @@ func eqFunc(t *types.Type) *ir.Func {
 			qi := ir.NewIndexExpr(tmpPos, nq, ir.NewInt(tmpPos, 0))
 			qi.SetBounded(true)
 			qi.SetType(t.Elem())
-			flatConds := compare.EqStruct(t.Elem(), pi, qi)
+			flatConds, canPanic := compare.EqStruct(t.Elem(), pi, qi)
 			for _, c := range flatConds {
 				if isCall(c) {
 					hasCallExprs = true
@@ -538,7 +538,7 @@ func eqFunc(t *types.Type) *ir.Func {
 					allCallExprs = false
 				}
 			}
-			if !hasCallExprs || allCallExprs {
+			if !hasCallExprs || allCallExprs || canPanic {
 				checkAll(1, true, func(pi, qi ir.Node) ir.Node {
 					// p[i] == q[i]
 					return ir.NewBinaryExpr(base.Pos, ir.OEQ, pi, qi)
@@ -546,7 +546,7 @@ func eqFunc(t *types.Type) *ir.Func {
 			} else {
 				checkAll(4, false, func(pi, qi ir.Node) ir.Node {
 					expr = nil
-					flatConds := compare.EqStruct(t.Elem(), pi, qi)
+					flatConds, _ := compare.EqStruct(t.Elem(), pi, qi)
 					if len(flatConds) == 0 {
 						return ir.NewBool(base.Pos, true)
 					}
@@ -559,7 +559,7 @@ func eqFunc(t *types.Type) *ir.Func {
 				})
 				checkAll(2, true, func(pi, qi ir.Node) ir.Node {
 					expr = nil
-					flatConds := compare.EqStruct(t.Elem(), pi, qi)
+					flatConds, _ := compare.EqStruct(t.Elem(), pi, qi)
 					for _, c := range flatConds {
 						if isCall(c) {
 							and(c)
@@ -576,7 +576,7 @@ func eqFunc(t *types.Type) *ir.Func {
 		}
 
 	case types.TSTRUCT:
-		flatConds := compare.EqStruct(t, np, nq)
+		flatConds, _ := compare.EqStruct(t, np, nq)
 		if len(flatConds) == 0 {
 			fn.Body.Append(ir.NewAssignStmt(base.Pos, nr, ir.NewBool(base.Pos, true)))
 		} else {
