@@ -238,6 +238,11 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		canUseCgo = true
 	}
 
+	if c.goos == "windows" || c.goos == "plan9" || c.goos == "android" ||
+		c.goos == "ios" || c.goos == "darwin" {
+		return fallbackOrder, nil
+	}
+
 	// Try to figure out the order to use for searches.
 	// If we don't recognize something, use fallbackOrder.
 	// That will use cgo unless the Go resolver was explicitly requested.
