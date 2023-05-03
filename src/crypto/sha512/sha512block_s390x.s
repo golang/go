@@ -4,8 +4,8 @@
 
 #include "textflag.h"
 
-// func doBlock(dig *digest, p *byte, n int)
-TEXT ·doBlock(SB), NOSPLIT|NOFRAME, $0-24
+// func block(dig *digest, p []byte)
+TEXT ·block(SB), NOSPLIT|NOFRAME, $0-32
 	MOVBZ  ·useAsm(SB), R4
 	LMG    dig+0(FP), R1, R3            // R2 = &p[0], R3 = len(p)
 	MOVBZ  $3, R0                       // SHA-512 function code
@@ -17,4 +17,4 @@ loop:
 	RET
 
 generic:
-	BR ·doBlockGeneric(SB)
+	BR ·blockGeneric(SB)

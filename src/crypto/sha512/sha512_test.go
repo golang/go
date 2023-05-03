@@ -676,15 +676,6 @@ func testHash(t *testing.T, name, in, outHex string, oneShotResult []byte, diges
 		}
 		digestFunc.Reset()
 	}
-
-	bw := digestFunc.(io.ByteWriter)
-	for i := 0; i < len(in); i++ {
-		bw.WriteByte(in[i])
-	}
-	if calculated := hex.EncodeToString(digestFunc.Sum(nil)); calculated != outHex {
-		t.Errorf("%s(%q) = %q using WriteByte but expected %q", name, in, calculated, outHex)
-	}
-	digestFunc.Reset()
 }
 
 func TestGolden(t *testing.T) {
@@ -905,8 +896,7 @@ func TestAllocations(t *testing.T) {
 	if boring.Enabled {
 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
 	}
-	const ins = "hello, world!"
-	in := []byte(ins)
+	in := []byte("hello, world!")
 	out := make([]byte, 0, Size)
 	h := New()
 	n := int(testing.AllocsPerRun(10, func() {
@@ -916,28 +906,6 @@ func TestAllocations(t *testing.T) {
 	}))
 	if n > 0 {
 		t.Errorf("allocs = %d, want 0", n)
-	}
-
-	sw := h.(io.StringWriter)
-	n = int(testing.AllocsPerRun(10, func() {
-		h.Reset()
-		sw.WriteString(ins)
-		out = h.Sum(out[:0])
-	}))
-	if n > 0 {
-		t.Errorf("string allocs = %d, want 0", n)
-	}
-
-	bw := h.(io.ByteWriter)
-	n = int(testing.AllocsPerRun(10, func() {
-		h.Reset()
-		for _, b := range in {
-			bw.WriteByte(b)
-		}
-		out = h.Sum(out[:0])
-	}))
-	if n > 0 {
-		t.Errorf("byte allocs = %d, want 0", n)
 	}
 }
 
