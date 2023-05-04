@@ -2159,8 +2159,6 @@ func dwarfaddshstrings(ctxt *Link, add func(string)) {
 		add(".debug_" + sec)
 		if ctxt.IsExternal() {
 			add(elfRelType + ".debug_" + sec)
-		} else {
-			add(".zdebug_" + sec)
 		}
 	}
 }
