@@ -2147,21 +2147,20 @@ func (d *dwctxt) collectUnitLocs(u *sym.CompilationUnit) []loader.Sym {
 	return syms
 }
 
-/*
- *  Elf.
- */
-func dwarfaddshstrings(ctxt *Link, shstrtab *loader.SymbolBuilder) {
+// Add DWARF section names to the section header string table, by calling add
+// on each name. ELF only.
+func dwarfaddshstrings(ctxt *Link, add func(string)) {
 	if *FlagW { // disable dwarf
 		return
 	}
 
 	secs := []string{"abbrev", "frame", "info", "loc", "line", "gdb_scripts", "ranges"}
 	for _, sec := range secs {
-		shstrtab.Addstring(".debug_" + sec)
+		add(".debug_" + sec)
 		if ctxt.IsExternal() {
-			shstrtab.Addstring(elfRelType + ".debug_" + sec)
+			add(elfRelType + ".debug_" + sec)
 		} else {
-			shstrtab.Addstring(".zdebug_" + sec)
+			add(".zdebug_" + sec)
 		}
 	}
 }

@@ -261,8 +261,6 @@ type Loader struct {
 
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
 
-	elfsetstring elfsetstringFunc
-
 	errorReporter *ErrorReporter
 
 	npkgsyms    int // number of package symbols, for accounting
@@ -284,8 +282,6 @@ const (
 	goObjStart
 )
 
-type elfsetstringFunc func(str string, off int)
-
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
 // external symbols (note that symbol value is stored in a separate slice).
 type extSymPayload struct {
@@ -304,7 +300,7 @@ const (
 	FlagStrictDups = 1 << iota
 )
 
-func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
+func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
 	nbuiltin := goobj.NBuiltin()
 	extReader := &oReader{objidx: extObj}
 	ldr := &Loader{
@@ -333,7 +329,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
-		elfsetstring:         elfsetstring,
 		errorReporter:        reporter,
 		sects:                []*sym.Section{nil}, // reserve index 0 for nil section
 	}
