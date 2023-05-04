@@ -235,7 +235,7 @@ func (x *operand) setConst(k syntax.LitKind, lit string) {
 	x.val = val
 }
 
-// isNil reports whether x is a typed or the untyped nil value.
+// isNil reports whether x is the (untyped) nil value.
 func (x *operand) isNil() bool { return x.mode == nilvalue }
 
 // assignableTo reports whether x is assignable to a variable of type T. If the

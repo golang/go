@@ -165,12 +165,13 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 					errorf("type", par.typ, arg.typ, arg)
 					return nil
 				}
-			} else if _, ok := par.typ.(*TypeParam); ok {
+			} else if _, ok := par.typ.(*TypeParam); ok && !arg.isNil() {
 				// Since default types are all basic (i.e., non-composite) types, an
 				// untyped argument will never match a composite parameter type; the
 				// only parameter type it can possibly match against is a *TypeParam.
 				// Thus, for untyped arguments we only need to look at parameter types
 				// that are single type parameters.
+				// Also, untyped nils don't have a default type and can be ignored.
 				untyped = append(untyped, i)
 			}
 		}
@@ -292,15 +293,14 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 			j++
 		}
 	}
-	// untyped[:j] are the indices of parameters without a type yet
+	// untyped[:j] are the indices of parameters without a type yet.
+	// The respective default types are typed (not untyped) by construction.
 	for _, i := range untyped[:j] {
 		tpar := params.At(i).typ.(*TypeParam)
 		arg := args[i]
 		typ := Default(arg.typ)
-		// The default type for an untyped nil is untyped nil which must
-		// not be inferred as type parameter type. Ignore them by making
-		// sure all default types are typed.
-		if isTyped(typ) && !u.unify(tpar, typ) {
+		assert(isTyped(typ))
+		if !u.unify(tpar, typ) {
 			errorf("default type", tpar, typ, arg)
 			return nil
 		}
