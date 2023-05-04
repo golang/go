@@ -133,7 +133,6 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	flags.BoolVar(&conf.EnableReverseTypeInference, "reverseTypeInference", false, "")
 	if err := parseFlags(filenames[0], nil, flags); err != nil {
 		t.Fatal(err)
 	}

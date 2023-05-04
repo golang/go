@@ -594,12 +594,7 @@ type T[P any] []P
 
 	for _, test := range tests {
 		imports := make(testImporter)
-		conf := Config{
-			Importer: imports,
-			// Unexported field: set below with boolFieldAddr
-			// _EnableReverseTypeInference: true,
-		}
-		*boolFieldAddr(&conf, "_EnableReverseTypeInference") = true
+		conf := Config{Importer: imports}
 		instMap := make(map[*ast.Ident]Instance)
 		useMap := make(map[*ast.Ident]Object)
 		makePkg := func(src string) *Package {

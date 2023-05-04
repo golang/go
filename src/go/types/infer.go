@@ -15,6 +15,13 @@ import (
 	"strings"
 )
 
+// If enableReverseTypeInference is set, uninstantiated and
+// partially instantiated generic functions may be assigned
+// (incl. returned) to variables of function type and type
+// inference will attempt to infer the missing type arguments.
+// Available with go1.21.
+const enableReverseTypeInference = true // disable for debugging
+
 // infer attempts to infer the complete set of type arguments for generic function instantiation/call
 // based on the given type parameters tparams, type arguments targs, function parameters params, and
 // function arguments args, if any. There must be at least one type parameter, no more type arguments

@@ -499,7 +499,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 
 	// collect type parameters from generic function arguments
 	var genericArgs []int // indices of generic function arguments
-	if check.conf._EnableReverseTypeInference {
+	if enableReverseTypeInference {
 		for i, arg := range args {
 			// generic arguments cannot have a defined (*Named) type - no need for underlying type below
 			if asig, _ := arg.typ.(*Signature); asig != nil && asig.TypeParams().Len() > 0 {

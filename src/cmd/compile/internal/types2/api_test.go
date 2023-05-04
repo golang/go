@@ -594,10 +594,7 @@ type T[P any] []P
 
 	for _, test := range tests {
 		imports := make(testImporter)
-		conf := Config{
-			Importer:                   imports,
-			EnableReverseTypeInference: true,
-		}
+		conf := Config{Importer: imports}
 		instMap := make(map[*syntax.Name]Instance)
 		useMap := make(map[*syntax.Name]Object)
 		makePkg := func(src string) *Package {

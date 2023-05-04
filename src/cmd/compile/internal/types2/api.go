@@ -169,13 +169,6 @@ type Config struct {
 	// If DisableUnusedImportCheck is set, packages are not checked
 	// for unused imports.
 	DisableUnusedImportCheck bool
-
-	// If EnableReverseTypeInference is set, uninstantiated and
-	// partially instantiated generic functions may be assigned
-	// (incl. returned) to variables of function type and type
-	// inference will attempt to infer the missing type arguments.
-	// See proposal go.dev/issue/59338.
-	EnableReverseTypeInference bool
 }
 
 func srcimporter_setUsesCgo(conf *Config) {
