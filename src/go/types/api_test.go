@@ -583,6 +583,13 @@ type T[P any] []P
 				{`h`, []string{`int`}, `func([]int, *float32)`},
 			},
 		},
+		{`package issue59956; func f(func(int), func(string), func(bool)) {}; func g[P any](P) {}; func _() { f(g, g, g) }`,
+			[]testInst{
+				{`g`, []string{`int`}, `func(int)`},
+				{`g`, []string{`string`}, `func(string)`},
+				{`g`, []string{`bool`}, `func(bool)`},
+			},
+		},
 	}
 
 	for _, test := range tests {
