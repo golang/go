@@ -668,6 +668,11 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 	s.allocBits = s.gcmarkBits
 	s.gcmarkBits = newMarkBits(s.nelems)
 
+	// refresh pinnerBits if they exists
+	if s.pinnerBits != nil {
+		s.refreshPinnerBits()
+	}
+
 	// Initialize alloc bits cache.
 	s.refillAllocCache(0)
 

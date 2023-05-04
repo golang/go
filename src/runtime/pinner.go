@@ -6,7 +6,6 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
-	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -90,15 +89,16 @@ func isPinned(ptr unsafe.Pointer) bool {
 		return true
 	}
 	pinnerBits := span.getPinnerBits()
+	// these pinnerBits might get unlinked by a concurrently running sweep, but
+	// that's OK because gcBits don't get cleared until the following GC cycle
+	// (nextMarkBitArenaEpoch)
 	if pinnerBits == nil {
 		return false
 	}
 	objIndex := span.objIndex(uintptr(ptr))
-	bytep := &pinnerBits.x[objIndex/8]
-	mask := byte(1 << (objIndex % 8))
-	result := (bytep.Load() & mask) != 0
+	pinState := pinnerBits.ofObject(objIndex)
 	KeepAlive(ptr) // make sure ptr is alive until we are done so the span can't be freed
-	return result
+	return pinState.isPinned()
 }
 
 // setPinned marks or unmarks a Go pointer as pinned.
@@ -119,45 +119,50 @@ func setPinned(ptr unsafe.Pointer, pin bool) {
 	KeepAlive(ptr) // make sure ptr is still alive after span is swept
 
 	objIndex := span.objIndex(uintptr(ptr))
-	mask := byte(1 << (objIndex % 8))
 
 	lock(&span.speciallock) // guard against concurrent calls of setPinned on same span
 
 	pinnerBits := span.getPinnerBits()
 	if pinnerBits == nil {
-		pinnerBits = mheap_.newPinnerBits()
+		pinnerBits = span.newPinnerBits()
 		span.setPinnerBits(pinnerBits)
 	}
-	bytep := &pinnerBits.x[objIndex/8]
-	alreadySet := pin == ((bytep.Load() & mask) != 0)
+	pinState := pinnerBits.ofObject(objIndex)
 	if pin {
-		if alreadySet {
-			// multiple pin on same object, record it in counter
-			offset := objIndex * span.elemsize
+		if pinState.isPinned() {
+			// multiple pins on same object, set multipin bit
+			pinState.setMultiPinned(true)
+			// and increase the pin counter
 			// TODO(mknyszek): investigate if systemstack is necessary here
 			systemstack(func() {
+				offset := objIndex * span.elemsize
 				span.incPinCounter(offset)
 			})
 		} else {
-			bytep.Or(mask)
+			// set pin bit
+			pinState.setPinned(true)
 		}
 	} else {
-		if alreadySet {
-			// unpinning unpinned object, bail out
-			throw("runtime.Pinner: object already unpinned")
-		} else {
-			multipin := false
-			if pinnerBits.specialCnt.Load() != 0 {
+		// unpin
+		if pinState.isPinned() {
+			if pinState.isMultiPinned() {
+				var exists bool
 				// TODO(mknyszek): investigate if systemstack is necessary here
 				systemstack(func() {
 					offset := objIndex * span.elemsize
-					multipin = span.decPinCounter(offset)
+					exists = span.decPinCounter(offset)
 				})
+				if !exists {
+					// counter is 0, clear multipin bit
+					pinState.setMultiPinned(false)
+				}
+			} else {
+				// no multipins recorded. unpin object.
+				pinState.setPinned(false)
 			}
-			if !multipin {
-				// no multiple pins recoded. unpin object.
-				bytep.And(^mask)
-			}
+		} else {
+			// unpinning unpinned object, bail out
+			throw("runtime.Pinner: object already unpinned")
 		}
 	}
 	unlock(&span.speciallock)
@@ -165,42 +170,116 @@ func setPinned(ptr unsafe.Pointer, pin bool) {
 	return
 }
 
-// pinBits is a bitmap for pinned objects. This is always used as pinBits.x.
-type pinBits struct {
-	_          sys.NotInHeap
-	x          [(maxObjsPerSpan + 7) / 8]atomic.Uint8
-	specialCnt atomic.Int32
-}
-
-func (h *mheap) newPinnerBits() *pinBits {
-	lock(&h.speciallock)
-	pinnerBits := (*pinBits)(h.pinnerBitsAlloc.alloc())
-	unlock(&h.speciallock)
-	return pinnerBits
-}
-
-func (h *mheap) freePinnerBits(p *pinBits) {
-	lock(&h.speciallock)
-	h.pinnerBitsAlloc.free(unsafe.Pointer(p))
-	unlock(&h.speciallock)
+type pinState struct {
+	bytep   *uint8
+	byteVal uint8
+	mask    uint8
 }
 
 // nosplit, because it's called by isPinned, which is nosplit
 //
 //go:nosplit
-func (s *mspan) getPinnerBits() *pinBits {
-	return (*pinBits)(atomic.Loadp(unsafe.Pointer(&s.pinnerBits)))
+func (v *pinState) isPinned() bool {
+	return (v.byteVal & v.mask) != 0
 }
 
-func (s *mspan) setPinnerBits(p *pinBits) {
+func (v *pinState) isMultiPinned() bool {
+	return (v.byteVal & (v.mask << 1)) != 0
+}
+
+func (v *pinState) setPinned(val bool) {
+	v.set(val, false)
+}
+
+func (v *pinState) setMultiPinned(val bool) {
+	v.set(val, true)
+}
+
+// set sets the pin bit of the pinState to val. If multipin is true, it
+// sets/unsets the multipin bit instead.
+func (v *pinState) set(val bool, multipin bool) {
+	mask := v.mask
+	if multipin {
+		mask <<= 1
+	}
+	if val {
+		atomic.Or8(v.bytep, mask)
+	} else {
+		atomic.And8(v.bytep, ^mask)
+	}
+}
+
+// pinnerBits is the same type as gcBits but has different methods.
+type pinnerBits gcBits
+
+// ofObject returns the pinState of the n'th object.
+// nosplit, because it's called by isPinned, which is nosplit
+//
+//go:nosplit
+func (p *pinnerBits) ofObject(n uintptr) pinState {
+	bytep, mask := (*gcBits)(p).bitp(n * 2)
+	byteVal := atomic.Load8(bytep)
+	return pinState{bytep, byteVal, mask}
+}
+
+func (s *mspan) pinnerBitSize() uintptr {
+	return divRoundUp(s.nelems*2, 8)
+}
+
+// newPinnerBits returns a pointer to 8 byte aligned bytes to be used for this
+// span's pinner bits. newPinneBits is used to mark objects that are pinned.
+// They are copied when the span is swept.
+func (s *mspan) newPinnerBits() *pinnerBits {
+	return (*pinnerBits)(newMarkBits(s.nelems * 2))
+}
+
+// nosplit, because it's called by isPinned, which is nosplit
+//
+//go:nosplit
+func (s *mspan) getPinnerBits() *pinnerBits {
+	return (*pinnerBits)(atomic.Loadp(unsafe.Pointer(&s.pinnerBits)))
+}
+
+func (s *mspan) setPinnerBits(p *pinnerBits) {
 	atomicstorep(unsafe.Pointer(&s.pinnerBits), unsafe.Pointer(p))
+}
+
+// refreshPinnerBits replaces pinnerBits with a fresh copy in the arenas for the
+// next GC cycle. If it does not contain any pinned objects, pinnerBits of the
+// span is set to nil.
+func (s *mspan) refreshPinnerBits() {
+	p := s.getPinnerBits()
+	if p == nil {
+		return
+	}
+
+	hasPins := false
+	bytes := alignUp(s.pinnerBitSize(), 8)
+
+	// Iterate over each 8-byte chunk and check for pins. Note that
+	// newPinnerBits guarantees that pinnerBits will be 8-byte aligned, so we
+	// don't have to worry about edge cases, irrelevant bits will simply be
+	// zero.
+	for _, x := range unsafe.Slice((*uint64)(unsafe.Pointer(&p.x)), bytes/8) {
+		if x != 0 {
+			hasPins = true
+			break
+		}
+	}
+
+	if hasPins {
+		newPinnerBits := s.newPinnerBits()
+		memmove(unsafe.Pointer(&newPinnerBits.x), unsafe.Pointer(&p.x), bytes)
+		s.setPinnerBits(newPinnerBits)
+	} else {
+		s.setPinnerBits(nil)
+	}
 }
 
 // incPinCounter is only called for multiple pins of the same object and records
 // the _additional_ pins.
 func (span *mspan) incPinCounter(offset uintptr) {
 	var rec *specialPinCounter
-
 	ref, exists := span.specialFindSplicePoint(offset, _KindSpecialPinCounter)
 	if !exists {
 		lock(&mheap_.speciallock)
@@ -212,34 +291,32 @@ func (span *mspan) incPinCounter(offset uintptr) {
 		rec.special.next = *ref
 		*ref = (*special)(unsafe.Pointer(rec))
 		spanHasSpecials(span)
-		span.pinnerBits.specialCnt.Add(1)
 	} else {
 		rec = (*specialPinCounter)(unsafe.Pointer(*ref))
 	}
 	rec.counter++
 }
 
-// decPinCounter is always called for unpins and returns false if no multiple
-// pins are recorded. If multiple pins are recorded, it decreases the counter
-// and returns true.
+// decPinCounter decreases the counter. If the counter reaches 0, the counter
+// special is deleted and false is returned. Otherwise true is returned.
 func (span *mspan) decPinCounter(offset uintptr) bool {
 	ref, exists := span.specialFindSplicePoint(offset, _KindSpecialPinCounter)
-	if exists {
-		counter := (*specialPinCounter)(unsafe.Pointer(*ref))
-		if counter.counter > 1 {
-			counter.counter--
-		} else {
-			span.pinnerBits.specialCnt.Add(-1)
-			*ref = counter.special.next
-			if span.specials == nil {
-				spanHasNoSpecials(span)
-			}
-			lock(&mheap_.speciallock)
-			mheap_.specialPinCounterAlloc.free(unsafe.Pointer(counter))
-			unlock(&mheap_.speciallock)
-		}
+	if !exists {
+		throw("runtime.Pinner: decreased non-existing pin counter")
 	}
-	return exists
+	counter := (*specialPinCounter)(unsafe.Pointer(*ref))
+	counter.counter--
+	if counter.counter == 0 {
+		*ref = counter.special.next
+		if span.specials == nil {
+			spanHasNoSpecials(span)
+		}
+		lock(&mheap_.speciallock)
+		mheap_.specialPinCounterAlloc.free(unsafe.Pointer(counter))
+		unlock(&mheap_.speciallock)
+		return false
+	}
+	return true
 }
 
 // only for tests

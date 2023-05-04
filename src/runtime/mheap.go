@@ -205,8 +205,7 @@ type mheap struct {
 	specialprofilealloc    fixalloc // allocator for specialprofile*
 	specialReachableAlloc  fixalloc // allocator for specialReachable
 	specialPinCounterAlloc fixalloc // allocator for specialPinCounter
-	pinnerBitsAlloc        fixalloc // allocator for *pBits
-	speciallock            mutex    // lock for special record and pinnerBits allocators.
+	speciallock            mutex    // lock for special record allocators.
 	arenaHintAlloc         fixalloc // allocator for arenaHints
 
 	// User arena state.
@@ -471,6 +470,7 @@ type mspan struct {
 	// out memory.
 	allocBits  *gcBits
 	gcmarkBits *gcBits
+	pinnerBits *gcBits // bitmap for pinned objects; accessed atomically
 
 	// sweep generation:
 	// if sweepgen == h->sweepgen - 2, the span needs sweeping
@@ -492,7 +492,6 @@ type mspan struct {
 	limit                 uintptr       // end of data in span
 	speciallock           mutex         // guards specials list and changes to pinnerBits
 	specials              *special      // linked list of special records sorted by offset.
-	pinnerBits            *pinBits      // bitmap for pinned objects; accessed atomically
 	userArenaChunkFree    addrRange     // interval for managing chunk allocation
 
 	// freeIndexForScan is like freeindex, except that freeindex is
@@ -760,7 +759,6 @@ func (h *mheap) init() {
 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
 	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
-	h.pinnerBitsAlloc.init(unsafe.Sizeof(pinBits{}), nil, nil, &memstats.other_sys)
 	h.arenaHintAlloc.init(unsafe.Sizeof(arenaHint{}), nil, nil, &memstats.other_sys)
 
 	// Don't zero mspan allocations. Background sweeping can
@@ -1639,12 +1637,6 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
 
 	// Mark the space as free.
 	h.pages.free(s.base(), s.npages)
-
-	// Free pinnerBits if set.
-	if pinnerBits := s.getPinnerBits(); pinnerBits != nil {
-		s.setPinnerBits(nil)
-		h.freePinnerBits(pinnerBits)
-	}
 
 	// Free the span structure. We no longer have a use for it.
 	s.state.set(mSpanDead)
