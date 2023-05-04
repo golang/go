@@ -1,9 +1,0 @@
-package imports //@import("package")
-
-import (
-	"bytes"
-	"fmt"
-)
-
-func _() {
-}

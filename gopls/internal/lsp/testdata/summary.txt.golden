@@ -10,7 +10,6 @@ RankedCompletionsCount = 164
 CaseSensitiveCompletionsCount = 4
 DiagnosticsCount = 39
 FoldingRangesCount = 2
-ImportCount = 8
 SemanticTokenCount = 3
 SuggestedFixCount = 76
 MethodExtractionCount = 6

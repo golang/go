@@ -418,39 +418,6 @@ func (r *runner) SemanticTokens(t *testing.T, spn span.Span) {
 	}
 }
 
-func (r *runner) Import(t *testing.T, spn span.Span) {
-	// Invokes textDocument/codeAction and applies all the "goimports" edits.
-
-	uri := spn.URI()
-	filename := uri.Filename()
-	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
-		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.URIFromSpanURI(uri),
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	m, err := r.data.Mapper(uri)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := m.Content
-	if len(actions) > 0 {
-		res, err := applyTextDocumentEdits(r, actions[0].Edit.DocumentChanges)
-		if err != nil {
-			t.Fatal(err)
-		}
-		got = res[uri]
-	}
-	want := r.data.Golden(t, "goimports", filename, func() ([]byte, error) {
-		return got, nil
-	})
-	if diff := compare.Bytes(want, got); diff != "" {
-		t.Errorf("import failed for %s:\n%s", filename, diff)
-	}
-}
-
 func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []tests.SuggestedFix, expectedActions int) {
 	uri := spn.URI()
 	view, err := r.server.session.ViewOf(uri)

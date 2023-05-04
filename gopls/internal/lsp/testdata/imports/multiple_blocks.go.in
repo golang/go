@@ -1,9 +1,0 @@
-package imports //@import("package")
-
-import "fmt"
-
-import "bytes"
-
-func _() {
-	fmt.Println("")
-}

@@ -124,6 +124,9 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     to be between start.Start and end.End. The golden directory contains
 //     changed file content after the code action is applied.
 //
+//   - codeactionerr(kind, start, end, wantError): specifies a codeaction that
+//     fails with an error that matches the expectation.
+//
 //   - complete(location, ...labels): specifies expected completion results at
 //     the given location.
 //
@@ -506,6 +509,7 @@ arity:
 // or applying edits in the editor).
 var markerFuncs = map[string]markerFunc{
 	"codeaction":      makeMarkerFunc(codeActionMarker),
+	"codeactionerr":   makeMarkerFunc(codeActionErrMarker),
 	"complete":        makeMarkerFunc(completeMarker),
 	"def":             makeMarkerFunc(defMarker),
 	"diag":            makeMarkerFunc(diagMarker),
@@ -1396,6 +1400,13 @@ func codeActionMarker(mark marker, actionKind string, start, end protocol.Locati
 
 	// Check the file state.
 	checkChangedFiles(mark, changed, golden)
+}
+
+func codeActionErrMarker(mark marker, actionKind string, start, end protocol.Location, wantErr wantError) {
+	loc := start
+	loc.Range.End = end.Range.End
+	_, err := codeAction(mark.run.env, loc.URI, loc.Range, actionKind, nil)
+	wantErr.check(mark, err)
 }
 
 // suggestedfixMarker implements the @suggestedfix(location, regexp,

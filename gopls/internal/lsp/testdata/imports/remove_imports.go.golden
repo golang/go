@@ -1,6 +1,0 @@
--- goimports --
-package imports //@import("package")
-
-func _() {
-}
-

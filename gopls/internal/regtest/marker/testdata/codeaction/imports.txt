@@ -1,0 +1,169 @@
+This test verifies the behavior of the 'source.organizeImports' code action.
+
+-- go.mod --
+module mod.test/imports
+
+go 1.18
+
+-- add.go --
+package imports //@codeaction("source.organizeImports", "imports", "", add)
+
+import (
+	"fmt"
+)
+
+func _() {
+	fmt.Println("")
+	bytes.NewBuffer(nil) //@diag("bytes", re"(undeclared|undefined)")
+}
+
+-- @add/add.go --
+package imports //@codeaction("source.organizeImports", "imports", "", add)
+
+import (
+	"bytes"
+	"fmt"
+)
+
+func _() {
+	fmt.Println("")
+	bytes.NewBuffer(nil) //@diag("bytes", re"(undeclared|undefined)")
+}
+
+-- good.go --
+package imports //@codeactionerr("source.organizeImports", "imports", "", re"found 0 CodeActions")
+
+import "fmt"
+
+func _() {
+fmt.Println("")
+}
+
+-- issue35458.go --
+
+
+
+
+
+// package doc
+package imports //@codeaction("source.organizeImports", "imports", "", issue35458)
+
+
+
+
+
+
+func _() {
+	println("Hello, world!")
+}
+
+
+
+
+
+
+
+
+-- @issue35458/issue35458.go --
+// package doc
+package imports //@codeaction("source.organizeImports", "imports", "", issue35458)
+
+
+
+
+
+
+func _() {
+	println("Hello, world!")
+}
+
+
+
+
+
+
+
+
+-- multi.go --
+package imports //@codeaction("source.organizeImports", "imports", "", multi)
+
+import "fmt"
+
+import "bytes" //@diag("\"bytes\"", re"not used")
+
+func _() {
+	fmt.Println("")
+}
+
+-- @multi/multi.go --
+package imports //@codeaction("source.organizeImports", "imports", "", multi)
+
+import "fmt"
+
+//@diag("\"bytes\"", re"not used")
+
+func _() {
+	fmt.Println("")
+}
+
+-- needs.go --
+package imports //@codeaction("source.organizeImports", "package", "", needs)
+
+func goodbye() {
+	fmt.Printf("HI") //@diag("fmt", re"(undeclared|undefined)")
+	log.Printf("byeeeee") //@diag("log", re"(undeclared|undefined)")
+}
+
+-- @needs/needs.go --
+package imports //@codeaction("source.organizeImports", "package", "", needs)
+
+import (
+	"fmt"
+	"log"
+)
+
+func goodbye() {
+	fmt.Printf("HI") //@diag("fmt", re"(undeclared|undefined)")
+	log.Printf("byeeeee") //@diag("log", re"(undeclared|undefined)")
+}
+
+-- remove.go --
+package imports //@codeaction("source.organizeImports", "package", "", remove)
+
+import (
+	"bytes" //@diag("\"bytes\"", re"not used")
+	"fmt"
+)
+
+func _() {
+	fmt.Println("")
+}
+
+-- @remove/remove.go --
+package imports //@codeaction("source.organizeImports", "package", "", remove)
+
+import (
+	"fmt"
+)
+
+func _() {
+	fmt.Println("")
+}
+
+-- removeall.go --
+// TODO(golang/go#59976): this test is flaky because it leaves one comment
+// behind, but non-deterministically.
+package imports // codeaction("source.organizeImports", "package", "", removeall)
+
+import (
+	"bytes" //@diag("\"bytes\"", re"not used")
+	"fmt" //@diag("\"fmt\"", re"not used")
+
+)
+
+func _() {
+}
+
+-- twolines.go --
+package imports
+func main()  {} //@codeactionerr("source.organizeImports", "main", "", re"found 0")
