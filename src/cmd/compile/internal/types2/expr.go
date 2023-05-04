@@ -688,19 +688,14 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
 		return x.typ, nil, 0
 	}
+	// x is untyped
 
 	if isUntyped(target) {
 		// both x and target are untyped
-		xkind := x.typ.(*Basic).kind
-		tkind := target.(*Basic).kind
-		if isNumeric(x.typ) && isNumeric(target) {
-			if xkind < tkind {
-				return target, nil, 0
-			}
-		} else if xkind != tkind {
-			return nil, nil, InvalidUntypedConversion
+		if m := maxType(x.typ, target); m != nil {
+			return m, nil, 0
 		}
-		return x.typ, nil, 0
+		return nil, nil, InvalidUntypedConversion
 	}
 
 	if x.isNil() {
