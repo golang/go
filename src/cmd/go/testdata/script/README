@@ -380,6 +380,8 @@ The available conditions are:
 	go supports -buildmode=<suffix>
 [case-sensitive]
 	$WORK filesystem is case-sensitive
+[cc:*]
+	go env CC = <suffix> (ignoring the go/env file)
 [cgo]
 	host CGO_ENABLED
 [cgolinkext]
@@ -402,6 +404,8 @@ The available conditions are:
 	test's GOROOT_FINAL does not match the real GOROOT
 [msan]
 	GOOS/GOARCH supports -msan
+[mustlinkext]
+	platform always requires external linking
 [net:*]
 	can connect to external network host <suffix>
 [race]
