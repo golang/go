@@ -20,6 +20,7 @@ func load_le64(b []byte) uint64 {
 	// s390x:`MOVDBR\s\(.*\),`
 	// arm64:`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]Z`
+	// ppc64:`MOVDBR\s`,-`MOV[BHW]Z`
 	return binary.LittleEndian.Uint64(b)
 }
 
@@ -28,6 +29,7 @@ func load_le64_idx(b []byte, idx int) uint64 {
 	// s390x:`MOVDBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BHW]`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]Z\s`
+	// ppc64:`MOVDBR\s`,-`MOV[BHW]Z\s`
 	return binary.LittleEndian.Uint64(b[idx:])
 }
 
@@ -37,6 +39,7 @@ func load_le32(b []byte) uint32 {
 	// s390x:`MOVWBR\s\(.*\),`
 	// arm64:`MOVWU\s\(R[0-9]+\),`,-`MOV[BH]`
 	// ppc64le:`MOVWZ\s`,-`MOV[BH]Z\s`
+	// ppc64:`MOVWBR\s`,-`MOV[BH]Z\s`
 	return binary.LittleEndian.Uint32(b)
 }
 
@@ -46,6 +49,7 @@ func load_le32_idx(b []byte, idx int) uint32 {
 	// s390x:`MOVWBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BH]`
 	// ppc64le:`MOVWZ\s`,-`MOV[BH]Z\s`
+	// ppc64:`MOVWBR\s`,-`MOV[BH]Z\s'
 	return binary.LittleEndian.Uint32(b[idx:])
 }
 
@@ -54,12 +58,14 @@ func load_le16(b []byte) uint16 {
 	// ppc64le:`MOVHZ\s`,-`MOVBZ`
 	// arm64:`MOVHU\s\(R[0-9]+\),`,-`MOVB`
 	// s390x:`MOVHBR\s\(.*\),`
+	// ppc64:`MOVHBR\s`,-`MOVBZ`
 	return binary.LittleEndian.Uint16(b)
 }
 
 func load_le16_idx(b []byte, idx int) uint16 {
 	// amd64:`MOVWLZX\s\(.*\),`,-`MOVB`,-`OR`
 	// ppc64le:`MOVHZ\s`,-`MOVBZ`
+	// ppc64:`MOVHBR\s`,-`MOVBZ`
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOVB`
 	// s390x:`MOVHBR\s\(.*\)\(.*\*1\),`
 	return binary.LittleEndian.Uint16(b[idx:])
@@ -71,6 +77,7 @@ func load_be64(b []byte) uint64 {
 	// s390x:`MOVD\s\(.*\),`
 	// arm64:`REV`,`MOVD\s\(R[0-9]+\),`,-`MOV[BHW]`,-`REVW`,-`REV16W`
 	// ppc64le:`MOVDBR`,-`MOV[BHW]Z`
+	// ppc64:`MOVD`,-`MOV[BHW]Z`
 	return binary.BigEndian.Uint64(b)
 }
 
@@ -80,6 +87,7 @@ func load_be64_idx(b []byte, idx int) uint64 {
 	// s390x:`MOVD\s\(.*\)\(.*\*1\),`
 	// arm64:`REV`,`MOVD\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[WHB]`,-`REVW`,-`REV16W`
 	// ppc64le:`MOVDBR`,-`MOV[BHW]Z`
+	// ppc64:`MOVD`,-`MOV[BHW]Z`
 	return binary.BigEndian.Uint64(b[idx:])
 }
 
@@ -89,6 +97,7 @@ func load_be32(b []byte) uint32 {
 	// s390x:`MOVWZ\s\(.*\),`
 	// arm64:`REVW`,`MOVWU\s\(R[0-9]+\),`,-`MOV[BH]`,-`REV16W`
 	// ppc64le:`MOVWBR`,-`MOV[BH]Z`
+	// ppc64:`MOVWZ`,-MOV[BH]Z`
 	return binary.BigEndian.Uint32(b)
 }
 
@@ -98,13 +107,15 @@ func load_be32_idx(b []byte, idx int) uint32 {
 	// s390x:`MOVWZ\s\(.*\)\(.*\*1\),`
 	// arm64:`REVW`,`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[HB]`,-`REV16W`
 	// ppc64le:`MOVWBR`,-`MOV[BH]Z`
+	// ppc64:`MOVWZ`,-MOV[BH]Z`
 	return binary.BigEndian.Uint32(b[idx:])
 }
 
 func load_be16(b []byte) uint16 {
 	// amd64:`ROLW\s\$8`,-`MOVB`,-`OR`
 	// arm64:`REV16W`,`MOVHU\s\(R[0-9]+\),`,-`MOVB`
-	// ppc64le:`MOVHBR`
+	// ppc64le:`MOVHBR`,-`MOVBZ`
+	// ppc64:`MOVHZ`,-`MOVBZ`
 	// s390x:`MOVHZ\s\(.*\),`,-`OR`,-`ORW`,-`SLD`,-`SLW`
 	return binary.BigEndian.Uint16(b)
 }
@@ -112,7 +123,8 @@ func load_be16(b []byte) uint16 {
 func load_be16_idx(b []byte, idx int) uint16 {
 	// amd64:`ROLW\s\$8`,-`MOVB`,-`OR`
 	// arm64:`REV16W`,`MOVHU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOVB`
-	// ppc64le:`MOVHBR`
+	// ppc64le:`MOVHBR`,-`MOVBZ`
+	// ppc64:`MOVHZ`,-`MOVBZ`
 	// s390x:`MOVHZ\s\(.*\)\(.*\*1\),`,-`OR`,-`ORW`,-`SLD`,-`SLW`
 	return binary.BigEndian.Uint16(b[idx:])
 }
@@ -122,6 +134,7 @@ func load_le_byte2_uint16(s []byte) uint16 {
 	// 386:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
 	// ppc64le:`MOVHZ\t\(R[0-9]+\)`,-`MOVBZ`
+	// ppc64:`MOVHBR`,-`MOVBZ`
 	return uint16(s[0]) | uint16(s[1])<<8
 }
 
@@ -129,7 +142,8 @@ func load_le_byte2_uint16_inv(s []byte) uint16 {
 	// arm64:`MOVHU\t\(R[0-9]+\)`,-`ORR`,-`MOVB`
 	// 386:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,-`MOVB`,-`OR`
-	// ppc64le:`MOVHZ\t\(R[0-9]+\)`,-`MOVDZ`
+	// ppc64le:`MOVHZ\t\(R[0-9]+\)`,-`MOVBZ`
+	// ppc64:`MOVHBR`,-`MOVBZ`
 	return uint16(s[1])<<8 | uint16(s[0])
 }
 
@@ -138,11 +152,14 @@ func load_le_byte4_uint32(s []byte) uint32 {
 	// 386:`MOVL\s\([A-Z]+\)`,-`MOV[BW]`,-`OR`
 	// amd64:`MOVL\s\([A-Z]+\)`,-`MOV[BW]`,-`OR`
 	// ppc64le:`MOVWZ\t\(R[0-9]+\)`,-`MOV[BH]Z`
+	// ppc64:`MOVWBR`,-MOV[BH]Z`
 	return uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 | uint32(s[3])<<24
 }
 
 func load_le_byte4_uint32_inv(s []byte) uint32 {
 	// arm64:`MOVWU\t\(R[0-9]+\)`,-`ORR`,-`MOV[BH]`
+	// ppc64le:`MOVWZ`,-`MOV[BH]Z`
+	// ppc64:`MOVWBR`,-`MOV[BH]Z`
 	return uint32(s[3])<<24 | uint32(s[2])<<16 | uint32(s[1])<<8 | uint32(s[0])
 }
 
@@ -150,11 +167,14 @@ func load_le_byte8_uint64(s []byte) uint64 {
 	// arm64:`MOVD\t\(R[0-9]+\)`,-`ORR`,-`MOV[BHW]`
 	// amd64:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,-`MOV[BWL]\t[^$]`,-`OR`
 	// ppc64le:`MOVD\t\(R[0-9]+\)`,-`MOV[BHW]Z`
+	// ppc64:`MOVDBR`,-`MOVW[WHB]Z`
 	return uint64(s[0]) | uint64(s[1])<<8 | uint64(s[2])<<16 | uint64(s[3])<<24 | uint64(s[4])<<32 | uint64(s[5])<<40 | uint64(s[6])<<48 | uint64(s[7])<<56
 }
 
 func load_le_byte8_uint64_inv(s []byte) uint64 {
 	// arm64:`MOVD\t\(R[0-9]+\)`,-`ORR`,-`MOV[BHW]`
+	// ppc64le:`MOVD`,-`MOV[WHB]Z`
+	// ppc64:`MOVDBR`,-`MOV[WHB]Z`
 	return uint64(s[7])<<56 | uint64(s[6])<<48 | uint64(s[5])<<40 | uint64(s[4])<<32 | uint64(s[3])<<24 | uint64(s[2])<<16 | uint64(s[1])<<8 | uint64(s[0])
 }
 
@@ -162,6 +182,7 @@ func load_be_byte2_uint16(s []byte) uint16 {
 	// arm64:`MOVHU\t\(R[0-9]+\)`,`REV16W`,-`ORR`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,`ROLW`,-`MOVB`,-`OR`
 	// ppc64le:`MOVHBR\t\(R[0-9]+\)`,-`MOVBZ`
+	// ppc64:`MOVHZ`,-`MOVBZ`
 	return uint16(s[0])<<8 | uint16(s[1])
 }
 
@@ -169,11 +190,14 @@ func load_be_byte2_uint16_inv(s []byte) uint16 {
 	// arm64:`MOVHU\t\(R[0-9]+\)`,`REV16W`,-`ORR`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)`,`ROLW`,-`MOVB`,-`OR`
 	// ppc64le:`MOVHBR\t\(R[0-9]+\)`,-`MOVBZ`
+	// ppc64:`MOVHZ`,-`MOVBZ`
 	return uint16(s[1]) | uint16(s[0])<<8
 }
 
 func load_be_byte4_uint32(s []byte) uint32 {
 	// arm64:`MOVWU\t\(R[0-9]+\)`,`REVW`,-`ORR`,-`REV16W`,-`MOV[BH]`
+	// ppc64le:`MOVWBR`,-`MOV[HB]Z`
+	// ppc64:`MOVWZ`,-`MOV[HB]Z`
 	return uint32(s[0])<<24 | uint32(s[1])<<16 | uint32(s[2])<<8 | uint32(s[3])
 }
 
@@ -181,12 +205,15 @@ func load_be_byte4_uint32_inv(s []byte) uint32 {
 	// arm64:`MOVWU\t\(R[0-9]+\)`,`REVW`,-`ORR`,-`REV16W`,-`MOV[BH]`
 	// amd64/v1,amd64/v2:`MOVL\s\([A-Z]+\)`,`BSWAPL`,-`MOV[BW]`,-`OR`
 	// amd64/v3: `MOVBEL`
+	// ppc64le:`MOVWBR`,-`MOV[HB]Z`
+	// ppc64:`MOVWZ`,-`MOV[HB]Z`
 	return uint32(s[3]) | uint32(s[2])<<8 | uint32(s[1])<<16 | uint32(s[0])<<24
 }
 
 func load_be_byte8_uint64(s []byte) uint64 {
 	// arm64:`MOVD\t\(R[0-9]+\)`,`REV`,-`ORR`,-`REVW`,-`REV16W`,-`MOV[BHW]`
 	// ppc64le:`MOVDBR\t\(R[0-9]+\)`,-`MOV[BHW]Z`
+	// ppc64:`MOVD`,-`MOV[WHB]Z`
 	return uint64(s[0])<<56 | uint64(s[1])<<48 | uint64(s[2])<<40 | uint64(s[3])<<32 | uint64(s[4])<<24 | uint64(s[5])<<16 | uint64(s[6])<<8 | uint64(s[7])
 }
 
@@ -195,6 +222,7 @@ func load_be_byte8_uint64_inv(s []byte) uint64 {
 	// amd64/v1,amd64/v2:`MOVQ\s\([A-Z]+\),\s[A-Z]+`,`BSWAPQ`,-`MOV[BWL]\t[^$]`,-`OR`
 	// amd64/v3: `MOVBEQ`
 	// ppc64le:`MOVDBR\t\(R[0-9]+\)`,-`MOV[BHW]Z`
+	// ppc64:`MOVD`,-`MOV[BHW]Z`
 	return uint64(s[7]) | uint64(s[6])<<8 | uint64(s[5])<<16 | uint64(s[4])<<24 | uint64(s[3])<<32 | uint64(s[2])<<40 | uint64(s[1])<<48 | uint64(s[0])<<56
 }
 
@@ -202,6 +230,8 @@ func load_le_byte2_uint16_idx(s []byte, idx int) uint16 {
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\)`,-`ORR`,-`MOVB`
 	// 386:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`ORL`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`MOVB`,-`OR`
+	// ppc64le:`MOVHZ`,-`MOVBZ`
+	// ppc64:`MOVHBR`,-`MOVBZ`
 	return uint16(s[idx]) | uint16(s[idx+1])<<8
 }
 
@@ -209,6 +239,8 @@ func load_le_byte2_uint16_idx_inv(s []byte, idx int) uint16 {
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\)`,-`ORR`,-`MOVB`
 	// 386:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`ORL`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`MOVB`,-`OR`
+	// ppc64le:`MOVHZ`,-`MOVBZ`
+	// ppc64:`MOVHBR`,-`MOVBZ`
 	return uint16(s[idx+1])<<8 | uint16(s[idx])
 }
 
@@ -357,6 +389,7 @@ func store_le64(b []byte, x uint64) {
 	// amd64:`MOVQ\s.*\(.*\)$`,-`SHR.`
 	// arm64:`MOVD`,-`MOV[WBH]`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]\s`
+	// ppc64:`MOVDBR`,-MOVB\s`
 	// s390x:`MOVDBR\s.*\(.*\)$`
 	binary.LittleEndian.PutUint64(b, x)
 }
@@ -365,6 +398,7 @@ func store_le64_idx(b []byte, x uint64, idx int) {
 	// amd64:`MOVQ\s.*\(.*\)\(.*\*1\)$`,-`SHR.`
 	// arm64:`MOVD\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BHW]`
 	// ppc64le:`MOVD\s`,-`MOV[BHW]\s`
+	// ppc64:`MOVDBR`,-`MOVBZ`
 	// s390x:`MOVDBR\s.*\(.*\)\(.*\*1\)$`
 	binary.LittleEndian.PutUint64(b[idx:], x)
 }
@@ -386,7 +420,8 @@ func store_le64_load(b []byte, x *[8]byte) {
 	_ = b[8]
 	// amd64:-`MOV[BWL]`
 	// arm64:-`MOV[BWH]`
-	// ppc64le:-`MOV[BWH]`
+	// ppc64le:`MOVD\s`,-`MOV[BWH]Z`
+	// ppc64:`MOVDBR`
 	// s390x:-`MOVB`,-`MOV[WH]BR`
 	binary.LittleEndian.PutUint64(b, binary.LittleEndian.Uint64(x[:]))
 }
@@ -395,6 +430,7 @@ func store_le32(b []byte, x uint32) {
 	// amd64:`MOVL\s`
 	// arm64:`MOVW`,-`MOV[BH]`
 	// ppc64le:`MOVW\s`
+	// ppc64:`MOVWBR`
 	// s390x:`MOVWBR\s.*\(.*\)$`
 	binary.LittleEndian.PutUint32(b, x)
 }
@@ -403,12 +439,14 @@ func store_le32_idx(b []byte, x uint32, idx int) {
 	// amd64:`MOVL\s`
 	// arm64:`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BH]`
 	// ppc64le:`MOVW\s`
+	// ppc64:`MOVWBR`
 	// s390x:`MOVWBR\s.*\(.*\)\(.*\*1\)$`
 	binary.LittleEndian.PutUint32(b[idx:], x)
 }
 
 func store_le32_idx_const(b []byte, idx int) {
 	// amd64:`MOVL\s\$123, \(.*\)\(.*\*1\)$`
+	// ppc64x:`MOVW\s`,-MOV[HB]`
 	binary.LittleEndian.PutUint32(b[idx:], 123)
 }
 
@@ -416,6 +454,7 @@ func store_le16(b []byte, x uint16) {
 	// amd64:`MOVW\s`
 	// arm64:`MOVH`,-`MOVB`
 	// ppc64le:`MOVH\s`
+	// ppc64:`MOVHBR`
 	// s390x:`MOVHBR\s.*\(.*\)$`
 	binary.LittleEndian.PutUint16(b, x)
 }
@@ -424,12 +463,14 @@ func store_le16_idx(b []byte, x uint16, idx int) {
 	// amd64:`MOVW\s`
 	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOVB`
 	// ppc64le:`MOVH\s`
+	// ppc64:`MOVHBR\s`
 	// s390x:`MOVHBR\s.*\(.*\)\(.*\*1\)$`
 	binary.LittleEndian.PutUint16(b[idx:], x)
 }
 
 func store_le16_idx_const(b []byte, idx int) {
 	// amd64:`MOVW\s\$123, \(.*\)\(.*\*1\)$`
+	// ppc64x:`MOVH\s`
 	binary.LittleEndian.PutUint16(b[idx:], 123)
 }
 
@@ -438,6 +479,7 @@ func store_be64(b []byte, x uint64) {
 	// amd64/v3: `MOVBEQ`
 	// arm64:`MOVD`,`REV`,-`MOV[WBH]`,-`REVW`,-`REV16W`
 	// ppc64le:`MOVDBR`
+	// ppc64:`MOVD\s`
 	// s390x:`MOVD\s.*\(.*\)$`,-`SRW\s`,-`SRD\s`
 	binary.BigEndian.PutUint64(b, x)
 }
@@ -447,6 +489,7 @@ func store_be64_idx(b []byte, x uint64, idx int) {
 	// amd64/v3:`MOVBEQ\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
 	// arm64:`REV`,`MOVD\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BHW]`,-`REV16W`,-`REVW`
 	// ppc64le:`MOVDBR`
+	// ppc64:`MOVD\s`
 	// s390x:`MOVD\s.*\(.*\)\(.*\*1\)$`,-`SRW\s`,-`SRD\s`
 	binary.BigEndian.PutUint64(b[idx:], x)
 }
@@ -456,6 +499,7 @@ func store_be32(b []byte, x uint32) {
 	// amd64/v3:`MOVBEL`
 	// arm64:`MOVW`,`REVW`,-`MOV[BH]`,-`REV16W`
 	// ppc64le:`MOVWBR`
+	// ppc64:`MOVW\s`
 	// s390x:`MOVW\s.*\(.*\)$`,-`SRW\s`,-`SRD\s`
 	binary.BigEndian.PutUint32(b, x)
 }
@@ -477,6 +521,7 @@ func store_be32_idx(b []byte, x uint32, idx int) {
 	// amd64/v3:`MOVBEL\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BH]`,-`REV16W`
 	// ppc64le:`MOVWBR`
+	// ppc64:`MOVW\s`
 	// s390x:`MOVW\s.*\(.*\)\(.*\*1\)$`,-`SRW\s`,-`SRD\s`
 	binary.BigEndian.PutUint32(b[idx:], x)
 }
@@ -486,6 +531,7 @@ func store_be16(b []byte, x uint16) {
 	// amd64/v3:`MOVBEW`,-`ROLW`
 	// arm64:`MOVH`,`REV16W`,-`MOVB`
 	// ppc64le:`MOVHBR`
+	// ppc64:`MOVH\s`
 	// s390x:`MOVH\s.*\(.*\)$`,-`SRW\s`,-`SRD\s`
 	binary.BigEndian.PutUint16(b, x)
 }
@@ -495,6 +541,7 @@ func store_be16_idx(b []byte, x uint16, idx int) {
 	// amd64/v3:`MOVBEW\t[A-Z]+[0-9]*, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
 	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,`REV16W`,-`MOVB`
 	// ppc64le:`MOVHBR`
+	// ppc64:`MOVH\s`
 	// s390x:`MOVH\s.*\(.*\)\(.*\*1\)$`,-`SRW\s`,-`SRD\s`
 	binary.BigEndian.PutUint16(b[idx:], x)
 }
@@ -504,6 +551,8 @@ func store_le_byte_2(b []byte, val uint16) {
 	// arm64:`MOVH\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`
 	// 386:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
 	// amd64:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
+	// ppc64le:`MOVH\s`,-`MOVB`
+	// ppc64:`MOVHBR`,-`MOVB`
 	b[1], b[2] = byte(val), byte(val>>8)
 }
 
@@ -511,6 +560,8 @@ func store_le_byte_2_inv(b []byte, val uint16) {
 	_ = b[2]
 	// 386:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
 	// amd64:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
+	// ppc64le:`MOVH\s`,-`MOVB`
+	// ppc64:`MOVHBR`,-`MOVB`
 	b[2], b[1] = byte(val>>8), byte(val)
 }
 
@@ -519,6 +570,8 @@ func store_le_byte_4(b []byte, val uint32) {
 	// arm64:`MOVW\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`,-`MOVH`
 	// 386:`MOVL\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`,-`MOVW`
 	// amd64:`MOVL\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`,-`MOVW`
+	// ppc64le:`MOVW\s`
+	// ppc64:`MOVWBR\s`
 	b[1], b[2], b[3], b[4] = byte(val), byte(val>>8), byte(val>>16), byte(val>>24)
 }
 
@@ -526,6 +579,8 @@ func store_le_byte_8(b []byte, val uint64) {
 	_ = b[8]
 	// arm64:`MOVD\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`,-`MOVH`,-`MOVW`
 	// amd64:`MOVQ\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`,-`MOVW`,-`MOVL`
+	// ppc64le:`MOVD\s`,-`MOVW`
+	// ppc64:`MOVDBR\s`
 	b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8] = byte(val), byte(val>>8), byte(val>>16), byte(val>>24), byte(val>>32), byte(val>>40), byte(val>>48), byte(val>>56)
 }
 
@@ -534,6 +589,8 @@ func store_be_byte_2(b []byte, val uint16) {
 	// arm64:`REV16W`,`MOVH\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`
 	// amd64/v1,amd64/v2:`MOVW\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`
 	// amd64/v3: `MOVBEW`
+	// ppc64le:`MOVHBR`
+	// ppc64:`MOVH\s`
 	b[1], b[2] = byte(val>>8), byte(val)
 }
 
@@ -542,6 +599,8 @@ func store_be_byte_4(b []byte, val uint32) {
 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`,-`MOVH`,-`REV16W`
 	// amd64/v1,amd64/v2:`MOVL\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`,-`MOVW`
 	// amd64/v3:`MOVBEL\s[A-Z]+,\s1\([A-Z]+\)`
+	// ppc64le:`MOVWBR`
+	// ppc64:`MOVW\s`
 	b[1], b[2], b[3], b[4] = byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
 }
 
@@ -550,6 +609,8 @@ func store_be_byte_8(b []byte, val uint64) {
 	// arm64:`REV`,`MOVD\sR[0-9]+,\s1\(R[0-9]+\)`,-`MOVB`,-`MOVH`,-`MOVW`,-`REV16W`,-`REVW`
 	// amd64/v1,amd64/v2:`MOVQ\s[A-Z]+,\s1\([A-Z]+\)`,-`MOVB`,-`MOVW`,-`MOVL`
 	// amd64/v3:`MOVBEQ\s[A-Z]+,\s1\([A-Z]+\)`, -`MOVBEL`
+	// ppc64le:`MOVDBR`
+	// ppc64:`MOVD`
 	b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8] = byte(val>>56), byte(val>>48), byte(val>>40), byte(val>>32), byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
 }
 
@@ -557,54 +618,72 @@ func store_le_byte_2_idx(b []byte, idx int, val uint16) {
 	_, _ = b[idx+0], b[idx+1]
 	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOVB`
 	// 386:`MOVW\s[A-Z]+,\s\([A-Z]+\)\([A-Z]+`,-`MOVB`
+	// ppc64le:`MOVH\s`
+	// ppc64:`MOVHBR`
 	b[idx+1], b[idx+0] = byte(val>>8), byte(val)
 }
 
 func store_le_byte_2_idx_inv(b []byte, idx int, val uint16) {
 	_, _ = b[idx+0], b[idx+1]
 	// 386:`MOVW\s[A-Z]+,\s\([A-Z]+\)\([A-Z]+`,-`MOVB`
+	// ppc64le:`MOVH\s`
+	// ppc64:`MOVHBR`
 	b[idx+0], b[idx+1] = byte(val), byte(val>>8)
 }
 
 func store_le_byte_4_idx(b []byte, idx int, val uint32) {
 	_, _, _, _ = b[idx+0], b[idx+1], b[idx+2], b[idx+3]
 	// arm64:`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOVB`,-`MOVH`
+	// ppc64le:`MOVW\s`
+	// ppc64:`MOVWBR`
 	b[idx+3], b[idx+2], b[idx+1], b[idx+0] = byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
 }
 
 func store_be_byte_2_idx(b []byte, idx int, val uint16) {
 	_, _ = b[idx+0], b[idx+1]
 	// arm64:`REV16W`,`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOVB`
+	// ppc64le:`MOVHBR`
+	// ppc64:`MOVH\s`
 	b[idx+0], b[idx+1] = byte(val>>8), byte(val)
 }
 
 func store_be_byte_4_idx(b []byte, idx int, val uint32) {
 	_, _, _, _ = b[idx+0], b[idx+1], b[idx+2], b[idx+3]
 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOVB`,-`MOVH`,-`REV16W`
+	// ppc64le:`MOVWBR`
+	// ppc64:`MOVW\s`
 	b[idx+0], b[idx+1], b[idx+2], b[idx+3] = byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
 }
 
 func store_be_byte_2_idx2(b []byte, idx int, val uint16) {
 	_, _ = b[(idx<<1)+0], b[(idx<<1)+1]
 	// arm64:`REV16W`,`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+<<1\)`,-`MOVB`
+	// ppc64le:`MOVHBR`
+	// ppc64:`MOVH\s`
 	b[(idx<<1)+0], b[(idx<<1)+1] = byte(val>>8), byte(val)
 }
 
 func store_le_byte_2_idx2(b []byte, idx int, val uint16) {
 	_, _ = b[(idx<<1)+0], b[(idx<<1)+1]
 	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+<<1\)`,-`MOVB`
+	// ppc64le:`MOVH\s`
+	// ppc64:`MOVHBR`
 	b[(idx<<1)+1], b[(idx<<1)+0] = byte(val>>8), byte(val)
 }
 
 func store_be_byte_4_idx4(b []byte, idx int, val uint32) {
 	_, _, _, _ = b[(idx<<2)+0], b[(idx<<2)+1], b[(idx<<2)+2], b[(idx<<2)+3]
 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+<<2\)`,-`MOVB`,-`MOVH`,-`REV16W`
+	// ppc64le:`MOVWBR`
+	// ppc64:`MOVW\s`
 	b[(idx<<2)+0], b[(idx<<2)+1], b[(idx<<2)+2], b[(idx<<2)+3] = byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
 }
 
 func store_le_byte_4_idx4_inv(b []byte, idx int, val uint32) {
 	_, _, _, _ = b[(idx<<2)+0], b[(idx<<2)+1], b[(idx<<2)+2], b[(idx<<2)+3]
 	// arm64:`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+<<2\)`,-`MOVB`,-`MOVH`
+	// ppc64le:`MOVW\s`
+	// ppc64:`MOVWBR`
 	b[(idx<<2)+3], b[(idx<<2)+2], b[(idx<<2)+1], b[(idx<<2)+0] = byte(val>>24), byte(val>>16), byte(val>>8), byte(val)
 }
 
@@ -620,10 +699,12 @@ func zero_byte_2(b1, b2 []byte) {
 	// arm64:"MOVH\tZR",-"MOVB"
 	// amd64:`MOVW\s[$]0,\s\([A-Z]+\)`
 	// 386:`MOVW\s[$]0,\s\([A-Z]+\)`
+	// ppc64x:`MOVH\s`
 	b1[0], b1[1] = 0, 0
 	// arm64:"MOVH\tZR",-"MOVB"
 	// 386:`MOVW\s[$]0,\s\([A-Z]+\)`
 	// amd64:`MOVW\s[$]0,\s\([A-Z]+\)`
+	// ppc64x:`MOVH`
 	b2[1], b2[0] = 0, 0
 }
 
@@ -632,8 +713,10 @@ func zero_byte_4(b1, b2 []byte) {
 	// arm64:"MOVW\tZR",-"MOVB",-"MOVH"
 	// amd64:`MOVL\s[$]0,\s\([A-Z]+\)`
 	// 386:`MOVL\s[$]0,\s\([A-Z]+\)`
+	// ppc64x:`MOVW\s`
 	b1[0], b1[1], b1[2], b1[3] = 0, 0, 0, 0
 	// arm64:"MOVW\tZR",-"MOVB",-"MOVH"
+	// ppc64x:`MOVW\s`
 	b2[2], b2[3], b2[1], b2[0] = 0, 0, 0, 0
 }
 
@@ -662,12 +745,14 @@ func zero_byte_39(a *[39]byte) {
 func zero_byte_2_idx(b []byte, idx int) {
 	_, _ = b[idx+0], b[idx+1]
 	// arm64:`MOVH\sZR,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOVB`
+	// ppc64x:`MOVH\s`
 	b[idx+0], b[idx+1] = 0, 0
 }
 
 func zero_byte_2_idx2(b []byte, idx int) {
 	_, _ = b[(idx<<1)+0], b[(idx<<1)+1]
 	// arm64:`MOVH\sZR,\s\(R[0-9]+\)\(R[0-9]+<<1\)`,-`MOVB`
+	// ppc64x:`MOVH\s`
 	b[(idx<<1)+0], b[(idx<<1)+1] = 0, 0
 }
 
@@ -676,10 +761,12 @@ func zero_uint16_2(h1, h2 []uint16) {
 	// arm64:"MOVW\tZR",-"MOVB",-"MOVH"
 	// amd64:`MOVL\s[$]0,\s\([A-Z]+\)`
 	// 386:`MOVL\s[$]0,\s\([A-Z]+\)`
+	// ppc64x:`MOVW\s`
 	h1[0], h1[1] = 0, 0
 	// arm64:"MOVW\tZR",-"MOVB",-"MOVH"
 	// amd64:`MOVL\s[$]0,\s\([A-Z]+\)`
 	// 386:`MOVL\s[$]0,\s\([A-Z]+\)`
+	// ppc64x:`MOVW`
 	h2[1], h2[0] = 0, 0
 }
 
@@ -687,8 +774,10 @@ func zero_uint16_4(h1, h2 []uint16) {
 	_, _ = h1[3], h2[3]
 	// arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
 	// amd64:`MOVQ\s[$]0,\s\([A-Z]+\)`
+	// ppc64x:`MOVD\s`
 	h1[0], h1[1], h1[2], h1[3] = 0, 0, 0, 0
 	// arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
+	// ppc64x:`MOVD\s`
 	h2[2], h2[3], h2[1], h2[0] = 0, 0, 0, 0
 }
 
@@ -702,9 +791,11 @@ func zero_uint32_2(w1, w2 []uint32) {
 	_, _ = w1[1], w2[1]
 	// arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
 	// amd64:`MOVQ\s[$]0,\s\([A-Z]+\)`
+	// ppc64x:`MOVD\s`
 	w1[0], w1[1] = 0, 0
 	// arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
 	// amd64:`MOVQ\s[$]0,\s\([A-Z]+\)`
+	// ppc64x:`MOVD\s`
 	w2[1], w2[0] = 0, 0
 }
 
