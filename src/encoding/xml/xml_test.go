@@ -952,7 +952,7 @@ func TestIssue8535(t *testing.T) {
 	type ExampleConflict struct {
 		XMLName  Name   `xml:"example"`
 		Link     string `xml:"link"`
-		AtomLink string `xml:"http://www.w3.org/2005/Atom link"` // Same name in a different name space
+		AtomLink string `xml:"http://www.w3.org/2005/Atom link"` // Same name in a different namespace
 	}
 	testCase := `<example>
 			<title>Example</title>
@@ -1448,7 +1448,7 @@ func TestIssue7113(t *testing.T) {
 		t.Fatalf("second Unmarshal failed: %s", err)
 	}
 	if c.XMLName.Space != "b" {
-		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, XML name space: got %s, want %s\n", a.XMLName.Space, structSpace)
+		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, XML namespace: got %s, want %s\n", a.XMLName.Space, structSpace)
 	}
 	if len(c.C.XMLName.Space) != 0 {
 		t.Errorf("overidding with empty namespace: after marshaling & unmarshaling, got %s, want empty\n", a.C.XMLName.Space)
@@ -1919,7 +1919,7 @@ func TestParseErrors(t *testing.T) {
 		err string
 	}{
 		{withDefaultHeader(`</foo>`), `unexpected end element </foo>`},
-		{withDefaultHeader(`<x:foo></y:foo>`), `element <foo> in space x closed by </foo> in space y`},
+		{withDefaultHeader(`<x:foo></y:foo>`), `element <foo> in namespace x closed by </foo> in namespace y`},
 		{withDefaultHeader(`<? not ok ?>`), `expected target name after <?`},
 		{withDefaultHeader(`<!- not ok -->`), `invalid sequence <!- not part of <!--`},
 		{withDefaultHeader(`<!-? not ok -->`), `invalid sequence <!- not part of <!--`},

@@ -370,11 +370,11 @@ type printer struct {
 func (p *printer) getPrefix(uri string) string {
 	switch uri {
 	case xmlURL:
-		// The "http://www.w3.org/XML/1998/namespace" name space is predefined as "xml"
+		// The "http://www.w3.org/XML/1998/namespace" namespace is predefined as "xml"
 		// and must be referred to that way.
 		return xmlPrefix
 	case xmlnsURL:
-		// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
+		// (The "http://www.w3.org/2000/xmlns/" namespace is also predefined as "xmlns",
 		// but users should not be trying to use that one directly - that's our job.)
 		return xmlnsPrefix
 	}

@@ -3,12 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // Package xml implements a simple XML 1.0 parser that
-// understands XML name spaces.
+// understands XML namespaces.
 package xml
 
 // References:
 //    Annotated XML spec: https://www.xml.com/axml/testaxml.htm
-//    XML name spaces: https://www.w3.org/TR/REC-xml-names/
+//    XML namespaces: https://www.w3.org/TR/REC-xml-names/
 
 import (
 	"bufio"
@@ -33,7 +33,7 @@ func (e *SyntaxError) Error() string {
 }
 
 // A Name represents an XML name (Local) annotated
-// with a name space identifier (Space).
+// with a namespace identifier (Space).
 // In tokens returned by [Decoder.Token], the Space identifier
 // is given as a canonical URL, not the short prefix used
 // in the document being parsed.
@@ -164,9 +164,9 @@ type Decoder struct {
 	//
 	// creates a parser that can handle typical HTML.
 	//
-	// Strict mode does not enforce the requirements of the XML name spaces TR.
-	// In particular it does not reject name space tags using undefined prefixes.
-	// Such tags are recorded with the unknown prefix as the name space URL.
+	// Strict mode does not enforce the requirements of the XML namespaces TR.
+	// In particular it does not reject namespace tags using undefined prefixes.
+	// Such tags are recorded with the unknown prefix as the namespace URL.
 	Strict bool
 
 	// When Strict == false, AutoClose indicates a set of elements to
@@ -192,7 +192,7 @@ type Decoder struct {
 	// CharsetReader's result values must be non-nil.
 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
 
-	// DefaultSpace sets the default name space used for unadorned tags,
+	// DefaultSpace sets the default namespace used for unadorned tags,
 	// as if the entire XML stream were wrapped in an element containing
 	// the attribute xmlns="DefaultSpace".
 	DefaultSpace string
@@ -265,11 +265,11 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 // If [Decoder.CharsetReader] is called and returns an error,
 // the error is wrapped and returned.
 //
-// Token implements XML name spaces as described by
+// Token implements XML namespaces as described by
 // https://www.w3.org/TR/REC-xml-names/. Each of the
 // [Name] structures contained in the Token has the Space
-// set to the URL identifying its name space when known.
-// If Token encounters an unrecognized name space prefix,
+// set to the URL identifying its namespace when known.
+// If Token encounters an unrecognized namespace prefix,
 // it uses the prefix as the Space rather than report an error.
 func (d *Decoder) Token() (Token, error) {
 	var t Token
@@ -299,12 +299,12 @@ func (d *Decoder) Token() (Token, error) {
 	}
 	switch t1 := t.(type) {
 	case StartElement:
-		// In XML name spaces, the translations listed in the
+		// In XML namespaces, the translations listed in the
 		// attributes apply to the element name and
 		// to the other attribute names, so process
 		// the translations first.
 		for _, a := range t1.Attr {
-			if a.Name.Space == xmlnsPrefix { // name space attribute {.Space}xmlns:{.Local}={.Value}
+			if a.Name.Space == xmlnsPrefix { // namespace attribute {.Space}xmlns:{.Local}={.Value}
 				if a.Value == "" {
 					d.err = d.syntaxError("empty namespace without prefix")
 					return nil, d.err
@@ -314,12 +314,12 @@ func (d *Decoder) Token() (Token, error) {
 					return nil, d.err
 				}
 				v, ok := d.ns[a.Name.Local] // Checking existence
-				// Recording the level of the name space by recording tag name
+				// Recording the level of the namespace by recording tag name
 				d.pushNs(a.Name.Local, v, ok) // Pushing tag, eventual value, and existence of namespace
 				d.ns[a.Name.Local] = a.Value
 			}
 			if a.Name.Space == "" && a.Name.Local == xmlnsPrefix { // xmlns=".Value"
-				// Default space for non-prefixed names
+				// Default namespace for non-prefixed names
 				v, ok := d.ns[""]
 				d.pushNs("", v, ok)
 				d.ns[""] = a.Value
@@ -349,8 +349,8 @@ const (
 	xmlnsPrefix = "xmlns"
 )
 
-// Apply name space translation to name n.
-// The default name space (for Space=="")
+// Apply namespace translation to name n.
+// The default namespace (for Space=="")
 // applies only to element names, not to attribute names.
 func (d *Decoder) translate(n *Name, isElementName bool) {
 	switch {
@@ -383,7 +383,7 @@ func (d *Decoder) switchToReader(r io.Reader) {
 	}
 }
 
-// Parsing state - stack holds old name space translations
+// Parsing state - stack holds old namespace translations
 // and the current set of open elements. The translations to pop when
 // ending a given tag are *below* it on the stack, which is
 // more work but forced on us by XML.
@@ -507,8 +507,8 @@ func (d *Decoder) popElement(t *EndElement) bool {
 		if name.Space == "" {
 			ns = `""`
 		}
-		d.err = d.syntaxError("element <" + s.name.Local + "> in space " + s.name.Space +
-			" closed by </" + name.Local + "> in space " + ns)
+		d.err = d.syntaxError("element <" + s.name.Local + "> in namespace " + s.name.Space +
+			" closed by </" + name.Local + "> in namespace " + ns)
 		return false
 	}
 
@@ -551,7 +551,7 @@ var errRawToken = errors.New("xml: cannot use RawToken from UnmarshalXML method"
 
 // RawToken is like [Decoder.Token] but does not verify that
 // start and end elements match and does not translate
-// name space prefixes to their corresponding URLs.
+// namespace prefixes to their corresponding URLs.
 func (d *Decoder) RawToken() (Token, error) {
 	if d.unmarshalDepth > 0 {
 		return nil, errRawToken
@@ -1182,8 +1182,8 @@ func isInCharacterRange(r rune) (inrange bool) {
 		r >= 0x10000 && r <= 0x10FFFF
 }
 
-// Get name space name: name with a : stuck in the middle.
-// The part before the : is the name space identifier.
+// Get namespace name: name with a : stuck in the middle.
+// The part before the : is the namespace identifier.
 func (d *Decoder) nsname() (name Name, ok bool) {
 	s, ok := d.name()
 	if !ok {
