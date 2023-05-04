@@ -1,6 +1,6 @@
 package main
 
-import "misc/cgo/testsanitizers/testdata/asan_linkerx/p"
+import "cmd/cgo/internal/testsanitizers/testdata/asan_linkerx/p"
 
 func pstring(s *string) {
 	println(*s)

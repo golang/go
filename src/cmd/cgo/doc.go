@@ -26,7 +26,7 @@ declared in the preamble may be used, even if they start with a
 lower-case letter. Exception: static variables in the preamble may
 not be referenced from Go code; static functions are permitted.
 
-See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples. See
+See $GOROOT/cmd/cgo/internal/teststdio and $GOROOT/misc/cgo/gmp for examples. See
 "C? Go? Cgo!" for an introduction to using cgo:
 https://golang.org/doc/articles/c_go_cgo.html.
 

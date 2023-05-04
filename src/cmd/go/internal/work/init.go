@@ -396,7 +396,7 @@ func compilerVersion() (version, error) {
 }
 
 // compilerRequiredAsanVersion is a copy of the function defined in
-// misc/cgo/testsanitizers/cc_test.go
+// cmd/cgo/internal/testsanitizers/cc_test.go
 // compilerRequiredAsanVersion reports whether the compiler is the version
 // required by Asan.
 func compilerRequiredAsanVersion() error {

@@ -1851,7 +1851,7 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 	} else {
 		p.Target = p.Internal.Build.PkgObj
 		if cfg.BuildBuildmode == "shared" && p.Internal.Build.PkgTargetRoot != "" {
-			// TODO(matloob): This shouldn't be necessary, but the misc/cgo/testshared
+			// TODO(matloob): This shouldn't be necessary, but the cmd/cgo/internal/testshared
 			// test fails without Target set for this condition. Figure out why and
 			// fix it.
 			p.Target = filepath.Join(p.Internal.Build.PkgTargetRoot, p.ImportPath+".a")

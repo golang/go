@@ -5,7 +5,7 @@
 /*
 A trivial example of wrapping a C library in Go.
 For a more complex example and explanation,
-see ../gmp/gmp.go.
+see misc/cgo/gmp/gmp.go.
 */
 
 package stdio

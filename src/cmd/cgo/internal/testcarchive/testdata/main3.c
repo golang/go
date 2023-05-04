@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Test that a signal handler works in non-Go code when using
-// os/signal.Notify.
-// This is a lot like misc/cgo/testcarchive/main3.c.
+// Test os/signal.Notify and os/signal.Reset.
+// This is a lot like ../testcshared/main5.c.
 
 #include <signal.h>
 #include <stdio.h>
@@ -12,7 +11,10 @@
 #include <string.h>
 #include <time.h>
 #include <sched.h>
-#include <dlfcn.h>
+#include <unistd.h>
+#include <pthread.h>
+
+#include "libgo3.h"
 
 static void die(const char* msg) {
 	perror(msg);
@@ -25,17 +27,67 @@ static void ioHandler(int signo, siginfo_t* info, void* ctxt) {
 	sigioSeen = 1;
 }
 
+// Set up the SIGPIPE signal handler in a high priority constructor, so
+// that it is installed before the Go code starts.
+
+static void pipeHandler(int signo, siginfo_t* info, void* ctxt) {
+	const char *s = "unexpected SIGPIPE\n";
+	write(2, s, strlen(s));
+	exit(EXIT_FAILURE);
+}
+
+static void init(void) __attribute__ ((constructor (200)));
+
+static void init() {
+    struct sigaction sa;
+
+	memset(&sa, 0, sizeof sa);
+	sa.sa_sigaction = pipeHandler;
+	if (sigemptyset(&sa.sa_mask) < 0) {
+		die("sigemptyset");
+	}
+	sa.sa_flags = SA_SIGINFO;
+	if (sigaction(SIGPIPE, &sa, NULL) < 0) {
+		die("sigaction");
+	}
+}
+
+static void *provokeSIGPIPE(void *arg) {
+	ProvokeSIGPIPE();
+	return NULL;
+}
+
 int main(int argc, char** argv) {
 	int verbose;
 	struct sigaction sa;
-	void* handle;
-	void (*fn1)(void);
-	int (*sawSIGIO)(void);
 	int i;
 	struct timespec ts;
+	int res;
+	pthread_t tid;
 
 	verbose = argc > 2;
 	setvbuf(stdout, NULL, _IONBF, 0);
+
+	if (verbose) {
+		printf("raising SIGPIPE\n");
+	}
+
+	// Test that the Go runtime handles SIGPIPE, even if we installed
+	// a non-default SIGPIPE handler before the runtime initializes.
+	ProvokeSIGPIPE();
+
+	// Test that SIGPIPE on a non-main thread is also handled by Go.
+	res = pthread_create(&tid, NULL, provokeSIGPIPE, NULL);
+	if (res != 0) {
+		fprintf(stderr, "pthread_create: %s\n", strerror(res));
+		exit(EXIT_FAILURE);
+	}
+
+	res = pthread_join(tid, NULL);
+	if (res != 0) {
+		fprintf(stderr, "pthread_join: %s\n", strerror(res));
+		exit(EXIT_FAILURE);
+	}
 
 	if (verbose) {
 		printf("calling sigaction\n");
@@ -49,16 +101,6 @@ int main(int argc, char** argv) {
 	sa.sa_flags = SA_SIGINFO;
 	if (sigaction(SIGIO, &sa, NULL) < 0) {
 		die("sigaction");
-	}
-
-	if (verbose) {
-		printf("calling dlopen\n");
-	}
-
-	handle = dlopen(argv[1], RTLD_NOW | RTLD_GLOBAL);
-	if (handle == NULL) {
-		fprintf(stderr, "%s\n", dlerror());
-		exit(EXIT_FAILURE);
 	}
 
 	// At this point there should not be a Go signal handler
@@ -94,20 +136,10 @@ int main(int argc, char** argv) {
 	// Tell the Go code to catch SIGIO.
 
 	if (verbose) {
-		printf("calling dlsym\n");
-	}
-
-	fn1 = (void(*)(void))dlsym(handle, "CatchSIGIO");
-	if (fn1 == NULL) {
-		fprintf(stderr, "%s\n", dlerror());
-		exit(EXIT_FAILURE);
-	}
-
-	if (verbose) {
 		printf("calling CatchSIGIO\n");
 	}
 
-	fn1();
+	CatchSIGIO();
 
 	if (verbose) {
 		printf("raising SIGIO\n");
@@ -118,21 +150,10 @@ int main(int argc, char** argv) {
 	}
 
 	if (verbose) {
-		printf("calling dlsym\n");
-	}
-
-	// Check that the Go code saw SIGIO.
-	sawSIGIO = (int (*)(void))dlsym(handle, "SawSIGIO");
-	if (sawSIGIO == NULL) {
-		fprintf(stderr, "%s\n", dlerror());
-		exit(EXIT_FAILURE);
-	}
-
-	if (verbose) {
 		printf("calling SawSIGIO\n");
 	}
 
-	if (!sawSIGIO()) {
+	if (!SawSIGIO()) {
 		fprintf(stderr, "Go handler did not see SIGIO\n");
 		exit(EXIT_FAILURE);
 	}
@@ -145,20 +166,10 @@ int main(int argc, char** argv) {
 	// Tell the Go code to stop catching SIGIO.
 
 	if (verbose) {
-		printf("calling dlsym\n");
-	}
-
-	fn1 = (void(*)(void))dlsym(handle, "ResetSIGIO");
-	if (fn1 == NULL) {
-		fprintf(stderr, "%s\n", dlerror());
-		exit(EXIT_FAILURE);
-	}
-
-	if (verbose) {
 		printf("calling ResetSIGIO\n");
 	}
 
-	fn1();
+	ResetSIGIO();
 
 	if (verbose) {
 		printf("raising SIGIO\n");
@@ -172,7 +183,7 @@ int main(int argc, char** argv) {
 		printf("calling SawSIGIO\n");
 	}
 
-	if (sawSIGIO()) {
+	if (SawSIGIO()) {
 		fprintf(stderr, "Go handler saw SIGIO after Reset\n");
 		exit(EXIT_FAILURE);
 	}

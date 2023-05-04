@@ -127,7 +127,7 @@ func TestASANLinkerX(t *testing.T) {
 
 	var ldflags string
 	for i := 1; i <= 10; i++ {
-		ldflags += fmt.Sprintf("-X=main.S%d=%d -X=misc/cgo/testsanitizers/testdata/asan_linkerx/p.S%d=%d ", i, i, i, i)
+		ldflags += fmt.Sprintf("-X=main.S%d=%d -X=cmd/cgo/internal/testsanitizers/testdata/asan_linkerx/p.S%d=%d ", i, i, i, i)
 	}
 
 	// build the binary

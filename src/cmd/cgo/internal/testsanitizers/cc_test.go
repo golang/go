@@ -144,7 +144,7 @@ func cc(args ...string) (*exec.Cmd, error) {
 	// Split GOGCCFLAGS, respecting quoting.
 	//
 	// TODO(bcmills): This code also appears in
-	// misc/cgo/testcarchive/carchive_test.go, and perhaps ought to go in
+	// cmd/cgo/internal/testcarchive/carchive_test.go, and perhaps ought to go in
 	// src/cmd/dist/test.go as well. Figure out where to put it so that it can be
 	// shared.
 	var flags []string
@@ -493,7 +493,7 @@ func (c *config) checkRuntime() (skip bool, err error) {
 	if err != nil {
 		return false, err
 	}
-	cmd.Args = append(cmd.Args, "-dM", "-E", "../../../src/runtime/cgo/libcgo.h")
+	cmd.Args = append(cmd.Args, "-dM", "-E", "../../../../runtime/cgo/libcgo.h")
 	cmdStr := strings.Join(cmd.Args, " ")
 	out, err := cmd.CombinedOutput()
 	if err != nil {

@@ -95,7 +95,7 @@ func testMain(m *testing.M) (int, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	oldGOROOT = filepath.Join(cwd, "../../..")
+	oldGOROOT = filepath.Join(cwd, "../../../../..")
 
 	workDir, err := os.MkdirTemp("", "shared_test")
 	if err != nil {

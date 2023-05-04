@@ -4,7 +4,7 @@
 
 // Test that a signal handler that uses up stack space does not crash
 // if the signal is delivered to a thread running a goroutine.
-// This is a lot like misc/cgo/testcarchive/main2.c.
+// This is a lot like ../testcarchive/main2.c.
 
 #include <setjmp.h>
 #include <signal.h>

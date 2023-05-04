@@ -595,6 +595,20 @@ func (t *tester) registerTests() {
 	// whose test registration happens in a special way.
 	registerStdTestSpecially := map[string]bool{
 		"internal/testdir": true, // Registered at the bottom with sharding.
+		// cgo tests are registered specially because they involve unusual build
+		// conditions and flags.
+		"cmd/cgo/internal/teststdio":      true,
+		"cmd/cgo/internal/testlife":       true,
+		"cmd/cgo/internal/testfortran":    true,
+		"cmd/cgo/internal/testgodefs":     true,
+		"cmd/cgo/internal/testso":         true,
+		"cmd/cgo/internal/testsovar":      true,
+		"cmd/cgo/internal/testcarchive":   true,
+		"cmd/cgo/internal/testcshared":    true,
+		"cmd/cgo/internal/testshared":     true,
+		"cmd/cgo/internal/testplugin":     true,
+		"cmd/cgo/internal/testsanitizers": true,
+		"cmd/cgo/internal/testerrors":     true,
 	}
 
 	// Fast path to avoid the ~1 second of `go list std cmd` when
@@ -848,10 +862,10 @@ func (t *tester) registerTests() {
 
 	if t.cgoEnabled && !t.iOS() {
 		// Disabled on iOS. golang.org/issue/15919
-		t.registerTest("cgo_stdio", "", &goTest{dir: "../misc/cgo/stdio", timeout: 5 * time.Minute}, rtHostTest{})
-		t.registerTest("cgo_life", "", &goTest{dir: "../misc/cgo/life", timeout: 5 * time.Minute}, rtHostTest{})
+		t.registerTest("cgo_teststdio", "", &goTest{dir: "cmd/cgo/internal/teststdio", timeout: 5 * time.Minute}, rtHostTest{})
+		t.registerTest("cgo_testlife", "", &goTest{dir: "cmd/cgo/internal/testlife", timeout: 5 * time.Minute}, rtHostTest{})
 		if goos != "android" {
-			t.registerTest("cgo_fortran", "", &goTest{dir: "../misc/cgo/fortran", timeout: 5 * time.Minute}, rtHostTest{})
+			t.registerTest("cgo_testfortran", "", &goTest{dir: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 		if t.hasSwig() && goos != "android" {
 			t.registerTest("swig_stdio", "", &goTest{dir: "../misc/swig/stdio"})
@@ -879,29 +893,29 @@ func (t *tester) registerTests() {
 	// recompile the entire standard library. If make.bash ran with
 	// special -gcflags, that's not true.
 	if t.cgoEnabled && gogcflags == "" {
-		t.registerTest("testgodefs", "", &goTest{dir: "../misc/cgo/testgodefs", timeout: 5 * time.Minute}, rtHostTest{})
+		t.registerTest("cgo_testgodefs", "", &goTest{dir: "cmd/cgo/internal/testgodefs", timeout: 5 * time.Minute}, rtHostTest{})
 
-		t.registerTest("testso", "", &goTest{dir: "../misc/cgo/testso", timeout: 600 * time.Second})
-		t.registerTest("testsovar", "", &goTest{dir: "../misc/cgo/testsovar", timeout: 600 * time.Second})
+		t.registerTest("cgo_testso", "", &goTest{dir: "cmd/cgo/internal/testso", timeout: 600 * time.Second})
+		t.registerTest("cgo_testsovar", "", &goTest{dir: "cmd/cgo/internal/testsovar", timeout: 600 * time.Second})
 		if t.supportedBuildmode("c-archive") {
-			t.registerTest("testcarchive", "", &goTest{dir: "../misc/cgo/testcarchive", timeout: 5 * time.Minute}, rtHostTest{})
+			t.registerTest("cgo_testcarchive", "", &goTest{dir: "cmd/cgo/internal/testcarchive", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 		if t.supportedBuildmode("c-shared") {
-			t.registerTest("testcshared", "", &goTest{dir: "../misc/cgo/testcshared", timeout: 5 * time.Minute}, rtHostTest{})
+			t.registerTest("cgo_testcshared", "", &goTest{dir: "cmd/cgo/internal/testcshared", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 		if t.supportedBuildmode("shared") {
-			t.registerTest("testshared", "", &goTest{dir: "../misc/cgo/testshared", timeout: 600 * time.Second})
+			t.registerTest("cgo_testshared", "", &goTest{dir: "cmd/cgo/internal/testshared", timeout: 600 * time.Second})
 		}
 		if t.supportedBuildmode("plugin") {
-			t.registerTest("testplugin", "", &goTest{dir: "../misc/cgo/testplugin", timeout: 600 * time.Second})
+			t.registerTest("cgo_testplugin", "", &goTest{dir: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
 		}
 		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
-			// because Pdeathsig of syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only
+			// because Pdeathsig of syscall.SysProcAttr struct used in cmd/cgo/internal/testsanitizers is only
 			// supported on Linux and FreeBSD.
-			t.registerTest("testsanitizers", "", &goTest{dir: "../misc/cgo/testsanitizers", timeout: 5 * time.Minute}, rtHostTest{})
+			t.registerTest("cgo_testsanitizers", "", &goTest{dir: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
-			t.registerTest("cgo_errors", "", &goTest{dir: "../misc/cgo/errors", timeout: 5 * time.Minute}, rtHostTest{})
+			t.registerTest("cgo_errors", "", &goTest{dir: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute}, rtHostTest{})
 		}
 	}
 

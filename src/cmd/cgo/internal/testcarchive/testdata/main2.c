@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Test installing a signal handler before the Go code starts.
-// This is a lot like misc/cgo/testcshared/main4.c.
+// This is a lot like ../testcshared/main4.c.
 
 #include <setjmp.h>
 #include <signal.h>

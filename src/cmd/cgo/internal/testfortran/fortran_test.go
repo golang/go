@@ -63,7 +63,7 @@ func TestFortran(t *testing.T) {
 	}
 
 	// Do a test build that doesn't involve Go FORTRAN support.
-	fcArgs := append([]string{"helloworld/helloworld.f90", "-o", "/dev/null"}, fcExtra...)
+	fcArgs := append([]string{"testdata/helloworld/helloworld.f90", "-o", "/dev/null"}, fcExtra...)
 	t.Logf("%s %s", fc, fcArgs)
 	if err := exec.Command(fc, fcArgs...).Run(); err != nil {
 		t.Skipf("skipping Fortran test: could not build helloworld.f90 with %s: %s", fc, err)

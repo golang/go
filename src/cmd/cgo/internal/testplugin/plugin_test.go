@@ -48,7 +48,7 @@ func testMain(m *testing.M) int {
 	if err != nil {
 		log.Fatal(err)
 	}
-	goroot = filepath.Join(cwd, "../../..")
+	goroot = filepath.Join(cwd, "../../../../..")
 
 	// Copy testdata into GOPATH/src/testplugin, along with a go.mod file
 	// declaring the same path.
