@@ -124,18 +124,26 @@ func TestVTACallGraphGenerics(t *testing.T) {
 	}
 
 	// TODO(zpavlinovic): add more tests
-	file := "testdata/src/callgraph_generics.go"
-	prog, want, err := testProg(file, ssa.InstantiateGenerics)
-	if err != nil {
-		t.Fatalf("couldn't load test file '%s': %s", file, err)
+	files := []string{
+		"testdata/src/arrays_generics.go",
+		"testdata/src/callgraph_generics.go",
 	}
-	if len(want) == 0 {
-		t.Fatalf("couldn't find want in `%s`", file)
-	}
+	for _, file := range files {
+		t.Run(file, func(t *testing.T) {
+			prog, want, err := testProg(file, ssa.InstantiateGenerics)
+			if err != nil {
+				t.Fatalf("couldn't load test file '%s': %s", file, err)
+			}
+			if len(want) == 0 {
+				t.Fatalf("couldn't find want in `%s`", file)
+			}
 
-	g := CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
-	got := callGraphStr(g)
-	if diff := setdiff(want, got); len(diff) != 0 {
-		t.Errorf("computed callgraph %v should contain %v (diff: %v)", got, want, diff)
+			g := CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
+			got := callGraphStr(g)
+			if diff := setdiff(want, got); len(diff) != 0 {
+				t.Errorf("computed callgraph %v should contain %v (diff: %v)", got, want, diff)
+				logFns(t, prog)
+			}
+		})
 	}
 }

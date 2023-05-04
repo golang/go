@@ -123,7 +123,14 @@ func functionUnderPtr(t types.Type) types.Type {
 func sliceArrayElem(t types.Type) types.Type {
 	switch u := t.Underlying().(type) {
 	case *types.Pointer:
-		return u.Elem().Underlying().(*types.Array).Elem()
+		switch e := u.Elem().Underlying().(type) {
+		case *types.Array:
+			return e.Elem()
+		case *types.Interface:
+			return sliceArrayElem(e) // e is a type param with matching element types.
+		default:
+			panic(t)
+		}
 	case *types.Array:
 		return u.Elem()
 	case *types.Slice:

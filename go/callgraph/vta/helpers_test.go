@@ -5,12 +5,14 @@
 package vta
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"io/ioutil"
 	"sort"
 	"strings"
+	"testing"
 
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa/ssautil"
@@ -113,4 +115,13 @@ func callGraphStr(g *callgraph.Graph) []string {
 		gs = append(gs, entry)
 	}
 	return gs
+}
+
+// Logs the functions of prog to t.
+func logFns(t testing.TB, prog *ssa.Program) {
+	for fn := range ssautil.AllFunctions(prog) {
+		var buf bytes.Buffer
+		fn.WriteTo(&buf)
+		t.Log(buf.String())
+	}
 }
