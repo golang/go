@@ -66,8 +66,15 @@ func readHosts() {
 	is := make(map[string][]string)
 
 	file, err := open(hp)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return
+	if err != nil {
+		// Return only on temporary errors, so that
+		// the hosts cache gets cleaned up on errors
+		// like: access, file not exist errors.
+		var pathError *fs.PathError
+		var temporary interface{ Temporary() bool }
+		if errors.As(err, &pathError) && errors.As(pathError.Err, &temporary) && temporary.Temporary() {
+			return
+		}
 	}
 
 	if file != nil {
