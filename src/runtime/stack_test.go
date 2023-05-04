@@ -81,8 +81,6 @@ func TestStackGrowth(t *testing.T) {
 		t.Skip("-quick")
 	}
 
-	t.Parallel()
-
 	var wg sync.WaitGroup
 
 	// in a normal goroutine
