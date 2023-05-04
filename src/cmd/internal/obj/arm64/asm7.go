@@ -833,13 +833,11 @@ var optab = []Optab{
 	{ATLBI, C_SPOP, C_NONE, C_NONE, C_ZREG, 107, 4, 0, 0, 0},
 
 	/* encryption instructions */
-	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, 29, 4, 0, 0, 0}, // for compatibility with old code
-	{AAESD, C_ARNG, C_NONE, C_NONE, C_ARNG, 29, 4, 0, 0, 0}, // recommend using the new one for better readability
-	{ASHA1C, C_VREG, C_ZREG, C_NONE, C_VREG, 1, 4, 0, 0, 0},
-	{ASHA1C, C_ARNG, C_VREG, C_NONE, C_VREG, 1, 4, 0, 0, 0},
-	{ASHA1H, C_VREG, C_NONE, C_NONE, C_VREG, 29, 4, 0, 0, 0},
-	{ASHA1SU0, C_ARNG, C_ARNG, C_NONE, C_ARNG, 1, 4, 0, 0, 0},
-	{ASHA256H, C_ARNG, C_VREG, C_NONE, C_VREG, 1, 4, 0, 0, 0},
+	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, 26, 4, 0, 0, 0}, // for compatibility with old code
+	{AAESD, C_ARNG, C_NONE, C_NONE, C_ARNG, 26, 4, 0, 0, 0}, // recommend using the new one for better readability
+	{ASHA1C, C_VREG, C_VREG, C_NONE, C_VREG, 49, 4, 0, 0, 0},
+	{ASHA1C, C_ARNG, C_VREG, C_NONE, C_VREG, 49, 4, 0, 0, 0},
+	{ASHA1SU0, C_ARNG, C_ARNG, C_NONE, C_ARNG, 63, 4, 0, 0, 0},
 	{AVREV32, C_ARNG, C_NONE, C_NONE, C_ARNG, 83, 4, 0, 0, 0},
 	{AVPMULL, C_ARNG, C_ARNG, C_NONE, C_ARNG, 93, 4, 0, 0, 0},
 	{AVEOR3, C_ARNG, C_ARNG, C_ARNG, C_ARNG, 103, 4, 0, 0, 0},
@@ -3083,12 +3081,12 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(ASHA1SU1, t)
 			oprangeset(ASHA256SU0, t)
 			oprangeset(ASHA512SU0, t)
+			oprangeset(ASHA1H, t)
 
 		case ASHA1C:
 			oprangeset(ASHA1P, t)
 			oprangeset(ASHA1M, t)
-
-		case ASHA256H:
+			oprangeset(ASHA256H, t)
 			oprangeset(ASHA256H2, t)
 			oprangeset(ASHA512H, t)
 			oprangeset(ASHA512H2, t)
@@ -3146,8 +3144,7 @@ func buildop(ctxt *obj.Link) {
 		case AVTBL:
 			oprangeset(AVTBX, t)
 
-		case ASHA1H,
-			AVCNT,
+		case AVCNT,
 			AVMOV,
 			AVLD1,
 			AVST1,
@@ -3789,6 +3786,32 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rt := int(p.To.Reg)
 		o1 |= (uint32(rf&31) << 16) | (REGZERO & 31 << 5) | uint32(rt&31)
 
+	case 26: /* op Vn, Vd; op Vn.<T>, Vd.<T> */
+		o1 = c.oprrr(p, p.As)
+		cf := c.aclass(&p.From)
+		af := (p.From.Reg >> 5) & 15
+		at := (p.To.Reg >> 5) & 15
+		var sz int16
+		switch p.As {
+		case AAESD, AAESE, AAESIMC, AAESMC:
+			sz = ARNG_16B
+		case ASHA1SU1, ASHA256SU0:
+			sz = ARNG_4S
+		case ASHA512SU0:
+			sz = ARNG_2D
+		}
+
+		if cf == C_ARNG {
+			if p.As == ASHA1H {
+				c.ctxt.Diag("invalid operands: %v", p)
+			} else {
+				if af != sz || af != at {
+					c.ctxt.Diag("invalid arrangement: %v", p)
+				}
+			}
+		}
+		o1 |= uint32(p.From.Reg&31)<<5 | uint32(p.To.Reg&31)
+
 	case 27: /* op Rm<<n[,Rn],Rd (extended register) */
 		if p.To.Reg == REG_RSP && isADDSop(p.As) {
 			c.ctxt.Diag("illegal destination register: %v\n", p)
@@ -4235,6 +4258,19 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.oaddi(p, p.As, c.regoff(&p.From)&0x000fff, rt, r)
 		o2 = c.oaddi(p, p.As, c.regoff(&p.From)&0xfff000, rt, rt)
 
+	case 49: /* op Vm.<T>, Vn, Vd */
+		o1 = c.oprrr(p, p.As)
+		cf := c.aclass(&p.From)
+		af := (p.From.Reg >> 5) & 15
+		sz := ARNG_4S
+		if p.As == ASHA512H || p.As == ASHA512H2 {
+			sz = ARNG_2D
+		}
+		if cf == C_ARNG && af != int16(sz) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+		o1 |= uint32(p.From.Reg&31)<<16 | uint32(p.Reg&31)<<5 | uint32(p.To.Reg&31)
+
 	case 50: /* sys/sysl */
 		o1 = c.opirr(p, p.As)
 
@@ -4435,6 +4471,20 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o2 |= uint32(r&31) << 5
 		o2 |= uint32(rt & 31)
+
+	case 63: /* op Vm.<t>, Vn.<T>, Vd.<T> */
+		o1 |= c.oprrr(p, p.As)
+		af := (p.From.Reg >> 5) & 15
+		at := (p.To.Reg >> 5) & 15
+		ar := (p.Reg >> 5) & 15
+		sz := ARNG_4S
+		if p.As == ASHA512SU1 {
+			sz = ARNG_2D
+		}
+		if af != at || af != ar || af != int16(sz) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+		o1 |= uint32(p.From.Reg&31)<<16 | uint32(p.Reg&31)<<5 | uint32(p.To.Reg&31)
 
 	/* reloc ops */
 	case 64: /* movT R,addr -> adrp + movT R, (REGTMP) */
