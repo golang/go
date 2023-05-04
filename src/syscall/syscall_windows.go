@@ -42,9 +42,13 @@ func UTF16FromString(s string) ([]uint16, error) {
 	if bytealg.IndexByteString(s, 0) != -1 {
 		return nil, EINVAL
 	}
-	// In the worst case all characters require two uint16.
-	// Also account for the terminating NULL character.
-	buf := make([]uint16, 0, len(s)*2+1)
+	// Valid UTF-8 characters between 1 and 3 bytes require one uint16.
+	// Valid UTF-8 characters of 4 bytes require two uint16.
+	// Bytes with invalid UTF-8 encoding require maximum one uint16 per byte.
+	// So the number of UTF-8 code units (len(s)) is always greater or
+	// equal than the number of UTF-16 code units.
+	// Also account for the terminating NUL character.
+	buf := make([]uint16, 0, len(s)+1)
 	for _, r := range s {
 		buf = utf16.AppendRune(buf, r)
 	}
