@@ -151,15 +151,21 @@ func _() {
 }
 
 -- removeall.go --
-// TODO(golang/go#59976): this test is flaky because it leaves one comment
-// behind, but non-deterministically.
-package imports // codeaction("source.organizeImports", "package", "", removeall)
+package imports //@codeaction("source.organizeImports", "package", "", removeall)
 
 import (
 	"bytes" //@diag("\"bytes\"", re"not used")
 	"fmt" //@diag("\"fmt\"", re"not used")
 
 )
+
+func _() {
+}
+
+-- @removeall/removeall.go --
+package imports //@codeaction("source.organizeImports", "package", "", removeall)
+
+//@diag("\"fmt\"", re"not used")
 
 func _() {
 }
