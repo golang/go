@@ -96,6 +96,14 @@ func TestHasGoBuild(t *testing.T) {
 				return
 			}
 		}
+
+		if strings.HasSuffix(b, "-noopt") {
+			// The -noopt builder sets GO_GCFLAGS, which causes tests of 'go build' to
+			// be skipped.
+			t.Logf("HasGoBuild is false on %s", b)
+			return
+		}
+
 		t.Fatalf("HasGoBuild unexpectedly false on %s", b)
 	}
 
