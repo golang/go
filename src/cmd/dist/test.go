@@ -870,9 +870,6 @@ func (t *tester) registerTests() {
 		if goos != "android" {
 			t.registerTest("cgo_testfortran", "", &goTest{dir: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute}, rtHostTest{})
 		}
-		if goos != "android" {
-			t.registerTest("swig", "", &goTest{dir: "../misc/swig"})
-		}
 	}
 	if t.cgoEnabled {
 		t.registerCgoTests()
