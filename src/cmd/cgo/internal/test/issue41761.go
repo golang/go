@@ -10,7 +10,7 @@ package cgotest
 import "C"
 
 import (
-	"misc/cgo/test/issue41761a"
+	"cmd/cgo/internal/test/issue41761a"
 	"testing"
 )
 

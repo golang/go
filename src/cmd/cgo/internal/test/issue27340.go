@@ -4,9 +4,11 @@
 
 //go:build cgo
 
-// Issue 26430: incomplete typedef leads to inconsistent typedefs error.
+// Failed to resolve typedefs consistently.
 // No runtime test; just make sure it compiles.
 
 package cgotest
 
-import _ "misc/cgo/test/issue26430"
+import "cmd/cgo/internal/test/issue27340"
+
+var issue27340Var = issue27340.Issue27340GoFunc

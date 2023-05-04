@@ -9,11 +9,11 @@ package cgotest
 import (
 	"testing"
 
-	"misc/cgo/test/issue24161arg"
-	"misc/cgo/test/issue24161e0"
-	"misc/cgo/test/issue24161e1"
-	"misc/cgo/test/issue24161e2"
-	"misc/cgo/test/issue24161res"
+	"cmd/cgo/internal/test/issue24161arg"
+	"cmd/cgo/internal/test/issue24161e0"
+	"cmd/cgo/internal/test/issue24161e1"
+	"cmd/cgo/internal/test/issue24161e2"
+	"cmd/cgo/internal/test/issue24161res"
 )
 
 func Test24161Arg(t *testing.T) {

@@ -4,14 +4,12 @@
 
 //go:build cgo
 
+// Test that we can have two identical cgo packages in a single binary.
+// No runtime test; just make sure it compiles.
+
 package cgotest
 
 import (
-	"testing"
-
-	"misc/cgo/test/issue26213"
+	_ "cmd/cgo/internal/test/issue23555a"
+	_ "cmd/cgo/internal/test/issue23555b"
 )
-
-func test26213(t *testing.T) {
-	issue26213.Test26213(t)
-}

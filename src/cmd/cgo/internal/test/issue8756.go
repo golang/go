@@ -8,7 +8,7 @@ import "C"
 import (
 	"testing"
 
-	"misc/cgo/test/issue8756"
+	"cmd/cgo/internal/test/issue8756"
 )
 
 func test8756(t *testing.T) {

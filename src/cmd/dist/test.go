@@ -600,6 +600,9 @@ func (t *tester) registerTests() {
 		"cmd/cgo/internal/teststdio":      true,
 		"cmd/cgo/internal/testlife":       true,
 		"cmd/cgo/internal/testfortran":    true,
+		"cmd/cgo/internal/test":           true,
+		"cmd/cgo/internal/testnocgo":      true,
+		"cmd/cgo/internal/testtls":        true,
 		"cmd/cgo/internal/testgodefs":     true,
 		"cmd/cgo/internal/testso":         true,
 		"cmd/cgo/internal/testsovar":      true,
@@ -1181,7 +1184,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 func (t *tester) registerCgoTests() {
 	cgoTest := func(name string, subdir, linkmode, buildmode string, opts ...registerTestOpt) *goTest {
 		gt := &goTest{
-			dir:       "../misc/cgo/" + subdir,
+			dir:       "cmd/cgo/internal/" + subdir,
 			buildmode: buildmode,
 			ldflags:   "-linkmode=" + linkmode,
 		}
@@ -1206,7 +1209,7 @@ func (t *tester) registerCgoTests() {
 			gt.tags = append(gt.tags, "static")
 		}
 
-		t.registerTest("cgo:"+name, "../misc/cgo/test", gt, opts...)
+		t.registerTest("cgo:"+name, "cmd/cgo/internal/test", gt, opts...)
 		return gt
 	}
 
@@ -1266,7 +1269,7 @@ func (t *tester) registerCgoTests() {
 					return false
 				}
 			} else {
-				cmd := t.dirCmd("misc/cgo/test", cc, "-xc", "-o", "/dev/null", "-static", "-")
+				cmd := t.dirCmd("src/cmd/cgo/internal/test", cc, "-xc", "-o", "/dev/null", "-static", "-")
 				cmd.Stdin = strings.NewReader("int main() {}")
 				cmd.Stdout, cmd.Stderr = nil, nil // Discard output
 				if err := cmd.Run(); err != nil {
@@ -1294,10 +1297,10 @@ func (t *tester) registerCgoTests() {
 				// TODO(#56629): Why does this fail on netbsd-arm?
 				cgoTest("testtls-static", "testtls", "external", "static", staticCheck)
 			}
-			cgoTest("nocgo-auto", "nocgo", "auto", "", staticCheck)
-			cgoTest("nocgo-external", "nocgo", "external", "", staticCheck)
+			cgoTest("nocgo-auto", "testnocgo", "auto", "", staticCheck)
+			cgoTest("nocgo-external", "testnocgo", "external", "", staticCheck)
 			if goos != "android" {
-				cgoTest("nocgo-static", "nocgo", "external", "static", staticCheck)
+				cgoTest("nocgo-static", "testnocgo", "external", "static", staticCheck)
 				cgoTest("test-static", "test", "external", "static", staticCheck)
 				// -static in CGO_LDFLAGS triggers a different code path
 				// than -static in -extldflags, so test both.
@@ -1315,7 +1318,7 @@ func (t *tester) registerCgoTests() {
 					cgoTest("test-pie-internal", "test", "internal", "pie")
 				}
 				cgoTest("testtls-pie", "testtls", "auto", "pie")
-				cgoTest("nocgo-pie", "nocgo", "auto", "pie")
+				cgoTest("nocgo-pie", "testnocgo", "auto", "pie")
 			}
 		}
 	}
@@ -1550,11 +1553,11 @@ func (t *tester) registerRaceTests() {
 	// TODO(iant): Figure out how to catch this.
 	// t.registerTest("race:cmd/go", hdr, &goTest{race: true, runTests: "TestParallelTest", pkg: "cmd/go"})
 	if t.cgoEnabled {
-		// Building misc/cgo/test takes a long time.
+		// Building cmd/cgo/internal/test takes a long time.
 		// There are already cgo-enabled packages being tested with the race detector.
-		// We shouldn't need to redo all of misc/cgo/test too.
+		// We shouldn't need to redo all of cmd/cgo/internal/test too.
 		// The race buildler will take care of this.
-		// t.registerTest("race:misc/cgo/test", hdr, &goTest{dir: "../misc/cgo/test", race: true, env: []string{"GOTRACEBACK=2"}})
+		// t.registerTest("race:cmd/cgo/internal/test", hdr, &goTest{dir: "cmd/cgo/internal/test", race: true, env: []string{"GOTRACEBACK=2"}})
 	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.

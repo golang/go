@@ -9,4 +9,4 @@
 
 package cgotest
 
-import _ "misc/cgo/test/issue29563"
+import _ "cmd/cgo/internal/test/issue29563"

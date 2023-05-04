@@ -4,11 +4,9 @@
 
 //go:build cgo
 
-// Failed to resolve typedefs consistently.
+// Issue 26743: typedef of uint leads to inconsistent typedefs error.
 // No runtime test; just make sure it compiles.
 
 package cgotest
 
-import "misc/cgo/test/issue27340"
-
-var issue27340Var = issue27340.Issue27340GoFunc
+import _ "cmd/cgo/internal/test/issue26743"

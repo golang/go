@@ -10,6 +10,6 @@
 package cgotest
 
 import (
-	_ "misc/cgo/test/issue52611a"
-	_ "misc/cgo/test/issue52611b"
+	_ "cmd/cgo/internal/test/issue52611a"
+	_ "cmd/cgo/internal/test/issue52611b"
 )
