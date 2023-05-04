@@ -729,7 +729,7 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
 	// Beware that bit0~bit15 start from the third byte of an instruction in Big-Endian machines.
 	rt := r.Type
-	if rt == objabi.R_ADDR || rt == objabi.R_POWER_TLS || rt == objabi.R_CALLPOWER {
+	if rt == objabi.R_ADDR || rt == objabi.R_POWER_TLS || rt == objabi.R_CALLPOWER || rt == objabi.R_DWARFSECREF {
 	} else {
 		if ctxt.Arch.ByteOrder == binary.BigEndian {
 			sectoff += 2
