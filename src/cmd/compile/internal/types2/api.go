@@ -169,6 +169,11 @@ type Config struct {
 	// If DisableUnusedImportCheck is set, packages are not checked
 	// for unused imports.
 	DisableUnusedImportCheck bool
+
+	// If InferMaxDefaultType is set, the minimum (smallest) default
+	// type that fits all untyped constant arguments for the same type
+	// parameter is selected in type inference. (go.dev/issue/58671)
+	InferMaxDefaultType bool
 }
 
 func srcimporter_setUsesCgo(conf *Config) {
