@@ -48,6 +48,10 @@ import (
 //     the given name (and, optionally, namespace) or else Unmarshal
 //     returns an error.
 //
+//   - If the XMLName field contains an XML namespace, it may also
+//     optionally specify a namespace prefix in the form of
+//     "namespace-URL prefix:name".
+//
 //   - If the XML element has an attribute whose name matches a
 //     struct field name with an associated tag containing ",attr" or
 //     the explicit name in a struct field tag of the form "name,attr",

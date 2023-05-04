@@ -36,7 +36,10 @@ func (e *SyntaxError) Error() string {
 // with a namespace identifier (Space).
 // In tokens returned by [Decoder.Token], the Space identifier
 // is given as a canonical URL, not the short prefix used
-// in the document being parsed.
+// in the document being parsed. If Local is prefixed in
+// the form of "prefix:name", this package will attempt to
+// use the prefix instead of a fully-qualified namespace URL
+// when marshaling.
 type Name struct {
 	Space, Local string
 }
