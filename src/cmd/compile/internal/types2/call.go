@@ -96,10 +96,10 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 		}
 
 		// Rename type parameters to avoid problems with recursive instantiations.
-		// Note that NewTuple(params...) below is nil if len(params) == 0, as desired.
+		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
 
-		targs = check.infer(pos, tparams, targs, params2, args)
+		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args)
 		if targs == nil {
 			// error was already reported
 			x.mode = invalid
@@ -489,7 +489,9 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 			}
 		}
 		// rename type parameters to avoid problems with recursive calls
-		tparams, sigParams = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
+		var tmp Type
+		tparams, tmp = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
+		sigParams = tmp.(*Tuple)
 	}
 
 	// collect type parameters from generic function arguments

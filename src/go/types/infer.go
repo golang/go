@@ -382,11 +382,14 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 	return
 }
 
-// renameTParams renames the type parameters in a function signature described by its
-// type and ordinary parameters (tparams and params) such that each type parameter is
-// given a new identity. renameTParams returns the new type and ordinary parameters.
+// renameTParams renames the type parameters in the given type such that each type
+// parameter is given a new identity. renameTParams returns the new type parameters
+// and updated type. If the result type is unchanged from the argument type, none
+// of the type parameters in tparams occurred in the type.
+// If typ is a generic function, type parameters held with typ are not changed and
+// must be updated separately if desired.
 // The positions is only used for debug traces.
-func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, params *Tuple) ([]*TypeParam, *Tuple) {
+func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, typ Type) ([]*TypeParam, Type) {
 	// For the purpose of type inference we must differentiate type parameters
 	// occurring in explicit type or value function arguments from the type
 	// parameters we are solving for via unification because they may be the
@@ -415,7 +418,7 @@ func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, params 
 	// Type parameter renaming turns the first example into the second
 	// example by renaming the type parameter P into P2.
 	if len(tparams) == 0 {
-		return nil, params // nothing to do
+		return nil, typ // nothing to do
 	}
 
 	tparams2 := make([]*TypeParam, len(tparams))
@@ -430,7 +433,7 @@ func (check *Checker) renameTParams(pos token.Pos, tparams []*TypeParam, params 
 		tparams2[i].bound = check.subst(pos, tparam.bound, renameMap, nil, check.context())
 	}
 
-	return tparams2, check.subst(pos, params, renameMap, nil, check.context()).(*Tuple)
+	return tparams2, check.subst(pos, typ, renameMap, nil, check.context())
 }
 
 // typeParamsString produces a string containing all the type parameter names
