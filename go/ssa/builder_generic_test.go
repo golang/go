@@ -36,84 +36,84 @@ func TestGenericBodies(t *testing.T) {
 	}
 	for _, contents := range []string{
 		`
-			package p
+		package p
 
-			func f(x int) {
-				var i interface{}
-				print(i, 0) //@ types("interface{}", int)
-				print()     //@ types()
-				print(x)    //@ types(int)
-			}
-			`,
+		func f(x int) {
+			var i interface{}
+			print(i, 0) //@ types("interface{}", int)
+			print()     //@ types()
+			print(x)    //@ types(int)
+		}
+		`,
 		`
-			package q
+		package q
 
-			func f[T any](x T) {
-				print(x) //@ types(T)
-			}
-			`,
+		func f[T any](x T) {
+			print(x) //@ types(T)
+		}
+		`,
 		`
-			package r
+		package r
 
-			func f[T ~int]() {
-				var x T
-				print(x) //@ types(T)
-			}
-			`,
+		func f[T ~int]() {
+			var x T
+			print(x) //@ types(T)
+		}
+		`,
 		`
-			package s
+		package s
 
-			func a[T ~[4]byte](x T) {
-				for k, v := range x {
-					print(x, k, v) //@ types(T, int, byte)
-				}
+		func a[T ~[4]byte](x T) {
+			for k, v := range x {
+				print(x, k, v) //@ types(T, int, byte)
 			}
-			func b[T ~*[4]byte](x T) {
-				for k, v := range x {
-					print(x, k, v) //@ types(T, int, byte)
-				}
+		}
+		func b[T ~*[4]byte](x T) {
+			for k, v := range x {
+				print(x, k, v) //@ types(T, int, byte)
 			}
-			func c[T ~[]byte](x T) {
-				for k, v := range x {
-					print(x, k, v) //@ types(T, int, byte)
-				}
+		}
+		func c[T ~[]byte](x T) {
+			for k, v := range x {
+				print(x, k, v) //@ types(T, int, byte)
 			}
-			func d[T ~string](x T) {
-				for k, v := range x {
-					print(x, k, v) //@ types(T, int, rune)
-				}
+		}
+		func d[T ~string](x T) {
+			for k, v := range x {
+				print(x, k, v) //@ types(T, int, rune)
 			}
-			func e[T ~map[int]string](x T) {
-				for k, v := range x {
-					print(x, k, v) //@ types(T, int, string)
-				}
+		}
+		func e[T ~map[int]string](x T) {
+			for k, v := range x {
+				print(x, k, v) //@ types(T, int, string)
 			}
-			func f[T ~chan string](x T) {
-				for v := range x {
-					print(x, v) //@ types(T, string)
-				}
+		}
+		func f[T ~chan string](x T) {
+			for v := range x {
+				print(x, v) //@ types(T, string)
 			}
+		}
 
-			func From() {
-				type A [4]byte
-				print(a[A]) //@ types("func(x s.A)")
+		func From() {
+			type A [4]byte
+			print(a[A]) //@ types("func(x s.A)")
 
-				type B *[4]byte
-				print(b[B]) //@ types("func(x s.B)")
+			type B *[4]byte
+			print(b[B]) //@ types("func(x s.B)")
 
-				type C []byte
-				print(c[C]) //@ types("func(x s.C)")
+			type C []byte
+			print(c[C]) //@ types("func(x s.C)")
 
-				type D string
-				print(d[D]) //@ types("func(x s.D)")
+			type D string
+			print(d[D]) //@ types("func(x s.D)")
 
-				type E map[int]string
-				print(e[E]) //@ types("func(x s.E)")
+			type E map[int]string
+			print(e[E]) //@ types("func(x s.E)")
 
-				type F chan string
-				print(f[F]) //@ types("func(x s.F)")
-			}
-			`,
+			type F chan string
+			print(f[F]) //@ types("func(x s.F)")
+		}
+		`,
 		`
 			package t
 
