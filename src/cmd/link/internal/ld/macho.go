@@ -894,30 +894,39 @@ func collectmachosyms(ctxt *Link) {
 		nkind[symkind(ldr, s)]++
 	}
 
-	// Add special runtime.text and runtime.etext symbols.
+	// On Mach-O, even with -s, we still need to keep dynamically exported and
+	// referenced symbols. We can strip defined local text and data symbols.
+	// So *FlagS is applied based on symbol type.
+
+	// Add special runtime.text and runtime.etext symbols (which are local).
 	// We've already included this symbol in Textp on darwin if ctxt.DynlinkingGo().
 	// See data.go:/textaddress
-	if !ctxt.DynlinkingGo() {
-		s := ldr.Lookup("runtime.text", 0)
-		if ldr.SymType(s) == sym.STEXT {
-			addsym(s)
-		}
-		for n := range Segtext.Sections[1:] {
-			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
-			if s != 0 {
+	if !*FlagS {
+		if !ctxt.DynlinkingGo() {
+			s := ldr.Lookup("runtime.text", 0)
+			if ldr.SymType(s) == sym.STEXT {
 				addsym(s)
-			} else {
-				break
 			}
-		}
-		s = ldr.Lookup("runtime.etext", 0)
-		if ldr.SymType(s) == sym.STEXT {
-			addsym(s)
+			for n := range Segtext.Sections[1:] {
+				s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+				if s != 0 {
+					addsym(s)
+				} else {
+					break
+				}
+			}
+			s = ldr.Lookup("runtime.etext", 0)
+			if ldr.SymType(s) == sym.STEXT {
+				addsym(s)
+			}
 		}
 	}
 
 	// Add text symbols.
 	for _, s := range ctxt.Textp {
+		if *FlagS && !ldr.AttrCgoExportDynamic(s) {
+			continue
+		}
 		addsym(s)
 	}
 
@@ -946,11 +955,16 @@ func collectmachosyms(ctxt *Link) {
 			if !shouldBeInSymbolTable(s) {
 				continue
 			}
+			if *FlagS && !ldr.AttrCgoExportDynamic(s) {
+				continue
+			}
 			addsym(s)
+			continue
 		}
 
 		switch t {
 		case sym.SDYNIMPORT, sym.SHOSTOBJ, sym.SUNDEFEXT:
+			// Keep dynamic symbol references even if *FlagS.
 			addsym(s)
 		}
 
