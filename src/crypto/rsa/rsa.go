@@ -64,7 +64,7 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
 	if !ok {
 		return false
 	}
-	return pub.N.Cmp(xx.N) == 0 && pub.E == xx.E
+	return bigIntEqual(pub.N, xx.N) && pub.E == xx.E
 }
 
 // OAEPOptions is an interface for passing options to OAEP decryption using the
@@ -130,18 +130,24 @@ func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
 	if !ok {
 		return false
 	}
-	if !priv.PublicKey.Equal(&xx.PublicKey) || priv.D.Cmp(xx.D) != 0 {
+	if !priv.PublicKey.Equal(&xx.PublicKey) || !bigIntEqual(priv.D, xx.D) {
 		return false
 	}
 	if len(priv.Primes) != len(xx.Primes) {
 		return false
 	}
 	for i := range priv.Primes {
-		if priv.Primes[i].Cmp(xx.Primes[i]) != 0 {
+		if !bigIntEqual(priv.Primes[i], xx.Primes[i]) {
 			return false
 		}
 	}
 	return true
+}
+
+// bigIntEqual reports whether a and b are equal leaking only their bit length
+// through timing side-channels.
+func bigIntEqual(a, b *big.Int) bool {
+	return subtle.ConstantTimeCompare(a.Bytes(), b.Bytes()) == 1
 }
 
 // Sign signs digest with priv, reading randomness from rand. If opts is a
