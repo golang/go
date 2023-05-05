@@ -34,13 +34,8 @@ func TestGenericBodies(t *testing.T) {
 	if !typeparams.Enabled {
 		t.Skip("TestGenericBodies requires type parameters")
 	}
-	for _, test := range []struct {
-		pkg      string // name of the package.
-		contents string // contents of the Go package.
-	}{
-		{
-			pkg: "p",
-			contents: `
+	for _, contents := range []string{
+		`
 			package p
 
 			func f(x int) {
@@ -50,20 +45,14 @@ func TestGenericBodies(t *testing.T) {
 				print(x)    //@ types(int)
 			}
 			`,
-		},
-		{
-			pkg: "q",
-			contents: `
+		`
 			package q
 
 			func f[T any](x T) {
 				print(x) //@ types(T)
 			}
 			`,
-		},
-		{
-			pkg: "r",
-			contents: `
+		`
 			package r
 
 			func f[T ~int]() {
@@ -71,10 +60,7 @@ func TestGenericBodies(t *testing.T) {
 				print(x) //@ types(T)
 			}
 			`,
-		},
-		{
-			pkg: "s",
-			contents: `
+		`
 			package s
 
 			func a[T ~[4]byte](x T) {
@@ -128,10 +114,7 @@ func TestGenericBodies(t *testing.T) {
 				print(f[F]) //@ types("func(x s.F)")
 			}
 			`,
-		},
-		{
-			pkg: "t",
-			contents: `
+		`
 			package t
 
 			func f[S any, T ~chan S](x T) {
@@ -145,10 +128,7 @@ func TestGenericBodies(t *testing.T) {
 				print(f[string, F]) //@ types("func(x t.F)")
 			}
 			`,
-		},
-		{
-			pkg: "u",
-			contents: `
+		`
 			package u
 
 			func fibonacci[T ~chan int](c, quit T) {
@@ -179,10 +159,7 @@ func TestGenericBodies(t *testing.T) {
 				print(fibonacci[F], c, quit) //@ types("func(c u.F, quit u.F)", "u.F", "u.F")
 			}
 			`,
-		},
-		{
-			pkg: "v",
-			contents: `
+		`
 			package v
 
 			func f[T ~struct{ x int; y string }](i int) T {
@@ -194,10 +171,7 @@ func TestGenericBodies(t *testing.T) {
 				print(f[S])     //@ types("func(i int) v.S")
 			}
 			`,
-		},
-		{
-			pkg: "w",
-			contents: `
+		`
 			package w
 
 			func f[T ~[4]int8](x T, l, h int) []int8 {
@@ -218,10 +192,7 @@ func TestGenericBodies(t *testing.T) {
 				print(h[H](nil, 0, 0)) //@ types("w.H")
 			}
 			`,
-		},
-		{
-			pkg: "x",
-			contents: `
+		`
 			package x
 
 			func h[E any, T ~[]E](x T, l, h int) []E {
@@ -234,10 +205,7 @@ func TestGenericBodies(t *testing.T) {
 				print(h[int32, H](nil, 0, 0)) //@ types("[]int32")
 			}
 			`,
-		},
-		{
-			pkg: "y",
-			contents: `
+		`
 			package y
 
 			// Test "make" builtin with different forms on core types and
@@ -267,10 +235,7 @@ func TestGenericBodies(t *testing.T) {
 				j[I, J](6)
 			}
 			`,
-		},
-		{
-			pkg: "z",
-			contents: `
+		`
 			package z
 
 			func h[T ~[4]int](x T) {
@@ -287,10 +252,7 @@ func TestGenericBodies(t *testing.T) {
 				panic(x)
 			}
 			`,
-		},
-		{
-			pkg: "a",
-			contents: `
+		`
 			package a
 
 			func f[E any, F ~func() E](x F) {
@@ -302,10 +264,7 @@ func TestGenericBodies(t *testing.T) {
 				f[int, func() int](func() int { return 1 })
 			}
 			`,
-		},
-		{
-			pkg: "b",
-			contents: `
+		`
 			package b
 
 			func f[E any, M ~map[string]E](m M) {
@@ -317,10 +276,7 @@ func TestGenericBodies(t *testing.T) {
 				f(O{"lorem": []int{0, 1, 2, 3}})
 			}
 			`,
-		},
-		{
-			pkg: "c",
-			contents: `
+		`
 			package c
 
 			func a[T interface{ []int64 | [5]int64 }](x T) int64 {
@@ -361,10 +317,7 @@ func TestGenericBodies(t *testing.T) {
 				print(t, &t[0]) //@ types(T, "*int")
 			}
 			`,
-		},
-		{
-			pkg: "d",
-			contents: `
+		`
 			package d
 
 			type MyInt int
@@ -392,37 +345,25 @@ func TestGenericBodies(t *testing.T) {
 			func sl0[T *[4]int | *[2]int](x []int) { v := T(x); print(x, v) /*@ types("[]int", T)*/ }
 			func sl1[T *[4]int | *[2]int, S []int](x S) { v := T(x); print(x, v) /*@ types(S, T)*/ }
 			`,
-		},
-		{
-			pkg: "e",
-			contents: `
+		`
 			package e
 
 			func c[T interface{ foo() string }](x T) {
 				print(x, x.foo, x.foo())  /*@ types(T, "func() string", string)*/
 			}
 			`,
-		},
-		{
-			pkg: "f",
-			contents: `package f
+		`package f
 
 			func eq[T comparable](t T, i interface{}) bool {
 				return t == i
 			}
 			`,
-		},
-		{
-			// TODO(59983): investigate why writing g.c panics in (*FieldAddr).String.
-			pkg: "g",
-			contents: `package g
+		// TODO(59983): investigate why writing g.c panics in (*FieldAddr).String.
+		`package g
 			type S struct{ f int }
 			func c[P *S]() []P { return []P{{f: 1}} }
 			`,
-		},
-		{
-			pkg: "h",
-			contents: `package h
+		`package h
 			func sign[bytes []byte | string](s bytes) (bool, bool) {
 				neg := false
 				if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
@@ -431,10 +372,7 @@ func TestGenericBodies(t *testing.T) {
 				}
 				return !neg, len(s) > 0
 			}`,
-		},
-		{
-			pkg: "i",
-			contents: `package i
+		`package i
 			func digits[bytes []byte | string](s bytes) bool {
 				for _, c := range []byte(s) {
 					if c < '0' || '9' < c {
@@ -443,10 +381,7 @@ func TestGenericBodies(t *testing.T) {
 				}
 				return true
 			}`,
-		},
-		{
-			pkg: "j",
-			contents: `
+		`
 			package j
 
 			type E interface{}
@@ -458,10 +393,7 @@ func TestGenericBodies(t *testing.T) {
 				return x
 			}
 			`,
-		},
-		{
-			pkg: "k",
-			contents: `
+		`
 			package k
 
 			func f[M any, PM *M](p PM) {
@@ -471,10 +403,7 @@ func TestGenericBodies(t *testing.T) {
 				print(p)  /*@ types(PM)*/
 			}
 			`,
-		},
-		{
-			pkg: "l",
-			contents: `
+		`
 			package l
 
 			type A struct{int}
@@ -497,18 +426,17 @@ func TestGenericBodies(t *testing.T) {
 				b := *(any(v).(*B)); print(b)  /*@ types("l.B")*/
 				c := *(any(v).(*C)); print(c)  /*@ types("l.C")*/
 			}`,
-		},
 	} {
-		test := test
-		t.Run(test.pkg, func(t *testing.T) {
+		contents := contents
+		pkgname := packageName(t, contents)
+		t.Run(pkgname, func(t *testing.T) {
 			// Parse
 			conf := loader.Config{ParserMode: parser.ParseComments}
-			fname := test.pkg + ".go"
-			f, err := conf.ParseFile(fname, test.contents)
+			f, err := conf.ParseFile("file.go", contents)
 			if err != nil {
 				t.Fatalf("parse: %v", err)
 			}
-			conf.CreateFromFiles(test.pkg, f)
+			conf.CreateFromFiles(pkgname, f)
 
 			// Load
 			lprog, err := conf.Load()
@@ -523,7 +451,7 @@ func TestGenericBodies(t *testing.T) {
 					prog.CreatePackage(info.Pkg, info.Files, &info.Info, info.Importable)
 				}
 			}
-			p := prog.Package(lprog.Package(test.pkg).Pkg)
+			p := prog.Package(lprog.Package(pkgname).Pkg)
 			p.Build()
 
 			// Collect calls to the builtin print function.
@@ -716,4 +644,14 @@ func TestInstructionString(t *testing.T) {
 			t.Errorf("Within %s wanted instructions of kind %s: %q. got %q", key.function, key.kind, want, got)
 		}
 	}
+}
+
+// packageName is a test helper to extract the package name from a string
+// containing the content of a go file.
+func packageName(t testing.TB, content string) string {
+	f, err := parser.ParseFile(token.NewFileSet(), "", content, parser.PackageClauseOnly)
+	if err != nil {
+		t.Fatalf("parsing the file %q failed with error: %s", content, err)
+	}
+	return f.Name.Name
 }
