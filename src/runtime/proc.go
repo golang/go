@@ -779,7 +779,16 @@ func dumpgstatus(gp *g) {
 func checkmcount() {
 	assertLockHeld(&sched.lock)
 
-	if mcount() > sched.maxmcount {
+	// Exclude extra M's, which are used for cgocallback from threads
+	// created in C.
+	//
+	// The purpose of the SetMaxThreads limit is to avoid accidental fork
+	// bomb from something like millions of goroutines blocking on system
+	// calls, causing the runtime to create millions of threads. By
+	// definition, this isn't a problem for threads created in C, so we
+	// exclude them from the limit. See https://go.dev/issue/60004.
+	count := mcount() - int32(extraMInUse.Load()) - int32(extraMLength.Load())
+	if count > sched.maxmcount {
 		print("runtime: program exceeds ", sched.maxmcount, "-thread limit\n")
 		throw("thread exhaustion")
 	}
@@ -2015,7 +2024,7 @@ func oneNewExtraM() {
 	sched.ngsys.Add(1)
 
 	// Add m to the extra list.
-	putExtraM(mp)
+	addExtraM(mp)
 }
 
 // dropm is called when a cgo callback has called needm but is now
@@ -2084,6 +2093,9 @@ var (
 	extraMLength atomic.Uint32
 	// Number of waiters in lockextra.
 	extraMWaiters atomic.Uint32
+
+	// Number of extra M's in use by threads.
+	extraMInUse atomic.Uint32
 )
 
 // lockextra locks the extra list and returns the list head.
@@ -2115,6 +2127,7 @@ func lockextra(nilokay bool) *m {
 			continue
 		}
 		if extraM.CompareAndSwap(old, locked) {
+			extraMInUse.Add(1)
 			return (*m)(unsafe.Pointer(old))
 		}
 		osyield_no_g()
@@ -2127,7 +2140,6 @@ func unlockextra(mp *m, delta int32) {
 	extraMLength.Add(delta)
 	extraM.Store(uintptr(unsafe.Pointer(mp)))
 }
-
 
 // Return an M from the extra M list. Returns last == true if the list becomes
 // empty because of this call.
@@ -2143,10 +2155,19 @@ func getExtraM(nilokay bool) (mp *m, last bool) {
 	return mp, mp.schedlink.ptr() == nil
 }
 
-// Put an extra M on the list.
+// Returns an extra M back to the list. mp must be from getExtraM. Newly
+// allocated M's should use addExtraM.
 //
 //go:nosplit
 func putExtraM(mp *m) {
+	extraMInUse.Add(-1)
+	addExtraM(mp)
+}
+
+// Adds a newly allocated M to the extra M list.
+//
+//go:nosplit
+func addExtraM(mp *m) {
 	mnext := lockextra(true)
 	mp.schedlink.set(mnext)
 	unlockextra(mp, 1)
