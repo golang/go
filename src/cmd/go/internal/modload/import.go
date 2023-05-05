@@ -256,7 +256,13 @@ func (e *invalidImportError) Unwrap() error {
 // If the package is present in exactly one module, importFromModules will
 // return the module, its root directory, and a list of other modules that
 // lexically could have provided the package but did not.
-func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph) (m module.Version, modroot, dir string, altMods []module.Version, err error) {
+//
+// If skipModFile is true, the go.mod file for the package is not loaded. This
+// allows 'go mod tidy' to preserve a minor checksum-preservation bug
+// (https://go.dev/issue/56222) for modules with 'go' versions between 1.17 and
+// 1.20, preventing unnecessary go.sum churn and network access in those
+// modules.
+func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph, skipModFile bool) (m module.Version, modroot, dir string, altMods []module.Version, err error) {
 	invalidf := func(format string, args ...interface{}) (module.Version, string, string, []module.Version, error) {
 		return module.Version{}, "", "", nil, &invalidImportError{
 			importPath: path,
@@ -442,7 +448,7 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 			// If the module graph is pruned and this is a test-only dependency
 			// of a package in "all", we didn't necessarily load that file
 			// when we read the module graph, so do it now to be sure.
-			if cfg.BuildMod != "vendor" && mods[0].Path != "" && !MainModules.Contains(mods[0].Path) {
+			if !skipModFile && cfg.BuildMod != "vendor" && mods[0].Path != "" && !MainModules.Contains(mods[0].Path) {
 				if _, err := goModSummary(mods[0]); err != nil {
 					return module.Version{}, "", "", nil, err
 				}

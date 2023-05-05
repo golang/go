@@ -36,11 +36,24 @@ go list -f '{{if eq .ImportPath "example.com/generics"}}{{.Module.GoVersion}}{{e
 stdout 1.18
 
 
+# Even at go 1.20 or earlier, 'go mod tidy' shouldn't need go.mod files or
+# checksums that it won't record.
+
+go mod tidy -go=1.20
+go clean -modcache  # Remove checksums from the module cache, so that only go.sum is used.
+
+env OLDSUMDB=$GOSUMDB
+env GOSUMDB=bad
+go mod tidy
+
+env GOSUMDB=$OLDSUMDB
+
+
 # Regardless of the go version in go.mod, 'go get -t' should fetch
 # enough checksums to run 'go test' on the named package.
 
 rm p
-go mod tidy
+go mod tidy -go=1.20
 go list -m all
 ! stdout example.com/generics
 go get -t example.com/m2/q@v1.0.0
