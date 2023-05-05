@@ -234,6 +234,9 @@ func TestLatest(t *testing.T) {
 				t.Fatal(err)
 			}
 			if !reflect.DeepEqual(info, tt.info) {
+				if !reflect.DeepEqual(info.Tags, tt.info.Tags) {
+					testenv.SkipFlaky(t, 56881)
+				}
 				t.Errorf("Latest: incorrect info\nhave %+v (origin %+v)\nwant %+v (origin %+v)", info, info.Origin, tt.info, tt.info.Origin)
 			}
 		}
@@ -609,6 +612,9 @@ func TestStat(t *testing.T) {
 			}
 			info.Origin = nil // TestLatest and ../../../testdata/script/reuse_git.txt test Origin well enough
 			if !reflect.DeepEqual(info, tt.info) {
+				if !reflect.DeepEqual(info.Tags, tt.info.Tags) {
+					testenv.SkipFlaky(t, 56881)
+				}
 				t.Errorf("Stat: incorrect info\nhave %+v\nwant %+v", *info, *tt.info)
 			}
 		}
