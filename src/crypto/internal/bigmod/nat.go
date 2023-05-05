@@ -522,7 +522,7 @@ func (x *Nat) Add(y *Nat, m *Modulus) *Nat {
 func (x *Nat) montgomeryRepresentation(m *Modulus) *Nat {
 	// A Montgomery multiplication (which computes a * b / R) by R * R works out
 	// to a multiplication by R, which takes the value out of the Montgomery domain.
-	return x.montgomeryMul(NewNat().set(x), m.rr, m)
+	return x.montgomeryMul(x, m.rr, m)
 }
 
 // montgomeryReduction calculates x = x / R mod m, with R = 2^(_W * n) and
@@ -533,10 +533,9 @@ func (x *Nat) montgomeryReduction(m *Modulus) *Nat {
 	// By Montgomery multiplying with 1 not in Montgomery representation, we
 	// convert out back from Montgomery representation, because it works out to
 	// dividing by R.
-	t0 := NewNat().set(x)
-	t1 := NewNat().ExpandFor(m)
-	t1.limbs[0] = 1
-	return x.montgomeryMul(t0, t1, m)
+	one := NewNat().ExpandFor(m)
+	one.limbs[0] = 1
+	return x.montgomeryMul(x, one, m)
 }
 
 // montgomeryMul calculates x = a * b / R mod m, with R = 2^(_W * n) and
@@ -681,10 +680,10 @@ func addMulVVW(z, x []uint, y uint) (carry uint) {
 	return carry
 }
 
-// Mul calculates x *= y mod m.
+// Mul calculates x = x * y mod m.
 //
-// x and y must already be reduced modulo m, they must share its announced
-// length, and they may not alias.
+// The length of both operands must be the same as the modulus. Both operands
+// must already be reduced modulo m.
 func (x *Nat) Mul(y *Nat, m *Modulus) *Nat {
 	// A Montgomery multiplication by a value out of the Montgomery domain
 	// takes the result out of Montgomery representation.
@@ -716,28 +715,51 @@ func (out *Nat) Exp(x *Nat, e []byte, m *Modulus) *Nat {
 	out.resetFor(m)
 	out.limbs[0] = 1
 	out.montgomeryRepresentation(m)
-	t0 := NewNat().ExpandFor(m)
-	t1 := NewNat().ExpandFor(m)
+	tmp := NewNat().ExpandFor(m)
 	for _, b := range e {
 		for _, j := range []int{4, 0} {
 			// Square four times. Optimization note: this can be implemented
 			// more efficiently than with generic Montgomery multiplication.
-			t1.montgomeryMul(out, out, m)
-			out.montgomeryMul(t1, t1, m)
-			t1.montgomeryMul(out, out, m)
-			out.montgomeryMul(t1, t1, m)
+			out.montgomeryMul(out, out, m)
+			out.montgomeryMul(out, out, m)
+			out.montgomeryMul(out, out, m)
+			out.montgomeryMul(out, out, m)
 
 			// Select x^k in constant time from the table.
 			k := uint((b >> j) & 0b1111)
 			for i := range table {
-				t0.assign(ctEq(k, uint(i+1)), table[i])
+				tmp.assign(ctEq(k, uint(i+1)), table[i])
 			}
 
 			// Multiply by x^k, discarding the result if k = 0.
-			t1.montgomeryMul(out, t0, m)
-			out.assign(not(ctEq(k, 0)), t1)
+			tmp.montgomeryMul(out, tmp, m)
+			out.assign(not(ctEq(k, 0)), tmp)
 		}
 	}
 
+	return out.montgomeryReduction(m)
+}
+
+// ExpShort calculates out = x^e mod m.
+//
+// The output will be resized to the size of m and overwritten. x must already
+// be reduced modulo m. This leaks the exact bit size of the exponent.
+func (out *Nat) ExpShort(x *Nat, e uint, m *Modulus) *Nat {
+	xR := NewNat().set(x).montgomeryRepresentation(m)
+
+	out.resetFor(m)
+	out.limbs[0] = 1
+	out.montgomeryRepresentation(m)
+
+	// For short exponents, precomputing a table and using a window like in Exp
+	// doesn't pay off. Instead, we do a simple constant-time conditional
+	// square-and-multiply chain, skipping the initial run of zeroes.
+	tmp := NewNat().ExpandFor(m)
+	for i := bits.UintSize - bitLen(e); i < bits.UintSize; i++ {
+		out.montgomeryMul(out, out, m)
+		k := (e >> (bits.UintSize - i - 1)) & 1
+		tmp.montgomeryMul(out, xR, m)
+		out.assign(ctEq(k, 1), tmp)
+	}
 	return out.montgomeryReduction(m)
 }

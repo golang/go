@@ -33,7 +33,6 @@ import (
 	"crypto/internal/randutil"
 	"crypto/rand"
 	"crypto/subtle"
-	"encoding/binary"
 	"errors"
 	"hash"
 	"io"
@@ -462,25 +461,18 @@ var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key siz
 func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
 	boring.Unreachable()
 
+	// Most of the CPU time for encryption and verification is spent in this
+	// NewModulusFromBig call, because PublicKey doesn't have a Precomputed
+	// field. If performance becomes an issue, consider placing a private
+	// sync.Once on PublicKey to compute this.
 	N := bigmod.NewModulusFromBig(pub.N)
 	m, err := bigmod.NewNat().SetBytes(plaintext, N)
 	if err != nil {
 		return nil, err
 	}
-	e := intToBytes(pub.E)
+	e := uint(pub.E)
 
-	return bigmod.NewNat().Exp(m, e, N).Bytes(N), nil
-}
-
-// intToBytes returns i as a big-endian slice of bytes with no leading zeroes,
-// leaking only the bit size of i through timing side-channels.
-func intToBytes(i int) []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(i))
-	for len(b) > 1 && b[0] == 0 {
-		b = b[1:]
-	}
-	return b
+	return bigmod.NewNat().ExpShort(m, e, N).Bytes(N), nil
 }
 
 // EncryptOAEP encrypts the given message with RSA-OAEP.
@@ -648,7 +640,7 @@ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
 	}
 
 	if check {
-		c1 := bigmod.NewNat().Exp(m, intToBytes(priv.E), N)
+		c1 := bigmod.NewNat().ExpShort(m, uint(priv.E), N)
 		if c1.Equal(c) != 1 {
 			return nil, ErrDecryption
 		}

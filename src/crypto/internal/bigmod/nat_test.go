@@ -299,6 +299,17 @@ func TestExp(t *testing.T) {
 	}
 }
 
+func TestExpShort(t *testing.T) {
+	m := modulusFromBytes([]byte{13})
+	x := &Nat{[]uint{3}}
+	out := &Nat{[]uint{0}}
+	out.ExpShort(x, 12, m)
+	expected := &Nat{[]uint{1}}
+	if out.Equal(expected) != 1 {
+		t.Errorf("%+v != %+v", out, expected)
+	}
+}
+
 // TestMulReductions tests that Mul reduces results equal or slightly greater
 // than the modulus. Some Montgomery algorithms don't and need extra care to
 // return correct results. See https://go.dev/issue/13907.
