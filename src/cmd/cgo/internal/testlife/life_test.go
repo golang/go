@@ -6,6 +6,7 @@ package life_test
 
 import (
 	"bytes"
+	"internal/testenv"
 	"log"
 	"os"
 	"os/exec"
@@ -48,6 +49,7 @@ func TestTestRun(t *testing.T) {
 	if os.Getenv("GOOS") == "android" {
 		t.Skip("the go tool runs with CGO_ENABLED=0 on the android device")
 	}
+	testenv.MustHaveGoRun(t)
 
 	cmd := exec.Command("go", "run", "main.go")
 	got, err := cmd.CombinedOutput()

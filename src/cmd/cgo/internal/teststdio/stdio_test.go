@@ -6,6 +6,7 @@ package stdio_test
 
 import (
 	"bytes"
+	"internal/testenv"
 	"log"
 	"os"
 	"os/exec"
@@ -46,6 +47,7 @@ func testMain(m *testing.M) int {
 
 // TestTestRun runs a cgo test that doesn't depend on non-standard libraries.
 func TestTestRun(t *testing.T) {
+	testenv.MustHaveGoRun(t)
 	if os.Getenv("GOOS") == "android" {
 		t.Skip("subpackage stdio is not available on android")
 	}

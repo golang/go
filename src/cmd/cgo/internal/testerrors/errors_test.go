@@ -7,6 +7,7 @@ package errorstest
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +23,7 @@ func path(file string) string {
 
 func check(t *testing.T, file string) {
 	t.Run(file, func(t *testing.T) {
+		testenv.MustHaveGoBuild(t)
 		t.Parallel()
 
 		contents, err := os.ReadFile(path(file))
@@ -134,6 +136,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
 	} {
 		cflags := cflags
 		t.Run(cflags, func(t *testing.T) {
+			testenv.MustHaveGoBuild(t)
 			t.Parallel()
 
 			cmd := exec.Command("go", "build", path("issue14669.go"))
@@ -147,6 +150,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
 }
 
 func TestMallocCrashesOnNil(t *testing.T) {
+	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
 	cmd := exec.Command("go", "run", path("malloc.go"))

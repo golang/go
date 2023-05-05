@@ -6,6 +6,7 @@ package fortran
 
 import (
 	"fmt"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,8 @@ import (
 )
 
 func TestFortran(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+
 	// Find the FORTRAN compiler.
 	fc := os.Getenv("FC")
 	if fc == "" {

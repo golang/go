@@ -10,6 +10,7 @@ import (
 	"debug/elf"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"log"
 	"os"
@@ -454,6 +455,8 @@ func checkELFArchiveObject(t *testing.T, arname string, off int64, obj io.Reader
 }
 
 func TestInstall(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
 	if !testWork {
 		defer os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 	}
@@ -495,6 +498,7 @@ func TestEarlySignalHandler(t *testing.T) {
 	case "windows":
 		t.Skip("skipping signal test on Windows")
 	}
+	testenv.MustHaveGoBuild(t)
 
 	if !testWork {
 		defer func() {
@@ -762,6 +766,7 @@ func TestOsSignal(t *testing.T) {
 	case "windows":
 		t.Skip("skipping signal test on Windows")
 	}
+	testenv.MustHaveGoBuild(t)
 
 	if !testWork {
 		defer func() {
@@ -800,6 +805,7 @@ func TestSigaltstack(t *testing.T) {
 	case "windows":
 		t.Skip("skipping signal test on Windows")
 	}
+	testenv.MustHaveGoBuild(t)
 
 	if !testWork {
 		defer func() {
@@ -852,6 +858,7 @@ func TestExtar(t *testing.T) {
 	if runtime.GOOS == "ios" {
 		t.Skip("shell scripts are not executable on iOS hosts")
 	}
+	testenv.MustHaveGoBuild(t)
 
 	if !testWork {
 		defer func() {
@@ -894,6 +901,7 @@ func TestPIE(t *testing.T) {
 	case "windows", "darwin", "ios", "plan9":
 		t.Skipf("skipping PIE test on %s", GOOS)
 	}
+	testenv.MustHaveGoBuild(t)
 
 	libgoa := "libgo.a"
 	if runtime.Compiler == "gccgo" {
@@ -988,6 +996,7 @@ func TestSIGPROF(t *testing.T) {
 	case "darwin", "ios":
 		t.Skipf("skipping SIGPROF test on %s; see https://golang.org/issue/19320", GOOS)
 	}
+	testenv.MustHaveGoBuild(t)
 
 	t.Parallel()
 
@@ -1036,6 +1045,7 @@ func TestSIGPROF(t *testing.T) {
 func TestCompileWithoutShared(t *testing.T) {
 	// For simplicity, reuse the signal forwarding test.
 	checkSignalForwardingTest(t)
+	testenv.MustHaveGoBuild(t)
 
 	if !testWork {
 		defer func() {
@@ -1100,6 +1110,7 @@ func TestCompileWithoutShared(t *testing.T) {
 
 // Test that installing a second time recreates the header file.
 func TestCachedInstall(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
 	if !testWork {
 		defer os.RemoveAll(filepath.Join(GOPATH, "pkg"))
 	}
@@ -1139,6 +1150,7 @@ func TestCachedInstall(t *testing.T) {
 
 // Issue 35294.
 func TestManyCalls(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
 	if !testWork {
@@ -1197,6 +1209,7 @@ func TestPreemption(t *testing.T) {
 	if runtime.Compiler == "gccgo" {
 		t.Skip("skipping asynchronous preemption test with gccgo")
 	}
+	testenv.MustHaveGoBuild(t)
 
 	t.Parallel()
 

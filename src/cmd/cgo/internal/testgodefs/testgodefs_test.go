@@ -6,6 +6,7 @@ package testgodefs
 
 import (
 	"bytes"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,6 +31,8 @@ var filePrefixes = []string{
 }
 
 func TestGoDefs(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+
 	testdata, err := filepath.Abs("testdata")
 	if err != nil {
 		t.Fatal(err)
