@@ -36,7 +36,7 @@ func TestGenericBodies(t *testing.T) {
 	}
 	for _, contents := range []string{
 		`
-		package p
+		package p00
 
 		func f(x int) {
 			var i interface{}
@@ -46,14 +46,14 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package q
+		package p01
 
 		func f[T any](x T) {
 			print(x) //@ types(T)
 		}
 		`,
 		`
-		package r
+		package p02
 
 		func f[T ~int]() {
 			var x T
@@ -61,7 +61,7 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package s
+		package p03
 
 		func a[T ~[4]byte](x T) {
 			for k, v := range x {
@@ -96,26 +96,26 @@ func TestGenericBodies(t *testing.T) {
 
 		func From() {
 			type A [4]byte
-			print(a[A]) //@ types("func(x s.A)")
+			print(a[A]) //@ types("func(x p03.A)")
 
 			type B *[4]byte
-			print(b[B]) //@ types("func(x s.B)")
+			print(b[B]) //@ types("func(x p03.B)")
 
 			type C []byte
-			print(c[C]) //@ types("func(x s.C)")
+			print(c[C]) //@ types("func(x p03.C)")
 
 			type D string
-			print(d[D]) //@ types("func(x s.D)")
+			print(d[D]) //@ types("func(x p03.D)")
 
 			type E map[int]string
-			print(e[E]) //@ types("func(x s.E)")
+			print(e[E]) //@ types("func(x p03.E)")
 
 			type F chan string
-			print(f[F]) //@ types("func(x s.F)")
+			print(f[F]) //@ types("func(x p03.F)")
 		}
 		`,
 		`
-		package t
+		package p05
 
 		func f[S any, T ~chan S](x T) {
 			for v := range x {
@@ -125,11 +125,11 @@ func TestGenericBodies(t *testing.T) {
 
 		func From() {
 			type F chan string
-			print(f[string, F]) //@ types("func(x t.F)")
+			print(f[string, F]) //@ types("func(x p05.F)")
 		}
 		`,
 		`
-		package u
+		package p06
 
 		func fibonacci[T ~chan int](c, quit T) {
 			x, y := 0, 1
@@ -155,12 +155,12 @@ func TestGenericBodies(t *testing.T) {
 			type F chan int
 			c := make(F)
 			quit := make(F)
-			print(start[F], c, quit)     //@ types("func(c u.F, quit u.F)", "u.F", "u.F")
-			print(fibonacci[F], c, quit) //@ types("func(c u.F, quit u.F)", "u.F", "u.F")
+			print(start[F], c, quit)     //@ types("func(c p06.F, quit p06.F)", "p06.F", "p06.F")
+			print(fibonacci[F], c, quit) //@ types("func(c p06.F, quit p06.F)", "p06.F", "p06.F")
 		}
 		`,
 		`
-		package v
+		package p07
 
 		func f[T ~struct{ x int; y string }](i int) T {
 			u := []T{ T{0, "lorem"},  T{1, "ipsum"}}
@@ -168,11 +168,11 @@ func TestGenericBodies(t *testing.T) {
 		}
 		func From() {
 			type S struct{ x int; y string }
-			print(f[S])     //@ types("func(i int) v.S")
+			print(f[S])     //@ types("func(i int) p07.S")
 		}
 		`,
 		`
-		package w
+		package p08
 
 		func f[T ~[4]int8](x T, l, h int) []int8 {
 			return x[l:h]
@@ -189,11 +189,11 @@ func TestGenericBodies(t *testing.T) {
 			type H []int32
 			print(f[F](F{}, 0, 0))  //@ types("[]int8")
 			print(g[G](nil, 0, 0)) //@ types("[]int16")
-			print(h[H](nil, 0, 0)) //@ types("w.H")
+			print(h[H](nil, 0, 0)) //@ types("p08.H")
 		}
 		`,
 		`
-		package x
+		package p09
 
 		func h[E any, T ~[]E](x T, l, h int) []E {
 			s := x[l:h]
@@ -206,7 +206,7 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package y
+		package p10
 
 		// Test "make" builtin with different forms on core types and
 		// when capacities are constants or variable.
@@ -236,7 +236,7 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package z
+		package p11
 
 		func h[T ~[4]int](x T) {
 			print(len(x), cap(x)) //@ types(int, int)
@@ -253,7 +253,7 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package a
+		package p12
 
 		func f[E any, F ~func() E](x F) {
 			print(x, x()) //@ types(F, E)
@@ -265,7 +265,7 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package b
+		package p13
 
 		func f[E any, M ~map[string]E](m M) {
 			y, ok := m["lorem"]
@@ -277,7 +277,7 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package c
+		package p14
 
 		func a[T interface{ []int64 | [5]int64 }](x T) int64 {
 			print(x, x[2], x[3]) //@ types(T, int64, int64)
@@ -318,25 +318,25 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package d
+		package p15
 
 		type MyInt int
 		type Other int
 		type MyInterface interface{ foo() }
 
 		// ChangeType tests
-		func ct0(x int) { v := MyInt(x);  print(x, v) /*@ types(int, "d.MyInt")*/ }
+		func ct0(x int) { v := MyInt(x);  print(x, v) /*@ types(int, "p15.MyInt")*/ }
 		func ct1[T MyInt | Other, S int ](x S) { v := T(x);  print(x, v) /*@ types(S, T)*/ }
 		func ct2[T int, S MyInt | int ](x S) { v := T(x); print(x, v) /*@ types(S, T)*/ }
 		func ct3[T MyInt | Other, S MyInt | int ](x S) { v := T(x) ; print(x, v) /*@ types(S, T)*/ }
 
 		// Convert tests
-		func co0[T int | int8](x MyInt) { v := T(x); print(x, v) /*@ types("d.MyInt", T)*/}
-		func co1[T int | int8](x T) { v := MyInt(x); print(x, v) /*@ types(T, "d.MyInt")*/ }
+		func co0[T int | int8](x MyInt) { v := T(x); print(x, v) /*@ types("p15.MyInt", T)*/}
+		func co1[T int | int8](x T) { v := MyInt(x); print(x, v) /*@ types(T, "p15.MyInt")*/ }
 		func co2[S, T int | int8](x T) { v := S(x); print(x, v) /*@ types(T, S)*/ }
 
 		// MakeInterface tests
-		func mi0[T MyInterface](x T) { v := MyInterface(x); print(x, v) /*@ types(T, "d.MyInterface")*/ }
+		func mi0[T MyInterface](x T) { v := MyInterface(x); print(x, v) /*@ types(T, "p15.MyInterface")*/ }
 
 		// NewConst tests
 		func nc0[T any]() { v := (*T)(nil); print(v) /*@ types("*T")*/}
@@ -346,24 +346,29 @@ func TestGenericBodies(t *testing.T) {
 		func sl1[T *[4]int | *[2]int, S []int](x S) { v := T(x); print(x, v) /*@ types(S, T)*/ }
 		`,
 		`
-		package e
+		package p16
 
 		func c[T interface{ foo() string }](x T) {
 			print(x, x.foo, x.foo())  /*@ types(T, "func() string", string)*/
 		}
 		`,
-		`package f
+		`
+		package p17
 
 		func eq[T comparable](t T, i interface{}) bool {
 			return t == i
 		}
 		`,
 		// TODO(59983): investigate why writing g.c panics in (*FieldAddr).String.
-		`package g
+		`
+		package p18
+
 		type S struct{ f int }
 		func c[P *S]() []P { return []P{{f: 1}} }
 		`,
-		`package h
+		`
+		package p19
+
 		func sign[bytes []byte | string](s bytes) (bool, bool) {
 			neg := false
 			if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
@@ -371,8 +376,10 @@ func TestGenericBodies(t *testing.T) {
 				s = s[1:]
 			}
 			return !neg, len(s) > 0
-		}`,
-		`package i
+		}
+		`,
+		`package p20
+
 		func digits[bytes []byte | string](s bytes) bool {
 			for _, c := range []byte(s) {
 				if c < '0' || '9' < c {
@@ -380,9 +387,10 @@ func TestGenericBodies(t *testing.T) {
 				}
 			}
 			return true
-		}`,
+		}
+		`,
 		`
-		package j
+		package p21
 
 		type E interface{}
 
@@ -394,7 +402,7 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package k
+		package p22
 
 		func f[M any, PM *M](p PM) {
 			var m M
@@ -404,7 +412,7 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-		package l
+		package p23
 
 		type A struct{int}
 		func (*A) Marker() {}
@@ -422,10 +430,11 @@ func TestGenericBodies(t *testing.T) {
 			Marker()
 		}](v T) {
 			v.Marker()
-			a := *(any(v).(*A)); print(a)  /*@ types("l.A")*/
-			b := *(any(v).(*B)); print(b)  /*@ types("l.B")*/
-			c := *(any(v).(*C)); print(c)  /*@ types("l.C")*/
-		}`,
+			a := *(any(v).(*A)); print(a)  /*@ types("p23.A")*/
+			b := *(any(v).(*B)); print(b)  /*@ types("p23.B")*/
+			c := *(any(v).(*C)); print(c)  /*@ types("p23.C")*/
+		}
+		`,
 	} {
 		contents := contents
 		pkgname := packageName(t, contents)
