@@ -39,12 +39,12 @@ var cases = []testcase{
 	{"-1", "", 11, for_files[:1]},
 	{"0", "", 0, for_files[:1]},
 	{"1", "", 0, for_files[:1]},
-	{"2", "transformed loop variable i ", 0, for_files},
+	{"2", "loop variable i now per-iteration,", 0, for_files},
 
 	{"-1", "", 11, range_files[:1]},
 	{"0", "", 0, range_files[:1]},
 	{"1", "", 0, range_files[:1]},
-	{"2", "transformed loop variable i ", 0, range_files},
+	{"2", "loop variable i now per-iteration,", 0, range_files},
 
 	{"1", "", 0, []string{"for_nested.go"}},
 }
@@ -230,7 +230,7 @@ func TestLoopVarOpt(t *testing.T) {
 
 	t.Logf(m)
 
-	yCount := strings.Count(m, "opt.go:16:6: transformed loop variable private escapes (loop inlined into ./opt.go:30)")
+	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:30)")
 	nCount := strings.Count(m, "shared")
 
 	if yCount != 1 {

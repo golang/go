@@ -545,29 +545,35 @@ func LogTransformations(transformed []VarAndLoop) {
 				loops = append(loops, loopPos{l, lv.LastPos, n.Curfn})
 			}
 			pos := n.Pos()
+
+			inner := base.Ctxt.InnermostPos(pos)
+			outer := base.Ctxt.OutermostPos(pos)
+
 			if logopt.Enabled() {
 				// For automated checking of coverage of this transformation, include this in the JSON information.
+				var nString interface{} = n
+				if inner != outer {
+					nString = fmt.Sprintf("%v (from inline)", n)
+				}
 				if n.Esc() == ir.EscHeap {
-					logopt.LogOpt(pos, "transform-escape", "loopvar", ir.FuncName(n.Curfn))
+					logopt.LogOpt(pos, "iteration-variable-to-heap", "loopvar", ir.FuncName(n.Curfn), nString)
 				} else {
-					logopt.LogOpt(pos, "transform-noescape", "loopvar", ir.FuncName(n.Curfn))
+					logopt.LogOpt(pos, "iteration-variable-to-stack", "loopvar", ir.FuncName(n.Curfn), nString)
 				}
 			}
 			if print {
-				inner := base.Ctxt.InnermostPos(pos)
-				outer := base.Ctxt.OutermostPos(pos)
 				if inner == outer {
 					if n.Esc() == ir.EscHeap {
-						base.WarnfAt(pos, "transformed loop variable %v escapes", n)
+						base.WarnfAt(pos, "loop variable %v now per-iteration, heap-allocated", n)
 					} else {
-						base.WarnfAt(pos, "transformed loop variable %v does not escape", n)
+						base.WarnfAt(pos, "loop variable %v now per-iteration, stack-allocated", n)
 					}
 				} else {
 					innerXPos := trueInlinedPos(inner)
 					if n.Esc() == ir.EscHeap {
-						base.WarnfAt(innerXPos, "transformed loop variable %v escapes (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
+						base.WarnfAt(innerXPos, "loop variable %v now per-iteration, heap-allocated (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
 					} else {
-						base.WarnfAt(innerXPos, "transformed loop variable %v does not escape (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
+						base.WarnfAt(innerXPos, "loop variable %v now per-iteration, stack-allocated (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
 					}
 				}
 			}
@@ -577,18 +583,18 @@ func LogTransformations(transformed []VarAndLoop) {
 			last := l.last
 			if logopt.Enabled() {
 				// Intended to
-				logopt.LogOptRange(pos, last, "transform-loop", "loopvar", ir.FuncName(l.curfn))
+				logopt.LogOptRange(pos, last, "loop-modified", "loopvar", ir.FuncName(l.curfn))
 			}
 			if print && 3 <= base.Debug.LoopVar {
 				// TODO decide if we want to keep this, or not.  It was helpful for validating logopt, otherwise, eh.
 				inner := base.Ctxt.InnermostPos(pos)
 				outer := base.Ctxt.OutermostPos(pos)
 				if inner == outer {
-					base.WarnfAt(pos, "loop ending at %d:%d was transformed", last.Line(), last.Col())
+					base.WarnfAt(pos, "loop ending at %d:%d was modified", last.Line(), last.Col())
 				} else {
 					pos = trueInlinedPos(inner)
 					last = trueInlinedPos(base.Ctxt.InnermostPos(last))
-					base.WarnfAt(pos, "loop ending at %d:%d was transformed (loop inlined into %s:%d)", last.Line(), last.Col(), outer.Filename(), outer.Line())
+					base.WarnfAt(pos, "loop ending at %d:%d was modified (loop inlined into %s:%d)", last.Line(), last.Col(), outer.Filename(), outer.Line())
 				}
 			}
 		}
