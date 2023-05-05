@@ -337,7 +337,7 @@ func deref(typ types.Type) types.Type {
 //   - a QueryPos, denoting the extent of the user's query.
 //   - nil, meaning no position at all.
 //
-// The output format is is compatible with the 'gnu'
+// The output format is compatible with the 'gnu'
 // compilation-error-regexp in Emacs' compilation mode.
 func fprintf(w io.Writer, fset *token.FileSet, pos interface{}, format string, args ...interface{}) {
 	var start, end token.Pos

@@ -322,7 +322,7 @@ type (
 // forEachPackage does a pre- and post- order traversal of the packages
 // specified by ids using the provided pre and post functions.
 //
-// The pre func is is optional. If set, pre is evaluated after the package
+// The pre func is optional. If set, pre is evaluated after the package
 // handle has been constructed, but before type-checking. If pre returns false,
 // type-checking is skipped for this package handle.
 //

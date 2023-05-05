@@ -220,7 +220,7 @@ func (c *Corpus) newDirectory(root string, maxDepth int) *Directory {
 	// The root could be a symbolic link so use Stat not Lstat.
 	d, err := c.fs.Stat(root)
 	// If we fail here, report detailed error messages; otherwise
-	// is is hard to see why a directory tree was not built.
+	// is hard to see why a directory tree was not built.
 	switch {
 	case err != nil:
 		log.Printf("newDirectory(%s): %s", root, err)

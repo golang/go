@@ -26,7 +26,7 @@ function toggleNotesWindow() {
   initNotes();
 }
 
-// Create an unique key for the local storage so we don't mix the
+// Create a unique key for the local storage so we don't mix the
 // destSlide of different presentations. For golang.org/issue/24688.
 function destSlideKey() {
   var key = '';
