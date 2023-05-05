@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -259,7 +258,7 @@ func tempDir() string {
 			// Otherwise remove terminating \.
 			n--
 		}
-		return string(utf16.Decode(b[:n]))
+		return syscall.UTF16ToString(b[:n])
 	}
 }
 

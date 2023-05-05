@@ -587,7 +587,6 @@ package main
 import (
 	"os"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -599,7 +598,7 @@ func getMyName() (string, error) {
 	if n == 0 {
 		return "", err
 	}
-	return string(utf16.Decode(b[0:n])), nil
+	return syscall.UTF16ToString(b[0:n]), nil
 }
 
 func main() {
