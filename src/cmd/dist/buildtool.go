@@ -136,7 +136,7 @@ func bootstrapBuildTools() {
 	xmkdirall(base)
 
 	// Copy source code into $GOROOT/pkg/bootstrap and rewrite import paths.
-	writefile("module bootstrap\n", pathf("%s/%s", base, "go.mod"), 0)
+	writefile("module bootstrap\ngo 1.20\n", pathf("%s/%s", base, "go.mod"), 0)
 	for _, dir := range bootstrapDirs {
 		recurse := strings.HasSuffix(dir, "/...")
 		dir = strings.TrimSuffix(dir, "/...")
