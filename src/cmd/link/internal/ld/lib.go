@@ -1390,7 +1390,7 @@ func (ctxt *Link) hostlink() {
 		if ctxt.HeadType == objabi.Hdarwin {
 			// Recent versions of macOS print
 			//	ld: warning: option -s is obsolete and being ignored
-			// so do not pass any arguments.
+			// so do not pass any arguments (but we strip symbols below).
 		} else {
 			argv = append(argv, "-s")
 		}
@@ -1398,7 +1398,7 @@ func (ctxt *Link) hostlink() {
 
 	// On darwin, whether to combine DWARF into executable.
 	// Only macOS supports unmapped segments such as our __DWARF segment.
-	combineDwarf := ctxt.IsDarwin() && !*FlagS && !*FlagW && !debug_s && machoPlatform == PLATFORM_MACOS
+	combineDwarf := ctxt.IsDarwin() && !*FlagW && machoPlatform == PLATFORM_MACOS
 
 	switch ctxt.HeadType {
 	case objabi.Hdarwin:
@@ -1417,6 +1417,12 @@ func (ctxt *Link) hostlink() {
 		}
 		if !combineDwarf {
 			argv = append(argv, "-Wl,-S") // suppress STAB (symbolic debugging) symbols
+			if debug_s {
+				// We are generating a binary with symbol table suppressed.
+				// Suppress local symbols. We need to keep dynamically exported
+				// and referenced symbols so the dynamic linker can resolve them.
+				argv = append(argv, "-Wl,-x")
+			}
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-Wl,-nopie")
@@ -1929,7 +1935,15 @@ func (ctxt *Link) hostlink() {
 		}
 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).
 		// They contain temporary file paths and make the build not reproducible.
-		if out, err := exec.Command(stripCmd, "-S", *flagOutfile).CombinedOutput(); err != nil {
+		var stripArgs = []string{"-S"}
+		if debug_s {
+			// We are generating a binary with symbol table suppressed.
+			// Suppress local symbols. We need to keep dynamically exported
+			// and referenced symbols so the dynamic linker can resolve them.
+			stripArgs = append(stripArgs, "-x")
+		}
+		stripArgs = append(stripArgs, *flagOutfile)
+		if out, err := exec.Command(stripCmd, stripArgs...).CombinedOutput(); err != nil {
 			Exitf("%s: running strip failed: %v\n%s", os.Args[0], err, out)
 		}
 		// Skip combining if `dsymutil` didn't generate a file. See #11994.

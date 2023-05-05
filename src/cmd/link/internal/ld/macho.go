@@ -665,7 +665,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 
 func asmbMacho(ctxt *Link) {
 	machlink := doMachoLink(ctxt)
-	if !*FlagS && ctxt.IsExternal() {
+	if ctxt.IsExternal() {
 		symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
 		ctxt.Out.SeekSet(symo)
 		machoEmitReloc(ctxt)
