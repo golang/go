@@ -1908,11 +1908,10 @@ func needm() {
 	sigsave(&sigmask)
 	sigblock(false)
 
-	// Lock extra list, take head, unlock popped list.
 	// nilokay=false is safe here because of the invariant above,
 	// that the extra list always contains or will soon contain
 	// at least one m.
-	mp := lockextra(false)
+	mp, last := getExtraM(false)
 
 	// Set needextram when we've just emptied the list,
 	// so that the eventual call into cgocallbackg will
@@ -1921,9 +1920,7 @@ func needm() {
 	// after exitsyscall makes sure it is okay to be
 	// running at all (that is, there's no garbage collection
 	// running right now).
-	mp.needextram = mp.schedlink == 0
-	extraMCount--
-	unlockextra(mp.schedlink.ptr())
+	mp.needextram = last
 
 	// Store the original signal mask for use by minit.
 	mp.sigmask = sigmask
@@ -1961,13 +1958,9 @@ func newextram() {
 		for i := uint32(0); i < c; i++ {
 			oneNewExtraM()
 		}
-	} else {
+	} else if extraMLength.Load() == 0 {
 		// Make sure there is at least one extra M.
-		mp := lockextra(true)
-		unlockextra(mp)
-		if mp == nil {
-			oneNewExtraM()
-		}
+		oneNewExtraM()
 	}
 }
 
@@ -2022,10 +2015,7 @@ func oneNewExtraM() {
 	sched.ngsys.Add(1)
 
 	// Add m to the extra list.
-	mnext := lockextra(true)
-	mp.schedlink.set(mnext)
-	extraMCount++
-	unlockextra(mp)
+	putExtraM(mp)
 }
 
 // dropm is called when a cgo callback has called needm but is now
@@ -2070,14 +2060,9 @@ func dropm() {
 	sigblock(false)
 	unminit()
 
-	mnext := lockextra(true)
-	extraMCount++
-	mp.schedlink.set(mnext)
-
 	setg(nil)
 
-	// Commit the release of mp.
-	unlockextra(mp)
+	putExtraM(mp)
 
 	msigrestore(sigmask)
 }
@@ -2087,9 +2072,19 @@ func getm() uintptr {
 	return uintptr(unsafe.Pointer(getg().m))
 }
 
-var extram atomic.Uintptr
-var extraMCount uint32 // Protected by lockextra
-var extraMWaiters atomic.Uint32
+var (
+	// Locking linked list of extra M's, via mp.schedlink. Must be accessed
+	// only via lockextra/unlockextra.
+	//
+	// Can't be atomic.Pointer[m] because we use an invalid pointer as a
+	// "locked" sentinel value. M's on this list remain visible to the GC
+	// because their mp.curg is on allgs.
+	extraM atomic.Uintptr
+	// Number of M's in the extraM list.
+	extraMLength atomic.Uint32
+	// Number of waiters in lockextra.
+	extraMWaiters atomic.Uint32
+)
 
 // lockextra locks the extra list and returns the list head.
 // The caller must unlock the list by storing a new list head
@@ -2103,7 +2098,7 @@ func lockextra(nilokay bool) *m {
 
 	incr := false
 	for {
-		old := extram.Load()
+		old := extraM.Load()
 		if old == locked {
 			osyield_no_g()
 			continue
@@ -2119,7 +2114,7 @@ func lockextra(nilokay bool) *m {
 			usleep_no_g(1)
 			continue
 		}
-		if extram.CompareAndSwap(old, locked) {
+		if extraM.CompareAndSwap(old, locked) {
 			return (*m)(unsafe.Pointer(old))
 		}
 		osyield_no_g()
@@ -2128,8 +2123,33 @@ func lockextra(nilokay bool) *m {
 }
 
 //go:nosplit
-func unlockextra(mp *m) {
-	extram.Store(uintptr(unsafe.Pointer(mp)))
+func unlockextra(mp *m, delta int32) {
+	extraMLength.Add(delta)
+	extraM.Store(uintptr(unsafe.Pointer(mp)))
+}
+
+
+// Return an M from the extra M list. Returns last == true if the list becomes
+// empty because of this call.
+//
+//go:nosplit
+func getExtraM(nilokay bool) (mp *m, last bool) {
+	mp = lockextra(nilokay)
+	if mp == nil {
+		unlockextra(nil, 0)
+		return nil, true
+	}
+	unlockextra(mp.schedlink.ptr(), -1)
+	return mp, mp.schedlink.ptr() == nil
+}
+
+// Put an extra M on the list.
+//
+//go:nosplit
+func putExtraM(mp *m) {
+	mnext := lockextra(true)
+	mp.schedlink.set(mnext)
+	unlockextra(mp, 1)
 }
 
 var (
@@ -5202,13 +5222,8 @@ func checkdead() {
 	// accommodate callbacks created by syscall.NewCallback. See issue #6751
 	// for details.)
 	var run0 int32
-	if !iscgo && cgoHasExtraM {
-		mp := lockextra(true)
-		haveExtraM := extraMCount > 0
-		unlockextra(mp)
-		if haveExtraM {
-			run0 = 1
-		}
+	if !iscgo && cgoHasExtraM && extraMLength.Load() > 0 {
+		run0 = 1
 	}
 
 	run := mcount() - sched.nmidle - sched.nmidlelocked - sched.nmsys
