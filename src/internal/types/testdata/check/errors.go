@@ -58,7 +58,7 @@ func _() {
 
 // Use unqualified names for package-local objects.
 type T struct{}
-var _ int = T /* ERROR "value of type T" */ {} // use T in error message rather then errors.T
+var _ int = T /* ERROR "value of type T" */ {} // use T in error message rather than errors.T
 
 // Don't report errors containing "invalid type" (issue #24182).
 func _(x *missing /* ERROR "undefined: missing" */ ) {

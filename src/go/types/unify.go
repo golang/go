@@ -279,7 +279,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 	// Unification will fail if we match a defined type against a type literal.
 	// Per the (spec) assignment rules, assignments of values to variables with
 	// the same type structure are permitted as long as at least one of them
-	// is not a defined type. To accomodate for that possibility, we continue
+	// is not a defined type. To accommodate for that possibility, we continue
 	// unification with the underlying type of a defined type if the other type
 	// is a type literal.
 	// We also continue if the other type is a basic type because basic types

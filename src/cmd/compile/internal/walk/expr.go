@@ -759,7 +759,7 @@ func walkIndex(n *ir.IndexExpr, init *ir.Nodes) ir.Node {
 
 // mapKeyArg returns an expression for key that is suitable to be passed
 // as the key argument for runtime map* functions.
-// n is is the map indexing or delete Node (to provide Pos).
+// n is the map indexing or delete Node (to provide Pos).
 func mapKeyArg(fast int, n, key ir.Node, assigned bool) ir.Node {
 	if fast == mapslow {
 		// standard version takes key by reference.

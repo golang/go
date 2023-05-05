@@ -166,7 +166,7 @@ func TestResolveIdents(t *testing.T) {
 	}
 
 	// Check that each identifier in the source is found in uses or defs or both.
-	// We need the foundUses/Defs maps (rather then just deleting the found objects
+	// We need the foundUses/Defs maps (rather than just deleting the found objects
 	// from the uses and defs maps) because syntax.Walk traverses shared nodes multiple
 	// times (e.g. types in field lists such as "a, b, c int").
 	foundUses := make(map[*syntax.Name]bool)

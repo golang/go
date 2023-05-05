@@ -718,7 +718,7 @@ func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value
 		count = s.constInt(types.Types[types.TUINTPTR], 1)
 	}
 	if count.Type.Size() != s.config.PtrSize {
-		s.Fatalf("expected count fit to an uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
+		s.Fatalf("expected count fit to a uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
 	}
 	var rtype *ssa.Value
 	if rtypeExpr != nil {

@@ -390,7 +390,7 @@ func appendCleanPath(buf []byte, path string, lookupParent bool) ([]byte, bool) 
 
 // joinPath concatenates dir and file paths, producing a cleaned path where
 // "." and ".." have been removed, unless dir is relative and the references
-// to parent directories in file represented a location relatie to a parent
+// to parent directories in file represented a location relative to a parent
 // of dir.
 //
 // This function is used for path resolution of all wasi functions expecting

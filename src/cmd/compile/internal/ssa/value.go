@@ -86,7 +86,7 @@ func (v *Value) AuxInt8() int8 {
 
 func (v *Value) AuxUInt8() uint8 {
 	if opcodeTable[v.Op].auxType != auxUInt8 {
-		v.Fatalf("op %s doesn't have an uint8 aux field", v.Op)
+		v.Fatalf("op %s doesn't have a uint8 aux field", v.Op)
 	}
 	return uint8(v.AuxInt)
 }

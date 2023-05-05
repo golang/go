@@ -443,7 +443,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 	return transformed
 }
 
-// forAllDefInInitUpdate applies "do" to all the defining assignemnts in the Init clause of a ForStmt.
+// forAllDefInInitUpdate applies "do" to all the defining assignments in the Init clause of a ForStmt.
 // This abstracts away some of the boilerplate from the already complex and verbose for-3-clause case.
 func forAllDefInInitUpdate(x *ir.ForStmt, do func(z ir.Node, update *ir.Node)) {
 	for _, s := range x.Init() {

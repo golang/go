@@ -665,7 +665,7 @@ type p struct {
 		// We need an explicit length here because this field is used
 		// in allocation codepaths where write barriers are not allowed,
 		// and eliminating the write barrier/keeping it eliminated from
-		// slice updates is tricky, moreso than just managing the length
+		// slice updates is tricky, more so than just managing the length
 		// ourselves.
 		len int
 		buf [128]*mspan

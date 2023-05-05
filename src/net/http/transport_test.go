@@ -2353,7 +2353,7 @@ func testTransportResponseHeaderTimeout(t *testing.T, mode testMode) {
 			if err != nil {
 				uerr, ok := err.(*url.Error)
 				if !ok {
-					t.Errorf("error is not an url.Error; got: %#v", err)
+					t.Errorf("error is not a url.Error; got: %#v", err)
 					continue
 				}
 				nerr, ok := uerr.Err.(net.Error)
@@ -3889,7 +3889,7 @@ func TestTransportCloseIdleConnsThenReturn(t *testing.T) {
 }
 
 // Test for issue 34282
-// Ensure that getConn doesn't call the GotConn trace hook on a HTTP/2 idle conn
+// Ensure that getConn doesn't call the GotConn trace hook on an HTTP/2 idle conn
 func TestTransportTraceGotConnH2IdleConns(t *testing.T) {
 	tr := &Transport{}
 	wantIdle := func(when string, n int) bool {
@@ -4952,7 +4952,7 @@ func TestTransportRejectsAlphaPort(t *testing.T) {
 	}
 }
 
-// Test the httptrace.TLSHandshake{Start,Done} hooks with a https http1
+// Test the httptrace.TLSHandshake{Start,Done} hooks with an https http1
 // connections. The http2 test is done in TestTransportEventTrace_h2
 func TestTLSHandshakeTrace(t *testing.T) {
 	run(t, testTLSHandshakeTrace, []testMode{https1Mode, http2Mode})
