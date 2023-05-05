@@ -24,7 +24,6 @@ import (
 /*
 // threads
 extern void doAdd(int, int);
-extern int callGoInCThread(int);
 
 // issue 1328
 void IntoC(void);
@@ -147,10 +146,6 @@ func Add(x int) {
 	*p = 2
 }
 
-//export goDummy
-func goDummy() {
-}
-
 func testCthread(t *testing.T) {
 	if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && runtime.GOARCH == "arm64" {
 		t.Skip("the iOS exec wrapper is unable to properly handle the panic from Add")
@@ -161,15 +156,6 @@ func testCthread(t *testing.T) {
 	want := 10 * (10 - 1) / 2 * 6
 	if sum.i != want {
 		t.Fatalf("sum=%d, want %d", sum.i, want)
-	}
-}
-
-// Benchmark measuring overhead from C to Go in a C thread.
-// Create a new C thread and invoke Go function repeatedly in the new C thread.
-func benchCGoInCthread(b *testing.B) {
-	n := C.callGoInCThread(C.int(b.N))
-	if int(n) != b.N {
-		b.Fatal("unmatch loop times")
 	}
 }
 

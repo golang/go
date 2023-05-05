@@ -469,23 +469,13 @@ g0:
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
-	// It is used to dropm while thread is exiting.
-	MOVV	fn+0(FP), R5
-	BNE	R5, loadg
-	// Restore the g from frame.
-	MOVV	frame+8(FP), g
-	JMP	dropm
-
-loadg:
 	// Load m and g from thread-local storage.
 	MOVB	runtime·iscgo(SB), R1
 	BEQ	R1, nocgo
 	JAL	runtime·load_g(SB)
 nocgo:
 
-	// If g is nil, Go did not create the current thread,
-	// or if this thread never called into Go on pthread platforms.
+	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -498,7 +488,7 @@ nocgo:
 
 needm:
 	MOVV	g, savedm-8(SP) // g is zero, so is m.
-	MOVV	$runtime·needAndBindM(SB), R4
+	MOVV	$runtime·needm(SB), R4
 	JAL	(R4)
 
 	// Set m->sched.sp = SP, so that if a panic happens
@@ -569,24 +559,10 @@ havem:
 	MOVV	savedsp-24(SP), R2	// must match frame size
 	MOVV	R2, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m,
-	// 1. for the duration of the call on non-pthread platforms,
-	// 2. or the duration of the C thread alive on pthread platforms.
-	// If the m on entry wasn't nil,
-	// 1. the thread might be a Go thread,
-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
-	//    since the we skip dropm to resue the m in the first call.
+	// If the m on entry was nil, we called needm above to borrow an m
+	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVV	savedm-8(SP), R3
 	BNE	R3, droppedm
-
-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
-	MOVV	_cgo_pthread_key_created(SB), R3
-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
-	BEQ	R3, dropm
-	MOVV	(R3), R3
-	BNE	R3, droppedm
-
-dropm:
 	MOVV	$runtime·dropm(SB), R4
 	JAL	(R4)
 droppedm:

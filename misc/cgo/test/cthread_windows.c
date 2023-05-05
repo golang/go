@@ -35,25 +35,3 @@ doAdd(int max, int nthread)
 		CloseHandle((HANDLE)thread_id[i]);
 	}
 }
-
-__stdcall
-static unsigned int
-goDummyCallbackThread(void* p)
-{
-	int i, max;
-
-	max = *(int*)p;
-	for(i=0; i<max; i++)
-		goDummy();
-	return 0;
-}
-
-int
-callGoInCThread(int max)
-{
-	uintptr_t thread_id;
-	thread_id = _beginthreadex(0, 0, goDummyCallbackThread, &max, 0, 0);
-	WaitForSingleObject((HANDLE)thread_id, INFINITE);
-	CloseHandle((HANDLE)thread_id);
-	return max;
-}

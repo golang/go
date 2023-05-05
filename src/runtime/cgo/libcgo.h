@@ -52,11 +52,6 @@ extern void (*_cgo_thread_start)(ThreadStart *ts);
 extern void (*_cgo_sys_thread_create)(void* (*func)(void*), void* arg);
 
 /*
- * Indicates whether a dummy pthread per-thread variable is allocated.
- */
-extern uintptr_t *_cgo_pthread_key_created;
-
-/*
  * Creates the new operating system thread (OS, arch dependent).
  */
 void _cgo_sys_thread_start(ThreadStart *ts);

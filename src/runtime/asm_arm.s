@@ -630,16 +630,6 @@ nosave:
 TEXT	·cgocallback(SB),NOSPLIT,$12-12
 	NO_LOCAL_POINTERS
 
-	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
-	// It is used to dropm while thread is exiting.
-	MOVW	fn+0(FP), R1
-	CMP	$0, R1
-	B.NE	loadg
-	// Restore the g from frame.
-	MOVW	frame+4(FP), g
-	B	dropm
-
-loadg:
 	// Load m and g from thread-local storage.
 #ifdef GOOS_openbsd
 	BL	runtime·load_g(SB)
@@ -649,8 +639,7 @@ loadg:
 	BL.NE	runtime·load_g(SB)
 #endif
 
-	// If g is nil, Go did not create the current thread,
-	// or if this thread never called into Go on pthread platforms.
+	// If g is nil, Go did not create the current thread.
 	// Call needm to obtain one for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -664,7 +653,7 @@ loadg:
 
 needm:
 	MOVW	g, savedm-4(SP) // g is zero, so is m.
-	MOVW	$runtime·needAndBindM(SB), R0
+	MOVW	$runtime·needm(SB), R0
 	BL	(R0)
 
 	// Set m->g0->sched.sp = SP, so that if a panic happens
@@ -735,31 +724,14 @@ havem:
 	MOVW	savedsp-12(SP), R4	// must match frame size
 	MOVW	R4, (g_sched+gobuf_sp)(g)
 
-	// If the m on entry was nil, we called needm above to borrow an m,
-	// 1. for the duration of the call on non-pthread platforms,
-	// 2. or the duration of the C thread alive on pthread platforms.
-	// If the m on entry wasn't nil,
-	// 1. the thread might be a Go thread,
-	// 2. or it's wasn't the first call from a C thread on pthread platforms,
-	//    since the we skip dropm to resue the m in the first call.
+	// If the m on entry was nil, we called needm above to borrow an m
+	// for the duration of the call. Since the call is over, return it with dropm.
 	MOVW	savedm-4(SP), R6
 	CMP	$0, R6
-	B.NE	done
-
-	// Skip dropm to reuse it in the next call, when a pthread key has been created.
-	MOVW	_cgo_pthread_key_created(SB), R6
-	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
-	CMP	$0, R6
-	B.EQ	dropm
-	MOVW	(R6), R6
-	CMP	$0, R6
-	B.NE	done
-
-dropm:
+	B.NE	3(PC)
 	MOVW	$runtime·dropm(SB), R0
 	BL	(R0)
 
-done:
 	// Done!
 	RET
 
