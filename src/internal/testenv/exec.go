@@ -6,6 +6,8 @@ package testenv
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -30,25 +32,24 @@ import (
 // for the resulting error.
 func MustHaveExec(t testing.TB) {
 	tryExecOnce.Do(func() {
-		tryExecOk = tryExec()
+		tryExecErr = tryExec()
 	})
-	if !tryExecOk {
-		t.Skipf("skipping test: cannot exec subprocess on %s/%s", runtime.GOOS, runtime.GOARCH)
+	if tryExecErr != nil {
+		t.Skipf("skipping test: cannot exec subprocess on %s/%s: %v", runtime.GOOS, runtime.GOARCH, tryExecErr)
 	}
 }
 
 var (
-	tryExec     = func() bool { return true }
 	tryExecOnce sync.Once
-	tryExecOk   bool
+	tryExecErr  error
 )
 
-func init() {
+func tryExec() error {
 	switch runtime.GOOS {
 	case "wasip1", "js", "ios":
 	default:
 		// Assume that exec always works on non-mobile platforms and Android.
-		return
+		return nil
 	}
 
 	// ios has an exec syscall but on real iOS devices it might return a
@@ -64,24 +65,18 @@ func init() {
 		// This isn't a standard 'go test' binary, so we don't know how to
 		// self-exec in a way that should succeed without side effects.
 		// Just forget it.
-		tryExec = func() bool { return false }
-		return
+		return errors.New("can't probe for exec support with a non-test executable")
 	}
 
 	// We know that this is a test executable. We should be able to run it with a
 	// no-op flag to check for overall exec support.
-	tryExec = func() bool {
-		exe, err := os.Executable()
-		if err != nil {
-			return false
-		}
-		cmd := exec.Command(exe, "-test.list=^$")
-		cmd.Env = origEnv
-		if err := cmd.Run(); err == nil {
-			return true
-		}
-		return false
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("can't probe for exec support: %w", err)
 	}
+	cmd := exec.Command(exe, "-test.list=^$")
+	cmd.Env = origEnv
+	return cmd.Run()
 }
 
 var execPaths sync.Map // path -> error
