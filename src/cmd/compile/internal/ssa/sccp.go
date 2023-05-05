@@ -38,11 +38,6 @@ import (
 // by just combining constant folding and constant propagation and dead code
 // elimination separately.
 
-type edge struct {
-	start *Block
-	dest  *Block
-}
-
 // Three level lattice holds compile time knowledge about SSA value
 const (
 	top      int8 = iota // undefined
@@ -56,10 +51,10 @@ type lattice struct {
 }
 
 type worklist struct {
-	f            *Func               // the target function to be optmized out
-	edges        []edge              // propagate constant facts through these control flow edges
+	f            *Func               // the target function to be optimized out
+	edges        []Edge              // propagate constant facts through these control flow edges
 	uses         []*Value            // uses for re-visiting because lattice of def is changed
-	visited      map[edge]bool       // visited edges
+	visited      map[Edge]bool       // visited edges
 	latticeCells map[*Value]lattice  // constant lattices
 	defUse       map[*Value][]*Value // def-use chains for some values
 	defBlock     map[*Value][]*Block // use blocks of def
@@ -229,7 +224,7 @@ func meet(arr []lattice) lattice {
 func (t *worklist) visitPhi(val *Value) {
 	var argLattice = make([]lattice, 0)
 	for i := 0; i < len(val.Args); i++ {
-		var edge = edge{val.Block.Preds[i].b, val.Block}
+		var edge = Edge{val.Block, i}
 		// If incoming edge for phi is not visited, assume top optimistically. According to rules
 		// of meet:
 		// 		Top ∩ any = any
@@ -254,14 +249,14 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 	//		res.val = newConst(argLt1.val.AuxInt16() + argLt2.val.AuxInt16())
 	// 	case OpAdd32:
 	// 		res.val = newConst(argLt1.val.AuxInt32() + argLt2.val.AuxInt32())
-	//  case OpDiv8:
+	//	case OpDiv8:
 	//		if !isDivideByZero(argLt2.val.AuxInt8()) {
 	//			res.val = newConst(argLt1.val.AuxInt8() / argLt2.val.AuxInt8())
 	//		}
 	//  ...
 	// 	}
 	//
-	// However, this would create a huge switch for all opcodes that can be evaluted during
+	// However, this would create a huge switch for all opcodes that can be evaluated during
 	// compile time. Moreover, some operations can be evaluated only if its arguments
 	// satisfy additional conditions(e.g. divide by zero). It's fragile and error prone. We
 	// did a trick by reusing the existing rules in generic rules for compile-time evaluation.
@@ -403,21 +398,17 @@ func (t *worklist) propagate(block *Block) {
 		break
 	case BlockDefer:
 		// we know nothing about control flow, add all branch destinations
-		for _, succ := range block.Succs {
-			t.edges = append(t.edges, edge{block, succ.b})
-		}
+		t.edges = append(t.edges, block.Succs...)
 	case BlockFirst:
 		fallthrough // always takes the first branch
 	case BlockPlain:
-		t.edges = append(t.edges, edge{block, block.Succs[0].b})
+		t.edges = append(t.edges, block.Succs[0])
 	case BlockIf, BlockJumpTable:
 		var cond = block.ControlValues()[0]
 		var condLattice = t.getLatticeCell(cond)
 		if condLattice.tag == bottom {
 			// we know nothing about control flow, add all branch destinations
-			for _, succ := range block.Succs {
-				t.edges = append(t.edges, edge{block, succ.b})
-			}
+			t.edges = append(t.edges, block.Succs...)
 		} else if condLattice.tag == constant {
 			// add branchIdx destinations depends on its condition
 			var branchIdx int64
@@ -426,7 +417,7 @@ func (t *worklist) propagate(block *Block) {
 			} else {
 				branchIdx = condLattice.val.AuxInt
 			}
-			t.edges = append(t.edges, edge{block, block.Succs[branchIdx].b})
+			t.edges = append(t.edges, block.Succs[branchIdx])
 		} else {
 			// condition value is not visited yet, don't propagate it now
 		}
@@ -435,14 +426,39 @@ func (t *worklist) propagate(block *Block) {
 	}
 }
 
+// rewireSuccessor rewires corresponding successors according to constant value
+// discovered by previous analysis. As the result, some successors become unreachable
+// and thus can be removed in further deadcode phase
+func rewireSuccessor(block *Block, constVal *Value) bool {
+	switch block.Kind {
+	case BlockIf:
+		block.removeEdge(int(constVal.AuxInt))
+		block.Kind = BlockPlain
+		block.Likely = BranchUnknown
+		block.ResetControls()
+		return true
+	case BlockJumpTable:
+		var idx = int(constVal.AuxInt)
+		var targetBlock = block.Succs[idx].b
+		for len(block.Succs) > 0 {
+			block.removeEdge(0)
+		}
+		block.AddEdgeTo(targetBlock)
+		block.Kind = BlockPlain
+		block.Likely = BranchUnknown
+		block.ResetControls()
+		return true
+	default:
+		return false
+	}
+}
+
 // replaceConst will replace non-constant values that have been proven by sccp to be
-// constants. If value controls blocks, this will rewire corresponding block successors
-// according to constant condition test.
+// constants.
 func (t *worklist) replaceConst() (int, int) {
 	var constCnt, rewireCnt = 0, 0
 	for val, lt := range t.latticeCells {
 		if lt.tag == constant {
-			// replace constant immediately
 			if !isConst(val) {
 				if t.f.pass.debug > 0 {
 					fmt.Printf("Replace %v with %v\n", val.LongString(), lt.val.LongString())
@@ -451,33 +467,13 @@ func (t *worklist) replaceConst() (int, int) {
 				val.AuxInt = lt.val.AuxInt
 				constCnt++
 			}
-			// rewire corresponding successors according to constant value
+			// If const value controls this block, rewires successors according to its value
 			var ctrlBlock = t.defBlock[val]
 			for _, block := range ctrlBlock {
-				switch block.Kind {
-				case BlockIf:
-					// Jump directly to successor block
-					block.removeEdge(int(lt.val.AuxInt))
-					block.Kind = BlockPlain
-					block.Likely = BranchUnknown
-					block.ResetControls()
+				if rewireSuccessor(block, lt.val) {
 					rewireCnt++
 					if t.f.pass.debug > 0 {
-						fmt.Printf("Rewire BlockIf %v successors\n", block)
-					}
-				case BlockJumpTable:
-					var idx = int(lt.val.AuxInt)
-					var targetBlock = block.Succs[idx].b
-					for len(block.Succs) > 0 {
-						block.removeEdge(0)
-					}
-					block.AddEdgeTo(targetBlock)
-					block.Kind = BlockPlain
-					block.Likely = BranchUnknown
-					block.ResetControls()
-					rewireCnt++
-					if t.f.pass.debug > 0 {
-						fmt.Printf("Rewire JumpTable %v successors\n", block)
+						fmt.Printf("Rewire %v %v successors\n", block.Kind, block)
 					}
 				}
 			}
@@ -489,9 +485,9 @@ func (t *worklist) replaceConst() (int, int) {
 func sccp(f *Func) {
 	var t worklist
 	t.f = f
-	t.edges = make([]edge, 0)
-	t.visited = make(map[edge]bool)
-	t.edges = append(t.edges, edge{f.Entry, f.Entry})
+	t.edges = make([]Edge, 0)
+	t.visited = make(map[Edge]bool)
+	t.edges = append(t.edges, Edge{f.Entry, 0})
 	t.defUse = make(map[*Value][]*Value)
 	t.defBlock = make(map[*Value][]*Block)
 	t.latticeCells = make(map[*Value]lattice)
@@ -505,14 +501,14 @@ func sccp(f *Func) {
 	// pick up either an edge or SSA value from worklilst, process it
 	for {
 		if len(t.edges) > 0 {
-			var e = t.edges[0]
+			var edge = t.edges[0]
 			t.edges = t.edges[1:]
-			if _, exist := t.visited[e]; !exist {
-				var dest = e.dest
+			if _, exist := t.visited[edge]; !exist {
+				var dest = edge.b
 				var destVisited = visitedBlock.contains(dest.ID)
 
 				// mark edge as visited
-				t.visited[e] = true
+				t.visited[edge] = true
 				visitedBlock.add(dest.ID)
 				for _, val := range dest.Values {
 					if val.Op == OpPhi || !destVisited {
