@@ -115,317 +115,317 @@ func TestGenericBodies(t *testing.T) {
 		}
 		`,
 		`
-			package t
+		package t
 
-			func f[S any, T ~chan S](x T) {
-				for v := range x {
-					print(x, v) //@ types(T, S)
+		func f[S any, T ~chan S](x T) {
+			for v := range x {
+				print(x, v) //@ types(T, S)
+			}
+		}
+
+		func From() {
+			type F chan string
+			print(f[string, F]) //@ types("func(x t.F)")
+		}
+		`,
+		`
+		package u
+
+		func fibonacci[T ~chan int](c, quit T) {
+			x, y := 0, 1
+			for {
+				select {
+				case c <- x:
+					x, y = y, x+y
+				case <-quit:
+					print(c, quit, x, y) //@ types(T, T, int, int)
+					return
 				}
 			}
-
-			func From() {
-				type F chan string
-				print(f[string, F]) //@ types("func(x t.F)")
-			}
-			`,
-		`
-			package u
-
-			func fibonacci[T ~chan int](c, quit T) {
-				x, y := 0, 1
-				for {
-					select {
-					case c <- x:
-						x, y = y, x+y
-					case <-quit:
-						print(c, quit, x, y) //@ types(T, T, int, int)
-						return
-					}
+		}
+		func start[T ~chan int](c, quit T) {
+			go func() {
+				for i := 0; i < 10; i++ {
+					print(<-c) //@ types(int)
 				}
-			}
-			func start[T ~chan int](c, quit T) {
-				go func() {
-					for i := 0; i < 10; i++ {
-						print(<-c) //@ types(int)
-					}
-					quit <- 0
-				}()
-			}
-			func From() {
-				type F chan int
-				c := make(F)
-				quit := make(F)
-				print(start[F], c, quit)     //@ types("func(c u.F, quit u.F)", "u.F", "u.F")
-				print(fibonacci[F], c, quit) //@ types("func(c u.F, quit u.F)", "u.F", "u.F")
-			}
-			`,
+				quit <- 0
+			}()
+		}
+		func From() {
+			type F chan int
+			c := make(F)
+			quit := make(F)
+			print(start[F], c, quit)     //@ types("func(c u.F, quit u.F)", "u.F", "u.F")
+			print(fibonacci[F], c, quit) //@ types("func(c u.F, quit u.F)", "u.F", "u.F")
+		}
+		`,
 		`
-			package v
+		package v
 
-			func f[T ~struct{ x int; y string }](i int) T {
-				u := []T{ T{0, "lorem"},  T{1, "ipsum"}}
-				return u[i]
-			}
-			func From() {
-				type S struct{ x int; y string }
-				print(f[S])     //@ types("func(i int) v.S")
-			}
-			`,
+		func f[T ~struct{ x int; y string }](i int) T {
+			u := []T{ T{0, "lorem"},  T{1, "ipsum"}}
+			return u[i]
+		}
+		func From() {
+			type S struct{ x int; y string }
+			print(f[S])     //@ types("func(i int) v.S")
+		}
+		`,
 		`
-			package w
+		package w
 
-			func f[T ~[4]int8](x T, l, h int) []int8 {
-				return x[l:h]
-			}
-			func g[T ~*[4]int16](x T, l, h int) []int16 {
-				return x[l:h]
-			}
-			func h[T ~[]int32](x T, l, h int) T {
-				return x[l:h]
-			}
-			func From() {
-				type F [4]int8
-				type G *[4]int16
-				type H []int32
-				print(f[F](F{}, 0, 0))  //@ types("[]int8")
-				print(g[G](nil, 0, 0)) //@ types("[]int16")
-				print(h[H](nil, 0, 0)) //@ types("w.H")
-			}
-			`,
+		func f[T ~[4]int8](x T, l, h int) []int8 {
+			return x[l:h]
+		}
+		func g[T ~*[4]int16](x T, l, h int) []int16 {
+			return x[l:h]
+		}
+		func h[T ~[]int32](x T, l, h int) T {
+			return x[l:h]
+		}
+		func From() {
+			type F [4]int8
+			type G *[4]int16
+			type H []int32
+			print(f[F](F{}, 0, 0))  //@ types("[]int8")
+			print(g[G](nil, 0, 0)) //@ types("[]int16")
+			print(h[H](nil, 0, 0)) //@ types("w.H")
+		}
+		`,
 		`
-			package x
+		package x
 
-			func h[E any, T ~[]E](x T, l, h int) []E {
-				s := x[l:h]
-				print(s) //@ types("T")
-				return s
-			}
-			func From() {
-				type H []int32
-				print(h[int32, H](nil, 0, 0)) //@ types("[]int32")
-			}
-			`,
+		func h[E any, T ~[]E](x T, l, h int) []E {
+			s := x[l:h]
+			print(s) //@ types("T")
+			return s
+		}
+		func From() {
+			type H []int32
+			print(h[int32, H](nil, 0, 0)) //@ types("[]int32")
+		}
+		`,
 		`
-			package y
+		package y
 
-			// Test "make" builtin with different forms on core types and
-			// when capacities are constants or variable.
-			func h[E any, T ~[]E](m, n int) {
-				print(make(T, 3))    //@ types(T)
-				print(make(T, 3, 5)) //@ types(T)
-				print(make(T, m))    //@ types(T)
-				print(make(T, m, n)) //@ types(T)
-			}
-			func i[K comparable, E any, T ~map[K]E](m int) {
-				print(make(T))    //@ types(T)
-				print(make(T, 5)) //@ types(T)
-				print(make(T, m)) //@ types(T)
-			}
-			func j[E any, T ~chan E](m int) {
-				print(make(T))    //@ types(T)
-				print(make(T, 6)) //@ types(T)
-				print(make(T, m)) //@ types(T)
-			}
-			func From() {
-				type H []int32
-				h[int32, H](3, 4)
-				type I map[int8]H
-				i[int8, H, I](5)
-				type J chan I
-				j[I, J](6)
-			}
-			`,
+		// Test "make" builtin with different forms on core types and
+		// when capacities are constants or variable.
+		func h[E any, T ~[]E](m, n int) {
+			print(make(T, 3))    //@ types(T)
+			print(make(T, 3, 5)) //@ types(T)
+			print(make(T, m))    //@ types(T)
+			print(make(T, m, n)) //@ types(T)
+		}
+		func i[K comparable, E any, T ~map[K]E](m int) {
+			print(make(T))    //@ types(T)
+			print(make(T, 5)) //@ types(T)
+			print(make(T, m)) //@ types(T)
+		}
+		func j[E any, T ~chan E](m int) {
+			print(make(T))    //@ types(T)
+			print(make(T, 6)) //@ types(T)
+			print(make(T, m)) //@ types(T)
+		}
+		func From() {
+			type H []int32
+			h[int32, H](3, 4)
+			type I map[int8]H
+			i[int8, H, I](5)
+			type J chan I
+			j[I, J](6)
+		}
+		`,
 		`
-			package z
+		package z
 
-			func h[T ~[4]int](x T) {
-				print(len(x), cap(x)) //@ types(int, int)
-			}
-			func i[T ~[4]byte | []int | ~chan uint8](x T) {
-				print(len(x), cap(x)) //@ types(int, int)
-			}
-			func j[T ~[4]int | any | map[string]int]() {
-				print(new(T)) //@ types("*T")
-			}
-			func k[T ~[4]int | any | map[string]int](x T) {
-				print(x) //@ types(T)
-				panic(x)
-			}
-			`,
+		func h[T ~[4]int](x T) {
+			print(len(x), cap(x)) //@ types(int, int)
+		}
+		func i[T ~[4]byte | []int | ~chan uint8](x T) {
+			print(len(x), cap(x)) //@ types(int, int)
+		}
+		func j[T ~[4]int | any | map[string]int]() {
+			print(new(T)) //@ types("*T")
+		}
+		func k[T ~[4]int | any | map[string]int](x T) {
+			print(x) //@ types(T)
+			panic(x)
+		}
+		`,
 		`
-			package a
+		package a
 
-			func f[E any, F ~func() E](x F) {
-				print(x, x()) //@ types(F, E)
-			}
-			func From() {
-				type T func() int
-				f[int, T](func() int { return 0 })
-				f[int, func() int](func() int { return 1 })
-			}
-			`,
+		func f[E any, F ~func() E](x F) {
+			print(x, x()) //@ types(F, E)
+		}
+		func From() {
+			type T func() int
+			f[int, T](func() int { return 0 })
+			f[int, func() int](func() int { return 1 })
+		}
+		`,
 		`
-			package b
+		package b
 
-			func f[E any, M ~map[string]E](m M) {
-				y, ok := m["lorem"]
-				print(m, y, ok) //@ types(M, E, bool)
-			}
-			func From() {
-				type O map[string][]int
-				f(O{"lorem": []int{0, 1, 2, 3}})
-			}
-			`,
+		func f[E any, M ~map[string]E](m M) {
+			y, ok := m["lorem"]
+			print(m, y, ok) //@ types(M, E, bool)
+		}
+		func From() {
+			type O map[string][]int
+			f(O{"lorem": []int{0, 1, 2, 3}})
+		}
+		`,
 		`
-			package c
+		package c
 
-			func a[T interface{ []int64 | [5]int64 }](x T) int64 {
-				print(x, x[2], x[3]) //@ types(T, int64, int64)
-				x[2] = 5
-				return x[3]
-			}
-			func b[T interface{ []byte | string }](x T) byte {
-				print(x, x[3]) //@ types(T, byte)
-		        return x[3]
-			}
-			func c[T interface{ []byte }](x T) byte {
-				print(x, x[2], x[3]) //@ types(T, byte, byte)
-				x[2] = 'b'
-				return x[3]
-			}
-			func d[T interface{ map[int]int64 }](x T) int64 {
-				print(x, x[2], x[3]) //@ types(T, int64, int64)
-				x[2] = 43
-				return x[3]
-			}
-			func e[T ~string](t T) {
-				print(t, t[0]) //@ types(T, uint8)
-			}
-			func f[T ~string|[]byte](t T) {
-				print(t, t[0]) //@ types(T, uint8)
-			}
-			func g[T []byte](t T) {
-				print(t, t[0]) //@ types(T, byte)
-			}
-			func h[T ~[4]int|[]int](t T) {
-				print(t, t[0]) //@ types(T, int)
-			}
-			func i[T ~[4]int|*[4]int|[]int](t T) {
-				print(t, t[0]) //@ types(T, int)
-			}
-			func j[T ~[4]int|*[4]int|[]int](t T) {
-				print(t, &t[0]) //@ types(T, "*int")
-			}
-			`,
+		func a[T interface{ []int64 | [5]int64 }](x T) int64 {
+			print(x, x[2], x[3]) //@ types(T, int64, int64)
+			x[2] = 5
+			return x[3]
+		}
+		func b[T interface{ []byte | string }](x T) byte {
+			print(x, x[3]) //@ types(T, byte)
+			return x[3]
+		}
+		func c[T interface{ []byte }](x T) byte {
+			print(x, x[2], x[3]) //@ types(T, byte, byte)
+			x[2] = 'b'
+			return x[3]
+		}
+		func d[T interface{ map[int]int64 }](x T) int64 {
+			print(x, x[2], x[3]) //@ types(T, int64, int64)
+			x[2] = 43
+			return x[3]
+		}
+		func e[T ~string](t T) {
+			print(t, t[0]) //@ types(T, uint8)
+		}
+		func f[T ~string|[]byte](t T) {
+			print(t, t[0]) //@ types(T, uint8)
+		}
+		func g[T []byte](t T) {
+			print(t, t[0]) //@ types(T, byte)
+		}
+		func h[T ~[4]int|[]int](t T) {
+			print(t, t[0]) //@ types(T, int)
+		}
+		func i[T ~[4]int|*[4]int|[]int](t T) {
+			print(t, t[0]) //@ types(T, int)
+		}
+		func j[T ~[4]int|*[4]int|[]int](t T) {
+			print(t, &t[0]) //@ types(T, "*int")
+		}
+		`,
 		`
-			package d
+		package d
 
-			type MyInt int
-			type Other int
-			type MyInterface interface{ foo() }
+		type MyInt int
+		type Other int
+		type MyInterface interface{ foo() }
 
-			// ChangeType tests
-			func ct0(x int) { v := MyInt(x);  print(x, v) /*@ types(int, "d.MyInt")*/ }
-			func ct1[T MyInt | Other, S int ](x S) { v := T(x);  print(x, v) /*@ types(S, T)*/ }
-			func ct2[T int, S MyInt | int ](x S) { v := T(x); print(x, v) /*@ types(S, T)*/ }
-			func ct3[T MyInt | Other, S MyInt | int ](x S) { v := T(x) ; print(x, v) /*@ types(S, T)*/ }
+		// ChangeType tests
+		func ct0(x int) { v := MyInt(x);  print(x, v) /*@ types(int, "d.MyInt")*/ }
+		func ct1[T MyInt | Other, S int ](x S) { v := T(x);  print(x, v) /*@ types(S, T)*/ }
+		func ct2[T int, S MyInt | int ](x S) { v := T(x); print(x, v) /*@ types(S, T)*/ }
+		func ct3[T MyInt | Other, S MyInt | int ](x S) { v := T(x) ; print(x, v) /*@ types(S, T)*/ }
 
-			// Convert tests
-			func co0[T int | int8](x MyInt) { v := T(x); print(x, v) /*@ types("d.MyInt", T)*/}
-			func co1[T int | int8](x T) { v := MyInt(x); print(x, v) /*@ types(T, "d.MyInt")*/ }
-			func co2[S, T int | int8](x T) { v := S(x); print(x, v) /*@ types(T, S)*/ }
+		// Convert tests
+		func co0[T int | int8](x MyInt) { v := T(x); print(x, v) /*@ types("d.MyInt", T)*/}
+		func co1[T int | int8](x T) { v := MyInt(x); print(x, v) /*@ types(T, "d.MyInt")*/ }
+		func co2[S, T int | int8](x T) { v := S(x); print(x, v) /*@ types(T, S)*/ }
 
-			// MakeInterface tests
-			func mi0[T MyInterface](x T) { v := MyInterface(x); print(x, v) /*@ types(T, "d.MyInterface")*/ }
+		// MakeInterface tests
+		func mi0[T MyInterface](x T) { v := MyInterface(x); print(x, v) /*@ types(T, "d.MyInterface")*/ }
 
-			// NewConst tests
-			func nc0[T any]() { v := (*T)(nil); print(v) /*@ types("*T")*/}
+		// NewConst tests
+		func nc0[T any]() { v := (*T)(nil); print(v) /*@ types("*T")*/}
 
-			// SliceToArrayPointer
-			func sl0[T *[4]int | *[2]int](x []int) { v := T(x); print(x, v) /*@ types("[]int", T)*/ }
-			func sl1[T *[4]int | *[2]int, S []int](x S) { v := T(x); print(x, v) /*@ types(S, T)*/ }
-			`,
+		// SliceToArrayPointer
+		func sl0[T *[4]int | *[2]int](x []int) { v := T(x); print(x, v) /*@ types("[]int", T)*/ }
+		func sl1[T *[4]int | *[2]int, S []int](x S) { v := T(x); print(x, v) /*@ types(S, T)*/ }
+		`,
 		`
-			package e
+		package e
 
-			func c[T interface{ foo() string }](x T) {
-				print(x, x.foo, x.foo())  /*@ types(T, "func() string", string)*/
-			}
-			`,
+		func c[T interface{ foo() string }](x T) {
+			print(x, x.foo, x.foo())  /*@ types(T, "func() string", string)*/
+		}
+		`,
 		`package f
 
-			func eq[T comparable](t T, i interface{}) bool {
-				return t == i
-			}
-			`,
+		func eq[T comparable](t T, i interface{}) bool {
+			return t == i
+		}
+		`,
 		// TODO(59983): investigate why writing g.c panics in (*FieldAddr).String.
 		`package g
-			type S struct{ f int }
-			func c[P *S]() []P { return []P{{f: 1}} }
-			`,
+		type S struct{ f int }
+		func c[P *S]() []P { return []P{{f: 1}} }
+		`,
 		`package h
-			func sign[bytes []byte | string](s bytes) (bool, bool) {
-				neg := false
-				if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
-					neg = s[0] == '-'
-					s = s[1:]
-				}
-				return !neg, len(s) > 0
-			}`,
+		func sign[bytes []byte | string](s bytes) (bool, bool) {
+			neg := false
+			if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
+				neg = s[0] == '-'
+				s = s[1:]
+			}
+			return !neg, len(s) > 0
+		}`,
 		`package i
-			func digits[bytes []byte | string](s bytes) bool {
-				for _, c := range []byte(s) {
-					if c < '0' || '9' < c {
-						return false
-					}
+		func digits[bytes []byte | string](s bytes) bool {
+			for _, c := range []byte(s) {
+				if c < '0' || '9' < c {
+					return false
 				}
-				return true
-			}`,
-		`
-			package j
-
-			type E interface{}
-
-			func Foo[T E, PT interface{ *T }]() T {
-				pt := PT(new(T))
-				x := *pt
-				print(x)  /*@ types(T)*/
-				return x
 			}
-			`,
+			return true
+		}`,
 		`
-			package k
+		package j
 
-			func f[M any, PM *M](p PM) {
-				var m M
-				*p = m
-				print(m)  /*@ types(M)*/
-				print(p)  /*@ types(PM)*/
-			}
-			`,
+		type E interface{}
+
+		func Foo[T E, PT interface{ *T }]() T {
+			pt := PT(new(T))
+			x := *pt
+			print(x)  /*@ types(T)*/
+			return x
+		}
+		`,
 		`
-			package l
+		package k
 
-			type A struct{int}
-			func (*A) Marker() {}
+		func f[M any, PM *M](p PM) {
+			var m M
+			*p = m
+			print(m)  /*@ types(M)*/
+			print(p)  /*@ types(PM)*/
+		}
+		`,
+		`
+		package l
 
-			type B struct{string}
-			func (*B) Marker() {}
+		type A struct{int}
+		func (*A) Marker() {}
 
-			type C struct{float32}
-			func (*C) Marker() {}
+		type B struct{string}
+		func (*B) Marker() {}
 
-			func process[T interface {
-				*A
-				*B
-				*C
-				Marker()
-			}](v T) {
-				v.Marker()
-				a := *(any(v).(*A)); print(a)  /*@ types("l.A")*/
-				b := *(any(v).(*B)); print(b)  /*@ types("l.B")*/
-				c := *(any(v).(*C)); print(c)  /*@ types("l.C")*/
-			}`,
+		type C struct{float32}
+		func (*C) Marker() {}
+
+		func process[T interface {
+			*A
+			*B
+			*C
+			Marker()
+		}](v T) {
+			v.Marker()
+			a := *(any(v).(*A)); print(a)  /*@ types("l.A")*/
+			b := *(any(v).(*B)); print(b)  /*@ types("l.B")*/
+			c := *(any(v).(*C)); print(c)  /*@ types("l.C")*/
+		}`,
 	} {
 		contents := contents
 		pkgname := packageName(t, contents)
