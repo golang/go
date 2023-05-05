@@ -1491,6 +1491,8 @@ func (ctxt *Link) doelf() {
 	if !*FlagS {
 		shstrtabAddstring(".symtab")
 		shstrtabAddstring(".strtab")
+	}
+	if !*FlagW {
 		dwarfaddshstrings(ctxt, shstrtabAddstring)
 	}
 

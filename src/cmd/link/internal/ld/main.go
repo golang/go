@@ -43,6 +43,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"strings"
 )
 
@@ -56,6 +57,7 @@ func init() {
 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
 	flag.Var(&flagExtld, "extld", "use `linker` when linking in external mode")
 	flag.Var(&flagExtldflags, "extldflags", "pass `flags` to external linker")
+	flag.Var(&flagW, "w", "disable DWARF generation")
 }
 
 // Flags used by the linker. The exported flags are used by the architecture-specific packages.
@@ -90,7 +92,6 @@ var (
 	flagH             = flag.Bool("h", false, "halt on error")
 	flagN             = flag.Bool("n", false, "dump symbol table")
 	FlagS             = flag.Bool("s", false, "disable symbol table")
-	FlagW             = flag.Bool("w", false, "disable DWARF generation")
 	flag8             bool // use 64-bit addresses in symbol table
 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
@@ -106,7 +107,47 @@ var (
 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
+
+	flagW ternaryFlag
+	FlagW = new(bool) // the -w flag, computed in main from flagW
 )
+
+// ternaryFlag is like a boolean flag, but has a default value that is
+// neither true nor false, allowing it to be set from context (e.g. from another
+// flag).
+// *ternaryFlag implements flag.Value.
+type ternaryFlag int
+
+const (
+	ternaryFlagUnset ternaryFlag = iota
+	ternaryFlagFalse
+	ternaryFlagTrue
+)
+
+func (t *ternaryFlag) Set(s string) error {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return err
+	}
+	if v {
+		*t = ternaryFlagTrue
+	} else {
+		*t = ternaryFlagFalse
+	}
+	return nil
+}
+
+func (t *ternaryFlag) String() string {
+	switch *t {
+	case ternaryFlagFalse:
+		return "false"
+	case ternaryFlagTrue:
+		return "true"
+	}
+	return "unset"
+}
+
+func (t *ternaryFlag) IsBoolFlag() bool { return true } // parse like a boolean flag
 
 // Main is the main entry point for the linker code.
 func Main(arch *sys.Arch, theArch Arch) {
@@ -197,6 +238,15 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	checkStrictDups = *FlagStrictDups
 
+	switch flagW {
+	case ternaryFlagFalse:
+		*FlagW = false
+	case ternaryFlagTrue:
+		*FlagW = true
+	case ternaryFlagUnset:
+		*FlagW = *FlagS // -s implies -w if not explicitly set
+	}
+
 	if !buildcfg.Experiment.RegabiWrappers {
 		abiInternalVer = 0
 	}
@@ -252,6 +302,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 
 	if ctxt.Debugvlog != 0 {
+		onOff := func(b bool) string {
+			if b {
+				return "on"
+			}
+			return "off"
+		}
+		ctxt.Logf("build mode: %s, symbol table: %s, DWARF: %s\n", ctxt.BuildMode, onOff(!*FlagS), onOff(dwarfEnabled(ctxt)))
 		ctxt.Logf("HEADER = -H%d -T0x%x -R0x%x\n", ctxt.HeadType, uint64(*FlagTextAddr), uint32(*FlagRound))
 	}
 
