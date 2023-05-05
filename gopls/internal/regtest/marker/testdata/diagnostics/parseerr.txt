@@ -1,0 +1,26 @@
+
+This test verifies that only parse errors are created.
+we produce diagnostics related to mismatching
+unexported interface methods in non-workspace packages.
+
+The type error was chosen to exercise the 'nonewvars' type-error analyzer.
+(The 'undeclaredname' analyzer depends on the text of the go/types
+"undeclared name" error, which changed in go1.20.)
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a.go --
+package a
+
+func bye(x int) {
+	x := 123 //@diag(re"():=", re"no new variables")
+}
+
+func stuff() {
+	
+}
+
+func .() {} //@diag(re"func ().", re"expected 'IDENT', found '.'")
+

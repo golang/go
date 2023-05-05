@@ -1,0 +1,33 @@
+This test exercises diagnostics produced by different phases.
+
+The type error was chosen carefully to exercise a type-error analyzer.
+We use the 'nonewvars' analyzer because the other candidates are tricky:
+
+- The 'unusedvariable' analyzer is disabled by default, so it is not
+  consistently enabled across Test{LSP,CommandLine} tests, which
+  both process this file.
+- The 'undeclaredname' analyzer depends on the text of the go/types
+  "undeclared name" error, which changed in go1.20.
+- The 'noresultvalues' analyzer produces a diagnostic containing newlines,
+  which breaks the parser used by TestCommandLine.
+
+This comment is all that remains of my afternoon.
+
+FWIW, the first diag is a (compiler, error), the second a (nonewvars, warning).
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- noparse.go --
+package noparse
+
+func bye(x int) {
+	x := 123 //@diag(re"():=", re"no new variables")
+}
+
+func stuff() {
+	
+}
+
+func .() {} //@diag(re"func ()[.]", re"expected 'IDENT', found '.'")

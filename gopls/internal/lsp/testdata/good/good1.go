@@ -1,4 +1,4 @@
-package good //@diag("package", "no_diagnostics", "", "error")
+package good
 
 import (
 	"golang.org/lsptests/types" //@item(types_import, "types", "\"golang.org/lsptests/types\"", "package")

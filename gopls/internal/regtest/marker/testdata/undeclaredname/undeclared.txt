@@ -1,0 +1,62 @@
+Tests of suggested fixes for "undeclared name" diagnostics,
+which are of ("compiler", "error") type.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a.go --
+package p
+
+func a() {
+	z, _ := 1+y, 11 //@suggestedfix("y", re"(undeclared name|undefined): y", "quickfix", a)
+	_ = z
+}
+
+-- @a/a.go --
+package p
+
+func a() {
+	y := 
+	z, _ := 1+y, 11 //@suggestedfix("y", re"(undeclared name|undefined): y", "quickfix", a)
+	_ = z
+}
+
+-- b.go --
+package p
+
+func b() {
+	if 100 < 90 {
+	} else if 100 > n+2 { //@suggestedfix("n", re"(undeclared name|undefined): n", "quickfix", b)
+	}
+}
+
+-- @b/b.go --
+package p
+
+func b() {
+	n := 
+	if 100 < 90 {
+	} else if 100 > n+2 { //@suggestedfix("n", re"(undeclared name|undefined): n", "quickfix", b)
+	}
+}
+
+-- c.go --
+package p
+
+func c() {
+	for i < 200 { //@suggestedfix("i", re"(undeclared name|undefined): i", "quickfix", c)
+	}
+	r() //@diag("r", re"(undeclared name|undefined): r")
+}
+
+-- @c/c.go --
+package p
+
+func c() {
+	i := 
+	for i < 200 { //@suggestedfix("i", re"(undeclared name|undefined): i", "quickfix", c)
+	}
+	r() //@diag("r", re"(undeclared name|undefined): r")
+}
+

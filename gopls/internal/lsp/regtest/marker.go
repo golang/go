@@ -132,7 +132,15 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //
 //   - diag(location, regexp): specifies an expected diagnostic matching the
 //     given regexp at the given location. The test runner requires
-//     a 1:1 correspondence between observed diagnostics and diag annotations
+//     a 1:1 correspondence between observed diagnostics and diag annotations.
+//
+//     The marker must accurately represent the diagnostic's range.
+//     Use grouping parens in the location regular expression to indicate
+//     a portion in context.
+//     TODO(adonovan): make this less strict, like the old framework.
+//
+//     TODO(adonovan): in the older marker framework, the annotation asserted
+//     two additional fields (source="compiler", kind="error"). Restore them?
 //
 //   - def(src, dst location): perform a textDocument/definition request at
 //     the src location, and check the result points to the dst location.
@@ -1206,7 +1214,7 @@ func completeMarker(mark marker, src protocol.Location, want ...string) {
 	}
 }
 
-// defMarker implements the @godef marker, running textDocument/definition at
+// defMarker implements the @def marker, running textDocument/definition at
 // the given src location and asserting that there is exactly one resulting
 // location, matching dst.
 //

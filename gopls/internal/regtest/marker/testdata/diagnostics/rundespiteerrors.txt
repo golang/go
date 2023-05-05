@@ -1,0 +1,27 @@
+This test verifies that analyzers without RunDespiteErrors are not
+executed on a package containing type errors (see issue #54762).
+
+We require go1.18 because the range of the `1 + ""` go/types error
+changed then, and the new @diag marker is quite particular.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- flags --
+-min_go=go1.18
+
+-- a.go --
+package a
+
+func _() {
+	// A type error.
+	_ = 1 + "" //@diag(`1 + ""`, re"mismatched types|cannot convert")
+
+	// A violation of an analyzer for which RunDespiteErrors=false:
+	// no (simplifyrange, warning) diagnostic is produced; the diag
+	// comment is merely illustrative.
+	for _ = range "" { //diag("for _", "simplify range expression", )
+
+	}
+}

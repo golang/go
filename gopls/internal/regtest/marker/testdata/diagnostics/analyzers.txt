@@ -1,0 +1,32 @@
+Test of warning diagnostics from various analyzers:
+tests, copylocks, printf, and timeformat.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- bad_test.go --
+package analyzer
+
+import (
+	"fmt"
+	"sync"
+	"testing"
+	"time"
+)
+
+func Testbad(t *testing.T) { //@diag("", re"Testbad has malformed name: first letter after 'Test' must not be lowercase")
+	var x sync.Mutex
+	_ = x //@diag("x", re"assignment copies lock value to _: sync.Mutex")
+
+	printfWrapper("%s") //@diag(re`printfWrapper\(.*\)`, re"example.com.printfWrapper format %s reads arg #1, but call has 0 args")
+}
+
+func printfWrapper(format string, args ...interface{}) {
+	fmt.Printf(format, args...)
+}
+
+func _() {
+	now := time.Now()
+	fmt.Println(now.Format("2006-02-01")) //@diag("2006-02-01", re"2006-02-01 should be 2006-01-02")
+}
