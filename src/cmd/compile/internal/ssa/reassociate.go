@@ -96,29 +96,11 @@ func probablyMemcombine(op Op, leafs []*Value) bool {
 // and groups constants together catch more constant folding opportunities.
 //
 // a + b + c + d compiles to to (a + (b + (c + d)) which is an unbalanced expression tree
-// that looks like
-//
-//   - (v1)
-//     / \
-//     a   + (v2)
-//     / \
-//     b   + (v3)
-//     / \
-//     c   d
-//
 // Which is suboptimal since it requires the CPU to compute v3 before fetching it use its result in
 // v2, and v2 before its use in v1
-// This optimization rebalances the expression tree to:
 //
-//   - (v1)
-//     /   \
-//
-// (v2) +     + (v3)
-//
-//	 / \   / \
-//	a   b c   d
-//
-// Which removes such dependencies and frees up the CPU pipeline.
+// This optimization rebalances this expression tree to look like (a + b) + (c + d) ,
+// which removes such dependencies and frees up the CPU pipeline.
 //
 // The above optimization is a good starting point for other sorts of operations such as
 // turning a + a + a => 3*a, cancelling pairs a + (-a), collecting up common factors TODO(ryan-berger)
