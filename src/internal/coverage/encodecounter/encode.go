@@ -28,7 +28,6 @@ type CoverageDataWriter struct {
 	w       *bufio.Writer
 	csh     coverage.CounterSegmentHeader
 	tmp     []byte
-	nfuncs  uint64
 	cflavor coverage.CounterFlavor
 	segs    uint32
 	debug   bool
@@ -86,16 +85,24 @@ func padToFourByteBoundary(ws *slicewriter.WriteSeeker) error {
 }
 
 func (cfw *CoverageDataWriter) patchSegmentHeader(ws *slicewriter.WriteSeeker) error {
+	// record position
+	off, err := ws.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return fmt.Errorf("error seeking in patchSegmentHeader: %v", err)
+	}
+	// seek back to start so that we can update the segment header
 	if _, err := ws.Seek(0, io.SeekStart); err != nil {
 		return fmt.Errorf("error seeking in patchSegmentHeader: %v", err)
 	}
-	cfw.csh.FcnEntries = cfw.nfuncs
-	cfw.nfuncs = 0
 	if cfw.debug {
 		fmt.Fprintf(os.Stderr, "=-= writing counter segment header: %+v", cfw.csh)
 	}
 	if err := binary.Write(ws, binary.LittleEndian, cfw.csh); err != nil {
 		return err
+	}
+	// ... and finally return to the original offset.
+	if _, err := ws.Seek(off, io.SeekStart); err != nil {
+		return fmt.Errorf("error seeking in patchSegmentHeader: %v", err)
 	}
 	return nil
 }
@@ -167,8 +174,7 @@ func (cfw *CoverageDataWriter) AppendSegment(args map[string]string, visitor Cou
 		cfw.stab.Lookup(v)
 	}
 
-	var swws slicewriter.WriteSeeker
-	ws := &swws
+	ws := &slicewriter.WriteSeeker{}
 	if err = cfw.writeSegmentPreamble(args, ws); err != nil {
 		return err
 	}
@@ -253,7 +259,7 @@ func (cfw *CoverageDataWriter) writeCounters(visitor CounterVisitor, ws *slicewr
 
 	// Write out entries for each live function.
 	emitter := func(pkid uint32, funcid uint32, counters []uint32) error {
-		cfw.nfuncs++
+		cfw.csh.FcnEntries++
 		if err := wrval(uint32(len(counters))); err != nil {
 			return err
 		}
