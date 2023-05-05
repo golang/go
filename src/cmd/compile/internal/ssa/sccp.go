@@ -65,11 +65,13 @@ type worklist struct {
 	defBlock     map[*Value][]*Block // use blocks of def
 }
 
+// possibleConst checks if Value can be fold to const. For those Values that can never become
+// constants(e.g. StaticCall), we don't make futile efforts.
 func possibleConst(val *Value) bool {
+	if isConst(val) {
+		return true
+	}
 	switch val.Op {
-	case OpConst64, OpConst32, OpConst16, OpConst8,
-		OpConstBool, OpConst32F, OpConst64F:
-		fallthrough
 	case OpCopy:
 		fallthrough
 	case OpPhi:
@@ -79,7 +81,7 @@ func possibleConst(val *Value) bool {
 		OpNeg8, OpNeg16, OpNeg32, OpNeg64, OpNeg32F, OpNeg64F,
 		OpCom8, OpCom16, OpCom32, OpCom64,
 		// math
-		OpFloor, OpCeil, OpTrunc, OpRoundToEven,
+		OpFloor, OpCeil, OpTrunc, OpRoundToEven, OpSqrt,
 		// conversion
 		OpTrunc16to8, OpTrunc32to8, OpTrunc32to16, OpTrunc64to8,
 		OpTrunc64to16, OpTrunc64to32, OpCvt32to32F, OpCvt32to64F,
@@ -89,6 +91,12 @@ func possibleConst(val *Value) bool {
 		OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64, OpZeroExt16to32,
 		OpZeroExt16to64, OpZeroExt32to64, OpSignExt8to16, OpSignExt8to32,
 		OpSignExt8to64, OpSignExt16to32, OpSignExt16to64, OpSignExt32to64,
+		// bit
+		OpCtz8, OpCtz16, OpCtz32, OpCtz64,
+		// mask
+		OpSlicemask,
+		// safety check
+		OpIsNonNil,
 		// not
 		OpNot:
 		fallthrough
@@ -122,7 +130,7 @@ func possibleConst(val *Value) bool {
 		OpLsh64x64, OpRsh64x64, OpRsh64Ux64, OpLsh32x64,
 		OpRsh32x64, OpRsh32Ux64, OpLsh16x64, OpRsh16x64,
 		OpRsh16Ux64, OpLsh8x64, OpRsh8x64, OpRsh8Ux64,
-		// inbound safety check
+		// safety check
 		OpIsInBounds, OpIsSliceInBounds,
 		// bit
 		OpAnd8, OpAnd16, OpAnd32, OpAnd64,
@@ -308,7 +316,7 @@ func (t *worklist) visitValue(val *Value) {
 		OpNeg8, OpNeg16, OpNeg32, OpNeg64, OpNeg32F, OpNeg64F,
 		OpCom8, OpCom16, OpCom32, OpCom64,
 		// math
-		OpFloor, OpCeil, OpTrunc, OpRoundToEven,
+		OpFloor, OpCeil, OpTrunc, OpRoundToEven, OpSqrt,
 		// conversion
 		OpTrunc16to8, OpTrunc32to8, OpTrunc32to16, OpTrunc64to8,
 		OpTrunc64to16, OpTrunc64to32, OpCvt32to32F, OpCvt32to64F,
@@ -318,6 +326,12 @@ func (t *worklist) visitValue(val *Value) {
 		OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64, OpZeroExt16to32,
 		OpZeroExt16to64, OpZeroExt32to64, OpSignExt8to16, OpSignExt8to32,
 		OpSignExt8to64, OpSignExt16to32, OpSignExt16to64, OpSignExt32to64,
+		// bit
+		OpCtz8, OpCtz16, OpCtz32, OpCtz64,
+		// mask
+		OpSlicemask,
+		// safety check
+		OpIsNonNil,
 		// not
 		OpNot:
 		var lt1 = t.getLatticeCell(val.Args[0])
@@ -359,7 +373,7 @@ func (t *worklist) visitValue(val *Value) {
 		OpLsh64x64, OpRsh64x64, OpRsh64Ux64, OpLsh32x64,
 		OpRsh32x64, OpRsh32Ux64, OpLsh16x64, OpRsh16x64,
 		OpRsh16Ux64, OpLsh8x64, OpRsh8x64, OpRsh8Ux64,
-		// inbound safety check
+		// safety check
 		OpIsInBounds, OpIsSliceInBounds,
 		// bit
 		OpAnd8, OpAnd16, OpAnd32, OpAnd64,
@@ -449,10 +463,22 @@ func (t *worklist) replaceConst() (int, int) {
 					block.ResetControls()
 					rewireCnt++
 					if t.f.pass.debug > 0 {
-						fmt.Printf("Rewire %v successors\n", block)
+						fmt.Printf("Rewire BlockIf %v successors\n", block)
 					}
 				case BlockJumpTable:
-					// TODO: optimize jump table
+					var idx = int(lt.val.AuxInt)
+					var targetBlock = block.Succs[idx].b
+					for len(block.Succs) > 0 {
+						block.removeEdge(0)
+					}
+					block.AddEdgeTo(targetBlock)
+					block.Kind = BlockPlain
+					block.Likely = BranchUnknown
+					block.ResetControls()
+					rewireCnt++
+					if t.f.pass.debug > 0 {
+						fmt.Printf("Rewire JumpTable %v successors\n", block)
+					}
 				}
 			}
 		}
