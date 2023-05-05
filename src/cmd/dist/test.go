@@ -301,6 +301,8 @@ type goTest struct {
 	dir string   // If non-empty, run in GOROOT/src-relative directory dir
 	env []string // Environment variables to add, as KEY=VAL. KEY= unsets a variable
 
+	runOnHost bool // When cross-compiling, run this test on the host instead of guest
+
 	// We have both pkg and pkgs as a convenience. Both may be set, in which
 	// case they will be combined. If both are empty, the default is ".".
 	pkgs []string // Multiple packages to test
@@ -312,7 +314,7 @@ type goTest struct {
 // bgCommand returns a go test Cmd. The result has Stdout and Stderr set to nil
 // and is intended to be added to the work queue.
 func (opts *goTest) bgCommand(t *tester) *exec.Cmd {
-	goCmd, build, run, pkgs, setupCmd := opts.buildArgs(t)
+	goCmd, build, run, pkgs, testFlags, setupCmd := opts.buildArgs(t)
 
 	// Combine the flags.
 	args := append([]string{"test"}, build...)
@@ -323,7 +325,7 @@ func (opts *goTest) bgCommand(t *tester) *exec.Cmd {
 	}
 	args = append(args, pkgs...)
 	if !t.compileOnly {
-		args = append(args, opts.testFlags...)
+		args = append(args, testFlags...)
 	}
 
 	cmd := exec.Command(goCmd, args...)
@@ -352,7 +354,7 @@ func (opts *goTest) run(t *tester) error {
 // the host, but its resulting binaries will be run through a go_exec wrapper
 // that runs them on the target.
 func (opts *goTest) runHostTest(t *tester) error {
-	goCmd, build, run, pkgs, setupCmd := opts.buildArgs(t)
+	goCmd, build, run, pkgs, testFlags, setupCmd := opts.buildArgs(t)
 
 	// Build the host test binary
 	if len(pkgs) != 1 {
@@ -400,7 +402,7 @@ func (opts *goTest) runHostTest(t *tester) error {
 	}
 
 	// Run the test
-	args = append(run, opts.testFlags...)
+	args = append(run, testFlags...)
 	cmd = exec.Command(bin, args...)
 	setupCmd(cmd)
 	cmd.Stdout = os.Stdout
@@ -414,11 +416,12 @@ func (opts *goTest) runHostTest(t *tester) error {
 // buildArgs is in internal helper for goTest that constructs the elements of
 // the "go test" command line. goCmd is the path to the go command to use. build
 // is the flags for building the test. run is the flags for running the test.
-// pkgs is the list of packages to build and run.
+// pkgs is the list of packages to build and run. testFlags is the list of flags
+// to pass to the test package.
 //
-// The caller is responsible for adding opts.testFlags, and must call setupCmd
-// on the resulting exec.Cmd to set its directory and environment.
-func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs []string, setupCmd func(*exec.Cmd)) {
+// The caller must call setupCmd on the resulting exec.Cmd to set its directory
+// and environment.
+func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs, testFlags []string, setupCmd func(*exec.Cmd)) {
 	goCmd = gorootBinGo
 	if opts.goroot != "" {
 		goCmd = filepath.Join(opts.goroot, "bin", "go")
@@ -482,6 +485,16 @@ func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs []strin
 		pkgs = []string{"."}
 	}
 
+	runOnHost := opts.runOnHost && (goarch != gohostarch || goos != gohostos)
+	needTestFlags := len(opts.testFlags) > 0 || runOnHost
+	if needTestFlags {
+		testFlags = append([]string{"-args"}, opts.testFlags...)
+	}
+	if runOnHost {
+		// -target is a special flag understood by tests that can run on the host
+		testFlags = append(testFlags, "-target="+goos+"/"+goarch)
+	}
+
 	thisGoroot := goroot
 	if opts.goroot != "" {
 		thisGoroot = opts.goroot
@@ -505,6 +518,10 @@ func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs []strin
 					setEnv(cmd, kv[:i], kv[i+1:])
 				}
 			}
+		}
+		if runOnHost {
+			setEnv(cmd, "GOARCH", gohostarch)
+			setEnv(cmd, "GOOS", gohostos)
 		}
 	}
 
@@ -929,8 +946,8 @@ func (t *tester) registerTests() {
 				&goTest{
 					dir:       "internal/testdir",
 					testFlags: []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
+					runOnHost: true,
 				},
-				rtHostTest{},
 			)
 		}
 	}

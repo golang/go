@@ -40,6 +40,7 @@ var (
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
 	force          = flag.Bool("f", false, "ignore expected-failure test lists")
+	target         = flag.String("target", "", "cross-compile tests for `goos/goarch`")
 
 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
@@ -56,8 +57,8 @@ func defaultAllCodeGen() bool {
 var (
 	// Package-scoped variables that are initialized at the start of Test.
 	goTool       string
-	goos         string
-	goarch       string
+	goos         string // Target GOOS
+	goarch       string // Target GOARCH
 	cgoEnabled   bool
 	goExperiment string
 
@@ -71,6 +72,20 @@ var (
 // Each .go file test case in GOROOT/test is registered as a subtest with a
 // a full name like "Test/fixedbugs/bug000.go" ('/'-separated relative path).
 func Test(t *testing.T) {
+	if *target != "" {
+		// When -target is set, propagate it to GOOS/GOARCH in our environment
+		// so that all commands run with the target GOOS/GOARCH.
+		//
+		// We do this before even calling "go env", because GOOS/GOARCH can
+		// affect other settings we get from go env (notably CGO_ENABLED).
+		goos, goarch, ok := strings.Cut(*target, "/")
+		if !ok {
+			t.Fatalf("bad -target flag %q, expected goos/goarch", *target)
+		}
+		t.Setenv("GOOS", goos)
+		t.Setenv("GOARCH", goarch)
+	}
+
 	goTool = testenv.GoToolPath(t)
 	cmd := exec.Command(goTool, "env", "-json")
 	stdout, err := cmd.StdoutPipe()
