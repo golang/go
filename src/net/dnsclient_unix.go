@@ -810,15 +810,18 @@ func (r *Resolver) goLookupCNAME(ctx context.Context, host string, order hostLoo
 }
 
 // goLookupPTR is the native Go implementation of LookupAddr.
-// Used only if cgoLookupPTR refuses to handle the request (that is,
-// only if cgoLookupPTR is the stub in cgo_stub.go).
-// Normally we let cgo use the C library resolver instead of depending
-// on our lookup code, so that Go and C get the same answers.
-func (r *Resolver) goLookupPTR(ctx context.Context, addr string, conf *dnsConfig) ([]string, error) {
-	names := lookupStaticAddr(addr)
-	if len(names) > 0 {
-		return names, nil
+func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLookupOrder, conf *dnsConfig) ([]string, error) {
+	if order == hostLookupFiles || order == hostLookupFilesDNS {
+		names := lookupStaticAddr(addr)
+		if len(names) > 0 {
+			return names, nil
+		}
+
+		if order == hostLookupFiles {
+			return nil, &DNSError{Err: errNoSuchHost.Error(), Name: addr, IsNotFound: true}
+		}
 	}
+
 	arpa, err := reverseaddr(addr)
 	if err != nil {
 		return nil, err
@@ -862,5 +865,17 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, conf *dnsConfig
 		ptrs = append(ptrs, ptr.PTR.String())
 
 	}
-	return ptrs, nil
+
+	if len(ptrs) > 0 {
+		return ptrs, nil
+	}
+
+	if order == hostLookupDNSFiles {
+		names := lookupStaticAddr(addr)
+		if len(names) > 0 {
+			return names, nil
+		}
+	}
+
+	return nil, &DNSError{Err: errNoSuchHost.Error(), Name: addr, IsNotFound: true}
 }
