@@ -2116,7 +2116,7 @@ func test27660(t *testing.T) {
 // issue 28540
 
 func twoargsF() {
-	v := []string{}
+	var v struct{ p *byte }
 	C.twoargs1(C.twoargs2(), C.twoargs3(unsafe.Pointer(&v)))
 }
 
