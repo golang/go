@@ -7,7 +7,6 @@ package net
 import (
 	"errors"
 	"internal/bytealg"
-	"io/fs"
 	"net/netip"
 	"sync"
 	"time"
@@ -67,12 +66,10 @@ func readHosts() {
 
 	file, err := open(hp)
 	if err != nil {
-		// Return only on temporary errors, so that
-		// the hosts cache gets cleaned up on errors
-		// like: access, file not exist errors.
-		var pathError *fs.PathError
+		// Return only on temporary errors (EMFILE, ENFILE), so that
+		// the hosts cache gets cleaned up on errors like: access, file not exist.
 		var temporary interface{ Temporary() bool }
-		if errors.As(err, &pathError) && errors.As(pathError.Err, &temporary) && temporary.Temporary() {
+		if errors.As(err, &temporary) && temporary.Temporary() {
 			return
 		}
 	}
