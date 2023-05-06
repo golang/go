@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build cgo
+
 // Test that we can link together two different cgo packages that both
 // use the same libgcc function.
 
