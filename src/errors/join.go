@@ -38,11 +38,14 @@ type joinError struct {
 }
 
 func (e *joinError) Error() string {
-	var b []byte
-	for i, err := range e.errs {
-		if i > 0 {
-			b = append(b, '\n')
-		}
+	// Assert len(e.errs) > 0.
+	if len(e.errs) == 1 {
+		return e.errs[0].Error()
+	}
+
+	b := []byte(e.errs[0].Error())
+	for _, err := range e.errs[1:] {
+		b = append(b, '\n')
 		b = append(b, err.Error()...)
 	}
 	return string(b)
