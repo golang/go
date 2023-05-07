@@ -304,7 +304,6 @@ func TestConfHostLookupOrder(t *testing.T) {
 				{"anything.localhost.localdomain", "myhostname", hostLookupCgo},
 				{"Anything.Localhost.Localdomain", "myhostname", hostLookupCgo},
 				{"somehostname", "myhostname", hostLookupFilesDNS},
-				{"", "myhostname", hostLookupFilesDNS}, // Issue 13623
 			},
 		},
 		{

@@ -197,7 +197,7 @@ func (c *conf) addrLookupOrder(r *Resolver, addr string) (ret hostLookupOrder, d
 			print("go package net: addrLookupOrder(", addr, ") = ", ret.String(), "\n")
 		}()
 	}
-	return c.lookupOrder(r, true, "")
+	return c.lookupOrder(r, "")
 }
 
 // hostLookupOrder determines which strategy to use to resolve hostname.
@@ -209,10 +209,10 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
 		}()
 	}
-	return c.lookupOrder(r, false, hostname)
+	return c.lookupOrder(r, hostname)
 }
 
-func (c *conf) lookupOrder(r *Resolver, addrLookup bool, hostname string) (ret hostLookupOrder, dnsConf *dnsConfig) {
+func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, dnsConf *dnsConfig) {
 	// fallbackOrder is the order we return if we can't figure it out.
 	var fallbackOrder hostLookupOrder
 
@@ -375,7 +375,7 @@ func (c *conf) lookupOrder(r *Resolver, addrLookup bool, hostname string) (ret h
 
 		if canUseCgo {
 			switch {
-			case !addrLookup && src.source == "myhostname":
+			case hostname != "" && src.source == "myhostname":
 				// Let the cgo resolver handle myhostname
 				// if we are looking up the local hostname.
 				if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
@@ -386,7 +386,7 @@ func (c *conf) lookupOrder(r *Resolver, addrLookup bool, hostname string) (ret h
 					return hostLookupCgo, dnsConf
 				}
 				continue
-			case !addrLookup && stringsHasPrefix(src.source, "mdns"):
+			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
 				// e.g. "mdns4", "mdns4_minimal"
 				// We already returned true before if it was *.local.
 				// libc wouldn't have found a hit on this anyway.
