@@ -263,6 +263,7 @@ var optab = []Optab{
 	{ASLLV, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 16, 4, 0, 0},
 
 	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+	{ASYSCALL, C_ANDCON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 
 	{ABEQ, C_REG, C_REG, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
 	{ABEQ, C_REG, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
@@ -354,16 +355,10 @@ var optab = []Optab{
 	{ATEQ, C_SCON, C_REG, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
 	{ATEQ, C_SCON, C_NONE, C_NONE, C_REG, C_NONE, 15, 8, 0, 0},
 
-	{ABREAK, C_REG, C_NONE, C_NONE, C_SEXT, C_NONE, 7, 4, 0, 0}, // really CACHE instruction
-	{ABREAK, C_REG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGSP, 0},
-	{ABREAK, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
-	{ABREAK, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
-
 	{ARDTIMELW, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
-	{ARDTIMEHW, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
-	{ARDTIMED, C_NONE, C_NONE, C_NONE, C_REG, C_REG, 62, 4, 0, 0},
 
-	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0},
+	{ANOOP, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 49, 4, 0, 0},
+
 	{obj.APCALIGN, C_SCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0},
 	{obj.APCDATA, C_DCON, C_NONE, C_NONE, C_DCON, C_NONE, 0, 0, 0, 0},
@@ -567,7 +562,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			v := pcAlignPadLength(c.ctxt, p.Pc, alignedValue)
 			for i = 0; i < int32(v/4); i++ {
 				// emit ANOOP instruction by the padding size
-				c.ctxt.Arch.ByteOrder.PutUint32(bp, c.oprrr(ANOOP))
+				c.ctxt.Arch.ByteOrder.PutUint32(bp, OP_12IRR(c.opirr(AAND), 0, 0, 0))
 				bp = bp[4:]
 			}
 			continue
@@ -1130,7 +1125,7 @@ func buildop(ctxt *obj.Link) {
 
 		case ASYSCALL:
 			opset(ADBAR, r0)
-			opset(ANOOP, r0)
+			opset(ABREAK, r0)
 
 		case ACMPEQF:
 			opset(ACMPGTF, r0)
@@ -1152,7 +1147,6 @@ func buildop(ctxt *obj.Link) {
 			AMOVD,
 			AMOVF,
 			AMOVV,
-			ABREAK,
 			ARFE,
 			AJAL,
 			AJMP,
@@ -1164,18 +1158,18 @@ func buildop(ctxt *obj.Link) {
 			ANEGW,
 			ANEGV,
 			AWORD,
-			ARDTIMELW,
-			ARDTIMEHW,
-			ARDTIMED,
 			obj.ANOP,
 			obj.ATEXT,
-			obj.AUNDEF,
 			obj.AFUNCDATA,
 			obj.APCALIGN,
 			obj.APCDATA,
 			obj.ADUFFZERO,
 			obj.ADUFFCOPY:
 			break
+
+		case ARDTIMELW:
+			opset(ARDTIMEHW, r0)
+			opset(ARDTIMED, r0)
 
 		case ACLO:
 			opset(ACLZ, r0)
@@ -1185,6 +1179,9 @@ func buildop(ctxt *obj.Link) {
 
 		case AMASKEQZ:
 			opset(AMASKNEZ, r0)
+
+		case ANOOP:
+			opset(obj.AUNDEF, r0)
 		}
 	}
 }
@@ -1228,6 +1225,10 @@ func OP_12IRR(op uint32, i uint32, r2 uint32, r3 uint32) uint32 {
 
 func OP_IR(op uint32, i uint32, r2 uint32) uint32 {
 	return op | (i&0xFFFFF)<<5 | (r2&0x1F)<<0 // ui20, rd5
+}
+
+func OP_15I(op uint32, i uint32) uint32 {
+	return op | (i&0x7FFF)<<0
 }
 
 // Encoding for the 'b' or 'bl' instruction.
@@ -1295,7 +1296,8 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_12IRR(c.opirr(p.As), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 5: // syscall
-		o1 = c.oprrr(p.As)
+		v := c.regoff(&p.From)
+		o1 = OP_15I(c.opi(p.As), uint32(v))
 
 	case 6: // beq r1,[r2],sbra
 		v := int32(0)
@@ -1439,7 +1441,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		} else { // ATNE
 			o1 = OP_16IRR(c.opirr(ABEQ), uint32(2), uint32(r), uint32(p.To.Reg))
 		}
-		o2 = c.oprrr(ABREAK) | (uint32(v) & 0x7FFF)
+		o2 = OP_15I(c.opi(ABREAK), uint32(v))
 
 	case 16: // sll $c,[r1],r2
 		v := c.regoff(&p.From)
@@ -1609,9 +1611,14 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		a := OP_TEN(8, 1326) // movfr2gr.d
 		o1 = OP_RR(a, uint32(p.From.Reg), uint32(p.To.Reg))
 
-	case 49: // undef
-		o1 = c.oprrr(ABREAK)
-
+	case 49:
+		if p.As == ANOOP {
+			// andi r0, r0, 0
+			o1 = OP_12IRR(c.opirr(AAND), 0, 0, 0)
+		} else {
+			// undef
+			o1 = OP_15I(c.opi(ABREAK), 0)
+		}
 	// relocation operations
 	case 50: // mov r,addr ==> pcalau12i + sw
 		o1 = OP_IR(c.opir(APCALAU12I), uint32(0), uint32(REGTMP))
@@ -1918,10 +1925,6 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 	case AJAL:
 		return (0x13 << 26) | 1 // jirl r1, rj, 0
 
-	case ABREAK:
-		return 0x54 << 15
-	case ASYSCALL:
-		return 0x56 << 15
 	case ADIVF:
 		return 0x20d << 15
 	case ADIVD:
@@ -1995,12 +1998,6 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
 		return 0x4511 << 10
 	case ASQRTD:
 		return 0x4512 << 10
-
-	case ADBAR:
-		return 0x70e4 << 15
-	case ANOOP:
-		// andi r0, r0, 0
-		return 0x03400000
 	}
 
 	if a < 0 {
@@ -2026,6 +2023,21 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
 	}
 
 	c.ctxt.Diag("bad rr opcode %v", a)
+	return 0
+}
+
+func (c *ctxt0) opi(a obj.As) uint32 {
+	switch a {
+	case ASYSCALL:
+		return 0x56 << 15
+	case ABREAK:
+		return 0x54 << 15
+	case ADBAR:
+		return 0x70e4 << 15
+	}
+
+	c.ctxt.Diag("bad ic opcode %v", a)
+
 	return 0
 }
 
@@ -2125,10 +2137,6 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
 		return 0x0be << 22
 	case AMOVVR:
 		return 0x0bf << 22
-
-	case ABREAK:
-		return 0x018 << 22
-
 	case -AMOVWL:
 		return 0x0b8 << 22
 	case -AMOVWR:
