@@ -345,6 +345,7 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 			go dnsWaitGroupDone(ch, lookupGroupCancel)
 		}
 		var err string
+		// Added to handle panic issues.
 		if ctxErr := mapErr(ctx.Err()); ctxErr != nil {
 			err = ctxErr.Error()
 		}
