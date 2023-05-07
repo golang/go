@@ -828,6 +828,15 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 	}
 	p, server, err := r.lookup(ctx, arpa, dnsmessage.TypePTR, conf)
 	if err != nil {
+		var dnsErr *DNSError
+		if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+			if order == hostLookupDNSFiles {
+				names := lookupStaticAddr(addr)
+				if len(names) > 0 {
+					return names, nil
+				}
+			}
+		}
 		return nil, err
 	}
 	var ptrs []string
@@ -866,16 +875,5 @@ func (r *Resolver) goLookupPTR(ctx context.Context, addr string, order hostLooku
 
 	}
 
-	if len(ptrs) > 0 {
-		return ptrs, nil
-	}
-
-	if order == hostLookupDNSFiles {
-		names := lookupStaticAddr(addr)
-		if len(names) > 0 {
-			return names, nil
-		}
-	}
-
-	return nil, &DNSError{Err: errNoSuchHost.Error(), Name: addr, IsNotFound: true}
+	return ptrs, nil
 }
