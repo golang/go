@@ -121,7 +121,7 @@ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error
 	if order == hostLookupCgo {
 		return cgoLookupPTR(ctx, addr)
 	}
-	return r.goLookupPTR(ctx, addr, conf)
+	return r.goLookupPTR(ctx, addr, order, conf)
 }
 
 // concurrentThreadsLimit returns the number of threads we permit to

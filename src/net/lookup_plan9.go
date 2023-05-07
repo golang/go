@@ -361,8 +361,8 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) (txt []string, er
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) (name []string, err error) {
-	if _, conf, preferGo := r.preferGoOverPlan9WithOrderAndConf(); preferGo {
-		return r.goLookupPTR(ctx, addr, conf)
+	if order, conf, preferGo := r.preferGoOverPlan9WithOrderAndConf(); preferGo {
+		return r.goLookupPTR(ctx, addr, order, conf)
 	}
 	arpa, err := reverseaddr(addr)
 	if err != nil {

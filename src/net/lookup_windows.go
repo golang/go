@@ -374,8 +374,8 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupPTR(ctx, addr, nil)
+	if order, conf := systemConf().hostLookupOrder(r, ""); order != hostLookupCgo {
+		return r.goLookupPTR(ctx, addr, order, conf)
 	}
 
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.
