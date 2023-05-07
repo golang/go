@@ -21,7 +21,7 @@ import (
 
 func TestRepeatBootstrap(t *testing.T) {
 	if testing.Short() {
-		t.Skipf("skipping test that rebuilds the entire toolchain")
+		t.Skip("skipping test that rebuilds the entire toolchain")
 	}
 	switch runtime.GOOS {
 	case "android", "ios", "js", "wasip1":
