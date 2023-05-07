@@ -117,7 +117,7 @@ func checkReuse(ctx context.Context, path string, old *codehost.Origin) error {
 // version. Any other error indicates the function was unable to determine
 // whether the version should be allowed, for example, the function was unable
 // to fetch or parse a go.mod file containing retractions. Typically, errors
-// other than ErrDisallowd may be ignored.
+// other than ErrDisallowed may be ignored.
 type AllowedFunc func(context.Context, module.Version) error
 
 var errQueryDisabled error = queryDisabledError{}
@@ -521,7 +521,7 @@ func (qm *queryMatcher) filterVersions(ctx context.Context, versions []string) (
 		}
 
 		if !needIncompatible {
-			// We're not yet sure whether we need to include +incomptaible versions.
+			// We're not yet sure whether we need to include +incompatible versions.
 			// Keep track of the last compatible version we've seen, and use the
 			// presence (or absence) of a go.mod file in that version to decide: a
 			// go.mod file implies that the module author is supporting modules at a
@@ -1018,7 +1018,7 @@ func (e *PackageNotInModuleError) ImportPath() string {
 // 1.12 at least have a go directive.
 //
 // This function is a heuristic, since it's possible to commit a file that would
-// pass this test. However, we only need a heurstic for determining whether
+// pass this test. However, we only need a heuristic for determining whether
 // +incompatible versions may be "latest", which is what this function is used
 // for.
 //

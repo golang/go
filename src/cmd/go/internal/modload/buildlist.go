@@ -42,7 +42,7 @@ type Requirements struct {
 
 	// rootModules is the set of root modules of the graph, sorted and capped to
 	// length. It may contain duplicates, and may contain multiple versions for a
-	// given module path. The root modules of the groph are the set of main
+	// given module path. The root modules of the graph are the set of main
 	// modules in workspace mode, and the main module's direct requirements
 	// outside workspace mode.
 	rootModules    []module.Version
@@ -789,7 +789,7 @@ func tidyPrunedRoots(ctx context.Context, mainModule module.Version, direct map[
 //     to the build is required by either the main module or one of the modules
 //     it requires explicitly. This invariant is left up to the caller, who must
 //     not load packages from outside the module graph but may add roots to the
-//     graph, but is facilited by (3). If the caller adds roots to the graph in
+//     graph, but is facilitated by (3). If the caller adds roots to the graph in
 //     order to resolve missing packages, then updatePrunedRoots will retain them,
 //     the selected versions of those roots cannot regress, and they will
 //     eventually be written back to the main module's go.mod file.
@@ -1258,12 +1258,12 @@ func convertPruning(ctx context.Context, rs *Requirements, pruning modPruning) (
 	if rs.pruning == pruning {
 		return rs, nil
 	} else if rs.pruning == workspace || pruning == workspace {
-		panic("attempthing to convert to/from workspace pruning and another pruning type")
+		panic("attempting to convert to/from workspace pruning and another pruning type")
 	}
 
 	if pruning == unpruned {
 		// We are converting a pruned module to an unpruned one. The roots of a
-		// ppruned module graph are a superset of the roots of an unpruned one, so
+		// pruned module graph are a superset of the roots of an unpruned one, so
 		// we don't need to add any new roots — we just need to drop the ones that
 		// are redundant, which is exactly what updateUnprunedRoots does.
 		return updateUnprunedRoots(ctx, rs.direct, rs, nil)
