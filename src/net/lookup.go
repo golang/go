@@ -344,11 +344,14 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 		} else {
 			go dnsWaitGroupDone(ch, lookupGroupCancel)
 		}
-		ctxErr := ctx.Err()
+		var err string
+		if ctxErr := mapErr(ctx.Err()); ctxErr != nil {
+			err = ctxErr.Error()
+		}
 		err := &DNSError{
-			Err:       mapErr(ctxErr).Error(),
+			Err:       err,
 			Name:      host,
-			IsTimeout: ctxErr == context.DeadlineExceeded,
+			IsTimeout: ctxErr == errTimeout,
 		}
 		if trace != nil && trace.DNSDone != nil {
 			trace.DNSDone(nil, false, err)
