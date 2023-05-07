@@ -188,6 +188,18 @@ func (c *conf) mustUseGoResolver(r *Resolver) bool {
 	return c.netGo || r.preferGo() || !cgoAvailable
 }
 
+// addrLookupOrder determines which strategy to use to resolve addresses.
+// The provided Resolver is optional. nil means to not consider its options.
+// It also returns dnsConfig when it was used to determine the lookup order.
+func (c *conf) addrLookupOrder(r *Resolver, addr string) (ret hostLookupOrder, dnsConf *dnsConfig) {
+	if c.dnsDebugLevel > 1 {
+		defer func() {
+			print("go package net: addrLookupOrder(", addr, ") = ", ret.String(), "\n")
+		}()
+	}
+	return c.lookupOrder(r, "")
+}
+
 // hostLookupOrder determines which strategy to use to resolve hostname.
 // The provided Resolver is optional. nil means to not consider its options.
 // It also returns dnsConfig when it was used to determine the lookup order.
@@ -197,7 +209,10 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			print("go package net: hostLookupOrder(", hostname, ") = ", ret.String(), "\n")
 		}()
 	}
+	return c.lookupOrder(r, hostname)
+}
 
+func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, dnsConf *dnsConfig) {
 	// fallbackOrder is the order we return if we can't figure it out.
 	var fallbackOrder hostLookupOrder
 
@@ -339,23 +354,9 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		return fallbackOrder, dnsConf
 	}
 
-	var mdnsSource, filesSource, dnsSource, unknownSource bool
+	var filesSource, dnsSource, unknownSource bool
 	var first string
 	for _, src := range srcs {
-		if src.source == "myhostname" {
-			// Let the cgo resolver handle myhostname
-			// if we are looking up the local hostname.
-			if canUseCgo {
-				if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
-					return hostLookupCgo, dnsConf
-				}
-				hn, err := getHostname()
-				if err != nil || stringsEqualFold(hostname, hn) {
-					return hostLookupCgo, dnsConf
-				}
-			}
-			continue
-		}
 		if src.source == "files" || src.source == "dns" {
 			if canUseCgo && !src.standardCriteria() {
 				// non-standard; let libc deal with it.
@@ -371,44 +372,55 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 			}
 			continue
 		}
-		if stringsHasPrefix(src.source, "mdns") {
-			// e.g. "mdns4", "mdns4_minimal"
-			// We already returned true before if it was *.local.
-			// libc wouldn't have found a hit on this anyway.
-			mdnsSource = true
-			continue
-		}
-		// Some source we don't know how to deal with.
+
 		if canUseCgo {
-			return hostLookupCgo, dnsConf
+			switch {
+			case hostname != "" && src.source == "myhostname":
+				// Let the cgo resolver handle myhostname
+				// if we are looking up the local hostname.
+				if isLocalhost(hostname) || isGateway(hostname) || isOutbound(hostname) {
+					return hostLookupCgo, dnsConf
+				}
+				hn, err := getHostname()
+				if err != nil || stringsEqualFold(hostname, hn) {
+					return hostLookupCgo, dnsConf
+				}
+				continue
+			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
+				// e.g. "mdns4", "mdns4_minimal"
+				// We already returned true before if it was *.local.
+				// libc wouldn't have found a hit on this anyway.
+
+				// We don't parse mdns.allow files. They're rare. If one
+				// exists, it might list other TLDs (besides .local) or even
+				// '*', so just let libc deal with it.
+				var haveMDNSAllow bool
+				switch c.mdnsTest {
+				case mdnsFromSystem:
+					_, err := os.Stat("/etc/mdns.allow")
+					if err != nil && !errors.Is(err, fs.ErrNotExist) {
+						// Let libc figure out what is going on.
+						return hostLookupCgo, dnsConf
+					}
+					haveMDNSAllow = err == nil
+				case mdnsAssumeExists:
+					haveMDNSAllow = true
+				case mdnsAssumeDoesNotExist:
+					haveMDNSAllow = false
+				}
+				if haveMDNSAllow {
+					return hostLookupCgo, dnsConf
+				}
+				continue
+			default:
+				// Some source we don't know how to deal with.
+				return hostLookupCgo, dnsConf
+			}
 		}
 
 		unknownSource = true
 		if first == "" {
 			first = src.source
-		}
-	}
-
-	// We don't parse mdns.allow files. They're rare. If one
-	// exists, it might list other TLDs (besides .local) or even
-	// '*', so just let libc deal with it.
-	if canUseCgo && mdnsSource {
-		var haveMDNSAllow bool
-		switch c.mdnsTest {
-		case mdnsFromSystem:
-			_, err := os.Stat("/etc/mdns.allow")
-			if err != nil && !errors.Is(err, fs.ErrNotExist) {
-				// Let libc figure out what is going on.
-				return hostLookupCgo, dnsConf
-			}
-			haveMDNSAllow = err == nil
-		case mdnsAssumeExists:
-			haveMDNSAllow = true
-		case mdnsAssumeDoesNotExist:
-			haveMDNSAllow = false
-		}
-		if haveMDNSAllow {
-			return hostLookupCgo, dnsConf
 		}
 	}
 

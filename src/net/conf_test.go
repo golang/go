@@ -304,7 +304,6 @@ func TestConfHostLookupOrder(t *testing.T) {
 				{"anything.localhost.localdomain", "myhostname", hostLookupCgo},
 				{"Anything.Localhost.Localdomain", "myhostname", hostLookupCgo},
 				{"somehostname", "myhostname", hostLookupFilesDNS},
-				{"", "myhostname", hostLookupFilesDNS}, // Issue 13623
 			},
 		},
 		{
@@ -390,6 +389,42 @@ func TestConfHostLookupOrder(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestAddrLookupOrder(t *testing.T) {
+	// This test is written for a system with cgo available,
+	// without using the netgo tag.
+	if netGoBuildTag {
+		t.Skip("skipping test because net package built with netgo tag")
+	}
+	if !cgoAvailable {
+		t.Skip("skipping test because cgo resolver not available")
+	}
+
+	defer setSystemNSS(getSystemNSS(), 0)
+	c, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.teardown()
+
+	if !c.forceUpdateConf(defaultResolvConf, time.Now().Add(time.Hour)) {
+		t.Fatal("failed to change resolv config")
+	}
+
+	setSystemNSS(nssStr(t, "hosts: files myhostname dns"), time.Hour)
+	cnf := &conf{}
+	order, _ := cnf.addrLookupOrder(nil, "192.0.2.1")
+	if order != hostLookupCgo {
+		t.Errorf("addrLookupOrder returned: %v, want cgo", order)
+	}
+
+	setSystemNSS(nssStr(t, "hosts: files mdns4 dns"), time.Hour)
+	order, _ = cnf.addrLookupOrder(nil, "192.0.2.1")
+	if order != hostLookupCgo {
+		t.Errorf("addrLookupOrder returned: %v, want cgo", order)
+	}
+
 }
 
 func setSystemNSS(nss *nssConf, addDur time.Duration) {

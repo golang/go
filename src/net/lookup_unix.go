@@ -117,7 +117,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
-	order, conf := systemConf().hostLookupOrder(r, "")
+	order, conf := systemConf().addrLookupOrder(r, addr)
 	if order == hostLookupCgo {
 		return cgoLookupPTR(ctx, addr)
 	}
