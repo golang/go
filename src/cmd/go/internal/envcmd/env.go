@@ -435,8 +435,7 @@ func PrintEnv(w io.Writer, env []cfg.EnvVar) {
 						if x > 0 {
 							fmt.Fprintf(w, " ")
 						}
-						// TODO(#59979): Does this need to be quoted like above?
-						fmt.Fprintf(w, "%s", s)
+						fmt.Fprintf(w, "'%s'", strings.ReplaceAll(s, "'", "''"))
 					}
 					fmt.Fprintf(w, ")\n")
 				}
