@@ -150,10 +150,10 @@ func PrintfTests() {
 	fmt.Printf("%s", nonemptyinterface)         // correct (the type is responsible for formatting)
 	fmt.Printf("%.*s %d %6g", 3, "hi", 23, 'x') // want "fmt.Printf format %6g has arg 'x' of wrong type rune"
 	fmt.Println()                               // not an error
-	fmt.Println("%s", "hi")                     // want "fmt.Println call contains %s, possibly intended as Printf formatting directive"
-	fmt.Println("%v", "hi")                     // want "fmt.Println call contains %v, possibly intended as Printf formatting directive"
-	fmt.Println("%T", "hi")                     // want "fmt.Println call contains %T, possibly intended as Printf formatting directive"
-	fmt.Println("%s"+" there", "hi")            // want "fmt.Println call contains %s, possibly intended as Printf formatting directive"
+	fmt.Println("%s", "hi")                     // want "fmt.Println call has possible Printf formatting directive %s"
+	fmt.Println("%v", "hi")                     // want "fmt.Println call has possible Printf formatting directive %v"
+	fmt.Println("%T", "hi")                     // want "fmt.Println call has possible Printf formatting directive %T"
+	fmt.Println("%s"+" there", "hi")            // want "fmt.Println call has possible Printf formatting directive %s"
 	fmt.Println("0.0%")                         // correct (trailing % couldn't be a formatting directive)
 	fmt.Printf("%s", "hi", 3)                   // want "fmt.Printf call needs 1 arg but has 2 args"
 	_ = fmt.Sprintf("%"+("s"), "hi", 3)         // want "fmt.Sprintf call needs 1 arg but has 2 args"
@@ -177,19 +177,19 @@ func PrintfTests() {
 	Printf(format, "hi")              // want "a.Printf format %s reads arg #2, but call has 1 arg$"
 	Printf("%s %d %.3v %q", "str", 4) // want "a.Printf format %.3v reads arg #3, but call has 2 args"
 	f := new(ptrStringer)
-	f.Warn(0, "%s", "hello", 3)           // want `\(\*a.ptrStringer\).Warn call contains %s, possibly intended as Printf formatting directive`
+	f.Warn(0, "%s", "hello", 3)           // want `\(\*a.ptrStringer\).Warn call has possible Printf formatting directive %s`
 	f.Warnf(0, "%s", "hello", 3)          // want `\(\*a.ptrStringer\).Warnf call needs 1 arg but has 2 args`
 	f.Warnf(0, "%r", "hello")             // want `\(\*a.ptrStringer\).Warnf format %r has unknown verb r`
 	f.Warnf(0, "%#s", "hello")            // want `\(\*a.ptrStringer\).Warnf format %#s has unrecognized flag #`
-	f.Warn2(0, "%s", "hello", 3)          // want `\(\*a.ptrStringer\).Warn2 call contains %s, possibly intended as Printf formatting directive`
+	f.Warn2(0, "%s", "hello", 3)          // want `\(\*a.ptrStringer\).Warn2 call has possible Printf formatting directive %s`
 	f.Warnf2(0, "%s", "hello", 3)         // want `\(\*a.ptrStringer\).Warnf2 call needs 1 arg but has 2 args`
 	f.Warnf2(0, "%r", "hello")            // want `\(\*a.ptrStringer\).Warnf2 format %r has unknown verb r`
 	f.Warnf2(0, "%#s", "hello")           // want `\(\*a.ptrStringer\).Warnf2 format %#s has unrecognized flag #`
-	f.Wrap(0, "%s", "hello", 3)           // want `\(\*a.ptrStringer\).Wrap call contains %s, possibly intended as Printf formatting directive`
+	f.Wrap(0, "%s", "hello", 3)           // want `\(\*a.ptrStringer\).Wrap call has possible Printf formatting directive %s`
 	f.Wrapf(0, "%s", "hello", 3)          // want `\(\*a.ptrStringer\).Wrapf call needs 1 arg but has 2 args`
 	f.Wrapf(0, "%r", "hello")             // want `\(\*a.ptrStringer\).Wrapf format %r has unknown verb r`
 	f.Wrapf(0, "%#s", "hello")            // want `\(\*a.ptrStringer\).Wrapf format %#s has unrecognized flag #`
-	f.Wrap2(0, "%s", "hello", 3)          // want `\(\*a.ptrStringer\).Wrap2 call contains %s, possibly intended as Printf formatting directive`
+	f.Wrap2(0, "%s", "hello", 3)          // want `\(\*a.ptrStringer\).Wrap2 call has possible Printf formatting directive %s`
 	f.Wrapf2(0, "%s", "hello", 3)         // want `\(\*a.ptrStringer\).Wrapf2 call needs 1 arg but has 2 args`
 	f.Wrapf2(0, "%r", "hello")            // want `\(\*a.ptrStringer\).Wrapf2 format %r has unknown verb r`
 	f.Wrapf2(0, "%#s", "hello")           // want `\(\*a.ptrStringer\).Wrapf2 format %#s has unrecognized flag #`
@@ -226,7 +226,7 @@ func PrintfTests() {
 	var et1 *testing.T
 	et1.Error()         // ok
 	et1.Error("hi")     // ok
-	et1.Error("%d", 3)  // want `\(\*testing.common\).Error call contains %d, possibly intended as Printf formatting directive`
+	et1.Error("%d", 3)  // want `\(\*testing.common\).Error call has possible Printf formatting directive %d`
 	et1.Errorf("%s", 1) // want `\(\*testing.common\).Errorf format %s has arg 1 of wrong type int`
 	var et3 errorTest3
 	et3.Error() // ok, not an error method.
@@ -253,7 +253,7 @@ func PrintfTests() {
 	// Special handling for Log.
 	math.Log(3) // OK
 	var t *testing.T
-	t.Log("%d", 3) // want `\(\*testing.common\).Log call contains %d, possibly intended as Printf formatting directive`
+	t.Log("%d", 3) // want `\(\*testing.common\).Log call has possible Printf formatting directive %d`
 	t.Logf("%d", 3)
 	t.Logf("%d", "hi") // want `\(\*testing.common\).Logf format %d has arg "hi" of wrong type string`
 
@@ -307,27 +307,27 @@ func PrintfTests() {
 	Printf(someString(), "hello") // OK
 
 	// Printf wrappers in package log should be detected automatically
-	logpkg.Fatal("%d", 1)    // want "log.Fatal call contains %d, possibly intended as Printf formatting directive"
+	logpkg.Fatal("%d", 1)    // want "log.Fatal call has possible Printf formatting directive %d"
 	logpkg.Fatalf("%d", "x") // want `log.Fatalf format %d has arg "x" of wrong type string`
-	logpkg.Fatalln("%d", 1)  // want "log.Fatalln call contains %d, possibly intended as Printf formatting directive"
-	logpkg.Panic("%d", 1)    // want "log.Panic call contains %d, possibly intended as Printf formatting directive"
+	logpkg.Fatalln("%d", 1)  // want "log.Fatalln call has possible Printf formatting directive %d"
+	logpkg.Panic("%d", 1)    // want "log.Panic call has possible Printf formatting directive %d"
 	logpkg.Panicf("%d", "x") // want `log.Panicf format %d has arg "x" of wrong type string`
-	logpkg.Panicln("%d", 1)  // want "log.Panicln call contains %d, possibly intended as Printf formatting directive"
-	logpkg.Print("%d", 1)    // want "log.Print call contains %d, possibly intended as Printf formatting directive"
+	logpkg.Panicln("%d", 1)  // want "log.Panicln call has possible Printf formatting directive %d"
+	logpkg.Print("%d", 1)    // want "log.Print call has possible Printf formatting directive %d"
 	logpkg.Printf("%d", "x") // want `log.Printf format %d has arg "x" of wrong type string`
-	logpkg.Println("%d", 1)  // want "log.Println call contains %d, possibly intended as Printf formatting directive"
+	logpkg.Println("%d", 1)  // want "log.Println call has possible Printf formatting directive %d"
 
 	// Methods too.
 	var l *logpkg.Logger
-	l.Fatal("%d", 1)    // want `\(\*log.Logger\).Fatal call contains %d, possibly intended as Printf formatting directive`
+	l.Fatal("%d", 1)    // want `\(\*log.Logger\).Fatal call has possible Printf formatting directive %d`
 	l.Fatalf("%d", "x") // want `\(\*log.Logger\).Fatalf format %d has arg "x" of wrong type string`
-	l.Fatalln("%d", 1)  // want `\(\*log.Logger\).Fatalln call contains %d, possibly intended as Printf formatting directive`
-	l.Panic("%d", 1)    // want `\(\*log.Logger\).Panic call contains %d, possibly intended as Printf formatting directive`
+	l.Fatalln("%d", 1)  // want `\(\*log.Logger\).Fatalln call has possible Printf formatting directive %d`
+	l.Panic("%d", 1)    // want `\(\*log.Logger\).Panic call has possible Printf formatting directive %d`
 	l.Panicf("%d", "x") // want `\(\*log.Logger\).Panicf format %d has arg "x" of wrong type string`
-	l.Panicln("%d", 1)  // want `\(\*log.Logger\).Panicln call contains %d, possibly intended as Printf formatting directive`
-	l.Print("%d", 1)    // want `\(\*log.Logger\).Print call contains %d, possibly intended as Printf formatting directive`
+	l.Panicln("%d", 1)  // want `\(\*log.Logger\).Panicln call has possible Printf formatting directive %d`
+	l.Print("%d", 1)    // want `\(\*log.Logger\).Print call has possible Printf formatting directive %d`
 	l.Printf("%d", "x") // want `\(\*log.Logger\).Printf format %d has arg "x" of wrong type string`
-	l.Println("%d", 1)  // want `\(\*log.Logger\).Println call contains %d, possibly intended as Printf formatting directive`
+	l.Println("%d", 1)  // want `\(\*log.Logger\).Println call has possible Printf formatting directive %d`
 
 	// Issue 26486
 	dbg("", 1) // no error "call has arguments but no formatting directive"
@@ -361,7 +361,7 @@ func PrintfTests() {
 	eis.Errorf(0, "%w", err)       // OK
 	ess.Errorf("ERROR", "%w", err) // OK
 	fmt.Appendf(nil, "%d", "123")  // want `wrong type`
-	fmt.Append(nil, "%d", 123)     // want `possibly intended as Printf formatting directive`
+	fmt.Append(nil, "%d", 123)     // want `fmt.Append call has possible Printf formatting directive %d`
 
 }
 
@@ -839,7 +839,7 @@ func PointersToCompoundTypes() {
 // Printf wrappers from external package
 func externalPackage() {
 	b.Wrapf("%s", 1) // want "Wrapf format %s has arg 1 of wrong type int"
-	b.Wrap("%s", 1)  // want "Wrap call contains %s, possibly intended as Printf formatting directive"
+	b.Wrap("%s", 1)  // want "Wrap call has possible Printf formatting directive %s"
 	b.NoWrap("%s", 1)
 	b.Wrapf2("%s", 1) // want "Wrapf2 format %s has arg 1 of wrong type int"
 }
