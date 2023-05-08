@@ -4,11 +4,11 @@
 
 package ssa
 
-// balanceExprTree repurposes all nodes and leafs into a well-balanced expression tree.
+// balanceExprTree repurposes all nodes and leaves into a well-balanced expression tree.
 // It doesn't truly balance the tree in the sense of a BST, rather it 
 // prioritizes pairing up innermost (rightmost) expressions and their results and only
 // pairing results of outermost (leftmost) expressions up with them when no other nice pairing exists 
-func balanceExprTree(v *Value, visited map[*Value]bool, nodes, leafs []*Value) {
+func balanceExprTree(v *Value, visited map[*Value]bool, nodes, leaves []*Value) {
 	// reset all arguments of nodes to help rebalancing
 	for i, n := range nodes {
 		n.reset(n.Op)
@@ -36,7 +36,7 @@ func balanceExprTree(v *Value, visited map[*Value]bool, nodes, leafs []*Value) {
 	// if the number of leaves is not even, skip the first leaf 
 	// and add it to be paired up later
 	i := 0
-	subTrees := leafs
+	subTrees := leaves
 	for len(subTrees) != 1 {
 		nextSubTrees := make([]*Value, 0, (len(subTrees)+1)/2)
 		
@@ -70,13 +70,13 @@ func isOr(op Op) bool {
 //	(l | l << 8 | l << 18 | l << 24)
 //
 // which cannot be rebalanced or else it won't fire load widening rewrite rules
-func probablyMemcombine(op Op, leafs []*Value) bool {
+func probablyMemcombine(op Op, leaves []*Value) bool {
 	if !isOr(op) {
 		return false
 	}
 
 	lshCount := 0
-	for _, l := range leafs {
+	for _, l := range leaves {
 		switch l.Op {
 		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
 			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
@@ -90,7 +90,7 @@ func probablyMemcombine(op Op, leafs []*Value) bool {
 	// which can get turned into a 64 bit load
 	// conservatively estimate that if there are more shifts than not then it is
 	// some sort of load waiting to be widened
-	return lshCount > len(leafs)/2
+	return lshCount > len(leaves)/2
 }
 
 // rebalance balances associative computation to better help CPU instruction pipelining (#49331)
@@ -113,9 +113,9 @@ func rebalance(v *Value, visited map[*Value]bool) {
 		return
 	}
 
-	// The smallest possible rebalanceable expression has 3 nodes and 4 leafs,
+	// The smallest possible rebalanceable expression has 3 nodes and 4 leaves,
 	// so preallocate the lists to save time if it is not rebalanceable
-	leafs := make([]*Value, 0, 4)
+	leaves := make([]*Value, 0, 4)
 	nodes := make([]*Value, 0, 3)
 
 	// Do a bfs on v to keep a nice reverse topological order
@@ -132,7 +132,7 @@ func rebalance(v *Value, visited map[*Value]bool) {
 			for _, a := range needle.Args {
 				// If the ops aren't the same or have more than one use it must be a leaf.
 				if a.Op != v.Op || a.Uses != 1 {
-					leafs = append(leafs, a)
+					leaves = append(leaves, a)
 					continue
 				}
 
@@ -145,13 +145,13 @@ func rebalance(v *Value, visited map[*Value]bool) {
 		haystack = nextHaystack
 	}
 
-	// we need at least 4 leafs for this expression to be rebalanceable,
+	// we need at least 4 leaves for this expression to be rebalanceable,
 	// and we can't balance a potential load widening (see memcombine)
-	if len(leafs) < 4 || probablyMemcombine(v.Op, leafs) {
+	if len(leaves) < 4 || probablyMemcombine(v.Op, leaves) {
 		return
 	}
 
-	balanceExprTree(v, visited, nodes, leafs)
+	balanceExprTree(v, visited, nodes, leaves)
 }
 
 // reassociate balances trees of commutative computation
