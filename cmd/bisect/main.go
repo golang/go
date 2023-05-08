@@ -240,13 +240,13 @@ func (b *Bisect) Search() bool {
 	switch {
 	case runN.Success && !runY.Success:
 		b.Logf("target succeeds with no changes, fails with all changes")
-		b.Logf("searching for minimal set of changes to enable to cause failure")
+		b.Logf("searching for minimal set of enabled changes causing failure")
 		broken = runY
 		b.Disable = false
 
 	case !runN.Success && runY.Success:
 		b.Logf("target fails with no changes, succeeds with all changes")
-		b.Logf("searching for minimal set of changes to disable to cause failure")
+		b.Logf("searching for minimal set of disabled changes causing failure")
 		broken = runN
 		b.Disable = true
 
@@ -500,7 +500,7 @@ func (b *Bisect) run(suffix string) *Result {
 	// There is no newline in the log print.
 	// The line will be completed when the command finishes.
 	cmdText := strings.Join(append(append(env, b.Cmd), args...), " ")
-	fmt.Fprintf(b.Stderr, "bisect: run %s...", cmdText)
+	fmt.Fprintf(b.Stderr, "bisect: run: %s...", cmdText)
 
 	// Run command with args and env.
 	var out []byte
@@ -565,6 +565,10 @@ func (b *Bisect) run(suffix string) *Result {
 		fmt.Fprintf(b.Stderr, " ok (%d matches)\n", len(r.MatchIDs))
 	} else {
 		fmt.Fprintf(b.Stderr, " FAIL (%d matches)\n", len(r.MatchIDs))
+	}
+
+	if err != nil && len(r.MatchIDs) == 0 {
+		b.Fatalf("target failed without printing any matches\n%s", r.Out)
 	}
 
 	// In verbose mode, print extra debugging: all the lines with match markers.

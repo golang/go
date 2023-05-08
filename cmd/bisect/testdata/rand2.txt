@@ -2,18 +2,18 @@
 -- stdout --
 -- stderr --
 bisect: checking target with all changes disabled
-bisect: run test n... ok (90 matches)
-bisect: run test n... ok (90 matches)
+bisect: run: test n... ok (90 matches)
+bisect: run: test n... ok (90 matches)
 bisect: checking target with all changes enabled
-bisect: run test y... FAIL (90 matches)
-bisect: run test y... FAIL (90 matches)
+bisect: run: test y... FAIL (90 matches)
+bisect: run: test y... FAIL (90 matches)
 bisect: target succeeds with no changes, fails with all changes
-bisect: searching for minimal set of changes to enable to cause failure
-bisect: run test +0... ok (45 matches)
-bisect: run test +0... ok (45 matches)
-bisect: run test +1... FAIL (45 matches)
-bisect: run test +1... FAIL (45 matches)
-bisect: run test +01... FAIL (23 matches)
-bisect: run test +01... ok (23 matches)
+bisect: searching for minimal set of enabled changes causing failure
+bisect: run: test +0... ok (45 matches)
+bisect: run: test +0... ok (45 matches)
+bisect: run: test +1... FAIL (45 matches)
+bisect: run: test +1... FAIL (45 matches)
+bisect: run: test +01... FAIL (23 matches)
+bisect: run: test +01... ok (23 matches)
 bisect: fatal error: target fails inconsistently
 <bisect failed>
