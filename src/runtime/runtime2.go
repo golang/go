@@ -473,6 +473,7 @@ type g struct {
 
 	raceignore     int8     // ignore race detection events
 	sysblocktraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
+	emergencyMode  bool     // Run in emergency mode
 	tracking       bool     // whether we're tracking this G for sched latency statistics
 	trackingSeq    uint8    // used to decide whether to track this G
 	trackingStamp  int64    // timestamp of when the G last started being tracked
@@ -650,6 +651,12 @@ type p struct {
 	// Note that while other P's may atomically CAS this to zero,
 	// only the owner P can CAS it to a valid G.
 	runnext guintptr
+	// runfirst, similar to runnext but with high priority and
+	// only for G in emergency mode set manually.
+	//
+	// Note that starvation might take place if emergency G keep
+	// runnable
+	runfirst guintptr
 
 	// Available G's (status == Gdead)
 	gFree struct {

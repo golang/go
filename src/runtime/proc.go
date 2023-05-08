@@ -3369,7 +3369,7 @@ top:
 	// Safety check: if we are spinning, the run queue should be empty.
 	// Check this before calling checkTimers, as that might call
 	// goready to put a ready goroutine on the local run queue.
-	if mp.spinning && (pp.runnext != 0 || pp.runqhead != pp.runqtail) {
+	if mp.spinning && (pp.runfirst != 0 || pp.runnext != 0 || pp.runqhead != pp.runqtail) {
 		throw("schedule: spinning with local work")
 	}
 
@@ -4889,6 +4889,10 @@ func (pp *p) destroy() {
 		globrunqputhead(pp.runnext.ptr())
 		pp.runnext = 0
 	}
+	if pp.runfirst != 0 {
+		globrunqputhead(pp.runfirst.ptr())
+		pp.runfirst = 0
+	}
 	if len(pp.timers) > 0 {
 		plocal := getg().m.p.ptr()
 		// The world is stopped, but we acquire timersLock to
@@ -5962,8 +5966,9 @@ func runqempty(pp *p) bool {
 		head := atomic.Load(&pp.runqhead)
 		tail := atomic.Load(&pp.runqtail)
 		runnext := atomic.Loaduintptr((*uintptr)(unsafe.Pointer(&pp.runnext)))
+		runfirst := atomic.Loaduintptr((*uintptr)(unsafe.Pointer(&pp.runfirst)))
 		if tail == atomic.Load(&pp.runqtail) {
-			return head == tail && runnext == 0
+			return head == tail && runnext == 0 && runfirst == 0
 		}
 	}
 }
@@ -5981,7 +5986,8 @@ const randomizeScheduler = raceenabled
 
 // runqput tries to put g on the local runnable queue.
 // If next is false, runqput adds g to the tail of the runnable queue.
-// If next is true, runqput puts g in the pp.runnext slot.
+// If next is true, runqput try puts g in the pp.runfirst slot, and,
+// if failed, the pp.runnext slot.
 // If the run queue is full, runnext puts g on the global queue.
 // Executed only by the owner P.
 func runqput(pp *p, gp *g, next bool) {
@@ -5990,6 +5996,11 @@ func runqput(pp *p, gp *g, next bool) {
 	}
 
 	if next {
+		if gp.emergencyMode && pp.runfirst == 0 {
+			if pp.runfirst.cas(0, guintptr(unsafe.Pointer(gp))) {
+				return
+			}
+		}
 	retryNext:
 		oldnext := pp.runnext
 		if !pp.runnext.cas(oldnext, guintptr(unsafe.Pointer(gp))) {
@@ -6097,6 +6108,14 @@ func runqputbatch(pp *p, q *gQueue, qsize int) {
 // current time slice. Otherwise, it should start a new time slice.
 // Executed only by the owner P.
 func runqget(pp *p) (gp *g, inheritTime bool) {
+	// If there's a runfirst, it's the first G to run.
+	first := pp.runfirst
+	// If the runfirst is non-0 and the CAS fails, it could only have been stolen by another P,
+	// because other Ps can race to set runfirst to 0, but only the current P can set it to non-0.
+	// Hence, there's no need to retry this CAS if it fails.
+	if first != 0 && pp.runfirst.cas(first, 0) {
+		return first.ptr(), true
+	}
 	// If there's a runnext, it's the next G to run.
 	next := pp.runnext
 	// If the runnext is non-0 and the CAS fails, it could only have been stolen by another P,
@@ -6122,6 +6141,12 @@ func runqget(pp *p) (gp *g, inheritTime bool) {
 // runqdrain drains the local runnable queue of pp and returns all goroutines in it.
 // Executed only by the owner P.
 func runqdrain(pp *p) (drainQ gQueue, n uint32) {
+	oldFirst := pp.runfirst
+	if oldFirst != 0 && pp.runfirst.cas(oldFirst, 0) {
+		drainQ.pushBack(oldFirst.ptr())
+		n++
+	}
+
 	oldNext := pp.runnext
 	if oldNext != 0 && pp.runnext.cas(oldNext, 0) {
 		drainQ.pushBack(oldNext.ptr())
@@ -6170,6 +6195,34 @@ func runqgrab(pp *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool)
 		n = n - n/2
 		if n == 0 {
 			if stealRunNextG {
+				// Try to steal from pp.runfirst.
+				if first := pp.runfirst; first != 0 {
+					if pp.status == _Prunning {
+						// Sleep to ensure that pp isn't about to run the g
+						// we are about to steal.
+						// The important use case here is when the g running
+						// on pp ready()s another g and then almost
+						// immediately blocks. Instead of stealing runfirst
+						// in this window, back off to give pp a chance to
+						// schedule runfirst. This will avoid thrashing gs
+						// between different Ps.
+						// A sync chan send/recv takes ~50ns as of time of
+						// writing, so 3us gives ~50x overshoot.
+						if GOOS != "windows" && GOOS != "openbsd" && GOOS != "netbsd" {
+							usleep(3)
+						} else {
+							// On some platforms system timer granularity is
+							// 1-15ms, which is way too much for this
+							// optimization. So just yield.
+							osyield()
+						}
+					}
+					if !pp.runfirst.cas(first, 0) {
+						continue
+					}
+					batch[batchHead%uint32(len(batch))] = first
+					return 1
+				}
 				// Try to steal from pp.runnext.
 				if next := pp.runnext; next != 0 {
 					if pp.status == _Prunning {
@@ -6547,4 +6600,11 @@ func doInit1(t *initTask) {
 
 		t.state = 2 // initialization done
 	}
+}
+
+// Goemergency set the current goroutine in emergency mode according to enable.
+//
+//go:nosplit
+func Goemergency(enable bool) {
+	getg().emergencyMode = enable
 }
