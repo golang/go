@@ -173,7 +173,6 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 	// The conditions are a list-of-lists. Conditions are reorderable
 	// within each inner list. The outer lists must be evaluated in order.
 	var conds [][]ir.Node
-	var canPanic bool
 	conds = append(conds, []ir.Node{})
 	and := func(n ir.Node) {
 		i := len(conds) - 1
@@ -192,9 +191,6 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 		}
 
 		typeCanPanic := EqCanPanic(f.Type)
-		if !canPanic {
-			canPanic = typeCanPanic
-		}
 
 		// Compare non-memory fields with field equality.
 		if !IsRegularMemory(f.Type) {
@@ -247,7 +243,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
 		})
 		flatConds = append(flatConds, c...)
 	}
-	return flatConds, canPanic
+	return flatConds, len(conds) > 1
 }
 
 // EqString returns the nodes
