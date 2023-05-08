@@ -571,14 +571,6 @@ func (t test) run() error {
 		t.Fatal(err)
 	}
 
-	// A few tests (of things like the environment) require these to be set.
-	if os.Getenv("GOOS") == "" {
-		os.Setenv("GOOS", runtime.GOOS)
-	}
-	if os.Getenv("GOARCH") == "" {
-		os.Setenv("GOARCH", runtime.GOARCH)
-	}
-
 	var (
 		runInDir        = tempDir
 		tempDirIsGOPATH = false
