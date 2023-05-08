@@ -2,14 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.12
-// +build go1.12
-
 package unitchecker_test
-
-// This test depends on features such as
-// go vet's support for vetx files (1.11) and
-// the (*os.ProcessState).ExitCode method (1.12).
 
 import (
 	"flag"
@@ -28,17 +21,23 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("UNITCHECKER_CHILD") == "1" {
-		// child process
-		main()
+	// child process?
+	switch os.Getenv("ENTRYPOINT") {
+	case "vet":
+		vet()
+		panic("unreachable")
+	case "minivet":
+		minivet()
 		panic("unreachable")
 	}
 
+	// test process
 	flag.Parse()
 	os.Exit(m.Run())
 }
 
-func main() {
+// minivet is a vet-like tool with a few analyzers, for testing.
+func minivet() {
 	unitchecker.Main(
 		findcall.Analyzer,
 		printf.Analyzer,
@@ -162,7 +161,7 @@ func _() {
 	} {
 		cmd := exec.Command("go", "vet", "-vettool="+os.Args[0], "-findcall.name=MyFunc123")
 		cmd.Args = append(cmd.Args, strings.Fields(test.args)...)
-		cmd.Env = append(exported.Config.Env, "UNITCHECKER_CHILD=1")
+		cmd.Env = append(exported.Config.Env, "ENTRYPOINT=minivet")
 		cmd.Dir = exported.Config.Dir
 
 		out, err := cmd.CombinedOutput()

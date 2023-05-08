@@ -1,23 +1,15 @@
-// Copyright 2018 The Go Authors. All rights reserved.
+// Copyright 2023 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build ignore
-// +build ignore
-
-// This file provides an example command for static checkers
-// conforming to the golang.org/x/tools/go/analysis API.
-// It serves as a model for the behavior of the cmd/vet tool in $GOROOT.
-// Being based on the unitchecker driver, it must be run by go vet:
-//
-//	$ go build -o unitchecker main.go
-//	$ go vet -vettool=unitchecker my/project/...
-//
-// For a checker also capable of running standalone, use multichecker.
-package main
+package unitchecker_test
 
 import (
-	"golang.org/x/tools/go/analysis/unitchecker"
+	"os"
+	"os/exec"
+	"runtime"
+	"strings"
+	"testing"
 
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
@@ -46,11 +38,13 @@ import (
 	"golang.org/x/tools/go/analysis/passes/timeformat"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
-	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
-func main() {
+// vet is the entrypoint of this executable when ENTRYPOINT=vet.
+// Keep consistent with the actual vet in GOROOT/src/cmd/vet/main.go.
+func vet() {
 	unitchecker.Main(
 		asmdecl.Analyzer,
 		assign.Analyzer,
@@ -79,7 +73,25 @@ func main() {
 		timeformat.Analyzer,
 		unmarshal.Analyzer,
 		unreachable.Analyzer,
-		unsafeptr.Analyzer,
+		// unsafeptr.Analyzer, // currently reports findings in runtime
 		unusedresult.Analyzer,
 	)
+}
+
+// TestVetStdlib runs the same analyzers as the actual vet over the
+// standard library, using go vet and unitchecker, to ensure that
+// there are no findings.
+func TestVetStdlib(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+	if version := runtime.Version(); !strings.HasPrefix(version, "devel") {
+		t.Skipf("This test is only wanted on development branches where code can be easily fixed. Skipping because runtime.Version=%q.", version)
+	}
+
+	cmd := exec.Command("go", "vet", "-vettool="+os.Args[0], "std")
+	cmd.Env = append(os.Environ(), "ENTRYPOINT=vet")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("go vet std failed (%v):\n%s", err, out)
+	}
 }
