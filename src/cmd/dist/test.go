@@ -870,21 +870,8 @@ func (t *tester) registerTests() {
 		if goos != "android" {
 			t.registerTest("cgo_testfortran", "", &goTest{dir: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute}, rtHostTest{})
 		}
-		if t.hasSwig() && goos != "android" {
-			t.registerTest("swig_stdio", "", &goTest{dir: "../misc/swig/stdio"})
-			if t.hasCxx() {
-				t.registerTest("swig_callback", "", &goTest{dir: "../misc/swig/callback"})
-				const cflags = "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option"
-				t.registerTest("swig_callback_lto", "",
-					&goTest{
-						dir: "../misc/swig/callback",
-						env: []string{
-							"CGO_CFLAGS=" + cflags,
-							"CGO_CXXFLAGS=" + cflags,
-							"CGO_LDFLAGS=" + cflags,
-						},
-					})
-			}
+		if goos != "android" {
+			t.registerTest("swig", "", &goTest{dir: "../misc/swig"})
 		}
 	}
 	if t.cgoEnabled {
@@ -1409,85 +1396,6 @@ func (t *tester) hasBash() bool {
 	case "windows", "plan9":
 		return false
 	}
-	return true
-}
-
-func (t *tester) hasCxx() bool {
-	cxx, _ := exec.LookPath(compilerEnvLookup("CXX", defaultcxx, goos, goarch))
-	return cxx != ""
-}
-
-func (t *tester) hasSwig() bool {
-	swig, err := exec.LookPath("swig")
-	if err != nil {
-		return false
-	}
-
-	// Check that swig was installed with Go support by checking
-	// that a go directory exists inside the swiglib directory.
-	// See https://golang.org/issue/23469.
-	output, err := exec.Command(swig, "-go", "-swiglib").Output()
-	if err != nil {
-		return false
-	}
-	swigDir := strings.TrimSpace(string(output))
-
-	_, err = os.Stat(filepath.Join(swigDir, "go"))
-	if err != nil {
-		return false
-	}
-
-	// Check that swig has a new enough version.
-	// See https://golang.org/issue/22858.
-	out, err := exec.Command(swig, "-version").CombinedOutput()
-	if err != nil {
-		return false
-	}
-
-	re := regexp.MustCompile(`[vV]ersion +(\d+)([.]\d+)?([.]\d+)?`)
-	matches := re.FindSubmatch(out)
-	if matches == nil {
-		// Can't find version number; hope for the best.
-		return true
-	}
-
-	major, err := strconv.Atoi(string(matches[1]))
-	if err != nil {
-		// Can't find version number; hope for the best.
-		return true
-	}
-	if major < 3 {
-		return false
-	}
-	if major > 3 {
-		// 4.0 or later
-		return true
-	}
-
-	// We have SWIG version 3.x.
-	if len(matches[2]) > 0 {
-		minor, err := strconv.Atoi(string(matches[2][1:]))
-		if err != nil {
-			return true
-		}
-		if minor > 0 {
-			// 3.1 or later
-			return true
-		}
-	}
-
-	// We have SWIG version 3.0.x.
-	if len(matches[3]) > 0 {
-		patch, err := strconv.Atoi(string(matches[3][1:]))
-		if err != nil {
-			return true
-		}
-		if patch < 6 {
-			// Before 3.0.6.
-			return false
-		}
-	}
-
 	return true
 }
 

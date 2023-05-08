@@ -6,7 +6,7 @@
 // included in the package.
 
 #include <string>
-#include "callback.h"
+#include "main.h"
 
 std::string Caller::call() {
 	if (callback_ != 0)
