@@ -9,5 +9,5 @@ Example:
 
 workspace_symbol-flags:
   -matcher=string
-    	specifies the type of matcher: fuzzy, caseSensitive, or caseInsensitive.
-    	The default is caseInsensitive.
+    	specifies the type of matcher: fuzzy, fastfuzzy, casesensitive, or caseinsensitive.
+    	The default is caseinsensitive.

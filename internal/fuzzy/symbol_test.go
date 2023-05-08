@@ -40,14 +40,41 @@ func TestSymbolRanking(t *testing.T) {
 	symbols := []string{
 		"this.is.better.than.most",
 		"test.foo.bar",
-		"atest",
 		"thebest",
 		"test.foo",
 		"test.foo",
-		"tTest",
+		"atest",
 		"testage",
+		"tTest",
 		"foo.test",
 		"test",
+	}
+	prev := 0.0
+	for _, sym := range symbols {
+		_, score := matcher.Match([]string{sym})
+		t.Logf("Match(%q) = %v", sym, score)
+		if score < prev {
+			t.Errorf("Match(%q) = _, %v, want > %v", sym, score, prev)
+		}
+		prev = score
+	}
+}
+
+// Test that we strongly prefer exact matches.
+//
+// In golang/go#60027, we preferred "Runner" for the query "rune" over several
+// results containing the word "rune" exactly. Following this observation,
+// scoring was tweaked to more strongly emphasize sequential characters and
+// exact matches.
+func TestSymbolRanking_Issue60027(t *testing.T) {
+	matcher := NewSymbolMatcher("rune")
+
+	// symbols to match, in ascending order of ranking.
+	symbols := []string{
+		"Runner",
+		"singleRuneParam",
+		"Config.ifsRune",
+		"Parser.rune",
 	}
 	prev := 0.0
 	for _, sym := range symbols {

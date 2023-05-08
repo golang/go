@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"strings"
 
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -16,7 +17,7 @@ import (
 
 // workspaceSymbol implements the workspace_symbol verb for gopls.
 type workspaceSymbol struct {
-	Matcher string `flag:"matcher" help:"specifies the type of matcher: fuzzy, caseSensitive, or caseInsensitive.\nThe default is caseInsensitive."`
+	Matcher string `flag:"matcher" help:"specifies the type of matcher: fuzzy, fastfuzzy, casesensitive, or caseinsensitive.\nThe default is caseinsensitive."`
 
 	app *Application
 }
@@ -46,10 +47,10 @@ func (r *workspaceSymbol) Run(ctx context.Context, args ...string) error {
 		if opts != nil {
 			opts(o)
 		}
-		switch r.Matcher {
+		switch strings.ToLower(r.Matcher) {
 		case "fuzzy":
 			o.SymbolMatcher = source.SymbolFuzzy
-		case "caseSensitive":
+		case "casesensitive":
 			o.SymbolMatcher = source.SymbolCaseSensitive
 		case "fastfuzzy":
 			o.SymbolMatcher = source.SymbolFastFuzzy

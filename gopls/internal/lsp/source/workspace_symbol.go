@@ -484,7 +484,10 @@ func matchFile(store *symbolStore, symbolizer symbolizer, matcher matcherFunc, r
 			// every field or method nesting level to access the field decreases
 			// the score by a factor of 1.0 - depth*depthFactor, up to a depth of
 			// 3.
-			depthFactor = 0.2
+			//
+			// Use a small constant here, as this exists mostly to break ties
+			// (e.g. given a type Foo and a field x.Foo, prefer Foo).
+			depthFactor = 0.01
 		)
 
 		startWord := true

@@ -26,9 +26,6 @@ import (
 //     symbol or identifiers, so doing this avoids allocating strings.
 //   - We can return the index of the right-most match, allowing us to trim
 //     irrelevant qualification.
-//
-// This implementation is experimental, serving as a reference fast algorithm
-// to compare to the fuzzy algorithm implemented by Matcher.
 type SymbolMatcher struct {
 	// Using buffers of length 256 is both a reasonable size for most qualified
 	// symbols, and makes it easy to avoid bounds checks by using uint8 indexes.
@@ -169,19 +166,29 @@ input:
 	// Score is the average score for each character.
 	//
 	// A character score is the multiple of:
-	//   1. 1.0 if the character starts a segment, .8 if the character start a
-	//      mid-segment word, otherwise 0.6. This carries over to immediately
-	//      following characters.
-	//   2. For the final character match, the multiplier from (1) is reduced to
-	//     .8 if the next character in the input is a mid-segment word, or 0.6 if
-	//      the next character in the input is not a word or segment start. This
-	//      ensures that we favor whole-word or whole-segment matches over prefix
-	//      matches.
-	//   3. 1.0 if the character is part of the last segment, otherwise
-	//      1.0-.2*<segments from the right>, with a max segment count of 3.
+	//   1. 1.0 if the character starts a segment or is preceded by a matching
+	//      character, 0.9 if the character starts a mid-segment word, else 0.6.
 	//
-	// This is a very naive algorithm, but it is fast. There's lots of prior art
-	// here, and we should leverage it. For example, we could explicitly consider
+	//      Note that characters preceded by a matching character get the max
+	//      score of 1.0 so that sequential or exact matches are preferred, even
+	//      if they don't start/end at a segment or word boundary. For example, a
+	//      match for "func" in intfuncs should have a higher score than in
+	//      ifunmatched.
+	//
+	//      For the final character match, the multiplier from (1) is reduced to
+	//      0.9 if the next character in the input is a mid-segment word, or 0.6
+	//      if the next character in the input is not a word or segment start.
+	//      This ensures that we favor whole-word or whole-segment matches over
+	//      prefix matches.
+	//
+	//   2. 1.0 if the character is part of the last segment, otherwise
+	//      1.0-0.1*<segments from the right>, with a max segment count of 3.
+	//      Notably 1.0-0.1*3 = 0.7 > 0.6, so that foo/_/_/_/_ (a match very
+	//      early in a qualified symbol name) still scores higher than _f_o_o_
+	//      (a completely split match).
+	//
+	// This is a naive algorithm, but it is fast. There's lots of prior art here
+	// that could be leveraged. For example, we could explicitly consider
 	// character distance, and exact matches of words or segments.
 	//
 	// Also note that this might not actually find the highest scoring match, as
@@ -192,10 +199,10 @@ input:
 	p = m.pattern[pi]
 
 	const (
-		segStreak  = 1.0
-		wordStreak = 0.8
+		segStreak  = 1.0 // start of segment or sequential match
+		wordStreak = 0.9 // start of word match
 		noStreak   = 0.6
-		perSegment = 0.2 // we count at most 3 segments above
+		perSegment = 0.1 // we count at most 3 segments above
 	)
 
 	streakBonus := noStreak
@@ -228,6 +235,7 @@ input:
 			if finalChar {
 				break
 			}
+			streakBonus = segStreak // see above: sequential characters get the max score
 		} else {
 			streakBonus = noStreak
 		}
