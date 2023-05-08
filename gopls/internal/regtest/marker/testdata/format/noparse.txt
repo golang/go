@@ -21,7 +21,7 @@ func what() {
 	var hi func()
 	if {		hi() //@diag(re"(){", re".*missing.*")
 	}
-	hi := nil //@diag(re"():=", re"no new variables")
+	hi := nil
 }
 -- @noparse --
 7:5: missing condition in if statement

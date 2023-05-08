@@ -133,6 +133,7 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //   - diag(location, regexp): specifies an expected diagnostic matching the
 //     given regexp at the given location. The test runner requires
 //     a 1:1 correspondence between observed diagnostics and diag annotations.
+//     The diagnostics source and kind fields are ignored, to reduce fuss.
 //
 //     The marker must accurately represent the diagnostic's range.
 //     Use grouping parens in the location regular expression to indicate

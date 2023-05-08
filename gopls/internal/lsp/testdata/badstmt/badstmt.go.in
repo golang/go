@@ -4,13 +4,12 @@ import (
 	"golang.org/lsptests/foo"
 )
 
-// The nonewvars expectation asserts that the go/analysis framework ran.
-// See comments in noparse.
+// (The syntax error causes suppression of diagnostics for type errors.
+// See issue #59888.)
 
 func _(x int) {
 	defer foo.F //@complete(" //", Foo),diag(" //", "syntax", "function must be invoked in defer statement|expression in defer must be function call", "error")
 	defer foo.F //@complete(" //", Foo)
-	x := 123 //@diag(":=", "nonewvars", "no new variables", "warning")
 }
 
 func _() {

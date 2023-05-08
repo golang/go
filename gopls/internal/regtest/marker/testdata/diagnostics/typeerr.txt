@@ -1,0 +1,33 @@
+
+This test exercises diagnostics produced for type errors
+in the absence of syntax errors.
+
+The type error was chosen to exercise the 'nonewvars' type-error analyzer.
+(The 'undeclaredname' analyzer depends on the text of the go/types
+"undeclared name" error, which changed in go1.20.)
+
+The append() type error was also carefully chosen to have text and
+position that are invariant across all versions of Go run by the builders.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- typeerr.go --
+package a
+
+func f(x int) {
+	append("") //@diag(re`""`, re"a slice")
+
+	x := 123 //@diag(re"x := 123", re"no new variables"), suggestedfix(re"():", re"no new variables", "quickfix", fix)
+}
+
+-- @fix/typeerr.go --
+package a
+
+func f(x int) {
+	append("") //@diag(re`""`, re"a slice")
+
+	x = 123 //@diag(re"x := 123", re"no new variables"), suggestedfix(re"():", re"no new variables", "quickfix", fix)
+}
+

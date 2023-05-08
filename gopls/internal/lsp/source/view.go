@@ -530,6 +530,9 @@ type TidiedModule struct {
 
 // Metadata represents package metadata retrieved from go/packages.
 // The Deps* maps do not contain self-import edges.
+//
+// An ad-hoc package (without go.mod or GOPATH) has its ID, PkgPath,
+// and LoadDir equal to the absolute path of its directory.
 type Metadata struct {
 	ID              PackageID
 	PkgPath         PackagePath

@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -485,15 +484,6 @@ func buildMetadata(updates map[PackageID]*source.Metadata, pkg *packages.Package
 		Module:     pkg.Module,
 		Errors:     pkg.Errors,
 		DepsErrors: packagesinternal.GetDepsErrors(pkg),
-	}
-
-	if strings.Contains(string(m.PkgPath), "var/folders") {
-		// On macOS, in marker tests, without a go.mod file,
-		// this statement is reached. ID, Name, and PkgPath
-		// take on values that match the LoadDir, such as:
-		// "/var/folders/fy/dn6v01n16zjdwsqy_8qfbbxr000_9w/T/TestMarkersdiagnosticsissue56943.txt2080018120/001/work".
-		// TODO(adonovan): find out why.
-		log.Printf("strange package path: m=%+v pkg=%+v", *m, *pkg)
 	}
 
 	updates[id] = m

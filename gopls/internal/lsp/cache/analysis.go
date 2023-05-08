@@ -605,7 +605,6 @@ func actuallyAnalyze(ctx context.Context, analyzers []*analysis.Analyzer, m *sou
 
 	// TODO(adonovan): port the old logic to:
 	// - gather go/packages diagnostics from m.Errors? (port goPackagesErrorDiagnostics)
-	// - record unparseable file URIs so we can suppress type errors for these files.
 	// - gather diagnostics from expandErrors + typeErrorDiagnostics + depsErrors.
 
 	// -- analysis --
@@ -762,7 +761,16 @@ func typeCheckForAnalysis(fset *token.FileSet, parsed []*source.ParsedGoFile, m 
 		Sizes: m.TypesSizes,
 		Error: func(e error) {
 			pkg.compiles = false // type error
-			pkg.typeErrors = append(pkg.typeErrors, e.(types.Error))
+
+			// Suppress type errors in files with parse errors
+			// as parser recovery can be quite lossy (#59888).
+			typeError := e.(types.Error)
+			for _, p := range parsed {
+				if p.ParseErr != nil && source.NodeContains(p.File, typeError.Pos) {
+					return
+				}
+			}
+			pkg.typeErrors = append(pkg.typeErrors, typeError)
 		},
 		Importer: importerFunc(func(importPath string) (*types.Package, error) {
 			if importPath == "unsafe" {
