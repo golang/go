@@ -2220,15 +2220,19 @@ type JOBOBJECT_BASIC_UI_RESTRICTIONS struct {
 }
 
 const (
-	// JobObjectInformationClass
+	// JobObjectInformationClass for QueryInformationJobObject and SetInformationJobObject
 	JobObjectAssociateCompletionPortInformation = 7
+	JobObjectBasicAccountingInformation         = 1
+	JobObjectBasicAndIoAccountingInformation    = 8
 	JobObjectBasicLimitInformation              = 2
+	JobObjectBasicProcessIdList                 = 3
 	JobObjectBasicUIRestrictions                = 4
 	JobObjectCpuRateControlInformation          = 15
 	JobObjectEndOfJobTimeInformation            = 6
 	JobObjectExtendedLimitInformation           = 9
 	JobObjectGroupInformation                   = 11
 	JobObjectGroupInformationEx                 = 14
+	JobObjectLimitViolationInformation          = 13
 	JobObjectLimitViolationInformation2         = 34
 	JobObjectNetRateControlInformation          = 32
 	JobObjectNotificationLimitInformation       = 12
