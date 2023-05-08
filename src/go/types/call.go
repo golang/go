@@ -348,41 +348,61 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 // exprList evaluates a list of expressions and returns the corresponding operands.
 // A single-element expression list may evaluate to multiple operands.
-func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
+func (check *Checker) exprList(elist []ast.Expr) []*operand {
 	switch len(elist) {
 	case 0:
-		// nothing to do
+		return nil
+
 	case 1:
-		xlist, _ = check.multiExpr(elist[0], false)
+		xlist, _ := check.multiExpr(elist[0], false)
+		return xlist
+
 	default:
 		// multiple (possibly invalid) values
-		xlist = make([]*operand, len(elist))
+		xlist := make([]*operand, len(elist))
 		for i, e := range elist {
 			var x operand
 			check.expr(nil, &x, e)
 			xlist[i] = &x
 		}
+		return xlist
 	}
-	return
 }
 
 // genericExprList is like exprList but result operands may be generic (not fully instantiated).
-func (check *Checker) genericExprList(elist []ast.Expr) (xlist []*operand) {
+func (check *Checker) genericExprList(elist []ast.Expr) []*operand {
 	switch len(elist) {
 	case 0:
-		// nothing to do
+		return nil
+
 	case 1:
-		xlist = check.genericMultiExpr(elist[0])
+		e := elist[0]
+		var x operand
+		check.rawExpr(nil, &x, e, nil, true)
+		check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
+
+		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
+			// multiple values - cannot be generic
+			xlist := make([]*operand, t.Len())
+			for i, v := range t.vars {
+				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
+			}
+			return xlist
+		}
+
+		// exactly one (possible invalid or generic) value
+		return []*operand{&x}
+
 	default:
 		// multiple (possibly invalid) values
-		xlist = make([]*operand, len(elist))
+		xlist := make([]*operand, len(elist))
 		for i, e := range elist {
 			var x operand
 			check.genericExpr(&x, e)
 			xlist[i] = &x
 		}
+		return xlist
 	}
-	return
 }
 
 // xlist is the list of type argument expressions supplied in the source code.
