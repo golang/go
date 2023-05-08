@@ -939,6 +939,9 @@ func gcMarkTermination() {
 	mp.preemptoff = "gcing"
 	mp.traceback = 2
 	curgp := mp.curg
+	// N.B. The execution tracer is not aware of this status
+	// transition and handles it specially based on the
+	// wait reason.
 	casGToWaiting(curgp, _Grunning, waitReasonGarbageCollection)
 
 	// Run gc on the g0 stack. We do this so that the g stack
@@ -1359,6 +1362,10 @@ func gcBgMarkWorker() {
 			// the G stack. However, stack shrinking is
 			// disabled for mark workers, so it is safe to
 			// read from the G stack.
+			//
+			// N.B. The execution tracer is not aware of this status
+			// transition and handles it specially based on the
+			// wait reason.
 			casGToWaiting(gp, _Grunning, waitReasonGCWorkerActive)
 			switch pp.gcMarkWorkerMode {
 			default:

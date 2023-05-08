@@ -9,8 +9,10 @@ package runtime_test
 import (
 	"bytes"
 	"fmt"
+	"internal/goexperiment"
 	"internal/testenv"
 	"internal/trace"
+	tracev2 "internal/trace/v2"
 	"io"
 	"os"
 	"runtime"
@@ -33,9 +35,17 @@ func TestTraceUnwindCGO(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	logs := map[string]*trace.Event{
-		"goCalledFromC":       nil,
-		"goCalledFromCThread": nil,
+	wantLogs := []string{
+		"goCalledFromC",
+		"goCalledFromCThread",
+	}
+	logs := make(map[string]*trace.Event)
+	for _, category := range wantLogs {
+		logs[category] = nil
+	}
+	logsV2 := make(map[string]*tracev2.Event)
+	for _, category := range wantLogs {
+		logsV2[category] = nil
 	}
 	for _, tracefpunwindoff := range []int{1, 0} {
 		env := fmt.Sprintf("GODEBUG=tracefpunwindoff=%d", tracefpunwindoff)
@@ -50,14 +60,25 @@ func TestTraceUnwindCGO(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read trace: %s", err)
 		}
-		events := parseTrace(t, bytes.NewReader(traceData))
+		if goexperiment.ExecTracer2 {
+			for category := range logs {
+				event := mustFindLogV2(t, bytes.NewReader(traceData), category)
+				if wantEvent := logsV2[category]; wantEvent == nil {
+					logsV2[category] = &event
+				} else if got, want := dumpStackV2(&event), dumpStackV2(wantEvent); got != want {
+					t.Errorf("%q: got stack:\n%s\nwant stack:\n%s\n", category, got, want)
+				}
+			}
+		} else {
+			events := parseTrace(t, bytes.NewReader(traceData))
 
-		for category := range logs {
-			event := mustFindLog(t, events, category)
-			if wantEvent := logs[category]; wantEvent == nil {
-				logs[category] = event
-			} else if got, want := dumpStack(event), dumpStack(wantEvent); got != want {
-				t.Errorf("%q: got stack:\n%s\nwant stack:\n%s\n", category, got, want)
+			for category := range logs {
+				event := mustFindLog(t, events, category)
+				if wantEvent := logs[category]; wantEvent == nil {
+					logs[category] = event
+				} else if got, want := dumpStack(event), dumpStack(wantEvent); got != want {
+					t.Errorf("%q: got stack:\n%s\nwant stack:\n%s\n", category, got, want)
+				}
 			}
 		}
 	}
@@ -102,4 +123,41 @@ func parseTrace(t *testing.T, r io.Reader) []*trace.Event {
 		t.Fatalf("failed to parse trace: %v", err)
 	}
 	return res.Events
+}
+
+func mustFindLogV2(t *testing.T, trace io.Reader, category string) tracev2.Event {
+	r, err := tracev2.NewReader(trace)
+	if err != nil {
+		t.Fatalf("bad trace: %v", err)
+	}
+	var candidates []tracev2.Event
+	for {
+		ev, err := r.ReadEvent()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("failed to parse trace: %v", err)
+		}
+		if ev.Kind() == tracev2.EventLog && ev.Log().Category == category {
+			candidates = append(candidates, ev)
+		}
+	}
+	if len(candidates) == 0 {
+		t.Fatalf("could not find log with category: %q", category)
+	} else if len(candidates) > 1 {
+		t.Fatalf("found more than one log with category: %q", category)
+	}
+	return candidates[0]
+}
+
+// dumpStack returns e.Stack() as a string.
+func dumpStackV2(e *tracev2.Event) string {
+	var buf bytes.Buffer
+	e.Stack().Frames(func(f tracev2.StackFrame) bool {
+		file := strings.TrimPrefix(f.File, runtime.GOROOT())
+		fmt.Fprintf(&buf, "%s\n\t%s:%d\n", f.Func, file, f.Line)
+		return true
+	})
+	return buf.String()
 }

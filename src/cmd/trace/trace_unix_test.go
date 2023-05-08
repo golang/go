@@ -9,6 +9,7 @@ package main
 import (
 	"bytes"
 	"cmd/internal/traceviewer"
+	"internal/goexperiment"
 	traceparser "internal/trace"
 	"io"
 	"runtime"
@@ -23,6 +24,9 @@ import (
 // that preexisted when the tracing started were not counted
 // as threads in syscall. See golang.org/issues/22574.
 func TestGoroutineInSyscall(t *testing.T) {
+	if goexperiment.ExecTracer2 {
+		t.Skip("skipping because this test is obsolete and incompatible with the new tracer")
+	}
 	// Start one goroutine blocked in syscall.
 	//
 	// TODO: syscall.Pipe used to cause the goroutine to

@@ -605,12 +605,35 @@ var depsRules = `
 	syscall
 	< os/exec/internal/fdtest;
 
-	FMT, container/heap, math/rand
-	< internal/trace;
-
 	FMT
 	< internal/diff, internal/txtar;
 
+	FMT, container/heap, math/rand
+	< internal/trace;
+
+	# v2 execution trace parser.
+	FMT
+	< internal/trace/v2/event;
+
+	internal/trace/v2/event
+	< internal/trace/v2/event/go122;
+
+	FMT, io, internal/trace/v2/event/go122
+	< internal/trace/v2/version;
+
+	FMT, encoding/binary, internal/trace/v2/version
+	< internal/trace/v2/raw;
+
+	FMT, encoding/binary, internal/trace/v2/version
+	< internal/trace/v2;
+
+	regexp, internal/trace/v2, internal/trace/v2/raw, internal/txtar
+	< internal/trace/v2/testtrace;
+
+	regexp, internal/txtar, internal/trace/v2, internal/trace/v2/raw
+	< internal/trace/v2/internal/testgen/go122;
+
+	# Coverage.
 	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter, unsafe,
 	internal/coverage, internal/coverage/uleb128
 	< internal/coverage/cmerge,

@@ -188,6 +188,10 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	This increases tracer overhead, but could be helpful as a workaround or for
 	debugging unexpected regressions caused by frame pointer unwinding.
 
+	traceadvanceperiod: the approximate period in nanoseconds between trace generations. Only
+	applies if a program is built with GOEXPERIMENT=exectracer2. Used primarily for testing
+	and debugging the execution tracer.
+
 	asyncpreemptoff: asyncpreemptoff=1 disables signal-based
 	asynchronous goroutine preemption. This makes some loops
 	non-preemptible for long periods, which may delay GC and

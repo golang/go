@@ -479,6 +479,9 @@ type g struct {
 	// park on a chansend or chanrecv. Used to signal an unsafe point
 	// for stack shrinking.
 	parkingOnChan atomic.Bool
+	// inMarkAssist indicates whether the goroutine is in mark assist.
+	// Used by the execution tracer.
+	inMarkAssist bool
 
 	raceignore    int8  // ignore race detection events
 	nocgocallback bool  // whether disable callback from C
@@ -572,6 +575,7 @@ type m struct {
 	incgo         bool          // m is executing a cgo call
 	isextra       bool          // m is an extra m
 	isExtraInC    bool          // m is an extra m that is not executing Go code
+	isExtraInSig  bool          // m is an extra m in a signal handler
 	freeWait      atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
 	fastrand      uint64
 	needextram    bool
@@ -1113,6 +1117,8 @@ const (
 	waitReasonGCMarkTermination                       // "GC mark termination"
 	waitReasonStoppingTheWorld                        // "stopping the world"
 	waitReasonFlushProcCaches                         // "flushing proc caches"
+	waitReasonTraceGoroutineStatus                    // "trace goroutine status"
+	waitReasonTraceProcStatus                         // "trace proc status"
 )
 
 var waitReasonStrings = [...]string{
@@ -1149,6 +1155,8 @@ var waitReasonStrings = [...]string{
 	waitReasonGCMarkTermination:     "GC mark termination",
 	waitReasonStoppingTheWorld:      "stopping the world",
 	waitReasonFlushProcCaches:       "flushing proc caches",
+	waitReasonTraceGoroutineStatus:  "trace goroutine status",
+	waitReasonTraceProcStatus:       "trace proc status",
 }
 
 func (w waitReason) String() string {
