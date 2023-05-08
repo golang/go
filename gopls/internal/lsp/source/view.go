@@ -175,9 +175,23 @@ type Snapshot interface {
 	// WorkspaceMetadata returns a new, unordered slice containing
 	// metadata for all ordinary and test packages (but not
 	// intermediate test variants) in the workspace.
+	//
+	// The workspace is the set of modules typically defined by a
+	// go.work file. It is not transitively closed: for example,
+	// the standard library is not usually part of the workspace
+	// even though every module in the workspace depends on it.
+	//
+	// Operations that must inspect all the dependencies of the
+	// workspace packages should instead use AllMetadata.
 	WorkspaceMetadata(ctx context.Context) ([]*Metadata, error)
 
-	// AllMetadata returns a new unordered array of metadata for all packages in the workspace.
+	// AllMetadata returns a new unordered array of metadata for
+	// all packages known to this snapshot, which includes the
+	// packages of all workspace modules plus their transitive
+	// import dependencies.
+	//
+	// It may also contain ad-hoc packages for standalone files.
+	// It includes all test variants.
 	AllMetadata(ctx context.Context) ([]*Metadata, error)
 
 	// Metadata returns the metadata for the specified package,

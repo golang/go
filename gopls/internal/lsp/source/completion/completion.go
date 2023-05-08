@@ -1174,7 +1174,8 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	// not assume global Pos/Object realms and then use export
 	// data instead of the quick parse approach taken here.
 
-	// First, we search among packages in the workspace.
+	// First, we search among packages in the forward transitive
+	// closure of the workspace.
 	// We'll use a fast parse to extract package members
 	// from those that match the name/path criterion.
 	all, err := c.snapshot.AllMetadata(ctx)
@@ -1610,7 +1611,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 
 	count := 0
 
-	// Search packages across the entire workspace.
+	// Search the forward transitive closure of the workspace.
 	all, err := c.snapshot.AllMetadata(ctx)
 	if err != nil {
 		return err

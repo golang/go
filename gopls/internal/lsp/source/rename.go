@@ -718,8 +718,8 @@ func renamePackageName(ctx context.Context, s Snapshot, f FileHandle, newName Pa
 // directory.
 //
 // It updates package clauses and import paths for the renamed package as well
-// as any other packages affected by the directory renaming among packages
-// described by allMetadata.
+// as any other packages affected by the directory renaming among all packages
+// known to the snapshot.
 func renamePackage(ctx context.Context, s Snapshot, f FileHandle, newName PackageName) (map[span.URI][]diff.Edit, error) {
 	if strings.HasSuffix(string(newName), "_test") {
 		return nil, fmt.Errorf("cannot rename to _test package")

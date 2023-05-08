@@ -117,7 +117,7 @@ func findLinknameAtOffset(pgf *ParsedGoFile, offset int) (string, int) {
 func findLinkname(ctx context.Context, snapshot Snapshot, pkgPath PackagePath, name string) (Package, *ParsedGoFile, token.Pos, error) {
 	// Typically the linkname refers to a forward dependency
 	// or a reverse dependency, but in general it may refer
-	// to any package in the workspace.
+	// to any package that is linked with this one.
 	var pkgMeta *Metadata
 	metas, err := snapshot.AllMetadata(ctx)
 	if err != nil {

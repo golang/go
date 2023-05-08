@@ -152,8 +152,9 @@ func implementations(ctx context.Context, snapshot Snapshot, fh FileHandle, pp p
 		return nil, nil
 	}
 
-	// The global search needs to look at every package in the workspace;
-	// see package ./methodsets.
+	// The global search needs to look at every package in the
+	// forward transitive closure of the workspace; see package
+	// ./methodsets.
 	//
 	// For now we do all the type checking before beginning the search.
 	// TODO(adonovan): opt: search in parallel topological order

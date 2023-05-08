@@ -51,7 +51,7 @@ func KnownPackagePaths(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 		}
 	}
 
-	// Now find candidates among known packages.
+	// Now find candidates among all known packages.
 	knownPkgs, err := snapshot.AllMetadata(ctx)
 	if err != nil {
 		return nil, err

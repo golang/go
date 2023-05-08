@@ -18,46 +18,46 @@ func InlayHint(ctx context.Context, snapshot source.Snapshot, fh source.FileHand
 	if err != nil {
 		return nil, err
 	}
-	return unexpectedVersion(ctx, snapshot, pm), nil
-}
 
-// Compare the version of the module used in the snapshot's metadata with the
-// version requested by the module, in both cases, taking replaces into account.
-// Produce an InlayHint when the version is the module is not the one usedd.
-func unexpectedVersion(ctx context.Context, snapshot source.Snapshot, pm *source.ParsedModule) []protocol.InlayHint {
-	var ans []protocol.InlayHint
-	if pm.File == nil {
-		return nil
-	}
+	// Compare the version of the module used in the snapshot's metadata with the
+	// version requested by the module, in both cases, taking replaces into account.
+	// Produce an InlayHint when the version is the module is not the one used.
+
 	replaces := make(map[string]*modfile.Replace)
-	requires := make(map[string]*modfile.Require)
 	for _, x := range pm.File.Replace {
 		replaces[x.Old.Path] = x
 	}
+
+	requires := make(map[string]*modfile.Require)
 	for _, x := range pm.File.Require {
 		requires[x.Mod.Path] = x
 	}
-	am, _ := snapshot.AllMetadata(ctx)
+
+	am, err := snapshot.AllMetadata(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var ans []protocol.InlayHint
 	seen := make(map[string]bool)
 	for _, meta := range am {
-		if meta == nil || meta.Module == nil || seen[meta.Module.Path] {
+		if meta.Module == nil || seen[meta.Module.Path] {
 			continue
 		}
 		seen[meta.Module.Path] = true
-		metaMod := meta.Module
-		metaVersion := metaMod.Version
-		if metaMod.Replace != nil {
-			metaVersion = metaMod.Replace.Version
+		metaVersion := meta.Module.Version
+		if meta.Module.Replace != nil {
+			metaVersion = meta.Module.Replace.Version
 		}
 		// These versions can be blank, as in gopls/go.mod's local replace
-		if oldrepl, ok := replaces[metaMod.Path]; ok && oldrepl.New.Version != metaVersion {
+		if oldrepl, ok := replaces[meta.Module.Path]; ok && oldrepl.New.Version != metaVersion {
 			ih := genHint(oldrepl.Syntax, oldrepl.New.Version, metaVersion, pm.Mapper)
 			if ih != nil {
 				ans = append(ans, *ih)
 			}
-		} else if oldreq, ok := requires[metaMod.Path]; ok && oldreq.Mod.Version != metaVersion {
+		} else if oldreq, ok := requires[meta.Module.Path]; ok && oldreq.Mod.Version != metaVersion {
 			// maybe it was replaced:
-			if _, ok := replaces[metaMod.Path]; ok {
+			if _, ok := replaces[meta.Module.Path]; ok {
 				continue
 			}
 			ih := genHint(oldreq.Syntax, oldreq.Mod.Version, metaVersion, pm.Mapper)
@@ -66,7 +66,7 @@ func unexpectedVersion(ctx context.Context, snapshot source.Snapshot, pm *source
 			}
 		}
 	}
-	return ans
+	return ans, nil
 }
 
 func genHint(mline *modfile.Line, oldVersion, newVersion string, m *protocol.Mapper) *protocol.InlayHint {
