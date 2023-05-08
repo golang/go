@@ -69,16 +69,15 @@ func FuzzPrintEnvEscape(f *testing.F) {
 		if runtime.GOOS == "windows" {
 			scriptfilename = "script.bat"
 		}
-		scriptfile := filepath.Join(t.TempDir(), scriptfilename)
-		if err := os.WriteFile(scriptfile, b.Bytes(), 0777); err != nil {
-			t.Fatal(err)
-		}
-		t.Log(b.String())
 		var cmd *exec.Cmd
 		if runtime.GOOS == "windows" {
+			scriptfile := filepath.Join(t.TempDir(), scriptfilename)
+			if err := os.WriteFile(scriptfile, b.Bytes(), 0777); err != nil {
+				t.Fatal(err)
+			}
 			cmd = testenv.Command(t, "cmd.exe", "/C", scriptfile)
 		} else {
-			cmd = testenv.Command(t, "sh", "-c", scriptfile)
+			cmd = testenv.Command(t, "sh", "-c", b.String())
 		}
 		out, err := cmd.Output()
 		t.Log(string(out))
