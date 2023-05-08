@@ -11,10 +11,10 @@ case "$GOWASIRUNTIME" in
 		exec wasmer run --dir=/ --env PWD="$PWD" ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
 		;;
 	"wasmtime")
-		exec wasmtime run --dir=/ --env PWD="$PWD" --max-wasm-stack 1048576 "$1" -- "${@:2}"
+		exec wasmtime run --dir=/ --env PWD="$PWD" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
 		;;
 	"wazero" | "")
-		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero "$1" "${@:2}"
+		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
 		;;
 	*)
 		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"

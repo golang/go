@@ -52,6 +52,8 @@ type FD struct {
 // or "file".
 // Set pollable to true if fd should be managed by runtime netpoll.
 func (fd *FD) Init(net string, pollable bool) error {
+	fd.SysFile.init()
+
 	// We don't actually care about the various network types.
 	if net == "file" {
 		fd.isFile = true
@@ -76,12 +78,7 @@ func (fd *FD) destroy() error {
 	// so this must be executed before CloseFunc.
 	fd.pd.close()
 
-	// We don't use ignoringEINTR here because POSIX does not define
-	// whether the descriptor is closed if close returns EINTR.
-	// If the descriptor is indeed closed, using a loop would race
-	// with some other goroutine opening a new descriptor.
-	// (The Linux kernel guarantees that it is closed on an EINTR error.)
-	err := CloseFunc(fd.Sysfd)
+	err := fd.SysFile.destroy(fd.Sysfd)
 
 	fd.Sysfd = -1
 	runtime_Semrelease(&fd.csema)

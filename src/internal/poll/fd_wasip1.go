@@ -11,6 +11,18 @@ import (
 )
 
 type SysFile struct {
+	// RefCountPtr is a pointer to the reference count of Sysfd.
+	//
+	// WASI preview 1 lacks a dup(2) system call. When the os and net packages
+	// need to share a file/socket, instead of duplicating the underlying file
+	// descriptor, we instead provide a way to copy FD instances and manage the
+	// underlying file descriptor with reference counting.
+	RefCountPtr *int32
+
+	// RefCount is the reference count of Sysfd. When a copy of an FD is made,
+	// it points to the reference count of the original FD instance.
+	RefCount int32
+
 	// Cache for the file type, lazily initialized when Seek is called.
 	Filetype uint32
 
@@ -27,6 +39,47 @@ type SysFile struct {
 	// on this struct type, and expose it as `IsFile() bool` which derives the
 	// result from the Filetype field. We would need to ensure that Filetype is
 	// always set instead of being lazily initialized.
+}
+
+func (s *SysFile) init() {
+	if s.RefCountPtr == nil {
+		s.RefCount = 1
+		s.RefCountPtr = &s.RefCount
+	}
+}
+
+func (s *SysFile) ref() SysFile {
+	atomic.AddInt32(s.RefCountPtr, +1)
+	return SysFile{RefCountPtr: s.RefCountPtr}
+}
+
+func (s *SysFile) destroy(fd int) error {
+	if s.RefCountPtr != nil && atomic.AddInt32(s.RefCountPtr, -1) > 0 {
+		return nil
+	}
+
+	// We don't use ignoringEINTR here because POSIX does not define
+	// whether the descriptor is closed if close returns EINTR.
+	// If the descriptor is indeed closed, using a loop would race
+	// with some other goroutine opening a new descriptor.
+	// (The Linux kernel guarantees that it is closed on an EINTR error.)
+	return CloseFunc(fd)
+}
+
+// Copy creates a copy of the FD.
+//
+// The FD instance points to the same underlying file descriptor. The file
+// descriptor isn't closed until all FD instances that refer to it have been
+// closed/destroyed.
+func (fd *FD) Copy() FD {
+	return FD{
+		Sysfd:         fd.Sysfd,
+		SysFile:       fd.SysFile.ref(),
+		IsStream:      fd.IsStream,
+		ZeroReadIsEOF: fd.ZeroReadIsEOF,
+		isBlocking:    fd.isBlocking,
+		isFile:        fd.isFile,
+	}
 }
 
 // dupCloseOnExecOld always errors on wasip1 because there is no mechanism to

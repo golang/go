@@ -2,66 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// wasip1/wasm uses fake networking directly implemented in the net package.
-// This file only exists to make the compiler happy.
-
 //go:build wasip1
 
 package syscall
 
-const (
-	AF_UNSPEC = iota
-	AF_UNIX
-	AF_INET
-	AF_INET6
-)
+import "unsafe"
 
 const (
-	SOCK_STREAM = 1 + iota
-	SOCK_DGRAM
-	SOCK_RAW
-	SOCK_SEQPACKET
+	SHUT_RD   = 0x1
+	SHUT_WR   = 0x2
+	SHUT_RDWR = SHUT_RD | SHUT_WR
 )
 
-const (
-	IPPROTO_IP   = 0
-	IPPROTO_IPV4 = 4
-	IPPROTO_IPV6 = 0x29
-	IPPROTO_TCP  = 6
-	IPPROTO_UDP  = 0x11
-)
+type sdflags = uint32
 
-const (
-	_ = iota
-	IPV6_V6ONLY
-	SOMAXCONN
-	SO_ERROR
-)
+//go:wasmimport wasi_snapshot_preview1 sock_accept
+//go:noescape
+func sock_accept(fd int32, flags fdflags, newfd unsafe.Pointer) Errno
 
-// Misc constants expected by package net but not supported.
-const (
-	_ = iota
-	F_DUPFD_CLOEXEC
-	SYS_FCNTL = 500 // unsupported; same value as net_nacl.go
-)
-
-type Sockaddr interface {
-}
-
-type SockaddrInet4 struct {
-	Port int
-	Addr [4]byte
-}
-
-type SockaddrInet6 struct {
-	Port   int
-	ZoneId uint32
-	Addr   [16]byte
-}
-
-type SockaddrUnix struct {
-	Name string
-}
+//go:wasmimport wasi_snapshot_preview1 sock_shutdown
+//go:noescape
+func sock_shutdown(fd int32, flags sdflags) Errno
 
 func Socket(proto, sotype, unused int) (fd int, err error) {
 	return 0, ENOSYS
@@ -79,8 +40,10 @@ func Listen(fd int, backlog int) error {
 	return ENOSYS
 }
 
-func Accept(fd int) (newfd int, sa Sockaddr, err error) {
-	return 0, nil, ENOSYS
+func Accept(fd int) (int, Sockaddr, error) {
+	var newfd int32
+	errno := sock_accept(int32(fd), 0, unsafe.Pointer(&newfd))
+	return int(newfd), nil, errnoErr(errno)
 }
 
 func Connect(fd int, sa Sockaddr) error {
@@ -120,5 +83,6 @@ func SetWriteDeadline(fd int, t int64) error {
 }
 
 func Shutdown(fd int, how int) error {
-	return ENOSYS
+	errno := sock_shutdown(int32(fd), sdflags(how))
+	return errnoErr(errno)
 }
