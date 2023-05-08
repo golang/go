@@ -98,6 +98,7 @@ var filemap = map[string]action{
 	"array.go":        nil,
 	"basic.go":        nil,
 	"chan.go":         nil,
+	"const.go":        func(f *ast.File) { fixTokenPos(f) },
 	"context.go":      nil,
 	"context_test.go": nil,
 	"gccgosizes.go":   nil,
