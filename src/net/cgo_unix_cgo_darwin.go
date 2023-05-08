@@ -17,10 +17,10 @@ import (
 )
 
 func init() {
-	const expected_size = int(unsafe.Sizeof(C.struct___res_state{}))
-	const got_size = int(unsafe.Sizeof(unix.ResState{}))
+	const expected_size = unsafe.Sizeof(C.struct___res_state{})
+	const got_size = unsafe.Sizeof(unix.ResState{})
 
-	// This will cause a compile error when the size differs in any way.
-	var _ [expected_size - got_size]byte
+	// This will cause a compile error when the size of
+	// unix.ResState is too small.
 	var _ [got_size - expected_size]byte
 }
