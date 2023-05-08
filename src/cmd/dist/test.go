@@ -887,13 +887,6 @@ func (t *tester) registerTests() {
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
 		t.registerTest("api", "", &goTest{dir: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
 	}
-
-	// Ensure that the toolchain can bootstrap itself.
-	// This test adds another ~45s to all.bash if run sequentially, so run it only on the builders.
-	// Not meaningful on wasm/js or wasm/wasip1.
-	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "js" && goos != "wasip1" {
-		t.registerTest("reboot", "", &goTest{dir: "../misc/reboot", timeout: 5 * time.Minute})
-	}
 }
 
 // isRegisteredTestName reports whether a test named testName has already

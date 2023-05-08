@@ -5,12 +5,13 @@
 //go:build explicit
 // +build explicit
 
-// Package experiment_toolid_test verifies that GOEXPERIMENT settings built
+// This test verifies that GOEXPERIMENT settings built
 // into the toolchain influence tool ids in the Go command.
 // This test requires bootstrapping the toolchain twice, so it's very expensive.
 // It must be run explicitly with -tags=explicit.
 // Verifies golang.org/issue/33091.
-package reboot_test
+
+package bootstrap_test
 
 import (
 	"bytes"
