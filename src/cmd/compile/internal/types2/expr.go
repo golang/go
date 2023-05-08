@@ -87,14 +87,14 @@ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
 // overflow checks that the constant x is representable by its type.
 // For untyped constants, it checks that the value doesn't become
 // arbitrarily large.
-func (check *Checker) overflow(x *operand) {
+func (check *Checker) overflow(x *operand, pos syntax.Pos) {
 	assert(x.mode == constant_)
 
 	if x.val.Kind() == constant.Unknown {
 		// TODO(gri) We should report exactly what went wrong. At the
 		//           moment we don't have the (go/constant) API for that.
 		//           See also TODO in go/constant/value.go.
-		check.error(opPos(x.expr), InvalidConstVal, "constant result is not representable")
+		check.error(pos, InvalidConstVal, "constant result is not representable")
 		return
 	}
 
@@ -114,7 +114,7 @@ func (check *Checker) overflow(x *operand) {
 		if op != "" {
 			op += " "
 		}
-		check.errorf(opPos(x.expr), InvalidConstVal, "constant %soverflow", op)
+		check.errorf(pos, InvalidConstVal, "constant %soverflow", op)
 		x.val = constant.MakeUnknown()
 	}
 }
@@ -242,7 +242,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 		}
 		x.val = constant.UnaryOp(op2tok[op], x.val, prec)
 		x.expr = e
-		check.overflow(x)
+		check.overflow(x, opPos(x.expr))
 		return
 	}
 
@@ -1020,7 +1020,7 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 			// x is a constant so xval != nil and it must be of Int kind.
 			x.val = constant.Shift(xval, op2tok[op], uint(s))
 			x.expr = e
-			check.overflow(x)
+			check.overflow(x, opPos(x.expr))
 			return
 		}
 
@@ -1221,7 +1221,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 		}
 		x.val = constant.BinaryOp(x.val, tok, y.val)
 		x.expr = e
-		check.overflow(x)
+		check.overflow(x, opPos(x.expr))
 		return
 	}
 
@@ -1360,7 +1360,7 @@ func (check *Checker) exprInternal(T Type, x *operand, e syntax.Expr, hint Type)
 		}
 		// Ensure that integer values don't overflow (go.dev/issue/54280).
 		x.expr = e // make sure that check.overflow below has an error position
-		check.overflow(x)
+		check.overflow(x, opPos(x.expr))
 
 	case *syntax.FuncLit:
 		if sig, ok := check.typ(e.Type).(*Signature); ok {
