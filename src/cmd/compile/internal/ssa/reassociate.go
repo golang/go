@@ -4,13 +4,10 @@
 
 package ssa
 
-import (
-	"fmt"
-	"sort"
-)
-
-// balanceExprTree repurposes all nodes and leafs into a
-// balanced expression tree
+// balanceExprTree repurposes all nodes and leafs into a well-balanced expression tree.
+// It doesn't truly balance the tree in the sense of a BST, rather it 
+// prioritizes pairing up innermost (rightmost) expressions and their results and only
+// pairing results of outermost (leftmost) expressions up with them when no other nice pairing exists 
 func balanceExprTree(v *Value, visited map[*Value]bool, nodes, leafs []*Value) {
 	// reset all arguments of nodes to help rebalancing
 	for i, n := range nodes {
@@ -34,27 +31,27 @@ func balanceExprTree(v *Value, visited map[*Value]bool, nodes, leafs []*Value) {
 		nodes[i], nodes[j] = nodes[j], nodes[i]
 	}
 
-	// push all leafs which are constants as far off to the
-	// right as possible to give the constant folder more opportunities
-	sort.Slice(leafs, func(i, j int) bool {
-		switch leafs[j].Op {
-		case OpConst8, OpConst16, OpConst32, OpConst64:
-			return false
-		default:
-			return true
+	// rebuild expression trees from the bottom up, prioritizing
+	// right grouping.
+	// if the number of leaves is not even, skip the first leaf 
+	// and add it to be paired up later
+	i := 0
+	subTrees := leafs
+	for len(subTrees) != 1 {
+		nextSubTrees := make([]*Value, 0, (len(subTrees)+1)/2)
+		
+		start := len(subTrees)%2
+		if start != 0 {
+			nextSubTrees = append(nextSubTrees, subTrees[0])
 		}
-	})
-
-	// build tree in reverse topological order
-	for i := 0; i < len(nodes); i++ {
-		if len(leafs) < 2 { // we need at least two leafs per node, balance went very wrong
-			panic(fmt.Sprint("leafs needs to be >= 2, got", len(leafs)))
+		
+		for j := start; j < len(subTrees)-1; j+=2 {
+			nodes[i].AddArg2(subTrees[j], subTrees[j+1])
+			nextSubTrees = append(nextSubTrees, nodes[i])
+			i++
 		}
-
-		// Take two leaves out and attach them to a node,
-		// use the node as a new leaf in the "next layer" of the tree
-		nodes[i].AddArg2(leafs[0], leafs[1])
-		leafs = append(leafs[2:], nodes[i])
+		
+		subTrees = nextSubTrees
 	}
 }
 
@@ -72,7 +69,7 @@ func isOr(op Op) bool {
 //
 //	(l | l << 8 | l << 18 | l << 24)
 //
-// which cannot be rebalanced or else it won't fire rewrite rules
+// which cannot be rebalanced or else it won't fire load widening rewrite rules
 func probablyMemcombine(op Op, leafs []*Value) bool {
 	if !isOr(op) {
 		return false
@@ -89,7 +86,11 @@ func probablyMemcombine(op Op, leafs []*Value) bool {
 		}
 	}
 
-	return lshCount == len(leafs)-1
+	// there are a few algorithms in the std lib expressed as two 32 bit loads
+	// which can get turned into a 64 bit load
+	// conservatively estimate that if there are more shifts than not then it is
+	// some sort of load waiting to be widened
+	return lshCount > len(leafs)/2
 }
 
 // rebalance balances associative computation to better help CPU instruction pipelining (#49331)
@@ -145,7 +146,7 @@ func rebalance(v *Value, visited map[*Value]bool) {
 	}
 
 	// we need at least 4 leafs for this expression to be rebalanceable,
-	// and we can't balance a potential load widening (memcombine)
+	// and we can't balance a potential load widening (see memcombine)
 	if len(leafs) < 4 || probablyMemcombine(v.Op, leafs) {
 		return
 	}
@@ -154,8 +155,8 @@ func rebalance(v *Value, visited map[*Value]bool) {
 }
 
 // reassociate balances trees of commutative computation
-// to better group expressions for better constant folding,
-// cse, etc.
+// to better group expressions to expose easy optimizations in
+// cse, cancelling/counting/factoring expressions, etc.
 func reassociate(f *Func) {
 	visited := make(map[*Value]bool)
 
