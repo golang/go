@@ -4,22 +4,36 @@
 
 package ssa
 
+// reassociate balances trees of commutative computation
+// to better group expressions to expose easy optimizations in
+// cse, cancelling/counting/factoring expressions, etc.
+func reassociate(f *Func) {
+	visited := f.newSparseSet(f.NumValues())
+
+	for _, b := range f.Postorder() {
+		for i := len(b.Values) - 1; i >= 0; i-- {
+			val := b.Values[i]
+			rebalance(val, visited)
+		}
+	}
+}
+
 // balanceExprTree repurposes all nodes and leaves into a well-balanced expression tree.
-// It doesn't truly balance the tree in the sense of a BST, rather it 
+// It doesn't truly balance the tree in the sense of a BST, rather it
 // prioritizes pairing up innermost (rightmost) expressions and their results and only
-// pairing results of outermost (leftmost) expressions up with them when no other nice pairing exists 
-func balanceExprTree(v *Value, visited map[*Value]bool, nodes, leaves []*Value) {
+// pairing results of outermost (leftmost) expressions up with them when no other nice pairing exists
+func balanceExprTree(v *Value, visited *sparseSet, nodes, leaves []*Value) {
 	// reset all arguments of nodes to help rebalancing
 	for i, n := range nodes {
 		n.reset(n.Op)
 
 		// sometimes nodes in the tree are in different blocks
 		// so pull them in into a common block (v's block)
-		// to make sure nodes don't end up dominating their leaves
+		// to make sure nodes don't end up dominating their leaves TODO(ryan-berger), not necessary
 		if v.Block != n.Block {
 			copied := n.copyInto(v.Block)
 			n.Op = OpInvalid
-			visited[n] = true // "revisit" the copied node
+			visited.add(copied.ID) // "revisit" the copied node
 			nodes[i] = copied
 		}
 	}
@@ -33,24 +47,24 @@ func balanceExprTree(v *Value, visited map[*Value]bool, nodes, leaves []*Value) 
 
 	// rebuild expression trees from the bottom up, prioritizing
 	// right grouping.
-	// if the number of leaves is not even, skip the first leaf 
+	// if the number of leaves is not even, skip the first leaf
 	// and add it to be paired up later
 	i := 0
 	subTrees := leaves
 	for len(subTrees) != 1 {
 		nextSubTrees := make([]*Value, 0, (len(subTrees)+1)/2)
-		
-		start := len(subTrees)%2
+
+		start := len(subTrees) % 2
 		if start != 0 {
 			nextSubTrees = append(nextSubTrees, subTrees[0])
 		}
-		
-		for j := start; j < len(subTrees)-1; j+=2 {
+
+		for j := start; j < len(subTrees)-1; j += 2 {
 			nodes[i].AddArg2(subTrees[j], subTrees[j+1])
 			nextSubTrees = append(nextSubTrees, nodes[i])
 			i++
 		}
-		
+
 		subTrees = nextSubTrees
 	}
 }
@@ -96,78 +110,58 @@ func probablyMemcombine(op Op, leaves []*Value) bool {
 // rebalance balances associative computation to better help CPU instruction pipelining (#49331)
 // and groups constants together catch more constant folding opportunities.
 //
-// a + b + c + d compiles to to (a + (b + (c + d)) which is an unbalanced expression tree
+// a + b + c + d compiles to to v1:(a + v2:(b + v3:(c + d)) which is an unbalanced expression tree
 // Which is suboptimal since it requires the CPU to compute v3 before fetching it use its result in
 // v2, and v2 before its use in v1
 //
 // This optimization rebalances this expression tree to look like (a + b) + (c + d) ,
 // which removes such dependencies and frees up the CPU pipeline.
 //
-// The above optimization is a good starting point for other sorts of operations such as
+// The above optimization is also a good starting point for other sorts of operations such as
 // turning a + a + a => 3*a, cancelling pairs a + (-a), collecting up common factors TODO(ryan-berger)
-func rebalance(v *Value, visited map[*Value]bool) {
+func rebalance(v *Value, visited *sparseSet) {
 	// We cannot apply this optimization to non-commutative operations,
-	// values that have more than one use, or non-binary ops (would need more log math).
 	// Try and save time by not revisiting nodes
-	if visited[v] || !(v.Uses == 1 && opcodeTable[v.Op].commutative) || len(v.Args) > 2 {
+	if visited.contains(v.ID) || !opcodeTable[v.Op].commutative {
 		return
 	}
 
-	// The smallest possible rebalanceable expression has 3 nodes and 4 leaves,
+	// The smallest possible rebalanceable binary expression has 3 nodes and 4 leaves,
 	// so preallocate the lists to save time if it is not rebalanceable
 	leaves := make([]*Value, 0, 4)
 	nodes := make([]*Value, 0, 3)
 
 	// Do a bfs on v to keep a nice reverse topological order
 	haystack := []*Value{v}
-	for len(haystack) != 0 {
-		nextHaystack := make([]*Value, 0, len(v.Args)*len(haystack))
-		for _, needle := range haystack {
-			// if we are searching a value, it must be a node so add it to our node list
-			nodes = append(nodes, needle)
+	for i := 0; i < len(haystack); i++ {
+		needle := haystack[i]
+		// if we are searching a value, it must be a node so add it to our node list
+		nodes = append(nodes, needle)
 
-			// Only visit nodes. Leafs may be rebalancable for a different op type
-			visited[needle] = true
+		// Only visit nodes. Leafs may be rebalancable for a different op type
+		visited.add(v.ID)
 
-			for _, a := range needle.Args {
-				// If the ops aren't the same or have more than one use it must be a leaf.
-				if a.Op != v.Op || a.Uses != 1 {
-					leaves = append(leaves, a)
-					continue
-				}
-
-				// nodes in the tree now hold the invariants that:
-				// - they are of a common associative operation as the rest of the tree
-				// - they have only a single use (this invariant could be removed with further analysis TODO(ryan-berger)
-				nextHaystack = append(nextHaystack, a)
+		for _, a := range needle.Args {
+			// If the ops aren't the same or have more than one use it must be a leaf.
+			if a.Op != v.Op || a.Uses != 1 {
+				leaves = append(leaves, a)
+				continue
 			}
+
+			// nodes in the tree now hold the invariants that:
+			// - they are of a common associative operation as the rest of the tree
+			// - they have only a single use (this invariant could be removed with further analysis TODO(ryan-berger))
+			haystack = append(haystack, a)
 		}
-		haystack = nextHaystack
 	}
 
-	// we need at least 4 leaves for this expression to be rebalanceable,
+	minLeaves := len(v.Args) * len(v.Args)
+
+	// we need at least args^2 leaves for this expression to be rebalanceable,
 	// and we can't balance a potential load widening (see memcombine)
-	if len(leaves) < 4 || probablyMemcombine(v.Op, leaves) {
+	if len(leaves) < minLeaves || probablyMemcombine(v.Op, leaves) {
 		return
 	}
 
 	balanceExprTree(v, visited, nodes, leaves)
-}
-
-// reassociate balances trees of commutative computation
-// to better group expressions to expose easy optimizations in
-// cse, cancelling/counting/factoring expressions, etc.
-func reassociate(f *Func) {
-	visited := make(map[*Value]bool)
-
-	for _, b := range f.Postorder() {
-		for i := len(b.Values) - 1; i >= 0; i-- {
-			val := b.Values[i]
-			rebalance(val, visited)
-		}
-	}
-
-	for k := range visited {
-		delete(visited, k)
-	}
 }
