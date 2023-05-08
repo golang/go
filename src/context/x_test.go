@@ -521,26 +521,26 @@ func TestWithCancelSimultaneouslyCanceledParent(t *testing.T) {
 }
 
 func TestWithValueChecksKey(t *testing.T) {
-	panicVal := recoveredValue(func() { WithValue(Background(), []byte("foo"), "bar") })
+	panicVal := recoveredValue(func() { _ = WithValue(Background(), []byte("foo"), "bar") })
 	if panicVal == nil {
 		t.Error("expected panic")
 	}
-	panicVal = recoveredValue(func() { WithValue(Background(), nil, "bar") })
+	panicVal = recoveredValue(func() { _ = WithValue(Background(), nil, "bar") })
 	if got, want := fmt.Sprint(panicVal), "nil key"; got != want {
 		t.Errorf("panic = %q; want %q", got, want)
 	}
 }
 
 func TestInvalidDerivedFail(t *testing.T) {
-	panicVal := recoveredValue(func() { WithCancel(nil) })
+	panicVal := recoveredValue(func() { _, _ = WithCancel(nil) })
 	if panicVal == nil {
 		t.Error("expected panic")
 	}
-	panicVal = recoveredValue(func() { WithDeadline(nil, time.Now().Add(shortDuration)) })
+	panicVal = recoveredValue(func() { _, _ = WithDeadline(nil, time.Now().Add(shortDuration)) })
 	if panicVal == nil {
 		t.Error("expected panic")
 	}
-	panicVal = recoveredValue(func() { WithValue(nil, "foo", "bar") })
+	panicVal = recoveredValue(func() { _ = WithValue(nil, "foo", "bar") })
 	if panicVal == nil {
 		t.Error("expected panic")
 	}
