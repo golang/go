@@ -81,6 +81,7 @@ func TestGoplsSourceDoesNotCallTokenFileMethods(t *testing.T) {
 	cfg.Env = os.Environ()
 	cfg.Env = append(cfg.Env,
 		"GOPACKAGESDRIVER=off",
+		"GOWORK=off", // necessary for -mod=mod below
 		"GOFLAGS=-mod=mod",
 	)
 
