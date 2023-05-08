@@ -444,6 +444,28 @@ var ptrTests = []ptrTest{
 		body:    `s := &S40{p: new(int)}; C.f40((*C.struct_S40i)(&s.a))`,
 		fail:    false,
 	},
+	{
+		// Test that we handle unsafe.StringData.
+		name:    "stringdata",
+		c:       `void f41(void* p) {}`,
+		imports: []string{"unsafe"},
+		body:    `s := struct { a [4]byte; p *int }{p: new(int)}; str := unsafe.String(&s.a[0], 4); C.f41(unsafe.Pointer(unsafe.StringData(str)))`,
+		fail:    false,
+	},
+	{
+		name:    "slicedata",
+		c:       `void f42(void* p) {}`,
+		imports: []string{"unsafe"},
+		body:    `s := []*byte{nil, new(byte)}; C.f42(unsafe.Pointer(unsafe.SliceData(s)))`,
+		fail:    true,
+	},
+	{
+		name:    "slicedata2",
+		c:       `void f43(void* p) {}`,
+		imports: []string{"unsafe"},
+		body:    `s := struct { a [4]byte; p *int }{p: new(int)}; C.f43(unsafe.Pointer(unsafe.SliceData(s.a[:])))`,
+		fail:    false,
+	},
 }
 
 func TestPointerChecks(t *testing.T) {
@@ -497,7 +519,7 @@ func buildPtrTests(t *testing.T, gopath string, cgocheck2 bool) (exe string) {
 	if err := os.MkdirAll(src, 0777); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(src, "go.mod"), []byte("module ptrtest"), 0666); err != nil {
+	if err := os.WriteFile(filepath.Join(src, "go.mod"), []byte("module ptrtest\ngo 1.20"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
