@@ -5,10 +5,10 @@
 
 case "$GOWASIRUNTIME" in
 	"wasmedge")
-		exec wasmedge --dir=/ --env PWD="$PWD" "$1" "${@:2}"
+		exec wasmedge --dir=/ --env PWD="$PWD" ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
 		;;
 	"wasmer")
-		exec wasmer run --dir=/ --env PWD="$PWD" "$1" -- "${@:2}"
+		exec wasmer run --dir=/ --env PWD="$PWD" ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
 		;;
 	"wasmtime")
 		exec wasmtime run --dir=/ --env PWD="$PWD" --max-wasm-stack 1048576 "$1" -- "${@:2}"

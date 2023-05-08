@@ -574,7 +574,8 @@ func (t *tester) registerTests() {
 	// registerStdTestSpecially tracks import paths in the standard library
 	// whose test registration happens in a special way.
 	registerStdTestSpecially := map[string]bool{
-		"cmd/internal/testdir": true, // Registered at the bottom with sharding.
+		"runtime/internal/wasitest": true, // Registered at the bottom as a host test.
+		"cmd/internal/testdir":      true, // Registered at the bottom with sharding.
 	}
 
 	// Fast path to avoid the ~1 second of `go list std cmd` when
@@ -784,6 +785,16 @@ func (t *tester) registerTests() {
 	const cgoHeading = "Testing cgo"
 	if t.cgoEnabled {
 		t.registerCgoTests(cgoHeading)
+	}
+
+	if goos == "wasip1" {
+		t.registerTest("wasip1 host tests",
+			&goTest{
+				variant:   "host",
+				pkg:       "runtime/internal/wasitest",
+				timeout:   1 * time.Minute,
+				runOnHost: true,
+			})
 	}
 
 	if goos != "android" && !t.iOS() {
