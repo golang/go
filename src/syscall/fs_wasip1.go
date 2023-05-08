@@ -255,6 +255,30 @@ func path_open(rootFD int32, dirflags lookupflags, path unsafe.Pointer, pathLen 
 //go:noescape
 func random_get(buf unsafe.Pointer, bufLen size) Errno
 
+// https://github.com/WebAssembly/WASI/blob/a2b96e81c0586125cc4dc79a5be0b78d9a059925/legacy/preview1/docs.md#-fdstat-record
+// fdflags must be at offset 2, hence the uint16 type rather than the
+// fdflags (uint32) type.
+type fdstat struct {
+	filetype         filetype
+	fdflags          uint16
+	rightsBase       rights
+	rightsInheriting rights
+}
+
+//go:wasmimport wasi_snapshot_preview1 fd_fdstat_get
+//go:noescape
+func fd_fdstat_get(fd int32, buf unsafe.Pointer) Errno
+
+//go:wasmimport wasi_snapshot_preview1 fd_fdstat_set_flags
+//go:noescape
+func fd_fdstat_set_flags(fd int32, flags fdflags) Errno
+
+func fd_fdstat_get_flags(fd int) (uint32, error) {
+	var stat fdstat
+	errno := fd_fdstat_get(int32(fd), unsafe.Pointer(&stat))
+	return uint32(stat.fdflags), errnoErr(errno)
+}
+
 type preopentype = uint8
 
 const (

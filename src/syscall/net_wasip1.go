@@ -122,7 +122,3 @@ func SetWriteDeadline(fd int, t int64) error {
 func Shutdown(fd int, how int) error {
 	return ENOSYS
 }
-
-func SetNonblock(fd int, nonblocking bool) error {
-	return ENOSYS
-}
