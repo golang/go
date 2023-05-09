@@ -21,7 +21,7 @@ GOARCH are enabled by default, and only on GOOS=linux.
 To perform comprehensive tests for all the supported architectures
 (even on a non-Linux system), one can run the following command:
 
-  $ ../../bin/go test internal/testdir -run='Test/codegen' -all_codegen -v
+  $ ../../bin/go test cmd/internal/testdir -run='Test/codegen' -all_codegen -v
 
 This is recommended after any change that affect the compiler's code.
 

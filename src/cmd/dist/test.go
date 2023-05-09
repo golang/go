@@ -530,7 +530,7 @@ func (t *tester) registerTests() {
 	// registerStdTestSpecially tracks import paths in the standard library
 	// whose test registration happens in a special way.
 	registerStdTestSpecially := map[string]bool{
-		"internal/testdir": true, // Registered at the bottom with sharding.
+		"cmd/internal/testdir": true, // Registered at the bottom with sharding.
 		// cgo tests are registered specially because they involve unusual build
 		// conditions and flags.
 		"cmd/cgo/internal/teststdio":      true,
@@ -858,7 +858,7 @@ func (t *tester) registerTests() {
 				fmt.Sprintf("test:%d_%d", shard, nShards),
 				"../test",
 				&goTest{
-					pkg:       "internal/testdir",
+					pkg:       "cmd/internal/testdir",
 					testFlags: []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
 					runOnHost: true,
 				},
