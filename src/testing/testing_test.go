@@ -6,6 +6,7 @@ package testing_test
 
 import (
 	"bytes"
+	"internal/race"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -291,5 +292,112 @@ func TestTesting(t *testing.T) {
 	s := string(bytes.TrimSpace(out))
 	if s != "false" {
 		t.Errorf("in non-test testing.Test() returned %q, want %q", s, "false")
+	}
+}
+
+// runTest runs a helper test with -test.v.
+// It returns the test output and test exit status.
+func runTest(t *testing.T, test string) ([]byte, error) {
+	t.Helper()
+
+	testenv.MustHaveExec(t)
+
+	exe, err := os.Executable()
+	if err != nil {
+		t.Skipf("can't find test executable: %v", err)
+	}
+
+	cmd := testenv.Command(t, exe, "-test.run="+test, "-test.v", "-test.parallel=2")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+
+	return out, err
+}
+
+// generateRaceReport generates a race detector report if run under
+// the race detector.
+func generateRaceReport() {
+	var x int
+	c1 := make(chan bool)
+	c2 := make(chan int, 1)
+	go func() {
+		x = 1 // racy write
+		c1 <- true
+	}()
+	c2 <- x // racy read
+	<-c1
+}
+
+func TestRaceReports(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// Generate a race detector report in a sub test.
+		t.Run("Sub", func(t *testing.T) {
+			generateRaceReport()
+		})
+		return
+	}
+
+	out, _ := runTest(t, "TestRaceReports")
+
+	// We should see at most one race detector report.
+	c := bytes.Count(out, []byte("race detected"))
+	want := 0
+	if race.Enabled {
+		want = 1
+	}
+	if c != want {
+		t.Errorf("got %d race reports, want %d", c, want)
+	}
+}
+
+// Issue #60083. This used to fail on the race builder.
+func TestRaceName(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		generateRaceReport()
+		return
+	}
+
+	out, _ := runTest(t, "TestRaceName")
+
+	if bytes.Contains(out, []byte("=== NAME  \n")) {
+		t.Errorf("incorrectly reported test with no name")
+	}
+}
+
+func TestRaceSubReports(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		t.Parallel()
+		c1 := make(chan bool, 1)
+		c2 := make(chan bool, 1)
+		t.Run("sub", func(t *testing.T) {
+			t.Run("subsub1", func(t *testing.T) {
+				t.Parallel()
+				generateRaceReport()
+				c1 <- true
+			})
+			t.Run("subsub2", func(t *testing.T) {
+				t.Parallel()
+				<-c1
+				generateRaceReport()
+				c2 <- true
+			})
+		})
+		<-c2
+		generateRaceReport()
+		return
+	}
+
+	out, _ := runTest(t, "TestRaceSubReports")
+
+	// There should be three race reports.
+	c := bytes.Count(out, []byte("race detected during execution of test"))
+	want := 0
+	if race.Enabled {
+		want = 3
+	}
+	if c != want {
+		t.Errorf("got %d race reports, want %d", c, want)
 	}
 }
