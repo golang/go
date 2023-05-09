@@ -276,3 +276,32 @@ func toJSON(x interface{}) string {
 	b, _ := json.MarshalIndent(x, "", " ")
 	return string(b)
 }
+
+func TestIgnoreFilter(t *testing.T) {
+	tests := []struct {
+		dirs []string
+		path string
+		want bool
+	}{
+		{[]string{"a"}, "a/testdata/foo", true},
+		{[]string{"a"}, "a/_ignore/foo", true},
+		{[]string{"a"}, "a/.ignore/foo", true},
+		{[]string{"a"}, "b/testdata/foo", false},
+		{[]string{"a"}, "testdata/foo", false},
+		{[]string{"a", "b"}, "b/testdata/foo", true},
+		{[]string{"a"}, "atestdata/foo", false},
+	}
+
+	for _, test := range tests {
+		// convert to filepaths, for convenience
+		for i, dir := range test.dirs {
+			test.dirs[i] = filepath.FromSlash(dir)
+		}
+		test.path = filepath.FromSlash(test.path)
+
+		f := newIgnoreFilter(test.dirs)
+		if got := f.ignored(test.path); got != test.want {
+			t.Errorf("newIgnoreFilter(%q).ignore(%q) = %t, want %t", test.dirs, test.path, got, test.want)
+		}
+	}
+}

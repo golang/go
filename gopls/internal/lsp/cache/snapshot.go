@@ -185,6 +185,11 @@ type snapshot struct {
 
 	// pkgIndex is an index of package IDs, for efficient storage of typerefs.
 	pkgIndex *typerefs.PackageIndex
+
+	// Only compute module prefixes once, as they are used with high frequency to
+	// detect ignored files.
+	ignoreFilterOnce sync.Once
+	ignoreFilter     *ignoreFilter
 }
 
 var globalSnapshotID uint64
@@ -1195,7 +1200,7 @@ func (s *snapshot) GoModForFile(uri span.URI) span.URI {
 func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 	var match span.URI
 	for modURI := range modFiles {
-		if !source.InDir(span.Dir(modURI).Filename(), uri.Filename()) {
+		if !source.InDir(filepath.Dir(modURI.Filename()), uri.Filename()) {
 			continue
 		}
 		if len(modURI) > len(match) {

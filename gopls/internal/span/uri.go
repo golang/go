@@ -175,11 +175,3 @@ func isWindowsDriveURIPath(uri string) bool {
 	}
 	return uri[0] == '/' && unicode.IsLetter(rune(uri[1])) && uri[2] == ':'
 }
-
-// Dir returns the URI for the directory containing uri. Dir panics if uri is
-// not a file uri.
-//
-// TODO(rfindley): add a unit test for various edge cases.
-func Dir(uri URI) URI {
-	return URIFromPath(filepath.Dir(uri.Filename()))
-}

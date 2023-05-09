@@ -365,10 +365,10 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 		var hasNonIgnored, hasOpenFile bool
 		for _, uri := range m.CompiledGoFiles {
 			seen[uri] = struct{}{}
-			if !snapshot.IgnoredFile(uri) {
+			if !hasNonIgnored && !snapshot.IgnoredFile(uri) {
 				hasNonIgnored = true
 			}
-			if snapshot.IsOpen(uri) {
+			if !hasOpenFile && snapshot.IsOpen(uri) {
 				hasOpenFile = true
 			}
 		}
