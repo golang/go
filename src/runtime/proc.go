@@ -2501,7 +2501,7 @@ func handoffp(pp *p) {
 		return
 	}
 	// if there's trace work to do, start it straight away
-	if (traceEnabled() || trace.shutdown) && traceReaderAvailable() != nil {
+	if (traceEnabled() || traceShuttingDown()) && traceReaderAvailable() != nil {
 		startm(pp, false, false)
 		return
 	}
@@ -2747,7 +2747,7 @@ top:
 	now, pollUntil, _ := checkTimers(pp, 0)
 
 	// Try to schedule the trace reader.
-	if traceEnabled() || trace.shutdown {
+	if traceEnabled() || traceShuttingDown() {
 		gp := traceReader()
 		if gp != nil {
 			casgstatus(gp, _Gwaiting, _Grunnable)

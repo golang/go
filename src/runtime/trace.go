@@ -211,6 +211,11 @@ func traceEnabled() bool {
 	return trace.enabled
 }
 
+// traceShuttingDown returns true if the trace is currently shutting down.
+func traceShuttingDown() bool {
+	return trace.shutdown
+}
+
 // StartTrace enables tracing for the current process.
 // While tracing, the data will be buffered and available via ReadTrace.
 // StartTrace returns an error if tracing is already enabled.
