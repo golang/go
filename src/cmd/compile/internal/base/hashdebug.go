@@ -122,11 +122,11 @@ var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
 //  6. gossahash should return a single function whose miscompilation
 //     causes the problem, and you can focus on that.
 func DebugHashMatchPkgFunc(pkg, fn string) bool {
-	return hashDebug.MatchPkgFunc(pkg, fn)
+	return hashDebug.MatchPkgFunc(pkg, fn, nil)
 }
 
 func DebugHashMatchPos(pos src.XPos) bool {
-	return hashDebug.MatchPos(pos)
+	return hashDebug.MatchPos(pos, nil)
 }
 
 // HasDebugHash returns true if Flags.Gossahash is non-empty, which
@@ -247,29 +247,17 @@ func (d *HashDebug) match(hash uint64) *hashAndMask {
 // representation of the hash of pkg and fn.  If the variable is not nil,
 // then a true result is accompanied by stylized output to d.logfile, which
 // is used for automated bug search.
-func (d *HashDebug) MatchPkgFunc(pkg, fn string) bool {
+func (d *HashDebug) MatchPkgFunc(pkg, fn string, note func() string) bool {
 	if d == nil {
 		return true
 	}
 	// Written this way to make inlining likely.
-	return d.matchPkgFunc(pkg, fn)
+	return d.matchPkgFunc(pkg, fn, note)
 }
 
-func (d *HashDebug) matchPkgFunc(pkg, fn string) bool {
+func (d *HashDebug) matchPkgFunc(pkg, fn string, note func() string) bool {
 	hash := bisect.Hash(pkg, fn)
-	if d.bisect != nil {
-		if d.bisect.ShouldPrint(hash) {
-			d.log(d.name, hash, pkg+"."+fn)
-		}
-		return d.bisect.ShouldEnable(hash)
-	}
-
-	// TODO: Delete rest of function body when we switch to bisect-only.
-	if m := d.match(hash); m != nil {
-		d.log(m.name, hash, pkg+"."+fn)
-		return true
-	}
-	return false
+	return d.matchAndLog(hash, func() string { return pkg + "." + fn }, note)
 }
 
 // MatchPos is similar to MatchPkgFunc, but for hash computation
@@ -277,32 +265,48 @@ func (d *HashDebug) matchPkgFunc(pkg, fn string) bool {
 // package name and path.
 // Note that the default answer for no environment variable (d == nil)
 // is "yes", do the thing.
-func (d *HashDebug) MatchPos(pos src.XPos) bool {
+func (d *HashDebug) MatchPos(pos src.XPos, desc func() string) bool {
 	if d == nil {
 		return true
 	}
 	// Written this way to make inlining likely.
-	return d.matchPos(Ctxt, pos)
+	return d.matchPos(Ctxt, pos, desc)
 }
 
-func (d *HashDebug) matchPos(ctxt *obj.Link, pos src.XPos) bool {
+func (d *HashDebug) matchPos(ctxt *obj.Link, pos src.XPos, note func() string) bool {
 	hash := d.hashPos(ctxt, pos)
+	return d.matchAndLog(hash, func() string { return d.fmtPos(ctxt, pos) }, note)
+}
 
+// matchAndLog is the core matcher. It reports whether the hash matches the pattern.
+// If a report needs to be printed, match prints that report to the log file.
+// The text func must be non-nil and should return a user-readable
+// representation of what was hashed. The note func may be nil; if non-nil,
+// it should return additional information to display to the user when this
+// change is selected.
+func (d *HashDebug) matchAndLog(hash uint64, text, note func() string) bool {
 	if d.bisect != nil {
 		if d.bisect.ShouldPrint(hash) {
-			d.log(d.name, hash, d.fmtPos(ctxt, pos))
+			var t string
+			if !d.bisect.MarkerOnly() {
+				t = text()
+				if note != nil {
+					if n := note(); n != "" {
+						t += ": " + n
+					}
+				}
+			}
+			d.log(d.name, hash, t)
 		}
 		return d.bisect.ShouldEnable(hash)
 	}
 
 	// TODO: Delete rest of function body when we switch to bisect-only.
-
-	// Return false for explicitly excluded hashes
 	if d.excluded(hash) {
 		return false
 	}
 	if m := d.match(hash); m != nil {
-		d.log(m.name, hash, d.fmtPos(ctxt, pos))
+		d.log(m.name, hash, text())
 		return true
 	}
 	return false

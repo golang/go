@@ -807,5 +807,5 @@ func (f *Func) useFMA(v *Value) bool {
 	if base.FmaHash == nil {
 		return true
 	}
-	return base.FmaHash.MatchPos(v.Pos)
+	return base.FmaHash.MatchPos(v.Pos, nil)
 }

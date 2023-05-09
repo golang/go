@@ -191,7 +191,7 @@ func TestLoopVarHashes(t *testing.T) {
 		return string(b)
 	}
 
-	m := f("001100110110110010100100")
+	m := f("v001100110110110010100100")
 	t.Logf(m)
 
 	mCount := strings.Count(m, "loopvarhash triggered cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 001100110110110010100100")
