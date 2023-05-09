@@ -532,12 +532,9 @@ func appendInlinedPos(posTmp, lastTmp []src.Pos, diagnostic *Diagnostic) {
 // parsePos expands a src.XPos into a slice of src.Pos, with the outermost first.
 // It returns the slice, and the outermost.
 func parsePos(ctxt *obj.Link, pos src.XPos, posTmp []src.Pos) ([]src.Pos, src.Pos) {
-	posTmp = ctxt.AllPos(pos, posTmp)
-	// Reverse posTmp to put outermost first.
-	l := len(posTmp)
-	for i := 0; i < l/2; i++ {
-		posTmp[i], posTmp[l-i-1] = posTmp[l-i-1], posTmp[i]
-	}
-	p0 := posTmp[0]
-	return posTmp, p0
+	posTmp = posTmp[:0]
+	ctxt.AllPos(pos, func(p src.Pos) {
+		posTmp = append(posTmp, p)
+	})
+	return posTmp, posTmp[0]
 }

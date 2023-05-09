@@ -351,24 +351,24 @@ func (d *HashDebug) debugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
 // bytesForPos renders a position, including inlining, into d.bytesTmp
 // and returns the byte array.  d.mu must be locked.
 func (d *HashDebug) bytesForPos(ctxt *obj.Link, pos src.XPos) []byte {
-	d.posTmp = ctxt.AllPos(pos, d.posTmp)
-	// Reverse posTmp to put outermost first.
 	b := &d.bytesTmp
 	b.Reset()
-	start := len(d.posTmp) - 1
-	if d.inlineSuffixOnly {
-		start = 0
-	}
-	for i := start; i >= 0; i-- {
-		p := &d.posTmp[i]
+	format := func(p src.Pos) {
 		f := p.Filename()
 		if d.fileSuffixOnly {
 			f = filepath.Base(f)
 		}
 		fmt.Fprintf(b, "%s:%d:%d", f, p.Line(), p.Col())
-		if i != 0 {
-			b.WriteByte(';')
-		}
+	}
+	if d.inlineSuffixOnly {
+		format(ctxt.InnermostPos(pos))
+	} else {
+		ctxt.AllPos(pos, func(p src.Pos) {
+			if b.Len() > 0 {
+				b.WriteByte(';')
+			}
+			format(p)
+		})
 	}
 	return b.Bytes()
 }

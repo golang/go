@@ -1085,15 +1085,15 @@ func dumpNodeHeader(w io.Writer, n Node) {
 		case src.PosIsStmt:
 			fmt.Fprint(w, "+")
 		}
-		for i, pos := range base.Ctxt.AllPos(n.Pos(), nil) {
-			if i > 0 {
-				fmt.Fprint(w, ",")
-			}
+		sep := ""
+		base.Ctxt.AllPos(n.Pos(), func(pos src.Pos) {
+			fmt.Fprint(w, sep)
+			sep = " "
 			// TODO(mdempsky): Print line pragma details too.
 			file := filepath.Base(pos.Filename())
 			// Note: this output will be parsed by ssa/html.go:(*HTMLWriter).WriteAST. Keep in sync.
 			fmt.Fprintf(w, "%s:%d:%d", file, pos.Line(), pos.Col())
-		}
+		})
 	}
 }
 

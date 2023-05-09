@@ -7331,7 +7331,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		fi := f.DumpFileForPhase("genssa")
 		if fi != nil {
 
-			// inliningDiffers if any filename changes or if any line number except the innermost (index 0) changes.
+			// inliningDiffers if any filename changes or if any line number except the innermost (last index) changes.
 			inliningDiffers := func(a, b []src.Pos) bool {
 				if len(a) != len(b) {
 					return true
@@ -7340,7 +7340,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 					if a[i].Filename() != b[i].Filename() {
 						return true
 					}
-					if i > 0 && a[i].Line() != b[i].Line() {
+					if i != len(a)-1 && a[i].Line() != b[i].Line() {
 						return true
 					}
 				}
@@ -7352,10 +7352,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 			for p := pp.Text; p != nil; p = p.Link {
 				if p.Pos.IsKnown() {
-					allPos = p.AllPos(allPos)
+					allPos = allPos[:0]
+					p.Ctxt.AllPos(p.Pos, func(pos src.Pos) { allPos = append(allPos, pos) })
 					if inliningDiffers(allPos, allPosOld) {
-						for i := len(allPos) - 1; i >= 0; i-- {
-							pos := allPos[i]
+						for _, pos := range allPos {
 							fmt.Fprintf(fi, "# %s:%d\n", pos.Filename(), pos.Line())
 						}
 						allPos, allPosOld = allPosOld, allPos // swap, not copy, so that they do not share slice storage.
