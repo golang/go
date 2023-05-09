@@ -178,11 +178,12 @@ func TestLoopVarHashes(t *testing.T) {
 	root := "cmd/compile/internal/loopvar/testdata/inlines"
 
 	f := func(hash string) string {
-		// This disables the loopvar change, except for the specified package.
-		// The effect should follow the package, even though everything (except "c")
-		// is inlined.
-		cmd := testenv.Command(t, gocmd, "run", root)
-		cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=loopvarhash=FS"+hash, "HOME="+tmpdir)
+		// This disables the loopvar change, except for the specified hash pattern.
+		// -trimpath is necessary so we get the same answer no matter where the
+		// Go repository is checked out. This is not normally a concern since people
+		// do not rely on the meaning of specific hashes.
+		cmd := testenv.Command(t, gocmd, "run", "-trimpath", root)
+		cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=loopvarhash="+hash, "HOME="+tmpdir)
 		cmd.Dir = filepath.Join("testdata", "inlines")
 
 		b, _ := cmd.CombinedOutput()
@@ -190,17 +191,27 @@ func TestLoopVarHashes(t *testing.T) {
 		return string(b)
 	}
 
-	m := f("011011011110011110111101")
+	m := f("001100110110110010100100")
 	t.Logf(m)
 
-	mCount := strings.Count(m, "loopvarhash triggered main.go:27:6")
+	mCount := strings.Count(m, "loopvarhash triggered cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 001100110110110010100100")
 	otherCount := strings.Count(m, "loopvarhash")
 	if mCount < 1 {
-		t.Errorf("Did not see expected value of m compile")
+		t.Errorf("did not see triggered main.go:27:6")
 	}
 	if mCount != otherCount {
-		t.Errorf("Saw extraneous hash matches")
+		t.Errorf("too many matches")
 	}
+
+	mCount = strings.Count(m, "cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 [bisect-match 0x7802e115b9336ca4]")
+	otherCount = strings.Count(m, "[bisect-match ")
+	if mCount < 1 {
+		t.Errorf("did not see bisect-match for main.go:27:6")
+	}
+	if mCount != otherCount {
+		t.Errorf("too many matches")
+	}
+
 	// This next test carefully dodges a bug-to-be-fixed with inlined locations for ir.Names.
 	if !strings.Contains(m, ", 100, 100, 100, 100") {
 		t.Errorf("Did not see expected value of m run")

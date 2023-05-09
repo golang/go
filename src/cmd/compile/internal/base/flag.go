@@ -213,15 +213,7 @@ func ParseFlags() {
 
 	if Debug.LoopVarHash != "" {
 		// This first little bit controls the inputs for debug-hash-matching.
-		basenameOnly := false
 		mostInlineOnly := true
-		if strings.HasPrefix(Debug.LoopVarHash, "FS") {
-			// Magic handshake for testing, use file suffixes only when hashing on a position.
-			// i.e., rather than /tmp/asdfasdfasdf/go-test-whatever/foo_test.go,
-			// hash only on "foo_test.go", so that it will be the same hash across all runs.
-			Debug.LoopVarHash = Debug.LoopVarHash[2:]
-			basenameOnly = true
-		}
 		if strings.HasPrefix(Debug.LoopVarHash, "IL") {
 			// When hash-searching on a position that is an inline site, default is to use the
 			// most-inlined position only.  This makes the hash faster, plus there's no point
@@ -237,7 +229,6 @@ func ParseFlags() {
 			Debug.LoopVar = 1 // 1 means those loops that syntactically escape their dcl vars are eligible.
 		}
 		LoopVarHash.SetInlineSuffixOnly(mostInlineOnly)
-		LoopVarHash.SetFileSuffixOnly(basenameOnly)
 	} else if buildcfg.Experiment.LoopVar && Debug.LoopVar == 0 {
 		Debug.LoopVar = 1
 	}

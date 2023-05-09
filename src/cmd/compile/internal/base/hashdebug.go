@@ -40,14 +40,6 @@ type HashDebug struct {
 	inlineSuffixOnly bool // for Pos hashes, remove all but the most inline position.
 }
 
-// SetFileSuffixOnly controls whether hashing and reporting use the entire
-// file path name, just the basename.  This makes hashing more consistent,
-// at the expense of being able to certainly locate the file.
-func (d *HashDebug) SetFileSuffixOnly(b bool) *HashDebug {
-	d.fileSuffixOnly = b
-	return d
-}
-
 // SetInlineSuffixOnly controls whether hashing and reporting use the entire
 // inline position, or just the most-inline suffix.  Compiler debugging tends
 // to want the whole inlining, debugging user problems (loopvarhash, e.g.)
