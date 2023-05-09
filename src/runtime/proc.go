@@ -691,11 +691,8 @@ func schedinit() {
 	lockInit(&allpLock, lockRankAllp)
 	lockInit(&reflectOffs.lock, lockRankReflectOffs)
 	lockInit(&finlock, lockRankFin)
-	lockInit(&trace.bufLock, lockRankTraceBuf)
-	lockInit(&trace.stringsLock, lockRankTraceStrings)
-	lockInit(&trace.lock, lockRankTrace)
 	lockInit(&cpuprof.lock, lockRankCpuprof)
-	lockInit(&trace.stackTab.lock, lockRankTraceStackTab)
+	traceLockInit()
 	// Enforce that this lock is always a leaf lock.
 	// All of this lock's critical sections should be
 	// extremely short.

@@ -168,6 +168,14 @@ var trace struct {
 	buf     traceBufPtr // global trace buffer, used when running without a p
 }
 
+// traceLockInit initializes global trace locks.
+func traceLockInit() {
+	lockInit(&trace.bufLock, lockRankTraceBuf)
+	lockInit(&trace.stringsLock, lockRankTraceStrings)
+	lockInit(&trace.lock, lockRankTrace)
+	lockInit(&trace.stackTab.lock, lockRankTraceStackTab)
+}
+
 // traceBufHeader is per-P tracing buffer.
 type traceBufHeader struct {
 	link      traceBufPtr             // in trace.empty/full
