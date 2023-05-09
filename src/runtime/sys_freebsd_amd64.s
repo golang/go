@@ -521,3 +521,13 @@ TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-44
 	NEGQ	AX
 	MOVL	AX, ret+40(FP)
 	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVQ	$0, DI
+	MOVQ	$0, SI
+	MOVQ	$0, DX
+	MOVL	$253, AX
+	SYSCALL
+	MOVL	AX, ret+0(FP)
+	RET

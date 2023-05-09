@@ -496,6 +496,11 @@ func setNonblock(fd int32) {
 	}
 }
 
+func issetugid() int32 {
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(issetugid_trampoline)), nil)
+}
+func issetugid_trampoline()
+
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
@@ -543,3 +548,5 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_cond_wait pthread_cond_wait "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_timedwait_relative_np pthread_cond_timedwait_relative_np "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_cond_signal pthread_cond_signal "/usr/lib/libSystem.B.dylib"
+
+//go:cgo_import_dynamic libc_issetugid issetugid "/usr/lib/libSystem.B.dylib"

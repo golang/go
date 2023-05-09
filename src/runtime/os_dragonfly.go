@@ -66,6 +66,8 @@ func pipe2(flags int32) (r, w int32, errno int32)
 func fcntl(fd, cmd, arg int32) (ret int32, errno int32)
 func closeonexec(fd int32)
 
+func issetugid() int32
+
 // From DragonFly's <sys/sysctl.h>
 const (
 	_CTL_HW      = 6

@@ -816,3 +816,12 @@ ok:
 	MOVW	$0, R0		// no error (it's ignored anyway)
 	MOVW	R9, R13
 	RET
+
+TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+	MOVW	R13, R9
+	MOVW	R0, R8
+	BIC     $0x7, R13		// align for ELF ABI
+	BL	libc_issetugid(SB)
+	MOVW	R0, 0(R8)
+	MOVW	R9, R13
+	RET
