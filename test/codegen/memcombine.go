@@ -338,6 +338,32 @@ func load_be_byte8_uint64_idx8(s []byte, idx int) uint64 {
 	return uint64(s[idx<<3])<<56 | uint64(s[(idx<<3)+1])<<48 | uint64(s[(idx<<3)+2])<<40 | uint64(s[(idx<<3)+3])<<32 | uint64(s[(idx<<3)+4])<<24 | uint64(s[(idx<<3)+5])<<16 | uint64(s[(idx<<3)+6])<<8 | uint64(s[(idx<<3)+7])
 }
 
+// Some tougher cases for the memcombine pass.
+
+func reassoc_load_uint32(b []byte) uint32 {
+	// amd64:`MOVL\s\([A-Z]+\)`,-`MOV[BW]`,-`OR`
+	return (uint32(b[0]) | uint32(b[1])<<8) | (uint32(b[2])<<16 | uint32(b[3])<<24)
+}
+
+func extrashift_load_uint32(b []byte) uint32 {
+	// amd64:`MOVL\s\([A-Z]+\)`,`SHLL\s[$]2`,-`MOV[BW]`,-`OR`
+	return uint32(b[0])<<2 | uint32(b[1])<<10 | uint32(b[2])<<18 | uint32(b[3])<<26
+
+}
+
+func outoforder_load_uint32(b []byte) uint32 {
+	// amd64:`MOVL\s\([A-Z]+\)`,-`MOV[BW]`,-`OR`
+	return uint32(b[0]) | uint32(b[2])<<16 | uint32(b[1])<<8 | uint32(b[3])<<24
+}
+
+func extraOr_load_uint32(b []byte, x, y uint32) uint32 {
+	// amd64:`ORL\s\([A-Z]+\)`,-`MOV[BW]`
+	return x | binary.LittleEndian.Uint32(b) | y
+	// TODO: Note that
+	//   x | uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24 | y
+	// doesn't work because it associates in a way that memcombine can't detect it.
+}
+
 // Check load combining across function calls.
 
 func fcall_byte(a [2]byte) [2]byte {
