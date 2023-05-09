@@ -309,8 +309,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 		// TODO(rsc): Should we include the SWIG version?
 	}
-	if p.Internal.CoverMode != "" {
-		fmt.Fprintf(h, "cover %q %q\n", p.Internal.CoverMode, b.toolID("cover"))
+	if p.Internal.Cover.Mode != "" {
+		fmt.Fprintf(h, "cover %q %q\n", p.Internal.Cover.Mode, b.toolID("cover"))
 	}
 	if p.Internal.FuzzInstrument {
 		if fuzzFlags := fuzzInstrumentFlags(); fuzzFlags != nil {
@@ -440,6 +440,7 @@ const (
 	needCgoHdr
 	needVet
 	needCompiledGoFiles
+	needCovMetaFile
 	needStale
 )
 
@@ -456,9 +457,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	}
 
 	cachedBuild := false
+	needCovMeta := p.Internal.Cover.GenMeta
 	need := bit(needBuild, !b.IsCmdList && a.needBuild || b.NeedExport) |
 		bit(needCgoHdr, b.needCgoHdr(a)) |
 		bit(needVet, a.needVet) |
+		bit(needCovMetaFile, needCovMeta) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
 	if !p.BinaryOnly {
@@ -549,6 +552,15 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		}
 	}
 
+	// Load cached coverage meta-data file fragment, but only if we're
+	// skipping the main build (cachedBuild==true).
+	if cachedBuild && need&needCovMetaFile != 0 {
+		bact := a.Actor.(*buildActor)
+		if err := b.loadCachedObjdirFile(a, cache.Default(), bact.covMetaFileName); err == nil {
+			need &^= needCovMetaFile
+		}
+	}
+
 	// Load cached vet config, but only if that's all we have left
 	// (need == needVet, not testing just the one bit).
 	// If we are going to do a full build anyway,
@@ -629,7 +641,7 @@ OverlayLoop:
 	}
 
 	// If we're doing coverage, preprocess the .go files and put them in the work directory
-	if p.Internal.CoverMode != "" {
+	if p.Internal.Cover.Mode != "" {
 		outfiles := []string{}
 		infiles := []string{}
 		for i, file := range str.StringList(gofiles, cgofiles) {
@@ -684,7 +696,7 @@ OverlayLoop:
 				// users to break things.
 				sum := sha256.Sum256([]byte(a.Package.ImportPath))
 				coverVar := fmt.Sprintf("goCover_%x_", sum[:6])
-				mode := a.Package.Internal.CoverMode
+				mode := a.Package.Internal.Cover.Mode
 				if mode == "" {
 					panic("covermode should be set at this point")
 				}
@@ -700,7 +712,10 @@ OverlayLoop:
 				// the package with the compiler, so set covermode to
 				// the empty string so as to signal that we need to do
 				// that.
-				p.Internal.CoverMode = ""
+				p.Internal.Cover.Mode = ""
+			}
+			if ba, ok := a.Actor.(*buildActor); ok && ba.covMetaFileName != "" {
+				b.cacheObjdirFile(a, cache.Default(), ba.covMetaFileName)
 			}
 		}
 	}
@@ -2024,7 +2039,7 @@ func (b *Builder) cover(a *Action, dst, src string, varName string) error {
 	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
 		cfg.BuildToolexec,
 		base.Tool("cover"),
-		"-mode", a.Package.Internal.CoverMode,
+		"-mode", a.Package.Internal.Cover.Mode,
 		"-var", varName,
 		"-o", dst,
 		src)
@@ -2063,7 +2078,7 @@ func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string, 
 
 func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
 	p := a.Package
-	p.Internal.CoverageCfg = a.Objdir + "coveragecfg"
+	p.Internal.Cover.Cfg = a.Objdir + "coveragecfg"
 	pcfg := covcmd.CoverPkgConfig{
 		PkgPath: p.ImportPath,
 		PkgName: p.Name,
@@ -2072,8 +2087,11 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
 		// test -cover" to select it. This may change in the future
 		// depending on user demand.
 		Granularity: "perblock",
-		OutConfig:   p.Internal.CoverageCfg,
+		OutConfig:   p.Internal.Cover.Cfg,
 		Local:       p.Internal.Local,
+	}
+	if ba, ok := a.Actor.(*buildActor); ok && ba.covMetaFileName != "" {
+		pcfg.EmitMetaFile = a.Objdir + ba.covMetaFileName
 	}
 	if a.Package.Module != nil {
 		pcfg.ModulePath = a.Package.Module.Path
@@ -2082,6 +2100,7 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
 	if err != nil {
 		return err
 	}
+	data = append(data, '\n')
 	if err := b.writeFile(pconfigfile, data); err != nil {
 		return err
 	}

@@ -896,16 +896,35 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 
+	if cfg.BuildCover {
+		for _, p := range pkgs {
+			// sync/atomic import is inserted by the cover tool if
+			// we're using atomic mode (and not compiling
+			// sync/atomic package itself). See #18486 and #57445.
+			// Note that this needs to be done prior to any of the
+			// builderTest invocations below, due to the fact that
+			// a given package in the 'pkgs' list may import
+			// package Q which appears later in the list (if this
+			// happens we'll wind up building the Q compile action
+			// before updating its deps to include sync/atomic).
+			if cfg.BuildCoverMode == "atomic" && p.ImportPath != "sync/atomic" {
+				load.EnsureImport(p, "sync/atomic")
+			}
+			// Tag the package for static meta-data generation if no
+			// test files (this works only with the new coverage
+			// design). Do this here (as opposed to in builderTest) so
+			// as to handle the case where we're testing multiple
+			// packages and one of the earlier packages imports a
+			// later package.
+			if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 &&
+				cfg.Experiment.CoverageRedesign {
+				p.Internal.Cover.GenMeta = true
+			}
+		}
+	}
+
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
-		// sync/atomic import is inserted by the cover tool if we're
-		// using atomic mode (and not compiling sync/atomic package itself).
-		// See #18486 and #57445.
-		if cfg.BuildCover && cfg.BuildCoverMode == "atomic" &&
-			p.ImportPath != "sync/atomic" {
-			load.EnsureImport(p, "sync/atomic")
-		}
-
 		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p])
 		if err != nil {
 			str := err.Error()
@@ -970,6 +989,12 @@ var windowsBadWords = []string{
 
 func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
+			if !p.Internal.Cover.GenMeta {
+				panic("internal error: Cover.GenMeta should already be set")
+			}
+			p.Internal.Cover.Mode = cfg.BuildCoverMode
+		}
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{
 			Mode:       "test run",
@@ -1257,8 +1282,37 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		return nil
 	}
 
+	coverProfTempFile := func(a *work.Action) string {
+		return a.Objdir + "_cover_.out"
+	}
+
 	if p := a.Package; len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
-		fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", p.ImportPath)
+		reportNoTestFiles := true
+		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
+			mf, err := work.BuildActionCoverMetaFile(a)
+			if err != nil {
+				return err
+			} else if mf != "" {
+				reportNoTestFiles = false
+				// Write out "percent statements covered".
+				if err := work.WriteCoveragePercent(b, a, mf, stdout); err != nil {
+					return err
+				}
+				// If -coverprofile is in effect, then generate a
+				// coverage profile fragment for this package and
+				// merge it with the final -coverprofile output file.
+				if coverMerge.f != nil {
+					cp := coverProfTempFile(a)
+					if err := work.WriteCoverageProfile(b, a, mf, cp, stdout); err != nil {
+						return err
+					}
+					mergeCoverProfile(stdout, cp)
+				}
+			}
+		}
+		if reportNoTestFiles {
+			fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", p.ImportPath)
+		}
 		return nil
 	}
 
@@ -1349,7 +1403,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 		// Write coverage to temporary profile, for merging later.
 		for i, arg := range args {
 			if strings.HasPrefix(arg, "-test.coverprofile=") {
-				args[i] = "-test.coverprofile=" + a.Objdir + "_cover_.out"
+				args[i] = "-test.coverprofile=" + coverProfTempFile(a)
 			}
 		}
 	}

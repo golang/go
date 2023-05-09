@@ -110,8 +110,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if strings.HasPrefix(ToolchainVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
 		defaultGcFlags = append(defaultGcFlags, "-goversion", ToolchainVersion)
 	}
-	if p.Internal.CoverageCfg != "" {
-		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.CoverageCfg)
+	if p.Internal.Cover.Cfg != "" {
+		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.Cover.Cfg)
 	}
 	if p.Internal.PGOProfile != "" {
 		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+p.Internal.PGOProfile)
