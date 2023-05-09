@@ -498,11 +498,6 @@ func Seek(fd Handle, offset int64, whence int) (newoffset int64, err error) {
 	case 2:
 		w = FILE_END
 	}
-	// use GetFileType to check pipe, pipe can't do seek
-	ft, _ := GetFileType(fd)
-	if ft == FILE_TYPE_PIPE {
-		return 0, ESPIPE
-	}
 	err = setFilePointerEx(fd, offset, &newoffset, w)
 	return
 }
