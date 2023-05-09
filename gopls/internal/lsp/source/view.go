@@ -117,7 +117,7 @@ type Snapshot interface {
 
 	// RunProcessEnvFunc runs fn with the process env for this snapshot's view.
 	// Note: the process env contains cached module and filesystem state.
-	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error
+	RunProcessEnvFunc(ctx context.Context, fn func(context.Context, *imports.Options) error) error
 
 	// ModFiles are the go.mod files enclosed in the snapshot's view and known
 	// to the snapshot.

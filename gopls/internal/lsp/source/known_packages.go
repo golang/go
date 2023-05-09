@@ -85,7 +85,7 @@ func KnownPackagePaths(ctx context.Context, snapshot Snapshot, fh FileHandle) ([
 	}
 
 	// Augment the set by invoking the goimports algorithm.
-	if err := snapshot.RunProcessEnvFunc(ctx, func(o *imports.Options) error {
+	if err := snapshot.RunProcessEnvFunc(ctx, func(ctx context.Context, o *imports.Options) error {
 		ctx, cancel := context.WithTimeout(ctx, time.Millisecond*80)
 		defer cancel()
 		var seenMu sync.Mutex

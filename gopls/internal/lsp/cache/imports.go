@@ -31,7 +31,10 @@ type importsState struct {
 	cachedDirectoryFilters []string
 }
 
-func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot, fn func(*imports.Options) error) error {
+func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot, fn func(context.Context, *imports.Options) error) error {
+	ctx, done := event.Start(ctx, "cache.importsState.runProcessEnvFunc")
+	defer done()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -93,7 +96,7 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 		LocalPrefix: localPrefix,
 	}
 
-	if err := fn(opts); err != nil {
+	if err := fn(ctx, opts); err != nil {
 		return err
 	}
 
@@ -114,6 +117,9 @@ func (s *importsState) runProcessEnvFunc(ctx context.Context, snapshot *snapshot
 // the view's process environment. Assumes that the caller is holding the
 // importsState mutex.
 func populateProcessEnvFromSnapshot(ctx context.Context, pe *imports.ProcessEnv, snapshot *snapshot) error {
+	ctx, done := event.Start(ctx, "cache.populateProcessEnvFromSnapshot")
+	defer done()
+
 	if snapshot.view.Options().VerboseOutput {
 		pe.Logf = func(format string, args ...interface{}) {
 			event.Log(ctx, fmt.Sprintf(format, args...))
@@ -153,6 +159,9 @@ func populateProcessEnvFromSnapshot(ctx context.Context, pe *imports.ProcessEnv,
 }
 
 func (s *importsState) refreshProcessEnv() {
+	ctx, done := event.Start(s.ctx, "cache.importsState.refreshProcessEnv")
+	defer done()
+
 	start := time.Now()
 
 	s.mu.Lock()
@@ -164,9 +173,9 @@ func (s *importsState) refreshProcessEnv() {
 
 	event.Log(s.ctx, "background imports cache refresh starting")
 	if err := imports.PrimeCache(context.Background(), env); err == nil {
-		event.Log(s.ctx, fmt.Sprintf("background refresh finished after %v", time.Since(start)))
+		event.Log(ctx, fmt.Sprintf("background refresh finished after %v", time.Since(start)))
 	} else {
-		event.Log(s.ctx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), keys.Err.Of(err))
+		event.Log(ctx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), keys.Err.Of(err))
 	}
 	s.mu.Lock()
 	s.cacheRefreshDuration = time.Since(start)

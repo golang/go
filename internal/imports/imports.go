@@ -11,6 +11,7 @@ package imports
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -23,6 +24,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/event"
 )
 
 // Options is golang.org/x/tools/imports.Options with extra internal-only options.
@@ -66,14 +68,17 @@ func Process(filename string, src []byte, opt *Options) (formatted []byte, err e
 //
 // Note that filename's directory influences which imports can be chosen,
 // so it is important that filename be accurate.
-func FixImports(filename string, src []byte, opt *Options) (fixes []*ImportFix, err error) {
+func FixImports(ctx context.Context, filename string, src []byte, opt *Options) (fixes []*ImportFix, err error) {
+	ctx, done := event.Start(ctx, "imports.FixImports")
+	defer done()
+
 	fileSet := token.NewFileSet()
 	file, _, err := parse(fileSet, filename, src, opt)
 	if err != nil {
 		return nil, err
 	}
 
-	return getFixes(fileSet, file, filename, opt.Env)
+	return getFixes(ctx, fileSet, file, filename, opt.Env)
 }
 
 // ApplyFixes applies all of the fixes to the file and formats it. extraMode

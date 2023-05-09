@@ -35,7 +35,7 @@ var TraceTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 
         <H2>Recent spans (oldest first)</H2>
         <p>
-	A finite number of recent span start/end times are shown below.
+        A finite number of recent span start/end times are shown below.
         The nesting represents the children of a parent span (and the log events within a span).
         A span may appear twice: chronologically at toplevel, and nested within its parent.
         </p>

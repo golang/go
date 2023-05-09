@@ -200,7 +200,7 @@ type completer struct {
 	// completionCallbacks is a list of callbacks to collect completions that
 	// require expensive operations. This includes operations where we search
 	// through the entire module cache.
-	completionCallbacks []func(opts *imports.Options) error
+	completionCallbacks []func(context.Context, *imports.Options) error
 
 	// surrounding describes the identifier surrounding the position.
 	surrounding *Selection
@@ -887,7 +887,7 @@ func (c *completer) populateImportCompletions(ctx context.Context, searchImport 
 		})
 	}
 
-	c.completionCallbacks = append(c.completionCallbacks, func(opts *imports.Options) error {
+	c.completionCallbacks = append(c.completionCallbacks, func(ctx context.Context, opts *imports.Options) error {
 		return imports.GetImportPaths(ctx, searchImports, prefix, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
 	return nil
@@ -1195,7 +1195,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	// Rank import paths as goimports would.
 	var relevances map[string]float64
 	if len(paths) > 0 {
-		if err := c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+		if err := c.snapshot.RunProcessEnvFunc(ctx, func(ctx context.Context, opts *imports.Options) error {
 			var err error
 			relevances, err = imports.ScoreImportPaths(ctx, opts.Env, paths)
 			return err
@@ -1342,7 +1342,7 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 		}
 	}
 
-	c.completionCallbacks = append(c.completionCallbacks, func(opts *imports.Options) error {
+	c.completionCallbacks = append(c.completionCallbacks, func(ctx context.Context, opts *imports.Options) error {
 		defer cancel()
 		return imports.GetPackageExports(ctx, add, id.Name, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
@@ -1635,7 +1635,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 	// Rank candidates using goimports' algorithm.
 	var relevances map[string]float64
 	if len(paths) != 0 {
-		if err := c.snapshot.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+		if err := c.snapshot.RunProcessEnvFunc(ctx, func(ctx context.Context, opts *imports.Options) error {
 			var err error
 			relevances, err = imports.ScoreImportPaths(ctx, opts.Env, paths)
 			return err
@@ -1708,7 +1708,7 @@ func (c *completer) unimportedPackages(ctx context.Context, seen map[string]stru
 		})
 		count++
 	}
-	c.completionCallbacks = append(c.completionCallbacks, func(opts *imports.Options) error {
+	c.completionCallbacks = append(c.completionCallbacks, func(ctx context.Context, opts *imports.Options) error {
 		defer cancel()
 		return imports.GetAllCandidates(ctx, add, prefix, c.filename, c.pkg.GetTypes().Name(), opts.Env)
 	})
