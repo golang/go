@@ -784,3 +784,9 @@ ok:
 	MOVQ	BP, SP
 	POPQ	BP
 	RET
+
+TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+	MOVQ	DI, BX			// BX is caller-save
+	CALL	libc_issetugid(SB)
+	MOVL	AX, 0(BX)		// return value
+	RET

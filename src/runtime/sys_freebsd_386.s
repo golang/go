@@ -31,6 +31,7 @@
 #define SYS___sysctl		202
 #define SYS_clock_gettime	232
 #define SYS_nanosleep		240
+#define SYS_issetugid		253
 #define SYS_sched_yield		331
 #define SYS_sigprocmask		340
 #define SYS_kqueue		362
@@ -487,3 +488,10 @@ TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
 	RET
 
 GLOBL runtime·tlsoffset(SB),NOPTR,$4
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVL	$SYS_issetugid, AX
+	INT	$0x80
+	MOVL	AX, ret+0(FP)
+	RET

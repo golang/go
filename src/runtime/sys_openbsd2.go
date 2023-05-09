@@ -263,6 +263,13 @@ func closeonexec(fd int32) {
 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
 }
 
+//go:cgo_unsafe_args
+func issetugid() (ret int32) {
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(issetugid_trampoline)), unsafe.Pointer(&ret))
+	return
+}
+func issetugid_trampoline()
+
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
@@ -294,5 +301,7 @@ func closeonexec(fd int32) {
 
 //go:cgo_import_dynamic libc_sigaction sigaction "libc.so"
 //go:cgo_import_dynamic libc_sigaltstack sigaltstack "libc.so"
+
+//go:cgo_import_dynamic libc_issetugid issetugid "libc.so"
 
 //go:cgo_import_dynamic _ _ "libc.so"
