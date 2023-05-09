@@ -4,6 +4,9 @@
 # license that can be found in the LICENSE file.
 
 case "$GOWASIRUNTIME" in
+	"wasmer")
+		exec wasmer run --dir=/ --env PWD="$PWD" "$1" -- "${@:2}"
+		;;
 	"wasmtime")
 		exec wasmtime run --dir=/ --env PWD="$PWD" --max-wasm-stack 1048576 "$1" -- "${@:2}"
 		;;
