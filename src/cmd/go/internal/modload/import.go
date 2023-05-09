@@ -164,7 +164,7 @@ func (e *DirectImportFromImplicitDependencyError) ImportPath() string {
 // We might need sums for multiple modules to verify the package is unique.
 //
 // TODO(#43653): consolidate multiple errors of this type into a single error
-// that suggests a 'go get' command for root packages that transtively import
+// that suggests a 'go get' command for root packages that transitively import
 // packages from modules with missing sums. load.CheckPackageErrors would be
 // a good place to consolidate errors, but we'll need to attach the import
 // stack here.
@@ -581,7 +581,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 
 	// Look up module containing the package, for addition to the build list.
 	// Goal is to determine the module, download it to dir,
-	// and return m, dir, ImpportMissingError.
+	// and return m, dir, ImportMissingError.
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
 	mg, err := rs.Graph(ctx)

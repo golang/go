@@ -98,10 +98,10 @@ func readVendorList(mainModule module.Version) {
 				continue
 			}
 
-			if annonations, ok := strings.CutPrefix(line, "## "); ok {
+			if annotations, ok := strings.CutPrefix(line, "## "); ok {
 				// Metadata. Take the union of annotations across multiple lines, if present.
 				meta := vendorMeta[mod]
-				for _, entry := range strings.Split(annonations, ";") {
+				for _, entry := range strings.Split(annotations, ";") {
 					entry = strings.TrimSpace(entry)
 					if entry == "explicit" {
 						meta.Explicit = true

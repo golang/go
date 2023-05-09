@@ -149,7 +149,7 @@ type PackageOpts struct {
 	Tags map[string]bool
 
 	// Tidy, if true, requests that the build list and go.sum file be reduced to
-	// the minimial dependencies needed to reproducibly reload the requested
+	// the minimal dependencies needed to reproducibly reload the requested
 	// packages.
 	Tidy bool
 
@@ -2006,7 +2006,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 		if pkg.isTest() {
 			// We already did (or will) report an error for the package itself,
-			// so don't report a duplicate (and more vebose) error for its test.
+			// so don't report a duplicate (and more verbose) error for its test.
 			if _, ok := mismatches[pkg.testOf]; !ok {
 				base.Fatalf("go: internal error: mismatch recorded for test %s, but not its non-test package", pkg.path)
 			}

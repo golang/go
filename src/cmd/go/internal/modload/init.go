@@ -62,7 +62,7 @@ var (
 	initialized bool
 
 	// These are primarily used to initialize the MainModules, and should be
-	// eventually superceded by them but are still used in cases where the module
+	// eventually superseded by them but are still used in cases where the module
 	// roots are required but MainModules hasn't been initialized yet. Set to
 	// the modRoots of the main modules.
 	// modRoots != nil implies len(modRoots) > 0
@@ -390,6 +390,9 @@ func Init() {
 		modRoots = nil
 	} else if workFilePath != "" {
 		// We're in workspace mode, which implies module mode.
+		if cfg.ModFile != "" {
+			base.Fatalf("go: -modfile cannot be used in workspace mode")
+		}
 	} else {
 		if modRoot := findModuleRoot(base.Cwd()); modRoot == "" {
 			if cfg.ModFile != "" {
