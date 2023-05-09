@@ -25,7 +25,7 @@ import (
 // It starts with optimistically assuming that all SSA values are initially Top
 // and then propagates constant facts only along reachable control flow paths.
 // Since some basic blocks are not visited yet, corresponding inputs of phi become
-// Top, we use the meet(args...) for phi to compute its lattice.
+// Top, we use the meet(phi) to compute its lattice.
 //
 // 	  Top ∩ any = any
 // 	  Bottom ∩ any = Bottom
@@ -60,6 +60,67 @@ type worklist struct {
 	defBlock     map[*Value][]*Block // use blocks of def
 }
 
+// sccp stands for sparse conditional constant propagation, it propagates constants
+// through CFG conditionally and applies constant folding, constant replacement and
+// dead code elimination all together.
+func sccp(f *Func) {
+	var t worklist
+	t.f = f
+	t.edges = make([]Edge, 0)
+	t.visited = make(map[Edge]bool)
+	t.edges = append(t.edges, Edge{f.Entry, 0})
+	t.defUse = make(map[*Value][]*Value)
+	t.defBlock = make(map[*Value][]*Block)
+	t.latticeCells = make(map[*Value]lattice)
+
+	// build it early since we rely heavily on the def-use chain later
+	t.buildDefUses()
+
+	visitedBlock := f.newSparseSet(f.NumBlocks())
+	defer f.retSparseSet(visitedBlock)
+
+	// pick up either an edge or SSA value from worklilst, process it
+	for {
+		if len(t.edges) > 0 {
+			edge := t.edges[0]
+			t.edges = t.edges[1:]
+			if _, exist := t.visited[edge]; !exist {
+				dest := edge.b
+				destVisited := visitedBlock.contains(dest.ID)
+
+				// mark edge as visited
+				t.visited[edge] = true
+				visitedBlock.add(dest.ID)
+				for _, val := range dest.Values {
+					if val.Op == OpPhi || !destVisited {
+						t.visitValue(val)
+					}
+				}
+				// propagates constants facts through CFG, taking condition test into account
+				if !destVisited {
+					t.propagate(dest)
+				}
+			}
+			continue
+		}
+		if len(t.uses) > 0 {
+			use := t.uses[0]
+			t.uses = t.uses[1:]
+			t.visitValue(use)
+			continue
+		}
+		break
+	}
+
+	// apply optimizations based on discovered constants
+	constCnt, rewireCnt := t.replaceConst()
+	if f.pass.debug > 0 {
+		if constCnt > 0 || rewireCnt > 0 {
+			fmt.Printf("Phase SCCP for %v : %v constants, %v dce\n", f.Name, constCnt, rewireCnt)
+		}
+	}
+}
+
 // possibleConst checks if Value can be fold to const. For those Values that can never become
 // constants(e.g. StaticCall), we don't make futile efforts.
 func possibleConst(val *Value) bool {
@@ -68,9 +129,9 @@ func possibleConst(val *Value) bool {
 	}
 	switch val.Op {
 	case OpCopy:
-		fallthrough
+		return true
 	case OpPhi:
-		fallthrough
+		return true
 	case
 		// negate
 		OpNeg8, OpNeg16, OpNeg32, OpNeg64, OpNeg32F, OpNeg64F,
@@ -94,7 +155,7 @@ func possibleConst(val *Value) bool {
 		OpIsNonNil,
 		// not
 		OpNot:
-		fallthrough
+		return true
 	case
 		// add
 		OpAdd64, OpAdd32, OpAdd16, OpAdd8,
@@ -162,7 +223,8 @@ func isConst(val *Value) bool {
 // buildDefUses builds def-use chain for some values early, because once the lattice of
 // a value is changed, we need to update lattices of use. But we don't need all uses of
 // it, only uses that can become constants would be added into re-visit worklist since
-// no matter how many times they are revisited, their lattice remains unchanged(Bottom)
+// no matter how many times they are revisited, uses which can't become constants lattice
+// remains unchanged, i.e. Bottom.
 func (t *worklist) buildDefUses() {
 	for _, block := range t.f.Blocks {
 		for _, val := range block.Values {
@@ -177,11 +239,13 @@ func (t *worklist) buildDefUses() {
 			}
 		}
 		for _, ctl := range block.ControlValues() {
-			// for every control values, find their use blocks
-			if _, exist := t.defBlock[ctl]; !exist {
-				t.defBlock[ctl] = make([]*Block, 0)
+			// for control values that can become constants, find their use blocks
+			if possibleConst(ctl) {
+				if _, exist := t.defBlock[ctl]; !exist {
+					t.defBlock[ctl] = make([]*Block, 0)
+				}
+				t.defBlock[ctl] = append(t.defBlock[ctl], block)
 			}
-			t.defBlock[ctl] = append(t.defBlock[ctl], block)
 		}
 	}
 }
@@ -200,50 +264,46 @@ func (t *worklist) addUses(val *Value) {
 	}
 }
 
-func meet(arr []lattice) lattice {
-	var lt = lattice{top, nil}
-	for _, t := range arr {
-		if t.tag == bottom {
-			return lattice{bottom, nil}
-		} else if t.tag == constant {
-			if lt.tag == top {
-				lt.tag = constant
-				lt.val = t.val
-			} else {
-				if lt.val != t.val {
-					return lattice{bottom, nil}
+// meet meets all of phi arguments and computes result lattice
+func (t *worklist) meet(val *Value) lattice {
+	optimisticLt := lattice{top, nil}
+	for i := 0; i < len(val.Args); i++ {
+		edge := Edge{val.Block, i}
+		// If incoming edge for phi is not visited, assume top optimistically.
+		// According to rules of meet:
+		// 		Top ∩ any = any
+		// Top participates in meet() but does not affect the result, so here
+		// we will ignore Top and only take other lattices into consideration.
+		if _, exist := t.visited[edge]; exist {
+			lt := t.getLatticeCell(val.Args[i])
+			if lt.tag == constant {
+				if optimisticLt.tag == top {
+					optimisticLt = lt
+				} else {
+					if optimisticLt.val != lt.val {
+						// ConstantA ∩ ConstantB = Bottom
+						return lattice{bottom, nil}
+					}
 				}
+			} else if lt.tag == bottom {
+				// Bottom ∩ any = Bottom
+				return lattice{bottom, nil}
+			} else {
+				// Top ∩ any = any
 			}
 		} else {
 			// Top ∩ any = any
 		}
 	}
-	return lt
-}
 
-func (t *worklist) visitPhi(val *Value) {
-	var argLattice = make([]lattice, 0)
-	for i := 0; i < len(val.Args); i++ {
-		var edge = Edge{val.Block, i}
-		// If incoming edge for phi is not visited, assume top optimistically. According to rules
-		// of meet:
-		// 		Top ∩ any = any
-		// Top participates in meet() but does not affect the result, so here we will ignore Top
-		// and only take Bottom and Constant lattices into consideration.
-		if _, exist := t.visited[edge]; exist {
-			argLattice = append(argLattice, t.getLatticeCell(val.Args[i]))
-		} else {
-			// ignore Top intentionally
-		}
-	}
-	// meet all of phi arguments
-	t.latticeCells[val] = meet(argLattice)
+	// ConstantA ∩ ConstantA = ConstantA or Top ∩ any = any
+	return optimisticLt
 }
 
 func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 	// In general, we need to perform constant evaluation based on two constant lattices:
 	//
-	//  var res = lattice{constant, nil}
+	//  res := lattice{constant, nil}
 	// 	switch op {
 	// 	case OpAdd16:
 	//		res.val = newConst(argLt1.val.AuxInt16() + argLt2.val.AuxInt16())
@@ -265,9 +325,9 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 	// change it permanently, which can lead to errors. For example, We cannot change its value
 	// immediately after visiting Phi, because some of its input edges may still not be visited
 	// at this moment.
-	var constValue = f.newValue(val.Op, val.Type, f.Entry, val.Pos)
+	constValue := f.newValue(val.Op, val.Type, f.Entry, val.Pos)
 	constValue.AddArgs(args...)
-	var matched = rewriteValuegeneric(constValue)
+	matched := rewriteValuegeneric(constValue)
 	if matched {
 		if isConst(constValue) {
 			return lattice{constant, constValue}
@@ -284,16 +344,16 @@ func (t *worklist) visitValue(val *Value) {
 		return
 	}
 
-	var oldLt = t.getLatticeCell(val)
+	oldLt := t.getLatticeCell(val)
 	defer func() {
 		// re-visit all uses of value if its lattice is changed
-		var newLt = t.getLatticeCell(val)
+		newLt := t.getLatticeCell(val)
 		if newLt != oldLt {
 			t.addUses(val)
 		}
 	}()
 
-	var worstLt = lattice{bottom, nil}
+	worstLt := lattice{bottom, nil}
 	switch val.Op {
 	// they are constant values, aren't they?
 	case OpConst64, OpConst32, OpConst16, OpConst8,
@@ -304,7 +364,7 @@ func (t *worklist) visitValue(val *Value) {
 		t.latticeCells[val] = t.getLatticeCell(val.Args[0])
 	// phi should be processed specially
 	case OpPhi:
-		t.visitPhi(val)
+		t.latticeCells[val] = t.meet(val)
 	// fold 1-input operations:
 	case
 		// negate
@@ -329,7 +389,7 @@ func (t *worklist) visitValue(val *Value) {
 		OpIsNonNil,
 		// not
 		OpNot:
-		var lt1 = t.getLatticeCell(val.Args[0])
+		lt1 := t.getLatticeCell(val.Args[0])
 		if lt1.tag != constant {
 			t.latticeCells[val] = worstLt
 			return
@@ -374,8 +434,8 @@ func (t *worklist) visitValue(val *Value) {
 		OpAnd8, OpAnd16, OpAnd32, OpAnd64,
 		OpOr8, OpOr16, OpOr32, OpOr64,
 		OpXor8, OpXor16, OpXor32, OpXor64:
-		var lt1 = t.getLatticeCell(val.Args[0])
-		var lt2 = t.getLatticeCell(val.Args[1])
+		lt1 := t.getLatticeCell(val.Args[0])
+		lt2 := t.getLatticeCell(val.Args[1])
 		if lt1.tag != constant || lt2.tag != constant {
 			t.latticeCells[val] = worstLt
 			return
@@ -404,8 +464,8 @@ func (t *worklist) propagate(block *Block) {
 	case BlockPlain:
 		t.edges = append(t.edges, block.Succs[0])
 	case BlockIf, BlockJumpTable:
-		var cond = block.ControlValues()[0]
-		var condLattice = t.getLatticeCell(cond)
+		cond := block.ControlValues()[0]
+		condLattice := t.getLatticeCell(cond)
 		if condLattice.tag == bottom {
 			// we know nothing about control flow, add all branch destinations
 			t.edges = append(t.edges, block.Succs...)
@@ -438,8 +498,8 @@ func rewireSuccessor(block *Block, constVal *Value) bool {
 		block.ResetControls()
 		return true
 	case BlockJumpTable:
-		var idx = int(constVal.AuxInt)
-		var targetBlock = block.Succs[idx].b
+		idx := int(constVal.AuxInt)
+		targetBlock := block.Succs[idx].b
 		for len(block.Succs) > 0 {
 			block.removeEdge(0)
 		}
@@ -456,7 +516,7 @@ func rewireSuccessor(block *Block, constVal *Value) bool {
 // replaceConst will replace non-constant values that have been proven by sccp to be
 // constants.
 func (t *worklist) replaceConst() (int, int) {
-	var constCnt, rewireCnt = 0, 0
+	constCnt, rewireCnt := 0, 0
 	for val, lt := range t.latticeCells {
 		if lt.tag == constant {
 			if !isConst(val) {
@@ -468,7 +528,7 @@ func (t *worklist) replaceConst() (int, int) {
 				constCnt++
 			}
 			// If const value controls this block, rewires successors according to its value
-			var ctrlBlock = t.defBlock[val]
+			ctrlBlock := t.defBlock[val]
 			for _, block := range ctrlBlock {
 				if rewireSuccessor(block, lt.val) {
 					rewireCnt++
@@ -480,62 +540,4 @@ func (t *worklist) replaceConst() (int, int) {
 		}
 	}
 	return constCnt, rewireCnt
-}
-
-func sccp(f *Func) {
-	var t worklist
-	t.f = f
-	t.edges = make([]Edge, 0)
-	t.visited = make(map[Edge]bool)
-	t.edges = append(t.edges, Edge{f.Entry, 0})
-	t.defUse = make(map[*Value][]*Value)
-	t.defBlock = make(map[*Value][]*Block)
-	t.latticeCells = make(map[*Value]lattice)
-
-	// build it early since we rely heavily on the def-use chain later
-	t.buildDefUses()
-
-	var visitedBlock = f.newSparseSet(f.NumBlocks())
-	defer f.retSparseSet(visitedBlock)
-
-	// pick up either an edge or SSA value from worklilst, process it
-	for {
-		if len(t.edges) > 0 {
-			var edge = t.edges[0]
-			t.edges = t.edges[1:]
-			if _, exist := t.visited[edge]; !exist {
-				var dest = edge.b
-				var destVisited = visitedBlock.contains(dest.ID)
-
-				// mark edge as visited
-				t.visited[edge] = true
-				visitedBlock.add(dest.ID)
-				for _, val := range dest.Values {
-					if val.Op == OpPhi || !destVisited {
-						t.visitValue(val)
-					}
-				}
-				// propagates constants facts through CFG, taking condition test into account
-				if !destVisited {
-					t.propagate(dest)
-				}
-			}
-			continue
-		}
-		if len(t.uses) > 0 {
-			var use = t.uses[0]
-			t.uses = t.uses[1:]
-			t.visitValue(use)
-			continue
-		}
-		break
-	}
-
-	// apply optimizations based on discovered constants
-	var constCnt, rewireCnt = t.replaceConst()
-	if f.pass.debug > 0 {
-		if constCnt > 0 || rewireCnt > 0 {
-			fmt.Printf("Phase SCCP for %v : %v constants, %v dce\n", f.Name, constCnt, rewireCnt)
-		}
-	}
 }
