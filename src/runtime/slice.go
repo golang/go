@@ -186,14 +186,21 @@ func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type) slice 
 		if oldCap < threshold {
 			newcap = doublecap
 		} else {
-			// Check 0 < newcap to detect overflow
-			// and prevent an infinite loop.
-			for 0 < newcap && newcap < newLen {
+			for {
 				// Transition from growing 2x for small slices
 				// to growing 1.25x for large slices. This formula
 				// gives a smooth-ish transition between the two.
-				newcap += (newcap + 3*threshold) / 4
+				newcap += (newcap + 3*threshold) >> 2
+
+				// We need to check `newcap >= newLen` and whether `newcap` overflowed.
+				// newLen is guaranteed to be larger than zero, hence
+				// when newcap overflows then `uint(newcap) > uint(newLen)`.
+				// This allows to check for both with the same comparison.
+				if uint(newcap) >= uint(newLen) {
+					break
+				}
 			}
+
 			// Set newcap to the requested cap when
 			// the newcap calculation overflowed.
 			if newcap <= 0 {
