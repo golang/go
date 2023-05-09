@@ -412,9 +412,16 @@ func (m *Matcher) Stack(w Writer) bool {
 func (m *Matcher) stack(w Writer) bool {
 	const maxStack = 16
 	var stk [maxStack]uintptr
-	n := runtime.Callers(3, stk[:])
-	if n == 0 {
+	n := runtime.Callers(2, stk[:])
+	// caller #2 is not for printing; need it to normalize PCs if ASLR.
+	if n <= 1 {
 		return false
+	}
+
+	base := stk[0]
+	// normalize PCs
+	for i := range stk[:n] {
+		stk[i] -= base
 	}
 
 	h := Hash(stk[:n])
@@ -437,7 +444,11 @@ func (m *Matcher) stack(w Writer) bool {
 			}
 		} else {
 			if !d.seen(h) {
-				printStack(w, h, stk[:n])
+				// Restore PCs in stack for printing
+				for i := range stk[:n] {
+					stk[i] += base
+				}
+				printStack(w, h, stk[1:n])
 			}
 		}
 	}
