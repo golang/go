@@ -644,3 +644,9 @@ TEXT runtime·syscall10X(SB),NOSPLIT,$0
 
 ok:
 	RET
+
+TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+	MOVD	R0, R19			// pointer to args
+	CALL	libc_issetugid(SB)
+	MOVW	R0, 0(R19)		// return value
+	RET

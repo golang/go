@@ -792,3 +792,7 @@ TEXT runtime·syscall_x509(SB),NOSPLIT,$16
 
 	XORL	AX, AX        // no error (it's ignored anyway)
 	RET
+
+TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+	CALL	libc_issetugid(SB)
+	RET

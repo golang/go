@@ -783,6 +783,10 @@ func fatalsignal(sig uint32, c *sigctxt, gp *g, mp *m) *g {
 		print("Signal ", sig, "\n")
 	}
 
+	if isSecureMode() {
+		exit(2)
+	}
+
 	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode(), "\n")
 	if mp.incgo && gp == mp.g0 && mp.curg != nil {
 		print("signal arrived during cgo execution\n")

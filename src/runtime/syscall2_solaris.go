@@ -23,6 +23,7 @@ import _ "unsafe" // for go:linkname
 //go:cgo_import_dynamic libc_setpgid setpgid "libc.so"
 //go:cgo_import_dynamic libc_syscall syscall "libc.so"
 //go:cgo_import_dynamic libc_wait4 wait4 "libc.so"
+//go:cgo_import_dynamic libc_issetugid issetugid "libc.so"
 
 //go:linkname libc_chdir libc_chdir
 //go:linkname libc_chroot libc_chroot
@@ -41,3 +42,4 @@ import _ "unsafe" // for go:linkname
 //go:linkname libc_setpgid libc_setpgid
 //go:linkname libc_syscall libc_syscall
 //go:linkname libc_wait4 libc_wait4
+//go:linkname libc_issetugid libc_issetugid

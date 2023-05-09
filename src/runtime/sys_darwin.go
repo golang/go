@@ -544,6 +544,11 @@ func setNonblock(fd int32) {
 	}
 }
 
+func issetugid() int32 {
+	return libcCall(unsafe.Pointer(abi.FuncPCABI0(issetugid_trampoline)), nil)
+}
+func issetugid_trampoline()
+
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
@@ -594,3 +599,5 @@ func setNonblock(fd int32) {
 
 //go:cgo_import_dynamic libc_notify_is_valid_token notify_is_valid_token "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_xpc_date_create_from_current xpc_date_create_from_current "/usr/lib/libSystem.B.dylib"
+
+//go:cgo_import_dynamic libc_issetugid issetugid "/usr/lib/libSystem.B.dylib"

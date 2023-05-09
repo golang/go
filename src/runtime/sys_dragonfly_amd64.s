@@ -400,3 +400,13 @@ noerr:
 	MOVL	AX, ret+16(FP)
 	MOVL	$0, errno+20(FP)
 	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVQ	$0, DI
+	MOVQ	$0, SI
+	MOVQ	$0, DX
+	MOVL	$253, AX
+	SYSCALL
+	MOVL	AX, ret+0(FP)
+	RET

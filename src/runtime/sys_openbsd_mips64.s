@@ -379,3 +379,10 @@ noerr:
 	MOVW	R2, ret+16(FP)
 	MOVW	R4, errno+20(FP)
 	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVV	$253, R2	// sys_issetugid
+	SYSCALL
+	MOVW	R2, ret+0(FP)
+	RET

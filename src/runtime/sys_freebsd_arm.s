@@ -27,6 +27,7 @@
 #define SYS_fcntl (SYS_BASE + 92)
 #define SYS___sysctl (SYS_BASE + 202)
 #define SYS_nanosleep (SYS_BASE + 240)
+#define SYS_issetugid (SYS_BASE + 253)
 #define SYS_clock_gettime (SYS_BASE + 232)
 #define SYS_sched_yield (SYS_BASE + 331)
 #define SYS_sigprocmask (SYS_BASE + 340)
@@ -445,4 +446,11 @@ TEXT runtime·getCntxct(SB),NOSPLIT|NOFRAME,$0-8
 	WORD	$0xec510f1e
 
 	MOVW	R0, ret+4(FP)
+	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVW $SYS_issetugid, R7
+	SWI $0
+	MOVW	R0, ret+0(FP)
 	RET

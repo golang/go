@@ -28,6 +28,7 @@
 #define SYS___sysctl			SWI_OS_NETBSD | 202
 #define SYS___sigaltstack14		SWI_OS_NETBSD | 281
 #define SYS___sigprocmask14		SWI_OS_NETBSD | 293
+#define SYS_issetugid			SWI_OS_NETBSD | 305
 #define SYS_getcontext			SWI_OS_NETBSD | 307
 #define SYS_setcontext			SWI_OS_NETBSD | 308
 #define SYS__lwp_create			SWI_OS_NETBSD | 309
@@ -417,4 +418,10 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT|NOFRAME,$0
 	MOVM.WP [R1, R2, R3, R12], (R13)
 	SWI $SYS__lwp_getprivate
 	MOVM.IAW    (R13), [R1, R2, R3, R12]
+	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	SWI $SYS_issetugid
+	MOVW	R0, ret+0(FP)
 	RET

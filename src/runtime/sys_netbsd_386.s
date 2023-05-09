@@ -27,6 +27,7 @@
 #define SYS___sysctl			202
 #define SYS___sigaltstack14		281
 #define SYS___sigprocmask14		293
+#define SYS_issetugid			305
 #define SYS_getcontext			307
 #define SYS_setcontext			308
 #define SYS__lwp_create			309
@@ -466,4 +467,11 @@ TEXT runtime·fcntl(SB),NOSPLIT,$-4
 noerr:
 	MOVL	AX, ret+12(FP)
 	MOVL	$0, errno+16(FP)
+	RET
+
+// func issetugid() int32
+TEXT runtime·issetugid(SB),NOSPLIT,$0
+	MOVL	$SYS_issetugid, AX
+	INT	$0x80
+	MOVL	AX, ret+0(FP)
 	RET

@@ -1148,6 +1148,10 @@ func fatalthrow(t throwType) {
 	// Switch to the system stack to avoid any stack growth, which may make
 	// things worse if the runtime is in a bad state.
 	systemstack(func() {
+		if isSecureMode() {
+			exit(2)
+		}
+
 		startpanic_m()
 
 		if dopanic_m(gp, pc, sp) {

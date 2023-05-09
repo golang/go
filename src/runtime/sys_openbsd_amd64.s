@@ -658,3 +658,9 @@ TEXT runtime·syscall10X(SB),NOSPLIT,$48
 ok:
 	XORL	AX, AX        // no error (it's ignored anyway)
 	RET
+
+TEXT runtime·issetugid_trampoline(SB),NOSPLIT,$0
+	MOVQ	DI, BX			// BX is caller-save
+	CALL	libc_issetugid(SB)
+	MOVL	AX, 0(BX)		// return value
+	RET

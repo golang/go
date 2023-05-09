@@ -216,6 +216,7 @@ const (
 	_AT_NULL   = 0  // End of vector
 	_AT_PAGESZ = 6  // System physical page size
 	_AT_HWCAP  = 16 // hardware capability bit vector
+	_AT_SECURE = 23 // secure mode boolean
 	_AT_RANDOM = 25 // introduced in 2.6.29
 	_AT_HWCAP2 = 26 // hardware capability bit vector 2
 )
@@ -290,6 +291,9 @@ func sysargs(argc int32, argv **byte) {
 // the ELF AT_RANDOM auxiliary vector.
 var startupRandomData []byte
 
+// secureMode holds the value of AT_SECURE passed in the auxiliary vector.
+var secureMode bool
+
 func sysauxv(auxv []uintptr) (pairs int) {
 	var i int
 	for ; auxv[i] != _AT_NULL; i += 2 {
@@ -302,6 +306,9 @@ func sysauxv(auxv []uintptr) (pairs int) {
 
 		case _AT_PAGESZ:
 			physPageSize = val
+
+		case _AT_SECURE:
+			secureMode = val == 1
 		}
 
 		archauxv(tag, val)
