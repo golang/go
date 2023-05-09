@@ -2612,7 +2612,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 				from = m.Dir
 				toPath = m.Path
 				if m.Version != "" {
-					m.Path += "@" + m.Version
+					toPath += "@" + m.Version
 				}
 			}
 			// -fdebug-prefix-map (or -ffile-prefix-map) requires an absolute "to"
