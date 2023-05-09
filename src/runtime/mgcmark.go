@@ -466,7 +466,7 @@ retry:
 		}
 	}
 
-	if trace.enabled && !traced {
+	if traceEnabled() && !traced {
 		traced = true
 		traceGCMarkAssistStart()
 	}

@@ -512,7 +512,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		throw("mspan.sweep: bad span state")
 	}
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCSweepSpan(s.npages * _PageSize)
 	}
 
@@ -651,7 +651,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 	s.allocCount = nalloc
 	s.freeindex = 0 // reset allocation index to start of span.
 	s.freeIndexForScan = 0
-	if trace.enabled {
+	if traceEnabled() {
 		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
 	}
 
@@ -871,7 +871,7 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 		return
 	}
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCSweepStart()
 	}
 
@@ -911,7 +911,7 @@ retry:
 		}
 	}
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCSweepDone()
 	}
 }

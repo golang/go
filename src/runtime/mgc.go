@@ -629,7 +629,7 @@ func gcStart(trigger gcTrigger) {
 	// Update it under gcsema to avoid gctrace getting wrong values.
 	work.userForced = trigger.kind == gcTriggerCycle
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCStart()
 	}
 
@@ -658,7 +658,7 @@ func gcStart(trigger gcTrigger) {
 	now := nanotime()
 	work.tSweepTerm = now
 	work.pauseStart = now
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCSTWStart(1)
 	}
 	systemstack(stopTheWorldWithSema)
@@ -726,7 +726,7 @@ func gcStart(trigger gcTrigger) {
 
 	// Concurrent mark.
 	systemstack(func() {
-		now = startTheWorldWithSema(trace.enabled)
+		now = startTheWorldWithSema(traceEnabled())
 		work.pauseNS += now - work.pauseStart
 		work.tMark = now
 		memstats.gcPauseDist.record(now - work.pauseStart)
@@ -848,7 +848,7 @@ top:
 	work.tMarkTerm = now
 	work.pauseStart = now
 	getg().m.preemptoff = "gcing"
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCSTWStart(0)
 	}
 	systemstack(stopTheWorldWithSema)
@@ -878,7 +878,7 @@ top:
 	if restart {
 		getg().m.preemptoff = ""
 		systemstack(func() {
-			now := startTheWorldWithSema(trace.enabled)
+			now := startTheWorldWithSema(traceEnabled())
 			work.pauseNS += now - work.pauseStart
 			memstats.gcPauseDist.record(now - work.pauseStart)
 		})
@@ -972,7 +972,7 @@ func gcMarkTermination() {
 	mp.traceback = 0
 	casgstatus(curgp, _Gwaiting, _Grunning)
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGCDone()
 	}
 
@@ -1092,7 +1092,7 @@ func gcMarkTermination() {
 		throw("failed to set sweep barrier")
 	}
 
-	systemstack(func() { startTheWorldWithSema(trace.enabled) })
+	systemstack(func() { startTheWorldWithSema(traceEnabled()) })
 
 	// Flush the heap profile so we can start a new cycle next GC.
 	// This is relatively expensive, so we don't do it with the
