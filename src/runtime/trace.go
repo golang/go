@@ -206,6 +206,11 @@ func traceBufPtrOf(b *traceBuf) traceBufPtr {
 	return traceBufPtr(unsafe.Pointer(b))
 }
 
+// traceEnabled returns true if the trace is currently enabled.
+func traceEnabled() bool {
+	return trace.enabled
+}
+
 // StartTrace enables tracing for the current process.
 // While tracing, the data will be buffered and available via ReadTrace.
 // StartTrace returns an error if tracing is already enabled.
