@@ -23,6 +23,7 @@ var didChangeTests = []struct {
 	repo string
 	file string
 }{
+	{"google-cloud-go", "httpreplay/httpreplay.go"},
 	{"istio", "pkg/fuzz/util.go"},
 	{"kubernetes", "pkg/controller/lookup_cache.go"},
 	{"kuma", "api/generic/insights.go"},

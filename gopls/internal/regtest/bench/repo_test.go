@@ -26,6 +26,14 @@ import (
 // These repos were selected to represent a variety of different types of
 // codebases.
 var repos = map[string]*repo{
+	// google-cloud-go has 145 workspace modules (!), and is quite large.
+	"google-cloud-go": {
+		name:   "google-cloud-go",
+		url:    "https://github.com/googleapis/google-cloud-go.git",
+		commit: "07da765765218debf83148cc7ed8a36d6e8921d5",
+		inDir:  flag.String("cloud_go_dir", "", "if set, reuse this directory as google-cloud-go@07da7657"),
+	},
+
 	// Used by x/benchmarks; large.
 	"istio": {
 		name:   "istio",

@@ -12,6 +12,7 @@ func BenchmarkImplementations(b *testing.B) {
 		file   string
 		regexp string
 	}{
+		{"google-cloud-go", "httpreplay/httpreplay.go", `type (Recorder)`},
 		{"istio", "pkg/config/mesh/watcher.go", `type (Watcher)`},
 		{"kubernetes", "pkg/controller/lookup_cache.go", `objectWithMeta`},
 		{"kuma", "api/generic/insights.go", `type (Insight)`},

@@ -12,6 +12,7 @@ func BenchmarkReferences(b *testing.B) {
 		file   string
 		regexp string
 	}{
+		{"google-cloud-go", "httpreplay/httpreplay.go", `func (NewRecorder)`},
 		{"istio", "pkg/config/model.go", "type (Meta)"},
 		{"kubernetes", "pkg/controller/lookup_cache.go", "type (objectWithMeta)"},
 		{"kuma", "pkg/events/interfaces.go", "type (Event)"},

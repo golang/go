@@ -20,12 +20,13 @@ func BenchmarkInitialWorkspaceLoad(b *testing.B) {
 		repo string
 		file string
 	}{
-		{"tools", "internal/lsp/cache/snapshot.go"},
+		{"google-cloud-go", "httpreplay/httpreplay.go"},
+		{"istio", "pkg/fuzz/util.go"},
 		{"kubernetes", "pkg/controller/lookup_cache.go"},
+		{"kuma", "api/generic/insights.go"},
 		{"pkgsite", "internal/frontend/server.go"},
 		{"starlark", "starlark/eval.go"},
-		{"istio", "pkg/fuzz/util.go"},
-		{"kuma", "api/generic/insights.go"},
+		{"tools", "internal/lsp/cache/snapshot.go"},
 	}
 
 	for _, test := range tests {

@@ -15,6 +15,7 @@ func BenchmarkDefinition(b *testing.B) {
 		regexp string
 	}{
 		{"istio", "pkg/config/model.go", `gogotypes\.(MarshalAny)`},
+		{"google-cloud-go", "httpreplay/httpreplay.go", `proxy\.(ForRecording)`},
 		{"kubernetes", "pkg/controller/lookup_cache.go", `hashutil\.(DeepHashObject)`},
 		{"kuma", "api/generic/insights.go", `proto\.(Message)`},
 		{"pkgsite", "internal/log/log.go", `derrors\.(Wrap)`},

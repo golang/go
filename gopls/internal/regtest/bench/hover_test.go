@@ -14,6 +14,7 @@ func BenchmarkHover(b *testing.B) {
 		file   string
 		regexp string
 	}{
+		{"google-cloud-go", "httpreplay/httpreplay.go", `proxy\.(ForRecording)`},
 		{"istio", "pkg/config/model.go", `gogotypes\.(MarshalAny)`},
 		{"kubernetes", "pkg/apis/core/types.go", "type (Pod)"},
 		{"kuma", "api/generic/insights.go", `proto\.(Message)`},
