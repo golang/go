@@ -526,7 +526,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
 						s.store(n.Type(), s.decladdrs[n], v)
 					} else { // Too big for SSA.
 						// Brute force, and early, do a bunch of stores from registers
-						// TODO fix the nasty storeArgOrLoad recursion in ssa/expand_calls.go so this Just Works with store of a big Arg.
+						// Note that expand calls knows about this and doesn't trouble itself with larger-than-SSA-able Args in registers.
 						s.storeParameterRegsToStack(s.f.ABISelf, paramAssignment, n, s.decladdrs[n], false)
 					}
 				}
