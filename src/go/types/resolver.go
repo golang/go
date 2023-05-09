@@ -482,7 +482,7 @@ func (check *Checker) collectObjects() {
 	for i := range methods {
 		m := &methods[i]
 		// Determine the receiver base type and associate m with it.
-		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv)
+		ptr, base := check.resolveBaseTypeName(m.ptr, m.recv, fileScopes)
 		if base != nil {
 			m.obj.hasPtrRecv_ = ptr
 			check.methods[base] = append(check.methods[base], m.obj)
@@ -550,7 +550,7 @@ L: // unpack receiver type
 // there was a pointer indirection to get to it. The base type name must be declared
 // in package scope, and there can be at most one pointer indirection. If no such type
 // name exists, the returned base is nil.
-func (check *Checker) resolveBaseTypeName(seenPtr bool, name *ast.Ident) (ptr bool, base *TypeName) {
+func (check *Checker) resolveBaseTypeName(seenPtr bool, typ ast.Expr, fileScopes []*Scope) (ptr bool, base *TypeName) {
 	// Algorithm: Starting from a type expression, which may be a name,
 	// we follow that type through alias declarations until we reach a
 	// non-alias type name. If we encounter anything but pointer types or
@@ -558,8 +558,9 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, name *ast.Ident) (ptr bo
 	// we're done.
 	ptr = seenPtr
 	var seen map[*TypeName]bool
-	var typ ast.Expr = name
 	for {
+		// Note: this differs from types2, but is necessary. The syntax parser
+		// strips unnecessary parens.
 		typ = unparen(typ)
 
 		// check if we have a pointer type
@@ -572,15 +573,43 @@ func (check *Checker) resolveBaseTypeName(seenPtr bool, name *ast.Ident) (ptr bo
 			typ = unparen(pexpr.X) // continue with pointer base type
 		}
 
-		// typ must be a name
-		name, _ := typ.(*ast.Ident)
-		if name == nil {
+		// typ must be a name, or a C.name cgo selector.
+		var name string
+		switch typ := typ.(type) {
+		case *ast.Ident:
+			name = typ.Name
+		case *ast.SelectorExpr:
+			// C.struct_foo is a valid type name for packages using cgo.
+			//
+			// Detect this case, and adjust name so that the correct TypeName is
+			// resolved below.
+			if ident, _ := typ.X.(*ast.Ident); ident != nil && ident.Name == "C" {
+				// Check whether "C" actually resolves to an import of "C", by looking
+				// in the appropriate file scope.
+				var obj Object
+				for _, scope := range fileScopes {
+					if scope.Contains(ident.Pos()) {
+						obj = scope.Lookup(ident.Name)
+					}
+				}
+				// If Config.go115UsesCgo is set, the typechecker will resolve Cgo
+				// selectors to their cgo name. We must do the same here.
+				if pname, _ := obj.(*PkgName); pname != nil {
+					if pname.imported.cgo { // only set if Config.go115UsesCgo is set
+						name = "_Ctype_" + typ.Sel.Name
+					}
+				}
+			}
+			if name == "" {
+				return false, nil
+			}
+		default:
 			return false, nil
 		}
 
 		// name must denote an object found in the current package scope
 		// (note that dot-imported objects are not in the package scope!)
-		obj := check.pkg.scope.Lookup(name.Name)
+		obj := check.pkg.scope.Lookup(name)
 		if obj == nil {
 			return false, nil
 		}

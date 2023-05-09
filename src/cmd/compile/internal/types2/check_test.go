@@ -37,6 +37,7 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -50,12 +51,14 @@ var (
 	verifyErrors = flag.Bool("verify", false, "verify errors (rather than list them) in TestManual")
 )
 
-func parseFiles(t *testing.T, filenames []string, mode syntax.Mode) ([]*syntax.File, []error) {
+func parseFiles(t *testing.T, filenames []string, srcs [][]byte, mode syntax.Mode) ([]*syntax.File, []error) {
 	var files []*syntax.File
 	var errlist []error
 	errh := func(err error) { errlist = append(errlist, err) }
-	for _, filename := range filenames {
-		file, err := syntax.ParseFile(filename, errh, nil, mode)
+	for i, filename := range filenames {
+		base := syntax.NewFileBase(filename)
+		r := bytes.NewReader(srcs[i])
+		file, err := syntax.Parse(base, r, errh, nil, mode)
 		if file == nil {
 			t.Fatalf("%s: %s", filename, err)
 		}
@@ -83,30 +86,10 @@ func absDiff(x, y uint) uint {
 	return x - y
 }
 
-// Note: parseFlags is identical to the version in go/types which is
-//       why it has a src argument even though here it is always nil.
-
-// parseFlags parses flags from the first line of the given source
-// (from src if present, or by reading from the file) if the line
-// starts with "//" (line comment) followed by "-" (possibly with
-// spaces between). Otherwise the line is ignored.
-func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
-	// If there is no src, read from the file.
-	const maxLen = 256
-	if len(src) == 0 {
-		f, err := os.Open(filename)
-		if err != nil {
-			return err
-		}
-
-		var buf [maxLen]byte
-		n, err := f.Read(buf[:])
-		if err != nil {
-			return err
-		}
-		src = buf[:n]
-	}
-
+// parseFlags parses flags from the first line of the given source if the line
+// starts with "//" (line comment) followed by "-" (possibly with spaces
+// between). Otherwise the line is ignored.
+func parseFlags(src []byte, flags *flag.FlagSet) error {
 	// we must have a line comment that starts with a "-"
 	const prefix = "//"
 	if !bytes.HasPrefix(src, []byte(prefix)) {
@@ -117,6 +100,7 @@ func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
 		return nil // comment doesn't start with a "-"
 	}
 	end := bytes.Index(src, []byte("\n"))
+	const maxLen = 256
 	if end < 0 || end > maxLen {
 		return fmt.Errorf("flags comment line too long")
 	}
@@ -124,7 +108,16 @@ func parseFlags(filename string, src []byte, flags *flag.FlagSet) error {
 	return flags.Parse(strings.Fields(string(src[:end])))
 }
 
-func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+// testFiles type-checks the package consisting of the given files, and
+// compares the resulting errors with the ERROR annotations in the source.
+//
+// The srcs slice contains the file content for the files named in the
+// filenames slice. The colDelta parameter specifies the tolerance for position
+// mismatch when comparing errors. The manual parameter specifies whether this
+// is a 'manual' test.
+//
+// If provided, opts may be used to mutate the Config before type-checking.
+func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
 	if len(filenames) == 0 {
 		t.Fatal("no source files")
 	}
@@ -133,11 +126,11 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
-	if err := parseFlags(filenames[0], nil, flags); err != nil {
+	if err := parseFlags(srcs[0], flags); err != nil {
 		t.Fatal(err)
 	}
 
-	files, errlist := parseFiles(t, filenames, 0)
+	files, errlist := parseFiles(t, filenames, srcs, 0)
 
 	pkgName := "<no package>"
 	if len(files) > 0 {
@@ -165,6 +158,11 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 		}
 		errlist = append(errlist, err)
 	}
+
+	for _, opt := range opts {
+		opt(&conf)
+	}
+
 	conf.Check(pkgName, files, nil)
 
 	if listErrors {
@@ -173,16 +171,10 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 
 	// collect expected errors
 	errmap := make(map[string]map[uint][]syntax.Error)
-	for _, filename := range filenames {
-		f, err := os.Open(filename)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-		if m := syntax.CommentMap(f, regexp.MustCompile("^ ERRORx? ")); len(m) > 0 {
+	for i, filename := range filenames {
+		if m := syntax.CommentMap(bytes.NewReader(srcs[i]), regexp.MustCompile("^ ERRORx? ")); len(m) > 0 {
 			errmap[filename] = m
 		}
-		f.Close()
 	}
 
 	// match against found errors
@@ -280,6 +272,13 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
 	}
 }
 
+// boolFieldAddr(conf, name) returns the address of the boolean field conf.<name>.
+// For accessing unexported fields.
+func boolFieldAddr(conf *Config, name string) *bool {
+	v := reflect.Indirect(reflect.ValueOf(conf))
+	return (*bool)(v.FieldByName(name).Addr().UnsafePointer())
+}
+
 // TestManual is for manual testing of a package - either provided
 // as a list of filenames belonging to the package, or a directory
 // name containing the package files - after the test arguments
@@ -314,7 +313,7 @@ func TestManual(t *testing.T) {
 		}
 		testDir(t, filenames[0], 0, true)
 	} else {
-		testFiles(t, filenames, 0, true)
+		testPkg(t, filenames, 0, true)
 	}
 }
 
@@ -351,7 +350,7 @@ func testDirFiles(t *testing.T, dir string, colDelta uint, manual bool) {
 			testDir(t, path, colDelta, manual)
 		} else {
 			t.Run(filepath.Base(path), func(t *testing.T) {
-				testFiles(t, []string{path}, colDelta, manual)
+				testPkg(t, []string{path}, colDelta, manual)
 			})
 		}
 	}
@@ -370,6 +369,18 @@ func testDir(t *testing.T, dir string, colDelta uint, manual bool) {
 	}
 
 	t.Run(filepath.Base(dir), func(t *testing.T) {
-		testFiles(t, filenames, colDelta, manual)
+		testPkg(t, filenames, colDelta, manual)
 	})
+}
+
+func testPkg(t *testing.T, filenames []string, colDelta uint, manual bool) {
+	srcs := make([][]byte, len(filenames))
+	for i, filename := range filenames {
+		src, err := os.ReadFile(filename)
+		if err != nil {
+			t.Fatalf("could not read %s: %v", filename, err)
+		}
+		srcs[i] = src
+	}
+	testFiles(t, filenames, srcs, colDelta, manual)
 }
