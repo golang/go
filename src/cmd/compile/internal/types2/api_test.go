@@ -381,6 +381,26 @@ func TestTypesInfo(t *testing.T) {
 		{`package u3c; type _ interface{int | string | ~bool}`, `int | string`, `int | string`},
 		{`package u3c; type _ interface{int | string | ~bool}`, `~bool`, `~bool`},
 		{`package u3c; type _ interface{int | string | ~float64|~bool}`, `int | string | ~float64`, `int | string | ~float64`},
+
+		// reverse type inference
+		{`package r1; var _ func(int) = g; func g[P any](P) {}`, `g`, `func(int)`},
+		{`package r2; var _ func(int) = g[int]; func g[P any](P) {}`, `g`, `func[P any](P)`}, // go.dev/issues/60212
+		{`package r3; var _ func(int) = g[int]; func g[P any](P) {}`, `g[int]`, `func(int)`},
+		{`package r4; var _ func(int, string) = g; func g[P, Q any](P, Q) {}`, `g`, `func(int, string)`},
+		{`package r5; var _ func(int, string) = g[int]; func g[P, Q any](P, Q) {}`, `g`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
+		{`package r6; var _ func(int, string) = g[int]; func g[P, Q any](P, Q) {}`, `g[int]`, `func(int, string)`},
+
+		{`package s1; func _() { f(g) }; func f(func(int)) {}; func g[P any](P) {}`, `g`, `func(int)`},
+		{`package s2; func _() { f(g[int]) }; func f(func(int)) {}; func g[P any](P) {}`, `g`, `func[P any](P)`}, // go.dev/issues/60212
+		{`package s3; func _() { f(g[int]) }; func f(func(int)) {}; func g[P any](P) {}`, `g[int]`, `func(int)`},
+		{`package s4; func _() { f(g) }; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}`, `g`, `func(int, string)`},
+		{`package s5; func _() { f(g[int]) }; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}`, `g`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
+		{`package s6; func _() { f(g[int]) }; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}`, `g[int]`, `func(int, string)`},
+
+		{`package s7; func _() { f(g, h) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `g`, `func(int, int)`},
+		{`package s8; func _() { f(g, h) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func(int, string)`},
+		{`package s9; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h`, `func[P, Q any](P, Q)`}, // go.dev/issues/60212
+		{`package s10; func _() { f(g, h[int]) }; func f[P any](func(int, P), func(P, string)) {}; func g[P any](P, P) {}; func h[P, Q any](P, Q) {}`, `h[int]`, `func(int, string)`},
 	}
 
 	for _, test := range tests {
@@ -414,7 +434,7 @@ func TestTypesInfo(t *testing.T) {
 
 		// check that type is correct
 		if got := typ.String(); got != test.typ {
-			t.Errorf("package %s: got %s; want %s", name, got, test.typ)
+			t.Errorf("package %s: expr = %s: got %s; want %s", name, test.expr, got, test.typ)
 		}
 	}
 }
@@ -551,18 +571,21 @@ type T[P any] []P
 			[]testInst{{`foo`, []string{`int`}, `func(int)`}},
 		},
 
-		// reverse type parameter inference
+		// reverse type inference
 		{`package reverse1a; var f func(int) = g; func g[P any](P) {}`,
 			[]testInst{{`g`, []string{`int`}, `func(int)`}},
 		},
 		{`package reverse1b; func f(func(int)) {}; func g[P any](P) {}; func _() { f(g) }`,
 			[]testInst{{`g`, []string{`int`}, `func(int)`}},
 		},
-		{`package reverse2a; var f func(int) string = g; func g[P, Q any](P) Q { var q Q; return q }`,
-			[]testInst{{`g`, []string{`int`, `string`}, `func(int) string`}},
+		{`package reverse2a; var f func(int, string) = g; func g[P, Q any](P, Q) {}`,
+			[]testInst{{`g`, []string{`int`, `string`}, `func(int, string)`}},
 		},
-		{`package reverse2b; func f(func(int) string) {}; func g[P, Q any](P) Q { var q Q; return q }; func _() { f(g) }`,
-			[]testInst{{`g`, []string{`int`, `string`}, `func(int) string`}},
+		{`package reverse2b; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}; func _() { f(g) }`,
+			[]testInst{{`g`, []string{`int`, `string`}, `func(int, string)`}},
+		},
+		{`package reverse2c; func f(func(int, string)) {}; func g[P, Q any](P, Q) {}; func _() { f(g[int]) }`,
+			[]testInst{{`g`, []string{`int`, `string`}, `func(int, string)`}},
 		},
 		// reverse3a not possible (cannot assign to generic function outside of argument passing)
 		{`package reverse3b; func f[R any](func(int) R) {}; func g[P any](P) string { return "" }; func _() { f(g) }`,

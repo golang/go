@@ -321,8 +321,8 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	}
 
 	// evaluate arguments
-	args := check.genericExprList(call.ArgList)
-	sig = check.arguments(call, sig, targs, xlist, args)
+	args, atargs, atxlist := check.genericExprList(call.ArgList)
+	sig = check.arguments(call, sig, targs, xlist, args, atargs, atxlist)
 
 	if wasGeneric && sig.TypeParams().Len() == 0 {
 		// update the recorded type of call.Fun to its instantiated type
@@ -358,65 +358,123 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 
 // exprList evaluates a list of expressions and returns the corresponding operands.
 // A single-element expression list may evaluate to multiple operands.
-func (check *Checker) exprList(elist []syntax.Expr) []*operand {
-	switch len(elist) {
-	case 0:
-		return nil
-
-	case 1:
-		xlist, _ := check.multiExpr(elist[0], false)
-		return xlist
-
-	default:
+func (check *Checker) exprList(elist []syntax.Expr) (xlist []*operand) {
+	if n := len(elist); n == 1 {
+		xlist, _ = check.multiExpr(elist[0], false)
+	} else if n > 1 {
 		// multiple (possibly invalid) values
-		xlist := make([]*operand, len(elist))
+		xlist = make([]*operand, n)
 		for i, e := range elist {
 			var x operand
 			check.expr(nil, &x, e)
 			xlist[i] = &x
 		}
-		return xlist
 	}
+	return
 }
 
-// genericExprList is like exprList but result operands may be generic (not fully instantiated).
-func (check *Checker) genericExprList(elist []syntax.Expr) []*operand {
-	switch len(elist) {
-	case 0:
-		return nil
+// genericExprList is like exprList but result operands may be uninstantiated or partially
+// instantiated generic functions.
+// For each non-generic or uninstantiated generic operand, the corresponding targsList and
+// xlistList elements do not exist (targsList and xlistList are nil) or the elements are nil.
+// For each partially instantiated generic function operand, the corresponding targsList and
+// xlistList elements are the operand's partial type arguments and type expression lists.
+func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, targsList [][]Type, xlistList [][]syntax.Expr) {
+	if debug {
+		defer func() {
+			// targsList and xlistList must have matching lengths
+			assert(len(targsList) == len(xlistList))
+			// type arguments must only exist for partially instantiated functions
+			for i, x := range resList {
+				if i < len(targsList) {
+					if n := len(targsList[i]); n > 0 {
+						// x must be a partially instantiated function
+						assert(n < x.typ.(*Signature).TypeParams().Len())
+					}
+				}
+			}
+		}()
+	}
 
-	case 1:
+	if n := len(elist); n == 1 {
+		// single value (possibly a partially instantiated function), or a multi-valued expression
 		e := elist[0]
 		var x operand
-		check.rawExpr(nil, &x, e, nil, true)
-		check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
-
-		if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
-			// multiple values - cannot be generic
-			xlist := make([]*operand, t.Len())
-			for i, v := range t.vars {
-				xlist[i] = &operand{mode: value, expr: e, typ: v.typ}
+		if inst, _ := e.(*syntax.IndexExpr); inst != nil && check.indexExpr(&x, inst) {
+			// x is a generic function.
+			targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, false)
+			if targs != nil {
+				// x was not instantiated: collect the (partial) type arguments.
+				targsList = [][]Type{targs}
+				xlistList = [][]syntax.Expr{xlist}
+				// Update x.expr so that we can record the partially instantiated function.
+				x.expr = inst
+			} else {
+				// x was instantiated: we must record it here because we didn't
+				// use the usual expression evaluators.
+				check.record(&x)
 			}
-			return xlist
+			resList = []*operand{&x}
+		} else {
+			// x is not a function instantiation (it may still be a generic function).
+			check.rawExpr(nil, &x, e, nil, true)
+			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
+			if t, ok := x.typ.(*Tuple); ok && x.mode != invalid {
+				// x is a function call returning multiple values; it cannot be generic.
+				resList = make([]*operand, t.Len())
+				for i, v := range t.vars {
+					resList[i] = &operand{mode: value, expr: e, typ: v.typ}
+				}
+			} else {
+				// x is exactly one value (possibly invalid or uninstantiated generic function).
+				resList = []*operand{&x}
+			}
 		}
-
-		// exactly one (possible invalid or generic) value
-		return []*operand{&x}
-
-	default:
-		// multiple (possibly invalid) values
-		xlist := make([]*operand, len(elist))
+	} else if n > 1 {
+		// multiple values
+		resList = make([]*operand, n)
+		targsList = make([][]Type, n)
+		xlistList = make([][]syntax.Expr, n)
 		for i, e := range elist {
 			var x operand
-			check.genericExpr(&x, e)
-			xlist[i] = &x
+			if inst, _ := e.(*syntax.IndexExpr); inst != nil && check.indexExpr(&x, inst) {
+				// x is a generic function.
+				targs, xlist := check.funcInst(nil, x.Pos(), &x, inst, false)
+				if targs != nil {
+					// x was not instantiated: collect the (partial) type arguments.
+					targsList[i] = targs
+					xlistList[i] = xlist
+					// Update x.expr so that we can record the partially instantiated function.
+					x.expr = inst
+				} else {
+					// x was instantiated: we must record it here because we didn't
+					// use the usual expression evaluators.
+					check.record(&x)
+				}
+			} else {
+				// x is exactly one value (possibly invalid or uninstantiated generic function).
+				check.genericExpr(&x, e)
+			}
+			resList[i] = &x
 		}
-		return xlist
 	}
+
+	return
 }
 
-// xlist is the list of type argument expressions supplied in the source code.
-func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, xlist []syntax.Expr, args []*operand) (rsig *Signature) {
+// arguments type-checks arguments passed to a function call with the given signature.
+// The function and its arguments may be generic, and possibly partially instantiated.
+// targs and xlist are the function's type arguments (and corresponding expressions).
+// args are the function arguments. If an argument args[i] is a partially instantiated
+// generic function, atargs[i] and atxlist[i] are the corresponding type arguments
+// (and corresponding expressions).
+// If the callee is variadic, arguments adjusts its signature to match the provided
+// arguments. The type parameters and arguments of the callee and all its arguments
+// are used together to infer any missing type arguments, and the callee and argument
+// functions are instantiated as necessary.
+// The result signature is the (possibly adjusted and instantiated) function signature.
+// If an error occured, the result signature is the incoming sig.
+func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, xlist []syntax.Expr, args []*operand, atargs [][]Type, atxlist [][]syntax.Expr) (rsig *Signature) {
 	rsig = sig
 
 	// Function call argument/parameter count requirements
@@ -516,7 +574,12 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		var tmp Type
 		tparams, tmp = check.renameTParams(call.Pos(), sig.TypeParams().list(), sigParams)
 		sigParams = tmp.(*Tuple)
+		// make sure targs and tparams have the same length
+		for len(targs) < len(tparams) {
+			targs = append(targs, nil)
+		}
 	}
+	assert(len(tparams) == len(targs))
 
 	// collect type parameters from generic function arguments
 	var genericArgs []int // indices of generic function arguments
@@ -533,10 +596,20 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 				asig.tparams = &TypeParamList{atparams} // renameTParams doesn't touch associated type parameters
 				arg.typ = asig                          // new type identity for the function argument
 				tparams = append(tparams, atparams...)
+				// add partial list of type arguments, if any
+				if i < len(atargs) {
+					targs = append(targs, atargs[i]...)
+				}
+				// make sure targs and tparams have the same length
+				for len(targs) < len(tparams) {
+					targs = append(targs, nil)
+				}
 				genericArgs = append(genericArgs, i)
 			}
 		}
 	}
+	assert(len(tparams) == len(targs))
+
 	// at the moment we only support implicit instantiations of argument functions
 	_ = len(genericArgs) > 0 && check.verifyVersionf(check.pkg, args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
 
@@ -574,11 +647,12 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		// compute argument signatures: instantiate if needed
 		j := n
 		for _, i := range genericArgs {
-			asig := args[i].typ.(*Signature)
+			arg := args[i]
+			asig := arg.typ.(*Signature)
 			k := j + asig.TypeParams().Len()
 			// targs[j:k] are the inferred type arguments for asig
-			asig = check.instantiateSignature(call.Pos(), args[i].expr, asig, targs[j:k], nil) // TODO(gri) provide xlist if possible (partial instantiations)
-			args[i].typ = asig
+			arg.typ = check.instantiateSignature(call.Pos(), arg.expr, asig, targs[j:k], nil) // TODO(gri) provide xlist if possible (partial instantiations)
+			check.record(arg)                                                                 // record here because we didn't use the usual expr evaluators
 			j = k
 		}
 	}
