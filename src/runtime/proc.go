@@ -1999,7 +1999,7 @@ func oneNewExtraM() {
 	mp.lockedg.set(gp)
 	gp.lockedm.set(mp)
 	gp.goid = sched.goidgen.Add(1)
-	gp.sysblocktraced = true
+	gp.trace.sysBlockTraced = true
 	if raceenabled {
 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
 	}
@@ -2705,8 +2705,8 @@ func execute(gp *g, inheritTime bool) {
 	if traceEnabled() {
 		// GoSysExit has to happen when we have a P, but before GoStart.
 		// So we emit it here.
-		if gp.syscallsp != 0 && gp.sysblocktraced {
-			traceGoSysExit(gp.sysexitticks)
+		if gp.syscallsp != 0 && gp.trace.sysBlockTraced {
+			traceGoSysExit(gp.trace.sysExitTicks)
 		}
 		traceGoStart()
 	}
@@ -3856,7 +3856,7 @@ func reentersyscall(pc, sp uintptr) {
 	}
 
 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
-	gp.sysblocktraced = true
+	gp.trace.sysBlockTraced = true
 	pp := gp.m.p.ptr()
 	pp.m = 0
 	gp.m.oldp.set(pp)
@@ -3917,7 +3917,7 @@ func entersyscallblock() {
 	gp.throwsplit = true
 	gp.stackguard0 = stackPreempt // see comment in entersyscall
 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
-	gp.sysblocktraced = true
+	gp.trace.sysBlockTraced = true
 	gp.m.p.ptr().syscalltick++
 
 	// Leave SP around for GC and traceback.
@@ -4024,7 +4024,7 @@ func exitsyscall() {
 		return
 	}
 
-	gp.sysexitticks = 0
+	gp.trace.sysExitTicks = 0
 	if traceEnabled() {
 		// Wait till traceGoSysBlock event is emitted.
 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
@@ -4035,7 +4035,7 @@ func exitsyscall() {
 		// Tracing code can invoke write barriers that cannot run without a P.
 		// So instead we remember the syscall exit time and emit the event
 		// in execute when we have a P.
-		gp.sysexitticks = cputicks()
+		gp.trace.sysExitTicks = cputicks()
 	}
 
 	gp.m.locks--
