@@ -174,10 +174,9 @@ func kvFuncSkipArgs(fn *types.Func) (int, bool) {
 	}
 	recv := fn.Type().(*types.Signature).Recv()
 	if recv == nil {
-		// TODO: If #59204 is accepted, uncomment the lines below.
-		// if fn.Name() == "Group" {
-		// 	return 0, true
-		// }
+		if fn.Name() == "Group" {
+			return 0, true
+		}
 		skip, ok := slogOutputFuncs[fn.Name()]
 		return skip, ok
 	}
