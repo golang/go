@@ -134,17 +134,17 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// check general case by creating custom signature
 		sig := makeSig(S, S, NewSlice(T)) // []T required for variadic signature
 		sig.variadic = true
-		var xlist []*operand
+		var alist2 []*operand
 		// convert []operand to []*operand
 		for i := range alist {
-			xlist = append(xlist, &alist[i])
+			alist2 = append(alist2, &alist[i])
 		}
 		for i := len(alist); i < nargs; i++ {
 			var x operand
 			arg(&x, i)
-			xlist = append(xlist, &x)
+			alist2 = append(alist2, &x)
 		}
-		check.arguments(call, sig, nil, xlist, nil) // discard result (we know the result type)
+		check.arguments(call, sig, nil, nil, alist2) // discard result (we know the result type)
 		// ok to continue even if check.arguments reported errors
 
 		x.mode = value

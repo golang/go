@@ -330,7 +330,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	// evaluate arguments
 	args := check.genericExprList(call.Args)
-	sig = check.arguments(call, sig, targs, args, xlist)
+	sig = check.arguments(call, sig, targs, xlist, args)
 
 	if wasGeneric && sig.TypeParams().Len() == 0 {
 		// Update the recorded type of call.Fun to its instantiated type.
@@ -424,7 +424,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) []*operand {
 }
 
 // xlist is the list of type argument expressions supplied in the source code.
-func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type, args []*operand, xlist []ast.Expr) (rsig *Signature) {
+func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type, xlist []ast.Expr, args []*operand) (rsig *Signature) {
 	rsig = sig
 
 	// TODO(gri) try to eliminate this extra verification loop
