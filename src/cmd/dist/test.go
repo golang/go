@@ -293,13 +293,12 @@ type goTest struct {
 	ldflags   string // If non-empty, build with -ldflags=X
 	buildmode string // If non-empty, -buildmode flag
 
-	dir string   // If non-empty, run in GOROOT/src-relative directory dir
 	env []string // Environment variables to add, as KEY=VAL. KEY= unsets a variable
 
 	runOnHost bool // When cross-compiling, run this test on the host instead of guest
 
 	// We have both pkg and pkgs as a convenience. Both may be set, in which
-	// case they will be combined. If both are empty, the default is ".".
+	// case they will be combined. At least one must be set.
 	pkgs []string // Multiple packages to test
 	pkg  string   // A single package to test
 
@@ -410,7 +409,7 @@ func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs, testFl
 		pkgs = append(pkgs[:len(pkgs):len(pkgs)], opts.pkg)
 	}
 	if len(pkgs) == 0 {
-		pkgs = []string{"."}
+		panic("no packages")
 	}
 
 	runOnHost := opts.runOnHost && (goarch != gohostarch || goos != gohostos)
@@ -427,15 +426,7 @@ func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs, testFl
 	if opts.goroot != "" {
 		thisGoroot = opts.goroot
 	}
-	var dir string
-	if opts.dir != "" {
-		if filepath.IsAbs(opts.dir) {
-			panic("dir must be relative, got: " + opts.dir)
-		}
-		dir = filepath.Join(thisGoroot, "src", opts.dir)
-	} else {
-		dir = filepath.Join(thisGoroot, "src")
-	}
+	dir := filepath.Join(thisGoroot, "src")
 	setupCmd = func(cmd *exec.Cmd) {
 		setDir(cmd, dir)
 		if len(opts.env) != 0 {
@@ -810,10 +801,10 @@ func (t *tester) registerTests() {
 
 	if t.cgoEnabled && !t.iOS() {
 		// Disabled on iOS. golang.org/issue/15919
-		t.registerTest("cgo_teststdio", "", &goTest{dir: "cmd/cgo/internal/teststdio", timeout: 5 * time.Minute})
-		t.registerTest("cgo_testlife", "", &goTest{dir: "cmd/cgo/internal/testlife", timeout: 5 * time.Minute})
+		t.registerTest("cgo_teststdio", "", &goTest{pkg: "cmd/cgo/internal/teststdio", timeout: 5 * time.Minute})
+		t.registerTest("cgo_testlife", "", &goTest{pkg: "cmd/cgo/internal/testlife", timeout: 5 * time.Minute})
 		if goos != "android" {
-			t.registerTest("cgo_testfortran", "", &goTest{dir: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute})
+			t.registerTest("cgo_testfortran", "", &goTest{pkg: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute})
 		}
 	}
 	if t.cgoEnabled {
@@ -825,29 +816,29 @@ func (t *tester) registerTests() {
 	// recompile the entire standard library. If make.bash ran with
 	// special -gcflags, that's not true.
 	if t.cgoEnabled && gogcflags == "" {
-		t.registerTest("cgo_testgodefs", "", &goTest{dir: "cmd/cgo/internal/testgodefs", timeout: 5 * time.Minute})
+		t.registerTest("cgo_testgodefs", "", &goTest{pkg: "cmd/cgo/internal/testgodefs", timeout: 5 * time.Minute})
 
-		t.registerTest("cgo_testso", "", &goTest{dir: "cmd/cgo/internal/testso", timeout: 600 * time.Second})
-		t.registerTest("cgo_testsovar", "", &goTest{dir: "cmd/cgo/internal/testsovar", timeout: 600 * time.Second})
+		t.registerTest("cgo_testso", "", &goTest{pkg: "cmd/cgo/internal/testso", timeout: 600 * time.Second})
+		t.registerTest("cgo_testsovar", "", &goTest{pkg: "cmd/cgo/internal/testsovar", timeout: 600 * time.Second})
 		if t.supportedBuildmode("c-archive") {
-			t.registerTest("cgo_testcarchive", "", &goTest{dir: "cmd/cgo/internal/testcarchive", timeout: 5 * time.Minute})
+			t.registerTest("cgo_testcarchive", "", &goTest{pkg: "cmd/cgo/internal/testcarchive", timeout: 5 * time.Minute})
 		}
 		if t.supportedBuildmode("c-shared") {
-			t.registerTest("cgo_testcshared", "", &goTest{dir: "cmd/cgo/internal/testcshared", timeout: 5 * time.Minute})
+			t.registerTest("cgo_testcshared", "", &goTest{pkg: "cmd/cgo/internal/testcshared", timeout: 5 * time.Minute})
 		}
 		if t.supportedBuildmode("shared") {
-			t.registerTest("cgo_testshared", "", &goTest{dir: "cmd/cgo/internal/testshared", timeout: 600 * time.Second})
+			t.registerTest("cgo_testshared", "", &goTest{pkg: "cmd/cgo/internal/testshared", timeout: 600 * time.Second})
 		}
 		if t.supportedBuildmode("plugin") {
-			t.registerTest("cgo_testplugin", "", &goTest{dir: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
+			t.registerTest("cgo_testplugin", "", &goTest{pkg: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
 		}
 		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
 			// because Pdeathsig of syscall.SysProcAttr struct used in cmd/cgo/internal/testsanitizers is only
 			// supported on Linux and FreeBSD.
-			t.registerTest("cgo_testsanitizers", "", &goTest{dir: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
+			t.registerTest("cgo_testsanitizers", "", &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
 		}
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
-			t.registerTest("cgo_errors", "", &goTest{dir: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute})
+			t.registerTest("cgo_errors", "", &goTest{pkg: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute})
 		}
 	}
 
@@ -867,7 +858,7 @@ func (t *tester) registerTests() {
 				fmt.Sprintf("test:%d_%d", shard, nShards),
 				"../test",
 				&goTest{
-					dir:       "internal/testdir",
+					pkg:       "internal/testdir",
 					testFlags: []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
 					runOnHost: true,
 				},
@@ -880,7 +871,7 @@ func (t *tester) registerTests() {
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
-		t.registerTest("api", "", &goTest{dir: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+		t.registerTest("api", "", &goTest{pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
 	}
 }
 
@@ -909,7 +900,7 @@ func (rtPreFunc) isRegisterTestOpt() {}
 
 // registerTest registers a test that runs the given goTest.
 //
-// If heading is "", it uses test.dir as the heading.
+// If heading is "", it uses test.pkg as the heading.
 func (t *tester) registerTest(name, heading string, test *goTest, opts ...registerTestOpt) {
 	var preFunc func(*distTest) bool
 	for _, opt := range opts {
@@ -922,7 +913,10 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 		panic("duplicate registered test name " + name)
 	}
 	if heading == "" {
-		heading = test.dir
+		if test.pkg == "" {
+			panic("either heading or test.pkg must be set")
+		}
+		heading = test.pkg
 	}
 	t.tests = append(t.tests, distTest{
 		name:    name,
@@ -1077,7 +1071,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 func (t *tester) registerCgoTests() {
 	cgoTest := func(name string, subdir, linkmode, buildmode string, opts ...registerTestOpt) *goTest {
 		gt := &goTest{
-			dir:       "cmd/cgo/internal/" + subdir,
+			pkg:       "cmd/cgo/internal/" + subdir,
 			buildmode: buildmode,
 			ldflags:   "-linkmode=" + linkmode,
 		}
