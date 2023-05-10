@@ -4,6 +4,9 @@
 # license that can be found in the LICENSE file.
 
 case "$GOWASIRUNTIME" in
+	"wasmedge")
+		exec wasmedge --dir=/ --env PWD="$PWD" "$1" "${@:2}"
+		;;
 	"wasmer")
 		exec wasmer run --dir=/ --env PWD="$PWD" "$1" -- "${@:2}"
 		;;
