@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// WORK IN PROGRESS
-
 // A note on line numbers: when working with line numbers, we always use the
 // binary-visible relative line number. i.e., the line number as adjusted by
 // //line directives (ctxt.InnermostPos(ir.Node.Pos()).RelLine()). Use
