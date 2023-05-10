@@ -2004,12 +2004,7 @@ func oneNewExtraM() {
 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
 	}
 	if traceEnabled() {
-		// Trigger two trace events for the locked g in the extra m,
-		// since the next event of the g will be traceEvGoSysExit in exitsyscall,
-		// while calling from C thread to Go.
-		traceGoCreate(gp, 0) // no start pc
-		gp.traceseq++
-		traceEvent(traceEvGoInSyscall, -1, gp.goid)
+		traceOneNewExtraM(gp)
 	}
 	// put on allg for garbage collector
 	allgadd(gp)

@@ -1713,3 +1713,16 @@ func startPCforTrace(pc uintptr) uintptr {
 	}
 	return f.datap.textAddr(*(*uint32)(w))
 }
+
+// traceOneNewExtraM registers the fact that a new extra M was created with
+// the tracer. This matters if the M (which has an attached G) is used while
+// the trace is still active because if it is, we need the fact that it exists
+// to show up in the final trace.
+func traceOneNewExtraM(gp *g) {
+	// Trigger two trace events for the locked g in the extra m,
+	// since the next event of the g will be traceEvGoSysExit in exitsyscall,
+	// while calling from C thread to Go.
+	traceGoCreate(gp, 0) // no start pc
+	gp.traceseq++
+	traceEvent(traceEvGoInSyscall, -1, gp.goid)
+}
