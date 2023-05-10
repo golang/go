@@ -100,8 +100,9 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 // There are three types of file within the test archive that are given special
 // treatment by the test runner:
 //   - "flags": this file is treated as a whitespace-separated list of flags
-//     that configure the MarkerTest instance. For example, -min_go=go1.18 sets
-//     the minimum required Go version for the test.
+//     that configure the MarkerTest instance. Supported flags:
+//     -min_go=go1.18 sets the minimum Go version for the test;
+//     -cgo requires that CGO_ENABLED is set and the cgo tool is available
 //     TODO(rfindley): support flag values containing whitespace.
 //   - "settings.json": this file is parsed as JSON, and used as the
 //     session configuration (see gopls/doc/settings.md)
@@ -340,6 +341,9 @@ func RunMarkerTests(t *testing.T, dir string) {
 				}
 				testenv.NeedsGo1Point(t, go1point)
 			}
+			if test.cgo {
+				testenv.NeedsTool(t, "cgo")
+			}
 			config := fake.EditorConfig{
 				Settings: test.settings,
 				Env:      test.env,
@@ -553,6 +557,7 @@ type markerTest struct {
 	flags []string
 	// Parsed flags values.
 	minGoVersion string
+	cgo          bool
 }
 
 // flagSet returns the flagset used for parsing the special "flags" file in the
@@ -560,6 +565,7 @@ type markerTest struct {
 func (t *markerTest) flagSet() *flag.FlagSet {
 	flags := flag.NewFlagSet(t.name, flag.ContinueOnError)
 	flags.StringVar(&t.minGoVersion, "min_go", "", "if set, the minimum go1.X version required for this test")
+	flags.BoolVar(&t.cgo, "cgo", false, "if set, requires cgo (both the cgo tool and CGO_ENABLED=1)")
 	return flags
 }
 

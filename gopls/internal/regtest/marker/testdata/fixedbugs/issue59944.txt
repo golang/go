@@ -4,6 +4,9 @@ the methodset of its receiver type.
 
 Adapted from the code in question from the issue.
 
+-- flags --
+-cgo
+
 -- go.mod --
 module example.com
 
