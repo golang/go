@@ -143,7 +143,7 @@ func DefaultOptions() *Options {
 						ImportShortcut: BothShortcuts,
 						SymbolMatcher:  SymbolFastFuzzy,
 						SymbolStyle:    DynamicSymbols,
-						SymbolScope:    WorkspaceSymbolScope,
+						SymbolScope:    AllSymbolScope,
 					},
 					CompletionOptions: CompletionOptions{
 						Matcher:                        Fuzzy,

@@ -1,10 +1,10 @@
-This test verifies behavior when "symbolScope" is set to the default value
-("workspace").
+This test verifies behavior when "symbolScope" is set to "workspace".
 
 -- settings.json --
 {
 	"symbolStyle": "full",
-	"symbolMatcher": "casesensitive"
+	"symbolMatcher": "casesensitive",
+	"symbolScope": "workspace"
 }
 
 -- go.mod --

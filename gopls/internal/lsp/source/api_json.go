@@ -208,7 +208,7 @@ var GeneratedAPIJSON = &APIJSON{
 						Doc:   "`\"workspace\"` matches symbols in workspace packages only.\n",
 					},
 				},
-				Default:   "\"workspace\"",
+				Default:   "\"all\"",
 				Hierarchy: "ui.navigation",
 			},
 			{

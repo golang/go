@@ -470,7 +470,7 @@ Must be one of:
 dependencies.
 * `"workspace"` matches symbols in workspace packages only.
 
-Default: `"workspace"`.
+Default: `"all"`.
 
 #### **verboseOutput** *bool*
 
