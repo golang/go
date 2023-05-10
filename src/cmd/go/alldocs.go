@@ -567,6 +567,11 @@
 //		generator, containing the Go toolchain and standard library.
 //	$DOLLAR
 //		A dollar sign.
+//	$PATH
+//		The $PATH of the parent process, with $GOROOT/bin
+//		placed at the beginning. This causes generators
+//		that execute 'go' commands to use the same 'go'
+//		as the parent 'go generate' command.
 //
 // Other than variable substitution and quoted-string evaluation, no
 // special processing such as "globbing" is performed on the command
@@ -1702,6 +1707,10 @@
 // standard output, even if the test printed them to its own standard
 // error. (The go command's standard error is reserved for printing
 // errors building the tests.)
+//
+// The go command places $GOROOT/bin at the beginning of $PATH
+// in the test's environment, so that tests that execute
+// 'go' commands use the same 'go' as the parent 'go test' command.
 //
 // Go test runs in two different modes:
 //
