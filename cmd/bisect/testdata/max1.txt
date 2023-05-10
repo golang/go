@@ -19,5 +19,5 @@ bisect: run: test +00010... FAIL (3 matches)
 bisect: run: test +000010... FAIL (2 matches)
 bisect: run: test +0000010... FAIL (1 matches)
 bisect: confirming failing change set
-bisect: run: test v+0000010... FAIL (1 matches)
+bisect: run: test v+x002... FAIL (1 matches)
 bisect: FOUND failing change set

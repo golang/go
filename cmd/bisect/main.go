@@ -136,9 +136,11 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/bits"
 	"math/rand"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -260,6 +262,18 @@ type Bisect struct {
 	// each pattern starts with a !.
 	Disable bool
 
+	// SkipDigits is the number of hex digits to use in skip messages.
+	// If the set of available changes is the same in each run, as it should be,
+	// then this doesn't matter: we'll only exclude suffixes that uniquely identify
+	// a given change. But for some programs, especially bisecting runtime
+	// behaviors, sometimes enabling one change unlocks questions about other
+	// changes. Strictly speaking this is a misuse of bisect, but just to make
+	// bisect more robust, we use the y and n runs to create an estimate of the
+	// number of bits needed for a unique suffix, and then we round it up to
+	// a number of hex digits, with one extra digit for good measure, and then
+	// we always use that many hex digits for skips.
+	SkipHexDigits int
+
 	// Add is a list of suffixes to add to every trial, because they
 	// contain changes that are necessary for a group we are assembling.
 	Add []string
@@ -336,6 +350,10 @@ func (b *Bisect) Search() bool {
 	case !runN.Success && !runY.Success:
 		b.Fatalf("target fails with no changes and all changes")
 	}
+
+	// Compute minimum number of bits needed to distinguish
+	// all the changes we saw during N and all the changes we saw during Y.
+	b.SkipHexDigits = skipHexDigits(runN.MatchIDs, runY.MatchIDs)
 
 	// Loop finding and printing change sets, until none remain.
 	found := 0
@@ -417,6 +435,35 @@ func (b *Bisect) Logf(format string, args ...any) {
 	b.Stderr.Write([]byte(s))
 }
 
+func skipHexDigits(idY, idN []uint64) int {
+	var all []uint64
+	seen := make(map[uint64]bool)
+	for _, x := range idY {
+		seen[x] = true
+		all = append(all, x)
+	}
+	for _, x := range idN {
+		if !seen[x] {
+			seen[x] = true
+			all = append(all, x)
+		}
+	}
+	sort.Slice(all, func(i, j int) bool { return bits.Reverse64(all[i]) < bits.Reverse64(all[j]) })
+	digits := sort.Search(64/4, func(digits int) bool {
+		mask := uint64(1)<<(4*digits) - 1
+		for i := 0; i+1 < len(all); i++ {
+			if all[i]&mask == all[i+1]&mask {
+				return false
+			}
+		}
+		return true
+	})
+	if digits < 64/4 {
+		digits++
+	}
+	return digits
+}
+
 // search searches for a single locally minimal change set.
 //
 // Invariant: r describes the result of r.Suffix + b.Add, which failed.
@@ -436,10 +483,7 @@ func (b *Bisect) search(r *Result) []string {
 
 	// If there's one matching change, that's the one we're looking for.
 	if len(r.MatchIDs) == 1 {
-		if r.Suffix == "" {
-			return []string{"y"}
-		}
-		return []string{r.Suffix}
+		return []string{fmt.Sprintf("x%0*x", b.SkipHexDigits, r.MatchIDs[0]&(1<<(4*b.SkipHexDigits)-1))}
 	}
 
 	// If the suffix we were tracking in the trial is already 64 bits,

@@ -191,17 +191,35 @@ func New(pattern string) (*Matcher, error) {
 	result := true
 	bits := uint64(0)
 	start := 0
+	wid := 1 // 1-bit (binary); sometimes 4-bit (hex)
 	for i := 0; i <= len(p); i++ {
 		// Imagine a trailing - at the end of the pattern to flush final suffix
 		c := byte('-')
 		if i < len(p) {
 			c = p[i]
 		}
+		if i == start && wid == 1 && c == 'x' { // leading x for hex
+			start = i + 1
+			wid = 4
+			continue
+		}
 		switch c {
 		default:
 			return nil, &parseError{"invalid pattern syntax: " + pattern}
+		case '2', '3', '4', '5', '6', '7', '8', '9':
+			if wid != 4 {
+				return nil, &parseError{"invalid pattern syntax: " + pattern}
+			}
+			fallthrough
 		case '0', '1':
-			bits = bits<<1 | uint64(c-'0')
+			bits <<= wid
+			bits |= uint64(c - '0')
+		case 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F':
+			if wid != 4 {
+				return nil, &parseError{"invalid pattern syntax: " + pattern}
+			}
+			bits <<= 4
+			bits |= uint64(c&^0x20 - 'A' + 10)
 		case 'y':
 			if i+1 < len(p) && (p[i+1] == '0' || p[i+1] == '1') {
 				return nil, &parseError{"invalid pattern syntax: " + pattern}
@@ -213,7 +231,7 @@ func New(pattern string) (*Matcher, error) {
 				return nil, &parseError{"invalid pattern syntax (+ after -): " + pattern}
 			}
 			if i > 0 {
-				n := i - start
+				n := (i - start) * wid
 				if n > 64 {
 					return nil, &parseError{"pattern bits too long: " + pattern}
 				}
@@ -232,6 +250,7 @@ func New(pattern string) (*Matcher, error) {
 			bits = 0
 			result = c == '+'
 			start = i + 1
+			wid = 1
 		}
 	}
 	return m, nil
