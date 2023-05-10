@@ -577,21 +577,9 @@ func (t *tester) registerTests() {
 		"cmd/internal/testdir": true, // Registered at the bottom with sharding.
 		// cgo tests are registered specially because they involve unusual build
 		// conditions and flags.
-		"cmd/cgo/internal/teststdio":      true,
-		"cmd/cgo/internal/testlife":       true,
-		"cmd/cgo/internal/testfortran":    true,
-		"cmd/cgo/internal/test":           true,
-		"cmd/cgo/internal/testnocgo":      true,
-		"cmd/cgo/internal/testtls":        true,
-		"cmd/cgo/internal/testgodefs":     true,
-		"cmd/cgo/internal/testso":         true,
-		"cmd/cgo/internal/testsovar":      true,
-		"cmd/cgo/internal/testcarchive":   true,
-		"cmd/cgo/internal/testcshared":    true,
-		"cmd/cgo/internal/testshared":     true,
-		"cmd/cgo/internal/testplugin":     true,
-		"cmd/cgo/internal/testsanitizers": true,
-		"cmd/cgo/internal/testerrors":     true,
+		"cmd/cgo/internal/test":      true,
+		"cmd/cgo/internal/testnocgo": true,
+		"cmd/cgo/internal/testtls":   true,
 	}
 
 	// Fast path to avoid the ~1 second of `go list std cmd` when
@@ -847,22 +835,9 @@ func (t *tester) registerTests() {
 	}
 
 	const cgoHeading = "Testing cgo"
-	t.registerTest("cgo_teststdio", cgoHeading, &goTest{pkg: "cmd/cgo/internal/teststdio", timeout: 5 * time.Minute})
-	t.registerTest("cgo_testlife", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testlife", timeout: 5 * time.Minute})
-	t.registerTest("cgo_testfortran", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute})
 	if t.cgoEnabled {
 		t.registerCgoTests(cgoHeading)
 	}
-
-	t.registerTest("cgo_testgodefs", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testgodefs", timeout: 5 * time.Minute})
-	t.registerTest("cgo_testso", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testso", timeout: 600 * time.Second})
-	t.registerTest("cgo_testsovar", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testsovar", timeout: 600 * time.Second})
-	t.registerTest("cgo_testcarchive", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testcarchive", timeout: 5 * time.Minute})
-	t.registerTest("cgo_testcshared", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testcshared", timeout: 5 * time.Minute})
-	t.registerTest("cgo_testshared", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testshared", timeout: 600 * time.Second})
-	t.registerTest("cgo_testplugin", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
-	t.registerTest("cgo_testsanitizers", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
-	t.registerTest("cgo_errors", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute})
 
 	if goos != "android" && !t.iOS() {
 		// Only start multiple test dir shards on builders,
