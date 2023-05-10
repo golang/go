@@ -40,6 +40,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/gopls/internal/bug"
+	"golang.org/x/tools/gopls/internal/lsp/lru"
 	"golang.org/x/tools/internal/lockedfile"
 )
 
@@ -51,11 +52,28 @@ func Start() {
 	go getCacheDir()
 }
 
+// As an optimization, use a 100MB in-memory LRU cache in front of filecache
+// operations. This reduces I/O for operations such as diagnostics or
+// implementations that repeatedly access the same cache entries.
+var memCache = lru.New(100 * 1e6)
+
+type memKey struct {
+	kind string
+	key  [32]byte
+}
+
 // Get retrieves from the cache and returns a newly allocated
 // copy of the value most recently supplied to Set(kind, key),
 // possibly by another process.
 // Get returns ErrNotFound if the value was not found.
 func Get(kind string, key [32]byte) ([]byte, error) {
+	// First consult the read-through memory cache.
+	// Note that memory cache hits do not update the times
+	// used for LRU eviction of the file-based cache.
+	if value := memCache.Get(memKey{kind, key}); value != nil {
+		return value.([]byte), nil
+	}
+
 	iolimit <- struct{}{}        // acquire a token
 	defer func() { <-iolimit }() // release a token
 
@@ -112,6 +130,7 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to update access time: %w", err)
 	}
 
+	memCache.Set(memKey{kind, key}, value, len(value))
 	return value, nil
 }
 
@@ -121,6 +140,8 @@ var ErrNotFound = fmt.Errorf("not found")
 
 // Set updates the value in the cache.
 func Set(kind string, key [32]byte, value []byte) error {
+	memCache.Set(memKey{kind, key}, value, len(value))
+
 	iolimit <- struct{}{}        // acquire a token
 	defer func() { <-iolimit }() // release a token
 
