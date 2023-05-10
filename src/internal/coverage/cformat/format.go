@@ -218,7 +218,7 @@ func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool) er
 				coveredStmts += nx
 			}
 		}
-		if _, err := fmt.Fprintf(w, "\t%s\t", importpath); err != nil {
+		if _, err := fmt.Fprintf(w, "\t%s\t\t", importpath); err != nil {
 			return err
 		}
 		if totalStmts == 0 {

@@ -66,7 +66,7 @@ q.go:33.0,40.0 7 2`)
 		t.Fatalf("EmitPercent returned %v", err)
 	}
 	wantPercent := strings.TrimSpace(`
-my/pack	coverage: 62.5% of statements
+my/pack		coverage: 62.5% of statements
 `)
 	gotPercent := strings.TrimSpace(b2.String())
 	if wantPercent != gotPercent {
