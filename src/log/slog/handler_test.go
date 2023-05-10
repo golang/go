@@ -262,11 +262,12 @@ func TestJSONAndTextHandlers(t *testing.T) {
 				return h.WithAttrs([]Attr{Int("p1", 1)}).
 					WithGroup("s1").
 					WithAttrs([]Attr{Int("p2", 2)}).
-					WithGroup("s2")
+					WithGroup("s2").
+					WithAttrs([]Attr{Int("p3", 3)})
 			},
 			attrs:    attrs,
-			wantText: "msg=message p1=1 s1.p2=2 s1.s2.a=one s1.s2.b=2",
-			wantJSON: `{"msg":"message","p1":1,"s1":{"p2":2,"s2":{"a":"one","b":2}}}`,
+			wantText: "msg=message p1=1 s1.p2=2 s1.s2.p3=3 s1.s2.a=one s1.s2.b=2",
+			wantJSON: `{"msg":"message","p1":1,"s1":{"p2":2,"s2":{"p3":3,"a":"one","b":2}}}`,
 		},
 		{
 			name:    "two with-groups",
@@ -325,6 +326,20 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			addSource: true,
 			wantText:  `source=handler_test.go:$LINE msg=message`,
 			wantJSON:  `{"source":{"function":"log/slog.TestJSONAndTextHandlers","file":"handler_test.go","line":$LINE},"msg":"message"}`,
+		},
+		{
+			name: "replace built-in with group",
+			replace: func(_ []string, a Attr) Attr {
+				if a.Key == TimeKey {
+					return Group(TimeKey, "mins", 3, "secs", 2)
+				}
+				if a.Key == LevelKey {
+					return Attr{}
+				}
+				return a
+			},
+			wantText: `time.mins=3 time.secs=2 msg=message`,
+			wantJSON: `{"time":{"mins":3,"secs":2},"msg":"message"}`,
 		},
 	} {
 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
