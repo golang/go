@@ -174,6 +174,20 @@ type mTraceState struct {
 	startingTrace bool // this M is in TraceStart, potentially before traceEnabled is true
 }
 
+// pTraceState is per-P state for the tracer.
+type pTraceState struct {
+	buf traceBufPtr
+
+	// inSweep indicates the sweep events should be traced.
+	// This is used to defer the sweep start event until a span
+	// has actually been swept.
+	inSweep bool
+
+	// swept and reclaimed track the number of bytes swept and reclaimed
+	// by sweeping in the current sweep loop (while inSweep was true).
+	swept, reclaimed uintptr
+}
+
 // traceLockInit initializes global trace locks.
 func traceLockInit() {
 	lockInit(&trace.bufLock, lockRankTraceBuf)
@@ -379,10 +393,10 @@ func StopTrace() {
 	// Loop over all allocated Ps because dead Ps may still have
 	// trace buffers.
 	for _, p := range allp[:cap(allp)] {
-		buf := p.tracebuf
+		buf := p.trace.buf
 		if buf != 0 {
 			traceFullQueue(buf)
-			p.tracebuf = 0
+			p.trace.buf = 0
 		}
 	}
 	if trace.buf != 0 {
@@ -429,7 +443,7 @@ func StopTrace() {
 		// The lock protects us from races with StartTrace/StopTrace because they do stop-the-world.
 		lock(&trace.lock)
 		for _, p := range allp[:cap(allp)] {
-			if p.tracebuf != 0 {
+			if p.trace.buf != 0 {
 				throw("trace: non-empty trace buffer in proc")
 			}
 		}
@@ -650,8 +664,8 @@ func traceReaderAvailable() *g {
 //
 //go:systemstack
 func traceProcFree(pp *p) {
-	buf := pp.tracebuf
-	pp.tracebuf = 0
+	buf := pp.trace.buf
+	pp.trace.buf = 0
 	if buf == 0 {
 		return
 	}
@@ -980,7 +994,7 @@ func traceAcquireBuffer() (mp *m, pid int32, bufp *traceBufPtr) {
 
 	mp = acquirem()
 	if p := mp.p.ptr(); p != nil {
-		return mp, p.id, &p.tracebuf
+		return mp, p.id, &p.trace.buf
 	}
 	lock(&trace.bufLock)
 	return mp, traceGlobProc, &trace.buf
@@ -1480,10 +1494,10 @@ func traceGCSweepStart() {
 	// Delay the actual GCSweepStart event until the first span
 	// sweep. If we don't sweep anything, don't emit any events.
 	pp := getg().m.p.ptr()
-	if pp.traceSweep {
+	if pp.trace.inSweep {
 		throw("double traceGCSweepStart")
 	}
-	pp.traceSweep, pp.traceSwept, pp.traceReclaimed = true, 0, 0
+	pp.trace.inSweep, pp.trace.swept, pp.trace.reclaimed = true, 0, 0
 }
 
 // traceGCSweepSpan traces the sweep of a single page.
@@ -1492,23 +1506,23 @@ func traceGCSweepStart() {
 // pair; however, it will not emit any trace events in this case.
 func traceGCSweepSpan(bytesSwept uintptr) {
 	pp := getg().m.p.ptr()
-	if pp.traceSweep {
-		if pp.traceSwept == 0 {
+	if pp.trace.inSweep {
+		if pp.trace.swept == 0 {
 			traceEvent(traceEvGCSweepStart, 1)
 		}
-		pp.traceSwept += bytesSwept
+		pp.trace.swept += bytesSwept
 	}
 }
 
 func traceGCSweepDone() {
 	pp := getg().m.p.ptr()
-	if !pp.traceSweep {
+	if !pp.trace.inSweep {
 		throw("missing traceGCSweepStart")
 	}
-	if pp.traceSwept != 0 {
-		traceEvent(traceEvGCSweepDone, -1, uint64(pp.traceSwept), uint64(pp.traceReclaimed))
+	if pp.trace.swept != 0 {
+		traceEvent(traceEvGCSweepDone, -1, uint64(pp.trace.swept), uint64(pp.trace.reclaimed))
 	}
-	pp.traceSweep = false
+	pp.trace.inSweep = false
 }
 
 func traceGCMarkAssistStart() {
