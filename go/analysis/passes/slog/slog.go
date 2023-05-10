@@ -172,50 +172,55 @@ func kvFuncSkipArgs(fn *types.Func) (int, bool) {
 	if pkg := fn.Pkg(); pkg == nil || pkg.Path() != "log/slog" {
 		return 0, false
 	}
+	var recvName string // by default a slog package function
 	recv := fn.Type().(*types.Signature).Recv()
-	if recv == nil {
-		if fn.Name() == "Group" {
-			return 0, true
+	if recv != nil {
+		t := recv.Type()
+		if pt, ok := t.(*types.Pointer); ok {
+			t = pt.Elem()
 		}
-		skip, ok := slogOutputFuncs[fn.Name()]
-		return skip, ok
-	}
-	var recvName string
-	if pt, ok := recv.Type().(*types.Pointer); ok {
-		if nt, ok := pt.Elem().(*types.Named); ok {
+		if nt, ok := t.(*types.Named); !ok {
+			return 0, false
+		} else {
 			recvName = nt.Obj().Name()
 		}
 	}
-	if recvName == "" {
-		return 0, false
-	}
-	// The methods on *Logger include all the top-level output methods, as well as "With".
-	if recvName == "Logger" {
-		if fn.Name() == "With" {
-			return 0, true
-		}
-		skip, ok := slogOutputFuncs[fn.Name()]
-		return skip, ok
-	}
-	if recvName == "Record" && fn.Name() == "Add" {
-		return 0, true
-	}
-	return 0, false
+	skip, ok := kvFuncs[recvName][fn.Name()]
+	return skip, ok
 }
 
-// The names of top-level functions and *Logger methods in log/slog that take
+// The names of functions and methods in log/slog that take
 // ...any for key-value pairs, mapped to the number of initial args to skip in
 // order to get to the ones that match the ...any parameter.
-var slogOutputFuncs = map[string]int{
-	"Debug":    1,
-	"Info":     1,
-	"Warn":     1,
-	"Error":    1,
-	"DebugCtx": 2,
-	"InfoCtx":  2,
-	"WarnCtx":  2,
-	"ErrorCtx": 2,
-	"Log":      3,
+// The first key is the dereferenced receiver type name, or "" for a function.
+var kvFuncs = map[string]map[string]int{
+	"": map[string]int{
+		"Debug":    1,
+		"Info":     1,
+		"Warn":     1,
+		"Error":    1,
+		"DebugCtx": 2,
+		"InfoCtx":  2,
+		"WarnCtx":  2,
+		"ErrorCtx": 2,
+		"Log":      3,
+		"Group":    0,
+	},
+	"Logger": map[string]int{
+		"Debug":    1,
+		"Info":     1,
+		"Warn":     1,
+		"Error":    1,
+		"DebugCtx": 2,
+		"InfoCtx":  2,
+		"WarnCtx":  2,
+		"ErrorCtx": 2,
+		"Log":      3,
+		"With":     0,
+	},
+	"Record": map[string]int{
+		"Add": 0,
+	},
 }
 
 // isMethodExpr reports whether a call is to a MethodExpr.
