@@ -67,13 +67,24 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 	if err != nil {
 		return err
 	}
+	rng, err := file.mapper.SpanRange(from)
+	if err != nil {
+		return err
+	}
 
+	// Get diagnostics.
 	if err := conn.diagnoseFiles(ctx, []span.URI{uri}); err != nil {
 		return err
 	}
+	diagnostics := []protocol.Diagnostic{} // LSP wants non-nil slice
 	conn.Client.filesMu.Lock()
-	defer conn.Client.filesMu.Unlock()
+	diagnostics = append(diagnostics, file.diagnostics...)
+	conn.Client.filesMu.Unlock()
+	if debug {
+		log.Printf("file diagnostics: %#v", diagnostics)
+	}
 
+	// Request code actions
 	codeActionKinds := []protocol.CodeActionKind{protocol.QuickFix}
 	if len(args) > 1 {
 		codeActionKinds = []protocol.CodeActionKind{}
@@ -81,25 +92,13 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 			codeActionKinds = append(codeActionKinds, protocol.CodeActionKind(k))
 		}
 	}
-
-	rng, err := file.mapper.SpanRange(from)
-	if err != nil {
-		return err
-	}
-	if file.diagnostics == nil {
-		// LSP requires a slice, not a nil.
-		file.diagnostics = []protocol.Diagnostic{}
-	}
-	if debug {
-		log.Printf("file diagnostics: %#v", file.diagnostics)
-	}
 	p := protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.URIFromSpanURI(uri),
 		},
 		Context: protocol.CodeActionContext{
 			Only:        codeActionKinds,
-			Diagnostics: file.diagnostics,
+			Diagnostics: diagnostics,
 		},
 		Range: rng,
 	}
@@ -111,6 +110,7 @@ func (s *suggestedFix) Run(ctx context.Context, args ...string) error {
 		log.Printf("code actions: %#v", actions)
 	}
 
+	// Gather edits from matching code actions.
 	var edits []protocol.TextEdit
 	for _, a := range actions {
 		if a.Command != nil {

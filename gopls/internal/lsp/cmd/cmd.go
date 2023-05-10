@@ -406,7 +406,7 @@ type cmdClient struct {
 	diagnosticsMu   sync.Mutex
 	diagnosticsDone chan struct{}
 
-	filesMu sync.Mutex
+	filesMu sync.Mutex // guards files map and each cmdFile.diagnostics
 	files   map[span.URI]*cmdFile
 }
 
@@ -518,6 +518,11 @@ func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEdi
 }
 
 func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {
+	var debug = os.Getenv(DebugSuggestedFixEnvVar) == "true"
+	if debug {
+		log.Printf("PublishDiagnostics URI=%v Diagnostics=%v", p.URI, p.Diagnostics)
+	}
+
 	if p.URI == "gopls://diagnostics-done" {
 		close(c.diagnosticsDone)
 	}
@@ -530,7 +535,24 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 	defer c.filesMu.Unlock()
 
 	file := c.getFile(ctx, fileURI(p.URI))
-	file.diagnostics = p.Diagnostics
+	file.diagnostics = append(file.diagnostics, p.Diagnostics...)
+
+	// Perform a crude in-place deduplication.
+	// TODO(golang/go#60122): replace the ad-hoc gopls/diagnoseFiles
+	// non-standard request with support for textDocument/diagnostic,
+	// so that we don't need to do this de-duplication.
+	type key [5]interface{}
+	seen := make(map[key]bool)
+	out := file.diagnostics[:0]
+	for _, d := range file.diagnostics {
+		k := key{d.Range, d.Severity, d.Code, d.Source, d.Message}
+		if !seen[k] {
+			seen[k] = true
+			out = append(out, d)
+		}
+	}
+	file.diagnostics = out
+
 	return nil
 }
 
