@@ -859,11 +859,7 @@ func (t *tester) registerTests() {
 		t.registerCgoTests(cgoHeading)
 	}
 
-	// Don't run these tests with $GO_GCFLAGS because most of them
-	// assume that they can run "go install" with no -gcflags and not
-	// recompile the entire standard library. If make.bash ran with
-	// special -gcflags, that's not true.
-	if t.cgoEnabled && gogcflags == "" {
+	if t.cgoEnabled {
 		t.registerTest("cgo_testgodefs", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testgodefs", timeout: 5 * time.Minute})
 
 		t.registerTest("cgo_testso", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testso", timeout: 600 * time.Second})
