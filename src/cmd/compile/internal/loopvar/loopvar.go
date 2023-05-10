@@ -48,6 +48,16 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 	// if a loop variable is transformed it is appended to this slice for later logging
 	var transformed []VarAndLoop
 
+	describe := func(n *ir.Name) string {
+		pos := n.Pos()
+		inner := base.Ctxt.InnermostPos(pos)
+		outer := base.Ctxt.OutermostPos(pos)
+		if inner == outer {
+			return fmt.Sprintf("loop variable %v now per-iteration", n)
+		}
+		return fmt.Sprintf("loop variable %v now per-iteration (loop inlined into %s:%d)", n, outer.Filename(), outer.Line())
+	}
+
 	forCapture := func() {
 		seq := 1
 
@@ -91,7 +101,10 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 		// subject to hash-variable debugging.
 		maybeReplaceVar := func(k ir.Node, x *ir.RangeStmt) ir.Node {
 			if n, ok := k.(*ir.Name); ok && possiblyLeaked[n] {
-				if base.LoopVarHash.MatchPos(n.Pos(), nil) {
+				desc := func() string {
+					return describe(n)
+				}
+				if base.LoopVarHash.MatchPos(n.Pos(), desc) {
 					// Rename the loop key, prefix body with assignment from loop key
 					transformed = append(transformed, VarAndLoop{n, x, lastPos})
 					tk := typecheck.Temp(n.Type())
@@ -198,8 +211,11 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
 				// Collect the leaking variables for the much-more-complex transformation.
 				forAllDefInInit(x, func(z ir.Node) {
 					if n, ok := z.(*ir.Name); ok && possiblyLeaked[n] {
+						desc := func() string {
+							return describe(n)
+						}
 						// Hash on n.Pos() for most precise failure location.
-						if base.LoopVarHash.MatchPos(n.Pos(), nil) {
+						if base.LoopVarHash.MatchPos(n.Pos(), desc) {
 							leaked = append(leaked, n)
 						}
 					}
