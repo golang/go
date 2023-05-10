@@ -25,3 +25,17 @@ func ornot(x, y int) int {
 	z := x | ^y
 	return z
 }
+
+// Verify that (OR (NOT x) (NOT y)) rewrites to (NOT (AND x y))
+func orDemorgans(x, y int) int {
+	// amd64:"AND",-"OR"
+	z := ^x | ^y
+	return z
+}
+
+// Verify that (AND (NOT x) (NOT y)) rewrites to (NOT (OR x y))
+func andDemorgans(x, y int) int {
+	// amd64:"OR",-"AND"
+	z := ^x & ^y
+	return z
+}

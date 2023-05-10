@@ -176,6 +176,10 @@
 // Convert x * -1 to -x.
 (Mul(8|16|32|64)  (Const(8|16|32|64)  [-1]) x) => (Neg(8|16|32|64)  x)
 
+// DeMorgan's Laws
+(And(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (Or(8|16|32|64) <t> x y))
+(Or(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (And(8|16|32|64) <t> x y))
+
 // Convert multiplication by a power of two to a shift.
 (Mul8  <t> n (Const8  [c])) && isPowerOfTwo8(c) => (Lsh8x64  <t> n (Const64 <typ.UInt64> [log8(c)]))
 (Mul16 <t> n (Const16 [c])) && isPowerOfTwo16(c) => (Lsh16x64 <t> n (Const64 <typ.UInt64> [log16(c)]))
