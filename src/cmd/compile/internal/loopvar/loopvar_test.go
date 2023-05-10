@@ -191,30 +191,32 @@ func TestLoopVarHashes(t *testing.T) {
 		return string(b)
 	}
 
-	m := f("v001100110110110010100100")
-	t.Logf(m)
+	for _, arg := range []string{"v001100110110110010100100", "vx336ca4"} {
+		m := f(arg)
+		t.Logf(m)
 
-	mCount := strings.Count(m, "loopvarhash triggered cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 001100110110110010100100")
-	otherCount := strings.Count(m, "loopvarhash")
-	if mCount < 1 {
-		t.Errorf("did not see triggered main.go:27:6")
-	}
-	if mCount != otherCount {
-		t.Errorf("too many matches")
-	}
+		mCount := strings.Count(m, "loopvarhash triggered cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 001100110110110010100100")
+		otherCount := strings.Count(m, "loopvarhash")
+		if mCount < 1 {
+			t.Errorf("%s: did not see triggered main.go:27:6", arg)
+		}
+		if mCount != otherCount {
+			t.Errorf("%s: too many matches", arg)
+		}
 
-	mCount = strings.Count(m, "cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 [bisect-match 0x7802e115b9336ca4]")
-	otherCount = strings.Count(m, "[bisect-match ")
-	if mCount < 1 {
-		t.Errorf("did not see bisect-match for main.go:27:6")
-	}
-	if mCount != otherCount {
-		t.Errorf("too many matches")
-	}
+		mCount = strings.Count(m, "cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 [bisect-match 0x7802e115b9336ca4]")
+		otherCount = strings.Count(m, "[bisect-match ")
+		if mCount < 1 {
+			t.Errorf("%s: did not see bisect-match for main.go:27:6", arg)
+		}
+		if mCount != otherCount {
+			t.Errorf("%s: too many matches", arg)
+		}
 
-	// This next test carefully dodges a bug-to-be-fixed with inlined locations for ir.Names.
-	if !strings.Contains(m, ", 100, 100, 100, 100") {
-		t.Errorf("Did not see expected value of m run")
+		// This next test carefully dodges a bug-to-be-fixed with inlined locations for ir.Names.
+		if !strings.Contains(m, ", 100, 100, 100, 100") {
+			t.Errorf("%s: did not see expected value of m run", arg)
+		}
 	}
 }
 
