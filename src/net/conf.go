@@ -238,8 +238,9 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
 		canUseCgo = true
 	}
 
-	if c.goos == "windows" || c.goos == "plan9" || c.goos == "android" ||
-		c.goos == "ios" || c.goos == "darwin" {
+	// On systems that don't use /etc/resolv.conf or /etc/nsswitch.conf, we are done.
+	switch c.goos {
+	case "windows", "plan9", "android", "ios":
 		return fallbackOrder, nil
 	}
 
