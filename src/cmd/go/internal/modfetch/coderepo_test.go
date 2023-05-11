@@ -818,37 +818,29 @@ var codeRepoVersionsTests = []struct {
 func TestCodeRepoVersions(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	tmpdir, err := os.MkdirTemp("", "vgo-modfetch-test-")
-	if err != nil {
-		t.Fatal(err)
+	for _, tt := range codeRepoVersionsTests {
+		tt := tt
+		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+			if strings.Contains(tt.path, "gopkg.in") {
+				testenv.SkipFlaky(t, 54503)
+			}
+
+			t.Parallel()
+			if tt.vcs != "mod" {
+				testenv.MustHaveExecPath(t, tt.vcs)
+			}
+			ctx := context.Background()
+
+			repo := Lookup(ctx, "direct", tt.path)
+			list, err := repo.Versions(ctx, tt.prefix)
+			if err != nil {
+				t.Fatalf("Versions(%q): %v", tt.prefix, err)
+			}
+			if !reflect.DeepEqual(list.List, tt.versions) {
+				t.Fatalf("Versions(%q):\nhave %v\nwant %v", tt.prefix, list, tt.versions)
+			}
+		})
 	}
-	defer os.RemoveAll(tmpdir)
-
-	t.Run("parallel", func(t *testing.T) {
-		for _, tt := range codeRepoVersionsTests {
-			tt := tt
-			t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
-				if strings.Contains(tt.path, "gopkg.in") {
-					testenv.SkipFlaky(t, 54503)
-				}
-
-				t.Parallel()
-				if tt.vcs != "mod" {
-					testenv.MustHaveExecPath(t, tt.vcs)
-				}
-				ctx := context.Background()
-
-				repo := Lookup(ctx, "direct", tt.path)
-				list, err := repo.Versions(ctx, tt.prefix)
-				if err != nil {
-					t.Fatalf("Versions(%q): %v", tt.prefix, err)
-				}
-				if !reflect.DeepEqual(list.List, tt.versions) {
-					t.Fatalf("Versions(%q):\nhave %v\nwant %v", tt.prefix, list, tt.versions)
-				}
-			})
-		}
-	})
 }
 
 var latestTests = []struct {
@@ -897,43 +889,35 @@ var latestTests = []struct {
 func TestLatest(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
-	tmpdir, err := os.MkdirTemp("", "vgo-modfetch-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
+	for _, tt := range latestTests {
+		name := strings.ReplaceAll(tt.path, "/", "_")
+		t.Run(name, func(t *testing.T) {
+			tt := tt
+			t.Parallel()
+			if tt.vcs != "mod" {
+				testenv.MustHaveExecPath(t, tt.vcs)
+			}
+			ctx := context.Background()
 
-	t.Run("parallel", func(t *testing.T) {
-		for _, tt := range latestTests {
-			name := strings.ReplaceAll(tt.path, "/", "_")
-			t.Run(name, func(t *testing.T) {
-				tt := tt
-				t.Parallel()
-				if tt.vcs != "mod" {
-					testenv.MustHaveExecPath(t, tt.vcs)
-				}
-				ctx := context.Background()
-
-				repo := Lookup(ctx, "direct", tt.path)
-				info, err := repo.Latest(ctx)
-				if err != nil {
-					if tt.err != "" {
-						if err.Error() == tt.err {
-							return
-						}
-						t.Fatalf("Latest(): %v, want %q", err, tt.err)
-					}
-					t.Fatalf("Latest(): %v", err)
-				}
+			repo := Lookup(ctx, "direct", tt.path)
+			info, err := repo.Latest(ctx)
+			if err != nil {
 				if tt.err != "" {
-					t.Fatalf("Latest() = %v, want error %q", info.Version, tt.err)
+					if err.Error() == tt.err {
+						return
+					}
+					t.Fatalf("Latest(): %v, want %q", err, tt.err)
 				}
-				if info.Version != tt.version {
-					t.Fatalf("Latest() = %v, want %v", info.Version, tt.version)
-				}
-			})
-		}
-	})
+				t.Fatalf("Latest(): %v", err)
+			}
+			if tt.err != "" {
+				t.Fatalf("Latest() = %v, want error %q", info.Version, tt.err)
+			}
+			if info.Version != tt.version {
+				t.Fatalf("Latest() = %v, want %v", info.Version, tt.version)
+			}
+		})
+	}
 }
 
 // fixedTagsRepo is a fake codehost.Repo that returns a fixed list of tags
