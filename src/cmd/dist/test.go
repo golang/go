@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -41,6 +42,7 @@ func cmdtest() {
 			"Special exception: if the string begins with '!', the match is inverted.")
 	flag.BoolVar(&t.msan, "msan", false, "run in memory sanitizer builder mode")
 	flag.BoolVar(&t.asan, "asan", false, "run in address sanitizer builder mode")
+	flag.BoolVar(&t.json, "json", false, "report test results in JSON")
 
 	xflagparse(-1) // any number of args
 	if noRebuild {
@@ -70,6 +72,7 @@ type tester struct {
 	short      bool
 	cgoEnabled bool
 	partial    bool
+	json       bool
 
 	tests        []distTest // use addTest to extend
 	testNames    map[string]bool
@@ -212,12 +215,14 @@ func (t *tester) run() {
 		}
 	}
 
-	if err := t.maybeLogMetadata(); err != nil {
-		t.failed = true
-		if t.keepGoing {
-			log.Printf("Failed logging metadata: %v", err)
-		} else {
-			fatalf("Failed logging metadata: %v", err)
+	if !t.json {
+		if err := t.maybeLogMetadata(); err != nil {
+			t.failed = true
+			if t.keepGoing {
+				log.Printf("Failed logging metadata: %v", err)
+			} else {
+				fatalf("Failed logging metadata: %v", err)
+			}
 		}
 	}
 
@@ -240,13 +245,17 @@ func (t *tester) run() {
 	t.runPending(nil)
 	timelog("end", "dist test")
 
+	if !t.json {
+		if t.failed {
+			fmt.Println("\nFAILED")
+		} else if t.partial {
+			fmt.Println("\nALL TESTS PASSED (some were excluded)")
+		} else {
+			fmt.Println("\nALL TESTS PASSED")
+		}
+	}
 	if t.failed {
-		fmt.Println("\nFAILED")
 		xexit(1)
-	} else if t.partial {
-		fmt.Println("\nALL TESTS PASSED (some were excluded)")
-	} else {
-		fmt.Println("\nALL TESTS PASSED")
 	}
 }
 
@@ -302,7 +311,8 @@ type goTest struct {
 	runOnHost bool // When cross-compiling, run this test on the host instead of guest
 
 	// variant, if non-empty, is a name used to distinguish different
-	// configurations of the same test package(s).
+	// configurations of the same test package(s). If set and sharded is false,
+	// the Package field in test2json output is rewritten to pkg:variant.
 	variant string
 	// sharded indicates that variant is used solely for sharding and that
 	// the set of test names run by each variant of a package is non-overlapping.
@@ -335,7 +345,31 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
 
 	cmd := exec.Command(goCmd, args...)
 	setupCmd(cmd)
-	cmd.Stdout = stdout
+	if t.json && opts.variant != "" && !opts.sharded {
+		// Rewrite Package in the JSON output to be pkg:variant. For sharded
+		// variants, pkg.TestName is already unambiguous, so we don't need to
+		// rewrite the Package field.
+		if len(opts.pkgs) != 0 {
+			panic("cannot combine multiple packages with variants")
+		}
+		// We only want to process JSON on the child's stdout. Ideally if
+		// stdout==stderr, we would also use the same testJSONFilter for
+		// cmd.Stdout and cmd.Stderr in order to keep the underlying
+		// interleaving of writes, but then it would see even partial writes
+		// interleaved, which would corrupt the JSON. So, we only process
+		// cmd.Stdout. This has another consequence though: if stdout==stderr,
+		// we have to serialize Writes in case the Writer is not concurrent
+		// safe. If we were just passing stdout/stderr through to exec, it would
+		// do this for us, but since we're wrapping stdout, we have to do it
+		// ourselves.
+		if stdout == stderr {
+			stdout = &lockedWriter{w: stdout}
+			stderr = stdout
+		}
+		cmd.Stdout = &testJSONFilter{w: stdout, variant: opts.variant}
+	} else {
+		cmd.Stdout = stdout
+	}
 	cmd.Stderr = stderr
 
 	return cmd
@@ -402,6 +436,9 @@ func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs, testFl
 	}
 	if opts.cpu != "" {
 		run = append(run, "-cpu="+opts.cpu)
+	}
+	if t.json {
+		run = append(run, "-json")
 	}
 
 	if opts.gcflags != "" {
@@ -948,7 +985,7 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 		if skipFunc != nil {
 			msg, skip := skipFunc(dt)
 			if skip {
-				fmt.Println(msg)
+				t.printSkip(test, msg)
 				return nil
 			}
 		}
@@ -957,6 +994,34 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 		t.worklist = append(t.worklist, w)
 		return nil
 	})
+}
+
+func (t *tester) printSkip(test *goTest, msg string) {
+	if !t.json {
+		fmt.Println(msg)
+		return
+	}
+	type event struct {
+		Time    time.Time
+		Action  string
+		Package string
+		Output  string `json:",omitempty"`
+	}
+	out := json.NewEncoder(os.Stdout)
+	for _, pkg := range test.packages() {
+		variantName := pkg
+		if test.variant != "" {
+			variantName += ":" + test.variant
+		}
+		ev := event{Time: time.Now(), Package: variantName, Action: "start"}
+		out.Encode(ev)
+		ev.Action = "output"
+		ev.Output = msg
+		out.Encode(ev)
+		ev.Action = "skip"
+		ev.Output = ""
+		out.Encode(ev)
+	}
 }
 
 // dirCmd constructs a Cmd intended to be run in the foreground.
@@ -1005,6 +1070,9 @@ func (t *tester) iOS() bool {
 }
 
 func (t *tester) out(v string) {
+	if t.json {
+		return
+	}
 	if t.banner == "" {
 		return
 	}
