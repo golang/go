@@ -43,6 +43,7 @@ package pgo
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/pgo/internal/graph"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"fmt"
@@ -155,7 +156,7 @@ func New(profileFile string) (*Profile, error) {
 		return nil, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
 	}
 
-	g := newGraph(profile, &Options{
+	g := graph.NewGraph(profile, &graph.Options{
 		CallTree:    false,
 		SampleValue: func(v []int64) int64 { return v[valueIndex] },
 	})
@@ -189,7 +190,7 @@ func New(profileFile string) (*Profile, error) {
 // create edges for WeightedCG.
 //
 // Caller should ignore the profile if p.TotalNodeWeight == 0 || p.TotalEdgeWeight == 0.
-func (p *Profile) processprofileGraph(g *Graph) error {
+func (p *Profile) processprofileGraph(g *graph.Graph) error {
 	nFlat := make(map[string]int64)
 	nCum := make(map[string]int64)
 	seenStartLine := false

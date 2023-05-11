@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package graph collects a set of samples into a directed graph.
-
-// Original file location: https://github.com/google/pprof/tree/main/internal/graph/graph.go
-package pgo
+// Package graph represents a pprof profile as a directed graph.
+//
+// This package is a simplified fork of github.com/google/pprof/internal/graph.
+package graph
 
 import (
 	"fmt"
@@ -245,8 +245,8 @@ func (e *Edge) WeightValue() int64 {
 	return e.Weight / e.WeightDiv
 }
 
-// newGraph computes a graph from a profile.
-func newGraph(prof *profile.Profile, o *Options) *Graph {
+// NewGraph computes a graph from a profile.
+func NewGraph(prof *profile.Profile, o *Options) *Graph {
 	nodes, locationMap := CreateNodes(prof, o)
 	seenNode := make(map[*Node]bool)
 	seenEdge := make(map[nodePair]bool)
