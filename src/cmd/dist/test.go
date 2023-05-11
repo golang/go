@@ -785,16 +785,17 @@ func (t *tester) registerTests() {
 		t.registerRaceTests()
 	}
 
+	const cgoHeading = "Testing cgo"
 	if t.cgoEnabled && !t.iOS() {
 		// Disabled on iOS. golang.org/issue/15919
-		t.registerTest("cgo_teststdio", "", &goTest{pkg: "cmd/cgo/internal/teststdio", timeout: 5 * time.Minute})
-		t.registerTest("cgo_testlife", "", &goTest{pkg: "cmd/cgo/internal/testlife", timeout: 5 * time.Minute})
+		t.registerTest("cgo_teststdio", cgoHeading, &goTest{pkg: "cmd/cgo/internal/teststdio", timeout: 5 * time.Minute})
+		t.registerTest("cgo_testlife", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testlife", timeout: 5 * time.Minute})
 		if goos != "android" {
-			t.registerTest("cgo_testfortran", "", &goTest{pkg: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute})
+			t.registerTest("cgo_testfortran", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute})
 		}
 	}
 	if t.cgoEnabled {
-		t.registerCgoTests()
+		t.registerCgoTests(cgoHeading)
 	}
 
 	// Don't run these tests with $GO_GCFLAGS because most of them
@@ -802,25 +803,25 @@ func (t *tester) registerTests() {
 	// recompile the entire standard library. If make.bash ran with
 	// special -gcflags, that's not true.
 	if t.cgoEnabled && gogcflags == "" {
-		t.registerTest("cgo_testgodefs", "", &goTest{pkg: "cmd/cgo/internal/testgodefs", timeout: 5 * time.Minute})
+		t.registerTest("cgo_testgodefs", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testgodefs", timeout: 5 * time.Minute})
 
-		t.registerTest("cgo_testso", "", &goTest{pkg: "cmd/cgo/internal/testso", timeout: 600 * time.Second})
-		t.registerTest("cgo_testsovar", "", &goTest{pkg: "cmd/cgo/internal/testsovar", timeout: 600 * time.Second})
+		t.registerTest("cgo_testso", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testso", timeout: 600 * time.Second})
+		t.registerTest("cgo_testsovar", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testsovar", timeout: 600 * time.Second})
 		if t.supportedBuildmode("c-archive") {
-			t.registerTest("cgo_testcarchive", "", &goTest{pkg: "cmd/cgo/internal/testcarchive", timeout: 5 * time.Minute})
+			t.registerTest("cgo_testcarchive", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testcarchive", timeout: 5 * time.Minute})
 		}
 		if t.supportedBuildmode("c-shared") {
-			t.registerTest("cgo_testcshared", "", &goTest{pkg: "cmd/cgo/internal/testcshared", timeout: 5 * time.Minute})
+			t.registerTest("cgo_testcshared", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testcshared", timeout: 5 * time.Minute})
 		}
 		if t.supportedBuildmode("shared") {
-			t.registerTest("cgo_testshared", "", &goTest{pkg: "cmd/cgo/internal/testshared", timeout: 600 * time.Second})
+			t.registerTest("cgo_testshared", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testshared", timeout: 600 * time.Second})
 		}
 		if t.supportedBuildmode("plugin") {
-			t.registerTest("cgo_testplugin", "", &goTest{pkg: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
+			t.registerTest("cgo_testplugin", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
 		}
-		t.registerTest("cgo_testsanitizers", "", &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
+		t.registerTest("cgo_testsanitizers", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
-			t.registerTest("cgo_errors", "", &goTest{pkg: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute})
+			t.registerTest("cgo_errors", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute})
 		}
 	}
 
@@ -853,16 +854,19 @@ func (t *tester) registerTests() {
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
-		t.registerTest("api", "", &goTest{pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+		t.registerTest("api", "API check", &goTest{pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
 	}
 }
 
 // addTest adds an arbitrary test callback to the test list.
 //
-// name must uniquely identify the test.
+// name must uniquely identify the test and heading must be non-empty.
 func (t *tester) addTest(name, heading string, fn func(*distTest) error) {
 	if t.testNames[name] {
 		panic("duplicate registered test name " + name)
+	}
+	if heading == "" {
+		panic("empty heading")
 	}
 	if t.testNames == nil {
 		t.testNames = make(map[string]bool)
@@ -889,7 +893,7 @@ func (rtPreFunc) isRegisterTestOpt() {}
 
 // registerTest registers a test that runs the given goTest.
 //
-// If heading is "", it uses test.pkg as the heading.
+// name must uniquely identify the test and heading must be non-empty.
 func (t *tester) registerTest(name, heading string, test *goTest, opts ...registerTestOpt) {
 	var preFunc func(*distTest) bool
 	for _, opt := range opts {
@@ -897,12 +901,6 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 		case rtPreFunc:
 			preFunc = opt.pre
 		}
-	}
-	if heading == "" {
-		if test.pkg == "" {
-			panic("either heading or test.pkg must be set")
-		}
-		heading = test.pkg
 	}
 	t.addTest(name, heading, func(dt *distTest) error {
 		if preFunc != nil && !preFunc(dt) {
@@ -1050,7 +1048,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	return buildModeSupported("gc", mode, goos, goarch)
 }
 
-func (t *tester) registerCgoTests() {
+func (t *tester) registerCgoTests(heading string) {
 	cgoTest := func(name string, subdir, linkmode, buildmode string, opts ...registerTestOpt) *goTest {
 		gt := &goTest{
 			pkg:       "cmd/cgo/internal/" + subdir,
@@ -1078,7 +1076,7 @@ func (t *tester) registerCgoTests() {
 			gt.tags = append(gt.tags, "static")
 		}
 
-		t.registerTest("cgo:"+name, "cmd/cgo/internal/test", gt, opts...)
+		t.registerTest("cgo:"+name, heading, gt, opts...)
 		return gt
 	}
 
@@ -1236,7 +1234,7 @@ func (t *tester) runPending(nextTest *distTest) {
 		}
 		w := worklist[ended]
 		dt := w.dt
-		if dt.heading != "" && t.lastHeading != dt.heading {
+		if t.lastHeading != dt.heading {
 			t.lastHeading = dt.heading
 			t.out(dt.heading)
 		}
@@ -1263,7 +1261,7 @@ func (t *tester) runPending(nextTest *distTest) {
 	}
 
 	if dt := nextTest; dt != nil {
-		if dt.heading != "" && t.lastHeading != dt.heading {
+		if t.lastHeading != dt.heading {
 			t.lastHeading = dt.heading
 			t.out(dt.heading)
 		}
