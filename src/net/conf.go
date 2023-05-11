@@ -360,9 +360,12 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 		return fallbackOrder, dnsConf
 	}
 
-	var filesSource, dnsSource, unknownSource bool
+	var hasDNSSource bool
+	var hasDNSSourceChecked bool
+
+	var filesSource, dnsSource bool
 	var first string
-	for _, src := range srcs {
+	for i, src := range srcs {
 		if src.source == "files" || src.source == "dns" {
 			if canUseCgo && !src.standardCriteria() {
 				// non-standard; let libc deal with it.
@@ -371,6 +374,8 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 			if src.source == "files" {
 				filesSource = true
 			} else {
+				hasDNSSource = true
+				hasDNSSourceChecked = true
 				dnsSource = true
 			}
 			if first == "" {
@@ -424,16 +429,25 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 			}
 		}
 
-		unknownSource = true
-		if first == "" {
-			first = src.source
+		if !hasDNSSourceChecked {
+			hasDNSSourceChecked = true
+			for _, v := range srcs[i+1:] {
+				if v.source == "dns" {
+					hasDNSSource = true
+					break
+				}
+			}
 		}
-	}
 
-	// If we saw a source we don't recognize, which can only
-	// happen if we can't use the cgo resolver, treat it as DNS.
-	if unknownSource {
-		dnsSource = true
+		// If we saw a source we don't recognize, which can only
+		// happen if we can't use the cgo resolver, treat it as DNS,
+		// but only when there is no dns in all other sources.
+		if !hasDNSSource {
+			dnsSource = true
+			if first == "" {
+				first = "dns"
+			}
+		}
 	}
 
 	// Cases where Go can handle it without cgo and C thread overhead,
