@@ -901,7 +901,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 
 	ourg := getg()
 
-	stopTheWorld("profile")
+	stopTheWorld(stwGoroutineProfile)
 	// Using gcount while the world is stopped should give us a consistent view
 	// of the number of live goroutines, minus the number of goroutines that are
 	// alive and permanently marked as "system". But to make this count agree
@@ -966,7 +966,7 @@ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Point
 		tryRecordGoroutineProfile(gp1, Gosched)
 	})
 
-	stopTheWorld("profile cleanup")
+	stopTheWorld(stwGoroutineProfileCleanup)
 	endOffset := goroutineProfile.offset.Swap(0)
 	goroutineProfile.active = false
 	goroutineProfile.records = nil
@@ -1101,7 +1101,7 @@ func goroutineProfileWithLabelsSync(p []StackRecord, labels []unsafe.Pointer) (n
 		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
 	}
 
-	stopTheWorld("profile")
+	stopTheWorld(stwGoroutineProfile)
 
 	// World is stopped, no locking required.
 	n = 1
@@ -1187,7 +1187,7 @@ func saveg(pc, sp uintptr, gp *g, r *StackRecord) {
 // into buf after the trace for the current goroutine.
 func Stack(buf []byte, all bool) int {
 	if all {
-		stopTheWorld("stack trace")
+		stopTheWorld(stwAllGoroutinesStack)
 	}
 
 	n := 0

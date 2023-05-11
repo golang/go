@@ -1157,6 +1157,59 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
 	return gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting)
 }
 
+// stwReason is an enumeration of reasons the world is stopping.
+type stwReason uint8
+
+// Reasons to stop-the-world.
+//
+// Avoid reusing reasons and add new ones instead.
+const (
+	stwUnknown                     stwReason = iota // "unknown"
+	stwGCMarkTerm                                   // "GC mark termination"
+	stwGCSweepTerm                                  // "GC sweep termination"
+	stwWriteHeapDump                                // "write heap dump"
+	stwGoroutineProfile                             // "goroutine profile"
+	stwGoroutineProfileCleanup                      // "goroutine profile cleanup"
+	stwAllGoroutinesStack                           // "all goroutines stack trace"
+	stwReadMemStats                                 // "read mem stats"
+	stwAllThreadsSyscall                            // "AllThreadsSyscall"
+	stwGOMAXPROCS                                   // "GOMAXPROCS"
+	stwStartTrace                                   // "start trace"
+	stwStopTrace                                    // "stop trace"
+	stwForTestCountPagesInUse                       // "CountPagesInUse (test)"
+	stwForTestReadMetricsSlow                       // "ReadMetricsSlow (test)"
+	stwForTestReadMemStatsSlow                      // "ReadMemStatsSlow (test)"
+	stwForTestPageCachePagesLeaked                  // "PageCachePagesLeaked (test)"
+	stwForTestResetDebugLog                         // "ResetDebugLog (test)"
+)
+
+func (r stwReason) String() string {
+	return stwReasonStrings[r]
+}
+
+// If you add to this list, also add it to src/internal/trace/parser.go.
+// If you change the values of any of the stw* constants, bump the trace
+// version number and make a copy of this.
+var stwReasonStrings = [...]string{
+	stwUnknown:                     "unknown",
+	stwGCMarkTerm:                  "GC mark termination",
+	stwGCSweepTerm:                 "GC sweep termination",
+	stwWriteHeapDump:               "write heap dump",
+	stwGoroutineProfile:            "goroutine profile",
+	stwGoroutineProfileCleanup:     "goroutine profile cleanup",
+	stwAllGoroutinesStack:          "all goroutines stack trace",
+	stwReadMemStats:                "read mem stats",
+	stwAllThreadsSyscall:           "AllThreadsSyscall",
+	stwGOMAXPROCS:                  "GOMAXPROCS",
+	stwStartTrace:                  "start trace",
+	stwStopTrace:                   "stop trace",
+	stwForTestCountPagesInUse:      "CountPagesInUse (test)",
+	stwForTestReadMetricsSlow:      "ReadMetricsSlow (test)",
+	stwForTestReadMemStatsSlow:     "ReadMemStatsSlow (test)",
+	stwForTestPageCachePagesLeaked: "PageCachePagesLeaked (test)",
+	stwForTestResetDebugLog:        "ResetDebugLog (test)",
+}
+
 // stopTheWorld stops all P's from executing goroutines, interrupting
 // all goroutines at GC safe points and records reason as the reason
 // for the stop. On return, only the current goroutine's P is running.
@@ -1171,10 +1224,10 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
 // This is also used by routines that do stack dumps. If the system is
 // in panic or being exited, this may not reliably stop all
 // goroutines.
-func stopTheWorld(reason string) {
+func stopTheWorld(reason stwReason) {
 	semacquire(&worldsema)
 	gp := getg()
-	gp.m.preemptoff = reason
+	gp.m.preemptoff = reason.String()
 	systemstack(func() {
 		// Mark the goroutine which called stopTheWorld preemptible so its
 		// stack may be scanned.
@@ -1188,14 +1241,14 @@ func stopTheWorld(reason string) {
 		// have already completed by the time we exit.
 		// Don't provide a wait reason because we're still executing.
 		casGToWaiting(gp, _Grunning, waitReasonStoppingTheWorld)
-		stopTheWorldWithSema()
+		stopTheWorldWithSema(reason)
 		casgstatus(gp, _Gwaiting, _Grunning)
 	})
 }
 
 // startTheWorld undoes the effects of stopTheWorld.
 func startTheWorld() {
-	systemstack(func() { startTheWorldWithSema(false) })
+	systemstack(func() { startTheWorldWithSema() })
 
 	// worldsema must be held over startTheWorldWithSema to ensure
 	// gomaxprocs cannot change while worldsema is held.
@@ -1221,7 +1274,7 @@ func startTheWorld() {
 // stopTheWorldGC has the same effect as stopTheWorld, but blocks
 // until the GC is not running. It also blocks a GC from starting
 // until startTheWorldGC is called.
-func stopTheWorldGC(reason string) {
+func stopTheWorldGC(reason stwReason) {
 	semacquire(&gcsema)
 	stopTheWorld(reason)
 }
@@ -1265,7 +1318,10 @@ var gcsema uint32 = 1
 // startTheWorldWithSema and stopTheWorldWithSema.
 // Holding worldsema causes any other goroutines invoking
 // stopTheWorld to block.
-func stopTheWorldWithSema() {
+func stopTheWorldWithSema(reason stwReason) {
+	if traceEnabled() {
+		traceSTWStart(reason)
+	}
 	gp := getg()
 
 	// If we hold a lock, then we won't be able to stop another M
@@ -1344,7 +1400,7 @@ func stopTheWorldWithSema() {
 	worldStopped()
 }
 
-func startTheWorldWithSema(emitTraceEvent bool) int64 {
+func startTheWorldWithSema() int64 {
 	assertWorldStopped()
 
 	mp := acquirem() // disable preemption because it can be holding p in a local var
@@ -1388,8 +1444,8 @@ func startTheWorldWithSema(emitTraceEvent bool) int64 {
 
 	// Capture start-the-world time before doing clean-up tasks.
 	startTime := nanotime()
-	if emitTraceEvent {
-		traceGCSTWDone()
+	if traceEnabled() {
+		traceSTWDone()
 	}
 
 	// Wakeup an additional proc in case we have excessive runnable goroutines

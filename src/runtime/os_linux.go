@@ -739,7 +739,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
 	// N.B. Internally, this function does not depend on STW to
 	// successfully change every thread. It is only needed for user
 	// expectations, per above.
-	stopTheWorld("doAllThreadsSyscall")
+	stopTheWorld(stwAllThreadsSyscall)
 
 	// This function depends on several properties:
 	//

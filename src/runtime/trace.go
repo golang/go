@@ -31,8 +31,8 @@ const (
 	traceEvProcStop          = 6  // stop of P [timestamp]
 	traceEvGCStart           = 7  // GC start [timestamp, seq, stack id]
 	traceEvGCDone            = 8  // GC done [timestamp]
-	traceEvGCSTWStart        = 9  // GC STW start [timestamp, kind]
-	traceEvGCSTWDone         = 10 // GC STW done [timestamp]
+	traceEvSTWStart          = 9  // STW start [timestamp, kind]
+	traceEvSTWDone           = 10 // STW done [timestamp]
 	traceEvGCSweepStart      = 11 // GC sweep start [timestamp, stack id]
 	traceEvGCSweepDone       = 12 // GC sweep done [timestamp, swept, reclaimed]
 	traceEvGoCreate          = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
@@ -171,7 +171,8 @@ type gTraceState struct {
 
 // mTraceState is per-M state for the tracer.
 type mTraceState struct {
-	startingTrace bool // this M is in TraceStart, potentially before traceEnabled is true
+	startingTrace  bool // this M is in TraceStart, potentially before traceEnabled is true
+	tracedSTWStart bool // this M traced a STW start, so it should trace an end
 }
 
 // pTraceState is per-P state for the tracer.
@@ -247,7 +248,7 @@ func StartTrace() error {
 	// Do not stop the world during GC so we ensure we always see
 	// a consistent view of GC-related events (e.g. a start is always
 	// paired with an end).
-	stopTheWorldGC("start tracing")
+	stopTheWorldGC(stwStartTrace)
 
 	// Prevent sysmon from running any code that could generate events.
 	lock(&sched.sysmonlock)
@@ -377,7 +378,7 @@ func StartTrace() error {
 func StopTrace() {
 	// Stop the world so that we can collect the trace buffers from all p's below,
 	// and also to avoid races with traceEvent.
-	stopTheWorldGC("stop tracing")
+	stopTheWorldGC(stwStopTrace)
 
 	// See the comment in StartTrace.
 	lock(&sched.sysmonlock)
@@ -560,7 +561,7 @@ func readTrace0() (buf []byte, park bool) {
 		trace.headerWritten = true
 		trace.lockOwner = nil
 		unlock(&trace.lock)
-		return []byte("go 1.19 trace\x00\x00\x00"), false
+		return []byte("go 1.21 trace\x00\x00\x00"), false
 	}
 	// Optimistically look for CPU profile samples. This may write new stack
 	// records, and may write new tracing buffers.
@@ -1485,12 +1486,23 @@ func traceGCDone() {
 	traceEvent(traceEvGCDone, -1)
 }
 
-func traceGCSTWStart(kind int) {
-	traceEvent(traceEvGCSTWStart, -1, uint64(kind))
+func traceSTWStart(reason stwReason) {
+	// Don't trace if this STW is for trace start/stop, since traceEnabled
+	// switches during a STW.
+	if reason == stwStartTrace || reason == stwStopTrace {
+		return
+	}
+	getg().m.trace.tracedSTWStart = true
+	traceEvent(traceEvSTWStart, -1, uint64(reason))
 }
 
-func traceGCSTWDone() {
-	traceEvent(traceEvGCSTWDone, -1)
+func traceSTWDone() {
+	mp := getg().m
+	if !mp.trace.tracedSTWStart {
+		return
+	}
+	mp.trace.tracedSTWStart = false
+	traceEvent(traceEvSTWDone, -1)
 }
 
 // traceGCSweepStart prepares to trace a sweep loop. This does not

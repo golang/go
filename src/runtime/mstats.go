@@ -347,7 +347,7 @@ func init() {
 // which is a snapshot as of the most recently completed garbage
 // collection cycle.
 func ReadMemStats(m *MemStats) {
-	stopTheWorld("read mem stats")
+	stopTheWorld(stwReadMemStats)
 
 	systemstack(func() {
 		readmemstats_m(m)
