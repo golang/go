@@ -253,6 +253,12 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
 		canUseCgo = true
 	}
 
+	// On systems that don't use /etc/resolv.conf or /etc/nsswitch.conf, we are done.
+	switch c.goos {
+	case "windows", "plan9", "android", "ios":
+		return fallbackOrder, nil
+	}
+
 	// Try to figure out the order to use for searches.
 	// If we don't recognize something, use fallbackOrder.
 	// That will use cgo unless the Go resolver was explicitly requested.
