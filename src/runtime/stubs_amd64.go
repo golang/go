@@ -48,6 +48,6 @@ func asmcgocall_no_g(fn, arg unsafe.Pointer)
 func spillArgs()
 func unspillArgs()
 
-// getfp returns the frame pointer register of its caller or 0 if not implemented.
+// getcallerfp returns the address of the frame pointer in the callers frame or 0 if not implemented.
 // TODO: Make this a compiler intrinsic
-func getfp() uintptr
+func getcallerfp() uintptr

@@ -1544,6 +1544,6 @@ TEXT runtime·panicSliceConvert<ABIInternal>(SB),NOSPLIT,$0-16
 	MOVD	R3, R1
 	JMP	runtime·goPanicSliceConvert<ABIInternal>(SB)
 
-TEXT ·getfp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
+TEXT ·getcallerfp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	MOVD R29, R0
 	RET
