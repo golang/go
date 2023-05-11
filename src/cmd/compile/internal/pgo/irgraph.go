@@ -157,7 +157,6 @@ func New(profileFile string) (*Profile, error) {
 	}
 
 	g := graph.NewGraph(profile, &graph.Options{
-		CallTree:    false,
 		SampleValue: func(v []int64) int64 { return v[valueIndex] },
 	})
 
