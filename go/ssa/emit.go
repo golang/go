@@ -29,7 +29,7 @@ func emitNew(f *Function, typ types.Type, pos token.Pos) *Alloc {
 // new temporary, and returns the value so defined.
 func emitLoad(f *Function, addr Value) *UnOp {
 	v := &UnOp{Op: token.MUL, X: addr}
-	v.setType(deref(typeparams.CoreType(addr.Type())))
+	v.setType(mustDeref(addr.Type()))
 	f.emit(v)
 	return v
 }
@@ -478,9 +478,9 @@ func emitTailCall(f *Function, call *Call) {
 // value of a field.
 func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) Value {
 	for _, index := range indices {
-		fld := typeparams.CoreType(deref(v.Type())).(*types.Struct).Field(index)
-
-		if isPointer(v.Type()) {
+		st, vptr := deptr(v.Type())
+		fld := typeparams.CoreType(st).(*types.Struct).Field(index)
+		if vptr {
 			instr := &FieldAddr{
 				X:     v,
 				Field: index,
@@ -489,7 +489,7 @@ func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) 
 			instr.setType(types.NewPointer(fld.Type()))
 			v = f.emit(instr)
 			// Load the field's value iff indirectly embedded.
-			if isPointer(fld.Type()) {
+			if _, fldptr := deptr(fld.Type()); fldptr {
 				v = emitLoad(f, v)
 			}
 		} else {
@@ -512,8 +512,15 @@ func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) 
 // field's value.
 // Ident id is used for position and debug info.
 func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.Ident) Value {
-	fld := typeparams.CoreType(deref(v.Type())).(*types.Struct).Field(index)
-	if isPointer(v.Type()) {
+	// TODO(taking): Cover the following cases of interest
+	// 	func f[T any, S struct{f T}, P *struct{f T}, PS *S](x T) {
+	// 		_ := S{f: x}
+	//      _ := P{f: x}
+	//      _ := PS{f: x}
+	//  }
+	st, vptr := deptr(v.Type())
+	fld := typeparams.CoreType(st).(*types.Struct).Field(index)
+	if vptr {
 		instr := &FieldAddr{
 			X:     v,
 			Field: index,

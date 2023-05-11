@@ -5,6 +5,7 @@
 package ssa_test
 
 import (
+	"bytes"
 	"fmt"
 	"go/parser"
 	"go/token"
@@ -540,30 +541,30 @@ func TestInstructionString(t *testing.T) {
 	const contents = `
 	package p
 
-	//@ instrs("f", "*ssa.TypeAssert")
-	//@ instrs("f", "*ssa.Call", "print(nil:interface{}, 0:int)")
-	func f(x int) { // non-generic smoke test.
+	//@ instrs("f0", "*ssa.TypeAssert")
+	//@ instrs("f0", "*ssa.Call", "print(nil:interface{}, 0:int)")
+	func f0(x int) { // non-generic smoke test.
 		var i interface{}
 		print(i, 0)
 	}
 
-	//@ instrs("h", "*ssa.Alloc", "local T (u)")
-	//@ instrs("h", "*ssa.FieldAddr", "&t0.x [#0]")
-	func h[T ~struct{ x string }]() T {
+	//@ instrs("f1", "*ssa.Alloc", "local T (u)")
+	//@ instrs("f1", "*ssa.FieldAddr", "&t0.x [#0]")
+	func f1[T ~struct{ x string }]() T {
 		u := T{"lorem"}
 		return u
 	}
 
-	//@ instrs("c", "*ssa.TypeAssert", "typeassert t0.(interface{})")
-	//@ instrs("c", "*ssa.Call", "invoke x.foo()")
-	func c[T interface{ foo() string }](x T) {
+	//@ instrs("f2", "*ssa.TypeAssert", "typeassert t0.(interface{})")
+	//@ instrs("f2", "*ssa.Call", "invoke x.foo()")
+	func f2[T interface{ foo() string }](x T) {
 		_ = x.foo
 		_ = x.foo()
 	}
 
-	//@ instrs("d", "*ssa.TypeAssert", "typeassert t0.(interface{})")
-	//@ instrs("d", "*ssa.Call", "invoke x.foo()")
-	func d[T interface{ foo() string; comparable }](x T) {
+	//@ instrs("f3", "*ssa.TypeAssert", "typeassert t0.(interface{})")
+	//@ instrs("f3", "*ssa.Call", "invoke x.foo()")
+	func f3[T interface{ foo() string; comparable }](x T) {
 		_ = x.foo
 		_ = x.foo()
 	}
@@ -643,7 +644,8 @@ func TestInstructionString(t *testing.T) {
 
 	// Check each expectation.
 	for key, value := range expectations {
-		if _, ok := p.Members[key.function]; !ok {
+		fn, ok := p.Members[key.function].(*ssa.Function)
+		if !ok {
 			t.Errorf("Expectation on %s does not match a member in %s", key.function, p.Pkg.Name())
 		}
 		got, want := value.matches, value.wants
@@ -651,6 +653,7 @@ func TestInstructionString(t *testing.T) {
 		sort.Strings(want)
 		if !reflect.DeepEqual(want, got) {
 			t.Errorf("Within %s wanted instructions of kind %s: %q. got %q", key.function, key.kind, want, got)
+			logFunction(t, fn)
 		}
 	}
 }
@@ -663,4 +666,11 @@ func packageName(t testing.TB, content string) string {
 		t.Fatalf("parsing the file %q failed with error: %s", content, err)
 	}
 	return f.Name.Name
+}
+
+func logFunction(t testing.TB, fn *ssa.Function) {
+	// TODO: Consider adding a ssa.Function.GoString() so this can be logged to t via '%#v'.
+	var buf bytes.Buffer
+	ssa.WriteFunction(&buf, fn)
+	t.Log(buf.String())
 }

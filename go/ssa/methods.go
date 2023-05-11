@@ -101,8 +101,11 @@ func (prog *Program) addMethod(mset *methodSet, sel *types.Selection, cr *creato
 		sel := toSelection(sel)
 		obj := sel.obj.(*types.Func)
 
+		_, ptrObj := deptr(recvType(obj))
+		_, ptrRecv := deptr(sel.recv)
+
 		needsPromotion := len(sel.index) > 1
-		needsIndirection := !isPointer(recvType(obj)) && isPointer(sel.recv)
+		needsIndirection := !ptrObj && ptrRecv
 		if needsPromotion || needsIndirection {
 			fn = makeWrapper(prog, sel, cr)
 		} else {

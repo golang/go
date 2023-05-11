@@ -249,7 +249,7 @@ func (subst *subster) interface_(iface *types.Interface) *types.Interface {
 	}
 
 	// methods for the interface. Initially nil if there is no known change needed.
-	// Signatures for the method where recv is nil. NewInterfaceType fills in the recievers.
+	// Signatures for the method where recv is nil. NewInterfaceType fills in the receivers.
 	var methods []*types.Func
 	initMethods := func(n int) { // copy first n explicit methods
 		methods = make([]*types.Func, iface.NumExplicitMethods())
@@ -262,7 +262,7 @@ func (subst *subster) interface_(iface *types.Interface) *types.Interface {
 	for i := 0; i < iface.NumExplicitMethods(); i++ {
 		f := iface.ExplicitMethod(i)
 		// On interfaces, we need to cycle break on anonymous interface types
-		// being in a cycle with their signatures being in cycles with their recievers
+		// being in a cycle with their signatures being in cycles with their receivers
 		// that do not go through a Named.
 		norecv := changeRecv(f.Type().(*types.Signature), nil)
 		sig := subst.typ(norecv)
