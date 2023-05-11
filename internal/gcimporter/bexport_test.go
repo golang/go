@@ -5,10 +5,9 @@
 package gcimporter_test
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
-	"go/build"
-	"go/constant"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -19,155 +18,16 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/internal/gcimporter"
-	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/internal/typeparams"
-	"golang.org/x/tools/internal/typeparams/genericfeatures"
 )
 
 var isRace = false
-
-func TestBExportData_stdlib(t *testing.T) {
-	if runtime.Compiler == "gccgo" {
-		t.Skip("gccgo standard library is inaccessible")
-	}
-	testenv.NeedsGoBuild(t)
-	if isRace {
-		t.Skipf("stdlib tests take too long in race mode and flake on builders")
-	}
-	if testing.Short() {
-		t.Skip("skipping RAM hungry test in -short mode")
-	}
-
-	// Load, parse and type-check the program.
-	ctxt := build.Default // copy
-	ctxt.GOPATH = ""      // disable GOPATH
-	conf := loader.Config{
-		Build:       &ctxt,
-		AllowErrors: true,
-		TypeChecker: types.Config{
-			Error: func(err error) { t.Log(err) },
-		},
-	}
-	for _, path := range buildutil.AllPackages(conf.Build) {
-		conf.Import(path)
-	}
-
-	// Create a package containing type and value errors to ensure
-	// they are properly encoded/decoded.
-	f, err := conf.ParseFile("haserrors/haserrors.go", `package haserrors
-const UnknownValue = "" + 0
-type UnknownType undefined
-`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	conf.CreateFromFiles("haserrors", f)
-
-	prog, err := conf.Load()
-	if err != nil {
-		t.Fatalf("Load failed: %v", err)
-	}
-
-	numPkgs := len(prog.AllPackages)
-	if want := minStdlibPackages; numPkgs < want {
-		t.Errorf("Loaded only %d packages, want at least %d", numPkgs, want)
-	}
-
-	checked := 0
-	for pkg, info := range prog.AllPackages {
-		if info.Files == nil {
-			continue // empty directory
-		}
-		// Binary export does not support generic code.
-		inspect := inspector.New(info.Files)
-		if genericfeatures.ForPackage(inspect, &info.Info) != 0 {
-			t.Logf("skipping package %q which uses generics", pkg.Path())
-			continue
-		}
-		checked++
-		exportdata, err := gcimporter.BExportData(conf.Fset, pkg)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		imports := make(map[string]*types.Package)
-		fset2 := token.NewFileSet()
-		n, pkg2, err := gcimporter.BImportData(fset2, imports, exportdata, pkg.Path())
-		if err != nil {
-			t.Errorf("BImportData(%s): %v", pkg.Path(), err)
-			continue
-		}
-		if n != len(exportdata) {
-			t.Errorf("BImportData(%s) decoded %d bytes, want %d",
-				pkg.Path(), n, len(exportdata))
-		}
-
-		// Compare the packages' corresponding members.
-		for _, name := range pkg.Scope().Names() {
-			if !token.IsExported(name) {
-				continue
-			}
-			obj1 := pkg.Scope().Lookup(name)
-			obj2 := pkg2.Scope().Lookup(name)
-			if obj2 == nil {
-				t.Errorf("%s.%s not found, want %s", pkg.Path(), name, obj1)
-				continue
-			}
-
-			fl1 := fileLine(conf.Fset, obj1)
-			fl2 := fileLine(fset2, obj2)
-			if fl1 != fl2 {
-				t.Errorf("%s.%s: got posn %s, want %s",
-					pkg.Path(), name, fl2, fl1)
-			}
-
-			if err := equalObj(obj1, obj2); err != nil {
-				t.Errorf("%s.%s: %s\ngot:  %s\nwant: %s",
-					pkg.Path(), name, err, obj2, obj1)
-			}
-		}
-	}
-	if want := minStdlibPackages; checked < want {
-		t.Errorf("Checked only %d packages, want at least %d", checked, want)
-	}
-}
 
 func fileLine(fset *token.FileSet, obj types.Object) string {
 	posn := fset.Position(obj.Pos())
 	filename := filepath.Clean(strings.ReplaceAll(posn.Filename, "$GOROOT", runtime.GOROOT()))
 	return fmt.Sprintf("%s:%d", filename, posn.Line)
-}
-
-// equalObj reports how x and y differ.  They are assumed to belong to
-// different universes so cannot be compared directly.
-func equalObj(x, y types.Object) error {
-	if reflect.TypeOf(x) != reflect.TypeOf(y) {
-		return fmt.Errorf("%T vs %T", x, y)
-	}
-	xt := x.Type()
-	yt := y.Type()
-	switch x.(type) {
-	case *types.Var, *types.Func:
-		// ok
-	case *types.Const:
-		xval := x.(*types.Const).Val()
-		yval := y.(*types.Const).Val()
-		// Use string comparison for floating-point values since rounding is permitted.
-		if constant.Compare(xval, token.NEQ, yval) &&
-			!(xval.Kind() == constant.Float && xval.String() == yval.String()) {
-			return fmt.Errorf("unequal constants %s vs %s", xval, yval)
-		}
-	case *types.TypeName:
-		xt = xt.Underlying()
-		yt = yt.Underlying()
-	default:
-		return fmt.Errorf("unexpected %T", x)
-	}
-	return equalType(xt, yt)
 }
 
 func equalType(x, y types.Type) error {
@@ -448,15 +308,16 @@ func TestVeryLongFile(t *testing.T) {
 	}
 
 	// export
-	exportdata, err := gcimporter.BExportData(fset1, pkg)
-	if err != nil {
+	var out bytes.Buffer
+	if err := gcimporter.IExportData(&out, fset1, pkg); err != nil {
 		t.Fatal(err)
 	}
+	exportdata := out.Bytes()
 
 	// import
 	imports := make(map[string]*types.Package)
 	fset2 := token.NewFileSet()
-	_, pkg2, err := gcimporter.BImportData(fset2, imports, exportdata, pkg.Path())
+	_, pkg2, err := gcimporter.IImportData(fset2, imports, exportdata, pkg.Path())
 	if err != nil {
 		t.Fatalf("BImportData(%s): %v", pkg.Path(), err)
 	}
@@ -512,39 +373,4 @@ func checkPkg(t *testing.T, pkg *types.Package, label string) {
 			t.Errorf("%s: %v: got %v; want %v", label, tname, got, test.typ)
 		}
 	}
-}
-
-func TestTypeAliases(t *testing.T) {
-	// parse and typecheck
-	fset1 := token.NewFileSet()
-	f, err := parser.ParseFile(fset1, "p.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var conf types.Config
-	pkg1, err := conf.Check("p", fset1, []*ast.File{f}, nil)
-	if err == nil {
-		// foo in undeclared in src; we should see an error
-		t.Fatal("invalid source type-checked without error")
-	}
-	if pkg1 == nil {
-		// despite incorrect src we should see a (partially) type-checked package
-		t.Fatal("nil package returned")
-	}
-	checkPkg(t, pkg1, "export")
-
-	// export
-	exportdata, err := gcimporter.BExportData(fset1, pkg1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// import
-	imports := make(map[string]*types.Package)
-	fset2 := token.NewFileSet()
-	_, pkg2, err := gcimporter.BImportData(fset2, imports, exportdata, pkg1.Path())
-	if err != nil {
-		t.Fatalf("BImportData(%s): %v", pkg1.Path(), err)
-	}
-	checkPkg(t, pkg2, "import")
 }

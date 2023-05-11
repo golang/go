@@ -969,6 +969,16 @@ func constantToFloat(x constant.Value) *big.Float {
 	return &f
 }
 
+func valueToRat(x constant.Value) *big.Rat {
+	// Convert little-endian to big-endian.
+	// I can't believe this is necessary.
+	bytes := constant.Bytes(x)
+	for i := 0; i < len(bytes)/2; i++ {
+		bytes[i], bytes[len(bytes)-1-i] = bytes[len(bytes)-1-i], bytes[i]
+	}
+	return new(big.Rat).SetInt(new(big.Int).SetBytes(bytes))
+}
+
 // mpint exports a multi-precision integer.
 //
 // For unsigned types, small values are written out as a single
@@ -1177,4 +1187,13 @@ func (q *objQueue) popHead() types.Object {
 	obj := q.ring[q.head%len(q.ring)]
 	q.head++
 	return obj
+}
+
+// internalError represents an error generated inside this package.
+type internalError string
+
+func (e internalError) Error() string { return "gcimporter: " + string(e) }
+
+func internalErrorf(format string, args ...interface{}) error {
+	return internalError(fmt.Sprintf(format, args...))
 }
