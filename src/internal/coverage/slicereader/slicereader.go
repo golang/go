@@ -6,6 +6,8 @@ package slicereader
 
 import (
 	"encoding/binary"
+	"fmt"
+	"io"
 	"unsafe"
 )
 
@@ -38,8 +40,31 @@ func (r *Reader) Read(b []byte) (int, error) {
 	return amt, nil
 }
 
-func (r *Reader) SeekTo(off int64) {
-	r.off = off
+func (r *Reader) Seek(offset int64, whence int) (ret int64, err error) {
+	switch whence {
+	case io.SeekStart:
+		if offset < 0 || offset > int64(len(r.b)) {
+			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", offset, len(r.b))
+		}
+		r.off = offset
+		return offset, nil
+	case io.SeekCurrent:
+		newoff := r.off + offset
+		if newoff < 0 || newoff > int64(len(r.b)) {
+			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(r.b))
+		}
+		r.off = newoff
+		return r.off, nil
+	case io.SeekEnd:
+		newoff := int64(len(r.b)) + offset
+		if newoff < 0 || newoff > int64(len(r.b)) {
+			return 0, fmt.Errorf("invalid seek: new offset %d (out of range [0 %d]", newoff, len(r.b))
+		}
+		r.off = newoff
+		return r.off, nil
+	}
+	// other modes are not supported
+	return 0, fmt.Errorf("unsupported seek mode %d", whence)
 }
 
 func (r *Reader) Offset() int64 {
