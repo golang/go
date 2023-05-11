@@ -569,7 +569,7 @@ func fileLocations(env *regtest.Env, locs []protocol.Location) []string {
 	got := make([]string, 0, len(locs))
 	for _, loc := range locs {
 		path := env.Sandbox.Workdir.URIToPath(loc.URI) // (slashified)
-		if i := strings.Index(path, "/src/"); i >= 0 && filepath.IsAbs(path) {
+		if i := strings.LastIndex(path, "/src/"); i >= 0 && filepath.IsAbs(path) {
 			// Absolute path with "src" segment: assume it's in GOROOT.
 			// Strip directory and don't add line/column since they are fragile.
 			path = "std:" + path[i+len("/src/"):]

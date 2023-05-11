@@ -24,6 +24,8 @@ type metadataGraph struct {
 
 	// ids maps file URIs to package IDs, sorted by (!valid, cli, packageID).
 	// A single file may belong to multiple packages due to tests packages.
+	//
+	// Invariant: all IDs present in the ids map exist in the metadata map.
 	ids map[span.URI][]PackageID
 }
 

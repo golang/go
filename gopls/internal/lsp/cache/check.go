@@ -1440,7 +1440,7 @@ func (b *typeCheckBatch) typesConfig(ctx context.Context, inputs typeCheckInputs
 			depPH := b.handles[id]
 			if depPH == nil {
 				// e.g. missing metadata for dependencies in buildPackageHandle
-				return nil, missingPkgError(path, inputs.moduleMode)
+				return nil, missingPkgError(inputs.id, path, inputs.moduleMode)
 			}
 			if !source.IsValidImport(inputs.pkgPath, depPH.m.PkgPath) {
 				return nil, fmt.Errorf("invalid use of internal package %q", path)
@@ -1601,13 +1601,17 @@ func depsErrors(ctx context.Context, m *source.Metadata, meta *metadataGraph, fs
 
 // missingPkgError returns an error message for a missing package that varies
 // based on the user's workspace mode.
-func missingPkgError(pkgPath string, moduleMode bool) error {
+func missingPkgError(from PackageID, pkgPath string, moduleMode bool) error {
 	// TODO(rfindley): improve this error. Previous versions of this error had
 	// access to the full snapshot, and could provide more information (such as
 	// the initialization error).
 	if moduleMode {
-		// Previously, we would present the initialization error here.
-		return fmt.Errorf("no required module provides package %q", pkgPath)
+		if source.IsCommandLineArguments(from) {
+			return fmt.Errorf("current file is not included in a workspace module")
+		} else {
+			// Previously, we would present the initialization error here.
+			return fmt.Errorf("no required module provides package %q", pkgPath)
+		}
 	} else {
 		// Previously, we would list the directories in GOROOT and GOPATH here.
 		return fmt.Errorf("cannot find package %q in GOROOT or GOPATH", pkgPath)

@@ -308,7 +308,16 @@ func (s *Session) updateViewLocked(ctx context.Context, view *View, options *sou
 		return nil, fmt.Errorf("view %q not found", view.id)
 	}
 
-	v, _, release, err := s.createView(ctx, view.name, view.folder, options, seqID)
+	v, snapshot, release, err := s.createView(ctx, view.name, view.folder, options, seqID)
+	// The new snapshot has lost the history of the previous view. As a result,
+	// it may not see open files that aren't in its build configuration (as it
+	// would have done via didOpen notifications). This can lead to inconsistent
+	// behavior when configuration is changed mid-session.
+	//
+	// Ensure the new snapshot observes all open files.
+	for _, o := range v.fs.Overlays() {
+		_, _ = snapshot.ReadFile(ctx, o.URI())
+	}
 	release()
 
 	if err != nil {

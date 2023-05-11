@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -105,6 +106,10 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     -cgo requires that CGO_ENABLED is set and the cgo tool is available
 //     -write_sumfile=a,b,c instructs the test runner to generate go.sum files
 //     in these directories before running the test.
+//     -skip_goos=a,b,c instructs the test runner to skip the test for the
+//     listed GOOS values.
+//     TODO(rfindley): using build constraint expressions for -skip_goos would
+//     be clearer.
 //     TODO(rfindley): support flag values containing whitespace.
 //   - "settings.json": this file is parsed as JSON, and used as the
 //     session configuration (see gopls/doc/settings.md)
@@ -338,6 +343,12 @@ func RunMarkerTests(t *testing.T, dir string) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			for _, goos := range test.skipGOOS {
+				if runtime.GOOS == goos {
+					t.Skipf("skipping on %s due to -skip_goos", runtime.GOOS)
+				}
+			}
+
 			// TODO(rfindley): it may be more useful to have full support for build
 			// constraints.
 			if test.minGoVersion != "" {
@@ -361,16 +372,9 @@ func RunMarkerTests(t *testing.T, dir string) {
 				config.Settings["diagnosticsDelay"] = "10ms"
 			}
 
-			var writeGoSum []string
-			if test.writeGoSum != "" {
-				for _, d := range strings.Split(test.writeGoSum, ",") {
-					writeGoSum = append(writeGoSum, strings.TrimSpace(d))
-				}
-			}
-
 			run := &markerTestRun{
 				test:      test,
-				env:       newEnv(t, cache, test.files, test.proxyFiles, writeGoSum, config),
+				env:       newEnv(t, cache, test.files, test.proxyFiles, test.writeGoSum, config),
 				locations: make(map[expect.Identifier]protocol.Location),
 				diags:     make(map[protocol.Location][]protocol.Diagnostic),
 			}
@@ -575,7 +579,8 @@ type markerTest struct {
 	// Parsed flags values.
 	minGoVersion string
 	cgo          bool
-	writeGoSum   string // comma separated dirs to write go sum for
+	writeGoSum   []string // comma separated dirs to write go sum for
+	skipGOOS     []string // comma separated GOOS values to skip
 }
 
 // flagSet returns the flagset used for parsing the special "flags" file in the
@@ -584,8 +589,25 @@ func (t *markerTest) flagSet() *flag.FlagSet {
 	flags := flag.NewFlagSet(t.name, flag.ContinueOnError)
 	flags.StringVar(&t.minGoVersion, "min_go", "", "if set, the minimum go1.X version required for this test")
 	flags.BoolVar(&t.cgo, "cgo", false, "if set, requires cgo (both the cgo tool and CGO_ENABLED=1)")
-	flags.StringVar(&t.writeGoSum, "write_sumfile", "", "if set, write the sumfile for these directories")
+	flags.Var((*stringListValue)(&t.writeGoSum), "write_sumfile", "if set, write the sumfile for these directories")
+	flags.Var((*stringListValue)(&t.skipGOOS), "skip_goos", "if set, skip this test on these GOOS values")
 	return flags
+}
+
+// stringListValue implements flag.Value.
+type stringListValue []string
+
+func (l *stringListValue) Set(s string) error {
+	if s != "" {
+		for _, d := range strings.Split(s, ",") {
+			*l = append(*l, strings.TrimSpace(d))
+		}
+	}
+	return nil
+}
+
+func (l stringListValue) String() string {
+	return strings.Join([]string(l), ",")
 }
 
 func (t *markerTest) getGolden(id string) *Golden {

@@ -151,7 +151,7 @@ type Snapshot interface {
 	BuiltinFile(ctx context.Context) (*ParsedGoFile, error)
 
 	// IsBuiltin reports whether uri is part of the builtin package.
-	IsBuiltin(ctx context.Context, uri span.URI) bool
+	IsBuiltin(uri span.URI) bool
 
 	// CriticalError returns any critical errors in the workspace.
 	//
@@ -206,6 +206,10 @@ type Snapshot interface {
 	// importable packages.
 	// It returns an error if the context was cancelled.
 	MetadataForFile(ctx context.Context, uri span.URI) ([]*Metadata, error)
+
+	// OrphanedFileDiagnostics reports diagnostics for files that have no package
+	// associations or which only have only command-line-arguments packages.
+	OrphanedFileDiagnostics(ctx context.Context) map[span.URI]*Diagnostic
 
 	// -- package type-checking --
 
@@ -534,20 +538,25 @@ type TidiedModule struct {
 // An ad-hoc package (without go.mod or GOPATH) has its ID, PkgPath,
 // and LoadDir equal to the absolute path of its directory.
 type Metadata struct {
-	ID              PackageID
-	PkgPath         PackagePath
-	Name            PackageName
+	ID      PackageID
+	PkgPath PackagePath
+	Name    PackageName
+
+	// these three fields are as defined by go/packages.Package
 	GoFiles         []span.URI
 	CompiledGoFiles []span.URI
-	ForTest         PackagePath // package path under test, or ""
-	TypesSizes      types.Sizes
-	Errors          []packages.Error          // must be set for packages in import cycles
-	DepsByImpPath   map[ImportPath]PackageID  // may contain dups; empty ID => missing
-	DepsByPkgPath   map[PackagePath]PackageID // values are unique and non-empty
-	Module          *packages.Module
-	DepsErrors      []*packagesinternal.PackageError
-	Diagnostics     []*Diagnostic // processed diagnostics from 'go list'
-	LoadDir         string        // directory from which go/packages was run
+	IgnoredFiles    []span.URI
+
+	ForTest       PackagePath // package path under test, or ""
+	TypesSizes    types.Sizes
+	Errors        []packages.Error          // must be set for packages in import cycles
+	DepsByImpPath map[ImportPath]PackageID  // may contain dups; empty ID => missing
+	DepsByPkgPath map[PackagePath]PackageID // values are unique and non-empty
+	Module        *packages.Module
+	DepsErrors    []*packagesinternal.PackageError
+	Diagnostics   []*Diagnostic // processed diagnostics from 'go list'
+	LoadDir       string        // directory from which go/packages was run
+	Standalone    bool          // package synthesized for a standalone file (e.g. ignore-tagged)
 }
 
 func (m *Metadata) String() string { return string(m.ID) }

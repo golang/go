@@ -68,7 +68,7 @@ type View struct {
 	vulns   map[span.URI]*govulncheck.Result
 
 	// fs is the file source used to populate this view.
-	fs source.FileSource
+	fs *overlayFS
 
 	// seenFiles tracks files that the view has accessed.
 	// TODO(golang/go#57558): this notion is fundamentally problematic, and

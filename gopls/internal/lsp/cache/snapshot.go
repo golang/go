@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/token"
 	"go/types"
 	"io"
@@ -901,15 +902,9 @@ func (s *snapshot) memoizeActivePackage(id PackageID, pkg *Package) (active *Pac
 	defer func() {
 		s.activePackages.Set(id, active, nil) // store the result either way: remember that pkg is not open
 	}()
-	for _, cgf := range pkg.Metadata().GoFiles {
-		if s.isOpenLocked(cgf) {
-			return pkg
-		}
-	}
-	for _, cgf := range pkg.Metadata().CompiledGoFiles {
-		if s.isOpenLocked(cgf) {
-			return pkg
-		}
+
+	if containsOpenFileLocked(s, pkg.Metadata()) {
+		return pkg
 	}
 	return nil
 }
@@ -1215,7 +1210,6 @@ func moduleForURI(modFiles map[span.URI]struct{}, uri span.URI) span.URI {
 //
 // The given uri must be a file, not a directory.
 func nearestModFile(ctx context.Context, uri span.URI, fs source.FileSource) (span.URI, error) {
-	// TODO(rfindley)
 	dir := filepath.Dir(uri.Filename())
 	mod, err := findRootPattern(ctx, dir, "go.mod", fs)
 	if err != nil {
@@ -1261,11 +1255,11 @@ func (s *snapshot) clearShouldLoad(scopes ...loadScope) {
 	}
 }
 
-// noValidMetadataForURILocked reports whether there is any valid metadata for
-// the given URI.
-func (s *snapshot) noValidMetadataForURILocked(uri span.URI) bool {
+// noRealPackagesForURILocked reports whether there are any
+// non-command-line-arguments packages containing the given URI.
+func (s *snapshot) noRealPackagesForURILocked(uri span.URI) bool {
 	for _, id := range s.meta.ids[uri] {
-		if _, ok := s.meta.metadata[id]; ok {
+		if !source.IsCommandLineArguments(id) || s.meta.metadata[id].Standalone {
 			return false
 		}
 	}
@@ -1351,26 +1345,23 @@ func (s lockedSnapshot) ReadFile(ctx context.Context, uri span.URI) (source.File
 func (s *snapshot) IsOpen(uri span.URI) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.isOpenLocked(uri)
 
-}
-
-func (s *snapshot) openFiles() []source.FileHandle {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var open []source.FileHandle
-	s.files.Range(func(uri span.URI, fh source.FileHandle) {
-		if isFileOpen(fh) {
-			open = append(open, fh)
-		}
-	})
+	fh, _ := s.files.Get(uri)
+	_, open := fh.(*Overlay)
 	return open
 }
 
-func (s *snapshot) isOpenLocked(uri span.URI) bool {
-	fh, _ := s.files.Get(uri)
-	return isFileOpen(fh)
+func (s *snapshot) openFiles() []*Overlay {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var open []*Overlay
+	s.files.Range(func(uri span.URI, fh source.FileHandle) {
+		if o, ok := fh.(*Overlay); ok {
+			open = append(open, o)
+		}
+	})
+	return open
 }
 
 func isFileOpen(fh source.FileHandle) bool {
@@ -1590,14 +1581,38 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 //
 // An error is returned if the load is canceled.
 func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
+	s.mu.Lock()
+	meta := s.meta
+	s.mu.Unlock()
 	// When we load ./... or a package path directly, we may not get packages
 	// that exist only in overlays. As a workaround, we search all of the files
 	// available in the snapshot and reload their metadata individually using a
 	// file= query if the metadata is unavailable.
-	files := s.orphanedOpenFiles()
+	open := s.openFiles()
+	var files []*Overlay
+	for _, o := range open {
+		uri := o.URI()
+		if s.IsBuiltin(uri) || s.view.FileKind(o) != source.Go {
+			continue
+		}
+		if len(meta.ids[uri]) == 0 {
+			files = append(files, o)
+		}
+	}
 	if len(files) == 0 {
 		return nil
 	}
+
+	// Filter to files that are not known to be unloadable.
+	s.mu.Lock()
+	loadable := files[:0]
+	for _, file := range files {
+		if _, unloadable := s.unloadableFiles[file.URI()]; !unloadable {
+			loadable = append(loadable, file)
+		}
+	}
+	files = loadable
+	s.mu.Unlock()
 
 	var uris []span.URI
 	for _, file := range files {
@@ -1654,7 +1669,7 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 		// TODO(rfindley): instead of locking here, we should have load return the
 		// metadata graph that resulted from loading.
 		uri := file.URI()
-		if s.noValidMetadataForURILocked(uri) {
+		if len(s.meta.ids) == 0 {
 			s.unloadableFiles[uri] = struct{}{}
 		}
 	}
@@ -1662,34 +1677,133 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	return nil
 }
 
-func (s *snapshot) orphanedOpenFiles() []source.FileHandle {
+// OrphanedFileDiagnostics reports diagnostics describing why open files have
+// no packages or have only command-line-arguments packages.
+//
+// If the resulting diagnostic is nil, the file is either not orphaned or we
+// can't produce a good diagnostic.
+//
+// TODO(rfindley): reconcile the definition of "orphaned" here with
+// reloadOrphanedFiles. The latter does not include files with
+// command-line-arguments packages.
+func (s *snapshot) OrphanedFileDiagnostics(ctx context.Context) map[span.URI]*source.Diagnostic {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	meta := s.meta
+	s.mu.Unlock()
 
-	var files []source.FileHandle
-	s.files.Range(func(uri span.URI, fh source.FileHandle) {
-		// Only consider open files, which will be represented as overlays.
-		if _, isOverlay := fh.(*Overlay); !isOverlay {
-			return
+	var files []*Overlay
+
+searchOverlays:
+	for _, o := range s.overlays() {
+		uri := o.URI()
+		if s.IsBuiltin(uri) || s.view.FileKind(o) != source.Go {
+			continue
 		}
-		// Don't try to reload metadata for go.mod files.
-		if s.view.FileKind(fh) != source.Go {
-			return
+		for _, id := range meta.ids[o.URI()] {
+			if !source.IsCommandLineArguments(id) || meta.metadata[id].Standalone {
+				continue searchOverlays
+			}
 		}
-		// If the URI doesn't belong to this view, then it's not in a workspace
-		// package and should not be reloaded directly.
-		if !source.InDir(s.view.folder.Filename(), uri.Filename()) {
-			return
+		files = append(files, o)
+	}
+	if len(files) == 0 {
+		return nil
+	}
+
+	loadedModFiles := make(map[span.URI]struct{})
+	ignoredFiles := make(map[span.URI]bool)
+	for _, meta := range meta.metadata {
+		if meta.Module != nil && meta.Module.GoMod != "" {
+			gomod := span.URIFromPath(meta.Module.GoMod)
+			loadedModFiles[gomod] = struct{}{}
 		}
-		// Don't reload metadata for files we've already deemed unloadable.
-		if _, ok := s.unloadableFiles[uri]; ok {
-			return
+		for _, ignored := range meta.IgnoredFiles {
+			ignoredFiles[ignored] = true
 		}
-		if s.noValidMetadataForURILocked(uri) {
-			files = append(files, fh)
+	}
+
+	diagnostics := make(map[span.URI]*source.Diagnostic)
+	for _, fh := range files {
+		// Only warn about orphaned files if the file is well-formed enough to
+		// actually be part of a package.
+		//
+		// Use ParseGo as for open files this is likely to be a cache hit (we'll have )
+		pgf, err := s.ParseGo(ctx, fh, source.ParseHeader)
+		if err != nil {
+			continue
 		}
-	})
-	return files
+		if !pgf.File.Name.Pos().IsValid() {
+			continue
+		}
+		rng, err := pgf.PosRange(pgf.File.Name.Pos(), pgf.File.Name.End())
+		if err != nil {
+			continue
+		}
+
+		// If we have a relevant go.mod file, check whether the file is orphaned
+		// due to its go.mod file being inactive. We could also offer a
+		// prescriptive diagnostic in the case that there is no go.mod file, but it
+		// is harder to be precise in that case, and less important.
+		var msg string
+		if goMod, err := nearestModFile(ctx, fh.URI(), s); err == nil && goMod != "" {
+			if _, ok := loadedModFiles[goMod]; !ok {
+				modDir := filepath.Dir(goMod.Filename())
+				if rel, err := filepath.Rel(s.view.folder.Filename(), modDir); err == nil {
+					modDir = rel
+				}
+
+				var fix string
+				if s.view.goversion >= 18 {
+					if s.view.gowork != "" {
+						fix = fmt.Sprintf("To fix this problem, you can add this module to your go.work file (%s)", s.view.gowork)
+					} else {
+						fix = "To fix this problem, you can add a go.work file that uses this directory."
+					}
+				} else {
+					fix = `To work with multiple modules simultaneously, please upgrade to Go 1.18 or
+later, reinstall gopls, and use a go.work file.`
+				}
+				msg = fmt.Sprintf(`This file is in directory %q, which is not included in your workspace.
+%s
+See the documentation for more information on setting up your workspace:
+https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`, modDir, fix)
+			}
+		}
+
+		if msg == "" && ignoredFiles[fh.URI()] {
+			// TODO(rfindley): use the constraint package to check if the file
+			// _actually_ satisfies the current build context.
+			hasConstraint := false
+			walkConstraints(pgf.File, func(constraint.Expr) bool {
+				hasConstraint = true
+				return false
+			})
+			var fix string
+			if hasConstraint {
+				fix = `This file may be excluded due to its build tags; try adding "-tags=<build tag>" to your gopls "buildFlags" configuration
+See the documentation for more information on working with build tags:
+https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags-string.`
+			} else if strings.Contains(filepath.Base(fh.URI().Filename()), "_") {
+				fix = `This file may be excluded due to its GOOS/GOARCH, or other build constraints.`
+			} else {
+				fix = `This file is ignored by your gopls build.` // we don't know why
+			}
+			msg = fmt.Sprintf("No packages found for open file %s.\n%s", fh.URI().Filename(), fix)
+		}
+
+		if msg != "" {
+			// Only report diagnostics if we detect an actual exclusion.
+			diagnostics[fh.URI()] = &source.Diagnostic{
+				URI:      fh.URI(),
+				Range:    rng,
+				Severity: protocol.SeverityWarning,
+				Source:   source.ListError,
+				Message:  msg,
+			}
+		}
+	}
+
+	return diagnostics
 }
 
 // TODO(golang/go#53756): this function needs to consider more than just the
@@ -2347,7 +2461,7 @@ func (s *snapshot) BuiltinFile(ctx context.Context) (*source.ParsedGoFile, error
 	return pgfs[0], nil
 }
 
-func (s *snapshot) IsBuiltin(ctx context.Context, uri span.URI) bool {
+func (s *snapshot) IsBuiltin(uri span.URI) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// We should always get the builtin URI in a canonical form, so use simple

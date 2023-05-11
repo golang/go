@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build go1.16
-// +build go1.16
-
 package cache
 
 import (
+	"go/ast"
 	"go/build/constraint"
 	"go/parser"
 	"go/token"
@@ -26,25 +24,38 @@ func isStandaloneFile(src []byte, standaloneTags []string) bool {
 		return false
 	}
 
-	for _, cg := range f.Comments {
+	found := false
+	walkConstraints(f, func(c constraint.Expr) bool {
+		if tag, ok := c.(*constraint.TagExpr); ok {
+			for _, t := range standaloneTags {
+				if t == tag.Tag {
+					found = true
+					return false
+				}
+			}
+		}
+		return true
+	})
+
+	return found
+}
+
+// walkConstraints calls f for each constraint expression in the file, until
+// all constraints are exhausted or f returns false.
+func walkConstraints(file *ast.File, f func(constraint.Expr) bool) {
+	for _, cg := range file.Comments {
 		// Even with PackageClauseOnly the parser consumes the semicolon following
 		// the package clause, so we must guard against comments that come after
 		// the package name.
-		if cg.Pos() > f.Name.Pos() {
+		if cg.Pos() > file.Name.Pos() {
 			continue
 		}
 		for _, comment := range cg.List {
 			if c, err := constraint.Parse(comment.Text); err == nil {
-				if tag, ok := c.(*constraint.TagExpr); ok {
-					for _, t := range standaloneTags {
-						if t == tag.Tag {
-							return true
-						}
-					}
+				if !f(c) {
+					return
 				}
 			}
 		}
 	}
-
-	return false
 }

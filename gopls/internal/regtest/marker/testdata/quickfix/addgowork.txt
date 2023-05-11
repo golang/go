@@ -1,0 +1,44 @@
+This test demonstrates the quick-fix for adding a go.work file.
+
+TODO(rfindley): actually add quick-fixes here.
+TODO(rfindley): improve the "cannot find package" import errors.
+
+-- flags --
+-min_go=go1.18
+
+-- a/go.mod --
+module mod.com/a
+
+go 1.18
+
+-- a/main.go --
+package main //@diag("main", re"add a go.work file")
+
+import "mod.com/a/lib" //@diag("\"mod.com", re"cannot find package")
+
+func main() {
+	_ = lib.C
+}
+
+-- a/lib/lib.go --
+package lib //@diag("lib", re"add a go.work file")
+
+const C = "b"
+-- b/go.mod --
+module mod.com/b
+
+go 1.18
+
+-- b/main.go --
+package main //@diag("main", re"add a go.work file")
+
+import "mod.com/b/lib" //@diag("\"mod.com", re"cannot find package")
+
+func main() {
+	_ = lib.C
+}
+
+-- b/lib/lib.go --
+package lib //@diag("lib", re"add a go.work file")
+
+const C = "b"

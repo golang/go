@@ -214,7 +214,7 @@ func (s *Server) diagnoseChangedFiles(ctx context.Context, snapshot source.Snaps
 		}
 
 		// Don't request type-checking for builtin.go: it's not a real package.
-		if snapshot.IsBuiltin(ctx, uri) {
+		if snapshot.IsBuiltin(uri) {
 			continue
 		}
 
@@ -391,15 +391,8 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	// Orphaned files.
 	// Confirm that every opened file belongs to a package (if any exist in
 	// the workspace). Otherwise, add a diagnostic to the file.
-	for _, o := range s.session.Overlays() {
-		if _, ok := seen[o.URI()]; ok {
-			continue
-		}
-		diagnostic := s.checkForOrphanedFile(ctx, snapshot, o)
-		if diagnostic == nil {
-			continue
-		}
-		s.storeDiagnostics(snapshot, o.URI(), orphanedSource, []*source.Diagnostic{diagnostic}, true)
+	for uri, diag := range snapshot.OrphanedFileDiagnostics(ctx) {
+		s.storeDiagnostics(snapshot, uri, orphanedSource, []*source.Diagnostic{diag}, true)
 	}
 }
 
@@ -475,7 +468,7 @@ func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toD
 	// Merge analysis diagnostics with package diagnostics, and store the
 	// resulting analysis diagnostics.
 	for uri, adiags := range analysisDiags {
-		if snapshot.IsBuiltin(ctx, uri) {
+		if snapshot.IsBuiltin(uri) {
 			bug.Reportf("go/analysis reported diagnostics for the builtin file: %v", adiags)
 			continue
 		}
@@ -506,7 +499,7 @@ func (s *Server) diagnosePkgs(ctx context.Context, snapshot source.Snapshot, toD
 		}
 		// builtin.go exists only for documentation purposes, and is not valid Go code.
 		// Don't report distracting errors
-		if snapshot.IsBuiltin(ctx, uri) {
+		if snapshot.IsBuiltin(uri) {
 			bug.Reportf("type checking reported diagnostics for the builtin file: %v", diags)
 			continue
 		}
@@ -665,66 +658,6 @@ func (s *Server) showCriticalErrorStatus(ctx context.Context, snapshot source.Sn
 		s.criticalErrorStatus = nil
 	} else {
 		s.criticalErrorStatus.Report(ctx, errMsg, 0)
-	}
-}
-
-// checkForOrphanedFile checks that the given URIs can be mapped to packages.
-// If they cannot and the workspace is not otherwise unloaded, it also surfaces
-// a warning, suggesting that the user check the file for build tags.
-func (s *Server) checkForOrphanedFile(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) *source.Diagnostic {
-	// TODO(rfindley): this function may fail to produce a diagnostic for a
-	// variety of reasons, some of which should probably not be ignored. For
-	// example, should this function be tolerant of the case where fh does not
-	// exist, or does not have a package name?
-	//
-	// It would be better to panic or report a bug in several of the cases below,
-	// so that we can move toward guaranteeing we show the user a meaningful
-	// error whenever it makes sense.
-	if snapshot.View().FileKind(fh) != source.Go {
-		return nil
-	}
-	// builtin files won't have a package, but they are never orphaned.
-	if snapshot.IsBuiltin(ctx, fh.URI()) {
-		return nil
-	}
-
-	// This call has the effect of inserting fh into snapshot.files,
-	// where for better or worse (actually: just worse) it influences
-	// the sets of open, known, and orphaned files.
-	snapshot.ReadFile(ctx, fh.URI())
-
-	metas, _ := snapshot.MetadataForFile(ctx, fh.URI())
-	if len(metas) > 0 || ctx.Err() != nil {
-		return nil // file has a package (or cancelled)
-	}
-	// Inv: file does not belong to a package we know about.
-	pgf, err := snapshot.ParseGo(ctx, fh, source.ParseHeader)
-	if err != nil {
-		return nil
-	}
-	if !pgf.File.Name.Pos().IsValid() {
-		return nil
-	}
-	rng, err := pgf.NodeRange(pgf.File.Name)
-	if err != nil {
-		return nil
-	}
-	// If the file no longer has a name ending in .go, this diagnostic is wrong
-	if filepath.Ext(fh.URI().Filename()) != ".go" {
-		return nil
-	}
-	// TODO(rstambler): We should be able to parse the build tags in the
-	// file and show a more specific error message. For now, put the diagnostic
-	// on the package declaration.
-	return &source.Diagnostic{
-		URI:      fh.URI(),
-		Range:    rng,
-		Severity: protocol.SeverityWarning,
-		Source:   source.ListError,
-		Message: fmt.Sprintf(`No packages found for open file %s: %v.
-If this file contains build tags, try adding "-tags=<build tag>" to your gopls "buildFlags" configuration (see (https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags-string).
-Otherwise, see the troubleshooting guidelines for help investigating (https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md).
-`, fh.URI().Filename(), err),
 	}
 }
 

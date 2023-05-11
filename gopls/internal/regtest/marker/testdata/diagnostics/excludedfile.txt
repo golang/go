@@ -1,0 +1,38 @@
+This test demonstrates diagnostics for various forms of file exclusion.
+
+Skip on plan9, an arbitrary GOOS, so that we can exercise GOOS exclusions
+resulting from file suffixes.
+
+-- flags --
+-min_go=go1.18
+-skip_goos=plan9
+
+-- go.work --
+go 1.21
+
+use (
+	./a
+)
+-- a/go.mod --
+module mod.com/a
+
+go 1.18
+
+-- a/a.go --
+package a
+
+-- a/a_plan9.go --
+package a //@diag(re"package (a)", re"excluded due to its GOOS/GOARCH")
+
+-- a/a_ignored.go --
+//go:build skip
+package a //@diag(re"package (a)", re"excluded due to its build tags")
+
+-- b/go.mod --
+module mod.com/b
+
+go 1.18
+
+-- b/b.go --
+package b //@diag(re"package (b)", re"add this module to your go.work")
+
