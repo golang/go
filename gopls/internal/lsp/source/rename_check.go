@@ -398,62 +398,62 @@ func (r *renamer) checkLabel(label *types.Label) {
 // checkStructField checks that the field renaming will not cause
 // conflicts at its declaration, or ambiguity or changes to any selection.
 func (r *renamer) checkStructField(from *types.Var) {
-	// Check that the struct declaration is free of field conflicts,
-	// and field/method conflicts.
 
+	// If this is the declaring package, check that the struct
+	// declaration is free of field conflicts, and field/method
+	// conflicts.
+	//
 	// go/types offers no easy way to get from a field (or interface
 	// method) to its declaring struct (or interface), so we must
 	// ascend the AST.
-	pgf, ok := enclosingFile(r.pkg, from.Pos())
-	if !ok {
-		return // not declared by syntax of this package
-	}
-	path, _ := astutil.PathEnclosingInterval(pgf.File, from.Pos(), from.Pos())
-	// path matches this pattern:
-	// [Ident SelectorExpr? StarExpr? Field FieldList StructType ParenExpr* ... File]
+	if pgf, ok := enclosingFile(r.pkg, from.Pos()); ok {
+		path, _ := astutil.PathEnclosingInterval(pgf.File, from.Pos(), from.Pos())
+		// path matches this pattern:
+		// [Ident SelectorExpr? StarExpr? Field FieldList StructType ParenExpr* ... File]
 
-	// Ascend to FieldList.
-	var i int
-	for {
-		if _, ok := path[i].(*ast.FieldList); ok {
-			break
+		// Ascend to FieldList.
+		var i int
+		for {
+			if _, ok := path[i].(*ast.FieldList); ok {
+				break
+			}
+			i++
 		}
 		i++
-	}
-	i++
-	tStruct := path[i].(*ast.StructType)
-	i++
-	// Ascend past parens (unlikely).
-	for {
-		_, ok := path[i].(*ast.ParenExpr)
-		if !ok {
-			break
-		}
+		tStruct := path[i].(*ast.StructType)
 		i++
-	}
-	if spec, ok := path[i].(*ast.TypeSpec); ok {
-		// This struct is also a named type.
-		// We must check for direct (non-promoted) field/field
-		// and method/field conflicts.
-		named := r.pkg.GetTypesInfo().Defs[spec.Name].Type()
-		prev, indices, _ := types.LookupFieldOrMethod(named, true, r.pkg.GetTypes(), r.to)
-		if len(indices) == 1 {
-			r.errorf(from.Pos(), "renaming this field %q to %q",
-				from.Name(), r.to)
-			r.errorf(prev.Pos(), "\twould conflict with this %s",
-				objectKind(prev))
-			return // skip checkSelections to avoid redundant errors
+		// Ascend past parens (unlikely).
+		for {
+			_, ok := path[i].(*ast.ParenExpr)
+			if !ok {
+				break
+			}
+			i++
 		}
-	} else {
-		// This struct is not a named type.
-		// We need only check for direct (non-promoted) field/field conflicts.
-		T := r.pkg.GetTypesInfo().Types[tStruct].Type.Underlying().(*types.Struct)
-		for i := 0; i < T.NumFields(); i++ {
-			if prev := T.Field(i); prev.Name() == r.to {
+		if spec, ok := path[i].(*ast.TypeSpec); ok {
+			// This struct is also a named type.
+			// We must check for direct (non-promoted) field/field
+			// and method/field conflicts.
+			named := r.pkg.GetTypesInfo().Defs[spec.Name].Type()
+			prev, indices, _ := types.LookupFieldOrMethod(named, true, r.pkg.GetTypes(), r.to)
+			if len(indices) == 1 {
 				r.errorf(from.Pos(), "renaming this field %q to %q",
 					from.Name(), r.to)
-				r.errorf(prev.Pos(), "\twould conflict with this field")
+				r.errorf(prev.Pos(), "\twould conflict with this %s",
+					objectKind(prev))
 				return // skip checkSelections to avoid redundant errors
+			}
+		} else {
+			// This struct is not a named type.
+			// We need only check for direct (non-promoted) field/field conflicts.
+			T := r.pkg.GetTypesInfo().Types[tStruct].Type.Underlying().(*types.Struct)
+			for i := 0; i < T.NumFields(); i++ {
+				if prev := T.Field(i); prev.Name() == r.to {
+					r.errorf(from.Pos(), "renaming this field %q to %q",
+						from.Name(), r.to)
+					r.errorf(prev.Pos(), "\twould conflict with this field")
+					return // skip checkSelections to avoid redundant errors
+				}
 			}
 		}
 	}

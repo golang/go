@@ -1,0 +1,25 @@
+
+This test attempts to rename a.S.X to x, which would make it
+inaccessible from its external test package. The rename tool
+should report an error rather than wrecking the program.
+See issue #59403.
+
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+var S struct{ X int } //@renameerr("X", x, oops)
+
+-- a/a_test.go --
+package a_test
+
+import "example.com/a"
+
+var Y = a.S.X
+
+-- @oops --
+a/a.go:3:15: renaming "X" to "x" would make it unexported
+a/a_test.go:5:13:	breaking references from packages such as "example.com/a_test"
