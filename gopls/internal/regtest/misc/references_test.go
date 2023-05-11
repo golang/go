@@ -419,7 +419,7 @@ var _ b.B
 		checkVendor(env.Implementations(refLoc), false)
 
 		// Run 'go mod vendor' outside the editor.
-		if err := env.Sandbox.RunGoCommand(env.Ctx, ".", "mod", []string{"vendor"}, true); err != nil {
+		if err := env.Sandbox.RunGoCommand(env.Ctx, ".", "mod", []string{"vendor"}, nil, true); err != nil {
 			t.Fatalf("go mod vendor: %v", err)
 		}
 

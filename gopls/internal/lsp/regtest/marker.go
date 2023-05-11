@@ -97,12 +97,14 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //
 // # Special files
 //
-// There are three types of file within the test archive that are given special
+// There are several types of file within the test archive that are given special
 // treatment by the test runner:
 //   - "flags": this file is treated as a whitespace-separated list of flags
 //     that configure the MarkerTest instance. Supported flags:
 //     -min_go=go1.18 sets the minimum Go version for the test;
 //     -cgo requires that CGO_ENABLED is set and the cgo tool is available
+//     -write_sumfile=a,b,c instructs the test runner to generate go.sum files
+//     in these directories before running the test.
 //     TODO(rfindley): support flag values containing whitespace.
 //   - "settings.json": this file is parsed as JSON, and used as the
 //     session configuration (see gopls/doc/settings.md)
@@ -115,6 +117,9 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     Foo were of type *Golden, the test runner would convert the identifier a
 //     in the call @foo(a, "b", 3) into a *Golden by collecting golden file
 //     data starting with "@a/".
+//   - proxy files: any file starting with proxy/ is treated as a Go proxy
+//     file. If present, these files are written to a separate temporary
+//     directory and GOPROXY is set to file://<proxy directory>.
 //
 // # Marker types
 //
@@ -136,10 +141,8 @@ var update = flag.Bool("update", false, "if set, update test data during marker 
 //     a 1:1 correspondence between observed diagnostics and diag annotations.
 //     The diagnostics source and kind fields are ignored, to reduce fuss.
 //
-//     The marker must accurately represent the diagnostic's range.
-//     Use grouping parens in the location regular expression to indicate
-//     a portion in context.
-//     TODO(adonovan): make this less strict, like the old framework.
+//     The specified location must match the start position of the diagnostic,
+//     but end positions are ignored.
 //
 //     TODO(adonovan): in the older marker framework, the annotation asserted
 //     two additional fields (source="compiler", kind="error"). Restore them?
@@ -357,10 +360,17 @@ func RunMarkerTests(t *testing.T, dir string) {
 				}
 				config.Settings["diagnosticsDelay"] = "10ms"
 			}
-			run := &markerTestRun{
-				test: test,
-				env:  newEnv(t, cache, test.files, config),
 
+			var writeGoSum []string
+			if test.writeGoSum != "" {
+				for _, d := range strings.Split(test.writeGoSum, ",") {
+					writeGoSum = append(writeGoSum, strings.TrimSpace(d))
+				}
+			}
+
+			run := &markerTestRun{
+				test:      test,
+				env:       newEnv(t, cache, test.files, test.proxyFiles, writeGoSum, config),
 				locations: make(map[expect.Identifier]protocol.Location),
 				diags:     make(map[protocol.Location][]protocol.Diagnostic),
 			}
@@ -397,8 +407,11 @@ func RunMarkerTests(t *testing.T, dir string) {
 				uri := run.env.Sandbox.Workdir.URI(path)
 				for _, diag := range params.Diagnostics {
 					loc := protocol.Location{
-						URI:   uri,
-						Range: diag.Range,
+						URI: uri,
+						Range: protocol.Range{
+							Start: diag.Range.Start,
+							End:   diag.Range.Start, // ignore end positions
+						},
 					}
 					run.diags[loc] = append(run.diags[loc], diag)
 				}
@@ -546,21 +559,23 @@ var markerFuncs = map[string]markerFunc{
 // See the documentation for RunMarkerTests for more information on the archive
 // format.
 type markerTest struct {
-	name     string                 // relative path to the txtar file in the testdata dir
-	fset     *token.FileSet         // fileset used for parsing notes
-	content  []byte                 // raw test content
-	archive  *txtar.Archive         // original test archive
-	settings map[string]interface{} // gopls settings
-	env      map[string]string      // editor environment
-	files    map[string][]byte      // data files from the archive (excluding special files)
-	notes    []*expect.Note         // extracted notes from data files
-	golden   map[string]*Golden     // extracted golden content, by identifier name
+	name       string                 // relative path to the txtar file in the testdata dir
+	fset       *token.FileSet         // fileset used for parsing notes
+	content    []byte                 // raw test content
+	archive    *txtar.Archive         // original test archive
+	settings   map[string]interface{} // gopls settings
+	env        map[string]string      // editor environment
+	proxyFiles map[string][]byte      // proxy content
+	files      map[string][]byte      // data files from the archive (excluding special files)
+	notes      []*expect.Note         // extracted notes from data files
+	golden     map[string]*Golden     // extracted golden content, by identifier name
 
 	// flags holds flags extracted from the special "flags" archive file.
 	flags []string
 	// Parsed flags values.
 	minGoVersion string
 	cgo          bool
+	writeGoSum   string // comma separated dirs to write go sum for
 }
 
 // flagSet returns the flagset used for parsing the special "flags" file in the
@@ -569,6 +584,7 @@ func (t *markerTest) flagSet() *flag.FlagSet {
 	flags := flag.NewFlagSet(t.name, flag.ContinueOnError)
 	flags.StringVar(&t.minGoVersion, "min_go", "", "if set, the minimum go1.X version required for this test")
 	flags.BoolVar(&t.cgo, "cgo", false, "if set, requires cgo (both the cgo tool and CGO_ENABLED=1)")
+	flags.StringVar(&t.writeGoSum, "write_sumfile", "", "if set, write the sumfile for these directories")
 	return flags
 }
 
@@ -711,6 +727,13 @@ func loadMarkerTest(name string, content []byte) (*markerTest, error) {
 			}
 			test.golden[id].data[name] = file.Data
 
+		case strings.HasPrefix(file.Name, "proxy/"):
+			name := file.Name[len("proxy/"):]
+			if test.proxyFiles == nil {
+				test.proxyFiles = make(map[string][]byte)
+			}
+			test.proxyFiles[name] = file.Data
+
 		default: // ordinary file content
 			notes, err := expect.Parse(test.fset, file.Name, file.Data)
 			if err != nil {
@@ -773,6 +796,8 @@ func formatTest(test *markerTest) ([]byte, error) {
 		default:
 			if _, ok := test.files[file.Name]; ok { // ordinary file
 				arch.Files = append(arch.Files, file)
+			} else if strings.HasPrefix(file.Name, "proxy/") { // proxy file
+				arch.Files = append(arch.Files, file)
 			} else if data, ok := updatedGolden[file.Name]; ok { // golden file
 				arch.Files = append(arch.Files, txtar.File{Name: file.Name, Data: data})
 				delete(updatedGolden, file.Name)
@@ -798,14 +823,20 @@ func formatTest(test *markerTest) ([]byte, error) {
 //
 // TODO(rfindley): simplify and refactor the construction of testing
 // environments across regtests, marker tests, and benchmarks.
-func newEnv(t *testing.T, cache *cache.Cache, files map[string][]byte, config fake.EditorConfig) *Env {
+func newEnv(t *testing.T, cache *cache.Cache, files, proxyFiles map[string][]byte, writeGoSum []string, config fake.EditorConfig) *Env {
 	sandbox, err := fake.NewSandbox(&fake.SandboxConfig{
-		RootDir: t.TempDir(),
-		GOPROXY: "https://proxy.golang.org",
-		Files:   files,
+		RootDir:    t.TempDir(),
+		Files:      files,
+		ProxyFiles: proxyFiles,
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	for _, dir := range writeGoSum {
+		if err := sandbox.RunGoCommand(context.Background(), dir, "list", []string{"-mod=mod", "..."}, []string{"GOWORK=off"}, true); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// Put a debug instance in the context to prevent logging to stderr.
@@ -851,7 +882,7 @@ type markerTestRun struct {
 	// Collected information.
 	// Each @diag/@suggestedfix marker eliminates an entry from diags.
 	locations map[expect.Identifier]protocol.Location
-	diags     map[protocol.Location][]protocol.Diagnostic
+	diags     map[protocol.Location][]protocol.Diagnostic // diagnostics by position; location end == start
 }
 
 // sprintf returns a formatted string after applying pre-processing to
@@ -1324,7 +1355,14 @@ func diagMarker(mark marker, loc protocol.Location, re *regexp.Regexp) {
 	}
 }
 
+// removeDiagnostic looks for a diagnostic matching loc at the given position.
+//
+// If found, it returns (diag, true), and eliminates the matched diagnostic
+// from the unmatched set.
+//
+// If not found, it returns (protocol.Diagnostic{}, false).
 func removeDiagnostic(mark marker, loc protocol.Location, re *regexp.Regexp) (protocol.Diagnostic, bool) {
+	loc.Range.End = loc.Range.Start // diagnostics ignore end position.
 	diags := mark.run.diags[loc]
 	for i, diag := range diags {
 		if re.MatchString(diag.Message) {
@@ -1444,6 +1482,7 @@ func codeActionErrMarker(mark marker, actionKind string, start, end protocol.Loc
 // the expectation of a diagnostic, but then it applies the first code
 // action of the specified kind suggested by the matched diagnostic.
 func suggestedfixMarker(mark marker, loc protocol.Location, re *regexp.Regexp, actionKind string, golden *Golden) {
+	loc.Range.End = loc.Range.Start // diagnostics ignore end position.
 	// Find and remove the matching diagnostic.
 	diag, ok := removeDiagnostic(mark, loc, re)
 	if !ok {

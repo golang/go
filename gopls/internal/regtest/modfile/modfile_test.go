@@ -336,48 +336,6 @@ require example.com v1.2.3
 	})
 }
 
-func TestUnusedDiag(t *testing.T) {
-
-	const proxy = `
--- example.com@v1.0.0/x.go --
-package pkg
-const X = 1
-`
-	const files = `
--- a/go.mod --
-module mod.com
-go 1.14
-require example.com v1.0.0
--- a/go.sum --
-example.com v1.0.0 h1:38O7j5rEBajXk+Q5wzLbRN7KqMkSgEiN9NqcM1O2bBM=
-example.com v1.0.0/go.mod h1:vUsPMGpx9ZXXzECCOsOmYCW7npJTwuA16yl89n3Mgls=
--- a/main.go --
-package main
-func main() {}
-`
-
-	const want = `module mod.com
-
-go 1.14
-`
-
-	RunMultiple{
-		{"default", WithOptions(ProxyFiles(proxy), WorkspaceFolders("a"))},
-		{"nested", WithOptions(ProxyFiles(proxy))},
-	}.Run(t, files, func(t *testing.T, env *Env) {
-		env.OpenFile("a/go.mod")
-		var d protocol.PublishDiagnosticsParams
-		env.AfterChange(
-			Diagnostics(env.AtRegexp("a/go.mod", `require example.com`)),
-			ReadDiagnostics("a/go.mod", &d),
-		)
-		env.ApplyQuickFixes("a/go.mod", d.Diagnostics)
-		if got := env.BufferText("a/go.mod"); got != want {
-			t.Fatalf("unexpected go.mod content:\n%s", compare.Text(want, got))
-		}
-	})
-}
-
 // Test to reproduce golang/go#39041. It adds a new require to a go.mod file
 // that already has an unused require.
 func TestNewDepWithUnusedDep(t *testing.T) {

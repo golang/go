@@ -1,0 +1,49 @@
+This test checks the suggested fix to remove unused require statements from
+go.mod files, when a go.work file is used.
+
+Note that unlike unusedrequire.txt, we need not write go.sum files when
+a go.work file is used.
+
+-- flags --
+-min_go=go1.18
+
+-- proxy/example.com@v1.0.0/x.go --
+package pkg
+const X = 1
+
+-- go.work --
+go 1.21
+
+use (
+	./a
+	./b
+)
+-- a/go.mod --
+module mod.com/a
+
+go 1.14
+
+require example.com v1.0.0 //@suggestedfix("require", re"not used", "quickfix", a)
+
+-- @a/a/go.mod --
+module mod.com/a
+
+go 1.14
+-- a/main.go --
+package main
+func main() {}
+
+-- b/go.mod --
+module mod.com/b
+
+go 1.14
+
+require example.com v1.0.0 //@suggestedfix("require", re"not used", "quickfix", b)
+
+-- @b/b/go.mod --
+module mod.com/b
+
+go 1.14
+-- b/main.go --
+package main
+func main() {}

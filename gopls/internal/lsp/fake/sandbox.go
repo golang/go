@@ -254,10 +254,11 @@ func (sb *Sandbox) goCommandInvocation() gocommand.Invocation {
 // RunGoCommand executes a go command in the sandbox. If checkForFileChanges is
 // true, the sandbox scans the working directory and emits file change events
 // for any file changes it finds.
-func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args []string, checkForFileChanges bool) error {
+func (sb *Sandbox) RunGoCommand(ctx context.Context, dir, verb string, args, env []string, checkForFileChanges bool) error {
 	inv := sb.goCommandInvocation()
 	inv.Verb = verb
 	inv.Args = args
+	inv.Env = append(inv.Env, env...)
 	if dir != "" {
 		inv.WorkingDir = sb.Workdir.AbsPath(dir)
 	}
@@ -289,7 +290,7 @@ func (sb *Sandbox) GoVersion(ctx context.Context) (int, error) {
 func (sb *Sandbox) Close() error {
 	var goCleanErr error
 	if sb.gopath != "" {
-		goCleanErr = sb.RunGoCommand(context.Background(), "", "clean", []string{"-modcache"}, false)
+		goCleanErr = sb.RunGoCommand(context.Background(), "", "clean", []string{"-modcache"}, nil, false)
 	}
 	err := robustio.RemoveAll(sb.rootdir)
 	if err != nil || goCleanErr != nil {

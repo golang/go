@@ -256,7 +256,7 @@ func (e *Env) RunGenerate(dir string) {
 // directory.
 func (e *Env) RunGoCommand(verb string, args ...string) {
 	e.T.Helper()
-	if err := e.Sandbox.RunGoCommand(e.Ctx, "", verb, args, true); err != nil {
+	if err := e.Sandbox.RunGoCommand(e.Ctx, "", verb, args, nil, true); err != nil {
 		e.T.Fatal(err)
 	}
 }
@@ -265,7 +265,7 @@ func (e *Env) RunGoCommand(verb string, args ...string) {
 // relative directory of the sandbox.
 func (e *Env) RunGoCommandInDir(dir, verb string, args ...string) {
 	e.T.Helper()
-	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, verb, args, true); err != nil {
+	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, verb, args, nil, true); err != nil {
 		e.T.Fatal(err)
 	}
 }
@@ -286,7 +286,7 @@ func (e *Env) GoVersion() int {
 func (e *Env) DumpGoSum(dir string) {
 	e.T.Helper()
 
-	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, "list", []string{"-mod=mod", "..."}, true); err != nil {
+	if err := e.Sandbox.RunGoCommand(e.Ctx, dir, "list", []string{"-mod=mod", "..."}, nil, true); err != nil {
 		e.T.Fatal(err)
 	}
 	sumFile := path.Join(dir, "/go.sum")
