@@ -58,6 +58,7 @@ type worklist struct {
 	latticeCells map[*Value]lattice  // constant lattices
 	defUse       map[*Value][]*Value // def-use chains for some values
 	defBlock     map[*Value][]*Block // use blocks of def
+	visitedBlock *sparseSet          // visited block
 }
 
 // sccp stands for sparse conditional constant propagation, it propagates constants
@@ -72,12 +73,11 @@ func sccp(f *Func) {
 	t.defUse = make(map[*Value][]*Value)
 	t.defBlock = make(map[*Value][]*Block)
 	t.latticeCells = make(map[*Value]lattice)
+	t.visitedBlock = f.newSparseSet(f.NumBlocks())
+	defer f.retSparseSet(t.visitedBlock)
 
 	// build it early since we rely heavily on the def-use chain later
 	t.buildDefUses()
-
-	visitedBlock := f.newSparseSet(f.NumBlocks())
-	defer f.retSparseSet(visitedBlock)
 
 	// pick up either an edge or SSA value from worklilst, process it
 	for {
@@ -86,11 +86,11 @@ func sccp(f *Func) {
 			t.edges = t.edges[1:]
 			if _, exist := t.visited[edge]; !exist {
 				dest := edge.b
-				destVisited := visitedBlock.contains(dest.ID)
+				destVisited := t.visitedBlock.contains(dest.ID)
 
 				// mark edge as visited
 				t.visited[edge] = true
-				visitedBlock.add(dest.ID)
+				t.visitedBlock.add(dest.ID)
 				for _, val := range dest.Values {
 					if val.Op == OpPhi || !destVisited {
 						t.visitValue(val)
@@ -119,6 +119,26 @@ func sccp(f *Func) {
 			fmt.Printf("Phase SCCP for %v : %v constants, %v dce\n", f.Name, constCnt, rewireCnt)
 		}
 	}
+}
+
+func equals(a, b lattice) bool {
+	if a == b {
+		// fast path
+		return true
+	}
+	if a.tag != b.tag {
+		return false
+	}
+	if a.tag == constant {
+		// The same content of const value may be different, we should
+		// compare with auxInt instead
+		if a.val.AuxInt == b.val.AuxInt {
+			return true
+		} else {
+			return false
+		}
+	}
+	return true
 }
 
 // possibleConst checks if Value can be fold to const. For those Values that can never become
@@ -254,13 +274,16 @@ func (t *worklist) buildDefUses() {
 func (t *worklist) addUses(val *Value) {
 	for _, use := range t.defUse[val] {
 		if val == use {
-			// Phi may refer to itself as uses, ignore them
+			// Phi may refer to itself as uses, ignore them to avoid re-visiting phi
+			// for performance reason
 			continue
 		}
 		t.uses = append(t.uses, use)
 	}
 	for _, block := range t.defBlock[val] {
-		t.propagate(block)
+		if t.visitedBlock.contains(block.ID) {
+			t.propagate(block)
+		}
 	}
 }
 
@@ -280,7 +303,7 @@ func (t *worklist) meet(val *Value) lattice {
 				if optimisticLt.tag == top {
 					optimisticLt = lt
 				} else {
-					if optimisticLt.val != lt.val {
+					if !equals(optimisticLt, lt) {
 						// ConstantA ∩ ConstantB = Bottom
 						return lattice{bottom, nil}
 					}
@@ -348,12 +371,14 @@ func (t *worklist) visitValue(val *Value) {
 	defer func() {
 		// re-visit all uses of value if its lattice is changed
 		newLt := t.getLatticeCell(val)
-		if newLt != oldLt {
+		if !equals(newLt, oldLt) {
+			if int8(oldLt.tag) > int8(newLt.tag) {
+				t.f.Fatalf("Must lower lattice\n")
+			}
 			t.addUses(val)
 		}
 	}()
 
-	worstLt := lattice{bottom, nil}
 	switch val.Op {
 	// they are constant values, aren't they?
 	case OpConst64, OpConst32, OpConst16, OpConst8,
@@ -390,12 +415,13 @@ func (t *worklist) visitValue(val *Value) {
 		// not
 		OpNot:
 		lt1 := t.getLatticeCell(val.Args[0])
-		if lt1.tag != constant {
-			t.latticeCells[val] = worstLt
-			return
-		}
 
-		t.latticeCells[val] = computeLattice(t.f, val, lt1.val)
+		if lt1.tag == constant {
+			// here we take a shortcut by reusing generic rules to fold constants
+			t.latticeCells[val] = computeLattice(t.f, val, lt1.val)
+		} else {
+			t.latticeCells[val] = lattice{lt1.tag, nil}
+		}
 	// fold 2-input operations
 	case
 		// add
@@ -436,13 +462,17 @@ func (t *worklist) visitValue(val *Value) {
 		OpXor8, OpXor16, OpXor32, OpXor64:
 		lt1 := t.getLatticeCell(val.Args[0])
 		lt2 := t.getLatticeCell(val.Args[1])
-		if lt1.tag != constant || lt2.tag != constant {
-			t.latticeCells[val] = worstLt
-			return
-		}
 
-		// here we take a shortcut by reusing generic rules to fold constants
-		t.latticeCells[val] = computeLattice(t.f, val, lt1.val, lt2.val)
+		if lt1.tag == constant && lt2.tag == constant {
+			// here we take a shortcut by reusing generic rules to fold constants
+			t.latticeCells[val] = computeLattice(t.f, val, lt1.val, lt2.val)
+		} else {
+			if lt1.tag == bottom || lt2.tag == bottom {
+				t.latticeCells[val] = lattice{bottom, nil}
+			} else {
+				t.latticeCells[val] = lattice{top, nil}
+			}
+		}
 	default:
 		// Any other type of value cannot be a constant, they are always worst(Bottom)
 	}
