@@ -16,11 +16,6 @@ import (
 	"unsafe"
 )
 
-func init() {
-	const expected_size = unsafe.Sizeof(C.struct___res_state{})
-	const got_size = unsafe.Sizeof(unix.ResState{})
-
-	// This will cause a compile error when the size of
-	// unix.ResState is too small.
-	var _ [got_size - expected_size]byte
-}
+// This will cause a compile error when the size of
+// unix.ResState is too small.
+type _ [unsafe.Sizeof(unix.ResState{}) - unsafe.Sizeof(C.struct___res_state{})]byte
