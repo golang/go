@@ -7,10 +7,12 @@
 package main
 
 import (
+	"bytes"
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modcmd"
 	"cmd/go/internal/modload"
+	"cmd/go/internal/work"
 	"context"
 	"fmt"
 	"internal/godebug"
@@ -61,19 +63,36 @@ func switchGoToolchain() {
 
 	gotoolchain := cfg.Getenv("GOTOOLCHAIN")
 	if gotoolchain == "" {
-		if strings.HasPrefix(runtime.Version(), "go") {
-			gotoolchain = "local" // TODO: set to "auto" once auto is implemented below
-		} else {
-			gotoolchain = "local"
-		}
-	}
-	env := gotoolchain
-	if gotoolchain == "auto" || gotoolchain == "path" {
-		// TODO: Locate and read go.mod or go.work.
-		base.Fatalf("GOTOOLCHAIN=auto not yet implemented")
+		gotoolchain = "auto"
 	}
 
-	if gotoolchain == "local" || gotoolchain == runtime.Version() {
+	gotoolchain, min, haveMin := strings.Cut(gotoolchain, "+")
+	if haveMin {
+		if gotoolchain != "auto" && gotoolchain != "path" {
+			base.Fatalf("invalid GOTOOLCHAIN %q: only auto and path can use +version", gotoolchain)
+		}
+		if !strings.HasPrefix(min, "go1") {
+			base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum version %q", gotoolchain, min)
+		}
+	} else {
+		min = work.RuntimeVersion
+	}
+
+	pathOnly := gotoolchain == "path"
+	if gotoolchain == "auto" || gotoolchain == "path" {
+		// Locate and read go.mod or go.work.
+		goVers, toolchain := modGoToolchain()
+		if toolchain != "" {
+			// toolchain line wins by itself
+			gotoolchain = toolchain
+		} else if goVers != "" {
+			gotoolchain = toolchainMax(min, "go"+goVers)
+		} else {
+			gotoolchain = min
+		}
+	}
+
+	if gotoolchain == "local" || gotoolchain == work.RuntimeVersion {
 		// Let the current binary handle the command.
 		return
 	}
@@ -95,7 +114,7 @@ func switchGoToolchain() {
 
 	// GOTOOLCHAIN=auto looks in PATH and then falls back to download.
 	// GOTOOLCHAIN=path only looks in PATH.
-	if env == "path" {
+	if pathOnly {
 		base.Fatalf("cannot find %q in PATH", gotoolchain)
 	}
 
@@ -207,4 +226,40 @@ func execGoToolchain(gotoolchain, dir, exe string) {
 	}
 	err := syscall.Exec(exe, os.Args, os.Environ())
 	base.Fatalf("exec %s: %v", gotoolchain, err)
+}
+
+// modGoToolchain finds the enclosing go.work or go.mod file
+// and returns the go version and toolchain lines from the file.
+// The toolchain line overrides the version line
+func modGoToolchain() (goVers, toolchain string) {
+	wd := base.UncachedCwd()
+	file := modload.FindGoWork(wd)
+	// $GOWORK can be set to a file that does not yet exist, if we are running 'go work init'.
+	// Do not try to load the file in that case
+	if _, err := os.Stat(file); err != nil {
+		file = ""
+	}
+	if file == "" {
+		file = modload.FindGoMod(wd)
+	}
+	if file == "" {
+		return "", ""
+	}
+
+	data, err := os.ReadFile(file)
+	if err != nil {
+		base.Fatalf("%v", err)
+	}
+	for len(data) > 0 {
+		var line []byte
+		line, data, _ = bytes.Cut(data, nl)
+		line = bytes.TrimSpace(line)
+		if goVers == "" {
+			goVers = parseKey(line, goKey)
+		}
+		if toolchain == "" {
+			toolchain = parseKey(line, toolchainKey)
+		}
+	}
+	return
 }

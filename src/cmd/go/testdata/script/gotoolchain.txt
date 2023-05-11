@@ -32,6 +32,120 @@ env GOTOOLCHAIN=go1.999testmod
 go version
 stderr 'go: downloading go1.999testmod \(.*/.*\)'
 
+# GOTOOLCHAIN=auto
+env GOTOOLCHAIN=auto
+env TESTGO_VERSION=go1.100 # set TESTGO_VERSION because devel is newer than everything
+
+# toolchain line in go.mod
+cp go119toolchain1999 go.mod
+go version
+stdout go1.999
+
+# toolchain line in go.work
+cp empty go.mod
+cp go119toolchain1999 go.work
+go version
+stdout go1.999
+rm go.work
+
+# go version in go.mod
+cp go1999 go.mod
+go version
+stdout go1.999
+
+# go version in go.work
+cp empty go.mod
+cp go1999 go.work
+go version
+stdout go1.999
+rm go.work
+
+# GOTOOLCHAIN=auto falls back to local toolchain if newer than go line
+env TESTGO_VERSION=go1.1000
+
+# toolchain line in go.mod
+cp go119toolchain1999 go.mod
+go version
+stdout go1.999
+
+# toolchain line in go.work
+cp empty go.mod
+cp go119toolchain1999 go.work
+go version
+stdout go1.999
+rm go.work
+
+# go version in go.mod
+cp go1999 go.mod
+go version
+! stdout go1.999
+
+# go version in go.work
+cp empty go.mod
+cp go1999 go.work
+go version
+! stdout go1.999
+rm go.work
+
+# GOTOOLCHAIN=auto+go1.1000 falls back to go1.1000 if newer than go line
+env TESTGO_VERSION=go1.1
+env GOTOOLCHAIN=auto+go1.1000
+
+# toolchain line in go.mod
+cp go119toolchain1999 go.mod
+go version
+stdout go1.999
+
+# toolchain line in go.work
+cp empty go.mod
+cp go119toolchain1999 go.work
+go version
+stdout go1.999
+rm go.work
+
+# go version in go.mod
+cp go1999 go.mod
+! go version
+stderr go1.1000
+
+# go version in go.work
+cp empty go.mod
+cp go1999 go.work
+! go version
+stderr go1.1000
+rm go.work
+
+# GOTOOLCHAIN=path refuses to download
+env GOTOOLCHAIN=path
+env TESTGO_VERSION=go1.19
+
+cp go1999 go.mod
+go version
+stdout go1.999
+
+cp go1999mod go.mod
+! go version
+stderr '^go: cannot find "go1.999mod" in PATH$'
+
+-- empty --
+
+-- go1999 --
+go 1.999testpath
+
+-- go1999mod --
+go 1.999mod
+
+-- go119 ---
+go 1.19
+
+-- go119toolchain1999 --
+go 1.19
+toolchain go1.999testpath
+
+-- go1999toolchain119 --
+go 1.999testpath
+toolchain go1.19
+
 -- go1.999testpath.go --
 package main
 
