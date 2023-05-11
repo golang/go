@@ -128,16 +128,15 @@ func (check *Checker) funcInst(tsig *Signature, pos syntax.Pos, x *operand, inst
 	assert(got == want)
 
 	// instantiate function signature
-	sig = check.instantiateSignature(x.Pos(), sig, targs, xlist)
-	assert(sig.TypeParams().Len() == 0) // signature is not generic anymore
+	expr := x.expr // if we don't have an index expression, keep the existing expression of x
+	if inst != nil {
+		expr = inst
+	}
+	sig = check.instantiateSignature(x.Pos(), expr, sig, targs, xlist)
 
 	x.typ = sig
 	x.mode = value
-	// If we don't have an index expression, keep the existing expression of x.
-	if inst != nil {
-		x.expr = inst
-	}
-	check.recordInstance(x.expr, targs, sig)
+	x.expr = expr
 	return nil, nil
 }
 
@@ -160,7 +159,7 @@ func nth(n int) string {
 	return fmt.Sprintf("%dth", n)
 }
 
-func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs []Type, xlist []syntax.Expr) (res *Signature) {
+func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ *Signature, targs []Type, xlist []syntax.Expr) (res *Signature) {
 	assert(check != nil)
 	assert(len(targs) == typ.TypeParams().Len())
 
@@ -174,6 +173,8 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, typ *Signature, targs
 	}
 
 	inst := check.instance(pos, typ, targs, nil, check.context()).(*Signature)
+	assert(inst.TypeParams().Len() == 0) // signature is not generic anymore
+	check.recordInstance(expr, targs, inst)
 	assert(len(xlist) <= len(targs))
 
 	// verify instantiation lazily (was go.dev/issue/50450)
@@ -311,11 +312,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		// of arguments is supplied).
 		if got == want && want > 0 {
 			check.verifyVersionf(check.pkg, inst, go1_18, "function instantiation")
-
-			sig = check.instantiateSignature(inst.Pos(), sig, targs, xlist)
-			assert(sig.TypeParams().Len() == 0) // signature is not generic anymore
-			check.recordInstance(inst, targs, sig)
-
+			sig = check.instantiateSignature(inst.Pos(), inst, sig, targs, xlist)
 			// targs have been consumed; proceed with checking arguments of the
 			// non-generic signature.
 			targs = nil
@@ -572,9 +569,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		// compute result signature: instantiate if needed
 		rsig = sig
 		if n > 0 {
-			rsig = check.instantiateSignature(call.Pos(), sig, targs[:n], xlist)
-			assert(rsig.TypeParams().Len() == 0) // signature is not generic anymore
-			check.recordInstance(call.Fun, targs[:n], rsig)
+			rsig = check.instantiateSignature(call.Pos(), call.Fun, sig, targs[:n], xlist)
 		}
 
 		// Optimization: Only if the callee's parameter list was adjusted do we need to
@@ -593,10 +588,8 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 			asig := args[i].typ.(*Signature)
 			k := j + asig.TypeParams().Len()
 			// targs[j:k] are the inferred type arguments for asig
-			asig = check.instantiateSignature(call.Pos(), asig, targs[j:k], nil) // TODO(gri) provide xlist if possible (partial instantiations)
-			assert(asig.TypeParams().Len() == 0)                                 // signature is not generic anymore
+			asig = check.instantiateSignature(call.Pos(), args[i].expr, asig, targs[j:k], nil) // TODO(gri) provide xlist if possible (partial instantiations)
 			args[i].typ = asig
-			check.recordInstance(args[i].expr, targs[j:k], asig)
 			j = k
 		}
 	}
