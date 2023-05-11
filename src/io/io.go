@@ -413,7 +413,7 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 		return rt.ReadFrom(src)
 	}
 	if buf == nil {
-		size := 32 * 1024
+		size := 1 << 15
 		if l, ok := src.(*LimitedReader); ok && int64(size) > l.N {
 			if l.N < 1 {
 				size = 1
