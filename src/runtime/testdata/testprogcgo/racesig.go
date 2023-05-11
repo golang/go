@@ -81,8 +81,6 @@ import "C"
 
 import (
 	"fmt"
-	"os"
-	"time"
 )
 
 func init() {
@@ -90,14 +88,6 @@ func init() {
 }
 
 func CgoRaceSignal() {
-	// The failure symptom is that the program hangs because of a
-	// deadlock in malloc, so set an alarm.
-	go func() {
-		time.Sleep(5 * time.Second)
-		fmt.Println("Hung for 5 seconds")
-		os.Exit(1)
-	}()
-
 	C.runRaceSignalThread()
 	fmt.Println("OK")
 }

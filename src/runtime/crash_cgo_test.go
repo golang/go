@@ -410,9 +410,6 @@ func TestRaceSignal(t *testing.T) {
 		t.Skipf("skipping: test requires pthread support")
 		// TODO: Can this test be rewritten to use the C11 thread API instead?
 	}
-	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		testenv.SkipFlaky(t, 59807)
-	}
 
 	t.Parallel()
 
@@ -429,7 +426,7 @@ func TestRaceSignal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoRaceSignal")).CombinedOutput()
+	got, err := testenv.CleanCmdEnv(testenv.Command(t, exe, "CgoRaceSignal")).CombinedOutput()
 	if err != nil {
 		t.Logf("%s\n", got)
 		t.Fatal(err)
