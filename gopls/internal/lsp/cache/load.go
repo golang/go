@@ -451,14 +451,12 @@ func buildMetadata(updates map[PackageID]*source.Metadata, pkg *packages.Package
 	pkgPath := PackagePath(pkg.PkgPath)
 	id := PackageID(pkg.ID)
 
-	// TODO(rfindley): this creates at most one command-line-arguments package
-	// per load, but if we pass multiple file= queries to go/packages, there may
-	// be multiple command-line-arguments packages.
-	//
-	// As reported in golang/go#59318, this can result in accidentally quadratic
-	// loading behavior.
 	if source.IsCommandLineArguments(id) {
-		suffix := ":" + strings.Join(query, ",")
+		if len(pkg.CompiledGoFiles) != 1 {
+			bug.Reportf("unexpected files in command-line-arguments package: %v", pkg.CompiledGoFiles)
+			return
+		}
+		suffix := pkg.CompiledGoFiles[0]
 		id = PackageID(pkg.ID + suffix)
 		pkgPath = PackagePath(pkg.PkgPath + suffix)
 	}

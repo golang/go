@@ -1,0 +1,22 @@
+This test verifies that we can load multiple orphaned files as
+command-line-arguments packages.
+
+Previously, we would load only one because go/packages returns at most one
+command-line-arguments package per query.
+
+-- a/main.go --
+package main
+
+func main() {
+	var a int //@diag(re"var (a)", re"not used")
+}
+-- b/main.go --
+package main
+
+func main() {
+	var b int //@diag(re"var (b)", re"not used")
+}
+-- c/go.mod --
+module c.com // The existence of this module avoids a workspace error.
+
+go 1.18

@@ -1595,28 +1595,34 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	// available in the snapshot and reload their metadata individually using a
 	// file= query if the metadata is unavailable.
 	files := s.orphanedOpenFiles()
-
-	// Files without a valid package declaration can't be loaded. Don't try.
-	var scopes []loadScope
-	for _, file := range files {
-		pgf, err := s.ParseGo(ctx, file, source.ParseHeader)
-		if err != nil {
-			continue
-		}
-		if !pgf.File.Package.IsValid() {
-			continue
-		}
-
-		scopes = append(scopes, fileLoadScope(file.URI()))
-	}
-
-	if len(scopes) == 0 {
+	if len(files) == 0 {
 		return nil
 	}
 
-	// The regtests match this exact log message, keep them in sync.
-	event.Log(ctx, "reloadOrphanedFiles reloading", tag.Query.Of(scopes))
-	err := s.load(ctx, false, scopes...)
+	var uris []span.URI
+	for _, file := range files {
+		uris = append(uris, file.URI())
+	}
+
+	event.Log(ctx, "reloadOrphanedFiles reloading", tag.Files.Of(uris))
+
+	var g errgroup.Group
+
+	cpulimit := runtime.GOMAXPROCS(0)
+	g.SetLimit(cpulimit)
+
+	// Load files one-at-a-time. go/packages can return at most one
+	// command-line-arguments package per query.
+	for _, file := range files {
+		file := file
+		g.Go(func() error {
+			pgf, err := s.ParseGo(ctx, file, source.ParseHeader)
+			if err != nil || !pgf.File.Package.IsValid() {
+				return nil // need a valid header
+			}
+			return s.load(ctx, false, fileLoadScope(file.URI()))
+		})
+	}
 
 	// If we failed to load some files, i.e. they have no metadata,
 	// mark the failures so we don't bother retrying until the file's
@@ -1624,11 +1630,17 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	//
 	// TODO(rfindley): is it possible that the load stopped early for an
 	// unrelated errors? If so, add a fallback?
-	//
-	// Check for context cancellation so that we don't incorrectly mark files
-	// as unloadable, but don't return before setting all workspace packages.
-	if ctx.Err() != nil {
-		return ctx.Err()
+
+	if err := g.Wait(); err != nil {
+		// Check for context cancellation so that we don't incorrectly mark files
+		// as unloadable, but don't return before setting all workspace packages.
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		if !errors.Is(err, errNoPackages) {
+			event.Error(ctx, "reloadOrphanedFiles: failed to load", err, tag.Files.Of(uris))
+		}
 	}
 
 	// If the context was not canceled, we assume that the result of loading
@@ -1637,18 +1649,14 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	// prevents us from falling into recursive reloading where we only make a bit
 	// of progress each time.
 	s.mu.Lock()
-	for _, scope := range scopes {
+	defer s.mu.Unlock()
+	for _, file := range files {
 		// TODO(rfindley): instead of locking here, we should have load return the
 		// metadata graph that resulted from loading.
-		uri := span.URI(scope.(fileLoadScope))
+		uri := file.URI()
 		if s.noValidMetadataForURILocked(uri) {
 			s.unloadableFiles[uri] = struct{}{}
 		}
-	}
-	s.mu.Unlock()
-
-	if err != nil && !errors.Is(err, errNoPackages) {
-		event.Error(ctx, "reloadOrphanedFiles: failed to load", err, tag.Query.Of(scopes))
 	}
 
 	return nil
