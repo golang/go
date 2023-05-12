@@ -188,6 +188,7 @@ func (ts *testScript) setup() {
 		"devnull=" + os.DevNull,
 		"goversion=" + goVersion(ts),
 		"CMDGO_TEST_RUN_MAIN=true",
+		"newline=\n",
 	}
 	if testenv.Builder() != "" || os.Getenv("GIT_TRACE_CURL") == "1" {
 		// To help diagnose https://go.dev/issue/52545,
