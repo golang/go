@@ -932,10 +932,13 @@ func init() {
 func runtime_coverage_processCoverTestDir(dir string, cfile string, cmode string, cpkgs string) error
 
 //go:linkname testing_registerCover2 testing.registerCover2
-func testing_registerCover2(mode string, tearDown func(coverprofile string, gocoverdir string) (string, error))
+func testing_registerCover2(mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64)
 
 //go:linkname runtime_coverage_markProfileEmitted runtime/coverage.markProfileEmitted
 func runtime_coverage_markProfileEmitted(val bool)
+
+//go:linkname runtime_coverage_snapshot runtime/coverage.snapshot
+func runtime_coverage_snapshot() float64
 
 func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
 	var err error
@@ -957,7 +960,7 @@ func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
 
 func main() {
 {{if .Cover}}
-	testing_registerCover2({{printf "%q" .Cover.Mode}}, coverTearDown)
+	testing_registerCover2({{printf "%q" .Cover.Mode}}, coverTearDown, runtime_coverage_snapshot)
 {{end}}
 	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, fuzzTargets, examples)
 {{with .TestMain}}
