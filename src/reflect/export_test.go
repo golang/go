@@ -35,7 +35,7 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 	if rcvr != nil {
 		ft, _, abid = funcLayout((*funcType)(unsafe.Pointer(t.common())), rcvr.common())
 	} else {
-		ft, _, abid = funcLayout((*funcType)(unsafe.Pointer(t.common())), nil)
+		ft, _, abid = funcLayout((*funcType)(unsafe.Pointer(t.(*rtype))), nil)
 	}
 	// Extract size information.
 	argSize = abid.stackCallArgsSize
@@ -80,7 +80,7 @@ func TypeLinks() []string {
 	for i, offs := range offset {
 		rodata := sections[i]
 		for _, off := range offs {
-			typ := toRType((*abi.Type)(resolveTypeOff(unsafe.Pointer(rodata), off)))
+			typ := (*rtype)(resolveTypeOff(unsafe.Pointer(rodata), off))
 			r = append(r, typ.String())
 		}
 	}
@@ -96,11 +96,11 @@ func MapBucketOf(x, y Type) Type {
 }
 
 func CachedBucketOf(m Type) Type {
-	t := m.(rtype)
+	t := m.(*rtype)
 	if Kind(t.t.Kind_&kindMask) != Map {
 		panic("not map")
 	}
-	tt := (*mapType)(unsafe.Pointer(t.t))
+	tt := (*mapType)(unsafe.Pointer(t))
 	return toType(tt.Bucket)
 }
 
@@ -122,7 +122,7 @@ func FirstMethodNameBytes(t Type) *byte {
 		panic("type has no methods")
 	}
 	m := ut.Methods()[0]
-	mname := t.(rtype).nameOff(m.Name)
+	mname := t.(*rtype).nameOff(m.Name)
 	if *mname.DataChecked(0, "name flag field")&(1<<2) == 0 {
 		panic("method name does not have pkgPath *string")
 	}
@@ -135,7 +135,7 @@ type OtherPkgFields struct {
 }
 
 func IsExported(t Type) bool {
-	typ := t.(rtype)
+	typ := t.(*rtype)
 	n := typ.nameOff(typ.t.Str)
 	return n.IsExported()
 }

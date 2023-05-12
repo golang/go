@@ -104,7 +104,7 @@ func makeMethodValue(op string, v Value) Value {
 	rcvr := Value{v.typ, v.ptr, fl}
 
 	// v.Type returns the actual type of the method value.
-	ftyp := (*funcType)(unsafe.Pointer(v.Type().common()))
+	ftyp := (*funcType)(unsafe.Pointer(v.Type().(*rtype)))
 
 	code := methodValueCallCodePtr()
 
