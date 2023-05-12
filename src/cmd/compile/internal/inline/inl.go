@@ -87,7 +87,7 @@ func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
 	}
 	var hotCallsites []pgo.NodeMapKey
 	inlineHotCallSiteThresholdPercent, hotCallsites = hotNodesFromCDF(p)
-	if base.Debug.PGOInline > 0 {
+	if base.Debug.PGODebug > 0 {
 		fmt.Printf("hot-callsite-thres-from-CDF=%v\n", inlineHotCallSiteThresholdPercent)
 	}
 
@@ -107,7 +107,7 @@ func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
 		}
 	}
 
-	if base.Debug.PGOInline >= 2 {
+	if base.Debug.PGODebug >= 2 {
 		fmt.Printf("hot-cg before inline in dot format:")
 		p.PrintWeightedCallGraphDOT(inlineHotCallSiteThresholdPercent)
 	}
@@ -156,6 +156,10 @@ func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
 
 // InlinePackage finds functions that can be inlined and clones them before walk expands them.
 func InlinePackage(p *pgo.Profile) {
+	if base.Debug.PGOInline == 0 {
+		p = nil
+	}
+
 	InlineDecls(p, typecheck.Target.Decls, true)
 
 	// Perform a garbage collection of hidden closures functions that
@@ -365,7 +369,7 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
 		if n, ok := profile.WeightedCG.IRNodes[ir.LinkFuncName(fn)]; ok {
 			if _, ok := candHotCalleeMap[n]; ok {
 				budget = int32(inlineHotMaxBudget)
-				if base.Debug.PGOInline > 0 {
+				if base.Debug.PGODebug > 0 {
 					fmt.Printf("hot-node enabled increased budget=%v for func=%v\n", budget, ir.PkgFuncName(fn))
 				}
 			}
@@ -557,7 +561,7 @@ func (v *hairyVisitor) doNode(n ir.Node) bool {
 				lineOffset := pgo.NodeLineOffset(n, fn)
 				csi := pgo.CallSiteInfo{LineOffset: lineOffset, Caller: v.curFunc}
 				if _, o := candHotEdgeMap[csi]; o {
-					if base.Debug.PGOInline > 0 {
+					if base.Debug.PGODebug > 0 {
 						fmt.Printf("hot-callsite identified at line=%v for func=%v\n", ir.Line(n), ir.PkgFuncName(v.curFunc))
 					}
 				}
@@ -991,7 +995,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 	// Hot
 
 	if bigCaller {
-		if base.Debug.PGOInline > 0 {
+		if base.Debug.PGODebug > 0 {
 			fmt.Printf("hot-big check disallows inlining for call %s (cost %d) at %v in big function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
 		}
 		return false, maxCost
@@ -1001,7 +1005,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
 		return false, inlineHotMaxBudget
 	}
 
-	if base.Debug.PGOInline > 0 {
+	if base.Debug.PGODebug > 0 {
 		fmt.Printf("hot-budget check allows inlining for call %s (cost %d) at %v in function %s\n", ir.PkgFuncName(callee), callee.Inl.Cost, ir.Line(n), ir.PkgFuncName(caller))
 	}
 
