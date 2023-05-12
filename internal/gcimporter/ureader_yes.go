@@ -10,6 +10,7 @@
 package gcimporter
 
 import (
+	"fmt"
 	"go/token"
 	"go/types"
 	"sort"
@@ -63,6 +64,14 @@ type typeInfo struct {
 }
 
 func UImportData(fset *token.FileSet, imports map[string]*types.Package, data []byte, path string) (_ int, pkg *types.Package, err error) {
+	if !debug {
+		defer func() {
+			if x := recover(); x != nil {
+				err = fmt.Errorf("internal error in importing %q (%v); please report an issue", path, x)
+			}
+		}()
+	}
+
 	s := string(data)
 	s = s[:strings.LastIndex(s, "\n$$\n")]
 	input := pkgbits.NewPkgDecoder(path, s)

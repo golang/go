@@ -131,7 +131,7 @@ func iimportCommon(fset *token.FileSet, getPackage GetPackageFunc, data []byte, 
 				} else if version > currentVersion {
 					err = fmt.Errorf("cannot import %q (%v), export data is newer version - update tool", path, e)
 				} else {
-					err = fmt.Errorf("cannot import %q (%v), possibly version skew - reinstall package", path, e)
+					err = fmt.Errorf("internal error while importing %q (%v); please report an issue", path, e)
 				}
 			}
 		}()
@@ -140,11 +140,8 @@ func iimportCommon(fset *token.FileSet, getPackage GetPackageFunc, data []byte, 
 	r := &intReader{bytes.NewReader(data), path}
 
 	if bundle {
-		bundleVersion := r.uint64()
-		switch bundleVersion {
-		case bundleVersion:
-		default:
-			errorf("unknown bundle format version %d", bundleVersion)
+		if v := r.uint64(); v != bundleVersion {
+			errorf("unknown bundle format version %d", v)
 		}
 	}
 

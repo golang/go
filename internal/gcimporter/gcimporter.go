@@ -230,9 +230,7 @@ func Import(packages map[string]*types.Package, path, srcDir string, lookup func
 		// Or, define a new standard go/types/gcexportdata package.
 		fset := token.NewFileSet()
 
-		// The indexed export format starts with an 'i'; the older
-		// binary export format starts with a 'c', 'd', or 'v'
-		// (from "version"). Select appropriate importer.
+		// Select appropriate importer.
 		if len(data) > 0 {
 			switch data[0] {
 			case 'v', 'c', 'd': // binary, till go1.10
