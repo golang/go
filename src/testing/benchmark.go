@@ -178,9 +178,21 @@ func (b *B) ReportAllocs() {
 }
 
 // runN runs a single benchmark for the specified number of iterations.
-func (b *B) runN(n int) {
+// It returns any panic that occurred while running the benchmark
+func (b *B) runN(n int) (panicVal any) {
 	benchmarkLock.Lock()
 	defer benchmarkLock.Unlock()
+
+	// catch panics in the benchmark
+	defer func() {
+		panicVal = recover()
+		if panicVal != nil {
+			// TODO: This marks the benchmark as failed, but something is catching
+			// the re-raised panic and not crashing the parent
+			b.failed = true
+		}
+	}()
+
 	defer b.runCleanup(normalPanic)
 	// Try to get a comparable environment for each run
 	// by clearing garbage from previous runs.
@@ -198,6 +210,8 @@ func (b *B) runN(n int) {
 	if b.raceErrors > 0 {
 		b.Errorf("race detected during execution of benchmark")
 	}
+
+	return nil
 }
 
 func min(x, y int64) int64 {
@@ -223,6 +237,7 @@ func (b *B) run1() bool {
 			ctx.maxLen = n + 8 // Add additional slack to avoid too many jumps in size.
 		}
 	}
+	var panicVal any
 	go func() {
 		// Signal that we're done whether we return normally
 		// or by FailNow's runtime.Goexit.
@@ -230,9 +245,15 @@ func (b *B) run1() bool {
 			b.signal <- true
 		}()
 
-		b.runN(1)
+		panicVal = b.runN(1)
 	}()
 	<-b.signal
+
+	if panicVal != nil {
+		// panic if the sub-run paniced: ensures parent cleanup functions will run
+		panic(panicVal)
+	}
+
 	if b.failed {
 		fmt.Fprintf(b.w, "%s--- FAIL: %s\n%s", b.chatty.prefix(), b.name, b.output)
 		return false
@@ -303,7 +324,10 @@ func (b *B) launch() {
 		// If -benchtime=1x was requested, use that result.
 		// See https://golang.org/issue/32051.
 		if b.benchTime.n > 1 {
-			b.runN(b.benchTime.n)
+			panicVal := b.runN(b.benchTime.n)
+			if panicVal != nil {
+				panic(panicVal)
+			}
 		}
 	} else {
 		d := b.benchTime.d
@@ -331,7 +355,10 @@ func (b *B) launch() {
 			n = max(n, last+1)
 			// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
 			n = min(n, 1e9)
-			b.runN(int(n))
+			panicVal := b.runN(int(n))
+			if panicVal != nil {
+				panic(panicVal)
+			}
 		}
 	}
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}

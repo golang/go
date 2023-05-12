@@ -126,6 +126,45 @@ func TestRunParallelSkipNow(t *testing.T) {
 	})
 }
 
+// Parent benchmark cleanup functions must run when a sub-benchmark panics.
+func TestBenchmarkNestedCleanupWithPanic(t *testing.T) {
+	level1Ran := false
+	level2Ran := false
+	level3Ran := false
+
+	didPanic := false
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				didPanic = true
+				return
+			}
+		}()
+
+		testing.Benchmark(func(b *testing.B) {
+			b.Cleanup(func() { level1Ran = true })
+
+			b.Run("level2", func(b *testing.B) {
+				b.Cleanup(func() { level2Ran = true })
+
+				b.Run("level3", func(b *testing.B) {
+					b.Cleanup(func() { level3Ran = true })
+
+					panic("benchmark panic")
+				})
+			})
+		})
+	}()
+
+	if !didPanic {
+		t.Error("expected the benchmark to panic but it did not")
+	}
+	if !(level1Ran && level2Ran && level3Ran) {
+		t.Errorf("cleanup functions did not run level1=%t level2=%t level3=%t",
+			level1Ran, level2Ran, level3Ran)
+	}
+}
+
 func ExampleB_RunParallel() {
 	// Parallel benchmark for text/template.Template.Execute on a single object.
 	testing.Benchmark(func(b *testing.B) {
