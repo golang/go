@@ -4173,7 +4173,7 @@ func exitsyscall() {
 		// Tracing code can invoke write barriers that cannot run without a P.
 		// So instead we remember the syscall exit time and emit the event
 		// in execute when we have a P.
-		gp.trace.sysExitTicks = cputicks()
+		gp.trace.sysExitTime = traceClockNow()
 	}
 
 	gp.m.locks--
