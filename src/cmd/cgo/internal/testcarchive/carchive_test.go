@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This test uses various syscall.SIG* constants that are defined on Unix
+// platforms and Windows.
+
+//go:build unix || windows
+
 package carchive_test
 
 import (
