@@ -1,0 +1,104 @@
+[GOOS:windows] skip 'filesystem normalizes / to \'
+[GOOS:plan9] skip 'filesystem disallows \n in paths'
+
+# If the directory path containing a package to be built includes a newline,
+# the go command should refuse to even try to build the package.
+
+env DIR=$WORK${/}${newline}'package main'${newline}'func main() { panic("uh-oh")'${newline}'/*'
+
+mkdir $DIR
+cd $DIR
+exec pwd
+cp $WORK/go.mod ./go.mod
+cp $WORK/main.go ./main.go
+cp $WORK/main_test.go ./main_test.go
+
+! go build -o $devnull .
+stderr 'package example: invalid package directory .*uh-oh'
+
+! go build -o $devnull main.go
+stderr 'package command-line-arguments: invalid package directory .*uh-oh'
+
+! go run .
+stderr 'package example: invalid package directory .*uh-oh'
+
+! go run main.go
+stderr 'package command-line-arguments: invalid package directory .*uh-oh'
+
+! go test .
+stderr 'package example: invalid package directory .*uh-oh'
+
+! go test -v main.go main_test.go
+stderr 'package command-line-arguments: invalid package directory .*uh-oh'
+
+go list -compiled -e -f '{{with .CompiledGoFiles}}{{.}}{{end}}' .
+! stdout .
+! stderr .
+
+
+# Since we do preserve $PWD (or set it appropriately) for commands, and we do
+# not resolve symlinks unnecessarily, referring to the contents of the unsafe
+# directory via a safe symlink should be ok, and should not inject the data from
+# the symlink target path.
+
+[!symlink] stop 'remainder of test checks symlink behavior'
+[short] stop 'links and runs binaries'
+
+symlink $WORK${/}link -> $DIR
+
+go run $WORK${/}link${/}main.go
+! stdout panic
+! stderr panic
+stderr '^ok$'
+
+go test -v $WORK${/}link${/}main.go $WORK${/}link${/}main_test.go
+! stdout panic
+! stderr panic
+stdout '^ok$'   # 'go test' combines the test's stdout into stderr
+
+cd $WORK/link
+
+! go run $DIR${/}main.go
+stderr 'package command-line-arguments: invalid package directory .*uh-oh'
+
+go run .
+! stdout panic
+! stderr panic
+stderr '^ok$'
+
+go run main.go
+! stdout panic
+! stderr panic
+stderr '^ok$'
+
+go test -v
+! stdout panic
+! stderr panic
+stdout '^ok$'  # 'go test' combines the test's stdout into stderr
+
+go test -v .
+! stdout panic
+! stderr panic
+stdout '^ok$'  # 'go test' combines the test's stdout into stderr
+
+
+-- $WORK/go.mod --
+module example
+go 1.19
+-- $WORK/main.go --
+package main
+
+import "C"
+
+func main() {
+	/* nothing here */
+	println("ok")
+}
+-- $WORK/main_test.go --
+package main
+
+import "testing"
+
+func TestMain(*testing.M) {
+	main()
+}

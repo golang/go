@@ -1995,6 +1995,10 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
 		setError(fmt.Errorf("invalid input directory name %q", name))
 		return
 	}
+	if strings.ContainsAny(p.Dir, "\r\n") {
+		setError(fmt.Errorf("invalid package directory %q", p.Dir))
+		return
+	}
 
 	// Build list of imported packages and full dependency list.
 	imports := make([]*Package, 0, len(p.Imports))

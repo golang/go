@@ -514,6 +514,12 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		b.Print(p.ImportPath + "\n")
 	}
 
+	if p.Error != nil {
+		// Don't try to build anything for packages with errors. There may be a
+		// problem with the inputs that makes the package unsafe to build.
+		return p.Error
+	}
+
 	if p.BinaryOnly {
 		p.Stale = true
 		p.StaleReason = "binary-only packages are no longer supported"
