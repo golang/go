@@ -15,7 +15,9 @@ import (
 	"internal/coverage/pods"
 	"io"
 	"os"
+	"runtime/internal/atomic"
 	"strings"
+	"unsafe"
 )
 
 // processCoverTestDir is called (via a linknamed reference) from
@@ -231,4 +233,49 @@ func (ts *tstate) processPod(p pods.Pod) error {
 
 type pkfunc struct {
 	pk, fcn uint32
+}
+
+// snapshot returns a snapshot of coverage percentage at a moment of
+// time within a running test, so as to support the testing.Coverage()
+// function. This version doesn't examine coverage meta-data, so the
+// result it returns will be less accurate (more "slop") due to the
+// fact that we don't look at the meta data to see how many statements
+// are associated with each counter.
+func snapshot() float64 {
+	cl := getCovCounterList()
+	if len(cl) == 0 {
+		// no work to do here.
+		return 0.0
+	}
+
+	tot := uint64(0)
+	totExec := uint64(0)
+	for _, c := range cl {
+		sd := unsafe.Slice((*atomic.Uint32)(unsafe.Pointer(c.Counters)), c.Len)
+		tot += uint64(len(sd))
+		for i := 0; i < len(sd); i++ {
+			// Skip ahead until the next non-zero value.
+			if sd[i].Load() == 0 {
+				continue
+			}
+			// We found a function that was executed.
+			nCtrs := sd[i+coverage.NumCtrsOffset].Load()
+			cst := i + coverage.FirstCtrOffset
+
+			if cst+int(nCtrs) > len(sd) {
+				break
+			}
+			counters := sd[cst : cst+int(nCtrs)]
+			for i := range counters {
+				if counters[i].Load() != 0 {
+					totExec++
+				}
+			}
+			i += coverage.FirstCtrOffset + int(nCtrs) - 1
+		}
+	}
+	if tot == 0 {
+		return 0.0
+	}
+	return float64(totExec) / float64(tot)
 }

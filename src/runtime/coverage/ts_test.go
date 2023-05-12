@@ -53,3 +53,43 @@ func TestTestSupport(t *testing.T) {
 		t.Fatalf("percent output missing token: %q", want)
 	}
 }
+
+var funcInvoked bool
+
+//go:noinline
+func thisFunctionOnlyCalledFromSnapshotTest(n int) int {
+	if funcInvoked {
+		panic("bad")
+	}
+	funcInvoked = true
+
+	// Contents here not especially important, just so long as we
+	// have some statements.
+	t := 0
+	for i := 0; i < n; i++ {
+		for j := 0; j < i; j++ {
+			t += i ^ j
+		}
+	}
+	return t
+}
+
+// Tests runtime/coverage.snapshot() directly. Note that if
+// coverage is not enabled, the hook is designed to just return
+// zero.
+func TestCoverageSnapshot(t *testing.T) {
+	C1 := snapshot()
+	thisFunctionOnlyCalledFromSnapshotTest(15)
+	C2 := snapshot()
+	cond := "C1 > C2"
+	val := C1 > C2
+	if testing.CoverMode() != "" {
+		cond = "C1 >= C2"
+		val = C1 >= C2
+	}
+	t.Logf("%f %f\n", C1, C2)
+	if val {
+		t.Errorf("erroneous snapshots, %s = true C1=%f C2=%f",
+			cond, C1, C2)
+	}
+}
