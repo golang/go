@@ -128,6 +128,17 @@ func recvType(obj *types.Func) types.Type {
 	return obj.Type().(*types.Signature).Recv().Type()
 }
 
+// fieldOf returns the index'th field of the (core type of) a struct type;
+// otherwise returns nil.
+func fieldOf(typ types.Type, index int) *types.Var {
+	if st, ok := typeparams.CoreType(typ).(*types.Struct); ok {
+		if 0 <= index && index < st.NumFields() {
+			return st.Field(index)
+		}
+	}
+	return nil
+}
+
 // isUntyped returns true for types that are untyped.
 func isUntyped(typ types.Type) bool {
 	b, ok := typ.(*types.Basic)

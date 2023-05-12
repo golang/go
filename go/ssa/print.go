@@ -259,22 +259,19 @@ func (v *MakeChan) String() string {
 }
 
 func (v *FieldAddr) String() string {
-	dt, _ := deptr(v.X.Type())
-	st := typeparams.CoreType(dt).(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
-	if 0 <= v.Field && v.Field < st.NumFields() {
-		name = st.Field(v.Field).Name()
+	if fld := fieldOf(mustDeref(v.X.Type()), v.Field); fld != nil {
+		name = fld.Name()
 	}
 	return fmt.Sprintf("&%s.%s [#%d]", relName(v.X, v), name, v.Field)
 }
 
 func (v *Field) String() string {
-	st := typeparams.CoreType(v.X.Type()).(*types.Struct)
 	// Be robust against a bad index.
 	name := "?"
-	if 0 <= v.Field && v.Field < st.NumFields() {
-		name = st.Field(v.Field).Name()
+	if fld := fieldOf(v.X.Type(), v.Field); fld != nil {
+		name = fld.Name()
 	}
 	return fmt.Sprintf("%s.%s [#%d]", relName(v.X, v), name, v.Field)
 }

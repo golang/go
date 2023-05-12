@@ -11,8 +11,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-
-	"golang.org/x/tools/internal/typeparams"
 )
 
 // emitNew emits to f a new (heap Alloc) instruction allocating an
@@ -478,9 +476,8 @@ func emitTailCall(f *Function, call *Call) {
 // value of a field.
 func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) Value {
 	for _, index := range indices {
-		st, vptr := deptr(v.Type())
-		fld := typeparams.CoreType(st).(*types.Struct).Field(index)
-		if vptr {
+		if st, vptr := deptr(v.Type()); vptr {
+			fld := fieldOf(st, index)
 			instr := &FieldAddr{
 				X:     v,
 				Field: index,
@@ -493,6 +490,7 @@ func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) 
 				v = emitLoad(f, v)
 			}
 		} else {
+			fld := fieldOf(v.Type(), index)
 			instr := &Field{
 				X:     v,
 				Field: index,
@@ -512,15 +510,8 @@ func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) 
 // field's value.
 // Ident id is used for position and debug info.
 func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.Ident) Value {
-	// TODO(taking): Cover the following cases of interest
-	// 	func f[T any, S struct{f T}, P *struct{f T}, PS *S](x T) {
-	// 		_ := S{f: x}
-	//      _ := P{f: x}
-	//      _ := PS{f: x}
-	//  }
-	st, vptr := deptr(v.Type())
-	fld := typeparams.CoreType(st).(*types.Struct).Field(index)
-	if vptr {
+	if st, vptr := deptr(v.Type()); vptr {
+		fld := fieldOf(st, index)
 		instr := &FieldAddr{
 			X:     v,
 			Field: index,
@@ -533,6 +524,7 @@ func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.
 			v = emitLoad(f, v)
 		}
 	} else {
+		fld := fieldOf(v.Type(), index)
 		instr := &Field{
 			X:     v,
 			Field: index,

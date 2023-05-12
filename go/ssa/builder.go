@@ -429,12 +429,12 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		return &address{addr: v, pos: e.Pos(), expr: e}
 
 	case *ast.CompositeLit:
-		t, _ := deptr(fn.typeOf(e))
+		typ, _ := deref(fn.typeOf(e))
 		var v *Alloc
 		if escaping {
-			v = emitNew(fn, t, e.Lbrace)
+			v = emitNew(fn, typ, e.Lbrace)
 		} else {
-			v = fn.addLocal(t, e.Lbrace)
+			v = fn.addLocal(typ, e.Lbrace)
 		}
 		v.Comment = "complit"
 		var sb storebuf
@@ -457,8 +457,7 @@ func (b *builder) addr(fn *Function, e ast.Expr, escaping bool) lvalue {
 		wantAddr := true
 		v := b.receiver(fn, e.X, wantAddr, escaping, sel)
 		index := sel.index[len(sel.index)-1]
-		dt, _ := deptr(v.Type())
-		fld := typeparams.CoreType(dt).(*types.Struct).Field(index)
+		fld := fieldOf(mustDeref(v.Type()), index) // v is an addr.
 
 		// Due to the two phases of resolving AssignStmt, a panic from x.f = p()
 		// when x is nil is required to come after the side-effects of
@@ -553,7 +552,7 @@ func (b *builder) assign(fn *Function, loc lvalue, e ast.Expr, isZero bool, sb *
 		// so if the type of the location is a pointer,
 		// an &-operation is implied.
 		if _, ok := loc.(blank); !ok { // avoid calling blank.typ()
-			if _, ok := deptr(loc.typ()); ok {
+			if _, ok := deref(loc.typ()); ok {
 				ptr := b.addr(fn, e, true).address(fn)
 				// copy address
 				if sb != nil {
@@ -583,7 +582,7 @@ func (b *builder) assign(fn *Function, loc lvalue, e ast.Expr, isZero bool, sb *
 
 				// Subtle: emit debug ref for aggregate types only;
 				// slice and map are handled by store ops in compLit.
-				switch loc.typ().Underlying().(type) { // TODO(taking): check if Underlying() appropriate.
+				switch typeparams.CoreType(loc.typ()).(type) {
 				case *types.Struct, *types.Array:
 					emitDebugRef(fn, e, addr, true)
 				}
@@ -1253,39 +1252,13 @@ func (b *builder) arrayLen(fn *Function, elts []ast.Expr) int64 {
 // literal has type *T behaves like &T{}.
 // In that case, addr must hold a T, not a *T.
 func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero bool, sb *storebuf) {
-	typ, _ := deptr(fn.typeOf(e))           // type with name [may be type param]
-	t, _ := deptr(typeparams.CoreType(typ)) // core type for comp lit case
-	t = t.Underlying()
-
-	// Computing typ and t is subtle as these handle pointer types.
-	// For example, &T{...} is valid even for maps and slices.
-	// Also typ should refer to T (not *T) while t should be the core type of T.
-	//
-	// To show the ordering to take into account, consider the composite literal
-	// expressions `&T{f: 1}` and `{f: 1}` within the expression `[]S{{f: 1}}` here:
-	//   type N struct{f int}
-	//   func _[T N, S *N]() {
-	//     _ = &T{f: 1}
-	//     _ = []S{{f: 1}}
-	//   }
-	// For `&T{f: 1}`, we compute `typ` and `t` as:
-	//     typeOf(&T{f: 1}) == *T
-	//     deref(*T)        == T (typ)
-	//     CoreType(T)      == N
-	//     deref(N)         == N
-	//     N.Underlying()   == struct{f int} (t)
-	// For `{f: 1}` in `[]S{{f: 1}}`,  we compute `typ` and `t` as:
-	//     typeOf({f: 1})   == S
-	//     deref(S)         == S (typ)
-	//     CoreType(S)      == *N
-	//     deref(*N)        == N
-	//     N.Underlying()   == struct{f int} (t)
-	switch t := t.(type) {
+	typ, _ := deref(fn.typeOf(e)) // type with name [may be type param]
+	switch t := typeparams.CoreType(typ).(type) {
 	case *types.Struct:
 		if !isZero && len(e.Elts) != t.NumFields() {
 			// memclear
-			dt, _ := deptr(addr.Type())
-			sb.store(&address{addr, e.Lbrace, nil}, zeroConst(dt))
+			zt, _ := deref(addr.Type())
+			sb.store(&address{addr, e.Lbrace, nil}, zeroConst(zt))
 			isZero = true
 		}
 		for i, e := range e.Elts {
@@ -1329,8 +1302,8 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 
 			if !isZero && int64(len(e.Elts)) != at.Len() {
 				// memclear
-				dt, _ := deptr(array.Type())
-				sb.store(&address{array, e.Lbrace, nil}, zeroConst(dt))
+				zt, _ := deref(array.Type())
+				sb.store(&address{array, e.Lbrace, nil}, zeroConst(zt))
 			}
 		}
 
@@ -1385,7 +1358,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 			//	map[*struct{}]bool{&struct{}{}: true}
 			wantAddr := false
 			if _, ok := unparen(e.Key).(*ast.CompositeLit); ok {
-				_, wantAddr = t.Key().Underlying().(*types.Pointer)
+				_, wantAddr = deref(t.Key())
 			}
 
 			var key Value
@@ -1416,7 +1389,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 		sb.store(&address{addr: addr, pos: e.Lbrace, expr: e}, m)
 
 	default:
-		panic("unexpected CompositeLit type: " + t.String())
+		panic("unexpected CompositeLit type: " + typ.String())
 	}
 }
 
