@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -81,9 +82,9 @@ type tester struct {
 
 type work struct {
 	dt    *distTest
-	cmd   *exec.Cmd
+	cmd   *exec.Cmd // Must write stdout/stderr to work.out
 	start chan bool
-	out   []byte
+	out   bytes.Buffer
 	err   error
 	end   chan bool
 }
@@ -315,9 +316,9 @@ type goTest struct {
 	testFlags []string // Additional flags accepted by this test
 }
 
-// bgCommand returns a go test Cmd. The result has Stdout and Stderr set to nil
-// and is intended to be added to the work queue.
-func (opts *goTest) bgCommand(t *tester) *exec.Cmd {
+// bgCommand returns a go test Cmd. The result will write its output to stdout
+// and stderr. If stdout==stderr, bgCommand ensures Writes are serialized.
+func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
 	goCmd, build, run, pkgs, testFlags, setupCmd := opts.buildArgs(t)
 
 	// Combine the flags.
@@ -334,16 +335,15 @@ func (opts *goTest) bgCommand(t *tester) *exec.Cmd {
 
 	cmd := exec.Command(goCmd, args...)
 	setupCmd(cmd)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	return cmd
 }
 
 // command returns a go test Cmd intended to be run immediately.
 func (opts *goTest) command(t *tester) *exec.Cmd {
-	cmd := opts.bgCommand(t)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd
+	return opts.bgCommand(t, os.Stdout, os.Stderr)
 }
 
 func (opts *goTest) run(t *tester) error {
@@ -948,10 +948,8 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 		if preFunc != nil && !preFunc(dt) {
 			return nil
 		}
-		w := &work{
-			dt:  dt,
-			cmd: test.bgCommand(t),
-		}
+		w := &work{dt: dt}
+		w.cmd = test.bgCommand(t, &w.out, &w.out)
 		t.worklist = append(t.worklist, w)
 		return nil
 	})
@@ -1225,17 +1223,23 @@ func (t *tester) runPending(nextTest *distTest) {
 	for _, w := range worklist {
 		w.start = make(chan bool)
 		w.end = make(chan bool)
+		// w.cmd must be set up to write to w.out. We can't check that, but we
+		// can check for easy mistakes.
+		if w.cmd.Stdout == nil || w.cmd.Stdout == os.Stdout || w.cmd.Stderr == nil || w.cmd.Stderr == os.Stderr {
+			panic("work.cmd.Stdout/Stderr must be redirected")
+		}
 		go func(w *work) {
 			if !<-w.start {
 				timelog("skip", w.dt.name)
-				w.out = []byte(fmt.Sprintf("skipped due to earlier error\n"))
+				w.out.WriteString("skipped due to earlier error\n")
 			} else {
 				timelog("start", w.dt.name)
-				w.out, w.err = w.cmd.CombinedOutput()
+				w.err = w.cmd.Run()
 				if w.err != nil {
 					if isUnsupportedVMASize(w) {
 						timelog("skip", w.dt.name)
-						w.out = []byte(fmt.Sprintf("skipped due to unsupported VMA\n"))
+						w.out.Reset()
+						w.out.WriteString("skipped due to unsupported VMA\n")
 						w.err = nil
 					}
 				}
@@ -1272,7 +1276,9 @@ func (t *tester) runPending(nextTest *distTest) {
 		}
 		ended++
 		<-w.end
-		os.Stdout.Write(w.out)
+		os.Stdout.Write(w.out.Bytes())
+		// We no longer need the output, so drop the buffer.
+		w.out = bytes.Buffer{}
 		if w.err != nil {
 			log.Printf("Failed: %v", w.err)
 			t.failed = true
@@ -1599,7 +1605,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 // arm64 machine configured with 39-bit VMA)
 func isUnsupportedVMASize(w *work) bool {
 	unsupportedVMA := []byte("unsupported VMA range")
-	return w.dt.name == "race" && bytes.Contains(w.out, unsupportedVMA)
+	return w.dt.name == "race" && bytes.Contains(w.out.Bytes(), unsupportedVMA)
 }
 
 // isEnvSet reports whether the environment variable evar is
