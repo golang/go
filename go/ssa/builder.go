@@ -373,10 +373,8 @@ func (b *builder) builtin(fn *Function, obj *types.Builtin, args []ast.Expr, typ
 		// We must still evaluate the value, though.  (If it
 		// was side-effect free, the whole call would have
 		// been constant-folded.)
-		//
-		// Type parameters are always non-constant so use Underlying.
-		t, _ := deptr(fn.typeOf(args[0]))
-		if at, ok := t.Underlying().(*types.Array); ok {
+		t, _ := deref(fn.typeOf(args[0]))
+		if at, ok := typeparams.CoreType(t).(*types.Array); ok {
 			b.expr(fn, args[0]) // for effects only
 			return intConst(at.Len())
 		}
@@ -1884,17 +1882,14 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, pos token.P
 
 	// Determine number of iterations.
 	var length Value
-	dt, _ := deptr(x.Type())
-	if arr, ok := dt.Underlying().(*types.Array); ok {
+	dt, _ := deref(x.Type())
+	if arr, ok := typeparams.CoreType(dt).(*types.Array); ok {
 		// For array or *array, the number of iterations is
 		// known statically thanks to the type.  We avoid a
 		// data dependence upon x, permitting later dead-code
 		// elimination if x is pure, static unrolling, etc.
 		// Ranging over a nil *array may have >0 iterations.
 		// We still generate code for x, in case it has effects.
-		//
-		// TypeParams do not have constant length. Use underlying instead of core type.
-		// TODO: check if needed.
 		length = intConst(arr.Len())
 	} else {
 		// length = len(x).

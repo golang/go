@@ -436,6 +436,57 @@ func TestGenericBodies(t *testing.T) {
 			c := *(any(v).(*C)); print(c)  /*@ types("p23.C")*/
 		}
 		`,
+		`
+		package p24
+
+		func a[T any](f func() [4]T) {
+			x := len(f())
+			print(x) /*@ types("int")*/
+		}
+
+		func b[T [4]any](f func() T) {
+			x := len(f())
+			print(x) /*@ types("int")*/
+		}
+
+		func c[T any](f func() *[4]T) {
+			x := len(f())
+			print(x) /*@ types("int")*/
+		}
+
+		func d[T *[4]any](f func() T) {
+			x := len(f())
+			print(x) /*@ types("int")*/
+		}
+		`,
+		`
+		package p25
+
+		func a[T any]() {
+			var f func() [4]T
+			for i, v := range f() {
+				print(i, v) /*@ types("int", "T")*/
+			}
+		}
+
+		func b[T [4]any](f func() T) {
+			for i, v := range f() {
+				print(i, v) /*@ types("int", "any")*/
+			}
+		}
+
+		func c[T any](f func() *[4]T) {
+			for i, v := range f() {
+				print(i, v) /*@ types("int", "T")*/
+			}
+		}
+
+		func d[T *[4]any](f func() T) {
+			for i, v := range f() {
+				print(i, v) /*@ types("int", "any")*/
+			}
+		}
+		`,
 	} {
 		contents := contents
 		pkgname := packageName(t, contents)
@@ -465,7 +516,7 @@ func TestGenericBodies(t *testing.T) {
 			p.Build()
 
 			// Collect calls to the builtin print function.
-			probes := make(map[*ssa.CallCommon]bool)
+			probes := make(map[*ssa.CallCommon]*ssa.Function)
 			for _, mem := range p.Members {
 				if fn, ok := mem.(*ssa.Function); ok {
 					for _, bb := range fn.Blocks {
@@ -473,7 +524,7 @@ func TestGenericBodies(t *testing.T) {
 							if i, ok := i.(ssa.CallInstruction); ok {
 								call := i.Common()
 								if b, ok := call.Value.(*ssa.Builtin); ok && b.Name() == "print" {
-									probes[i.Common()] = true
+									probes[i.Common()] = fn
 								}
 							}
 						}
@@ -517,6 +568,7 @@ func TestGenericBodies(t *testing.T) {
 				}
 				if got, want := fmt.Sprint(args), fmt.Sprint(note.Args); got != want {
 					t.Errorf("Arguments to print() were expected to be %q. got %q", want, got)
+					logFunction(t, probes[call])
 				}
 			}
 		})
@@ -567,6 +619,14 @@ func TestInstructionString(t *testing.T) {
 	func f3[T interface{ foo() string; comparable }](x T) {
 		_ = x.foo
 		_ = x.foo()
+	}
+
+	//@ instrs("f4", "*ssa.BinOp", "t1 + 1:int", "t2 < 4:int")
+	//@ instrs("f4", "*ssa.Call", "f()", "print(t2, t4)")
+	func f4[T [4]string](f func() T) {
+		for i, v := range f() {
+			print(i, v)
+		}
 	}
 	`
 
