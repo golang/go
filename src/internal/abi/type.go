@@ -198,7 +198,7 @@ type UncommonType struct {
 	PkgPath NameOff // import path; empty for built-in types like int, string
 	Mcount  uint16  // number of methods
 	Xcount  uint16  // number of exported methods
-	Moff    uint32  // offset from this uncommontype to [mcount]method
+	Moff    uint32  // offset from this uncommontype to [mcount]Method
 	_       uint32  // unused
 }
 
