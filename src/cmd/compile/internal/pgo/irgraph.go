@@ -66,10 +66,6 @@ type IRGraph struct {
 type IRNode struct {
 	// Pointer to the IR of the Function represented by this node.
 	AST *ir.Func
-	// Flat weight of the IRNode, obtained from profile.
-	Flat int64
-	// Cumulative weight of the IRNode.
-	Cum int64
 }
 
 // IREdgeMap maps an IRNode to its successors.
@@ -269,25 +265,16 @@ func (p *Profile) VisitIR(fn *ir.Func) {
 		g.InEdges = make(map[*IRNode][]*IREdge)
 	}
 	name := ir.LinkFuncName(fn)
-	node := new(IRNode)
-	node.AST = fn
-	if g.IRNodes[name] == nil {
+	node, ok := g.IRNodes[name]
+	if !ok {
+		node = &IRNode{
+			AST: fn,
+		}
 		g.IRNodes[name] = node
-	}
-	// Create the key for the NodeMapKey.
-	nodeinfo := NodeMapKey{
-		CallerName:     name,
-		CalleeName:     "",
-		CallSiteOffset: 0,
-	}
-	// If the node exists, then update its node weight.
-	if weights, ok := p.NodeMap[nodeinfo]; ok {
-		g.IRNodes[name].Flat = weights.NFlat
-		g.IRNodes[name].Cum = weights.NCum
 	}
 
 	// Recursively walk over the body of the function to create IRGraph edges.
-	p.createIRGraphEdge(fn, g.IRNodes[name], name)
+	p.createIRGraphEdge(fn, node, name)
 }
 
 // NodeLineOffset returns the line offset of n in fn.
@@ -300,58 +287,38 @@ func NodeLineOffset(n ir.Node, fn *ir.Func) int {
 
 // addIREdge adds an edge between caller and new node that points to `callee`
 // based on the profile-graph and NodeMap.
-func (p *Profile) addIREdge(caller *IRNode, callername string, call ir.Node, callee *ir.Func) {
+func (p *Profile) addIREdge(callerNode *IRNode, callerName string, call ir.Node, callee *ir.Func) {
 	g := p.WeightedCG
 
-	// Create an IRNode for the callee.
-	calleenode := new(IRNode)
-	calleenode.AST = callee
-	calleename := ir.LinkFuncName(callee)
+	calleeName := ir.LinkFuncName(callee)
+	calleeNode, ok := g.IRNodes[calleeName]
+	if !ok {
+		calleeNode = &IRNode{
+			AST: callee,
+		}
+		g.IRNodes[calleeName] = calleeNode
+	}
 
-	// Create key for NodeMapKey.
 	nodeinfo := NodeMapKey{
-		CallerName:     callername,
-		CalleeName:     calleename,
-		CallSiteOffset: NodeLineOffset(call, caller.AST),
+		CallerName:     callerName,
+		CalleeName:     calleeName,
+		CallSiteOffset: NodeLineOffset(call, callerNode.AST),
 	}
 
-	// Create the callee node with node weight.
-	if g.IRNodes[calleename] == nil {
-		g.IRNodes[calleename] = calleenode
-		nodeinfo2 := NodeMapKey{
-			CallerName:     calleename,
-			CalleeName:     "",
-			CallSiteOffset: 0,
-		}
-		if weights, ok := p.NodeMap[nodeinfo2]; ok {
-			g.IRNodes[calleename].Flat = weights.NFlat
-			g.IRNodes[calleename].Cum = weights.NCum
-		}
-	}
-
+	var weight int64
 	if weights, ok := p.NodeMap[nodeinfo]; ok {
-		caller.Flat = weights.NFlat
-		caller.Cum = weights.NCum
-
-		// Add edge in the IRGraph from caller to callee.
-		info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: weights.EWeight, CallSiteOffset: nodeinfo.CallSiteOffset}
-		g.OutEdges[caller] = append(g.OutEdges[caller], info)
-		g.InEdges[g.IRNodes[calleename]] = append(g.InEdges[g.IRNodes[calleename]], info)
-	} else {
-		nodeinfo.CalleeName = ""
-		nodeinfo.CallSiteOffset = 0
-		if weights, ok := p.NodeMap[nodeinfo]; ok {
-			caller.Flat = weights.NFlat
-			caller.Cum = weights.NCum
-			info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: 0, CallSiteOffset: nodeinfo.CallSiteOffset}
-			g.OutEdges[caller] = append(g.OutEdges[caller], info)
-			g.InEdges[g.IRNodes[calleename]] = append(g.InEdges[g.IRNodes[calleename]], info)
-		} else {
-			info := &IREdge{Src: caller, Dst: g.IRNodes[calleename], Weight: 0, CallSiteOffset: nodeinfo.CallSiteOffset}
-			g.OutEdges[caller] = append(g.OutEdges[caller], info)
-			g.InEdges[g.IRNodes[calleename]] = append(g.InEdges[g.IRNodes[calleename]], info)
-		}
+		weight = weights.EWeight
 	}
+
+	// Add edge in the IRGraph from caller to callee.
+	edge := &IREdge{
+		Src:            callerNode,
+		Dst:            calleeNode,
+		Weight:         weight,
+		CallSiteOffset: nodeinfo.CallSiteOffset,
+	}
+	g.OutEdges[callerNode] = append(g.OutEdges[callerNode], edge)
+	g.InEdges[calleeNode] = append(g.InEdges[calleeNode], edge)
 }
 
 // createIRGraphEdge traverses the nodes in the body of ir.Func and add edges between callernode which points to the ir.Func and the nodes in the body.
@@ -418,13 +385,12 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
 
 	// Print nodes.
 	for name, ast := range nodes {
-		if n, ok := p.WeightedCG.IRNodes[name]; ok {
-			nodeweight := WeightInPercentage(n.Flat, p.TotalNodeWeight)
+		if _, ok := p.WeightedCG.IRNodes[name]; ok {
 			color := "black"
 			if ast.Inl != nil {
-				fmt.Printf("\"%v\" [color=%v,label=\"%v,freq=%.2f,inl_cost=%d\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast), nodeweight, ast.Inl.Cost)
+				fmt.Printf("\"%v\" [color=%v,label=\"%v,inl_cost=%d\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast), ast.Inl.Cost)
 			} else {
-				fmt.Printf("\"%v\" [color=%v, label=\"%v,freq=%.2f\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast), nodeweight)
+				fmt.Printf("\"%v\" [color=%v, label=\"%v\"];\n", ir.LinkFuncName(ast), color, ir.LinkFuncName(ast))
 			}
 		}
 	}
