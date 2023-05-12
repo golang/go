@@ -63,10 +63,6 @@ var (
 	// TODO(prattmic): Make this non-global.
 	candHotEdgeMap = make(map[pgo.CallSiteInfo]struct{})
 
-	// List of inlined call sites. CallSiteInfo.Callee is always nil.
-	// TODO(prattmic): Make this non-global.
-	inlinedCallSites = make(map[pgo.CallSiteInfo]struct{})
-
 	// Threshold in percentage for hot callsite inlining.
 	inlineHotCallSiteThresholdPercent float64
 
@@ -158,23 +154,6 @@ func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
 	return 0, nodes
 }
 
-// pgoInlineEpilogue updates IRGraph after inlining.
-func pgoInlineEpilogue(p *pgo.Profile, decls []ir.Node) {
-	if base.Debug.PGOInline >= 2 {
-		ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
-			for _, f := range list {
-				name := ir.LinkFuncName(f)
-				if n, ok := p.WeightedCG.IRNodes[name]; ok {
-					p.RedirectEdges(n, inlinedCallSites)
-				}
-			}
-		})
-		// Print the call-graph after inlining. This is a debugging feature.
-		fmt.Printf("hot-cg after inline in dot:")
-		p.PrintWeightedCallGraphDOT(inlineHotCallSiteThresholdPercent)
-	}
-}
-
 // InlinePackage finds functions that can be inlined and clones them before walk expands them.
 func InlinePackage(p *pgo.Profile) {
 	InlineDecls(p, typecheck.Target.Decls, true)
@@ -223,10 +202,6 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
 			}
 		}
 	})
-
-	if p != nil {
-		pgoInlineEpilogue(p, decls)
-	}
 }
 
 // garbageCollectUnreferencedHiddenClosures makes a pass over all the
@@ -1145,13 +1120,6 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.Inli
 	}
 	if base.Flag.LowerM > 2 {
 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
-	}
-
-	if base.Debug.PGOInline > 0 {
-		csi := pgo.CallSiteInfo{LineOffset: pgo.NodeLineOffset(n, fn), Caller: ir.CurFunc}
-		if _, ok := inlinedCallSites[csi]; !ok {
-			inlinedCallSites[csi] = struct{}{}
-		}
 	}
 
 	res := InlineCall(n, fn, inlIndex)
