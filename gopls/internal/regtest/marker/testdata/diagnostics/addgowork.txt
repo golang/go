@@ -1,6 +1,7 @@
-This test demonstrates the quick-fix for adding a go.work file.
+This test demonstrates diagnostics for adding a go.work file.
 
-TODO(rfindley): actually add quick-fixes here.
+Quick-fixes change files on disk, so are tested by regtests.
+
 TODO(rfindley): improve the "cannot find package" import errors.
 
 -- flags --

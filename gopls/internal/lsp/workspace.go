@@ -17,7 +17,7 @@ import (
 func (s *Server) didChangeWorkspaceFolders(ctx context.Context, params *protocol.DidChangeWorkspaceFoldersParams) error {
 	event := params.Event
 	for _, folder := range event.Removed {
-		view := s.session.View(folder.Name)
+		view := s.session.ViewByName(folder.Name)
 		if view != nil {
 			s.session.RemoveView(view)
 		} else {

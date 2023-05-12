@@ -289,6 +289,21 @@ Args:
 }
 ```
 
+### **run `go work [args...]`, and apply the resulting go.work**
+Identifier: `gopls.run_go_work_command`
+
+edits to the current go.work file.
+
+Args:
+
+```
+{
+	"ViewID": string,
+	"InitFirst": bool,
+	"Args": []string,
+}
+```
+
 ### **Run govulncheck.**
 Identifier: `gopls.run_govulncheck`
 

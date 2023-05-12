@@ -209,7 +209,9 @@ type Snapshot interface {
 
 	// OrphanedFileDiagnostics reports diagnostics for files that have no package
 	// associations or which only have only command-line-arguments packages.
-	OrphanedFileDiagnostics(ctx context.Context) map[span.URI]*Diagnostic
+	//
+	// The caller must not mutate the result.
+	OrphanedFileDiagnostics(ctx context.Context) (map[span.URI]*Diagnostic, error)
 
 	// -- package type-checking --
 

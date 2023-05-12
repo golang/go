@@ -31,6 +31,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/types/objectpath"
 	"golang.org/x/tools/gopls/internal/bug"
+	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/filecache"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
@@ -191,6 +192,16 @@ type snapshot struct {
 	// detect ignored files.
 	ignoreFilterOnce sync.Once
 	ignoreFilter     *ignoreFilter
+
+	// If non-nil, the result of computing orphaned file diagnostics.
+	//
+	// Only the field, not the map itself, is guarded by the mutex. The map must
+	// not be mutated.
+	//
+	// Used to save work across diagnostics+code action passes.
+	// TODO(rfindley): refactor all of this so there's no need to re-evaluate
+	// diagnostics during code-action.
+	orphanedFileDiagnostics map[span.URI]*source.Diagnostic
 }
 
 var globalSnapshotID uint64
@@ -293,7 +304,8 @@ func (s *snapshot) ModFiles() []span.URI {
 }
 
 func (s *snapshot) WorkFile() span.URI {
-	return s.view.effectiveGOWORK()
+	gowork, _ := s.view.GOWORK()
+	return gowork
 }
 
 func (s *snapshot) Templates() map[span.URI]source.FileHandle {
@@ -544,7 +556,7 @@ func (s *snapshot) goCommandInvocation(ctx context.Context, flags source.Invocat
 	// the main (workspace) module. Otherwise, we should use the module for
 	// the passed-in working dir.
 	if mode == source.LoadWorkspace {
-		if s.view.effectiveGOWORK() == "" && s.view.gomod != "" {
+		if gowork, _ := s.view.GOWORK(); gowork == "" && s.view.gomod != "" {
 			modURI = s.view.gomod
 		}
 	} else {
@@ -929,7 +941,7 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 	}
 
 	// If GOWORK is outside the folder, ensure we are watching it.
-	gowork := s.view.effectiveGOWORK()
+	gowork, _ := s.view.GOWORK()
 	if gowork != "" && !source.InDir(s.view.folder.Filename(), gowork.Filename()) {
 		patterns[gowork.Filename()] = struct{}{}
 	}
@@ -1351,19 +1363,6 @@ func (s *snapshot) IsOpen(uri span.URI) bool {
 	return open
 }
 
-func (s *snapshot) openFiles() []*Overlay {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var open []*Overlay
-	s.files.Range(func(uri span.URI, fh source.FileHandle) {
-		if o, ok := fh.(*Overlay); ok {
-			open = append(open, o)
-		}
-	})
-	return open
-}
-
 func isFileOpen(fh source.FileHandle) bool {
 	_, open := fh.(*Overlay)
 	return open
@@ -1588,7 +1587,7 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 	// that exist only in overlays. As a workaround, we search all of the files
 	// available in the snapshot and reload their metadata individually using a
 	// file= query if the metadata is unavailable.
-	open := s.openFiles()
+	open := s.overlays()
 	var files []*Overlay
 	for _, o := range open {
 		uri := o.URI()
@@ -1686,10 +1685,26 @@ func (s *snapshot) reloadOrphanedOpenFiles(ctx context.Context) error {
 // TODO(rfindley): reconcile the definition of "orphaned" here with
 // reloadOrphanedFiles. The latter does not include files with
 // command-line-arguments packages.
-func (s *snapshot) OrphanedFileDiagnostics(ctx context.Context) map[span.URI]*source.Diagnostic {
+func (s *snapshot) OrphanedFileDiagnostics(ctx context.Context) (map[span.URI]*source.Diagnostic, error) {
+	// Orphaned file diagnostics are queried from code actions to produce
+	// quick-fixes (and may be queried many times, once for each file).
+	//
+	// Because they are non-trivial to compute, record them optimistically to
+	// avoid most redundant work.
+	//
+	// This is a hacky workaround: in the future we should avoid recomputing
+	// anything when codeActions provide a diagnostic: simply read the published
+	// diagnostic, if it exists.
 	s.mu.Lock()
-	meta := s.meta
+	existing := s.orphanedFileDiagnostics
 	s.mu.Unlock()
+	if existing != nil {
+		return existing, nil
+	}
+
+	if err := s.awaitLoaded(ctx); err != nil {
+		return nil, err
+	}
 
 	var files []*Overlay
 
@@ -1699,20 +1714,30 @@ searchOverlays:
 		if s.IsBuiltin(uri) || s.view.FileKind(o) != source.Go {
 			continue
 		}
-		for _, id := range meta.ids[o.URI()] {
-			if !source.IsCommandLineArguments(id) || meta.metadata[id].Standalone {
+		md, err := s.MetadataForFile(ctx, uri)
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range md {
+			if !source.IsCommandLineArguments(m.ID) || m.Standalone {
 				continue searchOverlays
 			}
 		}
 		files = append(files, o)
 	}
 	if len(files) == 0 {
-		return nil
+		return nil, nil
 	}
 
-	loadedModFiles := make(map[span.URI]struct{})
-	ignoredFiles := make(map[span.URI]bool)
-	for _, meta := range meta.metadata {
+	loadedModFiles := make(map[span.URI]struct{}) // all mod files, including dependencies
+	ignoredFiles := make(map[span.URI]bool)       // files reported in packages.Package.IgnoredFiles
+
+	meta, err := s.AllMetadata(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, meta := range meta {
 		if meta.Module != nil && meta.Module.GoMod != "" {
 			gomod := span.URIFromPath(meta.Module.GoMod)
 			loadedModFiles[gomod] = struct{}{}
@@ -1740,15 +1765,25 @@ searchOverlays:
 			continue
 		}
 
+		var (
+			msg            string                // if non-empty, report a diagnostic with this message
+			suggestedFixes []source.SuggestedFix // associated fixes, if any
+		)
+
 		// If we have a relevant go.mod file, check whether the file is orphaned
 		// due to its go.mod file being inactive. We could also offer a
 		// prescriptive diagnostic in the case that there is no go.mod file, but it
 		// is harder to be precise in that case, and less important.
-		var msg string
 		if goMod, err := nearestModFile(ctx, fh.URI(), s); err == nil && goMod != "" {
 			if _, ok := loadedModFiles[goMod]; !ok {
 				modDir := filepath.Dir(goMod.Filename())
-				if rel, err := filepath.Rel(s.view.folder.Filename(), modDir); err == nil {
+				viewDir := s.view.folder.Filename()
+
+				// When the module is underneath the view dir, we offer
+				// "use all modules" quick-fixes.
+				inDir := source.InDir(viewDir, modDir)
+
+				if rel, err := filepath.Rel(viewDir, modDir); err == nil {
 					modDir = rel
 				}
 
@@ -1756,8 +1791,59 @@ searchOverlays:
 				if s.view.goversion >= 18 {
 					if s.view.gowork != "" {
 						fix = fmt.Sprintf("To fix this problem, you can add this module to your go.work file (%s)", s.view.gowork)
+						if cmd, err := command.NewRunGoWorkCommandCommand("Run `go work use`", command.RunGoWorkArgs{
+							ViewID: s.view.ID(),
+							Args:   []string{"use", modDir},
+						}); err == nil {
+							suggestedFixes = append(suggestedFixes, source.SuggestedFix{
+								Title:      "Use this module in your go.work file",
+								Command:    &cmd,
+								ActionKind: protocol.QuickFix,
+							})
+						}
+
+						if inDir {
+							if cmd, err := command.NewRunGoWorkCommandCommand("Run `go work use -r`", command.RunGoWorkArgs{
+								ViewID: s.view.ID(),
+								Args:   []string{"use", "-r", "."},
+							}); err == nil {
+								suggestedFixes = append(suggestedFixes, source.SuggestedFix{
+									Title:      "Use all modules in your workspace",
+									Command:    &cmd,
+									ActionKind: protocol.QuickFix,
+								})
+							}
+						}
 					} else {
 						fix = "To fix this problem, you can add a go.work file that uses this directory."
+
+						if cmd, err := command.NewRunGoWorkCommandCommand("Run `go work init && go work use`", command.RunGoWorkArgs{
+							ViewID:    s.view.ID(),
+							InitFirst: true,
+							Args:      []string{"use", modDir},
+						}); err == nil {
+							suggestedFixes = []source.SuggestedFix{
+								{
+									Title:      "Add a go.work file using this module",
+									Command:    &cmd,
+									ActionKind: protocol.QuickFix,
+								},
+							}
+						}
+
+						if inDir {
+							if cmd, err := command.NewRunGoWorkCommandCommand("Run `go work init && go work use -r`", command.RunGoWorkArgs{
+								ViewID:    s.view.ID(),
+								InitFirst: true,
+								Args:      []string{"use", "-r", "."},
+							}); err == nil {
+								suggestedFixes = append(suggestedFixes, source.SuggestedFix{
+									Title:      "Add a go.work file using all modules in your workspace",
+									Command:    &cmd,
+									ActionKind: protocol.QuickFix,
+								})
+							}
+						}
 					}
 				} else {
 					fix = `To work with multiple modules simultaneously, please upgrade to Go 1.18 or
@@ -1794,16 +1880,22 @@ https://github.com/golang/tools/blob/master/gopls/doc/settings.md#buildflags-str
 		if msg != "" {
 			// Only report diagnostics if we detect an actual exclusion.
 			diagnostics[fh.URI()] = &source.Diagnostic{
-				URI:      fh.URI(),
-				Range:    rng,
-				Severity: protocol.SeverityWarning,
-				Source:   source.ListError,
-				Message:  msg,
+				URI:            fh.URI(),
+				Range:          rng,
+				Severity:       protocol.SeverityWarning,
+				Source:         source.ListError,
+				Message:        msg,
+				SuggestedFixes: suggestedFixes,
 			}
 		}
 	}
 
-	return diagnostics
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.orphanedFileDiagnostics == nil { // another thread may have won the race
+		s.orphanedFileDiagnostics = diagnostics
+	}
+	return s.orphanedFileDiagnostics, nil
 }
 
 // TODO(golang/go#53756): this function needs to consider more than just the
@@ -1848,7 +1940,7 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 	reinit := false
 	wsModFiles, wsModFilesErr := s.workspaceModFiles, s.workspaceModFilesErr
 
-	if workURI := s.view.effectiveGOWORK(); workURI != "" {
+	if workURI, _ := s.view.GOWORK(); workURI != "" {
 		if change, ok := changes[workURI]; ok {
 			wsModFiles, wsModFilesErr = computeWorkspaceModFiles(ctx, s.view.gomod, workURI, s.view.effectiveGO111MODULE(), &unappliedChanges{
 				originalSnapshot: s,

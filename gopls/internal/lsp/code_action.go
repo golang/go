@@ -176,6 +176,18 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 					},
 				})
 			}
+
+			diags, err := snapshot.OrphanedFileDiagnostics(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if d, ok := diags[fh.URI()]; ok {
+				quickFixes, err := codeActionsMatchingDiagnostics(ctx, snapshot, diagnostics, []*source.Diagnostic{d})
+				if err != nil {
+					return nil, err
+				}
+				codeActions = append(codeActions, quickFixes...)
+			}
 		}
 		if ctx.Err() != nil {
 			return nil, ctx.Err()

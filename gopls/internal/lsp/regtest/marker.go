@@ -1484,7 +1484,7 @@ func codeActionMarker(mark marker, actionKind string, start, end protocol.Locati
 	// Apply the fix it suggests.
 	changed, err := codeAction(mark.run.env, loc.URI, loc.Range, actionKind, nil)
 	if err != nil {
-		mark.errorf("suggestedfix failed: %v. (Use @suggestedfixerr for expected errors.)", err)
+		mark.errorf("codeAction failed: %v", err)
 		return
 	}
 

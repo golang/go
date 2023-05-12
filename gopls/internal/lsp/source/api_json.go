@@ -769,6 +769,12 @@ var GeneratedAPIJSON = &APIJSON{
 			ArgDoc:  "{\n\t\"URIArg\": {\n\t\t\"URI\": string,\n\t},\n\t// Optional: source of the diagnostics to reset.\n\t// If not set, all resettable go.mod diagnostics will be cleared.\n\t\"DiagnosticSource\": string,\n}",
 		},
 		{
+			Command: "gopls.run_go_work_command",
+			Title:   "run `go work [args...]`, and apply the resulting go.work",
+			Doc:     "edits to the current go.work file.",
+			ArgDoc:  "{\n\t\"ViewID\": string,\n\t\"InitFirst\": bool,\n\t\"Args\": []string,\n}",
+		},
+		{
 			Command:   "gopls.run_govulncheck",
 			Title:     "Run govulncheck.",
 			Doc:       "Run vulnerability check (`govulncheck`).",

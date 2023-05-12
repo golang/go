@@ -145,13 +145,16 @@ func (w workspaceInformation) effectiveGO111MODULE() go111module {
 	}
 }
 
-// effectiveGOWORK returns the effective GOWORK value for this workspace, if
+// GOWORK returns the effective GOWORK value for this workspace, if
 // any, in URI form.
-func (w workspaceInformation) effectiveGOWORK() span.URI {
+//
+// The second result reports whether the effective GOWORK value is "" because
+// GOWORK=off.
+func (w workspaceInformation) GOWORK() (span.URI, bool) {
 	if w.gowork == "off" || w.gowork == "" {
-		return ""
+		return "", w.gowork == "off"
 	}
-	return span.URIFromPath(w.gowork)
+	return span.URIFromPath(w.gowork), false
 }
 
 // GO111MODULE returns the value of GO111MODULE to use for running the go
@@ -540,7 +543,7 @@ func (v *View) relevantChange(c source.FileModification) bool {
 	//
 	// TODO(rfindley): Make sure the go.work files are always known
 	// to the view.
-	if c.URI == v.effectiveGOWORK() {
+	if gowork, _ := v.GOWORK(); gowork == c.URI {
 		return true
 	}
 

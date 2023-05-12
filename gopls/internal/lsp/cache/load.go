@@ -354,7 +354,7 @@ func (s *snapshot) workspaceLayoutError(ctx context.Context) (error, []*source.D
 
 	// Apply diagnostics about the workspace configuration to relevant open
 	// files.
-	openFiles := s.openFiles()
+	openFiles := s.overlays()
 
 	// If the snapshot does not have a valid build configuration, it may be
 	// that the user has opened a directory that contains multiple modules.

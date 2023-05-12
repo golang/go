@@ -1,6 +1,7 @@
-This test demonstrates the quick-fix for using a module directory.
+This test demonstrates diagnostics for a module that is missing from the
+go.work file.
 
-TODO(rfindley): actually add quick-fixes here.
+Quick-fixes change files on disk, so are tested by regtests.
 
 -- flags --
 -min_go=go1.18
@@ -11,6 +12,7 @@ go 1.21
 use (
 	./a
 )
+
 -- a/go.mod --
 module mod.com/a
 

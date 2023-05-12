@@ -34,6 +34,7 @@ const (
 	RegenerateCgo         Command = "regenerate_cgo"
 	RemoveDependency      Command = "remove_dependency"
 	ResetGoModDiagnostics Command = "reset_go_mod_diagnostics"
+	RunGoWorkCommand      Command = "run_go_work_command"
 	RunGovulncheck        Command = "run_govulncheck"
 	RunTests              Command = "run_tests"
 	StartDebugging        Command = "start_debugging"
@@ -62,6 +63,7 @@ var Commands = []Command{
 	RegenerateCgo,
 	RemoveDependency,
 	ResetGoModDiagnostics,
+	RunGoWorkCommand,
 	RunGovulncheck,
 	RunTests,
 	StartDebugging,
@@ -162,6 +164,12 @@ func Dispatch(ctx context.Context, params *protocol.ExecuteCommandParams, s Inte
 			return nil, err
 		}
 		return nil, s.ResetGoModDiagnostics(ctx, a0)
+	case "gopls.run_go_work_command":
+		var a0 RunGoWorkArgs
+		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
+			return nil, err
+		}
+		return nil, s.RunGoWorkCommand(ctx, a0)
 	case "gopls.run_govulncheck":
 		var a0 VulncheckArgs
 		if err := UnmarshalArgs(params.Arguments, &a0); err != nil {
@@ -400,6 +408,18 @@ func NewResetGoModDiagnosticsCommand(title string, a0 ResetGoModDiagnosticsArgs)
 	return protocol.Command{
 		Title:     title,
 		Command:   "gopls.reset_go_mod_diagnostics",
+		Arguments: args,
+	}, nil
+}
+
+func NewRunGoWorkCommandCommand(title string, a0 RunGoWorkArgs) (protocol.Command, error) {
+	args, err := MarshalArgs(a0)
+	if err != nil {
+		return protocol.Command{}, err
+	}
+	return protocol.Command{
+		Title:     title,
+		Command:   "gopls.run_go_work_command",
 		Arguments: args,
 	}, nil
 }

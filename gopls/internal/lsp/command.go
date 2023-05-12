@@ -22,6 +22,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/cache"
 	"golang.org/x/tools/gopls/internal/lsp/command"
@@ -69,6 +70,7 @@ type commandConfig struct {
 	async       bool                 // whether to run the command asynchronously. Async commands can only return errors.
 	requireSave bool                 // whether all files must be saved for the command to work
 	progress    string               // title to use for progress reporting. If empty, no progress will be reported.
+	forView     string               // view to resolve to a snapshot; incompatible with forURI
 	forURI      protocol.DocumentURI // URI to resolve to a snapshot. If unset, snapshot will be nil.
 }
 
@@ -103,6 +105,9 @@ func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run command
 		}
 	}
 	var deps commandDeps
+	if cfg.forURI != "" && cfg.forView != "" {
+		return bug.Errorf("internal error: forURI=%q, forView=%q", cfg.forURI, cfg.forView)
+	}
 	if cfg.forURI != "" {
 		var ok bool
 		var release func()
@@ -114,6 +119,17 @@ func (c *commandHandler) run(ctx context.Context, cfg commandConfig, run command
 			}
 			return fmt.Errorf("invalid file URL: %v", cfg.forURI)
 		}
+	} else if cfg.forView != "" {
+		view, err := c.s.session.View(cfg.forView)
+		if err != nil {
+			return err
+		}
+		var release func()
+		deps.snapshot, release, err = view.Snapshot()
+		if err != nil {
+			return err
+		}
+		defer release()
 	}
 	ctx, cancel := context.WithCancel(xcontext.Detach(ctx))
 	if cfg.progress != "" {
@@ -576,40 +592,26 @@ func (s *Server) runGoModUpdateCommands(ctx context.Context, snapshot source.Sna
 	}
 	modURI := snapshot.GoModForFile(uri)
 	sumURI := span.URIFromPath(strings.TrimSuffix(modURI.Filename(), ".mod") + ".sum")
-	modEdits, err := applyFileEdits(ctx, snapshot, modURI, newModBytes)
+	modEdits, err := collectFileEdits(ctx, snapshot, modURI, newModBytes)
 	if err != nil {
 		return err
 	}
-	sumEdits, err := applyFileEdits(ctx, snapshot, sumURI, newSumBytes)
+	sumEdits, err := collectFileEdits(ctx, snapshot, sumURI, newSumBytes)
 	if err != nil {
 		return err
 	}
-	changes := append(sumEdits, modEdits...)
-	if len(changes) == 0 {
-		return nil
-	}
-	documentChanges := []protocol.DocumentChanges{} // must be a slice
-	for _, change := range changes {
-		change := change
-		documentChanges = append(documentChanges, protocol.DocumentChanges{
-			TextDocumentEdit: &change,
-		})
-	}
-	response, err := s.client.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
-		Edit: protocol.WorkspaceEdit{
-			DocumentChanges: documentChanges,
-		},
-	})
-	if err != nil {
-		return err
-	}
-	if !response.Applied {
-		return fmt.Errorf("edits not applied because of %s", response.FailureReason)
-	}
-	return nil
+	return applyFileEdits(ctx, s.client, append(sumEdits, modEdits...))
 }
 
-func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI, newContent []byte) ([]protocol.TextDocumentEdit, error) {
+// collectFileEdits collects any file edits required to transform the snapshot
+// file specified by uri to the provided new content.
+//
+// If the file is not open, collectFileEdits simply writes the new content to
+// disk.
+//
+// TODO(rfindley): fix this API asymmetry. It should be up to the caller to
+// write the file or apply the edits.
+func collectFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI, newContent []byte) ([]protocol.TextDocumentEdit, error) {
 	fh, err := snapshot.ReadFile(ctx, uri)
 	if err != nil {
 		return nil, err
@@ -618,6 +620,7 @@ func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI,
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
+
 	if bytes.Equal(oldContent, newContent) {
 		return nil, nil
 	}
@@ -645,6 +648,31 @@ func applyFileEdits(ctx context.Context, snapshot source.Snapshot, uri span.URI,
 		},
 		Edits: edits,
 	}}, nil
+}
+
+func applyFileEdits(ctx context.Context, cli protocol.Client, edits []protocol.TextDocumentEdit) error {
+	if len(edits) == 0 {
+		return nil
+	}
+	documentChanges := []protocol.DocumentChanges{} // must be a slice
+	for _, change := range edits {
+		change := change
+		documentChanges = append(documentChanges, protocol.DocumentChanges{
+			TextDocumentEdit: &change,
+		})
+	}
+	response, err := cli.ApplyEdit(ctx, &protocol.ApplyWorkspaceEditParams{
+		Edit: protocol.WorkspaceEdit{
+			DocumentChanges: documentChanges,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if !response.Applied {
+		return fmt.Errorf("edits not applied because of %s", response.FailureReason)
+	}
+	return nil
 }
 
 func runGoGetModule(invoke func(...string) (*bytes.Buffer, error), addRequire bool, args []string) error {
@@ -1037,4 +1065,83 @@ func collectPackageStats(md []*source.Metadata) command.PackageStats {
 	stats.Modules = len(modules)
 
 	return stats
+}
+
+// RunGoWorkCommand invokes `go work <args>` with the provided arguments.
+//
+// args.InitFirst controls whether to first run `go work init`. This allows a
+// single command to both create and recursively populate a go.work file -- as
+// of writing there is no `go work init -r`.
+//
+// Some thought went into implementing this command. Unlike the go.mod commands
+// above, this command simply invokes the go command and relies on the client
+// to notify gopls of file changes via didChangeWatchedFile notifications.
+// We could instead run these commands with GOWORK set to a temp file, but that
+// poses the following problems:
+//   - directory locations in the resulting temp go.work file will be computed
+//     relative to the directory containing that go.work. If the go.work is in a
+//     tempdir, the directories will need to be translated to/from that dir.
+//   - it would be simpler to use a temp go.work file in the workspace
+//     directory, or whichever directory contains the real go.work file, but
+//     that sets a bad precedent of writing to a user-owned directory. We
+//     shouldn't start doing that.
+//   - Sending workspace edits to create a go.work file would require using
+//     the CreateFile resource operation, which would need to be tested in every
+//     client as we haven't used it before. We don't have time for that right
+//     now.
+//
+// Therefore, we simply require that the current go.work file is saved (if it
+// exists), and delegate to the go command.
+func (c *commandHandler) RunGoWorkCommand(ctx context.Context, args command.RunGoWorkArgs) error {
+	return c.run(ctx, commandConfig{
+		progress: "Running go work command",
+		forView:  args.ViewID,
+	}, func(ctx context.Context, deps commandDeps) (runErr error) {
+		snapshot := deps.snapshot
+		view := snapshot.View().(*cache.View)
+		viewDir := view.Folder().Filename()
+
+		// If the user has explicitly set GOWORK=off, we should warn them
+		// explicitly and avoid potentially misleading errors below.
+		goworkURI, off := view.GOWORK()
+		if off {
+			return fmt.Errorf("cannot modify go.work files when GOWORK=off")
+		}
+		gowork := goworkURI.Filename()
+
+		if goworkURI != "" {
+			fh, err := snapshot.ReadFile(ctx, goworkURI)
+			if err != nil {
+				return fmt.Errorf("reading current go.work file: %v", err)
+			}
+			if !fh.Saved() {
+				return fmt.Errorf("must save workspace file %s before running go work commands", goworkURI)
+			}
+		} else {
+			if !args.InitFirst {
+				// If go.work does not exist, we should have detected that and asked
+				// for InitFirst.
+				return bug.Errorf("internal error: cannot run go work command: required go.work file not found")
+			}
+			gowork = filepath.Join(viewDir, "go.work")
+			if err := c.invokeGoWork(ctx, viewDir, gowork, []string{"init"}); err != nil {
+				return fmt.Errorf("running `go work init`: %v", err)
+			}
+		}
+
+		return c.invokeGoWork(ctx, viewDir, gowork, args.Args)
+	})
+}
+
+func (c *commandHandler) invokeGoWork(ctx context.Context, viewDir, gowork string, args []string) error {
+	inv := gocommand.Invocation{
+		Verb:       "work",
+		Args:       args,
+		WorkingDir: viewDir,
+		Env:        append(os.Environ(), fmt.Sprintf("GOWORK=%s", gowork)),
+	}
+	if _, err := c.s.session.GoCommandRunner().Run(ctx, inv); err != nil {
+		return fmt.Errorf("running go work command: %v", err)
+	}
+	return nil
 }

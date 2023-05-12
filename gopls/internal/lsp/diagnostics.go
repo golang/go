@@ -391,8 +391,14 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, analyze
 	// Orphaned files.
 	// Confirm that every opened file belongs to a package (if any exist in
 	// the workspace). Otherwise, add a diagnostic to the file.
-	for uri, diag := range snapshot.OrphanedFileDiagnostics(ctx) {
-		s.storeDiagnostics(snapshot, uri, orphanedSource, []*source.Diagnostic{diag}, true)
+	if diags, err := snapshot.OrphanedFileDiagnostics(ctx); err == nil {
+		for uri, diag := range diags {
+			s.storeDiagnostics(snapshot, uri, orphanedSource, []*source.Diagnostic{diag}, true)
+		}
+	} else {
+		if ctx.Err() == nil {
+			event.Error(ctx, "computing orphaned file diagnostics", err, source.SnapshotLabels(snapshot)...)
+		}
 	}
 }
 

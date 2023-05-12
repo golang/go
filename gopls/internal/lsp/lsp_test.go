@@ -241,7 +241,7 @@ func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) 
 
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnostic) {
 	// Get the diagnostics for this view if we have not done it before.
-	v := r.server.session.View(r.data.Config.Dir)
+	v := r.server.session.ViewByName(r.data.Config.Dir)
 	r.collectDiagnostics(v)
 	tests.CompareDiagnostics(t, uri, want, r.diagnostics[uri])
 }
