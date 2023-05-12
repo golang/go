@@ -832,11 +832,7 @@ func (t *tester) registerTests() {
 		if t.supportedBuildmode("plugin") {
 			t.registerTest("cgo_testplugin", "", &goTest{pkg: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
 		}
-		if goos == "linux" || (goos == "freebsd" && goarch == "amd64") {
-			// because Pdeathsig of syscall.SysProcAttr struct used in cmd/cgo/internal/testsanitizers is only
-			// supported on Linux and FreeBSD.
-			t.registerTest("cgo_testsanitizers", "", &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
-		}
+		t.registerTest("cgo_testsanitizers", "", &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
 		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
 			t.registerTest("cgo_errors", "", &goTest{pkg: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute})
 		}
