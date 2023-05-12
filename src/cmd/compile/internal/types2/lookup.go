@@ -387,6 +387,10 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
 					f, _ = obj.(*Func)
 					if f != nil {
+						// This method is formatted in funcString below, so must be type-checked.
+						if check != nil {
+							check.objDecl(f, nil)
+						}
 						state = wrongName
 					}
 				}
