@@ -1913,6 +1913,8 @@ const (
 	OpMIPSMOVBstorezero
 	OpMIPSMOVHstorezero
 	OpMIPSMOVWstorezero
+	OpMIPSMOVWfpgp
+	OpMIPSMOVWgpfp
 	OpMIPSMOVBreg
 	OpMIPSMOVBUreg
 	OpMIPSMOVHreg
@@ -25615,6 +25617,32 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 140738025226238}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 SP g R31 SB
+			},
+		},
+	},
+	{
+		name:   "MOVWfpgp",
+		argLen: 1,
+		asm:    mips.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 35183835217920}, // F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30
+			},
+			outputs: []outputInfo{
+				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+			},
+		},
+	},
+	{
+		name:   "MOVWgpfp",
+		argLen: 1,
+		asm:    mips.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+			},
+			outputs: []outputInfo{
+				{0, 35183835217920}, // F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30
 			},
 		},
 	},
