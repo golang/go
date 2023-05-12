@@ -132,7 +132,9 @@ func equals(a, b lattice) bool {
 	if a.tag == constant {
 		// The same content of const value may be different, we should
 		// compare with auxInt instead
-		if a.val.AuxInt == b.val.AuxInt {
+		v1 := a.val
+		v2 := b.val
+		if v1.Op == v2.Op && v1.AuxInt == v2.AuxInt {
 			return true
 		} else {
 			return false
@@ -362,8 +364,9 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 }
 
 func (t *worklist) visitValue(val *Value) {
-	if !possibleConst(val) || (val.Op == OpCopy && !possibleConst(val.Args[0])) {
-		// fast fail
+	if !possibleConst(val) {
+		// fast fail for always worst Values, i.e. there is no lowering happen on them,
+		// their lattices must be initially worse Bottom.
 		return
 	}
 
