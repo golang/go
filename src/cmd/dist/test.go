@@ -957,25 +957,17 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 	})
 }
 
-// bgDirCmd constructs a Cmd intended to be run in the background as
-// part of the worklist. The worklist runner will buffer its output
-// and replay it sequentially. The command will be run in dir.
-func (t *tester) bgDirCmd(dir, bin string, args ...string) *exec.Cmd {
+// dirCmd constructs a Cmd intended to be run in the foreground.
+// The command will be run in dir, and Stdout and Stderr will go to os.Stdout
+// and os.Stderr.
+func (t *tester) dirCmd(dir string, cmdline ...interface{}) *exec.Cmd {
+	bin, args := flattenCmdline(cmdline)
 	cmd := exec.Command(bin, args...)
 	if filepath.IsAbs(dir) {
 		setDir(cmd, dir)
 	} else {
 		setDir(cmd, filepath.Join(goroot, dir))
 	}
-	return cmd
-}
-
-// dirCmd constructs a Cmd intended to be run in the foreground.
-// The command will be run in dir, and Stdout and Stderr will go to os.Stdout
-// and os.Stderr.
-func (t *tester) dirCmd(dir string, cmdline ...interface{}) *exec.Cmd {
-	bin, args := flattenCmdline(cmdline)
-	cmd := t.bgDirCmd(dir, bin, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if vflag > 1 {
@@ -995,7 +987,7 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
 		case []string:
 			list = append(list, x...)
 		default:
-			panic("invalid addCmd argument type: " + reflect.TypeOf(x).String())
+			panic("invalid dirCmd argument type: " + reflect.TypeOf(x).String())
 		}
 	}
 
@@ -1004,19 +996,6 @@ func flattenCmdline(cmdline []interface{}) (bin string, args []string) {
 		panic("command is not absolute: " + bin)
 	}
 	return bin, list[1:]
-}
-
-// addCmd adds a command to the worklist. Commands can be run in
-// parallel, but their output will be buffered and replayed in the
-// order they were added to worklist.
-func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.Cmd {
-	bin, args := flattenCmdline(cmdline)
-	w := &work{
-		dt:  dt,
-		cmd: t.bgDirCmd(dir, bin, args...),
-	}
-	t.worklist = append(t.worklist, w)
-	return w.cmd
 }
 
 func (t *tester) iOS() bool {
