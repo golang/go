@@ -1,6 +1,5 @@
 [GOOS:windows] skip 'filesystem normalizes / to \'
 [GOOS:plan9] skip 'filesystem disallows \n in paths'
-[!cgo] skip 'testing cgo handling of newlines'
 
 # If the directory path containing a package to be built includes a newline,
 # the go command should refuse to even try to build the package.
@@ -12,24 +11,28 @@ cd $DIR
 exec pwd
 cp $WORK/go.mod ./go.mod
 cp $WORK/main.go ./main.go
+cp $WORK/main_nocgo.go ./main_nocgo.go
 cp $WORK/main_test.go ./main_test.go
 
 ! go build -o $devnull .
 stderr 'package example: invalid package directory .*uh-oh'
 
-! go build -o $devnull main.go
+[cgo] ! go build -o $devnull main.go
+[!cgo] ! go build -o $devnull main_nocgo.go
 stderr 'package command-line-arguments: invalid package directory .*uh-oh'
 
 ! go run .
 stderr 'package example: invalid package directory .*uh-oh'
 
-! go run main.go
+[cgo] ! go run main.go
+[!cgo] ! go run main_nocgo.go
 stderr 'package command-line-arguments: invalid package directory .*uh-oh'
 
 ! go test .
 stderr 'package example: invalid package directory .*uh-oh'
 
-! go test -v main.go main_test.go
+[cgo] ! go test -v main.go main_test.go
+[!cgo] ! go test -v main_nocgo.go main_test.go
 stderr 'package command-line-arguments: invalid package directory .*uh-oh'
 
 go list -compiled -e -f '{{with .CompiledGoFiles}}{{.}}{{end}}' .
@@ -47,19 +50,22 @@ go list -compiled -e -f '{{with .CompiledGoFiles}}{{.}}{{end}}' .
 
 symlink $WORK${/}link -> $DIR
 
-go run $WORK${/}link${/}main.go
+[cgo] go run $WORK${/}link${/}main.go
+[!cgo] go run $WORK${/}link${/}main_nocgo.go
 ! stdout panic
 ! stderr panic
 stderr '^ok$'
 
-go test -v $WORK${/}link${/}main.go $WORK${/}link${/}main_test.go
+[cgo] go test -v $WORK${/}link${/}main.go $WORK${/}link${/}main_test.go
+[!cgo] go test -v $WORK${/}link${/}main_nocgo.go $WORK${/}link${/}main_test.go
 ! stdout panic
 ! stderr panic
 stdout '^ok$'   # 'go test' combines the test's stdout into stderr
 
 cd $WORK/link
 
-! go run $DIR${/}main.go
+[cgo] ! go run $DIR${/}main.go
+[!cgo] ! go run $DIR${/}main_nocgo.go
 stderr 'package command-line-arguments: invalid package directory .*uh-oh'
 
 go run .
@@ -67,7 +73,8 @@ go run .
 ! stderr panic
 stderr '^ok$'
 
-go run main.go
+[cgo] go run main.go
+[!cgo] go run main_nocgo.go
 ! stdout panic
 ! stderr panic
 stderr '^ok$'
@@ -90,6 +97,15 @@ go 1.19
 package main
 
 import "C"
+
+func main() {
+	/* nothing here */
+	println("ok")
+}
+-- $WORK/main_nocgo.go --
+//go:build !cgo
+
+package main
 
 func main() {
 	/* nothing here */
