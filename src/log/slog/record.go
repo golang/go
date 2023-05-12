@@ -15,6 +15,7 @@ const nAttrsInline = 5
 // A Record holds information about a log event.
 // Copies of a Record share state.
 // Do not modify a Record after handing out a copy to it.
+// Call [NewRecord] to create a new Record.
 // Use [Record.Clone] to create a copy with no shared state.
 type Record struct {
 	// The time at which the output method (Log, Info, etc.) was called.
