@@ -1999,7 +1999,6 @@ func oneNewExtraM() {
 	mp.lockedg.set(gp)
 	gp.lockedm.set(mp)
 	gp.goid = sched.goidgen.Add(1)
-	gp.trace.sysBlockTraced = true
 	if raceenabled {
 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
 	}
@@ -2705,7 +2704,7 @@ func execute(gp *g, inheritTime bool) {
 	if traceEnabled() {
 		// GoSysExit has to happen when we have a P, but before GoStart.
 		// So we emit it here.
-		if gp.syscallsp != 0 && gp.trace.sysBlockTraced {
+		if gp.syscallsp != 0 {
 			traceGoSysExit()
 		}
 		traceGoStart()
@@ -3856,7 +3855,6 @@ func reentersyscall(pc, sp uintptr) {
 	}
 
 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
-	gp.trace.sysBlockTraced = true
 	pp := gp.m.p.ptr()
 	pp.m = 0
 	gp.m.oldp.set(pp)
@@ -3917,7 +3915,6 @@ func entersyscallblock() {
 	gp.throwsplit = true
 	gp.stackguard0 = stackPreempt // see comment in entersyscall
 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
-	gp.trace.sysBlockTraced = true
 	gp.m.p.ptr().syscalltick++
 
 	// Leave SP around for GC and traceback.

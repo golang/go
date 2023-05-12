@@ -163,10 +163,10 @@ var trace struct {
 
 // gTraceState is per-G state for the tracer.
 type gTraceState struct {
-	sysExitTicks   int64    // cputicks when syscall has returned
-	sysBlockTraced bool     // StartTrace has emitted EvGoInSyscall about this goroutine
-	seq            uint64   // trace event sequencer
-	lastP          puintptr // last P emitted an event for this goroutine
+	sysExitTicks       int64    // cputicks when syscall has returned
+	tracedSyscallEnter bool     // syscall or cgo was entered while trace was enabled or StartTrace has emitted EvGoInSyscall about this goroutine
+	seq                uint64   // trace event sequencer
+	lastP              puintptr // last P emitted an event for this goroutine
 }
 
 // mTraceState is per-M state for the tracer.
@@ -309,6 +309,7 @@ func StartTrace() error {
 		}
 		if status == _Gsyscall {
 			gp.trace.seq++
+			gp.trace.tracedSyscallEnter = true
 			traceEvent(traceEvGoInSyscall, -1, gp.goid)
 		} else if status == _Gdead && gp.m != nil && gp.m.isextra {
 			// Trigger two trace events for the dead g in the extra m,
@@ -320,9 +321,16 @@ func StartTrace() error {
 			id := trace.stackTab.put([]uintptr{logicalStackSentinel, startPCforTrace(0) + sys.PCQuantum}) // no start pc
 			traceEvent(traceEvGoCreate, -1, gp.goid, uint64(id), stackID)
 			gp.trace.seq++
+			gp.trace.tracedSyscallEnter = true
 			traceEvent(traceEvGoInSyscall, -1, gp.goid)
 		} else {
-			gp.trace.sysBlockTraced = false
+			// We need to explicitly clear the flag. A previous trace might have ended with a goroutine
+			// not emitting a GoSysExit and clearing the flag, leaving it in a stale state. Clearing
+			// it here makes it unambiguous to any goroutine exiting a syscall racing with us that
+			// no EvGoInSyscall event was emitted for it. (It's not racy to set this flag here, because
+			// it'll only get checked when the goroutine runs again, which will be after the world starts
+			// again.)
+			gp.trace.tracedSyscallEnter = false
 		}
 	})
 	traceProcStart()
@@ -1603,11 +1611,18 @@ func traceGoSysCall() {
 		// Skip the extra trampoline frame used on most systems.
 		skip = 4
 	}
+	getg().m.curg.trace.tracedSyscallEnter = true
 	traceEvent(traceEvGoSysCall, skip)
 }
 
 func traceGoSysExit() {
 	gp := getg().m.curg
+	if !gp.trace.tracedSyscallEnter {
+		// There was no syscall entry traced for us at all, so there's definitely
+		// no EvGoSysBlock or EvGoInSyscall before us, which EvGoSysExit requires.
+		return
+	}
+	gp.trace.tracedSyscallEnter = false
 	ts := gp.trace.sysExitTicks
 	if ts != 0 && ts < trace.ticksStart {
 		// There is a race between the code that initializes sysExitTicks
