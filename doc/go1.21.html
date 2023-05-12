@@ -105,6 +105,18 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl>
 
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+  <dd>
+    <p><!-- CL 408826, CL 413474 -->
+      In Go 1.21, <a href="/pkg/reflect/#ValueOf"><code>ValueOf</code></a>
+      no longer forces its argument to be allocated on the heap, allowing
+      a <code>Value</code>'s content to be allocated on the stack. Most
+      operations on a <code>Value</code> also allow the underlying value
+      to be stack allocated.
+    </p>
+  </dd>
+</dl>
+
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
     <p><!-- https://go.dev/issue/56102, CL 451356 -->
