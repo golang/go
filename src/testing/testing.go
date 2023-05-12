@@ -1300,7 +1300,7 @@ func (c *common) Setenv(key, value string) {
 	}
 }
 
-// panicHanding is an argument to runCleanup.
+// panicHanding controls the panic handling used by runCleanup.
 type panicHandling int
 
 const (
@@ -1309,7 +1309,7 @@ const (
 )
 
 // runCleanup is called at the end of the test.
-// If catchPanic is true, this will catch panics, and return the recovered
+// If panicHandling == recoverAndReturnPanic, it will catch panics, and return the recovered
 // value if any.
 func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 	c.cleanupStarted.Store(true)
