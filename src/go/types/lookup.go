@@ -389,10 +389,6 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 					obj, _, _ = lookupFieldOrMethodImpl(V, false, m.pkg, m.name, true /* fold case */)
 					f, _ = obj.(*Func)
 					if f != nil {
-						// This method is formatted in funcString below, so must be type-checked.
-						if check != nil {
-							check.objDecl(f, nil)
-						}
 						state = wrongName
 					}
 				}
@@ -423,6 +419,13 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 	}
 
 	if cause != nil {
+		if f != nil {
+			// This method may be formatted in funcString below, so must have a fully
+			// set up signature.
+			if check != nil {
+				check.objDecl(f, nil)
+			}
+		}
 		switch state {
 		case notFound:
 			switch {
