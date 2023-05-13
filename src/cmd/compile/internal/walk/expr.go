@@ -621,7 +621,6 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
 		}
 	}
 
-	n.Args = args
 	funSym := n.X.Sym()
 	if base.Debug.Libfuzzer != 0 && funSym != nil {
 		if hook, found := hooks[funSym.Pkg.Path+"."+funSym.Name]; found {
