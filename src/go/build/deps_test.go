@@ -46,8 +46,12 @@ var depsRules = `
 	  internal/goexperiment, internal/goos,
 	  internal/goversion, internal/nettrace, internal/platform,
 	  log/internal,
-	  maps, slices, unicode/utf8, unicode/utf16, unicode,
+	  maps, unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
+
+	# slices depends on unsafe for overlapping check.
+	unsafe
+	< slices;
 
 	# These packages depend only on internal/goarch and unsafe.
 	internal/goarch, unsafe

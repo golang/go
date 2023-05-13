@@ -302,6 +302,31 @@ func TestInsert(t *testing.T) {
 	}
 }
 
+func TestInsertOverlap(t *testing.T) {
+	const N = 10
+	a := make([]int, N)
+	want := make([]int, 2*N)
+	for n := 0; n <= N; n++ { // length
+		for i := 0; i <= n; i++ { // insertion point
+			for x := 0; x <= N; x++ { // start of inserted data
+				for y := x; y <= N; y++ { // end of inserted data
+					for k := 0; k < N; k++ {
+						a[k] = k
+					}
+					want = want[:0]
+					want = append(want, a[:i]...)
+					want = append(want, a[x:y]...)
+					want = append(want, a[i:n]...)
+					got := Insert(a[:n], i, a[x:y]...)
+					if !Equal(got, want) {
+						t.Errorf("Insert with overlap failed n=%d i=%d x=%d y=%d, got %v want %v", n, i, x, y, got, want)
+					}
+				}
+			}
+		}
+	}
+}
+
 var deleteTests = []struct {
 	s    []int
 	i, j int
@@ -662,6 +687,33 @@ func TestReplacePanics(t *testing.T) {
 	}
 }
 
+func TestReplaceOverlap(t *testing.T) {
+	const N = 10
+	a := make([]int, N)
+	want := make([]int, 2*N)
+	for n := 0; n <= N; n++ { // length
+		for i := 0; i <= n; i++ { // insertion point 1
+			for j := i; j <= n; j++ { // insertion point 2
+				for x := 0; x <= N; x++ { // start of inserted data
+					for y := x; y <= N; y++ { // end of inserted data
+						for k := 0; k < N; k++ {
+							a[k] = k
+						}
+						want = want[:0]
+						want = append(want, a[:i]...)
+						want = append(want, a[x:y]...)
+						want = append(want, a[j:n]...)
+						got := Replace(a[:n], i, j, a[x:y]...)
+						if !Equal(got, want) {
+							t.Errorf("Insert with overlap failed n=%d i=%d j=%d x=%d y=%d, got %v want %v", n, i, j, x, y, got, want)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 func BenchmarkReplace(b *testing.B) {
 	cases := []struct {
 		name string
@@ -709,4 +761,23 @@ func BenchmarkReplace(b *testing.B) {
 		})
 	}
 
+}
+
+func TestRotate(t *testing.T) {
+	const N = 10
+	s := make([]int, 0, N)
+	for n := 0; n < N; n++ {
+		for r := 0; r < n; r++ {
+			s = s[:0]
+			for i := 0; i < n; i++ {
+				s = append(s, i)
+			}
+			rotateLeft(s, r)
+			for i := 0; i < n; i++ {
+				if s[i] != (i+r)%n {
+					t.Errorf("expected n=%d r=%d i:%d want:%d got:%d", n, r, i, (i+r)%n, s[i])
+				}
+			}
+		}
+	}
 }
