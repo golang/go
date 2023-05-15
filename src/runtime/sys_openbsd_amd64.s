@@ -393,6 +393,12 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	MOVL	0(DI), DI		// arg 1 fd
 	XORL	AX, AX			// vararg: say "no float args"
 	CALL	libc_fcntl(SB)
+	TESTL	AX, AX
+	JGE	noerr
+	CALL	libc_errno(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno value
+noerr:
 	POPQ	BP
 	RET
 
