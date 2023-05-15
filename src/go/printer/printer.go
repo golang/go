@@ -75,10 +75,11 @@ type printer struct {
 	// white space). If there's a difference and SourcePos is set in
 	// ConfigMode, //line directives are used in the output to restore
 	// original source positions for a reader.
-	pos     token.Position // current position in AST (source) space
-	out     token.Position // current position in output space
-	last    token.Position // value of pos after calling writeString
-	linePtr *int           // if set, record out.Line for the next token in *linePtr
+	pos          token.Position // current position in AST (source) space
+	out          token.Position // current position in output space
+	last         token.Position // value of pos after calling writeString
+	linePtr      *int           // if set, record out.Line for the next token in *linePtr
+	sourcePosErr error          // if non-nil, the first error emitting a //line directive
 
 	// The list of all source comments, in order of appearance.
 	comments        []*ast.CommentGroup // may be nil
@@ -196,6 +197,13 @@ func (p *printer) lineFor(pos token.Pos) int {
 // writeLineDirective writes a //line directive if necessary.
 func (p *printer) writeLineDirective(pos token.Position) {
 	if pos.IsValid() && (p.out.Line != pos.Line || p.out.Filename != pos.Filename) {
+		if strings.ContainsAny(pos.Filename, "\r\n") {
+			if p.sourcePosErr == nil {
+				p.sourcePosErr = fmt.Errorf("go/printer: source filename contains unexpected newline character: %q", pos.Filename)
+			}
+			return
+		}
+
 		p.output = append(p.output, tabwriter.Escape) // protect '\n' in //line from tabwriter interpretation
 		p.output = append(p.output, fmt.Sprintf("//line %s:%d\n", pos.Filename, pos.Line)...)
 		p.output = append(p.output, tabwriter.Escape)
@@ -1169,7 +1177,7 @@ func (p *printer) printNode(node any) error {
 		goto unsupported
 	}
 
-	return nil
+	return p.sourcePosErr
 
 unsupported:
 	return fmt.Errorf("go/printer: unsupported node type %T", node)
