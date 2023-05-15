@@ -5,6 +5,7 @@
 package coverage
 
 import (
+	"encoding/json"
 	"fmt"
 	"internal/coverage"
 	"internal/coverage/calloc"
@@ -15,6 +16,7 @@ import (
 	"internal/coverage/pods"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime/internal/atomic"
 	"strings"
 	"unsafe"
@@ -88,11 +90,19 @@ func processCoverTestDirInternal(dir string, cfile string, cm string, cpkg strin
 	// hash (just in case there are multiple instrumented executables
 	// in play). See issue #57924 for more on this.
 	hashstring := fmt.Sprintf("%x", finalHash)
+	importpaths := make(map[string]struct{})
 	for _, p := range podlist {
 		if !strings.Contains(p.MetaFile, hashstring) {
 			continue
 		}
-		if err := ts.processPod(p); err != nil {
+		if err := ts.processPod(p, importpaths); err != nil {
+			return err
+		}
+	}
+
+	metafilespath := filepath.Join(dir, coverage.MetaFilesFileName)
+	if _, err := os.Stat(metafilespath); err == nil {
+		if err := ts.readAuxMetaFiles(metafilespath, importpaths); err != nil {
 			return err
 		}
 	}
@@ -124,7 +134,7 @@ type tstate struct {
 }
 
 // processPod reads coverage counter data for a specific pod.
-func (ts *tstate) processPod(p pods.Pod) error {
+func (ts *tstate) processPod(p pods.Pod, importpaths map[string]struct{}) error {
 	// Open meta-data file
 	f, err := os.Open(p.MetaFile)
 	if err != nil {
@@ -204,6 +214,7 @@ func (ts *tstate) processPod(p pods.Pod) error {
 			return fmt.Errorf("reading pkg %d from meta-file %s: %s", pkIdx, p.MetaFile, err)
 		}
 		ts.cf.SetPackage(pd.PackagePath())
+		importpaths[pd.PackagePath()] = struct{}{}
 		var fd coverage.FuncDesc
 		nf := pd.NumFuncs()
 		for fnIdx := uint32(0); fnIdx < nf; fnIdx++ {
@@ -233,6 +244,37 @@ func (ts *tstate) processPod(p pods.Pod) error {
 
 type pkfunc struct {
 	pk, fcn uint32
+}
+
+func (ts *tstate) readAuxMetaFiles(metafiles string, importpaths map[string]struct{}) error {
+	// Unmarshall the information on available aux metafiles into
+	// a MetaFileCollection struct.
+	var mfc coverage.MetaFileCollection
+	data, err := os.ReadFile(metafiles)
+	if err != nil {
+		return fmt.Errorf("error reading auxmetafiles file %q: %v", metafiles, err)
+	}
+	if err := json.Unmarshal(data, &mfc); err != nil {
+		return fmt.Errorf("error reading auxmetafiles file %q: %v", metafiles, err)
+	}
+
+	// Walk through each available aux meta-file. If we've already
+	// seen the package path in question during the walk of the
+	// "regular" meta-data file, then we can skip the package,
+	// otherwise construct a dummy pod with the single meta-data file
+	// (no counters) and invoke processPod on it.
+	for i := range mfc.ImportPaths {
+		p := mfc.ImportPaths[i]
+		if _, ok := importpaths[p]; ok {
+			continue
+		}
+		var pod pods.Pod
+		pod.MetaFile = mfc.MetaFileFragments[i]
+		if err := ts.processPod(pod, importpaths); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // snapshot returns a snapshot of coverage percentage at a moment of
