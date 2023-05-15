@@ -31,6 +31,7 @@ import (
 	"golang.org/x/tools/gopls/internal/lsp/filecache"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
 	"golang.org/x/tools/gopls/internal/lsp/source"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/facts"
 	"golang.org/x/tools/internal/gcimporter"
 	"golang.org/x/tools/internal/memoize"
@@ -454,13 +455,15 @@ func analyzeImpl(ctx context.Context, snapshot *snapshot, analyzers []*analysis.
 		if err != nil {
 			return nil, err
 		}
-		data := mustEncode(summary)
-		if false {
-			log.Printf("Set key=%d value=%d id=%s\n", len(key), len(data), id)
-		}
-		if err := filecache.Set(cacheKind, key, data); err != nil {
-			return nil, fmt.Errorf("internal error updating shared cache: %v", err)
-		}
+		go func() {
+			data := mustEncode(summary)
+			if false {
+				log.Printf("Set key=%d value=%d id=%s\n", len(key), len(data), id)
+			}
+			if err := filecache.Set(cacheKind, key, data); err != nil {
+				event.Error(ctx, "internal error updating analysis shared cache", err)
+			}
+		}()
 	}
 
 	// Hit or miss, we need to merge the export data from
