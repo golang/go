@@ -118,6 +118,9 @@ var ErrNotFound = fmt.Errorf("not found")
 
 // Set updates the value in the cache.
 func Set(kind string, key [32]byte, value []byte) error {
+	iolimit <- struct{}{}        // acquire a token
+	defer func() { <-iolimit }() // release a token
+
 	name, err := filename(kind, key)
 	if err != nil {
 		return err
@@ -156,6 +159,8 @@ func Set(kind string, key [32]byte, value []byte) error {
 		bytes.NewReader(checksum[:])),
 		0600)
 }
+
+var iolimit = make(chan struct{}, 128) // counting semaphore to limit I/O concurrency in Set.
 
 var budget int64 = 1e9 // 1GB
 

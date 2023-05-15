@@ -218,6 +218,7 @@ func BenchmarkUncontendedGet(b *testing.B) {
 		b.Fatal(err)
 	}
 	b.ResetTimer()
+	b.SetBytes(int64(len(value)))
 
 	var group errgroup.Group
 	group.SetLimit(50)
@@ -229,5 +230,36 @@ func BenchmarkUncontendedGet(b *testing.B) {
 	}
 	if err := group.Wait(); err != nil {
 		b.Fatal(err)
+	}
+}
+
+// These two benchmarks are asymmetric: the one for Get imposes a
+// modest bound on concurrency (50) whereas the one for Set imposes a
+// much higher concurrency (1000) to test the implementation's
+// self-imposed bound.
+
+func BenchmarkUncontendedSet(b *testing.B) {
+	const kind = "BenchmarkUncontendedSet"
+	key := uniqueKey()
+	var value [8192]byte
+
+	const P = 1000 // parallelism
+	b.SetBytes(P * int64(len(value)))
+
+	for i := 0; i < b.N; i++ {
+		// Perform P concurrent calls to Set. All must succeed.
+		var group errgroup.Group
+		for range [P]bool{} {
+			group.Go(func() error {
+				return filecache.Set(kind, key, value[:])
+			})
+		}
+		if err := group.Wait(); err != nil {
+			if strings.Contains(err.Error(), "operation not supported") ||
+				strings.Contains(err.Error(), "not implemented") {
+				b.Skipf("skipping: %v", err)
+			}
+			b.Fatal(err)
+		}
 	}
 }
