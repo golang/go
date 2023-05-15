@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 
 	"cmd/internal/edit"
 	"cmd/internal/objabi"
@@ -341,6 +342,9 @@ func annotate(name string) {
 		}
 	}
 
+	if strings.ContainsAny(name, "\r\n") {
+		log.Fatalf("cover: input path contains newline character: %q", name)
+	}
 	fmt.Fprintf(fd, "//line %s:1\n", name)
 	fd.Write(newContent)
 
