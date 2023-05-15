@@ -92,9 +92,15 @@ func (p *Process) release() error {
 	return nil
 }
 
-func findProcess(pid int) (p *Process, err error) {
-	// NOOP for unix.
-	return newProcess(pid, 0), nil
+func findProcess(pid int) (*Process, error) {
+	proc := newProcess(pid, 0)
+	// The POSIX standard specifies that a null-signal can be sent to check
+	// whether a PID is valid.
+	err := proc.Signal(syscall.Signal(0))
+	if err != nil {
+		return nil, err
+	}
+	return proc, nil
 }
 
 func (p *ProcessState) userTime() time.Duration {
