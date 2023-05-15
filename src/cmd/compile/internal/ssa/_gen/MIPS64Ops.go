@@ -361,6 +361,17 @@ func init() {
 			faultOnNilArg1: true,
 		},
 
+		// atomic and/or.
+		// *arg0 &= (|=) arg1. arg2=mem. returns memory.
+		// SYNC
+		// LL	(Rarg0), Rtmp
+		// AND	Rarg1, Rtmp
+		// SC	Rtmp, (Rarg0)
+		// BEQ	Rtmp, -3(PC)
+		// SYNC
+		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpstore, asm: "AND", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicOr32", argLength: 3, reg: gpstore, asm: "OR", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
 		// atomic loads.
 		// load from arg0. arg1=mem.
 		// returns <value,memory> so they can be properly ordered with other loads.
