@@ -658,6 +658,9 @@ func Utimes(path string, tv []Timeval) (err error) {
 	return SetFileTime(h, nil, &a, &w)
 }
 
+// This matches the value in os/file_windows.go.
+const _UTIME_OMIT = -1
+
 func UtimesNano(path string, ts []Timespec) (err error) {
 	if len(ts) != 2 {
 		return EINVAL
@@ -675,10 +678,10 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 	defer Close(h)
 	a := Filetime{}
 	w := Filetime{}
-	if TimespecToNsec(ts[0]) != 0 {
+	if ts[0].Nsec != _UTIME_OMIT {
 		a = NsecToFiletime(TimespecToNsec(ts[0]))
 	}
-	if TimespecToNsec(ts[1]) != 0 {
+	if ts[1].Nsec != _UTIME_OMIT {
 		w = NsecToFiletime(TimespecToNsec(ts[1]))
 	}
 	return SetFileTime(h, nil, &a, &w)

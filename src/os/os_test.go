@@ -1568,6 +1568,32 @@ func testChtimes(t *testing.T, name string) {
 	}
 }
 
+func TestChtimesToUnixZero(t *testing.T) {
+	file := newFile("chtimes-to-unix-zero", t)
+	fn := file.Name()
+	defer Remove(fn)
+	if _, err := file.Write([]byte("hi")); err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	unixZero := time.Unix(0, 0)
+	if err := Chtimes(fn, unixZero, unixZero); err != nil {
+		t.Fatalf("Chtimes failed: %v", err)
+	}
+
+	st, err := Stat(fn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mt := st.ModTime(); mt != unixZero {
+		t.Errorf("mtime is %v, want %v", mt, unixZero)
+	}
+}
+
 func TestFileChdir(t *testing.T) {
 	wd, err := Getwd()
 	if err != nil {
