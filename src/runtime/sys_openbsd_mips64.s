@@ -364,6 +364,18 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVW	R2, ret+48(FP)
 	RET
 
+// func fcntl(fd, cmd, arg int32) int32
+TEXT runtime·fcntl(SB),NOSPLIT,$0
+	MOVW	fd+0(FP), R4	// fd
+	MOVW	cmd+4(FP), R5	// cmd
+	MOVW	arg+8(FP), R6	// arg
+	MOVV	$92, R2		// sys_fcntl
+	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
+	MOVW	R2, ret+16(FP)
+	RET
+
 // func closeonexec(fd int32)
 TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R4		// arg 1 - fd

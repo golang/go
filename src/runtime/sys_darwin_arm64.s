@@ -314,6 +314,13 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	MOVW	R2, (RSP)	// arg 3 is variadic, pass on stack
 	MOVW	0(R0), R0	// arg 1 fd
 	BL	libc_fcntl(SB)
+	MOVD	$-1, R1
+	CMP	R0, R1
+	BNE	noerr
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	NEG	R0, R0		// caller expects negative errno value
+noerr:
 	ADD	$16, RSP
 	RET
 

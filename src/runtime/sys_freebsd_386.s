@@ -415,6 +415,15 @@ TEXT runtime·kevent(SB),NOSPLIT,$0
 	MOVL	AX, ret+24(FP)
 	RET
 
+// func fcntl(fd, cmd, arg int32) int32
+TEXT runtime·fcntl(SB),NOSPLIT,$-4
+	MOVL	$92, AX
+	INT	$0x80
+	JAE	2(PC)
+	NEGL	AX			// caller expects negative errno
+	MOVL	AX, ret+12(FP)
+	RET
+
 // int32 runtime·closeonexec(int32 fd);
 TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	MOVL	$92, AX		// fcntl
