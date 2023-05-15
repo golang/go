@@ -691,32 +691,22 @@ func expand1(t *types.Type, top bool) {
 	t.SetRecur(false)
 }
 
-func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) (m *types.Field, followptr bool) {
+func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) *types.Field {
 	if t == nil {
-		return nil, false
+		return nil
 	}
 
-	path, ambig := dotpath(s, t, &m, ignorecase)
+	var m *types.Field
+	path, _ := dotpath(s, t, &m, ignorecase)
 	if path == nil {
-		if ambig {
-			base.Errorf("%v.%v is ambiguous", t, s)
-		}
-		return nil, false
-	}
-
-	for _, d := range path {
-		if d.field.Type.IsPtr() {
-			followptr = true
-			break
-		}
+		return nil
 	}
 
 	if !m.IsMethod() {
-		base.Errorf("%v.%v is a field, not a method", t, s)
-		return nil, followptr
+		return nil
 	}
 
-	return m, followptr
+	return m
 }
 
 // implements reports whether t implements the interface iface. t can be
@@ -768,7 +758,7 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool 
 		}
 		if i == len(tms) {
 			*m = im
-			*samename, _ = ifacelookdot(im.Sym, t, true)
+			*samename = ifacelookdot(im.Sym, t, true)
 			*ptr = 0
 			return false
 		}
