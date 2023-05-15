@@ -70,7 +70,8 @@ type tester struct {
 	cgoEnabled bool
 	partial    bool
 
-	tests        []distTest
+	tests        []distTest // use addTest to extend
+	testNames    map[string]bool
 	timeoutScale int
 
 	worklist []*work
@@ -193,7 +194,7 @@ func (t *tester) run() {
 	}
 
 	for _, name := range t.runNames {
-		if !t.isRegisteredTestName(name) {
+		if !t.testNames[name] {
 			fatalf("unknown test %q", name)
 		}
 	}
@@ -471,31 +472,27 @@ func (t *tester) registerStdTest(pkg string) {
 		stdMatches = append(stdMatches, pkg)
 	}
 
-	t.tests = append(t.tests, distTest{
-		name:    testName,
-		heading: heading,
-		fn: func(dt *distTest) error {
-			if ranGoTest {
-				return nil
-			}
-			t.runPending(dt)
-			timelog("start", dt.name)
-			defer timelog("end", dt.name)
-			ranGoTest = true
+	t.addTest(testName, heading, func(dt *distTest) error {
+		if ranGoTest {
+			return nil
+		}
+		t.runPending(dt)
+		timelog("start", dt.name)
+		defer timelog("end", dt.name)
+		ranGoTest = true
 
-			timeoutSec := 180 * time.Second
-			for _, pkg := range stdMatches {
-				if pkg == "cmd/go" {
-					timeoutSec *= 3
-					break
-				}
+		timeoutSec := 180 * time.Second
+		for _, pkg := range stdMatches {
+			if pkg == "cmd/go" {
+				timeoutSec *= 3
+				break
 			}
-			return (&goTest{
-				timeout: timeoutSec,
-				gcflags: gcflags,
-				pkgs:    stdMatches,
-			}).run(t)
-		},
+		}
+		return (&goTest{
+			timeout: timeoutSec,
+			gcflags: gcflags,
+			pkgs:    stdMatches,
+		}).run(t)
 	})
 }
 
@@ -504,25 +501,21 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
 		benchMatches = append(benchMatches, pkg)
 	}
-	t.tests = append(t.tests, distTest{
-		name:    testName,
-		heading: "Running benchmarks briefly.",
-		fn: func(dt *distTest) error {
-			if ranGoBench {
-				return nil
-			}
-			t.runPending(dt)
-			timelog("start", dt.name)
-			defer timelog("end", dt.name)
-			ranGoBench = true
-			return (&goTest{
-				timeout: 1200 * time.Second, // longer timeout for race with benchmarks
-				race:    true,
-				bench:   true,
-				cpu:     "4",
-				pkgs:    benchMatches,
-			}).run(t)
-		},
+	t.addTest(testName, "Running benchmarks briefly.", func(dt *distTest) error {
+		if ranGoBench {
+			return nil
+		}
+		t.runPending(dt)
+		timelog("start", dt.name)
+		defer timelog("end", dt.name)
+		ranGoBench = true
+		return (&goTest{
+			timeout: 1200 * time.Second, // longer timeout for race with benchmarks
+			race:    true,
+			bench:   true,
+			cpu:     "4",
+			pkgs:    benchMatches,
+		}).run(t)
 	})
 }
 
@@ -688,43 +681,39 @@ func (t *tester) registerTests() {
 	// Fails on Android, js/wasm and wasip1/wasm with an exec format error.
 	// Fails on plan9 with "cannot find GOROOT" (issue #21016).
 	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" && goos != "js" && goos != "wasip1" {
-		t.tests = append(t.tests, distTest{
-			name:    "moved_goroot",
-			heading: "moved GOROOT",
-			fn: func(dt *distTest) error {
-				t.runPending(dt)
-				timelog("start", dt.name)
-				defer timelog("end", dt.name)
-				moved := goroot + "-moved"
-				if err := os.Rename(goroot, moved); err != nil {
-					if goos == "windows" {
-						// Fails on Windows (with "Access is denied") if a process
-						// or binary is in this directory. For instance, using all.bat
-						// when run from c:\workdir\go\src fails here
-						// if GO_BUILDER_NAME is set. Our builders invoke tests
-						// a different way which happens to work when sharding
-						// tests, but we should be tolerant of the non-sharded
-						// all.bat case.
-						log.Printf("skipping test on Windows")
-						return nil
-					}
-					return err
-				}
-
-				// Run `go test fmt` in the moved GOROOT, without explicitly setting
-				// GOROOT in the environment. The 'go' command should find itself.
-				cmd := (&goTest{
-					goroot: moved,
-					pkg:    "fmt",
-				}).command(t)
-				unsetEnv(cmd, "GOROOT")
-				err := cmd.Run()
-
-				if rerr := os.Rename(moved, goroot); rerr != nil {
-					fatalf("failed to restore GOROOT: %v", rerr)
+		t.addTest("moved_goroot", "moved GOROOT", func(dt *distTest) error {
+			t.runPending(dt)
+			timelog("start", dt.name)
+			defer timelog("end", dt.name)
+			moved := goroot + "-moved"
+			if err := os.Rename(goroot, moved); err != nil {
+				if goos == "windows" {
+					// Fails on Windows (with "Access is denied") if a process
+					// or binary is in this directory. For instance, using all.bat
+					// when run from c:\workdir\go\src fails here
+					// if GO_BUILDER_NAME is set. Our builders invoke tests
+					// a different way which happens to work when sharding
+					// tests, but we should be tolerant of the non-sharded
+					// all.bat case.
+					log.Printf("skipping test on Windows")
+					return nil
 				}
 				return err
-			},
+			}
+
+			// Run `go test fmt` in the moved GOROOT, without explicitly setting
+			// GOROOT in the environment. The 'go' command should find itself.
+			cmd := (&goTest{
+				goroot: moved,
+				pkg:    "fmt",
+			}).command(t)
+			unsetEnv(cmd, "GOROOT")
+			err := cmd.Run()
+
+			if rerr := os.Rename(moved, goroot); rerr != nil {
+				fatalf("failed to restore GOROOT: %v", rerr)
+			}
+			return err
 		})
 	}
 
@@ -868,15 +857,22 @@ func (t *tester) registerTests() {
 	}
 }
 
-// isRegisteredTestName reports whether a test named testName has already
-// been registered.
-func (t *tester) isRegisteredTestName(testName string) bool {
-	for _, tt := range t.tests {
-		if tt.name == testName {
-			return true
-		}
+// addTest adds an arbitrary test callback to the test list.
+//
+// name must uniquely identify the test.
+func (t *tester) addTest(name, heading string, fn func(*distTest) error) {
+	if t.testNames[name] {
+		panic("duplicate registered test name " + name)
 	}
-	return false
+	if t.testNames == nil {
+		t.testNames = make(map[string]bool)
+	}
+	t.testNames[name] = true
+	t.tests = append(t.tests, distTest{
+		name:    name,
+		heading: heading,
+		fn:      fn,
+	})
 }
 
 type registerTestOpt interface {
@@ -902,29 +898,22 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 			preFunc = opt.pre
 		}
 	}
-	if t.isRegisteredTestName(name) {
-		panic("duplicate registered test name " + name)
-	}
 	if heading == "" {
 		if test.pkg == "" {
 			panic("either heading or test.pkg must be set")
 		}
 		heading = test.pkg
 	}
-	t.tests = append(t.tests, distTest{
-		name:    name,
-		heading: heading,
-		fn: func(dt *distTest) error {
-			if preFunc != nil && !preFunc(dt) {
-				return nil
-			}
-			w := &work{
-				dt:  dt,
-				cmd: test.bgCommand(t),
-			}
-			t.worklist = append(t.worklist, w)
+	t.addTest(name, heading, func(dt *distTest) error {
+		if preFunc != nil && !preFunc(dt) {
 			return nil
-		},
+		}
+		w := &work{
+			dt:  dt,
+			cmd: test.bgCommand(t),
+		}
+		t.worklist = append(t.worklist, w)
+		return nil
 	})
 }
 
