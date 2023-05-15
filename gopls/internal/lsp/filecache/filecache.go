@@ -56,6 +56,9 @@ func Start() {
 // possibly by another process.
 // Get returns ErrNotFound if the value was not found.
 func Get(kind string, key [32]byte) ([]byte, error) {
+	iolimit <- struct{}{}        // acquire a token
+	defer func() { <-iolimit }() // release a token
+
 	name, err := filename(kind, key)
 	if err != nil {
 		return nil, err
