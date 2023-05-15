@@ -568,6 +568,11 @@ func annotate(names []string) {
 	}
 	// TODO: process files in parallel here if it matters.
 	for k, name := range names {
+		if strings.ContainsAny(name, "\r\n") {
+			// annotateFile uses '//line' directives, which don't permit newlines.
+			log.Fatalf("cover: input path contains newline character: %q", name)
+		}
+
 		last := false
 		if k == len(names)-1 {
 			last = true
@@ -645,6 +650,11 @@ func (p *Package) annotateFile(name string, fd io.Writer, last bool) {
 	}
 	newContent := file.edit.Bytes()
 
+	if strings.ContainsAny(name, "\r\n") {
+		// This should have been checked by the caller already, but we double check
+		// here just to be sure we haven't missed a caller somewhere.
+		panic(fmt.Sprintf("annotateFile: name contains unexpected newline character: %q", name))
+	}
 	fmt.Fprintf(fd, "//line %s:1:1\n", name)
 	fd.Write(newContent)
 
