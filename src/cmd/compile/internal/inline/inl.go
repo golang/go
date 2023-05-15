@@ -30,7 +30,6 @@ import (
 	"fmt"
 	"go/constant"
 	"internal/goexperiment"
-	"sort"
 	"strconv"
 
 	"cmd/compile/internal/base"
@@ -122,38 +121,18 @@ func pgoInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
 // comparing with the threshold may not accurately reflect which nodes are
 // considiered hot).
 func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
-	nodes := make([]pgo.NodeMapKey, len(p.NodeMap))
-	i := 0
-	for n := range p.NodeMap {
-		nodes[i] = n
-		i++
-	}
-	sort.Slice(nodes, func(i, j int) bool {
-		ni, nj := nodes[i], nodes[j]
-		if wi, wj := p.NodeMap[ni].EWeight, p.NodeMap[nj].EWeight; wi != wj {
-			return wi > wj // want larger weight first
-		}
-		// same weight, order by name/line number
-		if ni.CallerName != nj.CallerName {
-			return ni.CallerName < nj.CallerName
-		}
-		if ni.CalleeName != nj.CalleeName {
-			return ni.CalleeName < nj.CalleeName
-		}
-		return ni.CallSiteOffset < nj.CallSiteOffset
-	})
 	cum := int64(0)
-	for i, n := range nodes {
+	for i, n := range p.NodesByWeight {
 		w := p.NodeMap[n].EWeight
 		cum += w
 		if pgo.WeightInPercentage(cum, p.TotalEdgeWeight) > inlineCDFHotCallSiteThresholdPercent {
 			// nodes[:i+1] to include the very last node that makes it to go over the threshold.
 			// (Say, if the CDF threshold is 50% and one hot node takes 60% of weight, we want to
 			// include that node instead of excluding it.)
-			return pgo.WeightInPercentage(w, p.TotalEdgeWeight), nodes[:i+1]
+			return pgo.WeightInPercentage(w, p.TotalEdgeWeight), p.NodesByWeight[:i+1]
 		}
 	}
-	return 0, nodes
+	return 0, p.NodesByWeight
 }
 
 // InlinePackage finds functions that can be inlined and clones them before walk expands them.

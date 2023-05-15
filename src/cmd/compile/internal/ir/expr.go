@@ -1189,6 +1189,51 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
 	return rpkg.LookupBytes(b.Bytes())
 }
 
+// LookupMethodSelector returns the types.Sym of the selector for a method
+// named in local symbol name, as well as the types.Sym of the receiver.
+//
+// TODO(prattmic): this does not attempt to handle method suffixes (wrappers).
+func LookupMethodSelector(pkg *types.Pkg, name string) (typ, meth *types.Sym, err error) {
+	typeName, methName := splitType(name)
+	if typeName == "" {
+		return nil, nil, fmt.Errorf("%s doesn't contain type split", name)
+	}
+
+	if len(typeName) > 3 && typeName[:2] == "(*" && typeName[len(typeName)-1] == ')' {
+		// Symbol name is for a pointer receiver method. We just want
+		// the base type name.
+		typeName = typeName[2 : len(typeName)-1]
+	}
+
+	typ = pkg.Lookup(typeName)
+	meth = pkg.Selector(methName)
+	return typ, meth, nil
+}
+
+// splitType splits a local symbol name into type and method (fn). If this a
+// free function, typ == "".
+//
+// N.B. closures and methods can be ambiguous (e.g., bar.func1). These cases
+// are returned as methods.
+func splitType(name string) (typ, fn string) {
+	// Types are split on the first dot, ignoring everything inside
+	// brackets (instantiation of type parameter, usually including
+	// "go.shape").
+	bracket := 0
+	for i, r := range name {
+		if r == '.' && bracket == 0 {
+			return name[:i], name[i+1:]
+		}
+		if r == '[' {
+			bracket++
+		}
+		if r == ']' {
+			bracket--
+		}
+	}
+	return "", name
+}
+
 // MethodExprName returns the ONAME representing the method
 // referenced by expression n, which must be a method selector,
 // method expression, or method value.

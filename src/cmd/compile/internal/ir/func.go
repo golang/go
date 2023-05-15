@@ -12,6 +12,7 @@ import (
 	"cmd/internal/src"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // A Func corresponds to a single function in a Go program
@@ -310,6 +311,67 @@ func LinkFuncName(f *Func) string {
 	pkg := s.Pkg
 
 	return objabi.PathToPrefix(pkg.Path) + "." + s.Name
+}
+
+// ParseLinkFuncName parsers a symbol name (as returned from LinkFuncName) back
+// to the package path and local symbol name.
+func ParseLinkFuncName(name string) (pkg, sym string, err error) {
+	pkg, sym = splitPkg(name)
+	if pkg == "" {
+		return "", "", fmt.Errorf("no package path in name")
+	}
+
+	pkg, err = objabi.PrefixToPath(pkg) // unescape
+	if err != nil {
+		return "", "", fmt.Errorf("malformed package path: %v", err)
+	}
+
+	return pkg, sym, nil
+}
+
+// Borrowed from x/mod.
+func modPathOK(r rune) bool {
+	if r < utf8.RuneSelf {
+		return r == '-' || r == '.' || r == '_' || r == '~' ||
+			'0' <= r && r <= '9' ||
+			'A' <= r && r <= 'Z' ||
+			'a' <= r && r <= 'z'
+	}
+	return false
+}
+
+func escapedImportPathOK(r rune) bool {
+	return modPathOK(r) || r == '+' || r == '/' || r == '%'
+}
+
+// splitPkg splits the full linker symbol name into package and local symbol
+// name.
+func splitPkg(name string) (pkgpath, sym string) {
+	// package-sym split is at first dot after last the / that comes before
+	// any characters illegal in a package path.
+
+	lastSlashIdx := 0
+	for i, r := range name {
+		// Catches cases like:
+		// * example.foo[sync/atomic.Uint64].
+		// * example%2ecom.foo[sync/atomic.Uint64].
+		//
+		// Note that name is still escaped; unescape occurs after splitPkg.
+		if !escapedImportPathOK(r) {
+			break
+		}
+		if r == '/' {
+			lastSlashIdx = i
+		}
+	}
+	for i := lastSlashIdx; i < len(name); i++ {
+		r := name[i]
+		if r == '.' {
+			return name[:i], name[i+1:]
+		}
+	}
+
+	return "", name
 }
 
 var CurFunc *Func

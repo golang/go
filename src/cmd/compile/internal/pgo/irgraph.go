@@ -49,6 +49,7 @@ import (
 	"fmt"
 	"internal/profile"
 	"os"
+	"sort"
 )
 
 // IRGraph is a call graph with nodes pointing to IRs of functions and edges
@@ -132,6 +133,9 @@ type Profile struct {
 	// NodeMap contains all unique call-edges in the profile and their
 	// aggregated weight.
 	NodeMap map[NodeMapKey]*Weights
+
+	// NodesByWeight lists all entries in NodeMap, sorted by edge weight.
+	NodesByWeight []NodeMapKey
 
 	// WeightedCG represents the IRGraph built from profile, which we will
 	// update as part of inlining.
@@ -267,6 +271,26 @@ func (p *Profile) initializeIRGraph() {
 		}
 	})
 
+	nodes := make([]NodeMapKey, 0, len(p.NodeMap))
+	for node := range p.NodeMap {
+		nodes = append(nodes, node)
+	}
+	sort.Slice(nodes, func(i, j int) bool {
+		ni, nj := nodes[i], nodes[j]
+		if wi, wj := p.NodeMap[ni].EWeight, p.NodeMap[nj].EWeight; wi != wj {
+			return wi > wj // want larger weight first
+		}
+		// same weight, order by name/line number
+		if ni.CallerName != nj.CallerName {
+			return ni.CallerName < nj.CallerName
+		}
+		if ni.CalleeName != nj.CalleeName {
+			return ni.CalleeName < nj.CalleeName
+		}
+		return ni.CallSiteOffset < nj.CallSiteOffset
+	})
+	p.NodesByWeight = nodes
+
 	// Add additional edges for indirect calls. This must be done second so
 	// that IRNodes is fully populated (see the dummy node TODO in
 	// addIndirectEdges).
@@ -349,6 +373,13 @@ func (p *Profile) addIREdge(callerNode *IRNode, callerName string, call ir.Node,
 	callerNode.OutEdges[nodeinfo] = edge
 }
 
+// LookupMethodFunc looks up a method in export data. It is expected to be
+// overridden by package noder, to break a dependency cycle.
+var LookupMethodFunc = func(fullName string) (*ir.Func, error) {
+	base.Fatalf("pgo.LookupMethodFunc not overridden")
+	panic("unreachable")
+}
+
 // addIndirectEdges adds indirect call edges found in the profile to the graph,
 // to be used for devirtualization.
 //
@@ -372,7 +403,16 @@ func (p *Profile) addIndirectEdges() {
 		localNodes[k] = v
 	}
 
-	for key, weights := range p.NodeMap {
+	// N.B. We must consider nodes in a stable order because export data
+	// lookup order (LookupMethodFunc, below) can impact the export data of
+	// this package, which must be stable across different invocations for
+	// reproducibility.
+	//
+	// The weight ordering of NodesByWeight is irrelevant, NodesByWeight
+	// just happens to be an ordered list of nodes that is already
+	// available.
+	for _, key := range p.NodesByWeight {
+		weights := p.NodeMap[key]
 		// All callers in the local package build were added to IRNodes
 		// in VisitIR. If a caller isn't in the local package build we
 		// can skip adding edges, since we won't be devirtualizing in
@@ -389,25 +429,57 @@ func (p *Profile) addIndirectEdges() {
 
 		calleeNode, ok := g.IRNodes[key.CalleeName]
 		if !ok {
-			// IR is missing for this callee. Most likely this is
-			// because the callee isn't in the transitive deps of
-			// this package.
+			// IR is missing for this callee. VisitIR populates
+			// IRNodes with all functions discovered via local
+			// package function declarations and calls. This
+			// function may still be available from export data of
+			// a transitive dependency.
 			//
-			// Record this call anyway. If this is the hottest,
-			// then we want to skip devirtualization rather than
-			// devirtualizing to the second most common callee.
+			// TODO(prattmic): Currently we only attempt to lookup
+			// methods because we can only devirtualize interface
+			// calls, not any function pointer. Generic types are
+			// not supported.
 			//
-			// TODO(prattmic): VisitIR populates IRNodes with all
-			// of the functions discovered via local package
-			// function declarations and calls. Thus we could miss
-			// functions that are available in export data of
-			// transitive deps, but aren't directly reachable. We
-			// need to do a lookup directly from package export
-			// data to get complete coverage.
-			calleeNode = &IRNode{
-				LinkerSymbolName: key.CalleeName,
-				// TODO: weights? We don't need them.
+			// TODO(prattmic): This eager lookup during graph load
+			// is simple, but wasteful. We are likely to load many
+			// functions that we never need. We could delay load
+			// until we actually need the method in
+			// devirtualization. Instantiation of generic functions
+			// will likely need to be done at the devirtualization
+			// site, if at all.
+			fn, err := LookupMethodFunc(key.CalleeName)
+			if err == nil {
+				if base.Debug.PGODebug >= 3 {
+					fmt.Printf("addIndirectEdges: %s found in export data\n", key.CalleeName)
+				}
+				calleeNode = &IRNode{AST: fn}
+
+				// N.B. we could call createIRGraphEdge to add
+				// direct calls in this newly-imported
+				// function's body to the graph. Similarly, we
+				// could add to this function's queue to add
+				// indirect calls. However, those would be
+				// useless given the visit order of inlining,
+				// and the ordering of PGO devirtualization and
+				// inlining. This function can only be used as
+				// an inlined body. We will never do PGO
+				// devirtualization inside an inlined call. Nor
+				// will we perform inlining inside an inlined
+				// call.
+			} else {
+				// Still not found. Most likely this is because
+				// the callee isn't in the transitive deps of
+				// this package.
+				//
+				// Record this call anyway. If this is the hottest,
+				// then we want to skip devirtualization rather than
+				// devirtualizing to the second most common callee.
+				if base.Debug.PGODebug >= 3 {
+					fmt.Printf("addIndirectEdges: %s not found in export data: %v\n", key.CalleeName, err)
+				}
+				calleeNode = &IRNode{LinkerSymbolName: key.CalleeName}
 			}
+
 			// Add dummy node back to IRNodes. We don't need this
 			// directly, but PrintWeightedCallGraphDOT uses these
 			// to print nodes.

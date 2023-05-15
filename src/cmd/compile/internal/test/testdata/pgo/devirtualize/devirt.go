@@ -11,7 +11,12 @@
 
 package devirt
 
-import "example.com/pgo/devirtualize/mult"
+// Devirtualization of callees from transitive dependencies should work even if
+// they aren't directly referenced in the package. See #61577.
+//
+// Dots in the last package path component are escaped in symbol names. Use one
+// to ensure the escaping doesn't break lookup.
+import "example.com/pgo/devirtualize/mult.pkg"
 
 var sink int
 
@@ -60,14 +65,4 @@ func Exercise(iter int, a1, a2 Adder, m1, m2 mult.Multiplier) {
 		// callee.
 		sink += m.Multiply(42, a.Add(1, 2))
 	}
-}
-
-func init() {
-	// TODO: until https://golang.org/cl/497175 or similar lands,
-	// we need to create an explicit reference to callees
-	// in another package for devirtualization to work.
-	m := mult.Mult{}
-	m.Multiply(42, 0)
-	n := mult.NegMult{}
-	n.Multiply(42, 0)
 }
