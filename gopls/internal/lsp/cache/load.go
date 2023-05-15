@@ -90,7 +90,7 @@ func (s *snapshot) load(ctx context.Context, allowNetwork bool, scopes ...loadSc
 		case viewLoadScope:
 			// If we are outside of GOPATH, a module, or some other known
 			// build system, don't load subdirectories.
-			if !s.ValidBuildConfiguration() {
+			if !s.validBuildConfiguration() {
 				query = append(query, "./")
 			} else {
 				query = append(query, "./...")
@@ -359,7 +359,7 @@ func (s *snapshot) workspaceLayoutError(ctx context.Context) (error, []*source.D
 	// If the snapshot does not have a valid build configuration, it may be
 	// that the user has opened a directory that contains multiple modules.
 	// Check for that an warn about it.
-	if !s.ValidBuildConfiguration() {
+	if !s.validBuildConfiguration() {
 		var msg string
 		if s.view.goversion >= 18 {
 			msg = `gopls was not able to find modules in your workspace.

@@ -424,7 +424,7 @@ func viewEnv(v *View) string {
 		v.folder.Filename(),
 		v.workingDir().Filename(),
 		strings.TrimRight(v.workspaceInformation.goversionOutput, "\n"),
-		v.snapshot.ValidBuildConfiguration(),
+		v.snapshot.validBuildConfiguration(),
 		buildFlags,
 		v.goEnv,
 	)

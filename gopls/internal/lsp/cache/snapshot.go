@@ -321,7 +321,7 @@ func (s *snapshot) Templates() map[span.URI]source.FileHandle {
 	return tmpls
 }
 
-func (s *snapshot) ValidBuildConfiguration() bool {
+func (s *snapshot) validBuildConfiguration() bool {
 	// Since we only really understand the `go` command, if the user has a
 	// different GOPACKAGESDRIVER, assume that their configuration is valid.
 	if s.view.hasGopackagesDriver {
@@ -379,7 +379,7 @@ func (s *snapshot) workspaceMode() workspaceMode {
 
 	// If the view has an invalid configuration, don't build the workspace
 	// module.
-	validBuildConfiguration := s.ValidBuildConfiguration()
+	validBuildConfiguration := s.validBuildConfiguration()
 	if !validBuildConfiguration {
 		return mode
 	}
@@ -1448,8 +1448,8 @@ const adHocPackagesWarning = `You are outside of a module and outside of $GOPATH
 If you are using modules, please open your editor to a directory in your module.
 If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`
 
-func shouldShowAdHocPackagesWarning(snapshot source.Snapshot, active []*source.Metadata) string {
-	if !snapshot.ValidBuildConfiguration() {
+func shouldShowAdHocPackagesWarning(snapshot *snapshot, active []*source.Metadata) string {
+	if !snapshot.validBuildConfiguration() {
 		for _, m := range active {
 			// A blank entry in DepsByImpPath
 			// indicates a missing dependency.
@@ -1559,7 +1559,7 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 
 	// If the view's build configuration is invalid, we cannot reload by
 	// package path. Just reload the directory instead.
-	if !s.ValidBuildConfiguration() {
+	if !s.validBuildConfiguration() {
 		scopes = []loadScope{viewLoadScope("LOAD_INVALID_VIEW")}
 	}
 

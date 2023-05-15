@@ -63,11 +63,6 @@ type Snapshot interface {
 	// on behalf of this snapshot.
 	BackgroundContext() context.Context
 
-	// ValidBuildConfiguration returns true if there is some error in the
-	// user's workspace. In particular, if they are both outside of a module
-	// and their GOPATH.
-	ValidBuildConfiguration() bool
-
 	// A Snapshot is a caching implementation of FileSource whose
 	// ReadFile method returns consistent information about the existence
 	// and content of each file throughout its lifetime.
