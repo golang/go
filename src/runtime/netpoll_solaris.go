@@ -96,10 +96,6 @@ func errno() int32 {
 	return *getg().m.perrno
 }
 
-func fcntl(fd, cmd, arg int32) int32 {
-	return int32(sysvicall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg)))
-}
-
 func port_create() int32 {
 	return int32(sysvicall0(&libc_port_create))
 }
