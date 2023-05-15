@@ -80,6 +80,11 @@ func (f *File) ParseGo(abspath string, src []byte) {
 				cg = d.Doc
 			}
 			if cg != nil {
+				if strings.ContainsAny(abspath, "\r\n") {
+					// This should have been checked when the file path was first resolved,
+					// but we double check here just to be sure.
+					fatalf("internal error: ParseGo: abspath contains unexpected newline character: %q", abspath)
+				}
 				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), abspath)
 				f.Preamble += commentText(cg) + "\n"
 				f.Preamble += "#line 1 \"cgo-generated-wrapper\"\n"
