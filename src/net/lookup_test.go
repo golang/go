@@ -1425,7 +1425,7 @@ func testLookupNoData(t *testing.T, prefix string) {
 	for {
 		// Domain that doesn't have any A/AAAA RRs, but has different one (in this case a TXT),
 		// so that it returns an empty response without any error codes (NXDOMAIN).
-		_, err := LookupHost("golang.rsc.io")
+		_, err := LookupHost("golang.rsc.io.")
 		if err == nil {
 			t.Errorf("%v: unexpected success", prefix)
 			return
