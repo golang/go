@@ -38,6 +38,20 @@ stderr 'package command-line-arguments: invalid package directory .*uh-oh'
 go list -compiled -e -f '{{with .CompiledGoFiles}}{{.}}{{end}}' .
 ! stdout .
 ! stderr .
+! exists obj_
+
+
+# The cgo tool should only accept the source file if the working directory
+# is not written in line directives in the resulting files.
+
+[cgo] ! go tool cgo main.go
+[cgo] stderr 'cgo: input path contains newline character: .*uh-oh'
+[cgo] ! exists _obj
+
+[cgo] go tool cgo -trimpath=$PWD main.go
+[cgo] grep '//line main\.go:1:1' _obj/main.cgo1.go
+[cgo] ! grep 'uh-oh' _obj/main.cgo1.go
+[cgo] rm _obj
 
 
 # Since we do preserve $PWD (or set it appropriately) for commands, and we do
@@ -89,6 +103,9 @@ go test -v .
 ! stderr panic
 stdout '^ok$'  # 'go test' combines the test's stdout into stderr
 
+[cgo] go tool cgo main.go
+[cgo] grep '//line .*'${/}'link'${/}'main\.go:1:1' _obj/main.cgo1.go
+[cgo] ! grep 'uh-oh' _obj/main.cgo1.go
 
 -- $WORK/go.mod --
 module example
