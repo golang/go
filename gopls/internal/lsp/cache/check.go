@@ -1190,7 +1190,7 @@ func (s *snapshot) typeCheckInputs(ctx context.Context, m *source.Metadata) (typ
 
 		relatedInformation: s.view.Options().RelatedInformationSupported,
 		linkTarget:         s.view.Options().LinkTarget,
-		moduleMode:         s.moduleMode(),
+		moduleMode:         s.view.moduleMode(),
 	}, nil
 }
 

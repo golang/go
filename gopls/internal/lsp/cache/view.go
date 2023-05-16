@@ -130,6 +130,10 @@ type workspaceInformation struct {
 	// GOPACKAGESDRIVER environment variable or a gopackagesdriver binary on
 	// their machine.
 	hasGopackagesDriver bool
+
+	// inGOPATH reports whether the workspace directory is contained in a GOPATH
+	// directory.
+	inGOPATH bool
 }
 
 // effectiveGO111MODULE reports the value of GO111MODULE effective in the go
@@ -142,6 +146,79 @@ func (w workspaceInformation) effectiveGO111MODULE() go111module {
 		return on
 	default:
 		return auto
+	}
+}
+
+// A ViewType describes how we load package information for a view.
+//
+// This is used for constructing the go/packages.Load query, and for
+// interpreting missing packages, imports, or errors.
+//
+// Each view has a ViewType which is derived from its immutable workspace
+// information -- any environment change that would affect the view type
+// results in a new view.
+type ViewType int
+
+const (
+	// GoPackagesDriverView is a view with a non-empty GOPACKAGESDRIVER
+	// environment variable.
+	GoPackagesDriverView ViewType = iota
+
+	// GOPATHView is a view in GOPATH mode.
+	//
+	// I.e. in GOPATH, with GO111MODULE=off, or GO111MODULE=auto with no
+	// go.mod file.
+	GOPATHView
+
+	// GoModuleView is a view in module mode with a single Go module.
+	GoModuleView
+
+	// GoWorkView is a view in module mode with a go.work file.
+	GoWorkView
+
+	// An AdHocView is a collection of files in a given directory, not in GOPATH
+	// or a module.
+	AdHocView
+)
+
+// ViewType derives the type of the view from its workspace information.
+//
+// TODO(rfindley): this logic is overlapping and slightly inconsistent with
+// validBuildConfiguration. As part of zero-config-gopls (golang/go#57979), fix
+// this inconsistency and consolidate on the ViewType abstraction.
+func (w workspaceInformation) ViewType() ViewType {
+	if w.hasGopackagesDriver {
+		return GoPackagesDriverView
+	}
+	go111module := w.effectiveGO111MODULE()
+	if w.gowork != "" && go111module != off {
+		return GoWorkView
+	}
+	if w.gomod != "" && go111module != off {
+		return GoModuleView
+	}
+	if w.inGOPATH && go111module != on {
+		return GOPATHView
+	}
+	return AdHocView
+}
+
+// moduleMode reports whether the current snapshot uses Go modules.
+//
+// From https://go.dev/ref/mod, module mode is active if either of the
+// following hold:
+//   - GO111MODULE=on
+//   - GO111MODULE=auto and we are inside a module or have a GOWORK value.
+//
+// Additionally, this method returns false if GOPACKAGESDRIVER is set.
+//
+// TODO(rfindley): use this more widely.
+func (w workspaceInformation) moduleMode() bool {
+	switch w.ViewType() {
+	case GoModuleView, GoWorkView:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -740,6 +817,8 @@ func (s *snapshot) loadWorkspace(ctx context.Context, firstAttempt bool) (loadEr
 		})
 	}
 
+	// TODO(rfindley): this should be predicated on the s.view.moduleMode().
+	// There is no point loading ./... if we have an empty go.work.
 	if len(s.workspaceModFiles) > 0 {
 		for modURI := range s.workspaceModFiles {
 			// Verify that the modfile is valid before trying to load it.
@@ -881,7 +960,7 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 	if err != nil {
 		return info, err
 	}
-	if err := info.goEnv.load(ctx, folder.Filename(), options.EnvSlice(), s.gocmdRunner); err != nil {
+	if err := info.load(ctx, folder.Filename(), options.EnvSlice(), s.gocmdRunner); err != nil {
 		return info, err
 	}
 	// The value of GOPACKAGESDRIVER is not returned through the go command.
@@ -899,6 +978,13 @@ func (s *Session) getWorkspaceInformation(ctx context.Context, folder span.URI, 
 		return info, err
 	}
 
+	// Check if the workspace is within any GOPATH directory.
+	for _, gp := range filepath.SplitList(info.gopath) {
+		if source.InDir(filepath.Join(gp, "src"), folder.Filename()) {
+			info.inGOPATH = true
+			break
+		}
+	}
 	return info, nil
 }
 

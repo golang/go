@@ -327,47 +327,19 @@ func (s *snapshot) validBuildConfiguration() bool {
 	if s.view.hasGopackagesDriver {
 		return true
 	}
+
 	// Check if the user is working within a module or if we have found
 	// multiple modules in the workspace.
 	if len(s.workspaceModFiles) > 0 {
 		return true
 	}
-	// The user may have a multiple directories in their GOPATH.
-	// Check if the workspace is within any of them.
+
 	// TODO(rfindley): this should probably be subject to "if GO111MODULES = off {...}".
-	for _, gp := range filepath.SplitList(s.view.gopath) {
-		if source.InDir(filepath.Join(gp, "src"), s.view.folder.Filename()) {
-			return true
-		}
-	}
-	return false
-}
-
-// moduleMode reports whether the current snapshot uses Go modules.
-//
-// From https://go.dev/ref/mod, module mode is active if either of the
-// following hold:
-//   - GO111MODULE=on
-//   - GO111MODULE=auto and we are inside a module or have a GOWORK value.
-//
-// Additionally, this method returns false if GOPACKAGESDRIVER is set.
-//
-// TODO(rfindley): use this more widely.
-func (s *snapshot) moduleMode() bool {
-	// Since we only really understand the `go` command, if the user has a
-	// different GOPACKAGESDRIVER, assume that their configuration is valid.
-	if s.view.hasGopackagesDriver {
-		return false
-	}
-
-	switch s.view.effectiveGO111MODULE() {
-	case on:
+	if s.view.inGOPATH {
 		return true
-	case off:
-		return false
-	default:
-		return len(s.workspaceModFiles) > 0 || s.view.gowork != ""
 	}
+
+	return false
 }
 
 // workspaceMode describes the way in which the snapshot's workspace should
@@ -763,6 +735,18 @@ func (s *snapshot) MethodSets(ctx context.Context, ids ...PackageID) ([]*methods
 }
 
 func (s *snapshot) MetadataForFile(ctx context.Context, uri span.URI) ([]*source.Metadata, error) {
+	if s.view.ViewType() == AdHocView {
+		// As described in golang/go#57209, in ad-hoc workspaces (where we load ./
+		// rather than ./...), preempting the directory load with file loads can
+		// lead to an inconsistent outcome, where certain files are loaded with
+		// command-line-arguments packages and others are loaded only in the ad-hoc
+		// package. Therefore, ensure that the workspace is loaded before doing any
+		// file loads.
+		if err := s.awaitLoaded(ctx); err != nil {
+			return nil, err
+		}
+	}
+
 	s.mu.Lock()
 
 	// Start with the set of package associations derived from the last load.
