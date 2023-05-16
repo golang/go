@@ -635,15 +635,6 @@ func doRecover(caller *frame) value {
 	return iface{}
 }
 
-// setGlobal sets the value of a system-initialized global variable.
-func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
-	if g, ok := i.globals[pkg.Var(name)]; ok {
-		*g = v
-		return
-	}
-	panic("no global variable: " + pkg.Pkg.Path() + "." + name)
-}
-
 // Interpret interprets the Go program whose main package is mainpkg.
 // mode specifies various interpreter options.  filename and args are
 // the initial values of os.Args for the target program.  sizes is the

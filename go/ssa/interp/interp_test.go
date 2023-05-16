@@ -138,9 +138,14 @@ func init() {
 		testdataTests = append(testdataTests, "typeassert.go")
 		testdataTests = append(testdataTests, "zeros.go")
 	}
+
+	// GOROOT/test used to assume that GOOS and GOARCH were explicitly set in the
+	// environment, so do that here for TestGorootTest.
+	os.Setenv("GOOS", runtime.GOOS)
+	os.Setenv("GOARCH", runtime.GOARCH)
 }
 
-func run(t *testing.T, input string) {
+func run(t *testing.T, input string, goroot string) {
 	// The recover2 test case is broken on Go 1.14+. See golang/go#34089.
 	// TODO(matloob): Fix this.
 	if filepath.Base(input) == "recover2.go" {
@@ -151,8 +156,8 @@ func run(t *testing.T, input string) {
 
 	start := time.Now()
 
-	ctx := build.Default    // copy
-	ctx.GOROOT = "testdata" // fake goroot
+	ctx := build.Default // copy
+	ctx.GOROOT = goroot
 	ctx.GOOS = runtime.GOOS
 	ctx.GOARCH = runtime.GOARCH
 	if filepath.Base(input) == "width32.go" && unsafe.Sizeof(int(0)) > 4 {
@@ -222,24 +227,72 @@ func run(t *testing.T, input string) {
 	}
 }
 
+// makeGoroot copies testdata/src into the "src" directory of a temporary
+// location to mimic GOROOT/src, and adds a file "runtime/consts.go" containing
+// declarations for GOOS and GOARCH that match the GOOS and GOARCH of this test.
+//
+// It returns the directory that should be used for GOROOT.
+func makeGoroot(t *testing.T) string {
+	goroot := t.TempDir()
+	src := filepath.Join(goroot, "src")
+
+	err := filepath.Walk("testdata/src", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		rel, err := filepath.Rel("testdata/src", path)
+		if err != nil {
+			return err
+		}
+		targ := filepath.Join(src, rel)
+
+		if info.IsDir() {
+			return os.Mkdir(targ, info.Mode().Perm()|0700)
+		}
+
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(targ, b, info.Mode().Perm())
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	constsGo := fmt.Sprintf(`package runtime
+const GOOS = %q
+const GOARCH = %q
+`, runtime.GOOS, runtime.GOARCH)
+	err = os.WriteFile(filepath.Join(src, "runtime/consts.go"), []byte(constsGo), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return goroot
+}
+
 // TestTestdataFiles runs the interpreter on testdata/*.go.
 func TestTestdataFiles(t *testing.T) {
+	goroot := makeGoroot(t)
 	cwd, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
 	}
 	for _, input := range testdataTests {
 		t.Run(input, func(t *testing.T) {
-			run(t, filepath.Join(cwd, "testdata", input))
+			run(t, filepath.Join(cwd, "testdata", input), goroot)
 		})
 	}
 }
 
 // TestGorootTest runs the interpreter on $GOROOT/test/*.go.
 func TestGorootTest(t *testing.T) {
+	goroot := makeGoroot(t)
 	for _, input := range gorootTestTests {
 		t.Run(input, func(t *testing.T) {
-			run(t, filepath.Join(build.Default.GOROOT, "test", input))
+			run(t, filepath.Join(build.Default.GOROOT, "test", input), goroot)
 		})
 	}
 }
@@ -251,6 +304,7 @@ func TestTypeparamTest(t *testing.T) {
 	if !typeparams.Enabled {
 		return
 	}
+	goroot := makeGoroot(t)
 
 	// Skip known failures for the given reason.
 	// TODO(taking): Address these.
@@ -295,7 +349,7 @@ func TestTypeparamTest(t *testing.T) {
 				t.Skipf("skipping: %s", reason)
 			}
 
-			run(t, input)
+			run(t, input, goroot)
 		})
 	}
 }

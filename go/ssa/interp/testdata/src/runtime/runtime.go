@@ -16,7 +16,4 @@ type Error interface {
 	RuntimeError()
 }
 
-const GOOS = "linux"
-const GOARCH = "amd64"
-
 func GC()

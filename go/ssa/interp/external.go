@@ -312,10 +312,6 @@ func ext۰os۰Getenv(fr *frame, args []value) value {
 	switch name {
 	case "GOSSAINTERP":
 		return "1"
-	case "GOARCH":
-		return "amd64"
-	case "GOOS":
-		return "linux"
 	}
 	return os.Getenv(name)
 }
