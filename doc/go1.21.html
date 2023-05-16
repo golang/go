@@ -52,8 +52,13 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h3 id="go-command">Go command</h3>
 
-<p>
-  TODO: complete this section, or delete if not needed
+<p><-- https://go.dev/issue/58099, CL 474236 -->
+  The <code>-pgo</code> build flag now defaults to <code>-pgo=auto</code>,
+  and the restriction of specifying a single main package on the command
+  line is now removed. If a file named <code>default.pgo</code> is present
+  in the main package's directory, the <code>go</code> command will use
+  it to enable profile-guided optimization for building the corresponding
+  program.
 </p>
 
 <h2 id="runtime">Runtime</h2>
