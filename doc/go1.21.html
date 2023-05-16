@@ -31,8 +31,21 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="ports">Ports</h2>
 
+<h3 id="wasip1">WebAssembly System Interface</h3>
+
+<p><!-- https://go.dev/issue/58141 -->
+  Go 1.21 adds an experimental port to the <a href="https://wasi.dev/">
+  WebAssembly System Interface (WASI)</a>, Preview 1
+  (<code>GOOS=wasip1</code>, <code>GOARCH=wasm</code>).
+</p>
+
 <p>
-  TODO: complete this section, or delete if not needed
+  As a result of the addition of the new <code>GOOS</code> value
+  "<code>wasip1</code>", Go files named <code>*_wasip1.go</code>
+  will now be <a href="/pkg/go/build/#hdr-Build_Constraints">ignored
+  by Go tools</a> except when that GOOS value is being used. If you
+  have existing filenames matching that pattern, you will need to
+  rename them.
 </p>
 
 <h2 id="tools">Tools</h2>
