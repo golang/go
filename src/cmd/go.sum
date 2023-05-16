@@ -12,5 +12,5 @@ golang.org/x/sys v0.8.0 h1:EBmGv8NaZBZTWvrbjNoL6HVt+IVy3QDQpJs7VRIw3tU=
 golang.org/x/sys v0.8.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.5.0 h1:n2a8QNdAb0sZNpU9R1ALUXBbY+w51fCQDN+7EdxNBsY=
 golang.org/x/term v0.5.0/go.mod h1:jMB1sMXY+tzblOD4FWmEbocvup2/aLOaQEp7JmGp78k=
-golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429 h1:nDRvPgHpNZhyxqe+K2j4+cOW3t5INqBY6UhqnrOp92Y=
-golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429/go.mod h1:owI94Op576fPu3cIGQeHs3joujW/2Oc6MtlxbF5dfNc=
+golang.org/x/tools v0.9.2-0.20230517205458-8b4b27bce44f h1:EbCQ6q1oiCDTdXb+iqfNKm2eGCxAXj1nOGVbzcPKZ9g=
+golang.org/x/tools v0.9.2-0.20230517205458-8b4b27bce44f/go.mod h1:owI94Op576fPu3cIGQeHs3joujW/2Oc6MtlxbF5dfNc=

@@ -356,7 +356,9 @@ func TestLoggerError(t *testing.T) {
 	l.Error("msg", "err", io.EOF, "a", 1)
 	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF a=1`)
 	buf.Reset()
-	l.Error("msg", "err", io.EOF, "a")
+	// use local var 'args' to defeat vet check
+	args := []any{"err", io.EOF, "a"}
+	l.Error("msg", args...)
 	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF !BADKEY=a`)
 }
 
