@@ -171,7 +171,9 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	clearNonBlock := false
 	if pollable {
 		if kind == kindNonBlock {
-			f.nonblock = true
+			// The descriptor is already in non-blocking mode.
+			// We only set f.nonblock if we put the file into
+			// non-blocking mode.
 		} else if err := syscall.SetNonblock(fdi, true); err == nil {
 			f.nonblock = true
 			clearNonBlock = true
@@ -247,7 +249,12 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		syscall.CloseOnExec(r)
 	}
 
-	return newFile(uintptr(r), name, kindOpenFile), nil
+	kind := kindOpenFile
+	if unix.HasNonblockFlag(flag) {
+		kind = kindNonBlock
+	}
+
+	return newFile(uintptr(r), name, kind), nil
 }
 
 func (file *file) close() error {

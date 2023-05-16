@@ -19,3 +19,7 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
 	}
 	return flag&syscall.O_NONBLOCK != 0, nil
 }
+
+func HasNonblockFlag(flag int) bool {
+	return flag&syscall.O_NONBLOCK != 0
+}
