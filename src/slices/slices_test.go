@@ -781,3 +781,39 @@ func TestRotate(t *testing.T) {
 		}
 	}
 }
+
+func TestInsertGrowthRate(t *testing.T) {
+	b := make([]byte, 1)
+	maxCap := cap(b)
+	nGrow := 0
+	const N = 1e6
+	for i := 0; i < N; i++ {
+		b = Insert(b, len(b)-1, 0)
+		if cap(b) > maxCap {
+			maxCap = cap(b)
+			nGrow++
+		}
+	}
+	want := int(math.Log(N) / math.Log(1.25)) // 1.25 == growth rate for large slices
+	if nGrow > want {
+		t.Errorf("too many grows. got:%d want:%d", nGrow, want)
+	}
+}
+
+func TestReplaceGrowthRate(t *testing.T) {
+	b := make([]byte, 2)
+	maxCap := cap(b)
+	nGrow := 0
+	const N = 1e6
+	for i := 0; i < N; i++ {
+		b = Replace(b, len(b)-2, len(b)-1, 0, 0)
+		if cap(b) > maxCap {
+			maxCap = cap(b)
+			nGrow++
+		}
+	}
+	want := int(math.Log(N) / math.Log(1.25)) // 1.25 == growth rate for large slices
+	if nGrow > want {
+		t.Errorf("too many grows. got:%d want:%d", nGrow, want)
+	}
+}

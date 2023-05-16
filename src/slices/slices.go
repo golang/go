@@ -98,8 +98,7 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 		// the slice up to the next storage class.
 		// This is what Grow does but we don't call Grow because
 		// that might copy the values twice.
-		s2 := append(S(nil), make(S, n+m)...)
-		copy(s2, s[:i])
+		s2 := append(s[:i], make(S, n+m-i)...)
 		copy(s2[i:], v)
 		copy(s2[i+m:], s[i:])
 		return s2
@@ -219,8 +218,7 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 	tot := len(s[:i]) + len(v) + len(s[j:])
 	if tot > cap(s) {
 		// Too big to fit, allocate and copy over.
-		s2 := append(S(nil), make(S, tot)...) // See Insert
-		copy(s2, s[:i])
+		s2 := append(s[:i], make(S, tot-i)...) // See Insert
 		copy(s2[i:], v)
 		copy(s2[i+len(v):], s[j:])
 		return s2
