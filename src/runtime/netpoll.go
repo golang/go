@@ -287,11 +287,19 @@ func poll_runtime_pollClose(pd *pollDesc) {
 }
 
 func (c *pollCache) free(pd *pollDesc) {
+	// pd can't be shared here, but lock anyhow because
+	// that's what publishInfo documents.
+	lock(&pd.lock)
+
 	// Increment the fdseq field, so that any currently
 	// running netpoll calls will not mark pd as ready.
 	fdseq := pd.fdseq.Load()
 	fdseq = (fdseq + 1) & (1<<taggedPointerBits - 1)
 	pd.fdseq.Store(fdseq)
+
+	pd.publishInfo()
+
+	unlock(&pd.lock)
 
 	lock(&c.lock)
 	pd.link = c.first
