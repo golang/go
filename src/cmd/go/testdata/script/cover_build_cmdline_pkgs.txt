@@ -5,6 +5,7 @@
 # inside and outside the standard library.
 
 [short] skip
+[!GOEXPERIMENT:coverageredesign] skip
 
 # Compile an object.
 go tool compile -p tiny tiny/tiny.go tiny/tiny2.go
