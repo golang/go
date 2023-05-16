@@ -19,6 +19,10 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
 	return flags&syscall.FDFLAG_NONBLOCK != 0, nil
 }
 
+func HasNonblockFlag(flag int) bool {
+	return flag&syscall.FDFLAG_NONBLOCK != 0
+}
+
 // This helper is implemented in the syscall package. It means we don't have
 // to redefine the fd_fdstat_get host import or the fdstat struct it
 // populates.
