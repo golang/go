@@ -505,7 +505,7 @@ func _calls() {
 	f2(3.14) /* ERROR "not enough arguments in call to f2\n\thave (number)\n\twant (float32, string)" */
 	f2(3.14, "foo")
 	f2(x /* ERRORx `cannot use .* in argument` */ , "foo")
-	f2(g0 /* ERROR "used as value" */ ())
+	f2(g0 /* ERROR "used as value" */ ()) /* ERROR "not enough arguments in call to f2\n\thave (func())\n\twant (float32, string)" */
 	f2(g1()) /* ERROR "not enough arguments in call to f2\n\thave (int)\n\twant (float32, string)" */
 	f2(g2())
 

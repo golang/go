@@ -66,7 +66,7 @@ type Z19 [][[]Z19{}[0][0]]c19 /* ERROR "undefined" */
 
 // crash 20
 type Z20 /* ERROR "invalid recursive type" */ interface{ Z20 }
-func F20[t Z20]() { F20(t /* ERROR "invalid composite literal type" */ {}) }
+func F20[t Z20]() { F20(t /* ERROR "invalid composite literal type" */ /* ERROR "too many arguments in call to F20\n\thave (unknown type)\n\twant ()" */ {}) }
 
 // crash 21
 type Z21 /* ERROR "invalid recursive type" */ interface{ Z21 }
