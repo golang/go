@@ -47,12 +47,9 @@ func TestTestSupport(t *testing.T) {
 
 	// Check for percent output with expected tokens.
 	strout := sb.String()
-	want1 := "runtime/coverage"
-	want2 := "of statements"
-	if !strings.Contains(strout, want1) ||
-		!strings.Contains(strout, want2) {
+	want := "of statements"
+	if !strings.Contains(strout, want) {
 		t.Logf("output from run: %s\n", strout)
-		t.Fatalf("percent output missing key tokens: %q and %q",
-			want1, want2)
+		t.Fatalf("percent output missing token: %q", want)
 	}
 }
