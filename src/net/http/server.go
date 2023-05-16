@@ -2407,7 +2407,7 @@ func (mux *ServeMux) shouldRedirect(host, path string) bool {
 	mux.mu.RLock()
 	defer mux.mu.RUnlock()
 	p := []string{path, host + path}
-	
+
 	for _, c := range p {
 		if _, exist := mux.m[c]; exist {
 			return false
