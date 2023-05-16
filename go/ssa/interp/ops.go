@@ -92,8 +92,8 @@ func constValue(c *ssa.Const) value {
 func fitsInt(x int64, sizes types.Sizes) bool {
 	intSize := sizes.Sizeof(types.Typ[types.Int])
 	if intSize < sizes.Sizeof(types.Typ[types.Int64]) {
-		maxInt := int64(1)<<(intSize-1) - 1
-		minInt := -int64(1) << (intSize - 1)
+		maxInt := int64(1)<<((intSize*8)-1) - 1
+		minInt := -int64(1) << ((intSize * 8) - 1)
 		return minInt <= x && x <= maxInt
 	}
 	return true
