@@ -619,7 +619,7 @@ OverlayLoop:
 				from := mkAbs(p.Dir, fs[i])
 				opath, _ := fsys.OverlayPath(from)
 				dst := objdir + filepath.Base(fs[i])
-				if err := b.copyFile(dst, opath, 0666, false); err != nil {
+				if err := b.CopyFile(dst, opath, 0666, false); err != nil {
 					return err
 				}
 				a.nonGoOverlay[from] = dst
@@ -894,17 +894,17 @@ OverlayLoop:
 		switch {
 		case strings.HasSuffix(name, _goos_goarch):
 			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
-			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goarch):
 			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
-			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goos):
 			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
-			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		}
@@ -1029,7 +1029,7 @@ func (b *Builder) loadCachedObjdirFile(a *Action, c cache.Cache, name string) er
 	if err != nil {
 		return err
 	}
-	return b.copyFile(a.Objdir+name, cached, 0666, true)
+	return b.CopyFile(a.Objdir+name, cached, 0666, true)
 }
 
 func (b *Builder) cacheCgoHdr(a *Action) {
@@ -1884,7 +1884,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 
 	// If the source is in the build cache, we need to copy it.
 	if strings.HasPrefix(src, cache.DefaultDir()) {
-		return b.copyFile(dst, src, perm, force)
+		return b.CopyFile(dst, src, perm, force)
 	}
 
 	// On Windows, always copy the file, so that we respect the NTFS
@@ -1892,7 +1892,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 	// What matters here is not cfg.Goos (the system we are building
 	// for) but runtime.GOOS (the system we are building on).
 	if runtime.GOOS == "windows" {
-		return b.copyFile(dst, src, perm, force)
+		return b.CopyFile(dst, src, perm, force)
 	}
 
 	// If the destination directory has the group sticky bit set,
@@ -1900,7 +1900,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 	// https://golang.org/issue/18878
 	if fi, err := os.Stat(filepath.Dir(dst)); err == nil {
 		if fi.IsDir() && (fi.Mode()&fs.ModeSetgid) != 0 {
-			return b.copyFile(dst, src, perm, force)
+			return b.CopyFile(dst, src, perm, force)
 		}
 	}
 
@@ -1930,11 +1930,11 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) 
 		}
 	}
 
-	return b.copyFile(dst, src, perm, force)
+	return b.CopyFile(dst, src, perm, force)
 }
 
 // copyFile is like 'cp src dst'.
-func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error {
+func (b *Builder) CopyFile(dst, src string, perm fs.FileMode, force bool) error {
 	if cfg.BuildN || cfg.BuildX {
 		b.Showcmd("", "cp %s %s", src, dst)
 		if cfg.BuildN {

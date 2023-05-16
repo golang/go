@@ -10,7 +10,10 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
+	"context"
+	"encoding/json"
 	"fmt"
+	"internal/coverage"
 	"internal/coverage/covcmd"
 	"io"
 	"os"
@@ -92,4 +95,58 @@ func WriteCoverageProfile(b *Builder, runAct *Action, mf, outf string, w io.Writ
 	}
 	_, werr := w.Write(output)
 	return werr
+}
+
+// WriteCoverMetaFilesFile writes out a summary file ("meta-files
+// file") as part of the action function for the "writeCoverMeta"
+// pseudo action employed during "go test -coverpkg" runs where there
+// are multiple tests and multiple packages covered. It builds up a
+// table mapping package import path to meta-data file fragment and
+// writes it out to a file where it can be read by the various test
+// run actions. Note that this function has to be called A) after the
+// build actions are complete for all packages being tested, and B)
+// before any of the "run test" actions for those packages happen.
+// This requirement is enforced by adding making this action ("a")
+// dependent on all test package build actions, and making all test
+// run actions dependent on this action.
+func WriteCoverMetaFilesFile(b *Builder, ctx context.Context, a *Action) error {
+	// Build the metafilecollection object.
+	var collection coverage.MetaFileCollection
+	for i := range a.Deps {
+		dep := a.Deps[i]
+		if dep.Mode != "build" {
+			panic("unexpected mode " + dep.Mode)
+		}
+		metaFilesFile := dep.Objdir + covcmd.MetaFileForPackage(dep.Package.ImportPath)
+		// Check to make sure the meta-data file fragment exists
+		//  and has content (may be empty if package has no functions).
+		if fi, err := os.Stat(metaFilesFile); err != nil {
+			continue
+		} else if fi.Size() == 0 {
+			continue
+		}
+		collection.ImportPaths = append(collection.ImportPaths, dep.Package.ImportPath)
+		collection.MetaFileFragments = append(collection.MetaFileFragments, metaFilesFile)
+	}
+
+	// Serialize it.
+	data, err := json.Marshal(collection)
+	if err != nil {
+		return fmt.Errorf("marshal MetaFileCollection: %v", err)
+	}
+	data = append(data, '\n') // makes -x output more readable
+
+	// Create the directory for this action's objdir and
+	// then write out the serialized collection
+	// to a file in the directory.
+	if err := b.Mkdir(a.Objdir); err != nil {
+		return err
+	}
+	mfpath := a.Objdir + coverage.MetaFilesFileName
+	if err := b.writeFile(mfpath, data); err != nil {
+		return fmt.Errorf("writing metafiles file: %v", err)
+	}
+
+	// We're done.
+	return nil
 }

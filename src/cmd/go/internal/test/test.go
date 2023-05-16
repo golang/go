@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"internal/coverage"
 	"internal/platform"
 	"io"
 	"io/fs"
@@ -848,6 +849,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	}()
 
 	var builds, runs, prints []*work.Action
+	var writeCoverMetaAct *work.Action
 
 	if cfg.BuildCoverPkg != nil {
 		match := make([]func(*load.Package) bool, len(cfg.BuildCoverPkg))
@@ -859,6 +861,61 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		// patterns.
 		plist := load.TestPackageList(ctx, pkgOpts, pkgs)
 		testCoverPkgs = load.SelectCoverPackages(plist, match, "test")
+		if cfg.Experiment.CoverageRedesign && len(testCoverPkgs) > 0 {
+			// create a new singleton action that will collect up the
+			// meta-data files from all of the packages mentioned in
+			// "-coverpkg" and write them to a summary file. This new
+			// action will depend on all the build actions for the
+			// test packages, and all the run actions for these
+			// packages will depend on it. Motivating example:
+			// supposed we have a top level directory with three
+			// package subdirs, "a", "b", and "c", and
+			// from the top level, a user runs "go test -coverpkg=./... ./...".
+			// This will result in (roughly) the following action graph:
+			//
+			//	build("a")       build("b")         build("c")
+			//	    |               |                   |
+			//	link("a.test")   link("b.test")     link("c.test")
+			//	    |               |                   |
+			//	run("a.test")    run("b.test")      run("c.test")
+			//	    |               |                   |
+			//	  print          print              print
+			//
+			// When -coverpkg=<pattern> is in effect, we want to
+			// express the coverage percentage for each package as a
+			// fraction of *all* the statements that match the
+			// pattern, hence if "c" doesn't import "a", we need to
+			// pass as meta-data file for "a" (emitted during the
+			// package "a" build) to the package "c" run action, so
+			// that it can be incorporated with "c"'s regular
+			// metadata. To do this, we add edges from each compile
+			// action to a "writeCoverMeta" action, then from the
+			// writeCoverMeta action to each run action. Updated
+			// graph:
+			//
+			//	build("a")       build("b")         build("c")
+			//	    |   \       /   |               /   |
+			//	    |    v     v    |              /    |
+			//	    |   writemeta <-|-------------+     |
+			//	    |         |||   |                   |
+			//	    |         ||\   |                   |
+			//	link("a.test")/\ \  link("b.test")      link("c.test")
+			//	    |        /  \ +-|--------------+    |
+			//	    |       /    \  |               \   |
+			//	    |      v      v |                v  |
+			//	run("a.test")    run("b.test")      run("c.test")
+			//	    |               |                   |
+			//	  print          print              print
+			//
+			writeCoverMetaAct = &work.Action{
+				Mode:   "write coverage meta-data file",
+				Actor:  work.ActorFunc(work.WriteCoverMetaFilesFile),
+				Objdir: b.NewObjdir(),
+			}
+			for _, p := range testCoverPkgs {
+				p.Internal.Cover.GenMeta = true
+			}
+		}
 	}
 
 	// Inform the compiler that it should instrument the binary at
@@ -915,8 +972,11 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 			// design). Do this here (as opposed to in builderTest) so
 			// as to handle the case where we're testing multiple
 			// packages and one of the earlier packages imports a
-			// later package.
+			// later package. Note that if -coverpkg is in effect
+			// p.Internal.Cover.GenMeta will wind up being set for
+			// all matching packages.
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 &&
+				cfg.BuildCoverPkg == nil &&
 				cfg.Experiment.CoverageRedesign {
 				p.Internal.Cover.GenMeta = true
 			}
@@ -925,7 +985,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Prepare build + run + print actions for all packages being tested.
 	for _, p := range pkgs {
-		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p])
+		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
 		if err != nil {
 			str := err.Error()
 			str = strings.TrimPrefix(str, "\n")
@@ -987,13 +1047,12 @@ var windowsBadWords = []string{
 	"update",
 }
 
-func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool) (buildAction, runAction, printAction *work.Action, err error) {
+func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, err error) {
 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
-			if !p.Internal.Cover.GenMeta {
-				panic("internal error: Cover.GenMeta should already be set")
+			if p.Internal.Cover.GenMeta {
+				p.Internal.Cover.Mode = cfg.BuildCoverMode
 			}
-			p.Internal.Cover.Mode = cfg.BuildCoverMode
 		}
 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
 		run := &work.Action{
@@ -1002,6 +1061,23 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			Deps:       []*work.Action{build},
 			Package:    p,
 			IgnoreFail: true, // run (prepare output) even if build failed
+		}
+		if writeCoverMetaAct != nil {
+			// There is no real "run" for this package (since there
+			// are no tests), but if coverage is turned on, we can
+			// collect coverage data for the code in the package by
+			// asking cmd/cover for a static meta-data file as part of
+			// the package build. This static meta-data file is then
+			// consumed by a pseudo-action (writeCoverMetaAct) that
+			// adds it to a summary file, then this summary file is
+			// consumed by the various "run test" actions. Below we
+			// add a dependence edge between the build action and the
+			// "write meta files" pseudo-action, and then another dep
+			// from writeCoverMetaAct to the run action. See the
+			// comment in runTest() at the definition of
+			// writeCoverMetaAct for more details.
+			run.Deps = append(run.Deps, writeCoverMetaAct)
+			writeCoverMetaAct.Deps = append(writeCoverMetaAct.Deps, build)
 		}
 		addTestVet(b, p, run, nil)
 		print := &work.Action{
@@ -1140,22 +1216,42 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
 			runAction = installAction // make sure runAction != nil even if not running test
 		}
 	}
+
 	var vetRunAction *work.Action
 	if testC {
 		printAction = &work.Action{Mode: "test print (nop)", Package: p, Deps: []*work.Action{runAction}} // nop
 		vetRunAction = printAction
 	} else {
 		// run test
-		r := new(runTestActor)
+		rta := &runTestActor{
+			writeCoverMetaAct: writeCoverMetaAct,
+		}
 		runAction = &work.Action{
 			Mode:       "test run",
-			Actor:      r,
+			Actor:      rta,
 			Deps:       []*work.Action{buildAction},
 			Package:    p,
 			IgnoreFail: true, // run (prepare output) even if build failed
-			TryCache:   r.c.tryCache,
-			Objdir:     testDir,
+			TryCache:   rta.c.tryCache,
 		}
+		if writeCoverMetaAct != nil {
+			// If writeCoverMetaAct != nil, this indicates that our
+			// "go test -coverpkg" run actions will need to read the
+			// meta-files summary file written by writeCoverMetaAct,
+			// so add a dependence edge from writeCoverMetaAct to the
+			// run action.
+			runAction.Deps = append(runAction.Deps, writeCoverMetaAct)
+			if !p.IsTestOnly() {
+				// Package p is not test only, meaning that the build
+				// action for p may generate a static meta-data file.
+				// Add a dependence edge from p to writeCoverMetaAct,
+				// which needs to know the name of that meta-data
+				// file.
+				compileAction := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+				writeCoverMetaAct.Deps = append(writeCoverMetaAct.Deps, compileAction)
+			}
+		}
+		runAction.Objdir = testDir
 		vetRunAction = runAction
 		cleanAction = &work.Action{
 			Mode:       "test clean",
@@ -1216,6 +1312,12 @@ var tooManyFuzzTestsToFuzz = []byte("\ntesting: warning: -fuzz matches more than
 // runTestActor is the actor for running a test.
 type runTestActor struct {
 	c runCache
+
+	// writeCoverMetaAct points to the pseudo-action for collecting
+	// coverage meta-data files for selected -cover test runs. See the
+	// comment in runTest at the definition of writeCoverMetaAct for
+	// more details.
+	writeCoverMetaAct *work.Action
 
 	// sequencing of json start messages, to preserve test order
 	prev <-chan struct{} // wait to start until prev is closed
@@ -1391,6 +1493,16 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
 			base.Fatalf("failed to create temporary dir: %v", err)
 		}
 		coverdirArg = append(coverdirArg, "-test.gocoverdir="+gcd)
+		if r.writeCoverMetaAct != nil {
+			// Copy the meta-files file over into the test's coverdir
+			// directory so that the coverage runtime support will be
+			// able to find it.
+			src := r.writeCoverMetaAct.Objdir + coverage.MetaFilesFileName
+			dst := filepath.Join(gcd, coverage.MetaFilesFileName)
+			if err := b.CopyFile(dst, src, 0666, false); err != nil {
+				return err
+			}
+		}
 		// Even though we are passing the -test.gocoverdir option to
 		// the test binary, also set GOCOVERDIR as well. This is
 		// intended to help with tests that run "go build" to build
