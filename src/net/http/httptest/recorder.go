@@ -45,7 +45,7 @@ type ResponseRecorder struct {
 	// Flushed is whether the Handler called Flush.
 	Flushed bool
 
-	// ReadDeadline is the write deadline that has been set using
+	// ReadDeadline is the read deadline that has been set using
 	// "net/http".ResponseController
 	ReadDeadline time.Time
 
