@@ -66,7 +66,6 @@
 //	*FieldAddr            ✔               ✔
 //	*FreeVar              ✔
 //	*Function             ✔                               ✔ (func)
-//	*GenericConvert       ✔               ✔
 //	*Global               ✔                               ✔ (var)
 //	*Go                                   ✔
 //	*If                                   ✔
@@ -80,6 +79,7 @@
 //	*MakeMap              ✔               ✔
 //	*MakeSlice            ✔               ✔
 //	*MapUpdate                            ✔
+//	*MultiConvert         ✔               ✔
 //	*NamedConst                                           ✔ (const)
 //	*Next                 ✔               ✔
 //	*Panic                                ✔
