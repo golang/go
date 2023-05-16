@@ -12,7 +12,8 @@ import (
 // Sparse Conditional Constant Propagation
 //
 // Described in
-// Mark N. Wegman, F. Kenneth Zadeck: Constant Propagation with Conditional Branches. TOPLAS 1991.
+// Mark N. Wegman, F. Kenneth Zadeck: Constant Propagation with Conditional Branches.
+// TOPLAS 1991.
 //
 // This algorithm uses three level lattice for SSA value
 //
@@ -52,13 +53,13 @@ type lattice struct {
 
 type worklist struct {
 	f            *Func               // the target function to be optimized out
-	edges        []Edge              // propagate constant facts through these control flow edges
-	uses         []*Value            // uses for re-visiting because lattice of def is changed
+	edges        []Edge              // propagate constant facts through edges
+	uses         []*Value            // re-visiting set
 	visited      map[Edge]bool       // visited edges
 	latticeCells map[*Value]lattice  // constant lattices
 	defUse       map[*Value][]*Value // def-use chains for some values
 	defBlock     map[*Value][]*Block // use blocks of def
-	visitedBlock *sparseSet          // visited block
+	visitedBlock []bool              // visited block
 }
 
 // sccp stands for sparse conditional constant propagation, it propagates constants
@@ -73,8 +74,8 @@ func sccp(f *Func) {
 	t.defUse = make(map[*Value][]*Value)
 	t.defBlock = make(map[*Value][]*Block)
 	t.latticeCells = make(map[*Value]lattice)
-	t.visitedBlock = f.newSparseSet(f.NumBlocks())
-	defer f.retSparseSet(t.visitedBlock)
+	t.visitedBlock = f.Cache.allocBoolSlice(f.NumBlocks())
+	defer f.Cache.freeBoolSlice(t.visitedBlock)
 
 	// build it early since we rely heavily on the def-use chain later
 	t.buildDefUses()
@@ -86,17 +87,18 @@ func sccp(f *Func) {
 			t.edges = t.edges[1:]
 			if _, exist := t.visited[edge]; !exist {
 				dest := edge.b
-				destVisited := t.visitedBlock.contains(dest.ID)
+				destVisited := t.visitedBlock[dest.ID]
 
 				// mark edge as visited
 				t.visited[edge] = true
-				t.visitedBlock.add(dest.ID)
+				t.visitedBlock[dest.ID] = true
 				for _, val := range dest.Values {
 					if val.Op == OpPhi || !destVisited {
 						t.visitValue(val)
 					}
 				}
-				// propagates constants facts through CFG, taking condition test into account
+				// propagates constants facts through CFG, taking condition test
+				// into account
 				if !destVisited {
 					t.propagate(dest)
 				}
@@ -143,8 +145,8 @@ func equals(a, b lattice) bool {
 	return true
 }
 
-// possibleConst checks if Value can be fold to const. For those Values that can never become
-// constants(e.g. StaticCall), we don't make futile efforts.
+// possibleConst checks if Value can be fold to const. For those Values that can
+// never become constants(e.g. StaticCall), we don't make futile efforts.
 func possibleConst(val *Value) bool {
 	if isConst(val) {
 		return true
@@ -242,11 +244,11 @@ func isConst(val *Value) bool {
 	}
 }
 
-// buildDefUses builds def-use chain for some values early, because once the lattice of
-// a value is changed, we need to update lattices of use. But we don't need all uses of
-// it, only uses that can become constants would be added into re-visit worklist since
-// no matter how many times they are revisited, uses which can't become constants lattice
-// remains unchanged, i.e. Bottom.
+// buildDefUses builds def-use chain for some values early, because once the
+// lattice of a value is changed, we need to update lattices of use. But we don't
+// need all uses of it, only uses that can become constants would be added into
+// re-visit worklist since no matter how many times they are revisited, uses which
+// can't become constants lattice remains unchanged, i.e. Bottom.
 func (t *worklist) buildDefUses() {
 	for _, block := range t.f.Blocks {
 		for _, val := range block.Values {
@@ -263,9 +265,6 @@ func (t *worklist) buildDefUses() {
 		for _, ctl := range block.ControlValues() {
 			// for control values that can become constants, find their use blocks
 			if possibleConst(ctl) {
-				if _, exist := t.defBlock[ctl]; !exist {
-					t.defBlock[ctl] = make([]*Block, 0)
-				}
 				t.defBlock[ctl] = append(t.defBlock[ctl], block)
 			}
 		}
@@ -283,7 +282,7 @@ func (t *worklist) addUses(val *Value) {
 		t.uses = append(t.uses, use)
 	}
 	for _, block := range t.defBlock[val] {
-		if t.visitedBlock.contains(block.ID) {
+		if t.visitedBlock[block.ID] {
 			t.propagate(block)
 		}
 	}
@@ -326,7 +325,7 @@ func (t *worklist) meet(val *Value) lattice {
 }
 
 func computeLattice(f *Func, val *Value, args ...*Value) lattice {
-	// In general, we need to perform constant evaluation based on two constant lattices:
+	// In general, we need to perform constant evaluation based on constant args:
 	//
 	//  res := lattice{constant, nil}
 	// 	switch op {
@@ -341,15 +340,16 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 	//  ...
 	// 	}
 	//
-	// However, this would create a huge switch for all opcodes that can be evaluated during
-	// compile time. Moreover, some operations can be evaluated only if its arguments
-	// satisfy additional conditions(e.g. divide by zero). It's fragile and error prone. We
-	// did a trick by reusing the existing rules in generic rules for compile-time evaluation.
-	// But generic rules rewrite original value, this behavior is undesired, because the lattice
-	// of values may change multiple times, once it was rewritten, we lose the opportunity to
-	// change it permanently, which can lead to errors. For example, We cannot change its value
-	// immediately after visiting Phi, because some of its input edges may still not be visited
-	// at this moment.
+	// However, this would create a huge switch for all opcodes that can be
+	// evaluated during compile time. Moreover, some operations can be evaluated
+	// only if its arguments satisfy additional conditions(e.g. divide by zero).
+	// It's fragile and error prone. We did a trick by reusing the existing rules
+	// in generic rules for compile-time evaluation. But generic rules rewrite
+	// original value, this behavior is undesired, because the lattice of values
+	// may change multiple times, once it was rewritten, we lose the opportunity
+	// to change it permanently, which can lead to errors. For example, We cannot
+	// change its value immediately after visiting Phi, because some of its input
+	// edges may still not be visited at this moment.
 	constValue := f.newValue(val.Op, val.Type, f.Entry, val.Pos)
 	constValue.AddArgs(args...)
 	matched := rewriteValuegeneric(constValue)
@@ -358,15 +358,15 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 			return lattice{constant, constValue}
 		}
 	}
-	// Either we can not match generic rules for given value or it does not satisfy additional
-	// constraints(e.g. divide by zero)
+	// Either we can not match generic rules for given value or it does not satisfy
+	// additional constraints(e.g. divide by zero)
 	return lattice{bottom, nil}
 }
 
 func (t *worklist) visitValue(val *Value) {
 	if !possibleConst(val) {
-		// fast fail for always worst Values, i.e. there is no lowering happen on them,
-		// their lattices must be initially worse Bottom.
+		// fast fail for always worst Values, i.e. there is no lowering happen
+		// on them, their lattices must be initially worse Bottom.
 		return
 	}
 
@@ -482,8 +482,8 @@ func (t *worklist) visitValue(val *Value) {
 }
 
 // propagate propagates constants facts through CFG. If the block has single successor,
-// add the successor anyway. If the block has multiple successors, only add the branch
-// destination corresponding to lattice value of condition value.
+// add the successor anyway. If the block has multiple successors, only add the
+// branch destination corresponding to lattice value of condition value.
 func (t *worklist) propagate(block *Block) {
 	switch block.Kind {
 	case BlockExit, BlockRet, BlockRetJmp, BlockInvalid:
@@ -546,8 +546,8 @@ func rewireSuccessor(block *Block, constVal *Value) bool {
 	}
 }
 
-// replaceConst will replace non-constant values that have been proven by sccp to be
-// constants.
+// replaceConst will replace non-constant values that have been proven by sccp
+// to be constants.
 func (t *worklist) replaceConst() (int, int) {
 	constCnt, rewireCnt := 0, 0
 	for val, lt := range t.latticeCells {
