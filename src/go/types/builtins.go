@@ -40,24 +40,28 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		check.hasCallOrRecv = false
 	}
 
-	// determine actual arguments
-	var arg func(*operand, int) // TODO(gri) remove use of arg getter in favor of using xlist directly
-	nargs := len(call.Args)
+	// Evaluate arguments for built-ins that use ordinary (value) arguments.
+	// For built-ins with special argument handling (make, new, etc.),
+	// evaluation is done by the respective built-in code.
+	var args []*operand // not valid for _Make, _New, _Offsetof, _Trace
+	var nargs int
 	switch id {
 	default:
-		// make argument getter
-		xlist := check.exprList(call.Args)
-		arg = func(x *operand, i int) { *x = *xlist[i] }
-		nargs = len(xlist)
-		// evaluate first argument, if present
-		if nargs > 0 {
-			arg(x, 0)
-			if x.mode == invalid {
+		// check all arguments
+		args = check.exprList(call.Args)
+		nargs = len(args)
+		for _, a := range args {
+			if a.mode == invalid {
 				return
 			}
 		}
+		// first argument is always in x
+		if nargs > 0 {
+			*x = *args[0]
+		}
 	case _Make, _New, _Offsetof, _Trace:
 		// arguments require special handling
+		nargs = len(call.Args)
 	}
 
 	// check argument count
@@ -99,26 +103,20 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			default:
 				cause = check.sprintf("have %s", x)
 			}
-			// don't use Checker.invalidArg here as it would repeat "argument" in the error message
+			// don't use invalidArg prefix here as it would repeat "argument" in the error message
 			check.errorf(x, InvalidAppend, "first argument to append must be a slice; %s", cause)
 			return
 		}
-
-		// remember arguments that have been evaluated already
-		alist := []operand{*x}
 
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
 		if nargs == 2 && call.Ellipsis.IsValid() {
 			if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
-				arg(x, 1)
-				if x.mode == invalid {
-					return
-				}
-				if t := coreString(x.typ); t != nil && isString(t) {
+				y := args[1]
+				if t := coreString(y.typ); t != nil && isString(t) {
 					if check.Types != nil {
-						sig := makeSig(S, S, x.typ)
+						sig := makeSig(S, S, y.typ)
 						sig.variadic = true
 						check.recordBuiltinType(call.Fun, sig)
 					}
@@ -126,25 +124,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 					x.typ = S
 					break
 				}
-				alist = append(alist, *x)
-				// fallthrough
 			}
 		}
 
 		// check general case by creating custom signature
 		sig := makeSig(S, S, NewSlice(T)) // []T required for variadic signature
 		sig.variadic = true
-		var alist2 []*operand
-		// convert []operand to []*operand
-		for i := range alist {
-			alist2 = append(alist2, &alist[i])
-		}
-		for i := len(alist); i < nargs; i++ {
-			var x operand
-			arg(&x, i)
-			alist2 = append(alist2, &x)
-		}
-		check.arguments(call, sig, nil, nil, alist2, nil, nil) // discard result (we know the result type)
+		check.arguments(call, sig, nil, nil, args, nil, nil) // discard result (we know the result type)
 		// ok to continue even if check.arguments reported errors
 
 		x.mode = value
@@ -278,11 +264,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Complex:
 		// complex(x, y floatT) complexT
-		var y operand
-		arg(&y, 1)
-		if y.mode == invalid {
-			return
-		}
+		y := args[1]
 
 		// convert or check untyped arguments
 		d := 0
@@ -300,7 +282,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.convertUntyped(x, y.typ)
 		case 2:
 			// only y is untyped => convert to type of x
-			check.convertUntyped(&y, x.typ)
+			check.convertUntyped(y, x.typ)
 		case 3:
 			// x and y are untyped =>
 			// 1) if both are constants, convert them to untyped
@@ -317,10 +299,10 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 					}
 				}
 				toFloat(x)
-				toFloat(&y)
+				toFloat(y)
 			} else {
 				check.convertUntyped(x, Typ[Float64])
-				check.convertUntyped(&y, Typ[Float64])
+				check.convertUntyped(y, Typ[Float64])
 				// x and y should be invalid now, but be conservative
 				// and check below
 			}
@@ -374,11 +356,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// copy(x, y []T) int
 		dst, _ := coreType(x.typ).(*Slice)
 
-		var y operand
-		arg(&y, 1)
-		if y.mode == invalid {
-			return
-		}
+		y := args[1]
 		src0 := coreString(y.typ)
 		if src0 != nil && isString(src0) {
 			src0 = NewSlice(universeByte)
@@ -386,12 +364,12 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		src, _ := src0.(*Slice)
 
 		if dst == nil || src == nil {
-			check.errorf(x, InvalidCopy, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
+			check.errorf(x, InvalidCopy, invalidArg+"copy expects slice arguments; found %s and %s", x, y)
 			return
 		}
 
 		if !Identical(dst.elem, src.elem) {
-			check.errorf(x, InvalidCopy, "arguments to copy %s and %s have different element types %s and %s", x, &y, dst.elem, src.elem)
+			check.errorf(x, InvalidCopy, "arguments to copy %s and %s have different element types %s and %s", x, y, dst.elem, src.elem)
 			return
 		}
 
@@ -423,11 +401,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		arg(x, 1) // k
-		if x.mode == invalid {
-			return
-		}
-
+		*x = *args[1] // key
 		check.assignment(x, key, "argument to delete")
 		if x.mode == invalid {
 			return
@@ -598,13 +572,10 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		var params []Type
 		if nargs > 0 {
 			params = make([]Type, nargs)
-			for i := 0; i < nargs; i++ {
-				if i > 0 {
-					arg(x, i) // first argument already evaluated
-				}
+			for i, a := range args {
+				*x = *a
 				check.assignment(x, nil, "argument to "+predeclaredFuncs[id].name)
 				if x.mode == invalid {
-					// TODO(gri) "use" all arguments?
 					return
 				}
 				params[i] = x.typ
@@ -635,9 +606,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		var y operand
-		arg(&y, 1)
-		if !check.isValidIndex(&y, InvalidUnsafeAdd, "length", true) {
+		y := args[1]
+		if !check.isValidIndex(y, InvalidUnsafeAdd, "length", true) {
 			return
 		}
 
@@ -771,9 +741,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		var y operand
-		arg(&y, 1)
-		if !check.isValidIndex(&y, InvalidUnsafeSlice, "length", false) {
+		y := args[1]
+		if !check.isValidIndex(y, InvalidUnsafeSlice, "length", false) {
 			return
 		}
 
@@ -812,9 +781,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		var y operand
-		arg(&y, 1)
-		if !check.isValidIndex(&y, InvalidUnsafeString, "length", false) {
+		y := args[1]
+		if !check.isValidIndex(y, InvalidUnsafeString, "length", false) {
 			return
 		}
 
