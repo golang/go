@@ -1110,3 +1110,14 @@ func generator(file *File) (string, bool) {
 	}
 	return "", false
 }
+
+// Unparen returns the expression with any enclosing parentheses removed.
+func Unparen(e Expr) Expr {
+	for {
+		paren, ok := e.(*ParenExpr)
+		if !ok {
+			return e
+		}
+		e = paren.X
+	}
+}
