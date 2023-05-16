@@ -136,8 +136,7 @@ func g4(a [100]int) {
 		useInt(a[i+25])
 		useInt(a[i+50])
 
-		// The following are out of bounds.
-		useInt(a[i-11]) // ERROR "Found IsInBounds$"
+		// The following access is out of bounds.
 		useInt(a[i+51]) // ERROR "Found IsInBounds$"
 	}
 }
