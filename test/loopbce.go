@@ -201,6 +201,11 @@ func h2(a []byte) {
 
 func k0(a [100]int) [100]int {
 	for i := 10; i < 90; i++ { // ERROR "Induction variable: limits \[10,90\), increment 1$"
+		if a[0] == 0xdeadbeef {
+			// This is a trick to prohibit sccp to optimize out the following out of bound check
+			continue
+		}
+		a[i-11] = i
 		a[i-10] = i // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
 		a[i-5] = i  // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
 		a[i] = i    // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
@@ -213,6 +218,11 @@ func k0(a [100]int) [100]int {
 
 func k1(a [100]int) [100]int {
 	for i := 10; i < 90; i++ { // ERROR "Induction variable: limits \[10,90\), increment 1$"
+		if a[0] == 0xdeadbeef {
+			// This is a trick to prohibit sccp to optimize out the following out of bound check
+			continue
+		}
+		useSlice(a[:i-11])
 		useSlice(a[:i-10]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useSlice(a[:i-5])  // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useSlice(a[:i])    // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
@@ -227,6 +237,11 @@ func k1(a [100]int) [100]int {
 
 func k2(a [100]int) [100]int {
 	for i := 10; i < 90; i++ { // ERROR "Induction variable: limits \[10,90\), increment 1$"
+		if a[0] == 0xdeadbeef {
+			// This is a trick to prohibit sccp to optimize out the following out of bound check
+			continue
+		}
+		useSlice(a[i-11:])
 		useSlice(a[i-10:]) // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useSlice(a[i-5:])  // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
 		useSlice(a[i:])    // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
@@ -240,6 +255,11 @@ func k2(a [100]int) [100]int {
 
 func k3(a [100]int) [100]int {
 	for i := -10; i < 90; i++ { // ERROR "Induction variable: limits \[-10,90\), increment 1$"
+		if a[0] == 0xdeadbeef {
+			// This is a trick to prohibit sccp to optimize out the following out of bound check
+			continue
+		}
+		a[i+9] = i
 		a[i+10] = i // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
 		a[i+11] = i
 	}
@@ -248,16 +268,26 @@ func k3(a [100]int) [100]int {
 
 func k3neg(a [100]int) [100]int {
 	for i := 89; i > -11; i-- { // ERROR "Induction variable: limits \(-11,89\], increment 1$"
+		if a[0] == 0xdeadbeef {
+			// This is a trick to prohibit sccp to optimize out the following out of bound check
+			continue
+		}
 		a[i+9] = i
 		a[i+10] = i // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
+		a[i+11] = i
 	}
 	return a
 }
 
 func k3neg2(a [100]int) [100]int {
 	for i := 89; i >= -10; i-- { // ERROR "Induction variable: limits \[-10,89\], increment 1$"
+		if a[0] == 0xdeadbeef {
+			// This is a trick to prohibit sccp to optimize out the following out of bound check
+			continue
+		}
 		a[i+9] = i
 		a[i+10] = i // ERROR "(\([0-9]+\) )?Proved IsInBounds$"
+		a[i+11] = i
 	}
 	return a
 }
