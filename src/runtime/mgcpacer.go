@@ -803,7 +803,7 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 	// Run the background mark worker.
 	gp := node.gp.ptr()
 	casgstatus(gp, _Gwaiting, _Grunnable)
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoUnpark(gp, 0)
 	}
 	return gp, now
@@ -823,7 +823,7 @@ func (c *gcControllerState) resetLive(bytesMarked uint64) {
 	c.triggered = ^uint64(0) // Reset triggered.
 
 	// heapLive was updated, so emit a trace event.
-	if trace.enabled {
+	if traceEnabled() {
 		traceHeapAlloc(bytesMarked)
 	}
 }
@@ -852,7 +852,7 @@ func (c *gcControllerState) markWorkerStop(mode gcMarkWorkerMode, duration int64
 func (c *gcControllerState) update(dHeapLive, dHeapScan int64) {
 	if dHeapLive != 0 {
 		live := gcController.heapLive.Add(dHeapLive)
-		if trace.enabled {
+		if traceEnabled() {
 			// gcController.heapLive changed.
 			traceHeapAlloc(live)
 		}
@@ -1417,7 +1417,7 @@ func gcControllerCommit() {
 
 	// TODO(mknyszek): This isn't really accurate any longer because the heap
 	// goal is computed dynamically. Still useful to snapshot, but not as useful.
-	if trace.enabled {
+	if traceEnabled() {
 		traceHeapGoal()
 	}
 

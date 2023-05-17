@@ -96,10 +96,10 @@
 	FUNC4(a, b, c, d, e); \
 	MIX(a, b, c, d, e, 0xCA62C1D6)
 
-TEXT ·blockAMD64(SB),NOSPLIT,$64-24
+TEXT ·blockAMD64(SB),NOSPLIT,$64-32
 	MOVQ	dig+0(FP),	BP
-	MOVQ	p+8(FP),	SI
-	MOVQ	n+16(FP),	DX
+	MOVQ	p_base+8(FP),	SI
+	MOVQ	p_len+16(FP),	DX
 	SHRQ	$6,		DX
 	SHLQ	$6,		DX
 
@@ -1430,11 +1430,11 @@ begin: \
 
 
 
-TEXT ·blockAVX2(SB),$1408-24
+TEXT ·blockAVX2(SB),$1408-32
 
 	MOVQ	dig+0(FP),	DI
-	MOVQ	p+8(FP),	SI
-	MOVQ	n+16(FP),	DX
+	MOVQ	p_base+8(FP),	SI
+	MOVQ	p_len+16(FP),	DX
 	SHRQ	$6,		DX
 	SHLQ	$6,		DX
 

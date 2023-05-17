@@ -57,7 +57,7 @@ type ImportMissingError struct {
 func (e *ImportMissingError) Error() string {
 	if e.Module.Path == "" {
 		if e.isStd {
-			msg := fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+			msg := fmt.Sprintf("package %s is not in std (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
 			if e.importerGoVersion != "" {
 				msg += fmt.Sprintf("\nnote: imported by a module that requires go %s", e.importerGoVersion)
 			}
@@ -164,7 +164,7 @@ func (e *DirectImportFromImplicitDependencyError) ImportPath() string {
 // We might need sums for multiple modules to verify the package is unique.
 //
 // TODO(#43653): consolidate multiple errors of this type into a single error
-// that suggests a 'go get' command for root packages that transtively import
+// that suggests a 'go get' command for root packages that transitively import
 // packages from modules with missing sums. load.CheckPackageErrors would be
 // a good place to consolidate errors, but we'll need to attach the import
 // stack here.
@@ -256,7 +256,13 @@ func (e *invalidImportError) Unwrap() error {
 // If the package is present in exactly one module, importFromModules will
 // return the module, its root directory, and a list of other modules that
 // lexically could have provided the package but did not.
-func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph) (m module.Version, modroot, dir string, altMods []module.Version, err error) {
+//
+// If skipModFile is true, the go.mod file for the package is not loaded. This
+// allows 'go mod tidy' to preserve a minor checksum-preservation bug
+// (https://go.dev/issue/56222) for modules with 'go' versions between 1.17 and
+// 1.20, preventing unnecessary go.sum churn and network access in those
+// modules.
+func importFromModules(ctx context.Context, path string, rs *Requirements, mg *ModuleGraph, skipModFile bool) (m module.Version, modroot, dir string, altMods []module.Version, err error) {
 	invalidf := func(format string, args ...interface{}) (module.Version, string, string, []module.Version, error) {
 		return module.Version{}, "", "", nil, &invalidImportError{
 			importPath: path,
@@ -435,6 +441,18 @@ func importFromModules(ctx context.Context, path string, rs *Requirements, mg *M
 		}
 
 		if len(mods) == 1 {
+			// We've found the unique module containing the package.
+			// However, in order to actually compile it we need to know what
+			// Go language version to use, which requires its go.mod file.
+			//
+			// If the module graph is pruned and this is a test-only dependency
+			// of a package in "all", we didn't necessarily load that file
+			// when we read the module graph, so do it now to be sure.
+			if !skipModFile && cfg.BuildMod != "vendor" && mods[0].Path != "" && !MainModules.Contains(mods[0].Path) {
+				if _, err := goModSummary(mods[0]); err != nil {
+					return module.Version{}, "", "", nil, err
+				}
+			}
 			return mods[0], roots[0], dirs[0], altMods, nil
 		}
 
@@ -563,7 +581,7 @@ func queryImport(ctx context.Context, path string, rs *Requirements) (module.Ver
 
 	// Look up module containing the package, for addition to the build list.
 	// Goal is to determine the module, download it to dir,
-	// and return m, dir, ImpportMissingError.
+	// and return m, dir, ImportMissingError.
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
 	mg, err := rs.Graph(ctx)

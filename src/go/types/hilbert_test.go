@@ -27,7 +27,7 @@ func TestHilbert(t *testing.T) {
 		return
 	}
 
-	mustTypecheck("hilbert.go", string(src), nil, nil)
+	mustTypecheck(string(src), nil, nil)
 }
 
 func program(n int, out string) []byte {

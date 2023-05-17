@@ -15,7 +15,6 @@ import (
 	"internal/buildcfg"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const funcSize = 11 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
@@ -289,31 +288,11 @@ func walkFuncs(ctxt *Link, funcs []loader.Sym, f func(loader.Sym)) {
 func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[loader.Sym]uint32 {
 	nameOffsets := make(map[loader.Sym]uint32, state.nfunc)
 
-	// The name used by the runtime is the concatenation of the 3 returned strings.
-	// For regular functions, only one returned string is nonempty.
-	// For generic functions, we use three parts so that we can print everything
-	// within the outermost "[]" as "...".
-	nameParts := func(name string) (string, string, string) {
-		i := strings.IndexByte(name, '[')
-		if i < 0 {
-			return name, "", ""
-		}
-		j := strings.LastIndexByte(name, ']')
-		if j <= i {
-			return name, "", ""
-		}
-		return name[:i], "[...]", name[j+1:]
-	}
-
 	// Write the null terminated strings.
 	writeFuncNameTab := func(ctxt *Link, s loader.Sym) {
 		symtab := ctxt.loader.MakeSymbolUpdater(s)
 		for s, off := range nameOffsets {
-			a, b, c := nameParts(ctxt.loader.SymName(s))
-			o := int64(off)
-			o = symtab.AddStringAt(o, a)
-			o = symtab.AddStringAt(o, b)
-			_ = symtab.AddCStringAt(o, c)
+			symtab.AddCStringAt(int64(off), ctxt.loader.SymName(s))
 		}
 	}
 
@@ -321,8 +300,7 @@ func (state *pclntab) generateFuncnametab(ctxt *Link, funcs []loader.Sym) map[lo
 	var size int64
 	walkFuncs(ctxt, funcs, func(s loader.Sym) {
 		nameOffsets[s] = uint32(size)
-		a, b, c := nameParts(ctxt.loader.SymName(s))
-		size += int64(len(a) + len(b) + len(c) + 1) // NULL terminate
+		size += int64(len(ctxt.loader.SymName(s)) + 1) // NULL terminate
 	})
 
 	state.funcnametab = state.addGeneratedSym(ctxt, "runtime.funcnametab", size, writeFuncNameTab)

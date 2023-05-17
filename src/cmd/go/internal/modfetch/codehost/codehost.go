@@ -377,6 +377,8 @@ func RunWithStdin(dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
 	c.Stdin = stdin
 	c.Stderr = &stderr
 	c.Stdout = &stdout
+	// For Git commands, manually supply GIT_DIR so Git works with safe.bareRepository=explicit set. Noop for other commands.
+	c.Env = append(c.Environ(), "GIT_DIR="+dir)
 	err := c.Run()
 	if err != nil {
 		err = &RunError{Cmd: strings.Join(cmd, " ") + " in " + dir, Stderr: stderr.Bytes(), Err: err}

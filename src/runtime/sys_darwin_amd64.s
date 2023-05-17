@@ -369,6 +369,12 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	MOVL	0(DI), DI		// arg 1 fd
 	XORL	AX, AX			// vararg: say "no float args"
 	CALL	libc_fcntl(SB)
+	TESTL	AX, AX
+	JGT	noerr
+	CALL	libc_error(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno value
+noerr:
 	RET
 
 // mstart_stub is the first function executed on a new thread started by pthread_create.

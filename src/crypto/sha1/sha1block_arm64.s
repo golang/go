@@ -19,12 +19,12 @@
 	SHA1H	V3, V1 \
 	VMOV	V2.B16, V3.B16
 
-// func sha1block(h []uint32, p *byte, n int, k []uint32)
+// func sha1block(h []uint32, p []byte, k []uint32)
 TEXT ·sha1block(SB),NOSPLIT,$0
 	MOVD	h_base+0(FP), R0                             // hash value first address
-	MOVD	p+24(FP), R1                                 // message first address
-	MOVD	k_base+40(FP), R2                            // k constants first address
-	MOVD	n+32(FP), R3                                 // message length
+	MOVD	p_base+24(FP), R1                            // message first address
+	MOVD	k_base+48(FP), R2                            // k constants first address
+	MOVD	p_len+32(FP), R3                             // message length
 	VLD1.P	16(R0), [V0.S4]
 	FMOVS	(R0), F20
 	SUB	$16, R0, R0

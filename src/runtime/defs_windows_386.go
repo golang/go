@@ -56,6 +56,9 @@ func (c *context) set_lr(x uintptr) {}
 func (c *context) set_ip(x uintptr) { c.eip = uint32(x) }
 func (c *context) set_sp(x uintptr) { c.esp = uint32(x) }
 
+// 386 does not have frame pointer register.
+func (c *context) set_fp(x uintptr) {}
+
 func prepareContextForSigResume(c *context) {
 	c.edx = c.esp
 	c.ecx = c.eip

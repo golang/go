@@ -691,11 +691,8 @@ func schedinit() {
 	lockInit(&allpLock, lockRankAllp)
 	lockInit(&reflectOffs.lock, lockRankReflectOffs)
 	lockInit(&finlock, lockRankFin)
-	lockInit(&trace.bufLock, lockRankTraceBuf)
-	lockInit(&trace.stringsLock, lockRankTraceStrings)
-	lockInit(&trace.lock, lockRankTrace)
 	lockInit(&cpuprof.lock, lockRankCpuprof)
-	lockInit(&trace.stackTab.lock, lockRankTraceStackTab)
+	traceLockInit()
 	// Enforce that this lock is always a leaf lock.
 	// All of this lock's critical sections should be
 	// extremely short.
@@ -779,7 +776,16 @@ func dumpgstatus(gp *g) {
 func checkmcount() {
 	assertLockHeld(&sched.lock)
 
-	if mcount() > sched.maxmcount {
+	// Exclude extra M's, which are used for cgocallback from threads
+	// created in C.
+	//
+	// The purpose of the SetMaxThreads limit is to avoid accidental fork
+	// bomb from something like millions of goroutines blocking on system
+	// calls, causing the runtime to create millions of threads. By
+	// definition, this isn't a problem for threads created in C, so we
+	// exclude them from the limit. See https://go.dev/issue/60004.
+	count := mcount() - int32(extraMInUse.Load()) - int32(extraMLength.Load())
+	if count > sched.maxmcount {
 		print("runtime: program exceeds ", sched.maxmcount, "-thread limit\n")
 		throw("thread exhaustion")
 	}
@@ -857,8 +863,8 @@ func (mp *m) becomeSpinning() {
 	sched.needspinning.Store(0)
 }
 
-func (mp *m) incgocallback() bool {
-	return (!mp.incgo && mp.ncgo > 0) || mp.isextra
+func (mp *m) hasCgoOnStack() bool {
+	return mp.ncgo > 0 || mp.isextra
 }
 
 var fastrandseed uintptr
@@ -870,7 +876,7 @@ func fastrandinit() {
 
 // Mark gp ready to run.
 func ready(gp *g, traceskip int, next bool) {
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoUnpark(gp, traceskip)
 	}
 
@@ -1268,7 +1274,7 @@ func stopTheWorldWithSema() {
 	for _, pp := range allp {
 		s := pp.status
 		if s == _Psyscall && atomic.Cas(&pp.status, s, _Pgcstop) {
-			if trace.enabled {
+			if traceEnabled() {
 				traceGoSysBlock(pp)
 				traceProcStop(pp)
 			}
@@ -1697,7 +1703,7 @@ func forEachP(fn func(*p)) {
 	for _, p2 := range allp {
 		s := p2.status
 		if s == _Psyscall && p2.runSafePointFn == 1 && atomic.Cas(&p2.status, s, _Pidle) {
-			if trace.enabled {
+			if traceEnabled() {
 				traceGoSysBlock(p2)
 				traceProcStop(p2)
 			}
@@ -1908,11 +1914,10 @@ func needm() {
 	sigsave(&sigmask)
 	sigblock(false)
 
-	// Lock extra list, take head, unlock popped list.
 	// nilokay=false is safe here because of the invariant above,
 	// that the extra list always contains or will soon contain
 	// at least one m.
-	mp := lockextra(false)
+	mp, last := getExtraM(false)
 
 	// Set needextram when we've just emptied the list,
 	// so that the eventual call into cgocallbackg will
@@ -1921,9 +1926,7 @@ func needm() {
 	// after exitsyscall makes sure it is okay to be
 	// running at all (that is, there's no garbage collection
 	// running right now).
-	mp.needextram = mp.schedlink == 0
-	extraMCount--
-	unlockextra(mp.schedlink.ptr())
+	mp.needextram = last
 
 	// Store the original signal mask for use by minit.
 	mp.sigmask = sigmask
@@ -1961,13 +1964,9 @@ func newextram() {
 		for i := uint32(0); i < c; i++ {
 			oneNewExtraM()
 		}
-	} else {
+	} else if extraMLength.Load() == 0 {
 		// Make sure there is at least one extra M.
-		mp := lockextra(true)
-		unlockextra(mp)
-		if mp == nil {
-			oneNewExtraM()
-		}
+		oneNewExtraM()
 	}
 }
 
@@ -2000,17 +1999,11 @@ func oneNewExtraM() {
 	mp.lockedg.set(gp)
 	gp.lockedm.set(mp)
 	gp.goid = sched.goidgen.Add(1)
-	gp.sysblocktraced = true
 	if raceenabled {
 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
 	}
-	if trace.enabled {
-		// Trigger two trace events for the locked g in the extra m,
-		// since the next event of the g will be traceEvGoSysExit in exitsyscall,
-		// while calling from C thread to Go.
-		traceGoCreate(gp, 0) // no start pc
-		gp.traceseq++
-		traceEvent(traceEvGoInSyscall, -1, gp.goid)
+	if traceEnabled() {
+		traceOneNewExtraM(gp)
 	}
 	// put on allg for garbage collector
 	allgadd(gp)
@@ -2022,10 +2015,7 @@ func oneNewExtraM() {
 	sched.ngsys.Add(1)
 
 	// Add m to the extra list.
-	mnext := lockextra(true)
-	mp.schedlink.set(mnext)
-	extraMCount++
-	unlockextra(mp)
+	addExtraM(mp)
 }
 
 // dropm is called when a cgo callback has called needm but is now
@@ -2070,14 +2060,9 @@ func dropm() {
 	sigblock(false)
 	unminit()
 
-	mnext := lockextra(true)
-	extraMCount++
-	mp.schedlink.set(mnext)
-
 	setg(nil)
 
-	// Commit the release of mp.
-	unlockextra(mp)
+	putExtraM(mp)
 
 	msigrestore(sigmask)
 }
@@ -2087,9 +2072,22 @@ func getm() uintptr {
 	return uintptr(unsafe.Pointer(getg().m))
 }
 
-var extram atomic.Uintptr
-var extraMCount uint32 // Protected by lockextra
-var extraMWaiters atomic.Uint32
+var (
+	// Locking linked list of extra M's, via mp.schedlink. Must be accessed
+	// only via lockextra/unlockextra.
+	//
+	// Can't be atomic.Pointer[m] because we use an invalid pointer as a
+	// "locked" sentinel value. M's on this list remain visible to the GC
+	// because their mp.curg is on allgs.
+	extraM atomic.Uintptr
+	// Number of M's in the extraM list.
+	extraMLength atomic.Uint32
+	// Number of waiters in lockextra.
+	extraMWaiters atomic.Uint32
+
+	// Number of extra M's in use by threads.
+	extraMInUse atomic.Uint32
+)
 
 // lockextra locks the extra list and returns the list head.
 // The caller must unlock the list by storing a new list head
@@ -2103,7 +2101,7 @@ func lockextra(nilokay bool) *m {
 
 	incr := false
 	for {
-		old := extram.Load()
+		old := extraM.Load()
 		if old == locked {
 			osyield_no_g()
 			continue
@@ -2119,7 +2117,8 @@ func lockextra(nilokay bool) *m {
 			usleep_no_g(1)
 			continue
 		}
-		if extram.CompareAndSwap(old, locked) {
+		if extraM.CompareAndSwap(old, locked) {
+			extraMInUse.Add(1)
 			return (*m)(unsafe.Pointer(old))
 		}
 		osyield_no_g()
@@ -2128,8 +2127,41 @@ func lockextra(nilokay bool) *m {
 }
 
 //go:nosplit
-func unlockextra(mp *m) {
-	extram.Store(uintptr(unsafe.Pointer(mp)))
+func unlockextra(mp *m, delta int32) {
+	extraMLength.Add(delta)
+	extraM.Store(uintptr(unsafe.Pointer(mp)))
+}
+
+// Return an M from the extra M list. Returns last == true if the list becomes
+// empty because of this call.
+//
+//go:nosplit
+func getExtraM(nilokay bool) (mp *m, last bool) {
+	mp = lockextra(nilokay)
+	if mp == nil {
+		unlockextra(nil, 0)
+		return nil, true
+	}
+	unlockextra(mp.schedlink.ptr(), -1)
+	return mp, mp.schedlink.ptr() == nil
+}
+
+// Returns an extra M back to the list. mp must be from getExtraM. Newly
+// allocated M's should use addExtraM.
+//
+//go:nosplit
+func putExtraM(mp *m) {
+	extraMInUse.Add(-1)
+	addExtraM(mp)
+}
+
+// Adds a newly allocated M to the extra M list.
+//
+//go:nosplit
+func addExtraM(mp *m) {
+	mnext := lockextra(true)
+	mp.schedlink.set(mnext)
+	unlockextra(mp, 1)
 }
 
 var (
@@ -2349,10 +2381,15 @@ func mspinning() {
 // Callers passing a non-nil P must call from a non-preemptible context. See
 // comment on acquirem below.
 //
+// Argument lockheld indicates whether the caller already acquired the
+// scheduler lock. Callers holding the lock when making the call must pass
+// true. The lock might be temporarily dropped, but will be reacquired before
+// returning.
+//
 // Must not have write barriers because this may be called without a P.
 //
 //go:nowritebarrierrec
-func startm(pp *p, spinning bool) {
+func startm(pp *p, spinning, lockheld bool) {
 	// Disable preemption.
 	//
 	// Every owned P must have an owner that will eventually stop it in the
@@ -2370,7 +2407,9 @@ func startm(pp *p, spinning bool) {
 	// startm. Callers passing a nil P may be preemptible, so we must
 	// disable preemption before acquiring a P from pidleget below.
 	mp := acquirem()
-	lock(&sched.lock)
+	if !lockheld {
+		lock(&sched.lock)
+	}
 	if pp == nil {
 		if spinning {
 			// TODO(prattmic): All remaining calls to this function
@@ -2380,7 +2419,9 @@ func startm(pp *p, spinning bool) {
 		}
 		pp, _ = pidleget(0)
 		if pp == nil {
-			unlock(&sched.lock)
+			if !lockheld {
+				unlock(&sched.lock)
+			}
 			releasem(mp)
 			return
 		}
@@ -2394,6 +2435,8 @@ func startm(pp *p, spinning bool) {
 		// could find no idle P while checkdead finds a runnable G but
 		// no running M's because this new M hasn't started yet, thus
 		// throwing in an apparent deadlock.
+		// This apparent deadlock is possible when startm is called
+		// from sysmon, which doesn't count as a running M.
 		//
 		// Avoid this situation by pre-allocating the ID for the new M,
 		// thus marking it as 'running' before we drop sched.lock. This
@@ -2408,12 +2451,18 @@ func startm(pp *p, spinning bool) {
 			fn = mspinning
 		}
 		newm(fn, pp, id)
+
+		if lockheld {
+			lock(&sched.lock)
+		}
 		// Ownership transfer of pp committed by start in newm.
 		// Preemption is now safe.
 		releasem(mp)
 		return
 	}
-	unlock(&sched.lock)
+	if !lockheld {
+		unlock(&sched.lock)
+	}
 	if nmp.spinning {
 		throw("startm: m is spinning")
 	}
@@ -2442,24 +2491,24 @@ func handoffp(pp *p) {
 
 	// if it has local work, start it straight away
 	if !runqempty(pp) || sched.runqsize != 0 {
-		startm(pp, false)
+		startm(pp, false, false)
 		return
 	}
 	// if there's trace work to do, start it straight away
-	if (trace.enabled || trace.shutdown) && traceReaderAvailable() != nil {
-		startm(pp, false)
+	if (traceEnabled() || traceShuttingDown()) && traceReaderAvailable() != nil {
+		startm(pp, false, false)
 		return
 	}
 	// if it has GC work, start it straight away
 	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(pp) {
-		startm(pp, false)
+		startm(pp, false, false)
 		return
 	}
 	// no local work, check that there are no spinning/idle M's,
 	// otherwise our help is not required
 	if sched.nmspinning.Load()+sched.npidle.Load() == 0 && sched.nmspinning.CompareAndSwap(0, 1) { // TODO: fast atomic
 		sched.needspinning.Store(0)
-		startm(pp, true)
+		startm(pp, true, false)
 		return
 	}
 	lock(&sched.lock)
@@ -2481,14 +2530,14 @@ func handoffp(pp *p) {
 	}
 	if sched.runqsize != 0 {
 		unlock(&sched.lock)
-		startm(pp, false)
+		startm(pp, false, false)
 		return
 	}
 	// If this is the last running P and nobody is polling network,
 	// need to wakeup another M to poll network.
 	if sched.npidle.Load() == gomaxprocs-1 && sched.lastpoll.Load() != 0 {
 		unlock(&sched.lock)
-		startm(pp, false)
+		startm(pp, false, false)
 		return
 	}
 
@@ -2537,7 +2586,7 @@ func wakep() {
 	// see at least one running M (ours).
 	unlock(&sched.lock)
 
-	startm(pp, true)
+	startm(pp, true, false)
 
 	releasem(mp)
 }
@@ -2652,11 +2701,11 @@ func execute(gp *g, inheritTime bool) {
 		setThreadCPUProfiler(hz)
 	}
 
-	if trace.enabled {
+	if traceEnabled() {
 		// GoSysExit has to happen when we have a P, but before GoStart.
 		// So we emit it here.
-		if gp.syscallsp != 0 && gp.sysblocktraced {
-			traceGoSysExit(gp.sysexitticks)
+		if gp.syscallsp != 0 {
+			traceGoSysExit()
 		}
 		traceGoStart()
 	}
@@ -2692,7 +2741,7 @@ top:
 	now, pollUntil, _ := checkTimers(pp, 0)
 
 	// Try to schedule the trace reader.
-	if trace.enabled || trace.shutdown {
+	if traceEnabled() || traceShuttingDown() {
 		gp := traceReader()
 		if gp != nil {
 			casgstatus(gp, _Gwaiting, _Grunnable)
@@ -2759,7 +2808,7 @@ top:
 			gp := list.pop()
 			injectglist(&list)
 			casgstatus(gp, _Gwaiting, _Grunnable)
-			if trace.enabled {
+			if traceEnabled() {
 				traceGoUnpark(gp, 0)
 			}
 			return gp, false, false
@@ -2804,7 +2853,7 @@ top:
 			pp.gcMarkWorkerMode = gcMarkWorkerIdleMode
 			gp := node.gp.ptr()
 			casgstatus(gp, _Gwaiting, _Grunnable)
-			if trace.enabled {
+			if traceEnabled() {
 				traceGoUnpark(gp, 0)
 			}
 			return gp, false, false
@@ -2819,7 +2868,7 @@ top:
 	gp, otherReady := beforeIdle(now, pollUntil)
 	if gp != nil {
 		casgstatus(gp, _Gwaiting, _Grunnable)
-		if trace.enabled {
+		if traceEnabled() {
 			traceGoUnpark(gp, 0)
 		}
 		return gp, false, false
@@ -2930,7 +2979,7 @@ top:
 			// Run the idle worker.
 			pp.gcMarkWorkerMode = gcMarkWorkerIdleMode
 			casgstatus(gp, _Gwaiting, _Grunnable)
-			if trace.enabled {
+			if traceEnabled() {
 				traceGoUnpark(gp, 0)
 			}
 			return gp, false, false
@@ -2987,7 +3036,7 @@ top:
 				gp := list.pop()
 				injectglist(&list)
 				casgstatus(gp, _Gwaiting, _Grunnable)
-				if trace.enabled {
+				if traceEnabled() {
 					traceGoUnpark(gp, 0)
 				}
 				return gp, false, false
@@ -3255,7 +3304,7 @@ func injectglist(glist *gList) {
 	if glist.empty() {
 		return
 	}
-	if trace.enabled {
+	if traceEnabled() {
 		for gp := glist.head.ptr(); gp != nil; gp = gp.schedlink.ptr() {
 			traceGoUnpark(gp, 0)
 		}
@@ -3290,8 +3339,8 @@ func injectglist(glist *gList) {
 				break
 			}
 
+			startm(pp, false, true)
 			unlock(&sched.lock)
-			startm(pp, false)
 			releasem(mp)
 		}
 	}
@@ -3486,7 +3535,7 @@ func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
 func park_m(gp *g) {
 	mp := getg().m
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoPark(mp.waittraceev, mp.waittraceskip)
 	}
 
@@ -3500,7 +3549,7 @@ func park_m(gp *g) {
 		mp.waitunlockf = nil
 		mp.waitlock = nil
 		if !ok {
-			if trace.enabled {
+			if traceEnabled() {
 				traceGoUnpark(gp, 2)
 			}
 			casgstatus(gp, _Gwaiting, _Grunnable)
@@ -3527,7 +3576,7 @@ func goschedImpl(gp *g) {
 
 // Gosched continuation on g0.
 func gosched_m(gp *g) {
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoSched()
 	}
 	goschedImpl(gp)
@@ -3540,14 +3589,14 @@ func goschedguarded_m(gp *g) {
 		gogo(&gp.sched) // never return
 	}
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoSched()
 	}
 	goschedImpl(gp)
 }
 
 func gopreempt_m(gp *g) {
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoPreempt()
 	}
 	goschedImpl(gp)
@@ -3557,7 +3606,7 @@ func gopreempt_m(gp *g) {
 //
 //go:systemstack
 func preemptPark(gp *g) {
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoPark(traceEvGoBlock, 0)
 	}
 	status := readgstatus(gp)
@@ -3601,7 +3650,7 @@ func goyield() {
 }
 
 func goyield_m(gp *g) {
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoPreempt()
 	}
 	pp := gp.m.p.ptr()
@@ -3616,7 +3665,7 @@ func goexit1() {
 	if raceenabled {
 		racegoend()
 	}
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoEnd()
 	}
 	mcall(goexit0)
@@ -3786,7 +3835,7 @@ func reentersyscall(pc, sp uintptr) {
 		})
 	}
 
-	if trace.enabled {
+	if traceEnabled() {
 		systemstack(traceGoSysCall)
 		// systemstack itself clobbers g.sched.{pc,sp} and we might
 		// need them later when the G is genuinely blocked in a
@@ -3806,7 +3855,6 @@ func reentersyscall(pc, sp uintptr) {
 	}
 
 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
-	gp.sysblocktraced = true
 	pp := gp.m.p.ptr()
 	pp.m = 0
 	gp.m.oldp.set(pp)
@@ -3845,7 +3893,7 @@ func entersyscall_gcwait() {
 
 	lock(&sched.lock)
 	if sched.stopwait > 0 && atomic.Cas(&pp.status, _Psyscall, _Pgcstop) {
-		if trace.enabled {
+		if traceEnabled() {
 			traceGoSysBlock(pp)
 			traceProcStop(pp)
 		}
@@ -3867,7 +3915,6 @@ func entersyscallblock() {
 	gp.throwsplit = true
 	gp.stackguard0 = stackPreempt // see comment in entersyscall
 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
-	gp.sysblocktraced = true
 	gp.m.p.ptr().syscalltick++
 
 	// Leave SP around for GC and traceback.
@@ -3902,7 +3949,7 @@ func entersyscallblock() {
 }
 
 func entersyscallblock_handoff() {
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoSysCall()
 		traceGoSysBlock(getg().m.p.ptr())
 	}
@@ -3943,7 +3990,7 @@ func exitsyscall() {
 				tryRecordGoroutineProfileWB(gp)
 			})
 		}
-		if trace.enabled {
+		if traceEnabled() {
 			if oldp != gp.m.p.ptr() || gp.m.syscalltick != gp.m.p.ptr().syscalltick {
 				systemstack(traceGoStart)
 			}
@@ -3974,8 +4021,7 @@ func exitsyscall() {
 		return
 	}
 
-	gp.sysexitticks = 0
-	if trace.enabled {
+	if traceEnabled() {
 		// Wait till traceGoSysBlock event is emitted.
 		// This ensures consistency of the trace (the goroutine is started after it is blocked).
 		for oldp != nil && oldp.syscalltick == gp.m.syscalltick {
@@ -3985,7 +4031,7 @@ func exitsyscall() {
 		// Tracing code can invoke write barriers that cannot run without a P.
 		// So instead we remember the syscall exit time and emit the event
 		// in execute when we have a P.
-		gp.sysexitticks = cputicks()
+		gp.trace.sysExitTicks = cputicks()
 	}
 
 	gp.m.locks--
@@ -4026,7 +4072,7 @@ func exitsyscallfast(oldp *p) bool {
 		var ok bool
 		systemstack(func() {
 			ok = exitsyscallfast_pidle()
-			if ok && trace.enabled {
+			if ok && traceEnabled() {
 				if oldp != nil {
 					// Wait till traceGoSysBlock event is emitted.
 					// This ensures consistency of the trace (the goroutine is started after it is blocked).
@@ -4034,7 +4080,7 @@ func exitsyscallfast(oldp *p) bool {
 						osyield()
 					}
 				}
-				traceGoSysExit(0)
+				traceGoSysExit()
 			}
 		})
 		if ok {
@@ -4052,7 +4098,7 @@ func exitsyscallfast(oldp *p) bool {
 func exitsyscallfast_reacquired() {
 	gp := getg()
 	if gp.m.syscalltick != gp.m.p.ptr().syscalltick {
-		if trace.enabled {
+		if traceEnabled() {
 			// The p was retaken and then enter into syscall again (since gp.m.syscalltick has changed).
 			// traceGoSysBlock for this syscall was already emitted,
 			// but here we effectively retake the p from the new syscall running on the same p.
@@ -4060,7 +4106,7 @@ func exitsyscallfast_reacquired() {
 				// Denote blocking of the new syscall.
 				traceGoSysBlock(gp.m.p.ptr())
 				// Denote completion of the current syscall.
-				traceGoSysExit(0)
+				traceGoSysExit()
 			})
 		}
 		gp.m.p.ptr().syscalltick++
@@ -4344,7 +4390,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
 			racereleasemergeg(newg, unsafe.Pointer(&labelSync))
 		}
 	}
-	if trace.enabled {
+	if traceEnabled() {
 		traceGoCreate(newg, newg.startpc)
 	}
 	releasem(mp)
@@ -4954,7 +5000,7 @@ func procresize(nprocs int32) *p {
 	if old < 0 || nprocs <= 0 {
 		throw("procresize: invalid arg")
 	}
-	if trace.enabled {
+	if traceEnabled() {
 		traceGomaxprocs(nprocs)
 	}
 
@@ -5020,7 +5066,7 @@ func procresize(nprocs int32) *p {
 		// because p.destroy itself has write barriers, so we
 		// need to do that from a valid P.
 		if gp.m.p != 0 {
-			if trace.enabled {
+			if traceEnabled() {
 				// Pretend that we were descheduled
 				// and then scheduled again to keep
 				// the trace sane.
@@ -5034,7 +5080,7 @@ func procresize(nprocs int32) *p {
 		pp.m = 0
 		pp.status = _Pidle
 		acquirep(pp)
-		if trace.enabled {
+		if traceEnabled() {
 			traceGoStart()
 		}
 	}
@@ -5099,7 +5145,7 @@ func acquirep(pp *p) {
 	// from a potentially stale mcache.
 	pp.mcache.prepareForSweep()
 
-	if trace.enabled {
+	if traceEnabled() {
 		traceProcStart()
 	}
 }
@@ -5141,7 +5187,7 @@ func releasep() *p {
 		print("releasep: m=", gp.m, " m->p=", gp.m.p.ptr(), " p->m=", hex(pp.m), " p->status=", pp.status, "\n")
 		throw("releasep: invalid p state")
 	}
-	if trace.enabled {
+	if traceEnabled() {
 		traceProcStop(gp.m.p.ptr())
 	}
 	gp.m.p = 0
@@ -5185,13 +5231,8 @@ func checkdead() {
 	// accommodate callbacks created by syscall.NewCallback. See issue #6751
 	// for details.)
 	var run0 int32
-	if !iscgo && cgoHasExtraM {
-		mp := lockextra(true)
-		haveExtraM := extraMCount > 0
-		unlockextra(mp)
-		if haveExtraM {
-			run0 = 1
-		}
+	if !iscgo && cgoHasExtraM && extraMLength.Load() > 0 {
+		run0 = 1
 	}
 
 	run := mcount() - sched.nmidle - sched.nmidlelocked - sched.nmsys
@@ -5398,7 +5439,7 @@ func sysmon() {
 			// See issue 42515 and
 			// https://gnats.netbsd.org/cgi-bin/query-pr-single.pl?number=50094.
 			if next := timeSleepUntil(); next < now {
-				startm(nil, false)
+				startm(nil, false, false)
 			}
 		}
 		if scavenger.sysmonWake.Load() != 0 {
@@ -5493,7 +5534,7 @@ func retake(now int64) uint32 {
 			// increment nmidle and report deadlock.
 			incidlelocked(-1)
 			if atomic.Cas(&pp.status, s, _Pidle) {
-				if trace.enabled {
+				if traceEnabled() {
 					traceGoSysBlock(pp)
 					traceProcStop(pp)
 				}
@@ -5670,7 +5711,7 @@ func schedEnableUser(enable bool) {
 		globrunqputbatch(&sched.disable.runnable, n)
 		unlock(&sched.lock)
 		for ; n != 0 && sched.npidle.Load() != 0; n-- {
-			startm(nil, false)
+			startm(nil, false, false)
 		}
 	} else {
 		unlock(&sched.lock)

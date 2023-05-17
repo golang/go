@@ -648,25 +648,24 @@ func TestZeroDivisionException(t *testing.T) {
 }
 
 func TestWERDialogue(t *testing.T) {
-	const exitcode = 0xbad
 	if os.Getenv("TEST_WER_DIALOGUE") == "1" {
 		const EXCEPTION_NONCONTINUABLE = 1
 		mod := syscall.MustLoadDLL("kernel32.dll")
 		proc := mod.MustFindProc("RaiseException")
-		proc.Call(exitcode, EXCEPTION_NONCONTINUABLE, 0, 0)
+		proc.Call(0xbad, EXCEPTION_NONCONTINUABLE, 0, 0)
 		t.Fatal("RaiseException should not return")
-		return
 	}
-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestWERDialogue"))
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, "-test.run=TestWERDialogue"))
 	cmd.Env = append(cmd.Env, "TEST_WER_DIALOGUE=1", "GOTRACEBACK=wer")
 	// Child process should not open WER dialogue, but return immediately instead.
-	_, err := cmd.CombinedOutput()
+	// The exit code can't be reliably tested here because Windows can change it.
+	_, err = cmd.CombinedOutput()
 	if err == nil {
 		t.Error("test program succeeded unexpectedly")
-	} else if ee, ok := err.(*exec.ExitError); !ok {
-		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
-	} else if got := ee.ExitCode(); got != exitcode {
-		t.Fatalf("got exit code %d; want %d", got, exitcode)
 	}
 }
 

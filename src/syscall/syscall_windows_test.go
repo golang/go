@@ -169,3 +169,31 @@ int main(int argc, char *argv[])
 		t.Fatalf("c program output is wrong: got %q, want %q", have, want)
 	}
 }
+
+func FuzzUTF16FromString(f *testing.F) {
+	f.Add("hi")           // ASCII
+	f.Add("â")            // latin1
+	f.Add("ねこ")           // plane 0
+	f.Add("😃")            // extra Plane 0
+	f.Add("\x90")         // invalid byte
+	f.Add("\xe3\x81")     // truncated
+	f.Add("\xe3\xc1\x81") // invalid middle byte
+
+	f.Fuzz(func(t *testing.T, tst string) {
+		res, err := syscall.UTF16FromString(tst)
+		if err != nil {
+			if strings.Contains(tst, "\x00") {
+				t.Skipf("input %q contains a NUL byte", tst)
+			}
+			t.Fatalf("UTF16FromString(%q): %v", tst, err)
+		}
+		t.Logf("UTF16FromString(%q) = %04x", tst, res)
+
+		if len(res) < 1 || res[len(res)-1] != 0 {
+			t.Fatalf("missing NUL terminator")
+		}
+		if len(res) > len(tst)+1 {
+			t.Fatalf("len(%04x) > len(%q)+1", res, tst)
+		}
+	})
+}

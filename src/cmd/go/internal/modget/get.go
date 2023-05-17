@@ -36,6 +36,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
@@ -1748,15 +1749,35 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
 			return false
 		}
 
+		if cfg.BuildV {
+			// Log complete paths for the conflicts before we summarize them.
+			for _, c := range constraint.Conflicts {
+				fmt.Fprintf(os.Stderr, "go: %v\n", c.String())
+			}
+		}
+
+		// modload.EditBuildList reports constraint errors at
+		// the module level, but 'go get' operates on packages.
+		// Rewrite the errors to explain them in terms of packages.
 		reason := func(m module.Version) string {
 			rv, ok := r.resolvedVersion[m.Path]
 			if !ok {
-				panic(fmt.Sprintf("internal error: can't find reason for requirement on %v", m))
+				return fmt.Sprintf("(INTERNAL ERROR: no reason found for %v)", m)
 			}
 			return rv.reason.ResolvedString(module.Version{Path: m.Path, Version: rv.version})
 		}
 		for _, c := range constraint.Conflicts {
-			base.Errorf("go: %v requires %v, not %v", reason(c.Source), c.Dep, reason(c.Constraint))
+			adverb := ""
+			if len(c.Path) > 2 {
+				adverb = "indirectly "
+			}
+			firstReason := reason(c.Path[0])
+			last := c.Path[len(c.Path)-1]
+			if c.Err != nil {
+				base.Errorf("go: %v %srequires %v: %v", firstReason, adverb, last, c.UnwrapModuleError())
+			} else {
+				base.Errorf("go: %v %srequires %v, not %v", firstReason, adverb, last, reason(c.Constraint))
+			}
 		}
 		return false
 	}

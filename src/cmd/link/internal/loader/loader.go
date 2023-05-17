@@ -261,8 +261,6 @@ type Loader struct {
 
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
 
-	elfsetstring elfsetstringFunc
-
 	errorReporter *ErrorReporter
 
 	npkgsyms    int // number of package symbols, for accounting
@@ -284,8 +282,6 @@ const (
 	goObjStart
 )
 
-type elfsetstringFunc func(str string, off int)
-
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
 // external symbols (note that symbol value is stored in a separate slice).
 type extSymPayload struct {
@@ -304,7 +300,7 @@ const (
 	FlagStrictDups = 1 << iota
 )
 
-func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorReporter) *Loader {
+func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
 	nbuiltin := goobj.NBuiltin()
 	extReader := &oReader{objidx: extObj}
 	ldr := &Loader{
@@ -333,7 +329,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc, reporter *ErrorRepor
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
-		elfsetstring:         elfsetstring,
 		errorReporter:        reporter,
 		sects:                []*sym.Section{nil}, // reserve index 0 for nil section
 	}
@@ -1247,6 +1242,16 @@ func (l *Loader) Data(i Sym) []byte {
 	return r.Data(li)
 }
 
+// Returns the symbol content of the i-th symbol as a string. i is global index.
+func (l *Loader) DataString(i Sym) string {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		return string(pp.data)
+	}
+	r, li := l.toLocal(i)
+	return r.DataString(li)
+}
+
 // FreeData clears the symbol data of an external symbol, allowing the memory
 // to be freed earlier. No-op for non-external symbols.
 // i is global index.
@@ -1582,6 +1587,9 @@ func (l *Loader) SetSymPkg(i Sym, pkg string) {
 }
 
 // SymLocalentry returns an offset in bytes of the "local entry" of a symbol.
+//
+// On PPC64, a value of 1 indicates the symbol does not use or preserve a TOC
+// pointer in R2, nor does it have a distinct local entry.
 func (l *Loader) SymLocalentry(i Sym) uint8 {
 	return l.localentry[i]
 }
@@ -1643,6 +1651,16 @@ func (l *Loader) WasmImportSym(fnSymIdx Sym) (Sym, bool) {
 	return 0, false
 }
 
+// SEHUnwindSym returns the auxiliary SEH unwind symbol associated with
+// a given function symbol.
+func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
+	if l.SymType(fnSymIdx) != sym.STEXT {
+		log.Fatalf("error: non-function sym %d/%s t=%s passed to SEHUnwindSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+	}
+
+	return l.aux1(fnSymIdx, goobj.AuxSehUnwindInfo)
+}
+
 // GetFuncDwarfAuxSyms collects and returns the auxiliary DWARF
 // symbols associated with a given function symbol.  Prior to the
 // introduction of the loader, this was done purely using name
@@ -1680,6 +1698,15 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 		}
 	}
 	return
+}
+
+func (l *Loader) GetVarDwarfAuxSym(i Sym) Sym {
+	aux := l.aux1(i, goobj.AuxDwarfInfo)
+	if aux != 0 && l.SymType(aux) != sym.SDWARFVAR {
+		fmt.Println(l.SymName(i), l.SymType(i), l.SymType(aux), sym.SDWARFVAR)
+		panic("aux dwarf info sym with wrong type")
+	}
+	return aux
 }
 
 // AddInteriorSym sets up 'interior' as an interior symbol of

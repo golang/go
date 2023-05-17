@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
 )
@@ -263,7 +264,7 @@ func (f *Func) SetWBPos(pos src.XPos) {
 	}
 }
 
-// FuncName returns the name (without the package) of the function n.
+// FuncName returns the name (without the package) of the function f.
 func FuncName(f *Func) string {
 	if f == nil || f.Nname == nil {
 		return "<nil>"
@@ -271,10 +272,12 @@ func FuncName(f *Func) string {
 	return f.Sym().Name
 }
 
-// PkgFuncName returns the name of the function referenced by n, with package prepended.
-// This differs from the compiler's internal convention where local functions lack a package
-// because the ultimate consumer of this is a human looking at an IDE; package is only empty
-// if the compilation package is actually the empty string.
+// PkgFuncName returns the name of the function referenced by f, with package
+// prepended.
+//
+// This differs from the compiler's internal convention where local functions
+// lack a package. This is primarily useful when the ultimate consumer of this
+// is a human looking at message.
 func PkgFuncName(f *Func) string {
 	if f == nil || f.Nname == nil {
 		return "<nil>"
@@ -283,6 +286,18 @@ func PkgFuncName(f *Func) string {
 	pkg := s.Pkg
 
 	return pkg.Path + "." + s.Name
+}
+
+// LinkFuncName returns the name of the function f, as it will appear in the
+// symbol table of the final linked binary.
+func LinkFuncName(f *Func) string {
+	if f == nil || f.Nname == nil {
+		return "<nil>"
+	}
+	s := f.Sym()
+	pkg := s.Pkg
+
+	return objabi.PathToPrefix(pkg.Path) + "." + s.Name
 }
 
 // IsEqOrHashFunc reports whether f is type eq/hash function.

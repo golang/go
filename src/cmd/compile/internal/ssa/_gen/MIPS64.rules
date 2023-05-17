@@ -38,6 +38,9 @@
 (Mod8 x y) => (Select0 (DIVV (SignExt8to64 x) (SignExt8to64 y)))
 (Mod8u x y) => (Select0 (DIVVU (ZeroExt8to64 x) (ZeroExt8to64 y)))
 
+// math package intrinsics
+(Abs ...) => (ABSD ...)
+
 // (x + y) / 2 with x>=y => (x - y) / 2 + y
 (Avg64u <t> x y) => (ADDV (SRLVconst <t> (SUBV <t> x y) [1]) y)
 

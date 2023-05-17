@@ -108,20 +108,21 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
 	return ctxt.PosTable.Pos(xpos)
 }
 
-// AllPos returns a slice of the positions inlined at xpos, from
-// innermost (index zero) to outermost.  To avoid allocation
-// the input slice is truncated, and used for the result, extended
-// as necessary.
-func (ctxt *Link) AllPos(xpos src.XPos, result []src.Pos) []src.Pos {
+// AllPos invokes do with every position in the inlining call stack for xpos,
+// from outermost to innermost. That is, xpos corresponds to f inlining g inlining h,
+// AllPos invokes do with the position in f, then the position in g, then the position in h.
+func (ctxt *Link) AllPos(xpos src.XPos, do func(src.Pos)) {
 	pos := ctxt.InnermostPos(xpos)
-	result = result[:0]
-	result = append(result, ctxt.PosTable.Pos(xpos))
-	for ix := pos.Base().InliningIndex(); ix >= 0; {
+	ctxt.forAllPos(pos.Base().InliningIndex(), do)
+	do(ctxt.PosTable.Pos(xpos))
+}
+
+func (ctxt *Link) forAllPos(ix int, do func(src.Pos)) {
+	if ix >= 0 {
 		call := ctxt.InlTree.nodes[ix]
-		ix = call.Parent
-		result = append(result, ctxt.PosTable.Pos(call.Pos))
+		ctxt.forAllPos(call.Parent, do)
+		do(ctxt.PosTable.Pos(call.Pos))
 	}
-	return result
 }
 
 func dumpInlTree(ctxt *Link, tree InlTree) {

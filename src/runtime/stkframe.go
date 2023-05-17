@@ -264,7 +264,7 @@ var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjecti
 func stkobjinit() {
 	var abiRegArgsEface any = abi.RegArgs{}
 	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
-	if abiRegArgsType.kind&kindGCProg != 0 {
+	if abiRegArgsType.Kind_&kindGCProg != 0 {
 		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
 	}
 	// Set methodValueCallFrameObjs[0].gcdataoff so that
@@ -281,9 +281,9 @@ func stkobjinit() {
 		throw("methodValueCallFrameObjs is not in a module")
 	}
 	methodValueCallFrameObjs[0] = stackObjectRecord{
-		off:       -int32(alignUp(abiRegArgsType.size, 8)), // It's always the highest address local.
-		size:      int32(abiRegArgsType.size),
-		_ptrdata:  int32(abiRegArgsType.ptrdata),
-		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.gcdata)) - mod.rodata),
+		off:       -int32(alignUp(abiRegArgsType.Size_, 8)), // It's always the highest address local.
+		size:      int32(abiRegArgsType.Size_),
+		_ptrdata:  int32(abiRegArgsType.PtrBytes),
+		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.GCData)) - mod.rodata),
 	}
 }

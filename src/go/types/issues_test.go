@@ -21,7 +21,7 @@ import (
 )
 
 func TestIssue5770(t *testing.T) {
-	_, err := typecheck("p", `package p; type S struct{T}`, nil, nil)
+	_, err := typecheck(`package p; type S struct{T}`, nil, nil)
 	const want = "undefined: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("got: %v; want: %s", err, want)
@@ -41,7 +41,7 @@ var (
 	_ = (interface{})(nil)
 )`
 	types := make(map[ast.Expr]TypeAndValue)
-	mustTypecheck("p", src, nil, &Info{Types: types})
+	mustTypecheck(src, nil, &Info{Types: types})
 
 	for x, tv := range types {
 		var want Type
@@ -80,7 +80,7 @@ func f() int {
 }
 `
 	types := make(map[ast.Expr]TypeAndValue)
-	mustTypecheck("p", src, nil, &Info{Types: types})
+	mustTypecheck(src, nil, &Info{Types: types})
 
 	want := Typ[Int]
 	n := 0
@@ -104,7 +104,7 @@ package p
 func (T) m() (res bool) { return }
 type T struct{} // receiver type after method declaration
 `
-	f := mustParse(fset, "", src)
+	f := mustParse(fset, src)
 
 	var conf Config
 	defs := make(map[*ast.Ident]Object)
@@ -138,7 +138,7 @@ func _() {
 	// We need a specific fileset in this test below for positions.
 	// Cannot use typecheck helper.
 	fset := token.NewFileSet()
-	f := mustParse(fset, "", src)
+	f := mustParse(fset, src)
 
 	const want = `L3 defs func p._()
 L4 defs const w untyped int
@@ -235,7 +235,7 @@ func main() {
 `
 	f := func(test, src string) {
 		info := &Info{Uses: make(map[*ast.Ident]Object)}
-		mustTypecheck("main", src, nil, info)
+		mustTypecheck(src, nil, info)
 
 		var pkg *Package
 		count := 0
@@ -263,13 +263,13 @@ func TestIssue22525(t *testing.T) {
 
 	got := "\n"
 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
-	typecheck("", src, &conf, nil) // do not crash
+	typecheck(src, &conf, nil) // do not crash
 	want := `
-1:27: a declared and not used
-1:30: b declared and not used
-1:33: c declared and not used
-1:36: d declared and not used
-1:39: e declared and not used
+p:1:27: a declared and not used
+p:1:30: b declared and not used
+p:1:33: c declared and not used
+p:1:36: d declared and not used
+p:1:39: e declared and not used
 `
 	if got != want {
 		t.Errorf("got: %swant: %s", got, want)
@@ -289,7 +289,7 @@ func TestIssue25627(t *testing.T) {
 		`struct { *I }`,
 		`struct { a int; b Missing; *Missing }`,
 	} {
-		f := mustParse(fset, "", prefix+src)
+		f := mustParse(fset, prefix+src)
 
 		cfg := Config{Importer: importer.Default(), Error: func(err error) {}}
 		info := &Info{Types: make(map[ast.Expr]TypeAndValue)}
@@ -326,7 +326,7 @@ func TestIssue28005(t *testing.T) {
 	// compute original file ASTs
 	var orig [len(sources)]*ast.File
 	for i, src := range sources {
-		orig[i] = mustParse(fset, "", src)
+		orig[i] = mustParse(fset, src)
 	}
 
 	// run the test for all order permutations of the incoming files
@@ -400,8 +400,8 @@ func TestIssue28282(t *testing.T) {
 }
 
 func TestIssue29029(t *testing.T) {
-	f1 := mustParse(fset, "", `package p; type A interface { M() }`)
-	f2 := mustParse(fset, "", `package p; var B interface { A }`)
+	f1 := mustParse(fset, `package p; type A interface { M() }`)
+	f2 := mustParse(fset, `package p; var B interface { A }`)
 
 	// printInfo prints the *Func definitions recorded in info, one *Func per line.
 	printInfo := func(info *Info) string {
@@ -447,10 +447,10 @@ func TestIssue34151(t *testing.T) {
 	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
 	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
 
-	a := mustTypecheck("a", asrc, nil, nil)
+	a := mustTypecheck(asrc, nil, nil)
 
 	conf := Config{Importer: importHelper{pkg: a}}
-	mustTypecheck("b", bsrc, &conf, nil)
+	mustTypecheck(bsrc, &conf, nil)
 }
 
 type importHelper struct {
@@ -488,13 +488,8 @@ func TestIssue34921(t *testing.T) {
 
 	var pkg *Package
 	for _, src := range sources {
-		f := mustParse(fset, "", src)
 		conf := Config{Importer: importHelper{pkg: pkg}}
-		res, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, nil)
-		if err != nil {
-			t.Errorf("%q failed to typecheck: %v", src, err)
-		}
-		pkg = res // res is imported by the next package in this test
+		pkg = mustTypecheck(src, &conf, nil) // pkg imported by the next package in this test
 	}
 }
 
@@ -599,7 +594,7 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
 `
 	)
 
-	a := mustTypecheck("a", asrc, nil, nil)
+	a := mustTypecheck(asrc, nil, nil)
 	imp := importHelper{pkg: a, fallback: importer.Default()}
 
 	testFiles(t, nil, []string{"b.go"}, [][]byte{[]byte(bsrc)}, false, imp)
@@ -696,7 +691,7 @@ func TestIssue51093(t *testing.T) {
 	for _, test := range tests {
 		src := fmt.Sprintf("package p; func _[P %s]() { _ = P(%s) }", test.typ, test.val)
 		types := make(map[ast.Expr]TypeAndValue)
-		mustTypecheck("p", src, nil, &Info{Types: types})
+		mustTypecheck(src, nil, &Info{Types: types})
 
 		var n int
 		for x, tv := range types {
@@ -828,8 +823,8 @@ func (S) M5(struct {S;t}) {}
 	fset := token.NewFileSet()
 	test := func(main, b, want string) {
 		re := regexp.MustCompile(want)
-		bpkg := mustTypecheck("b", b, nil, nil)
-		mast := mustParse(fset, "main.go", main)
+		bpkg := mustTypecheck(b, nil, nil)
+		mast := mustParse(fset, main)
 		conf := Config{Importer: importHelper{pkg: bpkg}}
 		_, err := conf.Check(mast.Name.Name, fset, []*ast.File{mast}, nil)
 		if err == nil {

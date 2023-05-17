@@ -7,10 +7,10 @@ package os
 import (
 	"internal/syscall/windows"
 	"io"
+	"io/fs"
 	"runtime"
 	"sync"
 	"syscall"
-	"unicode/utf16"
 	"unsafe"
 )
 
@@ -103,7 +103,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 				d.bufp = 0
 			}
 			nameslice := unsafe.Slice(&info.FileName[0], info.FileNameLength/2)
-			name := string(utf16.Decode(nameslice))
+			name := syscall.UTF16ToString(nameslice)
 			if name == "." || name == ".." { // Useless names
 				continue
 			}
@@ -140,3 +140,7 @@ func (de dirEntry) Name() string            { return de.fs.Name() }
 func (de dirEntry) IsDir() bool             { return de.fs.IsDir() }
 func (de dirEntry) Type() FileMode          { return de.fs.Mode().Type() }
 func (de dirEntry) Info() (FileInfo, error) { return de.fs, nil }
+
+func (de dirEntry) String() string {
+	return fs.FormatDirEntry(de)
+}

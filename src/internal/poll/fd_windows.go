@@ -522,6 +522,10 @@ func (fd *FD) readConsole(b []byte) (int, error) {
 
 // Pread emulates the Unix pread system call.
 func (fd *FD) Pread(b []byte, off int64) (int, error) {
+	if fd.kind == kindPipe {
+		// Pread does not work with pipes
+		return 0, syscall.ESPIPE
+	}
 	// Call incref, not readLock, because since pread specifies the
 	// offset it is independent from other reads.
 	if err := fd.incref(); err != nil {
@@ -744,6 +748,10 @@ func (fd *FD) writeConsole(b []byte) (int, error) {
 
 // Pwrite emulates the Unix pwrite system call.
 func (fd *FD) Pwrite(buf []byte, off int64) (int, error) {
+	if fd.kind == kindPipe {
+		// Pwrite does not work with pipes
+		return 0, syscall.ESPIPE
+	}
 	// Call incref, not writeLock, because since pwrite specifies the
 	// offset it is independent from other writes.
 	if err := fd.incref(); err != nil {
@@ -992,6 +1000,9 @@ func (fd *FD) Accept(sysSocket func() (syscall.Handle, error)) (syscall.Handle, 
 
 // Seek wraps syscall.Seek.
 func (fd *FD) Seek(offset int64, whence int) (int64, error) {
+	if fd.kind == kindPipe {
+		return 0, syscall.ESPIPE
+	}
 	if err := fd.incref(); err != nil {
 		return 0, err
 	}

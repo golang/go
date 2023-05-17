@@ -37,6 +37,7 @@ should be replaced by:
 var Analyzer = &analysis.Analyzer{
 	Name:             "composites",
 	Doc:              Doc,
+	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/composites",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
 	RunDespiteErrors: true,
 	Run:              run,

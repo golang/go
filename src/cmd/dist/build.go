@@ -1661,7 +1661,7 @@ func wrapperPathFor(goos, goarch string) string {
 	switch {
 	case goos == "android":
 		if gohostos != "android" {
-			return pathf("%s/misc/android/go_android_exec.go", goroot)
+			return pathf("%s/misc/go_android_exec/main.go", goroot)
 		}
 	case goos == "ios":
 		if gohostos != "ios" {

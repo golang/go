@@ -87,6 +87,10 @@ standard output, even if the test printed them to its own standard
 error. (The go command's standard error is reserved for printing
 errors building the tests.)
 
+The go command places $GOROOT/bin at the beginning of $PATH
+in the test's environment, so that tests that execute
+'go' commands use the same 'go' as the parent 'go test' command.
+
 Go test runs in two different modes:
 
 The first, called local directory mode, occurs when go test is
@@ -1535,14 +1539,6 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 			c.disableCache = true
 			return false
 		}
-	}
-
-	if cache.Default() == nil {
-		if cache.DebugTest {
-			fmt.Fprintf(os.Stderr, "testcache: GOCACHE=off\n")
-		}
-		c.disableCache = true
-		return false
 	}
 
 	// The test cache result fetch is a two-level lookup.

@@ -84,7 +84,7 @@ func TestNewMethodSet(t *testing.T) {
 	}
 
 	check := func(src string, methods []method, generic bool) {
-		pkg := mustTypecheck("test", "package p;"+src, nil, nil)
+		pkg := mustTypecheck("package p;"+src, nil, nil)
 
 		scope := pkg.Scope()
 		if generic {

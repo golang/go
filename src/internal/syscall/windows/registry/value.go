@@ -217,7 +217,7 @@ func (k Key) GetStringsValue(name string) (val []string, valtype uint32, err err
 	from := 0
 	for i, c := range p {
 		if c == 0 {
-			val = append(val, string(utf16.Decode(p[from:i])))
+			val = append(val, syscall.UTF16ToString(p[from:i]))
 			from = i + 1
 		}
 	}

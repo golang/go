@@ -58,7 +58,7 @@ const (
 	traceEvHeapAlloc         = 33 // gcController.heapLive change [timestamp, heap_alloc]
 	traceEvHeapGoal          = 34 // gcController.heapGoal() (formerly next_gc) change [timestamp, heap goal in bytes]
 	traceEvTimerGoroutine    = 35 // not currently used; previously denoted timer goroutine [timer goroutine id]
-	traceEvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+	traceEvFutileWakeup      = 36 // not currently used; denotes that the previous wakeup of this goroutine was futile [timestamp]
 	traceEvString            = 37 // string dictionary entry [ID, length, string]
 	traceEvGoStartLocal      = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
 	traceEvGoUnblockLocal    = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
@@ -99,13 +99,6 @@ const (
 	traceBytesPerNumber = 10
 	// Shift of the number of arguments in the first event byte.
 	traceArgCountShift = 6
-	// Flag passed to traceGoPark to denote that the previous wakeup of this
-	// goroutine was futile. For example, a goroutine was unblocked on a mutex,
-	// but another goroutine got ahead and acquired the mutex before the first
-	// goroutine is scheduled, so the first goroutine has to block again.
-	// Such wakeups happen on buffered channels and sync.Mutex,
-	// but are generally not interesting for end user.
-	traceFutileWakeup byte = 128
 )
 
 // trace is global tracing context.
@@ -168,6 +161,41 @@ var trace struct {
 	buf     traceBufPtr // global trace buffer, used when running without a p
 }
 
+// gTraceState is per-G state for the tracer.
+type gTraceState struct {
+	sysExitTicks       int64    // cputicks when syscall has returned
+	tracedSyscallEnter bool     // syscall or cgo was entered while trace was enabled or StartTrace has emitted EvGoInSyscall about this goroutine
+	seq                uint64   // trace event sequencer
+	lastP              puintptr // last P emitted an event for this goroutine
+}
+
+// mTraceState is per-M state for the tracer.
+type mTraceState struct {
+	startingTrace bool // this M is in TraceStart, potentially before traceEnabled is true
+}
+
+// pTraceState is per-P state for the tracer.
+type pTraceState struct {
+	buf traceBufPtr
+
+	// inSweep indicates the sweep events should be traced.
+	// This is used to defer the sweep start event until a span
+	// has actually been swept.
+	inSweep bool
+
+	// swept and reclaimed track the number of bytes swept and reclaimed
+	// by sweeping in the current sweep loop (while inSweep was true).
+	swept, reclaimed uintptr
+}
+
+// traceLockInit initializes global trace locks.
+func traceLockInit() {
+	lockInit(&trace.bufLock, lockRankTraceBuf)
+	lockInit(&trace.stringsLock, lockRankTraceStrings)
+	lockInit(&trace.lock, lockRankTrace)
+	lockInit(&trace.stackTab.lock, lockRankTraceStackTab)
+}
+
 // traceBufHeader is per-P tracing buffer.
 type traceBufHeader struct {
 	link      traceBufPtr             // in trace.empty/full
@@ -196,6 +224,16 @@ func (tp traceBufPtr) ptr() *traceBuf   { return (*traceBuf)(unsafe.Pointer(tp))
 func (tp *traceBufPtr) set(b *traceBuf) { *tp = traceBufPtr(unsafe.Pointer(b)) }
 func traceBufPtrOf(b *traceBuf) traceBufPtr {
 	return traceBufPtr(unsafe.Pointer(b))
+}
+
+// traceEnabled returns true if the trace is currently enabled.
+func traceEnabled() bool {
+	return trace.enabled
+}
+
+// traceShuttingDown returns true if the trace is currently shutting down.
+func traceShuttingDown() bool {
+	return trace.shutdown
 }
 
 // StartTrace enables tracing for the current process.
@@ -233,10 +271,10 @@ func StartTrace() error {
 	// That would lead to an inconsistent trace:
 	// - either GoSysExit appears before EvGoInSyscall,
 	// - or GoSysExit appears for a goroutine for which we don't emit EvGoInSyscall below.
-	// To instruct traceEvent that it must not ignore events below, we set startingtrace.
+	// To instruct traceEvent that it must not ignore events below, we set trace.startingTrace.
 	// trace.enabled is set afterwards once we have emitted all preliminary events.
 	mp := getg().m
-	mp.startingtrace = true
+	mp.trace.startingTrace = true
 
 	// Obtain current stack ID to use in all traceEvGoCreate events below.
 	stkBuf := make([]uintptr, traceStackSize)
@@ -258,40 +296,48 @@ func StartTrace() error {
 	forEachGRace(func(gp *g) {
 		status := readgstatus(gp)
 		if status != _Gdead {
-			gp.traceseq = 0
-			gp.tracelastp = getg().m.p
+			gp.trace.seq = 0
+			gp.trace.lastP = getg().m.p
 			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
 			id := trace.stackTab.put([]uintptr{logicalStackSentinel, startPCforTrace(gp.startpc) + sys.PCQuantum})
 			traceEvent(traceEvGoCreate, -1, gp.goid, uint64(id), stackID)
 		}
 		if status == _Gwaiting {
 			// traceEvGoWaiting is implied to have seq=1.
-			gp.traceseq++
+			gp.trace.seq++
 			traceEvent(traceEvGoWaiting, -1, gp.goid)
 		}
 		if status == _Gsyscall {
-			gp.traceseq++
+			gp.trace.seq++
+			gp.trace.tracedSyscallEnter = true
 			traceEvent(traceEvGoInSyscall, -1, gp.goid)
 		} else if status == _Gdead && gp.m != nil && gp.m.isextra {
 			// Trigger two trace events for the dead g in the extra m,
 			// since the next event of the g will be traceEvGoSysExit in exitsyscall,
 			// while calling from C thread to Go.
-			gp.traceseq = 0
-			gp.tracelastp = getg().m.p
+			gp.trace.seq = 0
+			gp.trace.lastP = getg().m.p
 			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
 			id := trace.stackTab.put([]uintptr{logicalStackSentinel, startPCforTrace(0) + sys.PCQuantum}) // no start pc
 			traceEvent(traceEvGoCreate, -1, gp.goid, uint64(id), stackID)
-			gp.traceseq++
+			gp.trace.seq++
+			gp.trace.tracedSyscallEnter = true
 			traceEvent(traceEvGoInSyscall, -1, gp.goid)
 		} else {
-			gp.sysblocktraced = false
+			// We need to explicitly clear the flag. A previous trace might have ended with a goroutine
+			// not emitting a GoSysExit and clearing the flag, leaving it in a stale state. Clearing
+			// it here makes it unambiguous to any goroutine exiting a syscall racing with us that
+			// no EvGoInSyscall event was emitted for it. (It's not racy to set this flag here, because
+			// it'll only get checked when the goroutine runs again, which will be after the world starts
+			// again.)
+			gp.trace.tracedSyscallEnter = false
 		}
 	})
 	traceProcStart()
 	traceGoStart()
 	// Note: ticksStart needs to be set after we emit traceEvGoInSyscall events.
 	// If we do it the other way around, it is possible that exitsyscall will
-	// query sysexitticks after ticksStart but before traceEvGoInSyscall timestamp.
+	// query sysExitTicks after ticksStart but before traceEvGoInSyscall timestamp.
 	// It will lead to a false conclusion that cputicks is broken.
 	trace.ticksStart = cputicks()
 	trace.timeStart = nanotime()
@@ -305,7 +351,7 @@ func StartTrace() error {
 	trace.strings = make(map[string]uint64)
 
 	trace.seqGC = 0
-	mp.startingtrace = false
+	mp.trace.startingTrace = false
 	trace.enabled = true
 
 	// Register runtime goroutine labels.
@@ -355,10 +401,10 @@ func StopTrace() {
 	// Loop over all allocated Ps because dead Ps may still have
 	// trace buffers.
 	for _, p := range allp[:cap(allp)] {
-		buf := p.tracebuf
+		buf := p.trace.buf
 		if buf != 0 {
 			traceFullQueue(buf)
-			p.tracebuf = 0
+			p.trace.buf = 0
 		}
 	}
 	if trace.buf != 0 {
@@ -405,7 +451,7 @@ func StopTrace() {
 		// The lock protects us from races with StartTrace/StopTrace because they do stop-the-world.
 		lock(&trace.lock)
 		for _, p := range allp[:cap(allp)] {
-			if p.tracebuf != 0 {
+			if p.trace.buf != 0 {
 				throw("trace: non-empty trace buffer in proc")
 			}
 		}
@@ -626,8 +672,8 @@ func traceReaderAvailable() *g {
 //
 //go:systemstack
 func traceProcFree(pp *p) {
-	buf := pp.tracebuf
-	pp.tracebuf = 0
+	buf := pp.trace.buf
+	pp.trace.buf = 0
 	if buf == 0 {
 		return
 	}
@@ -679,7 +725,7 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 	// during tracing in exitsyscall is resolved by locking trace.bufLock in traceLockBuffer.
 	//
 	// Note trace_userTaskCreate runs the same check.
-	if !trace.enabled && !mp.startingtrace {
+	if !trace.enabled && !mp.trace.startingTrace {
 		traceReleaseBuffer(mp, pid)
 		return
 	}
@@ -889,10 +935,10 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 	gp := getg()
 	curgp := mp.curg
 	nstk := 1
-	if tracefpunwindoff() || mp.incgocallback() {
+	if tracefpunwindoff() || mp.hasCgoOnStack() {
 		// Slow path: Unwind using default unwinder. Used when frame pointer
 		// unwinding is unavailable or disabled (tracefpunwindoff), or might
-		// produce incomplete results or crashes (incgocallback). Note that no
+		// produce incomplete results or crashes (hasCgoOnStack). Note that no
 		// cgo callback related crashes have been observed yet. The main
 		// motivation is to take advantage of a potentially registered cgo
 		// symbolizer.
@@ -906,7 +952,7 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 		// Fast path: Unwind using frame pointers.
 		pcBuf[0] = uintptr(skip)
 		if curgp == gp {
-			nstk += fpTracebackPCs(unsafe.Pointer(getcallerfp()), skip, pcBuf[1:])
+			nstk += fpTracebackPCs(unsafe.Pointer(getcallerfp()), pcBuf[1:])
 		} else if curgp != nil {
 			// We're called on the g0 stack through mcall(fn) or systemstack(fn). To
 			// behave like gcallers above, we start unwinding from sched.bp, which
@@ -914,7 +960,7 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 			// address of the leaf frame is stored in sched.pc, which we manually
 			// capture here.
 			pcBuf[1] = curgp.sched.pc
-			nstk += 1 + fpTracebackPCs(unsafe.Pointer(curgp.sched.bp), skip, pcBuf[2:])
+			nstk += 1 + fpTracebackPCs(unsafe.Pointer(curgp.sched.bp), pcBuf[2:])
 		}
 	}
 	if nstk > 0 {
@@ -927,19 +973,17 @@ func traceStackID(mp *m, pcBuf []uintptr, skip int) uint64 {
 	return uint64(id)
 }
 
-// tracefpunwindoff returns false if frame pointer unwinding for the tracer is
+// tracefpunwindoff returns true if frame pointer unwinding for the tracer is
 // disabled via GODEBUG or not supported by the architecture.
 func tracefpunwindoff() bool {
-	// compiler emits frame pointers for amd64 and arm64, but issue 58432 blocks
-	// arm64 support for now.
-	return debug.tracefpunwindoff != 0 || goarch.ArchFamily != goarch.AMD64
+	return debug.tracefpunwindoff != 0 || (goarch.ArchFamily != goarch.AMD64 && goarch.ArchFamily != goarch.ARM64)
 }
 
 // fpTracebackPCs populates pcBuf with the return addresses for each frame and
 // returns the number of PCs written to pcBuf. The returned PCs correspond to
 // "physical frames" rather than "logical frames"; that is if A is inlined into
 // B, this will return a PC for only B.
-func fpTracebackPCs(fp unsafe.Pointer, skip int, pcBuf []uintptr) (i int) {
+func fpTracebackPCs(fp unsafe.Pointer, pcBuf []uintptr) (i int) {
 	for i = 0; i < len(pcBuf) && fp != nil; i++ {
 		// return addr sits one word above the frame pointer
 		pcBuf[i] = *(*uintptr)(unsafe.Pointer(uintptr(fp) + goarch.PtrSize))
@@ -958,7 +1002,7 @@ func traceAcquireBuffer() (mp *m, pid int32, bufp *traceBufPtr) {
 
 	mp = acquirem()
 	if p := mp.p.ptr(); p != nil {
-		return mp, p.id, &p.tracebuf
+		return mp, p.id, &p.trace.buf
 	}
 	lock(&trace.bufLock)
 	return mp, traceGlobProc, &trace.buf
@@ -1458,10 +1502,10 @@ func traceGCSweepStart() {
 	// Delay the actual GCSweepStart event until the first span
 	// sweep. If we don't sweep anything, don't emit any events.
 	pp := getg().m.p.ptr()
-	if pp.traceSweep {
+	if pp.trace.inSweep {
 		throw("double traceGCSweepStart")
 	}
-	pp.traceSweep, pp.traceSwept, pp.traceReclaimed = true, 0, 0
+	pp.trace.inSweep, pp.trace.swept, pp.trace.reclaimed = true, 0, 0
 }
 
 // traceGCSweepSpan traces the sweep of a single page.
@@ -1470,23 +1514,23 @@ func traceGCSweepStart() {
 // pair; however, it will not emit any trace events in this case.
 func traceGCSweepSpan(bytesSwept uintptr) {
 	pp := getg().m.p.ptr()
-	if pp.traceSweep {
-		if pp.traceSwept == 0 {
+	if pp.trace.inSweep {
+		if pp.trace.swept == 0 {
 			traceEvent(traceEvGCSweepStart, 1)
 		}
-		pp.traceSwept += bytesSwept
+		pp.trace.swept += bytesSwept
 	}
 }
 
 func traceGCSweepDone() {
 	pp := getg().m.p.ptr()
-	if !pp.traceSweep {
+	if !pp.trace.inSweep {
 		throw("missing traceGCSweepStart")
 	}
-	if pp.traceSwept != 0 {
-		traceEvent(traceEvGCSweepDone, -1, uint64(pp.traceSwept), uint64(pp.traceReclaimed))
+	if pp.trace.swept != 0 {
+		traceEvent(traceEvGCSweepDone, -1, uint64(pp.trace.swept), uint64(pp.trace.reclaimed))
 	}
-	pp.traceSweep = false
+	pp.trace.inSweep = false
 }
 
 func traceGCMarkAssistStart() {
@@ -1498,8 +1542,8 @@ func traceGCMarkAssistDone() {
 }
 
 func traceGoCreate(newg *g, pc uintptr) {
-	newg.traceseq = 0
-	newg.tracelastp = getg().m.p
+	newg.trace.seq = 0
+	newg.trace.lastP = getg().m.p
 	// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
 	id := trace.stackTab.put([]uintptr{logicalStackSentinel, startPCforTrace(pc) + sys.PCQuantum})
 	traceEvent(traceEvGoCreate, 2, newg.goid, uint64(id))
@@ -1508,14 +1552,14 @@ func traceGoCreate(newg *g, pc uintptr) {
 func traceGoStart() {
 	gp := getg().m.curg
 	pp := gp.m.p
-	gp.traceseq++
+	gp.trace.seq++
 	if pp.ptr().gcMarkWorkerMode != gcMarkWorkerNotWorker {
-		traceEvent(traceEvGoStartLabel, -1, gp.goid, gp.traceseq, trace.markWorkerLabels[pp.ptr().gcMarkWorkerMode])
-	} else if gp.tracelastp == pp {
+		traceEvent(traceEvGoStartLabel, -1, gp.goid, gp.trace.seq, trace.markWorkerLabels[pp.ptr().gcMarkWorkerMode])
+	} else if gp.trace.lastP == pp {
 		traceEvent(traceEvGoStartLocal, -1, gp.goid)
 	} else {
-		gp.tracelastp = pp
-		traceEvent(traceEvGoStart, -1, gp.goid, gp.traceseq)
+		gp.trace.lastP = pp
+		traceEvent(traceEvGoStart, -1, gp.goid, gp.trace.seq)
 	}
 }
 
@@ -1525,31 +1569,28 @@ func traceGoEnd() {
 
 func traceGoSched() {
 	gp := getg()
-	gp.tracelastp = gp.m.p
+	gp.trace.lastP = gp.m.p
 	traceEvent(traceEvGoSched, 1)
 }
 
 func traceGoPreempt() {
 	gp := getg()
-	gp.tracelastp = gp.m.p
+	gp.trace.lastP = gp.m.p
 	traceEvent(traceEvGoPreempt, 1)
 }
 
 func traceGoPark(traceEv byte, skip int) {
-	if traceEv&traceFutileWakeup != 0 {
-		traceEvent(traceEvFutileWakeup, -1)
-	}
-	traceEvent(traceEv & ^traceFutileWakeup, skip)
+	traceEvent(traceEv, skip)
 }
 
 func traceGoUnpark(gp *g, skip int) {
 	pp := getg().m.p
-	gp.traceseq++
-	if gp.tracelastp == pp {
+	gp.trace.seq++
+	if gp.trace.lastP == pp {
 		traceEvent(traceEvGoUnblockLocal, skip, gp.goid)
 	} else {
-		gp.tracelastp = pp
-		traceEvent(traceEvGoUnblock, skip, gp.goid, gp.traceseq)
+		gp.trace.lastP = pp
+		traceEvent(traceEvGoUnblock, skip, gp.goid, gp.trace.seq)
 	}
 }
 
@@ -1570,15 +1611,24 @@ func traceGoSysCall() {
 		// Skip the extra trampoline frame used on most systems.
 		skip = 4
 	}
+	getg().m.curg.trace.tracedSyscallEnter = true
 	traceEvent(traceEvGoSysCall, skip)
 }
 
-func traceGoSysExit(ts int64) {
+func traceGoSysExit() {
+	gp := getg().m.curg
+	if !gp.trace.tracedSyscallEnter {
+		// There was no syscall entry traced for us at all, so there's definitely
+		// no EvGoSysBlock or EvGoInSyscall before us, which EvGoSysExit requires.
+		return
+	}
+	gp.trace.tracedSyscallEnter = false
+	ts := gp.trace.sysExitTicks
 	if ts != 0 && ts < trace.ticksStart {
-		// There is a race between the code that initializes sysexitticks
+		// There is a race between the code that initializes sysExitTicks
 		// (in exitsyscall, which runs without a P, and therefore is not
 		// stopped with the rest of the world) and the code that initializes
-		// a new trace. The recorded sysexitticks must therefore be treated
+		// a new trace. The recorded sysExitTicks must therefore be treated
 		// as "best effort". If they are valid for this trace, then great,
 		// use them for greater accuracy. But if they're not valid for this
 		// trace, assume that the trace was started after the actual syscall
@@ -1586,10 +1636,10 @@ func traceGoSysExit(ts int64) {
 		// aka right now), and assign a fresh time stamp to keep the log consistent.
 		ts = 0
 	}
-	gp := getg().m.curg
-	gp.traceseq++
-	gp.tracelastp = gp.m.p
-	traceEvent(traceEvGoSysExit, -1, gp.goid, gp.traceseq, uint64(ts)/traceTickDiv)
+	gp.trace.sysExitTicks = 0
+	gp.trace.seq++
+	gp.trace.lastP = gp.m.p
+	traceEvent(traceEvGoSysExit, -1, gp.goid, gp.trace.seq, uint64(ts)/traceTickDiv)
 }
 
 func traceGoSysBlock(pp *p) {
@@ -1628,7 +1678,7 @@ func trace_userTaskCreate(id, parentID uint64, taskType string) {
 
 	// Same as in traceEvent.
 	mp, pid, bufp := traceAcquireBuffer()
-	if !trace.enabled && !mp.startingtrace {
+	if !trace.enabled && !mp.trace.startingTrace {
 		traceReleaseBuffer(mp, pid)
 		return
 	}
@@ -1650,7 +1700,7 @@ func trace_userRegion(id, mode uint64, name string) {
 	}
 
 	mp, pid, bufp := traceAcquireBuffer()
-	if !trace.enabled && !mp.startingtrace {
+	if !trace.enabled && !mp.trace.startingTrace {
 		traceReleaseBuffer(mp, pid)
 		return
 	}
@@ -1667,7 +1717,7 @@ func trace_userLog(id uint64, category, message string) {
 	}
 
 	mp, pid, bufp := traceAcquireBuffer()
-	if !trace.enabled && !mp.startingtrace {
+	if !trace.enabled && !mp.trace.startingTrace {
 		traceReleaseBuffer(mp, pid)
 		return
 	}
@@ -1706,4 +1756,17 @@ func startPCforTrace(pc uintptr) uintptr {
 		return pc // not a wrapper
 	}
 	return f.datap.textAddr(*(*uint32)(w))
+}
+
+// traceOneNewExtraM registers the fact that a new extra M was created with
+// the tracer. This matters if the M (which has an attached G) is used while
+// the trace is still active because if it is, we need the fact that it exists
+// to show up in the final trace.
+func traceOneNewExtraM(gp *g) {
+	// Trigger two trace events for the locked g in the extra m,
+	// since the next event of the g will be traceEvGoSysExit in exitsyscall,
+	// while calling from C thread to Go.
+	traceGoCreate(gp, 0) // no start pc
+	gp.trace.seq++
+	traceEvent(traceEvGoInSyscall, -1, gp.goid)
 }

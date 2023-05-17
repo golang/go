@@ -284,11 +284,11 @@ GLOBL ·kcon(SB), RODATA, $1088
 #define VPERMLE(va,vb,vc,vt)
 #endif
 
-// func doBlock(dig *digest, p []byte)
-TEXT ·doBlock(SB),0,$0-24
+// func block(dig *digest, p []byte)
+TEXT ·block(SB),0,$0-32
 	MOVD	dig+0(FP), CTX
-	MOVD	p+8(FP), INP
-	MOVD	n+16(FP), LEN
+	MOVD	p_base+8(FP), INP
+	MOVD	p_len+16(FP), LEN
 
 	SRD	$6, LEN
 	SLD	$6, LEN

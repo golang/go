@@ -13,6 +13,11 @@ import (
 	"unicode/utf8"
 )
 
+// jsWhitespace contains all of the JS whitespace characters, as defined
+// by the \s character class.
+// See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions/Character_classes.
+const jsWhitespace = "\f\n\r\t\v\u0020\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
+
 // nextJSCtx returns the context that determines whether a slash after the
 // given run of tokens starts a regular expression instead of a division
 // operator: / or /=.
@@ -26,7 +31,8 @@ import (
 // JavaScript 2.0 lexical grammar and requires one token of lookbehind:
 // https://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
 func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
-	s = bytes.TrimRight(s, "\t\n\f\r \u2028\u2029")
+	// Trim all JS whitespace characters
+	s = bytes.TrimRight(s, jsWhitespace)
 	if len(s) == 0 {
 		return preceding
 	}

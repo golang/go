@@ -465,7 +465,7 @@ type LSym struct {
 	P      []byte
 	R      []Reloc
 
-	Extra *interface{} // *FuncInfo or *FileInfo, if present
+	Extra *interface{} // *FuncInfo, *VarInfo, or *FileInfo, if present
 
 	Pkg    string
 	PkgIdx int32
@@ -534,6 +534,30 @@ func (s *LSym) Func() *FuncInfo {
 		return nil
 	}
 	f, _ := (*s.Extra).(*FuncInfo)
+	return f
+}
+
+type VarInfo struct {
+	dwarfInfoSym *LSym
+}
+
+// NewVarInfo allocates and returns a VarInfo for LSym.
+func (s *LSym) NewVarInfo() *VarInfo {
+	if s.Extra != nil {
+		panic(fmt.Sprintf("invalid use of LSym - NewVarInfo with Extra of type %T", *s.Extra))
+	}
+	f := new(VarInfo)
+	s.Extra = new(interface{})
+	*s.Extra = f
+	return f
+}
+
+// VarInfo returns the *VarInfo associated with s, or else nil.
+func (s *LSym) VarInfo() *VarInfo {
+	if s.Extra == nil {
+		return nil
+	}
+	f, _ := (*s.Extra).(*VarInfo)
 	return f
 }
 

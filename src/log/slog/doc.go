@@ -44,7 +44,7 @@ For more control over the output format, create a logger with a different handle
 This statement uses [New] to create a new logger with a TextHandler
 that writes structured records in text form to standard error:
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr))
+	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
 [TextHandler] output is a sequence of key=value pairs, easily and unambiguously
 parsed by machine. This statement:
@@ -57,14 +57,14 @@ produces this output:
 
 The package also provides [JSONHandler], whose output is line-delimited JSON:
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	logger.Info("hello", "count", 3)
 
 produces this output:
 
 	{"time":"2022-11-08T15:28:26.000000000-05:00","level":"INFO","msg":"hello","count":3}
 
-Both [TextHandler] and [JSONHandler] can be configured with a [HandlerOptions].
+Both [TextHandler] and [JSONHandler] can be configured with [HandlerOptions].
 There are options for setting the minimum level (see Levels, below),
 displaying the source file and line of the log call, and
 modifying attributes before they are logged.
@@ -77,38 +77,6 @@ will cause the top-level functions like [Info] to use it.
 [SetDefault] also updates the default logger used by the [log] package,
 so that existing applications that use [log.Printf] and related functions
 will send log records to the logger's handler without needing to be rewritten.
-
-# Attrs and Values
-
-An [Attr] is a key-value pair. The Logger output methods accept Attrs as well as
-alternating keys and values. The statement
-
-	slog.Info("hello", slog.Int("count", 3))
-
-behaves the same as
-
-	slog.Info("hello", "count", 3)
-
-There are convenience constructors for [Attr] such as [Int], [String], and [Bool]
-for common types, as well as the function [Any] for constructing Attrs of any
-type.
-
-The value part of an Attr is a type called [Value].
-Like an [any], a Value can hold any Go value,
-but it can represent typical values, including all numbers and strings,
-without an allocation.
-
-For the most efficient log output, use [Logger.LogAttrs].
-It is similar to [Logger.Log] but accepts only Attrs, not alternating
-keys and values; this allows it, too, to avoid allocation.
-
-The call
-
-	logger.LogAttrs(nil, slog.LevelInfo, "hello", slog.Int("count", 3))
-
-is the most efficient way to achieve the same output as
-
-	slog.Info("hello", "count", 3)
 
 Some attributes are common to many log calls.
 For example, you may wish to include the URL or trace identifier of a server request
@@ -149,7 +117,7 @@ a global LevelVar:
 
 Then use the LevelVar to construct a handler, and make it the default:
 
-	h := slog.HandlerOptions{Level: programLevel}.NewJSONHandler(os.Stderr)
+	h := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
 	slog.SetDefault(slog.New(h))
 
 Now the program can change its logging level with a single statement:
@@ -164,11 +132,11 @@ How this qualification is displayed depends on the handler.
 [TextHandler] separates the group and attribute names with a dot.
 [JSONHandler] treats each group as a separate JSON object, with the group name as the key.
 
-Use [Group] to create a Group Attr from a name and a list of Attrs:
+Use [Group] to create a Group attribute from a name and a list of key-value pairs:
 
 	slog.Group("request",
-	    slog.String("method", r.Method),
-	    slog.Any("url", r.URL))
+	    "method", r.Method,
+	    "url", r.URL)
 
 TextHandler would display this group as
 
@@ -199,7 +167,7 @@ so even if it uses the common key "id", the log line will have distinct keys.
 
 Some handlers may wish to include information from the [context.Context] that is
 available at the call site. One example of such information
-is the identifier for the current span when tracing is is enabled.
+is the identifier for the current span when tracing is enabled.
 
 The [Logger.Log] and [Logger.LogAttrs] methods take a context as a first
 argument, as do their corresponding top-level functions.
@@ -211,6 +179,38 @@ in "Ctx" do. For example,
 	slog.InfoCtx(ctx, "message")
 
 It is recommended to pass a context to an output method if one is available.
+
+# Attrs and Values
+
+An [Attr] is a key-value pair. The Logger output methods accept Attrs as well as
+alternating keys and values. The statement
+
+	slog.Info("hello", slog.Int("count", 3))
+
+behaves the same as
+
+	slog.Info("hello", "count", 3)
+
+There are convenience constructors for [Attr] such as [Int], [String], and [Bool]
+for common types, as well as the function [Any] for constructing Attrs of any
+type.
+
+The value part of an Attr is a type called [Value].
+Like an [any], a Value can hold any Go value,
+but it can represent typical values, including all numbers and strings,
+without an allocation.
+
+For the most efficient log output, use [Logger.LogAttrs].
+It is similar to [Logger.Log] but accepts only Attrs, not alternating
+keys and values; this allows it, too, to avoid allocation.
+
+The call
+
+	logger.LogAttrs(nil, slog.LevelInfo, "hello", slog.Int("count", 3))
+
+is the most efficient way to achieve the same output as
+
+	slog.Info("hello", "count", 3)
 
 # Customizing a type's logging behavior
 

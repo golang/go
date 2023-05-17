@@ -14,7 +14,7 @@ cmp stderr wanterr.txt
 cmp stderr wanterr.txt
 
 -- wanterr.txt --
-can't load test package: package example/p
+go: can't load test package: package example/p
 	imports example/r
 	imports example/q: import cycle not allowed in test
 -- go.mod --

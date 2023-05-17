@@ -8,6 +8,7 @@ package testenv
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 )
 
@@ -16,5 +17,5 @@ import (
 var Sigquit = os.Kill
 
 func syscallIsNotSupported(err error) bool {
-	return errors.Is(err, errors.ErrUnsupported)
+	return errors.Is(err, fs.ErrPermission) || errors.Is(err, errors.ErrUnsupported)
 }

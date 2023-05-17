@@ -9,9 +9,12 @@ package os
 import (
 	"internal/poll"
 	"internal/syscall/unix"
+	"io/fs"
 	"runtime"
 	"syscall"
 )
+
+const _UTIME_OMIT = unix.UTIME_OMIT
 
 // fixLongPath is a noop on non-Windows platforms.
 func fixLongPath(path string) string {
@@ -206,6 +209,8 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	runtime.SetFinalizer(f.file, (*file).close)
 	return f
 }
+
+func sigpipe() // implemented in package runtime
 
 // epipecheck raises SIGPIPE if we get an EPIPE error on standard
 // output or standard error. See the SIGPIPE docs in os/signal, and
@@ -430,6 +435,10 @@ func (d *unixDirent) Info() (FileInfo, error) {
 		return d.info, nil
 	}
 	return lstat(d.parent + "/" + d.name)
+}
+
+func (d *unixDirent) String() string {
+	return fs.FormatDirEntry(d)
 }
 
 func newUnixDirent(parent, name string, typ FileMode) (DirEntry, error) {

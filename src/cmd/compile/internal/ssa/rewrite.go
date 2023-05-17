@@ -14,6 +14,7 @@ import (
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"math"
 	"math/bits"
@@ -1436,6 +1437,12 @@ func hasSmallRotate(c *Config) bool {
 	default:
 		return false
 	}
+}
+
+func supportsPPC64PCRel() bool {
+	// PCRel is currently supported for >= power10, linux only
+	// Internal and external linking supports this on ppc64le; internal linking on ppc64.
+	return buildcfg.GOPPC64 >= 10 && buildcfg.GOOS == "linux"
 }
 
 func newPPC64ShiftAuxInt(sh, mb, me, sz int64) int32 {

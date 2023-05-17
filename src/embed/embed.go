@@ -243,6 +243,10 @@ func (f *file) Mode() fs.FileMode {
 	return 0444
 }
 
+func (f *file) String() string {
+	return fs.FormatFileInfo(f)
+}
+
 // dotFile is a file for the root directory,
 // which is omitted from the files list in a FS.
 var dotFile = &file{name: "./"}

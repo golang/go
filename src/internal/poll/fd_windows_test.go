@@ -144,7 +144,7 @@ func TestWSASocketConflict(t *testing.T) {
 		t.Fatalf("could not create the event!")
 	}
 
-	// Set the low bit of the Event Handle so that the the completion
+	// Set the low bit of the Event Handle so that the completion
 	// of the overlapped I/O event will not trigger a completion event
 	// on any I/O completion port associated with the handle.
 	ovs[0].HEvent |= 0x1

@@ -161,7 +161,7 @@ func debugCallWrap(dispatch uintptr) {
 		gp.schedlink = 0
 
 		// Park the calling goroutine.
-		if trace.enabled {
+		if traceEnabled() {
 			traceGoPark(traceEvGoBlock, 1)
 		}
 		casGToWaiting(gp, _Grunning, waitReasonDebugCall)
@@ -220,7 +220,7 @@ func debugCallWrap1() {
 		// Switch back to the calling goroutine. At some point
 		// the scheduler will schedule us again and we'll
 		// finish exiting.
-		if trace.enabled {
+		if traceEnabled() {
 			traceGoSched()
 		}
 		casgstatus(gp, _Grunning, _Grunnable)
@@ -229,7 +229,7 @@ func debugCallWrap1() {
 		globrunqput(gp)
 		unlock(&sched.lock)
 
-		if trace.enabled {
+		if traceEnabled() {
 			traceGoUnpark(callingG, 0)
 		}
 		casgstatus(callingG, _Gwaiting, _Grunnable)

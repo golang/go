@@ -19,7 +19,7 @@ import (
 // format when given a pointer to a map[string]any.
 func Example_parsing() {
 	var buf bytes.Buffer
-	h := slog.NewJSONHandler(&buf)
+	h := slog.NewJSONHandler(&buf, nil)
 
 	results := func() []map[string]any {
 		var ms []map[string]any

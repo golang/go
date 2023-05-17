@@ -7,6 +7,7 @@ package dwarfgen
 import (
 	"debug/dwarf"
 	"fmt"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -215,8 +216,8 @@ func TestScopeRanges(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
 	}
 
 	src, f := gobuild(t, t.TempDir(), false, testfile)
@@ -486,8 +487,8 @@ func TestEmptyDwarfRanges(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	t.Parallel()
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
 	}
 
 	_, f := gobuild(t, t.TempDir(), true, []testline{{line: "package main"}, {line: "func main(){ println(\"hello\") }"}})

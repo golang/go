@@ -332,10 +332,6 @@ func (sb *SymbolBuilder) Addstring(str string) int64 {
 		sb.kind = sym.SNOPTRDATA
 	}
 	r := sb.size
-	if sb.name == ".shstrtab" {
-		// FIXME: find a better mechanism for this
-		sb.l.elfsetstring(str, int(r))
-	}
 	sb.data = append(sb.data, str...)
 	sb.data = append(sb.data, 0)
 	sb.size = int64(len(sb.data))

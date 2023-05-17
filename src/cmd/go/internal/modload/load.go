@@ -149,7 +149,7 @@ type PackageOpts struct {
 	Tags map[string]bool
 
 	// Tidy, if true, requests that the build list and go.sum file be reduced to
-	// the minimial dependencies needed to reproducibly reload the requested
+	// the minimal dependencies needed to reproducibly reload the requested
 	// packages.
 	Tidy bool
 
@@ -823,6 +823,10 @@ type loader struct {
 	// transitively *imported by* the packages and tests in the main module.)
 	allClosesOverTests bool
 
+	// skipImportModFiles indicates whether we may skip loading go.mod files
+	// for imported packages (as in 'go mod tidy' in Go 1.17–1.20).
+	skipImportModFiles bool
+
 	work *par.Queue
 
 	// reset on each iteration
@@ -1002,6 +1006,10 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			// go.sum files produced by all previous versions, so a compatibility
 			// version higher than the go.mod version adds nothing.
 			ld.TidyCompatibleVersion = ld.GoVersion
+		}
+
+		if semver.Compare("v"+ld.GoVersion, tidyGoModSumVersionV) < 0 {
+			ld.skipImportModFiles = true
 		}
 	}
 
@@ -1398,7 +1406,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
 				//
 				// In some sense, we can think of this as ‘upgraded the module providing
 				// pkg.path from "none" to a version higher than "none"’.
-				if _, _, _, _, err = importFromModules(ctx, pkg.path, rs, nil); err == nil {
+				if _, _, _, _, err = importFromModules(ctx, pkg.path, rs, nil, ld.skipImportModFiles); err == nil {
 					changed = true
 					break
 				}
@@ -1609,7 +1617,7 @@ func (ld *loader) preloadRootModules(ctx context.Context, rootPkgs []string) (ch
 			// If the main module is tidy and the package is in "all" — or if we're
 			// lucky — we can identify all of its imports without actually loading the
 			// full module graph.
-			m, _, _, _, err := importFromModules(ctx, path, ld.requirements, nil)
+			m, _, _, _, err := importFromModules(ctx, path, ld.requirements, nil, ld.skipImportModFiles)
 			if err != nil {
 				var missing *ImportMissingError
 				if errors.As(err, &missing) && ld.ResolveMissingImports {
@@ -1697,7 +1705,7 @@ func (ld *loader) load(ctx context.Context, pkg *loadPkg) {
 	}
 
 	var modroot string
-	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg)
+	pkg.mod, modroot, pkg.dir, pkg.altMods, pkg.err = importFromModules(ctx, pkg.path, ld.requirements, mg, ld.skipImportModFiles)
 	if pkg.dir == "" {
 		return
 	}
@@ -1956,7 +1964,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 		pkg := pkg
 		ld.work.Add(func() {
-			mod, _, _, _, err := importFromModules(ctx, pkg.path, rs, mg)
+			mod, _, _, _, err := importFromModules(ctx, pkg.path, rs, mg, ld.skipImportModFiles)
 			if mod != pkg.mod {
 				mismatches := <-mismatchMu
 				mismatches[pkg] = mismatch{mod: mod, err: err}
@@ -1998,7 +2006,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 
 		if pkg.isTest() {
 			// We already did (or will) report an error for the package itself,
-			// so don't report a duplicate (and more vebose) error for its test.
+			// so don't report a duplicate (and more verbose) error for its test.
 			if _, ok := mismatches[pkg.testOf]; !ok {
 				base.Fatalf("go: internal error: mismatch recorded for test %s, but not its non-test package", pkg.path)
 			}

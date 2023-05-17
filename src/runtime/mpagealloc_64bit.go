@@ -90,7 +90,7 @@ func (p *pageAlloc) sysInit(test bool) {
 // sysGrow performs architecture-dependent operations on heap
 // growth for the page allocator, such as mapping in new memory
 // for summaries. It also updates the length of the slices in
-// [.summary.
+// p.summary.
 //
 // base is the base of the newly-added heap memory and limit is
 // the first address past the end of the newly-added heap memory.

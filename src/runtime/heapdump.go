@@ -168,7 +168,7 @@ func dumptype(t *_type) {
 
 	// If we've definitely serialized the type before,
 	// no need to do it again.
-	b := &typecache[t.hash&(typeCacheBuckets-1)]
+	b := &typecache[t.Hash&(typeCacheBuckets-1)]
 	if t == b.t[0] {
 		return
 	}
@@ -193,18 +193,19 @@ func dumptype(t *_type) {
 	// dump the type
 	dumpint(tagType)
 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
-	dumpint(uint64(t.size))
-	if x := t.uncommon(); x == nil || t.nameOff(x.pkgpath).name() == "" {
-		dumpstr(t.string())
+	dumpint(uint64(t.Size_))
+	rt := toRType(t)
+	if x := t.Uncommon(); x == nil || rt.nameOff(x.PkgPath).Name() == "" {
+		dumpstr(rt.string())
 	} else {
-		pkgpath := t.nameOff(x.pkgpath).name()
-		name := t.name()
+		pkgpath := rt.nameOff(x.PkgPath).Name()
+		name := rt.name()
 		dumpint(uint64(uintptr(len(pkgpath)) + 1 + uintptr(len(name))))
 		dwrite(unsafe.Pointer(unsafe.StringData(pkgpath)), uintptr(len(pkgpath)))
 		dwritebyte('.')
 		dwrite(unsafe.Pointer(unsafe.StringData(name)), uintptr(len(name)))
 	}
-	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
+	dumpbool(t.Kind_&kindDirectIface == 0 || t.PtrBytes != 0)
 }
 
 // dump an object.

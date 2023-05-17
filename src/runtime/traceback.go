@@ -745,6 +745,42 @@ printloop:
 	}
 }
 
+// funcNamePiecesForPrint returns the function name for printing to the user.
+// It returns three pieces so it doesn't need an allocation for string
+// concatenation.
+func funcNamePiecesForPrint(name string) (string, string, string) {
+	// Replace the shape name in generic function with "...".
+	i := bytealg.IndexByteString(name, '[')
+	if i < 0 {
+		return name, "", ""
+	}
+	j := len(name) - 1
+	for name[j] != ']' {
+		j--
+	}
+	if j <= i {
+		return name, "", ""
+	}
+	return name[:i], "[...]", name[j+1:]
+}
+
+// funcNameForPrint returns the function name for printing to the user.
+func funcNameForPrint(name string) string {
+	a, b, c := funcNamePiecesForPrint(name)
+	return a + b + c
+}
+
+// printFuncName prints a function name. name is the function name in
+// the binary's func data table.
+func printFuncName(name string) {
+	if name == "runtime.gopanic" {
+		print("panic")
+		return
+	}
+	a, b, c := funcNamePiecesForPrint(name)
+	print(a, b, c)
+}
+
 func printcreatedby(gp *g) {
 	// Show what created goroutine, except main goroutine (goid 1).
 	pc := gp.gopc
@@ -755,7 +791,8 @@ func printcreatedby(gp *g) {
 }
 
 func printcreatedby1(f funcInfo, pc uintptr, goid uint64) {
-	print("created by ", funcname(f))
+	print("created by ")
+	printFuncName(funcname(f))
 	if goid != 0 {
 		print(" in goroutine ", goid)
 	}
@@ -956,14 +993,12 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 
 			name := sf.name()
 			file, line := iu.fileLine(uf)
-			if name == "runtime.gopanic" {
-				name = "panic"
-			}
 			// Print during crash.
 			//	main(0x1, 0x2, 0x3)
 			//		/home/rsc/go/src/runtime/x.go:23 +0xf
 			//
-			print(name, "(")
+			printFuncName(name)
+			print("(")
 			if iu.isInlined(uf) {
 				print("...")
 			} else {
@@ -1044,12 +1079,9 @@ func printAncestorTraceback(ancestor ancestorInfo) {
 // goroutine being created.
 func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
 	u, uf := newInlineUnwinder(f, pc, nil)
-	name := u.srcFunc(uf).name()
 	file, line := u.fileLine(uf)
-	if name == "runtime.gopanic" {
-		name = "panic"
-	}
-	print(name, "(...)\n")
+	printFuncName(u.srcFunc(uf).name())
+	print("(...)\n")
 	print("\t", file, ":", line)
 	if pc > f.entry() {
 		print(" +", hex(pc-f.entry()))

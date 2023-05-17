@@ -1,1 +1,2 @@
 pkg errors, var ErrUnsupported error #41198
+pkg net/http, method (*ProtocolError) Is(error) bool #41198

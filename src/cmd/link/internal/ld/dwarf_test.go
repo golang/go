@@ -25,6 +25,13 @@ import (
 	"cmd/link/internal/dwtest"
 )
 
+func mustHaveDWARF(t testing.TB) {
+	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
+		t.Helper()
+		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
 const (
 	DefaultOpt = "-gcflags="
 	NoOpt      = "-gcflags=-l -N"
@@ -36,9 +43,7 @@ func TestRuntimeTypesPresent(t *testing.T) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	dir := t.TempDir()
 
@@ -51,17 +56,16 @@ func TestRuntimeTypesPresent(t *testing.T) {
 	}
 
 	want := map[string]bool{
-		"runtime._type":         true,
-		"runtime.arraytype":     true,
-		"runtime.chantype":      true,
-		"runtime.functype":      true,
-		"runtime.maptype":       true,
-		"runtime.ptrtype":       true,
-		"runtime.slicetype":     true,
-		"runtime.structtype":    true,
-		"runtime.interfacetype": true,
-		"runtime.itab":          true,
-		"runtime.imethod":       true,
+		"internal/abi.Type":          true,
+		"internal/abi.ArrayType":     true,
+		"internal/abi.ChanType":      true,
+		"internal/abi.FuncType":      true,
+		"internal/abi.MapType":       true,
+		"internal/abi.PtrType":       true,
+		"internal/abi.SliceType":     true,
+		"internal/abi.StructType":    true,
+		"internal/abi.InterfaceType": true,
+		"runtime.itab":               true,
 	}
 
 	found := findTypes(t, dwarf, want)
@@ -179,9 +183,7 @@ func TestEmbeddedStructMarker(t *testing.T) {
 	t.Parallel()
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	const prog = `
 package main
@@ -273,9 +275,7 @@ func findMembers(rdr *dwarf.Reader) (map[string]bool, error) {
 }
 
 func TestSizes(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	// External linking may bring in C symbols with unknown size. Skip.
 	testenv.MustInternalLink(t, false)
@@ -322,9 +322,7 @@ func main() {
 }
 
 func TestFieldOverlap(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	t.Parallel()
 
 	// This test grew out of issue 21094, where specific sudog<T> DWARF types
@@ -381,9 +379,7 @@ func TestSubprogramDeclFileLine(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	const prog = `package main
 %s
@@ -447,9 +443,7 @@ func TestVarDeclLine(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	t.Parallel()
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	const prog = `package main
 %s
@@ -514,9 +508,7 @@ func main() {
 func TestInlinedRoutineCallFileLine(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -648,9 +640,7 @@ func main() {
 func TestInlinedRoutineArgsVars(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -840,9 +830,7 @@ func TestAbstractOriginSanity(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	if wd, err := os.Getwd(); err == nil {
 		gopathdir := filepath.Join(wd, "testdata", "httptest")
@@ -855,9 +843,7 @@ func TestAbstractOriginSanity(t *testing.T) {
 func TestAbstractOriginSanityIssue25459(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	if runtime.GOARCH != "amd64" && runtime.GOARCH != "386" {
 		t.Skip("skipping on not-amd64 not-386; location lists not supported")
 	}
@@ -873,9 +859,7 @@ func TestAbstractOriginSanityIssue25459(t *testing.T) {
 func TestAbstractOriginSanityIssue26237(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	if wd, err := os.Getwd(); err == nil {
 		gopathdir := filepath.Join(wd, "testdata", "issue26237")
 		abstractOriginSanity(t, gopathdir, DefaultOpt)
@@ -888,9 +872,7 @@ func TestRuntimeTypeAttrInternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustInternalLink(t, false)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
 }
@@ -900,9 +882,7 @@ func TestRuntimeTypeAttrExternal(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	// Explicitly test external linking, for dsymutil compatibility on Darwin.
 	if runtime.GOARCH == "ppc64" {
@@ -990,9 +970,7 @@ func TestIssue27614(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1104,9 +1082,7 @@ func TestStaticTmp(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1182,9 +1158,7 @@ func TestPackageNameAttr(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1324,9 +1298,7 @@ func main() {
 func TestIssue38192(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1434,9 +1406,7 @@ func TestIssue38192(t *testing.T) {
 func TestIssue39757(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1546,9 +1516,7 @@ func TestIssue42484(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustInternalLink(t, false) // Avoid spurious failures from external linkers.
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -1676,9 +1644,7 @@ func processParams(die *dwarf.Entry, ex *dwtest.Examiner) string {
 func TestOutputParamAbbrevAndAttr(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	t.Parallel()
 
 	// This test verifies that the compiler is selecting the correct
@@ -1725,9 +1691,7 @@ func TestDictIndex(t *testing.T) {
 	// have DIEs.
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	t.Parallel()
 
 	const prog = `
@@ -1821,9 +1785,7 @@ func main() {
 func TestOptimizedOutParamHandling(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	t.Parallel()
 
 	// This test is intended to verify that the compiler emits DWARF
@@ -1950,9 +1912,7 @@ func TestIssue54320(t *testing.T) {
 	// emitted in the final binary
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 
 	t.Parallel()
 
@@ -2028,9 +1988,7 @@ func main() {
 func TestZeroSizedVariable(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
-	}
+	mustHaveDWARF(t)
 	t.Parallel()
 
 	// This test verifies that the compiler emits DIEs for zero sized variables

@@ -380,7 +380,7 @@ var allDesc = []Description{
 }
 
 func init() {
-	// Insert all the the non-default-reporting GODEBUGs into the table,
+	// Insert all the non-default-reporting GODEBUGs into the table,
 	// preserving the overall sort order.
 	i := 0
 	for i < len(allDesc) && allDesc[i].Name < "/godebug/" {

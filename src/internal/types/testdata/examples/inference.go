@@ -1,3 +1,5 @@
+// -lang=go1.20
+
 // Copyright 2021 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
@@ -154,4 +156,4 @@ func _() {
 func f[P any](P) {}
 
 // This must not crash.
-var _ func(int) = f // ERROR "cannot use generic function f without instantiation"
+var _ func(int) = f // ERROR "implicitly instantiated function in assignment requires go1.21 or later"

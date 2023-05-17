@@ -505,7 +505,6 @@ func findGorootModules(t *testing.T) []gorootModule {
 			"std",
 			"cmd",
 			"misc",
-			"test/bench/go1",
 		}
 		var seen = make(map[string]bool) // Key is module path.
 		for _, m := range goroot.modules {

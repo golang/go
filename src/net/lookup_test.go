@@ -792,7 +792,7 @@ func TestLookupPort(t *testing.T) {
 
 	switch runtime.GOOS {
 	case "android":
-		if netGo {
+		if netGoBuildTag {
 			t.Skipf("not supported on %s without cgo; see golang.org/issues/14576", runtime.GOOS)
 		}
 	default:

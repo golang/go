@@ -39,7 +39,7 @@ func TestJSONHandler(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			h := test.opts.NewJSONHandler(&buf)
+			h := NewJSONHandler(&buf, &test.opts)
 			r := NewRecord(testTime, LevelInfo, "m", 0)
 			r.AddAttrs(Int("a", 1), Any("m", map[string]int{"b": 2}))
 			if err := h.Handle(context.Background(), r); err != nil {
@@ -74,7 +74,7 @@ type jsonMarshalerError struct {
 func (jsonMarshalerError) Error() string { return "oops" }
 
 func TestAppendJSONValue(t *testing.T) {
-	// On most values, jsonAppendAttrValue should agree with json.Marshal.
+	// jsonAppendAttrValue should always agree with json.Marshal.
 	for _, value := range []any{
 		"hello",
 		`"[{escape}]"`,
@@ -89,8 +89,9 @@ func TestAppendJSONValue(t *testing.T) {
 		testTime,
 		jsonMarshaler{"xyz"},
 		jsonMarshalerError{jsonMarshaler{"pqr"}},
+		LevelWarn,
 	} {
-		got := jsonValueString(t, AnyValue(value))
+		got := jsonValueString(AnyValue(value))
 		want, err := marshalJSON(value)
 		if err != nil {
 			t.Fatal(err)
@@ -117,24 +118,23 @@ func TestJSONAppendAttrValueSpecial(t *testing.T) {
 		value any
 		want  string
 	}{
-		{math.NaN(), `"NaN"`},
-		{math.Inf(+1), `"Infinity"`},
-		{math.Inf(-1), `"-Infinity"`},
-		{LevelWarn, `"WARN"`},
+		{math.NaN(), `"!ERROR:json: unsupported value: NaN"`},
+		{math.Inf(+1), `"!ERROR:json: unsupported value: +Inf"`},
+		{math.Inf(-1), `"!ERROR:json: unsupported value: -Inf"`},
+		{io.EOF, `"EOF"`},
 	} {
-		got := jsonValueString(t, AnyValue(test.value))
+		got := jsonValueString(AnyValue(test.value))
 		if got != test.want {
 			t.Errorf("%v: got %s, want %s", test.value, got, test.want)
 		}
 	}
 }
 
-func jsonValueString(t *testing.T, v Value) string {
-	t.Helper()
+func jsonValueString(v Value) string {
 	var buf []byte
 	s := &handleState{h: &commonHandler{json: true}, buf: (*buffer.Buffer)(&buf)}
 	if err := appendJSONValue(s, v); err != nil {
-		t.Fatal(err)
+		s.appendError(err)
 	}
 	return string(buf)
 }
@@ -171,7 +171,7 @@ func BenchmarkJSONHandler(b *testing.B) {
 		}},
 	} {
 		b.Run(bench.name, func(b *testing.B) {
-			l := New(bench.opts.NewJSONHandler(io.Discard)).With(
+			l := New(NewJSONHandler(io.Discard, &bench.opts)).With(
 				String("program", "my-test-program"),
 				String("package", "log/slog"),
 				String("traceID", "2039232309232309"),
@@ -236,7 +236,7 @@ func BenchmarkPreformatting(b *testing.B) {
 		{"struct file", outFile, structAttrs},
 	} {
 		b.Run(bench.name, func(b *testing.B) {
-			l := New(NewJSONHandler(bench.wc)).With(bench.attrs...)
+			l := New(NewJSONHandler(bench.wc, nil)).With(bench.attrs...)
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {

@@ -1155,6 +1155,10 @@ func (fi dataFileInfo) ModTime() time.Time { return time.Time{} }
 func (fi dataFileInfo) IsDir() bool        { return false }
 func (fi dataFileInfo) Sys() any           { return nil }
 
+func (fi dataFileInfo) String() string {
+	return fs.FormatFileInfo(fi)
+}
+
 // hasPathPrefix reports whether the path s begins with the
 // elements in prefix.
 func hasPathPrefix(s, prefix string) bool {

@@ -27,7 +27,7 @@ const timeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})`
 func TestLogTextHandler(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(NewTextHandler(&buf))
+	l := New(NewTextHandler(&buf, nil))
 
 	check := func(want string) {
 		t.Helper()
@@ -104,13 +104,13 @@ func TestConnections(t *testing.T) {
 
 	// Once slog.SetDefault is called, the direction is reversed: the default
 	// log.Logger's output goes through the handler.
-	SetDefault(New(HandlerOptions{AddSource: true}.NewTextHandler(&slogbuf)))
+	SetDefault(New(NewTextHandler(&slogbuf, &HandlerOptions{AddSource: true})))
 	log.Print("msg2")
 	checkLogOutput(t, slogbuf.String(), "time="+timeRE+` level=INFO source=.*logger_test.go:\d{3} msg=msg2`)
 
 	// The default log.Logger always outputs at Info level.
 	slogbuf.Reset()
-	SetDefault(New(HandlerOptions{Level: LevelWarn}.NewTextHandler(&slogbuf)))
+	SetDefault(New(NewTextHandler(&slogbuf, &HandlerOptions{Level: LevelWarn})))
 	log.Print("should not appear")
 	if got := slogbuf.String(); got != "" {
 		t.Errorf("got %q, want empty", got)
@@ -352,7 +352,7 @@ func TestLoggerError(t *testing.T) {
 		}
 		return a
 	}
-	l := New(HandlerOptions{ReplaceAttr: removeTime}.NewTextHandler(&buf))
+	l := New(NewTextHandler(&buf, &HandlerOptions{ReplaceAttr: removeTime}))
 	l.Error("msg", "err", io.EOF, "a", 1)
 	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF a=1`)
 	buf.Reset()
@@ -362,7 +362,7 @@ func TestLoggerError(t *testing.T) {
 
 func TestNewLogLogger(t *testing.T) {
 	var buf bytes.Buffer
-	h := NewTextHandler(&buf)
+	h := NewTextHandler(&buf, nil)
 	ll := NewLogLogger(h, LevelWarn)
 	ll.Print("hello")
 	checkLogOutput(t, buf.String(), "time="+timeRE+` level=WARN msg=hello`)

@@ -463,52 +463,6 @@ func writeMetaData(w io.Writer, metalist []rtcov.CovMetaBlob, cmode coverage.Cou
 	return mfw.Write(finalHash, blobs, cmode, gran)
 }
 
-func (s *emitState) NumFuncs() (int, error) {
-	var sd []atomic.Uint32
-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
-
-	totalFuncs := 0
-	for _, c := range s.counterlist {
-		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
-		bufHdr.Len = int(c.Len)
-		bufHdr.Cap = int(c.Len)
-		for i := 0; i < len(sd); i++ {
-			// Skip ahead until the next non-zero value.
-			sdi := sd[i].Load()
-			if sdi == 0 {
-				continue
-			}
-
-			// We found a function that was executed.
-			nCtrs := sdi
-
-			// Check to make sure that we have at least one live
-			// counter. See the implementation note in ClearCoverageCounters
-			// for a description of why this is needed.
-			isLive := false
-			st := i + coverage.FirstCtrOffset
-			counters := sd[st : st+int(nCtrs)]
-			for i := 0; i < len(counters); i++ {
-				if counters[i].Load() != 0 {
-					isLive = true
-					break
-				}
-			}
-			if !isLive {
-				// Skip this function.
-				i += coverage.FirstCtrOffset + int(nCtrs) - 1
-				continue
-			}
-
-			totalFuncs++
-
-			// Move to the next function.
-			i += coverage.FirstCtrOffset + int(nCtrs) - 1
-		}
-	}
-	return totalFuncs, nil
-}
-
 func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
 	var sd []atomic.Uint32
 	var tcounters []uint32

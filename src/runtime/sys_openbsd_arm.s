@@ -424,6 +424,12 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	MOVW	R2, 0(R13)
 	MOVW	0(R0), R0		// arg 1 fd
 	BL	libc_fcntl(SB)
+	CMP	$-1, R0
+	BNE	noerr
+	BL	libc_errno(SB)
+	MOVW	(R0), R0
+	RSB.CS	$0, R0			// caller expects negative errno
+noerr:
 	MOVW	R9, R13
 	RET
 

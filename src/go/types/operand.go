@@ -222,10 +222,8 @@ func (x *operand) setConst(tok token.Token, lit string) {
 	x.val = val
 }
 
-// isNil reports whether x is the nil value.
-func (x *operand) isNil() bool {
-	return x.mode == value && x.typ == Typ[UntypedNil]
-}
+// isNil reports whether x is the (untyped) nil value.
+func (x *operand) isNil() bool { return x.mode == value && x.typ == Typ[UntypedNil] }
 
 // assignableTo reports whether x is assignable to a variable of type T. If the
 // result is false and a non-nil cause is provided, it may be set to a more

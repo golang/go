@@ -1230,7 +1230,7 @@ func tracealloc(p unsafe.Pointer, size uintptr, typ *_type) {
 	if typ == nil {
 		print("tracealloc(", p, ", ", hex(size), ")\n")
 	} else {
-		print("tracealloc(", p, ", ", hex(size), ", ", typ.string(), ")\n")
+		print("tracealloc(", p, ", ", hex(size), ", ", toRType(typ).string(), ")\n")
 	}
 	if gp.m.curg == nil || gp == gp.m.curg {
 		goroutineheader(gp)

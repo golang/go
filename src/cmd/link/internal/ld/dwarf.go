@@ -1802,17 +1802,17 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 
 	// Needed by the prettyprinter code for interface inspection.
 	for _, typ := range []string{
-		"type:runtime._type",
-		"type:runtime.arraytype",
-		"type:runtime.chantype",
-		"type:runtime.functype",
-		"type:runtime.maptype",
-		"type:runtime.ptrtype",
-		"type:runtime.slicetype",
-		"type:runtime.structtype",
-		"type:runtime.interfacetype",
+		"type:internal/abi.Type",
+		"type:internal/abi.ArrayType",
+		"type:internal/abi.ChanType",
+		"type:internal/abi.FuncType",
+		"type:internal/abi.MapType",
+		"type:internal/abi.PtrType",
+		"type:internal/abi.SliceType",
+		"type:internal/abi.StructType",
+		"type:internal/abi.InterfaceType",
 		"type:runtime.itab",
-		"type:runtime.imethod"} {
+		"type:internal/abi.Imethod"} {
 		d.defgotype(d.lookupOrDiag(typ))
 	}
 
@@ -1936,21 +1936,13 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 		if d.ldr.IsFileLocal(idx) {
 			continue
 		}
-		sn := d.ldr.SymName(idx)
-		if sn == "" {
-			// skip aux symbols
-			continue
-		}
 
 		// Find compiler-generated DWARF info sym for global in question,
 		// and tack it onto the appropriate unit.  Note that there are
 		// circumstances under which we can't find the compiler-generated
 		// symbol-- this typically happens as a result of compiler options
 		// (e.g. compile package X with "-dwarf=0").
-
-		// FIXME: use an aux sym or a relocation here instead of a
-		// name lookup.
-		varDIE := d.ldr.Lookup(dwarf.InfoPrefix+sn, 0)
+		varDIE := d.ldr.GetVarDwarfAuxSym(idx)
 		if varDIE != 0 {
 			unit := d.ldr.SymUnit(idx)
 			d.defgotype(gt)
@@ -2155,21 +2147,18 @@ func (d *dwctxt) collectUnitLocs(u *sym.CompilationUnit) []loader.Sym {
 	return syms
 }
 
-/*
- *  Elf.
- */
-func dwarfaddshstrings(ctxt *Link, shstrtab *loader.SymbolBuilder) {
+// Add DWARF section names to the section header string table, by calling add
+// on each name. ELF only.
+func dwarfaddshstrings(ctxt *Link, add func(string)) {
 	if *FlagW { // disable dwarf
 		return
 	}
 
 	secs := []string{"abbrev", "frame", "info", "loc", "line", "gdb_scripts", "ranges"}
 	for _, sec := range secs {
-		shstrtab.Addstring(".debug_" + sec)
+		add(".debug_" + sec)
 		if ctxt.IsExternal() {
-			shstrtab.Addstring(elfRelType + ".debug_" + sec)
-		} else {
-			shstrtab.Addstring(".zdebug_" + sec)
+			add(elfRelType + ".debug_" + sec)
 		}
 	}
 }

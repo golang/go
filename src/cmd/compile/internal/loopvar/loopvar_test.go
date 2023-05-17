@@ -8,6 +8,7 @@ import (
 	"internal/testenv"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -39,12 +40,12 @@ var cases = []testcase{
 	{"-1", "", 11, for_files[:1]},
 	{"0", "", 0, for_files[:1]},
 	{"1", "", 0, for_files[:1]},
-	{"2", "transformed loop variable i ", 0, for_files},
+	{"2", "loop variable i now per-iteration,", 0, for_files},
 
 	{"-1", "", 11, range_files[:1]},
 	{"0", "", 0, range_files[:1]},
 	{"1", "", 0, range_files[:1]},
-	{"2", "transformed loop variable i ", 0, range_files},
+	{"2", "loop variable i now per-iteration,", 0, range_files},
 
 	{"1", "", 0, []string{"for_nested.go"}},
 }
@@ -159,6 +160,11 @@ func TestLoopVarInlines(t *testing.T) {
 	}
 }
 
+func countMatches(s, re string) int {
+	slice := regexp.MustCompile(re).FindAllString(s, -1)
+	return len(slice)
+}
+
 func TestLoopVarHashes(t *testing.T) {
 	switch runtime.GOOS {
 	case "linux", "darwin":
@@ -178,11 +184,12 @@ func TestLoopVarHashes(t *testing.T) {
 	root := "cmd/compile/internal/loopvar/testdata/inlines"
 
 	f := func(hash string) string {
-		// This disables the loopvar change, except for the specified package.
-		// The effect should follow the package, even though everything (except "c")
-		// is inlined.
-		cmd := testenv.Command(t, gocmd, "run", root)
-		cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=loopvarhash=FS"+hash, "HOME="+tmpdir)
+		// This disables the loopvar change, except for the specified hash pattern.
+		// -trimpath is necessary so we get the same answer no matter where the
+		// Go repository is checked out. This is not normally a concern since people
+		// do not rely on the meaning of specific hashes.
+		cmd := testenv.Command(t, gocmd, "run", "-trimpath", root)
+		cmd.Env = append(cmd.Env, "GOCOMPILEDEBUG=loopvarhash="+hash, "HOME="+tmpdir)
 		cmd.Dir = filepath.Join("testdata", "inlines")
 
 		b, _ := cmd.CombinedOutput()
@@ -190,20 +197,31 @@ func TestLoopVarHashes(t *testing.T) {
 		return string(b)
 	}
 
-	m := f("000100000010011111101100")
-	t.Logf(m)
+	for _, arg := range []string{"v001100110110110010100100", "vx336ca4"} {
+		m := f(arg)
+		t.Logf(m)
 
-	mCount := strings.Count(m, "loopvarhash triggered POS=main.go:27:6")
-	otherCount := strings.Count(m, "loopvarhash")
-	if mCount < 1 {
-		t.Errorf("Did not see expected value of m compile")
-	}
-	if mCount != otherCount {
-		t.Errorf("Saw extraneous hash matches")
-	}
-	// This next test carefully dodges a bug-to-be-fixed with inlined locations for ir.Names.
-	if !strings.Contains(m, ", 100, 100, 100, 100") {
-		t.Errorf("Did not see expected value of m run")
+		mCount := countMatches(m, "loopvarhash triggered cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6: .* 001100110110110010100100")
+		otherCount := strings.Count(m, "loopvarhash")
+		if mCount < 1 {
+			t.Errorf("%s: did not see triggered main.go:27:6", arg)
+		}
+		if mCount != otherCount {
+			t.Errorf("%s: too many matches", arg)
+		}
+		mCount = countMatches(m, "cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6: .* \\[bisect-match 0x7802e115b9336ca4\\]")
+		otherCount = strings.Count(m, "[bisect-match ")
+		if mCount < 1 {
+			t.Errorf("%s: did not see bisect-match for main.go:27:6", arg)
+		}
+		if mCount != otherCount {
+			t.Errorf("%s: too many matches", arg)
+		}
+
+		// This next test carefully dodges a bug-to-be-fixed with inlined locations for ir.Names.
+		if !strings.Contains(m, ", 100, 100, 100, 100") {
+			t.Errorf("%s: did not see expected value of m run", arg)
+		}
 	}
 }
 
@@ -230,7 +248,7 @@ func TestLoopVarOpt(t *testing.T) {
 
 	t.Logf(m)
 
-	yCount := strings.Count(m, "opt.go:16:6: transformed loop variable private escapes (loop inlined into ./opt.go:30)")
+	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:30)")
 	nCount := strings.Count(m, "shared")
 
 	if yCount != 1 {

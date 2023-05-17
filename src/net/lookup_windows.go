@@ -14,6 +14,11 @@ import (
 	"unsafe"
 )
 
+// cgoAvailable set to true to indicate that the cgo resolver
+// is available on Windows. Note that on Windows the cgo resolver
+// does not actually use cgo.
+const cgoAvailable = true
+
 const (
 	_WSAHOST_NOT_FOUND = syscall.Errno(11001)
 	_WSATRY_AGAIN      = syscall.Errno(11002)
@@ -369,8 +374,8 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
 }
 
 func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
-	if r.preferGoOverWindows() {
-		return r.goLookupPTR(ctx, addr, nil)
+	if order, conf := systemConf().hostLookupOrder(r, ""); order != hostLookupCgo {
+		return r.goLookupPTR(ctx, addr, order, conf)
 	}
 
 	// TODO(bradfitz): finish ctx plumbing. Nothing currently depends on this.

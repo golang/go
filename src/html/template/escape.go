@@ -382,9 +382,8 @@ func normalizeEscFn(e string) string {
 // for all x.
 var redundantFuncs = map[string]map[string]bool{
 	"_html_template_commentescaper": {
-		"_html_template_attrescaper":    true,
-		"_html_template_nospaceescaper": true,
-		"_html_template_htmlescaper":    true,
+		"_html_template_attrescaper": true,
+		"_html_template_htmlescaper": true,
 	},
 	"_html_template_cssescaper": {
 		"_html_template_attrescaper": true,

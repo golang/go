@@ -11,7 +11,14 @@ import (
 )
 
 // runtime_FrameStartLine is defined in runtime/symtab.go.
+//
+//go:noescape
 func runtime_FrameStartLine(f *runtime.Frame) int
+
+// runtime_FrameSymbolName is defined in runtime/symtab.go.
+//
+//go:noescape
+func runtime_FrameSymbolName(f *runtime.Frame) string
 
 // runtime_expandFinalInlineFrame is defined in runtime/symtab.go.
 func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr

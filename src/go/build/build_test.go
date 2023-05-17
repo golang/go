@@ -525,10 +525,10 @@ func TestImportDirNotExist(t *testing.T) {
 				errOk := (err != nil && strings.HasPrefix(err.Error(), "cannot find package"))
 				wantErr := `"cannot find package" error`
 				if test.srcDir == "" {
-					if err != nil && strings.Contains(err.Error(), "is not in GOROOT") {
+					if err != nil && strings.Contains(err.Error(), "is not in std") {
 						errOk = true
 					}
-					wantErr = `"cannot find package" or "is not in GOROOT" error`
+					wantErr = `"cannot find package" or "is not in std" error`
 				}
 				if !errOk {
 					t.Errorf("%s got error: %q, want %s", test.label, err, wantErr)

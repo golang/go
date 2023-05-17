@@ -112,6 +112,9 @@ func TestCgoExternalThreadSignal(t *testing.T) {
 
 	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSignal")
 	if want := "OK\n"; got != want {
+		if runtime.GOOS == "ios" && strings.Contains(got, "C signal did not crash as expected") {
+			testenv.SkipFlaky(t, 59913)
+		}
 		t.Fatalf("expected %q, but got:\n%s", want, got)
 	}
 }
@@ -407,9 +410,6 @@ func TestRaceSignal(t *testing.T) {
 		t.Skipf("skipping: test requires pthread support")
 		// TODO: Can this test be rewritten to use the C11 thread API instead?
 	}
-	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
-		testenv.SkipFlaky(t, 59807)
-	}
 
 	t.Parallel()
 
@@ -426,7 +426,7 @@ func TestRaceSignal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, "CgoRaceSignal")).CombinedOutput()
+	got, err := testenv.CleanCmdEnv(testenv.Command(t, exe, "CgoRaceSignal")).CombinedOutput()
 	if err != nil {
 		t.Logf("%s\n", got)
 		t.Fatal(err)
@@ -527,6 +527,9 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 		// the Windows exception handler unwind it, rather
 		// than injecting a sigpanic.
 		t.Skip("no sigpanic in C on windows")
+	}
+	if runtime.GOOS == "ios" {
+		testenv.SkipFlaky(t, 59912)
 	}
 	t.Parallel()
 	got := runTestProg(t, "testprogcgo", "TracebackSigpanic")
@@ -637,6 +640,10 @@ func TestSegv(t *testing.T) {
 		}
 
 		t.Run(test, func(t *testing.T) {
+			if test == "SegvInCgo" && runtime.GOOS == "ios" {
+				testenv.SkipFlaky(t, 59947) // Don't even try, in case it times out.
+			}
+
 			t.Parallel()
 			got := runTestProg(t, "testprogcgo", test)
 			t.Log(got)
@@ -650,7 +657,7 @@ func TestSegv(t *testing.T) {
 
 			// No runtime errors like "runtime: unknown pc".
 			switch runtime.GOOS {
-			case "darwin", "illumos", "solaris":
+			case "darwin", "ios", "illumos", "solaris":
 				// Runtime sometimes throws when generating the traceback.
 				testenv.SkipFlaky(t, 49182)
 			case "linux":

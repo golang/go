@@ -25,7 +25,7 @@ func ExampleHandlerOptions_customLevels() {
 		LevelEmergency = slog.Level(12)
 	)
 
-	th := slog.HandlerOptions{
+	th := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		// Set a custom level to show all log output. The default value is
 		// LevelInfo, which would drop Debug and Trace logs.
 		Level: LevelTrace,
@@ -69,7 +69,7 @@ func ExampleHandlerOptions_customLevels() {
 
 			return a
 		},
-	}.NewTextHandler(os.Stdout)
+	})
 
 	logger := slog.New(th)
 	logger.Log(nil, LevelEmergency, "missing pilots")

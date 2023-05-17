@@ -1387,13 +1387,21 @@ func (f *File) DropRetract(vi VersionInterval) error {
 func (f *File) SortBlocks() {
 	f.removeDups() // otherwise sorting is unsafe
 
+	// semanticSortForExcludeVersionV is the Go version (plus leading "v") at which
+	// lines in exclude blocks start to use semantic sort instead of lexicographic sort.
+	// See go.dev/issue/60028.
+	const semanticSortForExcludeVersionV = "v1.21"
+	useSemanticSortForExclude := f.Go != nil && semver.Compare("v"+f.Go.Version, semanticSortForExcludeVersionV) >= 0
+
 	for _, stmt := range f.Syntax.Stmt {
 		block, ok := stmt.(*LineBlock)
 		if !ok {
 			continue
 		}
 		less := lineLess
-		if block.Token[0] == "retract" {
+		if block.Token[0] == "exclude" && useSemanticSortForExclude {
+			less = lineExcludeLess
+		} else if block.Token[0] == "retract" {
 			less = lineRetractLess
 		}
 		sort.SliceStable(block.Line, func(i, j int) bool {
@@ -1494,6 +1502,22 @@ func lineLess(li, lj *Line) bool {
 		}
 	}
 	return len(li.Token) < len(lj.Token)
+}
+
+// lineExcludeLess reports whether li should be sorted before lj for lines in
+// an "exclude" block.
+func lineExcludeLess(li, lj *Line) bool {
+	if len(li.Token) != 2 || len(lj.Token) != 2 {
+		// Not a known exclude specification.
+		// Fall back to sorting lexicographically.
+		return lineLess(li, lj)
+	}
+	// An exclude specification has two tokens: ModulePath and Version.
+	// Compare module path by string order and version by semver rules.
+	if pi, pj := li.Token[0], lj.Token[0]; pi != pj {
+		return pi < pj
+	}
+	return semver.Compare(li.Token[1], lj.Token[1]) < 0
 }
 
 // lineRetractLess returns whether li should be sorted before lj for lines in

@@ -262,11 +262,12 @@ func TestJSONAndTextHandlers(t *testing.T) {
 				return h.WithAttrs([]Attr{Int("p1", 1)}).
 					WithGroup("s1").
 					WithAttrs([]Attr{Int("p2", 2)}).
-					WithGroup("s2")
+					WithGroup("s2").
+					WithAttrs([]Attr{Int("p3", 3)})
 			},
 			attrs:    attrs,
-			wantText: "msg=message p1=1 s1.p2=2 s1.s2.a=one s1.s2.b=2",
-			wantJSON: `{"msg":"message","p1":1,"s1":{"p2":2,"s2":{"a":"one","b":2}}}`,
+			wantText: "msg=message p1=1 s1.p2=2 s1.s2.p3=3 s1.s2.a=one s1.s2.b=2",
+			wantJSON: `{"msg":"message","p1":1,"s1":{"p2":2,"s2":{"p3":3,"a":"one","b":2}}}`,
 		},
 		{
 			name:    "two with-groups",
@@ -326,6 +327,20 @@ func TestJSONAndTextHandlers(t *testing.T) {
 			wantText:  `source=handler_test.go:$LINE msg=message`,
 			wantJSON:  `{"source":{"function":"log/slog.TestJSONAndTextHandlers","file":"handler_test.go","line":$LINE},"msg":"message"}`,
 		},
+		{
+			name: "replace built-in with group",
+			replace: func(_ []string, a Attr) Attr {
+				if a.Key == TimeKey {
+					return Group(TimeKey, "mins", 3, "secs", 2)
+				}
+				if a.Key == LevelKey {
+					return Attr{}
+				}
+				return a
+			},
+			wantText: `time.mins=3 time.secs=2 msg=message`,
+			wantJSON: `{"time":{"mins":3,"secs":2},"msg":"message"}`,
+		},
 	} {
 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
 		line := strconv.Itoa(r.source().Line)
@@ -338,8 +353,8 @@ func TestJSONAndTextHandlers(t *testing.T) {
 				h    Handler
 				want string
 			}{
-				{"text", opts.NewTextHandler(&buf), test.wantText},
-				{"json", opts.NewJSONHandler(&buf), test.wantJSON},
+				{"text", NewTextHandler(&buf, &opts), test.wantText},
+				{"json", NewJSONHandler(&buf, &opts), test.wantJSON},
 			} {
 				t.Run(handler.name, func(t *testing.T) {
 					h := handler.h
@@ -419,7 +434,7 @@ func TestSecondWith(t *testing.T) {
 	// Verify that a second call to Logger.With does not corrupt
 	// the original.
 	var buf bytes.Buffer
-	h := HandlerOptions{ReplaceAttr: removeKeys(TimeKey)}.NewTextHandler(&buf)
+	h := NewTextHandler(&buf, &HandlerOptions{ReplaceAttr: removeKeys(TimeKey)})
 	logger := New(h).With(
 		String("app", "playground"),
 		String("role", "tester"),
@@ -445,14 +460,14 @@ func TestReplaceAttrGroups(t *testing.T) {
 
 	var got []ga
 
-	h := HandlerOptions{ReplaceAttr: func(gs []string, a Attr) Attr {
+	h := NewTextHandler(io.Discard, &HandlerOptions{ReplaceAttr: func(gs []string, a Attr) Attr {
 		v := a.Value.String()
 		if a.Key == TimeKey {
 			v = "<now>"
 		}
 		got = append(got, ga{strings.Join(gs, ","), a.Key, v})
 		return a
-	}}.NewTextHandler(io.Discard)
+	}})
 	New(h).
 		With(Int("a", 1)).
 		WithGroup("g1").

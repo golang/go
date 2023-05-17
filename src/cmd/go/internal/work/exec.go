@@ -2612,7 +2612,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
 				from = m.Dir
 				toPath = m.Path
 				if m.Version != "" {
-					m.Path += "@" + m.Version
+					toPath += "@" + m.Version
 				}
 			}
 			// -fdebug-prefix-map (or -ffile-prefix-map) requires an absolute "to"
@@ -3779,8 +3779,13 @@ func (b *Builder) swigOne(a *Action, p *load.Package, file, objdir string, pcCFL
 	// going to compile.
 	goFile = objdir + goFile
 	newGoFile := objdir + "_" + base + "_swig.go"
-	if err := os.Rename(goFile, newGoFile); err != nil {
-		return "", "", err
+	if cfg.BuildX || cfg.BuildN {
+		b.Showcmd("", "mv %s %s", goFile, newGoFile)
+	}
+	if !cfg.BuildN {
+		if err := os.Rename(goFile, newGoFile); err != nil {
+			return "", "", err
+		}
 	}
 	return newGoFile, objdir + gccBase + gccExt, nil
 }

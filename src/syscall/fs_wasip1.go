@@ -100,6 +100,63 @@ const (
 	fullRights  = rights(^uint32(0))
 	readRights  = rights(RIGHT_FD_READ | RIGHT_FD_READDIR)
 	writeRights = rights(RIGHT_FD_DATASYNC | RIGHT_FD_WRITE | RIGHT_FD_ALLOCATE | RIGHT_PATH_FILESTAT_SET_SIZE)
+
+	// Some runtimes have very strict expectations when it comes to which
+	// rights can be enabled on files opened by path_open. The fileRights
+	// constant is used as a mask to retain only bits for operations that
+	// are supported on files.
+	fileRights rights = RIGHT_FD_DATASYNC |
+		RIGHT_FD_READ |
+		RIGHT_FD_SEEK |
+		RIGHT_FDSTAT_SET_FLAGS |
+		RIGHT_FD_SYNC |
+		RIGHT_FD_TELL |
+		RIGHT_FD_WRITE |
+		RIGHT_FD_ADVISE |
+		RIGHT_FD_ALLOCATE |
+		RIGHT_PATH_CREATE_DIRECTORY |
+		RIGHT_PATH_CREATE_FILE |
+		RIGHT_PATH_LINK_SOURCE |
+		RIGHT_PATH_LINK_TARGET |
+		RIGHT_PATH_OPEN |
+		RIGHT_FD_READDIR |
+		RIGHT_PATH_READLINK |
+		RIGHT_PATH_RENAME_SOURCE |
+		RIGHT_PATH_RENAME_TARGET |
+		RIGHT_PATH_FILESTAT_GET |
+		RIGHT_PATH_FILESTAT_SET_SIZE |
+		RIGHT_PATH_FILESTAT_SET_TIMES |
+		RIGHT_FD_FILESTAT_GET |
+		RIGHT_FD_FILESTAT_SET_SIZE |
+		RIGHT_FD_FILESTAT_SET_TIMES |
+		RIGHT_PATH_SYMLINK |
+		RIGHT_PATH_REMOVE_DIRECTORY |
+		RIGHT_PATH_UNLINK_FILE |
+		RIGHT_POLL_FD_READWRITE
+
+	// Runtimes like wasmtime and wasmedge will refuse to open directories
+	// if the rights requested by the application exceed the operations that
+	// can be performed on a directory.
+	dirRights rights = RIGHT_FD_SEEK |
+		RIGHT_FDSTAT_SET_FLAGS |
+		RIGHT_FD_SYNC |
+		RIGHT_PATH_CREATE_DIRECTORY |
+		RIGHT_PATH_CREATE_FILE |
+		RIGHT_PATH_LINK_SOURCE |
+		RIGHT_PATH_LINK_TARGET |
+		RIGHT_PATH_OPEN |
+		RIGHT_FD_READDIR |
+		RIGHT_PATH_READLINK |
+		RIGHT_PATH_RENAME_SOURCE |
+		RIGHT_PATH_RENAME_TARGET |
+		RIGHT_PATH_FILESTAT_GET |
+		RIGHT_PATH_FILESTAT_SET_SIZE |
+		RIGHT_PATH_FILESTAT_SET_TIMES |
+		RIGHT_FD_FILESTAT_GET |
+		RIGHT_FD_FILESTAT_SET_TIMES |
+		RIGHT_PATH_SYMLINK |
+		RIGHT_PATH_REMOVE_DIRECTORY |
+		RIGHT_PATH_UNLINK_FILE
 )
 
 // https://github.com/WebAssembly/WASI/blob/a2b96e81c0586125cc4dc79a5be0b78d9a059925/legacy/preview1/docs.md#-fd_closefd-fd---result-errno
@@ -197,6 +254,30 @@ func path_open(rootFD int32, dirflags lookupflags, path unsafe.Pointer, pathLen 
 //go:wasmimport wasi_snapshot_preview1 random_get
 //go:noescape
 func random_get(buf unsafe.Pointer, bufLen size) Errno
+
+// https://github.com/WebAssembly/WASI/blob/a2b96e81c0586125cc4dc79a5be0b78d9a059925/legacy/preview1/docs.md#-fdstat-record
+// fdflags must be at offset 2, hence the uint16 type rather than the
+// fdflags (uint32) type.
+type fdstat struct {
+	filetype         filetype
+	fdflags          uint16
+	rightsBase       rights
+	rightsInheriting rights
+}
+
+//go:wasmimport wasi_snapshot_preview1 fd_fdstat_get
+//go:noescape
+func fd_fdstat_get(fd int32, buf unsafe.Pointer) Errno
+
+//go:wasmimport wasi_snapshot_preview1 fd_fdstat_set_flags
+//go:noescape
+func fd_fdstat_set_flags(fd int32, flags fdflags) Errno
+
+func fd_fdstat_get_flags(fd int) (uint32, error) {
+	var stat fdstat
+	errno := fd_fdstat_get(int32(fd), unsafe.Pointer(&stat))
+	return uint32(stat.fdflags), errnoErr(errno)
+}
 
 type preopentype = uint8
 
@@ -333,7 +414,7 @@ func appendCleanPath(buf []byte, path string, lookupParent bool) ([]byte, bool) 
 
 // joinPath concatenates dir and file paths, producing a cleaned path where
 // "." and ".." have been removed, unless dir is relative and the references
-// to parent directories in file represented a location relatie to a parent
+// to parent directories in file represented a location relative to a parent
 // of dir.
 //
 // This function is used for path resolution of all wasi functions expecting
@@ -432,37 +513,14 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		oflags |= OFLAG_EXCL
 	}
 
-	// Remove when https://github.com/bytecodealliance/wasmtime/pull/4967 is merged.
-	var fi Stat_t
-	if errno := path_filestat_get(
-		dirFd,
-		LOOKUP_SYMLINK_FOLLOW,
-		pathPtr,
-		pathLen,
-		unsafe.Pointer(&fi),
-	); errno != 0 && errno != ENOENT {
-		return -1, errnoErr(errno)
-	}
-	if fi.Filetype == FILETYPE_DIRECTORY {
-		oflags |= OFLAG_DIRECTORY
-		// WASM runtimes appear to return EINVAL when passing invalid
-		// combination of flags to open directories; however, TestOpenError
-		// in the os package expects EISDIR, so we precheck this condition
-		// here to emulate the expected behavior.
-		const invalidFlags = O_WRONLY | O_RDWR | O_CREATE | O_APPEND | O_TRUNC | O_EXCL
-		if (openmode & invalidFlags) != 0 {
-			return 0, EISDIR
-		}
-	}
-
 	var rights rights
 	switch openmode & (O_RDONLY | O_WRONLY | O_RDWR) {
 	case O_RDONLY:
-		rights = fullRights & ^writeRights
+		rights = fileRights & ^writeRights
 	case O_WRONLY:
-		rights = fullRights & ^readRights
+		rights = fileRights & ^readRights
 	case O_RDWR:
-		rights = fullRights
+		rights = fileRights
 	}
 
 	var fdflags fdflags
@@ -481,10 +539,32 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		pathLen,
 		oflags,
 		rights,
-		fullRights,
+		fileRights,
 		fdflags,
 		unsafe.Pointer(&fd),
 	)
+	if errno == EISDIR && oflags == 0 && fdflags == 0 && ((rights & writeRights) == 0) {
+		// wasmtime and wasmedge will error if attempting to open a directory
+		// because we are asking for too many rights. However, we cannot
+		// determine ahread of time if the path we are about to open is a
+		// directory, so instead we fallback to a second call to path_open with
+		// a more limited set of rights.
+		//
+		// This approach is subject to a race if the file system is modified
+		// concurrently, so we also inject OFLAG_DIRECTORY to ensure that we do
+		// not accidentally open a file which is not a directory.
+		errno = path_open(
+			dirFd,
+			LOOKUP_SYMLINK_FOLLOW,
+			pathPtr,
+			pathLen,
+			oflags|OFLAG_DIRECTORY,
+			rights&dirRights,
+			fileRights,
+			fdflags,
+			unsafe.Pointer(&fd),
+		)
+	}
 	return int(fd), errnoErr(errno)
 }
 
@@ -607,17 +687,33 @@ func Lchown(path string, uid, gid int) error {
 }
 
 func UtimesNano(path string, ts []Timespec) error {
+	// UTIME_OMIT value must match internal/syscall/unix/at_wasip1.go
+	const UTIME_OMIT = -0x2
 	if path == "" {
 		return EINVAL
 	}
 	dirFd, pathPtr, pathLen := preparePath(path)
+	atime := TimespecToNsec(ts[0])
+	mtime := TimespecToNsec(ts[1])
+	if ts[0].Nsec == UTIME_OMIT || ts[1].Nsec == UTIME_OMIT {
+		var st Stat_t
+		if err := Stat(path, &st); err != nil {
+			return err
+		}
+		if ts[0].Nsec == UTIME_OMIT {
+			atime = int64(st.Atime)
+		}
+		if ts[1].Nsec == UTIME_OMIT {
+			mtime = int64(st.Mtime)
+		}
+	}
 	errno := path_filestat_set_times(
 		dirFd,
 		LOOKUP_SYMLINK_FOLLOW,
 		pathPtr,
 		pathLen,
-		timestamp(TimespecToNsec(ts[0])),
-		timestamp(TimespecToNsec(ts[1])),
+		timestamp(atime),
+		timestamp(mtime),
 		FILESTAT_SET_ATIM|FILESTAT_SET_MTIM,
 	)
 	return errnoErr(errno)

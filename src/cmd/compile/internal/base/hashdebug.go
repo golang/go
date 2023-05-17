@@ -6,10 +6,10 @@ package base
 
 import (
 	"bytes"
-	"cmd/internal/notsha256"
 	"cmd/internal/obj"
 	"cmd/internal/src"
 	"fmt"
+	"internal/bisect"
 	"io"
 	"os"
 	"path/filepath"
@@ -17,11 +17,6 @@ import (
 	"strings"
 	"sync"
 )
-
-type writeSyncer interface {
-	io.Writer
-	Sync() error
-}
 
 type hashAndMask struct {
 	// a hash h matches if (h^hash)&mask == 0
@@ -35,22 +30,14 @@ type HashDebug struct {
 	name string     // base name of the flag/variable.
 	// what file (if any) receives the yes/no logging?
 	// default is os.Stdout
-	logfile          writeSyncer
+	logfile          io.Writer
 	posTmp           []src.Pos
 	bytesTmp         bytes.Buffer
 	matches          []hashAndMask // A hash matches if one of these matches.
 	excludes         []hashAndMask // explicitly excluded hash suffixes
-	yes, no          bool
+	bisect           *bisect.Matcher
 	fileSuffixOnly   bool // for Pos hashes, remove the directory prefix.
 	inlineSuffixOnly bool // for Pos hashes, remove all but the most inline position.
-}
-
-// SetFileSuffixOnly controls whether hashing and reporting use the entire
-// file path name, just the basename.  This makes hashing more consistent,
-// at the expense of being able to certainly locate the file.
-func (d *HashDebug) SetFileSuffixOnly(b bool) *HashDebug {
-	d.fileSuffixOnly = b
-	return d
 }
 
 // SetInlineSuffixOnly controls whether hashing and reporting use the entire
@@ -69,7 +56,7 @@ var hashDebug *HashDebug
 var FmaHash *HashDebug     // for debugging fused-multiply-add floating point changes
 var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
 
-// DebugHashMatch reports whether debug variable Gossahash
+// DebugHashMatchPkgFunc reports whether debug variable Gossahash
 //
 //  1. is empty (returns true; this is a special more-quickly implemented case of 4 below)
 //
@@ -98,7 +85,7 @@ var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
 //
 // Otherwise it returns false.
 //
-// Unless Flags.Gossahash is empty, when DebugHashMatch returns true the message
+// Unless Flags.Gossahash is empty, when DebugHashMatchPkgFunc returns true the message
 //
 //	"%s triggered %s\n", varname, pkgAndName
 //
@@ -134,12 +121,12 @@ var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
 //
 //  6. gossahash should return a single function whose miscompilation
 //     causes the problem, and you can focus on that.
-func DebugHashMatch(pkgAndName string) bool {
-	return hashDebug.DebugHashMatch(pkgAndName)
+func DebugHashMatchPkgFunc(pkg, fn string) bool {
+	return hashDebug.MatchPkgFunc(pkg, fn, nil)
 }
 
 func DebugHashMatchPos(pos src.XPos) bool {
-	return hashDebug.DebugHashMatchPos(pos)
+	return hashDebug.MatchPos(pos, nil)
 }
 
 // HasDebugHash returns true if Flags.Gossahash is non-empty, which
@@ -149,6 +136,7 @@ func HasDebugHash() bool {
 	return hashDebug != nil
 }
 
+// TODO: Delete when we switch to bisect-only.
 func toHashAndMask(s, varname string) hashAndMask {
 	l := len(s)
 	if l > 64 {
@@ -167,20 +155,22 @@ func toHashAndMask(s, varname string) hashAndMask {
 // NewHashDebug returns a new hash-debug tester for the
 // environment variable ev.  If ev is not set, it returns
 // nil, allowing a lightweight check for normal-case behavior.
-func NewHashDebug(ev, s string, file writeSyncer) *HashDebug {
+func NewHashDebug(ev, s string, file io.Writer) *HashDebug {
 	if s == "" {
 		return nil
 	}
 
 	hd := &HashDebug{name: ev, logfile: file}
-	switch s[0] {
-	case 'y', 'Y':
-		hd.yes = true
-		return hd
-	case 'n', 'N':
-		hd.no = true
+	if !strings.Contains(s, "/") {
+		m, err := bisect.New(s)
+		if err != nil {
+			Fatalf("%s: %v", ev, err)
+		}
+		hd.bisect = m
 		return hd
 	}
+
+	// TODO: Delete remainder of function when we switch to bisect-only.
 	ss := strings.Split(s, "/")
 	// first remove any leading exclusions; these are preceded with "-"
 	i := 0
@@ -216,43 +206,7 @@ func NewHashDebug(ev, s string, file writeSyncer) *HashDebug {
 
 }
 
-func hashOf(pkgAndName string, param uint64) uint64 {
-	return hashOfBytes([]byte(pkgAndName), param)
-}
-
-func hashOfBytes(sbytes []byte, param uint64) uint64 {
-	hbytes := notsha256.Sum256(sbytes)
-	hash := uint64(hbytes[7])<<56 + uint64(hbytes[6])<<48 +
-		uint64(hbytes[5])<<40 + uint64(hbytes[4])<<32 +
-		uint64(hbytes[3])<<24 + uint64(hbytes[2])<<16 +
-		uint64(hbytes[1])<<8 + uint64(hbytes[0])
-
-	if param != 0 {
-		// Because param is probably a line number, probably near zero,
-		// hash it up a little bit, but even so only the lower-order bits
-		// likely matter because search focuses on those.
-		p0 := param + uint64(hbytes[9]) + uint64(hbytes[10])<<8 +
-			uint64(hbytes[11])<<16 + uint64(hbytes[12])<<24
-
-		p1 := param + uint64(hbytes[13]) + uint64(hbytes[14])<<8 +
-			uint64(hbytes[15])<<16 + uint64(hbytes[16])<<24
-
-		param += p0 * p1
-		param ^= param>>17 ^ param<<47
-	}
-
-	return hash ^ param
-}
-
-// DebugHashMatch returns true if either the variable used to create d is
-// unset, or if its value is y, or if it is a suffix of the base-two
-// representation of the hash of pkgAndName.  If the variable is not nil,
-// then a true result is accompanied by stylized output to d.logfile, which
-// is used for automated bug search.
-func (d *HashDebug) DebugHashMatch(pkgAndName string) bool {
-	return d.DebugHashMatchParam(pkgAndName, 0)
-}
-
+// TODO: Delete when we switch to bisect-only.
 func (d *HashDebug) excluded(hash uint64) bool {
 	for _, m := range d.excludes {
 		if (m.hash^hash)&m.mask == 0 {
@@ -262,6 +216,7 @@ func (d *HashDebug) excluded(hash uint64) bool {
 	return false
 }
 
+// TODO: Delete when we switch to bisect-only.
 func hashString(hash uint64) string {
 	hstr := ""
 	if hash == 0 {
@@ -271,9 +226,13 @@ func hashString(hash uint64) string {
 			hstr = string('0'+byte(hash&1)) + hstr
 		}
 	}
+	if len(hstr) > 24 {
+		hstr = hstr[len(hstr)-24:]
+	}
 	return hstr
 }
 
+// TODO: Delete when we switch to bisect-only.
 func (d *HashDebug) match(hash uint64) *hashAndMask {
 	for i, m := range d.matches {
 		if (m.hash^hash)&m.mask == 0 {
@@ -283,111 +242,122 @@ func (d *HashDebug) match(hash uint64) *hashAndMask {
 	return nil
 }
 
-// DebugHashMatchParam returns true if either the variable used to create d is
+// MatchPkgFunc returns true if either the variable used to create d is
 // unset, or if its value is y, or if it is a suffix of the base-two
-// representation of the hash of pkgAndName and param. If the variable is not
-// nil, then a true result is accompanied by stylized output to d.logfile,
-// which is used for automated bug search.
-func (d *HashDebug) DebugHashMatchParam(pkgAndName string, param uint64) bool {
+// representation of the hash of pkg and fn.  If the variable is not nil,
+// then a true result is accompanied by stylized output to d.logfile, which
+// is used for automated bug search.
+func (d *HashDebug) MatchPkgFunc(pkg, fn string, note func() string) bool {
 	if d == nil {
 		return true
-	}
-	if d.no {
-		return false
-	}
-
-	if d.yes {
-		d.logDebugHashMatch(d.name, pkgAndName, "y", param)
-		return true
-	}
-
-	hash := hashOf(pkgAndName, param)
-
-	// Return false for explicitly excluded hashes
-	if d.excluded(hash) {
-		return false
-	}
-	if m := d.match(hash); m != nil {
-		d.logDebugHashMatch(m.name, pkgAndName, hashString(hash), param)
-		return true
-	}
-	return false
-}
-
-// DebugHashMatchPos is similar to DebugHashMatchParam, but for hash computation
-// it uses the source position including all inlining information instead of
-// package name and path. The output trigger string is prefixed with "POS=" so
-// that tools processing the output can reliably tell the difference. The mutex
-// locking is also more frequent and more granular.
-// Note that the default answer for no environment variable (d == nil)
-// is "yes", do the thing.
-func (d *HashDebug) DebugHashMatchPos(pos src.XPos) bool {
-	if d == nil {
-		return true
-	}
-	if d.no {
-		return false
 	}
 	// Written this way to make inlining likely.
-	return d.debugHashMatchPos(Ctxt, pos)
+	return d.matchPkgFunc(pkg, fn, note)
 }
 
-func (d *HashDebug) debugHashMatchPos(ctxt *obj.Link, pos src.XPos) bool {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+func (d *HashDebug) matchPkgFunc(pkg, fn string, note func() string) bool {
+	hash := bisect.Hash(pkg, fn)
+	return d.matchAndLog(hash, func() string { return pkg + "." + fn }, note)
+}
 
-	b := d.bytesForPos(ctxt, pos)
-
-	if d.yes {
-		d.logDebugHashMatchLocked(d.name, string(b), "y", 0)
+// MatchPos is similar to MatchPkgFunc, but for hash computation
+// it uses the source position including all inlining information instead of
+// package name and path.
+// Note that the default answer for no environment variable (d == nil)
+// is "yes", do the thing.
+func (d *HashDebug) MatchPos(pos src.XPos, desc func() string) bool {
+	if d == nil {
 		return true
 	}
+	// Written this way to make inlining likely.
+	return d.matchPos(Ctxt, pos, desc)
+}
 
-	hash := hashOfBytes(b, 0)
+func (d *HashDebug) matchPos(ctxt *obj.Link, pos src.XPos, note func() string) bool {
+	hash := d.hashPos(ctxt, pos)
+	return d.matchAndLog(hash, func() string { return d.fmtPos(ctxt, pos) }, note)
+}
 
-	// Return false for explicitly excluded hashes
+// matchAndLog is the core matcher. It reports whether the hash matches the pattern.
+// If a report needs to be printed, match prints that report to the log file.
+// The text func must be non-nil and should return a user-readable
+// representation of what was hashed. The note func may be nil; if non-nil,
+// it should return additional information to display to the user when this
+// change is selected.
+func (d *HashDebug) matchAndLog(hash uint64, text, note func() string) bool {
+	if d.bisect != nil {
+		if d.bisect.ShouldPrint(hash) {
+			var t string
+			if !d.bisect.MarkerOnly() {
+				t = text()
+				if note != nil {
+					if n := note(); n != "" {
+						t += ": " + n
+					}
+				}
+			}
+			d.log(d.name, hash, t)
+		}
+		return d.bisect.ShouldEnable(hash)
+	}
+
+	// TODO: Delete rest of function body when we switch to bisect-only.
 	if d.excluded(hash) {
 		return false
 	}
 	if m := d.match(hash); m != nil {
-		d.logDebugHashMatchLocked(m.name, "POS="+string(b), hashString(hash), 0)
+		d.log(m.name, hash, text())
 		return true
 	}
 	return false
 }
 
-// bytesForPos renders a position, including inlining, into d.bytesTmp
-// and returns the byte array.  d.mu must be locked.
-func (d *HashDebug) bytesForPos(ctxt *obj.Link, pos src.XPos) []byte {
-	d.posTmp = ctxt.AllPos(pos, d.posTmp)
-	// Reverse posTmp to put outermost first.
-	b := &d.bytesTmp
-	b.Reset()
-	start := len(d.posTmp) - 1
-	if d.inlineSuffixOnly {
-		start = 0
+// short returns the form of file name to use for d.
+// The default is the full path, but fileSuffixOnly selects
+// just the final path element.
+func (d *HashDebug) short(name string) string {
+	if d.fileSuffixOnly {
+		return filepath.Base(name)
 	}
-	for i := start; i >= 0; i-- {
-		p := &d.posTmp[i]
-		f := p.Filename()
-		if d.fileSuffixOnly {
-			f = filepath.Base(f)
-		}
-		fmt.Fprintf(b, "%s:%d:%d", f, p.Line(), p.Col())
-		if i != 0 {
-			b.WriteByte(';')
-		}
-	}
-	return b.Bytes()
+	return name
 }
 
-func (d *HashDebug) logDebugHashMatch(varname, name, hstr string, param uint64) {
+// hashPos returns a hash of the position pos, including its entire inline stack.
+// If d.inlineSuffixOnly is true, hashPos only considers the innermost (leaf) position on the inline stack.
+func (d *HashDebug) hashPos(ctxt *obj.Link, pos src.XPos) uint64 {
+	if d.inlineSuffixOnly {
+		p := ctxt.InnermostPos(pos)
+		return bisect.Hash(d.short(p.Filename()), p.Line(), p.Col())
+	}
+	h := bisect.Hash()
+	ctxt.AllPos(pos, func(p src.Pos) {
+		h = bisect.Hash(h, d.short(p.Filename()), p.Line(), p.Col())
+	})
+	return h
+}
+
+// fmtPos returns a textual formatting of the position pos, including its entire inline stack.
+// If d.inlineSuffixOnly is true, fmtPos only considers the innermost (leaf) position on the inline stack.
+func (d *HashDebug) fmtPos(ctxt *obj.Link, pos src.XPos) string {
+	format := func(p src.Pos) string {
+		return fmt.Sprintf("%s:%d:%d", d.short(p.Filename()), p.Line(), p.Col())
+	}
+	if d.inlineSuffixOnly {
+		return format(ctxt.InnermostPos(pos))
+	}
+	var stk []string
+	ctxt.AllPos(pos, func(p src.Pos) {
+		stk = append(stk, format(p))
+	})
+	return strings.Join(stk, "; ")
+}
+
+// log prints a match with the given hash and textual formatting.
+// TODO: Delete varname parameter when we switch to bisect-only.
+func (d *HashDebug) log(varname string, hash uint64, text string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.logDebugHashMatchLocked(varname, name, hstr, param)
-}
 
-func (d *HashDebug) logDebugHashMatchLocked(varname, name, hstr string, param uint64) {
 	file := d.logfile
 	if file == nil {
 		if tmpfile := os.Getenv("GSHS_LOGFILE"); tmpfile != "" {
@@ -403,14 +373,11 @@ func (d *HashDebug) logDebugHashMatchLocked(varname, name, hstr string, param ui
 		}
 		d.logfile = file
 	}
-	if len(hstr) > 24 {
-		hstr = hstr[len(hstr)-24:]
-	}
-	// External tools depend on this string
-	if param == 0 {
-		fmt.Fprintf(file, "%s triggered %s %s\n", varname, name, hstr)
-	} else {
-		fmt.Fprintf(file, "%s triggered %s:%d %s\n", varname, name, param, hstr)
-	}
-	file.Sync()
+
+	// Bisect output.
+	fmt.Fprintf(file, "%s %s\n", text, bisect.Marker(hash))
+
+	// Gossahash output.
+	// TODO: Delete rest of function when we switch to bisect-only.
+	fmt.Fprintf(file, "%s triggered %s %s\n", varname, text, hashString(hash))
 }

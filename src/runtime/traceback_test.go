@@ -773,3 +773,66 @@ func parseTraceback1(t *testing.T, tb string) *traceback {
 	}
 	return tbs[0]
 }
+
+//go:noinline
+func testTracebackGenericFn[T any](buf []byte) int {
+	return runtime.Stack(buf[:], false)
+}
+
+func testTracebackGenericFnInlined[T any](buf []byte) int {
+	return runtime.Stack(buf[:], false)
+}
+
+type testTracebackGenericTyp[P any] struct{ x P }
+
+//go:noinline
+func (t testTracebackGenericTyp[P]) M(buf []byte) int {
+	return runtime.Stack(buf[:], false)
+}
+
+func (t testTracebackGenericTyp[P]) Inlined(buf []byte) int {
+	return runtime.Stack(buf[:], false)
+}
+
+func TestTracebackGeneric(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+	var x testTracebackGenericTyp[int]
+	tests := []struct {
+		fn     func([]byte) int
+		expect string
+	}{
+		// function, not inlined
+		{
+			testTracebackGenericFn[int],
+			"testTracebackGenericFn[...](",
+		},
+		// function, inlined
+		{
+			func(buf []byte) int { return testTracebackGenericFnInlined[int](buf) },
+			"testTracebackGenericFnInlined[...](",
+		},
+		// method, not inlined
+		{
+			x.M,
+			"testTracebackGenericTyp[...].M(",
+		},
+		// method, inlined
+		{
+			func(buf []byte) int { return x.Inlined(buf) },
+			"testTracebackGenericTyp[...].Inlined(",
+		},
+	}
+	var buf [1000]byte
+	for _, test := range tests {
+		n := test.fn(buf[:])
+		got := buf[:n]
+		if !bytes.Contains(got, []byte(test.expect)) {
+			t.Errorf("traceback does not contain expected string: want %q, got\n%s", test.expect, got)
+		}
+		if bytes.Contains(got, []byte("shape")) { // should not contain shape name
+			t.Errorf("traceback contains shape name: got\n%s", got)
+		}
+	}
+}

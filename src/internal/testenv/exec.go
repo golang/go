@@ -6,6 +6,8 @@ package testenv
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -16,27 +18,38 @@ import (
 	"time"
 )
 
-// HasExec reports whether the current system can start new processes
+// MustHaveExec checks that the current system can start new processes
 // using os.StartProcess or (more commonly) exec.Command.
-func HasExec() bool {
+// If not, MustHaveExec calls t.Skip with an explanation.
+//
+// On some platforms MustHaveExec checks for exec support by re-executing the
+// current executable, which must be a binary built by 'go test'.
+// We intentionally do not provide a HasExec function because of the risk of
+// inappropriate recursion in TestMain functions.
+//
+// To check for exec support outside of a test, just try to exec the command.
+// If exec is not supported, testenv.SyscallIsNotSupported will return true
+// for the resulting error.
+func MustHaveExec(t testing.TB) {
 	tryExecOnce.Do(func() {
-		tryExecOk = tryExec()
+		tryExecErr = tryExec()
 	})
-	return tryExecOk
+	if tryExecErr != nil {
+		t.Skipf("skipping test: cannot exec subprocess on %s/%s: %v", runtime.GOOS, runtime.GOARCH, tryExecErr)
+	}
 }
 
 var (
-	tryExec     = func() bool { return true }
 	tryExecOnce sync.Once
-	tryExecOk   bool
+	tryExecErr  error
 )
 
-func init() {
+func tryExec() error {
 	switch runtime.GOOS {
 	case "wasip1", "js", "ios":
 	default:
 		// Assume that exec always works on non-mobile platforms and Android.
-		return
+		return nil
 	}
 
 	// ios has an exec syscall but on real iOS devices it might return a
@@ -52,41 +65,18 @@ func init() {
 		// This isn't a standard 'go test' binary, so we don't know how to
 		// self-exec in a way that should succeed without side effects.
 		// Just forget it.
-		tryExec = func() bool { return false }
-		return
+		return errors.New("can't probe for exec support with a non-test executable")
 	}
 
-	// We know that this is a test executable.
-	// We should be able to run it with a no-op flag and the original test
-	// execution environment to check for overall exec support.
-
-	// Save the original environment during init for use in the check. A test
-	// binary may modify its environment before calling HasExec to change its
-	// behavior// (such as mimicking a command-line tool), and that modified
-	// environment might cause our self-test to behave unpredictably.
-	origEnv := os.Environ()
-
-	tryExec = func() bool {
-		exe, err := os.Executable()
-		if err != nil {
-			return false
-		}
-		cmd := exec.Command(exe, "-test.list=^$")
-		cmd.Env = origEnv
-		if err := cmd.Run(); err == nil {
-			return true
-		}
-		return false
+	// We know that this is a test executable. We should be able to run it with a
+	// no-op flag to check for overall exec support.
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("can't probe for exec support: %w", err)
 	}
-}
-
-// MustHaveExec checks that the current system can start new processes
-// using os.StartProcess or (more commonly) exec.Command.
-// If not, MustHaveExec calls t.Skip with an explanation.
-func MustHaveExec(t testing.TB) {
-	if !HasExec() {
-		t.Skipf("skipping test: cannot exec subprocess on %s/%s", runtime.GOOS, runtime.GOARCH)
-	}
+	cmd := exec.Command(exe, "-test.list=^$")
+	cmd.Env = origEnv
+	return cmd.Run()
 }
 
 var execPaths sync.Map // path -> error

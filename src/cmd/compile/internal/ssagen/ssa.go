@@ -718,7 +718,7 @@ func (s *state) checkPtrAlignment(n *ir.ConvExpr, v *ssa.Value, count *ssa.Value
 		count = s.constInt(types.Types[types.TUINTPTR], 1)
 	}
 	if count.Type.Size() != s.config.PtrSize {
-		s.Fatalf("expected count fit to an uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
+		s.Fatalf("expected count fit to a uintptr size, have: %d, want: %d", count.Type.Size(), s.config.PtrSize)
 	}
 	var rtype *ssa.Value
 	if rtypeExpr != nil {
@@ -4369,7 +4369,7 @@ func InitTables() {
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssa.OpAbs, types.Types[types.TFLOAT64], args[0])
 		},
-		sys.ARM64, sys.ARM, sys.PPC64, sys.RISCV64, sys.Wasm)
+		sys.ARM64, sys.ARM, sys.PPC64, sys.RISCV64, sys.Wasm, sys.MIPS, sys.MIPS64)
 	addF("math", "Copysign",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssa.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1])
@@ -7331,7 +7331,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		fi := f.DumpFileForPhase("genssa")
 		if fi != nil {
 
-			// inliningDiffers if any filename changes or if any line number except the innermost (index 0) changes.
+			// inliningDiffers if any filename changes or if any line number except the innermost (last index) changes.
 			inliningDiffers := func(a, b []src.Pos) bool {
 				if len(a) != len(b) {
 					return true
@@ -7340,7 +7340,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 					if a[i].Filename() != b[i].Filename() {
 						return true
 					}
-					if i > 0 && a[i].Line() != b[i].Line() {
+					if i != len(a)-1 && a[i].Line() != b[i].Line() {
 						return true
 					}
 				}
@@ -7352,10 +7352,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 			for p := pp.Text; p != nil; p = p.Link {
 				if p.Pos.IsKnown() {
-					allPos = p.AllPos(allPos)
+					allPos = allPos[:0]
+					p.Ctxt.AllPos(p.Pos, func(pos src.Pos) { allPos = append(allPos, pos) })
 					if inliningDiffers(allPos, allPosOld) {
-						for i := len(allPos) - 1; i >= 0; i-- {
-							pos := allPos[i]
+						for _, pos := range allPos {
 							fmt.Fprintf(fi, "# %s:%d\n", pos.Filename(), pos.Line())
 						}
 						allPos, allPosOld = allPosOld, allPos // swap, not copy, so that they do not share slice storage.

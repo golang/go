@@ -417,6 +417,13 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 	}
 
 	if cause != nil {
+		if f != nil {
+			// This method may be formatted in funcString below, so must have a fully
+			// set up signature.
+			if check != nil {
+				check.objDecl(f, nil)
+			}
+		}
 		switch state {
 		case notFound:
 			switch {

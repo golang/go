@@ -663,7 +663,7 @@ func filesInGitRepo(dir, rev, subdir string) ([]File, error) {
 		if n == "" {
 			continue
 		}
-		n = strings.TrimPrefix(n, string(filepath.Separator))
+		n = strings.TrimPrefix(n, "/")
 
 		fs = append(fs, zipFile{
 			name: n,
