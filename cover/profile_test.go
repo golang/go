@@ -6,8 +6,8 @@ package cover
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -208,26 +208,12 @@ some/fancy/path:42.69,44.16 2 -1`,
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			f, err := ioutil.TempFile("", "")
-			if err != nil {
-				t.Fatalf("Failed to create a temp file: %v.", err)
-			}
-			defer func() {
-				f.Close()
-				os.Remove(f.Name())
-			}()
-			n, err := f.WriteString(tc.input)
-			if err != nil {
-				t.Fatalf("Failed to write to temp file: %v", err)
-			}
-			if n < len(tc.input) {
-				t.Fatalf("Didn't write enough bytes to temp file (wrote %d, expected %d).", n, len(tc.input))
-			}
-			if err := f.Sync(); err != nil {
-				t.Fatalf("Failed to sync temp file: %v", err)
+			fname := filepath.Join(t.TempDir(), "test.cov")
+			if err := os.WriteFile(fname, []byte(tc.input), 0644); err != nil {
+				t.Fatal(err)
 			}
 
-			result, err := ParseProfiles(f.Name())
+			result, err := ParseProfiles(fname)
 			if err != nil {
 				if !tc.expectErr {
 					t.Errorf("Unexpected error: %v", err)
