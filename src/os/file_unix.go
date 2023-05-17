@@ -106,7 +106,11 @@ func NewFile(fd uintptr, name string) *File {
 	if nb, err := unix.IsNonblock(int(fd)); err == nil && nb {
 		kind = kindNonBlock
 	}
-	return newFile(fd, name, kind)
+	f := newFile(fd, name, kind)
+	if flags, err := unix.Fcntl(int(fd), syscall.F_GETFL, 0); err == nil {
+		f.appendMode = flags&syscall.O_APPEND != 0
+	}
+	return f
 }
 
 // newFileKind describes the kind of file to newFile.
