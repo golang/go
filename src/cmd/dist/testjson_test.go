@@ -31,11 +31,9 @@ more text
 	const want = `unexpected text
 {"Package":"abc:variant"}
 more text
-{"Package":"abc:variant"}
+{"Package":"abc:variant"}trailing text
 {not json}
 `
-	// Note that currently we won't round-trip trailing text after a valid JSON
-	// line. That might be a mistake.
 	checkJSONFilter(t, in, want)
 }
 

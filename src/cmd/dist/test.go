@@ -349,9 +349,7 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
 		// Rewrite Package in the JSON output to be pkg:variant. For sharded
 		// variants, pkg.TestName is already unambiguous, so we don't need to
 		// rewrite the Package field.
-		if len(opts.pkgs) != 0 {
-			panic("cannot combine multiple packages with variants")
-		}
+		//
 		// We only want to process JSON on the child's stdout. Ideally if
 		// stdout==stderr, we would also use the same testJSONFilter for
 		// cmd.Stdout and cmd.Stderr in order to keep the underlying
