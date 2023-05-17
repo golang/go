@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Darwin does not have __thread.
+
+//go:build cgo && unix && !darwin
+
 #include <pthread.h>
 
 static __thread int tls;
