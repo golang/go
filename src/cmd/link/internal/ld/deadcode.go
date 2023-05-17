@@ -325,20 +325,30 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
 		if *flagDumpDep {
 			to := d.ldr.SymName(symIdx)
 			if to != "" {
-				if d.ldr.AttrUsedInIface(symIdx) {
-					to += " <UsedInIface>"
-				}
+				to = d.dumpDepAddFlags(to, symIdx)
 				from := "_"
 				if parent != 0 {
 					from = d.ldr.SymName(parent)
-					if d.ldr.AttrUsedInIface(parent) {
-						from += " <UsedInIface>"
-					}
+					from = d.dumpDepAddFlags(from, parent)
 				}
 				fmt.Printf("%s -> %s\n", from, to)
 			}
 		}
 	}
+}
+
+func (d *deadcodePass) dumpDepAddFlags(name string, symIdx loader.Sym) string {
+	var flags strings.Builder
+	if d.ldr.AttrUsedInIface(symIdx) {
+		flags.WriteString("<UsedInIface>")
+	}
+	if d.ldr.IsReflectMethod(symIdx) {
+		flags.WriteString("<ReflectMethod>")
+	}
+	if flags.Len() > 0 {
+		return name + " " + flags.String()
+	}
+	return name
 }
 
 func (d *deadcodePass) markMethod(m methodref) {
