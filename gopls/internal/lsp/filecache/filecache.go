@@ -23,17 +23,14 @@ package filecache
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"hash/crc32"
 	"io"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -41,7 +38,6 @@ import (
 
 	"golang.org/x/tools/gopls/internal/bug"
 	"golang.org/x/tools/gopls/internal/lsp/lru"
-	"golang.org/x/tools/internal/lockedfile"
 )
 
 // Start causes the filecache to initialize and start garbage gollection.
@@ -62,6 +58,8 @@ type memKey struct {
 	key  [32]byte
 }
 
+const useMemCache = false // disabled for now while we debug the new file-based implementation
+
 // Get retrieves from the cache and returns a newly allocated
 // copy of the value most recently supplied to Set(kind, key),
 // possibly by another process.
@@ -70,67 +68,71 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 	// First consult the read-through memory cache.
 	// Note that memory cache hits do not update the times
 	// used for LRU eviction of the file-based cache.
-	if value := memCache.Get(memKey{kind, key}); value != nil {
-		return value.([]byte), nil
+	if useMemCache {
+		if value := memCache.Get(memKey{kind, key}); value != nil {
+			return value.([]byte), nil
+		}
 	}
 
 	iolimit <- struct{}{}        // acquire a token
 	defer func() { <-iolimit }() // release a token
 
-	name, err := filename(kind, key)
+	// Read the index file, which provides the name of the CAS file.
+	indexName, err := filename(kind, key)
 	if err != nil {
 		return nil, err
 	}
-	data, err := lockedfile.Read(name)
+	indexData, err := os.ReadFile(indexName)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-
-	// Verify that the Write was complete
-	// by checking the recorded length.
-	if len(data) < 8+4 {
-		return nil, ErrNotFound // cache entry is incomplete
-	}
-	length, value, checksum := data[:8], data[8:len(data)-4], data[len(data)-4:]
-	if binary.LittleEndian.Uint64(length) != uint64(len(value)) {
-		return nil, ErrNotFound // cache entry is incomplete (or too long!)
+	var valueHash [32]byte
+	if copy(valueHash[:], indexData) != len(valueHash) {
+		return nil, ErrNotFound // index entry has wrong length
 	}
 
-	// Check for corruption and print the entire file content; see
-	// issue #59289. TODO(adonovan): stop printing the entire file
-	// once we've seen enough reports to understand the pattern.
-	if binary.LittleEndian.Uint32(checksum) != crc32.ChecksumIEEE(value) {
-		// Darwin has repeatedly displayed a problem (#59895)
-		// whereby the checksum portion (and only it) is zero,
-		// which suggests a bug in its file system . Don't
-		// panic, but keep an eye on other failures for now.
-		errorf := bug.Errorf
-		if binary.LittleEndian.Uint32(checksum) == 0 && runtime.GOOS == "darwin" {
-			errorf = fmt.Errorf
-		}
-
-		return nil, errorf("internal error in filecache.Get(%q, %x): invalid checksum at end of %d-byte file %s:\n%q",
-			kind, key, len(data), name, data)
+	// Read the CAS file and check its contents match.
+	//
+	// This ensures integrity in all cases (corrupt or truncated
+	// file, short read, I/O error, wrong length, etc) except an
+	// engineered hash collision, which is infeasible.
+	casName, err := filename(casKind, valueHash)
+	if err != nil {
+		return nil, err
+	}
+	value, _ := os.ReadFile(casName) // ignore error
+	if sha256.Sum256(value) != valueHash {
+		return nil, ErrNotFound // CAS file is missing or has wrong contents
 	}
 
-	// Update file time for use by LRU eviction.
-	// (This turns every read into a write operation.
+	// Update file times used by LRU eviction.
+	//
+	// This turns every read into a write operation.
 	// If this is a performance problem, we should
-	// touch the files aynchronously.)
+	// touch the files asynchronously, or, follow
+	// the approach used in the go command's cache
+	// and update only if the existing timestamp is
+	// older than, say, one hour.
 	//
 	// (Traditionally the access time would be updated
 	// automatically, but for efficiency most POSIX systems have
 	// for many years set the noatime mount option to avoid every
 	// open or read operation entailing a metadata write.)
 	now := time.Now()
-	if err := os.Chtimes(name, now, now); err != nil {
-		return nil, fmt.Errorf("failed to update access time: %w", err)
+	if err := os.Chtimes(indexName, now, now); err != nil {
+		return nil, fmt.Errorf("failed to update access time of index file: %w", err)
+	}
+	if err := os.Chtimes(casName, now, now); err != nil {
+		return nil, fmt.Errorf("failed to update access time of CAS file: %w", err)
 	}
 
-	memCache.Set(memKey{kind, key}, value, len(value))
+	if useMemCache {
+		memCache.Set(memKey{kind, key}, value, len(value))
+	}
+
 	return value, nil
 }
 
@@ -140,49 +142,68 @@ var ErrNotFound = fmt.Errorf("not found")
 
 // Set updates the value in the cache.
 func Set(kind string, key [32]byte, value []byte) error {
-	memCache.Set(memKey{kind, key}, value, len(value))
+	if useMemCache {
+		memCache.Set(memKey{kind, key}, value, len(value))
+	}
 
 	iolimit <- struct{}{}        // acquire a token
 	defer func() { <-iolimit }() // release a token
 
-	name, err := filename(kind, key)
+	// First, add the value to the content-
+	// addressable store (CAS), if not present.
+	hash := sha256.Sum256(value)
+	casName, err := filename(casKind, hash)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(name), 0700); err != nil {
-		return err
+	// Does CAS file exist and have correct (complete) content?
+	// TODO(adonovan): opt: use mmap for this check.
+	if prev, _ := os.ReadFile(casName); !bytes.Equal(prev, value) {
+		if err := os.MkdirAll(filepath.Dir(casName), 0700); err != nil {
+			return err
+		}
+		// Avoiding O_TRUNC here is merely an optimization to avoid
+		// cache misses when two threads race to write the same file.
+		if err := writeFileNoTrunc(casName, value, 0666); err != nil {
+			os.Remove(casName) // ignore error
+			return err         // e.g. disk full
+		}
 	}
 
-	// In the unlikely event of a short write (e.g. ENOSPC)
-	// followed by process termination (e.g. a power cut), we
-	// don't want a reader to see a short file, so we record
-	// the expected length first and verify it in Get.
-	var length [8]byte
-	binary.LittleEndian.PutUint64(length[:], uint64(len(value)))
+	// Now write an index entry that refers to the CAS file.
+	indexName, err := filename(kind, key)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(indexName), 0700); err != nil {
+		return err
+	}
+	if err := writeFileNoTrunc(indexName, hash[:], 0666); err != nil {
+		os.Remove(indexName) // ignore error
+		return err           // e.g. disk full
+	}
 
-	// Occasional file corruption (presence of zero bytes in JSON
-	// files) has been reported on macOS (see issue #59289),
-	// assumed due to a nonatomicity problem in the file system.
-	// Ideally the macOS kernel would be fixed, or lockedfile
-	// would implement a workaround (since its job is to provide
-	// reliable the mutual exclusion primitive that allows
-	// cooperating gopls processes to implement transactional
-	// file replacement), but for now we add an extra integrity
-	// check: a 32-bit checksum at the end.
-	var checksum [4]byte
-	binary.LittleEndian.PutUint32(checksum[:], crc32.ChecksumIEEE(value))
-
-	// Windows doesn't support atomic rename--we tried MoveFile,
-	// MoveFileEx, ReplaceFileEx, and SetFileInformationByHandle
-	// of RenameFileInfo, all to no avail--so instead we use
-	// advisory file locking, which is only about 2x slower even
-	// on POSIX platforms with atomic rename.
-	return lockedfile.Write(name, io.MultiReader(
-		bytes.NewReader(length[:]),
-		bytes.NewReader(value),
-		bytes.NewReader(checksum[:])),
-		0600)
+	return nil
 }
+
+// writeFileNoTrunc is like os.WriteFile but doesn't truncate until
+// after the write, so that racing writes of the same data are idempotent.
+func writeFileNoTrunc(filename string, data []byte, perm os.FileMode) error {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, perm)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Truncate(int64(len(data)))
+	}
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	return err
+}
+
+const casKind = "cas"
 
 var iolimit = make(chan struct{}, 128) // counting semaphore to limit I/O concurrency in Set.
 
@@ -204,9 +225,9 @@ func SetBudget(new int64) (old int64) {
 
 // --- implementation ----
 
-// filename returns the cache entry of the specified kind and key.
+// filename returns the name of the cache file of the specified kind and key.
 //
-// A typical cache entry is a file name such as:
+// A typical cache file has a name such as:
 //
 //	$HOME/Library/Caches / gopls / VVVVVVVV / kind / KK / KKKK...KKKK
 //
@@ -218,8 +239,33 @@ func SetBudget(new int64) (old int64) {
 // - The first 8 bits of the key, to avoid huge directories.
 // - The full 256 bits of the key.
 //
-// Once a file is written its contents are never modified, though it
-// may be atomically replaced or removed.
+// Previous iterations of the design aimed for the invariant that once
+// a file is written, its contents are never modified, though it may
+// be atomically replaced or removed. However, not all platforms have
+// an atomic rename operation (our first approach), and file locking
+// (our second) is a notoriously fickle mechanism.
+//
+// The current design instead exploits a trick from the cache
+// implementation used by the go command: writes of small files are in
+// practice atomic (all or nothing) on all platforms.
+// (See GOROOT/src/cmd/go/internal/cache/cache.go.)
+//
+// We use a two-level scheme consisting of an index and a
+// content-addressable store (CAS). A single cache entry consists of
+// two files. The value of a cache entry is written into the file at
+// filename("cas", sha256(value)). Since the value may be arbitrarily
+// large, this write is not atomic. That means we must check the
+// integrity of the contents read back from the CAS to make sure they
+// hash to the expected key. If the CAS file is incomplete or
+// inconsistent, we proceed as if it were missing.
+//
+// Once the CAS file has been written, we write a small fixed-size
+// index file at filename(kind, key), using the values supplied by the
+// caller. The index file contains the hash that identifies the value
+// file in the CAS. (We could add a small amount of extra metadata to
+// this file if later desired.) Because the index file is small,
+// concurrent writes to it are atomic in practice, even though this is
+// not guaranteed by any OS.
 //
 // New versions of gopls are free to reorganize the contents of the
 // version directory as needs evolve.  But all versions of gopls must
@@ -229,6 +275,9 @@ func SetBudget(new int64) (old int64) {
 // the entire gopls directory so that newer binaries can clean up
 // after older ones: in the development cycle especially, new
 // new versions may be created frequently.
+
+// TODO(adonovan): opt: use "VVVVVVVV / KK / KKKK...KKKK-kind" to
+// avoid creating 256 directories per distinct kind (+ cas).
 func filename(kind string, key [32]byte) (string, error) {
 	hex := fmt.Sprintf("%x", key)
 	dir, err := getCacheDir()
