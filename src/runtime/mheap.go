@@ -1323,9 +1323,11 @@ HaveSpan:
 		track := pp.limiterEvent.start(limiterEventScavengeAssist, start)
 
 		// Scavenge, but back out if the limiter turns on.
-		h.pages.scavenge(bytesToScavenge, func() bool {
+		released := h.pages.scavenge(bytesToScavenge, func() bool {
 			return gcCPULimiter.limiting()
 		}, forceScavenge)
+
+		mheap_.pages.scav.releasedEager.Add(released)
 
 		// Finish up accounting.
 		now = nanotime()
@@ -1658,7 +1660,7 @@ func (h *mheap) scavengeAll() {
 	gp.m.mallocing--
 
 	if debug.scavtrace > 0 {
-		printScavTrace(released, true)
+		printScavTrace(0, released, true)
 	}
 }
 

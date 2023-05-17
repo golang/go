@@ -425,9 +425,17 @@ func sweepone() uintptr {
 		if debug.scavtrace > 0 {
 			systemstack(func() {
 				lock(&mheap_.lock)
-				released := atomic.Loaduintptr(&mheap_.pages.scav.released)
-				printScavTrace(released, false)
-				atomic.Storeuintptr(&mheap_.pages.scav.released, 0)
+
+				// Get released stats.
+				releasedBg := mheap_.pages.scav.releasedBg.Load()
+				releasedEager := mheap_.pages.scav.releasedEager.Load()
+
+				// Print the line.
+				printScavTrace(releasedBg, releasedEager, false)
+
+				// Update the stats.
+				mheap_.pages.scav.releasedBg.Add(-releasedBg)
+				mheap_.pages.scav.releasedEager.Add(-releasedEager)
 				unlock(&mheap_.lock)
 			})
 		}
