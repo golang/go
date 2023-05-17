@@ -734,44 +734,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		startpanic_m()
 	}
 
-	if sig < uint32(len(sigtable)) {
-		print(sigtable[sig].name, "\n")
-	} else {
-		print("Signal ", sig, "\n")
-	}
-
-	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode(), "\n")
-	if mp.incgo && gp == mp.g0 && mp.curg != nil {
-		print("signal arrived during cgo execution\n")
-		// Switch to curg so that we get a traceback of the Go code
-		// leading up to the cgocall, which switched from curg to g0.
-		gp = mp.curg
-	}
-	if sig == _SIGILL || sig == _SIGFPE {
-		// It would be nice to know how long the instruction is.
-		// Unfortunately, that's complicated to do in general (mostly for x86
-		// and s930x, but other archs have non-standard instruction lengths also).
-		// Opt to print 16 bytes, which covers most instructions.
-		const maxN = 16
-		n := uintptr(maxN)
-		// We have to be careful, though. If we're near the end of
-		// a page and the following page isn't mapped, we could
-		// segfault. So make sure we don't straddle a page (even though
-		// that could lead to printing an incomplete instruction).
-		// We're assuming here we can read at least the page containing the PC.
-		// I suppose it is possible that the page is mapped executable but not readable?
-		pc := c.sigpc()
-		if n > physPageSize-pc%physPageSize {
-			n = physPageSize - pc%physPageSize
-		}
-		print("instruction bytes:")
-		b := (*[maxN]byte)(unsafe.Pointer(pc))
-		for i := uintptr(0); i < n; i++ {
-			print(" ", hex(b[i]))
-		}
-		println()
-	}
-	print("\n")
+	gp = fatalsignal(sig, c, gp, mp)
 
 	level, _, docrash := gotraceback()
 	if level > 0 {
@@ -811,6 +774,48 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	printDebugLog()
 
 	exit(2)
+}
+
+func fatalsignal(sig uint32, c *sigctxt, gp *g, mp *m) *g {
+	if sig < uint32(len(sigtable)) {
+		print(sigtable[sig].name, "\n")
+	} else {
+		print("Signal ", sig, "\n")
+	}
+
+	print("PC=", hex(c.sigpc()), " m=", mp.id, " sigcode=", c.sigcode(), "\n")
+	if mp.incgo && gp == mp.g0 && mp.curg != nil {
+		print("signal arrived during cgo execution\n")
+		// Switch to curg so that we get a traceback of the Go code
+		// leading up to the cgocall, which switched from curg to g0.
+		gp = mp.curg
+	}
+	if sig == _SIGILL || sig == _SIGFPE {
+		// It would be nice to know how long the instruction is.
+		// Unfortunately, that's complicated to do in general (mostly for x86
+		// and s930x, but other archs have non-standard instruction lengths also).
+		// Opt to print 16 bytes, which covers most instructions.
+		const maxN = 16
+		n := uintptr(maxN)
+		// We have to be careful, though. If we're near the end of
+		// a page and the following page isn't mapped, we could
+		// segfault. So make sure we don't straddle a page (even though
+		// that could lead to printing an incomplete instruction).
+		// We're assuming here we can read at least the page containing the PC.
+		// I suppose it is possible that the page is mapped executable but not readable?
+		pc := c.sigpc()
+		if n > physPageSize-pc%physPageSize {
+			n = physPageSize - pc%physPageSize
+		}
+		print("instruction bytes:")
+		b := (*[maxN]byte)(unsafe.Pointer(pc))
+		for i := uintptr(0); i < n; i++ {
+			print(" ", hex(b[i]))
+		}
+		println()
+	}
+	print("\n")
+	return gp
 }
 
 // sigpanic turns a synchronous signal into a run-time panic.
