@@ -1462,4 +1462,16 @@ const (
 	//  }
 	// var _ = unsafe.Offsetof(s.x)
 	TypeTooLarge
+
+	// InvalidMinMaxOperand occurs if min or max is called
+	// with an operand that cannot be ordered because it
+	// does not support the < operator.
+	//
+	// Example:
+	//  const _ = min(true)
+	//
+	// Example:
+	//  var s, t []byte
+	//  var _ = max(s, t)
+	InvalidMinMaxOperand
 )

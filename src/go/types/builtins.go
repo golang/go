@@ -532,6 +532,63 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.recordBuiltinType(call.Fun, makeSig(x.typ, types...))
 		}
 
+	case _Max, _Min:
+		// max(x, ...)
+		// min(x, ...)
+		if !check.verifyVersionf(check.pkg, call.Fun, go1_21, bin.name) {
+			return
+		}
+
+		op := token.LSS
+		if id == _Max {
+			op = token.GTR
+		}
+
+		for i, a := range args {
+			if a.mode == invalid {
+				return
+			}
+
+			if !allOrdered(a.typ) {
+				check.errorf(a, InvalidMinMaxOperand, invalidArg+"%s cannot be ordered", a)
+				return
+			}
+
+			// The first argument is already in x and there's nothing left to do.
+			if i > 0 {
+				check.matchTypes(x, a)
+				if x.mode == invalid {
+					return
+				}
+
+				if !Identical(x.typ, a.typ) {
+					check.errorf(a, MismatchedTypes, invalidArg+"mismatched types %s (previous argument) and %s (type of %s)", x.typ, a.typ, a.expr)
+					return
+				}
+
+				if x.mode == constant_ && a.mode == constant_ {
+					if constant.Compare(a.val, op, x.val) {
+						*x = *a
+					}
+				} else {
+					x.mode = value
+				}
+			}
+		}
+
+		// If nargs == 1, make sure x.mode is either a value or a constant.
+		if x.mode != constant_ {
+			x.mode = value
+		}
+
+		if check.recordTypes() && x.mode != constant_ {
+			types := make([]Type, nargs)
+			for i := range types {
+				types[i] = x.typ
+			}
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, types...))
+		}
+
 	case _New:
 		// new(T)
 		// (no argument evaluated yet)
