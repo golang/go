@@ -6858,12 +6858,6 @@ func (c *ctxt7) opload(p *obj.Prog, a obj.As) uint32 {
 
 	case ALDXPW:
 		return LDSTX(2, 0, 1, 1, 0)
-
-	case AMOVNP:
-		return S64 | 0<<30 | 5<<27 | 0<<26 | 0<<23 | 1<<22
-
-	case AMOVNPW:
-		return S32 | 0<<30 | 5<<27 | 0<<26 | 0<<23 | 1<<22
 	}
 
 	c.ctxt.Diag("bad opload %v\n%v", a, p)
@@ -6880,12 +6874,6 @@ func (c *ctxt7) opstore(p *obj.Prog, a obj.As) uint32 {
 
 	case ASTLRH:
 		return LDSTX(1, 1, 0, 0, 1) | 0x1F<<10
-
-	case ASTLP:
-		return LDSTX(3, 0, 0, 1, 1)
-
-	case ASTLPW:
-		return LDSTX(2, 0, 0, 1, 1)
 
 	case ASTLRW:
 		return LDSTX(2, 1, 0, 0, 1) | 0x1F<<10
@@ -6925,12 +6913,6 @@ func (c *ctxt7) opstore(p *obj.Prog, a obj.As) uint32 {
 
 	case ASTXRW:
 		return LDSTX(2, 0, 0, 0, 0) | 0x1F<<10
-
-	case AMOVNP:
-		return S64 | 0<<30 | 5<<27 | 0<<26 | 0<<23 | 1<<22
-
-	case AMOVNPW:
-		return S32 | 0<<30 | 5<<27 | 0<<26 | 0<<23 | 1<<22
 	}
 
 	c.ctxt.Diag("bad opstore %v\n%v", a, p)
