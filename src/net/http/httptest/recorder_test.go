@@ -5,11 +5,9 @@
 package httptest
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 )
@@ -373,20 +371,11 @@ func TestRecorderPanicsOnNonXXXStatusCode(t *testing.T) {
 	}
 }
 
-type neverEnding byte
-
-func (b neverEnding) Read(p []byte) (n int, err error) {
-	for i := range p {
-		p[i] = byte(b)
-	}
-	return len(p), nil
-}
-
-func TestSetWriteDeadline(t *testing.T) {
+func TestRecorderSetWriteDeadline(t *testing.T) {
 	rw := NewRecorder()
 	rc := http.NewResponseController(rw)
 
-	expected := time.Now().Add(1 * time.Millisecond)
+	expected := time.Now().Add(1 * time.Second)
 	if err := rc.SetWriteDeadline(expected); err != nil {
 		t.Errorf(`"ResponseController.WriteDeadline(): got unexpected error %q`, err)
 	}
@@ -394,44 +383,17 @@ func TestSetWriteDeadline(t *testing.T) {
 	if rw.WriteDeadline != expected {
 		t.Errorf(`"ResponseRecorder.WriteDeadline: got %q want %q`, rw.WriteDeadline, expected)
 	}
-
-	if _, err := io.Copy(rw, neverEnding('a')); !errors.Is(err, os.ErrDeadlineExceeded) {
-		t.Errorf(`"ResponseRecorder.Write(): got %q want %q`, err, os.ErrDeadlineExceeded)
-	}
-
-	if _, err := rw.WriteString("a"); !errors.Is(err, os.ErrDeadlineExceeded) {
-		t.Errorf(`"ResponseRecorder.WriteString(): got %q want %q`, err, os.ErrDeadlineExceeded)
-	}
-
-	if err := rw.FlushError(); !errors.Is(err, os.ErrDeadlineExceeded) {
-		t.Errorf(`"ResponseRecorder.FlushError(): got %q want %q`, err, os.ErrDeadlineExceeded)
-	}
-
-	if b, _ := rw.Body.ReadByte(); b != 'a' {
-		t.Errorf(`"ResponseRecorder.Body starts with %q ; want "a"`, b)
-	}
 }
 
-func TestSetReadDeadline(t *testing.T) {
-	req, _ := http.NewRequest("GET", "https://example.com", neverEnding('a'))
-	rw, req := NewRecorderWithDeadlineAwareRequest(req)
-	rc := http.NewResponseController(rw)
+func TestRecorderSetReadDeadline(t *testing.T) {
+	rw := NewRecorder()
 
-	expected := time.Now().Add(1 * time.Millisecond)
-	if err := rc.SetReadDeadline(expected); err != nil {
-		t.Errorf(`"ResponseController.SetReadDeadline(): got unexpected error %q`, err)
+	expected := time.Now().Add(1 * time.Second)
+	if err := rw.SetReadDeadline(expected); err != nil {
+		t.Errorf(`"ResponseRecorder.SetReadDeadline(): got unexpected error %q`, err)
 	}
 
 	if rw.ReadDeadline != expected {
 		t.Errorf(`"ResponseRecorder.ReadDeadline: got %q want %q`, rw.ReadDeadline, expected)
-	}
-
-	data, err := io.ReadAll(req.Body)
-	if !errors.Is(err, os.ErrDeadlineExceeded) {
-		t.Errorf(`"ResponseRecorder.GetDeadlineRequestBody(): got %q want %q`, err, os.ErrDeadlineExceeded)
-	}
-
-	if b := data[0]; b != 'a' {
-		t.Errorf(`Request Body starts with %q ; want "a"`, b)
 	}
 }

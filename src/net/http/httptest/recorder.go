@@ -6,12 +6,10 @@ package httptest
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/textproto"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -45,18 +43,17 @@ type ResponseRecorder struct {
 	// Flushed is whether the Handler called Flush.
 	Flushed bool
 
-	// ReadDeadline is the read deadline that has been set using
+	// ReadDeadline is the last read deadline that has been set using
 	// "net/http".ResponseController
 	ReadDeadline time.Time
 
-	// WriteDeadline is the write deadline that has been set using
+	// WriteDeadline is the last write deadline that has been set using
 	// "net/http".ResponseController
 	WriteDeadline time.Time
 
 	result      *http.Response // cache of Result's return value
 	snapHeader  http.Header    // snapshot of HeaderMap at first Write
 	wroteHeader bool
-	requestBody *deadlineBodyReader
 }
 
 // NewRecorder returns an initialized ResponseRecorder.
@@ -66,21 +63,6 @@ func NewRecorder() *ResponseRecorder {
 		Body:      new(bytes.Buffer),
 		Code:      200,
 	}
-}
-
-// NewRecorderWithDeadlineAwareRequest returns an initialized ResponseRecorder
-// and wraps the body of the HTTP request passed as parameter in a special "io".ReadCloser
-// that supports read deadlines.
-// The request read deadline can be set using ResponseRecorder.SetReadDeadline
-// and "http".ResponseController.
-// The body of returned the HTTP request returns an error when the read deadline is reached.
-// The read deadline can be inspected by reading ResponseRecorder.ReadDeadline.
-func NewRecorderWithDeadlineAwareRequest(r *http.Request) (*ResponseRecorder, *http.Request) {
-	rw := NewRecorder()
-	rw.requestBody = &deadlineBodyReader{r.Body, time.Time{}}
-	r.Body = rw.requestBody
-
-	return rw, r
 }
 
 // DefaultRemoteAddr is the default remote address to return in RemoteAddr if
@@ -132,10 +114,6 @@ func (rw *ResponseRecorder) writeHeader(b []byte, str string) {
 // Write implements http.ResponseWriter. The data in buf is written to
 // rw.Body, if not nil.
 func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
-	if !rw.WriteDeadline.IsZero() && time.Now().After(rw.WriteDeadline) {
-		return 0, os.ErrDeadlineExceeded
-	}
-
 	rw.writeHeader(buf, "")
 	if rw.Body != nil {
 		rw.Body.Write(buf)
@@ -146,10 +124,6 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
 // WriteString implements io.StringWriter. The data in str is written
 // to rw.Body, if not nil.
 func (rw *ResponseRecorder) WriteString(str string) (int, error) {
-	if !rw.WriteDeadline.IsZero() && time.Now().After(rw.WriteDeadline) {
-		return 0, os.ErrDeadlineExceeded
-	}
-
 	rw.writeHeader(nil, str)
 	if rw.Body != nil {
 		rw.Body.WriteString(str)
@@ -193,10 +167,6 @@ func (rw *ResponseRecorder) WriteHeader(code int) {
 // with the recorder. To test whether Flush was
 // called, see rw.Flushed.
 func (rw *ResponseRecorder) FlushError() error {
-	if !rw.WriteDeadline.IsZero() && time.Now().After(rw.WriteDeadline) {
-		return os.ErrDeadlineExceeded
-	}
-
 	if !rw.wroteHeader {
 		rw.WriteHeader(200)
 	}
@@ -213,28 +183,28 @@ func (rw *ResponseRecorder) Flush() {
 
 // SetReadDeadline allows using "net/http".ResponseController.SetReadDeadline()
 // with the recorder.
+//
+// The deadline is recorded but is not enforced.
+// To prevent flaky tests reads made after the deadline will work
+// as if no deadline was set.
+//
 // To retrieve the deadline, use rw.ReadDeadline.
-// To use this method, be sure NewRecorderWithDeadlineAwareRequest
 func (rw *ResponseRecorder) SetReadDeadline(deadline time.Time) error {
-	if rw.requestBody == nil {
-		return errors.New("The request has not been created using NewRecorderWithDeadlineAwareRequest()")
-	}
-
-	if deadline.After(rw.ReadDeadline) {
-		rw.ReadDeadline = deadline
-		rw.requestBody.deadline = deadline
-	}
+	rw.ReadDeadline = deadline
 
 	return nil
 }
 
 // SetWriteDeadline allows using "net/http".ResponseController.SetWriteDeadline()
 // with the recorder.
+//
+// The deadline is recorded but is not enforced.
+// To prevent flaky tests writes made after the deadline will work
+// as if no deadline was set.
+//
 // To retrieve the deadline, use rw.WriteDeadline.
 func (rw *ResponseRecorder) SetWriteDeadline(deadline time.Time) error {
-	if deadline.After(rw.WriteDeadline) {
-		rw.WriteDeadline = deadline
-	}
+	rw.WriteDeadline = deadline
 
 	return nil
 }
@@ -328,17 +298,4 @@ func parseContentLength(cl string) int64 {
 		return -1
 	}
 	return int64(n)
-}
-
-type deadlineBodyReader struct {
-	io.ReadCloser
-	deadline time.Time
-}
-
-func (r *deadlineBodyReader) Read(p []byte) (n int, err error) {
-	if time.Now().After(r.deadline) {
-		return 0, os.ErrDeadlineExceeded
-	}
-
-	return r.ReadCloser.Read(p)
 }

@@ -46,7 +46,7 @@ func ExampleResponseRecorder_requestController() {
 	}
 
 	req := httptest.NewRequest("GET", "http://example.com/bar", strings.NewReader("bar"))
-	w, req := httptest.NewRecorderWithDeadlineAwareRequest(req)
+	w := httptest.NewRecorder()
 	handler(w, req)
 
 	resp := w.Result()
