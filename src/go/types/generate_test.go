@@ -106,7 +106,6 @@ var filemap = map[string]action{
 	"infer.go": func(f *ast.File) {
 		fixTokenPos(f)
 		fixInferSig(f)
-		renameIdent(f, "InferMaxDefaultType", "_InferMaxDefaultType")
 	},
 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
 	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },

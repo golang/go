@@ -275,7 +275,19 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		u.tracef("== untyped arguments: %v", untyped)
 	}
 
-	if check.conf._InferMaxDefaultType {
+	// We need a poser/positioner for check.allowVersion below.
+	// We should really use pos (argument to infer) but currently
+	// the generator that generates go/types/infer.go has trouble
+	// with that. For now, do a little dance to get a position if
+	// we need one. (If we don't have untyped arguments left, it
+	// doesn't matter which branch we take below.)
+	// TODO(gri) adjust infer signature or adjust the rewriter.
+	var at token.Pos
+	if len(untyped) > 0 {
+		at = params.At(untyped[0]).pos
+	}
+
+	if check.allowVersion(check.pkg, atPos(at), go1_21) {
 		// Some generic parameters with untyped arguments may have been given a type by now.
 		// Collect all remaining parameters that don't have a type yet and determine the
 		// maximum untyped type for each of those parameters, if possible.

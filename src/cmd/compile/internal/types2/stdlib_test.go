@@ -139,9 +139,8 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		file, err := syntax.ParseFile(filename, nil, nil, 0)
 		if err == nil {
 			conf := Config{
-				GoVersion:           goVersion,
-				Importer:            stdLibImporter,
-				InferMaxDefaultType: true,
+				GoVersion: goVersion,
+				Importer:  stdLibImporter,
 			}
 			_, err = conf.Check(filename, []*syntax.File{file}, nil)
 		}
