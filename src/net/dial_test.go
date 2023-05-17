@@ -878,6 +878,54 @@ func TestCancelAfterDial(t *testing.T) {
 	}
 }
 
+func TestDialClosedPortFailFast(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		// Reported by go.dev/issues/23366.
+		t.Skip("skipping windows only test")
+	}
+	for _, network := range []string{"tcp", "tcp4", "tcp6"} {
+		t.Run(network, func(t *testing.T) {
+			if !testableNetwork(network) {
+				t.Skipf("skipping: can't listen on %s", network)
+			}
+			// Reserve a local port till the end of the
+			// test by opening a listener and connecting to
+			// it using Dial.
+			ln := newLocalListener(t, network)
+			addr := ln.Addr().String()
+			conn1, err := Dial(network, addr)
+			if err != nil {
+				ln.Close()
+				t.Fatal(err)
+			}
+			defer conn1.Close()
+			// Now close the listener so the next Dial fails
+			// keeping conn1 alive so the port is not made
+			// available.
+			ln.Close()
+
+			maxElapsed := time.Second
+			// The host can be heavy-loaded and take
+			// longer than configured. Retry until
+			// Dial takes less than maxElapsed or
+			// the test times out.
+			for {
+				startTime := time.Now()
+				conn2, err := Dial(network, addr)
+				if err == nil {
+					conn2.Close()
+					t.Fatal("error expected")
+				}
+				elapsed := time.Since(startTime)
+				if elapsed < maxElapsed {
+					break
+				}
+				t.Logf("got %v; want < %v", elapsed, maxElapsed)
+			}
+		})
+	}
+}
+
 // Issue 18806: it should always be possible to net.Dial a
 // net.Listener().Addr().String when the listen address was ":n", even
 // if the machine has halfway configured IPv6 such that it can bind on
