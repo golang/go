@@ -143,6 +143,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 				GoVersion: goVersion,
 				Importer:  stdLibImporter,
 			}
+			*boolFieldAddr(&conf, "_InferMaxDefaultType") = true
 			_, err = conf.Check(filename, fset, []*ast.File{file}, nil)
 		}
 
