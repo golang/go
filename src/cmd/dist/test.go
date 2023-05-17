@@ -1096,7 +1096,11 @@ func (t *tester) registerCgoTests(heading string) {
 			variant:   variant,
 			pkg:       "cmd/cgo/internal/" + subdir,
 			buildmode: buildmode,
-			ldflags:   "-linkmode=" + linkmode,
+		}
+		var ldflags []string
+		if linkmode != "auto" {
+			// "auto" is the default, so avoid cluttering the command line for "auto"
+			ldflags = append(ldflags, "-linkmode="+linkmode)
 		}
 
 		if linkmode == "internal" {
@@ -1110,7 +1114,7 @@ func (t *tester) registerCgoTests(heading string) {
 			// cgoTest we want static linking.
 			gt.buildmode = ""
 			if linkmode == "external" {
-				gt.ldflags += ` -extldflags "-static -pthread"`
+				ldflags = append(ldflags, `-extldflags "-static -pthread"`)
 			} else if linkmode == "auto" {
 				gt.env = append(gt.env, "CGO_LDFLAGS=-static -pthread")
 			} else {
@@ -1118,6 +1122,7 @@ func (t *tester) registerCgoTests(heading string) {
 			}
 			gt.tags = append(gt.tags, "static")
 		}
+		gt.ldflags = strings.Join(ldflags, " ")
 
 		t.registerTest("cgo:"+subdir+":"+variant, heading, gt, opts...)
 		return gt
