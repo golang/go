@@ -312,5 +312,9 @@ Now computeExpensiveValue will only be called when the line is enabled.
 The built-in handlers acquire a lock before calling [io.Writer.Write]
 to ensure that each record is written in one piece. User-defined
 handlers are responsible for their own locking.
+
+# Writing a handler
+
+For a guide to writing a custom handler, see https://golang.org/s/slog-handler-guide.
 */
 package slog
