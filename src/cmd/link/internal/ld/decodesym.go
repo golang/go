@@ -59,7 +59,7 @@ func decodetypePtrdata(arch *sys.Arch, p []byte) int64 {
 
 // Type.commonType.tflag
 func decodetypeHasUncommon(arch *sys.Arch, p []byte) bool {
-	return abi.TFlag(p[2*arch.PtrSize+4])&abi.TFlagUncommon != 0
+	return abi.TFlag(p[abi.TFlagOff(arch.PtrSize)])&abi.TFlagUncommon != 0
 }
 
 // Type.FuncType.dotdotdot
@@ -222,7 +222,7 @@ func decodetypeStr(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) string
 	relocs := ldr.Relocs(symIdx)
 	str := decodetypeName(ldr, symIdx, &relocs, 4*arch.PtrSize+8)
 	data := ldr.Data(symIdx)
-	if data[2*arch.PtrSize+4]&byte(abi.TFlagExtraStar) != 0 {
+	if data[abi.TFlagOff(arch.PtrSize)]&byte(abi.TFlagExtraStar) != 0 {
 		return str[1:]
 	}
 	return str

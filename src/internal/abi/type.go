@@ -675,10 +675,10 @@ func (n Name) Tag() string {
 
 func NewName(n, tag string, exported, embedded bool) Name {
 	if len(n) >= 1<<29 {
-		panic("reflect.nameFrom: name too long: " + n[:1024] + "...")
+		panic("abi.NewName: name too long: " + n[:1024] + "...")
 	}
 	if len(tag) >= 1<<29 {
-		panic("reflect.nameFrom: tag too long: " + tag[:1024] + "...")
+		panic("abi.NewName: tag too long: " + tag[:1024] + "...")
 	}
 	var nameLen [10]byte
 	var tagLen [10]byte
