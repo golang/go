@@ -561,7 +561,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 	// this is necessary because runtime_pollUnblock/runtime_pollSetDeadline/deadlineimpl
 	// do the opposite: store to closing/rd/wd, publishInfo, load of rg/wg
 	if waitio || netpollcheckerr(pd, mode) == pollNoError {
-		gopark(netpollblockcommit, unsafe.Pointer(gpp), waitReasonIOWait, traceEvGoBlockNet, 5)
+		gopark(netpollblockcommit, unsafe.Pointer(gpp), waitReasonIOWait, traceBlockNet, 5)
 	}
 	// be careful to not lose concurrent pdReady notification
 	old := gpp.Swap(pdNil)

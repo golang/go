@@ -284,7 +284,7 @@ func main() {
 		}
 	}
 	if panicking.Load() != 0 {
-		gopark(nil, nil, waitReasonPanicWait, traceEvGoStop, 1)
+		gopark(nil, nil, waitReasonPanicWait, traceBlockForever, 1)
 	}
 	runExitHooks(0)
 
@@ -319,7 +319,7 @@ func forcegchelper() {
 			throw("forcegc: phase error")
 		}
 		forcegc.idle.Store(true)
-		goparkunlock(&forcegc.lock, waitReasonForceGCIdle, traceEvGoBlock, 1)
+		goparkunlock(&forcegc.lock, waitReasonForceGCIdle, traceBlockSystemGoroutine, 1)
 		// this goroutine is explicitly resumed by sysmon
 		if debug.gctrace > 0 {
 			println("GC forced")
@@ -378,7 +378,7 @@ func goschedIfBusy() {
 // Reason explains why the goroutine has been parked. It is displayed in stack
 // traces and heap dumps. Reasons should be unique and descriptive. Do not
 // re-use reasons, add new ones.
-func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceEv byte, traceskip int) {
+func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason waitReason, traceReason traceBlockReason, traceskip int) {
 	if reason != waitReasonSleep {
 		checkTimeouts() // timeouts may expire while two goroutines keep the scheduler busy
 	}
@@ -391,8 +391,8 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason w
 	mp.waitlock = lock
 	mp.waitunlockf = unlockf
 	gp.waitreason = reason
-	mp.waittraceev = traceEv
-	mp.waittraceskip = traceskip
+	mp.waitTraceBlockReason = traceReason
+	mp.waitTraceSkip = traceskip
 	releasem(mp)
 	// can't do anything that might move the G between Ms here.
 	mcall(park_m)
@@ -400,8 +400,8 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason w
 
 // Puts the current goroutine into a waiting state and unlocks the lock.
 // The goroutine can be made runnable again by calling goready(gp).
-func goparkunlock(lock *mutex, reason waitReason, traceEv byte, traceskip int) {
-	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv, traceskip)
+func goparkunlock(lock *mutex, reason waitReason, traceReason traceBlockReason, traceskip int) {
+	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceReason, traceskip)
 }
 
 func goready(gp *g, traceskip int) {
@@ -3678,7 +3678,7 @@ func park_m(gp *g) {
 	mp := getg().m
 
 	if traceEnabled() {
-		traceGoPark(mp.waittraceev, mp.waittraceskip)
+		traceGoPark(mp.waitTraceBlockReason, mp.waitTraceSkip)
 	}
 
 	// N.B. Not using casGToWaiting here because the waitreason is
@@ -3749,7 +3749,7 @@ func gopreempt_m(gp *g) {
 //go:systemstack
 func preemptPark(gp *g) {
 	if traceEnabled() {
-		traceGoPark(traceEvGoBlock, 0)
+		traceGoPark(traceBlockPreempted, 0)
 	}
 	status := readgstatus(gp)
 	if status&^_Gscan != _Grunning {

@@ -277,7 +277,7 @@ func bgsweep(c chan int) {
 	lock(&sweep.lock)
 	sweep.parked = true
 	c <- 1
-	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+	goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceBlockGCSweep, 1)
 
 	for {
 		// bgsweep attempts to be a "low priority" goroutine by intentionally
@@ -318,7 +318,7 @@ func bgsweep(c chan int) {
 			continue
 		}
 		sweep.parked = true
-		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceEvGoBlock, 1)
+		goparkunlock(&sweep.lock, waitReasonGCSweepWait, traceBlockGCSweep, 1)
 	}
 }
 

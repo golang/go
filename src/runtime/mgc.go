@@ -500,7 +500,7 @@ func gcWaitOnMark(n uint32) {
 		// Wait until sweep termination, mark, and mark
 		// termination of cycle N complete.
 		work.sweepWaiters.list.push(getg())
-		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceEvGoBlock, 1)
+		goparkunlock(&work.sweepWaiters.lock, waitReasonWaitForGCCycle, traceBlockUntilGCEnds, 1)
 	}
 }
 
@@ -1315,7 +1315,7 @@ func gcBgMarkWorker() {
 			// Note that at this point, the G may immediately be
 			// rescheduled and may be running.
 			return true
-		}, unsafe.Pointer(node), waitReasonGCWorkerIdle, traceEvGoBlock, 0)
+		}, unsafe.Pointer(node), waitReasonGCWorkerIdle, traceBlockSystemGoroutine, 0)
 
 		// Preemption must not occur here, or another G might see
 		// p.gcMarkWorkerMode.

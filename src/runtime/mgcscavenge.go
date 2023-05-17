@@ -422,7 +422,7 @@ func (s *scavengerState) park() {
 		throw("tried to park scavenger from another goroutine")
 	}
 	s.parked = true
-	goparkunlock(&s.lock, waitReasonGCScavengeWait, traceEvGoBlock, 2)
+	goparkunlock(&s.lock, waitReasonGCScavengeWait, traceBlockSystemGoroutine, 2)
 }
 
 // ready signals to sysmon that the scavenger should be awoken.
@@ -501,7 +501,7 @@ func (s *scavengerState) sleep(worked float64) {
 
 		// Mark ourselves as asleep and go to sleep.
 		s.parked = true
-		goparkunlock(&s.lock, waitReasonSleep, traceEvGoSleep, 2)
+		goparkunlock(&s.lock, waitReasonSleep, traceBlockSleep, 2)
 
 		// How long we actually slept for.
 		slept = nanotime() - start

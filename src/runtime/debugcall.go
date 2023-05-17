@@ -162,7 +162,7 @@ func debugCallWrap(dispatch uintptr) {
 
 		// Park the calling goroutine.
 		if traceEnabled() {
-			traceGoPark(traceEvGoBlock, 1)
+			traceGoPark(traceBlockDebugCall, 1)
 		}
 		casGToWaiting(gp, _Grunning, waitReasonDebugCall)
 		dropg()

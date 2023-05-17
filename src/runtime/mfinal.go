@@ -190,7 +190,7 @@ func runfinq() {
 		fb := finq
 		finq = nil
 		if fb == nil {
-			gopark(finalizercommit, unsafe.Pointer(&finlock), waitReasonFinalizerWait, traceEvGoBlock, 1)
+			gopark(finalizercommit, unsafe.Pointer(&finlock), waitReasonFinalizerWait, traceBlockSystemGoroutine, 1)
 			continue
 		}
 		argRegs = intArgRegs

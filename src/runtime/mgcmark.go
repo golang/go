@@ -649,7 +649,7 @@ func gcParkAssist() bool {
 		return false
 	}
 	// Park.
-	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceEvGoBlockGC, 2)
+	goparkunlock(&work.assistQueue.lock, waitReasonGCAssistWait, traceBlockGCMarkAssist, 2)
 	return true
 }
 

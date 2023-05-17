@@ -114,7 +114,7 @@ func notetsleepg(n *note, ns int64) bool {
 		notesWithTimeout[n] = noteWithTimeout{gp: gp, deadline: deadline}
 		releasem(mp)
 
-		gopark(nil, nil, waitReasonSleep, traceEvNone, 1)
+		gopark(nil, nil, waitReasonSleep, traceBlockSleep, 1)
 
 		clearTimeoutEvent(id) // note might have woken early, clear timeout
 		clearIdleID()
@@ -132,7 +132,7 @@ func notetsleepg(n *note, ns int64) bool {
 		notes[n] = gp
 		releasem(mp)
 
-		gopark(nil, nil, waitReasonZero, traceEvNone, 1)
+		gopark(nil, nil, waitReasonZero, traceBlockGeneric, 1)
 
 		mp = acquirem()
 		delete(notes, n)
@@ -256,7 +256,7 @@ func handleEvent() {
 
 	// wait until all goroutines are idle
 	e.returned = true
-	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
+	gopark(nil, nil, waitReasonZero, traceBlockGeneric, 1)
 
 	events[len(events)-1] = nil
 	events = events[:len(events)-1]

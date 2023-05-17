@@ -581,10 +581,10 @@ type m struct {
 
 	// wait* are used to carry arguments from gopark into park_m, because
 	// there's no stack to put them on. That is their sole purpose.
-	waitunlockf   func(*g, unsafe.Pointer) bool
-	waitlock      unsafe.Pointer
-	waittraceev   byte
-	waittraceskip int
+	waitunlockf          func(*g, unsafe.Pointer) bool
+	waitlock             unsafe.Pointer
+	waitTraceBlockReason traceBlockReason
+	waitTraceSkip        int
 
 	syscalltick uint32
 	freelink    *m // on sched.freem

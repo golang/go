@@ -100,7 +100,7 @@ func selparkcommit(gp *g, _ unsafe.Pointer) bool {
 }
 
 func block() {
-	gopark(nil, nil, waitReasonSelectNoCases, traceEvGoStop, 1) // forever
+	gopark(nil, nil, waitReasonSelectNoCases, traceBlockForever, 1) // forever
 }
 
 // selectgo implements the select statement.
@@ -324,7 +324,7 @@ func selectgo(cas0 *scase, order0 *uint16, pc0 *uintptr, nsends, nrecvs int, blo
 	// changes and when we set gp.activeStackChans is not safe for
 	// stack shrinking.
 	gp.parkingOnChan.Store(true)
-	gopark(selparkcommit, nil, waitReasonSelect, traceEvGoBlockSelect, 1)
+	gopark(selparkcommit, nil, waitReasonSelect, traceBlockSelect, 1)
 	gp.activeStackChans = false
 
 	sellock(scases, lockorder)

@@ -162,7 +162,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 		if !block {
 			return false
 		}
-		gopark(nil, nil, waitReasonChanSendNilChan, traceEvGoStop, 2)
+		gopark(nil, nil, waitReasonChanSendNilChan, traceBlockForever, 2)
 		throw("unreachable")
 	}
 
@@ -256,7 +256,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	// changes and when we set gp.activeStackChans is not safe for
 	// stack shrinking.
 	gp.parkingOnChan.Store(true)
-	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanSend, traceEvGoBlockSend, 2)
+	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanSend, traceBlockChanSend, 2)
 	// Ensure the value being sent is kept alive until the
 	// receiver copies it out. The sudog has a pointer to the
 	// stack object, but sudogs aren't considered as roots of the
@@ -466,7 +466,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		if !block {
 			return
 		}
-		gopark(nil, nil, waitReasonChanReceiveNilChan, traceEvGoStop, 2)
+		gopark(nil, nil, waitReasonChanReceiveNilChan, traceBlockForever, 2)
 		throw("unreachable")
 	}
 
@@ -580,7 +580,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	// changes and when we set gp.activeStackChans is not safe for
 	// stack shrinking.
 	gp.parkingOnChan.Store(true)
-	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanReceive, traceEvGoBlockRecv, 2)
+	gopark(chanparkcommit, unsafe.Pointer(&c.lock), waitReasonChanReceive, traceBlockChanRecv, 2)
 
 	// someone woke us up
 	if mysg != gp.waiting {

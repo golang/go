@@ -78,6 +78,35 @@ const (
 	// That means, the max event type value is 63.
 )
 
+// traceBlockReason is an enumeration of reasons a goroutine might block.
+// This is the interface the rest of the runtime uses to tell the
+// tracer why a goroutine blocked. The tracer then propagates this information
+// into the trace however it sees fit.
+//
+// Note that traceBlockReasons should not be compared, since reasons that are
+// distinct by name may *not* be distinct by value.
+type traceBlockReason uint8
+
+// For maximal efficiency, just map the trace block reason directly to a trace
+// event.
+const (
+	traceBlockGeneric         traceBlockReason = traceEvGoBlock
+	traceBlockForever                          = traceEvGoStop
+	traceBlockNet                              = traceEvGoBlockNet
+	traceBlockSelect                           = traceEvGoBlockSelect
+	traceBlockCondWait                         = traceEvGoBlockCond
+	traceBlockSync                             = traceEvGoBlockSync
+	traceBlockChanSend                         = traceEvGoBlockSend
+	traceBlockChanRecv                         = traceEvGoBlockRecv
+	traceBlockGCMarkAssist                     = traceEvGoBlockGC
+	traceBlockGCSweep                          = traceEvGoBlock
+	traceBlockSystemGoroutine                  = traceEvGoBlock
+	traceBlockPreempted                        = traceEvGoBlock
+	traceBlockDebugCall                        = traceEvGoBlock
+	traceBlockUntilGCEnds                      = traceEvGoBlock
+	traceBlockSleep                            = traceEvGoSleep
+)
+
 const (
 	// Timestamps in trace are cputicks/traceTickDiv.
 	// This makes absolute values of timestamp diffs smaller,
@@ -511,7 +540,7 @@ top:
 			}
 
 			return true
-		}, nil, waitReasonTraceReaderBlocked, traceEvGoBlock, 2)
+		}, nil, waitReasonTraceReaderBlocked, traceBlockSystemGoroutine, 2)
 		goto top
 	}
 
@@ -1588,8 +1617,10 @@ func traceGoPreempt() {
 	traceEvent(traceEvGoPreempt, 1)
 }
 
-func traceGoPark(traceEv byte, skip int) {
-	traceEvent(traceEv, skip)
+func traceGoPark(reason traceBlockReason, skip int) {
+	// Convert the block reason directly to a trace event type.
+	// See traceBlockReason for more information.
+	traceEvent(byte(reason), skip)
 }
 
 func traceGoUnpark(gp *g, skip int) {
