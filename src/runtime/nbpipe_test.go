@@ -67,7 +67,7 @@ func checkCloseonexec(t *testing.T, fd int32, name string) {
 	t.Helper()
 	flags := runtime.Fcntl(fd, syscall.F_GETFD, 0)
 	if flags < 0 {
-		t.Errorf("fcntl(%s, F_GETFD) failed: %v", name, syscall.Errno(flags))
+		t.Errorf("fcntl(%s, F_GETFD) failed: %v", name, syscall.Errno(-flags))
 	} else if flags&syscall.FD_CLOEXEC == 0 {
 		t.Errorf("FD_CLOEXEC not set in %s flags %#x", name, flags)
 	}
