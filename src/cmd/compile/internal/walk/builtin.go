@@ -101,17 +101,13 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 		ir.NewAssignStmt(base.Pos, s, slice),
 	}
 
-	//   growslice(ptr *T, newLen, oldCap, num int, <type>) (ret []T)
-	fn := typecheck.LookupRuntime("growslice", s.Type().Elem(), s.Type().Elem())
-
 	// else { s = growslice(s.ptr, n, s.cap, a, T) }
 	nif.Else = []ir.Node{
-		ir.NewAssignStmt(base.Pos, s, mkcall1(fn, s.Type(), nif.PtrInit(),
+		ir.NewAssignStmt(base.Pos, s, walkGrowslice(s, nif.PtrInit(),
 			ir.NewUnaryExpr(base.Pos, ir.OSPTR, s),
 			newLen,
 			ir.NewUnaryExpr(base.Pos, ir.OCAP, s),
-			num,
-			reflectdata.TypePtrAt(base.Pos, s.Type().Elem()))),
+			num)),
 	}
 
 	l = append(l, nif)
@@ -128,6 +124,14 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
 	walkStmtList(l)
 	init.Append(l...)
 	return s
+}
+
+// growslice(ptr *T, newLen, oldCap, num int, <type>) (ret []T)
+func walkGrowslice(slice *ir.Name, init *ir.Nodes, oldPtr, newLen, oldCap, num ir.Node) *ir.CallExpr {
+	elemtype := slice.Type().Elem()
+	fn := typecheck.LookupRuntime("growslice", elemtype, elemtype)
+	elemtypeptr := reflectdata.TypePtrAt(base.Pos, elemtype)
+	return mkcall1(fn, slice.Type(), init, oldPtr, newLen, oldCap, num, elemtypeptr)
 }
 
 // walkClear walks an OCLEAR node.
