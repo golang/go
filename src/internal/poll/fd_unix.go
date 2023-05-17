@@ -653,18 +653,18 @@ var dupCloexecUnsupported atomic.Bool
 // DupCloseOnExec dups fd and marks it close-on-exec.
 func DupCloseOnExec(fd int) (int, string, error) {
 	if syscall.F_DUPFD_CLOEXEC != 0 && !dupCloexecUnsupported.Load() {
-		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
-		if e1 == nil {
+		r0, err := unix.Fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
+		if err == nil {
 			return r0, "", nil
 		}
-		switch e1.(syscall.Errno) {
+		switch err {
 		case syscall.EINVAL, syscall.ENOSYS:
 			// Old kernel, or js/wasm (which returns
 			// ENOSYS). Fall back to the portable way from
 			// now on.
 			dupCloexecUnsupported.Store(true)
 		default:
-			return -1, "fcntl", e1
+			return -1, "fcntl", err
 		}
 	}
 	return dupCloseOnExecOld(fd)

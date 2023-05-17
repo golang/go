@@ -5,6 +5,7 @@
 package poll
 
 import (
+	"internal/syscall/unix"
 	"runtime"
 	"sync"
 	"syscall"
@@ -220,7 +221,7 @@ func newPipe() *splicePipe {
 	// Set the pipe buffer size to maxSpliceSize to optimize that.
 	// Ignore errors here, as a smaller buffer size will work,
 	// although it will require more system calls.
-	fcntl(fds[0], syscall.F_SETPIPE_SZ, maxSpliceSize)
+	unix.Fcntl(fds[0], syscall.F_SETPIPE_SZ, maxSpliceSize)
 
 	return &splicePipe{splicePipeFields: splicePipeFields{rfd: fds[0], wfd: fds[1]}}
 }

@@ -2,17 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build aix || darwin || (openbsd && !mips64) || solaris
+//go:build unix
 
 package unix
 
-import (
-	"syscall"
-	_ "unsafe" // for go:linkname
-)
+import "syscall"
 
 func IsNonblock(fd int) (nonblocking bool, err error) {
-	flag, e1 := fcntl(fd, syscall.F_GETFL, 0)
+	flag, e1 := Fcntl(fd, syscall.F_GETFL, 0)
 	if e1 != nil {
 		return false, e1
 	}
@@ -22,8 +19,3 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
 func HasNonblockFlag(flag int) bool {
 	return flag&syscall.O_NONBLOCK != 0
 }
-
-// Implemented in the syscall package.
-//
-//go:linkname fcntl syscall.fcntl
-func fcntl(fd int, cmd int, arg int) (int, error)
