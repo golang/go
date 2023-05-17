@@ -736,12 +736,6 @@ func TestDialerKeepAlive(t *testing.T) {
 func TestDialCancel(t *testing.T) {
 	mustHaveExternalNetwork(t)
 
-	if strings.HasPrefix(testenv.Builder(), "darwin-arm64") {
-		// The darwin-arm64 machines run in an environment that's not
-		// compatible with this test.
-		t.Skipf("builder %q gives no route to host for 198.18.0.0", testenv.Builder())
-	}
-
 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
 	if !supportsIPv4() {
 		blackholeIPPort = JoinHostPort(slowDst6, "1234")
@@ -786,9 +780,18 @@ func TestDialCancel(t *testing.T) {
 			if ticks < cancelTick {
 				// Using strings.Contains is ugly but
 				// may work on plan9 and windows.
-				if strings.Contains(err.Error(), "connection refused") {
-					t.Skipf("connection to %v failed fast with %v", blackholeIPPort, err)
+				ignorable := []string{
+					"connection refused",
+					"unreachable",
+					"no route to host",
 				}
+				e := err.Error()
+				for _, ignore := range ignorable {
+					if strings.Contains(e, ignore) {
+						t.Skipf("connection to %v failed fast with %v", blackholeIPPort, err)
+					}
+				}
+
 				t.Fatalf("dial error after %d ticks (%d before cancel sent): %v",
 					ticks, cancelTick-ticks, err)
 			}
