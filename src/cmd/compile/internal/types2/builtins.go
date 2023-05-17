@@ -18,12 +18,16 @@ import (
 // but x.expr is not set. If the call is invalid, the result is
 // false, and *x is undefined.
 func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (_ bool) {
+	argList := call.ArgList
+
 	// append is the only built-in that permits the use of ... for the last argument
 	bin := predeclaredFuncs[id]
 	if call.HasDots && id != _Append {
 		//check.errorf(call.Ellipsis, invalidOp + "invalid use of ... with built-in %s", bin.name)
-		check.errorf(call, InvalidDotDotDot, invalidOp+"invalid use of ... with built-in %s", bin.name)
-		check.use(call.ArgList...)
+		check.errorf(call,
+			InvalidDotDotDot,
+			invalidOp+"invalid use of ... with built-in %s", bin.name)
+		check.use(argList...)
 		return
 	}
 
@@ -47,7 +51,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	switch id {
 	default:
 		// check all arguments
-		args = check.exprList(call.ArgList)
+		args = check.exprList(argList)
 		nargs = len(args)
 		for _, a := range args {
 			if a.mode == invalid {
@@ -60,7 +64,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 	case _Make, _New, _Offsetof, _Trace:
 		// arguments require special handling
-		nargs = len(call.ArgList)
+		nargs = len(argList)
 	}
 
 	// check argument count
@@ -486,7 +490,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// make(T, n)
 		// make(T, n, m)
 		// (no argument evaluated yet)
-		arg0 := call.ArgList[0]
+		arg0 := argList[0]
 		T := check.varType(arg0)
 		if T == Typ[Invalid] {
 			return
@@ -512,7 +516,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		types := []Type{T}
 		var sizes []int64 // constant integer arguments, if any
-		for _, arg := range call.ArgList[1:] {
+		for _, arg := range argList[1:] {
 			typ, size := check.index(arg, -1) // ok to continue with typ == Typ[Invalid]
 			types = append(types, typ)
 			if size >= 0 {
@@ -520,7 +524,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			}
 		}
 		if len(sizes) == 2 && sizes[0] > sizes[1] {
-			check.error(call.ArgList[1], SwappedMakeArgs, invalidArg+"length and capacity swapped")
+			check.error(argList[1], SwappedMakeArgs, invalidArg+"length and capacity swapped")
 			// safe to continue
 		}
 		x.mode = value
@@ -532,7 +536,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	case _New:
 		// new(T)
 		// (no argument evaluated yet)
-		T := check.varType(call.ArgList[0])
+		T := check.varType(argList[0])
 		if T == Typ[Invalid] {
 			return
 		}
@@ -641,7 +645,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	case _Offsetof:
 		// unsafe.Offsetof(x T) uintptr, where x must be a selector
 		// (no argument evaluated yet)
-		arg0 := call.ArgList[0]
+		arg0 := argList[0]
 		selx, _ := unparen(arg0).(*syntax.SelectorExpr)
 		if selx == nil {
 			check.errorf(arg0, BadOffsetofSyntax, invalidArg+"%s is not a selector expression", arg0)
@@ -842,7 +846,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		}
 		var t operand
 		x1 := x
-		for _, arg := range call.ArgList {
+		for _, arg := range argList {
 			check.rawExpr(nil, x1, arg, nil, false) // permit trace for types, e.g.: new(trace(T))
 			check.dump("%v: %s", atPos(x1), x1)
 			x1 = &t // use incoming x only for first argument
@@ -921,8 +925,8 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
 
 		// We can type-check this fine but we're introducing a synthetic
 		// type parameter for the result. It's not clear what the API
-		// implications are here. Report an error for 1.18 but continue
-		// type-checking.
+		// implications are here. Report an error for 1.18 (see go.dev/issue/50912),
+		// but continue type-checking.
 		var code Code
 		switch id {
 		case _Real:

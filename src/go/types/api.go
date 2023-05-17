@@ -286,6 +286,10 @@ type Info struct {
 	InitOrder []*Initializer
 }
 
+func (info *Info) recordTypes() bool {
+	return info.Types != nil
+}
+
 // TypeOf returns the type of expression e, or nil if not found.
 // Precondition: the Types, Uses and Defs maps are populated.
 func (info *Info) TypeOf(e ast.Expr) Type {
