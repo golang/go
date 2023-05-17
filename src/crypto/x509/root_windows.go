@@ -107,14 +107,10 @@ func checkChainTrustStatus(c *Certificate, chainCtx *syscall.CertChainContext) e
 	return nil
 }
 
-func removeFqdnDot(dnsHost string) string {
-	return strings.TrimRight(dnsHost, ".")
-}
-
 // checkChainSSLServerPolicy checks that the certificate chain in chainCtx is valid for
 // use as a certificate chain for a SSL/TLS server.
 func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContext, opts *VerifyOptions) error {
-	servernamep, err := syscall.UTF16PtrFromString(removeFqdnDot(opts.DNSName))
+	servernamep, err := syscall.UTF16PtrFromString(strings.TrimSuffix(opts.DNSName, "."))
 	if err != nil {
 		return err
 	}
