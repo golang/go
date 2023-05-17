@@ -918,7 +918,20 @@ GLOBL zeroTLS<>(SB),RODATA,$const_tlsSize
 TEXT ·cgocallback(SB),NOSPLIT,$24-24
 	NO_LOCAL_POINTERS
 
-	// If g is nil, Go did not create the current thread.
+	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+	// It is used to dropm while thread is exiting.
+	MOVQ	fn+0(FP), AX
+	CMPQ	AX, $0
+	JNE	loadg
+	// Restore the g from frame.
+	get_tls(CX)
+	MOVQ	frame+8(FP), BX
+	MOVQ	BX, g(CX)
+	JMP	dropm
+
+loadg:
+	// If g is nil, Go did not create the current thread,
+	// or if this thread never called into Go on pthread platforms.
 	// Call needm to obtain one m for temporary use.
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
@@ -956,9 +969,9 @@ needm:
 	// a bad value in there, in case needm tries to use it.
 	XORPS	X15, X15
 	XORQ    R14, R14
-	MOVQ	$runtime·needm<ABIInternal>(SB), AX
+	MOVQ	$runtime·needAndBindM<ABIInternal>(SB), AX
 	CALL	AX
-	MOVQ	$0, savedm-8(SP) // dropm on return
+	MOVQ	$0, savedm-8(SP)
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	g_m(BX), BX
@@ -1047,11 +1060,26 @@ havem:
 	MOVQ	0(SP), AX
 	MOVQ	AX, (g_sched+gobuf_sp)(SI)
 
-	// If the m on entry was nil, we called needm above to borrow an m
-	// for the duration of the call. Since the call is over, return it with dropm.
+	// If the m on entry was nil, we called needm above to borrow an m,
+	// 1. for the duration of the call on non-pthread platforms,
+	// 2. or the duration of the C thread alive on pthread platforms.
+	// If the m on entry wasn't nil,
+	// 1. the thread might be a Go thread,
+	// 2. or it's wasn't the first call from a C thread on pthread platforms,
+	//    since the we skip dropm to resue the m in the first call.
 	MOVQ	savedm-8(SP), BX
 	CMPQ	BX, $0
 	JNE	done
+
+	// Skip dropm to reuse it in the next call, when a pthread key has been created.
+	MOVQ	_cgo_pthread_key_created(SB), AX
+	// It means cgo is disabled when _cgo_pthread_key_created is a nil pointer, need dropm.
+	CMPQ	AX, $0
+	JEQ	dropm
+	CMPQ	(AX), $0
+	JNE	done
+
+dropm:
 	MOVQ	$runtime·dropm(SB), AX
 	CALL	AX
 #ifdef GOOS_windows

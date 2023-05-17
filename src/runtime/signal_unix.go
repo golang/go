@@ -435,7 +435,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	c := &sigctxt{info, ctx}
 	gp := sigFetchG(c)
 	setg(gp)
-	if gp == nil {
+	if gp == nil || (gp.m != nil && gp.m.isExtraInC) {
 		if sig == _SIGPROF {
 			// Some platforms (Linux) have per-thread timers, which we use in
 			// combination with the process-wide timer. Avoid double-counting.
@@ -458,7 +458,18 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 			return
 		}
 		c.fixsigcode(sig)
+		// Set g to nil here and badsignal will use g0 by needm.
+		// TODO: reuse the current m here by using the gsignal and adjustSignalStack,
+		// since the current g maybe a normal goroutine and actually running on the signal stack,
+		// it may hit stack split that is not expected here.
+		if gp != nil {
+			setg(nil)
+		}
 		badsignal(uintptr(sig), c)
+		// Restore g
+		if gp != nil {
+			setg(gp)
+		}
 		return
 	}
 
@@ -574,11 +585,11 @@ func adjustSignalStack(sig uint32, mp *m, gsigStack *gsignalStack) bool {
 
 	// sp is not within gsignal stack, g0 stack, or sigaltstack. Bad.
 	setg(nil)
-	needm()
+	needm(true)
 	if st.ss_flags&_SS_DISABLE != 0 {
 		noSignalStack(sig)
 	} else {
-		sigNotOnStack(sig)
+		sigNotOnStack(sig, sp, mp)
 	}
 	dropm()
 	return false
@@ -1018,8 +1029,10 @@ func noSignalStack(sig uint32) {
 // This is called if we receive a signal when there is a signal stack
 // but we are not on it. This can only happen if non-Go code called
 // sigaction without setting the SS_ONSTACK flag.
-func sigNotOnStack(sig uint32) {
+func sigNotOnStack(sig uint32, sp uintptr, mp *m) {
 	println("signal", sig, "received but handler not on signal stack")
+	print("mp.gsignal stack [", hex(mp.gsignal.stack.lo), " ", hex(mp.gsignal.stack.hi), "], ")
+	print("mp.g0 stack [", hex(mp.g0.stack.lo), " ", hex(mp.g0.stack.hi), "], sp=", hex(sp), "\n")
 	throw("non-Go code set up signal handler without SA_ONSTACK flag")
 }
 
@@ -1047,7 +1060,7 @@ func badsignal(sig uintptr, c *sigctxt) {
 		exit(2)
 		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
 	}
-	needm()
+	needm(true)
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
 		// Go code does not want to handle it.
@@ -1115,8 +1128,9 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	//   (1) we weren't in VDSO page,
 	//   (2) we were in a goroutine (i.e., m.curg != nil), and
 	//   (3) we weren't in CGO.
+	//   (4) we weren't in dropped extra m.
 	gp := sigFetchG(c)
-	if gp != nil && gp.m != nil && gp.m.curg != nil && !gp.m.incgo {
+	if gp != nil && gp.m != nil && gp.m.curg != nil && !gp.m.isExtraInC && !gp.m.incgo {
 		return false
 	}
 
