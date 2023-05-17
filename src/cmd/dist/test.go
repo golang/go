@@ -575,11 +575,6 @@ func (t *tester) registerTests() {
 	// whose test registration happens in a special way.
 	registerStdTestSpecially := map[string]bool{
 		"cmd/internal/testdir": true, // Registered at the bottom with sharding.
-		// cgo tests are registered specially because they involve unusual build
-		// conditions and flags.
-		"cmd/cgo/internal/test":      true,
-		"cmd/cgo/internal/testnocgo": true,
-		"cmd/cgo/internal/testtls":   true,
 	}
 
 	// Fast path to avoid the ~1 second of `go list std cmd` when
@@ -1128,9 +1123,9 @@ func (t *tester) registerCgoTests(heading string) {
 		return gt
 	}
 
-	cgoTest("auto", "test", "auto", "")
-	cgoTest("auto", "testtls", "auto", "")
-	cgoTest("auto", "testnocgo", "auto", "")
+	// test, testtls, and testnocgo are run with linkmode="auto", buildmode=""
+	// as part of go test cmd. Here we only have to register the non-default
+	// build modes of these tests.
 
 	// Stub out various buildmode=pie tests  on alpine until 54354 resolved.
 	builderName := os.Getenv("GO_BUILDER_NAME")
