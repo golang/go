@@ -912,13 +912,13 @@ type registerTestOpt interface {
 	isRegisterTestOpt()
 }
 
-// rtPreFunc is a registerTest option that runs a pre function before running
-// the test.
-type rtPreFunc struct {
-	pre func(*distTest) bool // Return false to skip the test
+// rtSkipFunc is a registerTest option that runs a skip check function before
+// running the test.
+type rtSkipFunc struct {
+	skip func(*distTest) (string, bool) // Return message, true to skip the test
 }
 
-func (rtPreFunc) isRegisterTestOpt() {}
+func (rtSkipFunc) isRegisterTestOpt() {}
 
 // registerTest registers a test that runs the given goTest.
 //
@@ -937,16 +937,20 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 		}
 		t.variantNames[variantName] = true
 	}
-	var preFunc func(*distTest) bool
+	var skipFunc func(*distTest) (string, bool)
 	for _, opt := range opts {
 		switch opt := opt.(type) {
-		case rtPreFunc:
-			preFunc = opt.pre
+		case rtSkipFunc:
+			skipFunc = opt.skip
 		}
 	}
 	t.addTest(name, heading, func(dt *distTest) error {
-		if preFunc != nil && !preFunc(dt) {
-			return nil
+		if skipFunc != nil {
+			msg, skip := skipFunc(dt)
+			if skip {
+				fmt.Println(msg)
+				return nil
+			}
 		}
 		w := &work{dt: dt}
 		w.cmd = test.bgCommand(t, &w.out, &w.out)
@@ -1147,13 +1151,12 @@ func (t *tester) registerCgoTests(heading string) {
 			// -fPIC fundamentally.)
 		default:
 			// Check for static linking support
-			var staticCheck rtPreFunc
+			var staticCheck rtSkipFunc
 			ccName := compilerEnvLookup("CC", defaultcc, goos, goarch)
 			cc, err := exec.LookPath(ccName)
 			if err != nil {
-				staticCheck.pre = func(*distTest) bool {
-					fmt.Printf("$CC (%q) not found, skip cgo static linking test.\n", ccName)
-					return false
+				staticCheck.skip = func(*distTest) (string, bool) {
+					return fmt.Sprintf("$CC (%q) not found, skip cgo static linking test.", ccName), true
 				}
 			} else {
 				cmd := t.dirCmd("src/cmd/cgo/internal/test", cc, "-xc", "-o", "/dev/null", "-static", "-")
@@ -1161,9 +1164,8 @@ func (t *tester) registerCgoTests(heading string) {
 				cmd.Stdout, cmd.Stderr = nil, nil // Discard output
 				if err := cmd.Run(); err != nil {
 					// Skip these tests
-					staticCheck.pre = func(*distTest) bool {
-						fmt.Println("No support for static linking found (lacks libc.a?), skip cgo static linking test.")
-						return false
+					staticCheck.skip = func(*distTest) (string, bool) {
+						return "No support for static linking found (lacks libc.a?), skip cgo static linking test.", true
 					}
 				}
 			}
@@ -1172,10 +1174,9 @@ func (t *tester) registerCgoTests(heading string) {
 			// a C linker warning on Linux.
 			// in function `bio_ip_and_port_to_socket_and_addr':
 			// warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
-			if staticCheck.pre == nil && goos == "linux" && strings.Contains(goexperiment, "boringcrypto") {
-				staticCheck.pre = func(*distTest) bool {
-					fmt.Println("skipping static linking check on Linux when using boringcrypto to avoid C linker warning about getaddrinfo")
-					return false
+			if staticCheck.skip == nil && goos == "linux" && strings.Contains(goexperiment, "boringcrypto") {
+				staticCheck.skip = func(*distTest) (string, bool) {
+					return "skipping static linking check on Linux when using boringcrypto to avoid C linker warning about getaddrinfo", true
 				}
 			}
 
