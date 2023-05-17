@@ -174,17 +174,20 @@ func (rs *Requirements) String() string {
 // requirements.
 func (rs *Requirements) initVendor(vendorList []module.Version) {
 	rs.graphOnce.Do(func() {
+		roots := MainModules.Versions()
+		if inWorkspaceMode() {
+			// Use rs.rootModules to pull in the go and toolchain roots
+			// from the go.work file and preserve the invariant that all
+			// of rs.rootModules are in mg.g.
+			roots = rs.rootModules
+		}
 		mg := &ModuleGraph{
-			g: mvs.NewGraph(cmpVersion, MainModules.Versions()),
+			g: mvs.NewGraph(cmpVersion, roots),
 		}
-
-		if MainModules.Len() != 1 {
-			panic("There should be exactly one main module in Vendor mode.")
-		}
-		mainModule := MainModules.Versions()[0]
 
 		if rs.pruning == pruned {
-			// The roots of a pruned module should already include every module in the
+			mainModule := MainModules.mustGetSingleMainModule()
+			// The roots of a single pruned module should already include every module in the
 			// vendor list, because the vendored modules are the same as those needed
 			// for graph pruning.
 			//
@@ -215,8 +218,18 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
 			// graph, but still distinguishes between direct and indirect
 			// dependencies.
 			vendorMod := module.Version{Path: "vendor/modules.txt", Version: ""}
-			mg.g.Require(mainModule, append(rs.rootModules, vendorMod))
-			mg.g.Require(vendorMod, vendorList)
+			if inWorkspaceMode() {
+				for _, m := range MainModules.Versions() {
+					reqs, _ := rootsFromModFile(m, MainModules.ModFile(m), omitToolchainRoot)
+					mg.g.Require(m, append(reqs, vendorMod))
+				}
+				mg.g.Require(vendorMod, vendorList)
+
+			} else {
+				mainModule := MainModules.mustGetSingleMainModule()
+				mg.g.Require(mainModule, append(rs.rootModules, vendorMod))
+				mg.g.Require(vendorMod, vendorList)
+			}
 		}
 
 		rs.graph.Store(&cachedGraph{mg, nil})

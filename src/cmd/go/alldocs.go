@@ -1504,6 +1504,7 @@
 //	init        initialize workspace file
 //	sync        sync workspace build list to modules
 //	use         add modules to workspace file
+//	vendor      make vendored copy of dependencies
 //
 // Use "go help work <command>" for more information about a command.
 //
@@ -1651,6 +1652,27 @@
 //
 // See the workspaces reference at https://go.dev/ref/mod#workspaces
 // for more information.
+//
+// # Make vendored copy of dependencies
+//
+// Usage:
+//
+//	go work vendor [-e] [-v] [-o outdir]
+//
+// Vendor resets the workspace's vendor directory to include all packages
+// needed to build and test all the workspace's packages.
+// It does not include test code for vendored packages.
+//
+// The -v flag causes vendor to print the names of vendored
+// modules and packages to standard error.
+//
+// The -e flag causes vendor to attempt to proceed despite errors
+// encountered while loading packages.
+//
+// The -o flag causes vendor to create the vendor directory at the given
+// path instead of "vendor". The go command can only use a vendor directory
+// named "vendor" within the module root directory, so this flag is
+// primarily useful for other tools.
 //
 // # Compile and run Go program
 //

@@ -200,6 +200,10 @@ func (mms *MainModuleSet) ModFile(m module.Version) *modfile.File {
 	return mms.modFiles[m]
 }
 
+func (mms *MainModuleSet) WorkFile() *modfile.WorkFile {
+	return mms.workFile
+}
+
 func (mms *MainModuleSet) Len() int {
 	if mms == nil {
 		return 0
@@ -553,7 +557,17 @@ func Enabled() bool {
 }
 
 func VendorDir() string {
-	return filepath.Join(MainModules.ModRoot(MainModules.mustGetSingleMainModule()), "vendor")
+	if inWorkspaceMode() {
+		return filepath.Join(filepath.Dir(WorkFilePath()), "vendor")
+	}
+	// Even if -mod=vendor, we could be operating with no mod root (and thus no
+	// vendor directory). As long as there are no dependencies that is expected
+	// to work. See script/vendor_outside_module.txt.
+	modRoot := MainModules.ModRoot(MainModules.mustGetSingleMainModule())
+	if modRoot == "" {
+		panic("vendor directory does not exist when in single module mode outside of a module")
+	}
+	return filepath.Join(modRoot, "vendor")
 }
 
 func inWorkspaceMode() bool {
@@ -914,22 +928,27 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error) 
 	setDefaultBuildMod() // possibly enable automatic vendoring
 	rs := requirementsFromModFiles(ctx, workFile, modFiles, opts)
 
+	if cfg.BuildMod == "vendor" {
+		readVendorList(VendorDir())
+		var indexes []*modFileIndex
+		var modFiles []*modfile.File
+		var modRoots []string
+		for _, m := range MainModules.Versions() {
+			indexes = append(indexes, MainModules.Index(m))
+			modFiles = append(modFiles, MainModules.ModFile(m))
+			modRoots = append(modRoots, MainModules.ModRoot(m))
+		}
+		checkVendorConsistency(indexes, modFiles, modRoots)
+		rs.initVendor(vendorList)
+	}
+
 	if inWorkspaceMode() {
-		// We don't need to do anything for vendor or update the mod file so
-		// return early.
+		// We don't need to update the mod file so return early.
 		requirements = rs
 		return rs, nil
 	}
 
 	mainModule := MainModules.mustGetSingleMainModule()
-
-	if cfg.BuildMod == "vendor" {
-		readVendorList(mainModule)
-		index := MainModules.Index(mainModule)
-		modFile := MainModules.ModFile(mainModule)
-		checkVendorConsistency(index, modFile)
-		rs.initVendor(vendorList)
-	}
 
 	if rs.hasRedundantRoot() {
 		// If any module path appears more than once in the roots, we know that the
@@ -1243,44 +1262,69 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
 	var roots []module.Version
 	direct := map[string]bool{}
 	var pruning modPruning
-	var goVersion, toolchain string
 	if inWorkspaceMode() {
 		pruning = workspace
 		roots = make([]module.Version, len(MainModules.Versions()), 2+len(MainModules.Versions()))
 		copy(roots, MainModules.Versions())
-		goVersion = gover.FromGoWork(workFile)
+		goVersion := gover.FromGoWork(workFile)
+		var toolchain string
 		if workFile.Toolchain != nil {
 			toolchain = workFile.Toolchain.Name
 		}
+		roots = appendGoAndToolchainRoots(roots, goVersion, toolchain, direct)
 	} else {
 		pruning = pruningForGoVersion(MainModules.GoVersion())
 		if len(modFiles) != 1 {
 			panic(fmt.Errorf("requirementsFromModFiles called with %v modfiles outside workspace mode", len(modFiles)))
 		}
 		modFile := modFiles[0]
-		roots = make([]module.Version, 0, 2+len(modFile.Require))
-		mm := MainModules.mustGetSingleMainModule()
-		for _, r := range modFile.Require {
-			if index := MainModules.Index(mm); index != nil && index.exclude[r.Mod] {
-				if cfg.BuildMod == "mod" {
-					fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
-				} else {
-					fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
-				}
-				continue
-			}
-
-			roots = append(roots, r.Mod)
-			if !r.Indirect {
-				direct[r.Mod.Path] = true
-			}
-		}
-		goVersion = gover.FromGoMod(modFile)
-		if modFile.Toolchain != nil {
-			toolchain = modFile.Toolchain.Name
-		}
+		roots, direct = rootsFromModFile(MainModules.mustGetSingleMainModule(), modFile, withToolchainRoot)
 	}
 
+	gover.ModSort(roots)
+	rs := newRequirements(pruning, roots, direct)
+	return rs
+}
+
+type addToolchainRoot bool
+
+const (
+	omitToolchainRoot addToolchainRoot = false
+	withToolchainRoot                  = true
+)
+
+func rootsFromModFile(m module.Version, modFile *modfile.File, addToolchainRoot addToolchainRoot) (roots []module.Version, direct map[string]bool) {
+	direct = make(map[string]bool)
+	padding := 2 // Add padding for the toolchain and go version, added upon return.
+	if !addToolchainRoot {
+		padding = 1
+	}
+	roots = make([]module.Version, 0, padding+len(modFile.Require))
+	for _, r := range modFile.Require {
+		if index := MainModules.Index(m); index != nil && index.exclude[r.Mod] {
+			if cfg.BuildMod == "mod" {
+				fmt.Fprintf(os.Stderr, "go: dropping requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+			} else {
+				fmt.Fprintf(os.Stderr, "go: ignoring requirement on excluded version %s %s\n", r.Mod.Path, r.Mod.Version)
+			}
+			continue
+		}
+
+		roots = append(roots, r.Mod)
+		if !r.Indirect {
+			direct[r.Mod.Path] = true
+		}
+	}
+	goVersion := gover.FromGoMod(modFile)
+	var toolchain string
+	if addToolchainRoot && modFile.Toolchain != nil {
+		toolchain = modFile.Toolchain.Name
+	}
+	roots = appendGoAndToolchainRoots(roots, goVersion, toolchain, direct)
+	return roots, direct
+}
+
+func appendGoAndToolchainRoots(roots []module.Version, goVersion, toolchain string, direct map[string]bool) []module.Version {
 	// Add explicit go and toolchain versions, inferring as needed.
 	roots = append(roots, module.Version{Path: "go", Version: goVersion})
 	direct["go"] = true // Every module directly uses the language and runtime.
@@ -1293,19 +1337,16 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
 		// automatically if the 'go' version is changed so that it implies the exact
 		// same toolchain.
 	}
-
-	gover.ModSort(roots)
-	rs := newRequirements(pruning, roots, direct)
-	return rs
+	return roots
 }
 
 // setDefaultBuildMod sets a default value for cfg.BuildMod if the -mod flag
 // wasn't provided. setDefaultBuildMod may be called multiple times.
 func setDefaultBuildMod() {
 	if cfg.BuildModExplicit {
-		if inWorkspaceMode() && cfg.BuildMod != "readonly" {
-			base.Fatalf("go: -mod may only be set to readonly when in workspace mode, but it is set to %q"+
-				"\n\tRemove the -mod flag to use the default readonly value,"+
+		if inWorkspaceMode() && cfg.BuildMod != "readonly" && cfg.BuildMod != "vendor" {
+			base.Fatalf("go: -mod may only be set to readonly or vendor when in workspace mode, but it is set to %q"+
+				"\n\tRemove the -mod flag to use the default readonly value, "+
 				"\n\tor set GOWORK=off to disable workspace mode.", cfg.BuildMod)
 		}
 		// Don't override an explicit '-mod=' argument.
@@ -1327,7 +1368,7 @@ func setDefaultBuildMod() {
 		// to work in buggy situations.
 		cfg.BuildMod = "mod"
 		return
-	case "mod vendor":
+	case "mod vendor", "work vendor":
 		cfg.BuildMod = "readonly"
 		return
 	}
@@ -1340,25 +1381,47 @@ func setDefaultBuildMod() {
 		return
 	}
 
-	if len(modRoots) == 1 && !inWorkspaceMode() {
-		index := MainModules.GetSingleIndexOrNil()
-		if fi, err := fsys.Stat(filepath.Join(modRoots[0], "vendor")); err == nil && fi.IsDir() {
+	if len(modRoots) >= 1 {
+		var goVersion string
+		var versionSource string
+		if inWorkspaceMode() {
+			versionSource = "go.work"
+			if wfg := MainModules.WorkFile().Go; wfg != nil {
+				goVersion = wfg.Version
+			}
+		} else {
+			versionSource = "go.mod"
+			index := MainModules.GetSingleIndexOrNil()
+			if index != nil {
+				goVersion = index.goVersion
+			}
+		}
+		vendorDir := ""
+		if workFilePath != "" {
+			vendorDir = filepath.Join(filepath.Dir(workFilePath), "vendor")
+		} else {
+			if len(modRoots) != 1 {
+				panic(fmt.Errorf("outside workspace mode, but have %v modRoots", modRoots))
+			}
+			vendorDir = filepath.Join(modRoots[0], "vendor")
+		}
+		if fi, err := fsys.Stat(vendorDir); err == nil && fi.IsDir() {
 			modGo := "unspecified"
-			if index != nil && index.goVersion != "" {
-				if gover.Compare(index.goVersion, "1.14") >= 0 {
+			if goVersion != "" {
+				if gover.Compare(goVersion, "1.14") >= 0 {
 					// The Go version is at least 1.14, and a vendor directory exists.
 					// Set -mod=vendor by default.
 					cfg.BuildMod = "vendor"
-					cfg.BuildModReason = "Go version in go.mod is at least 1.14 and vendor directory exists."
+					cfg.BuildModReason = "Go version in " + versionSource + " is at least 1.14 and vendor directory exists."
 					return
 				} else {
-					modGo = index.goVersion
+					modGo = goVersion
 				}
 			}
 
 			// Since a vendor directory exists, we should record why we didn't use it.
 			// This message won't normally be shown, but it may appear with import errors.
-			cfg.BuildModReason = fmt.Sprintf("Go version in go.mod is %s, so vendor directory was not used.", modGo)
+			cfg.BuildModReason = fmt.Sprintf("Go version in "+versionSource+" is %s, so vendor directory was not used.", modGo)
 		}
 	}
 
