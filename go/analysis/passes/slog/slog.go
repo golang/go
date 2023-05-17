@@ -204,7 +204,7 @@ var kvFuncs = map[string]map[string]int{
 		"WarnCtx":  2,
 		"ErrorCtx": 2,
 		"Log":      3,
-		"Group":    0,
+		"Group":    1,
 	},
 	"Logger": map[string]int{
 		"Debug":    1,

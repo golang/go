@@ -143,7 +143,8 @@ func All() {
 
 	r.Add(1, 2) // want `slog.Record.Add arg "1" should be a string or a slog.Attr`
 
-	_ = slog.Group("a", 1, 2, 3) // want `slog.Group arg "2" should be a string or a slog.Attr`
+	_ = slog.Group("key", "a", 1, "b", 2)
+	_ = slog.Group("key", "a", 1, 2, 3) // want `slog.Group arg "2" should be a string or a slog.Attr`
 
 }
 
