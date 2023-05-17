@@ -372,8 +372,6 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
 
 	// 3. dst is an interface type and src implements dst.
 	if dst.IsInterface() && src.Kind() != types.TNIL {
-		var missing, have *types.Field
-		var ptr int
 		if src.IsShape() {
 			// Shape types implement things they have already
 			// been typechecked to implement, even if they
@@ -385,28 +383,12 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
 			// to interface type, not just type arguments themselves.
 			return ir.OCONVIFACE, ""
 		}
-		if implements(src, dst, &missing, &have, &ptr) {
+
+		why := ImplementsExplain(src, dst)
+		if why == "" {
 			return ir.OCONVIFACE, ""
 		}
-
-		var why string
-		if isptrto(src, types.TINTER) {
-			why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", src)
-		} else if have != nil && have.Sym == missing.Sym && have.Nointerface() {
-			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
-		} else if have != nil && have.Sym == missing.Sym {
-			why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+
-				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-		} else if ptr != 0 {
-			why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
-		} else if have != nil {
-			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+
-				"\t\thave %v%S\n\t\twant %v%S", src, dst, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-		} else {
-			why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
-		}
-
-		return ir.OXXX, why
+		return ir.OXXX, ":\n\t" + why
 	}
 
 	if isptrto(dst, types.TINTER) {
@@ -415,10 +397,8 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
 	}
 
 	if src.IsInterface() && dst.Kind() != types.TBLANK {
-		var missing, have *types.Field
-		var ptr int
 		var why string
-		if implements(dst, src, &missing, &have, &ptr) {
+		if Implements(dst, src) {
 			why = ": need type assertion"
 		}
 		return ir.OXXX, why
@@ -707,6 +687,40 @@ func ifacelookdot(s *types.Sym, t *types.Type, ignorecase bool) *types.Field {
 	}
 
 	return m
+}
+
+// Implements reports whether t implements the interface iface. t can be
+// an interface, a type parameter, or a concrete type.
+func Implements(t, iface *types.Type) bool {
+	var missing, have *types.Field
+	var ptr int
+	return implements(t, iface, &missing, &have, &ptr)
+}
+
+// ImplementsExplain reports whether t implements the interface iface. t can be
+// an interface, a type parameter, or a concrete type. If t does not implement
+// iface, a non-empty string is returned explaining why.
+func ImplementsExplain(t, iface *types.Type) string {
+	var missing, have *types.Field
+	var ptr int
+	if implements(t, iface, &missing, &have, &ptr) {
+		return ""
+	}
+
+	if isptrto(t, types.TINTER) {
+		return fmt.Sprintf("%v is pointer to interface, not interface", t)
+	} else if have != nil && have.Sym == missing.Sym && have.Nointerface() {
+		return fmt.Sprintf("%v does not implement %v (%v method is marked 'nointerface')", t, iface, missing.Sym)
+	} else if have != nil && have.Sym == missing.Sym {
+		return fmt.Sprintf("%v does not implement %v (wrong type for %v method)\n"+
+		"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+	} else if ptr != 0 {
+		return fmt.Sprintf("%v does not implement %v (%v method has pointer receiver)", t, iface, missing.Sym)
+	} else if have != nil {
+		return fmt.Sprintf("%v does not implement %v (missing %v method)\n"+
+		"\t\thave %v%S\n\t\twant %v%S", t, iface, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+	}
+	return fmt.Sprintf("%v does not implement %v (missing %v method)", t, iface, missing.Sym)
 }
 
 // implements reports whether t implements the interface iface. t can be

@@ -535,20 +535,9 @@ func tcDotType(n *ir.TypeAssertExpr) ir.Node {
 	base.AssertfAt(n.Type() != nil, n.Pos(), "missing type: %v", n)
 
 	if n.Type() != nil && !n.Type().IsInterface() {
-		var missing, have *types.Field
-		var ptr int
-		if !implements(n.Type(), t, &missing, &have, &ptr) {
-			if have != nil && have.Sym == missing.Sym {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (wrong type for %v method)\n"+
-					"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-			} else if ptr != 0 {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (%v method has pointer receiver)", n.Type(), t, missing.Sym)
-			} else if have != nil {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)\n"+
-					"\t\thave %v%S\n\t\twant %v%S", n.Type(), t, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-			} else {
-				base.Errorf("impossible type assertion:\n\t%v does not implement %v (missing %v method)", n.Type(), t, missing.Sym)
-			}
+		why := ImplementsExplain(n.Type(), t)
+		if why != "" {
+			base.Fatalf("impossible type assertion:\n\t%s", why)
 			n.SetType(nil)
 			return n
 		}

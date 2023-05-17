@@ -587,8 +587,6 @@ func tcSwitchType(n *ir.SwitchStmt) {
 				continue
 			}
 
-			var missing, have *types.Field
-			var ptr int
 			if ir.IsNil(n1) { // case nil:
 				if nilCase != nil {
 					base.ErrorfAt(ncase.Pos(), errors.DuplicateCase, "multiple nil cases in type switch (first at %v)", ir.Line(nilCase))
@@ -604,16 +602,10 @@ func tcSwitchType(n *ir.SwitchStmt) {
 				base.ErrorfAt(ncase.Pos(), errors.NotAType, "%L is not a type", n1)
 				continue
 			}
-			if !n1.Type().IsInterface() && !implements(n1.Type(), t, &missing, &have, &ptr) {
-				if have != nil {
-					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v"+
-						" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", guard.X, n1.Type(), missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
-				} else if ptr != 0 {
-					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v"+
-						" (%v method has pointer receiver)", guard.X, n1.Type(), missing.Sym)
-				} else {
-					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v"+
-						" (missing %v method)", guard.X, n1.Type(), missing.Sym)
+			if !n1.Type().IsInterface() {
+				why := ImplementsExplain(n1.Type(), t)
+				if why != "" {
+					base.ErrorfAt(ncase.Pos(), errors.ImpossibleAssert, "impossible type switch case: %L cannot have dynamic type %v (%s)" , guard.X, n1.Type(), why)
 				}
 				continue
 			}
