@@ -472,7 +472,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
 		// would be sent to every subdomain of bbc.co.uk.
 		// It just doesn't make sense on IP addresses.
 		// The other processing and validation steps in RFC 6265 just
-		// collaps to:
+		// collapse to:
 		if host != domain {
 			return "", false, errIllegalDomain
 		}

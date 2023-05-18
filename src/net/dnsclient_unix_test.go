@@ -1605,7 +1605,7 @@ func TestDNSDialTCP(t *testing.T) {
 	ctx := context.Background()
 	_, _, err := r.exchange(ctx, "0.0.0.0", mustQuestion("com.", dnsmessage.TypeALL, dnsmessage.ClassINET), time.Second, useUDPOrTCP, false)
 	if err != nil {
-		t.Fatal("exhange failed:", err)
+		t.Fatal("exchange failed:", err)
 	}
 }
 
