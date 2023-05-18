@@ -5,9 +5,9 @@
 // This file implements type unification.
 //
 // Type unification attempts to make two types x and y structurally
-// identical by determining the types for a given list of (bound)
+// equivalent by determining the types for a given list of (bound)
 // type parameters which may occur within x and y. If x and y are
-// are structurally different (say []T vs chan T), or conflicting
+// structurally different (say []T vs chan T), or conflicting
 // types are determined for type parameters, unification fails.
 // If unification succeeds, as a side-effect, the types of the
 // bound type parameters may be determined.
@@ -15,16 +15,17 @@
 // Unification typically requires multiple calls u.unify(x, y) to
 // a given unifier u, with various combinations of types x and y.
 // In each call, additional type parameter types may be determined
-// as a side effect. If a call fails (returns false), unification
-// fails.
+// as a side effect and recorded in u.
+// If a call fails (returns false), unification fails.
 //
-// In the unification context, structural identity ignores the
-// difference between a defined type and its underlying type.
+// In the unification context, structural equivalence of two types
+// ignores the difference between a defined type and its underlying
+// type if one type is a defined type and the other one is not.
 // It also ignores the difference between an (external, unbound)
 // type parameter and its core type.
-// If two types are not structurally identical, they cannot be Go
+// If two types are not structurally equivalent, they cannot be Go
 // identical types. On the other hand, if they are structurally
-// identical, they may be Go identical or at least assignable, or
+// equivalent, they may be Go identical or at least assignable, or
 // they may be in the type set of a constraint.
 // Whether they indeed are identical or assignable is determined
 // upon instantiation and function argument passing.
@@ -365,8 +366,8 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Array:
-		// Two array types are identical if they have identical element types
-		// and the same array length.
+		// Two array types unify if they have the same array length
+		// and their element types unify.
 		if y, ok := y.(*Array); ok {
 			// If one or both array lengths are unknown (< 0) due to some error,
 			// assume they are the same to avoid spurious follow-on errors.
@@ -374,15 +375,15 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Slice:
-		// Two slice types are identical if they have identical element types.
+		// Two slice types unify if their element types unify.
 		if y, ok := y.(*Slice); ok {
 			return u.nify(x.elem, y.elem, p)
 		}
 
 	case *Struct:
-		// Two struct types are identical if they have the same sequence of fields,
-		// and if corresponding fields have the same names, and identical types,
-		// and identical tags. Two embedded fields are considered to have the same
+		// Two struct types unify if they have the same sequence of fields,
+		// and if corresponding fields have the same names, their (field) types unify,
+		// and they have identical tags. Two embedded fields are considered to have the same
 		// name. Lower-case field names from different packages are always different.
 		if y, ok := y.(*Struct); ok {
 			if x.NumFields() == y.NumFields() {
@@ -400,14 +401,14 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Pointer:
-		// Two pointer types are identical if they have identical base types.
+		// Two pointer types unify if their base types unify.
 		if y, ok := y.(*Pointer); ok {
 			return u.nify(x.base, y.base, p)
 		}
 
 	case *Tuple:
-		// Two tuples types are identical if they have the same number of elements
-		// and corresponding elements have identical types.
+		// Two tuples types unify if they have the same number of elements
+		// and the types of corresponding elements unify.
 		if y, ok := y.(*Tuple); ok {
 			if x.Len() == y.Len() {
 				if x != nil {
@@ -423,10 +424,10 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Signature:
-		// Two function types are identical if they have the same number of parameters
-		// and result values, corresponding parameter and result types are identical,
-		// and either both functions are variadic or neither is. Parameter and result
-		// names are not required to match.
+		// Two function types unify if they have the same number of parameters
+		// and result values, corresponding parameter and result types unify,
+		// and either both functions are variadic or neither is.
+		// Parameter and result names are not required to match.
 		// TODO(gri) handle type parameters or document why we can ignore them.
 		if y, ok := y.(*Signature); ok {
 			return x.variadic == y.variadic &&
@@ -435,9 +436,10 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Interface:
-		// Two interface types are identical if they have the same set of methods with
-		// the same names and identical function types. Lower-case method names from
-		// different packages are always different. The order of the methods is irrelevant.
+		// Two interface types unify if they have the same set of methods with
+		// the same names, and corresponding function types unify.
+		// Lower-case method names from different packages are always different.
+		// The order of the methods is irrelevant.
 		if y, ok := y.(*Interface); ok {
 			xset := x.typeSet()
 			yset := y.typeSet()
@@ -494,25 +496,25 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
 		}
 
 	case *Map:
-		// Two map types are identical if they have identical key and value types.
+		// Two map types unify if their key and value types unify.
 		if y, ok := y.(*Map); ok {
 			return u.nify(x.key, y.key, p) && u.nify(x.elem, y.elem, p)
 		}
 
 	case *Chan:
-		// Two channel types are identical if they have identical value types.
+		// Two channel types unify if their value types unify.
 		if y, ok := y.(*Chan); ok {
 			return u.nify(x.elem, y.elem, p)
 		}
 
 	case *Named:
-		// Two named types are identical if their type names originate
-		// in the same type declaration; if they are instantiated they
-		// must have identical type argument lists.
+		// Two named types unify if their type names originate
+		// in the same type declaration. If they are instantiated,
+		// their type argument lists must unify.
 		if y, ok := y.(*Named); ok {
-			// check type arguments before origins so they unify
+			// Check type arguments before origins so they unify
 			// even if the origins don't match; for better error
-			// messages (see go.dev/issue/53692)
+			// messages (see go.dev/issue/53692).
 			xargs := x.TypeArgs().list()
 			yargs := y.TypeArgs().list()
 			if len(xargs) != len(yargs) {
