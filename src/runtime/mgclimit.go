@@ -212,6 +212,7 @@ func (l *gcCPULimiterState) updateLocked(now int64) {
 				fallthrough
 			case limiterEventIdle:
 				idleTime += duration
+				sched.idleTime.Add(duration)
 			case limiterEventMarkAssist:
 				fallthrough
 			case limiterEventScavengeAssist:
