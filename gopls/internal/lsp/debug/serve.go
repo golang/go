@@ -5,7 +5,6 @@
 package debug
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
 	"errors"
@@ -20,7 +19,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	rpprof "runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
@@ -492,65 +490,6 @@ func (i *Instance) ListenedDebugAddress() string {
 	i.serveMu.Lock()
 	defer i.serveMu.Unlock()
 	return i.listenedDebugAddress
-}
-
-// MonitorMemory starts recording memory statistics each second.
-func (i *Instance) MonitorMemory(ctx context.Context) {
-	tick := time.NewTicker(time.Second)
-	nextThresholdGiB := uint64(1)
-	go func() {
-		for {
-			<-tick.C
-			var mem runtime.MemStats
-			runtime.ReadMemStats(&mem)
-			if mem.HeapAlloc < nextThresholdGiB*1<<30 {
-				continue
-			}
-			if err := i.writeMemoryDebug(nextThresholdGiB, true); err != nil {
-				event.Error(ctx, "writing memory debug info", err)
-			}
-			if err := i.writeMemoryDebug(nextThresholdGiB, false); err != nil {
-				event.Error(ctx, "writing memory debug info", err)
-			}
-			event.Log(ctx, fmt.Sprintf("Wrote memory usage debug info to %v", os.TempDir()))
-			nextThresholdGiB++
-		}
-	}()
-}
-
-func (i *Instance) writeMemoryDebug(threshold uint64, withNames bool) error {
-	suffix := "withnames"
-	if !withNames {
-		suffix = "nonames"
-	}
-
-	filename := fmt.Sprintf("gopls.%d-%dGiB-%s.zip", os.Getpid(), threshold, suffix)
-	zipf, err := os.OpenFile(filepath.Join(os.TempDir(), filename), os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		return err
-	}
-	zipw := zip.NewWriter(zipf)
-
-	f, err := zipw.Create("heap.pb.gz")
-	if err != nil {
-		return err
-	}
-	if err := rpprof.Lookup("heap").WriteTo(f, 0); err != nil {
-		return err
-	}
-
-	f, err = zipw.Create("goroutines.txt")
-	if err != nil {
-		return err
-	}
-	if err := rpprof.Lookup("goroutine").WriteTo(f, 1); err != nil {
-		return err
-	}
-
-	if err := zipw.Close(); err != nil {
-		return err
-	}
-	return zipf.Close()
 }
 
 func makeGlobalExporter(stderr io.Writer) event.Exporter {
