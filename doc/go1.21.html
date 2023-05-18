@@ -25,11 +25,42 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="language">Changes to the language</h2>
 
+<p><!-- https://go.dev/issue/56986 -->
+  TODO: <a href="https://go.dev/issue/56986">https://go.dev/issue/56986</a>: extended backwards compatibility for Go
+</p>
+
+<!-- https://go.dev/issue/57969 -->
+<p>
+  <!-- add GOEXPERIMENT=loopvar -->
+</p>
+
+
 <p>
   TODO: complete this section
 </p>
 
 <h2 id="ports">Ports</h2>
+
+<!-- CL 470695 -->
+<p>
+  <!-- cmd/dist: default to GOARM=7 on all non-arm systems -->
+</p>
+
+<!-- https://go.dev/issue/38248 -->
+<p>
+  <!-- replace CallImport with go:wasmimport directive -->
+</p>
+
+<!-- https://go.dev/issue/59149 -->
+<p>
+  <!-- allow the use of go:wasmimport globally -->
+</p>
+
+<!-- CL 489255 -->
+<p>
+  <!-- cmd/compile: remove go:wasmimport restriction -->
+</p>
+
 
 <h3 id="wasip1">WebAssembly System Interface</h3>
 
@@ -51,6 +82,11 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="tools">Tools</h2>
 
+<!-- https://go.dev/issue/15513 -->
+<p>
+  <!-- support compiling all tests without running -->
+</p>
+
 <h3 id="go-command">Go command</h3>
 
 <p><!-- https://go.dev/issue/58099, CL 474236 -->
@@ -60,6 +96,15 @@ Do not send CLs removing the interior tags from such phrases.
   in the main package's directory, the <code>go</code> command will use
   it to enable profile-guided optimization for building the corresponding
   program.
+</p>
+
+<p><!-- CL 453603 -->
+  TODO: <a href="https://go.dev/cl/453603">https://go.dev/cl/453603</a>: cmd/go, go/build: parse directives in file headers; modified api/next/56986.txt
+</p>
+
+<!-- CL 466397 -->
+<p>
+  <!-- cmd/go: make go test build multiple executables; The go test command now supports using the -c flag with multiple packages. -->
 </p>
 
 <h2 id="runtime">Runtime</h2>
@@ -78,11 +123,30 @@ Do not send CLs removing the interior tags from such phrases.
 
 <h2 id="compiler">Compiler</h2>
 
+<!-- CL 490819 -->
+<p>
+  <!-- cmd/cgo: reject attempts to declare methods on C types -->
+</p>
+
+<!-- CL 461315 -->
+<p>
+  <!-- cmd/compile: enable deadcode of unreferenced large global maps -->
+</p>
+
 <p>
   TODO: complete this section, or delete if not needed
 </p>
 
 <h2 id="linker">Linker</h2>
+
+<!-- CL 457455 -->
+<p>
+  <!-- cmd/link: generate .xdata PE section -->
+</p>
+<!-- CL 463395 -->
+<p>
+  <!-- cmd/link: linker portion of dead map removal -->
+</p>
 
 <p>
   TODO: complete this section, or delete if not needed
@@ -99,9 +163,25 @@ Do not send CLs removing the interior tags from such phrases.
   There are also various performance improvements, not enumerated here.
 </p>
 
+<p><!-- CL 456837 -->
+  TODO: <a href="https://go.dev/cl/456837">https://go.dev/cl/456837</a>: all: upgrade Unicode from 13.0.0 to 15.0.0; modified api/except.txt, api/next/55079.txt
+</p>
+
 <p>
   TODO: complete this section
 </p>
+
+<dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/53685 -->
+      TODO: <a href="https://go.dev/issue/53685">https://go.dev/issue/53685</a>: add Buffer.Available and Buffer.AvailableBuffer
+    </p>
+
+    <p><!-- CL 474635 -->
+      TODO: <a href="https://go.dev/cl/474635">https://go.dev/cl/474635</a>: bytes: add Buffer.Available and Buffer.AvailableBuffer; modified api/next/53685.txt
+    </p>
+  </dd>
+</dl><!-- bytes -->
 
 <dl id="context"><dt><a href="/pkg/context/">context</a></dt>
   <dd>
@@ -124,6 +204,374 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl>
 
+<dl id="crypto/elliptic"><dt><a href="/pkg/crypto/elliptic/">crypto/elliptic</a></dt>
+  <dd>
+    <p><!-- CL 459977 -->
+      TODO: <a href="https://go.dev/cl/459977">https://go.dev/cl/459977</a>: crypto/elliptic: deprecate unsafe APIs; modified api/next/34648.txt, api/next/52221.txt
+    </p>
+  </dd>
+</dl><!-- crypto/elliptic -->
+
+<dl id="crypto/rsa"><dt><a href="/pkg/crypto/rsa/">crypto/rsa</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56921 -->
+      TODO: <a href="https://go.dev/issue/56921">https://go.dev/issue/56921</a>: deprecate GenerateMultiPrimeKey and PrecomputedValues.CRTValues
+    </p>
+
+    <p><!-- CL 459976 -->
+      TODO: <a href="https://go.dev/cl/459976">https://go.dev/cl/459976</a>: crypto/rsa: deprecate multiprime RSA support; modified api/next/56921.txt
+    </p>
+  </dd>
+</dl><!-- crypto/rsa -->
+
+<dl id="crypto/sha1"><dt><a href="/pkg/crypto/sha1/">crypto/sha1</a></dt>
+  <dd>
+    <p><!-- CL 483815 -->
+      TODO: <a href="https://go.dev/cl/483815">https://go.dev/cl/483815</a>: crypto/sha1: add WriteString and WriteByte method
+    </p>
+  </dd>
+</dl><!-- crypto/sha1 -->
+
+<dl id="crypto/sha256"><dt><a href="/pkg/crypto/sha256/">crypto/sha256</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/50543 -->
+      TODO: <a href="https://go.dev/issue/50543">https://go.dev/issue/50543</a>: add native SHA256 instruction implementation for AMD64
+    </p>
+
+    <p><!-- CL 408795 -->
+      TODO: <a href="https://go.dev/cl/408795">https://go.dev/cl/408795</a>: crypto/sha256: add sha-ni implementation; crypto/sha256 uses Intel SHA extensions on new enough x86 processors, making it 3-4X faster.
+    </p>
+
+    <p><!-- CL 481478 -->
+      TODO: <a href="https://go.dev/cl/481478">https://go.dev/cl/481478</a>: crypto/sha256: add WriteString and WriteByte method
+    </p>
+  </dd>
+</dl><!-- crypto/sha256 -->
+
+<dl id="crypto/sha512"><dt><a href="/pkg/crypto/sha512/">crypto/sha512</a></dt>
+  <dd>
+    <p><!-- CL 483816 -->
+      TODO: <a href="https://go.dev/cl/483816">https://go.dev/cl/483816</a>: crypto/sha512: add WriteString and WriteByte method
+    </p>
+  </dd>
+</dl><!-- crypto/sha512 -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/53573 -->
+      TODO: <a href="https://go.dev/issue/53573">https://go.dev/issue/53573</a>: surface ReasonCode inside x509.RevocationList entries
+    </p>
+
+    <p><!-- CL 468875 -->
+      TODO: <a href="https://go.dev/cl/468875">https://go.dev/cl/468875</a>: crypto/x509: surface ReasonCode in RevocationList API; modified api/next/53573.txt
+    </p>
+  </dd>
+</dl><!-- crypto/x509 -->
+
+<dl id="debug/elf"><dt><a href="/pkg/debug/elf/">debug/elf</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56887 -->
+      TODO: <a href="https://go.dev/issue/56887">https://go.dev/issue/56887</a>: add DT_FLAGS_1 (dynamic flags) constants
+    </p>
+
+    <p><!-- https://go.dev/issue/56892 -->
+      TODO: <a href="https://go.dev/issue/56892">https://go.dev/issue/56892</a>: add (*File).DynValue
+    </p>
+
+    <p><!-- CL 452496 -->
+      TODO: <a href="https://go.dev/cl/452496">https://go.dev/cl/452496</a>: debug/elf: add DT_FLAGS_1 constants; modified api/next/56887.txt
+    </p>
+
+    <p><!-- CL 452617 -->
+      TODO: <a href="https://go.dev/cl/452617">https://go.dev/cl/452617</a>: debug/elf: retrieve values for dynamic section tags; modified api/next/56892.txt
+    </p>
+
+    <p><!-- CL 473256 -->
+      TODO: <a href="https://go.dev/cl/473256">https://go.dev/cl/473256</a>: debug/elf: support zstd compression; modified api/next/55107.txt
+    </p>
+  </dd>
+</dl><!-- debug/elf -->
+
+<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+  <dd>
+    <p><!-- CL 488475 -->
+      TODO: <a href="https://go.dev/cl/488475">https://go.dev/cl/488475</a>: debug/pe: return error on reading from section with uninitialized data
+    </p>
+  </dd>
+</dl><!-- debug/pe -->
+
+<dl id="embed"><dt><a href="/pkg/embed/">embed</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/57803 -->
+      TODO: <a href="https://go.dev/issue/57803">https://go.dev/issue/57803</a>: openFile should implement ReaderAt
+    </p>
+
+    <p><!-- CL 483235 -->
+      TODO: <a href="https://go.dev/cl/483235">https://go.dev/cl/483235</a>: embed: implement openFile.ReadAt
+    </p>
+  </dd>
+</dl><!-- embed -->
+
+<dl id="errors"><dt><a href="/pkg/errors/">errors</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/41198 -->
+      TODO: <a href="https://go.dev/issue/41198">https://go.dev/issue/41198</a>: add ErrUnsupported
+    </p>
+
+    <p><!-- CL 473935 -->
+      TODO: <a href="https://go.dev/cl/473935">https://go.dev/cl/473935</a>: errors: add ErrUnsupported; modified api/next/41198.txt
+    </p>
+  </dd>
+</dl><!-- errors -->
+
+<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/53747 -->
+      TODO: <a href="https://go.dev/issue/53747">https://go.dev/issue/53747</a>: add BoolFunc(name, usage string, fn func(string)error)
+    </p>
+
+    <p><!-- CL 476015 -->
+      TODO: <a href="https://go.dev/cl/476015">https://go.dev/cl/476015</a>: flag: add BoolFunc; FlagSet.BoolFunc; modified api/next/53747.txt
+    </p>
+
+    <p><!-- CL 480215 -->
+      TODO: <a href="https://go.dev/cl/480215">https://go.dev/cl/480215</a>: flag: panic if a flag is defined after being set
+    </p>
+  </dd>
+</dl><!-- flag -->
+
+<dl id="fs"><dt><a href="/pkg/fs/">fs</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/54451 -->
+      TODO: <a href="https://go.dev/issue/54451">https://go.dev/issue/54451</a>: standard implementations of FileInfo and DirEntry should implement fmt.Stringer
+    </p>
+  </dd>
+</dl><!-- fs -->
+
+<dl id="go/ast"><dt><a href="/pkg/go/ast/">go/ast</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/28089 -->
+      TODO: <a href="https://go.dev/issue/28089">https://go.dev/issue/28089</a>: add func IsGenerated(*File) bool
+    </p>
+
+    <p><!-- CL 476276 -->
+      TODO: <a href="https://go.dev/cl/476276">https://go.dev/cl/476276</a>: go/ast: add File.GoVersion; modified api/next/59033.txt
+    </p>
+
+    <p><!-- CL 487935 -->
+      TODO: <a href="https://go.dev/cl/487935">https://go.dev/cl/487935</a>: go/ast: add IsGenerated(*File) predicate; modified api/next/28089.txt
+    </p>
+  </dd>
+</dl><!-- go/ast -->
+
+<dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
+  <dd>
+    <p><!-- CL 453603 -->
+      TODO: <a href="https://go.dev/cl/453603">https://go.dev/cl/453603</a>: cmd/go, go/build: parse directives in file headers; modified api/next/56986.txt
+    </p>
+  </dd>
+</dl><!-- go/build -->
+
+<dl id="go/build/constraint"><dt><a href="/pkg/go/build/constraint/">go/build/constraint</a></dt>
+  <dd>
+    <p><!-- CL 476275 -->
+      TODO: <a href="https://go.dev/cl/476275">https://go.dev/cl/476275</a>: go/build/constraint: add GoVersion; modified api/next/59033.txt
+    </p>
+  </dd>
+</dl><!-- go/build/constraint -->
+
+<dl id="go/token"><dt><a href="/pkg/go/token/">go/token</a></dt>
+  <dd>
+    <p><!-- CL 464515 -->
+      TODO: <a href="https://go.dev/cl/464515">https://go.dev/cl/464515</a>: go/token: add (*File).Lines method; modified api/next/57708.txt
+    </p>
+  </dd>
+</dl><!-- go/token -->
+
+<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/47342 -->
+      TODO: <a href="https://go.dev/issue/47342">https://go.dev/issue/47342</a>: Provide a `purego` implementation
+    </p>
+
+    <p><!-- CL 468795 -->
+      TODO: <a href="https://go.dev/cl/468795">https://go.dev/cl/468795</a>: hash/maphash: add purego implementation
+    </p>
+  </dd>
+</dl><!-- hash/maphash -->
+
+<dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
+  <dd>
+    <p><!-- CL 489555 -->
+      TODO: <a href="https://go.dev/cl/489555">https://go.dev/cl/489555</a>: io/fs: add FormatFileInfo and FormatDirEntry functions; modified api/next/54451.txt
+    </p>
+  </dd>
+</dl><!-- io/fs -->
+
+<dl id="log/slog"><dt><a href="/pkg/log/slog/">log/slog</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/59060 -->
+      TODO: <a href="https://go.dev/issue/59060">https://go.dev/issue/59060</a>: arg to Record.Attrs should return bool
+    </p>
+
+    <p><!-- https://go.dev/issue/59141 -->
+      TODO: <a href="https://go.dev/issue/59141">https://go.dev/issue/59141</a>: handle panics in LogValuer.LogValue
+    </p>
+
+    <p><!-- https://go.dev/issue/59204 -->
+      TODO: <a href="https://go.dev/issue/59204">https://go.dev/issue/59204</a>: change slog.Group signature to ...any
+    </p>
+
+    <p><!-- https://go.dev/issue/59280 -->
+      TODO: <a href="https://go.dev/issue/59280">https://go.dev/issue/59280</a>: ReplaceAttr gets Source struct instead of file:line
+    </p>
+
+    <p><!-- https://go.dev/issue/59282 -->
+      TODO: <a href="https://go.dev/issue/59282">https://go.dev/issue/59282</a>: drop only completely empty Attrs
+    </p>
+
+    <p><!-- https://go.dev/issue/59339 -->
+      TODO: <a href="https://go.dev/issue/59339">https://go.dev/issue/59339</a>: change constructors to NewXXXHandler(io.Writer, *HandlerOptions)
+    </p>
+
+    <p><!-- https://go.dev/issue/59345 -->
+      TODO: <a href="https://go.dev/issue/59345">https://go.dev/issue/59345</a>: JSONHandler should format everything like json.Marshal
+    </p>
+
+    <p><!-- CL 477295 -->
+      TODO: <a href="https://go.dev/cl/477295">https://go.dev/cl/477295</a>: log/slog: initial commit; modified api/next/56345.txt
+    </p>
+
+    <p><!-- CL 484096 -->
+      TODO: <a href="https://go.dev/cl/484096">https://go.dev/cl/484096</a>: log/slog: function argument to Record.Attrs returns bool; modified api/next/59060.txt
+    </p>
+
+    <p><!-- CL 486376 -->
+      TODO: <a href="https://go.dev/cl/486376">https://go.dev/cl/486376</a>: log/slog: add Source type for source location; modified api/next/59280.txt
+    </p>
+
+    <p><!-- CL 486415 -->
+      TODO: <a href="https://go.dev/cl/486415">https://go.dev/cl/486415</a>: log/slog: built-in handler constructors take options as a second arg; modified api/next/56345.txt, api/next/59339.txt
+    </p>
+
+    <p><!-- CL 487855 -->
+      TODO: <a href="https://go.dev/cl/487855">https://go.dev/cl/487855</a>: log/slog: Group takes ...any; modified api/next/56345.txt, api/next/59204.txt
+    </p>
+  </dd>
+</dl><!-- log/slog -->
+
+<dl id="maps"><dt><a href="/pkg/maps/">maps</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/57436 -->
+      TODO: <a href="https://go.dev/issue/57436">https://go.dev/issue/57436</a>: new standard library package based on x/exp/maps
+    </p>
+
+    <p><!-- CL 464343 -->
+      TODO: <a href="https://go.dev/cl/464343">https://go.dev/cl/464343</a>: maps: new package; modified api/next/57436.txt
+    </p>
+  </dd>
+</dl><!-- maps -->
+
+<dl id="math"><dt><a href="/pkg/math/">math</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56491 -->
+      TODO: <a href="https://go.dev/issue/56491">https://go.dev/issue/56491</a>: add Compare and Compare32
+    </p>
+
+    <p><!-- CL 459435 -->
+      TODO: <a href="https://go.dev/cl/459435">https://go.dev/cl/459435</a>: math: add Compare and Compare32; modified api/next/56491.txt
+    </p>
+
+    <p><!-- CL 467515 -->
+      TODO: <a href="https://go.dev/cl/467515">https://go.dev/cl/467515</a>: math: add Compare and Compare32; modified api/next/56491.txt
+    </p>
+  </dd>
+</dl><!-- math -->
+
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56984 -->
+      TODO: <a href="https://go.dev/issue/56984">https://go.dev/issue/56984</a>: add Int.Float64 conversion (was initially: {ToInt64,ToUint64,Float64})
+    </p>
+
+    <p><!-- CL 453115 -->
+      TODO: <a href="https://go.dev/cl/453115">https://go.dev/cl/453115</a>: math/big: add Int.Float64 conversion; modified api/next/56984.txt
+    </p>
+  </dd>
+</dl><!-- math/big -->
+
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56539 -->
+      TODO: <a href="https://go.dev/issue/56539">https://go.dev/issue/56539</a>: add support for MPTCP
+    </p>
+
+    <p><!-- https://go.dev/issue/59166 -->
+      TODO: <a href="https://go.dev/issue/59166">https://go.dev/issue/59166</a>: add func (*TCPConn) MultipathTCP() (bool, error)
+    </p>
+
+    <p><!-- CL 471136 -->
+      TODO: <a href="https://go.dev/cl/471136">https://go.dev/cl/471136</a>: net: mptcp: implement dialMPTCP; modified api/next/56539.txt
+    </p>
+
+    <p><!-- CL 471137 -->
+      TODO: <a href="https://go.dev/cl/471137">https://go.dev/cl/471137</a>: net: mptcp: implement listenMPTCP; modified api/next/56539.txt
+    </p>
+
+    <p><!-- CL 471140 -->
+      TODO: <a href="https://go.dev/cl/471140">https://go.dev/cl/471140</a>: net: mptcp: add TCPConn&#39;s MultipathTCP checker; modified api/next/59166.txt
+    </p>
+  </dd>
+</dl><!-- net -->
+
+<dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/44855 -->
+      TODO: <a href="https://go.dev/issue/44855">https://go.dev/issue/44855</a>: add ErrSchemeMismatch
+    </p>
+
+    <p><!-- CL 382117 -->
+      TODO: <a href="https://go.dev/cl/382117">https://go.dev/cl/382117</a>: net/http: expose &#34;http: server gave HTTP response to HTTPS client&#34; error; modified api/next/44855.txt
+    </p>
+
+    <p><!-- CL 472636 -->
+      TODO: <a href="https://go.dev/cl/472636">https://go.dev/cl/472636</a>: net/http: support full-duplex HTTP/1 responses; modified api/next/57786.txt
+    </p>
+
+    <p><!-- CL 494122 -->
+      TODO: <a href="https://go.dev/cl/494122">https://go.dev/cl/494122</a>: net/http: let ErrNotSupported match errors.ErrUnsupported; modified api/next/41198.txt
+    </p>
+  </dd>
+</dl><!-- net/http -->
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/32558 -->
+      TODO: <a href="https://go.dev/issue/32558">https://go.dev/issue/32558</a>: allow Chtimes with time.Time{} to avoid setting time
+    </p>
+
+    <p><!-- CL 219638 -->
+      TODO: <a href="https://go.dev/cl/219638">https://go.dev/cl/219638</a>: os: make Chtimes accept empty time values to skip file time modification
+    </p>
+
+    <p><!-- CL 477215 -->
+      TODO: <a href="https://go.dev/cl/477215">https://go.dev/cl/477215</a>: os: avoid creating a new file in Truncate on Windows; os.Truncate on Windows no longer now fails if the file does not exist, consistent with other platforms
+    </p>
+
+    <p><!-- CL 493036 -->
+      TODO: <a href="https://go.dev/cl/493036">https://go.dev/cl/493036</a>: os, syscall: support ill-formed UTF-16 strings on Windows
+    </p>
+  </dd>
+</dl><!-- os -->
+
+<dl id="os/user"><dt><a href="/pkg/os/user/">os/user</a></dt>
+  <dd>
+    <p><!-- CL 459455 -->
+      TODO: <a href="https://go.dev/cl/459455">https://go.dev/cl/459455</a>: os/user: lookup Linux users and groups via systemd userdb
+    </p>
+  </dd>
+</dl><!-- os/user -->
+
 <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 408826, CL 413474 -->
@@ -133,8 +581,92 @@ Do not send CLs removing the interior tags from such phrases.
       operations on a <code>Value</code> also allow the underlying value
       to be stack allocated.
     </p>
+
+    <p><!-- https://go.dev/issue/55002 -->
+      TODO: <a href="https://go.dev/issue/55002">https://go.dev/issue/55002</a>: add Value.Clear
+    </p>
+
+    <p><!-- https://go.dev/issue/56906 -->
+      TODO: <a href="https://go.dev/issue/56906">https://go.dev/issue/56906</a>: deprecate SliceHeader and StringHeader
+    </p>
+
+    <p><!-- CL 452762 -->
+      TODO: <a href="https://go.dev/cl/452762">https://go.dev/cl/452762</a>: reflect: deprecate SliceHeader and StringHeader; modified api/next/56906.txt
+    </p>
   </dd>
-</dl>
+</dl><!-- reflect -->
+
+<dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/46159 -->
+      TODO: <a href="https://go.dev/issue/46159">https://go.dev/issue/46159</a>: support encoding.TextMarshaler
+    </p>
+
+    <p><!-- CL 479401 -->
+      TODO: <a href="https://go.dev/cl/479401">https://go.dev/cl/479401</a>: regexp: add Regexp.TextMarshaler/TextUnmarshaler; modified api/next/46159.txt
+    </p>
+  </dd>
+</dl><!-- regexp -->
+
+<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/38651 -->
+      TODO: <a href="https://go.dev/issue/38651">https://go.dev/issue/38651</a>: add &#39;created by goroutine number&#39; to stack traces
+    </p>
+
+    <p><!-- https://go.dev/issue/57441 -->
+      TODO: <a href="https://go.dev/issue/57441">https://go.dev/issue/57441</a>: use WER for GOTRACEBACK=wer on Windows
+    </p>
+
+    <p><!-- CL 447778 -->
+      TODO: <a href="https://go.dev/cl/447778">https://go.dev/cl/447778</a>: runtime: reimplement GODEBUG=cgocheck=2 as a GOEXPERIMENT
+    </p>
+
+    <p><!-- CL 472195 -->
+      TODO: <a href="https://go.dev/cl/472195">https://go.dev/cl/472195</a>: runtime: remove NOFRAME from asmcgocall, systemstack and mcall
+    </p>
+
+    <p><!-- CL 474915 -->
+      TODO: <a href="https://go.dev/cl/474915">https://go.dev/cl/474915</a>: runtime: support GOTRACEBACK=wer on Windows
+    </p>
+  </dd>
+</dl><!-- runtime -->
+
+<dl id="slices"><dt><a href="/pkg/slices/">slices</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/54768 -->
+      TODO: <a href="https://go.dev/issue/54768">https://go.dev/issue/54768</a>: add DeleteFunc
+    </p>
+
+    <p><!-- https://go.dev/issue/57433 -->
+      TODO: <a href="https://go.dev/issue/57433">https://go.dev/issue/57433</a>: new standard library package based on x/exp/slices
+    </p>
+
+    <p><!-- CL 467417 -->
+      TODO: <a href="https://go.dev/cl/467417">https://go.dev/cl/467417</a>: slices: new package; modified api/next/57433.txt
+    </p>
+
+    <p><!-- CL 483175 -->
+      TODO: <a href="https://go.dev/cl/483175">https://go.dev/cl/483175</a>: slices: add DeleteFunc; modified api/next/54768.txt
+    </p>
+  </dd>
+</dl><!-- slices -->
+
+<dl id="spec"><dt><a href="/pkg/spec/">spec</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/56351 -->
+      TODO: <a href="https://go.dev/issue/56351">https://go.dev/issue/56351</a>: add clear(x) builtin, to clear map, zero content of slice
+    </p>
+
+    <p><!-- https://go.dev/issue/57411 -->
+      TODO: <a href="https://go.dev/issue/57411">https://go.dev/issue/57411</a>: define initialization order more precisely
+    </p>
+
+    <p><!-- https://go.dev/issue/59338 -->
+      TODO: <a href="https://go.dev/issue/59338">https://go.dev/issue/59338</a>: infer type arguments from assignments of generic functions (reverse type inference)
+    </p>
+  </dd>
+</dl><!-- spec -->
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
@@ -147,3 +679,71 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl>
+
+<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/46259 -->
+      TODO: <a href="https://go.dev/issue/46259">https://go.dev/issue/46259</a>: add Jail int32 to SysProcAttr on FreeBSD
+    </p>
+
+    <p><!-- CL 458335 -->
+      TODO: <a href="https://go.dev/cl/458335">https://go.dev/cl/458335</a>: syscall: add jail support to ForkExec on FreeBSD; modified api/next/46259.txt
+    </p>
+
+    <p><!-- CL 480135 -->
+      TODO: <a href="https://go.dev/cl/480135">https://go.dev/cl/480135</a>: syscall: implement Fchdir on Windows
+    </p>
+  </dd>
+</dl><!-- syscall -->
+
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/37708 -->
+      TODO: <a href="https://go.dev/issue/37708">https://go.dev/issue/37708</a>: optionally include full (or relative) path name
+    </p>
+
+    <p><!-- https://go.dev/issue/52600, CL 475496 -->
+      The new <a href="/pkg/testing/#Testing"><code>Testing</code></a> function reports whether the program is a test created by <code>go</code> <code>test</code>.
+    </p>
+  </dd>
+</dl><!-- testing -->
+
+<dl id="testing/slogtest"><dt><a href="/pkg/testing/slogtest/">testing/slogtest</a></dt>
+  <dd>
+    <p><!-- CL 487895 -->
+      TODO: <a href="https://go.dev/cl/487895">https://go.dev/cl/487895</a>: testing/slogtest: tests for slog handlers; modified api/next/56345.txt
+    </p>
+  </dd>
+</dl><!-- testing/slogtest -->
+
+<dl id="x/exp/slices"><dt><a href="/pkg/x/exp/slices/">x/exp/slices</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/57348 -->
+      TODO: <a href="https://go.dev/issue/57348">https://go.dev/issue/57348</a>: Allow different types for haystack/needle in BinarySearchFunc
+    </p>
+  </dd>
+</dl><!-- x/exp/slices -->
+
+<dl id="x/sys/windows"><dt><a href="/pkg/x/sys/windows/">x/sys/windows</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/54232 -->
+      TODO: <a href="https://go.dev/issue/54232">https://go.dev/issue/54232</a>: Add WSALookupService
+    </p>
+  </dd>
+</dl><!-- x/sys/windows -->
+
+<dl id="x/tools/go/analysis"><dt><a href="/pkg/x/tools/go/analysis/">x/tools/go/analysis</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/57906 -->
+      TODO: <a href="https://go.dev/issue/57906">https://go.dev/issue/57906</a>: add Analyzer.URL and Diagnostic.URL fields
+    </p>
+  </dd>
+</dl><!-- x/tools/go/analysis -->
+
+<dl id="x/tools/go/types/objectpath"><dt><a href="/pkg/x/tools/go/types/objectpath/">x/tools/go/types/objectpath</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/58668 -->
+      TODO: <a href="https://go.dev/issue/58668">https://go.dev/issue/58668</a>: add Encoder type, to amortize Scope.Names
+    </p>
+  </dd>
+</dl><!-- x/tools/go/types/objectpath -->
