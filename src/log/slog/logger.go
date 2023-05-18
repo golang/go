@@ -88,34 +88,35 @@ func (l *Logger) clone() *Logger {
 // Handler returns l's Handler.
 func (l *Logger) Handler() Handler { return l.handler }
 
-// With returns a new Logger that includes the given arguments, converted to
-// Attrs as in [Logger.Log].
-// The Attrs will be added to each output from the Logger.
-// The new Logger shares the old Logger's context.
-// The new Logger's handler is the result of calling WithAttrs on the receiver's
-// handler.
+// With returns a Logger that includes the given attributes
+// in each output operation. Arguments are converted to
+// attributes as if by [Logger.Log].
 func (l *Logger) With(args ...any) *Logger {
+	if len(args) == 0 {
+		return l
+	}
 	c := l.clone()
 	c.handler = l.handler.WithAttrs(argsToAttrSlice(args))
 	return c
 }
 
-// WithGroup returns a new Logger that starts a group. The keys of all
-// attributes added to the Logger will be qualified by the given name.
-// (How that qualification happens depends on the [Handler.WithGroup]
+// WithGroup returns a Logger that starts a group, if name is non-empty.
+// The keys of all attributes added to the Logger will be qualified by the given
+// name. (How that qualification happens depends on the [Handler.WithGroup]
 // method of the Logger's Handler.)
-// The new Logger shares the old Logger's context.
 //
-// The new Logger's handler is the result of calling WithGroup on the receiver's
-// handler.
+// If name is empty, WithGroup returns the receiver.
 func (l *Logger) WithGroup(name string) *Logger {
+	if name == "" {
+		return l
+	}
 	c := l.clone()
 	c.handler = l.handler.WithGroup(name)
 	return c
 
 }
 
-// New creates a new Logger with the given non-nil Handler and a nil context.
+// New creates a new Logger with the given non-nil Handler.
 func New(h Handler) *Logger {
 	if h == nil {
 		panic("nil Handler")
