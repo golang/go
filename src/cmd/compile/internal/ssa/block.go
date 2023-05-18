@@ -112,13 +112,6 @@ func (e Edge) String() string {
 }
 
 // BlockKind is the kind of SSA block.
-//
-//	  kind          controls        successors
-//	------------------------------------------
-//	  Exit      [return mem]                []
-//	 Plain                []            [next]
-//	    If   [boolean Value]      [then, else]
-//	 Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
 type BlockKind int16
 
 // short form print
@@ -275,8 +268,7 @@ func (b *Block) truncateValues(i int) {
 	b.Values = b.Values[:i]
 }
 
-// AddEdgeTo adds an edge from block b to block c. Used during building of the
-// SSA graph; do not use on an already-completed SSA graph.
+// AddEdgeTo adds an edge from block b to block c.
 func (b *Block) AddEdgeTo(c *Block) {
 	i := len(b.Succs)
 	j := len(c.Preds)
