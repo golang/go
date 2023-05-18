@@ -596,20 +596,17 @@ func (s *Session) ExpandModificationsToDirectories(ctx context.Context, changes 
 	for _, c := range changes {
 		if !knownDirs.Contains(c.URI) {
 			result = append(result, c)
-			continue
+		} else {
+			for uri := range knownFilesInDir(ctx, snapshots, c.URI) {
+				result = append(result, source.FileModification{
+					URI:        uri,
+					Action:     c.Action,
+					LanguageID: "",
+					OnDisk:     c.OnDisk,
+					// changes to directories cannot include text or versions
+				})
+			}
 		}
-		affectedFiles := knownFilesInDir(ctx, snapshots, c.URI)
-		var fileChanges []source.FileModification
-		for uri := range affectedFiles {
-			fileChanges = append(fileChanges, source.FileModification{
-				URI:        uri,
-				Action:     c.Action,
-				LanguageID: "",
-				OnDisk:     c.OnDisk,
-				// changes to directories cannot include text or versions
-			})
-		}
-		result = append(result, fileChanges...)
 	}
 	return result
 }
@@ -738,9 +735,10 @@ func (fs *overlayFS) updateOverlays(ctx context.Context, changes []source.FileMo
 	return nil
 }
 
-// FileWatchingGlobPatterns returns glob patterns to watch every directory
-// known by the view. For views within a module, this is the module root,
-// any directory in the module root, and any replace targets.
+// FileWatchingGlobPatterns returns a new set of glob patterns to
+// watch every directory known by the view. For views within a module,
+// this is the module root, any directory in the module root, and any
+// replace targets.
 func (s *Session) FileWatchingGlobPatterns(ctx context.Context) map[string]struct{} {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()

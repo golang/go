@@ -445,14 +445,13 @@ func equalURISet(m1, m2 map[string]struct{}) bool {
 
 // registerWatchedDirectoriesLocked sends the workspace/didChangeWatchedFiles
 // registrations to the client and updates s.watchedDirectories.
+// The caller must not subsequently mutate patterns.
 func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, patterns map[string]struct{}) error {
 	if !s.session.Options().DynamicWatchedFilesSupported {
 		return nil
 	}
-	for k := range s.watchedGlobPatterns {
-		delete(s.watchedGlobPatterns, k)
-	}
-	watchers := []protocol.FileSystemWatcher{} // must be a slice
+	s.watchedGlobPatterns = patterns
+	watchers := make([]protocol.FileSystemWatcher, 0, len(patterns)) // must be a slice
 	val := protocol.WatchChange | protocol.WatchDelete | protocol.WatchCreate
 	for pattern := range patterns {
 		watchers = append(watchers, protocol.FileSystemWatcher{
@@ -473,10 +472,6 @@ func (s *Server) registerWatchedDirectoriesLocked(ctx context.Context, patterns 
 		return err
 	}
 	s.watchRegistrationCount++
-
-	for k, v := range patterns {
-		s.watchedGlobPatterns[k] = v
-	}
 	return nil
 }
 

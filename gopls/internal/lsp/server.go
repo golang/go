@@ -29,7 +29,7 @@ func NewServer(session *cache.Session, client protocol.ClientCloser) *Server {
 	return &Server{
 		diagnostics:           map[span.URI]*fileReports{},
 		gcOptimizationDetails: make(map[source.PackageID]struct{}),
-		watchedGlobPatterns:   make(map[string]struct{}),
+		watchedGlobPatterns:   nil, // empty
 		changedFiles:          make(map[span.URI]struct{}),
 		session:               session,
 		client:                client,
@@ -85,6 +85,7 @@ type Server struct {
 	// watchedGlobPatterns is the set of glob patterns that we have requested
 	// the client watch on disk. It will be updated as the set of directories
 	// that the server should watch changes.
+	// The map field may be reassigned but the map is immutable.
 	watchedGlobPatternsMu  sync.Mutex
 	watchedGlobPatterns    map[string]struct{}
 	watchRegistrationCount int

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"runtime"
 	"runtime/debug"
@@ -67,6 +68,7 @@ func (i *Instance) PrintServerInfo(ctx context.Context, w io.Writer) {
 	section(w, HTML, "Server Instance", func() {
 		fmt.Fprintf(w, "Start time: %v\n", i.StartTime)
 		fmt.Fprintf(w, "LogFile: %s\n", i.Logfile)
+		fmt.Fprintf(w, "pid: %d\n", os.Getpid())
 		fmt.Fprintf(w, "Working directory: %s\n", i.Workdir)
 		fmt.Fprintf(w, "Address: %s\n", i.ServerAddress)
 		fmt.Fprintf(w, "Debug address: %s\n", i.DebugAddress())
