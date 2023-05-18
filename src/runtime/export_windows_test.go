@@ -29,10 +29,15 @@ func (c ContextStub) GetPC() uintptr {
 	return c.ip()
 }
 
-func NewContextStub() ContextStub {
+func NewContextStub() *ContextStub {
 	var ctx context
 	ctx.set_ip(getcallerpc())
 	ctx.set_sp(getcallersp())
-	ctx.set_fp(getfp())
-	return ContextStub{ctx}
+	fp := getfp()
+	// getfp is not implemented on windows/386 and windows/arm,
+	// in which case it returns 0.
+	if fp != 0 {
+		ctx.set_fp(*(*uintptr)(unsafe.Pointer(fp)))
+	}
+	return &ContextStub{ctx}
 }

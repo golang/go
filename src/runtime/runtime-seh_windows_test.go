@@ -78,9 +78,9 @@ func sehCallers() []uintptr {
 		if fn == 0 {
 			break
 		}
-		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, uintptr(unsafe.Pointer(&ctx)), nil, &frame, nil)
-		n++
 		pcs[i] = ctx.GetPC()
+		n++
+		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, uintptr(unsafe.Pointer(ctx)), nil, &frame, nil)
 	}
 	return pcs[:n]
 }
