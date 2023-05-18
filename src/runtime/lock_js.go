@@ -242,7 +242,10 @@ func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
 	return nil, false
 }
 
+var idleStart int64
+
 func handleAsyncEvent() {
+	idleStart = nanotime()
 	pause(getcallersp() - 16)
 }
 
@@ -271,6 +274,8 @@ func clearTimeoutEvent(id int32)
 // When no other goroutine is awake any more, beforeIdle resumes the handler goroutine. Now that the same goroutine
 // is running as was running when the call came in from JavaScript, execution can be safely passed back to JavaScript.
 func handleEvent() {
+	sched.idleTime.Add(nanotime() - idleStart)
+
 	e := &event{
 		gp:       getg(),
 		returned: false,
@@ -290,6 +295,7 @@ func handleEvent() {
 	events = events[:len(events)-1]
 
 	// return execution to JavaScript
+	idleStart = nanotime()
 	pause(getcallersp() - 16)
 }
 

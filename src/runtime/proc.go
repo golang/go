@@ -3145,10 +3145,11 @@ top:
 		if mp.spinning {
 			throw("findrunnable: netpoll with spinning")
 		}
-		// Refresh now.
-		now = nanotime()
 		delay := int64(-1)
 		if pollUntil != 0 {
+			if now == 0 {
+				now = nanotime()
+			}
 			delay = pollUntil - now
 			if delay < 0 {
 				delay = 0
@@ -3159,6 +3160,8 @@ top:
 			delay = 0
 		}
 		list := netpoll(delay) // block until new work is available
+		// Refresh now again, after potentially blocking.
+		now = nanotime()
 		sched.pollUntil.Store(0)
 		sched.lastpoll.Store(now)
 		if faketime != 0 && list.empty() {

@@ -636,3 +636,62 @@ func generateMutexWaitTime(mu locker2) time.Duration {
 	*runtime.CasGStatusAlwaysTrack = false
 	return blockTime
 }
+
+// See issue #60276.
+func TestCPUMetricsSleep(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		// Since wasip1 busy-waits in the scheduler, there's no meaningful idle
+		// time. This is accurately reflected in the metrics, but it means this
+		// test is basically meaningless on this platform.
+		t.Skip("wasip1 currently busy-waits in idle time; test not applicable")
+	}
+	names := []string{
+		"/cpu/classes/idle:cpu-seconds",
+
+		"/cpu/classes/gc/mark/assist:cpu-seconds",
+		"/cpu/classes/gc/mark/dedicated:cpu-seconds",
+		"/cpu/classes/gc/mark/idle:cpu-seconds",
+		"/cpu/classes/gc/pause:cpu-seconds",
+		"/cpu/classes/gc/total:cpu-seconds",
+		"/cpu/classes/scavenge/assist:cpu-seconds",
+		"/cpu/classes/scavenge/background:cpu-seconds",
+		"/cpu/classes/scavenge/total:cpu-seconds",
+		"/cpu/classes/total:cpu-seconds",
+		"/cpu/classes/user:cpu-seconds",
+	}
+	prep := func() []metrics.Sample {
+		mm := make([]metrics.Sample, len(names))
+		for i := range names {
+			mm[i].Name = names[i]
+		}
+		return mm
+	}
+	m1, m2 := prep(), prep()
+
+	// Read 1.
+	runtime.GC() // Update /cpu/classes metrics.
+	metrics.Read(m1)
+
+	// Sleep.
+	const dur = 100 * time.Millisecond
+	time.Sleep(dur)
+
+	// Read 2.
+	runtime.GC() // Update /cpu/classes metrics.
+	metrics.Read(m2)
+
+	// If the bug we expect is happening, then the Sleep CPU time will be accounted for
+	// as user time rather than idle time. Because we're doing this on one core, the
+	// maximum amount of time that can be attributed to user time is the time spent asleep.
+	minIdleCPUSeconds := dur.Seconds() * float64(runtime.GOMAXPROCS(-1))
+
+	if dt := m2[0].Value.Float64() - m1[0].Value.Float64(); dt < minIdleCPUSeconds {
+		for i := range names {
+			if m1[i].Value.Kind() == metrics.KindBad {
+				continue
+			}
+			t.Logf("%s %0.3f\n", names[i], m2[i].Value.Float64()-m1[i].Value.Float64())
+		}
+		t.Errorf(`time.Sleep did not contribute enough to "idle" class: %.5fs < %.5fs`, dt, minIdleCPUSeconds)
+	}
+}
