@@ -73,7 +73,6 @@ var allDesc = []Description{
 		Name: "/cpu/classes/gc/mark/dedicated:cpu-seconds",
 		Description: "Estimated total CPU time spent performing GC tasks on " +
 			"processors (as defined by GOMAXPROCS) dedicated to those tasks. " +
-			"This includes time spent with the world stopped due to the GC. " +
 			"This metric is an overestimate, and not directly comparable to " +
 			"system CPU time measurements. Compare only with other /cpu/classes " +
 			"metrics.",

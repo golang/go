@@ -901,3 +901,58 @@ type cpuStats struct {
 
 	totalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
 }
+
+// accumulate takes a cpuStats and adds in the current state of all GC CPU
+// counters.
+//
+// gcMarkPhase indicates that we're in the mark phase and that certain counter
+// values should be used.
+func (s *cpuStats) accumulate(now int64, gcMarkPhase bool) {
+	// N.B. Mark termination and sweep termination pauses are
+	// accumulated in work.cpuStats at the end of their respective pauses.
+	var (
+		markAssistCpu     int64
+		markDedicatedCpu  int64
+		markFractionalCpu int64
+		markIdleCpu       int64
+	)
+	if gcMarkPhase {
+		// N.B. These stats may have stale values if the GC is not
+		// currently in the mark phase.
+		markAssistCpu = gcController.assistTime.Load()
+		markDedicatedCpu = gcController.dedicatedMarkTime.Load()
+		markFractionalCpu = gcController.fractionalMarkTime.Load()
+		markIdleCpu = gcController.idleMarkTime.Load()
+	}
+
+	// The rest of the stats below are either derived from the above or
+	// are reset on each mark termination.
+
+	scavAssistCpu := scavenge.assistTime.Load()
+	scavBgCpu := scavenge.backgroundTime.Load()
+
+	// Update cumulative GC CPU stats.
+	s.gcAssistTime += markAssistCpu
+	s.gcDedicatedTime += markDedicatedCpu + markFractionalCpu
+	s.gcIdleTime += markIdleCpu
+	s.gcTotalTime += markAssistCpu + markDedicatedCpu + markFractionalCpu + markIdleCpu
+
+	// Update cumulative scavenge CPU stats.
+	s.scavengeAssistTime += scavAssistCpu
+	s.scavengeBgTime += scavBgCpu
+	s.scavengeTotalTime += scavAssistCpu + scavBgCpu
+
+	// Update total CPU.
+	s.totalTime = sched.totaltime + (now-sched.procresizetime)*int64(gomaxprocs)
+	s.idleTime += sched.idleTime.Load()
+
+	// Compute userTime. We compute this indirectly as everything that's not the above.
+	//
+	// Since time spent in _Pgcstop is covered by gcPauseTime, and time spent in _Pidle
+	// is covered by idleTime, what we're left with is time spent in _Prunning and _Psyscall,
+	// the latter of which is fine because the P will either go idle or get used for something
+	// else via sysmon. Meanwhile if we subtract GC time from whatever's left, we get non-GC
+	// _Prunning time. Note that this still leaves time spent in sweeping and in the scheduler,
+	// but that's fine. The overwhelming majority of this time will be actual user time.
+	s.userTime = s.totalTime - (s.gcTotalTime + s.scavengeTotalTime + s.idleTime)
+}
