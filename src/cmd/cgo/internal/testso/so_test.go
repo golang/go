@@ -16,6 +16,14 @@ import (
 )
 
 func TestSO(t *testing.T) {
+	testSO(t, "so")
+}
+
+func TestSOVar(t *testing.T) {
+	testSO(t, "sovar")
+}
+
+func testSO(t *testing.T, dir string) {
 	if runtime.GOOS == "ios" {
 		t.Skip("iOS disallows dynamic loading of user libraries")
 	}
@@ -30,7 +38,7 @@ func TestSO(t *testing.T) {
 	defer os.RemoveAll(GOPATH)
 
 	modRoot := filepath.Join(GOPATH, "src", "cgosotest")
-	if err := overlayDir(modRoot, "testdata"); err != nil {
+	if err := overlayDir(modRoot, filepath.Join("testdata", dir)); err != nil {
 		log.Panic(err)
 	}
 	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {
