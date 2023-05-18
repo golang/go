@@ -28,8 +28,9 @@ type Pinner struct {
 func (p *Pinner) Pin(pointer any) {
 	if p.pinner == nil {
 		p.pinner = new(pinner)
+		p.refs = p.refStore[:0]
 		SetFinalizer(p.pinner, func(i *pinner) {
-			if i.refs != nil {
+			if len(i.refs) != 0 {
 				i.unpin() // only required to make the test idempotent
 				pinnerLeakPanic()
 			}
@@ -46,8 +47,14 @@ func (p *Pinner) Unpin() {
 	p.pinner.unpin()
 }
 
+const (
+	pinnerSize         = 64
+	pinnerRefStoreSize = (pinnerSize - unsafe.Sizeof([]unsafe.Pointer{})) / unsafe.Sizeof(unsafe.Pointer(nil))
+)
+
 type pinner struct {
-	refs []unsafe.Pointer
+	refs     []unsafe.Pointer
+	refStore [pinnerRefStoreSize]unsafe.Pointer
 }
 
 func (p *pinner) unpin() {
@@ -58,7 +65,8 @@ func (p *pinner) unpin() {
 		setPinned(p.refs[i], false)
 		p.refs[i] = nil
 	}
-	p.refs = nil
+	p.refStore = [pinnerRefStoreSize]unsafe.Pointer{}
+	p.refs = p.refStore[:0]
 }
 
 func pinnerGetPtr(i *any) unsafe.Pointer {
