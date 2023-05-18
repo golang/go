@@ -78,8 +78,6 @@ type tester struct {
 	testNames    map[string]bool
 	timeoutScale int
 
-	variantNames map[string]bool // check that pkg[:variant] names are unique
-
 	worklist []*work
 }
 
@@ -291,6 +289,15 @@ func (t *tester) maybeLogMetadata() error {
 	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), gorootBinGo, []string{"run", "main.go"}).Run()
 }
 
+// testName returns the dist test name for a given package and variant.
+func testName(pkg, variant string) string {
+	name := pkg
+	if variant != "" {
+		name += ":" + variant
+	}
+	return name
+}
+
 // goTest represents all options to a "go test" command. The final command will
 // combine configuration from goTest and tester flags.
 type goTest struct {
@@ -311,12 +318,13 @@ type goTest struct {
 	runOnHost bool // When cross-compiling, run this test on the host instead of guest
 
 	// variant, if non-empty, is a name used to distinguish different
-	// configurations of the same test package(s). If set and sharded is false,
+	// configurations of the same test package(s). If set and omitVariant is false,
 	// the Package field in test2json output is rewritten to pkg:variant.
 	variant string
-	// sharded indicates that variant is used solely for sharding and that
-	// the set of test names run by each variant of a package is non-overlapping.
-	sharded bool
+	// omitVariant indicates that variant is used solely for the dist test name and
+	// that the set of test names run by each variant (including empty) of a package
+	// is non-overlapping.
+	omitVariant bool
 
 	// We have both pkg and pkgs as a convenience. Both may be set, in which
 	// case they will be combined. At least one must be set.
@@ -346,9 +354,9 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cm
 
 	cmd = exec.Command(gorootBinGo, args...)
 	setupCmd(cmd)
-	if t.json && opts.variant != "" && !opts.sharded {
-		// Rewrite Package in the JSON output to be pkg:variant. For sharded
-		// variants, pkg.TestName is already unambiguous, so we don't need to
+	if t.json && opts.variant != "" && !opts.omitVariant {
+		// Rewrite Package in the JSON output to be pkg:variant. When omitVariant
+		// is true, pkg.TestName is already unambiguous, so we don't need to
 		// rewrite the Package field.
 		//
 		// We only want to process JSON on the child's stdout. Ideally if
@@ -424,7 +432,7 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 	if opts.bench {
 		// Run no tests.
 		run = append(run, "-run=^$")
-		// Run benchmarks as a smoke test
+		// Run benchmarks briefly as a smoke test.
 		run = append(run, "-bench=.*", "-benchtime=.1s")
 	} else if opts.runTests != "" {
 		run = append(run, "-run="+opts.runTests)
@@ -506,16 +514,13 @@ var (
 )
 
 func (t *tester) registerStdTest(pkg string) {
-	heading := "Testing packages."
-	testPrefix := "go_test:"
+	const stdTestHeading = "Testing packages." // known to addTest for a safety check
 	gcflags := gogcflags
-
-	testName := testPrefix + pkg
-	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
+	name := testName(pkg, "")
+	if t.runRx == nil || t.runRx.MatchString(name) == t.runRxWant {
 		stdMatches = append(stdMatches, pkg)
 	}
-
-	t.addTest(testName, heading, func(dt *distTest) error {
+	t.addTest(name, stdTestHeading, func(dt *distTest) error {
 		if ranGoTest {
 			return nil
 		}
@@ -540,11 +545,12 @@ func (t *tester) registerStdTest(pkg string) {
 }
 
 func (t *tester) registerRaceBenchTest(pkg string) {
-	testName := "go_test_bench:" + pkg
-	if t.runRx == nil || t.runRx.MatchString(testName) == t.runRxWant {
+	const raceBenchHeading = "Running benchmarks briefly." // known to addTest for a safety check
+	name := testName(pkg, "racebench")
+	if t.runRx == nil || t.runRx.MatchString(name) == t.runRxWant {
 		benchMatches = append(benchMatches, pkg)
 	}
-	t.addTest(testName, "Running benchmarks briefly.", func(dt *distTest) error {
+	t.addTest(name, raceBenchHeading, func(dt *distTest) error {
 		if ranGoBench {
 			return nil
 		}
@@ -553,11 +559,13 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 		defer timelog("end", dt.name)
 		ranGoBench = true
 		return (&goTest{
-			timeout: 1200 * time.Second, // longer timeout for race with benchmarks
-			race:    true,
-			bench:   true,
-			cpu:     "4",
-			pkgs:    benchMatches,
+			variant:     "racebench",
+			omitVariant: true,               // The only execution of benchmarks in dist; benchmark names are guaranteed not to overlap with test names.
+			timeout:     1200 * time.Second, // longer timeout for race with benchmarks
+			race:        true,
+			bench:       true,
+			cpu:         "4",
+			pkgs:        benchMatches,
 		}).run(t)
 	})
 }
@@ -574,11 +582,10 @@ func (t *tester) registerTests() {
 	// build coordinator does).
 	if len(t.runNames) > 0 {
 		for _, name := range t.runNames {
-			if strings.HasPrefix(name, "go_test:") {
-				t.registerStdTest(strings.TrimPrefix(name, "go_test:"))
-			}
-			if strings.HasPrefix(name, "go_test_bench:") {
-				t.registerRaceBenchTest(strings.TrimPrefix(name, "go_test_bench:"))
+			if !strings.Contains(name, ":") {
+				t.registerStdTest(name)
+			} else if strings.HasSuffix(name, ":racebench") {
+				t.registerRaceBenchTest(strings.TrimSuffix(name, ":racebench"))
 			}
 		}
 	} else {
@@ -616,14 +623,14 @@ func (t *tester) registerTests() {
 
 	// Test the os/user package in the pure-Go mode too.
 	if !t.compileOnly {
-		t.registerTest("osusergo", "os/user with tag osusergo",
+		t.registerTest("os/user with tag osusergo",
 			&goTest{
 				variant: "osusergo",
 				timeout: 300 * time.Second,
 				tags:    []string{"osusergo"},
 				pkg:     "os/user",
 			})
-		t.registerTest("purego:hash/maphash", "hash/maphash purego implementation",
+		t.registerTest("hash/maphash purego implementation",
 			&goTest{
 				variant: "purego",
 				timeout: 300 * time.Second,
@@ -634,7 +641,7 @@ func (t *tester) registerTests() {
 
 	// Test ios/amd64 for the iOS simulator.
 	if goos == "darwin" && goarch == "amd64" && t.cgoEnabled {
-		t.registerTest("amd64ios", "GOOS=ios on darwin/amd64",
+		t.registerTest("GOOS=ios on darwin/amd64",
 			&goTest{
 				variant:  "amd64ios",
 				timeout:  300 * time.Second,
@@ -646,7 +653,7 @@ func (t *tester) registerTests() {
 
 	// Runtime CPU tests.
 	if !t.compileOnly && t.hasParallelism() {
-		t.registerTest("runtime:cpu124", "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
+		t.registerTest("GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
 			&goTest{
 				variant:   "cpu124",
 				timeout:   300 * time.Second,
@@ -667,8 +674,6 @@ func (t *tester) registerTests() {
 	if !t.compileOnly && !t.short {
 		// hooks is the set of maymorestack hooks to test with.
 		hooks := []string{"mayMoreStackPreempt", "mayMoreStackMove"}
-		// pkgs is the set of test packages to run.
-		pkgs := []string{"runtime", "reflect", "sync"}
 		// hookPkgs is the set of package patterns to apply
 		// the maymorestack hook to.
 		hookPkgs := []string{"runtime/...", "reflect", "sync"}
@@ -693,16 +698,14 @@ func (t *tester) registerTests() {
 			}
 			goFlags := strings.Join(goFlagsList, " ")
 
-			for _, pkg := range pkgs {
-				t.registerTest(hook+":"+pkg, "maymorestack="+hook,
-					&goTest{
-						variant: hook,
-						timeout: 600 * time.Second,
-						short:   true,
-						env:     []string{"GOFLAGS=" + goFlags},
-						pkg:     pkg,
-					})
-			}
+			t.registerTest("maymorestack="+hook,
+				&goTest{
+					variant: hook,
+					timeout: 600 * time.Second,
+					short:   true,
+					env:     []string{"GOFLAGS=" + goFlags},
+					pkgs:    []string{"runtime", "reflect", "sync"},
+				})
 		}
 	}
 
@@ -726,7 +729,7 @@ func (t *tester) registerTests() {
 		if pkg == "net" {
 			run = "TestTCPStress"
 		}
-		t.registerTest("nolibgcc:"+pkg, "Testing without libgcc.",
+		t.registerTest("Testing without libgcc.",
 			&goTest{
 				variant:  "nolibgcc",
 				ldflags:  "-linkmode=internal -libgcc=none",
@@ -741,7 +744,7 @@ func (t *tester) registerTests() {
 
 	// Test internal linking of PIE binaries where it is supported.
 	if t.internalLinkPIE() && !disablePIE {
-		t.registerTest("pie_internal", "internal linking of -buildmode=pie",
+		t.registerTest("internal linking of -buildmode=pie",
 			&goTest{
 				variant:   "pie_internal",
 				timeout:   60 * time.Second,
@@ -752,7 +755,7 @@ func (t *tester) registerTests() {
 			})
 		// Also test a cgo package.
 		if t.cgoEnabled && t.internalLink() && !disablePIE {
-			t.registerTest("pie_internal_cgo", "internal linking of -buildmode=pie",
+			t.registerTest("internal linking of -buildmode=pie",
 				&goTest{
 					variant:   "pie_internal",
 					timeout:   60 * time.Second,
@@ -765,7 +768,7 @@ func (t *tester) registerTests() {
 
 	// sync tests
 	if t.hasParallelism() {
-		t.registerTest("sync_cpu", "sync -cpu=10",
+		t.registerTest("sync -cpu=10",
 			&goTest{
 				variant: "cpu10",
 				timeout: 120 * time.Second,
@@ -796,15 +799,13 @@ func (t *tester) registerTests() {
 		}
 		for shard := 0; shard < nShards; shard++ {
 			id := fmt.Sprintf("%d_%d", shard, nShards)
-			t.registerTest(
-				"test:"+id,
-				"../test",
+			t.registerTest("../test",
 				&goTest{
-					variant:   id,
-					sharded:   true,
-					pkg:       "cmd/internal/testdir",
-					testFlags: []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
-					runOnHost: true,
+					variant:     id,
+					omitVariant: true, // Shards of the same Go package; tests are guaranteed not to overlap.
+					pkg:         "cmd/internal/testdir",
+					testFlags:   []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
+					runOnHost:   true,
 				},
 			)
 		}
@@ -815,7 +816,7 @@ func (t *tester) registerTests() {
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
-		t.registerTest("api", "API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
 	}
 }
 
@@ -828,6 +829,12 @@ func (t *tester) addTest(name, heading string, fn func(*distTest) error) {
 	}
 	if heading == "" {
 		panic("empty heading")
+	}
+	// Two simple checks for cases that would conflict with the fast path in registerTests.
+	if !strings.Contains(name, ":") && heading != "Testing packages." {
+		panic("empty variant is reserved exclusively for registerStdTest")
+	} else if strings.HasSuffix(name, ":racebench") && heading != "Running benchmarks briefly." {
+		panic(":racebench variant is reserved exclusively for registerRaceBenchTest")
 	}
 	if t.testNames == nil {
 		t.testNames = make(map[string]bool)
@@ -854,21 +861,11 @@ func (rtSkipFunc) isRegisterTestOpt() {}
 
 // registerTest registers a test that runs the given goTest.
 //
-// name must uniquely identify the test and heading must be non-empty.
-func (t *tester) registerTest(name, heading string, test *goTest, opts ...registerTestOpt) {
-	if t.variantNames == nil {
-		t.variantNames = make(map[string]bool)
-	}
-	for _, pkg := range test.packages() {
-		variantName := pkg
-		if test.variant != "" {
-			variantName += ":" + test.variant
-		}
-		if t.variantNames[variantName] {
-			panic("duplicate variant name " + variantName)
-		}
-		t.variantNames[variantName] = true
-	}
+// Each Go package in goTest will have a corresponding test
+// "<pkg>:<variant>", which must uniquely identify the test.
+//
+// heading and test.variant must be non-empty.
+func (t *tester) registerTest(heading string, test *goTest, opts ...registerTestOpt) {
 	var skipFunc func(*distTest) (string, bool)
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -876,19 +873,42 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 			skipFunc = opt.skip
 		}
 	}
-	t.addTest(name, heading, func(dt *distTest) error {
-		if skipFunc != nil {
-			msg, skip := skipFunc(dt)
-			if skip {
-				t.printSkip(test, msg)
-				return nil
-			}
+	// Register each test package as a separate test.
+	register1 := func(test *goTest) {
+		if test.variant == "" {
+			panic("empty variant")
 		}
-		w := &work{dt: dt}
-		w.cmd, w.flush = test.bgCommand(t, &w.out, &w.out)
-		t.worklist = append(t.worklist, w)
-		return nil
-	})
+		name := testName(test.pkg, test.variant)
+		t.addTest(name, heading, func(dt *distTest) error {
+			if skipFunc != nil {
+				msg, skip := skipFunc(dt)
+				if skip {
+					t.printSkip(test, msg)
+					return nil
+				}
+			}
+			w := &work{dt: dt}
+			w.cmd, w.flush = test.bgCommand(t, &w.out, &w.out)
+			t.worklist = append(t.worklist, w)
+			return nil
+		})
+	}
+	if test.pkg != "" && len(test.pkgs) == 0 {
+		// Common case. Avoid copying.
+		register1(test)
+		return
+	}
+	// TODO(dmitshur,austin): It might be better to unify the execution of 'go test pkg'
+	// invocations for the same variant to be done with a single 'go test pkg1 pkg2 pkg3'
+	// command, just like it's already done in registerStdTest and registerRaceBenchTest.
+	// Those methods accumulate matched packages in stdMatches and benchMatches slices,
+	// and we can extend that mechanism to work for all other equal variant registrations.
+	// Do the simple thing to start with.
+	for _, pkg := range test.packages() {
+		test1 := *test
+		test1.pkg, test1.pkgs = pkg, nil
+		register1(&test1)
+	}
 }
 
 func (t *tester) printSkip(test *goTest, msg string) {
@@ -904,11 +924,7 @@ func (t *tester) printSkip(test *goTest, msg string) {
 	}
 	out := json.NewEncoder(os.Stdout)
 	for _, pkg := range test.packages() {
-		variantName := pkg
-		if test.variant != "" {
-			variantName += ":" + test.variant
-		}
-		ev := event{Time: time.Now(), Package: variantName, Action: "start"}
+		ev := event{Time: time.Now(), Package: testName(pkg, test.variant), Action: "start"}
 		out.Encode(ev)
 		ev.Action = "output"
 		ev.Output = msg
@@ -1068,7 +1084,7 @@ func (t *tester) registerCgoTests(heading string) {
 		}
 		gt.ldflags = strings.Join(ldflags, " ")
 
-		t.registerTest("cgo:"+subdir+":"+variant, heading, gt, opts...)
+		t.registerTest(heading, gt, opts...)
 		return gt
 	}
 
@@ -1323,14 +1339,14 @@ func isAlpineLinux() bool {
 
 func (t *tester) registerRaceTests() {
 	hdr := "Testing race detector"
-	t.registerTest("race:runtime/race", hdr,
+	t.registerTest(hdr,
 		&goTest{
 			variant:  "race",
 			race:     true,
 			runTests: "Output",
 			pkg:      "runtime/race",
 		})
-	t.registerTest("race", hdr,
+	t.registerTest(hdr,
 		&goTest{
 			variant:  "race",
 			race:     true,
@@ -1341,17 +1357,17 @@ func (t *tester) registerRaceTests() {
 	// slows down all.bash (by 10 seconds on my laptop).
 	// The race builder should catch any error here, but doesn't.
 	// TODO(iant): Figure out how to catch this.
-	// t.registerTest("race:cmd/go", hdr, &goTest{race: true, runTests: "TestParallelTest", pkg: "cmd/go"})
+	// t.registerTest(hdr, &goTest{variant: "race", race: true, runTests: "TestParallelTest", pkg: "cmd/go"})
 	if t.cgoEnabled {
 		// Building cmd/cgo/internal/test takes a long time.
 		// There are already cgo-enabled packages being tested with the race detector.
 		// We shouldn't need to redo all of cmd/cgo/internal/test too.
 		// The race buildler will take care of this.
-		// t.registerTest("race:cmd/cgo/internal/test", hdr, &goTest{variant:"race", dir: "cmd/cgo/internal/test", race: true, env: []string{"GOTRACEBACK=2"}})
+		// t.registerTest(hdr, &goTest{variant: "race", race: true, env: []string{"GOTRACEBACK=2"}, pkg: "cmd/cgo/internal/test"})
 	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.
-		t.registerTest("race:external", hdr,
+		t.registerTest(hdr,
 			&goTest{
 				variant:  "race-external",
 				race:     true,
