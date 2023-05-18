@@ -685,7 +685,7 @@ func TestInstructionString(t *testing.T) {
 	//@ instrs("f12", "*ssa.MakeMap", "make map[P]bool 1:int")
 	func f12[T any, P *struct{f T}](x T) map[P]bool { return map[P]bool{{}: true} }
 
-	//@ instrs("f13", "&v[0:int]")
+	//@ instrs("f13", "*ssa.IndexAddr", "&v[0:int]")
 	//@ instrs("f13", "*ssa.Store", "*t0 = 7:int", "*v = *new(A):A")
 	func f13[A [3]int, PA *A](v PA) {
 		*v = A{7}

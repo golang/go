@@ -476,7 +476,7 @@ func emitTailCall(f *Function, call *Call) {
 // value of a field.
 func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) Value {
 	for _, index := range indices {
-		if st, vptr := deptr(v.Type()); vptr {
+		if st, vptr := deref(v.Type()); vptr {
 			fld := fieldOf(st, index)
 			instr := &FieldAddr{
 				X:     v,
@@ -486,7 +486,7 @@ func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) 
 			instr.setType(types.NewPointer(fld.Type()))
 			v = f.emit(instr)
 			// Load the field's value iff indirectly embedded.
-			if _, fldptr := deptr(fld.Type()); fldptr {
+			if _, fldptr := deref(fld.Type()); fldptr {
 				v = emitLoad(f, v)
 			}
 		} else {
@@ -510,7 +510,7 @@ func emitImplicitSelections(f *Function, v Value, indices []int, pos token.Pos) 
 // field's value.
 // Ident id is used for position and debug info.
 func emitFieldSelection(f *Function, v Value, index int, wantAddr bool, id *ast.Ident) Value {
-	if st, vptr := deptr(v.Type()); vptr {
+	if st, vptr := deref(v.Type()); vptr {
 		fld := fieldOf(st, index)
 		instr := &FieldAddr{
 			X:     v,
