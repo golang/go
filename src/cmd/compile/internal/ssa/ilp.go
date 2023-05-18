@@ -4,10 +4,10 @@
 
 package ssa
 
-// reassociate balances trees of commutative computation
-// to better group expressions to expose easy optimizations in
-// cse, cancelling/counting/factoring expressions, etc.
-func reassociate(f *Func) {
+// ilp pass (Instruction Level Parallelism) balances trees of commutative computation
+// to help CPU pipeline instructions more efficiently. It only works block by block
+// so that it doesn't end up pulling loop invariant expressions into tight loops
+func ilp(f *Func) {
 	visited := f.newSparseSet(f.NumValues())
 
 	for _, b := range f.Postorder() {
@@ -22,20 +22,10 @@ func reassociate(f *Func) {
 // It doesn't truly balance the tree in the sense of a BST, rather it
 // prioritizes pairing up innermost (rightmost) expressions and their results and only
 // pairing results of outermost (leftmost) expressions up with them when no other nice pairing exists
-func balanceExprTree(v *Value, visited *sparseSet, nodes, leaves []*Value) {
-	// reset all arguments of nodes to help rebalancing
-	for i, n := range nodes {
+func balanceExprTree(nodes, leaves []*Value) {
+	// reset all arguments of nodes to reuse them
+	for _, n := range nodes {
 		n.reset(n.Op)
-
-		// sometimes nodes in the tree are in different blocks
-		// so pull them in into a common block (v's block)
-		// to make sure nodes don't end up dominating their leaves TODO(ryan-berger), not necessary
-		if v.Block != n.Block {
-			copied := n.copyInto(v.Block)
-			n.Op = OpInvalid
-			visited.add(copied.ID) // "revisit" the copied node
-			nodes[i] = copied
-		}
 	}
 
 	// we bfs'ed through the nodes in reverse topological order
@@ -60,7 +50,7 @@ func balanceExprTree(v *Value, visited *sparseSet, nodes, leaves []*Value) {
 		}
 
 		for j := start; j < len(subTrees)-1; j += 2 {
-			nodes[i].AddArg2(subTrees[j], subTrees[j+1])
+			nodes[i].AddArgs(subTrees[j], subTrees[j+1])
 			nextSubTrees = append(nextSubTrees, nodes[i])
 			i++
 		}
@@ -69,46 +59,7 @@ func balanceExprTree(v *Value, visited *sparseSet, nodes, leaves []*Value) {
 	}
 }
 
-func isOr(op Op) bool {
-	switch op {
-	case OpOr8, OpOr16, OpOr32, OpOr64:
-		return true
-	default:
-		return false
-	}
-}
-
-// probablyMemcombine helps find a pattern of leaves that form
-// a load that can be widened which looks like:
-//
-//	(l | l << 8 | l << 18 | l << 24)
-//
-// which cannot be rebalanced or else it won't fire load widening rewrite rules
-func probablyMemcombine(op Op, leaves []*Value) bool {
-	if !isOr(op) {
-		return false
-	}
-
-	lshCount := 0
-	for _, l := range leaves {
-		switch l.Op {
-		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
-			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
-			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
-			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64:
-			lshCount++
-		}
-	}
-
-	// there are a few algorithms in the std lib expressed as two 32 bit loads
-	// which can get turned into a 64 bit load
-	// conservatively estimate that if there are more shifts than not then it is
-	// some sort of load waiting to be widened
-	return lshCount > len(leaves)/2
-}
-
 // rebalance balances associative computation to better help CPU instruction pipelining (#49331)
-// and groups constants together catch more constant folding opportunities.
 //
 // a + b + c + d compiles to to v1:(a + v2:(b + v3:(c + d)) which is an unbalanced expression tree
 // Which is suboptimal since it requires the CPU to compute v3 before fetching it use its result in
@@ -116,13 +67,12 @@ func probablyMemcombine(op Op, leaves []*Value) bool {
 //
 // This optimization rebalances this expression tree to look like (a + b) + (c + d) ,
 // which removes such dependencies and frees up the CPU pipeline.
-//
-// The above optimization is also a good starting point for other sorts of operations such as
-// turning a + a + a => 3*a, cancelling pairs a + (-a), collecting up common factors TODO(ryan-berger)
 func rebalance(v *Value, visited *sparseSet) {
-	// We cannot apply this optimization to non-commutative operations,
+	// We cannot apply this optimization to non-commutative operations.
+	// We also exclude 3+ arg ops because there are 0 opportunities in the std lib,
+	// and the benefit for maintenance cost is not currently worth it.
 	// Try and save time by not revisiting nodes
-	if visited.contains(v.ID) || !opcodeTable[v.Op].commutative {
+	if visited.contains(v.ID) || !opcodeTable[v.Op].commutative || len(v.Args) > 2{
 		return
 	}
 
@@ -142,26 +92,24 @@ func rebalance(v *Value, visited *sparseSet) {
 		visited.add(v.ID)
 
 		for _, a := range needle.Args {
-			// If the ops aren't the same or have more than one use it must be a leaf.
-			if a.Op != v.Op || a.Uses != 1 {
+			// If the ops aren't the same, have more than one use, or not in the same BB it must be a leaf.
+			if a.Op != v.Op || a.Uses != 1 || a.Block != v.Block  {
 				leaves = append(leaves, a)
 				continue
 			}
 
 			// nodes in the tree now hold the invariants that:
 			// - they are of a common associative operation as the rest of the tree
-			// - they have only a single use (this invariant could be removed with further analysis TODO(ryan-berger))
+			// - they have only a single use
+			// - they are in the same basic block
 			haystack = append(haystack, a)
 		}
 	}
 
-	minLeaves := len(v.Args) * len(v.Args)
-
 	// we need at least args^2 leaves for this expression to be rebalanceable,
-	// and we can't balance a potential load widening (see memcombine)
-	if len(leaves) < minLeaves || probablyMemcombine(v.Op, leaves) {
+	if len(leaves) < 4 {
 		return
 	}
 
-	balanceExprTree(v, visited, nodes, leaves)
+	balanceExprTree(nodes, leaves)
 }

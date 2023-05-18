@@ -465,7 +465,6 @@ var passes = [...]pass{
 	{name: "pre-opt deadcode", fn: deadcode},
 	{name: "opt", fn: opt, required: true},           // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
 	{name: "zero arg cse", fn: zcse, required: true}, // required to merge OpSB values
-	{name: "reassociate", fn: reassociate},
 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
 	{name: "phiopt", fn: phiopt},
@@ -485,6 +484,7 @@ var passes = [...]pass{
 	{name: "late fuse", fn: fuseLate},
 	{name: "dse", fn: dse},
 	{name: "memcombine", fn: memcombine},
+	{name: "ilp", fn: ilp},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
@@ -586,6 +586,8 @@ var passOrder = [...]constraint{
 	{"late fuse", "memcombine"},
 	// memcombine is a arch-independent pass.
 	{"memcombine", "lower"},
+	// ilp works best after ORs have been combined to loads
+	{"memcombine", "ilp"},
 }
 
 func init() {
