@@ -8,15 +8,19 @@ package cgotest
 
 /*
 #include <unistd.h>
+#include <stdbool.h>
 #include <sys/syscall.h>
 void Gosched(void);
-static int Ctid(void) { Gosched(); return syscall(SYS_gettid); }
+static bool Ctid(void) {
+	long tid1 = syscall(SYS_gettid);
+	Gosched();
+	return tid1 == syscall(SYS_gettid);
+}
 */
 import "C"
 
 import (
 	"runtime"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -46,7 +50,7 @@ func testThreadLock(t *testing.T) {
 	defer close(stop)
 
 	for i := 0; i < 1000; i++ {
-		if C.int(syscall.Gettid()) != C.Ctid() {
+		if !C.Ctid() {
 			t.Fatalf("cgo has not locked OS thread")
 		}
 	}
