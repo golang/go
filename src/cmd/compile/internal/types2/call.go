@@ -473,7 +473,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 // are used together to infer any missing type arguments, and the callee and argument
 // functions are instantiated as necessary.
 // The result signature is the (possibly adjusted and instantiated) function signature.
-// If an error occured, the result signature is the incoming sig.
+// If an error occurred, the result signature is the incoming sig.
 func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []Type, xlist []syntax.Expr, args []*operand, atargs [][]Type, atxlist [][]syntax.Expr) (rsig *Signature) {
 	rsig = sig
 

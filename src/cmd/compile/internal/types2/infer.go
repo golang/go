@@ -411,7 +411,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 			t0 := inferred[index]
 			if t1 := check.subst(nopos, t0, smap, nil, check.context()); t1 != t0 {
 				// t0 was simplified to t1.
-				// If t0 was a generic function, but the simplifed signature t1 does
+				// If t0 was a generic function, but the simplified signature t1 does
 				// not contain any type parameters anymore, the function is not generic
 				// anymore. Remove it's type parameters. (go.dev/issue/59953)
 				// Note that if t0 was a signature, t1 must be a signature, and t1
