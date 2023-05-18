@@ -133,7 +133,6 @@ var trace struct {
 	// trace.lock must only be acquired on the system stack where
 	// stack splits cannot happen while it is held.
 	lock          mutex       // protects the following members
-	lockOwner     *g          // to avoid deadlocks during recursive lock locks
 	enabled       bool        // when set runtime traces events
 	shutdown      bool        // set when we are waiting for trace reader to finish after setting enabled to false
 	headerWritten bool        // whether ReadTrace has emitted trace header
@@ -563,20 +562,23 @@ func readTrace0() (buf []byte, park bool) {
 		defer func() { getg().racectx = 0 }()
 	}
 
-	// This function may need to lock trace.lock recursively
-	// (goparkunlock -> traceGoPark -> traceEvent -> traceFlush).
-	// To allow this we use trace.lockOwner.
-	// Also this function must not allocate while holding trace.lock:
+	// Optimistically look for CPU profile samples. This may write new stack
+	// records, and may write new tracing buffers. This must be done with the
+	// trace lock not held. footerWritten and shutdown are safe to access
+	// here. They are only mutated by this goroutine or during a STW.
+	if !trace.footerWritten && !trace.shutdown {
+		traceReadCPU()
+	}
+
+	// This function must not allocate while holding trace.lock:
 	// allocation can call heap allocate, which will try to emit a trace
 	// event while holding heap lock.
 	lock(&trace.lock)
-	trace.lockOwner = getg().m.curg
 
 	if trace.reader.Load() != nil {
 		// More than one goroutine reads trace. This is bad.
 		// But we rather do not crash the program because of tracing,
 		// because tracing can be enabled at runtime on prod servers.
-		trace.lockOwner = nil
 		unlock(&trace.lock)
 		println("runtime: ReadTrace called from multiple goroutines simultaneously")
 		return nil, false
@@ -590,21 +592,14 @@ func readTrace0() (buf []byte, park bool) {
 	// Write trace header.
 	if !trace.headerWritten {
 		trace.headerWritten = true
-		trace.lockOwner = nil
 		unlock(&trace.lock)
 		return []byte("go 1.21 trace\x00\x00\x00"), false
-	}
-	// Optimistically look for CPU profile samples. This may write new stack
-	// records, and may write new tracing buffers.
-	if !trace.footerWritten && !trace.shutdown {
-		traceReadCPU()
 	}
 	// Wait for new data.
 	if trace.fullHead == 0 && !trace.shutdown {
 		// We don't simply use a note because the scheduler
 		// executes this goroutine directly when it wakes up
 		// (also a note would consume an M).
-		trace.lockOwner = nil
 		unlock(&trace.lock)
 		return nil, true
 	}
@@ -614,7 +609,6 @@ newFull:
 	if trace.fullHead != 0 {
 		buf := traceFullDequeue()
 		trace.reading = buf
-		trace.lockOwner = nil
 		unlock(&trace.lock)
 		return buf.ptr().arr[:buf.ptr().pos], false
 	}
@@ -626,7 +620,6 @@ newFull:
 		if freq <= 0 {
 			throw("trace: ReadTrace got invalid frequency")
 		}
-		trace.lockOwner = nil
 		unlock(&trace.lock)
 
 		// Write frequency event.
@@ -647,7 +640,6 @@ newFull:
 	}
 	// Done.
 	if trace.shutdown {
-		trace.lockOwner = nil
 		unlock(&trace.lock)
 		if raceenabled {
 			// Model synchronization on trace.shutdownSema, which race
@@ -660,7 +652,6 @@ newFull:
 		return nil, false
 	}
 	// Also bad, but see the comment above.
-	trace.lockOwner = nil
 	unlock(&trace.lock)
 	println("runtime: spurious wakeup of trace reader")
 	return nil, false
@@ -1046,11 +1037,7 @@ func traceReleaseBuffer(mp *m, pid int32) {
 // lockRankMayTraceFlush records the lock ranking effects of a
 // potential call to traceFlush.
 func lockRankMayTraceFlush() {
-	owner := trace.lockOwner
-	dolock := owner == nil || owner != getg().m.curg
-	if dolock {
-		lockWithRankMayAcquire(&trace.lock, getLockRank(&trace.lock))
-	}
+	lockWithRankMayAcquire(&trace.lock, getLockRank(&trace.lock))
 }
 
 // traceFlush puts buf onto stack of full buffers and returns an empty buffer.
@@ -1059,11 +1046,7 @@ func lockRankMayTraceFlush() {
 //
 //go:systemstack
 func traceFlush(buf traceBufPtr, pid int32) traceBufPtr {
-	owner := trace.lockOwner
-	dolock := owner == nil || owner != getg().m.curg
-	if dolock {
-		lock(&trace.lock)
-	}
+	lock(&trace.lock)
 	if buf != 0 {
 		traceFullQueue(buf)
 	}
@@ -1090,9 +1073,7 @@ func traceFlush(buf traceBufPtr, pid int32) traceBufPtr {
 	bufp.varint(uint64(pid))
 	bufp.varint(uint64(ts))
 
-	if dolock {
-		unlock(&trace.lock)
-	}
+	unlock(&trace.lock)
 	return buf
 }
 
