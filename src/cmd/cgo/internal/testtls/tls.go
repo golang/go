@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build cgo && unix && !darwin
-
 package cgotlstest
 
-// #include <pthread.h>
+// extern const char *checkTLS();
 // extern void setTLS(int);
 // extern int getTLS();
 import "C"
@@ -17,6 +15,10 @@ import (
 )
 
 func testTLS(t *testing.T) {
+	if skip := C.checkTLS(); skip != nil {
+		t.Skipf("%s", C.GoString(skip))
+	}
+
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
