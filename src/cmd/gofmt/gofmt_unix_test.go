@@ -50,11 +50,11 @@ func TestPermissions(t *testing.T) {
 	s.Add(fileWeight(fn, info), func(r *reporter) error {
 		return processFile(fn, info, nil, r)
 	})
-	if errBuf.Len() > 0 {
-		t.Log(errBuf)
-	}
 	if s.GetExitCode() == 0 {
 		t.Fatal("rewrite of read-only file succeeded unexpectedly")
+	}
+	if errBuf.Len() > 0 {
+		t.Log(errBuf)
 	}
 
 	info, err = os.Stat(fn)
