@@ -636,12 +636,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		if nargs > 0 {
 			params = make([]Type, nargs)
 			for i, a := range args {
-				*x = *a
-				check.assignment(x, nil, "argument to "+predeclaredFuncs[id].name)
-				if x.mode == invalid {
+				check.assignment(a, nil, "argument to "+predeclaredFuncs[id].name)
+				if a.mode == invalid {
 					return
 				}
-				params[i] = x.typ
+				params[i] = a.typ
 			}
 		}
 
