@@ -2864,7 +2864,6 @@ func TestDirSeek(t *testing.T) {
 	dirnames2, err := f.Readdirnames(0)
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
 
 	if len(dirnames1) != len(dirnames2) {
