@@ -278,6 +278,8 @@ func tcGoDefer(n *ir.GoDeferStmt) {
 		ir.OCLOSE,
 		ir.OCOPY,
 		ir.ODELETE,
+		ir.OMAX,
+		ir.OMIN,
 		ir.OPANIC,
 		ir.OPRINT,
 		ir.OPRINTN,

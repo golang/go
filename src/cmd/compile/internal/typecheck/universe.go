@@ -42,6 +42,8 @@ var builtinFuncs = [...]struct {
 	{"imag", ir.OIMAG},
 	{"len", ir.OLEN},
 	{"make", ir.OMAKE},
+	{"max", ir.OMAX},
+	{"min", ir.OMIN},
 	{"new", ir.ONEW},
 	{"panic", ir.OPANIC},
 	{"print", ir.OPRINT},

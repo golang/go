@@ -242,6 +242,8 @@ const (
 	ORECV             // <-X
 	ORUNESTR          // Type(X) (Type is string, X is rune)
 	OSELRECV2         // like OAS2: Lhs = Rhs where len(Lhs)=2, len(Rhs)=1, Rhs[0].Op = ORECV (appears as .Var of OCASE)
+	OMIN              // min(List)
+	OMAX              // max(List)
 	OREAL             // real(X)
 	OIMAG             // imag(X)
 	OCOMPLEX          // complex(X, Y)

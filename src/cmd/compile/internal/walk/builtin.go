@@ -525,6 +525,12 @@ func walkNew(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
+func walkMinMax(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+	init.Append(ir.TakeInit(n)...)
+	walkExprList(n.Args, init)
+	return n
+}
+
 // generate code for print.
 func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 	// Hoist all the argument evaluation up before the lock.

@@ -98,6 +98,10 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 		n := n.(*ir.SelectorExpr)
 		return n.FuncName()
 
+	case ir.OMIN, ir.OMAX:
+		n := n.(*ir.CallExpr)
+		return walkMinMax(n, init)
+
 	case ir.ONOT, ir.ONEG, ir.OPLUS, ir.OBITNOT, ir.OREAL, ir.OIMAG, ir.OSPTR, ir.OITAB, ir.OIDATA:
 		n := n.(*ir.UnaryExpr)
 		n.X = walkExpr(n.X, init)

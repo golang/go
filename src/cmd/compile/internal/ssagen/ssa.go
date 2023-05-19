@@ -3314,6 +3314,9 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 	case ir.OAPPEND:
 		return s.append(n.(*ir.CallExpr), false)
 
+	case ir.OMIN, ir.OMAX:
+		return s.minMax(n.(*ir.CallExpr))
+
 	case ir.OSTRUCTLIT, ir.OARRAYLIT:
 		// All literals with nonzero fields have already been
 		// rewritten during walk. Any that remain are just T{}
@@ -3545,6 +3548,92 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		return nil
 	}
 	return s.newValue3(ssa.OpSliceMake, n.Type(), p, l, c)
+}
+
+// minMax converts an OMIN/OMAX builtin call into SSA.
+func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
+	// The OMIN/OMAX builtin is variadic, but its semantics are
+	// equivalent to left-folding a binary min/max operation across the
+	// arguments list.
+	fold := func(op func(x, a *ssa.Value) *ssa.Value) *ssa.Value {
+		x := s.expr(n.Args[0])
+		for _, arg := range n.Args[1:] {
+			x = op(x, s.expr(arg))
+		}
+		return x
+	}
+
+	typ := n.Type()
+
+	if typ.IsFloat() || typ.IsString() {
+		// min/max semantics for floats are tricky because of NaNs and
+		// negative zero, so we let the runtime handle this instead.
+		//
+		// Strings are conceptually simpler, but we currently desugar
+		// string comparisons during walk, not ssagen.
+
+		var name string
+		switch typ.Kind() {
+		case types.TFLOAT32:
+			switch n.Op() {
+			case ir.OMIN:
+				name = "fmin32"
+			case ir.OMAX:
+				name = "fmax32"
+			}
+		case types.TFLOAT64:
+			switch n.Op() {
+			case ir.OMIN:
+				name = "fmin64"
+			case ir.OMAX:
+				name = "fmax64"
+			}
+		case types.TSTRING:
+			switch n.Op() {
+			case ir.OMIN:
+				name = "strmin"
+			case ir.OMAX:
+				name = "strmax"
+			}
+		}
+		fn := typecheck.LookupRuntimeFunc(name)
+
+		return fold(func(x, a *ssa.Value) *ssa.Value {
+			return s.rtcall(fn, true, []*types.Type{typ}, x, a)[0]
+		})
+	}
+
+	lt := s.ssaOp(ir.OLT, typ)
+
+	return fold(func(x, a *ssa.Value) *ssa.Value {
+		switch n.Op() {
+		case ir.OMIN:
+			// a < x ? a : x
+			return s.ternary(s.newValue2(lt, types.Types[types.TBOOL], a, x), a, x)
+		case ir.OMAX:
+			// x < a ? a : x
+			return s.ternary(s.newValue2(lt, types.Types[types.TBOOL], x, a), a, x)
+		}
+		panic("unreachable")
+	})
+}
+
+// ternary emits code to evaluate cond ? x : y.
+func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
+	bThen := s.f.NewBlock(ssa.BlockPlain)
+	bElse := s.f.NewBlock(ssa.BlockPlain)
+
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.SetControl(cond)
+	b.AddEdgeTo(bThen)
+	b.AddEdgeTo(bElse)
+
+	s.startBlock(bElse)
+	s.endBlock().AddEdgeTo(bThen)
+
+	s.startBlock(bThen)
+	return s.newValue2(ssa.OpPhi, x.Type, x, y)
 }
 
 // condBranch evaluates the boolean expression cond and branches to yes
