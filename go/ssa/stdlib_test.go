@@ -36,7 +36,7 @@ func bytesAllocated() uint64 {
 
 func TestStdlib(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping in short mode; too slow (https://golang.org/issue/14113)")
+		t.Skip("skipping in short mode; too slow (https://golang.org/issue/14113)") // ~5s
 	}
 	testenv.NeedsTool(t, "go")
 
@@ -81,20 +81,33 @@ func TestStdlib(t *testing.T) {
 
 	allFuncs := ssautil.AllFunctions(prog)
 
-	// Check that all non-synthetic functions have distinct names.
-	// Synthetic wrappers for exported methods should be distinct too,
-	// except for unexported ones (explained at (*Function).RelString).
-	byName := make(map[string]*ssa.Function)
-	for fn := range allFuncs {
-		if fn.Synthetic == "" || ast.IsExported(fn.Name()) {
-			str := fn.String()
-			prev := byName[str]
-			byName[str] = fn
-			if prev != nil {
-				t.Errorf("%s: duplicate function named %s",
-					prog.Fset.Position(fn.Pos()), str)
-				t.Errorf("%s:   (previously defined here)",
-					prog.Fset.Position(prev.Pos()))
+	// The assertion below is not valid if the program contains
+	// variants of the same package, such as the test variants
+	// (e.g. package p as compiled for test executable x) obtained
+	// when cfg.Tests=true. Profile-guided optimization may
+	// lead to similar variation for non-test executables.
+	//
+	// Ideally, the test would assert that all functions within
+	// each executable (more generally: within any singly rooted
+	// transitively closed subgraph of the import graph) have
+	// distinct names, but that isn't so easy to compute efficiently.
+	// Disabling for now.
+	if false {
+		// Check that all non-synthetic functions have distinct names.
+		// Synthetic wrappers for exported methods should be distinct too,
+		// except for unexported ones (explained at (*Function).RelString).
+		byName := make(map[string]*ssa.Function)
+		for fn := range allFuncs {
+			if fn.Synthetic == "" || ast.IsExported(fn.Name()) {
+				str := fn.String()
+				prev := byName[str]
+				byName[str] = fn
+				if prev != nil {
+					t.Errorf("%s: duplicate function named %s",
+						prog.Fset.Position(fn.Pos()), str)
+					t.Errorf("%s:   (previously defined here)",
+						prog.Fset.Position(prev.Pos()))
+				}
 			}
 		}
 	}
