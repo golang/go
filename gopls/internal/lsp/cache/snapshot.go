@@ -1833,7 +1833,7 @@ searchOverlays:
 					fix = `To work with multiple modules simultaneously, please upgrade to Go 1.18 or
 later, reinstall gopls, and use a go.work file.`
 				}
-				msg = fmt.Sprintf(`This file is in directory %q, which is not included in your workspace.
+				msg = fmt.Sprintf(`This file is within module %q, which is not included in your workspace.
 %s
 See the documentation for more information on setting up your workspace:
 https://github.com/golang/tools/blob/master/gopls/doc/workspace.md.`, modDir, fix)
