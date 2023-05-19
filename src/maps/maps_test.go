@@ -234,8 +234,6 @@ func TestCloneWithMapAssign(t *testing.T) {
 	}
 }
 
-var keysArr []int
-
 func BenchmarkKeys(b *testing.B) {
 	m := make(map[int]int, 1000000)
 	for i := 0; i < 1000000; i++ {
