@@ -110,9 +110,8 @@ allg,
 # Below MALLOC is the malloc implementation.
 < fin,
   gcBitsArenas,
-  mheapSpecial,
-  mspanSpecial,
   spanSetSpine,
+  mspanSpecial,
   MPROF;
 
 # Memory profiling
@@ -159,6 +158,11 @@ stackLarge,
 # Above mheap is anything that can call the span allocator.
 < mheap;
 # Below mheap is the span allocator implementation.
+#
+# Specials: we're allowed to allocate a special while holding
+# an mspanSpecial lock, and they're part of the malloc implementation.
+# Pinner bits might be freed by the span allocator.
+mheap, mspanSpecial < mheapSpecial;
 mheap, mheapSpecial < globalAlloc;
 
 # Execution tracer events (with a P)
