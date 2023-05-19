@@ -675,6 +675,10 @@ type p struct {
 		buf [128]*mspan
 	}
 
+	// Cache of a single pinner object to reduce allocations from repeated
+	// pinner creation.
+	pinnerCache *pinner
+
 	trace pTraceState
 
 	palloc persistentAlloc // per-P to avoid mutex

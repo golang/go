@@ -1085,6 +1085,9 @@ func gcMarkTermination() {
 	// having pages get stuck on them. These pages are hidden from
 	// the scavenger, so in small idle heaps a significant amount
 	// of additional memory might be held onto.
+	//
+	// Also, flush the pinner cache, to avoid leaking that memory
+	// indefinitely.
 	systemstack(func() {
 		forEachP(func(pp *p) {
 			pp.mcache.prepareForSweep()
@@ -1095,6 +1098,7 @@ func gcMarkTermination() {
 					unlock(&mheap_.lock)
 				})
 			}
+			pp.pinnerCache = nil
 		})
 	})
 	// Now that we've swept stale spans in mcaches, they don't
