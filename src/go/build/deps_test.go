@@ -49,10 +49,6 @@ var depsRules = `
 	  unicode/utf8, unicode/utf16, unicode,
 	  unsafe;
 
-	# slices depends on unsafe for overlapping check.
-	unsafe
-	< slices;
-
 	# These packages depend only on internal/goarch and unsafe.
 	internal/goarch, unsafe
 	< internal/abi;
@@ -226,6 +222,11 @@ var depsRules = `
 	io
 	< hash
 	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
+
+	# slices depends on unsafe for overlapping check, cmp for comparison
+	# semantics, and math/bits for # calculating bitlength of numbers.
+	unsafe, cmp, math/bits
+	< slices;
 
 	# math/big
 	FMT, encoding/binary, math/rand
