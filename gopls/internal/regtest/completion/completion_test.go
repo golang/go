@@ -527,9 +527,56 @@ func main() {
 		env.AcceptCompletion(loc, completions.Items[0])
 		env.Await(env.DoneWithChange())
 		got := env.BufferText("main.go")
-		want := "package main\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"math\"\r\n)\r\n\r\nfunc main() {\r\n\tfmt.Println(\"a\")\r\n\tmath.Sqrt(${1:})\r\n}\r\n"
+		want := "package main\r\n\r\nimport (\r\n\t\"fmt\"\r\n\t\"math\"\r\n)\r\n\r\nfunc main() {\r\n\tfmt.Println(\"a\")\r\n\tmath.Sqrt(${1:x float64})\r\n}\r\n"
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("unimported completion (-want +got):\n%s", diff)
+		}
+	})
+}
+
+func TestUnimportedCompletionHasPlaceholders60269(t *testing.T) {
+	// We can't express this as a marker test because it doesn't support AcceptCompletion.
+	const src = `
+-- go.mod --
+module example.com
+go 1.12
+
+-- a/a.go --
+package a
+
+var _ = b.F
+
+-- b/b.go --
+package b
+
+func F0(a, b int, c float64) {}
+func F1(int, chan *string) {}
+`
+	WithOptions(
+		WindowsLineEndings(),
+	).Run(t, src, func(t *testing.T, env *Env) {
+		env.OpenFile("a/a.go")
+		env.Await(env.DoneWithOpen())
+
+		// The table lists the expected completions as they appear in Items.
+		const common = "package a\r\n\r\nimport \"example.com/b\"\r\n\r\nvar _ = "
+		for i, want := range []string{
+			common + "b.F0(${1:a int}, ${2:b int}, ${3:c float64})\r\n",
+			common + "b.F1(${1:_ int}, ${2:_ chan *string})\r\n",
+		} {
+			loc := env.RegexpSearch("a/a.go", "b.F()")
+			completions := env.Completion(loc)
+			if len(completions.Items) == 0 {
+				t.Fatalf("no completion items")
+			}
+			saved := env.BufferText("a/a.go")
+			env.AcceptCompletion(loc, completions.Items[i])
+			env.Await(env.DoneWithChange())
+			got := env.BufferText("a/a.go")
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("%d: unimported completion (-want +got):\n%s", i, diff)
+			}
+			env.SetBufferContent("a/a.go", saved) // restore
 		}
 	})
 }

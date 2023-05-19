@@ -12,6 +12,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/parser"
+	"go/printer"
 	"go/scanner"
 	"go/token"
 	"go/types"
@@ -1268,19 +1269,30 @@ func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 				var sn snippet.Builder
 				sn.WriteText(id.Name)
 				sn.WriteText("(")
+
+				var cfg printer.Config // slight overkill
 				var nparams int
-				for _, field := range fn.Type.Params.List {
-					if field.Names != nil {
-						nparams += len(field.Names)
-					} else {
-						nparams++
-					}
-				}
-				for i := 0; i < nparams; i++ {
-					if i > 0 {
+				param := func(name string, typ ast.Expr) {
+					if nparams > 0 {
 						sn.WriteText(", ")
 					}
-					sn.WritePlaceholder(nil)
+					nparams++
+					sn.WritePlaceholder(func(b *snippet.Builder) {
+						var buf strings.Builder
+						buf.WriteString(name)
+						buf.WriteByte(' ')
+						cfg.Fprint(&buf, token.NewFileSet(), typ)
+						b.WriteText(buf.String())
+					})
+				}
+				for _, field := range fn.Type.Params.List {
+					if field.Names != nil {
+						for _, name := range field.Names {
+							param(name.Name, field.Type)
+						}
+					} else {
+						param("_", field.Type)
+					}
 				}
 				sn.WriteText(")")
 				item.snippet = &sn
