@@ -723,50 +723,6 @@ func (t *tester) registerTests() {
 		}
 	}
 
-	// On the builders only, test that a moved GOROOT still works.
-	// Fails on iOS because CC_FOR_TARGET refers to clangwrap.sh
-	// in the unmoved GOROOT.
-	// Fails on Android, js/wasm and wasip1/wasm with an exec format error.
-	// Fails on plan9 with "cannot find GOROOT" (issue #21016).
-	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() && goos != "plan9" && goos != "js" && goos != "wasip1" {
-		t.addTest("moved_goroot", "moved GOROOT", func(dt *distTest) error {
-			t.runPending(dt)
-			timelog("start", dt.name)
-			defer timelog("end", dt.name)
-			moved := goroot + "-moved"
-			if err := os.Rename(goroot, moved); err != nil {
-				if goos == "windows" {
-					// Fails on Windows (with "Access is denied") if a process
-					// or binary is in this directory. For instance, using all.bat
-					// when run from c:\workdir\go\src fails here
-					// if GO_BUILDER_NAME is set. Our builders invoke tests
-					// a different way which happens to work when sharding
-					// tests, but we should be tolerant of the non-sharded
-					// all.bat case.
-					log.Printf("skipping test on Windows")
-					return nil
-				}
-				return err
-			}
-
-			// Run `go test fmt` in the moved GOROOT, without explicitly setting
-			// GOROOT in the environment. The 'go' command should find itself.
-			cmd, flush := (&goTest{
-				variant: "moved_goroot",
-				goroot:  moved,
-				pkg:     "fmt",
-			}).command(t)
-			unsetEnv(cmd, "GOROOT")
-			err := cmd.Run()
-			flush()
-
-			if rerr := os.Rename(moved, goroot); rerr != nil {
-				fatalf("failed to restore GOROOT: %v", rerr)
-			}
-			return err
-		})
-	}
-
 	// Test that internal linking of standard packages does not
 	// require libgcc. This ensures that we can install a Go
 	// release on a system that does not have a C compiler
