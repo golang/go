@@ -301,7 +301,6 @@ type goTest struct {
 	bench    bool          // Run benchmarks (briefly), not tests.
 	runTests string        // Regexp of tests to run
 	cpu      string        // If non-empty, -cpu flag
-	goroot   string        // If non-empty, use alternate goroot for go command
 
 	gcflags   string // If non-empty, build with -gcflags=all=X
 	ldflags   string // If non-empty, build with -ldflags=X
@@ -331,7 +330,7 @@ type goTest struct {
 // will write its output to stdout and stderr. If stdout==stderr, bgCommand
 // ensures Writes are serialized. The caller should call flush() after Cmd exits.
 func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cmd, flush func()) {
-	goCmd, build, run, pkgs, testFlags, setupCmd := opts.buildArgs(t)
+	build, run, pkgs, testFlags, setupCmd := opts.buildArgs(t)
 
 	// Combine the flags.
 	args := append([]string{"test"}, build...)
@@ -345,7 +344,7 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cm
 		args = append(args, testFlags...)
 	}
 
-	cmd = exec.Command(goCmd, args...)
+	cmd = exec.Command(gorootBinGo, args...)
 	setupCmd(cmd)
 	if t.json && opts.variant != "" && !opts.sharded {
 		// Rewrite Package in the JSON output to be pkg:variant. For sharded
@@ -378,33 +377,22 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cm
 	return cmd, flush
 }
 
-// command returns a go test Cmd intended to be run immediately and a flush
-// function to call after it has run.
-func (opts *goTest) command(t *tester) (*exec.Cmd, func()) {
-	return opts.bgCommand(t, os.Stdout, os.Stderr)
-}
-
+// run runs a go test and returns an error if it does not succeed.
 func (opts *goTest) run(t *tester) error {
-	cmd, flush := opts.command(t)
+	cmd, flush := opts.bgCommand(t, os.Stdout, os.Stderr)
 	err := cmd.Run()
 	flush()
 	return err
 }
 
 // buildArgs is in internal helper for goTest that constructs the elements of
-// the "go test" command line. goCmd is the path to the go command to use. build
-// is the flags for building the test. run is the flags for running the test.
-// pkgs is the list of packages to build and run. testFlags is the list of flags
-// to pass to the test package.
+// the "go test" command line. build is the flags for building the test. run is
+// the flags for running the test. pkgs is the list of packages to build and
+// run. testFlags is the list of flags to pass to the test package.
 //
 // The caller must call setupCmd on the resulting exec.Cmd to set its directory
 // and environment.
-func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs, testFlags []string, setupCmd func(*exec.Cmd)) {
-	goCmd = gorootBinGo
-	if opts.goroot != "" {
-		goCmd = filepath.Join(opts.goroot, "bin", "go")
-	}
-
+func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, setupCmd func(*exec.Cmd)) {
 	run = append(run, "-count=1") // Disallow caching
 	if opts.timeout != 0 {
 		d := opts.timeout * time.Duration(t.timeoutScale)
@@ -470,13 +458,8 @@ func (opts *goTest) buildArgs(t *tester) (goCmd string, build, run, pkgs, testFl
 		testFlags = append(testFlags, "-target="+goos+"/"+goarch)
 	}
 
-	thisGoroot := goroot
-	if opts.goroot != "" {
-		thisGoroot = opts.goroot
-	}
-	dir := filepath.Join(thisGoroot, "src")
 	setupCmd = func(cmd *exec.Cmd) {
-		setDir(cmd, dir)
+		setDir(cmd, filepath.Join(goroot, "src"))
 		if len(opts.env) != 0 {
 			for _, kv := range opts.env {
 				if i := strings.Index(kv, "="); i < 0 {
