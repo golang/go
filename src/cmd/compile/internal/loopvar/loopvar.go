@@ -18,7 +18,7 @@ import (
 
 type VarAndLoop struct {
 	Name    *ir.Name
-	Loop    ir.Node  // the *ir.ForStmt or *ir.ForStmt. Used for identity and position
+	Loop    ir.Node  // the *ir.RangeStmt or *ir.ForStmt. Used for identity and position
 	LastPos src.XPos // the last position observed within Loop
 }
 
@@ -597,20 +597,25 @@ func LogTransformations(transformed []VarAndLoop) {
 		for _, l := range loops {
 			pos := l.loop.Pos()
 			last := l.last
+			loopKind := "range"
+			if _, ok := l.loop.(*ir.ForStmt); ok {
+				loopKind = "for"
+			}
 			if logopt.Enabled() {
-				// Intended to
-				logopt.LogOptRange(pos, last, "loop-modified", "loopvar", ir.FuncName(l.curfn))
+				// Intended to help with performance debugging, we record whole loop ranges
+				logopt.LogOptRange(pos, last, "loop-modified-"+loopKind, "loopvar", ir.FuncName(l.curfn))
 			}
 			if print && 3 <= base.Debug.LoopVar {
 				// TODO decide if we want to keep this, or not.  It was helpful for validating logopt, otherwise, eh.
 				inner := base.Ctxt.InnermostPos(pos)
 				outer := base.Ctxt.OutermostPos(pos)
+
 				if inner == outer {
-					base.WarnfAt(pos, "loop ending at %d:%d was modified", last.Line(), last.Col())
+					base.WarnfAt(pos, "%s loop ending at %d:%d was modified", loopKind, last.Line(), last.Col())
 				} else {
 					pos = trueInlinedPos(inner)
 					last = trueInlinedPos(base.Ctxt.InnermostPos(last))
-					base.WarnfAt(pos, "loop ending at %d:%d was modified (loop inlined into %s:%d)", last.Line(), last.Col(), outer.Filename(), outer.Line())
+					base.WarnfAt(pos, "%s loop ending at %d:%d was modified (loop inlined into %s:%d)", loopKind, last.Line(), last.Col(), outer.Filename(), outer.Line())
 				}
 			}
 		}
