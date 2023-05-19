@@ -62,6 +62,14 @@ func (f *testJSONFilter) Write(b []byte) (int, error) {
 	return bn, nil
 }
 
+func (f *testJSONFilter) Flush() {
+	// Write any remaining partial line to the underlying writer.
+	if f.lineBuf.Len() > 0 {
+		f.w.Write(f.lineBuf.Bytes())
+		f.lineBuf.Reset()
+	}
+}
+
 func (f *testJSONFilter) process(line []byte) {
 	if len(line) > 0 && line[0] == '{' {
 		// Plausible test2json output. Parse it generically.

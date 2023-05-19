@@ -86,6 +86,7 @@ type tester struct {
 type work struct {
 	dt    *distTest
 	cmd   *exec.Cmd // Must write stdout/stderr to work.out
+	flush func()    // If non-nil, called after cmd.Run
 	start chan bool
 	out   bytes.Buffer
 	err   error
@@ -326,9 +327,10 @@ type goTest struct {
 	testFlags []string // Additional flags accepted by this test
 }
 
-// bgCommand returns a go test Cmd. The result will write its output to stdout
-// and stderr. If stdout==stderr, bgCommand ensures Writes are serialized.
-func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
+// bgCommand returns a go test Cmd and a post-Run flush function. The result
+// will write its output to stdout and stderr. If stdout==stderr, bgCommand
+// ensures Writes are serialized. The caller should call flush() after Cmd exits.
+func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) (cmd *exec.Cmd, flush func()) {
 	goCmd, build, run, pkgs, testFlags, setupCmd := opts.buildArgs(t)
 
 	// Combine the flags.
@@ -343,7 +345,7 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
 		args = append(args, testFlags...)
 	}
 
-	cmd := exec.Command(goCmd, args...)
+	cmd = exec.Command(goCmd, args...)
 	setupCmd(cmd)
 	if t.json && opts.variant != "" && !opts.sharded {
 		// Rewrite Package in the JSON output to be pkg:variant. For sharded
@@ -364,22 +366,29 @@ func (opts *goTest) bgCommand(t *tester, stdout, stderr io.Writer) *exec.Cmd {
 			stdout = &lockedWriter{w: stdout}
 			stderr = stdout
 		}
-		cmd.Stdout = &testJSONFilter{w: stdout, variant: opts.variant}
+		f := &testJSONFilter{w: stdout, variant: opts.variant}
+		cmd.Stdout = f
+		flush = f.Flush
 	} else {
 		cmd.Stdout = stdout
+		flush = func() {}
 	}
 	cmd.Stderr = stderr
 
-	return cmd
+	return cmd, flush
 }
 
-// command returns a go test Cmd intended to be run immediately.
-func (opts *goTest) command(t *tester) *exec.Cmd {
+// command returns a go test Cmd intended to be run immediately and a flush
+// function to call after it has run.
+func (opts *goTest) command(t *tester) (*exec.Cmd, func()) {
 	return opts.bgCommand(t, os.Stdout, os.Stderr)
 }
 
 func (opts *goTest) run(t *tester) error {
-	return opts.command(t).Run()
+	cmd, flush := opts.command(t)
+	err := cmd.Run()
+	flush()
+	return err
 }
 
 // buildArgs is in internal helper for goTest that constructs the elements of
@@ -742,13 +751,14 @@ func (t *tester) registerTests() {
 
 			// Run `go test fmt` in the moved GOROOT, without explicitly setting
 			// GOROOT in the environment. The 'go' command should find itself.
-			cmd := (&goTest{
+			cmd, flush := (&goTest{
 				variant: "moved_goroot",
 				goroot:  moved,
 				pkg:     "fmt",
 			}).command(t)
 			unsetEnv(cmd, "GOROOT")
 			err := cmd.Run()
+			flush()
 
 			if rerr := os.Rename(moved, goroot); rerr != nil {
 				fatalf("failed to restore GOROOT: %v", rerr)
@@ -936,7 +946,7 @@ func (t *tester) registerTest(name, heading string, test *goTest, opts ...regist
 			}
 		}
 		w := &work{dt: dt}
-		w.cmd = test.bgCommand(t, &w.out, &w.out)
+		w.cmd, w.flush = test.bgCommand(t, &w.out, &w.out)
 		t.worklist = append(t.worklist, w)
 		return nil
 	})
@@ -1255,6 +1265,9 @@ func (t *tester) runPending(nextTest *distTest) {
 			} else {
 				timelog("start", w.dt.name)
 				w.err = w.cmd.Run()
+				if w.flush != nil {
+					w.flush()
+				}
 				if w.err != nil {
 					if isUnsupportedVMASize(w) {
 						timelog("skip", w.dt.name)

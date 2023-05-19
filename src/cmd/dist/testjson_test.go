@@ -27,13 +27,13 @@ func TestJSONFilterMalformed(t *testing.T) {
 more text
 {"Package":"abc"}trailing text
 {not json}
-`
+no newline`
 	const want = `unexpected text
 {"Package":"abc:variant"}
 more text
 {"Package":"abc:variant"}trailing text
 {not json}
-`
+no newline`
 	checkJSONFilter(t, in, want)
 }
 
@@ -77,6 +77,7 @@ func checkJSONFilterWith(t *testing.T, want string, write func(*testJSONFilter))
 	out := new(strings.Builder)
 	f := &testJSONFilter{w: out, variant: "variant"}
 	write(f)
+	f.Flush()
 	got := out.String()
 	if want != got {
 		t.Errorf("want:\n%s\ngot:\n%s", want, got)
