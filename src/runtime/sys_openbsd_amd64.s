@@ -304,17 +304,21 @@ noerr:
 	RET
 
 TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
-	MOVL	4(DI), SI		// arg 2 cmd
-	MOVL	8(DI), DX		// arg 3 arg
-	MOVL	0(DI), DI		// arg 1 fd
+	MOVQ	DI, BX
+	MOVL	0(BX), DI		// arg 1 fd
+	MOVL	4(BX), SI		// arg 2 cmd
+	MOVL	8(BX), DX		// arg 3 arg
 	XORL	AX, AX			// vararg: say "no float args"
 	CALL	libc_fcntl(SB)
-	TESTL	AX, AX
-	JGE	noerr
+	XORL	DX, DX
+	CMPL	AX, $-1
+	JNE	noerr
 	CALL	libc_errno(SB)
-	MOVL	(AX), AX
-	NEGL	AX			// caller expects negative errno value
+	MOVL	(AX), DX
+	MOVL	$-1, AX
 noerr:
+	MOVL	AX, 12(BX)
+	MOVL	DX, 16(BX)
 	RET
 
 TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0

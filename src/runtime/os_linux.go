@@ -467,13 +467,9 @@ func osyield_no_g() {
 func pipe2(flags int32) (r, w int32, errno int32)
 
 //go:nosplit
-func fcntl(fd, cmd, arg int32) int32 {
-	r, _, errno := syscall.Syscall6(syscall.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
-	ri := int32(r)
-	if ri < 0 {
-		return -int32(errno)
-	}
-	return ri
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	r, _, err := syscall.Syscall6(syscall.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg), 0, 0, 0)
+	return int32(r), int32(err)
 }
 
 const (

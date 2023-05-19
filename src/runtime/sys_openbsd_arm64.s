@@ -301,17 +301,21 @@ noerr:
 	RET
 
 TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
-	MOVW	4(R0), R1		// arg 2 - cmd
-	MOVW	8(R0), R2		// arg 3 - arg
-	MOVW	0(R0), R0		// arg 1 - fd
+	MOVD	R0, R19
+	MOVW	0(R19), R0		// arg 1 - fd
+	MOVW	4(R19), R1		// arg 2 - cmd
+	MOVW	8(R19), R2		// arg 3 - arg
 	MOVD	$0, R3			// vararg
 	CALL	libc_fcntl(SB)
+	MOVD	$0, R1
 	CMP	$-1, R0
 	BNE	noerr
 	CALL	libc_errno(SB)
-	MOVW	(R0), R0
-	NEG	R0, R0			// caller expects negative errno value
+	MOVW	(R0), R1
+	MOVW	$-1, R0
 noerr:
+	MOVW	R0, 12(R19)
+	MOVW	R1, 16(R19)
 	RET
 
 TEXT runtime·sigaction_trampoline(SB),NOSPLIT,$0
