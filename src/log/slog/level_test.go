@@ -166,3 +166,13 @@ func TestLevelVarFlag(t *testing.T) {
 		t.Errorf("got %v, want %v", g, w)
 	}
 }
+
+func TestLevelVarString(t *testing.T) {
+	var v LevelVar
+	v.Set(LevelError)
+	got := v.String()
+	want := "LevelVar(ERROR)"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

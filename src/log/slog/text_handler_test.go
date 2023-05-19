@@ -165,6 +165,8 @@ func TestNeedsQuoting(t *testing.T) {
 		{"\a\b", true},
 		{"a\tb", true},
 		{"µåπ", false},
+		{"a b", true},
+		{"badutf8\xF6", true},
 	} {
 		got := needsQuoting(test.in)
 		if got != test.want {
