@@ -1292,6 +1292,10 @@ func TestPreemption(t *testing.T) {
 // Issue 59294. Test calling Go function from C after using some
 // stack space.
 func TestDeepStack(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
 	t.Parallel()
 
 	if !testWork {
