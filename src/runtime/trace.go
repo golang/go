@@ -1786,6 +1786,10 @@ type traceTime uint64
 // traceClockNow returns a monotonic timestamp. The clock this function gets
 // the timestamp from is specific to tracing, and shouldn't be mixed with other
 // clock sources.
+//
+// nosplit because it's called from exitsyscall, which is nosplit.
+//
+//go:nosplit
 func traceClockNow() traceTime {
 	return traceTime(cputicks() / traceTimeDiv)
 }
