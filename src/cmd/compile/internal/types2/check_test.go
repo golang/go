@@ -126,6 +126,7 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, m
 	flags := flag.NewFlagSet("", flag.PanicOnError)
 	flags.StringVar(&conf.GoVersion, "lang", "", "")
 	flags.BoolVar(&conf.FakeImportC, "fakeImportC", false, "")
+	flags.BoolVar(&conf.EnableInterfaceInference, "EnableInterfaceInference", false, "")
 	if err := parseFlags(srcs[0], flags); err != nil {
 		t.Fatal(err)
 	}
