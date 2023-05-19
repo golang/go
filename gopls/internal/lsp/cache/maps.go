@@ -15,7 +15,8 @@ import (
 // TODO(euroelessar): Use generics once support for go1.17 is dropped.
 
 type filesMap struct {
-	impl *persistent.Map
+	impl       *persistent.Map
+	overlayMap map[span.URI]*Overlay // the subset that are overlays
 }
 
 // uriLessInterface is the < relation for "any" values containing span.URIs.
@@ -25,13 +26,19 @@ func uriLessInterface(a, b interface{}) bool {
 
 func newFilesMap() filesMap {
 	return filesMap{
-		impl: persistent.NewMap(uriLessInterface),
+		impl:       persistent.NewMap(uriLessInterface),
+		overlayMap: make(map[span.URI]*Overlay),
 	}
 }
 
 func (m filesMap) Clone() filesMap {
+	overlays := make(map[span.URI]*Overlay, len(m.overlayMap))
+	for k, v := range m.overlayMap {
+		overlays[k] = v
+	}
 	return filesMap{
-		impl: m.impl.Clone(),
+		impl:       m.impl.Clone(),
+		overlayMap: overlays,
 	}
 }
 
@@ -55,10 +62,30 @@ func (m filesMap) Range(do func(key span.URI, value source.FileHandle)) {
 
 func (m filesMap) Set(key span.URI, value source.FileHandle) {
 	m.impl.Set(key, value, nil)
+
+	if o, ok := value.(*Overlay); ok {
+		m.overlayMap[key] = o
+	} else {
+		// Setting a non-overlay must delete the corresponding overlay, to preserve
+		// the accuracy of the overlay set.
+		delete(m.overlayMap, key)
+	}
 }
 
-func (m filesMap) Delete(key span.URI) {
+func (m *filesMap) Delete(key span.URI) {
 	m.impl.Delete(key)
+	delete(m.overlayMap, key)
+}
+
+// overlays returns a new unordered array of overlay files.
+func (m filesMap) overlays() []*Overlay {
+	// In practice we will always have at least one overlay, so there is no need
+	// to optimize for the len=0 case by returning a nil slice.
+	overlays := make([]*Overlay, 0, len(m.overlayMap))
+	for _, o := range m.overlayMap {
+		overlays = append(overlays, o)
+	}
+	return overlays
 }
 
 func packageIDLessInterface(x, y interface{}) bool {

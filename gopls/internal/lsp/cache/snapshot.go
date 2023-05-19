@@ -624,21 +624,11 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 	return overlays
 }
 
-// TODO(rfindley): investigate whether it would be worthwhile to keep track of
-// overlays when we get them via GetFile.
 func (s *snapshot) overlays() []*Overlay {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var overlays []*Overlay
-	s.files.Range(func(uri span.URI, fh source.FileHandle) {
-		overlay, ok := fh.(*Overlay)
-		if !ok {
-			return
-		}
-		overlays = append(overlays, overlay)
-	})
-	return overlays
+	return s.files.overlays()
 }
 
 // Package data kinds, identifying various package data that may be stored in
