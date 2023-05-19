@@ -469,7 +469,7 @@ func (s *handleState) appendError(err error) {
 
 func (s *handleState) appendKey(key string) {
 	s.buf.WriteString(s.sep)
-	if s.prefix != nil {
+	if s.prefix != nil && len(*s.prefix) > 0 {
 		// TODO: optimize by avoiding allocation.
 		s.appendString(string(*s.prefix) + key)
 	} else {
