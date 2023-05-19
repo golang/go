@@ -275,7 +275,7 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			break
 		}
 
-		plaintext, _ := c.decryptTicket(identity.label)
+		plaintext := c.decryptTicket(identity.label)
 		if plaintext == nil {
 			continue
 		}

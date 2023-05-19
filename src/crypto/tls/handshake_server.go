@@ -406,16 +406,19 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 		return false
 	}
 
-	plaintext, usedOldKey := c.decryptTicket(hs.clientHello.sessionTicket)
+	plaintext := c.decryptTicket(hs.clientHello.sessionTicket)
 	if plaintext == nil {
 		return false
 	}
-	hs.sessionState = &sessionState{usedOldKey: usedOldKey}
+	hs.sessionState = &sessionState{}
 	ok := hs.sessionState.unmarshal(plaintext)
 	if !ok {
 		return false
 	}
 
+	// TLS 1.2 tickets don't natively have a lifetime, but we want to avoid
+	// re-wrapping the same master secret in different tickets over and over for
+	// too long, weakening forward secrecy.
 	createdAt := time.Unix(int64(hs.sessionState.createdAt), 0)
 	if c.config.time().Sub(createdAt) > maxSessionTicketLifetime {
 		return false
@@ -465,7 +468,10 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 	// We echo the client's session ID in the ServerHello to let it know
 	// that we're doing a resumption.
 	hs.hello.sessionId = hs.clientHello.sessionId
-	hs.hello.ticketSupported = hs.sessionState.usedOldKey
+	// We always send a new session ticket, even if it wraps the same master
+	// secret and it's potentially encrypted with the same key, to help the
+	// client avoid cross-connection tracking from a network observer.
+	hs.hello.ticketSupported = true
 	hs.finishedHash = newFinishedHash(c.vers, hs.suite)
 	hs.finishedHash.discardHandshakeBuffer()
 	if err := transcriptMsg(hs.clientHello, &hs.finishedHash); err != nil {
@@ -748,9 +754,6 @@ func (hs *serverHandshakeState) readFinished(out []byte) error {
 }
 
 func (hs *serverHandshakeState) sendSessionTicket() error {
-	// ticketSupported is set in a resumption handshake if the
-	// ticket from the client was encrypted with an old session
-	// ticket key and thus a refreshed ticket should be sent.
 	if !hs.hello.ticketSupported {
 		return nil
 	}

@@ -748,10 +748,6 @@ type Config struct {
 }
 
 const (
-	// ticketKeyNameLen is the number of bytes of identifier that is prepended to
-	// an encrypted session ticket in order to identify the key used to encrypt it.
-	ticketKeyNameLen = 16
-
 	// ticketKeyLifetime is how long a ticket key remains valid and can be used to
 	// resume a client connection.
 	ticketKeyLifetime = 7 * 24 * time.Hour // 7 days
@@ -763,9 +759,6 @@ const (
 
 // ticketKey is the internal representation of a session ticket key.
 type ticketKey struct {
-	// keyName is an opaque byte string that serves to identify the session
-	// ticket key. It's exposed as plaintext in every session ticket.
-	keyName [ticketKeyNameLen]byte
 	aesKey  [16]byte
 	hmacKey [16]byte
 	// created is the time at which this ticket key was created. See Config.ticketKeys.
@@ -777,15 +770,18 @@ type ticketKey struct {
 // bytes and this function expands that into sufficient name and key material.
 func (c *Config) ticketKeyFromBytes(b [32]byte) (key ticketKey) {
 	hashed := sha512.Sum512(b[:])
-	copy(key.keyName[:], hashed[:ticketKeyNameLen])
-	copy(key.aesKey[:], hashed[ticketKeyNameLen:ticketKeyNameLen+16])
-	copy(key.hmacKey[:], hashed[ticketKeyNameLen+16:ticketKeyNameLen+32])
+	// The first 16 bytes of the hash used to be exposed on the wire as a ticket
+	// prefix. They MUST NOT be used as a secret. In the future, it would make
+	// sense to use a proper KDF here, like HKDF with a fixed salt.
+	const legacyTicketKeyNameLen = 16
+	copy(key.aesKey[:], hashed[legacyTicketKeyNameLen:])
+	copy(key.hmacKey[:], hashed[legacyTicketKeyNameLen+len(key.aesKey):])
 	key.created = c.time()
 	return key
 }
 
 // maxSessionTicketLifetime is the maximum allowed lifetime of a TLS 1.3 session
-// ticket, and the lifetime we set for tickets we send.
+// ticket, and the lifetime we set for all tickets we send.
 const maxSessionTicketLifetime = 7 * 24 * time.Hour
 
 // Clone returns a shallow clone of c or nil if c is nil. It is safe to clone a Config that is

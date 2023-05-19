@@ -5,7 +5,6 @@
 package tls
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
@@ -26,10 +25,6 @@ type sessionState struct {
 	masterSecret []byte // opaque master_secret<1..2^16-1>;
 	// struct { opaque certificate<1..2^24-1> } Certificate;
 	certificates [][]byte // Certificate certificate_list<0..2^24-1>;
-
-	// usedOldKey is true if the ticket from which this session came from
-	// was encrypted with an older key and thus should be refreshed.
-	usedOldKey bool
 }
 
 func (m *sessionState) marshal() ([]byte, error) {
@@ -51,7 +46,7 @@ func (m *sessionState) marshal() ([]byte, error) {
 }
 
 func (m *sessionState) unmarshal(data []byte) bool {
-	*m = sessionState{usedOldKey: m.usedOldKey}
+	*m = sessionState{}
 	s := cryptobyte.String(data)
 	if ok := s.ReadUint16(&m.vers) &&
 		s.ReadUint16(&m.cipherSuite) &&
@@ -121,65 +116,57 @@ func (c *Conn) encryptTicket(state []byte) ([]byte, error) {
 		return nil, errors.New("tls: internal error: session ticket keys unavailable")
 	}
 
-	encrypted := make([]byte, ticketKeyNameLen+aes.BlockSize+len(state)+sha256.Size)
-	keyName := encrypted[:ticketKeyNameLen]
-	iv := encrypted[ticketKeyNameLen : ticketKeyNameLen+aes.BlockSize]
+	encrypted := make([]byte, aes.BlockSize+len(state)+sha256.Size)
+	iv := encrypted[:aes.BlockSize]
+	ciphertext := encrypted[aes.BlockSize : len(encrypted)-sha256.Size]
+	authenticated := encrypted[:len(encrypted)-sha256.Size]
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
 
 	if _, err := io.ReadFull(c.config.rand(), iv); err != nil {
 		return nil, err
 	}
 	key := c.ticketKeys[0]
-	copy(keyName, key.keyName[:])
 	block, err := aes.NewCipher(key.aesKey[:])
 	if err != nil {
 		return nil, errors.New("tls: failed to create cipher while encrypting ticket: " + err.Error())
 	}
-	cipher.NewCTR(block, iv).XORKeyStream(encrypted[ticketKeyNameLen+aes.BlockSize:], state)
+	cipher.NewCTR(block, iv).XORKeyStream(ciphertext, state)
 
 	mac := hmac.New(sha256.New, key.hmacKey[:])
-	mac.Write(encrypted[:len(encrypted)-sha256.Size])
+	mac.Write(authenticated)
 	mac.Sum(macBytes[:0])
 
 	return encrypted, nil
 }
 
-func (c *Conn) decryptTicket(encrypted []byte) (plaintext []byte, usedOldKey bool) {
-	if len(encrypted) < ticketKeyNameLen+aes.BlockSize+sha256.Size {
-		return nil, false
+func (c *Conn) decryptTicket(encrypted []byte) []byte {
+	if len(encrypted) < aes.BlockSize+sha256.Size {
+		return nil
 	}
 
-	keyName := encrypted[:ticketKeyNameLen]
-	iv := encrypted[ticketKeyNameLen : ticketKeyNameLen+aes.BlockSize]
+	iv := encrypted[:aes.BlockSize]
+	ciphertext := encrypted[aes.BlockSize : len(encrypted)-sha256.Size]
+	authenticated := encrypted[:len(encrypted)-sha256.Size]
 	macBytes := encrypted[len(encrypted)-sha256.Size:]
-	ciphertext := encrypted[ticketKeyNameLen+aes.BlockSize : len(encrypted)-sha256.Size]
 
-	keyIndex := -1
-	for i, candidateKey := range c.ticketKeys {
-		if bytes.Equal(keyName, candidateKey.keyName[:]) {
-			keyIndex = i
-			break
+	for _, key := range c.ticketKeys {
+		mac := hmac.New(sha256.New, key.hmacKey[:])
+		mac.Write(authenticated)
+		expected := mac.Sum(nil)
+
+		if subtle.ConstantTimeCompare(macBytes, expected) != 1 {
+			continue
 		}
-	}
-	if keyIndex == -1 {
-		return nil, false
-	}
-	key := &c.ticketKeys[keyIndex]
 
-	mac := hmac.New(sha256.New, key.hmacKey[:])
-	mac.Write(encrypted[:len(encrypted)-sha256.Size])
-	expected := mac.Sum(nil)
+		block, err := aes.NewCipher(key.aesKey[:])
+		if err != nil {
+			return nil
+		}
+		plaintext := make([]byte, len(ciphertext))
+		cipher.NewCTR(block, iv).XORKeyStream(plaintext, ciphertext)
 
-	if subtle.ConstantTimeCompare(macBytes, expected) != 1 {
-		return nil, false
+		return plaintext
 	}
 
-	block, err := aes.NewCipher(key.aesKey[:])
-	if err != nil {
-		return nil, false
-	}
-	plaintext = make([]byte, len(ciphertext))
-	cipher.NewCTR(block, iv).XORKeyStream(plaintext, ciphertext)
-
-	return plaintext, keyIndex > 0
+	return nil
 }
