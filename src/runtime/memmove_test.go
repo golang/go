@@ -400,6 +400,32 @@ func BenchmarkMemclr(b *testing.B) {
 	}
 }
 
+func BenchmarkMemclrUnaligned(b *testing.B) {
+	for _, off := range []int{0, 1, 4, 7} {
+		for _, n := range []int{5, 16, 64, 256, 4096, 65536} {
+			x := make([]byte, n+off)
+			b.Run(fmt.Sprint(off, n), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				for i := 0; i < b.N; i++ {
+					MemclrBytes(x[off:])
+				}
+			})
+		}
+	}
+
+	for _, off := range []int{0, 1, 4, 7} {
+		for _, m := range []int{1, 4, 8, 16, 64} {
+			x := make([]byte, (m<<20)+off)
+			b.Run(fmt.Sprint(off, m, "M"), func(b *testing.B) {
+				b.SetBytes(int64(m << 20))
+				for i := 0; i < b.N; i++ {
+					MemclrBytes(x[off:])
+				}
+			})
+		}
+	}
+}
+
 func BenchmarkGoMemclr(b *testing.B) {
 	benchmarkSizes(b, []int{5, 16, 64, 256}, func(b *testing.B, n int) {
 		x := make([]byte, n)
