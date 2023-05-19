@@ -110,24 +110,24 @@ func Get(kind string, key [32]byte) ([]byte, error) {
 
 	// Update file times used by LRU eviction.
 	//
-	// This turns every read into a write operation.
-	// If this is a performance problem, we should
-	// touch the files asynchronously, or, follow
-	// the approach used in the go command's cache
-	// and update only if the existing timestamp is
-	// older than, say, one hour.
+	// Because this turns a read into a write operation,
+	// we follow the approach used in the go command's
+	// cache and update the access time only if the
+	// existing timestamp is older than one hour.
 	//
 	// (Traditionally the access time would be updated
 	// automatically, but for efficiency most POSIX systems have
 	// for many years set the noatime mount option to avoid every
 	// open or read operation entailing a metadata write.)
 	now := time.Now()
-	if err := os.Chtimes(indexName, now, now); err != nil {
-		return nil, fmt.Errorf("failed to update access time of index file: %w", err)
+	touch := func(filename string) {
+		st, err := os.Stat(filename)
+		if err == nil && now.Sub(st.ModTime()) > time.Hour {
+			os.Chtimes(filename, now, now) // ignore error
+		}
 	}
-	if err := os.Chtimes(casName, now, now); err != nil {
-		return nil, fmt.Errorf("failed to update access time of CAS file: %w", err)
-	}
+	touch(indexName)
+	touch(casName)
 
 	if useMemCache {
 		memCache.Set(memKey{kind, key}, value, len(value))
