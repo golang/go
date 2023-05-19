@@ -79,15 +79,18 @@ const (
 	ErrBadHTML
 
 	// ErrBranchEnd: "{{if}} branches end in different contexts"
-	// Example:
+	// Examples:
 	//   {{if .C}}<a href="{{end}}{{.X}}
+	//   <script {{with .T}}type="{{.}}"{{end}}>
 	// Discussion:
 	//   Package html/template statically examines each path through an
 	//   {{if}}, {{range}}, or {{with}} to escape any following pipelines.
-	//   The example is ambiguous since {{.X}} might be an HTML text node,
+	//   The first example is ambiguous since {{.X}} might be an HTML text node,
 	//   or a URL prefix in an HTML attribute. The context of {{.X}} is
 	//   used to figure out how to escape it, but that context depends on
 	//   the run-time value of {{.C}} which is not statically known.
+	//   The second example is ambiguous as the script type attribute
+	//   can change the type of escaping needed for the script contents.
 	//
 	//   The problem is usually something like missing quotes or angle
 	//   brackets, or can be avoided by refactoring to put the two contexts
