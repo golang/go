@@ -542,12 +542,16 @@ TEXT runtime·fcntl_trampoline(SB),NOSPLIT,$0
 	MOVL	CX, 8(SP)		// arg 3 - arg
 	MOVL	$0, 12(SP)		// vararg
 	CALL	libc_fcntl(SB)
+	MOVL	$0, BX
 	CMPL	AX, $-1
 	JNE	noerr
 	CALL	libc_errno(SB)
-	MOVL	(AX), AX
-	NEGL	AX			// caller expects negative errno
+	MOVL	(AX), BX
+	MOVL	$-1, AX
 noerr:
+	MOVL	24(SP), DX		// pointer to args
+	MOVL	AX, 12(DX)
+	MOVL	BX, 16(DX)
 	MOVL	BP, SP
 	POPL	BP
 	RET

@@ -161,8 +161,13 @@ func sysctl_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func fcntl(fd, cmd, arg int32) int32 {
-	return libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&fd))
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	args := struct {
+		fd, cmd, arg int32
+		ret, errno   int32
+	}{fd, cmd, arg, 0, 0}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&args))
+	return args.ret, args.errno
 }
 func fcntl_trampoline()
 

@@ -570,12 +570,9 @@ func pipe2(flags int32) (r, w int32, errno int32) {
 }
 
 //go:nosplit
-func fcntl(fd, cmd, arg int32) int32 {
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
 	r1, err := sysvicall3Err(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
-	if r := int32(r1); r >= 0 {
-		return r
-	}
-	return -int32(err)
+	return int32(r1), int32(err)
 }
 
 //go:nosplit

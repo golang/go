@@ -404,8 +404,11 @@ TEXT runtime·fcntl(SB),NOSPLIT,$0
 	MOVW cmd+4(FP), R1
 	MOVW arg+8(FP), R2
 	SWI $SYS_fcntl
-	RSB.CS $0, R0		// caller expects negative errno
+	MOVW $0, R1
+	MOVW.CS R0, R1
+	MOVW.CS $-1, R0
 	MOVW R0, ret+12(FP)
+	MOVW R1, errno+16(FP)
 	RET
 
 // void runtime·closeonexec(int32 fd)

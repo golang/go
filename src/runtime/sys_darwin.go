@@ -434,8 +434,13 @@ func sysctlbyname_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func fcntl(fd, cmd, arg int32) int32 {
-	return libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&fd))
+func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
+	args := struct {
+		fd, cmd, arg int32
+		ret, errno   int32
+	}{fd, cmd, arg, 0, 0}
+	libcCall(unsafe.Pointer(abi.FuncPCABI0(fcntl_trampoline)), unsafe.Pointer(&args))
+	return args.ret, args.errno
 }
 func fcntl_trampoline()
 
@@ -538,8 +543,10 @@ func closeonexec(fd int32) {
 
 //go:nosplit
 func setNonblock(fd int32) {
-	flags := fcntl(fd, _F_GETFL, 0)
-	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+	flags, _ := fcntl(fd, _F_GETFL, 0)
+	if flags != -1 {
+		fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+	}
 }
 
 // Tell the linker that the libc_* functions are to be found
