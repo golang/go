@@ -32,6 +32,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -203,7 +204,11 @@ func writeFileNoTrunc(filename string, data []byte, perm os.FileMode) error {
 	return err
 }
 
-const casKind = "cas" // kind for CAS (content-addressable store) files
+// reserved kind strings
+const (
+	casKind = "cas" // content-addressable store files
+	bugKind = "bug" // gopls bug reports
+)
 
 var iolimit = make(chan struct{}, 128) // counting semaphore to limit I/O concurrency in Set.
 
@@ -233,15 +238,19 @@ func SetBudget(new int64) (old int64) {
 //
 // A typical cache file has a name such as:
 //
-//	$HOME/Library/Caches / gopls / VVVVVVVV / kind / KK / KKKK...KKKK
+//	$HOME/Library/Caches / gopls / VVVVVVVV / KK / KKKK...KKKK - kind
 //
 // The portions separated by spaces are as follows:
 // - The user's preferred cache directory; the default value varies by OS.
 // - The constant "gopls".
 // - The "version", 32 bits of the digest of the gopls executable.
-// - The kind or purpose of this cache subtree (e.g. "analysis").
 // - The first 8 bits of the key, to avoid huge directories.
 // - The full 256 bits of the key.
+// - The kind or purpose of this cache file (e.g. "analysis").
+//
+// The kind establishes a namespace for the keys. It is represented as
+// a suffix, not a segment, as this significantly reduces the number
+// of directories created, and thus the storage overhead.
 //
 // Previous iterations of the design aimed for the invariant that once
 // a file is written, its contents are never modified, though it may
@@ -290,16 +299,14 @@ func SetBudget(new int64) (old int64) {
 // the entire gopls directory so that newer binaries can clean up
 // after older ones: in the development cycle especially, new
 // new versions may be created frequently.
-//
-// TODO(adonovan): opt: use "VVVVVVVV / KK / KKKK...KKKK-kind" to
-// avoid creating 256 directories per distinct kind (+ cas).
 func filename(kind string, key [32]byte) (string, error) {
-	hex := fmt.Sprintf("%x", key)
+	base := fmt.Sprintf("%x-%s", key, kind)
 	dir, err := getCacheDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, kind, hex[:2], hex), nil
+	// Keep the BugReports function consistent with this one.
+	return filepath.Join(dir, base[:2], base), nil
 }
 
 // getCacheDir returns the persistent cache directory of all processes
@@ -526,8 +533,6 @@ func gc(goplsDir string) {
 	}
 }
 
-const bugKind = "bug" // reserved kind for gopls bug reports
-
 func init() {
 	// Register a handler to durably record this process's first
 	// assertion failure in the cache so that we can ask users to
@@ -544,29 +549,35 @@ func init() {
 
 // BugReports returns a new unordered array of the contents
 // of all cached bug reports produced by this executable.
-func BugReports() [][]byte {
+// It also returns the location of the cache directory
+// used by this process (or "" on initialization error).
+func BugReports() (string, [][]byte) {
+	// To test this logic, run:
+	// $ TEST_GOPLS_BUG=oops gopls stats   # trigger a bug
+	// $ gopls stats                       # list the bugs
+
 	dir, err := getCacheDir()
 	if err != nil {
-		return nil // ignore initialization errors
+		return "", nil // ignore initialization errors
 	}
 	var result [][]byte
-	_ = filepath.Walk(filepath.Join(dir, bugKind),
-		func(path string, info fs.FileInfo, err error) error {
-			if err != nil {
-				return nil // ignore readdir/stat errors
+	_ = filepath.Walk(dir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return nil // ignore readdir/stat errors
+		}
+		// Parse the key from each "XXXX-bug" cache file name.
+		if !info.IsDir() && strings.HasSuffix(path, bugKind) {
+			var key [32]byte
+			n, err := hex.Decode(key[:], []byte(filepath.Base(path)[:len(key)*2]))
+			if err != nil || n != len(key) {
+				return nil // ignore malformed file names
 			}
-			if !info.IsDir() {
-				var key [32]byte
-				n, err := hex.Decode(key[:], []byte(filepath.Base(path)))
-				if err != nil || n != len(key) {
-					return nil // ignore malformed file names
-				}
-				content, err := Get(bugKind, key)
-				if err == nil { // ignore read errors
-					result = append(result, content)
-				}
+			content, err := Get(bugKind, key)
+			if err == nil { // ignore read errors
+				result = append(result, content)
 			}
-			return nil
-		})
-	return result
+		}
+		return nil
+	})
+	return dir, result
 }

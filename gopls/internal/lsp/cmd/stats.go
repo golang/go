@@ -68,6 +68,7 @@ func (s *stats) Run(ctx context.Context, args ...string) error {
 	stats := GoplsStats{
 		GOOS:         runtime.GOOS,
 		GOARCH:       runtime.GOARCH,
+		GOPLSCACHE:   os.Getenv("GOPLSCACHE"),
 		GoVersion:    runtime.Version(),
 		GoplsVersion: debug.Version,
 	}
@@ -140,7 +141,9 @@ func (s *stats) Run(ctx context.Context, args ...string) error {
 	// this executable and persisted in the cache.
 	stats.BugReports = []string{} // non-nil for JSON
 	do("Gathering bug reports", func() error {
-		for _, report := range filecache.BugReports() {
+		cacheDir, reports := filecache.BugReports()
+		stats.CacheDir = cacheDir
+		for _, report := range reports {
 			stats.BugReports = append(stats.BugReports, string(report))
 		}
 		return nil
@@ -193,10 +196,11 @@ func (s *stats) Run(ctx context.Context, args ...string) error {
 }
 
 type GoplsStats struct {
-	GOOS, GOARCH                 string
+	GOOS, GOARCH, GOPLSCACHE     string
 	GoVersion                    string
 	GoplsVersion                 string
 	InitialWorkspaceLoadDuration string // in time.Duration string form
+	CacheDir                     string
 	BugReports                   []string
 	MemStats                     command.MemStatsResult
 	WorkspaceStats               command.WorkspaceStatsResult
