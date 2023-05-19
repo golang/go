@@ -38,7 +38,7 @@ func TestKeys(t *testing.T) {
 	var m = make(map[int]int)
 	for i := 0; i < 840; i++ {
 		want3 = append(want3, i)
-		m[i] = i
+		m[i] = i * i
 	}
 
 	got3 := Keys(m)
