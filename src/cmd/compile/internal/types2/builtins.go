@@ -227,9 +227,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Clear:
 		// clear(m)
-		if !check.verifyVersionf(check.pkg, call.Fun, go1_21, "clear") {
-			return
-		}
+		check.verifyVersionf(check.pkg, call.Fun, go1_21, "clear")
 
 		if !underIs(x.typ, func(u Type) bool {
 			switch u.(type) {
@@ -536,9 +534,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	case _Max, _Min:
 		// max(x, ...)
 		// min(x, ...)
-		if !check.verifyVersionf(check.pkg, call.Fun, go1_21, bin.name) {
-			return
-		}
+		check.verifyVersionf(check.pkg, call.Fun, go1_21, bin.name)
 
 		op := token.LSS
 		if id == _Max {
@@ -659,9 +655,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Add:
 		// unsafe.Add(ptr unsafe.Pointer, len IntegerType) unsafe.Pointer
-		if !check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Add") {
-			return
-		}
+		check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Add")
 
 		check.assignment(x, Typ[UnsafePointer], "argument to unsafe.Add")
 		if x.mode == invalid {
@@ -793,9 +787,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _Slice:
 		// unsafe.Slice(ptr *T, len IntegerType) []T
-		if !check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Slice") {
-			return
-		}
+		check.verifyVersionf(check.pkg, call.Fun, go1_17, "unsafe.Slice")
 
 		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
 		if ptr == nil {
@@ -816,9 +808,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _SliceData:
 		// unsafe.SliceData(slice []T) *T
-		if !check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.SliceData") {
-			return
-		}
+		check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.SliceData")
 
 		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
 		if slice == nil {
@@ -834,9 +824,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _String:
 		// unsafe.String(ptr *byte, len IntegerType) string
-		if !check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.String") {
-			return
-		}
+		check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.String")
 
 		check.assignment(x, NewPointer(universeByte), "argument to unsafe.String")
 		if x.mode == invalid {
@@ -856,9 +844,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 	case _StringData:
 		// unsafe.StringData(str string) *byte
-		if !check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.StringData") {
-			return
-		}
+		check.verifyVersionf(check.pkg, call.Fun, go1_20, "unsafe.StringData")
 
 		check.assignment(x, Typ[String], "argument to unsafe.StringData")
 		if x.mode == invalid {
