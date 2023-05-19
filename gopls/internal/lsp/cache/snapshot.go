@@ -2083,10 +2083,36 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		// Invalidate the previous modTidyHandle if any of the files have been
 		// saved or if any of the metadata has been invalidated.
 		if invalidateMetadata || fileWasSaved(originalFH, change.fileHandle) {
-			// TODO(maybe): Only delete mod handles for
-			// which the withoutURI is relevant.
-			// Requires reverse-engineering the go command. (!)
-			result.modTidyHandles.Clear()
+			// Only invalidate mod tidy results for the most relevant modfile in the
+			// workspace. This is a potentially lossy optimization for workspaces
+			// with many modules (such as google-cloud-go, which has 145 modules as
+			// of writing).
+			//
+			// While it is theoretically possible that a change in workspace module A
+			// could affect the mod-tidiness of workspace module B (if B transitively
+			// requires A), such changes are probably unlikely and not worth the
+			// penalty of re-running go mod tidy for everything. Note that mod tidy
+			// ignores GOWORK, so the two modules would have to be related by a chain
+			// of replace directives.
+			//
+			// We could improve accuracy by inspecting replace directives, using
+			// overlays in go mod tidy, and/or checking for metadata changes from the
+			// on-disk content.
+			//
+			// Note that we iterate the modTidyHandles map here, rather than e.g.
+			// using nearestModFile, because we don't have access to an accurate
+			// FileSource at this point in the snapshot clone.
+			const onlyInvalidateMostRelevant = true
+			if onlyInvalidateMostRelevant {
+				deleteMostRelevantModFile(result.modTidyHandles, uri)
+			} else {
+				result.modTidyHandles.Clear()
+			}
+
+			// TODO(rfindley): should we apply the above heuristic to mod vuln
+			// or mod handles as well?
+			//
+			// TODO(rfindley): no tests fail if I delete the below line.
 			result.modWhyHandles.Clear()
 			result.modVulnHandles.Clear()
 		}
@@ -2275,6 +2301,31 @@ func (s *snapshot) clone(ctx, bgCtx context.Context, changes map[span.URI]*fileC
 		result.workspacePackages = map[PackageID]PackagePath{}
 	}
 	return result, release
+}
+
+// deleteMostRelevantModFile deletes the mod file most likely to be the mod
+// file for the changed URI, if it exists.
+//
+// Specifically, this is the longest mod file path in a directory containing
+// changed. This might not be accurate if there is another mod file closer to
+// changed that happens not to be present in the map, but that's OK: the goal
+// of this function is to guarantee that IF the nearest mod file is present in
+// the map, it is invalidated.
+func deleteMostRelevantModFile(m *persistent.Map, changed span.URI) {
+	var mostRelevant span.URI
+	changedFile := changed.Filename()
+
+	m.Range(func(key, value interface{}) {
+		modURI := key.(span.URI)
+		if len(modURI) > len(mostRelevant) {
+			if source.InDir(filepath.Dir(modURI.Filename()), changedFile) {
+				mostRelevant = modURI
+			}
+		}
+	})
+	if mostRelevant != "" {
+		m.Delete(mostRelevant)
+	}
 }
 
 // invalidatedPackageIDs returns all packages invalidated by a change to uri.
