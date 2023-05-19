@@ -183,7 +183,33 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 	// go.mod file. The fixes will be for the go.mod file, but the
 	// diagnostics should also appear in both the go.mod file and the import
 	// statements in the Go files in which the dependencies are used.
+	// Finally, add errors for any unused dependencies.
+	if len(missing) > 0 {
+		missingModuleDiagnostics, err := missingModuleDiagnostics(ctx, snapshot, pm, ideal, missing)
+		if err != nil {
+			return nil, err
+		}
+		diagnostics = append(diagnostics, missingModuleDiagnostics...)
+	}
+
+	// Opt: if this is the only diagnostic, we can avoid textual edits and just
+	// run the Go command.
+	//
+	// See also the documentation for command.RemoveDependencyArgs.OnlyDiagnostic.
+	onlyDiagnostic := len(diagnostics) == 0 && len(unused) == 1
+	for _, req := range unused {
+		srcErr, err := unusedDiagnostic(pm.Mapper, req, onlyDiagnostic)
+		if err != nil {
+			return nil, err
+		}
+		diagnostics = append(diagnostics, srcErr)
+	}
+	return diagnostics, nil
+}
+
+func missingModuleDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.ParsedModule, ideal *modfile.File, missing map[string]*modfile.Require) ([]*source.Diagnostic, error) {
 	missingModuleFixes := map[*modfile.Require][]source.SuggestedFix{}
+	var diagnostics []*source.Diagnostic
 	for _, req := range missing {
 		srcDiag, err := missingModuleDiagnostic(pm, req)
 		if err != nil {
@@ -289,15 +315,6 @@ func modTidyDiagnostics(ctx context.Context, snapshot *snapshot, pm *source.Pars
 				diagnostics = append(diagnostics, srcErr)
 			}
 		}
-	}
-	// Finally, add errors for any unused dependencies.
-	onlyDiagnostic := len(diagnostics) == 0 && len(unused) == 1
-	for _, req := range unused {
-		srcErr, err := unusedDiagnostic(pm.Mapper, req, onlyDiagnostic)
-		if err != nil {
-			return nil, err
-		}
-		diagnostics = append(diagnostics, srcErr)
 	}
 	return diagnostics, nil
 }

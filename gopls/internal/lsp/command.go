@@ -360,10 +360,9 @@ func (c *commandHandler) RemoveDependency(ctx context.Context, args command.Remo
 		progress: "Removing dependency",
 		forURI:   args.URI,
 	}, func(ctx context.Context, deps commandDeps) error {
-		// If the module is tidied apart from the one unused diagnostic, we can
-		// run `go get module@none`, and then run `go mod tidy`. Otherwise, we
-		// must make textual edits.
-		// TODO(rstambler): In Go 1.17+, we will be able to use the go command
+		// See the documentation for OnlyDiagnostic.
+		//
+		// TODO(rfindley): In Go 1.17+, we will be able to use the go command
 		// without checking if the module is tidy.
 		if args.OnlyDiagnostic {
 			return c.s.runGoModUpdateCommands(ctx, deps.snapshot, args.URI.SpanURI(), func(invoke func(...string) (*bytes.Buffer, error)) error {

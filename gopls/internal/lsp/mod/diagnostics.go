@@ -9,11 +9,14 @@ package mod
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/gopls/internal/govulncheck"
 	"golang.org/x/tools/gopls/internal/lsp/command"
 	"golang.org/x/tools/gopls/internal/lsp/protocol"
@@ -58,24 +61,36 @@ func VulnerabilityDiagnostics(ctx context.Context, snapshot source.Snapshot) (ma
 }
 
 func collectDiagnostics(ctx context.Context, snapshot source.Snapshot, diagFn func(context.Context, source.Snapshot, source.FileHandle) ([]*source.Diagnostic, error)) (map[span.URI][]*source.Diagnostic, error) {
+
+	g, ctx := errgroup.WithContext(ctx)
+	cpulimit := runtime.GOMAXPROCS(0)
+	g.SetLimit(cpulimit)
+
+	var mu sync.Mutex
 	reports := make(map[span.URI][]*source.Diagnostic)
+
 	for _, uri := range snapshot.ModFiles() {
-		fh, err := snapshot.ReadFile(ctx, uri)
-		if err != nil {
-			return nil, err
-		}
-		reports[fh.URI()] = []*source.Diagnostic{}
-		diagnostics, err := diagFn(ctx, snapshot, fh)
-		if err != nil {
-			return nil, err
-		}
-		for _, d := range diagnostics {
-			fh, err := snapshot.ReadFile(ctx, d.URI)
+		uri := uri
+		g.Go(func() error {
+			fh, err := snapshot.ReadFile(ctx, uri)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			reports[fh.URI()] = append(reports[fh.URI()], d)
-		}
+			diagnostics, err := diagFn(ctx, snapshot, fh)
+			if err != nil {
+				return err
+			}
+			for _, d := range diagnostics {
+				mu.Lock()
+				reports[d.URI] = append(reports[fh.URI()], d)
+				mu.Unlock()
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 	return reports, nil
 }

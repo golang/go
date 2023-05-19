@@ -267,6 +267,9 @@ Args:
 	"URI": string,
 	// The module path to remove.
 	"ModulePath": string,
+	// If the module is tidied apart from the one unused diagnostic, we can
+	// run `go get module@none`, and then run `go mod tidy`. Otherwise, we
+	// must make textual edits.
 	"OnlyDiagnostic": bool,
 }
 ```
