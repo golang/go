@@ -164,7 +164,7 @@ func Set(kind string, key [32]byte, value []byte) error {
 		}
 		// Avoiding O_TRUNC here is merely an optimization to avoid
 		// cache misses when two threads race to write the same file.
-		if err := writeFileNoTrunc(casName, value, 0666); err != nil {
+		if err := writeFileNoTrunc(casName, value, 0600); err != nil {
 			os.Remove(casName) // ignore error
 			return err         // e.g. disk full
 		}
@@ -178,7 +178,7 @@ func Set(kind string, key [32]byte, value []byte) error {
 	if err := os.MkdirAll(filepath.Dir(indexName), 0700); err != nil {
 		return err
 	}
-	if err := writeFileNoTrunc(indexName, hash[:], 0666); err != nil {
+	if err := writeFileNoTrunc(indexName, hash[:], 0600); err != nil {
 		os.Remove(indexName) // ignore error
 		return err           // e.g. disk full
 	}
@@ -203,19 +203,23 @@ func writeFileNoTrunc(filename string, data []byte, perm os.FileMode) error {
 	return err
 }
 
-const casKind = "cas"
+const casKind = "cas" // kind for CAS (content-addressable store) files
 
 var iolimit = make(chan struct{}, 128) // counting semaphore to limit I/O concurrency in Set.
 
 var budget int64 = 1e9 // 1GB
 
-// SetBudget sets a soft limit on disk usage of the cache (in bytes)
-// and returns the previous value. Supplying a negative value queries
-// the current value without changing it.
+// SetBudget sets a soft limit on disk usage of files in the cache (in
+// bytes) and returns the previous value. Supplying a negative value
+// queries the current value without changing it.
 //
 // If two gopls processes have different budgets, the one with the
 // lower budget will collect garbage more actively, but both will
 // observe the effect.
+//
+// Even in the steady state, the storage usage reported by the 'du'
+// command may exceed the budget by as much as 50-70% due to the
+// overheads of directories and the effects of block quantization.
 func SetBudget(new int64) (old int64) {
 	if new < 0 {
 		return atomic.LoadInt64(&budget)
@@ -250,6 +254,15 @@ func SetBudget(new int64) (old int64) {
 // practice atomic (all or nothing) on all platforms.
 // (See GOROOT/src/cmd/go/internal/cache/cache.go.)
 //
+// Russ Cox notes: "all file systems use an rwlock around every file
+// system block, including data blocks, so any writes or reads within
+// the same block are going to be handled atomically by the FS
+// implementation without any need to request file locking explicitly.
+// And since the files are so small, there's only one block. (A block
+// is at minimum 512 bytes, usually much more.)" And: "all modern file
+// systems protect against [partial writes due to power loss] with
+// journals."
+//
 // We use a two-level scheme consisting of an index and a
 // content-addressable store (CAS). A single cache entry consists of
 // two files. The value of a cache entry is written into the file at
@@ -262,10 +275,12 @@ func SetBudget(new int64) (old int64) {
 // Once the CAS file has been written, we write a small fixed-size
 // index file at filename(kind, key), using the values supplied by the
 // caller. The index file contains the hash that identifies the value
-// file in the CAS. (We could add a small amount of extra metadata to
-// this file if later desired.) Because the index file is small,
+// file in the CAS. (We could add extra metadata to this file, up to
+// 512B, the minimum size of a disk block, if later desired, so long
+// as the total size remains fixed.) Because the index file is small,
 // concurrent writes to it are atomic in practice, even though this is
-// not guaranteed by any OS.
+// not guaranteed by any OS. The fixed size ensures that readers can't
+// see a palimpsest when a short new file overwrites a longer old one.
 //
 // New versions of gopls are free to reorganize the contents of the
 // version directory as needs evolve.  But all versions of gopls must
@@ -275,7 +290,7 @@ func SetBudget(new int64) (old int64) {
 // the entire gopls directory so that newer binaries can clean up
 // after older ones: in the development cycle especially, new
 // new versions may be created frequently.
-
+//
 // TODO(adonovan): opt: use "VVVVVVVV / KK / KKKK...KKKK-kind" to
 // avoid creating 256 directories per distinct kind (+ cas).
 func filename(kind string, key [32]byte) (string, error) {
