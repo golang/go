@@ -834,7 +834,7 @@ func (t *tester) addTest(name, heading string, fn func(*distTest) error) {
 	if !strings.Contains(name, ":") && heading != "Testing packages." {
 		panic("empty variant is reserved exclusively for registerStdTest")
 	} else if strings.HasSuffix(name, ":racebench") && heading != "Running benchmarks briefly." {
-		panic(":racebench variant is reserved exclusively for registerRaceBenchTest")
+		panic("racebench variant is reserved exclusively for registerRaceBenchTest")
 	}
 	if t.testNames == nil {
 		t.testNames = make(map[string]bool)
