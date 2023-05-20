@@ -13,9 +13,6 @@
 
 #define CLOCK_REALTIME		0
 #define CLOCK_MONOTONIC		3
-#define F_GETFL			3
-#define F_SETFL			4
-#define O_NONBLOCK		4
 
 #define SYS_exit			1
 #define SYS_read			3
