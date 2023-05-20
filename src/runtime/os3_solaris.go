@@ -575,11 +575,6 @@ func fcntl(fd, cmd, arg int32) (ret int32, errno int32) {
 	return int32(r1), int32(err)
 }
 
-//go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
-}
-
 func osyield1()
 
 //go:nosplit

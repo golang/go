@@ -258,11 +258,6 @@ func exitThread(wait *atomic.Uint32) {
 	throw("exitThread")
 }
 
-//go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
-}
-
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 

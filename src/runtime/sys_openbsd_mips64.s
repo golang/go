@@ -379,12 +379,3 @@ noerr:
 	MOVW	R2, ret+16(FP)
 	MOVW	R4, errno+20(FP)
 	RET
-
-// func closeonexec(fd int32)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R4		// arg 1 - fd
-	MOVV	$2, R5			// arg 2 - cmd (F_SETFD)
-	MOVV	$1, R6			// arg 3 - arg (FD_CLOEXEC)
-	MOVV	$92, R2			// sys_fcntl
-	SYSCALL
-	RET

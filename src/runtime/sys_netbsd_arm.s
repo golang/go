@@ -12,8 +12,6 @@
 
 #define CLOCK_REALTIME		0
 #define CLOCK_MONOTONIC		3
-#define FD_CLOEXEC		1
-#define F_SETFD			2
 
 #define SWI_OS_NETBSD			0xa00000
 #define SYS_exit			SWI_OS_NETBSD | 1
@@ -409,14 +407,6 @@ TEXT runtime·fcntl(SB),NOSPLIT,$0
 	MOVW.CS $-1, R0
 	MOVW R0, ret+12(FP)
 	MOVW R1, errno+16(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW fd+0(FP), R0	// fd
-	MOVW $F_SETFD, R1	// F_SETFD
-	MOVW $FD_CLOEXEC, R2	// FD_CLOEXEC
-	SWI $SYS_fcntl
 	RET
 
 // TODO: this is only valid for ARMv7+

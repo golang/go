@@ -121,7 +121,7 @@ var portfd int32 = -1
 func netpollinit() {
 	portfd = port_create()
 	if portfd >= 0 {
-		fcntl(portfd, _F_SETFD, _FD_CLOEXEC)
+		closeonexec(portfd)
 		return
 	}
 

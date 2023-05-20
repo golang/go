@@ -400,12 +400,3 @@ noerr:
 	MOVL	AX, ret+16(FP)
 	MOVL	$0, errno+20(FP)
 	RET
-
-// void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVL	fd+0(FP), DI	// fd
-	MOVQ	$2, SI		// F_SETFD
-	MOVQ	$1, DX		// FD_CLOEXEC
-	MOVL	$92, AX		// fcntl
-	SYSCALL
-	RET

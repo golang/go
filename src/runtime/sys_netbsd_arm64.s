@@ -13,8 +13,6 @@
 
 #define CLOCK_REALTIME		0
 #define CLOCK_MONOTONIC		3
-#define FD_CLOEXEC		1
-#define F_SETFD			2
 #define F_GETFL			3
 #define F_SETFL			4
 #define O_NONBLOCK		4
@@ -430,12 +428,4 @@ TEXT runtime·fcntl(SB),NOSPLIT,$0
 noerr:
 	MOVW	R0, ret+16(FP)
 	MOVW	$0, errno+20(FP)
-	RET
-
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW	fd+0(FP), R0		// arg 1 - fd
-	MOVW	$F_SETFD, R1
-	MOVW	$FD_CLOEXEC, R2
-	SVC	$SYS_fcntl
 	RET

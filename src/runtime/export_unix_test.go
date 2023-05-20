@@ -10,6 +10,7 @@ import "unsafe"
 
 var NonblockingPipe = nonblockingPipe
 var Fcntl = fcntl
+var Closeonexec = closeonexec
 
 func sigismember(mask *sigset, i int) bool {
 	clear := *mask

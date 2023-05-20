@@ -401,15 +401,6 @@ TEXT runtime·fcntl(SB),NOSPLIT,$0
 	MOVW R1, errno+16(FP)
 	RET
 
-// void runtime·closeonexec(int32 fd)
-TEXT runtime·closeonexec(SB),NOSPLIT,$0
-	MOVW fd+0(FP), R0	// fd
-	MOVW $2, R1	// F_SETFD
-	MOVW $1, R2	// FD_CLOEXEC
-	MOVW $SYS_fcntl, R7
-	SWI $0
-	RET
-
 // TODO: this is only valid for ARMv7+
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	B	runtime·armPublicationBarrier(SB)

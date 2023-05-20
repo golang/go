@@ -537,11 +537,6 @@ func exitThread(wait *atomic.Uint32) {
 }
 
 //go:nosplit
-func closeonexec(fd int32) {
-	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
-}
-
-//go:nosplit
 func setNonblock(fd int32) {
 	flags, _ := fcntl(fd, _F_GETFL, 0)
 	if flags != -1 {
