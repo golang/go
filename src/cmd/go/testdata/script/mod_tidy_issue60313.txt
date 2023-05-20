@@ -2,12 +2,9 @@
 # dependencies needed to prevent 'ambiguous import' errors in external test
 # dependencies.
 
+cp go.mod go.mod.orig
 go mod tidy
-cp go.mod tidy1.mod
-
-! go mod tidy  # BUG: This should succeed and leave go.mod unchanged.
-	# cmp go.mod tidy1.mod
-stderr 'ambiguous import'
+cmp go.mod go.mod.orig
 
 -- go.mod --
 module example
