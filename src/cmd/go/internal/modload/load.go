@@ -113,6 +113,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modindex"
@@ -122,7 +123,6 @@ import (
 	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 // loaded is the most recently-used package loader.
@@ -992,15 +992,15 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 	if ld.GoVersion == "" {
 		ld.GoVersion = MainModules.GoVersion()
 
-		if ld.Tidy && versionLess(LatestGoVersion(), ld.GoVersion) {
-			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, LatestGoVersion())
+		if ld.Tidy && versionLess(gover.Local(), ld.GoVersion) {
+			ld.errorf("go: go.mod file indicates go %s, but maximum version supported by tidy is %s\n", ld.GoVersion, gover.Local())
 			base.ExitIfErrors()
 		}
 	}
 
 	if ld.Tidy {
 		if ld.TidyCompatibleVersion == "" {
-			ld.TidyCompatibleVersion = priorGoVersion(ld.GoVersion)
+			ld.TidyCompatibleVersion = gover.Prev(ld.GoVersion)
 		} else if versionLess(ld.GoVersion, ld.TidyCompatibleVersion) {
 			// Each version of the Go toolchain knows how to interpret go.mod and
 			// go.sum files produced by all previous versions, so a compatibility
@@ -1008,12 +1008,12 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			ld.TidyCompatibleVersion = ld.GoVersion
 		}
 
-		if semver.Compare("v"+ld.GoVersion, tidyGoModSumVersionV) < 0 {
+		if gover.Compare(ld.GoVersion, tidyGoModSumVersion) < 0 {
 			ld.skipImportModFiles = true
 		}
 	}
 
-	if semver.Compare("v"+ld.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
+	if gover.Compare(ld.GoVersion, narrowAllVersion) < 0 && !ld.UseVendorAll {
 		// The module's go version explicitly predates the change in "all" for graph
 		// pruning, so continue to use the older interpretation.
 		ld.allClosesOverTests = true
@@ -1201,7 +1201,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 			// Add importer go version information to import errors of standard
 			// library packages arising from newer releases.
 			if importer := pkg.stack; importer != nil {
-				if v, ok := rawGoVersion.Load(importer.mod); ok && versionLess(LatestGoVersion(), v.(string)) {
+				if v, ok := rawGoVersion.Load(importer.mod); ok && versionLess(gover.Local(), v.(string)) {
 					stdErr.importerGoVersion = v.(string)
 				}
 			}
@@ -1226,7 +1226,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
 // versionLess returns whether a < b according to semantic version precedence.
 // Both strings are interpreted as go version strings, e.g. "1.19".
 func versionLess(a, b string) bool {
-	return semver.Compare("v"+a, "v"+b) < 0
+	return gover.Compare(a, b) < 0
 }
 
 // updateRequirements ensures that ld.requirements is consistent with the
@@ -1903,7 +1903,7 @@ func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) 
 		}
 
 		compatFlag := ""
-		if ld.TidyCompatibleVersion != priorGoVersion(ld.GoVersion) {
+		if ld.TidyCompatibleVersion != gover.Prev(ld.GoVersion) {
 			compatFlag = " -compat=" + ld.TidyCompatibleVersion
 		}
 		if suggestUpgrade {

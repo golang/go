@@ -17,6 +17,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/par"
@@ -28,30 +29,30 @@ import (
 )
 
 const (
-	// narrowAllVersionV is the Go version (plus leading "v") at which the
+	// narrowAllVersion is the Go version at which the
 	// module-module "all" pattern no longer closes over the dependencies of
 	// tests outside of the main module.
-	narrowAllVersionV = "v1.16"
+	narrowAllVersion = "1.16"
 
-	// ExplicitIndirectVersionV is the Go version (plus leading "v") at which a
+	// ExplicitIndirectVersion is the Go version at which a
 	// module's go.mod file is expected to list explicit requirements on every
 	// module that provides any package transitively imported by that module.
 	//
 	// Other indirect dependencies of such a module can be safely pruned out of
 	// the module graph; see https://golang.org/ref/mod#graph-pruning.
-	ExplicitIndirectVersionV = "v1.17"
+	ExplicitIndirectVersion = "1.17"
 
-	// separateIndirectVersionV is the Go version (plus leading "v") at which
+	// separateIndirectVersion is the Go version at which
 	// "// indirect" dependencies are added in a block separate from the direct
 	// ones. See https://golang.org/issue/45965.
-	separateIndirectVersionV = "v1.17"
+	separateIndirectVersion = "1.17"
 
-	// tidyGoModSumVersionV is the Go version (plus leading "v") at which
+	// tidyGoModSumVersion is the Go version at which
 	// 'go mod tidy' preserves go.mod checksums needed to build test dependencies
 	// of packages in "all", so that 'go test all' can be run without checksum
 	// errors.
 	// See https://go.dev/issue/56222.
-	tidyGoModSumVersionV = "v1.21"
+	tidyGoModSumVersion = "1.21"
 )
 
 // ReadModFile reads and parses the mod file at gomod. ReadModFile properly applies the
@@ -86,7 +87,7 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 // in modFile are interpreted, or the latest Go version if modFile is nil.
 func modFileGoVersion(modFile *modfile.File) string {
 	if modFile == nil {
-		return LatestGoVersion()
+		return gover.Local()
 	}
 	if modFile.Go == nil || modFile.Go.Version == "" {
 		// The main module necessarily has a go.mod file, and that file lacks a
@@ -109,7 +110,7 @@ type modFileIndex struct {
 	data         []byte
 	dataNeedsFix bool // true if fixVersion applied a change while parsing data
 	module       module.Version
-	goVersionV   string // GoVersion with "v" prefix
+	goVersion    string // Go version (no "v" or "go" prefix)
 	require      map[module.Version]requireMeta
 	replace      map[module.Version]module.Version
 	exclude      map[module.Version]bool
@@ -144,7 +145,7 @@ func (p modPruning) String() string {
 }
 
 func pruningForGoVersion(goVersion string) modPruning {
-	if semver.Compare("v"+goVersion, ExplicitIndirectVersionV) < 0 {
+	if gover.Compare(goVersion, ExplicitIndirectVersion) < 0 {
 		// The go.mod file does not duplicate relevant information about transitive
 		// dependencies, so they cannot be pruned out.
 		return unpruned
@@ -445,13 +446,11 @@ func indexModFile(data []byte, modFile *modfile.File, mod module.Version, needsF
 		i.module = modFile.Module.Mod
 	}
 
-	i.goVersionV = ""
+	i.goVersion = ""
 	if modFile.Go == nil {
 		rawGoVersion.Store(mod, "")
 	} else {
-		// We're going to use the semver package to compare Go versions, so go ahead
-		// and add the "v" prefix it expects once instead of every time.
-		i.goVersionV = "v" + modFile.Go.Version
+		i.goVersion = modFile.Go.Version
 		rawGoVersion.Store(mod, modFile.Go.Version)
 	}
 
@@ -492,11 +491,11 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
 	}
 
 	if modFile.Go == nil {
-		if i.goVersionV != "" {
+		if i.goVersion != "" {
 			return true
 		}
-	} else if "v"+modFile.Go.Version != i.goVersionV {
-		if i.goVersionV == "" && cfg.BuildMod != "mod" {
+	} else if modFile.Go.Version != i.goVersion {
+		if i.goVersion == "" && cfg.BuildMod != "mod" {
 			// go.mod files did not always require a 'go' version, so do not error out
 			// if one is missing — we may be inside an older module in the module
 			// cache, and should bias toward providing useful behavior.

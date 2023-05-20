@@ -8,6 +8,7 @@ package workcmd
 
 import (
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/modload"
 	"context"
 	"encoding/json"
@@ -130,7 +131,7 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *editGo != "" {
 		if !modfile.GoVersionRE.MatchString(*editGo) {
-			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
+			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, gover.Local())
 		}
 	}
 

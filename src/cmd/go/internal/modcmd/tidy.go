@@ -9,13 +9,13 @@ package modcmd
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
 	"context"
 	"fmt"
 
 	"golang.org/x/mod/modfile"
-	"golang.org/x/mod/semver"
 )
 
 var cmdTidy = &base.Command{
@@ -84,11 +84,11 @@ func (f *goVersionFlag) Get() any       { return f.v }
 
 func (f *goVersionFlag) Set(s string) error {
 	if s != "" {
-		latest := modload.LatestGoVersion()
+		latest := gover.Local()
 		if !modfile.GoVersionRE.MatchString(s) {
 			return fmt.Errorf("expecting a Go version like %q", latest)
 		}
-		if semver.Compare("v"+s, "v"+latest) > 0 {
+		if gover.Compare(s, latest) > 0 {
 			return fmt.Errorf("maximum supported Go version is %s", latest)
 		}
 	}

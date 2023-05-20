@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -139,7 +140,7 @@ func checkVendorConsistency(index *modFileIndex, modFile *modfile.File) {
 	readVendorList(MainModules.mustGetSingleMainModule())
 
 	pre114 := false
-	if semver.Compare(index.goVersionV, "v1.14") < 0 {
+	if gover.Compare(index.goVersion, "1.14") < 0 {
 		// Go versions before 1.14 did not include enough information in
 		// vendor/modules.txt to check for consistency.
 		// If we know that we're on an earlier version, relax the consistency check.

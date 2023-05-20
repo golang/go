@@ -7,12 +7,6 @@
 package main
 
 import (
-	"bytes"
-	"cmd/go/internal/base"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/modcmd"
-	"cmd/go/internal/modload"
-	"cmd/go/internal/work"
 	"context"
 	"fmt"
 	"internal/godebug"
@@ -24,6 +18,12 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/gover"
+	"cmd/go/internal/modcmd"
+	"cmd/go/internal/modload"
 )
 
 const (
@@ -75,7 +75,7 @@ func switchGoToolchain() {
 			base.Fatalf("invalid GOTOOLCHAIN %q: invalid minimum version %q", gotoolchain, min)
 		}
 	} else {
-		min = work.RuntimeVersion
+		min = "go" + gover.Local()
 	}
 
 	pathOnly := gotoolchain == "path"
@@ -85,14 +85,16 @@ func switchGoToolchain() {
 		if toolchain != "" {
 			// toolchain line wins by itself
 			gotoolchain = toolchain
-		} else if goVers != "" {
-			gotoolchain = toolchainMax(min, "go"+goVers)
 		} else {
-			gotoolchain = min
+			v := strings.TrimPrefix(min, "go")
+			if gover.Compare(v, goVers) < 0 {
+				v = goVers
+			}
+			gotoolchain = "go" + v
 		}
 	}
 
-	if gotoolchain == "local" || gotoolchain == work.RuntimeVersion {
+	if gotoolchain == "local" || gotoolchain == "go"+gover.Local() {
 		// Let the current binary handle the command.
 		return
 	}
@@ -250,16 +252,6 @@ func modGoToolchain() (goVers, toolchain string) {
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
-	for len(data) > 0 {
-		var line []byte
-		line, data, _ = bytes.Cut(data, nl)
-		line = bytes.TrimSpace(line)
-		if goVers == "" {
-			goVers = parseKey(line, goKey)
-		}
-		if toolchain == "" {
-			toolchain = parseKey(line, toolchainKey)
-		}
-	}
-	return
+
+	return gover.GoModLookup(data, "go"), gover.GoModLookup(data, "toolchain")
 }

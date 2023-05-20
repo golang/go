@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/gover"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
@@ -199,7 +200,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 
 	if *editGo != "" {
 		if !modfile.GoVersionRE.MatchString(*editGo) {
-			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, modload.LatestGoVersion())
+			base.Fatalf(`go mod: invalid -go option; expecting something like "-go %s"`, gover.Local())
 		}
 	}
 
