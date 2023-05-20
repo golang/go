@@ -31,7 +31,7 @@ type serverHandshakeState struct {
 	ecSignOk     bool
 	rsaDecryptOk bool
 	rsaSignOk    bool
-	sessionState *sessionState
+	sessionState *SessionState
 	finishedHash finishedHash
 	masterSecret []byte
 	cert         *Certificate
@@ -410,11 +410,11 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 	if plaintext == nil {
 		return false
 	}
-	hs.sessionState = &sessionState{}
-	ok := hs.sessionState.unmarshal(plaintext)
-	if !ok {
+	ss, err := ParseSessionState(plaintext)
+	if err != nil {
 		return false
 	}
+	hs.sessionState = ss
 
 	// TLS 1.2 tickets don't natively have a lifetime, but we want to avoid
 	// re-wrapping the same master secret in different tickets over and over for
@@ -425,7 +425,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 	}
 
 	// Never resume a session for a different TLS version.
-	if c.vers != hs.sessionState.vers {
+	if c.vers != hs.sessionState.version {
 		return false
 	}
 
@@ -448,7 +448,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 		return false
 	}
 
-	sessionHasClientCerts := len(hs.sessionState.certificates) != 0
+	sessionHasClientCerts := len(hs.sessionState.certificate.Certificate) != 0
 	needClientCerts := requiresClientCert(c.config.ClientAuth)
 	if needClientCerts && !sessionHasClientCerts {
 		return false
@@ -481,9 +481,7 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 		return err
 	}
 
-	if err := c.processCertsFromClient(Certificate{
-		Certificate: hs.sessionState.certificates,
-	}); err != nil {
+	if err := c.processCertsFromClient(hs.sessionState.certificate); err != nil {
 		return err
 	}
 
@@ -494,7 +492,7 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 		}
 	}
 
-	hs.masterSecret = hs.sessionState.masterSecret
+	hs.masterSecret = hs.sessionState.secret
 
 	return nil
 }
@@ -772,14 +770,18 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	for _, cert := range c.peerCertificates {
 		certsFromClient = append(certsFromClient, cert.Raw)
 	}
-	state := sessionState{
-		vers:         c.vers,
-		cipherSuite:  hs.suite.id,
-		createdAt:    createdAt,
-		masterSecret: hs.masterSecret,
-		certificates: certsFromClient,
+	state := SessionState{
+		version:     c.vers,
+		cipherSuite: hs.suite.id,
+		createdAt:   createdAt,
+		secret:      hs.masterSecret,
+		certificate: Certificate{
+			Certificate:                 certsFromClient,
+			OCSPStaple:                  c.ocspResponse,
+			SignedCertificateTimestamps: c.scts,
+		},
 	}
-	stateBytes, err := state.marshal()
+	stateBytes, err := state.Bytes()
 	if err != nil {
 		return err
 	}

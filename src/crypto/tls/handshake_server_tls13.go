@@ -279,8 +279,8 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		if plaintext == nil {
 			continue
 		}
-		sessionState := new(sessionStateTLS13)
-		if ok := sessionState.unmarshal(plaintext); !ok {
+		sessionState, err := ParseSessionState(plaintext)
+		if err != nil || sessionState.version != VersionTLS13 {
 			continue
 		}
 
@@ -310,9 +310,7 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			continue
 		}
 
-		psk := hs.suite.expandLabel(sessionState.resumptionSecret, "resumption",
-			nil, hs.suite.hash.Size())
-		hs.earlySecret = hs.suite.extract(psk, nil)
+		hs.earlySecret = hs.suite.extract(sessionState.secret, nil)
 		binderKey := hs.suite.deriveSecret(hs.earlySecret, resumptionBinderLabel, nil)
 		// Clone the transcript in case a HelloRetryRequest was recorded.
 		transcript := cloneHash(hs.transcript, hs.suite.hash)
@@ -771,6 +769,10 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 
 	resumptionSecret := hs.suite.deriveSecret(hs.masterSecret,
 		resumptionLabel, hs.transcript)
+	// ticket_nonce, which must be unique per connection, is always left at
+	// zero because we only ever send one ticket per connection.
+	psk := hs.suite.expandLabel(resumptionSecret, "resumption",
+		nil, hs.suite.hash.Size())
 
 	m := new(newSessionTicketMsgTLS13)
 
@@ -778,17 +780,18 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	for _, cert := range c.peerCertificates {
 		certsFromClient = append(certsFromClient, cert.Raw)
 	}
-	state := sessionStateTLS13{
-		cipherSuite:      hs.suite.id,
-		createdAt:        uint64(c.config.time().Unix()),
-		resumptionSecret: resumptionSecret,
+	state := &SessionState{
+		version:     c.vers,
+		cipherSuite: hs.suite.id,
+		createdAt:   uint64(c.config.time().Unix()),
+		secret:      psk,
 		certificate: Certificate{
 			Certificate:                 certsFromClient,
 			OCSPStaple:                  c.ocspResponse,
 			SignedCertificateTimestamps: c.scts,
 		},
 	}
-	stateBytes, err := state.marshal()
+	stateBytes, err := state.Bytes()
 	if err != nil {
 		c.sendAlert(alertInternalError)
 		return err
@@ -808,9 +811,6 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 		return err
 	}
 	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
-
-	// ticket_nonce, which must be unique per connection, is always left at
-	// zero because we only ever send one ticket per connection.
 
 	if _, err := c.writeHandshakeRecord(m, nil); err != nil {
 		return err
