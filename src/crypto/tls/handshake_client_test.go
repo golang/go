@@ -1069,6 +1069,47 @@ func testResumption(t *testing.T, version uint16) {
 
 	clientConfig.ClientSessionCache = nil
 	testResumeState("WithoutSessionCache", false)
+
+	clientConfig.ClientSessionCache = &serializingClientCache{t: t}
+	testResumeState("BeforeSerializingCache", false)
+	testResumeState("WithSerializingCache", true)
+}
+
+type serializingClientCache struct {
+	t *testing.T
+
+	ticket, state []byte
+}
+
+func (c *serializingClientCache) Get(sessionKey string) (session *ClientSessionState, ok bool) {
+	if c.ticket == nil {
+		return nil, false
+	}
+	state, err := ParseSessionState(c.state)
+	if err != nil {
+		c.t.Error(err)
+		return nil, false
+	}
+	cs, err := NewResumptionState(c.ticket, state)
+	if err != nil {
+		c.t.Error(err)
+		return nil, false
+	}
+	return cs, true
+}
+
+func (c *serializingClientCache) Put(sessionKey string, cs *ClientSessionState) {
+	ticket, state, err := cs.ResumptionState()
+	if err != nil {
+		c.t.Error(err)
+		return
+	}
+	stateBytes, err := state.Bytes()
+	if err != nil {
+		c.t.Error(err)
+		return
+	}
+	c.ticket, c.state = ticket, stateBytes
 }
 
 func TestLRUClientSessionCache(t *testing.T) {

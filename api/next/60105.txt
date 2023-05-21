@@ -1,3 +1,5 @@
 pkg crypto/tls, func ParseSessionState([]uint8) (*SessionState, error) #60105
 pkg crypto/tls, method (*SessionState) Bytes() ([]uint8, error) #60105
 pkg crypto/tls, type SessionState struct #60105
+pkg crypto/tls, func NewResumptionState([]uint8, *SessionState) (*ClientSessionState, error) #60105
+pkg crypto/tls, method (*ClientSessionState) ResumptionState() ([]uint8, *SessionState, error) #60105

@@ -71,15 +71,9 @@ type SessionState struct {
 	ageAdd uint32
 }
 
-// ClientSessionState contains the state needed by clients to resume TLS
-// sessions.
-type ClientSessionState struct {
-	ticket  []byte
-	session *SessionState
-}
-
 // Bytes encodes the session, including any private fields, so that it can be
-// parsed by [ParseSessionState]. The encoding contains secret values.
+// parsed by [ParseSessionState]. The encoding contains secret values critical
+// to the security of future and possibly past sessions.
 //
 // The specific encoding should be considered opaque and may change incompatibly
 // between Go versions.
@@ -292,4 +286,31 @@ func (c *Conn) decryptTicket(encrypted []byte) []byte {
 	}
 
 	return nil
+}
+
+// ClientSessionState contains the state needed by a client to
+// resume a previous TLS session.
+type ClientSessionState struct {
+	ticket  []byte
+	session *SessionState
+}
+
+// ResumptionState returns the session ticket sent by the server (also known as
+// the session's identity) and the state necessary to resume this session.
+//
+// It can be called by [ClientSessionCache.Put] to serialize (with
+// [SessionState.Bytes]) and store the session.
+func (cs *ClientSessionState) ResumptionState() (ticket []byte, state *SessionState, err error) {
+	return cs.ticket, cs.session, nil
+}
+
+// NewResumptionState returns a state value that can be returned by
+// [ClientSessionCache.Get] to resume a previous session.
+//
+// state needs to be returned by [ParseSessionState], and the ticket and session
+// state must have been returned by [ClientSessionState.ResumptionState].
+func NewResumptionState(ticket []byte, state *SessionState) (*ClientSessionState, error) {
+	return &ClientSessionState{
+		ticket: ticket, session: state,
+	}, nil
 }
