@@ -37,7 +37,6 @@ type Editor struct {
 	serverConn jsonrpc2.Conn
 	client     *Client
 	sandbox    *Sandbox
-	defaultEnv map[string]string
 
 	// TODO(adonovan): buffers should be keyed by protocol.DocumentURI.
 	mu                 sync.Mutex
@@ -75,8 +74,14 @@ func (b buffer) text() string {
 // source.UserOptions, but we use a separate type here so that we expose only
 // that configuration which we support.
 //
-// The zero value for EditorConfig should correspond to its defaults.
+// The zero value for EditorConfig is the default configuration.
 type EditorConfig struct {
+	// ClientName sets the clientInfo.name for the LSP session (in the initialize request).
+	//
+	// Since this can only be set during initialization, changing this field via
+	// Editor.ChangeConfiguration has no effect.
+	ClientName string
+
 	// Env holds environment variables to apply on top of the default editor
 	// environment. When applying these variables, the special string
 	// $SANDBOX_WORKDIR is replaced by the absolute path to the sandbox working
@@ -109,10 +114,9 @@ type EditorConfig struct {
 // NewEditor creates a new Editor.
 func NewEditor(sandbox *Sandbox, config EditorConfig) *Editor {
 	return &Editor{
-		buffers:    make(map[string]buffer),
-		sandbox:    sandbox,
-		defaultEnv: sandbox.GoEnv(),
-		config:     config,
+		buffers: make(map[string]buffer),
+		sandbox: sandbox,
+		config:  config,
 	}
 }
 
@@ -198,19 +202,17 @@ func (e *Editor) Client() *Client {
 	return e.client
 }
 
-// settingsLocked builds the settings map for use in LSP settings RPCs.
-//
-// e.mu must be held while calling this function.
-func (e *Editor) settingsLocked() map[string]interface{} {
+// makeSettings builds the settings map for use in LSP settings RPCs.
+func makeSettings(sandbox *Sandbox, config EditorConfig) map[string]interface{} {
 	env := make(map[string]string)
-	for k, v := range e.defaultEnv {
+	for k, v := range sandbox.GoEnv() {
 		env[k] = v
 	}
-	for k, v := range e.config.Env {
+	for k, v := range config.Env {
 		env[k] = v
 	}
 	for k, v := range env {
-		v = strings.ReplaceAll(v, "$SANDBOX_WORKDIR", e.sandbox.Workdir.RootURI().SpanURI().Filename())
+		v = strings.ReplaceAll(v, "$SANDBOX_WORKDIR", sandbox.Workdir.RootURI().SpanURI().Filename())
 		env[k] = v
 	}
 
@@ -226,7 +228,7 @@ func (e *Editor) settingsLocked() map[string]interface{} {
 		"completionBudget": "10s",
 	}
 
-	for k, v := range e.config.Settings {
+	for k, v := range config.Settings {
 		if k == "env" {
 			panic("must not provide env via the EditorConfig.Settings field: use the EditorConfig.Env field instead")
 		}
@@ -237,20 +239,22 @@ func (e *Editor) settingsLocked() map[string]interface{} {
 }
 
 func (e *Editor) initialize(ctx context.Context) error {
+	config := e.Config()
+
 	params := &protocol.ParamInitialize{}
-	params.ClientInfo = &protocol.Msg_XInitializeParams_clientInfo{}
-	params.ClientInfo.Name = "fakeclient"
-	params.ClientInfo.Version = "v1.0.0"
-	e.mu.Lock()
-	params.WorkspaceFolders = e.makeWorkspaceFoldersLocked()
-	params.InitializationOptions = e.settingsLocked()
-	e.mu.Unlock()
-	params.Capabilities.Workspace.Configuration = true
-	params.Capabilities.Window.WorkDoneProgress = true
+	if e.config.ClientName != "" {
+		params.ClientInfo = &protocol.Msg_XInitializeParams_clientInfo{}
+		params.ClientInfo.Name = e.config.ClientName
+		params.ClientInfo.Version = "v1.0.0"
+	}
+	params.InitializationOptions = makeSettings(e.sandbox, config)
+	params.WorkspaceFolders = makeWorkspaceFolders(e.sandbox, config.WorkspaceFolders)
+	params.Capabilities.Workspace.Configuration = true // support workspace/configuration
+	params.Capabilities.Window.WorkDoneProgress = true // support window/workDoneProgress
 
-	// TODO: set client capabilities
+	// TODO(rfindley): set client capabilities (note from the future: why?)
+
 	params.Capabilities.TextDocument.Completion.CompletionItem.TagSupport.ValueSet = []protocol.CompletionItemTag{protocol.ComplDeprecated}
-
 	params.Capabilities.TextDocument.Completion.CompletionItem.SnippetSupport = true
 	params.Capabilities.TextDocument.SemanticTokens.Requests.Full.Value = true
 	// copied from lsp/semantic.go to avoid import cycle in tests
@@ -269,11 +273,12 @@ func (e *Editor) initialize(ctx context.Context) error {
 	// but really we should test both ways for older editors.
 	params.Capabilities.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport = true
 
-	// This is a bit of a hack, since the fake editor doesn't actually support
-	// watching changed files that match a specific glob pattern. However, the
-	// editor does send didChangeWatchedFiles notifications, so set this to
-	// true.
+	// Glob pattern watching is enabled.
 	params.Capabilities.Workspace.DidChangeWatchedFiles.DynamicRegistration = true
+
+	// "rename" operations are used for package renaming.
+	//
+	// TODO(rfindley): add support for other resource operations (create, delete, ...)
 	params.Capabilities.Workspace.WorkspaceEdit = &protocol.WorkspaceEditClientCapabilities{
 		ResourceOperations: []protocol.ResourceOperationKind{
 			"rename",
@@ -300,18 +305,15 @@ func (e *Editor) initialize(ctx context.Context) error {
 	return nil
 }
 
-// makeWorkspaceFoldersLocked creates a slice of workspace folders to use for
+// makeWorkspaceFolders creates a slice of workspace folders to use for
 // this editing session, based on the editor configuration.
-//
-// e.mu must be held while calling this function.
-func (e *Editor) makeWorkspaceFoldersLocked() (folders []protocol.WorkspaceFolder) {
-	paths := e.config.WorkspaceFolders
+func makeWorkspaceFolders(sandbox *Sandbox, paths []string) (folders []protocol.WorkspaceFolder) {
 	if len(paths) == 0 {
-		paths = append(paths, string(e.sandbox.Workdir.RelativeTo))
+		paths = []string{string(sandbox.Workdir.RelativeTo)}
 	}
 
 	for _, path := range paths {
-		uri := string(e.sandbox.Workdir.URI(path))
+		uri := string(sandbox.Workdir.URI(path))
 		folders = append(folders, protocol.WorkspaceFolder{
 			URI:  uri,
 			Name: filepath.Base(uri),
@@ -1329,14 +1331,18 @@ func (e *Editor) Config() EditorConfig {
 	return e.config
 }
 
+func (e *Editor) SetConfig(cfg EditorConfig) {
+	e.mu.Lock()
+	e.config = cfg
+	e.mu.Unlock()
+}
+
 // ChangeConfiguration sets the new editor configuration, and if applicable
 // sends a didChangeConfiguration notification.
 //
 // An error is returned if the change notification failed to send.
 func (e *Editor) ChangeConfiguration(ctx context.Context, newConfig EditorConfig) error {
-	e.mu.Lock()
-	e.config = newConfig
-	e.mu.Unlock() // don't hold e.mu during server calls
+	e.SetConfig(newConfig)
 	if e.Server != nil {
 		var params protocol.DidChangeConfigurationParams // empty: gopls ignores the Settings field
 		if err := e.Server.DidChangeConfiguration(ctx, &params); err != nil {
@@ -1351,12 +1357,13 @@ func (e *Editor) ChangeConfiguration(ctx context.Context, newConfig EditorConfig
 //
 // The given folders must all be unique.
 func (e *Editor) ChangeWorkspaceFolders(ctx context.Context, folders []string) error {
+	config := e.Config()
+
 	// capture existing folders so that we can compute the change.
-	e.mu.Lock()
-	oldFolders := e.makeWorkspaceFoldersLocked()
-	e.config.WorkspaceFolders = folders
-	newFolders := e.makeWorkspaceFoldersLocked()
-	e.mu.Unlock()
+	oldFolders := makeWorkspaceFolders(e.sandbox, config.WorkspaceFolders)
+	newFolders := makeWorkspaceFolders(e.sandbox, folders)
+	config.WorkspaceFolders = folders
+	e.SetConfig(config)
 
 	if e.Server == nil {
 		return nil

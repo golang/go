@@ -936,28 +936,54 @@ func (s *snapshot) fileWatchingGlobPatterns(ctx context.Context) map[string]stru
 		patterns[fmt.Sprintf("%s/**/*.{%s}", dirName, extensions)] = struct{}{}
 	}
 
-	// Some clients (e.g. VSCode) do not send notifications for
-	// changes to directories that contain Go code (golang/go#42348).
-	// To handle this, explicitly watch all of the directories in
-	// the workspace. We find them by adding the directories of
-	// every file in the snapshot's workspace directories.
-	// There may be thousands of patterns, each a single directory.
-	//
-	// (A previous iteration created a single glob pattern holding a
-	// union of all the directories, but this was found to cause
-	// VSCode to get stuck for several minutes after a buffer was
-	// saved twice in a workspace that had >8000 watched directories.)
-	//
-	// Some clients (notably coc.nvim, which uses watchman for
-	// globs) perform poorly with a large list of individual
-	// directories, though they work fine with one large
-	// comma-separated element. Sadly no one size fits all, so we
-	// may have to resort to sniffing the client to determine the
-	// best behavior, though that would set a poor precedent.
-	// TODO(adonovan): improve the nvim situation.
-	s.addKnownSubdirs(patterns, dirs)
+	if s.watchSubdirs() {
+		// Some clients (e.g. VS Code) do not send notifications for changes to
+		// directories that contain Go code (golang/go#42348). To handle this,
+		// explicitly watch all of the directories in the workspace. We find them
+		// by adding the directories of every file in the snapshot's workspace
+		// directories. There may be thousands of patterns, each a single
+		// directory.
+		//
+		// (A previous iteration created a single glob pattern holding a union of
+		// all the directories, but this was found to cause VS Code to get stuck
+		// for several minutes after a buffer was saved twice in a workspace that
+		// had >8000 watched directories.)
+		//
+		// Some clients (notably coc.nvim, which uses watchman for globs) perform
+		// poorly with a large list of individual directories.
+		s.addKnownSubdirs(patterns, dirs)
+	}
 
 	return patterns
+}
+
+// watchSubdirs reports whether gopls should request separate file watchers for
+// each relevant subdirectory. This is necessary only for clients (namely VS
+// Code) that do not send notifications for individual files in a directory
+// when the entire directory is deleted.
+func (s *snapshot) watchSubdirs() bool {
+	opts := s.view.Options()
+	switch p := opts.SubdirWatchPatterns; p {
+	case source.SubdirWatchPatternsOn:
+		return true
+	case source.SubdirWatchPatternsOff:
+		return false
+	case source.SubdirWatchPatternsAuto:
+		// See the documentation of InternalOptions.SubdirWatchPatterns for an
+		// explanation of why VS Code gets a different default value here.
+		//
+		// Unfortunately, there is no authoritative list of client names, nor any
+		// requirements that client names do not change. We should update the VS
+		// Code extension to set a default value of "subdirWatchPatterns" to "on",
+		// so that this workaround is only temporary.
+		if opts.ClientInfo != nil && opts.ClientInfo.Name == "Visual Studio Code" {
+			return true
+		}
+		return false
+	default:
+		bug.Reportf("invalid subdirWatchPatterns: %q", p)
+		return false
+	}
 }
 
 func (s *snapshot) addKnownSubdirs(patterns map[string]struct{}, wsDirs []span.URI) {

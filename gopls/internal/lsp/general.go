@@ -59,7 +59,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	if err := s.handleOptionResults(ctx, source.SetOptions(options, params.InitializationOptions)); err != nil {
 		return nil, err
 	}
-	options.ForClientCapabilities(params.Capabilities)
+	options.ForClientCapabilities(params.ClientInfo, params.Capabilities)
 
 	if options.ShowBugReports {
 		// Report the next bug that occurs on the server.

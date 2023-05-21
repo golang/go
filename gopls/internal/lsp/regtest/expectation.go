@@ -235,7 +235,7 @@ func ShownMessage(containing string) Expectation {
 	}
 	return Expectation{
 		Check:       check,
-		Description: "received ShowMessage",
+		Description: fmt.Sprintf("received window/showMessage containing %q", containing),
 	}
 }
 

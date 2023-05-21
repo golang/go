@@ -169,6 +169,7 @@ func DefaultOptions() *Options {
 				DeepCompletion:          true,
 				ChattyDiagnostics:       true,
 				NewDiff:                 "both",
+				SubdirWatchPatterns:     SubdirWatchPatternsAuto,
 			},
 			Hooks: Hooks{
 				// TODO(adonovan): switch to new diff.Strings implementation.
@@ -198,6 +199,7 @@ type Options struct {
 // ClientOptions holds LSP-specific configuration that is provided by the
 // client.
 type ClientOptions struct {
+	ClientInfo                                 *protocol.Msg_XInitializeParams_clientInfo
 	InsertTextFormat                           protocol.InsertTextFormat
 	ConfigurationSupported                     bool
 	DynamicConfigurationSupported              bool
@@ -536,6 +538,9 @@ type Hooks struct {
 // average user. These may be settings used by tests or outdated settings that
 // will soon be deprecated. Some of these settings may not even be configurable
 // by the user.
+//
+// TODO(rfindley): even though these settings are not intended for
+// modification, we should surface them in our documentation.
 type InternalOptions struct {
 	// LiteralCompletions controls whether literal candidates such as
 	// "&someStruct{}" are offered. Tests disable this flag to simplify
@@ -599,7 +604,41 @@ type InternalOptions struct {
 	// file change. If unset, gopls only reports diagnostics when they change, or
 	// when a file is opened or closed.
 	ChattyDiagnostics bool
+
+	// SubdirWatchPatterns configures the file watching glob patterns registered
+	// by gopls.
+	//
+	// Some clients (namely VS Code) do not send workspace/didChangeWatchedFile
+	// notifications for files contained in a directory when that directory is
+	// deleted:
+	// https://github.com/microsoft/vscode/issues/109754
+	//
+	// In this case, gopls would miss important notifications about deleted
+	// packages. To work around this, gopls registers a watch pattern for each
+	// directory containing Go files.
+	//
+	// Unfortunately, other clients experience performance problems with this
+	// many watch patterns, so there is no single behavior that works well for
+	// all clients.
+	//
+	// The "subdirWatchPatterns" setting allows configuring this behavior. Its
+	// default value of "auto" attempts to guess the correct behavior based on
+	// the client name. We'd love to avoid this specialization, but as described
+	// above there is no single value that works for all clients.
+	//
+	// If any LSP client does not behave well with the default value (for
+	// example, if like VS Code it drops file notifications), please file an
+	// issue.
+	SubdirWatchPatterns SubdirWatchPatterns
 }
+
+type SubdirWatchPatterns string
+
+const (
+	SubdirWatchPatternsOn   SubdirWatchPatterns = "on"
+	SubdirWatchPatternsOff  SubdirWatchPatterns = "off"
+	SubdirWatchPatternsAuto SubdirWatchPatterns = "auto"
+)
 
 type ImportShortcut string
 
@@ -742,7 +781,8 @@ func SetOptions(options *Options, opts interface{}) OptionResults {
 	return results
 }
 
-func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
+func (o *Options) ForClientCapabilities(clientName *protocol.Msg_XInitializeParams_clientInfo, caps protocol.ClientCapabilities) {
+	o.ClientInfo = clientName
 	// Check if the client supports snippets in completion items.
 	if caps.Workspace.WorkspaceEdit != nil {
 		o.SupportedResourceOperations = caps.Workspace.WorkspaceEdit.ResourceOperations
@@ -1158,6 +1198,15 @@ func (o *Options) set(name string, value interface{}, seen map[string]struct{}) 
 
 	case "chattyDiagnostics":
 		result.setBool(&o.ChattyDiagnostics)
+
+	case "subdirWatchPatterns":
+		if s, ok := result.asOneOf(
+			string(SubdirWatchPatternsOn),
+			string(SubdirWatchPatternsOff),
+			string(SubdirWatchPatternsAuto),
+		); ok {
+			o.SubdirWatchPatterns = SubdirWatchPatterns(s)
+		}
 
 	// Replaced settings.
 	case "experimentalDisabledAnalyses":

@@ -64,8 +64,14 @@ func WindowsLineEndings() RunOption {
 	})
 }
 
-// Settings is a RunOption that sets user-provided configuration for the LSP
-// server.
+// ClientName sets the LSP client name.
+func ClientName(name string) RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.editor.ClientName = name
+	})
+}
+
+// Settings sets user-provided configuration for the LSP server.
 //
 // As a special case, the env setting must not be provided via Settings: use
 // EnvVars instead.

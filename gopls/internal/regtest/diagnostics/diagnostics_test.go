@@ -1506,7 +1506,13 @@ func main() {
 	bob.Hello()
 }
 `
-	Run(t, mod, func(t *testing.T, env *Env) {
+	WithOptions(
+		Settings{
+			// Now that we don't watch subdirs by default (except for VS Code),
+			// we must explicitly ask gopls to requests subdir watch patterns.
+			"subdirWatchPatterns": "on",
+		},
+	).Run(t, mod, func(t *testing.T, env *Env) {
 		env.OnceMet(
 			InitialWorkspaceLoad,
 			FileWatchMatching("bob"),
