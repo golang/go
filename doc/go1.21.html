@@ -582,12 +582,8 @@ Do not send CLs removing the interior tags from such phrases.
 
 <dl id="net/http"><dt><a href="/pkg/net/http/">net/http</a></dt>
   <dd>
-    <p><!-- https://go.dev/issue/44855 -->
-      TODO: <a href="https://go.dev/issue/44855">https://go.dev/issue/44855</a>: add ErrSchemeMismatch
-    </p>
-
-    <p><!-- CL 382117 -->
-      TODO: <a href="https://go.dev/cl/382117">https://go.dev/cl/382117</a>: net/http: expose &#34;http: server gave HTTP response to HTTPS client&#34; error; modified api/next/44855.txt
+    <p><!-- https://go.dev/issue/44855, CL 382117 -->
+      The new <a href="/pkg/net/http/#ErrSchemeMismatch"><code>ErrSchemeMismatch</code></a> error is returned by <a href="/pkg/net/http/#Client"><code>Client</code></a> and <a href="/pkg/net/http/#Transport"><code>Transport</code></a> when the server responds to an HTTPS request with an HTTP response.
     </p>
 
     <p><!-- CL 472636 -->
