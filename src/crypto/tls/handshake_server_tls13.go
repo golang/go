@@ -301,7 +301,7 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		// PSK connections don't re-establish client certificates, but carry
 		// them over in the session ticket. Ensure the presence of client certs
 		// in the ticket is consistent with the configured requirements.
-		sessionHasClientCerts := len(sessionState.certificate.Certificate) != 0
+		sessionHasClientCerts := len(sessionState.peerCertificates) != 0
 		needClientCerts := requiresClientCert(c.config.ClientAuth)
 		if needClientCerts && !sessionHasClientCerts {
 			continue
@@ -331,7 +331,7 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		}
 
 		c.didResume = true
-		if err := c.processCertsFromClient(sessionState.certificate); err != nil {
+		if err := c.processCertsFromClient(sessionState.certificate()); err != nil {
 			return err
 		}
 
@@ -776,21 +776,11 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 
 	m := new(newSessionTicketMsgTLS13)
 
-	var certsFromClient [][]byte
-	for _, cert := range c.peerCertificates {
-		certsFromClient = append(certsFromClient, cert.Raw)
+	state, err := c.sessionState()
+	if err != nil {
+		return err
 	}
-	state := &SessionState{
-		version:     c.vers,
-		cipherSuite: hs.suite.id,
-		createdAt:   uint64(c.config.time().Unix()),
-		secret:      psk,
-		certificate: Certificate{
-			Certificate:                 certsFromClient,
-			OCSPStaple:                  c.ocspResponse,
-			SignedCertificateTimestamps: c.scts,
-		},
-	}
+	state.secret = psk
 	stateBytes, err := state.Bytes()
 	if err != nil {
 		c.sendAlert(alertInternalError)

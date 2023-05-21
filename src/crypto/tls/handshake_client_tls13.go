@@ -23,7 +23,7 @@ type clientHandshakeStateTLS13 struct {
 	hello       *clientHelloMsg
 	ecdheKey    *ecdh.PrivateKey
 
-	session     *ClientSessionState
+	session     *SessionState
 	earlySecret []byte
 	binderKey   []byte
 
@@ -256,8 +256,8 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 		}
 		if pskSuite.hash == hs.suite.hash {
 			// Update binders and obfuscated_ticket_age.
-			ticketAge := uint32(c.config.time().Sub(hs.session.receivedAt) / time.Millisecond)
-			hs.hello.pskIdentities[0].obfuscatedTicketAge = ticketAge + hs.session.ageAdd
+			ticketAge := c.config.time().Sub(time.Unix(int64(hs.session.createdAt), 0))
+			hs.hello.pskIdentities[0].obfuscatedTicketAge = uint32(ticketAge/time.Millisecond) + hs.session.ageAdd
 
 			transcript := hs.suite.hash.New()
 			transcript.Write([]byte{typeMessageHash, 0, 0, uint8(len(chHash))})
@@ -355,7 +355,8 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
 
 	hs.usingPSK = true
 	c.didResume = true
-	c.peerCertificates = hs.session.serverCertificates
+	c.peerCertificates = hs.session.peerCertificates
+	c.activeCertHandles = hs.session.activeCertHandles
 	c.verifiedChains = hs.session.verifiedChains
 	c.ocspResponse = hs.session.ocspResponse
 	c.scts = hs.session.scts
@@ -719,28 +720,21 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 		return c.sendAlert(alertInternalError)
 	}
 
-	// Save the resumption_master_secret and nonce instead of deriving the PSK
-	// to do the least amount of work on NewSessionTicket messages before we
-	// know if the ticket will be used. Forward secrecy of resumed connections
-	// is guaranteed by the requirement for pskModeDHE.
-	session := &ClientSessionState{
-		sessionTicket:      msg.label,
-		vers:               c.vers,
-		cipherSuite:        c.cipherSuite,
-		masterSecret:       c.resumptionSecret,
-		serverCertificates: c.peerCertificates,
-		verifiedChains:     c.verifiedChains,
-		receivedAt:         c.config.time(),
-		nonce:              msg.nonce,
-		useBy:              c.config.time().Add(lifetime),
-		ageAdd:             msg.ageAdd,
-		ocspResponse:       c.ocspResponse,
-		scts:               c.scts,
-	}
+	psk := cipherSuite.expandLabel(c.resumptionSecret, "resumption",
+		msg.nonce, cipherSuite.hash.Size())
 
-	cacheKey := c.clientSessionCacheKey()
-	if cacheKey != "" {
-		c.config.ClientSessionCache.Put(cacheKey, session)
+	session, err := c.sessionState()
+	if err != nil {
+		c.sendAlert(alertInternalError)
+		return err
+	}
+	session.secret = psk
+	session.useBy = uint64(c.config.time().Add(lifetime).Unix())
+	session.ageAdd = msg.ageAdd
+	cs := &ClientSessionState{ticket: msg.label, session: session}
+
+	if cacheKey := c.clientSessionCacheKey(); cacheKey != "" {
+		c.config.ClientSessionCache.Put(cacheKey, cs)
 	}
 
 	return nil

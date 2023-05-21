@@ -6,7 +6,9 @@ package tls
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/hex"
+	"math"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -71,6 +73,10 @@ func TestMarshalUnmarshal(t *testing.T) {
 			}
 			m.marshal() // to fill any marshal cache in the message
 
+			if m, ok := m.(*SessionState); ok {
+				m.activeCertHandles = nil
+			}
+
 			if !reflect.DeepEqual(m1, m) {
 				t.Errorf("#%d got:%#v want:%#v %x", i, m, m1, marshaled)
 				break
@@ -97,7 +103,7 @@ func TestFuzz(t *testing.T) {
 	rand := rand.New(rand.NewSource(0))
 	for _, m := range tests {
 		for j := 0; j < 1000; j++ {
-			len := rand.Intn(100)
+			len := rand.Intn(1000)
 			bytes := randomBytes(len, rand)
 			// This just looks for crashes due to bounds errors etc.
 			m.unmarshal(bytes)
@@ -313,23 +319,59 @@ func (*newSessionTicketMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(m)
 }
 
+var sessionTestCerts []*x509.Certificate
+
+func init() {
+	cert, err := x509.ParseCertificate(testRSACertificate)
+	if err != nil {
+		panic(err)
+	}
+	sessionTestCerts = append(sessionTestCerts, cert)
+	cert, err = x509.ParseCertificate(testRSACertificateIssuer)
+	if err != nil {
+		panic(err)
+	}
+	sessionTestCerts = append(sessionTestCerts, cert)
+}
+
 func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 	s := &SessionState{}
-	s.version = uint16(rand.Intn(10000))
-	s.cipherSuite = uint16(rand.Intn(10000))
-	s.secret = randomBytes(rand.Intn(100)+1, rand)
+	isTLS13 := rand.Intn(10) > 5
+	if isTLS13 {
+		s.version = VersionTLS13
+	} else {
+		s.version = uint16(rand.Intn(VersionTLS13))
+	}
+	s.isClient = rand.Intn(10) > 5
+	s.cipherSuite = uint16(rand.Intn(math.MaxUint16))
 	s.createdAt = uint64(rand.Int63())
-	for i := 0; i < rand.Intn(2)+1; i++ {
-		s.certificate.Certificate = append(
-			s.certificate.Certificate, randomBytes(rand.Intn(500)+1, rand))
+	s.secret = randomBytes(rand.Intn(100)+1, rand)
+	if s.isClient || rand.Intn(10) > 5 {
+		if rand.Intn(10) > 5 {
+			s.peerCertificates = sessionTestCerts
+		} else {
+			s.peerCertificates = sessionTestCerts[:1]
+		}
 	}
-	if rand.Intn(10) > 5 {
-		s.certificate.OCSPStaple = randomBytes(rand.Intn(100)+1, rand)
+	if rand.Intn(10) > 5 && s.peerCertificates != nil {
+		s.ocspResponse = randomBytes(rand.Intn(100)+1, rand)
 	}
-	if rand.Intn(10) > 5 {
+	if rand.Intn(10) > 5 && s.peerCertificates != nil {
 		for i := 0; i < rand.Intn(2)+1; i++ {
-			s.certificate.SignedCertificateTimestamps = append(
-				s.certificate.SignedCertificateTimestamps, randomBytes(rand.Intn(500)+1, rand))
+			s.scts = append(s.scts, randomBytes(rand.Intn(500)+1, rand))
+		}
+	}
+	if s.isClient {
+		for i := 0; i < rand.Intn(3); i++ {
+			if rand.Intn(10) > 5 {
+				s.verifiedChains = append(s.verifiedChains, s.peerCertificates)
+			} else {
+				s.verifiedChains = append(s.verifiedChains, s.peerCertificates[:1])
+			}
+		}
+		if isTLS13 {
+			s.useBy = uint64(rand.Int63())
+			s.ageAdd = uint32(rand.Int63() & math.MaxUint32)
 		}
 	}
 	return reflect.ValueOf(s)

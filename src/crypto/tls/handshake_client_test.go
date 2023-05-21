@@ -916,14 +916,14 @@ func testResumption(t *testing.T, version uint16) {
 	}
 
 	getTicket := func() []byte {
-		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.sessionTicket
+		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.ticket
 	}
 	deleteTicket := func() {
 		ticketKey := clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).sessionKey
 		clientConfig.ClientSessionCache.Put(ticketKey, nil)
 	}
 	corruptTicket := func() {
-		clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.masterSecret[0] ^= 0xff
+		clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.session.secret[0] ^= 0xff
 	}
 	randomKey := func() [32]byte {
 		var k [32]byte

@@ -31,7 +31,8 @@ type clientHandshakeState struct {
 	suite        *cipherSuite
 	finishedHash finishedHash
 	masterSecret []byte
-	session      *ClientSessionState
+	session      *SessionState // the session being resumed
+	ticket       []byte        // a fresh ticket received during this handshake
 }
 
 var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
@@ -177,11 +178,11 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	}
 	c.serverName = hello.serverName
 
-	cacheKey, session, earlySecret, binderKey, err := c.loadSession(hello)
+	session, earlySecret, binderKey, err := c.loadSession(hello)
 	if err != nil {
 		return err
 	}
-	if cacheKey != "" && session != nil {
+	if session != nil {
 		defer func() {
 			// If we got a handshake failure when resuming a session, throw away
 			// the session ticket. See RFC 5077, Section 3.2.
@@ -190,7 +191,9 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 			// does require servers to abort on invalid binders, so we need to
 			// delete tickets to recover from a corrupted PSK.
 			if err != nil {
-				c.config.ClientSessionCache.Put(cacheKey, nil)
+				if cacheKey := c.clientSessionCacheKey(); cacheKey != "" {
+					c.config.ClientSessionCache.Put(cacheKey, nil)
+				}
 			}
 		}()
 	}
@@ -255,19 +258,13 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 		return err
 	}
 
-	// If we had a successful handshake and hs.session is different from
-	// the one already cached - cache a new one.
-	if cacheKey != "" && hs.session != nil && session != hs.session {
-		c.config.ClientSessionCache.Put(cacheKey, hs.session)
-	}
-
 	return nil
 }
 
-func (c *Conn) loadSession(hello *clientHelloMsg) (cacheKey string,
-	session *ClientSessionState, earlySecret, binderKey []byte, err error) {
+func (c *Conn) loadSession(hello *clientHelloMsg) (
+	session *SessionState, earlySecret, binderKey []byte, err error) {
 	if c.config.SessionTicketsDisabled || c.config.ClientSessionCache == nil {
-		return "", nil, nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	hello.ticketSupported = true
@@ -282,29 +279,30 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (cacheKey string,
 	// renegotiation is primarily used to allow a client to send a client
 	// certificate, which would be skipped if session resumption occurred.
 	if c.handshakes != 0 {
-		return "", nil, nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	// Try to resume a previously negotiated TLS session, if available.
-	cacheKey = c.clientSessionCacheKey()
+	cacheKey := c.clientSessionCacheKey()
 	if cacheKey == "" {
-		return "", nil, nil, nil, nil
+		return nil, nil, nil, nil
 	}
-	session, ok := c.config.ClientSessionCache.Get(cacheKey)
-	if !ok || session == nil {
-		return cacheKey, nil, nil, nil, nil
+	cs, ok := c.config.ClientSessionCache.Get(cacheKey)
+	if !ok || cs == nil {
+		return nil, nil, nil, nil
 	}
+	session = cs.session
 
 	// Check that version used for the previous session is still valid.
 	versOk := false
 	for _, v := range hello.supportedVersions {
-		if v == session.vers {
+		if v == session.version {
 			versOk = true
 			break
 		}
 	}
 	if !versOk {
-		return cacheKey, nil, nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	// Check that the cached server certificate is not expired, and that it's
@@ -313,41 +311,41 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (cacheKey string,
 	if !c.config.InsecureSkipVerify {
 		if len(session.verifiedChains) == 0 {
 			// The original connection had InsecureSkipVerify, while this doesn't.
-			return cacheKey, nil, nil, nil, nil
+			return nil, nil, nil, nil
 		}
-		serverCert := session.serverCertificates[0]
+		serverCert := session.peerCertificates[0]
 		if c.config.time().After(serverCert.NotAfter) {
 			// Expired certificate, delete the entry.
 			c.config.ClientSessionCache.Put(cacheKey, nil)
-			return cacheKey, nil, nil, nil, nil
+			return nil, nil, nil, nil
 		}
 		if err := serverCert.VerifyHostname(c.config.ServerName); err != nil {
-			return cacheKey, nil, nil, nil, nil
+			return nil, nil, nil, nil
 		}
 	}
 
-	if session.vers != VersionTLS13 {
+	if session.version != VersionTLS13 {
 		// In TLS 1.2 the cipher suite must match the resumed session. Ensure we
 		// are still offering it.
 		if mutualCipherSuite(hello.cipherSuites, session.cipherSuite) == nil {
-			return cacheKey, nil, nil, nil, nil
+			return nil, nil, nil, nil
 		}
 
-		hello.sessionTicket = session.sessionTicket
+		hello.sessionTicket = cs.ticket
 		return
 	}
 
 	// Check that the session ticket is not expired.
-	if c.config.time().After(session.useBy) {
+	if c.config.time().After(time.Unix(int64(session.useBy), 0)) {
 		c.config.ClientSessionCache.Put(cacheKey, nil)
-		return cacheKey, nil, nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	// In TLS 1.3 the KDF hash must match the resumed session. Ensure we
 	// offer at least one cipher suite with that hash.
 	cipherSuite := cipherSuiteTLS13ByID(session.cipherSuite)
 	if cipherSuite == nil {
-		return cacheKey, nil, nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	cipherSuiteOk := false
 	for _, offeredID := range hello.cipherSuites {
@@ -358,32 +356,30 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (cacheKey string,
 		}
 	}
 	if !cipherSuiteOk {
-		return cacheKey, nil, nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	// Set the pre_shared_key extension. See RFC 8446, Section 4.2.11.1.
-	ticketAge := uint32(c.config.time().Sub(session.receivedAt) / time.Millisecond)
+	ticketAge := c.config.time().Sub(time.Unix(int64(session.createdAt), 0))
 	identity := pskIdentity{
-		label:               session.sessionTicket,
-		obfuscatedTicketAge: ticketAge + session.ageAdd,
+		label:               cs.ticket,
+		obfuscatedTicketAge: uint32(ticketAge/time.Millisecond) + session.ageAdd,
 	}
 	hello.pskIdentities = []pskIdentity{identity}
 	hello.pskBinders = [][]byte{make([]byte, cipherSuite.hash.Size())}
 
 	// Compute the PSK binders. See RFC 8446, Section 4.2.11.2.
-	psk := cipherSuite.expandLabel(session.masterSecret, "resumption",
-		session.nonce, cipherSuite.hash.Size())
-	earlySecret = cipherSuite.extract(psk, nil)
+	earlySecret = cipherSuite.extract(session.secret, nil)
 	binderKey = cipherSuite.deriveSecret(earlySecret, resumptionBinderLabel, nil)
 	transcript := cipherSuite.hash.New()
 	helloBytes, err := hello.marshalWithoutBinders()
 	if err != nil {
-		return "", nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 	transcript.Write(helloBytes)
 	pskBinders := [][]byte{cipherSuite.finishedHash(binderKey, transcript)}
 	if err := hello.updateBinders(pskBinders); err != nil {
-		return "", nil, nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	return
@@ -484,6 +480,9 @@ func (hs *clientHandshakeState) handshake() error {
 		if err := hs.readFinished(c.serverFinished[:]); err != nil {
 			return err
 		}
+	}
+	if err := hs.saveSessionTicket(); err != nil {
+		return err
 	}
 
 	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.hello.random, hs.serverHello.random)
@@ -752,7 +751,7 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		return false, nil
 	}
 
-	if hs.session.vers != c.vers {
+	if hs.session.version != c.vers {
 		c.sendAlert(alertHandshakeFailure)
 		return false, errors.New("tls: server resumed a session with a different version")
 	}
@@ -762,9 +761,10 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		return false, errors.New("tls: server resumed a session with a different cipher suite")
 	}
 
-	// Restore masterSecret, peerCerts, and ocspResponse from previous state
-	hs.masterSecret = hs.session.masterSecret
-	c.peerCertificates = hs.session.serverCertificates
+	// Restore master secret and certificates from previous state
+	hs.masterSecret = hs.session.secret
+	c.peerCertificates = hs.session.peerCertificates
+	c.activeCertHandles = hs.c.activeCertHandles
 	c.verifiedChains = hs.session.verifiedChains
 	c.ocspResponse = hs.session.ocspResponse
 	// Let the ServerHello SCTs override the session SCTs from the original
@@ -836,8 +836,13 @@ func (hs *clientHandshakeState) readSessionTicket() error {
 	if !hs.serverHello.ticketSupported {
 		return nil
 	}
-
 	c := hs.c
+
+	if !hs.hello.ticketSupported {
+		c.sendAlert(alertIllegalParameter)
+		return errors.New("tls: server sent unrequested session ticket")
+	}
+
 	msg, err := c.readHandshake(&hs.finishedHash)
 	if err != nil {
 		return err
@@ -848,18 +853,29 @@ func (hs *clientHandshakeState) readSessionTicket() error {
 		return unexpectedMessageError(sessionTicketMsg, msg)
 	}
 
-	hs.session = &ClientSessionState{
-		sessionTicket:      sessionTicketMsg.ticket,
-		vers:               c.vers,
-		cipherSuite:        hs.suite.id,
-		masterSecret:       hs.masterSecret,
-		serverCertificates: c.peerCertificates,
-		verifiedChains:     c.verifiedChains,
-		receivedAt:         c.config.time(),
-		ocspResponse:       c.ocspResponse,
-		scts:               c.scts,
+	hs.ticket = sessionTicketMsg.ticket
+	return nil
+}
+
+func (hs *clientHandshakeState) saveSessionTicket() error {
+	if hs.ticket == nil {
+		return nil
+	}
+	c := hs.c
+
+	cacheKey := c.clientSessionCacheKey()
+	if cacheKey == "" {
+		return nil
 	}
 
+	session, err := c.sessionState()
+	if err != nil {
+		return err
+	}
+	session.secret = hs.masterSecret
+
+	cs := &ClientSessionState{ticket: hs.ticket, session: session}
+	c.config.ClientSessionCache.Put(cacheKey, cs)
 	return nil
 }
 
@@ -885,7 +901,7 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 	activeHandles := make([]*activeCert, len(certificates))
 	certs := make([]*x509.Certificate, len(certificates))
 	for i, asn1Data := range certificates {
-		cert, err := clientCertCache.newCert(asn1Data)
+		cert, err := globalCertCache.newCert(asn1Data)
 		if err != nil {
 			c.sendAlert(alertBadCertificate)
 			return errors.New("tls: failed to parse certificate from server: " + err.Error())

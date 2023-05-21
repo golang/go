@@ -448,7 +448,7 @@ func (hs *serverHandshakeState) checkForResumption() bool {
 		return false
 	}
 
-	sessionHasClientCerts := len(hs.sessionState.certificate.Certificate) != 0
+	sessionHasClientCerts := len(hs.sessionState.peerCertificates) != 0
 	needClientCerts := requiresClientCert(c.config.ClientAuth)
 	if needClientCerts && !sessionHasClientCerts {
 		return false
@@ -481,7 +481,7 @@ func (hs *serverHandshakeState) doResumeHandshake() error {
 		return err
 	}
 
-	if err := c.processCertsFromClient(hs.sessionState.certificate); err != nil {
+	if err := c.processCertsFromClient(hs.sessionState.certificate()); err != nil {
 		return err
 	}
 
@@ -759,27 +759,15 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 	c := hs.c
 	m := new(newSessionTicketMsg)
 
-	createdAt := uint64(c.config.time().Unix())
+	state, err := c.sessionState()
+	if err != nil {
+		return err
+	}
+	state.secret = hs.masterSecret
 	if hs.sessionState != nil {
 		// If this is re-wrapping an old key, then keep
 		// the original time it was created.
-		createdAt = hs.sessionState.createdAt
-	}
-
-	var certsFromClient [][]byte
-	for _, cert := range c.peerCertificates {
-		certsFromClient = append(certsFromClient, cert.Raw)
-	}
-	state := SessionState{
-		version:     c.vers,
-		cipherSuite: hs.suite.id,
-		createdAt:   createdAt,
-		secret:      hs.masterSecret,
-		certificate: Certificate{
-			Certificate:                 certsFromClient,
-			OCSPStaple:                  c.ocspResponse,
-			SignedCertificateTimestamps: c.scts,
-		},
+		state.createdAt = hs.sessionState.createdAt
 	}
 	stateBytes, err := state.Bytes()
 	if err != nil {
