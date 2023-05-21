@@ -11,8 +11,6 @@ import (
 	"go/types"
 	"reflect"
 	"unsafe"
-
-	"golang.org/x/tools/go/types/objectpath"
 )
 
 func SetUsesCgo(conf *types.Config) bool {
@@ -52,10 +50,3 @@ func ReadGo116ErrorData(err types.Error) (code ErrorCode, start, end token.Pos, 
 }
 
 var SetGoVersion = func(conf *types.Config, version string) bool { return false }
-
-// NewObjectpathEncoder returns a function closure equivalent to
-// objectpath.For but amortized for multiple (sequential) calls.
-// It is a temporary workaround, pending the approval of proposal 58668.
-//
-//go:linkname NewObjectpathFunc golang.org/x/tools/go/types/objectpath.newEncoderFor
-func NewObjectpathFunc() func(types.Object) (objectpath.Path, error)
