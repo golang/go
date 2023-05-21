@@ -576,50 +576,6 @@ func jsonProperty(obj interface{}, path ...string) interface{} {
 	return jsonProperty(m[path[0]], path[1:]...)
 }
 
-// RegistrationMatching asserts that the client has received a capability
-// registration matching the given regexp.
-//
-// TODO(rfindley): remove this once TestWatchReplaceTargets has been revisited.
-//
-// Deprecated: use (No)FileWatchMatching
-func RegistrationMatching(re string) Expectation {
-	rec := regexp.MustCompile(re)
-	check := func(s State) Verdict {
-		for _, p := range s.registrations {
-			for _, r := range p.Registrations {
-				if rec.Match([]byte(r.Method)) {
-					return Met
-				}
-			}
-		}
-		return Unmet
-	}
-	return Expectation{
-		Check:       check,
-		Description: fmt.Sprintf("registration matching %q", re),
-	}
-}
-
-// UnregistrationMatching asserts that the client has received an
-// unregistration whose ID matches the given regexp.
-func UnregistrationMatching(re string) Expectation {
-	rec := regexp.MustCompile(re)
-	check := func(s State) Verdict {
-		for _, p := range s.unregistrations {
-			for _, r := range p.Unregisterations {
-				if rec.Match([]byte(r.Method)) {
-					return Met
-				}
-			}
-		}
-		return Unmet
-	}
-	return Expectation{
-		Check:       check,
-		Description: fmt.Sprintf("unregistration matching %q", re),
-	}
-}
-
 // Diagnostics asserts that there is at least one diagnostic matching the given
 // filters.
 func Diagnostics(filters ...DiagnosticFilter) Expectation {
