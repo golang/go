@@ -379,7 +379,8 @@ func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
 }
 
 // genericExprList is like exprList but result operands may be uninstantiated or partially
-// instantiated generic functions.
+// instantiated generic functions (where constraint information is insufficient to infer
+// the missing type arguments) for Go 1.21 and later.
 // For each non-generic or uninstantiated generic operand, the corresponding targsList and
 // xlistList elements do not exist (targsList and xlistList are nil) or the elements are nil.
 // For each partially instantiated generic function operand, the corresponding targsList and
@@ -401,13 +402,21 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 		}()
 	}
 
-	if n := len(elist); n == 1 {
+	// Before Go 1.21, uninstantiated or partially instantiated argument functions are
+	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
+	infer := true // for -lang < go1.21
+	n := len(elist)
+	if n > 0 && check.allowVersion(check.pkg, elist[0], go1_21) {
+		infer = false
+	}
+
+	if n == 1 {
 		// single value (possibly a partially instantiated function), or a multi-valued expression
 		e := elist[0]
 		var x operand
 		if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
 			// x is a generic function.
-			targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, false)
+			targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
 			if targs != nil {
 				// x was not instantiated: collect the (partial) type arguments.
 				targsList = [][]Type{targs}
@@ -444,7 +453,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 			var x operand
 			if ix := typeparams.UnpackIndexExpr(e); ix != nil && check.indexExpr(&x, ix) {
 				// x is a generic function.
-				targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, false)
+				targs, xlist := check.funcInst(nil, x.Pos(), &x, ix, infer)
 				if targs != nil {
 					// x was not instantiated: collect the (partial) type arguments.
 					targsList[i] = targs
