@@ -275,12 +275,29 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			break
 		}
 
-		plaintext := c.decryptTicket(identity.label)
-		if plaintext == nil {
-			continue
+		var sessionState *SessionState
+		if c.config.UnwrapSession != nil {
+			var err error
+			sessionState, err = c.config.UnwrapSession(identity.label, c.connectionStateLocked())
+			if err != nil {
+				return err
+			}
+			if sessionState == nil {
+				continue
+			}
+		} else {
+			plaintext := c.config.decryptTicket(identity.label, c.ticketKeys)
+			if plaintext == nil {
+				continue
+			}
+			var err error
+			sessionState, err = ParseSessionState(plaintext)
+			if err != nil {
+				continue
+			}
 		}
-		sessionState, err := ParseSessionState(plaintext)
-		if err != nil || sessionState.version != VersionTLS13 {
+
+		if sessionState.version != VersionTLS13 {
 			continue
 		}
 
@@ -781,14 +798,21 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 		return err
 	}
 	state.secret = psk
-	stateBytes, err := state.Bytes()
-	if err != nil {
-		c.sendAlert(alertInternalError)
-		return err
-	}
-	m.label, err = c.encryptTicket(stateBytes)
-	if err != nil {
-		return err
+	if c.config.WrapSession != nil {
+		m.label, err = c.config.WrapSession(c.connectionStateLocked(), state)
+		if err != nil {
+			return err
+		}
+	} else {
+		stateBytes, err := state.Bytes()
+		if err != nil {
+			c.sendAlert(alertInternalError)
+			return err
+		}
+		m.label, err = c.config.encryptTicket(stateBytes, c.ticketKeys)
+		if err != nil {
+			return err
+		}
 	}
 	m.lifetime = uint32(maxSessionTicketLifetime / time.Second)
 

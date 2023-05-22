@@ -758,7 +758,7 @@ func TestWarningAlertFlood(t *testing.T) {
 }
 
 func TestCloneFuncFields(t *testing.T) {
-	const expectedCount = 6
+	const expectedCount = 8
 	called := 0
 
 	c1 := Config{
@@ -786,6 +786,14 @@ func TestCloneFuncFields(t *testing.T) {
 			called |= 1 << 5
 			return nil
 		},
+		UnwrapSession: func(identity []byte, cs ConnectionState) (*SessionState, error) {
+			called |= 1 << 6
+			return nil, nil
+		},
+		WrapSession: func(cs ConnectionState, ss *SessionState) ([]byte, error) {
+			called |= 1 << 7
+			return nil, nil
+		},
 	}
 
 	c2 := c1.Clone()
@@ -796,6 +804,8 @@ func TestCloneFuncFields(t *testing.T) {
 	c2.GetConfigForClient(nil)
 	c2.VerifyPeerCertificate(nil, nil)
 	c2.VerifyConnection(ConnectionState{})
+	c2.UnwrapSession(nil, ConnectionState{})
+	c2.WrapSession(ConnectionState{}, nil)
 
 	if called != (1<<expectedCount)-1 {
 		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
@@ -814,7 +824,7 @@ func TestCloneNonFuncFields(t *testing.T) {
 		switch fn := typ.Field(i).Name; fn {
 		case "Rand":
 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
-		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate":
+		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession":
 			// DeepEqual can't compare functions. If you add a
 			// function field to this list, you must also change
 			// TestCloneFuncFields to ensure that the func field is

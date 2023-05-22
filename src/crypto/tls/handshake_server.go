@@ -70,9 +70,11 @@ func (hs *serverHandshakeState) handshake() error {
 
 	// For an overview of TLS handshaking, see RFC 5246, Section 7.3.
 	c.buffering = true
-	if hs.checkForResumption() {
+	if err := hs.checkForResumption(); err != nil {
+		return err
+	}
+	if hs.sessionState != nil {
 		// The client has included a session ticket and so we do an abbreviated handshake.
-		c.didResume = true
 		if err := hs.doResumeHandshake(); err != nil {
 			return err
 		}
@@ -399,65 +401,80 @@ func (hs *serverHandshakeState) cipherSuiteOk(c *cipherSuite) bool {
 }
 
 // checkForResumption reports whether we should perform resumption on this connection.
-func (hs *serverHandshakeState) checkForResumption() bool {
+func (hs *serverHandshakeState) checkForResumption() error {
 	c := hs.c
 
 	if c.config.SessionTicketsDisabled {
-		return false
+		return nil
 	}
 
-	plaintext := c.decryptTicket(hs.clientHello.sessionTicket)
-	if plaintext == nil {
-		return false
+	var sessionState *SessionState
+	if c.config.UnwrapSession != nil {
+		ss, err := c.config.UnwrapSession(hs.clientHello.sessionTicket, c.connectionStateLocked())
+		if err != nil {
+			return err
+		}
+		if ss == nil {
+			return nil
+		}
+		sessionState = ss
+	} else {
+		plaintext := c.config.decryptTicket(hs.clientHello.sessionTicket, c.ticketKeys)
+		if plaintext == nil {
+			return nil
+		}
+		ss, err := ParseSessionState(plaintext)
+		if err != nil {
+			return nil
+		}
+		sessionState = ss
 	}
-	ss, err := ParseSessionState(plaintext)
-	if err != nil {
-		return false
-	}
-	hs.sessionState = ss
 
 	// TLS 1.2 tickets don't natively have a lifetime, but we want to avoid
 	// re-wrapping the same master secret in different tickets over and over for
 	// too long, weakening forward secrecy.
-	createdAt := time.Unix(int64(hs.sessionState.createdAt), 0)
+	createdAt := time.Unix(int64(sessionState.createdAt), 0)
 	if c.config.time().Sub(createdAt) > maxSessionTicketLifetime {
-		return false
+		return nil
 	}
 
 	// Never resume a session for a different TLS version.
-	if c.vers != hs.sessionState.version {
-		return false
+	if c.vers != sessionState.version {
+		return nil
 	}
 
 	cipherSuiteOk := false
 	// Check that the client is still offering the ciphersuite in the session.
 	for _, id := range hs.clientHello.cipherSuites {
-		if id == hs.sessionState.cipherSuite {
+		if id == sessionState.cipherSuite {
 			cipherSuiteOk = true
 			break
 		}
 	}
 	if !cipherSuiteOk {
-		return false
+		return nil
 	}
 
 	// Check that we also support the ciphersuite from the session.
-	hs.suite = selectCipherSuite([]uint16{hs.sessionState.cipherSuite},
+	suite := selectCipherSuite([]uint16{sessionState.cipherSuite},
 		c.config.cipherSuites(), hs.cipherSuiteOk)
-	if hs.suite == nil {
-		return false
+	if suite == nil {
+		return nil
 	}
 
-	sessionHasClientCerts := len(hs.sessionState.peerCertificates) != 0
+	sessionHasClientCerts := len(sessionState.peerCertificates) != 0
 	needClientCerts := requiresClientCert(c.config.ClientAuth)
 	if needClientCerts && !sessionHasClientCerts {
-		return false
+		return nil
 	}
 	if sessionHasClientCerts && c.config.ClientAuth == NoClientCert {
-		return false
+		return nil
 	}
 
-	return true
+	hs.sessionState = sessionState
+	hs.suite = suite
+	c.didResume = true
+	return nil
 }
 
 func (hs *serverHandshakeState) doResumeHandshake() error {
@@ -769,13 +786,20 @@ func (hs *serverHandshakeState) sendSessionTicket() error {
 		// the original time it was created.
 		state.createdAt = hs.sessionState.createdAt
 	}
-	stateBytes, err := state.Bytes()
-	if err != nil {
-		return err
-	}
-	m.ticket, err = c.encryptTicket(stateBytes)
-	if err != nil {
-		return err
+	if c.config.WrapSession != nil {
+		m.ticket, err = c.config.WrapSession(c.connectionStateLocked(), state)
+		if err != nil {
+			return err
+		}
+	} else {
+		stateBytes, err := state.Bytes()
+		if err != nil {
+			return err
+		}
+		m.ticket, err = c.config.encryptTicket(stateBytes, c.ticketKeys)
+		if err != nil {
+			return err
+		}
 	}
 
 	if _, err := hs.c.writeHandshakeRecord(m, &hs.finishedHash); err != nil {

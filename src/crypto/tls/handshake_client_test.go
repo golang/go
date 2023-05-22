@@ -900,6 +900,7 @@ func testResumption(t *testing.T, version uint16) {
 	}
 
 	testResumeState := func(test string, didResume bool) {
+		t.Helper()
 		_, hs, err := testHandshake(t, clientConfig, serverConfig)
 		if err != nil {
 			t.Fatalf("%s: handshake failed: %s", test, err)
@@ -985,9 +986,11 @@ func testResumption(t *testing.T, version uint16) {
 
 	// Age the session ticket a bit at a time, but don't expire it.
 	d := 0 * time.Hour
+	serverConfig.Time = func() time.Time { return time.Now().Add(d) }
+	deleteTicket()
+	testResumeState("GetFreshSessionTicket", false)
 	for i := 0; i < 13; i++ {
 		d += 12 * time.Hour
-		serverConfig.Time = func() time.Time { return time.Now().Add(d) }
 		testResumeState("OldSessionTicket", true)
 	}
 	// Expire it (now a little more than 7 days) and make sure a full
@@ -995,7 +998,6 @@ func testResumption(t *testing.T, version uint16) {
 	// TLS 1.3 since the client should be using a fresh ticket sent over
 	// by the server.
 	d += 12 * time.Hour
-	serverConfig.Time = func() time.Time { return time.Now().Add(d) }
 	if version == VersionTLS13 {
 		testResumeState("ExpiredSessionTicket", true)
 	} else {
