@@ -104,13 +104,15 @@ func (f *File) Fd() uintptr {
 // constraints apply.
 func NewFile(fd uintptr, name string) *File {
 	kind := kindNewFile
-	if nb, err := unix.IsNonblock(int(fd)); err == nil && nb {
-		kind = kindNonBlock
+	appendMode := false
+	if flags, err := unix.Fcntl(int(fd), syscall.F_GETFL, 0); err == nil {
+		if unix.HasNonblockFlag(flags) {
+			kind = kindNonBlock
+		}
+		appendMode = flags&syscall.O_APPEND != 0
 	}
 	f := newFile(fd, name, kind)
-	if flags, err := unix.Fcntl(int(fd), syscall.F_GETFL, 0); err == nil {
-		f.appendMode = flags&syscall.O_APPEND != 0
-	}
+	f.appendMode = appendMode
 	return f
 }
 
