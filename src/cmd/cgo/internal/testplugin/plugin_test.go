@@ -22,15 +22,13 @@ import (
 	"time"
 )
 
+var globalSkip = func(t *testing.T) {}
+
 var gcflags string = os.Getenv("GO_GCFLAGS")
 var goroot string
 
 func TestMain(m *testing.M) {
 	flag.Parse()
-	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
-		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
-		os.Exit(0)
-	}
 	log.SetFlags(log.Lshortfile)
 	os.Exit(testMain(m))
 }
@@ -48,15 +46,17 @@ func prettyPrintf(format string, args ...interface{}) {
 }
 
 func testMain(m *testing.M) int {
-	// TODO: Move all of this initialization stuff into a sync.Once that each
-	// test can use, where we can properly t.Skip.
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		return m.Run()
+	}
 	if !platform.BuildModeSupported(runtime.Compiler, "plugin", runtime.GOOS, runtime.GOARCH) {
-		fmt.Printf("SKIP - plugin build mode not supported\n")
-		os.Exit(0)
+		globalSkip = func(t *testing.T) { t.Skip("plugin build mode not supported") }
+		return m.Run()
 	}
 	if !testenv.HasCGO() {
-		fmt.Printf("SKIP - cgo not supported\n")
-		os.Exit(0)
+		globalSkip = func(t *testing.T) { t.Skip("cgo not supported") }
+		return m.Run()
 	}
 
 	cwd, err := os.Getwd()
@@ -205,12 +205,14 @@ func run(t *testing.T, bin string, args ...string) string {
 
 func TestDWARFSections(t *testing.T) {
 	// test that DWARF sections are emitted for plugins and programs importing "plugin"
+	globalSkip(t)
 	goCmd(t, "run", "./checkdwarf/main.go", "plugin2.so", "plugin2.UnexportedNameReuse")
 	goCmd(t, "run", "./checkdwarf/main.go", "./host.exe", "main.main")
 }
 
 func TestBuildID(t *testing.T) {
 	// check that plugin has build ID.
+	globalSkip(t)
 	b := goCmd(t, "tool", "buildid", "plugin1.so")
 	if len(b) == 0 {
 		t.Errorf("build id not found")
@@ -218,10 +220,12 @@ func TestBuildID(t *testing.T) {
 }
 
 func TestRunHost(t *testing.T) {
+	globalSkip(t)
 	run(t, "./host.exe")
 }
 
 func TestUniqueTypesAndItabs(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "./iface_a")
 	goCmd(t, "build", "-buildmode=plugin", "./iface_b")
 	goCmd(t, "build", "-o", "iface.exe", "./iface")
@@ -231,6 +235,7 @@ func TestUniqueTypesAndItabs(t *testing.T) {
 func TestIssue18676(t *testing.T) {
 	// make sure we don't add the same itab twice.
 	// The buggy code hangs forever, so use a timeout to check for that.
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./issue18676/plugin.go")
 	goCmd(t, "build", "-o", "issue18676.exe", "./issue18676/main.go")
 
@@ -245,28 +250,33 @@ func TestIssue18676(t *testing.T) {
 
 func TestIssue19534(t *testing.T) {
 	// Test that we can load a plugin built in a path with non-alpha characters.
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-gcflags=-p=issue.19534", "-ldflags=-pluginpath=issue.19534", "-o", "plugin.so", "./issue19534/plugin.go")
 	goCmd(t, "build", "-o", "issue19534.exe", "./issue19534/main.go")
 	run(t, "./issue19534.exe")
 }
 
 func TestIssue18584(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./issue18584/plugin.go")
 	goCmd(t, "build", "-o", "issue18584.exe", "./issue18584/main.go")
 	run(t, "./issue18584.exe")
 }
 
 func TestIssue19418(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-ldflags=-X main.Val=linkstr", "-o", "plugin.so", "./issue19418/plugin.go")
 	goCmd(t, "build", "-o", "issue19418.exe", "./issue19418/main.go")
 	run(t, "./issue19418.exe")
 }
 
 func TestIssue19529(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./issue19529/plugin.go")
 }
 
 func TestIssue22175(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue22175_plugin1.so", "./issue22175/plugin1.go")
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue22175_plugin2.so", "./issue22175/plugin2.go")
 	goCmd(t, "build", "-o", "issue22175.exe", "./issue22175/main.go")
@@ -274,18 +284,21 @@ func TestIssue22175(t *testing.T) {
 }
 
 func TestIssue22295(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue.22295.so", "./issue22295.pkg")
 	goCmd(t, "build", "-o", "issue22295.exe", "./issue22295.pkg/main.go")
 	run(t, "./issue22295.exe")
 }
 
 func TestIssue24351(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue24351.so", "./issue24351/plugin.go")
 	goCmd(t, "build", "-o", "issue24351.exe", "./issue24351/main.go")
 	run(t, "./issue24351.exe")
 }
 
 func TestIssue25756(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
 	goCmd(t, "build", "-o", "issue25756.exe", "./issue25756/main.go")
 	// Fails intermittently, but 20 runs should cause the failure
@@ -299,6 +312,7 @@ func TestIssue25756(t *testing.T) {
 
 // Test with main using -buildmode=pie with plugin for issue #43228
 func TestIssue25756pie(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "life.so", "./issue25756/plugin")
 	goCmd(t, "build", "-buildmode=pie", "-o", "issue25756pie.exe", "./issue25756/main.go")
 	run(t, "./issue25756pie.exe")
@@ -306,24 +320,28 @@ func TestIssue25756pie(t *testing.T) {
 
 func TestMethod(t *testing.T) {
 	// Exported symbol's method must be live.
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "plugin.so", "./method/plugin.go")
 	goCmd(t, "build", "-o", "method.exe", "./method/main.go")
 	run(t, "./method.exe")
 }
 
 func TestMethod2(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "method2.so", "./method2/plugin.go")
 	goCmd(t, "build", "-o", "method2.exe", "./method2/main.go")
 	run(t, "./method2.exe")
 }
 
 func TestMethod3(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "method3.so", "./method3/plugin.go")
 	goCmd(t, "build", "-o", "method3.exe", "./method3/main.go")
 	run(t, "./method3.exe")
 }
 
 func TestIssue44956(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p1.so", "./issue44956/plugin1.go")
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue44956p2.so", "./issue44956/plugin2.go")
 	goCmd(t, "build", "-o", "issue44956.exe", "./issue44956/main.go")
@@ -331,10 +349,12 @@ func TestIssue44956(t *testing.T) {
 }
 
 func TestIssue52937(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue52937.so", "./issue52937/main.go")
 }
 
 func TestIssue53989(t *testing.T) {
+	globalSkip(t)
 	goCmd(t, "build", "-buildmode=plugin", "-o", "issue53989.so", "./issue53989/plugin.go")
 	goCmd(t, "build", "-o", "issue53989.exe", "./issue53989/main.go")
 	run(t, "./issue53989.exe")
@@ -342,6 +362,7 @@ func TestIssue53989(t *testing.T) {
 
 func TestForkExec(t *testing.T) {
 	// Issue 38824: importing the plugin package causes it hang in forkExec on darwin.
+	globalSkip(t)
 
 	t.Parallel()
 	goCmd(t, "build", "-o", "forkexec.exe", "./forkexec/main.go")

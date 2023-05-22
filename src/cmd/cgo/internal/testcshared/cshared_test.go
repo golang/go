@@ -25,6 +25,8 @@ import (
 	"unicode"
 )
 
+var globalSkip = func(t *testing.T) {}
+
 // C compiler with args (from $(go env CC) $(go env GOGCCFLAGS)).
 var cc []string
 
@@ -43,19 +45,19 @@ func testMain(m *testing.M) int {
 	log.SetFlags(log.Lshortfile)
 	flag.Parse()
 	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
-		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
-		os.Exit(0)
+		globalSkip = func(t *testing.T) { t.Skip("short mode and $GO_BUILDER_NAME not set") }
+		return m.Run()
 	}
 	if runtime.GOOS == "linux" {
 		if _, err := os.Stat("/etc/alpine-release"); err == nil {
-			fmt.Printf("SKIP - skipping failing test on alpine - go.dev/issue/19938\n")
-			os.Exit(0)
+			globalSkip = func(t *testing.T) { t.Skip("skipping failing test on alpine - go.dev/issue/19938") }
+			return m.Run()
 		}
 	}
 	if !testenv.HasGoBuild() {
 		// Checking for "go build" is a proxy for whether or not we can run "go env".
-		fmt.Printf("SKIP - no go build")
-		os.Exit(0)
+		globalSkip = func(t *testing.T) { t.Skip("no go build") }
+		return m.Run()
 	}
 
 	GOOS = goEnv("GOOS")
@@ -348,6 +350,7 @@ func createHeadersOnce(t *testing.T) {
 
 // test0: exported symbols in shared lib are accessible.
 func TestExportedSymbols(t *testing.T) {
+	globalSkip(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveExec(t)
 
@@ -453,6 +456,7 @@ func TestNumberOfExportedFunctions(t *testing.T) {
 	if GOOS != "windows" {
 		t.Skip("skipping windows only test")
 	}
+	globalSkip(t)
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveBuildMode(t, "c-shared")
@@ -472,6 +476,7 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
 	if GOOS == "windows" {
 		t.Skipf("Skipping on %s", GOOS)
 	}
+	globalSkip(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveExec(t)
 
@@ -501,6 +506,7 @@ func TestUnexportedSymbols(t *testing.T) {
 	if GOOS == "windows" {
 		t.Skipf("Skipping on %s", GOOS)
 	}
+	globalSkip(t)
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveBuildMode(t, "c-shared")
@@ -538,6 +544,7 @@ func TestUnexportedSymbols(t *testing.T) {
 
 // test3: tests main.main is exported on android.
 func TestMainExportedOnAndroid(t *testing.T) {
+	globalSkip(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveExec(t)
 
@@ -570,6 +577,7 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
 	if GOOS == "windows" {
 		t.Skipf("Skipping on %s", GOOS)
 	}
+	globalSkip(t)
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveBuildMode(t, "c-shared")
@@ -619,6 +627,7 @@ func TestPIE(t *testing.T) {
 	default:
 		t.Skipf("Skipping on %s", GOOS)
 	}
+	globalSkip(t)
 
 	t.Parallel()
 
@@ -656,6 +665,7 @@ func TestPIE(t *testing.T) {
 
 // Test that installing a second time recreates the header file.
 func TestCachedInstall(t *testing.T) {
+	globalSkip(t)
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveBuildMode(t, "c-shared")
@@ -760,6 +770,7 @@ func TestGo2C2Go(t *testing.T) {
 	case "android":
 		t.Skip("test fails on android; issue 29087")
 	}
+	globalSkip(t)
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	testenv.MustHaveBuildMode(t, "c-shared")
@@ -812,6 +823,7 @@ func TestGo2C2Go(t *testing.T) {
 }
 
 func TestIssue36233(t *testing.T) {
+	globalSkip(t)
 	testenv.MustHaveCGO(t)
 
 	t.Parallel()
