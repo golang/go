@@ -93,8 +93,8 @@ func TestNMatch(t *testing.T) {
 	if check {
 		t.Errorf("GOSSAHASH=n should NOT have matched for 'bar', '0'")
 	}
-	wantPrefix(t, msg, "bar.0 [bisect-match ")
-	wantContains(t, msg, "\nGOSSAHASH triggered bar.0 010100100011100101011110")
+	wantPrefix(t, msg, "bar.0 [DISABLED] [bisect-match ")
+	wantContains(t, msg, "\nGOSSAHASH triggered bar.0 [DISABLED] 010100100011100101011110")
 }
 
 func TestHashNoMatch(t *testing.T) {

@@ -286,19 +286,25 @@ func (d *HashDebug) matchPos(ctxt *obj.Link, pos src.XPos, note func() string) b
 // change is selected.
 func (d *HashDebug) matchAndLog(hash uint64, text, note func() string) bool {
 	if d.bisect != nil {
+		enabled := d.bisect.ShouldEnable(hash)
 		if d.bisect.ShouldPrint(hash) {
+			disabled := ""
+			if !enabled {
+				disabled = " [DISABLED]"
+			}
 			var t string
 			if !d.bisect.MarkerOnly() {
 				t = text()
 				if note != nil {
 					if n := note(); n != "" {
-						t += ": " + n
+						t += ": " + n + disabled
+						disabled = ""
 					}
 				}
 			}
-			d.log(d.name, hash, t)
+			d.log(d.name, hash, strings.TrimSpace(t+disabled))
 		}
-		return d.bisect.ShouldEnable(hash)
+		return enabled
 	}
 
 	// TODO: Delete rest of function body when we switch to bisect-only.
