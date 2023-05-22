@@ -7,6 +7,7 @@ package shared_test
 import (
 	"bufio"
 	"bytes"
+	"cmd/cgo/internal/cgotest"
 	"debug/elf"
 	"encoding/binary"
 	"flag"
@@ -203,7 +204,7 @@ func TestMain(m *testing.M) {
 // It returns the directory within gopath at which the module root is located.
 func cloneTestdataModule(gopath string) (string, error) {
 	modRoot := filepath.Join(gopath, "src", "testshared")
-	if err := overlayDir(modRoot, "testdata"); err != nil {
+	if err := cgotest.OverlayDir(modRoot, "testdata"); err != nil {
 		return "", err
 	}
 	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module testshared\n"), 0644); err != nil {
@@ -255,7 +256,7 @@ func cloneGOROOTDeps(goroot string) error {
 		if testing.Verbose() {
 			fmt.Fprintf(os.Stderr, "+ cp -r %s %s\n", filepath.Join(oldGOROOT, dir), filepath.Join(goroot, dir))
 		}
-		if err := overlayDir(filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir)); err != nil {
+		if err := cgotest.OverlayDir(filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir)); err != nil {
 			return err
 		}
 	}

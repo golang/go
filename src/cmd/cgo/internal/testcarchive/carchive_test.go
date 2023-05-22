@@ -12,6 +12,7 @@ package carchive_test
 import (
 	"bufio"
 	"bytes"
+	"cmd/cgo/internal/cgotest"
 	"debug/elf"
 	"flag"
 	"fmt"
@@ -82,7 +83,7 @@ func testMain(m *testing.M) int {
 	// Copy testdata into GOPATH/src/testarchive, along with a go.mod file
 	// declaring the same path.
 	modRoot := filepath.Join(GOPATH, "src", "testcarchive")
-	if err := overlayDir(modRoot, "testdata"); err != nil {
+	if err := cgotest.OverlayDir(modRoot, "testdata"); err != nil {
 		log.Panic(err)
 	}
 	if err := os.Chdir(modRoot); err != nil {

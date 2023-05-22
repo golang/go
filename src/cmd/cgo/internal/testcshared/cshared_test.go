@@ -7,6 +7,7 @@ package cshared_test
 import (
 	"bufio"
 	"bytes"
+	"cmd/cgo/internal/cgotest"
 	"debug/elf"
 	"debug/pe"
 	"encoding/binary"
@@ -137,7 +138,7 @@ func testMain(m *testing.M) int {
 	os.Setenv("GOPATH", GOPATH)
 
 	modRoot := filepath.Join(GOPATH, "src", "testcshared")
-	if err := overlayDir(modRoot, "testdata"); err != nil {
+	if err := cgotest.OverlayDir(modRoot, "testdata"); err != nil {
 		log.Panic(err)
 	}
 	if err := os.Chdir(modRoot); err != nil {

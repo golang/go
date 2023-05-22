@@ -6,6 +6,7 @@ package life_test
 
 import (
 	"bytes"
+	"cmd/cgo/internal/cgotest"
 	"internal/testenv"
 	"log"
 	"os"
@@ -30,7 +31,7 @@ func testMain(m *testing.M) int {
 	// Copy testdata into GOPATH/src/cgolife, along with a go.mod file
 	// declaring the same path.
 	modRoot := filepath.Join(GOPATH, "src", "cgolife")
-	if err := overlayDir(modRoot, "testdata"); err != nil {
+	if err := cgotest.OverlayDir(modRoot, "testdata"); err != nil {
 		log.Panic(err)
 	}
 	if err := os.Chdir(modRoot); err != nil {

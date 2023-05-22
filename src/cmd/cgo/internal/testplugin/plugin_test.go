@@ -6,6 +6,7 @@ package plugin_test
 
 import (
 	"bytes"
+	"cmd/cgo/internal/cgotest"
 	"context"
 	"flag"
 	"fmt"
@@ -80,7 +81,7 @@ func testMain(m *testing.M) int {
 		"testdata":                           modRoot,
 		filepath.Join("altpath", "testdata"): altRoot,
 	} {
-		if err := overlayDir(dstRoot, srcRoot); err != nil {
+		if err := cgotest.OverlayDir(dstRoot, srcRoot); err != nil {
 			log.Panic(err)
 		}
 		prettyPrintf("mkdir -p %s\n", dstRoot)

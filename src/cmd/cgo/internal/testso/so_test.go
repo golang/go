@@ -5,6 +5,7 @@
 package so_test
 
 import (
+	"cmd/cgo/internal/cgotest"
 	"internal/testenv"
 	"log"
 	"os"
@@ -38,7 +39,7 @@ func testSO(t *testing.T, dir string) {
 	defer os.RemoveAll(GOPATH)
 
 	modRoot := filepath.Join(GOPATH, "src", "cgosotest")
-	if err := overlayDir(modRoot, filepath.Join("testdata", dir)); err != nil {
+	if err := cgotest.OverlayDir(modRoot, filepath.Join("testdata", dir)); err != nil {
 		log.Panic(err)
 	}
 	if err := os.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module cgosotest\n"), 0666); err != nil {

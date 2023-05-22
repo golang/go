@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package stdio_test
+package cgotest
 
 import (
 	"io"
@@ -11,11 +11,8 @@ import (
 	"strings"
 )
 
-// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
-//
-// TODO: Once we no longer need to support the misc module in GOPATH mode,
-// factor this function out into a package to reduce duplication.
-func overlayDir(dstRoot, srcRoot string) error {
+// OverlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
+func OverlayDir(dstRoot, srcRoot string) error {
 	dstRoot = filepath.Clean(dstRoot)
 	if err := os.MkdirAll(dstRoot, 0777); err != nil {
 		return err
