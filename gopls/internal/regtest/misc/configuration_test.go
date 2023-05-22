@@ -57,9 +57,7 @@ var FooErr = errors.New("foo")
 //
 // Gopls should not get confused about buffer content when recreating the view.
 func TestMajorOptionsChange(t *testing.T) {
-	t.Skip("broken due to golang/go#57934")
-
-	testenv.NeedsGo1Point(t, 17)
+	testenv.NeedsGo1Point(t, 19) // needs staticcheck
 
 	const files = `
 -- go.mod --
