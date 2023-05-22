@@ -84,12 +84,6 @@ func main() {
 }
 
 func TestHoverIntLiteral(t *testing.T) {
-	// TODO(rfindley): this behavior doesn't actually make sense for vars. It is
-	// misleading to format their value when it is (of course) variable.
-	//
-	// Instead, we should allow hovering on numeric literals.
-	t.Skip("golang/go#58220: broken due to new hover logic")
-
 	const source = `
 -- main.go --
 package main
@@ -106,13 +100,13 @@ func main() {
 	Run(t, source, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		hexExpected := "58190"
-		got, _ := env.Hover(env.RegexpSearch("main.go", "hex"))
+		got, _ := env.Hover(env.RegexpSearch("main.go", "0xe"))
 		if got != nil && !strings.Contains(got.Value, hexExpected) {
 			t.Errorf("Hover: missing expected field '%s'. Got:\n%q", hexExpected, got.Value)
 		}
 
 		binExpected := "73"
-		got, _ = env.Hover(env.RegexpSearch("main.go", "bigBin"))
+		got, _ = env.Hover(env.RegexpSearch("main.go", "0b1"))
 		if got != nil && !strings.Contains(got.Value, binExpected) {
 			t.Errorf("Hover: missing expected field '%s'. Got:\n%q", binExpected, got.Value)
 		}
