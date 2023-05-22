@@ -346,6 +346,7 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 	s.cipherSuite = uint16(rand.Intn(math.MaxUint16))
 	s.createdAt = uint64(rand.Int63())
 	s.secret = randomBytes(rand.Intn(100)+1, rand)
+	s.Extra = randomBytes(rand.Intn(100), rand)
 	if s.isClient || rand.Intn(10) > 5 {
 		if rand.Intn(10) > 5 {
 			s.peerCertificates = sessionTestCerts
