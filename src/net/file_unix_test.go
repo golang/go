@@ -14,6 +14,10 @@ import (
 // For backward compatibility, opening a net.Conn, turning it into an os.File,
 // and calling the Fd method should return a blocking descriptor.
 func TestFileFdBlocks(t *testing.T) {
+	if !testableNetwork("unix") {
+		t.Skipf("skipping: unix sockets not supported")
+	}
+
 	ls := newLocalServer(t, "unix")
 	defer ls.teardown()
 
