@@ -304,6 +304,10 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
 					}
 				}
 
+			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_P9NOTOC):
+				// This can be treated identically to R_PPC64_REL24_NOTOC, as stubs are determined by
+				// GOPPC64 and -buildmode.
+				fallthrough
 			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_NOTOC):
 				switch ldr.SymType(r.Sym()) {
 				case sym.SDYNIMPORT:
@@ -602,13 +606,14 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
 		}
 
 		// Handle relocations found in ELF object files.
-	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_NOTOC):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_NOTOC),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24_P9NOTOC):
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_CALLPOWER)
 
 		if targType == sym.SDYNIMPORT {
 			// Should have been handled in elfsetupplt
-			ldr.Errorf(s, "unexpected R_PPC64_REL24_NOTOC for dyn import")
+			ldr.Errorf(s, "unexpected R_PPC64_REL24_NOTOC/R_PPC64_REL24_P9NOTOC for dyn import")
 		}
 		return true
 
