@@ -100,11 +100,10 @@ func (f *testJSONFilter) process(line []byte) {
 					// Should never happen.
 					panic(fmt.Sprintf("failed to round-trip JSON %q: %s", string(line), err))
 				}
+				f.w.Write(data)
 				// Copy any trailing text. We expect at most a "\n" here, but
 				// there could be other text and we want to feed that through.
-				extra, _ := io.ReadAll(dec.Buffered())
-				data = append(data, extra...)
-				f.w.Write(data)
+				io.Copy(f.w, dec.Buffered())
 				return
 			}
 		}
