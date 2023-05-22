@@ -141,9 +141,10 @@ func (check *Checker) allowVersion(pkg *Package, at poser, v version) bool {
 }
 
 // verifyVersionf is like allowVersion but also accepts a format string and arguments
-// which are used to report a version error if allowVersion returns false.
-func (check *Checker) verifyVersionf(pkg *Package, at poser, v version, format string, args ...interface{}) bool {
-	if !check.allowVersion(pkg, at, v) {
+// which are used to report a version error if allowVersion returns false. It uses the
+// current package.
+func (check *Checker) verifyVersionf(at poser, v version, format string, args ...interface{}) bool {
+	if !check.allowVersion(check.pkg, at, v) {
 		check.versionErrorf(at, v, format, args...)
 		return false
 	}

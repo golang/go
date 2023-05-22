@@ -44,7 +44,7 @@ func (check *Checker) funcInst(tsig *Signature, pos token.Pos, x *operand, ix *t
 	} else {
 		instErrPos = atPos(pos)
 	}
-	versionErr := !check.verifyVersionf(check.pkg, instErrPos, go1_18, "function instantiation")
+	versionErr := !check.verifyVersionf(instErrPos, go1_18, "function instantiation")
 
 	// targs and xlist are the type arguments and corresponding type expressions, or nil.
 	var targs []Type
@@ -316,7 +316,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		// is an error checking its arguments (for example, if an incorrect number
 		// of arguments is supplied).
 		if got == want && want > 0 {
-			check.verifyVersionf(check.pkg, atPos(ix.Lbrack), go1_18, "function instantiation")
+			check.verifyVersionf(atPos(ix.Lbrack), go1_18, "function instantiation")
 			sig = check.instantiateSignature(ix.Pos(), ix.Orig, sig, targs, xlist)
 			// targs have been consumed; proceed with checking arguments of the
 			// non-generic signature.
@@ -623,7 +623,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
 	assert(len(tparams) == len(targs))
 
 	// at the moment we only support implicit instantiations of argument functions
-	_ = len(genericArgs) > 0 && check.verifyVersionf(check.pkg, args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
+	_ = len(genericArgs) > 0 && check.verifyVersionf(args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
 
 	// tparams holds the type parameters of the callee and generic function arguments, if any:
 	// the first n type parameters belong to the callee, followed by mi type parameters for each
