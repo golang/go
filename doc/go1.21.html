@@ -51,6 +51,8 @@ Do not send CLs removing the interior tags from such phrases.
   <!-- replace CallImport with go:wasmimport directive -->
 </p>
 
+<h3 id="wasip1">WebAssembly</h3>
+
 <!-- https://go.dev/issue/59149 -->
 <p>
   <!-- allow the use of go:wasmimport globally -->
@@ -59,6 +61,13 @@ Do not send CLs removing the interior tags from such phrases.
 <!-- CL 489255 -->
 <p>
   <!-- cmd/compile: remove go:wasmimport restriction -->
+</p>
+
+<!-- https://go.dev/issue/56100 -->
+<p>
+  The Go scheduler now interacts much more efficiently with the
+  JavaScript event loop, especially in applications that block
+  frequently on asynchronous events.
 </p>
 
 
@@ -119,6 +128,27 @@ Do not send CLs removing the interior tags from such phrases.
   rather than just printing the first 100 frames. This makes it easier
   to see how deeply recursive stacks started, and is especially
   valuable for debugging stack overflows.
+</p>
+
+<p><!-- https://go.dev/issue/59960 -->
+  On Linux platforms that support transparent huge pages, the Go runtime
+  now manages which parts of the heap may be backed by huge pages more
+  explicitly. This leads to better utilization of memory: small heaps
+  should see less memory used (up to 50% in pathological cases) while
+  large heaps should see fewer broken huge pages for dense parts of the
+  heap, improving CPU usage and latency by up to 1%.
+</p>
+
+<p><!-- https://go.dev/issue/57069, https://go.dev/issue/56966 -->
+  As a result of runtime-internal garbage collection tuning,
+  applications may see up to a 40% reduction in application tail latency
+  and a small decrease in memory use. Some applications may also observe
+  a small loss in throughput.
+
+  The memory use decrease should be proportional to the loss in
+  throughput, such that the previous release's throughput/memory
+  tradeoff may be recovered (with little change to latency) by
+  increasing <code>GOGC</code> and/or <code>GOMEMLIMIT</code> slightly.
 </p>
 
 <h2 id="compiler">Compiler</h2>
@@ -638,8 +668,34 @@ Do not send CLs removing the interior tags from such phrases.
     <p><!-- CL 474915 -->
       TODO: <a href="https://go.dev/cl/474915">https://go.dev/cl/474915</a>: runtime: support GOTRACEBACK=wer on Windows
     </p>
+
+    <p><!-- https://go.dev/issue/46787 -->
+      A new type <code>Pinner</code> has been added to the runtime
+      package. <code>Pinner</code>s may be used to "pin" Go memory
+      such that it may be used more freely by non-Go code. For instance,
+      passing Go values that reference pinned Go memory to C code is
+      now allowed. Previously, passing any such nested reference was
+      disallowed by the
+      <a href="https://pkg.go.dev/cmd/cgo#hdr-Passing_pointers">cgo pointer passing rules.</a>
+
+      See <a href="/pkg/runtime#Pinner">the docs</a> for more details.
+    </p>
   </dd>
 </dl><!-- runtime -->
+
+<dl id="runtime/trace"><dt><a href="/pkg/runtime/trace/">runtime/trace</a></dt>
+  <dd>
+    <p><!-- https://go.dev/issue/16638 -->
+      Collecting traces on amd64 and arm64 now incurs a substantially
+      smaller CPU cost: up to a 10x improvement over the previous release.
+    </p>
+
+    <p><!-- CL 494495 -->
+      Traces now contain explicit stop-the-world events for every reason
+      the Go runtime might stop-the-world, not just garbage collection.
+    </p>
+  </dd>
+</dl><!-- runtime/trace -->
 
 <dl id="slices"><dt><a href="/pkg/slices/">slices</a></dt>
   <dd>
