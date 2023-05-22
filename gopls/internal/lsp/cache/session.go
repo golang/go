@@ -109,13 +109,14 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 
 // TODO(rfindley): clarify that createView can never be cancelled (with the
 // possible exception of server shutdown).
+// On success, the caller becomes responsible for calling the release function once.
 func (s *Session) createView(ctx context.Context, name string, folder span.URI, options *source.Options, seqID uint64) (*View, *snapshot, func(), error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 
 	// Get immutable workspace information.
 	info, err := s.getWorkspaceInformation(ctx, folder, options)
 	if err != nil {
-		return nil, nil, func() {}, err
+		return nil, nil, nil, err
 	}
 
 	gowork, _ := info.GOWORK()
@@ -327,6 +328,15 @@ func (s *Session) updateViewLocked(ctx context.Context, view *View, options *sou
 	}
 
 	v, snapshot, release, err := s.createView(ctx, view.name, view.folder, options, seqID)
+	if err != nil {
+		// we have dropped the old view, but could not create the new one
+		// this should not happen and is very bad, but we still need to clean
+		// up the view array if it happens
+		s.views = removeElement(s.views, i)
+		return nil, err
+	}
+	defer release()
+
 	// The new snapshot has lost the history of the previous view. As a result,
 	// it may not see open files that aren't in its build configuration (as it
 	// would have done via didOpen notifications). This can lead to inconsistent
@@ -336,15 +346,7 @@ func (s *Session) updateViewLocked(ctx context.Context, view *View, options *sou
 	for _, o := range v.fs.Overlays() {
 		_, _ = snapshot.ReadFile(ctx, o.URI())
 	}
-	release()
 
-	if err != nil {
-		// we have dropped the old view, but could not create the new one
-		// this should not happen and is very bad, but we still need to clean
-		// up the view array if it happens
-		s.views = removeElement(s.views, i)
-		return nil, err
-	}
 	// substitute the new view into the array where the old view was
 	s.views[i] = v
 	return v, nil
