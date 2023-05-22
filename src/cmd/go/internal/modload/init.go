@@ -630,7 +630,7 @@ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
 		return nil, err
 	}
 	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
-		base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(path), f.Go.Version, gover.Local())
+		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(path), GoVersion: f.Go.Version})
 	}
 	return f, nil
 }
@@ -1498,6 +1498,12 @@ func commitRequirements(ctx context.Context) (err error) {
 	if modFile.Go == nil || modFile.Go.Version == "" {
 		modFile.AddGoStmt(modFileGoVersion(modFile))
 	}
+
+	if gover.Compare(modFile.Go.Version, gover.Local()) > 0 {
+		// TODO: Reinvoke the newer toolchain if GOTOOLCHAIN=auto.
+		base.Fatalf("go: %v", &gover.TooNewError{What: "updating go.mod", GoVersion: modFile.Go.Version})
+	}
+
 	if gover.Compare(modFileGoVersion(modFile), separateIndirectVersion) < 0 {
 		modFile.SetRequire(list)
 	} else {

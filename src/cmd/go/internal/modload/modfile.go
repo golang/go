@@ -75,7 +75,7 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
 		return nil, nil, fmt.Errorf("errors parsing go.mod:\n%s\n", err)
 	}
 	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
-		base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(gomod), f.Go.Version, gover.Local())
+		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(gomod), GoVersion: f.Go.Version})
 	}
 	if f.Module == nil {
 		// No module declaration. Must add module path.
@@ -715,6 +715,11 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 			summary.require = make([]module.Version, 0, len(f.Require))
 			for _, req := range f.Require {
 				summary.require = append(summary.require, req.Mod)
+			}
+		}
+		if summary.goVersion != "" && gover.Compare(summary.goVersion, "1.21") >= 0 {
+			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
+				return nil, &gover.TooNewError{What: summary.module.String(), GoVersion: summary.goVersion}
 			}
 		}
 		if len(f.Retract) > 0 {

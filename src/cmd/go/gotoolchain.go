@@ -78,6 +78,7 @@ func switchGoToolchain() {
 		// and diagnose the problem.
 		return
 	}
+	gover.Startup.GOTOOLCHAIN = gotoolchain
 
 	var minToolchain, minVers string
 	if x, y, ok := strings.Cut(gotoolchain, "+"); ok { // go1.2.3+auto
@@ -111,7 +112,7 @@ func switchGoToolchain() {
 				gotoolchain = "go" + goVers
 			}
 		} else {
-			goVers, toolchain := modGoToolchain()
+			file, goVers, toolchain := modGoToolchain()
 			if toolchain == "local" {
 				// Local means always use the default local toolchain,
 				// which is already set, so nothing to do here.
@@ -136,6 +137,9 @@ func switchGoToolchain() {
 					gotoolchain = "go" + goVers
 				}
 			}
+			gover.Startup.AutoFile = file
+			gover.Startup.AutoGoVersion = goVers
+			gover.Startup.AutoToolchain = toolchain
 		}
 	}
 
@@ -280,9 +284,9 @@ func execGoToolchain(gotoolchain, dir, exe string) {
 // modGoToolchain finds the enclosing go.work or go.mod file
 // and returns the go version and toolchain lines from the file.
 // The toolchain line overrides the version line
-func modGoToolchain() (goVers, toolchain string) {
+func modGoToolchain() (file, goVers, toolchain string) {
 	wd := base.UncachedCwd()
-	file := modload.FindGoWork(wd)
+	file = modload.FindGoWork(wd)
 	// $GOWORK can be set to a file that does not yet exist, if we are running 'go work init'.
 	// Do not try to load the file in that case
 	if _, err := os.Stat(file); err != nil {
@@ -292,14 +296,14 @@ func modGoToolchain() (goVers, toolchain string) {
 		file = modload.FindGoMod(wd)
 	}
 	if file == "" {
-		return "", ""
+		return "", "", ""
 	}
 
 	data, err := os.ReadFile(file)
 	if err != nil {
 		base.Fatalf("%v", err)
 	}
-	return gover.GoModLookup(data, "go"), gover.GoModLookup(data, "toolchain")
+	return file, gover.GoModLookup(data, "go"), gover.GoModLookup(data, "toolchain")
 }
 
 // goInstallVersion looks at the command line to see if it is go install m@v or go run m@v.

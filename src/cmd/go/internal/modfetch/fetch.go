@@ -57,6 +57,17 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
 			return "", err
 		}
 		checkMod(ctx, mod)
+
+		// If go.mod exists (not an old legacy module), check version is not too new.
+		if data, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil {
+			goVersion := gover.GoModLookup(data, "go")
+			if gover.Compare(goVersion, gover.Local()) > 0 {
+				return "", &gover.TooNewError{What: mod.String(), GoVersion: goVersion}
+			}
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return "", err
+		}
+
 		return dir, nil
 	})
 }
@@ -554,7 +565,7 @@ func HaveSum(mod module.Version) bool {
 	return false
 }
 
-// checkMod checks the given module's checksum.
+// checkMod checks the given module's checksum and Go version.
 func checkMod(ctx context.Context, mod module.Version) {
 	// Do the file I/O before acquiring the go.sum lock.
 	ziphash, err := CachePath(ctx, mod, "ziphash")
