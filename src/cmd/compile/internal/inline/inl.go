@@ -1094,7 +1094,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.Inli
 
 	typecheck.AssertFixedCall(n)
 
-	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
+	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym, ir.FuncName(fn))
 
 	closureInitLSym := func(n *ir.CallExpr, fn *ir.Func) {
 		// The linker needs FuncInfo metadata for all inlined
