@@ -29,6 +29,7 @@ type serverHandshakeStateTLS13 struct {
 	hello           *serverHelloMsg
 	sentDummyCCS    bool
 	usingPSK        bool
+	earlyData       bool
 	suite           *cipherSuiteTLS13
 	cert            *Certificate
 	sigAlg          SignatureScheme
@@ -139,7 +140,12 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 		return errors.New("tls: initial handshake had non-empty renegotiation extension")
 	}
 
-	if hs.clientHello.earlyData {
+	if hs.clientHello.earlyData && c.quic != nil {
+		if len(hs.clientHello.pskIdentities) == 0 {
+			c.sendAlert(alertIllegalParameter)
+			return errors.New("tls: early_data without pre_shared_key")
+		}
+	} else if hs.clientHello.earlyData {
 		// See RFC 8446, Section 4.2.10 for the complicated behavior required
 		// here. The scenario is that a different server at our address offered
 		// to accept early data in the past, which we can't handle. For now, all
@@ -226,6 +232,13 @@ GroupSelection:
 		return errors.New("tls: invalid client key share")
 	}
 
+	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols, c.quic != nil)
+	if err != nil {
+		c.sendAlert(alertNoApplicationProtocol)
+		return err
+	}
+	c.clientProtocol = selectedProto
+
 	if c.quic != nil {
 		if hs.clientHello.quicTransportParameters == nil {
 			// RFC 9001 Section 8.2.
@@ -306,10 +319,6 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 			continue
 		}
 
-		// We don't check the obfuscated ticket age because it's affected by
-		// clock skew and it's only a freshness signal useful for shrinking the
-		// window for replay attacks, which don't affect us as we don't do 0-RTT.
-
 		pskSuite := cipherSuiteTLS13ByID(sessionState.cipherSuite)
 		if pskSuite == nil || pskSuite.hash != hs.suite.hash {
 			continue
@@ -345,6 +354,19 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
 		if !hmac.Equal(hs.clientHello.pskBinders[i], pskBinder) {
 			c.sendAlert(alertDecryptError)
 			return errors.New("tls: invalid PSK binder")
+		}
+
+		if c.quic != nil && hs.clientHello.earlyData && i == 0 &&
+			sessionState.EarlyData && sessionState.cipherSuite == hs.suite.id &&
+			sessionState.alpnProtocol == c.clientProtocol {
+			hs.earlyData = true
+
+			transcript := hs.suite.hash.New()
+			if err := transcriptMsg(hs.clientHello, transcript); err != nil {
+				return err
+			}
+			earlyTrafficSecret := hs.suite.deriveSecret(hs.earlySecret, clientEarlyTrafficLabel, transcript)
+			c.quicSetReadSecret(QUICEncryptionLevelEarly, hs.suite.id, earlyTrafficSecret)
 		}
 
 		c.didResume = true
@@ -605,14 +627,7 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 	}
 
 	encryptedExtensions := new(encryptedExtensionsMsg)
-
-	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols, c.quic != nil)
-	if err != nil {
-		c.sendAlert(alertNoApplicationProtocol)
-		return err
-	}
-	encryptedExtensions.alpnProtocol = selectedProto
-	c.clientProtocol = selectedProto
+	encryptedExtensions.alpnProtocol = c.clientProtocol
 
 	if c.quic != nil {
 		p, err := c.quicGetTransportParameters()
@@ -620,6 +635,7 @@ func (hs *serverHandshakeStateTLS13) sendServerParameters() error {
 			return err
 		}
 		encryptedExtensions.quicTransportParameters = p
+		encryptedExtensions.earlyData = hs.earlyData
 	}
 
 	if _, err := hs.c.writeHandshakeRecord(encryptedExtensions, hs.transcript); err != nil {
@@ -760,6 +776,11 @@ func (hs *serverHandshakeStateTLS13) shouldSendSessionTickets() bool {
 		return false
 	}
 
+	// QUIC tickets are sent by QUICConn.SendSessionTicket, not automatically.
+	if hs.c.quic != nil {
+		return false
+	}
+
 	// Don't send tickets the client wouldn't use. See RFC 8446, Section 4.2.9.
 	for _, pskMode := range hs.clientHello.pskModes {
 		if pskMode == pskModeDHE {
@@ -780,16 +801,24 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 		return err
 	}
 
+	c.resumptionSecret = hs.suite.deriveSecret(hs.masterSecret,
+		resumptionLabel, hs.transcript)
+
 	if !hs.shouldSendSessionTickets() {
 		return nil
 	}
+	return c.sendSessionTicket(false)
+}
 
-	resumptionSecret := hs.suite.deriveSecret(hs.masterSecret,
-		resumptionLabel, hs.transcript)
+func (c *Conn) sendSessionTicket(earlyData bool) error {
+	suite := cipherSuiteTLS13ByID(c.cipherSuite)
+	if suite == nil {
+		return errors.New("tls: internal error: unknown cipher suite")
+	}
 	// ticket_nonce, which must be unique per connection, is always left at
 	// zero because we only ever send one ticket per connection.
-	psk := hs.suite.expandLabel(resumptionSecret, "resumption",
-		nil, hs.suite.hash.Size())
+	psk := suite.expandLabel(c.resumptionSecret, "resumption",
+		nil, suite.hash.Size())
 
 	m := new(newSessionTicketMsgTLS13)
 
@@ -798,6 +827,7 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 		return err
 	}
 	state.secret = psk
+	state.EarlyData = earlyData
 	if c.config.WrapSession != nil {
 		m.label, err = c.config.WrapSession(c.connectionStateLocked(), state)
 		if err != nil {
@@ -820,11 +850,16 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
 	// The value is not stored anywhere; we never need to check the ticket age
 	// because 0-RTT is not supported.
 	ageAdd := make([]byte, 4)
-	_, err = hs.c.config.rand().Read(ageAdd)
+	_, err = c.config.rand().Read(ageAdd)
 	if err != nil {
 		return err
 	}
 	m.ageAdd = binary.LittleEndian.Uint32(ageAdd)
+
+	if earlyData {
+		// RFC 9001, Section 4.6.1
+		m.maxEarlyData = 0xffffffff
+	}
 
 	if _, err := c.writeHandshakeRecord(m, nil); err != nil {
 		return err

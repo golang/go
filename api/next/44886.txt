@@ -1,10 +1,10 @@
-pkg crypto/tls, const QUICEncryptionLevelApplication = 2 #44886
+pkg crypto/tls, const QUICEncryptionLevelApplication = 3 #44886
 pkg crypto/tls, const QUICEncryptionLevelApplication QUICEncryptionLevel #44886
-pkg crypto/tls, const QUICEncryptionLevelHandshake = 1 #44886
+pkg crypto/tls, const QUICEncryptionLevelHandshake = 2 #44886
 pkg crypto/tls, const QUICEncryptionLevelHandshake QUICEncryptionLevel #44886
 pkg crypto/tls, const QUICEncryptionLevelInitial = 0 #44886
 pkg crypto/tls, const QUICEncryptionLevelInitial QUICEncryptionLevel #44886
-pkg crypto/tls, const QUICHandshakeDone = 6 #44886
+pkg crypto/tls, const QUICHandshakeDone = 7 #44886
 pkg crypto/tls, const QUICHandshakeDone QUICEventKind #44886
 pkg crypto/tls, const QUICNoEvent = 0 #44886
 pkg crypto/tls, const QUICNoEvent QUICEventKind #44886

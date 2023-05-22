@@ -876,6 +876,7 @@ type encryptedExtensionsMsg struct {
 	raw                     []byte
 	alpnProtocol            string
 	quicTransportParameters []byte
+	earlyData               bool
 }
 
 func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
@@ -903,6 +904,11 @@ func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
 				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
 					b.AddBytes(m.quicTransportParameters)
 				})
+			}
+			if m.earlyData {
+				// RFC 8446, Section 4.2.10
+				b.AddUint16(extensionEarlyData)
+				b.AddUint16(0) // empty extension_data
 			}
 		})
 	})
@@ -947,6 +953,9 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
 			if !extData.CopyBytes(m.quicTransportParameters) {
 				return false
 			}
+		case extensionEarlyData:
+			// RFC 8446, Section 4.2.10
+			m.earlyData = true
 		default:
 			// Ignore unknown extensions.
 			continue

@@ -65,7 +65,7 @@ type Conn struct {
 	// ekm is a closure for exporting keying material.
 	ekm func(label string, context []byte, length int) ([]byte, error)
 	// resumptionSecret is the resumption_master_secret for handling
-	// NewSessionTicket messages. nil if config.SessionTicketsDisabled.
+	// or sending NewSessionTicket messages.
 	resumptionSecret []byte
 
 	// ticketKeys is the set of active session ticket keys for this

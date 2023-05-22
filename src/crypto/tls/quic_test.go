@@ -85,7 +85,8 @@ func (q *testQUICConn) setWriteSecret(level QUICEncryptionLevel, suite uint16, s
 
 var errTransportParametersRequired = errors.New("transport parameters required")
 
-func runTestQUICConnection(ctx context.Context, a, b *testQUICConn, onHandleCryptoData func()) error {
+func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onHandleCryptoData func()) error {
+	a, b := cli, srv
 	for _, c := range []*testQUICConn{a, b} {
 		if !c.conn.conn.quic.started {
 			if err := c.conn.Start(ctx); err != nil {
@@ -123,6 +124,11 @@ func runTestQUICConnection(ctx context.Context, a, b *testQUICConn, onHandleCryp
 			return errTransportParametersRequired
 		case QUICHandshakeDone:
 			a.complete = true
+			if a == srv {
+				if err := srv.conn.SendSessionTicket(false); err != nil {
+					return err
+				}
+			}
 		}
 		if e.Kind != QUICNoEvent {
 			idleCount = 0

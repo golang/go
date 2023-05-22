@@ -281,6 +281,11 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 		}
 	}
 
+	if hs.hello.earlyData {
+		hs.hello.earlyData = false
+		c.quicRejectedEarlyData()
+	}
+
 	if _, err := hs.c.writeHandshakeRecord(hs.hello, hs.transcript); err != nil {
 		return err
 	}
@@ -452,6 +457,24 @@ func (hs *clientHandshakeStateTLS13) readServerParameters() error {
 		if encryptedExtensions.quicTransportParameters != nil {
 			c.sendAlert(alertUnsupportedExtension)
 			return errors.New("tls: server sent an unexpected quic_transport_parameters extension")
+		}
+	}
+
+	if !hs.hello.earlyData && encryptedExtensions.earlyData {
+		c.sendAlert(alertUnsupportedExtension)
+		return errors.New("tls: server sent an unexpected early_data extension")
+	}
+	if hs.hello.earlyData && !encryptedExtensions.earlyData {
+		c.quicRejectedEarlyData()
+	}
+	if encryptedExtensions.earlyData {
+		if hs.session.cipherSuite != c.cipherSuite {
+			c.sendAlert(alertHandshakeFailure)
+			return errors.New("tls: server accepted 0-RTT with the wrong cipher suite")
+		}
+		if hs.session.alpnProtocol != c.clientProtocol {
+			c.sendAlert(alertHandshakeFailure)
+			return errors.New("tls: server accepted 0-RTT with the wrong ALPN")
 		}
 	}
 
@@ -715,6 +738,12 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 		return errors.New("tls: received a session ticket with invalid lifetime")
 	}
 
+	// RFC 9001, Section 4.6.1
+	if c.quic != nil && msg.maxEarlyData != 0 && msg.maxEarlyData != 0xffffffff {
+		c.sendAlert(alertIllegalParameter)
+		return errors.New("tls: invalid early data for QUIC connection")
+	}
+
 	cipherSuite := cipherSuiteTLS13ByID(c.cipherSuite)
 	if cipherSuite == nil || c.resumptionSecret == nil {
 		return c.sendAlert(alertInternalError)
@@ -731,6 +760,7 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
 	session.secret = psk
 	session.useBy = uint64(c.config.time().Add(lifetime).Unix())
 	session.ageAdd = msg.ageAdd
+	session.EarlyData = c.quic != nil && msg.maxEarlyData == 0xffffffff // RFC 9001, Section 4.6.1
 	cs := &ClientSessionState{ticket: msg.label, session: session}
 
 	if cacheKey := c.clientSessionCacheKey(); cacheKey != "" {

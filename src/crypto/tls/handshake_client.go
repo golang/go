@@ -202,6 +202,16 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 		return err
 	}
 
+	if hello.earlyData {
+		suite := cipherSuiteTLS13ByID(session.cipherSuite)
+		transcript := suite.hash.New()
+		if err := transcriptMsg(hello, transcript); err != nil {
+			return err
+		}
+		earlyTrafficSecret := suite.deriveSecret(earlySecret, clientEarlyTrafficLabel, transcript)
+		c.quicSetWriteSecret(QUICEncryptionLevelEarly, suite.id, earlyTrafficSecret)
+	}
+
 	// serverHelloMsg is not included in the transcript
 	msg, err := c.readHandshake(nil)
 	if err != nil {
@@ -357,6 +367,19 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 	}
 	if !cipherSuiteOk {
 		return nil, nil, nil, nil
+	}
+
+	if c.quic != nil && session.EarlyData {
+		// For 0-RTT, the cipher suite has to match exactly, and we need to be
+		// offering the same ALPN.
+		if mutualCipherSuite(hello.cipherSuites, session.cipherSuite) != nil {
+			for _, alpn := range hello.alpnProtocols {
+				if alpn == session.alpnProtocol {
+					hello.earlyData = true
+					break
+				}
+			}
+		}
 	}
 
 	// Set the pre_shared_key extension. See RFC 8446, Section 4.2.11.1.

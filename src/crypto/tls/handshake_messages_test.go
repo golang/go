@@ -264,6 +264,9 @@ func (*encryptedExtensionsMsg) Generate(rand *rand.Rand, size int) reflect.Value
 	if rand.Intn(10) > 5 {
 		m.alpnProtocol = randomString(rand.Intn(32)+1, rand)
 	}
+	if rand.Intn(10) > 5 {
+		m.earlyData = true
+	}
 
 	return reflect.ValueOf(m)
 }
@@ -347,6 +350,9 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 	s.createdAt = uint64(rand.Int63())
 	s.secret = randomBytes(rand.Intn(100)+1, rand)
 	s.Extra = randomBytes(rand.Intn(100), rand)
+	if rand.Intn(10) > 5 {
+		s.EarlyData = true
+	}
 	if s.isClient || rand.Intn(10) > 5 {
 		if rand.Intn(10) > 5 {
 			s.peerCertificates = sessionTestCerts
@@ -361,6 +367,9 @@ func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 		for i := 0; i < rand.Intn(2)+1; i++ {
 			s.scts = append(s.scts, randomBytes(rand.Intn(500)+1, rand))
 		}
+	}
+	if rand.Intn(10) > 5 && s.EarlyData {
+		s.alpnProtocol = string(randomBytes(rand.Intn(10), rand))
 	}
 	if s.isClient {
 		for i := 0; i < rand.Intn(3); i++ {

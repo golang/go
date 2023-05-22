@@ -16,6 +16,7 @@ type QUICEncryptionLevel int
 
 const (
 	QUICEncryptionLevelInitial = QUICEncryptionLevel(iota)
+	QUICEncryptionLevelEarly
 	QUICEncryptionLevelHandshake
 	QUICEncryptionLevelApplication
 )
@@ -24,6 +25,8 @@ func (l QUICEncryptionLevel) String() string {
 	switch l {
 	case QUICEncryptionLevelInitial:
 		return "Initial"
+	case QUICEncryptionLevelEarly:
+		return "Early"
 	case QUICEncryptionLevelHandshake:
 		return "Handshake"
 	case QUICEncryptionLevelApplication:
@@ -39,6 +42,8 @@ func (l QUICEncryptionLevel) String() string {
 // Methods of QUICConn are not safe for concurrent use.
 type QUICConn struct {
 	conn *Conn
+
+	sessionTicketSent bool
 }
 
 // A QUICConfig configures a QUICConn.
@@ -79,6 +84,11 @@ const (
 	// connection will never generate a QUICTransportParametersRequired event.
 	QUICTransportParametersRequired
 
+	// QUICRejectedEarlyData indicates that the server rejected 0-RTT data even
+	// if we offered it. It's returned before QUICEncryptionLevelApplication
+	// keys are returned.
+	QUICRejectedEarlyData
+
 	// QUICHandshakeDone indicates that the TLS handshake has completed.
 	QUICHandshakeDone
 )
@@ -106,10 +116,10 @@ type quicState struct {
 	nextEvent int
 
 	// eventArr is a statically allocated event array, large enough to handle
-	// the usual maximum number of events resulting from a single call:
-	// transport parameters, Initial data, Handshake write and read secrets,
-	// Handshake data, Application write secret, Application data.
-	eventArr [7]QUICEvent
+	// the usual maximum number of events resulting from a single call: transport
+	// parameters, Initial data, Early read secret, Handshake write and read
+	// secrets, Handshake data, Application write secret, Application data.
+	eventArr [8]QUICEvent
 
 	started  bool
 	signalc  chan struct{}   // handshake data is available to be read
@@ -236,6 +246,24 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
 	return nil
 }
 
+// SendSessionTicket sends a session ticket to the client.
+// It produces connection events, which may be read with NextEvent.
+// Currently, it can only be called once.
+func (q *QUICConn) SendSessionTicket(earlyData bool) error {
+	c := q.conn
+	if !c.isHandshakeComplete.Load() {
+		return quicError(errors.New("tls: SendSessionTicket called before handshake completed"))
+	}
+	if c.isClient {
+		return quicError(errors.New("tls: SendSessionTicket called on the client"))
+	}
+	if q.sessionTicketSent {
+		return quicError(errors.New("tls: SendSessionTicket called multiple times"))
+	}
+	q.sessionTicketSent = true
+	return quicError(c.sendSessionTicket(earlyData))
+}
+
 // ConnectionState returns basic TLS details about the connection.
 func (q *QUICConn) ConnectionState() ConnectionState {
 	return q.conn.ConnectionState()
@@ -341,6 +369,12 @@ func (c *Conn) quicGetTransportParameters() ([]byte, error) {
 func (c *Conn) quicHandshakeComplete() {
 	c.quic.events = append(c.quic.events, QUICEvent{
 		Kind: QUICHandshakeDone,
+	})
+}
+
+func (c *Conn) quicRejectedEarlyData() {
+	c.quic.events = append(c.quic.events, QUICEvent{
+		Kind: QUICRejectedEarlyData,
 	})
 }
 
