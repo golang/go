@@ -93,6 +93,7 @@ version of gopls.
 | ----------- | --------------------------------------------------- |
 | Go 1.12     | [gopls@v0.7.5](https://github.com/golang/tools/releases/tag/gopls%2Fv0.7.5) |
 | Go 1.15     | [gopls@v0.9.5](https://github.com/golang/tools/releases/tag/gopls%2Fv0.9.5) |
+| Go 1.17     | [gopls@v0.11.0](https://github.com/golang/tools/releases/tag/gopls%2Fv0.11.0) |
 
 Our extended support is enforced via [continuous integration with older Go
 versions](doc/contributing.md#ci). This legacy Go CI may not block releases:
