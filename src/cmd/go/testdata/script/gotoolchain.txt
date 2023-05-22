@@ -158,6 +158,28 @@ cp go1999mod go.mod
 ! go version
 stderr '^go: cannot find "go1.999mod" in PATH$'
 
+# go install m@v should use go version in m@v's go.mod
+env GOTOOLCHAIN=path
+env TESTGO_VERSION=go1.19
+cp go1999 go.mod
+! go install rsc.io/fortune/nonexist@v0.0.1
+stderr '^go: cannot find "go1.21rc999" in PATH$'
+
+# go run m@v should use go version in m@v's go.mod
+env GOTOOLCHAIN=path
+env TESTGO_VERSION=go1.19
+cp go1999 go.mod
+! go run -unknownflag=here rsc.io/fortune/nonexist@v0.0.1 args here
+stderr '^go: cannot find "go1.21rc999" in PATH$'
+go run -unknownflag here rsc.io/fortune/nonexist@v0.0.1
+stdout 'go1.999testpath here!'
+
+# go run m@v should handle known flags correctly
+! go run -gcflags foo rsc.io/fortune/nonexist@v0.0.1 args here
+stderr '^go: cannot find "go1.21rc999" in PATH$'
+! go run -x rsc.io/fortune/nonexist@v0.0.1 args here
+stderr '^go: cannot find "go1.21rc999" in PATH$'
+
 -- empty --
 
 -- go1999 --
