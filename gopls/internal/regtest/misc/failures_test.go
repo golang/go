@@ -15,7 +15,6 @@ import (
 // that includes a line directive, which makes no difference since
 // gopls ignores line directives.
 func TestHoverFailure(t *testing.T) {
-	t.Skip("line directives //line ")
 	const mod = `
 -- go.mod --
 module mod.com
@@ -48,7 +47,6 @@ func main() {
 // This test demonstrates a case where gopls is not at all confused by
 // line directives, because it completely ignores them.
 func TestFailingDiagnosticClearingOnEdit(t *testing.T) {
-	t.Skip("line directives //line ")
 	// badPackageDup contains a duplicate definition of the 'a' const.
 	// This is a minor variant of TestDiagnosticClearingOnEdit from
 	// diagnostics_test.go, with a line directive, which makes no difference.
