@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -127,7 +128,10 @@ var errExhausted = errors.New("exhausted")
 
 // Limit go.mod search to 1 million files. As a point of reference,
 // Kubernetes has 22K files (as of 2020-11-24).
-const fileLimit = 1000000
+//
+// Note: per golang/go#56496, the previous limit of 1M files was too slow, at
+// which point this limit was decreased to 100K.
+const fileLimit = 100_000
 
 // findModules recursively walks the root directory looking for go.mod files,
 // returning the set of modules it discovers. If modLimit is non-zero,
@@ -139,7 +143,7 @@ func findModules(root span.URI, excludePath func(string) bool, modLimit int) (ma
 	modFiles := make(map[span.URI]struct{})
 	searched := 0
 	errDone := errors.New("done")
-	err := filepath.Walk(root.Filename(), func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(root.Filename(), func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			// Probably a permission error. Keep looking.
 			return filepath.SkipDir
